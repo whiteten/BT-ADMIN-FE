@@ -1,0 +1,35 @@
+{
+  "compileOnSave": false,
+  "compilerOptions": {
+    "rootDir": ".",
+    "sourceMap": true,
+    "declaration": false,
+    "moduleResolution": "node",
+    "emitDecoratorMetadata": true,
+    "experimentalDecorators": true,
+    "importHelpers": true,
+    "target": "es2015",
+    "module": "esnext",
+    "lib": ["es2020", "dom"],
+    "skipLibCheck": true,
+    "skipDefaultLibCheck": true,
+    "strict": true,
+    "strictNullChecks": true,
+    "jsx": "react-jsx",
+    "allowSyntheticDefaultImports": true,
+    "esModuleInterop": false,
+    "baseUrl": ".",
+    "paths": {
+      "@/*": ["./*"],
+      "@/app/*": ["apps/*"],
+      "@/components/custom/*": ["libs/shared-ui/src/components/custom/*"],
+      "@/components/ui/*": ["libs/shared-ui/src/components/shadcn/*"],
+      "@/lib/utils": ["libs/shared-ui/src/lib/utils"],
+      "@/libs/*": ["libs/*"],
+      "@/log": ["libs/shared-util/src/lib/log.ts"],
+      "@/shared-store": ["libs/shared-store/src/index.ts"],
+      "@/shared-util": ["libs/shared-util/src/index.ts"]
+    }
+  },
+  "exclude": ["node_modules", "tmp"]
+}

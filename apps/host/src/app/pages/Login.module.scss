@@ -1,0 +1,13 @@
+.login-wrapper {
+  :global {
+    .ant-form-item-label label,
+    .ant-checkbox-label,
+    .ant-btn span,
+    .ant-input {
+      font-weight: 400;
+    }
+    .ant-form-item-label {
+      padding-bottom: 4px;
+    }
+  }
+}

@@ -1,0 +1,32 @@
+export interface User {
+  userId?: number;
+  tenantId?: number;
+  tenantName?: string;
+  userSabun: string;
+  userName?: string;
+  position?: string;
+  nodeId?: number;
+  nodeName?: string;
+  grantId?: number;
+  grantName?: string;
+  userTelNo?: string;
+  userStatus?: string;
+  userStatusName?: string;
+  loginLock?: string;
+  multiLogin?: string;
+  oscomName?: string;
+  createTime?: string;
+  createUserId?: number;
+  createUserSabun?: string;
+  centerId?: number;
+  centerName?: string;
+  companyId?: number;
+  companyName?: string;
+  accessScope?: string;
+  ipStart?: string;
+  ipFinsh?: string;
+  loginErrorCount?: number;
+  passwordTime?: string;
+  noticeAutority?: number;
+  approvalAuthority?: number;
+}

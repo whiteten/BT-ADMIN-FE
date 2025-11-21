@@ -1,0 +1,58 @@
+// commitlint.config.js
+module.exports = {
+  extends: ['@commitlint/config-conventional'],
+  parserPreset: {
+    parserOpts: {
+      headerPattern: /^(.+?)(?:\((.+?)\))?(!)?:\s(.+)$/u,
+      headerCorrespondence: ['type', 'scope', 'breaking', 'subject'],
+    },
+  },
+  rules: {
+    'type-enum': [2, 'always', ['🎉init', '✨feat', '📦️chore', '💄design', '🐛fix', '✅test', '🚀deploy', '🔨refactor', '🚚rename', '📚docs', '🔥remove']],
+    'subject-case': [0],
+    'subject-empty': [2, 'never'],
+    'subject-full-stop': [2, 'never', '.'],
+    'header-max-length': [2, 'always', 72],
+    'body-leading-blank': [2, 'always'],
+    'footer-leading-blank': [2, 'always'],
+    'scope-empty': [0],
+    'scope-case': [2, 'always', 'lower-case'],
+  },
+  ignores: [
+    (commit) => /^(merge|revert|wip|initial commit)/i.test(commit),
+    (commit) => /merge (branch|pull request|remote-tracking branch)/i.test(commit),
+    (commit) => /^chore\(deps(-dev)?\):/i.test(commit),
+  ],
+  prompt: {
+    alias: {},
+    messages: {
+      // type: '변경 타입을 선택하세요:',
+      // scope: '변경 범위(선택, 예: 모듈/컴포넌트명):',
+      // subject: '변경 요약(1줄, 명령형):',
+      // body: '상세 설명(여러 줄은 | 로 줄바꿈):',
+      // breaking: '브레이킹 체인지 설명:',
+      // issues: '이슈 참조(예: "fix #123", "re #123"):',
+    },
+    types: [
+      { value: '🎉init', name: '🎉 Init: 프로젝트 초기화' },
+      { value: '✨feat', name: '✨ Feat: 새로운 기능 추가' },
+      { value: '📦️chore', name: '📦️ Chore: 빌드/설정/구조 변경' },
+      { value: '💄design', name: '💄 Design: UI/UX 디자인 변경' },
+      { value: '🐛fix', name: '🐛 Fix: 버그 수정' },
+      { value: '✅test', name: '✅ Test: 테스트 코드 추가/수정' },
+      { value: '🚀deploy', name: '🚀 Deploy: 배포 관련' },
+      { value: '🔨refactor', name: '🔨 Refactor: 리팩터링(동작 변화 없음)' },
+      { value: '🚚rename', name: '🚚 Rename: 파일/폴더 이름 변경' },
+      { value: '📚docs', name: '📚 Docs: 문서 업데이트' },
+      { value: '🔥remove', name: '🔥 Remove: 코드/파일 삭제' },
+    ],
+    useEmoji: true,
+    scopes: [],
+    allowCustomScopes: true,
+    allowEmptyScopes: true,
+    enableMultipleScopes: false,
+    breaklineChar: '|',
+    enableBreakingChange: true,
+    enableIssues: true,
+  },
+};

@@ -1,0 +1,10 @@
+{
+  "nxConsole.generateAiAgentRules": true,
+  "eslint.useFlatConfig": true,
+  "prettier.prettierPath": "node_modules/prettier",
+  "editor.codeActionsOnSave": {
+    "source.fixAll.eslint": "explicit"
+  },
+  "eslint.validate": ["javascript", "javascriptreact", "typescript", "typescriptreact"],
+  "files.eol": "\r\n"
+}

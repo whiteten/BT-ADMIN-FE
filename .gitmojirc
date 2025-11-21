@@ -1,0 +1,46 @@
+{
+  "gitmojis": [
+    {
+      "emoji": "✨",
+      "code": ":sparkles:",
+      "description": "Feat",
+      "name": "sparkles"
+    },
+    {
+      "emoji": "🐛",
+      "code": ":bug:",
+      "description": "Fix",
+      "name": "bug"
+    },
+    {
+      "emoji": "✅",
+      "code": ":white_check_mark:",
+      "description": "Test",
+      "name": "white_check_mark"
+    },
+    {
+      "emoji": "🔨",
+      "code": ":hammer:",
+      "description": "Refactor",
+      "name": "hammer"
+    },
+    {
+      "emoji": "💄",
+      "code": ":lipstick:",
+      "description": "Style",
+      "name": "lipstick"
+    },
+    {
+      "emoji": "📝",
+      "code": ":memo:",
+      "description": "Docs",
+      "name": "memo"
+    },
+    {
+      "emoji": "🔧",
+      "code": ":wrench:",
+      "description": "Chore",
+      "name": "wrench"
+    }
+  ]
+}
