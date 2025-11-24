@@ -19,14 +19,21 @@ export default function Login() {
   return (
     <div className="w-screen min-h-svh flex flex-col items-center justify-center gap-3 bg-[#f3f3f9]">
       <div
-        className="absolute top-0 left-0 w-full h-[557px]"
+        className="absolute top-0 left-0 right-0 w-full h-[557px]"
         style={{
-          background: 'url(/assets/images/login_bg.png) no-repeat center center',
+          background: 'url(/assets/images/login_bg.png) no-repeat 50% center',
           backgroundSize: 'cover',
           backgroundColor: '#f3f3f9',
         }}
-      />
-      <div className="w-full h-full z-10 flex flex-col items-center justify-center relative">
+      >
+        <div className="absolute top-0 left-0 w-full h-full z-10" style={{ backgroundColor: '#1B28364D' }}></div>
+        <div className="absolute bottom-0 left-0 w-full z-20">
+          <svg xmlns="http://www.w3.org/2000/svg" version="1.1" viewBox="0 0 1440 120">
+            <path fill="#f3f3f9" d="M 0,36 C 144,53.6 432,123.2 720,124 C 1008,124.8 1296,56.8 1440,40L1440 140L0 140z"></path>
+          </svg>
+        </div>
+      </div>
+      <div className="w-full h-full z-30 flex flex-col items-center justify-center relative">
         <Card className="w-full max-w-md">
           <CardHeader className="text-center">
             <CardTitle className="text-xl">Welcome</CardTitle>
