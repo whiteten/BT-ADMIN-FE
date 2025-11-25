@@ -508,7 +508,9 @@ function updateBuildSelective(appName) {
       }
 
       // 새 앱 추가 (배열 끝에)
-      const updatedApps = currentApps.trim().replace(/\]$/, '') + `, '${appName}']`;
+      const trimmedApps = currentApps.trim();
+      const separator = trimmedApps ? ', ' : '';
+      const updatedApps = trimmedApps + separator + `'${appName}']`;
       const updatedContent = content.replace(appsRegex, `const APPS = [${updatedApps};`);
 
       fs.writeFileSync(buildSelectivePath, updatedContent);
@@ -548,7 +550,9 @@ function updateServeHost(appName) {
       }
 
       // 새 앱 추가 (배열 끝에)
-      const updatedRemoteApps = currentRemoteApps.trim().replace(/\]$/, '') + `, '${appName}']`;
+      const trimmedRemoteApps = currentRemoteApps.trim();
+      const separator = trimmedRemoteApps ? ', ' : '';
+      const updatedRemoteApps = trimmedRemoteApps + separator + `'${appName}']`;
       const updatedContent = content.replace(remoteAppsRegex, `const REMOTE_APPS = [${updatedRemoteApps};`);
 
       fs.writeFileSync(serveHostPath, updatedContent);
