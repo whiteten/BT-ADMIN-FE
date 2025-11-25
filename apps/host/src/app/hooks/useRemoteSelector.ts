@@ -8,10 +8,7 @@ export interface Remote {
 
 export default function useRemoteSelector() {
   const remotes = useMemo(() => {
-    return [
-      { key: 'core', label: 'CORE' },
-      { key: 'ipron', label: 'IPRON' },
-    ];
+    return [{ key: 'core', label: 'CORE' }];
   }, []);
   const { pathname } = useLocation();
   const [remote, setRemote] = useState<Remote>(remotes.find((remote) => remote.key === pathname.split('/')[1]) ?? remotes[0]);

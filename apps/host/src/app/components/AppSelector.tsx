@@ -1,5 +1,5 @@
 import { useMemo } from 'react';
-import { Check, Database, Waypoints } from 'lucide-react';
+import { Check, Database } from 'lucide-react';
 import { ReactComponent as IconAppSelect } from '../../assets/images/icon/icon-app-select.svg';
 import useRemoteSelector, { type Remote as RemoteType } from '../hooks/useRemoteSelector';
 import { Button } from '@/components/ui/button';
@@ -20,7 +20,6 @@ export default function AppSelector({ className, ...props }: React.ComponentProp
   const appIcons = useMemo(() => {
     return {
       core: <Database />,
-      ipron: <Waypoints />,
     };
   }, []);
 

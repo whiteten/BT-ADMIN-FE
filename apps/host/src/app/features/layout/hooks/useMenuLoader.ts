@@ -10,7 +10,6 @@ type MenuModule = { default: MenuConfig | Record<string, never> };
 
 const MENU_LOADERS: Record<string, () => Promise<MenuModule>> = {
   core: () => import('core/MenuConfig').catch(() => ({ default: {} })) as Promise<MenuModule>,
-  ipron: () => import('ipron/MenuConfig').catch(() => ({ default: {} })) as Promise<MenuModule>,
 };
 
 const loadMenuConfigs = async () => {

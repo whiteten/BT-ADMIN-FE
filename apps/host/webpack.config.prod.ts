@@ -27,7 +27,6 @@ const prodConfig: ModuleFederationConfig = {
    */
   remotes: [
     ['core', '/remotes/core/remoteEntry.js'],
-    ['ipron', '/remotes/ipron/remoteEntry.js'],
   ],
 };
 

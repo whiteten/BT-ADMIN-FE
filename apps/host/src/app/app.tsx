@@ -14,7 +14,6 @@ import '../styles.css';
 import '@/libs/shared-ui/src/lib/aggridSetup';
 
 const Core = React.lazy(() => import('core/Module').catch(() => ({ default: () => <NotFound /> })));
-const Ipron = React.lazy(() => import('ipron/Module').catch(() => ({ default: () => <NotFound /> })));
 
 const AppRoutes = () => (
   <Routes>
@@ -22,9 +21,6 @@ const AppRoutes = () => (
       <Route path="/" element={<Navigate to="/core" />} />
       <Route path="/core" element={<Layout />}>
         <Route index path="*" element={<Core />} />
-      </Route>
-      <Route path="/ipron" element={<Layout />}>
-        <Route index path="*" element={<Ipron />} />
       </Route>
     </Route>
     <Route path="/login" element={<Login />} />

@@ -15,7 +15,7 @@ const config: ModuleFederationConfig = {
    * declare module 'my-external-remote';
    *
    */
-  remotes: ['core', 'ipron'],
+  remotes: ['core'],
   shared: createSharedConfig(),
   additionalShared: [['@/components/ui/sidebar', { singleton: true, strictVersion: true, requiredVersion: false }]],
 };
