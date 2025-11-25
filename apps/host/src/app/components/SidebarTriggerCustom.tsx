@@ -5,7 +5,7 @@ import { useSidebar } from '@/components/ui/sidebar';
 import { cn } from '@/libs/shared-ui/src/lib/utils';
 
 export default function SidebarTriggerCustom({ className, onClick, ...props }: React.ComponentProps<typeof Button>) {
-  const { toggleSidebar, open } = useSidebar();
+  const { toggleSidebar, open, isMobile } = useSidebar();
 
   return (
     <Button
@@ -20,7 +20,7 @@ export default function SidebarTriggerCustom({ className, onClick, ...props }: R
       }}
       {...props}
     >
-      {open ? <IconSidebarLeft className="size-6" /> : <IconSidebarRight className="size-6" />}
+      {isMobile ? <IconSidebarRight className="size-6" /> : open ? <IconSidebarLeft className="size-6" /> : <IconSidebarRight className="size-6" />}
       <span className="sr-only">Toggle Sidebar</span>
     </Button>
   );
