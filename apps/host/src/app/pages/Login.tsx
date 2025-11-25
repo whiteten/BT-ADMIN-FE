@@ -21,7 +21,7 @@ export default function Login() {
       <div
         className="absolute top-0 left-0 right-0 w-full h-[557px]"
         style={{
-          background: 'url(/assets/images/login_bg.png) no-repeat 50% center',
+          background: 'url(/assets/images/login-bg.png) no-repeat 50% center',
           backgroundSize: 'cover',
           backgroundColor: '#f3f3f9',
         }}

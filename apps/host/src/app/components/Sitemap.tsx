@@ -111,7 +111,7 @@ export default function Sitemap({ className, ...props }: React.ComponentProps<ty
   return (
     <>
       <Button variant="ghost" className={cn('size-7', className)} aria-label="Open sitemap" {...props} onClick={() => setIsOpen(true)}>
-        <Map />
+        <Map className="size-5 text-[#495057]" />
         <span className="sr-only">sitemap</span>
       </Button>
 

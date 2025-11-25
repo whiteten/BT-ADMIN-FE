@@ -36,7 +36,7 @@ export default function UserMenuSelector() {
     <Button variant="ghost" className={cn('flex justify-start min-w-[170px] h-full p-1.5 hover:cursor-pointer')}>
       <>
         <Avatar className="h-8 w-8 rounded-lg">
-          <AvatarImage src="assets/images/user-icon.svg" alt="User Icon" />
+          <AvatarImage src="assets/images/icon/icon-user.svg" alt="User Icon" />
           <AvatarFallback className="rounded-lg">USR</AvatarFallback>
         </Avatar>
         <div className="flex flex-col gap-1 text-left text-sm leading-tight">

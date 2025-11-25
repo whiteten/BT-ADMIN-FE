@@ -1,6 +1,7 @@
 import { useNavigate } from 'react-router-dom';
 import _ from 'lodash';
 import { AppWindow, Star, Trash2 } from 'lucide-react';
+import { ReactComponent as IconBookmark } from '../../assets/images/icon/icon-bookmark.svg';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import {
@@ -85,7 +86,7 @@ export default function FavoriteMenuSelector({ className, ...props }: React.Comp
   // Trigger button component
   const triggerButton = (
     <Button variant="ghost" className={cn('size-7', className)} aria-label="Open favorites menu" {...props}>
-      <Star />
+      <IconBookmark className="size-6" />
       <span className="sr-only">즐겨찾기</span>
     </Button>
   );
@@ -93,7 +94,7 @@ export default function FavoriteMenuSelector({ className, ...props }: React.Comp
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>{triggerButton}</DropdownMenuTrigger>
-      <DropdownMenuContent className="w-[--radix-dropdown-menu-trigger-width] min-w-[300px]" align="start">
+      <DropdownMenuContent className="w-[--radix-dropdown-menu-trigger-width] min-w-[300px]" align="end">
         <DropdownMenuLabel>
           <span>즐겨찾기</span>
         </DropdownMenuLabel>
