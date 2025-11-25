@@ -36,7 +36,7 @@ const LNBBody = () => {
   return (
     <SidebarContent>
       <SidebarGroup key={selectedRemoteMenuConfig.rootPath}>
-        <SidebarGroupLabel>{selectedRemoteMenuConfig.groupLabel} 메뉴</SidebarGroupLabel>
+        <SidebarGroupLabel>{selectedRemoteMenuConfig.groupLabel}</SidebarGroupLabel>
         <SidebarMenu>
           {selectedRemoteMenuConfig.items.map((item) => (
             <MenuItem key={item.id} item={item} rootPath={selectedRemoteMenuConfig.rootPath} />
