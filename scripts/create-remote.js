@@ -118,8 +118,8 @@ function createRemote() {
       // 신규앱의 postcss.config.js 파일을 core와 동일하게 복사
       copyPostcssConfig(trimmedAppName);
 
-      // 신규앱의 Dashboard.tsx 파일을 core의 sample에서 복사
-      copyDashboardTemplate(trimmedAppName);
+      // 신규앱의 Main.tsx 파일을 core의 sample에서 복사
+      copyMainTemplate(trimmedAppName);
 
       // 신규앱의 app.tsx 파일을 core의 sample에서 복사 및 주석 제거
       copyAppTemplate(trimmedAppName);
@@ -720,33 +720,33 @@ function copyAppTemplate(appName) {
   }
 }
 
-function copyDashboardTemplate(appName) {
+function copyMainTemplate(appName) {
   const timer = createTimer();
-  logStart(appName, 'Dashboard.tsx 파일 복사');
+  logStart(appName, 'Main.tsx 파일 복사');
   try {
-    const sampleDashboardPath = path.join(process.cwd(), 'apps/core/src/app/features/sample/Dashboard.tsx');
-    const targetDashboardDir = path.join(process.cwd(), `apps/${appName}/src/app/pages/dashboard`);
-    const targetDashboardPath = path.join(targetDashboardDir, 'Dashboard.tsx');
+    const samplePath = path.join(process.cwd(), 'apps/core/src/app/features/sample/Main.tsx');
+    const targetDir = path.join(process.cwd(), `apps/${appName}/src/app/pages/main`);
+    const targetPath = path.join(targetDir, 'Main.tsx');
 
-    // sample Dashboard.tsx 파일 읽기
-    if (!fs.existsSync(sampleDashboardPath)) {
-      logError('core', 'src/app/features/sample/Dashboard.tsx 파일을 찾을 수 없음');
+    // sample Main.tsx 파일 읽기
+    if (!fs.existsSync(samplePath)) {
+      logError('core', 'src/app/features/sample/Main.tsx 파일을 찾을 수 없음');
       return;
     }
 
-    const dashboardContent = fs.readFileSync(sampleDashboardPath, 'utf8');
+    const mainContent = fs.readFileSync(samplePath, 'utf8');
 
     // 디렉토리가 없으면 생성
-    if (!fs.existsSync(targetDashboardDir)) {
-      fs.mkdirSync(targetDashboardDir, { recursive: true });
-      logProgress(`${appName}/src/app/pages/dashboard 디렉토리 생성`);
+    if (!fs.existsSync(targetDir)) {
+      fs.mkdirSync(targetDir, { recursive: true });
+      logProgress(`${appName}/src/app/pages/main 디렉토리 생성`);
     }
 
-    // Dashboard.tsx 파일 생성
-    fs.writeFileSync(targetDashboardPath, dashboardContent);
-    logSuccess(appName, 'Dashboard.tsx 파일 복사', timer);
+    // Main.tsx 파일 생성
+    fs.writeFileSync(targetPath, mainContent);
+    logSuccess(appName, 'Main.tsx 파일 복사', timer);
   } catch (error) {
-    logError(appName, 'Dashboard.tsx 복사', error);
+    logError(appName, 'Main.tsx 복사', error);
   }
 }
 

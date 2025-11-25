@@ -6,15 +6,15 @@ import '../styles.css';
 import { FallbackSpinner } from '@/components/custom/FallbackSpinner';
 import { NotFound } from '@/components/custom/NotFound';
 
-const Dashboard = React.lazy(() => import('./pages/dashboard/Dashboard'));
+const Main = React.lazy(() => import('./pages/main/Main'));
 
 export function App() {
   return (
     <React.Suspense fallback={<FallbackSpinner />}>
       <Routes>
         <Route path="/" element={<Outlet />}>
-          <Route index element={<Navigate to="dashboard" replace />} />
-          <Route path="dashboard" element={<Dashboard />} />
+          <Route index element={<Navigate to="main" replace />} />
+          <Route path="main" element={<Main />} />
         </Route>
         <Route path="*" element={<NotFound homePath="/" />} />
       </Routes>

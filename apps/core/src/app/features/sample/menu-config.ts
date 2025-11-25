@@ -6,8 +6,8 @@ const menuConfig = {
   items: [
     {
       id: `${appName}/dashboard`,
-      label: '대시보드',
-      path: 'dashboard',
+      label: '메인',
+      path: 'main',
       index: 0,
       icon: Home,
       hide: false,
