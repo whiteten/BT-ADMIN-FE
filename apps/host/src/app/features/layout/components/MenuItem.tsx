@@ -5,6 +5,7 @@ import { MenuActionButtons } from './MenuActionButtons';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { HoverCard, HoverCardContent, HoverCardTrigger } from '@/components/ui/hover-card';
 import { SidebarMenuButton, SidebarMenuItem, SidebarMenuSub, SidebarMenuSubButton } from '@/components/ui/sidebar';
+import { cn } from '@/lib/utils';
 import type { MenuItem as MenuItemType } from '@/libs/shared-store/src/types/menu.types';
 
 interface MenuItemProps {
@@ -30,8 +31,8 @@ export const MenuItem = React.memo(({ item, rootPath }: MenuItemProps) => {
         <SidebarMenuItem>
           <CollapsibleTrigger asChild>
             <SidebarMenuButton>
-              {item.icon && <item.icon />}
-              {item.label}
+              {item.icon && <item.icon className="!size-5" />}
+              <span className={cn(!item.icon && "before:content-['-'] before:mr-2")}>{item.label}</span>
               <ChevronRight className="ml-auto transition-transform duration-200 group-data-[state=open]/collapsible:rotate-90" />
             </SidebarMenuButton>
           </CollapsibleTrigger>
@@ -56,8 +57,8 @@ export const MenuItem = React.memo(({ item, rootPath }: MenuItemProps) => {
           <HoverCardTrigger asChild>
             <SidebarMenuSubButton asChild>
               <Link to={absolutePath}>
-                {item.icon && <item.icon />}
-                <span className="w-full">{item.label}</span>
+                {item.icon && <item.icon className="!size-5" />}
+                <span className={cn('w-full', !item.icon && "before:content-['-'] before:mr-2")}>{item.label}</span>
               </Link>
             </SidebarMenuSubButton>
           </HoverCardTrigger>
