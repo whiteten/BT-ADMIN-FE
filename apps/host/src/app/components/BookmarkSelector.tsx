@@ -1,6 +1,7 @@
 import { useNavigate } from 'react-router-dom';
 import _ from 'lodash';
-import { AppWindow, Star, Trash2 } from 'lucide-react';
+import { AppWindow, Trash2 } from 'lucide-react';
+import { useBookmarkStore } from '@/shared-store';
 import { ReactComponent as IconBookmark } from '../../assets/images/icon/icon-bookmark.svg';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -14,13 +15,12 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { Separator } from '@/components/ui/separator';
-import { useFavoriteMenuStore } from '@/libs/shared-store/src/lib/useFavoriteMenuStore';
 import NoData from '@/libs/shared-ui/src/components/custom/NoData';
 import { cn } from '@/libs/shared-ui/src/lib/utils';
 
 // Types
-interface FavoriteItemProps {
-  favorite: {
+interface BookmarkItemProps {
+  bookmark: {
     id: string;
     rootPath: string;
     label: string;
@@ -30,12 +30,12 @@ interface FavoriteItemProps {
   onDelete: (rootPath: string, id: string, label: string, path: string) => void;
 }
 
-const FavoriteItem = ({ favorite, onNavigate, onDelete }: FavoriteItemProps) => (
+const BookmarkItem = ({ bookmark, onNavigate, onDelete }: BookmarkItemProps) => (
   <div className="flex items-center gap-1">
-    <Badge className="min-w-15 bg-gray-200 text-gray-700 ml-1">{favorite.rootPath.toUpperCase()}</Badge>
+    <Badge className="min-w-15 bg-gray-200 text-gray-700 ml-1">{bookmark.rootPath.toUpperCase()}</Badge>
     <DropdownMenuItem>
-      <span className="w-[150px] truncate hover:cursor-pointer" onClick={() => onNavigate(favorite.rootPath, favorite.path, false)}>
-        {favorite.label}
+      <span className="w-[150px] truncate hover:cursor-pointer" onClick={() => onNavigate(bookmark.rootPath, bookmark.path, false)}>
+        {bookmark.label}
       </span>
     </DropdownMenuItem>
     <Button
@@ -43,7 +43,7 @@ const FavoriteItem = ({ favorite, onNavigate, onDelete }: FavoriteItemProps) => 
       variant="ghost"
       size="icon"
       className="hover:cursor-pointer"
-      onClick={() => onNavigate(favorite.rootPath, favorite.path, true)}
+      onClick={() => onNavigate(bookmark.rootPath, bookmark.path, true)}
       aria-label="Open in new window"
     >
       <AppWindow className="text-gray-700" />
@@ -54,8 +54,8 @@ const FavoriteItem = ({ favorite, onNavigate, onDelete }: FavoriteItemProps) => 
       variant="ghost"
       size="icon"
       className="hover:cursor-pointer"
-      onClick={() => onDelete(favorite.rootPath, favorite.id, favorite.label, favorite.path)}
-      aria-label="Remove from favorites"
+      onClick={() => onDelete(bookmark.rootPath, bookmark.id, bookmark.label, bookmark.path)}
+      aria-label="Remove from bookmarks"
     >
       <Trash2 className="text-red-500" />
     </Button>
@@ -63,14 +63,14 @@ const FavoriteItem = ({ favorite, onNavigate, onDelete }: FavoriteItemProps) => 
 );
 
 // Main Component
-export default function FavoriteMenuSelector({ className, ...props }: React.ComponentProps<typeof Button>) {
+export default function BookmarkSelector({ className, ...props }: React.ComponentProps<typeof Button>) {
   const navigate = useNavigate();
-  const _favorites = useFavoriteMenuStore((state) => state.favorites);
-  const toggleFavorite = useFavoriteMenuStore((state) => state.toggleFavorite);
-  const favorites = _.orderBy(_favorites, ['rootPath', 'path'], ['asc', 'asc']);
+  const _bookmarks = useBookmarkStore((state) => state.bookmarks);
+  const toggleBookmark = useBookmarkStore((state) => state.toggleBookmark);
+  const bookmarks = _.orderBy(_bookmarks, ['rootPath', 'path'], ['asc', 'asc']);
 
   // Handlers
-  const handleFavoriteClick = (rootPath: string, path: string, openNewWindow: boolean) => {
+  const handleBookmarkClick = (rootPath: string, path: string, openNewWindow: boolean) => {
     const url = `/${rootPath}/${path}`;
     if (openNewWindow) {
       window.open(url, '_blank');
@@ -79,15 +79,15 @@ export default function FavoriteMenuSelector({ className, ...props }: React.Comp
     }
   };
 
-  const handleDeleteFavorite = (rootPath: string, id: string, label: string, path: string) => {
-    toggleFavorite(rootPath, id, label, path);
+  const handleDeleteBookmark = (rootPath: string, id: string, label: string, path: string) => {
+    toggleBookmark(rootPath, id, label, path);
   };
 
   // Trigger button component
   const triggerButton = (
-    <Button variant="ghost" className={cn('size-7', className)} aria-label="Open favorites menu" {...props}>
+    <Button variant="ghost" className={cn('size-7', className)} aria-label="Open bookmark menu" {...props}>
       <IconBookmark className="size-6" />
-      <span className="sr-only">즐겨찾기</span>
+      <span className="sr-only">북마크</span>
     </Button>
   );
 
@@ -96,15 +96,15 @@ export default function FavoriteMenuSelector({ className, ...props }: React.Comp
       <DropdownMenuTrigger asChild>{triggerButton}</DropdownMenuTrigger>
       <DropdownMenuContent className="w-[--radix-dropdown-menu-trigger-width] min-w-[300px]" align="end">
         <DropdownMenuLabel>
-          <span>즐겨찾기</span>
+          <span>북마크</span>
         </DropdownMenuLabel>
         <DropdownMenuSeparator />
         <DropdownMenuGroup>
-          {favorites.length ? (
-            favorites.map((favorite) => <FavoriteItem key={favorite.id} favorite={favorite} onNavigate={handleFavoriteClick} onDelete={handleDeleteFavorite} />)
+          {bookmarks.length ? (
+            bookmarks.map((bookmark) => <BookmarkItem key={bookmark.id} bookmark={bookmark} onNavigate={handleBookmarkClick} onDelete={handleDeleteBookmark} />)
           ) : (
             <div className="p-2">
-              <NoData message={`등록된 즐겨찾기 항목이 없습니다.`} iconSize={8} fontSize="text-sm" gap={2} />
+              <NoData message={`등록된 북마크 항목이 없습니다.`} iconSize={8} fontSize="text-sm" gap={2} />
             </div>
           )}
         </DropdownMenuGroup>

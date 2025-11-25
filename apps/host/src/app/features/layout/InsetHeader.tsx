@@ -1,5 +1,5 @@
 import AppSelector from '../../components/AppSelector';
-import FavoriteMenuSelector from '../../components/FavoriteMenuSelector';
+import BookmarkSelector from '../../components/BookmarkSelector';
 import SidebarTriggerCustom from '../../components/SidebarTriggerCustom';
 import Sitemap from '../../components/Sitemap';
 import UserMenuSelector from '../../components/UserMenuSelector';
@@ -15,7 +15,7 @@ export default function InsetHeader() {
         <div className="flex items-center gap-2">
           <AppSelector />
           <Separator orientation="vertical" className="data-[orientation=vertical]:h-4" />
-          <FavoriteMenuSelector />
+          <BookmarkSelector />
           <Separator orientation="vertical" className="data-[orientation=vertical]:h-4" />
           <Sitemap />
           <Separator orientation="vertical" className="data-[orientation=vertical]:h-4" />

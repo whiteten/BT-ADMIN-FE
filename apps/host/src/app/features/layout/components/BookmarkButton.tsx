@@ -1,22 +1,22 @@
 import React, { useCallback } from 'react';
 import { Star } from 'lucide-react';
-import { useFavoriteMenuStore } from '@/shared-store';
+import { useBookmarkStore } from '@/shared-store';
 import { Button } from '@/components/ui/button';
 
-interface FavoriteButtonProps {
+interface BookmarkButtonProps {
   menuId: string;
   label: string;
   path: string;
   rootPath: string;
 }
 
-export const FavoriteButton = React.memo(({ menuId, label, path, rootPath }: FavoriteButtonProps) => {
-  const { toggleFavorite, isFavorite } = useFavoriteMenuStore();
-  const isFav = isFavorite(menuId);
+export const BookmarkButton = React.memo(({ menuId, label, path, rootPath }: BookmarkButtonProps) => {
+  const { toggleBookmark, isBookmarked } = useBookmarkStore();
+  const isFav = isBookmarked(menuId);
 
   const handleToggle = useCallback(() => {
-    toggleFavorite(rootPath, menuId, label, path);
-  }, [menuId, label, path, rootPath, toggleFavorite]);
+    toggleBookmark(rootPath, menuId, label, path);
+  }, [menuId, label, path, rootPath, toggleBookmark]);
 
   return (
     <Button type="button" variant="ghost" size="icon" className="h-8 w-8 cursor-pointer" onClick={handleToggle}>
@@ -26,4 +26,4 @@ export const FavoriteButton = React.memo(({ menuId, label, path, rootPath }: Fav
   );
 });
 
-FavoriteButton.displayName = 'FavoriteButton';
+BookmarkButton.displayName = 'BookmarkButton';

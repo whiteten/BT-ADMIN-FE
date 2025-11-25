@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { Modal } from 'antd';
 import { Map } from 'lucide-react';
 import { useMenuStore } from '@/shared-store';
-import { FavoriteButton } from '../features/layout/components/FavoriteButton';
+import { BookmarkButton } from '../features/layout/components/BookmarkButton';
 import { Button } from '@/components/ui/button';
 import type { MenuConfigWithRootPath, MenuItem } from '@/libs/shared-store/src/types/menu.types';
 import { cn } from '@/libs/shared-ui/src/lib/utils';
@@ -29,7 +29,7 @@ function SitemapLeafItem({ item, rootPath, onMenuClick }: SitemapLeafItemProps) 
         </button>
       </div>
       <div className="ml-2 flex items-center gap-1">
-        <FavoriteButton menuId={item.id} label={item.label} path={leafPath} rootPath={rootPath} />
+        <BookmarkButton menuId={item.id} label={item.label} path={leafPath} rootPath={rootPath} />
       </div>
     </li>
   );
@@ -62,7 +62,7 @@ function SitemapMenuItem({ item, rootPath, itemIdx, onMenuClick }: SitemapMenuIt
             <div className="truncate text-sm font-semibold text-gray-700">{item.label}</div>
           )}
         </div>
-        <div className="ml-auto flex items-center gap-1">{itemPath && <FavoriteButton menuId={item.id} label={item.label} path={itemPath} rootPath={rootPath} />}</div>
+        <div className="ml-auto flex items-center gap-1">{itemPath && <BookmarkButton menuId={item.id} label={item.label} path={itemPath} rootPath={rootPath} />}</div>
       </div>
 
       {hasChildren && (
