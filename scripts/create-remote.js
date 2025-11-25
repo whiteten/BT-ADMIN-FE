@@ -465,14 +465,17 @@ function updateBuildScripts(appName) {
   const timer = createTimer();
   logStart('build-scripts', `${appName} 앱 추가`);
   try {
-    // build-selective.js 업데이트
+    // build-selective.js와 serve-host.js, useRemoteSelector.ts 업데이트
     updateBuildSelective(appName);
 
-    // serve-host.js 업데이트 (core는 제외)
     if (appName !== 'core') {
+      // serve-host.js 업데이트
       updateServeHost(appName);
+
+      // useRemoteSelector.ts에 remote 추가
+      updateRemoteSelector(appName);
     } else {
-      logInfo('build-scripts', 'core 앱은 serve-host.js 업데이트 제외');
+      logInfo('build-scripts', 'core 앱은 serve-host.js, useRemoteSelector.ts 업데이트 제외');
     }
 
     logSuccess('build-scripts', `${appName} 앱 추가`, timer);
@@ -562,6 +565,53 @@ function updateServeHost(appName) {
     }
   } catch (error) {
     logError('serve-host.js', `${appName} 앱 추가`, error);
+  }
+}
+
+function updateRemoteSelector(appName) {
+  const timer = createTimer();
+  logStart('useRemoteSelector.ts', `${appName} remote 추가`);
+  try {
+    const useRemoteSelectorPath = path.join(process.cwd(), 'apps/host/src/app/hooks/useRemoteSelector.ts');
+
+    // useRemoteSelector.ts 파일이 존재하는지 확인
+    if (!fs.existsSync(useRemoteSelectorPath)) {
+      logError('useRemoteSelector.ts', '파일을 찾을 수 없음');
+      return;
+    }
+
+    const content = fs.readFileSync(useRemoteSelectorPath, 'utf8');
+
+    // remotes 배열 찾기
+    const remotesRegex = /return \[(.*?)\];/s;
+    const match = content.match(remotesRegex);
+
+    if (match) {
+      const currentRemotes = match[1];
+
+      // 이미 존재하는지 확인
+      if (currentRemotes.includes(`key: '${appName}'`)) {
+        logInfo('useRemoteSelector.ts', `${appName} remote가 이미 존재함 (스킵)`);
+        return;
+      }
+
+      // 새 remote 추가 (배열 끝에)
+      const appLabel = appName.toUpperCase();
+      const trimmedRemotes = currentRemotes.trim();
+      const separator = trimmedRemotes ? ', ' : '';
+      const newRemote = `{ key: '${appName}', label: '${appLabel}' }`;
+      const updatedRemotes = trimmedRemotes + separator + newRemote;
+
+      const updatedContent = content.replace(remotesRegex, `return [${updatedRemotes}];`);
+
+      fs.writeFileSync(useRemoteSelectorPath, updatedContent);
+      logInfo('useRemoteSelector.ts', `${appName} remote를 '${appLabel}'로 설정`);
+      logSuccess('useRemoteSelector.ts', `${appName} remote 추가`, timer);
+    } else {
+      logError('useRemoteSelector.ts', 'remotes 배열을 찾을 수 없음');
+    }
+  } catch (error) {
+    logError('useRemoteSelector.ts', `${appName} remote 추가`, error);
   }
 }
 
