@@ -1,8 +1,4 @@
-import { ReactComponent as IconMenuBotConfig } from '../../../assets/images/icon/icon-menu-bot_config.svg';
-import { ReactComponent as IconMenuBotCommon } from '../../../assets/images/icon/icon-menu-common.svg';
-import { ReactComponent as IconMenuDashboard } from '../../../assets/images/icon/icon-menu-dashboard.svg';
-import { ReactComponent as IconMenuMain } from '../../../assets/images/icon/icon-menu-main.svg';
-import { ReactComponent as IconMenuStatistics } from '../../../assets/images/icon/icon-menu-statistics.svg';
+import { IconMenuBotCommon, IconMenuBotConfig, IconMenuDashboard, IconMenuMain, IconMenuStatistics } from '@/components/custom/Icons';
 
 const appName = 'bot';
 const menuConfig = {

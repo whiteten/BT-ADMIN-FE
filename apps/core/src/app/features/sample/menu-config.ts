@@ -1,4 +1,4 @@
-import { Home } from 'lucide-react';
+import { IconMenuMain } from '@/components/custom/Icons';
 
 const appName = '';
 const menuConfig = {
@@ -9,7 +9,7 @@ const menuConfig = {
       label: '메인',
       path: 'main',
       index: 0,
-      icon: Home,
+      icon: IconMenuMain,
       hide: false,
     },
   ],

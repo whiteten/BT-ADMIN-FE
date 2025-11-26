@@ -1,4 +1,4 @@
-import { Home, Settings } from 'lucide-react';
+import { IconMenuItemsPlus, IconMenuMain } from '@/components/custom/Icons';
 
 const menuConfig = {
   groupLabel: 'CORE',
@@ -8,13 +8,13 @@ const menuConfig = {
       label: '대시보드',
       path: 'dashboard',
       index: 0,
-      icon: Home,
+      icon: IconMenuMain,
       hide: false,
     },
     {
       id: 'core/_config',
       label: '자원 관리',
-      icon: Settings,
+      icon: IconMenuItemsPlus,
       index: 1,
       hide: false,
       children: [
