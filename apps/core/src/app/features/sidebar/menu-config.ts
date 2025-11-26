@@ -5,7 +5,7 @@ const menuConfig = {
   items: [
     {
       id: 'core/dashboard',
-      label: '대시보드',
+      label: '메인',
       path: 'dashboard',
       index: 0,
       icon: IconMenuMain,
