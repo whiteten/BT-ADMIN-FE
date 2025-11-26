@@ -121,6 +121,9 @@ function createRemote() {
       // 신규앱의 Main.tsx 파일을 core의 sample에서 복사
       copyMainTemplate(trimmedAppName);
 
+      // 신규앱의 routes.tsx 파일을 core의 sample에서 복사
+      copyRoutesTemplate(trimmedAppName);
+
       // 신규앱의 app.tsx 파일을 core의 sample에서 복사 및 주석 제거
       copyAppTemplate(trimmedAppName);
 
@@ -582,8 +585,8 @@ function updateRemoteSelector(appName) {
 
     const content = fs.readFileSync(useRemoteSelectorPath, 'utf8');
 
-    // remotes 배열 찾기
-    const remotesRegex = /return \[(.*?)\];/s;
+    // remotes 배열 찾기 (여러 줄 형식 지원)
+    const remotesRegex = /return \[([\s\S]*?)\];/;
     const match = content.match(remotesRegex);
 
     if (match) {
@@ -595,14 +598,21 @@ function updateRemoteSelector(appName) {
         return;
       }
 
-      // 새 remote 추가 (배열 끝에)
-      const appLabel = appName.toUpperCase();
-      const trimmedRemotes = currentRemotes.trim();
-      const separator = trimmedRemotes ? ', ' : '';
-      const newRemote = `{ key: '${appName}', label: '${appLabel}' }`;
-      const updatedRemotes = trimmedRemotes + separator + newRemote;
+      // 들여쓰기 추출 (기존 항목에서)
+      const indentMatch = currentRemotes.match(/\n(\s+)\{/);
+      const indent = indentMatch ? indentMatch[1] : '      ';
 
-      const updatedContent = content.replace(remotesRegex, `return [${updatedRemotes}];`);
+      // 새 remote 추가 (마지막 항목 뒤 새 줄에)
+      const appLabel = appName.toUpperCase();
+      const newRemote = `\n${indent}{ key: '${appName}', label: '${appLabel}' },`;
+
+      // 마지막 항목에 콤마가 있는지 확인
+      const trimmedRemotes = currentRemotes.trimEnd();
+      const needsComma = !trimmedRemotes.endsWith(',');
+
+      const updatedRemotes = needsComma ? trimmedRemotes + ',' + newRemote : trimmedRemotes + newRemote;
+
+      const updatedContent = content.replace(remotesRegex, `return [${updatedRemotes}\n${indent.slice(2)}];`);
 
       fs.writeFileSync(useRemoteSelectorPath, updatedContent);
       logInfo('useRemoteSelector.ts', `${appName} remote를 '${appLabel}'로 설정`);
@@ -740,7 +750,7 @@ function copyBabelrc(appName) {
 
 function copyAppTemplate(appName) {
   const timer = createTimer();
-  logStart(appName, 'app.tsx 파일 복사 및 주석 제거');
+  logStart(appName, 'app.tsx 파일 복사');
   try {
     const sampleAppPath = path.join(process.cwd(), 'apps/core/src/app/features/sample/app.tsx');
     const targetAppPath = path.join(process.cwd(), `apps/${appName}/src/app/app.tsx`);
@@ -751,24 +761,11 @@ function copyAppTemplate(appName) {
       return;
     }
 
-    let appContent = fs.readFileSync(sampleAppPath, 'utf8');
-
-    // 주석 제거 (// 주석과 /* */ 주석)
-    appContent = appContent
-      .replace(/\/\*[\s\S]*?\*\//g, '') // /* */ 주석 제거
-      .replace(/\/\/.*$/gm, '') // // 주석 제거
-      .replace(/^\s*[\r\n]/gm, '') // 빈 줄 제거
-      .trim();
-
-    logProgress('주석 및 빈 줄 제거 완료');
-
-    // NotFound 컴포넌트의 homePath를 새 앱 이름으로 변경
-    appContent = appContent.replace(/homePath="\/[^"]*"/g, `homePath="/${appName}"`);
-    logProgress(`homePath를 "/${appName}"으로 변경`);
+    const appContent = fs.readFileSync(sampleAppPath, 'utf8');
 
     // app.tsx 파일에 저장
     fs.writeFileSync(targetAppPath, appContent);
-    logSuccess(appName, 'app.tsx 파일 복사 및 주석 제거', timer);
+    logSuccess(appName, 'app.tsx 파일 복사', timer);
   } catch (error) {
     logError(appName, 'app.tsx 복사', error);
   }
@@ -801,6 +798,42 @@ function copyMainTemplate(appName) {
     logSuccess(appName, 'Main.tsx 파일 복사', timer);
   } catch (error) {
     logError(appName, 'Main.tsx 복사', error);
+  }
+}
+
+function copyRoutesTemplate(appName) {
+  const timer = createTimer();
+  logStart(appName, 'routes.tsx 파일 복사 및 주석 제거');
+  try {
+    const samplePath = path.join(process.cwd(), 'apps/core/src/app/features/sample/routes.tsx');
+    const targetPath = path.join(process.cwd(), `apps/${appName}/src/app/routes.tsx`);
+
+    // sample routes.tsx 파일 읽기
+    if (!fs.existsSync(samplePath)) {
+      logError('core', 'src/app/features/sample/routes.tsx 파일을 찾을 수 없음');
+      return;
+    }
+
+    let routesContent = fs.readFileSync(samplePath, 'utf8');
+
+    // 주석 제거 (// 주석과 /* */ 주석)
+    routesContent = routesContent
+      .replace(/\/\*[\s\S]*?\*\//g, '') // /* */ 주석 제거
+      .replace(/\/\/.*$/gm, '') // // 주석 제거
+      .replace(/^\s*[\r\n]/gm, '') // 빈 줄 제거
+      .trim();
+
+    logProgress('주석 및 빈 줄 제거 완료');
+
+    // NotFound 컴포넌트의 homePath를 새 앱 이름으로 변경
+    routesContent = routesContent.replace(/homePath="\/[^"]*"/g, `homePath="/${appName}"`);
+    logProgress(`homePath를 "/${appName}"으로 변경`);
+
+    // routes.tsx 파일 생성
+    fs.writeFileSync(targetPath, routesContent);
+    logSuccess(appName, 'routes.tsx 파일 복사 및 주석 제거', timer);
+  } catch (error) {
+    logError(appName, 'routes.tsx 복사', error);
   }
 }
 
