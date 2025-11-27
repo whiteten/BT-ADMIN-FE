@@ -672,14 +672,21 @@ function updateProjectJson(appName) {
     // targets.build.options.styles 값 변경
     if (projectJson.targets && projectJson.targets.build && projectJson.targets.build.options) {
       projectJson.targets.build.options.styles = ['libs/shared-ui/src/styles/global.css'];
-
-      // 수정된 내용을 파일에 저장
-      fs.writeFileSync(targetProjectJsonPath, JSON.stringify(projectJson, null, 2));
       logInfo(appName, 'styles 설정을 libs/shared-ui/src/styles/global.css로 변경');
-      logSuccess(appName, 'project.json 파일 수정', timer);
     } else {
       logError(appName, 'targets.build.options 구조를 찾을 수 없음');
+      return;
     }
+
+    // production configuration에서 extractLicenses 값 변경
+    if (projectJson.targets && projectJson.targets.build && projectJson.targets.build.configurations && projectJson.targets.build.configurations.production) {
+      projectJson.targets.build.configurations.production.extractLicenses = false;
+      logInfo(appName, 'production extractLicenses를 false로 변경');
+    }
+
+    // 수정된 내용을 파일에 저장
+    fs.writeFileSync(targetProjectJsonPath, JSON.stringify(projectJson, null, 2));
+    logSuccess(appName, 'project.json 파일 수정', timer);
   } catch (error) {
     logError(appName, 'project.json 파일 수정', error);
   }
