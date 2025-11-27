@@ -118,6 +118,9 @@ function createRemote() {
       // 신규앱의 postcss.config.js 파일을 core와 동일하게 복사
       copyPostcssConfig(trimmedAppName);
 
+      // 신규앱의 tailwind.config.js 파일을 core와 동일하게 복사
+      copyTailwindConfig(trimmedAppName);
+
       // 신규앱의 Main.tsx 파일을 core의 sample에서 복사
       copyMainTemplate(trimmedAppName);
 
@@ -705,6 +708,35 @@ function copyPostcssConfig(appName) {
     logSuccess(appName, 'postcss.config.js 파일을 core와 동일하게 변경', timer);
   } catch (error) {
     logError(appName, 'postcss.config.js 파일 처리', error);
+  }
+}
+
+function copyTailwindConfig(appName) {
+  const timer = createTimer();
+  logStart(appName, 'tailwind.config.js 파일을 core와 동일하게 변경');
+  try {
+    const coreTailwindPath = path.join(process.cwd(), 'apps/core/tailwind.config.js');
+    const targetTailwindPath = path.join(process.cwd(), `apps/${appName}/tailwind.config.js`);
+
+    // core의 tailwind.config.js 파일 읽기
+    if (!fs.existsSync(coreTailwindPath)) {
+      logError('core', 'tailwind.config.js 파일을 찾을 수 없음');
+      return;
+    }
+
+    const coreTailwindContent = fs.readFileSync(coreTailwindPath, 'utf8');
+
+    // 대상 앱의 tailwind.config.js 파일이 존재하는지 확인
+    if (!fs.existsSync(targetTailwindPath)) {
+      logError(appName, 'tailwind.config.js 파일을 찾을 수 없음');
+      return;
+    }
+
+    // core의 내용을 대상 앱에 복사
+    fs.writeFileSync(targetTailwindPath, coreTailwindContent);
+    logSuccess(appName, 'tailwind.config.js 파일을 core와 동일하게 변경', timer);
+  } catch (error) {
+    logError(appName, 'tailwind.config.js 파일 처리', error);
   }
 }
 
