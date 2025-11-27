@@ -136,6 +136,9 @@ function createRemote() {
       // build-selective.js와 serve-host.js 업데이트
       updateBuildScripts(trimmedAppName);
 
+      // host의 webpack.config.prod.ts 파일 업데이트
+      updateWebpackConfigProd(trimmedAppName);
+
       // 신규앱의 .babelrc 파일을 host와 동일하게 복사
       copyBabelrc(trimmedAppName);
 
@@ -777,6 +780,48 @@ function copyBabelrc(appName) {
     logSuccess(appName, '.babelrc 파일을 host와 동일하게 복사', timer);
   } catch (error) {
     logError(appName, '.babelrc 파일 처리', error);
+  }
+}
+
+function updateWebpackConfigProd(appName) {
+  const timer = createTimer();
+  logStart('host', `webpack.config.prod.ts에 ${appName} remote 추가`);
+  try {
+    const webpackProdPath = path.join(process.cwd(), 'apps/host/webpack.config.prod.ts');
+
+    if (!fs.existsSync(webpackProdPath)) {
+      logError('host', 'webpack.config.prod.ts 파일을 찾을 수 없음');
+      return;
+    }
+
+    const content = fs.readFileSync(webpackProdPath, 'utf8');
+
+    // remotes 배열 찾기
+    const remotesRegex = /remotes:\s*\[([\s\S]*?)\],/;
+    const match = content.match(remotesRegex);
+
+    if (match) {
+      const currentRemotes = match[1];
+
+      // 이미 존재하는지 확인
+      if (currentRemotes.includes(`'${appName}'`)) {
+        logInfo('host', `${appName}이 이미 webpack.config.prod.ts에 존재함 (스킵)`);
+        return;
+      }
+
+      // 새 remote 추가 (마지막 항목 뒤에)
+      const newRemote = `\n    ['${appName}', '/remotes/${appName}/remoteEntry.js'],`;
+      const updatedRemotes = currentRemotes.trimEnd() + newRemote;
+
+      const updatedContent = content.replace(remotesRegex, `remotes: [${updatedRemotes}\n  ],`);
+
+      fs.writeFileSync(webpackProdPath, updatedContent);
+      logSuccess('host', `webpack.config.prod.ts에 ${appName} remote 추가`, timer);
+    } else {
+      logError('host', 'remotes 배열을 찾을 수 없음');
+    }
+  } catch (error) {
+    logError('host', `webpack.config.prod.ts 업데이트`, error);
   }
 }
 

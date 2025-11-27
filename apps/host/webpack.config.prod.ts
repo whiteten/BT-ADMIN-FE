@@ -27,6 +27,7 @@ const prodConfig: ModuleFederationConfig = {
    */
   remotes: [
     ['core', '/remotes/core/remoteEntry.js'],
+    ['bot', '/remotes/bot/remoteEntry.js'],
   ],
 };
 
