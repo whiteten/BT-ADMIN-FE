@@ -803,8 +803,8 @@ function updateWebpackConfigProd(appName) {
 
     const content = fs.readFileSync(webpackProdPath, 'utf8');
 
-    // remotes 배열 찾기
-    const remotesRegex = /remotes:\s*\[([\s\S]*?)\],/;
+    // remotes 배열 찾기 (배열 전체 캡처, 마지막 ],까지)
+    const remotesRegex = /^\s*remotes:\s*\[([\s\S]*)\]\s*,/m;
     const match = content.match(remotesRegex);
 
     if (match) {
