@@ -53,7 +53,7 @@ export default function BotCard({ botName, version, nluModel, conversationCount,
               icon={<IconTag className="mr-0.5" />}
               className="!inline-flex items-center !px-2 !py-1 !m-0"
               classNames={{
-                content: 'max-w-[75px] truncate',
+                content: 'max-w-[80px] truncate',
               }}
             >
               {tag}
