@@ -48,11 +48,11 @@ for (const projectPath of projectNames) {
   const tempConfigPath = `.tsconfig.temp.${projectPath.replace('/', '-')}.json`;
 
   try {
-    // 해당 프로젝트의 tsconfig를 extends
+    // 해당 프로젝트의 tsconfig를 extends (types 설정이 포함된 파일)
+    const configName = projectPath.startsWith('libs') ? 'tsconfig.lib.json' : 'tsconfig.app.json';
     const tempConfig = {
-      extends: `./${projectPath}/tsconfig.json`,
+      extends: `./${projectPath}/${configName}`,
       files,
-      include: [`./${projectPath}/src/**/*.d.ts`],
       compilerOptions: {
         noEmit: true,
       },
@@ -62,7 +62,7 @@ for (const projectPath of projectNames) {
 
     console.log(`\nType checking ${projectPath} (${files.length} files):`);
     execSync(`pnpm exec tsc --project ${tempConfigPath}`, { stdio: 'inherit' });
-  } catch (error) {
+  } catch {
     hasErrors = true;
   } finally {
     // 임시 파일 정리
