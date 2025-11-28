@@ -2,15 +2,20 @@ import { Button, Input, Select } from 'antd';
 import BotCard from '../../features/bot-config/BotCard';
 import type { Bot } from '../../features/bot-config/types';
 
-const sampleBotList: Bot[] = Array.from({ length: 20 }).map((_, index) => ({
-  id: `${index}`,
-  botName: `봇 샘플 ${index}`,
-  version: `v1.0.${index}`,
-  nluModel: `모델 ${index}`,
-  conversationCount: index,
-  registrationDate: `2025-11-11 00:00:00`,
-  tags: Array.from({ length: Math.floor(Math.random() * 10) + 1 }).map((_, index) => `태그${index + 1}`),
-}));
+const sampleTags = ['봇', '채팅', 'AI', '상담봇', '주문처리', '배송조회', '결제시스템', '주문자동화', '고객상담챗봇', '자동주문처리', '고객상담자동화', '주문처리자동화'];
+const sampleBotList: Bot[] = Array.from({ length: 20 }).map((_, index) => {
+  const shuffled = [...sampleTags].sort(() => Math.random() - 0.5);
+  const tagCount = Math.floor(Math.random() * 4) + 1;
+  return {
+    id: `bot-${index + 1}`,
+    botName: `봇 샘플 ${index + 1}`,
+    version: `v1.0.${index}`,
+    nluModel: `모델 ${index}`,
+    conversationCount: index * 100,
+    registrationDate: `2025-11-11 00:00:00`,
+    tags: shuffled.slice(0, tagCount),
+  };
+});
 
 export default function BotList() {
   return (
