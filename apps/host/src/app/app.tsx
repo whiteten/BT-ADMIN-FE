@@ -19,7 +19,7 @@ const Bot = React.lazy(() => import('bot/Module').catch(() => ({ default: () => 
 const AppRoutes = () => (
   <Routes>
     <Route element={<ProtectRouter />}>
-      <Route path="/" element={<Navigate to="/core" />} />
+      <Route path="/" element={<Navigate to="/bot" />} />
       <Route path="/core" element={<Layout />}>
         <Route index path="*" element={<Core />} />
       </Route>
