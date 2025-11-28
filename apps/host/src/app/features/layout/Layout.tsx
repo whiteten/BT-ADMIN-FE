@@ -8,7 +8,6 @@ import LNBFooter from './LNBFooter';
 import LNBHeader from './LNBHeader';
 import { useMenuLoader } from './hooks/useMenuLoader';
 import { Sidebar, SidebarInset, SidebarProvider } from '@/components/ui/sidebar';
-import '@ant-design/v5-patch-for-react-19';
 
 export function Layout() {
   const { load } = useMenuLoader();
