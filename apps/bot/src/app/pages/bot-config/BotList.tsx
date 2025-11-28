@@ -3,7 +3,7 @@ import BotCard from '../../features/bot-config/BotCard';
 import type { Bot } from '../../features/bot-config/types';
 
 const sampleTags = ['봇', '채팅', 'AI', '상담봇', '주문처리', '배송조회', '결제시스템', '주문자동화', '고객상담챗봇', '자동주문처리', '고객상담자동화', '주문처리자동화'];
-const sampleBotList: Bot[] = Array.from({ length: 20 }).map((_, index) => {
+const sampleBotList: Bot[] = Array.from({ length: 10 }).map((_, index) => {
   const shuffled = [...sampleTags].sort(() => Math.random() - 0.5);
   const tagCount = Math.floor(Math.random() * 4) + 1;
   return {
