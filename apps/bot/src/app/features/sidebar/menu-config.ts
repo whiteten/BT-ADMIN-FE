@@ -22,14 +22,14 @@ const menuConfig = {
         {
           id: `${appName}/_config-bot/bot`,
           label: '봇',
-          path: 'bot-config/bots',
+          path: 'bot-config/bot/list',
           index: 0,
           hide: false,
         },
         {
           id: `${appName}/_config-bot/model`,
           label: '모델',
-          path: 'bot-config/models',
+          path: 'bot-config/model/list',
           index: 1,
           hide: false,
         },
