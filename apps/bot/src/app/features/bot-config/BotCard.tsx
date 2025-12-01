@@ -1,7 +1,8 @@
 import { useEffect, useRef, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Card, Tag } from 'antd';
 
-import type { Bot } from './types';
+import type { BotListItem } from './types';
 
 import { ReactComponent as IconLinkIfe } from '../../../assets/images/icon/icon-link-ife.svg';
 import { ReactComponent as IconLinkNlu } from '../../../assets/images/icon/icon-link-nlu.svg';
@@ -41,9 +42,13 @@ const useWrappedItemCount = () => {
   return { containerRef, wrappedCount };
 };
 
-export default function BotCard({ botName, version, nluModel, conversationCount, registrationDate, tags }: Bot) {
+export default function BotCard({ serviceId, serviceName, serviceVer, modelName, conversationCount, workTime, tags }: BotListItem) {
   const { containerRef, wrappedCount } = useWrappedItemCount();
+  const navigate = useNavigate();
 
+  const handleClickDetailBtn = () => {
+    navigate(`../${serviceId}`);
+  };
   const extra = (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
@@ -53,23 +58,25 @@ export default function BotCard({ botName, version, nluModel, conversationCount,
         </Button>
       </DropdownMenuTrigger>
       <DropdownMenuContent className="dark" align="end">
-        <DropdownMenuItem>상세보기</DropdownMenuItem>
-        <DropdownMenuItem>삭제</DropdownMenuItem>
+        <DropdownMenuItem onClick={handleClickDetailBtn} className="hover:cursor-pointer">
+          상세보기
+        </DropdownMenuItem>
+        <DropdownMenuItem className="hover:cursor-pointer">삭제</DropdownMenuItem>
       </DropdownMenuContent>
     </DropdownMenu>
   );
 
   return (
-    <Card title={botName} styles={{ header: { paddingRight: '0 20px 0 20px' }, body: { padding: '20px', paddingTop: '16px' } }} extra={extra}>
+    <Card title={serviceName} styles={{ header: { paddingRight: '0 20px 0 20px' }, body: { padding: '20px', paddingTop: '16px' } }} extra={extra}>
       <div className="flex flex-col text-[#495057] gap-2">
         <div className="flex">
           <span className="w-[104px]">버전</span>
-          <span className="mr-2">{version}</span>
+          <span className="mr-2">{serviceVer}</span>
           <IconLinkIfe className="hover:cursor-pointer" />
         </div>
         <div className="flex">
           <span className="w-[104px]">NLU모델</span>
-          <span className="mr-2">{nluModel}</span>
+          <span className="mr-2">{modelName}</span>
           <IconLinkNlu className="hover:cursor-pointer" />
         </div>
         <div className="flex">
@@ -78,22 +85,24 @@ export default function BotCard({ botName, version, nluModel, conversationCount,
         </div>
         <div className="flex">
           <span className="w-[104px]">서비스 개시일</span>
-          <span>{registrationDate}</span>
+          <span>{workTime}</span>
         </div>
         <div className="flex items-center justify-between w-full">
-          <div ref={containerRef} className="flex flex-wrap gap-2 w-[calc(100%-50px)] h-[30px] overflow-hidden">
-            {tags?.map((tag) => (
-              <Tag
-                key={tag}
-                variant="filled"
-                icon={<IconTag className="mr-0.5" />}
-                className="!inline-flex items-center !px-2 !py-1 !m-0"
-                classNames={{ content: 'max-w-[80px] truncate' }}
-              >
-                {tag}
-              </Tag>
-            ))}
-          </div>
+          {tags && tags.length > 0 && (
+            <div ref={containerRef} className="flex flex-wrap gap-2 w-[calc(100%-40px)] h-[30px] overflow-hidden">
+              {tags?.map((tag) => (
+                <Tag
+                  key={tag}
+                  variant="filled"
+                  icon={<IconTag className="mr-0.5" />}
+                  className="!inline-flex items-center !px-2 !py-1 !m-0"
+                  classNames={{ content: 'max-w-[80px] truncate' }}
+                >
+                  {tag}
+                </Tag>
+              ))}
+            </div>
+          )}
           {wrappedCount > 0 && (
             <Tag variant="filled" className="!inline-flex items-center !px-2 !py-1 !m-0">
               +{wrappedCount}

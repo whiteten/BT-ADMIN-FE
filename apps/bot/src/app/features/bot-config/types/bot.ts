@@ -1,9 +1,16 @@
 export interface Bot {
-  id: string;
-  botName: string;
-  version: string;
-  nluModel: string;
+  serviceId: string;
+  serviceName: string;
+  serviceDesc?: string;
+  serviceVer?: string;
+  modelId?: string;
+  modelName?: string;
   conversationCount: number;
-  registrationDate: string;
+  confidence: [number, number];
   tags?: string[];
+  workTime: string;
 }
+
+export type BotListItem = Omit<Bot, 'confidence'>;
+
+export type BotCreateField = Omit<Bot, 'serviceId' | 'conversationCount' | 'workTime'>;
