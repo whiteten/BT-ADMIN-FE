@@ -200,7 +200,16 @@
 }
 
 @layer components {
-  .custom-shadow {
+  .bt-shadow {
     @apply rounded-lg shadow-[0px_1px_2px_0px_#38414A26];
+  }
+
+  .bt-scroll-hide {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+
+  .bt-scroll-hide::-webkit-scrollbar {
+    display: none;
   }
 }

@@ -27,16 +27,16 @@ export default function BotList() {
   return (
     <div className="flex flex-col gap-4 w-full h-full overflow-hidden">
       {/* Header */}
-      <header className="flex items-center justify-between w-full h-[58px] bg-white custom-shadow px-7 py-4">
+      <header className="flex items-center justify-between w-full h-[58px] bg-white bt-shadow px-7 py-4">
         <div>
-          <span className="text-[20px] font-bold">봇 목록</span>
+          <span className="text-[20px] font-bold text-[#495057]">봇 목록</span>
         </div>
         <div>
           <span className="text-[14px] text-[#495057]">{`봇 관리 > 봇 > 봇 목록`}</span>
         </div>
       </header>
       {/* Filter */}
-      <div className="flex items-center justify-between w-full h-[76px] bg-white custom-shadow px-7 py-5">
+      <div className="flex items-center justify-between w-full h-[76px] bg-white bt-shadow px-7 py-5">
         <div>
           <Select
             defaultValue="serviceName"

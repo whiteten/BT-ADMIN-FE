@@ -49,12 +49,12 @@ export function Layout() {
           } as React.CSSProperties
         }
       >
-        <Sidebar variant="sidebar" className="">
+        <Sidebar variant="sidebar">
           <LNBHeader />
           <LNBBody />
           <LNBFooter />
         </Sidebar>
-        <SidebarInset className="h-[100vh]">
+        <SidebarInset className="h-[100vh] overflow-hidden">
           <InsetHeader />
           <div className="w-full h-full p-5 overflow-y-auto bg-[#f3f3f9]" style={{ scrollbarGutter: 'stable' }}>
             <Outlet />

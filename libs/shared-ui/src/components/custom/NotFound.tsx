@@ -14,7 +14,7 @@ export function NotFound({ useFullScreen = false, homePath = '/' }: NotFoundProp
     navigate(homePath);
   };
   return (
-    <div className={cn('w-full h-full flex items-center justify-center bg-white custom-shadow', useFullScreen && 'h-screen')}>
+    <div className={cn('w-full h-full flex items-center justify-center bg-white bt-shadow', useFullScreen && 'h-screen')}>
       <Result
         status="404"
         title="404"

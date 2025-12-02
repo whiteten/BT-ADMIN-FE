@@ -51,17 +51,17 @@ export default function BotCreate() {
   };
 
   return (
-    <div className="flex flex-col gap-4 w-full h-full">
+    <div className="flex flex-col gap-4 w-full h-full overflow-hidden">
       {/* Header */}
-      <header className="flex items-center justify-between w-full h-[58px] bg-white custom-shadow px-7 py-4">
+      <header className="flex items-center justify-between w-full h-[58px] min-h-[58px] bg-white bt-shadow px-7 py-4">
         <div>
-          <span className="text-[20px] font-bold">봇 생성</span>
+          <span className="text-[20px] font-bold text-[#495057]">봇 생성</span>
         </div>
         <div>
           <span className="text-[14px] text-[#495057]">{`봇 관리 > 봇 > 봇 생성`}</span>
         </div>
       </header>
-      <div className="w-full h-full bg-white custom-shadow p-7">
+      <div className="w-full h-[calc(100%-58px-20px)] min-h-[calc(100%-58px-20px)] bg-white bt-shadow p-7 overflow-y-auto">
         <Form form={form} initialValues={{ modelId: null, confidence: [40, 80], tags: [] }} onFinish={onFinish} onFinishFailed={onFinishFailed} layout="vertical">
           <Row>
             <Col span={12}>

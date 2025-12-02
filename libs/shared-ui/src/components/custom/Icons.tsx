@@ -7,3 +7,4 @@ export { ReactComponent as IconMenuBotCommon } from '../../assets/images/icon/ic
 export { ReactComponent as IconMenuItemsPlus } from '../../assets/images/icon/icon-menu-items-plus.svg';
 export { ReactComponent as IconMoreVertical } from '../../assets/images/icon/icon-more-vertical.svg';
 export { ReactComponent as IconTag } from '../../assets/images/icon/icon-tag.svg';
+export { ReactComponent as IconDocument } from '../../assets/images/icon/icon-document.svg';
