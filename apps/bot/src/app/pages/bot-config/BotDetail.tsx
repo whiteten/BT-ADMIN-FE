@@ -14,7 +14,7 @@ export default function BotDetail() {
     {
       id: 'basic',
       label: '기본정보',
-      icon: <IconDocument className="h-5 w-5" />,
+      icon: IconDocument,
       component: BotBasicInfo,
     },
   ];
