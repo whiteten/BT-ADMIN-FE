@@ -50,7 +50,7 @@ export default function BotBasicInfo() {
   const onFinishFailed: FormProps<BotCreateField>['onFinishFailed'] = (errorInfo) => {
     Log.warn('onFinishFailed', errorInfo);
   };
-
+  console.log(11111);
   return (
     <Form form={form} initialValues={{ modelId: null, confidence: [40, 80], tags: [] }} onFinish={onFinish} onFinishFailed={onFinishFailed} layout="vertical">
       <Row>

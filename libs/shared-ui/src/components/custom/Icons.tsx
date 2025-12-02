@@ -8,3 +8,7 @@ export { ReactComponent as IconMenuItemsPlus } from '../../assets/images/icon/ic
 export { ReactComponent as IconMoreVertical } from '../../assets/images/icon/icon-more-vertical.svg';
 export { ReactComponent as IconTag } from '../../assets/images/icon/icon-tag.svg';
 export { ReactComponent as IconDocument } from '../../assets/images/icon/icon-document.svg';
+export { ReactComponent as IconLayer } from '../../assets/images/icon/icon-layer.svg';
+export { ReactComponent as IconCalendar } from '../../assets/images/icon/icon-calendar.svg';
+export { ReactComponent as IconTalk } from '../../assets/images/icon/icon-talk.svg';
+export { ReactComponent as IconSlidersHorizontal } from '../../assets/images/icon/icon-sliders-horizontal.svg';
