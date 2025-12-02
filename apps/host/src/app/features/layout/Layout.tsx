@@ -21,6 +21,7 @@ export function Layout() {
           controlHeight: 36,
           borderRadius: 4,
           colorBorder: '#CED4DA',
+          red: '#F06548',
         },
         components: {
           Button: {

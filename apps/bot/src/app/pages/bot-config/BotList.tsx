@@ -1,6 +1,6 @@
 import { useNavigate } from 'react-router-dom';
 import { Button, Input, Select } from 'antd';
-import BotCard from '../../features/bot-config/BotCard';
+import BotCard from '../../features/bot-config/components/BotCard';
 import type { BotListItem } from '../../features/bot-config/types';
 
 const sampleTags = ['봇', '채팅', 'AI', '상담봇', '주문처리', '배송조회', '결제시스템', '주문자동화', '고객상담챗봇', '자동주문처리', '고객상담자동화', '주문처리자동화'];

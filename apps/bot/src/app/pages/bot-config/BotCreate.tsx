@@ -4,12 +4,13 @@ import { Button, Col, Form, type FormProps, Input, Row, Select, type SelectProps
 import { Log } from '@/log';
 import type { BotCreateField } from '../../features/bot-config/types';
 import { IconTag } from '@/components/custom/Icons';
+import PageHeader from '@/components/custom/PageHeader';
 
 export default function BotCreate() {
   const navigate = useNavigate();
   const { TextArea } = Input;
   const [confidence, setConfidence] = useState([40, 80]);
-  const nluModelOptions = [
+  const modelOptions = [
     { label: 'NLU 모델 1', value: 'nluModel1' },
     { label: 'NLU 모델 2', value: 'nluModel2' },
     { label: 'NLU 모델 3', value: 'nluModel3' },
@@ -52,15 +53,7 @@ export default function BotCreate() {
 
   return (
     <div className="flex flex-col gap-4 w-full h-full overflow-hidden">
-      {/* Header */}
-      <header className="flex items-center justify-between w-full h-[58px] min-h-[58px] bg-white bt-shadow px-7 py-4">
-        <div>
-          <span className="text-[20px] font-bold text-[#495057]">봇 생성</span>
-        </div>
-        <div>
-          <span className="text-[14px] text-[#495057]">{`봇 관리 > 봇 > 봇 생성`}</span>
-        </div>
-      </header>
+      <PageHeader title="봇 생성" breadcrumb="봇 관리 > 봇 > 봇 생성" />
       <div className="w-full h-[calc(100%-58px-20px)] min-h-[calc(100%-58px-20px)] bg-white bt-shadow p-7 overflow-y-auto">
         <Form form={form} initialValues={{ modelId: null, confidence: [40, 80], tags: [] }} onFinish={onFinish} onFinishFailed={onFinishFailed} layout="vertical">
           <Row>
@@ -80,7 +73,7 @@ export default function BotCreate() {
           <Row gutter={20}>
             <Col span={6}>
               <Form.Item name="modelId" label="NLU 모델" required hasFeedback rules={[{ required: true, message: 'NLU 모델을 선택해 주세요.' }]}>
-                <Select options={nluModelOptions} allowClear showSearch={{ optionFilterProp: 'label' }} placeholder="봇이 이용할 언어 모델을 선택하세요." />
+                <Select options={modelOptions} allowClear showSearch={{ optionFilterProp: 'label' }} placeholder="봇이 이용할 언어 모델을 선택하세요." />
               </Form.Item>
             </Col>
             <Col span={6}>
@@ -111,7 +104,7 @@ export default function BotCreate() {
           </Row>
           <Row justify="center">
             <Col>
-              <Button type="primary" htmlType="submit">
+              <Button color="primary" variant="solid" htmlType="submit">
                 저장
               </Button>
             </Col>

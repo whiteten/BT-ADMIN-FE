@@ -2,10 +2,9 @@ import { useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Card, Tag } from 'antd';
 
-import type { BotListItem } from './types';
-
-import { ReactComponent as IconLinkIfe } from '../../../assets/images/icon/icon-link-ife.svg';
-import { ReactComponent as IconLinkNlu } from '../../../assets/images/icon/icon-link-nlu.svg';
+import { ReactComponent as IconLinkIfe } from '../../../../assets/images/icon/icon-link-ife.svg';
+import { ReactComponent as IconLinkNlu } from '../../../../assets/images/icon/icon-link-nlu.svg';
+import type { BotListItem } from '../types';
 import { IconMoreVertical, IconTag } from '@/components/custom/Icons';
 import { Button } from '@/components/ui/button';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
