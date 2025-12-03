@@ -73,14 +73,16 @@ export default function PageTabs({ tabs, defaultTab }: PageTabsProps) {
         const Component = tab.component;
         return (
           <TabsContent key={tab.id} value={tab.id} className="flex-0 w-full h-[calc(100%-58px-20px)] min-h-[calc(100%-58px-20px)]">
-            <div className="w-full h-full bg-white bt-shadow overflow-y-auto p-7">
-              <Suspense fallback={<FallbackSpinner />}>
-                <div className="flex gap-2 items-center text-[#085FB5] mb-6">
-                  {tab.icon && <tab.icon className="h-5 w-5" />}
-                  <span className="text-[20px] font-bold">{tab.label}</span>
-                </div>
-                <Component />
-              </Suspense>
+            <div className="w-full h-full bg-white bt-shadow overflow-y-auto">
+              <div className="p-7">
+                <Suspense fallback={<FallbackSpinner />}>
+                  <div className="flex gap-2 items-center text-[#085FB5] mb-6">
+                    {tab.icon && <tab.icon className="h-5 w-5" />}
+                    <span className="text-[20px] font-bold">{tab.label}</span>
+                  </div>
+                  <Component />
+                </Suspense>
+              </div>
             </div>
           </TabsContent>
         );

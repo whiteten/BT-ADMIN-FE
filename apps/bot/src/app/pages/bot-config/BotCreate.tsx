@@ -102,7 +102,7 @@ export default function BotCreate() {
               </Form.Item>
             </Col>
           </Row>
-          <Row justify="center">
+          <Row justify="center" className="sticky bottom-0 bg-white z-10 pb-7">
             <Col>
               <Button color="primary" variant="solid" htmlType="submit">
                 저장

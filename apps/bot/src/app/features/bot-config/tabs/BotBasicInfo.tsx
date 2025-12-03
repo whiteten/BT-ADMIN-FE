@@ -108,7 +108,7 @@ export default function BotBasicInfo() {
           </Form.Item>
         </Col>
       </Row>
-      <Row justify="center" gutter={10}>
+      <Row justify="center" gutter={10} className="sticky bottom-0 bg-white z-10 pb-7">
         <Col>
           <Button color="primary" variant="solid" htmlType="submit">
             저장
