@@ -1,4 +1,4 @@
-import { OctagonAlert } from 'lucide-react';
+import { IconDataEmpty } from './Icons';
 import { cn } from '../../lib/utils';
 
 type TailwindFontSize =
@@ -23,10 +23,10 @@ interface NoDataProps {
   gap?: number;
 }
 
-export default function NoData({ message = '데이터가 없습니다.', iconSize = 15, fontSize = 'text-base', gap = 4 }: NoDataProps) {
+export default function NoData({ message = '조회된 데이터가 없습니다.', iconSize = 15, fontSize = 'text-base', gap = 4 }: NoDataProps) {
   return (
     <div className={cn('w-full h-full flex flex-col gap-4 items-center justify-center', `gap-${gap}`)}>
-      <OctagonAlert className={`size-${iconSize} text-gray-500`} />
+      <IconDataEmpty className={`size-${iconSize} text-gray-500`} />
       <pre className={cn('text-gray-500', fontSize)}>{message}</pre>
     </div>
   );

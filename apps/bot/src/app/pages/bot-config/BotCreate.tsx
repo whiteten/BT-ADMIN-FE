@@ -54,62 +54,64 @@ export default function BotCreate() {
   return (
     <div className="flex flex-col gap-4 w-full h-full overflow-hidden">
       <PageHeader title="봇 생성" breadcrumb="봇 관리 > 봇 > 봇 생성" />
-      <div className="w-full h-[calc(100%-58px-20px)] min-h-[calc(100%-58px-20px)] bg-white bt-shadow p-7 overflow-y-auto">
-        <Form form={form} initialValues={{ modelId: null, confidence: [40, 80], tags: [] }} onFinish={onFinish} onFinishFailed={onFinishFailed} layout="vertical">
-          <Row>
-            <Col span={12}>
-              <Form.Item name="serviceName" label="봇 이름" required hasFeedback rules={[{ required: true, message: '봇 이름을 입력해 주세요.' }]}>
-                <Input placeholder="봇 이름을 입력하세요." />
-              </Form.Item>
-            </Col>
-          </Row>
-          <Row>
-            <Col span={24}>
-              <Form.Item name="serviceDesc" label="봇 설명">
-                <TextArea rows={4} placeholder="봇 설명을 입력하세요." />
-              </Form.Item>
-            </Col>
-          </Row>
-          <Row gutter={20}>
-            <Col span={6}>
-              <Form.Item name="modelId" label="NLU 모델" required hasFeedback rules={[{ required: true, message: 'NLU 모델을 선택해 주세요.' }]}>
-                <Select options={modelOptions} allowClear showSearch={{ optionFilterProp: 'label' }} placeholder="봇이 이용할 언어 모델을 선택하세요." />
-              </Form.Item>
-            </Col>
-            <Col span={6}>
-              <Form.Item name="confidence" label="신뢰도" required hasFeedback rules={[{ required: true, message: '신뢰도를 설정해 주세요.' }]}>
-                <Slider
-                  range
-                  value={confidence}
-                  onChange={setConfidence}
-                  min={0}
-                  max={100}
-                  step={1}
-                  marks={{ 0: '0', 100: '100' }}
-                  tooltip={{ formatter: (value) => `${value}%` }}
-                  styles={{
-                    rail: { background: getSliderRailBackground() },
-                    track: { background: 'transparent' },
-                  }}
-                />
-              </Form.Item>
-            </Col>
-          </Row>
-          <Row>
-            <Col span={24}>
-              <Form.Item name="tags" label="태그">
-                <Select mode="tags" tagRender={tagRender} classNames={{ root: '!p-1' }} placeholder="태그를 입력하세요(Enter로 추가)" tokenSeparators={[',']} />
-              </Form.Item>
-            </Col>
-          </Row>
-          <Row justify="center" className="sticky bottom-0 bg-white z-10 pb-7">
-            <Col>
-              <Button color="primary" variant="solid" htmlType="submit">
-                저장
-              </Button>
-            </Col>
-          </Row>
-        </Form>
+      <div className="w-full h-[calc(100%-58px-20px)] min-h-[calc(100%-58px-20px)] bg-white bt-shadow overflow-y-auto">
+        <div className="w-full h-full p-7">
+          <Form form={form} initialValues={{ modelId: null, confidence: [40, 80], tags: [] }} onFinish={onFinish} onFinishFailed={onFinishFailed} layout="vertical">
+            <Row>
+              <Col span={12}>
+                <Form.Item name="serviceName" label="봇 이름" required hasFeedback rules={[{ required: true, message: '봇 이름을 입력해 주세요.' }]}>
+                  <Input placeholder="봇 이름을 입력하세요." />
+                </Form.Item>
+              </Col>
+            </Row>
+            <Row>
+              <Col span={24}>
+                <Form.Item name="serviceDesc" label="봇 설명">
+                  <TextArea rows={4} placeholder="봇 설명을 입력하세요." />
+                </Form.Item>
+              </Col>
+            </Row>
+            <Row gutter={20}>
+              <Col span={6}>
+                <Form.Item name="modelId" label="NLU 모델" required hasFeedback rules={[{ required: true, message: 'NLU 모델을 선택해 주세요.' }]}>
+                  <Select options={modelOptions} allowClear showSearch={{ optionFilterProp: 'label' }} placeholder="봇이 이용할 언어 모델을 선택하세요." />
+                </Form.Item>
+              </Col>
+              <Col span={6}>
+                <Form.Item name="confidence" label="신뢰도" required hasFeedback rules={[{ required: true, message: '신뢰도를 설정해 주세요.' }]}>
+                  <Slider
+                    range
+                    value={confidence}
+                    onChange={setConfidence}
+                    min={0}
+                    max={100}
+                    step={1}
+                    marks={{ 0: '0', 100: '100' }}
+                    tooltip={{ formatter: (value) => `${value}%` }}
+                    styles={{
+                      rail: { background: getSliderRailBackground() },
+                      track: { background: 'transparent' },
+                    }}
+                  />
+                </Form.Item>
+              </Col>
+            </Row>
+            <Row>
+              <Col span={24}>
+                <Form.Item name="tags" label="태그">
+                  <Select mode="tags" tagRender={tagRender} classNames={{ root: '!p-1' }} placeholder="태그를 입력하세요(Enter로 추가)" tokenSeparators={[',']} />
+                </Form.Item>
+              </Col>
+            </Row>
+            <Row justify="center" className="sticky bottom-0 bg-white z-10 pb-7">
+              <Col>
+                <Button color="primary" variant="solid" htmlType="submit">
+                  저장
+                </Button>
+              </Col>
+            </Row>
+          </Form>
+        </div>
       </div>
     </div>
   );

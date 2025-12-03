@@ -2,6 +2,7 @@ import { useNavigate } from 'react-router-dom';
 import { Button, Input, Select } from 'antd';
 import BotCard from '../../features/bot-config/components/BotCard';
 import type { BotListItem } from '../../features/bot-config/types';
+import NoData from '@/components/custom/NoData';
 import PageHeader from '@/components/custom/PageHeader';
 
 const sampleTags = ['봇', '채팅', 'AI', '상담봇', '주문처리', '배송조회', '결제시스템', '주문자동화', '고객상담챗봇', '자동주문처리', '고객상담자동화', '주문처리자동화'];
@@ -26,7 +27,7 @@ export default function BotList() {
     navigate('../create');
   };
   return (
-    <div className="flex flex-col gap-4 w-full h-full overflow-hidden">
+    <div className="flex flex-col gap-4 w-full h-full">
       <PageHeader title="봇 목록" breadcrumb="봇 관리 > 봇 > 봇 목록" />
       {/* Filter */}
       <div className="flex items-center justify-between gap-2 w-full h-[76px] bg-white bt-shadow px-7 py-5">
@@ -50,11 +51,17 @@ export default function BotList() {
           </Button>
         </div>
       </div>
-      <div className="grid grid-cols-[repeat(auto-fill,minmax(350px,1fr))] gap-4 w-full overflow-y-auto">
-        {sampleBotList.map((bot) => (
-          <BotCard key={bot.serviceId} {...bot} />
-        ))}
-      </div>
+      {sampleBotList?.length ? (
+        <div className="grid grid-cols-[repeat(auto-fill,minmax(350px,1fr))] gap-4 w-full overflow-y-auto">
+          {sampleBotList.map((bot) => (
+            <BotCard key={bot.serviceId} {...bot} />
+          ))}
+        </div>
+      ) : (
+        <div className="flex items-center justify-center w-full h-full bg-white bt-shadow">
+          <NoData message={`조회된 데이터가 없습니다.`} iconSize={50} fontSize="text-lg" gap={2} />
+        </div>
+      )}
     </div>
   );
 }

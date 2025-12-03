@@ -104,7 +104,7 @@ export default function BookmarkSelector({ className, ...props }: React.Componen
             bookmarks.map((bookmark) => <BookmarkItem key={bookmark.id} bookmark={bookmark} onNavigate={handleBookmarkClick} onDelete={handleDeleteBookmark} />)
           ) : (
             <div className="p-2">
-              <NoData message={`등록된 북마크 항목이 없습니다.`} iconSize={8} fontSize="text-sm" gap={2} />
+              <NoData message={`등록된 북마크 항목이 없습니다.`} iconSize={15} fontSize="text-sm" gap={2} />
             </div>
           )}
         </DropdownMenuGroup>

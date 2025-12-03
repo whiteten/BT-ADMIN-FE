@@ -12,3 +12,4 @@ export { ReactComponent as IconLayer } from '../../assets/images/icon/icon-layer
 export { ReactComponent as IconCalendar } from '../../assets/images/icon/icon-calendar.svg';
 export { ReactComponent as IconTalk } from '../../assets/images/icon/icon-talk.svg';
 export { ReactComponent as IconSlidersHorizontal } from '../../assets/images/icon/icon-sliders-horizontal.svg';
+export { ReactComponent as IconDataEmpty } from '../../assets/images/icon/icon-data-empty.svg';
