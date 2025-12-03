@@ -12,7 +12,6 @@ export interface Bot {
 }
 
 export type BotListItem = Omit<Bot, 'confidence'>;
-
-export type BotCreateField = Omit<Bot, 'serviceId' | 'conversationCount' | 'workTime'>;
-
-export type BotBasicInfoField = Omit<Bot, 'conversationCount'>;
+export type BotCreateRequest = Omit<Bot, 'serviceId' | 'conversationCount' | 'workTime'>;
+export type BotBasicInfoRequest = Omit<Bot, 'conversationCount' | 'workTime'>;
+export type BotBasicInfoResponse = Omit<Bot, 'conversationCount'>;

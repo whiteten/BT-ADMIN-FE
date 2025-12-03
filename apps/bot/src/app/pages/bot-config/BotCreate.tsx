@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Button, Col, Form, type FormProps, Input, Row, Select, type SelectProps, Slider, Tag } from 'antd';
 import { Log } from '@/log';
-import type { BotCreateField } from '../../features/bot-config/types';
+import type { BotCreateRequest } from '../../features/bot-config/types';
 import { IconTag } from '@/components/custom/Icons';
 import PageHeader from '@/components/custom/PageHeader';
 
@@ -42,12 +42,12 @@ export default function BotCreate() {
     );
   };
 
-  const onFinish: FormProps<BotCreateField>['onFinish'] = (values) => {
+  const onFinish: FormProps<BotCreateRequest>['onFinish'] = (values) => {
     Log.debug('onFinish', values);
     navigate('../list');
   };
 
-  const onFinishFailed: FormProps<BotCreateField>['onFinishFailed'] = (errorInfo) => {
+  const onFinishFailed: FormProps<BotCreateRequest>['onFinishFailed'] = (errorInfo) => {
     Log.warn('onFinishFailed', errorInfo);
   };
 

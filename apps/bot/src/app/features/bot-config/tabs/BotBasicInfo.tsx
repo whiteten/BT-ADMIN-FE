@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Button, Col, Form, type FormProps, Input, Row, Select, type SelectProps, Slider, Tag } from 'antd';
 import { Log } from '@/log';
-import type { BotCreateField } from '../types';
+import type { BotBasicInfoRequest } from '../types';
 import { IconTag } from '@/components/custom/Icons';
 
 export default function BotBasicInfo() {
@@ -46,12 +46,12 @@ export default function BotBasicInfo() {
     );
   };
 
-  const onFinish: FormProps<BotCreateField>['onFinish'] = (values) => {
+  const onFinish: FormProps<BotBasicInfoRequest>['onFinish'] = (values) => {
     Log.debug('onFinish', values);
     navigate('../list');
   };
 
-  const onFinishFailed: FormProps<BotCreateField>['onFinishFailed'] = (errorInfo) => {
+  const onFinishFailed: FormProps<BotBasicInfoRequest>['onFinishFailed'] = (errorInfo) => {
     Log.warn('onFinishFailed', errorInfo);
   };
 
