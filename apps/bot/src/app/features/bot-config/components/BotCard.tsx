@@ -103,7 +103,7 @@ export default function BotCard({ serviceId, serviceName, serviceVer, modelName,
             </div>
           )}
           {wrappedCount > 0 && (
-            <Tag variant="filled" className="!inline-flex items-center !px-2 !py-1 !m-0">
+            <Tag variant="filled" className="!inline-flex items-center !px-2 !py-1 !m-0 !rounded-[14px] !text-[#888B9A]">
               +{wrappedCount}
             </Tag>
           )}
