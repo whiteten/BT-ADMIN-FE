@@ -7,14 +7,18 @@ import { IconTag } from '@/components/custom/Icons';
 
 export default function BotBasicInfo() {
   const navigate = useNavigate();
+
   const { TextArea } = Input;
+  const [form] = Form.useForm();
+
+  const [serviceVer, setServiceVer] = useState('');
   const [confidence, setConfidence] = useState([40, 80]);
+
   const modelOptions = [
     { label: 'NLU 모델 1', value: 'nluModel1' },
     { label: 'NLU 모델 2', value: 'nluModel2' },
     { label: 'NLU 모델 3', value: 'nluModel3' },
   ];
-  const [form] = Form.useForm();
 
   const getSliderRailBackground = () => {
     const [min, max] = confidence;
@@ -50,13 +54,18 @@ export default function BotBasicInfo() {
   const onFinishFailed: FormProps<BotCreateField>['onFinishFailed'] = (errorInfo) => {
     Log.warn('onFinishFailed', errorInfo);
   };
-  console.log(11111);
+
   return (
     <Form form={form} initialValues={{ modelId: null, confidence: [40, 80], tags: [] }} onFinish={onFinish} onFinishFailed={onFinishFailed} layout="vertical">
-      <Row>
-        <Col span={12}>
+      <Row gutter={20}>
+        <Col span={9}>
           <Form.Item name="serviceName" label="봇 이름" required hasFeedback rules={[{ required: true, message: '봇 이름을 입력해 주세요.' }]}>
             <Input placeholder="봇 이름을 입력하세요." />
+          </Form.Item>
+        </Col>
+        <Col span={3}>
+          <Form.Item label="봇 버전">
+            <Input disabled value={serviceVer} />
           </Form.Item>
         </Col>
       </Row>
