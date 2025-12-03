@@ -2,6 +2,7 @@ import { useNavigate } from 'react-router-dom';
 import { Button, Input, Select } from 'antd';
 import BotCard from '../../features/bot-config/components/BotCard';
 import type { BotListItem } from '../../features/bot-config/types';
+import PageHeader from '@/components/custom/PageHeader';
 
 const sampleTags = ['봇', '채팅', 'AI', '상담봇', '주문처리', '배송조회', '결제시스템', '주문자동화', '고객상담챗봇', '자동주문처리', '고객상담자동화', '주문처리자동화'];
 const sampleBotList: BotListItem[] = Array.from({ length: 10 }).map((_, index) => {
@@ -26,18 +27,10 @@ export default function BotList() {
   };
   return (
     <div className="flex flex-col gap-4 w-full h-full overflow-hidden">
-      {/* Header */}
-      <header className="flex items-center justify-between w-full h-[58px] bg-white bt-shadow px-7 py-4">
-        <div>
-          <span className="text-[20px] font-bold text-[#495057]">봇 목록</span>
-        </div>
-        <div>
-          <span className="text-[14px] text-[#495057]">{`봇 관리 > 봇 > 봇 목록`}</span>
-        </div>
-      </header>
+      <PageHeader title="봇 목록" breadcrumb="봇 관리 > 봇 > 봇 목록" />
       {/* Filter */}
-      <div className="flex items-center justify-between w-full h-[76px] bg-white bt-shadow px-7 py-5">
-        <div>
+      <div className="flex items-center justify-between gap-2 w-full h-[76px] bg-white bt-shadow px-7 py-5">
+        <div className="flex gap-2 w-full items-center">
           <Select
             defaultValue="serviceName"
             options={[
@@ -46,10 +39,10 @@ export default function BotList() {
               { label: 'NLU 모델', value: 'modelName' },
               { label: '태그', value: 'tag' },
             ]}
-            className="!max-w-[150px] !min-w-[120px] !mr-3"
+            className="!max-w-[150px] !min-w-[120px]"
             popupMatchSelectWidth={false}
           />
-          <Input className="!w-[400px]" placeholder="검색어를 입력하세요." />
+          <Input className="w-full max-w-[400px]" placeholder="검색어를 입력하세요." />
         </div>
         <div>
           <Button type="primary" onClick={handleClickCreateBtn}>
