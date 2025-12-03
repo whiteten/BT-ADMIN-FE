@@ -58,7 +58,7 @@ export default function Login() {
                 </Form.Item>
 
                 <Form.Item className="!mb-0">
-                  <Button type="primary" size="large" htmlType="submit" block className="!bg-[#085FB5]">
+                  <Button type="primary" size="large" htmlType="submit" block className="!bg-[var(--color-bt-primary)]">
                     로그인
                   </Button>
                 </Form.Item>

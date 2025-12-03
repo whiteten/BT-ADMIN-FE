@@ -49,7 +49,7 @@ export default function PageTabs({ tabs, defaultTab }: PageTabsProps) {
             {tabs.map((tab) => (
               <TabsTrigger
                 key={tab.id}
-                className="w-auto hover:cursor-pointer !shadow-none border-1 border-transparent !rounded-none border-r-[#E9EBEC] text-[#495057] data-[state=active]:border-b-2 data-[state=active]:border-b-[#085FB5] data-[state=active]:text-[#085FB5]"
+                className="w-auto hover:cursor-pointer !shadow-none border-1 border-transparent !rounded-none border-r-[#E9EBEC] text-[#495057] data-[state=active]:border-b-2 data-[state=active]:border-b-[var(--color-bt-primary)] data-[state=active]:text-[var(--color-bt-primary)]"
                 value={tab.id}
               >
                 <div className="flex items-center justify-center gap-2 min-w-[184px]">
@@ -76,7 +76,7 @@ export default function PageTabs({ tabs, defaultTab }: PageTabsProps) {
             <div className="w-full h-full bg-white bt-shadow overflow-y-auto">
               <div className="w-full h-full p-7">
                 <Suspense fallback={<FallbackSpinner />}>
-                  <div className="flex gap-2 items-center text-[#085FB5] mb-6">
+                  <div className="flex gap-2 items-center text-[var(--color-bt-primary)] mb-6">
                     {tab.icon && <tab.icon className="h-5 w-5" />}
                     <span className="text-[20px] font-bold">{tab.label}</span>
                   </div>
