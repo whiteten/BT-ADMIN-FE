@@ -6,6 +6,7 @@ import type { BotVersionListItem } from '../types/bot';
 import useAggridOptions from '@/libs/shared-ui/src/hooks/useAggridOptions';
 
 const columnDefs: ColDef<BotVersionListItem>[] = [
+  { headerName: 'ID', field: 'serviceId', hide: true },
   { headerName: '버전', field: 'serviceVer' },
   { headerName: '버전명', field: 'versionName' },
   { headerName: '작업자', field: 'workUser' },
@@ -17,9 +18,9 @@ export default function BotVersion() {
   const [rowData, setRowData] = useState<BotVersionListItem[]>([]);
   const [loading, setLoading] = useState(false);
   return (
-    <div className="flex flex-col gap-2 w-full h-full">
+    <div className="flex flex-col gap-5 w-full h-full">
       <header className="flex items-center justify-between w-full gap-2 lg:flex-nowrap flex-wrap">
-        <div className="flex items-center w-full gap-2">
+        <div className="flex items-center w-full gap-3">
           <Select
             defaultValue="version"
             options={[
@@ -31,7 +32,7 @@ export default function BotVersion() {
           />
           <Input className="w-full lg:max-w-[400px]" placeholder="검색어를 입력하세요." />
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2.5">
           <Button variant="solid">버전추가</Button>
           <Button variant="solid">대화편집</Button>
           <Button variant="solid" color="primary">
