@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import type { ColDef } from 'ag-grid-community';
 import { AgGridReact } from 'ag-grid-react';
 import { Button, Input, Select } from 'antd';
@@ -8,15 +8,30 @@ import useAggridOptions from '@/libs/shared-ui/src/hooks/useAggridOptions';
 const columnDefs: ColDef<BotVersionListItem>[] = [
   { headerName: 'ID', field: 'serviceId', hide: true },
   { headerName: '버전', field: 'serviceVer' },
-  { headerName: '버전명', field: 'versionName' },
+  { headerName: '변경내용', field: 'versionDesc' },
   { headerName: '작업자', field: 'workUser' },
   { headerName: '작업일시', field: 'workTime' },
 ];
+
+const sampleRowData: BotVersionListItem[] = Array.from({ length: 50 }).map((_, index) => ({
+  serviceId: `bot-${index + 1}`,
+  serviceVer: `1.0.${index}`,
+  versionDesc: `버전 1.0.${index} 변경내용`,
+  workUser: '홍길동',
+  workTime: '2025-01-01 12:00:00',
+}));
 
 export default function BotVersion() {
   const { gridOptions } = useAggridOptions();
   const [rowData, setRowData] = useState<BotVersionListItem[]>([]);
   const [loading, setLoading] = useState(false);
+  useEffect(() => {
+    setLoading(true);
+    setTimeout(() => {
+      setRowData(sampleRowData);
+      setLoading(false);
+    }, 2000);
+  }, []);
   return (
     <div className="flex flex-col gap-5 w-full h-full">
       <header className="flex items-center justify-between w-full gap-2 lg:flex-nowrap flex-wrap">

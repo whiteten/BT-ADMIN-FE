@@ -25,4 +25,4 @@ export interface BotVersion {
   workTime: string;
 }
 
-export type BotVersionListItem = Omit<BotVersion, 'versionDesc'>;
+export type BotVersionListItem = Omit<BotVersion, 'versionName'>;
