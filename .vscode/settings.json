@@ -6,5 +6,5 @@
     "source.fixAll.eslint": "explicit"
   },
   "eslint.validate": ["javascript", "javascriptreact", "typescript", "typescriptreact"],
-  "files.eol": "\r\n"
+  "files.eol": "\n"
 }
