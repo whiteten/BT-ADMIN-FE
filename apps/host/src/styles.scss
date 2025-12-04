@@ -1,0 +1,28 @@
+/* Ag-Grid Side Bar */
+.ag-side-bar .ag-tool-panel-wrapper .ag-react-container {
+  width: 100% !important;
+}
+
+/* Antd */
+.ant-drawer {
+  & &-content-wrapper,
+  & &-section {
+    border-radius: 8px 0 0 8px;
+  }
+  & &-header {
+    background-color: var(--color-bt-primary);
+    border-radius: 8px 0 0 0;
+  }
+  & &-body {
+    border-radius: 0 0 0 8px;
+    padding: 24px;
+  }
+  & &-footer {
+    padding: 0 24px 24px 24px;
+    border-top: none;
+  }
+  & &-title,
+  & &-close {
+    color: #ffffff !important;
+  }
+}

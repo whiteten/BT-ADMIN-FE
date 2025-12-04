@@ -26,3 +26,4 @@ export interface BotVersion {
 }
 
 export type BotVersionListItem = Omit<BotVersion, 'versionName'>;
+export type BotVersionCreateRequest = Omit<BotVersion, 'serviceId' | 'versionName' | 'workUser' | 'workTime'>;

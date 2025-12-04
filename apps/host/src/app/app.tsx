@@ -10,7 +10,7 @@ import Login from './pages/Login';
 import { FallbackSpinner } from '@/components/custom/FallbackSpinner';
 import { NotFound } from '@/components/custom/NotFound';
 import '../assets/styles/common.css';
-import '../styles.css';
+import '../styles.scss';
 import '@/libs/shared-ui/src/lib/aggridSetup';
 
 const Core = React.lazy(() => import('core/Module').catch(() => ({ default: () => <NotFound /> })));
