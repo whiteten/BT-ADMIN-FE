@@ -6,6 +6,7 @@ import InsetHeader from './InsetHeader';
 import LNBBody from './LNBBody';
 import LNBFooter from './LNBFooter';
 import LNBHeader from './LNBHeader';
+import { antdTheme } from './config/antdTheme';
 import { useMenuLoader } from './hooks/useMenuLoader';
 import { Sidebar, SidebarInset, SidebarProvider } from '@/components/ui/sidebar';
 
@@ -15,33 +16,7 @@ export function Layout() {
     load();
   }, [load]);
   return (
-    <ConfigProvider
-      theme={{
-        token: {
-          controlHeight: 36,
-          borderRadius: 4,
-          colorBorder: '#CED4DA',
-          red: '#F06548',
-        },
-        components: {
-          Button: {
-            colorPrimary: '#405189',
-            colorPrimaryActive: '#263854',
-            colorPrimaryHover: '#5566a3',
-            colorPrimaryBg: '#eef0f8',
-            colorPrimaryBgHover: '#d9dfe9',
-            colorPrimaryBorder: '#8897c4',
-            defaultShadow: 'none',
-            primaryShadow: 'none',
-            dangerShadow: 'none',
-          },
-          Tag: {
-            defaultBg: '#F7F7F8',
-            defaultColor: '#495057',
-          },
-        },
-      }}
-    >
+    <ConfigProvider theme={antdTheme}>
       <SidebarProvider
         style={
           {

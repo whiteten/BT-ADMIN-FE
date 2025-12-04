@@ -15,3 +15,14 @@ export type BotListItem = Omit<Bot, 'confidence'>;
 export type BotCreateRequest = Omit<Bot, 'serviceId' | 'conversationCount' | 'workTime'>;
 export type BotBasicInfoRequest = Omit<Bot, 'conversationCount' | 'workTime'>;
 export type BotBasicInfoResponse = Omit<Bot, 'conversationCount'>;
+
+export interface BotVersion {
+  serviceId: string;
+  serviceVer: string;
+  versionName: string;
+  versionDesc: string;
+  workUser: string;
+  workTime: string;
+}
+
+export type BotVersionListItem = Omit<BotVersion, 'versionDesc'>;

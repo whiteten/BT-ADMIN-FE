@@ -74,7 +74,7 @@ export default function PageTabs({ tabs, defaultTab }: PageTabsProps) {
         return (
           <TabsContent key={tab.id} value={tab.id} className="flex-0 w-full h-[calc(100%-58px-20px)] min-h-[calc(100%-58px-20px)]">
             <div className="w-full h-full bg-white bt-shadow overflow-y-auto">
-              <div className="w-full h-full p-7">
+              <div className="flex flex-col w-full h-full p-7">
                 <Suspense fallback={<FallbackSpinner />}>
                   <div className="flex gap-2 items-center text-[var(--color-bt-primary)] mb-6">
                     {tab.icon && <tab.icon className="h-5 w-5" />}
