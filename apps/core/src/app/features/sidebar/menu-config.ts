@@ -1,4 +1,4 @@
-import { IconMenuItemsPlus, IconMenuMain } from '@/components/custom/Icons';
+import { IconMenuItemsPlus, IconMenuMain, IconSlidersHorizontal } from '@/components/custom/Icons';
 
 const menuConfig = {
   groupLabel: 'CORE',
@@ -25,11 +25,41 @@ const menuConfig = {
           index: 0,
           hide: false,
         },
+      ],
+    },
+    {
+      id: 'core/_iam',
+      label: '권한 관리',
+      icon: IconSlidersHorizontal,
+      index: 2,
+      hide: false,
+      children: [
         {
           id: 'core/auth-groups',
           label: '권한 그룹',
           path: 'auth-groups',
+          index: 0,
+          hide: false,
+        },
+        {
+          id: 'core/roles',
+          label: '역할 관리',
+          path: 'roles',
           index: 1,
+          hide: false,
+        },
+        {
+          id: 'core/permissions',
+          label: '권한 목록',
+          path: 'permissions',
+          index: 2,
+          hide: false,
+        },
+        {
+          id: 'core/user-auth-override',
+          label: '사용자 권한 할당',
+          path: 'user-auth-override',
+          index: 3,
           hide: false,
         },
       ],
