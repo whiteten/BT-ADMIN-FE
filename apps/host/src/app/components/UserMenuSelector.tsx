@@ -1,7 +1,6 @@
 import { useNavigate } from 'react-router-dom';
 import dayjs from 'dayjs';
 import { Dot, History, KeyRound, LogOut } from 'lucide-react';
-import { useAuth } from '@/shared-store';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -27,10 +26,9 @@ const user: User = {
 };
 
 export default function UserMenuSelector() {
-  const { logout } = useAuth();
   const navigate = useNavigate();
   const handleLogout = () => {
-    logout(() => navigate('/login'));
+    navigate('/login');
   };
   const TriggerBtn = (
     <Button variant="ghost" className={cn('flex justify-start min-w-[170px] h-full p-1.5 hover:cursor-pointer')}>

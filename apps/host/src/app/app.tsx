@@ -5,6 +5,7 @@ import 'react-toastify/dist/ReactToastify.css';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { ReactQueryDevtools } from '@tanstack/react-query-devtools';
 import { Layout } from './features/layout/Layout';
+import CsrfProvider from './features/router/CsrfProvicer';
 import ProtectRouter from './features/router/ProtectRouter';
 import Login from './pages/Login';
 import { FallbackSpinner } from '@/components/custom/FallbackSpinner';
@@ -18,16 +19,18 @@ const Bot = React.lazy(() => import('bot/Module').catch(() => ({ default: () => 
 
 const AppRoutes = () => (
   <Routes>
-    <Route element={<ProtectRouter />}>
-      <Route path="/" element={<Navigate to="/bot" />} />
-      <Route path="/core" element={<Layout />}>
-        <Route index path="*" element={<Core />} />
+    <Route path="/" element={<CsrfProvider />}>
+      <Route element={<ProtectRouter />}>
+        <Route path="/" element={<Navigate to="/bot" />} />
+        <Route path="/core" element={<Layout />}>
+          <Route index path="*" element={<Core />} />
+        </Route>
+        <Route path="/bot" element={<Layout />}>
+          <Route index path="*" element={<Bot />} />
+        </Route>
       </Route>
-      <Route path="/bot" element={<Layout />}>
-        <Route index path="*" element={<Bot />} />
-      </Route>
+      <Route path="/login" element={<Login />} />
     </Route>
-    <Route path="/login" element={<Login />} />
     <Route path="*" element={<NotFound useFullScreen />} />
   </Routes>
 );

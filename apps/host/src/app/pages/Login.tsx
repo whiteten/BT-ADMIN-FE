@@ -1,21 +1,27 @@
 import { useNavigate } from 'react-router-dom';
-import { Button, Checkbox, Form, Input } from 'antd';
+import { Button, Checkbox, Form, type FormProps, Input } from 'antd';
 import { Lock, User, Users } from 'lucide-react';
-import { useAuth } from '@/shared-store';
 import styles from './Login.module.scss';
+import { useLogin } from '../features/auth/hooks/useAuthQueries';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { cn } from '@/lib/utils';
+import { Log } from '@/libs/shared-util/src/lib/log';
 
 export default function Login() {
-  const { login } = useAuth();
   const navigate = useNavigate();
   const [form] = Form.useForm();
+  const { mutate: login } = useLogin();
 
-  const handleLogin = () => {
-    login(() => {
-      navigate('/');
-    });
+  const onFinish: FormProps<{ userId: string; password: string }>['onFinish'] = (values) => {
+    Log.debug('onFinish', values);
+    // login({ username: values.userId, password: values.password });
+    navigate('/');
   };
+
+  const onFinishFailed: FormProps<{ userId: string; password: string }>['onFinishFailed'] = (errorInfo) => {
+    Log.warn('onFinishFailed', errorInfo);
+  };
+
   return (
     <div className="w-screen min-h-svh flex flex-col items-center justify-center gap-3 bg-[#f3f3f9]">
       <div
@@ -40,20 +46,20 @@ export default function Login() {
           </CardHeader>
           <CardContent>
             <div className={cn('w-full', styles['login-wrapper'])}>
-              <Form layout="vertical" form={form} onFinish={handleLogin} autoComplete="off">
-                <Form.Item name="userId" label="아이디" rules={[{ required: false, message: '아이디를 입력해주세요' }]} className="!mb-4">
+              <Form form={form} layout="vertical" onFinish={onFinish} onFinishFailed={onFinishFailed} autoComplete="off" initialValues={{ userId: 'admin', password: 'admin1234' }}>
+                <Form.Item name="userId" label="아이디" rules={[{ required: true, message: '아이디를 입력해주세요' }]} className="!mb-4">
                   <Input size="large" placeholder="아이디" prefix={<User className="h-4 w-4 text-gray-400" />} />
                 </Form.Item>
 
-                <Form.Item name="password" label="비밀번호" rules={[{ required: false, message: '비밀번호를 입력해주세요' }]} className="!mb-4">
+                <Form.Item name="password" label="비밀번호" rules={[{ required: true, message: '비밀번호를 입력해주세요' }]} className="!mb-4">
                   <Input.Password size="large" placeholder="비밀번호" prefix={<Lock className="h-4 w-4 text-gray-400" />} />
                 </Form.Item>
 
-                <Form.Item name="tenant" label="테넌트명" rules={[{ required: false, message: '테넌트명을 입력해주세요' }]} className="!mb-4">
+                <Form.Item label="테넌트명" className="!mb-4">
                   <Input size="large" placeholder="테넌트명" prefix={<Users className="h-4 w-4 text-gray-400" />} />
                 </Form.Item>
 
-                <Form.Item name="remember" valuePropName="checked" className="!mb-5">
+                <Form.Item className="!mb-5">
                   <Checkbox>로그인 정보 저장</Checkbox>
                 </Form.Item>
 
