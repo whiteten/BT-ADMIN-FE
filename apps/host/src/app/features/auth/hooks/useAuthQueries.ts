@@ -1,7 +1,7 @@
 import { useMutation, useQuery } from '@tanstack/react-query';
 import { createQueryKeys } from '@lukemorales/query-key-factory';
 import type { MutationHookOptions, QueryHookWithParamsOptions } from '@/shared-util';
-import { authService } from '../services/authService';
+import { authApi } from '../api/authApi';
 import type { LoginRequest } from '../types/auth';
 
 const authQueryKeys = createQueryKeys('auth', {
@@ -12,21 +12,21 @@ const authQueryKeys = createQueryKeys('auth', {
 export const useGetCsrfToken = ({ params, queryOptions }: QueryHookWithParamsOptions = {}) => {
   return useQuery({
     queryKey: authQueryKeys.getCsrfToken(params).queryKey,
-    queryFn: () => authService.getCsrfToken(params),
+    queryFn: () => authApi.getCsrfToken(params),
     ...queryOptions,
   });
 };
 
 export const useLogin = ({ mutationOptions }: MutationHookOptions = {}) => {
   return useMutation({
-    mutationFn: (params: LoginRequest) => authService.login(params),
+    mutationFn: (params: LoginRequest) => authApi.login(params),
     ...mutationOptions,
   });
 };
 
 export const useLogout = ({ mutationOptions }: MutationHookOptions<unknown, void> = {}) => {
   return useMutation({
-    mutationFn: () => authService.logout(),
+    mutationFn: () => authApi.logout(),
     ...mutationOptions,
   });
 };
@@ -34,7 +34,7 @@ export const useLogout = ({ mutationOptions }: MutationHookOptions<unknown, void
 export const useGetUserInfo = ({ params, queryOptions }: QueryHookWithParamsOptions = {}) => {
   return useQuery({
     queryKey: authQueryKeys.getUserInfo(params).queryKey,
-    queryFn: () => authService.getUserInfo(params),
+    queryFn: () => authApi.getUserInfo(params),
     ...queryOptions,
   });
 };

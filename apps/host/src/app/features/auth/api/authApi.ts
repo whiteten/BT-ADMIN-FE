@@ -3,7 +3,7 @@ import type { LoginRequest } from '../types/auth';
 
 const apiClient = new ApiClient({ serviceURL: '/auth' });
 
-export const authService = {
+export const authApi = {
   getCsrfToken: async (params?: Record<string, unknown>) => {
     const response = await apiClient.get('/csrf', { params });
     return response.data;
