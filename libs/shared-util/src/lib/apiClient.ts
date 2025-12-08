@@ -17,8 +17,7 @@ export default class ApiClient {
 
   constructor(options: ApiClientOptions = {}) {
     const { serviceURL = '', timeout = 1000 * 30 } = options;
-    const rootURL = process.env['NX_PUBLIC_API_ROOT_URL'];
-    const baseURL = `${rootURL}/api${serviceURL}`;
+    const baseURL = `/api${serviceURL}`;
     this.#instance = axios.create({
       baseURL,
       timeout,

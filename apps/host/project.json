@@ -17,7 +17,7 @@
         "main": "apps/host/src/main.ts",
         "tsConfig": "apps/host/tsconfig.app.json",
         "assets": [
-          "apps/host/src/favicon.ico", 
+          "apps/host/src/favicon.ico",
           "apps/host/src/assets",
           {
             "input": "apps/host/public",
@@ -60,7 +60,8 @@
       "options": {
         "buildTarget": "host:build",
         "hmr": true,
-        "port": 4200
+        "port": 4200,
+        "proxyConfig": "apps/host/proxy.config.json"
       },
       "configurations": {
         "development": {
