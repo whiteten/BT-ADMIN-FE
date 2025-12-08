@@ -3,9 +3,9 @@ import { Navigate, Outlet } from 'react-router-dom';
 import { NotFound } from '@/components/custom/NotFound';
 
 const Main = React.lazy(() => import('./pages/main/Main'));
-const BotList = React.lazy(() => import('./pages/bot-config/BotList'));
-const BotCreate = React.lazy(() => import('./pages/bot-config/BotCreate'));
-const BotDetail = React.lazy(() => import('./pages/bot-config/BotDetail'));
+const ServiceBotList = React.lazy(() => import('./pages/bot-config/service-bot/ServiceBotList'));
+const ServiceBotCreate = React.lazy(() => import('./pages/bot-config/service-bot/ServiceBotCreate'));
+const ServiceBotDetail = React.lazy(() => import('./pages/bot-config/service-bot/ServiceBotDetail'));
 
 export const routes = [
   {
@@ -26,10 +26,10 @@ export const routes = [
         children: [
           {
             index: true,
-            element: <Navigate to="bot" replace />,
+            element: <Navigate to="service-bot" replace />,
           },
           {
-            path: 'bot',
+            path: 'service-bot',
             children: [
               {
                 index: true,
@@ -37,15 +37,15 @@ export const routes = [
               },
               {
                 path: 'list',
-                element: <BotList />,
+                element: <ServiceBotList />,
               },
               {
                 path: 'create',
-                element: <BotCreate />,
+                element: <ServiceBotCreate />,
               },
               {
                 path: ':id',
-                element: <BotDetail />,
+                element: <ServiceBotDetail />,
               },
             ],
           },

@@ -1,12 +1,12 @@
 import { useNavigate } from 'react-router-dom';
 import { Button, Input, Select } from 'antd';
-import BotCard from '../../features/bot-config/components/BotCard';
-import type { BotListItem } from '../../features/bot-config/types';
+import ServiceBotCard from '../../../features/bot-config/components/ServiceBotCard';
+import type { ServiceBotListItem } from '../../../features/bot-config/types';
 import NoData from '@/components/custom/NoData';
 import PageHeader from '@/components/custom/PageHeader';
 
 const sampleTags = ['봇', '채팅', 'AI', '상담봇', '주문처리', '배송조회', '결제시스템', '주문자동화', '고객상담챗봇', '자동주문처리', '고객상담자동화', '주문처리자동화'];
-const sampleBotList: BotListItem[] = Array.from({ length: 10 }).map((_, index) => {
+const sampleBotList: ServiceBotListItem[] = Array.from({ length: 10 }).map((_, index) => {
   const shuffled = [...sampleTags].sort(() => Math.random() - 0.5);
   const tagCount = Math.floor(Math.random() * 4);
 
@@ -21,7 +21,7 @@ const sampleBotList: BotListItem[] = Array.from({ length: 10 }).map((_, index) =
   };
 });
 
-export default function BotList() {
+export default function ServiceBotList() {
   const navigate = useNavigate();
   const handleClickCreateBtn = () => {
     navigate('../create');
@@ -54,7 +54,7 @@ export default function BotList() {
       {sampleBotList?.length ? (
         <div className="grid grid-cols-[repeat(auto-fill,minmax(350px,1fr))] gap-4 w-full overflow-y-auto">
           {sampleBotList.map((bot) => (
-            <BotCard key={bot.serviceId} {...bot} />
+            <ServiceBotCard key={bot.serviceId} {...bot} />
           ))}
         </div>
       ) : (

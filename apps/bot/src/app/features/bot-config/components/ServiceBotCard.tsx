@@ -4,7 +4,7 @@ import { Card, Tag } from 'antd';
 
 import { ReactComponent as IconLinkIfe } from '../../../../assets/images/icon/icon-link-ife.svg';
 import { ReactComponent as IconLinkNlu } from '../../../../assets/images/icon/icon-link-nlu.svg';
-import type { BotListItem } from '../types';
+import type { ServiceBotListItem } from '../types';
 import { IconMoreVertical, IconTag } from '@/components/custom/Icons';
 import { Button } from '@/components/ui/button';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
@@ -41,7 +41,7 @@ const useWrappedItemCount = () => {
   return { containerRef, wrappedCount };
 };
 
-export default function BotCard({ serviceId, serviceName, serviceVer, modelName, conversationCount, workTime, tags }: BotListItem) {
+export default function ServiceBotCard({ serviceId, serviceName, serviceVer, modelName, conversationCount, workTime, tags }: ServiceBotListItem) {
   const { containerRef, wrappedCount } = useWrappedItemCount();
   const navigate = useNavigate();
 

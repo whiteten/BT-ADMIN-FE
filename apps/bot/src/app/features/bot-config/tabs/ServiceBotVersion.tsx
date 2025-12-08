@@ -3,10 +3,10 @@ import type { ColDef, RowDoubleClickedEvent } from 'ag-grid-community';
 import { AgGridReact } from 'ag-grid-react';
 import { Button, Col, Drawer, Form, type FormProps, Input, Row, Select } from 'antd';
 import { Log } from '@/log';
-import type { BotVersionCreateRequest, BotVersionListItem } from '../types/bot';
+import type { ServiceBotVersionCreateRequest, ServiceBotVersionListItem } from '../types';
 import useAggridOptions from '@/libs/shared-ui/src/hooks/useAggridOptions';
 
-const columnDefs: ColDef<BotVersionListItem>[] = [
+const columnDefs: ColDef<ServiceBotVersionListItem>[] = [
   { headerName: 'ID', field: 'serviceId', hide: true },
   { headerName: '버전', field: 'serviceVer' },
   { headerName: '변경내용', field: 'versionDesc' },
@@ -14,7 +14,7 @@ const columnDefs: ColDef<BotVersionListItem>[] = [
   { headerName: '작업일시', field: 'workTime' },
 ];
 
-const sampleRowData: BotVersionListItem[] = Array.from({ length: 50 }).map((_, index) => ({
+const sampleRowData: ServiceBotVersionListItem[] = Array.from({ length: 50 }).map((_, index) => ({
   serviceId: `bot-${index + 1}`,
   serviceVer: `1.0.${index}`,
   versionDesc: `버전 1.0.${index} 변경내용`,
@@ -33,12 +33,12 @@ function BotVersionDrawer({ open, onClose, serviceVer }: { open: boolean; onClos
   const [form] = Form.useForm();
   const { TextArea } = Input;
 
-  const onFinish: FormProps<BotVersionCreateRequest>['onFinish'] = (values) => {
+  const onFinish: FormProps<ServiceBotVersionCreateRequest>['onFinish'] = (values) => {
     Log.debug('onFinish', values);
     onClose();
   };
 
-  const onFinishFailed: FormProps<BotVersionCreateRequest>['onFinishFailed'] = (errorInfo) => {
+  const onFinishFailed: FormProps<ServiceBotVersionCreateRequest>['onFinishFailed'] = (errorInfo) => {
     Log.warn('onFinishFailed', errorInfo);
   };
 
@@ -97,9 +97,9 @@ function BotVersionDrawer({ open, onClose, serviceVer }: { open: boolean; onClos
   );
 }
 
-export default function BotVersion() {
+export default function ServiceBotVersion() {
   const { gridOptions } = useAggridOptions();
-  const [rowData, setRowData] = useState<BotVersionListItem[]>([]);
+  const [rowData, setRowData] = useState<ServiceBotVersionListItem[]>([]);
   const [loading, setLoading] = useState(false);
   const [open, setOpen] = useState(false);
   const [selectedServiceVer, setSelectedServiceVer] = useState<string | null>(null);
@@ -117,7 +117,7 @@ export default function BotVersion() {
   const handleCloseDrawer = () => {
     setOpen(false);
   };
-  const handleRowDoubleClicked = (e: RowDoubleClickedEvent<BotVersionListItem>) => {
+  const handleRowDoubleClicked = (e: RowDoubleClickedEvent<ServiceBotVersionListItem>) => {
     if (!e.data?.serviceVer) return;
     const serviceVer = e.data?.serviceVer;
     Log.debug('handleRowDoubleClicked', serviceVer);
@@ -153,7 +153,7 @@ export default function BotVersion() {
         </div>
       </header>
       <div className="w-full h-full">
-        <AgGridReact<BotVersionListItem> {...{ rowData, columnDefs, gridOptions, loading }} onRowDoubleClicked={handleRowDoubleClicked} />
+        <AgGridReact<ServiceBotVersionListItem> {...{ rowData, columnDefs, gridOptions, loading }} onRowDoubleClicked={handleRowDoubleClicked} />
       </div>
       <BotVersionDrawer open={open} onClose={handleCloseDrawer} serviceVer={selectedServiceVer} />
     </div>

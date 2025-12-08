@@ -2,10 +2,10 @@ import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Button, Col, Form, type FormProps, Input, Row, Select, type SelectProps, Slider, Tag } from 'antd';
 import { Log } from '@/log';
-import type { BotBasicInfoRequest } from '../types';
+import type { ServiceBotBasicInfoRequest } from '../types';
 import { IconTag } from '@/components/custom/Icons';
 
-export default function BotBasicInfo() {
+export default function ServiceBotBasicInfo() {
   const navigate = useNavigate();
 
   const { TextArea } = Input;
@@ -46,12 +46,12 @@ export default function BotBasicInfo() {
     );
   };
 
-  const onFinish: FormProps<BotBasicInfoRequest>['onFinish'] = (values) => {
+  const onFinish: FormProps<ServiceBotBasicInfoRequest>['onFinish'] = (values) => {
     Log.debug('onFinish', values);
     navigate('../list');
   };
 
-  const onFinishFailed: FormProps<BotBasicInfoRequest>['onFinishFailed'] = (errorInfo) => {
+  const onFinishFailed: FormProps<ServiceBotBasicInfoRequest>['onFinishFailed'] = (errorInfo) => {
     Log.warn('onFinishFailed', errorInfo);
   };
 

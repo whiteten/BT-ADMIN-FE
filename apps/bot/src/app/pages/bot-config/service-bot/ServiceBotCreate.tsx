@@ -2,11 +2,11 @@ import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Button, Col, Form, type FormProps, Input, Row, Select, type SelectProps, Slider, Tag } from 'antd';
 import { Log } from '@/log';
-import type { BotCreateRequest } from '../../features/bot-config/types';
+import type { ServiceBotCreateRequest } from '../../../features/bot-config/types';
 import { IconTag } from '@/components/custom/Icons';
 import PageHeader from '@/components/custom/PageHeader';
 
-export default function BotCreate() {
+export default function ServiceBotCreate() {
   const navigate = useNavigate();
   const { TextArea } = Input;
   const [confidence, setConfidence] = useState([40, 80]);
@@ -42,12 +42,12 @@ export default function BotCreate() {
     );
   };
 
-  const onFinish: FormProps<BotCreateRequest>['onFinish'] = (values) => {
+  const onFinish: FormProps<ServiceBotCreateRequest>['onFinish'] = (values) => {
     Log.debug('onFinish', values);
     navigate('../list');
   };
 
-  const onFinishFailed: FormProps<BotCreateRequest>['onFinishFailed'] = (errorInfo) => {
+  const onFinishFailed: FormProps<ServiceBotCreateRequest>['onFinishFailed'] = (errorInfo) => {
     Log.warn('onFinishFailed', errorInfo);
   };
 
