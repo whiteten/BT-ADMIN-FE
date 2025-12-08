@@ -5,9 +5,9 @@ import { getCookie, toast } from '@/shared-util';
 import { useGetCsrfToken } from '../../features/auth/hooks/useAuthQueries';
 import { FallbackSpinner } from '@/components/custom/FallbackSpinner';
 
-const Log = new LOG('CsrfProvider');
+const Log = new LOG('CsrfGuard');
 
-export default function CsrfProvider() {
+export default function CsrfGuard() {
   const location = useLocation();
   const csrfToken = getCookie('XSRF-TOKEN');
   Log.debug('Find CSRF Token in cookie. token: ', csrfToken);
@@ -18,12 +18,12 @@ export default function CsrfProvider() {
   }, [isError, error]);
 
   if (isFetching) {
-    Log.debug('isFetching..');
+    Log.debug('Fetching...');
     return <FallbackSpinner useFullScreen />;
   }
 
   if (isError) {
-    Log.error('CSRF 토큰 발급 실패.', error);
+    Log.error('Get CSRF Token failed. error: ', error);
     const isLoginPage = location.pathname === '/login';
     return isLoginPage ? <Outlet /> : <Navigate to="/login" />;
   }

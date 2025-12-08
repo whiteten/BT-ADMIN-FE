@@ -6,6 +6,7 @@ import type { LoginRequest } from '../types/auth';
 
 const authQueryKeys = createQueryKeys('auth', {
   getCsrfToken: (params?: Record<string, unknown>) => [params],
+  getUserInfo: (params?: Record<string, unknown>) => [params],
 });
 
 export const useGetCsrfToken = ({ params, queryOptions }: QueryHookWithParamsOptions = {}) => {
@@ -20,5 +21,20 @@ export const useLogin = ({ mutationOptions }: MutationHookOptions = {}) => {
   return useMutation({
     mutationFn: (params: LoginRequest) => authService.login(params),
     ...mutationOptions,
+  });
+};
+
+export const useLogout = ({ mutationOptions }: MutationHookOptions<unknown, void> = {}) => {
+  return useMutation({
+    mutationFn: () => authService.logout(),
+    ...mutationOptions,
+  });
+};
+
+export const useGetUserInfo = ({ params, queryOptions }: QueryHookWithParamsOptions = {}) => {
+  return useQuery({
+    queryKey: authQueryKeys.getUserInfo(params).queryKey,
+    queryFn: () => authService.getUserInfo(params),
+    ...queryOptions,
   });
 };

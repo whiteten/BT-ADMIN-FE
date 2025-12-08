@@ -5,8 +5,8 @@ import 'react-toastify/dist/ReactToastify.css';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { ReactQueryDevtools } from '@tanstack/react-query-devtools';
 import { Layout } from './features/layout/Layout';
-import CsrfProvider from './features/router/CsrfProvicer';
-import ProtectRouter from './features/router/ProtectRouter';
+import CsrfGuard from './features/router/CsrfGuard';
+import RouteGuard from './features/router/RouteGuard';
 import Login from './pages/Login';
 import { FallbackSpinner } from '@/components/custom/FallbackSpinner';
 import { NotFound } from '@/components/custom/NotFound';
@@ -19,8 +19,8 @@ const Bot = React.lazy(() => import('bot/Module').catch(() => ({ default: () => 
 
 const AppRoutes = () => (
   <Routes>
-    <Route path="/" element={<CsrfProvider />}>
-      <Route element={<ProtectRouter />}>
+    <Route path="/" element={<CsrfGuard />}>
+      <Route element={<RouteGuard />}>
         <Route path="/" element={<Navigate to="/bot" />} />
         <Route path="/core" element={<Layout />}>
           <Route index path="*" element={<Core />} />

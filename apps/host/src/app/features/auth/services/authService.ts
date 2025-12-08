@@ -12,4 +12,12 @@ export const authService = {
     const response = await apiClient.post('/login', params);
     return response.data;
   },
+  logout: async () => {
+    const response = await apiClient.post('/logout');
+    return response.data;
+  },
+  getUserInfo: async (params?: Record<string, unknown>) => {
+    const response = await apiClient.get('/me', { params });
+    return response.data;
+  },
 };

@@ -10,12 +10,16 @@ import { Log } from '@/libs/shared-util/src/lib/log';
 export default function Login() {
   const navigate = useNavigate();
   const [form] = Form.useForm();
-  const { mutate: login } = useLogin();
+  const { mutate: login } = useLogin({
+    mutationOptions: {
+      onSuccess: () => {
+        navigate('/');
+      },
+    },
+  });
 
   const onFinish: FormProps<{ userId: string; password: string }>['onFinish'] = (values) => {
-    Log.debug('onFinish', values);
-    // login({ username: values.userId, password: values.password });
-    navigate('/');
+    login({ username: values.userId, password: values.password });
   };
 
   const onFinishFailed: FormProps<{ userId: string; password: string }>['onFinishFailed'] = (errorInfo) => {

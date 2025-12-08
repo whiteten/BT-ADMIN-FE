@@ -1,10 +1,12 @@
 import axios, { type AxiosError, type AxiosInstance, type AxiosRequestConfig, type AxiosResponse, type InternalAxiosRequestConfig } from 'axios';
 import qs from 'qs';
-import { Log } from './log';
-import { createUUID } from './util';
+import { LOG } from './log';
+import { createUUID, getCookie } from './util';
 
+const Log = new LOG('Api');
 interface ExtendedAxiosRequestConfig extends InternalAxiosRequestConfig {
   key?: string;
+  _retry?: boolean;
 }
 
 export interface ApiClientOptions {
@@ -21,7 +23,7 @@ export default class ApiClient {
     this.#instance = axios.create({
       baseURL,
       timeout,
-      withCredentials: false,
+      withCredentials: true,
       paramsSerializer: (params) => qs.stringify(params, { arrayFormat: 'comma' }),
     });
     this.#initInterceptors();
@@ -51,16 +53,37 @@ export default class ApiClient {
     return response;
   };
 
-  #onResponseRejected = (error: AxiosError): Promise<never> => {
-    Log.error(`[RES](${(error?.config as ExtendedAxiosRequestConfig)?.key})`, error?.response ?? error);
+  #onResponseRejected = async (error: AxiosError): Promise<never> => {
+    const originalRequest = error.config as ExtendedAxiosRequestConfig | undefined;
+    Log.error(`[RES](${originalRequest?.key})`, error?.response ?? error);
+    // 403 에러 && CSRF 요청이 아님 && 재시도가 아닌 경우 -> CSRF 토큰 재발급 후 재시도
+    if (error.response?.status === 403 && originalRequest && !originalRequest.url?.includes('/csrf') && !originalRequest._retry) {
+      originalRequest._retry = true;
+      try {
+        await this.#refreshCsrfToken();
+        return this.#instance(originalRequest);
+      } catch (csrfError) {
+        Log.error('[CSRF] 토큰 재발급 실패', csrfError);
+        return Promise.reject(error);
+      }
+    }
     this.#responseErrorHandler(error);
     return Promise.reject(error);
   };
 
   #setConfig(config: InternalAxiosRequestConfig): ExtendedAxiosRequestConfig {
+    // X-CSRF-TOKEN 헤더 설정
+    const token = getCookie('XSRF-TOKEN');
+    config.headers['X-CSRF-TOKEN'] = token;
     const extendedConfig = config as ExtendedAxiosRequestConfig;
     extendedConfig.key = createUUID().split('-')[0]; // 로그 트래킹을 위한 key.
     return extendedConfig;
+  }
+
+  async #refreshCsrfToken(): Promise<void> {
+    Log.info('[CSRF] 토큰 재발급 요청');
+    await axios.get('/api/auth/csrf', { params: { t: Date.now() } });
+    Log.success('[CSRF] 토큰 재발급 완료');
   }
 
   /**
