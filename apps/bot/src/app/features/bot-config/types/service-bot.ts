@@ -11,7 +11,7 @@ export interface ServiceBot {
   workTime: string;
 }
 
-export type ServiceBotListItem = Omit<ServiceBot, 'confidence'>;
+export type ServiceBotListItem = Omit<ServiceBot, 'serviceDesc' | 'confidence'>;
 export type ServiceBotCreateRequest = Omit<ServiceBot, 'serviceId' | 'conversationCount' | 'workTime'>;
 export type ServiceBotBasicInfoRequest = Omit<ServiceBot, 'conversationCount' | 'workTime'>;
 export type ServiceBotBasicInfoResponse = Omit<ServiceBot, 'conversationCount'>;

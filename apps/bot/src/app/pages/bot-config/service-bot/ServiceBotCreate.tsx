@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Button, Col, Form, type FormProps, Input, Row, Select, type SelectProps, Slider, Tag } from 'antd';
 import { Log } from '@/log';
+import { useCreateServiceBot } from '../../../features/bot-config/hooks/useServiceBotQueries';
 import type { ServiceBotCreateRequest } from '../../../features/bot-config/types';
 import { IconTag } from '@/components/custom/Icons';
 import PageHeader from '@/components/custom/PageHeader';
@@ -16,6 +17,15 @@ export default function ServiceBotCreate() {
     { label: 'NLU 모델 3', value: 'nluModel3' },
   ];
   const [form] = Form.useForm();
+
+  const { mutate: createServiceBot, isPending } = useCreateServiceBot({
+    mutationOptions: {
+      onSuccess: () => {
+        navigate('../list');
+      },
+    },
+  });
+
   const getSliderRailBackground = () => {
     const [min, max] = confidence;
     return `linear-gradient(to right, #F06548 0%, #F06548 ${min}%, #d9d9d9 ${min}%, #d9d9d9 ${max}%, #405189 ${max}%, #405189 100%)`;
@@ -44,7 +54,7 @@ export default function ServiceBotCreate() {
 
   const onFinish: FormProps<ServiceBotCreateRequest>['onFinish'] = (values) => {
     Log.debug('onFinish', values);
-    navigate('../list');
+    createServiceBot(values as ServiceBotCreateRequest);
   };
 
   const onFinishFailed: FormProps<ServiceBotCreateRequest>['onFinishFailed'] = (errorInfo) => {
@@ -105,7 +115,7 @@ export default function ServiceBotCreate() {
             </Row>
             <Row justify="center" className="sticky bottom-0 bg-white z-10 pb-7">
               <Col>
-                <Button color="primary" variant="solid" htmlType="submit">
+                <Button color="primary" variant="solid" htmlType="submit" loading={isPending}>
                   저장
                 </Button>
               </Col>

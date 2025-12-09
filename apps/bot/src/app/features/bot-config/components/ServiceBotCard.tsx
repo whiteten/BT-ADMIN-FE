@@ -70,21 +70,21 @@ export default function ServiceBotCard({ serviceId, serviceName, serviceVer, mod
       <div className="flex flex-col text-[#495057] gap-2">
         <div className="flex">
           <span className="w-[104px]">버전</span>
-          <span className="mr-2">{serviceVer}</span>
-          <IconLinkIfe className="hover:cursor-pointer" />
+          <span className="mr-2">{serviceVer ?? '-'}</span>
+          {serviceVer && <IconLinkIfe className="hover:cursor-pointer" />}
         </div>
         <div className="flex">
           <span className="w-[104px]">NLU모델</span>
-          <span className="mr-2">{modelName}</span>
-          <IconLinkNlu className="hover:cursor-pointer" />
+          <span className="mr-2">{modelName ?? '-'}</span>
+          {modelName && <IconLinkNlu className="hover:cursor-pointer" />}
         </div>
         <div className="flex">
           <span className="w-[104px]">등록 대화수</span>
-          <span>{conversationCount}</span>
+          <span>{conversationCount ?? '-'}</span>
         </div>
         <div className="flex">
           <span className="w-[104px]">서비스 개시일</span>
-          <span>{workTime}</span>
+          <span>{workTime ?? '-'}</span>
         </div>
         <div className="flex items-center justify-between w-full">
           {tags && tags.length > 0 && (
