@@ -2,7 +2,6 @@ import React from 'react';
 import { IconCalendar, IconDocument, IconLayer, IconSlidersHorizontal, IconTalk } from '@/components/custom/Icons';
 import PageHeader from '@/components/custom/PageHeader';
 import PageTabs, { type PageTab } from '@/components/custom/PageTabs';
-// import { useParams } from 'react-router-dom';
 
 const ServiceBotBasicInfo = React.lazy(() => import('../../../features/bot-config/tabs/ServiceBotBasicInfo'));
 const ServiceBotVersion = React.lazy(() => import('../../../features/bot-config/tabs/ServiceBotVersion'));
@@ -19,7 +18,6 @@ const tabs: PageTab[] = [
 ];
 
 export default function ServiceBotDetail() {
-  // const { id } = useParams();
   return (
     <div className="flex flex-col gap-4 w-full h-full">
       <PageHeader title="봇 편집" breadcrumb="봇 관리 > 봇 > 봇 편집" />

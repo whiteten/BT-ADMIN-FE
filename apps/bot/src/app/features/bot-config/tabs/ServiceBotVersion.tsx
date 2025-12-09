@@ -3,7 +3,7 @@ import type { ColDef, RowDoubleClickedEvent } from 'ag-grid-community';
 import { AgGridReact } from 'ag-grid-react';
 import { Button, Col, Drawer, Form, type FormProps, Input, Row, Select } from 'antd';
 import { Log } from '@/log';
-import type { ServiceBotVersionCreateRequest, ServiceBotVersionListItem } from '../types';
+import type { ServiceBotVersionCreateDatas, ServiceBotVersionListItem } from '../types';
 import useAggridOptions from '@/libs/shared-ui/src/hooks/useAggridOptions';
 
 const columnDefs: ColDef<ServiceBotVersionListItem>[] = [
@@ -28,17 +28,23 @@ const sampleRowData: ServiceBotVersionListItem[] = Array.from({ length: 50 }).ma
  * @param onClose - 드로어 닫기 함수
  * @param serviceVer - 선택된 서비스 버전
  */
-function BotVersionDrawer({ open, onClose, serviceVer }: { open: boolean; onClose: () => void; serviceVer: string | null }) {
+interface BotVersionDrawerProps {
+  open: boolean;
+  onClose: () => void;
+  serviceVer: string | null;
+}
+
+function BotVersionDrawer({ open, onClose, serviceVer }: BotVersionDrawerProps) {
   const title = serviceVer ? '버전 수정' : '버전 추가';
   const [form] = Form.useForm();
   const { TextArea } = Input;
 
-  const onFinish: FormProps<ServiceBotVersionCreateRequest>['onFinish'] = (values) => {
+  const onFinish: FormProps<ServiceBotVersionCreateDatas>['onFinish'] = (values) => {
     Log.debug('onFinish', values);
     onClose();
   };
 
-  const onFinishFailed: FormProps<ServiceBotVersionCreateRequest>['onFinishFailed'] = (errorInfo) => {
+  const onFinishFailed: FormProps<ServiceBotVersionCreateDatas>['onFinishFailed'] = (errorInfo) => {
     Log.warn('onFinishFailed', errorInfo);
   };
 
@@ -69,11 +75,12 @@ function BotVersionDrawer({ open, onClose, serviceVer }: { open: boolean; onClos
   // TODO: serviceVer 있을 경우, API 조회 후 form data 변경
 
   useEffect(() => {
+    if (!open) return;
     form.setFieldsValue({
       serviceVer: serviceVer ?? '',
       versionDesc: '',
     });
-  }, [serviceVer, form]);
+  }, [open, serviceVer, form]);
 
   return (
     <Drawer open={open} onClose={onClose} title={title} closable={{ placement: 'end' }} size={480} footer={footer} destroyOnHidden>

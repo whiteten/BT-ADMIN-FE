@@ -1,24 +1,43 @@
-import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useEffect, useState } from 'react';
+import { useNavigate, useParams } from 'react-router-dom';
 import { Button, Col, Form, type FormProps, Input, Row, Select, type SelectProps, Slider, Tag } from 'antd';
 import { Log } from '@/log';
-import type { ServiceBotBasicInfoRequest } from '../types';
+import { useDeleteServiceBot, useGetServiceBot, useUpdateServiceBot } from '../hooks/useServiceBotQueries';
+import type { ServiceBotBasicInfoUpdateDatas } from '../types';
 import { IconTag } from '@/components/custom/Icons';
+import { FallbackSpinner } from '@/libs/shared-ui/src/components/custom/FallbackSpinner';
+
+const modelOptions = [
+  { label: 'NLU 모델 1', value: 'nluModel1' },
+  { label: 'NLU 모델 2', value: 'nluModel2' },
+  { label: 'NLU 모델 3', value: 'nluModel3' },
+];
 
 export default function ServiceBotBasicInfo() {
+  const { serviceId } = useParams();
   const navigate = useNavigate();
-
   const { TextArea } = Input;
   const [form] = Form.useForm();
-
   const [serviceVer, setServiceVer] = useState('');
   const [confidence, setConfidence] = useState([40, 80]);
 
-  const modelOptions = [
-    { label: 'NLU 모델 1', value: 'nluModel1' },
-    { label: 'NLU 모델 2', value: 'nluModel2' },
-    { label: 'NLU 모델 3', value: 'nluModel3' },
-  ];
+  const { data: serviceBot, isFetching } = useGetServiceBot({ params: { serviceId } });
+
+  const { mutate: updateServiceBot, isPending: isUpdating } = useUpdateServiceBot({
+    mutationOptions: {
+      onSuccess: () => {
+        navigate('../list');
+      },
+    },
+  });
+
+  const { mutate: deleteServiceBot, isPending: isDeleting } = useDeleteServiceBot({
+    mutationOptions: {
+      onSuccess: () => {
+        navigate('../list');
+      },
+    },
+  });
 
   const getSliderRailBackground = () => {
     const [min, max] = confidence;
@@ -46,14 +65,34 @@ export default function ServiceBotBasicInfo() {
     );
   };
 
-  const onFinish: FormProps<ServiceBotBasicInfoRequest>['onFinish'] = (values) => {
+  const onFinish: FormProps<ServiceBotBasicInfoUpdateDatas>['onFinish'] = (values) => {
     Log.debug('onFinish', values);
-    navigate('../list');
+    updateServiceBot({ params: { serviceId }, data: values });
   };
 
-  const onFinishFailed: FormProps<ServiceBotBasicInfoRequest>['onFinishFailed'] = (errorInfo) => {
+  const onFinishFailed: FormProps<ServiceBotBasicInfoUpdateDatas>['onFinishFailed'] = (errorInfo) => {
     Log.warn('onFinishFailed', errorInfo);
   };
+
+  const handleClickDeleteBtn = () => {
+    deleteServiceBot({ serviceId });
+  };
+
+  useEffect(() => {
+    if (!serviceBot) return;
+    const { serviceName, serviceDesc, modelId, confidence, tags, serviceVer } = serviceBot;
+    form.setFieldsValue({ serviceName, serviceDesc, modelId, confidence, tags });
+    setServiceVer(serviceVer ?? '');
+    setConfidence(confidence);
+  }, [serviceBot, form]);
+
+  if (isFetching) {
+    return (
+      <div className="flex items-center justify-center w-full h-full">
+        <FallbackSpinner />
+      </div>
+    );
+  }
 
   return (
     <Form form={form} initialValues={{ modelId: null, confidence: [40, 80], tags: [] }} onFinish={onFinish} onFinishFailed={onFinishFailed} layout="vertical">
@@ -110,12 +149,12 @@ export default function ServiceBotBasicInfo() {
       </Row>
       <Row justify="center" gutter={10} className="sticky bottom-0 bg-white z-10 pb-7">
         <Col>
-          <Button color="primary" variant="solid" htmlType="submit">
+          <Button color="primary" variant="solid" htmlType="submit" loading={isUpdating || isDeleting}>
             저장
           </Button>
         </Col>
         <Col>
-          <Button color="red" variant="solid">
+          <Button color="red" variant="solid" loading={isDeleting} onClick={handleClickDeleteBtn}>
             삭제
           </Button>
         </Col>

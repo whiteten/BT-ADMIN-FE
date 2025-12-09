@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { Button, Col, Form, type FormProps, Input, Row, Select, type SelectProps, Slider, Tag } from 'antd';
 import { Log } from '@/log';
 import { useCreateServiceBot } from '../../../features/bot-config/hooks/useServiceBotQueries';
-import type { ServiceBotCreateRequest } from '../../../features/bot-config/types';
+import type { ServiceBotCreateDatas } from '../../../features/bot-config/types';
 import { IconTag } from '@/components/custom/Icons';
 import PageHeader from '@/components/custom/PageHeader';
 
@@ -52,12 +52,12 @@ export default function ServiceBotCreate() {
     );
   };
 
-  const onFinish: FormProps<ServiceBotCreateRequest>['onFinish'] = (values) => {
+  const onFinish: FormProps<ServiceBotCreateDatas>['onFinish'] = (values) => {
     Log.debug('onFinish', values);
-    createServiceBot(values as ServiceBotCreateRequest);
+    createServiceBot(values as ServiceBotCreateDatas);
   };
 
-  const onFinishFailed: FormProps<ServiceBotCreateRequest>['onFinishFailed'] = (errorInfo) => {
+  const onFinishFailed: FormProps<ServiceBotCreateDatas>['onFinishFailed'] = (errorInfo) => {
     Log.warn('onFinishFailed', errorInfo);
   };
 

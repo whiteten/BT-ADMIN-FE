@@ -44,7 +44,7 @@ export const routes = [
                 element: <ServiceBotCreate />,
               },
               {
-                path: ':id',
+                path: ':serviceId',
                 element: <ServiceBotDetail />,
               },
             ],

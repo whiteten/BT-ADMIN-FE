@@ -18,7 +18,6 @@ export default function CsrfGuard() {
   }, [isError, error]);
 
   if (isFetching) {
-    Log.debug('Fetching...');
     return <FallbackSpinner useFullScreen />;
   }
 

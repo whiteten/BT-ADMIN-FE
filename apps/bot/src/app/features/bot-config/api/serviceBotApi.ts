@@ -1,10 +1,13 @@
 import ApiClient from '@/shared-util';
-import type { ServiceBotCreateRequest, ServiceBotListItem } from '../types';
+import type { ServiceBotBasicInfoUpdateDatas, ServiceBotCreateDatas, ServiceBotItem, ServiceBotListItem } from '../types';
 
 const apiClient = new ApiClient({ serviceURL: '/bff' });
-
 interface ServiceBotListResponse {
   data: { list: { data: { items: ServiceBotListItem[] } } };
+}
+
+interface ServiceBotDetailResponse {
+  data: { detail: { data: ServiceBotItem } };
 }
 
 export const serviceBotApi = {
@@ -12,8 +15,20 @@ export const serviceBotApi = {
     const response = await apiClient.get<ServiceBotListResponse>('/service-bots-list', { params });
     return response.data.data.list.data.items ?? [];
   },
-  createServiceBot: async (data: ServiceBotCreateRequest) => {
-    const response = await apiClient.post('/service-bots-create', data);
+  getServiceBot: async (params?: Record<string, unknown>): Promise<ServiceBotItem> => {
+    const response = await apiClient.get<ServiceBotDetailResponse>(`/service-bots-detail`, { params });
+    return response.data.data.detail.data;
+  },
+  createServiceBot: async (params: ServiceBotCreateDatas) => {
+    const response = await apiClient.post('/service-bots-create', params);
+    return response.data;
+  },
+  updateServiceBot: async ({ params, data }: { params: Record<string, unknown>; data: ServiceBotBasicInfoUpdateDatas }) => {
+    const response = await apiClient.put('/service-bots-update', data, { params });
+    return response.data;
+  },
+  deleteServiceBot: async (params: Record<string, unknown>) => {
+    const response = await apiClient.delete(`/service-bots-delete`, { params });
     return response.data;
   },
 };
