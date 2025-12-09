@@ -1,6 +1,7 @@
 import axios, { type AxiosError, type AxiosInstance, type AxiosRequestConfig, type AxiosResponse, type InternalAxiosRequestConfig } from 'axios';
 import qs from 'qs';
 import { LOG } from './log';
+import { toast } from './toast';
 import { createUUID, getCookie } from './util';
 
 const Log = new LOG('Api');
@@ -91,6 +92,8 @@ export default class ApiClient {
    */
   #responseErrorHandler(_error: AxiosError): void {
     // TODO: 에러 핸들링 로직 구현 필요
+    const msg = JSON.stringify(_error.response, null, 2);
+    toast.error(msg);
   }
 
   get<T = unknown, R = AxiosResponse<T>, D = unknown>(url: string, config?: AxiosRequestConfig<D> | undefined): Promise<R> {
