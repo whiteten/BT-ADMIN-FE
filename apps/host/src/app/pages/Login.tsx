@@ -10,7 +10,7 @@ import { Log } from '@/libs/shared-util/src/lib/log';
 export default function Login() {
   const navigate = useNavigate();
   const [form] = Form.useForm();
-  const { mutate: login } = useLogin({
+  const { mutate: login, isPending } = useLogin({
     mutationOptions: {
       onSuccess: () => {
         navigate('/');
@@ -68,7 +68,7 @@ export default function Login() {
                 </Form.Item>
 
                 <Form.Item className="!mb-0">
-                  <Button type="primary" size="large" htmlType="submit" block className="!bg-[var(--color-bt-primary)]">
+                  <Button type="primary" size="large" htmlType="submit" loading={isPending} block className="!bg-[var(--color-bt-primary)]">
                     로그인
                   </Button>
                 </Form.Item>
