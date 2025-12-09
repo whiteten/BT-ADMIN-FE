@@ -72,7 +72,7 @@ export default function PageTabs({ tabs, defaultTab }: PageTabsProps) {
       {tabs.map((tab) => {
         const Component = tab.component;
         return (
-          <TabsContent key={tab.id} value={tab.id} className="flex-0 w-full h-[calc(100%-58px-20px)] min-h-[calc(100%-58px-20px)]">
+          <TabsContent key={tab.id} value={tab.id} forceMount className="flex-0 w-full h-[calc(100%-58px-20px)] min-h-[calc(100%-58px-20px)] data-[state=inactive]:hidden">
             <div className="w-full h-full bg-white bt-shadow overflow-y-auto">
               <div className="flex flex-col w-full h-full p-7">
                 <Suspense fallback={<FallbackSpinner />}>
