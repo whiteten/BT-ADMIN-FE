@@ -1,17 +1,35 @@
 import { useNavigate } from 'react-router-dom';
+import { useQueryClient } from '@tanstack/react-query';
 import { Button, Input, Select } from 'antd';
 import ServiceBotCard from '../../../features/bot-config/components/ServiceBotCard';
-import { useGetServiceBots } from '../../../features/bot-config/hooks/useServiceBotQueries';
+import { serviceBotQueryKeys, useDeleteServiceBot, useGetServiceBots } from '../../../features/bot-config/hooks/useServiceBotQueries';
 import { FallbackSpinner } from '@/components/custom/FallbackSpinner';
 import NoData from '@/components/custom/NoData';
 import PageHeader from '@/components/custom/PageHeader';
 
 export default function ServiceBotList() {
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
+  const { data: serviceBotList, isFetching } = useGetServiceBots();
+  const { mutate: deleteServiceBot, isPending: isDeleting } = useDeleteServiceBot({
+    mutationOptions: {
+      onSuccess: () => {
+        queryClient.invalidateQueries({ queryKey: serviceBotQueryKeys.getServiceBots().queryKey });
+      },
+    },
+  });
   const handleClickCreateBtn = () => {
     navigate('../create');
   };
-  const { data: serviceBotList, isFetching } = useGetServiceBots();
+
+  const handleDetail = (serviceId: string) => {
+    navigate(`../${serviceId}`);
+  };
+
+  const handleDelete = (serviceId: string) => {
+    deleteServiceBot({ serviceId });
+  };
+
   return (
     <div className="flex flex-col gap-4 w-full h-full">
       <PageHeader title="봇 목록" breadcrumb="봇 관리 > 봇 > 봇 목록" />
@@ -44,7 +62,7 @@ export default function ServiceBotList() {
       ) : serviceBotList?.length ? (
         <div className="grid grid-cols-[repeat(auto-fill,minmax(350px,1fr))] gap-4 w-full overflow-y-auto">
           {serviceBotList.map((bot) => (
-            <ServiceBotCard key={bot.serviceId} {...bot} />
+            <ServiceBotCard key={bot.serviceId} {...bot} onDetail={handleDetail} onDelete={handleDelete} />
           ))}
         </div>
       ) : (

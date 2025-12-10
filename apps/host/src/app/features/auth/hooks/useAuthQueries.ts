@@ -3,7 +3,7 @@ import { createQueryKeys } from '@lukemorales/query-key-factory';
 import type { MutationHookOptions, QueryHookWithParamsOptions } from '@/shared-util';
 import { authApi } from '../api/authApi';
 
-const authQueryKeys = createQueryKeys('auth', {
+export const authQueryKeys = createQueryKeys('auth', {
   getCsrfToken: (params?: Record<string, unknown>) => [params],
   getUserInfo: (params?: Record<string, unknown>) => [params],
 });

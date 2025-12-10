@@ -4,7 +4,7 @@ import type { MutationHookOptions, QueryHookWithParamsOptions } from '@/shared-u
 import { serviceBotApi } from '../api/serviceBotApi';
 import type { ServiceBotItem, ServiceBotListItem } from '../types';
 
-const serviceBotQueryKeys = createQueryKeys('service-bots', {
+export const serviceBotQueryKeys = createQueryKeys('service-bots', {
   getServiceBots: (params?: Record<string, unknown>) => [params],
   getServiceBot: (params?: Record<string, unknown>) => [params],
 });

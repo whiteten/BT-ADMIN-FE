@@ -1,5 +1,4 @@
 import { useEffect, useRef, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
 import { Card, Tag } from 'antd';
 
 import { ReactComponent as IconLinkIfe } from '../../../../assets/images/icon/icon-link-ife.svg';
@@ -8,6 +7,11 @@ import type { ServiceBotListItem } from '../types';
 import { IconMoreVertical, IconTag } from '@/components/custom/Icons';
 import { Button } from '@/components/ui/button';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
+
+type ServiceBotCardProps = ServiceBotListItem & {
+  onDetail?: (serviceId: string) => void;
+  onDelete?: (serviceId: string) => void;
+};
 
 // 랩핑된 아이템 개수 계산
 const useWrappedItemCount = () => {
@@ -41,13 +45,9 @@ const useWrappedItemCount = () => {
   return { containerRef, wrappedCount };
 };
 
-export default function ServiceBotCard({ serviceId, serviceName, serviceVer, modelName, conversationCount, workTime, tags }: ServiceBotListItem) {
+export default function ServiceBotCard({ serviceId, serviceName, serviceVer, modelName, conversationCount, workTime, tags, onDetail, onDelete }: ServiceBotCardProps) {
   const { containerRef, wrappedCount } = useWrappedItemCount();
-  const navigate = useNavigate();
 
-  const handleClickDetailBtn = () => {
-    navigate(`../${serviceId}`);
-  };
   const extra = (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
@@ -57,10 +57,12 @@ export default function ServiceBotCard({ serviceId, serviceName, serviceVer, mod
         </Button>
       </DropdownMenuTrigger>
       <DropdownMenuContent className="dark" align="end">
-        <DropdownMenuItem onClick={handleClickDetailBtn} className="hover:cursor-pointer">
+        <DropdownMenuItem onClick={() => onDetail?.(serviceId)} className="hover:cursor-pointer">
           상세보기
         </DropdownMenuItem>
-        <DropdownMenuItem className="hover:cursor-pointer">삭제</DropdownMenuItem>
+        <DropdownMenuItem onClick={() => onDelete?.(serviceId)} className="hover:cursor-pointer">
+          삭제
+        </DropdownMenuItem>
       </DropdownMenuContent>
     </DropdownMenu>
   );
