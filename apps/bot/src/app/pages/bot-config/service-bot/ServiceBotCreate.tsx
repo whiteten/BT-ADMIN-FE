@@ -192,7 +192,7 @@ export default function ServiceBotCreate() {
     return (
       <>
         <Row gutter={20}>
-          <Col span={6}>
+          <Col span={8}>
             <Form.Item name="sttId" label="STT 타입" required rules={[{ required: true, message: 'STT 타입을 선택해 주세요.' }]}>
               <Select options={sttOptions} allowClear showSearch={{ optionFilterProp: 'label' }} placeholder="STT 타입을 선택하세요." />
             </Form.Item>
