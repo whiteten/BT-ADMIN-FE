@@ -74,9 +74,9 @@ export default function ServiceBotCreate() {
   };
 
   return (
-    <div className="flex flex-col gap-4 w-full h-full overflow-hidden">
+    <div className="flex flex-col gap-4 w-full h-full">
       <PageHeader title="봇 생성" breadcrumb="봇 관리 > 봇 > 봇 생성" />
-      <div className="w-full h-[calc(100%-58px-20px)] min-h-[calc(100%-58px-20px)] bg-white bt-shadow overflow-y-auto">
+      <div className="w-full h-full bg-white bt-shadow overflow-y-auto">
         <div className="w-full h-full p-7">
           <Form form={form} initialValues={initialValues} onFinish={onFinish} onFinishFailed={onFinishFailed} layout="vertical">
             <Row gutter={20}>
