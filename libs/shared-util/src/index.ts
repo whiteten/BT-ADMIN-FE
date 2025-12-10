@@ -4,3 +4,4 @@ export type { ApiClientOptions } from './lib/apiClient';
 export { default as WebSocketClient } from './lib/webSocketClient';
 export type * from './lib/types/query.types';
 export { toast } from './lib/toast';
+export { confirmModal, showModal } from './lib/modal';

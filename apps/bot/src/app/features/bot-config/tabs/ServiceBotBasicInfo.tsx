@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { Button, Col, Form, type FormProps, Input, Row, Select, type SelectProps, Slider, Tag } from 'antd';
 import { Log } from '@/log';
+import { confirmModal } from '@/shared-util';
 import { useDeleteServiceBot, useGetServiceBot, useUpdateServiceBot } from '../hooks/useServiceBotQueries';
 import type { ServiceBotBasicInfoUpdateDatas } from '../types';
 import { IconTag } from '@/components/custom/Icons';
@@ -31,7 +32,7 @@ export default function ServiceBotBasicInfo() {
     },
   });
 
-  const { mutate: deleteServiceBot, isPending: isDeleting } = useDeleteServiceBot({
+  const { mutateAsync: deleteServiceBot, isPending: isDeleting } = useDeleteServiceBot({
     mutationOptions: {
       onSuccess: () => {
         navigate('../list');
@@ -75,7 +76,9 @@ export default function ServiceBotBasicInfo() {
   };
 
   const handleClickDeleteBtn = () => {
-    deleteServiceBot({ serviceId });
+    confirmModal.delete({
+      onOk: () => deleteServiceBot({ serviceId }),
+    });
   };
 
   useEffect(() => {

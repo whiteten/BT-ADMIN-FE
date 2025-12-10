@@ -1,6 +1,7 @@
 import { useNavigate } from 'react-router-dom';
 import { useQueryClient } from '@tanstack/react-query';
 import { Button, Input, Select } from 'antd';
+import { confirmModal } from '@/shared-util';
 import ServiceBotCard from '../../../features/bot-config/components/ServiceBotCard';
 import { serviceBotQueryKeys, useDeleteServiceBot, useGetServiceBots } from '../../../features/bot-config/hooks/useServiceBotQueries';
 import { FallbackSpinner } from '@/components/custom/FallbackSpinner';
@@ -11,7 +12,7 @@ export default function ServiceBotList() {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const { data: serviceBotList, isFetching } = useGetServiceBots();
-  const { mutate: deleteServiceBot, isPending: isDeleting } = useDeleteServiceBot({
+  const { mutateAsync: deleteServiceBot } = useDeleteServiceBot({
     mutationOptions: {
       onSuccess: () => {
         queryClient.invalidateQueries({ queryKey: serviceBotQueryKeys.getServiceBots().queryKey });
@@ -27,7 +28,9 @@ export default function ServiceBotList() {
   };
 
   const handleDelete = (serviceId: string) => {
-    deleteServiceBot({ serviceId });
+    confirmModal.delete({
+      onOk: () => deleteServiceBot({ serviceId }),
+    });
   };
 
   return (
