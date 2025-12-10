@@ -9,9 +9,9 @@ import { IconTag } from '@/components/custom/Icons';
 import { FallbackSpinner } from '@/libs/shared-ui/src/components/custom/FallbackSpinner';
 
 const modelOptions = [
-  { label: 'NLU 모델 1', value: 'nluModel1' },
-  { label: 'NLU 모델 2', value: 'nluModel2' },
-  { label: 'NLU 모델 3', value: 'nluModel3' },
+  { label: 'NLU 모델 1', value: '1200000001' },
+  { label: 'NLU 모델 2', value: '1200000002' },
+  { label: 'NLU 모델 3', value: '1200000003' },
 ];
 
 export default function ServiceBotBasicInfo() {
@@ -111,7 +111,7 @@ export default function ServiceBotBasicInfo() {
           </Form.Item>
         </Col>
       </Row>
-      <Row>
+      <Row gutter={20}>
         <Col span={24}>
           <Form.Item name="serviceDesc" label="봇 설명">
             <TextArea rows={4} placeholder="봇 설명을 입력하세요." />
@@ -143,14 +143,14 @@ export default function ServiceBotBasicInfo() {
           </Form.Item>
         </Col>
       </Row>
-      <Row>
+      <Row gutter={20}>
         <Col span={24}>
           <Form.Item name="tags" label="태그">
             <Select mode="tags" tagRender={tagRender} classNames={{ root: '!p-1' }} placeholder="태그를 입력하세요(Enter로 추가)" tokenSeparators={[',']} />
           </Form.Item>
         </Col>
       </Row>
-      <Row justify="center" gutter={10} className="sticky bottom-0 bg-white z-10 pb-7">
+      <Row gutter={20} justify="center" className="sticky bottom-0 bg-white/90 z-10 pb-7">
         <Col>
           <Button color="primary" variant="solid" htmlType="submit" loading={isUpdating || isDeleting}>
             저장

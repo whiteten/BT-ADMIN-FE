@@ -22,5 +22,9 @@ export const antdTheme = {
       defaultBg: '#F7F7F8',
       defaultColor: '#495057',
     },
+    Slider: {
+      trackBg: '#405189',
+      trackHoverBg: '#5566a3',
+    },
   },
 };

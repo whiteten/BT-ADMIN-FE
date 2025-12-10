@@ -1,3 +1,6 @@
+/**
+ * 봇 기본정보 컬럼
+ */
 export interface ServiceBot {
   serviceId: string;
   serviceName: string;
@@ -11,10 +14,29 @@ export interface ServiceBot {
   workTime: string;
 }
 
+/**
+ * 봇 스케쥴 컬럼
+ */
+export interface ServiceBotSchedule {
+  bhWorktimeId: number;
+  ahMessage: string;
+}
+
+/**
+ * 봇 STT & TTS 컬럼
+ */
+export interface ServiceBotVoice {
+  sttId: number;
+  ttsId: number;
+  ttsSpeaker?: string;
+  ttsSpeed: number;
+  ttsVolume: number;
+  ttsPitch: number;
+}
+
 export type ServiceBotListItem = Omit<ServiceBot, 'serviceDesc' | 'confidence'>;
-export type ServiceBotItem = ServiceBot;
-export type ServiceBotCreateDatas = Omit<ServiceBot, 'serviceId' | 'conversationCount' | 'workTime'>;
-export type ServiceBotBasicInfoItem = Omit<ServiceBot, 'conversationCount'>;
+export type ServiceBotItem = ServiceBot & ServiceBotSchedule & ServiceBotVoice;
+export type ServiceBotCreateDatas = Omit<ServiceBot, 'serviceId' | 'conversationCount' | 'workTime'> & ServiceBotVoice;
 export type ServiceBotBasicInfoUpdateDatas = Omit<ServiceBot, 'conversationCount' | 'workTime'>;
 
 export interface ServiceBotVersion {
