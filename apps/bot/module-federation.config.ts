@@ -6,7 +6,10 @@ const config: ModuleFederationConfig = {
     './Module': './src/remote-entry.ts',
     './MenuConfig': './src/app/features/sidebar/menu-config.ts',
   },
-  additionalShared: [['@/components/ui/sidebar', { singleton: true, strictVersion: true, requiredVersion: false }]],
+  additionalShared: [
+    ['@/components/ui/sidebar', { singleton: true, strictVersion: true, requiredVersion: false }],
+    ['@/shared-store', { singleton: true, strictVersion: true, requiredVersion: false }],
+  ],
 };
 
 /**

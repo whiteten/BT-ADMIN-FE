@@ -17,7 +17,10 @@ const config: ModuleFederationConfig = {
    */
   remotes: ['core', 'bot'],
   shared: createSharedConfig(),
-  additionalShared: [['@/components/ui/sidebar', { singleton: true, strictVersion: true, requiredVersion: false }]],
+  additionalShared: [
+    ['@/components/ui/sidebar', { singleton: true, strictVersion: true, requiredVersion: false }],
+    ['@/shared-store', { singleton: true, strictVersion: true, requiredVersion: false }],
+  ],
 };
 
 /**
