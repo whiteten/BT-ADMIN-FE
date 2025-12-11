@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Button, Col, Divider, Form, type FormProps, Input, Row, Select, type SelectProps, Slider, Steps, Tag } from 'antd';
+import { type BreadcrumbProps, Button, Col, Divider, Form, type FormProps, Input, Row, Select, type SelectProps, Slider, Steps, Tag } from 'antd';
 import { Check, X } from 'lucide-react';
 import { Log } from '@/log';
 import { toast } from '@/shared-util';
@@ -8,6 +8,12 @@ import { useCreateServiceBot } from '../../../features/bot-config/hooks/useServi
 import type { ServiceBotCreateDatas } from '../../../features/bot-config/types';
 import { IconTag } from '@/components/custom/Icons';
 import PageHeader from '@/components/custom/PageHeader';
+
+const breadcrumb: BreadcrumbProps['items'] = [
+  { title: '봇 관리', path: '/bot/bot-config' },
+  { title: '봇', path: '/bot/bot-config/service-bot' },
+  { title: '봇 생성', path: '/bot/bot-config/service-bot/create' },
+];
 
 const modelOptions = [
   { label: 'NLU 모델 1', value: '1200000001' },
@@ -365,7 +371,7 @@ export default function ServiceBotCreate() {
 
   return (
     <div className="flex flex-col gap-4 w-full h-full">
-      <PageHeader title="봇 생성" breadcrumb="봇 관리 > 봇 > 봇 생성" />
+      <PageHeader title="봇 생성" breadcrumb={breadcrumb} />
       <div className="flex items-center justify-center w-full h-[58px] min-h-[58px] bg-white bt-shadow px-7 py-2">
         <Steps
           current={currentStep}

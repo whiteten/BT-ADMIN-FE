@@ -1,13 +1,19 @@
 import { useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useQueryClient } from '@tanstack/react-query';
-import { Button, Input, Select } from 'antd';
+import { type BreadcrumbProps, Button, Input, Select } from 'antd';
 import { confirmModal } from '@/shared-util';
 import ServiceBotCard from '../../../features/bot-config/components/ServiceBotCard';
 import { serviceBotQueryKeys, useDeleteServiceBot, useGetServiceBots } from '../../../features/bot-config/hooks/useServiceBotQueries';
 import { FallbackSpinner } from '@/components/custom/FallbackSpinner';
 import NoData from '@/components/custom/NoData';
 import PageHeader from '@/components/custom/PageHeader';
+
+const breadcrumb: BreadcrumbProps['items'] = [
+  { title: '봇 관리', path: '/bot/bot-config' },
+  { title: '봇', path: '/bot/bot-config/service-bot' },
+  { title: '봇 목록', path: '/bot/bot-config/service-bot/list' },
+];
 
 export default function ServiceBotList() {
   const navigate = useNavigate();
@@ -59,7 +65,7 @@ export default function ServiceBotList() {
 
   return (
     <div className="flex flex-col gap-4 w-full h-full">
-      <PageHeader title="봇 목록" breadcrumb="봇 관리 > 봇 > 봇 목록" />
+      <PageHeader title="봇 목록" breadcrumb={breadcrumb} />
       {/* Filter */}
       <div className="flex items-center justify-between gap-2 w-full h-[76px] bg-white bt-shadow px-7 py-5">
         <div className="flex gap-2 w-full items-center">

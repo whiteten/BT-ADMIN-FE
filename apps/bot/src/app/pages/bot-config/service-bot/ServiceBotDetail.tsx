@@ -1,4 +1,6 @@
 import React from 'react';
+import { useParams } from 'react-router-dom';
+import type { BreadcrumbProps } from 'antd';
 import { IconCalendar, IconDocument, IconLayer, IconSlidersHorizontal, IconTalk } from '@/components/custom/Icons';
 import PageHeader from '@/components/custom/PageHeader';
 import PageTabs, { type PageTab } from '@/components/custom/PageTabs';
@@ -18,9 +20,15 @@ const tabs: PageTab[] = [
 ];
 
 export default function ServiceBotDetail() {
+  const { serviceId } = useParams();
+  const breadcrumb: BreadcrumbProps['items'] = [
+    { title: '봇 관리', path: '/bot/bot-config' },
+    { title: '봇', path: '/bot/bot-config/service-bot' },
+    { title: '봇 상세', path: `/bot/bot-config/service-bot/${serviceId}` },
+  ];
   return (
     <div className="flex flex-col gap-4 w-full h-full">
-      <PageHeader title="봇 편집" breadcrumb="봇 관리 > 봇 > 봇 편집" />
+      <PageHeader title="봇 편집" breadcrumb={breadcrumb} />
       <PageTabs tabs={tabs} />
     </div>
   );
