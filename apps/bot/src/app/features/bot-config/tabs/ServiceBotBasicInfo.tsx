@@ -1,9 +1,10 @@
 import { useEffect, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
+import { useQueryClient } from '@tanstack/react-query';
 import { Button, Col, Form, type FormProps, Input, Row, Select, type SelectProps, Slider, Tag } from 'antd';
 import { Log } from '@/log';
-import { confirmModal } from '@/shared-util';
-import { useDeleteServiceBot, useGetServiceBot, useUpdateServiceBot } from '../hooks/useServiceBotQueries';
+import { confirmModal, toast } from '@/shared-util';
+import { serviceBotQueryKeys, useDeleteServiceBot, useGetServiceBot, useUpdateServiceBot } from '../hooks/useServiceBotQueries';
 import type { ServiceBotBasicInfoUpdateDatas } from '../types';
 import { IconTag } from '@/components/custom/Icons';
 import { FallbackSpinner } from '@/libs/shared-ui/src/components/custom/FallbackSpinner';
@@ -16,6 +17,7 @@ const modelOptions = [
 
 export default function ServiceBotBasicInfo() {
   const { serviceId } = useParams();
+  const queryClient = useQueryClient();
   const navigate = useNavigate();
   const { TextArea } = Input;
   const [form] = Form.useForm();
@@ -27,7 +29,8 @@ export default function ServiceBotBasicInfo() {
   const { mutate: updateServiceBot, isPending: isUpdating } = useUpdateServiceBot({
     mutationOptions: {
       onSuccess: () => {
-        navigate('../list');
+        toast.success('봇 기본 정보가 저장되었습니다.');
+        queryClient.invalidateQueries({ queryKey: serviceBotQueryKeys.getServiceBot({ serviceId }).queryKey });
       },
     },
   });
@@ -35,6 +38,7 @@ export default function ServiceBotBasicInfo() {
   const { mutateAsync: deleteServiceBot, isPending: isDeleting } = useDeleteServiceBot({
     mutationOptions: {
       onSuccess: () => {
+        toast.success('봇이 삭제되었습니다.');
         navigate('../list');
       },
     },

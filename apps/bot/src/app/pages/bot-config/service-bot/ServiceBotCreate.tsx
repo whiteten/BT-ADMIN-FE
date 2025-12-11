@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { Button, Col, Divider, Form, type FormProps, Input, Row, Select, type SelectProps, Slider, Steps, Tag } from 'antd';
 import { Check, X } from 'lucide-react';
 import { Log } from '@/log';
+import { toast } from '@/shared-util';
 import { useCreateServiceBot } from '../../../features/bot-config/hooks/useServiceBotQueries';
 import type { ServiceBotCreateDatas } from '../../../features/bot-config/types';
 import { IconTag } from '@/components/custom/Icons';
@@ -72,6 +73,7 @@ export default function ServiceBotCreate() {
   const { mutate: createServiceBot, isPending } = useCreateServiceBot({
     mutationOptions: {
       onSuccess: () => {
+        toast.success('봇이 생성되었습니다.');
         navigate('../list');
       },
     },
