@@ -52,3 +52,10 @@ export const useUpdateServiceBotVoice = ({ mutationOptions }: MutationHookOption
     ...mutationOptions,
   });
 };
+
+export const useUpdateServiceBotSchedule = ({ mutationOptions }: MutationHookOptions = {}) => {
+  return useMutation({
+    mutationFn: serviceBotApi.updateServiceBotSchedule,
+    ...mutationOptions,
+  });
+};
