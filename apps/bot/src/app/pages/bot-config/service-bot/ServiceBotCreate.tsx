@@ -392,9 +392,9 @@ export default function ServiceBotCreate() {
           </div>
           <div className="w-full px-7 pb-7">{renderFooter()}</div>
         </div>
-        <div className="!w-[400px] !min-w-[400px] h-full min-h-0 bg-white bt-shadow p-5 hidden xl:flex flex-col">
-          <div className="text-base font-semibold text-gray-800 mb-4 pb-3 border-b border-gray-200">입력 정보 요약</div>
-          <div className="flex-1 min-h-0 overflow-y-auto">{renderFormSummary()}</div>
+        <div className="!w-[400px] !min-w-[400px] h-full min-h-0 bg-white bt-shadow hidden xl:flex flex-col">
+          <div className="text-base font-semibold text-gray-800 mb-4 pb-3 border-b border-gray-200 px-5 pt-5">입력 정보 요약</div>
+          <div className="flex-1 min-h-0 overflow-y-auto px-5 pb-5">{renderFormSummary()}</div>
         </div>
       </div>
     </div>
