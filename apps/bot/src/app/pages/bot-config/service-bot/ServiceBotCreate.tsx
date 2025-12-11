@@ -103,10 +103,6 @@ export default function ServiceBotCreate() {
     );
   };
 
-  const handleValuesChange: FormProps<ServiceBotCreateDatas>['onValuesChange'] = (changedFields, allFields) => {
-    Log.debug('handleValuesChange', changedFields, allFields);
-  };
-
   const handleSubmitBtn = () => {
     form.submit();
   };
@@ -382,7 +378,7 @@ export default function ServiceBotCreate() {
       <div className="flex w-full flex-1 min-h-0 gap-4">
         <div className="w-full h-full min-h-0 bg-white bt-shadow flex flex-col">
           <div className="w-full flex-1 min-h-0 overflow-y-auto p-7 pb-0">
-            <Form form={form} initialValues={initialValues} onFinish={onFinish} onFinishFailed={onFinishFailed} layout="vertical" onValuesChange={handleValuesChange}>
+            <Form form={form} initialValues={initialValues} onFinish={onFinish} onFinishFailed={onFinishFailed} layout="vertical">
               {steps.map((step, index) => (
                 <div key={index} style={{ display: currentStep === index ? 'block' : 'none' }}>
                   {step.content()}
