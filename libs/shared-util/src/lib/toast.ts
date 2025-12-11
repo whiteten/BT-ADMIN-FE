@@ -1,5 +1,8 @@
 import { createElement } from 'react';
 import { type Id, type ToastContent, type ToastOptions, type ToastPromiseParams, type UpdateOptions, toast as _toast } from 'react-toastify';
+import { LOG } from './log';
+
+const Log = new LOG('Toast');
 
 /**
  * content wrapper
@@ -7,6 +10,7 @@ import { type Id, type ToastContent, type ToastOptions, type ToastPromiseParams,
  */
 const cw = <T = unknown>(content: ToastContent<T>): ToastContent<T> => {
   if (typeof content === 'string') {
+    Log.debug(content);
     return createElement('span', { className: 'bt-toast-content' }, content);
   }
   return content;
