@@ -1,6 +1,6 @@
 import React, { useCallback } from 'react';
-import { Star } from 'lucide-react';
 import { useBookmarkStore } from '@/shared-store';
+import { ReactComponent as IconBookmark } from '../../../../assets/images/icon/icon-bookmark.svg';
 import { Button } from '@/components/ui/button';
 
 interface BookmarkButtonProps {
@@ -20,7 +20,7 @@ export const BookmarkButton = React.memo(({ menuId, label, path, rootPath }: Boo
 
   return (
     <Button type="button" variant="ghost" size="icon" className="h-8 w-8 cursor-pointer" onClick={handleToggle}>
-      <Star className="h-4 w-4" fill={isFav ? '#facc15' : 'none'} color={isFav ? '#facc15' : 'currentColor'} />
+      <IconBookmark className="size-5" fill={isFav ? 'var(--color-bt-primary)' : 'none'} color={isFav ? 'var(--color-bt-primary)' : '#495057'} />
       <span className="sr-only">Toggle favorite</span>
     </Button>
   );
