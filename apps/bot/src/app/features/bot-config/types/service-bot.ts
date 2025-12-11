@@ -38,6 +38,7 @@ export type ServiceBotListItem = Omit<ServiceBot, 'serviceDesc' | 'confidence'>;
 export type ServiceBotItem = ServiceBot & ServiceBotSchedule & ServiceBotVoice;
 export type ServiceBotCreateDatas = Omit<ServiceBot, 'serviceId' | 'conversationCount' | 'workTime'> & ServiceBotVoice;
 export type ServiceBotBasicInfoUpdateDatas = Omit<ServiceBot, 'conversationCount' | 'workTime'>;
+export type ServiceBotVoiceUpdateDatas = ServiceBotVoice;
 
 export interface ServiceBotVersion {
   serviceId: string;

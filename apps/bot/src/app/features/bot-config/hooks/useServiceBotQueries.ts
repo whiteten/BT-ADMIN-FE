@@ -45,3 +45,10 @@ export const useDeleteServiceBot = ({ mutationOptions }: MutationHookOptions = {
     ...mutationOptions,
   });
 };
+
+export const useUpdateServiceBotVoice = ({ mutationOptions }: MutationHookOptions = {}) => {
+  return useMutation({
+    mutationFn: serviceBotApi.updateServiceBotVoice,
+    ...mutationOptions,
+  });
+};

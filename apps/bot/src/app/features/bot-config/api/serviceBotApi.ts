@@ -1,5 +1,5 @@
 import ApiClient from '@/shared-util';
-import type { ServiceBotBasicInfoUpdateDatas, ServiceBotCreateDatas, ServiceBotItem, ServiceBotListItem } from '../types';
+import type { ServiceBotBasicInfoUpdateDatas, ServiceBotCreateDatas, ServiceBotItem, ServiceBotListItem, ServiceBotVoiceUpdateDatas } from '../types';
 
 const apiClient = new ApiClient({ serviceURL: '/bff' });
 interface ServiceBotListResponse {
@@ -29,6 +29,10 @@ export const serviceBotApi = {
   },
   deleteServiceBot: async (params: Record<string, unknown>) => {
     const response = await apiClient.delete(`/service-bots-delete`, { params });
+    return response.data;
+  },
+  updateServiceBotVoice: async ({ params, data }: { params: Record<string, unknown>; data: ServiceBotVoiceUpdateDatas }) => {
+    const response = await apiClient.put('/service-bot-stt-tts-update', data, { params });
     return response.data;
   },
 };
