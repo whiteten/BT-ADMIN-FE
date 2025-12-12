@@ -2,11 +2,13 @@ import { useMutation, useQuery } from '@tanstack/react-query';
 import { createQueryKeys } from '@lukemorales/query-key-factory';
 import type { MutationHookOptions, QueryHookWithParamsOptions } from '@/shared-util';
 import { serviceBotApi } from '../api/serviceBotApi';
-import type { ServiceBotItem, ServiceBotListItem } from '../types';
+import type { ServiceBotItem, ServiceBotListItem, ServiceBotVersionItem, ServiceBotVersionListItem } from '../types';
 
 export const serviceBotQueryKeys = createQueryKeys('service-bots', {
   getServiceBots: (params?: Record<string, unknown>) => [params],
   getServiceBot: (params?: Record<string, unknown>) => [params],
+  getServiceBotVersions: (params?: Record<string, unknown>) => [params],
+  getServiceBotVersion: (params?: Record<string, unknown>) => [params],
 });
 
 export const useGetServiceBots = ({ params, queryOptions }: QueryHookWithParamsOptions<ServiceBotListItem[]> = {}) => {
@@ -56,6 +58,43 @@ export const useUpdateServiceBotVoice = ({ mutationOptions }: MutationHookOption
 export const useUpdateServiceBotSchedule = ({ mutationOptions }: MutationHookOptions = {}) => {
   return useMutation({
     mutationFn: serviceBotApi.updateServiceBotSchedule,
+    ...mutationOptions,
+  });
+};
+
+export const useGetServiceBotVersions = ({ params, queryOptions }: QueryHookWithParamsOptions<ServiceBotVersionListItem[]> = {}) => {
+  return useQuery({
+    queryKey: serviceBotQueryKeys.getServiceBotVersions(params).queryKey,
+    queryFn: () => serviceBotApi.getServiceBotVersions(params),
+    ...queryOptions,
+  });
+};
+
+export const useGetServiceBotVersion = ({ params, queryOptions }: QueryHookWithParamsOptions<ServiceBotVersionItem> = {}) => {
+  return useQuery({
+    queryKey: serviceBotQueryKeys.getServiceBotVersion(params).queryKey,
+    queryFn: () => serviceBotApi.getServiceBotVersion(params),
+    ...queryOptions,
+  });
+};
+
+export const useCreateServiceBotVersion = ({ mutationOptions }: MutationHookOptions = {}) => {
+  return useMutation({
+    mutationFn: serviceBotApi.createServiceBotVersion,
+    ...mutationOptions,
+  });
+};
+
+export const useUpdateServiceBotVersion = ({ mutationOptions }: MutationHookOptions = {}) => {
+  return useMutation({
+    mutationFn: serviceBotApi.updateServiceBotVersion,
+    ...mutationOptions,
+  });
+};
+
+export const useDeleteServiceBotVersion = ({ mutationOptions }: MutationHookOptions = {}) => {
+  return useMutation({
+    mutationFn: serviceBotApi.deleteServiceBotVersion,
     ...mutationOptions,
   });
 };

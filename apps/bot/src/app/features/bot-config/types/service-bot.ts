@@ -50,5 +50,7 @@ export interface ServiceBotVersion {
   workTime: string;
 }
 
-export type ServiceBotVersionListItem = Omit<ServiceBotVersion, 'versionName'>;
-export type ServiceBotVersionCreateDatas = Omit<ServiceBotVersion, 'serviceId' | 'versionName' | 'workUser' | 'workTime'>;
+export type ServiceBotVersionListItem = ServiceBotVersion;
+export type ServiceBotVersionItem = Omit<ServiceBotVersion, 'workUser' | 'workTime'>;
+export type ServiceBotVersionCreateDatas = Omit<ServiceBotVersion, 'serviceId' | 'workUser' | 'workTime'>;
+export type ServiceBotVersionUpdateDatas = Omit<ServiceBotVersion, 'workUser' | 'workTime'>;
