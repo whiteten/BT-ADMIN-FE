@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { type BreadcrumbProps, Button, Input, Select } from 'antd';
+import ModelCard from '../../features/bot-config/components/ModelCard';
 import PageHeader from '@/components/custom/PageHeader';
 
 export default function ModelList() {
@@ -20,6 +21,14 @@ export default function ModelList() {
 
   const handleClickCreateBtn = () => {
     navigate('../create');
+  };
+
+  const handleDetail = (modelId: string) => {
+    navigate(`../${modelId}`);
+  };
+
+  const handleDelete = (modelId: string) => {
+    console.log(modelId);
   };
   return (
     <div className="flex flex-col gap-4 w-full h-full">
@@ -41,6 +50,9 @@ export default function ModelList() {
             추가
           </Button>
         </div>
+      </div>
+      <div className="grid grid-cols-[repeat(auto-fill,minmax(350px,1fr))] gap-4 w-full overflow-y-auto">
+        <ModelCard modelId="1" modelName="모델 1" onDetail={handleDetail} onDelete={handleDelete} />
       </div>
     </div>
   );

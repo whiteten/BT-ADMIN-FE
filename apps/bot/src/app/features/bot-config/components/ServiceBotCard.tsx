@@ -68,7 +68,12 @@ export default function ServiceBotCard({ serviceId, serviceName, serviceVer, mod
   );
 
   return (
-    <Card title={serviceName} styles={{ header: { paddingRight: '0 20px 0 20px' }, body: { padding: '20px', paddingTop: '16px' } }} extra={extra}>
+    <Card
+      title={serviceName}
+      styles={{ header: { paddingRight: '0 20px 0 20px' }, body: { padding: '20px', paddingTop: '16px' } }}
+      extra={extra}
+      className="hover:!border-[var(--color-bt-primary)]"
+    >
       <div className="flex flex-col text-[#495057] gap-2">
         <div className="flex">
           <span className="w-[104px]">버전</span>

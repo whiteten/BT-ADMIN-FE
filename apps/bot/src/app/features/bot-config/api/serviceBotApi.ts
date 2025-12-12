@@ -39,11 +39,11 @@ export const serviceBotApi = {
     return response.data;
   },
   updateServiceBotVoice: async ({ params, data }: { params: Record<string, unknown>; data: ServiceBotVoiceUpdateDatas }) => {
-    const response = await apiClient.put('/service-bot-stt-tts-update', data, { params });
+    const response = await apiClient.put('/service-bots-stt-tts-update', data, { params });
     return response.data;
   },
   updateServiceBotSchedule: async ({ params, data }: { params: Record<string, unknown>; data: ServiceBotScheduleUpdateDatas }) => {
-    const response = await apiClient.put('/service-bot-schedule-update', data, { params });
+    const response = await apiClient.put('/service-bots-schedule-update', data, { params });
     return response.data;
   },
 };
