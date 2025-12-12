@@ -4,8 +4,8 @@ import { type BreadcrumbProps, Button, Col, Divider, Form, type FormProps, Input
 import { Check, X } from 'lucide-react';
 import { Log } from '@/log';
 import { toast } from '@/shared-util';
-import { useCreateServiceBot } from '../../../features/bot-config/hooks/useServiceBotQueries';
-import type { ServiceBotCreateDatas } from '../../../features/bot-config/types';
+import { useCreateServiceBot } from '../../features/bot-config/hooks/useServiceBotQueries';
+import type { ServiceBotCreateDatas } from '../../features/bot-config/types';
 import { IconTag } from '@/components/custom/Icons';
 import PageHeader from '@/components/custom/PageHeader';
 

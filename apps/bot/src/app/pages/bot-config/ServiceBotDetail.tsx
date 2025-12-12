@@ -5,11 +5,11 @@ import { IconCalendar, IconDocument, IconLayer, IconSlidersHorizontal, IconTalk 
 import PageHeader from '@/components/custom/PageHeader';
 import PageTabs, { type PageTab } from '@/components/custom/PageTabs';
 
-const ServiceBotBasicInfo = React.lazy(() => import('../../../features/bot-config/tabs/ServiceBotBasicInfo'));
-const ServiceBotVersion = React.lazy(() => import('../../../features/bot-config/tabs/ServiceBotVersion'));
-const ServiceBotSchedule = React.lazy(() => import('../../../features/bot-config/tabs/ServiceBotSchedule'));
-const ServiceBotVoice = React.lazy(() => import('../../../features/bot-config/tabs/ServiceBotVoice'));
-const ServiceBotEnv = React.lazy(() => import('../../../features/bot-config/tabs/ServiceBotEnv'));
+const ServiceBotBasicInfo = React.lazy(() => import('../../features/bot-config/tabs/ServiceBotBasicInfo'));
+const ServiceBotVersion = React.lazy(() => import('../../features/bot-config/tabs/ServiceBotVersion'));
+const ServiceBotSchedule = React.lazy(() => import('../../features/bot-config/tabs/ServiceBotSchedule'));
+const ServiceBotVoice = React.lazy(() => import('../../features/bot-config/tabs/ServiceBotVoice'));
+const ServiceBotEnv = React.lazy(() => import('../../features/bot-config/tabs/ServiceBotEnv'));
 
 const tabs: PageTab[] = [
   { id: 'tab1', label: '기본정보', icon: IconDocument, component: ServiceBotBasicInfo },
