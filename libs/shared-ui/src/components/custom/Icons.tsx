@@ -13,3 +13,9 @@ export { ReactComponent as IconCalendar } from '../../assets/images/icon/icon-ca
 export { ReactComponent as IconTalk } from '../../assets/images/icon/icon-talk.svg';
 export { ReactComponent as IconSlidersHorizontal } from '../../assets/images/icon/icon-sliders-horizontal.svg';
 export { ReactComponent as IconDataEmpty } from '../../assets/images/icon/icon-data-empty.svg';
+export { ReactComponent as IconIntent } from '../../assets/images/icon/icon-intent.svg';
+export { ReactComponent as IconEntity } from '../../assets/images/icon/icon-entity.svg';
+export { ReactComponent as IconEvaluation } from '../../assets/images/icon/icon-evaluation.svg';
+export { ReactComponent as IconRetrain } from '../../assets/images/icon/icon-retrain.svg';
+export { ReactComponent as IconSnapshot } from '../../assets/images/icon/icon-snapshot.svg';
+export { ReactComponent as IconFaq } from '../../assets/images/icon/icon-faq.svg';

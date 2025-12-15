@@ -20,3 +20,4 @@ export type ModelListItem = Pick<Model, 'modelId' | 'modelName' | 'trainStatus' 
 };
 
 export type ModelCreateDatas = Pick<Model, 'modelName' | 'modelDesc'>;
+export type ModelBasicInfoUpdateDatas = Pick<Model, 'modelName' | 'modelDesc'>;
