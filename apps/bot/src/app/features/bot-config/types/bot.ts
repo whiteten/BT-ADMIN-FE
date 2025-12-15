@@ -8,7 +8,6 @@ export interface Bot {
   serviceVer?: string;
   modelId?: string;
   modelName?: string;
-  conversationCount: number;
   confidence: [number, number];
   tags?: string[];
   workTime: string;
@@ -34,10 +33,12 @@ export interface BotVoice {
   ttsPitch: number;
 }
 
-export type BotListItem = Omit<Bot, 'serviceDesc' | 'confidence'>;
+export type BotListItem = Omit<Bot, 'serviceDesc' | 'confidence'> & {
+  conversationCount: number;
+};
 export type BotItem = Bot & BotSchedule & BotVoice;
-export type BotCreateDatas = Omit<Bot, 'serviceId' | 'conversationCount' | 'workTime'> & BotVoice;
-export type BotBasicInfoUpdateDatas = Omit<Bot, 'conversationCount' | 'workTime'>;
+export type BotCreateDatas = Omit<Bot, 'serviceId' | 'workTime'> & BotVoice;
+export type BotBasicInfoUpdateDatas = Omit<Bot, 'workTime'>;
 export type BotScheduleUpdateDatas = BotSchedule;
 export type BotVoiceUpdateDatas = BotVoice;
 
