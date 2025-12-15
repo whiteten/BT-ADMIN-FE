@@ -119,7 +119,16 @@ export default function ServiceBotVersionDrawer({ open, onClose, serviceId, serv
         <Form form={form} initialValues={{ serviceVer: '', versionName: '', versionDesc: '' }} onFinish={onFinish} onFinishFailed={onFinishFailed} layout="vertical">
           <Row>
             <Col span={24}>
-              <Form.Item name="serviceVer" label="버전" required hasFeedback rules={[{ required: true, message: '버전을 입력하세요.' }]}>
+              <Form.Item
+                name="serviceVer"
+                label="버전"
+                required
+                hasFeedback
+                rules={[
+                  { required: true, message: '버전을 입력하세요.' },
+                  { pattern: /^\d+\.\d+\.\d+$/, message: '버전 형식은 x.x.x (예: 1.0.0) 입니다.' },
+                ]}
+              >
                 <Input placeholder="버전을 입력하세요." />
               </Form.Item>
             </Col>
