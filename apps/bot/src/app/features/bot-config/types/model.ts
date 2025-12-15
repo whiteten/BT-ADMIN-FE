@@ -2,6 +2,7 @@ export interface Model {
   modelId: string;
   pointId: string;
   modelName: string;
+  modelDesc: string;
   modelKey: string;
   tenantId: number;
   modelType: number;
@@ -17,3 +18,5 @@ export type ModelListItem = Pick<Model, 'modelId' | 'modelName' | 'trainStatus' 
   intentCount: number;
   entityCount: number;
 };
+
+export type ModelCreateDatas = Pick<Model, 'modelName' | 'modelDesc'>;

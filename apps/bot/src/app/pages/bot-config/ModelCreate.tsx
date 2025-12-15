@@ -1,3 +1,53 @@
+import { type BreadcrumbProps, Button, Col, Form, type FormProps, Input, Row } from 'antd';
+import { Log } from '@/log';
+import type { ModelCreateDatas } from '../../features/bot-config/types';
+import PageHeader from '@/components/custom/PageHeader';
+
+const breadcrumb: BreadcrumbProps['items'] = [
+  { title: '봇 관리', path: '/bot/bot-config' },
+  { title: '모델', path: '/bot/bot-config/model' },
+  { title: '모델 생성', path: '/bot/bot-config/model/create' },
+];
+
 export default function ModelCreate() {
-  return <div>ModelCreate</div>;
+  const [form] = Form.useForm();
+  const initialValues = { modelName: '' };
+  const onFinish: FormProps<ModelCreateDatas>['onFinish'] = (values) => {
+    Log.debug('onFinish', values);
+  };
+  const onFinishFailed: FormProps<ModelCreateDatas>['onFinishFailed'] = (errorInfo) => {
+    Log.warn('onFinishFailed', errorInfo);
+  };
+  return (
+    <div className="flex flex-col gap-4 w-full h-full">
+      <PageHeader title="모델 생성" breadcrumb={breadcrumb} />
+      <div className="w-full h-full bg-white bt-shadow overflow-y-auto">
+        <div className="flex flex-col w-full h-full p-7 pb-0">
+          <Form form={form} initialValues={initialValues} onFinish={onFinish} onFinishFailed={onFinishFailed} layout="vertical">
+            <Row gutter={20}>
+              <Col span={12}>
+                <Form.Item name="modelName" label="모델 이름" required hasFeedback rules={[{ required: true, message: '모델 이름을 입력해 주세요.' }]}>
+                  <Input placeholder="모델 이름을 입력하세요." />
+                </Form.Item>
+              </Col>
+            </Row>
+            <Row gutter={20}>
+              <Col span={24}>
+                <Form.Item name="modelDesc" label="모델 설명">
+                  <Input.TextArea rows={4} placeholder="모델 설명을 입력하세요." />
+                </Form.Item>
+              </Col>
+            </Row>
+            <Row gutter={20} justify="center" className="sticky bottom-0 bg-white/90 z-10 pb-7">
+              <Col>
+                <Button variant="solid" color="primary" htmlType="submit">
+                  저장
+                </Button>
+              </Col>
+            </Row>
+          </Form>
+        </div>
+      </div>
+    </div>
+  );
 }
