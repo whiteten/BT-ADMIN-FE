@@ -2,7 +2,7 @@ import { useEffect } from 'react';
 import { Navigate, Outlet } from 'react-router-dom';
 import { LOG } from '@/log';
 import { useGetUserInfo } from '../../features/auth/hooks/useAuthQueries';
-import { FallbackSpinner } from '@/libs/shared-ui/src/components/custom/FallbackSpinner';
+import { FallbackSpinner } from '@/components/custom/FallbackSpinner';
 
 const Log = new LOG('RouteGuard');
 

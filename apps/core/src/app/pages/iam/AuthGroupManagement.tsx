@@ -14,9 +14,9 @@ import { CheckCircle, Copy, Plus, Search, Shield, Trash2, Users, XCircle } from 
 import { RoleCard } from '../../features/iam/components/RoleCard';
 import { appDummyData, permissionDummyData, roleDummyData, userAuthDummyData, userRoleDummyData } from '../../features/iam/data/iam-dummy';
 import type { Permission, Role, UserAuth } from '../../features/iam/types/iam.types';
+import { FallbackSpinner } from '@/components/custom/FallbackSpinner';
+import NoData from '@/components/custom/NoData';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { FallbackSpinner } from '@/libs/shared-ui/src/components/custom/FallbackSpinner';
-import NoData from '@/libs/shared-ui/src/components/custom/NoData';
 import useAggridOptions from '@/libs/shared-ui/src/hooks/useAggridOptions';
 import { cn } from '@/libs/shared-ui/src/lib/utils';
 

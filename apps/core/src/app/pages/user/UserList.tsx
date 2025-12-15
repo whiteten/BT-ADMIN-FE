@@ -8,8 +8,8 @@ import { UserInfoCard } from './UserInfoCard';
 import TreeSelectTenant from '../../components/TreeSelectTenant';
 import type { User } from '../../features/user/types/user.types';
 import { rowData as dummyRowData } from '../../features/user/user-dummy';
-import { FallbackSpinner } from '@/libs/shared-ui/src/components/custom/FallbackSpinner';
-import NoData from '@/libs/shared-ui/src/components/custom/NoData';
+import { FallbackSpinner } from '@/components/custom/FallbackSpinner';
+import NoData from '@/components/custom/NoData';
 import useAggridOptions from '@/libs/shared-ui/src/hooks/useAggridOptions';
 
 const columnDefs: ColDef<User>[] = [

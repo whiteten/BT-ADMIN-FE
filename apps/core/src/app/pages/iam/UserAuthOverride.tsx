@@ -14,10 +14,10 @@ import { AlertCircle, CheckCircle, Clock, Plus, Search, Shield, Trash2, XCircle 
 
 import { appDummyData, permissionDummyData, userAuthDummyData, userRoleDummyData } from '../../features/iam/data/iam-dummy';
 import type { UserAuth, UserAuthGrantRequest } from '../../features/iam/types/iam.types';
+import { FallbackSpinner } from '@/components/custom/FallbackSpinner';
+import NoData from '@/components/custom/NoData';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 
-import { FallbackSpinner } from '@/libs/shared-ui/src/components/custom/FallbackSpinner';
-import NoData from '@/libs/shared-ui/src/components/custom/NoData';
 import useAggridOptions from '@/libs/shared-ui/src/hooks/useAggridOptions';
 
 // AG Grid 컬럼 정의

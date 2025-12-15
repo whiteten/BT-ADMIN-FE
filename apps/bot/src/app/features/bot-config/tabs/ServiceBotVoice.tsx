@@ -5,7 +5,7 @@ import { Log } from '@/log';
 import { toast } from '@/shared-util';
 import { useGetServiceBot, useUpdateServiceBotVoice } from '../hooks/useServiceBotQueries';
 import type { ServiceBotVoiceUpdateDatas } from '../types';
-import { FallbackSpinner } from '@/libs/shared-ui/src/components/custom/FallbackSpinner';
+import { FallbackSpinner } from '@/components/custom/FallbackSpinner';
 const sttOptions = [
   { label: 'STT 타입 1', value: 1000000001 },
   { label: 'STT 타입 2', value: 1000000002 },

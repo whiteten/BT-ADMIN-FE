@@ -1,8 +1,8 @@
 import { Card } from 'antd';
+import { IconMoreVertical } from '@/components/custom/Icons';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { IconMoreVertical } from '@/libs/shared-ui/src/components/custom/Icons';
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/libs/shared-ui/src/components/shadcn/dropdown-menu';
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 
 type ModelCardProps = {
   modelId: string;

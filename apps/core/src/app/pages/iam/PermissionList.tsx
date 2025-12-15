@@ -14,8 +14,8 @@ import { Copy, Search } from 'lucide-react';
 import { appDummyData, permissionDummyData } from '../../features/iam/data/iam-dummy';
 import type { Permission } from '../../features/iam/types/iam.types';
 
-import { FallbackSpinner } from '@/libs/shared-ui/src/components/custom/FallbackSpinner';
-import NoData from '@/libs/shared-ui/src/components/custom/NoData';
+import { FallbackSpinner } from '@/components/custom/FallbackSpinner';
+import NoData from '@/components/custom/NoData';
 import useAggridOptions from '@/libs/shared-ui/src/hooks/useAggridOptions';
 
 // 액션별 색상 매핑

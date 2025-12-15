@@ -5,7 +5,7 @@ import { Log } from '@/log';
 import { toast } from '@/shared-util';
 import { serviceBotQueryKeys, useCreateServiceBotVersion, useDeleteServiceBotVersion, useGetServiceBotVersion, useUpdateServiceBotVersion } from '../hooks/useServiceBotQueries';
 import type { ServiceBotVersionCreateDatas, ServiceBotVersionUpdateDatas } from '../types';
-import { FallbackSpinner } from '@/libs/shared-ui/src/components/custom/FallbackSpinner';
+import { FallbackSpinner } from '@/components/custom/FallbackSpinner';
 /**
  * Bot 버전 등록/수정 Drawer
  * @param open - 드로어 열림 여부

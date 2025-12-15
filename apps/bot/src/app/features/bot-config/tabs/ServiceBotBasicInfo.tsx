@@ -6,8 +6,8 @@ import { Log } from '@/log';
 import { confirmModal, toast } from '@/shared-util';
 import { serviceBotQueryKeys, useDeleteServiceBot, useGetServiceBot, useUpdateServiceBot } from '../hooks/useServiceBotQueries';
 import type { ServiceBotBasicInfoUpdateDatas } from '../types';
+import { FallbackSpinner } from '@/components/custom/FallbackSpinner';
 import { IconTag } from '@/components/custom/Icons';
-import { FallbackSpinner } from '@/libs/shared-ui/src/components/custom/FallbackSpinner';
 
 const modelOptions = [
   { label: 'NLU 모델 1', value: '1200000001' },

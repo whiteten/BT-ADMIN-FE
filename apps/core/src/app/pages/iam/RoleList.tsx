@@ -13,8 +13,8 @@ import { RoleCard } from '../../features/iam/components/RoleCard';
 import { roleDummyData } from '../../features/iam/data/iam-dummy';
 import type { Role } from '../../features/iam/types/iam.types';
 
-import { FallbackSpinner } from '@/libs/shared-ui/src/components/custom/FallbackSpinner';
-import NoData from '@/libs/shared-ui/src/components/custom/NoData';
+import { FallbackSpinner } from '@/components/custom/FallbackSpinner';
+import NoData from '@/components/custom/NoData';
 
 export default function RoleList() {
   const navigate = useNavigate();
