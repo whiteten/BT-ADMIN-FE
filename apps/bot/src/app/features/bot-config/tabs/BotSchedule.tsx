@@ -3,23 +3,17 @@ import { useParams } from 'react-router-dom';
 import { Button, Col, Form, type FormProps, Input, Row, Select } from 'antd';
 import { Log } from '@/log';
 import { toast } from '@/shared-util';
-import { useGetBot, useUpdateBotSchedule } from '../hooks/useBotQueries';
+import { useGetBot, useGetWorkTimeList, useUpdateBotSchedule } from '../hooks/useBotQueries';
 import type { BotScheduleUpdateDatas } from '../types';
 import { FallbackSpinner } from '@/components/custom/FallbackSpinner';
-
-const worktimeOptions = [
-  { label: '24시간 운영', value: 1 },
-  { label: '평일 09:00 ~ 18:00', value: 2 },
-  { label: '평일 09:00 ~ 21:00', value: 3 },
-  { label: '주말 포함 09:00 ~ 18:00', value: 4 },
-  { label: '주말 포함 09:00 ~ 21:00', value: 5 },
-];
 
 export default function BotSchedule() {
   const { serviceId } = useParams();
   const [form] = Form.useForm();
 
-  const { data: bot, isFetching } = useGetBot({ params: { serviceId } });
+  const { data: bot, isFetching: isFetchingBot } = useGetBot({ params: { serviceId } });
+  const { data: workTimeList, isFetching: isFetchingWorkTimeList } = useGetWorkTimeList();
+  const worktimeOptions = workTimeList?.map((workTime) => ({ label: workTime.worktimeName, value: workTime.worktimeId })) ?? [];
   const { mutate: updateBotSchedule, isPending: isUpdating } = useUpdateBotSchedule({
     mutationOptions: {
       onSuccess: () => {
@@ -43,7 +37,7 @@ export default function BotSchedule() {
     form.setFieldsValue({ bhWorktimeId, ahMessage });
   }, [bot, form]);
 
-  if (isFetching) {
+  if (isFetchingBot || isFetchingWorkTimeList) {
     return (
       <div className="flex items-center justify-center w-full h-full">
         <FallbackSpinner />

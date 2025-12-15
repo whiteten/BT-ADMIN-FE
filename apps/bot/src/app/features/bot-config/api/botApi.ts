@@ -12,6 +12,7 @@ import type {
   BotVoiceUpdateDatas,
   SttListItem,
   TtsListItem,
+  WorkTimeListItem,
 } from '../types';
 
 const apiClient = new ApiClient({ serviceURL: '/bff' });
@@ -37,6 +38,10 @@ interface SttListResponse {
 
 interface TtsListResponse {
   data: { list: { data: { items: TtsListItem[] } } };
+}
+
+interface WorkTimeListResponse {
+  data: { list: { data: { items: WorkTimeListItem[] } } };
 }
 
 export const botApi = {
@@ -94,6 +99,10 @@ export const botApi = {
   },
   getTtsList: async (params?: Record<string, unknown>): Promise<TtsListItem[]> => {
     const response = await apiClient.get<TtsListResponse>('/tts-list', { params });
+    return response?.data?.data?.list?.data?.items ?? [];
+  },
+  getWorkTimeList: async (params?: Record<string, unknown>): Promise<WorkTimeListItem[]> => {
+    const response = await apiClient.get<WorkTimeListResponse>('/worktime-list', { params });
     return response?.data?.data?.list?.data?.items ?? [];
   },
 };
