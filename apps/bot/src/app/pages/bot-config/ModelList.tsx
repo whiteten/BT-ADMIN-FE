@@ -52,7 +52,36 @@ export default function ModelList() {
         </div>
       </div>
       <div className="grid grid-cols-[repeat(auto-fill,minmax(350px,1fr))] gap-4 w-full overflow-y-auto">
-        <ModelCard modelId="1" modelName="모델 1" onDetail={handleDetail} onDelete={handleDelete} />
+        <ModelCard
+          modelId="1"
+          modelName="모델 1"
+          trainStatus="0"
+          trainTime="2021-01-01 12:00:00"
+          intentCount={10}
+          entityCount={10}
+          onDetail={handleDetail}
+          onDelete={handleDelete}
+        />
+        <ModelCard
+          modelId="2"
+          modelName="모델 2"
+          trainStatus="1"
+          trainTime="2021-01-01 12:00:00"
+          intentCount={20}
+          entityCount={20}
+          onDetail={handleDetail}
+          onDelete={handleDelete}
+        />
+        <ModelCard
+          modelId="3"
+          modelName="모델 3"
+          trainStatus="2"
+          trainTime="2021-01-01 12:00:00"
+          intentCount={30}
+          entityCount={30}
+          onDetail={handleDetail}
+          onDelete={handleDelete}
+        />
       </div>
     </div>
   );
