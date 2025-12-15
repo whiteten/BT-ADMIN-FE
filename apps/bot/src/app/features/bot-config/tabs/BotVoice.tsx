@@ -3,25 +3,19 @@ import { useParams } from 'react-router-dom';
 import { Button, Col, Form, type FormProps, Input, Row, Select, Slider } from 'antd';
 import { Log } from '@/log';
 import { toast } from '@/shared-util';
-import { useGetBot, useUpdateBotVoice } from '../hooks/useBotQueries';
+import { useGetBot, useGetSttList, useGetTtsList, useUpdateBotVoice } from '../hooks/useBotQueries';
 import type { BotVoiceUpdateDatas } from '../types';
 import { FallbackSpinner } from '@/components/custom/FallbackSpinner';
-const sttOptions = [
-  { label: 'STT 타입 1', value: 1000000001 },
-  { label: 'STT 타입 2', value: 1000000002 },
-  { label: 'STT 타입 3', value: 1000000003 },
-];
-const ttsOptions = [
-  { label: 'TTS 타입 1', value: 1100000001 },
-  { label: 'TTS 타입 2', value: 1100000002 },
-  { label: 'TTS 타입 3', value: 1100000003 },
-];
 
 export default function BotVoice() {
   const { serviceId } = useParams();
   const [form] = Form.useForm();
 
-  const { data: bot, isFetching } = useGetBot({ params: { serviceId } });
+  const { data: sttList, isFetching: isFetchingSttList } = useGetSttList();
+  const { data: ttsList, isFetching: isFetchingTtsList } = useGetTtsList();
+  const sttOptions = sttList?.map((stt) => ({ label: stt.sttName, value: stt.sttId }));
+  const ttsOptions = ttsList?.map((tts) => ({ label: tts.ttsName, value: tts.ttsId }));
+  const { data: bot, isFetching: isFetchingBot } = useGetBot({ params: { serviceId } });
   const { mutate: updateBotVoice, isPending: isUpdating } = useUpdateBotVoice({
     mutationOptions: {
       onSuccess: () => {
@@ -45,7 +39,7 @@ export default function BotVoice() {
     form.setFieldsValue({ sttId, ttsId, ttsSpeaker, ttsSpeed, ttsVolume, ttsPitch });
   }, [bot, form]);
 
-  if (isFetching) {
+  if (isFetchingBot || isFetchingSttList || isFetchingTtsList) {
     return (
       <div className="flex items-center justify-center w-full h-full">
         <FallbackSpinner />

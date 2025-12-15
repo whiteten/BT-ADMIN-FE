@@ -4,8 +4,9 @@ import { type BreadcrumbProps, Button, Col, Divider, Form, type FormProps, Input
 import { Check, X } from 'lucide-react';
 import { Log } from '@/log';
 import { toast } from '@/shared-util';
-import { useCreateBot } from '../../features/bot-config/hooks/useBotQueries';
+import { useCreateBot, useGetSttList, useGetTtsList } from '../../features/bot-config/hooks/useBotQueries';
 import type { BotCreateDatas } from '../../features/bot-config/types';
+import { FallbackSpinner } from '@/components/custom/FallbackSpinner';
 import { IconTag } from '@/components/custom/Icons';
 import PageHeader from '@/components/custom/PageHeader';
 
@@ -19,16 +20,6 @@ const modelOptions = [
   { label: 'NLU 모델 1', value: '1200000001' },
   { label: 'NLU 모델 2', value: '1200000002' },
   { label: 'NLU 모델 3', value: '1200000003' },
-];
-const sttOptions = [
-  { label: 'STT 타입 1', value: 1000000001 },
-  { label: 'STT 타입 2', value: 1000000002 },
-  { label: 'STT 타입 3', value: 1000000003 },
-];
-const ttsOptions = [
-  { label: 'TTS 타입 1', value: 1100000001 },
-  { label: 'TTS 타입 2', value: 1100000002 },
-  { label: 'TTS 타입 3', value: 1100000003 },
 ];
 
 // 헬퍼 함수: Select 옵션에서 라벨 찾기
@@ -50,6 +41,11 @@ export default function BotCreate() {
   const [currentStep, setCurrentStep] = useState(0);
   const [fieldErrors, setFieldErrors] = useState<Record<string, string[]>>({});
   const [form] = Form.useForm();
+
+  const { data: sttList, isFetching: isFetchingSttList } = useGetSttList();
+  const { data: ttsList, isFetching: isFetchingTtsList } = useGetTtsList();
+  const sttOptions = sttList?.map((stt) => ({ label: stt.sttName, value: stt.sttId })) ?? [];
+  const ttsOptions = ttsList?.map((tts) => ({ label: tts.ttsName, value: tts.ttsId })) ?? [];
 
   const initialValues = { modelId: null, confidence: [40, 80], tags: [], sttId: null, ttsId: null, ttsSpeaker: '', ttsSpeed: 100, ttsVolume: 100, ttsPitch: 100 };
   const formValues = Form.useWatch([], form);
@@ -366,6 +362,14 @@ export default function BotCreate() {
           </Col>
         )}
       </Row>
+    );
+  }
+
+  if (isFetchingSttList || isFetchingTtsList) {
+    return (
+      <div className="flex items-center justify-center w-full h-full">
+        <FallbackSpinner />
+      </div>
     );
   }
 

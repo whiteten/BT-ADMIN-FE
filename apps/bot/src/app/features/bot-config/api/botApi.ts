@@ -10,6 +10,8 @@ import type {
   BotVersionListItem,
   BotVersionUpdateDatas,
   BotVoiceUpdateDatas,
+  SttListItem,
+  TtsListItem,
 } from '../types';
 
 const apiClient = new ApiClient({ serviceURL: '/bff' });
@@ -27,6 +29,14 @@ interface BotVersionListResponse {
 
 interface BotVersionDetailResponse {
   data: { detail: { data: BotVersionItem } };
+}
+
+interface SttListResponse {
+  data: { list: { data: { items: SttListItem[] } } };
+}
+
+interface TtsListResponse {
+  data: { list: { data: { items: TtsListItem[] } } };
 }
 
 export const botApi = {
@@ -77,5 +87,13 @@ export const botApi = {
   deleteBotVersion: async (params: Record<string, unknown>) => {
     const response = await apiClient.delete('/bot-version-delete', { params });
     return response?.data;
+  },
+  getSttList: async (params?: Record<string, unknown>): Promise<SttListItem[]> => {
+    const response = await apiClient.get<SttListResponse>('/stt-list', { params });
+    return response?.data?.data?.list?.data?.items ?? [];
+  },
+  getTtsList: async (params?: Record<string, unknown>): Promise<TtsListItem[]> => {
+    const response = await apiClient.get<TtsListResponse>('/tts-list', { params });
+    return response?.data?.data?.list?.data?.items ?? [];
   },
 };

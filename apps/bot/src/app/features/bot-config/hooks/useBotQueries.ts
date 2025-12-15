@@ -2,13 +2,15 @@ import { useMutation, useQuery } from '@tanstack/react-query';
 import { createQueryKeys } from '@lukemorales/query-key-factory';
 import type { MutationHookOptions, QueryHookWithParamsOptions } from '@/shared-util';
 import { botApi } from '../api/botApi';
-import type { BotItem, BotListItem, BotVersionItem, BotVersionListItem } from '../types';
+import type { BotItem, BotListItem, BotVersionItem, BotVersionListItem, SttListItem, TtsListItem } from '../types';
 
 export const botQueryKeys = createQueryKeys('bots', {
   getBots: (params?: Record<string, unknown>) => [params],
   getBot: (params?: Record<string, unknown>) => [params],
   getBotVersions: (params?: Record<string, unknown>) => [params],
   getBotVersion: (params?: Record<string, unknown>) => [params],
+  getSttList: (params?: Record<string, unknown>) => [params],
+  getTtsList: (params?: Record<string, unknown>) => [params],
 });
 
 export const useGetBots = ({ params, queryOptions }: QueryHookWithParamsOptions<BotListItem[]> = {}) => {
@@ -96,5 +98,21 @@ export const useDeleteBotVersion = ({ mutationOptions }: MutationHookOptions = {
   return useMutation({
     mutationFn: botApi.deleteBotVersion,
     ...mutationOptions,
+  });
+};
+
+export const useGetSttList = ({ params, queryOptions }: QueryHookWithParamsOptions<SttListItem[]> = {}) => {
+  return useQuery({
+    queryKey: botQueryKeys.getSttList(params).queryKey,
+    queryFn: () => botApi.getSttList(params),
+    ...queryOptions,
+  });
+};
+
+export const useGetTtsList = ({ params, queryOptions }: QueryHookWithParamsOptions<TtsListItem[]> = {}) => {
+  return useQuery({
+    queryKey: botQueryKeys.getTtsList(params).queryKey,
+    queryFn: () => botApi.getTtsList(params),
+    ...queryOptions,
   });
 };
