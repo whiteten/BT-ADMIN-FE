@@ -22,7 +22,7 @@ interface ServiceBotDetailResponse {
 }
 
 interface ServiceBotVersionListResponse {
-  data: { list: { data: { items: ServiceBotVersionListItem[] } } };
+  data: { list: { data: ServiceBotVersionListItem[] } };
 }
 
 interface ServiceBotVersionDetailResponse {
@@ -60,7 +60,7 @@ export const serviceBotApi = {
   },
   getServiceBotVersions: async (params?: Record<string, unknown>): Promise<ServiceBotVersionListItem[]> => {
     const response = await apiClient.get<ServiceBotVersionListResponse>('/service-bots-version-list', { params });
-    return response?.data?.data?.list?.data?.items ?? [];
+    return response?.data?.data?.list?.data ?? [];
   },
   getServiceBotVersion: async (params?: Record<string, unknown>): Promise<ServiceBotVersionItem> => {
     const response = await apiClient.get<ServiceBotVersionDetailResponse>('/service-bots-version-detail', { params });

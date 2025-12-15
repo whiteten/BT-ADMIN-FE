@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { useParams } from 'react-router-dom';
+import { Navigate, useParams } from 'react-router-dom';
 import { toast } from 'react-toastify';
 import { useQueryClient } from '@tanstack/react-query';
 import type { ColDef, RowDoubleClickedEvent } from 'ag-grid-community';
@@ -83,13 +83,14 @@ function BotVersionDrawer({ open, onClose, serviceId, serviceVer }: BotVersionDr
   });
 
   useEffect(() => {
-    if (!serviceBotVersion) return;
-    form.setFieldsValue({
-      serviceVer: serviceBotVersion.serviceVer,
-      versionName: serviceBotVersion.versionName,
-      versionDesc: serviceBotVersion.versionDesc,
-    });
-  }, [serviceBotVersion, form]);
+    if (!open) return;
+    const { serviceVer = '', versionName = '', versionDesc = '' } = serviceBotVersion ?? {};
+    form.setFieldsValue({ serviceVer, versionName, versionDesc });
+    return () => {
+      Log.debug('Reset Form Fields');
+      form.resetFields();
+    };
+  }, [serviceBotVersion, form, open]);
 
   const onFinish: FormProps<ServiceBotVersionCreateDatas | ServiceBotVersionUpdateDatas>['onFinish'] = (values) => {
     Log.debug('onFinish', values);
@@ -111,7 +112,7 @@ function BotVersionDrawer({ open, onClose, serviceId, serviceVer }: BotVersionDr
 
   const handleDeleteBtn = () => {
     Log.debug('handleDeleteBtn');
-    deleteServiceBotVersion({ params: { serviceId, serviceVer } });
+    deleteServiceBotVersion({ serviceId, serviceVer });
   };
 
   const footer = (
@@ -166,7 +167,7 @@ function BotVersionDrawer({ open, onClose, serviceId, serviceVer }: BotVersionDr
 }
 
 export default function ServiceBotVersion() {
-  const { serviceId } = useParams();
+  const { serviceId = '' } = useParams();
   const { gridOptions } = useAggridOptions();
   const [rowData, setRowData] = useState<ServiceBotVersionListItem[]>([]);
   const [open, setOpen] = useState(false);
@@ -241,7 +242,7 @@ export default function ServiceBotVersion() {
       <div className="w-full h-full">
         <AgGridReact<ServiceBotVersionListItem> {...{ rowData, columnDefs, gridOptions }} loading={isFetchingVersionList} onRowDoubleClicked={handleRowDoubleClicked} />
       </div>
-      <BotVersionDrawer open={open} onClose={handleCloseDrawer} serviceId={selectedRowData?.serviceId ?? ''} serviceVer={selectedRowData?.serviceVer} />
+      <BotVersionDrawer open={open} onClose={handleCloseDrawer} serviceId={serviceId} serviceVer={selectedRowData?.serviceVer} />
     </div>
   );
 }
