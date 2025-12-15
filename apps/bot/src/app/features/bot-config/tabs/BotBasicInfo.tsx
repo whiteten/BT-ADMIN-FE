@@ -4,8 +4,8 @@ import { useQueryClient } from '@tanstack/react-query';
 import { Button, Col, Form, type FormProps, Input, Row, Select, type SelectProps, Slider, Tag } from 'antd';
 import { Log } from '@/log';
 import { confirmModal, toast } from '@/shared-util';
-import { serviceBotQueryKeys, useDeleteServiceBot, useGetServiceBot, useUpdateServiceBot } from '../hooks/useServiceBotQueries';
-import type { ServiceBotBasicInfoUpdateDatas } from '../types';
+import { botQueryKeys, useDeleteBot, useGetBot, useUpdateBot } from '../hooks/useBotQueries';
+import type { BotBasicInfoUpdateDatas } from '../types';
 import { FallbackSpinner } from '@/components/custom/FallbackSpinner';
 import { IconTag } from '@/components/custom/Icons';
 
@@ -15,7 +15,7 @@ const modelOptions = [
   { label: 'NLU 모델 3', value: '1200000003' },
 ];
 
-export default function ServiceBotBasicInfo() {
+export default function BotBasicInfo() {
   const { serviceId } = useParams();
   const queryClient = useQueryClient();
   const navigate = useNavigate();
@@ -24,18 +24,18 @@ export default function ServiceBotBasicInfo() {
   const [serviceVer, setServiceVer] = useState('');
   const [confidence, setConfidence] = useState([40, 80]);
 
-  const { data: serviceBot, isFetching } = useGetServiceBot({ params: { serviceId } });
+  const { data: bot, isFetching } = useGetBot({ params: { serviceId } });
 
-  const { mutate: updateServiceBot, isPending: isUpdating } = useUpdateServiceBot({
+  const { mutate: updateBot, isPending: isUpdating } = useUpdateBot({
     mutationOptions: {
       onSuccess: () => {
         toast.success('봇 기본 정보가 저장되었습니다.');
-        queryClient.invalidateQueries({ queryKey: serviceBotQueryKeys.getServiceBot({ serviceId }).queryKey });
+        queryClient.invalidateQueries({ queryKey: botQueryKeys.getBot({ serviceId }).queryKey });
       },
     },
   });
 
-  const { mutateAsync: deleteServiceBot, isPending: isDeleting } = useDeleteServiceBot({
+  const { mutateAsync: deleteBot, isPending: isDeleting } = useDeleteBot({
     mutationOptions: {
       onSuccess: () => {
         toast.success('봇이 삭제되었습니다.');
@@ -70,28 +70,28 @@ export default function ServiceBotBasicInfo() {
     );
   };
 
-  const onFinish: FormProps<ServiceBotBasicInfoUpdateDatas>['onFinish'] = (values) => {
+  const onFinish: FormProps<BotBasicInfoUpdateDatas>['onFinish'] = (values) => {
     Log.debug('onFinish', values);
-    updateServiceBot({ params: { serviceId }, data: values });
+    updateBot({ params: { serviceId }, data: values });
   };
 
-  const onFinishFailed: FormProps<ServiceBotBasicInfoUpdateDatas>['onFinishFailed'] = (errorInfo) => {
+  const onFinishFailed: FormProps<BotBasicInfoUpdateDatas>['onFinishFailed'] = (errorInfo) => {
     Log.warn('onFinishFailed', errorInfo);
   };
 
   const handleClickDeleteBtn = () => {
     confirmModal.delete({
-      onOk: () => deleteServiceBot({ serviceId }),
+      onOk: () => deleteBot({ serviceId }),
     });
   };
 
   useEffect(() => {
-    if (!serviceBot) return;
-    const { serviceName, serviceDesc, modelId, confidence, tags, serviceVer } = serviceBot;
+    if (!bot) return;
+    const { serviceName, serviceDesc, modelId, confidence, tags, serviceVer } = bot;
     form.setFieldsValue({ serviceName, serviceDesc, modelId, confidence, tags });
     setServiceVer(serviceVer ?? '');
     setConfidence(confidence);
-  }, [serviceBot, form]);
+  }, [bot, form]);
 
   if (isFetching) {
     return (

@@ -3,8 +3,8 @@ import { useParams } from 'react-router-dom';
 import { Button, Col, Form, type FormProps, Input, Row, Select, Slider } from 'antd';
 import { Log } from '@/log';
 import { toast } from '@/shared-util';
-import { useGetServiceBot, useUpdateServiceBotVoice } from '../hooks/useServiceBotQueries';
-import type { ServiceBotVoiceUpdateDatas } from '../types';
+import { useGetBot, useUpdateBotVoice } from '../hooks/useBotQueries';
+import type { BotVoiceUpdateDatas } from '../types';
 import { FallbackSpinner } from '@/components/custom/FallbackSpinner';
 const sttOptions = [
   { label: 'STT 타입 1', value: 1000000001 },
@@ -17,12 +17,12 @@ const ttsOptions = [
   { label: 'TTS 타입 3', value: 1100000003 },
 ];
 
-export default function ServiceBotVoice() {
+export default function BotVoice() {
   const { serviceId } = useParams();
   const [form] = Form.useForm();
 
-  const { data: serviceBot, isFetching } = useGetServiceBot({ params: { serviceId } });
-  const { mutate: updateServiceBotVoice, isPending: isUpdating } = useUpdateServiceBotVoice({
+  const { data: bot, isFetching } = useGetBot({ params: { serviceId } });
+  const { mutate: updateBotVoice, isPending: isUpdating } = useUpdateBotVoice({
     mutationOptions: {
       onSuccess: () => {
         toast.success('STT & TTS 설정이 저장되었습니다.');
@@ -30,20 +30,20 @@ export default function ServiceBotVoice() {
     },
   });
 
-  const onFinish: FormProps<ServiceBotVoiceUpdateDatas>['onFinish'] = (values) => {
+  const onFinish: FormProps<BotVoiceUpdateDatas>['onFinish'] = (values) => {
     Log.debug('onFinish', values);
-    updateServiceBotVoice({ params: { serviceId }, data: values });
+    updateBotVoice({ params: { serviceId }, data: values });
   };
 
-  const onFinishFailed: FormProps<ServiceBotVoiceUpdateDatas>['onFinishFailed'] = (errorInfo) => {
+  const onFinishFailed: FormProps<BotVoiceUpdateDatas>['onFinishFailed'] = (errorInfo) => {
     Log.warn('onFinishFailed', errorInfo);
   };
 
   useEffect(() => {
-    if (!serviceBot) return;
-    const { sttId, ttsId, ttsSpeaker, ttsSpeed, ttsVolume, ttsPitch } = serviceBot;
+    if (!bot) return;
+    const { sttId, ttsId, ttsSpeaker, ttsSpeed, ttsVolume, ttsPitch } = bot;
     form.setFieldsValue({ sttId, ttsId, ttsSpeaker, ttsSpeed, ttsVolume, ttsPitch });
-  }, [serviceBot, form]);
+  }, [bot, form]);
 
   if (isFetching) {
     return (

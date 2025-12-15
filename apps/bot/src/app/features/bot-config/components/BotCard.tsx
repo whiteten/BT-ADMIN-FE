@@ -3,12 +3,12 @@ import { Card, Tag } from 'antd';
 
 import { ReactComponent as IconLinkIfe } from '../../../../assets/images/icon/icon-link-ife.svg';
 import { ReactComponent as IconLinkNlu } from '../../../../assets/images/icon/icon-link-nlu.svg';
-import type { ServiceBotListItem } from '../types';
+import type { BotListItem } from '../types';
 import { IconMoreVertical, IconTag } from '@/components/custom/Icons';
 import { Button } from '@/components/ui/button';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 
-type ServiceBotCardProps = ServiceBotListItem & {
+type BotCardProps = BotListItem & {
   onDetail?: (serviceId: string) => void;
   onDelete?: (serviceId: string) => void;
 };
@@ -45,7 +45,7 @@ const useWrappedItemCount = () => {
   return { containerRef, wrappedCount };
 };
 
-export default function ServiceBotCard({ serviceId, serviceName, serviceVer, modelName, conversationCount, workTime, tags, onDetail, onDelete }: ServiceBotCardProps) {
+export default function BotCard({ serviceId, serviceName, serviceVer, modelName, conversationCount, workTime, tags, onDetail, onDelete }: BotCardProps) {
   const { containerRef, wrappedCount } = useWrappedItemCount();
 
   const title = (

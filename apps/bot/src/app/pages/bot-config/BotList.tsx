@@ -3,38 +3,38 @@ import { useNavigate } from 'react-router-dom';
 import { useQueryClient } from '@tanstack/react-query';
 import { type BreadcrumbProps, Button, Input, Select } from 'antd';
 import { confirmModal } from '@/shared-util';
-import ServiceBotCard from '../../features/bot-config/components/ServiceBotCard';
-import { serviceBotQueryKeys, useDeleteServiceBot, useGetServiceBots } from '../../features/bot-config/hooks/useServiceBotQueries';
+import BotCard from '../../features/bot-config/components/BotCard';
+import { botQueryKeys, useDeleteBot, useGetBots } from '../../features/bot-config/hooks/useBotQueries';
 import { FallbackSpinner } from '@/components/custom/FallbackSpinner';
 import NoData from '@/components/custom/NoData';
 import PageHeader from '@/components/custom/PageHeader';
 
 const breadcrumb: BreadcrumbProps['items'] = [
   { title: '봇 관리', path: '/bot/bot-config' },
-  { title: '봇', path: '/bot/bot-config/service-bot' },
-  { title: '봇 목록', path: '/bot/bot-config/service-bot/list' },
+  { title: '봇', path: '/bot/bot-config/bot' },
+  { title: '봇 목록', path: '/bot/bot-config/bot/list' },
 ];
 
-export default function ServiceBotList() {
+export default function BotList() {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const [filterColumn, setFilterColumn] = useState('serviceName');
   const [searchValue, setSearchValue] = useState('');
 
-  const { data: serviceBotList, isFetching } = useGetServiceBots();
-  const { mutateAsync: deleteServiceBot } = useDeleteServiceBot({
+  const { data: botList, isFetching } = useGetBots();
+  const { mutateAsync: deleteBot } = useDeleteBot({
     mutationOptions: {
       onSuccess: () => {
-        queryClient.invalidateQueries({ queryKey: serviceBotQueryKeys.getServiceBots().queryKey });
+        queryClient.invalidateQueries({ queryKey: botQueryKeys.getBots().queryKey });
       },
     },
   });
 
   const filteredList = useMemo(() => {
-    if (!serviceBotList) return [];
-    if (!searchValue.trim()) return serviceBotList;
+    if (!botList) return [];
+    if (!searchValue.trim()) return botList;
     const keyword = searchValue.toLowerCase();
-    return serviceBotList.filter((bot) => {
+    return botList.filter((bot) => {
       const value = bot[filterColumn as keyof typeof bot];
       if (value == null) return false;
       if (Array.isArray(value)) {
@@ -42,7 +42,7 @@ export default function ServiceBotList() {
       }
       return String(value).toLowerCase().includes(keyword);
     });
-  }, [serviceBotList, filterColumn, searchValue]);
+  }, [botList, filterColumn, searchValue]);
 
   const handleColumnChange = (value: string) => {
     setFilterColumn(value);
@@ -59,7 +59,7 @@ export default function ServiceBotList() {
 
   const handleDelete = (serviceId: string) => {
     confirmModal.delete({
-      onOk: () => deleteServiceBot({ serviceId }),
+      onOk: () => deleteBot({ serviceId }),
     });
   };
 
@@ -96,7 +96,7 @@ export default function ServiceBotList() {
       ) : filteredList.length ? (
         <div className="grid grid-cols-[repeat(auto-fill,minmax(350px,1fr))] gap-4 w-full overflow-y-auto">
           {filteredList.map((bot) => (
-            <ServiceBotCard key={bot.serviceId} {...bot} onDetail={handleDetail} onDelete={handleDelete} />
+            <BotCard key={bot.serviceId} {...bot} onDetail={handleDetail} onDelete={handleDelete} />
           ))}
         </div>
       ) : (

@@ -20,9 +20,9 @@ const menuConfig = {
       hide: false,
       children: [
         {
-          id: `${appName}/_config-bot/service-bot`,
+          id: `${appName}/_config-bot/bot`,
           label: '봇',
-          path: 'bot-config/service-bot/list',
+          path: 'bot-config/bot/list',
           index: 0,
           hide: false,
         },

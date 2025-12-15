@@ -1,1 +1,1 @@
-export type * from './service-bot';
+export type * from './bot';

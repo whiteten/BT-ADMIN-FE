@@ -3,8 +3,8 @@ import { useQueryClient } from '@tanstack/react-query';
 import { Button, Col, Drawer, Form, type FormProps, Input, Row } from 'antd';
 import { Log } from '@/log';
 import { toast } from '@/shared-util';
-import { serviceBotQueryKeys, useCreateServiceBotVersion, useDeleteServiceBotVersion, useGetServiceBotVersion, useUpdateServiceBotVersion } from '../hooks/useServiceBotQueries';
-import type { ServiceBotVersionCreateDatas, ServiceBotVersionUpdateDatas } from '../types';
+import { botQueryKeys, useCreateBotVersion, useDeleteBotVersion, useGetBotVersion, useUpdateBotVersion } from '../hooks/useBotQueries';
+import type { BotVersionCreateDatas, BotVersionUpdateDatas } from '../types';
 import { FallbackSpinner } from '@/components/custom/FallbackSpinner';
 /**
  * Bot 버전 등록/수정 Drawer
@@ -12,49 +12,49 @@ import { FallbackSpinner } from '@/components/custom/FallbackSpinner';
  * @param onClose - 드로어 닫기 함수
  * @param serviceVer - 선택된 서비스 버전
  */
-interface ServiceBotVersionDrawerProps {
+interface BotVersionDrawerProps {
   open: boolean;
   onClose: () => void;
   serviceId: string;
   serviceVer?: string;
 }
 
-export default function ServiceBotVersionDrawer({ open, onClose, serviceId, serviceVer }: ServiceBotVersionDrawerProps) {
+export default function BotVersionDrawer({ open, onClose, serviceId, serviceVer }: BotVersionDrawerProps) {
   const title = serviceVer ? '버전 수정' : '버전 추가';
   const [form] = Form.useForm();
   const { TextArea } = Input;
   const queryClient = useQueryClient();
 
-  const { data: serviceBotVersion, isFetching } = useGetServiceBotVersion({
+  const { data: botVersion, isFetching } = useGetBotVersion({
     params: { serviceId, serviceVer },
     queryOptions: { enabled: !!serviceId && !!serviceVer && open },
   });
 
-  const { mutate: createServiceBotVersion, isPending: isCreating } = useCreateServiceBotVersion({
+  const { mutate: createBotVersion, isPending: isCreating } = useCreateBotVersion({
     mutationOptions: {
       onSuccess: () => {
         toast.success('버전이 추가되었습니다.');
-        queryClient.invalidateQueries({ queryKey: serviceBotQueryKeys.getServiceBotVersions({ serviceId }).queryKey });
+        queryClient.invalidateQueries({ queryKey: botQueryKeys.getBotVersions({ serviceId }).queryKey });
         onClose();
       },
     },
   });
 
-  const { mutate: updateServiceBotVersion, isPending: isUpdating } = useUpdateServiceBotVersion({
+  const { mutate: updateBotVersion, isPending: isUpdating } = useUpdateBotVersion({
     mutationOptions: {
       onSuccess: () => {
         toast.success('버전이 수정되었습니다.');
-        queryClient.invalidateQueries({ queryKey: serviceBotQueryKeys.getServiceBotVersions({ serviceId }).queryKey });
+        queryClient.invalidateQueries({ queryKey: botQueryKeys.getBotVersions({ serviceId }).queryKey });
         onClose();
       },
     },
   });
 
-  const { mutate: deleteServiceBotVersion, isPending: isDeleting } = useDeleteServiceBotVersion({
+  const { mutate: deleteBotVersion, isPending: isDeleting } = useDeleteBotVersion({
     mutationOptions: {
       onSuccess: () => {
         toast.success('버전이 삭제되었습니다.');
-        queryClient.invalidateQueries({ queryKey: serviceBotQueryKeys.getServiceBotVersions({ serviceId }).queryKey });
+        queryClient.invalidateQueries({ queryKey: botQueryKeys.getBotVersions({ serviceId }).queryKey });
         onClose();
       },
     },
@@ -62,25 +62,25 @@ export default function ServiceBotVersionDrawer({ open, onClose, serviceId, serv
 
   useEffect(() => {
     if (!open) return;
-    const { serviceVer = '', versionName = '', versionDesc = '' } = serviceBotVersion ?? {};
+    const { serviceVer = '', versionName = '', versionDesc = '' } = botVersion ?? {};
     form.setFieldsValue({ serviceVer, versionName, versionDesc });
     return () => {
       Log.debug('Reset Form Fields');
       form.resetFields();
     };
-  }, [serviceBotVersion, form, open]);
+  }, [botVersion, form, open]);
 
-  const onFinish: FormProps<ServiceBotVersionCreateDatas | ServiceBotVersionUpdateDatas>['onFinish'] = (values) => {
+  const onFinish: FormProps<BotVersionCreateDatas | BotVersionUpdateDatas>['onFinish'] = (values) => {
     Log.debug('onFinish', values);
     if (serviceVer) {
-      const { serviceVer: _, ...valuesOmitServiceVer } = values as ServiceBotVersionUpdateDatas;
-      updateServiceBotVersion({ params: { serviceId, serviceVer }, data: valuesOmitServiceVer as ServiceBotVersionUpdateDatas });
+      const { serviceVer: _, ...valuesOmitServiceVer } = values as BotVersionUpdateDatas;
+      updateBotVersion({ params: { serviceId, serviceVer }, data: valuesOmitServiceVer as BotVersionUpdateDatas });
     } else {
-      createServiceBotVersion({ params: { serviceId }, data: values as ServiceBotVersionCreateDatas });
+      createBotVersion({ params: { serviceId }, data: values as BotVersionCreateDatas });
     }
   };
 
-  const onFinishFailed: FormProps<ServiceBotVersionCreateDatas | ServiceBotVersionUpdateDatas>['onFinishFailed'] = (errorInfo) => {
+  const onFinishFailed: FormProps<BotVersionCreateDatas | BotVersionUpdateDatas>['onFinishFailed'] = (errorInfo) => {
     Log.warn('onFinishFailed', errorInfo);
   };
 
@@ -90,7 +90,7 @@ export default function ServiceBotVersionDrawer({ open, onClose, serviceId, serv
 
   const handleDeleteBtn = () => {
     Log.debug('handleDeleteBtn');
-    deleteServiceBotVersion({ serviceId, serviceVer });
+    deleteBotVersion({ serviceId, serviceVer });
   };
 
   const footer = (

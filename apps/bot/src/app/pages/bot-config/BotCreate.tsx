@@ -4,15 +4,15 @@ import { type BreadcrumbProps, Button, Col, Divider, Form, type FormProps, Input
 import { Check, X } from 'lucide-react';
 import { Log } from '@/log';
 import { toast } from '@/shared-util';
-import { useCreateServiceBot } from '../../features/bot-config/hooks/useServiceBotQueries';
-import type { ServiceBotCreateDatas } from '../../features/bot-config/types';
+import { useCreateBot } from '../../features/bot-config/hooks/useBotQueries';
+import type { BotCreateDatas } from '../../features/bot-config/types';
 import { IconTag } from '@/components/custom/Icons';
 import PageHeader from '@/components/custom/PageHeader';
 
 const breadcrumb: BreadcrumbProps['items'] = [
   { title: '봇 관리', path: '/bot/bot-config' },
-  { title: '봇', path: '/bot/bot-config/service-bot' },
-  { title: '봇 생성', path: '/bot/bot-config/service-bot/create' },
+  { title: '봇', path: '/bot/bot-config/bot' },
+  { title: '봇 생성', path: '/bot/bot-config/bot/create' },
 ];
 
 const modelOptions = [
@@ -43,7 +43,7 @@ const displayValue = (value: unknown): React.ReactNode => {
   return value as React.ReactNode;
 };
 
-export default function ServiceBotCreate() {
+export default function BotCreate() {
   const navigate = useNavigate();
   const { TextArea } = Input;
   const [confidence, setConfidence] = useState([40, 80]);
@@ -76,7 +76,7 @@ export default function ServiceBotCreate() {
     { title: 'STT & TTS 설정', requiredFieldNames: ['sttId', 'ttsId'], content: renderStep2 },
   ];
 
-  const { mutate: createServiceBot, isPending } = useCreateServiceBot({
+  const { mutate: createBot, isPending } = useCreateBot({
     mutationOptions: {
       onSuccess: () => {
         toast.success('봇이 생성되었습니다.');
@@ -115,12 +115,12 @@ export default function ServiceBotCreate() {
     form.submit();
   };
 
-  const onFinish: FormProps<ServiceBotCreateDatas>['onFinish'] = (values) => {
+  const onFinish: FormProps<BotCreateDatas>['onFinish'] = (values) => {
     Log.debug('onFinish', values);
-    createServiceBot(values as ServiceBotCreateDatas);
+    createBot(values as BotCreateDatas);
   };
 
-  const onFinishFailed: FormProps<ServiceBotCreateDatas>['onFinishFailed'] = (errorInfo) => {
+  const onFinishFailed: FormProps<BotCreateDatas>['onFinishFailed'] = (errorInfo) => {
     Log.warn('onFinishFailed', errorInfo);
   };
 

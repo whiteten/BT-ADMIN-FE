@@ -3,8 +3,8 @@ import { useParams } from 'react-router-dom';
 import { Button, Col, Form, type FormProps, Input, Row, Select } from 'antd';
 import { Log } from '@/log';
 import { toast } from '@/shared-util';
-import { useGetServiceBot, useUpdateServiceBotSchedule } from '../hooks/useServiceBotQueries';
-import type { ServiceBotScheduleUpdateDatas } from '../types';
+import { useGetBot, useUpdateBotSchedule } from '../hooks/useBotQueries';
+import type { BotScheduleUpdateDatas } from '../types';
 import { FallbackSpinner } from '@/components/custom/FallbackSpinner';
 
 const worktimeOptions = [
@@ -15,12 +15,12 @@ const worktimeOptions = [
   { label: '주말 포함 09:00 ~ 21:00', value: 5 },
 ];
 
-export default function ServiceBotSchedule() {
+export default function BotSchedule() {
   const { serviceId } = useParams();
   const [form] = Form.useForm();
 
-  const { data: serviceBot, isFetching } = useGetServiceBot({ params: { serviceId } });
-  const { mutate: updateServiceBotSchedule, isPending: isUpdating } = useUpdateServiceBotSchedule({
+  const { data: bot, isFetching } = useGetBot({ params: { serviceId } });
+  const { mutate: updateBotSchedule, isPending: isUpdating } = useUpdateBotSchedule({
     mutationOptions: {
       onSuccess: () => {
         toast.success('스케쥴 설정이 저장되었습니다.');
@@ -28,20 +28,20 @@ export default function ServiceBotSchedule() {
     },
   });
 
-  const onFinish: FormProps<ServiceBotScheduleUpdateDatas>['onFinish'] = (values) => {
+  const onFinish: FormProps<BotScheduleUpdateDatas>['onFinish'] = (values) => {
     Log.debug('onFinish', values);
-    updateServiceBotSchedule({ params: { serviceId }, data: values });
+    updateBotSchedule({ params: { serviceId }, data: values });
   };
 
-  const onFinishFailed: FormProps<ServiceBotScheduleUpdateDatas>['onFinishFailed'] = (errorInfo) => {
+  const onFinishFailed: FormProps<BotScheduleUpdateDatas>['onFinishFailed'] = (errorInfo) => {
     Log.warn('onFinishFailed', errorInfo);
   };
 
   useEffect(() => {
-    if (!serviceBot) return;
-    const { bhWorktimeId, ahMessage } = serviceBot;
+    if (!bot) return;
+    const { bhWorktimeId, ahMessage } = bot;
     form.setFieldsValue({ bhWorktimeId, ahMessage });
-  }, [serviceBot, form]);
+  }, [bot, form]);
 
   if (isFetching) {
     return (

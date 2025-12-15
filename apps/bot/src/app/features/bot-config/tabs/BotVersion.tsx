@@ -4,12 +4,12 @@ import type { ColDef, RowDoubleClickedEvent } from 'ag-grid-community';
 import { AgGridReact } from 'ag-grid-react';
 import { Button, Input, Select } from 'antd';
 import { Log } from '@/log';
-import ServiceBotVersionDrawer from '../components/ServiceBotVersionDrawer';
-import { useGetServiceBotVersions } from '../hooks/useServiceBotQueries';
-import type { ServiceBotVersionListItem } from '../types';
+import BotVersionDrawer from '../components/BotVersionDrawer';
+import { useGetBotVersions } from '../hooks/useBotQueries';
+import type { BotVersionListItem } from '../types';
 import useAggridOptions from '@/libs/shared-ui/src/hooks/useAggridOptions';
 
-const columnDefs: ColDef<ServiceBotVersionListItem>[] = [
+const columnDefs: ColDef<BotVersionListItem>[] = [
   { headerName: 'ID', field: 'serviceId', hide: true },
   { headerName: '버전', field: 'serviceVer' },
   { headerName: '버전명', field: 'versionName' },
@@ -18,16 +18,16 @@ const columnDefs: ColDef<ServiceBotVersionListItem>[] = [
   { headerName: '작업일시', field: 'workTime' },
 ];
 
-export default function ServiceBotVersion() {
+export default function BotVersion() {
   const { serviceId = '' } = useParams();
   const { gridOptions } = useAggridOptions();
-  const [rowData, setRowData] = useState<ServiceBotVersionListItem[]>([]);
+  const [rowData, setRowData] = useState<BotVersionListItem[]>([]);
   const [open, setOpen] = useState(false);
-  const [selectedRowData, setSelectedRowData] = useState<ServiceBotVersionListItem | undefined>(undefined);
+  const [selectedRowData, setSelectedRowData] = useState<BotVersionListItem | undefined>(undefined);
   const [filterColumn, setFilterColumn] = useState('version');
   const [searchValue, setSearchValue] = useState('');
 
-  const { data: versionList, isFetching: isFetchingVersionList } = useGetServiceBotVersions({ params: { serviceId } });
+  const { data: versionList, isFetching: isFetchingVersionList } = useGetBotVersions({ params: { serviceId } });
 
   const filteredList = useMemo(() => {
     if (!versionList) return [];
@@ -54,7 +54,7 @@ export default function ServiceBotVersion() {
   const handleCloseDrawer = () => {
     setOpen(false);
   };
-  const handleRowDoubleClicked = (e: RowDoubleClickedEvent<ServiceBotVersionListItem>) => {
+  const handleRowDoubleClicked = (e: RowDoubleClickedEvent<BotVersionListItem>) => {
     const selectedRowData = e.data;
     Log.debug('handleRowDoubleClicked', selectedRowData);
     setSelectedRowData(selectedRowData);
@@ -92,9 +92,9 @@ export default function ServiceBotVersion() {
         </div>
       </header>
       <div className="w-full h-full">
-        <AgGridReact<ServiceBotVersionListItem> {...{ rowData, columnDefs, gridOptions }} loading={isFetchingVersionList} onRowDoubleClicked={handleRowDoubleClicked} />
+        <AgGridReact<BotVersionListItem> {...{ rowData, columnDefs, gridOptions }} loading={isFetchingVersionList} onRowDoubleClicked={handleRowDoubleClicked} />
       </div>
-      <ServiceBotVersionDrawer open={open} onClose={handleCloseDrawer} serviceId={serviceId} serviceVer={selectedRowData?.serviceVer} />
+      <BotVersionDrawer open={open} onClose={handleCloseDrawer} serviceId={serviceId} serviceVer={selectedRowData?.serviceVer} />
     </div>
   );
 }
