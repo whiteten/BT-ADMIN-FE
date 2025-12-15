@@ -48,6 +48,12 @@ const useWrappedItemCount = () => {
 export default function ServiceBotCard({ serviceId, serviceName, serviceVer, modelName, conversationCount, workTime, tags, onDetail, onDelete }: ServiceBotCardProps) {
   const { containerRef, wrappedCount } = useWrappedItemCount();
 
+  const title = (
+    <span className="hover:cursor-pointer hover:!text-[var(--color-bt-primary)]" onClick={() => onDetail?.(serviceId)}>
+      {serviceName}
+    </span>
+  );
+
   const extra = (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
@@ -69,7 +75,7 @@ export default function ServiceBotCard({ serviceId, serviceName, serviceVer, mod
 
   return (
     <Card
-      title={serviceName}
+      title={title}
       styles={{ header: { paddingRight: '0 20px 0 20px' }, body: { padding: '20px', paddingTop: '16px' } }}
       extra={extra}
       className="hover:!border-[var(--color-bt-primary)]"
