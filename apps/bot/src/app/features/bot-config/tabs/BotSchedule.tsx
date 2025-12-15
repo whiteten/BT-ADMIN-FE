@@ -37,37 +37,37 @@ export default function BotSchedule() {
     form.setFieldsValue({ bhWorktimeId, ahMessage });
   }, [bot, form]);
 
-  if (isFetchingBot || isFetchingWorkTimeList) {
-    return (
-      <div className="flex items-center justify-center w-full h-full">
-        <FallbackSpinner />
-      </div>
-    );
-  }
-
   return (
     <Form form={form} initialValues={{ bhWorktimeId: null, ahMessage: '' }} onFinish={onFinish} onFinishFailed={onFinishFailed} layout="vertical">
-      <Row gutter={20}>
-        <Col span={6}>
-          <Form.Item name="bhWorktimeId" label="봇 상담 가능 시간" required rules={[{ required: true, message: '업무시간을 선택해 주세요.' }]}>
-            <Select options={worktimeOptions} allowClear showSearch={{ optionFilterProp: 'label' }} placeholder="업무시간을 선택하세요." />
-          </Form.Item>
-        </Col>
-      </Row>
-      <Row gutter={20}>
-        <Col span={12}>
-          <Form.Item name="ahMessage" label="시간 외 메시지">
-            <Input.TextArea rows={4} placeholder="업무 시간 외 안내 메시지를 입력하세요." />
-          </Form.Item>
-        </Col>
-      </Row>
-      <Row gutter={20} justify="center" className="sticky bottom-0 bg-white/90 z-10 pb-7">
-        <Col>
-          <Button color="primary" variant="solid" htmlType="submit" loading={isUpdating}>
-            저장
-          </Button>
-        </Col>
-      </Row>
+      {isFetchingBot || isFetchingWorkTimeList ? (
+        <div className="flex items-center justify-center w-full h-full">
+          <FallbackSpinner />
+        </div>
+      ) : (
+        <>
+          <Row gutter={20}>
+            <Col span={6}>
+              <Form.Item name="bhWorktimeId" label="봇 상담 가능 시간" required rules={[{ required: true, message: '업무시간을 선택해 주세요.' }]}>
+                <Select options={worktimeOptions} allowClear showSearch={{ optionFilterProp: 'label' }} placeholder="업무시간을 선택하세요." />
+              </Form.Item>
+            </Col>
+          </Row>
+          <Row gutter={20}>
+            <Col span={12}>
+              <Form.Item name="ahMessage" label="시간 외 메시지">
+                <Input.TextArea rows={4} placeholder="업무 시간 외 안내 메시지를 입력하세요." />
+              </Form.Item>
+            </Col>
+          </Row>
+          <Row gutter={20} justify="center" className="sticky bottom-0 bg-white/90 z-10 pb-7">
+            <Col>
+              <Button color="primary" variant="solid" htmlType="submit" loading={isUpdating}>
+                저장
+              </Button>
+            </Col>
+          </Row>
+        </>
+      )}
     </Form>
   );
 }
