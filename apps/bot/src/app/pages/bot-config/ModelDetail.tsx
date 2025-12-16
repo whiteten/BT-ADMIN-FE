@@ -1,7 +1,8 @@
 import React from 'react';
 import { useParams } from 'react-router-dom';
-import type { BreadcrumbProps } from 'antd';
-import { IconDocument, IconEntity, IconEvaluation, IconFaq, IconIntent, IconRetrain, IconSnapshot } from '@/components/custom/Icons';
+import { type BreadcrumbProps, FloatButton } from 'antd';
+import ModelTestModal from '../../features/bot-config/components/ModelTestModal';
+import { IconDocument, IconEdit, IconEntity, IconEvaluation, IconFaq, IconIntent, IconRetrain, IconSnapshot } from '@/components/custom/Icons';
 import PageHeader from '@/components/custom/PageHeader';
 import PageTabs, { type PageTab } from '@/components/custom/PageTabs';
 
@@ -34,6 +35,7 @@ export default function ModelDetail() {
     <div className="flex flex-col gap-4 w-full h-full">
       <PageHeader title="모델 편집" breadcrumb={breadcrumb} />
       <PageTabs tabs={tabs} />
+      <ModelTestModal />
     </div>
   );
 }

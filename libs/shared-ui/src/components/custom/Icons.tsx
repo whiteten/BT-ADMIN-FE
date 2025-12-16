@@ -19,3 +19,5 @@ export { ReactComponent as IconEvaluation } from '../../assets/images/icon/icon-
 export { ReactComponent as IconRetrain } from '../../assets/images/icon/icon-retrain.svg';
 export { ReactComponent as IconSnapshot } from '../../assets/images/icon/icon-snapshot.svg';
 export { ReactComponent as IconFaq } from '../../assets/images/icon/icon-faq.svg';
+export { ReactComponent as IconEdit } from '../../assets/images/icon/icon-edit.svg';
+export { ReactComponent as IconSend } from '../../assets/images/icon/icon-send.svg';
