@@ -1,4 +1,4 @@
-import ApiClient from '@/shared-util';
+import ApiClient, { type DetailResponse, type ListResponse, type ListWithItemsResponse, extractDetail, extractList, extractListItems } from '@/shared-util';
 import type {
   BotBasicInfoUpdateDatas,
   BotCreateDatas,
@@ -16,42 +16,15 @@ import type {
 } from '../types';
 
 const apiClient = new ApiClient({ serviceURL: '/bff' });
-interface BotListResponse {
-  data: { list: { data: { items: BotListItem[] } } };
-}
-
-interface BotDetailResponse {
-  data: { detail: { data: BotItem } };
-}
-
-interface BotVersionListResponse {
-  data: { list: { data: BotVersionListItem[] } };
-}
-
-interface BotVersionDetailResponse {
-  data: { detail: { data: BotVersionItem } };
-}
-
-interface SttListResponse {
-  data: { list: { data: { items: SttListItem[] } } };
-}
-
-interface TtsListResponse {
-  data: { list: { data: { items: TtsListItem[] } } };
-}
-
-interface WorkTimeListResponse {
-  data: { list: { data: { items: WorkTimeListItem[] } } };
-}
 
 export const botApi = {
   getBots: async (params?: Record<string, unknown>): Promise<BotListItem[]> => {
-    const response = await apiClient.get<BotListResponse>('/bot-list', { params });
-    return response?.data?.data?.list?.data?.items ?? [];
+    const response = await apiClient.get<ListWithItemsResponse<BotListItem>>('/bot-list', { params });
+    return extractListItems(response?.data);
   },
   getBot: async (params?: Record<string, unknown>): Promise<BotItem> => {
-    const response = await apiClient.get<BotDetailResponse>(`/bot-detail`, { params });
-    return response?.data?.data?.detail?.data;
+    const response = await apiClient.get<DetailResponse<BotItem>>('/bot-detail', { params });
+    return extractDetail(response?.data);
   },
   createBot: async (data: BotCreateDatas) => {
     const response = await apiClient.post('/bot-create', data);
@@ -62,7 +35,7 @@ export const botApi = {
     return response?.data;
   },
   deleteBot: async (params: Record<string, unknown>) => {
-    const response = await apiClient.delete(`/bot-delete`, { params });
+    const response = await apiClient.delete('/bot-delete', { params });
     return response?.data;
   },
   updateBotVoice: async ({ params, data }: { params: Record<string, unknown>; data: BotVoiceUpdateDatas }) => {
@@ -74,12 +47,12 @@ export const botApi = {
     return response?.data;
   },
   getBotVersions: async (params?: Record<string, unknown>): Promise<BotVersionListItem[]> => {
-    const response = await apiClient.get<BotVersionListResponse>('/bot-version-list', { params });
-    return response?.data?.data?.list?.data ?? [];
+    const response = await apiClient.get<ListResponse<BotVersionListItem>>('/bot-version-list', { params });
+    return extractList(response?.data);
   },
   getBotVersion: async (params?: Record<string, unknown>): Promise<BotVersionItem> => {
-    const response = await apiClient.get<BotVersionDetailResponse>('/bot-version-detail', { params });
-    return response?.data?.data?.detail?.data;
+    const response = await apiClient.get<DetailResponse<BotVersionItem>>('/bot-version-detail', { params });
+    return extractDetail(response?.data);
   },
   createBotVersion: async ({ params, data }: { params: Record<string, unknown>; data: BotVersionCreateDatas }) => {
     const response = await apiClient.post('/bot-version-create', data, { params });
@@ -94,15 +67,15 @@ export const botApi = {
     return response?.data;
   },
   getSttList: async (params?: Record<string, unknown>): Promise<SttListItem[]> => {
-    const response = await apiClient.get<SttListResponse>('/stt-list', { params });
-    return response?.data?.data?.list?.data?.items ?? [];
+    const response = await apiClient.get<ListWithItemsResponse<SttListItem>>('/stt-list', { params });
+    return extractListItems(response?.data);
   },
   getTtsList: async (params?: Record<string, unknown>): Promise<TtsListItem[]> => {
-    const response = await apiClient.get<TtsListResponse>('/tts-list', { params });
-    return response?.data?.data?.list?.data?.items ?? [];
+    const response = await apiClient.get<ListWithItemsResponse<TtsListItem>>('/tts-list', { params });
+    return extractListItems(response?.data);
   },
   getWorkTimeList: async (params?: Record<string, unknown>): Promise<WorkTimeListItem[]> => {
-    const response = await apiClient.get<WorkTimeListResponse>('/worktime-list', { params });
-    return response?.data?.data?.list?.data?.items ?? [];
+    const response = await apiClient.get<ListWithItemsResponse<WorkTimeListItem>>('/worktime-list', { params });
+    return extractListItems(response?.data);
   },
 };
