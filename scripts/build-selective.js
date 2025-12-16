@@ -127,15 +127,15 @@ async function buildApps() {
       console.log(`\n✅ 선택된 앱: ${selectedApps.join(', ')}`);
       console.log('\n🚀 빌드를 시작합니다...');
 
-      // 1. nx reset 실행
-      await runCommand('nx reset', 'Nx 캐시 초기화');
+      // 1. nx reset 실행 -> 메모리 이슈 방지를 위해 주석 처리
+      // await runCommand('nx reset', 'Nx 캐시 초기화');
 
       // 2. dist 폴더 삭제
       await cleanDist();
 
-      // 3. 선택한 앱들 빌드
+      // 3. 선택한 앱들 빌드 (순차적으로 빌드하여 메모리 이슈 방지)
       const projects = selectedApps.join(',');
-      const buildCommand = `nx run-many --target=build --projects=${projects}`;
+      const buildCommand = `nx run-many --target=build --projects=${projects} --parallel=1`;
       await runCommand(buildCommand, `앱 빌드 (${projects})`);
 
       // 4. host가 포함된 경우 remote들을 host/remotes로 복사
