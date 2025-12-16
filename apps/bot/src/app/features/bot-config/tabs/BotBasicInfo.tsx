@@ -5,15 +5,10 @@ import { Button, Col, Form, type FormProps, Input, Row, Select, type SelectProps
 import { Log } from '@/log';
 import { confirmModal, toast } from '@/shared-util';
 import { botQueryKeys, useDeleteBot, useGetBot, useUpdateBot } from '../hooks/useBotQueries';
+import { useGetModels } from '../hooks/useModelQueries';
 import type { BotBasicInfoUpdateDatas } from '../types';
 import { FallbackSpinner } from '@/components/custom/FallbackSpinner';
 import { IconTag } from '@/components/custom/Icons';
-
-const modelOptions = [
-  { label: 'NLU 모델 1', value: '1200000001' },
-  { label: 'NLU 모델 2', value: '1200000002' },
-  { label: 'NLU 모델 3', value: '1200000003' },
-];
 
 export default function BotBasicInfo() {
   const { serviceId } = useParams();
@@ -24,6 +19,8 @@ export default function BotBasicInfo() {
   const [serviceVer, setServiceVer] = useState('');
   const [confidence, setConfidence] = useState([40, 80]);
 
+  const { data: modelList, isFetching: isFetchingModelList } = useGetModels();
+  const modelOptions = modelList?.map((model) => ({ label: model.modelName, value: model.modelId })) ?? [];
   const { data: bot, isFetching } = useGetBot({ params: { serviceId } });
 
   const { mutate: updateBot, isPending: isUpdating } = useUpdateBot({
@@ -93,79 +90,79 @@ export default function BotBasicInfo() {
     setConfidence(confidence);
   }, [bot, form]);
 
-  if (isFetching) {
-    return (
-      <div className="flex items-center justify-center w-full h-full">
-        <FallbackSpinner />
-      </div>
-    );
-  }
-
   return (
     <Form form={form} initialValues={{ modelId: null, confidence: [40, 80], tags: [] }} onFinish={onFinish} onFinishFailed={onFinishFailed} layout="vertical">
-      <Row gutter={20}>
-        <Col span={9}>
-          <Form.Item name="serviceName" label="봇 이름" required hasFeedback rules={[{ required: true, message: '봇 이름을 입력해 주세요.' }]}>
-            <Input placeholder="봇 이름을 입력하세요." />
-          </Form.Item>
-        </Col>
-        <Col span={3}>
-          <Form.Item label="봇 버전">
-            <Input disabled value={serviceVer} />
-          </Form.Item>
-        </Col>
-      </Row>
-      <Row gutter={20}>
-        <Col span={24}>
-          <Form.Item name="serviceDesc" label="봇 설명">
-            <TextArea rows={4} placeholder="봇 설명을 입력하세요." />
-          </Form.Item>
-        </Col>
-      </Row>
-      <Row gutter={20}>
-        <Col span={6}>
-          <Form.Item name="modelId" label="NLU 모델" required hasFeedback rules={[{ required: true, message: 'NLU 모델을 선택해 주세요.' }]}>
-            <Select options={modelOptions} allowClear showSearch={{ optionFilterProp: 'label' }} placeholder="봇이 이용할 언어 모델을 선택하세요." />
-          </Form.Item>
-        </Col>
-        <Col span={6}>
-          <Form.Item name="confidence" label="신뢰도" required hasFeedback rules={[{ required: true, message: '신뢰도를 설정해 주세요.' }]}>
-            <Slider
-              range
-              value={confidence}
-              onChange={setConfidence}
-              min={0}
-              max={100}
-              step={1}
-              marks={{ 0: '0', 100: '100' }}
-              tooltip={{ formatter: (value) => `${value}%` }}
-              styles={{
-                rail: { background: getSliderRailBackground() },
-                track: { background: 'transparent' },
-              }}
-            />
-          </Form.Item>
-        </Col>
-      </Row>
-      <Row gutter={20}>
-        <Col span={24}>
-          <Form.Item name="tags" label="태그">
-            <Select mode="tags" tagRender={tagRender} classNames={{ root: '!p-1' }} placeholder="태그를 입력하세요(Enter로 추가)" tokenSeparators={[',']} />
-          </Form.Item>
-        </Col>
-      </Row>
-      <Row gutter={20} justify="center" className="sticky bottom-0 bg-white/90 z-10 pb-7">
-        <Col>
-          <Button color="primary" variant="solid" htmlType="submit" loading={isUpdating || isDeleting}>
-            저장
-          </Button>
-        </Col>
-        <Col>
-          <Button color="red" variant="solid" loading={isDeleting} onClick={handleClickDeleteBtn}>
-            삭제
-          </Button>
-        </Col>
-      </Row>
+      {isFetching || isFetchingModelList ? (
+        <div className="flex items-center justify-center w-full h-full">
+          <FallbackSpinner />
+        </div>
+      ) : (
+        <>
+          <Row gutter={20}>
+            <Col span={9}>
+              <Form.Item name="serviceName" label="봇 이름" required hasFeedback rules={[{ required: true, message: '봇 이름을 입력해 주세요.' }]}>
+                <Input placeholder="봇 이름을 입력하세요." />
+              </Form.Item>
+            </Col>
+            <Col span={3}>
+              <Form.Item label="봇 버전">
+                <Input disabled value={serviceVer} />
+              </Form.Item>
+            </Col>
+          </Row>
+          <Row gutter={20}>
+            <Col span={24}>
+              <Form.Item name="serviceDesc" label="봇 설명">
+                <TextArea rows={4} placeholder="봇 설명을 입력하세요." />
+              </Form.Item>
+            </Col>
+          </Row>
+          <Row gutter={20}>
+            <Col span={6}>
+              <Form.Item name="modelId" label="NLU 모델" required hasFeedback rules={[{ required: true, message: 'NLU 모델을 선택해 주세요.' }]}>
+                <Select options={modelOptions} allowClear showSearch={{ optionFilterProp: 'label' }} placeholder="봇이 이용할 언어 모델을 선택하세요." />
+              </Form.Item>
+            </Col>
+            <Col span={6}>
+              <Form.Item name="confidence" label="신뢰도" required hasFeedback rules={[{ required: true, message: '신뢰도를 설정해 주세요.' }]}>
+                <Slider
+                  range
+                  value={confidence}
+                  onChange={setConfidence}
+                  min={0}
+                  max={100}
+                  step={1}
+                  marks={{ 0: '0', 100: '100' }}
+                  tooltip={{ formatter: (value) => `${value}%` }}
+                  styles={{
+                    rail: { background: getSliderRailBackground() },
+                    track: { background: 'transparent' },
+                  }}
+                />
+              </Form.Item>
+            </Col>
+          </Row>
+          <Row gutter={20}>
+            <Col span={24}>
+              <Form.Item name="tags" label="태그">
+                <Select mode="tags" tagRender={tagRender} classNames={{ root: '!p-1' }} placeholder="태그를 입력하세요(Enter로 추가)" tokenSeparators={[',']} />
+              </Form.Item>
+            </Col>
+          </Row>
+          <Row gutter={20} justify="center" className="sticky bottom-0 bg-white/90 z-10 pb-7">
+            <Col>
+              <Button color="primary" variant="solid" htmlType="submit" loading={isUpdating || isDeleting}>
+                저장
+              </Button>
+            </Col>
+            <Col>
+              <Button color="red" variant="solid" loading={isDeleting} onClick={handleClickDeleteBtn}>
+                삭제
+              </Button>
+            </Col>
+          </Row>
+        </>
+      )}
     </Form>
   );
 }

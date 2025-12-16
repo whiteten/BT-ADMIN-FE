@@ -5,6 +5,7 @@ import { Check, X } from 'lucide-react';
 import { Log } from '@/log';
 import { toast } from '@/shared-util';
 import { useCreateBot, useGetSttList, useGetTtsList } from '../../features/bot-config/hooks/useBotQueries';
+import { useGetModels } from '../../features/bot-config/hooks/useModelQueries';
 import type { BotCreateDatas } from '../../features/bot-config/types';
 import { FallbackSpinner } from '@/components/custom/FallbackSpinner';
 import { IconTag } from '@/components/custom/Icons';
@@ -14,12 +15,6 @@ const breadcrumb: BreadcrumbProps['items'] = [
   { title: '봇 관리', path: '/bot/bot-config' },
   { title: '봇', path: '/bot/bot-config/bot' },
   { title: '봇 생성', path: '/bot/bot-config/bot/create' },
-];
-
-const modelOptions = [
-  { label: 'NLU 모델 1', value: '1200000001' },
-  { label: 'NLU 모델 2', value: '1200000002' },
-  { label: 'NLU 모델 3', value: '1200000003' },
 ];
 
 // 헬퍼 함수: Select 옵션에서 라벨 찾기
@@ -42,8 +37,10 @@ export default function BotCreate() {
   const [fieldErrors, setFieldErrors] = useState<Record<string, string[]>>({});
   const [form] = Form.useForm();
 
+  const { data: modelList, isFetching: isFetchingModelList } = useGetModels();
   const { data: sttList, isFetching: isFetchingSttList } = useGetSttList();
   const { data: ttsList, isFetching: isFetchingTtsList } = useGetTtsList();
+  const modelOptions = modelList?.map((model) => ({ label: model.modelName, value: model.modelId })) ?? [];
   const sttOptions = sttList?.map((stt) => ({ label: stt.sttName, value: stt.sttId })) ?? [];
   const ttsOptions = ttsList?.map((tts) => ({ label: tts.ttsName, value: tts.ttsId })) ?? [];
 
@@ -241,6 +238,13 @@ export default function BotCreate() {
   function renderFormSummary() {
     const values = formValues ?? initialValues;
     const { serviceName, serviceDesc, modelId, confidence: confValue, tags, sttId, ttsId, ttsSpeaker, ttsSpeed, ttsVolume, ttsPitch } = values;
+    if (isFetchingSttList || isFetchingTtsList || isFetchingModelList) {
+      return (
+        <div className="flex items-center justify-center w-full h-full">
+          <FallbackSpinner />
+        </div>
+      );
+    }
     return (
       <div className="space-y-4">
         {/* Step 1: 기본 정보 */}
@@ -349,7 +353,7 @@ export default function BotCreate() {
         )}
         {currentStep < steps.length - 1 && (
           <Col>
-            <Button variant="solid" color="primary" onClick={handleNext}>
+            <Button variant="solid" color="primary" onClick={handleNext} loading={isFetchingSttList || isFetchingTtsList || isFetchingModelList}>
               다음
             </Button>
           </Col>
@@ -362,14 +366,6 @@ export default function BotCreate() {
           </Col>
         )}
       </Row>
-    );
-  }
-
-  if (isFetchingSttList || isFetchingTtsList) {
-    return (
-      <div className="flex items-center justify-center w-full h-full">
-        <FallbackSpinner />
-      </div>
     );
   }
 
@@ -391,11 +387,19 @@ export default function BotCreate() {
         <div className="w-full h-full min-h-0 bg-white bt-shadow flex flex-col">
           <div className="w-full flex-1 min-h-0 overflow-y-auto p-7 pb-0">
             <Form form={form} initialValues={initialValues} onFinish={onFinish} onFinishFailed={onFinishFailed} layout="vertical">
-              {steps.map((step, index) => (
-                <div key={index} style={{ display: currentStep === index ? 'block' : 'none' }}>
-                  {step.content()}
+              {isFetchingSttList || isFetchingTtsList || isFetchingModelList ? (
+                <div className="flex items-center justify-center w-full h-full">
+                  <FallbackSpinner />
                 </div>
-              ))}
+              ) : (
+                <>
+                  {steps.map((step, index) => (
+                    <div key={index} style={{ display: currentStep === index ? 'block' : 'none' }}>
+                      {step.content()}
+                    </div>
+                  ))}
+                </>
+              )}
             </Form>
           </div>
           <div className="w-full px-7 pb-7">{renderFooter()}</div>
