@@ -11,6 +11,7 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigge
 type BotCardProps = BotListItem & {
   onDetail?: (serviceId: string) => void;
   onDelete?: (serviceId: string) => void;
+  onDetailModel?: (modelId: string) => void;
 };
 
 // 랩핑된 아이템 개수 계산
@@ -45,7 +46,7 @@ const useWrappedItemCount = () => {
   return { containerRef, wrappedCount };
 };
 
-export default function BotCard({ serviceId, serviceName, serviceVer, modelName, conversationCount, workTime, tags, onDetail, onDelete }: BotCardProps) {
+export default function BotCard({ serviceId, serviceName, serviceVer, modelId, modelName, conversationCount, workTime, tags, onDetail, onDelete, onDetailModel }: BotCardProps) {
   const { containerRef, wrappedCount } = useWrappedItemCount();
 
   const title = (
@@ -89,7 +90,7 @@ export default function BotCard({ serviceId, serviceName, serviceVer, modelName,
         <div className="flex">
           <span className="w-[104px]">NLU모델</span>
           <span className="mr-2">{modelName ?? '-'}</span>
-          {modelName && <IconLinkNlu className="hover:cursor-pointer" />}
+          {modelId && <IconLinkNlu className="hover:cursor-pointer" onClick={() => onDetailModel?.(modelId)} />}
         </div>
         <div className="flex">
           <span className="w-[104px]">등록 대화수</span>

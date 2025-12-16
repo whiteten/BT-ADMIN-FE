@@ -63,6 +63,10 @@ export default function BotList() {
     });
   };
 
+  const handleDetailModel = (modelId: string) => {
+    navigate(`../../model/${modelId}`);
+  };
+
   return (
     <div className="flex flex-col gap-4 w-full h-full">
       <PageHeader title="봇 목록" breadcrumb={breadcrumb} />
@@ -96,7 +100,7 @@ export default function BotList() {
       ) : filteredList.length ? (
         <div className="grid grid-cols-[repeat(auto-fill,minmax(350px,1fr))] gap-4 w-full overflow-y-auto">
           {filteredList.map((bot) => (
-            <BotCard key={bot.serviceId} {...bot} onDetail={handleDetail} onDelete={handleDelete} />
+            <BotCard key={bot.serviceId} {...bot} onDetail={handleDetail} onDelete={handleDelete} onDetailModel={handleDetailModel} />
           ))}
         </div>
       ) : (
