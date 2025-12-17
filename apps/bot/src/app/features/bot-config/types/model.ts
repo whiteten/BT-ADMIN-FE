@@ -10,7 +10,7 @@ export interface Model {
   expansion1: string;
   expansion2: string;
   trainId: string;
-  trainStatus: string;
+  trainStatus: number;
   trainTime: string;
 }
 
@@ -18,6 +18,8 @@ export type ModelListItem = Pick<Model, 'modelId' | 'modelName' | 'trainStatus' 
   intentCount: number;
   entityCount: number;
 };
+
+export type TrainStatus = 0 | 1 | 2;
 
 export type ModelCreateDatas = Pick<Model, 'modelName' | 'modelDesc'>;
 export type ModelBasicInfoUpdateDatas = Pick<Model, 'modelName' | 'modelDesc'>;

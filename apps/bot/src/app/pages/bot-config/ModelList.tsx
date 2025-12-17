@@ -1,18 +1,35 @@
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { type BreadcrumbProps, Button, Input, Select } from 'antd';
 import ModelCard from '../../features/bot-config/components/ModelCard';
+import { useGetModels } from '../../features/bot-config/hooks/useModelQueries';
+import { FallbackSpinner } from '@/components/custom/FallbackSpinner';
+import NoData from '@/components/custom/NoData';
 import PageHeader from '@/components/custom/PageHeader';
+
+const breadcrumb: BreadcrumbProps['items'] = [
+  { title: '봇 관리', path: '/bot/bot-config' },
+  { title: '모델', path: '/bot/bot-config/model' },
+  { title: '모델 목록', path: '/bot/bot-config/model/list' },
+];
 
 export default function ModelList() {
   const navigate = useNavigate();
-  const breadcrumb: BreadcrumbProps['items'] = [
-    { title: '봇 관리', path: '/bot/bot-config' },
-    { title: '모델', path: '/bot/bot-config/model' },
-    { title: '모델 목록', path: '/bot/bot-config/model/list' },
-  ];
   const [filterColumn, setFilterColumn] = useState('modelName');
   const [searchValue, setSearchValue] = useState('');
+
+  const { data: modelList, isFetching } = useGetModels();
+
+  const filteredList = useMemo(() => {
+    if (!modelList) return [];
+    if (!searchValue.trim()) return modelList;
+    const keyword = searchValue.toLowerCase();
+    return modelList.filter((model) => {
+      const value = model[filterColumn as keyof typeof model];
+      if (value == null) return false;
+      return String(value).toLowerCase().includes(keyword);
+    });
+  }, [modelList, filterColumn, searchValue]);
 
   const handleColumnChange = (value: string) => {
     setFilterColumn(value);
@@ -30,6 +47,7 @@ export default function ModelList() {
   const handleDelete = (modelId: string) => {
     console.log(modelId);
   };
+
   return (
     <div className="flex flex-col gap-4 w-full h-full">
       <PageHeader title="모델 목록" breadcrumb={breadcrumb} />
@@ -51,38 +69,21 @@ export default function ModelList() {
           </Button>
         </div>
       </div>
-      <div className="grid grid-cols-[repeat(auto-fill,minmax(350px,1fr))] gap-4 w-full overflow-y-auto">
-        <ModelCard
-          modelId="1"
-          modelName="모델 1"
-          trainStatus="0"
-          trainTime="2021-01-01 12:00:00"
-          intentCount={10}
-          entityCount={10}
-          onDetail={handleDetail}
-          onDelete={handleDelete}
-        />
-        <ModelCard
-          modelId="2"
-          modelName="모델 2"
-          trainStatus="1"
-          trainTime="2021-01-01 12:00:00"
-          intentCount={20}
-          entityCount={20}
-          onDetail={handleDetail}
-          onDelete={handleDelete}
-        />
-        <ModelCard
-          modelId="3"
-          modelName="모델 3"
-          trainStatus="2"
-          trainTime="2021-01-01 12:00:00"
-          intentCount={30}
-          entityCount={30}
-          onDetail={handleDetail}
-          onDelete={handleDelete}
-        />
-      </div>
+      {isFetching ? (
+        <div className="flex items-center justify-center w-full h-full bg-white bt-shadow">
+          <FallbackSpinner />
+        </div>
+      ) : filteredList.length ? (
+        <div className="grid grid-cols-[repeat(auto-fill,minmax(350px,1fr))] gap-4 w-full overflow-y-auto">
+          {filteredList.map((model) => (
+            <ModelCard key={model.modelId} {...model} onDetail={handleDetail} onDelete={handleDelete} />
+          ))}
+        </div>
+      ) : (
+        <div className="flex items-center justify-center w-full h-full bg-white bt-shadow">
+          <NoData message={`조회된 데이터가 없습니다.`} iconSize={50} fontSize="text-lg" gap={2} />
+        </div>
+      )}
     </div>
   );
 }

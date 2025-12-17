@@ -1,13 +1,22 @@
 import { Card } from 'antd';
-import type { ModelListItem } from '../types';
+import type { ModelListItem, TrainStatus } from '../types';
 import { IconMoreVertical } from '@/components/custom/Icons';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
+import { cn } from '@/lib/utils';
 
 type ModelCardProps = ModelListItem & {
   onDetail?: (modelId: string) => void;
   onDelete?: (modelId: string) => void;
+};
+
+const BADGE_BASE = 'text-[13px] font-medium px-[8px] py-[2px]';
+
+const TRAIN_STATUS_META: Record<TrainStatus, { label: string; className: string }> = {
+  0: { label: '미학습', className: 'text-[#495057] bg-[#E9EBEC]' },
+  1: { label: '학습중', className: 'text-[#1F79D4] bg-[#1F79D41A]' },
+  2: { label: '학습완료', className: 'text-[#0AB39C] bg-[#0AB39C1A]' },
 };
 
 export default function ModelCard({ modelId, modelName, trainStatus, trainTime, intentCount, entityCount, onDetail, onDelete }: ModelCardProps) {
@@ -34,7 +43,7 @@ export default function ModelCard({ modelId, modelName, trainStatus, trainTime, 
       </DropdownMenuContent>
     </DropdownMenu>
   );
-
+  const meta = TRAIN_STATUS_META[trainStatus as TrainStatus];
   return (
     <Card
       title={title}
@@ -45,20 +54,12 @@ export default function ModelCard({ modelId, modelName, trainStatus, trainTime, 
       <div className="flex flex-col text-[#495057] gap-2">
         <div className="flex">
           <span className="w-[104px]">상태</span>
-          {trainStatus === '0' && (
-            <Badge variant="secondary" className="text-[13px] font-medium text-[#495057] bg-[#E9EBEC] px-[8px] py-[2px]">
-              미학습
+          {meta ? (
+            <Badge variant="secondary" className={cn(BADGE_BASE, meta.className)}>
+              {meta.label}
             </Badge>
-          )}
-          {trainStatus === '1' && (
-            <Badge variant="secondary" className="text-[13px] font-medium text-[#1F79D4] bg-[#1F79D41A] px-[8px] py-[2px]">
-              학습중
-            </Badge>
-          )}
-          {trainStatus === '2' && (
-            <Badge variant="secondary" className="text-[13px] font-medium text-[#0AB39C] bg-[#0AB39C1A] px-[8px] py-[2px]">
-              학습완료
-            </Badge>
+          ) : (
+            <span className="mr-2">-</span>
           )}
         </div>
         <div className="flex">
