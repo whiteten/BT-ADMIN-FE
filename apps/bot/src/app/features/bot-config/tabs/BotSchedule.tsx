@@ -13,7 +13,8 @@ export default function BotSchedule() {
 
   const { data: bot, isFetching: isFetchingBot } = useGetBot({ params: { serviceId } });
   const { data: workTimeList, isFetching: isFetchingWorkTimeList } = useGetWorkTimeList();
-  const worktimeOptions = workTimeList?.map((workTime) => ({ label: workTime.worktimeName, value: workTime.worktimeId })) ?? [];
+  const workTimeOptions = workTimeList?.map((workTime) => ({ label: workTime.worktimeName, value: workTime.worktimeId })) ?? [];
+  workTimeOptions.unshift({ label: '미지정', value: 0 });
   const { mutate: updateBotSchedule, isPending: isUpdating } = useUpdateBotSchedule({
     mutationOptions: {
       onSuccess: () => {
@@ -48,7 +49,7 @@ export default function BotSchedule() {
           <Row gutter={20}>
             <Col span={6}>
               <Form.Item name="bhWorktimeId" label="봇 상담 가능 시간" required rules={[{ required: true, message: '업무시간을 선택해 주세요.' }]}>
-                <Select options={worktimeOptions} allowClear showSearch={{ optionFilterProp: 'label' }} placeholder="업무시간을 선택하세요." />
+                <Select options={workTimeOptions} allowClear showSearch={{ optionFilterProp: 'label' }} placeholder="업무시간을 선택하세요." />
               </Form.Item>
             </Col>
           </Row>
