@@ -2,7 +2,7 @@ import { useMutation, useQuery } from '@tanstack/react-query';
 import { createQueryKeys } from '@lukemorales/query-key-factory';
 import type { MutationHookOptions, QueryHookWithParamsOptions } from '@/shared-util';
 import { botApi } from '../api/botApi';
-import type { BotItem, BotListItem, BotVersionItem, BotVersionListItem, SttListItem, TtsListItem, WorkTimeListItem } from '../types';
+import type { BotDeployConfigItem, BotItem, BotListItem, BotVersionItem, BotVersionListItem, SttListItem, TtsListItem, WorkTimeListItem } from '../types';
 
 export const botQueryKeys = createQueryKeys('bots', {
   getBots: (params?: Record<string, unknown>) => [params],
@@ -12,6 +12,7 @@ export const botQueryKeys = createQueryKeys('bots', {
   getSttList: (params?: Record<string, unknown>) => [params],
   getTtsList: (params?: Record<string, unknown>) => [params],
   getWorkTimeList: (params?: Record<string, unknown>) => [params],
+  getBotDeployConfig: (params?: Record<string, unknown>) => [params],
 });
 
 export const useGetBots = ({ params, queryOptions }: QueryHookWithParamsOptions<BotListItem[]> = {}) => {
@@ -122,6 +123,14 @@ export const useGetWorkTimeList = ({ params, queryOptions }: QueryHookWithParams
   return useQuery({
     queryKey: botQueryKeys.getWorkTimeList(params).queryKey,
     queryFn: () => botApi.getWorkTimeList(params),
+    ...queryOptions,
+  });
+};
+
+export const useGetBotDeployConfig = ({ params, queryOptions }: QueryHookWithParamsOptions<BotDeployConfigItem[]> = {}) => {
+  return useQuery({
+    queryKey: botQueryKeys.getBotDeployConfig(params).queryKey,
+    queryFn: () => botApi.getBotDeployConfig(params),
     ...queryOptions,
   });
 };

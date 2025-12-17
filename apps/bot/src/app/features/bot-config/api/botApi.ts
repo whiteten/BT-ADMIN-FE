@@ -2,6 +2,7 @@ import ApiClient, { type DetailResponse, type ListResponse, type ListWithItemsRe
 import type {
   BotBasicInfoUpdateDatas,
   BotCreateDatas,
+  BotDeployConfigItem,
   BotItem,
   BotListItem,
   BotScheduleUpdateDatas,
@@ -77,5 +78,9 @@ export const botApi = {
   getWorkTimeList: async (params?: Record<string, unknown>): Promise<WorkTimeListItem[]> => {
     const response = await apiClient.get<ListWithItemsResponse<WorkTimeListItem>>('/worktime-list', { params });
     return extractListItems(response?.data);
+  },
+  getBotDeployConfig: async (params?: Record<string, unknown>): Promise<BotDeployConfigItem[]> => {
+    const response = await apiClient.get<ListResponse<BotDeployConfigItem>>('/bot-deploy-config', { params });
+    return extractList(response?.data);
   },
 };
