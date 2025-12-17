@@ -1,10 +1,10 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useParams } from 'react-router-dom';
 import type { ColDef, RowDoubleClickedEvent } from 'ag-grid-community';
 import { AgGridReact } from 'ag-grid-react';
 import { Button, Input, Select } from 'antd';
 import { Log } from '@/log';
-import BotVersionDrawer from '../components/BotVersionDrawer';
+import BotVersionDrawer, { type BotVersionDrawerRef } from '../components/BotVersionDrawer';
 import { useGetBotVersions } from '../hooks/useBotQueries';
 import type { BotVersionListItem } from '../types';
 import useAggridOptions from '@/libs/shared-ui/src/hooks/useAggridOptions';
@@ -22,10 +22,10 @@ export default function BotVersion() {
   const { serviceId = '' } = useParams();
   const { gridOptions } = useAggridOptions();
   const [rowData, setRowData] = useState<BotVersionListItem[]>([]);
-  const [open, setOpen] = useState(false);
-  const [selectedRowData, setSelectedRowData] = useState<BotVersionListItem | undefined>(undefined);
   const [filterColumn, setFilterColumn] = useState('version');
   const [searchValue, setSearchValue] = useState('');
+
+  const drawerRef = useRef<BotVersionDrawerRef>(null);
 
   const { data: versionList, isFetching: isFetchingVersionList } = useGetBotVersions({ params: { serviceId } });
 
@@ -47,18 +47,14 @@ export default function BotVersion() {
     setFilterColumn(value);
     setSearchValue('');
   };
+
   const handleClickAddVersion = () => {
-    setSelectedRowData(undefined);
-    setOpen(true);
+    drawerRef.current?.open({ serviceId });
   };
-  const handleCloseDrawer = () => {
-    setOpen(false);
-  };
+
   const handleRowDoubleClicked = (e: RowDoubleClickedEvent<BotVersionListItem>) => {
-    const selectedRowData = e.data;
-    Log.debug('handleRowDoubleClicked', selectedRowData);
-    setSelectedRowData(selectedRowData);
-    setOpen(true);
+    Log.debug('handleRowDoubleClicked', e.data);
+    drawerRef.current?.open({ serviceId, serviceVer: e.data?.serviceVer });
   };
   return (
     <div className="flex flex-col gap-5 w-full h-full">
@@ -94,7 +90,7 @@ export default function BotVersion() {
       <div className="w-full h-full">
         <AgGridReact<BotVersionListItem> {...{ rowData, columnDefs, gridOptions }} loading={isFetchingVersionList} onRowDoubleClicked={handleRowDoubleClicked} />
       </div>
-      <BotVersionDrawer open={open} onClose={handleCloseDrawer} serviceId={serviceId} serviceVer={selectedRowData?.serviceVer} />
+      <BotVersionDrawer ref={drawerRef} />
     </div>
   );
 }

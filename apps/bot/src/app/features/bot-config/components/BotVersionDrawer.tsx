@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { forwardRef, useEffect, useImperativeHandle, useState } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { Button, Col, Drawer, Form, type FormProps, Input, Row } from 'antd';
 import { Log } from '@/log';
@@ -6,20 +6,69 @@ import { toast } from '@/shared-util';
 import { botQueryKeys, useCreateBotVersion, useDeleteBotVersion, useGetBotVersion, useUpdateBotVersion } from '../hooks/useBotQueries';
 import type { BotVersionCreateDatas, BotVersionUpdateDatas } from '../types';
 import { FallbackSpinner } from '@/components/custom/FallbackSpinner';
+
 /**
- * Bot 버전 등록/수정 Drawer
- * @param open - 드로어 열림 여부
- * @param onClose - 드로어 닫기 함수
- * @param serviceVer - 선택된 서비스 버전
+ * BotVersionDrawer ref 타입
+ * @property open - 드로어를 여는 함수. serviceVer가 없으면 추가 모드, 있으면 편집 모드
+ * @property close - 드로어를 닫는 함수
  */
-interface BotVersionDrawerProps {
+export interface BotVersionDrawerRef {
+  open: (params: { serviceId: string; serviceVer?: string }) => void;
+  close: () => void;
+}
+
+/**
+ * 드로어 내부 상태 타입
+ */
+interface DrawerState {
   open: boolean;
-  onClose: () => void;
   serviceId: string;
   serviceVer?: string;
 }
 
-export default function BotVersionDrawer({ open, onClose, serviceId, serviceVer }: BotVersionDrawerProps) {
+/**
+ * Bot 버전 등록/수정 Drawer
+ * - ref.open({ serviceId }) : 추가 모드로 열기
+ * - ref.open({ serviceId, serviceVer }) : 편집 모드로 열기
+ * - ref.close() : 드로어 닫기
+ */
+const BotVersionDrawer = forwardRef<BotVersionDrawerRef>((_, ref) => {
+  // 드로어 상태 (open 여부, serviceId, serviceVer)
+  const [drawerState, setDrawerState] = useState<DrawerState>({
+    open: false,
+    serviceId: '',
+    serviceVer: undefined,
+  });
+
+  const { open, serviceId, serviceVer } = drawerState;
+
+  // 부모 컴포넌트에서 ref를 통해 호출할 수 있는 메서드 정의
+  useImperativeHandle(ref, () => ({
+    /**
+     * 드로어 열기
+     * @param params.serviceId - 서비스 ID (필수)
+     * @param params.serviceVer - 서비스 버전 (선택, 없으면 추가 모드)
+     */
+    open: (params) => {
+      setDrawerState({
+        open: true,
+        serviceId: params.serviceId,
+        serviceVer: params.serviceVer,
+      });
+    },
+    /**
+     * 드로어 닫기
+     */
+    close: () => {
+      setDrawerState((prev) => ({ ...prev, open: false }));
+    },
+  }));
+
+  // 드로어 닫기 핸들러 (내부용)
+  const handleClose = () => {
+    setDrawerState((prev) => ({ ...prev, open: false }));
+  };
+
   const title = serviceVer ? '버전 수정' : '버전 추가';
   const [form] = Form.useForm();
   const { TextArea } = Input;
@@ -35,7 +84,7 @@ export default function BotVersionDrawer({ open, onClose, serviceId, serviceVer 
       onSuccess: () => {
         toast.success('버전이 추가되었습니다.');
         queryClient.invalidateQueries({ queryKey: botQueryKeys.getBotVersions({ serviceId }).queryKey });
-        onClose();
+        handleClose();
       },
     },
   });
@@ -45,7 +94,7 @@ export default function BotVersionDrawer({ open, onClose, serviceId, serviceVer 
       onSuccess: () => {
         toast.success('버전이 수정되었습니다.');
         queryClient.invalidateQueries({ queryKey: botQueryKeys.getBotVersions({ serviceId }).queryKey });
-        onClose();
+        handleClose();
       },
     },
   });
@@ -55,7 +104,7 @@ export default function BotVersionDrawer({ open, onClose, serviceId, serviceVer 
       onSuccess: () => {
         toast.success('버전이 삭제되었습니다.');
         queryClient.invalidateQueries({ queryKey: botQueryKeys.getBotVersions({ serviceId }).queryKey });
-        onClose();
+        handleClose();
       },
     },
   });
@@ -95,7 +144,7 @@ export default function BotVersionDrawer({ open, onClose, serviceId, serviceVer 
 
   const footer = (
     <div className="flex items-center justify-end gap-2">
-      <Button variant="solid" onClick={onClose}>
+      <Button variant="solid" onClick={handleClose}>
         취소
       </Button>
       {serviceVer && (
@@ -110,7 +159,7 @@ export default function BotVersionDrawer({ open, onClose, serviceId, serviceVer 
   );
 
   return (
-    <Drawer open={open} onClose={onClose} title={title} closable={{ placement: 'end' }} size={480} footer={footer} destroyOnHidden>
+    <Drawer open={open} onClose={handleClose} title={title} closable={{ placement: 'end' }} size={480} footer={footer} destroyOnHidden>
       {isFetching ? (
         <div className="flex items-center justify-center w-full h-full">
           <FallbackSpinner />
@@ -129,7 +178,7 @@ export default function BotVersionDrawer({ open, onClose, serviceId, serviceVer 
                   { pattern: /^\d+\.\d+\.\d+$/, message: '버전 형식은 x.x.x (예: 1.0.0) 입니다.' },
                 ]}
               >
-                <Input placeholder="버전을 입력하세요." />
+                <Input placeholder="버전을 입력하세요." disabled={!!serviceVer} />
               </Form.Item>
             </Col>
           </Row>
@@ -151,4 +200,6 @@ export default function BotVersionDrawer({ open, onClose, serviceId, serviceVer 
       )}
     </Drawer>
   );
-}
+});
+
+export default BotVersionDrawer;
