@@ -1,8 +1,10 @@
 import { useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useQueryClient } from '@tanstack/react-query';
 import { type BreadcrumbProps, Button, Input, Select } from 'antd';
+import { confirmModal } from '@/shared-util';
 import ModelCard from '../../features/bot-config/components/ModelCard';
-import { useGetModels } from '../../features/bot-config/hooks/useModelQueries';
+import { modelQueryKeys, useDeleteModel, useGetModels } from '../../features/bot-config/hooks/useModelQueries';
 import { FallbackSpinner } from '@/components/custom/FallbackSpinner';
 import NoData from '@/components/custom/NoData';
 import PageHeader from '@/components/custom/PageHeader';
@@ -15,10 +17,18 @@ const breadcrumb: BreadcrumbProps['items'] = [
 
 export default function ModelList() {
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
   const [filterColumn, setFilterColumn] = useState('modelName');
   const [searchValue, setSearchValue] = useState('');
 
   const { data: modelList, isFetching } = useGetModels();
+  const { mutateAsync: deleteModel } = useDeleteModel({
+    mutationOptions: {
+      onSuccess: () => {
+        queryClient.invalidateQueries({ queryKey: modelQueryKeys.getModels().queryKey });
+      },
+    },
+  });
 
   const filteredList = useMemo(() => {
     if (!modelList) return [];
@@ -45,7 +55,9 @@ export default function ModelList() {
   };
 
   const handleDelete = (modelId: string) => {
-    console.log(modelId);
+    confirmModal.delete({
+      onOk: () => deleteModel({ modelId }),
+    });
   };
 
   return (

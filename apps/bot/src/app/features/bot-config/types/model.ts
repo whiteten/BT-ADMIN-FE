@@ -1,13 +1,11 @@
 export interface Model {
   modelId: string;
-  pointId: string;
   modelName: string;
-  modelDesc: string;
   modelKey: string;
   tenantId: number;
   modelType: number;
   threshold: number;
-  expansion1: string;
+  expansion1: string; // 모델 설명
   expansion2: string;
   trainId: string;
   trainStatus: number;
@@ -24,5 +22,5 @@ export type ModelListItem = Pick<Model, 'modelId' | 'modelName' | 'trainStatus' 
 
 export type ModelItem = Model;
 
-export type ModelCreateDatas = Pick<Model, 'modelName' | 'modelDesc' | 'faqIntentYn'>;
-export type ModelBasicInfoUpdateDatas = Pick<Model, 'modelName' | 'modelDesc' | 'faqIntentYn'>;
+export type ModelCreateDatas = Pick<Model, 'modelName' | 'expansion1' | 'faqIntentYn'>;
+export type ModelBasicInfoUpdateDatas = Pick<Model, 'modelName' | 'expansion1' | 'faqIntentYn'>;

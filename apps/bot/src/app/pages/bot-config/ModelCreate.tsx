@@ -15,7 +15,7 @@ const breadcrumb: BreadcrumbProps['items'] = [
 export default function ModelCreate() {
   const navigate = useNavigate();
   const [form] = Form.useForm();
-  const initialValues = { modelName: '', modelDesc: '', faqIntentYn: 0 };
+  const initialValues = { modelName: '', expansion1: '', faqIntentYn: 0 };
 
   const { mutate: createModel, isPending: isCreatingModel } = useCreateModel({
     mutationOptions: {
@@ -47,7 +47,7 @@ export default function ModelCreate() {
             </Row>
             <Row gutter={20}>
               <Col span={24}>
-                <Form.Item name="modelDesc" label="모델 설명">
+                <Form.Item name="expansion1" label="모델 설명">
                   <Input.TextArea rows={4} placeholder="모델 설명을 입력하세요." />
                 </Form.Item>
               </Col>
