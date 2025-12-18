@@ -55,7 +55,7 @@ export function App() {
         <AppRoutes />
         <ToastContainer {...toastOptions} />
       </React.Suspense>
-      {useReactQueryDevtools && <ReactQueryDevtools initialIsOpen={false} />}
+      {useReactQueryDevtools && <ReactQueryDevtools initialIsOpen={false} buttonPosition="bottom-left" />}
     </QueryClientProvider>
   );
 }
