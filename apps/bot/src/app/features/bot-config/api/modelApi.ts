@@ -1,5 +1,5 @@
 import ApiClient, { type DetailResponse, type ListWithItemsResponse, extractDetail, extractListItems } from '@/shared-util';
-import type { IntentItem, IntentListItem } from '../types/intent';
+import type { IntentBasicInfoUpdateDatas, IntentCreateDatas, IntentItem, IntentListItem } from '../types/intent';
 import type { ModelBasicInfoUpdateDatas, ModelCreateDatas, ModelItem, ModelListItem } from '../types/model';
 
 const apiClient = new ApiClient({ serviceURL: '/bff' });
@@ -32,5 +32,17 @@ export const modelApi = {
   getIntent: async (params?: Record<string, unknown>): Promise<IntentItem> => {
     const response = await apiClient.get<DetailResponse<IntentItem>>('/intent-detail', { params });
     return extractDetail(response?.data);
+  },
+  createIntent: async ({ params, data }: { params: Record<string, unknown>; data: IntentCreateDatas }) => {
+    const response = await apiClient.post('/intent-create', data, { params });
+    return response?.data;
+  },
+  updateIntent: async ({ params, data }: { params: Record<string, unknown>; data: IntentBasicInfoUpdateDatas }) => {
+    const response = await apiClient.put('/intent-update', data, { params });
+    return response?.data;
+  },
+  deleteIntent: async (params: Record<string, unknown>) => {
+    const response = await apiClient.delete('/intent-delete', { params });
+    return response?.data;
   },
 };

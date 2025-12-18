@@ -55,3 +55,24 @@ export const useGetIntents = ({ params, queryOptions }: QueryHookWithParamsOptio
     ...queryOptions,
   });
 };
+
+export const useCreateIntent = ({ mutationOptions }: MutationHookOptions = {}) => {
+  return useMutation({
+    mutationFn: modelApi.createIntent,
+    ...mutationOptions,
+  });
+};
+
+export const useUpdateIntent = ({ mutationOptions }: MutationHookOptions = {}) => {
+  return useMutation({
+    mutationFn: modelApi.updateIntent,
+    ...mutationOptions,
+  });
+};
+
+export const useDeleteIntent = ({ mutationOptions }: MutationHookOptions = {}) => {
+  return useMutation({
+    mutationFn: modelApi.deleteIntent,
+    ...mutationOptions,
+  });
+};

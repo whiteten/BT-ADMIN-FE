@@ -1,9 +1,10 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useParams } from 'react-router-dom';
 import type { ColDef } from 'ag-grid-community';
 import { AgGridReact } from 'ag-grid-react';
-import { Input, Select } from 'antd';
+import { Button, Input, Select } from 'antd';
 import dayjs from 'dayjs';
+import IntentDrawer, { type IntentDrawerRef } from '../components/IntentDrawer';
 import { useGetIntents } from '../hooks/useModelQueries';
 import type { IntentListItem, TrainStatus } from '../types';
 import { Badge } from '@/components/ui/badge';
@@ -49,6 +50,7 @@ export default function ModelIntent() {
   const [rowData, setRowData] = useState<IntentListItem[]>([]);
   const [filterColumn, setFilterColumn] = useState('intentName');
   const [searchValue, setSearchValue] = useState('');
+  const drawerRef = useRef<IntentDrawerRef>(null);
 
   const { data: intentList, isFetching } = useGetIntents({ params: { modelId } });
 
@@ -71,6 +73,10 @@ export default function ModelIntent() {
     setSearchValue('');
   };
 
+  const handleClickAddIntent = () => {
+    drawerRef.current?.open({ modelId });
+  };
+
   return (
     <div className="flex flex-col gap-5 w-full h-full">
       <header className="flex items-center justify-between w-full gap-2 lg:flex-nowrap flex-wrap">
@@ -85,10 +91,16 @@ export default function ModelIntent() {
           />
           <Input value={searchValue} onChange={(e) => setSearchValue(e.target.value)} className="w-full lg:max-w-[400px]" placeholder="검색어를 입력하세요." />
         </div>
+        <div className="flex items-center gap-2.5">
+          <Button variant="solid" onClick={handleClickAddIntent}>
+            추가
+          </Button>
+        </div>
       </header>
       <div className="w-full h-full">
         <AgGridReact<IntentListItem> rowData={rowData} columnDefs={columnDefs} gridOptions={gridOptions} loading={isFetching} />
       </div>
+      <IntentDrawer ref={drawerRef} />
     </div>
   );
 }
