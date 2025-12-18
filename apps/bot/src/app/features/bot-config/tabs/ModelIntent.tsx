@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { useParams } from 'react-router-dom';
-import type { ColDef } from 'ag-grid-community';
+import { useNavigate, useParams } from 'react-router-dom';
+import type { ColDef, RowDoubleClickedEvent } from 'ag-grid-community';
 import { AgGridReact } from 'ag-grid-react';
 import { Button, Input, Select } from 'antd';
 import dayjs from 'dayjs';
@@ -46,6 +46,7 @@ const columnDefs: ColDef<IntentListItem>[] = [
 
 export default function ModelIntent() {
   const { modelId = '' } = useParams();
+  const navigate = useNavigate();
   const { gridOptions } = useAggridOptions();
   const [rowData, setRowData] = useState<IntentListItem[]>([]);
   const [filterColumn, setFilterColumn] = useState('intentName');
@@ -77,6 +78,12 @@ export default function ModelIntent() {
     drawerRef.current?.open({ modelId });
   };
 
+  const handleRowDoubleClick = (event: RowDoubleClickedEvent<IntentListItem>) => {
+    if (!event.data) return;
+    const { intentId } = event.data;
+    navigate(`/bot/bot-config/model/${modelId}/intent/${intentId}`);
+  };
+
   return (
     <div className="flex flex-col gap-5 w-full h-full">
       <header className="flex items-center justify-between w-full gap-2 lg:flex-nowrap flex-wrap">
@@ -92,13 +99,15 @@ export default function ModelIntent() {
           <Input value={searchValue} onChange={(e) => setSearchValue(e.target.value)} className="w-full lg:max-w-[400px]" placeholder="검색어를 입력하세요." />
         </div>
         <div className="flex items-center gap-2.5">
-          <Button variant="solid" onClick={handleClickAddIntent}>
+          <Button variant="solid">Import</Button>
+          <Button variant="solid">Export</Button>
+          <Button variant="solid" color="primary" onClick={handleClickAddIntent}>
             추가
           </Button>
         </div>
       </header>
       <div className="w-full h-full">
-        <AgGridReact<IntentListItem> rowData={rowData} columnDefs={columnDefs} gridOptions={gridOptions} loading={isFetching} />
+        <AgGridReact<IntentListItem> rowData={rowData} columnDefs={columnDefs} gridOptions={gridOptions} loading={isFetching} onRowDoubleClicked={handleRowDoubleClick} />
       </div>
       <IntentDrawer ref={drawerRef} />
     </div>

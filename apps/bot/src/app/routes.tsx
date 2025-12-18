@@ -9,6 +9,7 @@ const BotDetail = React.lazy(() => import('./pages/bot-config/BotDetail'));
 const ModelCreate = React.lazy(() => import('./pages/bot-config/ModelCreate'));
 const ModelDetail = React.lazy(() => import('./pages/bot-config/ModelDetail'));
 const ModelList = React.lazy(() => import('./pages/bot-config/ModelList'));
+const IntentDetail = React.lazy(() => import('./pages/bot-config/IntentDetail'));
 
 export const routes = [
   {
@@ -37,7 +38,19 @@ export const routes = [
               { index: true, element: <Navigate to="list" replace /> },
               { path: 'list', element: <ModelList /> },
               { path: 'create', element: <ModelCreate /> },
-              { path: ':modelId', element: <ModelDetail /> },
+              {
+                path: ':modelId',
+                children: [
+                  { index: true, element: <ModelDetail /> },
+                  {
+                    path: 'intent',
+                    children: [
+                      { index: true, element: <Navigate to=".." replace /> },
+                      { path: ':intentId', element: <IntentDetail /> },
+                    ],
+                  },
+                ],
+              },
             ],
           },
         ],
