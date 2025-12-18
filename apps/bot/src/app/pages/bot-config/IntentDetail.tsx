@@ -19,7 +19,7 @@ export default function IntentDetail() {
     { title: '봇 관리', path: '/bot/bot-config' },
     { title: '모델', path: '/bot/bot-config/model' },
     { title: '모델 상세', path: `/bot/bot-config/model/${modelId}` },
-    { title: '의도', path: `/bot/bot-config/model/${modelId}/intent` },
+    { title: '의도', path: `/bot/bot-config/model/${modelId}?tab=tab2` },
     { title: '의도 상세', path: `/bot/bot-config/model/${modelId}/intent/${intentId}` },
   ];
 

@@ -1,4 +1,5 @@
 import { Suspense, useRef } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { Button } from 'antd';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { FallbackSpinner } from './FallbackSpinner';
@@ -18,7 +19,9 @@ interface PageTabsProps {
 
 export default function PageTabs({ tabs, defaultTab }: PageTabsProps) {
   const scrollContainerRef = useRef<HTMLDivElement>(null);
-  const activeTabId = defaultTab ?? tabs[0]?.id ?? '';
+  const [searchParams] = useSearchParams();
+  const tabFromUrl = searchParams.get('tab');
+  const activeTabId = tabFromUrl ?? defaultTab ?? tabs[0]?.id ?? '';
 
   const scrollLeft = () => {
     scrollContainerRef.current?.scrollBy({
