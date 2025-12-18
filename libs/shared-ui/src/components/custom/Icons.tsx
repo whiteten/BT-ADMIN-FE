@@ -21,3 +21,4 @@ export { ReactComponent as IconSnapshot } from '../../assets/images/icon/icon-sn
 export { ReactComponent as IconFaq } from '../../assets/images/icon/icon-faq.svg';
 export { ReactComponent as IconEdit } from '../../assets/images/icon/icon-edit.svg';
 export { ReactComponent as IconSend } from '../../assets/images/icon/icon-send.svg';
+export { ReactComponent as IconList } from '../../assets/images/icon/icon-list.svg';
