@@ -1,8 +1,8 @@
 import React from 'react';
 import { useParams } from 'react-router-dom';
-import { type BreadcrumbProps, FloatButton } from 'antd';
+import { type BreadcrumbProps, Button } from 'antd';
 import ModelTestModal from '../../features/bot-config/components/ModelTestModal';
-import { IconDocument, IconEdit, IconEntity, IconEvaluation, IconFaq, IconIntent, IconRetrain, IconSnapshot } from '@/components/custom/Icons';
+import { IconDocument, IconEntity, IconEvaluation, IconFaq, IconIntent, IconRetrain, IconSnapshot } from '@/components/custom/Icons';
 import PageHeader from '@/components/custom/PageHeader';
 import PageTabs, { type PageTab } from '@/components/custom/PageTabs';
 
@@ -31,9 +31,19 @@ export default function ModelDetail() {
     { title: '모델', path: '/bot/bot-config/model' },
     { title: '모델 상세', path: `/bot/bot-config/model/${modelId}` },
   ];
+
+  const extra = (
+    <div className="flex justify-end">
+      <div className="flex gap-2">
+        <Button variant="solid">모델 학습</Button>
+        <Button variant="solid">모델 배포</Button>
+      </div>
+    </div>
+  );
+
   return (
     <div className="flex flex-col gap-4 w-full h-full">
-      <PageHeader title="모델 편집" breadcrumb={breadcrumb} />
+      <PageHeader title="모델 편집" breadcrumb={breadcrumb} extra={extra} />
       <PageTabs tabs={tabs} />
       <ModelTestModal />
     </div>
