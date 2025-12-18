@@ -1,5 +1,8 @@
-import { type BreadcrumbProps, Button, Col, Form, type FormProps, Input, Row } from 'antd';
+import { useNavigate } from 'react-router-dom';
+import { type BreadcrumbProps, Button, Checkbox, Col, Form, type FormProps, Input, Row } from 'antd';
 import { Log } from '@/log';
+import { toast } from '@/shared-util';
+import { useCreateModel } from '../../features/bot-config/hooks/useModelQueries';
 import type { ModelCreateDatas } from '../../features/bot-config/types';
 import PageHeader from '@/components/custom/PageHeader';
 
@@ -10,10 +13,21 @@ const breadcrumb: BreadcrumbProps['items'] = [
 ];
 
 export default function ModelCreate() {
+  const navigate = useNavigate();
   const [form] = Form.useForm();
-  const initialValues = { modelName: '' };
+  const initialValues = { modelName: '', modelDesc: '', faqIntentYn: 0 };
+
+  const { mutate: createModel, isPending: isCreatingModel } = useCreateModel({
+    mutationOptions: {
+      onSuccess: () => {
+        toast.success('모델이 생성되었습니다.');
+        navigate('../list');
+      },
+    },
+  });
   const onFinish: FormProps<ModelCreateDatas>['onFinish'] = (values) => {
     Log.debug('onFinish', values);
+    createModel(values as ModelCreateDatas);
   };
   const onFinishFailed: FormProps<ModelCreateDatas>['onFinishFailed'] = (errorInfo) => {
     Log.warn('onFinishFailed', errorInfo);
@@ -38,9 +52,21 @@ export default function ModelCreate() {
                 </Form.Item>
               </Col>
             </Row>
+            <Row gutter={20}>
+              <Col>
+                <Form.Item
+                  name="faqIntentYn"
+                  label="의도 유형별 활성화"
+                  getValueFromEvent={(e) => (e.target.checked ? 1 : 0)}
+                  getValueProps={(value) => ({ checked: value === 1 })}
+                >
+                  <Checkbox>FAQ 의도</Checkbox>
+                </Form.Item>
+              </Col>
+            </Row>
             <Row gutter={20} justify="center" className="sticky bottom-0 bg-white/90 z-10 pb-7">
               <Col>
-                <Button variant="solid" color="primary" htmlType="submit">
+                <Button variant="solid" color="primary" htmlType="submit" loading={isCreatingModel}>
                   저장
                 </Button>
               </Col>

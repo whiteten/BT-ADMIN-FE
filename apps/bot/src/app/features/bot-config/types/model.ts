@@ -12,14 +12,17 @@ export interface Model {
   trainId: string;
   trainStatus: number;
   trainTime: string;
+  faqIntentYn: number;
+  faqIntentYnNm: string;
 }
+export type TrainStatus = 0 | 1 | 2;
 
 export type ModelListItem = Pick<Model, 'modelId' | 'modelName' | 'trainStatus' | 'trainTime'> & {
   intentCount: number;
   entityCount: number;
 };
 
-export type TrainStatus = 0 | 1 | 2;
+export type ModelItem = Model;
 
-export type ModelCreateDatas = Pick<Model, 'modelName' | 'modelDesc'>;
-export type ModelBasicInfoUpdateDatas = Pick<Model, 'modelName' | 'modelDesc'>;
+export type ModelCreateDatas = Pick<Model, 'modelName' | 'modelDesc' | 'faqIntentYn'>;
+export type ModelBasicInfoUpdateDatas = Pick<Model, 'modelName' | 'modelDesc' | 'faqIntentYn'>;
