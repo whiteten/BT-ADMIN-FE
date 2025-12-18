@@ -2,11 +2,13 @@ import { useMutation, useQuery } from '@tanstack/react-query';
 import { createQueryKeys } from '@lukemorales/query-key-factory';
 import type { MutationHookOptions, QueryHookWithParamsOptions } from '@/shared-util';
 import { modelApi } from '../api/modelApi';
+import type { IntentListItem } from '../types/intent';
 import type { ModelItem, ModelListItem } from '../types/model';
 
 export const modelQueryKeys = createQueryKeys('models', {
   getModels: (params?: Record<string, unknown>) => [params],
   getModel: (params?: Record<string, unknown>) => [params],
+  getIntents: (params?: Record<string, unknown>) => [params],
 });
 
 export const useGetModels = ({ params, queryOptions }: QueryHookWithParamsOptions<ModelListItem[]> = {}) => {
@@ -43,5 +45,13 @@ export const useDeleteModel = ({ mutationOptions }: MutationHookOptions = {}) =>
   return useMutation({
     mutationFn: modelApi.deleteModel,
     ...mutationOptions,
+  });
+};
+
+export const useGetIntents = ({ params, queryOptions }: QueryHookWithParamsOptions<IntentListItem[]> = {}) => {
+  return useQuery({
+    queryKey: modelQueryKeys.getIntents(params).queryKey,
+    queryFn: () => modelApi.getIntents(params),
+    ...queryOptions,
   });
 };
