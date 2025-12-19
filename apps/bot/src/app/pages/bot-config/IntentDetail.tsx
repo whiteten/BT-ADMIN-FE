@@ -6,11 +6,11 @@ import PageHeader from '@/components/custom/PageHeader';
 import PageTabs, { type PageTab } from '@/components/custom/PageTabs';
 
 const IntentBasicInfo = React.lazy(() => import('../../features/bot-config/tabs/IntentBasicInfo'));
-const IntentSentence = React.lazy(() => import('../../features/bot-config/tabs/IntentSentence'));
+const IntentSentenceList = React.lazy(() => import('../../features/bot-config/tabs/IntentSentenceList'));
 
 const tabs: PageTab[] = [
   { id: 'tab1', label: '기본정보', icon: IconDocument, component: IntentBasicInfo },
-  { id: 'tab2', label: '의도문장', icon: IconIntent, component: IntentSentence },
+  { id: 'tab2', label: '의도문장', icon: IconIntent, component: IntentSentenceList },
 ];
 
 export default function IntentDetail() {

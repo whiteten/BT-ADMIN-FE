@@ -20,7 +20,7 @@ const TRAIN_STATUS_META: Record<TrainStatus, { label: string; className: string 
   2: { label: '학습완료', className: 'text-[#0AB39C] bg-[#0AB39C1A]' },
 };
 
-export default function ModelIntent() {
+export default function ModelIntentList() {
   const { modelId = '' } = useParams();
   const navigate = useNavigate();
   const queryClient = useQueryClient();

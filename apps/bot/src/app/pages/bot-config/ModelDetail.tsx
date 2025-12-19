@@ -7,7 +7,7 @@ import PageHeader from '@/components/custom/PageHeader';
 import PageTabs, { type PageTab } from '@/components/custom/PageTabs';
 
 const ModelBasicInfo = React.lazy(() => import('../../features/bot-config/tabs/ModelBasicInfo'));
-const ModelIntent = React.lazy(() => import('../../features/bot-config/tabs/ModelIntent'));
+const ModelIntentList = React.lazy(() => import('../../features/bot-config/tabs/ModelIntentList'));
 const ModelEntity = React.lazy(() => import('../../features/bot-config/tabs/ModelEntity'));
 const ModelEvaluation = React.lazy(() => import('../../features/bot-config/tabs/ModelEvaluation'));
 const ModelRetrain = React.lazy(() => import('../../features/bot-config/tabs/ModelRetrain'));
@@ -16,7 +16,7 @@ const ModelFaq = React.lazy(() => import('../../features/bot-config/tabs/ModelFa
 
 const tabs: PageTab[] = [
   { id: 'tab1', label: '기본정보', icon: IconDocument, component: ModelBasicInfo },
-  { id: 'tab2', label: '의도', icon: IconIntent, component: ModelIntent },
+  { id: 'tab2', label: '의도', icon: IconIntent, component: ModelIntentList },
   { id: 'tab3', label: '개체', icon: IconEntity, component: ModelEntity },
   { id: 'tab4', label: '평가', icon: IconEvaluation, component: ModelEvaluation },
   { id: 'tab5', label: '재학습', icon: IconRetrain, component: ModelRetrain },

@@ -20,7 +20,7 @@ const columnDefs: ColDef<BotVersionListItem>[] = [
   { headerName: '작업일시', field: 'workTime' },
 ];
 
-export default function BotVersion() {
+export default function BotVersionList() {
   const { serviceId = '' } = useParams();
   const { gridOptions } = useAggridOptions();
   const [rowData, setRowData] = useState<BotVersionListItem[]>([]);
