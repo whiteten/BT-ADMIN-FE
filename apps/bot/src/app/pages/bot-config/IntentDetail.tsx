@@ -1,7 +1,6 @@
 import React from 'react';
 import { useParams } from 'react-router-dom';
 import { type BreadcrumbProps, Button } from 'antd';
-import ModelTestModal from '../../features/bot-config/components/ModelTestModal';
 import { IconDocument, IconIntent } from '@/components/custom/Icons';
 import PageHeader from '@/components/custom/PageHeader';
 import PageTabs, { type PageTab } from '@/components/custom/PageTabs';
@@ -37,7 +36,6 @@ export default function IntentDetail() {
     <div className="flex flex-col gap-4 w-full h-full">
       <PageHeader title="의도 편집" breadcrumb={breadcrumb} extra={extra} />
       <PageTabs tabs={tabs} />
-      <ModelTestModal />
     </div>
   );
 }

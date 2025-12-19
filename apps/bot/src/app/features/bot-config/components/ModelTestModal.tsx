@@ -1,9 +1,10 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef } from 'react';
 import JsonView from '@uiw/react-json-view';
 import { vscodeTheme } from '@uiw/react-json-view/vscode';
 import { Button, FloatButton, Input, type InputRef, Space } from 'antd';
 import dayjs from 'dayjs';
 import { X } from 'lucide-react';
+import { type ChatMessage, useModelTestStore } from '../hooks/useModelTestStore';
 import { IconEdit, IconSend } from '@/components/custom/Icons';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -36,34 +37,33 @@ const jsonValueSample = {
   entities: [],
 };
 
-interface ChatMessage {
-  id: number;
-  type: 'request' | 'response';
-  content: string | object;
-  timestamp: string;
+interface ModelTestModalProps {
+  modelId: string;
 }
 
-export default function ModelTestModal() {
-  const [open, setOpen] = useState(false);
-  const [activeTab, setActiveTab] = useState('tab1');
-  const [inputValue, setInputValue] = useState('');
-  const [tab1Messages, setTab1Messages] = useState<ChatMessage[]>([]);
-  const [tab2Messages, setTab2Messages] = useState<ChatMessage[]>([]);
+export default function ModelTestModal({ modelId }: ModelTestModalProps) {
+  const { isOpen, setIsOpen, activeTab, setActiveTab, inputValue, setInputValue, trainingMessages, deployedMessages, addMessage, clearMessages } = useModelTestStore();
+
+  // modelId 변경 시 대화내역 초기화
+  useEffect(() => {
+    clearMessages();
+  }, [modelId, clearMessages]);
+
   const inputRef = useRef<InputRef>(null);
-  const tab1ScrollRef = useRef<HTMLDivElement>(null);
-  const tab2ScrollRef = useRef<HTMLDivElement>(null);
+  const trainingScrollRef = useRef<HTMLDivElement>(null);
+  const deployedScrollRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    if (tab1ScrollRef.current) {
-      tab1ScrollRef.current.scrollTop = tab1ScrollRef.current.scrollHeight;
+    if (trainingScrollRef.current) {
+      trainingScrollRef.current.scrollTop = trainingScrollRef.current.scrollHeight;
     }
-  }, [tab1Messages]);
+  }, [trainingMessages]);
 
   useEffect(() => {
-    if (tab2ScrollRef.current) {
-      tab2ScrollRef.current.scrollTop = tab2ScrollRef.current.scrollHeight;
+    if (deployedScrollRef.current) {
+      deployedScrollRef.current.scrollTop = deployedScrollRef.current.scrollHeight;
     }
-  }, [tab2Messages]);
+  }, [deployedMessages]);
 
   const handleSendMessage = () => {
     if (!inputValue.trim()) return;
@@ -84,11 +84,8 @@ export default function ModelTestModal() {
       timestamp,
     };
 
-    if (activeTab === 'tab1') {
-      setTab1Messages((prev) => [...prev, requestMessage, responseMessage]);
-    } else {
-      setTab2Messages((prev) => [...prev, requestMessage, responseMessage]);
-    }
+    addMessage(activeTab, requestMessage);
+    addMessage(activeTab, responseMessage);
 
     setInputValue('');
     inputRef.current?.focus();
@@ -121,45 +118,45 @@ export default function ModelTestModal() {
   };
 
   return (
-    <Popover open={open} onOpenChange={setOpen}>
+    <Popover open={isOpen} onOpenChange={setIsOpen}>
       <PopoverTrigger asChild>
         <FloatButton
           type="primary"
           className="!size-12"
           style={{ insetInlineEnd: 30, insetBlockEnd: 30 }}
-          icon={open ? <X className="size-6" /> : <IconEdit className="size-6" fill="#FFFFFF" />}
+          icon={isOpen ? <X className="size-6" /> : <IconEdit className="size-6" fill="#FFFFFF" />}
         />
       </PopoverTrigger>
       <PopoverContent side="top" align="end" sideOffset={10} className="w-[440px] h-[80vh] p-0 !rounded-lg">
         <div className="flex flex-col w-full h-full overflow-hidden">
           <div className="flex items-center justify-between shrink-0 bg-[var(--color-bt-primary)] w-full h-[58px] rounded-t-lg px-6 py-4">
             <span className="text-base text-white">모델 시험</span>
-            <X className="size-6 text-white hover:cursor-pointer" onClick={() => setOpen(false)} />
+            <X className="size-6 text-white hover:cursor-pointer" onClick={() => setIsOpen(false)} />
           </div>
           <div className="flex-1 min-h-0">
-            <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full h-full gap-0 overflow-hidden">
+            <Tabs value={activeTab} onValueChange={(value) => setActiveTab(value as 'training' | 'deployed')} className="w-full h-full gap-0 overflow-hidden">
               <TabsList className="w-full p-0 bg-white rounded-none h-[48px] min-h-[48px]">
                 <TabsTrigger
-                  value="tab1"
+                  value="training"
                   className="!shadow-none border-1 border-b-[#E9EBEC] text-[#495057] !rounded-none data-[state=active]:border-b-2 data-[state=active]:border-b-[var(--color-bt-primary)] data-[state=active]:text-[var(--color-bt-primary)]"
                 >
                   학습모델
                 </TabsTrigger>
                 <TabsTrigger
-                  value="tab2"
+                  value="deployed"
                   className="!shadow-none border-1 border-b-[#E9EBEC] text-[#495057] !rounded-none data-[state=active]:border-b-2 data-[state=active]:border-b-[var(--color-bt-primary)] data-[state=active]:text-[var(--color-bt-primary)]"
                 >
                   배포모델
                 </TabsTrigger>
               </TabsList>
-              <TabsContent value="tab1" className="flex-1 min-h-0">
-                <div ref={tab1ScrollRef} className="w-full h-full overflow-y-auto p-5">
-                  {renderMessages(tab1Messages)}
+              <TabsContent value="training" className="flex-1 min-h-0">
+                <div ref={trainingScrollRef} className="w-full h-full overflow-y-auto p-5">
+                  {renderMessages(trainingMessages)}
                 </div>
               </TabsContent>
-              <TabsContent value="tab2" className="flex-1 min-h-0">
-                <div ref={tab2ScrollRef} className="w-full h-full overflow-y-auto p-5">
-                  {renderMessages(tab2Messages)}
+              <TabsContent value="deployed" className="flex-1 min-h-0">
+                <div ref={deployedScrollRef} className="w-full h-full overflow-y-auto p-5">
+                  {renderMessages(deployedMessages)}
                 </div>
               </TabsContent>
             </Tabs>
@@ -181,3 +178,17 @@ export default function ModelTestModal() {
     </Popover>
   );
 }
+
+// 외부에서 모달을 제어하기 위한 함수
+export const modelTestModal = {
+  open: (message?: string) => {
+    const state = useModelTestStore.getState();
+    if (message) {
+      state.setInputValue(message);
+    }
+    state.setIsOpen(true);
+  },
+  close: () => {
+    useModelTestStore.getState().setIsOpen(false);
+  },
+};

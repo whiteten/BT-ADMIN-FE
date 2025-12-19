@@ -8,6 +8,7 @@ const BotCreate = React.lazy(() => import('./pages/bot-config/BotCreate'));
 const BotDetail = React.lazy(() => import('./pages/bot-config/BotDetail'));
 const ModelCreate = React.lazy(() => import('./pages/bot-config/ModelCreate'));
 const ModelDetail = React.lazy(() => import('./pages/bot-config/ModelDetail'));
+const ModelDetailLayout = React.lazy(() => import('./pages/bot-config/ModelDetailLayout'));
 const ModelList = React.lazy(() => import('./pages/bot-config/ModelList'));
 const IntentDetail = React.lazy(() => import('./pages/bot-config/IntentDetail'));
 
@@ -40,6 +41,7 @@ export const routes = [
               { path: 'create', element: <ModelCreate /> },
               {
                 path: ':modelId',
+                element: <ModelDetailLayout />,
                 children: [
                   { index: true, element: <ModelDetail /> },
                   {

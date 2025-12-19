@@ -6,6 +6,7 @@ import { AgGridReact } from 'ag-grid-react';
 import { Button, Input, Select } from 'antd';
 import dayjs from 'dayjs';
 import { confirmModal, toast } from '@/shared-util';
+import { modelTestModal } from '../components/ModelTestModal';
 import { modelQueryKeys, useDeleteIntentSentence, useGetIntentSentences } from '../hooks/useModelQueries';
 import type { IntentSentenceListItem } from '../types';
 import { IconPlayCircle, IconTrash } from '@/libs/shared-ui/src/components/custom/Icons';
@@ -17,6 +18,7 @@ export default function IntentSentenceList() {
   const [rowData, setRowData] = useState<IntentSentenceListItem[]>([]);
   const [filterColumn, setFilterColumn] = useState('sentence');
   const [searchValue, setSearchValue] = useState('');
+  const [testInputValue, setTestInputValue] = useState('');
   const queryClient = useQueryClient();
   const { data: sentenceList, isFetching } = useGetIntentSentences({ params: { modelId, intentId } });
   const { mutateAsync: deleteIntentSentence } = useDeleteIntentSentence({
@@ -102,8 +104,14 @@ export default function IntentSentenceList() {
           <Input value={searchValue} onChange={(e) => setSearchValue(e.target.value)} className="!w-[280px]" placeholder="검색어를 입력하세요." />
         </div>
         <div className="flex items-center gap-2 ml-auto flex-wrap">
-          <Input placeholder="의도를 인식할 문장을 입력하세요." className="!w-[400px]" />
-          <Button variant="solid" color="cyan" icon={<IconPlayCircle className="size-5" />} className="[&_.ant-btn-icon]:flex [&_.ant-btn-icon]:items-center !gap-1">
+          <Input placeholder="의도를 인식할 문장을 입력하세요." className="!w-[400px]" value={testInputValue} onChange={(e) => setTestInputValue(e.target.value)} />
+          <Button
+            variant="solid"
+            color="cyan"
+            icon={<IconPlayCircle className="size-5" />}
+            className="[&_.ant-btn-icon]:flex [&_.ant-btn-icon]:items-center !gap-1"
+            onClick={() => modelTestModal.open(testInputValue)}
+          >
             테스트
           </Button>
           <Button variant="solid" color="primary">
