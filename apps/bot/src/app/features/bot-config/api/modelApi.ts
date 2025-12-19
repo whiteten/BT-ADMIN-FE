@@ -1,5 +1,5 @@
 import ApiClient, { type DetailResponse, type ListWithItemsResponse, extractDetail, extractListItems } from '@/shared-util';
-import type { IntentBasicInfoUpdateDatas, IntentCreateDatas, IntentItem, IntentListItem } from '../types/intent';
+import type { IntentBasicInfoUpdateDatas, IntentCreateDatas, IntentItem, IntentListItem, IntentSentenceCreateDatas, IntentSentenceListItem } from '../types/intent';
 import type { ModelBasicInfoUpdateDatas, ModelCreateDatas, ModelItem, ModelListItem } from '../types/model';
 
 const apiClient = new ApiClient({ serviceURL: '/bff' });
@@ -43,6 +43,18 @@ export const modelApi = {
   },
   deleteIntent: async (params: Record<string, unknown>) => {
     const response = await apiClient.delete('/intent-delete', { params });
+    return response?.data;
+  },
+  getIntentSentences: async (params?: Record<string, unknown>): Promise<IntentSentenceListItem[]> => {
+    const response = await apiClient.get<ListWithItemsResponse<IntentSentenceListItem>>('/intent-sentence-list', { params });
+    return extractListItems(response?.data);
+  },
+  createIntentSentence: async ({ params, data }: { params: Record<string, unknown>; data: IntentSentenceCreateDatas }) => {
+    const response = await apiClient.post('/intent-sentence-create', data, { params });
+    return response?.data;
+  },
+  deleteIntentSentence: async (params: Record<string, unknown>) => {
+    const response = await apiClient.delete('/intent-sentence-delete', { params });
     return response?.data;
   },
 };
