@@ -3,12 +3,12 @@ import { useParams } from 'react-router-dom';
 import { useQueryClient } from '@tanstack/react-query';
 import type { ColDef, ICellRendererParams } from 'ag-grid-community';
 import { AgGridReact } from 'ag-grid-react';
-import { Input, Select } from 'antd';
+import { Button, Input, Select } from 'antd';
 import dayjs from 'dayjs';
 import { confirmModal, toast } from '@/shared-util';
 import { modelQueryKeys, useDeleteIntentSentence, useGetIntentSentences } from '../hooks/useModelQueries';
 import type { IntentSentenceListItem } from '../types';
-import { IconTrash } from '@/libs/shared-ui/src/components/custom/Icons';
+import { IconPlayCircle, IconTrash } from '@/libs/shared-ui/src/components/custom/Icons';
 import useAggridOptions from '@/libs/shared-ui/src/hooks/useAggridOptions';
 
 export default function IntentSentenceList() {
@@ -89,17 +89,28 @@ export default function IntentSentenceList() {
 
   return (
     <div className="flex flex-col gap-5 w-full h-full">
-      <header className="flex items-center justify-between w-full gap-2 lg:flex-nowrap flex-wrap">
-        <div className="flex items-center w-full gap-3">
+      <header className="flex items-center justify-between gap-2 flex-wrap">
+        <div className="flex items-center gap-3">
           <Select
             defaultValue="sentence"
             value={filterColumn}
             onChange={handleColumnChange}
             options={[{ label: '문장', value: 'sentence' }]}
-            className="!max-w-[150px] !min-w-[120px]"
+            className="!w-[120px]"
             popupMatchSelectWidth={false}
           />
-          <Input value={searchValue} onChange={(e) => setSearchValue(e.target.value)} className="w-full lg:max-w-[400px]" placeholder="검색어를 입력하세요." />
+          <Input value={searchValue} onChange={(e) => setSearchValue(e.target.value)} className="!w-[280px]" placeholder="검색어를 입력하세요." />
+        </div>
+        <div className="flex items-center gap-2 ml-auto flex-wrap">
+          <Input placeholder="의도를 인식할 문장을 입력하세요." className="!w-[400px]" />
+          <Button variant="solid" color="cyan" icon={<IconPlayCircle className="size-5" />} className="[&_.ant-btn-icon]:flex [&_.ant-btn-icon]:items-center !gap-1">
+            테스트
+          </Button>
+          <Button variant="solid" color="primary">
+            추가
+          </Button>
+          <Button variant="solid">자동생성</Button>
+          <Button variant="solid">Import</Button>
         </div>
       </header>
       <div className="w-full h-full">
