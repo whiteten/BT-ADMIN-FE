@@ -7,7 +7,7 @@ import { Button, Input, Select } from 'antd';
 import dayjs from 'dayjs';
 import { confirmModal, toast } from '@/shared-util';
 import { modelTestModal } from '../components/ModelTestModal';
-import { modelQueryKeys, useDeleteIntentSentence, useGetIntentSentences } from '../hooks/useModelQueries';
+import { modelQueryKeys, useCreateIntentSentence, useDeleteIntentSentence, useGetIntentSentences } from '../hooks/useModelQueries';
 import type { IntentSentenceListItem } from '../types';
 import { IconPlayCircle, IconTrash } from '@/libs/shared-ui/src/components/custom/Icons';
 import useAggridOptions from '@/libs/shared-ui/src/hooks/useAggridOptions';
@@ -21,6 +21,15 @@ export default function IntentSentenceList() {
   const [testInputValue, setTestInputValue] = useState('');
   const queryClient = useQueryClient();
   const { data: sentenceList, isFetching } = useGetIntentSentences({ params: { modelId, intentId } });
+  const { mutateAsync: createIntentSentence, isPending: isCreating } = useCreateIntentSentence({
+    mutationOptions: {
+      onSuccess: () => {
+        toast.success('문장이 추가되었습니다.');
+        setTestInputValue('');
+        queryClient.invalidateQueries({ queryKey: modelQueryKeys.getIntentSentences({ modelId, intentId }).queryKey });
+      },
+    },
+  });
   const { mutateAsync: deleteIntentSentence } = useDeleteIntentSentence({
     mutationOptions: {
       onSuccess: () => {
@@ -29,6 +38,22 @@ export default function IntentSentenceList() {
       },
     },
   });
+
+  const handleTestIntentSentence = (sentence: string) => {
+    if (!sentence.trim()) {
+      toast.warning('문장을 입력하세요.');
+      return;
+    }
+    modelTestModal.open(sentence.trim());
+  };
+
+  const handleCreateIntentSentence = () => {
+    if (!testInputValue.trim()) {
+      toast.warning('문장을 입력하세요.');
+      return;
+    }
+    createIntentSentence({ params: { modelId, intentId }, data: { sentence: testInputValue.trim(), modelVersion: 'DRAFT' } });
+  };
 
   const handleDeleteIntentSentence = (sentenceId: string) => {
     confirmModal.delete({
@@ -44,6 +69,29 @@ export default function IntentSentenceList() {
       field: 'workTime',
       maxWidth: 180,
       valueFormatter: (params: { value: string }) => (params.value ? dayjs(params.value).format('YYYY-MM-DD HH:mm:ss') : '-'),
+    },
+    {
+      headerName: '',
+      maxWidth: 60,
+      sortable: false,
+      filter: false,
+      suppressHeaderMenuButton: true,
+      cellStyle: { display: 'flex', alignItems: 'center', justifyContent: 'center' },
+      cellRenderer: (params: ICellRendererParams<IntentSentenceListItem>) => {
+        const { data } = params;
+        if (!data) return null;
+        return (
+          <button
+            type="button"
+            onClick={(e) => {
+              e.stopPropagation();
+              handleTestIntentSentence(data.sentence);
+            }}
+          >
+            <IconPlayCircle className="size-5 text-[#405189] hover:cursor-pointer" />
+          </button>
+        );
+      },
     },
     {
       headerName: '',
@@ -110,11 +158,11 @@ export default function IntentSentenceList() {
             color="cyan"
             icon={<IconPlayCircle className="size-5" />}
             className="[&_.ant-btn-icon]:flex [&_.ant-btn-icon]:items-center !gap-1"
-            onClick={() => modelTestModal.open(testInputValue)}
+            onClick={() => handleTestIntentSentence(testInputValue)}
           >
             테스트
           </Button>
-          <Button variant="solid" color="primary">
+          <Button variant="solid" color="primary" onClick={handleCreateIntentSentence} loading={isCreating}>
             추가
           </Button>
           <Button variant="solid">자동생성</Button>
