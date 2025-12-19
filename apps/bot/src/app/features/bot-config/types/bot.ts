@@ -57,26 +57,13 @@ export type BotVersionCreateDatas = Omit<BotVersion, 'serviceId' | 'workUser' | 
 export type BotVersionUpdateDatas = Omit<BotVersion, 'workUser' | 'workTime'>;
 
 export interface BotDeployConfig {
-  haGroupId: number;
-  haGroupName: string;
-  nodeId: number;
-  nodeName: string;
   systemId: number;
-  irSystemName: string;
-  roleSystemId: number;
-  roleSystemName: string;
-  roleStatus: number;
-  roleStatusName: string;
-  roleAlias: string;
-  roleType: number;
-  roleTypeName: string;
-  ioSystemId: number;
-  haGroupMode: number;
-  ioIpAddress: string;
-  idIpAddress: string;
-  serviceVer: string;
-  svcResvId: string;
-  assignSystem: number;
+  systemName: string;
+  serviceId: number;
+  priorVer: string;
+  applyVer: string;
+  assignYn: number;
 }
 
 export type BotDeployConfigItem = BotDeployConfig;
+export type BotDeployConfigCreateDatas = { systemIds: number[] };

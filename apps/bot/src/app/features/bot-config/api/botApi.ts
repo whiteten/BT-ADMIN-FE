@@ -2,6 +2,7 @@ import ApiClient, { type DetailResponse, type ListResponse, type ListWithItemsRe
 import type {
   BotBasicInfoUpdateDatas,
   BotCreateDatas,
+  BotDeployConfigCreateDatas,
   BotDeployConfigItem,
   BotItem,
   BotListItem,
@@ -82,5 +83,10 @@ export const botApi = {
   getBotDeployConfig: async (params?: Record<string, unknown>): Promise<BotDeployConfigItem[]> => {
     const response = await apiClient.get<ListResponse<BotDeployConfigItem>>('/bot-deploy-config', { params });
     return extractList(response?.data);
+  },
+  // delete -> insert
+  saveBotDeployConfig: async ({ params, data }: { params: Record<string, unknown>; data: BotDeployConfigCreateDatas }) => {
+    const response = await apiClient.post('/bot-deploy-config-save', data, { params });
+    return response?.data;
   },
 };

@@ -134,3 +134,10 @@ export const useGetBotDeployConfig = ({ params, queryOptions }: QueryHookWithPar
     ...queryOptions,
   });
 };
+
+export const useSaveBotDeployConfig = ({ mutationOptions }: MutationHookOptions = {}) => {
+  return useMutation({
+    mutationFn: botApi.saveBotDeployConfig,
+    ...mutationOptions,
+  });
+};

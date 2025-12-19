@@ -1,6 +1,7 @@
 import { forwardRef, useEffect, useImperativeHandle, useState } from 'react';
 import { Button, Drawer, Transfer, type TransferProps } from 'antd';
-import { useGetBotDeployConfig } from '../hooks/useBotQueries';
+import { toast } from '@/shared-util';
+import { useGetBotDeployConfig, useSaveBotDeployConfig } from '../hooks/useBotQueries';
 import { IconList } from '@/components/custom/Icons';
 import { FallbackSpinner } from '@/libs/shared-ui/src/components/custom/FallbackSpinner';
 /**
@@ -36,12 +37,20 @@ const BotDeployConfigDrawer = forwardRef<BotDeployConfigDrawerRef>((_, ref) => {
     queryOptions: { enabled: !!serviceId && open },
   });
 
+  const { mutate: saveBotDeployConfig, isPending: isSaving } = useSaveBotDeployConfig({
+    mutationOptions: {
+      onSuccess: () => {
+        toast.success('배포설정이 저장되었습니다.');
+        handleClose();
+      },
+    },
+  });
   const [targetKeys, setTargetKeys] = useState<TransferProps['targetKeys']>([]);
   const [selectedKeys, setSelectedKeys] = useState<TransferProps['targetKeys']>([]);
 
   useEffect(() => {
     if (open && botDeployConfig) {
-      const initialTargetKeys = botDeployConfig.filter((item) => !!item.serviceVer).map((item) => item.systemId);
+      const initialTargetKeys = botDeployConfig.filter((item) => item.assignYn === 1).map((item) => item.systemId);
       setTargetKeys(initialTargetKeys);
     }
     if (!open) {
@@ -64,7 +73,6 @@ const BotDeployConfigDrawer = forwardRef<BotDeployConfigDrawerRef>((_, ref) => {
     /**
      * 드로어 열기
      * @param params.serviceId - 서비스 ID (필수)
-     * @param params.serviceVer - 서비스 버전 (선택)
      */
     open: (params) => {
       setDrawerState({
@@ -86,11 +94,7 @@ const BotDeployConfigDrawer = forwardRef<BotDeployConfigDrawerRef>((_, ref) => {
   };
 
   const handleSave = () => {
-    const params = {
-      serviceId: serviceId,
-      systemIds: targetKeys,
-    };
-    alert(JSON.stringify(params));
+    saveBotDeployConfig({ params: { serviceId }, data: { systemIds: targetKeys as number[] } });
   };
 
   const footer = (
@@ -128,11 +132,8 @@ const BotDeployConfigDrawer = forwardRef<BotDeployConfigDrawerRef>((_, ref) => {
               selectedKeys={selectedKeys} // 체크박스 선택목록(좌우 모두)
               onChange={handleTransferChange} // 아이템 이동시 호출
               onSelectChange={handleTransferSelectChange} // 체크박스 선택시 호출
-              render={(item) => `${item.roleSystemName}[${item.roleAlias}]`}
-              filterOption={(input, option) => {
-                const keyword = input.toLowerCase();
-                return option.roleSystemName?.toLowerCase().includes(keyword) || option.roleAlias?.toLowerCase().includes(keyword);
-              }}
+              render={(item) => `${item.systemName}`}
+              filterOption={(input, option) => option.systemName?.toLowerCase().includes(input.toLowerCase())}
               classNames={{ section: '!w-full !h-[520px]' }}
               pagination={false}
               showSearch
