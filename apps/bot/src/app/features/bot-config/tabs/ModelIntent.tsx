@@ -5,11 +5,11 @@ import type { ColDef, ICellRendererParams, RowDoubleClickedEvent } from 'ag-grid
 import { AgGridReact } from 'ag-grid-react';
 import { Button, Input, Select } from 'antd';
 import dayjs from 'dayjs';
-import { Trash2 } from 'lucide-react';
 import { confirmModal, toast } from '@/shared-util';
 import IntentDrawer, { type IntentDrawerRef } from '../components/IntentDrawer';
 import { modelQueryKeys, useDeleteIntent, useGetIntents } from '../hooks/useModelQueries';
 import type { IntentListItem, TrainStatus } from '../types';
+import { IconTrash } from '@/components/custom/Icons';
 import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
 import useAggridOptions from '@/libs/shared-ui/src/hooks/useAggridOptions';
@@ -90,7 +90,7 @@ export default function ModelIntent() {
               handleDeleteIntent(data.intentId);
             }}
           >
-            <Trash2 className="size-4 text-red-500 hover:cursor-pointer" />
+            <IconTrash className="size-5 text-red-500 hover:cursor-pointer" />
           </button>
         );
       },
