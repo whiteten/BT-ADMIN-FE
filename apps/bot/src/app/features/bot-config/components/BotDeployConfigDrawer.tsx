@@ -1,4 +1,4 @@
-import { forwardRef, useImperativeHandle, useState } from 'react';
+import { forwardRef, useEffect, useImperativeHandle, useState } from 'react';
 import { Button, Drawer, Transfer, type TransferProps } from 'antd';
 import { useGetBotDeployConfig } from '../hooks/useBotQueries';
 import { IconList } from '@/components/custom/Icons';
@@ -9,7 +9,7 @@ import { FallbackSpinner } from '@/libs/shared-ui/src/components/custom/Fallback
  * @property close - 드로어를 닫는 함수
  */
 export interface BotDeployConfigDrawerRef {
-  open: (params: { serviceId: string; serviceVer?: string }) => void;
+  open: (params: { serviceId: string }) => void;
   close: () => void;
 }
 
@@ -19,33 +19,36 @@ export interface BotDeployConfigDrawerRef {
 interface DrawerState {
   open: boolean;
   serviceId: string;
-  serviceVer?: string;
 }
 
 /**
  * Bot 배포설정 Drawer
- * - ref.open({ serviceId, serviceVer }) : 드로어 열기
+ * - ref.open({ serviceId }) : 드로어 열기
  * - ref.close() : 드로어 닫기
  */
 const BotDeployConfigDrawer = forwardRef<BotDeployConfigDrawerRef>((_, ref) => {
-  // 드로어 상태 (open 여부, serviceId, serviceVer)
-  const [drawerState, setDrawerState] = useState<DrawerState>({
-    open: false,
-    serviceId: '',
-    serviceVer: undefined,
-  });
-
-  const { open, serviceId, serviceVer: version } = drawerState;
+  // 드로어 상태 (open 여부, serviceId)
+  const [drawerState, setDrawerState] = useState<DrawerState>({ open: false, serviceId: '' });
+  const { open, serviceId } = drawerState;
 
   const { data: botDeployConfig, isFetching } = useGetBotDeployConfig({
-    params: { serviceId: '14', version: '1.0.0' }, // TODO: 조회 목록이 있는 데이터 조건 하드코딩. 추후 수정 필요.
-    queryOptions: { enabled: !!serviceId && !!version && open },
+    params: { serviceId },
+    queryOptions: { enabled: !!serviceId && open },
   });
 
-  const initialTargetKeys = botDeployConfig?.filter((item) => !!item.serviceVer).map((item) => item.systemId);
-
-  const [targetKeys, setTargetKeys] = useState<TransferProps['targetKeys']>(initialTargetKeys);
+  const [targetKeys, setTargetKeys] = useState<TransferProps['targetKeys']>([]);
   const [selectedKeys, setSelectedKeys] = useState<TransferProps['targetKeys']>([]);
+
+  useEffect(() => {
+    if (open && botDeployConfig) {
+      const initialTargetKeys = botDeployConfig.filter((item) => !!item.serviceVer).map((item) => item.systemId);
+      setTargetKeys(initialTargetKeys);
+    }
+    if (!open) {
+      setTargetKeys([]);
+      setSelectedKeys([]);
+    }
+  }, [open, botDeployConfig]);
 
   // Transfer 핸들러
   const handleTransferChange: TransferProps['onChange'] = (nextTargetKeys) => {
@@ -67,7 +70,6 @@ const BotDeployConfigDrawer = forwardRef<BotDeployConfigDrawerRef>((_, ref) => {
       setDrawerState({
         open: true,
         serviceId: params.serviceId,
-        serviceVer: params.serviceVer,
       });
     },
     /**
@@ -86,7 +88,6 @@ const BotDeployConfigDrawer = forwardRef<BotDeployConfigDrawerRef>((_, ref) => {
   const handleSave = () => {
     const params = {
       serviceId: serviceId,
-      serviceVer: version,
       systemIds: targetKeys,
     };
     alert(JSON.stringify(params));
