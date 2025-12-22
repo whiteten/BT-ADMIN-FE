@@ -25,7 +25,7 @@ export default function ModelBasicInfo() {
     },
   });
 
-  const { mutateAsync: deleteModel, isPending: isDeleting } = useDeleteModel({
+  const { mutate: deleteModel, isPending: isDeleting } = useDeleteModel({
     mutationOptions: {
       onSuccess: () => {
         toast.success('모델이 삭제되었습니다.');

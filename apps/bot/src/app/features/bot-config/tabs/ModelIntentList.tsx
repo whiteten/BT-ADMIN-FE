@@ -32,7 +32,7 @@ export default function ModelIntentList() {
 
   const { data: intentList, isFetching } = useGetIntents({ params: { modelId } });
 
-  const { mutateAsync: deleteIntent } = useDeleteIntent({
+  const { mutate: deleteIntent } = useDeleteIntent({
     mutationOptions: {
       onSuccess: () => {
         toast.success('의도가 삭제되었습니다.');

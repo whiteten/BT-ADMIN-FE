@@ -32,7 +32,7 @@ export default function BotBasicInfo() {
     },
   });
 
-  const { mutateAsync: deleteBot, isPending: isDeleting } = useDeleteBot({
+  const { mutate: deleteBot, isPending: isDeleting } = useDeleteBot({
     mutationOptions: {
       onSuccess: () => {
         toast.success('봇이 삭제되었습니다.');

@@ -22,7 +22,7 @@ export default function ModelList() {
   const [searchValue, setSearchValue] = useState('');
 
   const { data: modelList, isFetching } = useGetModels();
-  const { mutateAsync: deleteModel } = useDeleteModel({
+  const { mutate: deleteModel } = useDeleteModel({
     mutationOptions: {
       onSuccess: () => {
         queryClient.invalidateQueries({ queryKey: modelQueryKeys.getModels().queryKey });

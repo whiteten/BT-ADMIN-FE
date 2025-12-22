@@ -22,7 +22,7 @@ export default function BotList() {
   const [searchValue, setSearchValue] = useState('');
 
   const { data: botList, isFetching } = useGetBots();
-  const { mutateAsync: deleteBot } = useDeleteBot({
+  const { mutate: deleteBot } = useDeleteBot({
     mutationOptions: {
       onSuccess: () => {
         queryClient.invalidateQueries({ queryKey: botQueryKeys.getBots().queryKey });

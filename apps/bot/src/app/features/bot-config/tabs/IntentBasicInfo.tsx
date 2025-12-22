@@ -29,7 +29,7 @@ export default function IntentBasicInfo() {
     },
   });
 
-  const { mutateAsync: deleteIntent, isPending: isDeleting } = useDeleteIntent({
+  const { mutate: deleteIntent, isPending: isDeleting } = useDeleteIntent({
     mutationOptions: {
       onSuccess: () => {
         toast.success('의도가 삭제되었습니다.');

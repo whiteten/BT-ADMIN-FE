@@ -21,7 +21,7 @@ export default function IntentSentenceList() {
   const [testInputValue, setTestInputValue] = useState('');
   const queryClient = useQueryClient();
   const { data: sentenceList, isFetching } = useGetIntentSentences({ params: { modelId, intentId } });
-  const { mutateAsync: createIntentSentence, isPending: isCreating } = useCreateIntentSentence({
+  const { mutate: createIntentSentence, isPending: isCreating } = useCreateIntentSentence({
     mutationOptions: {
       onSuccess: () => {
         toast.success('문장이 추가되었습니다.');
@@ -30,7 +30,7 @@ export default function IntentSentenceList() {
       },
     },
   });
-  const { mutateAsync: deleteIntentSentence } = useDeleteIntentSentence({
+  const { mutate: deleteIntentSentence } = useDeleteIntentSentence({
     mutationOptions: {
       onSuccess: () => {
         toast.success('문장이 삭제되었습니다.');
