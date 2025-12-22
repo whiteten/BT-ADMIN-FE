@@ -65,6 +65,13 @@ export default function ModelTestModal({ modelId }: ModelTestModalProps) {
     }
   }, [deployedMessages]);
 
+  const handleOpenChange = (open: boolean) => {
+    setIsOpen(open);
+    if (!open) {
+      setInputValue('');
+    }
+  };
+
   const handleSendMessage = () => {
     if (!inputValue.trim()) return;
 
@@ -118,7 +125,7 @@ export default function ModelTestModal({ modelId }: ModelTestModalProps) {
   };
 
   return (
-    <Popover open={isOpen} onOpenChange={setIsOpen}>
+    <Popover open={isOpen} onOpenChange={handleOpenChange}>
       <PopoverTrigger asChild>
         <FloatButton
           type="primary"
