@@ -102,7 +102,7 @@ const BotDeployConfigDrawer = forwardRef<BotDeployConfigDrawerRef>((_, ref) => {
       <Button variant="solid" onClick={handleClose}>
         취소
       </Button>
-      <Button variant="solid" type="primary" loading={isFetching} onClick={handleSave}>
+      <Button variant="solid" type="primary" loading={isFetching || isSaving} onClick={handleSave}>
         저장
       </Button>
     </div>
