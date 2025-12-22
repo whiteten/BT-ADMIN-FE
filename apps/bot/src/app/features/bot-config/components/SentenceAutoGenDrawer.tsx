@@ -157,7 +157,7 @@ const SentenceAutoGenDrawer = forwardRef<SentenceAutoGenDrawerRef>((_, ref) => {
   );
 
   return (
-    <Drawer open={open} onClose={handleClose} title="학습문장 자동생성" closable={{ placement: 'end' }} size={732} footer={footer} destroyOnHidden>
+    <Drawer open={open} onClose={handleClose} title="학습문장 자동생성" closable={{ placement: 'end' }} size={830} footer={footer} destroyOnHidden>
       <div className="flex flex-col gap-6">
         {/* 상단 Form 영역 */}
         <Form
@@ -175,7 +175,7 @@ const SentenceAutoGenDrawer = forwardRef<SentenceAutoGenDrawerRef>((_, ref) => {
             </Col>
             <Col span={8}>
               <Form.Item name="sentenceCount" label="생성 문장 수" required hasFeedback rules={[{ required: true, message: '생성 문장 수를 입력하세요.' }]}>
-                <InputNumber min={1} max={20} className="!w-full" />
+                <InputNumber min={1} className="!w-full" />
               </Form.Item>
             </Col>
           </Row>
