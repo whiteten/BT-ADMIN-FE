@@ -24,3 +24,9 @@ export type ModelItem = Model;
 
 export type ModelCreateDatas = Pick<Model, 'modelName' | 'expansion1' | 'faqIntentYn'>;
 export type ModelBasicInfoUpdateDatas = Pick<Model, 'modelName' | 'expansion1' | 'faqIntentYn'>;
+
+export interface SentenceAutoGenFormDatas {
+  llmAgent: string;
+  sentenceCount: number;
+  exampleSentences: string[];
+}

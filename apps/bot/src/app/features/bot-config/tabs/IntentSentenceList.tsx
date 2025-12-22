@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useParams } from 'react-router-dom';
 import { useQueryClient } from '@tanstack/react-query';
 import type { ColDef, ICellRendererParams } from 'ag-grid-community';
@@ -7,6 +7,7 @@ import { Button, Input, Select } from 'antd';
 import dayjs from 'dayjs';
 import { confirmModal, toast } from '@/shared-util';
 import { modelTestModal } from '../components/ModelTestModal';
+import SentenceAutoGenDrawer, { type SentenceAutoGenDrawerRef } from '../components/SentenceAutoGenDrawer';
 import { modelQueryKeys, useCreateIntentSentence, useDeleteIntentSentence, useGetIntentSentences } from '../hooks/useModelQueries';
 import type { IntentSentenceListItem } from '../types';
 import { IconPlayCircle, IconTrash } from '@/libs/shared-ui/src/components/custom/Icons';
@@ -15,6 +16,7 @@ import useAggridOptions from '@/libs/shared-ui/src/hooks/useAggridOptions';
 export default function IntentSentenceList() {
   const { modelId = '', intentId = '' } = useParams();
   const { gridOptions } = useAggridOptions();
+  const refAutoGenDrawer = useRef<SentenceAutoGenDrawerRef>(null);
   const [rowData, setRowData] = useState<IntentSentenceListItem[]>([]);
   const [filterColumn, setFilterColumn] = useState('sentence');
   const [searchValue, setSearchValue] = useState('');
@@ -165,13 +167,16 @@ export default function IntentSentenceList() {
           <Button variant="solid" color="primary" onClick={handleCreateIntentSentence} loading={isCreating}>
             추가
           </Button>
-          <Button variant="solid">자동생성</Button>
+          <Button variant="solid" onClick={() => refAutoGenDrawer.current?.open({ modelId, intentId })}>
+            자동생성
+          </Button>
           <Button variant="solid">Import</Button>
         </div>
       </header>
       <div className="w-full h-full">
         <AgGridReact<IntentSentenceListItem> rowData={rowData} columnDefs={columnDefs} gridOptions={gridOptions} loading={isFetching} />
       </div>
+      <SentenceAutoGenDrawer ref={refAutoGenDrawer} />
     </div>
   );
 }
