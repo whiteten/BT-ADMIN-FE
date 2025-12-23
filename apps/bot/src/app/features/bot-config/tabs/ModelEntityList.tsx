@@ -3,14 +3,14 @@ import { useNavigate, useParams } from 'react-router-dom';
 import { useQueryClient } from '@tanstack/react-query';
 import type { ColDef, ICellRendererParams, RowDoubleClickedEvent } from 'ag-grid-community';
 import { AgGridReact } from 'ag-grid-react';
-import { Button, Input, Select } from 'antd';
+import { Button, Input, Select, Tag } from 'antd';
 import dayjs from 'dayjs';
 import { confirmModal, toast } from '@/shared-util';
 import EntityDrawer, { type EntityDrawerRef } from '../components/EntityDrawer';
 import TrainStatusBadge from '../components/TrainStatusBadge';
 import { modelQueryKeys, useDeleteEntity, useGetEntities } from '../hooks/useModelQueries';
 import type { EntityListItem, TrainStatus } from '../types';
-import { IconTrash } from '@/components/custom/Icons';
+import { IconTag, IconTrash } from '@/components/custom/Icons';
 import useAggridOptions from '@/libs/shared-ui/src/hooks/useAggridOptions';
 
 export default function ModelEntityList() {
@@ -50,7 +50,24 @@ export default function ModelEntityList() {
       cellRenderer: (params: { value: number }) => <TrainStatusBadge status={params.value as TrainStatus} />,
     },
     { headerName: 'Value수', field: 'valueCount', maxWidth: 120 },
-    { headerName: '대표값', field: 'entityValues', flex: 3 },
+    {
+      headerName: '대표값',
+      field: 'entityValues',
+      flex: 3,
+      sortable: false,
+      valueFormatter: (params: { value: string[] }) => params.value?.join(', ') ?? '',
+      cellRenderer: (params: { value: string[] }) => {
+        return (
+          <div className="flex flex-wrap gap-1 pt-[1.5px]">
+            {params.value.map((value, index) => (
+              <Tag key={index} color="default" variant="outlined" icon={<IconTag />} className="!inline-flex items-center !px-2 !py-1 !m-0 !bg-white">
+                {value}
+              </Tag>
+            ))}
+          </div>
+        );
+      },
+    },
     {
       headerName: '작업일시',
       field: 'workTime',
