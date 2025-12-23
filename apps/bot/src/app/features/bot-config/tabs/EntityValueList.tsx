@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { useParams } from 'react-router-dom';
 import type { ColDef } from 'ag-grid-community';
 import { AgGridReact } from 'ag-grid-react';
-import { Input, Select, Tag } from 'antd';
+import { Button, Input, Select, Tag } from 'antd';
 import { useGetEntityValues } from '../hooks/useModelQueries';
 import type { EntityType, EntityValueListItem } from '../types';
 import useAggridOptions from '@/libs/shared-ui/src/hooks/useAggridOptions';
@@ -34,7 +34,7 @@ export default function EntityValueList() {
     {
       headerName: '타입',
       field: 'entityType',
-      maxWidth: 120,
+      maxWidth: 100,
       cellRenderer: (params: { value: EntityType }) => {
         const type = params.value;
         return (
@@ -48,6 +48,7 @@ export default function EntityValueList() {
       headerName: '유사어',
       field: 'entityTypeValues',
       flex: 2,
+      sortable: false,
     },
   ];
 
@@ -87,9 +88,14 @@ export default function EntityValueList() {
           />
           <Input value={searchValue} onChange={(e) => setSearchValue(e.target.value)} className="w-full lg:max-w-[400px]" placeholder="검색어를 입력하세요." />
         </div>
+        <div className="flex items-center gap-2.5">
+          <Button variant="solid" color="primary">
+            추가
+          </Button>
+        </div>
       </header>
       <div className="w-full h-full">
-        <AgGridReact<EntityValueListItem> rowData={rowData} columnDefs={columnDefs} gridOptions={gridOptions} loading={isFetching} />
+        <AgGridReact<EntityValueListItem> rowData={rowData} columnDefs={columnDefs} gridOptions={{ ...gridOptions, sideBar: false, rowNumbers: false }} loading={isFetching} />
       </div>
     </div>
   );
