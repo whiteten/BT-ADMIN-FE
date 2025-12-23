@@ -7,18 +7,11 @@ import { Button, Input, Select } from 'antd';
 import dayjs from 'dayjs';
 import { confirmModal, toast } from '@/shared-util';
 import IntentDrawer, { type IntentDrawerRef } from '../components/IntentDrawer';
+import TrainStatusBadge from '../components/TrainStatusBadge';
 import { modelQueryKeys, useDeleteIntent, useGetIntents } from '../hooks/useModelQueries';
 import type { IntentListItem, TrainStatus } from '../types';
 import { IconTrash } from '@/components/custom/Icons';
-import { Badge } from '@/components/ui/badge';
-import { cn } from '@/lib/utils';
 import useAggridOptions from '@/libs/shared-ui/src/hooks/useAggridOptions';
-
-const TRAIN_STATUS_META: Record<TrainStatus, { label: string; className: string }> = {
-  0: { label: '미학습', className: 'text-[#495057] bg-[#E9EBEC]' },
-  1: { label: '학습중', className: 'text-[#1F79D4] bg-[#1F79D41A]' },
-  2: { label: '학습완료', className: 'text-[#0AB39C] bg-[#0AB39C1A]' },
-};
 
 export default function ModelIntentList() {
   const { modelId = '' } = useParams();
@@ -55,15 +48,7 @@ export default function ModelIntentList() {
       headerName: '학습상태',
       field: 'trainStatus',
       maxWidth: 120,
-      cellRenderer: (params: { value: number }) => {
-        const meta = TRAIN_STATUS_META[params.value as TrainStatus];
-        if (!meta) return '-';
-        return (
-          <Badge variant="secondary" className={cn('text-[13px] font-medium !h-6', meta.className)}>
-            {meta.label}
-          </Badge>
-        );
-      },
+      cellRenderer: (params: { value: number }) => <TrainStatusBadge status={params.value as TrainStatus} />,
     },
     { headerName: '문장수', field: 'sentenceCount', maxWidth: 120 },
     {
