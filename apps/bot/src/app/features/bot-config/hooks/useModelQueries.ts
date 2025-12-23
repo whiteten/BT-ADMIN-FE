@@ -2,6 +2,7 @@ import { useMutation, useQuery } from '@tanstack/react-query';
 import { createQueryKeys } from '@lukemorales/query-key-factory';
 import type { MutationHookOptions, QueryHookWithParamsOptions } from '@/shared-util';
 import { modelApi } from '../api/modelApi';
+import type { EntityItem, EntityListItem } from '../types/entity';
 import type { IntentItem, IntentListItem, IntentSentenceListItem } from '../types/intent';
 import type { ModelItem, ModelListItem } from '../types/model';
 
@@ -11,6 +12,8 @@ export const modelQueryKeys = createQueryKeys('models', {
   getIntents: (params?: Record<string, unknown>) => [params],
   getIntent: (params?: Record<string, unknown>) => [params],
   getIntentSentences: (params?: Record<string, unknown>) => [params],
+  getEntities: (params?: Record<string, unknown>) => [params],
+  getEntity: (params?: Record<string, unknown>) => [params],
 });
 
 export const useGetModels = ({ params, queryOptions }: QueryHookWithParamsOptions<ModelListItem[]> = {}) => {
@@ -105,6 +108,43 @@ export const useCreateIntentSentence = ({ mutationOptions }: MutationHookOptions
 export const useDeleteIntentSentence = ({ mutationOptions }: MutationHookOptions = {}) => {
   return useMutation({
     mutationFn: modelApi.deleteIntentSentence,
+    ...mutationOptions,
+  });
+};
+
+export const useGetEntities = ({ params, queryOptions }: QueryHookWithParamsOptions<EntityListItem[]> = {}) => {
+  return useQuery({
+    queryKey: modelQueryKeys.getEntities(params).queryKey,
+    queryFn: () => modelApi.getEntities(params),
+    ...queryOptions,
+  });
+};
+
+export const useGetEntity = ({ params, queryOptions }: QueryHookWithParamsOptions<EntityItem> = {}) => {
+  return useQuery({
+    queryKey: modelQueryKeys.getEntity(params).queryKey,
+    queryFn: () => modelApi.getEntity(params),
+    ...queryOptions,
+  });
+};
+
+export const useCreateEntity = ({ mutationOptions }: MutationHookOptions = {}) => {
+  return useMutation({
+    mutationFn: modelApi.createEntity,
+    ...mutationOptions,
+  });
+};
+
+export const useUpdateEntity = ({ mutationOptions }: MutationHookOptions = {}) => {
+  return useMutation({
+    mutationFn: modelApi.updateEntity,
+    ...mutationOptions,
+  });
+};
+
+export const useDeleteEntity = ({ mutationOptions }: MutationHookOptions = {}) => {
+  return useMutation({
+    mutationFn: modelApi.deleteEntity,
     ...mutationOptions,
   });
 };

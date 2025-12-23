@@ -8,7 +8,7 @@ export interface Model {
   expansion1: string; // 모델 설명
   expansion2: string;
   trainId: string;
-  trainStatus: number;
+  trainStatus: TrainStatus;
   trainTime: string;
   faqIntentYn: number;
   faqIntentYnNm: string;
