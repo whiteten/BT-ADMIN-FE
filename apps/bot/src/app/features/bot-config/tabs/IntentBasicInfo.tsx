@@ -33,7 +33,7 @@ export default function IntentBasicInfo() {
     mutationOptions: {
       onSuccess: () => {
         toast.success('의도가 삭제되었습니다.');
-        navigate('../..');
+        navigate('../..?tab=tab2');
       },
     },
   });
