@@ -36,3 +36,5 @@ export enum EntityType {
 }
 
 export type EntityValueListItem = Pick<EntityValue, 'entityValueId' | 'entityValue' | 'entityType' | 'entityTypeValues'>;
+export type EntityValueCreateDatas = Pick<EntityValue, 'entityValue' | 'entityType' | 'entityTypeValues'>;
+export type EntityValueUpdateDatas = Pick<EntityValue, 'entityValue' | 'entityType' | 'entityTypeValues'>;

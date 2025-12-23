@@ -157,3 +157,24 @@ export const useGetEntityValues = ({ params, queryOptions }: QueryHookWithParams
     ...queryOptions,
   });
 };
+
+export const useCreateEntityValue = ({ mutationOptions }: MutationHookOptions = {}) => {
+  return useMutation({
+    mutationFn: modelApi.createEntityValue,
+    ...mutationOptions,
+  });
+};
+
+export const useUpdateEntityValue = ({ mutationOptions }: MutationHookOptions = {}) => {
+  return useMutation({
+    mutationFn: modelApi.updateEntityValue,
+    ...mutationOptions,
+  });
+};
+
+export const useDeleteEntityValue = ({ mutationOptions }: MutationHookOptions = {}) => {
+  return useMutation({
+    mutationFn: modelApi.deleteEntityValue,
+    ...mutationOptions,
+  });
+};

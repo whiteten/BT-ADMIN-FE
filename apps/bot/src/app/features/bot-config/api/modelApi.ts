@@ -1,5 +1,13 @@
 import ApiClient, { type DetailResponse, type ListWithItemsResponse, extractDetail, extractListItems } from '@/shared-util';
-import type { EntityBasicInfoUpdateDatas, EntityCreateDatas, EntityItem, EntityListItem, EntityValueListItem } from '../types/entity';
+import type {
+  EntityBasicInfoUpdateDatas,
+  EntityCreateDatas,
+  EntityItem,
+  EntityListItem,
+  EntityValueCreateDatas,
+  EntityValueListItem,
+  EntityValueUpdateDatas,
+} from '../types/entity';
 import type { IntentBasicInfoUpdateDatas, IntentCreateDatas, IntentItem, IntentListItem, IntentSentenceCreateDatas, IntentSentenceListItem } from '../types/intent';
 import type { ModelBasicInfoUpdateDatas, ModelCreateDatas, ModelItem, ModelListItem } from '../types/model';
 
@@ -81,5 +89,17 @@ export const modelApi = {
   getEntityValues: async (params?: Record<string, unknown>): Promise<EntityValueListItem[]> => {
     const response = await apiClient.get<ListWithItemsResponse<EntityValueListItem>>('/entity-values-list', { params });
     return extractListItems(response?.data);
+  },
+  createEntityValue: async ({ params, data }: { params: Record<string, unknown>; data: EntityValueCreateDatas }) => {
+    const response = await apiClient.post('/entity-values-create', data, { params });
+    return response?.data;
+  },
+  updateEntityValue: async ({ params, data }: { params: Record<string, unknown>; data: EntityValueUpdateDatas }) => {
+    const response = await apiClient.put('/entity-values-update', data, { params });
+    return response?.data;
+  },
+  deleteEntityValue: async (params: Record<string, unknown>) => {
+    const response = await apiClient.delete('/entity-values-delete', { params });
+    return response?.data;
   },
 };
