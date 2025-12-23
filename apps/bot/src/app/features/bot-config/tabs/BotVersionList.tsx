@@ -1,26 +1,21 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useParams } from 'react-router-dom';
-import type { ColDef, RowDoubleClickedEvent } from 'ag-grid-community';
+import { useQueryClient } from '@tanstack/react-query';
+import type { ColDef, ICellRendererParams, RowDoubleClickedEvent } from 'ag-grid-community';
 import { AgGridReact } from 'ag-grid-react';
 import { Button, Input, Select } from 'antd';
 import { Log } from '@/log';
+import { confirmModal, toast } from '@/shared-util';
 import BotDeployConfigDrawer, { type BotDeployConfigDrawerRef } from '../components/BotDeployConfigDrawer';
 import BotVersionDrawer, { type BotVersionDrawerRef } from '../components/BotVersionDrawer';
-import { useGetBotVersions } from '../hooks/useBotQueries';
+import { botQueryKeys, useDeleteBotVersion, useGetBotVersions } from '../hooks/useBotQueries';
 import type { BotVersionListItem } from '../types';
+import { IconTrash } from '@/components/custom/Icons';
 import useAggridOptions from '@/libs/shared-ui/src/hooks/useAggridOptions';
-
-const columnDefs: ColDef<BotVersionListItem>[] = [
-  { headerName: 'ID', field: 'serviceId', hide: true },
-  { headerName: '버전', field: 'serviceVer' },
-  { headerName: '버전명', field: 'versionName' },
-  { headerName: '변경내용', field: 'versionDesc' },
-  { headerName: '작업자', field: 'workUser' },
-  { headerName: '작업일시', field: 'workTime' },
-];
 
 export default function BotVersionList() {
   const { serviceId = '' } = useParams();
+  const queryClient = useQueryClient();
   const { gridOptions } = useAggridOptions();
   const [rowData, setRowData] = useState<BotVersionListItem[]>([]);
   const [filterColumn, setFilterColumn] = useState('version');
@@ -31,6 +26,53 @@ export default function BotVersionList() {
   const deployConfigDrawerRef = useRef<BotDeployConfigDrawerRef>(null);
 
   const { data: versionList, isFetching: isFetchingVersionList } = useGetBotVersions({ params: { serviceId } });
+
+  const { mutate: deleteBotVersion } = useDeleteBotVersion({
+    mutationOptions: {
+      onSuccess: () => {
+        toast.success('버전이 삭제되었습니다.');
+        queryClient.invalidateQueries({ queryKey: botQueryKeys.getBotVersions({ serviceId }).queryKey });
+      },
+    },
+  });
+
+  const handleDeleteVersion = (serviceVer: string) => {
+    confirmModal.delete({
+      onOk: () => deleteBotVersion({ serviceId, serviceVer }),
+    });
+  };
+
+  const columnDefs: ColDef<BotVersionListItem>[] = [
+    { headerName: 'ID', field: 'serviceId', hide: true },
+    { headerName: '버전', field: 'serviceVer' },
+    { headerName: '버전명', field: 'versionName' },
+    { headerName: '변경내용', field: 'versionDesc' },
+    { headerName: '작업자', field: 'workUser' },
+    { headerName: '작업일시', field: 'workTime' },
+    {
+      headerName: '',
+      maxWidth: 60,
+      sortable: false,
+      filter: false,
+      suppressHeaderMenuButton: true,
+      cellStyle: { display: 'flex', alignItems: 'center', justifyContent: 'center' },
+      cellRenderer: (params: ICellRendererParams<BotVersionListItem>) => {
+        const { data } = params;
+        if (!data) return null;
+        return (
+          <button
+            type="button"
+            onClick={(e) => {
+              e.stopPropagation();
+              handleDeleteVersion(data.serviceVer);
+            }}
+          >
+            <IconTrash className="size-5 text-red-500 hover:cursor-pointer" />
+          </button>
+        );
+      },
+    },
+  ];
 
   const filteredList = useMemo(() => {
     if (!versionList) return [];
