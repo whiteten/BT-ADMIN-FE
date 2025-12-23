@@ -1,13 +1,17 @@
 import React from 'react';
 import { useParams } from 'react-router-dom';
 import { type BreadcrumbProps, Button } from 'antd';
-import { IconDocument, IconIntent } from '@/components/custom/Icons';
+import { IconDocument, IconSynonyms } from '@/components/custom/Icons';
 import PageHeader from '@/components/custom/PageHeader';
 import PageTabs, { type PageTab } from '@/components/custom/PageTabs';
 
 const EntityBasicInfo = React.lazy(() => import('../../features/bot-config/tabs/EntityBasicInfo'));
+const EntityValueList = React.lazy(() => import('../../features/bot-config/tabs/EntityValueList'));
 
-const tabs: PageTab[] = [{ id: 'tab1', label: '기본정보', icon: IconDocument, component: EntityBasicInfo }];
+const tabs: PageTab[] = [
+  { id: 'tab1', label: '기본정보', icon: IconDocument, component: EntityBasicInfo },
+  { id: 'tab2', label: '유사어', icon: IconSynonyms, component: EntityValueList },
+];
 
 export default function IntentDetail() {
   const { modelId, entityId } = useParams();

@@ -2,7 +2,7 @@ import { useMutation, useQuery } from '@tanstack/react-query';
 import { createQueryKeys } from '@lukemorales/query-key-factory';
 import type { MutationHookOptions, QueryHookWithParamsOptions } from '@/shared-util';
 import { modelApi } from '../api/modelApi';
-import type { EntityItem, EntityListItem } from '../types/entity';
+import type { EntityItem, EntityListItem, EntityValueListItem } from '../types/entity';
 import type { IntentItem, IntentListItem, IntentSentenceListItem } from '../types/intent';
 import type { ModelItem, ModelListItem } from '../types/model';
 
@@ -14,6 +14,7 @@ export const modelQueryKeys = createQueryKeys('models', {
   getIntentSentences: (params?: Record<string, unknown>) => [params],
   getEntities: (params?: Record<string, unknown>) => [params],
   getEntity: (params?: Record<string, unknown>) => [params],
+  getEntityValues: (params?: Record<string, unknown>) => [params],
 });
 
 export const useGetModels = ({ params, queryOptions }: QueryHookWithParamsOptions<ModelListItem[]> = {}) => {
@@ -146,5 +147,13 @@ export const useDeleteEntity = ({ mutationOptions }: MutationHookOptions = {}) =
   return useMutation({
     mutationFn: modelApi.deleteEntity,
     ...mutationOptions,
+  });
+};
+
+export const useGetEntityValues = ({ params, queryOptions }: QueryHookWithParamsOptions<EntityValueListItem[]> = {}) => {
+  return useQuery({
+    queryKey: modelQueryKeys.getEntityValues(params).queryKey,
+    queryFn: () => modelApi.getEntityValues(params),
+    ...queryOptions,
   });
 };

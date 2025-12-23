@@ -1,5 +1,5 @@
 import ApiClient, { type DetailResponse, type ListWithItemsResponse, extractDetail, extractListItems } from '@/shared-util';
-import type { EntityBasicInfoUpdateDatas, EntityCreateDatas, EntityItem, EntityListItem } from '../types/entity';
+import type { EntityBasicInfoUpdateDatas, EntityCreateDatas, EntityItem, EntityListItem, EntityValueListItem } from '../types/entity';
 import type { IntentBasicInfoUpdateDatas, IntentCreateDatas, IntentItem, IntentListItem, IntentSentenceCreateDatas, IntentSentenceListItem } from '../types/intent';
 import type { ModelBasicInfoUpdateDatas, ModelCreateDatas, ModelItem, ModelListItem } from '../types/model';
 
@@ -77,5 +77,9 @@ export const modelApi = {
   deleteEntity: async (params: Record<string, unknown>) => {
     const response = await apiClient.delete('/entity-delete', { params });
     return response?.data;
+  },
+  getEntityValues: async (params?: Record<string, unknown>): Promise<EntityValueListItem[]> => {
+    const response = await apiClient.get<ListWithItemsResponse<EntityValueListItem>>('/entity-values-list', { params });
+    return extractListItems(response?.data);
   },
 };
