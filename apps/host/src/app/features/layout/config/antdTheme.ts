@@ -1,5 +1,13 @@
-export const antdTheme = {
+import type { ThemeConfig } from 'antd';
+
+export const antdTheme: ThemeConfig = {
   token: {
+    colorPrimary: '#405189',
+    colorPrimaryActive: '#263854',
+    colorPrimaryHover: '#5566a3',
+    colorPrimaryBg: '#eef0f8',
+    colorPrimaryBgHover: '#d9dfe9',
+    colorPrimaryBorder: '#8897c4',
     controlHeight: 36,
     borderRadius: 4,
     colorBorder: '#CED4DA',
@@ -8,12 +16,6 @@ export const antdTheme = {
   },
   components: {
     Button: {
-      colorPrimary: '#405189',
-      colorPrimaryActive: '#263854',
-      colorPrimaryHover: '#5566a3',
-      colorPrimaryBg: '#eef0f8',
-      colorPrimaryBgHover: '#d9dfe9',
-      colorPrimaryBorder: '#8897c4',
       defaultShadow: 'none',
       primaryShadow: 'none',
       dangerShadow: 'none',
