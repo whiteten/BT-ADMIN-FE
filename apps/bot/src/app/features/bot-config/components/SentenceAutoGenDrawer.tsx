@@ -3,6 +3,7 @@ import { Button, Col, Drawer, Form, type FormProps, Input, InputNumber, Row, Sel
 import { uniq } from 'lodash';
 import { MinusCircle, Plus } from 'lucide-react';
 import { Log } from '@/log';
+import { toast } from '@/shared-util';
 import { useGenerateSentence, useGetAoeAgents, useGetModel } from '../hooks/useModelQueries';
 import type { GenerateSentenceFormDatas } from '../types/aoe';
 
@@ -12,6 +13,14 @@ import type { GenerateSentenceFormDatas } from '../types/aoe';
 export interface SentenceAutoGenDrawerRef {
   open: (params: { modelId: string }) => void;
   close: () => void;
+}
+
+/**
+ * SentenceAutoGenDrawer props 타입
+ */
+export interface SentenceAutoGenDrawerProps {
+  onAdd?: (params: { modelId: string; sentences: string[] }) => void;
+  isAdding?: boolean;
 }
 
 /**
@@ -36,7 +45,7 @@ interface TransferItem {
  * - ref.open({ modelId }) : 드로어 열기
  * - ref.close() : 드로어 닫기
  */
-const SentenceAutoGenDrawer = forwardRef<SentenceAutoGenDrawerRef>((_, ref) => {
+const SentenceAutoGenDrawer = forwardRef<SentenceAutoGenDrawerRef, SentenceAutoGenDrawerProps>(({ onAdd, isAdding }, ref) => {
   const [drawerState, setDrawerState] = useState<DrawerState>({
     open: false,
     modelId: '',
@@ -131,10 +140,14 @@ const SentenceAutoGenDrawer = forwardRef<SentenceAutoGenDrawerRef>((_, ref) => {
     // TODO: Export 기능 구현
   };
 
-  // 추가 버튼 핸들러 (placeholder)
+  // 추가 버튼 핸들러
   const handleAdd = () => {
     Log.debug('추가 버튼 클릭', targetKeys);
-    // TODO: 선택된 문장 추가 API 연동
+    if (!targetKeys?.length) {
+      toast.warning('추가할 문장이 비어있습니다.\n학습문장 자동생성 후, 추가할 문장을 우측으로 이동해주세요.');
+      return;
+    }
+    onAdd?.({ modelId: drawerState.modelId, sentences: targetKeys as string[] });
   };
 
   const footer = (
@@ -145,7 +158,7 @@ const SentenceAutoGenDrawer = forwardRef<SentenceAutoGenDrawerRef>((_, ref) => {
       <Button variant="solid" onClick={handleExport}>
         Export
       </Button>
-      <Button variant="solid" type="primary" onClick={handleAdd}>
+      <Button variant="solid" type="primary" onClick={handleAdd} loading={isAdding}>
         추가
       </Button>
     </div>

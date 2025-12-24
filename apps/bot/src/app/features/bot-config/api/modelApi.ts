@@ -9,7 +9,15 @@ import type {
   EntityValueListItem,
   EntityValueUpdateDatas,
 } from '../types/entity';
-import type { IntentBasicInfoUpdateDatas, IntentCreateDatas, IntentItem, IntentListItem, IntentSentenceCreateDatas, IntentSentenceListItem } from '../types/intent';
+import type {
+  IntentBasicInfoUpdateDatas,
+  IntentCreateDatas,
+  IntentItem,
+  IntentListItem,
+  IntentSentenceCreateBulkDatas,
+  IntentSentenceCreateDatas,
+  IntentSentenceListItem,
+} from '../types/intent';
 import type { ModelBasicInfoUpdateDatas, ModelCreateDatas, ModelItem, ModelListItem } from '../types/model';
 
 const apiClient = new ApiClient({ serviceURL: '/bff' });
@@ -61,6 +69,10 @@ export const modelApi = {
   },
   createIntentSentence: async ({ params, data }: { params: Record<string, unknown>; data: IntentSentenceCreateDatas }) => {
     const response = await apiClient.post('/intent-sentence-create', data, { params });
+    return response?.data;
+  },
+  createIntentSentenceBulk: async ({ params, data }: { params: Record<string, unknown>; data: IntentSentenceCreateBulkDatas }) => {
+    const response = await apiClient.post('/intent-sentence-create-bulk', data, { params });
     return response?.data;
   },
   deleteIntentSentence: async (params: Record<string, unknown>) => {

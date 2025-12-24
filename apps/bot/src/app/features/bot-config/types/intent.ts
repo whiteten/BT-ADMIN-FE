@@ -26,4 +26,5 @@ export interface IntentSentence {
 
 export type IntentSentenceListItem = IntentSentence & { intentId: string; intentName: string };
 export type IntentSentenceItem = IntentSentence;
-export type IntentSentenceCreateDatas = Pick<IntentSentence, 'sentence' | 'modelVersion'>;
+export type IntentSentenceCreateDatas = Pick<IntentSentence, 'sentence'>;
+export type IntentSentenceCreateBulkDatas = { sentences: string[] };

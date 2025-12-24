@@ -8,7 +8,7 @@ import dayjs from 'dayjs';
 import { confirmModal, toast } from '@/shared-util';
 import { modelTestModal } from '../components/ModelTestModal';
 import SentenceAutoGenDrawer, { type SentenceAutoGenDrawerRef } from '../components/SentenceAutoGenDrawer';
-import { modelQueryKeys, useCreateIntentSentence, useDeleteIntentSentence, useGetIntentSentences, useGetModel } from '../hooks/useModelQueries';
+import { modelQueryKeys, useCreateIntentSentence, useCreateIntentSentenceBulk, useDeleteIntentSentence, useGetIntentSentences } from '../hooks/useModelQueries';
 import type { IntentSentenceListItem } from '../types';
 import { IconPlayCircle, IconTrash } from '@/libs/shared-ui/src/components/custom/Icons';
 import useAggridOptions from '@/libs/shared-ui/src/hooks/useAggridOptions';
@@ -28,6 +28,15 @@ export default function IntentSentenceList() {
       onSuccess: () => {
         toast.success('문장이 추가되었습니다.');
         setTestInputValue('');
+        queryClient.invalidateQueries({ queryKey: modelQueryKeys.getIntentSentences({ modelId, intentId }).queryKey });
+      },
+    },
+  });
+  const { mutate: createIntentSentenceBulk, isPending: isCreatingBulk } = useCreateIntentSentenceBulk({
+    mutationOptions: {
+      onSuccess: () => {
+        toast.success('문장이 추가되었습니다.');
+        refAutoGenDrawer.current?.close();
         queryClient.invalidateQueries({ queryKey: modelQueryKeys.getIntentSentences({ modelId, intentId }).queryKey });
       },
     },
@@ -54,7 +63,11 @@ export default function IntentSentenceList() {
       toast.warning('문장을 입력하세요.');
       return;
     }
-    createIntentSentence({ params: { modelId, intentId }, data: { sentence: testInputValue.trim(), modelVersion: 'DRAFT' } });
+    createIntentSentence({ params: { modelId, intentId }, data: { sentence: testInputValue.trim() } });
+  };
+
+  const handleCreateBulkIntentSentenceByDrawer = (params: { modelId: string; sentences: string[] }) => {
+    createIntentSentenceBulk({ params: { modelId: params.modelId, intentId }, data: { sentences: params.sentences } });
   };
 
   const handleDeleteIntentSentence = (sentenceId: string) => {
@@ -176,7 +189,7 @@ export default function IntentSentenceList() {
       <div className="w-full h-full">
         <AgGridReact<IntentSentenceListItem> rowData={rowData} columnDefs={columnDefs} gridOptions={gridOptions} loading={isFetchingSentenceList} />
       </div>
-      <SentenceAutoGenDrawer ref={refAutoGenDrawer} />
+      <SentenceAutoGenDrawer ref={refAutoGenDrawer} onAdd={handleCreateBulkIntentSentenceByDrawer} isAdding={isCreatingBulk} />
     </div>
   );
 }

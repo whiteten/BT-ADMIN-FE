@@ -108,6 +108,13 @@ export const useCreateIntentSentence = ({ mutationOptions }: MutationHookOptions
   });
 };
 
+export const useCreateIntentSentenceBulk = ({ mutationOptions }: MutationHookOptions = {}) => {
+  return useMutation({
+    mutationFn: modelApi.createIntentSentenceBulk,
+    ...mutationOptions,
+  });
+};
+
 export const useDeleteIntentSentence = ({ mutationOptions }: MutationHookOptions = {}) => {
   return useMutation({
     mutationFn: modelApi.deleteIntentSentence,
