@@ -2,6 +2,7 @@ import { useMutation, useQuery } from '@tanstack/react-query';
 import { createQueryKeys } from '@lukemorales/query-key-factory';
 import type { MutationHookOptions, QueryHookWithParamsOptions } from '@/shared-util';
 import { modelApi } from '../api/modelApi';
+import type { AoeListItem } from '../types/aoe';
 import type { EntityItem, EntityListItem, EntityValueListItem } from '../types/entity';
 import type { IntentItem, IntentListItem, IntentSentenceListItem } from '../types/intent';
 import type { ModelItem, ModelListItem } from '../types/model';
@@ -15,6 +16,7 @@ export const modelQueryKeys = createQueryKeys('models', {
   getEntities: (params?: Record<string, unknown>) => [params],
   getEntity: (params?: Record<string, unknown>) => [params],
   getEntityValues: (params?: Record<string, unknown>) => [params],
+  getAoeAgents: (params?: Record<string, unknown>) => [params],
 });
 
 export const useGetModels = ({ params, queryOptions }: QueryHookWithParamsOptions<ModelListItem[]> = {}) => {
@@ -175,6 +177,21 @@ export const useUpdateEntityValue = ({ mutationOptions }: MutationHookOptions = 
 export const useDeleteEntityValue = ({ mutationOptions }: MutationHookOptions = {}) => {
   return useMutation({
     mutationFn: modelApi.deleteEntityValue,
+    ...mutationOptions,
+  });
+};
+
+export const useGetAoeAgents = ({ params, queryOptions }: QueryHookWithParamsOptions<AoeListItem[]> = {}) => {
+  return useQuery({
+    queryKey: modelQueryKeys.getAoeAgents(params).queryKey,
+    queryFn: () => modelApi.getAoeAgents(params),
+    ...queryOptions,
+  });
+};
+
+export const useGenerateSentence = ({ mutationOptions }: MutationHookOptions = {}) => {
+  return useMutation({
+    mutationFn: modelApi.generateSentence,
     ...mutationOptions,
   });
 };

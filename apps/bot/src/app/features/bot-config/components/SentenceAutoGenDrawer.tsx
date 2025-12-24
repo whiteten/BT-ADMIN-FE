@@ -1,15 +1,16 @@
-import { forwardRef, useEffect, useImperativeHandle, useState } from 'react';
+import { forwardRef, useEffect, useImperativeHandle, useMemo, useState } from 'react';
 import { Button, Col, Drawer, Form, type FormProps, Input, InputNumber, Row, Select, Transfer, type TransferProps } from 'antd';
+import { uniq } from 'lodash';
 import { MinusCircle, Plus } from 'lucide-react';
 import { Log } from '@/log';
-import { createUUID } from '@/shared-util';
-import { type SentenceAutoGenFormDatas } from '../types/model';
+import { useGenerateSentence, useGetAoeAgents, useGetModel } from '../hooks/useModelQueries';
+import type { GenerateSentenceFormDatas } from '../types/aoe';
 
 /**
  * SentenceAutoGenDrawer ref 타입
  */
 export interface SentenceAutoGenDrawerRef {
-  open: (params: { modelId: string; intentId: string }) => void;
+  open: (params: { modelId: string }) => void;
   close: () => void;
 }
 
@@ -19,7 +20,7 @@ export interface SentenceAutoGenDrawerRef {
 interface DrawerState {
   open: boolean;
   modelId: string;
-  intentId: string;
+  tenantId: number | null;
 }
 
 /**
@@ -31,24 +32,15 @@ interface TransferItem {
 }
 
 /**
- * 샘플 LLM Agent 옵션
- */
-const llmAgentOptions = [
-  { label: 'gpt-agent-0.1', value: 'gpt-agent-0.1' },
-  { label: 'gpt-agent-0.2', value: 'gpt-agent-0.2' },
-  { label: 'gpt-agent-0.3', value: 'gpt-agent-0.3' },
-];
-
-/**
  * 학습문장 자동생성 Drawer
- * - ref.open({ modelId, intentId }) : 드로어 열기
+ * - ref.open({ modelId }) : 드로어 열기
  * - ref.close() : 드로어 닫기
  */
 const SentenceAutoGenDrawer = forwardRef<SentenceAutoGenDrawerRef>((_, ref) => {
   const [drawerState, setDrawerState] = useState<DrawerState>({
     open: false,
     modelId: '',
-    intentId: '',
+    tenantId: null,
   });
 
   const { open } = drawerState;
@@ -60,12 +52,27 @@ const SentenceAutoGenDrawer = forwardRef<SentenceAutoGenDrawerRef>((_, ref) => {
 
   const [form] = Form.useForm();
 
+  const { data: model, isFetching: isFetchingModel } = useGetModel({ params: { modelId: drawerState.modelId }, queryOptions: { enabled: !!open && !!drawerState.modelId } });
+  const tenantId = useMemo(() => model?.tenantId ?? null, [model]);
+  const { data: aoeAgents, isFetching: isFetchingAoeAgents } = useGetAoeAgents({ queryOptions: { enabled: !!open } });
+  const { mutate: generateSentence, isPending: isGeneratingSentence } = useGenerateSentence({
+    mutationOptions: {
+      onSuccess: (data) => {
+        Log.debug('Generated sentences:', data);
+        const distinctSentences = uniq(data as string[]);
+        Log.debug('Distinct Sentences:', distinctSentences);
+        setDataSource(distinctSentences.map((sentence) => ({ key: sentence, sentence })));
+      },
+    },
+  });
+  const aoeAgentOptions = aoeAgents?.map((agent) => ({ label: agent.agentName, value: agent.agentId })) ?? [];
+
   useImperativeHandle(ref, () => ({
     open: (params) => {
       setDrawerState({
         open: true,
         modelId: params.modelId,
-        intentId: params.intentId,
+        tenantId,
       });
     },
     close: () => {
@@ -86,11 +93,7 @@ const SentenceAutoGenDrawer = forwardRef<SentenceAutoGenDrawerRef>((_, ref) => {
   // Drawer 열릴 때 초기화
   useEffect(() => {
     if (!open) return;
-    form.setFieldsValue({
-      llmAgent: 'gpt-agent-0.1',
-      sentenceCount: 3,
-      exampleSentences: [''],
-    });
+    form.setFieldsValue({ agentId: null, generationCount: 3, exampleSentence: [''] });
     initTransfer();
     return () => {
       Log.debug('Reset Form Fields');
@@ -98,20 +101,13 @@ const SentenceAutoGenDrawer = forwardRef<SentenceAutoGenDrawerRef>((_, ref) => {
     };
   }, [form, open]);
 
-  const onFinish: FormProps<SentenceAutoGenFormDatas>['onFinish'] = (values) => {
+  const onFinish: FormProps<GenerateSentenceFormDatas>['onFinish'] = (values) => {
     Log.debug('onFinish', values);
     initTransfer();
-    // 생성 문장 수에 맞게 샘플 데이터 생성
-    const count = values.sentenceCount || 3;
-    const generatedSentences: TransferItem[] = Array.from({ length: count }, (_, i) => ({
-      key: `${createUUID()}`,
-      sentence: `샘플 생성 문장 ${i + 1}`,
-    }));
-    setDataSource(generatedSentences);
-    // TODO: 학습문장 자동생성 API 연동
+    generateSentence({ params: { modelId: drawerState.modelId, agentId: values.agentId }, data: { ...values, intentName: '', tenantId } });
   };
 
-  const onFinishFailed: FormProps<SentenceAutoGenFormDatas>['onFinishFailed'] = (errorInfo) => {
+  const onFinishFailed: FormProps<GenerateSentenceFormDatas>['onFinishFailed'] = (errorInfo) => {
     Log.warn('onFinishFailed', errorInfo);
   };
 
@@ -139,7 +135,6 @@ const SentenceAutoGenDrawer = forwardRef<SentenceAutoGenDrawerRef>((_, ref) => {
   const handleAdd = () => {
     Log.debug('추가 버튼 클릭', targetKeys);
     // TODO: 선택된 문장 추가 API 연동
-    handleClose();
   };
 
   const footer = (
@@ -160,21 +155,15 @@ const SentenceAutoGenDrawer = forwardRef<SentenceAutoGenDrawerRef>((_, ref) => {
     <Drawer open={open} onClose={handleClose} title="학습문장 자동생성" closable={{ placement: 'end' }} size={830} footer={footer} destroyOnHidden>
       <div className="flex flex-col gap-6">
         {/* 상단 Form 영역 */}
-        <Form
-          form={form}
-          layout="vertical"
-          initialValues={{ llmAgent: 'gpt-agent-0.1', sentenceCount: 3, exampleSentences: [''] }}
-          onFinish={onFinish}
-          onFinishFailed={onFinishFailed}
-        >
+        <Form form={form} layout="vertical" initialValues={{ agentId: null, generationCount: 3, exampleSentence: [''] }} onFinish={onFinish} onFinishFailed={onFinishFailed}>
           <Row gutter={20}>
             <Col span={16}>
-              <Form.Item name="llmAgent" label="LLM Agent" required hasFeedback rules={[{ required: true, message: 'LLM Agent를 선택하세요.' }]}>
-                <Select options={llmAgentOptions} />
+              <Form.Item name="agentId" label="LLM Agent" required hasFeedback rules={[{ required: true, message: 'Agent를 선택하세요.' }]}>
+                <Select options={aoeAgentOptions} loading={isFetchingAoeAgents} allowClear showSearch={{ optionFilterProp: 'label' }} placeholder="Agent를 선택하세요." />
               </Form.Item>
             </Col>
             <Col span={8}>
-              <Form.Item name="sentenceCount" label="생성 문장 수" required hasFeedback rules={[{ required: true, message: '생성 문장 수를 입력하세요.' }]}>
+              <Form.Item name="generationCount" label="생성 문장 수" required hasFeedback rules={[{ required: true, message: '생성 문장 수를 입력하세요.' }]}>
                 <InputNumber min={1} className="!w-full" />
               </Form.Item>
             </Col>
@@ -182,7 +171,7 @@ const SentenceAutoGenDrawer = forwardRef<SentenceAutoGenDrawerRef>((_, ref) => {
 
           {/* 예시 문장 - Form.List 동적 필드 */}
           <Form.Item label="예시 문장" required>
-            <Form.List name="exampleSentences">
+            <Form.List name="exampleSentence">
               {(fields, { add, remove }) => (
                 <div className="flex flex-col gap-2">
                   {fields.map(({ key, ...restField }) => (
@@ -203,7 +192,7 @@ const SentenceAutoGenDrawer = forwardRef<SentenceAutoGenDrawerRef>((_, ref) => {
 
           {/* 학습문장 자동생성 버튼 */}
           <div className="flex justify-end">
-            <Button variant="solid" color="cyan" htmlType="submit">
+            <Button variant="solid" color="cyan" htmlType="submit" loading={isFetchingModel || isFetchingAoeAgents || isGeneratingSentence}>
               학습문장 자동생성
             </Button>
           </div>
@@ -230,7 +219,7 @@ const SentenceAutoGenDrawer = forwardRef<SentenceAutoGenDrawerRef>((_, ref) => {
             showSearch
             showSelectAll={true}
             locale={{
-              notFoundContent: '데이터가 없습니다.',
+              notFoundContent: isGeneratingSentence ? '생성 중...' : '데이터가 없습니다.',
               searchPlaceholder: '검색어를 입력하세요.',
             }}
             selectAllLabels={[(info) => `전체선택 (총 ${info.totalCount}개)`, (info) => `전체선택 (총 ${info.totalCount}개)`]}

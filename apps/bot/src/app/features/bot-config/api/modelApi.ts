@@ -1,4 +1,5 @@
-import ApiClient, { type DetailResponse, type ListWithItemsResponse, extractDetail, extractListItems } from '@/shared-util';
+import ApiClient, { type DetailResponse, type ListResponse, type ListWithItemsResponse, extractDetail, extractList, extractListItems } from '@/shared-util';
+import type { AoeListItem, GenerateSentenceDatas, GenerateSentenceResponse } from '../types/aoe';
 import type {
   EntityBasicInfoUpdateDatas,
   EntityCreateDatas,
@@ -101,5 +102,13 @@ export const modelApi = {
   deleteEntityValue: async (params: Record<string, unknown>) => {
     const response = await apiClient.delete('/entity-values-delete', { params });
     return response?.data;
+  },
+  getAoeAgents: async (params?: Record<string, unknown>): Promise<AoeListItem[]> => {
+    const response = await apiClient.get<ListResponse<AoeListItem>>('/aoe-agent-list', { params });
+    return extractList(response?.data);
+  },
+  generateSentence: async ({ params, data }: { params: Record<string, unknown>; data: GenerateSentenceDatas }): Promise<string[]> => {
+    const response = await apiClient.post<GenerateSentenceResponse>('/aoe-agent-sentence', data, { params });
+    return response?.data?.data?.list?.data?.sentences ?? [];
   },
 };

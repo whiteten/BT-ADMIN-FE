@@ -8,7 +8,7 @@ import dayjs from 'dayjs';
 import { confirmModal, toast } from '@/shared-util';
 import { modelTestModal } from '../components/ModelTestModal';
 import SentenceAutoGenDrawer, { type SentenceAutoGenDrawerRef } from '../components/SentenceAutoGenDrawer';
-import { modelQueryKeys, useCreateIntentSentence, useDeleteIntentSentence, useGetIntentSentences } from '../hooks/useModelQueries';
+import { modelQueryKeys, useCreateIntentSentence, useDeleteIntentSentence, useGetIntentSentences, useGetModel } from '../hooks/useModelQueries';
 import type { IntentSentenceListItem } from '../types';
 import { IconPlayCircle, IconTrash } from '@/libs/shared-ui/src/components/custom/Icons';
 import useAggridOptions from '@/libs/shared-ui/src/hooks/useAggridOptions';
@@ -22,7 +22,7 @@ export default function IntentSentenceList() {
   const [searchValue, setSearchValue] = useState('');
   const [testInputValue, setTestInputValue] = useState('');
   const queryClient = useQueryClient();
-  const { data: sentenceList, isFetching } = useGetIntentSentences({ params: { modelId, intentId } });
+  const { data: sentenceList, isFetching: isFetchingSentenceList } = useGetIntentSentences({ params: { modelId, intentId } });
   const { mutate: createIntentSentence, isPending: isCreating } = useCreateIntentSentence({
     mutationOptions: {
       onSuccess: () => {
@@ -167,14 +167,14 @@ export default function IntentSentenceList() {
           <Button variant="solid" color="primary" onClick={handleCreateIntentSentence} loading={isCreating}>
             추가
           </Button>
-          <Button variant="solid" onClick={() => refAutoGenDrawer.current?.open({ modelId, intentId })}>
+          <Button variant="solid" onClick={() => refAutoGenDrawer.current?.open({ modelId })}>
             자동생성
           </Button>
           <Button variant="solid">Import</Button>
         </div>
       </header>
       <div className="w-full h-full">
-        <AgGridReact<IntentSentenceListItem> rowData={rowData} columnDefs={columnDefs} gridOptions={gridOptions} loading={isFetching} />
+        <AgGridReact<IntentSentenceListItem> rowData={rowData} columnDefs={columnDefs} gridOptions={gridOptions} loading={isFetchingSentenceList} />
       </div>
       <SentenceAutoGenDrawer ref={refAutoGenDrawer} />
     </div>

@@ -4,3 +4,4 @@ export type * from './workTime';
 export type * from './model';
 export type * from './intent';
 export type * from './entity';
+export type * from './aoe';
