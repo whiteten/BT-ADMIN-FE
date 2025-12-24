@@ -5,16 +5,18 @@ import type { ColDef, ICellRendererParams } from 'ag-grid-community';
 import { AgGridReact } from 'ag-grid-react';
 import { Button, Input, Select } from 'antd';
 import dayjs from 'dayjs';
-import { confirmModal, toast } from '@/shared-util';
+import { toast } from '@/shared-util';
 import { modelTestModal } from '../components/ModelTestModal';
 import SentenceAutoGenDrawer, { type SentenceAutoGenDrawerRef } from '../components/SentenceAutoGenDrawer';
 import { modelQueryKeys, useCreateIntentSentence, useCreateIntentSentenceBulk, useDeleteIntentSentence, useGetIntentSentences } from '../hooks/useModelQueries';
 import type { IntentSentenceListItem } from '../types';
 import { IconPlayCircle, IconTrash } from '@/libs/shared-ui/src/components/custom/Icons';
 import useAggridOptions from '@/libs/shared-ui/src/hooks/useAggridOptions';
+import { useModal } from '@/libs/shared-ui/src/hooks/useModal';
 
 export default function IntentSentenceList() {
   const { modelId = '', intentId = '' } = useParams();
+  const modal = useModal();
   const { gridOptions } = useAggridOptions();
   const refAutoGenDrawer = useRef<SentenceAutoGenDrawerRef>(null);
   const [rowData, setRowData] = useState<IntentSentenceListItem[]>([]);
@@ -71,7 +73,7 @@ export default function IntentSentenceList() {
   };
 
   const handleDeleteIntentSentence = (sentenceId: string) => {
-    confirmModal.delete({
+    modal.confirm.delete({
       onOk: () => deleteIntentSentence({ modelId, intentId, sentenceId }),
     });
   };

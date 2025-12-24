@@ -5,18 +5,20 @@ import type { ColDef, ICellRendererParams, RowDoubleClickedEvent } from 'ag-grid
 import { AgGridReact } from 'ag-grid-react';
 import { Button, Input, Select } from 'antd';
 import dayjs from 'dayjs';
-import { confirmModal, toast } from '@/shared-util';
+import { toast } from '@/shared-util';
 import IntentDrawer, { type IntentDrawerRef } from '../components/IntentDrawer';
 import TrainStatusBadge from '../components/TrainStatusBadge';
 import { modelQueryKeys, useDeleteIntent, useGetIntents } from '../hooks/useModelQueries';
 import type { IntentListItem, TrainStatus } from '../types';
 import { IconTrash } from '@/components/custom/Icons';
 import useAggridOptions from '@/libs/shared-ui/src/hooks/useAggridOptions';
+import { useModal } from '@/libs/shared-ui/src/hooks/useModal';
 
 export default function ModelIntentList() {
   const { modelId = '' } = useParams();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
+  const modal = useModal();
   const { gridOptions } = useAggridOptions();
   const [rowData, setRowData] = useState<IntentListItem[]>([]);
   const [filterColumn, setFilterColumn] = useState('intentName');
@@ -35,7 +37,7 @@ export default function ModelIntentList() {
   });
 
   const handleDeleteIntent = (intentId: string) => {
-    confirmModal.delete({
+    modal.confirm.delete({
       onOk: () => deleteIntent({ modelId, intentId }),
     });
   };

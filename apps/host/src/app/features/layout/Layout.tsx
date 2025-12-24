@@ -1,6 +1,6 @@
 import { useEffect } from 'react';
 import { Outlet } from 'react-router-dom';
-import { ConfigProvider } from 'antd';
+import { App, ConfigProvider } from 'antd';
 // import InsetFooter from './InsetFooter';
 import InsetHeader from './InsetHeader';
 import LNBBody from './LNBBody';
@@ -32,9 +32,11 @@ export function Layout() {
         </Sidebar>
         <SidebarInset className="h-[100vh] overflow-hidden">
           <InsetHeader />
-          <div className="w-full h-full p-5 overflow-y-auto bg-[#f3f3f9]" style={{ scrollbarGutter: 'stable' }}>
-            <Outlet />
-          </div>
+          <App>
+            <div className="w-full h-full p-5 overflow-y-auto bg-[#f3f3f9]" style={{ scrollbarGutter: 'stable' }}>
+              <Outlet />
+            </div>
+          </App>
           {/* <InsetFooter /> */}
         </SidebarInset>
       </SidebarProvider>

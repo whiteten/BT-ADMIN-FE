@@ -2,12 +2,12 @@ import { useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useQueryClient } from '@tanstack/react-query';
 import { type BreadcrumbProps, Button, Input, Select } from 'antd';
-import { confirmModal } from '@/shared-util';
 import ModelCard from '../../features/bot-config/components/ModelCard';
 import { modelQueryKeys, useDeleteModel, useGetModels } from '../../features/bot-config/hooks/useModelQueries';
 import { FallbackSpinner } from '@/components/custom/FallbackSpinner';
 import NoData from '@/components/custom/NoData';
 import PageHeader from '@/components/custom/PageHeader';
+import { useModal } from '@/libs/shared-ui/src/hooks/useModal';
 
 const breadcrumb: BreadcrumbProps['items'] = [
   { title: '봇 관리', path: '/bot/bot-config' },
@@ -18,6 +18,7 @@ const breadcrumb: BreadcrumbProps['items'] = [
 export default function ModelList() {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
+  const modal = useModal();
   const [filterColumn, setFilterColumn] = useState('modelName');
   const [searchValue, setSearchValue] = useState('');
 
@@ -55,7 +56,7 @@ export default function ModelList() {
   };
 
   const handleDelete = (modelId: string) => {
-    confirmModal.delete({
+    modal.confirm.delete({
       onOk: () => deleteModel({ modelId }),
     });
   };

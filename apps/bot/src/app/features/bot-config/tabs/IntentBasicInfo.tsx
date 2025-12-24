@@ -3,15 +3,17 @@ import { useNavigate, useParams } from 'react-router-dom';
 import { useQueryClient } from '@tanstack/react-query';
 import { Button, Col, Form, type FormProps, Input, Row } from 'antd';
 import { Log } from '@/log';
-import { confirmModal, toast } from '@/shared-util';
+import { toast } from '@/shared-util';
 import { modelQueryKeys, useDeleteIntent, useGetIntent, useUpdateIntent } from '../hooks/useModelQueries';
 import type { IntentBasicInfoUpdateDatas } from '../types';
 import { FallbackSpinner } from '@/components/custom/FallbackSpinner';
+import { useModal } from '@/libs/shared-ui/src/hooks/useModal';
 
 export default function IntentBasicInfo() {
   const { modelId = '', intentId = '' } = useParams();
   const queryClient = useQueryClient();
   const navigate = useNavigate();
+  const modal = useModal();
   const { TextArea } = Input;
   const [form] = Form.useForm();
 
@@ -48,7 +50,7 @@ export default function IntentBasicInfo() {
   };
 
   const handleClickDeleteBtn = () => {
-    confirmModal.delete({
+    modal.confirm.delete({
       onOk: () => deleteIntent({ modelId, intentId }),
     });
   };

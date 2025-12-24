@@ -5,17 +5,19 @@ import type { ColDef, ICellRendererParams, RowDoubleClickedEvent } from 'ag-grid
 import { AgGridReact } from 'ag-grid-react';
 import { Button, Input, Select } from 'antd';
 import { Log } from '@/log';
-import { confirmModal, toast } from '@/shared-util';
+import { toast } from '@/shared-util';
 import BotDeployConfigDrawer, { type BotDeployConfigDrawerRef } from '../components/BotDeployConfigDrawer';
 import BotVersionDrawer, { type BotVersionDrawerRef } from '../components/BotVersionDrawer';
 import { botQueryKeys, useDeleteBotVersion, useGetBotVersions } from '../hooks/useBotQueries';
 import type { BotVersionListItem } from '../types';
 import { IconTrash } from '@/components/custom/Icons';
 import useAggridOptions from '@/libs/shared-ui/src/hooks/useAggridOptions';
+import { useModal } from '@/libs/shared-ui/src/hooks/useModal';
 
 export default function BotVersionList() {
   const { serviceId = '' } = useParams();
   const queryClient = useQueryClient();
+  const modal = useModal();
   const { gridOptions } = useAggridOptions();
   const [rowData, setRowData] = useState<BotVersionListItem[]>([]);
   const [filterColumn, setFilterColumn] = useState('version');
@@ -37,7 +39,7 @@ export default function BotVersionList() {
   });
 
   const handleDeleteVersion = (serviceVer: string) => {
-    confirmModal.delete({
+    modal.confirm.delete({
       onOk: () => deleteBotVersion({ serviceId, serviceVer }),
     });
   };

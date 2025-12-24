@@ -5,18 +5,20 @@ import type { ColDef, ICellRendererParams, RowDoubleClickedEvent } from 'ag-grid
 import { AgGridReact } from 'ag-grid-react';
 import { Button, Input, Select, Tag } from 'antd';
 import dayjs from 'dayjs';
-import { confirmModal, toast } from '@/shared-util';
+import { toast } from '@/shared-util';
 import EntityDrawer, { type EntityDrawerRef } from '../components/EntityDrawer';
 import TrainStatusBadge from '../components/TrainStatusBadge';
 import { modelQueryKeys, useDeleteEntity, useGetEntities } from '../hooks/useModelQueries';
 import type { EntityListItem, TrainStatus } from '../types';
 import { IconTag, IconTrash } from '@/components/custom/Icons';
 import useAggridOptions from '@/libs/shared-ui/src/hooks/useAggridOptions';
+import { useModal } from '@/libs/shared-ui/src/hooks/useModal';
 
 export default function ModelEntityList() {
   const { modelId = '' } = useParams();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
+  const modal = useModal();
   const { gridOptions } = useAggridOptions();
   const [rowData, setRowData] = useState<EntityListItem[]>([]);
   const [filterColumn, setFilterColumn] = useState('entityName');
@@ -35,7 +37,7 @@ export default function ModelEntityList() {
   });
 
   const handleDeleteEntity = (entityId: string) => {
-    confirmModal.delete({
+    modal.confirm.delete({
       onOk: () => deleteEntity({ modelId, entityId }),
     });
   };

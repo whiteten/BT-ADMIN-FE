@@ -3,17 +3,19 @@ import { useNavigate, useParams } from 'react-router-dom';
 import { useQueryClient } from '@tanstack/react-query';
 import { Button, Col, Form, type FormProps, Input, Row, Select, type SelectProps, Slider, Tag } from 'antd';
 import { Log } from '@/log';
-import { confirmModal, toast } from '@/shared-util';
+import { toast } from '@/shared-util';
 import { botQueryKeys, useDeleteBot, useGetBot, useUpdateBot } from '../hooks/useBotQueries';
 import { useGetModels } from '../hooks/useModelQueries';
 import type { BotBasicInfoUpdateDatas } from '../types';
 import { FallbackSpinner } from '@/components/custom/FallbackSpinner';
 import { IconTag } from '@/components/custom/Icons';
+import { useModal } from '@/libs/shared-ui/src/hooks/useModal';
 
 export default function BotBasicInfo() {
   const { serviceId } = useParams();
   const queryClient = useQueryClient();
   const navigate = useNavigate();
+  const modal = useModal();
   const { TextArea } = Input;
   const [form] = Form.useForm();
   const [serviceVer, setServiceVer] = useState('');
@@ -77,7 +79,7 @@ export default function BotBasicInfo() {
   };
 
   const handleClickDeleteBtn = () => {
-    confirmModal.delete({
+    modal.confirm.delete({
       onOk: () => deleteBot({ serviceId }),
     });
   };
