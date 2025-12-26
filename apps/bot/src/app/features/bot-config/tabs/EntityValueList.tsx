@@ -1,11 +1,14 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useParams } from 'react-router-dom';
+import { useQueryClient } from '@tanstack/react-query';
 import type { ColDef } from 'ag-grid-community';
 import { AgGridReact } from 'ag-grid-react';
 import { Button, Input, Select, Tag } from 'antd';
-import { useGetEntityValues } from '../hooks/useModelQueries';
+import { toast } from '@/shared-util';
+import { modelQueryKeys, useCreateEntityValue, useDeleteEntityValue, useGetEntityValues, useUpdateEntityValue } from '../hooks/useModelQueries';
 import type { EntityType, EntityValueListItem } from '../types';
 import useAggridOptions from '@/libs/shared-ui/src/hooks/useAggridOptions';
+import { useModal } from '@/libs/shared-ui/src/hooks/useModal';
 
 const ENTITY_TYPE_LABELS: Record<EntityType, string> = {
   SAME: '동의어',
@@ -21,12 +24,41 @@ const ENTITY_TYPE_COLORS: Record<EntityType, string> = {
 
 export default function EntityValueList() {
   const { modelId, entityId } = useParams();
+  const queryClient = useQueryClient();
+  const modal = useModal();
   const { gridOptions } = useAggridOptions();
   const [rowData, setRowData] = useState<EntityValueListItem[]>([]);
   const [filterColumn, setFilterColumn] = useState('entityValue');
   const [searchValue, setSearchValue] = useState('');
 
   const { data: entityValueList, isFetching } = useGetEntityValues({ params: { modelId, entityId } });
+
+  const { mutate: createEntityValue, isPending: isCreating } = useCreateEntityValue({
+    mutationOptions: {
+      onSuccess: () => {
+        toast.success('유사어가 추가되었습니다.');
+        queryClient.invalidateQueries({ queryKey: modelQueryKeys.getEntityValues({ modelId, entityId }).queryKey });
+      },
+    },
+  });
+
+  const { mutate: updateEntityValue, isPending: isUpdating } = useUpdateEntityValue({
+    mutationOptions: {
+      onSuccess: () => {
+        toast.success('유사어가 수정되었습니다.');
+        queryClient.invalidateQueries({ queryKey: modelQueryKeys.getEntityValues({ modelId, entityId }).queryKey });
+      },
+    },
+  });
+
+  const { mutate: deleteEntityValue, isPending: isDeleting } = useDeleteEntityValue({
+    mutationOptions: {
+      onSuccess: () => {
+        toast.success('유사어가 삭제되었습니다.');
+        queryClient.invalidateQueries({ queryKey: modelQueryKeys.getEntityValues({ modelId, entityId }).queryKey });
+      },
+    },
+  });
 
   const columnDefs: ColDef<EntityValueListItem>[] = [
     { headerName: 'ID', field: 'entityValueId', hide: true },
