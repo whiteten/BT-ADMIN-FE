@@ -18,7 +18,7 @@ import { Check, X } from 'lucide-react';
 import { toast } from '@/shared-util';
 import { modelQueryKeys, useCreateEntityValue, useDeleteEntityValue, useGetEntityValues, useUpdateEntityValue } from '../hooks/useModelQueries';
 import type { EntityType, EntityValueListItem } from '../types';
-import { IconTrash } from '@/components/custom/Icons';
+import { IconTag, IconTrash } from '@/components/custom/Icons';
 import useAggridOptions from '@/libs/shared-ui/src/hooks/useAggridOptions';
 import { useModal } from '@/libs/shared-ui/src/hooks/useModal';
 
@@ -56,6 +56,24 @@ const TypeCellRenderer = ({ value }: TypeCellRendererParams) => {
     <Tag color={ENTITY_TYPE_COLORS[value]} className="!m-0">
       {ENTITY_TYPE_LABELS[value]}
     </Tag>
+  );
+};
+
+interface EntityTypeValuesCellRendererParams extends ICellRendererParams<EntityValueListItem> {
+  value: string;
+}
+
+const EntityTypeValuesCellRenderer = ({ value }: EntityTypeValuesCellRendererParams) => {
+  if (!value) return null;
+  const values = value.split(',').map((v) => v.trim());
+  return (
+    <div className="flex flex-wrap gap-1 pt-[1.5px]">
+      {values.map((v, index) => (
+        <Tag key={index} color="default" variant="outlined" icon={<IconTag />} className="!inline-flex items-center !px-2 !py-1 !m-0 !bg-white">
+          {v}
+        </Tag>
+      ))}
+    </div>
   );
 };
 
@@ -322,6 +340,7 @@ export default function EntityValueList() {
       cellEditorParams: {
         placeholder: '여러 단어는 콤마(,)로 구분해 입력하세요.',
       },
+      cellRenderer: EntityTypeValuesCellRenderer,
     },
     {
       headerName: '',
