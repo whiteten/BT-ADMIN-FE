@@ -36,6 +36,29 @@ const ENTITY_TYPE_COLORS: Record<EntityType, string> = {
   PATTERNS: 'orange',
 };
 
+interface InputTextCellEditorProps {
+  value: string;
+  onValueChange: (value: string) => void;
+  placeholder?: string;
+}
+
+const InputTextCellEditor = ({ value = '', onValueChange, placeholder = '' }: InputTextCellEditorProps) => {
+  return <Input value={value} onChange={(e) => onValueChange(e.target.value)} placeholder={placeholder} />;
+};
+
+interface TypeCellRendererParams extends ICellRendererParams<EntityValueListItem> {
+  value: EntityType;
+}
+
+const TypeCellRenderer = ({ value }: TypeCellRendererParams) => {
+  if (!value) return null;
+  return (
+    <Tag color={ENTITY_TYPE_COLORS[value]} className="!m-0">
+      {ENTITY_TYPE_LABELS[value]}
+    </Tag>
+  );
+};
+
 interface ActionCellRendererParams extends ICellRendererParams<EntityValueListItem> {
   editingRowId: string | null;
   onSave: (data: EntityValueListItem) => void;
@@ -130,14 +153,15 @@ export default function EntityValueList() {
   // AG Grid 콜백
   const getRowId = (params: GetRowIdParams<EntityValueListItem>) => params.data.entityValueId;
 
+  // 검색어가 있으면 외부 필터 활성화
   const isExternalFilterPresent = () => {
     return searchValue.trim().length > 0;
   };
 
+  // 각 row가 검색 조건을 만족하는지 확인
   const doesExternalFilterPass = (node: IRowNode<EntityValueListItem>) => {
     if (!node.data) return true;
-    if (node.data.entityValueId.startsWith(TEMP_ROW_PREFIX)) return true;
-
+    if (node.data.entityValueId.startsWith(TEMP_ROW_PREFIX)) return true; // 추가를 통한 row는 검색조건과 관계없이 표기
     const keyword = searchValue.toLowerCase();
     const value = node.data[filterColumn as keyof EntityValueListItem];
     return String(value).toLowerCase().includes(keyword);
@@ -203,6 +227,7 @@ export default function EntityValueList() {
     });
     if (result?.add?.[0]) {
       gridApiRef.current?.onFilterChanged();
+      // TODO: setTimeout을 사용하지 않고, 편집 가능한 row가 생성시, 정확한 시점에 편집 상태로 전환되도록 설정 필요.
       setTimeout(() => {
         const rowNode = gridApiRef.current?.getRowNode(tempId);
         if (rowNode?.rowIndex != null) {
@@ -267,25 +292,24 @@ export default function EntityValueList() {
 
   const columnDefs: ColDef<EntityValueListItem>[] = [
     { headerName: 'ID', field: 'entityValueId', hide: true },
-    { headerName: '대표값', field: 'entityValue', editable: true, maxWidth: 250 },
+    {
+      headerName: '대표값',
+      field: 'entityValue',
+      editable: true,
+      cellStyle: { display: 'flex', alignItems: 'center' },
+      cellEditor: InputTextCellEditor,
+      cellEditorParams: { placeholder: '대표값을 입력하세요.' },
+      maxWidth: 250,
+    },
     {
       headerName: '타입',
       field: 'entityType',
       editable: true,
       maxWidth: 120,
-      cellEditor: 'agSelectCellEditor',
-      cellEditorParams: {
-        values: ['SAME', 'SYNONYMS', 'PATTERNS'],
-      },
-      cellRenderer: (params: { value: EntityType }) => {
-        const type = params.value;
-        if (!type) return null;
-        return (
-          <Tag color={ENTITY_TYPE_COLORS[type]} className="!m-0">
-            {ENTITY_TYPE_LABELS[type]}
-          </Tag>
-        );
-      },
+      cellEditor: 'agRichSelectCellEditor',
+      cellEditorParams: { values: ['SAME', 'SYNONYMS', 'PATTERNS'] },
+      refData: { SAME: '동의어', SYNONYMS: '유사어', PATTERNS: '패턴형' },
+      cellRenderer: TypeCellRenderer,
     },
     {
       headerName: '유사어',
@@ -293,6 +317,11 @@ export default function EntityValueList() {
       editable: true,
       flex: 2,
       sortable: false,
+      cellStyle: { display: 'flex', alignItems: 'center' },
+      cellEditor: InputTextCellEditor,
+      cellEditorParams: {
+        placeholder: '여러 단어는 콤마(,)로 구분해 입력하세요.',
+      },
     },
     {
       headerName: '',
