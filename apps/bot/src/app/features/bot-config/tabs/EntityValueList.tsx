@@ -1,12 +1,13 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useParams } from 'react-router-dom';
 import { useQueryClient } from '@tanstack/react-query';
 import type {
   ColDef,
+  GetRowIdParams,
   GridApi,
   GridReadyEvent,
   ICellRendererParams,
-  RowDataUpdatedEvent,
+  IRowNode,
   RowDoubleClickedEvent,
   RowEditingStartedEvent,
   RowEditingStoppedEvent,
@@ -21,6 +22,8 @@ import { IconTrash } from '@/components/custom/Icons';
 import useAggridOptions from '@/libs/shared-ui/src/hooks/useAggridOptions';
 import { useModal } from '@/libs/shared-ui/src/hooks/useModal';
 
+const TEMP_ROW_PREFIX = 'temp_';
+
 const ENTITY_TYPE_LABELS: Record<EntityType, string> = {
   SAME: '동의어',
   SYNONYMS: '유사어',
@@ -33,18 +36,69 @@ const ENTITY_TYPE_COLORS: Record<EntityType, string> = {
   PATTERNS: 'orange',
 };
 
+interface ActionCellRendererParams extends ICellRendererParams<EntityValueListItem> {
+  editingRowId: string | null;
+  onSave: (data: EntityValueListItem) => void;
+  onCancel: () => void;
+  onDelete: (data: EntityValueListItem) => void;
+}
+
+const ActionCellRenderer = (params: ActionCellRendererParams) => {
+  const { data, editingRowId, onSave, onCancel, onDelete } = params;
+  if (!data) return null;
+  if (editingRowId === data.entityValueId) {
+    return (
+      <div className="flex items-center gap-2">
+        <button
+          type="button"
+          onClick={(e) => {
+            e.stopPropagation();
+            onSave(data);
+          }}
+        >
+          <Check className="size-5 text-green-500 hover:text-green-600 hover:cursor-pointer" />
+        </button>
+        <button
+          type="button"
+          onClick={(e) => {
+            e.stopPropagation();
+            onCancel();
+          }}
+        >
+          <X className="size-5 text-gray-500 hover:text-gray-600 hover:cursor-pointer" />
+        </button>
+      </div>
+    );
+  }
+
+  return (
+    <button
+      type="button"
+      onClick={(e) => {
+        e.stopPropagation();
+        onDelete(data);
+      }}
+    >
+      <IconTrash className="size-5 text-red-500 hover:cursor-pointer" />
+    </button>
+  );
+};
+
 export default function EntityValueList() {
   const { modelId, entityId } = useParams();
   const queryClient = useQueryClient();
   const modal = useModal();
   const { gridOptions } = useAggridOptions();
-  const [rowData, setRowData] = useState<EntityValueListItem[]>([]);
+
+  // State
   const [filterColumn, setFilterColumn] = useState('entityValue');
   const [searchValue, setSearchValue] = useState('');
   const [editingRowId, setEditingRowId] = useState<string | null>(null);
 
+  // Refs
   const gridApiRef = useRef<GridApi<EntityValueListItem> | null>(null);
 
+  // API Hooks
   const { data: entityValueList, isFetching } = useGetEntityValues({ params: { modelId, entityId } });
   const { mutate: createEntityValue, isPending: isCreating } = useCreateEntityValue({
     mutationOptions: {
@@ -73,21 +127,26 @@ export default function EntityValueList() {
     },
   });
 
-  const filteredList = useMemo(() => {
-    if (!entityValueList) return [];
-    if (!searchValue.trim()) return entityValueList;
+  // AG Grid 콜백
+  const getRowId = (params: GetRowIdParams<EntityValueListItem>) => params.data.entityValueId;
+
+  const isExternalFilterPresent = () => {
+    return searchValue.trim().length > 0;
+  };
+
+  const doesExternalFilterPass = (node: IRowNode<EntityValueListItem>) => {
+    if (!node.data) return true;
+    if (node.data.entityValueId.startsWith(TEMP_ROW_PREFIX)) return true;
+
     const keyword = searchValue.toLowerCase();
-    return entityValueList.filter((item) => {
-      const value = item[filterColumn as keyof typeof item];
-      return String(value).toLowerCase().includes(keyword);
-    });
-  }, [entityValueList, filterColumn, searchValue]);
+    const value = node.data[filterColumn as keyof EntityValueListItem];
+    return String(value).toLowerCase().includes(keyword);
+  };
 
   useEffect(() => {
-    setRowData(filteredList ?? []);
-  }, [filteredList]);
+    gridApiRef.current?.onFilterChanged();
+  }, [searchValue, filterColumn]);
 
-  // 검색 컬럼 selectbox 변경시 검색어 초기화
   const handleColumnChange = (value: string) => {
     setFilterColumn(value);
     setSearchValue('');
@@ -100,24 +159,13 @@ export default function EntityValueList() {
   const handleRowDoubleClick = (event: RowDoubleClickedEvent<EntityValueListItem>) => {
     if (!event.data) return;
     const rowId = event.data.entityValueId;
-    // 이미 같은 row를 편집 중이면 무시
     if (editingRowId === rowId) return;
-    // 다른 row를 편집 중이면 경고
     if (editingRowId) {
       toast.warning('현재 편집 중인 항목을 먼저 저장하거나 취소하세요.');
       return;
     }
-    // AG Grid 편집 모드 시작
     if (event.rowIndex != null) {
       event.api.startEditingCell({ rowIndex: event.rowIndex, colKey: 'entityValue' });
-    }
-  };
-
-  const handleRowDataUpdated = (event: RowDataUpdatedEvent<EntityValueListItem>) => {
-    // 첫 번째 row가 temp_이고 편집 중이 아니면 편집 시작
-    const firstRowNode = event.api.getDisplayedRowAtIndex(0);
-    if (firstRowNode?.data?.entityValueId.startsWith('temp_') && !editingRowId) {
-      event.api.startEditingCell({ rowIndex: 0, colKey: 'entityValue' });
     }
   };
 
@@ -126,9 +174,13 @@ export default function EntityValueList() {
   };
 
   const handleRowEditingStopped = (event: RowEditingStoppedEvent<EntityValueListItem>) => {
+    const rowId = event.data?.entityValueId;
     setEditingRowId(null);
-    if (event.data?.entityValueId.startsWith('temp_')) {
-      setRowData((prev) => prev.filter((row) => row.entityValueId !== event.data?.entityValueId));
+
+    if (rowId?.startsWith(TEMP_ROW_PREFIX)) {
+      event.api.applyTransaction({
+        remove: [{ entityValueId: rowId } as EntityValueListItem],
+      });
     }
   };
 
@@ -138,14 +190,29 @@ export default function EntityValueList() {
       return;
     }
     gridApiRef.current?.paginationGoToFirstPage();
-    const tempId = `temp_${Date.now()}`;
+    const tempId = `${TEMP_ROW_PREFIX}${Date.now()}`;
     const newRow: EntityValueListItem = {
       entityValueId: tempId,
       entityValue: '',
       entityType: 'SAME' as EntityType,
       entityTypeValues: '',
     };
-    setRowData((prev) => [newRow, ...prev]);
+    const result = gridApiRef.current?.applyTransaction({
+      add: [newRow],
+      addIndex: 0,
+    });
+    if (result?.add?.[0]) {
+      gridApiRef.current?.onFilterChanged();
+      setTimeout(() => {
+        const rowNode = gridApiRef.current?.getRowNode(tempId);
+        if (rowNode?.rowIndex != null) {
+          gridApiRef.current?.startEditingCell({
+            rowIndex: rowNode.rowIndex,
+            colKey: 'entityValue',
+          });
+        }
+      }, 0);
+    }
   };
 
   const handleSave = (originData: EntityValueListItem) => {
@@ -168,7 +235,7 @@ export default function EntityValueList() {
       toast.warning('대표값을 입력하세요.');
       return;
     }
-    const isNewRow = originData.entityValueId.startsWith('temp_');
+    const isNewRow = originData.entityValueId.startsWith(TEMP_ROW_PREFIX);
     if (isNewRow) {
       createEntityValue({
         params: { modelId, entityId },
@@ -184,7 +251,6 @@ export default function EntityValueList() {
 
   const cancelEditing = () => {
     gridApiRef.current?.stopEditing(true);
-    gridApiRef.current?.redrawRows();
   };
 
   const handleDelete = (data: EntityValueListItem) => {
@@ -230,51 +296,20 @@ export default function EntityValueList() {
     },
     {
       headerName: '',
+      colId: 'actions',
       maxWidth: 100,
       sortable: false,
       filter: false,
       editable: false,
       suppressHeaderMenuButton: true,
       cellStyle: { display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' },
-      cellRenderer: (params: ICellRendererParams<EntityValueListItem>) => {
-        const { data } = params;
-        if (!data) return null;
-        if (editingRowId === data.entityValueId) {
-          return (
-            <div className="flex items-center gap-2">
-              <button
-                type="button"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  handleSave(data);
-                }}
-              >
-                <Check className="size-5 text-green-500 hover:text-green-600 hover:cursor-pointer" />
-              </button>
-              <button
-                type="button"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  cancelEditing();
-                }}
-              >
-                <X className="size-5 text-gray-500 hover:text-gray-600 hover:cursor-pointer" />
-              </button>
-            </div>
-          );
-        }
-        return (
-          <button
-            type="button"
-            onClick={(e) => {
-              e.stopPropagation();
-              handleDelete(data);
-            }}
-          >
-            <IconTrash className="size-5 text-red-500 hover:cursor-pointer" />
-          </button>
-        );
+      cellRendererParams: {
+        editingRowId,
+        onSave: handleSave,
+        onCancel: cancelEditing,
+        onDelete: handleDelete,
       },
+      cellRenderer: ActionCellRenderer,
     },
   ];
 
@@ -303,8 +338,11 @@ export default function EntityValueList() {
       </header>
       <div className="w-full h-full">
         <AgGridReact<EntityValueListItem>
-          rowData={rowData}
+          rowData={entityValueList ?? []}
           columnDefs={columnDefs}
+          getRowId={getRowId}
+          isExternalFilterPresent={isExternalFilterPresent}
+          doesExternalFilterPass={doesExternalFilterPass}
           gridOptions={{
             ...gridOptions,
             sideBar: false,
@@ -319,7 +357,6 @@ export default function EntityValueList() {
           onRowDoubleClicked={handleRowDoubleClick}
           onRowEditingStarted={handleRowEditingStarted}
           onRowEditingStopped={handleRowEditingStopped}
-          onRowDataUpdated={handleRowDataUpdated}
         />
       </div>
     </div>
