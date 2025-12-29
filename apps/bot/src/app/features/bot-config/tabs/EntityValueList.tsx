@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { useParams } from 'react-router-dom';
 import { useQueryClient } from '@tanstack/react-query';
 import type {
@@ -64,16 +64,87 @@ interface EntityTypeValuesCellRendererParams extends ICellRendererParams<EntityV
 }
 
 const EntityTypeValuesCellRenderer = ({ value }: EntityTypeValuesCellRendererParams) => {
+  const containerRef = useRef<HTMLDivElement>(null);
+  const measureRef = useRef<HTMLDivElement>(null);
+  const [visibleCount, setVisibleCount] = useState<number | null>(null);
+
+  const parseValues = (value: string | undefined) =>
+    value
+      ?.split(',')
+      .map((v) => v.trim())
+      .filter(Boolean) ?? [];
+
+  const values = parseValues(value);
+
+  const TAG_GAP = 4; // gap-1 = 0.25rem = 4px
+  const MORE_TAG_WIDTH = 40; // "+N" 태그 예상 너비
+
+  useLayoutEffect(() => {
+    const container = containerRef.current;
+    const measureContainer = measureRef.current;
+    if (!container || !measureContainer) return;
+
+    const tagElements = measureContainer.children;
+    if (tagElements.length === 0) return;
+
+    const calculateVisibleCount = () => {
+      const containerWidth = container.offsetWidth;
+      let totalWidth = 0;
+      let count = 0;
+
+      for (let i = 0; i < tagElements.length; i++) {
+        const tagWidth = (tagElements[i] as HTMLElement).offsetWidth;
+        const widthWithGap = i === 0 ? tagWidth : tagWidth + TAG_GAP;
+        const remainingTags = tagElements.length - (i + 1);
+        const needsMoreTag = remainingTags > 0;
+        const reservedWidth = needsMoreTag ? MORE_TAG_WIDTH + TAG_GAP : 0;
+
+        if (totalWidth + widthWithGap + reservedWidth <= containerWidth) {
+          totalWidth += widthWithGap;
+          count++;
+        } else {
+          break;
+        }
+      }
+
+      setVisibleCount(count > 0 ? count : 1);
+    };
+
+    const resizeObserver = new ResizeObserver(calculateVisibleCount);
+    resizeObserver.observe(container);
+    calculateVisibleCount();
+
+    return () => resizeObserver.disconnect();
+  }, [value]);
+
   if (!value) return null;
-  const values = value.split(',').map((v) => v.trim());
+
+  const hiddenCount = visibleCount !== null ? values.length - visibleCount : 0;
+
   return (
-    <div className="flex flex-wrap gap-1 pt-[1.5px]">
-      {values.map((v, index) => (
-        <Tag key={index} color="default" variant="outlined" icon={<IconTag />} className="!inline-flex items-center !px-2 !py-1 !m-0 !bg-white">
-          {v}
-        </Tag>
-      ))}
-    </div>
+    <>
+      {/* 측정용 숨겨진 컨테이너 */}
+      <div ref={measureRef} className="absolute invisible flex gap-1" aria-hidden="true">
+        {values.map((v, index) => (
+          <Tag key={index} color="default" variant="outlined" icon={<IconTag />} className="!inline-flex items-center !px-2 !py-1 !m-0 !bg-white">
+            {v}
+          </Tag>
+        ))}
+      </div>
+      {/* 실제 표시 컨테이너 */}
+      <div ref={containerRef} className="flex items-center gap-1 w-full overflow-hidden">
+        {values.slice(0, visibleCount ?? values.length).map((v, index) => (
+          <Tag key={index} color="default" variant="outlined" icon={<IconTag />} className="!inline-flex items-center !px-2 !py-1 !m-0 !bg-white shrink-0">
+            {v}
+          </Tag>
+        ))}
+        {hiddenCount > 0 && (
+          <Tag color="default" className="!inline-flex items-center !px-2 !py-1 !m-0 shrink-0 !rounded-[14px] !text-[#888B9A]">
+            +{hiddenCount}
+          </Tag>
+        )}
+      </div>
+    </>
   );
 };
 
