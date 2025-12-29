@@ -2,18 +2,18 @@ import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { useParams } from 'react-router-dom';
 import { useQueryClient } from '@tanstack/react-query';
 import type {
+  CellDoubleClickedEvent,
   ColDef,
   GetRowIdParams,
   GridApi,
   GridReadyEvent,
   ICellRendererParams,
   IRowNode,
-  RowDoubleClickedEvent,
   RowEditingStartedEvent,
   RowEditingStoppedEvent,
 } from 'ag-grid-community';
 import { AgGridReact } from 'ag-grid-react';
-import { Button, Input, Select, Tag } from 'antd';
+import { Button, Input, type InputRef, Select, Tag } from 'antd';
 import { Check, X } from 'lucide-react';
 import { toast } from '@/shared-util';
 import { modelQueryKeys, useCreateEntityValue, useDeleteEntityValue, useGetEntityValues, useUpdateEntityValue } from '../hooks/useModelQueries';
@@ -40,10 +40,19 @@ interface InputTextCellEditorProps {
   value: string;
   onValueChange: (value: string) => void;
   placeholder?: string;
+  cellStartedEdit?: boolean;
 }
 
-const InputTextCellEditor = ({ value = '', onValueChange, placeholder = '' }: InputTextCellEditorProps) => {
-  return <Input value={value} onChange={(e) => onValueChange(e.target.value)} placeholder={placeholder} />;
+const InputTextCellEditor = ({ value = '', onValueChange, placeholder = '', cellStartedEdit }: InputTextCellEditorProps) => {
+  const inputRef = useRef<InputRef>(null);
+
+  useEffect(() => {
+    if (cellStartedEdit) {
+      inputRef.current?.focus();
+    }
+  }, [cellStartedEdit]);
+
+  return <Input ref={inputRef} value={value} onChange={(e) => onValueChange(e.target.value)} placeholder={placeholder} />;
 };
 
 interface TypeCellRendererParams extends ICellRendererParams<EntityValueListItem> {
@@ -269,7 +278,7 @@ export default function EntityValueList() {
     gridApiRef.current = event.api;
   };
 
-  const handleRowDoubleClick = (event: RowDoubleClickedEvent<EntityValueListItem>) => {
+  const handleCellDoubleClick = (event: CellDoubleClickedEvent<EntityValueListItem>) => {
     if (!event.data) return;
     const rowId = event.data.entityValueId;
     if (editingRowId === rowId) return;
@@ -278,7 +287,13 @@ export default function EntityValueList() {
       return;
     }
     if (event.rowIndex != null) {
-      event.api.startEditingCell({ rowIndex: event.rowIndex, colKey: 'entityValue' });
+      const clickedColId = event.column?.getColId();
+      const editableColumns = event.api
+        .getColumns()
+        ?.filter((col) => col.getColDef().editable)
+        .map((col) => col.getColId());
+      const colKey = clickedColId && editableColumns?.includes(clickedColId) ? clickedColId : (editableColumns?.[0] ?? '');
+      event.api.startEditingCell({ rowIndex: event.rowIndex, colKey });
     }
   };
 
@@ -316,8 +331,7 @@ export default function EntityValueList() {
     });
     if (result?.add?.[0]) {
       gridApiRef.current?.onFilterChanged();
-      // TODO: setTimeout을 사용하지 않고, 편집 가능한 row가 생성시, 정확한 시점에 편집 상태로 전환되도록 설정 필요.
-      setTimeout(() => {
+      requestAnimationFrame(() => {
         const rowNode = gridApiRef.current?.getRowNode(tempId);
         if (rowNode?.rowIndex != null) {
           gridApiRef.current?.startEditingCell({
@@ -325,7 +339,7 @@ export default function EntityValueList() {
             colKey: 'entityValue',
           });
         }
-      }, 0);
+      });
     }
   };
 
@@ -347,6 +361,14 @@ export default function EntityValueList() {
     };
     if (!requestData.entityValue?.trim()) {
       toast.warning('대표값을 입력하세요.');
+      return;
+    }
+    if (!requestData.entityType) {
+      toast.warning('타입을 선택하세요.');
+      return;
+    }
+    if (!requestData.entityTypeValues?.trim()) {
+      toast.warning('유사어를 입력하세요.');
       return;
     }
     const isNewRow = originData.entityValueId.startsWith(TEMP_ROW_PREFIX);
@@ -473,7 +495,7 @@ export default function EntityValueList() {
           }}
           loading={isFetching || isUpdating || isDeleting}
           onGridReady={handleGridReady}
-          onRowDoubleClicked={handleRowDoubleClick}
+          onCellDoubleClicked={handleCellDoubleClick}
           onRowEditingStarted={handleRowEditingStarted}
           onRowEditingStopped={handleRowEditingStopped}
         />
