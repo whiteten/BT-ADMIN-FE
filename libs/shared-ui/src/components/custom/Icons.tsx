@@ -25,3 +25,4 @@ export { ReactComponent as IconList } from '../../assets/images/icon/icon-list.s
 export { ReactComponent as IconTrash } from '../../assets/images/icon/icon-trash.svg';
 export { ReactComponent as IconPlayCircle } from '../../assets/images/icon/icon-play-circle.svg';
 export { ReactComponent as IconSynonyms } from '../../assets/images/icon/icon-synonyms.svg';
+export { ReactComponent as IconBubble } from '../../assets/images/icon/icon-bubble.svg';

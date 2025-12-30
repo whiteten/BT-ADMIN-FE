@@ -1,13 +1,19 @@
 import React from 'react';
 import { useParams } from 'react-router-dom';
 import { type BreadcrumbProps, Button } from 'antd';
-import { IconDocument } from '@/components/custom/Icons';
+import { IconBubble, IconDocument, IconEvaluation } from '@/components/custom/Icons';
 import PageHeader from '@/components/custom/PageHeader';
 import PageTabs, { type PageTab } from '@/components/custom/PageTabs';
 
 const EvaluationBasicInfo = React.lazy(() => import('../../features/bot-config/tabs/EvaluationBasicInfo'));
+const EvaluationQuestionList = React.lazy(() => import('../../features/bot-config/tabs/EvaluationQuestionList'));
+const EvaluationResultList = React.lazy(() => import('../../features/bot-config/tabs/EvaluationResultList'));
 
-const tabs: PageTab[] = [{ id: 'tab1', label: '기본정보', icon: IconDocument, component: EvaluationBasicInfo }];
+const tabs: PageTab[] = [
+  { id: 'tab1', label: '기본정보', icon: IconDocument, component: EvaluationBasicInfo },
+  { id: 'tab2', label: '평가 문장', icon: IconBubble, component: EvaluationQuestionList },
+  { id: 'tab3', label: '평가 결과', icon: IconEvaluation, component: EvaluationResultList },
+];
 
 export default function EvaluationDetail() {
   const { modelId, evalId } = useParams();
