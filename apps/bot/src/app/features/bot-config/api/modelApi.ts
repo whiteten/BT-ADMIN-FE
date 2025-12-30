@@ -153,8 +153,8 @@ export const modelApi = {
     return response?.data;
   },
   getEvaluationQuestions: async (params?: Record<string, unknown>): Promise<EvaluationQuestionListItem[]> => {
-    const response = await apiClient.get<ListWithItemsResponse<EvaluationQuestionListItem>>('/evaluation-question-list', { params });
-    return extractListItems(response?.data);
+    const response = await apiClient.get<ListResponse<EvaluationQuestionListItem>>('/evaluation-question-list', { params });
+    return extractList(response?.data);
   },
   createEvaluationQuestion: async ({ params, data }: { params: Record<string, unknown>; data: EvaluationQuestionCreateDatas }) => {
     const response = await apiClient.post('/evaluation-question-create', data, { params });
