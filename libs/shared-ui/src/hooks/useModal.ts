@@ -16,6 +16,19 @@ export const useModal = () => {
 
   return {
     confirm: {
+      execute: ({ onOk, onCancel, options }: ConfirmModalOptions) => {
+        modal.confirm({
+          title: '진행 확인',
+          content: '진행하시겠습니까?',
+          okText: '확인',
+          okType: 'primary',
+          cancelText: '취소',
+          centered: true,
+          onOk,
+          onCancel,
+          ...options,
+        });
+      },
       delete: ({ onOk, onCancel, options }: ConfirmModalOptions) => {
         modal.confirm({
           title: '삭제 확인',

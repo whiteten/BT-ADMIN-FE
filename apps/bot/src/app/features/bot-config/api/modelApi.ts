@@ -9,6 +9,7 @@ import type {
   EntityValueListItem,
   EntityValueUpdateDatas,
 } from '../types/entity';
+import type { EvaluationCreateDatas, EvaluationItem, EvaluationListItem, EvaluationUpdateDatas } from '../types/evaluation';
 import type {
   IntentBasicInfoUpdateDatas,
   IntentCreateDatas,
@@ -122,5 +123,25 @@ export const modelApi = {
   generateSentence: async ({ params, data }: { params: Record<string, unknown>; data: GenerateSentenceDatas }): Promise<string[]> => {
     const response = await apiClient.post<GenerateSentenceResponse>('/aoe-agent-sentence', data, { params });
     return response?.data?.data?.list?.data?.sentences ?? [];
+  },
+  getEvaluations: async (params?: Record<string, unknown>): Promise<EvaluationListItem[]> => {
+    const response = await apiClient.get<ListWithItemsResponse<EvaluationListItem>>('/evaluation-list', { params });
+    return extractListItems(response?.data);
+  },
+  getEvaluation: async (params?: Record<string, unknown>): Promise<EvaluationItem> => {
+    const response = await apiClient.get<DetailResponse<EvaluationItem>>('/evaluation-detail', { params });
+    return extractDetail(response?.data);
+  },
+  createEvaluation: async ({ params, data }: { params: Record<string, unknown>; data: EvaluationCreateDatas }) => {
+    const response = await apiClient.post('/evaluation-create', data, { params });
+    return response?.data;
+  },
+  updateEvaluation: async ({ params, data }: { params: Record<string, unknown>; data: EvaluationUpdateDatas }) => {
+    const response = await apiClient.put('/evaluation-update', data, { params });
+    return response?.data;
+  },
+  deleteEvaluation: async (params: Record<string, unknown>) => {
+    const response = await apiClient.delete('/evaluation-delete', { params });
+    return response?.data;
   },
 };

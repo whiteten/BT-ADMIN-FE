@@ -4,6 +4,7 @@ import type { MutationHookOptions, QueryHookWithParamsOptions } from '@/shared-u
 import { modelApi } from '../api/modelApi';
 import type { AoeListItem } from '../types/aoe';
 import type { EntityItem, EntityListItem, EntityValueListItem } from '../types/entity';
+import type { EvaluationItem, EvaluationListItem } from '../types/evaluation';
 import type { IntentItem, IntentListItem, IntentSentenceListItem } from '../types/intent';
 import type { ModelItem, ModelListItem } from '../types/model';
 
@@ -17,6 +18,8 @@ export const modelQueryKeys = createQueryKeys('models', {
   getEntity: (params?: Record<string, unknown>) => [params],
   getEntityValues: (params?: Record<string, unknown>) => [params],
   getAoeAgents: (params?: Record<string, unknown>) => [params],
+  getEvaluations: (params?: Record<string, unknown>) => [params],
+  getEvaluation: (params?: Record<string, unknown>) => [params],
 });
 
 export const useGetModels = ({ params, queryOptions }: QueryHookWithParamsOptions<ModelListItem[]> = {}) => {
@@ -199,6 +202,43 @@ export const useGetAoeAgents = ({ params, queryOptions }: QueryHookWithParamsOpt
 export const useGenerateSentence = ({ mutationOptions }: MutationHookOptions = {}) => {
   return useMutation({
     mutationFn: modelApi.generateSentence,
+    ...mutationOptions,
+  });
+};
+
+export const useGetEvaluations = ({ params, queryOptions }: QueryHookWithParamsOptions<EvaluationListItem[]> = {}) => {
+  return useQuery({
+    queryKey: modelQueryKeys.getEvaluations(params).queryKey,
+    queryFn: () => modelApi.getEvaluations(params),
+    ...queryOptions,
+  });
+};
+
+export const useGetEvaluation = ({ params, queryOptions }: QueryHookWithParamsOptions<EvaluationItem> = {}) => {
+  return useQuery({
+    queryKey: modelQueryKeys.getEvaluation(params).queryKey,
+    queryFn: () => modelApi.getEvaluation(params),
+    ...queryOptions,
+  });
+};
+
+export const useCreateEvaluation = ({ mutationOptions }: MutationHookOptions = {}) => {
+  return useMutation({
+    mutationFn: modelApi.createEvaluation,
+    ...mutationOptions,
+  });
+};
+
+export const useUpdateEvaluation = ({ mutationOptions }: MutationHookOptions = {}) => {
+  return useMutation({
+    mutationFn: modelApi.updateEvaluation,
+    ...mutationOptions,
+  });
+};
+
+export const useDeleteEvaluation = ({ mutationOptions }: MutationHookOptions = {}) => {
+  return useMutation({
+    mutationFn: modelApi.deleteEvaluation,
     ...mutationOptions,
   });
 };

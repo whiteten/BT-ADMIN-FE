@@ -12,6 +12,7 @@ const ModelDetailLayout = React.lazy(() => import('./pages/bot-config/ModelDetai
 const ModelList = React.lazy(() => import('./pages/bot-config/ModelList'));
 const IntentDetail = React.lazy(() => import('./pages/bot-config/IntentDetail'));
 const EntityDetail = React.lazy(() => import('./pages/bot-config/EntityDetail'));
+const EvaluationDetail = React.lazy(() => import('./pages/bot-config/EvaluationDetail'));
 
 export const routes = [
   {
@@ -57,6 +58,13 @@ export const routes = [
                     children: [
                       { index: true, element: <Navigate to=".." replace /> },
                       { path: ':entityId', element: <EntityDetail /> },
+                    ],
+                  },
+                  {
+                    path: 'evaluation',
+                    children: [
+                      { index: true, element: <Navigate to=".." replace /> },
+                      { path: ':evalId', element: <EvaluationDetail /> },
                     ],
                   },
                 ],
