@@ -55,6 +55,29 @@ const InputTextCellEditor = ({ value = '', onValueChange, placeholder = '', cell
   return <Input ref={inputRef} value={value} onChange={(e) => onValueChange(e.target.value)} placeholder={placeholder} />;
 };
 
+interface SelectCellEditorProps {
+  value: string;
+  onValueChange: (value: string) => void;
+  options: { label: string; value: string }[];
+  cellStartedEdit?: boolean;
+}
+
+const SelectCellEditor = ({ value = '', onValueChange, options = [], cellStartedEdit }: SelectCellEditorProps) => {
+  const selectRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (cellStartedEdit) {
+      selectRef.current?.querySelector('input')?.focus();
+    }
+  }, [cellStartedEdit]);
+
+  return (
+    <div ref={selectRef} className="w-full">
+      <Select value={value || undefined} onChange={onValueChange} options={options} className="w-full" />
+    </div>
+  );
+};
+
 interface TypeCellRendererParams extends ICellRendererParams<EntityValueListItem> {
   value: EntityType;
 }
@@ -417,9 +440,14 @@ export default function EntityValueList() {
       field: 'entityType',
       editable: true,
       maxWidth: 120,
-      cellEditor: 'agRichSelectCellEditor',
-      cellEditorParams: { values: ['SAME', 'SYNONYMS', 'PATTERNS'] },
-      refData: { SAME: '동의어', SYNONYMS: '유사어', PATTERNS: '패턴형' },
+      cellEditor: SelectCellEditor,
+      cellEditorParams: {
+        options: [
+          { label: '동의어', value: 'SAME' },
+          { label: '유사어', value: 'SYNONYMS' },
+          { label: '패턴형', value: 'PATTERNS' },
+        ],
+      },
       cellRenderer: TypeCellRenderer,
     },
     {
