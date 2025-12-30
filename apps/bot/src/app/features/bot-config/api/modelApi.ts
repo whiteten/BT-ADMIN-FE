@@ -9,7 +9,15 @@ import type {
   EntityValueListItem,
   EntityValueUpdateDatas,
 } from '../types/entity';
-import type { EvaluationCreateDatas, EvaluationItem, EvaluationListItem, EvaluationUpdateDatas } from '../types/evaluation';
+import type {
+  EvaluationCreateDatas,
+  EvaluationItem,
+  EvaluationListItem,
+  EvaluationQuestionCreateDatas,
+  EvaluationQuestionListItem,
+  EvaluationQuestionUpdateDatas,
+  EvaluationUpdateDatas,
+} from '../types/evaluation';
 import type {
   IntentBasicInfoUpdateDatas,
   IntentCreateDatas,
@@ -142,6 +150,22 @@ export const modelApi = {
   },
   deleteEvaluation: async (params: Record<string, unknown>) => {
     const response = await apiClient.delete('/evaluation-delete', { params });
+    return response?.data;
+  },
+  getEvaluationQuestions: async (params?: Record<string, unknown>): Promise<EvaluationQuestionListItem[]> => {
+    const response = await apiClient.get<ListWithItemsResponse<EvaluationQuestionListItem>>('/evaluation-question-list', { params });
+    return extractListItems(response?.data);
+  },
+  createEvaluationQuestion: async ({ params, data }: { params: Record<string, unknown>; data: EvaluationQuestionCreateDatas }) => {
+    const response = await apiClient.post('/evaluation-question-create', data, { params });
+    return response?.data;
+  },
+  updateEvaluationQuestion: async ({ params, data }: { params: Record<string, unknown>; data: EvaluationQuestionUpdateDatas }) => {
+    const response = await apiClient.put('/evaluation-question-update', data, { params });
+    return response?.data;
+  },
+  deleteEvaluationQuestion: async (params: Record<string, unknown>) => {
+    const response = await apiClient.delete('/evaluation-question-delete', { params });
     return response?.data;
   },
 };

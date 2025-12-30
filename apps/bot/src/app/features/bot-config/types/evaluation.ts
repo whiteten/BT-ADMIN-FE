@@ -13,3 +13,14 @@ export type EvaluationListItem = Evaluation & { questionCount: number };
 export type EvaluationItem = Evaluation;
 export type EvaluationCreateDatas = Pick<Evaluation, 'evalName'>;
 export type EvaluationUpdateDatas = Pick<Evaluation, 'evalName'>;
+
+export interface EvaluationQuestion {
+  evalId: string;
+  questionSeq: number;
+  question: string;
+  answer: string;
+}
+
+export type EvaluationQuestionListItem = EvaluationQuestion;
+export type EvaluationQuestionCreateDatas = Pick<EvaluationQuestion, 'question' | 'answer'>;
+export type EvaluationQuestionUpdateDatas = Pick<EvaluationQuestion, 'question' | 'answer'>;
