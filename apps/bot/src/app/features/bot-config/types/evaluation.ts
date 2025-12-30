@@ -23,4 +23,5 @@ export interface EvaluationQuestion {
 
 export type EvaluationQuestionListItem = EvaluationQuestion;
 export type EvaluationQuestionCreateDatas = Pick<EvaluationQuestion, 'question' | 'answer'>;
+export type EvaluationQuestionCreateBulkDatas = EvaluationQuestionCreateDatas[];
 export type EvaluationQuestionUpdateDatas = Pick<EvaluationQuestion, 'question' | 'answer'>;

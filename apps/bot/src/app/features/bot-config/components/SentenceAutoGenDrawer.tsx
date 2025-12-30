@@ -18,9 +18,13 @@ export interface SentenceAutoGenDrawerRef {
 /**
  * SentenceAutoGenDrawer props 타입
  */
-export interface SentenceAutoGenDrawerProps {
-  onAdd?: (params: { modelId: string; sentences: string[] }) => void;
+export interface SentenceAutoGenDrawerProps<TExtra = Record<string, unknown>> {
+  onAdd?: (params: { modelId: string; sentences: string[]; extraData?: TExtra }) => void;
   isAdding?: boolean;
+  /** Transfer 영역 아래에 렌더링될 추가 UI */
+  renderExtraFields?: () => React.ReactNode;
+  /** onAdd 호출 시 추가 필드 값을 수집하는 함수 */
+  getExtraFieldValues?: () => TExtra;
 }
 
 /**
@@ -45,7 +49,7 @@ interface TransferItem {
  * - ref.open({ modelId }) : 드로어 열기
  * - ref.close() : 드로어 닫기
  */
-const SentenceAutoGenDrawer = forwardRef<SentenceAutoGenDrawerRef, SentenceAutoGenDrawerProps>(({ onAdd, isAdding }, ref) => {
+const SentenceAutoGenDrawer = forwardRef<SentenceAutoGenDrawerRef, SentenceAutoGenDrawerProps>(({ onAdd, isAdding, renderExtraFields, getExtraFieldValues }, ref) => {
   const [drawerState, setDrawerState] = useState<DrawerState>({
     open: false,
     modelId: '',
@@ -147,7 +151,8 @@ const SentenceAutoGenDrawer = forwardRef<SentenceAutoGenDrawerRef, SentenceAutoG
       toast.warning('추가할 문장이 비어있습니다.\n학습문장 자동생성 후, 추가할 문장을 우측으로 이동해주세요.');
       return;
     }
-    onAdd?.({ modelId: drawerState.modelId, sentences: targetKeys as string[] });
+    const extraData = getExtraFieldValues?.();
+    onAdd?.({ modelId: drawerState.modelId, sentences: targetKeys as string[], extraData });
   };
 
   const footer = (
@@ -239,6 +244,9 @@ const SentenceAutoGenDrawer = forwardRef<SentenceAutoGenDrawerRef, SentenceAutoG
             className="[&_.ant-transfer-list-header_.ant-dropdown-trigger]:!hidden"
           />
         </div>
+
+        {/* 추가 필드 영역 */}
+        {renderExtraFields && <div className="flex flex-col gap-2">{renderExtraFields()}</div>}
       </div>
     </Drawer>
   );

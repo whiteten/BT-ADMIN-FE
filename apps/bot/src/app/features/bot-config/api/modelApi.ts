@@ -13,6 +13,7 @@ import type {
   EvaluationCreateDatas,
   EvaluationItem,
   EvaluationListItem,
+  EvaluationQuestionCreateBulkDatas,
   EvaluationQuestionCreateDatas,
   EvaluationQuestionListItem,
   EvaluationQuestionUpdateDatas,
@@ -158,6 +159,10 @@ export const modelApi = {
   },
   createEvaluationQuestion: async ({ params, data }: { params: Record<string, unknown>; data: EvaluationQuestionCreateDatas }) => {
     const response = await apiClient.post('/evaluation-question-create', data, { params });
+    return response?.data;
+  },
+  createEvaluationQuestionBulk: async ({ params, data }: { params: Record<string, unknown>; data: EvaluationQuestionCreateBulkDatas }) => {
+    const response = await apiClient.post('/evaluation-question-create-bulk', data, { params });
     return response?.data;
   },
   updateEvaluationQuestion: async ({ params, data }: { params: Record<string, unknown>; data: EvaluationQuestionUpdateDatas }) => {

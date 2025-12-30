@@ -16,9 +16,11 @@ import { AgGridReact } from 'ag-grid-react';
 import { Button, Input, type InputRef, Select } from 'antd';
 import { Check, X } from 'lucide-react';
 import { toast } from '@/shared-util';
+import SentenceAutoGenDrawer, { type SentenceAutoGenDrawerRef } from '../components/SentenceAutoGenDrawer';
 import {
   modelQueryKeys,
   useCreateEvaluationQuestion,
+  useCreateEvaluationQuestionBulk,
   useDeleteEvaluationQuestion,
   useGetEvaluationQuestions,
   useGetIntents,
@@ -130,11 +132,13 @@ export default function EvaluationQuestionList() {
   const queryClient = useQueryClient();
   const modal = useModal();
   const { gridOptions } = useAggridOptions();
+  const refAutoGenDrawer = useRef<SentenceAutoGenDrawerRef>(null);
 
   // State
   const [filterColumn, setFilterColumn] = useState('question');
   const [searchValue, setSearchValue] = useState('');
   const [editingRowId, setEditingRowId] = useState<string | null>(null);
+  const [bulkAnswer, setBulkAnswer] = useState<string | null>(null);
 
   // Refs
   const gridApiRef = useRef<GridApi<EvaluationQuestionListItem> | null>(null);
@@ -161,6 +165,16 @@ export default function EvaluationQuestionList() {
       onSuccess: () => {
         toast.success('평가 문항이 추가되었습니다.');
         gridApiRef.current?.stopEditing();
+        queryClient.invalidateQueries({ queryKey: modelQueryKeys.getEvaluationQuestions({ modelId, evalId }).queryKey });
+      },
+    },
+  });
+
+  const { mutate: createEvaluationQuestionBulk, isPending: isCreatingBulk } = useCreateEvaluationQuestionBulk({
+    mutationOptions: {
+      onSuccess: () => {
+        toast.success('평가 문항이 추가되었습니다.');
+        refAutoGenDrawer.current?.close();
         queryClient.invalidateQueries({ queryKey: modelQueryKeys.getEvaluationQuestions({ modelId, evalId }).queryKey });
       },
     },
@@ -345,6 +359,18 @@ export default function EvaluationQuestionList() {
     });
   };
 
+  const handleCreateBulkEvaluationQuestionByDrawer = (params: { modelId: string; sentences: string[]; answer: string }) => {
+    const { sentences, answer } = params;
+    if (!answer) {
+      toast.warning('정답을 선택하세요.');
+      return;
+    }
+    createEvaluationQuestionBulk({
+      params: { modelId, evalId },
+      data: sentences.map((sentence) => ({ question: sentence, answer })),
+    });
+  };
+
   const columnDefs: ColDef<EvaluationQuestionListItem>[] = [
     {
       headerName: '질문',
@@ -407,6 +433,9 @@ export default function EvaluationQuestionList() {
           <Button variant="solid" color="primary" onClick={handleAddNewRow} loading={isCreating}>
             추가
           </Button>
+          <Button variant="solid" onClick={() => refAutoGenDrawer.current?.open({ modelId })}>
+            자동생성
+          </Button>
         </div>
       </header>
       <div className="w-full h-full">
@@ -432,6 +461,28 @@ export default function EvaluationQuestionList() {
           onRowEditingStopped={handleRowEditingStopped}
         />
       </div>
+      <SentenceAutoGenDrawer
+        ref={refAutoGenDrawer}
+        onAdd={({ modelId, sentences, extraData }) => {
+          handleCreateBulkEvaluationQuestionByDrawer({ modelId, sentences, answer: extraData?.answer as string });
+        }}
+        renderExtraFields={() => (
+          <div className="flex flex-col gap-2">
+            <span className="text-base text-[#495057] font-medium">정답 선택</span>
+            <Select
+              value={bulkAnswer}
+              onChange={setBulkAnswer}
+              options={intentOptions}
+              placeholder="정답을 선택하세요."
+              className="w-full"
+              showSearch={{ optionFilterProp: 'label' }}
+              allowClear
+            />
+          </div>
+        )}
+        getExtraFieldValues={() => ({ answer: bulkAnswer })}
+        isAdding={isCreatingBulk}
+      />
     </div>
   );
 }

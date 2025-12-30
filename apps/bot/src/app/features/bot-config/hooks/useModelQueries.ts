@@ -259,6 +259,13 @@ export const useCreateEvaluationQuestion = ({ mutationOptions }: MutationHookOpt
   });
 };
 
+export const useCreateEvaluationQuestionBulk = ({ mutationOptions }: MutationHookOptions = {}) => {
+  return useMutation({
+    mutationFn: modelApi.createEvaluationQuestionBulk,
+    ...mutationOptions,
+  });
+};
+
 export const useUpdateEvaluationQuestion = ({ mutationOptions }: MutationHookOptions = {}) => {
   return useMutation({
     mutationFn: modelApi.updateEvaluationQuestion,
