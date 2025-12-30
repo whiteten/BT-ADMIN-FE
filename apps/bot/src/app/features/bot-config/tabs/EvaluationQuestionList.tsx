@@ -436,6 +436,8 @@ export default function EvaluationQuestionList() {
           <Button variant="solid" onClick={() => refAutoGenDrawer.current?.open({ modelId })}>
             자동생성
           </Button>
+          <Button variant="solid">Import</Button>
+          <Button variant="solid">Export</Button>
         </div>
       </header>
       <div className="w-full h-full">
