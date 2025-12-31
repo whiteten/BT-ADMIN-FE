@@ -1,7 +1,7 @@
 import React from 'react';
 import { useParams } from 'react-router-dom';
 import { type BreadcrumbProps, Button } from 'antd';
-import { IconDocument, IconEntity, IconEvaluation, IconFaq, IconIntent, IconRetrain, IconSnapshot } from '@/components/custom/Icons';
+import { IconDocument, IconEntity, IconEvaluation, IconIntent, IconRetrain, IconSnapshot } from '@/components/custom/Icons';
 import PageHeader from '@/components/custom/PageHeader';
 import PageTabs, { type PageTab } from '@/components/custom/PageTabs';
 
