@@ -1,7 +1,7 @@
 [
   {
     "context": ["/api"],
-    "target": "http://localhost:8080",
+    "target": "http://100.100.106.151:30888",
     "secure": false,
     "changeOrigin": true
   }
