@@ -4,7 +4,14 @@ import type { MutationHookOptions, QueryHookWithParamsOptions } from '@/shared-u
 import { modelApi } from '../api/modelApi';
 import type { AoeListItem } from '../types/aoe';
 import type { EntityItem, EntityListItem, EntityValueListItem } from '../types/entity';
-import type { EvaluationItem, EvaluationListItem, EvaluationQuestionListItem, EvaluationResultListItem } from '../types/evaluation';
+import type {
+  EvaluationItem,
+  EvaluationListItem,
+  EvaluationQuestionListItem,
+  EvaluationResultListByEvalDateAndQuestionSeqItem,
+  EvaluationResultListByEvalDateItem,
+  EvaluationResultListItem,
+} from '../types/evaluation';
 import type { IntentItem, IntentListItem, IntentSentenceListItem } from '../types/intent';
 import type { ModelItem, ModelListItem } from '../types/model';
 
@@ -291,7 +298,7 @@ export const useGetEvaluationResults = ({ params, queryOptions }: QueryHookWithP
   });
 };
 
-export const useGetEvaluationResultsByEvalDate = ({ params, queryOptions }: QueryHookWithParamsOptions<EvaluationResultListItem[]> = {}) => {
+export const useGetEvaluationResultsByEvalDate = ({ params, queryOptions }: QueryHookWithParamsOptions<EvaluationResultListByEvalDateItem[]> = {}) => {
   return useQuery({
     queryKey: modelQueryKeys.getEvaluationResultsByEvalDate(params).queryKey,
     queryFn: () => modelApi.getEvaluationResultsByEvalDate(params),
@@ -299,7 +306,7 @@ export const useGetEvaluationResultsByEvalDate = ({ params, queryOptions }: Quer
   });
 };
 
-export const useGetEvaluationResultsByEvalDateAndQuestionSeq = ({ params, queryOptions }: QueryHookWithParamsOptions<EvaluationResultListItem[]> = {}) => {
+export const useGetEvaluationResultsByEvalDateAndQuestionSeq = ({ params, queryOptions }: QueryHookWithParamsOptions<EvaluationResultListByEvalDateAndQuestionSeqItem[]> = {}) => {
   return useQuery({
     queryKey: modelQueryKeys.getEvaluationResultsByEvalDateAndQuestionSeq(params).queryKey,
     queryFn: () => modelApi.getEvaluationResultsByEvalDateAndQuestionSeq(params),

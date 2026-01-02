@@ -17,6 +17,8 @@ import type {
   EvaluationQuestionCreateDatas,
   EvaluationQuestionListItem,
   EvaluationQuestionUpdateDatas,
+  EvaluationResultListByEvalDateAndQuestionSeqItem,
+  EvaluationResultListByEvalDateItem,
   EvaluationResultListItem,
   EvaluationUpdateDatas,
 } from '../types/evaluation';
@@ -178,12 +180,12 @@ export const modelApi = {
     const response = await apiClient.get<ListResponse<EvaluationResultListItem>>('/evaluation-result-list', { params });
     return extractList(response?.data);
   },
-  getEvaluationResultsByEvalDate: async (params?: Record<string, unknown>): Promise<EvaluationResultListItem[]> => {
-    const response = await apiClient.get<ListResponse<EvaluationResultListItem>>('/evaluation-result-date-list', { params });
+  getEvaluationResultsByEvalDate: async (params?: Record<string, unknown>): Promise<EvaluationResultListByEvalDateItem[]> => {
+    const response = await apiClient.get<ListResponse<EvaluationResultListByEvalDateItem>>('/evaluation-result-date-list', { params });
     return extractList(response?.data);
   },
-  getEvaluationResultsByEvalDateAndQuestionSeq: async (params?: Record<string, unknown>): Promise<EvaluationResultListItem[]> => {
-    const response = await apiClient.get<ListResponse<EvaluationResultListItem>>('/evaluation-result-date-seq-list', { params });
+  getEvaluationResultsByEvalDateAndQuestionSeq: async (params?: Record<string, unknown>): Promise<EvaluationResultListByEvalDateAndQuestionSeqItem[]> => {
+    const response = await apiClient.get<ListResponse<EvaluationResultListByEvalDateAndQuestionSeqItem>>('/evaluation-result-date-seq-list', { params });
     return extractList(response?.data);
   },
 };

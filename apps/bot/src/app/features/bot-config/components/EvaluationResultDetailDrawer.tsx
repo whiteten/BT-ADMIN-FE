@@ -1,7 +1,11 @@
 import { forwardRef, useImperativeHandle, useState } from 'react';
+import type { ColDef, ColGroupDef, RowClickedEvent } from 'ag-grid-community';
+import { AgGridReact } from 'ag-grid-react';
 import { Button, Divider, Drawer } from 'antd';
-import { useGetEvaluationResultsByEvalDate } from '../hooks/useModelQueries';
+import { useGetEvaluationResultsByEvalDate, useGetEvaluationResultsByEvalDateAndQuestionSeq } from '../hooks/useModelQueries';
+import type { EvaluationResultListByEvalDateAndQuestionSeqItem, EvaluationResultListByEvalDateItem } from '../types/evaluation';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import useAggridOptions from '@/libs/shared-ui/src/hooks/useAggridOptions';
 
 /**
  * EvaluationResultDetailDrawer ref 타입
@@ -29,19 +33,49 @@ interface DrawerState {
  * - ref.close() : 드로어 닫기
  */
 const EvaluationResultDetailDrawer = forwardRef<EvaluationResultDetailDrawerRef>((_, ref) => {
+  const { gridOptions } = useAggridOptions();
   const [drawerState, setDrawerState] = useState<DrawerState>({
     open: false,
     modelId: '',
     evalId: '',
     evalDate: '',
   });
+  const [selectedQuestionSeq, setSelectedQuestionSeq] = useState<number | null>(null);
 
   const { open, modelId, evalId, evalDate } = drawerState;
 
   const { data: resultListByEvalDate, isFetching: isFetchingResultListByEvalDate } = useGetEvaluationResultsByEvalDate({
     params: { modelId, evalId, evalDate },
-    queryOptions: { enabled: !!modelId && !!evalId && !!evalDate },
+    queryOptions: { enabled: open && !!modelId && !!evalId && !!evalDate },
   });
+
+  const { data: resultListByEvalDateAndQuestionSeq, isFetching: isFetchingResultListByEvalDateAndQuestionSeq } = useGetEvaluationResultsByEvalDateAndQuestionSeq({
+    params: { modelId, evalId, evalDate, questionSeq: selectedQuestionSeq },
+    queryOptions: { enabled: open && !!modelId && !!evalId && !!evalDate && selectedQuestionSeq != null },
+  });
+
+  const leftColumnDefs: (ColDef<EvaluationResultListByEvalDateItem> | ColGroupDef<EvaluationResultListByEvalDateItem>)[] = [
+    { headerName: 'EvalId', field: 'evalId', hide: true },
+    { headerName: '평가일', field: 'evalDate', hide: true },
+    { headerName: '문장번호', field: 'questionSeq', hide: true },
+    { headerName: '문장', field: 'question', flex: 2, suppressHeaderMenuButton: true },
+    { headerName: '정답', field: 'answer', suppressHeaderMenuButton: true },
+    {
+      headerName: '결과',
+      children: [
+        { headerName: '의도', field: 'intent', maxWidth: 140, suppressHeaderMenuButton: true },
+        { headerName: '점수', field: 'confidence', maxWidth: 80, suppressHeaderMenuButton: true },
+      ],
+    },
+  ];
+
+  const rightColumnDefs: ColDef<EvaluationResultListByEvalDateAndQuestionSeqItem>[] = [
+    { headerName: 'EvalId', field: 'evalId', hide: true },
+    { headerName: '평가일', field: 'evalDate', hide: true },
+    { headerName: '문장번호', field: 'questionSeq' },
+    { headerName: '의도', field: 'intent', suppressHeaderMenuButton: true },
+    { headerName: '점수', field: 'confidence', maxWidth: 80, suppressHeaderMenuButton: true },
+  ];
 
   useImperativeHandle(ref, () => ({
     open: (params) => {
@@ -54,6 +88,12 @@ const EvaluationResultDetailDrawer = forwardRef<EvaluationResultDetailDrawerRef>
 
   const handleClose = () => {
     setDrawerState((prev) => ({ ...prev, open: false }));
+    setSelectedQuestionSeq(null);
+  };
+
+  const handleLeftGridRowClicked = (event: RowClickedEvent<EvaluationResultListByEvalDateItem>) => {
+    const questionSeq = event.data?.questionSeq ?? null;
+    setSelectedQuestionSeq(questionSeq);
   };
 
   const footer = (
@@ -70,7 +110,7 @@ const EvaluationResultDetailDrawer = forwardRef<EvaluationResultDetailDrawerRef>
       onClose={handleClose}
       title="평가 결과"
       closable={{ placement: 'end' }}
-      size={1000}
+      size={1100}
       footer={footer}
       destroyOnHidden
       classNames={{
@@ -97,19 +137,50 @@ const EvaluationResultDetailDrawer = forwardRef<EvaluationResultDetailDrawerRef>
               {/* 남은 영역 border-b 처리용 */}
               <div className="w-full h-full border-b-1 border-b-[#E9EBEC]"></div>
             </TabsList>
-            <TabsContent value="tab1" className="w-full h-full p-6">
-              <div className="w-full h-full flex items-center justify-center">결과 추이 그래프</div>
+            <TabsContent value="tab1" className="w-full h-full p-4">
+              <div className="w-full h-full"></div>
             </TabsContent>
-            <TabsContent value="tab2" className="w-full h-full p-6">
-              <div className="w-full h-full flex items-center justify-center">인식률 분포도 그래프</div>
+            <TabsContent value="tab2" className="w-full h-full p-4">
+              <div className="w-full h-full"></div>
             </TabsContent>
           </Tabs>
         </div>
         <Divider className="!m-0" />
         <div className="flex h-full flex-1 min-h-0 overflow-y-auto">
-          <div className="w-[64%] h-full flex items-center justify-center">평가셋 실행결과</div>
+          <div className="w-full h-full flex flex-col p-4 gap-2">
+            <span className="text-lg text-[#495057] font-bold">평가셋 실행결과</span>
+            <div className="w-full h-full">
+              <AgGridReact<EvaluationResultListByEvalDateItem>
+                rowData={resultListByEvalDate}
+                columnDefs={leftColumnDefs}
+                gridOptions={{
+                  ...gridOptions,
+                  sideBar: false,
+                  rowNumbers: false,
+                  pagination: false,
+                }}
+                loading={isFetchingResultListByEvalDate}
+                onRowClicked={handleLeftGridRowClicked}
+              />
+            </div>
+          </div>
           <Divider orientation="vertical" className="!m-0 !h-full" />
-          <div className="flex-1 h-full flex items-center justify-center">결과 상세</div>
+          <div className="w-[360px] flex-shrink-0 h-full flex flex-col p-4 gap-2">
+            <span className="text-lg text-[#495057] font-bold">결과 상세</span>
+            <div className="w-full h-full">
+              <AgGridReact<EvaluationResultListByEvalDateAndQuestionSeqItem>
+                rowData={resultListByEvalDateAndQuestionSeq}
+                columnDefs={rightColumnDefs}
+                gridOptions={{
+                  ...gridOptions,
+                  sideBar: false,
+                  rowNumbers: false,
+                  pagination: false,
+                }}
+                loading={isFetchingResultListByEvalDate || isFetchingResultListByEvalDateAndQuestionSeq}
+              />
+            </div>
+          </div>
         </div>
         <Divider className="!m-0" />
       </div>
