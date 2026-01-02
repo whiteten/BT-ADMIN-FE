@@ -94,6 +94,8 @@ const EvaluationResultDetailDrawer = forwardRef<EvaluationResultDetailDrawerRef>
               >
                 인식률 분포도
               </TabsTrigger>
+              {/* 남은 영역 border-b 처리용 */}
+              <div className="w-full h-full border-b-1 border-b-[#E9EBEC]"></div>
             </TabsList>
             <TabsContent value="tab1" className="w-full h-full p-6">
               <div className="w-full h-full flex items-center justify-center">결과 추이 그래프</div>
