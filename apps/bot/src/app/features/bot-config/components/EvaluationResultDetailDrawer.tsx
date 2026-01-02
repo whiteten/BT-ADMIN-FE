@@ -28,6 +28,35 @@ interface DrawerState {
 }
 
 /**
+ * 좌측 그리드 컬럼 정의
+ */
+const leftColumnDefs: (ColDef<EvaluationResultListByEvalDateItem> | ColGroupDef<EvaluationResultListByEvalDateItem>)[] = [
+  { headerName: 'EvalId', field: 'evalId', hide: true },
+  { headerName: '평가일', field: 'evalDate', hide: true },
+  { headerName: '문장번호', field: 'questionSeq', hide: true },
+  { headerName: '문장', field: 'question', flex: 2, suppressHeaderMenuButton: true },
+  { headerName: '정답', field: 'answer', suppressHeaderMenuButton: true },
+  {
+    headerName: '결과',
+    children: [
+      { headerName: '의도', field: 'intent', maxWidth: 140, suppressHeaderMenuButton: true },
+      { headerName: '점수', field: 'confidence', maxWidth: 80, suppressHeaderMenuButton: true },
+    ],
+  },
+];
+
+/**
+ * 우측 그리드 컬럼 정의
+ */
+const rightColumnDefs: ColDef<EvaluationResultListByEvalDateAndQuestionSeqItem>[] = [
+  { headerName: 'EvalId', field: 'evalId', hide: true },
+  { headerName: '평가일', field: 'evalDate', hide: true },
+  { headerName: '문장번호', field: 'questionSeq' },
+  { headerName: '의도', field: 'intent', suppressHeaderMenuButton: true },
+  { headerName: '점수', field: 'confidence', maxWidth: 80, suppressHeaderMenuButton: true },
+];
+
+/**
  * 평가 결과 상세 Drawer
  * - ref.open({ modelId, evalId, evalDate }) : 상세 정보로 열기
  * - ref.close() : 드로어 닫기
@@ -53,29 +82,6 @@ const EvaluationResultDetailDrawer = forwardRef<EvaluationResultDetailDrawerRef>
     params: { modelId, evalId, evalDate, questionSeq: selectedQuestionSeq },
     queryOptions: { enabled: open && !!modelId && !!evalId && !!evalDate && selectedQuestionSeq != null },
   });
-
-  const leftColumnDefs: (ColDef<EvaluationResultListByEvalDateItem> | ColGroupDef<EvaluationResultListByEvalDateItem>)[] = [
-    { headerName: 'EvalId', field: 'evalId', hide: true },
-    { headerName: '평가일', field: 'evalDate', hide: true },
-    { headerName: '문장번호', field: 'questionSeq', hide: true },
-    { headerName: '문장', field: 'question', flex: 2, suppressHeaderMenuButton: true },
-    { headerName: '정답', field: 'answer', suppressHeaderMenuButton: true },
-    {
-      headerName: '결과',
-      children: [
-        { headerName: '의도', field: 'intent', maxWidth: 140, suppressHeaderMenuButton: true },
-        { headerName: '점수', field: 'confidence', maxWidth: 80, suppressHeaderMenuButton: true },
-      ],
-    },
-  ];
-
-  const rightColumnDefs: ColDef<EvaluationResultListByEvalDateAndQuestionSeqItem>[] = [
-    { headerName: 'EvalId', field: 'evalId', hide: true },
-    { headerName: '평가일', field: 'evalDate', hide: true },
-    { headerName: '문장번호', field: 'questionSeq' },
-    { headerName: '의도', field: 'intent', suppressHeaderMenuButton: true },
-    { headerName: '점수', field: 'confidence', maxWidth: 80, suppressHeaderMenuButton: true },
-  ];
 
   useImperativeHandle(ref, () => ({
     open: (params) => {
