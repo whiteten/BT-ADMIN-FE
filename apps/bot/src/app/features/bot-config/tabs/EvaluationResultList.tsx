@@ -4,32 +4,35 @@ import { AgGridReact } from 'ag-grid-react';
 import { Button, Input, Select, Slider } from 'antd';
 import dayjs from 'dayjs';
 import EvaluationResultStatusBadge from '../components/EvaluationResultStatusBadge';
-import type { EvaluationResultItem, EvaluationResultStatus } from '../types/evaluation';
+import type { EvaluationResultListItem, EvaluationResultStatus } from '../types/evaluation';
 import { IconSearch, IconTrash } from '@/components/custom/Icons';
 import useAggridOptions from '@/libs/shared-ui/src/hooks/useAggridOptions';
 import { useModal } from '@/libs/shared-ui/src/hooks/useModal';
 
+// 복합키 생성 함수 (evalId, evalDate, questionSeq, intent)
+const getRowId = (data: EvaluationResultListItem) => `${data.evalId}_${data.evalDate}_${data.questionSeq}_${data.intent}`;
+
 // 더미 데이터
-const DUMMY_DATA: EvaluationResultItem[] = [
-  { id: '1', evaluationDate: '2025-11-21 00:00:00', accuracy: 99, confidence: 99, status: 2 },
-  { id: '2', evaluationDate: '2025-11-21 12:11:54', accuracy: 85, confidence: 95, status: 1 },
-  { id: '3', evaluationDate: '2025-11-21 00:00:00', accuracy: 0, confidence: 0, status: 0 },
-  { id: '4', evaluationDate: '2025-11-21 00:00:00', accuracy: 99, confidence: 99, status: 2 },
-  { id: '5', evaluationDate: '2025-11-21 12:11:54', accuracy: 85, confidence: 95, status: 1 },
-  { id: '6', evaluationDate: '2025-11-21 00:00:00', accuracy: 0, confidence: 0, status: 0 },
-  { id: '7', evaluationDate: '2025-11-21 00:00:00', accuracy: 99, confidence: 99, status: 2 },
-  { id: '8', evaluationDate: '2025-11-21 12:11:54', accuracy: 85, confidence: 95, status: 1 },
-  { id: '9', evaluationDate: '2025-11-21 00:00:00', accuracy: 0, confidence: 0, status: 0 },
-  { id: '10', evaluationDate: '2025-11-21 00:00:00', accuracy: 99, confidence: 99, status: 2 },
-  { id: '11', evaluationDate: '2025-11-21 12:11:54', accuracy: 85, confidence: 95, status: 1 },
-  { id: '12', evaluationDate: '2025-11-21 00:00:00', accuracy: 0, confidence: 0, status: 0 },
+const DUMMY_DATA: EvaluationResultListItem[] = [
+  { evalId: '1', evalDate: '2025-11-21 00:00:00', questionSeq: 1, intent: 'intent1', answer: '답변1', confidence: 99, threshold: 80, resultStatus: '완료' },
+  { evalId: '1', evalDate: '2025-11-21 12:11:54', questionSeq: 2, intent: 'intent2', answer: '답변2', confidence: 95, threshold: 80, resultStatus: '진행중' },
+  { evalId: '1', evalDate: '2025-11-21 00:00:00', questionSeq: 3, intent: 'intent3', answer: '답변3', confidence: 0, threshold: 80, resultStatus: '대기중' },
+  { evalId: '1', evalDate: '2025-11-21 00:00:00', questionSeq: 4, intent: 'intent4', answer: '답변4', confidence: 99, threshold: 80, resultStatus: '완료' },
+  { evalId: '1', evalDate: '2025-11-21 12:11:54', questionSeq: 5, intent: 'intent5', answer: '답변5', confidence: 95, threshold: 80, resultStatus: '진행중' },
+  { evalId: '1', evalDate: '2025-11-21 00:00:00', questionSeq: 6, intent: 'intent6', answer: '답변6', confidence: 0, threshold: 80, resultStatus: '대기중' },
+  { evalId: '1', evalDate: '2025-11-21 00:00:00', questionSeq: 7, intent: 'intent7', answer: '답변7', confidence: 99, threshold: 80, resultStatus: '완료' },
+  { evalId: '1', evalDate: '2025-11-21 12:11:54', questionSeq: 8, intent: 'intent8', answer: '답변8', confidence: 95, threshold: 80, resultStatus: '진행중' },
+  { evalId: '1', evalDate: '2025-11-21 00:00:00', questionSeq: 9, intent: 'intent9', answer: '답변9', confidence: 0, threshold: 80, resultStatus: '대기중' },
+  { evalId: '1', evalDate: '2025-11-21 00:00:00', questionSeq: 10, intent: 'intent10', answer: '답변10', confidence: 99, threshold: 80, resultStatus: '완료' },
+  { evalId: '1', evalDate: '2025-11-21 12:11:54', questionSeq: 11, intent: 'intent11', answer: '답변11', confidence: 95, threshold: 80, resultStatus: '진행중' },
+  { evalId: '1', evalDate: '2025-11-21 00:00:00', questionSeq: 12, intent: 'intent12', answer: '답변12', confidence: 0, threshold: 80, resultStatus: '대기중' },
 ];
 
 export default function EvaluationResultList() {
   const modal = useModal();
   const { gridOptions } = useAggridOptions();
 
-  const [filterColumn, setFilterColumn] = useState('evaluationDate');
+  const [filterColumn, setFilterColumn] = useState('evalDate');
   const [searchValue, setSearchValue] = useState('');
   const [confidenceThreshold, setConfidenceThreshold] = useState(80);
 
@@ -38,16 +41,16 @@ export default function EvaluationResultList() {
     setSearchValue('');
   };
 
-  const handleViewDetail = (data: EvaluationResultItem) => {
+  const handleViewDetail = (data: EvaluationResultListItem) => {
     // TODO: 상세 페이지 이동 또는 모달 표시
-    alert(`상세보기: ${data.id}`);
+    alert(`상세보기: ${getRowId(data)}`);
   };
 
-  const handleDelete = (data: EvaluationResultItem) => {
+  const handleDelete = (data: EvaluationResultListItem) => {
     modal.confirm.delete({
       onOk: () => {
         // TODO: 삭제 API 연동
-        alert(`삭제: ${data.id}`);
+        alert(`삭제: ${getRowId(data)}`);
       },
     });
   };
@@ -64,30 +67,32 @@ export default function EvaluationResultList() {
     });
   };
 
-  const columnDefs: ColDef<EvaluationResultItem>[] = [
-    { headerName: 'ID', field: 'id', hide: true },
+  const columnDefs: ColDef<EvaluationResultListItem>[] = [
+    { headerName: 'EvalId', field: 'evalId', hide: true },
+    { headerName: 'Question Seq', field: 'questionSeq', hide: true },
+    { headerName: 'Intent', field: 'intent', hide: true },
     {
       headerName: '평가일',
-      field: 'evaluationDate',
+      field: 'evalDate',
       flex: 1,
       minWidth: 180,
       valueFormatter: (params: { value: string }) => (params.value ? dayjs(params.value).format('YYYY-MM-DD HH:mm:ss') : '-'),
     },
     {
       headerName: '정확도',
-      field: 'accuracy',
-      maxWidth: 120,
-      valueFormatter: (params: { value: number }) => `${params.value}%`,
-    },
-    {
-      headerName: '신뢰도',
       field: 'confidence',
       maxWidth: 120,
       valueFormatter: (params: { value: number }) => `${params.value}%`,
     },
     {
+      headerName: '신뢰도',
+      field: 'threshold',
+      maxWidth: 120,
+      valueFormatter: (params: { value: number }) => `${params.value}%`,
+    },
+    {
       headerName: '상태',
-      field: 'status',
+      field: 'resultStatus',
       maxWidth: 120,
       cellRenderer: (params: { value: EvaluationResultStatus }) => <EvaluationResultStatusBadge status={params.value} />,
     },
@@ -99,7 +104,7 @@ export default function EvaluationResultList() {
       filter: false,
       suppressHeaderMenuButton: true,
       cellStyle: { display: 'flex', alignItems: 'center', justifyContent: 'center' },
-      cellRenderer: (params: ICellRendererParams<EvaluationResultItem>) => {
+      cellRenderer: (params: ICellRendererParams<EvaluationResultListItem>) => {
         const { data } = params;
         if (!data) return null;
         return (
@@ -123,7 +128,7 @@ export default function EvaluationResultList() {
       filter: false,
       suppressHeaderMenuButton: true,
       cellStyle: { display: 'flex', alignItems: 'center', justifyContent: 'center' },
-      cellRenderer: (params: ICellRendererParams<EvaluationResultItem>) => {
+      cellRenderer: (params: ICellRendererParams<EvaluationResultListItem>) => {
         const { data } = params;
         if (!data) return null;
         return (
@@ -145,7 +150,7 @@ export default function EvaluationResultList() {
   const filteredData = DUMMY_DATA.filter((item) => {
     if (!searchValue.trim()) return true;
     const keyword = searchValue.toLowerCase();
-    const value = item[filterColumn as keyof EvaluationResultItem];
+    const value = item[filterColumn as keyof EvaluationResultListItem];
     return String(value).toLowerCase().includes(keyword);
   });
 
@@ -154,12 +159,12 @@ export default function EvaluationResultList() {
       <header className="flex items-center justify-between w-full gap-2 lg:flex-nowrap flex-wrap">
         <div className="flex items-center w-full gap-3">
           <Select
-            defaultValue="evaluationDate"
+            defaultValue="evalDate"
             value={filterColumn}
             onChange={handleColumnChange}
             options={[
-              { label: '평가일', value: 'evaluationDate' },
-              { label: '상태', value: 'status' },
+              { label: '평가일', value: 'evalDate' },
+              { label: '상태', value: 'resultStatus' },
             ]}
             className="!max-w-[150px] !min-w-[120px]"
             popupMatchSelectWidth={false}
@@ -186,7 +191,7 @@ export default function EvaluationResultList() {
         </div>
       </header>
       <div className="w-full h-full">
-        <AgGridReact<EvaluationResultItem> rowData={filteredData} columnDefs={columnDefs} gridOptions={gridOptions} />
+        <AgGridReact<EvaluationResultListItem> rowData={filteredData} columnDefs={columnDefs} gridOptions={gridOptions} />
       </div>
     </div>
   );

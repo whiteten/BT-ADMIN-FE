@@ -26,13 +26,19 @@ export type EvaluationQuestionCreateDatas = Pick<EvaluationQuestion, 'question' 
 export type EvaluationQuestionCreateBulkDatas = EvaluationQuestionCreateDatas[];
 export type EvaluationQuestionUpdateDatas = Pick<EvaluationQuestion, 'question' | 'answer'>;
 
-// TODO: EvaluationResult 관련 타입은 API 연동 시 실제 응답 타입에 맞게 수정 필요
-export type EvaluationResultStatus = 0 | 1 | 2;
-
-export interface EvaluationResultItem {
-  id: string;
-  evaluationDate: string;
-  accuracy: number;
+export interface EvaluationResult {
+  evalId: string;
+  evalDate: string;
+  evalDateFormatted: string;
+  questionSeq: number;
+  intent: string;
+  question: string;
+  answer: string;
   confidence: number;
-  status: EvaluationResultStatus;
+  threshold: number;
+  resultStatus: EvaluationResultStatus;
 }
+
+export type EvaluationResultStatus = '대기중' | '진행중' | '완료';
+
+export type EvaluationResultListItem = Pick<EvaluationResult, 'evalId' | 'evalDate' | 'questionSeq' | 'intent' | 'answer' | 'confidence' | 'threshold' | 'resultStatus'>;
