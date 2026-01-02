@@ -51,7 +51,7 @@ const leftColumnDefs: (ColDef<EvaluationResultListByEvalDateItem> | ColGroupDef<
 const rightColumnDefs: ColDef<EvaluationResultListByEvalDateAndQuestionSeqItem>[] = [
   { headerName: 'EvalId', field: 'evalId', hide: true },
   { headerName: '평가일', field: 'evalDate', hide: true },
-  { headerName: '문장번호', field: 'questionSeq' },
+  { headerName: '문장번호', field: 'questionSeq', hide: true },
   { headerName: '의도', field: 'intent', suppressHeaderMenuButton: true },
   { headerName: '점수', field: 'confidence', maxWidth: 80, suppressHeaderMenuButton: true },
 ];
