@@ -1,9 +1,10 @@
-import { useMemo, useState } from 'react';
+import { useMemo, useRef, useState } from 'react';
 import { useParams } from 'react-router-dom';
-import type { ColDef, ICellRendererParams } from 'ag-grid-community';
+import type { ColDef, ICellRendererParams, RowDoubleClickedEvent } from 'ag-grid-community';
 import { AgGridReact } from 'ag-grid-react';
 import { Button, Input, Select, Slider } from 'antd';
 import dayjs from 'dayjs';
+import EvaluationResultDetailDrawer, { type EvaluationResultDetailDrawerRef } from '../components/EvaluationResultDetailDrawer';
 import EvaluationResultStatusBadge from '../components/EvaluationResultStatusBadge';
 import { useGetEvaluationResults } from '../hooks/useModelQueries';
 import type { EvaluationResultListItem, EvaluationResultStatus } from '../types/evaluation';
@@ -15,6 +16,7 @@ export default function EvaluationResultList() {
   const { modelId = '', evalId = '' } = useParams();
   const modal = useModal();
   const { gridOptions } = useAggridOptions();
+  const detailDrawerRef = useRef<EvaluationResultDetailDrawerRef>(null);
 
   // API Hooks
   const { data: resultList, isFetching } = useGetEvaluationResults({
@@ -31,9 +33,14 @@ export default function EvaluationResultList() {
     setSearchValue('');
   };
 
+  const handleRowDoubleClick = (event: RowDoubleClickedEvent<EvaluationResultListItem>) => {
+    if (!event.data) return;
+    const { evalId, evalDate } = event.data;
+    detailDrawerRef.current?.open({ modelId, evalId, evalDate });
+  };
+
   const handleViewDetail = (data: EvaluationResultListItem) => {
-    // TODO: 상세 페이지 이동 또는 모달 표시
-    alert(`evalId: ${data.evalId}\nevalDate: ${data.evalDate}`);
+    detailDrawerRef.current?.open({ modelId, evalId: data.evalId, evalDate: data.evalDate });
   };
 
   const handleDelete = (data: EvaluationResultListItem) => {
@@ -181,8 +188,15 @@ export default function EvaluationResultList() {
         </div>
       </header>
       <div className="w-full h-full">
-        <AgGridReact<EvaluationResultListItem> rowData={filteredList} columnDefs={columnDefs} gridOptions={gridOptions} loading={isFetching} />
+        <AgGridReact<EvaluationResultListItem>
+          rowData={filteredList}
+          columnDefs={columnDefs}
+          gridOptions={gridOptions}
+          loading={isFetching}
+          onRowDoubleClicked={handleRowDoubleClick}
+        />
       </div>
+      <EvaluationResultDetailDrawer ref={detailDrawerRef} />
     </div>
   );
 }
