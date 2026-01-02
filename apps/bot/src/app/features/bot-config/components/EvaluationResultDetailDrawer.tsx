@@ -82,6 +82,84 @@ const createResultTrendChartOption = (data: EvaluationResultListByEvalDateItem[]
 };
 
 /**
+ * 결과 분포도 차트 옵션 생성
+ * - x축: confidence를 10단위로 나눈 범위 (0-10, 10-20, ..., 90-100)
+ * - y축: 해당 범위에 속하는 데이터 건수
+ * - 막대 차트 + 누적 라인 차트
+ */
+const createResultDistributionChartOption = (data: EvaluationResultListByEvalDateItem[] | undefined): EChartsOption => {
+  // 10단위 구간 레이블
+  const rangeLabels = ['0~10', '10~20', '20~30', '30~40', '40~50', '50~60', '60~70', '70~80', '80~90', '90~100'];
+
+  // 각 구간별 건수 계산
+  const distributionCounts: number[] = new Array(10).fill(0);
+  if (data) {
+    data.forEach((item) => {
+      const confidence = item.confidence ?? 0;
+      // 구간 인덱스 계산 (0-9: 0, 10-19: 1, ..., 90-100: 9)
+      const index = confidence === 100 ? 9 : Math.floor(confidence / 10);
+      if (index >= 0 && index < 10) {
+        distributionCounts[index]++;
+      }
+    });
+  }
+
+  // 최대값 찾기 (동률 처리를 위해)
+  const maxCount = Math.max(...distributionCounts);
+
+  // 막대 데이터 생성 (최대값인 막대는 붉은색)
+  const barData = distributionCounts.map((count) => ({
+    value: count,
+    itemStyle: {
+      color: count > 0 && count === maxCount ? '#F06548' : '#3B82F6',
+      borderRadius: [4, 4, 0, 0],
+    },
+  }));
+
+  return {
+    grid: { left: 50, right: 50, bottom: 40, top: 30, containLabel: false },
+    xAxis: {
+      type: 'category',
+      data: rangeLabels,
+      axisLine: { lineStyle: { color: '#E9EBEC' } },
+      axisTick: { show: false },
+      axisLabel: { color: '#495057', fontSize: 12 },
+    },
+    yAxis: {
+      type: 'value',
+      axisLabel: { color: '#495057' },
+      axisLine: { show: false },
+      axisTick: { show: false },
+      splitLine: { lineStyle: { type: 'dashed', color: '#E9EBEC' } },
+    },
+    series: [
+      {
+        type: 'bar',
+        data: barData,
+        barWidth: '40%',
+        label: {
+          show: true,
+          position: 'top',
+          color: '#495057',
+          fontSize: 12,
+          fontWeight: 'bold',
+          formatter: (params) => ((params.value as number) > 0 ? `${params.value}건` : ''),
+        },
+      },
+      {
+        type: 'line',
+        data: distributionCounts,
+        smooth: true,
+        symbol: 'circle',
+        symbolSize: 6,
+        itemStyle: { color: '#10B981' },
+        lineStyle: { color: '#10B981', width: 2 },
+      },
+    ],
+  };
+};
+
+/**
  * EvaluationResultDetailDrawer ref 타입
  * @property open - 드로어를 여는 함수
  * @property close - 드로어를 닫는 함수
@@ -223,7 +301,9 @@ const EvaluationResultDetailDrawer = forwardRef<EvaluationResultDetailDrawerRef>
               </div>
             </TabsContent>
             <TabsContent value="tab2" className="w-full h-full p-4">
-              <div className="w-full h-full"></div>
+              <div className="w-full h-full">
+                <ReactECharts key={createUUID()} option={createResultDistributionChartOption(resultListByEvalDate)} style={{ height: '100%', width: '100%' }} />
+              </div>
             </TabsContent>
           </Tabs>
         </div>
