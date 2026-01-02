@@ -2,10 +2,84 @@ import { forwardRef, useImperativeHandle, useState } from 'react';
 import type { ColDef, ColGroupDef, RowClickedEvent } from 'ag-grid-community';
 import { AgGridReact } from 'ag-grid-react';
 import { Button, Divider, Drawer } from 'antd';
+import type { EChartsOption } from 'echarts';
+import ReactECharts from 'echarts-for-react';
+import { createUUID } from '@/shared-util';
 import { useGetEvaluationResultsByEvalDate, useGetEvaluationResultsByEvalDateAndQuestionSeq } from '../hooks/useModelQueries';
 import type { EvaluationResultListByEvalDateAndQuestionSeqItem, EvaluationResultListByEvalDateItem } from '../types/evaluation';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import useAggridOptions from '@/libs/shared-ui/src/hooks/useAggridOptions';
+
+/**
+ * 결과 추이 차트 옵션 생성
+ */
+const createResultTrendChartOption = (data: EvaluationResultListByEvalDateItem[] | undefined): EChartsOption => {
+  const tooltipFormatter = (params: unknown) => {
+    const list = params as { data: EvaluationResultListByEvalDateItem; seriesName: string; marker: string }[];
+    if (!Array.isArray(list) || list.length === 0) return '';
+    const { question, threshold, confidence } = list[0].data;
+    const values: Record<string, number> = { 정확도: threshold, 신뢰도: confidence };
+    const items = list
+      .map((p) => {
+        const value = values[p.seriesName];
+        return `<div style="display:flex;align-items:center;gap:8px;margin-top:4px;">${p.marker}<span style="flex:1;">${p.seriesName}</span><span style="font-weight:bold;">${value}</span></div>`;
+      })
+      .join('');
+    return `<div style="font-size:14px;color:#666;margin-bottom:4px;">${question}</div>${items}`;
+  };
+
+  return {
+    dataset: {
+      dimensions: ['questionSeq', 'threshold', 'confidence'],
+      source: data ?? [],
+    },
+    tooltip: {
+      trigger: 'axis',
+      formatter: tooltipFormatter,
+    },
+    legend: { data: ['정확도', '신뢰도'], right: 10, top: 'middle', orient: 'vertical', icon: 'roundRect' },
+    grid: { left: 80, right: 100, bottom: 20, top: 20, containLabel: false },
+    xAxis: {
+      type: 'category',
+      boundaryGap: true,
+      axisLine: { lineStyle: { color: '#E9EBEC' } },
+      axisTick: { show: false },
+      axisLabel: { show: false },
+    },
+    yAxis: {
+      type: 'value',
+      min: 0,
+      max: 100,
+      interval: 20,
+      axisLabel: { formatter: '{value}%', color: '#495057' },
+      axisLine: { show: false },
+      axisTick: { show: false },
+      splitLine: { lineStyle: { type: 'dashed', color: '#E9EBEC' } },
+    },
+    series: [
+      {
+        name: '정확도',
+        type: 'line',
+        encode: { x: 'questionSeq', y: 'threshold' },
+        symbol: 'roundRect',
+        symbolSize: [28, 20],
+        itemStyle: { color: '#3B82F6', borderRadius: 4 },
+        lineStyle: { color: '#3B82F6', width: 2 },
+        label: { show: true, position: 'inside', color: '#fff', fontSize: 11, fontWeight: 'bold' },
+      },
+      {
+        name: '신뢰도',
+        type: 'line',
+        encode: { x: 'questionSeq', y: 'confidence' },
+        symbol: 'roundRect',
+        symbolSize: [28, 20],
+        itemStyle: { color: '#10B981', borderRadius: 4 },
+        lineStyle: { color: '#10B981', width: 2 },
+        label: { show: true, position: 'inside', color: '#fff', fontSize: 11, fontWeight: 'bold' },
+      },
+    ],
+  };
+};
 
 /**
  * EvaluationResultDetailDrawer ref 타입
@@ -144,7 +218,9 @@ const EvaluationResultDetailDrawer = forwardRef<EvaluationResultDetailDrawerRef>
               <div className="w-full h-full border-b-1 border-b-[#E9EBEC]"></div>
             </TabsList>
             <TabsContent value="tab1" className="w-full h-full p-4">
-              <div className="w-full h-full"></div>
+              <div className="w-full h-full">
+                <ReactECharts key={createUUID()} option={createResultTrendChartOption(resultListByEvalDate)} style={{ height: '100%', width: '100%' }} />
+              </div>
             </TabsContent>
             <TabsContent value="tab2" className="w-full h-full p-4">
               <div className="w-full h-full"></div>
