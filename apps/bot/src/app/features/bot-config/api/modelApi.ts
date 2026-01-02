@@ -17,6 +17,7 @@ import type {
   EvaluationQuestionCreateDatas,
   EvaluationQuestionListItem,
   EvaluationQuestionUpdateDatas,
+  EvaluationResultListItem,
   EvaluationUpdateDatas,
 } from '../types/evaluation';
 import type {
@@ -172,5 +173,17 @@ export const modelApi = {
   deleteEvaluationQuestion: async (params: Record<string, unknown>) => {
     const response = await apiClient.delete('/evaluation-question-delete', { params });
     return response?.data;
+  },
+  getEvaluationResults: async (params?: Record<string, unknown>): Promise<EvaluationResultListItem[]> => {
+    const response = await apiClient.get<ListResponse<EvaluationResultListItem>>('/evaluation-result-list', { params });
+    return extractList(response?.data);
+  },
+  getEvaluationResultsByEvalDate: async (params?: Record<string, unknown>): Promise<EvaluationResultListItem[]> => {
+    const response = await apiClient.get<ListResponse<EvaluationResultListItem>>('/evaluation-result-date-list', { params });
+    return extractList(response?.data);
+  },
+  getEvaluationResultsByEvalDateAndQuestionSeq: async (params?: Record<string, unknown>): Promise<EvaluationResultListItem[]> => {
+    const response = await apiClient.get<ListResponse<EvaluationResultListItem>>('/evaluation-result-date-seq-list', { params });
+    return extractList(response?.data);
   },
 };

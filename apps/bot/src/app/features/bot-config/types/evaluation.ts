@@ -41,4 +41,4 @@ export interface EvaluationResult {
 
 export type EvaluationResultStatus = '대기중' | '진행중' | '완료';
 
-export type EvaluationResultListItem = Pick<EvaluationResult, 'evalId' | 'evalDate' | 'questionSeq' | 'intent' | 'answer' | 'confidence' | 'threshold' | 'resultStatus'>;
+export type EvaluationResultListItem = Pick<EvaluationResult, 'evalId' | 'evalDate' | 'confidence' | 'threshold' | 'resultStatus'>;

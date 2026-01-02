@@ -4,7 +4,7 @@ import type { MutationHookOptions, QueryHookWithParamsOptions } from '@/shared-u
 import { modelApi } from '../api/modelApi';
 import type { AoeListItem } from '../types/aoe';
 import type { EntityItem, EntityListItem, EntityValueListItem } from '../types/entity';
-import type { EvaluationItem, EvaluationListItem, EvaluationQuestionListItem } from '../types/evaluation';
+import type { EvaluationItem, EvaluationListItem, EvaluationQuestionListItem, EvaluationResultListItem } from '../types/evaluation';
 import type { IntentItem, IntentListItem, IntentSentenceListItem } from '../types/intent';
 import type { ModelItem, ModelListItem } from '../types/model';
 
@@ -21,6 +21,9 @@ export const modelQueryKeys = createQueryKeys('models', {
   getEvaluations: (params?: Record<string, unknown>) => [params],
   getEvaluation: (params?: Record<string, unknown>) => [params],
   getEvaluationQuestions: (params?: Record<string, unknown>) => [params],
+  getEvaluationResults: (params?: Record<string, unknown>) => [params],
+  getEvaluationResultsByEvalDate: (params?: Record<string, unknown>) => [params],
+  getEvaluationResultsByEvalDateAndQuestionSeq: (params?: Record<string, unknown>) => [params],
 });
 
 export const useGetModels = ({ params, queryOptions }: QueryHookWithParamsOptions<ModelListItem[]> = {}) => {
@@ -277,5 +280,29 @@ export const useDeleteEvaluationQuestion = ({ mutationOptions }: MutationHookOpt
   return useMutation({
     mutationFn: modelApi.deleteEvaluationQuestion,
     ...mutationOptions,
+  });
+};
+
+export const useGetEvaluationResults = ({ params, queryOptions }: QueryHookWithParamsOptions<EvaluationResultListItem[]> = {}) => {
+  return useQuery({
+    queryKey: modelQueryKeys.getEvaluationResults(params).queryKey,
+    queryFn: () => modelApi.getEvaluationResults(params),
+    ...queryOptions,
+  });
+};
+
+export const useGetEvaluationResultsByEvalDate = ({ params, queryOptions }: QueryHookWithParamsOptions<EvaluationResultListItem[]> = {}) => {
+  return useQuery({
+    queryKey: modelQueryKeys.getEvaluationResultsByEvalDate(params).queryKey,
+    queryFn: () => modelApi.getEvaluationResultsByEvalDate(params),
+    ...queryOptions,
+  });
+};
+
+export const useGetEvaluationResultsByEvalDateAndQuestionSeq = ({ params, queryOptions }: QueryHookWithParamsOptions<EvaluationResultListItem[]> = {}) => {
+  return useQuery({
+    queryKey: modelQueryKeys.getEvaluationResultsByEvalDateAndQuestionSeq(params).queryKey,
+    queryFn: () => modelApi.getEvaluationResultsByEvalDateAndQuestionSeq(params),
+    ...queryOptions,
   });
 };
