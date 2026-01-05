@@ -1,6 +1,8 @@
 import { useEffect } from 'react';
 import { Outlet } from 'react-router-dom';
 import { App, ConfigProvider } from 'antd';
+import koKR from 'antd/locale/ko_KR';
+import 'dayjs/locale/ko';
 // import InsetFooter from './InsetFooter';
 import InsetHeader from './InsetHeader';
 import LNBBody from './LNBBody';
@@ -16,7 +18,7 @@ export function Layout() {
     load();
   }, [load]);
   return (
-    <ConfigProvider theme={antdTheme}>
+    <ConfigProvider theme={antdTheme} locale={koKR}>
       <SidebarProvider
         style={
           {

@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useParams } from 'react-router-dom';
 import { useQueryClient } from '@tanstack/react-query';
 import type {
@@ -13,13 +13,15 @@ import type {
   RowEditingStoppedEvent,
 } from 'ag-grid-community';
 import { AgGridReact } from 'ag-grid-react';
-import { Input, type InputRef, Select, Tag } from 'antd';
-import dayjs from 'dayjs';
-import { Check, X } from 'lucide-react';
+import { DatePicker, Input, type InputRef, Select, Slider, Tag, Tooltip } from 'antd';
+import dayjs, { type Dayjs } from 'dayjs';
+import { debounce } from 'lodash';
+import { Check, ClipboardCheck, X } from 'lucide-react';
 import { toast } from '@/shared-util';
+import { ReactComponent as IconLinkIfe } from '../../../../assets/images/icon/icon-link-ife.svg';
 import { modelQueryKeys, useGetIntents, useGetRetrains, useUpdateRetrain } from '../hooks/useModelQueries';
 import type { RetrainListItem } from '../types/retrain';
-import { IconTag } from '@/components/custom/Icons';
+import { IconSearch, IconTag } from '@/components/custom/Icons';
 import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
 import useAggridOptions from '@/libs/shared-ui/src/hooks/useAggridOptions';
@@ -100,40 +102,77 @@ const ActionCellRenderer = (params: ActionCellRendererParams) => {
 
   if (editingRowId === rowId) {
     return (
-      <div className="flex items-center gap-2">
-        <button
-          type="button"
-          onClick={(e) => {
-            e.stopPropagation();
-            onSave(data);
-          }}
-        >
-          <Check className="size-5 text-green-500 hover:text-green-600 hover:cursor-pointer" />
-        </button>
-        <button
-          type="button"
-          onClick={(e) => {
-            e.stopPropagation();
-            onCancel();
-          }}
-        >
-          <X className="size-5 text-gray-500 hover:text-gray-600 hover:cursor-pointer" />
-        </button>
+      <div className="flex items-center gap-3">
+        <Tooltip title="저장">
+          <button
+            type="button"
+            onClick={(e) => {
+              e.stopPropagation();
+              onSave(data);
+            }}
+          >
+            <Check className="size-5 text-green-500 hover:text-green-600 hover:cursor-pointer" />
+          </button>
+        </Tooltip>
+        <Tooltip title="취소">
+          <button
+            type="button"
+            onClick={(e) => {
+              e.stopPropagation();
+              onCancel();
+            }}
+          >
+            <X className="size-5 text-gray-500 hover:text-gray-600 hover:cursor-pointer" />
+          </button>
+        </Tooltip>
       </div>
     );
   }
 
-  return null;
+  return (
+    <div className="flex items-center gap-3">
+      <Tooltip title="상세보기">
+        <button
+          type="button"
+          onClick={(e) => {
+            e.stopPropagation();
+          }}
+        >
+          <IconSearch className="size-5 text-[#888B9A] hover:cursor-pointer" />
+        </button>
+      </Tooltip>
+      <Tooltip title="편집기 실행">
+        <button
+          type="button"
+          onClick={(e) => {
+            e.stopPropagation();
+          }}
+        >
+          <IconLinkIfe className="hover:cursor-pointer" />
+        </button>
+      </Tooltip>
+      <Tooltip title="반영">
+        <button
+          type="button"
+          onClick={(e) => {
+            e.stopPropagation();
+          }}
+        >
+          <ClipboardCheck className="size-5 text-[#0AB39C] hover:cursor-pointer" />
+        </button>
+      </Tooltip>
+    </div>
+  );
 };
 
 export default function ModelRetrainList() {
   const { modelId = '' } = useParams();
   const queryClient = useQueryClient();
   const { gridOptions } = useAggridOptions();
-
+  const { RangePicker } = DatePicker;
   // State
-  const [filterColumn, setFilterColumn] = useState('question');
-  const [searchValue, setSearchValue] = useState('');
+  const [dateRange, setDateRange] = useState<[Dayjs, Dayjs]>([dayjs().subtract(7, 'day'), dayjs()]);
+  const [confidenceRange, setConfidenceRange] = useState<[number, number]>([0, 100]);
   const [editingRowId, setEditingRowId] = useState<string | null>(null);
 
   // Refs
@@ -172,27 +211,33 @@ export default function ModelRetrainList() {
     return `${questionSeq}_${scnId}_${ucidGkey}`;
   };
 
-  // 검색어가 있으면 외부 필터 활성화
-  const isExternalFilterPresent = () => {
-    return searchValue.trim().length > 0;
-  };
+  // Debounce된 신뢰구간 상태 변경 함수
+  const debouncedSetConfidenceRange = useMemo(() => debounce(setConfidenceRange, 300), []);
+
+  // 외부 필터 활성화
+  const isExternalFilterPresent = () => true;
 
   // 각 row가 검색 조건을 만족하는지 확인
   const doesExternalFilterPass = (node: IRowNode<RetrainListItem>) => {
     if (!node.data) return true;
-    const keyword = searchValue.toLowerCase();
-    const value = node.data[filterColumn as keyof RetrainListItem];
-    return String(value).toLowerCase().includes(keyword);
+
+    // 날짜 필터
+    const itemDate = dayjs(node.data.dbInsertTime);
+    const [startDate, endDate] = dateRange;
+    const isInDateRange = itemDate.isAfter(startDate.startOf('day').subtract(1, 'ms')) && itemDate.isBefore(endDate.endOf('day').add(1, 'ms'));
+
+    // 신뢰구간 필터
+    const confidence = node.data.confidence;
+    const [minConf, maxConf] = confidenceRange;
+    const isInConfRange = confidence >= minConf && confidence <= maxConf;
+
+    return isInDateRange && isInConfRange;
   };
 
+  // 필터 조건 변경 시 필터 적용
   useEffect(() => {
     gridApiRef.current?.onFilterChanged();
-  }, [searchValue, filterColumn]);
-
-  const handleColumnChange = (value: string) => {
-    setFilterColumn(value);
-    setSearchValue('');
-  };
+  }, [dateRange, confidenceRange]);
 
   const handleGridReady = (event: GridReadyEvent<RetrainListItem>) => {
     gridApiRef.current = event.api;
@@ -331,7 +376,7 @@ export default function ModelRetrainList() {
     {
       headerName: '',
       colId: 'actions',
-      maxWidth: 80,
+      maxWidth: 120,
       sortable: false,
       filter: false,
       editable: false,
@@ -350,19 +395,19 @@ export default function ModelRetrainList() {
     <div className="flex flex-col gap-5 w-full h-full">
       <header className="flex items-center justify-between w-full gap-2 lg:flex-nowrap flex-wrap">
         <div className="flex items-center w-full gap-3">
-          <Select
-            defaultValue="question"
-            value={filterColumn}
-            onChange={handleColumnChange}
-            options={[
-              { label: '사용자발화', value: 'question' },
-              { label: '인식의도', value: 'intent' },
-              { label: '정답의도', value: 'answer' },
-            ]}
-            className="!max-w-[150px] !min-w-[120px]"
-            popupMatchSelectWidth={false}
+          <span className="text-base font-medium text-[#495057] shrink-0">검색일자</span>
+          <RangePicker value={dateRange} onChange={(dates) => dates && setDateRange(dates as [Dayjs, Dayjs])} />
+          <span className="text-base font-medium text-[#495057] shrink-0">신뢰구간</span>
+          <Slider
+            range
+            min={0}
+            max={100}
+            step={1}
+            defaultValue={[0, 100]}
+            onChange={(value) => debouncedSetConfidenceRange(value as [number, number])}
+            tooltip={{ formatter: (value) => `${value}%` }}
+            className="!w-[200px]"
           />
-          <Input value={searchValue} onChange={(e) => setSearchValue(e.target.value)} className="w-full lg:max-w-[400px]" placeholder="검색어를 입력하세요." />
         </div>
       </header>
       <div className="w-full h-full">
