@@ -48,7 +48,8 @@ module.exports = [
     languageOptions: {
       parser: tseslint.parser,
       parserOptions: {
-        project: './tsconfig.base.json',
+        // project: './tsconfig.base.json',
+        project: ['./apps/*/tsconfig.app.json', './apps/*/tsconfig.spec.json', './libs/*/tsconfig.lib.json', './libs/*/tsconfig.spec.json'],
         tsconfigRootDir: __dirname,
         ecmaVersion: 'latest',
         sourceType: 'module',
