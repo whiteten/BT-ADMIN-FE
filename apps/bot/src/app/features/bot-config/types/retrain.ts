@@ -9,9 +9,14 @@ export interface Retrain {
   isSuccess: number;
   answer: string;
   dbInsertTime: string;
-  status: number;
+  status: RetrainStatus;
   tags: string[];
 }
+
+/**
+ * 0: 미반영, 1: 반영
+ */
+export type RetrainStatus = 0 | 1;
 
 export type RetrainListItem = Retrain;
 export type RetrainUpdateDatas = Pick<Retrain, 'question' | 'answer'>;
