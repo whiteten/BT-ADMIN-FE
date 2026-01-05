@@ -313,3 +313,10 @@ export const useGetEvaluationResultsByEvalDateAndQuestionSeq = ({ params, queryO
     ...queryOptions,
   });
 };
+
+export const useDeleteEvaluationResult = ({ mutationOptions }: MutationHookOptions = {}) => {
+  return useMutation({
+    mutationFn: modelApi.deleteEvaluationResult,
+    ...mutationOptions,
+  });
+};

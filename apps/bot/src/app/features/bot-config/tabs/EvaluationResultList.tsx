@@ -1,12 +1,14 @@
 import { useMemo, useRef, useState } from 'react';
 import { useParams } from 'react-router-dom';
+import { useQueryClient } from '@tanstack/react-query';
 import type { ColDef, ICellRendererParams, RowDoubleClickedEvent } from 'ag-grid-community';
 import { AgGridReact } from 'ag-grid-react';
 import { Button, Input, Select, Slider } from 'antd';
 import dayjs from 'dayjs';
+import { toast } from '@/shared-util';
 import EvaluationResultDetailDrawer, { type EvaluationResultDetailDrawerRef } from '../components/EvaluationResultDetailDrawer';
 import EvaluationResultStatusBadge from '../components/EvaluationResultStatusBadge';
-import { useGetEvaluationResults } from '../hooks/useModelQueries';
+import { modelQueryKeys, useDeleteEvaluationResult, useGetEvaluationResults } from '../hooks/useModelQueries';
 import type { EvaluationResultListItem, EvaluationResultStatus } from '../types/evaluation';
 import { IconSearch, IconTrash } from '@/components/custom/Icons';
 import useAggridOptions from '@/libs/shared-ui/src/hooks/useAggridOptions';
@@ -16,12 +18,22 @@ export default function EvaluationResultList() {
   const { modelId = '', evalId = '' } = useParams();
   const modal = useModal();
   const { gridOptions } = useAggridOptions();
+  const queryClient = useQueryClient();
   const detailDrawerRef = useRef<EvaluationResultDetailDrawerRef>(null);
 
   // API Hooks
   const { data: resultList, isFetching } = useGetEvaluationResults({
     params: { modelId, evalId },
     queryOptions: { enabled: !!modelId && !!evalId },
+  });
+
+  const { mutate: deleteEvaluationResult } = useDeleteEvaluationResult({
+    mutationOptions: {
+      onSuccess: () => {
+        toast.success('평가 결과가 삭제되었습니다.');
+        queryClient.invalidateQueries({ queryKey: modelQueryKeys.getEvaluationResults({ modelId, evalId }).queryKey });
+      },
+    },
   });
 
   const [filterColumn, setFilterColumn] = useState('evalDate');
@@ -46,8 +58,7 @@ export default function EvaluationResultList() {
   const handleDelete = (data: EvaluationResultListItem) => {
     modal.confirm.delete({
       onOk: () => {
-        // TODO: 삭제 API 연동
-        alert(`evalId: ${data.evalId}\nevalDate: ${data.evalDate}`);
+        deleteEvaluationResult({ modelId, evalId, evalDate: data.evalDate });
       },
     });
   };

@@ -188,4 +188,8 @@ export const modelApi = {
     const response = await apiClient.get<ListResponse<EvaluationResultListByEvalDateAndQuestionSeqItem>>('/evaluation-result-date-seq-list', { params });
     return extractList(response?.data);
   },
+  deleteEvaluationResult: async (params: Record<string, unknown>) => {
+    const response = await apiClient.delete('/evaluation-result-delete', { params });
+    return response?.data;
+  },
 };
