@@ -134,26 +134,26 @@ const createResultDistributionChartOption = (data: EvaluationResultListByEvalDat
     },
     series: [
       {
+        type: 'line',
+        data: distributionCounts,
+        symbol: 'none',
+        itemStyle: { color: '#3577f14b' },
+        lineStyle: { color: '#3577f14b', width: 2 },
+        z: 1,
+      },
+      {
         type: 'bar',
         data: barData,
         barWidth: '40%',
         label: {
           show: true,
-          position: 'top',
-          color: '#495057',
+          position: 'insideTop',
+          color: '#fff',
           fontSize: 12,
           fontWeight: 'bold',
-          formatter: (params) => ((params.value as number) > 0 ? `${params.value}건` : ''),
+          formatter: (params) => ((params.value as number) > 0 ? `${params.value}` : ''),
         },
-      },
-      {
-        type: 'line',
-        data: distributionCounts,
-        smooth: true,
-        symbol: 'circle',
-        symbolSize: 6,
-        itemStyle: { color: '#10B981' },
-        lineStyle: { color: '#10B981', width: 2 },
+        z: 2,
       },
     ],
   };
