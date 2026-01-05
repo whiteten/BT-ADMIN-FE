@@ -1,4 +1,5 @@
 import ApiClient, { type DetailResponse, type ListResponse, type ListWithItemsResponse, extractDetail, extractList, extractListItems } from '@/shared-util';
+import type { RetrainListItem, RetrainUpdateDatas } from '../types';
 import type { AoeListItem, GenerateSentenceDatas, GenerateSentenceResponse } from '../types/aoe';
 import type {
   EntityBasicInfoUpdateDatas,
@@ -190,6 +191,14 @@ export const modelApi = {
   },
   deleteEvaluationResult: async (params: Record<string, unknown>) => {
     const response = await apiClient.delete('/evaluation-result-delete', { params });
+    return response?.data;
+  },
+  getRetrains: async (params?: Record<string, unknown>): Promise<RetrainListItem[]> => {
+    const response = await apiClient.get<ListResponse<RetrainListItem>>('/intent-retrain-list', { params });
+    return extractList(response?.data);
+  },
+  updateRetrain: async ({ params, data }: { params: Record<string, unknown>; data: RetrainUpdateDatas }) => {
+    const response = await apiClient.put('/intent-retrain-update', data, { params });
     return response?.data;
   },
 };
