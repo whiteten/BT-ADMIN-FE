@@ -194,8 +194,8 @@ export const modelApi = {
     return response?.data;
   },
   getRetrains: async (params?: Record<string, unknown>): Promise<RetrainListItem[]> => {
-    const response = await apiClient.get<ListResponse<RetrainListItem>>('/intent-retrain-list', { params });
-    return extractList(response?.data);
+    const response = await apiClient.get<ListWithItemsResponse<RetrainListItem>>('/intent-retrain-list', { params });
+    return extractListItems(response?.data);
   },
   updateRetrain: async ({ params, data }: { params: Record<string, unknown>; data: RetrainUpdateDatas }) => {
     const response = await apiClient.put('/intent-retrain-update', data, { params });
