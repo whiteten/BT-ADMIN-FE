@@ -14,7 +14,18 @@ export default function useAggridOptions() {
     spacing: 6,
   });
   const defaultColDef = useMemo(
-    () => ({ flex: 1, resizable: true, minWidth: 100, enableValue: true, enableRowGroup: false, enablePivot: false, sortable: true, filter: false, editable: false }),
+    () => ({
+      flex: 1,
+      resizable: true,
+      minWidth: 100,
+      enableValue: true,
+      enableRowGroup: false,
+      enablePivot: false,
+      sortable: true,
+      filter: false,
+      editable: false,
+      suppressHeaderMenuButton: true,
+    }),
     [],
   );
   const sideBar = useMemo<SideBarDef | string | string[] | boolean | null>(() => {

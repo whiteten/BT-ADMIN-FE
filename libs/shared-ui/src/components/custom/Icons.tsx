@@ -27,3 +27,4 @@ export { ReactComponent as IconPlayCircle } from '../../assets/images/icon/icon-
 export { ReactComponent as IconSynonyms } from '../../assets/images/icon/icon-synonyms.svg';
 export { ReactComponent as IconBubble } from '../../assets/images/icon/icon-bubble.svg';
 export { ReactComponent as IconSearch } from '../../assets/images/icon/icon-search.svg';
+export { ReactComponent as IconBookmark } from '../../assets/images/icon/icon-bookmark.svg';

@@ -14,9 +14,9 @@ export interface Retrain {
 }
 
 /**
- * 0: 미반영, 1: 반영
+ * 1: 미반영, 2: 반영
  */
-export type RetrainStatus = 0 | 1;
+export type RetrainStatus = 1 | 2;
 
 export type RetrainListItem = Retrain;
 export type RetrainUpdateDatas = Pick<Retrain, 'question' | 'answer'>;

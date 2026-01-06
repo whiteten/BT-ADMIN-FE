@@ -13,15 +13,15 @@ import type {
   RowEditingStoppedEvent,
 } from 'ag-grid-community';
 import { AgGridReact } from 'ag-grid-react';
-import { DatePicker, Input, type InputRef, Select, Slider, Tag, Tooltip } from 'antd';
+import { DatePicker, Divider, Input, type InputRef, Select, Slider, Tag, Tooltip } from 'antd';
 import dayjs, { type Dayjs } from 'dayjs';
 import { debounce } from 'lodash';
-import { Check, ClipboardCheck, X } from 'lucide-react';
+import { Check, X } from 'lucide-react';
 import { toast } from '@/shared-util';
 import { ReactComponent as IconLinkIfe } from '../../../../assets/images/icon/icon-link-ife.svg';
 import { modelQueryKeys, useGetIntents, useGetRetrains, useUpdateRetrain } from '../hooks/useModelQueries';
 import type { RetrainListItem } from '../types/retrain';
-import { IconSearch, IconTag } from '@/components/custom/Icons';
+import { IconBookmark, IconSearch, IconTag } from '@/components/custom/Icons';
 import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
 import useAggridOptions from '@/libs/shared-ui/src/hooks/useAggridOptions';
@@ -130,7 +130,7 @@ const ActionCellRenderer = (params: ActionCellRendererParams) => {
   }
 
   return (
-    <div className="flex items-center gap-3">
+    <div className="flex items-center">
       <Tooltip title="상세보기">
         <button
           type="button"
@@ -141,6 +141,7 @@ const ActionCellRenderer = (params: ActionCellRendererParams) => {
           <IconSearch className="size-5 text-[#888B9A] hover:cursor-pointer" />
         </button>
       </Tooltip>
+      <Divider orientation="vertical" />
       <Tooltip title="편집기 실행">
         <button
           type="button"
@@ -151,16 +152,21 @@ const ActionCellRenderer = (params: ActionCellRendererParams) => {
           <IconLinkIfe className="hover:cursor-pointer" />
         </button>
       </Tooltip>
-      <Tooltip title="반영">
-        <button
-          type="button"
-          onClick={(e) => {
-            e.stopPropagation();
-          }}
-        >
-          <ClipboardCheck className="size-5 text-[#0AB39C] hover:cursor-pointer" />
-        </button>
-      </Tooltip>
+      {data.status !== 2 && (
+        <>
+          <Divider orientation="vertical" />
+          <Tooltip title="반영">
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation();
+              }}
+            >
+              <IconBookmark className="size-5 hover:cursor-pointer" fill="var(--color-bt-primary)" color="var(--color-bt-primary)" />
+            </button>
+          </Tooltip>
+        </>
+      )}
     </div>
   );
 };
@@ -372,6 +378,17 @@ export default function ModelRetrainList() {
       sortable: false,
       cellStyle: { display: 'flex', alignItems: 'center' },
       cellRenderer: TagsCellRenderer,
+    },
+    {
+      headerName: '반영여부',
+      field: 'status',
+      maxWidth: 80,
+      cellStyle: { display: 'flex', alignItems: 'center', justifyContent: 'center' },
+      cellRenderer: (params: ICellRendererParams<RetrainListItem>) => {
+        if (!params.data) return null;
+        const status = params.data.status;
+        return <IconBookmark className="size-5" fill={status === 2 ? 'var(--color-bt-primary)' : 'none'} color={status === 2 ? 'var(--color-bt-primary)' : '#495057'} />;
+      },
     },
     {
       headerName: '',
