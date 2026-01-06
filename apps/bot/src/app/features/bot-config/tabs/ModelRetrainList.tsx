@@ -238,6 +238,10 @@ export default function ModelRetrainList() {
   });
 
   const handleApplyClick = (data: RetrainListItem) => {
+    if (!data.answer?.trim() || !data.answer?.trim()) {
+      toast.warning('사용자발화와 정답의도를 설정 후, 저장하고 다시 시도해주세요.');
+      return;
+    }
     modal.confirm.execute({
       onOk: () => {
         applyRetrain({ params: { modelId, ucidGkey: data.ucidGkey, questionSeq: data.questionSeq, hop: data.hop }, data: {} });
