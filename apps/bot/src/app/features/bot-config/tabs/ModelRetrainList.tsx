@@ -20,12 +20,13 @@ import { Check, X } from 'lucide-react';
 import { toast } from '@/shared-util';
 import { ReactComponent as IconLinkIfe } from '../../../../assets/images/icon/icon-link-ife.svg';
 import RetrainDetailDrawer, { type RetrainDetailDrawerRef } from '../components/RetrainDetailDrawer';
-import { modelQueryKeys, useGetIntents, useGetRetrains, useUpdateRetrain } from '../hooks/useModelQueries';
+import { modelQueryKeys, useApplyRetrain, useGetIntents, useGetRetrains, useUpdateRetrain } from '../hooks/useModelQueries';
 import type { RetrainListItem } from '../types/retrain';
 import { IconBookmark, IconSearch, IconTag } from '@/components/custom/Icons';
 import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
 import useAggridOptions from '@/libs/shared-ui/src/hooks/useAggridOptions';
+import { useModal } from '@/libs/shared-ui/src/hooks/useModal';
 
 // Row ID 생성 헬퍼 함수
 const createRowId = (data: RetrainListItem) => `${data.ucidGkey}_${data.hop}_${data.questionSeq}`;
@@ -97,10 +98,11 @@ interface ActionCellRendererParams extends ICellRendererParams<RetrainListItem> 
   onSave: (data: RetrainListItem) => void;
   onCancel: () => void;
   onDetailClick: (data: RetrainListItem) => void;
+  onApplyClick: (data: RetrainListItem) => void;
 }
 
 const ActionCellRenderer = (params: ActionCellRendererParams) => {
-  const { data, editingRowId, onSave, onCancel, onDetailClick } = params;
+  const { data, editingRowId, onSave, onCancel, onDetailClick, onApplyClick } = params;
   if (!data) return null;
 
   const rowId = createRowId(data);
@@ -166,6 +168,7 @@ const ActionCellRenderer = (params: ActionCellRendererParams) => {
               type="button"
               onClick={(e) => {
                 e.stopPropagation();
+                onApplyClick(data);
               }}
             >
               <IconBookmark className="size-5 hover:cursor-pointer" fill="var(--color-bt-primary)" color="var(--color-bt-primary)" />
@@ -181,12 +184,13 @@ export default function ModelRetrainList() {
   const { modelId = '' } = useParams();
   const queryClient = useQueryClient();
   const { gridOptions } = useAggridOptions();
+  const modal = useModal();
   const { RangePicker } = DatePicker;
   // State
   const [dateRange, setDateRange] = useState<[Dayjs, Dayjs]>([dayjs().subtract(7, 'day'), dayjs()]);
   const [confidenceRange, setConfidenceRange] = useState<[number, number]>([0, 100]);
-  const [successFilter, setSuccessFilter] = useState<number | null>(null);
-  const [statusFilter, setStatusFilter] = useState<number | null>(null);
+  const [successFilter, setSuccessFilter] = useState<number>(-1);
+  const [statusFilter, setStatusFilter] = useState<number>(-1);
   const [editingRowId, setEditingRowId] = useState<string | null>(null);
 
   // Refs
@@ -224,6 +228,23 @@ export default function ModelRetrainList() {
     },
   });
 
+  const { mutate: applyRetrain } = useApplyRetrain({
+    mutationOptions: {
+      onSuccess: () => {
+        toast.success('반영이 완료되었습니다.');
+        queryClient.invalidateQueries({ queryKey: modelQueryKeys.getRetrains({ modelId }).queryKey });
+      },
+    },
+  });
+
+  const handleApplyClick = (data: RetrainListItem) => {
+    modal.confirm.execute({
+      onOk: () => {
+        applyRetrain({ params: { modelId, ucidGkey: data.ucidGkey, questionSeq: data.questionSeq, hop: data.hop }, data: {} });
+      },
+    });
+  };
+
   // Row ID 생성 (복합키)
   const getRowId = (params: GetRowIdParams<RetrainListItem>) => createRowId(params.data);
 
@@ -249,10 +270,10 @@ export default function ModelRetrainList() {
     const isInConfRange = confidence >= minConf && confidence <= maxConf;
 
     // 인식결과 필터
-    const isSuccessMatch = successFilter === null || node.data.isSuccess === successFilter;
+    const isSuccessMatch = successFilter === -1 || node.data.isSuccess === successFilter;
 
     // 반영여부 필터
-    const isStatusMatch = statusFilter === null || node.data.status === statusFilter;
+    const isStatusMatch = statusFilter === -1 || node.data.status === statusFilter;
 
     return isInConfRange && isSuccessMatch && isStatusMatch;
   };
@@ -425,6 +446,7 @@ export default function ModelRetrainList() {
         onSave: handleSave,
         onCancel: cancelEditing,
         onDetailClick: (data: RetrainListItem) => drawerRef.current?.open({ modelId, data }),
+        onApplyClick: handleApplyClick,
       },
       cellRenderer: ActionCellRenderer,
     },
@@ -459,7 +481,7 @@ export default function ModelRetrainList() {
               value={successFilter}
               onChange={(e) => setSuccessFilter(e.target.value)}
               options={[
-                { label: '전체', value: null },
+                { label: '전체', value: -1 },
                 { label: '성공', value: 1 },
                 { label: '실패', value: 0 },
               ]}
@@ -472,7 +494,7 @@ export default function ModelRetrainList() {
               value={statusFilter}
               onChange={(e) => setStatusFilter(e.target.value)}
               options={[
-                { label: '전체', value: null },
+                { label: '전체', value: -1 },
                 { label: '반영', value: 2 },
                 { label: '미반영', value: 1 },
               ]}

@@ -205,4 +205,8 @@ export const modelApi = {
     const response = await apiClient.put('/intent-retrain-update', data, { params });
     return response?.data;
   },
+  applyRetrain: async ({ params, data }: { params: Record<string, unknown>; data: Record<string, unknown> }) => {
+    const response = await apiClient.post('/intent-retrain-apply', data, { params });
+    return response?.data;
+  },
 };

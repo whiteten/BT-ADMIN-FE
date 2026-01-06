@@ -346,3 +346,10 @@ export const useUpdateRetrain = ({ mutationOptions }: MutationHookOptions = {}) 
     ...mutationOptions,
   });
 };
+
+export const useApplyRetrain = ({ mutationOptions }: MutationHookOptions = {}) => {
+  return useMutation({
+    mutationFn: modelApi.applyRetrain,
+    ...mutationOptions,
+  });
+};
