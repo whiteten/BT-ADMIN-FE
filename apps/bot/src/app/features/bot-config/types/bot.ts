@@ -67,3 +67,12 @@ export interface BotDeployConfig {
 
 export type BotDeployConfigItem = BotDeployConfig;
 export type BotDeployConfigCreateDatas = { systemIds: number[] };
+
+export interface BotAoeDetail {
+  useAoe: number;
+  agentId: string | null;
+  agentName: string | null;
+}
+
+export type BotAoeDetailItem = BotAoeDetail;
+export type BotAoeUpdateDatas = Omit<BotAoeDetail, 'agentName'>;

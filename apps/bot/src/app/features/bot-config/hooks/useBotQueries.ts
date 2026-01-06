@@ -2,7 +2,7 @@ import { useMutation, useQuery } from '@tanstack/react-query';
 import { createQueryKeys } from '@lukemorales/query-key-factory';
 import type { MutationHookOptions, QueryHookWithParamsOptions } from '@/shared-util';
 import { botApi } from '../api/botApi';
-import type { BotDeployConfigItem, BotItem, BotListItem, BotVersionItem, BotVersionListItem, SttListItem, TtsListItem, WorkTimeListItem } from '../types';
+import type { BotAoeDetailItem, BotDeployConfigItem, BotItem, BotListItem, BotVersionItem, BotVersionListItem, SttListItem, TtsListItem, WorkTimeListItem } from '../types';
 
 export const botQueryKeys = createQueryKeys('bots', {
   getBots: (params?: Record<string, unknown>) => [params],
@@ -13,6 +13,7 @@ export const botQueryKeys = createQueryKeys('bots', {
   getTtsList: (params?: Record<string, unknown>) => [params],
   getWorkTimeList: (params?: Record<string, unknown>) => [params],
   getBotDeployConfig: (params?: Record<string, unknown>) => [params],
+  getBotAoeDetail: (params?: Record<string, unknown>) => [params],
 });
 
 export const useGetBots = ({ params, queryOptions }: QueryHookWithParamsOptions<BotListItem[]> = {}) => {
@@ -138,6 +139,21 @@ export const useGetBotDeployConfig = ({ params, queryOptions }: QueryHookWithPar
 export const useSaveBotDeployConfig = ({ mutationOptions }: MutationHookOptions = {}) => {
   return useMutation({
     mutationFn: botApi.saveBotDeployConfig,
+    ...mutationOptions,
+  });
+};
+
+export const useGetBotAoeDetail = ({ params, queryOptions }: QueryHookWithParamsOptions<BotAoeDetailItem> = {}) => {
+  return useQuery({
+    queryKey: botQueryKeys.getBotAoeDetail(params).queryKey,
+    queryFn: () => botApi.getBotAoeDetail(params),
+    ...queryOptions,
+  });
+};
+
+export const useUpdateBotAoe = ({ mutationOptions }: MutationHookOptions = {}) => {
+  return useMutation({
+    mutationFn: botApi.updateBotAoe,
     ...mutationOptions,
   });
 };

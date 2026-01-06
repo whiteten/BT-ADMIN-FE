@@ -1,5 +1,7 @@
 import ApiClient, { type DetailResponse, type ListResponse, type ListWithItemsResponse, extractDetail, extractList, extractListItems } from '@/shared-util';
 import type {
+  BotAoeDetailItem,
+  BotAoeUpdateDatas,
   BotBasicInfoUpdateDatas,
   BotCreateDatas,
   BotDeployConfigCreateDatas,
@@ -87,6 +89,14 @@ export const botApi = {
   // delete -> insert
   saveBotDeployConfig: async ({ params, data }: { params: Record<string, unknown>; data: BotDeployConfigCreateDatas }) => {
     const response = await apiClient.post('/bot-deploy-config-save', data, { params });
+    return response?.data;
+  },
+  getBotAoeDetail: async (params?: Record<string, unknown>): Promise<BotAoeDetailItem> => {
+    const response = await apiClient.get<DetailResponse<BotAoeDetailItem>>('/bot-aoe-detail', { params });
+    return extractDetail(response?.data);
+  },
+  updateBotAoe: async ({ params, data }: { params: Record<string, unknown>; data: BotAoeUpdateDatas }) => {
+    const response = await apiClient.put('/bot-aoe-update', data, { params });
     return response?.data;
   },
 };

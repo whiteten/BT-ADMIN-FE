@@ -1,7 +1,7 @@
 import React from 'react';
 import { useParams } from 'react-router-dom';
 import type { BreadcrumbProps } from 'antd';
-import { IconCalendar, IconDocument, IconLayer, IconSlidersHorizontal, IconTalk } from '@/components/custom/Icons';
+import { IconAoe, IconCalendar, IconDocument, IconLayer, IconSlidersHorizontal, IconTalk } from '@/components/custom/Icons';
 import PageHeader from '@/components/custom/PageHeader';
 import PageTabs, { type PageTab } from '@/components/custom/PageTabs';
 
@@ -10,6 +10,7 @@ const BotVersionList = React.lazy(() => import('../../features/bot-config/tabs/B
 const BotSchedule = React.lazy(() => import('../../features/bot-config/tabs/BotSchedule'));
 const BotVoice = React.lazy(() => import('../../features/bot-config/tabs/BotVoice'));
 const BotEnv = React.lazy(() => import('../../features/bot-config/tabs/BotEnv'));
+const BotAoe = React.lazy(() => import('../../features/bot-config/tabs/BotAoe'));
 
 const tabs: PageTab[] = [
   { id: 'tab1', label: '기본정보', icon: IconDocument, component: BotBasicInfo },
@@ -17,6 +18,7 @@ const tabs: PageTab[] = [
   { id: 'tab3', label: '스케쥴', icon: IconCalendar, component: BotSchedule },
   { id: 'tab4', label: 'STT&TTS', icon: IconTalk, component: BotVoice },
   { id: 'tab5', label: '환경변수', icon: IconSlidersHorizontal, component: BotEnv },
+  { id: 'tab6', label: 'AOE', icon: IconAoe, component: BotAoe },
 ];
 
 export default function BotDetail() {

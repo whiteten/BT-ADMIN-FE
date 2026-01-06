@@ -28,3 +28,4 @@ export { ReactComponent as IconSynonyms } from '../../assets/images/icon/icon-sy
 export { ReactComponent as IconBubble } from '../../assets/images/icon/icon-bubble.svg';
 export { ReactComponent as IconSearch } from '../../assets/images/icon/icon-search.svg';
 export { ReactComponent as IconBookmark } from '../../assets/images/icon/icon-bookmark.svg';
+export { ReactComponent as IconAoe } from '../../assets/images/icon/icon-aoe.svg';
