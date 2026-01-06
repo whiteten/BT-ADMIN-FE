@@ -2,7 +2,7 @@ import { useMutation, useQuery } from '@tanstack/react-query';
 import { createQueryKeys } from '@lukemorales/query-key-factory';
 import type { MutationHookOptions, QueryHookWithParamsOptions } from '@/shared-util';
 import { modelApi } from '../api/modelApi';
-import type { RetrainListItem } from '../types';
+import type { RetrainDetail, RetrainListItem } from '../types';
 import type { AoeListItem } from '../types/aoe';
 import type { EntityItem, EntityListItem, EntityValueListItem } from '../types/entity';
 import type {
@@ -33,6 +33,7 @@ export const modelQueryKeys = createQueryKeys('models', {
   getEvaluationResultsByEvalDate: (params?: Record<string, unknown>) => [params],
   getEvaluationResultsByEvalDateAndQuestionSeq: (params?: Record<string, unknown>) => [params],
   getRetrains: (params?: Record<string, unknown>) => [params],
+  getRetrainDetail: (params?: Record<string, unknown>) => [params],
 });
 
 export const useGetModels = ({ params, queryOptions }: QueryHookWithParamsOptions<ModelListItem[]> = {}) => {
@@ -327,6 +328,14 @@ export const useGetRetrains = ({ params, queryOptions }: QueryHookWithParamsOpti
   return useQuery({
     queryKey: modelQueryKeys.getRetrains(params).queryKey,
     queryFn: () => modelApi.getRetrains(params),
+    ...queryOptions,
+  });
+};
+
+export const useGetRetrainDetail = ({ params, queryOptions }: QueryHookWithParamsOptions<RetrainDetail> = {}) => {
+  return useQuery({
+    queryKey: modelQueryKeys.getRetrainDetail(params).queryKey,
+    queryFn: () => modelApi.getRetrainDetail(params),
     ...queryOptions,
   });
 };

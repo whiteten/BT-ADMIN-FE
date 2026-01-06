@@ -18,5 +18,19 @@ export interface Retrain {
  */
 export type RetrainStatus = 1 | 2;
 
+export type RetrainEntity = {
+  entityTag: string;
+  entityValue: string;
+};
+
+export type RetrainKeyword = {
+  entityTag: string;
+  keyword: string;
+};
+
 export type RetrainListItem = Retrain;
 export type RetrainUpdateDatas = Pick<Retrain, 'question' | 'answer'>;
+export type RetrainDetail = Retrain & {
+  entityList: RetrainEntity[];
+  keywordList: RetrainKeyword[];
+};

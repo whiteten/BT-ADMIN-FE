@@ -19,6 +19,7 @@ import { debounce } from 'lodash';
 import { Check, X } from 'lucide-react';
 import { toast } from '@/shared-util';
 import { ReactComponent as IconLinkIfe } from '../../../../assets/images/icon/icon-link-ife.svg';
+import RetrainDetailDrawer, { type RetrainDetailDrawerRef } from '../components/RetrainDetailDrawer';
 import { modelQueryKeys, useGetIntents, useGetRetrains, useUpdateRetrain } from '../hooks/useModelQueries';
 import type { RetrainListItem } from '../types/retrain';
 import { IconBookmark, IconSearch, IconTag } from '@/components/custom/Icons';
@@ -95,10 +96,11 @@ interface ActionCellRendererParams extends ICellRendererParams<RetrainListItem> 
   editingRowId: string | null;
   onSave: (data: RetrainListItem) => void;
   onCancel: () => void;
+  onDetailClick: (data: RetrainListItem) => void;
 }
 
 const ActionCellRenderer = (params: ActionCellRendererParams) => {
-  const { data, editingRowId, onSave, onCancel } = params;
+  const { data, editingRowId, onSave, onCancel, onDetailClick } = params;
   if (!data) return null;
 
   const rowId = createRowId(data);
@@ -139,6 +141,7 @@ const ActionCellRenderer = (params: ActionCellRendererParams) => {
           type="button"
           onClick={(e) => {
             e.stopPropagation();
+            onDetailClick(data);
           }}
         >
           <IconSearch className="size-5 text-[#888B9A] hover:cursor-pointer" />
@@ -188,6 +191,7 @@ export default function ModelRetrainList() {
 
   // Refs
   const gridApiRef = useRef<GridApi<RetrainListItem> | null>(null);
+  const drawerRef = useRef<RetrainDetailDrawerRef>(null);
 
   // API Hooks
   const { data: retrainList, isFetching } = useGetRetrains({
@@ -420,6 +424,7 @@ export default function ModelRetrainList() {
         editingRowId,
         onSave: handleSave,
         onCancel: cancelEditing,
+        onDetailClick: (data: RetrainListItem) => drawerRef.current?.open({ modelId, data }),
       },
       cellRenderer: ActionCellRenderer,
     },
@@ -498,6 +503,7 @@ export default function ModelRetrainList() {
           onRowEditingStopped={handleRowEditingStopped}
         />
       </div>
+      <RetrainDetailDrawer ref={drawerRef} />
     </div>
   );
 }

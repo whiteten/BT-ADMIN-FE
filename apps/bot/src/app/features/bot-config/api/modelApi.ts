@@ -1,5 +1,5 @@
 import ApiClient, { type DetailResponse, type ListResponse, type ListWithItemsResponse, extractDetail, extractList, extractListItems } from '@/shared-util';
-import type { RetrainListItem, RetrainUpdateDatas } from '../types';
+import type { RetrainDetail, RetrainListItem, RetrainUpdateDatas } from '../types';
 import type { AoeListItem, GenerateSentenceDatas, GenerateSentenceResponse } from '../types/aoe';
 import type {
   EntityBasicInfoUpdateDatas,
@@ -196,6 +196,10 @@ export const modelApi = {
   getRetrains: async (params?: Record<string, unknown>): Promise<RetrainListItem[]> => {
     const response = await apiClient.get<ListWithItemsResponse<RetrainListItem>>('/intent-retrain-list', { params });
     return extractListItems(response?.data);
+  },
+  getRetrainDetail: async (params?: Record<string, unknown>): Promise<RetrainDetail> => {
+    const response = await apiClient.get<DetailResponse<RetrainDetail>>('/intent-retrain-detail', { params });
+    return extractDetail(response?.data);
   },
   updateRetrain: async ({ params, data }: { params: Record<string, unknown>; data: RetrainUpdateDatas }) => {
     const response = await apiClient.put('/intent-retrain-update', data, { params });
