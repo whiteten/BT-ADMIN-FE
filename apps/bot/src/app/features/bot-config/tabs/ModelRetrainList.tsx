@@ -13,7 +13,7 @@ import type {
   RowEditingStoppedEvent,
 } from 'ag-grid-community';
 import { AgGridReact } from 'ag-grid-react';
-import { DatePicker, Divider, Input, type InputRef, Select, Slider, Tag, Tooltip } from 'antd';
+import { DatePicker, Divider, Input, type InputRef, Radio, Select, Slider, Tag, Tooltip } from 'antd';
 import dayjs, { type Dayjs } from 'dayjs';
 import { debounce } from 'lodash';
 import { Check, X } from 'lucide-react';
@@ -25,6 +25,9 @@ import { IconBookmark, IconSearch, IconTag } from '@/components/custom/Icons';
 import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
 import useAggridOptions from '@/libs/shared-ui/src/hooks/useAggridOptions';
+
+// Row ID 생성 헬퍼 함수
+const createRowId = (data: RetrainListItem) => `${data.ucidGkey}_${data.hop}_${data.questionSeq}`;
 
 interface InputTextCellEditorProps {
   value: string;
@@ -98,7 +101,7 @@ const ActionCellRenderer = (params: ActionCellRendererParams) => {
   const { data, editingRowId, onSave, onCancel } = params;
   if (!data) return null;
 
-  const rowId = `${data.questionSeq}_${data.scnId}_${data.ucidGkey}`;
+  const rowId = createRowId(data);
 
   if (editingRowId === rowId) {
     return (
@@ -155,7 +158,7 @@ const ActionCellRenderer = (params: ActionCellRendererParams) => {
       {data.status !== 2 && (
         <>
           <Divider orientation="vertical" />
-          <Tooltip title="반영">
+          <Tooltip title="반영하기">
             <button
               type="button"
               onClick={(e) => {
@@ -179,6 +182,8 @@ export default function ModelRetrainList() {
   // State
   const [dateRange, setDateRange] = useState<[Dayjs, Dayjs]>([dayjs().subtract(7, 'day'), dayjs()]);
   const [confidenceRange, setConfidenceRange] = useState<[number, number]>([0, 100]);
+  const [successFilter, setSuccessFilter] = useState<number | null>(null);
+  const [statusFilter, setStatusFilter] = useState<number | null>(null);
   const [editingRowId, setEditingRowId] = useState<string | null>(null);
 
   // Refs
@@ -186,7 +191,11 @@ export default function ModelRetrainList() {
 
   // API Hooks
   const { data: retrainList, isFetching } = useGetRetrains({
-    params: { modelId },
+    params: {
+      modelId,
+      startDate: dateRange[0].format('YYYYMMDD'),
+      endDate: dateRange[1].format('YYYYMMDD'),
+    },
     queryOptions: { enabled: !!modelId },
   });
 
@@ -212,9 +221,12 @@ export default function ModelRetrainList() {
   });
 
   // Row ID 생성 (복합키)
-  const getRowId = (params: GetRowIdParams<RetrainListItem>) => {
-    const { questionSeq, scnId, ucidGkey } = params.data;
-    return `${questionSeq}_${scnId}_${ucidGkey}`;
+  const getRowId = (params: GetRowIdParams<RetrainListItem>) => createRowId(params.data);
+
+  const handleDateRangeChange = (dates: [Dayjs | null, Dayjs | null] | null) => {
+    if (dates?.[0] && dates?.[1]) {
+      setDateRange([dates[0], dates[1]]);
+    }
   };
 
   // Debounce된 신뢰구간 상태 변경 함수
@@ -227,23 +239,24 @@ export default function ModelRetrainList() {
   const doesExternalFilterPass = (node: IRowNode<RetrainListItem>) => {
     if (!node.data) return true;
 
-    // 날짜 필터
-    const itemDate = dayjs(node.data.dbInsertTime);
-    const [startDate, endDate] = dateRange;
-    const isInDateRange = itemDate.isAfter(startDate.startOf('day').subtract(1, 'ms')) && itemDate.isBefore(endDate.endOf('day').add(1, 'ms'));
-
     // 신뢰구간 필터
     const confidence = node.data.confidence;
     const [minConf, maxConf] = confidenceRange;
     const isInConfRange = confidence >= minConf && confidence <= maxConf;
 
-    return isInDateRange && isInConfRange;
+    // 인식결과 필터
+    const isSuccessMatch = successFilter === null || node.data.isSuccess === successFilter;
+
+    // 반영여부 필터
+    const isStatusMatch = statusFilter === null || node.data.status === statusFilter;
+
+    return isInConfRange && isSuccessMatch && isStatusMatch;
   };
 
   // 필터 조건 변경 시 필터 적용
   useEffect(() => {
     gridApiRef.current?.onFilterChanged();
-  }, [dateRange, confidenceRange]);
+  }, [confidenceRange, successFilter, statusFilter]);
 
   const handleGridReady = (event: GridReadyEvent<RetrainListItem>) => {
     gridApiRef.current = event.api;
@@ -251,7 +264,7 @@ export default function ModelRetrainList() {
 
   const handleCellDoubleClick = (event: CellDoubleClickedEvent<RetrainListItem>) => {
     if (!event.data) return;
-    const rowId = `${event.data.questionSeq}_${event.data.scnId}_${event.data.ucidGkey}`;
+    const rowId = createRowId(event.data);
     if (editingRowId === rowId) return;
     if (editingRowId) {
       toast.warning('현재 편집 중인 항목을 먼저 저장하거나 취소하세요.');
@@ -270,8 +283,7 @@ export default function ModelRetrainList() {
 
   const handleRowEditingStarted = (event: RowEditingStartedEvent<RetrainListItem>) => {
     if (!event.data) return;
-    const rowId = `${event.data.questionSeq}_${event.data.scnId}_${event.data.ucidGkey}`;
-    setEditingRowId(rowId);
+    setEditingRowId(createRowId(event.data));
   };
 
   const handleRowEditingStopped = (event: RowEditingStoppedEvent<RetrainListItem>) => {
@@ -306,7 +318,7 @@ export default function ModelRetrainList() {
     }
 
     updateRetrain({
-      params: { modelId, questionSeq: originData.questionSeq, scnId: originData.scnId, ucidGkey: originData.ucidGkey },
+      params: { modelId, questionSeq: originData.questionSeq, ucidGkey: originData.ucidGkey, hop: originData.hop },
       data: requestData,
     });
   };
@@ -316,10 +328,14 @@ export default function ModelRetrainList() {
   };
 
   const columnDefs: ColDef<RetrainListItem>[] = [
+    { field: 'questionSeq', hide: true },
+    { field: 'scnId', hide: true },
+    { field: 'ucidGkey', hide: true },
+    { field: 'hop', hide: true },
     {
       headerName: '사용자발화',
       field: 'question',
-      editable: true,
+      editable: (params) => params.data?.status !== 2,
       flex: 2,
       cellStyle: { display: 'flex', alignItems: 'center' },
       cellEditor: InputTextCellEditor,
@@ -355,7 +371,7 @@ export default function ModelRetrainList() {
     {
       headerName: '정답의도',
       field: 'answer',
-      editable: true,
+      editable: (params) => params.data?.status !== 2,
       flex: 1,
       cellStyle: { display: 'flex', alignItems: 'center' },
       cellEditor: SelectCellEditor,
@@ -377,6 +393,7 @@ export default function ModelRetrainList() {
       flex: 1,
       sortable: false,
       cellStyle: { display: 'flex', alignItems: 'center' },
+      valueFormatter: (params) => params.value?.join(', ') ?? '',
       cellRenderer: TagsCellRenderer,
     },
     {
@@ -411,20 +428,51 @@ export default function ModelRetrainList() {
   return (
     <div className="flex flex-col gap-5 w-full h-full">
       <header className="flex items-center justify-between w-full gap-2 lg:flex-nowrap flex-wrap">
-        <div className="flex items-center w-full gap-3">
-          <span className="text-base font-medium text-[#495057] shrink-0">검색일자</span>
-          <RangePicker value={dateRange} onChange={(dates) => dates && setDateRange(dates as [Dayjs, Dayjs])} />
-          <span className="text-base font-medium text-[#495057] shrink-0">신뢰구간</span>
-          <Slider
-            range
-            min={0}
-            max={100}
-            step={1}
-            defaultValue={[0, 100]}
-            onChange={(value) => debouncedSetConfidenceRange(value as [number, number])}
-            tooltip={{ formatter: (value) => `${value}%` }}
-            className="!w-[200px]"
-          />
+        <div className="flex items-center w-full gap-3 flex-wrap">
+          <div className="flex items-center gap-3">
+            <span className="text-base font-medium text-[#495057] shrink-0">검색일자</span>
+            <RangePicker value={dateRange} onChange={handleDateRangeChange} disabledDate={(current) => current > dayjs().endOf('day')} inputReadOnly allowClear={false} />
+            <Divider orientation="vertical" className="!h-5 !m-0" />
+          </div>
+          <div className="flex items-center gap-3">
+            <span className="text-base font-medium text-[#495057] shrink-0">신뢰구간</span>
+            <Slider
+              range
+              min={0}
+              max={100}
+              step={1}
+              defaultValue={[0, 100]}
+              onChange={(value) => debouncedSetConfidenceRange(value as [number, number])}
+              tooltip={{ formatter: (value) => `${value}%` }}
+              className="!w-[200px]"
+            />
+            <Divider orientation="vertical" className="!h-5 !m-0" />
+          </div>
+          <div className="flex items-center gap-3">
+            <span className="text-base font-medium text-[#495057] shrink-0">인식결과</span>
+            <Radio.Group
+              value={successFilter}
+              onChange={(e) => setSuccessFilter(e.target.value)}
+              options={[
+                { label: '전체', value: null },
+                { label: '성공', value: 1 },
+                { label: '실패', value: 0 },
+              ]}
+            />
+            <Divider orientation="vertical" className="!h-5 !m-0" />
+          </div>
+          <div className="flex items-center gap-3">
+            <span className="text-base font-medium text-[#495057] shrink-0">반영여부</span>
+            <Radio.Group
+              value={statusFilter}
+              onChange={(e) => setStatusFilter(e.target.value)}
+              options={[
+                { label: '전체', value: null },
+                { label: '반영', value: 2 },
+                { label: '미반영', value: 1 },
+              ]}
+            />
+          </div>
         </div>
       </header>
       <div className="w-full h-full">
