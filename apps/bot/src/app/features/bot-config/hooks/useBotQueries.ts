@@ -111,6 +111,13 @@ export const usePublishBotVersion = ({ mutationOptions }: MutationHookOptions = 
   });
 };
 
+export const useGetIfeInfo = ({ mutationOptions }: MutationHookOptions = {}) => {
+  return useMutation({
+    mutationFn: botApi.getIfeInfo,
+    ...mutationOptions,
+  });
+};
+
 export const useGetSttList = ({ params, queryOptions }: QueryHookWithParamsOptions<SttListItem[]> = {}) => {
   return useQuery({
     queryKey: botQueryKeys.getSttList(params).queryKey,

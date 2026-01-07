@@ -14,6 +14,7 @@ import type {
   BotVersionListItem,
   BotVersionUpdateDatas,
   BotVoiceUpdateDatas,
+  IfeInfo,
   SttListItem,
   TtsListItem,
   WorkTimeListItem,
@@ -73,6 +74,10 @@ export const botApi = {
   publishBotVersion: async ({ params, data }: { params: Record<string, unknown>; data: Record<string, unknown> }) => {
     const response = await apiClient.post('/bot-version-publish', data, { params });
     return response?.data;
+  },
+  getIfeInfo: async ({ params, data }: { params: Record<string, unknown>; data: Record<string, unknown> }): Promise<IfeInfo> => {
+    const response = await apiClient.post<DetailResponse<IfeInfo>>('/bot-version-webfloweditor', data, { params });
+    return extractDetail(response?.data);
   },
   getSttList: async (params?: Record<string, unknown>): Promise<SttListItem[]> => {
     const response = await apiClient.get<ListWithItemsResponse<SttListItem>>('/stt-list', { params });

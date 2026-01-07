@@ -9,8 +9,8 @@ import { toast } from '@/shared-util';
 import AggridDeployServerInfoSidebar from '../components/AggridDeployServerInfoSidebar';
 import BotDeployConfigDrawer, { type BotDeployConfigDrawerRef } from '../components/BotDeployConfigDrawer';
 import BotVersionDrawer, { type BotVersionDrawerRef } from '../components/BotVersionDrawer';
-import { botQueryKeys, useDeleteBotVersion, useGetBotVersions, usePublishBotVersion } from '../hooks/useBotQueries';
-import type { BotVersionListItem } from '../types';
+import { botQueryKeys, useDeleteBotVersion, useGetBotVersions, useGetIfeInfo, usePublishBotVersion } from '../hooks/useBotQueries';
+import type { BotVersionListItem, IfeInfo } from '../types';
 import { IconTrash } from '@/components/custom/Icons';
 import useAggridOptions from '@/libs/shared-ui/src/hooks/useAggridOptions';
 import { useModal } from '@/libs/shared-ui/src/hooks/useModal';
@@ -34,6 +34,19 @@ export default function BotVersionList() {
     mutationOptions: {
       onSuccess: () => {
         toast.success('버전이 배포되었습니다.');
+      },
+    },
+  });
+
+  const { mutate: getIfeInfo, isPending: isEditing } = useGetIfeInfo({
+    mutationOptions: {
+      onSuccess: (data) => {
+        const ifeInfo = data as IfeInfo;
+        if (!ifeInfo.redirectUrl) {
+          toast.warning('편집기 접속 정보가 없습니다.');
+          return;
+        }
+        window.open(ifeInfo.redirectUrl, '_blank');
       },
     },
   });
@@ -133,6 +146,21 @@ export default function BotVersionList() {
     });
   };
 
+  const handleClickEditVersion = () => {
+    const selectedRows = gridRef.current?.api?.getSelectedRows();
+    const serviceVer = selectedRows?.[0]?.serviceVer;
+    if (!serviceVer) {
+      toast.warning('버전을 선택해주세요.');
+      return;
+    }
+    modal.confirm.execute({
+      options: {
+        title: '대화편집 확인',
+        content: `선택한 버전(${serviceVer})을 편집하시겠습니까?`,
+      },
+      onOk: () => getIfeInfo({ params: { serviceId, serviceVer }, data: {} }),
+    });
+  };
   return (
     <div className="flex flex-col gap-5 w-full h-full">
       <header className="flex items-center justify-between w-full gap-2 lg:flex-nowrap flex-wrap">
@@ -155,7 +183,9 @@ export default function BotVersionList() {
           <Button variant="solid" onClick={handleClickAddVersion}>
             버전추가
           </Button>
-          <Button variant="solid">대화편집</Button>
+          <Button variant="solid" onClick={handleClickEditVersion} loading={isEditing}>
+            대화편집
+          </Button>
           <Button variant="solid" color="primary" onClick={handleClickPublishVersion} loading={isPublishing}>
             배포
           </Button>
