@@ -70,6 +70,10 @@ export const botApi = {
     const response = await apiClient.delete('/bot-version-delete', { params });
     return response?.data;
   },
+  publishBotVersion: async ({ params, data }: { params: Record<string, unknown>; data: Record<string, unknown> }) => {
+    const response = await apiClient.post('/bot-version-publish', data, { params });
+    return response?.data;
+  },
   getSttList: async (params?: Record<string, unknown>): Promise<SttListItem[]> => {
     const response = await apiClient.get<ListWithItemsResponse<SttListItem>>('/stt-list', { params });
     return extractListItems(response?.data);

@@ -13,11 +13,11 @@ function AggridRowDataSidebar<TData = Record<string, unknown>>(props: CustomTool
       const selectedRows = api.getSelectedRows();
       const isRowSelected = selectedRows && selectedRows.length > 0;
       setSelectedRowData(isRowSelected ? selectedRows[0] : null);
-      if (isRowSelected) {
-        api.openToolPanel('rowData');
-      } else {
-        api.closeToolPanel();
-      }
+      // if (isRowSelected) {
+      //   api.openToolPanel('rowData');
+      // } else {
+      //   api.closeToolPanel();
+      // }
     };
     const handlePaginationChanged = () => {
       api.deselectAll();

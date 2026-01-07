@@ -104,6 +104,13 @@ export const useDeleteBotVersion = ({ mutationOptions }: MutationHookOptions = {
   });
 };
 
+export const usePublishBotVersion = ({ mutationOptions }: MutationHookOptions = {}) => {
+  return useMutation({
+    mutationFn: botApi.publishBotVersion,
+    ...mutationOptions,
+  });
+};
+
 export const useGetSttList = ({ params, queryOptions }: QueryHookWithParamsOptions<SttListItem[]> = {}) => {
   return useQuery({
     queryKey: botQueryKeys.getSttList(params).queryKey,

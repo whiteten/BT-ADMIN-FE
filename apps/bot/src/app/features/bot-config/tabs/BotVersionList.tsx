@@ -1,14 +1,15 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useParams } from 'react-router-dom';
 import { useQueryClient } from '@tanstack/react-query';
-import type { ColDef, ICellRendererParams, RowDoubleClickedEvent } from 'ag-grid-community';
+import type { ColDef, ICellRendererParams, RowDoubleClickedEvent, SideBarDef } from 'ag-grid-community';
 import { AgGridReact } from 'ag-grid-react';
 import { Button, Input, Select } from 'antd';
 import { Log } from '@/log';
 import { toast } from '@/shared-util';
+import AggridDeployServerInfoSidebar from '../components/AggridDeployServerInfoSidebar';
 import BotDeployConfigDrawer, { type BotDeployConfigDrawerRef } from '../components/BotDeployConfigDrawer';
 import BotVersionDrawer, { type BotVersionDrawerRef } from '../components/BotVersionDrawer';
-import { botQueryKeys, useDeleteBotVersion, useGetBotVersions } from '../hooks/useBotQueries';
+import { botQueryKeys, useDeleteBotVersion, useGetBotVersions, usePublishBotVersion } from '../hooks/useBotQueries';
 import type { BotVersionListItem } from '../types';
 import { IconTrash } from '@/components/custom/Icons';
 import useAggridOptions from '@/libs/shared-ui/src/hooks/useAggridOptions';
@@ -18,7 +19,7 @@ export default function BotVersionList() {
   const { serviceId = '' } = useParams();
   const queryClient = useQueryClient();
   const modal = useModal();
-  const { gridOptions } = useAggridOptions();
+  const { gridOptions, sideBar } = useAggridOptions();
   const [rowData, setRowData] = useState<BotVersionListItem[]>([]);
   const [filterColumn, setFilterColumn] = useState('version');
   const [searchValue, setSearchValue] = useState('');
@@ -28,6 +29,14 @@ export default function BotVersionList() {
   const deployConfigDrawerRef = useRef<BotDeployConfigDrawerRef>(null);
 
   const { data: versionList, isFetching: isFetchingVersionList } = useGetBotVersions({ params: { serviceId } });
+
+  const { mutate: publishBotVersion, isPending: isPublishing } = usePublishBotVersion({
+    mutationOptions: {
+      onSuccess: () => {
+        toast.success('버전이 배포되었습니다.');
+      },
+    },
+  });
 
   const { mutate: deleteBotVersion } = useDeleteBotVersion({
     mutationOptions: {
@@ -107,6 +116,23 @@ export default function BotVersionList() {
   const handleClickDeployConfig = () => {
     deployConfigDrawerRef.current?.open({ serviceId });
   };
+
+  const handleClickPublishVersion = () => {
+    const selectedRows = gridRef.current?.api?.getSelectedRows();
+    const serviceVer = selectedRows?.[0]?.serviceVer;
+    if (!serviceVer) {
+      toast.warning('버전을 선택해주세요.');
+      return;
+    }
+    modal.confirm.execute({
+      options: {
+        title: '배포 확인',
+        content: `선택한 버전(${serviceVer})을 배포하시겠습니까?`,
+      },
+      onOk: () => publishBotVersion({ params: { serviceId, serviceVer }, data: {} }),
+    });
+  };
+
   return (
     <div className="flex flex-col gap-5 w-full h-full">
       <header className="flex items-center justify-between w-full gap-2 lg:flex-nowrap flex-wrap">
@@ -130,7 +156,7 @@ export default function BotVersionList() {
             버전추가
           </Button>
           <Button variant="solid">대화편집</Button>
-          <Button variant="solid" color="primary">
+          <Button variant="solid" color="primary" onClick={handleClickPublishVersion} loading={isPublishing}>
             배포
           </Button>
           <Button variant="solid" color="cyan" onClick={handleClickDeployConfig}>
@@ -139,7 +165,29 @@ export default function BotVersionList() {
         </div>
       </header>
       <div className="w-full h-full">
-        <AgGridReact<BotVersionListItem> ref={gridRef} {...{ rowData, columnDefs, gridOptions }} loading={isFetchingVersionList} onRowDoubleClicked={handleRowDoubleClicked} />
+        <AgGridReact<BotVersionListItem>
+          ref={gridRef}
+          {...{ rowData, columnDefs }}
+          gridOptions={{
+            ...gridOptions,
+            sideBar: {
+              ...(typeof sideBar === 'object' && sideBar !== null ? sideBar : {}),
+              toolPanels: [
+                ...((sideBar as SideBarDef)?.toolPanels ?? []),
+                {
+                  id: 'deployServerInfo',
+                  labelDefault: '배포현황',
+                  labelKey: 'deployServerInfo',
+                  iconKey: 'eye',
+                  toolPanel: AggridDeployServerInfoSidebar,
+                  toolPanelParams: { serviceId },
+                },
+              ],
+            },
+          }}
+          loading={isFetchingVersionList}
+          onRowDoubleClicked={handleRowDoubleClicked}
+        />
       </div>
       <BotVersionDrawer ref={versionDrawerRef} />
       <BotDeployConfigDrawer ref={deployConfigDrawerRef} />
