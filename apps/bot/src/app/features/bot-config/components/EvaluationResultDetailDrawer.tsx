@@ -17,20 +17,20 @@ const createResultTrendChartOption = (data: EvaluationResultListByEvalDateItem[]
   const tooltipFormatter = (params: unknown) => {
     const list = params as { data: EvaluationResultListByEvalDateItem; seriesName: string; marker: string }[];
     if (!Array.isArray(list) || list.length === 0) return '';
-    const { question, accuracy, confidence } = list[0].data;
-    const values: Record<string, number> = { 정확도: accuracy, 신뢰도: confidence };
+    const { questionSeq, question, confidence } = list[0].data;
+    const values: Record<string, number> = { 신뢰도: confidence };
     const items = list
       .map((p) => {
         const value = values[p.seriesName];
         return `<div style="display:flex;align-items:center;gap:8px;margin-top:4px;">${p.marker}<span style="flex:1;">${p.seriesName}</span><span style="font-weight:bold;">${value}</span></div>`;
       })
       .join('');
-    return `<div style="font-size:14px;color:#666;margin-bottom:4px;">${question}</div>${items}`;
+    return `<div style="font-size:14px;color:#666;margin-bottom:4px;">[${questionSeq}] ${question}</div>${items}`;
   };
 
   return {
     dataset: {
-      dimensions: ['questionSeq', 'accuracy', 'confidence'],
+      dimensions: ['questionSeq', 'confidence'],
       source: data ?? [],
     },
     tooltip: {
@@ -57,16 +57,6 @@ const createResultTrendChartOption = (data: EvaluationResultListByEvalDateItem[]
       splitLine: { lineStyle: { type: 'dashed', color: '#E9EBEC' } },
     },
     series: [
-      {
-        name: '정확도',
-        type: 'line',
-        encode: { x: 'questionSeq', y: 'accuracy' },
-        symbol: 'roundRect',
-        symbolSize: [28, 20],
-        itemStyle: { color: '#3B82F6', borderRadius: 4 },
-        lineStyle: { color: '#3B82F6', width: 2 },
-        label: { show: true, position: 'inside', color: '#fff', fontSize: 11, fontWeight: 'bold' },
-      },
       {
         name: '신뢰도',
         type: 'line',
