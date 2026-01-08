@@ -13,7 +13,7 @@ export function useApiErrorHandler() {
   useEffect(() => {
     const handler = (e: Event) => {
       const { detail: error } = e as ApiErrorEvent;
-      if (hasKeyValue(error.response, 'status', 401)) {
+      if (hasKeyValue(error.response, 'status', 401, 3)) {
         navigate('/login');
         const now = dayjs().format('YYYY-MM-DD HH:mm:ss');
         toast.warning(`[${now}]\n인증이 만료되었습니다.`, { autoClose: false });
