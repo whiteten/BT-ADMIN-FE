@@ -1,6 +1,6 @@
 export * from './lib/util';
-export { default } from './lib/apiClient';
-export type { ApiClientOptions } from './lib/apiClient';
+export { default, API_ERROR_EVENT } from './lib/apiClient';
+export type { ApiClientOptions, ApiErrorEvent } from './lib/apiClient';
 export { default as WebSocketClient } from './lib/webSocketClient';
 export type * from './lib/types/query.types';
 export { toast } from './lib/toast';

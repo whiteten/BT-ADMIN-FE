@@ -7,6 +7,7 @@ import { ReactQueryDevtools } from '@tanstack/react-query-devtools';
 import { Layout } from './features/layout/Layout';
 import CsrfGuard from './features/router/CsrfGuard';
 import RouteGuard from './features/router/RouteGuard';
+import { useApiErrorHandler } from './hooks/useApiErrorHandler';
 import Login from './pages/Login';
 import { FallbackSpinner } from '@/components/custom/FallbackSpinner';
 import { NotFound } from '@/components/custom/NotFound';
@@ -17,23 +18,27 @@ import '@/libs/shared-ui/src/lib/aggridSetup';
 const Core = React.lazy(() => import('core/Module').catch(() => ({ default: () => <NotFound /> })));
 const Bot = React.lazy(() => import('bot/Module').catch(() => ({ default: () => <NotFound /> })));
 
-const AppRoutes = () => (
-  <Routes>
-    <Route path="/" element={<CsrfGuard />}>
-      <Route element={<RouteGuard />}>
-        <Route path="/" element={<Navigate to="/bot" />} />
-        <Route path="/core" element={<Layout />}>
-          <Route index path="*" element={<Core />} />
+const AppRoutes = () => {
+  useApiErrorHandler();
+
+  return (
+    <Routes>
+      <Route path="/" element={<CsrfGuard />}>
+        <Route element={<RouteGuard />}>
+          <Route path="/" element={<Navigate to="/bot" />} />
+          <Route path="/core" element={<Layout />}>
+            <Route index path="*" element={<Core />} />
+          </Route>
+          <Route path="/bot" element={<Layout />}>
+            <Route index path="*" element={<Bot />} />
+          </Route>
         </Route>
-        <Route path="/bot" element={<Layout />}>
-          <Route index path="*" element={<Bot />} />
-        </Route>
+        <Route path="/login" element={<Login />} />
       </Route>
-      <Route path="/login" element={<Login />} />
-    </Route>
-    <Route path="*" element={<NotFound useFullScreen />} />
-  </Routes>
-);
+      <Route path="*" element={<NotFound useFullScreen />} />
+    </Routes>
+  );
+};
 
 const queryClient = new QueryClient({ defaultOptions: { queries: { retry: 0, gcTime: 0, refetchOnWindowFocus: false } } });
 

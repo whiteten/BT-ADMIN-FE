@@ -1,10 +1,16 @@
 import axios, { type AxiosError, type AxiosInstance, type AxiosRequestConfig, type AxiosResponse, type InternalAxiosRequestConfig } from 'axios';
 import qs from 'qs';
 import { LOG } from './log';
-import { toast } from './toast';
 import { createUUID, getCookie } from './util';
 
 const Log = new LOG('Api');
+
+/** API 에러 이벤트명 */
+export const API_ERROR_EVENT = 'api-error' as const;
+
+/** API 에러 이벤트 타입 */
+export type ApiErrorEvent = CustomEvent<AxiosError>;
+
 interface ExtendedAxiosRequestConfig extends InternalAxiosRequestConfig {
   key?: string;
   _retry?: boolean;
@@ -90,10 +96,8 @@ export default class ApiClient {
   /**
    * 에러 핸들러
    */
-  #responseErrorHandler(_error: AxiosError): void {
-    // TODO: 에러 핸들링 로직 구현 필요
-    const msg = JSON.stringify(_error.response, null, 2);
-    toast.error(msg);
+  #responseErrorHandler(error: AxiosError): void {
+    window.dispatchEvent(new CustomEvent(API_ERROR_EVENT, { detail: error }));
   }
 
   get<T = unknown, R = AxiosResponse<T>, D = unknown>(url: string, config?: AxiosRequestConfig<D> | undefined): Promise<R> {
