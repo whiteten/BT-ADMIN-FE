@@ -8,7 +8,7 @@ import dayjs from 'dayjs';
 import { toast } from '@/shared-util';
 import EvaluationResultDetailDrawer, { type EvaluationResultDetailDrawerRef } from '../components/EvaluationResultDetailDrawer';
 import EvaluationResultStatusBadge from '../components/EvaluationResultStatusBadge';
-import { modelQueryKeys, useDeleteEvaluationResult, useGetEvaluationResults } from '../hooks/useModelQueries';
+import { modelQueryKeys, useDeleteEvaluationResult, useExecuteEvaluation, useGetEvaluationResults } from '../hooks/useModelQueries';
 import type { EvaluationResultListItem, EvaluationResultStatus } from '../types/evaluation';
 import { IconSearch, IconTrash } from '@/components/custom/Icons';
 import useAggridOptions from '@/libs/shared-ui/src/hooks/useAggridOptions';
@@ -25,6 +25,15 @@ export default function EvaluationResultList() {
   const { data: resultList, isFetching } = useGetEvaluationResults({
     params: { modelId, evalId },
     queryOptions: { enabled: !!modelId && !!evalId },
+  });
+
+  const { mutate: executeEvaluation, isPending: isExecuting } = useExecuteEvaluation({
+    mutationOptions: {
+      onSuccess: () => {
+        toast.success('평가가 실행되었습니다.');
+        queryClient.invalidateQueries({ queryKey: modelQueryKeys.getEvaluationResults({ modelId, evalId }).queryKey });
+      },
+    },
   });
 
   const { mutate: deleteEvaluationResult } = useDeleteEvaluationResult({
@@ -66,8 +75,10 @@ export default function EvaluationResultList() {
   const handleExecuteEvaluation = () => {
     modal.confirm.execute({
       onOk: () => {
-        // TODO: 평가 실행 API 연동
-        alert(`평가 실행 - 신뢰도 기준: ${confidenceThreshold}%`);
+        executeEvaluation({
+          params: { modelId, evalId },
+          data: { threshold: confidenceThreshold },
+        });
       },
       options: {
         content: `신뢰도 ${confidenceThreshold}% 기준으로 평가를 실행하시겠습니까?`,
@@ -193,7 +204,7 @@ export default function EvaluationResultList() {
             />
             <span className="text-sm text-[#405189] font-medium min-w-[40px]">{confidenceThreshold}%</span>
           </div>
-          <Button variant="solid" color="cyan" onClick={handleExecuteEvaluation}>
+          <Button variant="solid" color="cyan" onClick={handleExecuteEvaluation} loading={isExecuting}>
             평가실행
           </Button>
         </div>

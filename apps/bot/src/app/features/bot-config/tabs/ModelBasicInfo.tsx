@@ -16,7 +16,7 @@ export default function ModelBasicInfo() {
   const modal = useModal();
   const [form] = Form.useForm();
 
-  const { data: model, isFetching } = useGetModel({ params: { modelId } });
+  const { data: model, isLoading } = useGetModel({ params: { modelId } });
 
   const { mutate: updateModel, isPending: isUpdating } = useUpdateModel({
     mutationOptions: {
@@ -59,7 +59,7 @@ export default function ModelBasicInfo() {
 
   return (
     <Form form={form} initialValues={{ modelName: '', expansion1: '', faqIntentYn: 0 }} onFinish={onFinish} onFinishFailed={onFinishFailed} layout="vertical">
-      {isFetching ? (
+      {isLoading ? (
         <div className="flex items-center justify-center w-full h-full">
           <FallbackSpinner />
         </div>

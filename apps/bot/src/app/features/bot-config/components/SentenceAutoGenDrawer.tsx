@@ -65,7 +65,7 @@ const SentenceAutoGenDrawer = forwardRef<SentenceAutoGenDrawerRef, SentenceAutoG
 
   const [form] = Form.useForm();
 
-  const { data: model, isFetching: isFetchingModel } = useGetModel({ params: { modelId: drawerState.modelId }, queryOptions: { enabled: !!open && !!drawerState.modelId } });
+  const { data: model, isLoading: isLoadingModel } = useGetModel({ params: { modelId: drawerState.modelId }, queryOptions: { enabled: !!open && !!drawerState.modelId } });
   const tenantId = useMemo(() => model?.tenantId ?? null, [model]);
   const { data: aoeAgents, isFetching: isFetchingAoeAgents } = useGetAoeAgents({ queryOptions: { enabled: !!open } });
   const { mutate: generateSentence, isPending: isGeneratingSentence } = useGenerateSentence({
@@ -210,7 +210,7 @@ const SentenceAutoGenDrawer = forwardRef<SentenceAutoGenDrawerRef, SentenceAutoG
 
           {/* 학습문장 자동생성 버튼 */}
           <div className="flex justify-end">
-            <Button variant="solid" color="cyan" htmlType="submit" loading={isFetchingModel || isFetchingAoeAgents || isGeneratingSentence}>
+            <Button variant="solid" color="cyan" htmlType="submit" loading={isLoadingModel || isFetchingAoeAgents || isGeneratingSentence}>
               학습문장 자동생성
             </Button>
           </div>

@@ -110,6 +110,20 @@ export const useDeleteIntent = ({ mutationOptions }: MutationHookOptions = {}) =
   });
 };
 
+export const useTrainModel = ({ mutationOptions }: MutationHookOptions = {}) => {
+  return useMutation({
+    mutationFn: modelApi.trainModel,
+    ...mutationOptions,
+  });
+};
+
+export const useDeployModel = ({ mutationOptions }: MutationHookOptions = {}) => {
+  return useMutation({
+    mutationFn: modelApi.deployModel,
+    ...mutationOptions,
+  });
+};
+
 export const useGetIntentSentences = ({ params, queryOptions }: QueryHookWithParamsOptions<IntentSentenceListItem[]> = {}) => {
   return useQuery({
     queryKey: modelQueryKeys.getIntentSentences(params).queryKey,
@@ -320,6 +334,13 @@ export const useGetEvaluationResultsByEvalDateAndQuestionSeq = ({ params, queryO
 export const useDeleteEvaluationResult = ({ mutationOptions }: MutationHookOptions = {}) => {
   return useMutation({
     mutationFn: modelApi.deleteEvaluationResult,
+    ...mutationOptions,
+  });
+};
+
+export const useExecuteEvaluation = ({ mutationOptions }: MutationHookOptions = {}) => {
+  return useMutation({
+    mutationFn: modelApi.executeEvaluation,
     ...mutationOptions,
   });
 };

@@ -22,6 +22,7 @@ import type {
   EvaluationResultListByEvalDateItem,
   EvaluationResultListItem,
   EvaluationUpdateDatas,
+  ExecuteEvaluationDatas,
 } from '../types/evaluation';
 import type {
   IntentBasicInfoUpdateDatas,
@@ -55,6 +56,14 @@ export const modelApi = {
   },
   deleteModel: async (params: Record<string, unknown>) => {
     const response = await apiClient.delete('/model-delete', { params });
+    return response?.data;
+  },
+  trainModel: async ({ params, data }: { params: Record<string, unknown>; data: Record<string, unknown> }) => {
+    const response = await apiClient.post('/model-train', data, { params });
+    return response?.data;
+  },
+  deployModel: async ({ params, data }: { params: Record<string, unknown>; data: Record<string, unknown> }) => {
+    const response = await apiClient.post('/model-deploy', data, { params });
     return response?.data;
   },
   getIntents: async (params?: Record<string, unknown>): Promise<IntentListItem[]> => {
@@ -191,6 +200,10 @@ export const modelApi = {
   },
   deleteEvaluationResult: async (params: Record<string, unknown>) => {
     const response = await apiClient.delete('/evaluation-result-delete', { params });
+    return response?.data;
+  },
+  executeEvaluation: async ({ params, data }: { params: Record<string, unknown>; data: ExecuteEvaluationDatas }) => {
+    const response = await apiClient.post('/nlu-external-function', data, { params });
     return response?.data;
   },
   getRetrains: async (params?: Record<string, unknown>): Promise<RetrainListItem[]> => {

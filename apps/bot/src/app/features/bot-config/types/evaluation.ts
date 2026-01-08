@@ -44,3 +44,7 @@ export type EvaluationResultStatus = '대기중' | '진행중' | '완료';
 export type EvaluationResultListItem = Pick<EvaluationResult, 'evalId' | 'evalDate' | 'confidence' | 'accuracy' | 'resultStatus'>;
 export type EvaluationResultListByEvalDateItem = Omit<EvaluationResult, 'evalDateFormatted' | 'resultStatus'>;
 export type EvaluationResultListByEvalDateAndQuestionSeqItem = Pick<EvaluationResult, 'evalId' | 'evalDate' | 'questionSeq' | 'intent' | 'confidence'>;
+
+export interface ExecuteEvaluationDatas {
+  threshold: number;
+}
