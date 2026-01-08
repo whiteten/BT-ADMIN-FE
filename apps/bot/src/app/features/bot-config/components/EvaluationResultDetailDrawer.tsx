@@ -17,8 +17,8 @@ const createResultTrendChartOption = (data: EvaluationResultListByEvalDateItem[]
   const tooltipFormatter = (params: unknown) => {
     const list = params as { data: EvaluationResultListByEvalDateItem; seriesName: string; marker: string }[];
     if (!Array.isArray(list) || list.length === 0) return '';
-    const { question, threshold, confidence } = list[0].data;
-    const values: Record<string, number> = { 정확도: threshold, 신뢰도: confidence };
+    const { question, accuracy, confidence } = list[0].data;
+    const values: Record<string, number> = { 정확도: accuracy, 신뢰도: confidence };
     const items = list
       .map((p) => {
         const value = values[p.seriesName];
@@ -30,7 +30,7 @@ const createResultTrendChartOption = (data: EvaluationResultListByEvalDateItem[]
 
   return {
     dataset: {
-      dimensions: ['questionSeq', 'threshold', 'confidence'],
+      dimensions: ['questionSeq', 'accuracy', 'confidence'],
       source: data ?? [],
     },
     tooltip: {
@@ -60,7 +60,7 @@ const createResultTrendChartOption = (data: EvaluationResultListByEvalDateItem[]
       {
         name: '정확도',
         type: 'line',
-        encode: { x: 'questionSeq', y: 'threshold' },
+        encode: { x: 'questionSeq', y: 'accuracy' },
         symbol: 'roundRect',
         symbolSize: [28, 20],
         itemStyle: { color: '#3B82F6', borderRadius: 4 },

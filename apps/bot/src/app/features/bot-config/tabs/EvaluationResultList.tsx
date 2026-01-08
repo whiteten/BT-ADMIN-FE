@@ -86,13 +86,13 @@ export default function EvaluationResultList() {
     },
     {
       headerName: '정확도',
-      field: 'confidence',
+      field: 'accuracy',
       maxWidth: 120,
       valueFormatter: (params: { value: number }) => `${params.value}%`,
     },
     {
       headerName: '신뢰도',
-      field: 'threshold',
+      field: 'confidence',
       maxWidth: 120,
       valueFormatter: (params: { value: number }) => `${params.value}%`,
     },
