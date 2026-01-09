@@ -17,7 +17,7 @@ export default function TrainStatusBadge({ status }: TrainStatusBadgeProps) {
   if (!meta) return '-';
 
   return (
-    <Badge variant="secondary" className={cn('text-[13px] font-medium !h-6', meta.className)}>
+    <Badge variant="secondary" className={cn('text-[13px] leading-[13px] font-medium !h-6', meta.className)}>
       {meta.label}
     </Badge>
   );
