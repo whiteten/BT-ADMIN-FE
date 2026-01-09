@@ -203,7 +203,7 @@ export const modelApi = {
     return response?.data;
   },
   executeEvaluation: async ({ params, data }: { params: Record<string, unknown>; data: ExecuteEvaluationDatas }) => {
-    const response = await apiClient.post('/nlu-external-function', data, { params });
+    const response = await apiClient.post('/model-evaluate', data, { params });
     return response?.data;
   },
   getRetrains: async (params?: Record<string, unknown>): Promise<RetrainListItem[]> => {

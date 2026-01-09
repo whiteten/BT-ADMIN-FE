@@ -8,7 +8,7 @@ import dayjs from 'dayjs';
 import { toast } from '@/shared-util';
 import EvaluationResultDetailDrawer, { type EvaluationResultDetailDrawerRef } from '../components/EvaluationResultDetailDrawer';
 import EvaluationResultStatusBadge from '../components/EvaluationResultStatusBadge';
-import { modelQueryKeys, useDeleteEvaluationResult, useExecuteEvaluation, useGetEvaluationResults } from '../hooks/useModelQueries';
+import { modelQueryKeys, useDeleteEvaluationResult, useExecuteEvaluation, useGetEvaluationResults, useGetModel } from '../hooks/useModelQueries';
 import type { EvaluationResultListItem, EvaluationResultStatus } from '../types/evaluation';
 import { IconSearch, IconTrash } from '@/components/custom/Icons';
 import useAggridOptions from '@/libs/shared-ui/src/hooks/useAggridOptions';
@@ -25,6 +25,11 @@ export default function EvaluationResultList() {
   const { data: resultList, isFetching } = useGetEvaluationResults({
     params: { modelId, evalId },
     queryOptions: { enabled: !!modelId && !!evalId },
+  });
+
+  const { data: model, isLoading: isModelLoading } = useGetModel({
+    params: { modelId },
+    queryOptions: { enabled: !!modelId },
   });
 
   const { mutate: executeEvaluation, isPending: isExecuting } = useExecuteEvaluation({
@@ -73,10 +78,21 @@ export default function EvaluationResultList() {
   };
 
   const handleExecuteEvaluation = () => {
+    const trainId = model?.trainId;
+    if (!trainId) {
+      toast.warning('학습 정보를 찾을 수 없습니다.\n모델 학습을 먼저 진행한 후, 평가를 실행해주세요.');
+      return;
+    }
+    const trainStatus = model?.trainStatus;
+    if (trainStatus !== 2) {
+      toast.warning('학습이 완료되지 않았습니다.\n학습이 완료된 후, 평가를 실행해주세요.');
+      return;
+    }
+    const tenantId = model?.tenantId;
     modal.confirm.execute({
       onOk: () => {
         executeEvaluation({
-          params: { modelId, evalId },
+          params: { modelId, evalId, tenantId },
           data: { threshold: confidenceThreshold },
         });
       },
@@ -204,7 +220,7 @@ export default function EvaluationResultList() {
             />
             <span className="text-sm text-[#405189] font-medium min-w-[40px]">{confidenceThreshold}%</span>
           </div>
-          <Button variant="solid" color="cyan" onClick={handleExecuteEvaluation} loading={isExecuting}>
+          <Button variant="solid" color="cyan" onClick={handleExecuteEvaluation} loading={isModelLoading || isExecuting}>
             평가실행
           </Button>
         </div>
