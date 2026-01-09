@@ -22,7 +22,7 @@ export default function ModelList() {
   const [filterColumn, setFilterColumn] = useState('modelName');
   const [searchValue, setSearchValue] = useState('');
 
-  const { data: modelList, isFetching } = useGetModels();
+  const { data: modelList, isLoading } = useGetModels({ queryOptions: { refetchInterval: 5000 } });
   const { mutate: deleteModel } = useDeleteModel({
     mutationOptions: {
       onSuccess: () => {
@@ -82,7 +82,7 @@ export default function ModelList() {
           </Button>
         </div>
       </div>
-      {isFetching ? (
+      {isLoading ? (
         <div className="flex items-center justify-center w-full h-full bg-white bt-shadow">
           <FallbackSpinner />
         </div>
