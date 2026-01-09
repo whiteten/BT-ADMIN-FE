@@ -1,7 +1,7 @@
 import { useEffect } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { useQueryClient } from '@tanstack/react-query';
-import { Button, Checkbox, Col, Form, type FormProps, Input, Row } from 'antd';
+import { Button, Col, Form, type FormProps, Input, Row } from 'antd';
 import { Log } from '@/log';
 import { toast } from '@/shared-util';
 import { modelQueryKeys, useDeleteModel, useGetModel, useUpdateModel } from '../hooks/useModelQueries';
@@ -53,12 +53,12 @@ export default function ModelBasicInfo() {
 
   useEffect(() => {
     if (!model) return;
-    const { modelName, expansion1, faqIntentYn } = model;
-    form.setFieldsValue({ modelName, expansion1, faqIntentYn });
+    const { modelName, expansion1 } = model;
+    form.setFieldsValue({ modelName, expansion1 });
   }, [model, form]);
 
   return (
-    <Form form={form} initialValues={{ modelName: '', expansion1: '', faqIntentYn: 0 }} onFinish={onFinish} onFinishFailed={onFinishFailed} layout="vertical">
+    <Form form={form} initialValues={{ modelName: '', expansion1: '' }} onFinish={onFinish} onFinishFailed={onFinishFailed} layout="vertical">
       {isLoading ? (
         <div className="flex items-center justify-center w-full h-full">
           <FallbackSpinner />
@@ -76,13 +76,6 @@ export default function ModelBasicInfo() {
             <Col span={24}>
               <Form.Item name="expansion1" label="모델 설명">
                 <Input.TextArea rows={4} placeholder="모델 설명을 입력하세요." />
-              </Form.Item>
-            </Col>
-          </Row>
-          <Row gutter={20}>
-            <Col>
-              <Form.Item name="faqIntentYn" label="의도 유형별 활성화" getValueFromEvent={(e) => (e.target.checked ? 1 : 0)} getValueProps={(value) => ({ checked: value === 1 })}>
-                <Checkbox>FAQ 의도</Checkbox>
               </Form.Item>
             </Col>
           </Row>

@@ -1,5 +1,5 @@
 import { useNavigate } from 'react-router-dom';
-import { type BreadcrumbProps, Button, Checkbox, Col, Form, type FormProps, Input, Row } from 'antd';
+import { type BreadcrumbProps, Button, Col, Form, type FormProps, Input, Row } from 'antd';
 import { Log } from '@/log';
 import { toast } from '@/shared-util';
 import { useCreateModel } from '../../features/bot-config/hooks/useModelQueries';
@@ -15,7 +15,7 @@ const breadcrumb: BreadcrumbProps['items'] = [
 export default function ModelCreate() {
   const navigate = useNavigate();
   const [form] = Form.useForm();
-  const initialValues = { modelName: '', expansion1: '', faqIntentYn: 0 };
+  const initialValues = { modelName: '', expansion1: '' };
 
   const { mutate: createModel, isPending: isCreatingModel } = useCreateModel({
     mutationOptions: {
@@ -49,18 +49,6 @@ export default function ModelCreate() {
               <Col span={24}>
                 <Form.Item name="expansion1" label="모델 설명">
                   <Input.TextArea rows={4} placeholder="모델 설명을 입력하세요." />
-                </Form.Item>
-              </Col>
-            </Row>
-            <Row gutter={20}>
-              <Col>
-                <Form.Item
-                  name="faqIntentYn"
-                  label="의도 유형별 활성화"
-                  getValueFromEvent={(e) => (e.target.checked ? 1 : 0)}
-                  getValueProps={(value) => ({ checked: value === 1 })}
-                >
-                  <Checkbox>FAQ 의도</Checkbox>
                 </Form.Item>
               </Col>
             </Row>
