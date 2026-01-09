@@ -2,7 +2,6 @@ import { useMutation, useQuery } from '@tanstack/react-query';
 import { createQueryKeys } from '@lukemorales/query-key-factory';
 import type { MutationHookOptions, QueryHookWithParamsOptions } from '@/shared-util';
 import { modelApi } from '../api/modelApi';
-import type { RetrainDetail, RetrainListItem } from '../types';
 import type { AoeListItem } from '../types/aoe';
 import type { EntityItem, EntityListItem, EntityValueListItem } from '../types/entity';
 import type {
@@ -15,6 +14,8 @@ import type {
 } from '../types/evaluation';
 import type { IntentItem, IntentListItem, IntentSentenceListItem } from '../types/intent';
 import type { ModelItem, ModelListItem } from '../types/model';
+import type { RetrainDetail, RetrainListItem } from '../types/retrain';
+import type { SnapshotListItem } from '../types/snapshot';
 
 export const modelQueryKeys = createQueryKeys('models', {
   getModels: (params?: Record<string, unknown>) => [params],
@@ -34,6 +35,7 @@ export const modelQueryKeys = createQueryKeys('models', {
   getEvaluationResultsByEvalDateAndQuestionSeq: (params?: Record<string, unknown>) => [params],
   getRetrains: (params?: Record<string, unknown>) => [params],
   getRetrainDetail: (params?: Record<string, unknown>) => [params],
+  getSnapshots: (params?: Record<string, unknown>) => [params],
 });
 
 export const useGetModels = ({ params, queryOptions }: QueryHookWithParamsOptions<ModelListItem[]> = {}) => {
@@ -371,6 +373,28 @@ export const useUpdateRetrain = ({ mutationOptions }: MutationHookOptions = {}) 
 export const useApplyRetrain = ({ mutationOptions }: MutationHookOptions = {}) => {
   return useMutation({
     mutationFn: modelApi.applyRetrain,
+    ...mutationOptions,
+  });
+};
+
+export const useGetSnapshots = ({ params, queryOptions }: QueryHookWithParamsOptions<SnapshotListItem[]> = {}) => {
+  return useQuery({
+    queryKey: modelQueryKeys.getSnapshots(params).queryKey,
+    queryFn: () => modelApi.getSnapshots(params),
+    ...queryOptions,
+  });
+};
+
+export const useCreateSnapshot = ({ mutationOptions }: MutationHookOptions = {}) => {
+  return useMutation({
+    mutationFn: modelApi.createSnapshot,
+    ...mutationOptions,
+  });
+};
+
+export const useDeleteSnapshot = ({ mutationOptions }: MutationHookOptions = {}) => {
+  return useMutation({
+    mutationFn: modelApi.deleteSnapshot,
     ...mutationOptions,
   });
 };

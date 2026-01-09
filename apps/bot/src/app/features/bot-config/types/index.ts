@@ -7,3 +7,4 @@ export type * from './intent';
 export type * from './entity';
 export type * from './aoe';
 export type * from './retrain';
+export type * from './snapshot';

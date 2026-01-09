@@ -29,3 +29,4 @@ export { ReactComponent as IconBubble } from '../../assets/images/icon/icon-bubb
 export { ReactComponent as IconSearch } from '../../assets/images/icon/icon-search.svg';
 export { ReactComponent as IconBookmark } from '../../assets/images/icon/icon-bookmark.svg';
 export { ReactComponent as IconAoe } from '../../assets/images/icon/icon-aoe.svg';
+export { ReactComponent as IconRollback } from '../../assets/images/icon/icon-rollback.svg';

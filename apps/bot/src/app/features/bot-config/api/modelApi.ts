@@ -1,5 +1,5 @@
 import ApiClient, { type DetailResponse, type ListResponse, type ListWithItemsResponse, extractDetail, extractList, extractListItems } from '@/shared-util';
-import type { RetrainDetail, RetrainListItem, RetrainUpdateDatas } from '../types';
+import type { RetrainDetail, RetrainListItem, RetrainUpdateDatas, SnapshotCreateDatas, SnapshotListItem } from '../types';
 import type { AoeListItem, GenerateSentenceDatas, GenerateSentenceResponse } from '../types/aoe';
 import type {
   EntityBasicInfoUpdateDatas,
@@ -220,6 +220,18 @@ export const modelApi = {
   },
   applyRetrain: async ({ params, data }: { params: Record<string, unknown>; data: Record<string, unknown> }) => {
     const response = await apiClient.post('/intent-retrain-apply', data, { params });
+    return response?.data;
+  },
+  getSnapshots: async (params?: Record<string, unknown>): Promise<SnapshotListItem[]> => {
+    const response = await apiClient.get<ListWithItemsResponse<SnapshotListItem>>('/snapshot-list', { params });
+    return extractListItems(response?.data);
+  },
+  createSnapshot: async ({ params, data }: { params: Record<string, unknown>; data: SnapshotCreateDatas }) => {
+    const response = await apiClient.post('/snapshot-create', data, { params });
+    return response?.data;
+  },
+  deleteSnapshot: async (params: Record<string, unknown>) => {
+    const response = await apiClient.delete('/snapshot-delete', { params });
     return response?.data;
   },
 };
