@@ -14,11 +14,9 @@ interface TrainStatusBadgeProps {
 
 export default function TrainStatusBadge({ status }: TrainStatusBadgeProps) {
   const meta = TRAIN_STATUS_META[status];
-  if (!meta) return '-';
-
   return (
-    <Badge variant="secondary" className={cn('text-[13px] leading-[13px] font-medium !h-6', meta.className)}>
-      {meta.label}
+    <Badge variant="secondary" className={cn('text-[13px] leading-[13px] font-medium !h-6', meta?.className || TRAIN_STATUS_META[0].className)}>
+      {meta?.label || '-'}
     </Badge>
   );
 }
