@@ -1,4 +1,4 @@
-import ApiClient, { type DetailResponse, type ListResponse, type ListWithItemsResponse, extractDetail, extractList, extractListItems } from '@/shared-util';
+import ApiClient, { type DetailResponse, type ListResponse, extractDetail, extractList } from '@/shared-util';
 import type { RetrainDetail, RetrainListItem, RetrainUpdateDatas, SnapshotCreateDatas, SnapshotListItem } from '../types';
 import type { AoeListItem, GenerateSentenceDatas, GenerateSentenceResponse } from '../types/aoe';
 import type {
@@ -39,8 +39,8 @@ const apiClient = new ApiClient({ serviceURL: '/bff' });
 
 export const modelApi = {
   getModels: async (params?: Record<string, unknown>): Promise<ModelListItem[]> => {
-    const response = await apiClient.get<ListWithItemsResponse<ModelListItem>>('/model-list', { params });
-    return extractListItems(response?.data);
+    const response = await apiClient.get<ListResponse<ModelListItem>>('/model-list', { params });
+    return extractList(response?.data);
   },
   getModel: async (params?: Record<string, unknown>): Promise<ModelItem> => {
     const response = await apiClient.get<DetailResponse<ModelItem>>('/model-detail', { params });
@@ -67,8 +67,8 @@ export const modelApi = {
     return response?.data;
   },
   getIntents: async (params?: Record<string, unknown>): Promise<IntentListItem[]> => {
-    const response = await apiClient.get<ListWithItemsResponse<IntentListItem>>('/intent-list', { params });
-    return extractListItems(response?.data);
+    const response = await apiClient.get<ListResponse<IntentListItem>>('/intent-list', { params });
+    return extractList(response?.data);
   },
   getIntent: async (params?: Record<string, unknown>): Promise<IntentItem> => {
     const response = await apiClient.get<DetailResponse<IntentItem>>('/intent-detail', { params });
@@ -87,8 +87,8 @@ export const modelApi = {
     return response?.data;
   },
   getIntentSentences: async (params?: Record<string, unknown>): Promise<IntentSentenceListItem[]> => {
-    const response = await apiClient.get<ListWithItemsResponse<IntentSentenceListItem>>('/intent-sentence-list', { params });
-    return extractListItems(response?.data);
+    const response = await apiClient.get<ListResponse<IntentSentenceListItem>>('/intent-sentence-list', { params });
+    return extractList(response?.data);
   },
   createIntentSentence: async ({ params, data }: { params: Record<string, unknown>; data: IntentSentenceCreateDatas }) => {
     const response = await apiClient.post('/intent-sentence-create', data, { params });
@@ -103,8 +103,8 @@ export const modelApi = {
     return response?.data;
   },
   getEntities: async (params?: Record<string, unknown>): Promise<EntityListItem[]> => {
-    const response = await apiClient.get<ListWithItemsResponse<EntityListItem>>('/entity-list', { params });
-    return extractListItems(response?.data);
+    const response = await apiClient.get<ListResponse<EntityListItem>>('/entity-list', { params });
+    return extractList(response?.data);
   },
   getEntity: async (params?: Record<string, unknown>): Promise<EntityItem> => {
     const response = await apiClient.get<DetailResponse<EntityItem>>('/entity-detail', { params });
@@ -123,8 +123,8 @@ export const modelApi = {
     return response?.data;
   },
   getEntityValues: async (params?: Record<string, unknown>): Promise<EntityValueListItem[]> => {
-    const response = await apiClient.get<ListWithItemsResponse<EntityValueListItem>>('/entity-values-list', { params });
-    return extractListItems(response?.data);
+    const response = await apiClient.get<ListResponse<EntityValueListItem>>('/entity-values-list', { params });
+    return extractList(response?.data);
   },
   createEntityValue: async ({ params, data }: { params: Record<string, unknown>; data: EntityValueCreateDatas }) => {
     const response = await apiClient.post('/entity-values-create', data, { params });
@@ -147,8 +147,8 @@ export const modelApi = {
     return response?.data?.data?.list?.data?.sentences ?? [];
   },
   getEvaluations: async (params?: Record<string, unknown>): Promise<EvaluationListItem[]> => {
-    const response = await apiClient.get<ListWithItemsResponse<EvaluationListItem>>('/evaluation-list', { params });
-    return extractListItems(response?.data);
+    const response = await apiClient.get<ListResponse<EvaluationListItem>>('/evaluation-list', { params });
+    return extractList(response?.data);
   },
   getEvaluation: async (params?: Record<string, unknown>): Promise<EvaluationItem> => {
     const response = await apiClient.get<DetailResponse<EvaluationItem>>('/evaluation-detail', { params });
@@ -207,8 +207,8 @@ export const modelApi = {
     return response?.data;
   },
   getRetrains: async (params?: Record<string, unknown>): Promise<RetrainListItem[]> => {
-    const response = await apiClient.get<ListWithItemsResponse<RetrainListItem>>('/intent-retrain-list', { params });
-    return extractListItems(response?.data);
+    const response = await apiClient.get<ListResponse<RetrainListItem>>('/intent-retrain-list', { params });
+    return extractList(response?.data);
   },
   getRetrainDetail: async (params?: Record<string, unknown>): Promise<RetrainDetail> => {
     const response = await apiClient.get<DetailResponse<RetrainDetail>>('/intent-retrain-detail', { params });
@@ -223,8 +223,8 @@ export const modelApi = {
     return response?.data;
   },
   getSnapshots: async (params?: Record<string, unknown>): Promise<SnapshotListItem[]> => {
-    const response = await apiClient.get<ListWithItemsResponse<SnapshotListItem>>('/snapshot-list', { params });
-    return extractListItems(response?.data);
+    const response = await apiClient.get<ListResponse<SnapshotListItem>>('/snapshot-list', { params });
+    return extractList(response?.data);
   },
   createSnapshot: async ({ params, data }: { params: Record<string, unknown>; data: SnapshotCreateDatas }) => {
     const response = await apiClient.post('/snapshot-create', data, { params });
