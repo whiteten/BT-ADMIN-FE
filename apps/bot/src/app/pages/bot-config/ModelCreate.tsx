@@ -40,7 +40,16 @@ export default function ModelCreate() {
           <Form form={form} initialValues={initialValues} onFinish={onFinish} onFinishFailed={onFinishFailed} layout="vertical">
             <Row gutter={20}>
               <Col span={12}>
-                <Form.Item name="modelName" label="모델 이름" required hasFeedback rules={[{ required: true, message: '모델 이름을 입력해 주세요.' }]}>
+                <Form.Item
+                  name="modelName"
+                  label="모델 이름"
+                  required
+                  hasFeedback
+                  rules={[
+                    { required: true, message: '모델 이름을 입력해 주세요.' },
+                    { pattern: /^\S*$/, message: '공백은 사용할 수 없습니다.' },
+                  ]}
+                >
                   <Input placeholder="모델 이름을 입력하세요." />
                 </Form.Item>
               </Col>
