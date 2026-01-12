@@ -49,6 +49,13 @@ const menuConfig = {
           index: 0,
           hide: false,
         },
+        {
+          id: `${appName}/_config-common/aoe`,
+          label: 'AOE 확장',
+          path: 'common/aoe',
+          index: 1,
+          hide: false,
+        },
       ],
     },
     {
