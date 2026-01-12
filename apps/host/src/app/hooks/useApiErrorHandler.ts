@@ -1,6 +1,7 @@
-import { useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useEffect, useRef } from 'react';
+import { useLocation, useNavigate } from 'react-router-dom';
 import dayjs from 'dayjs';
+import { Log } from '@/log';
 import { API_ERROR_EVENT, type ApiErrorEvent, hasKeyValue, toast } from '@/shared-util';
 
 /**
@@ -10,11 +11,21 @@ import { API_ERROR_EVENT, type ApiErrorEvent, hasKeyValue, toast } from '@/share
  */
 export function useApiErrorHandler() {
   const navigate = useNavigate();
+  const location = useLocation();
+  const locationRef = useRef(location);
+
+  useEffect(() => {
+    locationRef.current = location;
+  }, [location]);
+
   useEffect(() => {
     const handler = (e: Event) => {
       const { detail: error } = e as ApiErrorEvent;
       if (hasKeyValue(error.response, 'status', 401, 3)) {
         navigate('/login');
+        const current = locationRef.current;
+        Log.debug('Redirect to login page. location: ', JSON.stringify(current));
+        if (current.pathname === '/') return;
         const now = dayjs().format('YYYY-MM-DD HH:mm:ss');
         toast.warning(`[${now}]\n인증이 만료되었습니다.`, { autoClose: false });
         return;
