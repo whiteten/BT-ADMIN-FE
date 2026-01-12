@@ -57,11 +57,13 @@ export interface UserRole {
 
 // 사용자-권한 직접 매핑 (User Override)
 export interface UserAuth {
+  id?: number;
   userId: string;
   authId: number;
   grantType: 'GRANT' | 'DENY';
   reason?: string;
-  expiredAt?: string;
+  effectiveFrom?: string; // 적용 시작일 (NULL = 즉시 적용)
+  effectiveTo?: string; // 적용 종료일 (NULL = 무기한)
   createdBy?: string;
   createdAt?: string;
   updatedBy?: string;
@@ -71,6 +73,9 @@ export interface UserAuth {
   permDescription?: string;
   appId?: string;
 }
+
+// 권한 상태 (유효 기간 기반)
+export type UserAuthStatus = 'ACTIVE' | 'SCHEDULED' | 'EXPIRED';
 
 // 사용자-메뉴 직접 매핑 (User Override)
 export interface UserMenu {
@@ -96,12 +101,23 @@ export interface UserAuthorityResponse {
   overrides: UserAuth[];
 }
 
-// 사용자 권한 부여/박탈 요청
+// 사용자 권한 부여/박탈 요청 (단건)
 export interface UserAuthGrantRequest {
   authId: number;
   grantType: 'GRANT' | 'DENY';
   reason?: string;
-  expiredAt?: string;
+  effectiveFrom?: string; // 적용 시작일
+  effectiveTo?: string; // 적용 종료일
+}
+
+// 사용자 권한 부여/박탈 배치 요청 (다건)
+export interface UserAuthBatchGrantRequest {
+  userIds: string[];
+  authIds: number[];
+  grantType: 'GRANT' | 'DENY';
+  reason?: string;
+  effectiveFrom?: string; // 적용 시작일
+  effectiveTo?: string; // 적용 종료일
 }
 
 // 역할 생성/수정 요청

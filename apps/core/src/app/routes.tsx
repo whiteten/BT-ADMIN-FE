@@ -7,12 +7,8 @@ const UserList = React.lazy(() => import('./pages/user/UserList'));
 const UserCreate = React.lazy(() => import('./pages/user/UserCreate'));
 const UserDetail = React.lazy(() => import('./pages/user/UserDetail'));
 
-// IAM 페이지
+// IAM 페이지 (통합)
 const AuthGroupManagement = React.lazy(() => import('./pages/iam/AuthGroupManagement'));
-const RoleList = React.lazy(() => import('./pages/iam/RoleList'));
-const RoleDetail = React.lazy(() => import('./pages/iam/RoleDetail'));
-const PermissionList = React.lazy(() => import('./pages/iam/PermissionList'));
-const UserAuthOverride = React.lazy(() => import('./pages/iam/UserAuthOverride'));
 
 export const routes = [
   {
@@ -49,40 +45,10 @@ export const routes = [
           },
         ],
       },
-      // IAM 라우트
+      // IAM 라우트 (권한그룹 통합 페이지만 유지)
       {
         path: 'auth-groups',
         element: <AuthGroupManagement />,
-      },
-      {
-        path: 'roles',
-        element: <RoleList />,
-      },
-      {
-        path: 'role',
-        element: <Outlet />,
-        children: [
-          {
-            index: true,
-            element: <Navigate to="../roles" replace />,
-          },
-          {
-            path: ':id',
-            element: <RoleDetail />,
-          },
-          {
-            path: 'create',
-            element: <RoleDetail />,
-          },
-        ],
-      },
-      {
-        path: 'permissions',
-        element: <PermissionList />,
-      },
-      {
-        path: 'user-auth-override',
-        element: <UserAuthOverride />,
       },
     ],
   },
