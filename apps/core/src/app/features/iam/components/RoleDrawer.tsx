@@ -1,6 +1,5 @@
 import { forwardRef, useEffect, useImperativeHandle, useState } from 'react';
-import { useQueryClient } from '@tanstack/react-query';
-import { Button, Col, Drawer, Form, type FormProps, Input, InputNumber, Row, Switch } from 'antd';
+import { Button, Col, Drawer, Form, type FormProps, Input, InputNumber, Row } from 'antd';
 import { toast } from '@/shared-util';
 import type { Role, RoleUpsertRequest } from '../types/iam.types';
 
@@ -57,7 +56,6 @@ const RoleDrawer = forwardRef<RoleDrawerRef>((_, ref) => {
 
   const [form] = Form.useForm<RoleUpsertRequest>();
   const { TextArea } = Input;
-  const queryClient = useQueryClient();
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   useEffect(() => {
@@ -127,7 +125,7 @@ const RoleDrawer = forwardRef<RoleDrawerRef>((_, ref) => {
   );
 
   return (
-    <Drawer open={open} onClose={handleClose} title={isEditMode ? '역할 수정' : '역할 추가'} closable={{ placement: 'end' }} width={480} footer={footer} destroyOnClose>
+    <Drawer open={open} onClose={handleClose} title={isEditMode ? '역할 수정' : '역할 추가'} closable={{ placement: 'end' }} size={480} footer={footer} destroyOnHidden>
       <Form form={form} onFinish={onFinish} onFinishFailed={onFinishFailed} layout="vertical">
         <Row gutter={16}>
           <Col span={12}>
