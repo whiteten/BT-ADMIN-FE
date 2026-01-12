@@ -2,11 +2,11 @@
  * 역할 관리 탭
  */
 
-import { useCallback, useEffect, useMemo, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Button, Input, Modal, message } from 'antd';
 import { CheckCircle, Plus, Search, Shield, Users } from 'lucide-react';
 import { RoleCard } from '../components/RoleCard';
+import RoleDrawer, { type RoleDrawerRef } from '../components/RoleDrawer';
 import { roleDummyData } from '../data/iam-dummy';
 import type { Role } from '../types/iam.types';
 import { FallbackSpinner } from '@/components/custom/FallbackSpinner';
@@ -36,10 +36,10 @@ function StatCard({ icon: Icon, iconBg, label, value, valueColor = 'text-gray-90
 }
 
 export default function RoleManagementTab() {
-  const navigate = useNavigate();
   const [roles, setRoles] = useState<Role[]>([]);
   const [loading, setLoading] = useState(false);
   const [keyword, setKeyword] = useState('');
+  const drawerRef = useRef<RoleDrawerRef>(null);
 
   const handleSearch = useCallback(() => {
     setLoading(true);
@@ -55,11 +55,11 @@ export default function RoleManagementTab() {
   }, []);
 
   const handleCreate = () => {
-    navigate('../role/create');
+    drawerRef.current?.open({ mode: 'create' });
   };
 
   const handleEdit = (role: Role) => {
-    navigate(`../role/${role.roleId}`);
+    drawerRef.current?.open({ mode: 'edit', role });
   };
 
   const handleDelete = (role: Role) => {
@@ -128,6 +128,9 @@ export default function RoleManagementTab() {
           </div>
         )}
       </div>
+
+      {/* 역할 추가/수정 Drawer */}
+      <RoleDrawer ref={drawerRef} />
     </div>
   );
 }
