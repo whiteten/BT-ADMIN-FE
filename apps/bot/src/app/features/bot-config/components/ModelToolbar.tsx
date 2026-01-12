@@ -19,7 +19,7 @@ export default function ModelToolbar({ modelId }: ModelToolbarProps) {
           <span className="text-[#495057]">{model?.modelName}</span>
         </div>
         <TrainStatusBadge status={model?.trainStatus as TrainStatus} />
-        <Divider type="vertical" />
+        <Divider orientation="vertical" />
         <Button variant="solid" loading={isModelLoading || isTraining} onClick={train}>
           모델 학습
         </Button>

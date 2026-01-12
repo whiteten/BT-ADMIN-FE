@@ -45,14 +45,14 @@ const menuConfig = {
         {
           id: `${appName}/_config-common/model`,
           label: '공용모델',
-          path: 'common/models',
+          path: 'common/model/list',
           index: 0,
           hide: false,
         },
         {
           id: `${appName}/_config-common/aoe`,
           label: 'AOE 확장',
-          path: 'common/aoe',
+          path: 'common/aoe/config',
           index: 1,
           hide: false,
         },

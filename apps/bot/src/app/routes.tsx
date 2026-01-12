@@ -14,6 +14,40 @@ const IntentDetail = React.lazy(() => import('./pages/bot-config/IntentDetail'))
 const EntityDetail = React.lazy(() => import('./pages/bot-config/EntityDetail'));
 const EvaluationDetail = React.lazy(() => import('./pages/bot-config/EvaluationDetail'));
 
+const sharedModelRoutes = [
+  { index: true, element: <Navigate to="list" replace /> },
+  { path: 'list', element: <ModelList /> },
+  { path: 'create', element: <ModelCreate /> },
+  {
+    path: ':modelId',
+    element: <ModelDetailLayout />,
+    children: [
+      { index: true, element: <ModelDetail /> },
+      {
+        path: 'intent',
+        children: [
+          { index: true, element: <Navigate to=".." replace /> },
+          { path: ':intentId', element: <IntentDetail /> },
+        ],
+      },
+      {
+        path: 'entity',
+        children: [
+          { index: true, element: <Navigate to=".." replace /> },
+          { path: ':entityId', element: <EntityDetail /> },
+        ],
+      },
+      {
+        path: 'evaluation',
+        children: [
+          { index: true, element: <Navigate to=".." replace /> },
+          { path: ':evalId', element: <EvaluationDetail /> },
+        ],
+      },
+    ],
+  },
+];
+
 export const routes = [
   {
     path: '/',
@@ -37,39 +71,18 @@ export const routes = [
           },
           {
             path: 'model',
-            children: [
-              { index: true, element: <Navigate to="list" replace /> },
-              { path: 'list', element: <ModelList /> },
-              { path: 'create', element: <ModelCreate /> },
-              {
-                path: ':modelId',
-                element: <ModelDetailLayout />,
-                children: [
-                  { index: true, element: <ModelDetail /> },
-                  {
-                    path: 'intent',
-                    children: [
-                      { index: true, element: <Navigate to=".." replace /> },
-                      { path: ':intentId', element: <IntentDetail /> },
-                    ],
-                  },
-                  {
-                    path: 'entity',
-                    children: [
-                      { index: true, element: <Navigate to=".." replace /> },
-                      { path: ':entityId', element: <EntityDetail /> },
-                    ],
-                  },
-                  {
-                    path: 'evaluation',
-                    children: [
-                      { index: true, element: <Navigate to=".." replace /> },
-                      { path: ':evalId', element: <EvaluationDetail /> },
-                    ],
-                  },
-                ],
-              },
-            ],
+            children: [...sharedModelRoutes],
+          },
+        ],
+      },
+      {
+        path: 'common',
+        element: <Outlet />,
+        children: [
+          { index: true, element: <Navigate to="model" replace /> },
+          {
+            path: 'model',
+            children: [...sharedModelRoutes],
           },
         ],
       },

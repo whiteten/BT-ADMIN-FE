@@ -4,18 +4,20 @@ import { useQueryClient } from '@tanstack/react-query';
 import { type BreadcrumbProps, Button, Input, Select } from 'antd';
 import ModelCard from '../../features/bot-config/components/ModelCard';
 import { modelQueryKeys, useDeleteModel, useGetModels } from '../../features/bot-config/hooks/useModelQueries';
+import { useModelRoute } from '../../features/bot-config/hooks/useModelRoute';
+import { ModelType } from '../../features/bot-config/types/model';
 import { FallbackSpinner } from '@/components/custom/FallbackSpinner';
 import NoData from '@/components/custom/NoData';
 import PageHeader from '@/components/custom/PageHeader';
 import { useModal } from '@/libs/shared-ui/src/hooks/useModal';
 
-const breadcrumb: BreadcrumbProps['items'] = [
-  { title: '봇 관리', path: '/bot/bot-config' },
-  { title: '모델', path: '/bot/bot-config/model' },
-  { title: '모델 목록', path: '/bot/bot-config/model/list' },
-];
-
 export default function ModelList() {
+  const { isPublic } = useModelRoute();
+  const breadcrumb: BreadcrumbProps['items'] = [
+    { title: '봇 관리', path: '/bot/bot-config' },
+    isPublic ? { title: '공용 모델', path: '/bot/common/models' } : { title: '모델', path: '/bot/bot-config/model' },
+    isPublic ? { title: '공용 모델 목록', path: '/bot/common/models' } : { title: '모델 목록', path: '/bot/bot-config/model/list' },
+  ];
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const modal = useModal();
@@ -33,14 +35,20 @@ export default function ModelList() {
 
   const filteredList = useMemo(() => {
     if (!modelList) return [];
-    if (!searchValue.trim()) return modelList;
+
+    // 1. modelType으로 필터링
+    const targetType = isPublic ? ModelType.PUBLIC : ModelType.NORMAL;
+    const result = modelList.filter((model) => model.modelType === targetType);
+
+    // 2. 검색어로 추가 필터링
+    if (!searchValue.trim()) return result;
     const keyword = searchValue.toLowerCase();
-    return modelList.filter((model) => {
+    return result.filter((model) => {
       const value = model[filterColumn as keyof typeof model];
       if (value == null) return false;
       return String(value).toLowerCase().includes(keyword);
     });
-  }, [modelList, filterColumn, searchValue]);
+  }, [modelList, isPublic, filterColumn, searchValue]);
 
   const handleColumnChange = (value: string) => {
     setFilterColumn(value);
@@ -63,7 +71,7 @@ export default function ModelList() {
 
   return (
     <div className="flex flex-col gap-4 w-full h-full">
-      <PageHeader title="모델 목록" breadcrumb={breadcrumb} />
+      <PageHeader title={isPublic ? '공용모델 목록' : '모델 목록'} breadcrumb={breadcrumb} />
       {/* Filter */}
       <div className="flex items-center justify-between gap-2 w-full h-[76px] bg-white bt-shadow px-7 py-5">
         <div className="flex gap-2 w-full items-center">

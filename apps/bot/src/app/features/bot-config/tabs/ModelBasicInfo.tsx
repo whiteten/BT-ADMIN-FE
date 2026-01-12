@@ -6,6 +6,7 @@ import { Log } from '@/log';
 import { toast } from '@/shared-util';
 import { modelQueryKeys, useDeleteModel, useGetModel, useUpdateModel } from '../hooks/useModelQueries';
 import type { ModelBasicInfoUpdateDatas } from '../types';
+import { ModelType } from '../types/model';
 import { FallbackSpinner } from '@/components/custom/FallbackSpinner';
 import { useModal } from '@/libs/shared-ui/src/hooks/useModal';
 
@@ -94,11 +95,13 @@ export default function ModelBasicInfo() {
                 저장
               </Button>
             </Col>
-            <Col>
-              <Button color="red" variant="solid" loading={isDeleting} onClick={handleClickDeleteBtn}>
-                삭제
-              </Button>
-            </Col>
+            {model?.modelType === ModelType.NORMAL && (
+              <Col>
+                <Button color="red" variant="solid" loading={isDeleting} onClick={handleClickDeleteBtn}>
+                  삭제
+                </Button>
+              </Col>
+            )}
           </Row>
         </>
       )}
