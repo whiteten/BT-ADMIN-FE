@@ -37,11 +37,11 @@ const jsonValueSample = {
   entities: [],
 };
 
-interface ModelTestModalProps {
+interface ModelInferenceModalProps {
   modelId: string;
 }
 
-export default function ModelTestModal({ modelId }: ModelTestModalProps) {
+export default function ModelInferenceModal({ modelId }: ModelInferenceModalProps) {
   const { isOpen, setIsOpen, activeTab, setActiveTab, inputValue, setInputValue, trainingMessages, deployedMessages, addMessage, clearMessages } = useModelTestStore();
 
   // modelId 변경 시 대화내역 초기화
@@ -187,7 +187,7 @@ export default function ModelTestModal({ modelId }: ModelTestModalProps) {
 }
 
 // 외부에서 모달을 제어하기 위한 함수
-export const modelTestModal = {
+export const modelInferenceModal = {
   open: (message?: string) => {
     const state = useModelTestStore.getState();
     if (message) {

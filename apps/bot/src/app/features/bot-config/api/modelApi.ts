@@ -1,5 +1,5 @@
 import ApiClient, { type DetailResponse, type ListResponse, extractDetail, extractList } from '@/shared-util';
-import type { RetrainDetail, RetrainListItem, RetrainUpdateDatas, SnapshotCreateDatas, SnapshotListItem } from '../types';
+import type { Inference, RetrainDetail, RetrainListItem, RetrainUpdateDatas, SnapshotCreateDatas, SnapshotListItem } from '../types';
 import type { AoeListItem, GenerateSentenceDatas, GenerateSentenceResponse } from '../types/aoe';
 import type {
   EntityBasicInfoUpdateDatas,
@@ -24,6 +24,7 @@ import type {
   EvaluationUpdateDatas,
   ExecuteEvaluationDatas,
 } from '../types/evaluation';
+import type { InferenceResponse } from '../types/inference';
 import type {
   IntentBasicInfoUpdateDatas,
   IntentCreateDatas,
@@ -233,5 +234,9 @@ export const modelApi = {
   deleteSnapshot: async (params: Record<string, unknown>) => {
     const response = await apiClient.delete('/snapshot-delete', { params });
     return response?.data;
+  },
+  executeInference: async ({ params, data }: { params: Record<string, unknown>; data: Inference }): Promise<InferenceResponse> => {
+    const response = await apiClient.post<DetailResponse<InferenceResponse>>('/model-inference', data, { params });
+    return extractDetail(response?.data);
   },
 };

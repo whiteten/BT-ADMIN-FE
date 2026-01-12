@@ -1,5 +1,5 @@
 import { Outlet, useParams } from 'react-router-dom';
-import ModelTestModal from '../../features/bot-config/components/ModelTestModal';
+import ModelInferenceModal from '../../features/bot-config/components/ModelInferenceModal';
 
 export default function ModelDetailLayout() {
   const { modelId } = useParams();
@@ -7,7 +7,7 @@ export default function ModelDetailLayout() {
   return (
     <>
       <Outlet />
-      <ModelTestModal modelId={modelId ?? ''} />
+      <ModelInferenceModal modelId={modelId ?? ''} />
     </>
   );
 }

@@ -8,3 +8,4 @@ export * from './entity';
 export * from './aoe';
 export * from './retrain';
 export * from './snapshot';
+export * from './inference';
