@@ -99,7 +99,6 @@ const RetrainDetailDrawer = forwardRef<RetrainDetailDrawerRef>((_, ref) => {
               gridOptions={{
                 ...gridOptions,
                 sideBar: false,
-                rowNumbers: false,
                 pagination: false,
               }}
               loading={isFetching}
@@ -116,7 +115,6 @@ const RetrainDetailDrawer = forwardRef<RetrainDetailDrawerRef>((_, ref) => {
               gridOptions={{
                 ...gridOptions,
                 sideBar: false,
-                rowNumbers: false,
                 pagination: false,
               }}
               loading={isFetching}

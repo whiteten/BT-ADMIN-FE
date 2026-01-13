@@ -258,13 +258,10 @@ const EvaluationResultDetailDrawer = forwardRef<EvaluationResultDetailDrawerRef>
       onClose={handleClose}
       title="평가 결과"
       closable={{ placement: 'end' }}
-      size={1100}
+      size={1200}
       footer={footer}
       destroyOnHidden
-      classNames={{
-        body: '!p-0 !rounded-none',
-        footer: '!py-2',
-      }}
+      classNames={{ body: '!p-0 !rounded-none', footer: '!py-2' }}
     >
       <div className="flex flex-col w-full h-full overflow-hidden">
         <div className="flex-shrink-0 h-[418px]">
@@ -308,7 +305,6 @@ const EvaluationResultDetailDrawer = forwardRef<EvaluationResultDetailDrawerRef>
                 gridOptions={{
                   ...gridOptions,
                   sideBar: false,
-                  rowNumbers: false,
                   pagination: false,
                 }}
                 loading={isFetchingResultListByEvalDate}
@@ -326,7 +322,6 @@ const EvaluationResultDetailDrawer = forwardRef<EvaluationResultDetailDrawerRef>
                 gridOptions={{
                   ...gridOptions,
                   sideBar: false,
-                  rowNumbers: false,
                   pagination: false,
                 }}
                 loading={isFetchingResultListByEvalDate || isFetchingResultListByEvalDateAndQuestionSeq}
