@@ -25,7 +25,7 @@ export default class ApiClient {
   #instance: AxiosInstance;
 
   constructor(options: ApiClientOptions = {}) {
-    const { serviceURL = '', timeout = 1000 * 30 } = options;
+    const { serviceURL = '', timeout = 1000 * 60 * 3 } = options;
     const baseURL = `/api${serviceURL}`;
     this.#instance = axios.create({
       baseURL,
