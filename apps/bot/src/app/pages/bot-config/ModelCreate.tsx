@@ -3,18 +3,20 @@ import { type BreadcrumbProps, Button, Col, Form, type FormProps, Input, Row } f
 import { Log } from '@/log';
 import { toast } from '@/shared-util';
 import { useCreateModel } from '../../features/bot-config/hooks/useModelQueries';
+import { useModelRoute } from '../../features/bot-config/hooks/useModelRoute';
 import type { ModelCreateDatas } from '../../features/bot-config/types';
+import { ModelType } from '../../features/bot-config/types/model';
 import PageHeader from '@/components/custom/PageHeader';
-
-const breadcrumb: BreadcrumbProps['items'] = [
-  { title: '봇 관리', path: '/bot/bot-config' },
-  { title: '모델', path: '/bot/bot-config/model' },
-  { title: '모델 생성', path: '/bot/bot-config/model/create' },
-];
 
 export default function ModelCreate() {
   const navigate = useNavigate();
   const [form] = Form.useForm();
+  const { isPublic } = useModelRoute();
+  const breadcrumb: BreadcrumbProps['items'] = [
+    { title: '봇 관리', path: '/bot/bot-config' },
+    isPublic ? { title: '공용 모델', path: '/bot/common/model/list' } : { title: '모델', path: '/bot/bot-config/model' },
+    isPublic ? { title: '공용 모델 생성', path: '/bot/common/model/create' } : { title: '모델 생성', path: '/bot/bot-config/model/create' },
+  ];
   const initialValues = { modelName: '', expansion1: '' };
 
   const { mutate: createModel, isPending: isCreatingModel } = useCreateModel({
@@ -27,7 +29,7 @@ export default function ModelCreate() {
   });
   const onFinish: FormProps<ModelCreateDatas>['onFinish'] = (values) => {
     Log.debug('onFinish', values);
-    createModel(values as ModelCreateDatas);
+    createModel({ ...values, modelType: isPublic ? ModelType.PUBLIC : ModelType.NORMAL } as ModelCreateDatas);
   };
   const onFinishFailed: FormProps<ModelCreateDatas>['onFinishFailed'] = (errorInfo) => {
     Log.warn('onFinishFailed', errorInfo);

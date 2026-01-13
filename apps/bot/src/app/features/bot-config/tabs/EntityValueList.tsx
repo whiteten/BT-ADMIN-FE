@@ -515,7 +515,6 @@ export default function EntityValueList() {
           gridOptions={{
             ...gridOptions,
             sideBar: false,
-            rowNumbers: false,
             editType: 'fullRow',
             stopEditingWhenCellsLoseFocus: true,
             readOnlyEdit: true,

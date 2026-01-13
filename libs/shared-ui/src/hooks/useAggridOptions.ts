@@ -1,5 +1,6 @@
 import { useMemo } from 'react';
 import { type GridOptions, type SideBarDef, themeQuartz } from 'ag-grid-community';
+import { localeKr } from '../assets/json/aggrid_kr';
 import AggridNoRowsOverlay from '../components/custom/AggridNoRowsOverlay';
 import AggridRowDataSidebar from '../components/custom/AggridRowDataSidebar';
 import { FallbackSpinner } from '../components/custom/FallbackSpinner';
@@ -60,6 +61,7 @@ export default function useAggridOptions() {
         message: '검색된 데이터가 없습니다.',
       },
       loadingOverlayComponent: FallbackSpinner,
+      localeText: localeKr,
     }),
     [defaultColDef, theme, sideBar],
   );

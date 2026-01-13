@@ -2,6 +2,7 @@ import React from 'react';
 import { useParams } from 'react-router-dom';
 import { type BreadcrumbProps } from 'antd';
 import ModelToolbar from '../../features/bot-config/components/ModelToolbar';
+import { useModelRoute } from '../../features/bot-config/hooks/useModelRoute';
 import { IconDocument, IconEntity, IconEvaluation, IconIntent, IconRetrain, IconSnapshot } from '@/components/custom/Icons';
 import PageHeader from '@/components/custom/PageHeader';
 import PageTabs, { type PageTab } from '@/components/custom/PageTabs';
@@ -24,16 +25,17 @@ const tabs: PageTab[] = [
 
 export default function ModelDetail() {
   const { modelId } = useParams();
+  const { isPublic } = useModelRoute();
 
   const breadcrumb: BreadcrumbProps['items'] = [
     { title: '봇 관리', path: '/bot/bot-config' },
-    { title: '모델', path: '/bot/bot-config/model' },
-    { title: '모델 상세', path: `/bot/bot-config/model/${modelId}` },
+    isPublic ? { title: '공용 모델', path: '/bot/common/models' } : { title: '모델', path: '/bot/bot-config/model' },
+    isPublic ? { title: '공용 모델 상세', path: `/bot/common/models/${modelId}` } : { title: '모델 상세', path: `/bot/bot-config/model/${modelId}` },
   ];
 
   return (
     <div className="flex flex-col gap-4 w-full h-full">
-      <PageHeader title="모델 편집" breadcrumb={breadcrumb} extra={<ModelToolbar modelId={modelId} />} />
+      <PageHeader title={isPublic ? '공용 모델 편집' : '모델 편집'} breadcrumb={breadcrumb} extra={<ModelToolbar modelId={modelId} />} />
       <PageTabs tabs={tabs} />
     </div>
   );

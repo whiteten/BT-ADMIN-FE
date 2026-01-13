@@ -1,5 +1,5 @@
 import { Card } from 'antd';
-import type { ModelListItem, TrainStatus } from '../types';
+import { type ModelListItem, ModelType, type TrainStatus } from '../types';
 import TrainStatusBadge from './TrainStatusBadge';
 import { IconMoreVertical } from '@/components/custom/Icons';
 import { Button } from '@/components/ui/button';
@@ -10,7 +10,8 @@ type ModelCardProps = ModelListItem & {
   onDelete?: (modelId: string) => void;
 };
 
-export default function ModelCard({ modelId, modelName, trainStatus, trainTime, intentCount, entityCount, onDetail, onDelete }: ModelCardProps) {
+export default function ModelCard({ modelId, modelName, modelType, trainStatus, trainTime, intentCount, entityCount, onDetail, onDelete }: ModelCardProps) {
+  const isPublicModel = modelType === ModelType.PUBLIC;
   const title = (
     <span className="hover:cursor-pointer hover:!text-[var(--color-bt-primary)]" onClick={() => onDetail?.(modelId)}>
       {modelName}
@@ -28,9 +29,11 @@ export default function ModelCard({ modelId, modelName, trainStatus, trainTime, 
         <DropdownMenuItem onClick={() => onDetail?.(modelId)} className="hover:cursor-pointer">
           상세보기
         </DropdownMenuItem>
-        <DropdownMenuItem onClick={() => onDelete?.(modelId)} className="hover:cursor-pointer">
-          삭제
-        </DropdownMenuItem>
+        {!isPublicModel && (
+          <DropdownMenuItem onClick={() => onDelete?.(modelId)} className="hover:cursor-pointer">
+            삭제
+          </DropdownMenuItem>
+        )}
       </DropdownMenuContent>
     </DropdownMenu>
   );

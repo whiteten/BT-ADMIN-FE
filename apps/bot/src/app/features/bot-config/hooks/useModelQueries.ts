@@ -398,3 +398,10 @@ export const useDeleteSnapshot = ({ mutationOptions }: MutationHookOptions = {})
     ...mutationOptions,
   });
 };
+
+export const useExecuteInference = ({ mutationOptions }: MutationHookOptions = {}) => {
+  return useMutation({
+    mutationFn: modelApi.executeInference,
+    ...mutationOptions,
+  });
+};

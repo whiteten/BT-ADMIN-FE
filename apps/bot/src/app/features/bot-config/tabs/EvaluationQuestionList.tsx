@@ -450,7 +450,6 @@ export default function EvaluationQuestionList() {
           gridOptions={{
             ...gridOptions,
             sideBar: false,
-            rowNumbers: false,
             editType: 'fullRow',
             stopEditingWhenCellsLoseFocus: true,
             readOnlyEdit: true,

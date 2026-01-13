@@ -6,7 +6,7 @@ import { AgGridReact } from 'ag-grid-react';
 import { Button, Input, Select } from 'antd';
 import dayjs from 'dayjs';
 import { toast } from '@/shared-util';
-import { modelTestModal } from '../components/ModelTestModal';
+import { modelInferenceModal } from '../components/ModelInferenceModal';
 import SentenceAutoGenDrawer, { type SentenceAutoGenDrawerRef } from '../components/SentenceAutoGenDrawer';
 import { modelQueryKeys, useCreateIntentSentence, useCreateIntentSentenceBulk, useDeleteIntentSentence, useGetIntentSentences } from '../hooks/useModelQueries';
 import type { IntentSentenceListItem } from '../types';
@@ -57,7 +57,7 @@ export default function IntentSentenceList() {
       toast.warning('문장을 입력하세요.');
       return;
     }
-    modelTestModal.open(sentence.trim());
+    modelInferenceModal.open(sentence.trim());
   };
 
   const handleCreateIntentSentence = () => {
