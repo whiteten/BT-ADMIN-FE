@@ -9,7 +9,7 @@ const BotBasicInfo = React.lazy(() => import('../../features/bot-config/tabs/Bot
 const BotVersionList = React.lazy(() => import('../../features/bot-config/tabs/BotVersionList'));
 const BotSchedule = React.lazy(() => import('../../features/bot-config/tabs/BotSchedule'));
 const BotVoice = React.lazy(() => import('../../features/bot-config/tabs/BotVoice'));
-const BotEnv = React.lazy(() => import('../../features/bot-config/tabs/BotEnv'));
+const BotEnvList = React.lazy(() => import('../../features/bot-config/tabs/BotEnvList'));
 const BotAoe = React.lazy(() => import('../../features/bot-config/tabs/BotAoe'));
 
 const tabs: PageTab[] = [
@@ -17,7 +17,7 @@ const tabs: PageTab[] = [
   { id: 'tab2', label: '봇버전/배포', icon: IconLayer, component: BotVersionList },
   { id: 'tab3', label: '스케쥴', icon: IconCalendar, component: BotSchedule },
   { id: 'tab4', label: 'STT&TTS', icon: IconTalk, component: BotVoice },
-  { id: 'tab5', label: '환경변수', icon: IconSlidersHorizontal, component: BotEnv },
+  { id: 'tab5', label: '환경변수', icon: IconSlidersHorizontal, component: BotEnvList },
   { id: 'tab6', label: 'AOE', icon: IconAoe, component: BotAoe },
 ];
 
