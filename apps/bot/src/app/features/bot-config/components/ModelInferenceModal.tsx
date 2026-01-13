@@ -2,6 +2,7 @@ import { useEffect, useRef } from 'react';
 import JsonView from '@uiw/react-json-view';
 import { vscodeTheme } from '@uiw/react-json-view/vscode';
 import { Button, FloatButton, Input, type InputRef, Space } from 'antd';
+import type { AxiosError } from 'axios';
 import dayjs from 'dayjs';
 import { X } from 'lucide-react';
 import { type ChatMessage, useModelInferenceStore } from '../hooks/useModelInferenceStore';
@@ -50,7 +51,7 @@ export default function ModelInferenceModal({ modelId }: ModelInferenceModalProp
         const responseMessage: ChatMessage = {
           id: Date.now(),
           type: 'response',
-          content: error,
+          content: (error as AxiosError)?.response?.data ?? (error as AxiosError)?.response ?? error,
           timestamp,
         };
         addMessage(activeTab, responseMessage);
@@ -132,7 +133,10 @@ export default function ModelInferenceModal({ modelId }: ModelInferenceModalProp
         </div>
       ) : (
         <div key={msg.id} className="flex gap-2 mb-3 items-end">
-          <JsonView value={msg.content as object} {...jsonViewOptions} className="p-3 rounded-[12px] rounded-bl-[2px]"></JsonView>
+          <JsonView value={msg.content as object} {...jsonViewOptions} className="p-3 rounded-[12px] rounded-bl-[2px]">
+            <JsonView.Null render={() => <span style={{ color: '#569cd6' }}>null</span>} />
+            <JsonView.Undefined render={() => <span style={{ color: '#569cd6' }}>undefined</span>} />
+          </JsonView>
           <span className="text-sm text-[#888B9A]">{msg.timestamp}</span>
         </div>
       ),
