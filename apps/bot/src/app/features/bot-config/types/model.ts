@@ -11,7 +11,7 @@ export interface Model {
   trainStatus: TrainStatus;
   trainTime: string;
 }
-export type TrainStatus = 0 | 1 | 2;
+export type TrainStatus = 0 | 1 | 2 | 3;
 
 export enum ModelType {
   NORMAL = 0,

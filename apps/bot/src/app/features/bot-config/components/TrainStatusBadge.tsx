@@ -6,6 +6,7 @@ const TRAIN_STATUS_META: Record<TrainStatus, { label: string; className: string 
   0: { label: '미학습', className: 'text-[#495057] bg-[#E9EBEC]' },
   1: { label: '학습중', className: 'text-[#1F79D4] bg-[#1F79D41A]' },
   2: { label: '학습완료', className: 'text-[#0AB39C] bg-[#0AB39C1A]' },
+  3: { label: '학습실패', className: 'text-[#F06548] bg-[#F065481A]' },
 };
 
 interface TrainStatusBadgeProps {
