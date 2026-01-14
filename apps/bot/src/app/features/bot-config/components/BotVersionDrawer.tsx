@@ -185,7 +185,7 @@ const BotVersionDrawer = forwardRef<BotVersionDrawerRef>((_, ref) => {
             </Row>
             <Row>
               <Col span={24}>
-                <Form.Item name="versionName" label="버전명" required hasFeedback rules={[{ required: true, message: '작업자를 입력하세요.' }]}>
+                <Form.Item name="versionName" label="버전명" required hasFeedback rules={[{ required: true, message: '버전명을 입력하세요.' }]}>
                   <Input placeholder="버전명을 입력하세요." />
                 </Form.Item>
               </Col>
