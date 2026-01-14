@@ -44,11 +44,23 @@ export default function useAggridOptions() {
       defaultToolPanel: '',
     };
   }, []);
+  const statusBar = useMemo(
+    () => ({
+      statusPanels: [
+        {
+          statusPanel: AggridPagination,
+          align: 'left',
+        } as StatusPanelDef,
+      ],
+    }),
+    [],
+  );
   const gridOptions = useMemo<GridOptions>(
     () => ({
       defaultColDef,
       theme,
       sideBar,
+      statusBar,
       reactiveCustomComponents: true,
       columnHoverHighlight: true,
       animateRows: true,
@@ -57,14 +69,6 @@ export default function useAggridOptions() {
       pagination: true,
       paginationPageSize: 20,
       suppressPaginationPanel: true,
-      statusBar: {
-        statusPanels: [
-          {
-            statusPanel: AggridPagination,
-            align: 'left',
-          } as StatusPanelDef,
-        ],
-      },
       rowNumbers: true,
       noRowsOverlayComponent: AggridNoRowsOverlay,
       noRowsOverlayComponentParams: {
@@ -73,7 +77,7 @@ export default function useAggridOptions() {
       loadingOverlayComponent: FallbackSpinner,
       localeText: localeKr,
     }),
-    [defaultColDef, theme, sideBar],
+    [defaultColDef, theme, sideBar, statusBar],
   );
-  return { gridOptions, defaultColDef, theme, sideBar };
+  return { gridOptions, defaultColDef, theme, sideBar, statusBar };
 }

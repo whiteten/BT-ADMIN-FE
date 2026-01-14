@@ -20,6 +20,26 @@ export default function BotVersionList() {
   const queryClient = useQueryClient();
   const modal = useModal();
   const { gridOptions, sideBar } = useAggridOptions();
+  const customGridOptions = useMemo(
+    () => ({
+      ...gridOptions,
+      sideBar: {
+        ...(typeof sideBar === 'object' && sideBar !== null ? sideBar : {}),
+        toolPanels: [
+          ...((sideBar as SideBarDef)?.toolPanels ?? []),
+          {
+            id: 'deployServerInfo',
+            labelDefault: '배포현황',
+            labelKey: 'deployServerInfo',
+            iconKey: 'eye',
+            toolPanel: AggridDeployServerInfoSidebar,
+            toolPanelParams: { serviceId },
+          },
+        ],
+      },
+    }),
+    [gridOptions, sideBar, serviceId],
+  );
   const [rowData, setRowData] = useState<BotVersionListItem[]>([]);
   const [filterColumn, setFilterColumn] = useState('version');
   const [searchValue, setSearchValue] = useState('');
@@ -198,23 +218,7 @@ export default function BotVersionList() {
         <AgGridReact<BotVersionListItem>
           ref={gridRef}
           {...{ rowData, columnDefs }}
-          gridOptions={{
-            ...gridOptions,
-            sideBar: {
-              ...(typeof sideBar === 'object' && sideBar !== null ? sideBar : {}),
-              toolPanels: [
-                ...((sideBar as SideBarDef)?.toolPanels ?? []),
-                {
-                  id: 'deployServerInfo',
-                  labelDefault: '배포현황',
-                  labelKey: 'deployServerInfo',
-                  iconKey: 'eye',
-                  toolPanel: AggridDeployServerInfoSidebar,
-                  toolPanelParams: { serviceId },
-                },
-              ],
-            },
-          }}
+          gridOptions={customGridOptions}
           loading={isFetchingVersionList}
           onRowDoubleClicked={handleRowDoubleClicked}
         />

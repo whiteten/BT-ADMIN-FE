@@ -1,4 +1,4 @@
-import { useEffect, useLayoutEffect, useRef, useState } from 'react';
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { useParams } from 'react-router-dom';
 import { useQueryClient } from '@tanstack/react-query';
 import type {
@@ -233,6 +233,17 @@ export default function EntityValueList() {
   const queryClient = useQueryClient();
   const modal = useModal();
   const { gridOptions } = useAggridOptions();
+  const customGridOptions = useMemo(
+    () => ({
+      ...gridOptions,
+      sideBar: false,
+      editType: 'fullRow' as const,
+      stopEditingWhenCellsLoseFocus: true,
+      readOnlyEdit: true,
+      suppressClickEdit: true,
+    }),
+    [gridOptions],
+  );
 
   // State
   const [filterColumn, setFilterColumn] = useState('entityValue');
@@ -512,14 +523,7 @@ export default function EntityValueList() {
           getRowId={getRowId}
           isExternalFilterPresent={isExternalFilterPresent}
           doesExternalFilterPass={doesExternalFilterPass}
-          gridOptions={{
-            ...gridOptions,
-            sideBar: false,
-            editType: 'fullRow',
-            stopEditingWhenCellsLoseFocus: true,
-            readOnlyEdit: true,
-            suppressClickEdit: true,
-          }}
+          gridOptions={customGridOptions}
           loading={isFetching || isUpdating || isDeleting}
           onGridReady={handleGridReady}
           onCellDoubleClicked={handleCellDoubleClick}

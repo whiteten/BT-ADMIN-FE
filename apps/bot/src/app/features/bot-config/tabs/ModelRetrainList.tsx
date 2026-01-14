@@ -184,6 +184,17 @@ export default function ModelRetrainList() {
   const { modelId = '' } = useParams();
   const queryClient = useQueryClient();
   const { gridOptions } = useAggridOptions();
+  const customGridOptions = useMemo(
+    () => ({
+      ...gridOptions,
+      sideBar: false,
+      editType: 'fullRow' as const,
+      stopEditingWhenCellsLoseFocus: true,
+      readOnlyEdit: true,
+      suppressClickEdit: true,
+    }),
+    [gridOptions],
+  );
   const modal = useModal();
   const { RangePicker } = DatePicker;
   // State
@@ -513,14 +524,7 @@ export default function ModelRetrainList() {
           getRowId={getRowId}
           isExternalFilterPresent={isExternalFilterPresent}
           doesExternalFilterPass={doesExternalFilterPass}
-          gridOptions={{
-            ...gridOptions,
-            sideBar: false,
-            editType: 'fullRow',
-            stopEditingWhenCellsLoseFocus: true,
-            readOnlyEdit: true,
-            suppressClickEdit: true,
-          }}
+          gridOptions={customGridOptions}
           loading={isFetching || isUpdating}
           onGridReady={handleGridReady}
           onCellDoubleClicked={handleCellDoubleClick}

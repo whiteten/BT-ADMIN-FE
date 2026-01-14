@@ -1,4 +1,4 @@
-import { forwardRef, useImperativeHandle, useState } from 'react';
+import { forwardRef, useImperativeHandle, useMemo, useState } from 'react';
 import type { ColDef } from 'ag-grid-community';
 import { AgGridReact } from 'ag-grid-react';
 import { Button, Drawer } from 'antd';
@@ -38,6 +38,14 @@ const keywordColumnDefs: ColDef<RetrainKeyword>[] = [
  */
 const RetrainDetailDrawer = forwardRef<RetrainDetailDrawerRef>((_, ref) => {
   const { gridOptions } = useAggridOptions();
+  const customGridOptions = useMemo(
+    () => ({
+      ...gridOptions,
+      sideBar: false,
+      pagination: false,
+    }),
+    [gridOptions],
+  );
   const [drawerState, setDrawerState] = useState<DrawerState>({
     open: false,
     modelId: '',
@@ -93,32 +101,14 @@ const RetrainDetailDrawer = forwardRef<RetrainDetailDrawerRef>((_, ref) => {
         <div className="flex flex-col flex-1 shrink-0 min-h-0">
           <div className="text-[#495057] text-lg font-bold shrink-0 mb-2">인식개체 정보</div>
           <div className="flex-1 min-h-0">
-            <AgGridReact<RetrainEntity>
-              rowData={detailData?.entityList ?? []}
-              columnDefs={entityColumnDefs}
-              gridOptions={{
-                ...gridOptions,
-                sideBar: false,
-                pagination: false,
-              }}
-              loading={isFetching}
-            />
+            <AgGridReact<RetrainEntity> rowData={detailData?.entityList ?? []} columnDefs={entityColumnDefs} gridOptions={customGridOptions} loading={isFetching} />
           </div>
         </div>
         {/* 인식키워드 정보 */}
         <div className="flex flex-col flex-1 shrink-0 min-h-0">
           <div className="text-[#495057] text-lg font-bold shrink-0 mb-2">인식키워드 정보</div>
           <div className="flex-1 min-h-0">
-            <AgGridReact<RetrainKeyword>
-              rowData={detailData?.keywordList ?? []}
-              columnDefs={keywordColumnDefs}
-              gridOptions={{
-                ...gridOptions,
-                sideBar: false,
-                pagination: false,
-              }}
-              loading={isFetching}
-            />
+            <AgGridReact<RetrainKeyword> rowData={detailData?.keywordList ?? []} columnDefs={keywordColumnDefs} gridOptions={customGridOptions} loading={isFetching} />
           </div>
         </div>
       </div>
