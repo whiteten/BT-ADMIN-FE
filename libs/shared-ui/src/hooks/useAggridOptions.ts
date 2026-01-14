@@ -1,7 +1,8 @@
 import { useMemo } from 'react';
-import { type GridOptions, type SideBarDef, themeQuartz } from 'ag-grid-community';
+import { type GridOptions, type SideBarDef, type StatusPanelDef, themeQuartz } from 'ag-grid-community';
 import { localeKr } from '../assets/json/aggrid_kr';
 import AggridNoRowsOverlay from '../components/custom/AggridNoRowsOverlay';
+import AggridPagination from '../components/custom/AggridPagination';
 import AggridRowDataSidebar from '../components/custom/AggridRowDataSidebar';
 import { FallbackSpinner } from '../components/custom/FallbackSpinner';
 
@@ -55,6 +56,15 @@ export default function useAggridOptions() {
       rowSelection: { mode: 'singleRow', checkboxes: false, enableClickSelection: true },
       pagination: true,
       paginationPageSize: 20,
+      suppressPaginationPanel: true,
+      statusBar: {
+        statusPanels: [
+          {
+            statusPanel: AggridPagination,
+            align: 'left',
+          } as StatusPanelDef,
+        ],
+      },
       rowNumbers: true,
       noRowsOverlayComponent: AggridNoRowsOverlay,
       noRowsOverlayComponentParams: {
