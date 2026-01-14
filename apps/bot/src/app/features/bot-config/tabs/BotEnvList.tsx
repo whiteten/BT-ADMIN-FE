@@ -1,12 +1,11 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useParams } from 'react-router-dom';
-import type { ColDef, GetDetailRowDataParams, ICellRendererParams, RowDoubleClickedEvent } from 'ag-grid-community';
+import type { ColDef, ICellRendererParams, RowDoubleClickedEvent, SideBarDef } from 'ag-grid-community';
 import { AgGridReact } from 'ag-grid-react';
-import { Button, Input, Select, Tooltip } from 'antd';
-import { RotateCcw } from 'lucide-react';
+import { Button, Input, Select } from 'antd';
+import AggridEnvDeploySidebar from '../components/AggridEnvDeploySidebar';
 import BotEnvDrawer, { type BotEnvDrawerRef } from '../components/BotEnvDrawer';
 import { IconTrash } from '@/components/custom/Icons';
-import { Badge } from '@/components/ui/badge';
 import useAggridOptions from '@/libs/shared-ui/src/hooks/useAggridOptions';
 import { useModal } from '@/libs/shared-ui/src/hooks/useModal';
 
@@ -84,12 +83,11 @@ export default function BotEnvList() {
     });
   };
 
-  // 마스터 그리드 컬럼 정의
+  // 그리드 컬럼 정의
   const columnDefs: ColDef<BotEnvItem>[] = [
     { headerName: '분류명', field: 'categoryName' },
     { headerName: '변수명', field: 'varName' },
     { headerName: '값', field: 'varValue', flex: 2 },
-    { headerName: '', cellRenderer: 'agGroupCellRenderer', maxWidth: 40 },
     {
       headerName: '',
       maxWidth: 60,
@@ -114,61 +112,6 @@ export default function BotEnvList() {
       },
     },
   ];
-
-  // 적용결과 상태 뱃지 렌더러
-  const resultBadgeRenderer = (params: ICellRendererParams<EnvNodeItem>) => {
-    const value = params.value as string;
-    if (!value) return null;
-    const isSuccess = value === '완료';
-    return (
-      <Badge variant="secondary" className={isSuccess ? 'text-[#0AB39C] bg-[#0AB39C1A]' : 'text-[#F06548] bg-[#F065481A]'}>
-        {value}
-      </Badge>
-    );
-  };
-
-  // 디테일(노드) 그리드 컬럼 정의
-  const detailColumnDefs: ColDef<EnvNodeItem>[] = [
-    { headerName: '파일명', field: 'fileName', flex: 2 },
-    { headerName: '시스템ID', field: 'systemId' },
-    { headerName: '상태', field: 'status', maxWidth: 80, cellRenderer: resultBadgeRenderer },
-    { headerName: '작업일시', field: 'workDateTime', maxWidth: 180 },
-    { headerName: '작업자', field: 'worker', maxWidth: 120 },
-    {
-      headerName: '',
-      maxWidth: 60,
-      sortable: false,
-      filter: false,
-      suppressHeaderMenuButton: true,
-      cellStyle: { display: 'flex', alignItems: 'center', justifyContent: 'center' },
-      cellRenderer: (params: ICellRendererParams<EnvNodeItem>) => {
-        const { data } = params;
-        if (!data) return null;
-        if (data.status !== '실패') return null;
-        return (
-          <Tooltip title="재시도">
-            <button
-              type="button"
-              onClick={(e) => {
-                e.stopPropagation();
-                // TODO: 재시도 로직
-              }}
-            >
-              <RotateCcw className="size-4 text-[#888B9A] hover:cursor-pointer" />
-            </button>
-          </Tooltip>
-        );
-      },
-    },
-  ];
-
-  // masterDetail 설정
-  const detailCellRendererParams = {
-    detailGridOptions: { ...gridOptions, columnDefs: detailColumnDefs, sideBar: false, pagination: false },
-    getDetailRowData: (params: GetDetailRowDataParams<BotEnvItem>) => {
-      params.successCallback(params.data.nodes);
-    },
-  };
 
   const handleClickAddEnv = () => {
     envDrawerRef.current?.open({ serviceId });
@@ -211,10 +154,19 @@ export default function BotEnvList() {
           onRowDoubleClicked={handleRowDoubleClicked}
           gridOptions={{
             ...gridOptions,
-            sideBar: false,
-            masterDetail: true,
-            detailCellRendererParams,
-            detailRowHeight: 300,
+            sideBar: {
+              ...((typeof gridOptions.sideBar === 'object' && gridOptions.sideBar !== null ? gridOptions.sideBar : {}) as SideBarDef),
+              toolPanels: [
+                ...((gridOptions.sideBar as SideBarDef)?.toolPanels ?? []),
+                {
+                  id: 'envDeployInfo',
+                  labelDefault: '배포현황',
+                  labelKey: 'envDeployInfo',
+                  iconKey: 'eye',
+                  toolPanel: AggridEnvDeploySidebar,
+                },
+              ],
+            },
           }}
         />
       </div>
