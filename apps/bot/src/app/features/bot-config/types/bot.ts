@@ -53,7 +53,9 @@ export interface BotVersion {
 
 export type BotVersionListItem = BotVersion;
 export type BotVersionItem = Omit<BotVersion, 'workUser' | 'workTime'>;
-export type BotVersionCreateDatas = Omit<BotVersion, 'serviceId' | 'workUser' | 'workTime'>;
+export type BotVersionCreateDatas = Omit<BotVersion, 'serviceId' | 'workUser' | 'workTime'> & {
+  sourcever?: string;
+};
 export type BotVersionUpdateDatas = Omit<BotVersion, 'workUser' | 'workTime'>;
 
 export interface BotDeployConfig {

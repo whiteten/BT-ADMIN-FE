@@ -48,7 +48,7 @@ export default function BotVersionList() {
   const versionDrawerRef = useRef<BotVersionDrawerRef>(null);
   const deployConfigDrawerRef = useRef<BotDeployConfigDrawerRef>(null);
 
-  const { data: versionList, isFetching: isFetchingVersionList } = useGetBotVersions({ params: { serviceId } });
+  const { data: versionList, isLoading: isLoadingVersionList } = useGetBotVersions({ params: { serviceId } });
 
   const { mutate: publishBotVersion, isPending: isPublishing } = usePublishBotVersion({
     mutationOptions: {
@@ -219,7 +219,7 @@ export default function BotVersionList() {
           ref={gridRef}
           {...{ rowData, columnDefs }}
           gridOptions={customGridOptions}
-          loading={isFetchingVersionList}
+          loading={isLoadingVersionList}
           onRowDoubleClicked={handleRowDoubleClicked}
         />
       </div>
