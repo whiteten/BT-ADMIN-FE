@@ -1,7 +1,9 @@
 import { Button, Divider } from 'antd';
+import dayjs from 'dayjs';
 import TrainStatusBadge from './TrainStatusBadge';
 import { useModelAction } from '../hooks/useModelAction';
-import type { TrainStatus } from '../types';
+import type { DeployStatus, TrainStatus } from '../types';
+import DeployStatusBadge from './DeployStatusBadge';
 import { IconBot } from '@/libs/shared-ui/src/components/custom/Icons';
 
 interface ModelToolbarProps {
@@ -10,16 +12,19 @@ interface ModelToolbarProps {
 
 export default function ModelToolbar({ modelId }: ModelToolbarProps) {
   const { train, deploy, isTraining, isDeploying, isModelLoading, model } = useModelAction({ modelId });
-
+  const shouldShowDeployAlert = model?.trainTime && model?.deployTime && model?.trainStatus === 2 && dayjs(model?.trainTime).isAfter(dayjs(model?.deployTime));
   return (
     <div className="flex justify-end">
       <div className="flex items-center gap-2">
         <div className="flex items-center">
-          <IconBot className="size-5 text-[#888B9A] mr-0.5" />
+          <IconBot className="size-5 text-[#888B9A]" />
           <span className="text-[#495057]">{model?.modelName}</span>
         </div>
+        <Divider orientation="vertical" className="!mx-0.5" />
         <TrainStatusBadge status={model?.trainStatus as TrainStatus} />
-        <Divider orientation="vertical" />
+        <Divider orientation="vertical" className="!mx-0.5" />
+        <DeployStatusBadge status={model?.deployStatus as DeployStatus} showAlert={!!shouldShowDeployAlert} />
+        <Divider orientation="vertical" className="!mx-0.5" />
         <Button variant="solid" loading={isModelLoading || isTraining} onClick={train}>
           모델 학습
         </Button>

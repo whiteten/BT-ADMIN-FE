@@ -1,5 +1,7 @@
-import { Card } from 'antd';
-import { type ModelListItem, ModelType, type TrainStatus } from '../types';
+import { Card, Divider } from 'antd';
+import dayjs from 'dayjs';
+import { type DeployStatus, type ModelListItem, ModelType, type TrainStatus } from '../types';
+import DeployStatusBadge from './DeployStatusBadge';
 import TrainStatusBadge from './TrainStatusBadge';
 import { IconMoreVertical } from '@/components/custom/Icons';
 import { Button } from '@/components/ui/button';
@@ -10,8 +12,21 @@ type ModelCardProps = ModelListItem & {
   onDelete?: (modelId: string) => void;
 };
 
-export default function ModelCard({ modelId, modelName, modelType, trainStatus, trainTime, intentCount, entityCount, onDetail, onDelete }: ModelCardProps) {
+export default function ModelCard({
+  modelId,
+  modelName,
+  modelType,
+  trainStatus,
+  trainTime,
+  deployStatus,
+  deployTime,
+  intentCount,
+  entityCount,
+  onDetail,
+  onDelete,
+}: ModelCardProps) {
   const isPublicModel = modelType === ModelType.PUBLIC;
+  const shouldShowDeployAlert = trainTime && deployTime && trainStatus === 2 && dayjs(trainTime).isAfter(dayjs(deployTime));
   const title = (
     <span className="hover:cursor-pointer hover:!text-[var(--color-bt-primary)]" onClick={() => onDetail?.(modelId)}>
       {modelName}
@@ -48,6 +63,8 @@ export default function ModelCard({ modelId, modelName, modelType, trainStatus, 
         <div className="flex items-center">
           <span className="w-[104px]">상태</span>
           <TrainStatusBadge status={trainStatus as TrainStatus} />
+          <Divider orientation="vertical" className="!mx-2" />
+          <DeployStatusBadge status={deployStatus as DeployStatus} showAlert={!!shouldShowDeployAlert} />
         </div>
         <div className="flex">
           <span className="w-[104px]">의도</span>

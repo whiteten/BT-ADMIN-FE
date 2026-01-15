@@ -33,6 +33,8 @@ export const useModelAction = ({ modelId }: UseModelActionParams): UseModelActio
     mutationOptions: {
       onSuccess: () => {
         toast.success('모델 학습 요청이 전송되었습니다.');
+      },
+      onSettled: () => {
         queryClient.invalidateQueries({
           queryKey: modelQueryKeys.getModel({ modelId }).queryKey,
         });
@@ -44,6 +46,8 @@ export const useModelAction = ({ modelId }: UseModelActionParams): UseModelActio
     mutationOptions: {
       onSuccess: () => {
         toast.success('모델 배포가 완료되었습니다.');
+      },
+      onSettled: () => {
         queryClient.invalidateQueries({
           queryKey: modelQueryKeys.getModel({ modelId }).queryKey,
         });
@@ -64,6 +68,10 @@ export const useModelAction = ({ modelId }: UseModelActionParams): UseModelActio
   };
 
   const deploy = () => {
+    if (model?.trainStatus !== 2) {
+      toast.warning('학습이 완료된 모델만 배포할 수 있습니다.');
+      return;
+    }
     const tenantId = model?.tenantId;
     modal.confirm.execute({
       options: {
