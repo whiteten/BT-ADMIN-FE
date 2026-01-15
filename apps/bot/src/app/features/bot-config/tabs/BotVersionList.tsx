@@ -4,6 +4,7 @@ import { useQueryClient } from '@tanstack/react-query';
 import type { ColDef, ICellRendererParams, RowDoubleClickedEvent, SideBarDef } from 'ag-grid-community';
 import { AgGridReact } from 'ag-grid-react';
 import { Button, Input, Select } from 'antd';
+import dayjs from 'dayjs';
 import { Log } from '@/log';
 import { toast } from '@/shared-util';
 import AggridDeployServerInfoSidebar from '../components/AggridDeployServerInfoSidebar';
@@ -88,11 +89,12 @@ export default function BotVersionList() {
 
   const columnDefs: ColDef<BotVersionListItem>[] = [
     { headerName: 'ID', field: 'serviceId', hide: true },
-    { headerName: '버전', field: 'serviceVer' },
+    { headerName: '버전', field: 'serviceVer', maxWidth: 100 },
     { headerName: '버전명', field: 'versionName' },
+    { headerName: '시나리오파일', field: 'scenarioFile' },
     { headerName: '변경내용', field: 'versionDesc' },
-    { headerName: '작업자', field: 'workUser' },
-    { headerName: '작업일시', field: 'workTime' },
+    { headerName: '작업자', field: 'workUser', maxWidth: 120 },
+    { headerName: '작업일시', field: 'workTime', valueFormatter: (params: { value: string }) => (params.value ? dayjs(params.value).format('YYYY-MM-DD HH:mm:ss') : '-') },
     {
       headerName: '',
       maxWidth: 60,

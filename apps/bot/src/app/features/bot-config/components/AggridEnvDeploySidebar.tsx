@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import type { CustomToolPanelProps } from 'ag-grid-react';
+import { Alert } from 'antd';
 import { Clock, FileText, OctagonAlert, RotateCcw, Server, ServerOff, User } from 'lucide-react';
 import { Log } from '@/log';
 import { Badge } from '@/components/ui/badge';
@@ -45,9 +46,8 @@ function AggridEnvDeploySidebar(props: CustomToolPanelProps<BotEnvItem>) {
     };
   }, [api]);
 
-  const handleRetry = (node: EnvNodeItem) => {
-    // TODO: 재시도 API 연동
-    Log.debug('Retry node:', node);
+  const handleRetry = () => {
+    Log.debug('Retry');
   };
 
   const renderNodeCard = (node: EnvNodeItem, index: number) => {
@@ -55,9 +55,14 @@ function AggridEnvDeploySidebar(props: CustomToolPanelProps<BotEnvItem>) {
     return (
       <div key={index} className="flex flex-col gap-2 p-3 rounded-lg border border-border bg-card">
         {/* 헤더: 시스템ID */}
-        <div className="flex items-center gap-2 min-w-0">
-          <Server className="size-4 text-primary shrink-0" />
-          <span className="text-sm font-medium text-foreground truncate">{node.systemId}</span>
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2 min-w-0">
+            <Server className="size-4 text-primary shrink-0" />
+            <span className="text-sm font-medium text-foreground truncate">{node.systemId}</span>
+          </div>
+          <Badge variant="secondary" className={isSuccess ? 'text-[#0AB39C] bg-[#0AB39C1A]' : 'text-[#F06548] bg-[#F065481A]'}>
+            {node.status}
+          </Badge>
         </div>
 
         {/* 상세 정보 */}
@@ -74,23 +79,6 @@ function AggridEnvDeploySidebar(props: CustomToolPanelProps<BotEnvItem>) {
             <User className="size-3 shrink-0" />
             <span>{node.worker}</span>
           </div>
-        </div>
-
-        {/* 상태 배지 + 재시도 버튼 */}
-        <div className="flex items-center justify-between mt-1">
-          <Badge variant="secondary" className={isSuccess ? 'text-[#0AB39C] bg-[#0AB39C1A]' : 'text-[#F06548] bg-[#F065481A]'}>
-            {node.status}
-          </Badge>
-          {!isSuccess && (
-            <button
-              type="button"
-              onClick={() => handleRetry(node)}
-              className="flex items-center gap-1 px-2 py-1 text-xs text-muted-foreground hover:text-foreground rounded border border-border hover:bg-accent transition-colors"
-            >
-              <RotateCcw className="size-3" />
-              <span>재시도</span>
-            </button>
-          )}
         </div>
       </div>
     );
@@ -111,6 +99,24 @@ function AggridEnvDeploySidebar(props: CustomToolPanelProps<BotEnvItem>) {
     return (
       <div className="flex flex-col gap-3">
         <span className="text-sm font-semibold text-foreground">적용 노드 ({nodes.length})</span>
+        {nodes.some((node) => node.status === '실패') && (
+          <Alert
+            title={`적용에 실패한 노드가 있습니다.`}
+            type="warning"
+            showIcon
+            classNames={{ title: '!text-sm' }}
+            action={
+              <button
+                type="button"
+                onClick={() => handleRetry()}
+                className="flex items-center gap-1 px-2 py-1 text-xs text-muted-foreground hover:text-foreground bg-white rounded border border-border transition-colors hover:cursor-pointer"
+              >
+                <RotateCcw className="size-3" />
+                <span>재시도</span>
+              </button>
+            }
+          />
+        )}
         <div className="flex flex-col gap-2">{nodes.map((node, index) => renderNodeCard(node, index))}</div>
       </div>
     );

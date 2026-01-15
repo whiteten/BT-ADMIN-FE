@@ -62,6 +62,8 @@ export default function BotEnvList() {
             labelKey: 'envDeployInfo',
             iconKey: 'eye',
             toolPanel: AggridEnvDeploySidebar,
+            width: 350,
+            minWidth: 350,
           },
         ],
       },

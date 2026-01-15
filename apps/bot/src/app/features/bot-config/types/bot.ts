@@ -35,6 +35,7 @@ export interface BotVoice {
 
 export type BotListItem = Omit<Bot, 'serviceDesc' | 'confidence'> & {
   conversationCount: number;
+  updateTime: string;
 };
 export type BotItem = Bot & BotSchedule & BotVoice;
 export type BotCreateDatas = Omit<Bot, 'serviceId' | 'workTime'> & BotVoice;
@@ -51,7 +52,7 @@ export interface BotVersion {
   workTime: string;
 }
 
-export type BotVersionListItem = BotVersion;
+export type BotVersionListItem = BotVersion & { scenarioFile: string };
 export type BotVersionItem = Omit<BotVersion, 'workUser' | 'workTime'>;
 export type BotVersionCreateDatas = Omit<BotVersion, 'serviceId' | 'workUser' | 'workTime'> & {
   sourcever?: string;
