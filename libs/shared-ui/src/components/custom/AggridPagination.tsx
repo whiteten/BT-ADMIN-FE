@@ -63,10 +63,6 @@ export default function AggridPagination({ api }: CustomStatusPanelProps) {
     };
   }, [api]);
 
-  if (state.totalPages === 0) {
-    return null;
-  }
-
   const { currentPage, totalPages, totalRows, pageSize } = state;
   const pageButtons = getPageButtons(totalPages, currentPage);
 
@@ -112,6 +108,18 @@ export default function AggridPagination({ api }: CustomStatusPanelProps) {
   const handleLastPage = () => {
     handlePageClick(totalPages - 1);
   };
+
+  if (totalRows === 0) {
+    return (
+      <nav role="navigation" aria-label="pagination" className="flex items-center justify-start gap-1 py-2">
+        <Badge variant="outline" className="gap-1 px-2.5 py-1 text-[13px] font-normal">
+          <span className="text-muted-foreground">총</span>
+          <span className="font-semibold">0</span>
+          <span className="text-muted-foreground">건</span>
+        </Badge>
+      </nav>
+    );
+  }
 
   return (
     <nav role="navigation" aria-label="pagination" className="flex items-center justify-start gap-1 py-2">
