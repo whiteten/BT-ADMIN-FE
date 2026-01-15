@@ -1,4 +1,4 @@
-import { forwardRef, useImperativeHandle, useState } from 'react';
+import { forwardRef, useImperativeHandle, useMemo, useState } from 'react';
 import type { ColDef, ColGroupDef, RowClickedEvent } from 'ag-grid-community';
 import { AgGridReact } from 'ag-grid-react';
 import { Button, Divider, Drawer } from 'antd';
@@ -205,6 +205,14 @@ const rightColumnDefs: ColDef<EvaluationResultListByEvalDateAndQuestionSeqItem>[
  */
 const EvaluationResultDetailDrawer = forwardRef<EvaluationResultDetailDrawerRef>((_, ref) => {
   const { gridOptions } = useAggridOptions();
+  const customGridOptions = useMemo(
+    () => ({
+      ...gridOptions,
+      sideBar: false,
+      pagination: false,
+    }),
+    [gridOptions],
+  );
   const [drawerState, setDrawerState] = useState<DrawerState>({
     open: false,
     modelId: '',
@@ -302,11 +310,7 @@ const EvaluationResultDetailDrawer = forwardRef<EvaluationResultDetailDrawerRef>
               <AgGridReact<EvaluationResultListByEvalDateItem>
                 rowData={resultListByEvalDate}
                 columnDefs={leftColumnDefs}
-                gridOptions={{
-                  ...gridOptions,
-                  sideBar: false,
-                  pagination: false,
-                }}
+                gridOptions={customGridOptions}
                 loading={isFetchingResultListByEvalDate}
                 onRowClicked={handleLeftGridRowClicked}
               />
@@ -319,11 +323,7 @@ const EvaluationResultDetailDrawer = forwardRef<EvaluationResultDetailDrawerRef>
               <AgGridReact<EvaluationResultListByEvalDateAndQuestionSeqItem>
                 rowData={resultListByEvalDateAndQuestionSeq}
                 columnDefs={rightColumnDefs}
-                gridOptions={{
-                  ...gridOptions,
-                  sideBar: false,
-                  pagination: false,
-                }}
+                gridOptions={customGridOptions}
                 loading={isFetchingResultListByEvalDate || isFetchingResultListByEvalDateAndQuestionSeq}
               />
             </div>

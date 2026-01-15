@@ -31,3 +31,4 @@ export { ReactComponent as IconBookmark } from '../../assets/images/icon/icon-bo
 export { ReactComponent as IconAoe } from '../../assets/images/icon/icon-aoe.svg';
 export { ReactComponent as IconRollback } from '../../assets/images/icon/icon-rollback.svg';
 export { ReactComponent as IconBot } from '../../assets/images/icon/icon-bot.svg';
+export { ReactComponent as IconAlertTriangle } from '../../assets/images/icon/icon-alert-triangle.svg';

@@ -4,6 +4,7 @@ import { useQueryClient } from '@tanstack/react-query';
 import type { ColDef, ICellRendererParams, RowDoubleClickedEvent, SideBarDef } from 'ag-grid-community';
 import { AgGridReact } from 'ag-grid-react';
 import { Button, Input, Select } from 'antd';
+import dayjs from 'dayjs';
 import { Log } from '@/log';
 import { toast } from '@/shared-util';
 import AggridDeployServerInfoSidebar from '../components/AggridDeployServerInfoSidebar';
@@ -20,6 +21,26 @@ export default function BotVersionList() {
   const queryClient = useQueryClient();
   const modal = useModal();
   const { gridOptions, sideBar } = useAggridOptions();
+  const customGridOptions = useMemo(
+    () => ({
+      ...gridOptions,
+      sideBar: {
+        ...(typeof sideBar === 'object' && sideBar !== null ? sideBar : {}),
+        toolPanels: [
+          ...((sideBar as SideBarDef)?.toolPanels ?? []),
+          {
+            id: 'deployServerInfo',
+            labelDefault: '배포현황',
+            labelKey: 'deployServerInfo',
+            iconKey: 'eye',
+            toolPanel: AggridDeployServerInfoSidebar,
+            toolPanelParams: { serviceId },
+          },
+        ],
+      },
+    }),
+    [gridOptions, sideBar, serviceId],
+  );
   const [rowData, setRowData] = useState<BotVersionListItem[]>([]);
   const [filterColumn, setFilterColumn] = useState('version');
   const [searchValue, setSearchValue] = useState('');
@@ -28,7 +49,7 @@ export default function BotVersionList() {
   const versionDrawerRef = useRef<BotVersionDrawerRef>(null);
   const deployConfigDrawerRef = useRef<BotDeployConfigDrawerRef>(null);
 
-  const { data: versionList, isFetching: isFetchingVersionList } = useGetBotVersions({ params: { serviceId } });
+  const { data: versionList, isLoading: isLoadingVersionList } = useGetBotVersions({ params: { serviceId } });
 
   const { mutate: publishBotVersion, isPending: isPublishing } = usePublishBotVersion({
     mutationOptions: {
@@ -68,11 +89,12 @@ export default function BotVersionList() {
 
   const columnDefs: ColDef<BotVersionListItem>[] = [
     { headerName: 'ID', field: 'serviceId', hide: true },
-    { headerName: '버전', field: 'serviceVer' },
+    { headerName: '버전', field: 'serviceVer', maxWidth: 100 },
     { headerName: '버전명', field: 'versionName' },
+    { headerName: '시나리오파일', field: 'scenarioFile' },
     { headerName: '변경내용', field: 'versionDesc' },
-    { headerName: '작업자', field: 'workUser' },
-    { headerName: '작업일시', field: 'workTime' },
+    { headerName: '작업자', field: 'workUser', maxWidth: 120 },
+    { headerName: '작업일시', field: 'workTime', valueFormatter: (params: { value: string }) => (params.value ? dayjs(params.value).format('YYYY-MM-DD HH:mm:ss') : '-') },
     {
       headerName: '',
       maxWidth: 60,
@@ -198,24 +220,8 @@ export default function BotVersionList() {
         <AgGridReact<BotVersionListItem>
           ref={gridRef}
           {...{ rowData, columnDefs }}
-          gridOptions={{
-            ...gridOptions,
-            sideBar: {
-              ...(typeof sideBar === 'object' && sideBar !== null ? sideBar : {}),
-              toolPanels: [
-                ...((sideBar as SideBarDef)?.toolPanels ?? []),
-                {
-                  id: 'deployServerInfo',
-                  labelDefault: '배포현황',
-                  labelKey: 'deployServerInfo',
-                  iconKey: 'eye',
-                  toolPanel: AggridDeployServerInfoSidebar,
-                  toolPanelParams: { serviceId },
-                },
-              ],
-            },
-          }}
-          loading={isFetchingVersionList}
+          gridOptions={customGridOptions}
+          loading={isLoadingVersionList}
           onRowDoubleClicked={handleRowDoubleClicked}
         />
       </div>

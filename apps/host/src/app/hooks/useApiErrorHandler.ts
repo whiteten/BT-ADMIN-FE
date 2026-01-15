@@ -21,7 +21,7 @@ export function useApiErrorHandler() {
   useEffect(() => {
     const handler = (e: Event) => {
       const { detail: error } = e as ApiErrorEvent;
-      if (hasKeyValue(error.response, 'status', 401, 3)) {
+      if (error.response?.status === 401) {
         navigate('/login');
         const current = locationRef.current;
         Log.debug('Redirect to login page. location: ', JSON.stringify(current));

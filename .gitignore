@@ -46,6 +46,7 @@ Thumbs.db
 # Claude
 .claude/
 CLAUDE.md
+tmpclaude-*
 
 # Cursor
 .cursor/

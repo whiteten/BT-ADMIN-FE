@@ -48,7 +48,28 @@ const dummyEnvList: BotEnvItem[] = [
 export default function BotEnvList() {
   const { serviceId = '' } = useParams();
   const modal = useModal();
-  const { gridOptions } = useAggridOptions();
+  const { gridOptions, sideBar } = useAggridOptions();
+  const customGridOptions = useMemo(
+    () => ({
+      ...gridOptions,
+      sideBar: {
+        ...(typeof sideBar === 'object' && sideBar !== null ? sideBar : {}),
+        toolPanels: [
+          ...((sideBar as SideBarDef)?.toolPanels ?? []),
+          {
+            id: 'envDeployInfo',
+            labelDefault: '배포현황',
+            labelKey: 'envDeployInfo',
+            iconKey: 'eye',
+            toolPanel: AggridEnvDeploySidebar,
+            width: 350,
+            minWidth: 350,
+          },
+        ],
+      },
+    }),
+    [gridOptions, sideBar],
+  );
   const [rowData, setRowData] = useState<BotEnvItem[]>(dummyEnvList);
   const [filterColumn, setFilterColumn] = useState('categoryName');
   const [searchValue, setSearchValue] = useState('');
@@ -147,28 +168,7 @@ export default function BotEnvList() {
         </div>
       </header>
       <div className="w-full h-full">
-        <AgGridReact<BotEnvItem>
-          ref={gridRef}
-          rowData={rowData}
-          columnDefs={columnDefs}
-          onRowDoubleClicked={handleRowDoubleClicked}
-          gridOptions={{
-            ...gridOptions,
-            sideBar: {
-              ...((typeof gridOptions.sideBar === 'object' && gridOptions.sideBar !== null ? gridOptions.sideBar : {}) as SideBarDef),
-              toolPanels: [
-                ...((gridOptions.sideBar as SideBarDef)?.toolPanels ?? []),
-                {
-                  id: 'envDeployInfo',
-                  labelDefault: '배포현황',
-                  labelKey: 'envDeployInfo',
-                  iconKey: 'eye',
-                  toolPanel: AggridEnvDeploySidebar,
-                },
-              ],
-            },
-          }}
-        />
+        <AgGridReact<BotEnvItem> ref={gridRef} rowData={rowData} columnDefs={columnDefs} onRowDoubleClicked={handleRowDoubleClicked} gridOptions={customGridOptions} />
       </div>
       <BotEnvDrawer ref={envDrawerRef} />
     </div>

@@ -1,9 +1,9 @@
 import { forwardRef, useEffect, useImperativeHandle, useState } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
-import { Button, Col, Drawer, Form, type FormProps, Input, Row } from 'antd';
+import { Button, Col, Drawer, Form, type FormProps, Input, Radio, Row, Select } from 'antd';
 import { Log } from '@/log';
 import { toast } from '@/shared-util';
-import { botQueryKeys, useCreateBotVersion, useDeleteBotVersion, useGetBotVersion, useUpdateBotVersion } from '../hooks/useBotQueries';
+import { botQueryKeys, useCreateBotVersion, useDeleteBotVersion, useGetBotVersion, useGetBotVersions, useUpdateBotVersion } from '../hooks/useBotQueries';
 import type { BotVersionCreateDatas, BotVersionUpdateDatas } from '../types';
 import { FallbackSpinner } from '@/components/custom/FallbackSpinner';
 
@@ -42,6 +42,9 @@ const BotVersionDrawer = forwardRef<BotVersionDrawerRef>((_, ref) => {
 
   const { open, serviceId, serviceVer } = drawerState;
 
+  // 생성 모드 상태 (신규생성/복사생성) - form 외부, UI 컨트롤용
+  const [createMode, setCreateMode] = useState<'new' | 'copy'>('new');
+
   // 부모 컴포넌트에서 ref를 통해 호출할 수 있는 메서드 정의
   useImperativeHandle(ref, () => ({
     /**
@@ -74,9 +77,14 @@ const BotVersionDrawer = forwardRef<BotVersionDrawerRef>((_, ref) => {
   const { TextArea } = Input;
   const queryClient = useQueryClient();
 
-  const { data: botVersion, isFetching } = useGetBotVersion({
+  const { data: botVersion, isLoading } = useGetBotVersion({
     params: { serviceId, serviceVer },
     queryOptions: { enabled: !!serviceId && !!serviceVer && open },
+  });
+
+  const { data: versionList, isLoading: isLoadingVersionList } = useGetBotVersions({
+    params: { serviceId },
+    queryOptions: { enabled: open && !serviceVer && createMode === 'copy' },
   });
 
   const { mutate: createBotVersion, isPending: isCreating } = useCreateBotVersion({
@@ -111,6 +119,7 @@ const BotVersionDrawer = forwardRef<BotVersionDrawerRef>((_, ref) => {
 
   useEffect(() => {
     if (!open) return;
+    setCreateMode('new');
     const { serviceVer = '', versionName = '', versionDesc = '' } = botVersion ?? {};
     form.setFieldsValue({ serviceVer, versionName, versionDesc });
     return () => {
@@ -148,11 +157,11 @@ const BotVersionDrawer = forwardRef<BotVersionDrawerRef>((_, ref) => {
         취소
       </Button>
       {serviceVer && (
-        <Button variant="solid" color="red" onClick={handleDeleteBtn} loading={isFetching || isUpdating || isDeleting}>
+        <Button variant="solid" color="red" onClick={handleDeleteBtn} loading={isLoading || isUpdating || isDeleting}>
           삭제
         </Button>
       )}
-      <Button variant="solid" type="primary" onClick={handleSubmitBtn} loading={isFetching || isCreating || isUpdating || isDeleting}>
+      <Button variant="solid" type="primary" onClick={handleSubmitBtn} loading={isLoading || isCreating || isUpdating || isDeleting}>
         저장
       </Button>
     </div>
@@ -161,12 +170,39 @@ const BotVersionDrawer = forwardRef<BotVersionDrawerRef>((_, ref) => {
   return (
     <Drawer open={open} onClose={handleClose} title={title} closable={{ placement: 'end' }} size={480} footer={footer} destroyOnHidden>
       <Form form={form} initialValues={{ serviceVer: '', versionName: '', versionDesc: '' }} onFinish={onFinish} onFinishFailed={onFinishFailed} layout="vertical">
-        {isFetching ? (
+        {isLoading ? (
           <div className="flex items-center justify-center w-full h-full">
             <FallbackSpinner />
           </div>
         ) : (
           <>
+            {/* 생성 모드일 때만 신규/복사 선택 라디오 표시 */}
+            {!serviceVer && (
+              <Row className="mb-4">
+                <Col span={24}>
+                  <Radio.Group value={createMode} onChange={(e) => setCreateMode(e.target.value)}>
+                    <Radio value="new">신규생성</Radio>
+                    <Radio value="copy">복사생성</Radio>
+                  </Radio.Group>
+                </Col>
+              </Row>
+            )}
+            <Row>
+              <Col span={24}>
+                {!serviceVer && createMode === 'copy' && (
+                  <Form.Item name="sourcever" label="복사할 버전" required rules={[{ required: true, message: '복사할 버전을 선택하세요.' }]}>
+                    <Select
+                      placeholder="복사할 버전을 선택하세요."
+                      options={versionList?.map((v) => ({
+                        value: v.serviceVer,
+                        label: v.serviceVer,
+                      }))}
+                      loading={isLoadingVersionList}
+                    />
+                  </Form.Item>
+                )}
+              </Col>
+            </Row>
             <Row>
               <Col span={24}>
                 <Form.Item
@@ -177,6 +213,14 @@ const BotVersionDrawer = forwardRef<BotVersionDrawerRef>((_, ref) => {
                   rules={[
                     { required: true, message: '버전을 입력하세요.' },
                     { pattern: /^\d+\.\d+\.\d+$/, message: '버전 형식은 x.x.x (예: 1.0.0) 입니다.' },
+                    ({ getFieldValue }) => ({
+                      validator(_, value) {
+                        if (!value || getFieldValue('sourcever') !== value) {
+                          return Promise.resolve();
+                        }
+                        return Promise.reject(new Error('복사할 버전과 새 버전은 같을 수 없습니다.'));
+                      },
+                    }),
                   ]}
                 >
                   <Input placeholder="버전을 입력하세요." disabled={!!serviceVer} />
@@ -185,7 +229,7 @@ const BotVersionDrawer = forwardRef<BotVersionDrawerRef>((_, ref) => {
             </Row>
             <Row>
               <Col span={24}>
-                <Form.Item name="versionName" label="버전명" required hasFeedback rules={[{ required: true, message: '작업자를 입력하세요.' }]}>
+                <Form.Item name="versionName" label="버전명" required hasFeedback rules={[{ required: true, message: '버전명을 입력하세요.' }]}>
                   <Input placeholder="버전명을 입력하세요." />
                 </Form.Item>
               </Col>

@@ -1,7 +1,8 @@
 import { useMemo } from 'react';
-import { type GridOptions, type SideBarDef, themeQuartz } from 'ag-grid-community';
+import { type GridOptions, type SideBarDef, type StatusPanelDef, themeQuartz } from 'ag-grid-community';
 import { localeKr } from '../assets/json/aggrid_kr';
 import AggridNoRowsOverlay from '../components/custom/AggridNoRowsOverlay';
+import AggridPagination from '../components/custom/AggridPagination';
 import AggridRowDataSidebar from '../components/custom/AggridRowDataSidebar';
 import { FallbackSpinner } from '../components/custom/FallbackSpinner';
 
@@ -43,11 +44,23 @@ export default function useAggridOptions() {
       defaultToolPanel: '',
     };
   }, []);
+  const statusBar = useMemo(
+    () => ({
+      statusPanels: [
+        {
+          statusPanel: AggridPagination,
+          align: 'left',
+        } as StatusPanelDef,
+      ],
+    }),
+    [],
+  );
   const gridOptions = useMemo<GridOptions>(
     () => ({
       defaultColDef,
       theme,
       sideBar,
+      statusBar,
       reactiveCustomComponents: true,
       columnHoverHighlight: true,
       animateRows: true,
@@ -55,6 +68,7 @@ export default function useAggridOptions() {
       rowSelection: { mode: 'singleRow', checkboxes: false, enableClickSelection: true },
       pagination: true,
       paginationPageSize: 20,
+      suppressPaginationPanel: true,
       rowNumbers: true,
       noRowsOverlayComponent: AggridNoRowsOverlay,
       noRowsOverlayComponentParams: {
@@ -63,7 +77,7 @@ export default function useAggridOptions() {
       loadingOverlayComponent: FallbackSpinner,
       localeText: localeKr,
     }),
-    [defaultColDef, theme, sideBar],
+    [defaultColDef, theme, sideBar, statusBar],
   );
-  return { gridOptions, defaultColDef, theme, sideBar };
+  return { gridOptions, defaultColDef, theme, sideBar, statusBar };
 }

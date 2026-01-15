@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { Card, Tag } from 'antd';
 
+import dayjs from 'dayjs';
 import { ReactComponent as IconLinkIfe } from '../../../../assets/images/icon/icon-link-ife.svg';
 import { ReactComponent as IconLinkNlu } from '../../../../assets/images/icon/icon-link-nlu.svg';
 import type { BotListItem } from '../types';
@@ -46,7 +47,20 @@ const useWrappedItemCount = () => {
   return { containerRef, wrappedCount };
 };
 
-export default function BotCard({ serviceId, serviceName, serviceVer, modelId, modelName, conversationCount, workTime, tags, onDetail, onDelete, onDetailModel }: BotCardProps) {
+export default function BotCard({
+  serviceId,
+  serviceName,
+  serviceVer,
+  modelId,
+  modelName,
+  conversationCount,
+  workTime,
+  updateTime,
+  tags,
+  onDetail,
+  onDelete,
+  onDetailModel,
+}: BotCardProps) {
   const { containerRef, wrappedCount } = useWrappedItemCount();
 
   const title = (
@@ -98,7 +112,7 @@ export default function BotCard({ serviceId, serviceName, serviceVer, modelId, m
         </div>
         <div className="flex">
           <span className="w-[104px]">서비스 개시일</span>
-          <span>{workTime ?? '-'}</span>
+          <span>{updateTime ? dayjs(updateTime).format('YYYY-MM-DD HH:mm:ss') : '-'}</span>
         </div>
         <div className="flex items-center justify-between w-full">
           {tags && tags.length > 0 && (

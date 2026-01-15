@@ -50,6 +50,7 @@ export default function ModelIntentList() {
       headerName: '학습상태',
       field: 'trainStatus',
       maxWidth: 120,
+      cellStyle: { display: 'flex', alignItems: 'center' },
       cellRenderer: (params: { value: number }) => <TrainStatusBadge status={params.value as TrainStatus} />,
     },
     { headerName: '문장수', field: 'sentenceCount', maxWidth: 120 },
