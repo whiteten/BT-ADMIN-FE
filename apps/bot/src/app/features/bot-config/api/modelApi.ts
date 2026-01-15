@@ -144,8 +144,8 @@ export const modelApi = {
     return extractList(response);
   },
   generateSentence: async ({ params, data }: { params: Record<string, unknown>; data: GenerateSentenceDatas }): Promise<string[]> => {
-    const response = await apiClient.post<GenerateSentenceResponse>('/aoe-agent-sentence', data, { params });
-    return response.data?.sentences ?? [];
+    const response = await apiClient.post<DetailResponse<GenerateSentenceResponse>>('/aoe-agent-sentence', data, { params });
+    return extractDetail(response)?.sentences ?? [];
   },
   getEvaluations: async (params?: Record<string, unknown>): Promise<EvaluationListItem[]> => {
     const response = await apiClient.get<ListResponse<EvaluationListItem>>('/evaluation-list', { params });
