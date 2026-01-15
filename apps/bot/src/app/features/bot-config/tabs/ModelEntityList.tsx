@@ -132,6 +132,7 @@ export default function ModelEntityList() {
       headerName: '학습상태',
       field: 'trainStatus',
       maxWidth: 120,
+      cellStyle: { display: 'flex', alignItems: 'center' },
       cellRenderer: (params: { value: number }) => <TrainStatusBadge status={params.value as TrainStatus} />,
     },
     { headerName: 'Value수', field: 'valueCount', maxWidth: 120 },

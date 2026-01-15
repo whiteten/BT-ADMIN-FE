@@ -45,7 +45,7 @@ export default function ModelCard({ modelId, modelName, modelType, trainStatus, 
       className="hover:!border-[var(--color-bt-primary)]"
     >
       <div className="flex flex-col text-[#495057] gap-2">
-        <div className="flex">
+        <div className="flex items-center">
           <span className="w-[104px]">상태</span>
           <TrainStatusBadge status={trainStatus as TrainStatus} />
         </div>
