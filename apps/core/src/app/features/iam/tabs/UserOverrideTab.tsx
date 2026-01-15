@@ -110,7 +110,7 @@ export default function UserOverrideTab() {
       { headerName: '권한', field: 'permDescription', flex: 1, minWidth: 150 },
       {
         headerName: '권한 키',
-        field: 'permKey',
+        field: 'authKey',
         flex: 1,
         minWidth: 200,
         cellRenderer: (params: { value: string }) => <code className="text-xs bg-gray-100 px-2 py-0.5 rounded font-mono">{params.value}</code>,

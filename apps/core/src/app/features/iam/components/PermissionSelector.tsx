@@ -7,10 +7,11 @@
  */
 
 import { useMemo, useState } from 'react';
-import { Checkbox, Collapse, Input, Space, Tag } from 'antd';
+import { Checkbox, Collapse, Input, Space, Spin, Tag } from 'antd';
 import { Search, Shield } from 'lucide-react';
-import { groupPermissionsByApp, permissionDummyData } from '../data/iam-dummy';
-import type { Permission } from '../types/iam.types';
+import { useGetGroupedPermissions } from '../hooks/usePermissionQueries';
+import type { Permission, PermissionGroup } from '../types/iam.types';
+import NoData from '@/components/custom/NoData';
 
 interface PermissionSelectorProps {
   value?: Set<number>;
@@ -27,8 +28,13 @@ const actionColorMap: Record<string, string> = {
 export default function PermissionSelector({ value = new Set(), onChange }: PermissionSelectorProps) {
   const [searchText, setSearchText] = useState('');
 
-  // 권한 계층 구조 생성
-  const permissionGroups = useMemo(() => groupPermissionsByApp(permissionDummyData), []);
+  // API에서 그룹화된 권한 목록 조회
+  const { data: permissionGroups = [], isLoading } = useGetGroupedPermissions();
+
+  // 전체 권한 목록 (flat)
+  const allPermissions = useMemo(() => {
+    return permissionGroups.flatMap((group) => group.domains.flatMap((d) => d.permissions));
+  }, [permissionGroups]);
 
   // 검색 필터링
   const filteredGroups = useMemo(() => {
@@ -41,7 +47,7 @@ export default function PermissionSelector({ value = new Set(), onChange }: Perm
         domains: group.domains
           .map((d) => ({
             ...d,
-            permissions: d.permissions.filter((p) => p.description?.toLowerCase().includes(lowerSearch) || p.permKey.toLowerCase().includes(lowerSearch)),
+            permissions: d.permissions.filter((p) => p.description?.toLowerCase().includes(lowerSearch) || p.authKey.toLowerCase().includes(lowerSearch)),
           }))
           .filter((d) => d.permissions.length > 0),
       }))
@@ -49,7 +55,7 @@ export default function PermissionSelector({ value = new Set(), onChange }: Perm
   }, [permissionGroups, searchText]);
 
   // 권한 수 계산
-  const totalCount = permissionDummyData.length;
+  const totalCount = allPermissions.length;
   const filteredCount = filteredGroups.reduce((sum, g) => sum + g.domains.reduce((s, d) => s + d.permissions.length, 0), 0);
 
   // 권한 선택 토글
@@ -78,7 +84,7 @@ export default function PermissionSelector({ value = new Set(), onChange }: Perm
 
   // 앱 전체 선택/해제
   const handleAppToggle = (appId: string, checked: boolean) => {
-    const appPerms = permissionDummyData.filter((p) => p.appId === appId);
+    const appPerms = allPermissions.filter((p) => p.appId === appId);
     handleDomainToggle(appPerms, checked);
   };
 
@@ -93,13 +99,31 @@ export default function PermissionSelector({ value = new Set(), onChange }: Perm
 
   // 앱별 선택 상태 계산
   const getAppCheckState = (appId: string) => {
-    const appPerms = permissionDummyData.filter((p) => p.appId === appId);
+    const appPerms = allPermissions.filter((p) => p.appId === appId);
     const selectedCount = appPerms.filter((p) => value.has(p.authId)).length;
     return {
       checked: selectedCount === appPerms.length && appPerms.length > 0,
       indeterminate: selectedCount > 0 && selectedCount < appPerms.length,
     };
   };
+
+  // 로딩 상태
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center py-12">
+        <Spin tip="권한 목록을 불러오는 중..." />
+      </div>
+    );
+  }
+
+  // 데이터 없음
+  if (permissionGroups.length === 0) {
+    return (
+      <div className="py-8">
+        <NoData message="등록된 권한이 없습니다." />
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-3">
@@ -122,7 +146,7 @@ export default function PermissionSelector({ value = new Set(), onChange }: Perm
               {Array.from(value)
                 .slice(0, 5)
                 .map((authId) => {
-                  const perm = permissionDummyData.find((p) => p.authId === authId);
+                  const perm = allPermissions.find((p) => p.authId === authId);
                   return perm ? (
                     <Tag key={authId} color="cyan" className="text-xs m-0">
                       {perm.description}
@@ -155,7 +179,7 @@ export default function PermissionSelector({ value = new Set(), onChange }: Perm
 
       {/* 권한 트리 */}
       <div className="border rounded-lg max-h-[420px] overflow-y-auto">
-        <Collapse defaultActiveKey={['BOT', 'IC']} ghost className="bg-white permission-collapse">
+        <Collapse defaultActiveKey={permissionGroups.slice(0, 2).map((g) => g.appId)} ghost className="bg-white permission-collapse">
           {filteredGroups.map((group) => {
             const appState = getAppCheckState(group.appId);
             return (

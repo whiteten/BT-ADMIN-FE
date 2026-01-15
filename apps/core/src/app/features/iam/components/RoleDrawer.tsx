@@ -1,7 +1,8 @@
-import { forwardRef, useEffect, useImperativeHandle, useState } from 'react';
-import { Button, Col, Drawer, Form, type FormProps, Input, InputNumber, Row } from 'antd';
+import { forwardRef, useCallback, useEffect, useImperativeHandle, useState } from 'react';
+import { Button, Col, Drawer, Form, type FormProps, Input, InputNumber, Row, Switch } from 'antd';
 import { toast } from '@/shared-util';
-import type { Role, RoleUpsertRequest } from '../types/iam.types';
+import { useCreateRoleMutation, useGetRoles, useUpdateRoleMutation } from '../hooks/useRoleQueries';
+import type { Role, RoleCreateRequest, RoleUpdateRequest } from '../types/iam.types';
 
 /**
  * RoleDrawer ref 타입
@@ -37,6 +38,11 @@ const RoleDrawer = forwardRef<RoleDrawerRef>((_, ref) => {
   const { open, mode, role } = drawerState;
   const isEditMode = mode === 'edit';
 
+  // 역할 목록 조회 (중복 체크용)
+  const { data: roles = [] } = useGetRoles();
+  const createMutation = useCreateRoleMutation({});
+  const updateMutation = useUpdateRoleMutation();
+
   useImperativeHandle(ref, () => ({
     open: (params) => {
       if (params.mode === 'create') {
@@ -54,9 +60,8 @@ const RoleDrawer = forwardRef<RoleDrawerRef>((_, ref) => {
     setDrawerState((prev) => ({ ...prev, open: false }));
   };
 
-  const [form] = Form.useForm<RoleUpsertRequest>();
+  const [form] = Form.useForm<RoleUpdateRequest>();
   const { TextArea } = Input;
-  const [isSubmitting, setIsSubmitting] = useState(false);
 
   useEffect(() => {
     if (!open) return;
@@ -67,6 +72,7 @@ const RoleDrawer = forwardRef<RoleDrawerRef>((_, ref) => {
         roleName: role.roleName,
         description: role.description || '',
         sortOrder: role.sortOrder || 0,
+        isUse: role.isUse,
       });
     } else {
       form.setFieldsValue({
@@ -74,6 +80,7 @@ const RoleDrawer = forwardRef<RoleDrawerRef>((_, ref) => {
         roleName: '',
         description: '',
         sortOrder: 0,
+        isUse: true,
       });
     }
 
@@ -82,30 +89,74 @@ const RoleDrawer = forwardRef<RoleDrawerRef>((_, ref) => {
     };
   }, [form, open, isEditMode, role]);
 
-  const onFinish: FormProps<RoleUpsertRequest>['onFinish'] = async (values) => {
-    setIsSubmitting(true);
-    try {
-      // TODO: 실제 API 연동 시 아래 주석 해제
-      // if (isEditMode && role) {
-      //   await updateRole(role.roleId, values);
-      //   toast.success('역할이 수정되었습니다.');
-      // } else {
-      //   await createRole(values);
-      //   toast.success('역할이 추가되었습니다.');
-      // }
-      // queryClient.invalidateQueries({ queryKey: ['roles'] });
+  // 역할 코드 중복 체크 validator (생성 모드에서만 사용)
+  const validateRoleCode = useCallback(
+    async (_: unknown, value: string) => {
+      if (!value || isEditMode) return Promise.resolve();
 
-      // 임시: 더미 데이터 처리
-      toast.success(isEditMode ? '역할이 수정되었습니다.' : '역할이 추가되었습니다.');
+      const isDuplicate = roles.some((r) => r.roleCode === value);
+
+      if (isDuplicate) {
+        return Promise.reject(new Error('이미 존재하는 역할 코드입니다.'));
+      }
+      return Promise.resolve();
+    },
+    [roles, isEditMode],
+  );
+
+  // 역할 이름 중복 체크 validator
+  const validateRoleName = useCallback(
+    async (_: unknown, value: string) => {
+      if (!value) return Promise.resolve();
+
+      const isDuplicate = roles.some((r) => r.roleName === value && r.roleId !== role?.roleId);
+
+      if (isDuplicate) {
+        return Promise.reject(new Error('이미 존재하는 역할 이름입니다.'));
+      }
+      return Promise.resolve();
+    },
+    [roles, role?.roleId],
+  );
+
+  const onFinish: FormProps<RoleUpdateRequest>['onFinish'] = async (values) => {
+    if (!isEditMode) {
+      // 생성 모드
+      try {
+        const createRequest: RoleCreateRequest = {
+          roleCode: values.roleCode,
+          roleName: values.roleName,
+          description: values.description,
+          sortOrder: values.sortOrder,
+          isUse: values.isUse,
+        };
+        await createMutation.mutateAsync(createRequest);
+        toast.success('역할이 추가되었습니다.');
+        handleClose();
+      } catch (error) {
+        const errorMessage = error instanceof Error ? error.message : '역할 추가에 실패했습니다.';
+        toast.error(errorMessage);
+      }
+      return;
+    }
+
+    // 수정 모드
+    if (!role) return;
+
+    try {
+      await updateMutation.mutateAsync({
+        roleId: role.roleId,
+        request: values,
+      });
+      toast.success('역할이 수정되었습니다.');
       handleClose();
     } catch (error) {
-      toast.error(isEditMode ? '역할 수정에 실패했습니다.' : '역할 추가에 실패했습니다.');
-    } finally {
-      setIsSubmitting(false);
+      const errorMessage = error instanceof Error ? error.message : '역할 수정에 실패했습니다.';
+      toast.error(errorMessage);
     }
   };
 
-  const onFinishFailed: FormProps<RoleUpsertRequest>['onFinishFailed'] = (errorInfo) => {
+  const onFinishFailed: FormProps<RoleUpdateRequest>['onFinishFailed'] = (errorInfo) => {
     console.warn('onFinishFailed', errorInfo);
   };
 
@@ -118,7 +169,7 @@ const RoleDrawer = forwardRef<RoleDrawerRef>((_, ref) => {
       <Button variant="solid" onClick={handleClose}>
         취소
       </Button>
-      <Button variant="solid" type="primary" onClick={handleSubmitBtn} loading={isSubmitting}>
+      <Button variant="solid" type="primary" onClick={handleSubmitBtn} loading={createMutation.isPending || updateMutation.isPending}>
         저장
       </Button>
     </div>
@@ -138,6 +189,7 @@ const RoleDrawer = forwardRef<RoleDrawerRef>((_, ref) => {
                 { required: true, message: '역할 코드를 입력하세요.' },
                 { pattern: /^[A-Z][A-Z0-9_]*$/, message: '대문자로 시작, 대문자/숫자/언더스코어만 허용' },
                 { max: 100, message: '100자 이하로 입력하세요.' },
+                { validator: validateRoleCode },
               ]}
               tooltip="예: ADMIN, MANAGER, OPERATOR"
             >
@@ -150,10 +202,7 @@ const RoleDrawer = forwardRef<RoleDrawerRef>((_, ref) => {
               label="역할 이름"
               required
               hasFeedback
-              rules={[
-                { required: true, message: '역할 이름을 입력하세요.' },
-                { max: 100, message: '100자 이하로 입력하세요.' },
-              ]}
+              rules={[{ required: true, message: '역할 이름을 입력하세요.' }, { max: 100, message: '100자 이하로 입력하세요.' }, { validator: validateRoleName }]}
             >
               <Input placeholder="역할 이름을 입력하세요." />
             </Form.Item>
@@ -170,6 +219,11 @@ const RoleDrawer = forwardRef<RoleDrawerRef>((_, ref) => {
           <Col span={12}>
             <Form.Item name="sortOrder" label="정렬 순서" tooltip="낮은 숫자가 먼저 표시됩니다">
               <InputNumber min={0} max={9999} className="!w-full" placeholder="0" />
+            </Form.Item>
+          </Col>
+          <Col span={12}>
+            <Form.Item name="isUse" label="사용 여부" valuePropName="checked">
+              <Switch checkedChildren="사용" unCheckedChildren="미사용" />
             </Form.Item>
           </Col>
         </Row>

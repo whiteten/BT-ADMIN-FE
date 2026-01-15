@@ -2,14 +2,22 @@
  * 권한 목록 탭
  */
 
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useMemo, useState } from 'react';
 import type { ColDef } from 'ag-grid-community';
 import { AgGridReact } from 'ag-grid-react';
 import { Button, Input, Select, Tag, Tooltip, message } from 'antd';
 import { Copy, Search } from 'lucide-react';
-import { appDummyData, permissionDummyData } from '../data/iam-dummy';
+import { useGetPermissions } from '../hooks/usePermissionQueries';
 import type { Permission } from '../types/iam.types';
 import useAggridOptions from '@/libs/shared-ui/src/hooks/useAggridOptions';
+
+// 앱 이름 매핑 (백엔드 PermissionService와 동일)
+const APP_NAME_MAP: Record<string, string> = {
+  BOT: '챗봇 관리',
+  IC: '인바운드 콜',
+  IR: 'IVR 관리',
+  CM: '공통 관리',
+};
 
 const actionColorMap: Record<string, string> = {
   read: 'blue',
@@ -20,10 +28,12 @@ const actionColorMap: Record<string, string> = {
 
 export default function PermissionListTab() {
   const { gridOptions } = useAggridOptions();
-  const [permissions, setPermissions] = useState<Permission[]>([]);
-  const [loading, setLoading] = useState(false);
   const [appId, setAppId] = useState<string>('');
   const [keyword, setKeyword] = useState('');
+  const [searchParams, setSearchParams] = useState<{ appId?: string; keyword?: string }>({});
+
+  // API 연동: 권한 목록 조회
+  const { data: permissions = [], isLoading: loading } = useGetPermissions(searchParams);
 
   const columnDefs: ColDef<Permission>[] = useMemo(
     () => [
@@ -32,8 +42,8 @@ export default function PermissionListTab() {
         field: 'appId',
         width: 110,
         cellRenderer: (params: { value: string }) => {
-          const app = appDummyData.find((a) => a.appId === params.value);
-          return <Tag color="cyan">{app?.appName || params.value}</Tag>;
+          const appName = APP_NAME_MAP[params.value] || params.value;
+          return <Tag color="cyan">{appName}</Tag>;
         },
       },
       { headerName: '도메인', field: 'domain', width: 100, cellRenderer: (params: { value: string }) => <span className="capitalize">{params.value}</span> },
@@ -46,7 +56,7 @@ export default function PermissionListTab() {
       },
       {
         headerName: '권한 키',
-        field: 'permKey',
+        field: 'authKey',
         flex: 1,
         minWidth: 220,
         cellRenderer: (params: { value: string }) => (
@@ -72,25 +82,21 @@ export default function PermissionListTab() {
     [],
   );
 
-  const handleSearch = useCallback(() => {
-    setLoading(true);
-    setTimeout(() => {
-      let filtered = permissionDummyData;
-      if (appId) filtered = filtered.filter((p) => p.appId === appId);
-      if (keyword) {
-        const kw = keyword.toLowerCase();
-        filtered = filtered.filter((p) => p.permKey.toLowerCase().includes(kw) || p.description?.toLowerCase().includes(kw));
-      }
-      setPermissions(filtered);
-      setLoading(false);
-    }, 300);
-  }, [appId, keyword]);
+  const handleSearch = () => {
+    setSearchParams({
+      appId: appId || undefined,
+      keyword: keyword || undefined,
+    });
+  };
 
-  useEffect(() => {
-    handleSearch();
-  }, []);
-
-  const appOptions = [{ label: '전체 앱', value: '' }, ...appDummyData.map((a) => ({ label: a.appName, value: a.appId }))];
+  // 앱 옵션 (고정)
+  const appOptions = [
+    { label: '전체 앱', value: '' },
+    { label: '챗봇 관리', value: 'BOT' },
+    { label: '인바운드 콜', value: 'IC' },
+    { label: 'IVR 관리', value: 'IR' },
+    { label: '공통 관리', value: 'CM' },
+  ];
 
   return (
     <div className="flex flex-col gap-4 h-full">
@@ -103,9 +109,7 @@ export default function PermissionListTab() {
             검색
           </Button>
         </div>
-        <span className="text-sm text-gray-500">
-          전체 {permissionDummyData.length}개 / 검색결과 {permissions.length}개
-        </span>
+        <span className="text-sm text-gray-500">검색결과 {permissions.length}개</span>
       </div>
 
       {/* 그리드 */}

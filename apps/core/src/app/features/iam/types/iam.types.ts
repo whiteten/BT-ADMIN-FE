@@ -18,11 +18,13 @@ export interface Role {
   roleName: string;
   description?: string;
   sortOrder: number;
-  useYn: string;
+  isUse: boolean;
   permissionCount?: number;
   userCount?: number;
   createdAt?: string;
   createdBy?: string;
+  updatedAt?: string;
+  updatedBy?: string;
 }
 
 // 권한 마스터
@@ -32,9 +34,8 @@ export interface Permission {
   domain: string;
   resource: string;
   action: string;
-  permKey: string;
+  authKey: string;
   description?: string;
-  useYn: string;
 }
 
 // 역할-권한 매핑
@@ -69,7 +70,7 @@ export interface UserAuth {
   updatedBy?: string;
   updatedAt?: string;
   // 조인 정보
-  permKey?: string;
+  authKey?: string;
   permDescription?: string;
   appId?: string;
 }
@@ -127,6 +128,25 @@ export interface RoleUpsertRequest {
   description?: string;
   sortOrder?: number;
   permissionIds?: number[];
+}
+
+// 역할 생성 요청
+export interface RoleCreateRequest {
+  roleCode: string;
+  roleName: string;
+  description?: string;
+  sortOrder?: number;
+  isUse?: boolean;
+  permissionIds?: number[];
+}
+
+// 역할 수정 요청 (isUse, roleName, description만 수정 가능)
+export interface RoleUpdateRequest {
+  roleCode: string;
+  roleName: string;
+  description?: string;
+  sortOrder?: number;
+  isUse: boolean;
 }
 
 // 권한 그룹 (UI용)

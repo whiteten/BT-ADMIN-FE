@@ -9,6 +9,7 @@ const UserDetail = React.lazy(() => import('./pages/user/UserDetail'));
 
 // IAM 페이지 (통합)
 const AuthGroupManagement = React.lazy(() => import('./pages/iam/AuthGroupManagement'));
+const RoleCreatePage = React.lazy(() => import('./pages/iam/RoleCreatePage'));
 
 export const routes = [
   {
@@ -49,6 +50,20 @@ export const routes = [
       {
         path: 'auth-groups',
         element: <AuthGroupManagement />,
+      },
+      {
+        path: 'role',
+        element: <Outlet />,
+        children: [
+          {
+            index: true,
+            element: <Navigate to="../auth-groups" replace />,
+          },
+          {
+            path: 'create',
+            element: <RoleCreatePage />,
+          },
+        ],
       },
     ],
   },

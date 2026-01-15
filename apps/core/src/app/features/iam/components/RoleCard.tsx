@@ -19,7 +19,7 @@ interface RoleCardProps {
 }
 
 export function RoleCard({ role, onEdit, onDelete, className }: RoleCardProps) {
-  const { roleCode, roleName, description, permissionCount, userCount, useYn, createdAt } = role;
+  const { roleCode, roleName, description, permissionCount, userCount, isUse, createdAt } = role;
 
   const extra = (
     <DropdownMenu>
@@ -58,7 +58,7 @@ export function RoleCard({ role, onEdit, onDelete, className }: RoleCardProps) {
         </div>
         <div className="flex items-center">
           <span className="w-[90px] text-gray-500">사용여부</span>
-          <Tag color={useYn === 'Y' ? 'green' : 'default'}>{useYn === 'Y' ? '사용' : '미사용'}</Tag>
+          <Tag color={isUse ? 'green' : 'default'}>{isUse ? '사용' : '미사용'}</Tag>
         </div>
         {description && (
           <div className="flex">
@@ -70,7 +70,7 @@ export function RoleCard({ role, onEdit, onDelete, className }: RoleCardProps) {
         )}
         <div className="flex items-center">
           <span className="w-[90px] text-gray-500">등록일</span>
-          <span className="text-gray-700">{createdAt?.split(' ')[0]}</span>
+          <span className="text-gray-700">{createdAt?.split('T')[0]}</span>
         </div>
         {/* 하단 통계 */}
         <div className="flex items-center gap-4 pt-3 mt-2 border-t border-gray-100">

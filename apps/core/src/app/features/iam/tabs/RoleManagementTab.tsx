@@ -2,60 +2,56 @@
  * 역할 관리 탭
  */
 
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Button, Input, Modal, message } from 'antd';
-import { CheckCircle, Plus, Search, Shield, Users } from 'lucide-react';
+import { useMemo, useRef, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { useQueryClient } from '@tanstack/react-query';
+import { Button, Input, Modal } from 'antd';
+import { Plus, Search } from 'lucide-react';
+import { toast } from '@/shared-util';
 import { RoleCard } from '../components/RoleCard';
 import RoleDrawer, { type RoleDrawerRef } from '../components/RoleDrawer';
-import { roleDummyData } from '../data/iam-dummy';
+import { roleQueryKeys, useDeleteRoleMutation, useGetRoles } from '../hooks/useRoleQueries';
 import type { Role } from '../types/iam.types';
 import { FallbackSpinner } from '@/components/custom/FallbackSpinner';
 import NoData from '@/components/custom/NoData';
-import { cn } from '@/libs/shared-ui/src/lib/utils';
-
-interface StatCardProps {
-  icon: React.ComponentType<{ className?: string }>;
-  iconBg: string;
-  label: string;
-  value: number;
-  valueColor?: string;
-}
-
-function StatCard({ icon: Icon, iconBg, label, value, valueColor = 'text-gray-900' }: StatCardProps) {
-  return (
-    <div className="bg-white rounded-xl border p-4 flex items-center gap-3">
-      <div className={cn('p-2.5 rounded-xl bg-gradient-to-br', iconBg)}>
-        <Icon className="size-5 text-white" />
-      </div>
-      <div>
-        <div className="text-xs text-gray-500">{label}</div>
-        <div className={cn('text-xl font-bold', valueColor)}>{value}</div>
-      </div>
-    </div>
-  );
-}
 
 export default function RoleManagementTab() {
-  const [roles, setRoles] = useState<Role[]>([]);
-  const [loading, setLoading] = useState(false);
+  const navigate = useNavigate();
   const [keyword, setKeyword] = useState('');
   const drawerRef = useRef<RoleDrawerRef>(null);
+  const queryClient = useQueryClient();
 
-  const handleSearch = useCallback(() => {
-    setLoading(true);
-    setTimeout(() => {
-      const filtered = keyword ? roleDummyData.filter((r) => r.roleName.includes(keyword) || r.roleCode.includes(keyword.toUpperCase())) : roleDummyData;
-      setRoles(filtered);
-      setLoading(false);
-    }, 300);
-  }, [keyword]);
+  // API 연동: 역할 목록 조회
+  const { data: rolesData = [], isLoading: loading } = useGetRoles();
 
-  useEffect(() => {
-    handleSearch();
-  }, []);
+  // 역할 삭제 Mutation
+  const { mutate: deleteRole } = useDeleteRoleMutation({
+    mutationOptions: {
+      onSuccess: () => {
+        toast.success('역할이 삭제되었습니다.');
+        queryClient.invalidateQueries({ queryKey: roleQueryKeys.getRoles._def });
+      },
+      onError: (error) => {
+        const errorMessage = error instanceof Error ? error.message : '역할 삭제에 실패했습니다.';
+        toast.error(errorMessage);
+      },
+    },
+  });
+
+  // 클라이언트 사이드 필터링
+  const roles = useMemo(() => {
+    if (!keyword) return rolesData;
+    const searchKeyword = keyword.toLowerCase();
+    return rolesData.filter((r) => r.roleName.toLowerCase().includes(searchKeyword) || r.roleCode.toLowerCase().includes(searchKeyword));
+  }, [rolesData, keyword]);
+
+  const handleSearch = () => {
+    // 클라이언트 사이드 필터링이므로 별도 액션 불필요
+  };
 
   const handleCreate = () => {
-    drawerRef.current?.open({ mode: 'create' });
+    // 스텝 방식 역할 생성 페이지로 이동
+    navigate('/core/role/create');
   };
 
   const handleEdit = (role: Role) => {
@@ -69,34 +65,12 @@ export default function RoleManagementTab() {
       okText: '삭제',
       okType: 'danger',
       cancelText: '취소',
-      onOk: () => {
-        message.success('역할이 삭제되었습니다.');
-        handleSearch();
-      },
+      onOk: () => deleteRole({ roleId: role.roleId }),
     });
   };
 
-  // 통계 계산
-  const stats = useMemo(
-    () => ({
-      total: roles.length,
-      active: roles.filter((r) => r.useYn === 'Y').length,
-      totalPermissions: roles.reduce((sum, r) => sum + (r.permissionCount || 0), 0),
-      totalUsers: roles.reduce((sum, r) => sum + (r.userCount || 0), 0),
-    }),
-    [roles],
-  );
-
   return (
     <div className="flex flex-col gap-4 h-full">
-      {/* 통계 카드 */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-        <StatCard icon={Shield} iconBg="from-blue-500 to-indigo-600" label="전체 역할" value={stats.total} />
-        <StatCard icon={CheckCircle} iconBg="from-green-500 to-emerald-600" label="활성 역할" value={stats.active} valueColor="text-green-600" />
-        <StatCard icon={Shield} iconBg="from-purple-500 to-violet-600" label="총 권한 수" value={stats.totalPermissions} valueColor="text-purple-600" />
-        <StatCard icon={Users} iconBg="from-orange-500 to-amber-600" label="총 사용자" value={stats.totalUsers} valueColor="text-orange-600" />
-      </div>
-
       {/* 필터 */}
       <div className="flex items-center justify-between gap-2">
         <div className="flex gap-2 items-center">
