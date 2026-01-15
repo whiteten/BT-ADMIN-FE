@@ -21,11 +21,5 @@ export type GenerateSentenceFormDatas = Omit<GenerateSentenceDatas, 'tenantId'> 
 
 // Generate API Response
 export interface GenerateSentenceResponse {
-  data: {
-    list: {
-      data: {
-        sentences: string[];
-      };
-    };
-  };
+  sentences: string[];
 }
