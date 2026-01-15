@@ -13,6 +13,7 @@ type BotCardProps = BotListItem & {
   onDetail?: (serviceId: string) => void;
   onDelete?: (serviceId: string) => void;
   onDetailModel?: (modelId: string) => void;
+  onEditVersion?: (serviceId: string, serviceVer: string) => void;
 };
 
 // 랩핑된 아이템 개수 계산
@@ -60,6 +61,7 @@ export default function BotCard({
   onDetail,
   onDelete,
   onDetailModel,
+  onEditVersion,
 }: BotCardProps) {
   const { containerRef, wrappedCount } = useWrappedItemCount();
 
@@ -99,7 +101,7 @@ export default function BotCard({
         <div className="flex">
           <span className="w-[104px]">버전</span>
           <span className="mr-2">{serviceVer ?? '-'}</span>
-          {serviceVer && <IconLinkIfe className="hover:cursor-pointer" />}
+          {serviceVer && <IconLinkIfe className="hover:cursor-pointer" onClick={() => onEditVersion?.(serviceId, serviceVer)} />}
         </div>
         <div className="flex">
           <span className="w-[104px]">NLU모델</span>
