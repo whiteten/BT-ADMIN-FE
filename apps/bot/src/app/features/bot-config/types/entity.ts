@@ -28,6 +28,8 @@ export interface EntityValue {
   entityValue: string; // 대표값
   entityTypeValues: string; // 유사어
   trainId: string;
+  trainStatus: TrainStatus;
+  trainDiffStatus: TrainDiffStatus;
   workUser: number;
   workTime: string;
 }
@@ -37,6 +39,6 @@ export enum EntityType {
   PATTERNS = 'PATTERNS', // 패턴형
 }
 
-export type EntityValueListItem = Pick<EntityValue, 'entityValueId' | 'entityValue' | 'entityType' | 'entityTypeValues'>;
+export type EntityValueListItem = Pick<EntityValue, 'entityValueId' | 'entityValue' | 'entityType' | 'entityTypeValues' | 'trainStatus' | 'trainDiffStatus'>;
 export type EntityValueCreateDatas = Pick<EntityValue, 'entityValue' | 'entityType' | 'entityTypeValues'>;
 export type EntityValueUpdateDatas = Pick<EntityValue, 'entityValue' | 'entityType' | 'entityTypeValues'>;

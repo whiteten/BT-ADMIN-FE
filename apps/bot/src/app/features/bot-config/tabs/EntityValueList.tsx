@@ -16,8 +16,10 @@ import { AgGridReact } from 'ag-grid-react';
 import { Button, Input, type InputRef, Select, Tag } from 'antd';
 import { Check, X } from 'lucide-react';
 import { toast } from '@/shared-util';
+import TrainDiffStatusBadge from '../components/TrainDiffStatusBadge';
+import TrainStatusBadge from '../components/TrainStatusBadge';
 import { modelQueryKeys, useCreateEntityValue, useDeleteEntityValue, useGetEntityValues, useUpdateEntityValue } from '../hooks/useModelQueries';
-import type { EntityType, EntityValueListItem } from '../types';
+import type { EntityType, EntityValueListItem, TrainDiffStatus, TrainStatus } from '../types';
 import { IconTag, IconTrash } from '@/components/custom/Icons';
 import useAggridOptions from '@/libs/shared-ui/src/hooks/useAggridOptions';
 import { useModal } from '@/libs/shared-ui/src/hooks/useModal';
@@ -358,6 +360,8 @@ export default function EntityValueList() {
       entityValue: '',
       entityType: 'SAME' as EntityType,
       entityTypeValues: '',
+      trainStatus: 0,
+      trainDiffStatus: null as unknown as TrainDiffStatus,
     };
     const result = gridApiRef.current?.applyTransaction({
       add: [newRow],
@@ -473,6 +477,21 @@ export default function EntityValueList() {
         placeholder: '여러 단어는 콤마(,)로 구분해 입력하세요.',
       },
       cellRenderer: EntityTypeValuesCellRenderer,
+    },
+    {
+      headerName: '학습상태',
+      field: 'trainStatus',
+      maxWidth: 120,
+      cellStyle: { display: 'flex', alignItems: 'center' },
+      cellRenderer: (params: { value: number; data: EntityValueListItem }) => <TrainStatusBadge status={params.value as TrainStatus} />,
+    },
+    {
+      headerName: '변경이력',
+      headerTooltip: '모델 학습이 완료된 이후, 변경사항이 있을 경우 표시됩니다. 다음 모델 학습 완료시, 이력은 초기화됩니다.',
+      field: 'trainDiffStatus',
+      maxWidth: 100,
+      cellStyle: { display: 'flex', alignItems: 'center', justifyContent: 'center' },
+      cellRenderer: (params: { value: TrainDiffStatus }) => <TrainDiffStatusBadge status={params.value as TrainDiffStatus} />,
     },
     {
       headerName: '',

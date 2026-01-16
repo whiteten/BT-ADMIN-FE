@@ -57,7 +57,7 @@ export default function ModelIntentList() {
     },
     {
       headerName: '변경이력',
-      headerTooltip: '모델 학습이 완료된 이후,\n변경사항이 있을 경우 표시됩니다.\n다음 모델 학습 완료시,\n이력은 초기화됩니다.',
+      headerTooltip: '모델 학습이 완료된 이후, 변경사항이 있을 경우 표시됩니다. 다음 모델 학습 완료시, 이력은 초기화됩니다.',
       field: 'trainDiffStatus',
       maxWidth: 100,
       cellStyle: { display: 'flex', alignItems: 'center', justifyContent: 'center' },

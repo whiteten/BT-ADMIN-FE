@@ -1,4 +1,4 @@
-import type { TrainDiffStatus } from './model';
+import type { TrainDiffStatus, TrainStatus } from './model';
 
 export interface Intent {
   modelId: string;
@@ -21,6 +21,8 @@ export interface IntentSentence {
   sentenceId: string;
   sentenceType: string;
   sentence: string;
+  trainStatus: TrainStatus;
+  trainDiffStatus: TrainDiffStatus;
   workUser: number;
   workTime: string;
   modelVersion: string;

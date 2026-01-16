@@ -12,6 +12,8 @@ export interface Model {
   trainTime: string;
   deployStatus: DeployStatus;
   deployTime: string;
+  trainChangedYn: boolean;
+  deployChangedYn: boolean;
 }
 
 // 0: 미학습, 1: 학습중, 2: 학습완료, 3: 학습실패
@@ -28,7 +30,10 @@ export enum ModelType {
   PUBLIC = 1,
 }
 
-export type ModelListItem = Pick<Model, 'modelId' | 'modelName' | 'modelType' | 'trainStatus' | 'trainTime' | 'deployStatus' | 'deployTime'> & {
+export type ModelListItem = Pick<
+  Model,
+  'modelId' | 'modelName' | 'modelType' | 'trainStatus' | 'trainTime' | 'deployStatus' | 'deployTime' | 'trainChangedYn' | 'deployChangedYn'
+> & {
   intentCount: number;
   entityCount: number;
 };
