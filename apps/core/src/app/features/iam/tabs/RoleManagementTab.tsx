@@ -2,14 +2,13 @@
  * 역할 관리 탭
  */
 
-import { useMemo, useRef, useState } from 'react';
+import { useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useQueryClient } from '@tanstack/react-query';
 import { Button, Input, Modal } from 'antd';
 import { Plus, Search } from 'lucide-react';
 import { toast } from '@/shared-util';
 import { RoleCard } from '../components/RoleCard';
-import RoleDrawer, { type RoleDrawerRef } from '../components/RoleDrawer';
 import { roleQueryKeys, useDeleteRoleMutation, useGetRoles } from '../hooks/useRoleQueries';
 import type { Role } from '../types/iam.types';
 import { FallbackSpinner } from '@/components/custom/FallbackSpinner';
@@ -18,7 +17,6 @@ import NoData from '@/components/custom/NoData';
 export default function RoleManagementTab() {
   const navigate = useNavigate();
   const [keyword, setKeyword] = useState('');
-  const drawerRef = useRef<RoleDrawerRef>(null);
   const queryClient = useQueryClient();
 
   // API 연동: 역할 목록 조회
@@ -55,7 +53,8 @@ export default function RoleManagementTab() {
   };
 
   const handleEdit = (role: Role) => {
-    drawerRef.current?.open({ mode: 'edit', role });
+    // 스텝 방식 역할 수정 페이지로 이동
+    navigate(`/core/role/edit/${role.roleId}`);
   };
 
   const handleDelete = (role: Role) => {
@@ -102,9 +101,6 @@ export default function RoleManagementTab() {
           </div>
         )}
       </div>
-
-      {/* 역할 추가/수정 Drawer */}
-      <RoleDrawer ref={drawerRef} />
     </div>
   );
 }

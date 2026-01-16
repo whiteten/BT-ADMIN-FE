@@ -24,7 +24,7 @@ export const roleDummyData: Role[] = [
     permissionCount: 35,
     userCount: 2,
     createdAt: '2025-01-01 00:00:00',
-    createdBy: 'system',
+    createdBy: 1, // system user ID
   },
   {
     roleId: 2,
@@ -36,7 +36,7 @@ export const roleDummyData: Role[] = [
     permissionCount: 20,
     userCount: 5,
     createdAt: '2025-01-01 00:00:00',
-    createdBy: 'system',
+    createdBy: 1, // system user ID
   },
   {
     roleId: 3,
@@ -48,7 +48,7 @@ export const roleDummyData: Role[] = [
     permissionCount: 12,
     userCount: 15,
     createdAt: '2025-01-01 00:00:00',
-    createdBy: 'system',
+    createdBy: 1, // system user ID
   },
   {
     roleId: 4,
@@ -60,7 +60,7 @@ export const roleDummyData: Role[] = [
     permissionCount: 8,
     userCount: 30,
     createdAt: '2025-01-01 00:00:00',
-    createdBy: 'system',
+    createdBy: 1, // system user ID
   },
 ];
 

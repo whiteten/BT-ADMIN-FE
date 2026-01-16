@@ -63,6 +63,10 @@ export const routes = [
             path: 'create',
             element: <RoleCreatePage />,
           },
+          {
+            path: 'edit/:roleId',
+            element: <RoleCreatePage />,
+          },
         ],
       },
     ],

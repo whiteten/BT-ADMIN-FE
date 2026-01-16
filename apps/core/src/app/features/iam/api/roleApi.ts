@@ -16,6 +16,17 @@ export const roleApi = {
   },
 
   /**
+   * 역할 단건 조회
+   * @param roleId - 역할 ID
+   */
+  getRole: async (roleId: number): Promise<Role> => {
+    const response = await apiClient.get<DetailResponse<Role>>('/role-detail', {
+      params: { roleId },
+    });
+    return extractDetail(response);
+  },
+
+  /**
    * 역할 생성
    */
   createRole: async (data: RoleCreateRequest) => {

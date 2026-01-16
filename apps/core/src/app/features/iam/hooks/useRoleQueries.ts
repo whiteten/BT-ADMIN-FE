@@ -3,12 +3,13 @@
  */
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { createQueryKeys } from '@lukemorales/query-key-factory';
-import type { MutationHookOptions, QueryHookWithParamsOptions } from '@/shared-util';
+import type { MutationHookOptions, QueryHookOptions, QueryHookWithParamsOptions } from '@/shared-util';
 import { roleApi } from '../api/roleApi';
 import type { Role, RoleUpdateRequest } from '../types/iam.types';
 
 export const roleQueryKeys = createQueryKeys('roles', {
   getRoles: (params?: Record<string, unknown>) => [params],
+  getRole: (roleId: number) => [roleId],
 });
 
 /**
@@ -18,6 +19,18 @@ export const useGetRoles = ({ params, queryOptions }: QueryHookWithParamsOptions
   return useQuery({
     queryKey: roleQueryKeys.getRoles(params).queryKey,
     queryFn: () => roleApi.getRoles(params),
+    ...queryOptions,
+  });
+};
+
+/**
+ * 역할 단건 조회 훅
+ */
+export const useGetRole = (roleId: number, { queryOptions }: QueryHookOptions<Role> = {}) => {
+  return useQuery({
+    queryKey: roleQueryKeys.getRole(roleId).queryKey,
+    queryFn: () => roleApi.getRole(roleId),
+    enabled: !!roleId,
     ...queryOptions,
   });
 };
@@ -40,7 +53,7 @@ export const useCreateRoleMutation = ({ mutationOptions }: MutationHookOptions =
 /**
  * 역할 수정 Mutation 훅
  */
-export const useUpdateRoleMutation = () => {
+export const useUpdateRoleMutation = ({ mutationOptions }: MutationHookOptions = {}) => {
   const queryClient = useQueryClient();
 
   return useMutation({
@@ -48,6 +61,7 @@ export const useUpdateRoleMutation = () => {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: roleQueryKeys.getRoles._def });
     },
+    ...mutationOptions,
   });
 };
 

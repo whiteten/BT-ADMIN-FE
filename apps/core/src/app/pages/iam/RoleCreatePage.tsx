@@ -1,25 +1,21 @@
 /**
- * 역할 생성 페이지 (Steps 방식)
+ * 역할 생성/수정 페이지 (Steps 방식)
  * - Step 1: 기본 정보 입력 (역할코드, 역할이름, 설명, 정렬순서, 사용여부)
  * - Step 2: 권한 매핑 (체크박스 트리)
  */
 
 import { useEffect, useMemo, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useParams } from 'react-router-dom';
 import { type BreadcrumbProps, Button, Col, Divider, Form, type FormProps, Input, InputNumber, Row, Steps, Switch, Tag } from 'antd';
 import { Check, Shield, X } from 'lucide-react';
 import { Log } from '@/log';
 import { toast } from '@/shared-util';
 import PermissionSelector from '../../features/iam/components/PermissionSelector';
 import { useGetGroupedPermissions } from '../../features/iam/hooks/usePermissionQueries';
-import { useCreateRoleMutation, useGetRoles } from '../../features/iam/hooks/useRoleQueries';
-import type { RoleCreateRequest } from '../../features/iam/types/iam.types';
+import { useCreateRoleMutation, useGetRole, useGetRoles, useUpdateRoleMutation } from '../../features/iam/hooks/useRoleQueries';
+import type { RoleCreateRequest, RoleUpdateRequest } from '../../features/iam/types/iam.types';
+import { FallbackSpinner } from '@/components/custom/FallbackSpinner';
 import PageHeader from '@/components/custom/PageHeader';
-
-const breadcrumb: BreadcrumbProps['items'] = [
-  { title: '권한 관리', path: '/core/auth-groups' },
-  { title: '역할 생성', path: '/core/role/create' },
-];
 
 // 빈 값일 때 - 표시
 const displayValue = (value: unknown): React.ReactNode => {
@@ -37,6 +33,10 @@ interface RoleFormValues {
 
 export default function RoleCreatePage() {
   const navigate = useNavigate();
+  const { roleId } = useParams<{ roleId: string }>();
+  const isEditMode = !!roleId;
+  const roleIdNum = roleId ? parseInt(roleId, 10) : 0;
+
   const [currentStep, setCurrentStep] = useState(0);
   const [fieldErrors, setFieldErrors] = useState<Record<string, string[]>>({});
   const [selectedPermissions, setSelectedPermissions] = useState<Set<number>>(new Set());
@@ -45,6 +45,13 @@ export default function RoleCreatePage() {
   // 역할 목록 조회 (중복 체크용)
   const { data: existingRoles = [] } = useGetRoles();
 
+  // 역할 단건 조회 (수정 모드)
+  const { data: roleData, isLoading: roleLoading } = useGetRole(roleIdNum, {
+    queryOptions: {
+      enabled: isEditMode,
+    },
+  });
+
   // 권한 목록 조회 (요약 표시용)
   const { data: permissionGroups = [] } = useGetGroupedPermissions();
 
@@ -52,6 +59,23 @@ export default function RoleCreatePage() {
   const allPermissions = useMemo(() => {
     return permissionGroups.flatMap((group) => group.domains.flatMap((d) => d.permissions));
   }, [permissionGroups]);
+
+  // 수정 모드일 때 폼 초기화
+  useEffect(() => {
+    if (isEditMode && roleData) {
+      form.setFieldsValue({
+        roleCode: roleData.roleCode,
+        roleName: roleData.roleName,
+        description: roleData.description ?? '',
+        sortOrder: roleData.sortOrder,
+        isUse: roleData.isUse,
+      });
+      // 기존 권한 설정
+      if (roleData.authIds) {
+        setSelectedPermissions(new Set(roleData.authIds));
+      }
+    }
+  }, [isEditMode, roleData, form]);
 
   const initialValues: RoleFormValues = {
     roleCode: '',
@@ -86,7 +110,7 @@ export default function RoleCreatePage() {
   ];
 
   // 역할 생성 Mutation
-  const { mutate: createRole, isPending } = useCreateRoleMutation({
+  const { mutate: createRole, isPending: isCreating } = useCreateRoleMutation({
     mutationOptions: {
       onSuccess: () => {
         toast.success('역할이 생성되었습니다.');
@@ -99,20 +123,36 @@ export default function RoleCreatePage() {
     },
   });
 
-  // 역할 코드 중복 체크 Validator
+  // 역할 수정 Mutation
+  const { mutate: updateRole, isPending: isUpdating } = useUpdateRoleMutation({
+    mutationOptions: {
+      onSuccess: () => {
+        toast.success('역할이 수정되었습니다.');
+        navigate('/core/auth-groups');
+      },
+      onError: (error) => {
+        const errorMessage = error instanceof Error ? error.message : '역할 수정에 실패했습니다.';
+        toast.error(errorMessage);
+      },
+    },
+  });
+
+  const isPending = isCreating || isUpdating;
+
+  // 역할 코드 중복 체크 Validator (수정 모드에서는 현재 역할 제외)
   const validateRoleCode = async (_: unknown, value: string) => {
     if (!value) return Promise.resolve();
-    const isDuplicate = existingRoles.some((role) => role.roleCode.toLowerCase() === value.toLowerCase());
+    const isDuplicate = existingRoles.some((role) => role.roleCode.toLowerCase() === value.toLowerCase() && (!isEditMode || role.roleId !== roleIdNum));
     if (isDuplicate) {
       return Promise.reject(new Error('이미 사용 중인 역할 코드입니다.'));
     }
     return Promise.resolve();
   };
 
-  // 역할 이름 중복 체크 Validator
+  // 역할 이름 중복 체크 Validator (수정 모드에서는 현재 역할 제외)
   const validateRoleName = async (_: unknown, value: string) => {
     if (!value) return Promise.resolve();
-    const isDuplicate = existingRoles.some((role) => role.roleName.toLowerCase() === value.toLowerCase());
+    const isDuplicate = existingRoles.some((role) => role.roleName.toLowerCase() === value.toLowerCase() && (!isEditMode || role.roleId !== roleIdNum));
     if (isDuplicate) {
       return Promise.reject(new Error('이미 사용 중인 역할 이름입니다.'));
     }
@@ -138,16 +178,32 @@ export default function RoleCreatePage() {
 
   const onFinish: FormProps<RoleFormValues>['onFinish'] = (values) => {
     Log.debug('onFinish', values);
-    const request: RoleCreateRequest = {
-      ...values,
-      permissionIds: Array.from(selectedPermissions),
-    };
-    createRole(request);
+    const authIds = Array.from(selectedPermissions);
+
+    if (isEditMode) {
+      const request: RoleUpdateRequest = {
+        ...values,
+        authIds,
+      };
+      updateRole({ roleId: roleIdNum, request });
+    } else {
+      const request: RoleCreateRequest = {
+        ...values,
+        authIds,
+      };
+      createRole(request);
+    }
   };
 
   const onFinishFailed: FormProps<RoleFormValues>['onFinishFailed'] = (errorInfo) => {
     Log.warn('onFinishFailed', errorInfo);
   };
+
+  // Breadcrumb 설정
+  const breadcrumb: BreadcrumbProps['items'] = [
+    { title: '권한 관리', path: '/core/auth-groups' },
+    { title: isEditMode ? '역할 수정' : '역할 생성', path: isEditMode ? `/core/role/edit/${roleId}` : '/core/role/create' },
+  ];
 
   // Step 1: 기본 정보
   function renderStep1() {
@@ -162,11 +218,11 @@ export default function RoleCreatePage() {
               hasFeedback
               rules={[
                 { required: true, message: '역할 코드를 입력해 주세요.' },
-                { pattern: /^[A-Z_]+$/, message: '대문자와 언더스코어(_)만 사용 가능합니다.' },
+                { pattern: /^[A-Z][A-Z0-9_]*$/, message: '대문자로 시작하고 대문자, 숫자, 언더스코어(_)만 사용 가능합니다.' },
                 { validator: validateRoleCode },
               ]}
             >
-              <Input placeholder="역할 코드를 입력하세요. (예: ADMIN, MANAGER)" />
+              <Input placeholder="역할 코드를 입력하세요. (예: ADMIN, MANAGER)" disabled={isEditMode} />
             </Form.Item>
           </Col>
           <Col span={12}>
@@ -308,7 +364,7 @@ export default function RoleCreatePage() {
         {currentStep === steps.length - 1 && (
           <Col>
             <Button variant="solid" color="primary" onClick={handleSubmit} loading={isPending}>
-              저장
+              {isEditMode ? '수정' : '저장'}
             </Button>
           </Col>
         )}
@@ -316,9 +372,18 @@ export default function RoleCreatePage() {
     );
   }
 
+  // 수정 모드에서 데이터 로딩 중
+  if (isEditMode && roleLoading) {
+    return (
+      <div className="flex items-center justify-center w-full h-full">
+        <FallbackSpinner />
+      </div>
+    );
+  }
+
   return (
     <div className="flex flex-col gap-4 w-full h-full">
-      <PageHeader title="역할 생성" breadcrumb={breadcrumb} />
+      <PageHeader title={isEditMode ? '역할 수정' : '역할 생성'} breadcrumb={breadcrumb} />
 
       {/* Steps */}
       <div className="flex items-center justify-center w-full h-[58px] min-h-[58px] bg-white bt-shadow px-7 py-2">

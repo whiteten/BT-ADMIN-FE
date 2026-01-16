@@ -21,10 +21,11 @@ export interface Role {
   isUse: boolean;
   permissionCount?: number;
   userCount?: number;
+  authIds?: number[];
   createdAt?: string;
-  createdBy?: string;
+  createdBy?: number;
   updatedAt?: string;
-  updatedBy?: string;
+  updatedBy?: number;
 }
 
 // 권한 마스터
@@ -127,7 +128,8 @@ export interface RoleUpsertRequest {
   roleName: string;
   description?: string;
   sortOrder?: number;
-  permissionIds?: number[];
+  isUse?: boolean;
+  authIds?: number[];
 }
 
 // 역할 생성 요청
@@ -137,16 +139,17 @@ export interface RoleCreateRequest {
   description?: string;
   sortOrder?: number;
   isUse?: boolean;
-  permissionIds?: number[];
+  authIds?: number[];
 }
 
-// 역할 수정 요청 (isUse, roleName, description만 수정 가능)
+// 역할 수정 요청
 export interface RoleUpdateRequest {
   roleCode: string;
   roleName: string;
   description?: string;
   sortOrder?: number;
   isUse: boolean;
+  authIds?: number[];
 }
 
 // 권한 그룹 (UI용)
