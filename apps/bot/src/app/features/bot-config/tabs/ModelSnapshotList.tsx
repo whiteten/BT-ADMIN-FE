@@ -7,7 +7,7 @@ import { Button, Input, Select, Tooltip } from 'antd';
 import dayjs from 'dayjs';
 import { toast } from '@/shared-util';
 import SnapshotCompareDrawer, { type SnapshotCompareDrawerRef } from '../components/SnapshotCompareDrawer';
-import { modelQueryKeys, useCreateSnapshot, useDeleteSnapshot, useGetSnapshots } from '../hooks/useModelQueries';
+import { modelQueryKeys, useCreateSnapshot, useDeleteSnapshot, useGetSnapshots, useRestoreSnapshot } from '../hooks/useModelQueries';
 import type { SnapshotListItem } from '../types/snapshot';
 import { IconRollback, IconSearch, IconTrash } from '@/components/custom/Icons';
 import useAggridOptions from '@/libs/shared-ui/src/hooks/useAggridOptions';
@@ -48,6 +48,17 @@ export default function ModelSnapshotList() {
     },
   });
 
+  const { mutate: restoreSnapshot } = useRestoreSnapshot({
+    mutationOptions: {
+      onSuccess: () => {
+        toast.success('스냅샷이 복원되었습니다.');
+        queryClient.invalidateQueries({ queryKey: modelQueryKeys.getSnapshots({ modelId }).queryKey });
+        queryClient.invalidateQueries({ queryKey: modelQueryKeys.getIntents({ modelId }).queryKey });
+        queryClient.invalidateQueries({ queryKey: modelQueryKeys.getEntities({ modelId }).queryKey });
+      },
+    },
+  });
+
   const handleCreateSnapshot = () => {
     if (!snapshotName?.trim()) {
       toast.warning('스냅샷 이름을 입력하세요.');
@@ -65,7 +76,7 @@ export default function ModelSnapshotList() {
 
   const handleRestoreSnapshot = (modelVersion: string, modelVersionName: string) => {
     modal.confirm.execute({
-      onOk: () => alert(`modelId: ${modelId}\nmodelVersion: ${modelVersion}`),
+      onOk: () => restoreSnapshot({ modelId, modelVersion }),
       options: {
         content: `스냅샷(${modelVersionName})으로 복원하시겠습니까?`,
       },

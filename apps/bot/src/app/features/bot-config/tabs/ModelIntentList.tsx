@@ -7,9 +7,10 @@ import { Button, Input, Select } from 'antd';
 import dayjs from 'dayjs';
 import { toast } from '@/shared-util';
 import IntentDrawer, { type IntentDrawerRef } from '../components/IntentDrawer';
+import TrainDiffStatusBadge from '../components/TrainDiffStatusBadge';
 import TrainStatusBadge from '../components/TrainStatusBadge';
 import { modelQueryKeys, useDeleteIntent, useGetIntents } from '../hooks/useModelQueries';
-import type { IntentListItem, TrainStatus } from '../types';
+import type { IntentListItem, TrainDiffStatus, TrainStatus } from '../types';
 import { IconTrash } from '@/components/custom/Icons';
 import useAggridOptions from '@/libs/shared-ui/src/hooks/useAggridOptions';
 import { useModal } from '@/libs/shared-ui/src/hooks/useModal';
@@ -30,7 +31,7 @@ export default function ModelIntentList() {
   const { mutate: deleteIntent } = useDeleteIntent({
     mutationOptions: {
       onSuccess: () => {
-        toast.success('의도가 삭제되었습니다.');
+        toast.success('완료되었습니다.');
         queryClient.invalidateQueries({ queryKey: modelQueryKeys.getIntents({ modelId }).queryKey });
       },
     },
@@ -46,14 +47,22 @@ export default function ModelIntentList() {
     { headerName: 'ID', field: 'intentId', hide: true },
     { headerName: '의도이름', field: 'intentName' },
     { headerName: '의도설명', field: 'intentDesc', flex: 3 },
+    { headerName: '문장수', field: 'sentenceCount', maxWidth: 120 },
     {
       headerName: '학습상태',
       field: 'trainStatus',
       maxWidth: 120,
       cellStyle: { display: 'flex', alignItems: 'center' },
-      cellRenderer: (params: { value: number }) => <TrainStatusBadge status={params.value as TrainStatus} />,
+      cellRenderer: (params: { value: number; data: IntentListItem }) => <TrainStatusBadge status={params.value as TrainStatus} showAlert={params.data?.changedYn} />,
     },
-    { headerName: '문장수', field: 'sentenceCount', maxWidth: 120 },
+    {
+      headerName: '변경이력',
+      headerTooltip: '모델 학습이 완료된 이후, 변경사항이 있을 경우 표시됩니다. 다음 모델 학습 완료시, 이력은 초기화됩니다.',
+      field: 'trainDiffStatus',
+      maxWidth: 100,
+      cellStyle: { display: 'flex', alignItems: 'center', justifyContent: 'center' },
+      cellRenderer: (params: { value: TrainDiffStatus }) => <TrainDiffStatusBadge status={params.value as TrainDiffStatus} />,
+    },
     {
       headerName: '작업일시',
       field: 'workTime',

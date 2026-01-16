@@ -1,5 +1,6 @@
-import { Card } from 'antd';
-import { type ModelListItem, ModelType, type TrainStatus } from '../types';
+import { Card, Divider } from 'antd';
+import { type DeployStatus, type ModelListItem, ModelType, type TrainStatus } from '../types';
+import DeployStatusBadge from './DeployStatusBadge';
 import TrainStatusBadge from './TrainStatusBadge';
 import { IconMoreVertical } from '@/components/custom/Icons';
 import { Button } from '@/components/ui/button';
@@ -10,7 +11,21 @@ type ModelCardProps = ModelListItem & {
   onDelete?: (modelId: string) => void;
 };
 
-export default function ModelCard({ modelId, modelName, modelType, trainStatus, trainTime, intentCount, entityCount, onDetail, onDelete }: ModelCardProps) {
+export default function ModelCard({
+  modelId,
+  modelName,
+  modelType,
+  trainStatus,
+  trainChangedYn,
+  trainTime,
+  deployStatus,
+  deployChangedYn,
+  deployTime,
+  intentCount,
+  entityCount,
+  onDetail,
+  onDelete,
+}: ModelCardProps) {
   const isPublicModel = modelType === ModelType.PUBLIC;
   const title = (
     <span className="hover:cursor-pointer hover:!text-[var(--color-bt-primary)]" onClick={() => onDetail?.(modelId)}>
@@ -47,7 +62,9 @@ export default function ModelCard({ modelId, modelName, modelType, trainStatus, 
       <div className="flex flex-col text-[#495057] gap-2">
         <div className="flex items-center">
           <span className="w-[104px]">상태</span>
-          <TrainStatusBadge status={trainStatus as TrainStatus} />
+          <TrainStatusBadge status={trainStatus as TrainStatus} showAlert={trainChangedYn} />
+          <Divider orientation="vertical" className="!mx-2" />
+          <DeployStatusBadge status={deployStatus as DeployStatus} showAlert={deployChangedYn} />
         </div>
         <div className="flex">
           <span className="w-[104px]">의도</span>

@@ -76,6 +76,8 @@ export default function useAggridOptions() {
       },
       loadingOverlayComponent: FallbackSpinner,
       localeText: localeKr,
+      tooltipShowDelay: 0,
+      tooltipHideDelay: 10000,
     }),
     [defaultColDef, theme, sideBar, statusBar],
   );

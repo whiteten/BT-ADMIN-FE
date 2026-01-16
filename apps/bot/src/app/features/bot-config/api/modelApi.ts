@@ -1,5 +1,5 @@
 import ApiClient, { type DetailResponse, type ListResponse, extractDetail, extractList } from '@/shared-util';
-import type { Inference, RetrainDetail, RetrainListItem, RetrainUpdateDatas, SnapshotCreateDatas, SnapshotListItem } from '../types';
+import type { Inference, RetrainDetail, RetrainListItem, RetrainUpdateDatas, SnapshotCompareResult, SnapshotCreateDatas, SnapshotListItem } from '../types';
 import type { AoeListItem, GenerateSentenceDatas, GenerateSentenceResponse } from '../types/aoe';
 import type {
   EntityBasicInfoUpdateDatas,
@@ -227,12 +227,20 @@ export const modelApi = {
     const response = await apiClient.get<ListResponse<SnapshotListItem>>('/snapshot-list', { params });
     return extractList(response);
   },
+  compareSnapshots: async (params: { modelId: string; snapshotVersion: string; compareVersion: string }): Promise<SnapshotCompareResult> => {
+    const response = await apiClient.get<DetailResponse<SnapshotCompareResult>>('/snapshot-compare', { params });
+    return extractDetail(response);
+  },
   createSnapshot: async ({ params, data }: { params: Record<string, unknown>; data: SnapshotCreateDatas }) => {
     const response = await apiClient.post('/snapshot-create', data, { params });
     return response;
   },
   deleteSnapshot: async (params: Record<string, unknown>) => {
     const response = await apiClient.delete('/snapshot-delete', { params });
+    return response;
+  },
+  restoreSnapshot: async (params: { modelId: string; modelVersion: string }) => {
+    const response = await apiClient.post('/snapshot-restore', {}, { params });
     return response;
   },
   executeInference: async ({ params, data }: { params: Record<string, unknown>; data: Inference }): Promise<InferenceResponse> => {

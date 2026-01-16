@@ -18,11 +18,9 @@ interface TrainStatusBadgeProps {
 export default function TrainStatusBadge({ status, showAlert = false }: TrainStatusBadgeProps) {
   const meta = TRAIN_STATUS_META[status];
   return (
-    <div className={cn('flex items-center', showAlert ? 'gap-1' : '')}>
-      <Badge variant="secondary" className={cn('text-[13px] leading-[13px] font-medium !h-6', meta?.className || TRAIN_STATUS_META[0].className)}>
-        {meta?.label || '-'}
-      </Badge>
-      {showAlert && <IconAlertTriangle className="size-5 text-[#F7B84B] mt-[1px]" />}
-    </div>
+    <Badge variant="secondary" className={cn('text-[13px] leading-[13px] font-medium !h-6', meta?.className || TRAIN_STATUS_META[0].className)}>
+      {meta?.label || '-'}
+      {showAlert && <IconAlertTriangle className="!size-4.5 text-[#F7B84B] mt-[1px]" />}
+    </Badge>
   );
 }

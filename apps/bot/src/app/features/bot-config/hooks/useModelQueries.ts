@@ -15,7 +15,7 @@ import type {
 import type { IntentItem, IntentListItem, IntentSentenceListItem } from '../types/intent';
 import type { ModelItem, ModelListItem } from '../types/model';
 import type { RetrainDetail, RetrainListItem } from '../types/retrain';
-import type { SnapshotListItem } from '../types/snapshot';
+import type { SnapshotCompareResult, SnapshotListItem } from '../types/snapshot';
 
 export const modelQueryKeys = createQueryKeys('models', {
   getModels: (params?: Record<string, unknown>) => [params],
@@ -36,6 +36,7 @@ export const modelQueryKeys = createQueryKeys('models', {
   getRetrains: (params?: Record<string, unknown>) => [params],
   getRetrainDetail: (params?: Record<string, unknown>) => [params],
   getSnapshots: (params?: Record<string, unknown>) => [params],
+  compareSnapshots: (params?: Record<string, unknown>) => [params],
 });
 
 export const useGetModels = ({ params, queryOptions }: QueryHookWithParamsOptions<ModelListItem[]> = {}) => {
@@ -396,6 +397,21 @@ export const useDeleteSnapshot = ({ mutationOptions }: MutationHookOptions = {})
   return useMutation({
     mutationFn: modelApi.deleteSnapshot,
     ...mutationOptions,
+  });
+};
+
+export const useRestoreSnapshot = ({ mutationOptions }: MutationHookOptions = {}) => {
+  return useMutation({
+    mutationFn: modelApi.restoreSnapshot,
+    ...mutationOptions,
+  });
+};
+
+export const useCompareSnapshots = ({ params, queryOptions }: QueryHookWithParamsOptions<SnapshotCompareResult> = {}) => {
+  return useQuery({
+    queryKey: modelQueryKeys.compareSnapshots(params).queryKey,
+    queryFn: () => modelApi.compareSnapshots(params as { modelId: string; snapshotVersion: string; compareVersion: string }),
+    ...queryOptions,
   });
 };
 

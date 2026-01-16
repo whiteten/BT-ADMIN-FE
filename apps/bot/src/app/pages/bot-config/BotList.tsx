@@ -2,8 +2,10 @@ import { useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useQueryClient } from '@tanstack/react-query';
 import { type BreadcrumbProps, Button, Input, Select } from 'antd';
+import { toast } from '@/shared-util';
 import BotCard from '../../features/bot-config/components/BotCard';
-import { botQueryKeys, useDeleteBot, useGetBots } from '../../features/bot-config/hooks/useBotQueries';
+import { botQueryKeys, useDeleteBot, useGetBots, useGetIfeInfo } from '../../features/bot-config/hooks/useBotQueries';
+import type { IfeInfo } from '../../features/bot-config/types';
 import { FallbackSpinner } from '@/components/custom/FallbackSpinner';
 import NoData from '@/components/custom/NoData';
 import PageHeader from '@/components/custom/PageHeader';
@@ -27,6 +29,19 @@ export default function BotList() {
     mutationOptions: {
       onSuccess: () => {
         queryClient.invalidateQueries({ queryKey: botQueryKeys.getBots().queryKey });
+      },
+    },
+  });
+
+  const { mutate: getIfeInfo } = useGetIfeInfo({
+    mutationOptions: {
+      onSuccess: (data) => {
+        const ifeInfo = data as IfeInfo;
+        if (!ifeInfo.redirectUrl) {
+          toast.warning('편집기 접속 정보가 없습니다.');
+          return;
+        }
+        window.open(ifeInfo.redirectUrl, '_blank');
       },
     },
   });
@@ -68,6 +83,16 @@ export default function BotList() {
     navigate(`../../model/${modelId}`);
   };
 
+  const handleEditVersion = (serviceId: string, serviceVer: string) => {
+    modal.confirm.execute({
+      options: {
+        title: '대화편집 확인',
+        content: `선택한 버전(${serviceVer})을 편집하시겠습니까?`,
+      },
+      onOk: () => getIfeInfo({ params: { serviceId, serviceVer }, data: {} }),
+    });
+  };
+
   return (
     <div className="flex flex-col gap-4 w-full h-full">
       <PageHeader title="봇 목록" breadcrumb={breadcrumb} />
@@ -101,7 +126,7 @@ export default function BotList() {
       ) : filteredList.length ? (
         <div className="grid grid-cols-[repeat(auto-fill,minmax(350px,1fr))] gap-4 w-full overflow-y-auto">
           {filteredList.map((bot) => (
-            <BotCard key={bot.serviceId} {...bot} onDetail={handleDetail} onDelete={handleDelete} onDetailModel={handleDetailModel} />
+            <BotCard key={bot.serviceId} {...bot} onDetail={handleDetail} onDelete={handleDelete} onDetailModel={handleDetailModel} onEditVersion={handleEditVersion} />
           ))}
         </div>
       ) : (

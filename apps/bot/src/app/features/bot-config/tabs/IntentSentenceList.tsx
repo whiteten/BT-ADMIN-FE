@@ -8,8 +8,10 @@ import dayjs from 'dayjs';
 import { toast } from '@/shared-util';
 import { modelInferenceModal } from '../components/ModelInferenceModal';
 import SentenceAutoGenDrawer, { type SentenceAutoGenDrawerRef } from '../components/SentenceAutoGenDrawer';
+import TrainDiffStatusBadge from '../components/TrainDiffStatusBadge';
+import TrainStatusBadge from '../components/TrainStatusBadge';
 import { modelQueryKeys, useCreateIntentSentence, useCreateIntentSentenceBulk, useDeleteIntentSentence, useGetIntentSentences } from '../hooks/useModelQueries';
-import type { IntentSentenceListItem } from '../types';
+import type { IntentSentenceListItem, TrainDiffStatus, TrainStatus } from '../types';
 import { IconPlayCircle, IconTrash } from '@/libs/shared-ui/src/components/custom/Icons';
 import useAggridOptions from '@/libs/shared-ui/src/hooks/useAggridOptions';
 import { useModal } from '@/libs/shared-ui/src/hooks/useModal';
@@ -81,6 +83,21 @@ export default function IntentSentenceList() {
   const columnDefs: ColDef<IntentSentenceListItem>[] = [
     { headerName: 'ID', field: 'sentenceId', hide: true },
     { headerName: '문장', field: 'sentence', flex: 3 },
+    {
+      headerName: '학습상태',
+      field: 'trainStatus',
+      maxWidth: 120,
+      cellStyle: { display: 'flex', alignItems: 'center' },
+      cellRenderer: (params: { value: number; data: IntentSentenceListItem }) => <TrainStatusBadge status={params.value as TrainStatus} />,
+    },
+    {
+      headerName: '변경이력',
+      headerTooltip: '모델 학습이 완료된 이후, 변경사항이 있을 경우 표시됩니다. 다음 모델 학습 완료시, 이력은 초기화됩니다.',
+      field: 'trainDiffStatus',
+      maxWidth: 100,
+      cellStyle: { display: 'flex', alignItems: 'center', justifyContent: 'center' },
+      cellRenderer: (params: { value: TrainDiffStatus }) => <TrainDiffStatusBadge status={params.value as TrainDiffStatus} />,
+    },
     {
       headerName: '작업일시',
       field: 'workTime',

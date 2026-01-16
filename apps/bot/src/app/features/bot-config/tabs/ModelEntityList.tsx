@@ -7,9 +7,10 @@ import { Button, Input, Select, Tag } from 'antd';
 import dayjs from 'dayjs';
 import { toast } from '@/shared-util';
 import EntityDrawer, { type EntityDrawerRef } from '../components/EntityDrawer';
+import TrainDiffStatusBadge from '../components/TrainDiffStatusBadge';
 import TrainStatusBadge from '../components/TrainStatusBadge';
 import { modelQueryKeys, useDeleteEntity, useGetEntities } from '../hooks/useModelQueries';
-import type { EntityListItem, TrainStatus } from '../types';
+import type { EntityListItem, TrainDiffStatus, TrainStatus } from '../types';
 import { IconTag, IconTrash } from '@/components/custom/Icons';
 import useAggridOptions from '@/libs/shared-ui/src/hooks/useAggridOptions';
 import { useModal } from '@/libs/shared-ui/src/hooks/useModal';
@@ -113,7 +114,7 @@ export default function ModelEntityList() {
   const { mutate: deleteEntity } = useDeleteEntity({
     mutationOptions: {
       onSuccess: () => {
-        toast.success('개체가 삭제되었습니다.');
+        toast.success('완료되었습니다.');
         queryClient.invalidateQueries({ queryKey: modelQueryKeys.getEntities({ modelId }).queryKey });
       },
     },
@@ -128,13 +129,6 @@ export default function ModelEntityList() {
   const columnDefs: ColDef<EntityListItem>[] = [
     { headerName: 'ID', field: 'entityId', hide: true },
     { headerName: '개체이름', field: 'entityName' },
-    {
-      headerName: '학습상태',
-      field: 'trainStatus',
-      maxWidth: 120,
-      cellStyle: { display: 'flex', alignItems: 'center' },
-      cellRenderer: (params: { value: number }) => <TrainStatusBadge status={params.value as TrainStatus} />,
-    },
     { headerName: 'Value수', field: 'valueCount', maxWidth: 120 },
     {
       headerName: '대표값',
@@ -144,6 +138,21 @@ export default function ModelEntityList() {
       valueFormatter: (params: { value: string[] }) => params.value?.join(', ') ?? '',
       cellStyle: { display: 'flex', alignItems: 'center' },
       cellRenderer: EntityValuesCellRenderer,
+    },
+    {
+      headerName: '학습상태',
+      field: 'trainStatus',
+      maxWidth: 120,
+      cellStyle: { display: 'flex', alignItems: 'center' },
+      cellRenderer: (params: { value: number; data: EntityListItem }) => <TrainStatusBadge status={params.value as TrainStatus} showAlert={params.data?.changedYn} />,
+    },
+    {
+      headerName: '변경이력',
+      headerTooltip: '모델 학습이 완료된 이후, 변경사항이 있을 경우 표시됩니다. 다음 모델 학습 완료시, 이력은 초기화됩니다.',
+      field: 'trainDiffStatus',
+      maxWidth: 100,
+      cellStyle: { display: 'flex', alignItems: 'center', justifyContent: 'center' },
+      cellRenderer: (params: { value: TrainDiffStatus }) => <TrainDiffStatusBadge status={params.value as TrainDiffStatus} />,
     },
     {
       headerName: '작업일시',
