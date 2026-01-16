@@ -46,6 +46,7 @@ export default function ModelIntentList() {
     { headerName: 'ID', field: 'intentId', hide: true },
     { headerName: '의도이름', field: 'intentName' },
     { headerName: '의도설명', field: 'intentDesc', flex: 3 },
+    { headerName: '문장수', field: 'sentenceCount', maxWidth: 120 },
     {
       headerName: '학습상태',
       field: 'trainStatus',
@@ -53,7 +54,6 @@ export default function ModelIntentList() {
       cellStyle: { display: 'flex', alignItems: 'center' },
       cellRenderer: (params: { value: number }) => <TrainStatusBadge status={params.value as TrainStatus} />,
     },
-    { headerName: '문장수', field: 'sentenceCount', maxWidth: 120 },
     {
       headerName: '작업일시',
       field: 'workTime',

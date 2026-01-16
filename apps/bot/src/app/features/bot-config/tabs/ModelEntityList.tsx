@@ -128,13 +128,6 @@ export default function ModelEntityList() {
   const columnDefs: ColDef<EntityListItem>[] = [
     { headerName: 'ID', field: 'entityId', hide: true },
     { headerName: '개체이름', field: 'entityName' },
-    {
-      headerName: '학습상태',
-      field: 'trainStatus',
-      maxWidth: 120,
-      cellStyle: { display: 'flex', alignItems: 'center' },
-      cellRenderer: (params: { value: number }) => <TrainStatusBadge status={params.value as TrainStatus} />,
-    },
     { headerName: 'Value수', field: 'valueCount', maxWidth: 120 },
     {
       headerName: '대표값',
@@ -144,6 +137,13 @@ export default function ModelEntityList() {
       valueFormatter: (params: { value: string[] }) => params.value?.join(', ') ?? '',
       cellStyle: { display: 'flex', alignItems: 'center' },
       cellRenderer: EntityValuesCellRenderer,
+    },
+    {
+      headerName: '학습상태',
+      field: 'trainStatus',
+      maxWidth: 120,
+      cellStyle: { display: 'flex', alignItems: 'center' },
+      cellRenderer: (params: { value: number }) => <TrainStatusBadge status={params.value as TrainStatus} />,
     },
     {
       headerName: '작업일시',
