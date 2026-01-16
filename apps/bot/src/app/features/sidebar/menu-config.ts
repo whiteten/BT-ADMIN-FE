@@ -36,23 +36,23 @@ const menuConfig = {
       ],
     },
     {
-      id: `${appName}/_config-common`,
+      id: `${appName}/_config-global`,
       label: '공용',
       index: 2,
       hide: false,
       icon: IconMenuBotCommon,
       children: [
         {
-          id: `${appName}/_config-common/model`,
+          id: `${appName}/_config-global/model`,
           label: '공용모델',
-          path: 'common/model/list',
+          path: 'global/model/list',
           index: 0,
           hide: false,
         },
         {
-          id: `${appName}/_config-common/aoe`,
+          id: `${appName}/_config-global/aoe`,
           label: 'AOE 확장',
-          path: 'common/aoe/config',
+          path: 'global/aoe/config',
           index: 1,
           hide: false,
         },

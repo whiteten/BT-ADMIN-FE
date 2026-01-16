@@ -13,6 +13,7 @@ const ModelList = React.lazy(() => import('./pages/bot-config/ModelList'));
 const IntentDetail = React.lazy(() => import('./pages/bot-config/IntentDetail'));
 const EntityDetail = React.lazy(() => import('./pages/bot-config/EntityDetail'));
 const EvaluationDetail = React.lazy(() => import('./pages/bot-config/EvaluationDetail'));
+const AoeConfig = React.lazy(() => import('./pages/global/AoeConfig'));
 
 const sharedModelRoutes = [
   { index: true, element: <Navigate to="list" replace /> },
@@ -76,13 +77,20 @@ export const routes = [
         ],
       },
       {
-        path: 'common',
+        path: 'global',
         element: <Outlet />,
         children: [
           { index: true, element: <Navigate to="model" replace /> },
           {
             path: 'model',
             children: [...sharedModelRoutes],
+          },
+          {
+            path: 'aoe',
+            children: [
+              { index: true, element: <Navigate to="config" replace /> },
+              { path: 'config', element: <AoeConfig /> },
+            ],
           },
         ],
       },

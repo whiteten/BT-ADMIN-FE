@@ -4,6 +4,6 @@ export function useModelRoute() {
   const { pathname } = useLocation();
 
   return {
-    isPublic: pathname.includes('/common/'),
+    isPublic: pathname.includes('/global/'),
   };
 }
