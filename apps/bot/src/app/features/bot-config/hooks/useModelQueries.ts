@@ -400,6 +400,13 @@ export const useDeleteSnapshot = ({ mutationOptions }: MutationHookOptions = {})
   });
 };
 
+export const useRestoreSnapshot = ({ mutationOptions }: MutationHookOptions = {}) => {
+  return useMutation({
+    mutationFn: modelApi.restoreSnapshot,
+    ...mutationOptions,
+  });
+};
+
 export const useCompareSnapshots = ({ params, queryOptions }: QueryHookWithParamsOptions<SnapshotCompareResult> = {}) => {
   return useQuery({
     queryKey: modelQueryKeys.compareSnapshots(params).queryKey,

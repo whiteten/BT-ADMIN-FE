@@ -239,6 +239,10 @@ export const modelApi = {
     const response = await apiClient.delete('/snapshot-delete', { params });
     return response;
   },
+  restoreSnapshot: async (params: { modelId: string; modelVersion: string }) => {
+    const response = await apiClient.post('/snapshot-restore', {}, { params });
+    return response;
+  },
   executeInference: async ({ params, data }: { params: Record<string, unknown>; data: Inference }): Promise<InferenceResponse> => {
     const response = await apiClient.post<DetailResponse<InferenceResponse>>('/model-inference', data, { params });
     return extractDetail(response);
