@@ -18,6 +18,10 @@ export interface Model {
 export type TrainStatus = 0 | 1 | 2 | 3;
 // 0: 미배포, 1: 배포중, 2: 배포완료, 3: 배포실패
 export type DeployStatus = 0 | 1 | 2 | 3;
+/**
+ * 이미 학습된 모델의 데이터 변경 상태
+ */
+export type TrainDiffStatus = 'ADDED' | 'MODIFIED' | 'DELETED';
 
 export enum ModelType {
   NORMAL = 0,

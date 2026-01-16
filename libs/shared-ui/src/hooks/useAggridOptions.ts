@@ -4,6 +4,7 @@ import { localeKr } from '../assets/json/aggrid_kr';
 import AggridNoRowsOverlay from '../components/custom/AggridNoRowsOverlay';
 import AggridPagination from '../components/custom/AggridPagination';
 import AggridRowDataSidebar from '../components/custom/AggridRowDataSidebar';
+import AggridTooltip from '../components/custom/AggridTooltip';
 import { FallbackSpinner } from '../components/custom/FallbackSpinner';
 
 export default function useAggridOptions() {
@@ -27,6 +28,7 @@ export default function useAggridOptions() {
       filter: false,
       editable: false,
       suppressHeaderMenuButton: true,
+      tooltipComponent: AggridTooltip,
     }),
     [],
   );
@@ -76,6 +78,8 @@ export default function useAggridOptions() {
       },
       loadingOverlayComponent: FallbackSpinner,
       localeText: localeKr,
+      tooltipShowDelay: 0,
+      tooltipHideDelay: 10000,
     }),
     [defaultColDef, theme, sideBar, statusBar],
   );

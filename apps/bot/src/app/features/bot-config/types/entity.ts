@@ -1,15 +1,17 @@
-import type { TrainStatus } from './model';
+import type { TrainDiffStatus, TrainStatus } from './model';
 
 export interface Entity {
   entityId: string;
   entityName: string;
   entityDesc: string;
+  trainStatus: TrainStatus;
+  trainDiffStatus: TrainDiffStatus;
+  changedYn: boolean;
   workUser: number;
   workTime: string;
 }
 
 export type EntityListItem = Entity & {
-  trainStatus: TrainStatus;
   valueCount: number;
   entityValues: string[];
 };
