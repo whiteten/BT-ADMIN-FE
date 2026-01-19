@@ -33,6 +33,7 @@ import type {
   IntentSentenceCreateBulkDatas,
   IntentSentenceCreateDatas,
   IntentSentenceListItem,
+  IntentSentenceUpdateDatas,
 } from '../types/intent';
 import type { ModelBasicInfoUpdateDatas, ModelCreateDatas, ModelItem, ModelListItem } from '../types/model';
 
@@ -97,6 +98,10 @@ export const modelApi = {
   },
   createIntentSentenceBulk: async ({ params, data }: { params: Record<string, unknown>; data: IntentSentenceCreateBulkDatas }) => {
     const response = await apiClient.post('/intent-sentence-create-bulk', data, { params });
+    return response;
+  },
+  updateIntentSentence: async ({ params, data }: { params: Record<string, unknown>; data: IntentSentenceUpdateDatas }) => {
+    const response = await apiClient.put('/intent-sentence-update', data, { params });
     return response;
   },
   deleteIntentSentence: async (params: Record<string, unknown>) => {

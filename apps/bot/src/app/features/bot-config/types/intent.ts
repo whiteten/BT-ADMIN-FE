@@ -33,3 +33,4 @@ export type IntentSentenceListItem = IntentSentence & { intentId: string; intent
 export type IntentSentenceItem = IntentSentence;
 export type IntentSentenceCreateDatas = Pick<IntentSentence, 'sentence'>;
 export type IntentSentenceCreateBulkDatas = { sentences: string[] };
+export type IntentSentenceUpdateDatas = Pick<IntentSentence, 'sentence'>;
