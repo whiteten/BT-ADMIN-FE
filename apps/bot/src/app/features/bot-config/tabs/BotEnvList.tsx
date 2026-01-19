@@ -1,53 +1,22 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useParams } from 'react-router-dom';
+import { useQueryClient } from '@tanstack/react-query';
 import type { ColDef, ICellRendererParams, RowDoubleClickedEvent, SideBarDef } from 'ag-grid-community';
 import { AgGridReact } from 'ag-grid-react';
 import { Button, Input, Select } from 'antd';
+import { toast } from '@/shared-util';
 import AggridEnvDeploySidebar from '../components/AggridEnvDeploySidebar';
 import BotEnvDrawer, { type BotEnvDrawerRef } from '../components/BotEnvDrawer';
+import { botQueryKeys, useDeleteEnv, useGetEnvList } from '../hooks/useBotQueries';
+import type { EnvListItemWithNodes } from '../types';
 import { IconTrash } from '@/components/custom/Icons';
 import useAggridOptions from '@/libs/shared-ui/src/hooks/useAggridOptions';
 import { useModal } from '@/libs/shared-ui/src/hooks/useModal';
 
-// 임시 타입 정의
-interface EnvNodeItem {
-  fileName: string; // 파일명 (시나리오ID_시나리오명 형식)
-  systemId: string; // 시스템ID
-  status: string; // 상태 (완료/실패)
-  workDateTime: string; // 작업일시
-  worker: string; // 작업자
-}
-
-interface BotEnvItem {
-  envId: string;
-  categoryName: string;
-  varName: string;
-  varValue: string;
-  nodes: EnvNodeItem[];
-}
-
-// 더미 노드 데이터
-const dummyNodes: EnvNodeItem[] = [
-  { fileName: 'SCN-0001_로그인', systemId: 'ipronv63', status: '완료', workDateTime: '2025-01-13 10:30:00', worker: 'admin' },
-  { fileName: 'SCN-0002_회원가입', systemId: 'IPRONv53', status: '완료', workDateTime: '2025-01-13 10:25:00', worker: 'admin' },
-  { fileName: 'SCN-0003_결제처리', systemId: 'ipronv53-n2a', status: '실패', workDateTime: '2025-01-13 10:20:00', worker: 'admin' },
-  { fileName: 'SCN-0004_주문조회', systemId: 'ipronv53-n2b', status: '완료', workDateTime: '2025-01-13 10:15:00', worker: 'admin' },
-  { fileName: 'SCN-0005_배송추적', systemId: 'rnd6-worker1', status: '실패', workDateTime: '2025-01-13 10:10:00', worker: 'admin' },
-];
-
-// 임시 더미 데이터
-const dummyEnvList: BotEnvItem[] = [
-  { envId: 'env-001', categoryName: 'FCS_INFO', varName: 'IPADDR', varValue: '100.100.108.141', nodes: dummyNodes },
-  { envId: 'env-002', categoryName: 'FCS_INFO', varName: '챗경험없는고객', varValue: '01040575212', nodes: dummyNodes },
-  { envId: 'env-003', categoryName: 'FCS_INFO', varName: 'WCS_PORT', varValue: '65432', nodes: dummyNodes },
-  { envId: 'env-004', categoryName: 'NLU', varName: 'MODEL_NAME', varValue: 'ICC_DEMO', nodes: dummyNodes },
-  { envId: 'env-005', categoryName: '정책기준', varName: '대기고객수기준', varValue: '1', nodes: dummyNodes },
-  { envId: 'env-006', categoryName: '정책기준', varName: '예상대기시간기준', varValue: '10', nodes: dummyNodes },
-];
-
 export default function BotEnvList() {
   const { serviceId = '' } = useParams();
   const modal = useModal();
+  const queryClient = useQueryClient();
   const { gridOptions, sideBar } = useAggridOptions();
   const customGridOptions = useMemo(
     () => ({
@@ -70,21 +39,43 @@ export default function BotEnvList() {
     }),
     [gridOptions, sideBar],
   );
-  const [rowData, setRowData] = useState<BotEnvItem[]>(dummyEnvList);
-  const [filterColumn, setFilterColumn] = useState('categoryName');
+
+  // API 훅
+  const { data: envList = [] } = useGetEnvList({
+    params: { serviceId },
+    queryOptions: { enabled: !!serviceId },
+  });
+
+  // nodes 추가한 UI용 데이터
+  const envListWithNodes: EnvListItemWithNodes[] = useMemo(() => envList.map((env) => ({ ...env, nodes: [] })), [envList]);
+
+  const deleteEnvMutation = useDeleteEnv({
+    mutationOptions: {
+      onSuccess: () => {
+        queryClient.invalidateQueries({ queryKey: botQueryKeys.getEnvList._def });
+        toast.success('환경변수가 삭제되었습니다.');
+      },
+      onError: () => {
+        toast.error('환경변수 삭제에 실패했습니다.');
+      },
+    },
+  });
+
+  const [rowData, setRowData] = useState<EnvListItemWithNodes[]>([]);
+  const [filterColumn, setFilterColumn] = useState('category');
   const [searchValue, setSearchValue] = useState('');
 
-  const gridRef = useRef<AgGridReact<BotEnvItem>>(null);
+  const gridRef = useRef<AgGridReact<EnvListItemWithNodes>>(null);
   const envDrawerRef = useRef<BotEnvDrawerRef>(null);
 
   const filteredList = useMemo(() => {
-    if (!searchValue.trim()) return dummyEnvList;
+    if (!searchValue.trim()) return envListWithNodes;
     const keyword = searchValue.toLowerCase();
-    return dummyEnvList.filter((env) => {
-      const value = env[filterColumn as keyof BotEnvItem];
+    return envListWithNodes.filter((env) => {
+      const value = env[filterColumn as keyof EnvListItemWithNodes];
       return String(value).toLowerCase().includes(keyword);
     });
-  }, [filterColumn, searchValue]);
+  }, [envListWithNodes, filterColumn, searchValue]);
 
   useEffect(() => {
     setRowData(filteredList);
@@ -95,20 +86,24 @@ export default function BotEnvList() {
     setSearchValue('');
   };
 
-  const handleDeleteEnv = (envId: string) => {
+  const handleDeleteEnv = (env: EnvListItemWithNodes) => {
     modal.confirm.delete({
       onOk: () => {
-        // TODO: API 연동
-        console.log('Delete env:', envId);
+        deleteEnvMutation.mutate({
+          serviceId,
+          configFile: env.configFile,
+          category: env.category,
+          property: env.property,
+        });
       },
     });
   };
 
   // 그리드 컬럼 정의
-  const columnDefs: ColDef<BotEnvItem>[] = [
-    { headerName: '분류명', field: 'categoryName' },
-    { headerName: '변수명', field: 'varName' },
-    { headerName: '값', field: 'varValue', flex: 2 },
+  const columnDefs: ColDef<EnvListItemWithNodes>[] = [
+    { headerName: '분류명', field: 'category' },
+    { headerName: '변수명', field: 'property' },
+    { headerName: '값', field: 'value', flex: 2 },
     {
       headerName: '',
       maxWidth: 60,
@@ -116,7 +111,7 @@ export default function BotEnvList() {
       filter: false,
       suppressHeaderMenuButton: true,
       cellStyle: { display: 'flex', alignItems: 'center', justifyContent: 'center' },
-      cellRenderer: (params: ICellRendererParams<BotEnvItem>) => {
+      cellRenderer: (params: ICellRendererParams<EnvListItemWithNodes>) => {
         const { data } = params;
         if (!data) return null;
         return (
@@ -124,7 +119,7 @@ export default function BotEnvList() {
             type="button"
             onClick={(e) => {
               e.stopPropagation();
-              handleDeleteEnv(data.envId);
+              handleDeleteEnv(data);
             }}
           >
             <IconTrash className="size-5 text-red-500 hover:cursor-pointer" />
@@ -138,9 +133,9 @@ export default function BotEnvList() {
     envDrawerRef.current?.open({ serviceId });
   };
 
-  const handleRowDoubleClicked = (e: RowDoubleClickedEvent<BotEnvItem>) => {
+  const handleRowDoubleClicked = (e: RowDoubleClickedEvent<EnvListItemWithNodes>) => {
     if (!e.data) return;
-    envDrawerRef.current?.open({ serviceId, envId: e.data.envId });
+    envDrawerRef.current?.open({ serviceId, envData: e.data });
   };
 
   return (
@@ -148,13 +143,13 @@ export default function BotEnvList() {
       <header className="flex items-center justify-between w-full gap-2 lg:flex-nowrap flex-wrap">
         <div className="flex items-center w-full gap-3">
           <Select
-            defaultValue="categoryName"
+            defaultValue="category"
             value={filterColumn}
             onChange={handleColumnChange}
             options={[
-              { label: '분류명', value: 'categoryName' },
-              { label: '변수명', value: 'varName' },
-              { label: '값', value: 'varValue' },
+              { label: '분류명', value: 'category' },
+              { label: '변수명', value: 'property' },
+              { label: '값', value: 'value' },
             ]}
             className="!max-w-[150px] !min-w-[120px]"
             popupMatchSelectWidth={false}
@@ -168,7 +163,7 @@ export default function BotEnvList() {
         </div>
       </header>
       <div className="w-full h-full">
-        <AgGridReact<BotEnvItem> ref={gridRef} rowData={rowData} columnDefs={columnDefs} onRowDoubleClicked={handleRowDoubleClicked} gridOptions={customGridOptions} />
+        <AgGridReact<EnvListItemWithNodes> ref={gridRef} rowData={rowData} columnDefs={columnDefs} onRowDoubleClicked={handleRowDoubleClicked} gridOptions={customGridOptions} />
       </div>
       <BotEnvDrawer ref={envDrawerRef} />
     </div>

@@ -1,30 +1,30 @@
 import { useEffect, useState } from 'react';
+import { useParams } from 'react-router-dom';
 import type { CustomToolPanelProps } from 'ag-grid-react';
 import { Alert } from 'antd';
-import { Clock, FileText, OctagonAlert, RotateCcw, Server, ServerOff, User } from 'lucide-react';
+import { Clock, OctagonAlert, RotateCcw, Server, ServerOff, User } from 'lucide-react';
 import { Log } from '@/log';
+import { useGetEnvNodeList } from '../hooks/useBotQueries';
+import type { EnvListItemWithNodes, EnvNodeItem } from '../types';
+import { FallbackSpinner } from '@/components/custom/FallbackSpinner';
 import { Badge } from '@/components/ui/badge';
 
-// 임시 타입 정의 (추후 types 폴더로 이동 권장)
-interface EnvNodeItem {
-  fileName: string;
-  systemId: string;
-  status: string;
-  workDateTime: string;
-  worker: string;
-}
-
-interface BotEnvItem {
-  envId: string;
-  categoryName: string;
-  varName: string;
-  varValue: string;
-  nodes: EnvNodeItem[];
-}
-
-function AggridEnvDeploySidebar(props: CustomToolPanelProps<BotEnvItem>) {
+function AggridEnvDeploySidebar(props: CustomToolPanelProps<EnvListItemWithNodes>) {
   const { api } = props;
-  const [selectedRowData, setSelectedRowData] = useState<BotEnvItem | null>(null);
+  const { serviceId = '' } = useParams();
+  const [selectedRowData, setSelectedRowData] = useState<EnvListItemWithNodes | null>(null);
+
+  // 선택된 row의 category, property로 노드 목록 조회
+  const { data: nodes = [], isLoading } = useGetEnvNodeList({
+    params: {
+      serviceId,
+      category: selectedRowData?.category,
+      property: selectedRowData?.property,
+    },
+    queryOptions: {
+      enabled: !!serviceId && !!selectedRowData?.category && !!selectedRowData?.property,
+    },
+  });
 
   useEffect(() => {
     if (!api || api.isDestroyed?.()) return;
@@ -48,36 +48,33 @@ function AggridEnvDeploySidebar(props: CustomToolPanelProps<BotEnvItem>) {
 
   const handleRetry = () => {
     Log.debug('Retry');
+    alert('재시도');
   };
 
-  const renderNodeCard = (node: EnvNodeItem, index: number) => {
-    const isSuccess = node.status === '완료';
+  const renderNodeCard = (node: EnvNodeItem) => {
+    const isSuccess = node.success;
     return (
-      <div key={index} className="flex flex-col gap-2 p-3 rounded-lg border border-border bg-card">
-        {/* 헤더: 시스템ID */}
+      <div key={node.historyId} className="flex flex-col gap-2 p-3 rounded-lg border border-border bg-card">
+        {/* 헤더: 시스템명 */}
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2 min-w-0">
             <Server className="size-4 text-primary shrink-0" />
-            <span className="text-sm font-medium text-foreground truncate">{node.systemId}</span>
+            <span className="text-sm font-medium text-foreground truncate">{node.systemName}</span>
           </div>
           <Badge variant="secondary" className={isSuccess ? 'text-[#0AB39C] bg-[#0AB39C1A]' : 'text-[#F06548] bg-[#F065481A]'}>
-            {node.status}
+            {isSuccess ? '완료' : '실패'}
           </Badge>
         </div>
 
         {/* 상세 정보 */}
         <div className="flex flex-col gap-1.5 text-xs text-muted-foreground">
           <div className="flex items-center gap-2">
-            <FileText className="size-3 shrink-0" />
-            <span className="truncate">{node.fileName}</span>
+            <User className="size-3 shrink-0" />
+            <span className="truncate">{node.workUser ?? '-'}</span>
           </div>
           <div className="flex items-center gap-2">
             <Clock className="size-3 shrink-0" />
-            <span>{node.workDateTime}</span>
-          </div>
-          <div className="flex items-center gap-2">
-            <User className="size-3 shrink-0" />
-            <span>{node.worker}</span>
+            <span>{node.workTime}</span>
           </div>
         </div>
       </div>
@@ -85,7 +82,14 @@ function AggridEnvDeploySidebar(props: CustomToolPanelProps<BotEnvItem>) {
   };
 
   const renderDeployInfo = () => {
-    const nodes = selectedRowData?.nodes ?? [];
+    if (isLoading) {
+      return (
+        <div className="w-full h-full flex items-center justify-center">
+          <FallbackSpinner />
+        </div>
+      );
+    }
+
     if (!nodes.length) {
       return (
         <div className="w-full h-full flex flex-col gap-4 items-center justify-center">
@@ -96,10 +100,13 @@ function AggridEnvDeploySidebar(props: CustomToolPanelProps<BotEnvItem>) {
         </div>
       );
     }
+
+    const hasFailedNodes = nodes.some((node) => !node.success);
+
     return (
       <div className="flex flex-col gap-3">
         <span className="text-sm font-semibold text-foreground">적용 노드 ({nodes.length})</span>
-        {nodes.some((node) => node.status === '실패') && (
+        {hasFailedNodes && (
           <Alert
             title={`적용에 실패한 노드가 있습니다.`}
             type="warning"
@@ -117,7 +124,7 @@ function AggridEnvDeploySidebar(props: CustomToolPanelProps<BotEnvItem>) {
             }
           />
         )}
-        <div className="flex flex-col gap-2">{nodes.map((node, index) => renderNodeCard(node, index))}</div>
+        <div className="flex flex-col gap-2">{nodes.map((node) => renderNodeCard(node))}</div>
       </div>
     );
   };

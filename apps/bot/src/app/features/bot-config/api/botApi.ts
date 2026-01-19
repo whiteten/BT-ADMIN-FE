@@ -16,6 +16,7 @@ import type {
   BotVoiceUpdateDatas,
   EnvCreateDatas,
   EnvListItem,
+  EnvNodeItem,
   EnvUpdateDatas,
   IfeInfo,
   SttListItem,
@@ -126,5 +127,9 @@ export const botApi = {
   deleteEnv: async (params: Record<string, unknown>) => {
     const response = await apiClient.delete('/bot-slee-config-delete', { params });
     return response;
+  },
+  getEnvNodeList: async (params?: Record<string, unknown>): Promise<EnvNodeItem[]> => {
+    const response = await apiClient.get<ListResponse<EnvNodeItem>>('bot-slee-config-histroy-list', { params });
+    return extractList(response);
   },
 };

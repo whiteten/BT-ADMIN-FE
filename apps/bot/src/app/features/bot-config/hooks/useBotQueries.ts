@@ -10,6 +10,7 @@ import type {
   BotVersionItem,
   BotVersionListItem,
   EnvListItem,
+  EnvNodeItem,
   SttListItem,
   TtsListItem,
   WorkTimeListItem,
@@ -26,6 +27,7 @@ export const botQueryKeys = createQueryKeys('bots', {
   getBotDeployConfig: (params?: Record<string, unknown>) => [params],
   getBotAoeDetail: (params?: Record<string, unknown>) => [params],
   getEnvList: (params?: Record<string, unknown>) => [params],
+  getEnvNodeList: (params?: Record<string, unknown>) => [params],
 });
 
 export const useGetBots = ({ params, queryOptions }: QueryHookWithParamsOptions<BotListItem[]> = {}) => {
@@ -210,5 +212,13 @@ export const useDeleteEnv = ({ mutationOptions }: MutationHookOptions = {}) => {
   return useMutation({
     mutationFn: botApi.deleteEnv,
     ...mutationOptions,
+  });
+};
+
+export const useGetEnvNodeList = ({ params, queryOptions }: QueryHookWithParamsOptions<EnvNodeItem[]> = {}) => {
+  return useQuery({
+    queryKey: botQueryKeys.getEnvNodeList(params).queryKey,
+    queryFn: () => botApi.getEnvNodeList(params),
+    ...queryOptions,
   });
 };
