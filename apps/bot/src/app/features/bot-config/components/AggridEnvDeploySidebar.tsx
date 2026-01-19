@@ -5,14 +5,14 @@ import { Alert } from 'antd';
 import { Clock, OctagonAlert, RotateCcw, Server, ServerOff, User } from 'lucide-react';
 import { Log } from '@/log';
 import { useGetEnvNodeList } from '../hooks/useBotQueries';
-import type { EnvListItemWithNodes, EnvNodeItem } from '../types';
+import type { EnvListItem, EnvNodeItem } from '../types';
 import { FallbackSpinner } from '@/components/custom/FallbackSpinner';
 import { Badge } from '@/components/ui/badge';
 
-function AggridEnvDeploySidebar(props: CustomToolPanelProps<EnvListItemWithNodes>) {
+function AggridEnvDeploySidebar(props: CustomToolPanelProps<EnvListItem>) {
   const { api } = props;
   const { serviceId = '' } = useParams();
-  const [selectedRowData, setSelectedRowData] = useState<EnvListItemWithNodes | null>(null);
+  const [selectedRowData, setSelectedRowData] = useState<EnvListItem | null>(null);
 
   // 선택된 row의 category, property로 노드 목록 조회
   const { data: nodes = [], isLoading } = useGetEnvNodeList({

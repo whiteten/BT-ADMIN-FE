@@ -8,7 +8,7 @@ import { toast } from '@/shared-util';
 import AggridEnvDeploySidebar from '../components/AggridEnvDeploySidebar';
 import BotEnvDrawer, { type BotEnvDrawerRef } from '../components/BotEnvDrawer';
 import { botQueryKeys, useDeleteEnv, useGetEnvList } from '../hooks/useBotQueries';
-import type { EnvListItemWithNodes } from '../types';
+import type { EnvListItem } from '../types';
 import { IconTrash } from '@/components/custom/Icons';
 import useAggridOptions from '@/libs/shared-ui/src/hooks/useAggridOptions';
 import { useModal } from '@/libs/shared-ui/src/hooks/useModal';
@@ -46,9 +46,6 @@ export default function BotEnvList() {
     queryOptions: { enabled: !!serviceId },
   });
 
-  // nodes 추가한 UI용 데이터
-  const envListWithNodes: EnvListItemWithNodes[] = useMemo(() => envList.map((env) => ({ ...env, nodes: [] })), [envList]);
-
   const deleteEnvMutation = useDeleteEnv({
     mutationOptions: {
       onSuccess: () => {
@@ -61,21 +58,21 @@ export default function BotEnvList() {
     },
   });
 
-  const [rowData, setRowData] = useState<EnvListItemWithNodes[]>([]);
+  const [rowData, setRowData] = useState<EnvListItem[]>([]);
   const [filterColumn, setFilterColumn] = useState('category');
   const [searchValue, setSearchValue] = useState('');
 
-  const gridRef = useRef<AgGridReact<EnvListItemWithNodes>>(null);
+  const gridRef = useRef<AgGridReact<EnvListItem>>(null);
   const envDrawerRef = useRef<BotEnvDrawerRef>(null);
 
   const filteredList = useMemo(() => {
-    if (!searchValue.trim()) return envListWithNodes;
+    if (!searchValue.trim()) return envList;
     const keyword = searchValue.toLowerCase();
-    return envListWithNodes.filter((env) => {
-      const value = env[filterColumn as keyof EnvListItemWithNodes];
+    return envList.filter((env) => {
+      const value = env[filterColumn as keyof EnvListItem];
       return String(value).toLowerCase().includes(keyword);
     });
-  }, [envListWithNodes, filterColumn, searchValue]);
+  }, [envList, filterColumn, searchValue]);
 
   useEffect(() => {
     setRowData(filteredList);
@@ -86,7 +83,7 @@ export default function BotEnvList() {
     setSearchValue('');
   };
 
-  const handleDeleteEnv = (env: EnvListItemWithNodes) => {
+  const handleDeleteEnv = (env: EnvListItem) => {
     modal.confirm.delete({
       onOk: () => {
         deleteEnvMutation.mutate({
@@ -100,7 +97,7 @@ export default function BotEnvList() {
   };
 
   // 그리드 컬럼 정의
-  const columnDefs: ColDef<EnvListItemWithNodes>[] = [
+  const columnDefs: ColDef<EnvListItem>[] = [
     { headerName: '분류명', field: 'category' },
     { headerName: '변수명', field: 'property' },
     { headerName: '값', field: 'value', flex: 2 },
@@ -111,7 +108,7 @@ export default function BotEnvList() {
       filter: false,
       suppressHeaderMenuButton: true,
       cellStyle: { display: 'flex', alignItems: 'center', justifyContent: 'center' },
-      cellRenderer: (params: ICellRendererParams<EnvListItemWithNodes>) => {
+      cellRenderer: (params: ICellRendererParams<EnvListItem>) => {
         const { data } = params;
         if (!data) return null;
         return (
@@ -133,7 +130,7 @@ export default function BotEnvList() {
     envDrawerRef.current?.open({ serviceId });
   };
 
-  const handleRowDoubleClicked = (e: RowDoubleClickedEvent<EnvListItemWithNodes>) => {
+  const handleRowDoubleClicked = (e: RowDoubleClickedEvent<EnvListItem>) => {
     if (!e.data) return;
     envDrawerRef.current?.open({ serviceId, envData: e.data });
   };
@@ -163,7 +160,7 @@ export default function BotEnvList() {
         </div>
       </header>
       <div className="w-full h-full">
-        <AgGridReact<EnvListItemWithNodes> ref={gridRef} rowData={rowData} columnDefs={columnDefs} onRowDoubleClicked={handleRowDoubleClicked} gridOptions={customGridOptions} />
+        <AgGridReact<EnvListItem> ref={gridRef} rowData={rowData} columnDefs={columnDefs} onRowDoubleClicked={handleRowDoubleClicked} gridOptions={customGridOptions} />
       </div>
       <BotEnvDrawer ref={envDrawerRef} />
     </div>

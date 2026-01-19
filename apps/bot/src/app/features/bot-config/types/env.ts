@@ -26,8 +26,3 @@ export interface EnvNodeItem {
   workTime: string;
   success: boolean;
 }
-
-/** UI용 확장 타입 - nodes 포함 */
-export interface EnvListItemWithNodes extends EnvListItem {
-  nodes: EnvNodeItem[];
-}
