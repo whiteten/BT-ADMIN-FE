@@ -13,6 +13,7 @@ function AggridEnvDeploySidebar(props: CustomToolPanelProps<EnvListItem>) {
   const { api } = props;
   const { serviceId = '' } = useParams();
   const [selectedRowData, setSelectedRowData] = useState<EnvListItem | null>(null);
+  const [isOpened, setIsOpened] = useState(false);
 
   // 선택된 row의 category, property로 노드 목록 조회
   const { data: nodes = [], isLoading } = useGetEnvNodeList({
@@ -22,7 +23,7 @@ function AggridEnvDeploySidebar(props: CustomToolPanelProps<EnvListItem>) {
       property: selectedRowData?.property,
     },
     queryOptions: {
-      enabled: !!serviceId && !!selectedRowData?.category && !!selectedRowData?.property,
+      enabled: !!serviceId && !!selectedRowData?.category && !!selectedRowData?.property && isOpened,
     },
   });
 
@@ -36,12 +37,20 @@ function AggridEnvDeploySidebar(props: CustomToolPanelProps<EnvListItem>) {
     const handlePaginationChanged = () => {
       api.deselectAll();
     };
+    const handleToolPanelVisibleChanged = () => {
+      const isToolPanelVisible = api.isToolPanelShowing();
+      const openedToolPanel = api.getOpenedToolPanel();
+      setIsOpened(isToolPanelVisible && openedToolPanel === 'envDeployInfo');
+    };
+
     api.addEventListener('selectionChanged', handleSelectionChanged);
     api.addEventListener('paginationChanged', handlePaginationChanged);
+    api.addEventListener('toolPanelVisibleChanged', handleToolPanelVisibleChanged);
     return () => {
       if (api && !api.isDestroyed?.()) {
         api.removeEventListener('selectionChanged', handleSelectionChanged);
         api.removeEventListener('paginationChanged', handlePaginationChanged);
+        api.removeEventListener('toolPanelVisibleChanged', handleToolPanelVisibleChanged);
       }
     };
   }, [api]);
