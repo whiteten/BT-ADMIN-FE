@@ -1,32 +1,142 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useParams } from 'react-router-dom';
 import { useQueryClient } from '@tanstack/react-query';
-import type { ColDef, ICellRendererParams } from 'ag-grid-community';
+import type {
+  CellDoubleClickedEvent,
+  ColDef,
+  GetRowIdParams,
+  GridApi,
+  GridReadyEvent,
+  ICellRendererParams,
+  IRowNode,
+  RowEditingStartedEvent,
+  RowEditingStoppedEvent,
+} from 'ag-grid-community';
 import { AgGridReact } from 'ag-grid-react';
-import { Button, Input, Select } from 'antd';
+import { Button, Input, type InputRef, Select } from 'antd';
 import dayjs from 'dayjs';
+import { Check, X } from 'lucide-react';
 import { toast } from '@/shared-util';
 import { modelInferenceModal } from '../components/ModelInferenceModal';
 import SentenceAutoGenDrawer, { type SentenceAutoGenDrawerRef } from '../components/SentenceAutoGenDrawer';
 import TrainDiffStatusBadge from '../components/TrainDiffStatusBadge';
 import TrainStatusBadge from '../components/TrainStatusBadge';
-import { modelQueryKeys, useCreateIntentSentence, useCreateIntentSentenceBulk, useDeleteIntentSentence, useGetIntentSentences } from '../hooks/useModelQueries';
+import {
+  modelQueryKeys,
+  useCreateIntentSentence,
+  useCreateIntentSentenceBulk,
+  useDeleteIntentSentence,
+  useGetIntentSentences,
+  useUpdateIntentSentence,
+} from '../hooks/useModelQueries';
 import type { IntentSentenceListItem, TrainDiffStatus, TrainStatus } from '../types';
 import { IconPlayCircle, IconTrash } from '@/libs/shared-ui/src/components/custom/Icons';
 import useAggridOptions from '@/libs/shared-ui/src/hooks/useAggridOptions';
 import { useModal } from '@/libs/shared-ui/src/hooks/useModal';
 
+interface InputTextCellEditorProps {
+  value: string;
+  onValueChange: (value: string) => void;
+  placeholder?: string;
+  cellStartedEdit?: boolean;
+}
+
+const InputTextCellEditor = ({ value = '', onValueChange, placeholder = '', cellStartedEdit }: InputTextCellEditorProps) => {
+  const inputRef = useRef<InputRef>(null);
+
+  useEffect(() => {
+    if (cellStartedEdit) {
+      inputRef.current?.focus();
+    }
+  }, [cellStartedEdit]);
+
+  return <Input ref={inputRef} value={value} onChange={(e) => onValueChange(e.target.value)} placeholder={placeholder} />;
+};
+
+interface ActionCellRendererParams extends ICellRendererParams<IntentSentenceListItem> {
+  editingRowId: string | null;
+  onSave: (data: IntentSentenceListItem) => void;
+  onCancel: () => void;
+  onTest: (data: IntentSentenceListItem) => void;
+  onDelete: (data: IntentSentenceListItem) => void;
+}
+
+const ActionCellRenderer = (params: ActionCellRendererParams) => {
+  const { data, editingRowId, onSave, onCancel, onTest, onDelete } = params;
+  if (!data) return null;
+
+  const rowId = data.sentenceId;
+
+  if (editingRowId === rowId) {
+    return (
+      <div className="flex items-center gap-2">
+        <button
+          type="button"
+          onClick={(e) => {
+            e.stopPropagation();
+            onSave(data);
+          }}
+        >
+          <Check className="size-5 text-green-500 hover:text-green-600 hover:cursor-pointer" />
+        </button>
+        <button
+          type="button"
+          onClick={(e) => {
+            e.stopPropagation();
+            onCancel();
+          }}
+        >
+          <X className="size-5 text-gray-500 hover:text-gray-600 hover:cursor-pointer" />
+        </button>
+      </div>
+    );
+  }
+
+  return (
+    <div className="flex items-center gap-2">
+      <button
+        type="button"
+        onClick={(e) => {
+          e.stopPropagation();
+          onTest(data);
+        }}
+      >
+        <IconPlayCircle className="size-5 text-[#405189] hover:cursor-pointer" />
+      </button>
+      <button
+        type="button"
+        onClick={(e) => {
+          e.stopPropagation();
+          onDelete(data);
+        }}
+      >
+        <IconTrash className="size-5 text-red-500 hover:cursor-pointer" />
+      </button>
+    </div>
+  );
+};
+
 export default function IntentSentenceList() {
   const { modelId = '', intentId = '' } = useParams();
   const modal = useModal();
   const { gridOptions } = useAggridOptions();
+  const queryClient = useQueryClient();
+
+  // Refs
   const refAutoGenDrawer = useRef<SentenceAutoGenDrawerRef>(null);
-  const [rowData, setRowData] = useState<IntentSentenceListItem[]>([]);
+  const gridApiRef = useRef<GridApi<IntentSentenceListItem> | null>(null);
+
+  // State
   const [filterColumn, setFilterColumn] = useState('sentence');
   const [searchValue, setSearchValue] = useState('');
   const [testInputValue, setTestInputValue] = useState('');
-  const queryClient = useQueryClient();
-  const { data: sentenceList, isFetching: isFetchingSentenceList } = useGetIntentSentences({ params: { modelId, intentId } });
+  const [editingRowId, setEditingRowId] = useState<string | null>(null);
+
+  // API Hooks
+  const { data: sentenceList, isLoading: isLoadingSentenceList } = useGetIntentSentences({
+    params: { modelId, intentId },
+    queryOptions: { enabled: !!modelId && !!intentId && !editingRowId, refetchInterval: 5000 },
+  });
   const { mutate: createIntentSentence, isPending: isCreating } = useCreateIntentSentence({
     mutationOptions: {
       onSuccess: () => {
@@ -41,6 +151,15 @@ export default function IntentSentenceList() {
       onSuccess: () => {
         toast.success('문장이 추가되었습니다.');
         refAutoGenDrawer.current?.close();
+        queryClient.invalidateQueries({ queryKey: modelQueryKeys.getIntentSentences({ modelId, intentId }).queryKey });
+      },
+    },
+  });
+  const { mutate: updateIntentSentence, isPending: isUpdating } = useUpdateIntentSentence({
+    mutationOptions: {
+      onSuccess: () => {
+        toast.success('문장이 수정되었습니다.');
+        gridApiRef.current?.stopEditing();
         queryClient.invalidateQueries({ queryKey: modelQueryKeys.getIntentSentences({ modelId, intentId }).queryKey });
       },
     },
@@ -80,13 +199,102 @@ export default function IntentSentenceList() {
     });
   };
 
+  // Grid 이벤트 핸들러
+  const handleGridReady = (event: GridReadyEvent<IntentSentenceListItem>) => {
+    gridApiRef.current = event.api;
+  };
+
+  const getRowId = (params: GetRowIdParams<IntentSentenceListItem>) => {
+    return params.data.sentenceId;
+  };
+
+  const handleCellDoubleClick = (event: CellDoubleClickedEvent<IntentSentenceListItem>) => {
+    if (!event.data) return;
+    const rowId = event.data.sentenceId;
+
+    if (editingRowId === rowId) return;
+
+    if (editingRowId) {
+      toast.warning('현재 편집 중인 항목을 먼저 저장하거나 취소하세요.');
+      return;
+    }
+
+    if (event.rowIndex != null) {
+      event.api.startEditingCell({ rowIndex: event.rowIndex, colKey: 'sentence' });
+    }
+  };
+
+  const handleRowEditingStarted = (event: RowEditingStartedEvent<IntentSentenceListItem>) => {
+    if (!event.data) return;
+    setEditingRowId(event.data.sentenceId);
+  };
+
+  const handleRowEditingStopped = (event: RowEditingStoppedEvent<IntentSentenceListItem>) => {
+    if (!event.data) return;
+    setEditingRowId(null);
+  };
+
+  const handleSave = (originData: IntentSentenceListItem) => {
+    const editingCells = gridApiRef.current?.getEditingCells() ?? [];
+    const cellEditors = gridApiRef.current?.getCellEditorInstances() ?? [];
+
+    let newSentence = originData.sentence;
+
+    editingCells.forEach((cell, index) => {
+      if (cell.colId === 'sentence') {
+        const editor = cellEditors[index];
+        if (editor) {
+          newSentence = editor.getValue();
+        }
+      }
+    });
+
+    if (!newSentence?.trim()) {
+      toast.warning('문장을 입력하세요.');
+      return;
+    }
+
+    updateIntentSentence({
+      params: { modelId, intentId, sentenceId: originData.sentenceId },
+      data: { sentence: newSentence.trim() },
+    });
+  };
+
+  const cancelEditing = () => {
+    gridApiRef.current?.stopEditing(true);
+  };
+
+  // 외부 필터 함수
+  const isExternalFilterPresent = () => {
+    return searchValue.trim().length > 0;
+  };
+
+  const doesExternalFilterPass = (node: IRowNode<IntentSentenceListItem>) => {
+    if (!node.data) return true;
+    const keyword = searchValue.toLowerCase();
+    const value = node.data[filterColumn as keyof IntentSentenceListItem];
+    return String(value).toLowerCase().includes(keyword);
+  };
+
+  useEffect(() => {
+    gridApiRef.current?.onFilterChanged();
+  }, [searchValue, filterColumn]);
+
   const columnDefs: ColDef<IntentSentenceListItem>[] = [
     { headerName: 'ID', field: 'sentenceId', hide: true },
-    { headerName: '문장', field: 'sentence', flex: 3 },
+    {
+      headerName: '문장',
+      field: 'sentence',
+      flex: 3,
+      editable: true,
+      cellEditor: InputTextCellEditor,
+      cellEditorParams: { placeholder: '문장을 입력하세요.' },
+    },
     {
       headerName: '학습상태',
       field: 'trainStatus',
       maxWidth: 120,
+      editable: false,
       cellStyle: { display: 'flex', alignItems: 'center' },
       cellRenderer: (params: { value: number; data: IntentSentenceListItem }) => <TrainStatusBadge status={params.value as TrainStatus} />,
     },
@@ -95,6 +303,7 @@ export default function IntentSentenceList() {
       headerTooltip: '모델 학습이 완료된 이후, 변경사항이 있을 경우 표시됩니다. 다음 모델 학습 완료시, 이력은 초기화됩니다.',
       field: 'trainDiffStatus',
       maxWidth: 100,
+      editable: false,
       cellStyle: { display: 'flex', alignItems: 'center', justifyContent: 'center' },
       cellRenderer: (params: { value: TrainDiffStatus }) => <TrainDiffStatusBadge status={params.value as TrainDiffStatus} />,
     },
@@ -102,69 +311,28 @@ export default function IntentSentenceList() {
       headerName: '작업일시',
       field: 'workTime',
       maxWidth: 180,
+      editable: false,
       valueFormatter: (params: { value: string }) => (params.value ? dayjs(params.value).format('YYYY-MM-DD HH:mm:ss') : '-'),
     },
     {
       headerName: '',
-      maxWidth: 60,
+      colId: 'actions',
+      maxWidth: 100,
       sortable: false,
       filter: false,
+      editable: false,
       suppressHeaderMenuButton: true,
-      cellStyle: { display: 'flex', alignItems: 'center', justifyContent: 'center' },
-      cellRenderer: (params: ICellRendererParams<IntentSentenceListItem>) => {
-        const { data } = params;
-        if (!data) return null;
-        return (
-          <button
-            type="button"
-            onClick={(e) => {
-              e.stopPropagation();
-              handleTestIntentSentence(data.sentence);
-            }}
-          >
-            <IconPlayCircle className="size-5 text-[#405189] hover:cursor-pointer" />
-          </button>
-        );
+      cellStyle: { display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' },
+      cellRendererParams: {
+        editingRowId,
+        onSave: handleSave,
+        onCancel: cancelEditing,
+        onTest: (data: IntentSentenceListItem) => handleTestIntentSentence(data.sentence),
+        onDelete: (data: IntentSentenceListItem) => handleDeleteIntentSentence(data.sentenceId),
       },
-    },
-    {
-      headerName: '',
-      maxWidth: 60,
-      sortable: false,
-      filter: false,
-      suppressHeaderMenuButton: true,
-      cellStyle: { display: 'flex', alignItems: 'center', justifyContent: 'center' },
-      cellRenderer: (params: ICellRendererParams<IntentSentenceListItem>) => {
-        const { data } = params;
-        if (!data) return null;
-        return (
-          <button
-            type="button"
-            onClick={(e) => {
-              e.stopPropagation();
-              handleDeleteIntentSentence(data.sentenceId);
-            }}
-          >
-            <IconTrash className="size-5 text-red-500 hover:cursor-pointer" />
-          </button>
-        );
-      },
+      cellRenderer: ActionCellRenderer,
     },
   ];
-
-  const filteredList = useMemo(() => {
-    if (!sentenceList) return [];
-    if (!searchValue.trim()) return sentenceList;
-    const keyword = searchValue.toLowerCase();
-    return sentenceList.filter((sentence) => {
-      const value = sentence[filterColumn as keyof typeof sentence];
-      return String(value).toLowerCase().includes(keyword);
-    });
-  }, [sentenceList, filterColumn, searchValue]);
-
-  useEffect(() => {
-    setRowData(filteredList ?? []);
-  }, [filteredList]);
 
   const handleColumnChange = (value: string) => {
     setFilterColumn(value);
@@ -206,7 +374,25 @@ export default function IntentSentenceList() {
         </div>
       </header>
       <div className="w-full h-full">
-        <AgGridReact<IntentSentenceListItem> rowData={rowData} columnDefs={columnDefs} gridOptions={gridOptions} loading={isFetchingSentenceList} />
+        <AgGridReact<IntentSentenceListItem>
+          rowData={sentenceList ?? []}
+          columnDefs={columnDefs}
+          getRowId={getRowId}
+          isExternalFilterPresent={isExternalFilterPresent}
+          doesExternalFilterPass={doesExternalFilterPass}
+          gridOptions={{
+            ...gridOptions,
+            editType: 'fullRow',
+            stopEditingWhenCellsLoseFocus: true,
+            readOnlyEdit: true,
+            suppressClickEdit: true,
+          }}
+          loading={isLoadingSentenceList || isUpdating}
+          onGridReady={handleGridReady}
+          onCellDoubleClicked={handleCellDoubleClick}
+          onRowEditingStarted={handleRowEditingStarted}
+          onRowEditingStopped={handleRowEditingStopped}
+        />
       </div>
       <SentenceAutoGenDrawer ref={refAutoGenDrawer} onAdd={handleCreateBulkIntentSentenceByDrawer} isAdding={isCreatingBulk} />
     </div>
