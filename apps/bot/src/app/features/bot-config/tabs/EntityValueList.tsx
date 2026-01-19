@@ -256,7 +256,10 @@ export default function EntityValueList() {
   const gridApiRef = useRef<GridApi<EntityValueListItem> | null>(null);
 
   // API Hooks
-  const { data: entityValueList, isFetching } = useGetEntityValues({ params: { modelId, entityId } });
+  const { data: entityValueList, isLoading } = useGetEntityValues({
+    params: { modelId, entityId },
+    queryOptions: { enabled: !!modelId && !!entityId && !editingRowId, refetchInterval: 5000 },
+  });
   const { mutate: createEntityValue, isPending: isCreating } = useCreateEntityValue({
     mutationOptions: {
       onSuccess: () => {
@@ -543,7 +546,7 @@ export default function EntityValueList() {
           isExternalFilterPresent={isExternalFilterPresent}
           doesExternalFilterPass={doesExternalFilterPass}
           gridOptions={customGridOptions}
-          loading={isFetching || isUpdating || isDeleting}
+          loading={isLoading || isUpdating || isDeleting}
           onGridReady={handleGridReady}
           onCellDoubleClicked={handleCellDoubleClick}
           onRowEditingStarted={handleRowEditingStarted}
