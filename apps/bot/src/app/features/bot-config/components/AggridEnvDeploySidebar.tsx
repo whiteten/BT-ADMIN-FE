@@ -4,7 +4,6 @@ import { useQueryClient } from '@tanstack/react-query';
 import type { CustomToolPanelProps } from 'ag-grid-react';
 import { Button } from 'antd';
 import { Clock, OctagonAlert, RotateCcw, Server, ServerOff, User } from 'lucide-react';
-import { Log } from '@/log';
 import { toast } from '@/shared-util';
 import { botQueryKeys, useApplyEnv, useGetEnvNodeList } from '../hooks/useBotQueries';
 import type { EnvListItem, EnvNodeItem } from '../types';
@@ -108,7 +107,13 @@ function AggridEnvDeploySidebar(props: CustomToolPanelProps<EnvListItem>) {
               <Clock className="size-3 shrink-0" />
               <span>{node.workTime}</span>
             </div>
-            <Button size="small" icon={<RotateCcw className="size-3" />} onClick={() => handleApply(node)} loading={isApplying}>
+            <Button
+              size="small"
+              icon={<RotateCcw className="size-3" />}
+              onClick={() => handleApply(node)}
+              loading={isApplying}
+              style={{ fontSize: 12, padding: '0 6px', height: 22, gap: 3 }}
+            >
               적용
             </Button>
           </div>
