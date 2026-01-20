@@ -19,25 +19,37 @@ interface RoleCardProps {
 }
 
 export function RoleCard({ role, onEdit, onDelete, className }: RoleCardProps) {
-  const { roleCode, roleName, description, permissionCount, userCount, useYn, createdAt } = role;
+  const { roleCode, roleName, description, permissionCount, userCount, isUse, createdAt } = role;
 
   const extra = (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
-        <Button variant="ghost" className="w-6 h-6 flex items-center justify-center hover:cursor-pointer">
+        <Button variant="ghost" className="w-6 h-6 flex items-center justify-center hover:cursor-pointer" onClick={(e) => e.stopPropagation()}>
           <MoreVertical className="size-4" />
           <span className="sr-only">더보기</span>
         </Button>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end">
-        <DropdownMenuItem onClick={onEdit} className="hover:cursor-pointer">
+        <DropdownMenuItem
+          onClick={(e) => {
+            e.stopPropagation();
+            onEdit?.();
+          }}
+          className="hover:cursor-pointer"
+        >
           <Edit className="size-4 mr-2" />
           상세보기
         </DropdownMenuItem>
         {onDelete && (
           <>
             <DropdownMenuSeparator />
-            <DropdownMenuItem onClick={onDelete} className="text-red-600 focus:text-red-600 hover:cursor-pointer">
+            <DropdownMenuItem
+              onClick={(e) => {
+                e.stopPropagation();
+                onDelete();
+              }}
+              className="text-red-600 focus:text-red-600 hover:cursor-pointer"
+            >
               <Trash2 className="size-4 mr-2" />
               삭제
             </DropdownMenuItem>
@@ -58,7 +70,7 @@ export function RoleCard({ role, onEdit, onDelete, className }: RoleCardProps) {
         </div>
         <div className="flex items-center">
           <span className="w-[90px] text-gray-500">사용여부</span>
-          <Tag color={useYn === 'Y' ? 'green' : 'default'}>{useYn === 'Y' ? '사용' : '미사용'}</Tag>
+          <Tag color={isUse ? 'green' : 'default'}>{isUse ? '사용' : '미사용'}</Tag>
         </div>
         {description && (
           <div className="flex">
@@ -70,7 +82,7 @@ export function RoleCard({ role, onEdit, onDelete, className }: RoleCardProps) {
         )}
         <div className="flex items-center">
           <span className="w-[90px] text-gray-500">등록일</span>
-          <span className="text-gray-700">{createdAt?.split(' ')[0]}</span>
+          <span className="text-gray-700">{createdAt?.split('T')[0]}</span>
         </div>
         {/* 하단 통계 */}
         <div className="flex items-center gap-4 pt-3 mt-2 border-t border-gray-100">

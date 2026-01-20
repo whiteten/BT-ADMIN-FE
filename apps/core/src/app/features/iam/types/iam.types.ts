@@ -18,11 +18,14 @@ export interface Role {
   roleName: string;
   description?: string;
   sortOrder: number;
-  useYn: string;
+  isUse: boolean;
   permissionCount?: number;
   userCount?: number;
+  authIds?: number[];
   createdAt?: string;
-  createdBy?: string;
+  createdBy?: number;
+  updatedAt?: string;
+  updatedBy?: number;
 }
 
 // 권한 마스터
@@ -32,9 +35,8 @@ export interface Permission {
   domain: string;
   resource: string;
   action: string;
-  permKey: string;
+  authKey: string;
   description?: string;
-  useYn: string;
 }
 
 // 역할-권한 매핑
@@ -55,22 +57,50 @@ export interface UserRole {
   createdAt?: string;
 }
 
-// 사용자-권한 직접 매핑 (User Override)
+// 사용자-권한 직접 매핑 (User Override) - 백엔드 응답 타입
+export type MapType = 'ALLOW' | 'DENY';
+
+export interface UserAuthMap {
+  mapId: number;
+  tenantId: number;
+  userId: number;
+  username?: string;
+  authId: number;
+  authKey?: string;
+  authDescription?: string;
+  appId?: string;
+  mapType: MapType;
+  startDate: string;
+  endDate: string;
+  description?: string;
+  status?: UserAuthStatus; // ACTIVE, SCHEDULED, EXPIRED (계산됨)
+  createdAt?: string;
+  createdBy?: string;
+  updatedAt?: string;
+  updatedBy?: string;
+}
+
+// 레거시 호환용 (기존 UI에서 사용)
 export interface UserAuth {
+  id?: number;
   userId: string;
   authId: number;
   grantType: 'GRANT' | 'DENY';
   reason?: string;
-  expiredAt?: string;
+  effectiveFrom?: string; // 적용 시작일 (NULL = 즉시 적용)
+  effectiveTo?: string; // 적용 종료일 (NULL = 무기한)
   createdBy?: string;
   createdAt?: string;
   updatedBy?: string;
   updatedAt?: string;
   // 조인 정보
-  permKey?: string;
+  authKey?: string;
   permDescription?: string;
   appId?: string;
 }
+
+// 권한 상태 (유효 기간 기반)
+export type UserAuthStatus = 'ACTIVE' | 'SCHEDULED' | 'EXPIRED';
 
 // 사용자-메뉴 직접 매핑 (User Override)
 export interface UserMenu {
@@ -96,12 +126,41 @@ export interface UserAuthorityResponse {
   overrides: UserAuth[];
 }
 
-// 사용자 권한 부여/박탈 요청
+// 사용자 권한 부여/박탈 요청 (단건)
 export interface UserAuthGrantRequest {
   authId: number;
   grantType: 'GRANT' | 'DENY';
   reason?: string;
-  expiredAt?: string;
+  effectiveFrom?: string; // 적용 시작일
+  effectiveTo?: string; // 적용 종료일
+}
+
+// 사용자 권한 부여/박탈 배치 요청 (다건) - 레거시
+export interface UserAuthBatchGrantRequest {
+  userIds: string[];
+  authIds: number[];
+  grantType: 'GRANT' | 'DENY';
+  reason?: string;
+  effectiveFrom?: string; // 적용 시작일
+  effectiveTo?: string; // 적용 종료일
+}
+
+// 사용자 권한 매핑 배치 생성 요청 - 백엔드 API 형식
+export interface UserAuthMapBatchRequest {
+  userIds: number[];
+  authIds: number[];
+  mapType: MapType;
+  startDate: string; // ISO DateTime
+  endDate: string; // ISO DateTime
+  description?: string;
+}
+
+// 사용자 권한 매핑 배치 생성 응답
+export interface UserAuthMapBatchResponse {
+  totalCreated: number;
+  userCount: number;
+  authCount: number;
+  mappings: UserAuthMap[];
 }
 
 // 역할 생성/수정 요청
@@ -110,7 +169,28 @@ export interface RoleUpsertRequest {
   roleName: string;
   description?: string;
   sortOrder?: number;
-  permissionIds?: number[];
+  isUse?: boolean;
+  authIds?: number[];
+}
+
+// 역할 생성 요청
+export interface RoleCreateRequest {
+  roleCode: string;
+  roleName: string;
+  description?: string;
+  sortOrder?: number;
+  isUse?: boolean;
+  authIds?: number[];
+}
+
+// 역할 수정 요청
+export interface RoleUpdateRequest {
+  roleCode: string;
+  roleName: string;
+  description?: string;
+  sortOrder?: number;
+  isUse: boolean;
+  authIds?: number[];
 }
 
 // 권한 그룹 (UI용)
