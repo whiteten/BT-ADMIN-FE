@@ -11,6 +11,7 @@ import TrainDiffStatusBadge from '../components/TrainDiffStatusBadge';
 import TrainStatusBadge from '../components/TrainStatusBadge';
 import { modelQueryKeys, useDeleteIntent, useGetIntents } from '../hooks/useModelQueries';
 import type { IntentListItem, TrainDiffStatus, TrainStatus } from '../types';
+import FileImportModal, { type FileImportModalRef } from '@/components/custom/FileImportModal';
 import { IconTrash } from '@/components/custom/Icons';
 import useAggridOptions from '@/libs/shared-ui/src/hooks/useAggridOptions';
 import { useModal } from '@/libs/shared-ui/src/hooks/useModal';
@@ -25,6 +26,7 @@ export default function ModelIntentList() {
   const [filterColumn, setFilterColumn] = useState('intentName');
   const [searchValue, setSearchValue] = useState('');
   const drawerRef = useRef<IntentDrawerRef>(null);
+  const importModalRef = useRef<FileImportModalRef>(null);
 
   const { data: intentList, isFetching } = useGetIntents({ params: { modelId } });
 
@@ -117,6 +119,16 @@ export default function ModelIntentList() {
     drawerRef.current?.open({ modelId });
   };
 
+  const handleClickImport = () => {
+    importModalRef.current?.open();
+  };
+
+  const handleImportIntent = async (files: File[]) => {
+    const file = files[0];
+    alert(file.name);
+    importModalRef.current?.close();
+  };
+
   const handleRowDoubleClick = (event: RowDoubleClickedEvent<IntentListItem>) => {
     if (!event.data) return;
     const { intentId } = event.data;
@@ -138,7 +150,9 @@ export default function ModelIntentList() {
           <Input value={searchValue} onChange={(e) => setSearchValue(e.target.value)} className="w-full lg:max-w-[400px]" placeholder="검색어를 입력하세요." />
         </div>
         <div className="flex items-center gap-2.5">
-          <Button variant="solid">Import</Button>
+          <Button variant="solid" onClick={handleClickImport}>
+            Import
+          </Button>
           <Button variant="solid">Export</Button>
           <Button variant="solid" color="primary" onClick={handleClickAddIntent}>
             추가
@@ -149,6 +163,7 @@ export default function ModelIntentList() {
         <AgGridReact<IntentListItem> rowData={rowData} columnDefs={columnDefs} gridOptions={gridOptions} loading={isFetching} onRowDoubleClicked={handleRowDoubleClick} />
       </div>
       <IntentDrawer ref={drawerRef} />
+      <FileImportModal ref={importModalRef} title="Import" accept=".xlsx,.xls" onConfirm={handleImportIntent} />
     </div>
   );
 }
