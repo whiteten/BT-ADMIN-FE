@@ -1,11 +1,11 @@
-import { useEffect, useMemo, useState } from 'react';
-import type { ColDef, ICellRendererParams } from 'ag-grid-community';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import type { ColDef, ICellRendererParams, RowDoubleClickedEvent } from 'ag-grid-community';
 import { AgGridReact } from 'ag-grid-react';
 import { Button, Input, Select, Tag } from 'antd';
 import dayjs from 'dayjs';
-
 import { CircleUserRound } from 'lucide-react';
 import { useGetAoeAgents } from '../../bot-config/hooks/useModelQueries';
+import AoeFaqDrawer, { type AoeFaqDrawerRef } from '../components/AoeFaqDrawer';
 import { IconAlertTriangle, IconTrash } from '@/components/custom/Icons';
 import useAggridOptions from '@/libs/shared-ui/src/hooks/useAggridOptions';
 import { useModal } from '@/libs/shared-ui/src/hooks/useModal';
@@ -97,6 +97,7 @@ const dummyData: AoeFaqItem[] = [
 
 export default function AoeFaqList() {
   const { gridOptions } = useAggridOptions();
+  const faqDrawerRef = useRef<AoeFaqDrawerRef>(null);
 
   const [rowData, setRowData] = useState<AoeFaqItem[]>([]);
   const [filterColumn, setFilterColumn] = useState('questions');
@@ -233,7 +234,7 @@ export default function AoeFaqList() {
           <Input value={searchValue} onChange={(e) => setSearchValue(e.target.value)} placeholder="검색어를 입력하세요." className="w-full lg:max-w-[400px]" />
         </div>
         <div className="flex items-center gap-2.5">
-          <Button variant="solid" color="primary">
+          <Button variant="solid" color="primary" onClick={() => faqDrawerRef.current?.open({})}>
             추가
           </Button>
           <Button variant="solid" color="cyan">
@@ -243,8 +244,27 @@ export default function AoeFaqList() {
       </header>
 
       <div className="w-full h-full">
-        <AgGridReact<AoeFaqItem> rowData={rowData} columnDefs={columnDefs} gridOptions={gridOptions} />
+        <AgGridReact<AoeFaqItem>
+          rowData={rowData}
+          columnDefs={columnDefs}
+          gridOptions={gridOptions}
+          onRowDoubleClicked={(event: RowDoubleClickedEvent<AoeFaqItem>) => {
+            if (event.data) {
+              faqDrawerRef.current?.open({ faqData: event.data });
+            }
+          }}
+        />
       </div>
+
+      <AoeFaqDrawer
+        ref={faqDrawerRef}
+        onSave={(data, isEditMode) => {
+          console.log('Save FAQ:', data, 'Edit mode:', isEditMode);
+        }}
+        onDelete={(faqId) => {
+          console.log('Delete FAQ:', faqId);
+        }}
+      />
     </div>
   );
 }
