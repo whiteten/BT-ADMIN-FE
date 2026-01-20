@@ -57,7 +57,30 @@ export interface UserRole {
   createdAt?: string;
 }
 
-// 사용자-권한 직접 매핑 (User Override)
+// 사용자-권한 직접 매핑 (User Override) - 백엔드 응답 타입
+export type MapType = 'ALLOW' | 'DENY';
+
+export interface UserAuthMap {
+  mapId: number;
+  tenantId: number;
+  userId: number;
+  username?: string;
+  authId: number;
+  authKey?: string;
+  authDescription?: string;
+  appId?: string;
+  mapType: MapType;
+  startDate: string;
+  endDate: string;
+  description?: string;
+  status?: UserAuthStatus; // ACTIVE, SCHEDULED, EXPIRED (계산됨)
+  createdAt?: string;
+  createdBy?: string;
+  updatedAt?: string;
+  updatedBy?: string;
+}
+
+// 레거시 호환용 (기존 UI에서 사용)
 export interface UserAuth {
   id?: number;
   userId: string;
@@ -112,7 +135,7 @@ export interface UserAuthGrantRequest {
   effectiveTo?: string; // 적용 종료일
 }
 
-// 사용자 권한 부여/박탈 배치 요청 (다건)
+// 사용자 권한 부여/박탈 배치 요청 (다건) - 레거시
 export interface UserAuthBatchGrantRequest {
   userIds: string[];
   authIds: number[];
@@ -120,6 +143,24 @@ export interface UserAuthBatchGrantRequest {
   reason?: string;
   effectiveFrom?: string; // 적용 시작일
   effectiveTo?: string; // 적용 종료일
+}
+
+// 사용자 권한 매핑 배치 생성 요청 - 백엔드 API 형식
+export interface UserAuthMapBatchRequest {
+  userIds: number[];
+  authIds: number[];
+  mapType: MapType;
+  startDate: string; // ISO DateTime
+  endDate: string; // ISO DateTime
+  description?: string;
+}
+
+// 사용자 권한 매핑 배치 생성 응답
+export interface UserAuthMapBatchResponse {
+  totalCreated: number;
+  userCount: number;
+  authCount: number;
+  mappings: UserAuthMap[];
 }
 
 // 역할 생성/수정 요청

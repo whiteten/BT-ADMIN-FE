@@ -24,20 +24,32 @@ export function RoleCard({ role, onEdit, onDelete, className }: RoleCardProps) {
   const extra = (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
-        <Button variant="ghost" className="w-6 h-6 flex items-center justify-center hover:cursor-pointer">
+        <Button variant="ghost" className="w-6 h-6 flex items-center justify-center hover:cursor-pointer" onClick={(e) => e.stopPropagation()}>
           <MoreVertical className="size-4" />
           <span className="sr-only">더보기</span>
         </Button>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end">
-        <DropdownMenuItem onClick={onEdit} className="hover:cursor-pointer">
+        <DropdownMenuItem
+          onClick={(e) => {
+            e.stopPropagation();
+            onEdit?.();
+          }}
+          className="hover:cursor-pointer"
+        >
           <Edit className="size-4 mr-2" />
           상세보기
         </DropdownMenuItem>
         {onDelete && (
           <>
             <DropdownMenuSeparator />
-            <DropdownMenuItem onClick={onDelete} className="text-red-600 focus:text-red-600 hover:cursor-pointer">
+            <DropdownMenuItem
+              onClick={(e) => {
+                e.stopPropagation();
+                onDelete();
+              }}
+              className="text-red-600 focus:text-red-600 hover:cursor-pointer"
+            >
               <Trash2 className="size-4 mr-2" />
               삭제
             </DropdownMenuItem>
