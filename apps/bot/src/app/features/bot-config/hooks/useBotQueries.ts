@@ -222,3 +222,10 @@ export const useGetEnvNodeList = ({ params, queryOptions }: QueryHookWithParamsO
     ...queryOptions,
   });
 };
+
+export const useApplyEnv = ({ mutationOptions }: MutationHookOptions = {}) => {
+  return useMutation({
+    mutationFn: botApi.applyEnv,
+    ...mutationOptions,
+  });
+};

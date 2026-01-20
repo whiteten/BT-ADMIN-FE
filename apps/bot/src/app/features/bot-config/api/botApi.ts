@@ -132,4 +132,8 @@ export const botApi = {
     const response = await apiClient.get<ListResponse<EnvNodeItem>>('bot-slee-config-histroy-list', { params });
     return extractList(response);
   },
+  applyEnv: async ({ params, data }: { params: Record<string, unknown>; data: Record<string, unknown> }) => {
+    const response = await apiClient.post('/bot-slee-config-apply', data, { params });
+    return response;
+  },
 };

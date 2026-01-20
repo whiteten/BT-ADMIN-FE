@@ -1,15 +1,19 @@
 import { useEffect, useState } from 'react';
 import { useParams } from 'react-router-dom';
+import { useQueryClient } from '@tanstack/react-query';
 import type { CustomToolPanelProps } from 'ag-grid-react';
+import { Button } from 'antd';
 import { Clock, OctagonAlert, RotateCcw, Server, ServerOff, User } from 'lucide-react';
 import { Log } from '@/log';
-import { useGetEnvNodeList } from '../hooks/useBotQueries';
+import { toast } from '@/shared-util';
+import { botQueryKeys, useApplyEnv, useGetEnvNodeList } from '../hooks/useBotQueries';
 import type { EnvListItem, EnvNodeItem } from '../types';
 import { FallbackSpinner } from '@/components/custom/FallbackSpinner';
 import { Badge } from '@/components/ui/badge';
 
 function AggridEnvDeploySidebar(props: CustomToolPanelProps<EnvListItem>) {
   const { api } = props;
+  const queryClient = useQueryClient();
   const { serviceId = '' } = useParams();
   const [selectedRowData, setSelectedRowData] = useState<EnvListItem | null>(null);
   const [isOpened, setIsOpened] = useState(false);
@@ -23,6 +27,16 @@ function AggridEnvDeploySidebar(props: CustomToolPanelProps<EnvListItem>) {
     },
     queryOptions: {
       enabled: !!serviceId && !!selectedRowData?.category && !!selectedRowData?.property && isOpened,
+    },
+  });
+
+  const { mutate: applyEnv, isPending: isApplying } = useApplyEnv({
+    mutationOptions: {
+      onSuccess: () => {
+        queryClient.invalidateQueries({ queryKey: botQueryKeys.getEnvList({ serviceId }).queryKey });
+        queryClient.invalidateQueries({ queryKey: botQueryKeys.getEnvNodeList({ serviceId, category: selectedRowData?.category, property: selectedRowData?.property }).queryKey });
+        toast.success('적용되었습니다.');
+      },
     },
   });
 
@@ -54,8 +68,8 @@ function AggridEnvDeploySidebar(props: CustomToolPanelProps<EnvListItem>) {
     };
   }, [api]);
 
-  const handleApply = () => {
-    Log.debug('Apply');
+  const handleApply = (node: EnvNodeItem) => {
+    applyEnv({ params: { serviceId, systemId: node.systemId, category: selectedRowData?.category, property: selectedRowData?.property }, data: {} });
   };
 
   const getApplyResultStyle = (applyResult: number | null) => {
@@ -94,15 +108,9 @@ function AggridEnvDeploySidebar(props: CustomToolPanelProps<EnvListItem>) {
               <Clock className="size-3 shrink-0" />
               <span>{node.workTime}</span>
             </div>
-
-            <button
-              type="button"
-              onClick={() => handleApply()}
-              className="flex items-center gap-1 px-2 py-1 text-xs text-muted-foreground hover:text-foreground bg-white rounded border border-border transition-colors hover:cursor-pointer"
-            >
-              <RotateCcw className="size-3" />
-              <span>적용</span>
-            </button>
+            <Button size="small" icon={<RotateCcw className="size-3" />} onClick={() => handleApply(node)} loading={isApplying}>
+              적용
+            </Button>
           </div>
         </div>
       </div>

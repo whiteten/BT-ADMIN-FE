@@ -49,7 +49,7 @@ export default function BotEnvList() {
   const deleteEnvMutation = useDeleteEnv({
     mutationOptions: {
       onSuccess: () => {
-        queryClient.invalidateQueries({ queryKey: botQueryKeys.getEnvList._def });
+        queryClient.invalidateQueries({ queryKey: botQueryKeys.getEnvList({ serviceId }).queryKey });
         toast.success('환경변수가 삭제되었습니다.');
       },
       onError: () => {
