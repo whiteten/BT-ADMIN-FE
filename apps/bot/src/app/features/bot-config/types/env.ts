@@ -5,9 +5,10 @@ export interface Env {
   category: string;
   property: string;
   value: string;
+  reapplyYn: boolean;
 }
 
-export type EnvListItem = Pick<Env, 'configFile' | 'category' | 'property' | 'value'>;
+export type EnvListItem = Pick<Env, 'configFile' | 'category' | 'property' | 'value' | 'reapplyYn'>;
 
 export type EnvCreateDatas = Pick<Env, 'category' | 'property' | 'value'>;
 export type EnvUpdateDatas = Pick<Env, 'value'>;
@@ -20,7 +21,7 @@ export interface EnvNodeItem {
   property: string;
   value: string;
   applyStatus: number;
-  applyResult: number;
+  applyResult: number | null;
   failReason: string | null;
   workUser: number | null;
   workTime: string;

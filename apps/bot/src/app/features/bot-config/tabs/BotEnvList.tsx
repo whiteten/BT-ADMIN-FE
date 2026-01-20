@@ -9,7 +9,7 @@ import AggridEnvDeploySidebar from '../components/AggridEnvDeploySidebar';
 import BotEnvDrawer, { type BotEnvDrawerRef } from '../components/BotEnvDrawer';
 import { botQueryKeys, useDeleteEnv, useGetEnvList } from '../hooks/useBotQueries';
 import type { EnvListItem } from '../types';
-import { IconTrash } from '@/components/custom/Icons';
+import { IconAlertTriangle, IconTrash } from '@/components/custom/Icons';
 import useAggridOptions from '@/libs/shared-ui/src/hooks/useAggridOptions';
 import { useModal } from '@/libs/shared-ui/src/hooks/useModal';
 
@@ -101,6 +101,31 @@ export default function BotEnvList() {
     { headerName: '분류명', field: 'category' },
     { headerName: '변수명', field: 'property' },
     { headerName: '값', field: 'value', flex: 2 },
+    {
+      headerName: '',
+      field: 'reapplyYn',
+      maxWidth: 50,
+      sortable: false,
+      filter: false,
+      suppressHeaderMenuButton: true,
+      cellStyle: { display: 'flex', alignItems: 'center', justifyContent: 'center' },
+      cellRenderer: (params: { value: boolean }) => {
+        if (params.value) {
+          return (
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation();
+                gridRef.current?.api.openToolPanel('envDeployInfo');
+              }}
+            >
+              <IconAlertTriangle className="size-5 text-yellow-500 hover:cursor-pointer" />
+            </button>
+          );
+        }
+        return null;
+      },
+    },
     {
       headerName: '',
       maxWidth: 60,

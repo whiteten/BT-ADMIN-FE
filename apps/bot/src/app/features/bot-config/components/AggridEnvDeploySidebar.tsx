@@ -1,7 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useParams } from 'react-router-dom';
 import type { CustomToolPanelProps } from 'ag-grid-react';
-import { Alert } from 'antd';
 import { Clock, OctagonAlert, RotateCcw, Server, ServerOff, User } from 'lucide-react';
 import { Log } from '@/log';
 import { useGetEnvNodeList } from '../hooks/useBotQueries';
@@ -55,13 +54,22 @@ function AggridEnvDeploySidebar(props: CustomToolPanelProps<EnvListItem>) {
     };
   }, [api]);
 
-  const handleRetry = () => {
-    Log.debug('Retry');
-    alert('재시도');
+  const handleApply = () => {
+    Log.debug('Apply');
+  };
+
+  const getApplyResultStyle = (applyResult: number | null) => {
+    if (applyResult === 1) {
+      return { className: 'text-[#0AB39C] bg-[#0AB39C1A]', label: '성공' };
+    }
+    if (applyResult === 0) {
+      return { className: 'text-[#F06548] bg-[#F065481A]', label: '실패' };
+    }
+    return { className: 'text-gray-500 bg-gray-100', label: '미적용' };
   };
 
   const renderNodeCard = (node: EnvNodeItem) => {
-    const isSuccess = node.success;
+    const { className: badgeClassName, label: badgeLabel } = getApplyResultStyle(node.applyResult);
     return (
       <div key={node.historyId} className="flex flex-col gap-2 p-3 rounded-lg border border-border bg-card">
         {/* 헤더: 시스템명 */}
@@ -70,8 +78,8 @@ function AggridEnvDeploySidebar(props: CustomToolPanelProps<EnvListItem>) {
             <Server className="size-4 text-primary shrink-0" />
             <span className="text-sm font-medium text-foreground truncate">{node.systemName}</span>
           </div>
-          <Badge variant="secondary" className={isSuccess ? 'text-[#0AB39C] bg-[#0AB39C1A]' : 'text-[#F06548] bg-[#F065481A]'}>
-            {isSuccess ? '완료' : '실패'}
+          <Badge variant="secondary" className={badgeClassName}>
+            {badgeLabel}
           </Badge>
         </div>
 
@@ -81,9 +89,20 @@ function AggridEnvDeploySidebar(props: CustomToolPanelProps<EnvListItem>) {
             <User className="size-3 shrink-0" />
             <span className="truncate">{node.workUser ?? '-'}</span>
           </div>
-          <div className="flex items-center gap-2">
-            <Clock className="size-3 shrink-0" />
-            <span>{node.workTime}</span>
+          <div className="flex items-center justify-between gap-2">
+            <div className="flex items-center gap-2">
+              <Clock className="size-3 shrink-0" />
+              <span>{node.workTime}</span>
+            </div>
+
+            <button
+              type="button"
+              onClick={() => handleApply()}
+              className="flex items-center gap-1 px-2 py-1 text-xs text-muted-foreground hover:text-foreground bg-white rounded border border-border transition-colors hover:cursor-pointer"
+            >
+              <RotateCcw className="size-3" />
+              <span>적용</span>
+            </button>
           </div>
         </div>
       </div>
@@ -109,30 +128,9 @@ function AggridEnvDeploySidebar(props: CustomToolPanelProps<EnvListItem>) {
         </div>
       );
     }
-
-    const hasFailedNodes = nodes.some((node) => !node.success);
-
     return (
       <div className="flex flex-col gap-3">
         <span className="text-sm font-semibold text-foreground">적용 노드 ({nodes.length})</span>
-        {hasFailedNodes && (
-          <Alert
-            title={`적용에 실패한 노드가 있습니다.`}
-            type="warning"
-            showIcon
-            classNames={{ title: '!text-sm' }}
-            action={
-              <button
-                type="button"
-                onClick={() => handleRetry()}
-                className="flex items-center gap-1 px-2 py-1 text-xs text-muted-foreground hover:text-foreground bg-white rounded border border-border transition-colors hover:cursor-pointer"
-              >
-                <RotateCcw className="size-3" />
-                <span>재시도</span>
-              </button>
-            }
-          />
-        )}
         <div className="flex flex-col gap-2">{nodes.map((node) => renderNodeCard(node))}</div>
       </div>
     );
