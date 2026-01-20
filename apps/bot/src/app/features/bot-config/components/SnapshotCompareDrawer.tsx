@@ -1,7 +1,7 @@
 import { forwardRef, useImperativeHandle, useMemo, useState } from 'react';
 import type { ColDef, GetDataPath, ICellRendererParams } from 'ag-grid-community';
 import { AgGridReact } from 'ag-grid-react';
-import { Button, Drawer, Input, Select, Spin, Tag } from 'antd';
+import { Button, Divider, Drawer, Input, Select, Tag } from 'antd';
 import { useCompareSnapshots, useGetSnapshots } from '../hooks/useModelQueries';
 import type { FlatDiffItem, SnapshotDiffItem, SnapshotListItem } from '../types/snapshot';
 import useAggridOptions from '@/libs/shared-ui/src/hooks/useAggridOptions';
@@ -134,7 +134,7 @@ const SnapshotCompareDrawer = forwardRef<SnapshotCompareDrawerRef>((_, ref) => {
   const { data: compareResult, isLoading: isCompareLoading } = useCompareSnapshots({
     params: {
       modelId,
-      snapshotVersion: data?.modelVersion || '',
+      snapshotVersion: data?.modelVersion ?? '',
       compareVersion: targetSnapshotId || 'DRAFT',
     },
     queryOptions: {
@@ -194,6 +194,9 @@ const SnapshotCompareDrawer = forwardRef<SnapshotCompareDrawerRef>((_, ref) => {
       pagination: false,
       sideBar: false,
       statusBar: { statusPanels: [] },
+      noRowsOverlayComponentParams: {
+        message: '비교 결과가 없습니다.',
+      },
       autoGroupColumnDef: {
         headerName: '항목',
         minWidth: 150,
@@ -214,7 +217,7 @@ const SnapshotCompareDrawer = forwardRef<SnapshotCompareDrawerRef>((_, ref) => {
               VALUE: { color: 'geekblue', text: '값' },
             };
 
-            const config = typeConfig[type || ''] || { color: 'default', text: type };
+            const config = typeConfig[type ?? ''] || { color: 'default', text: type };
             const isParent = type === 'INTENT' || type === 'ENTITY';
 
             return (
@@ -295,17 +298,17 @@ const SnapshotCompareDrawer = forwardRef<SnapshotCompareDrawerRef>((_, ref) => {
         <div className="flex flex-col gap-2 flex-1 min-h-0">
           <div className="text-sm font-medium text-gray-700 flex items-center justify-between">
             <span>의도 변경사항</span>
-            <div className="flex items-center gap-4 text-xs">
+            <div className="flex items-center text-xs">
               <span className="flex items-center gap-1">
-                <span className="font-semibold text-gray-900">의도:</span>
+                <span className=" text-gray-900">의도:</span>
                 <span className="text-green-600">추가 {intentStats.parent.added}</span>
                 <span className="text-orange-500">수정 {intentStats.parent.modified}</span>
                 <span className="text-red-600">삭제 {intentStats.parent.deleted}</span>
                 <span className="text-gray-400">변경없음 {intentStats.parent.unchanged}</span>
               </span>
-              <span className="text-gray-300">|</span>
+              <Divider orientation="vertical" className="!h-4" />
               <span className="flex items-center gap-1">
-                <span className="font-semibold text-gray-900">문장:</span>
+                <span className=" text-gray-900">문장:</span>
                 <span className="text-green-600">추가 {intentStats.child.added}</span>
                 <span className="text-orange-500">수정 {intentStats.child.modified}</span>
                 <span className="text-red-600">삭제 {intentStats.child.deleted}</span>
@@ -313,43 +316,34 @@ const SnapshotCompareDrawer = forwardRef<SnapshotCompareDrawerRef>((_, ref) => {
               </span>
             </div>
           </div>
-
-          {isCompareLoading ? (
-            <div className="flex items-center justify-center py-10 flex-1">
-              <Spin tip="비교 중..." />
-            </div>
-          ) : compareResult?.intentDiffs && compareResult.intentDiffs.length > 0 ? (
-            <div className="h-[350px]">
-              <AgGridReact<FlatDiffItem> rowData={intentFlatData} columnDefs={columnDefs} gridOptions={treeGridOptions} />
-            </div>
-          ) : (
-            <div className="text-gray-500 text-center py-10">{targetSnapshotId ? 'Intent 변경사항이 없습니다.' : '비교할 스냅샷을 선택해주세요.'}</div>
-          )}
+          <div className="h-[350px]">
+            <AgGridReact<FlatDiffItem> rowData={intentFlatData} columnDefs={columnDefs} gridOptions={treeGridOptions} loading={isCompareLoading} />
+          </div>
         </div>
 
         {/* Entity Diff 결과 */}
         <div className="flex flex-col gap-2 flex-1 min-h-0">
           <div className="text-sm font-medium text-gray-700 flex items-center justify-between">
             <span>개체 변경사항</span>
-            <div className="flex items-center gap-4 text-xs">
+            <div className="flex items-center text-xs">
               <span className="flex items-center gap-1">
-                <span className="font-semibold text-gray-900">개체:</span>
+                <span className="text-gray-900">개체:</span>
                 <span className="text-green-600">추가 {entityStats.entity.added}</span>
                 <span className="text-orange-500">수정 {entityStats.entity.modified}</span>
                 <span className="text-red-600">삭제 {entityStats.entity.deleted}</span>
                 <span className="text-gray-400">변경없음 {entityStats.entity.unchanged}</span>
               </span>
-              <span className="text-gray-300">|</span>
+              <Divider orientation="vertical" className="!h-4" />
               <span className="flex items-center gap-1">
-                <span className="font-semibold text-gray-900">대표값:</span>
+                <span className="text-gray-900">대표값:</span>
                 <span className="text-green-600">추가 {entityStats.value.added}</span>
                 <span className="text-orange-500">수정 {entityStats.value.modified}</span>
                 <span className="text-red-600">삭제 {entityStats.value.deleted}</span>
                 <span className="text-gray-400">변경없음 {entityStats.value.unchanged}</span>
               </span>
-              <span className="text-gray-300">|</span>
+              <Divider orientation="vertical" className="!h-4" />
               <span className="flex items-center gap-1">
-                <span className="font-semibold text-gray-900">유사어:</span>
+                <span className="text-gray-900">유사어:</span>
                 <span className="text-green-600">추가 {entityStats.synonym.added}</span>
                 <span className="text-orange-500">수정 {entityStats.synonym.modified}</span>
                 <span className="text-red-600">삭제 {entityStats.synonym.deleted}</span>
@@ -358,17 +352,14 @@ const SnapshotCompareDrawer = forwardRef<SnapshotCompareDrawerRef>((_, ref) => {
             </div>
           </div>
 
-          {isCompareLoading ? (
-            <div className="flex items-center justify-center py-10 flex-1">
-              <Spin tip="비교 중..." />
-            </div>
-          ) : compareResult?.entityDiffs && compareResult.entityDiffs.length > 0 ? (
-            <div className="h-[350px]">
-              <AgGridReact<FlatDiffItem> rowData={flattenDiffItems(compareResult.entityDiffs)} columnDefs={columnDefs} gridOptions={treeGridOptions} />
-            </div>
-          ) : (
-            <div className="text-gray-500 text-center py-10">{targetSnapshotId ? 'Entity 변경사항이 없습니다.' : '비교할 스냅샷을 선택해주세요.'}</div>
-          )}
+          <div className="h-[350px]">
+            <AgGridReact<FlatDiffItem>
+              rowData={flattenDiffItems(compareResult?.entityDiffs ?? [])}
+              columnDefs={columnDefs}
+              gridOptions={treeGridOptions}
+              loading={isCompareLoading}
+            />
+          </div>
         </div>
       </div>
     </Drawer>
