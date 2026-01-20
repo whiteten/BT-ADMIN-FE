@@ -8,14 +8,14 @@ import { useModal } from '@/libs/shared-ui/src/hooks/useModal';
 
 interface AoeFaqItem {
   faqId: string;
-  faqEnable: 0 | 1;
-  questions: string[];
+  enable: 0 | 1;
+  sentences: string[];
   answer: string;
   updatedAt: string;
 }
 
 interface AoeFaqFormData {
-  questions: string[];
+  sentences: string[];
   answer: string;
 }
 
@@ -79,13 +79,13 @@ const AoeFaqDrawer = forwardRef<AoeFaqDrawerRef, AoeFaqDrawerProps>(({ onSave, o
     if (faqData) {
       // 편집 모드: 기존 데이터 로드
       form.setFieldsValue({
-        questions: faqData.questions,
+        sentences: faqData.sentences,
         answer: faqData.answer,
       });
     } else {
       // 추가 모드: 빈 폼 (질문 1개)
       form.setFieldsValue({
-        questions: [''],
+        sentences: [''],
         answer: '',
       });
     }
@@ -142,10 +142,10 @@ const AoeFaqDrawer = forwardRef<AoeFaqDrawerRef, AoeFaqDrawerProps>(({ onSave, o
   // ========== 렌더 ==========
   return (
     <Drawer open={open} onClose={handleClose} title={title} closable={{ placement: 'end' }} size={480} footer={footer} destroyOnHidden>
-      <Form form={form} layout="vertical" initialValues={{ questions: [''], answer: '' }} onFinish={onFinish} onFinishFailed={onFinishFailed}>
+      <Form form={form} layout="vertical" initialValues={{ sentences: [''], answer: '' }} onFinish={onFinish} onFinishFailed={onFinishFailed}>
         {/* 질문 섹션 - Form.List */}
         <Form.Item label="질문" required>
-          <Form.List name="questions">
+          <Form.List name="sentences">
             {(fields, { add, remove }) => (
               <div className="flex flex-col gap-2">
                 {fields.map(({ key, ...restField }) => (
