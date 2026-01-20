@@ -1,3 +1,6 @@
+/**
+ * 사용자 응답 DTO (백엔드 UserResponse와 일치)
+ */
 export interface User {
   userId?: number;
   tenantId?: number;
@@ -15,9 +18,6 @@ export interface User {
   loginLock?: string;
   multiLogin?: string;
   oscomName?: string;
-  createTime?: string;
-  createUserId?: number;
-  createUserSabun?: string;
   centerId?: number;
   centerName?: string;
   companyId?: number;
@@ -29,4 +29,58 @@ export interface User {
   passwordTime?: string;
   noticeAutority?: number;
   approvalAuthority?: number;
+  isUse?: boolean;
+  createdAt?: string;
+  createdBy?: number;
+  createdByName?: string;
+  updatedAt?: string;
+  updatedBy?: number;
+  updatedByName?: string;
+}
+
+/**
+ * 사용자 생성/수정 요청 DTO (백엔드 UserRequest와 일치)
+ */
+export interface UserRequest {
+  tenantId?: number;
+  userSabun: string;
+  userName?: string;
+  userPassword?: string;
+  position?: string;
+  nodeId?: number;
+  grantId?: number;
+  userTelNo?: string;
+  userStatus?: string;
+  loginLock?: string;
+  multiLogin?: string;
+  oscomName?: string;
+  centerId?: number;
+  companyId?: number;
+  accessScope?: string;
+  ipStart?: string;
+  ipFinsh?: string;
+  noticeAutority?: number;
+  approvalAuthority?: number;
+  isUse?: boolean;
+}
+
+/**
+ * 사용자 검색 파라미터
+ */
+export interface UserSearchParams {
+  tenantId?: number;
+  centerId?: number;
+  userSabun?: string;
+  userName?: string;
+  userStatus?: string;
+  isUse?: boolean;
+  page?: number;
+  size?: number;
+}
+
+/**
+ * 비밀번호 변경 요청
+ */
+export interface PasswordChangeRequest {
+  newPassword: string;
 }

@@ -1,79 +1,14 @@
-import { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Button, Form, Input, InputNumber, Radio, Select, Typography } from 'antd';
 import { Award, Combine, Database, Info, Settings, Variable } from 'lucide-react';
+import { toast } from '@/shared-util';
+import { useCreateUser } from '../../features/user/hooks/useUserQueries';
+import type { UserRequest } from '../../features/user/types/user.types';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { cn } from '@/libs/shared-ui/src/lib/utils';
 
-interface UserFormData {
-  userId: string;
-  password: string;
-  passwordConfirm: string;
-  userName: string;
-  position: string;
-  tenantId: string;
-  customerId: string;
-  nodeId: string;
-  authGroupId: string;
-  multiLogin: boolean;
-  noticeAuth: boolean;
-  approvalAuth: boolean;
-  iccUse: boolean;
-  // 부가사항
-  currentStatus: string;
-  accountStatus: string;
-  phoneNumber: string;
-  mobileNumber: string;
-  email: string;
-  remarks: string;
-  ipMask: string;
-  ipRangeStart: number | null;
-  ipRangeEnd: number | null;
-}
-
 const { Title, Text } = Typography;
-
-const tenantOptions = [
-  { label: '테넌트A', value: '테넌트A' },
-  { label: '테넌트B', value: '테넌트B' },
-  { label: '테넌트C', value: '테넌트C' },
-];
-
-const customerOptions = [
-  { label: '삼성전자', value: '삼성전자' },
-  { label: 'LG전자', value: 'LG전자' },
-  { label: 'SK텔레콤', value: 'SK텔레콤' },
-  { label: 'KT', value: 'KT' },
-  { label: '네이버', value: '네이버' },
-  { label: '카카오', value: '카카오' },
-];
-
-const nodeOptions = [
-  { label: '서울-1', value: '서울-1' },
-  { label: '서울-2', value: '서울-2' },
-  { label: '부산-1', value: '부산-1' },
-  { label: '대구-1', value: '대구-1' },
-];
-
-const authGroupOptions = [
-  { label: '시스템관리자', value: '시스템관리자' },
-  { label: '운영자', value: '운영자' },
-  { label: '일반사용자', value: '일반사용자' },
-  { label: '읽기전용', value: '읽기전용' },
-];
-
-const currentStatusOptions = [
-  { label: '활성', value: 'active' },
-  { label: '비활성', value: 'inactive' },
-  { label: '대기', value: 'pending' },
-];
-
-const accountStatusOptions = [
-  { label: '정상', value: 'normal' },
-  { label: '잠김', value: 'locked' },
-  { label: '만료', value: 'expired' },
-  { label: '정지', value: 'suspended' },
-];
 
 const styles = {
   tabTrigger: 'flex items-center gap-1 px-3 py-2 hover:cursor-pointer border-2 border-transparent data-[state=active]:border-blue-600 whitespace-nowrap',
@@ -82,43 +17,49 @@ const styles = {
 };
 
 export default function UserCreate() {
+  const navigate = useNavigate();
   const [form] = Form.useForm();
-  const [formData, setFormData] = useState<UserFormData>({
-    // 기본정보
-    userId: '',
-    password: '',
-    passwordConfirm: '',
-    userName: '',
-    position: '',
-    tenantId: '',
-    customerId: '',
-    nodeId: '',
-    authGroupId: '',
-    multiLogin: true,
-    noticeAuth: true,
-    approvalAuth: true,
-    iccUse: true,
-    // 부가사항
-    currentStatus: '',
-    accountStatus: '',
-    phoneNumber: '',
-    mobileNumber: '',
-    email: '',
-    remarks: '',
-    ipMask: '',
-    ipRangeStart: null,
-    ipRangeEnd: null,
+
+  const createUserMutation = useCreateUser({
+    mutationOptions: {
+      onSuccess: (data) => {
+        toast.success('사용자가 생성되었습니다');
+        navigate(`../user/${data.userId}`);
+      },
+      onError: () => {
+        toast.error('사용자 생성에 실패했습니다');
+      },
+    },
   });
 
-  const handleInputChange = <K extends keyof UserFormData>(field: K, value: UserFormData[K]) => {
-    setFormData((prev) => ({
-      ...prev,
-      [field]: value,
-    }));
-  };
+  const handleSubmit = async () => {
+    try {
+      const values = await form.validateFields();
 
-  const handleSubmit = () => {
-    console.log('Submit:', formData);
+      const requestData: UserRequest = {
+        tenantId: values.tenantId,
+        userSabun: values.userSabun,
+        userName: values.userName,
+        userPassword: values.password,
+        position: values.position,
+        nodeId: values.nodeId,
+        grantId: values.grantId,
+        userTelNo: values.userTelNo,
+        userStatus: values.userStatus || 'ACTIVE',
+        loginLock: 'N',
+        multiLogin: values.multiLogin ? 'Y' : 'N',
+        oscomName: values.oscomName,
+        ipStart: values.ipStart,
+        ipFinsh: values.ipFinsh,
+        noticeAutority: values.noticeAutority ? 1 : 0,
+        approvalAuthority: values.approvalAuthority ? 1 : 0,
+        isUse: true,
+      };
+
+      createUserMutation.mutate(requestData);
+    } catch {
+      toast.error('필수 항목을 확인해주세요');
+    }
   };
 
   return (
@@ -128,12 +69,20 @@ export default function UserCreate() {
           <Title level={3}>사용자 등록</Title>
           <Text type="secondary">신규 사용자 계정을 생성하고 권한을 설정합니다.</Text>
         </div>
-        <Button type="primary" onClick={handleSubmit} size="large">
+        <Button type="primary" onClick={handleSubmit} size="large" loading={createUserMutation.isPending}>
           저장
         </Button>
       </div>
 
-      <Form form={form} layout="vertical" onFinish={handleSubmit} initialValues={formData}>
+      <Form
+        form={form}
+        layout="vertical"
+        initialValues={{
+          multiLogin: true,
+          noticeAutority: false,
+          approvalAuthority: false,
+        }}
+      >
         <Tabs defaultValue="basic" className="w-full gap-4">
           <TabsList className="flex flex-wrap w-full h-full bg-white">
             <TabsTrigger value="basic" className={cn(styles.tabTrigger)}>
@@ -178,11 +127,11 @@ export default function UserCreate() {
               </CardHeader>
               <CardContent>
                 <div className={cn(styles.cardContentContainer)}>
-                  <Form.Item label="사용자 ID" name="userId" required rules={[{ required: true, message: '사용자 ID를 입력해주세요' }]} className="lg:col-span-2">
-                    <Input size="large" placeholder="사용자 ID 입력" value={formData.userId} onChange={(e) => handleInputChange('userId', e.target.value)} />
+                  <Form.Item label="사용자 ID (사번)" name="userSabun" required rules={[{ required: true, message: '사용자 ID를 입력해주세요' }]} className="lg:col-span-2">
+                    <Input size="large" placeholder="사용자 ID 입력" />
                   </Form.Item>
                   <Form.Item label="비밀번호" name="password" required rules={[{ required: true, message: '비밀번호를 입력해주세요' }]}>
-                    <Input.Password size="large" placeholder="비밀번호 입력" value={formData.password} onChange={(e) => handleInputChange('password', e.target.value)} />
+                    <Input.Password size="large" placeholder="비밀번호 입력" />
                   </Form.Item>
                   <Form.Item
                     label="비밀번호 확인"
@@ -200,81 +149,39 @@ export default function UserCreate() {
                       }),
                     ]}
                   >
-                    <Input.Password
-                      size="large"
-                      placeholder="비밀번호 재입력"
-                      value={formData.passwordConfirm}
-                      onChange={(e) => handleInputChange('passwordConfirm', e.target.value)}
-                    />
+                    <Input.Password size="large" placeholder="비밀번호 재입력" />
                   </Form.Item>
                   <Form.Item label="사용자명" name="userName" required rules={[{ required: true, message: '사용자명을 입력해주세요' }]}>
-                    <Input size="large" placeholder="사용자명 입력" value={formData.userName} onChange={(e) => handleInputChange('userName', e.target.value)} />
+                    <Input size="large" placeholder="사용자명 입력" />
                   </Form.Item>
                   <Form.Item label="직책" name="position">
-                    <Input size="large" placeholder="직책 입력" value={formData.position} onChange={(e) => handleInputChange('position', e.target.value)} />
+                    <Input size="large" placeholder="직책 입력" />
                   </Form.Item>
-                  <Form.Item label="테넌트 선택" name="tenantId" required rules={[{ required: true, message: '테넌트를 선택해주세요' }]}>
-                    <Select
-                      allowClear
-                      size="large"
-                      placeholder="테넌트 선택"
-                      options={tenantOptions}
-                      value={formData.tenantId}
-                      onChange={(value) => handleInputChange('tenantId', value)}
-                    />
+                  <Form.Item label="테넌트 ID" name="tenantId">
+                    <InputNumber size="large" className="w-full" placeholder="테넌트 ID 입력" />
                   </Form.Item>
-                  <Form.Item label="고객사 선택" name="customerId" required rules={[{ required: true, message: '고객사를 선택해주세요' }]}>
-                    <Select
-                      allowClear
-                      size="large"
-                      placeholder="고객사 선택"
-                      options={customerOptions}
-                      value={formData.customerId}
-                      onChange={(value) => handleInputChange('customerId', value)}
-                    />
+                  <Form.Item label="노드 ID" name="nodeId">
+                    <InputNumber size="large" className="w-full" placeholder="노드 ID 입력" />
                   </Form.Item>
-                  <Form.Item label="노드 선택" name="nodeId" required rules={[{ required: true, message: '노드를 선택해주세요' }]}>
-                    <Select
-                      allowClear
-                      size="large"
-                      placeholder="노드 선택"
-                      options={nodeOptions}
-                      value={formData.nodeId}
-                      onChange={(value) => handleInputChange('nodeId', value)}
-                    />
-                  </Form.Item>
-                  <Form.Item label="권한그룹 선택" name="authGroupId">
-                    <Select
-                      allowClear
-                      size="large"
-                      placeholder="권한그룹 선택"
-                      options={authGroupOptions}
-                      value={formData.authGroupId}
-                      onChange={(value) => handleInputChange('authGroupId', value)}
-                    />
+                  <Form.Item label="권한그룹 ID" name="grantId">
+                    <InputNumber size="large" className="w-full" placeholder="권한그룹 ID 입력" />
                   </Form.Item>
                   <Form.Item label="중복로그인" name="multiLogin">
-                    <Radio.Group value={formData.multiLogin} onChange={(e) => handleInputChange('multiLogin', e.target.value)}>
+                    <Radio.Group>
                       <Radio value={true}>허용</Radio>
                       <Radio value={false}>금지</Radio>
                     </Radio.Group>
                   </Form.Item>
-                  <Form.Item label="공지작성" name="noticeAuth">
-                    <Radio.Group value={formData.noticeAuth} onChange={(e) => handleInputChange('noticeAuth', e.target.value)}>
+                  <Form.Item label="공지작성" name="noticeAutority">
+                    <Radio.Group>
                       <Radio value={true}>허용</Radio>
                       <Radio value={false}>금지</Radio>
                     </Radio.Group>
                   </Form.Item>
-                  <Form.Item label="승인권한" name="approvalAuth">
-                    <Radio.Group value={formData.approvalAuth} onChange={(e) => handleInputChange('approvalAuth', e.target.value)}>
+                  <Form.Item label="승인권한" name="approvalAuthority">
+                    <Radio.Group>
                       <Radio value={true}>가능</Radio>
                       <Radio value={false}>불가</Radio>
-                    </Radio.Group>
-                  </Form.Item>
-                  <Form.Item label="ICC 사용 여부" name="iccUse">
-                    <Radio.Group value={formData.iccUse} onChange={(e) => handleInputChange('iccUse', e.target.value)}>
-                      <Radio value={true}>사용</Radio>
-                      <Radio value={false}>미사용</Radio>
                     </Radio.Group>
                   </Form.Item>
                 </div>
@@ -293,70 +200,33 @@ export default function UserCreate() {
               </CardHeader>
               <CardContent>
                 <div className={cn(styles.cardContentContainer)}>
-                  <Form.Item label="현재상태" name="currentStatus">
+                  <Form.Item label="사용자 상태" name="userStatus">
                     <Select
                       allowClear
                       size="large"
-                      placeholder="현재상태 선택"
-                      options={currentStatusOptions}
-                      value={formData.currentStatus}
-                      onChange={(value) => handleInputChange('currentStatus', value)}
+                      placeholder="상태 선택"
+                      options={[
+                        { label: '활성', value: 'ACTIVE' },
+                        { label: '비활성', value: 'INACTIVE' },
+                        { label: '대기', value: 'PENDING' },
+                      ]}
                     />
                   </Form.Item>
 
-                  <Form.Item label="계정상태" name="accountStatus">
-                    <Select
-                      allowClear
-                      size="large"
-                      placeholder="계정상태 선택"
-                      options={accountStatusOptions}
-                      value={formData.accountStatus}
-                      onChange={(value) => handleInputChange('accountStatus', value)}
-                    />
+                  <Form.Item label="전화번호" name="userTelNo">
+                    <Input size="large" placeholder="전화번호 입력" />
                   </Form.Item>
 
-                  <Form.Item label="전화번호" name="phoneNumber">
-                    <Input size="large" placeholder="전화번호 입력" value={formData.phoneNumber} onChange={(e) => handleInputChange('phoneNumber', e.target.value)} />
+                  <Form.Item label="아웃소싱업체" name="oscomName">
+                    <Input size="large" placeholder="아웃소싱업체 입력" />
                   </Form.Item>
 
-                  <Form.Item label="핸드폰번호" name="mobileNumber">
-                    <Input size="large" placeholder="핸드폰번호 입력" value={formData.mobileNumber} onChange={(e) => handleInputChange('mobileNumber', e.target.value)} />
+                  <Form.Item label="시작 IP" name="ipStart">
+                    <Input size="large" placeholder="시작 IP 입력" />
                   </Form.Item>
 
-                  <Form.Item label="E-mail주소" name="email" className="lg:col-span-2">
-                    <Input size="large" placeholder="이메일 주소 입력" value={formData.email} onChange={(e) => handleInputChange('email', e.target.value)} />
-                  </Form.Item>
-
-                  <Form.Item label="특이사항" name="remarks" className="lg:col-span-2">
-                    <Input.TextArea size="large" rows={4} placeholder="특이사항 입력" value={formData.remarks} onChange={(e) => handleInputChange('remarks', e.target.value)} />
-                  </Form.Item>
-
-                  <Form.Item label="IP 마스크" name="ipMask" className="lg:col-span-2">
-                    <Input size="large" placeholder="예: 192.168.1.0/24" value={formData.ipMask} onChange={(e) => handleInputChange('ipMask', e.target.value)} />
-                  </Form.Item>
-
-                  <Form.Item label="IP 범위" className="lg:col-span-2">
-                    <div className="flex items-center gap-2">
-                      <InputNumber
-                        size="large"
-                        min={1}
-                        max={255}
-                        placeholder="시작"
-                        value={formData.ipRangeStart}
-                        onChange={(value) => handleInputChange('ipRangeStart', value)}
-                        className="flex-1"
-                      />
-                      <span className="text-gray-500">~</span>
-                      <InputNumber
-                        size="large"
-                        min={1}
-                        max={255}
-                        placeholder="종료"
-                        value={formData.ipRangeEnd}
-                        onChange={(value) => handleInputChange('ipRangeEnd', value)}
-                        className="flex-1"
-                      />
-                    </div>
+                  <Form.Item label="종료 IP" name="ipFinsh">
+                    <Input size="large" placeholder="종료 IP 입력" />
                   </Form.Item>
                 </div>
               </CardContent>
