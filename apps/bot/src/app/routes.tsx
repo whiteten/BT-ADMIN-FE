@@ -1,5 +1,6 @@
 import React from 'react';
 import { Navigate, Outlet } from 'react-router-dom';
+import FaqDetail from './pages/global/FaqDetail';
 import { NotFound } from '@/components/custom/NotFound';
 
 const Main = React.lazy(() => import('./pages/main/Main'));
@@ -90,6 +91,14 @@ export const routes = [
             children: [
               { index: true, element: <Navigate to="config" replace /> },
               { path: 'config', element: <AoeConfig /> },
+              {
+                path: 'faq',
+                element: <Outlet />,
+                children: [
+                  { index: true, element: <Navigate to=".." replace /> },
+                  { path: ':agentId', element: <FaqDetail /> },
+                ],
+              },
             ],
           },
         ],
