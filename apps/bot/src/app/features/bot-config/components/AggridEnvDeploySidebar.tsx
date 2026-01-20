@@ -3,6 +3,7 @@ import { useParams } from 'react-router-dom';
 import { useQueryClient } from '@tanstack/react-query';
 import type { CustomToolPanelProps } from 'ag-grid-react';
 import { Button } from 'antd';
+import dayjs from 'dayjs';
 import { Clock, OctagonAlert, RotateCcw, Server, ServerOff, User } from 'lucide-react';
 import { toast } from '@/shared-util';
 import { botQueryKeys, useApplyEnv, useGetEnvNodeList } from '../hooks/useBotQueries';
@@ -105,7 +106,7 @@ function AggridEnvDeploySidebar(props: CustomToolPanelProps<EnvListItem>) {
           <div className="flex items-center justify-between gap-2">
             <div className="flex items-center gap-2">
               <Clock className="size-3 shrink-0" />
-              <span>{node.workTime}</span>
+              <span>{node.workTime ? dayjs(node.workTime).format('YYYY-MM-DD HH:mm:ss') : '-'}</span>
             </div>
             <Button
               size="small"
