@@ -5,10 +5,10 @@ import PageHeader from '@/components/custom/PageHeader';
 import PageTabs, { type PageTab } from '@/components/custom/PageTabs';
 
 const AoeBasicInfo = React.lazy(() => import('../../features/global/tabs/AoeBasicInfo'));
-const AoeFaqAgentList = React.lazy(() => import('../../features/global/tabs/AoeFaqAgentList'));
+const AoeFaqList = React.lazy(() => import('../../features/global/tabs/AoeFaqList'));
 const tabs: PageTab[] = [
   { id: 'tab1', label: '기본정보', icon: IconDocument, component: AoeBasicInfo },
-  { id: 'tab2', label: 'FAQ', icon: IconFaq, component: AoeFaqAgentList },
+  { id: 'tab2', label: 'FAQ', icon: IconFaq, component: AoeFaqList },
 ];
 
 export default function AoeConfig() {
