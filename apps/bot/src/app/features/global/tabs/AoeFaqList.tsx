@@ -4,6 +4,8 @@ import { AgGridReact } from 'ag-grid-react';
 import { Button, Input, Select, Tag } from 'antd';
 import dayjs from 'dayjs';
 
+import { CircleUserRound } from 'lucide-react';
+import { useGetAoeAgents } from '../../bot-config/hooks/useModelQueries';
 import { IconAlertTriangle, IconTrash } from '@/components/custom/Icons';
 import useAggridOptions from '@/libs/shared-ui/src/hooks/useAggridOptions';
 import { useModal } from '@/libs/shared-ui/src/hooks/useModal';
@@ -99,7 +101,7 @@ export default function AoeFaqList() {
   const [rowData, setRowData] = useState<AoeFaqItem[]>([]);
   const [filterColumn, setFilterColumn] = useState('questions');
   const [searchValue, setSearchValue] = useState('');
-
+  const [selectedAgentId, setSelectedAgentId] = useState<string | null>(null);
   const modal = useModal();
 
   const handleDelete = (id: string) => {
@@ -110,6 +112,8 @@ export default function AoeFaqList() {
       },
     });
   };
+
+  const { data: aoeAgents, isLoading: isLoadingAoeAgents } = useGetAoeAgents();
 
   const columnDefs: ColDef<AoeFaqItem>[] = [
     { field: 'faqId', hide: true },
@@ -200,6 +204,19 @@ export default function AoeFaqList() {
     <div className="flex flex-col gap-5 w-full h-full">
       <header className="flex items-center justify-between w-full gap-2 lg:flex-nowrap flex-wrap">
         <div className="flex items-center w-full gap-3">
+          <Select
+            value={selectedAgentId ?? null}
+            onChange={(value) => {
+              setSelectedAgentId(value);
+            }}
+            options={aoeAgents?.map((agent) => ({ label: agent.agentName, value: agent.agentId })) ?? []}
+            showSearch={{ optionFilterProp: 'label' }}
+            placeholder="FAQ Agent를 선택하세요."
+            popupMatchSelectWidth={false}
+            loading={isLoadingAoeAgents}
+            prefix={<CircleUserRound className="size-4 text-gray-500" />}
+            className="!max-w-[250px] !min-w-[200px]"
+          />
           <Select
             defaultValue="questions"
             value={filterColumn}
