@@ -5,6 +5,7 @@ import { Button, FloatButton, Input, type InputRef, Space } from 'antd';
 import type { AxiosError } from 'axios';
 import dayjs from 'dayjs';
 import { X } from 'lucide-react';
+import { toast } from '@/shared-util';
 import { type ChatMessage, useModelInferenceStore } from '../hooks/useModelInferenceStore';
 import { useExecuteInference, useGetModel } from '../hooks/useModelQueries';
 import { TargetServer } from '../types/inference';
@@ -89,6 +90,14 @@ export default function ModelInferenceModal({ modelId }: ModelInferenceModalProp
 
   const handleSendMessage = () => {
     if (!inputValue.trim()) return;
+    if (activeTab === TargetServer.TEST && modelData?.trainStatus !== 2) {
+      toast.warning('학습이 완료된 모델만 시험할 수 있습니다.\n모델 학습을 먼저 진행해주세요.');
+      return;
+    }
+    if (activeTab === TargetServer.PROD && modelData?.deployStatus !== 2) {
+      toast.warning('배포가 완료된 모델만 시험할 수 있습니다.\n모델 배포를 먼저 진행해주세요.');
+      return;
+    }
 
     const timestamp = dayjs().format('HH:mm');
     const text = inputValue.trim();

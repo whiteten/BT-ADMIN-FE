@@ -1,16 +1,19 @@
 import { forwardRef, useEffect, useImperativeHandle, useState } from 'react';
+import { useQueryClient } from '@tanstack/react-query';
 import { Button, Col, Drawer, Form, type FormProps, Input, Row } from 'antd';
 import { Log } from '@/log';
 import { toast } from '@/shared-util';
+import { botQueryKeys, useCreateEnv, useDeleteEnv, useUpdateEnv } from '../hooks/useBotQueries';
+import type { EnvListItem } from '../types';
 import { useModal } from '@/libs/shared-ui/src/hooks/useModal';
 
 /**
  * BotEnvDrawer ref 타입
- * @property open - 드로어를 여는 함수. envId가 없으면 추가 모드, 있으면 편집 모드
+ * @property open - 드로어를 여는 함수. envData가 없으면 추가 모드, 있으면 편집 모드
  * @property close - 드로어를 닫는 함수
  */
 export interface BotEnvDrawerRef {
-  open: (params: { serviceId: string; envId?: string }) => void;
+  open: (params: { serviceId: string; envData?: EnvListItem }) => void;
   close: () => void;
 }
 
@@ -20,40 +23,42 @@ export interface BotEnvDrawerRef {
 interface DrawerState {
   open: boolean;
   serviceId: string;
-  envId?: string;
+  envData?: EnvListItem;
 }
 
 /**
  * 환경변수 폼 데이터 타입
  */
 interface BotEnvFormData {
-  categoryName: string;
-  varName: string;
-  varValue: string;
+  category: string;
+  property: string;
+  value: string;
 }
 
 /**
  * Bot 환경변수 등록/수정 Drawer
  * - ref.open({ serviceId }) : 추가 모드로 열기
- * - ref.open({ serviceId, envId }) : 편집 모드로 열기
+ * - ref.open({ serviceId, envData }) : 편집 모드로 열기
  * - ref.close() : 드로어 닫기
  */
 const BotEnvDrawer = forwardRef<BotEnvDrawerRef>((_, ref) => {
   const modal = useModal();
+  const queryClient = useQueryClient();
   const [drawerState, setDrawerState] = useState<DrawerState>({
     open: false,
     serviceId: '',
-    envId: undefined,
+    envData: undefined,
   });
 
-  const { open, serviceId, envId } = drawerState;
+  const { open, serviceId, envData } = drawerState;
+  const isEditMode = !!envData;
 
   useImperativeHandle(ref, () => ({
     open: (params) => {
       setDrawerState({
         open: true,
         serviceId: params.serviceId,
-        envId: params.envId,
+        envData: params.envData,
       });
     },
     close: () => {
@@ -65,33 +70,83 @@ const BotEnvDrawer = forwardRef<BotEnvDrawerRef>((_, ref) => {
     setDrawerState((prev) => ({ ...prev, open: false }));
   };
 
-  const title = envId ? '환경변수 수정' : '환경변수 추가';
+  const invalidateEnvList = () => {
+    queryClient.invalidateQueries({ queryKey: botQueryKeys.getEnvList._def });
+  };
+
+  // Mutation 훅
+  const createEnvMutation = useCreateEnv({
+    mutationOptions: {
+      onSuccess: () => {
+        invalidateEnvList();
+        toast.success('환경변수가 추가되었습니다.');
+        handleClose();
+      },
+      onError: () => {
+        toast.error('환경변수 추가에 실패했습니다.');
+      },
+    },
+  });
+
+  const updateEnvMutation = useUpdateEnv({
+    mutationOptions: {
+      onSuccess: () => {
+        invalidateEnvList();
+        toast.success('환경변수가 수정되었습니다.');
+        handleClose();
+      },
+      onError: () => {
+        toast.error('환경변수 수정에 실패했습니다.');
+      },
+    },
+  });
+
+  const deleteEnvMutation = useDeleteEnv({
+    mutationOptions: {
+      onSuccess: () => {
+        invalidateEnvList();
+        toast.success('환경변수가 삭제되었습니다.');
+        handleClose();
+      },
+      onError: () => {
+        toast.error('환경변수 삭제에 실패했습니다.');
+      },
+    },
+  });
+
+  const isLoading = createEnvMutation.isPending || updateEnvMutation.isPending || deleteEnvMutation.isPending;
+
+  const title = isEditMode ? '환경변수 수정' : '환경변수 추가';
   const [form] = Form.useForm();
 
   useEffect(() => {
     if (!open) return;
-    // TODO: envId가 있으면 API로 데이터 조회 후 setFieldsValue
-    if (envId) {
-      // 편집 모드일 때 데이터 로드 (API 연동 시 구현)
-      form.setFieldsValue({ categoryName: '', varName: '', varValue: '' });
+    if (envData) {
+      form.setFieldsValue({
+        category: envData.category,
+        property: envData.property,
+        value: envData.value,
+      });
     }
     return () => {
       Log.debug('Reset Form Fields');
       form.resetFields();
     };
-  }, [envId, form, open]);
+  }, [envData, form, open]);
 
   const onFinish: FormProps<BotEnvFormData>['onFinish'] = (values) => {
     Log.debug('onFinish', values, 'serviceId:', serviceId);
-    // TODO: API 연동
-    if (envId) {
-      // 수정 API 호출
-      toast.success('환경변수가 수정되었습니다.');
+    if (isEditMode && envData) {
+      updateEnvMutation.mutate({
+        params: { serviceId, category: envData.category, property: envData.property },
+        data: { value: values.value },
+      });
     } else {
-      // 추가 API 호출
-      toast.success('환경변수가 추가되었습니다.');
+      createEnvMutation.mutate({
+        params: { serviceId },
+        data: values,
+      });
     }
-    handleClose();
   };
 
   const onFinishFailed: FormProps<BotEnvFormData>['onFinishFailed'] = (errorInfo) => {
@@ -103,27 +158,29 @@ const BotEnvDrawer = forwardRef<BotEnvDrawerRef>((_, ref) => {
   };
 
   const handleDeleteBtn = () => {
+    if (!envData) return;
     modal.confirm.delete({
       onOk: () => {
-        Log.debug('handleDeleteBtn', envId);
-        // TODO: 삭제 API 연동
-        toast.success('환경변수가 삭제되었습니다.');
-        handleClose();
+        deleteEnvMutation.mutate({
+          serviceId,
+          category: envData.category,
+          property: envData.property,
+        });
       },
     });
   };
 
   const footer = (
     <div className="flex items-center justify-end gap-2">
-      <Button variant="solid" onClick={handleClose}>
+      <Button variant="solid" onClick={handleClose} disabled={isLoading}>
         취소
       </Button>
-      {envId && (
-        <Button variant="solid" color="red" onClick={handleDeleteBtn}>
+      {isEditMode && (
+        <Button variant="solid" color="red" onClick={handleDeleteBtn} loading={deleteEnvMutation.isPending} disabled={isLoading}>
           삭제
         </Button>
       )}
-      <Button variant="solid" type="primary" onClick={handleSubmitBtn}>
+      <Button variant="solid" type="primary" onClick={handleSubmitBtn} loading={createEnvMutation.isPending || updateEnvMutation.isPending} disabled={isLoading}>
         저장
       </Button>
     </div>
@@ -131,24 +188,24 @@ const BotEnvDrawer = forwardRef<BotEnvDrawerRef>((_, ref) => {
 
   return (
     <Drawer open={open} onClose={handleClose} title={title} closable={{ placement: 'end' }} size={480} footer={footer} destroyOnHidden>
-      <Form form={form} initialValues={{ categoryName: '', varName: '', varValue: '' }} onFinish={onFinish} onFinishFailed={onFinishFailed} layout="vertical">
+      <Form form={form} initialValues={{ category: '', property: '', value: '' }} onFinish={onFinish} onFinishFailed={onFinishFailed} layout="vertical">
         <Row>
           <Col span={24}>
-            <Form.Item name="categoryName" label="분류명" required hasFeedback rules={[{ required: true, message: '분류명을 입력하세요.' }]}>
-              <Input placeholder="분류명을 입력하세요." disabled={!!envId} />
+            <Form.Item name="category" label="분류명" required hasFeedback rules={[{ required: true, message: '분류명을 입력하세요.' }]}>
+              <Input placeholder="분류명을 입력하세요." disabled={isEditMode} />
             </Form.Item>
           </Col>
         </Row>
         <Row>
           <Col span={24}>
-            <Form.Item name="varName" label="변수명" required hasFeedback rules={[{ required: true, message: '변수명을 입력하세요.' }]}>
-              <Input placeholder="변수명을 입력하세요." disabled={!!envId} />
+            <Form.Item name="property" label="변수명" required hasFeedback rules={[{ required: true, message: '변수명을 입력하세요.' }]}>
+              <Input placeholder="변수명을 입력하세요." disabled={isEditMode} />
             </Form.Item>
           </Col>
         </Row>
         <Row>
           <Col span={24}>
-            <Form.Item name="varValue" label="값" required hasFeedback rules={[{ required: true, message: '값을 입력하세요.' }]}>
+            <Form.Item name="value" label="값" required hasFeedback rules={[{ required: true, message: '값을 입력하세요.' }]}>
               <Input placeholder="값을 입력하세요." />
             </Form.Item>
           </Col>

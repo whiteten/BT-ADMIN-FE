@@ -14,6 +14,10 @@ import type {
   BotVersionListItem,
   BotVersionUpdateDatas,
   BotVoiceUpdateDatas,
+  EnvCreateDatas,
+  EnvListItem,
+  EnvNodeItem,
+  EnvUpdateDatas,
   IfeInfo,
   SttListItem,
   TtsListItem,
@@ -107,5 +111,25 @@ export const botApi = {
   updateBotAoe: async ({ params, data }: { params: Record<string, unknown>; data: BotAoeUpdateDatas }) => {
     const response = await apiClient.put('/bot-aoe-update', data, { params });
     return response;
+  },
+  getEnvList: async (params?: Record<string, unknown>): Promise<EnvListItem[]> => {
+    const response = await apiClient.get<ListResponse<EnvListItem>>('/bot-slee-config-list', { params });
+    return extractList(response);
+  },
+  createEnv: async ({ params, data }: { params: Record<string, unknown>; data: EnvCreateDatas }) => {
+    const response = await apiClient.post('/bot-slee-config-create', data, { params });
+    return response;
+  },
+  updateEnv: async ({ params, data }: { params: Record<string, unknown>; data: EnvUpdateDatas }) => {
+    const response = await apiClient.put('/bot-slee-config-update', data, { params });
+    return response;
+  },
+  deleteEnv: async (params: Record<string, unknown>) => {
+    const response = await apiClient.delete('/bot-slee-config-delete', { params });
+    return response;
+  },
+  getEnvNodeList: async (params?: Record<string, unknown>): Promise<EnvNodeItem[]> => {
+    const response = await apiClient.get<ListResponse<EnvNodeItem>>('bot-slee-config-histroy-list', { params });
+    return extractList(response);
   },
 };

@@ -18,7 +18,7 @@ export function Layout() {
     load();
   }, [load]);
   return (
-    <ConfigProvider theme={antdTheme} locale={koKR}>
+    <ConfigProvider theme={antdTheme} locale={koKR} drawer={{ mask: { blur: false } }}>
       <SidebarProvider
         style={
           {

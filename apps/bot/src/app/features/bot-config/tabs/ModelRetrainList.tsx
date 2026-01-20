@@ -20,7 +20,9 @@ import { Check, X } from 'lucide-react';
 import { toast } from '@/shared-util';
 import { ReactComponent as IconLinkIfe } from '../../../../assets/images/icon/icon-link-ife.svg';
 import RetrainDetailDrawer, { type RetrainDetailDrawerRef } from '../components/RetrainDetailDrawer';
+import { useGetIfeInfo } from '../hooks/useBotQueries';
 import { modelQueryKeys, useApplyRetrain, useGetIntents, useGetRetrains, useUpdateRetrain } from '../hooks/useModelQueries';
+import type { IfeInfo } from '../types';
 import type { RetrainListItem } from '../types/retrain';
 import { IconBookmark, IconSearch, IconTag } from '@/components/custom/Icons';
 import { Badge } from '@/components/ui/badge';
@@ -99,10 +101,11 @@ interface ActionCellRendererParams extends ICellRendererParams<RetrainListItem> 
   onCancel: () => void;
   onDetailClick: (data: RetrainListItem) => void;
   onApplyClick: (data: RetrainListItem) => void;
+  onEditIfe: (data: RetrainListItem) => void;
 }
 
 const ActionCellRenderer = (params: ActionCellRendererParams) => {
-  const { data, editingRowId, onSave, onCancel, onDetailClick, onApplyClick } = params;
+  const { data, editingRowId, onSave, onCancel, onDetailClick, onApplyClick, onEditIfe } = params;
   if (!data) return null;
 
   const rowId = createRowId(data);
@@ -149,17 +152,22 @@ const ActionCellRenderer = (params: ActionCellRendererParams) => {
           <IconSearch className="size-5 text-[#888B9A] hover:cursor-pointer" />
         </button>
       </Tooltip>
-      <Divider orientation="vertical" />
-      <Tooltip title="편집기 실행">
-        <button
-          type="button"
-          onClick={(e) => {
-            e.stopPropagation();
-          }}
-        >
-          <IconLinkIfe className="hover:cursor-pointer" />
-        </button>
-      </Tooltip>
+      {data.scnVer && data.scnVer !== 'None' && (
+        <>
+          <Divider orientation="vertical" />
+          <Tooltip title="편집기 실행">
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation();
+                onEditIfe(data);
+              }}
+            >
+              <IconLinkIfe className="hover:cursor-pointer" />
+            </button>
+          </Tooltip>
+        </>
+      )}
       {data.status !== 2 && (
         <>
           <Divider orientation="vertical" />
@@ -248,6 +256,8 @@ export default function ModelRetrainList() {
     },
   });
 
+  const { mutateAsync: getIfeInfo } = useGetIfeInfo({});
+
   const handleApplyClick = (data: RetrainListItem) => {
     if (!data.answer?.trim() || !data.answer?.trim()) {
       toast.warning('사용자발화와 정답의도를 설정 후, 저장하고 다시 시도해주세요.');
@@ -256,6 +266,39 @@ export default function ModelRetrainList() {
     modal.confirm.execute({
       onOk: () => {
         applyRetrain({ params: { modelId, ucidGkey: data.ucidGkey, questionSeq: data.questionSeq, hop: data.hop }, data: {} });
+      },
+    });
+  };
+
+  const handleEditIfe = (data: RetrainListItem) => {
+    if (!data.scnId || !data.scnVer) {
+      toast.warning('서비스 정보가 없습니다.');
+      return;
+    }
+    modal.confirm.execute({
+      options: {
+        title: '편집기 실행',
+        content: `선택한 서비스(${data.scnId})의 편집기를 실행하시겠습니까?`,
+      },
+      onOk: async () => {
+        try {
+          const ifeInfo = (await getIfeInfo({ params: { serviceId: data.scnId, serviceVer: data.scnVer }, data: {} })) as IfeInfo;
+          if (!ifeInfo.redirectUrl) {
+            toast.warning('편집기 접속 정보가 없습니다.');
+            return;
+          }
+          // redirectUrl에 subFlowId, nodeName 파라미터 추가
+          let finalUrl = ifeInfo.redirectUrl;
+          if (data.ifeSubflowId) {
+            finalUrl += `&subFlowId=${data.ifeSubflowId}`;
+          }
+          if (data.ifeNodeName) {
+            finalUrl += `&nodeName=${encodeURIComponent(data.ifeNodeName)}`;
+          }
+          window.open(finalUrl, '_blank');
+        } catch (error) {
+          toast.error('편집기 실행에 실패했습니다.');
+        }
       },
     });
   };
@@ -462,6 +505,7 @@ export default function ModelRetrainList() {
         onCancel: cancelEditing,
         onDetailClick: (data: RetrainListItem) => drawerRef.current?.open({ modelId, data }),
         onApplyClick: handleApplyClick,
+        onEditIfe: handleEditIfe,
       },
       cellRenderer: ActionCellRenderer,
     },

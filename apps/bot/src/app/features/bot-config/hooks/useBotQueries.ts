@@ -2,7 +2,19 @@ import { useMutation, useQuery } from '@tanstack/react-query';
 import { createQueryKeys } from '@lukemorales/query-key-factory';
 import type { MutationHookOptions, QueryHookWithParamsOptions } from '@/shared-util';
 import { botApi } from '../api/botApi';
-import type { BotAoeDetailItem, BotDeployConfigItem, BotItem, BotListItem, BotVersionItem, BotVersionListItem, SttListItem, TtsListItem, WorkTimeListItem } from '../types';
+import type {
+  BotAoeDetailItem,
+  BotDeployConfigItem,
+  BotItem,
+  BotListItem,
+  BotVersionItem,
+  BotVersionListItem,
+  EnvListItem,
+  EnvNodeItem,
+  SttListItem,
+  TtsListItem,
+  WorkTimeListItem,
+} from '../types';
 
 export const botQueryKeys = createQueryKeys('bots', {
   getBots: (params?: Record<string, unknown>) => [params],
@@ -14,6 +26,8 @@ export const botQueryKeys = createQueryKeys('bots', {
   getWorkTimeList: (params?: Record<string, unknown>) => [params],
   getBotDeployConfig: (params?: Record<string, unknown>) => [params],
   getBotAoeDetail: (params?: Record<string, unknown>) => [params],
+  getEnvList: (params?: Record<string, unknown>) => [params],
+  getEnvNodeList: (params?: Record<string, unknown>) => [params],
 });
 
 export const useGetBots = ({ params, queryOptions }: QueryHookWithParamsOptions<BotListItem[]> = {}) => {
@@ -169,5 +183,42 @@ export const useUpdateBotAoe = ({ mutationOptions }: MutationHookOptions = {}) =
   return useMutation({
     mutationFn: botApi.updateBotAoe,
     ...mutationOptions,
+  });
+};
+
+export const useGetEnvList = ({ params, queryOptions }: QueryHookWithParamsOptions<EnvListItem[]> = {}) => {
+  return useQuery({
+    queryKey: botQueryKeys.getEnvList(params).queryKey,
+    queryFn: () => botApi.getEnvList(params),
+    ...queryOptions,
+  });
+};
+
+export const useCreateEnv = ({ mutationOptions }: MutationHookOptions = {}) => {
+  return useMutation({
+    mutationFn: botApi.createEnv,
+    ...mutationOptions,
+  });
+};
+
+export const useUpdateEnv = ({ mutationOptions }: MutationHookOptions = {}) => {
+  return useMutation({
+    mutationFn: botApi.updateEnv,
+    ...mutationOptions,
+  });
+};
+
+export const useDeleteEnv = ({ mutationOptions }: MutationHookOptions = {}) => {
+  return useMutation({
+    mutationFn: botApi.deleteEnv,
+    ...mutationOptions,
+  });
+};
+
+export const useGetEnvNodeList = ({ params, queryOptions }: QueryHookWithParamsOptions<EnvNodeItem[]> = {}) => {
+  return useQuery({
+    queryKey: botQueryKeys.getEnvNodeList(params).queryKey,
+    queryFn: () => botApi.getEnvNodeList(params),
+    ...queryOptions,
   });
 };

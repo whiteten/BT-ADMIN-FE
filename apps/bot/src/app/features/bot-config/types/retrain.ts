@@ -2,6 +2,7 @@ export interface Retrain {
   ucidGkey: string;
   questionSeq: number;
   scnId: string;
+  scnVer: string;
   hop: number;
   question: string;
   intent: string;
@@ -11,6 +12,8 @@ export interface Retrain {
   dbInsertTime: string;
   status: RetrainStatus;
   tags: string[];
+  ifeSubflowId?: number;
+  ifeNodeName?: string;
 }
 
 /**

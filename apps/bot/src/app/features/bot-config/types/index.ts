@@ -9,3 +9,4 @@ export * from './aoe';
 export * from './retrain';
 export * from './snapshot';
 export * from './inference';
+export * from './env';

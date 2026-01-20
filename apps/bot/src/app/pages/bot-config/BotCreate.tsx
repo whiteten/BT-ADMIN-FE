@@ -211,7 +211,7 @@ export default function BotCreate() {
             </Form.Item>
           </Col>
           <Col span={8}>
-            <Form.Item name="ttsSpeaker" label="TTS 발화자">
+            <Form.Item name="ttsSpeaker" label="TTS 발화자" rules={[{ pattern: /^[a-zA-Z0-9_-]*$/, message: '영문, 숫자, 언더스코어(_), 하이픈(-)만 입력 가능합니다.' }]}>
               <Input placeholder="TTS 발화자를 입력하세요." />
             </Form.Item>
           </Col>
