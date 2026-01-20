@@ -13,10 +13,10 @@ import type {
   RowEditingStoppedEvent,
 } from 'ag-grid-community';
 import { AgGridReact } from 'ag-grid-react';
-import { DatePicker, Divider, Input, type InputRef, Radio, Select, Slider, Tag, Tooltip } from 'antd';
+import { Button, DatePicker, Divider, Input, type InputRef, Radio, Select, Slider, Tag, Tooltip } from 'antd';
 import dayjs, { type Dayjs } from 'dayjs';
 import { debounce } from 'lodash';
-import { Check, X } from 'lucide-react';
+import { Check, ChevronDown, X } from 'lucide-react';
 import { toast } from '@/shared-util';
 import { ReactComponent as IconLinkIfe } from '../../../../assets/images/icon/icon-link-ife.svg';
 import RetrainDetailDrawer, { type RetrainDetailDrawerRef } from '../components/RetrainDetailDrawer';
@@ -26,6 +26,7 @@ import type { IfeInfo } from '../types';
 import type { RetrainListItem } from '../types/retrain';
 import { IconBookmark, IconSearch, IconTag } from '@/components/custom/Icons';
 import { Badge } from '@/components/ui/badge';
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { cn } from '@/lib/utils';
 import useAggridOptions from '@/libs/shared-ui/src/hooks/useAggridOptions';
 import { useModal } from '@/libs/shared-ui/src/hooks/useModal';
@@ -211,6 +212,7 @@ export default function ModelRetrainList() {
   const [successFilter, setSuccessFilter] = useState<number>(-1);
   const [statusFilter, setStatusFilter] = useState<number>(-1);
   const [callTypeFilter, setCallTypeFilter] = useState<string>('ALL');
+  const [isFilterOpen, setIsFilterOpen] = useState(false);
   const [editingRowId, setEditingRowId] = useState<string | null>(null);
 
   // Refs
@@ -535,67 +537,78 @@ export default function ModelRetrainList() {
 
   return (
     <div className="flex flex-col gap-5 w-full h-full">
-      <header className="flex items-center justify-between w-full gap-2 lg:flex-nowrap flex-wrap">
-        <div className="flex items-center w-full gap-3 flex-wrap">
+      <Collapsible open={isFilterOpen} onOpenChange={setIsFilterOpen} asChild>
+        <header className="flex flex-col gap-3 w-full">
           <div className="flex items-center gap-3">
-            <span className="text-base font-medium text-[#495057] shrink-0">검색일자</span>
-            <RangePicker value={dateRange} onChange={handleDateRangeChange} disabledDate={(current) => current > dayjs().endOf('day')} inputReadOnly allowClear={false} />
+            <div className="flex items-center gap-3">
+              <span className="text-base font-medium text-[#495057] shrink-0">검색일자</span>
+              <RangePicker value={dateRange} onChange={handleDateRangeChange} disabledDate={(current) => current > dayjs().endOf('day')} inputReadOnly allowClear={false} />
+            </div>
             <Divider orientation="vertical" className="!h-5 !m-0" />
-          </div>
-          <div className="flex items-center gap-3">
-            <span className="text-base font-medium text-[#495057] shrink-0">신뢰구간</span>
-            <Slider
-              range
-              min={0}
-              max={100}
-              step={1}
-              defaultValue={[0, 100]}
-              onChange={(value) => debouncedSetConfidenceRange(value as [number, number])}
-              tooltip={{ formatter: (value) => `${value}%` }}
-              className="!w-[200px]"
-            />
+            <div className="flex items-center gap-3">
+              <span className="text-base font-medium text-[#495057] shrink-0">신뢰구간</span>
+              <Slider
+                range
+                min={0}
+                max={100}
+                step={1}
+                defaultValue={[0, 100]}
+                onChange={(value) => debouncedSetConfidenceRange(value as [number, number])}
+                tooltip={{ formatter: (value) => `${value}%` }}
+                className="!w-[200px]"
+              />
+            </div>
             <Divider orientation="vertical" className="!h-5 !m-0" />
+            <div className="flex items-center">
+              <CollapsibleTrigger asChild>
+                <Button type="default" icon={<ChevronDown className={cn('size-4 transition-transform', isFilterOpen && 'rotate-180')} />} className="!size-8 !min-w-8" />
+              </CollapsibleTrigger>
+            </div>
           </div>
-          <div className="flex items-center gap-3">
-            <span className="text-base font-medium text-[#495057] shrink-0">인식결과</span>
-            <Radio.Group
-              value={successFilter}
-              onChange={(e) => setSuccessFilter(e.target.value)}
-              options={[
-                { label: '전체', value: -1 },
-                { label: '성공', value: 1 },
-                { label: '실패', value: 0 },
-              ]}
-            />
-            <Divider orientation="vertical" className="!h-5 !m-0" />
-          </div>
-          <div className="flex items-center gap-3">
-            <span className="text-base font-medium text-[#495057] shrink-0">반영여부</span>
-            <Radio.Group
-              value={statusFilter}
-              onChange={(e) => setStatusFilter(e.target.value)}
-              options={[
-                { label: '전체', value: -1 },
-                { label: '반영', value: 2 },
-                { label: '미반영', value: 1 },
-              ]}
-            />
-            <Divider orientation="vertical" className="!h-5 !m-0" />
-          </div>
-          <div className="flex items-center gap-3">
-            <span className="text-base font-medium text-[#495057] shrink-0">콜타입</span>
-            <Radio.Group
-              value={callTypeFilter}
-              onChange={(e) => setCallTypeFilter(e.target.value)}
-              options={[
-                { label: '전체', value: 'ALL' },
-                { label: '시험', value: 'TEST' },
-                { label: '운영', value: 'REAL' },
-              ]}
-            />
-          </div>
-        </div>
-      </header>
+          <CollapsibleContent>
+            <div className="flex items-center gap-3 flex-wrap">
+              <div className="flex items-center gap-3">
+                <span className="text-base font-medium text-[#495057] shrink-0">인식결과</span>
+                <Radio.Group
+                  value={successFilter}
+                  onChange={(e) => setSuccessFilter(e.target.value)}
+                  options={[
+                    { label: '전체', value: -1 },
+                    { label: '성공', value: 1 },
+                    { label: '실패', value: 0 },
+                  ]}
+                />
+                <Divider orientation="vertical" className="!h-5 !m-0" />
+              </div>
+              <div className="flex items-center gap-3">
+                <span className="text-base font-medium text-[#495057] shrink-0">반영여부</span>
+                <Radio.Group
+                  value={statusFilter}
+                  onChange={(e) => setStatusFilter(e.target.value)}
+                  options={[
+                    { label: '전체', value: -1 },
+                    { label: '반영', value: 2 },
+                    { label: '미반영', value: 1 },
+                  ]}
+                />
+                <Divider orientation="vertical" className="!h-5 !m-0" />
+              </div>
+              <div className="flex items-center gap-3">
+                <span className="text-base font-medium text-[#495057] shrink-0">콜타입</span>
+                <Radio.Group
+                  value={callTypeFilter}
+                  onChange={(e) => setCallTypeFilter(e.target.value)}
+                  options={[
+                    { label: '전체', value: 'ALL' },
+                    { label: '시험', value: 'TEST' },
+                    { label: '운영', value: 'REAL' },
+                  ]}
+                />
+              </div>
+            </div>
+          </CollapsibleContent>
+        </header>
+      </Collapsible>
       <div className="w-full h-full">
         <AgGridReact<RetrainListItem>
           rowData={retrainList ?? []}
