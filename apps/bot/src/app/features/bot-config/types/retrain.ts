@@ -14,12 +14,15 @@ export interface Retrain {
   tags: string[];
   ifeSubflowId?: number;
   ifeNodeName?: string;
+  callType: CallType;
 }
 
 /**
  * 1: 미반영, 2: 반영
  */
 export type RetrainStatus = 1 | 2;
+
+export type CallType = 'TEST' | 'REAL';
 
 export type RetrainEntity = {
   entityTag: string;

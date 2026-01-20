@@ -210,6 +210,7 @@ export default function ModelRetrainList() {
   const [confidenceRange, setConfidenceRange] = useState<[number, number]>([0, 100]);
   const [successFilter, setSuccessFilter] = useState<number>(-1);
   const [statusFilter, setStatusFilter] = useState<number>(-1);
+  const [callTypeFilter, setCallTypeFilter] = useState<string>('ALL');
   const [editingRowId, setEditingRowId] = useState<string | null>(null);
 
   // Refs
@@ -296,7 +297,7 @@ export default function ModelRetrainList() {
             finalUrl += `&nodeName=${encodeURIComponent(data.ifeNodeName)}`;
           }
           window.open(finalUrl, '_blank');
-        } catch (error) {
+        } catch {
           toast.error('편집기 실행에 실패했습니다.');
         }
       },
@@ -333,13 +334,16 @@ export default function ModelRetrainList() {
     // 반영여부 필터
     const isStatusMatch = statusFilter === -1 || node.data.status === statusFilter;
 
-    return isInConfRange && isSuccessMatch && isStatusMatch;
+    // 콜타입 필터
+    const isCallTypeMatch = callTypeFilter === 'ALL' || node.data.callType === callTypeFilter;
+
+    return isInConfRange && isSuccessMatch && isStatusMatch && isCallTypeMatch;
   };
 
   // 필터 조건 변경 시 필터 적용
   useEffect(() => {
     gridApiRef.current?.onFilterChanged();
-  }, [confidenceRange, successFilter, statusFilter]);
+  }, [confidenceRange, successFilter, statusFilter, callTypeFilter]);
 
   const handleGridReady = (event: GridReadyEvent<RetrainListItem>) => {
     gridApiRef.current = event.api;
@@ -451,6 +455,7 @@ export default function ModelRetrainList() {
         );
       },
     },
+
     {
       headerName: '정답의도',
       field: 'answer',
@@ -478,6 +483,23 @@ export default function ModelRetrainList() {
       cellStyle: { display: 'flex', alignItems: 'center' },
       valueFormatter: (params) => params.value?.join(', ') ?? '',
       cellRenderer: TagsCellRenderer,
+    },
+    {
+      headerName: '콜타입',
+      field: 'callType',
+      maxWidth: 80,
+      cellStyle: { display: 'flex', alignItems: 'center' },
+      cellRenderer: (params: ICellRendererParams<RetrainListItem>) => {
+        if (!params.data) return null;
+        return (
+          <Badge
+            variant="secondary"
+            className={cn('text-[13px] font-medium !h-6', params.data.callType === 'TEST' ? 'text-[#3B82F6] bg-[#3B82F61A]' : 'text-[#F59E0B] bg-[#F59E0B1A]')}
+          >
+            {params.data.callType === 'TEST' ? '시험' : '운영'}
+          </Badge>
+        );
+      },
     },
     {
       headerName: '반영여부',
@@ -556,6 +578,19 @@ export default function ModelRetrainList() {
                 { label: '전체', value: -1 },
                 { label: '반영', value: 2 },
                 { label: '미반영', value: 1 },
+              ]}
+            />
+            <Divider orientation="vertical" className="!h-5 !m-0" />
+          </div>
+          <div className="flex items-center gap-3">
+            <span className="text-base font-medium text-[#495057] shrink-0">콜타입</span>
+            <Radio.Group
+              value={callTypeFilter}
+              onChange={(e) => setCallTypeFilter(e.target.value)}
+              options={[
+                { label: '전체', value: 'ALL' },
+                { label: '시험', value: 'TEST' },
+                { label: '운영', value: 'REAL' },
               ]}
             />
           </div>
