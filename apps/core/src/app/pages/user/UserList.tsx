@@ -1,14 +1,13 @@
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import type { ColDef } from 'ag-grid-community';
 import { AgGridReact } from 'ag-grid-react';
 import { Button, Input, Select, Space } from 'antd';
 import { Search } from 'lucide-react';
-import { toast } from '@/shared-util';
 import { UserInfoCard } from './UserInfoCard';
 import TreeSelectTenant from '../../components/TreeSelectTenant';
-import { useSearchUsers } from '../../features/user/hooks/useUserQueries';
-import type { User, UserSearchParams } from '../../features/user/types/user.types';
+import { useGetUsers } from '../../features/user/hooks/useUserQueries';
+import type { User } from '../../features/user/types/user.types';
 import { FallbackSpinner } from '@/components/custom/FallbackSpinner';
 import NoData from '@/components/custom/NoData';
 import useAggridOptions from '@/libs/shared-ui/src/hooks/useAggridOptions';
@@ -33,24 +32,42 @@ export default function UserList() {
   const { gridOptions } = useAggridOptions();
   const navigate = useNavigate();
 
-  // 검색 조건 상태
-  const [searchParams, setSearchParams] = useState<UserSearchParams>({
-    page: 0,
-    size: 20,
-  });
+  // 검색 조건 상태 (클라이언트 사이드 필터링용)
   const [tenantId, setTenantId] = useState<number>();
   const [searchType, setSearchType] = useState<string>('userName');
   const [searchKeyword, setSearchKeyword] = useState<string>('');
+  const [appliedFilter, setAppliedFilter] = useState<{
+    tenantId?: number;
+    searchType: string;
+    searchKeyword: string;
+  }>({ searchType: 'userName', searchKeyword: '' });
 
-  // API 호출
-  const { data, isLoading, refetch } = useSearchUsers({
-    params: searchParams as unknown as Record<string, unknown>,
-    queryOptions: {
-      enabled: false, // 수동으로 검색
-    },
-  });
+  // API 호출 - 전체 데이터 조회 (페이징 없음)
+  const { data: allUsers, isLoading } = useGetUsers();
 
-  const rowData = data?.items ?? [];
+  // 클라이언트 사이드 필터링
+  const rowData = useMemo(() => {
+    if (!allUsers) return [];
+
+    return allUsers.filter((user) => {
+      // 테넌트 필터
+      if (appliedFilter.tenantId && user.tenantId !== appliedFilter.tenantId) {
+        return false;
+      }
+
+      // 키워드 필터
+      if (appliedFilter.searchKeyword) {
+        const keyword = appliedFilter.searchKeyword.toLowerCase();
+        if (appliedFilter.searchType === 'userName') {
+          return user.userName?.toLowerCase().includes(keyword);
+        } else if (appliedFilter.searchType === 'userSabun') {
+          return user.userSabun?.toLowerCase().includes(keyword);
+        }
+      }
+
+      return true;
+    });
+  }, [allUsers, appliedFilter]);
 
   const handleCreate = () => {
     navigate('../user/create');
@@ -63,31 +80,12 @@ export default function UserList() {
   };
 
   const handleSearch = () => {
-    const params: UserSearchParams = {
+    // 현재 입력값을 필터에 적용
+    setAppliedFilter({
       tenantId,
-      page: 0,
-      size: 20,
-    };
-
-    // 검색 타입에 따라 파라미터 설정
-    if (searchKeyword) {
-      if (searchType === 'userName') {
-        params.userName = searchKeyword;
-      } else if (searchType === 'userSabun') {
-        params.userSabun = searchKeyword;
-      }
-    }
-
-    setSearchParams(params);
-
-    // 검색 실행
-    refetch()
-      .then(() => {
-        toast.success('검색이 완료되었습니다');
-      })
-      .catch(() => {
-        toast.error('검색에 실패했습니다');
-      });
+      searchType,
+      searchKeyword,
+    });
   };
 
   const handleKeyPress = (e: React.KeyboardEvent) => {
