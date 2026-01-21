@@ -41,6 +41,13 @@ const menuConfig = {
           index: 0,
           hide: false,
         },
+        {
+          id: 'core/password-policy',
+          label: '비밀번호 정책',
+          path: 'password-policy',
+          index: 1,
+          hide: false,
+        },
       ],
     },
   ],

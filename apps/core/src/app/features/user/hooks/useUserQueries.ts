@@ -18,19 +18,19 @@ interface PagedResponse<T> {
  * 사용자 쿼리 키 정의
  */
 export const userQueryKeys = createQueryKeys('users', {
-  getUsers: (params?: Record<string, unknown>) => [params],
+  getUsers: () => ['all'],
   searchUsers: (params?: Record<string, unknown>) => [params],
   getUser: (userId?: number) => [userId],
   getUserBySabun: (userSabun?: string) => [userSabun],
 });
 
 /**
- * 사용자 목록 조회 훅
+ * 사용자 목록 조회 훅 (전체 조회, 페이징 없음)
  */
-export const useGetUsers = ({ params, queryOptions }: QueryHookWithParamsOptions<PagedResponse<User>> = {}) => {
+export const useGetUsers = ({ queryOptions }: { queryOptions?: QueryHookWithParamsOptions<User[]>['queryOptions'] } = {}) => {
   return useQuery({
-    queryKey: userQueryKeys.getUsers(params).queryKey,
-    queryFn: () => userApi.getUsers(params as { page?: number; size?: number }),
+    queryKey: userQueryKeys.getUsers().queryKey,
+    queryFn: () => userApi.getUsers(),
     ...queryOptions,
   });
 };

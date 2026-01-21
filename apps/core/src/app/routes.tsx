@@ -11,6 +11,9 @@ const UserDetail = React.lazy(() => import('./pages/user/UserDetail'));
 const AuthGroupManagement = React.lazy(() => import('./pages/iam/AuthGroupManagement'));
 const RoleCreatePage = React.lazy(() => import('./pages/iam/RoleCreatePage'));
 
+// 비밀번호 정책
+const PasswordPolicyPage = React.lazy(() => import('./pages/password-policy/PasswordPolicyPage'));
+
 export const routes = [
   {
     path: '/',
@@ -50,6 +53,11 @@ export const routes = [
       {
         path: 'auth-groups',
         element: <AuthGroupManagement />,
+      },
+      // 비밀번호 정책
+      {
+        path: 'password-policy',
+        element: <PasswordPolicyPage />,
       },
       {
         path: 'role',
