@@ -15,8 +15,9 @@ const PermissionListTab = React.lazy(() => import('../../features/iam/tabs/Permi
 const UserOverrideTab = React.lazy(() => import('../../features/iam/tabs/UserOverrideTab'));
 
 const breadcrumb: BreadcrumbProps['items'] = [
-  { title: '공통 관리', path: '/core' },
-  { title: '권한 관리', path: '/core/auth-group' },
+  { title: '권한 관리', path: '/core/iam' },
+  { title: '권한 그룹', path: '/core/iam/auth-group' },
+  { title: '목록', path: '/core/iam/auth-group/list' },
 ];
 
 const tabs: PageTab[] = [

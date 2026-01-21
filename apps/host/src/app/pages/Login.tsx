@@ -1,18 +1,51 @@
+import { useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Button, Checkbox, Form, type FormProps, Input } from 'antd';
 import { Lock, User, Users } from 'lucide-react';
+import ApiClient, { toast } from '@/shared-util';
 import styles from './Login.module.scss';
-import { useLogin } from '../features/auth/hooks/useAuthQueries';
+import { useGetPasswordPolicy, useLogin } from '../features/auth/hooks/useAuthQueries';
+import type { LoginResponse } from '../features/auth/types/auth';
+import { ChangePasswordDialog, type ChangePasswordDialogRef } from '@/components/custom/ChangePasswordDialog';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { cn } from '@/lib/utils';
 import { Log } from '@/libs/shared-util/src/lib/log';
 
+// 비밀번호 변경 API 클라이언트
+const bffClient = new ApiClient({ serviceURL: '/bff' });
+
 export default function Login() {
   const navigate = useNavigate();
   const [form] = Form.useForm();
+  const changePasswordDialogRef = useRef<ChangePasswordDialogRef>(null);
+  const [loginResponse, setLoginResponse] = useState<LoginResponse | null>(null);
+
+  // 비밀번호 정책 조회
+  const { data: passwordPolicy } = useGetPasswordPolicy();
+
   const { mutate: login, isPending } = useLogin({
     mutationOptions: {
-      onSuccess: () => {
+      onSuccess: (data: LoginResponse) => {
+        setLoginResponse(data);
+
+        // 비밀번호 강제 변경이 필요한 경우
+        if (data.forcePasswordChange) {
+          changePasswordDialogRef.current?.open({ mode: 'first-login', userId: String(data.userId) });
+          return;
+        }
+
+        // 비밀번호가 만료된 경우
+        if (data.passwordExpired) {
+          changePasswordDialogRef.current?.open({ mode: 'expired', userId: String(data.userId) });
+          return;
+        }
+
+        // 비밀번호 만료 임박 시 경고 표시
+        if (data.passwordExpiringSoon && data.daysUntilExpiration !== null) {
+          toast.warning(`비밀번호가 ${data.daysUntilExpiration}일 후 만료됩니다. 미리 변경하세요.`);
+        }
+
+        // 정상 로그인
         navigate('/');
       },
     },
@@ -24,6 +57,20 @@ export default function Login() {
 
   const onFinishFailed: FormProps<{ userId: string; password: string }>['onFinishFailed'] = (errorInfo) => {
     Log.warn('onFinishFailed', errorInfo);
+  };
+
+  // 비밀번호 변경 핸들러
+  const handlePasswordChange = async (data: { currentPassword?: string; newPassword: string }) => {
+    if (!loginResponse) return;
+
+    await bffClient.put(`/user-password-change/${loginResponse.userId}`, {
+      newPassword: data.newPassword,
+    });
+
+    toast.success('비밀번호가 변경되었습니다.');
+
+    // 비밀번호 변경 후 정상 로그인 진행
+    navigate('/');
   };
 
   return (
@@ -80,6 +127,9 @@ export default function Login() {
           <img src="/assets/images/copyright.svg" alt="Copyright" />
         </div>
       </div>
+
+      {/* 비밀번호 변경 Dialog */}
+      <ChangePasswordDialog ref={changePasswordDialogRef} policy={passwordPolicy} onPasswordChange={handlePasswordChange} />
     </div>
   );
 }

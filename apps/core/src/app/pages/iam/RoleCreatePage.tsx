@@ -114,7 +114,7 @@ export default function RoleCreatePage() {
     mutationOptions: {
       onSuccess: () => {
         toast.success('역할이 생성되었습니다.');
-        navigate('/core/auth-groups');
+        navigate('/core/iam/auth-group/list');
       },
       onError: (error) => {
         const errorMessage = error instanceof Error ? error.message : '역할 생성에 실패했습니다.';
@@ -128,7 +128,7 @@ export default function RoleCreatePage() {
     mutationOptions: {
       onSuccess: () => {
         toast.success('역할이 수정되었습니다.');
-        navigate('/core/auth-groups');
+        navigate('/core/iam/auth-group/list');
       },
       onError: (error) => {
         const errorMessage = error instanceof Error ? error.message : '역할 수정에 실패했습니다.';
@@ -201,8 +201,9 @@ export default function RoleCreatePage() {
 
   // Breadcrumb 설정
   const breadcrumb: BreadcrumbProps['items'] = [
-    { title: '권한 관리', path: '/core/auth-groups' },
-    { title: isEditMode ? '역할 수정' : '역할 생성', path: isEditMode ? `/core/role/edit/${roleId}` : '/core/role/create' },
+    { title: '권한 관리', path: '/core/iam' },
+    { title: '권한 그룹', path: '/core/iam/auth-group/list' },
+    { title: isEditMode ? '역할 수정' : '역할 생성', path: isEditMode ? `/core/iam/role/edit/${roleId}` : '/core/iam/role/create' },
   ];
 
   // Step 1: 기본 정보
@@ -343,7 +344,7 @@ export default function RoleCreatePage() {
     return (
       <Row gutter={20} justify="center">
         <Col>
-          <Button variant="solid" onClick={() => navigate('/core/auth-groups')}>
+          <Button variant="solid" onClick={() => navigate('/core/iam/auth-group/list')}>
             취소
           </Button>
         </Col>

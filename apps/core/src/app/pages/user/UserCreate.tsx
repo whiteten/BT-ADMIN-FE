@@ -1,297 +1,503 @@
+/**
+ * 사용자 생성 페이지
+ * - BotCreate 패턴 적용: Steps wizard + Summary sidebar
+ * - Step 1: 기본 정보 (사용자명, 계정, 설명)
+ * - Step 2: 권한 설정 (역할, 활성화)
+ * - Step 3: 부가사항 (핸드폰번호, 이메일, 접근 허용 IP)
+ * - 초기 비밀번호는 계정(userAccount)과 동일하게 백엔드에서 자동 설정
+ * - forcePasswordChange 기본값 true로 첫 로그인 시 비밀번호 변경 유도
+ */
+
+import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Button, Form, Input, InputNumber, Radio, Select, Typography } from 'antd';
-import { Award, Combine, Database, Info, Settings, Variable } from 'lucide-react';
+import { type BreadcrumbProps, Button, Col, Divider, Form, type FormProps, Input, Row, Select, Steps, Switch, Tag } from 'antd';
+import { Check, Plus, X } from 'lucide-react';
 import { toast } from '@/shared-util';
+import { useGetRoles } from '../../features/iam/hooks/useRoleQueries';
 import { useCreateUser } from '../../features/user/hooks/useUserQueries';
 import type { UserRequest } from '../../features/user/types/user.types';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { cn } from '@/libs/shared-ui/src/lib/utils';
+import { FallbackSpinner } from '@/components/custom/FallbackSpinner';
+import PageHeader from '@/components/custom/PageHeader';
 
-const { Title, Text } = Typography;
+const breadcrumb: BreadcrumbProps['items'] = [
+  { title: '자원 관리', path: '/core/resource' },
+  { title: '사용자', path: '/core/resource/user' },
+  { title: '등록', path: '/core/resource/user/create' },
+];
 
-const styles = {
-  tabTrigger: 'flex items-center gap-1 px-3 py-2 hover:cursor-pointer border-2 border-transparent data-[state=active]:border-blue-600 whitespace-nowrap',
-  cardContentContainer: 'grid grid-cols-1 lg:grid-cols-2 gap-x-6',
-  cardTitle: 'flex items-center gap-2 text-xl',
+// 헬퍼 함수: Select 옵션에서 라벨 찾기
+const getOptionLabel = (options: { label: string; value: string | number }[], value: string | number | null | undefined) => {
+  if (value === null || value === undefined) return null;
+  return options.find((opt) => opt.value === value)?.label ?? value;
 };
+
+// 헬퍼 함수: 빈 값일 때 - 표시
+const displayValue = (value: unknown): React.ReactNode => {
+  if (value === null || value === undefined || value === '') return <span className="text-gray-300">-</span>;
+  return value as React.ReactNode;
+};
+
+interface UserFormValues {
+  username: string;
+  userAccount: string;
+  description?: string;
+  roleId?: number;
+  enabled: boolean;
+  phone?: string;
+  email?: string;
+  allowedIps?: string[];
+}
 
 export default function UserCreate() {
   const navigate = useNavigate();
-  const [form] = Form.useForm();
+  const [currentStep, setCurrentStep] = useState(0);
+  const [fieldErrors, setFieldErrors] = useState<Record<string, string[]>>({});
+  const [form] = Form.useForm<UserFormValues>();
+  const [newIp, setNewIp] = useState('');
+  const [ipError, setIpError] = useState('');
+
+  // 역할 목록 조회
+  const { data: roleList = [], isFetching: isFetchingRoles } = useGetRoles();
+  const roleOptions = roleList.map((role) => ({ label: role.roleName, value: role.roleId }));
+
+  const initialValues: Partial<UserFormValues> = {
+    enabled: true,
+  };
+  const formValues = Form.useWatch([], form);
+  // allowedIps를 최상위에서 watch (훅 규칙 준수)
+  const watchedAllowedIps: string[] = Form.useWatch('allowedIps', form) ?? [];
+
+  // formValues 변경 시 validation 실행
+  useEffect(() => {
+    form
+      .validateFields({ validateOnly: true })
+      .then(() => {
+        setFieldErrors({});
+      })
+      .catch((errorInfo) => {
+        const errors: Record<string, string[]> = {};
+        errorInfo.errorFields?.forEach((field: { name: string[]; errors: string[] }) => {
+          const fieldName = field.name[0];
+          errors[fieldName] = field.errors;
+        });
+        setFieldErrors(errors);
+      });
+  }, [formValues, form]);
+
+  const steps = [
+    { title: '기본 정보', requiredFieldNames: ['username', 'userAccount'], content: renderStep1 },
+    { title: '권한 설정', requiredFieldNames: [], content: renderStep2 },
+    { title: '부가사항', requiredFieldNames: [], content: renderStep3 },
+  ];
 
   const createUserMutation = useCreateUser({
     mutationOptions: {
       onSuccess: (data) => {
-        toast.success('사용자가 생성되었습니다');
-        navigate(`../user/${data.userId}`);
+        toast.success('사용자가 생성되었습니다.');
+        navigate(`../${data.id}`);
       },
       onError: () => {
-        toast.error('사용자 생성에 실패했습니다');
+        toast.error('사용자 생성에 실패했습니다.');
       },
     },
   });
 
-  const handleSubmit = async () => {
+  const handleSubmitBtn = () => {
+    form.submit();
+  };
+
+  const onFinish: FormProps<UserFormValues>['onFinish'] = (values) => {
+    const requestData: UserRequest = {
+      username: values.username,
+      userAccount: values.userAccount,
+      description: values.description,
+      roleId: values.roleId,
+      enabled: values.enabled ?? true,
+      phone: values.phone,
+      email: values.email,
+      // allowedIps를 JSON 문자열로 변환
+      allowedIps: values.allowedIps?.length ? JSON.stringify(values.allowedIps) : undefined,
+      // 초기 비밀번호는 백엔드에서 userAccount와 동일하게 자동 설정
+      // forcePasswordChange는 백엔드에서 true로 자동 설정
+    };
+    createUserMutation.mutate(requestData);
+  };
+
+  const onFinishFailed: FormProps<UserFormValues>['onFinishFailed'] = () => {
+    toast.error('필수 항목을 확인해주세요.');
+  };
+
+  const handleNext = async () => {
     try {
-      const values = await form.validateFields();
-
-      const requestData: UserRequest = {
-        tenantId: values.tenantId,
-        userSabun: values.userSabun,
-        userName: values.userName,
-        userPassword: values.password,
-        position: values.position,
-        nodeId: values.nodeId,
-        grantId: values.grantId,
-        userTelNo: values.userTelNo,
-        userStatus: values.userStatus || 'ACTIVE',
-        loginLock: 'N',
-        multiLogin: values.multiLogin ? 'Y' : 'N',
-        oscomName: values.oscomName,
-        ipStart: values.ipStart,
-        ipFinsh: values.ipFinsh,
-        noticeAutority: values.noticeAutority ? 1 : 0,
-        approvalAuthority: values.approvalAuthority ? 1 : 0,
-        isUse: true,
-      };
-
-      createUserMutation.mutate(requestData);
+      await form.validateFields(steps[currentStep].requiredFieldNames);
+      setCurrentStep(currentStep + 1);
     } catch {
-      toast.error('필수 항목을 확인해주세요');
+      // validation failed
     }
   };
 
-  return (
-    <div className="max-w-6xl h-full mx-auto px-6 py-3">
-      <div className="flex justify-between items-end mb-3">
-        <div>
-          <Title level={3}>사용자 등록</Title>
-          <Text type="secondary">신규 사용자 계정을 생성하고 권한을 설정합니다.</Text>
+  const handlePrev = () => {
+    setCurrentStep(currentStep - 1);
+  };
+
+  // Step 1: 기본 정보
+  function renderStep1() {
+    return (
+      <>
+        <Row gutter={20}>
+          <Col span={12}>
+            <Form.Item
+              name="username"
+              label="사용자명"
+              required
+              hasFeedback
+              rules={[
+                { required: true, message: '사용자명을 입력해 주세요.' },
+                { min: 2, message: '최소 2자 이상 입력해주세요.' },
+                { max: 50, message: '최대 50자까지 입력 가능합니다.' },
+              ]}
+            >
+              <Input placeholder="사용자 이름을 입력하세요." />
+            </Form.Item>
+          </Col>
+          <Col span={12}>
+            <Form.Item
+              name="userAccount"
+              label="계정 (로그인 ID)"
+              required
+              hasFeedback
+              tooltip="초기 비밀번호는 계정과 동일하게 설정됩니다."
+              rules={[
+                { required: true, message: '계정을 입력해 주세요.' },
+                { min: 3, message: '최소 3자 이상 입력해주세요.' },
+                { max: 100, message: '최대 100자까지 입력 가능합니다.' },
+                { pattern: /^[a-zA-Z0-9_]+$/, message: '영문, 숫자, 언더스코어(_)만 입력 가능합니다.' },
+              ]}
+            >
+              <Input placeholder="로그인에 사용할 계정을 입력하세요." />
+            </Form.Item>
+          </Col>
+        </Row>
+        <Row gutter={20}>
+          <Col span={24}>
+            <Form.Item name="description" label="설명" rules={[{ max: 500, message: '최대 500자까지 입력 가능합니다.' }]}>
+              <Input.TextArea placeholder="사용자에 대한 설명을 입력하세요." rows={3} showCount maxLength={500} />
+            </Form.Item>
+          </Col>
+        </Row>
+        <div className="mt-4 p-3 bg-blue-50 border border-blue-200 rounded-md text-sm text-blue-700">
+          <strong>안내:</strong> 초기 비밀번호는 계정(로그인 ID)과 동일하게 설정되며, 사용자는 첫 로그인 시 비밀번호를 변경해야 합니다.
         </div>
-        <Button type="primary" onClick={handleSubmit} size="large" loading={createUserMutation.isPending}>
-          저장
-        </Button>
+      </>
+    );
+  }
+
+  // Step 2: 권한 설정
+  function renderStep2() {
+    return (
+      <>
+        <Row gutter={20}>
+          <Col span={12}>
+            <Form.Item name="roleId" label="역할">
+              <Select options={roleOptions} allowClear showSearch optionFilterProp="label" placeholder="역할을 선택하세요." loading={isFetchingRoles} />
+            </Form.Item>
+          </Col>
+          <Col span={12}>
+            <Form.Item name="enabled" label="활성화" valuePropName="checked">
+              <Switch checkedChildren="활성" unCheckedChildren="비활성" />
+            </Form.Item>
+          </Col>
+        </Row>
+      </>
+    );
+  }
+
+  // IP 유효성 검사
+  const validateIp = (ip: string): boolean => {
+    const ipv4Regex = /^(?:(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.){3}(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)$/;
+    return ipv4Regex.test(ip);
+  };
+
+  // IP 추가 핸들러
+  const handleAddIp = () => {
+    const trimmedIp = newIp.trim();
+    if (!trimmedIp) {
+      setIpError('IP 주소를 입력하세요.');
+      return;
+    }
+    if (!validateIp(trimmedIp)) {
+      setIpError('올바른 IP 주소 형식이 아닙니다. (예: 192.168.1.1)');
+      return;
+    }
+    if (watchedAllowedIps.includes(trimmedIp)) {
+      setIpError('이미 추가된 IP 주소입니다.');
+      return;
+    }
+    form.setFieldValue('allowedIps', [...watchedAllowedIps, trimmedIp]);
+    setNewIp('');
+    setIpError('');
+  };
+
+  // IP 제거 핸들러
+  const handleRemoveIp = (ip: string) => {
+    form.setFieldValue(
+      'allowedIps',
+      watchedAllowedIps.filter((item: string) => item !== ip),
+    );
+  };
+
+  // IP 입력 키다운 핸들러
+  const handleIpKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      handleAddIp();
+    }
+  };
+
+  // Step 3: 부가사항
+  function renderStep3() {
+    return (
+      <>
+        <Row gutter={20}>
+          <Col span={12}>
+            <Form.Item
+              name="phone"
+              label="핸드폰번호"
+              rules={[
+                { max: 50, message: '최대 50자까지 입력 가능합니다.' },
+                { pattern: /^[0-9-]*$/, message: '숫자와 하이픈(-)만 입력 가능합니다.' },
+              ]}
+            >
+              <Input placeholder="예: 010-1234-5678" />
+            </Form.Item>
+          </Col>
+          <Col span={12}>
+            <Form.Item
+              name="email"
+              label="이메일"
+              rules={[
+                { max: 200, message: '최대 200자까지 입력 가능합니다.' },
+                { type: 'email', message: '올바른 이메일 형식이 아닙니다.' },
+              ]}
+            >
+              <Input placeholder="예: user@example.com" />
+            </Form.Item>
+          </Col>
+        </Row>
+        <Row gutter={20}>
+          <Col span={24}>
+            {/* allowedIps는 hidden Form.Item으로 관리하고 UI는 별도로 렌더링 */}
+            <Form.Item name="allowedIps" hidden>
+              <Input />
+            </Form.Item>
+            <div className="ant-form-item">
+              <div className="ant-form-item-label">
+                <label title="접근 허용 IP">
+                  접근 허용 IP
+                  <span
+                    className="ant-form-item-tooltip ml-1 text-gray-400 cursor-help"
+                    title="사용자가 로그인할 수 있는 IP 주소를 설정합니다. 설정하지 않으면 모든 IP에서 접근 가능합니다."
+                  >
+                    ?
+                  </span>
+                </label>
+              </div>
+              <div className="ant-form-item-control">
+                <div className="space-y-3">
+                  <div className="flex gap-2">
+                    <Input
+                      value={newIp}
+                      onChange={(e) => {
+                        setNewIp(e.target.value);
+                        setIpError('');
+                      }}
+                      onKeyDown={handleIpKeyDown}
+                      placeholder="IP 주소 입력 (예: 192.168.1.1)"
+                      className="flex-1"
+                      status={ipError ? 'error' : undefined}
+                    />
+                    <Button type="primary" onClick={handleAddIp}>
+                      <Plus className="w-4 h-4" />
+                      추가
+                    </Button>
+                  </div>
+                  {ipError && <div className="text-red-500 text-sm">{ipError}</div>}
+                  {watchedAllowedIps.length > 0 && (
+                    <div className="flex flex-wrap gap-2 p-3 bg-gray-50 rounded-md border border-gray-200">
+                      {watchedAllowedIps.map((ip: string) => (
+                        <Tag key={ip} closable onClose={() => handleRemoveIp(ip)} className="flex items-center gap-1 text-sm py-1 px-2">
+                          {ip}
+                        </Tag>
+                      ))}
+                    </div>
+                  )}
+                  {watchedAllowedIps.length === 0 && <div className="text-gray-400 text-sm">등록된 IP가 없습니다. 모든 IP에서 접근 가능합니다.</div>}
+                </div>
+              </div>
+            </div>
+          </Col>
+        </Row>
+      </>
+    );
+  }
+
+  // Validation 아이콘 렌더링
+  const renderValidationIcon = (fieldName: string) => {
+    const hasError = fieldErrors[fieldName] && fieldErrors[fieldName].length > 0;
+    return hasError ? <X className="w-4 h-4 text-red-500 ml-2 shrink-0" /> : <Check className="w-4 h-4 text-green-500 ml-2 shrink-0" />;
+  };
+
+  // 폼 정보 요약 렌더링
+  function renderFormSummary() {
+    const values = formValues ?? initialValues;
+    const { username, userAccount, description, roleId, enabled, phone, email, allowedIps } = values as UserFormValues;
+
+    if (isFetchingRoles) {
+      return (
+        <div className="flex items-center justify-center w-full h-full">
+          <FallbackSpinner />
+        </div>
+      );
+    }
+
+    return (
+      <div className="space-y-4">
+        {/* Step 1: 기본 정보 */}
+        <div className="space-y-2">
+          <div className="flex items-center gap-1">
+            <span className="text-gray-500 w-28 shrink-0">사용자명</span>
+            <span className="text-gray-800 font-medium flex-1">{displayValue(username)}</span>
+            {renderValidationIcon('username')}
+          </div>
+          <div className="flex items-center gap-1">
+            <span className="text-gray-500 w-28 shrink-0">계정</span>
+            <span className="text-gray-800 flex-1">{displayValue(userAccount)}</span>
+            {renderValidationIcon('userAccount')}
+          </div>
+          <div className="flex items-center gap-1">
+            <span className="text-gray-500 w-28 shrink-0">초기 비밀번호</span>
+            <span className="text-gray-800 flex-1 text-blue-600">{userAccount ? '계정과 동일' : <span className="text-gray-300">-</span>}</span>
+          </div>
+          <div className="flex items-center gap-1">
+            <span className="text-gray-500 w-28 shrink-0">설명</span>
+            <span className="text-gray-800 flex-1 truncate">{displayValue(description)}</span>
+          </div>
+        </div>
+        <Divider className="!my-3" />
+        {/* Step 2: 권한 설정 */}
+        <div className="space-y-2">
+          <div className="flex items-center gap-1">
+            <span className="text-gray-500 w-28 shrink-0">역할</span>
+            <span className="text-gray-800 flex-1">{displayValue(getOptionLabel(roleOptions, roleId))}</span>
+          </div>
+          <div className="flex items-center gap-1">
+            <span className="text-gray-500 w-28 shrink-0">활성화</span>
+            <span className="text-gray-800 flex-1">
+              {enabled ? <span className="text-green-600 font-medium">활성</span> : <span className="text-red-500 font-medium">비활성</span>}
+            </span>
+          </div>
+        </div>
+        <Divider className="!my-3" />
+        {/* Step 3: 부가사항 */}
+        <div className="space-y-2">
+          <div className="flex items-center gap-1">
+            <span className="text-gray-500 w-28 shrink-0">핸드폰번호</span>
+            <span className="text-gray-800 flex-1">{displayValue(phone)}</span>
+          </div>
+          <div className="flex items-center gap-1">
+            <span className="text-gray-500 w-28 shrink-0">이메일</span>
+            <span className="text-gray-800 flex-1">{displayValue(email)}</span>
+          </div>
+          <div className="flex items-start gap-1">
+            <span className="text-gray-500 w-28 shrink-0">접근 허용 IP</span>
+            <span className="text-gray-800 flex-1">
+              {allowedIps && allowedIps.length > 0 ? (
+                <div className="flex flex-wrap gap-1">
+                  {allowedIps.map((ip: string) => (
+                    <Tag key={ip} className="text-xs">
+                      {ip}
+                    </Tag>
+                  ))}
+                </div>
+              ) : (
+                <span className="text-gray-400 text-sm">전체 허용</span>
+              )}
+            </span>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // Footer: 이전, 다음, 저장 버튼
+  function renderFooter() {
+    return (
+      <Row gutter={20} justify="center">
+        {currentStep > 0 && (
+          <Col>
+            <Button variant="solid" onClick={handlePrev}>
+              이전
+            </Button>
+          </Col>
+        )}
+        {currentStep < steps.length - 1 && (
+          <Col>
+            <Button variant="solid" color="primary" onClick={handleNext}>
+              다음
+            </Button>
+          </Col>
+        )}
+        {currentStep === steps.length - 1 && (
+          <Col>
+            <Button variant="solid" color="primary" onClick={handleSubmitBtn} loading={createUserMutation.isPending}>
+              저장
+            </Button>
+          </Col>
+        )}
+      </Row>
+    );
+  }
+
+  return (
+    <div className="flex flex-col gap-4 w-full h-full">
+      <PageHeader title="사용자 등록" breadcrumb={breadcrumb} />
+      <div className="flex items-center justify-center w-full h-[58px] min-h-[58px] bg-white bt-shadow px-7 py-2">
+        <Steps
+          current={currentStep}
+          items={steps.map((step) => ({ title: step.title }))}
+          size="small"
+          className="max-w-10/12 min-w-1/3"
+          style={{ width: `${steps.length * 250}px` }}
+          responsive={false}
+        />
       </div>
 
-      <Form
-        form={form}
-        layout="vertical"
-        initialValues={{
-          multiLogin: true,
-          noticeAutority: false,
-          approvalAuthority: false,
-        }}
-      >
-        <Tabs defaultValue="basic" className="w-full gap-4">
-          <TabsList className="flex flex-wrap w-full h-full bg-white">
-            <TabsTrigger value="basic" className={cn(styles.tabTrigger)}>
-              <Info className="h-4 w-4 text-blue-600" />
-              <span className="text-sm">기본정보</span>
-            </TabsTrigger>
-
-            <TabsTrigger value="additional" className={cn(styles.tabTrigger)}>
-              <Settings className="h-4 w-4 text-green-600" />
-              <span className="text-sm">부가정보</span>
-            </TabsTrigger>
-
-            <TabsTrigger value="dataAccess" className={cn(styles.tabTrigger)}>
-              <Database className="h-4 w-4 text-purple-600" />
-              <span className="text-sm">데이터 접근범위</span>
-            </TabsTrigger>
-
-            <TabsTrigger value="scenario" className={cn(styles.tabTrigger)}>
-              <Variable className="h-4 w-4 text-orange-600" />
-              <span className="text-sm">시나리오 환경변수 접근제어</span>
-            </TabsTrigger>
-
-            <TabsTrigger value="skill" className={cn(styles.tabTrigger)}>
-              <Award className="h-4 w-4 text-pink-600" />
-              <span className="text-sm">스킬 접근제어</span>
-            </TabsTrigger>
-
-            <TabsTrigger value="ctiQueue" className={cn(styles.tabTrigger)}>
-              <Combine className="h-4 w-4 text-indigo-600" />
-              <span className="text-sm">CTI 큐 접근제어</span>
-            </TabsTrigger>
-          </TabsList>
-
-          <TabsContent value="basic">
-            <Card className="gap-3 mb-2">
-              <CardHeader className="gap-3">
-                <CardTitle className={cn(styles.cardTitle)}>
-                  <Info className="h-6 w-6 text-blue-600" />
-                  <span>기본 정보</span>
-                </CardTitle>
-                <Text type="secondary">사용자의 기본 정보를 입력해주세요.</Text>
-              </CardHeader>
-              <CardContent>
-                <div className={cn(styles.cardContentContainer)}>
-                  <Form.Item label="사용자 ID (사번)" name="userSabun" required rules={[{ required: true, message: '사용자 ID를 입력해주세요' }]} className="lg:col-span-2">
-                    <Input size="large" placeholder="사용자 ID 입력" />
-                  </Form.Item>
-                  <Form.Item label="비밀번호" name="password" required rules={[{ required: true, message: '비밀번호를 입력해주세요' }]}>
-                    <Input.Password size="large" placeholder="비밀번호 입력" />
-                  </Form.Item>
-                  <Form.Item
-                    label="비밀번호 확인"
-                    name="passwordConfirm"
-                    required
-                    rules={[
-                      { required: true, message: '비밀번호 확인을 입력해주세요' },
-                      ({ getFieldValue }) => ({
-                        validator(_, value) {
-                          if (!value || getFieldValue('password') === value) {
-                            return Promise.resolve();
-                          }
-                          return Promise.reject(new Error('비밀번호가 일치하지 않습니다'));
-                        },
-                      }),
-                    ]}
-                  >
-                    <Input.Password size="large" placeholder="비밀번호 재입력" />
-                  </Form.Item>
-                  <Form.Item label="사용자명" name="userName" required rules={[{ required: true, message: '사용자명을 입력해주세요' }]}>
-                    <Input size="large" placeholder="사용자명 입력" />
-                  </Form.Item>
-                  <Form.Item label="직책" name="position">
-                    <Input size="large" placeholder="직책 입력" />
-                  </Form.Item>
-                  <Form.Item label="테넌트 ID" name="tenantId">
-                    <InputNumber size="large" className="w-full" placeholder="테넌트 ID 입력" />
-                  </Form.Item>
-                  <Form.Item label="노드 ID" name="nodeId">
-                    <InputNumber size="large" className="w-full" placeholder="노드 ID 입력" />
-                  </Form.Item>
-                  <Form.Item label="권한그룹 ID" name="grantId">
-                    <InputNumber size="large" className="w-full" placeholder="권한그룹 ID 입력" />
-                  </Form.Item>
-                  <Form.Item label="중복로그인" name="multiLogin">
-                    <Radio.Group>
-                      <Radio value={true}>허용</Radio>
-                      <Radio value={false}>금지</Radio>
-                    </Radio.Group>
-                  </Form.Item>
-                  <Form.Item label="공지작성" name="noticeAutority">
-                    <Radio.Group>
-                      <Radio value={true}>허용</Radio>
-                      <Radio value={false}>금지</Radio>
-                    </Radio.Group>
-                  </Form.Item>
-                  <Form.Item label="승인권한" name="approvalAuthority">
-                    <Radio.Group>
-                      <Radio value={true}>가능</Radio>
-                      <Radio value={false}>불가</Radio>
-                    </Radio.Group>
-                  </Form.Item>
+      <div className="flex w-full flex-1 min-h-0 gap-4">
+        <div className="w-full h-full min-h-0 bg-white bt-shadow flex flex-col">
+          <div className="w-full flex-1 min-h-0 overflow-y-auto p-7 pb-0">
+            <Form form={form} initialValues={initialValues} onFinish={onFinish} onFinishFailed={onFinishFailed} layout="vertical">
+              {isFetchingRoles ? (
+                <div className="flex items-center justify-center w-full h-full">
+                  <FallbackSpinner />
                 </div>
-              </CardContent>
-            </Card>
-          </TabsContent>
-
-          <TabsContent value="additional">
-            <Card className="gap-3 mb-2">
-              <CardHeader className="gap-3">
-                <CardTitle className={cn(styles.cardTitle)}>
-                  <Settings className="h-6 w-6 text-green-600" />
-                  <span>부가정보</span>
-                </CardTitle>
-                <Text type="secondary">사용자의 부가정보를 입력해주세요.</Text>
-              </CardHeader>
-              <CardContent>
-                <div className={cn(styles.cardContentContainer)}>
-                  <Form.Item label="사용자 상태" name="userStatus">
-                    <Select
-                      allowClear
-                      size="large"
-                      placeholder="상태 선택"
-                      options={[
-                        { label: '활성', value: 'ACTIVE' },
-                        { label: '비활성', value: 'INACTIVE' },
-                        { label: '대기', value: 'PENDING' },
-                      ]}
-                    />
-                  </Form.Item>
-
-                  <Form.Item label="전화번호" name="userTelNo">
-                    <Input size="large" placeholder="전화번호 입력" />
-                  </Form.Item>
-
-                  <Form.Item label="아웃소싱업체" name="oscomName">
-                    <Input size="large" placeholder="아웃소싱업체 입력" />
-                  </Form.Item>
-
-                  <Form.Item label="시작 IP" name="ipStart">
-                    <Input size="large" placeholder="시작 IP 입력" />
-                  </Form.Item>
-
-                  <Form.Item label="종료 IP" name="ipFinsh">
-                    <Input size="large" placeholder="종료 IP 입력" />
-                  </Form.Item>
-                </div>
-              </CardContent>
-            </Card>
-          </TabsContent>
-
-          <TabsContent value="dataAccess">
-            <Card className="gap-3 mb-2">
-              <CardHeader className="gap-3">
-                <CardTitle className={cn(styles.cardTitle)}>
-                  <Database className="h-6 w-6 text-purple-600" />
-                  <span>데이터 접근범위</span>
-                </CardTitle>
-                <Text type="secondary">사용자의 데이터 접근범위를 설정합니다.</Text>
-              </CardHeader>
-              <CardContent>
-                <div className={cn(styles.cardContentContainer)}></div>
-              </CardContent>
-            </Card>
-          </TabsContent>
-
-          <TabsContent value="scenario">
-            <Card className="gap-3 mb-2">
-              <CardHeader className="gap-3">
-                <CardTitle className={cn(styles.cardTitle)}>
-                  <Variable className="h-6 w-6 text-orange-600" />
-                  <span>시나리오 환경변수 접근제어</span>
-                </CardTitle>
-                <Text type="secondary">사용자의 시나리오 환경변수 접근제어를 설정합니다.</Text>
-              </CardHeader>
-              <CardContent></CardContent>
-            </Card>
-          </TabsContent>
-
-          <TabsContent value="skill">
-            <Card className="gap-3 mb-2">
-              <CardHeader className="gap-3">
-                <CardTitle className={cn(styles.cardTitle)}>
-                  <Award className="h-6 w-6 text-pink-600" />
-                  <span>스킬 접근제어</span>
-                </CardTitle>
-                <Text type="secondary">사용자의 스킬 접근제어를 설정합니다.</Text>
-              </CardHeader>
-              <CardContent>
-                <div className={cn(styles.cardContentContainer)}></div>
-              </CardContent>
-            </Card>
-          </TabsContent>
-
-          <TabsContent value="ctiQueue">
-            <Card className="gap-3 mb-2">
-              <CardHeader className="gap-3">
-                <CardTitle className={cn(styles.cardTitle)}>
-                  <Combine className="h-6 w-6 text-indigo-600" />
-                  <span>CTI 큐 접근제어</span>
-                </CardTitle>
-                <Text type="secondary">사용자의 CTI 큐 접근제어를 설정합니다.</Text>
-              </CardHeader>
-              <CardContent>
-                <div className={cn(styles.cardContentContainer)}></div>
-              </CardContent>
-            </Card>
-          </TabsContent>
-        </Tabs>
-      </Form>
+              ) : (
+                <>
+                  {steps.map((step, index) => (
+                    <div key={index} style={{ display: currentStep === index ? 'block' : 'none' }}>
+                      {step.content()}
+                    </div>
+                  ))}
+                </>
+              )}
+            </Form>
+          </div>
+          <div className="w-full px-7 pb-7">{renderFooter()}</div>
+        </div>
+        <div className="!w-[400px] !min-w-[400px] h-full min-h-0 bg-white bt-shadow hidden xl:flex flex-col">
+          <div className="text-base font-semibold text-gray-800 mb-4 pb-3 border-b border-gray-200 px-5 pt-5">입력 정보 요약</div>
+          <div className="flex-1 min-h-0 overflow-y-auto px-5 pb-5">{renderFormSummary()}</div>
+        </div>
+      </div>
     </div>
   );
 }

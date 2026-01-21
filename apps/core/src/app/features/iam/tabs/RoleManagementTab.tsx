@@ -49,12 +49,12 @@ export default function RoleManagementTab() {
 
   const handleCreate = () => {
     // 스텝 방식 역할 생성 페이지로 이동
-    navigate('/core/role/create');
+    navigate('/core/iam/role/create');
   };
 
   const handleEdit = (role: Role) => {
     // 스텝 방식 역할 수정 페이지로 이동
-    navigate(`/core/role/edit/${role.roleId}`);
+    navigate(`/core/iam/role/edit/${role.roleId}`);
   };
 
   const handleDelete = (role: Role) => {

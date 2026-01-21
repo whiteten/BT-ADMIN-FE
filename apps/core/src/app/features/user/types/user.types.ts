@@ -1,67 +1,74 @@
 /**
  * 사용자 응답 DTO (백엔드 UserResponse와 일치)
+ * TB_BT_CM_USER_MST 테이블 스키마 기준
  */
 export interface User {
-  userId?: number;
+  /** 사용자 ID (PK) */
+  id: number;
+  /** 사용자명 (이름) */
+  username: string;
+  /** 계정 (로그인 ID) */
+  userAccount?: string;
+  /** 사용자 설명 */
+  description?: string;
+  /** 활성화 여부 */
+  enabled: boolean;
+  /** 역할 ID */
+  roleId?: number;
+  /** 역할명 */
+  roleName?: string;
+  /** 기본 테넌트 ID */
   tenantId?: number;
+  /** 기본 테넌트명 */
   tenantName?: string;
-  userSabun: string;
-  userName?: string;
-  position?: string;
-  nodeId?: number;
-  nodeName?: string;
-  grantId?: number;
-  grantName?: string;
-  userTelNo?: string;
-  userStatus?: string;
-  userStatusName?: string;
-  loginLock?: string;
-  multiLogin?: string;
-  oscomName?: string;
-  centerId?: number;
-  centerName?: string;
-  companyId?: number;
-  companyName?: string;
-  accessScope?: string;
-  ipStart?: string;
-  ipFinsh?: string;
-  loginErrorCount?: number;
-  passwordTime?: string;
-  noticeAutority?: number;
-  approvalAuthority?: number;
-  isUse?: boolean;
+  /** 생성일시 */
   createdAt?: string;
-  createdBy?: number;
-  createdByName?: string;
+  /** 수정일시 */
   updatedAt?: string;
-  updatedBy?: number;
-  updatedByName?: string;
+  /** 마지막 비밀번호 변경일시 */
+  passwordChangedAt?: string;
+  /** 비밀번호 변경 강제 여부 */
+  forcePasswordChange?: boolean;
+  /** 마지막 로그인 시각 */
+  lastLoginAt?: string;
+  /** 마지막 로그인 실패 시각 */
+  lastFailedLoginAt?: string;
+  /** 핸드폰번호 */
+  phone?: string;
+  /** 이메일 */
+  email?: string;
+  /** 접근 허용 IP 목록 (JSON 배열 문자열) */
+  allowedIps?: string;
+  /** 할당된 역할 목록 */
+  roles?: string[];
 }
 
 /**
  * 사용자 생성/수정 요청 DTO (백엔드 UserRequest와 일치)
+ * - 생성 시: 초기 비밀번호는 백엔드에서 userAccount와 동일하게 자동 설정
+ * - 생성 시: forcePasswordChange는 백엔드에서 true로 자동 설정 (첫 로그인 시 비밀번호 변경 유도)
  */
 export interface UserRequest {
+  /** 사용자명 (이름) */
+  username: string;
+  /** 계정 (로그인 ID) - 초기 비밀번호로도 사용됨 */
+  userAccount: string;
+  /** 사용자 설명 */
+  description?: string;
+  /** 역할 ID */
+  roleId?: number;
+  /** 활성화 여부 */
+  enabled?: boolean;
+  /** 기본 테넌트 ID */
   tenantId?: number;
-  userSabun: string;
-  userName?: string;
-  userPassword?: string;
-  position?: string;
-  nodeId?: number;
-  grantId?: number;
-  userTelNo?: string;
-  userStatus?: string;
-  loginLock?: string;
-  multiLogin?: string;
-  oscomName?: string;
-  centerId?: number;
-  companyId?: number;
-  accessScope?: string;
-  ipStart?: string;
-  ipFinsh?: string;
-  noticeAutority?: number;
-  approvalAuthority?: number;
-  isUse?: boolean;
+  /** 비밀번호 변경 강제 여부 (수정 시 사용) */
+  forcePasswordChange?: boolean;
+  /** 핸드폰번호 */
+  phone?: string;
+  /** 이메일 */
+  email?: string;
+  /** 접근 허용 IP 목록 (JSON 배열 문자열) */
+  allowedIps?: string;
 }
 
 /**
@@ -69,11 +76,8 @@ export interface UserRequest {
  */
 export interface UserSearchParams {
   tenantId?: number;
-  centerId?: number;
-  userSabun?: string;
-  userName?: string;
-  userStatus?: string;
-  isUse?: boolean;
+  username?: string;
+  enabled?: boolean;
   page?: number;
   size?: number;
 }

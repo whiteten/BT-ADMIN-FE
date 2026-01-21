@@ -20,8 +20,8 @@ interface PagedResponse<T> {
 export const userQueryKeys = createQueryKeys('users', {
   getUsers: () => ['all'],
   searchUsers: (params?: Record<string, unknown>) => [params],
-  getUser: (userId?: number) => [userId],
-  getUserBySabun: (userSabun?: string) => [userSabun],
+  getUser: (id?: number) => [id],
+  getUserByUsername: (username?: string) => [username],
 });
 
 /**
@@ -49,23 +49,23 @@ export const useSearchUsers = ({ params, queryOptions }: QueryHookWithParamsOpti
 /**
  * 사용자 단건 조회 훅
  */
-export const useGetUser = ({ userId, queryOptions }: { userId?: number; queryOptions?: QueryHookWithParamsOptions<User>['queryOptions'] } = {}) => {
+export const useGetUser = ({ id, queryOptions }: { id?: number; queryOptions?: QueryHookWithParamsOptions<User>['queryOptions'] } = {}) => {
   return useQuery({
-    queryKey: userQueryKeys.getUser(userId).queryKey,
-    queryFn: () => userApi.getUser(userId!),
-    enabled: !!userId,
+    queryKey: userQueryKeys.getUser(id).queryKey,
+    queryFn: () => userApi.getUser(id!),
+    enabled: !!id,
     ...queryOptions,
   });
 };
 
 /**
- * 사번으로 사용자 조회 훅
+ * 사용자명으로 사용자 조회 훅
  */
-export const useGetUserBySabun = ({ userSabun, queryOptions }: { userSabun?: string; queryOptions?: QueryHookWithParamsOptions<User>['queryOptions'] } = {}) => {
+export const useGetUserByUsername = ({ username, queryOptions }: { username?: string; queryOptions?: QueryHookWithParamsOptions<User>['queryOptions'] } = {}) => {
   return useQuery({
-    queryKey: userQueryKeys.getUserBySabun(userSabun).queryKey,
-    queryFn: () => userApi.getUserBySabun(userSabun!),
-    enabled: !!userSabun,
+    queryKey: userQueryKeys.getUserByUsername(username).queryKey,
+    queryFn: () => userApi.getUserBySabun(username!),
+    enabled: !!username,
     ...queryOptions,
   });
 };
@@ -90,7 +90,7 @@ export const useCreateUser = ({ mutationOptions }: MutationHookOptions<User, Use
 export const useUpdateUser = ({ mutationOptions }: MutationHookOptions<User, { userId: number; data: UserRequest }> = {}) => {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: userApi.updateUser,
+    mutationFn: ({ userId, data }: { userId: number; data: UserRequest }) => userApi.updateUser({ userId, data }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: userQueryKeys._def });
     },

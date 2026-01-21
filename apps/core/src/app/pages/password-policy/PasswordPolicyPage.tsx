@@ -20,8 +20,8 @@ import { cn } from '@/libs/shared-ui/src/lib/utils';
 const { Text } = Typography;
 
 const breadcrumb: BreadcrumbProps['items'] = [
-  { title: '권한 관리', path: '/core/auth-groups' },
-  { title: '비밀번호 정책', path: '/core/password-policy' },
+  { title: '권한 관리', path: '/core/iam' },
+  { title: '비밀번호 정책', path: '/core/iam/password-policy' },
 ];
 
 /**
