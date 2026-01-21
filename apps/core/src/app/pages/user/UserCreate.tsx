@@ -1,11 +1,11 @@
 /**
  * 사용자 생성 페이지
  * - BotCreate 패턴 적용: Steps wizard + Summary sidebar
- * - Step 1: 기본 정보 (사용자명, 계정, 설명)
- * - Step 2: 권한 설정 (역할, 활성화)
- * - Step 3: 부가사항 (핸드폰번호, 이메일, 접근 허용 IP)
+ * - Step 1: 기본 정보 (사용자명, 계정, 설명, 역할, 활성화)
+ * - Step 2: 부가사항 (핸드폰번호, 이메일, 접근 허용 IP)
  * - 초기 비밀번호는 계정(userAccount)과 동일하게 백엔드에서 자동 설정
  * - forcePasswordChange 기본값 true로 첫 로그인 시 비밀번호 변경 유도
+ * - 역할(roleId)은 필수값이며, TB_BT_CM_USER_ROLE_MAP 테이블에 매핑됨
  */
 
 import { useEffect, useState } from 'react';
@@ -85,16 +85,15 @@ export default function UserCreate() {
   }, [formValues, form]);
 
   const steps = [
-    { title: '기본 정보', requiredFieldNames: ['username', 'userAccount'], content: renderStep1 },
-    { title: '권한 설정', requiredFieldNames: [], content: renderStep2 },
-    { title: '부가사항', requiredFieldNames: [], content: renderStep3 },
+    { title: '기본 정보', requiredFieldNames: ['username', 'userAccount', 'roleId'], content: renderStep1 },
+    { title: '부가사항', requiredFieldNames: [], content: renderStep2 },
   ];
 
   const createUserMutation = useCreateUser({
     mutationOptions: {
-      onSuccess: (data) => {
+      onSuccess: () => {
         toast.success('사용자가 생성되었습니다.');
-        navigate(`../${data.id}`);
+        navigate('../list');
       },
       onError: () => {
         toast.error('사용자 생성에 실패했습니다.');
@@ -140,7 +139,14 @@ export default function UserCreate() {
     setCurrentStep(currentStep - 1);
   };
 
-  // Step 1: 기본 정보
+  // 스텝 클릭 핸들러: 완료한 스텝(이전 스텝)으로만 이동 가능
+  const handleStepClick = (targetStep: number) => {
+    if (targetStep < currentStep) {
+      setCurrentStep(targetStep);
+    }
+  };
+
+  // Step 1: 기본 정보 (역할, 활성화 포함)
   function renderStep1() {
     return (
       <>
@@ -179,6 +185,18 @@ export default function UserCreate() {
           </Col>
         </Row>
         <Row gutter={20}>
+          <Col span={12}>
+            <Form.Item name="roleId" label="역할" required hasFeedback rules={[{ required: true, message: '역할을 선택해 주세요.' }]}>
+              <Select options={roleOptions} showSearch optionFilterProp="label" placeholder="역할을 선택하세요." loading={isFetchingRoles} />
+            </Form.Item>
+          </Col>
+          <Col span={12}>
+            <Form.Item name="enabled" label="활성화" valuePropName="checked">
+              <Switch checkedChildren="활성" unCheckedChildren="비활성" />
+            </Form.Item>
+          </Col>
+        </Row>
+        <Row gutter={20}>
           <Col span={24}>
             <Form.Item name="description" label="설명" rules={[{ max: 500, message: '최대 500자까지 입력 가능합니다.' }]}>
               <Input.TextArea placeholder="사용자에 대한 설명을 입력하세요." rows={3} showCount maxLength={500} />
@@ -188,26 +206,6 @@ export default function UserCreate() {
         <div className="mt-4 p-3 bg-blue-50 border border-blue-200 rounded-md text-sm text-blue-700">
           <strong>안내:</strong> 초기 비밀번호는 계정(로그인 ID)과 동일하게 설정되며, 사용자는 첫 로그인 시 비밀번호를 변경해야 합니다.
         </div>
-      </>
-    );
-  }
-
-  // Step 2: 권한 설정
-  function renderStep2() {
-    return (
-      <>
-        <Row gutter={20}>
-          <Col span={12}>
-            <Form.Item name="roleId" label="역할">
-              <Select options={roleOptions} allowClear showSearch optionFilterProp="label" placeholder="역할을 선택하세요." loading={isFetchingRoles} />
-            </Form.Item>
-          </Col>
-          <Col span={12}>
-            <Form.Item name="enabled" label="활성화" valuePropName="checked">
-              <Switch checkedChildren="활성" unCheckedChildren="비활성" />
-            </Form.Item>
-          </Col>
-        </Row>
       </>
     );
   }
@@ -254,8 +252,8 @@ export default function UserCreate() {
     }
   };
 
-  // Step 3: 부가사항
-  function renderStep3() {
+  // Step 2: 부가사항
+  function renderStep2() {
     return (
       <>
         <Row gutter={20}>
@@ -362,7 +360,7 @@ export default function UserCreate() {
 
     return (
       <div className="space-y-4">
-        {/* Step 1: 기본 정보 */}
+        {/* Step 1: 기본 정보 (역할, 활성화 포함) */}
         <div className="space-y-2">
           <div className="flex items-center gap-1">
             <span className="text-gray-500 w-28 shrink-0">사용자명</span>
@@ -375,6 +373,17 @@ export default function UserCreate() {
             {renderValidationIcon('userAccount')}
           </div>
           <div className="flex items-center gap-1">
+            <span className="text-gray-500 w-28 shrink-0">역할</span>
+            <span className="text-gray-800 flex-1">{displayValue(getOptionLabel(roleOptions, roleId))}</span>
+            {renderValidationIcon('roleId')}
+          </div>
+          <div className="flex items-center gap-1">
+            <span className="text-gray-500 w-28 shrink-0">활성화</span>
+            <span className="text-gray-800 flex-1">
+              {enabled ? <span className="text-green-600 font-medium">활성</span> : <span className="text-red-500 font-medium">비활성</span>}
+            </span>
+          </div>
+          <div className="flex items-center gap-1">
             <span className="text-gray-500 w-28 shrink-0">초기 비밀번호</span>
             <span className="text-gray-800 flex-1 text-blue-600">{userAccount ? '계정과 동일' : <span className="text-gray-300">-</span>}</span>
           </div>
@@ -384,21 +393,7 @@ export default function UserCreate() {
           </div>
         </div>
         <Divider className="!my-3" />
-        {/* Step 2: 권한 설정 */}
-        <div className="space-y-2">
-          <div className="flex items-center gap-1">
-            <span className="text-gray-500 w-28 shrink-0">역할</span>
-            <span className="text-gray-800 flex-1">{displayValue(getOptionLabel(roleOptions, roleId))}</span>
-          </div>
-          <div className="flex items-center gap-1">
-            <span className="text-gray-500 w-28 shrink-0">활성화</span>
-            <span className="text-gray-800 flex-1">
-              {enabled ? <span className="text-green-600 font-medium">활성</span> : <span className="text-red-500 font-medium">비활성</span>}
-            </span>
-          </div>
-        </div>
-        <Divider className="!my-3" />
-        {/* Step 3: 부가사항 */}
+        {/* Step 2: 부가사항 */}
         <div className="space-y-2">
           <div className="flex items-center gap-1">
             <span className="text-gray-500 w-28 shrink-0">핸드폰번호</span>
@@ -464,6 +459,7 @@ export default function UserCreate() {
       <div className="flex items-center justify-center w-full h-[58px] min-h-[58px] bg-white bt-shadow px-7 py-2">
         <Steps
           current={currentStep}
+          onChange={handleStepClick}
           items={steps.map((step) => ({ title: step.title }))}
           size="small"
           className="max-w-10/12 min-w-1/3"
