@@ -88,6 +88,12 @@ export const modelApi = {
     const response = await apiClient.delete('/intent-delete', { params });
     return response;
   },
+  importIntent: async ({ params, data }: { params: Record<string, unknown>; data: File }) => {
+    const formData = new FormData();
+    formData.append('uploadFile', data);
+    const response = await apiClient.post('/intent-excel-import', formData, { params });
+    return response;
+  },
   exportIntent: async (params: Record<string, unknown>) => {
     const response = await apiClient.get<Blob>('/intent-excel-export', { params, responseType: 'blob' });
     return response;

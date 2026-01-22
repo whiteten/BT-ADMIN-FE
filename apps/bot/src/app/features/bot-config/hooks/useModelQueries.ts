@@ -440,3 +440,10 @@ export const useExportIntent = ({ mutationOptions }: MutationHookOptions = {}) =
     ...mutationOptions,
   });
 };
+
+export const useImportIntent = ({ mutationOptions }: MutationHookOptions = {}) => {
+  return useMutation({
+    mutationFn: modelApi.importIntent,
+    ...mutationOptions,
+  });
+};

@@ -9,7 +9,7 @@ import { toast } from '@/shared-util';
 import IntentDrawer, { type IntentDrawerRef } from '../components/IntentDrawer';
 import TrainDiffStatusBadge from '../components/TrainDiffStatusBadge';
 import TrainStatusBadge from '../components/TrainStatusBadge';
-import { modelQueryKeys, useDeleteIntent, useExportIntent, useGetIntents } from '../hooks/useModelQueries';
+import { modelQueryKeys, useDeleteIntent, useExportIntent, useGetIntents, useImportIntent } from '../hooks/useModelQueries';
 import type { IntentListItem, TrainDiffStatus, TrainStatus } from '../types';
 import FileImportModal, { type FileImportModalRef } from '@/components/custom/FileImportModal';
 import { IconTrash } from '@/components/custom/Icons';
@@ -40,6 +40,16 @@ export default function ModelIntentList() {
   });
 
   const { mutate: exportIntent, isPending: isExporting } = useExportIntent();
+
+  const { mutate: importIntent, isPending: isImporting } = useImportIntent({
+    mutationOptions: {
+      onSuccess: () => {
+        toast.success('완료되었습니다.');
+        queryClient.invalidateQueries({ queryKey: modelQueryKeys.getIntents({ modelId }).queryKey });
+        importModalRef.current?.close();
+      },
+    },
+  });
 
   const handleDeleteIntent = (intentId: string) => {
     modal.confirm.delete({
@@ -127,8 +137,7 @@ export default function ModelIntentList() {
 
   const handleImportIntent = async (files: File[]) => {
     const file = files[0];
-    alert(file.name);
-    importModalRef.current?.close();
+    importIntent({ params: { modelId }, data: file });
   };
 
   const handleRowDoubleClick = (event: RowDoubleClickedEvent<IntentListItem>) => {
@@ -167,7 +176,7 @@ export default function ModelIntentList() {
         <AgGridReact<IntentListItem> rowData={rowData} columnDefs={columnDefs} gridOptions={gridOptions} loading={isFetching} onRowDoubleClicked={handleRowDoubleClick} />
       </div>
       <IntentDrawer ref={drawerRef} />
-      <FileImportModal ref={importModalRef} title="Import" accept=".xlsx,.xls" onConfirm={handleImportIntent} />
+      <FileImportModal ref={importModalRef} title="Import" accept=".xlsx,.xls" onConfirm={handleImportIntent} confirmLoading={isImporting} />
     </div>
   );
 }
