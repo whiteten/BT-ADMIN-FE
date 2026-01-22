@@ -64,6 +64,12 @@ export default function UserList() {
       valueFormatter: (params) => (params.value ? dayjs(params.value).format('YYYY-MM-DD HH:mm') : '-'),
     },
     {
+      headerName: '최근 로그인 실패',
+      field: 'lastFailedLoginAt',
+      maxWidth: 160,
+      valueFormatter: (params) => (params.value ? dayjs(params.value).format('YYYY-MM-DD HH:mm') : '-'),
+    },
+    {
       headerName: '',
       maxWidth: 60,
       sortable: false,
