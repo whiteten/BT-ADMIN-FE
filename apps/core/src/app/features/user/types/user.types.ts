@@ -47,6 +47,7 @@ export interface User {
  * 사용자 생성/수정 요청 DTO (백엔드 UserRequest와 일치)
  * - 생성 시: 초기 비밀번호는 백엔드에서 userAccount와 동일하게 자동 설정
  * - 생성 시: forcePasswordChange는 백엔드에서 true로 자동 설정 (첫 로그인 시 비밀번호 변경 유도)
+ * - 테넌트 정보는 백엔드에서 인증 정보(TenantContext)로 자동 설정됨
  */
 export interface UserRequest {
   /** 사용자명 (이름) */
@@ -59,8 +60,6 @@ export interface UserRequest {
   roleId?: number;
   /** 활성화 여부 */
   enabled?: boolean;
-  /** 기본 테넌트 ID */
-  tenantId?: number;
   /** 비밀번호 변경 강제 여부 (수정 시 사용) */
   forcePasswordChange?: boolean;
   /** 핸드폰번호 */

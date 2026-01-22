@@ -103,12 +103,18 @@ export const useUpdateUser = ({ mutationOptions }: MutationHookOptions<User, { u
  */
 export const useDeleteUser = ({ mutationOptions }: MutationHookOptions<void, number> = {}) => {
   const queryClient = useQueryClient();
+  const { onSuccess: customOnSuccess, ...restOptions } = mutationOptions || {};
+
   return useMutation({
     mutationFn: userApi.deleteUser,
-    onSuccess: () => {
+    onSuccess: (...args) => {
+      // 기본 동작: 사용자 목록 쿼리 무효화 (재조회)
       queryClient.invalidateQueries({ queryKey: userQueryKeys._def });
+      // 사용자 정의 콜백 실행
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      (customOnSuccess as any)?.(...args);
     },
-    ...mutationOptions,
+    ...restOptions,
   });
 };
 
