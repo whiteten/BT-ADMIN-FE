@@ -33,3 +33,23 @@ export function hasKeyValue(obj: unknown, key: string, value: unknown, depth = I
   }
   return false;
 }
+
+/**
+ * Content-Disposition 헤더에서 파일명 추출
+ */
+export function extractFileName(contentDisposition?: string, defaultName = 'download'): string {
+  const fileName = contentDisposition?.match(/filename\*?=(?:UTF-8'')?["']?([^"';\n]+)["']?/i)?.[1] ?? defaultName;
+  return decodeURIComponent(fileName);
+}
+
+/**
+ * Blob 데이터를 파일로 다운로드
+ */
+export function downloadBlob(blob: Blob, fileName: string): void {
+  const url = window.URL.createObjectURL(blob);
+  const link = document.createElement('a');
+  link.href = url;
+  link.download = fileName;
+  link.click();
+  window.URL.revokeObjectURL(url);
+}

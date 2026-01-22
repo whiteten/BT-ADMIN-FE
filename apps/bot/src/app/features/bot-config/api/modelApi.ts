@@ -88,6 +88,10 @@ export const modelApi = {
     const response = await apiClient.delete('/intent-delete', { params });
     return response;
   },
+  exportIntent: async (params: Record<string, unknown>) => {
+    const response = await apiClient.get<Blob>('/intent-excel-export', { params, responseType: 'blob' });
+    return response;
+  },
   getIntentSentences: async (params?: Record<string, unknown>): Promise<IntentSentenceListItem[]> => {
     const response = await apiClient.get<ListResponse<IntentSentenceListItem>>('/intent-sentence-list', { params });
     return extractList(response);

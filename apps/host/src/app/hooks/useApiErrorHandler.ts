@@ -2,7 +2,7 @@ import { useEffect, useRef } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import dayjs from 'dayjs';
 import { Log } from '@/log';
-import { API_ERROR_EVENT, type ApiErrorEvent, hasKeyValue, toast } from '@/shared-util';
+import { API_ERROR_EVENT, type ApiErrorEvent, toast } from '@/shared-util';
 
 /**
  * API 에러 이벤트를 전역으로 처리하는 훅
