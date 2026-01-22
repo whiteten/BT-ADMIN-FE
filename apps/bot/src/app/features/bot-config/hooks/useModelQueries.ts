@@ -1,6 +1,7 @@
 import { useMutation, useQuery } from '@tanstack/react-query';
 import { createQueryKeys } from '@lukemorales/query-key-factory';
-import type { MutationHookOptions, QueryHookWithParamsOptions } from '@/shared-util';
+import dayjs from 'dayjs';
+import { type MutationHookOptions, type QueryHookWithParamsOptions, downloadBlob, extractFileName } from '@/shared-util';
 import { modelApi } from '../api/modelApi';
 import type { AoeListItem } from '../types/aoe';
 import type { EntityItem, EntityListItem, EntityValueListItem } from '../types/entity';
@@ -425,6 +426,17 @@ export const useCompareSnapshots = ({ params, queryOptions }: QueryHookWithParam
 export const useExecuteInference = ({ mutationOptions }: MutationHookOptions = {}) => {
   return useMutation({
     mutationFn: modelApi.executeInference,
+    ...mutationOptions,
+  });
+};
+
+export const useExportIntent = ({ mutationOptions }: MutationHookOptions = {}) => {
+  return useMutation({
+    mutationFn: async (params: Record<string, unknown>) => {
+      const response = await modelApi.exportIntent(params);
+      const fileName = extractFileName(response.headers['content-disposition'], `INTENTS_${dayjs().format('YYYYMMDD')}.xlsx`);
+      downloadBlob(response.data, fileName);
+    },
     ...mutationOptions,
   });
 };

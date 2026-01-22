@@ -9,7 +9,7 @@ import { toast } from '@/shared-util';
 import IntentDrawer, { type IntentDrawerRef } from '../components/IntentDrawer';
 import TrainDiffStatusBadge from '../components/TrainDiffStatusBadge';
 import TrainStatusBadge from '../components/TrainStatusBadge';
-import { modelQueryKeys, useDeleteIntent, useGetIntents } from '../hooks/useModelQueries';
+import { modelQueryKeys, useDeleteIntent, useExportIntent, useGetIntents } from '../hooks/useModelQueries';
 import type { IntentListItem, TrainDiffStatus, TrainStatus } from '../types';
 import FileImportModal, { type FileImportModalRef } from '@/components/custom/FileImportModal';
 import { IconTrash } from '@/components/custom/Icons';
@@ -38,6 +38,8 @@ export default function ModelIntentList() {
       },
     },
   });
+
+  const { mutate: exportIntent, isPending: isExporting } = useExportIntent();
 
   const handleDeleteIntent = (intentId: string) => {
     modal.confirm.delete({
@@ -153,7 +155,9 @@ export default function ModelIntentList() {
           <Button variant="solid" onClick={handleClickImport}>
             Import
           </Button>
-          <Button variant="solid">Export</Button>
+          <Button variant="solid" loading={isExporting} onClick={() => exportIntent({ modelId })}>
+            Export
+          </Button>
           <Button variant="solid" color="primary" onClick={handleClickAddIntent}>
             추가
           </Button>
