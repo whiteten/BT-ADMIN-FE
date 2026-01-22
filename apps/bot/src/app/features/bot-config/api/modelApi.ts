@@ -154,6 +154,16 @@ export const modelApi = {
     const response = await apiClient.delete('/entity-values-delete', { params });
     return response;
   },
+  importEntity: async ({ params, data }: { params: Record<string, unknown>; data: File }) => {
+    const formData = new FormData();
+    formData.append('uploadFile', data);
+    const response = await apiClient.post('/entity-excel-import', formData, { params });
+    return response;
+  },
+  exportEntity: async (params: Record<string, unknown>) => {
+    const response = await apiClient.get<Blob>('/entity-excel-export', { params, responseType: 'blob' });
+    return response;
+  },
   getAoeAgents: async (params?: Record<string, unknown>): Promise<AoeListItem[]> => {
     const response = await apiClient.get<ListResponse<AoeListItem>>('/aoe-agent-list', { params });
     return extractList(response);

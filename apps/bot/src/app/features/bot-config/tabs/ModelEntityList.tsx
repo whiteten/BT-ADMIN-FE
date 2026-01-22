@@ -9,8 +9,9 @@ import { toast } from '@/shared-util';
 import EntityDrawer, { type EntityDrawerRef } from '../components/EntityDrawer';
 import TrainDiffStatusBadge from '../components/TrainDiffStatusBadge';
 import TrainStatusBadge from '../components/TrainStatusBadge';
-import { modelQueryKeys, useDeleteEntity, useGetEntities } from '../hooks/useModelQueries';
+import { modelQueryKeys, useDeleteEntity, useExportEntity, useGetEntities, useImportEntity } from '../hooks/useModelQueries';
 import type { EntityListItem, TrainDiffStatus, TrainStatus } from '../types';
+import FileImportModal, { type FileImportModalRef } from '@/components/custom/FileImportModal';
 import { IconTag, IconTrash } from '@/components/custom/Icons';
 import useAggridOptions from '@/libs/shared-ui/src/hooks/useAggridOptions';
 import { useModal } from '@/libs/shared-ui/src/hooks/useModal';
@@ -108,6 +109,7 @@ export default function ModelEntityList() {
   const [filterColumn, setFilterColumn] = useState('entityName');
   const [searchValue, setSearchValue] = useState('');
   const drawerRef = useRef<EntityDrawerRef>(null);
+  const importModalRef = useRef<FileImportModalRef>(null);
 
   const { data: entityList, isFetching } = useGetEntities({ params: { modelId } });
 
@@ -116,6 +118,18 @@ export default function ModelEntityList() {
       onSuccess: () => {
         toast.success('완료되었습니다.');
         queryClient.invalidateQueries({ queryKey: modelQueryKeys.getEntities({ modelId }).queryKey });
+      },
+    },
+  });
+
+  const { mutate: exportEntity, isPending: isExporting } = useExportEntity();
+
+  const { mutate: importEntity, isPending: isImporting } = useImportEntity({
+    mutationOptions: {
+      onSuccess: () => {
+        toast.success('완료되었습니다.');
+        queryClient.invalidateQueries({ queryKey: modelQueryKeys.getEntities({ modelId }).queryKey });
+        importModalRef.current?.close();
       },
     },
   });
@@ -208,6 +222,15 @@ export default function ModelEntityList() {
     drawerRef.current?.open({ modelId });
   };
 
+  const handleClickImport = () => {
+    importModalRef.current?.open();
+  };
+
+  const handleImportEntity = async (files: File[]) => {
+    const file = files[0];
+    importEntity({ params: { modelId }, data: file });
+  };
+
   const handleRowDoubleClick = (event: RowDoubleClickedEvent<EntityListItem>) => {
     if (!event.data) return;
     const { entityId } = event.data;
@@ -229,8 +252,12 @@ export default function ModelEntityList() {
           <Input value={searchValue} onChange={(e) => setSearchValue(e.target.value)} className="w-full lg:max-w-[400px]" placeholder="검색어를 입력하세요." />
         </div>
         <div className="flex items-center gap-2.5">
-          <Button variant="solid">Import</Button>
-          <Button variant="solid">Export</Button>
+          <Button variant="solid" onClick={handleClickImport}>
+            Import
+          </Button>
+          <Button variant="solid" loading={isExporting} onClick={() => exportEntity({ modelId })}>
+            Export
+          </Button>
           <Button variant="solid" color="primary" onClick={handleClickAddEntity}>
             추가
           </Button>
@@ -240,6 +267,7 @@ export default function ModelEntityList() {
         <AgGridReact<EntityListItem> rowData={rowData} columnDefs={columnDefs} gridOptions={gridOptions} loading={isFetching} onRowDoubleClicked={handleRowDoubleClick} />
       </div>
       <EntityDrawer ref={drawerRef} />
+      <FileImportModal ref={importModalRef} title="Import" accept=".xlsx,.xls" onConfirm={handleImportEntity} confirmLoading={isImporting} />
     </div>
   );
 }
