@@ -4,30 +4,6 @@ export interface LoginRequestDatas {
 }
 
 /**
- * 비밀번호 정책 타입
- */
-export interface PasswordPolicy {
-  tenantId: number;
-  minLength: number;
-  maxLength: number;
-  requireUppercase: boolean;
-  requireLowercase: boolean;
-  requireDigit: boolean;
-  rejectConsecutiveChars: boolean;
-  rejectRepeatedChars: boolean;
-  rejectUserId: boolean;
-  historyCount: number;
-  maxAgeDays: number;
-  expirationWarningDays: number;
-  maxFailedAttempts: number;
-  lockoutDurationMinutes: number;
-  failedAttemptResetMinutes: number;
-  forceChangeOnFirstLogin: boolean;
-  createdAt?: string;
-  updatedAt?: string;
-}
-
-/**
  * 로그인 응답 타입
  */
 export interface LoginResponse {
