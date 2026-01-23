@@ -7,7 +7,7 @@ import { Button, Input, Select } from 'antd';
 import { toast } from '@/shared-util';
 import AggridEnvDeploySidebar from '../components/AggridEnvDeploySidebar';
 import BotEnvDrawer, { type BotEnvDrawerRef } from '../components/BotEnvDrawer';
-import { botQueryKeys, useDeleteEnv, useGetEnvList } from '../hooks/useBotQueries';
+import { botQueryKeys, useDeleteEnv, useGetBotDeployConfig, useGetEnvList } from '../hooks/useBotQueries';
 import type { EnvListItem } from '../types';
 import { IconAlertTriangle, IconTrash } from '@/components/custom/Icons';
 import useAggridOptions from '@/libs/shared-ui/src/hooks/useAggridOptions';
@@ -56,6 +56,11 @@ export default function BotEnvList() {
         toast.error('환경변수 삭제에 실패했습니다.');
       },
     },
+  });
+
+  const { refetch: refetchBotDeployConfig } = useGetBotDeployConfig({
+    params: { serviceId },
+    queryOptions: { enabled: false },
   });
 
   const [rowData, setRowData] = useState<EnvListItem[]>([]);
@@ -151,7 +156,13 @@ export default function BotEnvList() {
     },
   ];
 
-  const handleClickAddEnv = () => {
+  const handleClickAddEnv = async () => {
+    const { data: deployConfig } = await refetchBotDeployConfig();
+    const hasAssignedServer = deployConfig?.some((config) => config.assignYn === 1);
+    if (!hasAssignedServer) {
+      toast.warning('배포 설정된 봇 서버가 없습니다.\n봇버전/배포 화면에서 배포설정을 확인해주세요.');
+      return;
+    }
     envDrawerRef.current?.open({ serviceId });
   };
 
