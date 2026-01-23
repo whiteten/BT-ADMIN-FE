@@ -7,13 +7,14 @@ import { toast } from '@/shared-util';
 import { botQueryKeys, useGetBotAoeDetail, useUpdateBotAoe } from '../hooks/useBotQueries';
 import { useGetAoeAgents } from '../hooks/useModelQueries';
 import type { BotAoeUpdateDatas } from '../types';
+import { AgentType } from '../types/aoe';
 import { FallbackSpinner } from '@/components/custom/FallbackSpinner';
 
 export default function BotAoe() {
   const { serviceId } = useParams();
   const queryClient = useQueryClient();
   const { data: botAoeDetail, isFetching: isFetchingBotAoeDetail } = useGetBotAoeDetail({ params: { serviceId } });
-  const { data: aoeAgents, isFetching: isFetchingAoeAgents } = useGetAoeAgents();
+  const { data: aoeAgents, isFetching: isFetchingAoeAgents } = useGetAoeAgents({ params: { agentType: AgentType.FAQ } });
   const { mutate: updateBotAoe, isPending: isUpdating } = useUpdateBotAoe({
     mutationOptions: {
       onSuccess: () => {

@@ -2,41 +2,30 @@ import { useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Input, Select } from 'antd';
 import FaqAgentCard from '../components/FaqAgentCard';
+import { useGetFaqAgentList } from '../hooks/useAoeQueries';
+import type { FaqAgentListItem } from '../types/aoe.types';
+import { FallbackSpinner } from '@/components/custom/FallbackSpinner';
 import NoData from '@/components/custom/NoData';
-
-type FaqAgent = {
-  agentId: string;
-  agentName: string;
-  faqCount: number;
-};
-
-// 목 데이터 (API 연결 전 테스트용)
-const mockAgentList: FaqAgent[] = [
-  { agentId: '1', agentName: 'Agent1', faqCount: 10 },
-  { agentId: '2', agentName: 'Agent2', faqCount: 20 },
-  { agentId: '3', agentName: 'Agent3', faqCount: 30 },
-  { agentId: '4', agentName: 'Agent4', faqCount: 40 },
-  { agentId: '5', agentName: 'Agent5', faqCount: 50 },
-  { agentId: '6', agentName: 'Agent6', faqCount: 60 },
-  { agentId: '7', agentName: 'Agent7', faqCount: 70 },
-  { agentId: '8', agentName: 'Agent8', faqCount: 80 },
-];
 
 export default function AoeFaqAgentList() {
   const navigate = useNavigate();
   const [filterColumn, setFilterColumn] = useState('agentName');
   const [searchValue, setSearchValue] = useState('');
 
+  // FAQ Agent 목록 조회
+  const { data: faqAgentList, isFetching } = useGetFaqAgentList({});
+
   const filteredList = useMemo(() => {
-    if (!searchValue.trim()) return mockAgentList;
+    if (!faqAgentList) return [];
+    if (!searchValue.trim()) return faqAgentList;
 
     const keyword = searchValue.toLowerCase();
-    return mockAgentList.filter((agent) => {
-      const value = agent[filterColumn as keyof typeof agent];
+    return faqAgentList.filter((agent) => {
+      const value = agent[filterColumn as keyof FaqAgentListItem];
       if (value == null) return false;
       return String(value).toLowerCase().includes(keyword);
     });
-  }, [filterColumn, searchValue]);
+  }, [faqAgentList, filterColumn, searchValue]);
 
   const handleColumnChange = (value: string) => {
     setFilterColumn(value);
@@ -46,6 +35,14 @@ export default function AoeFaqAgentList() {
   const handleDetail = (agentId: string) => {
     navigate(`../faq/${agentId}`);
   };
+
+  if (isFetching) {
+    return (
+      <div className="flex items-center justify-center w-full h-full">
+        <FallbackSpinner />
+      </div>
+    );
+  }
 
   return (
     <div className="flex flex-col gap-5 w-full h-full">

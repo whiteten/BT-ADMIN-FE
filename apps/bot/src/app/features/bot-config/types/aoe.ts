@@ -2,6 +2,14 @@ export interface Aoe {
   agentId: string;
   agentName: string;
   aoeApiKey: string;
+  agentType: AgentType;
+}
+
+export enum AgentType {
+  BASIC = 'BASIC', // 기본
+  FAQ = 'FAQ', // FAQ
+  TRAIN_SET = 'TRAIN_SET', //학습셋
+  EVAL_SET = 'EVAL_SET', // 평가셋
 }
 
 export type AoeListItem = Pick<Aoe, 'agentId' | 'agentName'>;
