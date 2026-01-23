@@ -19,6 +19,7 @@ import type {
   EnvNodeItem,
   EnvUpdateDatas,
   IfeInfo,
+  PublishBotVersionResult,
   SttListItem,
   TtsListItem,
   WorkTimeListItem,
@@ -75,9 +76,9 @@ export const botApi = {
     const response = await apiClient.delete('/bot-version-delete', { params });
     return response;
   },
-  publishBotVersion: async ({ params, data }: { params: Record<string, unknown>; data: Record<string, unknown> }) => {
-    const response = await apiClient.post('/bot-version-publish', data, { params });
-    return response;
+  publishBotVersion: async ({ params, data }: { params: Record<string, unknown>; data: Record<string, unknown> }): Promise<PublishBotVersionResult> => {
+    const response = await apiClient.post<DetailResponse<PublishBotVersionResult>>('/bot-version-publish', data, { params });
+    return extractDetail(response);
   },
   getIfeInfo: async ({ params, data }: { params: Record<string, unknown>; data: Record<string, unknown> }): Promise<IfeInfo> => {
     const response = await apiClient.post<DetailResponse<IfeInfo>>('/bot-version-webfloweditor', data, { params });

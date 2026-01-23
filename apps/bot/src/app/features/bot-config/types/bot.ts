@@ -79,3 +79,35 @@ export interface BotAoeDetail {
 
 export type BotAoeDetailItem = BotAoeDetail;
 export type BotAoeUpdateDatas = Omit<BotAoeDetail, 'agentName'>;
+
+/**
+ * 배포 결과 항목
+ */
+export interface PublishResultItem {
+  systemId: number;
+  systemName: string;
+  success: boolean;
+  errorCode: string;
+  message: string;
+}
+
+/**
+ * 봇 버전 배포 결과
+ */
+export interface PublishBotVersionResult {
+  ok: boolean;
+  code: string;
+  message: string;
+  data: {
+    accessId: string;
+    totalCount: number;
+    deployResults: PublishResultItem[];
+    deploySuccessCount: number;
+    deployFailCount: number;
+    applyResults: PublishResultItem[];
+    applySuccessCount: number;
+    applyFailCount: number;
+    svcResvId: string | null;
+  };
+  timestamp: string;
+}

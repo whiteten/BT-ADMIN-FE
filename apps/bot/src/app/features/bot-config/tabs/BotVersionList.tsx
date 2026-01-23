@@ -10,8 +10,9 @@ import { toast } from '@/shared-util';
 import AggridDeployServerInfoSidebar from '../components/AggridDeployServerInfoSidebar';
 import BotDeployConfigDrawer, { type BotDeployConfigDrawerRef } from '../components/BotDeployConfigDrawer';
 import BotVersionDrawer, { type BotVersionDrawerRef } from '../components/BotVersionDrawer';
+import BotVersionPublishResultModal, { type BotVersionPublishResultModalRef } from '../components/BotVersionPublishResultModal';
 import { botQueryKeys, useDeleteBotVersion, useGetBotDeployConfig, useGetBotVersions, useGetIfeInfo, usePublishBotVersion } from '../hooks/useBotQueries';
-import type { BotVersionListItem, IfeInfo } from '../types';
+import type { BotVersionListItem, IfeInfo, PublishBotVersionResult } from '../types';
 import { IconTrash } from '@/components/custom/Icons';
 import useAggridOptions from '@/libs/shared-ui/src/hooks/useAggridOptions';
 import { useModal } from '@/libs/shared-ui/src/hooks/useModal';
@@ -48,13 +49,14 @@ export default function BotVersionList() {
   const gridRef = useRef<AgGridReact<BotVersionListItem>>(null);
   const versionDrawerRef = useRef<BotVersionDrawerRef>(null);
   const deployConfigDrawerRef = useRef<BotDeployConfigDrawerRef>(null);
+  const publishResultModalRef = useRef<BotVersionPublishResultModalRef>(null);
 
   const { data: versionList, isLoading: isLoadingVersionList } = useGetBotVersions({ params: { serviceId } });
 
   const { mutate: publishBotVersion, isPending: isPublishing } = usePublishBotVersion({
     mutationOptions: {
-      onSuccess: () => {
-        toast.success('버전이 배포되었습니다.');
+      onSuccess: (data) => {
+        publishResultModalRef.current?.open(data as PublishBotVersionResult);
       },
     },
   });
@@ -243,6 +245,7 @@ export default function BotVersionList() {
       </div>
       <BotVersionDrawer ref={versionDrawerRef} />
       <BotDeployConfigDrawer ref={deployConfigDrawerRef} />
+      <BotVersionPublishResultModal ref={publishResultModalRef} />
     </div>
   );
 }
