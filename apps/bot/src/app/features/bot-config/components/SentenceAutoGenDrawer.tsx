@@ -11,7 +11,7 @@ import type { GenerateSentenceFormDatas } from '../types/aoe';
  * SentenceAutoGenDrawer ref 타입
  */
 export interface SentenceAutoGenDrawerRef {
-  open: (params: { modelId: string }) => void;
+  open: (params: { modelId: string; intentId?: string }) => void;
   close: () => void;
 }
 
@@ -34,6 +34,7 @@ interface DrawerState {
   open: boolean;
   modelId: string;
   tenantId: number | null;
+  intentId: string | null;
 }
 
 /**
@@ -54,6 +55,7 @@ const SentenceAutoGenDrawer = forwardRef<SentenceAutoGenDrawerRef, SentenceAutoG
     open: false,
     modelId: '',
     tenantId: null,
+    intentId: null,
   });
 
   const { open } = drawerState;
@@ -86,6 +88,7 @@ const SentenceAutoGenDrawer = forwardRef<SentenceAutoGenDrawerRef, SentenceAutoG
         open: true,
         modelId: params.modelId,
         tenantId,
+        intentId: params.intentId ?? null,
       });
     },
     close: () => {
@@ -117,7 +120,7 @@ const SentenceAutoGenDrawer = forwardRef<SentenceAutoGenDrawerRef, SentenceAutoG
   const onFinish: FormProps<GenerateSentenceFormDatas>['onFinish'] = (values) => {
     Log.debug('onFinish', values);
     initTransfer();
-    generateSentence({ params: { modelId: drawerState.modelId, agentId: values.agentId }, data: { ...values, intentName: '', tenantId } });
+    generateSentence({ params: { modelId: drawerState.modelId, agentId: values.agentId, intentId: drawerState.intentId }, data: { ...values, tenantId } });
   };
 
   const onFinishFailed: FormProps<GenerateSentenceFormDatas>['onFinishFailed'] = (errorInfo) => {

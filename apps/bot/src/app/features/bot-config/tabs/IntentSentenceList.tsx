@@ -367,7 +367,7 @@ export default function IntentSentenceList() {
           <Button variant="solid" color="primary" onClick={handleCreateIntentSentence} loading={isCreating}>
             추가
           </Button>
-          <Button variant="solid" onClick={() => refAutoGenDrawer.current?.open({ modelId })}>
+          <Button variant="solid" onClick={() => refAutoGenDrawer.current?.open({ modelId, intentId })}>
             자동생성
           </Button>
           <Button variant="solid">Import</Button>
