@@ -10,7 +10,7 @@ import { toast } from '@/shared-util';
 import AggridDeployServerInfoSidebar from '../components/AggridDeployServerInfoSidebar';
 import BotDeployConfigDrawer, { type BotDeployConfigDrawerRef } from '../components/BotDeployConfigDrawer';
 import BotVersionDrawer, { type BotVersionDrawerRef } from '../components/BotVersionDrawer';
-import { botQueryKeys, useDeleteBotVersion, useGetBotVersions, useGetIfeInfo, usePublishBotVersion } from '../hooks/useBotQueries';
+import { botQueryKeys, useDeleteBotVersion, useGetBotDeployConfig, useGetBotVersions, useGetIfeInfo, usePublishBotVersion } from '../hooks/useBotQueries';
 import type { BotVersionListItem, IfeInfo } from '../types';
 import { IconTrash } from '@/components/custom/Icons';
 import useAggridOptions from '@/libs/shared-ui/src/hooks/useAggridOptions';
@@ -57,6 +57,11 @@ export default function BotVersionList() {
         toast.success('버전이 배포되었습니다.');
       },
     },
+  });
+
+  const { isLoading: isLoadingBotDeployConfig, refetch: refetchBotDeployConfig } = useGetBotDeployConfig({
+    params: { serviceId },
+    queryOptions: { enabled: false },
   });
 
   const { mutate: getIfeInfo, isPending: isEditing } = useGetIfeInfo({
@@ -152,11 +157,17 @@ export default function BotVersionList() {
     deployConfigDrawerRef.current?.open({ serviceId });
   };
 
-  const handleClickPublishVersion = () => {
+  const handleClickPublishVersion = async () => {
     const selectedRows = gridRef.current?.api?.getSelectedRows();
     const serviceVer = selectedRows?.[0]?.serviceVer;
     if (!serviceVer) {
       toast.warning('버전을 선택해주세요.');
+      return;
+    }
+    const { data: deployConfig } = await refetchBotDeployConfig();
+    const hasAssignedServer = deployConfig?.some((config) => config.assignYn === 1);
+    if (!hasAssignedServer) {
+      toast.warning('배포 설정된 봇 서버가 없습니다.\n배포설정을 확인해주세요.');
       return;
     }
     modal.confirm.execute({
@@ -208,7 +219,7 @@ export default function BotVersionList() {
           <Button variant="solid" onClick={handleClickEditVersion} loading={isEditing}>
             대화편집
           </Button>
-          <Button variant="solid" color="primary" onClick={handleClickPublishVersion} loading={isPublishing}>
+          <Button variant="solid" color="primary" onClick={handleClickPublishVersion} loading={isPublishing || isLoadingBotDeployConfig}>
             배포
           </Button>
           <Button variant="solid" color="cyan" onClick={handleClickDeployConfig}>
