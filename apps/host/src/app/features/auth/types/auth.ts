@@ -4,6 +4,27 @@ export interface LoginRequestDatas {
 }
 
 /**
+ * 사용자 정보 응답 타입 (/api/auth/me)
+ */
+export interface UserInfoResponse {
+  username: string;
+  tenant: string;
+  roles: string[];
+}
+
+/**
+ * 역할 정보 타입
+ */
+export interface RoleResponse {
+  roleId: number;
+  roleCode: string;
+  roleName: string;
+  description?: string;
+  sortOrder: number;
+  isUse: boolean;
+}
+
+/**
  * 로그인 응답 타입
  */
 export interface LoginResponse {

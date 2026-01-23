@@ -1,12 +1,13 @@
 import { useMutation, useQuery } from '@tanstack/react-query';
 import { createQueryKeys } from '@lukemorales/query-key-factory';
-import type { MutationHookOptions, QueryHookWithParamsOptions } from '@/shared-util';
+import type { MutationHookOptions, QueryHookOptions, QueryHookWithParamsOptions } from '@/shared-util';
 import { authApi } from '../api/authApi';
-import type { LoginRequestDatas, LoginResponse } from '../types/auth';
+import type { LoginRequestDatas, LoginResponse, RoleResponse, UserInfoResponse } from '../types/auth';
 
 export const authQueryKeys = createQueryKeys('auth', {
   getCsrfToken: (params?: Record<string, unknown>) => [params],
   getUserInfo: (params?: Record<string, unknown>) => [params],
+  getRoles: null,
   passwordPolicy: (params?: Record<string, unknown>) => [params],
 });
 
@@ -32,10 +33,21 @@ export const useLogout = ({ mutationOptions }: MutationHookOptions<unknown, void
   });
 };
 
-export const useGetUserInfo = ({ params, queryOptions }: QueryHookWithParamsOptions = {}) => {
+export const useGetUserInfo = ({ params, queryOptions }: QueryHookWithParamsOptions<UserInfoResponse> = {}) => {
   return useQuery({
     queryKey: authQueryKeys.getUserInfo(params).queryKey,
     queryFn: () => authApi.getUserInfo(params),
+    ...queryOptions,
+  });
+};
+
+/**
+ * 역할 목록 조회 훅 (역할코드 → 역할명 매핑용)
+ */
+export const useGetRoles = ({ queryOptions }: QueryHookOptions<RoleResponse[]> = {}) => {
+  return useQuery({
+    queryKey: authQueryKeys.getRoles.queryKey,
+    queryFn: () => authApi.getRoles(),
     ...queryOptions,
   });
 };
