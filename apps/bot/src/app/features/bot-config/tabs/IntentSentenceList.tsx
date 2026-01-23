@@ -17,8 +17,8 @@ import { Button, Input, type InputRef, Select } from 'antd';
 import dayjs from 'dayjs';
 import { Check, X } from 'lucide-react';
 import { toast } from '@/shared-util';
+import IntentSentenceAutoGenDrawer, { type IntentSentenceAutoGenDrawerRef } from '../components/IntentSentenceAutoGenDrawer';
 import { modelInferenceModal } from '../components/ModelInferenceModal';
-import SentenceAutoGenDrawer, { type SentenceAutoGenDrawerRef } from '../components/SentenceAutoGenDrawer';
 import TrainDiffStatusBadge from '../components/TrainDiffStatusBadge';
 import TrainStatusBadge from '../components/TrainStatusBadge';
 import {
@@ -123,7 +123,7 @@ export default function IntentSentenceList() {
   const queryClient = useQueryClient();
 
   // Refs
-  const refAutoGenDrawer = useRef<SentenceAutoGenDrawerRef>(null);
+  const refAutoGenDrawer = useRef<IntentSentenceAutoGenDrawerRef>(null);
   const gridApiRef = useRef<GridApi<IntentSentenceListItem> | null>(null);
 
   // State
@@ -394,7 +394,7 @@ export default function IntentSentenceList() {
           onRowEditingStopped={handleRowEditingStopped}
         />
       </div>
-      <SentenceAutoGenDrawer ref={refAutoGenDrawer} onAdd={handleCreateBulkIntentSentenceByDrawer} isAdding={isCreatingBulk} />
+      <IntentSentenceAutoGenDrawer ref={refAutoGenDrawer} onAdd={handleCreateBulkIntentSentenceByDrawer} isAdding={isCreatingBulk} />
     </div>
   );
 }

@@ -8,23 +8,19 @@ import { useGenerateSentence, useGetAoeAgents, useGetModel } from '../hooks/useM
 import type { GenerateSentenceFormDatas } from '../types/aoe';
 
 /**
- * SentenceAutoGenDrawer ref 타입
+ * IntentSentenceAutoGenDrawer ref 타입
  */
-export interface SentenceAutoGenDrawerRef {
+export interface IntentSentenceAutoGenDrawerRef {
   open: (params: { modelId: string; intentId?: string }) => void;
   close: () => void;
 }
 
 /**
- * SentenceAutoGenDrawer props 타입
+ * IntentSentenceAutoGenDrawer props 타입
  */
-export interface SentenceAutoGenDrawerProps<TExtra = Record<string, unknown>> {
+export interface IntentSentenceAutoGenDrawerProps<TExtra = Record<string, unknown>> {
   onAdd?: (params: { modelId: string; sentences: string[]; extraData?: TExtra }) => void;
   isAdding?: boolean;
-  /** Transfer 영역 아래에 렌더링될 추가 UI */
-  renderExtraFields?: () => React.ReactNode;
-  /** onAdd 호출 시 추가 필드 값을 수집하는 함수 */
-  getExtraFieldValues?: () => TExtra;
 }
 
 /**
@@ -50,7 +46,7 @@ interface TransferItem {
  * - ref.open({ modelId }) : 드로어 열기
  * - ref.close() : 드로어 닫기
  */
-const SentenceAutoGenDrawer = forwardRef<SentenceAutoGenDrawerRef, SentenceAutoGenDrawerProps>(({ onAdd, isAdding, renderExtraFields, getExtraFieldValues }, ref) => {
+const IntentSentenceAutoGenDrawer = forwardRef<IntentSentenceAutoGenDrawerRef, IntentSentenceAutoGenDrawerProps>(({ onAdd, isAdding }, ref) => {
   const [drawerState, setDrawerState] = useState<DrawerState>({
     open: false,
     modelId: '',
@@ -151,11 +147,10 @@ const SentenceAutoGenDrawer = forwardRef<SentenceAutoGenDrawerRef, SentenceAutoG
   const handleAdd = () => {
     Log.debug('추가 버튼 클릭', targetKeys);
     if (!targetKeys?.length) {
-      toast.warning('추가할 문장이 비어있습니다.\n학습문장 자동생성 후, 추가할 문장을 우측으로 이동해주세요.');
+      toast.warning('추가할 문장이 비어있습니다.\n문장 자동생성 후, 추가할 문장을 우측으로 이동해주세요.');
       return;
     }
-    const extraData = getExtraFieldValues?.();
-    onAdd?.({ modelId: drawerState.modelId, sentences: targetKeys as string[], extraData });
+    onAdd?.({ modelId: drawerState.modelId, sentences: targetKeys as string[] });
   };
 
   const footer = (
@@ -173,7 +168,7 @@ const SentenceAutoGenDrawer = forwardRef<SentenceAutoGenDrawerRef, SentenceAutoG
   );
 
   return (
-    <Drawer open={open} onClose={handleClose} title="학습문장 자동생성" closable={{ placement: 'end' }} size={830} footer={footer} destroyOnHidden>
+    <Drawer open={open} onClose={handleClose} title="의도문장 자동생성" closable={{ placement: 'end' }} size={830} footer={footer} destroyOnHidden>
       <div className="flex flex-col gap-6">
         {/* 상단 Form 영역 */}
         <Form form={form} layout="vertical" initialValues={{ agentId: null, generationCount: 3, exampleSentence: [''] }} onFinish={onFinish} onFinishFailed={onFinishFailed}>
@@ -214,7 +209,7 @@ const SentenceAutoGenDrawer = forwardRef<SentenceAutoGenDrawerRef, SentenceAutoG
           {/* 학습문장 자동생성 버튼 */}
           <div className="flex justify-end">
             <Button variant="solid" color="cyan" htmlType="submit" loading={isLoadingModel || isFetchingAoeAgents || isGeneratingSentence}>
-              학습문장 자동생성
+              문장 자동생성
             </Button>
           </div>
         </Form>
@@ -247,12 +242,9 @@ const SentenceAutoGenDrawer = forwardRef<SentenceAutoGenDrawerRef, SentenceAutoG
             className="[&_.ant-transfer-list-header_.ant-dropdown-trigger]:!hidden"
           />
         </div>
-
-        {/* 추가 필드 영역 */}
-        {renderExtraFields && <div className="flex flex-col gap-2">{renderExtraFields()}</div>}
       </div>
     </Drawer>
   );
 });
 
-export default SentenceAutoGenDrawer;
+export default IntentSentenceAutoGenDrawer;
