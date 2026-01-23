@@ -2,7 +2,7 @@ import { useMutation, useQuery } from '@tanstack/react-query';
 import { createQueryKeys } from '@lukemorales/query-key-factory';
 import type { MutationHookOptions, QueryHookWithParamsOptions } from '@/shared-util';
 import { authApi } from '../api/authApi';
-import type { LoginRequestDatas, LoginResponse } from '../types/auth';
+import type { LoginRequestDatas, LoginResponse, UserInfoResponse } from '../types/auth';
 
 export const authQueryKeys = createQueryKeys('auth', {
   getCsrfToken: (params?: Record<string, unknown>) => [params],
@@ -32,7 +32,7 @@ export const useLogout = ({ mutationOptions }: MutationHookOptions<unknown, void
   });
 };
 
-export const useGetUserInfo = ({ params, queryOptions }: QueryHookWithParamsOptions = {}) => {
+export const useGetUserInfo = ({ params, queryOptions }: QueryHookWithParamsOptions<UserInfoResponse> = {}) => {
   return useQuery({
     queryKey: authQueryKeys.getUserInfo(params).queryKey,
     queryFn: () => authApi.getUserInfo(params),

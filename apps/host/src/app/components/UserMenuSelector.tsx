@@ -1,6 +1,7 @@
 import { useNavigate } from 'react-router-dom';
 import dayjs from 'dayjs';
 import { Dot, History, KeyRound, LogOut } from 'lucide-react';
+import { useAuthStore } from '@/shared-store';
 import { useLogout } from '../features/auth/hooks/useAuthQueries';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
@@ -16,22 +17,14 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { cn } from '@/libs/shared-ui/src/lib/utils';
 
-interface User {
-  id: string;
-  role: string;
-}
-
-const user: User = {
-  id: 'Admin',
-  role: '시스템 관리자',
-};
-
 export default function UserMenuSelector() {
   const navigate = useNavigate();
+  const { userInfo, getCurrentRoleName, reset } = useAuthStore();
 
   const { mutate: logout } = useLogout({
     mutationOptions: {
       onSettled: () => {
+        reset(); // 스토어 초기화
         navigate('/login');
       },
     },
@@ -41,6 +34,9 @@ export default function UserMenuSelector() {
     logout();
   };
 
+  const username = userInfo?.username ?? '-';
+  const roleName = getCurrentRoleName();
+
   const TriggerBtn = (
     <Button variant="ghost" className={cn('flex justify-start min-w-[170px] h-full p-1.5 hover:cursor-pointer')}>
       <>
@@ -49,9 +45,9 @@ export default function UserMenuSelector() {
           <AvatarFallback className="rounded-lg">USR</AvatarFallback>
         </Avatar>
         <div className="flex flex-col gap-1 text-left text-sm leading-tight">
-          <span className="truncate font-semibold max-w-48">{user.id}</span>
+          <span className="truncate font-semibold max-w-48">{username}</span>
           <Badge variant="outline" className="w-fit h-[15px] text-xs p-2 bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200">
-            {user.role}
+            {roleName}
           </Badge>
         </div>
       </>
@@ -65,7 +61,7 @@ export default function UserMenuSelector() {
         <DropdownMenuLabel className="p-0 font-normal">
           <div className="flex p-2">
             <span className="text-base text-center w-full break-words">
-              <span className="font-bold">{user.id}</span> 님 환영합니다.
+              <span className="font-bold">{username}</span> 님 환영합니다.
             </span>
           </div>
         </DropdownMenuLabel>
@@ -75,13 +71,13 @@ export default function UserMenuSelector() {
             <div className="flex items-center">
               <Dot className="h-4 w-4" />
               <span className="">계정 :</span>
-              <span className="ml-1">{user.id}</span>
+              <span className="ml-1">{username}</span>
             </div>
             <div className="flex items-center">
               <Dot className="h-4 w-4" />
               <span className="">등급 :</span>
               <Badge variant="outline" className="ml-1 h-[15px] text-xs p-2 bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200">
-                {user.role}
+                {roleName}
               </Badge>
             </div>
             <div className="flex items-center">

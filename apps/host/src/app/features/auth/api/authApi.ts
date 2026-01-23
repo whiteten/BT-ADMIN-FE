@@ -1,5 +1,5 @@
-import ApiClient from '@/shared-util';
-import type { LoginRequestDatas, LoginResponse } from '../types/auth';
+import ApiClient, { type DetailResponse, extractDetail } from '@/shared-util';
+import type { LoginRequestDatas, LoginResponse, UserInfoResponse } from '../types/auth';
 
 const authClient = new ApiClient({ serviceURL: '/auth' });
 
@@ -16,8 +16,8 @@ export const authApi = {
     const response = await authClient.post('/logout');
     return response.data;
   },
-  getUserInfo: async (params?: Record<string, unknown>) => {
-    const response = await authClient.get('/me', { params });
-    return response.data;
+  getUserInfo: async (params?: Record<string, unknown>): Promise<UserInfoResponse> => {
+    const response = await authClient.get<DetailResponse<UserInfoResponse>>('/me', { params });
+    return extractDetail(response);
   },
 };

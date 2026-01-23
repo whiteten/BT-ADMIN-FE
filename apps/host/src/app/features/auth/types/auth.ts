@@ -4,6 +4,15 @@ export interface LoginRequestDatas {
 }
 
 /**
+ * 사용자 정보 응답 타입 (/api/auth/me)
+ */
+export interface UserInfoResponse {
+  username: string;
+  tenant: string;
+  roles: string[];
+}
+
+/**
  * 로그인 응답 타입
  */
 export interface LoginResponse {

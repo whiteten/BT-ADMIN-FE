@@ -5,6 +5,7 @@ const config: ModuleFederationConfig = {
   exposes: {
     './Module': './src/remote-entry.ts',
     './MenuConfig': './src/app/features/sidebar/menu-config.ts',
+    './RoleHooks': './src/role-hooks.ts',
   },
   additionalShared: [
     ['@/components/ui/sidebar', { singleton: true, strictVersion: true, requiredVersion: false }],
