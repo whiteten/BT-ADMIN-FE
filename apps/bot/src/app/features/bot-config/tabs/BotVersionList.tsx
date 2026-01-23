@@ -164,6 +164,11 @@ export default function BotVersionList() {
       toast.warning('버전을 선택해주세요.');
       return;
     }
+    const scenarioFile = selectedRows?.[0]?.scenarioFile;
+    if (!scenarioFile) {
+      toast.warning('업로드된 파일이 없습니다.\n대화편집에서 업로드를 진행해주세요.');
+      return;
+    }
     const { data: deployConfig } = await refetchBotDeployConfig();
     const hasAssignedServer = deployConfig?.some((config) => config.assignYn === 1);
     if (!hasAssignedServer) {
