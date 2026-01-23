@@ -1,6 +1,7 @@
 import { useMutation, useQuery } from '@tanstack/react-query';
 import { createQueryKeys } from '@lukemorales/query-key-factory';
-import type { MutationHookOptions, QueryHookWithParamsOptions } from '@/shared-util';
+import dayjs from 'dayjs';
+import { type MutationHookOptions, type QueryHookWithParamsOptions, downloadBlob, extractFileName } from '@/shared-util';
 import { aoeApi } from '../api/aoeApi';
 import type { AoeBasicDetailItem, FaqAgentListItem, FaqDetailItem, FaqListItem } from '../types/aoe.types';
 
@@ -113,7 +114,11 @@ export const useApplyFaq = ({ mutationOptions }: MutationHookOptions = {}) => {
  */
 export const useExportFaq = ({ mutationOptions }: MutationHookOptions = {}) => {
   return useMutation({
-    mutationFn: aoeApi.exportFaq,
+    mutationFn: async (params: Record<string, unknown>) => {
+      const response = await aoeApi.exportFaq(params);
+      const fileName = extractFileName(response.headers['content-disposition'], `FAQ_${dayjs().format('YYYYMMDD')}.xlsx`);
+      downloadBlob(response.data, fileName);
+    },
     ...mutationOptions,
   });
 };

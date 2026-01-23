@@ -22,11 +22,14 @@ import {
   useCreateEvaluationQuestion,
   useCreateEvaluationQuestionBulk,
   useDeleteEvaluationQuestion,
+  useExportEvaluationQuestion,
   useGetEvaluationQuestions,
   useGetIntents,
+  useImportEvaluationQuestion,
   useUpdateEvaluationQuestion,
 } from '../hooks/useModelQueries';
 import type { EvaluationQuestionListItem } from '../types/evaluation';
+import FileImportModal, { type FileImportModalRef } from '@/components/custom/FileImportModal';
 import { IconTrash } from '@/components/custom/Icons';
 import useAggridOptions from '@/libs/shared-ui/src/hooks/useAggridOptions';
 import { useModal } from '@/libs/shared-ui/src/hooks/useModal';
@@ -133,6 +136,7 @@ export default function EvaluationQuestionList() {
   const modal = useModal();
   const { gridOptions } = useAggridOptions();
   const refEvaluationSentenceAutoGenDrawer = useRef<EvaluationSentenceAutoGenDrawerRef>(null);
+  const importModalRef = useRef<FileImportModalRef>(null);
 
   // State
   const [filterColumn, setFilterColumn] = useState('question');
@@ -194,6 +198,16 @@ export default function EvaluationQuestionList() {
       onSuccess: () => {
         toast.success('평가 문항이 삭제되었습니다.');
         queryClient.invalidateQueries({ queryKey: modelQueryKeys.getEvaluationQuestions({ modelId, evalId }).queryKey });
+      },
+    },
+  });
+  const { mutate: exportEvaluationQuestion, isPending: isExporting } = useExportEvaluationQuestion();
+  const { mutate: importEvaluationQuestion, isPending: isImporting } = useImportEvaluationQuestion({
+    mutationOptions: {
+      onSuccess: () => {
+        toast.success('완료되었습니다.');
+        queryClient.invalidateQueries({ queryKey: modelQueryKeys.getEvaluationQuestions({ modelId, evalId }).queryKey });
+        importModalRef.current?.close();
       },
     },
   });
@@ -370,6 +384,16 @@ export default function EvaluationQuestionList() {
     });
   };
 
+  const handleClickImport = () => {
+    importModalRef.current?.open();
+  };
+
+  const handleImportEvaluationQuestion = (files: File[]) => {
+    if (files.length > 0) {
+      importEvaluationQuestion({ params: { modelId, evalId }, data: files[0] });
+    }
+  };
+
   const columnDefs: ColDef<EvaluationQuestionListItem>[] = [
     {
       headerName: '질문',
@@ -435,8 +459,12 @@ export default function EvaluationQuestionList() {
           <Button variant="solid" onClick={() => refEvaluationSentenceAutoGenDrawer.current?.open({ modelId })}>
             자동생성
           </Button>
-          <Button variant="solid">Import</Button>
-          <Button variant="solid">Export</Button>
+          <Button variant="solid" onClick={handleClickImport}>
+            Import
+          </Button>
+          <Button variant="solid" loading={isExporting} onClick={() => exportEvaluationQuestion({ modelId, evalId })}>
+            Export
+          </Button>
         </div>
       </header>
       <div className="w-full h-full">
@@ -468,6 +496,7 @@ export default function EvaluationQuestionList() {
         }}
         isAdding={isCreatingBulk}
       />
+      <FileImportModal ref={importModalRef} title="Import" accept=".xlsx,.xls" onConfirm={handleImportEvaluationQuestion} confirmLoading={isImporting} />
     </div>
   );
 }

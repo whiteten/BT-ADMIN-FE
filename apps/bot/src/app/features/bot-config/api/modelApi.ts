@@ -118,6 +118,16 @@ export const modelApi = {
     const response = await apiClient.delete('/intent-sentence-delete', { params });
     return response;
   },
+  importIntentSentence: async ({ params, data }: { params: Record<string, unknown>; data: File }) => {
+    const formData = new FormData();
+    formData.append('uploadFile', data);
+    const response = await apiClient.post('/intent-sentence-excel-import', formData, { params });
+    return response;
+  },
+  exportIntentSentence: async (params: Record<string, unknown>) => {
+    const response = await apiClient.get<Blob>('/intent-sentence-excel-export', { params, responseType: 'blob' });
+    return response;
+  },
   getEntities: async (params?: Record<string, unknown>): Promise<EntityListItem[]> => {
     const response = await apiClient.get<ListResponse<EntityListItem>>('/entity-list', { params });
     return extractList(response);
@@ -210,6 +220,16 @@ export const modelApi = {
   },
   deleteEvaluationQuestion: async (params: Record<string, unknown>) => {
     const response = await apiClient.delete('/evaluation-question-delete', { params });
+    return response;
+  },
+  importEvaluationQuestion: async ({ params, data }: { params: Record<string, unknown>; data: File }) => {
+    const formData = new FormData();
+    formData.append('uploadFile', data);
+    const response = await apiClient.post('/evaluation-question-excel-import', formData, { params });
+    return response;
+  },
+  exportEvaluationQuestion: async (params: Record<string, unknown>) => {
+    const response = await apiClient.get<Blob>('/evaluation-question-excel-export', { params, responseType: 'blob' });
     return response;
   },
   getEvaluationResults: async (params?: Record<string, unknown>): Promise<EvaluationResultListItem[]> => {

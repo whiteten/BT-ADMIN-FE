@@ -54,17 +54,14 @@ export const aoeApi = {
   },
   // FAQ Export
   exportFaq: async (params: Record<string, unknown>) => {
-    const response = await apiClient.get('/faq-export', { params, responseType: 'blob' });
+    const response = await apiClient.get<Blob>('/faq-excel-export', { params, responseType: 'blob' });
     return response;
   },
   // FAQ Import
   importFaq: async ({ params, data }: { params: Record<string, unknown>; data: File }) => {
     const formData = new FormData();
     formData.append('uploadFile', data);
-    const response = await apiClient.post('/faq-import', formData, {
-      params,
-      headers: { 'Content-Type': 'multipart/form-data' },
-    });
+    const response = await apiClient.post('/faq-excel-import', formData, { params });
     return response;
   },
 };

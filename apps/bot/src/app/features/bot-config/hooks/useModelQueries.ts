@@ -476,3 +476,28 @@ export const useGenerateExcel = ({ mutationOptions }: MutationHookOptions = {}) 
     ...mutationOptions,
   });
 };
+
+export const useImportIntentSentence = ({ mutationOptions }: MutationHookOptions = {}) => {
+  return useMutation({
+    mutationFn: modelApi.importIntentSentence,
+    ...mutationOptions,
+  });
+};
+
+export const useExportEvaluationQuestion = ({ mutationOptions }: MutationHookOptions = {}) => {
+  return useMutation({
+    mutationFn: async (params: Record<string, unknown>) => {
+      const response = await modelApi.exportEvaluationQuestion(params);
+      const fileName = extractFileName(response.headers['content-disposition'], `EVAL_QUESTIONS_${dayjs().format('YYYYMMDD')}.xlsx`);
+      downloadBlob(response.data, fileName);
+    },
+    ...mutationOptions,
+  });
+};
+
+export const useImportEvaluationQuestion = ({ mutationOptions }: MutationHookOptions = {}) => {
+  return useMutation({
+    mutationFn: modelApi.importEvaluationQuestion,
+    ...mutationOptions,
+  });
+};

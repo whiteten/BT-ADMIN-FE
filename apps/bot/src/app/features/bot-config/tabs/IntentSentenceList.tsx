@@ -27,9 +27,11 @@ import {
   useCreateIntentSentenceBulk,
   useDeleteIntentSentence,
   useGetIntentSentences,
+  useImportIntentSentence,
   useUpdateIntentSentence,
 } from '../hooks/useModelQueries';
 import type { IntentSentenceListItem, TrainDiffStatus, TrainStatus } from '../types';
+import FileImportModal, { type FileImportModalRef } from '@/components/custom/FileImportModal';
 import { IconPlayCircle, IconTrash } from '@/libs/shared-ui/src/components/custom/Icons';
 import useAggridOptions from '@/libs/shared-ui/src/hooks/useAggridOptions';
 import { useModal } from '@/libs/shared-ui/src/hooks/useModal';
@@ -124,6 +126,7 @@ export default function IntentSentenceList() {
 
   // Refs
   const refAutoGenDrawer = useRef<IntentSentenceAutoGenDrawerRef>(null);
+  const importModalRef = useRef<FileImportModalRef>(null);
   const gridApiRef = useRef<GridApi<IntentSentenceListItem> | null>(null);
 
   // State
@@ -172,6 +175,15 @@ export default function IntentSentenceList() {
       },
     },
   });
+  const { mutate: importIntentSentence, isPending: isImporting } = useImportIntentSentence({
+    mutationOptions: {
+      onSuccess: () => {
+        toast.success('완료되었습니다.');
+        queryClient.invalidateQueries({ queryKey: modelQueryKeys.getIntentSentences({ modelId, intentId }).queryKey });
+        importModalRef.current?.close();
+      },
+    },
+  });
 
   const handleTestIntentSentence = (sentence: string) => {
     if (!sentence.trim()) {
@@ -197,6 +209,16 @@ export default function IntentSentenceList() {
     modal.confirm.delete({
       onOk: () => deleteIntentSentence({ modelId, intentId, sentenceId }),
     });
+  };
+
+  const handleClickImport = () => {
+    importModalRef.current?.open();
+  };
+
+  const handleImportIntentSentence = (files: File[]) => {
+    if (files.length > 0) {
+      importIntentSentence({ params: { modelId, intentId }, data: files[0] });
+    }
   };
 
   // Grid 이벤트 핸들러
@@ -370,7 +392,9 @@ export default function IntentSentenceList() {
           <Button variant="solid" onClick={() => refAutoGenDrawer.current?.open({ modelId, intentId })}>
             자동생성
           </Button>
-          <Button variant="solid">Import</Button>
+          <Button variant="solid" onClick={handleClickImport}>
+            Import
+          </Button>
         </div>
       </header>
       <div className="w-full h-full">
@@ -395,6 +419,7 @@ export default function IntentSentenceList() {
         />
       </div>
       <IntentSentenceAutoGenDrawer ref={refAutoGenDrawer} onAdd={handleCreateBulkIntentSentenceByDrawer} isAdding={isCreatingBulk} />
+      <FileImportModal ref={importModalRef} title="Import" accept=".xlsx,.xls" onConfirm={handleImportIntentSentence} confirmLoading={isImporting} />
     </div>
   );
 }
