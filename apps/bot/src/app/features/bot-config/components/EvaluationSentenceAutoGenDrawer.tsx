@@ -1,10 +1,11 @@
 import { forwardRef, useEffect, useImperativeHandle, useMemo, useRef, useState } from 'react';
 import { Button, Checkbox, Col, Drawer, Form, type FormProps, Input, InputNumber, Modal, Row, Select, Transfer, type TransferProps } from 'antd';
+import dayjs from 'dayjs';
 import { uniq } from 'lodash';
 import { MinusCircle, Plus } from 'lucide-react';
 import { Log } from '@/log';
 import { toast } from '@/shared-util';
-import { useGenerateSentence, useGetAoeAgents, useGetIntentSentences, useGetIntents, useGetModel } from '../hooks/useModelQueries';
+import { useGenerateExcel, useGenerateSentence, useGetAoeAgents, useGetIntentSentences, useGetIntents, useGetModel } from '../hooks/useModelQueries';
 import type { GenerateSentenceFormDatas } from '../types/aoe';
 import { FallbackSpinner } from '@/components/custom/FallbackSpinner';
 
@@ -89,14 +90,17 @@ const EvaluationSentenceAutoGenDrawer = forwardRef<EvaluationSentenceAutoGenDraw
     params: { modelId: drawerState.modelId },
     queryOptions: { enabled: !!drawerState.modelId },
   });
-  const aoeAgentOptions = aoeAgents?.map((agent) => ({ label: agent.agentName, value: agent.agentId })) ?? [];
-  const intentOptions = intentList?.map((intent) => ({ label: intent.intentName, value: intent.intentId })) ?? [];
 
   // 선택된 의도의 문장 목록 조회
   const { data: intentSentences, isFetching: isFetchingIntentSentences } = useGetIntentSentences({
     params: { modelId: drawerState.modelId, intentId: watchedIntentId },
     queryOptions: { enabled: isSelectModalOpen && !!drawerState.modelId && !!watchedIntentId },
   });
+
+  const { mutate: generateExcel, isPending: isGeneratingExcel } = useGenerateExcel();
+
+  const aoeAgentOptions = aoeAgents?.map((agent) => ({ label: agent.agentName, value: agent.agentId })) ?? [];
+  const intentOptions = intentList?.map((intent) => ({ label: intent.intentName, value: intent.intentId })) ?? [];
 
   useImperativeHandle(ref, () => ({
     open: (params) => {
@@ -159,8 +163,25 @@ const EvaluationSentenceAutoGenDrawer = forwardRef<EvaluationSentenceAutoGenDraw
 
   // Export 버튼 핸들러 (placeholder)
   const handleExport = () => {
-    Log.debug('Export 버튼 클릭', targetKeys);
-    // TODO: Export 기능 구현
+    if (!watchedIntentId) {
+      toast.warning('정답 의도를 선택하세요.');
+      return;
+    }
+    if (!targetKeys?.length) {
+      toast.warning('추가할 문장이 비어있습니다.\n문장 자동생성 후, 추가할 문장을 우측으로 이동해주세요.');
+      return;
+    }
+    const intentName = intentList?.find((intent) => intent.intentId === watchedIntentId)?.intentName ?? '';
+    const values = targetKeys?.map((key) => [key as string, intentName as string]) ?? [];
+    generateExcel({
+      params: {},
+      data: {
+        fileName: `EVAL_STC_AUTOGEN_${dayjs().format('YYYYMMDD')}`,
+        sheetName: 'EVAL_STC_AUTOGEN',
+        keys: ['평가문장', '정답의도'],
+        values,
+      },
+    });
   };
 
   // 예시 문장 선택 모달 열기
@@ -212,7 +233,7 @@ const EvaluationSentenceAutoGenDrawer = forwardRef<EvaluationSentenceAutoGenDraw
       <Button variant="solid" onClick={handleCloseBtn}>
         닫기
       </Button>
-      <Button variant="solid" onClick={handleExport}>
+      <Button variant="solid" onClick={handleExport} loading={isGeneratingExcel}>
         Export
       </Button>
       <Button variant="solid" type="primary" onClick={handleAdd} loading={isAdding}>

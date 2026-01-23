@@ -42,3 +42,12 @@ export type ModelItem = Model;
 
 export type ModelCreateDatas = Pick<Model, 'modelName' | 'expansion1' | 'modelType'>;
 export type ModelBasicInfoUpdateDatas = Pick<Model, 'modelName' | 'expansion1'>;
+
+/**
+ * 엑셀 생성 데이터 타입
+ * 1. fileName: 엑셀 파일명 (확장자 제외 (.xlsx 자동추가))
+ * 2. sheetName: 엑셀 시트명 (엑셀 시트 탭 이름)
+ * 3. keys: 엑셀 헤더 (컬럼 헤더 배열 (예: ["이름","나이","부서"]))
+ * 4. values: 엑셀 데이터 (2차원 배열 (예: [["홍길동","30","개발팀"],["김철수","25","기획팀"]]))
+ */
+export type GenerateExcelDatas = { fileName: string; sheetName: string; keys: string[]; values: string[][] };

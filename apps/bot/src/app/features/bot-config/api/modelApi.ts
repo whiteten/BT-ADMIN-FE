@@ -35,7 +35,7 @@ import type {
   IntentSentenceListItem,
   IntentSentenceUpdateDatas,
 } from '../types/intent';
-import type { ModelBasicInfoUpdateDatas, ModelCreateDatas, ModelItem, ModelListItem } from '../types/model';
+import type { GenerateExcelDatas, ModelBasicInfoUpdateDatas, ModelCreateDatas, ModelItem, ModelListItem } from '../types/model';
 
 const apiClient = new ApiClient({ serviceURL: '/bff' });
 
@@ -271,5 +271,9 @@ export const modelApi = {
   executeInference: async ({ params, data }: { params: Record<string, unknown>; data: Inference }): Promise<InferenceResponse> => {
     const response = await apiClient.post<DetailResponse<InferenceResponse>>('/model-inference', data, { params });
     return extractDetail(response);
+  },
+  generateExcel: async ({ params, data }: { params: Record<string, unknown>; data: GenerateExcelDatas }) => {
+    const response = await apiClient.post<Blob>('/excel-generate', data, { params, responseType: 'blob' });
+    return response;
   },
 };

@@ -1,10 +1,11 @@
 import { forwardRef, useEffect, useImperativeHandle, useMemo, useState } from 'react';
 import { Button, Col, Drawer, Form, type FormProps, Input, InputNumber, Row, Select, Transfer, type TransferProps } from 'antd';
+import dayjs from 'dayjs';
 import { uniq } from 'lodash';
 import { MinusCircle, Plus } from 'lucide-react';
 import { Log } from '@/log';
 import { toast } from '@/shared-util';
-import { useGenerateSentence, useGetAoeAgents, useGetModel } from '../hooks/useModelQueries';
+import { useGenerateExcel, useGenerateSentence, useGetAoeAgents, useGetModel } from '../hooks/useModelQueries';
 import type { GenerateSentenceFormDatas } from '../types/aoe';
 
 /**
@@ -76,6 +77,7 @@ const IntentSentenceAutoGenDrawer = forwardRef<IntentSentenceAutoGenDrawerRef, I
       },
     },
   });
+  const { mutate: generateExcel, isPending: isGeneratingExcel } = useGenerateExcel();
   const aoeAgentOptions = aoeAgents?.map((agent) => ({ label: agent.agentName, value: agent.agentId })) ?? [];
 
   useImperativeHandle(ref, () => ({
@@ -139,8 +141,19 @@ const IntentSentenceAutoGenDrawer = forwardRef<IntentSentenceAutoGenDrawerRef, I
 
   // Export 버튼 핸들러 (placeholder)
   const handleExport = () => {
-    Log.debug('Export 버튼 클릭', targetKeys);
-    // TODO: Export 기능 구현
+    if (!targetKeys?.length) {
+      toast.warning('추가할 문장이 비어있습니다.\n문장 자동생성 후, 추가할 문장을 우측으로 이동해주세요.');
+      return;
+    }
+    generateExcel({
+      params: {},
+      data: {
+        fileName: `INTENT_STC_AUTOGEN_${dayjs().format('YYYYMMDD')}`,
+        sheetName: 'INTENT_STC_AUTOGEN',
+        keys: ['의도문장'],
+        values: targetKeys?.map((key) => [key as string]) ?? [],
+      },
+    });
   };
 
   // 추가 버튼 핸들러
@@ -158,7 +171,7 @@ const IntentSentenceAutoGenDrawer = forwardRef<IntentSentenceAutoGenDrawerRef, I
       <Button variant="solid" onClick={handleCloseBtn}>
         닫기
       </Button>
-      <Button variant="solid" onClick={handleExport}>
+      <Button variant="solid" onClick={handleExport} loading={isGeneratingExcel}>
         Export
       </Button>
       <Button variant="solid" type="primary" onClick={handleAdd} loading={isAdding}>

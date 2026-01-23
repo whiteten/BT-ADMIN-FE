@@ -14,7 +14,7 @@ import type {
   EvaluationResultListItem,
 } from '../types/evaluation';
 import type { IntentItem, IntentListItem, IntentSentenceListItem } from '../types/intent';
-import type { ModelItem, ModelListItem } from '../types/model';
+import type { GenerateExcelDatas, ModelItem, ModelListItem } from '../types/model';
 import type { RetrainDetail, RetrainListItem } from '../types/retrain';
 import type { SnapshotCompareResult, SnapshotListItem } from '../types/snapshot';
 
@@ -462,6 +462,17 @@ export const useExportEntity = ({ mutationOptions }: MutationHookOptions = {}) =
 export const useImportEntity = ({ mutationOptions }: MutationHookOptions = {}) => {
   return useMutation({
     mutationFn: modelApi.importEntity,
+    ...mutationOptions,
+  });
+};
+
+export const useGenerateExcel = ({ mutationOptions }: MutationHookOptions = {}) => {
+  return useMutation({
+    mutationFn: async ({ params, data }: { params: Record<string, unknown>; data: GenerateExcelDatas }) => {
+      const response = await modelApi.generateExcel({ params, data });
+      const fileName = extractFileName(response.headers['content-disposition'], `${data.fileName}.xlsx`);
+      downloadBlob(response.data, fileName);
+    },
     ...mutationOptions,
   });
 };
