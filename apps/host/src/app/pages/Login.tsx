@@ -1,29 +1,70 @@
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Button, Checkbox, Form, type FormProps, Input } from 'antd';
-import { Lock, User, Users } from 'lucide-react';
+import { App, Button, Checkbox, Form, type FormProps, Input } from 'antd';
+import type { AxiosError } from 'axios';
+import { Lock, LockKeyhole, Timer, User, Users } from 'lucide-react';
 import { toast } from '@/shared-util';
 import styles from './Login.module.scss';
 import { authApi } from '../features/auth/api/authApi';
 import { useChangePassword, useLogin } from '../features/auth/hooks/useAuthQueries';
-import type { LoginResponse, PasswordPolicy } from '../features/auth/types/auth';
+import type { LoginErrorResponse, LoginResponse, PasswordPolicy } from '../features/auth/types/auth';
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { cn } from '@/lib/utils';
 import { ChangePasswordDialog, type ChangePasswordDialogRef, type ChangePasswordMode } from '@/libs/shared-ui/src/components/custom/ChangePasswordDialog';
 import { Log } from '@/libs/shared-util/src/lib/log';
 
+/**
+ * Account lock state
+ */
+interface LockState {
+  isLocked: boolean;
+  retryAfterSeconds: number;
+}
+
+/**
+ * Login error state
+ */
+interface LoginErrorState {
+  error: LoginErrorResponse['error'] | null;
+  message: string;
+  remainingAttempts?: number;
+}
+
 export default function Login() {
   const navigate = useNavigate();
   const [form] = Form.useForm();
+  const { modal } = App.useApp();
   const changePasswordDialogRef = useRef<ChangePasswordDialogRef>(null);
   const [pendingLoginResponse, setPendingLoginResponse] = useState<LoginResponse | null>(null);
   const [passwordPolicy, setPasswordPolicy] = useState<PasswordPolicy | undefined>(undefined);
+
+  // Account lock state
+  const [lockState, setLockState] = useState<LockState>({ isLocked: false, retryAfterSeconds: 0 });
+
+  // Login error state
+  const [loginError, setLoginError] = useState<LoginErrorState>({ error: null, message: '' });
+
+  // Countdown timer for account lock
+  useEffect(() => {
+    if (lockState.retryAfterSeconds > 0) {
+      const timer = setInterval(() => {
+        setLockState((prev) => {
+          const newSeconds = prev.retryAfterSeconds - 1;
+          if (newSeconds <= 0) {
+            return { isLocked: false, retryAfterSeconds: 0 };
+          }
+          return { ...prev, retryAfterSeconds: newSeconds };
+        });
+      }, 1000);
+      return () => clearInterval(timer);
+    }
+  }, [lockState.retryAfterSeconds]);
 
   const { mutate: changePassword } = useChangePassword({
     mutationOptions: {
       onSuccess: () => {
         toast.success('비밀번호가 변경되었습니다.');
-        // 비밀번호 변경 후 메인 페이지로 이동
         navigate('/');
       },
       onError: () => {
@@ -35,12 +76,14 @@ export default function Login() {
   const { mutate: login, isPending } = useLogin({
     mutationOptions: {
       onSuccess: async (response: LoginResponse) => {
-        // forcePasswordChange 또는 passwordExpired 체크
+        // Clear any previous errors
+        setLoginError({ error: null, message: '' });
+
+        // Check forcePasswordChange or passwordExpired
         if (response.forcePasswordChange || response.passwordExpired) {
-          // 로그인 응답 저장 (비밀번호 변경 시 userId 필요)
           setPendingLoginResponse(response);
 
-          // 로그인 성공 후 테넌트의 비밀번호 정책 조회
+          // Load password policy for tenant
           if (response.tenantId) {
             try {
               const policy = await authApi.getPasswordPolicy(response.tenantId);
@@ -53,21 +96,107 @@ export default function Login() {
             Log.warn('No tenantId in login response, using default password policy');
           }
 
-          // 비밀번호 변경 다이얼로그 열기
+          // Open password change dialog
           const mode: ChangePasswordMode = response.passwordExpired ? 'expired' : 'first-login';
           changePasswordDialogRef.current?.open({
             mode,
             userId: form.getFieldValue('userId'),
           });
+        } else if (response.passwordExpiringSoon && response.daysUntilExpiration !== null) {
+          // Password expiring soon - show confirmation modal
+          setPendingLoginResponse(response);
+
+          // Load password policy for the dialog
+          if (response.tenantId) {
+            try {
+              const policy = await authApi.getPasswordPolicy(response.tenantId);
+              setPasswordPolicy(policy);
+            } catch (error) {
+              Log.warn('Failed to load password policy:', error);
+            }
+          }
+
+          modal.confirm({
+            title: '비밀번호 만료 예정',
+            icon: <Timer className="h-6 w-6 text-yellow-500 mr-2" />,
+            content: `비밀번호가 ${response.daysUntilExpiration}일 후 만료됩니다. 지금 변경하시겠습니까?`,
+            okText: '지금 변경',
+            cancelText: '나중에',
+            centered: true,
+            onOk: () => {
+              changePasswordDialogRef.current?.open({
+                mode: 'manual',
+                userId: form.getFieldValue('userId'),
+              });
+            },
+            onCancel: () => {
+              navigate('/');
+            },
+          });
         } else {
-          // 정상 로그인 - 메인 페이지로 이동
+          // Normal login - navigate to main page
           navigate('/');
+        }
+      },
+      onError: (error: Error) => {
+        const axiosError = error as AxiosError<LoginErrorResponse>;
+        const errorData = axiosError.response?.data;
+
+        if (!errorData) {
+          setLoginError({ error: null, message: '로그인에 실패했습니다. 다시 시도해주세요.' });
+          return;
+        }
+
+        switch (errorData.error) {
+          case 'account_locked':
+            setLockState({
+              isLocked: true,
+              retryAfterSeconds: errorData.retry_after || 0,
+            });
+            setLoginError({ error: 'account_locked', message: '' });
+            break;
+
+          case 'account_dormant':
+            setLoginError({
+              error: 'account_dormant',
+              message: errorData.error_description || '휴면 계정입니다. 관리자에게 문의하세요.',
+            });
+            break;
+
+          case 'account_disabled':
+            setLoginError({
+              error: 'account_disabled',
+              message: errorData.error_description || '비활성화된 계정입니다. 관리자에게 문의하세요.',
+            });
+            break;
+
+          case 'invalid_grant':
+            setLoginError({
+              error: 'invalid_grant',
+              message: '아이디 또는 비밀번호가 올바르지 않습니다.',
+              remainingAttempts: errorData.remaining_attempts,
+            });
+            break;
+
+          default:
+            setLoginError({
+              error: null,
+              message: errorData.error_description || '로그인에 실패했습니다.',
+            });
         }
       },
     },
   });
 
   const onFinish: FormProps<{ userId: string; password: string }>['onFinish'] = (values) => {
+    // Clear previous errors
+    setLoginError({ error: null, message: '' });
+
+    // Prevent login if account is locked
+    if (lockState.isLocked) {
+      return;
+    }
+
     login({ username: values.userId, password: values.password });
   };
 
@@ -76,18 +205,93 @@ export default function Login() {
   };
 
   /**
-   * 비밀번호 변경 처리
+   * Handle password change
    */
   const handlePasswordChange = async (data: { currentPassword?: string; newPassword: string }) => {
     if (!pendingLoginResponse?.userId) {
       throw new Error('사용자 정보를 찾을 수 없습니다.');
     }
 
-    // 비밀번호 변경 API 호출
     changePassword({
       userId: pendingLoginResponse.userId,
       data: { newPassword: data.newPassword },
     });
+  };
+
+  /**
+   * Format seconds to mm:ss
+   */
+  const formatTime = (seconds: number): string => {
+    const mins = Math.floor(seconds / 60);
+    const secs = seconds % 60;
+    return `${mins}:${secs.toString().padStart(2, '0')}`;
+  };
+
+  /**
+   * Render login error alert
+   */
+  const renderErrorAlert = () => {
+    // Account locked state
+    if (lockState.isLocked) {
+      return (
+        <Alert variant="destructive" className="mb-4">
+          <LockKeyhole className="h-4 w-4" />
+          <AlertTitle>계정 잠금</AlertTitle>
+          <AlertDescription>
+            로그인 시도 횟수를 초과하여 계정이 일시적으로 잠겼습니다.
+            <div className="mt-2 text-lg font-semibold">{formatTime(lockState.retryAfterSeconds)} 후 다시 시도해주세요.</div>
+          </AlertDescription>
+        </Alert>
+      );
+    }
+
+    // Dormant account
+    if (loginError.error === 'account_dormant') {
+      return (
+        <Alert variant="destructive" className="mb-4">
+          <User className="h-4 w-4" />
+          <AlertTitle>휴면 계정</AlertTitle>
+          <AlertDescription>{loginError.message}</AlertDescription>
+        </Alert>
+      );
+    }
+
+    // Disabled account
+    if (loginError.error === 'account_disabled') {
+      return (
+        <Alert variant="destructive" className="mb-4">
+          <User className="h-4 w-4" />
+          <AlertTitle>비활성화 계정</AlertTitle>
+          <AlertDescription>{loginError.message}</AlertDescription>
+        </Alert>
+      );
+    }
+
+    // Invalid credentials with remaining attempts warning
+    if (loginError.error === 'invalid_grant') {
+      const showWarning = loginError.remainingAttempts !== undefined && loginError.remainingAttempts <= 2;
+      return (
+        <Alert variant={showWarning ? 'destructive' : 'default'} className="mb-4">
+          <Lock className="h-4 w-4" />
+          <AlertTitle>로그인 실패</AlertTitle>
+          <AlertDescription>
+            {loginError.message}
+            {loginError.remainingAttempts !== undefined && <div className={cn('mt-1', showWarning && 'font-semibold')}>남은 시도 횟수: {loginError.remainingAttempts}회</div>}
+          </AlertDescription>
+        </Alert>
+      );
+    }
+
+    // Generic error
+    if (loginError.message) {
+      return (
+        <Alert variant="destructive" className="mb-4">
+          <AlertDescription>{loginError.message}</AlertDescription>
+        </Alert>
+      );
+    }
+
+    return null;
   };
 
   return (
@@ -114,26 +318,29 @@ export default function Login() {
           </CardHeader>
           <CardContent>
             <div className={cn('w-full', styles['login-wrapper'])}>
+              {/* Error alerts */}
+              {renderErrorAlert()}
+
               <Form form={form} layout="vertical" onFinish={onFinish} onFinishFailed={onFinishFailed} autoComplete="off" initialValues={{ userId: 'admin', password: 'admin1234' }}>
                 <Form.Item name="userId" label="아이디" rules={[{ required: true, message: '아이디를 입력해주세요' }]} className="!mb-4">
-                  <Input size="large" placeholder="아이디" prefix={<User className="h-4 w-4 text-gray-400" />} />
+                  <Input size="large" placeholder="아이디" prefix={<User className="h-4 w-4 text-gray-400" />} disabled={lockState.isLocked} />
                 </Form.Item>
 
                 <Form.Item name="password" label="비밀번호" rules={[{ required: true, message: '비밀번호를 입력해주세요' }]} className="!mb-4">
-                  <Input.Password size="large" placeholder="비밀번호" prefix={<Lock className="h-4 w-4 text-gray-400" />} />
+                  <Input.Password size="large" placeholder="비밀번호" prefix={<Lock className="h-4 w-4 text-gray-400" />} disabled={lockState.isLocked} />
                 </Form.Item>
 
                 <Form.Item label="테넌트명" className="!mb-4">
-                  <Input size="large" placeholder="테넌트명" prefix={<Users className="h-4 w-4 text-gray-400" />} />
+                  <Input size="large" placeholder="테넌트명" prefix={<Users className="h-4 w-4 text-gray-400" />} disabled={lockState.isLocked} />
                 </Form.Item>
 
                 <Form.Item className="!mb-5">
-                  <Checkbox>로그인 정보 저장</Checkbox>
+                  <Checkbox disabled={lockState.isLocked}>로그인 정보 저장</Checkbox>
                 </Form.Item>
 
                 <Form.Item className="!mb-0">
-                  <Button type="primary" size="large" htmlType="submit" loading={isPending} block className="!bg-[var(--color-bt-primary)]">
-                    로그인
+                  <Button type="primary" size="large" htmlType="submit" loading={isPending} disabled={lockState.isLocked} block className="!bg-[var(--color-bt-primary)]">
+                    {lockState.isLocked ? `잠금 해제까지 ${formatTime(lockState.retryAfterSeconds)}` : '로그인'}
                   </Button>
                 </Form.Item>
               </Form>
@@ -145,13 +352,13 @@ export default function Login() {
         </div>
       </div>
 
-      {/* 비밀번호 변경 다이얼로그 */}
+      {/* Password change dialog */}
       <ChangePasswordDialog
         ref={changePasswordDialogRef}
         policy={passwordPolicy}
         onPasswordChange={handlePasswordChange}
         onSuccess={() => {
-          // 다이얼로그 내부에서 처리됨 (useChangePassword의 onSuccess에서 navigate)
+          // Handled in useChangePassword onSuccess
         }}
         onError={(error) => {
           Log.error('Password change failed:', error);

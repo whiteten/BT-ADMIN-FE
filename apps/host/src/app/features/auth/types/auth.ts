@@ -33,6 +33,16 @@ export interface LoginResponse {
 }
 
 /**
+ * Login error response from backend (OAuth2 style)
+ */
+export interface LoginErrorResponse {
+  error: 'invalid_request' | 'invalid_grant' | 'account_locked' | 'account_dormant' | 'account_disabled';
+  error_description?: string;
+  remaining_attempts?: number;
+  retry_after?: number;
+}
+
+/**
  * 비밀번호 정책 타입
  */
 export interface PasswordPolicy {
