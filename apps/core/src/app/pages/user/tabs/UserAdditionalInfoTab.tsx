@@ -75,7 +75,7 @@ export default function UserAdditionalInfoTab() {
       userAccount: user.userAccount ?? '',
       description: user.description,
       roleId: user.roleId,
-      enabled: user.enabled,
+      accountStatus: user.accountStatus,
       // 부가사항 업데이트
       phone: values.phone,
       email: values.email,

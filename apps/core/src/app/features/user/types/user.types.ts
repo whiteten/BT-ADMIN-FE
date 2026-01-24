@@ -1,4 +1,9 @@
 /**
+ * 계정 상태 타입
+ */
+export type AccountStatus = 'ACTIVE' | 'DORMANT' | 'DISABLED';
+
+/**
  * 사용자 응답 DTO (백엔드 UserResponse와 일치)
  * TB_BT_CM_USER_MST 테이블 스키마 기준
  */
@@ -11,8 +16,8 @@ export interface User {
   userAccount?: string;
   /** 사용자 설명 */
   description?: string;
-  /** 활성화 여부 */
-  enabled: boolean;
+  /** 계정 상태 (ACTIVE/DORMANT/DISABLED) */
+  accountStatus: AccountStatus;
   /** 역할 ID */
   roleId?: number;
   /** 역할명 */
@@ -58,8 +63,8 @@ export interface UserRequest {
   description?: string;
   /** 역할 ID */
   roleId?: number;
-  /** 활성화 여부 */
-  enabled?: boolean;
+  /** 계정 상태 (ACTIVE/DORMANT/DISABLED) */
+  accountStatus?: AccountStatus;
   /** 비밀번호 변경 강제 여부 (수정 시 사용) */
   forcePasswordChange?: boolean;
   /** 핸드폰번호 */
@@ -76,7 +81,7 @@ export interface UserRequest {
 export interface UserSearchParams {
   tenantId?: number;
   username?: string;
-  enabled?: boolean;
+  accountStatus?: AccountStatus;
   page?: number;
   size?: number;
 }

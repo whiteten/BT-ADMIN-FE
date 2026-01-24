@@ -11,7 +11,8 @@ import React, { Suspense, useRef } from 'react';
 import { useParams, useSearchParams } from 'react-router-dom';
 import { type BreadcrumbProps, Button, Divider, Tag } from 'antd';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
-import { useGetRoles } from '../../features/iam/hooks/useRoleQueries';
+import { useAuthStore } from '@/shared-store';
+import AccountStatusBadge from '../../features/user/components/AccountStatusBadge';
 import { useGetUser } from '../../features/user/hooks/useUserQueries';
 import { FallbackSpinner } from '@/components/custom/FallbackSpinner';
 import { IconDocument, IconSlidersHorizontal } from '@/components/custom/Icons';
@@ -81,8 +82,8 @@ export default function UserDetail() {
     id: numericUserId,
   });
 
-  // 역할 목록 조회
-  const { data: roleList = [], isFetching: isFetchingRoles } = useGetRoles();
+  // 역할 목록은 RouteGuard에서 이미 로드되어 Zustand에 저장됨
+  const { roleList } = useAuthStore();
   const roleOptions = roleList.map((role) => ({ label: role.roleName, value: role.roleId }));
 
   const scrollLeft = () => {
@@ -101,7 +102,7 @@ export default function UserDetail() {
 
   // 폼 정보 요약 렌더링
   function renderFormSummary() {
-    if (isFetching || isFetchingRoles) {
+    if (isFetching) {
       return (
         <div className="flex items-center justify-center w-full h-full">
           <FallbackSpinner />
@@ -140,9 +141,9 @@ export default function UserDetail() {
             <span className="text-gray-800 flex-1">{displayValue(getOptionLabel(roleOptions, user.roleId))}</span>
           </div>
           <div className="flex items-center gap-1">
-            <span className="text-gray-500 w-28 shrink-0">활성화</span>
+            <span className="text-gray-500 w-28 shrink-0">상태</span>
             <span className="text-gray-800 flex-1">
-              {user.enabled ? <span className="text-green-600 font-medium">활성</span> : <span className="text-red-500 font-medium">비활성</span>}
+              <AccountStatusBadge status={user.accountStatus} />
             </span>
           </div>
           <div className="flex items-center gap-1">

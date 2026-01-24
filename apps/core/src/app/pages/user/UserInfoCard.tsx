@@ -1,6 +1,7 @@
 import { Button } from 'antd';
 import dayjs from 'dayjs';
 import { Building2, Calendar, Edit, Key, LogIn, Shield, Trash2, UserCircle, User as UserIcon } from 'lucide-react';
+import AccountStatusBadge from '../../features/user/components/AccountStatusBadge';
 import type { User } from '../../features/user/types/user.types';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent } from '@/components/ui/card';
@@ -14,10 +15,6 @@ interface UserInfoCardProps {
 }
 
 export function UserInfoCard({ userInfo, className, onEdit, onDelete }: UserInfoCardProps) {
-  const getEnabledColor = (enabled: boolean) => {
-    return enabled ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800';
-  };
-
   const formatDate = (dateStr?: string) => {
     if (!dateStr) return '-';
     return dayjs(dateStr).format('YYYY-MM-DD HH:mm');
@@ -65,7 +62,7 @@ export function UserInfoCard({ userInfo, className, onEdit, onDelete }: UserInfo
               <Shield className="h-3 w-3 text-purple-600" />
               <p className="text-gray-500 text-xs">상태</p>
             </div>
-            <Badge className={cn('text-xs px-2 py-0', getEnabledColor(userInfo.enabled))}>{userInfo.enabled ? '활성' : '비활성'}</Badge>
+            <AccountStatusBadge status={userInfo.accountStatus} />
           </div>
 
           <div>

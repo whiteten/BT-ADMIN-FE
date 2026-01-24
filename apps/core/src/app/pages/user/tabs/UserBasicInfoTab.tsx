@@ -8,10 +8,10 @@ import { useEffect } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { useQueryClient } from '@tanstack/react-query';
 import { Button, Col, Form, type FormProps, Input, Row, Select, Switch } from 'antd';
+import { useAuthStore } from '@/shared-store';
 import { toast } from '@/shared-util';
-import { useGetRoles } from '../../../features/iam/hooks/useRoleQueries';
 import { useDeleteUser, useGetUser, useUpdateUser, userQueryKeys } from '../../../features/user/hooks/useUserQueries';
-import type { UserRequest } from '../../../features/user/types/user.types';
+import type { AccountStatus, UserRequest } from '../../../features/user/types/user.types';
 import { FallbackSpinner } from '@/components/custom/FallbackSpinner';
 import { useModal } from '@/libs/shared-ui/src/hooks/useModal';
 
@@ -36,7 +36,7 @@ interface UserBasicFormValues {
   userAccount: string;
   description?: string;
   roleId?: number;
-  enabled: boolean;
+  accountStatus: AccountStatus;
 }
 
 export default function UserBasicInfoTab() {
@@ -47,8 +47,8 @@ export default function UserBasicInfoTab() {
   const [form] = Form.useForm<UserBasicFormValues>();
   const numericUserId = userId ? Number(userId) : undefined;
 
-  // 역할 목록 조회
-  const { data: roleList = [], isFetching: isFetchingRoles } = useGetRoles();
+  // 역할 목록은 RouteGuard에서 이미 로드되어 Zustand에 저장됨
+  const { roleList } = useAuthStore();
   const roleOptions = roleList.map((role) => ({ label: role.roleName, value: role.roleId }));
 
   // 사용자 조회
@@ -64,7 +64,7 @@ export default function UserBasicInfoTab() {
         userAccount: user.userAccount,
         description: user.description,
         roleId: user.roleId,
-        enabled: user.enabled,
+        accountStatus: user.accountStatus,
       });
     }
   }, [user, form]);
@@ -95,7 +95,7 @@ export default function UserBasicInfoTab() {
       userAccount: values.userAccount,
       description: values.description,
       roleId: values.roleId,
-      enabled: values.enabled ?? true,
+      accountStatus: values.accountStatus ?? 'ACTIVE',
     };
     updateUser({
       userId: numericUserId,
@@ -119,7 +119,7 @@ export default function UserBasicInfoTab() {
 
   return (
     <Form form={form} onFinish={onFinish} onFinishFailed={onFinishFailed} layout="vertical">
-      {isFetching || isFetchingRoles ? (
+      {isFetching ? (
         <div className="flex items-center justify-center w-full h-full">
           <FallbackSpinner />
         </div>
@@ -161,12 +161,19 @@ export default function UserBasicInfoTab() {
           <Row gutter={20}>
             <Col span={12}>
               <Form.Item name="roleId" label="역할" required hasFeedback rules={[{ required: true, message: '역할을 선택해 주세요.' }]}>
-                <Select options={roleOptions} showSearch optionFilterProp="label" placeholder="역할을 선택하세요." loading={isFetchingRoles} />
+                <Select options={roleOptions} showSearch optionFilterProp="label" placeholder="역할을 선택하세요." />
               </Form.Item>
             </Col>
             <Col span={12}>
-              <Form.Item name="enabled" label="활성화" valuePropName="checked">
-                <Switch checkedChildren="활성" unCheckedChildren="비활성" />
+              <Form.Item name="accountStatus" label="계정 상태">
+                <Select
+                  options={[
+                    { label: '활성', value: 'ACTIVE' },
+                    { label: '휴면', value: 'DORMANT' },
+                    { label: '비활성', value: 'DISABLED' },
+                  ]}
+                  placeholder="계정 상태를 선택하세요."
+                />
               </Form.Item>
             </Col>
           </Row>

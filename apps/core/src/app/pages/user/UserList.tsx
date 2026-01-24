@@ -6,8 +6,9 @@ import { Button, Input, Select } from 'antd';
 import dayjs from 'dayjs';
 import { toast } from '@/shared-util';
 import { UserInfoCard } from './UserInfoCard';
+import AccountStatusBadge from '../../features/user/components/AccountStatusBadge';
 import { useDeleteUser, useGetUsers } from '../../features/user/hooks/useUserQueries';
-import type { User } from '../../features/user/types/user.types';
+import type { AccountStatus, User } from '../../features/user/types/user.types';
 import { FallbackSpinner } from '@/components/custom/FallbackSpinner';
 import { IconTrash } from '@/components/custom/Icons';
 import NoData from '@/components/custom/NoData';
@@ -45,10 +46,13 @@ export default function UserList() {
     { headerName: '계정', field: 'userAccount', flex: 1 },
     { headerName: '권한', field: 'roleName', flex: 1 },
     {
-      headerName: '활성화',
-      field: 'enabled',
+      headerName: '상태',
+      field: 'accountStatus',
       maxWidth: 100,
-      cellRenderer: (params: ICellRendererParams<User>) => <span className={params.value ? 'text-green-600' : 'text-red-500'}>{params.value ? '활성' : '비활성'}</span>,
+      cellRenderer: (params: ICellRendererParams<User>) => {
+        const status = params.value as AccountStatus;
+        return <AccountStatusBadge status={status} />;
+      },
     },
     { headerName: '테넌트', field: 'tenantName', flex: 1 },
     {

@@ -12,10 +12,10 @@ import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { type BreadcrumbProps, Button, Col, Divider, Form, type FormProps, Input, Row, Select, Steps, Switch, Tag } from 'antd';
 import { Check, Plus, X } from 'lucide-react';
+import { useAuthStore } from '@/shared-store';
 import { toast } from '@/shared-util';
-import { useGetRoles } from '../../features/iam/hooks/useRoleQueries';
 import { useCreateUser } from '../../features/user/hooks/useUserQueries';
-import type { UserRequest } from '../../features/user/types/user.types';
+import type { AccountStatus, UserRequest } from '../../features/user/types/user.types';
 import { FallbackSpinner } from '@/components/custom/FallbackSpinner';
 import PageHeader from '@/components/custom/PageHeader';
 
@@ -42,7 +42,7 @@ interface UserFormValues {
   userAccount: string;
   description?: string;
   roleId?: number;
-  enabled: boolean;
+  accountStatus: AccountStatus;
   phone?: string;
   email?: string;
   allowedIps?: string[];
@@ -56,12 +56,12 @@ export default function UserCreate() {
   const [newIp, setNewIp] = useState('');
   const [ipError, setIpError] = useState('');
 
-  // 역할 목록 조회
-  const { data: roleList = [], isFetching: isFetchingRoles } = useGetRoles();
+  // 역할 목록은 RouteGuard에서 이미 로드되어 Zustand에 저장됨
+  const { roleList, isLoading: isFetchingRoles } = useAuthStore();
   const roleOptions = roleList.map((role) => ({ label: role.roleName, value: role.roleId }));
 
   const initialValues: Partial<UserFormValues> = {
-    enabled: true,
+    accountStatus: 'ACTIVE',
   };
   const formValues = Form.useWatch([], form);
   // allowedIps를 최상위에서 watch (훅 규칙 준수)
@@ -111,7 +111,7 @@ export default function UserCreate() {
       userAccount: values.userAccount,
       description: values.description,
       roleId: values.roleId,
-      enabled: values.enabled ?? true,
+      accountStatus: values.accountStatus ?? 'ACTIVE',
       phone: values.phone,
       email: values.email,
       // allowedIps를 JSON 문자열로 변환
@@ -191,8 +191,15 @@ export default function UserCreate() {
             </Form.Item>
           </Col>
           <Col span={12}>
-            <Form.Item name="enabled" label="활성화" valuePropName="checked">
-              <Switch checkedChildren="활성" unCheckedChildren="비활성" />
+            <Form.Item name="accountStatus" label="계정 상태">
+              <Select
+                options={[
+                  { label: '활성', value: 'ACTIVE' },
+                  { label: '휴면', value: 'DORMANT' },
+                  { label: '비활성', value: 'DISABLED' },
+                ]}
+                placeholder="계정 상태를 선택하세요."
+              />
             </Form.Item>
           </Col>
         </Row>
@@ -345,10 +352,18 @@ export default function UserCreate() {
     return hasError ? <X className="w-4 h-4 text-red-500 ml-2 shrink-0" /> : <Check className="w-4 h-4 text-green-500 ml-2 shrink-0" />;
   };
 
+  // 계정 상태 라벨 헬퍼
+  const getAccountStatusLabel = (status?: AccountStatus) => {
+    if (status === 'ACTIVE') return <span className="text-green-600 font-medium">활성</span>;
+    if (status === 'DORMANT') return <span className="text-yellow-600 font-medium">휴면</span>;
+    if (status === 'DISABLED') return <span className="text-red-500 font-medium">비활성</span>;
+    return <span className="text-gray-300">-</span>;
+  };
+
   // 폼 정보 요약 렌더링
   function renderFormSummary() {
     const values = formValues ?? initialValues;
-    const { username, userAccount, description, roleId, enabled, phone, email, allowedIps } = values as UserFormValues;
+    const { username, userAccount, description, roleId, accountStatus, phone, email, allowedIps } = values as UserFormValues;
 
     if (isFetchingRoles) {
       return (
@@ -378,10 +393,8 @@ export default function UserCreate() {
             {renderValidationIcon('roleId')}
           </div>
           <div className="flex items-center gap-1">
-            <span className="text-gray-500 w-28 shrink-0">활성화</span>
-            <span className="text-gray-800 flex-1">
-              {enabled ? <span className="text-green-600 font-medium">활성</span> : <span className="text-red-500 font-medium">비활성</span>}
-            </span>
+            <span className="text-gray-500 w-28 shrink-0">계정 상태</span>
+            <span className="text-gray-800 flex-1">{getAccountStatusLabel(accountStatus)}</span>
           </div>
           <div className="flex items-center gap-1">
             <span className="text-gray-500 w-28 shrink-0">초기 비밀번호</span>
