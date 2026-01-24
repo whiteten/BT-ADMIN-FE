@@ -1,20 +1,68 @@
+import { useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Button, Checkbox, Form, type FormProps, Input } from 'antd';
 import { Lock, User, Users } from 'lucide-react';
+import { toast } from '@/shared-util';
 import styles from './Login.module.scss';
-import { useLogin } from '../features/auth/hooks/useAuthQueries';
+import { authApi } from '../features/auth/api/authApi';
+import { useChangePassword, useLogin } from '../features/auth/hooks/useAuthQueries';
+import type { LoginResponse, PasswordPolicy } from '../features/auth/types/auth';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { cn } from '@/lib/utils';
+import { ChangePasswordDialog, type ChangePasswordDialogRef, type ChangePasswordMode } from '@/libs/shared-ui/src/components/custom/ChangePasswordDialog';
 import { Log } from '@/libs/shared-util/src/lib/log';
 
 export default function Login() {
   const navigate = useNavigate();
   const [form] = Form.useForm();
+  const changePasswordDialogRef = useRef<ChangePasswordDialogRef>(null);
+  const [pendingLoginResponse, setPendingLoginResponse] = useState<LoginResponse | null>(null);
+  const [passwordPolicy, setPasswordPolicy] = useState<PasswordPolicy | undefined>(undefined);
+
+  const { mutate: changePassword } = useChangePassword({
+    mutationOptions: {
+      onSuccess: () => {
+        toast.success('비밀번호가 변경되었습니다.');
+        // 비밀번호 변경 후 메인 페이지로 이동
+        navigate('/');
+      },
+      onError: () => {
+        toast.error('비밀번호 변경에 실패했습니다.');
+      },
+    },
+  });
 
   const { mutate: login, isPending } = useLogin({
     mutationOptions: {
-      onSuccess: () => {
-        navigate('/');
+      onSuccess: async (response: LoginResponse) => {
+        // forcePasswordChange 또는 passwordExpired 체크
+        if (response.forcePasswordChange || response.passwordExpired) {
+          // 로그인 응답 저장 (비밀번호 변경 시 userId 필요)
+          setPendingLoginResponse(response);
+
+          // 로그인 성공 후 테넌트의 비밀번호 정책 조회
+          if (response.tenantId) {
+            try {
+              const policy = await authApi.getPasswordPolicy(response.tenantId);
+              setPasswordPolicy(policy);
+              Log.info('Password policy loaded for tenant:', response.tenantId, policy);
+            } catch (error) {
+              Log.warn('Failed to load password policy, using defaults:', error);
+            }
+          } else {
+            Log.warn('No tenantId in login response, using default password policy');
+          }
+
+          // 비밀번호 변경 다이얼로그 열기
+          const mode: ChangePasswordMode = response.passwordExpired ? 'expired' : 'first-login';
+          changePasswordDialogRef.current?.open({
+            mode,
+            userId: form.getFieldValue('userId'),
+          });
+        } else {
+          // 정상 로그인 - 메인 페이지로 이동
+          navigate('/');
+        }
       },
     },
   });
@@ -25,6 +73,21 @@ export default function Login() {
 
   const onFinishFailed: FormProps<{ userId: string; password: string }>['onFinishFailed'] = (errorInfo) => {
     Log.warn('onFinishFailed', errorInfo);
+  };
+
+  /**
+   * 비밀번호 변경 처리
+   */
+  const handlePasswordChange = async (data: { currentPassword?: string; newPassword: string }) => {
+    if (!pendingLoginResponse?.userId) {
+      throw new Error('사용자 정보를 찾을 수 없습니다.');
+    }
+
+    // 비밀번호 변경 API 호출
+    changePassword({
+      userId: pendingLoginResponse.userId,
+      data: { newPassword: data.newPassword },
+    });
   };
 
   return (
@@ -81,6 +144,19 @@ export default function Login() {
           <img src="/assets/images/copyright.svg" alt="Copyright" />
         </div>
       </div>
+
+      {/* 비밀번호 변경 다이얼로그 */}
+      <ChangePasswordDialog
+        ref={changePasswordDialogRef}
+        policy={passwordPolicy}
+        onPasswordChange={handlePasswordChange}
+        onSuccess={() => {
+          // 다이얼로그 내부에서 처리됨 (useChangePassword의 onSuccess에서 navigate)
+        }}
+        onError={(error) => {
+          Log.error('Password change failed:', error);
+        }}
+      />
     </div>
   );
 }

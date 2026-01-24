@@ -355,7 +355,7 @@ export default function PasswordPolicyPage() {
 
                     <div>
                       <h3 className="text-sm font-semibold text-gray-900 uppercase tracking-wide mb-3">재사용 제한</h3>
-                      <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
+                      <div className="grid grid-cols-1 gap-3">
                         <NumberSetting
                           name="historyCount"
                           label="이전 비밀번호 재사용 금지"
@@ -365,12 +365,14 @@ export default function PasswordPolicyPage() {
                           max={24}
                           unit="개"
                         />
-                        <SwitchSetting
-                          name="forceChangeOnFirstLogin"
-                          label="최초 로그인 시 변경 강제"
-                          description="신규 사용자는 첫 로그인 시 비밀번호를 변경해야 합니다"
-                          icon={<KeyRound className="w-4 h-4" />}
-                        />
+                      </div>
+                      {/* 최초 로그인 시 비밀번호 변경은 무조건 적용됨 (정책 설정 불필요) */}
+                      <div className="mt-3 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+                        <div className="flex items-center gap-2 text-blue-700">
+                          <KeyRound className="w-4 h-4" />
+                          <span className="text-sm font-medium">최초 로그인 시 비밀번호 변경</span>
+                        </div>
+                        <p className="mt-1 text-sm text-blue-600">신규 사용자는 첫 로그인 시 반드시 비밀번호를 변경해야 합니다. (필수 적용)</p>
                       </div>
                     </div>
                   </div>
@@ -442,7 +444,7 @@ export default function PasswordPolicyPage() {
                     <SummaryItem label="유효 기간" value={currentValues.maxAgeDays ? `${currentValues.maxAgeDays}일` : '무제한'} />
                     <SummaryItem label="경고 시작" value={`${currentValues.expirationWarningDays || 14}일 전`} />
                     <SummaryItem label="재사용 금지" value={`최근 ${currentValues.historyCount || 5}개`} />
-                    <SummaryItem label="최초 로그인 변경" value="적용" active={currentValues.forceChangeOnFirstLogin} />
+                    <SummaryItem label="최초 로그인 변경" value="필수" active={true} />
                   </div>
                 </div>
               </div>

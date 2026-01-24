@@ -1,7 +1,8 @@
 import ApiClient, { type DetailResponse, extractDetail } from '@/shared-util';
-import type { LoginRequestDatas, LoginResponse, UserInfoResponse } from '../types/auth';
+import type { ChangePasswordRequest, LoginRequestDatas, LoginResponse, PasswordPolicy, UserInfoResponse } from '../types/auth';
 
 const authClient = new ApiClient({ serviceURL: '/auth' });
+const bffClient = new ApiClient({ serviceURL: '/bff' });
 
 export const authApi = {
   getCsrfToken: async (params?: Record<string, unknown>) => {
@@ -9,8 +10,8 @@ export const authApi = {
     return response.data;
   },
   login: async (data: LoginRequestDatas): Promise<LoginResponse> => {
-    const response = await authClient.post<LoginResponse>('/login', data);
-    return response.data;
+    const response = await authClient.post<{ data: LoginResponse }>('/login', data);
+    return response.data.data;
   },
   logout: async () => {
     const response = await authClient.post('/logout');
@@ -18,6 +19,26 @@ export const authApi = {
   },
   getUserInfo: async (params?: Record<string, unknown>): Promise<UserInfoResponse> => {
     const response = await authClient.get<DetailResponse<UserInfoResponse>>('/me', { params });
+    return extractDetail(response);
+  },
+  /**
+   * 비밀번호 변경
+   * - 로그인 후 forcePasswordChange 또는 passwordExpired 상태에서 호출
+   * @flow password-update
+   */
+  changePassword: async (userId: number, data: ChangePasswordRequest): Promise<void> => {
+    await bffClient.put('/password-update', data, { params: { userId } });
+  },
+  /**
+   * 비밀번호 정책 조회
+   * - 로그인 성공 후 테넌트의 비밀번호 정책을 조회
+   * @flow password-policy-detail
+   * @param tenantId 테넌트 ID (로그인 응답에서 받은 값)
+   */
+  getPasswordPolicy: async (tenantId: string): Promise<PasswordPolicy> => {
+    const response = await bffClient.get<DetailResponse<PasswordPolicy>>('/password-policy-detail', {
+      headers: { 'X-Tenant-Id': tenantId },
+    });
     return extractDetail(response);
   },
 };

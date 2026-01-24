@@ -13,20 +13,42 @@ export interface UserInfoResponse {
 }
 
 /**
- * 로그인 응답 타입
+ * 비밀번호 변경 요청 타입
+ */
+export interface ChangePasswordRequest {
+  newPassword: string;
+}
+
+/**
+ * 로그인 응답 타입 (BFF /api/auth/login 응답)
  */
 export interface LoginResponse {
-  tokenType: string;
-  accessToken: string;
-  expiresIn: number;
-  jti: string;
-  mode: string;
-  sid: string;
-  tenant: string;
-  roles: string[];
+  username: string;
   userId: number;
+  tenantId: string | null;
+  forcePasswordChange: boolean;
   passwordExpired: boolean;
   passwordExpiringSoon: boolean;
   daysUntilExpiration: number | null;
-  forcePasswordChange: boolean;
+}
+
+/**
+ * 비밀번호 정책 타입
+ */
+export interface PasswordPolicy {
+  tenantId: number;
+  minLength: number;
+  maxLength: number;
+  requireUppercase: boolean;
+  requireLowercase: boolean;
+  requireDigit: boolean;
+  rejectConsecutiveChars: boolean;
+  rejectRepeatedChars: boolean;
+  rejectUserId: boolean;
+  historyCount: number;
+  maxAgeDays: number;
+  expirationWarningDays: number;
+  maxFailedAttempts: number;
+  lockoutDurationMinutes: number;
+  failedAttemptResetMinutes: number;
 }

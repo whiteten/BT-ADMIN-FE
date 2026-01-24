@@ -21,7 +21,6 @@ export interface PasswordPolicy {
   maxFailedAttempts: number;
   lockoutDurationMinutes: number;
   failedAttemptResetMinutes: number;
-  forceChangeOnFirstLogin: boolean;
   createdAt?: string;
   updatedAt?: string;
 }
@@ -44,7 +43,6 @@ export interface PasswordPolicyRequest {
   maxFailedAttempts?: number;
   lockoutDurationMinutes?: number;
   failedAttemptResetMinutes?: number;
-  forceChangeOnFirstLogin?: boolean;
 }
 
 /**
@@ -65,5 +63,4 @@ export const DEFAULT_PASSWORD_POLICY: PasswordPolicyRequest = {
   maxFailedAttempts: 5,
   lockoutDurationMinutes: 30,
   failedAttemptResetMinutes: 30,
-  forceChangeOnFirstLogin: true,
 };
