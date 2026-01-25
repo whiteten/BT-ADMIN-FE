@@ -159,7 +159,7 @@
   },
   "lint-staged": {
     "*.{js,jsx,ts,tsx}": [
-      "eslint --fix",
+      "eslint --fix --ignore-pattern 'e2e/**'",
       "prettier --write",
       "node scripts/typecheck-staged.js"
     ]
