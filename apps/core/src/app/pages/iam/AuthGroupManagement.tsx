@@ -6,13 +6,12 @@
 
 import React from 'react';
 import type { BreadcrumbProps } from 'antd';
-import { IconDocument, IconEntity, IconList } from '@/components/custom/Icons';
+import { IconDocument, IconList } from '@/components/custom/Icons';
 import PageHeader from '@/components/custom/PageHeader';
 import PageTabs, { type PageTab } from '@/components/custom/PageTabs';
 
 const RoleManagementTab = React.lazy(() => import('../../features/iam/tabs/RoleManagementTab'));
 const PermissionListTab = React.lazy(() => import('../../features/iam/tabs/PermissionListTab'));
-const UserOverrideTab = React.lazy(() => import('../../features/iam/tabs/UserOverrideTab'));
 
 const breadcrumb: BreadcrumbProps['items'] = [
   { title: '권한 관리', path: '/core/iam' },
@@ -23,7 +22,6 @@ const breadcrumb: BreadcrumbProps['items'] = [
 const tabs: PageTab[] = [
   { id: 'roles', label: '역할 관리', icon: IconDocument, component: RoleManagementTab },
   { id: 'permissions', label: '권한 목록', icon: IconList, component: PermissionListTab },
-  { id: 'user-override', label: '사용자 권한 할당', icon: IconEntity, component: UserOverrideTab },
 ];
 
 export default function AuthGroupManagement() {
