@@ -1,41 +1,25 @@
 /**
- * 사용자 권한 할당 탭
- * - 역할과 무관하게 개별 사용자에게 권한 부여(ALLOW) 또는 박탈(DENY)
- * - 다중 사용자 선택 가능
- * - 다중 권한 선택 가능 (Checkbox 트리)
- * - 만료일 지정 가능 (임시 권한)
- * - 사유 기록 필수
+ * 사용자 권한 할당 탭 (관리자 전체 조회용)
+ * - 역할과 무관하게 개별 사용자에게 권한 부여(ALLOW) 또는 차단(DENY) 현황 조회
+ * - 사용자 필터링 후 상세 페이지로 이동하여 관리
+ *
+ * NOTE: V3.0에서 API가 /users/{userId}/auth-maps 구조로 변경됨
+ * - 생성/삭제는 사용자 상세 페이지에서만 가능
+ * - 이 화면은 조회 전용으로 유지
  */
 
-import { useCallback, useMemo, useRef, useState } from 'react';
+import { useCallback, useMemo, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import type { ColDef } from 'ag-grid-community';
 import { AgGridReact } from 'ag-grid-react';
-import { Button, Modal, Select, Tag, Tooltip } from 'antd';
-import dayjs from 'dayjs';
-import { Calendar, CheckCircle, Clock, Plus, Search, Shield, Trash2, XCircle } from 'lucide-react';
-import { toast } from '@/shared-util';
-import UserAuthMapModal, { type UserAuthMapModalRef } from '../components/UserAuthMapModal';
+import { Button, Select, Tag } from 'antd';
+import { CheckCircle, ExternalLink, Search, Shield, XCircle } from 'lucide-react';
 import { useGetGroupedPermissions } from '../hooks/usePermissionQueries';
-import { useDeleteUserAuthMapMutation, useGetUserAuthMaps } from '../hooks/useUserAuthQueries';
+import { useGetUserAuthMaps } from '../hooks/useUserAuthQueries';
 import { useGetUsers } from '../hooks/useUserQueries';
-import type { UserAuthMap, UserAuthStatus } from '../types/iam.types';
+import type { UserAuthMap } from '../types/iam.types';
 import useAggridOptions from '@/libs/shared-ui/src/hooks/useAggridOptions';
 import { cn } from '@/libs/shared-ui/src/lib/utils';
-
-// 권한 상태 계산 (백엔드에서 status 필드를 제공하지만, 클라이언트에서도 계산 가능)
-function getAuthStatus(item: UserAuthMap): UserAuthStatus {
-  // 백엔드에서 status를 제공하면 그것을 사용
-  if (item.status) return item.status;
-
-  // 아니면 클라이언트에서 계산
-  const now = dayjs();
-  const from = item.startDate ? dayjs(item.startDate) : null;
-  const to = item.endDate ? dayjs(item.endDate) : null;
-
-  if (to && now.isAfter(to)) return 'EXPIRED';
-  if (from && now.isBefore(from)) return 'SCHEDULED';
-  return 'ACTIVE';
-}
 
 interface StatCardProps {
   icon: React.ComponentType<{ className?: string }>;
@@ -61,11 +45,8 @@ function StatCard({ icon: Icon, iconBg, label, value, valueColor = 'text-gray-90
 
 export default function UserOverrideTab() {
   const { gridOptions } = useAggridOptions();
+  const navigate = useNavigate();
   const [searchUserId, setSearchUserId] = useState<number | undefined>();
-  const [statusFilter, setStatusFilter] = useState<string>('');
-
-  // 모달 ref
-  const modalRef = useRef<UserAuthMapModalRef>(null);
 
   // API 연동: 사용자 목록 조회 (Select 옵션용)
   const { data: usersData = [] } = useGetUsers();
@@ -96,9 +77,8 @@ export default function UserOverrideTab() {
   const queryParams = useMemo(
     () => ({
       userId: searchUserId,
-      status: (statusFilter || undefined) as UserAuthStatus | undefined,
     }),
-    [searchUserId, statusFilter],
+    [searchUserId],
   );
 
   // API 연동: 사용자 권한 매핑 목록 조회
@@ -110,19 +90,6 @@ export default function UserOverrideTab() {
     params: queryParams,
   });
 
-  // API 연동: 삭제 Mutation
-  const { mutate: deleteMap } = useDeleteUserAuthMapMutation({
-    mutationOptions: {
-      onSuccess: () => {
-        toast.success('삭제되었습니다.');
-      },
-      onError: (error) => {
-        const errorMessage = error instanceof Error ? error.message : '삭제에 실패했습니다.';
-        toast.error(errorMessage);
-      },
-    },
-  });
-
   // 사용자명 매핑 (usersData → Map)
   const userNameMap = useMemo(() => {
     const map = new Map<number, string>();
@@ -132,18 +99,25 @@ export default function UserOverrideTab() {
     return map;
   }, [usersData]);
 
-  // rowData에 표시용 필드 추가 (columnDefs에서 클로저 참조 제거)
+  // rowData에 표시용 필드 추가
   const rowData = useMemo(() => {
     return overrides.map((item) => ({
       ...item,
       _displayUserName: userNameMap.get(item.userId) ?? `ID: ${item.userId}`,
       _displayAppName: item.appId ? (appNameMap[item.appId] ?? item.appId) : '-',
-      _status: getAuthStatus(item),
     }));
   }, [overrides, userNameMap, appNameMap]);
 
-  // columnDefs는 정적으로 정의 (의존성 없음)
-  const columnDefs: ColDef<UserAuthMap & { _displayUserName: string; _displayAppName: string; _status: UserAuthStatus }>[] = useMemo(
+  // 사용자 상세 페이지로 이동 (개별 권한 탭)
+  const handleGoToUserDetail = useCallback(
+    (userId: number) => {
+      navigate(`/core/resource/user/${userId}?tab=tab3`);
+    },
+    [navigate],
+  );
+
+  // columnDefs
+  const columnDefs: ColDef<UserAuthMap & { _displayUserName: string; _displayAppName: string }>[] = useMemo(
     () => [
       {
         headerName: '사용자',
@@ -152,24 +126,11 @@ export default function UserOverrideTab() {
         pinned: 'left',
       },
       {
-        headerName: '상태',
-        field: '_status',
-        width: 80,
-        cellRenderer: (params: { data: UserAuthMap & { _status: UserAuthStatus } }) => {
-          const status = params.data._status;
-          if (status === 'EXPIRED') return <Tag color="default">만료</Tag>;
-          if (status === 'SCHEDULED') return <Tag color="blue">예정</Tag>;
-          return params.data.mapType === 'ALLOW' ? <Tag color="green">허용</Tag> : <Tag color="red">차단</Tag>;
-        },
-      },
-      {
         headerName: '유형',
         field: 'mapType',
-        width: 90,
-        cellRenderer: (params: { value: string; data: UserAuthMap & { _status: UserAuthStatus } }) => {
-          const status = params.data._status;
+        width: 100,
+        cellRenderer: (params: { value: string }) => {
           const isAllow = params.value === 'ALLOW';
-          if (status === 'EXPIRED') return <span className="text-gray-400">{isAllow ? '허용' : '차단'}</span>;
           return (
             <span className={cn('flex items-center gap-1', isAllow ? 'text-green-600' : 'text-red-600')}>
               {isAllow ? <CheckCircle className="size-3.5" /> : <XCircle className="size-3.5" />}
@@ -192,45 +153,15 @@ export default function UserOverrideTab() {
         minWidth: 200,
         cellRenderer: (params: { value: string }) => <code className="text-xs bg-gray-100 px-2 py-0.5 rounded font-mono">{params.value}</code>,
       },
-      {
-        headerName: '적용 기간',
-        field: 'startDate',
-        width: 200,
-        cellRenderer: (params: { data: UserAuthMap & { _status: UserAuthStatus } }) => {
-          const from = params.data.startDate;
-          const to = params.data.endDate;
-          const status = params.data._status;
-
-          if (!from && !to) return <span className="text-gray-400">무기한</span>;
-
-          const fromStr = from ? dayjs(from).format('YYYY-MM-DD') : '즉시';
-          const toStr = to ? dayjs(to).format('YYYY-MM-DD') : '무기한';
-
-          return (
-            <span className={cn(status === 'EXPIRED' && 'text-gray-400 line-through', status === 'SCHEDULED' && 'text-blue-600')}>
-              {fromStr} ~ {toStr}
-            </span>
-          );
-        },
-      },
-      {
-        headerName: '사유',
-        field: 'description',
-        flex: 1,
-        minWidth: 150,
-        cellRenderer: (params: { value: string }) => (
-          <Tooltip title={params.value}>
-            <span className="truncate">{params.value || '-'}</span>
-          </Tooltip>
-        ),
-      },
       { headerName: '등록자', field: 'createdBy', width: 100 },
       {
         headerName: '',
-        width: 60,
+        width: 80,
         pinned: 'right',
-        cellRenderer: (params: { data: UserAuthMap; context: { onDelete: (item: UserAuthMap) => void } }) => (
-          <Button type="text" danger size="small" icon={<Trash2 className="size-3.5" />} onClick={() => params.context.onDelete(params.data)} />
+        cellRenderer: (params: { data: UserAuthMap; context: { onGoToDetail: (userId: number) => void } }) => (
+          <Button type="link" size="small" icon={<ExternalLink className="size-3.5" />} onClick={() => params.context.onGoToDetail(params.data.userId)}>
+            관리
+          </Button>
         ),
       },
     ],
@@ -241,56 +172,25 @@ export default function UserOverrideTab() {
     refetch();
   }, [refetch]);
 
-  const handleAdd = () => {
-    modalRef.current?.open();
-  };
-
-  const handleDelete = useCallback(
-    (item: UserAuthMap) => {
-      const userName = userNameMap.get(item.userId) ?? `ID: ${item.userId}`;
-
-      Modal.confirm({
-        title: '권한 설정 삭제',
-        content: `사용자 [${userName}]의 "${item.authDescription}" 설정을 삭제하시겠습니까?`,
-        okText: '삭제',
-        okType: 'danger',
-        cancelText: '취소',
-        onOk: () => deleteMap(item.mapId),
-      });
-    },
-    [userNameMap, deleteMap],
-  );
-
-  // AgGrid context (삭제 핸들러 전달) - handleDelete 정의 후에 위치해야 함
-  const gridContext = useMemo(() => ({ onDelete: handleDelete }), [handleDelete]);
+  // AgGrid context
+  const gridContext = useMemo(() => ({ onGoToDetail: handleGoToUserDetail }), [handleGoToUserDetail]);
 
   // 통계 계산
   const stats = useMemo(() => {
     return {
       total: overrides.length,
-      grants: overrides.filter((r) => r.mapType === 'ALLOW' && getAuthStatus(r) === 'ACTIVE').length,
-      denies: overrides.filter((r) => r.mapType === 'DENY' && getAuthStatus(r) === 'ACTIVE').length,
-      scheduled: overrides.filter((r) => getAuthStatus(r) === 'SCHEDULED').length,
-      expired: overrides.filter((r) => getAuthStatus(r) === 'EXPIRED').length,
+      grants: overrides.filter((r) => r.mapType === 'ALLOW').length,
+      denies: overrides.filter((r) => r.mapType === 'DENY').length,
     };
   }, [overrides]);
-
-  const statusOptions = [
-    { label: '전체 상태', value: '' },
-    { label: '유효', value: 'ACTIVE' },
-    { label: '예정', value: 'SCHEDULED' },
-    { label: '만료', value: 'EXPIRED' },
-  ];
 
   return (
     <div className="flex flex-col gap-4 h-full">
       {/* 통계 카드 */}
-      <div className="grid grid-cols-5 gap-3">
+      <div className="grid grid-cols-3 gap-3">
         <StatCard icon={Shield} iconBg="from-slate-500 to-slate-600" label="전체" value={stats.total} />
         <StatCard icon={CheckCircle} iconBg="from-green-500 to-emerald-600" label="허용" value={stats.grants} valueColor="text-green-600" />
         <StatCard icon={XCircle} iconBg="from-red-500 to-rose-600" label="차단" value={stats.denies} valueColor="text-red-600" />
-        <StatCard icon={Clock} iconBg="from-blue-500 to-indigo-600" label="예정" value={stats.scheduled} valueColor="text-blue-600" />
-        <StatCard icon={Calendar} iconBg="from-gray-400 to-gray-500" label="만료" value={stats.expired} valueColor="text-gray-500" />
       </div>
 
       {/* 필터 */}
@@ -306,23 +206,17 @@ export default function UserOverrideTab() {
             className="!w-[220px]"
             filterOption={(input, option) => (option?.label ?? '').toString().toLowerCase().includes(input.toLowerCase())}
           />
-          <Select options={statusOptions} value={statusFilter} onChange={setStatusFilter} className="!w-[120px]" />
           <Button type="primary" icon={<Search className="size-4" />} onClick={handleSearch}>
             검색
           </Button>
         </div>
-        <Button type="primary" icon={<Plus className="size-4" />} onClick={handleAdd}>
-          권한 부여/차단
-        </Button>
+        <div className="text-sm text-gray-500">* 권한 부여/차단은 사용자 상세 페이지에서 관리합니다.</div>
       </div>
 
       {/* 그리드 */}
       <div className="flex-1">
         <AgGridReact {...{ rowData, columnDefs, gridOptions, loading, context: gridContext }} />
       </div>
-
-      {/* 권한 부여/박탈 모달 (다중 선택) */}
-      <UserAuthMapModal ref={modalRef} userOptions={userOptions} onSuccess={refetch} />
     </div>
   );
 }
