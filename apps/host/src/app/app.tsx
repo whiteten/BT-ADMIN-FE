@@ -8,7 +8,7 @@ import { Layout } from './features/layout/Layout';
 import CsrfGuard from './features/router/CsrfGuard';
 import RouteGuard from './features/router/RouteGuard';
 import { useApiErrorHandler } from './hooks/useApiErrorHandler';
-import Login from './pages/Login';
+import Login from './pages/login-variants';
 import { FallbackSpinner } from '@/components/custom/FallbackSpinner';
 import { NotFound } from '@/components/custom/NotFound';
 import '../assets/styles/common.css';

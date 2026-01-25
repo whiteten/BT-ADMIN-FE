@@ -25,10 +25,11 @@ const breadcrumb: BreadcrumbProps['items'] = [
 ];
 
 /**
- * 탭 스타일 (UserDetail.tsx 패턴 참조)
+ * 탭 스타일 (PageTabs/UserDetail.tsx 패턴 적용)
  */
 const styles = {
-  tabTrigger: 'flex items-center gap-1 px-3 py-2 hover:cursor-pointer border-2 border-transparent data-[state=active]:border-blue-600 whitespace-nowrap',
+  tabTrigger:
+    'w-auto hover:cursor-pointer !shadow-none border-1 border-transparent !rounded-none border-r-[#E9EBEC] text-[#495057] data-[state=active]:border-b-2 data-[state=active]:border-b-[var(--color-bt-primary)] data-[state=active]:text-[var(--color-bt-primary)]',
 };
 
 /**
@@ -210,20 +211,26 @@ export default function PasswordPolicyPage() {
         <div className="flex-1 min-w-0 bg-white bt-shadow flex flex-col">
           <Form form={form} initialValues={DEFAULT_PASSWORD_POLICY} className="flex flex-col h-full">
             <Tabs defaultValue="complexity" className="flex flex-col h-full">
-              {/* 탭 헤더 */}
-              <div className="px-6 pt-4 pb-0 border-b border-gray-100">
-                <TabsList className="flex flex-wrap w-full h-full bg-transparent">
+              {/* 탭 헤더 - PageTabs/UserDetail 스타일 완전 적용 */}
+              <div className="flex w-full h-[58px] min-h-[58px] bg-white border-b border-[#E9EBEC]">
+                <TabsList className="h-full p-0 bg-white">
                   <TabsTrigger value="complexity" className={cn(styles.tabTrigger)}>
-                    <KeyRound className="h-4 w-4 text-blue-600" />
-                    <span className="text-sm">비밀번호 복잡도</span>
+                    <div className="flex items-center justify-center gap-2 min-w-[184px]">
+                      <KeyRound className="h-5 w-5" />
+                      <span>비밀번호 복잡도</span>
+                    </div>
                   </TabsTrigger>
                   <TabsTrigger value="lockout" className={cn(styles.tabTrigger)}>
-                    <Lock className="h-4 w-4 text-orange-600" />
-                    <span className="text-sm">계정 잠금</span>
+                    <div className="flex items-center justify-center gap-2 min-w-[184px]">
+                      <Lock className="h-5 w-5" />
+                      <span>계정 잠금</span>
+                    </div>
                   </TabsTrigger>
                   <TabsTrigger value="expiration" className={cn(styles.tabTrigger)}>
-                    <Timer className="h-4 w-4 text-green-600" />
-                    <span className="text-sm">만료 정책</span>
+                    <div className="flex items-center justify-center gap-2 min-w-[184px]">
+                      <Timer className="h-5 w-5" />
+                      <span>만료 정책</span>
+                    </div>
                   </TabsTrigger>
                 </TabsList>
               </div>

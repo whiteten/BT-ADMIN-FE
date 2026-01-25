@@ -51,3 +51,8 @@ tmpclaude-*
 # Cursor
 .cursor/
 .cursorrules
+
+# Playwright
+e2e/screenshots/
+e2e/test-results/
+e2e/playwright-report/
