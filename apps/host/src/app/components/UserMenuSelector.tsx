@@ -34,7 +34,8 @@ export default function UserMenuSelector() {
     logout();
   };
 
-  const username = userInfo?.username ?? '-';
+  const username = userInfo?.username ?? userInfo?.userAccount ?? '-';
+  const userAccount = userInfo?.userAccount ?? '-';
   const roleName = getCurrentRoleName();
 
   const TriggerBtn = (
@@ -71,7 +72,7 @@ export default function UserMenuSelector() {
             <div className="flex items-center">
               <Dot className="h-4 w-4" />
               <span className="">계정 :</span>
-              <span className="ml-1">{username}</span>
+              <span className="ml-1">{userAccount}</span>
             </div>
             <div className="flex items-center">
               <Dot className="h-4 w-4" />

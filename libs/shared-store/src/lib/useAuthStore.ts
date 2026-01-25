@@ -2,9 +2,16 @@ import { create } from 'zustand';
 
 /**
  * 사용자 정보 (서버 /api/auth/me 응답)
+ * V23: userAccount(계정), username(사람이름), userId 분리
+ *
+ * @property userAccount - 로그인 계정 (Unique, 인증용)
+ * @property username - 사람 이름 (표시용, 동명이인 허용)
+ * @property userId - 사용자 PK
  */
 export interface UserInfo {
-  username: string;
+  userAccount: string;
+  username: string | null;
+  userId: number | null;
   tenant: string;
   roles: string[];
 }

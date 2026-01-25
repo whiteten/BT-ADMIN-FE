@@ -1,13 +1,25 @@
+/**
+ * 로그인 요청 타입
+ * V23: username → userAccount로 변경 (로그인 계정 기반)
+ */
 export interface LoginRequestDatas {
-  username: string;
+  userAccount: string;
   password: string;
+  tenant?: string;
 }
 
 /**
  * 사용자 정보 응답 타입 (/api/auth/me)
+ * V23: userAccount(계정), username(사람이름), userId 분리
+ *
+ * @property userAccount - 로그인 계정 (Unique, 인증용)
+ * @property username - 사람 이름 (표시용, 동명이인 허용)
+ * @property userId - 사용자 PK
  */
 export interface UserInfoResponse {
-  username: string;
+  userAccount: string;
+  username: string | null;
+  userId: number | null;
   tenant: string;
   roles: string[];
 }
@@ -36,7 +48,7 @@ export interface LoginResponse {
  * Login error response from backend (OAuth2 style)
  */
 export interface LoginErrorResponse {
-  error: 'invalid_request' | 'invalid_grant' | 'account_locked' | 'account_dormant' | 'account_disabled';
+  error: 'invalid_request' | 'invalid_grant' | 'account_locked' | 'account_dormant' | 'account_disabled' | 'tenant_required';
   error_description?: string;
   remaining_attempts?: number;
   retry_after?: number;

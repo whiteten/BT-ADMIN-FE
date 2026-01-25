@@ -31,7 +31,9 @@ export default function RouteGuard() {
     if (userInfo) {
       Log.debug('User info fetched successfully. userInfo: ', userInfo);
       setUserInfo({
+        userAccount: userInfo.userAccount,
         username: userInfo.username,
+        userId: userInfo.userId,
         tenant: userInfo.tenant,
         roles: userInfo.roles,
       });
