@@ -7,14 +7,19 @@ import AggridRowDataSidebar from '../components/custom/AggridRowDataSidebar';
 import { FallbackSpinner } from '../components/custom/FallbackSpinner';
 
 export default function useAggridOptions() {
-  const theme = themeQuartz.withParams({
-    browserColorScheme: 'light',
-    cellHorizontalPaddingScale: 1,
-    fontSize: 13,
-    headerFontSize: 13,
-    rowVerticalPaddingScale: 1,
-    spacing: 6,
-  });
+  // theme도 useMemo로 메모이제이션 (무한 리렌더링 방지)
+  const theme = useMemo(
+    () =>
+      themeQuartz.withParams({
+        browserColorScheme: 'light',
+        cellHorizontalPaddingScale: 1,
+        fontSize: 13,
+        headerFontSize: 13,
+        rowVerticalPaddingScale: 1,
+        spacing: 6,
+      }),
+    [],
+  );
   const defaultColDef = useMemo(
     () => ({
       flex: 1,
