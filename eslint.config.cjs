@@ -16,7 +16,7 @@ module.exports = [
 
   // Global ignores
   {
-    ignores: ['**/dist', '**/node_modules'],
+    ignores: ['**/dist', '**/node_modules', 'e2e/**'],
   },
 
   // Nx module boundaries for all files
