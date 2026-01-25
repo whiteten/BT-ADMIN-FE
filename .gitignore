@@ -45,6 +45,7 @@ Thumbs.db
 
 # Claude
 # CLAUDE.md
+CLAUDE.local.md
 .claude/
 tmpclaude-*
 

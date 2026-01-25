@@ -5,7 +5,7 @@
  * - 탭 기반 섹션 분리 + 실시간 정책 요약 사이드패널
  */
 
-import React, { useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import { type BreadcrumbProps, Button, Divider, Form, InputNumber, Switch, Typography } from 'antd';
 import { AlertTriangle, Check, Clock, Hash, KeyRound, Lock, RefreshCw, Save, Timer, UserX } from 'lucide-react';
 import { toast } from '@/shared-util';
@@ -158,9 +158,23 @@ function SummaryItem({ label, value, active }: SummaryItemProps) {
 export default function PasswordPolicyPage() {
   const [form] = Form.useForm<PasswordPolicyRequest>();
   const formValues = Form.useWatch([], form);
+  const [activeTab, setActiveTab] = useState('complexity');
 
   // 데이터 조회
-  const { data: policy, isFetching } = useGetPasswordPolicy();
+  const { data: policy, isLoading } = useGetPasswordPolicy();
+
+  /**
+   * 탭 전환 시 폼을 DB 값으로 리셋
+   * - 저장하지 않은 변경사항은 폐기됨
+   * - "탭마다 따로 저장" 원칙에 따라 탭 이동 시 DB 값으로 재설정
+   */
+  const handleTabChange = (newTab: string) => {
+    // 이미 로드된 policy 데이터로 폼 리셋 (네트워크 요청 없음)
+    if (policy) {
+      form.setFieldsValue(policy);
+    }
+    setActiveTab(newTab);
+  };
 
   // 뮤테이션
   const { mutate: updatePolicy, isPending: isUpdating } = useUpdatePasswordPolicy({
@@ -191,7 +205,7 @@ export default function PasswordPolicyPage() {
   // 현재 폼 값
   const currentValues = formValues || DEFAULT_PASSWORD_POLICY;
 
-  if (isFetching) {
+  if (isLoading) {
     return (
       <div className="flex flex-col gap-4 w-full h-full">
         <PageHeader title="비밀번호 정책" breadcrumb={breadcrumb} />
@@ -210,7 +224,7 @@ export default function PasswordPolicyPage() {
         {/* 메인 폼 영역 */}
         <div className="flex-1 min-w-0 bg-white bt-shadow flex flex-col">
           <Form form={form} initialValues={DEFAULT_PASSWORD_POLICY} className="flex flex-col h-full">
-            <Tabs defaultValue="complexity" className="flex flex-col h-full">
+            <Tabs value={activeTab} onValueChange={handleTabChange} className="flex flex-col h-full">
               {/* 탭 헤더 - PageTabs/UserDetail 스타일 완전 적용 */}
               <div className="flex w-full h-[58px] min-h-[58px] bg-white border-b border-[#E9EBEC]">
                 <TabsList className="h-full p-0 bg-white">
@@ -238,7 +252,7 @@ export default function PasswordPolicyPage() {
               {/* 탭 콘텐츠 */}
               <div className="flex-1 overflow-y-auto p-6">
                 {/* 복잡도 탭 */}
-                <TabsContent value="complexity" className="m-0 h-full">
+                <TabsContent value="complexity" forceMount className="m-0 h-full data-[state=inactive]:hidden">
                   <div className="space-y-6">
                     {/* 길이 설정 */}
                     <div>
@@ -290,7 +304,7 @@ export default function PasswordPolicyPage() {
                 </TabsContent>
 
                 {/* 잠금 정책 탭 */}
-                <TabsContent value="lockout" className="m-0 h-full">
+                <TabsContent value="lockout" forceMount className="m-0 h-full data-[state=inactive]:hidden">
                   <div className="space-y-6">
                     <div>
                       <h3 className="text-sm font-semibold text-gray-900 uppercase tracking-wide mb-3">로그인 실패 정책</h3>
@@ -331,7 +345,7 @@ export default function PasswordPolicyPage() {
                 </TabsContent>
 
                 {/* 만료 정책 탭 */}
-                <TabsContent value="expiration" className="m-0 h-full">
+                <TabsContent value="expiration" forceMount className="m-0 h-full data-[state=inactive]:hidden">
                   <div className="space-y-6">
                     <div>
                       <h3 className="text-sm font-semibold text-gray-900 uppercase tracking-wide mb-3">비밀번호 수명 관리</h3>
