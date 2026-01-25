@@ -1,8 +1,14 @@
+import { useCallback, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import dayjs from 'dayjs';
 import { Dot, History, KeyRound, LogOut } from 'lucide-react';
 import { useAuthStore } from '@/shared-store';
-import { useLogout } from '../features/auth/hooks/useAuthQueries';
+import { toast } from '@/shared-util';
+import { authApi } from '../features/auth/api/authApi';
+import { LoginHistoryDialog, type LoginHistoryDialogRef } from '../features/auth/components/LoginHistoryDialog';
+import { useChangePassword, useLogout } from '../features/auth/hooks/useAuthQueries';
+import type { PasswordPolicy } from '../features/auth/types/auth';
+import { type ChangePasswordData, ChangePasswordDialog, type ChangePasswordDialogRef } from '@/components/custom/ChangePasswordDialog';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -20,6 +26,9 @@ import { cn } from '@/libs/shared-ui/src/lib/utils';
 export default function UserMenuSelector() {
   const navigate = useNavigate();
   const { userInfo, getCurrentRoleName, reset } = useAuthStore();
+  const changePasswordDialogRef = useRef<ChangePasswordDialogRef>(null);
+  const loginHistoryDialogRef = useRef<LoginHistoryDialogRef>(null);
+  const [passwordPolicy, setPasswordPolicy] = useState<PasswordPolicy | null>(null);
 
   const { mutate: logout } = useLogout({
     mutationOptions: {
@@ -30,9 +39,59 @@ export default function UserMenuSelector() {
     },
   });
 
+  const { mutateAsync: changePassword } = useChangePassword();
+
   const handleLogout = () => {
     logout();
   };
+
+  // 비밀번호 변경 클릭 핸들러
+  const handleChangePasswordClick = async () => {
+    if (!userInfo?.tenant) {
+      toast.error('테넌트 정보를 찾을 수 없습니다.');
+      return;
+    }
+
+    try {
+      // 비밀번호 정책 조회
+      const policy = await authApi.getPasswordPolicy(userInfo.tenant);
+      setPasswordPolicy(policy);
+
+      // Dialog 열기
+      changePasswordDialogRef.current?.open({
+        mode: 'manual',
+        userId: userInfo.userAccount,
+      });
+    } catch {
+      toast.error('비밀번호 정책을 불러오는데 실패했습니다.');
+    }
+  };
+
+  // 비밀번호 변경 처리
+  const handlePasswordChange = async (data: ChangePasswordData) => {
+    if (!userInfo?.userId) {
+      throw new Error('사용자 정보를 찾을 수 없습니다.');
+    }
+
+    await changePassword({
+      userId: userInfo.userId,
+      data: { newPassword: data.newPassword },
+    });
+  };
+
+  // 로그인 이력 클릭 핸들러
+  const handleLoginHistoryClick = () => {
+    if (!userInfo?.userId) {
+      toast.error('사용자 정보를 찾을 수 없습니다.');
+      return;
+    }
+    loginHistoryDialogRef.current?.open(userInfo.userId);
+  };
+
+  // 로그인 이력 API 호출 함수 (LoginHistoryDialog에 전달)
+  const fetchLoginHistory = useCallback(async (params: { userId: number; startDate: string; endDate: string; size: number }) => {
+    return authApi.getLoginHistory(params);
+  }, []);
 
   const username = userInfo?.username ?? userInfo?.userAccount ?? '-';
   const userAccount = userInfo?.userAccount ?? '-';
@@ -90,11 +149,11 @@ export default function UserMenuSelector() {
         </DropdownMenuLabel>
         <DropdownMenuSeparator />
         <DropdownMenuGroup>
-          <DropdownMenuItem className="hover:cursor-pointer">
+          <DropdownMenuItem className="hover:cursor-pointer" onSelect={handleChangePasswordClick}>
             <KeyRound />
             비밀번호 변경
           </DropdownMenuItem>
-          <DropdownMenuItem className="hover:cursor-pointer">
+          <DropdownMenuItem className="hover:cursor-pointer" onSelect={handleLoginHistoryClick}>
             <History />
             로그인 이력
           </DropdownMenuItem>
@@ -105,6 +164,18 @@ export default function UserMenuSelector() {
           <span className="text-red-500  dark:text-red-400 font-medium">로그아웃</span>
         </DropdownMenuItem>
       </DropdownMenuContent>
+
+      {/* 비밀번호 변경 Dialog */}
+      <ChangePasswordDialog
+        ref={changePasswordDialogRef}
+        policy={passwordPolicy ?? undefined}
+        onPasswordChange={handlePasswordChange}
+        onSuccess={() => toast.success('비밀번호가 변경되었습니다.')}
+        onError={(error) => toast.error(error.message || '비밀번호 변경에 실패했습니다.')}
+      />
+
+      {/* 로그인 이력 Dialog */}
+      <LoginHistoryDialog ref={loginHistoryDialogRef} fetchLoginHistory={fetchLoginHistory} />
     </DropdownMenu>
   );
 }

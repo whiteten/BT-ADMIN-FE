@@ -1,5 +1,13 @@
-import ApiClient, { type DetailResponse, extractDetail } from '@/shared-util';
-import type { ChangePasswordRequest, LoginRequestDatas, LoginResponse, PasswordPolicy, UserInfoResponse } from '../types/auth';
+import ApiClient, { type DetailResponse, type ListResponse, extractDetail, extractList } from '@/shared-util';
+import type {
+  ChangePasswordRequest,
+  LoginAuditLogSearchParams,
+  LoginRequestDatas,
+  LoginResponse,
+  PagedLoginAuditLogResponse,
+  PasswordPolicy,
+  UserInfoResponse,
+} from '../types/auth';
 
 const authClient = new ApiClient({ serviceURL: '/auth' });
 const bffClient = new ApiClient({ serviceURL: '/bff' });
@@ -40,5 +48,13 @@ export const authApi = {
       headers: { 'X-Tenant-Id': tenantId },
     });
     return extractDetail(response);
+  },
+  /**
+   * 로그인 이력 조회
+   * @flow login-log-list
+   */
+  getLoginHistory: async (params: LoginAuditLogSearchParams): Promise<PagedLoginAuditLogResponse> => {
+    const response = await bffClient.get<ListResponse<PagedLoginAuditLogResponse>>('/login-log-list', { params });
+    return extractList(response) as unknown as PagedLoginAuditLogResponse;
   },
 };

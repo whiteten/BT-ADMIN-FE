@@ -16,7 +16,7 @@ interface PagedResponse<T> {
  * BFF Aggregation Flow를 통해 호출됨
  *
  * 등록된 flow:
- * - login-log-search: GET /api/manager/login-logs
+ * - login-log-list: GET /api/manager/login-logs
  */
 const apiClient = new ApiClient({ serviceURL: '/bff' });
 
@@ -24,10 +24,10 @@ export const loginAuditLogApi = {
   /**
    * 로그인 이력 검색
    * 모든 파라미터는 선택적이며, 기간 미지정 시 최근 7일 데이터 조회
-   * @flow login-log-search
+   * @flow login-log-list
    */
   search: async (params?: LoginAuditLogSearchParams): Promise<PagedResponse<LoginAuditLog>> => {
-    const response = await apiClient.get<ListResponse<PagedResponse<LoginAuditLog>>>('/login-log-search', { params });
+    const response = await apiClient.get<ListResponse<PagedResponse<LoginAuditLog>>>('/login-log-list', { params });
     return extractList(response) as unknown as PagedResponse<LoginAuditLog>;
   },
 };

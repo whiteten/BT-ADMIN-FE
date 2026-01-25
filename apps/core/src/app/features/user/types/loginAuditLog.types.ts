@@ -5,8 +5,10 @@
 export interface LoginAuditLog {
   /** 로그 ID (PK) */
   logId: string;
-  /** 사용자명 (로그인 ID) */
+  /** 사용자명 (사람 이름) */
   username: string;
+  /** 사용자 계정 ID (로그인 ID) */
+  userAccount?: string;
   /** 사용자 ID (TB_BT_CM_USER_MST.ID) */
   userId?: number;
   /** 테넌트 ID */
@@ -33,7 +35,7 @@ export type LoginResult = 'SUCCESS' | 'FAILURE' | 'LOCKED';
 /**
  * 실패 사유 타입
  */
-export type FailureReason = 'USER_NOT_FOUND' | 'INVALID_PASSWORD' | 'ACCOUNT_DISABLED' | 'ACCOUNT_LOCKED';
+export type FailureReason = 'USER_NOT_FOUND' | 'INVALID_PASSWORD' | 'ACCOUNT_DISABLED' | 'ACCOUNT_DORMANT' | 'ACCOUNT_LOCKED';
 
 /**
  * 로그인 이력 검색 파라미터
@@ -74,5 +76,6 @@ export const FAILURE_REASON_LABELS: Record<FailureReason, string> = {
   USER_NOT_FOUND: '사용자 없음',
   INVALID_PASSWORD: '비밀번호 불일치',
   ACCOUNT_DISABLED: '계정 비활성화',
+  ACCOUNT_DORMANT: '휴면 계정',
   ACCOUNT_LOCKED: '계정 잠금',
 } as const;
