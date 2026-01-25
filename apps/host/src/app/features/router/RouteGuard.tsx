@@ -9,7 +9,10 @@ import { FallbackSpinner } from '@/components/custom/FallbackSpinner';
 const Log = new LOG('RouteGuard');
 
 export default function RouteGuard() {
-  const { setUserInfo, setRoleList, setIsLoading } = useAuthStore();
+  // Zustand 셀렉터 사용: setter 함수만 구독하여 불필요한 재렌더링 방지
+  const setUserInfo = useAuthStore((state) => state.setUserInfo);
+  const setRoleList = useAuthStore((state) => state.setRoleList);
+  const setIsLoading = useAuthStore((state) => state.setIsLoading);
 
   const {
     data: userInfo,
@@ -22,7 +25,12 @@ export default function RouteGuard() {
     },
   });
 
-  const { data: roles, isFetching: isFetchingRoles } = useGetRoles();
+  const { data: roles, isFetching: isFetchingRoles } = useGetRoles({
+    queryOptions: {
+      staleTime: Infinity, // 역할 목록은 세션 동안 변경되지 않으므로 항상 fresh 유지
+      gcTime: Infinity, // gcTime: 0 전역 설정 오버라이드 - 캐시 유지
+    },
+  });
 
   const isLoading = isFetchingUser || isFetchingRoles;
 
@@ -40,9 +48,12 @@ export default function RouteGuard() {
     }
   }, [userInfo, setUserInfo]);
 
-  // 역할 목록을 스토어에 저장
+  // 역할 목록을 스토어에 저장 (최초 1회만)
   useEffect(() => {
     if (roles) {
+      const currentRoleList = useAuthStore.getState().roleList;
+      // 이미 역할 목록이 있으면 업데이트하지 않음 (무한 루프 방지)
+      if (currentRoleList.length > 0) return;
       Log.debug('Roles fetched successfully. roles: ', roles);
       setRoleList(
         roles.map((role) => ({

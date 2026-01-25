@@ -53,8 +53,8 @@ export default function RoleManagementTab() {
   };
 
   const handleEdit = (role: Role) => {
-    // 스텝 방식 역할 수정 페이지로 이동
-    navigate(`/core/iam/role/edit/${role.roleId}`);
+    // 탭 방식 역할 상세 페이지로 이동
+    navigate(`/core/iam/role/${role.roleId}`);
   };
 
   const handleDelete = (role: Role) => {

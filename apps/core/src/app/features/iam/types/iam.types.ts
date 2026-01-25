@@ -70,37 +70,11 @@ export interface UserAuthMap {
   authDescription?: string;
   appId?: string;
   mapType: MapType;
-  startDate: string;
-  endDate: string;
-  description?: string;
-  status?: UserAuthStatus; // ACTIVE, SCHEDULED, EXPIRED (계산됨)
   createdAt?: string;
   createdBy?: string;
   updatedAt?: string;
   updatedBy?: string;
 }
-
-// 레거시 호환용 (기존 UI에서 사용)
-export interface UserAuth {
-  id?: number;
-  userId: string;
-  authId: number;
-  grantType: 'GRANT' | 'DENY';
-  reason?: string;
-  effectiveFrom?: string; // 적용 시작일 (NULL = 즉시 적용)
-  effectiveTo?: string; // 적용 종료일 (NULL = 무기한)
-  createdBy?: string;
-  createdAt?: string;
-  updatedBy?: string;
-  updatedAt?: string;
-  // 조인 정보
-  authKey?: string;
-  permDescription?: string;
-  appId?: string;
-}
-
-// 권한 상태 (유효 기간 기반)
-export type UserAuthStatus = 'ACTIVE' | 'SCHEDULED' | 'EXPIRED';
 
 // 사용자-메뉴 직접 매핑 (User Override)
 export interface UserMenu {
@@ -123,44 +97,26 @@ export interface UserAuthorityResponse {
   authorities: string[];
   source: Record<string, 'ROLE' | 'USER_GRANT'>;
   roles: UserRole[];
-  overrides: UserAuth[];
+  overrides: UserAuthMap[];
 }
 
 // 사용자 권한 부여/박탈 요청 (단건)
 export interface UserAuthGrantRequest {
   authId: number;
-  grantType: 'GRANT' | 'DENY';
-  reason?: string;
-  effectiveFrom?: string; // 적용 시작일
-  effectiveTo?: string; // 적용 종료일
+  mapType: MapType;
 }
 
-// 사용자 권한 부여/박탈 배치 요청 (다건) - 레거시
-export interface UserAuthBatchGrantRequest {
-  userIds: string[];
-  authIds: number[];
-  grantType: 'GRANT' | 'DENY';
-  reason?: string;
-  effectiveFrom?: string; // 적용 시작일
-  effectiveTo?: string; // 적용 종료일
-}
-
-// 사용자 권한 매핑 배치 생성 요청 - 백엔드 API 형식
-export interface UserAuthMapBatchRequest {
-  userIds: number[];
+// 사용자 권한 매핑 생성 요청 - 단일 사용자, 다중 권한
+// userId는 URL path에서 전달
+export interface UserAuthMapCreateRequest {
   authIds: number[];
   mapType: MapType;
-  startDate: string; // ISO DateTime
-  endDate: string; // ISO DateTime
-  description?: string;
 }
 
-// 사용자 권한 매핑 배치 생성 응답
-export interface UserAuthMapBatchResponse {
+// 사용자 권한 매핑 생성 응답
+export interface UserAuthMapCreateResponse {
   totalCreated: number;
-  userCount: number;
   authCount: number;
-  mappings: UserAuthMap[];
 }
 
 // 역할 생성/수정 요청

@@ -10,6 +10,7 @@ const UserDetail = React.lazy(() => import('./pages/user/UserDetail'));
 // IAM 페이지
 const AuthGroupManagement = React.lazy(() => import('./pages/iam/AuthGroupManagement'));
 const RoleCreatePage = React.lazy(() => import('./pages/iam/RoleCreatePage'));
+const RoleDetailPage = React.lazy(() => import('./pages/iam/RoleDetailPage'));
 const PasswordPolicyPage = React.lazy(() => import('./pages/password-policy/PasswordPolicyPage'));
 
 export const routes = [
@@ -94,8 +95,8 @@ export const routes = [
                 element: <RoleCreatePage />,
               },
               {
-                path: 'edit/:roleId',
-                element: <RoleCreatePage />,
+                path: ':roleId',
+                element: <RoleDetailPage />,
               },
             ],
           },

@@ -1,6 +1,6 @@
 /**
  * 사용자 상세 - 부가사항 탭
- * - BotBasicInfo 패턴 적용: 개별 탭에서 저장 버튼
+ * - 비밀번호 정책 패턴 적용: Form.useWatch로 폼 값 변경 시 Context에 실시간 반영
  * - UserCreate Step 2와 동일한 필드 구성
  */
 
@@ -12,6 +12,7 @@ import { Plus } from 'lucide-react';
 import { toast } from '@/shared-util';
 import { useGetUser, useUpdateUser, userQueryKeys } from '../../../features/user/hooks/useUserQueries';
 import type { UserRequest } from '../../../features/user/types/user.types';
+import { useUserDetailContext } from '../context/UserDetailContext';
 import { FallbackSpinner } from '@/components/custom/FallbackSpinner';
 
 interface UserAdditionalFormValues {
@@ -28,6 +29,9 @@ export default function UserAdditionalInfoTab() {
   const [ipError, setIpError] = useState('');
   const numericUserId = userId ? Number(userId) : undefined;
 
+  // Context에서 폼 값 setter 가져오기
+  const { setAdditionalFormValues } = useUserDetailContext();
+
   // 사용자 조회
   const { data: user, isFetching } = useGetUser({
     id: numericUserId,
@@ -35,6 +39,20 @@ export default function UserAdditionalInfoTab() {
 
   // allowedIps를 최상위에서 watch (훅 규칙 준수)
   const watchedAllowedIps: string[] = Form.useWatch('allowedIps', form) ?? [];
+
+  // Form.useWatch로 전체 폼 값 변경 감지 (비밀번호 정책 패턴)
+  const formValues = Form.useWatch([], form);
+
+  // 폼 값 변경 시 Context에 실시간 반영
+  useEffect(() => {
+    if (formValues) {
+      setAdditionalFormValues({
+        phone: formValues.phone,
+        email: formValues.email,
+        allowedIps: formValues.allowedIps,
+      });
+    }
+  }, [formValues, setAdditionalFormValues]);
 
   // 폼 초기화
   useEffect(() => {
@@ -220,7 +238,7 @@ export default function UserAdditionalInfoTab() {
               </div>
             </Col>
           </Row>
-          <Row gutter={20} justify="center" className="sticky bottom-0 bg-white/90 z-10 pb-7 mt-6">
+          <Row gutter={20} justify="center" className="sticky bottom-0 bg-white z-10 pb-7 pt-4 mt-6 border-t border-gray-100">
             <Col>
               <Button color="primary" variant="solid" htmlType="submit" loading={isUpdating}>
                 저장

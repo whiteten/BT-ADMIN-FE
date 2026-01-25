@@ -32,8 +32,17 @@ export default function PermissionListTab() {
   const [keyword, setKeyword] = useState('');
   const [searchParams, setSearchParams] = useState<{ appId?: string; keyword?: string }>({});
 
+  // 쿼리 파라미터 메모이제이션 (무한 refetch 방지)
+  const queryParams = useMemo(
+    () => ({
+      appId: searchParams.appId,
+      keyword: searchParams.keyword,
+    }),
+    [searchParams.appId, searchParams.keyword],
+  );
+
   // API 연동: 권한 목록 조회
-  const { data: permissions = [], isLoading: loading } = useGetPermissions(searchParams);
+  const { data: permissions = [], isLoading: loading } = useGetPermissions({ params: queryParams });
 
   const columnDefs: ColDef<Permission>[] = useMemo(
     () => [

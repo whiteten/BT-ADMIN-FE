@@ -1,17 +1,18 @@
 /**
  * 사용자 상세 - 기본정보 탭
- * - BotBasicInfo 패턴 적용: 개별 탭에서 저장/삭제 버튼
+ * - 비밀번호 정책 패턴 적용: Form.useWatch로 폼 값 변경 시 Context에 실시간 반영
  * - UserCreate Step 1과 동일한 필드 구성
  */
 
 import { useEffect } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { useQueryClient } from '@tanstack/react-query';
-import { Button, Col, Form, type FormProps, Input, Row, Select, Switch } from 'antd';
+import { Button, Col, Form, type FormProps, Input, Row, Select } from 'antd';
 import { useAuthStore } from '@/shared-store';
 import { toast } from '@/shared-util';
 import { useDeleteUser, useGetUser, useUpdateUser, userQueryKeys } from '../../../features/user/hooks/useUserQueries';
 import type { AccountStatus, UserRequest } from '../../../features/user/types/user.types';
+import { useUserDetailContext } from '../context/UserDetailContext';
 import { FallbackSpinner } from '@/components/custom/FallbackSpinner';
 import { useModal } from '@/libs/shared-ui/src/hooks/useModal';
 
@@ -46,6 +47,25 @@ export default function UserBasicInfoTab() {
   const modal = useModal();
   const [form] = Form.useForm<UserBasicFormValues>();
   const numericUserId = userId ? Number(userId) : undefined;
+
+  // Context에서 폼 값 setter 가져오기
+  const { setBasicFormValues } = useUserDetailContext();
+
+  // Form.useWatch로 폼 값 변경 감지 (비밀번호 정책 패턴)
+  const formValues = Form.useWatch([], form);
+
+  // 폼 값 변경 시 Context에 실시간 반영
+  useEffect(() => {
+    if (formValues) {
+      setBasicFormValues({
+        username: formValues.username,
+        userAccount: formValues.userAccount,
+        roleId: formValues.roleId ?? null,
+        accountStatus: formValues.accountStatus,
+        description: formValues.description,
+      });
+    }
+  }, [formValues, setBasicFormValues]);
 
   // 역할 목록은 RouteGuard에서 이미 로드되어 Zustand에 저장됨
   const { roleList } = useAuthStore();
@@ -200,7 +220,7 @@ export default function UserBasicInfoTab() {
               </div>
             </div>
           )}
-          <Row gutter={20} justify="center" className="sticky bottom-0 bg-white/90 z-10 pb-7 mt-6">
+          <Row gutter={20} justify="center" className="sticky bottom-0 bg-white z-10 pb-7 pt-4 mt-6 border-t border-gray-100">
             <Col>
               <Button color="primary" variant="solid" htmlType="submit" loading={isUpdating || isDeleting}>
                 저장

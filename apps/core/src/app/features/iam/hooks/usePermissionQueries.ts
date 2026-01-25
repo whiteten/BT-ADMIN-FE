@@ -3,7 +3,7 @@
  */
 import { useQuery } from '@tanstack/react-query';
 import { createQueryKeys } from '@lukemorales/query-key-factory';
-import type { QueryHookOptions } from '@/shared-util';
+import type { QueryHookOptions, QueryHookWithParamsOptions } from '@/shared-util';
 import { type PermissionSearchParams, permissionApi } from '../api/permissionApi';
 import type { Permission, PermissionGroup } from '../types/iam.types';
 
@@ -51,10 +51,10 @@ export const permissionQueryKeys = createQueryKeys('permissions', {
 /**
  * 권한 목록 조회 훅
  */
-export const useGetPermissions = (params?: PermissionSearchParams, { queryOptions }: QueryHookOptions<Permission[]> = {}) => {
+export const useGetPermissions = ({ params, queryOptions }: QueryHookWithParamsOptions<Permission[]> = {}) => {
   return useQuery({
-    queryKey: permissionQueryKeys.getPermissions(params).queryKey,
-    queryFn: () => permissionApi.getPermissions(params),
+    queryKey: permissionQueryKeys.getPermissions(params as PermissionSearchParams).queryKey,
+    queryFn: () => permissionApi.getPermissions(params as PermissionSearchParams),
     ...queryOptions,
   });
 };

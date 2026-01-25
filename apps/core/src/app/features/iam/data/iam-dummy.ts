@@ -2,7 +2,7 @@
  * RBAC 권한 관리 시스템 더미 데이터
  */
 
-import type { App, Permission, Role, UserAuth, UserRole } from '../types/iam.types';
+import type { App, Permission, Role, UserAuthMap, UserRole } from '../types/iam.types';
 
 // 앱 마스터 더미 데이터
 export const appDummyData: App[] = [
@@ -109,90 +109,58 @@ export const userRoleDummyData: UserRole[] = [
   { userId: 'choi.jisoo', roleId: 4, roleName: '조회자', roleCode: 'VIEWER', createdBy: 'admin', createdAt: '2025-03-01' },
 ];
 
-// 사용자-권한 직접 매핑 더미 데이터 (User Override)
-export const userAuthDummyData: UserAuth[] = [
+// 사용자-권한 직접 매핑 더미 데이터 (User Override) - 단순화된 ALLOW/DENY 구조
+export const userAuthMapDummyData: UserAuthMap[] = [
   {
-    id: 1,
-    userId: 'hong.gildong',
+    mapId: 1,
+    tenantId: 1,
+    userId: 101,
+    username: '홍길동',
     authId: 14,
-    grantType: 'GRANT',
-    reason: '프로젝트 기간 중 설정 권한 필요',
-    effectiveFrom: '2025-01-01 00:00:00',
-    effectiveTo: '2025-12-31 23:59:59',
+    mapType: 'ALLOW',
     createdBy: 'admin',
-    createdAt: '2025-01-01 10:00:00',
+    createdAt: '2025-01-01T10:00:00+09:00',
     authKey: 'BOT:setting:config:write',
-    permDescription: '설정 수정',
+    authDescription: '설정 수정',
     appId: 'BOT',
   },
   {
-    id: 2,
-    userId: 'kim.chulsoo',
+    mapId: 2,
+    tenantId: 1,
+    userId: 102,
+    username: '김철수',
     authId: 2,
-    grantType: 'DENY',
-    reason: '교육 완료 전까지 수정 권한 제한',
-    effectiveFrom: undefined, // 즉시 적용
-    effectiveTo: '2025-06-30 23:59:59',
+    mapType: 'DENY',
     createdBy: 'admin',
-    createdAt: '2025-05-01 10:00:00',
+    createdAt: '2025-05-01T10:00:00+09:00',
     authKey: 'BOT:scenario:intent:write',
-    permDescription: '인텐트 등록/수정',
+    authDescription: '인텐트 등록/수정',
     appId: 'BOT',
   },
   {
-    id: 3,
-    userId: 'park.minsu',
+    mapId: 3,
+    tenantId: 1,
+    userId: 103,
+    username: '박민수',
     authId: 12,
-    grantType: 'GRANT',
-    reason: '월간 리포트 작성 업무',
-    effectiveFrom: undefined, // 즉시 적용
-    effectiveTo: undefined, // 무기한
+    mapType: 'ALLOW',
     createdBy: 'admin',
-    createdAt: '2025-04-01 10:00:00',
+    createdAt: '2025-04-01T10:00:00+09:00',
     authKey: 'BOT:stat:export:execute',
-    permDescription: '통계 내보내기',
+    authDescription: '통계 내보내기',
     appId: 'BOT',
   },
   {
-    id: 4,
-    userId: 'lee.younghee',
+    mapId: 4,
+    tenantId: 1,
+    userId: 104,
+    username: '이영희',
     authId: 25,
-    grantType: 'DENY',
-    reason: '개인정보 교육 미이수',
-    effectiveFrom: undefined,
-    effectiveTo: undefined,
+    mapType: 'DENY',
     createdBy: 'admin',
-    createdAt: '2025-04-15 10:00:00',
+    createdAt: '2025-04-15T10:00:00+09:00',
     authKey: 'IC:call:record:read',
-    permDescription: '녹취 청취',
-    appId: 'IC',
-  },
-  {
-    id: 5,
-    userId: 'choi.jisoo',
-    authId: 8,
-    grantType: 'GRANT',
-    reason: '2월 프로젝트 투입 예정',
-    effectiveFrom: '2026-02-01 00:00:00', // 예정된 권한
-    effectiveTo: '2026-03-31 23:59:59',
-    createdBy: 'admin',
-    createdAt: '2025-01-20 10:00:00',
-    authKey: 'BOT:scenario:flow:write',
-    permDescription: '대화흐름 등록/수정',
-    appId: 'BOT',
-  },
-  {
-    id: 6,
-    userId: 'hong.gildong',
-    authId: 25,
-    grantType: 'DENY',
-    reason: '휴가 기간 녹취 접근 제한',
-    effectiveFrom: '2024-12-20 00:00:00', // 만료된 권한
-    effectiveTo: '2024-12-31 23:59:59',
-    createdBy: 'admin',
-    createdAt: '2024-12-15 10:00:00',
-    authKey: 'IC:call:record:read',
-    permDescription: '녹취 청취',
+    authDescription: '녹취 청취',
     appId: 'IC',
   },
 ];

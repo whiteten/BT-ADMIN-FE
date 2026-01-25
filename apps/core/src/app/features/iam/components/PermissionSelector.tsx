@@ -136,29 +136,6 @@ export default function PermissionSelector({ value = new Set(), onChange }: Perm
         allowClear
       />
 
-      {/* 선택된 권한 미리보기 */}
-      {value.size > 0 && (
-        <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 flex items-center gap-2">
-          <Shield className="size-4 text-blue-500 shrink-0" />
-          <div className="flex-1 min-w-0">
-            <span className="font-medium text-gray-900">{value.size}개 권한 선택됨</span>
-            <div className="text-xs text-gray-500 mt-1 flex flex-wrap gap-1">
-              {Array.from(value)
-                .slice(0, 5)
-                .map((authId) => {
-                  const perm = allPermissions.find((p) => p.authId === authId);
-                  return perm ? (
-                    <Tag key={authId} color="cyan" className="text-xs m-0">
-                      {perm.description}
-                    </Tag>
-                  ) : null;
-                })}
-              {value.size > 5 && <span className="text-gray-400">외 {value.size - 5}개</span>}
-            </div>
-          </div>
-        </div>
-      )}
-
       {/* 검색 결과 카운트 */}
       <div className="text-xs text-gray-500">
         {searchText ? (
