@@ -58,7 +58,8 @@ export interface UserRole {
 }
 
 // 사용자-권한 직접 매핑 (User Override) - 백엔드 응답 타입
-export type MapType = 'ALLOW' | 'DENY';
+// AWS IAM과 동일한 업계 표준 용어 사용
+export type PermissionEffect = 'ALLOW' | 'DENY';
 
 export interface UserAuthMap {
   mapId: number;
@@ -69,7 +70,7 @@ export interface UserAuthMap {
   authKey?: string;
   authDescription?: string;
   appId?: string;
-  mapType: MapType;
+  effect: PermissionEffect;
   createdAt?: string;
   createdBy?: string;
   updatedAt?: string;
@@ -103,14 +104,14 @@ export interface UserAuthorityResponse {
 // 사용자 권한 부여/박탈 요청 (단건)
 export interface UserAuthGrantRequest {
   authId: number;
-  mapType: MapType;
+  effect: PermissionEffect;
 }
 
 // 사용자 권한 매핑 생성 요청 - 단일 사용자, 다중 권한
 // userId는 URL path에서 전달
 export interface UserAuthMapCreateRequest {
   authIds: number[];
-  mapType: MapType;
+  effect: PermissionEffect;
 }
 
 // 사용자 권한 매핑 생성 응답

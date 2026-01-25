@@ -10,9 +10,9 @@
 import React, { Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useParams, useSearchParams } from 'react-router-dom';
 import { type BreadcrumbProps, Button, Divider, Tag } from 'antd';
-import { ChevronLeft, ChevronRight, Shield } from 'lucide-react';
+import { Check, ChevronLeft, ChevronRight, Shield } from 'lucide-react';
 import { useAuthStore } from '@/shared-store';
-import { type UserAdditionalFormValues, type UserBasicFormValues, UserDetailProvider } from './context/UserDetailContext';
+import { type PermissionStats, type UserAdditionalFormValues, type UserBasicFormValues, UserDetailProvider } from './context/UserDetailContext';
 import AccountStatusBadge from '../../features/user/components/AccountStatusBadge';
 import { useGetUser } from '../../features/user/hooks/useUserQueries';
 import { FallbackSpinner } from '@/components/custom/FallbackSpinner';
@@ -77,6 +77,7 @@ export default function UserDetail() {
   // 폼 상태 (실시간 요약 정보용)
   const [basicFormValues, setBasicFormValues] = useState<Partial<UserBasicFormValues>>({});
   const [additionalFormValues, setAdditionalFormValues] = useState<Partial<UserAdditionalFormValues>>({});
+  const [permissionStats, setPermissionStats] = useState<PermissionStats | null>(null);
 
   const breadcrumb: BreadcrumbProps['items'] = [
     { title: '자원 관리', path: '/core/resource' },
@@ -224,6 +225,36 @@ export default function UserDetail() {
           </div>
         </div>
         <Divider className="!my-3" />
+        {/* 개별 권한 */}
+        <div className="space-y-2">
+          <div className="flex items-center gap-1">
+            <span className="text-gray-500 w-28 shrink-0">역할 권한</span>
+            <span className="text-gray-800 flex-1">{permissionStats ? `${permissionStats.roleAuthCount}개` : <span className="text-gray-300">-</span>}</span>
+          </div>
+          <div className="flex items-center gap-1">
+            <span className="text-gray-500 w-28 shrink-0">개별 부여</span>
+            <span className="flex-1">
+              {permissionStats?.savedAllowCount ? (
+                <span className="text-emerald-600 font-medium flex items-center gap-1">
+                  <Check className="w-3.5 h-3.5" />+{permissionStats.savedAllowCount}개
+                </span>
+              ) : (
+                <span className="text-gray-300">-</span>
+              )}
+            </span>
+          </div>
+          <div className="flex items-center gap-1">
+            <span className="text-gray-500 w-28 shrink-0">개별 차단</span>
+            <span className="flex-1">
+              {permissionStats?.savedDenyCount ? <span className="text-red-500 font-medium">-{permissionStats.savedDenyCount}개</span> : <span className="text-gray-300">-</span>}
+            </span>
+          </div>
+          <div className="flex items-center gap-1">
+            <span className="text-gray-500 w-28 shrink-0">최종 권한</span>
+            <span className="text-gray-800 font-medium flex-1">{permissionStats ? `${permissionStats.selectedCount}개` : <span className="text-gray-300">-</span>}</span>
+          </div>
+        </div>
+        <Divider className="!my-3" />
         {/* 시스템 정보 (서버 데이터 사용 - 읽기 전용) */}
         <div className="space-y-2">
           <div className="flex items-center gap-1">
@@ -258,9 +289,11 @@ export default function UserDetail() {
       setBasicFormValues,
       additionalFormValues,
       setAdditionalFormValues,
+      permissionStats,
+      setPermissionStats,
       resetToServerData,
     }),
-    [basicFormValues, additionalFormValues, resetToServerData],
+    [basicFormValues, additionalFormValues, permissionStats, resetToServerData],
   );
 
   return (

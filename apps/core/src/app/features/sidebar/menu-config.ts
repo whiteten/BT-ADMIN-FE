@@ -1,4 +1,4 @@
-import { IconMenuItemsPlus, IconMenuMain, IconSlidersHorizontal } from '@/components/custom/Icons';
+import { IconMenuItemsPlus, IconMenuMain } from '@/components/custom/Icons';
 
 const appName = 'core';
 
@@ -27,27 +27,18 @@ const menuConfig = {
           index: 0,
           hide: false,
         },
-      ],
-    },
-    {
-      id: `${appName}/_iam`,
-      label: '권한 관리',
-      icon: IconSlidersHorizontal,
-      index: 2,
-      hide: false,
-      children: [
         {
-          id: `${appName}/_iam/auth-group`,
-          label: '권한 그룹',
+          id: `${appName}/_resource/role`,
+          label: '역할',
           path: 'iam/auth-group/list',
-          index: 0,
+          index: 1,
           hide: false,
         },
         {
-          id: `${appName}/_iam/password-policy`,
+          id: `${appName}/_resource/password-policy`,
           label: '비밀번호 정책',
           path: 'iam/password-policy',
-          index: 1,
+          index: 2,
           hide: false,
         },
       ],

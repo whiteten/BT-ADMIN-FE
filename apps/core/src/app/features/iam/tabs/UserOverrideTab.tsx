@@ -127,7 +127,7 @@ export default function UserOverrideTab() {
       },
       {
         headerName: '유형',
-        field: 'mapType',
+        field: 'effect',
         width: 100,
         cellRenderer: (params: { value: string }) => {
           const isAllow = params.value === 'ALLOW';
@@ -179,8 +179,8 @@ export default function UserOverrideTab() {
   const stats = useMemo(() => {
     return {
       total: overrides.length,
-      grants: overrides.filter((r) => r.mapType === 'ALLOW').length,
-      denies: overrides.filter((r) => r.mapType === 'DENY').length,
+      grants: overrides.filter((r) => r.effect === 'ALLOW').length,
+      denies: overrides.filter((r) => r.effect === 'DENY').length,
     };
   }, [overrides]);
 

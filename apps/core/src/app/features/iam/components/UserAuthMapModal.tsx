@@ -106,7 +106,7 @@ const UserAuthMapModal = forwardRef<UserAuthMapModalRef, UserAuthMapModalProps>(
 
       const request: UserAuthMapCreateRequest = {
         authIds: Array.from(selectedPermissions),
-        mapType: values.mapType,
+        effect: values.effect,
       };
 
       createMappings(request);
@@ -143,7 +143,7 @@ const UserAuthMapModal = forwardRef<UserAuthMapModalRef, UserAuthMapModalProps>(
     >
       <Form form={form} layout="vertical" className="mt-4 flex-1 flex flex-col min-h-0">
         {/* 유형 선택 */}
-        <Form.Item label="유형" name="mapType" rules={[{ required: true, message: '유형을 선택해주세요' }]}>
+        <Form.Item label="유형" name="effect" rules={[{ required: true, message: '유형을 선택해주세요' }]}>
           <Radio.Group className="w-full">
             <Radio.Button value="ALLOW" className="w-1/2 text-center">
               <span className="inline-flex items-center justify-center gap-1">

@@ -28,6 +28,16 @@ export interface UserAdditionalFormValues {
 }
 
 /**
+ * 개별 권한 통계
+ */
+export interface PermissionStats {
+  roleAuthCount: number; // 역할 기본 권한 수
+  selectedCount: number; // 현재 선택된 권한 수 (최종)
+  savedAllowCount: number; // DB 저장된 개별 부여 수
+  savedDenyCount: number; // DB 저장된 개별 차단 수
+}
+
+/**
  * Context 값 타입
  */
 interface UserDetailContextValue {
@@ -38,6 +48,10 @@ interface UserDetailContextValue {
   // 부가사항 폼 값 (실시간)
   additionalFormValues: Partial<UserAdditionalFormValues>;
   setAdditionalFormValues: (values: Partial<UserAdditionalFormValues>) => void;
+
+  // 개별 권한 통계 (실시간)
+  permissionStats: PermissionStats | null;
+  setPermissionStats: (stats: PermissionStats | null) => void;
 
   // DB 원본 데이터로 리셋 (탭 전환 시 사용)
   resetToServerData: () => void;

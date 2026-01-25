@@ -1,48 +1,44 @@
 /**
  * 사용자 상세 - 개별 권한 탭
- * - 역할과 무관하게 해당 사용자에게 개별적으로 권한 부여(ALLOW) 또는 차단(DENY)
- * - 다중 권한 선택 가능 (Checkbox 트리)
+ * - PermissionSelector와 동일한 체크박스 트리 UI
+ * - 기본값: 역할에 포함된 권한이 체크됨
+ * - 체크 추가: 역할에 없던 권한 → ALLOW로 저장
+ * - 체크 해제: 역할에 있던 권한 → DENY로 저장
+ * - 저장 시 변경분만 TB_BT_CM_USER_AUTH_MAP에 반영
  */
 
-import { useCallback, useMemo, useRef } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useParams } from 'react-router-dom';
-import type { ColDef } from 'ag-grid-community';
-import { AgGridReact } from 'ag-grid-react';
-import { Button, Modal, Tag } from 'antd';
-import { CheckCircle, Plus, Trash2, XCircle } from 'lucide-react';
+import { Button, Col, Row } from 'antd';
 import { toast } from '@/shared-util';
-import UserAuthMapModal, { type UserAuthMapModalRef } from '../../../features/iam/components/UserAuthMapModal';
-import { useGetGroupedPermissions } from '../../../features/iam/hooks/usePermissionQueries';
-import { useDeleteUserAuthMapMutation, useGetUserAuthMaps } from '../../../features/iam/hooks/useUserAuthQueries';
-import type { UserAuthMap } from '../../../features/iam/types/iam.types';
+import UserPermissionSelector from '../../../features/iam/components/UserPermissionSelector';
+import { useGetRole } from '../../../features/iam/hooks/useRoleQueries';
+import { useCreateUserAuthMapMutation, useDeleteUserAuthMapMutation, useGetUserAuthMaps } from '../../../features/iam/hooks/useUserAuthQueries';
 import { useGetUser } from '../../../features/user/hooks/useUserQueries';
+import { useUserDetailContext } from '../context/UserDetailContext';
 import { FallbackSpinner } from '@/components/custom/FallbackSpinner';
-import useAggridOptions from '@/libs/shared-ui/src/hooks/useAggridOptions';
-import { cn } from '@/libs/shared-ui/src/lib/utils';
 
 export default function UserPermissionTab() {
   const { userId } = useParams();
   const numericUserId = userId ? Number(userId) : undefined;
+  const { setPermissionStats } = useUserDetailContext();
 
-  const { gridOptions } = useAggridOptions();
-  const modalRef = useRef<UserAuthMapModalRef>(null);
+  // 현재 선택된 권한 ID 목록 (역할 기본 + 개별 설정 반영)
+  const [selectedAuthIds, setSelectedAuthIds] = useState<Set<number>>(new Set());
+  // 초기 상태 (변경 감지용)
+  const [initialSelectedAuthIds, setInitialSelectedAuthIds] = useState<Set<number>>(new Set());
 
-  // 사용자 조회 (정보 표시용)
+  // 사용자 조회
   const { data: user, isFetching: isUserFetching } = useGetUser({
     id: numericUserId,
   });
 
-  // 권한 그룹 조회 (앱 이름 매핑용)
-  const { data: permissionGroups = [] } = useGetGroupedPermissions();
-
-  // 앱 이름 매핑
-  const appNameMap = useMemo(() => {
-    const map: Record<string, string> = {};
-    permissionGroups.forEach((group) => {
-      map[group.appId] = group.appName;
-    });
-    return map;
-  }, [permissionGroups]);
+  // 사용자의 역할 조회 (역할에 포함된 권한 목록)
+  const { data: role, isFetching: isRoleFetching } = useGetRole(user?.roleId ?? 0, {
+    queryOptions: {
+      enabled: !!user?.roleId,
+    },
+  });
 
   // 쿼리 파라미터 (해당 사용자만 조회)
   const queryParams = useMemo(
@@ -52,101 +48,184 @@ export default function UserPermissionTab() {
     [numericUserId],
   );
 
-  // 사용자 권한 매핑 목록 조회
+  // 사용자 권한 매핑 목록 조회 (기존 개별 설정)
   const {
-    data: overrides = [],
-    isLoading: loading,
+    data: existingMaps = [],
+    isLoading: isMapLoading,
     refetch,
   } = useGetUserAuthMaps({
     params: queryParams,
   });
 
-  // 삭제 Mutation - userId 필수
-  const { mutate: deleteMap } = useDeleteUserAuthMapMutation(numericUserId ?? 0, {
+  // 역할에 포함된 권한 ID Set
+  const roleAuthIds = useMemo(() => {
+    return new Set(role?.authIds ?? []);
+  }, [role?.authIds]);
+
+  // 기존 매핑 데이터를 기반으로 초기 선택 상태 계산
+  useEffect(() => {
+    // 역할 권한을 기본으로
+    const selected = new Set(roleAuthIds);
+
+    // 기존 매핑 적용
+    existingMaps.forEach((item) => {
+      if (item.effect === 'ALLOW') {
+        selected.add(item.authId); // ALLOW: 추가
+      } else if (item.effect === 'DENY') {
+        selected.delete(item.authId); // DENY: 제거
+      }
+    });
+
+    setSelectedAuthIds(selected);
+    setInitialSelectedAuthIds(new Set(selected));
+  }, [roleAuthIds, existingMaps]);
+
+  // 권한 통계를 Context에 전달 (우측 요약 표시용)
+  useEffect(() => {
+    let savedAllowCount = 0;
+    let savedDenyCount = 0;
+    existingMaps.forEach((m) => {
+      if (m.effect === 'ALLOW') savedAllowCount++;
+      else if (m.effect === 'DENY') savedDenyCount++;
+    });
+
+    setPermissionStats({
+      roleAuthCount: roleAuthIds.size,
+      selectedCount: selectedAuthIds.size,
+      savedAllowCount,
+      savedDenyCount,
+    });
+  }, [roleAuthIds.size, selectedAuthIds.size, existingMaps, setPermissionStats]);
+
+  // 생성 Mutation
+  const { mutate: createMap, isPending: isCreating } = useCreateUserAuthMapMutation(numericUserId ?? 0, {
     mutationOptions: {
-      onSuccess: () => {
-        toast.success('삭제되었습니다.');
-      },
       onError: (error) => {
-        const errorMessage = error instanceof Error ? error.message : '삭제에 실패했습니다.';
+        const errorMessage = error instanceof Error ? error.message : '권한 설정 저장에 실패했습니다.';
         toast.error(errorMessage);
       },
     },
   });
 
-  // rowData에 표시용 필드 추가
-  const rowData = useMemo(() => {
-    return overrides.map((item) => ({
-      ...item,
-      _displayAppName: item.appId ? (appNameMap[item.appId] ?? item.appId) : '-',
-    }));
-  }, [overrides, appNameMap]);
+  // 삭제 Mutation
+  const { mutate: deleteMap, isPending: isDeleting } = useDeleteUserAuthMapMutation(numericUserId ?? 0, {
+    mutationOptions: {
+      onError: (error) => {
+        const errorMessage = error instanceof Error ? error.message : '권한 설정 삭제에 실패했습니다.';
+        toast.error(errorMessage);
+      },
+    },
+  });
 
-  // columnDefs
-  const columnDefs: ColDef<UserAuthMap & { _displayAppName: string }>[] = useMemo(
-    () => [
-      {
-        headerName: '유형',
-        field: 'mapType',
-        width: 100,
-        cellRenderer: (params: { value: string }) => {
-          const isAllow = params.value === 'ALLOW';
-          return (
-            <span className={cn('flex items-center gap-1', isAllow ? 'text-green-600' : 'text-red-600')}>
-              {isAllow ? <CheckCircle className="size-3.5" /> : <XCircle className="size-3.5" />}
-              {isAllow ? '허용' : '차단'}
-            </span>
+  // 변경사항 계산 (역할 기준으로 비교)
+  const changes = useMemo(() => {
+    const toAllow: number[] = []; // 역할에 없는데 선택됨 → ALLOW
+    const toDeny: number[] = []; // 역할에 있는데 선택 해제됨 → DENY
+    const toRemove: number[] = []; // 기존 매핑 제거 필요
+
+    // 현재 선택 상태와 역할 비교
+    selectedAuthIds.forEach((authId) => {
+      if (!roleAuthIds.has(authId)) {
+        // 역할에 없는데 선택됨 → ALLOW 필요
+        const existingMap = existingMaps.find((m) => m.authId === authId);
+        if (!existingMap || existingMap.effect !== 'ALLOW') {
+          toAllow.push(authId);
+        }
+      }
+    });
+
+    roleAuthIds.forEach((authId) => {
+      if (!selectedAuthIds.has(authId)) {
+        // 역할에 있는데 선택 해제됨 → DENY 필요
+        const existingMap = existingMaps.find((m) => m.authId === authId);
+        if (!existingMap || existingMap.effect !== 'DENY') {
+          toDeny.push(authId);
+        }
+      }
+    });
+
+    // 더 이상 필요 없는 기존 매핑 찾기
+    existingMaps.forEach((map) => {
+      const isRolePermission = roleAuthIds.has(map.authId);
+      const isSelected = selectedAuthIds.has(map.authId);
+
+      if (map.effect === 'ALLOW' && (isRolePermission || !isSelected)) {
+        // ALLOW였는데 역할에 있거나 선택 해제됨 → 제거
+        toRemove.push(map.mapId);
+      } else if (map.effect === 'DENY' && (!isRolePermission || isSelected)) {
+        // DENY였는데 역할에 없거나 선택됨 → 제거
+        toRemove.push(map.mapId);
+      }
+    });
+
+    const hasChanges = !areSetsEqual(selectedAuthIds, initialSelectedAuthIds);
+
+    return { toAllow, toDeny, toRemove, hasChanges };
+  }, [selectedAuthIds, initialSelectedAuthIds, roleAuthIds, existingMaps]);
+
+  // 저장 핸들러
+  const handleSave = async () => {
+    if (!numericUserId || !changes.hasChanges) return;
+
+    try {
+      // 1. 먼저 기존 매핑 삭제
+      for (const mapId of changes.toRemove) {
+        await new Promise<void>((resolve, reject) => {
+          deleteMap(mapId, {
+            onSuccess: () => resolve(),
+            onError: (err) => reject(err),
+          });
+        });
+      }
+
+      // 2. ALLOW 생성
+      if (changes.toAllow.length > 0) {
+        await new Promise<void>((resolve, reject) => {
+          createMap(
+            {
+              authIds: changes.toAllow,
+              effect: 'ALLOW',
+            },
+            {
+              onSuccess: () => resolve(),
+              onError: (err) => reject(err),
+            },
           );
-        },
-      },
-      {
-        headerName: '앱',
-        field: '_displayAppName',
-        width: 100,
-        cellRenderer: (params: { value: string }) => <Tag color="cyan">{params.value}</Tag>,
-      },
-      { headerName: '권한', field: 'authDescription', flex: 1, minWidth: 150 },
-      {
-        headerName: '권한 키',
-        field: 'authKey',
-        flex: 1,
-        minWidth: 200,
-        cellRenderer: (params: { value: string }) => <code className="text-xs bg-gray-100 px-2 py-0.5 rounded font-mono">{params.value}</code>,
-      },
-      { headerName: '등록자', field: 'createdBy', width: 100 },
-      {
-        headerName: '',
-        width: 60,
-        pinned: 'right',
-        cellRenderer: (params: { data: UserAuthMap; context: { onDelete: (item: UserAuthMap) => void } }) => (
-          <Button type="text" danger size="small" icon={<Trash2 className="size-3.5" />} onClick={() => params.context.onDelete(params.data)} />
-        ),
-      },
-    ],
-    [],
-  );
+        });
+      }
 
-  const handleAdd = () => {
-    modalRef.current?.open();
+      // 3. DENY 생성
+      if (changes.toDeny.length > 0) {
+        await new Promise<void>((resolve, reject) => {
+          createMap(
+            {
+              authIds: changes.toDeny,
+              effect: 'DENY',
+            },
+            {
+              onSuccess: () => resolve(),
+              onError: (err) => reject(err),
+            },
+          );
+        });
+      }
+
+      toast.success('개별 권한 설정이 저장되었습니다.');
+      refetch();
+    } catch {
+      // 에러는 개별 mutation에서 처리됨
+    }
   };
 
-  const handleDelete = useCallback(
-    (item: UserAuthMap) => {
-      Modal.confirm({
-        title: '권한 설정 삭제',
-        content: `"${item.authDescription}" 권한 설정을 삭제하시겠습니까?`,
-        okText: '삭제',
-        okType: 'danger',
-        cancelText: '취소',
-        onOk: () => deleteMap(item.mapId),
-      });
-    },
-    [deleteMap],
-  );
+  // 취소 핸들러 (초기 상태로 복원)
+  const handleCancel = () => {
+    setSelectedAuthIds(new Set(initialSelectedAuthIds));
+  };
 
-  const gridContext = useMemo(() => ({ onDelete: handleDelete }), [handleDelete]);
+  const isLoading = isUserFetching || isRoleFetching || isMapLoading;
+  const isSaving = isCreating || isDeleting;
 
-  if (isUserFetching || !numericUserId) {
+  if (isLoading || !numericUserId) {
     return (
       <div className="flex items-center justify-center w-full h-full">
         <FallbackSpinner />
@@ -156,20 +235,48 @@ export default function UserPermissionTab() {
 
   return (
     <div className="flex flex-col gap-4 h-full">
-      {/* 추가 버튼 */}
-      <div className="flex items-center justify-end gap-2">
-        <Button type="primary" icon={<Plus className="size-4" />} onClick={handleAdd}>
-          권한 부여/차단
-        </Button>
+      {/* 사용자 정보 표시 */}
+      <div className="text-sm text-gray-600">
+        <span className="font-medium">{user?.username}</span> 님의 역할: <span className="font-medium text-blue-600">{role?.roleName ?? '역할 없음'}</span>
+        <span className="text-gray-400 ml-2">(역할 권한 {roleAuthIds.size}개)</span>
       </div>
 
-      {/* 그리드 */}
-      <div className="flex-1">
-        <AgGridReact {...{ rowData, columnDefs, gridOptions, loading, context: gridContext }} />
+      {/* 권한 선택기 */}
+      <div className="flex-1 min-h-0 overflow-hidden">
+        <div className="h-full overflow-y-auto">
+          <UserPermissionSelector roleAuthIds={roleAuthIds} selectedAuthIds={selectedAuthIds} existingMaps={existingMaps} onChange={setSelectedAuthIds} readOnly={isSaving} />
+        </div>
       </div>
 
-      {/* 권한 부여/차단 모달 */}
-      <UserAuthMapModal ref={modalRef} userId={numericUserId} onSuccess={refetch} />
+      {/* 저장/취소 버튼 */}
+      <Row gutter={20} justify="center" className="sticky bottom-0 bg-white z-10 pb-4 pt-4 border-t border-gray-100">
+        <Col>
+          <Button color="primary" variant="solid" onClick={handleSave} loading={isSaving} disabled={!changes.hasChanges}>
+            저장
+            {changes.hasChanges && (
+              <span className="ml-1 text-xs">
+                ({changes.toAllow.length > 0 && `+${changes.toAllow.length}`}
+                {changes.toDeny.length > 0 && changes.toAllow.length > 0 && ', '}
+                {changes.toDeny.length > 0 && `-${changes.toDeny.length}`})
+              </span>
+            )}
+          </Button>
+        </Col>
+        <Col>
+          <Button onClick={handleCancel} disabled={!changes.hasChanges || isSaving}>
+            취소
+          </Button>
+        </Col>
+      </Row>
     </div>
   );
+}
+
+// Set 비교 유틸
+function areSetsEqual<T>(a: Set<T>, b: Set<T>): boolean {
+  if (a.size !== b.size) return false;
+  for (const item of a) {
+    if (!b.has(item)) return false;
+  }
+  return true;
 }
