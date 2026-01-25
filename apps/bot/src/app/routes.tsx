@@ -3,7 +3,7 @@ import { Navigate, Outlet } from 'react-router-dom';
 import FaqDetail from './pages/global/FaqDetail';
 import { NotFound } from '@/components/custom/NotFound';
 
-const Main = React.lazy(() => import('./pages/main/Main'));
+const Main = React.lazy(() => import('./pages/main'));
 const BotList = React.lazy(() => import('./pages/bot-config/BotList'));
 const BotCreate = React.lazy(() => import('./pages/bot-config/BotCreate'));
 const BotDetail = React.lazy(() => import('./pages/bot-config/BotDetail'));
