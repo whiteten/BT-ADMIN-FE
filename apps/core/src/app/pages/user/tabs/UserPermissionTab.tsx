@@ -234,13 +234,7 @@ export default function UserPermissionTab() {
   }
 
   return (
-    <div className="flex flex-col gap-4 h-full">
-      {/* 사용자 정보 표시 */}
-      <div className="text-sm text-gray-600">
-        <span className="font-medium">{user?.username}</span> 님의 역할: <span className="font-medium text-blue-600">{role?.roleName ?? '역할 없음'}</span>
-        <span className="text-gray-400 ml-2">(역할 권한 {roleAuthIds.size}개)</span>
-      </div>
-
+    <div className="flex flex-col h-full">
       {/* 권한 선택기 */}
       <div className="flex-1 min-h-0 overflow-hidden">
         <div className="h-full overflow-y-auto">
