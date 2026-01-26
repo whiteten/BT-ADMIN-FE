@@ -7,6 +7,7 @@ import { ReactQueryDevtools } from '@tanstack/react-query-devtools';
 import { Layout } from './features/layout/Layout';
 import CsrfGuard from './features/router/CsrfGuard';
 import RouteGuard from './features/router/RouteGuard';
+import SharedInfoProvider from './features/router/SharedInfoProvider';
 import { useApiErrorHandler } from './hooks/useApiErrorHandler';
 import Login from './pages/login-variants';
 import { FallbackSpinner } from '@/components/custom/FallbackSpinner';
@@ -25,12 +26,14 @@ const AppRoutes = () => {
     <Routes>
       <Route path="/" element={<CsrfGuard />}>
         <Route element={<RouteGuard />}>
-          <Route path="/" element={<Navigate to="/bot" />} />
-          <Route path="/core" element={<Layout />}>
-            <Route index path="*" element={<Core />} />
-          </Route>
-          <Route path="/bot" element={<Layout />}>
-            <Route index path="*" element={<Bot />} />
+          <Route element={<SharedInfoProvider />}>
+            <Route path="/" element={<Navigate to="/bot" />} />
+            <Route path="/core" element={<Layout />}>
+              <Route index path="*" element={<Core />} />
+            </Route>
+            <Route path="/bot" element={<Layout />}>
+              <Route index path="*" element={<Bot />} />
+            </Route>
           </Route>
         </Route>
         <Route path="/login" element={<Login />} />

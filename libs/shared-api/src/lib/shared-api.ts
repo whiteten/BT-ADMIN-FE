@@ -6,7 +6,7 @@ const bffClient = new ApiClient({ serviceURL: '/bff' });
 
 export const sharedApi = {
   role: {
-    queryKeys: createQueryKeys('sharedApi-roles', {
+    queryKeys: createQueryKeys('sharedApi:role', {
       getRoles: (params?: Record<string, unknown>) => [params],
       getRole: (params?: Record<string, unknown>) => [params],
     }),
@@ -22,6 +22,18 @@ export const sharedApi = {
      */
     getRole: async (params?: Record<string, unknown>): Promise<Role> => {
       const response = await bffClient.get<DetailResponse<Role>>('/role-detail', { params });
+      return extractDetail(response);
+    },
+  },
+  common: {
+    queryKeys: createQueryKeys('sharedApi:common', {
+      getSession: (params?: Record<string, unknown>) => [params],
+    }),
+    /**
+     * 세션 조회 - health check
+     */
+    getSession: async (params?: Record<string, unknown>): Promise<unknown> => {
+      const response = await bffClient.get<DetailResponse<unknown>>('/actuator/session', { params });
       return extractDetail(response);
     },
   },
