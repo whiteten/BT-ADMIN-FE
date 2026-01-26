@@ -72,9 +72,21 @@ export function useLoginLogic() {
 
   const { mutate: changePassword } = useChangePassword({
     mutationOptions: {
-      onSuccess: () => {
-        toast.success('비밀번호가 변경되었습니다.');
-        navigate('/');
+      onSuccess: async () => {
+        try {
+          // 비밀번호 변경 후 강제 로그아웃
+          await authApi.logout();
+        } catch (error) {
+          Log.warn('Logout after password change failed:', error);
+        }
+
+        // 상태 초기화
+        setPendingLoginResponse(null);
+        setPasswordPolicy(undefined);
+        form.resetFields();
+
+        // 안내 메시지 표시
+        toast.success('비밀번호가 변경되었습니다. 새 비밀번호로 다시 로그인해주세요.');
       },
       onError: () => {
         toast.error('비밀번호 변경에 실패했습니다.');
