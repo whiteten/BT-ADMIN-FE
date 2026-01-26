@@ -14,14 +14,11 @@ export const roleQueryKeys = createQueryKeys('roles', {
 
 /**
  * 역할 목록 조회 훅
- * 역할 목록은 세션 동안 거의 변경되지 않으므로 캐시를 유지합니다.
  */
 export const useGetRoles = ({ params, queryOptions }: QueryHookWithParamsOptions<Role[]> = {}) => {
   return useQuery({
     queryKey: roleQueryKeys.getRoles(params).queryKey,
     queryFn: () => roleApi.getRoles(params),
-    staleTime: Infinity, // 역할 목록은 세션 동안 변경되지 않음
-    gcTime: Infinity, // gcTime: 0 전역 설정 오버라이드 - 캐시 유지
     ...queryOptions,
   });
 };
