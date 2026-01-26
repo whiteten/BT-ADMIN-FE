@@ -1,5 +1,7 @@
 import { forwardRef, useCallback, useEffect, useImperativeHandle, useState } from 'react';
+import { useQueryClient } from '@tanstack/react-query';
 import { Button, Col, Drawer, Form, type FormProps, Input, InputNumber, Row, Switch } from 'antd';
+import { sharedApi } from '@/shared-api';
 import { toast } from '@/shared-util';
 import { useCreateRoleMutation, useGetRoles, useUpdateRoleMutation } from '../hooks/useRoleQueries';
 import type { Role, RoleCreateRequest, RoleUpdateRequest } from '../types/iam.types';
@@ -30,6 +32,7 @@ interface DrawerState {
  * - ref.close() : 드로어 닫기
  */
 const RoleDrawer = forwardRef<RoleDrawerRef>((_, ref) => {
+  const queryClient = useQueryClient();
   const [drawerState, setDrawerState] = useState<DrawerState>({
     open: false,
     mode: 'create',
@@ -133,6 +136,7 @@ const RoleDrawer = forwardRef<RoleDrawerRef>((_, ref) => {
         await createMutation.mutateAsync(createRequest);
         toast.success('역할이 추가되었습니다.');
         handleClose();
+        queryClient.invalidateQueries({ queryKey: sharedApi.role.queryKeys.getRoles().queryKey });
       } catch (error) {
         const errorMessage = error instanceof Error ? error.message : '역할 추가에 실패했습니다.';
         toast.error(errorMessage);
@@ -150,6 +154,7 @@ const RoleDrawer = forwardRef<RoleDrawerRef>((_, ref) => {
       });
       toast.success('역할이 수정되었습니다.');
       handleClose();
+      queryClient.invalidateQueries({ queryKey: sharedApi.role.queryKeys.getRoles().queryKey });
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : '역할 수정에 실패했습니다.';
       toast.error(errorMessage);

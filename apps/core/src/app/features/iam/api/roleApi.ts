@@ -1,31 +1,13 @@
 /**
  * 역할 관리 API
  */
-import ApiClient, { type DetailResponse, type ListResponse, extractDetail, extractList } from '@/shared-util';
-import type { Role, RoleCreateRequest, RoleUpdateRequest } from '../types/iam.types';
+import type { Role } from '@/shared-api';
+import ApiClient, { type DetailResponse, extractDetail } from '@/shared-util';
+import type { RoleCreateRequest, RoleUpdateRequest } from '../types/iam.types';
 
 const apiClient = new ApiClient({ serviceURL: '/bff' });
 
 export const roleApi = {
-  /**
-   * 역할 목록 조회
-   */
-  getRoles: async (params?: Record<string, unknown>): Promise<Role[]> => {
-    const response = await apiClient.get<ListResponse<Role>>('/role-list', { params });
-    return extractList(response);
-  },
-
-  /**
-   * 역할 단건 조회
-   * @param roleId - 역할 ID
-   */
-  getRole: async (roleId: number): Promise<Role> => {
-    const response = await apiClient.get<DetailResponse<Role>>('/role-detail', {
-      params: { roleId },
-    });
-    return extractDetail(response);
-  },
-
   /**
    * 역할 생성
    */

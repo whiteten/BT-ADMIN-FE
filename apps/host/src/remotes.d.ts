@@ -19,19 +19,3 @@ declare module '*/MenuConfig' {
   const menuConfig: MenuConfig;
   export default menuConfig;
 }
-
-declare module 'core/RoleHooks' {
-  import type { UseQueryResult } from '@tanstack/react-query';
-  import type { QueryHookWithParamsOptions } from '@/shared-util';
-
-  export interface Role {
-    roleId: number;
-    roleCode: string;
-    roleName: string;
-    description?: string;
-    sortOrder: number;
-    isUse: boolean;
-  }
-
-  export function useGetRoles(options?: QueryHookWithParamsOptions<Role[]>): UseQueryResult<Role[], Error>;
-}

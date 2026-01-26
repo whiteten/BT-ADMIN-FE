@@ -7,9 +7,10 @@ import { useNavigate } from 'react-router-dom';
 import { useQueryClient } from '@tanstack/react-query';
 import { Button, Input, Modal } from 'antd';
 import { Plus, Search } from 'lucide-react';
+import { sharedApi } from '@/shared-api';
 import { toast } from '@/shared-util';
 import { RoleCard } from '../components/RoleCard';
-import { roleQueryKeys, useDeleteRoleMutation, useGetRoles } from '../hooks/useRoleQueries';
+import { useDeleteRoleMutation, useGetRoles } from '../hooks/useRoleQueries';
 import type { Role } from '../types/iam.types';
 import { FallbackSpinner } from '@/components/custom/FallbackSpinner';
 import NoData from '@/components/custom/NoData';
@@ -27,8 +28,7 @@ export default function RoleManagementTab() {
     mutationOptions: {
       onSuccess: () => {
         toast.success('역할이 삭제되었습니다.');
-        // staleTime: Infinity 설정으로 인해 refetchQueries 사용
-        queryClient.refetchQueries({ queryKey: roleQueryKeys.getRoles._def });
+        queryClient.invalidateQueries({ queryKey: sharedApi.role.queryKeys.getRoles().queryKey });
       },
       onError: (error) => {
         const errorMessage = error instanceof Error ? error.message : '역할 삭제에 실패했습니다.';

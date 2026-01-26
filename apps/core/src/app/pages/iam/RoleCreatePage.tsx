@@ -7,9 +7,11 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useQueryClient } from '@tanstack/react-query';
 import { type BreadcrumbProps, Button, Col, Divider, Form, type FormProps, Input, InputNumber, Row, Steps, Switch, Tag } from 'antd';
 import { Check, Shield, X } from 'lucide-react';
 import { LOG } from '@/log';
+import { sharedApi } from '@/shared-api';
 import { toast } from '@/shared-util';
 import PermissionSelector from '../../features/iam/components/PermissionSelector';
 import { useGetGroupedPermissions } from '../../features/iam/hooks/usePermissionQueries';
@@ -35,6 +37,7 @@ interface RoleFormValues {
 
 export default function RoleCreatePage() {
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
 
   const [currentStep, setCurrentStep] = useState(0);
   const [fieldErrors, setFieldErrors] = useState<Record<string, string[]>>({});
@@ -90,6 +93,7 @@ export default function RoleCreatePage() {
       onSuccess: () => {
         toast.success('역할이 생성되었습니다.');
         navigate('/core/iam/auth-group/list');
+        queryClient.invalidateQueries({ queryKey: sharedApi.role.queryKeys.getRoles().queryKey });
       },
       onError: (error) => {
         const errorMessage = error instanceof Error ? error.message : '역할 생성에 실패했습니다.';

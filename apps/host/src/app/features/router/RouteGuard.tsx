@@ -7,7 +7,7 @@ import { FallbackSpinner } from '@/components/custom/FallbackSpinner';
 const Log = new LOG('RouteGuard');
 
 export default function RouteGuard() {
-  const { data: userInfo, isFetching, isError, error } = useGetUserInfo();
+  const { data: userInfo, isLoading, isError, error } = useGetUserInfo();
 
   useEffect(() => {
     if (userInfo) {
@@ -15,7 +15,7 @@ export default function RouteGuard() {
     }
   }, [userInfo]);
 
-  if (isFetching) {
+  if (isLoading) {
     return <FallbackSpinner useFullScreen />;
   }
   if (isError) {

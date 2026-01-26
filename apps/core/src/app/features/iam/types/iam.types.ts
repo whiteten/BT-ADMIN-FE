@@ -1,3 +1,5 @@
+import type { Role as SharedRole } from '@/shared-api';
+
 /**
  * RBAC 권한 관리 시스템 타입 정의
  */
@@ -12,21 +14,7 @@ export interface App {
 }
 
 // 역할 마스터
-export interface Role {
-  roleId: number;
-  roleCode: string;
-  roleName: string;
-  description?: string;
-  sortOrder: number;
-  isUse: boolean;
-  permissionCount?: number;
-  userCount?: number;
-  authIds?: number[];
-  createdAt?: string;
-  createdBy?: number;
-  updatedAt?: string;
-  updatedBy?: number;
-}
+export type Role = SharedRole;
 
 // 권한 마스터
 export interface Permission {

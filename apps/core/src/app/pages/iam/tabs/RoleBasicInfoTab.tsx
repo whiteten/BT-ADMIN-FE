@@ -8,8 +8,9 @@ import { useEffect } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { useQueryClient } from '@tanstack/react-query';
 import { Button, Col, Form, type FormProps, Input, InputNumber, Row, Switch } from 'antd';
+import { sharedApi } from '@/shared-api';
 import { toast } from '@/shared-util';
-import { roleQueryKeys, useDeleteRoleMutation, useGetRole, useGetRoles, useUpdateRoleMutation } from '../../../features/iam/hooks/useRoleQueries';
+import { useDeleteRoleMutation, useGetRole, useGetRoles, useUpdateRoleMutation } from '../../../features/iam/hooks/useRoleQueries';
 import type { RoleUpdateRequest } from '../../../features/iam/types/iam.types';
 import { type RoleBasicFormValues, useRoleDetailContext } from '../context/RoleDetailContext';
 import { FallbackSpinner } from '@/components/custom/FallbackSpinner';
@@ -40,11 +41,7 @@ export default function RoleBasicInfoTab() {
   const { data: existingRoles = [] } = useGetRoles();
 
   // 역할 조회
-  const { data: role, isFetching } = useGetRole(numericRoleId, {
-    queryOptions: {
-      enabled: !!numericRoleId,
-    },
-  });
+  const { data: role, isFetching } = useGetRole({ roleId: numericRoleId }, { queryOptions: { enabled: !!numericRoleId } });
 
   // 폼 초기화
   useEffect(() => {
@@ -63,9 +60,8 @@ export default function RoleBasicInfoTab() {
     mutationOptions: {
       onSuccess: () => {
         toast.success('역할 기본 정보가 저장되었습니다.');
-        // staleTime: Infinity 설정으로 인해 refetchQueries 사용
-        queryClient.refetchQueries({ queryKey: roleQueryKeys.getRole(numericRoleId).queryKey });
-        queryClient.refetchQueries({ queryKey: roleQueryKeys.getRoles._def });
+        queryClient.invalidateQueries({ queryKey: sharedApi.role.queryKeys.getRole({ roleId: numericRoleId }).queryKey });
+        queryClient.invalidateQueries({ queryKey: sharedApi.role.queryKeys.getRoles().queryKey });
       },
     },
   });
@@ -74,8 +70,7 @@ export default function RoleBasicInfoTab() {
     mutationOptions: {
       onSuccess: () => {
         toast.success('역할이 삭제되었습니다.');
-        // staleTime: Infinity 설정으로 인해 refetchQueries 사용
-        queryClient.refetchQueries({ queryKey: roleQueryKeys.getRoles._def });
+        queryClient.invalidateQueries({ queryKey: sharedApi.role.queryKeys.getRoles().queryKey });
         navigate('/core/iam/auth-group/list');
       },
     },

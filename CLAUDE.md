@@ -238,7 +238,7 @@ export function UserList() {
     mutationOptions: {
       onSuccess: () => {
         // Invalidate cache after mutation
-        queryClient.invalidateQueries({ queryKey: userQueryKeys._def });
+        queryClient.invalidateQueries({ queryKey: userQueryKeys.useGetUsers().queryKey });
       },
     },
   });
