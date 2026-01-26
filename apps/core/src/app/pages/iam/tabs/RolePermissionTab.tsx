@@ -34,8 +34,9 @@ export default function RolePermissionTab() {
     mutationOptions: {
       onSuccess: () => {
         toast.success('권한 매핑이 저장되었습니다.');
-        queryClient.invalidateQueries({ queryKey: roleQueryKeys.getRole(numericRoleId).queryKey });
-        queryClient.invalidateQueries({ queryKey: roleQueryKeys.getRoles._def });
+        // staleTime: Infinity 설정으로 인해 refetchQueries 사용
+        queryClient.refetchQueries({ queryKey: roleQueryKeys.getRole(numericRoleId).queryKey });
+        queryClient.refetchQueries({ queryKey: roleQueryKeys.getRoles._def });
       },
     },
   });

@@ -63,8 +63,9 @@ export default function RoleBasicInfoTab() {
     mutationOptions: {
       onSuccess: () => {
         toast.success('역할 기본 정보가 저장되었습니다.');
-        queryClient.invalidateQueries({ queryKey: roleQueryKeys.getRole(numericRoleId).queryKey });
-        queryClient.invalidateQueries({ queryKey: roleQueryKeys.getRoles._def });
+        // staleTime: Infinity 설정으로 인해 refetchQueries 사용
+        queryClient.refetchQueries({ queryKey: roleQueryKeys.getRole(numericRoleId).queryKey });
+        queryClient.refetchQueries({ queryKey: roleQueryKeys.getRoles._def });
       },
     },
   });
@@ -73,7 +74,8 @@ export default function RoleBasicInfoTab() {
     mutationOptions: {
       onSuccess: () => {
         toast.success('역할이 삭제되었습니다.');
-        queryClient.invalidateQueries({ queryKey: roleQueryKeys.getRoles._def });
+        // staleTime: Infinity 설정으로 인해 refetchQueries 사용
+        queryClient.refetchQueries({ queryKey: roleQueryKeys.getRoles._def });
         navigate('/core/iam/auth-group/list');
       },
     },

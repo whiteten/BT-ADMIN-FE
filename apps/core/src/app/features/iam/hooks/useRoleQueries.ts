@@ -43,13 +43,18 @@ export const useGetRole = (roleId: number, { queryOptions }: QueryHookOptions<Ro
  */
 export const useCreateRoleMutation = ({ mutationOptions }: MutationHookOptions = {}) => {
   const queryClient = useQueryClient();
+  const { onSuccess: externalOnSuccess, ...restMutationOptions } = mutationOptions ?? {};
 
   return useMutation({
     mutationFn: roleApi.createRole,
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: roleQueryKeys.getRoles._def });
+    onSuccess: (...args) => {
+      // staleTime: Infinity 설정으로 인해 invalidateQueries만으로는 refetch가 트리거되지 않음
+      // refetchQueries를 사용하여 즉시 새로운 데이터를 가져옴
+      queryClient.refetchQueries({ queryKey: roleQueryKeys.getRoles._def });
+      // 외부에서 전달된 onSuccess 콜백 실행
+      externalOnSuccess?.(...args);
     },
-    ...mutationOptions,
+    ...restMutationOptions,
   });
 };
 
@@ -58,13 +63,18 @@ export const useCreateRoleMutation = ({ mutationOptions }: MutationHookOptions =
  */
 export const useUpdateRoleMutation = ({ mutationOptions }: MutationHookOptions = {}) => {
   const queryClient = useQueryClient();
+  const { onSuccess: externalOnSuccess, ...restMutationOptions } = mutationOptions ?? {};
 
   return useMutation({
     mutationFn: ({ roleId, request }: { roleId: number; request: RoleUpdateRequest }) => roleApi.updateRole(roleId, request),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: roleQueryKeys.getRoles._def });
+    onSuccess: (...args) => {
+      // staleTime: Infinity 설정으로 인해 invalidateQueries만으로는 refetch가 트리거되지 않음
+      // refetchQueries를 사용하여 즉시 새로운 데이터를 가져옴
+      queryClient.refetchQueries({ queryKey: roleQueryKeys.getRoles._def });
+      // 외부에서 전달된 onSuccess 콜백 실행
+      externalOnSuccess?.(...args);
     },
-    ...mutationOptions,
+    ...restMutationOptions,
   });
 };
 

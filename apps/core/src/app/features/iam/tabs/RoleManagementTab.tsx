@@ -27,7 +27,8 @@ export default function RoleManagementTab() {
     mutationOptions: {
       onSuccess: () => {
         toast.success('역할이 삭제되었습니다.');
-        queryClient.invalidateQueries({ queryKey: roleQueryKeys.getRoles._def });
+        // staleTime: Infinity 설정으로 인해 refetchQueries 사용
+        queryClient.refetchQueries({ queryKey: roleQueryKeys.getRoles._def });
       },
       onError: (error) => {
         const errorMessage = error instanceof Error ? error.message : '역할 삭제에 실패했습니다.';
