@@ -223,7 +223,6 @@ export default function RoleCreatePage() {
       <div className="h-full">
         <div className="mb-4">
           <h3 className="text-base font-semibold text-gray-800 mb-2">권한 선택</h3>
-          <p className="text-sm text-gray-500">이 역할에 부여할 권한을 선택하세요. 앱/도메인 단위로 전체 선택할 수 있습니다.</p>
         </div>
         <PermissionSelector value={selectedPermissions} onChange={setSelectedPermissions} />
       </div>

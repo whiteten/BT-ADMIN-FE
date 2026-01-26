@@ -64,9 +64,7 @@ export default function RolePermissionTab() {
 
   return (
     <div className="flex flex-col h-full">
-      <div className="mb-4">
-        <p className="text-sm text-gray-500">이 역할에 부여할 권한을 선택하세요. 앱/도메인 단위로 전체 선택할 수 있습니다.</p>
-      </div>
+      <div className="mb-4"></div>
 
       <div className="flex-1 min-h-0">
         <PermissionSelector value={selectedPermissions} onChange={setSelectedPermissions} />

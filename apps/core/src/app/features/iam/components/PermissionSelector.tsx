@@ -136,24 +136,6 @@ export default function PermissionSelector({ value = new Set(), onChange }: Perm
         allowClear
       />
 
-      {/* 검색 결과 카운트 */}
-      <div className="text-xs text-gray-500">
-        {searchText ? (
-          <>
-            검색결과 <span className="font-semibold text-gray-700">{filteredCount}</span>개 / 전체 {totalCount}개
-          </>
-        ) : (
-          <>
-            전체 <span className="font-semibold text-gray-700">{totalCount}</span>개
-          </>
-        )}
-        {value.size > 0 && (
-          <span className="ml-2 text-blue-600">
-            (<span className="font-semibold">{value.size}</span>개 선택)
-          </span>
-        )}
-      </div>
-
       {/* 권한 트리 */}
       <div className="border rounded-lg max-h-[420px] overflow-y-auto">
         <Collapse defaultActiveKey={permissionGroups.slice(0, 2).map((g) => g.appId)} ghost className="bg-white permission-collapse">

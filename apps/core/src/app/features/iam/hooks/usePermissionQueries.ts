@@ -16,18 +16,22 @@ const APP_NAME_MAP: Record<string, string> = {
 };
 
 /**
- * 권한 목록을 앱/도메인별로 그룹화
+ * 권한 목록을 앱/메뉴레이블별로 그룹화
+ * menuLabel이 없는 경우 domain을 fallback으로 사용
  */
 function groupPermissionsByApp(permissions: Permission[]): PermissionGroup[] {
   const grouped = permissions.reduce(
     (acc, perm) => {
+      // menuLabel 우선, 없으면 domain 사용
+      const groupKey = perm.menuLabel || perm.domain;
+
       if (!acc[perm.appId]) {
         acc[perm.appId] = {};
       }
-      if (!acc[perm.appId][perm.domain]) {
-        acc[perm.appId][perm.domain] = [];
+      if (!acc[perm.appId][groupKey]) {
+        acc[perm.appId][groupKey] = [];
       }
-      acc[perm.appId][perm.domain].push(perm);
+      acc[perm.appId][groupKey].push(perm);
       return acc;
     },
     {} as Record<string, Record<string, Permission[]>>,
@@ -37,7 +41,7 @@ function groupPermissionsByApp(permissions: Permission[]): PermissionGroup[] {
     appId,
     appName: APP_NAME_MAP[appId] || appId,
     domains: Object.entries(domains).map(([domain, perms]) => ({
-      domain,
+      domain, // menuLabel 값 (또는 fallback domain)
       permissions: perms,
     })),
   }));

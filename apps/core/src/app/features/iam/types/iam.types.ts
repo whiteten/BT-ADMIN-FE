@@ -25,6 +25,7 @@ export interface Permission {
   action: string;
   authKey: string;
   description?: string;
+  menuLabel?: string;
 }
 
 // 역할-권한 매핑
@@ -139,11 +140,12 @@ export interface RoleUpdateRequest {
 }
 
 // 권한 그룹 (UI용)
+// menuLabel로 그룹핑 (기존 domain 대신)
 export interface PermissionGroup {
   appId: string;
   appName: string;
   domains: {
-    domain: string;
+    domain: string; // menuLabel 값 (호환성 유지를 위해 필드명 유지)
     permissions: Permission[];
   }[];
 }
