@@ -34,11 +34,7 @@ export default function UserPermissionTab() {
   });
 
   // 사용자의 역할 조회 (역할에 포함된 권한 목록)
-  const { data: role, isFetching: isRoleFetching } = useGetRole(user?.roleId ?? 0, {
-    queryOptions: {
-      enabled: !!user?.roleId,
-    },
-  });
+  const { data: role, isFetching: isRoleFetching } = useGetRole({ roleId: user?.roleId ?? 0 }, { queryOptions: { enabled: !!user?.roleId } });
 
   // 쿼리 파라미터 (해당 사용자만 조회)
   const queryParams = useMemo(

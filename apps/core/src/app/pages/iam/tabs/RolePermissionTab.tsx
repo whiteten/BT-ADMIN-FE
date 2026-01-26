@@ -8,9 +8,10 @@
 import { useParams } from 'react-router-dom';
 import { useQueryClient } from '@tanstack/react-query';
 import { Button, Col, Row } from 'antd';
+import { sharedApi } from '@/shared-api';
 import { toast } from '@/shared-util';
 import PermissionSelector from '../../../features/iam/components/PermissionSelector';
-import { roleQueryKeys, useGetRole, useUpdateRoleMutation } from '../../../features/iam/hooks/useRoleQueries';
+import { useGetRole, useUpdateRoleMutation } from '../../../features/iam/hooks/useRoleQueries';
 import type { RoleUpdateRequest } from '../../../features/iam/types/iam.types';
 import { useRoleDetailContext } from '../context/RoleDetailContext';
 import { FallbackSpinner } from '@/components/custom/FallbackSpinner';
@@ -24,18 +25,14 @@ export default function RolePermissionTab() {
   const { selectedPermissions, setSelectedPermissions } = useRoleDetailContext();
 
   // 역할 조회
-  const { data: role, isFetching } = useGetRole(numericRoleId, {
-    queryOptions: {
-      enabled: !!numericRoleId,
-    },
-  });
+  const { data: role, isFetching } = useGetRole({ roleId: numericRoleId }, { queryOptions: { enabled: !!numericRoleId } });
 
   const { mutate: updateRole, isPending: isUpdating } = useUpdateRoleMutation({
     mutationOptions: {
       onSuccess: () => {
         toast.success('권한 매핑이 저장되었습니다.');
-        queryClient.invalidateQueries({ queryKey: roleQueryKeys.getRole(numericRoleId).queryKey });
-        queryClient.invalidateQueries({ queryKey: roleQueryKeys.getRoles._def });
+        queryClient.invalidateQueries({ queryKey: sharedApi.role.queryKeys.getRole({ roleId: numericRoleId }).queryKey });
+        queryClient.invalidateQueries({ queryKey: sharedApi.role.queryKeys.getRoles().queryKey });
       },
     },
   });
