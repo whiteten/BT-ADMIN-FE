@@ -11,8 +11,8 @@ import { Button, Col, Row } from 'antd';
 import { sharedApi } from '@/shared-api';
 import { toast } from '@/shared-util';
 import PermissionSelector from '../../../features/iam/components/PermissionSelector';
-import { useGetRole, useUpdateRoleMutation } from '../../../features/iam/hooks/useRoleQueries';
-import type { RoleUpdateRequest } from '../../../features/iam/types/iam.types';
+import { useGetRole, useUpdateRole } from '../../../features/iam/hooks/useRoleQueries';
+import type { RoleUpdateDatas } from '../../../features/iam/types/iam.types';
 import { useRoleDetailContext } from '../context/RoleDetailContext';
 import { FallbackSpinner } from '@/components/custom/FallbackSpinner';
 
@@ -25,9 +25,12 @@ export default function RolePermissionTab() {
   const { selectedPermissions, setSelectedPermissions } = useRoleDetailContext();
 
   // 역할 조회
-  const { data: role, isFetching } = useGetRole({ roleId: numericRoleId }, { queryOptions: { enabled: !!numericRoleId } });
+  const { data: role, isFetching } = useGetRole({
+    params: { roleId: numericRoleId },
+    queryOptions: { enabled: !!numericRoleId },
+  });
 
-  const { mutate: updateRole, isPending: isUpdating } = useUpdateRoleMutation({
+  const { mutate: updateRole, isPending: isUpdating } = useUpdateRole({
     mutationOptions: {
       onSuccess: () => {
         toast.success('권한 매핑이 저장되었습니다.');
@@ -41,7 +44,7 @@ export default function RolePermissionTab() {
     if (!numericRoleId || !role) return;
 
     // 저장 시 다른 역할 정보는 서버 데이터로 보존
-    const request: RoleUpdateRequest = {
+    const request: RoleUpdateDatas = {
       // 기존 기본 정보 유지
       roleCode: role.roleCode,
       roleName: role.roleName,
@@ -51,7 +54,7 @@ export default function RolePermissionTab() {
       // 권한 매핑만 업데이트
       authIds: Array.from(selectedPermissions),
     };
-    updateRole({ roleId: numericRoleId, request });
+    updateRole({ params: { roleId: numericRoleId }, data: request });
   };
 
   if (isFetching) {

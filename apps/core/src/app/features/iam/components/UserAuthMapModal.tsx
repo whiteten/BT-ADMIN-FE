@@ -10,8 +10,8 @@ import { Form, Modal, Radio, Tag } from 'antd';
 import { CheckCircle, Shield, XCircle } from 'lucide-react';
 import { toast } from '@/shared-util';
 import PermissionSelector from './PermissionSelector';
-import { useCreateUserAuthMapMutation } from '../hooks/useUserAuthQueries';
-import type { UserAuthMapCreateRequest } from '../types/iam.types';
+import { useCreateUserAuthMap } from '../hooks/useUserAuthQueries';
+import type { UserAuthMapCreateDatas } from '../types/iam.types';
 
 /**
  * UserAuthMapModal ref 타입
@@ -66,11 +66,12 @@ const UserAuthMapModal = forwardRef<UserAuthMapModalRef, UserAuthMapModalProps>(
     setModalState({ open: false });
   };
 
-  // API 연동: 생성 Mutation (userId 전달)
-  const { mutate: createMappings, isPending: isCreating } = useCreateUserAuthMapMutation(userId, {
+  // API 연동: 생성 Mutation
+  const { mutate: createMappings, isPending: isCreating } = useCreateUserAuthMap({
     mutationOptions: {
       onSuccess: (response) => {
-        toast.success(`${response.totalCreated}개의 권한 매핑이 생성되었습니다.`);
+        const result = response as { totalCreated: number };
+        toast.success(`${result.totalCreated}개의 권한 매핑이 생성되었습니다.`);
         handleClose();
         onSuccess?.();
       },
@@ -104,12 +105,12 @@ const UserAuthMapModal = forwardRef<UserAuthMapModalRef, UserAuthMapModalProps>(
         return;
       }
 
-      const request: UserAuthMapCreateRequest = {
+      const request: UserAuthMapCreateDatas = {
         authIds: Array.from(selectedPermissions),
         effect: values.effect,
       };
 
-      createMappings(request);
+      createMappings({ params: { userId }, data: request });
     } catch (error) {
       console.error('Validation failed:', error);
     }

@@ -59,7 +59,10 @@ export default function RoleDetailPage() {
   ];
 
   // 역할 조회
-  const { data: role, isFetching } = useGetRole({ roleId: numericRoleId ?? 0 }, { queryOptions: { enabled: !!numericRoleId } });
+  const { data: role, isFetching } = useGetRole({
+    params: { roleId: numericRoleId ?? 0 },
+    queryOptions: { enabled: !!numericRoleId },
+  });
 
   // 권한 목록 조회 (요약 표시용)
   const { data: permissionGroups = [] } = useGetGroupedPermissions();

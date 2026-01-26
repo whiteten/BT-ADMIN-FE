@@ -127,7 +127,7 @@ export default function UserList() {
 
   const handleDelete = (userId: number) => {
     modal.confirm.delete({
-      onOk: () => deleteUser(userId),
+      onOk: () => deleteUser({ userId }),
     });
   };
 

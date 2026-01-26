@@ -49,12 +49,12 @@ export interface User {
 }
 
 /**
- * 사용자 생성/수정 요청 DTO (백엔드 UserRequest와 일치)
+ * 사용자 생성 요청 DTO
  * - 생성 시: 초기 비밀번호는 백엔드에서 userAccount와 동일하게 자동 설정
  * - 생성 시: forcePasswordChange는 백엔드에서 true로 자동 설정 (첫 로그인 시 비밀번호 변경 유도)
  * - 테넌트 정보는 백엔드에서 인증 정보(TenantContext)로 자동 설정됨
  */
-export interface UserRequest {
+export interface UserCreateDatas {
   /** 사용자명 (이름) */
   username: string;
   /** 계정 (로그인 ID) - 초기 비밀번호로도 사용됨 */
@@ -65,7 +65,29 @@ export interface UserRequest {
   roleId?: number;
   /** 계정 상태 (ACTIVE/DORMANT/DISABLED) */
   accountStatus?: AccountStatus;
-  /** 비밀번호 변경 강제 여부 (수정 시 사용) */
+  /** 핸드폰번호 */
+  phone?: string;
+  /** 이메일 */
+  email?: string;
+  /** 접근 허용 IP 목록 (JSON 배열 문자열) */
+  allowedIps?: string;
+}
+
+/**
+ * 사용자 수정 요청 DTO
+ */
+export interface UserUpdateDatas {
+  /** 사용자명 (이름) */
+  username: string;
+  /** 계정 (로그인 ID) */
+  userAccount: string;
+  /** 사용자 설명 */
+  description?: string;
+  /** 역할 ID */
+  roleId?: number;
+  /** 계정 상태 (ACTIVE/DORMANT/DISABLED) */
+  accountStatus?: AccountStatus;
+  /** 비밀번호 변경 강제 여부 */
   forcePasswordChange?: boolean;
   /** 핸드폰번호 */
   phone?: string;
@@ -87,8 +109,8 @@ export interface UserSearchParams {
 }
 
 /**
- * 비밀번호 변경 요청
+ * 비밀번호 변경 요청 데이터
  */
-export interface PasswordChangeRequest {
+export interface PasswordChangeDatas {
   newPassword: string;
 }

@@ -11,7 +11,7 @@ import { Button, Col, Form, type FormProps, Input, Row, Tag } from 'antd';
 import { Plus } from 'lucide-react';
 import { toast } from '@/shared-util';
 import { useGetUser, useUpdateUser, userQueryKeys } from '../../../features/user/hooks/useUserQueries';
-import type { UserRequest } from '../../../features/user/types/user.types';
+import type { UserUpdateDatas } from '../../../features/user/types/user.types';
 import { useUserDetailContext } from '../context/UserDetailContext';
 import { FallbackSpinner } from '@/components/custom/FallbackSpinner';
 
@@ -34,7 +34,8 @@ export default function UserAdditionalInfoTab() {
 
   // 사용자 조회
   const { data: user, isFetching } = useGetUser({
-    id: numericUserId,
+    params: { userId: numericUserId },
+    queryOptions: { enabled: !!numericUserId },
   });
 
   // allowedIps를 최상위에서 watch (훅 규칙 준수)
@@ -79,7 +80,7 @@ export default function UserAdditionalInfoTab() {
     mutationOptions: {
       onSuccess: () => {
         toast.success('부가사항이 저장되었습니다.');
-        queryClient.invalidateQueries({ queryKey: userQueryKeys.getUser(numericUserId).queryKey });
+        queryClient.invalidateQueries({ queryKey: userQueryKeys.getUser({ userId: numericUserId }).queryKey });
       },
     },
   });
@@ -87,7 +88,7 @@ export default function UserAdditionalInfoTab() {
   const onFinish: FormProps<UserAdditionalFormValues>['onFinish'] = (values) => {
     if (!numericUserId || !user) return;
 
-    const requestData: UserRequest = {
+    const requestData: UserUpdateDatas = {
       // 기존 기본 정보 유지
       username: user.username,
       userAccount: user.userAccount ?? '',
@@ -100,7 +101,7 @@ export default function UserAdditionalInfoTab() {
       allowedIps: values.allowedIps?.length ? JSON.stringify(values.allowedIps) : undefined,
     };
     updateUser({
-      userId: numericUserId,
+      params: { userId: numericUserId },
       data: requestData,
     });
   };

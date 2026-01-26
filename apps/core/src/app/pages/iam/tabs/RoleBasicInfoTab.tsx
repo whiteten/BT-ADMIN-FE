@@ -10,8 +10,8 @@ import { useQueryClient } from '@tanstack/react-query';
 import { Button, Col, Form, type FormProps, Input, InputNumber, Row, Switch } from 'antd';
 import { sharedApi } from '@/shared-api';
 import { toast } from '@/shared-util';
-import { useDeleteRoleMutation, useGetRole, useGetRoles, useUpdateRoleMutation } from '../../../features/iam/hooks/useRoleQueries';
-import type { RoleUpdateRequest } from '../../../features/iam/types/iam.types';
+import { useDeleteRole, useGetRole, useGetRoles, useUpdateRole } from '../../../features/iam/hooks/useRoleQueries';
+import type { RoleUpdateDatas } from '../../../features/iam/types/iam.types';
 import { type RoleBasicFormValues, useRoleDetailContext } from '../context/RoleDetailContext';
 import { FallbackSpinner } from '@/components/custom/FallbackSpinner';
 import { useModal } from '@/libs/shared-ui/src/hooks/useModal';
@@ -41,7 +41,10 @@ export default function RoleBasicInfoTab() {
   const { data: existingRoles = [] } = useGetRoles();
 
   // 역할 조회
-  const { data: role, isFetching } = useGetRole({ roleId: numericRoleId }, { queryOptions: { enabled: !!numericRoleId } });
+  const { data: role, isFetching } = useGetRole({
+    params: { roleId: numericRoleId },
+    queryOptions: { enabled: !!numericRoleId },
+  });
 
   // 폼 초기화
   useEffect(() => {
@@ -56,7 +59,7 @@ export default function RoleBasicInfoTab() {
     }
   }, [role, form]);
 
-  const { mutate: updateRole, isPending: isUpdating } = useUpdateRoleMutation({
+  const { mutate: updateRole, isPending: isUpdating } = useUpdateRole({
     mutationOptions: {
       onSuccess: () => {
         toast.success('역할 기본 정보가 저장되었습니다.');
@@ -66,7 +69,7 @@ export default function RoleBasicInfoTab() {
     },
   });
 
-  const { mutate: deleteRole, isPending: isDeleting } = useDeleteRoleMutation({
+  const { mutate: deleteRole, isPending: isDeleting } = useDeleteRole({
     mutationOptions: {
       onSuccess: () => {
         toast.success('역할이 삭제되었습니다.');
@@ -89,7 +92,7 @@ export default function RoleBasicInfoTab() {
   const onFinish: FormProps<RoleBasicFormValues>['onFinish'] = (values) => {
     if (!numericRoleId || !role) return;
 
-    const request: RoleUpdateRequest = {
+    const request: RoleUpdateDatas = {
       roleCode: role.roleCode, // roleCode는 변경 불가
       roleName: values.roleName,
       description: values.description,
@@ -97,7 +100,7 @@ export default function RoleBasicInfoTab() {
       isUse: values.isUse,
       // authIds는 변경하지 않음 (권한 매핑 탭에서 처리)
     };
-    updateRole({ roleId: numericRoleId, request });
+    updateRole({ params: { roleId: numericRoleId }, data: request });
   };
 
   const onFinishFailed: FormProps<RoleBasicFormValues>['onFinishFailed'] = () => {

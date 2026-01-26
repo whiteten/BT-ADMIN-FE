@@ -90,14 +90,14 @@ export interface UserAuthorityResponse {
 }
 
 // 사용자 권한 부여/박탈 요청 (단건)
-export interface UserAuthGrantRequest {
+export interface UserAuthGrantDatas {
   authId: number;
   effect: PermissionEffect;
 }
 
 // 사용자 권한 매핑 생성 요청 - 단일 사용자, 다중 권한
 // userId는 URL path에서 전달
-export interface UserAuthMapCreateRequest {
+export interface UserAuthMapCreateDatas {
   authIds: number[];
   effect: PermissionEffect;
 }
@@ -109,7 +109,7 @@ export interface UserAuthMapCreateResponse {
 }
 
 // 역할 생성/수정 요청
-export interface RoleUpsertRequest {
+export interface RoleUpsertDatas {
   roleCode: string;
   roleName: string;
   description?: string;
@@ -119,7 +119,7 @@ export interface RoleUpsertRequest {
 }
 
 // 역할 생성 요청
-export interface RoleCreateRequest {
+export interface RoleCreateDatas {
   roleCode: string;
   roleName: string;
   description?: string;
@@ -129,7 +129,7 @@ export interface RoleCreateRequest {
 }
 
 // 역할 수정 요청
-export interface RoleUpdateRequest {
+export interface RoleUpdateDatas {
   roleCode: string;
   roleName: string;
   description?: string;

@@ -28,7 +28,7 @@ export interface PasswordPolicy {
 /**
  * 비밀번호 정책 수정 요청 DTO
  */
-export interface PasswordPolicyRequest {
+export interface PasswordPolicyUpdateDatas {
   minLength?: number;
   maxLength?: number;
   requireUppercase?: boolean;
@@ -48,7 +48,7 @@ export interface PasswordPolicyRequest {
 /**
  * 기본 정책 값
  */
-export const DEFAULT_PASSWORD_POLICY: PasswordPolicyRequest = {
+export const DEFAULT_PASSWORD_POLICY: PasswordPolicyUpdateDatas = {
   minLength: 8,
   maxLength: 128,
   requireUppercase: false,

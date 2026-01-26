@@ -15,8 +15,8 @@ import { sharedApi } from '@/shared-api';
 import { toast } from '@/shared-util';
 import PermissionSelector from '../../features/iam/components/PermissionSelector';
 import { useGetGroupedPermissions } from '../../features/iam/hooks/usePermissionQueries';
-import { useCreateRoleMutation, useGetRoles } from '../../features/iam/hooks/useRoleQueries';
-import type { RoleCreateRequest } from '../../features/iam/types/iam.types';
+import { useCreateRole, useGetRoles } from '../../features/iam/hooks/useRoleQueries';
+import type { RoleCreateDatas } from '../../features/iam/types/iam.types';
 import PageHeader from '@/components/custom/PageHeader';
 
 const Log = new LOG('RoleCreatePage');
@@ -88,7 +88,7 @@ export default function RoleCreatePage() {
   ];
 
   // 역할 생성 Mutation
-  const { mutate: createRole, isPending: isCreating } = useCreateRoleMutation({
+  const { mutate: createRole, isPending: isCreating } = useCreateRole({
     mutationOptions: {
       onSuccess: () => {
         toast.success('역할이 생성되었습니다.');
@@ -150,7 +150,7 @@ export default function RoleCreatePage() {
     Log.debug('onFinish', values);
     const authIds = Array.from(selectedPermissions);
 
-    const request: RoleCreateRequest = {
+    const request: RoleCreateDatas = {
       ...values,
       authIds,
     };

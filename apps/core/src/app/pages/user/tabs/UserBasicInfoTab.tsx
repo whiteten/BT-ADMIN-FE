@@ -11,7 +11,7 @@ import { Button, Col, Form, type FormProps, Input, Row, Select } from 'antd';
 import { useAuthStore } from '@/shared-store';
 import { toast } from '@/shared-util';
 import { useDeleteUser, useGetUser, useUpdateUser, userQueryKeys } from '../../../features/user/hooks/useUserQueries';
-import type { AccountStatus, UserRequest } from '../../../features/user/types/user.types';
+import type { AccountStatus, UserUpdateDatas } from '../../../features/user/types/user.types';
 import { useUserDetailContext } from '../context/UserDetailContext';
 import { FallbackSpinner } from '@/components/custom/FallbackSpinner';
 import { useModal } from '@/libs/shared-ui/src/hooks/useModal';
@@ -73,7 +73,8 @@ export default function UserBasicInfoTab() {
 
   // 사용자 조회
   const { data: user, isFetching } = useGetUser({
-    id: numericUserId,
+    params: { userId: numericUserId },
+    queryOptions: { enabled: !!numericUserId },
   });
 
   // 폼 초기화
@@ -93,7 +94,7 @@ export default function UserBasicInfoTab() {
     mutationOptions: {
       onSuccess: () => {
         toast.success('사용자 기본 정보가 저장되었습니다.');
-        queryClient.invalidateQueries({ queryKey: userQueryKeys.getUser(numericUserId).queryKey });
+        queryClient.invalidateQueries({ queryKey: userQueryKeys.getUser({ userId: numericUserId }).queryKey });
       },
     },
   });
@@ -110,7 +111,7 @@ export default function UserBasicInfoTab() {
   const onFinish: FormProps<UserBasicFormValues>['onFinish'] = (values) => {
     if (!numericUserId) return;
 
-    const requestData: UserRequest = {
+    const requestData: UserUpdateDatas = {
       username: values.username,
       userAccount: values.userAccount,
       description: values.description,
@@ -118,7 +119,7 @@ export default function UserBasicInfoTab() {
       accountStatus: values.accountStatus ?? 'ACTIVE',
     };
     updateUser({
-      userId: numericUserId,
+      params: { userId: numericUserId },
       data: requestData,
     });
   };
@@ -131,7 +132,7 @@ export default function UserBasicInfoTab() {
     modal.confirm.delete({
       onOk: () => {
         if (numericUserId) {
-          deleteUser(numericUserId);
+          deleteUser({ userId: numericUserId });
         }
       },
     });

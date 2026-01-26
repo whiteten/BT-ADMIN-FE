@@ -1,5 +1,5 @@
 import ApiClient, { type DetailResponse, type ListResponse, extractDetail, extractList } from '@/shared-util';
-import type { UserSession, UserSessionSearchParams } from '../types/userSession.types';
+import type { UserSession } from '../types/userSession.types';
 
 /**
  * 페이징 응답 타입 (백엔드 PagedResponse와 일치)
@@ -31,21 +31,17 @@ export const userSessionApi = {
    * 사용자의 활성 세션 목록 조회
    * @flow user-session-active
    */
-  getActiveSessions: async (userId: number): Promise<UserSession[]> => {
-    const response = await apiClient.get<DetailResponse<UserSession[]>>('/user-session-active', {
-      params: { userId },
-    });
-    return response.data.data ?? [];
+  getActiveSessions: async (params?: Record<string, unknown>): Promise<UserSession[]> => {
+    const response = await apiClient.get<DetailResponse<UserSession[]>>('/user-session-active', { params });
+    return extractDetail(response) ?? [];
   },
 
   /**
    * 사용자의 활성 세션 수 조회
    * @flow user-session-count
    */
-  countActiveSessions: async (userId: number): Promise<number> => {
-    const response = await apiClient.get<DetailResponse<number>>('/user-session-count', {
-      params: { userId },
-    });
+  countActiveSessions: async (params?: Record<string, unknown>): Promise<number> => {
+    const response = await apiClient.get<DetailResponse<number>>('/user-session-count', { params });
     return extractDetail(response);
   },
 
@@ -53,10 +49,8 @@ export const userSessionApi = {
    * 사용자의 전체 세션 이력 조회 (페이징)
    * @flow user-session-history
    */
-  getSessionHistory: async (userId: number, params?: { page?: number; size?: number }): Promise<PagedResponse<UserSession>> => {
-    const response = await apiClient.get<ListResponse<PagedResponse<UserSession>>>('/user-session-history', {
-      params: { userId, ...params },
-    });
+  getSessionHistory: async (params?: Record<string, unknown>): Promise<PagedResponse<UserSession>> => {
+    const response = await apiClient.get<ListResponse<PagedResponse<UserSession>>>('/user-session-history', { params });
     return extractList(response) as unknown as PagedResponse<UserSession>;
   },
 
@@ -64,10 +58,8 @@ export const userSessionApi = {
    * 세션 단건 조회
    * @flow user-session-detail
    */
-  getSession: async (sessionId: string): Promise<UserSession> => {
-    const response = await apiClient.get<DetailResponse<UserSession>>('/user-session-detail', {
-      params: { sessionId },
-    });
+  getSession: async (params?: Record<string, unknown>): Promise<UserSession> => {
+    const response = await apiClient.get<DetailResponse<UserSession>>('/user-session-detail', { params });
     return extractDetail(response);
   },
 
@@ -75,18 +67,17 @@ export const userSessionApi = {
    * 세션 강제 종료
    * @flow user-session-terminate
    */
-  terminateSession: async (sessionId: string): Promise<void> => {
-    await apiClient.delete('/user-session-terminate', { params: { sessionId } });
+  terminateSession: async (params: Record<string, unknown>) => {
+    const response = await apiClient.delete('/user-session-terminate', { params });
+    return response;
   },
 
   /**
    * 사용자의 모든 세션 강제 종료
    * @flow user-session-terminate-all
    */
-  terminateAllSessions: async (userId: number): Promise<number> => {
-    const response = await apiClient.delete<DetailResponse<number>>('/user-session-terminate-all', {
-      params: { userId },
-    });
+  terminateAllSessions: async (params: Record<string, unknown>) => {
+    const response = await apiClient.delete<DetailResponse<number>>('/user-session-terminate-all', { params });
     return extractDetail(response);
   },
 
@@ -94,7 +85,7 @@ export const userSessionApi = {
    * 세션 검색
    * @flow user-session-search
    */
-  search: async (params?: UserSessionSearchParams): Promise<PagedResponse<UserSession>> => {
+  search: async (params?: Record<string, unknown>): Promise<PagedResponse<UserSession>> => {
     const response = await apiClient.get<ListResponse<PagedResponse<UserSession>>>('/user-session-search', { params });
     return extractList(response) as unknown as PagedResponse<UserSession>;
   },

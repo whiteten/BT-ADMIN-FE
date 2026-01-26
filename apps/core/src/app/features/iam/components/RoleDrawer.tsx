@@ -3,8 +3,8 @@ import { useQueryClient } from '@tanstack/react-query';
 import { Button, Col, Drawer, Form, type FormProps, Input, InputNumber, Row, Switch } from 'antd';
 import { sharedApi } from '@/shared-api';
 import { toast } from '@/shared-util';
-import { useCreateRoleMutation, useGetRoles, useUpdateRoleMutation } from '../hooks/useRoleQueries';
-import type { Role, RoleCreateRequest, RoleUpdateRequest } from '../types/iam.types';
+import { useCreateRole, useGetRoles, useUpdateRole } from '../hooks/useRoleQueries';
+import type { Role, RoleCreateDatas, RoleUpdateDatas } from '../types/iam.types';
 
 /**
  * RoleDrawer ref 타입
@@ -43,8 +43,8 @@ const RoleDrawer = forwardRef<RoleDrawerRef>((_, ref) => {
 
   // 역할 목록 조회 (중복 체크용)
   const { data: roles = [] } = useGetRoles();
-  const createMutation = useCreateRoleMutation({});
-  const updateMutation = useUpdateRoleMutation();
+  const createMutation = useCreateRole({});
+  const updateMutation = useUpdateRole({});
 
   useImperativeHandle(ref, () => ({
     open: (params) => {
@@ -63,7 +63,7 @@ const RoleDrawer = forwardRef<RoleDrawerRef>((_, ref) => {
     setDrawerState((prev) => ({ ...prev, open: false }));
   };
 
-  const [form] = Form.useForm<RoleUpdateRequest>();
+  const [form] = Form.useForm<RoleUpdateDatas>();
   const { TextArea } = Input;
 
   useEffect(() => {
@@ -122,11 +122,11 @@ const RoleDrawer = forwardRef<RoleDrawerRef>((_, ref) => {
     [roles, role?.roleId],
   );
 
-  const onFinish: FormProps<RoleUpdateRequest>['onFinish'] = async (values) => {
+  const onFinish: FormProps<RoleUpdateDatas>['onFinish'] = async (values) => {
     if (!isEditMode) {
       // 생성 모드
       try {
-        const createRequest: RoleCreateRequest = {
+        const createRequest: RoleCreateDatas = {
           roleCode: values.roleCode,
           roleName: values.roleName,
           description: values.description,
@@ -149,8 +149,8 @@ const RoleDrawer = forwardRef<RoleDrawerRef>((_, ref) => {
 
     try {
       await updateMutation.mutateAsync({
-        roleId: role.roleId,
-        request: values,
+        params: { roleId: role.roleId },
+        data: values,
       });
       toast.success('역할이 수정되었습니다.');
       handleClose();
@@ -161,7 +161,7 @@ const RoleDrawer = forwardRef<RoleDrawerRef>((_, ref) => {
     }
   };
 
-  const onFinishFailed: FormProps<RoleUpdateRequest>['onFinishFailed'] = (errorInfo) => {
+  const onFinishFailed: FormProps<RoleUpdateDatas>['onFinishFailed'] = (errorInfo) => {
     console.warn('onFinishFailed', errorInfo);
   };
 

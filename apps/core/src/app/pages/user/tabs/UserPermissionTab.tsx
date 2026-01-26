@@ -13,7 +13,7 @@ import { Button, Col, Row } from 'antd';
 import { toast } from '@/shared-util';
 import UserPermissionSelector from '../../../features/iam/components/UserPermissionSelector';
 import { useGetRole } from '../../../features/iam/hooks/useRoleQueries';
-import { useCreateUserAuthMapMutation, useDeleteUserAuthMapMutation, useGetUserAuthMaps } from '../../../features/iam/hooks/useUserAuthQueries';
+import { useCreateUserAuthMap, useDeleteUserAuthMap, useGetUserAuthMaps } from '../../../features/iam/hooks/useUserAuthQueries';
 import { useGetUser } from '../../../features/user/hooks/useUserQueries';
 import { useUserDetailContext } from '../context/UserDetailContext';
 import { FallbackSpinner } from '@/components/custom/FallbackSpinner';
@@ -30,11 +30,15 @@ export default function UserPermissionTab() {
 
   // 사용자 조회
   const { data: user, isFetching: isUserFetching } = useGetUser({
-    id: numericUserId,
+    params: { userId: numericUserId },
+    queryOptions: { enabled: !!numericUserId },
   });
 
   // 사용자의 역할 조회 (역할에 포함된 권한 목록)
-  const { data: role, isFetching: isRoleFetching } = useGetRole({ roleId: user?.roleId ?? 0 }, { queryOptions: { enabled: !!user?.roleId } });
+  const { data: role, isFetching: isRoleFetching } = useGetRole({
+    params: { roleId: user?.roleId ?? 0 },
+    queryOptions: { enabled: !!user?.roleId },
+  });
 
   // 쿼리 파라미터 (해당 사용자만 조회)
   const queryParams = useMemo(
@@ -94,7 +98,7 @@ export default function UserPermissionTab() {
   }, [roleAuthIds.size, selectedAuthIds.size, existingMaps, setPermissionStats]);
 
   // 생성 Mutation
-  const { mutate: createMap, isPending: isCreating } = useCreateUserAuthMapMutation(numericUserId ?? 0, {
+  const { mutate: createMap, isPending: isCreating } = useCreateUserAuthMap({
     mutationOptions: {
       onError: (error) => {
         const errorMessage = error instanceof Error ? error.message : '권한 설정 저장에 실패했습니다.';
@@ -104,7 +108,7 @@ export default function UserPermissionTab() {
   });
 
   // 삭제 Mutation
-  const { mutate: deleteMap, isPending: isDeleting } = useDeleteUserAuthMapMutation(numericUserId ?? 0, {
+  const { mutate: deleteMap, isPending: isDeleting } = useDeleteUserAuthMap({
     mutationOptions: {
       onError: (error) => {
         const errorMessage = error instanceof Error ? error.message : '권한 설정 삭제에 실패했습니다.';
@@ -167,10 +171,13 @@ export default function UserPermissionTab() {
       // 1. 먼저 기존 매핑 삭제
       for (const mapId of changes.toRemove) {
         await new Promise<void>((resolve, reject) => {
-          deleteMap(mapId, {
-            onSuccess: () => resolve(),
-            onError: (err) => reject(err),
-          });
+          deleteMap(
+            { userId: numericUserId, mapId },
+            {
+              onSuccess: () => resolve(),
+              onError: (err: Error) => reject(err),
+            },
+          );
         });
       }
 
@@ -179,12 +186,12 @@ export default function UserPermissionTab() {
         await new Promise<void>((resolve, reject) => {
           createMap(
             {
-              authIds: changes.toAllow,
-              effect: 'ALLOW',
+              params: { userId: numericUserId },
+              data: { authIds: changes.toAllow, effect: 'ALLOW' },
             },
             {
               onSuccess: () => resolve(),
-              onError: (err) => reject(err),
+              onError: (err: Error) => reject(err),
             },
           );
         });
@@ -195,12 +202,12 @@ export default function UserPermissionTab() {
         await new Promise<void>((resolve, reject) => {
           createMap(
             {
-              authIds: changes.toDeny,
-              effect: 'DENY',
+              params: { userId: numericUserId },
+              data: { authIds: changes.toDeny, effect: 'DENY' },
             },
             {
               onSuccess: () => resolve(),
-              onError: (err) => reject(err),
+              onError: (err: Error) => reject(err),
             },
           );
         });

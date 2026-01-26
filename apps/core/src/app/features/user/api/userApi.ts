@@ -1,5 +1,5 @@
 import ApiClient, { type DetailResponse, type ListResponse, extractDetail, extractList } from '@/shared-util';
-import type { PasswordChangeRequest, User, UserRequest, UserSearchParams } from '../types/user.types';
+import type { PasswordChangeDatas, User, UserCreateDatas, UserUpdateDatas } from '../types/user.types';
 
 /**
  * 페이징 응답 타입 (백엔드 PagedResponse와 일치)
@@ -34,16 +34,16 @@ export const userApi = {
    * 사용자 목록 조회 (전체 조회, 페이징 없음)
    * @flow user-list
    */
-  getUsers: async (): Promise<User[]> => {
-    const response = await apiClient.get<ListResponse<User[]>>('/user-list');
-    return extractList(response) as unknown as User[];
+  getUsers: async (params?: Record<string, unknown>): Promise<User[]> => {
+    const response = await apiClient.get<ListResponse<User>>('/user-list', { params });
+    return extractList(response);
   },
 
   /**
    * 사용자 검색
    * @flow user-search
    */
-  searchUsers: async (params?: UserSearchParams): Promise<PagedResponse<User>> => {
+  searchUsers: async (params?: Record<string, unknown>): Promise<PagedResponse<User>> => {
     const response = await apiClient.get<ListResponse<PagedResponse<User>>>('/user-search', { params });
     return extractList(response) as unknown as PagedResponse<User>;
   },
@@ -52,8 +52,8 @@ export const userApi = {
    * 사용자 단건 조회
    * @flow user-detail
    */
-  getUser: async (userId: number): Promise<User> => {
-    const response = await apiClient.get<DetailResponse<User>>('/user-detail', { params: { userId } });
+  getUser: async (params?: Record<string, unknown>): Promise<User> => {
+    const response = await apiClient.get<DetailResponse<User>>('/user-detail', { params });
     return extractDetail(response);
   },
 
@@ -61,8 +61,8 @@ export const userApi = {
    * 사번으로 사용자 조회
    * @flow user-by-sabun
    */
-  getUserBySabun: async (userSabun: string): Promise<User> => {
-    const response = await apiClient.get<DetailResponse<User>>('/user-by-sabun', { params: { userSabun } });
+  getUserBySabun: async (params?: Record<string, unknown>): Promise<User> => {
+    const response = await apiClient.get<DetailResponse<User>>('/user-by-sabun', { params });
     return extractDetail(response);
   },
 
@@ -70,7 +70,7 @@ export const userApi = {
    * 사용자 생성
    * @flow user-create
    */
-  createUser: async (data: UserRequest): Promise<User> => {
+  createUser: async (data: UserCreateDatas): Promise<User> => {
     const response = await apiClient.post<DetailResponse<User>>('/user-create', data);
     return extractDetail(response);
   },
@@ -79,40 +79,44 @@ export const userApi = {
    * 사용자 수정
    * @flow user-update
    */
-  updateUser: async ({ userId, data }: { userId: number; data: UserRequest }): Promise<User> => {
-    const response = await apiClient.put<DetailResponse<User>>('/user-update', data, { params: { userId } });
-    return extractDetail(response);
+  updateUser: async ({ params, data }: { params: Record<string, unknown>; data: UserUpdateDatas }) => {
+    const response = await apiClient.put('/user-update', data, { params });
+    return response;
   },
 
   /**
    * 사용자 삭제
    * @flow user-delete
    */
-  deleteUser: async (userId: number): Promise<void> => {
-    await apiClient.delete('/user-delete', { params: { userId } });
+  deleteUser: async (params: Record<string, unknown>) => {
+    const response = await apiClient.delete('/user-delete', { params });
+    return response;
   },
 
   /**
    * 비밀번호 변경
    * @flow user-password
    */
-  changePassword: async ({ userId, data }: { userId: number; data: PasswordChangeRequest }): Promise<void> => {
-    await apiClient.put('/user-password', data, { params: { userId } });
+  changePassword: async ({ params, data }: { params: Record<string, unknown>; data: PasswordChangeDatas }) => {
+    const response = await apiClient.put('/user-password', data, { params });
+    return response;
   },
 
   /**
    * 로그인 잠금 해제
    * @flow user-unlock
    */
-  unlockUser: async (userId: number): Promise<void> => {
-    await apiClient.post('/user-unlock', {}, { params: { userId } });
+  unlockUser: async ({ params, data }: { params: Record<string, unknown>; data?: Record<string, unknown> }) => {
+    const response = await apiClient.post('/user-unlock', data ?? {}, { params });
+    return response;
   },
 
   /**
    * 로그인 잠금
    * @flow user-lock
    */
-  lockUser: async (userId: number): Promise<void> => {
-    await apiClient.post('/user-lock', {}, { params: { userId } });
+  lockUser: async ({ params, data }: { params: Record<string, unknown>; data?: Record<string, unknown> }) => {
+    const response = await apiClient.post('/user-lock', data ?? {}, { params });
+    return response;
   },
 };

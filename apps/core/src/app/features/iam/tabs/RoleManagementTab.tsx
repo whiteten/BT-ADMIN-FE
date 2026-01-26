@@ -10,7 +10,7 @@ import { Plus, Search } from 'lucide-react';
 import { sharedApi } from '@/shared-api';
 import { toast } from '@/shared-util';
 import { RoleCard } from '../components/RoleCard';
-import { useDeleteRoleMutation, useGetRoles } from '../hooks/useRoleQueries';
+import { useDeleteRole, useGetRoles } from '../hooks/useRoleQueries';
 import type { Role } from '../types/iam.types';
 import { FallbackSpinner } from '@/components/custom/FallbackSpinner';
 import NoData from '@/components/custom/NoData';
@@ -24,7 +24,7 @@ export default function RoleManagementTab() {
   const { data: rolesData = [], isLoading: loading } = useGetRoles();
 
   // 역할 삭제 Mutation
-  const { mutate: deleteRole } = useDeleteRoleMutation({
+  const { mutate: deleteRole } = useDeleteRole({
     mutationOptions: {
       onSuccess: () => {
         toast.success('역할이 삭제되었습니다.');

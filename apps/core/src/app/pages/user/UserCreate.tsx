@@ -15,7 +15,7 @@ import { Check, Plus, X } from 'lucide-react';
 import { useAuthStore } from '@/shared-store';
 import { toast } from '@/shared-util';
 import { useCreateUser } from '../../features/user/hooks/useUserQueries';
-import type { AccountStatus, UserRequest } from '../../features/user/types/user.types';
+import type { AccountStatus, UserCreateDatas } from '../../features/user/types/user.types';
 import { FallbackSpinner } from '@/components/custom/FallbackSpinner';
 import PageHeader from '@/components/custom/PageHeader';
 
@@ -106,7 +106,7 @@ export default function UserCreate() {
   };
 
   const onFinish: FormProps<UserFormValues>['onFinish'] = (values) => {
-    const requestData: UserRequest = {
+    const requestData: UserCreateDatas = {
       username: values.username,
       userAccount: values.userAccount,
       description: values.description,

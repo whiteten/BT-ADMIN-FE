@@ -10,7 +10,7 @@ import { type BreadcrumbProps, Button, Divider, Form, InputNumber, Switch, Typog
 import { AlertTriangle, Check, Clock, Hash, KeyRound, Lock, RefreshCw, Save, Timer, UserX } from 'lucide-react';
 import { toast } from '@/shared-util';
 import { useGetPasswordPolicy, useUpdatePasswordPolicy } from '../../features/password-policy/hooks/usePasswordPolicyQueries';
-import { DEFAULT_PASSWORD_POLICY, type PasswordPolicyRequest } from '../../features/password-policy/types/passwordPolicy.types';
+import { DEFAULT_PASSWORD_POLICY, type PasswordPolicyUpdateDatas } from '../../features/password-policy/types/passwordPolicy.types';
 import { FallbackSpinner } from '@/components/custom/FallbackSpinner';
 import PageHeader from '@/components/custom/PageHeader';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -156,7 +156,7 @@ function SummaryItem({ label, value, active }: SummaryItemProps) {
 }
 
 export default function PasswordPolicyPage() {
-  const [form] = Form.useForm<PasswordPolicyRequest>();
+  const [form] = Form.useForm<PasswordPolicyUpdateDatas>();
   const formValues = Form.useWatch([], form);
   const [activeTab, setActiveTab] = useState('complexity');
 

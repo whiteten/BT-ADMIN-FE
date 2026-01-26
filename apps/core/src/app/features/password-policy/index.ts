@@ -9,6 +9,6 @@ export { passwordPolicyApi } from './api/passwordPolicyApi';
 export { passwordPolicyQueryKeys, useGetPasswordPolicy, useUpdatePasswordPolicy } from './hooks/usePasswordPolicyQueries';
 
 // Types
-export type { PasswordPolicy, PasswordPolicyRequest } from './types/passwordPolicy.types';
+export type { PasswordPolicy, PasswordPolicyUpdateDatas } from './types/passwordPolicy.types';
 
 export { DEFAULT_PASSWORD_POLICY } from './types/passwordPolicy.types';

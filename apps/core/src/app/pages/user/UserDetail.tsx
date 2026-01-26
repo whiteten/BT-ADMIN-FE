@@ -87,7 +87,8 @@ export default function UserDetail() {
 
   // 사용자 조회
   const { data: user, isFetching } = useGetUser({
-    id: numericUserId,
+    params: { userId: numericUserId },
+    queryOptions: { enabled: !!numericUserId },
   });
 
   // 역할 목록은 RouteGuard에서 이미 로드되어 Zustand에 저장됨
