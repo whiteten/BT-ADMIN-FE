@@ -4,6 +4,7 @@ import { LOG } from '@/log';
 
 import { useAuthStore } from '@/shared-store';
 import { useGetUserInfo } from '../auth/hooks/useAuthQueries';
+import { useGetNavigation } from '../common/hooks/useNavigationQueries';
 import { useGetRoles } from '../management/hooks/useRoleQueries';
 import { FallbackSpinner } from '@/components/custom/FallbackSpinner';
 
@@ -13,7 +14,7 @@ export default function SharedInfoProvider() {
   const { setRoleList, setUserInfo, setIsLoading } = useAuthStore();
   const { data: userInfo, isLoading: isUserInfoLoading, isError: isUserInfoError, error: userInfoError } = useGetUserInfo();
   const { data: roles, isLoading: isRolesLoading, isError: isRolesError, error: rolesError } = useGetRoles();
-
+  const { data: navigation, isLoading: isNavigationLoading, isError: isNavigationError, error: navigationError } = useGetNavigation();
   useEffect(() => {
     if (roles) {
       Log.debug('Roles fetched successfully. roles: ', roles);
@@ -29,16 +30,23 @@ export default function SharedInfoProvider() {
   }, [userInfo, setUserInfo]);
 
   useEffect(() => {
+    if (navigation) {
+      Log.debug('Navigation fetched successfully. navigation: ', navigation);
+    }
+  }, [navigation]);
+
+  useEffect(() => {
     setIsLoading(isRolesLoading || isUserInfoLoading);
   }, [isRolesLoading, isUserInfoLoading, setIsLoading]);
 
-  if (isRolesLoading || isUserInfoLoading) {
+  if (isRolesLoading || isUserInfoLoading || isNavigationLoading) {
     return <FallbackSpinner useFullScreen />;
   }
 
-  if (isRolesError || isUserInfoError) {
+  if (isRolesError || isUserInfoError || isNavigationError) {
     if (rolesError) Log.error('Failed to fetch roles', rolesError);
     if (userInfoError) Log.error('Failed to fetch user info', userInfoError);
+    if (navigationError) Log.error('Failed to fetch navigation', navigationError);
   }
 
   return <Outlet />;
