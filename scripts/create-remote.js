@@ -94,16 +94,16 @@ function createRemote() {
       // 신규앱의 style.css 파일 내용 제거
       clearStyleCss(trimmedAppName);
 
-      // 신규앱의 webpack-helpers.ts 파일을 core와 동일하게 복사
+      // 신규앱의 webpack-helpers.ts 파일을 manager와 동일하게 복사
       copyWebpackHelpers(trimmedAppName);
 
-      // 신규앱의 webpack.config.ts 파일을 core와 동일하게 변경
+      // 신규앱의 webpack.config.ts 파일을 manager와 동일하게 변경
       updateWebpackConfig(trimmedAppName);
 
-      // 신규앱의 module-federation.config.ts 파일을 core와 동일하게 변경
+      // 신규앱의 module-federation.config.ts 파일을 manager와 동일하게 변경
       updateModuleFederationConfig(trimmedAppName);
 
-      // 신규앱의 menu-config.ts 파일을 core의 sample에서 복사
+      // 신규앱의 menu-config.ts 파일을 manager의 sample에서 복사
       createMenuConfig(trimmedAppName);
 
       // host의 menuLoaders.ts 업데이트
@@ -115,19 +115,19 @@ function createRemote() {
       // 신규앱의 project.json 파일 수정
       updateProjectJson(trimmedAppName);
 
-      // 신규앱의 postcss.config.js 파일을 core와 동일하게 복사
+      // 신규앱의 postcss.config.js 파일을 manager와 동일하게 복사
       copyPostcssConfig(trimmedAppName);
 
-      // 신규앱의 tailwind.config.js 파일을 core와 동일하게 복사
+      // 신규앱의 tailwind.config.js 파일을 manager와 동일하게 복사
       copyTailwindConfig(trimmedAppName);
 
-      // 신규앱의 Main.tsx 파일을 core의 sample에서 복사
+      // 신규앱의 Main.tsx 파일을 manager의 sample에서 복사
       copyMainTemplate(trimmedAppName);
 
-      // 신규앱의 routes.tsx 파일을 core의 sample에서 복사
+      // 신규앱의 routes.tsx 파일을 manager의 sample에서 복사
       copyRoutesTemplate(trimmedAppName);
 
-      // 신규앱의 app.tsx 파일을 core의 sample에서 복사 및 주석 제거
+      // 신규앱의 app.tsx 파일을 manager의 sample에서 복사 및 주석 제거
       copyAppTemplate(trimmedAppName);
 
       // 신규앱의 nx-welcome.tsx 파일 삭제
@@ -305,14 +305,14 @@ function clearStyleCss(appName) {
 
 function copyWebpackHelpers(appName) {
   const timer = createTimer();
-  logStart(`${appName}/webpack-helpers.ts`, 'core에서 복사 및 포맷팅');
+  logStart(`${appName}/webpack-helpers.ts`, 'manager에서 복사 및 포맷팅');
   try {
-    const coreHelpersPath = path.join(process.cwd(), 'apps/core/webpack-helpers.ts');
+    const coreHelpersPath = path.join(process.cwd(), 'apps/manager/webpack-helpers.ts');
     const targetHelpersPath = path.join(process.cwd(), `apps/${appName}/webpack-helpers.ts`);
 
-    // core의 webpack-helpers.ts 파일 읽기
+    // manager의 webpack-helpers.ts 파일 읽기
     if (!fs.existsSync(coreHelpersPath)) {
-      logError('core/webpack-helpers.ts', '소스 파일을 찾을 수 없음');
+      logError('manager/webpack-helpers.ts', '소스 파일을 찾을 수 없음');
       return;
     }
 
@@ -324,22 +324,22 @@ function copyWebpackHelpers(appName) {
 
     // ESLint로 포맷팅
     execSync(`npx eslint --fix apps/${appName}/webpack-helpers.ts`, { stdio: 'inherit', cwd: process.cwd() });
-    logSuccess(`${appName}/webpack-helpers.ts`, 'core에서 복사 및 포맷팅', timer);
+    logSuccess(`${appName}/webpack-helpers.ts`, 'manager에서 복사 및 포맷팅', timer);
   } catch (error) {
-    logError(`${appName}/webpack-helpers.ts`, 'core에서 복사 및 포맷팅', error);
+    logError(`${appName}/webpack-helpers.ts`, 'manager에서 복사 및 포맷팅', error);
   }
 }
 
 function updateWebpackConfig(appName) {
   const timer = createTimer();
-  logStart(appName, 'webpack.config.ts 파일을 core와 동일하게 변경');
+  logStart(appName, 'webpack.config.ts 파일을 manager와 동일하게 변경');
   try {
-    const coreWebpackPath = path.join(process.cwd(), 'apps/core/webpack.config.ts');
+    const coreWebpackPath = path.join(process.cwd(), 'apps/manager/webpack.config.ts');
     const targetWebpackPath = path.join(process.cwd(), `apps/${appName}/webpack.config.ts`);
 
-    // core의 webpack.config.ts 파일 읽기
+    // manager의 webpack.config.ts 파일 읽기
     if (!fs.existsSync(coreWebpackPath)) {
-      logError('core', 'webpack.config.ts 파일을 찾을 수 없음');
+      logError('manager', 'webpack.config.ts 파일을 찾을 수 없음');
       return;
     }
 
@@ -351,9 +351,9 @@ function updateWebpackConfig(appName) {
       return;
     }
 
-    // core의 내용을 대상 앱에 복사
+    // manager의 내용을 대상 앱에 복사
     fs.writeFileSync(targetWebpackPath, coreWebpackContent);
-    logSuccess(appName, 'webpack.config.ts 파일을 core와 동일하게 변경', timer);
+    logSuccess(appName, 'webpack.config.ts 파일을 manager와 동일하게 변경', timer);
   } catch (error) {
     logError(appName, 'webpack.config.ts 파일 처리', error);
   }
@@ -361,14 +361,14 @@ function updateWebpackConfig(appName) {
 
 function updateModuleFederationConfig(appName) {
   const timer = createTimer();
-  logStart(appName, 'module-federation.config.ts 파일을 core와 동일하게 변경');
+  logStart(appName, 'module-federation.config.ts 파일을 manager와 동일하게 변경');
   try {
-    const coreConfigPath = path.join(process.cwd(), 'apps/core/module-federation.config.ts');
+    const coreConfigPath = path.join(process.cwd(), 'apps/manager/module-federation.config.ts');
     const targetConfigPath = path.join(process.cwd(), `apps/${appName}/module-federation.config.ts`);
 
-    // core의 module-federation.config.ts 파일 읽기
+    // manager의 module-federation.config.ts 파일 읽기
     if (!fs.existsSync(coreConfigPath)) {
-      logError('core', 'module-federation.config.ts 파일을 찾을 수 없음');
+      logError('manager', 'module-federation.config.ts 파일을 찾을 수 없음');
       return;
     }
 
@@ -381,12 +381,12 @@ function updateModuleFederationConfig(appName) {
     }
 
     // name을 새 앱 이름으로 변경
-    coreConfigContent = coreConfigContent.replace(/name: 'core'/, `name: '${appName}'`);
+    coreConfigContent = coreConfigContent.replace(/name: 'manager'/, `name: '${appName}'`);
 
     // 대상 앱에 수정된 내용 저장
     fs.writeFileSync(targetConfigPath, coreConfigContent);
     logInfo(appName, `name 속성을 '${appName}'으로 변경`);
-    logSuccess(appName, 'module-federation.config.ts 파일을 core와 동일하게 변경', timer);
+    logSuccess(appName, 'module-federation.config.ts 파일을 manager와 동일하게 변경', timer);
   } catch (error) {
     logError(appName, 'module-federation.config.ts 파일 처리', error);
   }
@@ -396,13 +396,13 @@ function createMenuConfig(appName) {
   const timer = createTimer();
   logStart(appName, 'menu-config.ts 파일 생성');
   try {
-    const menuConfigDefaultPath = path.join(process.cwd(), 'apps/core/src/app/features/sample/menu-config.ts');
+    const menuConfigDefaultPath = path.join(process.cwd(), 'apps/manager/src/app/features/sample/menu-config.ts');
     const targetMenuConfigDir = path.join(process.cwd(), `apps/${appName}/src/app/features/sidebar`);
     const targetMenuConfigPath = path.join(targetMenuConfigDir, 'menu-config.ts');
 
     // menu-config-default.ts 파일 읽기
     if (!fs.existsSync(menuConfigDefaultPath)) {
-      logError('core', 'src/app/features/sample/menu-config.ts 파일을 찾을 수 없음');
+      logError('manager', 'src/app/features/sample/menu-config.ts 파일을 찾을 수 없음');
       return;
     }
 
@@ -477,14 +477,14 @@ function updateBuildScripts(appName) {
     // build-selective.js와 serve-host.js, useRemoteSelector.ts 업데이트
     updateBuildSelective(appName);
 
-    if (appName !== 'core') {
+    if (appName !== 'manager') {
       // serve-host.js 업데이트
       updateServeHost(appName);
 
       // useRemoteSelector.ts에 remote 추가
       updateRemoteSelector(appName);
     } else {
-      logInfo('build-scripts', 'core 앱은 serve-host.js, useRemoteSelector.ts 업데이트 제외');
+      logInfo('build-scripts', 'manager 앱은 serve-host.js, useRemoteSelector.ts 업데이트 제외');
     }
 
     logSuccess('build-scripts', `${appName} 앱 추가`, timer);
@@ -694,14 +694,14 @@ function updateProjectJson(appName) {
 
 function copyPostcssConfig(appName) {
   const timer = createTimer();
-  logStart(appName, 'postcss.config.js 파일을 core와 동일하게 변경');
+  logStart(appName, 'postcss.config.js 파일을 manager와 동일하게 변경');
   try {
-    const corePostcssPath = path.join(process.cwd(), 'apps/core/postcss.config.js');
+    const corePostcssPath = path.join(process.cwd(), 'apps/manager/postcss.config.js');
     const targetPostcssPath = path.join(process.cwd(), `apps/${appName}/postcss.config.js`);
 
-    // core의 postcss.config.js 파일 읽기
+    // manager의 postcss.config.js 파일 읽기
     if (!fs.existsSync(corePostcssPath)) {
-      logError('core', 'postcss.config.js 파일을 찾을 수 없음');
+      logError('manager', 'postcss.config.js 파일을 찾을 수 없음');
       return;
     }
 
@@ -713,9 +713,9 @@ function copyPostcssConfig(appName) {
       return;
     }
 
-    // core의 내용을 대상 앱에 복사
+    // manager의 내용을 대상 앱에 복사
     fs.writeFileSync(targetPostcssPath, corePostcssContent);
-    logSuccess(appName, 'postcss.config.js 파일을 core와 동일하게 변경', timer);
+    logSuccess(appName, 'postcss.config.js 파일을 manager와 동일하게 변경', timer);
   } catch (error) {
     logError(appName, 'postcss.config.js 파일 처리', error);
   }
@@ -723,14 +723,14 @@ function copyPostcssConfig(appName) {
 
 function copyTailwindConfig(appName) {
   const timer = createTimer();
-  logStart(appName, 'tailwind.config.js 파일을 core와 동일하게 변경');
+  logStart(appName, 'tailwind.config.js 파일을 manager와 동일하게 변경');
   try {
-    const coreTailwindPath = path.join(process.cwd(), 'apps/core/tailwind.config.js');
+    const coreTailwindPath = path.join(process.cwd(), 'apps/manager/tailwind.config.js');
     const targetTailwindPath = path.join(process.cwd(), `apps/${appName}/tailwind.config.js`);
 
-    // core의 tailwind.config.js 파일 읽기
+    // manager의 tailwind.config.js 파일 읽기
     if (!fs.existsSync(coreTailwindPath)) {
-      logError('core', 'tailwind.config.js 파일을 찾을 수 없음');
+      logError('manager', 'tailwind.config.js 파일을 찾을 수 없음');
       return;
     }
 
@@ -742,9 +742,9 @@ function copyTailwindConfig(appName) {
       return;
     }
 
-    // core의 내용을 대상 앱에 복사
+    // manager의 내용을 대상 앱에 복사
     fs.writeFileSync(targetTailwindPath, coreTailwindContent);
-    logSuccess(appName, 'tailwind.config.js 파일을 core와 동일하게 변경', timer);
+    logSuccess(appName, 'tailwind.config.js 파일을 manager와 동일하게 변경', timer);
   } catch (error) {
     logError(appName, 'tailwind.config.js 파일 처리', error);
   }
@@ -836,12 +836,12 @@ function copyAppTemplate(appName) {
   const timer = createTimer();
   logStart(appName, 'app.tsx 파일 복사');
   try {
-    const sampleAppPath = path.join(process.cwd(), 'apps/core/src/app/features/sample/app.tsx');
+    const sampleAppPath = path.join(process.cwd(), 'apps/manager/src/app/features/sample/app.tsx');
     const targetAppPath = path.join(process.cwd(), `apps/${appName}/src/app/app.tsx`);
 
     // sample app.tsx 파일 읽기
     if (!fs.existsSync(sampleAppPath)) {
-      logError('core', 'src/app/features/sample/app.tsx 파일을 찾을 수 없음');
+      logError('manager', 'src/app/features/sample/app.tsx 파일을 찾을 수 없음');
       return;
     }
 
@@ -859,13 +859,13 @@ function copyMainTemplate(appName) {
   const timer = createTimer();
   logStart(appName, 'Main.tsx 파일 복사');
   try {
-    const samplePath = path.join(process.cwd(), 'apps/core/src/app/features/sample/Main.tsx');
+    const samplePath = path.join(process.cwd(), 'apps/manager/src/app/features/sample/Main.tsx');
     const targetDir = path.join(process.cwd(), `apps/${appName}/src/app/pages/main`);
     const targetPath = path.join(targetDir, 'Main.tsx');
 
     // sample Main.tsx 파일 읽기
     if (!fs.existsSync(samplePath)) {
-      logError('core', 'src/app/features/sample/Main.tsx 파일을 찾을 수 없음');
+      logError('manager', 'src/app/features/sample/Main.tsx 파일을 찾을 수 없음');
       return;
     }
 
@@ -889,12 +889,12 @@ function copyRoutesTemplate(appName) {
   const timer = createTimer();
   logStart(appName, 'routes.tsx 파일 복사 및 주석 제거');
   try {
-    const samplePath = path.join(process.cwd(), 'apps/core/src/app/features/sample/routes.tsx');
+    const samplePath = path.join(process.cwd(), 'apps/manager/src/app/features/sample/routes.tsx');
     const targetPath = path.join(process.cwd(), `apps/${appName}/src/app/routes.tsx`);
 
     // sample routes.tsx 파일 읽기
     if (!fs.existsSync(samplePath)) {
-      logError('core', 'src/app/features/sample/routes.tsx 파일을 찾을 수 없음');
+      logError('manager', 'src/app/features/sample/routes.tsx 파일을 찾을 수 없음');
       return;
     }
 

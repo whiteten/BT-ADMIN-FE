@@ -9,8 +9,8 @@ export interface Remote {
 export default function useRemoteSelector() {
   const remotes = useMemo(() => {
     return [
-      { key: 'core', label: 'CORE' },
-      { key: 'bot', label: 'Focus AI' },
+      { key: 'manager', label: 'Manager' },
+      { key: 'fca', label: 'Focus AI' },
     ];
   }, []);
   const { pathname } = useLocation();

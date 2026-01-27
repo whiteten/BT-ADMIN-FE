@@ -16,8 +16,8 @@ import '../assets/styles/common.css';
 import '../styles.scss';
 import '@/libs/shared-ui/src/lib/aggridSetup';
 
-const Core = React.lazy(() => import('core/Module').catch(() => ({ default: () => <NotFound /> })));
-const Bot = React.lazy(() => import('bot/Module').catch(() => ({ default: () => <NotFound /> })));
+const Manager = React.lazy(() => import('manager/Module').catch(() => ({ default: () => <NotFound /> })));
+const Fca = React.lazy(() => import('fca/Module').catch(() => ({ default: () => <NotFound /> })));
 
 const AppRoutes = () => {
   useApiErrorHandler();
@@ -27,12 +27,12 @@ const AppRoutes = () => {
       <Route path="/" element={<CsrfGuard />}>
         <Route element={<RouteGuard />}>
           <Route element={<SharedInfoProvider />}>
-            <Route path="/" element={<Navigate to="/bot" />} />
-            <Route path="/core" element={<Layout />}>
-              <Route index path="*" element={<Core />} />
+            <Route path="/" element={<Navigate to="/fca" />} />
+            <Route path="/manager" element={<Layout />}>
+              <Route index path="*" element={<Manager />} />
             </Route>
-            <Route path="/bot" element={<Layout />}>
-              <Route index path="*" element={<Bot />} />
+            <Route path="/fca" element={<Layout />}>
+              <Route index path="*" element={<Fca />} />
             </Route>
           </Route>
         </Route>
