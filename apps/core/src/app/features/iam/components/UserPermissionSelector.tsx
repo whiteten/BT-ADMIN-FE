@@ -73,36 +73,6 @@ export default function UserPermissionSelector({ roleAuthIds, selectedAuthIds, e
   const totalCount = allPermissions.length;
   const filteredCount = filteredGroups.reduce((sum, g) => sum + g.domains.reduce((s, d) => s + d.permissions.length, 0), 0);
 
-  // 통계 계산 (역할 대비 변경사항 + DB 저장 상태)
-  const stats = useMemo(() => {
-    let addedCount = 0; // 역할에 없는데 선택됨 (ALLOW)
-    let removedCount = 0; // 역할에 있는데 선택 해제됨 (DENY)
-    let savedAllowCount = 0; // DB에 ALLOW로 저장됨
-    let savedDenyCount = 0; // DB에 DENY로 저장됨
-
-    allPermissions.forEach((p) => {
-      const isRolePermission = roleAuthIds.has(p.authId);
-      const isSelected = selectedAuthIds.has(p.authId);
-
-      if (!isRolePermission && isSelected) {
-        addedCount++;
-      } else if (isRolePermission && !isSelected) {
-        removedCount++;
-      }
-    });
-
-    // DB 저장 상태 카운트
-    existingMaps.forEach((m) => {
-      if (m.effect === 'ALLOW') {
-        savedAllowCount++;
-      } else if (m.effect === 'DENY') {
-        savedDenyCount++;
-      }
-    });
-
-    return { selectedCount: selectedAuthIds.size, addedCount, removedCount, savedAllowCount, savedDenyCount };
-  }, [allPermissions, roleAuthIds, selectedAuthIds, existingMaps]);
-
   // 권한 선택 토글
   const handlePermissionToggle = (authId: number) => {
     if (readOnly) return;
@@ -201,43 +171,6 @@ export default function UserPermissionSelector({ roleAuthIds, selectedAuthIds, e
 
   return (
     <div className="space-y-3">
-      {/* 통계 */}
-      <div className="flex items-center gap-4 text-sm flex-wrap">
-        <span className="text-gray-500">
-          선택됨 <span className="font-semibold text-gray-700">{stats.selectedCount}</span>개
-        </span>
-        {/* 미저장 변경사항 */}
-        {stats.addedCount > 0 && (
-          <span className="text-green-600">
-            + 추가 <span className="font-semibold">{stats.addedCount}</span>개
-          </span>
-        )}
-        {stats.removedCount > 0 && (
-          <span className="text-red-600">
-            - 차단 <span className="font-semibold">{stats.removedCount}</span>개
-          </span>
-        )}
-        {/* DB 저장 상태 (구분선) */}
-        {(stats.savedAllowCount > 0 || stats.savedDenyCount > 0) && (
-          <>
-            <span className="text-gray-300">|</span>
-            <span className="text-gray-500 text-xs">저장됨:</span>
-            {stats.savedAllowCount > 0 && (
-              <span className="text-green-600 flex items-center gap-1">
-                <CheckCircle className="size-3" />
-                <span className="font-semibold">{stats.savedAllowCount}</span>개
-              </span>
-            )}
-            {stats.savedDenyCount > 0 && (
-              <span className="text-red-600 flex items-center gap-1">
-                <XCircle className="size-3" />
-                <span className="font-semibold">{stats.savedDenyCount}</span>개
-              </span>
-            )}
-          </>
-        )}
-      </div>
-
       {/* 검색 */}
       <Input
         placeholder="권한 검색 (권한명, 권한키)"
@@ -246,19 +179,6 @@ export default function UserPermissionSelector({ roleAuthIds, selectedAuthIds, e
         onChange={(e) => setSearchText(e.target.value)}
         allowClear
       />
-
-      {/* 검색 결과 카운트 */}
-      <div className="text-xs text-gray-500">
-        {searchText ? (
-          <>
-            검색결과 <span className="font-semibold text-gray-700">{filteredCount}</span>개 / 전체 {totalCount}개
-          </>
-        ) : (
-          <>
-            전체 <span className="font-semibold text-gray-700">{totalCount}</span>개
-          </>
-        )}
-      </div>
 
       {/* 권한 트리 */}
       <div className="border rounded-lg max-h-[420px] overflow-y-auto">
