@@ -2,7 +2,7 @@ import { useEffect } from 'react';
 import { Outlet } from 'react-router-dom';
 import { LOG } from '@/log';
 
-import { useAuthStore } from '@/shared-store';
+import { useAuthStore, useNavigationStore } from '@/shared-store';
 import { useGetUserInfo } from '../auth/hooks/useAuthQueries';
 import { useGetNavigation } from '../common/hooks/useNavigationQueries';
 import { useGetRoles } from '../management/hooks/useRoleQueries';
@@ -12,6 +12,7 @@ const Log = new LOG('SharedInfoProvider');
 
 export default function SharedInfoProvider() {
   const { setRoleList, setUserInfo, setIsLoading } = useAuthStore();
+  const { setNavigation } = useNavigationStore();
   const { data: userInfo, isLoading: isUserInfoLoading, isError: isUserInfoError, error: userInfoError } = useGetUserInfo();
   const { data: roles, isLoading: isRolesLoading, isError: isRolesError, error: rolesError } = useGetRoles();
   const { data: navigation, isLoading: isNavigationLoading, isError: isNavigationError, error: navigationError } = useGetNavigation();
@@ -32,8 +33,9 @@ export default function SharedInfoProvider() {
   useEffect(() => {
     if (navigation) {
       Log.debug('Navigation fetched successfully. navigation: ', navigation);
+      setNavigation(navigation);
     }
-  }, [navigation]);
+  }, [navigation, setNavigation]);
 
   useEffect(() => {
     setIsLoading(isRolesLoading || isUserInfoLoading);
