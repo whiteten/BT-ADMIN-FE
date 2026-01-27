@@ -376,6 +376,12 @@ export default function Login() {
         onError={(error) => {
           Log.error('Password change failed:', error);
         }}
+        onClose={() => {
+          // 비밀번호 변경 다이얼로그 닫기 시 상태 초기화 (로그인 페이지로 돌아가기)
+          setPendingLoginResponse(null);
+          setPasswordPolicy(undefined);
+          form.resetFields();
+        }}
       />
     </div>
   );
