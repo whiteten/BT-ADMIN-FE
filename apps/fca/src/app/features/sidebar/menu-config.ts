@@ -103,6 +103,13 @@ const menuConfig = {
               index: 1,
               hide: false,
             },
+            {
+              menuKey: `stats-slot`,
+              label: '슬롯 통계',
+              path: 'statistics/call-bot/slot',
+              index: 2,
+              hide: false,
+            },
           ],
         },
         {
