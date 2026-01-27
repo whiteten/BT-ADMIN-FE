@@ -1,6 +1,7 @@
 import { createQueryKeys } from '@lukemorales/query-key-factory';
 import ApiClient, { type DetailResponse, type ListResponse, extractDetail, extractList } from '@/shared-util';
 import type { Role } from './types/iam.types';
+import type { NavigationData } from './types/navi.types';
 
 const bffClient = new ApiClient({ serviceURL: '/bff' });
 
@@ -28,12 +29,20 @@ export const sharedApi = {
   common: {
     queryKeys: createQueryKeys('sharedApi:common', {
       getSession: (params?: Record<string, unknown>) => [params],
+      getNavigation: (params?: Record<string, unknown>) => [params],
     }),
     /**
      * 세션 조회 - health check
      */
     getSession: async (params?: Record<string, unknown>): Promise<unknown> => {
       const response = await bffClient.get<DetailResponse<unknown>>('/actuator/session', { params });
+      return extractDetail(response);
+    },
+    /**
+     * 네비게이션 데이터 조회
+     */
+    getNavigation: async (params?: Record<string, unknown>): Promise<NavigationData> => {
+      const response = await bffClient.get<DetailResponse<NavigationData>>('/navigation', { params });
       return extractDetail(response);
     },
   },
