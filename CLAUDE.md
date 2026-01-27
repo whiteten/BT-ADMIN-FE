@@ -20,8 +20,8 @@ This is an **Nx monorepo** using **Module Federation** to build micro-frontends.
   - Login page
   - Main layout with sidebar navigation
 - **Remote Apps**:
-  - `apps/core`: Core business logic (User management, Dashboard)
-  - `apps/bot`: Bot management features
+  - `apps/manager`: Manager (User management, Dashboard)
+  - `apps/fca`: Focus AI (Bot management features)
 
 ### Libraries
 
@@ -51,7 +51,7 @@ pnpm run build
 npx nx build <project-name>
 
 # Build multiple projects
-npx nx run-many --target=build --projects=host,core
+npx nx run-many --target=build --projects=host,manager
 ```
 
 ### Development Server
@@ -153,7 +153,7 @@ apps/*/src/app/features/<feature>/
 ### API Function Definition Example
 
 ```typescript
-// apps/core/src/app/features/user/api/userApi.ts
+// apps/manager/src/app/features/user/api/userApi.ts
 import { apiClient } from '@/shared-util';
 import type { User, CreateUserDto } from '../types/user.types';
 
@@ -171,7 +171,7 @@ export const userApi = {
 Use `@lukemorales/query-key-factory` for query key management:
 
 ```typescript
-// apps/core/src/app/features/user/hooks/useUserQueries.ts
+// apps/manager/src/app/features/user/hooks/useUserQueries.ts
 import { useQuery, useMutation } from '@tanstack/react-query';
 import { createQueryKeys } from '@lukemorales/query-key-factory';
 import type { MutationHookOptions, QueryHookWithParamsOptions } from '@/shared-util';
@@ -227,7 +227,7 @@ export const useDeleteUser = ({ mutationOptions }: MutationHookOptions = {}) => 
 ### Component Usage Example
 
 ```typescript
-// apps/core/src/app/pages/user/UserList.tsx
+// apps/manager/src/app/pages/user/UserList.tsx
 import { useQueryClient } from '@tanstack/react-query';
 import { useGetUsers, useCreateUser, userQueryKeys } from '../../features/user/hooks/useUserQueries';
 
@@ -283,12 +283,12 @@ Supported commit types include: 🎉 init, ✨ feat, 📦️ chore, 💄 design,
 
 ### Scope 작성 규칙
 
-- **단일 remote 작업**: scope에 해당 remote 명칭을 작성 (예: `bot`, `core`, `host`)
+- **단일 remote 작업**: scope에 해당 remote 명칭을 작성 (예: `fca`, `manager`, `host`)
 - **여러 remote 작업**: scope를 비워둠
 
 ```bash
 # 단일 remote 작업 예시
-✨feat(bot): TTS 발화자 입력 유효성 검사 추가
+✨feat(fca): TTS 발화자 입력 유효성 검사 추가
 
 # 여러 remote 작업 예시
 ✨feat: 공통 컴포넌트 스타일 수정
@@ -320,7 +320,7 @@ Supported commit types include: 🎉 init, ✨ feat, 📦️ chore, 💄 design,
 1. **Within the same app**: Use **relative paths**
 
    ```typescript
-   // Inside apps/core/src/app/pages/user/UserDetail.tsx
+   // Inside apps/manager/src/app/pages/user/UserDetail.tsx
    import { UserCard } from './UserCard';
    import { userApi } from '../../features/user/api';
    ```
