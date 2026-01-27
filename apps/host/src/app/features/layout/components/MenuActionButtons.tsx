@@ -4,18 +4,18 @@ import { NewWindowButton } from './NewWindowButton';
 import { Separator } from '@/components/ui/separator';
 
 interface MenuActionButtonsProps {
-  menuId: string;
+  menuKey: string;
   label: string;
   path: string;
-  rootPath: string;
+  appId: string;
 }
 
-export const MenuActionButtons = React.memo(({ menuId, label, path, rootPath }: MenuActionButtonsProps) => {
+export const MenuActionButtons = React.memo(({ menuKey, label, path, appId }: MenuActionButtonsProps) => {
   return (
     <div className="flex items-center gap-1">
-      <NewWindowButton path={path} rootPath={rootPath} />
+      <NewWindowButton path={path} appId={appId} />
       <Separator orientation="vertical" className="data-[orientation=vertical]:h-4" />
-      <BookmarkButton menuId={menuId} label={label} path={path} rootPath={rootPath} />
+      <BookmarkButton menuKey={menuKey} label={label} path={path} appId={appId} />
     </div>
   );
 });

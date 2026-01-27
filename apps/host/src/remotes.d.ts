@@ -12,8 +12,9 @@ declare module '*/MenuConfig' {
   }
 
   interface MenuConfig {
-    groupLabel: string;
-    items: MenuItem[];
+    appId: string;
+    appName: string;
+    menus: MenuItem[];
   }
 
   const menuConfig: MenuConfig;

@@ -19,27 +19,27 @@ const LNBBody = () => {
   if (!menuConfigs.length) {
     return (
       <SidebarContent>
-        <NoData message="전체 메뉴 정보를 찾을 수 없습니다." />
+        <NoData message={`메뉴 정보를\n찾을 수 없습니다.\n(전체)`} color="!text-white" />
       </SidebarContent>
     );
   }
 
-  const selectedRemoteMenuConfig = menuConfigs.find((menuConfig) => menuConfig.rootPath === selectedRemote.key);
+  const selectedRemoteMenuConfig = menuConfigs.find((menuConfig) => menuConfig.appId === selectedRemote.key);
   if (!selectedRemoteMenuConfig) {
     return (
       <SidebarContent>
-        <NoData message="메뉴 정보를 찾을 수 없습니다." />
+        <NoData message={`메뉴 정보를\n찾을 수 없습니다.`} color="!text-white" />
       </SidebarContent>
     );
   }
 
   return (
     <SidebarContent>
-      <SidebarGroup key={selectedRemoteMenuConfig.rootPath}>
-        <SidebarGroupLabel>{selectedRemoteMenuConfig.groupLabel}</SidebarGroupLabel>
+      <SidebarGroup key={selectedRemoteMenuConfig.appId}>
+        <SidebarGroupLabel>{selectedRemoteMenuConfig.appName}</SidebarGroupLabel>
         <SidebarMenu>
-          {selectedRemoteMenuConfig.items.map((item) => (
-            <MenuItem key={item.id} item={item} rootPath={selectedRemoteMenuConfig.rootPath} />
+          {selectedRemoteMenuConfig.menus.map((item) => (
+            <MenuItem key={item.menuKey} item={item} appId={selectedRemoteMenuConfig.appId} />
           ))}
         </SidebarMenu>
       </SidebarGroup>

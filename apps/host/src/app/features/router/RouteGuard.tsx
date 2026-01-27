@@ -1,25 +1,27 @@
 import { useEffect } from 'react';
 import { Navigate, Outlet } from 'react-router-dom';
+import dayjs from 'dayjs';
 import { LOG } from '@/log';
-import { useGetUserInfo } from '../../features/auth/hooks/useAuthQueries';
+
+import { useGetSession } from '../common/hooks/useActuator';
 import { FallbackSpinner } from '@/components/custom/FallbackSpinner';
 
 const Log = new LOG('RouteGuard');
 
 export default function RouteGuard() {
-  const { data: userInfo, isLoading, isError, error } = useGetUserInfo();
+  const { data: response, isLoading, isError, error } = useGetSession({ params: { t: dayjs().format('YYYYMMDDHHmmss') } });
 
   useEffect(() => {
-    if (userInfo) {
-      Log.debug('User info fetched successfully. userInfo: ', userInfo);
+    if (response) {
+      Log.debug('Session check successfully.');
     }
-  }, [userInfo]);
+  }, [response]);
 
   if (isLoading) {
     return <FallbackSpinner useFullScreen />;
   }
   if (isError) {
-    Log.error('Failed to get user info', error);
+    Log.error('Failed to check session', error);
     return <Navigate to="/login" />;
   }
   return <Outlet />;

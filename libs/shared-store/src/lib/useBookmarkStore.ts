@@ -2,29 +2,29 @@ import { create } from 'zustand';
 import { createJSONStorage, persist } from 'zustand/middleware';
 
 interface BookmarkItem {
-  rootPath: string;
-  id: string;
+  appId: string;
+  menuKey: string;
   label: string;
   path: string;
 }
 
 interface BookmarkStore {
   bookmarks: BookmarkItem[];
-  toggleBookmark: (rootPath: string, id: string, label: string, path: string) => void;
-  isBookmarked: (id: string) => boolean;
+  toggleBookmark: (appId: string, menuKey: string, label: string, path: string) => void;
+  isBookmarked: (menuKey: string) => boolean;
 }
 
 export const useBookmarkStore = create<BookmarkStore>()(
   persist(
     (set, get) => ({
       bookmarks: [],
-      toggleBookmark: (rootPath, id, label, path) => {
+      toggleBookmark: (appId, menuKey, label, path) => {
         set((state) => {
-          const exists = state.bookmarks.some((item) => item.id === id);
-          return exists ? { bookmarks: state.bookmarks.filter((item) => item.id !== id) } : { bookmarks: [...state.bookmarks, { rootPath, id, label, path }] };
+          const exists = state.bookmarks.some((item) => item.menuKey === menuKey);
+          return exists ? { bookmarks: state.bookmarks.filter((item) => item.menuKey !== menuKey) } : { bookmarks: [...state.bookmarks, { appId, menuKey, label, path }] };
         });
       },
-      isBookmarked: (id) => get().bookmarks.some((item) => item.id === id),
+      isBookmarked: (menuKey) => get().bookmarks.some((item) => item.menuKey === menuKey),
     }),
     { name: 'bookmark-menu-storage', storage: createJSONStorage(() => sessionStorage) },
   ),

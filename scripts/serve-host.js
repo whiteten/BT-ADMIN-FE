@@ -3,7 +3,7 @@
 const { spawn } = require('child_process');
 const readline = require('readline');
 
-const REMOTE_APPS = ['bot'];
+const REMOTE_APPS = ['fca'];
 
 const rl = readline.createInterface({
   input: process.stdin,
@@ -13,7 +13,7 @@ const rl = readline.createInterface({
 function showMenu() {
   console.log('\n🎯 Host 앱과 함께 실행할 Remote 앱을 선택해주세요:');
   console.log('  1. 모든 Remote 앱 실행');
-  console.log('  2. Remote 앱 없이 Host만 실행 (core는 항상 포함)');
+  console.log('  2. Remote 앱 없이 Host만 실행 (manager는 항상 포함)');
   REMOTE_APPS.forEach((app, i) => console.log(`  ${i + 3}. ${app}`));
 }
 
@@ -27,12 +27,12 @@ function parseSelection(input) {
   for (const num of selections) {
     if (isNaN(num) || num < 1 || num > REMOTE_APPS.length + 2) throw new Error(`❌ 잘못된 번호입니다: ${num} (1~${REMOTE_APPS.length + 2} 사이의 숫자를 입력해주세요)`);
 
-    if (num === 1) return Array.from(new Set(['core', ...REMOTE_APPS]));
-    else if (num === 2) return ['core'];
+    if (num === 1) return Array.from(new Set(['manager', ...REMOTE_APPS]));
+    else if (num === 2) return ['manager'];
     else selected.push(REMOTE_APPS[num - 3]);
   }
 
-  return Array.from(new Set(['core', ...selected]));
+  return Array.from(new Set(['manager', ...selected]));
 }
 
 function buildCommand(selectedRemotes) {

@@ -19,8 +19,8 @@ export default function AppSelector({ className, ...props }: React.ComponentProp
 
   const appIcons = useMemo(() => {
     return {
-      core: <Database />,
-      bot: <Bot />,
+      manager: <Database />,
+      fca: <Bot />,
     };
   }, []);
 
