@@ -24,7 +24,7 @@ const LNBBody = () => {
     );
   }
 
-  const selectedRemoteMenuConfig = menuConfigs.find((menuConfig) => menuConfig.rootPath === selectedRemote.key);
+  const selectedRemoteMenuConfig = menuConfigs.find((menuConfig) => menuConfig.appId === selectedRemote.key);
   if (!selectedRemoteMenuConfig) {
     return (
       <SidebarContent>
@@ -35,11 +35,11 @@ const LNBBody = () => {
 
   return (
     <SidebarContent>
-      <SidebarGroup key={selectedRemoteMenuConfig.rootPath}>
-        <SidebarGroupLabel>{selectedRemoteMenuConfig.groupLabel}</SidebarGroupLabel>
+      <SidebarGroup key={selectedRemoteMenuConfig.appId}>
+        <SidebarGroupLabel>{selectedRemoteMenuConfig.appName}</SidebarGroupLabel>
         <SidebarMenu>
-          {selectedRemoteMenuConfig.items.map((item) => (
-            <MenuItem key={item.id} item={item} rootPath={selectedRemoteMenuConfig.rootPath} />
+          {selectedRemoteMenuConfig.menus.map((item) => (
+            <MenuItem key={item.menuKey} item={item} appId={selectedRemoteMenuConfig.appId} />
           ))}
         </SidebarMenu>
       </SidebarGroup>

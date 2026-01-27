@@ -10,7 +10,7 @@ import type { MenuItem as MenuItemType } from '@/libs/shared-store/src/types/men
 
 interface MenuItemProps {
   item: MenuItemType;
-  rootPath: string;
+  appId: string;
 }
 
 /**
@@ -21,7 +21,7 @@ interface MenuItemProps {
  * - children X + path O → 링크 (리프 노드)
  * - children X + path X → 경고 (데이터 오류)
  */
-export const MenuItem = React.memo(({ item, rootPath }: MenuItemProps) => {
+export const MenuItem = React.memo(({ item, appId }: MenuItemProps) => {
   const hasChildren = item.children && item.children.length > 0;
 
   // children이 있으면 Collapsible (path는 없음)
@@ -39,7 +39,7 @@ export const MenuItem = React.memo(({ item, rootPath }: MenuItemProps) => {
           <CollapsibleContent>
             <SidebarMenuSub className="pr-0">
               {item.children?.map((child) => (
-                <MenuItem key={child.id} item={child} rootPath={rootPath} />
+                <MenuItem key={child.menuKey} item={child} appId={appId} />
               ))}
             </SidebarMenuSub>
           </CollapsibleContent>
@@ -50,7 +50,7 @@ export const MenuItem = React.memo(({ item, rootPath }: MenuItemProps) => {
 
   // children이 없으면 Link (path 필수)
   if (item.path) {
-    const absolutePath = `/${rootPath}/${item.path}`;
+    const absolutePath = `/${appId}/${item.path}`;
     return (
       <SidebarMenuItem>
         <HoverCard openDelay={0} closeDelay={0}>
@@ -63,7 +63,7 @@ export const MenuItem = React.memo(({ item, rootPath }: MenuItemProps) => {
             </SidebarMenuSubButton>
           </HoverCardTrigger>
           <HoverCardContent side="right" align="center" sideOffset={0} className="w-full p-1">
-            <MenuActionButtons menuId={item.id} label={item.label} path={item.path} rootPath={rootPath} />
+            <MenuActionButtons menuKey={item.menuKey} label={item.label} path={item.path} appId={appId} />
           </HoverCardContent>
         </HoverCard>
       </SidebarMenuItem>

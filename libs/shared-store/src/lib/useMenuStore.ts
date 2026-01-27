@@ -1,10 +1,10 @@
 import { create } from 'zustand';
-import type { MenuConfigWithRootPath } from '../types/menu.types';
+import type { MenuConfig } from '../types/menu.types';
 
 interface MenuStore {
-  menuConfigs: MenuConfigWithRootPath[];
+  menuConfigs: MenuConfig[];
   isLoading: boolean;
-  setMenuConfigs: (menuConfigs: MenuConfigWithRootPath[]) => void;
+  setMenuConfigs: (menuConfigs: MenuConfig[]) => void;
   setIsLoading: (isLoading: boolean) => void;
 }
 

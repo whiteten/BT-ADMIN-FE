@@ -408,8 +408,9 @@ function createMenuConfig(appName) {
 
     let menuConfigContent = fs.readFileSync(menuConfigDefaultPath, 'utf8');
 
-    // appName 변수값을 새 앱 이름으로 변경
-    menuConfigContent = menuConfigContent.replace(/const appName = '';/, `const appName = '${appName}';`);
+    // appId, appName 변수값을 새 앱 이름으로 변경
+    menuConfigContent = menuConfigContent.replace(/const appId = '';/, `const appId = '${appName}';`);
+    menuConfigContent = menuConfigContent.replace(/const appName = '';/, `const appName = '${appName.toUpperCase()}';`);
 
     // 디렉토리가 없으면 생성
     if (!fs.existsSync(targetMenuConfigDir)) {

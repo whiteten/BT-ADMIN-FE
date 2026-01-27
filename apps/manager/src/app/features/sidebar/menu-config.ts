@@ -1,12 +1,13 @@
 import { IconMenuItemsPlus, IconMenuMain } from '@/components/custom/Icons';
 
-const appName = 'manager';
-
+const appId = 'manager';
+const appName = 'MANAGER';
 const menuConfig = {
-  groupLabel: 'CORE',
-  items: [
+  appId,
+  appName,
+  menus: [
     {
-      id: `${appName}/dashboard`,
+      menuKey: `${appId}/dashboard`,
       label: '메인',
       path: 'dashboard',
       index: 0,
@@ -14,28 +15,28 @@ const menuConfig = {
       hide: false,
     },
     {
-      id: `${appName}/_resource`,
+      menuKey: `${appId}/_resource`,
       label: '자원 관리',
       icon: IconMenuItemsPlus,
       index: 1,
       hide: false,
       children: [
         {
-          id: `${appName}/_resource/user`,
+          menuKey: `${appId}/_resource/user`,
           label: '사용자',
           path: 'resource/user/list',
           index: 0,
           hide: false,
         },
         {
-          id: `${appName}/_resource/role`,
+          menuKey: `${appId}/_resource/role`,
           label: '역할',
           path: 'iam/auth-group/list',
           index: 1,
           hide: false,
         },
         {
-          id: `${appName}/_resource/password-policy`,
+          menuKey: `${appId}/_resource/password-policy`,
           label: '비밀번호 정책',
           path: 'iam/password-policy',
           index: 2,

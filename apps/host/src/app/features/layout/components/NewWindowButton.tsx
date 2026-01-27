@@ -4,13 +4,13 @@ import { Button } from '@/components/ui/button';
 
 interface NewWindowButtonProps {
   path: string;
-  rootPath: string;
+  appId: string;
 }
 
-export const NewWindowButton = React.memo(({ path, rootPath }: NewWindowButtonProps) => {
+export const NewWindowButton = React.memo(({ path, appId }: NewWindowButtonProps) => {
   const handleNewWindow = useCallback(() => {
-    window.open(`/${rootPath}/${path}`, '_blank');
-  }, [rootPath, path]);
+    window.open(`/${appId}/${path}`, '_blank');
+  }, [appId, path]);
 
   return (
     <Button type="button" variant="ghost" size="icon" className="h-8 w-8 cursor-pointer" onClick={handleNewWindow}>
