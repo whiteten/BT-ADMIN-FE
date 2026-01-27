@@ -52,7 +52,7 @@ const menuConfig = {
           hide: false,
         },
         {
-          menuKey: `${appId}/_config-global/aoe`,
+          menuKey: `cm-aoe-ext`,
           label: 'AOE 확장',
           path: 'global/aoe/config',
           index: 1,
