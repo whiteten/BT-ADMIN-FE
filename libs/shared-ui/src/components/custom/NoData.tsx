@@ -21,13 +21,15 @@ interface NoDataProps {
   iconSize?: number;
   fontSize?: TailwindFontSize;
   gap?: number;
+  color?: string;
+  className?: string;
 }
 
-export default function NoData({ message = '조회된 데이터가 없습니다.', iconSize = 15, fontSize = 'text-base', gap = 4 }: NoDataProps) {
+export default function NoData({ message = '조회된 데이터가 없습니다.', iconSize = 15, fontSize = 'text-base', gap = 4, color = 'text-gray-500', className }: NoDataProps) {
   return (
-    <div className={cn('w-full h-full flex flex-col gap-4 items-center justify-center', `gap-${gap}`)}>
-      <IconDataEmpty className={`size-${iconSize} text-gray-500`} />
-      <pre className={cn('text-gray-500', fontSize)}>{message}</pre>
+    <div className={cn('w-full h-full flex flex-col gap-4 items-center justify-center', `gap-${gap}`, className)}>
+      <IconDataEmpty className={`size-${iconSize} ${color}`} />
+      <pre className={cn('text-center', color, fontSize)}>{message}</pre>
     </div>
   );
 }

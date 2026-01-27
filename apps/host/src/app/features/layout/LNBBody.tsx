@@ -19,7 +19,7 @@ const LNBBody = () => {
   if (!menuConfigs.length) {
     return (
       <SidebarContent>
-        <NoData message="전체 메뉴 정보를 찾을 수 없습니다." />
+        <NoData message={`메뉴 정보를\n찾을 수 없습니다.\n(전체)`} color="!text-white" />
       </SidebarContent>
     );
   }
@@ -28,7 +28,7 @@ const LNBBody = () => {
   if (!selectedRemoteMenuConfig) {
     return (
       <SidebarContent>
-        <NoData message="메뉴 정보를 찾을 수 없습니다." />
+        <NoData message={`메뉴 정보를\n찾을 수 없습니다.`} color="!text-white" />
       </SidebarContent>
     );
   }
