@@ -7,7 +7,7 @@ const menuConfig = {
   appName,
   menus: [
     {
-      menuKey: `manager-main`,
+      menuId: 17,
       label: '메인',
       path: 'dashboard',
       index: 0,
@@ -15,28 +15,28 @@ const menuConfig = {
       hide: false,
     },
     {
-      menuKey: `manager-resource`,
+      menuId: 18,
       label: '자원 관리',
       icon: IconMenuItemsPlus,
       index: 1,
       hide: false,
       children: [
         {
-          menuKey: `manager-user`,
+          menuId: 19,
           label: '사용자',
           path: 'resource/user/list',
           index: 0,
           hide: false,
         },
         {
-          menuKey: `manager-role`,
+          menuId: 20,
           label: '역할',
           path: 'iam/auth-group/list',
           index: 1,
           hide: false,
         },
         {
-          menuKey: `manager-password-policy`,
+          menuId: 21,
           label: '비밀번호 정책',
           path: 'iam/password-policy',
           index: 2,

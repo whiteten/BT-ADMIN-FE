@@ -29,7 +29,7 @@ function SitemapLeafItem({ item, appId, onMenuClick }: SitemapLeafItemProps) {
         </button>
       </div>
       <div className="ml-2 flex items-center gap-1">
-        <BookmarkButton menuKey={item.menuKey} label={item.label} path={leafPath} appId={appId} />
+        <BookmarkButton menuId={item.menuId} label={item.label} path={leafPath} appId={appId} />
       </div>
     </li>
   );
@@ -62,7 +62,7 @@ function SitemapMenuItem({ item, appId, itemIdx, onMenuClick }: SitemapMenuItemP
             <div className="truncate text-sm font-semibold text-gray-700">{item.label}</div>
           )}
         </div>
-        <div className="ml-auto flex items-center gap-1">{itemPath && <BookmarkButton menuKey={item.menuKey} label={item.label} path={itemPath} appId={appId} />}</div>
+        <div className="ml-auto flex items-center gap-1">{itemPath && <BookmarkButton menuId={item.menuId} label={item.label} path={itemPath} appId={appId} />}</div>
       </div>
 
       {hasChildren && (

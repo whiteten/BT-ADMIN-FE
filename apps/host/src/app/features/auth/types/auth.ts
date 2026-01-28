@@ -37,21 +37,27 @@ export interface ChangePasswordRequest {
 export interface LoginResponse {
   username: string;
   userId: number;
-  tenantId: string | null;
+  tenantId: number;
   forcePasswordChange: boolean;
   passwordExpired: boolean;
   passwordExpiringSoon: boolean;
-  daysUntilExpiration: number | null;
+  daysUntilExpiration: number;
 }
 
 /**
  * Login error response from backend (OAuth2 style)
  */
 export interface LoginErrorResponse {
-  error: 'invalid_request' | 'invalid_grant' | 'account_locked' | 'account_dormant' | 'account_disabled' | 'tenant_required';
+  error: 'invalid_request' | 'invalid_grant' | 'account_locked' | 'account_dormant' | 'account_disabled' | 'tenant_required' | 'password_change_required';
   error_description?: string;
   remaining_attempts?: number;
   retry_after?: number;
+  // password_change_required 전용 필드
+  userId: number;
+  userAccount: string;
+  tenantId: number;
+  passwordExpired: boolean;
+  daysUntilExpiration: number;
 }
 
 /**

@@ -1,4 +1,5 @@
 import { useMenuStore } from '@/shared-store';
+import BookmarkSection from './components/BookmarkSection';
 import { MenuItem } from './components/MenuItem';
 import { MenuSpinner } from './components/MenuSpinner';
 import useRemoteSelector from '../../hooks/useRemoteSelector';
@@ -8,6 +9,7 @@ import { SidebarContent, SidebarGroup, SidebarGroupLabel, SidebarMenu } from '@/
 const LNBBody = () => {
   const { menuConfigs, isLoading } = useMenuStore();
   const { selectedRemote } = useRemoteSelector();
+
   if (isLoading) {
     return (
       <SidebarContent>
@@ -39,19 +41,12 @@ const LNBBody = () => {
         <SidebarGroupLabel>{selectedRemoteMenuConfig.appName}</SidebarGroupLabel>
         <SidebarMenu>
           {selectedRemoteMenuConfig.menus.map((item) => (
-            <MenuItem key={item.menuKey} item={item} appId={selectedRemoteMenuConfig.appId} />
+            <MenuItem key={item.menuId} item={item} appId={selectedRemoteMenuConfig.appId} />
           ))}
         </SidebarMenu>
       </SidebarGroup>
 
-      <SidebarGroup>
-        <SidebarGroupLabel>북마크</SidebarGroupLabel>
-        <SidebarMenu></SidebarMenu>
-      </SidebarGroup>
-      <SidebarGroup>
-        <SidebarGroupLabel>최근 이용 메뉴</SidebarGroupLabel>
-        <SidebarMenu></SidebarMenu>
-      </SidebarGroup>
+      <BookmarkSection />
     </SidebarContent>
   );
 };

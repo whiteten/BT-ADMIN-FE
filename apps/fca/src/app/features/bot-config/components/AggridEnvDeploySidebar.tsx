@@ -84,8 +84,9 @@ function AggridEnvDeploySidebar(props: CustomToolPanelProps<EnvListItem>) {
 
   const renderNodeCard = (node: EnvNodeItem) => {
     const { className: badgeClassName, label: badgeLabel } = getApplyResultStyle(node.applyResult);
+    const key = `${node.historyId}_${node.systemId}_${node.category}_${node.property}`;
     return (
-      <div key={node.historyId} className="flex flex-col gap-2 p-3 rounded-lg border border-border bg-card">
+      <div key={key} className="flex flex-col gap-2 p-3 rounded-lg border border-border bg-card">
         {/* 헤더: 시스템명 */}
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2 min-w-0">
