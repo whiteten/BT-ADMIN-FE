@@ -100,30 +100,8 @@ export function useLoginLogic() {
         // Clear any previous errors
         setLoginError({ error: null, message: '' });
 
-        // Check forcePasswordChange or passwordExpired
-        if (response.forcePasswordChange || response.passwordExpired) {
-          setPendingLoginResponse(response);
-
-          // Load password policy for tenant
-          if (response.tenantId) {
-            try {
-              const policy = await authApi.getPasswordPolicy(response.tenantId);
-              setPasswordPolicy(policy);
-              Log.info('Password policy loaded for tenant:', response.tenantId, policy);
-            } catch (error) {
-              Log.warn('Failed to load password policy, using defaults:', error);
-            }
-          } else {
-            Log.warn('No tenantId in login response, using default password policy');
-          }
-
-          // Open password change dialog
-          const mode: ChangePasswordMode = response.passwordExpired ? 'expired' : 'first-login';
-          changePasswordDialogRef.current?.open({
-            mode,
-            userId: form.getFieldValue('userId'),
-          });
-        } else if (response.passwordExpiringSoon && response.daysUntilExpiration !== null) {
+        // 비밀번호 곧 만료 예정 체크 (forcePasswordChange/passwordExpired는 이제 401 + PASSWORD_CHANGE_REQUIRED 에러로 처리됨)
+        if (response.passwordExpiringSoon && response.daysUntilExpiration !== null) {
           // Password expiring soon - show confirmation modal
           setPendingLoginResponse(response);
 
@@ -158,12 +136,54 @@ export function useLoginLogic() {
           navigate('/');
         }
       },
-      onError: (error: Error) => {
-        const axiosError = error as AxiosError<LoginErrorResponse>;
-        const errorData = axiosError.response?.data;
+      onError: async (error: Error) => {
+        const axiosError = error as AxiosError<{ ok: boolean; code: string; message: string; data: LoginErrorResponse }>;
+        const apiResponse = axiosError.response?.data;
 
-        if (!errorData) {
+        if (!apiResponse) {
           setLoginError({ error: null, message: '로그인에 실패했습니다. 다시 시도해주세요.' });
+          return;
+        }
+
+        // BFF ApiResponse의 data 필드에서 OAuth2 에러 정보 추출
+        const errorData = apiResponse.data;
+        if (!errorData?.error) {
+          setLoginError({ error: null, message: apiResponse.message || '로그인에 실패했습니다.' });
+          return;
+        }
+
+        // password_change_required 처리
+        if (errorData.error === 'password_change_required') {
+          Log.info('[login] Password change required:', errorData);
+
+          // 비밀번호 정책 로드
+          if (errorData.tenantId) {
+            try {
+              const policy = await authApi.getPasswordPolicy(errorData.tenantId);
+              setPasswordPolicy(policy);
+              Log.info('Password policy loaded for tenant:', errorData.tenantId, policy);
+            } catch (policyError) {
+              Log.warn('Failed to load password policy, using defaults:', policyError);
+            }
+          }
+
+          // pendingLoginResponse 설정
+          setPendingLoginResponse({
+            username: '',
+            userId: errorData.userId,
+            tenantId: errorData.tenantId,
+            forcePasswordChange: true,
+            passwordExpired: errorData.passwordExpired,
+            passwordExpiringSoon: false,
+            daysUntilExpiration: errorData.daysUntilExpiration,
+          });
+
+          // 비밀번호 변경 다이얼로그 열기
+          const mode: ChangePasswordMode = errorData.passwordExpired ? 'expired' : 'first-login';
+          changePasswordDialogRef.current?.open({
+            mode,
+            userId: errorData.userAccount,
+          });
           return;
         }
 

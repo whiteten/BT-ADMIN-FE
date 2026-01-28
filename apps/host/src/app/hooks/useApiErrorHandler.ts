@@ -22,6 +22,13 @@ export function useApiErrorHandler() {
     const handler = (e: Event) => {
       const { detail: error } = e as ApiErrorEvent;
       if (error.response?.status === 401) {
+        // 401 + password_change_required는 Login 컴포넌트에서 처리 (비밀번호 변경 모달)
+        const responseData = error.response?.data as Record<string, unknown> | undefined;
+        if (responseData?.error === 'password_change_required') {
+          Log.debug('401 password_change_required - handled by Login component');
+          return;
+        }
+
         navigate('/login');
         const current = locationRef.current;
         Log.debug('Redirect to login page. location: ', JSON.stringify(current));

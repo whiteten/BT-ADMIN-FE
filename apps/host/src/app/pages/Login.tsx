@@ -150,16 +150,56 @@ export default function Login() {
           navigate('/');
         }
       },
-      onError: (error: Error) => {
-        const axiosError = error as AxiosError<LoginErrorResponse>;
-        const errorData = axiosError.response?.data;
+      onError: async (error: Error) => {
+        const axiosError = error as AxiosError<{ ok: boolean; code: string; message: string; data: LoginErrorResponse }>;
+        const apiResponse = axiosError.response?.data;
 
-        if (!errorData) {
+        if (!apiResponse) {
           setLoginError({ error: null, message: '로그인에 실패했습니다. 다시 시도해주세요.' });
           return;
         }
 
+        // BFF ApiResponse의 data 필드에서 OAuth2 에러 정보 추출
+        const errorData = apiResponse.data;
+        if (!errorData?.error) {
+          setLoginError({ error: null, message: apiResponse.message || '로그인에 실패했습니다.' });
+          return;
+        }
+
         switch (errorData.error) {
+          case 'password_change_required': {
+            Log.info('[login] Password change required:', errorData);
+
+            // 비밀번호 정책 로드
+            if (errorData.tenantId) {
+              try {
+                const policy = await authApi.getPasswordPolicy(errorData.tenantId);
+                setPasswordPolicy(policy);
+                Log.info('Password policy loaded for tenant:', errorData.tenantId, policy);
+              } catch (policyError) {
+                Log.warn('Failed to load password policy, using defaults:', policyError);
+              }
+            }
+
+            // pendingLoginResponse 설정
+            setPendingLoginResponse({
+              username: '',
+              userId: errorData.userId,
+              tenantId: errorData.tenantId,
+              forcePasswordChange: true,
+              passwordExpired: errorData.passwordExpired,
+              passwordExpiringSoon: false,
+              daysUntilExpiration: errorData.daysUntilExpiration,
+            });
+
+            // 비밀번호 변경 다이얼로그 열기
+            const mode: ChangePasswordMode = errorData.passwordExpired ? 'expired' : 'first-login';
+            changePasswordDialogRef.current?.open({
+              mode,
+              userId: errorData.userAccount,
+            });
+            return;
+          }
           case 'account_locked':
             setLockState({
               isLocked: true,
