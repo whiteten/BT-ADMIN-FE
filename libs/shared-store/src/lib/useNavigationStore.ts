@@ -1,10 +1,10 @@
 import { create } from 'zustand';
-import type { NaviApp, NavigationData } from '@/shared-api';
+import type { Bookmark, NaviApp, NavigationData } from '@/shared-api';
 
 interface NavigationStore {
   apps: NaviApp[];
   permissions: string[];
-  favorites: string[];
+  favorites: Bookmark[];
   setNavigation: (data: NavigationData) => void;
   reset: () => void;
 }
@@ -12,7 +12,7 @@ interface NavigationStore {
 const initialState = {
   apps: [] as NaviApp[],
   permissions: [] as string[],
-  favorites: [] as string[],
+  favorites: [] as Bookmark[],
 };
 
 export const useNavigationStore = create<NavigationStore>((set) => ({
