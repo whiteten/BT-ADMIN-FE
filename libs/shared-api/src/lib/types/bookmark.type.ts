@@ -4,4 +4,6 @@ interface BookmarkParams {
 }
 
 export type BookmarkCreateDatas = BookmarkParams;
-export type BookmarkUpdateDatas = Required<Pick<BookmarkParams, 'sortOrder'>>;
+export interface BookmarkUpdateDatas {
+  menuIds: number[];
+}
