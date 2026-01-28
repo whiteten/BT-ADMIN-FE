@@ -1,4 +1,4 @@
-import { useMenuStore } from '@/shared-store';
+import { useMenuStore, useNavigationStore } from '@/shared-store';
 import { MenuItem } from './components/MenuItem';
 import { MenuSpinner } from './components/MenuSpinner';
 import useRemoteSelector from '../../hooks/useRemoteSelector';
@@ -8,6 +8,7 @@ import { SidebarContent, SidebarGroup, SidebarGroupLabel, SidebarMenu } from '@/
 const LNBBody = () => {
   const { menuConfigs, isLoading } = useMenuStore();
   const { selectedRemote } = useRemoteSelector();
+  const { favorites } = useNavigationStore();
   if (isLoading) {
     return (
       <SidebarContent>
@@ -46,11 +47,9 @@ const LNBBody = () => {
 
       <SidebarGroup>
         <SidebarGroupLabel>북마크</SidebarGroupLabel>
-        <SidebarMenu></SidebarMenu>
-      </SidebarGroup>
-      <SidebarGroup>
-        <SidebarGroupLabel>최근 이용 메뉴</SidebarGroupLabel>
-        <SidebarMenu></SidebarMenu>
+        <SidebarMenu>
+          <pre className="text-xs">{JSON.stringify(favorites, null, 2)}</pre>
+        </SidebarMenu>
       </SidebarGroup>
     </SidebarContent>
   );

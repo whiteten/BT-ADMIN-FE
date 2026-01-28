@@ -1,5 +1,6 @@
 import { createQueryKeys } from '@lukemorales/query-key-factory';
 import ApiClient, { type DetailResponse, type ListResponse, extractDetail, extractList } from '@/shared-util';
+import type { BookmarkCreateDatas, BookmarkUpdateDatas } from './types/bookmark.type';
 import type { Role } from './types/iam.types';
 import type { NavigationData } from './types/navi.types';
 
@@ -44,6 +45,20 @@ export const sharedApi = {
     getNavigation: async (params?: Record<string, unknown>): Promise<NavigationData> => {
       const response = await bffClient.get<DetailResponse<NavigationData>>('/navigation', { params });
       return extractDetail(response);
+    },
+  },
+  bookmark: {
+    createBookmark: async ({ params, data }: { params: Record<string, unknown>; data: BookmarkCreateDatas }) => {
+      const response = await bffClient.post<DetailResponse<void>>('/favorites-create', data, { params });
+      return response;
+    },
+    updateBookmark: async ({ params, data }: { params: Record<string, unknown>; data: BookmarkUpdateDatas }) => {
+      const response = await bffClient.put<DetailResponse<void>>('/favorites-update', data, { params });
+      return response;
+    },
+    deleteBookmark: async (params: Record<string, unknown>) => {
+      const response = await bffClient.delete<DetailResponse<void>>('/favorites-delete', { params });
+      return response;
     },
   },
 };
