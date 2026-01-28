@@ -5,7 +5,7 @@
  * - 3가지 모드 지원: manual, first-login, expired
  */
 
-import { forwardRef, useCallback, useImperativeHandle, useRef, useState } from 'react';
+import { forwardRef, useCallback, useImperativeHandle, useState } from 'react';
 import { Button, Form, Input } from 'antd';
 import { AlertCircle, KeyRound, Lock, ShieldCheck } from 'lucide-react';
 import { type PasswordPolicy, PasswordStrengthMeter, isPasswordValid } from './PasswordStrengthMeter';
@@ -35,6 +35,7 @@ export interface ChangePasswordDialogProps {
   onPasswordChange: (data: ChangePasswordData) => Promise<void>;
   onSuccess?: () => void;
   onError?: (error: Error) => void;
+  onClose?: () => void;
   className?: string;
 }
 
@@ -89,7 +90,7 @@ const MODE_CONFIG = {
 };
 
 export const ChangePasswordDialog = forwardRef<ChangePasswordDialogRef, ChangePasswordDialogProps>(function ChangePasswordDialog(
-  { policy = DEFAULT_POLICY, onPasswordChange, onSuccess, onError, className },
+  { policy = DEFAULT_POLICY, onPasswordChange, onSuccess, onError, onClose, className },
   ref,
 ) {
   const [isOpen, setIsOpen] = useState(false);
@@ -98,7 +99,6 @@ export const ChangePasswordDialog = forwardRef<ChangePasswordDialogRef, ChangePa
   const [isLoading, setIsLoading] = useState(false);
   const [newPassword, setNewPassword] = useState('');
   const [form] = Form.useForm<FormData>();
-  const formRef = useRef<HTMLFormElement>(null);
 
   const config = MODE_CONFIG[mode];
 
@@ -124,14 +124,15 @@ export const ChangePasswordDialog = forwardRef<ChangePasswordDialogRef, ChangePa
 
   // Dialog 닫기 핸들러
   const handleClose = useCallback(() => {
-    if (!config.showCancelButton) {
-      // 강제 변경 모드에서는 닫기 방지
-      return;
-    }
     setIsOpen(false);
     setNewPassword('');
     form.resetFields();
-  }, [config.showCancelButton, form]);
+
+    // 강제 변경 모드에서는 onClose 콜백 호출 (로그인 페이지로 돌아가기 등)
+    if (!config.showCancelButton) {
+      onClose?.();
+    }
+  }, [config.showCancelButton, form, onClose]);
 
   // 폼 제출 핸들러
   const handleSubmit = useCallback(async () => {
@@ -162,33 +163,14 @@ export const ChangePasswordDialog = forwardRef<ChangePasswordDialogRef, ChangePa
     setNewPassword(e.target.value);
   };
 
-  // ESC/백드롭 클릭 방지 (강제 변경 모드)
-  const handleEscapeKeyDown = useCallback(
-    (e: KeyboardEvent) => {
-      if (!config.showCancelButton) {
-        e.preventDefault();
-      }
-    },
-    [config.showCancelButton],
-  );
-
-  const handlePointerDownOutside = useCallback(
-    (e: CustomEvent) => {
-      if (!config.showCancelButton) {
-        e.preventDefault();
-      }
-    },
-    [config.showCancelButton],
-  );
+  // 백드롭 클릭 시 닫기 방지
+  const handlePointerDownOutside = useCallback((e: CustomEvent) => {
+    e.preventDefault();
+  }, []);
 
   return (
     <Dialog open={isOpen} onOpenChange={(open) => !open && handleClose()}>
-      <DialogContent
-        className={cn('sm:max-w-[480px]', className)}
-        showCloseButton={config.showCancelButton}
-        onEscapeKeyDown={handleEscapeKeyDown}
-        onPointerDownOutside={handlePointerDownOutside}
-      >
+      <DialogContent className={cn('sm:max-w-[480px]', className)} showCloseButton={true} onPointerDownOutside={handlePointerDownOutside}>
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <KeyRound className="h-5 w-5 text-blue-600" />
