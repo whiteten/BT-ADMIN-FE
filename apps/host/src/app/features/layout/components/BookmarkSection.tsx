@@ -101,7 +101,11 @@ const BookmarkSection = () => {
   const handleToggleEditMode = () => {
     if (isEditMode) {
       const menuIds = sortedFavorites.map((f) => f.menuId);
-      updateBookmark({ params: {}, data: { menuIds } });
+      const originalMenuIds = [...favorites].sort((a, b) => a.sortOrder - b.sortOrder).map((f) => f.menuId);
+      const hasChanged = menuIds.some((id, index) => id !== originalMenuIds[index]);
+      if (hasChanged) {
+        updateBookmark({ params: {}, data: { menuIds } });
+      }
     }
     setIsEditMode(!isEditMode);
   };
