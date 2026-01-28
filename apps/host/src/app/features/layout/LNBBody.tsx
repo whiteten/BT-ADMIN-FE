@@ -1,3 +1,5 @@
+import { useState } from 'react';
+import { Button } from 'antd';
 import { useMenuStore, useNavigationStore } from '@/shared-store';
 import { MenuItem } from './components/MenuItem';
 import { MenuSpinner } from './components/MenuSpinner';
@@ -9,6 +11,7 @@ const LNBBody = () => {
   const { menuConfigs, isLoading } = useMenuStore();
   const { selectedRemote } = useRemoteSelector();
   const { favorites } = useNavigationStore();
+  const [isEditMode, setIsEditMode] = useState(false);
   if (isLoading) {
     return (
       <SidebarContent>
@@ -34,6 +37,10 @@ const LNBBody = () => {
     );
   }
 
+  const handleToggleEditMode = () => {
+    setIsEditMode(!isEditMode);
+  };
+
   return (
     <SidebarContent>
       <SidebarGroup key={selectedRemoteMenuConfig.appId}>
@@ -46,7 +53,16 @@ const LNBBody = () => {
       </SidebarGroup>
 
       <SidebarGroup>
-        <SidebarGroupLabel>북마크</SidebarGroupLabel>
+        <SidebarGroupLabel>
+          <div className="flex items-center justify-between w-full">
+            <span>{isEditMode ? '드래그 하여 순서변경' : '북마크'}</span>
+            {favorites?.length > 0 && (
+              <Button size="small" className="!text-xs !px-1 !py-0.25 !h-auto !bg-transparent !border-white !text-white" onClick={handleToggleEditMode}>
+                {isEditMode ? 'DONE' : 'EDIT'}
+              </Button>
+            )}
+          </div>
+        </SidebarGroupLabel>
         <SidebarMenu>
           <pre className="text-xs">{JSON.stringify(favorites, null, 2)}</pre>
         </SidebarMenu>
