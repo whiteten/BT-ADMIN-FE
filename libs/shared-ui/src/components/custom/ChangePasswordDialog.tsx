@@ -110,6 +110,9 @@ export const ChangePasswordDialog = forwardRef<ChangePasswordDialogRef, ChangePa
     ref,
     () => ({
       open: (params: ChangePasswordDialogOpenParams) => {
+        // DEBUG: 전달받은 passwordResetToken 확인
+        console.log('[ChangePasswordDialog] open - params.passwordResetToken:', params.passwordResetToken);
+
         setMode(params.mode);
         setUserId(params.userId);
         setPasswordResetToken(params.passwordResetToken);
@@ -145,6 +148,9 @@ export const ChangePasswordDialog = forwardRef<ChangePasswordDialogRef, ChangePa
     try {
       const values = await form.validateFields();
       setIsLoading(true);
+
+      // DEBUG: passwordResetToken 값 확인
+      console.log('[ChangePasswordDialog] handleSubmit - passwordResetToken:', passwordResetToken);
 
       await onPasswordChange({
         currentPassword: values.currentPassword,

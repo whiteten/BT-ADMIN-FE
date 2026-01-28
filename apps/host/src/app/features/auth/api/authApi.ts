@@ -63,9 +63,10 @@ export const authApi = {
    * 비밀번호 강제 변경 (Reset Token 기반)
    * - 세션 없이 비밀번호 변경 가능
    * - 최초 로그인, 비밀번호 만료 시 사용
+   * @flow password-reset → AUTH /api/auth/reset-password
    */
   resetPassword: async (data: ResetPasswordRequest): Promise<ResetPasswordResponse> => {
-    const response = await authClient.post<{ data: ResetPasswordResponse }>('/reset-password', data);
+    const response = await bffClient.post<{ data: ResetPasswordResponse }>('/password-reset', data);
     return response.data.data;
   },
 };
