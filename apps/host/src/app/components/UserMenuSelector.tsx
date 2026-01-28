@@ -54,7 +54,7 @@ export default function UserMenuSelector() {
 
     try {
       // 비밀번호 정책 조회
-      const policy = await authApi.getPasswordPolicy(userInfo.tenant);
+      const policy = await authApi.getPasswordPolicy(Number(userInfo.tenant));
       setPasswordPolicy(policy);
 
       // Dialog 열기

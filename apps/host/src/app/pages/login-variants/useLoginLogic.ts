@@ -47,6 +47,7 @@ export function useLoginLogic() {
   const changePasswordDialogRef = useRef<ChangePasswordDialogRef>(null);
   const [pendingLoginResponse, setPendingLoginResponse] = useState<LoginResponse | null>(null);
   const [passwordPolicy, setPasswordPolicy] = useState<PasswordPolicy | undefined>(undefined);
+  const [pendingResetToken, setPendingResetToken] = useState<string | undefined>(undefined);
 
   // Account lock state
   const [lockState, setLockState] = useState<LockState>({ isLocked: false, retryAfterSeconds: 0 });
@@ -73,16 +74,19 @@ export function useLoginLogic() {
   const { mutate: changePassword } = useChangePassword({
     mutationOptions: {
       onSuccess: async () => {
-        try {
-          // 비밀번호 변경 후 강제 로그아웃
-          await authApi.logout();
-        } catch (error) {
-          Log.warn('Logout after password change failed:', error);
+        // Reset Token 기반이 아닌 경우에만 로그아웃
+        if (!pendingResetToken) {
+          try {
+            await authApi.logout();
+          } catch (error) {
+            Log.warn('Logout after password change failed:', error);
+          }
         }
 
         // 상태 초기화
         setPendingLoginResponse(null);
         setPasswordPolicy(undefined);
+        setPendingResetToken(undefined);
         form.resetFields();
 
         // 안내 메시지 표시
@@ -156,6 +160,12 @@ export function useLoginLogic() {
         if (errorData.error === 'password_change_required') {
           Log.info('[login] Password change required:', errorData);
 
+          // Password Reset Token 저장
+          if (errorData.passwordResetToken) {
+            setPendingResetToken(errorData.passwordResetToken);
+            Log.debug('[login] Password reset token received');
+          }
+
           // 비밀번호 정책 로드
           if (errorData.tenantId) {
             try {
@@ -183,6 +193,7 @@ export function useLoginLogic() {
           changePasswordDialogRef.current?.open({
             mode,
             userId: errorData.userAccount,
+            passwordResetToken: errorData.passwordResetToken,
           });
           return;
         }
@@ -246,8 +257,37 @@ export function useLoginLogic() {
 
   /**
    * Handle password change
+   * - Reset Token이 있으면 resetPassword API 사용 (세션 없이 비밀번호 변경)
+   * - Reset Token이 없으면 기존 changePassword API 사용 (세션 기반)
    */
-  const handlePasswordChange = async (data: { currentPassword?: string; newPassword: string }) => {
+  const handlePasswordChange = async (data: { currentPassword?: string; newPassword: string; passwordResetToken?: string }) => {
+    // Reset Token 기반 비밀번호 변경
+    if (data.passwordResetToken) {
+      Log.info('[handlePasswordChange] Using reset token');
+      try {
+        const response = await authApi.resetPassword({
+          passwordResetToken: data.passwordResetToken,
+          newPassword: data.newPassword,
+        });
+        Log.info('[handlePasswordChange] Reset password success:', response.message);
+
+        // 상태 초기화
+        setPendingLoginResponse(null);
+        setPasswordPolicy(undefined);
+        setPendingResetToken(undefined);
+        form.resetFields();
+
+        // 안내 메시지 표시
+        toast.success('비밀번호가 변경되었습니다. 새 비밀번호로 다시 로그인해주세요.');
+      } catch (error) {
+        Log.error('[handlePasswordChange] Reset password failed:', error);
+        toast.error('비밀번호 변경에 실패했습니다.');
+        throw error;
+      }
+      return;
+    }
+
+    // 기존 방식 (세션 기반)
     if (!pendingLoginResponse?.userId) {
       throw new Error('사용자 정보를 찾을 수 없습니다.');
     }

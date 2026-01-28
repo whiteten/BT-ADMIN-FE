@@ -58,6 +58,24 @@ export interface LoginErrorResponse {
   tenantId: number;
   passwordExpired: boolean;
   daysUntilExpiration: number;
+  passwordResetToken?: string;
+}
+
+/**
+ * Password Reset 요청 타입
+ * passwordResetToken 기반 비밀번호 변경
+ */
+export interface ResetPasswordRequest {
+  passwordResetToken: string;
+  newPassword: string;
+}
+
+/**
+ * Password Reset 응답 타입
+ */
+export interface ResetPasswordResponse {
+  success: boolean;
+  message: string;
 }
 
 /**
