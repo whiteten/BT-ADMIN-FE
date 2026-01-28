@@ -305,7 +305,7 @@ function clearStyleCss(appName) {
 
 function copyWebpackHelpers(appName) {
   const timer = createTimer();
-  logStart(`${appName}/webpack-helpers.ts`, 'manager에서 복사 및 포맷팅');
+  logStart(`${appName}/webpack-helpers.ts`, 'manager에서 복사');
   try {
     const coreHelpersPath = path.join(process.cwd(), 'apps/manager/webpack-helpers.ts');
     const targetHelpersPath = path.join(process.cwd(), `apps/${appName}/webpack-helpers.ts`);
@@ -320,13 +320,9 @@ function copyWebpackHelpers(appName) {
 
     // 대상 앱에 webpack-helpers.ts 파일 생성/덮어쓰기
     fs.writeFileSync(targetHelpersPath, coreHelpersContent);
-    logProgress(`${appName}/webpack-helpers.ts 복사 완료`);
-
-    // ESLint로 포맷팅
-    execSync(`npx eslint --fix apps/${appName}/webpack-helpers.ts`, { stdio: 'inherit', cwd: process.cwd() });
-    logSuccess(`${appName}/webpack-helpers.ts`, 'manager에서 복사 및 포맷팅', timer);
+    logSuccess(`${appName}/webpack-helpers.ts`, 'manager에서 복사', timer);
   } catch (error) {
-    logError(`${appName}/webpack-helpers.ts`, 'manager에서 복사 및 포맷팅', error);
+    logError(`${appName}/webpack-helpers.ts`, 'manager에서 복사', error);
   }
 }
 
