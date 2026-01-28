@@ -3,18 +3,18 @@ import { ReactComponent as IconBookmark } from '../../../../assets/images/icon/i
 import { Button } from '@/components/ui/button';
 
 interface BookmarkButtonProps {
-  menuKey: string;
+  menuId: number;
   label: string;
   path: string;
   appId: string;
 }
 
-export const BookmarkButton = React.memo(({ menuKey, label, path, appId }: BookmarkButtonProps) => {
+export const BookmarkButton = React.memo(({ menuId, label, path, appId }: BookmarkButtonProps) => {
   const isFav = false;
 
   const handleToggleBookmark = useCallback(() => {
-    console.log(`toggle bookmark: menuKey=${menuKey}, label=${label}, path=${path}, appId=${appId}`);
-  }, [menuKey, label, path, appId]);
+    console.log(`toggle bookmark: menuId=${menuId}, label=${label}, path=${path}, appId=${appId}`);
+  }, [menuId, label, path, appId]);
 
   return (
     <Button type="button" variant="ghost" size="icon" className="h-8 w-8 cursor-pointer" onClick={handleToggleBookmark}>

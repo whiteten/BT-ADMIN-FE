@@ -7,7 +7,7 @@ const menuConfig = {
   appName: appName,
   menus: [
     {
-      menuKey: `fca-main`,
+      menuId: 1,
       label: '메인',
       path: 'main',
       index: 0,
@@ -15,21 +15,21 @@ const menuConfig = {
       hide: false,
     },
     {
-      menuKey: `fca-mgmt`,
+      menuId: 2,
       label: '봇 관리',
       icon: IconMenuBotConfig,
       index: 1,
       hide: false,
       children: [
         {
-          menuKey: `bot`,
+          menuId: 6,
           label: '봇',
           path: 'bot-config/bot/list',
           index: 0,
           hide: false,
         },
         {
-          menuKey: `model`,
+          menuId: 7,
           label: '모델',
           path: 'bot-config/model/list',
           index: 1,
@@ -38,21 +38,21 @@ const menuConfig = {
       ],
     },
     {
-      menuKey: `fca-cm`,
+      menuId: 3,
       label: '공용',
       index: 2,
       hide: false,
       icon: IconMenuBotCommon,
       children: [
         {
-          menuKey: `cm-model`,
+          menuId: 8,
           label: '공용모델',
           path: 'global/model/list',
           index: 0,
           hide: false,
         },
         {
-          menuKey: `cm-aoe-ext`,
+          menuId: 22,
           label: 'AOE 확장',
           path: 'global/aoe/config',
           index: 1,
@@ -61,14 +61,14 @@ const menuConfig = {
       ],
     },
     {
-      menuKey: `fca-dashboard`,
+      menuId: 4,
       label: '대시보드',
       index: 3,
       hide: false,
       icon: IconMenuDashboard,
       children: [
         {
-          menuKey: `call-bot-status`,
+          menuId: 9,
           label: '콜봇 현황',
           path: 'dashboard/call-bot',
           index: 0,
@@ -77,34 +77,34 @@ const menuConfig = {
       ],
     },
     {
-      menuKey: `fca-stats`,
+      menuId: 5,
       label: '통계',
       index: 4,
       hide: false,
       icon: IconMenuStatistics,
       children: [
         {
-          menuKey: `callbot-stats`,
+          menuId: 10,
           label: '콜봇 통계',
           index: 0,
           hide: false,
           children: [
             {
-              menuKey: `stats-service`,
+              menuId: 12,
               label: '서비스 통계',
               path: 'statistics/call-bot/service',
               index: 0,
               hide: false,
             },
             {
-              menuKey: `stats-dialog`,
+              menuId: 13,
               label: '대화 통계',
               path: 'statistics/call-bot/conversation',
               index: 1,
               hide: false,
             },
             {
-              menuKey: `stats-slot`,
+              menuId: 23,
               label: '슬롯 통계',
               path: 'statistics/call-bot/slot',
               index: 2,
@@ -113,27 +113,27 @@ const menuConfig = {
           ],
         },
         {
-          menuKey: `nlu-stats`,
+          menuId: 11,
           label: 'NLU 통계',
           index: 1,
           hide: false,
           children: [
             {
-              menuKey: `stats-intent`,
+              menuId: 14,
               label: '의도 통계',
               path: 'statistics/nlu/intent',
               index: 0,
               hide: false,
             },
             {
-              menuKey: `stats-entity`,
+              menuId: 15,
               label: '개체 통계',
               path: 'statistics/nlu/entity',
               index: 1,
               hide: false,
             },
             {
-              menuKey: `stats-keyword`,
+              menuId: 16,
               label: '키워드 통계',
               path: 'statistics/nlu/keyword',
               index: 2,

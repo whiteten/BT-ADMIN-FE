@@ -1,5 +1,10 @@
 import { IconMenuMain } from '@/components/custom/Icons';
 
+/**
+ * 자동 생성된 menu-config.ts 파일에서,
+ * 메인 메뉴의 menuId를 DB에 등록된 menuId로 변경해주세요.
+ */
+
 const appId = '';
 const appName = '';
 const menuConfig = {
@@ -7,7 +12,7 @@ const menuConfig = {
   appName,
   menus: [
     {
-      menuKey: `${appId}-main`,
+      menuId: 'replace_menuId',
       label: '메인',
       path: 'main',
       index: 0,

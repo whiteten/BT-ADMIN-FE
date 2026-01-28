@@ -40,7 +40,7 @@ const LNBBody = () => {
         <SidebarGroupLabel>{selectedRemoteMenuConfig.appName}</SidebarGroupLabel>
         <SidebarMenu>
           {selectedRemoteMenuConfig.menus.map((item) => (
-            <MenuItem key={item.menuKey} item={item} appId={selectedRemoteMenuConfig.appId} />
+            <MenuItem key={item.menuId} item={item} appId={selectedRemoteMenuConfig.appId} />
           ))}
         </SidebarMenu>
       </SidebarGroup>
