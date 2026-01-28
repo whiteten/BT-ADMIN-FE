@@ -3,7 +3,7 @@ export type NaviMenuType = 'PAGE' | 'FOLDER';
 
 /** 메뉴 항목 (재귀 구조) */
 export interface NaviMenuItem {
-  menuKey: string;
+  menuId: number;
   label: string;
   type: NaviMenuType;
   children: NaviMenuItem[];

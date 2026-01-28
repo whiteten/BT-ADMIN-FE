@@ -14,12 +14,12 @@ const MENU_LOADERS: Record<string, () => Promise<MenuModule>> = {
   fca: () => import('fca/MenuConfig').catch(() => ({ default: {} })) as Promise<MenuModule>,
 };
 
-/** NaviApp[]에서 모든 menuKey → label 매핑을 재귀적으로 수집 */
-const collectMenuMap = (apps: NaviApp[]): Map<string, string> => {
-  const map = new Map<string, string>();
+/** NaviApp[]에서 모든 menuId → label 매핑을 재귀적으로 수집 */
+const collectMenuMap = (apps: NaviApp[]): Map<number, string> => {
+  const map = new Map<number, string>();
   const collect = (items: NaviMenuItem[]) => {
     for (const item of items) {
-      map.set(item.menuKey, item.label);
+      map.set(item.menuId, item.label);
       if (item.children.length > 0) collect(item.children);
     }
   };
@@ -28,12 +28,12 @@ const collectMenuMap = (apps: NaviApp[]): Map<string, string> => {
 };
 
 /** MenuItem[]를 재귀 순회하며 menuMap 기반으로 hide/label 적용 */
-const applyMenuVisibility = (menus: MenuItem[], menuMap: Map<string, string>): MenuItem[] => {
+const applyMenuVisibility = (menus: MenuItem[], menuMap: Map<number, string>): MenuItem[] => {
   return menus.map((item) => {
-    const naviLabel = menuMap.get(item.menuKey);
+    const naviLabel = menuMap.get(item.menuId);
     return {
       ...item,
-      hide: !menuMap.has(item.menuKey),
+      hide: !menuMap.has(item.menuId),
       ...(naviLabel ? { label: naviLabel } : {}),
       ...(item.children && item.children.length > 0 ? { children: applyMenuVisibility(item.children, menuMap) } : {}),
     };
