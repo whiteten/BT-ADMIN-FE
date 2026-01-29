@@ -50,3 +50,10 @@ export const useChangePassword = ({ mutationOptions }: MutationHookOptions<void,
     ...mutationOptions,
   });
 };
+
+export const useResetPassword = ({ mutationOptions }: MutationHookOptions = {}) => {
+  return useMutation({
+    mutationFn: authApi.resetPassword,
+    ...mutationOptions,
+  });
+};

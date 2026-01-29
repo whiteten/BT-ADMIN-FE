@@ -19,16 +19,3 @@ export type MutationHookWithParamsOptions<TData = unknown, TVariables = unknown,
   params?: Record<string, unknown>;
   mutationOptions?: Omit<UseMutationOptions<TData, TError, TVariables>, 'mutationFn'>;
 };
-
-// ID가 필요한 경우
-export type QueryHookWithIdOptions<TData = unknown, TError = Error> = {
-  id: string;
-  params?: Record<string, unknown>;
-  queryOptions?: Omit<UseQueryOptions<TData, TError>, 'queryKey' | 'queryFn'>;
-};
-
-export type MutationHookWithIdOptions<TData = unknown, TVariables = unknown, TError = Error> = {
-  id: string;
-  params?: Record<string, unknown>;
-  mutationOptions?: Omit<UseMutationOptions<TData, TError, TVariables>, 'mutationFn'>;
-};

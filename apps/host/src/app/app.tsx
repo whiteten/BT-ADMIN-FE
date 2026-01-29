@@ -9,7 +9,7 @@ import CsrfGuard from './features/router/CsrfGuard';
 import RouteGuard from './features/router/RouteGuard';
 import SharedInfoProvider from './features/router/SharedInfoProvider';
 import { useApiErrorHandler } from './hooks/useApiErrorHandler';
-import Login from './pages/login-variants';
+import Login from './pages/Login';
 import { FallbackSpinner } from '@/components/custom/FallbackSpinner';
 import { NotFound } from '@/components/custom/NotFound';
 import '../assets/styles/common.css';

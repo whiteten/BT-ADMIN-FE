@@ -65,8 +65,8 @@ export const authApi = {
    * - 최초 로그인, 비밀번호 만료 시 사용
    * @flow password-reset → AUTH /api/auth/reset-password
    */
-  resetPassword: async (data: ResetPasswordRequest): Promise<ResetPasswordResponse> => {
-    const response = await bffClient.post<{ data: ResetPasswordResponse }>('/password-reset', data);
-    return response.data.data;
+  resetPassword: async ({ params, data }: { params: Record<string, unknown>; data: ResetPasswordRequest }) => {
+    const response = await bffClient.put<DetailResponse<ResetPasswordResponse>>('/password-reset', data, { params });
+    return extractDetail(response);
   },
 };

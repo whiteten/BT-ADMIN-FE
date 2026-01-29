@@ -6,7 +6,7 @@ import { Lock, LockKeyhole, Timer, User, Users } from 'lucide-react';
 import { toast } from '@/shared-util';
 import styles from './Login.module.scss';
 import { authApi } from '../features/auth/api/authApi';
-import { useChangePassword, useLogin } from '../features/auth/hooks/useAuthQueries';
+import { useChangePassword, useLogin, useResetPassword } from '../features/auth/hooks/useAuthQueries';
 import type { LoginErrorResponse, LoginResponse, PasswordPolicy } from '../features/auth/types/auth';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -61,7 +61,31 @@ export default function Login() {
     }
   }, [lockState.retryAfterSeconds]);
 
-  const { mutate: changePassword } = useChangePassword({
+  // const { mutate: changePassword } = useChangePassword({
+  //   mutationOptions: {
+  //     onSuccess: async () => {
+  //       try {
+  //         // 비밀번호 변경 후 강제 로그아웃
+  //         await authApi.logout();
+  //       } catch (error) {
+  //         Log.warn('Logout after password change failed:', error);
+  //       }
+
+  //       // 상태 초기화
+  //       setPendingLoginResponse(null);
+  //       setPasswordPolicy(undefined);
+  //       form.resetFields();
+
+  //       // 안내 메시지 표시
+  //       toast.success('비밀번호가 변경되었습니다. 새 비밀번호로 다시 로그인해주세요.');
+  //     },
+  //     onError: () => {
+  //       toast.error('비밀번호 변경에 실패했습니다.');
+  //     },
+  //   },
+  // });
+
+  const { mutate: resetPassword } = useResetPassword({
     mutationOptions: {
       onSuccess: async () => {
         try {
@@ -84,7 +108,6 @@ export default function Login() {
       },
     },
   });
-
   const { mutate: login, isPending } = useLogin({
     mutationOptions: {
       onSuccess: async (response: LoginResponse) => {
@@ -197,6 +220,7 @@ export default function Login() {
             changePasswordDialogRef.current?.open({
               mode,
               userId: errorData.userAccount,
+              passwordResetToken: errorData.passwordResetToken,
             });
             return;
           }
@@ -260,14 +284,18 @@ export default function Login() {
   /**
    * Handle password change
    */
-  const handlePasswordChange = async (data: { currentPassword?: string; newPassword: string }) => {
+  const handlePasswordChange = async (data: { currentPassword?: string; newPassword: string; passwordResetToken?: string }) => {
     if (!pendingLoginResponse?.userId) {
       throw new Error('사용자 정보를 찾을 수 없습니다.');
     }
 
-    changePassword({
-      userId: pendingLoginResponse.userId,
-      data: { newPassword: data.newPassword },
+    // changePassword({
+    //   userId: pendingLoginResponse.userId,
+    //   data: { newPassword: data.newPassword },
+    // });
+    resetPassword({
+      params: { userId: pendingLoginResponse.userId },
+      data: { newPassword: data.newPassword, passwordResetToken: data.passwordResetToken ?? '' },
     });
   };
 
