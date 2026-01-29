@@ -1,33 +1,27 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
+import { type MenuConfig, useMenuStore } from '@/shared-store';
 
-export interface Remote {
-  key: string;
-  label: string;
-}
+export type Remote = Pick<MenuConfig, 'appId' | 'appName' | 'icon'>;
 
 export default function useRemoteSelector() {
-  const remotes = useMemo(() => {
-    return [
-      { key: 'manager', label: 'Manager' },
-      { key: 'fca', label: 'Focus AI' },
-    ];
-  }, []);
+  const { menuConfigs } = useMenuStore();
+  const remotes: Remote[] = menuConfigs;
   const { pathname } = useLocation();
-  const [remote, setRemote] = useState<Remote>(remotes.find((remote) => remote.key === pathname.split('/')[1]) ?? remotes[0]);
+  const [remote, setRemote] = useState<Remote | null>(null);
   const navigate = useNavigate();
 
   const setSelectedRemote = (remote: Remote) => {
     setRemote(remote);
-    navigate(`/${remote.key}`);
+    navigate(`/${remote.appId}`);
   };
 
   useEffect(() => {
     const remoteKey = pathname.split('/')[1];
-    if (remoteKey === remote.key) return;
-    const _remote = remotes.find((remote) => remote.key === remoteKey);
-    if (_remote) setRemote(_remote);
-  }, [remotes, pathname, remote.key]);
+    if (remoteKey === remote?.appId) return;
+    const matched = remotes.find((r) => r.appId === remoteKey);
+    setRemote(matched ?? remotes[0] ?? null);
+  }, [remotes, pathname, remote?.appId]);
 
   return { remotes, selectedRemote: remote, setSelectedRemote };
 }

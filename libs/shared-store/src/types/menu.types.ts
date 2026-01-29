@@ -11,5 +11,6 @@ export interface MenuItem {
 export interface MenuConfig {
   appId: string;
   appName: string;
+  icon?: React.ElementType;
   menus: MenuItem[];
 }

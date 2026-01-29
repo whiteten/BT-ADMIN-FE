@@ -472,17 +472,14 @@ function updateBuildScripts(appName) {
   const timer = createTimer();
   logStart('build-scripts', `${appName} 앱 추가`);
   try {
-    // build-selective.js와 serve-host.js, useRemoteSelector.ts 업데이트
+    // build-selective.js와 serve-host.js 업데이트
     updateBuildSelective(appName);
 
     if (appName !== 'manager') {
       // serve-host.js 업데이트
       updateServeHost(appName);
-
-      // useRemoteSelector.ts에 remote 추가
-      updateRemoteSelector(appName);
     } else {
-      logInfo('build-scripts', 'manager 앱은 serve-host.js, useRemoteSelector.ts 업데이트 제외');
+      logInfo('build-scripts', 'manager 앱은 serve-host.js 업데이트 제외');
     }
 
     logSuccess('build-scripts', `${appName} 앱 추가`, timer);
@@ -572,60 +569,6 @@ function updateServeHost(appName) {
     }
   } catch (error) {
     logError('serve-host.js', `${appName} 앱 추가`, error);
-  }
-}
-
-function updateRemoteSelector(appName) {
-  const timer = createTimer();
-  logStart('useRemoteSelector.ts', `${appName} remote 추가`);
-  try {
-    const useRemoteSelectorPath = path.join(process.cwd(), 'apps/host/src/app/hooks/useRemoteSelector.ts');
-
-    // useRemoteSelector.ts 파일이 존재하는지 확인
-    if (!fs.existsSync(useRemoteSelectorPath)) {
-      logError('useRemoteSelector.ts', '파일을 찾을 수 없음');
-      return;
-    }
-
-    const content = fs.readFileSync(useRemoteSelectorPath, 'utf8');
-
-    // remotes 배열 찾기 (여러 줄 형식 지원)
-    const remotesRegex = /return \[([\s\S]*?)\];/;
-    const match = content.match(remotesRegex);
-
-    if (match) {
-      const currentRemotes = match[1];
-
-      // 이미 존재하는지 확인
-      if (currentRemotes.includes(`key: '${appName}'`)) {
-        logInfo('useRemoteSelector.ts', `${appName} remote가 이미 존재함 (스킵)`);
-        return;
-      }
-
-      // 들여쓰기 추출 (기존 항목에서)
-      const indentMatch = currentRemotes.match(/\n(\s+)\{/);
-      const indent = indentMatch ? indentMatch[1] : '      ';
-
-      // 새 remote 추가 (마지막 항목 뒤 새 줄에)
-      const appLabel = appName.toUpperCase();
-      const newRemote = `\n${indent}{ key: '${appName}', label: '${appLabel}' },`;
-
-      // 마지막 항목에 콤마가 있는지 확인
-      const trimmedRemotes = currentRemotes.trimEnd();
-      const needsComma = !trimmedRemotes.endsWith(',');
-
-      const updatedRemotes = needsComma ? trimmedRemotes + ',' + newRemote : trimmedRemotes + newRemote;
-
-      const updatedContent = content.replace(remotesRegex, `return [${updatedRemotes}\n${indent.slice(2)}];`);
-
-      fs.writeFileSync(useRemoteSelectorPath, updatedContent);
-      logInfo('useRemoteSelector.ts', `${appName} remote를 '${appLabel}'로 설정`);
-      logSuccess('useRemoteSelector.ts', `${appName} remote 추가`, timer);
-    } else {
-      logError('useRemoteSelector.ts', 'remotes 배열을 찾을 수 없음');
-    }
-  } catch (error) {
-    logError('useRemoteSelector.ts', `${appName} remote 추가`, error);
   }
 }
 

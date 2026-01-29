@@ -95,8 +95,7 @@ export function useMenuLoader() {
         .map((menuConfig) => ({
           ...menuConfig,
           menus: processMenuItems((menuConfig as MenuConfig).menus),
-        }))
-        .filter((menuConfig) => (menuConfig as MenuConfig).menus.length > 0);
+        }));
 
       setMenuConfigs(menuConfigs as MenuConfig[]);
       Log.debug('Menu configs loaded successfully.', menuConfigs);
