@@ -36,7 +36,7 @@ export const sharedApi = {
      * 세션 조회 - health check
      */
     getSession: async (params?: Record<string, unknown>): Promise<unknown> => {
-      const response = await bffClient.get<DetailResponse<unknown>>('/actuator/session', { params });
+      const response = await bffClient.get<DetailResponse<unknown>>('/session-status', { params });
       return extractDetail(response);
     },
     /**
