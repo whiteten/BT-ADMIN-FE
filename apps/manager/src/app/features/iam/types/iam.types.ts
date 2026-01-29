@@ -139,15 +139,34 @@ export interface RoleUpdateDatas {
   authIds?: number[];
 }
 
-// 권한 그룹 (UI용)
-// menuLabel로 그룹핑 (기존 domain 대신)
+// 권한 요약 정보 (메뉴별 권한 조회용)
+export interface PermissionSummary {
+  authId: number;
+  authKey: string;
+  description?: string;
+  domain: string;
+  resourceKey: string;
+  action: string;
+}
+
+// 메뉴별 권한 목록 (백엔드 응답 - 트리 구조)
+export interface MenuWithPermissions {
+  menuId: number;
+  parentId: number | null;
+  menuKey: string;
+  menuLabel: string;
+  appId: string;
+  menuType: string;
+  sortOrder: number;
+  permissions: PermissionSummary[];
+  children: MenuWithPermissions[];
+}
+
+// 권한 그룹 (UI용) - 앱별로 메뉴를 그룹화
 export interface PermissionGroup {
   appId: string;
   appName: string;
-  domains: {
-    domain: string; // menuLabel 값 (호환성 유지를 위해 필드명 유지)
-    permissions: Permission[];
-  }[];
+  menus: MenuWithPermissions[];
 }
 
 // 테이블 필터

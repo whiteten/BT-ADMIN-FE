@@ -3,12 +3,14 @@
  */
 import { useQuery } from '@tanstack/react-query';
 import { createQueryKeys } from '@lukemorales/query-key-factory';
-import type { QueryHookOptions, QueryHookWithParamsOptions } from '@/shared-util';
-import { type PermissionSearchParams, permissionApi } from '../api/permissionApi';
-import type { Permission, PermissionGroup } from '../types/iam.types';
+import type { QueryHookOptions } from '@/shared-util';
+import { permissionApi } from '../api/permissionApi';
+import type { MenuWithPermissions, PermissionGroup } from '../types/iam.types';
 
 // 앱 이름 매핑
 const APP_NAME_MAP: Record<string, string> = {
+  manager: 'Manager',
+  fca: 'FCA',
   BOT: '챗봇 관리',
   IC: '인바운드 콜',
   IR: 'IVR 관리',
@@ -16,63 +18,41 @@ const APP_NAME_MAP: Record<string, string> = {
 };
 
 /**
- * 권한 목록을 앱/메뉴레이블별로 그룹화
- * menuLabel이 없는 경우 domain을 fallback으로 사용
+ * 메뉴 목록을 앱별로 그룹화
  */
-function groupPermissionsByApp(permissions: Permission[]): PermissionGroup[] {
-  const grouped = permissions.reduce(
-    (acc, perm) => {
-      // menuLabel 우선, 없으면 domain 사용
-      const groupKey = perm.menuLabel || perm.domain;
-
-      if (!acc[perm.appId]) {
-        acc[perm.appId] = {};
+function groupMenusByApp(menus: MenuWithPermissions[]): PermissionGroup[] {
+  const grouped = menus.reduce(
+    (acc, menu) => {
+      if (!acc[menu.appId]) {
+        acc[menu.appId] = [];
       }
-      if (!acc[perm.appId][groupKey]) {
-        acc[perm.appId][groupKey] = [];
-      }
-      acc[perm.appId][groupKey].push(perm);
+      acc[menu.appId].push(menu);
       return acc;
     },
-    {} as Record<string, Record<string, Permission[]>>,
+    {} as Record<string, MenuWithPermissions[]>,
   );
 
-  return Object.entries(grouped).map(([appId, domains]) => ({
+  return Object.entries(grouped).map(([appId, menuList]) => ({
     appId,
     appName: APP_NAME_MAP[appId] || appId,
-    domains: Object.entries(domains).map(([domain, perms]) => ({
-      domain, // menuLabel 값 (또는 fallback domain)
-      permissions: perms,
-    })),
+    menus: menuList,
   }));
 }
 
 export const permissionQueryKeys = createQueryKeys('permissions', {
-  getPermissions: (params?: PermissionSearchParams) => [params],
   getGroupedPermissions: null,
 });
 
 /**
- * 권한 목록 조회 훅
- */
-export const useGetPermissions = ({ params, queryOptions }: QueryHookWithParamsOptions<Permission[]> = {}) => {
-  return useQuery({
-    queryKey: permissionQueryKeys.getPermissions(params as PermissionSearchParams).queryKey,
-    queryFn: () => permissionApi.getPermissions(params as PermissionSearchParams),
-    ...queryOptions,
-  });
-};
-
-/**
  * 그룹화된 권한 목록 조회 훅
- * - /permission-list API로 조회 후 프론트에서 그룹화
+ * - 백엔드에서 메뉴별 권한 목록을 받아 앱별로 그룹화
  */
 export const useGetGroupedPermissions = ({ queryOptions }: QueryHookOptions<PermissionGroup[]> = {}) => {
   return useQuery({
     queryKey: permissionQueryKeys.getGroupedPermissions.queryKey,
     queryFn: async () => {
-      const permissions = await permissionApi.getPermissions();
-      return groupPermissionsByApp(permissions);
+      const menus = await permissionApi.getMenusWithPermissions();
+      return groupMenusByApp(menus);
     },
     ...queryOptions,
   });

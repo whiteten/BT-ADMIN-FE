@@ -13,6 +13,18 @@ import { ChevronLeft, ChevronRight, Shield } from 'lucide-react';
 import { type RoleBasicFormValues, RoleDetailProvider } from './context/RoleDetailContext';
 import { useGetGroupedPermissions } from '../../features/iam/hooks/usePermissionQueries';
 import { useGetRole } from '../../features/iam/hooks/useRoleQueries';
+import type { MenuWithPermissions, PermissionSummary } from '../../features/iam/types/iam.types';
+
+/**
+ * 메뉴와 모든 하위 메뉴의 권한을 재귀적으로 수집
+ */
+function collectAllPermissions(menu: MenuWithPermissions): PermissionSummary[] {
+  const perms = [...(menu.permissions || [])];
+  for (const child of menu.children || []) {
+    perms.push(...collectAllPermissions(child));
+  }
+  return perms;
+}
 import { FallbackSpinner } from '@/components/custom/FallbackSpinner';
 import { IconDocument, IconSlidersHorizontal } from '@/components/custom/Icons';
 import PageHeader from '@/components/custom/PageHeader';
@@ -67,9 +79,9 @@ export default function RoleDetailPage() {
   // 권한 목록 조회 (요약 표시용)
   const { data: permissionGroups = [] } = useGetGroupedPermissions();
 
-  // 전체 권한 목록 (flat)
+  // 전체 권한 목록 (flat) - 트리에서 재귀적으로 수집
   const allPermissions = useMemo(() => {
-    return permissionGroups.flatMap((group) => group.domains.flatMap((d) => d.permissions));
+    return permissionGroups.flatMap((group) => group.menus.flatMap((menu) => collectAllPermissions(menu)));
   }, [permissionGroups]);
 
   // DB 데이터로 폼 상태 초기화/리셋

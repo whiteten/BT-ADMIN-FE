@@ -2,21 +2,17 @@
  * 권한 관리 API
  */
 import ApiClient, { type ListResponse, extractList } from '@/shared-util';
-import type { Permission } from '../types/iam.types';
+import type { MenuWithPermissions } from '../types/iam.types';
 
 const apiClient = new ApiClient({ serviceURL: '/bff' });
 
-export interface PermissionSearchParams {
-  appId?: string;
-  keyword?: string;
-}
-
 export const permissionApi = {
   /**
-   * 권한 목록 조회 (필터 적용 가능)
+   * 메뉴별 권한 목록 조회
+   * 메뉴 트리 구조와 각 메뉴에 매핑된 권한 목록을 조회한다.
    */
-  getPermissions: async (params?: PermissionSearchParams): Promise<Permission[]> => {
-    const response = await apiClient.get<ListResponse<Permission>>('/permission-list', { params });
+  getMenusWithPermissions: async (): Promise<MenuWithPermissions[]> => {
+    const response = await apiClient.get<ListResponse<MenuWithPermissions>>('/permission-list');
     return extractList(response);
   },
 };
