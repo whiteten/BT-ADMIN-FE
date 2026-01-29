@@ -14,6 +14,7 @@ import type {
   BotVersionListItem,
   BotVersionUpdateDatas,
   BotVoiceUpdateDatas,
+  CheckDeployable,
   EnvCreateDatas,
   EnvListItem,
   EnvNodeItem,
@@ -99,6 +100,10 @@ export const botApi = {
   getBotDeployConfig: async (params?: Record<string, unknown>): Promise<BotDeployConfigItem[]> => {
     const response = await apiClient.get<ListResponse<BotDeployConfigItem>>('/bot-deploy-config', { params });
     return extractList(response);
+  },
+  checkDeployable: async (params?: Record<string, unknown>): Promise<CheckDeployable> => {
+    const response = await apiClient.get<DetailResponse<CheckDeployable>>('/check-deployable', { params });
+    return extractDetail(response);
   },
   // delete -> insert
   saveBotDeployConfig: async ({ params, data }: { params: Record<string, unknown>; data: BotDeployConfigCreateDatas }) => {

@@ -9,6 +9,7 @@ import type {
   BotListItem,
   BotVersionItem,
   BotVersionListItem,
+  CheckDeployable,
   EnvListItem,
   EnvNodeItem,
   SttListItem,
@@ -28,6 +29,7 @@ export const botQueryKeys = createQueryKeys('bots', {
   getBotAoeDetail: (params?: Record<string, unknown>) => [params],
   getEnvList: (params?: Record<string, unknown>) => [params],
   getEnvNodeList: (params?: Record<string, unknown>) => [params],
+  checkDeployable: (params?: Record<string, unknown>) => [params],
 });
 
 export const useGetBots = ({ params, queryOptions }: QueryHookWithParamsOptions<BotListItem[]> = {}) => {
@@ -160,6 +162,14 @@ export const useGetBotDeployConfig = ({ params, queryOptions }: QueryHookWithPar
   return useQuery({
     queryKey: botQueryKeys.getBotDeployConfig(params).queryKey,
     queryFn: () => botApi.getBotDeployConfig(params),
+    ...queryOptions,
+  });
+};
+
+export const useCheckDeployable = ({ params, queryOptions }: QueryHookWithParamsOptions<CheckDeployable> = {}) => {
+  return useQuery({
+    queryKey: botQueryKeys.checkDeployable(params).queryKey,
+    queryFn: () => botApi.checkDeployable(params),
     ...queryOptions,
   });
 };
