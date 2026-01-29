@@ -41,14 +41,20 @@ export default function SharedInfoProvider() {
     setIsLoading(isRolesLoading || isUserInfoLoading);
   }, [isRolesLoading, isUserInfoLoading, setIsLoading]);
 
+  useEffect(() => {
+    if (rolesError) Log.error('Failed to fetch roles', rolesError);
+  }, [rolesError]);
+
+  useEffect(() => {
+    if (userInfoError) Log.error('Failed to fetch user info', userInfoError);
+  }, [userInfoError]);
+
+  useEffect(() => {
+    if (navigationError) Log.error('Failed to fetch navigation', navigationError);
+  }, [navigationError]);
+
   if (isRolesLoading || isUserInfoLoading || isNavigationLoading) {
     return <FallbackSpinner useFullScreen />;
-  }
-
-  if (isRolesError || isUserInfoError || isNavigationError) {
-    if (rolesError) Log.error('Failed to fetch roles', rolesError);
-    if (userInfoError) Log.error('Failed to fetch user info', userInfoError);
-    if (navigationError) Log.error('Failed to fetch navigation', navigationError);
   }
 
   return <Outlet />;
