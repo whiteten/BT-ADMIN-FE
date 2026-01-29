@@ -35,8 +35,9 @@ export default function BotSchedule() {
   useEffect(() => {
     if (!bot) return;
     const { bhWorktimeId, ahMessage } = bot;
-    form.setFieldsValue({ bhWorktimeId, ahMessage });
-  }, [bot, form]);
+    const hasWorktimeId = workTimeOptions.some((option) => option.value === bhWorktimeId);
+    form.setFieldsValue({ bhWorktimeId: hasWorktimeId ? bhWorktimeId : null, ahMessage });
+  }, [bot, form, workTimeOptions]);
 
   return (
     <Form form={form} initialValues={{ bhWorktimeId: null, ahMessage: '' }} onFinish={onFinish} onFinishFailed={onFinishFailed} layout="vertical">

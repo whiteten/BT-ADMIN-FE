@@ -36,8 +36,10 @@ export default function BotVoice() {
   useEffect(() => {
     if (!bot) return;
     const { sttId, ttsId, ttsSpeaker, ttsSpeed, ttsVolume, ttsPitch } = bot;
-    form.setFieldsValue({ sttId, ttsId, ttsSpeaker, ttsSpeed, ttsVolume, ttsPitch });
-  }, [bot, form]);
+    const hasSttId = sttOptions?.some((option) => option.value === sttId);
+    const hasTtsId = ttsOptions?.some((option) => option.value === ttsId);
+    form.setFieldsValue({ sttId: hasSttId ? sttId : null, ttsId: hasTtsId ? ttsId : null, ttsSpeaker, ttsSpeed, ttsVolume, ttsPitch });
+  }, [bot, form, sttOptions, ttsOptions]);
 
   return (
     <Form

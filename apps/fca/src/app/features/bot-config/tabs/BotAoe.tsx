@@ -43,8 +43,9 @@ export default function BotAoe() {
   useEffect(() => {
     if (!botAoeDetail) return;
     const { useAoe, agentId } = botAoeDetail;
-    form.setFieldsValue({ useAoe, agentId });
-  }, [botAoeDetail, form]);
+    const hasAgentId = aoeAgentOptions.some((option) => option.value === agentId);
+    form.setFieldsValue({ useAoe, agentId: hasAgentId ? agentId : null });
+  }, [botAoeDetail, form, aoeAgentOptions]);
 
   return (
     <Form form={form} initialValues={{ useAoe: 0, agentId: null }} onFinish={onFinish} onFinishFailed={onFinishFailed} layout="horizontal">

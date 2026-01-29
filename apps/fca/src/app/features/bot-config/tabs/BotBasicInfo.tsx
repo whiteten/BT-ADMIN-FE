@@ -87,10 +87,11 @@ export default function BotBasicInfo() {
   useEffect(() => {
     if (!bot) return;
     const { serviceName, serviceDesc, modelId, confidence, tags, serviceVer } = bot;
-    form.setFieldsValue({ serviceName, serviceDesc, modelId, confidence, tags });
+    const hasModelId = modelOptions.some((option) => option.value === modelId);
+    form.setFieldsValue({ serviceName, serviceDesc, modelId: hasModelId ? modelId : null, confidence, tags });
     setServiceVer(serviceVer ?? '');
     setConfidence(confidence);
-  }, [bot, form]);
+  }, [bot, form, modelOptions]);
 
   return (
     <Form form={form} initialValues={{ modelId: null, confidence: [40, 80], tags: [] }} onFinish={onFinish} onFinishFailed={onFinishFailed} layout="vertical">
