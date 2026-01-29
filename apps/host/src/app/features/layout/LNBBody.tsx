@@ -30,7 +30,8 @@ const LNBBody = () => {
   if (!selectedRemoteMenuConfig) {
     return (
       <SidebarContent>
-        <NoData message={`메뉴 정보를\n찾을 수 없습니다.`} color="!text-white" />
+        <NoData message={`선택한 앱의\n메뉴 정보를\n찾을 수 없습니다.`} color="!text-white" />
+        <BookmarkSection />
       </SidebarContent>
     );
   }
@@ -40,9 +41,13 @@ const LNBBody = () => {
       <SidebarGroup key={selectedRemoteMenuConfig.appId}>
         <SidebarGroupLabel>{selectedRemoteMenuConfig.appName}</SidebarGroupLabel>
         <SidebarMenu>
-          {selectedRemoteMenuConfig.menus.map((item) => (
-            <MenuItem key={item.menuId} item={item} appId={selectedRemoteMenuConfig.appId} />
-          ))}
+          {selectedRemoteMenuConfig.menus?.length > 0 ? (
+            selectedRemoteMenuConfig.menus.map((item) => <MenuItem key={item.menuId} item={item} appId={selectedRemoteMenuConfig.appId} />)
+          ) : (
+            <div className="w-full h-[400px]">
+              <NoData message={`${selectedRemoteMenuConfig.appName}\n메뉴 정보를\n찾을 수 없습니다.`} color="!text-white" />
+            </div>
+          )}
         </SidebarMenu>
       </SidebarGroup>
 
