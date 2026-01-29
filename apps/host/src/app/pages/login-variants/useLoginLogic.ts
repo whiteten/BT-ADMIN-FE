@@ -47,6 +47,7 @@ export function useLoginLogic() {
   const changePasswordDialogRef = useRef<ChangePasswordDialogRef>(null);
   const [pendingLoginResponse, setPendingLoginResponse] = useState<LoginResponse | null>(null);
   const [passwordPolicy, setPasswordPolicy] = useState<PasswordPolicy | undefined>(undefined);
+  const [pendingResetToken, setPendingResetToken] = useState<string | undefined>(undefined);
 
   // Account lock state
   const [lockState, setLockState] = useState<LockState>({ isLocked: false, retryAfterSeconds: 0 });
@@ -73,16 +74,19 @@ export function useLoginLogic() {
   const { mutate: changePassword } = useChangePassword({
     mutationOptions: {
       onSuccess: async () => {
-        try {
-          // 비밀번호 변경 후 강제 로그아웃
-          await authApi.logout();
-        } catch (error) {
-          Log.warn('Logout after password change failed:', error);
+        // Reset Token 기반이 아닌 경우에만 로그아웃
+        if (!pendingResetToken) {
+          try {
+            await authApi.logout();
+          } catch (error) {
+            Log.warn('Logout after password change failed:', error);
+          }
         }
 
         // 상태 초기화
         setPendingLoginResponse(null);
         setPasswordPolicy(undefined);
+        setPendingResetToken(undefined);
         form.resetFields();
 
         // 안내 메시지 표시
@@ -97,6 +101,8 @@ export function useLoginLogic() {
   const { mutate: login, isPending } = useLogin({
     mutationOptions: {
       onSuccess: async (response: LoginResponse) => {
+        console.log('hihi : ', response);
+
         // Clear any previous errors
         setLoginError({ error: null, message: '' });
 
@@ -137,7 +143,9 @@ export function useLoginLogic() {
         }
       },
       onError: async (error: Error) => {
+        console.log('[login] onError 실행됨!', error);
         const axiosError = error as AxiosError<{ ok: boolean; code: string; message: string; data: LoginErrorResponse }>;
+        console.log('[login] axiosError.response?.data:', axiosError.response?.data);
         const apiResponse = axiosError.response?.data;
 
         if (!apiResponse) {
@@ -147,21 +155,34 @@ export function useLoginLogic() {
 
         // BFF ApiResponse의 data 필드에서 OAuth2 에러 정보 추출
         const errorData = apiResponse.data;
-        if (!errorData?.error) {
+        // DEBUG: errorData 구조 확인
+        console.log('[login] errorData:', errorData);
+        console.log('[login] errorData.data:', (errorData as any)?.data);
+
+        const actualErrorData = (errorData as any)?.data || errorData;
+        if (!actualErrorData?.error) {
           setLoginError({ error: null, message: apiResponse.message || '로그인에 실패했습니다.' });
           return;
         }
 
         // password_change_required 처리
-        if (errorData.error === 'password_change_required') {
-          Log.info('[login] Password change required:', errorData);
+        if (actualErrorData.error === 'password_change_required') {
+          Log.info('[login] Password change required:', actualErrorData);
+          // DEBUG: passwordResetToken 값 명시적 확인
+          console.log('[login] actualErrorData.passwordResetToken:', actualErrorData.passwordResetToken);
+
+          // Password Reset Token 저장
+          if (actualErrorData.passwordResetToken) {
+            setPendingResetToken(actualErrorData.passwordResetToken);
+            Log.debug('[login] Password reset token received');
+          }
 
           // 비밀번호 정책 로드
-          if (errorData.tenantId) {
+          if (actualErrorData.tenantId) {
             try {
-              const policy = await authApi.getPasswordPolicy(errorData.tenantId);
+              const policy = await authApi.getPasswordPolicy(actualErrorData.tenantId);
               setPasswordPolicy(policy);
-              Log.info('Password policy loaded for tenant:', errorData.tenantId, policy);
+              Log.info('Password policy loaded for tenant:', actualErrorData.tenantId, policy);
             } catch (policyError) {
               Log.warn('Failed to load password policy, using defaults:', policyError);
             }
@@ -170,28 +191,29 @@ export function useLoginLogic() {
           // pendingLoginResponse 설정
           setPendingLoginResponse({
             username: '',
-            userId: errorData.userId,
-            tenantId: errorData.tenantId,
+            userId: actualErrorData.userId,
+            tenantId: actualErrorData.tenantId,
             forcePasswordChange: true,
-            passwordExpired: errorData.passwordExpired,
+            passwordExpired: actualErrorData.passwordExpired,
             passwordExpiringSoon: false,
-            daysUntilExpiration: errorData.daysUntilExpiration,
+            daysUntilExpiration: actualErrorData.daysUntilExpiration,
           });
 
           // 비밀번호 변경 다이얼로그 열기
-          const mode: ChangePasswordMode = errorData.passwordExpired ? 'expired' : 'first-login';
+          const mode: ChangePasswordMode = actualErrorData.passwordExpired ? 'expired' : 'first-login';
           changePasswordDialogRef.current?.open({
             mode,
-            userId: errorData.userAccount,
+            userId: actualErrorData.userAccount,
+            passwordResetToken: actualErrorData.passwordResetToken,
           });
           return;
         }
 
-        switch (errorData.error) {
+        switch (actualErrorData.error) {
           case 'account_locked':
             setLockState({
               isLocked: true,
-              retryAfterSeconds: errorData.retry_after ?? 0,
+              retryAfterSeconds: actualErrorData.retry_after ?? 0,
             });
             setLoginError({ error: 'account_locked', message: '' });
             break;
@@ -199,14 +221,14 @@ export function useLoginLogic() {
           case 'account_dormant':
             setLoginError({
               error: 'account_dormant',
-              message: errorData.error_description ?? '휴면 계정입니다. 관리자에게 문의하세요.',
+              message: actualErrorData.error_description ?? '휴면 계정입니다. 관리자에게 문의하세요.',
             });
             break;
 
           case 'account_disabled':
             setLoginError({
               error: 'account_disabled',
-              message: errorData.error_description ?? '비활성화된 계정입니다. 관리자에게 문의하세요.',
+              message: actualErrorData.error_description ?? '비활성화된 계정입니다. 관리자에게 문의하세요.',
             });
             break;
 
@@ -214,14 +236,14 @@ export function useLoginLogic() {
             setLoginError({
               error: 'invalid_grant',
               message: '아이디 또는 비밀번호가 올바르지 않습니다.',
-              remainingAttempts: errorData.remaining_attempts,
+              remainingAttempts: actualErrorData.remaining_attempts,
             });
             break;
 
           default:
             setLoginError({
               error: null,
-              message: errorData.error_description ?? '로그인에 실패했습니다.',
+              message: actualErrorData.error_description ?? '로그인에 실패했습니다.',
             });
         }
       },
@@ -246,8 +268,37 @@ export function useLoginLogic() {
 
   /**
    * Handle password change
+   * - Reset Token이 있으면 resetPassword API 사용 (세션 없이 비밀번호 변경)
+   * - Reset Token이 없으면 기존 changePassword API 사용 (세션 기반)
    */
-  const handlePasswordChange = async (data: { currentPassword?: string; newPassword: string }) => {
+  const handlePasswordChange = async (data: { currentPassword?: string; newPassword: string; passwordResetToken?: string }) => {
+    // Reset Token 기반 비밀번호 변경
+    if (data.passwordResetToken) {
+      Log.info('[handlePasswordChange] Using reset token');
+      try {
+        const response = await authApi.resetPassword({
+          passwordResetToken: data.passwordResetToken,
+          newPassword: data.newPassword,
+        });
+        Log.info('[handlePasswordChange] Reset password success:', response.message);
+
+        // 상태 초기화
+        setPendingLoginResponse(null);
+        setPasswordPolicy(undefined);
+        setPendingResetToken(undefined);
+        form.resetFields();
+
+        // 안내 메시지 표시
+        toast.success('비밀번호가 변경되었습니다. 새 비밀번호로 다시 로그인해주세요.');
+      } catch (error) {
+        Log.error('[handlePasswordChange] Reset password failed:', error);
+        toast.error('비밀번호 변경에 실패했습니다.');
+        throw error;
+      }
+      return;
+    }
+
+    // 기존 방식 (세션 기반)
     if (!pendingLoginResponse?.userId) {
       throw new Error('사용자 정보를 찾을 수 없습니다.');
     }

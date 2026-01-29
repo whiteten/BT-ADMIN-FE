@@ -6,6 +6,8 @@ import type {
   LoginResponse,
   PagedLoginAuditLogResponse,
   PasswordPolicy,
+  ResetPasswordRequest,
+  ResetPasswordResponse,
   UserInfoResponse,
 } from '../types/auth';
 
@@ -43,9 +45,9 @@ export const authApi = {
    * @flow password-policy-detail
    * @param tenantId 테넌트 ID (로그인 응답에서 받은 값)
    */
-  getPasswordPolicy: async (tenantId: string): Promise<PasswordPolicy> => {
+  getPasswordPolicy: async (tenantId: number): Promise<PasswordPolicy> => {
     const response = await bffClient.get<DetailResponse<PasswordPolicy>>('/password-policy-detail', {
-      headers: { 'X-Tenant-Id': tenantId },
+      params: { tenantId },
     });
     return extractDetail(response);
   },
@@ -56,5 +58,15 @@ export const authApi = {
   getLoginHistory: async (params: LoginAuditLogSearchParams): Promise<PagedLoginAuditLogResponse> => {
     const response = await bffClient.get<ListResponse<PagedLoginAuditLogResponse>>('/login-log-list', { params });
     return extractList(response) as unknown as PagedLoginAuditLogResponse;
+  },
+  /**
+   * 비밀번호 강제 변경 (Reset Token 기반)
+   * - 세션 없이 비밀번호 변경 가능
+   * - 최초 로그인, 비밀번호 만료 시 사용
+   * @flow password-reset → AUTH /api/auth/reset-password
+   */
+  resetPassword: async (data: ResetPasswordRequest): Promise<ResetPasswordResponse> => {
+    const response = await bffClient.post<{ data: ResetPasswordResponse }>('/password-reset', data);
+    return response.data.data;
   },
 };
