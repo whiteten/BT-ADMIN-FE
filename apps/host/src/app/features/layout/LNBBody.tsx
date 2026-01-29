@@ -26,7 +26,7 @@ const LNBBody = () => {
     );
   }
 
-  const selectedRemoteMenuConfig = menuConfigs.find((menuConfig) => menuConfig.appId === selectedRemote.key);
+  const selectedRemoteMenuConfig = menuConfigs.find((menuConfig) => menuConfig.appId === selectedRemote?.appId);
   if (!selectedRemoteMenuConfig) {
     return (
       <SidebarContent>
