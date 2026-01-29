@@ -109,7 +109,7 @@ export default function BotBasicInfo() {
                 hasFeedback
                 rules={[
                   { required: true, message: '봇 이름을 입력해 주세요.' },
-                  { pattern: /^[a-zA-Zㄱ-ㅎㅏ-ㅣ가-힣0-9_]+$/, message: '영문, 한글, 숫자, 언더스코어(_)만 입력 가능합니다.' },
+                  { pattern: /^[a-zA-Zㄱ-ㅎㅏ-ㅣ가-힣0-9_\s]+$/, message: '영문, 한글, 숫자, 언더스코어(_), 공백만 입력 가능합니다.' },
                 ]}
               >
                 <Input placeholder="봇 이름을 입력하세요." disabled />
