@@ -3,7 +3,7 @@ import { Navigate, Outlet } from 'react-router-dom';
 import dayjs from 'dayjs';
 import { LOG } from '@/log';
 
-import { useGetSession } from '../common/hooks/useActuator';
+import { useGetSession } from '../common/hooks/useSessionQueries';
 import { FallbackSpinner } from '@/components/custom/FallbackSpinner';
 
 const Log = new LOG('RouteGuard');
