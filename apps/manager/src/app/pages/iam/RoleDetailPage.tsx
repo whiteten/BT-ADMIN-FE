@@ -14,6 +14,10 @@ import { type RoleBasicFormValues, RoleDetailProvider } from './context/RoleDeta
 import { useGetGroupedPermissions } from '../../features/iam/hooks/usePermissionQueries';
 import { useGetRole } from '../../features/iam/hooks/useRoleQueries';
 import type { MenuWithPermissions, PermissionSummary } from '../../features/iam/types/iam.types';
+import { FallbackSpinner } from '@/components/custom/FallbackSpinner';
+import { IconDocument, IconSlidersHorizontal } from '@/components/custom/Icons';
+import PageHeader from '@/components/custom/PageHeader';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/libs/shared-ui/src/components/shadcn/tabs';
 
 /**
  * 메뉴와 모든 하위 메뉴의 권한을 재귀적으로 수집
@@ -25,10 +29,6 @@ function collectAllPermissions(menu: MenuWithPermissions): PermissionSummary[] {
   }
   return perms;
 }
-import { FallbackSpinner } from '@/components/custom/FallbackSpinner';
-import { IconDocument, IconSlidersHorizontal } from '@/components/custom/Icons';
-import PageHeader from '@/components/custom/PageHeader';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/libs/shared-ui/src/components/shadcn/tabs';
 
 const RoleBasicInfoTab = React.lazy(() => import('./tabs/RoleBasicInfoTab'));
 const RolePermissionTab = React.lazy(() => import('./tabs/RolePermissionTab'));
