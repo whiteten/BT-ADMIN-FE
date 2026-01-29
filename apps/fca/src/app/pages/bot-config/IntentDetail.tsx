@@ -20,11 +20,11 @@ export default function IntentDetail() {
   const { isPublic } = useModelRoute();
   const breadcrumb: BreadcrumbProps['items'] = [
     { title: '봇 관리', path: '/fca/bot-config' },
-    isPublic ? { title: '공용 모델', path: '/fca/common/models' } : { title: '모델', path: '/fca/bot-config/model' },
-    isPublic ? { title: '공용 모델 상세', path: `/fca/common/models/${modelId}` } : { title: '모델 상세', path: `/fca/bot-config/model/${modelId}` },
-    isPublic ? { title: '의도', path: `/fca/common/models/${modelId}?tab=tab2` } : { title: '의도', path: `/fca/bot-config/model/${modelId}?tab=tab2` },
+    isPublic ? { title: '공용 모델', path: '/fca/global/model' } : { title: '모델', path: '/fca/bot-config/model' },
+    isPublic ? { title: '공용 모델 상세', path: `/fca/global/model/${modelId}` } : { title: '모델 상세', path: `/fca/bot-config/model/${modelId}` },
+    isPublic ? { title: '의도', path: `/fca/global/model/${modelId}?tab=tab2` } : { title: '의도', path: `/fca/bot-config/model/${modelId}?tab=tab2` },
     isPublic
-      ? { title: '의도 상세', path: `/fca/common/models/${modelId}/intent/${intentId}` }
+      ? { title: '의도 상세', path: `/fca/global/model/${modelId}/intent/${intentId}` }
       : { title: '의도 상세', path: `/fca/bot-config/model/${modelId}/intent/${intentId}` },
   ];
 

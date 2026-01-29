@@ -143,7 +143,7 @@ export default function ModelIntentList() {
   const handleRowDoubleClick = (event: RowDoubleClickedEvent<IntentListItem>) => {
     if (!event.data) return;
     const { intentId } = event.data;
-    navigate(`/fca/bot-config/model/${modelId}/intent/${intentId}`);
+    navigate(`./intent/${intentId}`);
   };
 
   return (

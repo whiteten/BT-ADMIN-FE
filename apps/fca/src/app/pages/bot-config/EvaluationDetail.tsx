@@ -22,11 +22,11 @@ export default function EvaluationDetail() {
   const { isPublic } = useModelRoute();
   const breadcrumb: BreadcrumbProps['items'] = [
     { title: '봇 관리', path: '/fca/bot-config' },
-    isPublic ? { title: '공용 모델', path: '/fca/common/models' } : { title: '모델', path: '/fca/bot-config/model' },
-    isPublic ? { title: '공용 모델 상세', path: `/fca/common/models/${modelId}` } : { title: '모델 상세', path: `/fca/bot-config/model/${modelId}` },
-    isPublic ? { title: '평가', path: `/fca/common/models/${modelId}?tab=tab4` } : { title: '평가', path: `/fca/bot-config/model/${modelId}?tab=tab4` },
+    isPublic ? { title: '공용 모델', path: '/fca/global/model' } : { title: '모델', path: '/fca/bot-config/model' },
+    isPublic ? { title: '공용 모델 상세', path: `/fca/global/model/${modelId}` } : { title: '모델 상세', path: `/fca/bot-config/model/${modelId}` },
+    isPublic ? { title: '평가', path: `/fca/global/model/${modelId}?tab=tab4` } : { title: '평가', path: `/fca/bot-config/model/${modelId}?tab=tab4` },
     isPublic
-      ? { title: '평가 상세', path: `/fca/common/models/${modelId}/evaluation/${evalId}` }
+      ? { title: '평가 상세', path: `/fca/global/model/${modelId}/evaluation/${evalId}` }
       : { title: '평가 상세', path: `/fca/bot-config/model/${modelId}/evaluation/${evalId}` },
   ];
 

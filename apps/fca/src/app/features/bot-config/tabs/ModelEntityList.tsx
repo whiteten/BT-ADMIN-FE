@@ -234,7 +234,7 @@ export default function ModelEntityList() {
   const handleRowDoubleClick = (event: RowDoubleClickedEvent<EntityListItem>) => {
     if (!event.data) return;
     const { entityId } = event.data;
-    navigate(`/fca/bot-config/model/${modelId}/entity/${entityId}`);
+    navigate(`./entity/${entityId}`);
   };
 
   return (

@@ -15,8 +15,8 @@ export default function ModelList() {
   const { isPublic } = useModelRoute();
   const breadcrumb: BreadcrumbProps['items'] = [
     { title: '봇 관리', path: '/fca/bot-config' },
-    isPublic ? { title: '공용 모델', path: '/fca/common/models' } : { title: '모델', path: '/fca/bot-config/model' },
-    isPublic ? { title: '공용 모델 목록', path: '/fca/common/models' } : { title: '모델 목록', path: '/fca/bot-config/model/list' },
+    isPublic ? { title: '공용 모델', path: '/fca/global/model' } : { title: '모델', path: '/fca/bot-config/model' },
+    isPublic ? { title: '공용 모델 목록', path: '/fca/global/model' } : { title: '모델 목록', path: '/fca/bot-config/model/list' },
   ];
   const navigate = useNavigate();
   const queryClient = useQueryClient();

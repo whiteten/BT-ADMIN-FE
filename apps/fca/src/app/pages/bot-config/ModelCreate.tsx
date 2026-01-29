@@ -14,8 +14,8 @@ export default function ModelCreate() {
   const { isPublic } = useModelRoute();
   const breadcrumb: BreadcrumbProps['items'] = [
     { title: '봇 관리', path: '/fca/bot-config' },
-    isPublic ? { title: '공용 모델', path: '/fca/common/model/list' } : { title: '모델', path: '/fca/bot-config/model' },
-    isPublic ? { title: '공용 모델 생성', path: '/fca/common/model/create' } : { title: '모델 생성', path: '/fca/bot-config/model/create' },
+    isPublic ? { title: '공용 모델', path: '/fca/global/model/list' } : { title: '모델', path: '/fca/bot-config/model' },
+    isPublic ? { title: '공용 모델 생성', path: '/fca/global/model/create' } : { title: '모델 생성', path: '/fca/bot-config/model/create' },
   ];
   const initialValues = { modelName: '', expansion1: '' };
 
