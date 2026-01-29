@@ -226,7 +226,7 @@ export default function BotVersionList() {
           <Button variant="solid" onClick={handleClickEditVersion} loading={isEditing}>
             대화편집
           </Button>
-          <Button variant="solid" color="primary" onClick={handleClickPublishVersion} loading={isPublishing || isLoadingBotDeployConfig}>
+          <Button variant="solid" color="primary" onClick={handleClickPublishVersion} loading={isPublishing}>
             배포
           </Button>
           <Button variant="solid" color="cyan" onClick={handleClickDeployConfig}>
