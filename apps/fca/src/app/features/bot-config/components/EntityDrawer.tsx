@@ -105,7 +105,19 @@ const EntityDrawer = forwardRef<EntityDrawerRef>((_, ref) => {
       <Form form={form} initialValues={{ entityName: '', entityDesc: '' }} onFinish={onFinish} onFinishFailed={onFinishFailed} layout="vertical">
         <Row>
           <Col span={24}>
-            <Form.Item name="entityName" label="개체이름" required hasFeedback rules={[{ required: true, message: '개체이름을 입력하세요.' }]}>
+            <Form.Item
+              name="entityName"
+              label="개체이름"
+              required
+              hasFeedback
+              rules={[
+                { required: true, message: '개체이름을 입력하세요.' },
+                {
+                  pattern: /^[a-zA-Z가-힣_][a-zA-Z가-힣0-9_]*$/,
+                  message: '영문, 한글, 숫자, 언더스코어(_)만 가능하며, 숫자로 시작하거나 공백을 포함할 수 없습니다.',
+                },
+              ]}
+            >
               <Input placeholder="개체이름을 입력하세요." />
             </Form.Item>
           </Col>

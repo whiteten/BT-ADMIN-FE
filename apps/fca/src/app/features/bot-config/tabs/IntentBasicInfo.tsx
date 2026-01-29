@@ -71,7 +71,19 @@ export default function IntentBasicInfo() {
         <>
           <Row gutter={20}>
             <Col span={12}>
-              <Form.Item name="intentName" label="의도이름" required hasFeedback rules={[{ required: true, message: '의도이름을 입력하세요.' }]}>
+              <Form.Item
+                name="intentName"
+                label="의도이름"
+                required
+                hasFeedback
+                rules={[
+                  { required: true, message: '의도이름을 입력하세요.' },
+                  {
+                    pattern: /^[a-zA-Z가-힣_][a-zA-Z가-힣0-9_]*$/,
+                    message: '영문, 한글, 숫자, 언더스코어(_)만 가능하며, 숫자로 시작하거나 공백을 포함할 수 없습니다.',
+                  },
+                ]}
+              >
                 <Input placeholder="의도이름을 입력하세요." />
               </Form.Item>
             </Col>
