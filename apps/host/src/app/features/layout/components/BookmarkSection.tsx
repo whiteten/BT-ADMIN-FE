@@ -12,28 +12,34 @@ import { useMenuStore, useNavigationStore } from '@/shared-store';
 import { useUpdateBookmark } from '../hooks/useBookmarkQueries';
 import { SidebarGroup, SidebarGroupLabel, SidebarMenu, SidebarMenuButton, SidebarMenuItem } from '@/components/ui/sidebar';
 import type { Bookmark } from '@/libs/shared-api/src/lib/types/navi.types';
-import type { MenuConfig } from '@/libs/shared-store/src/types/menu.types';
+import type { MenuConfig, MenuItem } from '@/libs/shared-store/src/types/menu.types';
 
-/** menuConfigs에서 bookmark의 menuId에 해당하는 메뉴의 부모 아이콘과 path를 조회 */
+/** menuConfigs에서 bookmark의 menuId에 해당하는 메뉴의 최상위 부모 아이콘과 path를 조회 */
 const findMenuInfo = (menuConfigs: MenuConfig[], bookmark: Bookmark): { icon?: React.ElementType; path?: string } => {
   for (const config of menuConfigs) {
     if (config.appId !== bookmark.appId) continue;
     for (const menu of config.menus) {
-      // 최상위 메뉴 자체가 일치 (아이콘 + path 둘 다 있는 경우)
-      if (menu.menuId === bookmark.menuId) {
-        return { icon: menu.icon, path: menu.path };
-      }
-      // 자식 중에서 일치하는 항목 탐색 → 부모 아이콘 반환
-      if (menu.children) {
-        for (const child of menu.children) {
-          if (child.menuId === bookmark.menuId) {
-            return { icon: menu.icon, path: child.path };
-          }
-        }
+      const result = findMenuItemRecursive(menu, bookmark.menuId);
+      if (result) {
+        return { icon: menu.icon, path: result.path };
       }
     }
   }
   return {};
+};
+
+/** 메뉴 트리를 재귀적으로 탐색하여 menuId가 일치하는 항목을 반환 */
+const findMenuItemRecursive = (item: MenuItem, menuId: number): { path?: string } | null => {
+  if (item.menuId === menuId) {
+    return { path: item.path };
+  }
+  if (item.children) {
+    for (const child of item.children) {
+      const result = findMenuItemRecursive(child, menuId);
+      if (result) return result;
+    }
+  }
+  return null;
 };
 
 interface SortableBookmarkItemProps {
