@@ -5,7 +5,7 @@ import { useMutation, useQuery } from '@tanstack/react-query';
 import { createQueryKeys } from '@lukemorales/query-key-factory';
 import type { MutationHookOptions, QueryHookWithParamsOptions } from '@/shared-util';
 import { userAuthApi } from '../api/userAuthApi';
-import type { UserAuthMap } from '../types/iam.types';
+import type { UserAuthMap, UserPermissionSyncResponse } from '../types/iam.types';
 
 export const userAuthQueryKeys = createQueryKeys('userAuthMaps', {
   getList: (params?: Record<string, unknown>) => [params],
@@ -23,21 +23,12 @@ export const useGetUserAuthMaps = ({ params, queryOptions }: QueryHookWithParams
 };
 
 /**
- * 사용자 권한 매핑 생성 훅
+ * 사용자 권한 동기화 훅
+ * - 선택된 권한 ID 목록을 전달하면 백엔드가 역할과 비교하여 ALLOW/DENY 결정
  */
-export const useCreateUserAuthMap = ({ mutationOptions }: MutationHookOptions = {}) => {
+export const useSyncUserPermissions = ({ mutationOptions }: MutationHookOptions<UserPermissionSyncResponse> = {}) => {
   return useMutation({
-    mutationFn: userAuthApi.create,
-    ...mutationOptions,
-  });
-};
-
-/**
- * 사용자 권한 매핑 삭제 훅
- */
-export const useDeleteUserAuthMap = ({ mutationOptions }: MutationHookOptions = {}) => {
-  return useMutation({
-    mutationFn: userAuthApi.delete,
+    mutationFn: userAuthApi.sync,
     ...mutationOptions,
   });
 };

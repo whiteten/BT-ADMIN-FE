@@ -1,9 +1,9 @@
 /**
  * 사용자 권한 매핑 API
- * BFF Flow: user-auth-map-list, user-auth-map-create, user-auth-map-delete
+ * BFF Flow: user-auth-map-list, user-permission-sync
  */
 import ApiClient, { type DetailResponse, type ListResponse, extractDetail, extractList } from '@/shared-util';
-import type { UserAuthMap, UserAuthMapCreateDatas, UserAuthMapCreateResponse } from '../types/iam.types';
+import type { UserAuthMap, UserPermissionSyncRequest, UserPermissionSyncResponse } from '../types/iam.types';
 
 const apiClient = new ApiClient({ serviceURL: '/bff' });
 
@@ -19,21 +19,12 @@ export const userAuthApi = {
   },
 
   /**
-   * 사용자 권한 매핑 생성
-   * - 단일 사용자에 대해 N개 권한 매핑
-   * - BFF가 userId를 path variable로 변환
+   * 사용자 권한 동기화
+   * - 선택된 권한 ID 목록을 전달하면 백엔드가 역할과 비교하여 ALLOW/DENY 결정
+   * - 역할 권한 매핑과 동일한 방식으로 동작
    */
-  create: async ({ params, data }: { params: Record<string, unknown>; data: UserAuthMapCreateDatas }) => {
-    const response = await apiClient.post<DetailResponse<UserAuthMapCreateResponse>>('/user-auth-map-create', data, { params });
-    return extractDetail(response) ?? { totalCreated: 0, authCount: 0 };
-  },
-
-  /**
-   * 사용자 권한 매핑 삭제
-   * - BFF가 userId, mapId를 path variable로 변환
-   */
-  delete: async (params: Record<string, unknown>) => {
-    const response = await apiClient.delete('/user-auth-map-delete', { params });
-    return response;
+  sync: async ({ userId, data }: { userId: number; data: UserPermissionSyncRequest }): Promise<UserPermissionSyncResponse> => {
+    const response = await apiClient.put<DetailResponse<UserPermissionSyncResponse>>('/user-permission-sync', data, { params: { userId } });
+    return extractDetail(response) ?? { allowCount: 0, denyCount: 0, effectiveAuthIds: [] };
   },
 };

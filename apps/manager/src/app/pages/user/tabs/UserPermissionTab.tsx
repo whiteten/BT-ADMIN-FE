@@ -2,9 +2,7 @@
  * 사용자 상세 - 개별 권한 탭
  * - PermissionSelector와 동일한 체크박스 트리 UI
  * - 기본값: 역할에 포함된 권한이 체크됨
- * - 체크 추가: 역할에 없던 권한 → ALLOW로 저장
- * - 체크 해제: 역할에 있던 권한 → DENY로 저장
- * - 저장 시 변경분만 TB_BT_CM_USER_AUTH_MAP에 반영
+ * - 저장 시 선택된 권한 ID만 전송, 백엔드가 역할과 비교하여 ALLOW/DENY 결정
  */
 
 import { useEffect, useMemo, useState } from 'react';
@@ -13,7 +11,7 @@ import { Button, Col, Row } from 'antd';
 import { toast } from '@/shared-util';
 import UserPermissionSelector from '../../../features/iam/components/UserPermissionSelector';
 import { useGetRole } from '../../../features/iam/hooks/useRoleQueries';
-import { useCreateUserAuthMap, useDeleteUserAuthMap, useGetUserAuthMaps } from '../../../features/iam/hooks/useUserAuthQueries';
+import { useGetUserAuthMaps, useSyncUserPermissions } from '../../../features/iam/hooks/useUserAuthQueries';
 import { useGetUser } from '../../../features/user/hooks/useUserQueries';
 import { useUserDetailContext } from '../context/UserDetailContext';
 import { FallbackSpinner } from '@/components/custom/FallbackSpinner';
@@ -97,9 +95,13 @@ export default function UserPermissionTab() {
     });
   }, [roleAuthIds.size, selectedAuthIds.size, existingMaps, setPermissionStats]);
 
-  // 생성 Mutation
-  const { mutate: createMap, isPending: isCreating } = useCreateUserAuthMap({
+  // 동기화 Mutation
+  const { mutate: syncPermissions, isPending: isSyncing } = useSyncUserPermissions({
     mutationOptions: {
+      onSuccess: (result) => {
+        toast.success(`권한 설정이 저장되었습니다. (추가: ${result.allowCount}, 차단: ${result.denyCount})`);
+        refetch();
+      },
       onError: (error) => {
         const errorMessage = error instanceof Error ? error.message : '권한 설정 저장에 실패했습니다.';
         toast.error(errorMessage);
@@ -107,117 +109,28 @@ export default function UserPermissionTab() {
     },
   });
 
-  // 삭제 Mutation
-  const { mutate: deleteMap, isPending: isDeleting } = useDeleteUserAuthMap({
-    mutationOptions: {
-      onError: (error) => {
-        const errorMessage = error instanceof Error ? error.message : '권한 설정 삭제에 실패했습니다.';
-        toast.error(errorMessage);
-      },
-    },
-  });
+  // 변경 여부 확인
+  const hasChanges = useMemo(() => {
+    return !areSetsEqual(selectedAuthIds, initialSelectedAuthIds);
+  }, [selectedAuthIds, initialSelectedAuthIds]);
 
-  // 변경사항 계산 (역할 기준으로 비교)
-  const changes = useMemo(() => {
-    const toAllow: number[] = []; // 역할에 없는데 선택됨 → ALLOW
-    const toDeny: number[] = []; // 역할에 있는데 선택 해제됨 → DENY
-    const toRemove: number[] = []; // 기존 매핑 제거 필요
+  // 변경 통계 (UI 표시용)
+  const changeStats = useMemo(() => {
+    // 선택 추가: 초기에 없었는데 현재 있음
+    const added = [...selectedAuthIds].filter((id) => !initialSelectedAuthIds.has(id)).length;
+    // 선택 제거: 초기에 있었는데 현재 없음
+    const removed = [...initialSelectedAuthIds].filter((id) => !selectedAuthIds.has(id)).length;
+    return { added, removed };
+  }, [selectedAuthIds, initialSelectedAuthIds]);
 
-    // 현재 선택 상태와 역할 비교
-    selectedAuthIds.forEach((authId) => {
-      if (!roleAuthIds.has(authId)) {
-        // 역할에 없는데 선택됨 → ALLOW 필요
-        const existingMap = existingMaps.find((m) => m.authId === authId);
-        if (!existingMap || existingMap.effect !== 'ALLOW') {
-          toAllow.push(authId);
-        }
-      }
+  // 저장 핸들러 (단일 API 호출)
+  const handleSave = () => {
+    if (!numericUserId || !hasChanges) return;
+
+    syncPermissions({
+      userId: numericUserId,
+      data: { authIds: [...selectedAuthIds] },
     });
-
-    roleAuthIds.forEach((authId) => {
-      if (!selectedAuthIds.has(authId)) {
-        // 역할에 있는데 선택 해제됨 → DENY 필요
-        const existingMap = existingMaps.find((m) => m.authId === authId);
-        if (!existingMap || existingMap.effect !== 'DENY') {
-          toDeny.push(authId);
-        }
-      }
-    });
-
-    // 더 이상 필요 없는 기존 매핑 찾기
-    existingMaps.forEach((map) => {
-      const isRolePermission = roleAuthIds.has(map.authId);
-      const isSelected = selectedAuthIds.has(map.authId);
-
-      if (map.effect === 'ALLOW' && (isRolePermission || !isSelected)) {
-        // ALLOW였는데 역할에 있거나 선택 해제됨 → 제거
-        toRemove.push(map.mapId);
-      } else if (map.effect === 'DENY' && (!isRolePermission || isSelected)) {
-        // DENY였는데 역할에 없거나 선택됨 → 제거
-        toRemove.push(map.mapId);
-      }
-    });
-
-    const hasChanges = !areSetsEqual(selectedAuthIds, initialSelectedAuthIds);
-
-    return { toAllow, toDeny, toRemove, hasChanges };
-  }, [selectedAuthIds, initialSelectedAuthIds, roleAuthIds, existingMaps]);
-
-  // 저장 핸들러
-  const handleSave = async () => {
-    if (!numericUserId || !changes.hasChanges) return;
-
-    try {
-      // 1. 먼저 기존 매핑 삭제
-      for (const mapId of changes.toRemove) {
-        await new Promise<void>((resolve, reject) => {
-          deleteMap(
-            { userId: numericUserId, mapId },
-            {
-              onSuccess: () => resolve(),
-              onError: (err: Error) => reject(err),
-            },
-          );
-        });
-      }
-
-      // 2. ALLOW 생성
-      if (changes.toAllow.length > 0) {
-        await new Promise<void>((resolve, reject) => {
-          createMap(
-            {
-              params: { userId: numericUserId },
-              data: { authIds: changes.toAllow, effect: 'ALLOW' },
-            },
-            {
-              onSuccess: () => resolve(),
-              onError: (err: Error) => reject(err),
-            },
-          );
-        });
-      }
-
-      // 3. DENY 생성
-      if (changes.toDeny.length > 0) {
-        await new Promise<void>((resolve, reject) => {
-          createMap(
-            {
-              params: { userId: numericUserId },
-              data: { authIds: changes.toDeny, effect: 'DENY' },
-            },
-            {
-              onSuccess: () => resolve(),
-              onError: (err: Error) => reject(err),
-            },
-          );
-        });
-      }
-
-      toast.success('개별 권한 설정이 저장되었습니다.');
-      refetch();
-    } catch {
-      // 에러는 개별 mutation에서 처리됨
-    }
   };
 
   // 취소 핸들러 (초기 상태로 복원)
@@ -226,7 +139,6 @@ export default function UserPermissionTab() {
   };
 
   const isLoading = isUserFetching || isRoleFetching || isMapLoading;
-  const isSaving = isCreating || isDeleting;
 
   if (isLoading || !numericUserId) {
     return (
@@ -241,26 +153,26 @@ export default function UserPermissionTab() {
       {/* 권한 선택기 */}
       <div className="flex-1 min-h-0 overflow-hidden">
         <div className="h-full overflow-y-auto">
-          <UserPermissionSelector roleAuthIds={roleAuthIds} selectedAuthIds={selectedAuthIds} existingMaps={existingMaps} onChange={setSelectedAuthIds} readOnly={isSaving} />
+          <UserPermissionSelector roleAuthIds={roleAuthIds} selectedAuthIds={selectedAuthIds} existingMaps={existingMaps} onChange={setSelectedAuthIds} readOnly={isSyncing} />
         </div>
       </div>
 
       {/* 저장/취소 버튼 */}
       <Row gutter={20} justify="center" className="sticky bottom-0 bg-white z-10 pb-4 pt-4 border-t border-gray-100">
         <Col>
-          <Button color="primary" variant="solid" onClick={handleSave} loading={isSaving} disabled={!changes.hasChanges}>
+          <Button color="primary" variant="solid" onClick={handleSave} loading={isSyncing} disabled={!hasChanges}>
             저장
-            {changes.hasChanges && (
+            {hasChanges && (
               <span className="ml-1 text-xs">
-                ({changes.toAllow.length > 0 && `+${changes.toAllow.length}`}
-                {changes.toDeny.length > 0 && changes.toAllow.length > 0 && ', '}
-                {changes.toDeny.length > 0 && `-${changes.toDeny.length}`})
+                ({changeStats.added > 0 && `+${changeStats.added}`}
+                {changeStats.removed > 0 && changeStats.added > 0 && ', '}
+                {changeStats.removed > 0 && `-${changeStats.removed}`})
               </span>
             )}
           </Button>
         </Col>
         <Col>
-          <Button onClick={handleCancel} disabled={!changes.hasChanges || isSaving}>
+          <Button onClick={handleCancel} disabled={!hasChanges || isSyncing}>
             취소
           </Button>
         </Col>

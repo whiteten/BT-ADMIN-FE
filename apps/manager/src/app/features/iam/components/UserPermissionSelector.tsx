@@ -7,7 +7,7 @@
  */
 
 import { useMemo, useState } from 'react';
-import { Checkbox, Input, Spin, Tooltip } from 'antd';
+import { Checkbox, Input, Spin } from 'antd';
 import { ChevronDown, ChevronRight, Folder, Lock, Search, ShieldCheck, ShieldX } from 'lucide-react';
 import { useGetGroupedPermissions } from '../hooks/usePermissionQueries';
 import type { MenuWithPermissions, PermissionGroup, PermissionSummary, UserAuthMap } from '../types/iam.types';
@@ -461,33 +461,21 @@ export default function UserPermissionSelector({ roleAuthIds, selectedAuthIds, e
                                 )}
                                 onClick={() => !readOnly && handlePermissionToggle(perm.authId)}
                               >
-                                <Tooltip
-                                  title={
-                                    <div className="space-y-1">
-                                      <div>{perm.description}</div>
-                                      {info.isRolePermission && <div className="text-xs opacity-80">역할에 포함된 기본 권한</div>}
-                                      {info.savedEffect === 'ALLOW' && <div className="text-xs text-emerald-300">개별 부여됨 (DB 저장)</div>}
-                                      {info.savedEffect === 'DENY' && <div className="text-xs text-rose-300">개별 차단됨 (DB 저장)</div>}
-                                    </div>
-                                  }
-                                  placement="top"
-                                >
-                                  <div className="inline-flex items-center gap-1">
-                                    <Checkbox
-                                      checked={info.isSelected}
-                                      disabled={readOnly}
-                                      onChange={() => handlePermissionToggle(perm.authId)}
-                                      onClick={(e) => e.stopPropagation()}
-                                      className={cn(
-                                        info.status === 'added' && '[&_.ant-checkbox-inner]:!border-emerald-500 [&_.ant-checkbox-checked_.ant-checkbox-inner]:!bg-emerald-500',
-                                        info.status === 'removed' && '[&_.ant-checkbox-inner]:!border-rose-500',
-                                      )}
-                                    />
-                                    {info.isRolePermission && <Lock className="size-3 text-gray-400" />}
-                                    {info.savedEffect === 'ALLOW' && <ShieldCheck className="size-3 text-emerald-500" />}
-                                    {info.savedEffect === 'DENY' && <ShieldX className="size-3 text-rose-500" />}
-                                  </div>
-                                </Tooltip>
+                                <div className="inline-flex items-center gap-1">
+                                  <Checkbox
+                                    checked={info.isSelected}
+                                    disabled={readOnly}
+                                    onChange={() => handlePermissionToggle(perm.authId)}
+                                    onClick={(e) => e.stopPropagation()}
+                                    className={cn(
+                                      info.status === 'added' && '[&_.ant-checkbox-inner]:!border-emerald-500 [&_.ant-checkbox-checked_.ant-checkbox-inner]:!bg-emerald-500',
+                                      info.status === 'removed' && '[&_.ant-checkbox-inner]:!border-rose-500',
+                                    )}
+                                  />
+                                  {info.isRolePermission && <Lock className="size-3 text-gray-400" />}
+                                  {info.savedEffect === 'ALLOW' && <ShieldCheck className="size-3 text-emerald-500" />}
+                                  {info.savedEffect === 'DENY' && <ShieldX className="size-3 text-rose-500" />}
+                                </div>
                               </td>
                             );
                           })}

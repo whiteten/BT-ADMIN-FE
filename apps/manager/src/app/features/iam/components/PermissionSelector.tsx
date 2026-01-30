@@ -7,7 +7,7 @@
  */
 
 import { useMemo, useState } from 'react';
-import { Checkbox, Input, Spin, Tooltip } from 'antd';
+import { Checkbox, Input, Spin } from 'antd';
 import { ChevronDown, ChevronRight, Folder, Search } from 'lucide-react';
 import { useGetGroupedPermissions } from '../hooks/usePermissionQueries';
 import type { MenuWithPermissions, PermissionGroup, PermissionSummary } from '../types/iam.types';
@@ -393,9 +393,7 @@ export default function PermissionSelector({ value = new Set(), onChange }: Perm
                                 className={cn('py-2 px-3 text-center border-b border-gray-100 transition-colors cursor-pointer', style.cell)}
                                 onClick={() => handlePermissionToggle(perm.authId)}
                               >
-                                <Tooltip title={perm.description} placement="top">
-                                  <Checkbox checked={isSelected} onChange={() => handlePermissionToggle(perm.authId)} onClick={(e) => e.stopPropagation()} />
-                                </Tooltip>
+                                <Checkbox checked={isSelected} onChange={() => handlePermissionToggle(perm.authId)} onClick={(e) => e.stopPropagation()} />
                               </td>
                             );
                           })}

@@ -90,23 +90,16 @@ export interface UserAuthorityResponse {
   overrides: UserAuthMap[];
 }
 
-// 사용자 권한 부여/박탈 요청 (단건)
-export interface UserAuthGrantDatas {
-  authId: number;
-  effect: PermissionEffect;
-}
-
-// 사용자 권한 매핑 생성 요청 - 단일 사용자, 다중 권한
-// userId는 URL path에서 전달
-export interface UserAuthMapCreateDatas {
+// 사용자 권한 동기화 요청 (역할 권한 매핑과 동일 형식)
+export interface UserPermissionSyncRequest {
   authIds: number[];
-  effect: PermissionEffect;
 }
 
-// 사용자 권한 매핑 생성 응답
-export interface UserAuthMapCreateResponse {
-  totalCreated: number;
-  authCount: number;
+// 사용자 권한 동기화 응답
+export interface UserPermissionSyncResponse {
+  allowCount: number;
+  denyCount: number;
+  effectiveAuthIds: number[];
 }
 
 // 역할 생성/수정 요청
