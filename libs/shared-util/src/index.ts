@@ -5,3 +5,4 @@ export { default as WebSocketClient } from './lib/webSocketClient';
 export type * from './lib/types/query.types';
 export { toast } from './lib/toast';
 export * from './lib/types/api.types';
+export * from './lib/validation';

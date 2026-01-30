@@ -5,7 +5,7 @@
 import { useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useQueryClient } from '@tanstack/react-query';
-import { Button, Input, Modal } from 'antd';
+import { Button, Input } from 'antd';
 import { Plus, Search } from 'lucide-react';
 import { sharedApi } from '@/shared-api';
 import { toast } from '@/shared-util';
@@ -14,11 +14,13 @@ import { useDeleteRole, useGetRoles } from '../hooks/useRoleQueries';
 import type { Role } from '../types/iam.types';
 import { FallbackSpinner } from '@/components/custom/FallbackSpinner';
 import NoData from '@/components/custom/NoData';
+import { useModal } from '@/libs/shared-ui/src/hooks/useModal';
 
 export default function RoleManagementTab() {
   const navigate = useNavigate();
   const [keyword, setKeyword] = useState('');
   const queryClient = useQueryClient();
+  const modal = useModal();
 
   // API 연동: 역할 목록 조회
   const { data: rolesData = [], isLoading: loading } = useGetRoles();
@@ -50,22 +52,20 @@ export default function RoleManagementTab() {
 
   const handleCreate = () => {
     // 스텝 방식 역할 생성 페이지로 이동
-    navigate('/manager/iam/role/create');
+    navigate('/manager/resource/role/create');
   };
 
   const handleEdit = (role: Role) => {
     // 탭 방식 역할 상세 페이지로 이동
-    navigate(`/manager/iam/role/${role.roleId}`);
+    navigate(`/manager/resource/role/${role.roleId}`);
   };
 
   const handleDelete = (role: Role) => {
-    Modal.confirm({
-      title: '역할 삭제',
-      content: `"${role.roleName}" 역할을 삭제하시겠습니까?`,
-      okText: '삭제',
-      okType: 'danger',
-      cancelText: '취소',
+    modal.confirm.delete({
       onOk: () => deleteRole({ roleId: role.roleId }),
+      options: {
+        content: `"${role.roleName}" 역할을 삭제하시겠습니까?`,
+      },
     });
   };
 

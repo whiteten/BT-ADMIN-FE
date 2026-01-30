@@ -59,6 +59,8 @@ export interface LoginErrorResponse {
   passwordExpired: boolean;
   daysUntilExpiration: number;
   passwordResetToken?: string;
+  /** Password reset token 만료 시간 (epoch seconds) */
+  tokenExpiresAt?: number;
 }
 
 /**

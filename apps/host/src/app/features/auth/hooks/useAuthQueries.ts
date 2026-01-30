@@ -2,7 +2,7 @@ import { useMutation, useQuery } from '@tanstack/react-query';
 import { createQueryKeys } from '@lukemorales/query-key-factory';
 import type { MutationHookOptions, QueryHookWithParamsOptions } from '@/shared-util';
 import { authApi } from '../api/authApi';
-import type { ChangePasswordRequest, LoginRequestDatas, LoginResponse, UserInfoResponse } from '../types/auth';
+import type { ChangePasswordRequest, LoginRequestDatas, LoginResponse, ResetPasswordRequest, ResetPasswordResponse, UserInfoResponse } from '../types/auth';
 
 export const authQueryKeys = createQueryKeys('auth', {
   getCsrfToken: (params?: Record<string, unknown>) => [params],
@@ -51,7 +51,7 @@ export const useChangePassword = ({ mutationOptions }: MutationHookOptions<void,
   });
 };
 
-export const useResetPassword = ({ mutationOptions }: MutationHookOptions = {}) => {
+export const useResetPassword = ({ mutationOptions }: MutationHookOptions<ResetPasswordResponse, ResetPasswordRequest> = {}) => {
   return useMutation({
     mutationFn: authApi.resetPassword,
     ...mutationOptions,

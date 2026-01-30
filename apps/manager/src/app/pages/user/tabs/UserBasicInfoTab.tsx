@@ -124,8 +124,9 @@ export default function UserBasicInfoTab() {
     });
   };
 
-  const onFinishFailed: FormProps<UserBasicFormValues>['onFinishFailed'] = () => {
-    toast.error('필수 항목을 확인해주세요.');
+  const onFinishFailed: FormProps<UserBasicFormValues>['onFinishFailed'] = (errorInfo) => {
+    const firstError = errorInfo.errorFields?.[0]?.errors?.[0];
+    toast.error(firstError ?? '입력 항목을 확인해주세요.');
   };
 
   const handleClickDeleteBtn = () => {

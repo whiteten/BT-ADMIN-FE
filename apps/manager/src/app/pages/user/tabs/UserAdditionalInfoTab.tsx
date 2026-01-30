@@ -9,7 +9,7 @@ import { useParams } from 'react-router-dom';
 import { useQueryClient } from '@tanstack/react-query';
 import { Button, Col, Form, type FormProps, Input, Row, Tag } from 'antd';
 import { Plus } from 'lucide-react';
-import { toast } from '@/shared-util';
+import { emailRule, phoneRule, toast } from '@/shared-util';
 import { useGetUser, useUpdateUser, userQueryKeys } from '../../../features/user/hooks/useUserQueries';
 import type { UserUpdateDatas } from '../../../features/user/types/user.types';
 import { useUserDetailContext } from '../context/UserDetailContext';
@@ -106,25 +106,15 @@ export default function UserAdditionalInfoTab() {
     });
   };
 
-  const onFinishFailed: FormProps<UserAdditionalFormValues>['onFinishFailed'] = () => {
-    toast.error('필수 항목을 확인해주세요.');
-  };
-
-  // IP 유효성 검사
-  const validateIp = (ip: string): boolean => {
-    const ipv4Regex = /^(?:(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.){3}(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)$/;
-    return ipv4Regex.test(ip);
+  const onFinishFailed: FormProps<UserAdditionalFormValues>['onFinishFailed'] = (errorInfo) => {
+    const firstError = errorInfo.errorFields?.[0]?.errors?.[0];
+    toast.error(firstError ?? '입력 항목을 확인해주세요.');
   };
 
   // IP 추가 핸들러
   const handleAddIp = () => {
     const trimmedIp = newIp.trim();
     if (!trimmedIp) {
-      setIpError('IP 주소를 입력하세요.');
-      return;
-    }
-    if (!validateIp(trimmedIp)) {
-      setIpError('올바른 IP 주소 형식이 아닙니다. (예: 192.168.1.1)');
       return;
     }
     if (watchedAllowedIps.includes(trimmedIp)) {
@@ -133,6 +123,13 @@ export default function UserAdditionalInfoTab() {
     }
     form.setFieldValue('allowedIps', [...watchedAllowedIps, trimmedIp]);
     setNewIp('');
+    setIpError('');
+  };
+
+  // IP 입력값 필터 (숫자, 점, 별표만 허용)
+  const handleIpChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const filtered = e.target.value.replace(/[^0-9.*]/g, '');
+    setNewIp(filtered);
     setIpError('');
   };
 
@@ -162,27 +159,13 @@ export default function UserAdditionalInfoTab() {
         <>
           <Row gutter={20}>
             <Col span={12}>
-              <Form.Item
-                name="phone"
-                label="핸드폰번호"
-                rules={[
-                  { max: 50, message: '최대 50자까지 입력 가능합니다.' },
-                  { pattern: /^[0-9-]*$/, message: '숫자와 하이픈(-)만 입력 가능합니다.' },
-                ]}
-              >
-                <Input placeholder="예: 010-1234-5678" />
+              <Form.Item name="phone" label="핸드폰번호" rules={[{ max: 20, message: '최대 20자까지 입력 가능합니다.' }, phoneRule]}>
+                <Input placeholder="예: 010-1234-5678" maxLength={20} />
               </Form.Item>
             </Col>
             <Col span={12}>
-              <Form.Item
-                name="email"
-                label="이메일"
-                rules={[
-                  { max: 200, message: '최대 200자까지 입력 가능합니다.' },
-                  { type: 'email', message: '올바른 이메일 형식이 아닙니다.' },
-                ]}
-              >
-                <Input placeholder="예: user@example.com" />
+              <Form.Item name="email" label="이메일" rules={[{ max: 50, message: '최대 50자까지 입력 가능합니다.' }, emailRule]}>
+                <Input placeholder="예: user@example.com" maxLength={50} />
               </Form.Item>
             </Col>
           </Row>
@@ -209,13 +192,11 @@ export default function UserAdditionalInfoTab() {
                     <div className="flex gap-2">
                       <Input
                         value={newIp}
-                        onChange={(e) => {
-                          setNewIp(e.target.value);
-                          setIpError('');
-                        }}
+                        onChange={handleIpChange}
                         onKeyDown={handleIpKeyDown}
-                        placeholder="IP 주소 입력 (예: 192.168.1.1)"
+                        placeholder="IP 주소 입력 (예: 192.168.1.* )"
                         className="flex-1"
+                        maxLength={15}
                         status={ipError ? 'error' : undefined}
                       />
                       <Button type="primary" onClick={handleAddIp}>

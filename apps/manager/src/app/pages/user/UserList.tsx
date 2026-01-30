@@ -1,5 +1,6 @@
 import { useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useQueryClient } from '@tanstack/react-query';
 import type { ColDef, ICellRendererParams } from 'ag-grid-community';
 import { AgGridReact } from 'ag-grid-react';
 import { Button, Input, Select } from 'antd';
@@ -7,7 +8,7 @@ import dayjs from 'dayjs';
 import { toast } from '@/shared-util';
 import { UserInfoCard } from './UserInfoCard';
 import AccountStatusBadge from '../../features/user/components/AccountStatusBadge';
-import { useDeleteUser, useGetUsers } from '../../features/user/hooks/useUserQueries';
+import { useDeleteUser, useGetUsers, userQueryKeys } from '../../features/user/hooks/useUserQueries';
 import type { AccountStatus, User } from '../../features/user/types/user.types';
 import { FallbackSpinner } from '@/components/custom/FallbackSpinner';
 import { IconTrash } from '@/components/custom/Icons';
@@ -25,6 +26,7 @@ const breadcrumb = [
 export default function UserList() {
   const { gridOptions } = useAggridOptions();
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
   const modal = useModal();
 
   const [filterColumn, setFilterColumn] = useState('username');
@@ -34,6 +36,7 @@ export default function UserList() {
   const { mutate: deleteUser } = useDeleteUser({
     mutationOptions: {
       onSuccess: () => {
+        queryClient.invalidateQueries({ queryKey: userQueryKeys.getUsers().queryKey });
         toast.success('사용자가 삭제되었습니다.');
       },
     },
@@ -51,6 +54,7 @@ export default function UserList() {
       maxWidth: 100,
       cellRenderer: (params: ICellRendererParams<User>) => {
         const status = params.value as AccountStatus;
+        if (!status) return '-';
         return <AccountStatusBadge status={status} />;
       },
     },

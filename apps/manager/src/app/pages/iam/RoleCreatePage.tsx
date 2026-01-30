@@ -16,8 +16,19 @@ import { toast } from '@/shared-util';
 import PermissionSelector from '../../features/iam/components/PermissionSelector';
 import { useGetGroupedPermissions } from '../../features/iam/hooks/usePermissionQueries';
 import { useCreateRole, useGetRoles } from '../../features/iam/hooks/useRoleQueries';
-import type { RoleCreateDatas } from '../../features/iam/types/iam.types';
+import type { MenuWithPermissions, PermissionSummary, RoleCreateDatas } from '../../features/iam/types/iam.types';
 import PageHeader from '@/components/custom/PageHeader';
+
+/**
+ * 메뉴와 모든 하위 메뉴의 권한을 재귀적으로 수집
+ */
+function collectAllPermissions(menu: MenuWithPermissions): PermissionSummary[] {
+  const perms = [...(menu.permissions || [])];
+  for (const child of menu.children || []) {
+    perms.push(...collectAllPermissions(child));
+  }
+  return perms;
+}
 
 const Log = new LOG('RoleCreatePage');
 
@@ -50,9 +61,9 @@ export default function RoleCreatePage() {
   // 권한 목록 조회 (요약 표시용)
   const { data: permissionGroups = [] } = useGetGroupedPermissions();
 
-  // 전체 권한 목록 (flat)
+  // 전체 권한 목록 (flat) - 트리에서 재귀적으로 수집
   const allPermissions = useMemo(() => {
-    return permissionGroups.flatMap((group) => group.domains.flatMap((d) => d.permissions));
+    return permissionGroups.flatMap((group) => group.menus.flatMap((menu) => collectAllPermissions(menu)));
   }, [permissionGroups]);
 
   const initialValues: RoleFormValues = {
@@ -92,7 +103,7 @@ export default function RoleCreatePage() {
     mutationOptions: {
       onSuccess: () => {
         toast.success('역할이 생성되었습니다.');
-        navigate('/manager/iam/auth-group/list');
+        navigate('/manager/resource/auth-group/list');
         queryClient.invalidateQueries({ queryKey: sharedApi.role.queryKeys.getRoles().queryKey });
       },
       onError: (error) => {
@@ -163,9 +174,9 @@ export default function RoleCreatePage() {
 
   // Breadcrumb 설정
   const breadcrumb: BreadcrumbProps['items'] = [
-    { title: '권한 관리', path: '/manager/iam' },
-    { title: '권한 그룹', path: '/manager/iam/auth-group/list' },
-    { title: '역할 생성', path: '/manager/iam/role/create' },
+    { title: '자원 관리', path: '/manager/resource' },
+    { title: '역할', path: '/manager/resource/auth-group/list' },
+    { title: '역할 생성', path: '/manager/resource/role/create' },
   ];
 
   // Step 1: 기본 정보
@@ -305,7 +316,7 @@ export default function RoleCreatePage() {
     return (
       <Row gutter={20} justify="center">
         <Col>
-          <Button variant="solid" onClick={() => navigate('/manager/iam/auth-group/list')}>
+          <Button variant="solid" onClick={() => navigate('/manager/resource/auth-group/list')}>
             취소
           </Button>
         </Col>
