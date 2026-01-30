@@ -85,9 +85,11 @@ export default function ModelList() {
           <Input value={searchValue} onChange={(e) => setSearchValue(e.target.value)} className="w-full max-w-[400px]" placeholder="검색어를 입력하세요." />
         </div>
         <div>
-          <Button type="primary" onClick={handleClickCreateBtn}>
-            추가
-          </Button>
+          {!isPublic && (
+            <Button type="primary" onClick={handleClickCreateBtn}>
+              추가
+            </Button>
+          )}
         </div>
       </div>
       {isLoading ? (
