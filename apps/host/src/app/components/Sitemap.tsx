@@ -60,7 +60,7 @@ function MenuLink({ item, appId, query, onNavigate }: { item: MenuItem; appId: s
       {/* dot */}
       <span className="size-[5px] shrink-0 rounded-full bg-[var(--color-bt-primary)] transition-colors" />
       {/* label */}
-      <span className="flex-1 min-w-0 text-[13px] text-[#495057] truncate transition-colors group-hover/row:text-[var(--color-bt-primary)]">
+      <span className="flex-1 min-w-0 text-[14px] text-[#495057] truncate transition-colors group-hover/row:text-[var(--color-bt-primary)]">
         <Highlight text={item.label} query={query} />
       </span>
       {/* bookmark — 항상 표시 */}
@@ -86,7 +86,7 @@ function ChildList({ items, appId, query, onNavigate, asGrid }: { items: MenuIte
       <div className="grid grid-cols-2 gap-x-6 gap-y-1">
         {visible.map((item) => (
           <div key={item.menuId}>
-            <p className="text-[11px] font-semibold text-[#878a99] tracking-wider uppercase mb-1.5 mt-1">
+            <p className="text-sm text-[#878a99] tracking-wider mb-1.5 mt-1">
               <Highlight text={item.label} query={query} />
             </p>
             <ChildList items={item.children ?? []} appId={appId} query={query} onNavigate={onNavigate} />
@@ -105,7 +105,7 @@ function ChildList({ items, appId, query, onNavigate, asGrid }: { items: MenuIte
         if (item.children?.length) {
           return (
             <div key={item.menuId} className="mt-2.5 first:mt-0">
-              <p className="text-[11px] font-semibold text-[#878a99] tracking-wider uppercase mb-1.5">
+              <p className="text-sm text-[#878a99] tracking-wider mb-1.5">
                 <Highlight text={item.label} query={query} />
               </p>
               <ChildList items={item.children} appId={appId} query={query} onNavigate={onNavigate} />
@@ -128,13 +128,13 @@ function MenuCard({ menu, appId, query, onNavigate }: { menu: MenuItem; appId: s
   return (
     <div className="rounded-xl bg-[#f8f9fb] p-5 min-w-0" style={colSpan > 1 ? { gridColumn: `span ${colSpan}` } : undefined}>
       {/* 카드 헤더 */}
-      <div className="flex items-center gap-2.5 mb-3">
+      <div className="flex items-center gap-1.5 mb-3">
         {Icon && (
-          <span className="flex items-center justify-center size-7 rounded-md bg-[var(--color-bt-primary)]/10">
-            <Icon className="size-4 text-[var(--color-bt-primary)]" />
+          <span className="flex items-center justify-center size-6">
+            <Icon className="size-6 text-[var(--color-bt-primary)]" />
           </span>
         )}
-        <span className="text-[13px] font-bold text-[#343a40] truncate">
+        <span className="text-[14px] font-bold text-[#343a40] truncate">
           <Highlight text={menu.label} query={query} />
         </span>
       </div>
@@ -162,12 +162,12 @@ function AppSection({ config, query, onNavigate }: { config: MenuConfig; query: 
       {/* 앱 헤더 */}
       <div className="flex items-center gap-3 mb-4">
         {AppIcon && (
-          <span className="flex items-center justify-center size-8 rounded-lg bg-[var(--color-bt-primary)]/10">
-            <AppIcon className="size-[18px] text-[var(--color-bt-primary)]" />
+          <span className="flex items-center justify-center size-6">
+            <AppIcon className="size-6 text-[var(--color-bt-primary)]" />
           </span>
         )}
-        <h2 className="text-[15px] font-bold tracking-tight text-[#212529]">{config.appName}</h2>
-        <span className="text-[11px] text-[#adb5bd] font-medium tabular-nums">{leafCount} menus</span>
+        <h2 className="text-base font-bold tracking-tight text-[#212529]">{config.appName}</h2>
+        <span className="text-xs text-[#adb5bd] font-medium tabular-nums">{leafCount} menus</span>
       </div>
 
       {/* 메가 메뉴 그리드 */}
@@ -203,7 +203,7 @@ export default function Sitemap({ className, ...props }: React.ComponentProps<ty
   return (
     <>
       <Button variant="ghost" className={cn('size-7', className)} aria-label="Open sitemap" {...props} onClick={() => setOpen(true)}>
-        <IconSitemap className="size-5.5 text-[#495057]" />
+        <IconSitemap className="size-6 text-[#495057]" />
         <span className="sr-only">sitemap</span>
       </Button>
 
@@ -213,7 +213,7 @@ export default function Sitemap({ className, ...props }: React.ComponentProps<ty
           <div className="shrink-0 pb-5">
             <Input
               placeholder="메뉴 검색"
-              prefix={<Search className="size-4 text-gray-400" />}
+              prefix={<Search className="size-[18px] text-gray-400" />}
               className="!w-full !max-w-[420px]"
               value={search}
               onChange={(e) => setSearch(e.target.value)}
@@ -239,7 +239,7 @@ export default function Sitemap({ className, ...props }: React.ComponentProps<ty
               </div>
             ) : (
               <div className="flex flex-col items-center justify-center h-full text-[#adb5bd]">
-                <Search className="size-12 mb-4 opacity-40 stroke-1" />
+                <Search className="size-16 mb-4 opacity-40 stroke-1" />
                 <p className="text-sm">
                   &apos;<span className="font-medium text-[#868e96]">{search}</span>&apos;에 대한 검색 결과가 없습니다.
                 </p>
