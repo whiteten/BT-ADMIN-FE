@@ -87,20 +87,13 @@ export default function Login() {
 
   const { mutate: resetPassword } = useResetPassword({
     mutationOptions: {
-      onSuccess: async () => {
-        try {
-          // 비밀번호 변경 후 강제 로그아웃
-          await authApi.logout();
-        } catch (error) {
-          Log.warn('Logout after password change failed:', error);
-        }
-
-        // 상태 초기화
+      onSuccess: () => {
+        // 비밀번호 리셋은 pre-login 흐름이므로 logout 불필요
+        // 상태 초기화 후 로그인 페이지에서 재로그인 유도
         setPendingLoginResponse(null);
         setPasswordPolicy(undefined);
         form.resetFields();
 
-        // 안내 메시지 표시
         toast.success('비밀번호가 변경되었습니다. 새 비밀번호로 다시 로그인해주세요.');
       },
       onError: () => {
@@ -221,6 +214,7 @@ export default function Login() {
               mode,
               userId: errorData.userAccount,
               passwordResetToken: errorData.passwordResetToken,
+              tokenExpiresAt: errorData.tokenExpiresAt,
             });
             return;
           }
@@ -289,13 +283,9 @@ export default function Login() {
       throw new Error('사용자 정보를 찾을 수 없습니다.');
     }
 
-    // changePassword({
-    //   userId: pendingLoginResponse.userId,
-    //   data: { newPassword: data.newPassword },
-    // });
     resetPassword({
-      params: { userId: pendingLoginResponse.userId },
-      data: { newPassword: data.newPassword, passwordResetToken: data.passwordResetToken ?? '' },
+      passwordResetToken: data.passwordResetToken ?? '',
+      newPassword: data.newPassword,
     });
   };
 

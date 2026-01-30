@@ -20,8 +20,8 @@ import { cn } from '@/libs/shared-ui/src/lib/utils';
 const { Text } = Typography;
 
 const breadcrumb: BreadcrumbProps['items'] = [
-  { title: '권한 관리', path: '/manager/iam' },
-  { title: '비밀번호 정책', path: '/manager/iam/password-policy' },
+  { title: '자원 관리', path: '/manager/resource' },
+  { title: '비밀번호 정책', path: '/manager/resource/password-policy' },
 ];
 
 /**
@@ -383,7 +383,7 @@ export default function PasswordPolicyPage() {
                           description="최근 N개의 비밀번호는 재사용할 수 없습니다"
                           icon={<RefreshCw className="w-4 h-4" />}
                           min={0}
-                          max={24}
+                          max={5}
                           unit="개"
                         />
                       </div>
