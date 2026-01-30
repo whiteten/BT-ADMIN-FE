@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { useQueryClient } from '@tanstack/react-query';
-import type { ColDef, ICellRendererParams, RowDoubleClickedEvent } from 'ag-grid-community';
+import type { ColDef, GridOptions, ICellRendererParams, RowDoubleClickedEvent } from 'ag-grid-community';
 import { AgGridReact } from 'ag-grid-react';
 import { Button, Input, Select } from 'antd';
 import dayjs from 'dayjs';
@@ -23,6 +23,7 @@ export default function ModelIntentList() {
   const queryClient = useQueryClient();
   const modal = useModal();
   const { gridOptions } = useAggridOptions();
+  const customGridOptions = useMemo<GridOptions>(() => ({ ...gridOptions, rowNumbers: false }), [gridOptions]);
   const [rowData, setRowData] = useState<IntentListItem[]>([]);
   const [filterColumn, setFilterColumn] = useState('intentName');
   const [searchValue, setSearchValue] = useState('');
@@ -183,7 +184,7 @@ export default function ModelIntentList() {
         <AgGridReact<IntentListItem>
           rowData={rowData}
           columnDefs={columnDefs}
-          gridOptions={gridOptions}
+          gridOptions={customGridOptions}
           loading={isFetching}
           onRowDoubleClicked={handleRowDoubleClick}
           masterDetail
