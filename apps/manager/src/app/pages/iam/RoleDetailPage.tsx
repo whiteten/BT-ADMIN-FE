@@ -65,9 +65,9 @@ export default function RoleDetailPage() {
   const [selectedPermissions, setSelectedPermissions] = useState<Set<number>>(new Set());
 
   const breadcrumb: BreadcrumbProps['items'] = [
-    { title: '권한 관리', path: '/manager/iam' },
-    { title: '권한 그룹', path: '/manager/iam/auth-group/list' },
-    { title: '역할 상세', path: `/manager/iam/role/${roleId}` },
+    { title: '자원 관리', path: '/manager/resource' },
+    { title: '역할', path: '/manager/resource/auth-group/list' },
+    { title: '역할 상세', path: `/manager/resource/role/${roleId}` },
   ];
 
   // 역할 조회

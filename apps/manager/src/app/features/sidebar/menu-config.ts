@@ -31,14 +31,14 @@ const menuConfig = {
         {
           menuId: 20,
           label: '역할',
-          path: 'iam/auth-group/list',
+          path: 'resource/auth-group/list',
           index: 1,
           hide: false,
         },
         {
           menuId: 21,
           label: '비밀번호 정책',
-          path: 'iam/password-policy',
+          path: 'resource/password-policy',
           index: 2,
           hide: false,
         },

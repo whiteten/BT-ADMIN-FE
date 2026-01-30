@@ -74,7 +74,7 @@ export default function RoleBasicInfoTab() {
       onSuccess: () => {
         toast.success('역할이 삭제되었습니다.');
         queryClient.invalidateQueries({ queryKey: sharedApi.role.queryKeys.getRoles().queryKey });
-        navigate('/manager/iam/auth-group/list');
+        navigate('/manager/resource/auth-group/list');
       },
     },
   });
@@ -103,8 +103,9 @@ export default function RoleBasicInfoTab() {
     updateRole({ params: { roleId: numericRoleId }, data: request });
   };
 
-  const onFinishFailed: FormProps<RoleBasicFormValues>['onFinishFailed'] = () => {
-    toast.error('필수 항목을 확인해주세요.');
+  const onFinishFailed: FormProps<RoleBasicFormValues>['onFinishFailed'] = (errorInfo) => {
+    const firstError = errorInfo.errorFields?.[0]?.errors?.[0];
+    toast.error(firstError ?? '입력 항목을 확인해주세요.');
   };
 
   const handleClickDeleteBtn = () => {

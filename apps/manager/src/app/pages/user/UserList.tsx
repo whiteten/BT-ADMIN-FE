@@ -54,6 +54,7 @@ export default function UserList() {
       maxWidth: 100,
       cellRenderer: (params: ICellRendererParams<User>) => {
         const status = params.value as AccountStatus;
+        if (!status) return '-';
         return <AccountStatusBadge status={status} />;
       },
     },

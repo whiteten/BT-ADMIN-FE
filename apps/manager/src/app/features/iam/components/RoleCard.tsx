@@ -72,14 +72,12 @@ export function RoleCard({ role, onEdit, onDelete, className }: RoleCardProps) {
           <span className="w-[90px] text-gray-500">사용여부</span>
           <Tag color={isUse ? 'green' : 'default'}>{isUse ? '사용' : '미사용'}</Tag>
         </div>
-        {description && (
-          <div className="flex">
-            <span className="w-[90px] text-gray-500 shrink-0">설명</span>
-            <span className="flex-1 truncate text-gray-700" title={description}>
-              {description}
-            </span>
-          </div>
-        )}
+        <div className="flex">
+          <span className="w-[90px] text-gray-500 shrink-0">설명</span>
+          <span className="flex-1 truncate text-gray-700" title={description}>
+            {description || <span className="text-gray-300">-</span>}
+          </span>
+        </div>
         <div className="flex items-center">
           <span className="w-[90px] text-gray-500">등록일</span>
           <span className="text-gray-700">{createdAt?.split('T')[0]}</span>

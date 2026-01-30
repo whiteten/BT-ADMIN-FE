@@ -103,7 +103,7 @@ export default function RoleCreatePage() {
     mutationOptions: {
       onSuccess: () => {
         toast.success('역할이 생성되었습니다.');
-        navigate('/manager/iam/auth-group/list');
+        navigate('/manager/resource/auth-group/list');
         queryClient.invalidateQueries({ queryKey: sharedApi.role.queryKeys.getRoles().queryKey });
       },
       onError: (error) => {
@@ -174,9 +174,9 @@ export default function RoleCreatePage() {
 
   // Breadcrumb 설정
   const breadcrumb: BreadcrumbProps['items'] = [
-    { title: '권한 관리', path: '/manager/iam' },
-    { title: '권한 그룹', path: '/manager/iam/auth-group/list' },
-    { title: '역할 생성', path: '/manager/iam/role/create' },
+    { title: '자원 관리', path: '/manager/resource' },
+    { title: '역할', path: '/manager/resource/auth-group/list' },
+    { title: '역할 생성', path: '/manager/resource/role/create' },
   ];
 
   // Step 1: 기본 정보
@@ -316,7 +316,7 @@ export default function RoleCreatePage() {
     return (
       <Row gutter={20} justify="center">
         <Col>
-          <Button variant="solid" onClick={() => navigate('/manager/iam/auth-group/list')}>
+          <Button variant="solid" onClick={() => navigate('/manager/resource/auth-group/list')}>
             취소
           </Button>
         </Col>
