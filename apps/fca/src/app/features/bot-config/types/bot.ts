@@ -68,6 +68,10 @@ export interface BotDeployConfig {
   assignYn: number;
 }
 
+export interface CheckDeployable {
+  deployable: boolean;
+}
+
 export type BotDeployConfigItem = BotDeployConfig;
 export type BotDeployConfigCreateDatas = { systemIds: number[] };
 

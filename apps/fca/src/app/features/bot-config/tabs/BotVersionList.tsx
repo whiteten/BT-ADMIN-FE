@@ -11,7 +11,7 @@ import AggridDeployServerInfoSidebar from '../components/AggridDeployServerInfoS
 import BotDeployConfigDrawer, { type BotDeployConfigDrawerRef } from '../components/BotDeployConfigDrawer';
 import BotVersionDrawer, { type BotVersionDrawerRef } from '../components/BotVersionDrawer';
 import BotVersionPublishResultModal, { type BotVersionPublishResultModalRef } from '../components/BotVersionPublishResultModal';
-import { botQueryKeys, useDeleteBotVersion, useGetBotDeployConfig, useGetBotVersions, useGetIfeInfo, usePublishBotVersion } from '../hooks/useBotQueries';
+import { botQueryKeys, useCheckDeployable, useDeleteBotVersion, useGetBotDeployConfig, useGetBotVersions, useGetIfeInfo, usePublishBotVersion } from '../hooks/useBotQueries';
 import type { BotVersionListItem, IfeInfo, PublishBotVersionResult } from '../types';
 import { IconTrash } from '@/components/custom/Icons';
 import useAggridOptions from '@/libs/shared-ui/src/hooks/useAggridOptions';
@@ -61,7 +61,7 @@ export default function BotVersionList() {
     },
   });
 
-  const { isLoading: isLoadingBotDeployConfig, refetch: refetchBotDeployConfig } = useGetBotDeployConfig({
+  const { refetch: refetchCheckDeployable, isFetching: isCheckingDeployable } = useCheckDeployable({
     params: { serviceId },
     queryOptions: { enabled: false },
   });
@@ -171,9 +171,8 @@ export default function BotVersionList() {
       toast.warning('업로드된 파일이 없습니다.\n대화편집에서 업로드를 진행해주세요.');
       return;
     }
-    const { data: deployConfig } = await refetchBotDeployConfig();
-    const hasAssignedServer = deployConfig?.some((config) => config.assignYn === 1);
-    if (!hasAssignedServer) {
+    const { data: checkDeployable } = await refetchCheckDeployable();
+    if (!checkDeployable?.deployable) {
       toast.warning('배포 설정된 봇 서버가 없습니다.\n배포설정을 확인해주세요.');
       return;
     }
@@ -226,7 +225,7 @@ export default function BotVersionList() {
           <Button variant="solid" onClick={handleClickEditVersion} loading={isEditing}>
             대화편집
           </Button>
-          <Button variant="solid" color="primary" onClick={handleClickPublishVersion} loading={isPublishing}>
+          <Button variant="solid" color="primary" onClick={handleClickPublishVersion} loading={isPublishing || isCheckingDeployable}>
             배포
           </Button>
           <Button variant="solid" color="cyan" onClick={handleClickDeployConfig}>

@@ -1,3 +1,4 @@
+import { Database } from 'lucide-react';
 import { IconMenuItemsPlus, IconMenuMain } from '@/components/custom/Icons';
 
 const appId = 'manager';
@@ -5,6 +6,7 @@ const appName = 'MANAGER';
 const menuConfig = {
   appId,
   appName,
+  icon: Database,
   menus: [
     {
       menuId: 17,

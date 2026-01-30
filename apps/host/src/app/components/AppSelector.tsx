@@ -1,7 +1,6 @@
-import { useMemo } from 'react';
-import { Bot, Check, Database } from 'lucide-react';
+import { Check } from 'lucide-react';
 import { ReactComponent as IconAppSelect } from '../../assets/images/icon/icon-app-select.svg';
-import useRemoteSelector, { type Remote as RemoteType } from '../hooks/useRemoteSelector';
+import useRemoteSelector from '../hooks/useRemoteSelector';
 import { Button } from '@/components/ui/button';
 import {
   DropdownMenu,
@@ -17,13 +16,6 @@ import { cn } from '@/lib/utils';
 export default function AppSelector({ className, ...props }: React.ComponentProps<typeof Button>) {
   const { remotes, selectedRemote, setSelectedRemote } = useRemoteSelector();
 
-  const appIcons = useMemo(() => {
-    return {
-      manager: <Database />,
-      fca: <Bot />,
-    };
-  }, []);
-
   const TriggerBtn = (
     <Button variant="ghost" className={cn('size-7', className)} {...props}>
       <IconAppSelect className="size-6" />
@@ -38,11 +30,11 @@ export default function AppSelector({ className, ...props }: React.ComponentProp
         <DropdownMenuLabel>Select Application</DropdownMenuLabel>
         <DropdownMenuSeparator />
         <DropdownMenuGroup>
-          {remotes.map((remote: RemoteType) => (
-            <DropdownMenuItem key={remote.key} onSelect={() => setSelectedRemote(remote)} className="hover:cursor-pointer">
-              {appIcons[remote.key as keyof typeof appIcons]}
-              <span className="truncate w-[150px]">{remote.label}</span>
-              {remote.key === selectedRemote.key && <Check className="ml-auto stroke-green-500 stroke-[4]" />}
+          {remotes.map((remote) => (
+            <DropdownMenuItem key={remote.appId} onSelect={() => setSelectedRemote(remote)} className="hover:cursor-pointer">
+              {remote.icon && <remote.icon />}
+              <span className="truncate w-[150px]">{remote.appName}</span>
+              {remote.appId === selectedRemote?.appId && <Check className="ml-auto stroke-green-500 stroke-[4]" />}
             </DropdownMenuItem>
           ))}
         </DropdownMenuGroup>
