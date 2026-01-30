@@ -239,7 +239,8 @@ export default function ModelIntentList() {
             sentence: filterColumn === 'sentenceKeyword' ? debouncedKeyword : undefined,
             modelId,
           }}
-          detailRowHeight={250}
+          detailRowAutoHeight
+          keepDetailRows
           getRowId={(params) => params.data?.intentId}
           onRowDataUpdated={handleRowDataUpdated}
         />
