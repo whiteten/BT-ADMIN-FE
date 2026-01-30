@@ -7,6 +7,7 @@ import { Button, Input, Select } from 'antd';
 import dayjs from 'dayjs';
 import { toast } from '@/shared-util';
 import IntentDrawer, { type IntentDrawerRef } from '../components/IntentDrawer';
+import IntentSentenceCustomDetail from '../components/IntentSentenceCustomDetail';
 import TrainDiffStatusBadge from '../components/TrainDiffStatusBadge';
 import TrainStatusBadge from '../components/TrainStatusBadge';
 import { modelQueryKeys, useDeleteIntent, useExportIntent, useGetIntents, useImportIntent } from '../hooks/useModelQueries';
@@ -58,7 +59,12 @@ export default function ModelIntentList() {
   };
 
   const columnDefs: ColDef<IntentListItem>[] = [
-    { headerName: 'ID', field: 'intentId', hide: true },
+    { headerName: 'IntentId', field: 'intentId', hide: true },
+    {
+      headerName: '',
+      maxWidth: 40,
+      cellRenderer: 'agGroupCellRenderer',
+    },
     { headerName: '의도이름', field: 'intentName' },
     { headerName: '의도설명', field: 'intentDesc', flex: 3 },
     { headerName: '문장수', field: 'sentenceCount', maxWidth: 120 },
@@ -142,6 +148,7 @@ export default function ModelIntentList() {
 
   const handleRowDoubleClick = (event: RowDoubleClickedEvent<IntentListItem>) => {
     if (!event.data) return;
+    if (event?.node?.detail) return;
     const { intentId } = event.data;
     navigate(`./intent/${intentId}`);
   };
@@ -173,7 +180,17 @@ export default function ModelIntentList() {
         </div>
       </header>
       <div className="w-full h-full">
-        <AgGridReact<IntentListItem> rowData={rowData} columnDefs={columnDefs} gridOptions={gridOptions} loading={isFetching} onRowDoubleClicked={handleRowDoubleClick} />
+        <AgGridReact<IntentListItem>
+          rowData={rowData}
+          columnDefs={columnDefs}
+          gridOptions={gridOptions}
+          loading={isFetching}
+          onRowDoubleClicked={handleRowDoubleClick}
+          masterDetail
+          isRowMaster={(dataItem) => dataItem.sentenceCount > 0}
+          detailCellRenderer={IntentSentenceCustomDetail}
+          detailRowHeight={250}
+        />
       </div>
       <IntentDrawer ref={drawerRef} />
       <FileImportModal ref={importModalRef} title="Import" accept=".xlsx,.xls" onConfirm={handleImportIntent} confirmLoading={isImporting} />
