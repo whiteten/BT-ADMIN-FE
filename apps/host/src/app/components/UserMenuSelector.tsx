@@ -1,11 +1,10 @@
-import { useCallback, useRef, useState } from 'react';
+import { useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import dayjs from 'dayjs';
-import { Dot, History, KeyRound, LogOut } from 'lucide-react';
+import { Dot, KeyRound, LogOut } from 'lucide-react';
 import { useAuthStore } from '@/shared-store';
 import { toast } from '@/shared-util';
 import { authApi } from '../features/auth/api/authApi';
-import { LoginHistoryDialog, type LoginHistoryDialogRef } from '../features/auth/components/LoginHistoryDialog';
 import { useChangePassword, useLogout } from '../features/auth/hooks/useAuthQueries';
 import type { PasswordPolicy } from '../features/auth/types/auth';
 import { type ChangePasswordData, ChangePasswordDialog, type ChangePasswordDialogRef } from '@/components/custom/ChangePasswordDialog';
@@ -27,7 +26,6 @@ export default function UserMenuSelector() {
   const navigate = useNavigate();
   const { userInfo, getCurrentRoleName, reset } = useAuthStore();
   const changePasswordDialogRef = useRef<ChangePasswordDialogRef>(null);
-  const loginHistoryDialogRef = useRef<LoginHistoryDialogRef>(null);
   const [passwordPolicy, setPasswordPolicy] = useState<PasswordPolicy | null>(null);
 
   const { mutate: logout } = useLogout({
@@ -73,25 +71,18 @@ export default function UserMenuSelector() {
       throw new Error('사용자 정보를 찾을 수 없습니다.');
     }
 
+    if (!data.currentPassword) {
+      throw new Error('현재 비밀번호를 입력해주세요.');
+    }
+
     await changePassword({
       userId: userInfo.userId,
-      data: { newPassword: data.newPassword },
+      data: {
+        currentPassword: data.currentPassword,
+        newPassword: data.newPassword,
+      },
     });
   };
-
-  // 로그인 이력 클릭 핸들러
-  const handleLoginHistoryClick = () => {
-    if (!userInfo?.userId) {
-      toast.error('사용자 정보를 찾을 수 없습니다.');
-      return;
-    }
-    loginHistoryDialogRef.current?.open(userInfo.userId);
-  };
-
-  // 로그인 이력 API 호출 함수 (LoginHistoryDialog에 전달)
-  const fetchLoginHistory = useCallback(async (params: { userId: number; startDate: string; endDate: string; size: number }) => {
-    return authApi.getLoginHistory(params);
-  }, []);
 
   const username = userInfo?.username ?? userInfo?.userAccount ?? '-';
   const userAccount = userInfo?.userAccount ?? '-';
@@ -153,10 +144,6 @@ export default function UserMenuSelector() {
             <KeyRound />
             비밀번호 변경
           </DropdownMenuItem>
-          <DropdownMenuItem className="hover:cursor-pointer" onSelect={handleLoginHistoryClick}>
-            <History />
-            로그인 이력
-          </DropdownMenuItem>
         </DropdownMenuGroup>
         <DropdownMenuSeparator />
         <DropdownMenuItem className="hover:cursor-pointer" onSelect={() => handleLogout()}>
@@ -173,9 +160,6 @@ export default function UserMenuSelector() {
         onSuccess={() => toast.success('비밀번호가 변경되었습니다.')}
         onError={(error) => toast.error(error.message || '비밀번호 변경에 실패했습니다.')}
       />
-
-      {/* 로그인 이력 Dialog */}
-      <LoginHistoryDialog ref={loginHistoryDialogRef} fetchLoginHistory={fetchLoginHistory} />
     </DropdownMenu>
   );
 }
