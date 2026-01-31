@@ -248,6 +248,13 @@ export default function Login() {
             });
             break;
 
+          case 'tenant_required':
+            setLoginError({
+              error: 'tenant_required',
+              message: errorData.error_description || '멀티테넌트 계정입니다. 테넌트를 입력해주세요.',
+            });
+            break;
+
           default:
             setLoginError({
               error: null,
@@ -258,7 +265,7 @@ export default function Login() {
     },
   });
 
-  const onFinish: FormProps<{ userId: string; password: string }>['onFinish'] = (values) => {
+  const onFinish: FormProps<{ userId: string; password: string; tenant?: string }>['onFinish'] = (values) => {
     // Clear previous errors
     setLoginError({ error: null, message: '' });
 
@@ -268,10 +275,15 @@ export default function Login() {
     }
 
     // V23: username → userAccount로 변경
-    login({ userAccount: values.userId, password: values.password });
+    // tenant는 멀티테넌트 사용자만 입력 (단일 테넌트 사용자는 자동 선택됨)
+    login({
+      userAccount: values.userId,
+      password: values.password,
+      tenant: values.tenant || undefined,
+    });
   };
 
-  const onFinishFailed: FormProps<{ userId: string; password: string }>['onFinishFailed'] = (errorInfo) => {
+  const onFinishFailed: FormProps<{ userId: string; password: string; tenant?: string }>['onFinishFailed'] = (errorInfo) => {
     Log.warn('onFinishFailed', errorInfo);
   };
 
@@ -333,6 +345,17 @@ export default function Login() {
         <Alert variant="destructive" className="mb-4">
           <User className="h-4 w-4" />
           <AlertTitle>비활성화 계정</AlertTitle>
+          <AlertDescription>{loginError.message}</AlertDescription>
+        </Alert>
+      );
+    }
+
+    // Tenant required (multi-tenant user)
+    if (loginError.error === 'tenant_required') {
+      return (
+        <Alert variant="default" className="mb-4">
+          <Users className="h-4 w-4" />
+          <AlertTitle>테넌트 입력 필요</AlertTitle>
           <AlertDescription>{loginError.message}</AlertDescription>
         </Alert>
       );
@@ -401,8 +424,8 @@ export default function Login() {
                   <Input.Password size="large" placeholder="비밀번호" prefix={<Lock className="h-4 w-4 text-gray-400" />} disabled={lockState.isLocked} />
                 </Form.Item>
 
-                <Form.Item label="테넌트명" className="!mb-4">
-                  <Input size="large" placeholder="테넌트명" prefix={<Users className="h-4 w-4 text-gray-400" />} disabled={lockState.isLocked} />
+                <Form.Item name="tenant" label="테넌트명" className="!mb-4">
+                  <Input size="large" placeholder="테넌트명 (멀티테넌트 사용자만 입력)" prefix={<Users className="h-4 w-4 text-gray-400" />} disabled={lockState.isLocked} />
                 </Form.Item>
 
                 <Form.Item className="!mb-5">

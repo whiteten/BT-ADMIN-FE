@@ -119,4 +119,14 @@ export const userApi = {
     const response = await apiClient.post('/user-lock', data ?? {}, { params });
     return response;
   },
+
+  /**
+   * 비밀번호 초기화 (계정명으로 초기화)
+   * 비밀번호를 userAccount와 동일하게 초기화하고, 다음 로그인 시 변경을 강제합니다.
+   * @flow user-reset-password
+   */
+  resetPasswordToAccount: async (params: Record<string, unknown>) => {
+    const response = await apiClient.put('/user-reset-password', {}, { params });
+    return response;
+  },
 };

@@ -51,6 +51,7 @@ export default function RolePermissionTab() {
       description: role.description,
       sortOrder: role.sortOrder ?? 0,
       isUse: role.isUse,
+      canResetPassword: role.canResetPassword,
       // 권한 매핑만 업데이트
       authIds: Array.from(selectedPermissions),
     };
@@ -66,11 +67,11 @@ export default function RolePermissionTab() {
   }
 
   return (
-    <div className="flex flex-col h-full">
-      <div className="flex-1 min-h-0">
-        <PermissionSelector value={selectedPermissions} onChange={setSelectedPermissions} />
+    <div className="flex flex-col h-full overflow-hidden">
+      <div className="flex-1 min-h-0 overflow-hidden">
+        <PermissionSelector value={selectedPermissions} onChange={setSelectedPermissions} className="h-full" />
       </div>
-      <Row gutter={20} justify="center" className="sticky bottom-0 bg-white z-10 py-3 mt-6 border-t border-gray-100">
+      <Row gutter={20} justify="center" className="shrink-0 bg-white z-10 py-3 border-t border-gray-100">
         <Col>
           <Button color="primary" variant="solid" onClick={handleSave} loading={isUpdating}>
             저장

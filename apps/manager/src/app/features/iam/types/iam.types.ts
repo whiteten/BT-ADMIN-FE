@@ -119,6 +119,7 @@ export interface RoleCreateDatas {
   description?: string;
   sortOrder?: number;
   isUse?: boolean;
+  canResetPassword?: boolean;
   authIds?: number[];
 }
 
@@ -129,6 +130,7 @@ export interface RoleUpdateDatas {
   description?: string;
   sortOrder?: number;
   isUse: boolean;
+  canResetPassword: boolean;
   authIds?: number[];
 }
 

@@ -127,3 +127,13 @@ export const useLockUser = ({ mutationOptions }: MutationHookOptions = {}) => {
     ...mutationOptions,
   });
 };
+
+/**
+ * 비밀번호 초기화 훅 (계정명으로 초기화)
+ */
+export const useResetPasswordToAccount = ({ mutationOptions }: MutationHookOptions = {}) => {
+  return useMutation({
+    mutationFn: userApi.resetPasswordToAccount,
+    ...mutationOptions,
+  });
+};

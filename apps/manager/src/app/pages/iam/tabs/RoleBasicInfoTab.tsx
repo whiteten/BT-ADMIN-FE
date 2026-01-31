@@ -55,6 +55,7 @@ export default function RoleBasicInfoTab() {
         description: role.description ?? '',
         sortOrder: role.sortOrder,
         isUse: role.isUse,
+        canResetPassword: role.canResetPassword,
       });
     }
   }, [role, form]);
@@ -98,6 +99,7 @@ export default function RoleBasicInfoTab() {
       description: values.description,
       sortOrder: values.sortOrder,
       isUse: values.isUse,
+      canResetPassword: values.canResetPassword,
       // authIds는 변경하지 않음 (권한 매핑 탭에서 처리)
     };
     updateRole({ params: { roleId: numericRoleId }, data: request });
@@ -157,9 +159,19 @@ export default function RoleBasicInfoTab() {
                 <InputNumber min={0} className="!w-full" placeholder="정렬 순서를 입력하세요." />
               </Form.Item>
             </Col>
-            <Col span={12}>
+            <Col span={6}>
               <Form.Item name="isUse" label="사용 여부" valuePropName="checked">
                 <Switch checkedChildren="사용" unCheckedChildren="미사용" />
+              </Form.Item>
+            </Col>
+            <Col span={6}>
+              <Form.Item
+                name="canResetPassword"
+                label="비밀번호 초기화 권한"
+                valuePropName="checked"
+                tooltip="이 역할을 가진 사용자가 다른 사용자의 비밀번호를 초기화할 수 있습니다."
+              >
+                <Switch checkedChildren="허용" unCheckedChildren="불가" />
               </Form.Item>
             </Col>
           </Row>

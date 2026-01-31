@@ -23,6 +23,7 @@ export interface RoleInfo {
   roleId: number;
   roleCode: string;
   roleName: string;
+  canResetPassword?: boolean;
 }
 
 interface AuthStore {
@@ -44,6 +45,8 @@ interface AuthStore {
   getRoleName: (roleCode: string) => string;
   /** 현재 사용자의 첫 번째 역할명 조회 */
   getCurrentRoleName: () => string;
+  /** 현재 사용자가 비밀번호 초기화 권한을 가지고 있는지 확인 */
+  canResetPassword: () => boolean;
 }
 
 const initialState = {
@@ -73,5 +76,16 @@ export const useAuthStore = create<AuthStore>((set, get) => ({
     const firstRoleCode = userInfo.roles[0];
     const role = roleList.find((r) => r.roleCode === firstRoleCode);
     return role?.roleName ?? firstRoleCode;
+  },
+
+  /** 현재 사용자가 비밀번호 초기화 권한을 가지고 있는지 확인 */
+  canResetPassword: () => {
+    const { userInfo, roleList } = get();
+    if (!userInfo?.roles?.length) return false;
+    // 사용자의 역할 중 하나라도 canResetPassword가 true면 권한 있음
+    return userInfo.roles.some((roleCode) => {
+      const role = roleList.find((r) => r.roleCode === roleCode);
+      return role?.canResetPassword === true;
+    });
   },
 }));

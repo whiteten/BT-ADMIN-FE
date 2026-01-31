@@ -175,12 +175,12 @@ export default function UserDetail() {
         {/* 기본 정보 */}
         <div className="space-y-2">
           <div className="flex items-center gap-1">
-            <span className="text-gray-500 w-28 shrink-0">사용자명</span>
-            <span className="text-gray-800 font-medium flex-1">{displayValue(currentBasic.username)}</span>
+            <span className="text-gray-500 w-28 shrink-0">계정</span>
+            <span className="text-gray-800 font-medium flex-1">{displayValue(currentBasic.userAccount)}</span>
           </div>
           <div className="flex items-center gap-1">
-            <span className="text-gray-500 w-28 shrink-0">계정</span>
-            <span className="text-gray-800 flex-1">{displayValue(currentBasic.userAccount)}</span>
+            <span className="text-gray-500 w-28 shrink-0">사용자명</span>
+            <span className="text-gray-800 flex-1">{displayValue(currentBasic.username)}</span>
           </div>
           <div className="flex items-center gap-1">
             <span className="text-gray-500 w-28 shrink-0">역할</span>

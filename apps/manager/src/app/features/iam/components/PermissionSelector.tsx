@@ -17,6 +17,7 @@ import { cn } from '@/libs/shared-ui/src/lib/utils';
 interface PermissionSelectorProps {
   value?: Set<number>;
   onChange?: (authIds: Set<number>) => void;
+  className?: string;
 }
 
 /** 고정 권한 타입 열 */
@@ -130,7 +131,7 @@ function collectPermissionsByAction(group: PermissionGroup, action: string): Per
   return collectAllPermissionsFromGroup(group).filter((p) => p.action === action);
 }
 
-export default function PermissionSelector({ value = new Set(), onChange }: PermissionSelectorProps) {
+export default function PermissionSelector({ value = new Set(), onChange, className }: PermissionSelectorProps) {
   const [searchText, setSearchText] = useState('');
   const [collapsedApps, setCollapsedApps] = useState<Set<string>>(new Set());
 
@@ -279,7 +280,7 @@ export default function PermissionSelector({ value = new Set(), onChange }: Perm
   }
 
   return (
-    <div className="space-y-3">
+    <div className={cn('flex flex-col gap-3', className)}>
       {/* 검색 */}
       <Input
         placeholder="권한 검색 (메뉴명, 권한명, 권한키)"
@@ -287,11 +288,11 @@ export default function PermissionSelector({ value = new Set(), onChange }: Perm
         value={searchText}
         onChange={(e) => setSearchText(e.target.value)}
         allowClear
-        className="max-w-md"
+        className="max-w-md shrink-0"
       />
 
       {/* 매트릭스 테이블 */}
-      <div className="border border-gray-200 rounded-lg overflow-hidden max-h-[420px] overflow-y-auto">
+      <div className="border border-gray-200 rounded-lg overflow-hidden flex-1 min-h-0 overflow-y-auto">
         {filteredGroups.map((group) => {
           const appState = getAppCheckState(group);
           const isCollapsed = collapsedApps.has(group.appId);
@@ -415,28 +416,6 @@ export default function PermissionSelector({ value = new Set(), onChange }: Perm
           <p>검색 결과가 없습니다.</p>
         </div>
       )}
-
-      {/* 선택 요약 */}
-      <div className="flex items-center justify-between px-4 py-3 bg-slate-50 rounded-lg border border-slate-200">
-        <div className="flex items-center gap-2 text-sm text-slate-600">
-          <span className="font-semibold text-slate-800">{value.size}</span>
-          <span>개 권한 선택됨</span>
-        </div>
-        <div className="flex gap-4 text-xs">
-          {ACTION_COLUMNS.map((action) => {
-            const style = actionStyles[action];
-            const count = filteredGroups.reduce((acc, group) => {
-              return acc + collectPermissionsByAction(group, action).filter((p) => value.has(p.authId)).length;
-            }, 0);
-            return (
-              <div key={action} className="flex items-center gap-1.5">
-                <span className={cn('uppercase font-medium', style.text)}>{action}</span>
-                <span className="text-slate-500">{count}</span>
-              </div>
-            );
-          })}
-        </div>
-      </div>
     </div>
   );
 }

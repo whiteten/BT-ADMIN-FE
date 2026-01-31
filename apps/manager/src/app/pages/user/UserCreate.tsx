@@ -155,21 +155,6 @@ export default function UserCreate() {
         <Row gutter={20}>
           <Col span={12}>
             <Form.Item
-              name="username"
-              label="사용자명"
-              required
-              hasFeedback
-              rules={[
-                { required: true, message: '사용자명을 입력해 주세요.' },
-                { min: 2, message: '최소 2자 이상 입력해주세요.' },
-                { max: 50, message: '최대 50자까지 입력 가능합니다.' },
-              ]}
-            >
-              <Input placeholder="사용자 이름을 입력하세요." />
-            </Form.Item>
-          </Col>
-          <Col span={12}>
-            <Form.Item
               name="userAccount"
               label="계정 (로그인 ID)"
               required
@@ -183,6 +168,21 @@ export default function UserCreate() {
               ]}
             >
               <Input placeholder="로그인에 사용할 계정을 입력하세요." />
+            </Form.Item>
+          </Col>
+          <Col span={12}>
+            <Form.Item
+              name="username"
+              label="사용자명"
+              required
+              hasFeedback
+              rules={[
+                { required: true, message: '사용자명을 입력해 주세요.' },
+                { min: 2, message: '최소 2자 이상 입력해주세요.' },
+                { max: 50, message: '최대 50자까지 입력 가능합니다.' },
+              ]}
+            >
+              <Input placeholder="사용자 이름을 입력하세요." />
             </Form.Item>
           </Col>
         </Row>
@@ -360,14 +360,14 @@ export default function UserCreate() {
         {/* Step 1: 기본 정보 (역할, 활성화 포함) */}
         <div className="space-y-2">
           <div className="flex items-center gap-1">
-            <span className="text-gray-500 w-28 shrink-0">사용자명</span>
-            <span className="text-gray-800 font-medium flex-1">{displayValue(username)}</span>
-            {renderValidationIcon('username')}
+            <span className="text-gray-500 w-28 shrink-0">계정</span>
+            <span className="text-gray-800 font-medium flex-1">{displayValue(userAccount)}</span>
+            {renderValidationIcon('userAccount')}
           </div>
           <div className="flex items-center gap-1">
-            <span className="text-gray-500 w-28 shrink-0">계정</span>
-            <span className="text-gray-800 flex-1">{displayValue(userAccount)}</span>
-            {renderValidationIcon('userAccount')}
+            <span className="text-gray-500 w-28 shrink-0">사용자명</span>
+            <span className="text-gray-800 flex-1">{displayValue(username)}</span>
+            {renderValidationIcon('username')}
           </div>
           <div className="flex items-center gap-1">
             <span className="text-gray-500 w-28 shrink-0">역할</span>

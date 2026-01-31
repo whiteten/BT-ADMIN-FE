@@ -6,6 +6,7 @@ export interface Role {
   description?: string;
   sortOrder: number;
   isUse: boolean;
+  canResetPassword: boolean;
   permissionCount?: number;
   userCount?: number;
   authIds?: number[];

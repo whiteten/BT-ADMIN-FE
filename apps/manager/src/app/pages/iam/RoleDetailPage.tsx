@@ -93,6 +93,7 @@ export default function RoleDetailPage() {
         description: role.description ?? '',
         sortOrder: role.sortOrder,
         isUse: role.isUse,
+        canResetPassword: role.canResetPassword,
       });
       setSelectedPermissions(new Set(role.authIds ?? []));
     }
@@ -172,6 +173,12 @@ export default function RoleDetailPage() {
               <Tag color={currentBasic.isUse ? 'green' : 'default'}>{currentBasic.isUse ? '사용' : '미사용'}</Tag>
             </span>
           </div>
+          <div className="flex items-center gap-1">
+            <span className="text-gray-500 w-20 shrink-0">비밀번호 초기화</span>
+            <span className="flex-1">
+              <Tag color={currentBasic.canResetPassword ? 'orange' : 'default'}>{currentBasic.canResetPassword ? '허용' : '불가'}</Tag>
+            </span>
+          </div>
         </div>
 
         <Divider className="!my-3" />
@@ -183,6 +190,24 @@ export default function RoleDetailPage() {
             <Shield className="size-4 text-blue-500" />
             <span className="text-gray-800 font-semibold">{permissionCount}개 권한 선택됨</span>
           </div>
+          {/* 권한 타입별 카운트 */}
+          {permissionCount > 0 && (
+            <div className="flex gap-3 mt-2">
+              {(['read', 'write', 'delete'] as const).map((action) => {
+                const count = permissionArray.filter((authId) => {
+                  const perm = allPermissions.find((p) => p.authId === authId);
+                  return perm?.action === action;
+                }).length;
+                const colorClass = action === 'read' ? 'text-blue-600' : action === 'write' ? 'text-emerald-600' : 'text-rose-600';
+                return (
+                  <div key={action} className="flex items-center gap-1 text-xs">
+                    <span className={`uppercase font-medium ${colorClass}`}>{action}</span>
+                    <span className="text-gray-500">{count}</span>
+                  </div>
+                );
+              })}
+            </div>
+          )}
           {permissionCount > 0 && (
             <div className="flex flex-wrap gap-1 mt-2">
               {permissionArray.slice(0, 8).map((authId) => {

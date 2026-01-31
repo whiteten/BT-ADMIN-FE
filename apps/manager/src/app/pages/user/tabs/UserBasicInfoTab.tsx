@@ -10,7 +10,7 @@ import { useQueryClient } from '@tanstack/react-query';
 import { Button, Col, Form, type FormProps, Input, Row, Select } from 'antd';
 import { useAuthStore } from '@/shared-store';
 import { toast } from '@/shared-util';
-import { useDeleteUser, useGetUser, useUpdateUser, userQueryKeys } from '../../../features/user/hooks/useUserQueries';
+import { useDeleteUser, useGetUser, useResetPasswordToAccount, useUpdateUser, userQueryKeys } from '../../../features/user/hooks/useUserQueries';
 import type { AccountStatus, UserUpdateDatas } from '../../../features/user/types/user.types';
 import { useUserDetailContext } from '../context/UserDetailContext';
 import { FallbackSpinner } from '@/components/custom/FallbackSpinner';
@@ -68,8 +68,9 @@ export default function UserBasicInfoTab() {
   }, [formValues, setBasicFormValues]);
 
   // 역할 목록은 RouteGuard에서 이미 로드되어 Zustand에 저장됨
-  const { roleList } = useAuthStore();
+  const { roleList, canResetPassword } = useAuthStore();
   const roleOptions = roleList.map((role) => ({ label: role.roleName, value: role.roleId }));
+  const hasResetPasswordPermission = canResetPassword();
 
   // 사용자 조회
   const { data: user, isFetching } = useGetUser({
@@ -108,6 +109,14 @@ export default function UserBasicInfoTab() {
     },
   });
 
+  const { mutate: resetPassword, isPending: isResetting } = useResetPasswordToAccount({
+    mutationOptions: {
+      onSuccess: () => {
+        toast.success('비밀번호가 계정명으로 초기화되었습니다. 다음 로그인 시 비밀번호 변경이 필요합니다.');
+      },
+    },
+  });
+
   const onFinish: FormProps<UserBasicFormValues>['onFinish'] = (values) => {
     if (!numericUserId) return;
 
@@ -139,6 +148,22 @@ export default function UserBasicInfoTab() {
     });
   };
 
+  const handleClickResetPasswordBtn = () => {
+    modal.confirm.execute({
+      onOk: () => {
+        if (numericUserId) {
+          resetPassword({ userId: numericUserId });
+        }
+      },
+      options: {
+        title: '비밀번호 초기화',
+        content: `비밀번호를 계정명(${user?.userAccount})으로 초기화합니다. 다음 로그인 시 비밀번호 변경이 강제됩니다.`,
+        okText: '초기화',
+        okType: 'danger',
+      },
+    });
+  };
+
   return (
     <Form form={form} onFinish={onFinish} onFinishFailed={onFinishFailed} layout="vertical">
       {isFetching ? (
@@ -148,21 +173,6 @@ export default function UserBasicInfoTab() {
       ) : (
         <>
           <Row gutter={20}>
-            <Col span={12}>
-              <Form.Item
-                name="username"
-                label="사용자명"
-                required
-                hasFeedback
-                rules={[
-                  { required: true, message: '사용자명을 입력해 주세요.' },
-                  { min: 2, message: '최소 2자 이상 입력해주세요.' },
-                  { max: 50, message: '최대 50자까지 입력 가능합니다.' },
-                ]}
-              >
-                <Input placeholder="사용자 이름을 입력하세요." />
-              </Form.Item>
-            </Col>
             <Col span={12}>
               <Form.Item
                 name="userAccount"
@@ -177,6 +187,21 @@ export default function UserBasicInfoTab() {
                 ]}
               >
                 <Input placeholder="로그인에 사용할 계정을 입력하세요." disabled />
+              </Form.Item>
+            </Col>
+            <Col span={12}>
+              <Form.Item
+                name="username"
+                label="사용자명"
+                required
+                hasFeedback
+                rules={[
+                  { required: true, message: '사용자명을 입력해 주세요.' },
+                  { min: 2, message: '최소 2자 이상 입력해주세요.' },
+                  { max: 50, message: '최대 50자까지 입력 가능합니다.' },
+                ]}
+              >
+                <Input placeholder="사용자 이름을 입력하세요." />
               </Form.Item>
             </Col>
           </Row>
@@ -224,10 +249,17 @@ export default function UserBasicInfoTab() {
           )}
           <Row gutter={20} justify="center" className="sticky bottom-0 bg-white z-10 pb-7 pt-4 mt-6 border-t border-gray-100">
             <Col>
-              <Button color="primary" variant="solid" htmlType="submit" loading={isUpdating || isDeleting}>
+              <Button color="primary" variant="solid" htmlType="submit" loading={isUpdating || isDeleting || isResetting}>
                 저장
               </Button>
             </Col>
+            {hasResetPasswordPermission && (
+              <Col>
+                <Button color="orange" variant="solid" loading={isResetting} onClick={handleClickResetPasswordBtn}>
+                  비밀번호 초기화
+                </Button>
+              </Col>
+            )}
             <Col>
               <Button color="red" variant="solid" loading={isDeleting} onClick={handleClickDeleteBtn}>
                 삭제
