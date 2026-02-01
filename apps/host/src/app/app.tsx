@@ -8,6 +8,7 @@ import { Layout } from './features/layout/Layout';
 import CsrfGuard from './features/router/CsrfGuard';
 import RouteGuard from './features/router/RouteGuard';
 import SharedInfoProvider from './features/router/SharedInfoProvider';
+import WsSessionEventHandler from './features/router/WsSessionEventHandler';
 import { useApiErrorHandler } from './hooks/useApiErrorHandler';
 import Login from './pages/Login';
 import { FallbackSpinner } from '@/components/custom/FallbackSpinner';
@@ -27,12 +28,14 @@ const AppRoutes = () => {
       <Route path="/" element={<CsrfGuard />}>
         <Route element={<RouteGuard />}>
           <Route element={<SharedInfoProvider />}>
-            <Route path="/" element={<Navigate to="/fca" />} />
-            <Route path="/manager" element={<Layout />}>
-              <Route index path="*" element={<Manager />} />
-            </Route>
-            <Route path="/fca" element={<Layout />}>
-              <Route index path="*" element={<Fca />} />
+            <Route element={<WsSessionEventHandler />}>
+              <Route path="/" element={<Navigate to="/fca" />} />
+              <Route path="/manager" element={<Layout />}>
+                <Route index path="*" element={<Manager />} />
+              </Route>
+              <Route path="/fca" element={<Layout />}>
+                <Route index path="*" element={<Fca />} />
+              </Route>
             </Route>
           </Route>
         </Route>

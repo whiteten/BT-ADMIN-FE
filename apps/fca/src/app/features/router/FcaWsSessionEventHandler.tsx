@@ -2,7 +2,7 @@ import { useEffect } from 'react';
 import { Outlet } from 'react-router-dom';
 import { useQueryClient } from '@tanstack/react-query';
 import { LOG } from '@/log';
-import { modelQueryKeys } from './features/bot-config/hooks/useModelQueries';
+import { modelQueryKeys } from '../bot-config/hooks/useModelQueries';
 
 const Log = new LOG('FcaWsSessionEventHandler');
 
