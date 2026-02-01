@@ -8,6 +8,7 @@ export const authQueryKeys = createQueryKeys('auth', {
   getCsrfToken: (params?: Record<string, unknown>) => [params],
   getUserInfo: (params?: Record<string, unknown>) => [params],
   accountPolicy: (params?: Record<string, unknown>) => [params],
+  getWsTicket: (params?: Record<string, unknown>) => [params],
 });
 
 export const useGetCsrfToken = ({ params, queryOptions }: QueryHookWithParamsOptions = {}) => {
@@ -36,6 +37,14 @@ export const useGetUserInfo = ({ params, queryOptions }: QueryHookWithParamsOpti
   return useQuery({
     queryKey: authQueryKeys.getUserInfo(params).queryKey,
     queryFn: () => authApi.getUserInfo(params),
+    ...queryOptions,
+  });
+};
+
+export const useGetWsTicket = ({ params, queryOptions }: QueryHookWithParamsOptions = {}) => {
+  return useQuery({
+    queryKey: authQueryKeys.getWsTicket(params).queryKey,
+    queryFn: () => authApi.getWsTicket(params),
     ...queryOptions,
   });
 };

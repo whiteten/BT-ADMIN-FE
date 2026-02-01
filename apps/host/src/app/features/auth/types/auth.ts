@@ -1,4 +1,11 @@
 /**
+ * WebSocket 티켓 응답 타입
+ */
+export interface WsTicketResponse {
+  ticket: string;
+}
+
+/**
  * 로그인 요청 타입
  * V23: username → userAccount로 변경 (로그인 계정 기반)
  */

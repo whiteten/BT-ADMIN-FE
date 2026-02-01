@@ -3,7 +3,7 @@ import { Outlet } from 'react-router-dom';
 import { LOG } from '@/log';
 
 import { useAuthStore, useNavigationStore } from '@/shared-store';
-import { useGetUserInfo } from '../auth/hooks/useAuthQueries';
+import { useGetUserInfo, useGetWsTicket } from '../auth/hooks/useAuthQueries';
 import { useGetNavigation } from '../common/hooks/useNavigationQueries';
 import { useGetRoles } from '../management/hooks/useRoleQueries';
 import { FallbackSpinner } from '@/components/custom/FallbackSpinner';
@@ -13,9 +13,11 @@ const Log = new LOG('SharedInfoProvider');
 export default function SharedInfoProvider() {
   const { setRoleList, setUserInfo, setIsLoading } = useAuthStore();
   const { setNavigation } = useNavigationStore();
-  const { data: userInfo, isLoading: isUserInfoLoading, isError: isUserInfoError, error: userInfoError } = useGetUserInfo();
-  const { data: roles, isLoading: isRolesLoading, isError: isRolesError, error: rolesError } = useGetRoles();
-  const { data: navigation, isLoading: isNavigationLoading, isError: isNavigationError, error: navigationError } = useGetNavigation();
+  const { data: userInfo, isLoading: isUserInfoLoading, error: userInfoError } = useGetUserInfo();
+  const { data: roles, isLoading: isRolesLoading, error: rolesError } = useGetRoles();
+  const { data: navigation, isLoading: isNavigationLoading, error: navigationError } = useGetNavigation();
+  const { data: wsTicket, isLoading: isWsTicketLoading, error: wsTicketError } = useGetWsTicket();
+
   useEffect(() => {
     if (roles) {
       Log.debug('Roles fetched successfully. roles: ', roles);
@@ -42,6 +44,12 @@ export default function SharedInfoProvider() {
   }, [isRolesLoading, isUserInfoLoading, setIsLoading]);
 
   useEffect(() => {
+    if (wsTicket) {
+      Log.debug('Ws ticket fetched successfully. wsTicket: ', wsTicket);
+    }
+  }, [wsTicket]);
+
+  useEffect(() => {
     if (rolesError) Log.error('Failed to fetch roles', rolesError);
   }, [rolesError]);
 
@@ -53,7 +61,11 @@ export default function SharedInfoProvider() {
     if (navigationError) Log.error('Failed to fetch navigation', navigationError);
   }, [navigationError]);
 
-  if (isRolesLoading || isUserInfoLoading || isNavigationLoading) {
+  useEffect(() => {
+    if (wsTicketError) Log.error('Failed to fetch ws ticket', wsTicketError);
+  }, [wsTicketError]);
+
+  if (isRolesLoading || isUserInfoLoading || isNavigationLoading || isWsTicketLoading) {
     return <FallbackSpinner useFullScreen />;
   }
 
