@@ -21,13 +21,7 @@ export const useModelAction = ({ modelId }: UseModelActionParams): UseModelActio
   const queryClient = useQueryClient();
   const modal = useModal();
 
-  const { data: model, isLoading: isModelLoading } = useGetModel({
-    params: { modelId },
-    queryOptions: {
-      enabled: !!modelId,
-      refetchInterval: 5000,
-    },
-  });
+  const { data: model, isLoading: isModelLoading } = useGetModel({ params: { modelId }, queryOptions: { enabled: !!modelId } });
 
   const { mutate: trainModel, isPending: isTraining } = useTrainModel({
     mutationOptions: {

@@ -24,7 +24,7 @@ export default function ModelList() {
   const [filterColumn, setFilterColumn] = useState('modelName');
   const [searchValue, setSearchValue] = useState('');
 
-  const { data: modelList, isLoading } = useGetModels({ queryOptions: { refetchInterval: 5000 } });
+  const { data: modelList, isLoading } = useGetModels();
   const { mutate: deleteModel } = useDeleteModel({
     mutationOptions: {
       onSuccess: () => {

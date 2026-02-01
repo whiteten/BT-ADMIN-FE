@@ -138,7 +138,7 @@ export default function IntentSentenceList() {
   // API Hooks
   const { data: sentenceList, isLoading: isLoadingSentenceList } = useGetIntentSentences({
     params: { modelId, intentId },
-    queryOptions: { enabled: !!modelId && !!intentId && !editingRowId, refetchInterval: 5000 },
+    queryOptions: { enabled: !!modelId && !!intentId && !editingRowId },
   });
   const { mutate: createIntentSentence, isPending: isCreating } = useCreateIntentSentence({
     mutationOptions: {

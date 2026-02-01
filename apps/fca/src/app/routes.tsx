@@ -1,5 +1,6 @@
 import React from 'react';
 import { Navigate, Outlet } from 'react-router-dom';
+import FcaWsSessionEventHandler from './FcaWsSessionEventHandler';
 import FaqDetail from './pages/global/FaqDetail';
 import { NotFound } from '@/components/custom/NotFound';
 
@@ -53,7 +54,7 @@ const sharedModelRoutes = [
 export const routes = [
   {
     path: '/',
-    element: <Outlet />,
+    element: <FcaWsSessionEventHandler />,
     children: [
       { index: true, element: <Navigate to="main" replace /> },
       { path: 'main', element: <Main /> },
