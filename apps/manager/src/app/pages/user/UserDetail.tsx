@@ -10,7 +10,7 @@
 import React, { Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useParams, useSearchParams } from 'react-router-dom';
 import { type BreadcrumbProps, Button, Divider, Tag } from 'antd';
-import { Check, ChevronLeft, ChevronRight, Shield } from 'lucide-react';
+import { Check, ChevronLeft, ChevronRight, History, Shield } from 'lucide-react';
 import { useAuthStore } from '@/shared-store';
 import { type PermissionStats, type UserAdditionalFormValues, type UserBasicFormValues, UserDetailProvider } from './context/UserDetailContext';
 import AccountStatusBadge from '../../features/user/components/AccountStatusBadge';
@@ -23,6 +23,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/libs/shared-ui/src/c
 const UserBasicInfoTab = React.lazy(() => import('./tabs/UserBasicInfoTab'));
 const UserAdditionalInfoTab = React.lazy(() => import('./tabs/UserAdditionalInfoTab'));
 const UserPermissionTab = React.lazy(() => import('./tabs/UserPermissionTab'));
+const UserLoginHistoryTab = React.lazy(() => import('./tabs/UserLoginHistoryTab'));
 
 interface PageTab {
   id: string;
@@ -33,8 +34,9 @@ interface PageTab {
 
 const tabs: PageTab[] = [
   { id: 'tab1', label: '기본정보', icon: IconDocument, component: UserBasicInfoTab },
-  { id: 'tab2', label: '부가사항', icon: IconSlidersHorizontal, component: UserAdditionalInfoTab },
+  { id: 'tab2', label: '로그인 이력', icon: History, component: UserLoginHistoryTab },
   { id: 'tab3', label: '개별 권한', icon: Shield, component: UserPermissionTab },
+  { id: 'tab4', label: '부가사항', icon: IconSlidersHorizontal, component: UserAdditionalInfoTab },
 ];
 
 // 헬퍼 함수: Select 옵션에서 라벨 찾기
@@ -226,28 +228,23 @@ export default function UserDetail() {
           </div>
         </div>
         <Divider className="!my-3" />
-        {/* 개별 권한 */}
+        {/* 개별 권한 (Replacement 모델) */}
         <div className="space-y-2">
           <div className="flex items-center gap-1">
             <span className="text-gray-500 w-28 shrink-0">역할 권한</span>
             <span className="text-gray-800 flex-1">{permissionStats ? `${permissionStats.roleAuthCount}개` : <span className="text-gray-300">-</span>}</span>
           </div>
           <div className="flex items-center gap-1">
-            <span className="text-gray-500 w-28 shrink-0">개별 부여</span>
+            <span className="text-gray-500 w-28 shrink-0">개별 권한</span>
             <span className="flex-1">
               {permissionStats?.savedAllowCount ? (
                 <span className="text-emerald-600 font-medium flex items-center gap-1">
-                  <Check className="w-3.5 h-3.5" />+{permissionStats.savedAllowCount}개
+                  <Check className="w-3.5 h-3.5" />
+                  {permissionStats.savedAllowCount}개 (대체 중)
                 </span>
               ) : (
                 <span className="text-gray-300">-</span>
               )}
-            </span>
-          </div>
-          <div className="flex items-center gap-1">
-            <span className="text-gray-500 w-28 shrink-0">개별 차단</span>
-            <span className="flex-1">
-              {permissionStats?.savedDenyCount ? <span className="text-red-500 font-medium">-{permissionStats.savedDenyCount}개</span> : <span className="text-gray-300">-</span>}
             </span>
           </div>
           <div className="flex items-center gap-1">

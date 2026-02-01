@@ -28,13 +28,13 @@ export interface UserAdditionalFormValues {
 }
 
 /**
- * 개별 권한 통계
+ * 개별 권한 통계 (Replacement 모델)
  */
 export interface PermissionStats {
   roleAuthCount: number; // 역할 기본 권한 수
   selectedCount: number; // 현재 선택된 권한 수 (최종)
-  savedAllowCount: number; // DB 저장된 개별 부여 수
-  savedDenyCount: number; // DB 저장된 개별 차단 수
+  savedAllowCount: number; // DB 저장된 개별 권한 수
+  savedDenyCount: number; // 항상 0 (Replacement 모델에서는 DENY 개념 없음)
 }
 
 /**

@@ -47,9 +47,6 @@ export interface UserRole {
 }
 
 // 사용자-권한 직접 매핑 (User Override) - 백엔드 응답 타입
-// AWS IAM과 동일한 업계 표준 용어 사용
-export type PermissionEffect = 'ALLOW' | 'DENY';
-
 export interface UserAuthMap {
   mapId: number;
   tenantId: number;
@@ -59,11 +56,8 @@ export interface UserAuthMap {
   authKey?: string;
   authDescription?: string;
   appId?: string;
-  effect: PermissionEffect;
   createdAt?: string;
-  createdBy?: string;
-  updatedAt?: string;
-  updatedBy?: string;
+  createdBy?: number;
 }
 
 // 사용자-메뉴 직접 매핑 (User Override)
@@ -95,11 +89,9 @@ export interface UserPermissionSyncRequest {
   authIds: number[];
 }
 
-// 사용자 권한 동기화 응답
+// 사용자 권한 동기화 응답 (Replacement 모델)
 export interface UserPermissionSyncResponse {
-  allowCount: number;
-  denyCount: number;
-  effectiveAuthIds: number[];
+  syncedCount: number; // 동기화된 권한 수
 }
 
 // 역할 생성/수정 요청
@@ -169,4 +161,27 @@ export interface IamFilter {
   appId?: string;
   keyword?: string;
   useYn?: string;
+}
+
+// 권한 Flat 응답 (메뉴 정보 포함)
+export interface PermissionFlat {
+  authId: number;
+  appId: string;
+  domain: string;
+  resourceKey: string;
+  action: string;
+  authKey: string;
+  description?: string;
+  menuId?: number;
+  menuKey?: string;
+  menuLabel?: string;
+}
+
+// 권한 생성 요청
+export interface PermissionCreateRequest {
+  appId: string;
+  domain: string;
+  resourceKey: string;
+  action: string;
+  description?: string;
 }
