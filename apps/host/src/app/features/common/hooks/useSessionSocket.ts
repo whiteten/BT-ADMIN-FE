@@ -1,0 +1,47 @@
+import { useEffect, useRef } from 'react';
+import { LOG } from '@/log';
+import { WebSocketClient, toast } from '@/shared-util';
+
+const Log = new LOG('useSessionSocket');
+
+interface UseSessionSocketOptions {
+  ticket: string | null;
+}
+
+/**
+ * 세션 기반 WebSocket 연결 및 서버 이벤트 처리 훅
+ */
+export function useSessionSocket({ ticket }: UseSessionSocketOptions) {
+  const wsRef = useRef<WebSocketClient | null>(null);
+
+  useEffect(() => {
+    console.log('ticket', ticket);
+    if (!ticket) return;
+
+    const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+    const wsUrl = `${protocol}//${window.location.host}/ws/session?ticket=${encodeURIComponent(ticket)}`;
+
+    const client = new WebSocketClient(wsUrl);
+    wsRef.current = client;
+
+    client.connect().catch((error) => {
+      Log.error('Failed to connect to Session WS', error);
+      toast.error('Failed to connect to Session WS');
+    });
+
+    client.onmessage = (event: MessageEvent) => {
+      try {
+        const wsEvent = JSON.parse(event.data);
+        window.dispatchEvent(new CustomEvent('WS_SESSION', { detail: wsEvent }));
+      } catch (error) {
+        Log.error('Failed to parse Session WS message', error);
+        toast.error('Failed to parse Session WS message');
+      }
+    };
+
+    return () => {
+      wsRef.current?.disconnect();
+      wsRef.current = null;
+    };
+  }, [ticket]);
+}
