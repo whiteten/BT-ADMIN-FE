@@ -1,9 +1,11 @@
 /**
- * 비밀번호 정책 Mock 데이터
+ * 계정 정책 Mock 데이터
  * 다양한 정책 설정으로 UI 동작 테스트
  */
 
-export interface PasswordPolicy {
+export type ConcurrentLoginAction = 'KICK_EXISTING' | 'BLOCK_NEW';
+
+export interface AccountPolicy {
   tenantId: number;
   minLength: number;
   maxLength: number;
@@ -19,10 +21,12 @@ export interface PasswordPolicy {
   maxFailedAttempts: number;
   lockoutDurationMinutes: number;
   failedAttemptResetMinutes: number;
+  dormantDays: number;
+  concurrentLoginAction: ConcurrentLoginAction;
 }
 
 // 엄격한 정책 (모든 규칙 활성화)
-export const strictPolicy: PasswordPolicy = {
+export const strictPolicy: AccountPolicy = {
   tenantId: 1,
   minLength: 12,
   maxLength: 128,
@@ -38,10 +42,12 @@ export const strictPolicy: PasswordPolicy = {
   maxFailedAttempts: 5,
   lockoutDurationMinutes: 30,
   failedAttemptResetMinutes: 15,
+  dormantDays: 90,
+  concurrentLoginAction: 'BLOCK_NEW',
 };
 
 // 완화된 정책 (최소 규칙만)
-export const lenientPolicy: PasswordPolicy = {
+export const lenientPolicy: AccountPolicy = {
   tenantId: 1,
   minLength: 4,
   maxLength: 128,
@@ -57,10 +63,12 @@ export const lenientPolicy: PasswordPolicy = {
   maxFailedAttempts: 10,
   lockoutDurationMinutes: 5,
   failedAttemptResetMinutes: 30,
+  dormantDays: 365,
+  concurrentLoginAction: 'KICK_EXISTING',
 };
 
 // 기본 정책
-export const defaultPolicy: PasswordPolicy = {
+export const defaultPolicy: AccountPolicy = {
   tenantId: 1,
   minLength: 8,
   maxLength: 128,
@@ -76,4 +84,6 @@ export const defaultPolicy: PasswordPolicy = {
   maxFailedAttempts: 5,
   lockoutDurationMinutes: 15,
   failedAttemptResetMinutes: 15,
+  dormantDays: 180,
+  concurrentLoginAction: 'KICK_EXISTING',
 };

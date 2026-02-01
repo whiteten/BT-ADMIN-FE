@@ -39,8 +39,8 @@ const menuConfig = {
         },
         {
           menuId: 21,
-          label: '비밀번호 정책',
-          path: 'resource/password-policy',
+          label: '계정 정책',
+          path: 'resource/account-policy',
           index: 2,
           hide: false,
         },

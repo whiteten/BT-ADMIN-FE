@@ -1,6 +1,6 @@
 import { test as base } from '@playwright/test';
 import type { LoginResponse, LoginErrorResponse } from './auth-mocks';
-import type { PasswordPolicy } from './password-policy-mocks';
+import type { AccountPolicy } from './account-policy-mocks';
 
 /**
  * 커스텀 테스트 fixture
@@ -8,7 +8,7 @@ import type { PasswordPolicy } from './password-policy-mocks';
  */
 type MockHandlers = {
   mockLogin: (response: LoginResponse | LoginErrorResponse, status?: number) => Promise<void>;
-  mockPasswordPolicy: (policy: PasswordPolicy) => Promise<void>;
+  mockAccountPolicy: (policy: AccountPolicy) => Promise<void>;
   mockPasswordChange: (success?: boolean) => Promise<void>;
 };
 
@@ -30,9 +30,9 @@ export const test = base.extend<MockHandlers>({
     });
   },
 
-  mockPasswordPolicy: async ({ page }, use) => {
+  mockAccountPolicy: async ({ page }, use) => {
     await use(async (policy) => {
-      await page.route('**/bff/password-policy-detail*', async (route) => {
+      await page.route('**/auth/account-policy*', async (route) => {
         await route.fulfill({
           status: 200,
           contentType: 'application/json',

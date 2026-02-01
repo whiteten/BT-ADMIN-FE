@@ -1,16 +1,16 @@
 /**
- * 비밀번호 정책 관리 페이지
+ * 계정 보안 정책 관리 페이지
  * Industrial-Administrative Clarity Design
  * - 보안 설정을 위한 명확하고 직관적인 인터페이스
  * - 탭 기반 섹션 분리 + 실시간 정책 요약 사이드패널
  */
 
 import React, { useEffect, useState } from 'react';
-import { type BreadcrumbProps, Button, Divider, Form, InputNumber, Switch, Typography } from 'antd';
-import { AlertTriangle, Check, Clock, Hash, KeyRound, Lock, RefreshCw, Save, Timer, UserX } from 'lucide-react';
+import { type BreadcrumbProps, Button, Divider, Form, InputNumber, Radio, Switch, Typography } from 'antd';
+import { AlertTriangle, Check, Clock, Hash, KeyRound, Lock, Monitor, MoonStar, RefreshCw, Save, Timer, UserX } from 'lucide-react';
 import { toast } from '@/shared-util';
-import { useGetPasswordPolicy, useUpdatePasswordPolicy } from '../../features/password-policy/hooks/usePasswordPolicyQueries';
-import { DEFAULT_PASSWORD_POLICY, type PasswordPolicyUpdateDatas } from '../../features/password-policy/types/passwordPolicy.types';
+import { useGetAccountPolicy, useUpdateAccountPolicy } from '../../features/account-policy/hooks/useAccountPolicyQueries';
+import { type AccountPolicyUpdateData, CONCURRENT_LOGIN_ACTION_OPTIONS, DEFAULT_ACCOUNT_POLICY } from '../../features/account-policy/types/accountPolicy.types';
 import { FallbackSpinner } from '@/components/custom/FallbackSpinner';
 import PageHeader from '@/components/custom/PageHeader';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -21,7 +21,7 @@ const { Text } = Typography;
 
 const breadcrumb: BreadcrumbProps['items'] = [
   { title: '자원 관리', path: '/manager/resource' },
-  { title: '비밀번호 정책', path: '/manager/resource/password-policy' },
+  { title: '계정 보안 정책', path: '/manager/resource/account-policy' },
 ];
 
 /**
@@ -155,13 +155,13 @@ function SummaryItem({ label, value, active }: SummaryItemProps) {
   );
 }
 
-export default function PasswordPolicyPage() {
-  const [form] = Form.useForm<PasswordPolicyUpdateDatas>();
+export default function AccountPolicyPage() {
+  const [form] = Form.useForm<AccountPolicyUpdateData>();
   const formValues = Form.useWatch([], form);
   const [activeTab, setActiveTab] = useState('complexity');
 
   // 데이터 조회
-  const { data: policy, isLoading } = useGetPasswordPolicy();
+  const { data: policy, isLoading } = useGetAccountPolicy();
 
   /**
    * 탭 전환 시 폼을 DB 값으로 리셋
@@ -177,10 +177,10 @@ export default function PasswordPolicyPage() {
   };
 
   // 뮤테이션
-  const { mutate: updatePolicy, isPending: isUpdating } = useUpdatePasswordPolicy({
+  const { mutate: updatePolicy, isPending: isUpdating } = useUpdateAccountPolicy({
     mutationOptions: {
       onSuccess: () => {
-        toast.success('비밀번호 정책이 저장되었습니다.');
+        toast.success('계정 보안 정책이 저장되었습니다.');
       },
     },
   });
@@ -203,12 +203,12 @@ export default function PasswordPolicyPage() {
   };
 
   // 현재 폼 값
-  const currentValues = formValues || DEFAULT_PASSWORD_POLICY;
+  const currentValues = formValues || DEFAULT_ACCOUNT_POLICY;
 
   if (isLoading) {
     return (
       <div className="flex flex-col gap-4 w-full h-full">
-        <PageHeader title="비밀번호 정책" breadcrumb={breadcrumb} />
+        <PageHeader title="계정 보안 정책" breadcrumb={breadcrumb} />
         <div className="flex items-center justify-center w-full h-full">
           <FallbackSpinner />
         </div>
@@ -218,32 +218,38 @@ export default function PasswordPolicyPage() {
 
   return (
     <div className="flex flex-col gap-4 w-full h-full">
-      <PageHeader title="비밀번호 정책" breadcrumb={breadcrumb} />
+      <PageHeader title="계정 보안 정책" breadcrumb={breadcrumb} />
 
       <div className="flex flex-1 min-h-0 gap-4">
         {/* 메인 폼 영역 */}
         <div className="flex-1 min-w-0 bg-white bt-shadow flex flex-col">
-          <Form form={form} initialValues={DEFAULT_PASSWORD_POLICY} className="flex flex-col h-full">
+          <Form form={form} initialValues={DEFAULT_ACCOUNT_POLICY} className="flex flex-col h-full">
             <Tabs value={activeTab} onValueChange={handleTabChange} className="flex flex-col h-full">
               {/* 탭 헤더 - PageTabs/UserDetail 스타일 완전 적용 */}
               <div className="flex w-full h-[58px] min-h-[58px] bg-white border-b border-[#E9EBEC]">
                 <TabsList className="h-full p-0 bg-white">
                   <TabsTrigger value="complexity" className={cn(styles.tabTrigger)}>
-                    <div className="flex items-center justify-center gap-2 min-w-[184px]">
+                    <div className="flex items-center justify-center gap-2 min-w-[150px]">
                       <KeyRound className="h-5 w-5" />
                       <span>비밀번호 복잡도</span>
                     </div>
                   </TabsTrigger>
                   <TabsTrigger value="lockout" className={cn(styles.tabTrigger)}>
-                    <div className="flex items-center justify-center gap-2 min-w-[184px]">
+                    <div className="flex items-center justify-center gap-2 min-w-[150px]">
                       <Lock className="h-5 w-5" />
                       <span>계정 잠금</span>
                     </div>
                   </TabsTrigger>
                   <TabsTrigger value="expiration" className={cn(styles.tabTrigger)}>
-                    <div className="flex items-center justify-center gap-2 min-w-[184px]">
+                    <div className="flex items-center justify-center gap-2 min-w-[150px]">
                       <Timer className="h-5 w-5" />
                       <span>만료 정책</span>
+                    </div>
+                  </TabsTrigger>
+                  <TabsTrigger value="session" className={cn(styles.tabTrigger)}>
+                    <div className="flex items-center justify-center gap-2 min-w-[150px]">
+                      <Monitor className="h-5 w-5" />
+                      <span>세션 정책</span>
                     </div>
                   </TabsTrigger>
                 </TabsList>
@@ -387,13 +393,58 @@ export default function PasswordPolicyPage() {
                           unit="개"
                         />
                       </div>
-                      {/* 최초 로그인 시 비밀번호 변경은 무조건 적용됨 (정책 설정 불필요) */}
-                      <div className="mt-3 p-3 bg-blue-50 border border-blue-200 rounded-lg">
-                        <div className="flex items-center gap-2 text-blue-700">
-                          <KeyRound className="w-4 h-4" />
-                          <span className="text-sm font-medium">최초 로그인 시 비밀번호 변경</span>
+                    </div>
+
+                    <div>
+                      <h3 className="text-sm font-semibold text-gray-900 uppercase tracking-wide mb-3">휴면 계정 정책</h3>
+                      <Text type="secondary" className="block mb-4">
+                        장기간 미로그인 시 계정을 휴면 상태로 전환합니다.
+                      </Text>
+                      <div className="grid grid-cols-1 gap-3">
+                        <NumberSetting
+                          name="dormantDays"
+                          label="휴면 전환 기간"
+                          description="0으로 설정하면 휴면 전환이 비활성화됩니다"
+                          icon={<MoonStar className="w-4 h-4" />}
+                          min={0}
+                          max={365}
+                          unit="일"
+                        />
+                      </div>
+                    </div>
+                  </div>
+                </TabsContent>
+
+                {/* 세션 정책 탭 */}
+                <TabsContent value="session" forceMount className="m-0 h-full data-[state=inactive]:hidden">
+                  <div className="space-y-6">
+                    <div>
+                      <h3 className="text-sm font-semibold text-gray-900 uppercase tracking-wide mb-3">중복 로그인 정책</h3>
+                      <Text type="secondary" className="block mb-4">
+                        사용자가 중복 로그인을 시도할 때의 기본 동작을 설정합니다. 사용자별로 중복 로그인 허용 여부를 개별 설정할 수 있습니다.
+                      </Text>
+                      <div className="group relative rounded-lg border border-gray-100 bg-gray-50/50 p-4 transition-all hover:border-gray-200 hover:bg-white">
+                        <div className="flex items-start gap-3">
+                          <div className="flex-shrink-0 w-9 h-9 rounded-lg bg-white border border-gray-200 flex items-center justify-center text-gray-500 group-hover:border-blue-200 group-hover:text-blue-600 transition-colors">
+                            <Monitor className="w-4 h-4" />
+                          </div>
+                          <div className="flex-1">
+                            <div className="font-medium text-gray-900 mb-2">중복 로그인 금지 시 동작</div>
+                            <div className="text-sm text-gray-500 mb-4">사용자의 중복 로그인이 금지된 경우, 새 로그인 시도 시 어떻게 처리할지 선택합니다.</div>
+                            <Form.Item name="concurrentLoginAction" className="!mb-0">
+                              <Radio.Group className="flex flex-col gap-3">
+                                {CONCURRENT_LOGIN_ACTION_OPTIONS.map((option) => (
+                                  <Radio key={option.value} value={option.value} className="!items-start">
+                                    <div>
+                                      <div className="font-medium text-gray-900">{option.label}</div>
+                                      <div className="text-sm text-gray-500">{option.description}</div>
+                                    </div>
+                                  </Radio>
+                                ))}
+                              </Radio.Group>
+                            </Form.Item>
+                          </div>
                         </div>
-                        <p className="mt-1 text-sm text-blue-600">신규 사용자는 첫 로그인 시 반드시 비밀번호를 변경해야 합니다. (필수 적용)</p>
                       </div>
                     </div>
                   </div>
@@ -465,7 +516,20 @@ export default function PasswordPolicyPage() {
                     <SummaryItem label="유효 기간" value={currentValues.maxAgeDays ? `${currentValues.maxAgeDays}일` : '무제한'} />
                     <SummaryItem label="경고 시작" value={`${currentValues.expirationWarningDays || 14}일 전`} />
                     <SummaryItem label="재사용 금지" value={`최근 ${currentValues.historyCount || 5}개`} />
-                    <SummaryItem label="최초 로그인 변경" value="필수" active={true} />
+                    <SummaryItem label="휴면 전환" value={currentValues.dormantDays ? `${currentValues.dormantDays}일` : '비활성'} />
+                  </div>
+                </div>
+
+                <Divider className="!my-3" />
+
+                {/* 세션 요약 */}
+                <div>
+                  <div className="flex items-center gap-2 mb-2">
+                    <Monitor className="w-4 h-4 text-gray-400" />
+                    <span className="text-xs font-semibold text-gray-500 uppercase tracking-wide">세션 정책</span>
+                  </div>
+                  <div className="space-y-0 divide-y divide-gray-100">
+                    <SummaryItem label="중복 로그인 금지 시" value={currentValues.concurrentLoginAction === 'KICK_EXISTING' ? '기존 종료' : '새 로그인 차단'} />
                   </div>
                 </div>
               </div>

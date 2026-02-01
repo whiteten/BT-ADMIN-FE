@@ -11,7 +11,9 @@ const UserDetail = React.lazy(() => import('./pages/user/UserDetail'));
 const AuthGroupManagement = React.lazy(() => import('./pages/iam/AuthGroupManagement'));
 const RoleCreatePage = React.lazy(() => import('./pages/iam/RoleCreatePage'));
 const RoleDetailPage = React.lazy(() => import('./pages/iam/RoleDetailPage'));
-const PasswordPolicyPage = React.lazy(() => import('./pages/password-policy/PasswordPolicyPage'));
+
+// 계정 정책 페이지
+const AccountPolicyPage = React.lazy(() => import('./pages/account-policy/AccountPolicyPage'));
 
 export const routes = [
   {
@@ -90,8 +92,8 @@ export const routes = [
             ],
           },
           {
-            path: 'password-policy',
-            element: <PasswordPolicyPage />,
+            path: 'account-policy',
+            element: <AccountPolicyPage />,
           },
         ],
       },
@@ -114,7 +116,11 @@ export const routes = [
           },
           {
             path: 'password-policy',
-            element: <Navigate to="/manager/resource/password-policy" replace />,
+            element: <Navigate to="/manager/resource/account-policy" replace />,
+          },
+          {
+            path: 'account-policy',
+            element: <Navigate to="/manager/resource/account-policy" replace />,
           },
         ],
       },
