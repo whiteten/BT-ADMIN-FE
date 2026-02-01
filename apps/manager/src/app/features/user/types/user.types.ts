@@ -46,6 +46,8 @@ export interface User {
   allowedIps?: string;
   /** 할당된 역할 목록 */
   roles?: string[];
+  /** 중복 로그인 허용 여부 */
+  allowConcurrentLogin?: boolean;
 }
 
 /**
@@ -71,6 +73,8 @@ export interface UserCreateDatas {
   email?: string;
   /** 접근 허용 IP 목록 (JSON 배열 문자열) */
   allowedIps?: string;
+  /** 중복 로그인 허용 여부 (기본값: true) */
+  allowConcurrentLogin?: boolean;
 }
 
 /**
@@ -95,6 +99,8 @@ export interface UserUpdateDatas {
   email?: string;
   /** 접근 허용 IP 목록 (JSON 배열 문자열) */
   allowedIps?: string;
+  /** 중복 로그인 허용 여부 */
+  allowConcurrentLogin?: boolean;
 }
 
 /**

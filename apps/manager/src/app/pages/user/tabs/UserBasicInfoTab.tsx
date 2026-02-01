@@ -7,7 +7,7 @@
 import { useEffect } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { useQueryClient } from '@tanstack/react-query';
-import { Button, Col, Form, type FormProps, Input, Row, Select } from 'antd';
+import { Button, Col, Form, type FormProps, Input, Row, Select, Switch } from 'antd';
 import { useAuthStore } from '@/shared-store';
 import { toast } from '@/shared-util';
 import { useDeleteUser, useGetUser, useResetPasswordToAccount, useUpdateUser, userQueryKeys } from '../../../features/user/hooks/useUserQueries';
@@ -38,6 +38,7 @@ interface UserBasicFormValues {
   description?: string;
   roleId?: number;
   accountStatus: AccountStatus;
+  allowConcurrentLogin: boolean;
 }
 
 export default function UserBasicInfoTab() {
@@ -87,6 +88,7 @@ export default function UserBasicInfoTab() {
         description: user.description,
         roleId: user.roleId,
         accountStatus: user.accountStatus,
+        allowConcurrentLogin: user.allowConcurrentLogin !== false,
       });
     }
   }, [user, form]);
@@ -126,6 +128,7 @@ export default function UserBasicInfoTab() {
       description: values.description,
       roleId: values.roleId,
       accountStatus: values.accountStatus ?? 'ACTIVE',
+      allowConcurrentLogin: values.allowConcurrentLogin,
     };
     updateUser({
       params: { userId: numericUserId },
@@ -231,6 +234,27 @@ export default function UserBasicInfoTab() {
               </Form.Item>
             </Col>
           </Row>
+          <Row gutter={20}>
+            <Col span={12}>
+              <Form.Item
+                name="allowConcurrentLogin"
+                label="중복 로그인 허용"
+                valuePropName="checked"
+                tooltip="허용하지 않으면 동시에 하나의 세션만 유지됩니다. 테넌트 정책에 따라 기존 세션이 종료되거나 새 로그인이 차단됩니다."
+              >
+                <Switch checkedChildren="허용" unCheckedChildren="금지" />
+              </Form.Item>
+            </Col>
+            {hasResetPasswordPermission && (
+              <Col span={12}>
+                <Form.Item label="비밀번호 관리" tooltip="비밀번호를 계정명과 동일하게 초기화합니다. 초기화 후 다음 로그인 시 비밀번호 변경이 필요합니다.">
+                  <Button color="orange" variant="solid" loading={isResetting} onClick={handleClickResetPasswordBtn}>
+                    초기화
+                  </Button>
+                </Form.Item>
+              </Col>
+            )}
+          </Row>
           {user && (
             <div className="mt-4 grid grid-cols-2 gap-4 text-sm text-gray-600 p-4 bg-gray-50 rounded-lg">
               <div>
@@ -253,13 +277,6 @@ export default function UserBasicInfoTab() {
                 저장
               </Button>
             </Col>
-            {hasResetPasswordPermission && (
-              <Col>
-                <Button color="orange" variant="solid" loading={isResetting} onClick={handleClickResetPasswordBtn}>
-                  비밀번호 초기화
-                </Button>
-              </Col>
-            )}
             <Col>
               <Button color="red" variant="solid" loading={isDeleting} onClick={handleClickDeleteBtn}>
                 삭제

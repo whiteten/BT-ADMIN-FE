@@ -43,6 +43,7 @@ interface UserFormValues {
   description?: string;
   roleId?: number;
   accountStatus: AccountStatus;
+  allowConcurrentLogin: boolean;
   phone?: string;
   email?: string;
   allowedIps?: string[];
@@ -62,6 +63,7 @@ export default function UserCreate() {
 
   const initialValues: Partial<UserFormValues> = {
     accountStatus: 'ACTIVE',
+    allowConcurrentLogin: true,
   };
   const formValues = Form.useWatch([], form);
   // allowedIps를 최상위에서 watch (훅 규칙 준수)
@@ -112,6 +114,7 @@ export default function UserCreate() {
       description: values.description,
       roleId: values.roleId,
       accountStatus: values.accountStatus ?? 'ACTIVE',
+      allowConcurrentLogin: values.allowConcurrentLogin,
       phone: values.phone,
       email: values.email,
       // allowedIps를 JSON 문자열로 변환
@@ -209,6 +212,18 @@ export default function UserCreate() {
           <Col span={24}>
             <Form.Item name="description" label="설명" rules={[{ max: 500, message: '최대 500자까지 입력 가능합니다.' }]}>
               <Input.TextArea placeholder="사용자에 대한 설명을 입력하세요." rows={3} showCount maxLength={500} />
+            </Form.Item>
+          </Col>
+        </Row>
+        <Row gutter={20}>
+          <Col span={12}>
+            <Form.Item
+              name="allowConcurrentLogin"
+              label="중복 로그인 허용"
+              valuePropName="checked"
+              tooltip="허용하지 않으면 동시에 하나의 세션만 유지됩니다. 테넌트 정책에 따라 기존 세션이 종료되거나 새 로그인이 차단됩니다."
+            >
+              <Switch checkedChildren="허용" unCheckedChildren="금지" />
             </Form.Item>
           </Col>
         </Row>
@@ -345,7 +360,7 @@ export default function UserCreate() {
   // 폼 정보 요약 렌더링
   function renderFormSummary() {
     const values = formValues ?? initialValues;
-    const { username, userAccount, description, roleId, accountStatus, phone, email, allowedIps } = values as UserFormValues;
+    const { username, userAccount, description, roleId, accountStatus, allowConcurrentLogin, phone, email, allowedIps } = values as UserFormValues;
 
     if (isFetchingRoles) {
       return (
@@ -381,6 +396,10 @@ export default function UserCreate() {
           <div className="flex items-center gap-1">
             <span className="text-gray-500 w-28 shrink-0">초기 비밀번호</span>
             <span className="text-gray-800 flex-1 text-blue-600">{userAccount ? '계정과 동일' : <span className="text-gray-300">-</span>}</span>
+          </div>
+          <div className="flex items-center gap-1">
+            <span className="text-gray-500 w-28 shrink-0">중복 로그인</span>
+            <span className={`flex-1 font-medium ${allowConcurrentLogin !== false ? 'text-green-600' : 'text-red-500'}`}>{allowConcurrentLogin !== false ? '허용' : '금지'}</span>
           </div>
           <div className="flex items-center gap-1">
             <span className="text-gray-500 w-28 shrink-0">설명</span>
