@@ -9,6 +9,7 @@ import type {
   ResetPasswordRequest,
   ResetPasswordResponse,
   UserInfoResponse,
+  WsTicketResponse,
 } from '../types/auth';
 
 const authClient = new ApiClient({ serviceURL: '/auth' });
@@ -29,6 +30,10 @@ export const authApi = {
   },
   getUserInfo: async (params?: Record<string, unknown>): Promise<UserInfoResponse> => {
     const response = await authClient.get<DetailResponse<UserInfoResponse>>('/me', { params });
+    return extractDetail(response);
+  },
+  getWsTicket: async (params?: Record<string, unknown>): Promise<WsTicketResponse> => {
+    const response = await authClient.get<DetailResponse<WsTicketResponse>>('/ws-ticket', { params });
     return extractDetail(response);
   },
   /**
