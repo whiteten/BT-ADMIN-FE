@@ -5,6 +5,7 @@ import { LOG } from '@/log';
 import { useAuthStore, useNavigationStore } from '@/shared-store';
 import { useGetUserInfo, useGetWsTicket } from '../auth/hooks/useAuthQueries';
 import { useGetNavigation } from '../common/hooks/useNavigationQueries';
+import { useSessionSocket } from '../common/hooks/useSessionSocket';
 import { useGetRoles } from '../management/hooks/useRoleQueries';
 import { FallbackSpinner } from '@/components/custom/FallbackSpinner';
 
@@ -16,7 +17,9 @@ export default function SharedInfoProvider() {
   const { data: userInfo, isLoading: isUserInfoLoading, error: userInfoError } = useGetUserInfo();
   const { data: roles, isLoading: isRolesLoading, error: rolesError } = useGetRoles();
   const { data: navigation, isLoading: isNavigationLoading, error: navigationError } = useGetNavigation();
-  const { data: wsTicket, isLoading: isWsTicketLoading, error: wsTicketError } = useGetWsTicket();
+  const { data: ticketResponse, isLoading: isWsTicketLoading, error: wsTicketError } = useGetWsTicket();
+
+  useSessionSocket({ ticket: ticketResponse?.ticket ?? null });
 
   useEffect(() => {
     if (roles) {
@@ -44,10 +47,10 @@ export default function SharedInfoProvider() {
   }, [isRolesLoading, isUserInfoLoading, setIsLoading]);
 
   useEffect(() => {
-    if (wsTicket) {
-      Log.debug('Ws ticket fetched successfully. wsTicket: ', wsTicket);
+    if (ticketResponse) {
+      Log.debug('Ws ticket fetched successfully. response: ', ticketResponse);
     }
-  }, [wsTicket]);
+  }, [ticketResponse]);
 
   useEffect(() => {
     if (rolesError) Log.error('Failed to fetch roles', rolesError);
