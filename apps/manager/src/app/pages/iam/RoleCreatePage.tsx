@@ -44,6 +44,7 @@ interface RoleFormValues {
   description?: string;
   sortOrder?: number;
   isUse: boolean;
+  canResetPassword: boolean;
 }
 
 export default function RoleCreatePage() {
@@ -72,6 +73,7 @@ export default function RoleCreatePage() {
     description: '',
     sortOrder: 0,
     isUse: true,
+    canResetPassword: false,
   };
 
   const formValues = Form.useWatch([], form);
@@ -163,6 +165,7 @@ export default function RoleCreatePage() {
 
     const request: RoleCreateDatas = {
       ...values,
+      canResetPassword: values.canResetPassword,
       authIds,
     };
     createRole(request);
@@ -206,21 +209,31 @@ export default function RoleCreatePage() {
           </Col>
         </Row>
         <Row gutter={20}>
-          <Col span={24}>
-            <Form.Item name="description" label="설명">
-              <Input.TextArea rows={3} placeholder="역할에 대한 설명을 입력하세요." />
-            </Form.Item>
-          </Col>
-        </Row>
-        <Row gutter={20}>
           <Col span={12}>
             <Form.Item name="sortOrder" label="정렬 순서">
               <InputNumber min={0} className="!w-full" placeholder="정렬 순서를 입력하세요." />
             </Form.Item>
           </Col>
-          <Col span={12}>
+          <Col span={6}>
             <Form.Item name="isUse" label="사용 여부" valuePropName="checked">
               <Switch checkedChildren="사용" unCheckedChildren="미사용" />
+            </Form.Item>
+          </Col>
+          <Col span={6}>
+            <Form.Item
+              name="canResetPassword"
+              label="비밀번호 초기화 권한"
+              valuePropName="checked"
+              tooltip="이 역할을 가진 사용자가 다른 사용자의 비밀번호를 초기화할 수 있습니다."
+            >
+              <Switch checkedChildren="허용" unCheckedChildren="불가" />
+            </Form.Item>
+          </Col>
+        </Row>
+        <Row gutter={20}>
+          <Col span={24}>
+            <Form.Item name="description" label="설명">
+              <Input.TextArea rows={3} placeholder="역할에 대한 설명을 입력하세요." />
             </Form.Item>
           </Col>
         </Row>
@@ -249,7 +262,7 @@ export default function RoleCreatePage() {
   // 폼 정보 요약 렌더링
   function renderFormSummary() {
     const values = formValues ?? initialValues;
-    const { roleCode, roleName, description, sortOrder, isUse } = values;
+    const { roleCode, roleName, description, sortOrder, isUse, canResetPassword } = values;
 
     return (
       <div className="space-y-4">
@@ -278,6 +291,12 @@ export default function RoleCreatePage() {
             <span className="text-gray-500 w-20 shrink-0">사용 여부</span>
             <span className="flex-1">
               <Tag color={isUse ? 'green' : 'default'}>{isUse ? '사용' : '미사용'}</Tag>
+            </span>
+          </div>
+          <div className="flex items-center gap-1">
+            <span className="text-gray-500 w-20 shrink-0">비밀번호 초기화</span>
+            <span className="flex-1">
+              <Tag color={canResetPassword ? 'blue' : 'default'}>{canResetPassword ? '허용' : '불가'}</Tag>
             </span>
           </div>
         </div>
