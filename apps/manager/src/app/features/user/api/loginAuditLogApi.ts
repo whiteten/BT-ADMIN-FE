@@ -1,4 +1,4 @@
-import ApiClient, { type ListResponse, extractList } from '@/shared-util';
+import ApiClient from '@/shared-util';
 import type { LoginAuditLog, LoginAuditLogSearchParams } from '../types/loginAuditLog.types';
 
 /**
@@ -9,6 +9,16 @@ interface PagedResponse<T> {
   page: number;
   size: number;
   total: number;
+}
+
+/**
+ * API 응답 구조 (BFF ApiResponse)
+ */
+interface ApiResponse<T> {
+  ok: boolean;
+  code: string;
+  message: string;
+  data: T;
 }
 
 /**
@@ -27,7 +37,8 @@ export const loginAuditLogApi = {
    * @flow login-log-list
    */
   search: async (params?: LoginAuditLogSearchParams): Promise<PagedResponse<LoginAuditLog>> => {
-    const response = await apiClient.get<ListResponse<PagedResponse<LoginAuditLog>>>('/login-log-list', { params });
-    return extractList(response) as unknown as PagedResponse<LoginAuditLog>;
+    const response = await apiClient.get<ApiResponse<PagedResponse<LoginAuditLog>>>('/login-log-list', { params });
+    // ApiResponse.data에서 PagedResponse 추출
+    return response?.data?.data ?? { items: [], page: 0, size: 0, total: 0 };
   },
 };

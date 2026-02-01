@@ -68,6 +68,10 @@ export default class ApiClient {
       originalRequest._retry = true;
       try {
         await this.#refreshCsrfToken();
+        // 로그인 API는 CSRF 토큰 재발급만 하고 재시도하지 않음 (중복 로그인 이력 방지)
+        if (originalRequest.url?.includes('/login')) {
+          return Promise.reject(error);
+        }
         return this.#instance(originalRequest);
       } catch (csrfError) {
         Log.error('[CSRF] 토큰 재발급 실패', csrfError);

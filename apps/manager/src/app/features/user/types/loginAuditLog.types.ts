@@ -35,7 +35,7 @@ export type LoginResult = 'SUCCESS' | 'FAILURE' | 'LOCKED';
 /**
  * 실패 사유 타입
  */
-export type FailureReason = 'USER_NOT_FOUND' | 'INVALID_PASSWORD' | 'ACCOUNT_DISABLED' | 'ACCOUNT_DORMANT' | 'ACCOUNT_LOCKED';
+export type FailureReason = 'USER_NOT_FOUND' | 'INVALID_PASSWORD' | 'ACCOUNT_DISABLED' | 'ACCOUNT_DORMANT' | 'ACCOUNT_LOCKED' | 'IP_NOT_ALLOWED';
 
 /**
  * 로그인 이력 검색 파라미터
@@ -78,4 +78,5 @@ export const FAILURE_REASON_LABELS: Record<FailureReason, string> = {
   ACCOUNT_DISABLED: '계정 비활성화',
   ACCOUNT_DORMANT: '휴면 계정',
   ACCOUNT_LOCKED: '계정 잠금',
+  IP_NOT_ALLOWED: 'IP 접근 제한',
 } as const;
