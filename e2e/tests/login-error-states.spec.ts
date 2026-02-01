@@ -10,7 +10,7 @@ import {
   mockLoginFirstLogin,
   mockLoginExpired,
 } from '../fixtures/auth-mocks';
-import { defaultPolicy } from '../fixtures/password-policy-mocks';
+import { defaultPolicy } from '../fixtures/account-policy-mocks';
 
 test.describe('로그인 에러 상태', () => {
   let loginPage: LoginPage;
@@ -91,10 +91,10 @@ test.describe('로그인 에러 상태', () => {
     await loginPage.screenshot('login-disabled-account');
   });
 
-  test.skip('비밀번호 만료 임박 (7일) - 확인 모달', async ({ page, mockLogin, mockPasswordPolicy }) => {
+  test.skip('비밀번호 만료 임박 (7일) - 확인 모달', async ({ page, mockLogin, mockAccountPolicy }) => {
     // TODO: 실제 백엔드 연동 시 테스트 - 현재 mock 응답이 React Query에서 제대로 처리되지 않음
     await mockLogin(mockLoginExpiringSoon, 200);
-    await mockPasswordPolicy(defaultPolicy);
+    await mockAccountPolicy(defaultPolicy);
     await loginPage.login('admin', 'password');
 
     // Ant Design confirm 모달 대기 - 타이틀이 표시될 때까지
@@ -115,9 +115,9 @@ test.describe('로그인 에러 상태', () => {
     });
   });
 
-  test('최초 로그인 - 비밀번호 변경 강제', async ({ page, mockLogin, mockPasswordPolicy }) => {
+  test('최초 로그인 - 비밀번호 변경 강제', async ({ page, mockLogin, mockAccountPolicy }) => {
     await mockLogin(mockLoginFirstLogin, 200);
-    await mockPasswordPolicy(defaultPolicy);
+    await mockAccountPolicy(defaultPolicy);
     await loginPage.login('newuser', 'temppassword');
 
     // 비밀번호 변경 다이얼로그 대기
@@ -134,9 +134,9 @@ test.describe('로그인 에러 상태', () => {
     });
   });
 
-  test('비밀번호 만료 - 변경 필수', async ({ page, mockLogin, mockPasswordPolicy }) => {
+  test('비밀번호 만료 - 변경 필수', async ({ page, mockLogin, mockAccountPolicy }) => {
     await mockLogin(mockLoginExpired, 200);
-    await mockPasswordPolicy(defaultPolicy);
+    await mockAccountPolicy(defaultPolicy);
     await loginPage.login('admin', 'oldpassword');
 
     // 비밀번호 변경 다이얼로그 대기

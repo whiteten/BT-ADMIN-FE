@@ -26,6 +26,14 @@ export interface RoleInfo {
   canResetPassword?: boolean;
 }
 
+/**
+ * 비밀번호 만료 경고 정보
+ */
+export interface PasswordExpiringWarning {
+  show: boolean;
+  daysUntilExpiration: number | null;
+}
+
 interface AuthStore {
   /** 현재 로그인한 사용자 정보 */
   userInfo: UserInfo | null;
@@ -33,12 +41,16 @@ interface AuthStore {
   roleList: RoleInfo[];
   /** 로딩 상태 */
   isLoading: boolean;
+  /** 비밀번호 만료 경고 (로그인 후 메인 페이지에서 토스트 표시용) */
+  passwordExpiringWarning: PasswordExpiringWarning | null;
   /** 사용자 정보 설정 */
   setUserInfo: (userInfo: UserInfo | null) => void;
   /** 역할 목록 설정 */
   setRoleList: (roleList: RoleInfo[]) => void;
   /** 로딩 상태 설정 */
   setIsLoading: (isLoading: boolean) => void;
+  /** 비밀번호 만료 경고 설정 */
+  setPasswordExpiringWarning: (warning: PasswordExpiringWarning | null) => void;
   /** 스토어 초기화 (로그아웃 시) */
   reset: () => void;
   /** 역할코드로 역할명 조회 */
@@ -53,6 +65,7 @@ const initialState = {
   userInfo: null,
   roleList: [],
   isLoading: false,
+  passwordExpiringWarning: null,
 };
 
 export const useAuthStore = create<AuthStore>((set, get) => ({
@@ -61,6 +74,7 @@ export const useAuthStore = create<AuthStore>((set, get) => ({
   setUserInfo: (userInfo) => set({ userInfo }),
   setRoleList: (roleList) => set({ roleList }),
   setIsLoading: (isLoading) => set({ isLoading }),
+  setPasswordExpiringWarning: (warning) => set({ passwordExpiringWarning: warning }),
   reset: () => set(initialState),
 
   getRoleName: (roleCode: string) => {

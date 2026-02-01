@@ -2,7 +2,7 @@ import { test, expect } from '../fixtures/test-base';
 import { LoginPage } from '../pages/login.page';
 import { ChangePasswordDialog } from '../pages/change-password-dialog.page';
 import { mockLoginFirstLogin } from '../fixtures/auth-mocks';
-import { strictPolicy, lenientPolicy, defaultPolicy } from '../fixtures/password-policy-mocks';
+import { strictPolicy, lenientPolicy, defaultPolicy } from '../fixtures/account-policy-mocks';
 
 test.describe('비밀번호 강도 미터 - 정책 검증', () => {
   let loginPage: LoginPage;
@@ -15,8 +15,8 @@ test.describe('비밀번호 강도 미터 - 정책 검증', () => {
     await loginPage.goto();
   });
 
-  test('엄격한 정책 - 약한 비밀번호와 강한 비밀번호', async ({ page, mockPasswordPolicy, mockPasswordChange }) => {
-    await mockPasswordPolicy(strictPolicy);
+  test('엄격한 정책 - 약한 비밀번호와 강한 비밀번호', async ({ page, mockAccountPolicy, mockPasswordChange }) => {
+    await mockAccountPolicy(strictPolicy);
     await mockPasswordChange(true);
 
     await loginPage.login('testuser', 'temp');
@@ -42,8 +42,8 @@ test.describe('비밀번호 강도 미터 - 정책 검증', () => {
     await dialog.screenshot('password-strength-strong');
   });
 
-  test('rejectUserId 규칙 - 사용자 ID 포함 금지', async ({ page, mockPasswordPolicy, mockPasswordChange }) => {
-    await mockPasswordPolicy(defaultPolicy);
+  test('rejectUserId 규칙 - 사용자 ID 포함 금지', async ({ page, mockAccountPolicy, mockPasswordChange }) => {
+    await mockAccountPolicy(defaultPolicy);
     await mockPasswordChange(true);
 
     await loginPage.login('johndoe', 'temp');
@@ -61,8 +61,8 @@ test.describe('비밀번호 강도 미터 - 정책 검증', () => {
     await dialog.screenshot('password-strength-reject-userid');
   });
 
-  test('rejectConsecutiveChars 규칙 - 연속 문자 금지', async ({ page, mockPasswordPolicy, mockPasswordChange }) => {
-    await mockPasswordPolicy(strictPolicy);
+  test('rejectConsecutiveChars 규칙 - 연속 문자 금지', async ({ page, mockAccountPolicy, mockPasswordChange }) => {
+    await mockAccountPolicy(strictPolicy);
     await mockPasswordChange(true);
 
     await loginPage.login('testuser', 'temp');
@@ -79,8 +79,8 @@ test.describe('비밀번호 강도 미터 - 정책 검증', () => {
     await dialog.screenshot('password-strength-consecutive');
   });
 
-  test('rejectRepeatedChars 규칙 - 반복 문자 금지', async ({ page, mockPasswordPolicy, mockPasswordChange }) => {
-    await mockPasswordPolicy(strictPolicy);
+  test('rejectRepeatedChars 규칙 - 반복 문자 금지', async ({ page, mockAccountPolicy, mockPasswordChange }) => {
+    await mockAccountPolicy(strictPolicy);
     await mockPasswordChange(true);
 
     await loginPage.login('testuser', 'temp');
@@ -97,8 +97,8 @@ test.describe('비밀번호 강도 미터 - 정책 검증', () => {
     await dialog.screenshot('password-strength-repeated');
   });
 
-  test('완화된 정책 - 최소 규칙만 적용', async ({ page, mockPasswordPolicy, mockPasswordChange }) => {
-    await mockPasswordPolicy(lenientPolicy);
+  test('완화된 정책 - 최소 규칙만 적용', async ({ page, mockAccountPolicy, mockPasswordChange }) => {
+    await mockAccountPolicy(lenientPolicy);
     await mockPasswordChange(true);
 
     await loginPage.login('testuser', 'temp');

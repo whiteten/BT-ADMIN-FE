@@ -7,7 +7,7 @@ import type { ChangePasswordRequest, LoginRequestDatas, LoginResponse, ResetPass
 export const authQueryKeys = createQueryKeys('auth', {
   getCsrfToken: (params?: Record<string, unknown>) => [params],
   getUserInfo: (params?: Record<string, unknown>) => [params],
-  passwordPolicy: (params?: Record<string, unknown>) => [params],
+  accountPolicy: (params?: Record<string, unknown>) => [params],
 });
 
 export const useGetCsrfToken = ({ params, queryOptions }: QueryHookWithParamsOptions = {}) => {

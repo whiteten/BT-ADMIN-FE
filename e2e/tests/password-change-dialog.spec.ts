@@ -2,7 +2,7 @@ import { test, expect } from '../fixtures/test-base';
 import { LoginPage } from '../pages/login.page';
 import { ChangePasswordDialog } from '../pages/change-password-dialog.page';
 import { mockLoginExpiringSoon, mockLoginFirstLogin, mockLoginExpired } from '../fixtures/auth-mocks';
-import { defaultPolicy } from '../fixtures/password-policy-mocks';
+import { defaultPolicy } from '../fixtures/account-policy-mocks';
 
 test.describe('비밀번호 변경 다이얼로그 - 3가지 모드', () => {
   let loginPage: LoginPage;
@@ -13,10 +13,10 @@ test.describe('비밀번호 변경 다이얼로그 - 3가지 모드', () => {
     dialog = new ChangePasswordDialog(page);
   });
 
-  test.skip('manual 모드 - 취소 버튼 및 현재 비밀번호 필드 있음', async ({ page, mockLogin, mockPasswordPolicy, mockPasswordChange }) => {
+  test.skip('manual 모드 - 취소 버튼 및 현재 비밀번호 필드 있음', async ({ page, mockLogin, mockAccountPolicy, mockPasswordChange }) => {
     // TODO: 실제 백엔드 연동 시 테스트 - 비밀번호 만료 임박 mock이 제대로 동작하지 않음
     await mockLogin(mockLoginExpiringSoon, 200);
-    await mockPasswordPolicy(defaultPolicy);
+    await mockAccountPolicy(defaultPolicy);
     await mockPasswordChange(true);
 
     await loginPage.goto();
@@ -40,10 +40,10 @@ test.describe('비밀번호 변경 다이얼로그 - 3가지 모드', () => {
     await expect(dialog.dialog).not.toBeVisible({ timeout: 5000 });
   });
 
-  test.skip('first-login 모드 - 취소 버튼 없음, 현재 비밀번호 필드 없음', async ({ page, mockLogin, mockPasswordPolicy, mockPasswordChange }) => {
+  test.skip('first-login 모드 - 취소 버튼 없음, 현재 비밀번호 필드 없음', async ({ page, mockLogin, mockAccountPolicy, mockPasswordChange }) => {
     // TODO: 실제 백엔드 연동 시 테스트 - forcePasswordChange mock이 제대로 동작하지 않음
     await mockLogin(mockLoginFirstLogin, 200);
-    await mockPasswordPolicy(defaultPolicy);
+    await mockAccountPolicy(defaultPolicy);
     await mockPasswordChange(true);
 
     await loginPage.goto();
@@ -70,10 +70,10 @@ test.describe('비밀번호 변경 다이얼로그 - 3가지 모드', () => {
     await dialog.clickSubmit();
   });
 
-  test.skip('expired 모드 - 취소 버튼 없음, 현재 비밀번호 필드 있음', async ({ page, mockLogin, mockPasswordPolicy, mockPasswordChange }) => {
+  test.skip('expired 모드 - 취소 버튼 없음, 현재 비밀번호 필드 있음', async ({ page, mockLogin, mockAccountPolicy, mockPasswordChange }) => {
     // TODO: 실제 백엔드 연동 시 테스트 - passwordExpired mock이 제대로 동작하지 않음
     await mockLogin(mockLoginExpired, 200);
-    await mockPasswordPolicy(defaultPolicy);
+    await mockAccountPolicy(defaultPolicy);
     await mockPasswordChange(true);
 
     await loginPage.goto();

@@ -2,7 +2,8 @@ import { useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { App, Button, Checkbox, Form, type FormProps, Input } from 'antd';
 import type { AxiosError } from 'axios';
-import { Lock, LockKeyhole, Timer, User, Users } from 'lucide-react';
+import { Lock, LockKeyhole, User, Users } from 'lucide-react';
+import { useAuthStore } from '@/shared-store';
 import { toast } from '@/shared-util';
 import styles from './Login.module.scss';
 import { authApi } from '../features/auth/api/authApi';
@@ -34,10 +35,10 @@ interface LoginErrorState {
 export default function Login() {
   const navigate = useNavigate();
   const [form] = Form.useForm();
-  const { modal } = App.useApp();
   const changePasswordDialogRef = useRef<ChangePasswordDialogRef>(null);
   const [pendingLoginResponse, setPendingLoginResponse] = useState<LoginResponse | null>(null);
   const [passwordPolicy, setPasswordPolicy] = useState<PasswordPolicy | undefined>(undefined);
+  const { setPasswordExpiringWarning } = useAuthStore();
 
   // Account lock state
   const [lockState, setLockState] = useState<LockState>({ isLocked: false, retryAfterSeconds: 0 });
@@ -107,64 +108,18 @@ export default function Login() {
         // Clear any previous errors
         setLoginError({ error: null, message: '' });
 
-        // Check forcePasswordChange or passwordExpired
-        if (response.forcePasswordChange || response.passwordExpired) {
-          setPendingLoginResponse(response);
-
-          // Load password policy for tenant
-          if (response.tenantId) {
-            try {
-              const policy = await authApi.getPasswordPolicy(response.tenantId);
-              setPasswordPolicy(policy);
-              Log.info('Password policy loaded for tenant:', response.tenantId, policy);
-            } catch (error) {
-              Log.warn('Failed to load password policy, using defaults:', error);
-            }
-          } else {
-            Log.warn('No tenantId in login response, using default password policy');
-          }
-
-          // Open password change dialog
-          const mode: ChangePasswordMode = response.passwordExpired ? 'expired' : 'first-login';
-          changePasswordDialogRef.current?.open({
-            mode,
-            userId: form.getFieldValue('userId'),
+        // passwordExpiringSoon: 로그인 성공 + 스토어에 경고 저장 후 메인 화면 이동
+        // (메인 화면에서 토스트 메시지 표시)
+        // (forcePasswordChange, passwordExpired는 401 에러로 처리됨 - onError에서 핸들링)
+        if (response.passwordExpiringSoon && response.daysUntilExpiration !== null) {
+          // 스토어에 비밀번호 만료 경고 저장 (메인 페이지에서 토스트 표시용)
+          setPasswordExpiringWarning({
+            show: true,
+            daysUntilExpiration: response.daysUntilExpiration,
           });
-        } else if (response.passwordExpiringSoon && response.daysUntilExpiration !== null) {
-          // Password expiring soon - show confirmation modal
-          setPendingLoginResponse(response);
-
-          // Load password policy for the dialog
-          if (response.tenantId) {
-            try {
-              const policy = await authApi.getPasswordPolicy(response.tenantId);
-              setPasswordPolicy(policy);
-            } catch (error) {
-              Log.warn('Failed to load password policy:', error);
-            }
-          }
-
-          modal.confirm({
-            title: '비밀번호 만료 예정',
-            icon: <Timer className="h-6 w-6 text-yellow-500 mr-2" />,
-            content: `비밀번호가 ${response.daysUntilExpiration}일 후 만료됩니다. 지금 변경하시겠습니까?`,
-            okText: '지금 변경',
-            cancelText: '나중에',
-            centered: true,
-            onOk: () => {
-              changePasswordDialogRef.current?.open({
-                mode: 'manual',
-                userId: form.getFieldValue('userId'),
-              });
-            },
-            onCancel: () => {
-              navigate('/');
-            },
-          });
-        } else {
-          // Normal login - navigate to main page
-          navigate('/');
         }
+        // Navigate to main page
+        navigate('/');
       },
       onError: async (error: Error) => {
         const axiosError = error as AxiosError<{ ok: boolean; code: string; message: string; data: LoginErrorResponse }>;
@@ -186,14 +141,14 @@ export default function Login() {
           case 'password_change_required': {
             Log.info('[login] Password change required:', errorData);
 
-            // 비밀번호 정책 로드
+            // 계정 정책 로드
             if (errorData.tenantId) {
               try {
-                const policy = await authApi.getPasswordPolicy(errorData.tenantId);
+                const policy = await authApi.getAccountPolicy(errorData.tenantId);
                 setPasswordPolicy(policy);
-                Log.info('Password policy loaded for tenant:', errorData.tenantId, policy);
+                Log.info('Account policy loaded for tenant:', errorData.tenantId, policy);
               } catch (policyError) {
-                Log.warn('Failed to load password policy, using defaults:', policyError);
+                Log.warn('Failed to load account policy, using defaults:', policyError);
               }
             }
 
@@ -255,6 +210,13 @@ export default function Login() {
             });
             break;
 
+          case 'ip_not_allowed':
+            setLoginError({
+              error: 'ip_not_allowed',
+              message: errorData.error_description || '허용되지 않은 IP 주소입니다. 관리자에게 문의하세요.',
+            });
+            break;
+
           default:
             setLoginError({
               error: null,
@@ -289,6 +251,8 @@ export default function Login() {
 
   /**
    * Handle password change
+   * - first-login 모드: currentPassword 불필요 (토큰만으로 인증)
+   * - expired 모드: currentPassword 필수 (현재 비밀번호 검증)
    */
   const handlePasswordChange = async (data: { currentPassword?: string; newPassword: string; passwordResetToken?: string }) => {
     if (!pendingLoginResponse?.userId) {
@@ -298,6 +262,7 @@ export default function Login() {
     resetPassword({
       passwordResetToken: data.passwordResetToken ?? '',
       newPassword: data.newPassword,
+      currentPassword: data.currentPassword,
     });
   };
 
@@ -356,6 +321,17 @@ export default function Login() {
         <Alert variant="default" className="mb-4">
           <Users className="h-4 w-4" />
           <AlertTitle>테넌트 입력 필요</AlertTitle>
+          <AlertDescription>{loginError.message}</AlertDescription>
+        </Alert>
+      );
+    }
+
+    // IP not allowed
+    if (loginError.error === 'ip_not_allowed') {
+      return (
+        <Alert variant="destructive" className="mb-4">
+          <Lock className="h-4 w-4" />
+          <AlertTitle>접근 제한</AlertTitle>
           <AlertDescription>{loginError.message}</AlertDescription>
         </Alert>
       );

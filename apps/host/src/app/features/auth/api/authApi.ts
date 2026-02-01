@@ -40,13 +40,13 @@ export const authApi = {
     await bffClient.put('/password-update', data, { params: { userId } });
   },
   /**
-   * 비밀번호 정책 조회 (인증 없이 접근 가능)
+   * 계정 정책 조회 (인증 없이 접근 가능)
    * - 최초 로그인, 비밀번호 만료 시 비밀번호 변경 전 정책 조회
    * - 세션 없이 tenantId 파라미터로 조회
    * @param tenantId 테넌트 ID (로그인 응답에서 받은 값)
    */
-  getPasswordPolicy: async (tenantId: number): Promise<PasswordPolicy> => {
-    const response = await authClient.get<DetailResponse<PasswordPolicy>>('/password-policy', {
+  getAccountPolicy: async (tenantId: number): Promise<PasswordPolicy> => {
+    const response = await authClient.get<DetailResponse<PasswordPolicy>>('/account-policy', {
       params: { tenantId },
     });
     return extractDetail(response);
