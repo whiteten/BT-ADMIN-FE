@@ -3,6 +3,7 @@ import { useParams, useSearchParams } from 'react-router-dom';
 import { useQueryClient } from '@tanstack/react-query';
 import type {
   CellDoubleClickedEvent,
+  CellKeyDownEvent,
   ColDef,
   FirstDataRenderedEvent,
   GetRowIdParams,
@@ -314,6 +315,13 @@ export default function IntentSentenceList() {
     });
   };
 
+  const handleCellKeyDown = (event: CellKeyDownEvent<IntentSentenceListItem>) => {
+    if ((event.event as KeyboardEvent)?.key === 'Enter' && editingRowId && event.data) {
+      (event.event as KeyboardEvent).stopPropagation();
+      handleSave(event.data);
+    }
+  };
+
   const cancelEditing = () => {
     gridApiRef.current?.stopEditing(true);
   };
@@ -343,6 +351,12 @@ export default function IntentSentenceList() {
       editable: true,
       cellEditor: InputTextCellEditor,
       cellEditorParams: { placeholder: '문장을 입력하세요.' },
+      suppressKeyboardEvent: (params) => {
+        if (params.editing && params.event.key === 'Enter') {
+          return true;
+        }
+        return false;
+      },
     },
     {
       headerName: '학습상태',
@@ -449,6 +463,7 @@ export default function IntentSentenceList() {
           onCellDoubleClicked={handleCellDoubleClick}
           onRowEditingStarted={handleRowEditingStarted}
           onRowEditingStopped={handleRowEditingStopped}
+          onCellKeyDown={handleCellKeyDown}
         />
       </div>
       <IntentSentenceAutoGenDrawer ref={refAutoGenDrawer} onAdd={handleCreateBulkIntentSentenceByDrawer} isAdding={isCreatingBulk} />
