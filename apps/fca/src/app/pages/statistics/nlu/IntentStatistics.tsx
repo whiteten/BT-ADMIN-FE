@@ -104,16 +104,10 @@ export default function IntentStatistics() {
 
   useEffect(() => {
     setRowData(filteredList ?? []);
-  }, [filteredList]);
-
-  useEffect(() => {
     handleDateSearch();
-  }, [draftDateRange]);
-
-  useEffect(() => {
     setScnIds(draftScnIds);
     setModelIds(draftModelIds);
-  }, [draftScnIds, draftModelIds]);
+  }, [filteredList, draftDateRange, handleDateSearch, draftScnIds, draftModelIds]);
 
   const handleScnIdsChange = (value: string[]) => {
     setDraftScnIds(value ?? []);

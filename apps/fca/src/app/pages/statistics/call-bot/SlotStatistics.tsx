@@ -88,15 +88,9 @@ export default function SlotStatistics() {
 
   useEffect(() => {
     setRowData(filteredList ?? []);
-  }, [filteredList]);
-
-  useEffect(() => {
     handleDateSearch();
-  }, [draftDateRange]);
-
-  useEffect(() => {
     setServiceIds(draftServiceIds);
-  }, [draftServiceIds]);
+  }, [filteredList, draftDateRange, handleDateSearch, draftServiceIds]);
 
   const handleServiceIdsChange = (value: string[]) => {
     setDraftServiceIds(value ?? []);
