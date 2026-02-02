@@ -104,7 +104,10 @@ export default function EntityStatistics() {
 
   useEffect(() => {
     setRowData(filteredList ?? []);
-  }, [filteredList]);
+    handleDateSearch();
+    setScnIds(draftScnIds);
+    setModelIds(draftModelIds);
+  }, [filteredList, draftDateRange, handleDateSearch, draftScnIds, draftModelIds]);
 
   const handleScnIdsChange = (value: string[]) => {
     setDraftScnIds(value ?? []);
@@ -130,12 +133,6 @@ export default function EntityStatistics() {
     { headerName: '개체 값', field: 'entityValue', flex: 1 },
     { headerName: '검출횟수', field: 'entityCnt', maxWidth: 100, cellStyle: { alignItems: 'center' } },
   ];
-
-  const handleSearch = () => {
-    handleDateSearch();
-    setScnIds(draftScnIds);
-    setModelIds(draftModelIds);
-  };
 
   const [isExporting, setIsExporting] = useState(false);
 
@@ -223,9 +220,6 @@ export default function EntityStatistics() {
             />
           </div>
           <div className="flex items-center gap-2 shrink-0">
-            <Button type="primary" onClick={handleSearch}>
-              조회
-            </Button>
             <Button
               type="primary"
               loading={isExporting}

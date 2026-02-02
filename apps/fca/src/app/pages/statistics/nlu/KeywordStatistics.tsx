@@ -104,7 +104,10 @@ export default function KeywordStatistics() {
 
   useEffect(() => {
     setRowData(filteredList ?? []);
-  }, [filteredList]);
+    handleDateSearch();
+    setScnIds(draftScnIds);
+    setModelIds(draftModelIds);
+  }, [filteredList, draftDateRange, handleDateSearch, draftScnIds, draftModelIds]);
 
   const handleScnIdsChange = (value: string[]) => {
     setDraftScnIds(value ?? []);
@@ -129,12 +132,6 @@ export default function KeywordStatistics() {
     { headerName: '키워드', field: 'keyword', flex: 1 },
     { headerName: '검출횟수', field: 'keywordCnt', maxWidth: 100, cellStyle: { alignItems: 'center' } },
   ];
-
-  const handleSearch = () => {
-    handleDateSearch();
-    setScnIds(draftScnIds);
-    setModelIds(draftModelIds);
-  };
 
   const [isExporting, setIsExporting] = useState(false);
 
@@ -222,9 +219,6 @@ export default function KeywordStatistics() {
             />
           </div>
           <div className="flex items-center gap-2 shrink-0">
-            <Button type="primary" onClick={handleSearch}>
-              조회
-            </Button>
             <Button
               type="primary"
               loading={isExporting}

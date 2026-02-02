@@ -78,7 +78,9 @@ export default function ServiceStatistics() {
 
   useEffect(() => {
     setRowData(filteredList ?? []);
-  }, [filteredList]);
+    handleDateSearch();
+    setServiceIds(draftServiceIds);
+  }, [filteredList, draftDateRange, handleDateSearch, draftServiceIds]);
 
   const handleServiceIdsChange = (value: string[]) => {
     setDraftServiceIds(value ?? []);
@@ -120,11 +122,6 @@ export default function ServiceStatistics() {
     },
     { headerName: '질의수', field: 'botSlotInCount', flex: 1, cellStyle: { alignItems: 'center' } },
   ];
-
-  const handleSearch = () => {
-    handleDateSearch();
-    setServiceIds(draftServiceIds);
-  };
 
   const [isExporting, setIsExporting] = useState(false);
 
@@ -201,9 +198,6 @@ export default function ServiceStatistics() {
             />
           </div>
           <div className="flex items-center gap-2 shrink-0">
-            <Button type="primary" onClick={handleSearch}>
-              조회
-            </Button>
             <Button
               type="primary"
               loading={isExporting}
