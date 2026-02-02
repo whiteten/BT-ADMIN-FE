@@ -19,23 +19,14 @@ export default function PageHeader({ title, breadcrumb, extra }: PageHeaderProps
     );
   };
 
-  if (extra) {
-    return (
-      <header className="flex flex-col bg-white bt-shadow">
-        <div className="flex items-center justify-between w-full px-7 py-4">
-          <span className="text-[20px] font-bold text-[#495057]">{title}</span>
-          <Breadcrumb items={breadcrumb} itemRender={itemRender} />
-        </div>
-        <Divider className="!m-0" />
-        <div className="w-full px-7 py-[14px]">{extra}</div>
-      </header>
-    );
-  }
-
   return (
-    <header className="flex items-center justify-between w-full h-[58px] min-h-[58px] bg-white bt-shadow px-7 py-4">
-      <span className="text-[20px] font-bold text-[#495057]">{title}</span>
-      <Breadcrumb items={breadcrumb} itemRender={itemRender} />
+    <header className="flex items-center justify-between bg-white bt-shadow flex-wrap py-2.5 gap-y-1">
+      <div className="shrink-0 flex items-center gap-5 px-7">
+        <span className="text-[20px] font-bold text-[#495057]">{title}</span>
+        <Divider orientation="vertical" className="!m-0 !h-5" />
+        <Breadcrumb items={breadcrumb} itemRender={itemRender} />
+      </div>
+      {extra && <div className="min-w-0 px-7">{extra}</div>}
     </header>
   );
 }
