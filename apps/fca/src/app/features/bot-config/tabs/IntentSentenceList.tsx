@@ -1,9 +1,10 @@
 import { useEffect, useRef, useState } from 'react';
-import { useParams } from 'react-router-dom';
+import { useParams, useSearchParams } from 'react-router-dom';
 import { useQueryClient } from '@tanstack/react-query';
 import type {
   CellDoubleClickedEvent,
   ColDef,
+  FirstDataRenderedEvent,
   GetRowIdParams,
   GridApi,
   GridReadyEvent,
@@ -120,6 +121,8 @@ const ActionCellRenderer = (params: ActionCellRendererParams) => {
 
 export default function IntentSentenceList() {
   const { modelId = '', intentId = '' } = useParams();
+  const [searchParams] = useSearchParams();
+  const sentenceId = searchParams.get('sentenceId');
   const modal = useModal();
   const { gridOptions } = useAggridOptions();
   const queryClient = useQueryClient();
@@ -224,6 +227,35 @@ export default function IntentSentenceList() {
   // Grid 이벤트 핸들러
   const handleGridReady = (event: GridReadyEvent<IntentSentenceListItem>) => {
     gridApiRef.current = event.api;
+  };
+
+  // URL query string의 sentenceId로 해당 row를 찾아 페이지 이동 + 스크롤 + 선택 처리
+  // 페이지 이동이 필요한 경우, paginationChanged 일회성 리스너를 등록하여
+  // 페이지 전환 완료 후 스크롤/선택을 실행한다.
+  const handleFirstDataRendered = (event: FirstDataRenderedEvent<IntentSentenceListItem>) => {
+    if (!sentenceId) return;
+    const node = event.api.getRowNode(sentenceId);
+    if (node?.rowIndex != null) {
+      const pageSize = event.api.paginationGetPageSize();
+      const currentPage = event.api.paginationGetCurrentPage();
+      const targetPage = Math.floor(node.rowIndex / pageSize);
+
+      const selectAndScroll = () => {
+        event.api.ensureNodeVisible(node, 'middle');
+        event.api.setNodesSelected({ nodes: [node], newValue: true });
+      };
+
+      if (currentPage !== targetPage) {
+        const onPaginationChanged = () => {
+          event.api.removeEventListener('paginationChanged', onPaginationChanged);
+          selectAndScroll();
+        };
+        event.api.addEventListener('paginationChanged', onPaginationChanged);
+        event.api.paginationGoToPage(targetPage);
+      } else {
+        selectAndScroll();
+      }
+    }
   };
 
   const getRowId = (params: GetRowIdParams<IntentSentenceListItem>) => {
@@ -413,6 +445,7 @@ export default function IntentSentenceList() {
           }}
           loading={isLoadingSentenceList || isUpdating}
           onGridReady={handleGridReady}
+          onFirstDataRendered={handleFirstDataRendered}
           onCellDoubleClicked={handleCellDoubleClick}
           onRowEditingStarted={handleRowEditingStarted}
           onRowEditingStopped={handleRowEditingStopped}

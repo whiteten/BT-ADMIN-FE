@@ -1,3 +1,4 @@
+import { useNavigate } from 'react-router-dom';
 import type { ICellRendererParams } from 'ag-grid-community';
 import { MessageCircle } from 'lucide-react';
 import { useGetIntentSentences } from '../hooks/useModelQueries';
@@ -11,6 +12,7 @@ interface IntentSentenceDetailParams extends ICellRendererParams<IntentListItem>
 
 export default function IntentSentenceCustomDetail(params: IntentSentenceDetailParams) {
   const { sentence, modelId } = params;
+  const navigate = useNavigate();
   const { data: sentences, isLoading } = useGetIntentSentences({ params: { intentId: params.data?.intentId, modelId, sentence } });
   if (isLoading)
     return (
@@ -28,7 +30,10 @@ export default function IntentSentenceCustomDetail(params: IntentSentenceDetailP
         {sentences?.map((sentence, index) => (
           <div
             key={index}
-            className="flex items-start gap-2 rounded-lg border border-border/60 bg-card p-2.5 shadow-sm transition-all cursor-default border-l-3 border-l-[var(--color-bt-primary)]/60 hover:shadow-md hover:border-[var(--color-bt-primary)]/40"
+            className="flex items-start gap-2 rounded-lg border border-border/60 bg-card p-2.5 shadow-sm transition-all cursor-default border-l-3 border-l-[var(--color-bt-primary)]/60 hover:shadow-md hover:border-[var(--color-bt-primary)]/40 hover:cursor-pointer"
+            onClick={() => {
+              navigate(`./intent/${params.data?.intentId}?tab=tab2&sentenceId=${sentence.sentenceId}`);
+            }}
           >
             <MessageCircle className="size-4 shrink-0 mt-0.5 text-[var(--color-bt-primary)]/60" />
             <span className="text-sm whitespace-pre-wrap break-all">{sentence.sentence}</span>
