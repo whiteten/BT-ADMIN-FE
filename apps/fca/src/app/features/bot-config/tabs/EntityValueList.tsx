@@ -3,6 +3,7 @@ import { useParams } from 'react-router-dom';
 import { useQueryClient } from '@tanstack/react-query';
 import type {
   CellDoubleClickedEvent,
+  CellKeyDownEvent,
   ColDef,
   GetRowIdParams,
   GridApi,
@@ -426,6 +427,13 @@ export default function EntityValueList() {
     }
   };
 
+  const handleCellKeyDown = (event: CellKeyDownEvent<EntityValueListItem>) => {
+    if ((event.event as KeyboardEvent)?.key === 'Enter' && editingRowId && event.data) {
+      (event.event as KeyboardEvent).stopPropagation();
+      handleSave(event.data);
+    }
+  };
+
   const cancelEditing = () => {
     gridApiRef.current?.stopEditing(true);
   };
@@ -451,6 +459,7 @@ export default function EntityValueList() {
       cellStyle: { display: 'flex', alignItems: 'center' },
       cellEditor: InputTextCellEditor,
       cellEditorParams: { placeholder: '대표값을 입력하세요.' },
+      suppressKeyboardEvent: (params) => params.editing && params.event.key === 'Enter',
       maxWidth: 250,
     },
     {
@@ -466,6 +475,7 @@ export default function EntityValueList() {
           { label: '패턴형', value: 'PATTERNS' },
         ],
       },
+      suppressKeyboardEvent: (params) => params.editing && params.event.key === 'Enter',
       cellRenderer: TypeCellRenderer,
     },
     {
@@ -479,6 +489,7 @@ export default function EntityValueList() {
       cellEditorParams: {
         placeholder: '여러 단어는 콤마(,)로 구분해 입력하세요.',
       },
+      suppressKeyboardEvent: (params) => params.editing && params.event.key === 'Enter',
       cellRenderer: EntityTypeValuesCellRenderer,
     },
     {
@@ -551,6 +562,7 @@ export default function EntityValueList() {
           onCellDoubleClicked={handleCellDoubleClick}
           onRowEditingStarted={handleRowEditingStarted}
           onRowEditingStopped={handleRowEditingStopped}
+          onCellKeyDown={handleCellKeyDown}
         />
       </div>
     </div>
