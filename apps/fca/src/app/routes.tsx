@@ -16,6 +16,12 @@ const IntentDetail = React.lazy(() => import('./pages/bot-config/IntentDetail'))
 const EntityDetail = React.lazy(() => import('./pages/bot-config/EntityDetail'));
 const EvaluationDetail = React.lazy(() => import('./pages/bot-config/EvaluationDetail'));
 const AoeConfig = React.lazy(() => import('./pages/global/AoeConfig'));
+const ServiceStatistics = React.lazy(() => import('./pages/statistics/call-bot/ServiceStatistics'));
+const DialogStatistics = React.lazy(() => import('./pages/statistics/call-bot/DialogStatistics'));
+const SlotStatistics = React.lazy(() => import('./pages/statistics/call-bot/SlotStatistics'));
+const IntentStatistics = React.lazy(() => import('./pages/statistics/nlu/IntentStatistics'));
+const EntityStatistics = React.lazy(() => import('./pages/statistics/nlu/EntityStatistics'));
+const KeywordStatistics = React.lazy(() => import('./pages/statistics/nlu/KeywordStatistics'));
 
 const sharedModelRoutes = [
   { index: true, element: <Navigate to="list" replace /> },
@@ -100,6 +106,33 @@ export const routes = [
                   { path: ':agentId', element: <FaqDetail /> },
                 ],
               },
+            ],
+          },
+        ],
+      },
+      {
+        path: 'statistics',
+        element: <Outlet />,
+        children: [
+          { index: true, element: <Navigate to="call-bot/service" replace /> },
+          {
+            path: 'call-bot',
+            element: <Outlet />,
+            children: [
+              { index: true, element: <Navigate to="service" replace /> },
+              { path: 'service', element: <ServiceStatistics /> },
+              { path: 'dialog', element: <DialogStatistics /> },
+              { path: 'slot', element: <SlotStatistics /> },
+            ],
+          },
+          {
+            path: 'nlu',
+            element: <Outlet />,
+            children: [
+              { index: true, element: <Navigate to="intent" replace /> },
+              { path: 'intent', element: <IntentStatistics /> },
+              { path: 'entity', element: <EntityStatistics /> },
+              { path: 'keyword', element: <KeywordStatistics /> },
             ],
           },
         ],

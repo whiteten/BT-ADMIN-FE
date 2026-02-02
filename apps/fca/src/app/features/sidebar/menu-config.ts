@@ -101,7 +101,7 @@ const menuConfig = {
             {
               menuId: 13,
               label: '대화 통계',
-              path: 'statistics/call-bot/conversation',
+              path: 'statistics/call-bot/dialog',
               index: 1,
               hide: false,
             },
