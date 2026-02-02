@@ -106,6 +106,15 @@ export default function IntentStatistics() {
     setRowData(filteredList ?? []);
   }, [filteredList]);
 
+  useEffect(() => {
+    handleDateSearch();
+  }, [draftDateRange]);
+
+  useEffect(() => {
+    setScnIds(draftScnIds);
+    setModelIds(draftModelIds);
+  }, [draftScnIds, draftModelIds]);
+
   const handleScnIdsChange = (value: string[]) => {
     setDraftScnIds(value ?? []);
   };
@@ -133,12 +142,6 @@ export default function IntentStatistics() {
     { headerName: '임계값 체크', field: 'thresholdCheckCnt', maxWidth: 100, cellStyle: { alignItems: 'center' } },
     { headerName: '임계값 실패', field: 'thresholdFailCnt', maxWidth: 100, cellStyle: { alignItems: 'center' } },
   ];
-
-  const handleSearch = () => {
-    handleDateSearch();
-    setScnIds(draftScnIds);
-    setModelIds(draftModelIds);
-  };
 
   const [isExporting, setIsExporting] = useState(false);
 
@@ -226,9 +229,6 @@ export default function IntentStatistics() {
             />
           </div>
           <div className="flex items-center gap-2 shrink-0">
-            <Button type="primary" onClick={handleSearch}>
-              조회
-            </Button>
             <Button
               type="primary"
               loading={isExporting}

@@ -90,6 +90,14 @@ export default function DialogStatistics() {
     setRowData(filteredList ?? []);
   }, [filteredList]);
 
+  useEffect(() => {
+    handleDateSearch();
+  }, [draftDateRange]);
+
+  useEffect(() => {
+    setServiceIds(draftServiceIds);
+  }, [draftServiceIds]);
+
   const handleServiceIdsChange = (value: string[]) => {
     setDraftServiceIds(value ?? []);
   };
@@ -116,11 +124,6 @@ export default function DialogStatistics() {
       valueFormatter: ({ value }: { value?: number }) => (value ? `${value}%` : '-'),
     },
   ];
-
-  const handleSearch = () => {
-    handleDateSearch();
-    setServiceIds(draftServiceIds);
-  };
 
   const [isExporting, setIsExporting] = useState(false);
 
@@ -200,9 +203,6 @@ export default function DialogStatistics() {
             <Input value={dialogName} onChange={(e) => setDialogName(e.target.value)} className="!min-w-[200px] !max-w-[250px]" placeholder="검색할 대화명을 입력하세요." />
           </div>
           <div className="flex items-center gap-2 shrink-0">
-            <Button type="primary" onClick={handleSearch}>
-              조회
-            </Button>
             <Button
               type="primary"
               loading={isExporting}

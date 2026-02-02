@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useCallback, useState } from 'react';
 import { message } from 'antd';
 import dayjs, { type Dayjs } from 'dayjs';
 
@@ -55,57 +55,66 @@ export function useDateRangeLimit({ initialTimeUnit = 'DD', initialDays = 7 }: U
     return [start, end];
   };
 
-  const handleTimeUnitChange = (value?: string) => {
-    const newUnit = value ?? '';
-    setTimeUnit(newUnit);
+  const handleTimeUnitChange = useCallback(
+    (value?: string) => {
+      const newUnit = value ?? '';
+      setTimeUnit(newUnit);
 
-    // timeUnit 변경 시 현재 날짜 범위가 제한을 초과하면 자동 조정
-    if (!validateDateRange(draftDateRange[0], draftDateRange[1], newUnit)) {
-      const adjustedRange = adjustDateRange(newUnit);
-      setDraftDateRange(adjustedRange);
-      message.warning(`${DATE_RANGE_LABEL[newUnit]} 이내로 날짜 범위가 조정되었습니다.`);
-    }
-  };
-
-  const handleDateRangeChange = (dates: [Dayjs | null, Dayjs | null] | null) => {
-    if (dates?.[0] && dates?.[1]) {
-      const startDate = dates[0];
-      const endDate = dates[1];
-
-      // 날짜 범위 검증
-      if (!validateDateRange(startDate, endDate, timeUnit)) {
-        message.warning(`검색 기간은 ${DATE_RANGE_LABEL[timeUnit]} 이내로 설정해주세요.`);
-        return;
+      // timeUnit 변경 시 현재 날짜 범위가 제한을 초과하면 자동 조정
+      if (!validateDateRange(draftDateRange[0], draftDateRange[1], newUnit)) {
+        const adjustedRange = adjustDateRange(newUnit);
+        setDraftDateRange(adjustedRange);
+        message.warning(`${DATE_RANGE_LABEL[newUnit]} 이내로 날짜 범위가 조정되었습니다.`);
       }
+    },
+    [draftDateRange],
+  );
 
-      setDraftDateRange([startDate, endDate]);
-    }
-  };
+  const handleDateRangeChange = useCallback(
+    (dates: [Dayjs | null, Dayjs | null] | null) => {
+      if (dates?.[0] && dates?.[1]) {
+        const startDate = dates[0];
+        const endDate = dates[1];
+
+        // 날짜 범위 검증
+        if (!validateDateRange(startDate, endDate, timeUnit)) {
+          message.warning(`검색 기간은 ${DATE_RANGE_LABEL[timeUnit]} 이내로 설정해주세요.`);
+          return;
+        }
+
+        setDraftDateRange([startDate, endDate]);
+      }
+    },
+    [timeUnit],
+  );
 
   // RangePicker에서 선택 불가능한 날짜 설정
-  const disabledDate = (current: Dayjs, info: { from?: Dayjs }) => {
-    if (!current) return false;
+  const disabledDate = useCallback(
+    (current: Dayjs, info: { from?: Dayjs }) => {
+      if (!current) return false;
 
-    const maxDays = getMaxDays(timeUnit);
-    const today = dayjs();
+      const maxDays = getMaxDays(timeUnit);
+      const today = dayjs();
 
-    // 미래 날짜 비활성화
-    if (current.isAfter(today, 'day')) {
-      return true;
-    }
+      // 미래 날짜 비활성화
+      if (current.isAfter(today, 'day')) {
+        return true;
+      }
 
-    // 시작 날짜가 선택되었을 때, 최대 범위를 벗어나는 날짜 비활성화
-    if (info.from) {
-      const daysDiff = Math.abs(current.diff(info.from, 'day'));
-      return daysDiff > maxDays;
-    }
+      // 시작 날짜가 선택되었을 때, 최대 범위를 벗어나는 날짜 비활성화
+      if (info.from) {
+        const daysDiff = Math.abs(current.diff(info.from, 'day'));
+        return daysDiff > maxDays;
+      }
 
-    return false;
-  };
+      return false;
+    },
+    [timeUnit],
+  );
 
-  const handleSearch = () => {
+  const handleSearch = useCallback(() => {
     setQueryDateRange(draftDateRange);
-  };
+  }, [draftDateRange]);
 
   return {
     draftDateRange,
