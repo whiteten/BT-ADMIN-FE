@@ -1,7 +1,7 @@
-import { useEffect, useMemo, useState } from 'react';
-import type { ColDef } from 'ag-grid-community';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import type { ColDef, ExcelExportParams, ProcessCellForExportParams } from 'ag-grid-community';
 import { AgGridReact } from 'ag-grid-react';
-import { type BreadcrumbProps, Button, DatePicker, Divider, Select } from 'antd';
+import { type BreadcrumbProps, Button, DatePicker, Divider, Select, message } from 'antd';
 import dayjs, { type Dayjs } from 'dayjs';
 import { Download } from 'lucide-react';
 import { useGetModels } from '../../../features/bot-config/hooks/useModelQueries';
@@ -28,6 +28,7 @@ export default function EntityStatistics() {
   const [modelId, setModelId] = useState('');
 
   const { gridOptions } = useAggridOptions();
+  const gridRef = useRef<AgGridReact<EntityStatListItem>>(null);
   const { RangePicker } = DatePicker;
   const { data: modelList } = useGetModels();
 
@@ -62,8 +63,9 @@ export default function EntityStatistics() {
       timeUnit: timeUnit,
       fromTime: queryDateRange[0].format('YYYYMMDD'),
       toTime: queryDateRange[1].format('YYYYMMDD'),
+      modelId: modelId?.trim(),
     };
-  }, [timeUnit, queryDateRange]);
+  }, [timeUnit, queryDateRange, modelId]);
 
   const { data: entityStatList, isLoading: isLoadingEntityStatList } = useGetEntityStatList({
     params: queryParams,
@@ -71,7 +73,7 @@ export default function EntityStatistics() {
 
   const filteredList = useMemo(() => {
     if (!entityStatList) return [];
-    if (!modelId.trim()) return entityStatList;
+    if (!modelId?.trim()) return entityStatList;
     return entityStatList.filter((entityStat) => String(entityStat.modelId ?? '') === modelId);
   }, [entityStatList, modelId]);
 
@@ -101,8 +103,8 @@ export default function EntityStatistics() {
       valueFormatter: ({ value }: { value?: string }) => (value ? dayjs(value).format(getTimeFormat(timeUnit)) : '-'),
       cellStyle: { alignItems: 'center' },
     },
-    { headerName: '봇서비스ID', field: 'scnId', hide: true },
-    { headerName: '봇서비스명', field: 'scnName', flex: 2 },
+    { headerName: '시나리오ID', field: 'scnId', hide: true },
+    { headerName: '시나리오명', field: 'scnName', flex: 2 },
     { headerName: '모델ID', field: 'modelId', hide: true },
     { headerName: '모델명', field: 'modelName', flex: 1 },
     { headerName: '개체명', field: 'entityTag', flex: 1 },
@@ -113,8 +115,36 @@ export default function EntityStatistics() {
     setQueryDateRange(draftDateRange);
   };
 
-  const handleExport = () => {
-    console.log('엑셀 다운로드');
+  const [isExporting, setIsExporting] = useState(false);
+
+  const handleExcelDownload = () => {
+    const api = gridRef.current?.api;
+    if (!api) return;
+    if (!rowData?.length) {
+      message.warning('다운로드할 데이터가 없습니다.');
+      return;
+    }
+
+    setIsExporting(true);
+    const fileName = `ENTITY_STATISTICS_${dayjs().format('YYYYMMDD_HHmmss')}.xlsx`;
+
+    const exportParams: ExcelExportParams = {
+      fileName,
+      sheetName: '개체 통계',
+      processCellCallback: (p: ProcessCellForExportParams) => {
+        const colId = p.column.getColId();
+        const v = p.value;
+
+        if (colId === 'psrTimeKey') {
+          return v ? dayjs(String(v)).format(getTimeFormat(timeUnit)) : '-';
+        }
+
+        return v ?? '-';
+      },
+    };
+
+    api.exportDataAsExcel(exportParams);
+    window.setTimeout(() => setIsExporting(false), 300);
   };
 
   return (
@@ -157,13 +187,19 @@ export default function EntityStatistics() {
             <Button type="primary" onClick={handleSearch}>
               조회
             </Button>
-            <Button type="primary" icon={<Download className="size-4" />} className="!bg-[#10B981] !border-[#10B981] hover:!bg-[#0FA968]" onClick={handleExport}>
+            <Button
+              type="primary"
+              loading={isExporting}
+              icon={<Download className="size-4" />}
+              className="!bg-[#10B981] !border-[#10B981] hover:!bg-[#0FA968]"
+              onClick={handleExcelDownload}
+            >
               엑셀
             </Button>
           </div>
         </div>
         <div className="w-full h-[calc(100%-56px)]">
-          <AgGridReact<EntityStatListItem> rowData={rowData} columnDefs={columnDefs} gridOptions={gridOptions} loading={isLoadingEntityStatList} />
+          <AgGridReact<EntityStatListItem> ref={gridRef} rowData={rowData} columnDefs={columnDefs} gridOptions={gridOptions} loading={isLoadingEntityStatList} />
         </div>
       </div>
     </div>

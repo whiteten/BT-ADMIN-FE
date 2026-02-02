@@ -1,7 +1,7 @@
-import { useEffect, useMemo, useState } from 'react';
-import type { ColDef } from 'ag-grid-community';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import type { ColDef, ExcelExportParams, ProcessCellForExportParams } from 'ag-grid-community';
 import { AgGridReact } from 'ag-grid-react';
-import { type BreadcrumbProps, Button, DatePicker, Divider, Select } from 'antd';
+import { type BreadcrumbProps, Button, DatePicker, Divider, Select, message } from 'antd';
 import dayjs, { type Dayjs } from 'dayjs';
 import { Download } from 'lucide-react';
 import { useGetBots } from '../../../features/bot-config/hooks/useBotQueries';
@@ -28,6 +28,7 @@ export default function DialogStatistics() {
   const [serviceId, setServiceId] = useState('');
 
   const { gridOptions } = useAggridOptions();
+  const gridRef = useRef<AgGridReact<DialogStatListItem>>(null);
   const { RangePicker } = DatePicker;
   const { data: botList } = useGetBots();
 
@@ -62,8 +63,9 @@ export default function DialogStatistics() {
       timeUnit: timeUnit,
       fromTime: queryDateRange[0].format('YYYYMMDD'),
       toTime: queryDateRange[1].format('YYYYMMDD'),
+      serviceId: serviceId?.trim(),
     };
-  }, [timeUnit, queryDateRange]);
+  }, [timeUnit, queryDateRange, serviceId]);
 
   const { data: dialogStatList, isLoading: isLoadingDialogStatList } = useGetDialogStatList({
     params: queryParams,
@@ -71,7 +73,7 @@ export default function DialogStatistics() {
 
   const filteredList = useMemo(() => {
     if (!dialogStatList) return [];
-    if (!serviceId.trim()) return dialogStatList;
+    if (!serviceId?.trim()) return dialogStatList;
     return dialogStatList.filter((dialogStat) => String(dialogStat.serviceId ?? '') === serviceId);
   }, [dialogStatList, serviceId]);
 
@@ -120,8 +122,40 @@ export default function DialogStatistics() {
     setQueryDateRange(draftDateRange);
   };
 
-  const handleExport = () => {
-    console.log('엑셀 다운로드');
+  const [isExporting, setIsExporting] = useState(false);
+
+  const handleExcelDownload = () => {
+    const api = gridRef.current?.api;
+    if (!api) return;
+    if (!rowData?.length) {
+      message.warning('다운로드할 데이터가 없습니다.');
+      return;
+    }
+
+    setIsExporting(true);
+    const fileName = `DIALOG_STATISTICS_${dayjs().format('YYYYMMDD_HHmmss')}.xlsx`;
+
+    const exportParams: ExcelExportParams = {
+      fileName,
+      sheetName: '대화 통계',
+      processCellCallback: (p: ProcessCellForExportParams) => {
+        const colId = p.column.getColId();
+        const v = p.value;
+
+        if (colId === 'psrTimeKey') {
+          return v ? dayjs(String(v)).format(getTimeFormat(timeUnit)) : '-';
+        }
+
+        if (colId === 'successPercent') {
+          return typeof v === 'number' ? `${v}%` : v ? `${v}%` : '-';
+        }
+
+        return v ?? '-';
+      },
+    };
+
+    api.exportDataAsExcel(exportParams);
+    window.setTimeout(() => setIsExporting(false), 300);
   };
 
   return (
@@ -163,13 +197,19 @@ export default function DialogStatistics() {
             <Button type="primary" onClick={handleSearch}>
               조회
             </Button>
-            <Button type="primary" icon={<Download className="size-4" />} className="!bg-[#10B981] !border-[#10B981] hover:!bg-[#0FA968]" onClick={handleExport}>
+            <Button
+              type="primary"
+              loading={isExporting}
+              icon={<Download className="size-4" />}
+              className="!bg-[#10B981] !border-[#10B981] hover:!bg-[#0FA968]"
+              onClick={handleExcelDownload}
+            >
               엑셀
             </Button>
           </div>
         </div>
         <div className="w-full h-[calc(100%-56px)]">
-          <AgGridReact<DialogStatListItem> rowData={rowData} columnDefs={columnDefs} gridOptions={gridOptions} loading={isLoadingDialogStatList} />
+          <AgGridReact<DialogStatListItem> ref={gridRef} rowData={rowData} columnDefs={columnDefs} gridOptions={gridOptions} loading={isLoadingDialogStatList} />
         </div>
       </div>
     </div>

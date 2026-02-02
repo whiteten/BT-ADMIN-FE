@@ -1,7 +1,7 @@
-import { useEffect, useMemo, useState } from 'react';
-import type { ColDef, ColGroupDef } from 'ag-grid-community';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import type { ColDef, ColGroupDef, ExcelExportParams, ProcessCellForExportParams } from 'ag-grid-community';
 import { AgGridReact } from 'ag-grid-react';
-import { type BreadcrumbProps, Button, DatePicker, Divider, Input, Select } from 'antd';
+import { type BreadcrumbProps, Button, DatePicker, Divider, Input, Select, message } from 'antd';
 import dayjs, { type Dayjs } from 'dayjs';
 import { Download } from 'lucide-react';
 import { useGetBots } from '../../../features/bot-config/hooks/useBotQueries';
@@ -29,6 +29,7 @@ export default function SlotStatistics() {
   const [dialogName, setDialogName] = useState('');
 
   const { gridOptions } = useAggridOptions();
+  const gridRef = useRef<AgGridReact<SlotStatListItem>>(null);
   const { RangePicker } = DatePicker;
   const { data: botList } = useGetBots();
 
@@ -63,8 +64,10 @@ export default function SlotStatistics() {
       timeUnit: timeUnit,
       fromTime: queryDateRange[0].format('YYYYMMDD'),
       toTime: queryDateRange[1].format('YYYYMMDD'),
+      serviceId: serviceId?.trim(),
+      dialogName: dialogName?.trim(),
     };
-  }, [timeUnit, queryDateRange]);
+  }, [timeUnit, queryDateRange, serviceId, dialogName]);
 
   const { data: slotStatList, isLoading: isLoadingSlotStatList } = useGetSlotStatList({
     params: queryParams,
@@ -72,8 +75,8 @@ export default function SlotStatistics() {
 
   const filteredList = useMemo(() => {
     if (!slotStatList) return [];
-    const trimmedServiceId = serviceId.trim();
-    const trimmedDialogName = dialogName.trim().toLowerCase();
+    const trimmedServiceId = serviceId?.trim();
+    const trimmedDialogName = dialogName?.trim().toLowerCase();
     if (!trimmedServiceId && !trimmedDialogName) return slotStatList;
     return slotStatList.filter((slotStat) => {
       const matchesService = !trimmedServiceId || String(slotStat.serviceId ?? '') === trimmedServiceId;
@@ -141,8 +144,40 @@ export default function SlotStatistics() {
     setQueryDateRange(draftDateRange);
   };
 
-  const handleExport = () => {
-    console.log('엑셀 다운로드');
+  const [isExporting, setIsExporting] = useState(false);
+
+  const handleExcelDownload = () => {
+    const api = gridRef.current?.api;
+    if (!api) return;
+    if (!rowData?.length) {
+      message.warning('다운로드할 데이터가 없습니다.');
+      return;
+    }
+
+    setIsExporting(true);
+    const fileName = `SLOT_STATISTICS_${dayjs().format('YYYYMMDD_HHmmss')}.xlsx`;
+
+    const exportParams: ExcelExportParams = {
+      fileName,
+      sheetName: '슬롯 통계',
+      processCellCallback: (p: ProcessCellForExportParams) => {
+        const colId = p.column.getColId();
+        const v = p.value;
+
+        if (colId === 'psrTimeKey') {
+          return v ? dayjs(String(v)).format(getTimeFormat(timeUnit)) : '-';
+        }
+
+        if (colId === 'successPercent') {
+          return typeof v === 'number' ? `${v}%` : v ? `${v}%` : '-';
+        }
+
+        return v ?? '-';
+      },
+    };
+
+    api.exportDataAsExcel(exportParams);
+    window.setTimeout(() => setIsExporting(false), 300);
   };
 
   return (
@@ -188,13 +223,19 @@ export default function SlotStatistics() {
             <Button type="primary" onClick={handleSearch}>
               조회
             </Button>
-            <Button type="primary" icon={<Download className="size-4" />} className="!bg-[#10B981] !border-[#10B981] hover:!bg-[#0FA968]" onClick={handleExport}>
+            <Button
+              type="primary"
+              loading={isExporting}
+              icon={<Download className="size-4" />}
+              className="!bg-[#10B981] !border-[#10B981] hover:!bg-[#0FA968]"
+              onClick={handleExcelDownload}
+            >
               엑셀
             </Button>
           </div>
         </div>
         <div className="w-full h-[calc(100%-56px)]">
-          <AgGridReact<SlotStatListItem> rowData={rowData} columnDefs={columnDefs} gridOptions={gridOptions} loading={isLoadingSlotStatList} />
+          <AgGridReact<SlotStatListItem> ref={gridRef} rowData={rowData} columnDefs={columnDefs} gridOptions={gridOptions} loading={isLoadingSlotStatList} />
         </div>
       </div>
     </div>
