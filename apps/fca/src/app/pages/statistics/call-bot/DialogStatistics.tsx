@@ -1,10 +1,11 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import type { ColDef, ExcelExportParams, ProcessCellForExportParams } from 'ag-grid-community';
 import { AgGridReact } from 'ag-grid-react';
-import { type BreadcrumbProps, Button, DatePicker, Divider, Select, message } from 'antd';
-import dayjs, { type Dayjs } from 'dayjs';
+import { type BreadcrumbProps, Button, DatePicker, Divider, Input, Select, message } from 'antd';
+import dayjs from 'dayjs';
 import { Download } from 'lucide-react';
 import { useGetBots } from '../../../features/bot-config/hooks/useBotQueries';
+import { useDateRangeLimit } from '../../../features/statistics/hooks/useDateRangeLimit';
 import { useGetDialogStatList } from '../../../features/statistics/hooks/useStatisticsQueries';
 import type { DialogStatListItem } from '../../../features/statistics/types/statistics.types';
 import PageHeader from '@/components/custom/PageHeader';
@@ -16,29 +17,28 @@ const breadcrumb: BreadcrumbProps['items'] = [
   { title: '대화 통계', path: '/fca/statistics/call-bot/dialog' },
 ];
 
-const TIME_FORMAT: Record<string, string> = {
-  MI: 'YYYY-MM-DD HH시 mm분',
-  HH: 'YYYY-MM-DD HH시',
-  DD: 'YYYY-MM-DD',
-  MM: 'YYYY-MM',
-  YY: 'YYYY',
-};
-
 export default function DialogStatistics() {
-  const [serviceId, setServiceId] = useState('');
+  const [serviceIds, setServiceIds] = useState<string[]>([]);
+  const [draftServiceIds, setDraftServiceIds] = useState<string[]>([]);
+  const [dialogName, setDialogName] = useState('');
 
   const { gridOptions } = useAggridOptions();
   const gridRef = useRef<AgGridReact<DialogStatListItem>>(null);
   const { RangePicker } = DatePicker;
   const { data: botList } = useGetBots();
 
-  const [draftDateRange, setDraftDateRange] = useState<[Dayjs, Dayjs]>([dayjs().subtract(7, 'day'), dayjs()]);
-  const [queryDateRange, setQueryDateRange] = useState<[Dayjs, Dayjs]>([dayjs().subtract(7, 'day'), dayjs()]);
-  const [timeUnit, setTimeUnit] = useState<string>('DD');
+  const {
+    draftDateRange,
+    queryDateRange,
+    timeUnit,
+    handleTimeUnitChange,
+    handleDateRangeChange,
+    handleSearch: handleDateSearch,
+    disabledDate,
+    getTimeFormat,
+  } = useDateRangeLimit();
 
   const [rowData, setRowData] = useState<DialogStatListItem[]>([]);
-
-  const getTimeFormat = (unit?: string) => TIME_FORMAT[unit ?? ''] ?? 'YYYY-MM-DD';
 
   type ServiceOption = { id: string; name: string };
 
@@ -63,9 +63,10 @@ export default function DialogStatistics() {
       timeUnit: timeUnit,
       fromTime: queryDateRange[0].format('YYYYMMDD'),
       toTime: queryDateRange[1].format('YYYYMMDD'),
-      serviceId: serviceId?.trim(),
+      serviceIds: serviceIds.length > 0 ? serviceIds : undefined,
+      dialogName: dialogName?.trim(),
     };
-  }, [timeUnit, queryDateRange, serviceId]);
+  }, [timeUnit, queryDateRange, serviceIds, dialogName]);
 
   const { data: dialogStatList, isLoading: isLoadingDialogStatList } = useGetDialogStatList({
     params: queryParams,
@@ -73,26 +74,24 @@ export default function DialogStatistics() {
 
   const filteredList = useMemo(() => {
     if (!dialogStatList) return [];
-    if (!serviceId?.trim()) return dialogStatList;
-    return dialogStatList.filter((dialogStat) => String(dialogStat.serviceId ?? '') === serviceId);
-  }, [dialogStatList, serviceId]);
+    const trimmedDialogName = dialogName?.trim().toLowerCase();
+    if (serviceIds.length === 0 && !trimmedDialogName) return dialogStatList;
+    return dialogStatList.filter((dialogStat) => {
+      const matchesDialogName =
+        !trimmedDialogName ||
+        String(dialogStat.dialogName ?? '')
+          .toLowerCase()
+          .includes(trimmedDialogName);
+      return matchesDialogName;
+    });
+  }, [dialogStatList, serviceIds, dialogName]);
 
   useEffect(() => {
     setRowData(filteredList ?? []);
   }, [filteredList]);
 
-  const handleTimeUnitChange = (value?: string) => {
-    setTimeUnit(value ?? '');
-  };
-
-  const handleColumnChange = (value?: string) => {
-    setServiceId(value ?? '');
-  };
-
-  const handleDateRangeChange = (dates: [Dayjs | null, Dayjs | null] | null) => {
-    if (dates?.[0] && dates?.[1]) {
-      setDraftDateRange([dates[0], dates[1]]);
-    }
+  const handleServiceIdsChange = (value: string[]) => {
+    setDraftServiceIds(value ?? []);
   };
 
   const columnDefs: ColDef<DialogStatListItem>[] = [
@@ -103,8 +102,8 @@ export default function DialogStatistics() {
       valueFormatter: ({ value }: { value?: string }) => (value ? dayjs(value).format(getTimeFormat(timeUnit)) : '-'),
       cellStyle: { alignItems: 'center' },
     },
-    { headerName: '서비스ID', field: 'serviceId', hide: true },
-    { headerName: '봇서비스', field: 'serviceName', hide: true },
+    { headerName: '봇서비스ID', field: 'serviceId', hide: true },
+    { headerName: '봇서비스', field: 'serviceName', flex: 2 },
     { headerName: '대화ID', field: 'dialogId', hide: true },
     { headerName: '대화명', field: 'dialogName', flex: 2 },
     { headerName: '진입수', field: 'inCount', maxWidth: 100, cellStyle: { alignItems: 'center' } },
@@ -119,7 +118,8 @@ export default function DialogStatistics() {
   ];
 
   const handleSearch = () => {
-    setQueryDateRange(draftDateRange);
+    handleDateSearch();
+    setServiceIds(draftServiceIds);
   };
 
   const [isExporting, setIsExporting] = useState(false);
@@ -179,19 +179,25 @@ export default function DialogStatistics() {
               popupMatchSelectWidth={false}
               defaultValue="DD"
             />
-            <RangePicker value={draftDateRange} onChange={handleDateRangeChange} inputReadOnly allowClear={false} />
+            <RangePicker value={draftDateRange} onChange={handleDateRangeChange} disabledDate={disabledDate} inputReadOnly allowClear={false} />
             <Divider orientation="vertical" className="!h-5 !m-0" />
             <span className="text-sm font-normal text-[#495057] shrink-0">봇서비스</span>
             <Select
-              value={serviceId || undefined}
-              onChange={handleColumnChange}
+              mode="multiple"
+              value={draftServiceIds}
+              onChange={handleServiceIdsChange}
               allowClear
               showSearch
+              maxTagCount="responsive"
               options={serviceSelectOptions}
               placeholder="검색할 봇서비스를 선택하세요."
-              className="!min-w-[200px] !max-w-[250px]"
+              optionFilterProp="label"
+              className="!min-w-[200px] !max-w-[400px]"
               popupMatchSelectWidth={false}
             />
+            <Divider orientation="vertical" className="!h-5 !m-0" />
+            <span className="text-sm font-medium text-[#495057] shrink-0">대화명</span>
+            <Input value={dialogName} onChange={(e) => setDialogName(e.target.value)} className="!min-w-[200px] !max-w-[250px]" placeholder="검색할 대화명을 입력하세요." />
           </div>
           <div className="flex items-center gap-2 shrink-0">
             <Button type="primary" onClick={handleSearch}>

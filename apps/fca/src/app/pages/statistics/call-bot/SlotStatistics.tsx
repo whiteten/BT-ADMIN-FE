@@ -2,9 +2,10 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import type { ColDef, ColGroupDef, ExcelExportParams, ProcessCellForExportParams } from 'ag-grid-community';
 import { AgGridReact } from 'ag-grid-react';
 import { type BreadcrumbProps, Button, DatePicker, Divider, Input, Select, message } from 'antd';
-import dayjs, { type Dayjs } from 'dayjs';
+import dayjs from 'dayjs';
 import { Download } from 'lucide-react';
 import { useGetBots } from '../../../features/bot-config/hooks/useBotQueries';
+import { useDateRangeLimit } from '../../../features/statistics/hooks/useDateRangeLimit';
 import { useGetSlotStatList } from '../../../features/statistics/hooks/useStatisticsQueries';
 import type { SlotStatListItem } from '../../../features/statistics/types/statistics.types';
 import PageHeader from '@/components/custom/PageHeader';
@@ -16,16 +17,9 @@ const breadcrumb: BreadcrumbProps['items'] = [
   { title: '슬롯 통계', path: '/fca/statistics/call-bot/slot' },
 ];
 
-const TIME_FORMAT: Record<string, string> = {
-  MI: 'YYYY-MM-DD HH시 mm분',
-  HH: 'YYYY-MM-DD HH시',
-  DD: 'YYYY-MM-DD',
-  MM: 'YYYY-MM',
-  YY: 'YYYY',
-};
-
 export default function SlotStatistics() {
-  const [serviceId, setServiceId] = useState('');
+  const [serviceIds, setServiceIds] = useState<string[]>([]);
+  const [draftServiceIds, setDraftServiceIds] = useState<string[]>([]);
   const [dialogName, setDialogName] = useState('');
 
   const { gridOptions } = useAggridOptions();
@@ -33,13 +27,18 @@ export default function SlotStatistics() {
   const { RangePicker } = DatePicker;
   const { data: botList } = useGetBots();
 
-  const [draftDateRange, setDraftDateRange] = useState<[Dayjs, Dayjs]>([dayjs().subtract(7, 'day'), dayjs()]);
-  const [queryDateRange, setQueryDateRange] = useState<[Dayjs, Dayjs]>([dayjs().subtract(7, 'day'), dayjs()]);
-  const [timeUnit, setTimeUnit] = useState<string>('DD');
+  const {
+    draftDateRange,
+    queryDateRange,
+    timeUnit,
+    handleTimeUnitChange,
+    handleDateRangeChange,
+    handleSearch: handleDateSearch,
+    disabledDate,
+    getTimeFormat,
+  } = useDateRangeLimit();
 
   const [rowData, setRowData] = useState<SlotStatListItem[]>([]);
-
-  const getTimeFormat = (unit?: string) => TIME_FORMAT[unit ?? ''] ?? 'YYYY-MM-DD';
 
   type ServiceOption = { id: string; name: string };
 
@@ -64,10 +63,10 @@ export default function SlotStatistics() {
       timeUnit: timeUnit,
       fromTime: queryDateRange[0].format('YYYYMMDD'),
       toTime: queryDateRange[1].format('YYYYMMDD'),
-      serviceId: serviceId?.trim(),
+      serviceIds: serviceIds.length > 0 ? serviceIds : undefined,
       dialogName: dialogName?.trim(),
     };
-  }, [timeUnit, queryDateRange, serviceId, dialogName]);
+  }, [timeUnit, queryDateRange, serviceIds, dialogName]);
 
   const { data: slotStatList, isLoading: isLoadingSlotStatList } = useGetSlotStatList({
     params: queryParams,
@@ -75,36 +74,24 @@ export default function SlotStatistics() {
 
   const filteredList = useMemo(() => {
     if (!slotStatList) return [];
-    const trimmedServiceId = serviceId?.trim();
     const trimmedDialogName = dialogName?.trim().toLowerCase();
-    if (!trimmedServiceId && !trimmedDialogName) return slotStatList;
+    if (serviceIds.length === 0 && !trimmedDialogName) return slotStatList;
     return slotStatList.filter((slotStat) => {
-      const matchesService = !trimmedServiceId || String(slotStat.serviceId ?? '') === trimmedServiceId;
       const matchesDialogName =
         !trimmedDialogName ||
         String(slotStat.dialogName ?? '')
           .toLowerCase()
           .includes(trimmedDialogName);
-      return matchesService && matchesDialogName;
+      return matchesDialogName;
     });
-  }, [slotStatList, serviceId, dialogName]);
+  }, [slotStatList, serviceIds, dialogName]);
 
   useEffect(() => {
     setRowData(filteredList ?? []);
   }, [filteredList]);
 
-  const handleTimeUnitChange = (value?: string) => {
-    setTimeUnit(value ?? '');
-  };
-
-  const handleColumnChange = (value?: string) => {
-    setServiceId(value ?? '');
-  };
-
-  const handleDateRangeChange = (dates: [Dayjs | null, Dayjs | null] | null) => {
-    if (dates?.[0] && dates?.[1]) {
-      setDraftDateRange([dates[0], dates[1]]);
-    }
+  const handleServiceIdsChange = (value: string[]) => {
+    setDraftServiceIds(value ?? []);
   };
 
   const columnDefs: Array<ColDef<SlotStatListItem> | ColGroupDef<SlotStatListItem>> = [
@@ -115,7 +102,7 @@ export default function SlotStatistics() {
       valueFormatter: ({ value }: { value?: string }) => (value ? dayjs(value).format(getTimeFormat(timeUnit)) : '-'),
       cellStyle: { alignItems: 'center' },
     },
-    { headerName: '서비스ID', field: 'serviceId', hide: true },
+    { headerName: '봇서비스ID', field: 'serviceId', hide: true },
     { headerName: '봇서비스', field: 'serviceName', hide: true },
     { headerName: '대화ID', field: 'dialogId', hide: true },
     { headerName: '대화명', field: 'dialogName', flex: 2 },
@@ -141,7 +128,8 @@ export default function SlotStatistics() {
   ];
 
   const handleSearch = () => {
-    setQueryDateRange(draftDateRange);
+    handleDateSearch();
+    setServiceIds(draftServiceIds);
   };
 
   const [isExporting, setIsExporting] = useState(false);
@@ -201,18 +189,20 @@ export default function SlotStatistics() {
               popupMatchSelectWidth={false}
               defaultValue="DD"
             />
-            <RangePicker value={draftDateRange} onChange={handleDateRangeChange} inputReadOnly allowClear={false} />
+            <RangePicker value={draftDateRange} onChange={handleDateRangeChange} disabledDate={disabledDate} inputReadOnly allowClear={false} />
             <Divider orientation="vertical" className="!h-5 !m-0" />
             <span className="text-sm font-medium text-[#495057] shrink-0">봇서비스</span>
             <Select
-              value={serviceId || undefined}
-              onChange={handleColumnChange}
+              mode="multiple"
+              value={draftServiceIds}
+              onChange={handleServiceIdsChange}
               allowClear
               showSearch
+              maxTagCount="responsive"
               options={serviceSelectOptions}
               placeholder="검색할 봇서비스를 선택하세요."
               optionFilterProp="label"
-              className="!min-w-[200px] !max-w-[250px]"
+              className="!min-w-[200px] !max-w-[400px]"
               popupMatchSelectWidth={false}
             />
             <Divider orientation="vertical" className="!h-5 !m-0" />

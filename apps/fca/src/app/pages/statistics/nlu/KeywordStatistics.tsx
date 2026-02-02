@@ -2,9 +2,11 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import type { ColDef, ExcelExportParams, ProcessCellForExportParams } from 'ag-grid-community';
 import { AgGridReact } from 'ag-grid-react';
 import { type BreadcrumbProps, Button, DatePicker, Divider, Select, message } from 'antd';
-import dayjs, { type Dayjs } from 'dayjs';
+import dayjs from 'dayjs';
 import { Download } from 'lucide-react';
+import { useGetBots } from '../../../features/bot-config/hooks/useBotQueries';
 import { useGetModels } from '../../../features/bot-config/hooks/useModelQueries';
+import { useDateRangeLimit } from '../../../features/statistics/hooks/useDateRangeLimit';
 import { useGetKeywordStatList } from '../../../features/statistics/hooks/useStatisticsQueries';
 import type { KeywordStatListItem } from '../../../features/statistics/types/statistics.types';
 import PageHeader from '@/components/custom/PageHeader';
@@ -16,31 +18,40 @@ const breadcrumb: BreadcrumbProps['items'] = [
   { title: '키워드 통계', path: '/fca/statistics/nlu/keyword' },
 ];
 
-const TIME_FORMAT: Record<string, string> = {
-  MI: 'YYYY-MM-DD HH시 mm분',
-  HH: 'YYYY-MM-DD HH시',
-  DD: 'YYYY-MM-DD',
-  MM: 'YYYY-MM',
-  YY: 'YYYY',
-};
-
 export default function KeywordStatistics() {
-  const [modelId, setModelId] = useState('');
+  const [modelIds, setModelIds] = useState<string[]>([]);
+  const [draftModelIds, setDraftModelIds] = useState<string[]>([]);
+  const [scnIds, setScnIds] = useState<string[]>([]);
+  const [draftScnIds, setDraftScnIds] = useState<string[]>([]);
 
   const { gridOptions } = useAggridOptions();
   const gridRef = useRef<AgGridReact<KeywordStatListItem>>(null);
   const { RangePicker } = DatePicker;
+  const { data: scnList } = useGetBots();
   const { data: modelList } = useGetModels();
 
-  const [draftDateRange, setDraftDateRange] = useState<[Dayjs, Dayjs]>([dayjs().subtract(7, 'day'), dayjs()]);
-  const [queryDateRange, setQueryDateRange] = useState<[Dayjs, Dayjs]>([dayjs().subtract(7, 'day'), dayjs()]);
-  const [timeUnit, setTimeUnit] = useState<string>('DD');
+  const {
+    draftDateRange,
+    queryDateRange,
+    timeUnit,
+    handleTimeUnitChange,
+    handleDateRangeChange,
+    handleSearch: handleDateSearch,
+    disabledDate,
+    getTimeFormat,
+  } = useDateRangeLimit();
 
   const [rowData, setRowData] = useState<KeywordStatListItem[]>([]);
 
-  const getTimeFormat = (unit?: string) => TIME_FORMAT[unit ?? ''] ?? 'YYYY-MM-DD';
-
+  type ScnOption = { id: string; name: string };
   type ModelOption = { id: string; name: string };
+
+  const scns: ScnOption[] = useMemo(() => {
+    if (scnList?.length) {
+      return scnList.filter((b) => Boolean(b?.serviceId && b?.serviceName)).map((b) => ({ id: String(b.serviceId), name: String(b.serviceName) }));
+    }
+    return [];
+  }, [scnList]);
 
   const models: ModelOption[] = useMemo(() => {
     if (modelList?.length) {
@@ -48,6 +59,15 @@ export default function KeywordStatistics() {
     }
     return [];
   }, [modelList]);
+
+  const scnSelectOptions = useMemo(
+    () =>
+      scns.map((s) => ({
+        label: s.name,
+        value: s.id,
+      })),
+    [scns],
+  );
 
   const modelSelectOptions = useMemo(
     () =>
@@ -63,9 +83,10 @@ export default function KeywordStatistics() {
       timeUnit: timeUnit,
       fromTime: queryDateRange[0].format('YYYYMMDD'),
       toTime: queryDateRange[1].format('YYYYMMDD'),
-      modelId: modelId?.trim(),
+      scnIds: scnIds.length > 0 ? scnIds : undefined,
+      modelIds: modelIds.length > 0 ? modelIds : undefined,
     };
-  }, [timeUnit, queryDateRange, modelId]);
+  }, [timeUnit, queryDateRange, scnIds, modelIds]);
 
   const { data: keywordStatList, isLoading: isLoadingKeywordStatList } = useGetKeywordStatList({
     params: queryParams,
@@ -73,26 +94,24 @@ export default function KeywordStatistics() {
 
   const filteredList = useMemo(() => {
     if (!keywordStatList) return [];
-    if (!modelId?.trim()) return keywordStatList;
-    return keywordStatList.filter((keywordStat) => String(keywordStat.modelId ?? '') === modelId);
-  }, [keywordStatList, modelId]);
+    if (scnIds.length === 0 && modelIds.length === 0) return keywordStatList;
+    return keywordStatList.filter((keywordStat) => {
+      const matchesScn = !scnIds.length || scnIds.includes(String(keywordStat.scnId ?? ''));
+      const matchesModel = !modelIds.length || modelIds.includes(String(keywordStat.modelId ?? ''));
+      return matchesScn && matchesModel;
+    });
+  }, [keywordStatList, scnIds, modelIds]);
 
   useEffect(() => {
     setRowData(filteredList ?? []);
   }, [filteredList]);
 
-  const handleTimeUnitChange = (value?: string) => {
-    setTimeUnit(value ?? '');
+  const handleScnIdsChange = (value: string[]) => {
+    setDraftScnIds(value ?? []);
   };
 
-  const handleColumnChange = (value?: string) => {
-    setModelId(value ?? '');
-  };
-
-  const handleDateRangeChange = (dates: [Dayjs | null, Dayjs | null] | null) => {
-    if (dates?.[0] && dates?.[1]) {
-      setDraftDateRange([dates[0], dates[1]]);
-    }
+  const handleModelIdsChange = (value: string[]) => {
+    setDraftModelIds(value ?? []);
   };
 
   const columnDefs: ColDef<KeywordStatListItem>[] = [
@@ -103,8 +122,8 @@ export default function KeywordStatistics() {
       valueFormatter: ({ value }: { value?: string }) => (value ? dayjs(value).format(getTimeFormat(timeUnit)) : '-'),
       cellStyle: { alignItems: 'center' },
     },
-    { headerName: '시나리오ID', field: 'scnId', hide: true },
-    { headerName: '시나리오명', field: 'scnName', flex: 2 },
+    { headerName: '봇서비스ID', field: 'scnId', hide: true },
+    { headerName: '봇서비스', field: 'scnName', flex: 2 },
     { headerName: '모델ID', field: 'modelId', hide: true },
     { headerName: '모델명', field: 'modelName', flex: 1 },
     { headerName: '키워드', field: 'keyword', flex: 1 },
@@ -112,7 +131,9 @@ export default function KeywordStatistics() {
   ];
 
   const handleSearch = () => {
-    setQueryDateRange(draftDateRange);
+    handleDateSearch();
+    setScnIds(draftScnIds);
+    setModelIds(draftModelIds);
   };
 
   const [isExporting, setIsExporting] = useState(false);
@@ -168,18 +189,35 @@ export default function KeywordStatistics() {
               popupMatchSelectWidth={false}
               defaultValue="DD"
             />
-            <RangePicker value={draftDateRange} onChange={handleDateRangeChange} inputReadOnly allowClear={false} />
+            <RangePicker value={draftDateRange} onChange={handleDateRangeChange} disabledDate={disabledDate} inputReadOnly allowClear={false} />
+            <Divider orientation="vertical" className="!h-5 !m-0" />
+            <span className="text-sm font-medium text-[#495057] shrink-0">봇서비스</span>
+            <Select
+              mode="multiple"
+              value={draftScnIds}
+              onChange={handleScnIdsChange}
+              allowClear
+              showSearch
+              maxTagCount="responsive"
+              options={scnSelectOptions}
+              placeholder="검색할 봇서비스를 선택하세요."
+              optionFilterProp="label"
+              className="!min-w-[200px] !max-w-[400px]"
+              popupMatchSelectWidth={false}
+            />
             <Divider orientation="vertical" className="!h-5 !m-0" />
             <span className="text-sm font-medium text-[#495057] shrink-0">모델</span>
             <Select
-              value={modelId || undefined}
-              onChange={handleColumnChange}
+              mode="multiple"
+              value={draftModelIds}
+              onChange={handleModelIdsChange}
               allowClear
               showSearch
+              maxTagCount="responsive"
               options={modelSelectOptions}
               placeholder="검색할 모델을 선택하세요."
               optionFilterProp="label"
-              className="!min-w-[200px] !max-w-[250px]"
+              className="!min-w-[200px] !max-w-[400px]"
               popupMatchSelectWidth={false}
             />
           </div>
