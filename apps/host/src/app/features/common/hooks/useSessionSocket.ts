@@ -15,7 +15,6 @@ export function useSessionSocket({ ticket }: UseSessionSocketOptions) {
   const wsRef = useRef<WebSocketClient | null>(null);
 
   useEffect(() => {
-    console.log('ticket', ticket);
     if (!ticket) return;
 
     const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
@@ -23,11 +22,6 @@ export function useSessionSocket({ ticket }: UseSessionSocketOptions) {
 
     const client = new WebSocketClient(wsUrl);
     wsRef.current = client;
-
-    client.connect().catch((error) => {
-      Log.error('Failed to connect to Session WS', error);
-      toast.error('Failed to connect to Session WS');
-    });
 
     client.onmessage = (event: MessageEvent) => {
       try {
@@ -38,6 +32,19 @@ export function useSessionSocket({ ticket }: UseSessionSocketOptions) {
         toast.error('Failed to parse Session WS message');
       }
     };
+
+    client.onclose = (event) => {
+      Log.warn('Session WS closed', event);
+    };
+
+    client.onerror = (event) => {
+      Log.error('Session WS occurred error', event);
+    };
+
+    client.connect().catch((error) => {
+      Log.error('Failed to connect Session WS', error);
+      toast.error('Failed to connect Session WS');
+    });
 
     return () => {
       wsRef.current?.disconnect();

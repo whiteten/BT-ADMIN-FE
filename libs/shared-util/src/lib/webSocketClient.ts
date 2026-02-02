@@ -68,12 +68,6 @@ export default class WebSocketClient {
       this.#ws = null;
     }
 
-    // Clear all event handlers
-    this.onopen = undefined;
-    this.onmessage = undefined;
-    this.onerror = undefined;
-    this.onclose = undefined;
-
     return this;
   }
 
