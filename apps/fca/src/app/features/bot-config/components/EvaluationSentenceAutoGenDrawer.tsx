@@ -6,7 +6,7 @@ import { MinusCircle, Plus } from 'lucide-react';
 import { Log } from '@/log';
 import { toast } from '@/shared-util';
 import { useGenerateExcel, useGenerateSentence, useGetAoeAgents, useGetIntentSentences, useGetIntents, useGetModel } from '../hooks/useModelQueries';
-import type { GenerateSentenceFormDatas } from '../types/aoe';
+import { AgentType, type GenerateSentenceFormDatas } from '../types/aoe';
 import { FallbackSpinner } from '@/components/custom/FallbackSpinner';
 
 /**
@@ -75,7 +75,7 @@ const EvaluationSentenceAutoGenDrawer = forwardRef<EvaluationSentenceAutoGenDraw
 
   const { data: model, isLoading: isLoadingModel } = useGetModel({ params: { modelId: drawerState.modelId }, queryOptions: { enabled: !!open && !!drawerState.modelId } });
   const tenantId = useMemo(() => model?.tenantId ?? null, [model]);
-  const { data: aoeAgents, isFetching: isFetchingAoeAgents } = useGetAoeAgents({ queryOptions: { enabled: !!open } });
+  const { data: aoeAgents, isFetching: isFetchingAoeAgents } = useGetAoeAgents({ params: { agentType: AgentType.EVAL_SET }, queryOptions: { enabled: !!open } });
   const { mutate: generateSentence, isPending: isGeneratingSentence } = useGenerateSentence({
     mutationOptions: {
       onSuccess: (data) => {
