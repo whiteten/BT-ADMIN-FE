@@ -13,6 +13,7 @@ export enum AgentType {
 }
 
 export type AoeListItem = Pick<Aoe, 'agentId' | 'agentName'>;
+export type AoeAgentItem = Aoe;
 
 // Genenate API body
 export interface GenerateSentenceDatas {
