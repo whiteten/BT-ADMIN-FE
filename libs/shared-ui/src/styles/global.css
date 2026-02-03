@@ -220,9 +220,4 @@
   .bt-scroll-hide::-webkit-scrollbar {
     display: none;
   }
-
-  /* ag-Grid 헤더 가운데 정렬 */
-  .ag-center-header .ag-header-cell-label {
-    justify-content: center;
-  }
 }

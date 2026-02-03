@@ -44,13 +44,6 @@ const menuConfig = {
           index: 2,
           hide: false,
         },
-        {
-          menuId: 30,
-          label: '작업이력',
-          path: 'audit/work-history',
-          index: 3,
-          hide: false,
-        },
       ],
     },
   ],
