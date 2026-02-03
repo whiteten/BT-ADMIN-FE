@@ -14,8 +14,8 @@ import type {
   RowEditingStoppedEvent,
 } from 'ag-grid-community';
 import { AgGridReact } from 'ag-grid-react';
-import { Button, Input, type InputRef, Select } from 'antd';
-import { Check, X } from 'lucide-react';
+import { Button, Dropdown, Input, type InputRef, Select, Tooltip } from 'antd';
+import { Check, ChevronDown, CloudDownload, Download, X } from 'lucide-react';
 import { toast } from '@/shared-util';
 import EvaluationSentenceAutoGenDrawer, { type EvaluationSentenceAutoGenDrawerRef } from '../components/EvaluationSentenceAutoGenDrawer';
 import {
@@ -203,6 +203,52 @@ export default function EvaluationQuestionList() {
     },
   });
   const { mutate: exportEvaluationQuestion, isPending: isExporting } = useExportEvaluationQuestion();
+
+  const handleClickExportData = () => {
+    exportEvaluationQuestion({ modelId, evalId, isTemplate: 0 });
+  };
+
+  const handleClickExportTemplate = () => {
+    exportEvaluationQuestion({ isTemplate: 1 });
+  };
+
+  const exportMenu = {
+    items: [
+      {
+        label: (
+          <Tooltip
+            title={<span style={{ whiteSpace: 'pre-line' }}>{`전체 데이터 파일(엑셀)을 다운로드합니다.\n데이터를 일괄 내보내기 위한 용도입니다.`}</span>}
+            placement="left"
+            overlayStyle={{ maxWidth: '300px' }}
+          >
+            <span className="flex items-center gap-2">
+              <CloudDownload className="size-4" />
+              데이터 다운로드
+            </span>
+          </Tooltip>
+        ),
+        key: 'export-data',
+        onClick: handleClickExportData,
+      },
+      {
+        label: (
+          <Tooltip
+            title={<span style={{ whiteSpace: 'pre-line' }}>{`빈 템플릿 파일(엑셀)을 다운로드합니다.\n데이터를 직접 입력하기 위한 용도입니다.`}</span>}
+            placement="left"
+            overlayStyle={{ maxWidth: '300px' }}
+          >
+            <span className="flex items-center gap-2">
+              <Download className="size-4" />
+              템플릿 다운로드
+            </span>
+          </Tooltip>
+        ),
+        key: 'export-template',
+        onClick: handleClickExportTemplate,
+      },
+    ],
+  };
+
   const { mutate: importEvaluationQuestion, isPending: isImporting } = useImportEvaluationQuestion({
     mutationOptions: {
       onSuccess: () => {
@@ -472,9 +518,11 @@ export default function EvaluationQuestionList() {
           <Button variant="solid" onClick={handleClickImport}>
             Import
           </Button>
-          <Button variant="solid" loading={isExporting} onClick={() => exportEvaluationQuestion({ modelId, evalId })}>
-            Export
-          </Button>
+          <Dropdown menu={exportMenu} trigger={['click']} placement="bottomRight">
+            <Button variant="solid" loading={isExporting} icon={<ChevronDown className="size-4" />} iconPlacement="end">
+              Export
+            </Button>
+          </Dropdown>
         </div>
       </header>
       <div className="w-full h-full">

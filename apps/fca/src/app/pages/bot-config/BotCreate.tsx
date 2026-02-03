@@ -211,7 +211,17 @@ export default function BotCreate() {
             </Form.Item>
           </Col>
           <Col span={8}>
-            <Form.Item name="ttsSpeaker" label="TTS 발화자" rules={[{ pattern: /^[a-zA-Z0-9_-]*$/, message: '영문, 숫자, 언더스코어(_), 하이픈(-)만 입력 가능합니다.' }]}>
+            <Form.Item
+              name="ttsSpeaker"
+              label="TTS 발화자"
+              tooltip={{
+                title: (
+                  <span style={{ whiteSpace: 'pre-line' }}>{`TTS 타입별 Speaker 타입코드를 입력합니다.\n정확한 코드를 모를 경우,\n입력하지 않으면 기본 발화자로 재생됩니다.`}</span>
+                ),
+                overlayStyle: { maxWidth: 300 },
+              }}
+              rules={[{ pattern: /^[a-zA-Z0-9_-]*$/, message: '영문, 숫자, 언더스코어(_), 하이픈(-)만 입력 가능합니다.' }]}
+            >
               <Input placeholder="TTS 발화자를 입력하세요." />
             </Form.Item>
           </Col>

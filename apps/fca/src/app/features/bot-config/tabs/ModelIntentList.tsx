@@ -3,9 +3,10 @@ import { useNavigate, useParams } from 'react-router-dom';
 import { useQueryClient } from '@tanstack/react-query';
 import type { ColDef, GridOptions, ICellRendererParams, RowDoubleClickedEvent } from 'ag-grid-community';
 import { AgGridReact } from 'ag-grid-react';
-import { Button, Input, Select } from 'antd';
+import { Button, Dropdown, Input, Select, Tooltip } from 'antd';
 import dayjs from 'dayjs';
 import { debounce } from 'lodash';
+import { ChevronDown, CloudDownload, Download } from 'lucide-react';
 import { toast } from '@/shared-util';
 import IntentDrawer, { type IntentDrawerRef } from '../components/IntentDrawer';
 import IntentSentenceCustomDetail from '../components/IntentSentenceCustomDetail';
@@ -195,6 +196,51 @@ export default function ModelIntentList() {
     navigate(`./intent/${intentId}`);
   };
 
+  const handleClickExportData = () => {
+    exportIntent({ modelId, isTemplate: 0 });
+  };
+
+  const handleClickExportTemplate = () => {
+    exportIntent({ isTemplate: 1 });
+  };
+
+  const exportMenu = {
+    items: [
+      {
+        label: (
+          <Tooltip
+            title={<span style={{ whiteSpace: 'pre-line' }}>{`전체 데이터 파일(엑셀)을 다운로드합니다.\n데이터를 일괄 내보내기 위한 용도입니다.`}</span>}
+            placement="left"
+            overlayStyle={{ maxWidth: '300px' }}
+          >
+            <span className="flex items-center gap-2">
+              <CloudDownload className="size-4" />
+              데이터 다운로드
+            </span>
+          </Tooltip>
+        ),
+        key: 'export-data',
+        onClick: handleClickExportData,
+      },
+      {
+        label: (
+          <Tooltip
+            title={<span style={{ whiteSpace: 'pre-line' }}>{`빈 템플릿 파일(엑셀)을 다운로드합니다.\n데이터를 직접 입력하기 위한 용도입니다.`}</span>}
+            placement="left"
+            overlayStyle={{ maxWidth: '300px' }}
+          >
+            <span className="flex items-center gap-2">
+              <Download className="size-4" />
+              템플릿 다운로드
+            </span>
+          </Tooltip>
+        ),
+        key: 'export-template',
+        onClick: handleClickExportTemplate,
+      },
+    ],
+  };
+
   return (
     <div className="flex flex-col gap-5 w-full h-full">
       <header className="flex items-center justify-between w-full gap-2 lg:flex-nowrap flex-wrap">
@@ -216,9 +262,12 @@ export default function ModelIntentList() {
           <Button variant="solid" onClick={handleClickImport}>
             Import
           </Button>
-          <Button variant="solid" loading={isExporting} onClick={() => exportIntent({ modelId })}>
-            Export
-          </Button>
+          <Dropdown menu={exportMenu} trigger={['click']} placement="bottomRight">
+            <Button variant="solid" loading={isExporting} icon={<ChevronDown className="size-4" />} iconPlacement="end">
+              Export
+            </Button>
+          </Dropdown>
+
           <Button variant="solid" color="primary" onClick={handleClickAddIntent}>
             추가
           </Button>

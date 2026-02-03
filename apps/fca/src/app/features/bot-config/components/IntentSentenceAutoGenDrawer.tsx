@@ -148,8 +148,8 @@ const IntentSentenceAutoGenDrawer = forwardRef<IntentSentenceAutoGenDrawerRef, I
     generateExcel({
       params: {},
       data: {
-        fileName: `INTENT_STC_AUTOGEN_${dayjs().format('YYYYMMDD')}`,
-        sheetName: 'INTENT_STC_AUTOGEN',
+        fileName: `의도문장_자동생성_${dayjs().format('YYYYMMDD')}`,
+        sheetName: '의도문장_자동생성',
         keys: ['의도문장'],
         values: targetKeys?.map((key) => [key as string]) ?? [],
       },

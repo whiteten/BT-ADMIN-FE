@@ -159,9 +159,10 @@ export default function DialogStatistics() {
     <div className="flex flex-col gap-4 w-full h-full">
       <PageHeader title="대화 통계" breadcrumb={breadcrumb} />
       {/* Filter */}
-      <div className="w-full h-full bg-white bt-shadow p-5">
+      <div className="flex flex-col w-full h-full bg-white bt-shadow p-5">
         <div className="flex items-center justify-between gap-2 pb-5">
           <div className="flex gap-3 w-full items-center">
+            <span className="text-sm font-medium text-[#495057] shrink-0">검색일자</span>
             <Select
               value={timeUnit}
               onChange={handleTimeUnitChange}
@@ -178,7 +179,7 @@ export default function DialogStatistics() {
             />
             <RangePicker value={draftDateRange} onChange={handleDateRangeChange} disabledDate={disabledDate} inputReadOnly allowClear={false} />
             <Divider orientation="vertical" className="!h-5 !m-0" />
-            <span className="text-sm font-normal text-[#495057] shrink-0">봇서비스</span>
+            <span className="text-sm font-medium text-[#495057] shrink-0">봇서비스</span>
             <Select
               mode="multiple"
               value={draftServiceIds}
@@ -189,7 +190,7 @@ export default function DialogStatistics() {
               options={serviceSelectOptions}
               placeholder="검색할 봇서비스를 선택하세요."
               optionFilterProp="label"
-              className="!min-w-[200px] !max-w-[400px]"
+              className="!min-w-[250px] !max-w-[400px]"
               popupMatchSelectWidth={false}
             />
             <Divider orientation="vertical" className="!h-5 !m-0" />
@@ -208,7 +209,7 @@ export default function DialogStatistics() {
             </Button>
           </div>
         </div>
-        <div className="w-full h-[calc(100%-56px)]">
+        <div className="w-full flex-1">
           <AgGridReact<DialogStatListItem> ref={gridRef} rowData={rowData} columnDefs={columnDefs} gridOptions={gridOptions} loading={isLoadingDialogStatList} />
         </div>
       </div>
