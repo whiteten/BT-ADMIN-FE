@@ -161,7 +161,7 @@ export default function ServiceStatistics() {
 
   return (
     <div className="flex flex-col gap-4 w-full h-full">
-      <PageHeader title="서비스 통계" breadcrumb={breadcrumb} />
+      <PageHeader breadcrumb={breadcrumb} />
       {/* Filter */}
       <div className="flex flex-col w-full h-full bg-white bt-shadow p-5">
         <div className="flex items-center justify-between gap-2 pb-5">

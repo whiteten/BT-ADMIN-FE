@@ -208,7 +208,7 @@ export default function AccountPolicyPage() {
   if (isLoading) {
     return (
       <div className="flex flex-col gap-4 w-full h-full">
-        <PageHeader title="계정 보안 정책" breadcrumb={breadcrumb} />
+        <PageHeader breadcrumb={breadcrumb} />
         <div className="flex items-center justify-center w-full h-full">
           <FallbackSpinner />
         </div>
@@ -218,7 +218,7 @@ export default function AccountPolicyPage() {
 
   return (
     <div className="flex flex-col gap-4 w-full h-full">
-      <PageHeader title="계정 보안 정책" breadcrumb={breadcrumb} />
+      <PageHeader breadcrumb={breadcrumb} />
 
       <div className="flex flex-1 min-h-0 gap-4">
         {/* 메인 폼 영역 */}

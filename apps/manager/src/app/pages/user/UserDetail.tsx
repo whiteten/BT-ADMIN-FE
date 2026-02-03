@@ -296,7 +296,7 @@ export default function UserDetail() {
 
   return (
     <div className="flex flex-col gap-4 w-full h-full">
-      <PageHeader title="사용자 편집" breadcrumb={breadcrumb} />
+      <PageHeader breadcrumb={breadcrumb} />
 
       <div className="flex w-full flex-1 min-h-0 gap-4">
         {/* 메인 콘텐츠 - PageTabs 영역 */}

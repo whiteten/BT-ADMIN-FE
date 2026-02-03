@@ -27,7 +27,7 @@ const tabs: PageTab[] = [
 export default function AuthGroupManagement() {
   return (
     <div className="flex flex-col gap-4 w-full h-full">
-      <PageHeader title="권한 그룹 관리" breadcrumb={breadcrumb} />
+      <PageHeader breadcrumb={breadcrumb} />
       <PageTabs tabs={tabs} />
     </div>
   );

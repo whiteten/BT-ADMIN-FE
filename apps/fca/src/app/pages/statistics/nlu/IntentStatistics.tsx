@@ -181,7 +181,7 @@ export default function IntentStatistics() {
 
   return (
     <div className="flex flex-col gap-4 w-full h-full">
-      <PageHeader title="의도 통계" breadcrumb={breadcrumb} />
+      <PageHeader breadcrumb={breadcrumb} />
       {/* Filter */}
       <div className="flex flex-col w-full h-full bg-white bt-shadow p-5">
         <Collapsible open={isFilterOpen} onOpenChange={setIsFilterOpen}>

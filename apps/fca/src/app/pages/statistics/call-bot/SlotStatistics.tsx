@@ -175,7 +175,7 @@ export default function SlotStatistics() {
 
   return (
     <div className="flex flex-col gap-4 w-full h-full">
-      <PageHeader title="슬롯 통계" breadcrumb={breadcrumb} />
+      <PageHeader breadcrumb={breadcrumb} />
       {/* Filter */}
       <div className="flex flex-col w-full h-full bg-white bt-shadow p-5">
         <div className="flex items-center justify-between gap-2 pb-5">

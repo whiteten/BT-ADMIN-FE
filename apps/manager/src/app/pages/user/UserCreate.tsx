@@ -469,7 +469,7 @@ export default function UserCreate() {
 
   return (
     <div className="flex flex-col gap-4 w-full h-full">
-      <PageHeader title="사용자 등록" breadcrumb={breadcrumb} />
+      <PageHeader breadcrumb={breadcrumb} />
       <div className="flex items-center justify-center w-full h-[58px] min-h-[58px] bg-white bt-shadow px-7 py-2">
         <Steps
           current={currentStep}
