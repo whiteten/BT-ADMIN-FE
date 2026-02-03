@@ -176,8 +176,8 @@ const EvaluationSentenceAutoGenDrawer = forwardRef<EvaluationSentenceAutoGenDraw
     generateExcel({
       params: {},
       data: {
-        fileName: `EVAL_STC_AUTOGEN_${dayjs().format('YYYYMMDD')}`,
-        sheetName: 'EVAL_STC_AUTOGEN',
+        fileName: `평가문장_자동생성_${dayjs().format('YYYYMMDD')}`,
+        sheetName: '평가문장_자동생성',
         keys: ['평가문장', '정답의도'],
         values,
       },
