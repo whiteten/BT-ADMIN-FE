@@ -100,7 +100,7 @@ export default function BotVersionList() {
     { headerName: '버전명', field: 'versionName' },
     { headerName: '시나리오파일', field: 'scenarioFile' },
     { headerName: '변경내용', field: 'versionDesc' },
-    { headerName: '작업자', field: 'workUser', maxWidth: 120 },
+    { headerName: '작업자', field: 'workUserName', maxWidth: 120 },
     { headerName: '작업일시', field: 'workTime', valueFormatter: (params: { value: string }) => (params.value ? dayjs(params.value).format('YYYY-MM-DD HH:mm:ss') : '-') },
     {
       headerName: '',

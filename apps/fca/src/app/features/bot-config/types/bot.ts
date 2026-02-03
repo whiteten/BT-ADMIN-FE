@@ -49,6 +49,7 @@ export interface BotVersion {
   versionName: string;
   versionDesc: string;
   workUser: string;
+  workUserName: string;
   workTime: string;
 }
 
