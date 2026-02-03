@@ -10,6 +10,7 @@ import { FallbackSpinner } from '@/components/custom/FallbackSpinner';
 export default function BotSchedule() {
   const { serviceId } = useParams();
   const [form] = Form.useForm();
+  const selectedWorktimeId = Form.useWatch('bhWorktimeId', form);
 
   const { data: bot, isFetching: isFetchingBot } = useGetBot({ params: { serviceId } });
   const { data: workTimeList, isFetching: isFetchingWorkTimeList } = useGetWorkTimeList();
@@ -23,6 +24,22 @@ export default function BotSchedule() {
     },
   });
 
+  const selectedWorkTime = selectedWorktimeId && selectedWorktimeId !== 0 ? workTimeList?.find((wt) => wt.worktimeId === selectedWorktimeId) : null;
+
+  const formatTime = (time: string): string => {
+    if (time.length !== 4) return time;
+    return `${time.slice(0, 2)}:${time.slice(2, 4)}`;
+  };
+
+  const formatWorkTimeDetail = (): string => {
+    if (!selectedWorkTime?.workTimeLists || selectedWorkTime.workTimeLists.length === 0) return '';
+
+    return selectedWorkTime.workTimeLists
+      .filter((item) => item.useYn === 1)
+      .map((item) => `${item.weekdayByte} ${formatTime(item.startTime)} ~ ${formatTime(item.finishTime)}`)
+      .join(', ');
+  };
+
   const onFinish: FormProps<BotScheduleUpdateDatas>['onFinish'] = (values) => {
     Log.debug('onFinish', values);
     updateBotSchedule({ params: { serviceId }, data: values });
@@ -33,11 +50,11 @@ export default function BotSchedule() {
   };
 
   useEffect(() => {
-    if (!bot) return;
+    if (!bot || !workTimeList) return;
     const { bhWorktimeId, ahMessage } = bot;
-    const hasWorktimeId = workTimeOptions.some((option) => option.value === bhWorktimeId);
+    const hasWorktimeId = workTimeList.some((workTime) => workTime.worktimeId === bhWorktimeId);
     form.setFieldsValue({ bhWorktimeId: hasWorktimeId ? bhWorktimeId : null, ahMessage });
-  }, [bot, form, workTimeOptions]);
+  }, [bot, form, workTimeList]);
 
   return (
     <Form form={form} initialValues={{ bhWorktimeId: null, ahMessage: '' }} onFinish={onFinish} onFinishFailed={onFinishFailed} layout="vertical">
@@ -49,11 +66,12 @@ export default function BotSchedule() {
         <>
           <Row gutter={20}>
             <Col span={6}>
-              <Form.Item name="bhWorktimeId" label="봇 상담 가능 시간" required rules={[{ required: true, message: '업무시간을 선택해 주세요.' }]}>
+              <Form.Item name="bhWorktimeId" label="봇 상담 가능 시간" extra={formatWorkTimeDetail()} required rules={[{ required: true, message: '업무시간을 선택해 주세요.' }]}>
                 <Select options={workTimeOptions} allowClear showSearch={{ optionFilterProp: 'label' }} placeholder="업무시간을 선택하세요." />
               </Form.Item>
             </Col>
           </Row>
+
           <Row gutter={20}>
             <Col span={12}>
               <Form.Item name="ahMessage" label="시간 외 메시지">

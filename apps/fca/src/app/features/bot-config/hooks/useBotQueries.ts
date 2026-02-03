@@ -14,7 +14,7 @@ import type {
   EnvNodeItem,
   SttListItem,
   TtsListItem,
-  WorkTimeListItem,
+  WorkTime,
 } from '../types';
 
 export const botQueryKeys = createQueryKeys('bots', {
@@ -150,7 +150,7 @@ export const useGetTtsList = ({ params, queryOptions }: QueryHookWithParamsOptio
   });
 };
 
-export const useGetWorkTimeList = ({ params, queryOptions }: QueryHookWithParamsOptions<WorkTimeListItem[]> = {}) => {
+export const useGetWorkTimeList = ({ params, queryOptions }: QueryHookWithParamsOptions<WorkTime[]> = {}) => {
   return useQuery({
     queryKey: botQueryKeys.getWorkTimeList(params).queryKey,
     queryFn: () => botApi.getWorkTimeList(params),

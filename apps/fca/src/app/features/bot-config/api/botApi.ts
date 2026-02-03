@@ -23,7 +23,7 @@ import type {
   PublishBotVersionResult,
   SttListItem,
   TtsListItem,
-  WorkTimeListItem,
+  WorkTime,
 } from '../types';
 
 const apiClient = new ApiClient({ serviceURL: '/bff' });
@@ -93,8 +93,8 @@ export const botApi = {
     const response = await apiClient.get<ListResponse<TtsListItem>>('/tts-list', { params });
     return extractList(response);
   },
-  getWorkTimeList: async (params?: Record<string, unknown>): Promise<WorkTimeListItem[]> => {
-    const response = await apiClient.get<ListResponse<WorkTimeListItem>>('/worktime-list', { params });
+  getWorkTimeList: async (params?: Record<string, unknown>): Promise<WorkTime[]> => {
+    const response = await apiClient.get<ListResponse<WorkTime>>('/worktime-list', { params });
     return extractList(response);
   },
   getBotDeployConfig: async (params?: Record<string, unknown>): Promise<BotDeployConfigItem[]> => {
