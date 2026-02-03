@@ -3,8 +3,9 @@ import { useParams } from 'react-router-dom';
 import { useQueryClient } from '@tanstack/react-query';
 import type { ColDef, ICellRendererParams, RowDoubleClickedEvent } from 'ag-grid-community';
 import { AgGridReact } from 'ag-grid-react';
-import { Button, Input, Select, Tag } from 'antd';
+import { Button, Dropdown, Input, Select, Tag, Tooltip } from 'antd';
 import dayjs from 'dayjs';
+import { ChevronDown, CloudDownload, Download } from 'lucide-react';
 import { Log } from '@/log';
 import { toast } from '@/shared-util';
 import AoeFaqDrawer, { type AoeFaqDrawerRef } from '../components/AoeFaqDrawer';
@@ -58,12 +59,9 @@ export default function AoeFaqList() {
   const { mutate: importFaq, isPending: isImporting } = useImportFaq({
     mutationOptions: {
       onSuccess: () => {
-        toast.success('FAQ가 가져오기되었습니다.');
+        toast.success('완료되었습니다.');
         queryClient.invalidateQueries({ queryKey: aoeQueryKeys.getFaqList({ aoeAgentId: agentId }).queryKey });
         importModalRef.current?.close();
-      },
-      onError: () => {
-        toast.error('FAQ 가져오기에 실패했습니다.');
       },
     },
   });
@@ -110,9 +108,50 @@ export default function AoeFaqList() {
     importFaq({ params: { aoeAgentId: agentId }, data: file });
   };
 
-  const handleClickExport = () => {
+  const handleClickExportData = () => {
     if (!agentId) return;
-    exportFaq({ aoeAgentId: agentId });
+    exportFaq({ aoeAgentId: agentId, isTemplate: 0 });
+  };
+
+  const handleClickExportTemplate = () => {
+    exportFaq({ isTemplate: 1 });
+  };
+
+  const exportMenu = {
+    items: [
+      {
+        label: (
+          <Tooltip
+            title={<span style={{ whiteSpace: 'pre-line' }}>{`전체 데이터 파일(엑셀)을 다운로드합니다.\n데이터를 일괄 내보내기 위한 용도입니다.`}</span>}
+            placement="left"
+            overlayStyle={{ maxWidth: '300px' }}
+          >
+            <span className="flex items-center gap-2">
+              <CloudDownload className="size-4" />
+              데이터 다운로드
+            </span>
+          </Tooltip>
+        ),
+        key: 'export-data',
+        onClick: handleClickExportData,
+      },
+      {
+        label: (
+          <Tooltip
+            title={<span style={{ whiteSpace: 'pre-line' }}>{`빈 템플릿 파일(엑셀)을 다운로드합니다.\n데이터를 직접 입력하기 위한 용도입니다.`}</span>}
+            placement="left"
+            overlayStyle={{ maxWidth: '300px' }}
+          >
+            <span className="flex items-center gap-2">
+              <Download className="size-4" />
+              템플릿 다운로드
+            </span>
+          </Tooltip>
+        ),
+        key: 'export-template',
+        onClick: handleClickExportTemplate,
+      },
+    ],
   };
 
   const columnDefs: ColDef<FaqListItem>[] = [
@@ -219,9 +258,11 @@ export default function AoeFaqList() {
           <Button variant="solid" onClick={handleClickImport}>
             Import
           </Button>
-          <Button variant="solid" loading={isExporting} onClick={handleClickExport}>
-            Export
-          </Button>
+          <Dropdown menu={exportMenu} trigger={['click']} placement="bottomRight">
+            <Button variant="solid" loading={isExporting} icon={<ChevronDown className="size-4" />} iconPlacement="end">
+              Export
+            </Button>
+          </Dropdown>
           <Button variant="solid" color="primary" onClick={() => faqDrawerRef.current?.open({ aoeAgentId: agentId ?? '' })}>
             추가
           </Button>
