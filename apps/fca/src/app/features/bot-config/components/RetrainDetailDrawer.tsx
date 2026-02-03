@@ -43,6 +43,7 @@ const RetrainDetailDrawer = forwardRef<RetrainDetailDrawerRef>((_, ref) => {
       ...gridOptions,
       sideBar: false,
       pagination: false,
+      statusBar: { statusPanels: [] },
     }),
     [gridOptions],
   );
