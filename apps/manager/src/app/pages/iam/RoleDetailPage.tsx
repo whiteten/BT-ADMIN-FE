@@ -67,7 +67,7 @@ export default function RoleDetailPage() {
   const breadcrumb: BreadcrumbProps['items'] = [
     { title: '자원 관리', path: '/manager/resource' },
     { title: '역할', path: '/manager/resource/auth-group/list' },
-    { title: '역할 상세', path: `/manager/resource/role/${roleId}` },
+    { title: ':roleName', path: `/manager/resource/role/${roleId}` },
   ];
 
   // 역할 조회
@@ -75,6 +75,8 @@ export default function RoleDetailPage() {
     params: { roleId: numericRoleId ?? 0 },
     queryOptions: { enabled: !!numericRoleId },
   });
+
+  const params: BreadcrumbProps['params'] = { roleName: role?.roleName ?? '-' };
 
   // 권한 목록 조회 (요약 표시용)
   const { data: permissionGroups = [] } = useGetGroupedPermissions();
@@ -240,7 +242,7 @@ export default function RoleDetailPage() {
 
   return (
     <div className="flex flex-col gap-4 w-full h-full">
-      <PageHeader breadcrumb={breadcrumb} />
+      <PageHeader breadcrumb={breadcrumb} params={params} />
 
       <div className="flex w-full flex-1 min-h-0 gap-4">
         {/* 메인 콘텐츠 - PageTabs 영역 */}
