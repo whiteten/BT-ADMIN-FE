@@ -29,7 +29,6 @@ export default function FcaWsSessionEventHandler() {
           break;
         case WS_SESSION_EVENT_TYPES.SCENARIO_UPLOADED:
           Log.info(`EVT: ${WS_SESSION_EVENT_TYPES.SCENARIO_UPLOADED}`, detail);
-          queryClient.invalidateQueries({ queryKey: botQueryKeys.getBots._def });
           queryClient.invalidateQueries({ queryKey: botQueryKeys.getBotVersions._def });
           break;
         default:
