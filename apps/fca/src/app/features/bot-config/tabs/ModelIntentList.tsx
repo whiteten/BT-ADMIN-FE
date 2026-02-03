@@ -201,7 +201,7 @@ export default function ModelIntentList() {
   };
 
   const handleClickExportTemplate = () => {
-    exportIntent({ isTemplate: 1 });
+    exportIntent({ modelId, isTemplate: 1 });
   };
 
   const exportMenu = {

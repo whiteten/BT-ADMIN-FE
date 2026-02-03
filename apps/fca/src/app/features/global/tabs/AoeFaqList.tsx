@@ -114,7 +114,8 @@ export default function AoeFaqList() {
   };
 
   const handleClickExportTemplate = () => {
-    exportFaq({ isTemplate: 1 });
+    if (!agentId) return;
+    exportFaq({ aoeAgentId: agentId, isTemplate: 1 });
   };
 
   const exportMenu = {

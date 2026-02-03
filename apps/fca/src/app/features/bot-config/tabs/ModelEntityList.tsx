@@ -237,7 +237,7 @@ export default function ModelEntityList() {
   };
 
   const handleClickExportTemplate = () => {
-    exportEntity({ isTemplate: 1 });
+    exportEntity({ modelId, isTemplate: 1 });
   };
 
   const exportMenu = {

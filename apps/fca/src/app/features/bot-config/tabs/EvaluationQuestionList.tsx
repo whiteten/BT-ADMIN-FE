@@ -209,7 +209,7 @@ export default function EvaluationQuestionList() {
   };
 
   const handleClickExportTemplate = () => {
-    exportEvaluationQuestion({ isTemplate: 1 });
+    exportEvaluationQuestion({ modelId, evalId, isTemplate: 1 });
   };
 
   const exportMenu = {
