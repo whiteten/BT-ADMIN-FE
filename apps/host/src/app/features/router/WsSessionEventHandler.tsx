@@ -19,11 +19,11 @@ export default function WsSessionEventHandler() {
       const { detail } = e as CustomEvent;
       switch (detail.type) {
         case WS_SESSION_EVENT_TYPES.PERMISSION_CHANGED:
-          Log.info('EVT: PERMISSION_CHANGED', detail);
+          Log.info(`EVT: ${WS_SESSION_EVENT_TYPES.PERMISSION_CHANGED}`, detail);
           queryClient.invalidateQueries({ queryKey: sharedApi.common.queryKeys.getNavigation._def });
           break;
         case WS_SESSION_EVENT_TYPES.LOGOUT:
-          Log.info('EVT: LOGOUT', detail);
+          Log.info(`EVT: ${WS_SESSION_EVENT_TYPES.LOGOUT}`, detail);
           navigate('/login');
           break;
         default:
