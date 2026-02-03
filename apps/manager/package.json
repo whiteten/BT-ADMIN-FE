@@ -1,5 +1,8 @@
 {
   "name": "@bridgetec/ui-remote-manager",
   "version": "0.0.1",
-  "private": true
+  "private": true,
+  "dependencies": {
+    "react-diff-viewer-continued": "^3.4.0"
+  }
 }
