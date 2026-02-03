@@ -137,7 +137,7 @@ export default function UserList() {
 
   return (
     <div className="flex flex-col gap-4 w-full h-full">
-      <PageHeader title="사용자 목록" breadcrumb={breadcrumb} />
+      <PageHeader breadcrumb={breadcrumb} />
 
       {/* Filter - Bot UI 스타일 */}
       <div className="flex items-center justify-between gap-2 w-full h-[76px] bg-white bt-shadow px-7 py-5">

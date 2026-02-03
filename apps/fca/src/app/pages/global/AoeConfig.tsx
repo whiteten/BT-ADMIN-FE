@@ -19,7 +19,7 @@ export default function AoeConfig() {
   ];
   return (
     <div className="flex flex-col gap-4 w-full h-full">
-      <PageHeader title="AOE 확장" breadcrumb={breadcrumb} />
+      <PageHeader breadcrumb={breadcrumb} />
       <PageTabs tabs={tabs} />
     </div>
   );

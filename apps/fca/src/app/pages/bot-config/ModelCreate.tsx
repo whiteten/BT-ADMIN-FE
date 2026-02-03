@@ -12,11 +12,19 @@ export default function ModelCreate() {
   const navigate = useNavigate();
   const [form] = Form.useForm();
   const { isPublic } = useModelRoute();
-  const breadcrumb: BreadcrumbProps['items'] = [
+
+  const privateBreadcrumb: BreadcrumbProps['items'] = [
     { title: '봇 관리', path: '/fca/bot-config' },
-    isPublic ? { title: '공용 모델', path: '/fca/global/model/list' } : { title: '모델', path: '/fca/bot-config/model' },
-    isPublic ? { title: '공용 모델 생성', path: '/fca/global/model/create' } : { title: '모델 생성', path: '/fca/bot-config/model/create' },
+    { title: '모델', path: '/fca/bot-config/model' },
+    { title: '모델 생성', path: '/fca/bot-config/model/create' },
   ];
+
+  const publicBreadcrumb: BreadcrumbProps['items'] = [
+    { title: '봇 관리', path: '/fca/bot-config' },
+    { title: '공용 모델', path: '/fca/global/model' },
+    { title: '공용 모델 생성', path: '/fca/global/model/create' },
+  ];
+
   const initialValues = { modelName: '', expansion1: '' };
 
   const { mutate: createModel, isPending: isCreatingModel } = useCreateModel({
@@ -36,7 +44,7 @@ export default function ModelCreate() {
   };
   return (
     <div className="flex flex-col gap-4 w-full h-full">
-      <PageHeader title="모델 생성" breadcrumb={breadcrumb} />
+      <PageHeader breadcrumb={isPublic ? publicBreadcrumb : privateBreadcrumb} />
       <div className="w-full h-full bg-white bt-shadow overflow-y-auto">
         <div className="flex flex-col w-full h-full p-7 pb-0">
           <Form form={form} initialValues={initialValues} onFinish={onFinish} onFinishFailed={onFinishFailed} layout="vertical">

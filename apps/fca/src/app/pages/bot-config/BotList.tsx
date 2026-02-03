@@ -95,7 +95,7 @@ export default function BotList() {
 
   return (
     <div className="flex flex-col gap-4 w-full h-full">
-      <PageHeader title="봇 목록" breadcrumb={breadcrumb} />
+      <PageHeader breadcrumb={breadcrumb} />
       {/* Filter */}
       <div className="flex items-center justify-between gap-2 w-full h-[76px] bg-white bt-shadow px-7 py-5">
         <div className="flex gap-2 w-full items-center">

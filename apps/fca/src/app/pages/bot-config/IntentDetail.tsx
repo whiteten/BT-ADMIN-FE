@@ -2,6 +2,7 @@ import React from 'react';
 import { useParams } from 'react-router-dom';
 import { type BreadcrumbProps } from 'antd';
 import ModelToolbar from '../../features/bot-config/components/ModelToolbar';
+import { useGetIntent, useGetModel } from '../../features/bot-config/hooks/useModelQueries';
 import { useModelRoute } from '../../features/bot-config/hooks/useModelRoute';
 import { IconDocument, IconIntent } from '@/components/custom/Icons';
 import PageHeader from '@/components/custom/PageHeader';
@@ -18,19 +19,31 @@ const tabs: PageTab[] = [
 export default function IntentDetail() {
   const { modelId, intentId } = useParams();
   const { isPublic } = useModelRoute();
-  const breadcrumb: BreadcrumbProps['items'] = [
+
+  const { data: model } = useGetModel({ params: { modelId } });
+  const { data: intent } = useGetIntent({ params: { modelId, intentId } });
+
+  const privateBreadcrumb: BreadcrumbProps['items'] = [
     { title: '봇 관리', path: '/fca/bot-config' },
-    isPublic ? { title: '공용 모델', path: '/fca/global/model' } : { title: '모델', path: '/fca/bot-config/model' },
-    isPublic ? { title: '공용 모델 상세', path: `/fca/global/model/${modelId}` } : { title: '모델 상세', path: `/fca/bot-config/model/${modelId}` },
-    isPublic ? { title: '의도', path: `/fca/global/model/${modelId}?tab=tab2` } : { title: '의도', path: `/fca/bot-config/model/${modelId}?tab=tab2` },
-    isPublic
-      ? { title: '의도 상세', path: `/fca/global/model/${modelId}/intent/${intentId}` }
-      : { title: '의도 상세', path: `/fca/bot-config/model/${modelId}/intent/${intentId}` },
+    { title: '모델', path: '/fca/bot-config/model' },
+    { title: ':modelName', path: `/fca/bot-config/model/${modelId}` },
+    { title: '의도', path: `/fca/bot-config/model/${modelId}?tab=tab2` },
+    { title: ':intentName', path: `/fca/bot-config/model/${modelId}/intent/${intentId}` },
   ];
+
+  const publicBreadcrumb: BreadcrumbProps['items'] = [
+    { title: '봇 관리', path: '/fca/bot-config' },
+    { title: '공용 모델', path: '/fca/global/model' },
+    { title: ':modelName', path: `/fca/global/model/${modelId}` },
+    { title: '의도', path: `/fca/global/model/${modelId}?tab=tab2` },
+    { title: ':intentName', path: `/fca/global/model/${modelId}/intent/${intentId}` },
+  ];
+
+  const params: BreadcrumbProps['params'] = { modelName: model?.modelName ?? '-', intentName: intent?.intentName ?? '-' };
 
   return (
     <div className="flex flex-col gap-4 w-full h-full">
-      <PageHeader title="의도 편집" breadcrumb={breadcrumb} extra={<ModelToolbar modelId={modelId} />} />
+      <PageHeader breadcrumb={isPublic ? publicBreadcrumb : privateBreadcrumb} params={params} extra={<ModelToolbar modelId={modelId} />} />
       <PageTabs tabs={tabs} />
     </div>
   );

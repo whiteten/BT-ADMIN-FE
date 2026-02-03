@@ -3,7 +3,7 @@ import { createQueryKeys } from '@lukemorales/query-key-factory';
 import dayjs from 'dayjs';
 import { type MutationHookOptions, type QueryHookWithParamsOptions, downloadBlob, extractFileName } from '@/shared-util';
 import { modelApi } from '../api/modelApi';
-import type { AoeListItem } from '../types/aoe';
+import type { AoeAgentItem, AoeListItem } from '../types/aoe';
 import type { EntityItem, EntityListItem, EntityValueListItem } from '../types/entity';
 import type {
   EvaluationItem,
@@ -28,6 +28,7 @@ export const modelQueryKeys = createQueryKeys('models', {
   getEntity: (params?: Record<string, unknown>) => [params],
   getEntityValues: (params?: Record<string, unknown>) => [params],
   getAoeAgents: (params?: Record<string, unknown>) => [params],
+  getAoeAgent: (params?: Record<string, unknown>) => [params],
   getEvaluations: (params?: Record<string, unknown>) => [params],
   getEvaluation: (params?: Record<string, unknown>) => [params],
   getEvaluationQuestions: (params?: Record<string, unknown>) => [params],
@@ -234,6 +235,14 @@ export const useGetAoeAgents = ({ params, queryOptions }: QueryHookWithParamsOpt
   return useQuery({
     queryKey: modelQueryKeys.getAoeAgents(params).queryKey,
     queryFn: () => modelApi.getAoeAgents(params),
+    ...queryOptions,
+  });
+};
+
+export const useGetAoeAgent = ({ params, queryOptions }: QueryHookWithParamsOptions<AoeAgentItem> = {}) => {
+  return useQuery({
+    queryKey: modelQueryKeys.getAoeAgent(params).queryKey,
+    queryFn: () => modelApi.getAoeAgent(params),
     ...queryOptions,
   });
 };

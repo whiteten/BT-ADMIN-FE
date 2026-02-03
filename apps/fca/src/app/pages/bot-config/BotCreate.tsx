@@ -390,7 +390,7 @@ export default function BotCreate() {
 
   return (
     <div className="flex flex-col gap-4 w-full h-full">
-      <PageHeader title="봇 생성" breadcrumb={breadcrumb} />
+      <PageHeader breadcrumb={breadcrumb} />
       <div className="flex items-center justify-center w-full h-[58px] min-h-[58px] bg-white bt-shadow px-7 py-2">
         <Steps
           current={currentStep}

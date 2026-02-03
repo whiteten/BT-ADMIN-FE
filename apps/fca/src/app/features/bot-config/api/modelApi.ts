@@ -1,6 +1,6 @@
 import ApiClient, { type DetailResponse, type ListResponse, extractDetail, extractList } from '@/shared-util';
 import type { Inference, RetrainDetail, RetrainListItem, RetrainUpdateDatas, SnapshotCompareResult, SnapshotCreateDatas, SnapshotListItem } from '../types';
-import type { AoeListItem, GenerateSentenceDatas, GenerateSentenceResponse } from '../types/aoe';
+import type { AoeAgentItem, AoeListItem, GenerateSentenceDatas, GenerateSentenceResponse } from '../types/aoe';
 import type {
   EntityBasicInfoUpdateDatas,
   EntityCreateDatas,
@@ -177,6 +177,10 @@ export const modelApi = {
   getAoeAgents: async (params?: Record<string, unknown>): Promise<AoeListItem[]> => {
     const response = await apiClient.get<ListResponse<AoeListItem>>('/aoe-agent-list', { params });
     return extractList(response);
+  },
+  getAoeAgent: async (params?: Record<string, unknown>): Promise<AoeAgentItem> => {
+    const response = await apiClient.get<DetailResponse<AoeAgentItem>>('/aoe-agent-detail', { params });
+    return extractDetail(response);
   },
   generateSentence: async ({ params, data }: { params: Record<string, unknown>; data: GenerateSentenceDatas }): Promise<string[]> => {
     const response = await apiClient.post<DetailResponse<GenerateSentenceResponse>>('/aoe-agent-sentence', data, { params });

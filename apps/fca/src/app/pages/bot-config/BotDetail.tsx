@@ -1,6 +1,7 @@
 import React from 'react';
 import { useParams } from 'react-router-dom';
 import type { BreadcrumbProps } from 'antd';
+import { useGetBot } from '../../features/bot-config/hooks/useBotQueries';
 import { IconAoe, IconCalendar, IconDocument, IconLayer, IconSlidersHorizontal, IconTalk } from '@/components/custom/Icons';
 import PageHeader from '@/components/custom/PageHeader';
 import PageTabs, { type PageTab } from '@/components/custom/PageTabs';
@@ -23,14 +24,19 @@ const tabs: PageTab[] = [
 
 export default function BotDetail() {
   const { serviceId } = useParams();
+
+  const { data: bot } = useGetBot({ params: { serviceId } });
+
   const breadcrumb: BreadcrumbProps['items'] = [
     { title: '봇 관리', path: '/fca/bot-config' },
     { title: '봇', path: '/fca/bot-config/bot' },
-    { title: '봇 상세', path: `/fca/bot-config/bot/${serviceId}` },
+    { title: ':botName', path: `/fca/bot-config/bot/${serviceId}` },
   ];
+
+  const params: BreadcrumbProps['params'] = { botName: bot?.serviceName ?? '-' };
   return (
     <div className="flex flex-col gap-4 w-full h-full">
-      <PageHeader title="봇 편집" breadcrumb={breadcrumb} />
+      <PageHeader breadcrumb={breadcrumb} params={params} />
       <PageTabs tabs={tabs} />
     </div>
   );

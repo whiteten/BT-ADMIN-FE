@@ -84,7 +84,7 @@ export default function UserDetail() {
   const breadcrumb: BreadcrumbProps['items'] = [
     { title: '자원 관리', path: '/manager/resource' },
     { title: '사용자', path: '/manager/resource/user' },
-    { title: '사용자 상세', path: `/manager/resource/user/${userId}` },
+    { title: ':username', path: `/manager/resource/user/${userId}` },
   ];
 
   // 사용자 조회
@@ -92,6 +92,8 @@ export default function UserDetail() {
     params: { userId: numericUserId },
     queryOptions: { enabled: !!numericUserId },
   });
+
+  const params: BreadcrumbProps['params'] = { username: user?.username ?? '-' };
 
   // 역할 목록은 RouteGuard에서 이미 로드되어 Zustand에 저장됨
   const { roleList } = useAuthStore();
@@ -296,7 +298,7 @@ export default function UserDetail() {
 
   return (
     <div className="flex flex-col gap-4 w-full h-full">
-      <PageHeader title="사용자 편집" breadcrumb={breadcrumb} />
+      <PageHeader breadcrumb={breadcrumb} params={params} />
 
       <div className="flex w-full flex-1 min-h-0 gap-4">
         {/* 메인 콘텐츠 - PageTabs 영역 */}
