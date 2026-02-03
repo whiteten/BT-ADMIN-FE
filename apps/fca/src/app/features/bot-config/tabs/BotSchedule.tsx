@@ -66,7 +66,13 @@ export default function BotSchedule() {
         <>
           <Row gutter={20}>
             <Col span={6}>
-              <Form.Item name="bhWorktimeId" label="봇 상담 가능 시간" extra={formatWorkTimeDetail()} required rules={[{ required: true, message: '업무시간을 선택해 주세요.' }]}>
+              <Form.Item
+                name="bhWorktimeId"
+                label="봇 상담 가능 시간"
+                extra={formatWorkTimeDetail() || ' '}
+                required
+                rules={[{ required: true, message: '업무시간을 선택해 주세요.' }]}
+              >
                 <Select options={workTimeOptions} allowClear showSearch={{ optionFilterProp: 'label' }} placeholder="업무시간을 선택하세요." />
               </Form.Item>
             </Col>
