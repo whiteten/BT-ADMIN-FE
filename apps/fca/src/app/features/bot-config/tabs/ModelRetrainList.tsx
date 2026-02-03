@@ -3,6 +3,7 @@ import { useParams } from 'react-router-dom';
 import { useQueryClient } from '@tanstack/react-query';
 import type {
   CellDoubleClickedEvent,
+  CellKeyDownEvent,
   ColDef,
   GetRowIdParams,
   GridApi,
@@ -412,6 +413,13 @@ export default function ModelRetrainList() {
     });
   };
 
+  const handleCellKeyDown = (event: CellKeyDownEvent<RetrainListItem>) => {
+    if ((event.event as KeyboardEvent)?.key === 'Enter' && editingRowId && event.data) {
+      (event.event as KeyboardEvent).stopPropagation();
+      handleSave(event.data);
+    }
+  };
+
   const cancelEditing = () => {
     gridApiRef.current?.stopEditing(true);
   };
@@ -429,6 +437,7 @@ export default function ModelRetrainList() {
       cellStyle: { display: 'flex', alignItems: 'center' },
       cellEditor: InputTextCellEditor,
       cellEditorParams: { placeholder: '사용자발화 값을 입력하세요.' },
+      suppressKeyboardEvent: (params) => params.editing && params.event.key === 'Enter',
     },
     {
       headerName: '인식의도',
@@ -469,6 +478,7 @@ export default function ModelRetrainList() {
         options: intentOptions,
         placeholder: '정답의도를 선택하세요.',
       },
+      suppressKeyboardEvent: (params) => params.editing && params.event.key === 'Enter',
     },
     {
       headerName: '처리일시',
@@ -622,6 +632,7 @@ export default function ModelRetrainList() {
           onCellDoubleClicked={handleCellDoubleClick}
           onRowEditingStarted={handleRowEditingStarted}
           onRowEditingStopped={handleRowEditingStopped}
+          onCellKeyDown={handleCellKeyDown}
         />
       </div>
       <RetrainDetailDrawer ref={drawerRef} />
