@@ -21,6 +21,8 @@ export default function SlotStatistics() {
   const [serviceIds, setServiceIds] = useState<string[]>([]);
   const [draftServiceIds, setDraftServiceIds] = useState<string[]>([]);
   const [dialogName, setDialogName] = useState('');
+  const [filterColumn, setFilterColumn] = useState('dialogName');
+  const [searchValue, setSearchValue] = useState('');
 
   const { gridOptions } = useAggridOptions();
   const gridRef = useRef<AgGridReact<SlotStatListItem>>(null);
@@ -74,27 +76,24 @@ export default function SlotStatistics() {
 
   const filteredList = useMemo(() => {
     if (!slotStatList) return [];
-    const trimmedDialogName = dialogName?.trim().toLowerCase();
-    if (serviceIds.length === 0 && !trimmedDialogName) return slotStatList;
+    const trimmedSearchValue = searchValue?.trim().toLowerCase();
+    if (serviceIds.length === 0 && !trimmedSearchValue) return slotStatList;
     return slotStatList.filter((slotStat) => {
-      const matchesDialogName =
-        !trimmedDialogName ||
-        String(slotStat.dialogName ?? '')
+      const matchesServiceIds = serviceIds.length === 0 || serviceIds.includes(String(slotStat.serviceId ?? ''));
+      const matchesSearchValue =
+        !trimmedSearchValue ||
+        String(slotStat[filterColumn as keyof SlotStatListItem] ?? '')
           .toLowerCase()
-          .includes(trimmedDialogName);
-      return matchesDialogName;
+          .includes(trimmedSearchValue);
+      return matchesServiceIds && matchesSearchValue;
     });
-  }, [slotStatList, serviceIds, dialogName]);
+  }, [slotStatList, serviceIds, filterColumn, searchValue]);
 
   useEffect(() => {
     setRowData(filteredList ?? []);
     handleDateSearch();
     setServiceIds(draftServiceIds);
   }, [filteredList, draftDateRange, handleDateSearch, draftServiceIds]);
-
-  const handleServiceIdsChange = (value: string[]) => {
-    setDraftServiceIds(value ?? []);
-  };
 
   const columnDefs: Array<ColDef<SlotStatListItem> | ColGroupDef<SlotStatListItem>> = [
     {
@@ -130,6 +129,15 @@ export default function SlotStatistics() {
   ];
 
   const [isExporting, setIsExporting] = useState(false);
+
+  const handleServiceIdsChange = (value: string[]) => {
+    setDraftServiceIds(value ?? []);
+  };
+
+  const handleColumnChange = (value: string) => {
+    setFilterColumn(value);
+    setSearchValue('');
+  };
 
   const handleExcelDownload = () => {
     const api = gridRef.current?.api;
@@ -169,9 +177,10 @@ export default function SlotStatistics() {
     <div className="flex flex-col gap-4 w-full h-full">
       <PageHeader title="슬롯 통계" breadcrumb={breadcrumb} />
       {/* Filter */}
-      <div className="w-full h-full bg-white bt-shadow p-5">
+      <div className="flex flex-col w-full h-full bg-white bt-shadow p-5">
         <div className="flex items-center justify-between gap-2 pb-5">
           <div className="flex gap-3 w-full items-center">
+            <span className="text-sm font-medium text-[#495057] shrink-0">검색일자</span>
             <Select
               value={timeUnit}
               onChange={handleTimeUnitChange}
@@ -199,12 +208,21 @@ export default function SlotStatistics() {
               options={serviceSelectOptions}
               placeholder="검색할 봇서비스를 선택하세요."
               optionFilterProp="label"
-              className="!min-w-[200px] !max-w-[400px]"
+              className="!min-w-[250px] !max-w-[400px]"
               popupMatchSelectWidth={false}
             />
             <Divider orientation="vertical" className="!h-5 !m-0" />
-            <span className="text-sm font-medium text-[#495057] shrink-0">대화명</span>
-            <Input value={dialogName} onChange={(e) => setDialogName(e.target.value)} className="!min-w-[200px] !max-w-[250px]" placeholder="검색할 대화명을 입력하세요." />
+            <Select
+              value={filterColumn}
+              onChange={handleColumnChange}
+              options={[
+                { label: '대화명', value: 'dialogName' },
+                { label: '슬롯명', value: 'slotName' },
+              ]}
+              className="!max-w-[150px] !min-w-[100px]"
+              popupMatchSelectWidth={false}
+            />
+            <Input value={searchValue} onChange={(e) => setSearchValue(e.target.value)} className="!min-w-[200px] !max-w-[250px]" placeholder="검색어를 입력하세요." />
           </div>
           <div className="flex items-center gap-2 shrink-0">
             <Button
@@ -218,7 +236,7 @@ export default function SlotStatistics() {
             </Button>
           </div>
         </div>
-        <div className="w-full h-[calc(100%-56px)]">
+        <div className="w-full flex-1">
           <AgGridReact<SlotStatListItem> ref={gridRef} rowData={rowData} columnDefs={columnDefs} gridOptions={gridOptions} loading={isLoadingSlotStatList} />
         </div>
       </div>

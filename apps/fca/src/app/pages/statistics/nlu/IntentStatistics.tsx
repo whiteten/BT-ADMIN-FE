@@ -1,15 +1,17 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import type { ColDef, ExcelExportParams, ProcessCellForExportParams } from 'ag-grid-community';
 import { AgGridReact } from 'ag-grid-react';
-import { type BreadcrumbProps, Button, DatePicker, Divider, Select, message } from 'antd';
+import { type BreadcrumbProps, Button, DatePicker, Divider, Input, Select, message } from 'antd';
 import dayjs from 'dayjs';
-import { Download } from 'lucide-react';
+import { ChevronDown, Download } from 'lucide-react';
 import { useGetBots } from '../../../features/bot-config/hooks/useBotQueries';
 import { useGetModels } from '../../../features/bot-config/hooks/useModelQueries';
 import { useDateRangeLimit } from '../../../features/statistics/hooks/useDateRangeLimit';
 import { useGetIntentStatList } from '../../../features/statistics/hooks/useStatisticsQueries';
 import type { IntentStatListItem } from '../../../features/statistics/types/statistics.types';
 import PageHeader from '@/components/custom/PageHeader';
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
+import { cn } from '@/lib/utils';
 import useAggridOptions from '@/libs/shared-ui/src/hooks/useAggridOptions';
 
 const breadcrumb: BreadcrumbProps['items'] = [
@@ -23,6 +25,8 @@ export default function IntentStatistics() {
   const [draftModelIds, setDraftModelIds] = useState<string[]>([]);
   const [scnIds, setScnIds] = useState<string[]>([]);
   const [draftScnIds, setDraftScnIds] = useState<string[]>([]);
+  const [isFilterOpen, setIsFilterOpen] = useState(false);
+  const [intentName, setIntentName] = useState('');
 
   const { gridOptions } = useAggridOptions();
   const gridRef = useRef<AgGridReact<IntentStatListItem>>(null);
@@ -85,8 +89,9 @@ export default function IntentStatistics() {
       toTime: queryDateRange[1].format('YYYYMMDD'),
       scnIds: scnIds.length > 0 ? scnIds : undefined,
       modelIds: modelIds.length > 0 ? modelIds : undefined,
+      intentName: intentName?.trim(),
     };
-  }, [timeUnit, queryDateRange, scnIds, modelIds]);
+  }, [timeUnit, queryDateRange, scnIds, modelIds, intentName]);
 
   const { data: intentStatList, isLoading: isLoadingIntentStatList } = useGetIntentStatList({
     params: queryParams,
@@ -94,13 +99,18 @@ export default function IntentStatistics() {
 
   const filteredList = useMemo(() => {
     if (!intentStatList) return [];
-    if (scnIds.length === 0 && modelIds.length === 0) return intentStatList;
+    if (scnIds.length === 0 && modelIds.length === 0 && !intentName.trim()) return intentStatList;
     return intentStatList.filter((intentStat) => {
       const matchesScn = !scnIds.length || scnIds.includes(String(intentStat.scnId ?? ''));
       const matchesModel = !modelIds.length || modelIds.includes(String(intentStat.modelId ?? ''));
-      return matchesScn && matchesModel;
+      const matchesIntentName =
+        !intentName.trim().length ||
+        String(intentStat.intent ?? '')
+          .toLowerCase()
+          .includes(intentName.trim().toLowerCase());
+      return matchesScn && matchesModel && matchesIntentName;
     });
-  }, [intentStatList, scnIds, modelIds]);
+  }, [intentStatList, scnIds, modelIds, intentName]);
 
   useEffect(() => {
     setRowData(filteredList ?? []);
@@ -173,68 +183,90 @@ export default function IntentStatistics() {
     <div className="flex flex-col gap-4 w-full h-full">
       <PageHeader title="의도 통계" breadcrumb={breadcrumb} />
       {/* Filter */}
-      <div className="w-full h-full bg-white bt-shadow p-5">
-        <div className="flex items-center justify-between gap-2 pb-5">
-          <div className="flex gap-3 w-full items-center">
-            <Select
-              value={timeUnit}
-              onChange={handleTimeUnitChange}
-              options={[
-                { label: '분간', value: 'MI' },
-                { label: '시간', value: 'HH' },
-                { label: '일간', value: 'DD' },
-                { label: '월간', value: 'MM' },
-                { label: '년간', value: 'YY' },
-              ]}
-              className="!max-w-[110px] !min-w-[90px]"
-              popupMatchSelectWidth={false}
-              defaultValue="DD"
-            />
-            <RangePicker value={draftDateRange} onChange={handleDateRangeChange} disabledDate={disabledDate} inputReadOnly allowClear={false} />
-            <Divider orientation="vertical" className="!h-5 !m-0" />
-            <span className="text-sm font-medium text-[#495057] shrink-0">봇서비스</span>
-            <Select
-              mode="multiple"
-              value={draftScnIds}
-              onChange={handleScnIdsChange}
-              allowClear
-              showSearch
-              maxTagCount="responsive"
-              options={scnSelectOptions}
-              placeholder="검색할 봇서비스를 선택하세요."
-              optionFilterProp="label"
-              className="!min-w-[200px] !max-w-[400px]"
-              popupMatchSelectWidth={false}
-            />
-            <Divider orientation="vertical" className="!h-5 !m-0" />
-            <span className="text-sm font-medium text-[#495057] shrink-0">모델</span>
-            <Select
-              mode="multiple"
-              value={draftModelIds}
-              onChange={handleModelIdsChange}
-              allowClear
-              showSearch
-              maxTagCount="responsive"
-              options={modelSelectOptions}
-              placeholder="검색할 모델을 선택하세요."
-              optionFilterProp="label"
-              className="!min-w-[200px] !max-w-[400px]"
-              popupMatchSelectWidth={false}
-            />
-          </div>
-          <div className="flex items-center gap-2 shrink-0">
-            <Button
-              type="primary"
-              loading={isExporting}
-              icon={<Download className="size-4" />}
-              className="!bg-[#10B981] !border-[#10B981] hover:!bg-[#0FA968]"
-              onClick={handleExcelDownload}
-            >
-              엑셀
-            </Button>
-          </div>
-        </div>
-        <div className="w-full h-[calc(100%-56px)]">
+      <div className="flex flex-col w-full h-full bg-white bt-shadow p-5">
+        <Collapsible open={isFilterOpen} onOpenChange={setIsFilterOpen}>
+          <header className="flex flex-col gap-3 pb-5">
+            <div className="flex items-center justify-between gap-2">
+              <div className="flex items-center gap-3">
+                <div className="flex items-center gap-3">
+                  <span className="text-sm font-medium text-[#495057] shrink-0">검색일자</span>
+                  <Select
+                    value={timeUnit}
+                    onChange={handleTimeUnitChange}
+                    options={[
+                      { label: '분간', value: 'MI' },
+                      { label: '시간', value: 'HH' },
+                      { label: '일간', value: 'DD' },
+                      { label: '월간', value: 'MM' },
+                      { label: '년간', value: 'YY' },
+                    ]}
+                    className="!max-w-[110px] !min-w-[90px]"
+                    popupMatchSelectWidth={false}
+                    defaultValue="DD"
+                  />
+                  <RangePicker value={draftDateRange} onChange={handleDateRangeChange} disabledDate={disabledDate} inputReadOnly allowClear={false} />
+                </div>
+                <Divider orientation="vertical" className="!h-5 !m-0" />
+                <div className="flex items-center gap-3">
+                  <span className="text-sm font-medium text-[#495057] shrink-0">봇서비스</span>
+                  <Select
+                    mode="multiple"
+                    value={draftScnIds}
+                    onChange={handleScnIdsChange}
+                    allowClear
+                    showSearch
+                    maxTagCount="responsive"
+                    options={scnSelectOptions}
+                    placeholder="검색할 봇서비스를 선택하세요."
+                    optionFilterProp="label"
+                    className="!min-w-[250px] !max-w-[400px]"
+                    popupMatchSelectWidth={false}
+                  />
+                </div>
+                <Divider orientation="vertical" className="!h-5 !m-0" />
+                <div className="flex items-center gap-3">
+                  <span className="text-sm font-medium text-[#495057] shrink-0">모델</span>
+                  <Select
+                    mode="multiple"
+                    value={draftModelIds}
+                    onChange={handleModelIdsChange}
+                    allowClear
+                    showSearch
+                    maxTagCount="responsive"
+                    options={modelSelectOptions}
+                    placeholder="검색할 모델을 선택하세요."
+                    optionFilterProp="label"
+                    className="!min-w-[250px] !max-w-[400px]"
+                    popupMatchSelectWidth={false}
+                  />
+                </div>
+                <div className="flex items-center gap-3">
+                  <CollapsibleTrigger asChild>
+                    <Button type="default" icon={<ChevronDown className={cn('size-4 transition-transform', isFilterOpen && 'rotate-180')} />} className="!size-8 !min-w-8" />
+                  </CollapsibleTrigger>
+                </div>
+              </div>
+              <div className="flex items-center gap-3 shrink-0">
+                <Button
+                  type="primary"
+                  loading={isExporting}
+                  icon={<Download className="size-4" />}
+                  className="!bg-[#10B981] !border-[#10B981] hover:!bg-[#0FA968]"
+                  onClick={handleExcelDownload}
+                >
+                  엑셀
+                </Button>
+              </div>
+            </div>
+            <CollapsibleContent>
+              <div className="flex items-center gap-3">
+                <span className="text-sm font-medium text-[#495057] shrink-0">의도명</span>
+                <Input value={intentName} onChange={(e) => setIntentName(e.target.value)} className="!min-w-[200px] !max-w-[250px]" placeholder="검색할 의도명을 입력하세요." />
+              </div>
+            </CollapsibleContent>
+          </header>
+        </Collapsible>
+        <div className="w-full flex-1">
           <AgGridReact<IntentStatListItem> ref={gridRef} rowData={rowData} columnDefs={columnDefs} gridOptions={gridOptions} loading={isLoadingIntentStatList} />
         </div>
       </div>
