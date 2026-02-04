@@ -2,7 +2,7 @@ import React from 'react';
 import { Navigate, Outlet } from 'react-router-dom';
 import { NotFound } from '@/components/custom/NotFound';
 
-const Dashboard = React.lazy(() => import('./pages/dashboard'));
+const Dashboard = React.lazy(() => import('./pages/dashboard/Dashboard'));
 const UserList = React.lazy(() => import('./pages/user/UserList'));
 const UserCreate = React.lazy(() => import('./pages/user/UserCreate'));
 const UserDetail = React.lazy(() => import('./pages/user/UserDetail'));
