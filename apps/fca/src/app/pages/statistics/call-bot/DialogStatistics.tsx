@@ -63,10 +63,8 @@ export default function DialogStatistics() {
       timeUnit: timeUnit,
       fromTime: queryDateRange[0].format('YYYYMMDD'),
       toTime: queryDateRange[1].format('YYYYMMDD'),
-      serviceIds: serviceIds.length > 0 ? serviceIds : undefined,
-      dialogName: dialogName?.trim(),
     };
-  }, [timeUnit, queryDateRange, serviceIds, dialogName]);
+  }, [timeUnit, queryDateRange]);
 
   const { data: dialogStatList, isLoading: isLoadingDialogStatList } = useGetDialogStatList({
     params: queryParams,
@@ -77,12 +75,13 @@ export default function DialogStatistics() {
     const trimmedDialogName = dialogName?.trim().toLowerCase();
     if (serviceIds.length === 0 && !trimmedDialogName) return dialogStatList;
     return dialogStatList.filter((dialogStat) => {
+      const matchesServiceIds = serviceIds.length === 0 || serviceIds.includes(String(dialogStat.serviceId ?? ''));
       const matchesDialogName =
         !trimmedDialogName ||
         String(dialogStat.dialogName ?? '')
           .toLowerCase()
           .includes(trimmedDialogName);
-      return matchesDialogName;
+      return matchesServiceIds && matchesDialogName;
     });
   }, [dialogStatList, serviceIds, dialogName]);
 

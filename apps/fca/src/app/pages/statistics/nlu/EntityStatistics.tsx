@@ -88,10 +88,8 @@ export default function EntityStatistics() {
       timeUnit: timeUnit,
       fromTime: queryDateRange[0].format('YYYYMMDD'),
       toTime: queryDateRange[1].format('YYYYMMDD'),
-      scnIds: scnIds.length > 0 ? scnIds : undefined,
-      modelIds: modelIds.length > 0 ? modelIds : undefined,
     };
-  }, [timeUnit, queryDateRange, scnIds, modelIds]);
+  }, [timeUnit, queryDateRange]);
 
   const { data: entityStatList, isLoading: isLoadingEntityStatList } = useGetEntityStatList({
     params: queryParams,

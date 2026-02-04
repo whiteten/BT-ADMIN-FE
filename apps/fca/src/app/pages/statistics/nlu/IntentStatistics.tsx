@@ -87,11 +87,8 @@ export default function IntentStatistics() {
       timeUnit: timeUnit,
       fromTime: queryDateRange[0].format('YYYYMMDD'),
       toTime: queryDateRange[1].format('YYYYMMDD'),
-      scnIds: scnIds.length > 0 ? scnIds : undefined,
-      modelIds: modelIds.length > 0 ? modelIds : undefined,
-      intentName: intentName?.trim(),
     };
-  }, [timeUnit, queryDateRange, scnIds, modelIds, intentName]);
+  }, [timeUnit, queryDateRange]);
 
   const { data: intentStatList, isLoading: isLoadingIntentStatList } = useGetIntentStatList({
     params: queryParams,
@@ -99,15 +96,16 @@ export default function IntentStatistics() {
 
   const filteredList = useMemo(() => {
     if (!intentStatList) return [];
-    if (scnIds.length === 0 && modelIds.length === 0 && !intentName.trim()) return intentStatList;
+    const trimmedIntentName = intentName?.trim().toLowerCase();
+    if (scnIds.length === 0 && modelIds.length === 0 && !trimmedIntentName) return intentStatList;
     return intentStatList.filter((intentStat) => {
-      const matchesScn = !scnIds.length || scnIds.includes(String(intentStat.scnId ?? ''));
-      const matchesModel = !modelIds.length || modelIds.includes(String(intentStat.modelId ?? ''));
+      const matchesScn = scnIds.length === 0 || scnIds.includes(String(intentStat.scnId ?? ''));
+      const matchesModel = modelIds.length === 0 || modelIds.includes(String(intentStat.modelId ?? ''));
       const matchesIntentName =
-        !intentName.trim().length ||
+        !trimmedIntentName ||
         String(intentStat.intent ?? '')
           .toLowerCase()
-          .includes(intentName.trim().toLowerCase());
+          .includes(trimmedIntentName);
       return matchesScn && matchesModel && matchesIntentName;
     });
   }, [intentStatList, scnIds, modelIds, intentName]);

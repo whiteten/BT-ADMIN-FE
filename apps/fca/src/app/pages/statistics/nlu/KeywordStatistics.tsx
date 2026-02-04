@@ -88,10 +88,8 @@ export default function KeywordStatistics() {
       timeUnit: timeUnit,
       fromTime: queryDateRange[0].format('YYYYMMDD'),
       toTime: queryDateRange[1].format('YYYYMMDD'),
-      scnIds: scnIds.length > 0 ? scnIds : undefined,
-      modelIds: modelIds.length > 0 ? modelIds : undefined,
     };
-  }, [timeUnit, queryDateRange, scnIds, modelIds]);
+  }, [timeUnit, queryDateRange]);
 
   const { data: keywordStatList, isLoading: isLoadingKeywordStatList } = useGetKeywordStatList({
     params: queryParams,

@@ -20,7 +20,6 @@ const breadcrumb: BreadcrumbProps['items'] = [
 export default function SlotStatistics() {
   const [serviceIds, setServiceIds] = useState<string[]>([]);
   const [draftServiceIds, setDraftServiceIds] = useState<string[]>([]);
-  const [dialogName, setDialogName] = useState('');
   const [filterColumn, setFilterColumn] = useState('dialogName');
   const [searchValue, setSearchValue] = useState('');
 
@@ -65,10 +64,8 @@ export default function SlotStatistics() {
       timeUnit: timeUnit,
       fromTime: queryDateRange[0].format('YYYYMMDD'),
       toTime: queryDateRange[1].format('YYYYMMDD'),
-      serviceIds: serviceIds.length > 0 ? serviceIds : undefined,
-      dialogName: dialogName?.trim(),
     };
-  }, [timeUnit, queryDateRange, serviceIds, dialogName]);
+  }, [timeUnit, queryDateRange]);
 
   const { data: slotStatList, isLoading: isLoadingSlotStatList } = useGetSlotStatList({
     params: queryParams,

@@ -62,9 +62,8 @@ export default function ServiceStatistics() {
       timeUnit: timeUnit,
       fromTime: queryDateRange[0].format('YYYYMMDD'),
       toTime: queryDateRange[1].format('YYYYMMDD'),
-      serviceIds: serviceIds.length > 0 ? serviceIds : undefined,
     };
-  }, [timeUnit, queryDateRange, serviceIds]);
+  }, [timeUnit, queryDateRange]);
 
   const { data: serviceStatList, isLoading: isLoadingServiceStatList } = useGetServiceStatList({
     params: queryParams,
