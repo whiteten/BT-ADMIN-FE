@@ -15,6 +15,9 @@ const RoleDetailPage = React.lazy(() => import('./pages/iam/RoleDetailPage'));
 // 계정 정책 페이지
 const AccountPolicyPage = React.lazy(() => import('./pages/account-policy/AccountPolicyPage'));
 
+// 작업이력 페이지
+const WorkHistoryList = React.lazy(() => import('./pages/work-history/WorkHistoryList'));
+
 export const routes = [
   {
     path: '/',
@@ -94,6 +97,10 @@ export const routes = [
           {
             path: 'account-policy',
             element: <AccountPolicyPage />,
+          },
+          {
+            path: 'work-history',
+            element: <WorkHistoryList />,
           },
         ],
       },
