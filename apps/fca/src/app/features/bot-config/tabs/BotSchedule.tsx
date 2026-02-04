@@ -53,7 +53,7 @@ export default function BotSchedule() {
     if (!bot || !workTimeList) return;
     const { bhWorktimeId, ahMessage } = bot;
     const hasWorktimeId = workTimeList.some((workTime) => workTime.worktimeId === bhWorktimeId);
-    form.setFieldsValue({ bhWorktimeId: hasWorktimeId ? bhWorktimeId : null, ahMessage });
+    form.setFieldsValue({ bhWorktimeId: bhWorktimeId === 0 ? 0 : hasWorktimeId ? bhWorktimeId : null, ahMessage });
   }, [bot, form, workTimeList]);
 
   return (
