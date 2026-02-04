@@ -2,7 +2,7 @@ import React from 'react';
 import { Navigate, Outlet } from 'react-router-dom';
 import { NotFound } from '@/components/custom/NotFound';
 
-const Dashboard = React.lazy(() => import('./pages/dashboard/Dashboard'));
+const Main = React.lazy(() => import('./pages/main/Main'));
 const UserList = React.lazy(() => import('./pages/user/UserList'));
 const UserCreate = React.lazy(() => import('./pages/user/UserCreate'));
 const UserDetail = React.lazy(() => import('./pages/user/UserDetail'));
@@ -22,11 +22,11 @@ export const routes = [
     children: [
       {
         index: true,
-        element: <Navigate to="dashboard" replace />,
+        element: <Navigate to="main" replace />,
       },
       {
-        path: 'dashboard',
-        element: <Dashboard />,
+        path: 'main',
+        element: <Main />,
       },
       // 자원 관리 (resource)
       {

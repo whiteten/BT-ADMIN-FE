@@ -11,7 +11,7 @@ const menuConfig = {
     {
       menuId: 17,
       label: '메인',
-      path: 'dashboard',
+      path: 'main',
       index: 0,
       icon: IconMenuMain,
       hide: false,
