@@ -1,3 +1,3 @@
 export default function Main() {
-  return <div>Main</div>;
+  return <div className="flex h-full items-center justify-center"></div>;
 }

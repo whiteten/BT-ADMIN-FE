@@ -4,7 +4,7 @@ import FcaWsSessionEventHandler from './features/router/FcaWsSessionEventHandler
 import FaqDetail from './pages/global/FaqDetail';
 import { NotFound } from '@/components/custom/NotFound';
 
-const Main = React.lazy(() => import('./pages/main'));
+const Main = React.lazy(() => import('./pages/main/Main'));
 const BotList = React.lazy(() => import('./pages/bot-config/BotList'));
 const BotCreate = React.lazy(() => import('./pages/bot-config/BotCreate'));
 const BotDetail = React.lazy(() => import('./pages/bot-config/BotDetail'));
