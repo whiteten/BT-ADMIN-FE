@@ -14,7 +14,7 @@ export default function BotSchedule() {
 
   const { data: bot, isFetching: isFetchingBot } = useGetBot({ params: { serviceId } });
   const { data: workTimeList, isFetching: isFetchingWorkTimeList } = useGetWorkTimeList();
-  const workTimeOptions = workTimeList?.map((workTime) => ({ label: workTime.worktimeName, value: workTime.worktimeId })) ?? [];
+  const workTimeOptions = workTimeList?.map((workTime) => ({ label: workTime.groupKey, value: workTime.worktimeId })) ?? [];
   workTimeOptions.unshift({ label: '미지정', value: 0 });
   const { mutate: updateBotSchedule, isPending: isUpdating } = useUpdateBotSchedule({
     mutationOptions: {
