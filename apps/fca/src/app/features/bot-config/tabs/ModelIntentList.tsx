@@ -211,7 +211,7 @@ export default function ModelIntentList() {
           <Tooltip
             title={<span style={{ whiteSpace: 'pre-line' }}>{`전체 데이터 파일(엑셀)을 다운로드합니다.\n데이터를 일괄 내보내기 위한 용도입니다.`}</span>}
             placement="left"
-            overlayStyle={{ maxWidth: '300px' }}
+            styles={{ root: { maxWidth: '300px' } }}
           >
             <span className="flex items-center gap-2">
               <CloudDownload className="size-4" />
@@ -227,7 +227,7 @@ export default function ModelIntentList() {
           <Tooltip
             title={<span style={{ whiteSpace: 'pre-line' }}>{`빈 템플릿 파일(엑셀)을 다운로드합니다.\n데이터를 직접 입력하기 위한 용도입니다.`}</span>}
             placement="left"
-            overlayStyle={{ maxWidth: '300px' }}
+            styles={{ root: { maxWidth: '300px' } }}
           >
             <span className="flex items-center gap-2">
               <Download className="size-4" />
