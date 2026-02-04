@@ -122,10 +122,6 @@ export const routes = [
             element: <Navigate to="/manager/resource/auth-group/list" replace />,
           },
           {
-            path: 'password-policy',
-            element: <Navigate to="/manager/resource/account-policy" replace />,
-          },
-          {
             path: 'account-policy',
             element: <Navigate to="/manager/resource/account-policy" replace />,
           },
