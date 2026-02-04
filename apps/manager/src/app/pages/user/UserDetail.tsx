@@ -48,7 +48,8 @@ const getOptionLabel = (options: { label: string; value: string | number }[], va
 // 헬퍼 함수: 빈 값일 때 - 표시
 const displayValue = (value: unknown): React.ReactNode => {
   if (value === null || value === undefined || value === '') return <span className="text-gray-300">-</span>;
-  return value as React.ReactNode;
+  if (typeof value === 'object') return JSON.stringify(value);
+  return String(value);
 };
 
 // 날짜 포맷 유틸

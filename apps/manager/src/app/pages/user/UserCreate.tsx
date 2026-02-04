@@ -34,7 +34,8 @@ const getOptionLabel = (options: { label: string; value: string | number }[], va
 // 헬퍼 함수: 빈 값일 때 - 표시
 const displayValue = (value: unknown): React.ReactNode => {
   if (value === null || value === undefined || value === '') return <span className="text-gray-300">-</span>;
-  return value as React.ReactNode;
+  if (typeof value === 'object') return JSON.stringify(value);
+  return String(value);
 };
 
 interface UserFormValues {
@@ -97,8 +98,9 @@ export default function UserCreate() {
         toast.success('사용자가 생성되었습니다.');
         navigate('../list');
       },
-      onError: () => {
-        toast.error('사용자 생성에 실패했습니다.');
+      onError: (error) => {
+        const errorMessage = error instanceof Error ? error.message : '사용자 생성에 실패했습니다.';
+        toast.error(errorMessage);
       },
     },
   });
@@ -136,7 +138,7 @@ export default function UserCreate() {
       await form.validateFields(steps[currentStep].requiredFieldNames);
       setCurrentStep(currentStep + 1);
     } catch {
-      // validation failed
+      // validation failed - form이 자동으로 에러 표시하므로 추가 처리 불필요
     }
   };
 
