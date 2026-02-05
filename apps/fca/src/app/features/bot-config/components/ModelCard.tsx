@@ -9,6 +9,7 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigge
 type ModelCardProps = ModelListItem & {
   onDetail?: (modelId: string) => void;
   onDelete?: (modelId: string) => void;
+  onExport?: (modelId: string) => void;
 };
 
 export default function ModelCard({
@@ -25,6 +26,7 @@ export default function ModelCard({
   entityCount,
   onDetail,
   onDelete,
+  onExport,
 }: ModelCardProps) {
   const isPublicModel = modelType === ModelType.PUBLIC;
   const title = (
@@ -43,6 +45,9 @@ export default function ModelCard({
       <DropdownMenuContent className="dark" align="end">
         <DropdownMenuItem onClick={() => onDetail?.(modelId)} className="hover:cursor-pointer">
           상세보기
+        </DropdownMenuItem>
+        <DropdownMenuItem onClick={() => onExport?.(modelId)} className="hover:cursor-pointer">
+          Export
         </DropdownMenuItem>
         {!isPublicModel && (
           <DropdownMenuItem onClick={() => onDelete?.(modelId)} className="hover:cursor-pointer">

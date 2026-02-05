@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { useQueryClient } from '@tanstack/react-query';
 import { type BreadcrumbProps, Button, Input, Select } from 'antd';
 import ModelCard from '../../features/bot-config/components/ModelCard';
-import { modelQueryKeys, useDeleteModel, useGetModels } from '../../features/bot-config/hooks/useModelQueries';
+import { modelQueryKeys, useDeleteModel, useExportModel, useGetModels } from '../../features/bot-config/hooks/useModelQueries';
 import { useModelRoute } from '../../features/bot-config/hooks/useModelRoute';
 import { ModelType } from '../../features/bot-config/types/model';
 import { FallbackSpinner } from '@/components/custom/FallbackSpinner';
@@ -32,6 +32,8 @@ export default function ModelList() {
       },
     },
   });
+
+  const { mutate: exportModel } = useExportModel();
 
   const filteredList = useMemo(() => {
     if (!modelList) return [];
@@ -69,6 +71,10 @@ export default function ModelList() {
     });
   };
 
+  const handleExport = (modelId: string) => {
+    exportModel({ modelId });
+  };
+
   return (
     <div className="flex flex-col gap-4 w-full h-full">
       <PageHeader breadcrumb={breadcrumb} />
@@ -99,7 +105,7 @@ export default function ModelList() {
       ) : filteredList.length ? (
         <div className="grid grid-cols-[repeat(auto-fill,minmax(350px,1fr))] gap-4 w-full overflow-y-auto">
           {filteredList.map((model) => (
-            <ModelCard key={model.modelId} {...model} onDetail={handleDetail} onDelete={handleDelete} />
+            <ModelCard key={model.modelId} {...model} onDetail={handleDetail} onDelete={handleDelete} onExport={handleExport} />
           ))}
         </div>
       ) : (

@@ -68,6 +68,10 @@ export const modelApi = {
     const response = await apiClient.post('/model-deploy', data, { params });
     return response;
   },
+  exportModel: async (params: Record<string, unknown>) => {
+    const response = await apiClient.get<Blob>('/model-intent-entity-export', { params, responseType: 'blob' });
+    return response;
+  },
   getIntents: async (params?: Record<string, unknown>): Promise<IntentListItem[]> => {
     const response = await apiClient.get<ListResponse<IntentListItem>>('/intent-list', { params });
     return extractList(response);

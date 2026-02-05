@@ -129,6 +129,17 @@ export const useDeployModel = ({ mutationOptions }: MutationHookOptions = {}) =>
   });
 };
 
+export const useExportModel = ({ mutationOptions }: MutationHookOptions = {}) => {
+  return useMutation({
+    mutationFn: async (params: Record<string, unknown>) => {
+      const response = await modelApi.exportModel(params);
+      const fileName = extractFileName(response.headers['content-disposition'], `MODEL_${dayjs().format('YYYYMMDD')}.xlsx`);
+      downloadBlob(response.data, fileName);
+    },
+    ...mutationOptions,
+  });
+};
+
 export const useGetIntentSentences = ({ params, queryOptions }: QueryHookWithParamsOptions<IntentSentenceListItem[]> = {}) => {
   return useQuery({
     queryKey: modelQueryKeys.getIntentSentences(params).queryKey,
