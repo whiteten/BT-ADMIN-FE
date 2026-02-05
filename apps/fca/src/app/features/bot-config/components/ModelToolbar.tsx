@@ -1,24 +1,79 @@
+import { useQueryClient } from '@tanstack/react-query';
 import { Button, Divider } from 'antd';
+import { toast } from '@/shared-util';
+import { modelQueryKeys, useDeployModel, useGetModel, useTrainModel } from '../hooks/useModelQueries';
+import type { DeployStatus, TrainStatus } from '../types';
 import DeployStatusBadge from './DeployStatusBadge';
 import TrainStatusBadge from './TrainStatusBadge';
-import { useModelAction } from '../hooks/useModelAction';
-import type { DeployStatus, TrainStatus } from '../types';
-import { IconBot } from '@/libs/shared-ui/src/components/custom/Icons';
+import { useModal } from '@/libs/shared-ui/src/hooks/useModal';
 
 interface ModelToolbarProps {
   modelId: string | undefined;
 }
 
 export default function ModelToolbar({ modelId }: ModelToolbarProps) {
-  const { train, deploy, isTraining, isDeploying, isModelLoading, model } = useModelAction({ modelId });
+  const queryClient = useQueryClient();
+  const modal = useModal();
+
+  const { data: model, isLoading: isModelLoading } = useGetModel({ params: { modelId }, queryOptions: { enabled: !!modelId } });
+
+  const { mutate: trainModel, isPending: isTraining } = useTrainModel({
+    mutationOptions: {
+      onSuccess: () => {
+        toast.success('모델 학습 요청이 전송되었습니다.');
+      },
+      onSettled: () => {
+        queryClient.invalidateQueries({
+          queryKey: modelQueryKeys.getModel({ modelId }).queryKey,
+        });
+      },
+    },
+  });
+
+  const { mutate: deployModel, isPending: isDeploying } = useDeployModel({
+    mutationOptions: {
+      onSuccess: () => {
+        toast.success('모델 배포가 완료되었습니다.');
+      },
+      onSettled: () => {
+        queryClient.invalidateQueries({
+          queryKey: modelQueryKeys.getModel({ modelId }).queryKey,
+        });
+      },
+    },
+  });
+
+  const train = () => {
+    const tenantId = model?.tenantId;
+    modal.confirm.execute({
+      options: {
+        content: `모델(${model?.modelName}) 학습을 진행하시겠습니까?`,
+      },
+      onOk: () => {
+        trainModel({ params: { modelId, tenantId }, data: {} });
+      },
+    });
+  };
+
+  const deploy = () => {
+    if (model?.trainStatus !== 2) {
+      toast.warning('학습이 완료된 모델만 배포할 수 있습니다.');
+      return;
+    }
+    const tenantId = model?.tenantId;
+    modal.confirm.execute({
+      options: {
+        content: `모델(${model?.modelName}) 배포를 진행하시겠습니까?`,
+      },
+      onOk: () => {
+        deployModel({ params: { modelId, tenantId }, data: {} });
+      },
+    });
+  };
+
   return (
     <div className="flex justify-end">
       <div className="flex flex-wrap items-center gap-2">
-        <div className="flex items-center">
-          <IconBot className="size-5 text-[#888B9A]" />
-          <span className="text-[#495057]">{model?.modelName}</span>
-        </div>
-        <Divider orientation="vertical" className="!mx-0.5" />
         <TrainStatusBadge status={model?.trainStatus as TrainStatus} showAlert={model?.trainChangedYn} />
         <Divider orientation="vertical" className="!mx-0.5" />
         <DeployStatusBadge status={model?.deployStatus as DeployStatus} showAlert={model?.deployChangedYn} />
