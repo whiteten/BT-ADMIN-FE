@@ -164,7 +164,35 @@ export default function BotCreate() {
             </Form.Item>
           </Col>
           <Col span={9}>
-            <Form.Item name="confidence" label="신뢰도" required hasFeedback rules={[{ required: true, message: '신뢰도를 설정해 주세요.' }]}>
+            <Form.Item
+              name="confidence"
+              label="신뢰도"
+              required
+              hasFeedback
+              tooltip={{
+                title: (
+                  <div className="flex flex-col gap-2">
+                    <span className="whitespace-pre-line">{`신뢰도 수치(%)를 구간별로 나누어 설정합니다.`}</span>
+                    <div className="flex items-center gap-3">
+                      <div className="flex items-center gap-1">
+                        <span className="w-3 h-3 rounded-sm" style={{ backgroundColor: '#F06548' }} />
+                        <span>실패</span>
+                      </div>
+                      <div className="flex items-center gap-1">
+                        <span className="w-3 h-3 rounded-sm" style={{ backgroundColor: '#d9d9d9' }} />
+                        <span>재확인</span>
+                      </div>
+                      <div className="flex items-center gap-1">
+                        <span className="w-3 h-3 rounded-sm" style={{ backgroundColor: '#405189' }} />
+                        <span>성공</span>
+                      </div>
+                    </div>
+                  </div>
+                ),
+                styles: { root: { maxWidth: 450 } },
+              }}
+              rules={[{ required: true, message: '신뢰도를 설정해 주세요.' }]}
+            >
               <Slider
                 range
                 value={confidence}
