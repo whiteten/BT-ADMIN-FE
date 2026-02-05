@@ -1,13 +1,14 @@
 import { useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { App, Button, Checkbox, Form, type FormProps, Input } from 'antd';
+import { Button, Checkbox, Form, type FormProps, Input } from 'antd';
 import type { AxiosError } from 'axios';
 import { Lock, LockKeyhole, User, Users } from 'lucide-react';
 import { useAuthStore } from '@/shared-store';
 import { toast } from '@/shared-util';
 import styles from './Login.module.scss';
 import { authApi } from '../features/auth/api/authApi';
-import { useChangePassword, useLogin, useResetPassword } from '../features/auth/hooks/useAuthQueries';
+import { useLogin, useResetPassword } from '../features/auth/hooks/useAuthQueries';
+import { useRememberMeStore } from '../features/auth/hooks/useRememberMeStore';
 import type { LoginErrorResponse, LoginResponse, PasswordPolicy } from '../features/auth/types/auth';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -39,6 +40,7 @@ export default function Login() {
   const [pendingLoginResponse, setPendingLoginResponse] = useState<LoginResponse | null>(null);
   const [passwordPolicy, setPasswordPolicy] = useState<PasswordPolicy | undefined>(undefined);
   const { setPasswordExpiringWarning } = useAuthStore();
+  const { data: rememberMeData, setRememberMeData } = useRememberMeStore();
 
   // Account lock state
   const [lockState, setLockState] = useState<LockState>({ isLocked: false, retryAfterSeconds: 0 });
@@ -61,30 +63,6 @@ export default function Login() {
       return () => clearInterval(timer);
     }
   }, [lockState.retryAfterSeconds]);
-
-  // const { mutate: changePassword } = useChangePassword({
-  //   mutationOptions: {
-  //     onSuccess: async () => {
-  //       try {
-  //         // 비밀번호 변경 후 강제 로그아웃
-  //         await authApi.logout();
-  //       } catch (error) {
-  //         Log.warn('Logout after password change failed:', error);
-  //       }
-
-  //       // 상태 초기화
-  //       setPendingLoginResponse(null);
-  //       setPasswordPolicy(undefined);
-  //       form.resetFields();
-
-  //       // 안내 메시지 표시
-  //       toast.success('비밀번호가 변경되었습니다. 새 비밀번호로 다시 로그인해주세요.');
-  //     },
-  //     onError: () => {
-  //       toast.error('비밀번호 변경에 실패했습니다.');
-  //     },
-  //   },
-  // });
 
   const { mutate: resetPassword } = useResetPassword({
     mutationOptions: {
@@ -118,6 +96,11 @@ export default function Login() {
             daysUntilExpiration: response.daysUntilExpiration,
           });
         }
+        setRememberMeData({
+          userAccount: rememberMeData.rememberMe ? form.getFieldValue('userAccount') : '',
+          tenant: rememberMeData.rememberMe ? form.getFieldValue('tenant') : '',
+          rememberMe: rememberMeData.rememberMe,
+        });
         // Navigate to main page
         navigate('/');
       },
@@ -176,7 +159,7 @@ export default function Login() {
           case 'account_locked':
             setLockState({
               isLocked: true,
-              retryAfterSeconds: errorData.retry_after || 0,
+              retryAfterSeconds: errorData.retry_after ?? 0,
             });
             setLoginError({ error: 'account_locked', message: '' });
             break;
@@ -184,14 +167,14 @@ export default function Login() {
           case 'account_dormant':
             setLoginError({
               error: 'account_dormant',
-              message: errorData.error_description || '휴면 계정입니다. 관리자에게 문의하세요.',
+              message: errorData.error_description ?? '휴면 계정입니다. 관리자에게 문의하세요.',
             });
             break;
 
           case 'account_disabled':
             setLoginError({
               error: 'account_disabled',
-              message: errorData.error_description || '비활성화된 계정입니다. 관리자에게 문의하세요.',
+              message: errorData.error_description ?? '비활성화된 계정입니다. 관리자에게 문의하세요.',
             });
             break;
 
@@ -206,28 +189,28 @@ export default function Login() {
           case 'tenant_required':
             setLoginError({
               error: 'tenant_required',
-              message: errorData.error_description || '멀티테넌트 계정입니다. 테넌트를 입력해주세요.',
+              message: errorData.error_description ?? '멀티테넌트 계정입니다. 테넌트를 입력해주세요.',
             });
             break;
 
           case 'ip_not_allowed':
             setLoginError({
               error: 'ip_not_allowed',
-              message: errorData.error_description || '허용되지 않은 IP 주소입니다. 관리자에게 문의하세요.',
+              message: errorData.error_description ?? '허용되지 않은 IP 주소입니다. 관리자에게 문의하세요.',
             });
             break;
 
           default:
             setLoginError({
               error: null,
-              message: errorData.error_description || '로그인에 실패했습니다.',
+              message: errorData.error_description ?? '로그인에 실패했습니다.',
             });
         }
       },
     },
   });
 
-  const onFinish: FormProps<{ userId: string; password: string; tenant?: string }>['onFinish'] = (values) => {
+  const onFinish: FormProps<{ userAccount: string; password: string; tenant?: string }>['onFinish'] = (values) => {
     // Clear previous errors
     setLoginError({ error: null, message: '' });
 
@@ -239,13 +222,13 @@ export default function Login() {
     // V23: username → userAccount로 변경
     // tenant는 멀티테넌트 사용자만 입력 (단일 테넌트 사용자는 자동 선택됨)
     login({
-      userAccount: values.userId,
+      userAccount: values.userAccount,
       password: values.password,
-      tenant: values.tenant || undefined,
+      tenant: values.tenant ?? undefined,
     });
   };
 
-  const onFinishFailed: FormProps<{ userId: string; password: string; tenant?: string }>['onFinishFailed'] = (errorInfo) => {
+  const onFinishFailed: FormProps<{ userAccount: string; password: string; tenant?: string }>['onFinishFailed'] = (errorInfo) => {
     Log.warn('onFinishFailed', errorInfo);
   };
 
@@ -391,26 +374,37 @@ export default function Login() {
               {/* Error alerts */}
               {renderErrorAlert()}
 
-              <Form form={form} layout="vertical" onFinish={onFinish} onFinishFailed={onFinishFailed} autoComplete="off" initialValues={{ userId: 'admin', password: 'admin1234' }}>
-                <Form.Item name="userId" label="아이디" rules={[{ required: true, message: '아이디를 입력해주세요' }]} className="!mb-4">
-                  <Input size="large" placeholder="아이디" prefix={<User className="h-4 w-4 text-gray-400" />} disabled={lockState.isLocked} />
+              <Form
+                form={form}
+                layout="vertical"
+                onFinish={onFinish}
+                onFinishFailed={onFinishFailed}
+                autoComplete="off"
+                initialValues={{
+                  userAccount: rememberMeData.rememberMe ? rememberMeData.userAccount : '',
+                  password: '',
+                  tenant: rememberMeData.rememberMe ? rememberMeData.tenant : '',
+                }}
+              >
+                <Form.Item name="userAccount" label="아이디" rules={[{ required: true, message: '아이디를 입력해주세요' }]} className="!mb-4">
+                  <Input size="large" placeholder="아이디" prefix={<User className="h-4 w-4 text-gray-400" />} />
                 </Form.Item>
 
                 <Form.Item name="password" label="비밀번호" rules={[{ required: true, message: '비밀번호를 입력해주세요' }]} className="!mb-4">
-                  <Input.Password size="large" placeholder="비밀번호" prefix={<Lock className="h-4 w-4 text-gray-400" />} disabled={lockState.isLocked} />
+                  <Input.Password size="large" placeholder="비밀번호" prefix={<Lock className="h-4 w-4 text-gray-400" />} />
                 </Form.Item>
 
                 <Form.Item name="tenant" label="테넌트명" className="!mb-4">
-                  <Input size="large" placeholder="테넌트명 (멀티테넌트 사용자만 입력)" prefix={<Users className="h-4 w-4 text-gray-400" />} disabled={lockState.isLocked} />
+                  <Input size="large" placeholder="테넌트명 (멀티테넌트 사용자만 입력)" prefix={<Users className="h-4 w-4 text-gray-400" />} />
                 </Form.Item>
 
-                <Form.Item className="!mb-5">
-                  <Checkbox disabled={lockState.isLocked}>로그인 정보 저장</Checkbox>
-                </Form.Item>
+                <Checkbox className="!mb-5" checked={rememberMeData.rememberMe} onChange={(e) => setRememberMeData({ rememberMe: e.target.checked })}>
+                  로그인 정보 저장
+                </Checkbox>
 
                 <Form.Item className="!mb-0">
-                  <Button type="primary" size="large" htmlType="submit" loading={isPending} disabled={lockState.isLocked} block className="!bg-[var(--color-bt-primary)]">
-                    {lockState.isLocked ? `잠금 해제까지 ${formatTime(lockState.retryAfterSeconds)}` : '로그인'}
+                  <Button type="primary" size="large" htmlType="submit" loading={isPending} block className="!bg-[var(--color-bt-primary)]">
+                    로그인
                   </Button>
                 </Form.Item>
               </Form>
