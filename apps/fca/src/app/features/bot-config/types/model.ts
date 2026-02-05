@@ -40,7 +40,9 @@ export type ModelListItem = Pick<
 
 export type ModelItem = Model;
 
-export type ModelCreateDatas = Pick<Model, 'modelName' | 'expansion1' | 'modelType'>;
+export type ModelCreateDatas = Pick<Model, 'modelName' | 'expansion1' | 'modelType'> & {
+  file?: File;
+};
 export type ModelBasicInfoUpdateDatas = Pick<Model, 'modelName' | 'expansion1'>;
 
 /**

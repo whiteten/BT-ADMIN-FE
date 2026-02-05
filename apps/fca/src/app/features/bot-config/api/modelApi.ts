@@ -49,7 +49,12 @@ export const modelApi = {
     return extractDetail(response);
   },
   createModel: async (data: ModelCreateDatas) => {
-    const response = await apiClient.post('/model-create', data);
+    const formData = new FormData();
+    if (data.file) formData.append('uploadFile', data.file);
+    formData.append('modelName', data.modelName);
+    formData.append('expansion1', data.expansion1 ?? '');
+    formData.append('modelType', String(data.modelType));
+    const response = await apiClient.post('/model-create', formData);
     return response;
   },
   updateModel: async ({ params, data }: { params: Record<string, unknown>; data: ModelBasicInfoUpdateDatas }) => {
