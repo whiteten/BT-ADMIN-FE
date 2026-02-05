@@ -33,7 +33,7 @@ import useAggridOptions from '@/libs/shared-ui/src/hooks/useAggridOptions';
 import { useModal } from '@/libs/shared-ui/src/hooks/useModal';
 
 // Row ID 생성 헬퍼 함수
-const createRowId = (data: RetrainListItem) => `${data.ucidGkey}_${data.hop}_${data.questionSeq}`;
+const createRowId = (data: RetrainListItem) => `${data.ucidGkey}_${data.hop}_${data.questionSeq}_${data.cdrDatetime}`;
 
 interface InputTextCellEditorProps {
   value: string;

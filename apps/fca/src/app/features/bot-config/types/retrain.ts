@@ -15,6 +15,7 @@ export interface Retrain {
   ifeSubflowId?: number;
   ifeNodeName?: string;
   callType: CallType;
+  cdrDatetime: string;
 }
 
 /**
