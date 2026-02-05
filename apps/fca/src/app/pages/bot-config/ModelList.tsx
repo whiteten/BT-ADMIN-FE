@@ -13,11 +13,19 @@ import { useModal } from '@/libs/shared-ui/src/hooks/useModal';
 
 export default function ModelList() {
   const { isPublic } = useModelRoute();
-  const breadcrumb: BreadcrumbProps['items'] = [
+
+  const privateBreadcrumb: BreadcrumbProps['items'] = [
     { title: '봇 관리', path: '/fca/bot-config' },
-    isPublic ? { title: '공용 모델', path: '/fca/global/model' } : { title: '모델', path: '/fca/bot-config/model' },
-    isPublic ? { title: '공용 모델 목록', path: '/fca/global/model' } : { title: '모델 목록', path: '/fca/bot-config/model/list' },
+    { title: '모델', path: '/fca/bot-config/model' },
+    { title: '모델 목록', path: '/fca/bot-config/model/list' },
   ];
+
+  const publicBreadcrumb: BreadcrumbProps['items'] = [
+    { title: '봇 관리', path: '/fca/bot-config' },
+    { title: '공용 모델', path: '/fca/global/model' },
+    { title: '공용 모델 목록', path: '/fca/global/model' },
+  ];
+
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const modal = useModal();
@@ -77,7 +85,7 @@ export default function ModelList() {
 
   return (
     <div className="flex flex-col gap-4 w-full h-full">
-      <PageHeader breadcrumb={breadcrumb} />
+      <PageHeader breadcrumb={isPublic ? publicBreadcrumb : privateBreadcrumb} />
       {/* Filter */}
       <div className="flex items-center justify-between gap-2 w-full h-[76px] bg-white bt-shadow px-7 py-5">
         <div className="flex gap-2 w-full items-center">
