@@ -50,11 +50,11 @@ export default function BotSchedule() {
   };
 
   useEffect(() => {
-    if (!bot || !workTimeList) return;
+    if (!bot || !workTimeOptions) return;
     const { bhWorktimeId, ahMessage } = bot;
-    const hasWorktimeId = workTimeList.some((workTime) => workTime.worktimeId === bhWorktimeId);
-    form.setFieldsValue({ bhWorktimeId: bhWorktimeId === 0 ? 0 : hasWorktimeId ? bhWorktimeId : null, ahMessage });
-  }, [bot, form, workTimeList]);
+    const hasWorktimeId = workTimeOptions.some((workTime) => workTime.value === bhWorktimeId);
+    form.setFieldsValue({ bhWorktimeId: hasWorktimeId ? bhWorktimeId : null, ahMessage });
+  }, [bot, form, workTimeOptions]);
 
   return (
     <Form form={form} initialValues={{ bhWorktimeId: null, ahMessage: '' }} onFinish={onFinish} onFinishFailed={onFinishFailed} layout="vertical">
