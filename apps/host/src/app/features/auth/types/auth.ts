@@ -56,7 +56,16 @@ export interface LoginResponse {
  * Login error response from backend (OAuth2 style)
  */
 export interface LoginErrorResponse {
-  error: 'invalid_request' | 'invalid_grant' | 'account_locked' | 'account_dormant' | 'account_disabled' | 'tenant_required' | 'password_change_required' | 'ip_not_allowed';
+  error:
+    | 'invalid_request'
+    | 'invalid_grant'
+    | 'account_locked'
+    | 'account_dormant'
+    | 'account_disabled'
+    | 'tenant_required'
+    | 'password_change_required'
+    | 'ip_not_allowed'
+    | 'concurrent_login_blocked';
   error_description?: string;
   remaining_attempts?: number;
   retry_after?: number;
