@@ -16,6 +16,9 @@ import { useAuthStore } from '@/shared-store';
 import { emailRule, phoneRule, toast } from '@/shared-util';
 import { useCreateUser } from '../../features/user/hooks/useUserQueries';
 import type { AccountStatus, UserCreateDatas } from '../../features/user/types/user.types';
+import ResourceSection from '../../features/user-resource/components/ResourceSection';
+import { MOCK_AVAILABLE_BOTS, MOCK_AVAILABLE_MODELS } from '../../features/user-resource/constants';
+import type { AssignedResource } from '../../features/user-resource/types/userResource.types';
 import { FallbackSpinner } from '@/components/custom/FallbackSpinner';
 import PageHeader from '@/components/custom/PageHeader';
 
@@ -58,6 +61,10 @@ export default function UserCreate() {
   const [newIp, setNewIp] = useState('');
   const [ipError, setIpError] = useState('');
 
+  // 리소스 접근 로컬 상태 (Form 외부 관리)
+  const [assignedBots, setAssignedBots] = useState<AssignedResource[]>([]);
+  const [assignedModels, setAssignedModels] = useState<AssignedResource[]>([]);
+
   // 역할 목록은 RouteGuard에서 이미 로드되어 Zustand에 저장됨
   const { roleList, isLoading: isFetchingRoles } = useAuthStore();
   const roleOptions = roleList.map((role) => ({ label: role.roleName, value: role.roleId }));
@@ -89,7 +96,8 @@ export default function UserCreate() {
 
   const steps = [
     { title: '기본 정보', requiredFieldNames: ['username', 'userAccount', 'roleId'], content: renderStep1 },
-    { title: '부가사항', requiredFieldNames: [], content: renderStep2 },
+    { title: '리소스 접근', requiredFieldNames: [], content: renderStep2 },
+    { title: '부가사항', requiredFieldNames: [], content: renderStep3 },
   ];
 
   const createUserMutation = useCreateUser({
@@ -124,6 +132,9 @@ export default function UserCreate() {
       // 초기 비밀번호는 백엔드에서 userAccount와 동일하게 자동 설정
       // forcePasswordChange는 백엔드에서 true로 자동 설정
     };
+    // TODO: API 연동 시 리소스 접근 데이터도 함께 전송
+    // assignedBots.map(item => item.resourceId)
+    // assignedModels.map(item => item.resourceId)
     createUserMutation.mutate(requestData);
   };
 
@@ -274,8 +285,32 @@ export default function UserCreate() {
     }
   };
 
-  // Step 2: 부가사항
+  // Step 2: 리소스 접근
   function renderStep2() {
+    return (
+      <div className="space-y-8">
+        <ResourceSection
+          title="봇 서비스"
+          emptyDescription="설정하지 않으면 모든 봇을 조회할 수 있습니다."
+          drawerTitle="봇 서비스 추가"
+          availableResources={MOCK_AVAILABLE_BOTS}
+          assignedItems={assignedBots}
+          onAssignedItemsChange={setAssignedBots}
+        />
+        <ResourceSection
+          title="NLU 모델"
+          emptyDescription="설정하지 않으면 모든 모델을 조회할 수 있습니다."
+          drawerTitle="NLU 모델 추가"
+          availableResources={MOCK_AVAILABLE_MODELS}
+          assignedItems={assignedModels}
+          onAssignedItemsChange={setAssignedModels}
+        />
+      </div>
+    );
+  }
+
+  // Step 3: 부가사항
+  function renderStep3() {
     return (
       <>
         <Row gutter={20}>
@@ -409,7 +444,27 @@ export default function UserCreate() {
           </div>
         </div>
         <Divider className="!my-3" />
-        {/* Step 2: 부가사항 */}
+        {/* Step 2: 리소스 접근 */}
+        <div className="space-y-2">
+          <div className="flex items-center gap-1">
+            <span className="text-gray-500 w-28 shrink-0">봇 서비스</span>
+            <span className="text-gray-800 flex-1">
+              {assignedBots.length > 0 ? <span className="text-blue-600 font-medium">{assignedBots.length}개 설정</span> : <span className="text-gray-400 text-sm">전체 허용</span>}
+            </span>
+          </div>
+          <div className="flex items-center gap-1">
+            <span className="text-gray-500 w-28 shrink-0">NLU 모델</span>
+            <span className="text-gray-800 flex-1">
+              {assignedModels.length > 0 ? (
+                <span className="text-blue-600 font-medium">{assignedModels.length}개 설정</span>
+              ) : (
+                <span className="text-gray-400 text-sm">전체 허용</span>
+              )}
+            </span>
+          </div>
+        </div>
+        <Divider className="!my-3" />
+        {/* Step 3: 부가사항 */}
         <div className="space-y-2">
           <div className="flex items-center gap-1">
             <span className="text-gray-500 w-28 shrink-0">핸드폰번호</span>

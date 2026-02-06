@@ -38,6 +38,14 @@ export interface PermissionStats {
 }
 
 /**
+ * 리소스 접근 통계
+ */
+export interface ResourceStats {
+  botCount: number; // 할당된 봇 수
+  modelCount: number; // 할당된 모델 수
+}
+
+/**
  * Context 값 타입
  */
 interface UserDetailContextValue {
@@ -52,6 +60,10 @@ interface UserDetailContextValue {
   // 개별 권한 통계 (실시간)
   permissionStats: PermissionStats | null;
   setPermissionStats: (stats: PermissionStats | null) => void;
+
+  // 리소스 접근 통계 (실시간)
+  resourceStats: ResourceStats | null;
+  setResourceStats: (stats: ResourceStats | null) => void;
 
   // DB 원본 데이터로 리셋 (탭 전환 시 사용)
   resetToServerData: () => void;

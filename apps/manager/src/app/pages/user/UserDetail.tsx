@@ -10,9 +10,9 @@
 import React, { Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useParams, useSearchParams } from 'react-router-dom';
 import { type BreadcrumbProps, Button, Divider, Tag } from 'antd';
-import { Check, ChevronLeft, ChevronRight, History, Shield } from 'lucide-react';
+import { Check, ChevronLeft, ChevronRight, History, Layers, Shield } from 'lucide-react';
 import { useAuthStore } from '@/shared-store';
-import { type PermissionStats, type UserAdditionalFormValues, type UserBasicFormValues, UserDetailProvider } from './context/UserDetailContext';
+import { type PermissionStats, type ResourceStats, type UserAdditionalFormValues, type UserBasicFormValues, UserDetailProvider } from './context/UserDetailContext';
 import AccountStatusBadge from '../../features/user/components/AccountStatusBadge';
 import { useGetUser } from '../../features/user/hooks/useUserQueries';
 import { FallbackSpinner } from '@/components/custom/FallbackSpinner';
@@ -24,6 +24,7 @@ const UserBasicInfoTab = React.lazy(() => import('./tabs/UserBasicInfoTab'));
 const UserAdditionalInfoTab = React.lazy(() => import('./tabs/UserAdditionalInfoTab'));
 const UserPermissionTab = React.lazy(() => import('./tabs/UserPermissionTab'));
 const UserLoginHistoryTab = React.lazy(() => import('./tabs/UserLoginHistoryTab'));
+const UserResourceAccessTab = React.lazy(() => import('./tabs/UserResourceAccessTab'));
 
 interface PageTab {
   id: string;
@@ -34,9 +35,10 @@ interface PageTab {
 
 const tabs: PageTab[] = [
   { id: 'tab1', label: '기본정보', icon: IconDocument, component: UserBasicInfoTab },
-  { id: 'tab2', label: '로그인 이력', icon: History, component: UserLoginHistoryTab },
+  { id: 'tab2', label: '리소스 접근', icon: Layers, component: UserResourceAccessTab },
   { id: 'tab3', label: '개별 권한', icon: Shield, component: UserPermissionTab },
   { id: 'tab4', label: '부가사항', icon: IconSlidersHorizontal, component: UserAdditionalInfoTab },
+  { id: 'tab5', label: '로그인 이력', icon: History, component: UserLoginHistoryTab },
 ];
 
 // 헬퍼 함수: Select 옵션에서 라벨 찾기
@@ -81,6 +83,7 @@ export default function UserDetail() {
   const [basicFormValues, setBasicFormValues] = useState<Partial<UserBasicFormValues>>({});
   const [additionalFormValues, setAdditionalFormValues] = useState<Partial<UserAdditionalFormValues>>({});
   const [permissionStats, setPermissionStats] = useState<PermissionStats | null>(null);
+  const [resourceStats, setResourceStats] = useState<ResourceStats | null>(null);
 
   const breadcrumb: BreadcrumbProps['items'] = [
     { title: '자원 관리', path: '/manager/resource' },
@@ -203,27 +206,23 @@ export default function UserDetail() {
           </div>
         </div>
         <Divider className="!my-3" />
-        {/* 부가사항 */}
+        {/* 리소스 접근 */}
         <div className="space-y-2">
           <div className="flex items-center gap-1">
-            <span className="text-gray-500 w-28 shrink-0">핸드폰번호</span>
-            <span className="text-gray-800 flex-1">{displayValue(currentAdditional.phone)}</span>
+            <span className="text-gray-500 w-28 shrink-0">봇 서비스</span>
+            <span className="text-gray-800 flex-1">
+              {resourceStats && resourceStats.botCount > 0 ? (
+                <span className="text-blue-600 font-medium">{resourceStats.botCount}개 설정</span>
+              ) : (
+                <span className="text-gray-400 text-sm">전체 허용</span>
+              )}
+            </span>
           </div>
           <div className="flex items-center gap-1">
-            <span className="text-gray-500 w-28 shrink-0">이메일</span>
-            <span className="text-gray-800 flex-1">{displayValue(currentAdditional.email)}</span>
-          </div>
-          <div className="flex items-start gap-1">
-            <span className="text-gray-500 w-28 shrink-0">접근 허용 IP</span>
+            <span className="text-gray-500 w-28 shrink-0">NLU 모델</span>
             <span className="text-gray-800 flex-1">
-              {currentAdditional.allowedIps && currentAdditional.allowedIps.length > 0 ? (
-                <div className="flex flex-wrap gap-1">
-                  {currentAdditional.allowedIps.map((ip: string) => (
-                    <Tag key={ip} className="text-xs">
-                      {ip}
-                    </Tag>
-                  ))}
-                </div>
+              {resourceStats && resourceStats.modelCount > 0 ? (
+                <span className="text-blue-600 font-medium">{resourceStats.modelCount}개 설정</span>
               ) : (
                 <span className="text-gray-400 text-sm">전체 허용</span>
               )}
@@ -253,6 +252,34 @@ export default function UserDetail() {
           <div className="flex items-center gap-1">
             <span className="text-gray-500 w-28 shrink-0">최종 권한</span>
             <span className="text-gray-800 font-medium flex-1">{permissionStats ? `${permissionStats.selectedCount}개` : <span className="text-gray-300">-</span>}</span>
+          </div>
+        </div>
+        <Divider className="!my-3" />
+        {/* 부가사항 */}
+        <div className="space-y-2">
+          <div className="flex items-center gap-1">
+            <span className="text-gray-500 w-28 shrink-0">핸드폰번호</span>
+            <span className="text-gray-800 flex-1">{displayValue(currentAdditional.phone)}</span>
+          </div>
+          <div className="flex items-center gap-1">
+            <span className="text-gray-500 w-28 shrink-0">이메일</span>
+            <span className="text-gray-800 flex-1">{displayValue(currentAdditional.email)}</span>
+          </div>
+          <div className="flex items-start gap-1">
+            <span className="text-gray-500 w-28 shrink-0">접근 허용 IP</span>
+            <span className="text-gray-800 flex-1">
+              {currentAdditional.allowedIps && currentAdditional.allowedIps.length > 0 ? (
+                <div className="flex flex-wrap gap-1">
+                  {currentAdditional.allowedIps.map((ip: string) => (
+                    <Tag key={ip} className="text-xs">
+                      {ip}
+                    </Tag>
+                  ))}
+                </div>
+              ) : (
+                <span className="text-gray-400 text-sm">전체 허용</span>
+              )}
+            </span>
           </div>
         </div>
         <Divider className="!my-3" />
@@ -292,9 +319,11 @@ export default function UserDetail() {
       setAdditionalFormValues,
       permissionStats,
       setPermissionStats,
+      resourceStats,
+      setResourceStats,
       resetToServerData,
     }),
-    [basicFormValues, additionalFormValues, permissionStats, resetToServerData],
+    [basicFormValues, additionalFormValues, permissionStats, resourceStats, resetToServerData],
   );
 
   return (
