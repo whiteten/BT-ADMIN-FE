@@ -1,12 +1,12 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import type { ColDef, ExcelExportParams, ProcessCellForExportParams } from 'ag-grid-community';
 import { AgGridReact } from 'ag-grid-react';
-import { type BreadcrumbProps, Button, DatePicker, Divider, Input, Select, message } from 'antd';
-import dayjs from 'dayjs';
+import { type BreadcrumbProps, Button, DatePicker, Divider, Input, Select, TimePicker, message } from 'antd';
+import dayjs, { type Dayjs } from 'dayjs';
 import { ChevronDown, Download } from 'lucide-react';
 import { useGetBots } from '../../../features/bot-config/hooks/useBotQueries';
 import { useGetModels } from '../../../features/bot-config/hooks/useModelQueries';
-import { useDateRangeLimit } from '../../../features/statistics/hooks/useDateRangeLimit';
+import { TIME_FORMAT } from '../../../features/statistics/hooks/useDateRangeLimit';
 import { useGetEntityStatList } from '../../../features/statistics/hooks/useStatisticsQueries';
 import type { EntityStatListItem } from '../../../features/statistics/types/statistics.types';
 import PageHeader from '@/components/custom/PageHeader';
@@ -21,30 +21,35 @@ const breadcrumb: BreadcrumbProps['items'] = [
 ];
 
 export default function EntityStatistics() {
+  // UI 상태 (사용자가 입력하는 값들)
   const [modelIds, setModelIds] = useState<string[]>([]);
-  const [draftModelIds, setDraftModelIds] = useState<string[]>([]);
   const [scnIds, setScnIds] = useState<string[]>([]);
-  const [draftScnIds, setDraftScnIds] = useState<string[]>([]);
-  const [isFilterOpen, setIsFilterOpen] = useState(false);
   const [filterColumn, setFilterColumn] = useState('entityTag');
   const [searchValue, setSearchValue] = useState('');
+  const [timeUnit, setTimeUnit] = useState<string>('DD');
+  const [startDate, setStartDate] = useState<Dayjs | null>(dayjs().startOf('day'));
+  const [endDate, setEndDate] = useState<Dayjs | null>(dayjs().endOf('day'));
+  const [startTime, setStartTime] = useState<Dayjs | null>(dayjs().hour(0).minute(0));
+  const [endTime, setEndTime] = useState<Dayjs | null>(dayjs().hour(23).minute(59));
 
+  // 조회 확정된 파라미터 (조회 버튼 눌렀을 때만 업데이트)
+  const [queryParams, setQueryParams] = useState(() => {
+    const fromDate = dayjs().startOf('day').format('YYYYMMDD');
+    const toDate = dayjs().endOf('day').format('YYYYMMDD');
+    return {
+      timeUnit: 'DD',
+      fromTime: fromDate,
+      toTime: toDate,
+    };
+  });
+
+  const [isFilterOpen, setIsFilterOpen] = useState(false);
   const { gridOptions } = useAggridOptions();
   const gridRef = useRef<AgGridReact<EntityStatListItem>>(null);
-  const { RangePicker } = DatePicker;
   const { data: scnList } = useGetBots();
   const { data: modelList } = useGetModels();
 
-  const {
-    draftDateRange,
-    queryDateRange,
-    timeUnit,
-    handleTimeUnitChange,
-    handleDateRangeChange,
-    handleSearch: handleDateSearch,
-    disabledDate,
-    getTimeFormat,
-  } = useDateRangeLimit();
+  const getTimeFormat = (unit?: string) => TIME_FORMAT[unit ?? ''] ?? 'YYYY-MM-DD';
 
   const [rowData, setRowData] = useState<EntityStatListItem[]>([]);
 
@@ -83,14 +88,6 @@ export default function EntityStatistics() {
     [models],
   );
 
-  const queryParams = useMemo(() => {
-    return {
-      timeUnit: timeUnit,
-      fromTime: queryDateRange[0].format('YYYYMMDD'),
-      toTime: queryDateRange[1].format('YYYYMMDD'),
-    };
-  }, [timeUnit, queryDateRange]);
-
   const { data: entityStatList, isLoading: isLoadingEntityStatList } = useGetEntityStatList({
     params: queryParams,
   });
@@ -113,25 +110,51 @@ export default function EntityStatistics() {
 
   useEffect(() => {
     setRowData(filteredList ?? []);
-    handleDateSearch();
-    setScnIds(draftScnIds);
-    setModelIds(draftModelIds);
-  }, [filteredList, draftDateRange, handleDateSearch, draftScnIds, draftModelIds]);
+  }, [filteredList]);
 
-  const handleScnIdsChange = (value: string[]) => {
-    setDraftScnIds(value ?? []);
-  };
+  // timeUnit이 HH로 변경될 때 분을 자동 조정 (시작 00분, 종료 50분)
+  useEffect(() => {
+    if (timeUnit === 'HH') {
+      setStartTime((prev) => (prev ? prev.minute(0) : prev));
+      setEndTime((prev) => (prev ? prev.minute(50) : prev));
+    }
+  }, [timeUnit]);
 
-  const handleModelIdsChange = (value: string[]) => {
-    setDraftModelIds(value ?? []);
+  const handleSearch = () => {
+    if (!startDate || !endDate) {
+      message.warning('검색일자를 선택해주세요.');
+      return;
+    }
+
+    if ((timeUnit === 'MI' || timeUnit === 'HH') && (!startTime || !endTime)) {
+      message.warning('검색시간을 선택해주세요.');
+      return;
+    }
+
+    // 조회 버튼 클릭 시에만 queryParams 업데이트 → React Query 재조회
+    const fromDate = startDate.format('YYYYMMDD');
+    const toDate = endDate.format('YYYYMMDD');
+    // HH 모드일 때는 시작 00분, 종료 50분 고정
+    const normalizedStartTime = timeUnit === 'HH' && startTime ? startTime.minute(0) : startTime;
+    const normalizedEndTime = timeUnit === 'HH' && endTime ? endTime.minute(50) : endTime;
+    const fromTime = normalizedStartTime?.format('HHmm');
+    const toTime = normalizedEndTime?.format('HHmm');
+    const fromDateTime = timeUnit === 'MI' || timeUnit === 'HH' ? `${fromDate}${fromTime}` : fromDate;
+    const toDateTime = timeUnit === 'MI' || timeUnit === 'HH' ? `${toDate}${toTime}` : toDate;
+
+    setQueryParams({
+      timeUnit,
+      fromTime: fromDateTime,
+      toTime: toDateTime,
+    });
   };
 
   const columnDefs: ColDef<EntityStatListItem>[] = [
     {
       headerName: '날짜',
       field: 'psrTimeKey',
-      flex: 1,
-      valueFormatter: ({ value }: { value?: string }) => (value ? dayjs(value).format(getTimeFormat(timeUnit)) : '-'),
+      flex: queryParams.timeUnit === 'MI' || queryParams.timeUnit === 'HH' ? 2 : 1,
+      valueFormatter: ({ value }: { value?: string }) => (value ? dayjs(value).format(getTimeFormat(queryParams.timeUnit)) : '-'),
       cellStyle: { alignItems: 'center' },
     },
     { headerName: '봇서비스ID', field: 'scnId', hide: true },
@@ -164,7 +187,7 @@ export default function EntityStatistics() {
         const v = p.value;
 
         if (colId === 'psrTimeKey') {
-          return v ? dayjs(String(v)).format(getTimeFormat(timeUnit)) : '-';
+          return v ? dayjs(String(v)).format(getTimeFormat(queryParams.timeUnit)) : '-';
         }
 
         return v ?? '-';
@@ -188,10 +211,10 @@ export default function EntityStatistics() {
                   <span className="text-sm font-medium text-[#495057] shrink-0">검색일자</span>
                   <Select
                     value={timeUnit}
-                    onChange={handleTimeUnitChange}
+                    onChange={(v) => setTimeUnit(v)}
                     options={[
-                      { label: '분간', value: 'MI' },
-                      { label: '시간', value: 'HH' },
+                      { label: '10분단위', value: 'MI' },
+                      { label: '시간별', value: 'HH' },
                       { label: '일간', value: 'DD' },
                       { label: '월간', value: 'MM' },
                       { label: '년간', value: 'YY' },
@@ -200,37 +223,44 @@ export default function EntityStatistics() {
                     popupMatchSelectWidth={false}
                     defaultValue="DD"
                   />
-                  <RangePicker value={draftDateRange} onChange={handleDateRangeChange} disabledDate={disabledDate} inputReadOnly allowClear={false} />
+                  <DatePicker value={startDate} onChange={(date) => setStartDate(date)} inputReadOnly allowClear={false} />
+                  {timeUnit === 'MI' || timeUnit === 'HH' ? (
+                    <TimePicker
+                      value={startTime}
+                      onChange={(date) => setStartTime(date)}
+                      inputReadOnly
+                      allowClear={false}
+                      format={timeUnit === 'MI' ? 'HH:mm' : 'HH:00'}
+                      minuteStep={10}
+                      style={{ width: '100px' }}
+                    />
+                  ) : null}
+                  <span className="text-sm font-medium text-[#495057] shrink-0">~</span>
+                  <DatePicker value={endDate} onChange={(date) => setEndDate(date)} inputReadOnly allowClear={false} />
+                  {timeUnit === 'MI' || timeUnit === 'HH' ? (
+                    <TimePicker
+                      value={endTime}
+                      onChange={(date) => setEndTime(date)}
+                      inputReadOnly
+                      allowClear={false}
+                      format={timeUnit === 'MI' ? 'HH:mm' : 'HH:50'}
+                      minuteStep={10}
+                      style={{ width: '100px' }}
+                    />
+                  ) : null}
                 </div>
                 <Divider orientation="vertical" className="!h-5 !m-0" />
                 <div className="flex items-center gap-3">
                   <span className="text-sm font-medium text-[#495057] shrink-0">봇서비스</span>
                   <Select
                     mode="multiple"
-                    value={draftScnIds}
-                    onChange={handleScnIdsChange}
+                    value={scnIds}
+                    onChange={(value) => setScnIds(value ?? [])}
                     allowClear
                     showSearch
                     maxTagCount="responsive"
                     options={scnSelectOptions}
                     placeholder="검색할 봇서비스를 선택하세요."
-                    optionFilterProp="label"
-                    className="!min-w-[250px] !max-w-[400px]"
-                    popupMatchSelectWidth={false}
-                  />
-                </div>
-                <Divider orientation="vertical" className="!h-5 !m-0" />
-                <div className="flex items-center gap-3">
-                  <span className="text-sm font-medium text-[#495057] shrink-0">모델</span>
-                  <Select
-                    mode="multiple"
-                    value={draftModelIds}
-                    onChange={handleModelIdsChange}
-                    allowClear
-                    showSearch
-                    maxTagCount="responsive"
-                    options={modelSelectOptions}
-                    placeholder="검색할 모델을 선택하세요."
                     optionFilterProp="label"
                     className="!min-w-[250px] !max-w-[400px]"
                     popupMatchSelectWidth={false}
@@ -243,6 +273,9 @@ export default function EntityStatistics() {
                 </div>
               </div>
               <div className="flex items-center gap-3 shrink-0">
+                <Button type="primary" onClick={handleSearch}>
+                  조회
+                </Button>
                 <Button
                   type="primary"
                   loading={isExporting}
@@ -256,6 +289,21 @@ export default function EntityStatistics() {
             </div>
             <CollapsibleContent>
               <div className="flex items-center gap-3">
+                <span className="text-sm font-medium text-[#495057] shrink-0">모델</span>
+                <Select
+                  mode="multiple"
+                  value={modelIds}
+                  onChange={(value) => setModelIds(value ?? [])}
+                  allowClear
+                  showSearch
+                  maxTagCount="responsive"
+                  options={modelSelectOptions}
+                  placeholder="검색할 모델을 선택하세요."
+                  optionFilterProp="label"
+                  className="!min-w-[250px] !max-w-[400px]"
+                  popupMatchSelectWidth={false}
+                />
+                <Divider orientation="vertical" className="!h-5 !m-0" />
                 <Select
                   value={filterColumn}
                   onChange={setFilterColumn}
