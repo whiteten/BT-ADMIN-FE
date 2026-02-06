@@ -389,8 +389,12 @@ export default function BotCreate() {
   // Footer: 이전, 다음, 저장 버튼
   function renderFooter() {
     return (
-      // <Row gutter={20} justify="center" className="sticky bottom-0 bg-white/90 z-10 pb-7 pt-4">
       <Row gutter={20} justify="center">
+        <Col>
+          <Button variant="solid" onClick={() => navigate('../')}>
+            취소
+          </Button>
+        </Col>
         {currentStep > 0 && (
           <Col>
             <Button variant="solid" onClick={handlePrev}>

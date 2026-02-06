@@ -109,6 +109,11 @@ export default function ModelCreate() {
             </Row>
             <Row gutter={20} justify="center" className="sticky bottom-0 bg-white/90 z-10 pb-7">
               <Col>
+                <Button variant="solid" onClick={() => navigate('../')}>
+                  취소
+                </Button>
+              </Col>
+              <Col>
                 <Button variant="solid" color="primary" htmlType="submit" loading={isCreatingModel}>
                   저장
                 </Button>
