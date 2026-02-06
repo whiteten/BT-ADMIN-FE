@@ -1,10 +1,10 @@
 import { useEffect } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { useQueryClient } from '@tanstack/react-query';
-import { Button, Col, Form, type FormProps, Input, Row } from 'antd';
+import { Button, Col, Form, type FormProps, Input, Row, Tooltip } from 'antd';
 import { Log } from '@/log';
 import { toast } from '@/shared-util';
-import { modelQueryKeys, useDeleteModel, useGetModel, useUpdateModel } from '../hooks/useModelQueries';
+import { modelQueryKeys, useDeleteModel, useExportModel, useGetModel, useUpdateModel } from '../hooks/useModelQueries';
 import type { ModelBasicInfoUpdateDatas } from '../types';
 import { ModelType } from '../types/model';
 import { FallbackSpinner } from '@/components/custom/FallbackSpinner';
@@ -52,6 +52,10 @@ export default function ModelBasicInfo() {
     });
   };
 
+  const { mutate: exportModel, isPending: isExporting } = useExportModel();
+  const handleClickExport = () => {
+    exportModel({ modelId });
+  };
   useEffect(() => {
     if (!model) return;
     const { modelName, expansion1 } = model;
@@ -102,6 +106,16 @@ export default function ModelBasicInfo() {
                 </Button>
               </Col>
             )}
+            <Col>
+              <Tooltip
+                title={<span style={{ whiteSpace: 'pre-line' }}>{`모델의 의도·개체 전체 데이터 파일(엑셀)을 다운로드합니다.`}</span>}
+                styles={{ root: { maxWidth: '370px' } }}
+              >
+                <Button variant="solid" onClick={handleClickExport} loading={isExporting}>
+                  Export
+                </Button>
+              </Tooltip>
+            </Col>
           </Row>
         </>
       )}

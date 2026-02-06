@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { useQueryClient } from '@tanstack/react-query';
 import { type BreadcrumbProps, Button, Input, Select } from 'antd';
 import ModelCard from '../../features/bot-config/components/ModelCard';
-import { modelQueryKeys, useDeleteModel, useGetModels } from '../../features/bot-config/hooks/useModelQueries';
+import { modelQueryKeys, useDeleteModel, useExportModel, useGetModels } from '../../features/bot-config/hooks/useModelQueries';
 import { useModelRoute } from '../../features/bot-config/hooks/useModelRoute';
 import { ModelType } from '../../features/bot-config/types/model';
 import { FallbackSpinner } from '@/components/custom/FallbackSpinner';
@@ -13,11 +13,19 @@ import { useModal } from '@/libs/shared-ui/src/hooks/useModal';
 
 export default function ModelList() {
   const { isPublic } = useModelRoute();
-  const breadcrumb: BreadcrumbProps['items'] = [
+
+  const privateBreadcrumb: BreadcrumbProps['items'] = [
     { title: '봇 관리', path: '/fca/bot-config' },
-    isPublic ? { title: '공용 모델', path: '/fca/global/model' } : { title: '모델', path: '/fca/bot-config/model' },
-    isPublic ? { title: '공용 모델 목록', path: '/fca/global/model' } : { title: '모델 목록', path: '/fca/bot-config/model/list' },
+    { title: '모델', path: '/fca/bot-config/model' },
+    { title: '모델 목록', path: '/fca/bot-config/model/list' },
   ];
+
+  const publicBreadcrumb: BreadcrumbProps['items'] = [
+    { title: '봇 관리', path: '/fca/bot-config' },
+    { title: '공용 모델', path: '/fca/global/model' },
+    { title: '공용 모델 목록', path: '/fca/global/model' },
+  ];
+
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const modal = useModal();
@@ -32,6 +40,8 @@ export default function ModelList() {
       },
     },
   });
+
+  const { mutate: exportModel } = useExportModel();
 
   const filteredList = useMemo(() => {
     if (!modelList) return [];
@@ -69,9 +79,13 @@ export default function ModelList() {
     });
   };
 
+  const handleExport = (modelId: string) => {
+    exportModel({ modelId });
+  };
+
   return (
     <div className="flex flex-col gap-4 w-full h-full">
-      <PageHeader breadcrumb={breadcrumb} />
+      <PageHeader breadcrumb={isPublic ? publicBreadcrumb : privateBreadcrumb} />
       {/* Filter */}
       <div className="flex items-center justify-between gap-2 w-full h-[76px] bg-white bt-shadow px-7 py-5">
         <div className="flex gap-2 w-full items-center">
@@ -99,7 +113,7 @@ export default function ModelList() {
       ) : filteredList.length ? (
         <div className="grid grid-cols-[repeat(auto-fill,minmax(350px,1fr))] gap-4 w-full overflow-y-auto">
           {filteredList.map((model) => (
-            <ModelCard key={model.modelId} {...model} onDetail={handleDetail} onDelete={handleDelete} />
+            <ModelCard key={model.modelId} {...model} onDetail={handleDetail} onDelete={handleDelete} onExport={handleExport} />
           ))}
         </div>
       ) : (

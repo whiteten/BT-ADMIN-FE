@@ -77,9 +77,20 @@ const FileImportModal = forwardRef<FileImportModalRef, FileImportModalProps>(
       accept,
       fileList,
       beforeUpload: (file) => {
+        if (accept) {
+          const extensions = accept
+            .split(',')
+            .map((ext) => ext.trim().replace('.', ''))
+            .join('|');
+          const pattern = new RegExp(`\\.(${extensions})$`, 'i');
+          if (!pattern.test(file.name)) {
+            toast.warning(`지정된 확장자의 파일만 업로드할 수 있습니다.(${accept})`);
+            return Upload.LIST_IGNORE;
+          }
+        }
         const isWithinLimit = file.size / 1024 / 1024 < maxSizeMB;
         if (!isWithinLimit) {
-          toast.error(`파일 크기는 ${maxSizeMB}MB 이하여야 합니다.`);
+          toast.warning(`파일 크기는 ${maxSizeMB}MB 이하여야 합니다.`);
           return Upload.LIST_IGNORE;
         }
         return false;

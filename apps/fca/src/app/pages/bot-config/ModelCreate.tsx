@@ -1,5 +1,5 @@
 import { useNavigate } from 'react-router-dom';
-import { type BreadcrumbProps, Button, Col, Form, type FormProps, Input, Row } from 'antd';
+import { type BreadcrumbProps, Button, Col, Form, type FormProps, Input, Row, Upload, type UploadFile } from 'antd';
 import { Log } from '@/log';
 import { toast } from '@/shared-util';
 import { useCreateModel } from '../../features/bot-config/hooks/useModelQueries';
@@ -35,9 +35,10 @@ export default function ModelCreate() {
       },
     },
   });
-  const onFinish: FormProps<ModelCreateDatas>['onFinish'] = (values) => {
+  const onFinish: FormProps<ModelCreateDatas & { file?: UploadFile[] }>['onFinish'] = (values) => {
     Log.debug('onFinish', values);
-    createModel({ ...values, modelType: isPublic ? ModelType.PUBLIC : ModelType.NORMAL } as ModelCreateDatas);
+    const file = values.file?.[0]?.originFileObj as File | undefined;
+    createModel({ ...values, file, modelType: isPublic ? ModelType.PUBLIC : ModelType.NORMAL });
   };
   const onFinishFailed: FormProps<ModelCreateDatas>['onFinishFailed'] = (errorInfo) => {
     Log.warn('onFinishFailed', errorInfo);
@@ -68,6 +69,41 @@ export default function ModelCreate() {
               <Col span={24}>
                 <Form.Item name="expansion1" label="모델 설명">
                   <Input.TextArea rows={4} placeholder="모델 설명을 입력하세요." />
+                </Form.Item>
+              </Col>
+            </Row>
+            <Row gutter={20}>
+              <Col span={9}>
+                <Form.Item
+                  name="file"
+                  label="엑셀 파일"
+                  valuePropName="fileList"
+                  tooltip={{
+                    title: <span style={{ whiteSpace: 'pre-line' }}>{`모델에서 Export한 엑셀 파일을 업로드하여, 모델을 생성합니다.\n의도, 개체 정보를 포함하여 생성됩니다.`}</span>,
+                    styles: { root: { maxWidth: 400 } },
+                  }}
+                  getValueFromEvent={(e) => (Array.isArray(e) ? e : e?.fileList)}
+                >
+                  <Upload.Dragger
+                    accept=".xlsx,.xls"
+                    maxCount={1}
+                    beforeUpload={(file) => {
+                      const isExcel = /\.(xlsx|xls)$/i.test(file.name);
+                      if (!isExcel) {
+                        toast.warning('지정된 확장자의 파일만 업로드할 수 있습니다.(.xlsx, .xls)');
+                        return Upload.LIST_IGNORE;
+                      }
+                      const isWithinLimit = file.size / 1024 / 1024 < 10;
+                      if (!isWithinLimit) {
+                        toast.warning('파일 크기는 10MB 이하여야 합니다.');
+                        return Upload.LIST_IGNORE;
+                      }
+                      return false;
+                    }}
+                  >
+                    <p className="text-sm">파일을 드래그하거나 클릭하여 선택하세요</p>
+                    <p className="text-xs text-gray-500">허용 가능한 확장자: .xlsx, .xls</p>
+                  </Upload.Dragger>
                 </Form.Item>
               </Col>
             </Row>

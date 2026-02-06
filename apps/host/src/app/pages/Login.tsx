@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Button, Checkbox, Form, type FormProps, Input } from 'antd';
 import type { AxiosError } from 'axios';
@@ -8,17 +8,11 @@ import { toast } from '@/shared-util';
 import styles from './Login.module.scss';
 import { authApi } from '../features/auth/api/authApi';
 import { useLogin, useResetPassword } from '../features/auth/hooks/useAuthQueries';
+import { useRememberMeStore } from '../features/auth/hooks/useRememberMeStore';
 import type { LoginErrorResponse, LoginResponse, PasswordPolicy } from '../features/auth/types/auth';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { ChangePasswordDialog, type ChangePasswordDialogRef, type ChangePasswordMode } from '@/libs/shared-ui/src/components/custom/ChangePasswordDialog';
 import { Log } from '@/libs/shared-util/src/lib/log';
-
-/**
- * Account lock state
- */
-interface LockState {
-  retryAfterSeconds: number;
-}
 
 export default function Login() {
   const navigate = useNavigate();
@@ -27,23 +21,7 @@ export default function Login() {
   const [pendingLoginResponse, setPendingLoginResponse] = useState<LoginResponse | null>(null);
   const [passwordPolicy, setPasswordPolicy] = useState<PasswordPolicy | undefined>(undefined);
   const { setPasswordExpiringWarning } = useAuthStore();
-
-  // Account lock state (isLocked is derived: retryAfterSeconds > 0)
-  const [lockState, setLockState] = useState<LockState>({ retryAfterSeconds: 0 });
-  const isLocked = lockState.retryAfterSeconds > 0;
-
-  // Countdown timer for account lock
-  useEffect(() => {
-    if (lockState.retryAfterSeconds > 0) {
-      const timer = setInterval(() => {
-        setLockState((prev) => {
-          const newSeconds = prev.retryAfterSeconds - 1;
-          return { retryAfterSeconds: Math.max(newSeconds, 0) };
-        });
-      }, 1000);
-      return () => clearInterval(timer);
-    }
-  }, [lockState.retryAfterSeconds]);
+  const { data: rememberMeData, setRememberMeData } = useRememberMeStore();
 
   const { mutate: resetPassword } = useResetPassword({
     mutationOptions: {
@@ -74,6 +52,11 @@ export default function Login() {
             daysUntilExpiration: response.daysUntilExpiration,
           });
         }
+        setRememberMeData({
+          userAccount: rememberMeData.rememberMe ? form.getFieldValue('userAccount') : '',
+          tenant: rememberMeData.rememberMe ? form.getFieldValue('tenant') : '',
+          rememberMe: rememberMeData.rememberMe,
+        });
         // Navigate to main page
         navigate('/');
       },
@@ -89,7 +72,7 @@ export default function Login() {
         // BFF ApiResponse의 data 필드에서 OAuth2 에러 정보 추출
         const errorData = apiResponse.data;
         if (!errorData?.error) {
-          toast.error(apiResponse.message || '로그인에 실패했습니다.');
+          toast.error(apiResponse.message ?? '로그인에 실패했습니다.');
           return;
         }
 
@@ -139,7 +122,6 @@ export default function Login() {
           }
 
           case 'account_locked':
-            setLockState({ retryAfterSeconds: errorData.retry_after ?? 0 });
             toast.warning(errorData.error_description ?? '로그인 시도 횟수를 초과하여 계정이 일시적으로 잠겼습니다.', { autoClose: false });
             break;
 
@@ -170,22 +152,15 @@ export default function Login() {
     },
   });
 
-  const onFinish: FormProps<{ userId: string; password: string; tenant?: string }>['onFinish'] = (values) => {
-    // Prevent login if account is locked
-    if (isLocked) {
-      return;
-    }
-
-    // V23: username → userAccount로 변경
-    // tenant는 멀티테넌트 사용자만 입력 (단일 테넌트 사용자는 자동 선택됨)
+  const onFinish: FormProps<{ userAccount: string; password: string; tenant?: string }>['onFinish'] = (values) => {
     login({
-      userAccount: values.userId,
+      userAccount: values.userAccount,
       password: values.password,
-      tenant: values.tenant || undefined,
+      tenant: values.tenant ?? undefined,
     });
   };
 
-  const onFinishFailed: FormProps<{ userId: string; password: string; tenant?: string }>['onFinishFailed'] = (errorInfo) => {
+  const onFinishFailed: FormProps<{ userAccount: string; password: string; tenant?: string }>['onFinishFailed'] = (errorInfo) => {
     Log.warn('onFinishFailed', errorInfo);
   };
 
@@ -204,15 +179,6 @@ export default function Login() {
       newPassword: data.newPassword,
       currentPassword: data.currentPassword,
     });
-  };
-
-  /**
-   * Format seconds to mm:ss
-   */
-  const formatTime = (seconds: number): string => {
-    const mins = Math.floor(seconds / 60);
-    const secs = seconds % 60;
-    return `${mins}:${secs.toString().padStart(2, '0')}`;
   };
 
   return (
@@ -239,26 +205,37 @@ export default function Login() {
           </CardHeader>
           <CardContent>
             <div className={styles['login-wrapper']}>
-              <Form form={form} layout="vertical" onFinish={onFinish} onFinishFailed={onFinishFailed} autoComplete="off">
-                <Form.Item name="userId" label="아이디" rules={[{ required: true, message: '아이디를 입력해주세요' }]} className="!mb-4">
-                  <Input size="large" placeholder="아이디" prefix={<User className="h-4 w-4 text-gray-400" />} disabled={isLocked} />
+              <Form
+                form={form}
+                layout="vertical"
+                onFinish={onFinish}
+                onFinishFailed={onFinishFailed}
+                autoComplete="off"
+                initialValues={{
+                  userAccount: rememberMeData.rememberMe ? rememberMeData.userAccount : '',
+                  password: '',
+                  tenant: rememberMeData.rememberMe ? rememberMeData.tenant : '',
+                }}
+              >
+                <Form.Item name="userAccount" label="아이디" rules={[{ required: true, message: '아이디를 입력해주세요' }]} className="!mb-4">
+                  <Input size="large" placeholder="아이디" prefix={<User className="h-4 w-4 text-gray-400" />} />
                 </Form.Item>
 
                 <Form.Item name="password" label="비밀번호" rules={[{ required: true, message: '비밀번호를 입력해주세요' }]} className="!mb-4">
-                  <Input.Password size="large" placeholder="비밀번호" prefix={<Lock className="h-4 w-4 text-gray-400" />} disabled={isLocked} />
+                  <Input.Password size="large" placeholder="비밀번호" prefix={<Lock className="h-4 w-4 text-gray-400" />} />
                 </Form.Item>
 
                 <Form.Item name="tenant" label="테넌트명" className="!mb-4">
-                  <Input size="large" placeholder="테넌트명 (멀티테넌트 사용자만 입력)" prefix={<Users className="h-4 w-4 text-gray-400" />} disabled={isLocked} />
+                  <Input size="large" placeholder="테넌트명 (멀티테넌트 사용자만 입력)" prefix={<Users className="h-4 w-4 text-gray-400" />} />
                 </Form.Item>
 
-                <Form.Item className="!mb-5">
-                  <Checkbox disabled={isLocked}>로그인 정보 저장</Checkbox>
-                </Form.Item>
+                <Checkbox className="!mb-5" checked={rememberMeData.rememberMe} onChange={(e) => setRememberMeData({ rememberMe: e.target.checked })}>
+                  로그인 정보 저장
+                </Checkbox>
 
                 <Form.Item className="!mb-0">
-                  <Button type="primary" size="large" htmlType="submit" loading={isPending} disabled={isLocked} block className="!bg-[var(--color-bt-primary)]">
-                    {isLocked ? `잠금 해제까지 ${formatTime(lockState.retryAfterSeconds)}` : '로그인'}
+                  <Button type="primary" size="large" htmlType="submit" loading={isPending} block className="!bg-[var(--color-bt-primary)]">
+                    로그인
                   </Button>
                 </Form.Item>
               </Form>
