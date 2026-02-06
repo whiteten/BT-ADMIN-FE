@@ -3,20 +3,16 @@ import { toast } from '@/shared-util';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import type { ExceptionRecord } from '../types/sd.types';
-import { formatDate } from '../utils';
+import { formatDate } from '../hooks/useSdHelpers';
 
 interface ExceptionDetailDialogProps {
   exception: ExceptionRecord | null;
   onClose: () => void;
 }
 
-/**
- * 에러 상세 다이얼로그
- */
 export default function ExceptionDetailDialog({ exception, onClose }: ExceptionDetailDialogProps) {
   const handleCopy = async () => {
     if (!exception) return;
-
     const text = `시간: ${exception.errTime}\n프로세스: ${exception.triggerName}\n\n${exception.errMessage}`;
     await navigator.clipboard.writeText(text);
     toast.success('에러 메시지가 복사되었습니다.');
@@ -36,9 +32,7 @@ export default function ExceptionDetailDialog({ exception, onClose }: ExceptionD
             <div className="grid grid-cols-2 gap-3 text-sm">
               <div>
                 <span className="text-muted-foreground">시간: </span>
-                <span className="font-medium">
-                  {formatDate(exception.errTime, 'DATETIME')}
-                </span>
+                <span className="font-medium">{formatDate(exception.errTime, 'DATETIME')}</span>
               </div>
               <div>
                 <span className="text-muted-foreground">프로세스: </span>

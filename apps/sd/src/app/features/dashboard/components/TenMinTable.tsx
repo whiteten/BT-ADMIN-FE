@@ -1,22 +1,15 @@
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { formatNumber, getStatLabel, type TenMinRow } from '../utils';
+import type { TenMinRow } from '../types/sd.types';
+import { formatNumber, getStatLabel } from '../hooks/useSdHelpers';
 
 interface TenMinTableProps {
   rows: TenMinRow[];
   statTypes: string[];
 }
 
-/**
- * 10분 단위 집계 테이블
- * - 시간대별 통계 유형별 집계 건수 표시
- */
 export default function TenMinTable({ rows, statTypes }: TenMinTableProps) {
   if (!rows.length || !statTypes.length) {
-    return (
-      <div className="flex h-32 items-center justify-center text-muted-foreground">
-        데이터 없음
-      </div>
-    );
+    return <div className="flex h-32 items-center justify-center text-muted-foreground">데이터 없음</div>;
   }
 
   return (
@@ -35,9 +28,7 @@ export default function TenMinTable({ rows, statTypes }: TenMinTableProps) {
         <TableBody>
           {rows.map((row) => (
             <TableRow key={row.timeSlot}>
-              <TableCell className="sticky left-0 bg-background text-xs font-medium">
-                {row.timeSlot}
-              </TableCell>
+              <TableCell className="sticky left-0 bg-background text-xs font-medium">{row.timeSlot}</TableCell>
               {statTypes.map((st) => (
                 <TableCell key={st} className="text-center text-xs tabular-nums">
                   {formatNumber(row[st] as number)}

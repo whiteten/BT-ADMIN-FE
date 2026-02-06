@@ -4,48 +4,32 @@ import { toast } from '@/shared-util';
 import PageHeader from '@/components/custom/PageHeader';
 import { FallbackSpinner } from '@/components/custom/FallbackSpinner';
 import { Card, CardContent } from '@/components/ui/card';
-import {
-  sdQueryKeys,
-  useGetAllSchedulerStatus,
-  usePauseScheduler,
-  useResumeScheduler,
-} from '../../../features/dashboard/hooks/useSdQueries';
+import { sdQueryKeys, useGetAllSchedulerStatus, usePauseScheduler, useResumeScheduler } from '../../../features/dashboard/hooks/useSdQueries';
 import { SchedulerCard } from '../../../features/dashboard/components';
-import { REFRESH_INTERVALS } from '../../../features/dashboard/constants';
+import { REFRESH_INTERVALS } from '../../../features/dashboard/types/sd.types';
 
-/**
- * 스케줄러 제어 페이지
- * - Provider별 스케줄러 상태 조회 및 일시 정지/재개 제어
- */
 export default function Scheduler() {
   const queryClient = useQueryClient();
   const [pauseReasons, setPauseReasons] = useState<Record<string, string>>({});
 
-  // 전체 스케줄러 상태 조회 (자동 리프레시)
   const { data: allStatus, isLoading } = useGetAllSchedulerStatus({
     queryOptions: { refetchInterval: REFRESH_INTERVALS.STATUS },
   });
 
-  // 스케줄러 일시 정지
   const pauseScheduler = usePauseScheduler({
     mutationOptions: {
       onSuccess: () => {
-        queryClient.invalidateQueries({
-          queryKey: sdQueryKeys.getAllSchedulerStatus.queryKey,
-        });
+        queryClient.invalidateQueries({ queryKey: sdQueryKeys.getAllSchedulerStatus.queryKey });
         toast.success('스케줄러가 일시 정지되었습니다.');
       },
       onError: () => toast.error('스케줄러 일시 정지에 실패했습니다.'),
     },
   });
 
-  // 스케줄러 재개
   const resumeScheduler = useResumeScheduler({
     mutationOptions: {
       onSuccess: () => {
-        queryClient.invalidateQueries({
-          queryKey: sdQueryKeys.getAllSchedulerStatus.queryKey,
-        });
+        queryClient.invalidateQueries({ queryKey: sdQueryKeys.getAllSchedulerStatus.queryKey });
         toast.success('스케줄러가 재개되었습니다.');
       },
       onError: () => toast.error('스케줄러 재개에 실패했습니다.'),
@@ -65,29 +49,13 @@ export default function Scheduler() {
     pauseScheduler.mutate({ providerId, reason });
   };
 
-  const handleResume = (providerId: string) => {
-    resumeScheduler.mutate(providerId);
-  };
-
-  const handlePauseReasonChange = (providerId: string, reason: string) => {
-    setPauseReasons((prev) => ({ ...prev, [providerId]: reason }));
-  };
-
   return (
     <div className="flex flex-col gap-4 p-4">
-      <PageHeader
-        breadcrumb={[
-          { title: 'SD' },
-          { title: '모니터링', path: '/sd/monitoring' },
-          { title: '스케줄러 제어' },
-        ]}
-      />
+      <PageHeader breadcrumb={[{ title: 'SD' }, { title: '모니터링', path: '/sd/monitoring' }, { title: '스케줄러 제어' }]} />
 
       {providers.length === 0 ? (
         <Card>
-          <CardContent className="py-8 text-center text-muted-foreground">
-            등록된 Provider가 없습니다.
-          </CardContent>
+          <CardContent className="py-8 text-center text-muted-foreground">등록된 Provider가 없습니다.</CardContent>
         </Card>
       ) : (
         <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
@@ -97,9 +65,9 @@ export default function Scheduler() {
               providerId={providerId}
               status={status}
               pauseReason={pauseReasons[providerId] ?? ''}
-              onPauseReasonChange={(reason) => handlePauseReasonChange(providerId, reason)}
+              onPauseReasonChange={(reason) => setPauseReasons((prev) => ({ ...prev, [providerId]: reason }))}
               onPause={() => handlePause(providerId)}
-              onResume={() => handleResume(providerId)}
+              onResume={() => resumeScheduler.mutate(providerId)}
               isPausing={pauseScheduler.isPending}
               isResuming={resumeScheduler.isPending}
             />

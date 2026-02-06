@@ -1,23 +1,15 @@
 import dayjs from 'dayjs';
-import type { HourlyTrend } from '../types/sd.types';
-import { DATE_FORMATS, STAT_LABELS } from '../constants';
+import type { HourlyTrend, TenMinRow, ChartDataPoint } from '../types/sd.types';
+import { STAT_LABELS } from '../types/sd.types';
 
-/** 10분 단위 테이블 행 타입 */
-export interface TenMinRow {
-  timeSlot: string;
-  [statType: string]: string | number;
-}
-
-/** 차트 데이터 포인트 타입 */
-export interface ChartDataPoint {
-  hour: string;
-  [statType: string]: string | number;
-}
+const DATE_FORMAT = 'YYYY-MM-DD';
+const DATETIME_FORMAT = 'YYYY-MM-DD HH:mm:ss';
+const TIME_FORMAT = 'HH:mm:ss';
+const SHORT_DATETIME_FORMAT = 'MM-DD HH:mm:ss';
+const HOUR_FORMAT = 'HH:mm';
 
 /**
  * 10분 단위 데이터를 테이블 행 형태로 변환
- * @param recentCounts - API에서 받은 10분 단위 집계 데이터
- * @returns 테이블 렌더링용 행 데이터
  */
 export function transformToTenMinRows(recentCounts: HourlyTrend[] | undefined): TenMinRow[] {
   if (!recentCounts?.length) return [];
@@ -36,8 +28,6 @@ export function transformToTenMinRows(recentCounts: HourlyTrend[] | undefined): 
 
 /**
  * 시간대별 데이터를 차트 데이터 형태로 변환
- * @param hourlyTrend - API에서 받은 시간대별 집계 데이터
- * @returns 차트 렌더링용 데이터
  */
 export function transformToChartData(hourlyTrend: HourlyTrend[] | undefined): ChartDataPoint[] {
   const hours = Array.from({ length: 24 }, (_, i) => i);
@@ -73,10 +63,17 @@ export function getStatLabel(statType: string): string {
  */
 export function formatDate(
   date: string | null | undefined,
-  format: keyof typeof DATE_FORMATS = 'DATETIME'
+  format: 'DATE' | 'DATETIME' | 'TIME' | 'SHORT_DATETIME' | 'HOUR' = 'DATETIME'
 ): string {
   if (!date) return '-';
-  return dayjs(date).format(DATE_FORMATS[format]);
+  const formatMap = {
+    DATE: DATE_FORMAT,
+    DATETIME: DATETIME_FORMAT,
+    TIME: TIME_FORMAT,
+    SHORT_DATETIME: SHORT_DATETIME_FORMAT,
+    HOUR: HOUR_FORMAT,
+  };
+  return dayjs(date).format(formatMap[format]);
 }
 
 /**
@@ -91,19 +88,19 @@ export function formatNumber(value: number | null | undefined): string {
  * 날짜 변경 헬퍼 (delta일 만큼 이동)
  */
 export function shiftDate(currentDate: string, delta: number): string {
-  return dayjs(currentDate).add(delta, 'day').format(DATE_FORMATS.DATE);
+  return dayjs(currentDate).add(delta, 'day').format(DATE_FORMAT);
 }
 
 /**
  * 오늘 날짜 반환
  */
 export function getToday(): string {
-  return dayjs().format(DATE_FORMATS.DATE);
+  return dayjs().format(DATE_FORMAT);
 }
 
 /**
  * 7일 전 날짜 반환
  */
 export function getWeekAgo(): string {
-  return dayjs().subtract(7, 'day').format(DATE_FORMATS.DATE);
+  return dayjs().subtract(7, 'day').format(DATE_FORMAT);
 }

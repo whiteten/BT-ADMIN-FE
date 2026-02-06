@@ -5,15 +5,9 @@ interface ProviderSelectorProps {
   providers: string[] | undefined;
   selectedProvider: string;
   onProviderChange: (provider: string) => void;
-  /** 선택된 Provider의 Cron 표현식 (선택사항) */
   cronExpression?: string;
 }
 
-/**
- * Provider 선택 컴포넌트
- * - Provider 목록을 드롭다운으로 표시
- * - 선택된 Provider의 Cron 표현식을 Badge로 표시 (선택사항)
- */
 export default function ProviderSelector({
   providers,
   selectedProvider,
@@ -35,9 +29,7 @@ export default function ProviderSelector({
           ))}
         </SelectContent>
       </Select>
-      {cronExpression && (
-        <Badge variant="default">Cron: {cronExpression}</Badge>
-      )}
+      {cronExpression && <Badge variant="default">Cron: {cronExpression}</Badge>}
     </div>
   );
 }

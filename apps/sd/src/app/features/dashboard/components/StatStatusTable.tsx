@@ -3,16 +3,12 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import type { StatStatus } from '../types/sd.types';
-import { getStatLabel } from '../utils';
+import { getStatLabel } from '../hooks/useSdHelpers';
 
 interface StatStatusTableProps {
   statStatuses: StatStatus[] | undefined;
 }
 
-/**
- * 통계 상태 테이블
- * - 시스템별 통계 유형 및 집계 시간 표시
- */
 export default function StatStatusTable({ statStatuses }: StatStatusTableProps) {
   return (
     <Card>

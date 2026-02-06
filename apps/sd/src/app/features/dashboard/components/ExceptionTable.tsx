@@ -1,6 +1,6 @@
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import type { ExceptionRecord } from '../types/sd.types';
-import { formatDate } from '../utils';
+import { formatDate } from '../hooks/useSdHelpers';
 
 interface ExceptionTableProps {
   exceptions: ExceptionRecord[] | undefined;
@@ -8,9 +8,6 @@ interface ExceptionTableProps {
   onRowClick?: (exception: ExceptionRecord) => void;
 }
 
-/**
- * 에러 이력 테이블
- */
 export default function ExceptionTable({ exceptions, isLoading, onRowClick }: ExceptionTableProps) {
   if (isLoading) {
     return (
@@ -38,13 +35,9 @@ export default function ExceptionTable({ exceptions, isLoading, onRowClick }: Ex
                 className={onRowClick ? 'cursor-pointer hover:bg-muted/50' : ''}
                 onClick={() => onRowClick?.(err)}
               >
-                <TableCell className="whitespace-nowrap text-xs">
-                  {formatDate(err.errTime, 'SHORT_DATETIME')}
-                </TableCell>
+                <TableCell className="whitespace-nowrap text-xs">{formatDate(err.errTime, 'SHORT_DATETIME')}</TableCell>
                 <TableCell className="text-xs">{err.triggerName}</TableCell>
-                <TableCell className="max-w-[200px] truncate text-xs">
-                  {err.errMessage}
-                </TableCell>
+                <TableCell className="max-w-[200px] truncate text-xs">{err.errMessage}</TableCell>
               </TableRow>
             ))
           ) : (

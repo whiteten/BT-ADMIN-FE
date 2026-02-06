@@ -1,16 +1,13 @@
 import { Badge } from '@/components/ui/badge';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import type { Checkpoint } from '../types/sd.types';
-import { formatDate } from '../utils';
+import { formatDate } from '../hooks/useSdHelpers';
 
 interface CheckpointTableProps {
   checkpoints: Checkpoint[] | undefined;
   isLoading?: boolean;
 }
 
-/**
- * 체크포인트 이력 테이블
- */
 export default function CheckpointTable({ checkpoints, isLoading }: CheckpointTableProps) {
   if (isLoading) {
     return (
@@ -42,9 +39,7 @@ export default function CheckpointTable({ checkpoints, isLoading }: CheckpointTa
                   </Badge>
                 </TableCell>
                 <TableCell className="text-xs">{cp.lastPsrTimeKey ?? '-'}</TableCell>
-                <TableCell className="text-xs">
-                  {formatDate(cp.lastUpdateTime, 'SHORT_DATETIME')}
-                </TableCell>
+                <TableCell className="text-xs">{formatDate(cp.lastUpdateTime, 'SHORT_DATETIME')}</TableCell>
               </TableRow>
             ))
           ) : (

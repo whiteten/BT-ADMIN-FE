@@ -7,10 +7,6 @@ interface CdrStatusTableProps {
   cdrStatuses: CdrStatus[] | undefined;
 }
 
-/**
- * CDR 상태 테이블
- * - CDR 유형별 테이블 정보 및 최신 시간 표시
- */
 export default function CdrStatusTable({ cdrStatuses }: CdrStatusTableProps) {
   return (
     <Card>

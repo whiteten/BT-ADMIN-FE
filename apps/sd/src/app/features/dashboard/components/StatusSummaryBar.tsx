@@ -1,7 +1,7 @@
 import { Clock, Play, Server, Timer } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 import type { BatchStatus } from '../types/sd.types';
-import { formatDate, formatNumber } from '../utils';
+import { formatDate, formatNumber } from '../hooks/useSdHelpers';
 
 interface StatusSummaryBarProps {
   status: BatchStatus | undefined;
@@ -27,34 +27,14 @@ function SummaryCard({ icon: Icon, label, value }: SummaryCardProps) {
   );
 }
 
-/**
- * 배치 상태 요약 바
- * - 서버 시간, 다음 실행, 기동 시간, 총 실행 횟수 표시
- */
 export default function StatusSummaryBar({ status }: StatusSummaryBarProps) {
   if (!status) return null;
 
   const summaryItems: SummaryCardProps[] = [
-    {
-      icon: Server,
-      label: '서버 시간',
-      value: formatDate(status.serverTime, 'DATETIME'),
-    },
-    {
-      icon: Timer,
-      label: '다음 실행',
-      value: formatDate(status.nextExecutionTime, 'TIME'),
-    },
-    {
-      icon: Clock,
-      label: '기동 시간',
-      value: formatDate(status.startupTime, 'HOUR'),
-    },
-    {
-      icon: Play,
-      label: '총 실행 횟수',
-      value: formatNumber(status.totalExecutionCount),
-    },
+    { icon: Server, label: '서버 시간', value: formatDate(status.serverTime, 'DATETIME') },
+    { icon: Timer, label: '다음 실행', value: formatDate(status.nextExecutionTime, 'TIME') },
+    { icon: Clock, label: '기동 시간', value: formatDate(status.startupTime, 'HOUR') },
+    { icon: Play, label: '총 실행 횟수', value: formatNumber(status.totalExecutionCount) },
   ];
 
   return (

@@ -17,9 +17,6 @@ interface SchedulerCardProps {
   isResuming?: boolean;
 }
 
-/**
- * 스케줄러 상태 카드
- */
 export default function SchedulerCard({
   providerId,
   status,
@@ -56,7 +53,6 @@ export default function SchedulerCard({
         </div>
       </CardHeader>
       <CardContent className="space-y-3">
-        {/* Status Info */}
         <div className="grid grid-cols-2 gap-2 text-sm">
           <div>
             <span className="text-muted-foreground">Cron: </span>
@@ -68,19 +64,14 @@ export default function SchedulerCard({
           </div>
           <div>
             <span className="text-muted-foreground">최종 실행: </span>
-            <span className="text-xs">
-              {status.lastExecutionTime ? dayjs(status.lastExecutionTime).format('HH:mm:ss') : '-'}
-            </span>
+            <span className="text-xs">{status.lastExecutionTime ? dayjs(status.lastExecutionTime).format('HH:mm:ss') : '-'}</span>
           </div>
           <div>
             <span className="text-muted-foreground">다음 실행: </span>
-            <span className="text-xs">
-              {status.nextScheduledTime ? dayjs(status.nextScheduledTime).format('HH:mm:ss') : '-'}
-            </span>
+            <span className="text-xs">{status.nextScheduledTime ? dayjs(status.nextScheduledTime).format('HH:mm:ss') : '-'}</span>
           </div>
         </div>
 
-        {/* Pause Info */}
         {status.paused && (
           <div className="rounded-md bg-destructive/10 p-3 text-sm">
             <p>
@@ -100,7 +91,6 @@ export default function SchedulerCard({
           </div>
         )}
 
-        {/* Controls */}
         <div className="flex items-center gap-2">
           {!status.paused ? (
             <>
@@ -110,24 +100,12 @@ export default function SchedulerCard({
                 onChange={(e) => onPauseReasonChange(e.target.value)}
                 className="h-8 text-sm"
               />
-              <Button
-                variant="destructive"
-                size="sm"
-                className="h-8 shrink-0"
-                onClick={onPause}
-                disabled={isPausing}
-              >
+              <Button variant="destructive" size="sm" className="h-8 shrink-0" onClick={onPause} disabled={isPausing}>
                 <Pause className="mr-1 h-3 w-3" /> 정지
               </Button>
             </>
           ) : (
-            <Button
-              variant="default"
-              size="sm"
-              className="h-8"
-              onClick={onResume}
-              disabled={isResuming}
-            >
+            <Button variant="default" size="sm" className="h-8" onClick={onResume} disabled={isResuming}>
               <Play className="mr-1 h-3 w-3" /> 재개
             </Button>
           )}

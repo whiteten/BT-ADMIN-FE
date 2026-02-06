@@ -1,15 +1,7 @@
-import {
-  CartesianGrid,
-  Legend,
-  Line,
-  LineChart,
-  ResponsiveContainer,
-  Tooltip,
-  XAxis,
-  YAxis,
-} from 'recharts';
-import { STAT_COLORS } from '../constants';
-import { getStatLabel, type ChartDataPoint } from '../utils';
+import { CartesianGrid, Legend, Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
+import type { ChartDataPoint } from '../types/sd.types';
+import { STAT_COLORS } from '../types/sd.types';
+import { getStatLabel } from '../hooks/useSdHelpers';
 
 interface StatLineChartProps {
   data: ChartDataPoint[];
@@ -18,16 +10,7 @@ interface StatLineChartProps {
   height?: number;
 }
 
-/**
- * 통계 라인 차트
- * - 시간대별 통계 유형별 추이를 라인 차트로 표시
- */
-export default function StatLineChart({
-  data,
-  statTypes,
-  xAxisKey = 'hour',
-  height = 300,
-}: StatLineChartProps) {
+export default function StatLineChart({ data, statTypes, xAxisKey = 'hour', height = 300 }: StatLineChartProps) {
   if (!data.length || !statTypes.length) return null;
 
   return (
