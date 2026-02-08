@@ -7,7 +7,7 @@
  */
 
 import { useRef, useState } from 'react';
-import { Alert, Button, Table } from 'antd';
+import { Button, Card, Table } from 'antd';
 import type { ColumnsType } from 'antd/es/table';
 import { Minus, Plus } from 'lucide-react';
 import ResourceAddDrawer, { type ResourceAddDrawerRef } from './ResourceAddDrawer';
@@ -15,7 +15,6 @@ import type { AssignedResource, AvailableResource } from '../types/userResource.
 
 interface ResourceSectionProps {
   title: string;
-  emptyDescription: string;
   drawerTitle: string;
   availableResources: AvailableResource[];
   assignedItems: AssignedResource[];
@@ -28,7 +27,7 @@ const columns: ColumnsType<AssignedResource> = [
     title: 'ID',
     dataIndex: 'resourceId',
     key: 'resourceId',
-    width: 150,
+    width: 450,
   },
   {
     title: '이름',
@@ -37,7 +36,7 @@ const columns: ColumnsType<AssignedResource> = [
   },
 ];
 
-export default function ResourceSection({ title, emptyDescription, drawerTitle, availableResources, assignedItems, onAssignedItemsChange, loading = false }: ResourceSectionProps) {
+export default function ResourceSection({ title, drawerTitle, availableResources, assignedItems, onAssignedItemsChange, loading = false }: ResourceSectionProps) {
   const drawerRef = useRef<ResourceAddDrawerRef>(null);
   const [selectedRowKeys, setSelectedRowKeys] = useState<React.Key[]>([]);
 
@@ -68,10 +67,9 @@ export default function ResourceSection({ title, emptyDescription, drawerTitle, 
   };
 
   return (
-    <div className="space-y-3">
-      {/* 섹션 헤더 + 버튼 */}
-      <div className="flex items-center justify-between">
-        <span className="text-base font-semibold text-gray-700">{title}</span>
+    <Card
+      title={title}
+      extra={
         <div className="flex gap-2">
           <Button icon={<Plus className="h-4 w-4" />} onClick={handleOpenDrawer}>
             추가
@@ -80,11 +78,11 @@ export default function ResourceSection({ title, emptyDescription, drawerTitle, 
             선택 삭제
           </Button>
         </div>
-      </div>
-
-      {/* 안내 문구 */}
-      <Alert message={emptyDescription} type="info" showIcon className="!py-2" />
-
+      }
+      className="shadow-sm"
+      styles={{ header: { borderBottom: '1px solid #f0f0f0' }, body: { padding: '16px' } }}
+      style={{ marginBottom: '50px' }}
+    >
       {/* 할당된 리소스 테이블 */}
       <Table<AssignedResource>
         rowKey="resourceId"
@@ -102,7 +100,7 @@ export default function ResourceSection({ title, emptyDescription, drawerTitle, 
 
       {/* 추가 Drawer */}
       <ResourceAddDrawer ref={drawerRef} title={drawerTitle} availableResources={availableResources} onConfirm={handleAdd} />
-    </div>
+    </Card>
   );
 }
 

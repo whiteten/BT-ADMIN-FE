@@ -288,10 +288,9 @@ export default function UserCreate() {
   // Step 2: 리소스 접근
   function renderStep2() {
     return (
-      <div className="space-y-8">
+      <div>
         <ResourceSection
           title="봇 서비스"
-          emptyDescription="설정하지 않으면 모든 봇을 조회할 수 있습니다."
           drawerTitle="봇 서비스 추가"
           availableResources={MOCK_AVAILABLE_BOTS}
           assignedItems={assignedBots}
@@ -299,7 +298,6 @@ export default function UserCreate() {
         />
         <ResourceSection
           title="NLU 모델"
-          emptyDescription="설정하지 않으면 모든 모델을 조회할 수 있습니다."
           drawerTitle="NLU 모델 추가"
           availableResources={MOCK_AVAILABLE_MODELS}
           assignedItems={assignedModels}
