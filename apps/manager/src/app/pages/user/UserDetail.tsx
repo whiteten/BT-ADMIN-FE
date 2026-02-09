@@ -138,11 +138,11 @@ export default function UserDetail() {
   }, [resetToServerData]);
 
   /**
-   * 탭 전환 시 폼을 DB 값으로 리셋
-   * - 비밀번호 정책 패턴: 저장하지 않은 변경사항은 폐기됨
+   * 탭 전환 핸들러
+   * - forceMount 미사용으로 탭 전환 시 컴포넌트가 언마운트/리마운트됨
+   * - 리마운트 시 각 탭이 자체적으로 서버 데이터로 초기화
    */
   const handleTabChange = (newTab: string) => {
-    resetToServerData();
     setActiveTab(newTab);
   };
 
@@ -313,6 +313,8 @@ export default function UserDetail() {
   // Context 값
   const contextValue = useMemo(
     () => ({
+      user,
+      isUserFetching: isFetching,
       basicFormValues,
       setBasicFormValues,
       additionalFormValues,
@@ -323,7 +325,7 @@ export default function UserDetail() {
       setResourceStats,
       resetToServerData,
     }),
-    [basicFormValues, additionalFormValues, permissionStats, resourceStats, resetToServerData],
+    [user, isFetching, basicFormValues, additionalFormValues, permissionStats, resourceStats, resetToServerData],
   );
 
   return (
@@ -370,7 +372,7 @@ export default function UserDetail() {
             {tabs.map((tab) => {
               const Component = tab.component;
               return (
-                <TabsContent key={tab.id} value={tab.id} forceMount className="flex-0 w-full h-[calc(100%-58px-20px)] min-h-[calc(100%-58px-20px)] data-[state=inactive]:hidden">
+                <TabsContent key={tab.id} value={tab.id} className="flex-0 w-full h-[calc(100%-58px-20px)] min-h-[calc(100%-58px-20px)]">
                   <div className="w-full h-full bg-white bt-shadow overflow-y-auto">
                     <div className="flex flex-col w-full h-full p-7">
                       <Suspense fallback={<FallbackSpinner />}>

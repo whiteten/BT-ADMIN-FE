@@ -6,6 +6,7 @@
  */
 
 import { type ReactNode, createContext, useContext } from 'react';
+import type { User } from '../../../features/user/types/user.types';
 
 /**
  * 사용자 기본 정보 폼 값
@@ -49,6 +50,10 @@ export interface ResourceStats {
  * Context 값 타입
  */
 interface UserDetailContextValue {
+  // 사용자 데이터 (부모에서 조회, 탭에서 공유)
+  user: User | undefined;
+  isUserFetching: boolean;
+
   // 기본 정보 폼 값 (실시간)
   basicFormValues: Partial<UserBasicFormValues>;
   setBasicFormValues: (values: Partial<UserBasicFormValues>) => void;

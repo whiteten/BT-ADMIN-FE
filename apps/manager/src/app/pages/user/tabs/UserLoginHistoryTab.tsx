@@ -6,10 +6,10 @@
  */
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { useParams } from 'react-router-dom';
+import { useNavigate, useParams } from 'react-router-dom';
 import type { ColDef, ICellRendererParams } from 'ag-grid-community';
 import { AgGridReact } from 'ag-grid-react';
-import { DatePicker, Tag, message } from 'antd';
+import { Button, Col, DatePicker, Row, Tag, message } from 'antd';
 import dayjs, { type Dayjs } from 'dayjs';
 import { useSearchLoginLogs } from '../../../features/user/hooks/useLoginAuditLogQueries';
 import { FAILURE_REASON_LABELS, LOGIN_RESULT_LABELS, type LoginAuditLog } from '../../../features/user/types/loginAuditLog.types';
@@ -31,6 +31,7 @@ const MAX_SEARCH_DAYS = 90;
 
 export default function UserLoginHistoryTab() {
   const { userId } = useParams();
+  const navigate = useNavigate();
   const numericUserId = userId ? Number(userId) : undefined;
   const { gridOptions } = useAggridOptions();
 
@@ -132,6 +133,15 @@ export default function UserLoginHistoryTab() {
       <div className="flex-1 min-h-0">
         <AgGridReact<LoginAuditLog> rowData={rowData} columnDefs={columnDefs} gridOptions={gridOptions} loading={isLoading} />
       </div>
+
+      {/* 버튼 */}
+      <Row gutter={20} justify="center" className="shrink-0 bg-white z-10 py-3 border-t border-gray-100">
+        <Col>
+          <Button variant="solid" onClick={() => navigate('../list')}>
+            취소
+          </Button>
+        </Col>
+      </Row>
     </div>
   );
 }

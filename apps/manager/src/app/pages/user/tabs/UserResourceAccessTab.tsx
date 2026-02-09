@@ -6,7 +6,7 @@
  */
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { useParams } from 'react-router-dom';
+import { useNavigate, useParams } from 'react-router-dom';
 import { Button, Col, Row, Spin } from 'antd';
 import { toast } from '@/shared-util';
 import ResourceSection from '../../../features/user-resource/components/ResourceSection';
@@ -16,6 +16,7 @@ import { useUserDetailContext } from '../context/UserDetailContext';
 
 export default function UserResourceAccessTab() {
   const { userId } = useParams();
+  const navigate = useNavigate();
   const numericUserId = userId ? Number(userId) : 0;
   const { setResourceStats } = useUserDetailContext();
 
@@ -145,8 +146,13 @@ export default function UserResourceAccessTab() {
         <ResourceSection title="NLU 모델" drawerTitle="NLU 모델 추가" availableResources={availableModels} assignedItems={modelItems} onAssignedItemsChange={setModelItems} />
       </div>
 
-      {/* 저장 버튼 */}
+      {/* 버튼 */}
       <Row gutter={20} justify="center" className="shrink-0 bg-white z-10 py-3 border-t border-gray-100">
+        <Col>
+          <Button variant="solid" onClick={() => navigate('../list')}>
+            취소
+          </Button>
+        </Col>
         <Col>
           <Button color="primary" variant="solid" onClick={handleSave} disabled={!hasChanges} loading={syncMutation.isPending}>
             저장
