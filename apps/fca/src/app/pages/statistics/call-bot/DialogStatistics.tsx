@@ -92,6 +92,24 @@ export default function DialogStatistics() {
     setRowData(filteredList ?? []);
   }, [filteredList]);
 
+  // 합계 행 계산 (pinnedBottomRowData)
+  const summaryRow = useMemo<DialogStatListItem[]>(() => {
+    if (!rowData?.length) return [];
+    const count = rowData.length;
+    const sum = (field: keyof DialogStatListItem) => rowData.reduce((acc, row) => acc + (Number(row[field]) || 0), 0);
+    const avg = (field: keyof DialogStatListItem) => Math.round((sum(field) / count) * 10) / 10;
+    return [
+      {
+        psrTimeKey: '전체합계',
+        serviceName: '',
+        dialogName: '',
+        inCount: sum('inCount'),
+        successCount: sum('successCount'),
+        successPercent: avg('successPercent'),
+      } as DialogStatListItem,
+    ];
+  }, [rowData]);
+
   // startDate 또는 timeUnit 변경 시 endDate 자동 조정
   useEffect(() => {
     if (startDate && endDate) {
@@ -103,7 +121,7 @@ export default function DialogStatistics() {
         setEndDate(maxEnd.isAfter(dayjs(), 'day') ? dayjs() : maxEnd);
       }
     }
-  }, [startDate, timeUnit]);
+  }, [endDate, startDate, timeUnit]);
 
   // timeUnit이 HH로 변경될 때 분을 자동 조정 (시작 00분, 종료 50분)
   useEffect(() => {
@@ -133,20 +151,21 @@ export default function DialogStatistics() {
     }
 
     // 조회 버튼 클릭 시에만 queryParams 업데이트 → React Query 재조회
-    const fromDate = startDate.format('YYYYMMDD');
-    const toDate = endDate.format('YYYYMMDD');
-    // HH 모드일 때는 시작 00분, 종료 50분 고정
-    const normalizedStartTime = timeUnit === 'HH' && startTime ? startTime.minute(0) : startTime;
-    const normalizedEndTime = timeUnit === 'HH' && endTime ? endTime.minute(50) : endTime;
-    const fromTime = normalizedStartTime?.format('HHmm');
-    const toTime = normalizedEndTime?.format('HHmm');
-    const fromDateTime = timeUnit === 'MI' || timeUnit === 'HH' ? `${fromDate}${fromTime}` : fromDate;
-    const toDateTime = timeUnit === 'MI' || timeUnit === 'HH' ? `${toDate}${toTime}` : toDate;
+    const fromDateYY = startDate.format('YYYY');
+    const toDateYY = endDate.format('YYYY');
+    const fromDateMM = startDate.format('YYYYMM');
+    const toDateMM = endDate.format('YYYYMM');
+    const fromDateDD = startDate.format('YYYYMMDD');
+    const toDateDD = endDate.format('YYYYMMDD');
+    const fromDateHH = startDate.format('YYYYMMDD') + startTime?.format('HH');
+    const toDateHH = endDate.format('YYYYMMDD') + endTime?.format('HH');
+    const fromDateMI = startDate.format('YYYYMMDD') + startTime?.format('HHmm');
+    const toDateMI = endDate.format('YYYYMMDD') + endTime?.format('HHmm');
 
     setQueryParams({
       timeUnit,
-      fromTime: fromDateTime,
-      toTime: toDateTime,
+      fromTime: timeUnit === 'MI' ? fromDateMI : timeUnit === 'HH' ? fromDateHH : timeUnit === 'DD' ? fromDateDD : timeUnit === 'MM' ? fromDateMM : fromDateYY,
+      toTime: timeUnit === 'MI' ? toDateMI : timeUnit === 'HH' ? toDateHH : timeUnit === 'DD' ? toDateDD : timeUnit === 'MM' ? toDateMM : toDateYY,
     });
   };
 
@@ -155,20 +174,34 @@ export default function DialogStatistics() {
       headerName: '날짜',
       field: 'psrTimeKey',
       flex: queryParams.timeUnit === 'MI' || queryParams.timeUnit === 'HH' ? 2 : 1,
-      valueFormatter: ({ value }: { value?: string }) => (value ? dayjs(value).format(getTimeFormat(queryParams.timeUnit)) : '-'),
-      cellStyle: { alignItems: 'center' },
+      colSpan: (params) => (params.node?.rowPinned === 'bottom' ? 2 : 1),
+      valueFormatter: ({ value, node }) => {
+        if (node?.rowPinned === 'bottom') return value ?? '';
+        return value ? dayjs(value).format(getTimeFormat(queryParams.timeUnit)) : '-';
+      },
+      cellStyle: (params) => (params.node?.rowPinned === 'bottom' ? { fontWeight: 'bold', alignItems: 'center' } : { fontWeight: 'normal', alignItems: 'center' }),
     },
     { headerName: '봇서비스ID', field: 'serviceId', hide: true },
-    { headerName: '봇서비스', field: 'serviceName', flex: 2 },
+    { headerName: '봇서비스', field: 'serviceName', hide: true },
     { headerName: '대화ID', field: 'dialogId', hide: true },
     { headerName: '대화명', field: 'dialogName', flex: 2 },
-    { headerName: '진입수', field: 'inCount', maxWidth: 100, cellStyle: { alignItems: 'center' } },
-    { headerName: '완결수', field: 'successCount', maxWidth: 100, cellStyle: { alignItems: 'center' } },
+    {
+      headerName: '진입수',
+      field: 'inCount',
+      flex: 1,
+      cellStyle: (params) => (params.node?.rowPinned === 'bottom' ? { fontWeight: 'bold', alignItems: 'center' } : { fontWeight: 'normal', alignItems: 'center' }),
+    },
+    {
+      headerName: '완결수',
+      field: 'successCount',
+      flex: 1,
+      cellStyle: (params) => (params.node?.rowPinned === 'bottom' ? { fontWeight: 'bold', alignItems: 'center' } : { fontWeight: 'normal', alignItems: 'center' }),
+    },
     {
       headerName: '완결율',
       field: 'successPercent',
-      maxWidth: 100,
-      cellStyle: { alignItems: 'center' },
+      flex: 1,
+      cellStyle: (params) => (params.node?.rowPinned === 'bottom' ? { fontWeight: 'bold', alignItems: 'center' } : { fontWeight: 'normal', alignItems: 'center' }),
       valueFormatter: ({ value }: { value?: number }) => (value ? `${value}%` : '-'),
     },
   ];
@@ -307,7 +340,19 @@ export default function DialogStatistics() {
           </header>
         </Collapsible>
         <div className="w-full flex-1">
-          <AgGridReact<DialogStatListItem> ref={gridRef} rowData={rowData} columnDefs={columnDefs} gridOptions={gridOptions} loading={isLoadingDialogStatList} />
+          <AgGridReact<DialogStatListItem>
+            ref={gridRef}
+            rowData={rowData}
+            columnDefs={columnDefs}
+            gridOptions={gridOptions}
+            loading={isLoadingDialogStatList}
+            pagination={false}
+            statusBar={{ statusPanels: [] }}
+            rowNumbers={false}
+            sideBar={false}
+            pinnedBottomRowData={summaryRow}
+            getRowStyle={(params) => (params.node?.rowPinned === 'bottom' ? { background: '#F8F9FA', borderTop: '2px solid #dee2e6' } : undefined)}
+          />
         </div>
       </div>
     </div>

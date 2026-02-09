@@ -114,6 +114,22 @@ export default function KeywordStatistics() {
     setRowData(filteredList ?? []);
   }, [filteredList]);
 
+  // 합계 행 계산 (pinnedBottomRowData)
+  const summaryRow = useMemo<KeywordStatListItem[]>(() => {
+    if (!rowData?.length) return [];
+    const sum = (field: keyof KeywordStatListItem) => rowData.reduce((acc, row) => acc + (Number(row[field]) || 0), 0);
+    return [
+      {
+        psrTimeKey: '전체합계',
+        scnName: '',
+        modelName: '',
+        entityTag: '',
+        keyword: '',
+        keywordCnt: sum('keywordCnt'),
+      } as KeywordStatListItem,
+    ];
+  }, [rowData]);
+
   // startDate 또는 timeUnit 변경 시 endDate 자동 조정
   useEffect(() => {
     if (startDate && endDate) {
@@ -125,7 +141,7 @@ export default function KeywordStatistics() {
         setEndDate(maxEnd.isAfter(dayjs(), 'day') ? dayjs() : maxEnd);
       }
     }
-  }, [startDate, timeUnit]);
+  }, [endDate, startDate, timeUnit]);
 
   // timeUnit이 HH로 변경될 때 분을 자동 조정 (시작 00분, 종료 50분)
   useEffect(() => {
@@ -155,20 +171,21 @@ export default function KeywordStatistics() {
     }
 
     // 조회 버튼 클릭 시에만 queryParams 업데이트 → React Query 재조회
-    const fromDate = startDate.format('YYYYMMDD');
-    const toDate = endDate.format('YYYYMMDD');
-    // HH 모드일 때는 시작 00분, 종료 50분 고정
-    const normalizedStartTime = timeUnit === 'HH' && startTime ? startTime.minute(0) : startTime;
-    const normalizedEndTime = timeUnit === 'HH' && endTime ? endTime.minute(50) : endTime;
-    const fromTime = normalizedStartTime?.format('HHmm');
-    const toTime = normalizedEndTime?.format('HHmm');
-    const fromDateTime = timeUnit === 'MI' || timeUnit === 'HH' ? `${fromDate}${fromTime}` : fromDate;
-    const toDateTime = timeUnit === 'MI' || timeUnit === 'HH' ? `${toDate}${toTime}` : toDate;
+    const fromDateYY = startDate.format('YYYY');
+    const toDateYY = endDate.format('YYYY');
+    const fromDateMM = startDate.format('YYYYMM');
+    const toDateMM = endDate.format('YYYYMM');
+    const fromDateDD = startDate.format('YYYYMMDD');
+    const toDateDD = endDate.format('YYYYMMDD');
+    const fromDateHH = startDate.format('YYYYMMDD') + startTime?.format('HH');
+    const toDateHH = endDate.format('YYYYMMDD') + endTime?.format('HH');
+    const fromDateMI = startDate.format('YYYYMMDD') + startTime?.format('HHmm');
+    const toDateMI = endDate.format('YYYYMMDD') + endTime?.format('HHmm');
 
     setQueryParams({
       timeUnit,
-      fromTime: fromDateTime,
-      toTime: toDateTime,
+      fromTime: timeUnit === 'MI' ? fromDateMI : timeUnit === 'HH' ? fromDateHH : timeUnit === 'DD' ? fromDateDD : timeUnit === 'MM' ? fromDateMM : fromDateYY,
+      toTime: timeUnit === 'MI' ? toDateMI : timeUnit === 'HH' ? toDateHH : timeUnit === 'DD' ? toDateDD : timeUnit === 'MM' ? toDateMM : toDateYY,
     });
   };
 
@@ -177,8 +194,12 @@ export default function KeywordStatistics() {
       headerName: '날짜',
       field: 'psrTimeKey',
       flex: queryParams.timeUnit === 'MI' || queryParams.timeUnit === 'HH' ? 2 : 1,
-      valueFormatter: ({ value }: { value?: string }) => (value ? dayjs(value).format(getTimeFormat(queryParams.timeUnit)) : '-'),
-      cellStyle: { alignItems: 'center' },
+      colSpan: (params) => (params.node?.rowPinned === 'bottom' ? 5 : 1),
+      valueFormatter: ({ value, node }) => {
+        if (node?.rowPinned === 'bottom') return value ?? '';
+        return value ? dayjs(value).format(getTimeFormat(queryParams.timeUnit)) : '-';
+      },
+      cellStyle: (params) => (params.node?.rowPinned === 'bottom' ? { fontWeight: 'bold', alignItems: 'center' } : { fontWeight: 'normal', alignItems: 'center' }),
     },
     { headerName: '봇서비스ID', field: 'scnId', hide: true },
     { headerName: '봇서비스', field: 'scnName', flex: 2 },
@@ -186,7 +207,12 @@ export default function KeywordStatistics() {
     { headerName: '모델명', field: 'modelName', flex: 1 },
     { headerName: '개체 태그', field: 'entityTag', flex: 1 },
     { headerName: '키워드', field: 'keyword', flex: 1 },
-    { headerName: '검출횟수', field: 'keywordCnt', maxWidth: 100, cellStyle: { alignItems: 'center' } },
+    {
+      headerName: '검출횟수',
+      field: 'keywordCnt',
+      flex: 1,
+      cellStyle: (params) => (params.node?.rowPinned === 'bottom' ? { fontWeight: 'bold', alignItems: 'center' } : { fontWeight: 'normal', alignItems: 'center' }),
+    },
   ];
 
   const [isExporting, setIsExporting] = useState(false);
@@ -343,7 +369,19 @@ export default function KeywordStatistics() {
           </header>
         </Collapsible>
         <div className="w-full flex-1">
-          <AgGridReact<KeywordStatListItem> ref={gridRef} rowData={rowData} columnDefs={columnDefs} gridOptions={gridOptions} loading={isLoadingKeywordStatList} />
+          <AgGridReact<KeywordStatListItem>
+            ref={gridRef}
+            rowData={rowData}
+            columnDefs={columnDefs}
+            gridOptions={gridOptions}
+            loading={isLoadingKeywordStatList}
+            pagination={false}
+            statusBar={{ statusPanels: [] }}
+            rowNumbers={false}
+            sideBar={false}
+            pinnedBottomRowData={summaryRow}
+            getRowStyle={(params) => (params.node?.rowPinned === 'bottom' ? { background: '#F8F9FA', borderTop: '2px solid #dee2e6' } : undefined)}
+          />
         </div>
       </div>
     </div>
