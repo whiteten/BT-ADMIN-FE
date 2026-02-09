@@ -27,8 +27,12 @@ export function useApiErrorHandler() {
         navigate('/login');
         Log.debug('Redirect to login page. location: ', JSON.stringify(current));
         if (current.pathname === '/') return;
+
+        // 서버에서 전달된 메시지를 그대로 표시 (BFF에서 한글 메시지 생성)
+        const responseData = error.response?.data as Record<string, unknown> | undefined;
+        const serverMessage = (responseData?.message as string) ?? '인증에 실패했습니다. 다시 로그인해주세요.';
         const now = dayjs().format('YYYY-MM-DD HH:mm:ss');
-        toast.warning(`[${now}]\n인증이 만료되었습니다.`, { autoClose: false, toastId: 'error-status-401' });
+        toast.warning(`[${now}]\n${serverMessage}`, { autoClose: false, toastId: 'error-status-401' });
         return;
       }
       // 사용자 친화적 에러 메시지 추출

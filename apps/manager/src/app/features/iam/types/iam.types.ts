@@ -143,6 +143,7 @@ export interface MenuWithPermissions {
   menuKey: string;
   menuLabel: string;
   appId: string;
+  appName: string;
   menuType: string;
   sortOrder: number;
   permissions: PermissionSummary[];

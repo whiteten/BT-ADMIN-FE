@@ -7,22 +7,22 @@
  */
 
 import { useEffect, useMemo, useState } from 'react';
-import { useParams } from 'react-router-dom';
+import { useNavigate, useParams } from 'react-router-dom';
 import { useQueryClient } from '@tanstack/react-query';
 import { Alert, Button, Col, Row } from 'antd';
 import { toast } from '@/shared-util';
 import PermissionSelector from '../../../features/iam/components/PermissionSelector';
 import { useGetRole } from '../../../features/iam/hooks/useRoleQueries';
 import { useGetUserAuthMaps, useSyncUserPermissions, userAuthQueryKeys } from '../../../features/iam/hooks/useUserAuthQueries';
-import { useGetUser } from '../../../features/user/hooks/useUserQueries';
 import { useUserDetailContext } from '../context/UserDetailContext';
 import { FallbackSpinner } from '@/components/custom/FallbackSpinner';
 
 export default function UserPermissionTab() {
   const { userId } = useParams();
+  const navigate = useNavigate();
   const queryClient = useQueryClient();
   const numericUserId = userId ? Number(userId) : undefined;
-  const { setPermissionStats } = useUserDetailContext();
+  const { user, isUserFetching, setPermissionStats } = useUserDetailContext();
 
   // 현재 선택된 권한 ID 목록
   const [selectedAuthIds, setSelectedAuthIds] = useState<Set<number>>(new Set());
@@ -30,12 +30,6 @@ export default function UserPermissionTab() {
   const [initialSelectedAuthIds, setInitialSelectedAuthIds] = useState<Set<number>>(new Set());
   // 개별권한 모드 여부 (DB에 데이터가 있는지)
   const [hasCustomPermissions, setHasCustomPermissions] = useState(false);
-
-  // 사용자 조회
-  const { data: user, isFetching: isUserFetching } = useGetUser({
-    params: { userId: numericUserId },
-    queryOptions: { enabled: !!numericUserId },
-  });
 
   // 사용자의 역할 조회 (템플릿용)
   const { data: role, isFetching: isRoleFetching } = useGetRole({
@@ -157,8 +151,13 @@ export default function UserPermissionTab() {
         <PermissionSelector value={selectedAuthIds} onChange={setSelectedAuthIds} className="h-full" />
       </div>
 
-      {/* 저장 버튼 */}
+      {/* 버튼 */}
       <Row gutter={20} justify="center" className="shrink-0 bg-white z-10 py-3 border-t border-gray-100">
+        <Col>
+          <Button variant="solid" onClick={() => navigate('../list')}>
+            취소
+          </Button>
+        </Col>
         <Col>
           <Button color="primary" variant="solid" onClick={handleSave} loading={isSyncing} disabled={!hasChanges}>
             저장

@@ -10,7 +10,7 @@ import { useQueryClient } from '@tanstack/react-query';
 import { Button, Col, Form, type FormProps, Input, Row, Select, Switch } from 'antd';
 import { useAuthStore } from '@/shared-store';
 import { toast } from '@/shared-util';
-import { useDeleteUser, useGetUser, useResetPasswordToAccount, useUpdateUser, userQueryKeys } from '../../../features/user/hooks/useUserQueries';
+import { useDeleteUser, useResetPasswordToAccount, useUpdateUser, userQueryKeys } from '../../../features/user/hooks/useUserQueries';
 import type { AccountStatus, UserUpdateDatas } from '../../../features/user/types/user.types';
 import { useUserDetailContext } from '../context/UserDetailContext';
 import { FallbackSpinner } from '@/components/custom/FallbackSpinner';
@@ -49,8 +49,8 @@ export default function UserBasicInfoTab() {
   const [form] = Form.useForm<UserBasicFormValues>();
   const numericUserId = userId ? Number(userId) : undefined;
 
-  // Context에서 폼 값 setter 가져오기
-  const { setBasicFormValues } = useUserDetailContext();
+  // Context에서 사용자 데이터 및 폼 값 setter 가져오기
+  const { user, isUserFetching, setBasicFormValues } = useUserDetailContext();
 
   // Form.useWatch로 폼 값 변경 감지 (비밀번호 정책 패턴)
   const formValues = Form.useWatch([], form);
@@ -72,12 +72,6 @@ export default function UserBasicInfoTab() {
   const { roleList, canResetPassword } = useAuthStore();
   const roleOptions = roleList.map((role) => ({ label: role.roleName, value: role.roleId }));
   const hasResetPasswordPermission = canResetPassword();
-
-  // 사용자 조회
-  const { data: user, isFetching } = useGetUser({
-    params: { userId: numericUserId },
-    queryOptions: { enabled: !!numericUserId },
-  });
 
   // 폼 초기화
   useEffect(() => {
@@ -169,7 +163,7 @@ export default function UserBasicInfoTab() {
 
   return (
     <Form form={form} onFinish={onFinish} onFinishFailed={onFinishFailed} layout="vertical">
-      {isFetching ? (
+      {isUserFetching ? (
         <div className="flex items-center justify-center w-full h-full">
           <FallbackSpinner />
         </div>
