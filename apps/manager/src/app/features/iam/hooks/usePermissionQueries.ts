@@ -7,34 +7,25 @@ import type { MutationHookOptions, QueryHookOptions } from '@/shared-util';
 import { permissionApi } from '../api/permissionApi';
 import type { MenuWithPermissions, Permission, PermissionCreateRequest, PermissionFlat, PermissionGroup } from '../types/iam.types';
 
-// 앱 이름 매핑
-const APP_NAME_MAP: Record<string, string> = {
-  manager: 'Manager',
-  fca: 'FCA',
-  BOT: '챗봇 관리',
-  IC: '인바운드 콜',
-  IR: 'IVR 관리',
-  CM: '공통 관리',
-};
-
 /**
  * 메뉴 목록을 앱별로 그룹화
+ * appName은 백엔드에서 AppEntity JOIN으로 제공
  */
 function groupMenusByApp(menus: MenuWithPermissions[]): PermissionGroup[] {
   const grouped = menus.reduce(
     (acc, menu) => {
       if (!acc[menu.appId]) {
-        acc[menu.appId] = [];
+        acc[menu.appId] = { appName: menu.appName, menus: [] };
       }
-      acc[menu.appId].push(menu);
+      acc[menu.appId].menus.push(menu);
       return acc;
     },
-    {} as Record<string, MenuWithPermissions[]>,
+    {} as Record<string, { appName: string; menus: MenuWithPermissions[] }>,
   );
 
-  return Object.entries(grouped).map(([appId, menuList]) => ({
+  return Object.entries(grouped).map(([appId, { appName, menus: menuList }]) => ({
     appId,
-    appName: APP_NAME_MAP[appId] || appId,
+    appName: appName || appId,
     menus: menuList,
   }));
 }
