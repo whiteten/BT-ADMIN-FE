@@ -9,7 +9,7 @@
  */
 
 import { forwardRef, useImperativeHandle, useMemo, useState } from 'react';
-import { Button, Drawer, Input, Tree, type TreeDataNode } from 'antd';
+import { Button, Drawer, Input, Tag, Tree, type TreeDataNode } from 'antd';
 import { Search } from 'lucide-react';
 import type { AvailableResource } from '../types/userResource.types';
 
@@ -67,15 +67,23 @@ const ResourceAddDrawer = forwardRef<ResourceAddDrawerRef, ResourceAddDrawerProp
     const convert = (items: AvailableResource[]): TreeDataNode[] =>
       items.map((item) => {
         const isAssigned = alreadyAssignedIds.includes(item.id);
+        const nameLabel = (
+          <div className="leading-snug py-0.5">
+            <div className="flex items-center gap-1">
+              <span>{item.name}</span>
+              {item.tag && (
+                <Tag color="blue" className="!m-0">
+                  {item.tag}
+                </Tag>
+              )}
+              {isAssigned && <span className="text-gray-400 text-xs">(등록됨)</span>}
+            </div>
+            {item.description && <div className="text-gray-400 text-xs truncate max-w-[350px]">{item.description}</div>}
+          </div>
+        );
         return {
           key: item.id,
-          title: isAssigned ? (
-            <>
-              {item.name} <span className="text-gray-400 text-xs">(등록됨)</span>
-            </>
-          ) : (
-            item.name
-          ),
+          title: nameLabel,
           disabled: isAssigned,
           children: item.children ? convert(item.children) : undefined,
         };
@@ -93,9 +101,10 @@ const ResourceAddDrawer = forwardRef<ResourceAddDrawerRef, ResourceAddDrawerProp
         .map((node) => {
           const resource = findResourceByKey(availableResources, String(node.key));
           const nodeName = resource?.name ?? '';
+          const nodeDesc = resource?.description ?? '';
           const filteredChildren = node.children ? filterNodes(node.children) : [];
 
-          if (nodeName.toLowerCase().includes(keyword) || filteredChildren.length > 0) {
+          if (nodeName.toLowerCase().includes(keyword) || nodeDesc.toLowerCase().includes(keyword) || filteredChildren.length > 0) {
             return {
               ...node,
               children: filteredChildren.length > 0 ? filteredChildren : node.children,

@@ -10,6 +10,7 @@ export interface AvailableResource {
   id: string;
   name: string;
   description?: string;
+  tag?: string;
   children?: AvailableResource[];
 }
 
@@ -17,6 +18,8 @@ export interface AvailableResource {
 export interface AssignedResource {
   resourceId: string;
   resourceName: string;
+  description?: string;
+  tag?: string;
 }
 
 // ──────────────────────────────────────────────
@@ -57,4 +60,6 @@ export interface BotService {
 export interface NluModel {
   modelId: string;
   modelName: string;
+  modelType: number;
+  expansion1?: string;
 }

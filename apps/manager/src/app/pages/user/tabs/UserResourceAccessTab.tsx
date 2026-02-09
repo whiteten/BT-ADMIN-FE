@@ -47,6 +47,8 @@ export default function UserResourceAccessTab() {
     return (models ?? []).map((model) => ({
       id: model.modelId,
       name: model.modelName,
+      description: model.expansion1,
+      tag: model.modelType === 1 ? '공용' : undefined,
     }));
   }, [models]);
 
@@ -62,6 +64,7 @@ export default function UserResourceAccessTab() {
         return {
           resourceId: m.resourceId,
           resourceName: bot?.serviceName ?? m.resourceId,
+          description: bot?.serviceDesc,
         };
       });
 
@@ -73,6 +76,8 @@ export default function UserResourceAccessTab() {
         return {
           resourceId: m.resourceId,
           resourceName: model?.modelName ?? m.resourceId,
+          description: model?.expansion1,
+          tag: model?.modelType === 1 ? '공용' : undefined,
         };
       });
 

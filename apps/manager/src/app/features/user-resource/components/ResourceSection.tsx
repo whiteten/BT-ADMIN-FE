@@ -7,7 +7,7 @@
  */
 
 import { useRef, useState } from 'react';
-import { Button, Card, Table } from 'antd';
+import { Button, Card, Table, Tag } from 'antd';
 import type { ColumnsType } from 'antd/es/table';
 import { Minus, Plus } from 'lucide-react';
 import ResourceAddDrawer, { type ResourceAddDrawerRef } from './ResourceAddDrawer';
@@ -27,12 +27,30 @@ const columns: ColumnsType<AssignedResource> = [
     title: 'ID',
     dataIndex: 'resourceId',
     key: 'resourceId',
-    width: 450,
+    width: 200,
   },
   {
     title: '이름',
     dataIndex: 'resourceName',
     key: 'resourceName',
+    width: 200,
+    render: (name: string, record) => (
+      <span>
+        {name}
+        {record.tag && (
+          <Tag color="blue" className="ml-2">
+            {record.tag}
+          </Tag>
+        )}
+      </span>
+    ),
+  },
+  {
+    title: '설명',
+    dataIndex: 'description',
+    key: 'description',
+    ellipsis: true,
+    render: (desc: string) => desc || '-',
   },
 ];
 
@@ -54,6 +72,8 @@ export default function ResourceSection({ title, drawerTitle, availableResources
       return {
         resourceId: id,
         resourceName: found?.name ?? id,
+        description: found?.description,
+        tag: found?.tag,
       };
     });
     onAssignedItemsChange([...assignedItems, ...newItems]);
