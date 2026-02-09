@@ -273,13 +273,18 @@ export default function UserBasicInfoTab() {
           )}
           <Row gutter={20} justify="center" className="sticky bottom-0 bg-white z-10 pb-7 pt-4 mt-6 border-t border-gray-100">
             <Col>
-              <Button color="primary" variant="solid" htmlType="submit" loading={isUpdating || isDeleting || isResetting}>
-                저장
+              <Button variant="solid" onClick={() => navigate('../')}>
+                취소
               </Button>
             </Col>
             <Col>
               <Button color="red" variant="solid" loading={isDeleting} onClick={handleClickDeleteBtn}>
                 삭제
+              </Button>
+            </Col>
+            <Col>
+              <Button color="primary" variant="solid" htmlType="submit" loading={isUpdating || isDeleting || isResetting}>
+                저장
               </Button>
             </Col>
           </Row>
