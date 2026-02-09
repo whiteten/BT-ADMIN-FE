@@ -1,7 +1,17 @@
 import { useState } from 'react';
+import { GridLayout, useContainerWidth } from 'react-grid-layout';
+import 'react-grid-layout/css/styles.css';
 import { type BreadcrumbProps, Select } from 'antd';
-import { useGetBotDashboard } from '../../features/dashboard/hooks/useDashboardQueries';
+// import { useGetBotDashboard } from '../../features/dashboard/hooks/useDashboardQueries';
 import PageHeader from '@/components/custom/PageHeader';
+
+const layout = [
+  { i: 'a', x: 0, y: 0, w: 6, h: 4 },
+  { i: 'b', x: 6, y: 0, w: 6, h: 4 },
+  { i: 'c', x: 0, y: 4, w: 12, h: 4 },
+  { i: 'd', x: 0, y: 8, w: 12, h: 4 },
+  { i: 'e', x: 0, y: 12, w: 12, h: 4 },
+];
 
 const breadcrumb: BreadcrumbProps['items'] = [
   { title: '대시보드', path: '/fca/dashboard' },
@@ -12,7 +22,8 @@ const sampleServiceIdList = [1001, 1002, 1003, 1004, 1005];
 
 export default function BotDashboard() {
   const [serviceIds, setServiceIds] = useState<number[]>(sampleServiceIdList);
-  const { data, isLoading, error } = useGetBotDashboard({ params: { serviceIds } });
+  // const { data, isLoading, error } = useGetBotDashboard({ params: { serviceIds } });
+  const { width, containerRef, mounted } = useContainerWidth();
 
   const handleServiceIdsChange = (value: number[]) => {
     setServiceIds(value ?? []);
@@ -39,6 +50,27 @@ export default function BotDashboard() {
   return (
     <div className="flex flex-col gap-4 w-full h-full">
       <PageHeader breadcrumb={breadcrumb} extra={extra} />
+      <div ref={containerRef} className="flex-1 min-h-0 overflow-y-auto">
+        {mounted && (
+          <GridLayout width={width} layout={layout} gridConfig={{ cols: 12, rowHeight: 60 }}>
+            <div key="a" className="bg-white bt-shadow">
+              A
+            </div>
+            <div key="b" className="bg-white bt-shadow">
+              B
+            </div>
+            <div key="c" className="bg-white bt-shadow">
+              C
+            </div>
+            <div key="d" className="bg-white bt-shadow">
+              D
+            </div>
+            <div key="e" className="bg-white bt-shadow">
+              E
+            </div>
+          </GridLayout>
+        )}
+      </div>
     </div>
   );
 }

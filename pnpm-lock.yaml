@@ -187,6 +187,9 @@ importers:
       react-dom:
         specifier: 19.0.0
         version: 19.0.0(react@19.0.0)
+      react-grid-layout:
+        specifier: ^2.2.2
+        version: 2.2.2(react-dom@19.0.0(react@19.0.0))(react@19.0.0)
       react-hook-form:
         specifier: ^7.61.0
         version: 7.61.0(react@19.0.0)
@@ -5657,6 +5660,9 @@ packages:
   fast-diff@1.3.0:
     resolution: {integrity: sha512-VxPP4NqbUjj6MaAOafWeUn2cXWLcCtljklUtZf0Ind4XQ+QPtmA0b18zZy0jIQx+ExRVCR/ZQpBmik5lXshNsw==}
 
+  fast-equals@4.0.3:
+    resolution: {integrity: sha512-G3BSX9cfKttjr+2o1O22tYMLq0DPluZnYtq1rXumE1SpL/F/SLIfHx08WYQoWSIpeMYf8sRbJ8++71+v6Pnxfg==}
+
   fast-equals@5.2.2:
     resolution: {integrity: sha512-V7/RktU11J3I36Nwq2JnZEM7tNm17eBJz+u25qdxBZeCKiX6BkVSZQjwWIr+IobgnZy+ag73tTZgZi7tr0LrBw==}
     engines: {node: '>=6.0.0'}
@@ -8024,6 +8030,18 @@ packages:
     peerDependencies:
       react: ^19.0.0
 
+  react-draggable@4.5.0:
+    resolution: {integrity: sha512-VC+HBLEZ0XJxnOxVAZsdRi8rD04Iz3SiiKOoYzamjylUcju/hP9np/aZdLHf/7WOD268WMoNJMvYfB5yAK45cw==}
+    peerDependencies:
+      react: '>= 16.3.0'
+      react-dom: '>= 16.3.0'
+
+  react-grid-layout@2.2.2:
+    resolution: {integrity: sha512-yNo9pxQWoxHWRAwHGSVT4DEGELYPyQ7+q9lFclb5jcqeFzva63/2F72CryS/jiTIr/SBIlTaDdyjqH+ODg8oBw==}
+    peerDependencies:
+      react: '>= 16.3.0'
+      react-dom: '>= 16.3.0'
+
   react-hook-form@7.61.0:
     resolution: {integrity: sha512-o8S/HcCeuaAQVib36fPCgOLaaQN/v7Anj8zlYjcLMcz+4FnNfMsoDAEvVCefLb3KDnS43wq3pwcifehhkwowuQ==}
     engines: {node: '>=18.0.0'}
@@ -8068,6 +8086,12 @@ packages:
     peerDependencies:
       react: ^16.14.0 || ^17.0.0 || ^18.0.0 || ^19.0.0 || ^19.0.0-rc
       react-dom: ^16.14.0 || ^17.0.0 || ^18.0.0 || ^19.0.0 || ^19.0.0-rc
+
+  react-resizable@3.1.3:
+    resolution: {integrity: sha512-liJBNayhX7qA4tBJiBD321FDhJxgGTJ07uzH5zSORXoE8h7PyEZ8mLqmosST7ppf6C4zUsbd2gzDMmBCfFp9Lw==}
+    peerDependencies:
+      react: '>= 16.3'
+      react-dom: '>= 16.3'
 
   react-router-dom@6.29.0:
     resolution: {integrity: sha512-pkEbJPATRJ2iotK+wUwHfy0xs2T59YPEN8BQxVCPeBZvK7kfPESRc/nyxzdcxR17hXgUPYx2whMwl+eo9cUdnQ==}
@@ -15804,6 +15828,8 @@ snapshots:
 
   fast-diff@1.3.0: {}
 
+  fast-equals@4.0.3: {}
+
   fast-equals@5.2.2: {}
 
   fast-fifo@1.3.2: {}
@@ -18431,6 +18457,24 @@ snapshots:
       react: 19.0.0
       scheduler: 0.25.0
 
+  react-draggable@4.5.0(react-dom@19.0.0(react@19.0.0))(react@19.0.0):
+    dependencies:
+      clsx: 2.1.1
+      prop-types: 15.8.1
+      react: 19.0.0
+      react-dom: 19.0.0(react@19.0.0)
+
+  react-grid-layout@2.2.2(react-dom@19.0.0(react@19.0.0))(react@19.0.0):
+    dependencies:
+      clsx: 2.1.1
+      fast-equals: 4.0.3
+      prop-types: 15.8.1
+      react: 19.0.0
+      react-dom: 19.0.0(react@19.0.0)
+      react-draggable: 4.5.0(react-dom@19.0.0(react@19.0.0))(react@19.0.0)
+      react-resizable: 3.1.3(react-dom@19.0.0(react@19.0.0))(react@19.0.0)
+      resize-observer-polyfill: 1.5.1
+
   react-hook-form@7.61.0(react@19.0.0):
     dependencies:
       react: 19.0.0
@@ -18466,6 +18510,13 @@ snapshots:
     dependencies:
       react: 19.0.0
       react-dom: 19.0.0(react@19.0.0)
+
+  react-resizable@3.1.3(react-dom@19.0.0(react@19.0.0))(react@19.0.0):
+    dependencies:
+      prop-types: 15.8.1
+      react: 19.0.0
+      react-dom: 19.0.0(react@19.0.0)
+      react-draggable: 4.5.0(react-dom@19.0.0(react@19.0.0))(react@19.0.0)
 
   react-router-dom@6.29.0(react-dom@19.0.0(react@19.0.0))(react@19.0.0):
     dependencies:
