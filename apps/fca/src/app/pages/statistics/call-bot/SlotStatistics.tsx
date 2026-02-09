@@ -46,6 +46,7 @@ export default function SlotStatistics() {
       timeUnit: 'DD',
       fromTime: fromDate,
       toTime: toDate,
+      serviceIds: serviceIds,
     };
   });
 
@@ -53,49 +54,45 @@ export default function SlotStatistics() {
   const { gridOptions } = useAggridOptions();
   const gridRef = useRef<AgGridReact<SlotStatListItem>>(null);
   const { data: botList } = useGetBots();
-
   const [rowData, setRowData] = useState<SlotStatListItem[]>([]);
 
   // disabledDate 함수 (시작일: 미래 날짜 비활성화, 종료일: 시작일 이전 + maxDays 초과 비활성화)
   const disabledDate = useMemo(() => createDisabledDate(timeUnit), [timeUnit]);
   const disabledEndDate = useMemo(() => createEndDisabledDate(startDate, timeUnit), [startDate, timeUnit]);
 
-  type ServiceOption = { id: string; name: string };
-
-  const services: ServiceOption[] = useMemo(() => {
-    if (botList?.length) {
-      return botList.filter((b) => Boolean(b?.serviceId && b?.serviceName)).map((b) => ({ id: String(b.serviceId), name: String(b.serviceName) }));
-    }
-    return [];
-  }, [botList]);
-
   const serviceSelectOptions = useMemo(
-    () =>
-      services.map((s) => ({
-        label: s.name,
-        value: s.id,
-      })),
-    [services],
+    () => (botList ?? []).filter((b) => Boolean(b?.serviceId && b?.serviceName)).map((b) => ({ label: String(b.serviceName), value: String(b.serviceId) })),
+    [botList],
   );
 
+  // 봇서비스 목록 최초 로드 시 전체 선택
+  const isServiceInitialized = useRef(false);
+  useEffect(() => {
+    if (!isServiceInitialized.current && serviceSelectOptions.length > 0) {
+      setServiceIds(serviceSelectOptions.map((s) => s.value));
+      isServiceInitialized.current = true;
+    }
+  }, [serviceSelectOptions]);
+
+  // 슬롯 통계 조회
   const { data: slotStatList, isLoading: isLoadingSlotStatList } = useGetSlotStatList({
     params: queryParams,
   });
 
+  // 슬롯 통계 필터링
   const filteredList = useMemo(() => {
     if (!slotStatList) return [];
     const trimmedSearchValue = searchValue?.trim().toLowerCase();
-    if (serviceIds.length === 0 && !trimmedSearchValue) return slotStatList;
+    if (!trimmedSearchValue) return slotStatList;
     return slotStatList.filter((slotStat) => {
-      const matchesServiceIds = serviceIds.length === 0 || serviceIds.includes(String(slotStat.serviceId ?? ''));
       const matchesSearchValue =
         !trimmedSearchValue ||
         String(slotStat[filterColumn as keyof SlotStatListItem] ?? '')
           .toLowerCase()
           .includes(trimmedSearchValue);
-      return matchesServiceIds && matchesSearchValue;
+      return matchesSearchValue;
     });
-  }, [slotStatList, serviceIds, filterColumn, searchValue]);
+  }, [slotStatList, filterColumn, searchValue]);
 
   useEffect(() => {
     setRowData(filteredList ?? []);
@@ -178,6 +175,7 @@ export default function SlotStatistics() {
       timeUnit,
       fromTime: timeUnit === 'MI' ? fromDateMI : timeUnit === 'HH' ? fromDateHH : timeUnit === 'DD' ? fromDateDD : timeUnit === 'MM' ? fromDateMM : fromDateYY,
       toTime: timeUnit === 'MI' ? toDateMI : timeUnit === 'HH' ? toDateHH : timeUnit === 'DD' ? toDateDD : timeUnit === 'MM' ? toDateMM : toDateYY,
+      serviceIds: serviceIds,
     });
   };
 
@@ -409,7 +407,9 @@ export default function SlotStatistics() {
         <div className="w-full flex-1">
           <AgGridReact<SlotStatListItem>
             ref={gridRef}
+            rowModelType="clientSide"
             rowData={rowData}
+            getRowId={(params) => `${params.data.psrTimeKey}_${params.data.serviceId}_${params.data.dialogId}_${params.data.slotId}`}
             columnDefs={columnDefs}
             gridOptions={gridOptions}
             loading={isLoadingSlotStatList}
@@ -418,7 +418,9 @@ export default function SlotStatistics() {
             rowNumbers={false}
             sideBar={false}
             pinnedBottomRowData={summaryRow}
-            getRowStyle={(params) => (params.node?.rowPinned === 'bottom' ? { background: '#F8F9FA', borderTop: '2px solid #dee2e6' } : undefined)}
+            rowClassRules={{
+              '!bg-[#F8F9FA]': (params) => params.node.rowPinned === 'bottom',
+            }}
           />
         </div>
       </div>

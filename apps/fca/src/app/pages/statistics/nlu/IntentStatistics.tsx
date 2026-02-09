@@ -47,6 +47,8 @@ export default function IntentStatistics() {
       timeUnit: 'DD',
       fromTime: fromDate,
       toTime: toDate,
+      scnIds: scnIds,
+      modelIds: modelIds,
     };
   });
 
@@ -55,67 +57,59 @@ export default function IntentStatistics() {
   const gridRef = useRef<AgGridReact<IntentStatListItem>>(null);
   const { data: scnList } = useGetBots();
   const { data: modelList } = useGetModels();
-
   const [rowData, setRowData] = useState<IntentStatListItem[]>([]);
 
   // disabledDate 함수 (시작일: 미래 날짜 비활성화, 종료일: 시작일 이전 + maxDays 초과 비활성화)
   const disabledDate = useMemo(() => createDisabledDate(timeUnit), [timeUnit]);
   const disabledEndDate = useMemo(() => createEndDisabledDate(startDate, timeUnit), [startDate, timeUnit]);
 
-  type ScnOption = { id: string; name: string };
-  type ModelOption = { id: string; name: string };
-
-  const scns: ScnOption[] = useMemo(() => {
-    if (scnList?.length) {
-      return scnList.filter((b) => Boolean(b?.serviceId && b?.serviceName)).map((b) => ({ id: String(b.serviceId), name: String(b.serviceName) }));
-    }
-    return [];
-  }, [scnList]);
-
-  const models: ModelOption[] = useMemo(() => {
-    if (modelList?.length) {
-      return modelList.filter((m) => Boolean(m?.modelId && m?.modelName)).map((m) => ({ id: String(m.modelId), name: String(m.modelName) }));
-    }
-    return [];
-  }, [modelList]);
-
   const scnSelectOptions = useMemo(
-    () =>
-      scns.map((s) => ({
-        label: s.name,
-        value: s.id,
-      })),
-    [scns],
+    () => (scnList ?? []).filter((b) => Boolean(b?.serviceId && b?.serviceName)).map((b) => ({ label: String(b.serviceName), value: String(b.serviceId) })),
+    [scnList],
   );
 
   const modelSelectOptions = useMemo(
-    () =>
-      models.map((m) => ({
-        label: m.name,
-        value: m.id,
-      })),
-    [models],
+    () => (modelList ?? []).filter((m) => Boolean(m?.modelId && m?.modelName)).map((m) => ({ label: String(m.modelName), value: String(m.modelId) })),
+    [modelList],
   );
 
+  // 봇서비스 목록 최초 로드 시 전체 선택
+  const isScnInitialized = useRef(false);
+  useEffect(() => {
+    if (!isScnInitialized.current && scnSelectOptions.length > 0) {
+      setScnIds(scnSelectOptions.map((s) => s.value));
+      isScnInitialized.current = true;
+    }
+  }, [scnSelectOptions]);
+
+  // 모델 목록 최초 로드 시 전체 선택
+  const isModelInitialized = useRef(false);
+  useEffect(() => {
+    if (!isModelInitialized.current && modelSelectOptions.length > 0) {
+      setModelIds(modelSelectOptions.map((m) => m.value));
+      isModelInitialized.current = true;
+    }
+  }, [modelSelectOptions]);
+
+  // 의도 통계 조회
   const { data: intentStatList, isLoading: isLoadingIntentStatList } = useGetIntentStatList({
     params: queryParams,
   });
 
+  // 의도 통계 필터링
   const filteredList = useMemo(() => {
     if (!intentStatList) return [];
     const trimmedIntentName = intentName?.trim().toLowerCase();
-    if (scnIds.length === 0 && modelIds.length === 0 && !trimmedIntentName) return intentStatList;
+    if (!trimmedIntentName) return intentStatList;
     return intentStatList.filter((intentStat) => {
-      const matchesScn = scnIds.length === 0 || scnIds.includes(String(intentStat.scnId ?? ''));
-      const matchesModel = modelIds.length === 0 || modelIds.includes(String(intentStat.modelId ?? ''));
       const matchesIntentName =
         !trimmedIntentName ||
         String(intentStat.intent ?? '')
           .toLowerCase()
           .includes(trimmedIntentName);
-      return matchesScn && matchesModel && matchesIntentName;
+      return matchesIntentName;
     });
-  }, [intentStatList, scnIds, modelIds, intentName]);
+  }, [intentStatList, intentName]);
 
   useEffect(() => {
     setRowData(filteredList ?? []);
@@ -195,6 +189,8 @@ export default function IntentStatistics() {
       timeUnit,
       fromTime: timeUnit === 'MI' ? fromDateMI : timeUnit === 'HH' ? fromDateHH : timeUnit === 'DD' ? fromDateDD : timeUnit === 'MM' ? fromDateMM : fromDateYY,
       toTime: timeUnit === 'MI' ? toDateMI : timeUnit === 'HH' ? toDateHH : timeUnit === 'DD' ? toDateDD : timeUnit === 'MM' ? toDateMM : toDateYY,
+      scnIds: scnIds,
+      modelIds: modelIds,
     });
   };
 
@@ -410,7 +406,9 @@ export default function IntentStatistics() {
         <div className="w-full flex-1">
           <AgGridReact<IntentStatListItem>
             ref={gridRef}
+            rowModelType="clientSide"
             rowData={rowData}
+            getRowId={(params) => `${params.data.psrTimeKey}_${params.data.scnId}_${params.data.modelId}_${params.data.intent}`}
             columnDefs={columnDefs}
             gridOptions={gridOptions}
             loading={isLoadingIntentStatList}
@@ -419,7 +417,9 @@ export default function IntentStatistics() {
             rowNumbers={false}
             sideBar={false}
             pinnedBottomRowData={summaryRow}
-            getRowStyle={(params) => (params.node?.rowPinned === 'bottom' ? { background: '#F8F9FA', borderTop: '2px solid #dee2e6' } : undefined)}
+            rowClassRules={{
+              '!bg-[#F8F9FA]': (params) => params.node.rowPinned === 'bottom',
+            }}
           />
         </div>
       </div>

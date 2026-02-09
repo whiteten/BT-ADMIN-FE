@@ -45,6 +45,7 @@ export default function DialogStatistics() {
       timeUnit: 'DD',
       fromTime: fromDate,
       toTime: toDate,
+      serviceIds: serviceIds,
     };
   });
 
@@ -52,49 +53,45 @@ export default function DialogStatistics() {
   const { gridOptions } = useAggridOptions();
   const gridRef = useRef<AgGridReact<DialogStatListItem>>(null);
   const { data: botList } = useGetBots();
-
   const [rowData, setRowData] = useState<DialogStatListItem[]>([]);
 
   // disabledDate 함수 (시작일: 미래 날짜 비활성화, 종료일: 시작일 이전 + maxDays 초과 비활성화)
   const disabledDate = useMemo(() => createDisabledDate(timeUnit), [timeUnit]);
   const disabledEndDate = useMemo(() => createEndDisabledDate(startDate, timeUnit), [startDate, timeUnit]);
 
-  type ServiceOption = { id: string; name: string };
-
-  const services: ServiceOption[] = useMemo(() => {
-    if (botList?.length) {
-      return botList.filter((b) => Boolean(b?.serviceId && b?.serviceName)).map((b) => ({ id: String(b.serviceId), name: String(b.serviceName) }));
-    }
-    return [];
-  }, [botList]);
-
   const serviceSelectOptions = useMemo(
-    () =>
-      services.map((s) => ({
-        label: s.name,
-        value: s.id,
-      })),
-    [services],
+    () => (botList ?? []).filter((b) => Boolean(b?.serviceId && b?.serviceName)).map((b) => ({ label: String(b.serviceName), value: String(b.serviceId) })),
+    [botList],
   );
 
+  // 봇서비스 목록 최초 로드 시 전체 선택
+  const isServiceInitialized = useRef(false);
+  useEffect(() => {
+    if (!isServiceInitialized.current && serviceSelectOptions.length > 0) {
+      setServiceIds(serviceSelectOptions.map((s) => s.value));
+      isServiceInitialized.current = true;
+    }
+  }, [serviceSelectOptions]);
+
+  // 대화 통계 조회
   const { data: dialogStatList, isLoading: isLoadingDialogStatList } = useGetDialogStatList({
     params: queryParams,
   });
 
+  // 대화 통계 필터링
   const filteredList = useMemo(() => {
     if (!dialogStatList) return [];
     const trimmedDialogName = dialogName?.trim().toLowerCase();
-    if (serviceIds.length === 0 && !trimmedDialogName) return dialogStatList;
+    if (!trimmedDialogName) return dialogStatList;
     return dialogStatList.filter((dialogStat) => {
-      const matchesServiceIds = serviceIds.length === 0 || serviceIds.includes(String(dialogStat.serviceId ?? ''));
       const matchesDialogName =
         !trimmedDialogName ||
         String(dialogStat.dialogName ?? '')
           .toLowerCase()
           .includes(trimmedDialogName);
-      return matchesServiceIds && matchesDialogName;
+      return matchesDialogName;
     });
-  }, [dialogStatList, serviceIds, dialogName]);
+  }, [dialogStatList, dialogName]);
 
   useEffect(() => {
     setRowData(filteredList ?? []);
@@ -174,6 +171,7 @@ export default function DialogStatistics() {
       timeUnit,
       fromTime: timeUnit === 'MI' ? fromDateMI : timeUnit === 'HH' ? fromDateHH : timeUnit === 'DD' ? fromDateDD : timeUnit === 'MM' ? fromDateMM : fromDateYY,
       toTime: timeUnit === 'MI' ? toDateMI : timeUnit === 'HH' ? toDateHH : timeUnit === 'DD' ? toDateDD : timeUnit === 'MM' ? toDateMM : toDateYY,
+      serviceIds: serviceIds,
     });
   };
 
@@ -366,7 +364,9 @@ export default function DialogStatistics() {
         <div className="w-full flex-1">
           <AgGridReact<DialogStatListItem>
             ref={gridRef}
+            rowModelType="clientSide"
             rowData={rowData}
+            getRowId={(params) => `${params.data.psrTimeKey}_${params.data.serviceId}_${params.data.dialogId}`}
             columnDefs={columnDefs}
             gridOptions={gridOptions}
             loading={isLoadingDialogStatList}
@@ -375,7 +375,9 @@ export default function DialogStatistics() {
             rowNumbers={false}
             sideBar={false}
             pinnedBottomRowData={summaryRow}
-            getRowStyle={(params) => (params.node?.rowPinned === 'bottom' ? { background: '#F8F9FA', borderTop: '2px solid #dee2e6' } : undefined)}
+            rowClassRules={{
+              '!bg-[#F8F9FA]': (params) => params.node.rowPinned === 'bottom',
+            }}
           />
         </div>
       </div>

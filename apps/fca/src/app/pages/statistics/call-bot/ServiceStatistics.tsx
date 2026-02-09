@@ -42,50 +42,41 @@ export default function ServiceStatistics() {
       timeUnit: 'DD',
       fromTime: fromDate,
       toTime: toDate,
+      serviceIds: serviceIds,
     };
   });
 
   const { gridOptions } = useAggridOptions();
   const gridRef = useRef<AgGridReact<ServiceStatListItem>>(null);
   const { data: botList } = useGetBots();
-
   const [rowData, setRowData] = useState<ServiceStatListItem[]>([]);
 
   // disabledDate 함수 (시작일: 미래 날짜 비활성화, 종료일: 시작일 이전 + maxDays 초과 비활성화)
   const disabledDate = useMemo(() => createDisabledDate(timeUnit), [timeUnit]);
   const disabledEndDate = useMemo(() => createEndDisabledDate(startDate, timeUnit), [startDate, timeUnit]);
 
-  type ServiceOption = { id: string; name: string };
-
-  const services: ServiceOption[] = useMemo(() => {
-    if (botList?.length) {
-      return botList.filter((b) => Boolean(b?.serviceId && b?.serviceName)).map((b) => ({ id: String(b.serviceId), name: String(b.serviceName) }));
-    }
-    return [];
-  }, [botList]);
-
   const serviceSelectOptions = useMemo(
-    () =>
-      services.map((s) => ({
-        label: s.name,
-        value: s.id,
-      })),
-    [services],
+    () => (botList ?? []).filter((b) => Boolean(b?.serviceId && b?.serviceName)).map((b) => ({ label: String(b.serviceName), value: String(b.serviceId) })),
+    [botList],
   );
 
+  // 봇서비스 목록 최초 로드 시 전체 선택
+  const isServiceInitialized = useRef(false);
+  useEffect(() => {
+    if (!isServiceInitialized.current && serviceSelectOptions.length > 0) {
+      setServiceIds(serviceSelectOptions.map((s) => s.value));
+      isServiceInitialized.current = true;
+    }
+  }, [serviceSelectOptions]);
+
+  // 서비스 통계 조회
   const { data: serviceStatList, isLoading: isLoadingServiceStatList } = useGetServiceStatList({
     params: queryParams,
   });
 
-  const filteredList = useMemo(() => {
-    if (!serviceStatList) return [];
-    if (serviceIds.length === 0) return serviceStatList;
-    return serviceStatList.filter((serviceStat) => serviceIds.includes(String(serviceStat.serviceId ?? '')));
-  }, [serviceStatList, serviceIds]);
-
   useEffect(() => {
-    setRowData(filteredList ?? []);
-  }, [filteredList]);
+    setRowData(serviceStatList ?? []);
+  }, [serviceStatList]);
 
   // 합계 행 계산 (pinnedBottomRowData)
   const summaryRow = useMemo<ServiceStatListItem[]>(() => {
@@ -164,6 +155,7 @@ export default function ServiceStatistics() {
       timeUnit,
       fromTime: timeUnit === 'MI' ? fromDateMI : timeUnit === 'HH' ? fromDateHH : timeUnit === 'DD' ? fromDateDD : timeUnit === 'MM' ? fromDateMM : fromDateYY,
       toTime: timeUnit === 'MI' ? toDateMI : timeUnit === 'HH' ? toDateHH : timeUnit === 'DD' ? toDateDD : timeUnit === 'MM' ? toDateMM : toDateYY,
+      serviceIds: serviceIds,
     });
   };
 
@@ -361,7 +353,9 @@ export default function ServiceStatistics() {
         <div className="w-full flex-1">
           <AgGridReact<ServiceStatListItem>
             ref={gridRef}
+            rowModelType="clientSide"
             rowData={rowData}
+            getRowId={(params) => `${params.data.psrTimeKey}_${params.data.serviceId}`}
             columnDefs={columnDefs}
             gridOptions={gridOptions}
             loading={isLoadingServiceStatList}
@@ -370,7 +364,9 @@ export default function ServiceStatistics() {
             rowNumbers={false}
             sideBar={false}
             pinnedBottomRowData={summaryRow}
-            getRowStyle={(params) => (params.node?.rowPinned === 'bottom' ? { background: '#F8F9FA', borderTop: '2px solid #dee2e6' } : undefined)}
+            rowClassRules={{
+              '!bg-[#F8F9FA]': (params) => params.node.rowPinned === 'bottom',
+            }}
           />
         </div>
       </div>
