@@ -77,13 +77,18 @@ export default function EvaluationBasicInfo() {
           </Row>
           <Row gutter={20} justify="center" className="sticky bottom-0 bg-white/90 z-10 pb-7">
             <Col>
-              <Button color="primary" variant="solid" htmlType="submit" loading={isUpdating || isDeleting}>
-                저장
+              <Button variant="solid" onClick={() => navigate('../..?tab=tab4')}>
+                취소
               </Button>
             </Col>
             <Col>
               <Button color="red" variant="solid" loading={isDeleting} onClick={handleClickDeleteBtn}>
                 삭제
+              </Button>
+            </Col>
+            <Col>
+              <Button color="primary" variant="solid" htmlType="submit" loading={isUpdating || isDeleting}>
+                저장
               </Button>
             </Col>
           </Row>

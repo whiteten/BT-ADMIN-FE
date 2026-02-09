@@ -6,6 +6,7 @@ import { toast } from '@/shared-util';
 import { botQueryKeys, useCreateBotVersion, useDeleteBotVersion, useGetBotVersion, useGetBotVersions, useUpdateBotVersion } from '../hooks/useBotQueries';
 import type { BotVersionCreateDatas, BotVersionUpdateDatas } from '../types';
 import { FallbackSpinner } from '@/components/custom/FallbackSpinner';
+import { useModal } from '@/libs/shared-ui/src/hooks/useModal';
 
 /**
  * BotVersionDrawer ref 타입
@@ -44,6 +45,8 @@ const BotVersionDrawer = forwardRef<BotVersionDrawerRef>((_, ref) => {
 
   // 생성 모드 상태 (신규생성/복사생성) - form 외부, UI 컨트롤용
   const [createMode, setCreateMode] = useState<'new' | 'copy'>('new');
+
+  const modal = useModal();
 
   // 부모 컴포넌트에서 ref를 통해 호출할 수 있는 메서드 정의
   useImperativeHandle(ref, () => ({
@@ -148,7 +151,9 @@ const BotVersionDrawer = forwardRef<BotVersionDrawerRef>((_, ref) => {
 
   const handleDeleteBtn = () => {
     Log.debug('handleDeleteBtn');
-    deleteBotVersion({ serviceId, serviceVer });
+    modal.confirm.delete({
+      onOk: () => deleteBotVersion({ serviceId, serviceVer }),
+    });
   };
 
   const footer = (
