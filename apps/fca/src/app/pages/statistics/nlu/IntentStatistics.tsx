@@ -6,7 +6,15 @@ import dayjs, { type Dayjs } from 'dayjs';
 import { ChevronDown, Download } from 'lucide-react';
 import { useGetBots } from '../../../features/bot-config/hooks/useBotQueries';
 import { useGetModels } from '../../../features/bot-config/hooks/useModelQueries';
-import { createDisabledDate, createEndDisabledDate, getMaxDays, getTimeFormat, validateDateRange } from '../../../features/statistics/hooks/useDateRangeLimit';
+import {
+  createDisabledDate,
+  createEndDisabledDate,
+  getDatePickerFormat,
+  getMaxDays,
+  getPickerMode,
+  getTimeFormat,
+  validateDateRange,
+} from '../../../features/statistics/hooks/useDateRangeLimit';
 import { useGetIntentStatList } from '../../../features/statistics/hooks/useStatisticsQueries';
 import type { IntentStatListItem } from '../../../features/statistics/types/statistics.types';
 import PageHeader from '@/components/custom/PageHeader';
@@ -296,7 +304,15 @@ export default function IntentStatistics() {
                     popupMatchSelectWidth={false}
                     defaultValue="DD"
                   />
-                  <DatePicker value={startDate} onChange={(date) => setStartDate(date)} disabledDate={disabledDate} inputReadOnly allowClear={false} />
+                  <DatePicker
+                    value={startDate}
+                    onChange={(date) => setStartDate(date)}
+                    picker={getPickerMode(timeUnit)}
+                    format={getDatePickerFormat(timeUnit)}
+                    disabledDate={disabledDate}
+                    inputReadOnly
+                    allowClear={false}
+                  />
                   {timeUnit === 'MI' || timeUnit === 'HH' ? (
                     <TimePicker
                       value={startTime}
@@ -309,7 +325,15 @@ export default function IntentStatistics() {
                     />
                   ) : null}
                   <span className="text-sm font-medium text-[#495057] shrink-0">~</span>
-                  <DatePicker value={endDate} onChange={(date) => setEndDate(date)} disabledDate={disabledEndDate} inputReadOnly allowClear={false} />
+                  <DatePicker
+                    value={endDate}
+                    onChange={(date) => setEndDate(date)}
+                    picker={getPickerMode(timeUnit)}
+                    format={getDatePickerFormat(timeUnit)}
+                    disabledDate={disabledEndDate}
+                    inputReadOnly
+                    allowClear={false}
+                  />
                   {timeUnit === 'MI' || timeUnit === 'HH' ? (
                     <TimePicker
                       value={endTime}
