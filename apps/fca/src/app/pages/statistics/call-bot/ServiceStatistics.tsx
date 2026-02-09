@@ -5,7 +5,7 @@ import { type BreadcrumbProps, Button, DatePicker, Divider, Select, TimePicker, 
 import dayjs, { type Dayjs } from 'dayjs';
 import { Download } from 'lucide-react';
 import { useGetBots } from '../../../features/bot-config/hooks/useBotQueries';
-import { TIME_FORMAT } from '../../../features/statistics/hooks/useDateRangeLimit';
+import { createDisabledDate, createEndDisabledDate, getMaxDays, getTimeFormat, validateDateRange } from '../../../features/statistics/hooks/useDateRangeLimit';
 import { useGetServiceStatList } from '../../../features/statistics/hooks/useStatisticsQueries';
 import type { ServiceStatListItem } from '../../../features/statistics/types/statistics.types';
 import PageHeader from '@/components/custom/PageHeader';
@@ -41,9 +41,11 @@ export default function ServiceStatistics() {
   const gridRef = useRef<AgGridReact<ServiceStatListItem>>(null);
   const { data: botList } = useGetBots();
 
-  const getTimeFormat = (unit?: string) => TIME_FORMAT[unit ?? ''] ?? 'YYYY-MM-DD';
-
   const [rowData, setRowData] = useState<ServiceStatListItem[]>([]);
+
+  // disabledDate 함수 (시작일: 미래 날짜 비활성화, 종료일: 시작일 이전 + maxDays 초과 비활성화)
+  const disabledDate = useMemo(() => createDisabledDate(timeUnit), [timeUnit]);
+  const disabledEndDate = useMemo(() => createEndDisabledDate(startDate, timeUnit), [startDate, timeUnit]);
 
   type ServiceOption = { id: string; name: string };
 
@@ -77,6 +79,19 @@ export default function ServiceStatistics() {
     setRowData(filteredList ?? []);
   }, [filteredList]);
 
+  // startDate 또는 timeUnit 변경 시 endDate 자동 조정
+  useEffect(() => {
+    if (startDate && endDate) {
+      const maxDays = getMaxDays(timeUnit);
+      if (endDate.isBefore(startDate, 'day')) {
+        setEndDate(startDate);
+      } else if (endDate.diff(startDate, 'day') > maxDays) {
+        const maxEnd = startDate.add(maxDays, 'day');
+        setEndDate(maxEnd.isAfter(dayjs(), 'day') ? dayjs() : maxEnd);
+      }
+    }
+  }, [startDate, timeUnit]);
+
   // timeUnit이 HH로 변경될 때 분을 자동 조정 (시작 00분, 종료 50분)
   useEffect(() => {
     if (timeUnit === 'HH') {
@@ -93,6 +108,14 @@ export default function ServiceStatistics() {
 
     if ((timeUnit === 'MI' || timeUnit === 'HH') && (!startTime || !endTime)) {
       message.warning('검색시간을 선택해주세요.');
+      return;
+    }
+
+    // 날짜 범위 검증 (timeUnit별 최대 기간 체크)
+    if (!validateDateRange(startDate, endDate, timeUnit)) {
+      const maxDays = getMaxDays(timeUnit);
+      const dateRangeLabel = timeUnit === 'MI' ? '2일' : timeUnit === 'HH' ? '7일' : timeUnit === 'DD' ? '15일' : timeUnit === 'MM' ? '6개월' : '5년';
+      message.warning(`검색 기간은 ${dateRangeLabel} 이내로 설정해주세요. (최대 ${maxDays}일)`);
       return;
     }
 
@@ -209,7 +232,7 @@ export default function ServiceStatistics() {
               popupMatchSelectWidth={false}
               defaultValue="DD"
             />
-            <DatePicker value={startDate} onChange={(date) => setStartDate(date)} inputReadOnly allowClear={false} />
+            <DatePicker value={startDate} onChange={(date) => setStartDate(date)} disabledDate={disabledDate} inputReadOnly allowClear={false} />
             {timeUnit === 'MI' || timeUnit === 'HH' ? (
               <TimePicker
                 value={startTime}
@@ -222,7 +245,7 @@ export default function ServiceStatistics() {
               />
             ) : null}
             <span className="text-sm font-medium text-[#495057] shrink-0">~</span>
-            <DatePicker value={endDate} onChange={(date) => setEndDate(date)} inputReadOnly allowClear={false} />
+            <DatePicker value={endDate} onChange={(date) => setEndDate(date)} disabledDate={disabledEndDate} inputReadOnly allowClear={false} />
             {timeUnit === 'MI' || timeUnit === 'HH' ? (
               <TimePicker
                 value={endTime}
