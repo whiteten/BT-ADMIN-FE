@@ -1,12 +1,12 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import type { ColDef, ExcelExportParams, ProcessCellForExportParams } from 'ag-grid-community';
 import { AgGridReact } from 'ag-grid-react';
-import { type BreadcrumbProps, Button, DatePicker, Divider, Input, Select, message } from 'antd';
-import dayjs from 'dayjs';
+import { type BreadcrumbProps, Button, DatePicker, Divider, Input, Select, TimePicker, message } from 'antd';
+import dayjs, { type Dayjs } from 'dayjs';
 import { ChevronDown, Download } from 'lucide-react';
 import { useGetBots } from '../../../features/bot-config/hooks/useBotQueries';
 import { useGetModels } from '../../../features/bot-config/hooks/useModelQueries';
-import { useDateRangeLimit } from '../../../features/statistics/hooks/useDateRangeLimit';
+import { createDisabledDate, createEndDisabledDate, getMaxDays, getTimeFormat, validateDateRange } from '../../../features/statistics/hooks/useDateRangeLimit';
 import { useGetIntentStatList } from '../../../features/statistics/hooks/useStatisticsQueries';
 import type { IntentStatListItem } from '../../../features/statistics/types/statistics.types';
 import PageHeader from '@/components/custom/PageHeader';
@@ -21,31 +21,38 @@ const breadcrumb: BreadcrumbProps['items'] = [
 ];
 
 export default function IntentStatistics() {
+  // UI 상태 (사용자가 입력하는 값들)
   const [modelIds, setModelIds] = useState<string[]>([]);
-  const [draftModelIds, setDraftModelIds] = useState<string[]>([]);
   const [scnIds, setScnIds] = useState<string[]>([]);
-  const [draftScnIds, setDraftScnIds] = useState<string[]>([]);
-  const [isFilterOpen, setIsFilterOpen] = useState(false);
   const [intentName, setIntentName] = useState('');
+  const [timeUnit, setTimeUnit] = useState<string>('DD');
+  const [startDate, setStartDate] = useState<Dayjs | null>(dayjs().startOf('day'));
+  const [endDate, setEndDate] = useState<Dayjs | null>(dayjs().endOf('day'));
+  const [startTime, setStartTime] = useState<Dayjs | null>(dayjs().hour(0).minute(0));
+  const [endTime, setEndTime] = useState<Dayjs | null>(dayjs().hour(23).minute(59));
 
+  // 조회 확정된 파라미터 (조회 버튼 눌렀을 때만 업데이트)
+  const [queryParams, setQueryParams] = useState(() => {
+    const fromDate = dayjs().startOf('day').format('YYYYMMDD');
+    const toDate = dayjs().endOf('day').format('YYYYMMDD');
+    return {
+      timeUnit: 'DD',
+      fromTime: fromDate,
+      toTime: toDate,
+    };
+  });
+
+  const [isFilterOpen, setIsFilterOpen] = useState(false);
   const { gridOptions } = useAggridOptions();
   const gridRef = useRef<AgGridReact<IntentStatListItem>>(null);
-  const { RangePicker } = DatePicker;
   const { data: scnList } = useGetBots();
   const { data: modelList } = useGetModels();
 
-  const {
-    draftDateRange,
-    queryDateRange,
-    timeUnit,
-    handleTimeUnitChange,
-    handleDateRangeChange,
-    handleSearch: handleDateSearch,
-    disabledDate,
-    getTimeFormat,
-  } = useDateRangeLimit();
-
   const [rowData, setRowData] = useState<IntentStatListItem[]>([]);
+
+  // disabledDate 함수 (시작일: 미래 날짜 비활성화, 종료일: 시작일 이전 + maxDays 초과 비활성화)
+  const disabledDate = useMemo(() => createDisabledDate(timeUnit), [timeUnit]);
+  const disabledEndDate = useMemo(() => createEndDisabledDate(startDate, timeUnit), [startDate, timeUnit]);
 
   type ScnOption = { id: string; name: string };
   type ModelOption = { id: string; name: string };
@@ -82,14 +89,6 @@ export default function IntentStatistics() {
     [models],
   );
 
-  const queryParams = useMemo(() => {
-    return {
-      timeUnit: timeUnit,
-      fromTime: queryDateRange[0].format('YYYYMMDD'),
-      toTime: queryDateRange[1].format('YYYYMMDD'),
-    };
-  }, [timeUnit, queryDateRange]);
-
   const { data: intentStatList, isLoading: isLoadingIntentStatList } = useGetIntentStatList({
     params: queryParams,
   });
@@ -112,25 +111,72 @@ export default function IntentStatistics() {
 
   useEffect(() => {
     setRowData(filteredList ?? []);
-    handleDateSearch();
-    setScnIds(draftScnIds);
-    setModelIds(draftModelIds);
-  }, [filteredList, draftDateRange, handleDateSearch, draftScnIds, draftModelIds]);
+  }, [filteredList]);
 
-  const handleScnIdsChange = (value: string[]) => {
-    setDraftScnIds(value ?? []);
-  };
+  // startDate 또는 timeUnit 변경 시 endDate 자동 조정
+  useEffect(() => {
+    if (startDate && endDate) {
+      const maxDays = getMaxDays(timeUnit);
+      if (endDate.isBefore(startDate, 'day')) {
+        setEndDate(startDate);
+      } else if (endDate.diff(startDate, 'day') > maxDays) {
+        const maxEnd = startDate.add(maxDays, 'day');
+        setEndDate(maxEnd.isAfter(dayjs(), 'day') ? dayjs() : maxEnd);
+      }
+    }
+  }, [startDate, timeUnit]);
 
-  const handleModelIdsChange = (value: string[]) => {
-    setDraftModelIds(value ?? []);
+  // timeUnit이 HH로 변경될 때 분을 자동 조정 (시작 00분, 종료 50분)
+  useEffect(() => {
+    if (timeUnit === 'HH') {
+      setStartTime((prev) => (prev ? prev.minute(0) : prev));
+      setEndTime((prev) => (prev ? prev.minute(50) : prev));
+    }
+  }, [timeUnit]);
+
+  const handleSearch = () => {
+    if (!startDate || !endDate) {
+      message.warning('검색일자를 선택해주세요.');
+      return;
+    }
+
+    if ((timeUnit === 'MI' || timeUnit === 'HH') && (!startTime || !endTime)) {
+      message.warning('검색시간을 선택해주세요.');
+      return;
+    }
+
+    // 날짜 범위 검증 (timeUnit별 최대 기간 체크)
+    if (!validateDateRange(startDate, endDate, timeUnit)) {
+      const maxDays = getMaxDays(timeUnit);
+      const dateRangeLabel = timeUnit === 'MI' ? '2일' : timeUnit === 'HH' ? '7일' : timeUnit === 'DD' ? '15일' : timeUnit === 'MM' ? '6개월' : '5년';
+      message.warning(`검색 기간은 ${dateRangeLabel} 이내로 설정해주세요. (최대 ${maxDays}일)`);
+      return;
+    }
+
+    // 조회 버튼 클릭 시에만 queryParams 업데이트 → React Query 재조회
+    const fromDate = startDate.format('YYYYMMDD');
+    const toDate = endDate.format('YYYYMMDD');
+    // HH 모드일 때는 시작 00분, 종료 50분 고정
+    const normalizedStartTime = timeUnit === 'HH' && startTime ? startTime.minute(0) : startTime;
+    const normalizedEndTime = timeUnit === 'HH' && endTime ? endTime.minute(50) : endTime;
+    const fromTime = normalizedStartTime?.format('HHmm');
+    const toTime = normalizedEndTime?.format('HHmm');
+    const fromDateTime = timeUnit === 'MI' || timeUnit === 'HH' ? `${fromDate}${fromTime}` : fromDate;
+    const toDateTime = timeUnit === 'MI' || timeUnit === 'HH' ? `${toDate}${toTime}` : toDate;
+
+    setQueryParams({
+      timeUnit,
+      fromTime: fromDateTime,
+      toTime: toDateTime,
+    });
   };
 
   const columnDefs: ColDef<IntentStatListItem>[] = [
     {
       headerName: '날짜',
       field: 'psrTimeKey',
-      flex: 1,
-      valueFormatter: ({ value }: { value?: string }) => (value ? dayjs(value).format(getTimeFormat(timeUnit)) : '-'),
+      flex: queryParams.timeUnit === 'MI' || queryParams.timeUnit === 'HH' ? 2 : 1,
+      valueFormatter: ({ value }: { value?: string }) => (value ? dayjs(value).format(getTimeFormat(queryParams.timeUnit)) : '-'),
       cellStyle: { alignItems: 'center' },
     },
     { headerName: '봇서비스ID', field: 'scnId', hide: true },
@@ -166,7 +212,7 @@ export default function IntentStatistics() {
         const v = p.value;
 
         if (colId === 'psrTimeKey') {
-          return v ? dayjs(String(v)).format(getTimeFormat(timeUnit)) : '-';
+          return v ? dayjs(String(v)).format(getTimeFormat(queryParams.timeUnit)) : '-';
         }
 
         return v ?? '-';
@@ -190,10 +236,10 @@ export default function IntentStatistics() {
                   <span className="text-sm font-medium text-[#495057] shrink-0">검색일자</span>
                   <Select
                     value={timeUnit}
-                    onChange={handleTimeUnitChange}
+                    onChange={(v) => setTimeUnit(v)}
                     options={[
-                      { label: '분간', value: 'MI' },
-                      { label: '시간', value: 'HH' },
+                      { label: '10분단위', value: 'MI' },
+                      { label: '시간별', value: 'HH' },
                       { label: '일간', value: 'DD' },
                       { label: '월간', value: 'MM' },
                       { label: '년간', value: 'YY' },
@@ -202,37 +248,44 @@ export default function IntentStatistics() {
                     popupMatchSelectWidth={false}
                     defaultValue="DD"
                   />
-                  <RangePicker value={draftDateRange} onChange={handleDateRangeChange} disabledDate={disabledDate} inputReadOnly allowClear={false} />
+                  <DatePicker value={startDate} onChange={(date) => setStartDate(date)} disabledDate={disabledDate} inputReadOnly allowClear={false} />
+                  {timeUnit === 'MI' || timeUnit === 'HH' ? (
+                    <TimePicker
+                      value={startTime}
+                      onChange={(date) => setStartTime(date)}
+                      inputReadOnly
+                      allowClear={false}
+                      format={timeUnit === 'MI' ? 'HH:mm' : 'HH:00'}
+                      minuteStep={10}
+                      style={{ width: '100px' }}
+                    />
+                  ) : null}
+                  <span className="text-sm font-medium text-[#495057] shrink-0">~</span>
+                  <DatePicker value={endDate} onChange={(date) => setEndDate(date)} disabledDate={disabledEndDate} inputReadOnly allowClear={false} />
+                  {timeUnit === 'MI' || timeUnit === 'HH' ? (
+                    <TimePicker
+                      value={endTime}
+                      onChange={(date) => setEndTime(date)}
+                      inputReadOnly
+                      allowClear={false}
+                      format={timeUnit === 'MI' ? 'HH:mm' : 'HH:50'}
+                      minuteStep={10}
+                      style={{ width: '100px' }}
+                    />
+                  ) : null}
                 </div>
                 <Divider orientation="vertical" className="!h-5 !m-0" />
                 <div className="flex items-center gap-3">
                   <span className="text-sm font-medium text-[#495057] shrink-0">봇서비스</span>
                   <Select
                     mode="multiple"
-                    value={draftScnIds}
-                    onChange={handleScnIdsChange}
+                    value={scnIds}
+                    onChange={(value) => setScnIds(value ?? [])}
                     allowClear
                     showSearch
                     maxTagCount="responsive"
                     options={scnSelectOptions}
                     placeholder="검색할 봇서비스를 선택하세요."
-                    optionFilterProp="label"
-                    className="!min-w-[250px] !max-w-[400px]"
-                    popupMatchSelectWidth={false}
-                  />
-                </div>
-                <Divider orientation="vertical" className="!h-5 !m-0" />
-                <div className="flex items-center gap-3">
-                  <span className="text-sm font-medium text-[#495057] shrink-0">모델</span>
-                  <Select
-                    mode="multiple"
-                    value={draftModelIds}
-                    onChange={handleModelIdsChange}
-                    allowClear
-                    showSearch
-                    maxTagCount="responsive"
-                    options={modelSelectOptions}
-                    placeholder="검색할 모델을 선택하세요."
                     optionFilterProp="label"
                     className="!min-w-[250px] !max-w-[400px]"
                     popupMatchSelectWidth={false}
@@ -245,6 +298,9 @@ export default function IntentStatistics() {
                 </div>
               </div>
               <div className="flex items-center gap-3 shrink-0">
+                <Button type="primary" onClick={handleSearch}>
+                  조회
+                </Button>
                 <Button
                   type="primary"
                   loading={isExporting}
@@ -258,6 +314,21 @@ export default function IntentStatistics() {
             </div>
             <CollapsibleContent>
               <div className="flex items-center gap-3">
+                <span className="text-sm font-medium text-[#495057] shrink-0">모델</span>
+                <Select
+                  mode="multiple"
+                  value={modelIds}
+                  onChange={(value) => setModelIds(value ?? [])}
+                  allowClear
+                  showSearch
+                  maxTagCount="responsive"
+                  options={modelSelectOptions}
+                  placeholder="검색할 모델을 선택하세요."
+                  optionFilterProp="label"
+                  className="!min-w-[250px] !max-w-[400px]"
+                  popupMatchSelectWidth={false}
+                />
+                <Divider orientation="vertical" className="!h-5 !m-0" />
                 <span className="text-sm font-medium text-[#495057] shrink-0">의도명</span>
                 <Input value={intentName} onChange={(e) => setIntentName(e.target.value)} className="!min-w-[200px] !max-w-[250px]" placeholder="검색할 의도명을 입력하세요." />
               </div>

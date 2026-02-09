@@ -519,7 +519,7 @@ export default function EvaluationQuestionList() {
             Import
           </Button>
           <Dropdown menu={exportMenu} trigger={['click']} placement="bottomRight">
-            <Button variant="solid" loading={isExporting} icon={<ChevronDown className="size-4" />} iconPlacement="end">
+            <Button color="cyan" variant="solid" loading={isExporting} icon={<ChevronDown className="size-4" />} iconPlacement="end">
               Export
             </Button>
           </Dropdown>

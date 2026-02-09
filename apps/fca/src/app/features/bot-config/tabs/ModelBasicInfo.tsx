@@ -95,8 +95,8 @@ export default function ModelBasicInfo() {
           </Row>
           <Row gutter={20} justify="center" className="sticky bottom-0 bg-white/90 z-10 pb-7">
             <Col>
-              <Button color="primary" variant="solid" htmlType="submit" loading={isUpdating || isDeleting}>
-                저장
+              <Button variant="solid" onClick={() => navigate('../')}>
+                취소
               </Button>
             </Col>
             {model?.modelType === ModelType.NORMAL && (
@@ -111,10 +111,15 @@ export default function ModelBasicInfo() {
                 title={<span style={{ whiteSpace: 'pre-line' }}>{`모델의 의도·개체 전체 데이터 파일(엑셀)을 다운로드합니다.`}</span>}
                 styles={{ root: { maxWidth: '370px' } }}
               >
-                <Button variant="solid" onClick={handleClickExport} loading={isExporting}>
+                <Button color="cyan" variant="solid" onClick={handleClickExport} loading={isExporting}>
                   Export
                 </Button>
               </Tooltip>
+            </Col>
+            <Col>
+              <Button color="primary" variant="solid" htmlType="submit" loading={isUpdating || isDeleting}>
+                저장
+              </Button>
             </Col>
           </Row>
         </>

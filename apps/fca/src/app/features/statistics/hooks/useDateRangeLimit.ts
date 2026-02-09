@@ -33,20 +33,25 @@ interface UseDateRangeLimitProps {
   initialDays?: number;
 }
 
+// 공통 유틸 함수들 (export)
+export const getTimeFormat = (unit?: string) => TIME_FORMAT[unit ?? ''] ?? 'YYYY-MM-DD';
+export const getMaxDays = (unit: string) => MAX_DATE_RANGE[unit] ?? 15;
+
+export const validateDateRange = (startDate: Dayjs, endDate: Dayjs, unit: string): boolean => {
+  // endDate가 startDate보다 이전이면 false
+  if (endDate.isBefore(startDate, 'day')) {
+    return false;
+  }
+
+  const daysDiff = endDate.diff(startDate, 'day');
+  const maxDays = getMaxDays(unit);
+  return daysDiff <= maxDays;
+};
+
 export function useDateRangeLimit({ initialTimeUnit = 'DD', initialDays = 7 }: UseDateRangeLimitProps = {}) {
   const [draftDateRange, setDraftDateRange] = useState<[Dayjs, Dayjs]>([dayjs().subtract(initialDays, 'day'), dayjs()]);
   const [queryDateRange, setQueryDateRange] = useState<[Dayjs, Dayjs]>([dayjs().subtract(initialDays, 'day'), dayjs()]);
   const [timeUnit, setTimeUnit] = useState<string>(initialTimeUnit);
-
-  const getTimeFormat = (unit?: string) => TIME_FORMAT[unit ?? ''] ?? 'YYYY-MM-DD';
-
-  const getMaxDays = (unit: string) => MAX_DATE_RANGE[unit] ?? 15;
-
-  const validateDateRange = (startDate: Dayjs, endDate: Dayjs, unit: string): boolean => {
-    const daysDiff = endDate.diff(startDate, 'day');
-    const maxDays = getMaxDays(unit);
-    return daysDiff <= maxDays;
-  };
 
   const adjustDateRange = (unit: string): [Dayjs, Dayjs] => {
     const maxDays = getMaxDays(unit);
@@ -103,7 +108,12 @@ export function useDateRangeLimit({ initialTimeUnit = 'DD', initialDays = 7 }: U
 
       // 시작 날짜가 선택되었을 때, 최대 범위를 벗어나는 날짜 비활성화
       if (info.from) {
-        const daysDiff = Math.abs(current.diff(info.from, 'day'));
+        // endDate가 startDate보다 이전이면 비활성화
+        if (current.isBefore(info.from, 'day')) {
+          return true;
+        }
+        // 최대 범위를 벗어나는 날짜 비활성화
+        const daysDiff = current.diff(info.from, 'day');
         return daysDiff > maxDays;
       }
 
@@ -124,6 +134,36 @@ export function useDateRangeLimit({ initialTimeUnit = 'DD', initialDays = 7 }: U
     handleDateRangeChange,
     handleSearch,
     disabledDate,
-    getTimeFormat,
+    getTimeFormat: () => getTimeFormat(timeUnit),
+    validateDateRange,
+    getMaxDays,
   };
 }
+
+// 개별 DatePicker용 disabledDate 함수 생성 헬퍼 (시작일 DatePicker)
+export const createDisabledDate = (_timeUnit: string) => {
+  return (current: Dayjs) => {
+    if (!current) return false;
+    const today = dayjs();
+    // 미래 날짜 비활성화
+    if (current.isAfter(today, 'day')) {
+      return true;
+    }
+    return false;
+  };
+};
+
+// 종료일 DatePicker용 disabledDate 함수 생성 헬퍼
+export const createEndDisabledDate = (startDate: Dayjs | null, timeUnit: string) => {
+  return (current: Dayjs) => {
+    if (!current) return false;
+    const today = dayjs();
+    if (current.isAfter(today, 'day')) return true;
+    if (startDate) {
+      if (current.isBefore(startDate, 'day')) return true;
+      const maxDays = getMaxDays(timeUnit);
+      if (current.diff(startDate, 'day') > maxDays) return true;
+    }
+    return false;
+  };
+};
