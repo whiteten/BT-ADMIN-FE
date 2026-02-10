@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { type Layout, Responsive, type ResponsiveLayouts, useContainerWidth } from 'react-grid-layout';
 import 'react-grid-layout/css/styles.css';
 import { MultiSelect, type Option } from 'react-multi-select-component';
@@ -54,11 +54,14 @@ const layoutRenderMapper: Record<string, { title: string }> = {
 export default function BotDashboard() {
   const [selectedService, setSelectedService] = useState<Option[]>(serviceOptions);
   // const { data, isLoading, error } = useGetBotDashboard({ params: { serviceIds } });
+  const { layouts, setLayouts } = useBotDashboardStore();
   const { width, containerRef, mounted } = useContainerWidth();
 
-  const { layouts, setLayouts } = useBotDashboardStore();
   const [isEditMode, setIsEditMode] = useState(false);
   const [draftLayouts, setDraftLayouts] = useState<ResponsiveLayouts>(layouts);
+  const layoutFilterOptions =
+    DEFAULT_LAYOUTS.lg?.map((layout) => ({ label: layoutRenderMapper[layout.i as keyof typeof layoutRenderMapper]?.title ?? layout.i, value: layout.i })) ?? [];
+  const [selectedLayoutFilterItems, setSelectedLayoutFilterItems] = useState<Option[]>(layoutFilterOptions);
 
   const handleStartEdit = () => {
     setDraftLayouts(layouts);
@@ -83,10 +86,57 @@ export default function BotDashboard() {
     setDraftLayouts(allLayouts);
   };
 
+  useEffect(() => {
+    const selectedIds = new Set(selectedLayoutFilterItems.map((item) => item.value as string));
+
+    setDraftLayouts((prev) => {
+      const newLayouts: ResponsiveLayouts = {};
+
+      for (const [breakpoint, layouts] of Object.entries(prev)) {
+        if (!layouts) continue;
+
+        // 선택된 항목만 유지
+        const filtered = layouts.filter((item) => selectedIds.has(item.i));
+
+        // 현재 브레이크포인트에 없지만 선택된 항목 → DEFAULT_LAYOUTS.lg에서 가져와서 y: Infinity로 추가
+        const existingIds = new Set(filtered.map((item) => item.i));
+        const toAdd = [...selectedIds]
+          .filter((id) => !existingIds.has(id))
+          .map((id) => {
+            const defaultItem = DEFAULT_LAYOUTS.lg?.find((d) => d.i === id);
+            if (!defaultItem) return null;
+            return { ...defaultItem, x: 0, y: Infinity };
+          })
+          .filter((item): item is NonNullable<typeof item> => item !== null);
+
+        newLayouts[breakpoint as keyof typeof newLayouts] = [...filtered, ...toAdd];
+      }
+
+      return newLayouts;
+    });
+  }, [selectedLayoutFilterItems]);
+
   const extra = (
     <div className="flex gap-2 w-fit items-center shrink-0">
       {isEditMode ? (
         <>
+          <span className="text-sm font-medium text-[#495057] shrink-0">현황판 선택</span>
+          <MultiSelect
+            options={layoutFilterOptions}
+            value={selectedLayoutFilterItems}
+            onChange={setSelectedLayoutFilterItems}
+            labelledBy="현황판 선택"
+            hasSelectAll
+            overrideStrings={multiSelectStrings}
+            valueRenderer={(selected, options) => {
+              if (selected.length === 0) return '현황판을 선택하세요.';
+              if (selected.length === options.length) return '전체 선택됨';
+              if (selected.length === 1) return selected[0].label;
+              return `${selected.length}개 선택됨`;
+            }}
+            isLoading={false}
+            className="w-[250px]"
+          />
           <Button onClick={handleCancelEdit}>취소</Button>
           <Button variant="solid" color="orange" onClick={handleResetLayouts}>
             초기화
@@ -115,7 +165,7 @@ export default function BotDashboard() {
             className="w-[250px]"
           />
           <Button variant="solid" color="primary" onClick={handleStartEdit}>
-            편집
+            화면편집
           </Button>
         </>
       )}
@@ -138,9 +188,9 @@ export default function BotDashboard() {
             resizeConfig={{ enabled: isEditMode }}
             onLayoutChange={handleLayoutChange}
           >
-            {layouts.lg?.map((layout) => (
+            {(isEditMode ? draftLayouts.lg : layouts.lg)?.map((layout) => (
               <div key={layout.i} className="bg-white bt-shadow flex items-center justify-center">
-                {layoutRenderMapper[layout.i as keyof typeof layoutRenderMapper].title}
+                {layoutRenderMapper[layout.i as keyof typeof layoutRenderMapper]?.title ?? layout.i}
               </div>
             ))}
           </Responsive>
