@@ -128,7 +128,7 @@ export default function BotDashboard() {
   const extra = (
     <div className="flex gap-2 w-fit items-center shrink-0">
       {isEditMode ? (
-        <>
+        <div className="flex flex-wrap items-center gap-2">
           <span className="text-sm font-medium text-[#495057] shrink-0">현황판 선택</span>
           <MultiSelect
             options={layoutFilterOptions}
@@ -153,9 +153,9 @@ export default function BotDashboard() {
           <Button variant="solid" color="cyan" onClick={handleSaveEdit}>
             저장
           </Button>
-        </>
+        </div>
       ) : (
-        <>
+        <div className="flex flex-wrap items-center gap-2">
           <span className="text-sm font-medium text-[#495057] shrink-0">봇서비스</span>
           <MultiSelect
             options={serviceOptions}
@@ -176,7 +176,7 @@ export default function BotDashboard() {
           <Button variant="solid" color="primary" onClick={handleStartEdit}>
             화면편집
           </Button>
-        </>
+        </div>
       )}
     </div>
   );
