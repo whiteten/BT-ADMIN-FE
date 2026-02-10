@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { type Layout, Responsive, type ResponsiveLayouts, useContainerWidth } from 'react-grid-layout';
+import { type Layout, type LayoutItem, Responsive, type ResponsiveLayouts, useContainerWidth } from 'react-grid-layout';
 import 'react-grid-layout/css/styles.css';
 import { MultiSelect, type Option } from 'react-multi-select-component';
 import { type BreadcrumbProps, Button } from 'antd';
@@ -9,6 +9,18 @@ import PageHeader from '@/components/custom/PageHeader';
 
 const breakpoints = { lg: 1200, md: 996, sm: 768, xs: 480, xxs: 0 };
 const cols = { lg: 60, md: 50, sm: 30, xs: 20, xxs: 10 };
+
+function findTopLeftPosition(existingItems: LayoutItem[], itemW: number, itemH: number, totalCols: number): { x: number; y: number } {
+  const collides = (x: number, y: number, w: number, h: number, item: LayoutItem) => x < item.x + item.w && x + w > item.x && y < item.y + item.h && y + h > item.y;
+  const maxY = existingItems.reduce((max, item) => Math.max(max, item.y + item.h), 0);
+  for (let y = 0; y <= maxY; y++) {
+    for (let x = 0; x <= totalCols - itemW; x++) {
+      const hasCollision = existingItems.some((item) => collides(x, y, itemW, itemH, item));
+      if (!hasCollision) return { x, y };
+    }
+  }
+  return { x: 0, y: maxY };
+}
 
 const breadcrumb: BreadcrumbProps['items'] = [
   { title: '대시보드', path: '/fca/dashboard' },
@@ -91,22 +103,21 @@ export default function BotDashboard() {
 
     setDraftLayouts((prev) => {
       const newLayouts: ResponsiveLayouts = {};
-
       for (const [breakpoint, layouts] of Object.entries(prev)) {
         if (!layouts) continue;
         // 선택된 항목만 유지
         const filtered = layouts.filter((item) => selectedIds.has(item.i));
-        // 현재 브레이크포인트에 없지만 선택된 항목 → DEFAULT_LAYOUTS.lg 기준 + x: 0 y: Infinity 처리하여 추가
+        // 현재 브레이크포인트에 없지만 선택된 항목 → 가장 좌측 상단 빈 공간에 추가
         const existingIds = new Set(filtered.map((item) => item.i));
-        const toAdd = [...selectedIds]
-          .filter((id) => !existingIds.has(id))
-          .map((id) => {
-            const defaultItem = DEFAULT_LAYOUTS.lg?.find((d) => d.i === id);
-            if (!defaultItem) return null;
-            return { ...defaultItem, x: 0, y: Infinity };
-          })
-          .filter((item): item is NonNullable<typeof item> => item !== null);
-
+        const colCount = cols[breakpoint as keyof typeof cols] ?? cols.lg;
+        const toAdd: LayoutItem[] = [];
+        for (const id of selectedIds) {
+          if (existingIds.has(id)) continue;
+          const defaultItem = DEFAULT_LAYOUTS.lg?.find((d) => d.i === id);
+          if (!defaultItem) continue;
+          const pos = findTopLeftPosition([...filtered, ...toAdd], defaultItem.w, defaultItem.h, colCount);
+          toAdd.push({ ...defaultItem, ...pos });
+        }
         newLayouts[breakpoint as keyof typeof newLayouts] = [...filtered, ...toAdd];
       }
 
