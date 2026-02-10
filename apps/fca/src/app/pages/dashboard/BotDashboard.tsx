@@ -6,6 +6,7 @@ import { type BreadcrumbProps, Button, Card } from 'antd';
 // import { useGetBotDashboard } from '../../features/dashboard/hooks/useDashboardQueries';
 import { DEFAULT_LAYOUTS, useBotDashboardStore } from '../../features/dashboard/hooks/useBotDashboardStore';
 import PageHeader from '@/components/custom/PageHeader';
+import { cn } from '@/lib/utils';
 
 const breakpoints = { lg: 1200, md: 996, sm: 768, xs: 480, xxs: 0 };
 const cols = { lg: 60, md: 50, sm: 30, xs: 20, xxs: 10 };
@@ -184,7 +185,13 @@ export default function BotDashboard() {
   return (
     <div className="flex flex-col gap-2 w-full h-full">
       <PageHeader breadcrumb={breadcrumb} extra={extra} />
-      <div ref={containerRef} className="flex-1 min-h-0 overflow-y-auto pr-2">
+      <div
+        ref={containerRef}
+        className={cn(
+          'flex-1 min-h-0 overflow-y-auto pr-2 rounded-lg transition-colors',
+          isEditMode && 'bg-[radial-gradient(circle,#cbd5e1_1px,transparent_1px)] bg-[length:16px_16px]',
+        )}
+      >
         {mounted && (
           <Responsive
             layouts={isEditMode ? draftLayouts : layouts}
@@ -201,7 +208,7 @@ export default function BotDashboard() {
               const layoutItem = layoutRenderMapper[layout.i as keyof typeof layoutRenderMapper];
               const WidgetComponent = layoutItem?.component;
               return (
-                <div key={layout.i} className="">
+                <div key={layout.i} className="w-full h-full">
                   <Card
                     title={layoutItem?.title ?? layout.i}
                     variant="borderless"
@@ -210,6 +217,7 @@ export default function BotDashboard() {
                       title: 'text-base font-semibold text-[#495057]',
                       header: '!min-h-0 !h-[45px] !px-4',
                     }}
+                    loading={false}
                   >
                     {WidgetComponent ? <WidgetComponent /> : null}
                   </Card>
