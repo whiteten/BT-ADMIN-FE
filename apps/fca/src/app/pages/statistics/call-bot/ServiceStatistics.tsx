@@ -1,9 +1,9 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import type { ColDef, ExcelExportParams, ProcessCellForExportParams } from 'ag-grid-community';
 import { AgGridReact } from 'ag-grid-react';
-import { type BreadcrumbProps, Button, DatePicker, Divider, Select, TimePicker, message } from 'antd';
+import { type BreadcrumbProps, Button, Checkbox, DatePicker, Divider, Select, TimePicker, message } from 'antd';
 import dayjs, { type Dayjs } from 'dayjs';
-import { Download } from 'lucide-react';
+import { ChevronDown, Download } from 'lucide-react';
 import { useGetBots } from '../../../features/bot-config/hooks/useBotQueries';
 import {
   createDisabledDate,
@@ -17,7 +17,9 @@ import {
 import { useGetServiceStatList } from '../../../features/statistics/hooks/useStatisticsQueries';
 import type { ServiceStatListItem } from '../../../features/statistics/types/statistics.types';
 import PageHeader from '@/components/custom/PageHeader';
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/libs/shared-ui/src/components/shadcn/collapsible';
 import useAggridOptions from '@/libs/shared-ui/src/hooks/useAggridOptions';
+import { cn } from '@/libs/shared-ui/src/lib/utils';
 
 const breadcrumb: BreadcrumbProps['items'] = [
   { title: '통계', path: '/fca/statistics' },
@@ -33,6 +35,13 @@ export default function ServiceStatistics() {
   const [endDate, setEndDate] = useState<Dayjs | null>(dayjs().endOf('day'));
   const [startTime, setStartTime] = useState<Dayjs | null>(dayjs().hour(0).minute(0));
   const [endTime, setEndTime] = useState<Dayjs | null>(dayjs().hour(23).minute(59));
+  const [excludeLunch, setExcludeLunch] = useState(false);
+  const [useInterval, setUseInterval] = useState(false);
+  const [intervalStartTime, setIntervalStartTime] = useState<Dayjs | null>(dayjs().hour(0).minute(0));
+  const [intervalEndTime, setIntervalEndTime] = useState<Dayjs | null>(dayjs().hour(23).minute(0));
+  const [excludeDays, setExcludeDays] = useState<string[]>([]);
+  const [excludeBusinessHoliday, setExcludeBusinessHoliday] = useState(false);
+  const [excludeStatHoliday, setExcludeStatHoliday] = useState(false);
 
   // 조회 확정된 파라미터 (조회 버튼 눌렀을 때만 업데이트)
   const [queryParams, setQueryParams] = useState(() => {
@@ -43,9 +52,17 @@ export default function ServiceStatistics() {
       fromTime: fromDate,
       toTime: toDate,
       serviceIds: serviceIds,
+      excludeLunch: false,
+      useInterval: false,
+      hourFrom: '',
+      hourTo: '',
+      excludeDays: [] as string[],
+      excludeBusinessHoliday: false,
+      excludeStatHoliday: false,
     };
   });
 
+  const [isFilterOpen, setIsFilterOpen] = useState(false);
   const { gridOptions } = useAggridOptions();
   const gridRef = useRef<AgGridReact<ServiceStatListItem>>(null);
   const { data: botList } = useGetBots();
@@ -64,7 +81,9 @@ export default function ServiceStatistics() {
   const isServiceInitialized = useRef(false);
   useEffect(() => {
     if (!isServiceInitialized.current && serviceSelectOptions.length > 0) {
-      setServiceIds(serviceSelectOptions.map((s) => s.value));
+      const allIds = serviceSelectOptions.map((s) => s.value);
+      setServiceIds(allIds);
+      setQueryParams((prev) => ({ ...prev, serviceIds: allIds }));
       isServiceInitialized.current = true;
     }
   }, [serviceSelectOptions]);
@@ -156,6 +175,13 @@ export default function ServiceStatistics() {
       fromTime: timeUnit === 'MI' ? fromDateMI : timeUnit === 'HH' ? fromDateHH : timeUnit === 'DD' ? fromDateDD : timeUnit === 'MM' ? fromDateMM : fromDateYY,
       toTime: timeUnit === 'MI' ? toDateMI : timeUnit === 'HH' ? toDateHH : timeUnit === 'DD' ? toDateDD : timeUnit === 'MM' ? toDateMM : toDateYY,
       serviceIds: serviceIds,
+      excludeLunch: timeUnit === 'MI' || timeUnit === 'HH' ? excludeLunch : false,
+      useInterval: timeUnit === 'MI' || timeUnit === 'HH' ? useInterval : false,
+      hourFrom: timeUnit === 'MI' || timeUnit === 'HH' ? (useInterval && intervalStartTime ? intervalStartTime.format('HH00') : '') : '',
+      hourTo: timeUnit === 'MI' || timeUnit === 'HH' ? (useInterval && intervalEndTime ? intervalEndTime.format('HH00') : '') : '',
+      excludeDays: timeUnit !== 'MM' && timeUnit !== 'YY' ? excludeDays : [],
+      excludeBusinessHoliday: timeUnit !== 'MM' && timeUnit !== 'YY' ? excludeBusinessHoliday : false,
+      excludeStatHoliday: timeUnit !== 'MM' && timeUnit !== 'YY' ? excludeStatHoliday : false,
     });
   };
 
@@ -261,95 +287,173 @@ export default function ServiceStatistics() {
       <PageHeader breadcrumb={breadcrumb} />
       {/* Filter */}
       <div className="flex flex-col w-full h-full bg-white bt-shadow p-5">
-        <div className="flex items-center justify-between gap-2 pb-5">
-          <div className="flex gap-3 w-full items-center">
-            <span className="text-sm font-medium text-[#495057] shrink-0">검색일자</span>
-            <Select
-              value={timeUnit}
-              onChange={(v) => setTimeUnit(v)}
-              options={[
-                { label: '10분단위', value: 'MI' },
-                { label: '시간별', value: 'HH' },
-                { label: '일간', value: 'DD' },
-                { label: '월간', value: 'MM' },
-                { label: '년간', value: 'YY' },
-              ]}
-              className="!max-w-[110px] !min-w-[90px]"
-              popupMatchSelectWidth={false}
-              defaultValue="DD"
-            />
-            <DatePicker
-              value={startDate}
-              onChange={(date) => setStartDate(date)}
-              picker={getPickerMode(timeUnit)}
-              format={getDatePickerFormat(timeUnit)}
-              disabledDate={disabledDate}
-              inputReadOnly
-              allowClear={false}
-            />
-            {timeUnit === 'MI' || timeUnit === 'HH' ? (
-              <TimePicker
-                value={startTime}
-                onChange={(date) => setStartTime(date)}
-                inputReadOnly
-                allowClear={false}
-                format={timeUnit === 'MI' ? 'HH:mm' : 'HH:00'}
-                minuteStep={10}
-                style={{ width: '100px' }}
-              />
-            ) : null}
-            <span className="text-sm font-medium text-[#495057] shrink-0">~</span>
-            <DatePicker
-              value={endDate}
-              onChange={(date) => setEndDate(date)}
-              picker={getPickerMode(timeUnit)}
-              format={getDatePickerFormat(timeUnit)}
-              disabledDate={disabledEndDate}
-              inputReadOnly
-              allowClear={false}
-            />
-            {timeUnit === 'MI' || timeUnit === 'HH' ? (
-              <TimePicker
-                value={endTime}
-                onChange={(date) => setEndTime(date)}
-                inputReadOnly
-                allowClear={false}
-                format={timeUnit === 'MI' ? 'HH:mm' : 'HH:50'}
-                minuteStep={10}
-                style={{ width: '100px' }}
-              />
-            ) : null}
-            <Divider orientation="vertical" className="!h-5 !m-0" />
-            <span className="text-sm font-medium text-[#495057] shrink-0">봇서비스</span>
-            <Select
-              mode="multiple"
-              value={serviceIds}
-              onChange={(value) => setServiceIds(value ?? [])}
-              allowClear
-              showSearch
-              maxTagCount="responsive"
-              options={serviceSelectOptions}
-              placeholder="검색할 봇서비스를 선택하세요."
-              optionFilterProp="label"
-              className="!min-w-[250px] !max-w-[400px]"
-              popupMatchSelectWidth={false}
-            />
-          </div>
-          <div className="flex items-center gap-2 shrink-0">
-            <Button type="primary" onClick={handleSearch}>
-              조회
-            </Button>
-            <Button
-              type="primary"
-              loading={isExporting}
-              icon={<Download className="size-4" />}
-              className="!bg-[#10B981] !border-[#10B981] hover:!bg-[#0FA968]"
-              onClick={handleExcelDownload}
-            >
-              엑셀
-            </Button>
-          </div>
-        </div>
+        <Collapsible open={isFilterOpen} onOpenChange={setIsFilterOpen}>
+          <header className="flex flex-col gap-3 pb-5">
+            <div className="flex items-center justify-between gap-2">
+              <div className="flex items-center gap-3">
+                <div className="flex items-center gap-3">
+                  <span className="text-sm font-medium text-[#495057] shrink-0">검색일자</span>
+                  <Select
+                    value={timeUnit}
+                    onChange={(v) => setTimeUnit(v)}
+                    options={[
+                      { label: '10분단위', value: 'MI' },
+                      { label: '시간별', value: 'HH' },
+                      { label: '일간', value: 'DD' },
+                      { label: '월간', value: 'MM' },
+                      { label: '년간', value: 'YY' },
+                    ]}
+                    className="!max-w-[110px] !min-w-[90px]"
+                    popupMatchSelectWidth={false}
+                    defaultValue="DD"
+                  />
+                  <DatePicker
+                    value={startDate}
+                    onChange={(date) => setStartDate(date)}
+                    picker={getPickerMode(timeUnit)}
+                    format={getDatePickerFormat(timeUnit)}
+                    disabledDate={disabledDate}
+                    inputReadOnly
+                    allowClear={false}
+                  />
+                  {timeUnit === 'MI' || timeUnit === 'HH' ? (
+                    <TimePicker
+                      value={startTime}
+                      onChange={(date) => setStartTime(date)}
+                      inputReadOnly
+                      allowClear={false}
+                      format={timeUnit === 'MI' ? 'HH:mm' : 'HH:00'}
+                      minuteStep={10}
+                      style={{ width: '100px' }}
+                    />
+                  ) : null}
+                  <span className="text-sm font-medium text-[#495057] shrink-0">~</span>
+                  <DatePicker
+                    value={endDate}
+                    onChange={(date) => setEndDate(date)}
+                    picker={getPickerMode(timeUnit)}
+                    format={getDatePickerFormat(timeUnit)}
+                    disabledDate={disabledEndDate}
+                    inputReadOnly
+                    allowClear={false}
+                  />
+                  {timeUnit === 'MI' || timeUnit === 'HH' ? (
+                    <TimePicker
+                      value={endTime}
+                      onChange={(date) => setEndTime(date)}
+                      inputReadOnly
+                      allowClear={false}
+                      format={timeUnit === 'MI' ? 'HH:mm' : 'HH:50'}
+                      minuteStep={10}
+                      style={{ width: '100px' }}
+                    />
+                  ) : null}
+                </div>
+                <Divider orientation="vertical" className="!h-5 !m-0" />
+                <div className="flex items-center gap-3">
+                  <span className="text-sm font-medium text-[#495057] shrink-0">봇서비스</span>
+                  <Select
+                    mode="multiple"
+                    value={serviceIds}
+                    onChange={(value) => setServiceIds(value ?? [])}
+                    allowClear
+                    showSearch
+                    maxTagCount="responsive"
+                    options={serviceSelectOptions}
+                    placeholder="검색할 봇서비스를 선택하세요."
+                    optionFilterProp="label"
+                    className="!min-w-[250px] !max-w-[400px]"
+                    popupMatchSelectWidth={false}
+                  />
+                </div>
+                <div className="flex items-center gap-3">
+                  <CollapsibleTrigger asChild>
+                    <Button type="default" icon={<ChevronDown className={cn('size-4 transition-transform', isFilterOpen && 'rotate-180')} />} className="!size-8 !min-w-8" />
+                  </CollapsibleTrigger>
+                </div>
+              </div>
+              <div className="flex items-center gap-2 shrink-0">
+                <Button type="primary" onClick={handleSearch}>
+                  조회
+                </Button>
+                <Button
+                  type="primary"
+                  loading={isExporting}
+                  icon={<Download className="size-4" />}
+                  className="!bg-[#10B981] !border-[#10B981] hover:!bg-[#0FA968]"
+                  onClick={handleExcelDownload}
+                >
+                  엑셀
+                </Button>
+              </div>
+            </div>
+            <CollapsibleContent>
+              <div className="flex items-center gap-3">
+                {timeUnit !== 'MM' && timeUnit !== 'YY' ? (
+                  <>
+                    <span className="text-sm font-medium text-[#495057] shrink-0">제외요일</span>
+                    <Select
+                      mode="multiple"
+                      value={excludeDays}
+                      onChange={(value) => setExcludeDays(value ?? [])}
+                      allowClear
+                      maxTagCount="responsive"
+                      options={[
+                        { label: '월요일', value: 'MON' },
+                        { label: '화요일', value: 'TUE' },
+                        { label: '수요일', value: 'WED' },
+                        { label: '목요일', value: 'THU' },
+                        { label: '금요일', value: 'FRI' },
+                        { label: '토요일', value: 'SAT' },
+                        { label: '일요일', value: 'SUN' },
+                      ]}
+                      placeholder="제외할 요일 선택"
+                      className="!min-w-[150px] !max-w-[300px]"
+                      popupMatchSelectWidth={false}
+                    />
+                    <Divider orientation="vertical" className="!h-5 !m-0" />
+                    <span className="text-sm font-medium text-[#495057] shrink-0">업무공휴일 제외</span>
+                    <Checkbox checked={excludeBusinessHoliday} onChange={(e) => setExcludeBusinessHoliday(e.target.checked)} />
+                    <Divider orientation="vertical" className="!h-5 !m-0" />
+                    <span className="text-sm font-medium text-[#495057] shrink-0">통계공휴일 제외</span>
+                    <Checkbox checked={excludeStatHoliday} onChange={(e) => setExcludeStatHoliday(e.target.checked)} />
+                  </>
+                ) : null}
+                {timeUnit === 'MI' || timeUnit === 'HH' ? (
+                  <>
+                    <Divider orientation="vertical" className="!h-5 !m-0" />
+                    <span className="text-sm font-medium text-[#495057] shrink-0">점심시간 제외</span>
+                    <Checkbox checked={excludeLunch} onChange={(e) => setExcludeLunch(e.target.checked)} />
+                    <Divider orientation="vertical" className="!h-5 !m-0" />
+                    <span className="text-sm font-medium text-[#495057] shrink-0">구간검색</span>
+                    <Checkbox checked={useInterval} onChange={(e) => setUseInterval(e.target.checked)} />
+                    {useInterval ? (
+                      <>
+                        <TimePicker
+                          value={intervalStartTime}
+                          onChange={(date) => setIntervalStartTime(date)}
+                          inputReadOnly
+                          allowClear={false}
+                          format="HH:00"
+                          style={{ width: '100px' }}
+                        />
+                        <span className="text-sm font-medium text-[#495057] shrink-0">~</span>
+                        <TimePicker
+                          value={intervalEndTime}
+                          onChange={(date) => setIntervalEndTime(date)}
+                          inputReadOnly
+                          allowClear={false}
+                          format="HH:00"
+                          style={{ width: '100px' }}
+                        />
+                      </>
+                    ) : null}
+                  </>
+                ) : null}
+              </div>
+            </CollapsibleContent>
+          </header>
+        </Collapsible>
         <div className="w-full flex-1">
           <AgGridReact<ServiceStatListItem>
             ref={gridRef}

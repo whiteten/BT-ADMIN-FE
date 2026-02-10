@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import type { ColDef, ColGroupDef, ExcelExportParams, ProcessCellForExportParams } from 'ag-grid-community';
 import { AgGridReact } from 'ag-grid-react';
-import { type BreadcrumbProps, Button, DatePicker, Divider, Input, Select, TimePicker, message } from 'antd';
+import { type BreadcrumbProps, Button, Checkbox, DatePicker, Divider, Input, Select, TimePicker, message } from 'antd';
 import dayjs, { type Dayjs } from 'dayjs';
 import { ChevronDown, Download } from 'lucide-react';
 import { useGetBots } from '../../../features/bot-config/hooks/useBotQueries';
@@ -37,6 +37,13 @@ export default function SlotStatistics() {
   const [endDate, setEndDate] = useState<Dayjs | null>(dayjs().endOf('day'));
   const [startTime, setStartTime] = useState<Dayjs | null>(dayjs().hour(0).minute(0));
   const [endTime, setEndTime] = useState<Dayjs | null>(dayjs().hour(23).minute(50));
+  const [excludeLunch, setExcludeLunch] = useState(false);
+  const [useInterval, setUseInterval] = useState(false);
+  const [intervalStartTime, setIntervalStartTime] = useState<Dayjs | null>(dayjs().hour(0).minute(0));
+  const [intervalEndTime, setIntervalEndTime] = useState<Dayjs | null>(dayjs().hour(23).minute(0));
+  const [excludeDays, setExcludeDays] = useState<string[]>([]);
+  const [excludeBusinessHoliday, setExcludeBusinessHoliday] = useState(false);
+  const [excludeStatHoliday, setExcludeStatHoliday] = useState(false);
 
   // 조회 확정된 파라미터 (조회 버튼 눌렀을 때만 업데이트)
   const [queryParams, setQueryParams] = useState(() => {
@@ -47,6 +54,13 @@ export default function SlotStatistics() {
       fromTime: fromDate,
       toTime: toDate,
       serviceIds: serviceIds,
+      excludeLunch: false,
+      useInterval: false,
+      hourFrom: '',
+      hourTo: '',
+      excludeDays: [] as string[],
+      excludeBusinessHoliday: false,
+      excludeStatHoliday: false,
     };
   });
 
@@ -69,7 +83,9 @@ export default function SlotStatistics() {
   const isServiceInitialized = useRef(false);
   useEffect(() => {
     if (!isServiceInitialized.current && serviceSelectOptions.length > 0) {
-      setServiceIds(serviceSelectOptions.map((s) => s.value));
+      const allIds = serviceSelectOptions.map((s) => s.value);
+      setServiceIds(allIds);
+      setQueryParams((prev) => ({ ...prev, serviceIds: allIds }));
       isServiceInitialized.current = true;
     }
   }, [serviceSelectOptions]);
@@ -176,6 +192,13 @@ export default function SlotStatistics() {
       fromTime: timeUnit === 'MI' ? fromDateMI : timeUnit === 'HH' ? fromDateHH : timeUnit === 'DD' ? fromDateDD : timeUnit === 'MM' ? fromDateMM : fromDateYY,
       toTime: timeUnit === 'MI' ? toDateMI : timeUnit === 'HH' ? toDateHH : timeUnit === 'DD' ? toDateDD : timeUnit === 'MM' ? toDateMM : toDateYY,
       serviceIds: serviceIds,
+      excludeLunch: timeUnit === 'MI' || timeUnit === 'HH' ? excludeLunch : false,
+      useInterval: timeUnit === 'MI' || timeUnit === 'HH' ? useInterval : false,
+      hourFrom: timeUnit === 'MI' || timeUnit === 'HH' ? (useInterval && intervalStartTime ? intervalStartTime.format('HH00') : '') : '',
+      hourTo: timeUnit === 'MI' || timeUnit === 'HH' ? (useInterval && intervalEndTime ? intervalEndTime.format('HH00') : '') : '',
+      excludeDays: timeUnit !== 'MM' && timeUnit !== 'YY' ? excludeDays : [],
+      excludeBusinessHoliday: timeUnit !== 'MM' && timeUnit !== 'YY' ? excludeBusinessHoliday : false,
+      excludeStatHoliday: timeUnit !== 'MM' && timeUnit !== 'YY' ? excludeStatHoliday : false,
     });
   };
 
@@ -400,6 +423,68 @@ export default function SlotStatistics() {
                   popupMatchSelectWidth={false}
                 />
                 <Input value={searchValue} onChange={(e) => setSearchValue(e.target.value)} className="!min-w-[200px] !max-w-[250px]" placeholder="검색어를 입력하세요." />
+                {timeUnit !== 'MM' && timeUnit !== 'YY' ? (
+                  <>
+                    <Divider orientation="vertical" className="!h-5 !m-0" />
+                    <span className="text-sm font-medium text-[#495057] shrink-0">제외요일</span>
+                    <Select
+                      mode="multiple"
+                      value={excludeDays}
+                      onChange={(value) => setExcludeDays(value ?? [])}
+                      allowClear
+                      maxTagCount="responsive"
+                      options={[
+                        { label: '월요일', value: 'MON' },
+                        { label: '화요일', value: 'TUE' },
+                        { label: '수요일', value: 'WED' },
+                        { label: '목요일', value: 'THU' },
+                        { label: '금요일', value: 'FRI' },
+                        { label: '토요일', value: 'SAT' },
+                        { label: '일요일', value: 'SUN' },
+                      ]}
+                      placeholder="제외할 요일 선택"
+                      className="!min-w-[150px] !max-w-[300px]"
+                      popupMatchSelectWidth={false}
+                    />
+                    <Divider orientation="vertical" className="!h-5 !m-0" />
+                    <span className="text-sm font-medium text-[#495057] shrink-0">업무공휴일 제외</span>
+                    <Checkbox checked={excludeBusinessHoliday} onChange={(e) => setExcludeBusinessHoliday(e.target.checked)} />
+                    <Divider orientation="vertical" className="!h-5 !m-0" />
+                    <span className="text-sm font-medium text-[#495057] shrink-0">통계공휴일 제외</span>
+                    <Checkbox checked={excludeStatHoliday} onChange={(e) => setExcludeStatHoliday(e.target.checked)} />
+                  </>
+                ) : null}
+                {timeUnit === 'MI' || timeUnit === 'HH' ? (
+                  <>
+                    <Divider orientation="vertical" className="!h-5 !m-0" />
+                    <span className="text-sm font-medium text-[#495057] shrink-0">점심시간 제외</span>
+                    <Checkbox checked={excludeLunch} onChange={(e) => setExcludeLunch(e.target.checked)} />
+                    <Divider orientation="vertical" className="!h-5 !m-0" />
+                    <span className="text-sm font-medium text-[#495057] shrink-0">구간검색</span>
+                    <Checkbox checked={useInterval} onChange={(e) => setUseInterval(e.target.checked)} />
+                    {useInterval ? (
+                      <>
+                        <TimePicker
+                          value={intervalStartTime}
+                          onChange={(date) => setIntervalStartTime(date)}
+                          inputReadOnly
+                          allowClear={false}
+                          format="HH:00"
+                          style={{ width: '100px' }}
+                        />
+                        <span className="text-sm font-medium text-[#495057] shrink-0">~</span>
+                        <TimePicker
+                          value={intervalEndTime}
+                          onChange={(date) => setIntervalEndTime(date)}
+                          inputReadOnly
+                          allowClear={false}
+                          format="HH:00"
+                          style={{ width: '100px' }}
+                        />
+                      </>
+                    ) : null}
+                  </>
+                ) : null}
               </div>
             </CollapsibleContent>
           </header>
