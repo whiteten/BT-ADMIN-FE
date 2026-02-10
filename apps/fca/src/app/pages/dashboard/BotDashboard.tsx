@@ -3,6 +3,20 @@ import { type Layout, type LayoutItem, Responsive, type ResponsiveLayouts, useCo
 import 'react-grid-layout/css/styles.css';
 import { MultiSelect, type Option } from 'react-multi-select-component';
 import { type BreadcrumbProps, Button, Card } from 'antd';
+import DialogIncompleteTopBarChart from '../../features/dashboard/components/DialogIncompleteTopBarChart';
+import DialogSummaryPieChart from '../../features/dashboard/components/DialogSummaryPieChart';
+import EntityTopBarChart from '../../features/dashboard/components/EntityTopBarChart';
+import HourlyBusyTimeLineChart from '../../features/dashboard/components/HourlyBusyTimeLineChart';
+import HourlyEntryLineChart from '../../features/dashboard/components/HourlyEntryLineChart';
+import IntentCheckFailTopBarChart from '../../features/dashboard/components/IntentCheckFailTopBarChart';
+import IntentConfidenceTopBarChart from '../../features/dashboard/components/IntentConfidenceTopBarChart';
+import IntentTopBarChart from '../../features/dashboard/components/IntentTopBarChart';
+import KeywordTopBarChart from '../../features/dashboard/components/KeywordTopBarChart';
+import ScenarioSummaryPieChart from '../../features/dashboard/components/ScenarioSummaryPieChart';
+import SlotIncompleteTopBarChart from '../../features/dashboard/components/SlotIncompleteTopBarChart';
+import SlotRetryAvgTopBarChart from '../../features/dashboard/components/SlotRetryAvgTopBarChart';
+import SlotRetryDistTopBarChart from '../../features/dashboard/components/SlotRetryDistTopBarChart';
+import SlotSummaryPieChart from '../../features/dashboard/components/SlotSummaryPieChart';
 import { DEFAULT_LAYOUTS, useBotDashboardStore } from '../../features/dashboard/hooks/useBotDashboardStore';
 import { useGetBotDashboard } from '../../features/dashboard/hooks/useDashboardQueries';
 import PageHeader from '@/components/custom/PageHeader';
@@ -48,20 +62,20 @@ const multiSelectStrings = {
 };
 
 const layoutRenderMapper: Record<string, { title: string; component?: ComponentType }> = {
-  '1-1': { title: '시나리오 현황' },
-  '1-2': { title: '대화 현황' },
-  '1-3': { title: '슬롯 현황' },
-  '2-1': { title: '대화 미완결율 Top 10' },
-  '2-2': { title: '슬롯 미완결율 Top 10' },
-  '2-3': { title: '슬롯 평균 재시도 횟수 Top 10' },
-  '2-4': { title: '슬롯 재시도 분포 Top 10' },
-  '3-1': { title: '키워드 Top 10' },
-  '3-2': { title: '개체 Top 10' },
-  '3-3': { title: '의도 Top 10' },
-  '3-4': { title: '의도 재질의 Top 10' },
-  '3-5': { title: '의도 평균 신회도 Top 10' },
-  '4-1': { title: '시간대별 봇 진입 현황' },
-  '4-2': { title: '시간대별 봇 점유 현황' },
+  '1-1': { title: '시나리오 현황', component: ScenarioSummaryPieChart },
+  '1-2': { title: '대화 현황', component: DialogSummaryPieChart },
+  '1-3': { title: '슬롯 현황', component: SlotSummaryPieChart },
+  '2-1': { title: '대화 미완결율 Top 10', component: DialogIncompleteTopBarChart },
+  '2-2': { title: '슬롯 미완결율 Top 10', component: SlotIncompleteTopBarChart },
+  '2-3': { title: '슬롯 평균 재시도 횟수 Top 10', component: SlotRetryAvgTopBarChart },
+  '2-4': { title: '슬롯 재시도 분포 Top 10', component: SlotRetryDistTopBarChart },
+  '3-1': { title: '키워드 Top 10', component: KeywordTopBarChart },
+  '3-2': { title: '개체 Top 10', component: EntityTopBarChart },
+  '3-3': { title: '의도 Top 10', component: IntentTopBarChart },
+  '3-4': { title: '의도 재질의 Top 10', component: IntentCheckFailTopBarChart },
+  '3-5': { title: '의도 평균 신회도 Top 10', component: IntentConfidenceTopBarChart },
+  '4-1': { title: '시간대별 봇 진입 현황', component: HourlyEntryLineChart },
+  '4-2': { title: '시간대별 봇 점유 현황', component: HourlyBusyTimeLineChart },
 };
 
 export default function BotDashboard() {
@@ -215,10 +229,11 @@ export default function BotDashboard() {
                   <Card
                     title={layoutItem?.title ?? layout.i}
                     variant="borderless"
-                    className="h-full"
+                    className="h-full flex flex-col"
                     classNames={{
                       title: 'text-base font-semibold text-[#495057]',
                       header: '!min-h-0 !h-[45px] !px-4',
+                      body: 'flex-1 min-h-0',
                     }}
                     loading={isLoading}
                   >

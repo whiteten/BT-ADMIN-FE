@@ -1,0 +1,160 @@
+import type { EChartsOption } from 'echarts';
+import ReactECharts from 'echarts-for-react';
+import { CHART_COLORS, commonAxisStyle, commonGridStyle, commonSplitLineStyle } from './chartStyles';
+import type { SlotRetryAvgTopItem } from '../types/dashboard.types';
+
+const sampleData: SlotRetryAvgTopItem[] = [
+  {
+    rank: 1,
+    serviceName: '서비스A',
+    dialogName: '본인인증',
+    slotName: '주민번호',
+    entryCnt: 400,
+    completeCnt: 320,
+    avgRetryCount: 4.2,
+    oneTimeCompleteCnt: 80,
+    twoTimeCompleteCnt: 100,
+    threeOrMoreCompleteCnt: 140,
+  },
+  {
+    rank: 2,
+    serviceName: '서비스A',
+    dialogName: '본인인증',
+    slotName: '전화번호',
+    entryCnt: 380,
+    completeCnt: 304,
+    avgRetryCount: 3.8,
+    oneTimeCompleteCnt: 90,
+    twoTimeCompleteCnt: 104,
+    threeOrMoreCompleteCnt: 110,
+  },
+  {
+    rank: 3,
+    serviceName: '서비스B',
+    dialogName: '계좌조회',
+    slotName: '계좌번호',
+    entryCnt: 350,
+    completeCnt: 280,
+    avgRetryCount: 3.5,
+    oneTimeCompleteCnt: 100,
+    twoTimeCompleteCnt: 90,
+    threeOrMoreCompleteCnt: 90,
+  },
+  {
+    rank: 4,
+    serviceName: '서비스B',
+    dialogName: '카드분실',
+    slotName: '카드번호',
+    entryCnt: 320,
+    completeCnt: 256,
+    avgRetryCount: 3.1,
+    oneTimeCompleteCnt: 96,
+    twoTimeCompleteCnt: 80,
+    threeOrMoreCompleteCnt: 80,
+  },
+  {
+    rank: 5,
+    serviceName: '서비스C',
+    dialogName: '잔액조회',
+    slotName: '계좌유형',
+    entryCnt: 300,
+    completeCnt: 240,
+    avgRetryCount: 2.8,
+    oneTimeCompleteCnt: 96,
+    twoTimeCompleteCnt: 72,
+    threeOrMoreCompleteCnt: 72,
+  },
+  {
+    rank: 6,
+    serviceName: '서비스C',
+    dialogName: '이체확인',
+    slotName: '이체금액',
+    entryCnt: 280,
+    completeCnt: 224,
+    avgRetryCount: 2.5,
+    oneTimeCompleteCnt: 90,
+    twoTimeCompleteCnt: 72,
+    threeOrMoreCompleteCnt: 62,
+  },
+  {
+    rank: 7,
+    serviceName: '서비스D',
+    dialogName: '대출상담',
+    slotName: '대출금액',
+    entryCnt: 260,
+    completeCnt: 208,
+    avgRetryCount: 2.2,
+    oneTimeCompleteCnt: 90,
+    twoTimeCompleteCnt: 68,
+    threeOrMoreCompleteCnt: 50,
+  },
+  {
+    rank: 8,
+    serviceName: '서비스D',
+    dialogName: '카드신청',
+    slotName: '카드종류',
+    entryCnt: 240,
+    completeCnt: 192,
+    avgRetryCount: 1.9,
+    oneTimeCompleteCnt: 88,
+    twoTimeCompleteCnt: 60,
+    threeOrMoreCompleteCnt: 44,
+  },
+  {
+    rank: 9,
+    serviceName: '서비스E',
+    dialogName: '주소변경',
+    slotName: '우편번호',
+    entryCnt: 220,
+    completeCnt: 176,
+    avgRetryCount: 1.6,
+    oneTimeCompleteCnt: 84,
+    twoTimeCompleteCnt: 56,
+    threeOrMoreCompleteCnt: 36,
+  },
+  {
+    rank: 10,
+    serviceName: '서비스E',
+    dialogName: '해지접수',
+    slotName: '해지사유',
+    entryCnt: 200,
+    completeCnt: 160,
+    avgRetryCount: 1.3,
+    oneTimeCompleteCnt: 80,
+    twoTimeCompleteCnt: 50,
+    threeOrMoreCompleteCnt: 30,
+  },
+];
+
+const createChartOption = (data: SlotRetryAvgTopItem[]): EChartsOption => {
+  const sorted = [...data].sort((a, b) => b.rank - a.rank);
+  return {
+    tooltip: { trigger: 'axis', axisPointer: { type: 'shadow' } },
+    grid: commonGridStyle,
+    xAxis: {
+      type: 'value',
+      ...commonAxisStyle,
+      axisLabel: { ...commonAxisStyle.axisLabel, formatter: '{value}회' },
+      splitLine: commonSplitLineStyle,
+    },
+    yAxis: {
+      type: 'category',
+      data: sorted.map((item) => item.slotName),
+      ...commonAxisStyle,
+      axisLine: { show: false },
+    },
+    series: [
+      {
+        type: 'bar',
+        data: sorted.map((item) => item.avgRetryCount),
+        itemStyle: { color: CHART_COLORS.warning, borderRadius: [0, 4, 4, 0] },
+        barWidth: '60%',
+        label: { show: true, position: 'right', formatter: '{c}회', color: '#495057', fontSize: 11 },
+      },
+    ],
+  };
+};
+
+export default function SlotRetryAvgTopBarChart() {
+  return <ReactECharts option={createChartOption(sampleData)} style={{ height: '100%', width: '100%' }} />;
+}
