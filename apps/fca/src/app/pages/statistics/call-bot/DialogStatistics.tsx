@@ -5,7 +5,15 @@ import { type BreadcrumbProps, Button, DatePicker, Divider, Input, Select, TimeP
 import dayjs, { type Dayjs } from 'dayjs';
 import { ChevronDown, Download } from 'lucide-react';
 import { useGetBots } from '../../../features/bot-config/hooks/useBotQueries';
-import { createDisabledDate, createEndDisabledDate, getMaxDays, getTimeFormat, validateDateRange } from '../../../features/statistics/hooks/useDateRangeLimit';
+import {
+  createDisabledDate,
+  createEndDisabledDate,
+  getDatePickerFormat,
+  getMaxDays,
+  getPickerMode,
+  getTimeFormat,
+  validateDateRange,
+} from '../../../features/statistics/hooks/useDateRangeLimit';
 import { useGetDialogStatList } from '../../../features/statistics/hooks/useStatisticsQueries';
 import type { DialogStatListItem } from '../../../features/statistics/types/statistics.types';
 import PageHeader from '@/components/custom/PageHeader';
@@ -37,6 +45,7 @@ export default function DialogStatistics() {
       timeUnit: 'DD',
       fromTime: fromDate,
       toTime: toDate,
+      serviceIds: serviceIds,
     };
   });
 
@@ -44,53 +53,67 @@ export default function DialogStatistics() {
   const { gridOptions } = useAggridOptions();
   const gridRef = useRef<AgGridReact<DialogStatListItem>>(null);
   const { data: botList } = useGetBots();
-
   const [rowData, setRowData] = useState<DialogStatListItem[]>([]);
 
   // disabledDate 함수 (시작일: 미래 날짜 비활성화, 종료일: 시작일 이전 + maxDays 초과 비활성화)
   const disabledDate = useMemo(() => createDisabledDate(timeUnit), [timeUnit]);
   const disabledEndDate = useMemo(() => createEndDisabledDate(startDate, timeUnit), [startDate, timeUnit]);
 
-  type ServiceOption = { id: string; name: string };
-
-  const services: ServiceOption[] = useMemo(() => {
-    if (botList?.length) {
-      return botList.filter((b) => Boolean(b?.serviceId && b?.serviceName)).map((b) => ({ id: String(b.serviceId), name: String(b.serviceName) }));
-    }
-    return [];
-  }, [botList]);
-
   const serviceSelectOptions = useMemo(
-    () =>
-      services.map((s) => ({
-        label: s.name,
-        value: s.id,
-      })),
-    [services],
+    () => (botList ?? []).filter((b) => Boolean(b?.serviceId && b?.serviceName)).map((b) => ({ label: String(b.serviceName), value: String(b.serviceId) })),
+    [botList],
   );
 
+  // 봇서비스 목록 최초 로드 시 전체 선택
+  const isServiceInitialized = useRef(false);
+  useEffect(() => {
+    if (!isServiceInitialized.current && serviceSelectOptions.length > 0) {
+      setServiceIds(serviceSelectOptions.map((s) => s.value));
+      isServiceInitialized.current = true;
+    }
+  }, [serviceSelectOptions]);
+
+  // 대화 통계 조회
   const { data: dialogStatList, isLoading: isLoadingDialogStatList } = useGetDialogStatList({
     params: queryParams,
   });
 
+  // 대화 통계 필터링
   const filteredList = useMemo(() => {
     if (!dialogStatList) return [];
     const trimmedDialogName = dialogName?.trim().toLowerCase();
-    if (serviceIds.length === 0 && !trimmedDialogName) return dialogStatList;
+    if (!trimmedDialogName) return dialogStatList;
     return dialogStatList.filter((dialogStat) => {
-      const matchesServiceIds = serviceIds.length === 0 || serviceIds.includes(String(dialogStat.serviceId ?? ''));
       const matchesDialogName =
         !trimmedDialogName ||
         String(dialogStat.dialogName ?? '')
           .toLowerCase()
           .includes(trimmedDialogName);
-      return matchesServiceIds && matchesDialogName;
+      return matchesDialogName;
     });
-  }, [dialogStatList, serviceIds, dialogName]);
+  }, [dialogStatList, dialogName]);
 
   useEffect(() => {
     setRowData(filteredList ?? []);
   }, [filteredList]);
+
+  // 합계 행 계산 (pinnedBottomRowData)
+  const summaryRow = useMemo<DialogStatListItem[]>(() => {
+    if (!rowData?.length) return [];
+    const count = rowData.length;
+    const sum = (field: keyof DialogStatListItem) => rowData.reduce((acc, row) => acc + (Number(row[field]) || 0), 0);
+    const avg = (field: keyof DialogStatListItem) => Math.round((sum(field) / count) * 10) / 10;
+    return [
+      {
+        psrTimeKey: '전체합계',
+        serviceName: '',
+        dialogName: '',
+        inCount: sum('inCount'),
+        successCount: sum('successCount'),
+        successPercent: avg('successPercent'),
+      } as DialogStatListItem,
+    ];
+  }, [rowData]);
 
   // startDate 또는 timeUnit 변경 시 endDate 자동 조정
   useEffect(() => {
@@ -103,7 +126,7 @@ export default function DialogStatistics() {
         setEndDate(maxEnd.isAfter(dayjs(), 'day') ? dayjs() : maxEnd);
       }
     }
-  }, [startDate, timeUnit]);
+  }, [endDate, startDate, timeUnit]);
 
   // timeUnit이 HH로 변경될 때 분을 자동 조정 (시작 00분, 종료 50분)
   useEffect(() => {
@@ -133,20 +156,22 @@ export default function DialogStatistics() {
     }
 
     // 조회 버튼 클릭 시에만 queryParams 업데이트 → React Query 재조회
-    const fromDate = startDate.format('YYYYMMDD');
-    const toDate = endDate.format('YYYYMMDD');
-    // HH 모드일 때는 시작 00분, 종료 50분 고정
-    const normalizedStartTime = timeUnit === 'HH' && startTime ? startTime.minute(0) : startTime;
-    const normalizedEndTime = timeUnit === 'HH' && endTime ? endTime.minute(50) : endTime;
-    const fromTime = normalizedStartTime?.format('HHmm');
-    const toTime = normalizedEndTime?.format('HHmm');
-    const fromDateTime = timeUnit === 'MI' || timeUnit === 'HH' ? `${fromDate}${fromTime}` : fromDate;
-    const toDateTime = timeUnit === 'MI' || timeUnit === 'HH' ? `${toDate}${toTime}` : toDate;
+    const fromDateYY = startDate.format('YYYY');
+    const toDateYY = endDate.format('YYYY');
+    const fromDateMM = startDate.format('YYYYMM');
+    const toDateMM = endDate.format('YYYYMM');
+    const fromDateDD = startDate.format('YYYYMMDD');
+    const toDateDD = endDate.format('YYYYMMDD');
+    const fromDateHH = startDate.format('YYYYMMDD') + startTime?.format('HH');
+    const toDateHH = endDate.format('YYYYMMDD') + endTime?.format('HH');
+    const fromDateMI = startDate.format('YYYYMMDD') + startTime?.format('HHmm');
+    const toDateMI = endDate.format('YYYYMMDD') + endTime?.format('HHmm');
 
     setQueryParams({
       timeUnit,
-      fromTime: fromDateTime,
-      toTime: toDateTime,
+      fromTime: timeUnit === 'MI' ? fromDateMI : timeUnit === 'HH' ? fromDateHH : timeUnit === 'DD' ? fromDateDD : timeUnit === 'MM' ? fromDateMM : fromDateYY,
+      toTime: timeUnit === 'MI' ? toDateMI : timeUnit === 'HH' ? toDateHH : timeUnit === 'DD' ? toDateDD : timeUnit === 'MM' ? toDateMM : toDateYY,
+      serviceIds: serviceIds,
     });
   };
 
@@ -155,20 +180,34 @@ export default function DialogStatistics() {
       headerName: '날짜',
       field: 'psrTimeKey',
       flex: queryParams.timeUnit === 'MI' || queryParams.timeUnit === 'HH' ? 2 : 1,
-      valueFormatter: ({ value }: { value?: string }) => (value ? dayjs(value).format(getTimeFormat(queryParams.timeUnit)) : '-'),
-      cellStyle: { alignItems: 'center' },
+      colSpan: (params) => (params.node?.rowPinned === 'bottom' ? 2 : 1),
+      valueFormatter: ({ value, node }) => {
+        if (node?.rowPinned === 'bottom') return value ?? '';
+        return value ? dayjs(value).format(getTimeFormat(queryParams.timeUnit)) : '-';
+      },
+      cellStyle: (params) => (params.node?.rowPinned === 'bottom' ? { fontWeight: 'bold', alignItems: 'center' } : { fontWeight: 'normal', alignItems: 'center' }),
     },
     { headerName: '봇서비스ID', field: 'serviceId', hide: true },
-    { headerName: '봇서비스', field: 'serviceName', flex: 2 },
+    { headerName: '봇서비스', field: 'serviceName', hide: true },
     { headerName: '대화ID', field: 'dialogId', hide: true },
     { headerName: '대화명', field: 'dialogName', flex: 2 },
-    { headerName: '진입수', field: 'inCount', maxWidth: 100, cellStyle: { alignItems: 'center' } },
-    { headerName: '완결수', field: 'successCount', maxWidth: 100, cellStyle: { alignItems: 'center' } },
+    {
+      headerName: '진입수',
+      field: 'inCount',
+      flex: 1,
+      cellStyle: (params) => (params.node?.rowPinned === 'bottom' ? { fontWeight: 'bold', alignItems: 'center' } : { fontWeight: 'normal', alignItems: 'center' }),
+    },
+    {
+      headerName: '완결수',
+      field: 'successCount',
+      flex: 1,
+      cellStyle: (params) => (params.node?.rowPinned === 'bottom' ? { fontWeight: 'bold', alignItems: 'center' } : { fontWeight: 'normal', alignItems: 'center' }),
+    },
     {
       headerName: '완결율',
       field: 'successPercent',
-      maxWidth: 100,
-      cellStyle: { alignItems: 'center' },
+      flex: 1,
+      cellStyle: (params) => (params.node?.rowPinned === 'bottom' ? { fontWeight: 'bold', alignItems: 'center' } : { fontWeight: 'normal', alignItems: 'center' }),
       valueFormatter: ({ value }: { value?: number }) => (value ? `${value}%` : '-'),
     },
   ];
@@ -234,7 +273,15 @@ export default function DialogStatistics() {
                     popupMatchSelectWidth={false}
                     defaultValue="DD"
                   />
-                  <DatePicker value={startDate} onChange={(date) => setStartDate(date)} disabledDate={disabledDate} inputReadOnly allowClear={false} />
+                  <DatePicker
+                    value={startDate}
+                    onChange={(date) => setStartDate(date)}
+                    picker={getPickerMode(timeUnit)}
+                    format={getDatePickerFormat(timeUnit)}
+                    disabledDate={disabledDate}
+                    inputReadOnly
+                    allowClear={false}
+                  />
                   {timeUnit === 'MI' || timeUnit === 'HH' ? (
                     <TimePicker
                       value={startTime}
@@ -247,7 +294,15 @@ export default function DialogStatistics() {
                     />
                   ) : null}
                   <span className="text-sm font-medium text-[#495057] shrink-0">~</span>
-                  <DatePicker value={endDate} onChange={(date) => setEndDate(date)} disabledDate={disabledEndDate} inputReadOnly allowClear={false} />
+                  <DatePicker
+                    value={endDate}
+                    onChange={(date) => setEndDate(date)}
+                    picker={getPickerMode(timeUnit)}
+                    format={getDatePickerFormat(timeUnit)}
+                    disabledDate={disabledEndDate}
+                    inputReadOnly
+                    allowClear={false}
+                  />
                   {timeUnit === 'MI' || timeUnit === 'HH' ? (
                     <TimePicker
                       value={endTime}
@@ -307,7 +362,23 @@ export default function DialogStatistics() {
           </header>
         </Collapsible>
         <div className="w-full flex-1">
-          <AgGridReact<DialogStatListItem> ref={gridRef} rowData={rowData} columnDefs={columnDefs} gridOptions={gridOptions} loading={isLoadingDialogStatList} />
+          <AgGridReact<DialogStatListItem>
+            ref={gridRef}
+            rowModelType="clientSide"
+            rowData={rowData}
+            getRowId={(params) => `${params.data.psrTimeKey}_${params.data.serviceId}_${params.data.dialogId}`}
+            columnDefs={columnDefs}
+            gridOptions={gridOptions}
+            loading={isLoadingDialogStatList}
+            pagination={false}
+            statusBar={{ statusPanels: [] }}
+            rowNumbers={false}
+            sideBar={false}
+            pinnedBottomRowData={summaryRow}
+            rowClassRules={{
+              '!bg-[#F8F9FA]': (params) => params.node.rowPinned === 'bottom',
+            }}
+          />
         </div>
       </div>
     </div>

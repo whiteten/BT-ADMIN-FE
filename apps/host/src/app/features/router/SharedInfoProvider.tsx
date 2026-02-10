@@ -17,9 +17,22 @@ export default function SharedInfoProvider() {
   const { data: userInfo, isLoading: isUserInfoLoading, error: userInfoError } = useGetUserInfo();
   const { data: roles, isLoading: isRolesLoading, error: rolesError } = useGetRoles();
   const { data: navigation, isLoading: isNavigationLoading, error: navigationError } = useGetNavigation();
-  const { data: ticketResponse, isLoading: isWsTicketLoading, error: wsTicketError } = useGetWsTicket();
+  const { data: ticketResponse, isLoading: isWsTicketLoading, error: wsTicketError, refetch: refetchWsTicket } = useGetWsTicket();
 
-  useSessionSocket({ ticket: ticketResponse?.ticket ?? null });
+  const handleWsError = () => {
+    const RETRY_DELAY = 5000;
+    Log.error('Refetching WS ticket. retry delay: ', RETRY_DELAY);
+    setTimeout(() => {
+      refetchWsTicket();
+    }, RETRY_DELAY);
+  };
+
+  useSessionSocket({
+    ticket: ticketResponse?.ticket ?? null,
+    onError: () => {
+      handleWsError();
+    },
+  });
 
   useEffect(() => {
     if (roles) {

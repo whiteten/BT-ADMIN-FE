@@ -266,7 +266,9 @@ export default function PermissionSelector({ value = new Set(), onChange, classN
   if (isLoading) {
     return (
       <div className="flex items-center justify-center py-12">
-        <Spin tip="권한 목록을 불러오는 중..." />
+        <Spin tip="권한 목록을 불러오는 중...">
+          <div className="py-12" />
+        </Spin>
       </div>
     );
   }

@@ -1,8 +1,8 @@
-import { useEffect, useRef, useState } from 'react';
+import { useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Button, Checkbox, Form, type FormProps, Input } from 'antd';
 import type { AxiosError } from 'axios';
-import { Lock, LockKeyhole, User, Users } from 'lucide-react';
+import { Lock, User, Users } from 'lucide-react';
 import { useAuthStore } from '@/shared-store';
 import { toast } from '@/shared-util';
 import styles from './Login.module.scss';
@@ -10,28 +10,9 @@ import { authApi } from '../features/auth/api/authApi';
 import { useLogin, useResetPassword } from '../features/auth/hooks/useAuthQueries';
 import { useRememberMeStore } from '../features/auth/hooks/useRememberMeStore';
 import type { LoginErrorResponse, LoginResponse, PasswordPolicy } from '../features/auth/types/auth';
-import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { cn } from '@/lib/utils';
 import { ChangePasswordDialog, type ChangePasswordDialogRef, type ChangePasswordMode } from '@/libs/shared-ui/src/components/custom/ChangePasswordDialog';
 import { Log } from '@/libs/shared-util/src/lib/log';
-
-/**
- * Account lock state
- */
-interface LockState {
-  isLocked: boolean;
-  retryAfterSeconds: number;
-}
-
-/**
- * Login error state
- */
-interface LoginErrorState {
-  error: LoginErrorResponse['error'] | null;
-  message: string;
-  remainingAttempts?: number;
-}
 
 export default function Login() {
   const navigate = useNavigate();
@@ -41,28 +22,6 @@ export default function Login() {
   const [passwordPolicy, setPasswordPolicy] = useState<PasswordPolicy | undefined>(undefined);
   const { setPasswordExpiringWarning } = useAuthStore();
   const { data: rememberMeData, setRememberMeData } = useRememberMeStore();
-
-  // Account lock state
-  const [lockState, setLockState] = useState<LockState>({ isLocked: false, retryAfterSeconds: 0 });
-
-  // Login error state
-  const [loginError, setLoginError] = useState<LoginErrorState>({ error: null, message: '' });
-
-  // Countdown timer for account lock
-  useEffect(() => {
-    if (lockState.retryAfterSeconds > 0) {
-      const timer = setInterval(() => {
-        setLockState((prev) => {
-          const newSeconds = prev.retryAfterSeconds - 1;
-          if (newSeconds <= 0) {
-            return { isLocked: false, retryAfterSeconds: 0 };
-          }
-          return { ...prev, retryAfterSeconds: newSeconds };
-        });
-      }, 1000);
-      return () => clearInterval(timer);
-    }
-  }, [lockState.retryAfterSeconds]);
 
   const { mutate: resetPassword } = useResetPassword({
     mutationOptions: {
@@ -83,9 +42,6 @@ export default function Login() {
   const { mutate: login, isPending } = useLogin({
     mutationOptions: {
       onSuccess: async (response: LoginResponse) => {
-        // Clear any previous errors
-        setLoginError({ error: null, message: '' });
-
         // passwordExpiringSoon: 로그인 성공 + 스토어에 경고 저장 후 메인 화면 이동
         // (메인 화면에서 토스트 메시지 표시)
         // (forcePasswordChange, passwordExpired는 401 에러로 처리됨 - onError에서 핸들링)
@@ -109,14 +65,14 @@ export default function Login() {
         const apiResponse = axiosError.response?.data;
 
         if (!apiResponse) {
-          setLoginError({ error: null, message: '로그인에 실패했습니다. 다시 시도해주세요.' });
+          toast.error('로그인에 실패했습니다. 다시 시도해주세요.');
           return;
         }
 
         // BFF ApiResponse의 data 필드에서 OAuth2 에러 정보 추출
         const errorData = apiResponse.data;
         if (!errorData?.error) {
-          setLoginError({ error: null, message: apiResponse.message || '로그인에 실패했습니다.' });
+          toast.error(apiResponse.message ?? '로그인에 실패했습니다.');
           return;
         }
 
@@ -156,71 +112,47 @@ export default function Login() {
             });
             return;
           }
+
+          case 'invalid_grant': {
+            const msg = errorData.error_description ?? '아이디 또는 비밀번호가 올바르지 않습니다.';
+            const attempts = errorData.remaining_attempts;
+            const toastMsg = attempts !== undefined ? `${msg} (남은 시도: ${attempts}회)` : msg;
+            toast.error(toastMsg);
+            break;
+          }
+
           case 'account_locked':
-            setLockState({
-              isLocked: true,
-              retryAfterSeconds: errorData.retry_after ?? 0,
-            });
-            setLoginError({ error: 'account_locked', message: '' });
-            break;
-
-          case 'account_dormant':
-            setLoginError({
-              error: 'account_dormant',
-              message: errorData.error_description ?? '휴면 계정입니다. 관리자에게 문의하세요.',
-            });
-            break;
-
-          case 'account_disabled':
-            setLoginError({
-              error: 'account_disabled',
-              message: errorData.error_description ?? '비활성화된 계정입니다. 관리자에게 문의하세요.',
-            });
-            break;
-
-          case 'invalid_grant':
-            setLoginError({
-              error: 'invalid_grant',
-              message: '아이디 또는 비밀번호가 올바르지 않습니다.',
-              remainingAttempts: errorData.remaining_attempts,
-            });
+            toast.warning(errorData.error_description ?? '로그인 시도 횟수를 초과하여 계정이 일시적으로 잠겼습니다.', { autoClose: false });
             break;
 
           case 'tenant_required':
-            setLoginError({
-              error: 'tenant_required',
-              message: errorData.error_description ?? '멀티테넌트 계정입니다. 테넌트를 입력해주세요.',
-            });
+            toast.warning(errorData.error_description ?? '멀티테넌트 계정입니다. 테넌트를 입력해주세요.');
+            break;
+
+          case 'account_dormant':
+            toast.error(errorData.error_description ?? '휴면 계정입니다. 관리자에게 문의하세요.');
+            break;
+
+          case 'account_disabled':
+            toast.error(errorData.error_description ?? '비활성화된 계정입니다. 관리자에게 문의하세요.');
             break;
 
           case 'ip_not_allowed':
-            setLoginError({
-              error: 'ip_not_allowed',
-              message: errorData.error_description ?? '허용되지 않은 IP 주소입니다. 관리자에게 문의하세요.',
-            });
+            toast.error(errorData.error_description ?? '허용되지 않은 IP 주소입니다. 관리자에게 문의하세요.');
+            break;
+
+          case 'concurrent_login_blocked':
+            toast.warning(errorData.error_description ?? '다른 세션에서 이미 로그인되어 있습니다.');
             break;
 
           default:
-            setLoginError({
-              error: null,
-              message: errorData.error_description ?? '로그인에 실패했습니다.',
-            });
+            toast.error(errorData.error_description ?? '로그인에 실패했습니다.');
         }
       },
     },
   });
 
   const onFinish: FormProps<{ userAccount: string; password: string; tenant?: string }>['onFinish'] = (values) => {
-    // Clear previous errors
-    setLoginError({ error: null, message: '' });
-
-    // Prevent login if account is locked
-    if (lockState.isLocked) {
-      return;
-    }
-
-    // V23: username → userAccount로 변경
-    // tenant는 멀티테넌트 사용자만 입력 (단일 테넌트 사용자는 자동 선택됨)
     login({
       userAccount: values.userAccount,
       password: values.password,
@@ -249,104 +181,6 @@ export default function Login() {
     });
   };
 
-  /**
-   * Format seconds to mm:ss
-   */
-  const formatTime = (seconds: number): string => {
-    const mins = Math.floor(seconds / 60);
-    const secs = seconds % 60;
-    return `${mins}:${secs.toString().padStart(2, '0')}`;
-  };
-
-  /**
-   * Render login error alert
-   */
-  const renderErrorAlert = () => {
-    // Account locked state
-    if (lockState.isLocked) {
-      return (
-        <Alert variant="destructive" className="mb-4">
-          <LockKeyhole className="h-4 w-4" />
-          <AlertTitle>계정 잠금</AlertTitle>
-          <AlertDescription>
-            로그인 시도 횟수를 초과하여 계정이 일시적으로 잠겼습니다.
-            <div className="mt-2 text-lg font-semibold">{formatTime(lockState.retryAfterSeconds)} 후 다시 시도해주세요.</div>
-          </AlertDescription>
-        </Alert>
-      );
-    }
-
-    // Dormant account
-    if (loginError.error === 'account_dormant') {
-      return (
-        <Alert variant="destructive" className="mb-4">
-          <User className="h-4 w-4" />
-          <AlertTitle>휴면 계정</AlertTitle>
-          <AlertDescription>{loginError.message}</AlertDescription>
-        </Alert>
-      );
-    }
-
-    // Disabled account
-    if (loginError.error === 'account_disabled') {
-      return (
-        <Alert variant="destructive" className="mb-4">
-          <User className="h-4 w-4" />
-          <AlertTitle>비활성화 계정</AlertTitle>
-          <AlertDescription>{loginError.message}</AlertDescription>
-        </Alert>
-      );
-    }
-
-    // Tenant required (multi-tenant user)
-    if (loginError.error === 'tenant_required') {
-      return (
-        <Alert variant="default" className="mb-4">
-          <Users className="h-4 w-4" />
-          <AlertTitle>테넌트 입력 필요</AlertTitle>
-          <AlertDescription>{loginError.message}</AlertDescription>
-        </Alert>
-      );
-    }
-
-    // IP not allowed
-    if (loginError.error === 'ip_not_allowed') {
-      return (
-        <Alert variant="destructive" className="mb-4">
-          <Lock className="h-4 w-4" />
-          <AlertTitle>접근 제한</AlertTitle>
-          <AlertDescription>{loginError.message}</AlertDescription>
-        </Alert>
-      );
-    }
-
-    // Invalid credentials with remaining attempts warning
-    if (loginError.error === 'invalid_grant') {
-      const showWarning = loginError.remainingAttempts !== undefined && loginError.remainingAttempts <= 2;
-      return (
-        <Alert variant={showWarning ? 'destructive' : 'default'} className="mb-4">
-          <Lock className="h-4 w-4" />
-          <AlertTitle>로그인 실패</AlertTitle>
-          <AlertDescription>
-            {loginError.message}
-            {loginError.remainingAttempts !== undefined && <div className={cn('mt-1', showWarning && 'font-semibold')}>남은 시도 횟수: {loginError.remainingAttempts}회</div>}
-          </AlertDescription>
-        </Alert>
-      );
-    }
-
-    // Generic error
-    if (loginError.message) {
-      return (
-        <Alert variant="destructive" className="mb-4">
-          <AlertDescription>{loginError.message}</AlertDescription>
-        </Alert>
-      );
-    }
-
-    return null;
-  };
-
   return (
     <div className="w-screen min-h-svh flex flex-col items-center justify-center gap-3 bg-[#f3f3f9]">
       <div
@@ -370,10 +204,7 @@ export default function Login() {
             <CardTitle className="text-xl">Welcome</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className={cn('w-full', styles['login-wrapper'])}>
-              {/* Error alerts */}
-              {renderErrorAlert()}
-
+            <div className={styles['login-wrapper']}>
               <Form
                 form={form}
                 layout="vertical"
@@ -422,7 +253,7 @@ export default function Login() {
         policy={passwordPolicy}
         onPasswordChange={handlePasswordChange}
         onSuccess={() => {
-          // Handled in useChangePassword onSuccess
+          // Handled in useResetPassword onSuccess
         }}
         onError={(error) => {
           Log.error('Password change failed:', error);

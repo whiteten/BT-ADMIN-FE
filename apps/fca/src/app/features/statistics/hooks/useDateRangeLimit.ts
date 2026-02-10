@@ -36,6 +36,16 @@ interface UseDateRangeLimitProps {
 // 공통 유틸 함수들 (export)
 export const getTimeFormat = (unit?: string) => TIME_FORMAT[unit ?? ''] ?? 'YYYY-MM-DD';
 export const getMaxDays = (unit: string) => MAX_DATE_RANGE[unit] ?? 15;
+export const getPickerMode = (unit: string): 'date' | 'month' | 'year' => {
+  if (unit === 'MM') return 'month';
+  if (unit === 'YY') return 'year';
+  return 'date';
+};
+export const getDatePickerFormat = (unit: string): string => {
+  if (unit === 'MM') return 'YYYY-MM';
+  if (unit === 'YY') return 'YYYY';
+  return 'YYYY-MM-DD';
+};
 
 export const validateDateRange = (startDate: Dayjs, endDate: Dayjs, unit: string): boolean => {
   // endDate가 startDate보다 이전이면 false

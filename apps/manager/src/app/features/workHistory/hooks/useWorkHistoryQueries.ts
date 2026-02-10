@@ -27,7 +27,10 @@ export const useWorkHistoryList = (params: WorkHistoryListParams) => {
 export const useWorkHistoryDetail = (workId: string | null) => {
   return useQuery({
     queryKey: workHistoryQueryKeys.detail(workId ?? '').queryKey,
-    queryFn: () => workHistoryApi.getDetail(workId!),
+    queryFn: () => {
+      if (!workId) throw new Error('workId is required');
+      return workHistoryApi.getDetail(workId);
+    },
     enabled: !!workId,
   });
 };

@@ -6,12 +6,14 @@ const Log = new LOG('useSessionSocket');
 
 interface UseSessionSocketOptions {
   ticket: string | null;
+  onClose?: () => void;
+  onError?: () => void;
 }
 
 /**
  * 세션 기반 WebSocket 연결 및 서버 이벤트 처리 훅
  */
-export function useSessionSocket({ ticket }: UseSessionSocketOptions) {
+export function useSessionSocket({ ticket, onClose, onError }: UseSessionSocketOptions) {
   const wsRef = useRef<WebSocketClient | null>(null);
 
   useEffect(() => {
@@ -35,10 +37,12 @@ export function useSessionSocket({ ticket }: UseSessionSocketOptions) {
 
     client.onclose = (event) => {
       Log.warn('Session WS closed', event);
+      onClose?.();
     };
 
     client.onerror = (event) => {
       Log.error('Session WS occurred error', event);
+      onError?.();
     };
 
     client.connect().catch((error) => {
@@ -50,5 +54,5 @@ export function useSessionSocket({ ticket }: UseSessionSocketOptions) {
       wsRef.current?.disconnect();
       wsRef.current = null;
     };
-  }, [ticket]);
+  }, [ticket, onClose, onError]);
 }

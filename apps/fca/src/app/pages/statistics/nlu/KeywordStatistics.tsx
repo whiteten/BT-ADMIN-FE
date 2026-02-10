@@ -6,7 +6,15 @@ import dayjs, { type Dayjs } from 'dayjs';
 import { ChevronDown, Download } from 'lucide-react';
 import { useGetBots } from '../../../features/bot-config/hooks/useBotQueries';
 import { useGetModels } from '../../../features/bot-config/hooks/useModelQueries';
-import { createDisabledDate, createEndDisabledDate, getMaxDays, getTimeFormat, validateDateRange } from '../../../features/statistics/hooks/useDateRangeLimit';
+import {
+  createDisabledDate,
+  createEndDisabledDate,
+  getDatePickerFormat,
+  getMaxDays,
+  getPickerMode,
+  getTimeFormat,
+  validateDateRange,
+} from '../../../features/statistics/hooks/useDateRangeLimit';
 import { useGetKeywordStatList } from '../../../features/statistics/hooks/useStatisticsQueries';
 import type { KeywordStatListItem } from '../../../features/statistics/types/statistics.types';
 import PageHeader from '@/components/custom/PageHeader';
@@ -40,6 +48,8 @@ export default function KeywordStatistics() {
       timeUnit: 'DD',
       fromTime: fromDate,
       toTime: toDate,
+      scnIds: scnIds,
+      modelIds: modelIds,
     };
   });
 
@@ -48,71 +58,79 @@ export default function KeywordStatistics() {
   const gridRef = useRef<AgGridReact<KeywordStatListItem>>(null);
   const { data: scnList } = useGetBots();
   const { data: modelList } = useGetModels();
-
   const [rowData, setRowData] = useState<KeywordStatListItem[]>([]);
 
   // disabledDate 함수 (시작일: 미래 날짜 비활성화, 종료일: 시작일 이전 + maxDays 초과 비활성화)
   const disabledDate = useMemo(() => createDisabledDate(timeUnit), [timeUnit]);
   const disabledEndDate = useMemo(() => createEndDisabledDate(startDate, timeUnit), [startDate, timeUnit]);
 
-  type ScnOption = { id: string; name: string };
-  type ModelOption = { id: string; name: string };
-
-  const scns: ScnOption[] = useMemo(() => {
-    if (scnList?.length) {
-      return scnList.filter((b) => Boolean(b?.serviceId && b?.serviceName)).map((b) => ({ id: String(b.serviceId), name: String(b.serviceName) }));
-    }
-    return [];
-  }, [scnList]);
-
-  const models: ModelOption[] = useMemo(() => {
-    if (modelList?.length) {
-      return modelList.filter((m) => Boolean(m?.modelId && m?.modelName)).map((m) => ({ id: String(m.modelId), name: String(m.modelName) }));
-    }
-    return [];
-  }, [modelList]);
-
   const scnSelectOptions = useMemo(
-    () =>
-      scns.map((s) => ({
-        label: s.name,
-        value: s.id,
-      })),
-    [scns],
+    () => (scnList ?? []).filter((b) => Boolean(b?.serviceId && b?.serviceName)).map((b) => ({ label: String(b.serviceName), value: String(b.serviceId) })),
+    [scnList],
   );
 
   const modelSelectOptions = useMemo(
-    () =>
-      models.map((m) => ({
-        label: m.name,
-        value: m.id,
-      })),
-    [models],
+    () => (modelList ?? []).filter((m) => Boolean(m?.modelId && m?.modelName)).map((m) => ({ label: String(m.modelName), value: String(m.modelId) })),
+    [modelList],
   );
 
+  // 봇서비스 목록 최초 로드 시 전체 선택
+  const isScnInitialized = useRef(false);
+  useEffect(() => {
+    if (!isScnInitialized.current && scnSelectOptions.length > 0) {
+      setScnIds(scnSelectOptions.map((s) => s.value));
+      isScnInitialized.current = true;
+    }
+  }, [scnSelectOptions]);
+
+  // 모델 목록 최초 로드 시 전체 선택
+  const isModelInitialized = useRef(false);
+  useEffect(() => {
+    if (!isModelInitialized.current && modelSelectOptions.length > 0) {
+      setModelIds(modelSelectOptions.map((m) => m.value));
+      isModelInitialized.current = true;
+    }
+  }, [modelSelectOptions]);
+
+  // 키워드 통계 조회
   const { data: keywordStatList, isLoading: isLoadingKeywordStatList } = useGetKeywordStatList({
     params: queryParams,
   });
 
+  // 키워드 통계 필터링
   const filteredList = useMemo(() => {
     if (!keywordStatList) return [];
     const trimmedSearchValue = searchValue?.trim().toLowerCase();
-    if (scnIds.length === 0 && modelIds.length === 0 && !trimmedSearchValue) return keywordStatList;
+    if (!trimmedSearchValue) return keywordStatList;
     return keywordStatList.filter((keywordStat) => {
-      const matchesScn = scnIds.length === 0 || scnIds.includes(String(keywordStat.scnId ?? ''));
-      const matchesModel = modelIds.length === 0 || modelIds.includes(String(keywordStat.modelId ?? ''));
       const matchesSearchValue =
         !trimmedSearchValue ||
         String(keywordStat[filterColumn as keyof KeywordStatListItem] ?? '')
           .toLowerCase()
           .includes(trimmedSearchValue);
-      return matchesScn && matchesModel && matchesSearchValue;
+      return matchesSearchValue;
     });
-  }, [keywordStatList, scnIds, modelIds, filterColumn, searchValue]);
+  }, [keywordStatList, filterColumn, searchValue]);
 
   useEffect(() => {
     setRowData(filteredList ?? []);
   }, [filteredList]);
+
+  // 합계 행 계산 (pinnedBottomRowData)
+  const summaryRow = useMemo<KeywordStatListItem[]>(() => {
+    if (!rowData?.length) return [];
+    const sum = (field: keyof KeywordStatListItem) => rowData.reduce((acc, row) => acc + (Number(row[field]) || 0), 0);
+    return [
+      {
+        psrTimeKey: '전체합계',
+        scnName: '',
+        modelName: '',
+        entityTag: '',
+        keyword: '',
+        keywordCnt: sum('keywordCnt'),
+      } as KeywordStatListItem,
+    ];
+  }, [rowData]);
 
   // startDate 또는 timeUnit 변경 시 endDate 자동 조정
   useEffect(() => {
@@ -125,7 +143,7 @@ export default function KeywordStatistics() {
         setEndDate(maxEnd.isAfter(dayjs(), 'day') ? dayjs() : maxEnd);
       }
     }
-  }, [startDate, timeUnit]);
+  }, [endDate, startDate, timeUnit]);
 
   // timeUnit이 HH로 변경될 때 분을 자동 조정 (시작 00분, 종료 50분)
   useEffect(() => {
@@ -155,20 +173,23 @@ export default function KeywordStatistics() {
     }
 
     // 조회 버튼 클릭 시에만 queryParams 업데이트 → React Query 재조회
-    const fromDate = startDate.format('YYYYMMDD');
-    const toDate = endDate.format('YYYYMMDD');
-    // HH 모드일 때는 시작 00분, 종료 50분 고정
-    const normalizedStartTime = timeUnit === 'HH' && startTime ? startTime.minute(0) : startTime;
-    const normalizedEndTime = timeUnit === 'HH' && endTime ? endTime.minute(50) : endTime;
-    const fromTime = normalizedStartTime?.format('HHmm');
-    const toTime = normalizedEndTime?.format('HHmm');
-    const fromDateTime = timeUnit === 'MI' || timeUnit === 'HH' ? `${fromDate}${fromTime}` : fromDate;
-    const toDateTime = timeUnit === 'MI' || timeUnit === 'HH' ? `${toDate}${toTime}` : toDate;
+    const fromDateYY = startDate.format('YYYY');
+    const toDateYY = endDate.format('YYYY');
+    const fromDateMM = startDate.format('YYYYMM');
+    const toDateMM = endDate.format('YYYYMM');
+    const fromDateDD = startDate.format('YYYYMMDD');
+    const toDateDD = endDate.format('YYYYMMDD');
+    const fromDateHH = startDate.format('YYYYMMDD') + startTime?.format('HH');
+    const toDateHH = endDate.format('YYYYMMDD') + endTime?.format('HH');
+    const fromDateMI = startDate.format('YYYYMMDD') + startTime?.format('HHmm');
+    const toDateMI = endDate.format('YYYYMMDD') + endTime?.format('HHmm');
 
     setQueryParams({
       timeUnit,
-      fromTime: fromDateTime,
-      toTime: toDateTime,
+      fromTime: timeUnit === 'MI' ? fromDateMI : timeUnit === 'HH' ? fromDateHH : timeUnit === 'DD' ? fromDateDD : timeUnit === 'MM' ? fromDateMM : fromDateYY,
+      toTime: timeUnit === 'MI' ? toDateMI : timeUnit === 'HH' ? toDateHH : timeUnit === 'DD' ? toDateDD : timeUnit === 'MM' ? toDateMM : toDateYY,
+      scnIds: scnIds,
+      modelIds: modelIds,
     });
   };
 
@@ -177,8 +198,12 @@ export default function KeywordStatistics() {
       headerName: '날짜',
       field: 'psrTimeKey',
       flex: queryParams.timeUnit === 'MI' || queryParams.timeUnit === 'HH' ? 2 : 1,
-      valueFormatter: ({ value }: { value?: string }) => (value ? dayjs(value).format(getTimeFormat(queryParams.timeUnit)) : '-'),
-      cellStyle: { alignItems: 'center' },
+      colSpan: (params) => (params.node?.rowPinned === 'bottom' ? 5 : 1),
+      valueFormatter: ({ value, node }) => {
+        if (node?.rowPinned === 'bottom') return value ?? '';
+        return value ? dayjs(value).format(getTimeFormat(queryParams.timeUnit)) : '-';
+      },
+      cellStyle: (params) => (params.node?.rowPinned === 'bottom' ? { fontWeight: 'bold', alignItems: 'center' } : { fontWeight: 'normal', alignItems: 'center' }),
     },
     { headerName: '봇서비스ID', field: 'scnId', hide: true },
     { headerName: '봇서비스', field: 'scnName', flex: 2 },
@@ -186,7 +211,12 @@ export default function KeywordStatistics() {
     { headerName: '모델명', field: 'modelName', flex: 1 },
     { headerName: '개체 태그', field: 'entityTag', flex: 1 },
     { headerName: '키워드', field: 'keyword', flex: 1 },
-    { headerName: '검출횟수', field: 'keywordCnt', maxWidth: 100, cellStyle: { alignItems: 'center' } },
+    {
+      headerName: '검출횟수',
+      field: 'keywordCnt',
+      flex: 1,
+      cellStyle: (params) => (params.node?.rowPinned === 'bottom' ? { fontWeight: 'bold', alignItems: 'center' } : { fontWeight: 'normal', alignItems: 'center' }),
+    },
   ];
 
   const [isExporting, setIsExporting] = useState(false);
@@ -246,7 +276,15 @@ export default function KeywordStatistics() {
                     popupMatchSelectWidth={false}
                     defaultValue="DD"
                   />
-                  <DatePicker value={startDate} onChange={(date) => setStartDate(date)} disabledDate={disabledDate} inputReadOnly allowClear={false} />
+                  <DatePicker
+                    value={startDate}
+                    onChange={(date) => setStartDate(date)}
+                    picker={getPickerMode(timeUnit)}
+                    format={getDatePickerFormat(timeUnit)}
+                    disabledDate={disabledDate}
+                    inputReadOnly
+                    allowClear={false}
+                  />
                   {timeUnit === 'MI' || timeUnit === 'HH' ? (
                     <TimePicker
                       value={startTime}
@@ -259,7 +297,15 @@ export default function KeywordStatistics() {
                     />
                   ) : null}
                   <span className="text-sm font-medium text-[#495057] shrink-0">~</span>
-                  <DatePicker value={endDate} onChange={(date) => setEndDate(date)} disabledDate={disabledEndDate} inputReadOnly allowClear={false} />
+                  <DatePicker
+                    value={endDate}
+                    onChange={(date) => setEndDate(date)}
+                    picker={getPickerMode(timeUnit)}
+                    format={getDatePickerFormat(timeUnit)}
+                    disabledDate={disabledEndDate}
+                    inputReadOnly
+                    allowClear={false}
+                  />
                   {timeUnit === 'MI' || timeUnit === 'HH' ? (
                     <TimePicker
                       value={endTime}
@@ -343,7 +389,23 @@ export default function KeywordStatistics() {
           </header>
         </Collapsible>
         <div className="w-full flex-1">
-          <AgGridReact<KeywordStatListItem> ref={gridRef} rowData={rowData} columnDefs={columnDefs} gridOptions={gridOptions} loading={isLoadingKeywordStatList} />
+          <AgGridReact<KeywordStatListItem>
+            ref={gridRef}
+            rowModelType="clientSide"
+            rowData={rowData}
+            getRowId={(params) => `${params.data.psrTimeKey}_${params.data.scnId}_${params.data.modelId}_${params.data.entityTag}_${params.data.keyword}`}
+            columnDefs={columnDefs}
+            gridOptions={gridOptions}
+            loading={isLoadingKeywordStatList}
+            pagination={false}
+            statusBar={{ statusPanels: [] }}
+            rowNumbers={false}
+            sideBar={false}
+            pinnedBottomRowData={summaryRow}
+            rowClassRules={{
+              '!bg-[#F8F9FA]': (params) => params.node.rowPinned === 'bottom',
+            }}
+          />
         </div>
       </div>
     </div>
