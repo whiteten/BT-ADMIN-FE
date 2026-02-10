@@ -3,8 +3,8 @@ import { type Layout, type LayoutItem, Responsive, type ResponsiveLayouts, useCo
 import 'react-grid-layout/css/styles.css';
 import { MultiSelect, type Option } from 'react-multi-select-component';
 import { type BreadcrumbProps, Button, Card } from 'antd';
-// import { useGetBotDashboard } from '../../features/dashboard/hooks/useDashboardQueries';
 import { DEFAULT_LAYOUTS, useBotDashboardStore } from '../../features/dashboard/hooks/useBotDashboardStore';
+import { useGetBotDashboard } from '../../features/dashboard/hooks/useDashboardQueries';
 import PageHeader from '@/components/custom/PageHeader';
 import { cn } from '@/lib/utils';
 
@@ -28,7 +28,7 @@ const breadcrumb: BreadcrumbProps['items'] = [
   { title: '콜봇 현황', path: '/fca/dashboard/call-bot' },
 ];
 
-const sampleServiceIdList = [1001, 1002, 1003, 1004, 1005, 1006, 1007, 1008, 1009, 1010];
+const sampleServiceIdList = [1001, 1002, 1003, 1004, 1005];
 
 const serviceOptions: Option[] = sampleServiceIdList.map((id) => ({
   label: id.toString(),
@@ -66,7 +66,10 @@ const layoutRenderMapper: Record<string, { title: string; component?: ComponentT
 
 export default function BotDashboard() {
   const [selectedService, setSelectedService] = useState<Option[]>(serviceOptions);
-  // const { data, isLoading, error } = useGetBotDashboard({ params: { serviceIds } });
+  const { data, isLoading } = useGetBotDashboard({
+    params: { serviceIds: selectedService.map((item) => item.value as string) },
+    queryOptions: { enabled: false }, // TODO: api 개발 후 selectedService.length > 0 조건으로 변경
+  });
   const { layouts, setLayouts } = useBotDashboardStore();
   const { width, containerRef, mounted } = useContainerWidth();
 
@@ -217,7 +220,7 @@ export default function BotDashboard() {
                       title: 'text-base font-semibold text-[#495057]',
                       header: '!min-h-0 !h-[45px] !px-4',
                     }}
-                    loading={false}
+                    loading={isLoading}
                   >
                     {WidgetComponent ? <WidgetComponent /> : null}
                   </Card>
