@@ -181,11 +181,13 @@ export default function RoleBasicInfoTab() {
                 취소
               </Button>
             </Col>
-            <Col>
-              <Button color="red" variant="solid" loading={isDeleting} onClick={handleClickDeleteBtn}>
-                삭제
-              </Button>
-            </Col>
+            {!role?.isSystem && (
+              <Col>
+                <Button color="red" variant="solid" loading={isDeleting} onClick={handleClickDeleteBtn}>
+                  삭제
+                </Button>
+              </Col>
+            )}
             <Col>
               <Button color="primary" variant="solid" htmlType="submit" loading={isUpdating || isDeleting}>
                 저장

@@ -93,7 +93,7 @@ export default function RoleManagementTab() {
         ) : roles.length > 0 ? (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
             {roles.map((role) => (
-              <RoleCard key={role.roleId} role={role} onEdit={() => handleEdit(role)} onDelete={() => handleDelete(role)} />
+              <RoleCard key={role.roleId} role={role} onEdit={() => handleEdit(role)} onDelete={role.isSystem ? undefined : () => handleDelete(role)} />
             ))}
           </div>
         ) : (

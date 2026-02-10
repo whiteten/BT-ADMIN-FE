@@ -25,6 +25,7 @@ export interface Permission {
   action: string;
   authKey: string;
   description?: string;
+  isSystem: boolean;
   menuLabel?: string;
 }
 
@@ -173,6 +174,7 @@ export interface PermissionFlat {
   action: string;
   authKey: string;
   description?: string;
+  isSystem: boolean;
   menuId?: number;
   menuKey?: string;
   menuLabel?: string;

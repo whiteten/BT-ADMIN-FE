@@ -166,7 +166,7 @@ export default function PermissionListTab() {
         cellStyle: { display: 'flex', alignItems: 'center', justifyContent: 'center' },
         cellRenderer: (params: ICellRendererParams<PermissionFlat>) => {
           const { data } = params;
-          if (!data) return null;
+          if (!data || data.isSystem) return null;
           return (
             <button
               type="button"
