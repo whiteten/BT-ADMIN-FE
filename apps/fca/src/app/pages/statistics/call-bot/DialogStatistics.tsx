@@ -78,17 +78,6 @@ export default function DialogStatistics() {
     [botList],
   );
 
-  // 봇서비스 목록 최초 로드 시 전체 선택
-  const isServiceInitialized = useRef(false);
-  useEffect(() => {
-    if (!isServiceInitialized.current && serviceSelectOptions.length > 0) {
-      const allIds = serviceSelectOptions.map((s) => s.value);
-      setServiceIds(allIds);
-      setQueryParams((prev) => ({ ...prev, serviceIds: allIds }));
-      isServiceInitialized.current = true;
-    }
-  }, [serviceSelectOptions]);
-
   // 대화 통계 조회
   const { data: dialogStatList, isLoading: isLoadingDialogStatList } = useGetDialogStatList({
     params: queryParams,
@@ -342,7 +331,6 @@ export default function DialogStatistics() {
                 <div className="flex items-center gap-3">
                   <span className="text-sm font-medium text-[#495057] shrink-0">봇서비스</span>
                   <Select
-                    mode="multiple"
                     value={serviceIds}
                     onChange={(value) => setServiceIds(value ?? [])}
                     allowClear

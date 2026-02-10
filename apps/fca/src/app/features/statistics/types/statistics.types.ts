@@ -39,6 +39,8 @@ export interface SlotStatItem {
   slotName: string; // 슬롯명
   prevSlotId: string; //
   prevSlotName: string; //
+  entityTag: string; //
+  prevEntityTag: string; //
   inCount: number; // 진입수
   successCount: number; // 완결수
   successPercent: number; // 완결율

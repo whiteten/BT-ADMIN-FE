@@ -4,7 +4,6 @@ import { AgGridReact } from 'ag-grid-react';
 import { type BreadcrumbProps, Button, Checkbox, DatePicker, Divider, Input, Select, TimePicker, message } from 'antd';
 import dayjs, { type Dayjs } from 'dayjs';
 import { ChevronDown, Download } from 'lucide-react';
-import { useGetBots } from '../../../features/bot-config/hooks/useBotQueries';
 import { useGetModels } from '../../../features/bot-config/hooks/useModelQueries';
 import {
   createDisabledDate,
@@ -31,7 +30,6 @@ const breadcrumb: BreadcrumbProps['items'] = [
 export default function IntentStatistics() {
   // UI 상태 (사용자가 입력하는 값들)
   const [modelIds, setModelIds] = useState<string[]>([]);
-  const [scnIds, setScnIds] = useState<string[]>([]);
   const [intentName, setIntentName] = useState('');
   const [timeUnit, setTimeUnit] = useState<string>('DD');
   const [startDate, setStartDate] = useState<Dayjs | null>(dayjs().startOf('day'));
@@ -54,7 +52,6 @@ export default function IntentStatistics() {
       timeUnit: 'DD',
       fromTime: fromDate,
       toTime: toDate,
-      scnIds: scnIds,
       modelIds: modelIds,
       excludeLunch: false,
       useInterval: false,
@@ -69,7 +66,6 @@ export default function IntentStatistics() {
   const [isFilterOpen, setIsFilterOpen] = useState(false);
   const { gridOptions } = useAggridOptions();
   const gridRef = useRef<AgGridReact<IntentStatListItem>>(null);
-  const { data: scnList } = useGetBots();
   const { data: modelList } = useGetModels();
   const [rowData, setRowData] = useState<IntentStatListItem[]>([]);
 
@@ -77,37 +73,10 @@ export default function IntentStatistics() {
   const disabledDate = useMemo(() => createDisabledDate(timeUnit), [timeUnit]);
   const disabledEndDate = useMemo(() => createEndDisabledDate(startDate, timeUnit), [startDate, timeUnit]);
 
-  const scnSelectOptions = useMemo(
-    () => (scnList ?? []).filter((b) => Boolean(b?.serviceId && b?.serviceName)).map((b) => ({ label: String(b.serviceName), value: String(b.serviceId) })),
-    [scnList],
-  );
-
   const modelSelectOptions = useMemo(
     () => (modelList ?? []).filter((m) => Boolean(m?.modelId && m?.modelName)).map((m) => ({ label: String(m.modelName), value: String(m.modelId) })),
     [modelList],
   );
-
-  // 봇서비스 목록 최초 로드 시 전체 선택
-  const isScnInitialized = useRef(false);
-  useEffect(() => {
-    if (!isScnInitialized.current && scnSelectOptions.length > 0) {
-      const allIds = scnSelectOptions.map((s) => s.value);
-      setScnIds(allIds);
-      setQueryParams((prev) => ({ ...prev, scnIds: allIds }));
-      isScnInitialized.current = true;
-    }
-  }, [scnSelectOptions]);
-
-  // 모델 목록 최초 로드 시 전체 선택
-  const isModelInitialized = useRef(false);
-  useEffect(() => {
-    if (!isModelInitialized.current && modelSelectOptions.length > 0) {
-      const allModelIds = modelSelectOptions.map((m) => m.value);
-      setModelIds(allModelIds);
-      setQueryParams((prev) => ({ ...prev, modelIds: allModelIds }));
-      isModelInitialized.current = true;
-    }
-  }, [modelSelectOptions]);
 
   // 의도 통계 조회
   const { data: intentStatList, isLoading: isLoadingIntentStatList } = useGetIntentStatList({
@@ -140,7 +109,6 @@ export default function IntentStatistics() {
     return [
       {
         psrTimeKey: '전체합계',
-        scnName: '',
         modelName: '',
         intentCnt: sum('intentCnt'),
         confidence: sum('confidence'),
@@ -207,7 +175,6 @@ export default function IntentStatistics() {
       timeUnit,
       fromTime: timeUnit === 'MI' ? fromDateMI : timeUnit === 'HH' ? fromDateHH : timeUnit === 'DD' ? fromDateDD : timeUnit === 'MM' ? fromDateMM : fromDateYY,
       toTime: timeUnit === 'MI' ? toDateMI : timeUnit === 'HH' ? toDateHH : timeUnit === 'DD' ? toDateDD : timeUnit === 'MM' ? toDateMM : toDateYY,
-      scnIds: scnIds,
       modelIds: modelIds,
       excludeLunch,
       useInterval,
@@ -224,15 +191,13 @@ export default function IntentStatistics() {
       headerName: '날짜',
       field: 'psrTimeKey',
       flex: queryParams.timeUnit === 'MI' || queryParams.timeUnit === 'HH' ? 2 : 1,
-      colSpan: (params) => (params.node?.rowPinned === 'bottom' ? 4 : 1),
+      colSpan: (params) => (params.node?.rowPinned === 'bottom' ? 3 : 1),
       valueFormatter: ({ value, node }) => {
         if (node?.rowPinned === 'bottom') return value ?? '';
         return value ? dayjs(value).format(getTimeFormat(queryParams.timeUnit)) : '-';
       },
       cellStyle: (params) => (params.node?.rowPinned === 'bottom' ? { fontWeight: 'bold', alignItems: 'center' } : { fontWeight: 'normal', alignItems: 'center' }),
     },
-    { headerName: '봇서비스ID', field: 'scnId', hide: true },
-    { headerName: '봇서비스', field: 'scnName', flex: 2 },
     { headerName: '모델ID', field: 'modelId', hide: true },
     { headerName: '모델명', field: 'modelName', flex: 1 },
     { headerName: '의도명', field: 'intent', flex: 1 },
@@ -369,16 +334,15 @@ export default function IntentStatistics() {
                 </div>
                 <Divider orientation="vertical" className="!h-5 !m-0" />
                 <div className="flex items-center gap-3">
-                  <span className="text-sm font-medium text-[#495057] shrink-0">봇서비스</span>
+                  <span className="text-sm font-medium text-[#495057] shrink-0">모델</span>
                   <Select
-                    mode="multiple"
-                    value={scnIds}
-                    onChange={(value) => setScnIds(value ?? [])}
+                    value={modelIds}
+                    onChange={(value) => setModelIds(value ?? [])}
                     allowClear
                     showSearch
                     maxTagCount="responsive"
-                    options={scnSelectOptions}
-                    placeholder="검색할 봇서비스를 선택하세요."
+                    options={modelSelectOptions}
+                    placeholder="검색할 모델을 선택하세요."
                     optionFilterProp="label"
                     className="!min-w-[250px] !max-w-[400px]"
                     popupMatchSelectWidth={false}
@@ -407,21 +371,6 @@ export default function IntentStatistics() {
             </div>
             <CollapsibleContent>
               <div className="flex items-center gap-3">
-                <span className="text-sm font-medium text-[#495057] shrink-0">모델</span>
-                <Select
-                  mode="multiple"
-                  value={modelIds}
-                  onChange={(value) => setModelIds(value ?? [])}
-                  allowClear
-                  showSearch
-                  maxTagCount="responsive"
-                  options={modelSelectOptions}
-                  placeholder="검색할 모델을 선택하세요."
-                  optionFilterProp="label"
-                  className="!min-w-[250px] !max-w-[400px]"
-                  popupMatchSelectWidth={false}
-                />
-                <Divider orientation="vertical" className="!h-5 !m-0" />
                 <span className="text-sm font-medium text-[#495057] shrink-0">의도명</span>
                 <Input value={intentName} onChange={(e) => setIntentName(e.target.value)} className="!min-w-[200px] !max-w-[250px]" placeholder="검색할 의도명을 입력하세요." />
                 {timeUnit !== 'MM' && timeUnit !== 'YY' ? (

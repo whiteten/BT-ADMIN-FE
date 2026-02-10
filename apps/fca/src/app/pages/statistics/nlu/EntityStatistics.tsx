@@ -4,7 +4,6 @@ import { AgGridReact } from 'ag-grid-react';
 import { type BreadcrumbProps, Button, Checkbox, DatePicker, Divider, Input, Select, TimePicker, message } from 'antd';
 import dayjs, { type Dayjs } from 'dayjs';
 import { ChevronDown, Download } from 'lucide-react';
-import { useGetBots } from '../../../features/bot-config/hooks/useBotQueries';
 import { useGetModels } from '../../../features/bot-config/hooks/useModelQueries';
 import {
   createDisabledDate,
@@ -31,7 +30,6 @@ const breadcrumb: BreadcrumbProps['items'] = [
 export default function EntityStatistics() {
   // UI 상태 (사용자가 입력하는 값들)
   const [modelIds, setModelIds] = useState<string[]>([]);
-  const [scnIds, setScnIds] = useState<string[]>([]);
   const [filterColumn, setFilterColumn] = useState('entityTag');
   const [searchValue, setSearchValue] = useState('');
   const [timeUnit, setTimeUnit] = useState<string>('DD');
@@ -55,7 +53,6 @@ export default function EntityStatistics() {
       timeUnit: 'DD',
       fromTime: fromDate,
       toTime: toDate,
-      scnIds: scnIds,
       modelIds: modelIds,
       excludeLunch: false,
       useInterval: false,
@@ -70,7 +67,6 @@ export default function EntityStatistics() {
   const [isFilterOpen, setIsFilterOpen] = useState(false);
   const { gridOptions } = useAggridOptions();
   const gridRef = useRef<AgGridReact<EntityStatListItem>>(null);
-  const { data: scnList } = useGetBots();
   const { data: modelList } = useGetModels();
   const [rowData, setRowData] = useState<EntityStatListItem[]>([]);
 
@@ -78,37 +74,10 @@ export default function EntityStatistics() {
   const disabledDate = useMemo(() => createDisabledDate(timeUnit), [timeUnit]);
   const disabledEndDate = useMemo(() => createEndDisabledDate(startDate, timeUnit), [startDate, timeUnit]);
 
-  const scnSelectOptions = useMemo(
-    () => (scnList ?? []).filter((b) => Boolean(b?.serviceId && b?.serviceName)).map((b) => ({ label: String(b.serviceName), value: String(b.serviceId) })),
-    [scnList],
-  );
-
   const modelSelectOptions = useMemo(
     () => (modelList ?? []).filter((m) => Boolean(m?.modelId && m?.modelName)).map((m) => ({ label: String(m.modelName), value: String(m.modelId) })),
     [modelList],
   );
-
-  // 봇서비스 목록 최초 로드 시 전체 선택
-  const isScnInitialized = useRef(false);
-  useEffect(() => {
-    if (!isScnInitialized.current && scnSelectOptions.length > 0) {
-      const allIds = scnSelectOptions.map((s) => s.value);
-      setScnIds(allIds);
-      setQueryParams((prev) => ({ ...prev, scnIds: allIds }));
-      isScnInitialized.current = true;
-    }
-  }, [scnSelectOptions]);
-
-  // 모델 목록 최초 로드 시 전체 선택
-  const isModelInitialized = useRef(false);
-  useEffect(() => {
-    if (!isModelInitialized.current && modelSelectOptions.length > 0) {
-      const allModelIds = modelSelectOptions.map((m) => m.value);
-      setModelIds(allModelIds);
-      setQueryParams((prev) => ({ ...prev, modelIds: allModelIds }));
-      isModelInitialized.current = true;
-    }
-  }, [modelSelectOptions]);
 
   // 개체 통계 조회
   const { data: entityStatList, isLoading: isLoadingEntityStatList } = useGetEntityStatList({
@@ -141,7 +110,6 @@ export default function EntityStatistics() {
     return [
       {
         psrTimeKey: '전체합계',
-        scnName: '',
         modelName: '',
         entityTag: '',
         entityValue: '',
@@ -206,7 +174,6 @@ export default function EntityStatistics() {
       timeUnit,
       fromTime: timeUnit === 'MI' ? fromDateMI : timeUnit === 'HH' ? fromDateHH : timeUnit === 'DD' ? fromDateDD : timeUnit === 'MM' ? fromDateMM : fromDateYY,
       toTime: timeUnit === 'MI' ? toDateMI : timeUnit === 'HH' ? toDateHH : timeUnit === 'DD' ? toDateDD : timeUnit === 'MM' ? toDateMM : toDateYY,
-      scnIds: scnIds,
       modelIds: modelIds,
       excludeLunch,
       useInterval,
@@ -230,8 +197,6 @@ export default function EntityStatistics() {
       },
       cellStyle: (params) => (params.node?.rowPinned === 'bottom' ? { fontWeight: 'bold', alignItems: 'center' } : { fontWeight: 'normal', alignItems: 'center' }),
     },
-    { headerName: '봇서비스ID', field: 'scnId', hide: true },
-    { headerName: '봇서비스', field: 'scnName', flex: 2 },
     { headerName: '모델ID', field: 'modelId', hide: true },
     { headerName: '모델명', field: 'modelName', flex: 1 },
     { headerName: '개체 태그', field: 'entityTag', flex: 1 },
@@ -345,16 +310,15 @@ export default function EntityStatistics() {
                 </div>
                 <Divider orientation="vertical" className="!h-5 !m-0" />
                 <div className="flex items-center gap-3">
-                  <span className="text-sm font-medium text-[#495057] shrink-0">봇서비스</span>
+                  <span className="text-sm font-medium text-[#495057] shrink-0">모델</span>
                   <Select
-                    mode="multiple"
-                    value={scnIds}
-                    onChange={(value) => setScnIds(value ?? [])}
+                    value={modelIds}
+                    onChange={(value) => setModelIds(value ?? [])}
                     allowClear
                     showSearch
                     maxTagCount="responsive"
-                    options={scnSelectOptions}
-                    placeholder="검색할 봇서비스를 선택하세요."
+                    options={modelSelectOptions}
+                    placeholder="검색할 모델을 선택하세요."
                     optionFilterProp="label"
                     className="!min-w-[250px] !max-w-[400px]"
                     popupMatchSelectWidth={false}
@@ -383,21 +347,6 @@ export default function EntityStatistics() {
             </div>
             <CollapsibleContent>
               <div className="flex items-center gap-3">
-                <span className="text-sm font-medium text-[#495057] shrink-0">모델</span>
-                <Select
-                  mode="multiple"
-                  value={modelIds}
-                  onChange={(value) => setModelIds(value ?? [])}
-                  allowClear
-                  showSearch
-                  maxTagCount="responsive"
-                  options={modelSelectOptions}
-                  placeholder="검색할 모델을 선택하세요."
-                  optionFilterProp="label"
-                  className="!min-w-[250px] !max-w-[400px]"
-                  popupMatchSelectWidth={false}
-                />
-                <Divider orientation="vertical" className="!h-5 !m-0" />
                 <Select
                   value={filterColumn}
                   onChange={setFilterColumn}

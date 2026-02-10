@@ -79,17 +79,6 @@ export default function SlotStatistics() {
     [botList],
   );
 
-  // 봇서비스 목록 최초 로드 시 전체 선택
-  const isServiceInitialized = useRef(false);
-  useEffect(() => {
-    if (!isServiceInitialized.current && serviceSelectOptions.length > 0) {
-      const allIds = serviceSelectOptions.map((s) => s.value);
-      setServiceIds(allIds);
-      setQueryParams((prev) => ({ ...prev, serviceIds: allIds }));
-      isServiceInitialized.current = true;
-    }
-  }, [serviceSelectOptions]);
-
   // 슬롯 통계 조회
   const { data: slotStatList, isLoading: isLoadingSlotStatList } = useGetSlotStatList({
     params: queryParams,
@@ -215,11 +204,12 @@ export default function SlotStatistics() {
       cellStyle: (params) => (params.node?.rowPinned === 'bottom' ? { fontWeight: 'bold', alignItems: 'center' } : { fontWeight: 'normal', alignItems: 'center' }),
     },
     { headerName: '봇서비스ID', field: 'serviceId', hide: true },
-    { headerName: '봇서비스', field: 'serviceName', hide: true },
+    { headerName: '봇서비스', field: 'serviceName', flex: 2 },
     { headerName: '대화ID', field: 'dialogId', hide: true },
     { headerName: '대화명', field: 'dialogName', flex: 2 },
     { headerName: '슬롯ID', field: 'slotId', hide: true },
-    { headerName: '슬롯명', field: 'slotName', flex: 2 },
+    { headerName: '슬롯명', field: 'slotName', flex: 1 },
+    { headerName: '개체 태그', field: 'entityTag', flex: 1 },
     {
       headerName: '진입수',
       field: 'inCount',
@@ -376,7 +366,6 @@ export default function SlotStatistics() {
                 <div className="flex items-center gap-3">
                   <span className="text-sm font-medium text-[#495057] shrink-0">봇서비스</span>
                   <Select
-                    mode="multiple"
                     value={serviceIds}
                     onChange={(value) => setServiceIds(value ?? [])}
                     allowClear
