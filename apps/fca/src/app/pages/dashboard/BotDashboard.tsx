@@ -94,11 +94,9 @@ export default function BotDashboard() {
 
       for (const [breakpoint, layouts] of Object.entries(prev)) {
         if (!layouts) continue;
-
         // 선택된 항목만 유지
         const filtered = layouts.filter((item) => selectedIds.has(item.i));
-
-        // 현재 브레이크포인트에 없지만 선택된 항목 → DEFAULT_LAYOUTS.lg에서 가져와서 y: Infinity로 추가
+        // 현재 브레이크포인트에 없지만 선택된 항목 → DEFAULT_LAYOUTS.lg 기준 + x: 0 y: Infinity 처리하여 추가
         const existingIds = new Set(filtered.map((item) => item.i));
         const toAdd = [...selectedIds]
           .filter((id) => !existingIds.has(id))
@@ -184,8 +182,8 @@ export default function BotDashboard() {
             width={width}
             rowHeight={60}
             containerPadding={[0, 5]}
-            dragConfig={{ enabled: isEditMode }}
-            resizeConfig={{ enabled: isEditMode }}
+            dragConfig={{ enabled: isEditMode, bounded: true }}
+            resizeConfig={{ enabled: isEditMode, handles: ['sw', 'nw', 'se', 'ne'] }}
             onLayoutChange={handleLayoutChange}
           >
             {(isEditMode ? draftLayouts.lg : layouts.lg)?.map((layout) => (

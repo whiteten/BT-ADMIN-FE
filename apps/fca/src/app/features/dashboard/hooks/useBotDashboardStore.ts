@@ -33,7 +33,7 @@ export const useBotDashboardStore = create<BotDashboardStore>()(
       setLayouts: (layouts) => set({ layouts }),
     }),
     {
-      name: 'bot-dashboard-storage',
+      name: 'dashboard-bot-storage',
       storage: createJSONStorage(() => localStorage),
     },
   ),
