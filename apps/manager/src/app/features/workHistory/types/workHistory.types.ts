@@ -16,6 +16,7 @@ export interface WorkHistoryListItem {
   userId: number | null;
   userName: string;
   action: string;
+  description: string | null;
   status: 'SUCCESS' | 'FAIL' | 'PARTIAL_FAIL';
   hasIdsLog: boolean;
 }
@@ -98,6 +99,11 @@ export interface WorkHistoryListParams {
   fromTime?: string; // HH:mm
   toDate?: string; // yyyy-MM-dd
   toTime?: string; // HH:mm
+  page?: number;
+  size?: number;
+  status?: string;
+  httpMethod?: string;
+  userName?: string;
 }
 
 /** 페이징 응답 타입 */

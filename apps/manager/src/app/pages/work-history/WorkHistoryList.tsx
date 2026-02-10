@@ -1,7 +1,7 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useMemo, useRef, useState } from 'react';
 import type { ColDef, ICellRendererParams, RowDoubleClickedEvent } from 'ag-grid-community';
 import { AgGridReact } from 'ag-grid-react';
-import { DatePicker, Input, Select, TimePicker } from 'antd';
+import { Button, DatePicker, Input, Select, TimePicker } from 'antd';
 import dayjs from 'dayjs';
 import { Database, Search } from 'lucide-react';
 import { WorkHistoryDetailDrawer, type WorkHistoryDetailDrawerRef } from './WorkHistoryDetailDrawer';
@@ -10,7 +10,10 @@ import type { WorkHistoryListItem, WorkHistoryListParams } from '../../features/
 import { FallbackSpinner } from '@/components/custom/FallbackSpinner';
 import NoData from '@/components/custom/NoData';
 import PageHeader from '@/components/custom/PageHeader';
+import ServerPagination from '@/components/custom/ServerPagination';
 import useAggridOptions from '@/libs/shared-ui/src/hooks/useAggridOptions';
+
+const PAGE_SIZE = 20;
 
 const breadcrumb = [
   { title: '자원 관리', path: '/manager' },
@@ -64,12 +67,17 @@ export default function WorkHistoryList() {
     fromTime: '00:00',
     toDate: dayjs().format('YYYY-MM-DD'),
     toTime: '23:59',
+    page: 0,
+    size: PAGE_SIZE,
   }));
 
-  // 클라이언트 사이드 필터
+  // 필터 입력값 (검색 버튼 클릭 전)
   const [statusFilter, setStatusFilter] = useState<string>('');
   const [methodFilter, setMethodFilter] = useState<string>('');
   const [userSearch, setUserSearch] = useState<string>('');
+
+  // 페이지 상태
+  const [currentPage, setCurrentPage] = useState(0);
 
   // 날짜 (단일 일자) + 시간 (from/to 분리)
   const [selectedDate, setSelectedDate] = useState<dayjs.Dayjs>(dayjs());
@@ -77,6 +85,28 @@ export default function WorkHistoryList() {
   const [toTime, setToTime] = useState<dayjs.Dayjs>(dayjs().hour(23).minute(59));
 
   const { data: listData, isLoading, isFetching } = useWorkHistoryList(params);
+
+  // 검색 버튼 핸들러
+  const handleSearch = useCallback(() => {
+    setCurrentPage(0);
+    setParams({
+      fromDate: selectedDate.format('YYYY-MM-DD'),
+      fromTime: fromTime.format('HH:mm'),
+      toDate: selectedDate.format('YYYY-MM-DD'),
+      toTime: toTime.format('HH:mm'),
+      status: statusFilter || undefined,
+      httpMethod: methodFilter || undefined,
+      userName: userSearch || undefined,
+      page: 0,
+      size: PAGE_SIZE,
+    });
+  }, [selectedDate, fromTime, toTime, statusFilter, methodFilter, userSearch]);
+
+  // 페이지 변경 핸들러
+  const handlePageChange = useCallback((newPage: number) => {
+    setCurrentPage(newPage);
+    setParams((prev) => ({ ...prev, page: newPage }));
+  }, []);
 
   const columnDefs: ColDef<WorkHistoryListItem>[] = useMemo(
     () => [
@@ -94,6 +124,7 @@ export default function WorkHistoryList() {
         width: 75,
         cellRenderer: (p: ICellRendererParams<WorkHistoryListItem>) => (p.value ? <MethodBadge method={p.value} /> : '-'),
       },
+      { headerName: '작업내용', field: 'description', flex: 1, minWidth: 200 },
       { headerName: 'URI', field: 'requestUri', flex: 1, minWidth: 300 },
       {
         headerName: '상태',
@@ -119,19 +150,6 @@ export default function WorkHistoryList() {
     ],
     [],
   );
-
-  // Debounced 쿼리 실행 (500ms)
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      setParams({
-        fromDate: selectedDate.format('YYYY-MM-DD'),
-        fromTime: fromTime.format('HH:mm'),
-        toDate: selectedDate.format('YYYY-MM-DD'),
-        toTime: toTime.format('HH:mm'),
-      });
-    }, 500);
-    return () => clearTimeout(timer);
-  }, [selectedDate, fromTime, toTime]);
 
   const handleDateChange = useCallback((date: dayjs.Dayjs | null) => {
     if (date) {
@@ -171,24 +189,6 @@ export default function WorkHistoryList() {
     }
   };
 
-  // 클라이언트 사이드 필터링
-  const filteredItems = useMemo(() => {
-    const items = listData?.items || [];
-    return items.filter((item) => {
-      if (statusFilter && item.status !== statusFilter) return false;
-      if (methodFilter && item.httpMethod !== methodFilter) return false;
-      if (
-        userSearch &&
-        !item.userName?.toLowerCase().includes(userSearch.toLowerCase()) &&
-        !String(item.userId ?? '')
-          .toLowerCase()
-          .includes(userSearch.toLowerCase())
-      )
-        return false;
-      return true;
-    });
-  }, [listData, statusFilter, methodFilter, userSearch]);
-
   return (
     <div className="flex flex-col gap-4 w-full h-full">
       <PageHeader breadcrumb={breadcrumb} />
@@ -204,9 +204,9 @@ export default function WorkHistoryList() {
             allowClear={false}
             disabledDate={(current) => current && current > dayjs().endOf('day')}
           />
-          <TimePicker value={fromTime} onChange={handleFromTimeChange} format="HH:mm" style={{ width: 85 }} allowClear={false} needConfirm={false} minuteStep={10} />
+          <TimePicker value={fromTime} onChange={handleFromTimeChange} format="HH:mm" style={{ width: 85 }} allowClear={false} showNow={false} minuteStep={10} />
           <span className="text-gray-400">~</span>
-          <TimePicker value={toTime} onChange={handleToTimeChange} format="HH:mm" style={{ width: 85 }} allowClear={false} needConfirm={false} minuteStep={10} />
+          <TimePicker value={toTime} onChange={handleToTimeChange} format="HH:mm" style={{ width: 85 }} allowClear={false} showNow={false} minuteStep={10} />
           <Select
             value={statusFilter}
             onChange={setStatusFilter}
@@ -237,28 +237,39 @@ export default function WorkHistoryList() {
             prefix={<Search className="w-3.5 h-3.5 text-gray-400" />}
             style={{ width: 200 }}
             allowClear
+            onPressEnter={handleSearch}
           />
+          <Button type="primary" icon={<Search className="w-3.5 h-3.5" />} onClick={handleSearch} loading={isFetching}>
+            검색
+          </Button>
         </div>
-        <span className="text-sm text-gray-500 flex-shrink-0">{isFetching ? '조회 중...' : `${filteredItems.length}건`}</span>
+        <span className="text-sm text-gray-500 flex-shrink-0">{isFetching ? '조회 중...' : `${listData?.total?.toLocaleString() ?? 0}건`}</span>
       </div>
 
       {/* 그리드 */}
       <div className="flex-1 w-full bg-white bt-shadow overflow-hidden">
         {isLoading ? (
           <FallbackSpinner />
-        ) : filteredItems.length === 0 ? (
+        ) : (listData?.items?.length ?? 0) === 0 ? (
           <NoData message="작업이력이 없습니다." iconSize={50} />
         ) : (
           <AgGridReact<WorkHistoryListItem>
-            rowData={filteredItems}
+            rowData={listData?.items ?? []}
             columnDefs={columnDefs}
-            gridOptions={gridOptions}
+            gridOptions={{
+              ...gridOptions,
+              pagination: false,
+              statusBar: undefined,
+            }}
             loading={isFetching}
             onRowDoubleClicked={handleRowDoubleClick}
             getRowId={(params) => params.data.workId}
           />
         )}
       </div>
+
+      {/* 서버 사이드 페이지네이션 */}
+      {(listData?.total ?? 0) > 0 && <ServerPagination currentPage={currentPage} totalItems={listData?.total ?? 0} pageSize={PAGE_SIZE} onPageChange={handlePageChange} />}
 
       {/* 상세 드로어 */}
       <WorkHistoryDetailDrawer ref={drawerRef} />
