@@ -1,8 +1,8 @@
-import { useEffect, useState } from 'react';
+import { type ComponentType, useEffect, useState } from 'react';
 import { type Layout, type LayoutItem, Responsive, type ResponsiveLayouts, useContainerWidth } from 'react-grid-layout';
 import 'react-grid-layout/css/styles.css';
 import { MultiSelect, type Option } from 'react-multi-select-component';
-import { type BreadcrumbProps, Button } from 'antd';
+import { type BreadcrumbProps, Button, Card } from 'antd';
 // import { useGetBotDashboard } from '../../features/dashboard/hooks/useDashboardQueries';
 import { DEFAULT_LAYOUTS, useBotDashboardStore } from '../../features/dashboard/hooks/useBotDashboardStore';
 import PageHeader from '@/components/custom/PageHeader';
@@ -46,7 +46,7 @@ const multiSelectStrings = {
   create: '생성',
 };
 
-const layoutRenderMapper: Record<string, { title: string }> = {
+const layoutRenderMapper: Record<string, { title: string; component?: ComponentType }> = {
   '1-1': { title: '시나리오 현황' },
   '1-2': { title: '대화 현황' },
   '1-3': { title: '슬롯 현황' },
@@ -197,11 +197,25 @@ export default function BotDashboard() {
             resizeConfig={{ enabled: isEditMode, handles: ['sw', 'nw', 'se', 'ne'] }}
             onLayoutChange={handleLayoutChange}
           >
-            {(isEditMode ? draftLayouts.lg : layouts.lg)?.map((layout) => (
-              <div key={layout.i} className="bg-white bt-shadow flex items-center justify-center">
-                {layoutRenderMapper[layout.i as keyof typeof layoutRenderMapper]?.title ?? layout.i}
-              </div>
-            ))}
+            {(isEditMode ? draftLayouts.lg : layouts.lg)?.map((layout) => {
+              const layoutItem = layoutRenderMapper[layout.i as keyof typeof layoutRenderMapper];
+              const WidgetComponent = layoutItem?.component;
+              return (
+                <div key={layout.i} className="">
+                  <Card
+                    title={layoutItem?.title ?? layout.i}
+                    variant="borderless"
+                    className="h-full"
+                    classNames={{
+                      title: 'text-base font-semibold text-[#495057]',
+                      header: '!min-h-0 !h-[45px] !px-4',
+                    }}
+                  >
+                    {WidgetComponent ? <WidgetComponent /> : null}
+                  </Card>
+                </div>
+              );
+            })}
           </Responsive>
         )}
       </div>
