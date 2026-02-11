@@ -89,9 +89,6 @@ export default function UserPermissionTab() {
         queryClient.invalidateQueries({ queryKey: userAuthQueryKeys.getList._def });
         refetch();
       },
-      onError: () => {
-        toast.error('권한 저장에 실패했습니다.');
-      },
     },
   });
 

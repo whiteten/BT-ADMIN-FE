@@ -7,12 +7,13 @@
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { Button, Col, Row, Spin } from 'antd';
+import { Button, Col, Row } from 'antd';
 import { toast } from '@/shared-util';
 import ResourceSection from '../../../features/user-resource/components/ResourceSection';
 import { useGetBots, useGetModels, useGetUserResourceMaps, useSyncUserResources } from '../../../features/user-resource/hooks/useUserResourceQueries';
 import type { AssignedResource, AvailableResource } from '../../../features/user-resource/types/userResource.types';
 import { useUserDetailContext } from '../context/UserDetailContext';
+import { FallbackSpinner } from '@/components/custom/FallbackSpinner';
 
 export default function UserResourceAccessTab() {
   const { userId } = useParams();
@@ -120,9 +121,6 @@ export default function UserResourceAccessTab() {
           setInitialModelItems([...modelItems]);
           toast.success('리소스 접근 설정이 저장되었습니다.');
         },
-        onError: () => {
-          toast.error('리소스 접근 설정 저장에 실패했습니다.');
-        },
       },
     );
   }, [numericUserId, botItems, modelItems, syncMutation]);
@@ -132,8 +130,8 @@ export default function UserResourceAccessTab() {
 
   if (isLoading) {
     return (
-      <div className="flex items-center justify-center h-64">
-        <Spin size="large" />
+      <div className="flex items-center justify-center w-full h-full">
+        <FallbackSpinner />
       </div>
     );
   }

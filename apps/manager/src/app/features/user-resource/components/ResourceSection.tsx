@@ -1,17 +1,19 @@
 /**
  * 리소스 섹션 컴포넌트
- * - 할당된 리소스 목록 (Ant Design Table + rowSelection)
+ * - 할당된 리소스 목록 (ag-Grid + 인라인 삭제 아이콘)
  * - 추가 Drawer (Ant Design Tree checkable)
- * - 선택 삭제 기능
  * - Deferred Save 패턴: 로컬 상태만 변경, 부모가 저장 처리
  */
 
-import { useRef, useState } from 'react';
-import { Button, Card, Table, Tag } from 'antd';
-import type { ColumnsType } from 'antd/es/table';
-import { Minus, Plus } from 'lucide-react';
+import { useRef } from 'react';
+import type { ColDef, ICellRendererParams } from 'ag-grid-community';
+import { AgGridReact } from 'ag-grid-react';
+import { Button, Card, Tag } from 'antd';
+import { Plus } from 'lucide-react';
 import ResourceAddDrawer, { type ResourceAddDrawerRef } from './ResourceAddDrawer';
 import type { AssignedResource, AvailableResource } from '../types/userResource.types';
+import { IconTrash } from '@/components/custom/Icons';
+import useAggridOptions from '@/libs/shared-ui/src/hooks/useAggridOptions';
 
 interface ResourceSectionProps {
   title: string;
@@ -22,43 +24,17 @@ interface ResourceSectionProps {
   loading?: boolean;
 }
 
-const columns: ColumnsType<AssignedResource> = [
-  {
-    title: 'ID',
-    dataIndex: 'resourceId',
-    key: 'resourceId',
-    width: 200,
-  },
-  {
-    title: '이름',
-    dataIndex: 'resourceName',
-    key: 'resourceName',
-    width: 200,
-    render: (name: string, record) => (
-      <span>
-        {name}
-        {record.tag && (
-          <Tag color="blue" className="ml-2">
-            {record.tag}
-          </Tag>
-        )}
-      </span>
-    ),
-  },
-  {
-    title: '설명',
-    dataIndex: 'description',
-    key: 'description',
-    ellipsis: true,
-    render: (desc: string) => desc || '-',
-  },
-];
-
 export default function ResourceSection({ title, drawerTitle, availableResources, assignedItems, onAssignedItemsChange, loading = false }: ResourceSectionProps) {
   const drawerRef = useRef<ResourceAddDrawerRef>(null);
-  const [selectedRowKeys, setSelectedRowKeys] = useState<React.Key[]>([]);
+  const { gridOptions } = useAggridOptions();
 
   const alreadyAssignedIds = assignedItems.map((item) => item.resourceId);
+
+  // 인라인 삭제 핸들러
+  const handleRemove = (resourceId: string) => {
+    const remaining = assignedItems.filter((item) => item.resourceId !== resourceId);
+    onAssignedItemsChange(remaining);
+  };
 
   // Drawer 열기
   const handleOpenDrawer = () => {
@@ -79,44 +55,86 @@ export default function ResourceSection({ title, drawerTitle, availableResources
     onAssignedItemsChange([...assignedItems, ...newItems]);
   };
 
-  // 선택 삭제 핸들러
-  const handleRemoveSelected = () => {
-    const remaining = assignedItems.filter((item) => !selectedRowKeys.includes(item.resourceId));
-    onAssignedItemsChange(remaining);
-    setSelectedRowKeys([]);
-  };
+  // ag-Grid 컬럼 정의
+  const columnDefs: ColDef<AssignedResource>[] = [
+    {
+      headerName: 'ID',
+      field: 'resourceId',
+      width: 200,
+    },
+    {
+      headerName: '이름',
+      field: 'resourceName',
+      flex: 1,
+      cellRenderer: (params: ICellRendererParams<AssignedResource>) => {
+        const { data } = params;
+        if (!data) return null;
+        return (
+          <span>
+            {data.resourceName}
+            {data.tag && (
+              <Tag color="blue" className="ml-2">
+                {data.tag}
+              </Tag>
+            )}
+          </span>
+        );
+      },
+    },
+    {
+      headerName: '설명',
+      field: 'description',
+      flex: 1,
+      valueFormatter: (params) => params.value || '-',
+    },
+    {
+      headerName: '',
+      maxWidth: 60,
+      sortable: false,
+      filter: false,
+      suppressHeaderMenuButton: true,
+      cellStyle: { display: 'flex', alignItems: 'center', justifyContent: 'center' },
+      cellRenderer: (params: ICellRendererParams<AssignedResource>) => {
+        const { data } = params;
+        if (!data) return null;
+        return (
+          <button
+            type="button"
+            onClick={(e) => {
+              e.stopPropagation();
+              handleRemove(data.resourceId);
+            }}
+          >
+            <IconTrash className="size-5 text-red-500 hover:cursor-pointer" />
+          </button>
+        );
+      },
+    },
+  ];
 
   return (
     <Card
       title={title}
       extra={
-        <div className="flex gap-2">
-          <Button icon={<Plus className="h-4 w-4" />} onClick={handleOpenDrawer}>
-            추가
-          </Button>
-          <Button icon={<Minus className="h-4 w-4" />} onClick={handleRemoveSelected} disabled={selectedRowKeys.length === 0} danger>
-            선택 삭제
-          </Button>
-        </div>
+        <Button icon={<Plus className="h-4 w-4" />} onClick={handleOpenDrawer}>
+          추가
+        </Button>
       }
       className="shadow-sm"
-      styles={{ header: { borderBottom: '1px solid #f0f0f0' }, body: { padding: '16px' } }}
+      styles={{ header: { borderBottom: '1px solid #f0f0f0' }, body: { padding: 0 } }}
       style={{ marginBottom: '50px' }}
     >
-      {/* 할당된 리소스 테이블 */}
-      <Table<AssignedResource>
-        rowKey="resourceId"
-        rowSelection={{
-          selectedRowKeys,
-          onChange: (keys) => setSelectedRowKeys(keys),
-        }}
-        columns={columns}
-        dataSource={assignedItems}
-        pagination={false}
-        size="small"
-        loading={loading}
-        locale={{ emptyText: `등록된 ${title}이(가) 없습니다.` }}
-      />
+      {/* 할당된 리소스 그리드 */}
+      <div className="h-[300px]">
+        <AgGridReact<AssignedResource>
+          rowData={assignedItems}
+          columnDefs={columnDefs}
+          gridOptions={gridOptions}
+          loading={loading}
+          getRowId={(params) => params.data.resourceId}
+          noRowsOverlayComponent={() => <span className="text-gray-400">{`등록된 ${title}이(가) 없습니다.`}</span>}
+        />
+      </div>
 
       {/* 추가 Drawer */}
       <ResourceAddDrawer ref={drawerRef} title={drawerTitle} availableResources={availableResources} onConfirm={handleAdd} />

@@ -106,10 +106,6 @@ export default function UserCreate() {
         toast.success('사용자가 생성되었습니다.');
         navigate('../list');
       },
-      onError: (error) => {
-        const errorMessage = error instanceof Error ? error.message : '사용자 생성에 실패했습니다.';
-        toast.error(errorMessage);
-      },
     },
   });
 
@@ -493,10 +489,15 @@ export default function UserCreate() {
     );
   }
 
-  // Footer: 이전, 다음, 저장 버튼
+  // Footer: 취소, 이전, 다음, 저장 버튼
   function renderFooter() {
     return (
       <Row gutter={20} justify="center">
+        <Col>
+          <Button variant="solid" onClick={() => navigate('../list')}>
+            취소
+          </Button>
+        </Col>
         {currentStep > 0 && (
           <Col>
             <Button variant="solid" onClick={handlePrev}>
