@@ -1,6 +1,6 @@
 import type { EChartsOption } from 'echarts';
 import ReactECharts from 'echarts-for-react';
-import { CHART_COLORS, commonAxisStyle, commonGridStyle, commonSplitLineStyle } from './chartStyles';
+import { commonAxisStyle, commonGridStyle, commonSplitLineStyle } from './chartStyles';
 import type { SlotRetryAvgTopItem } from '../types/dashboard.types';
 
 const sampleData: SlotRetryAvgTopItem[] = [
@@ -133,8 +133,11 @@ const createChartOption = (data: SlotRetryAvgTopItem[]): EChartsOption => {
     grid: commonGridStyle,
     xAxis: {
       type: 'value',
+      splitNumber: 4,
       ...commonAxisStyle,
-      axisLabel: { ...commonAxisStyle.axisLabel, formatter: '{value}회' },
+      name: '(회)',
+      nameLocation: 'end',
+      nameTextStyle: commonAxisStyle.axisLabel,
       splitLine: commonSplitLineStyle,
     },
     yAxis: {
@@ -147,7 +150,8 @@ const createChartOption = (data: SlotRetryAvgTopItem[]): EChartsOption => {
       {
         type: 'bar',
         data: sorted.map((item) => item.avgRetryCount),
-        itemStyle: { color: CHART_COLORS.warning, borderRadius: [0, 4, 4, 0] },
+        colorBy: 'data',
+        itemStyle: { borderRadius: [0, 4, 4, 0] },
         barWidth: '60%',
         label: { show: true, position: 'right', formatter: '{c}회', color: '#495057', fontSize: 11 },
       },

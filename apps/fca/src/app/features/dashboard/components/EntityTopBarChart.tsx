@@ -1,6 +1,6 @@
 import type { EChartsOption } from 'echarts';
 import ReactECharts from 'echarts-for-react';
-import { CHART_COLORS, commonAxisStyle, commonGridStyle, commonSplitLineStyle } from './chartStyles';
+import { commonAxisStyle, commonGridStyle, commonSplitLineStyle } from './chartStyles';
 import type { EntityTopItem } from '../types/dashboard.types';
 
 const sampleData: EntityTopItem[] = [
@@ -23,8 +23,11 @@ const createChartOption = (data: EntityTopItem[]): EChartsOption => {
     grid: commonGridStyle,
     xAxis: {
       type: 'value',
+      splitNumber: 4,
       ...commonAxisStyle,
-      axisLabel: { ...commonAxisStyle.axisLabel, formatter: '{value}건' },
+      name: '(건)',
+      nameLocation: 'end',
+      nameTextStyle: commonAxisStyle.axisLabel,
       splitLine: commonSplitLineStyle,
     },
     yAxis: {
@@ -37,7 +40,8 @@ const createChartOption = (data: EntityTopItem[]): EChartsOption => {
       {
         type: 'bar',
         data: sorted.map((item) => item.detectCnt),
-        itemStyle: { color: CHART_COLORS.success, borderRadius: [0, 4, 4, 0] },
+        colorBy: 'data',
+        itemStyle: { borderRadius: [0, 4, 4, 0] },
         barWidth: '60%',
         label: { show: true, position: 'right', formatter: '{c}건', color: '#495057', fontSize: 11 },
       },

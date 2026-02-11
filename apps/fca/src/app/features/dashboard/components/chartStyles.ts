@@ -23,7 +23,7 @@ export const commonAxisStyle = {
 
 export const commonGridStyle = {
   left: 20,
-  right: 30,
+  right: 50,
   bottom: 20,
   top: 20,
   containLabel: true,

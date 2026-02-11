@@ -1,6 +1,6 @@
 import type { EChartsOption } from 'echarts';
 import ReactECharts from 'echarts-for-react';
-import { CHART_COLORS, commonAxisStyle, commonGridStyle, commonSplitLineStyle } from './chartStyles';
+import { commonAxisStyle, commonGridStyle, commonSplitLineStyle } from './chartStyles';
 import type { SlotIncompleteTopItem } from '../types/dashboard.types';
 
 const sampleData: SlotIncompleteTopItem[] = [
@@ -23,8 +23,11 @@ const createChartOption = (data: SlotIncompleteTopItem[]): EChartsOption => {
     grid: commonGridStyle,
     xAxis: {
       type: 'value',
+      splitNumber: 4,
       ...commonAxisStyle,
-      axisLabel: { ...commonAxisStyle.axisLabel, formatter: '{value}%' },
+      name: '(%)',
+      nameLocation: 'end',
+      nameTextStyle: commonAxisStyle.axisLabel,
       splitLine: commonSplitLineStyle,
     },
     yAxis: {
@@ -37,7 +40,8 @@ const createChartOption = (data: SlotIncompleteTopItem[]): EChartsOption => {
       {
         type: 'bar',
         data: sorted.map((item) => item.incompleteRate),
-        itemStyle: { color: CHART_COLORS.danger, borderRadius: [0, 4, 4, 0] },
+        colorBy: 'data',
+        itemStyle: { borderRadius: [0, 4, 4, 0] },
         barWidth: '60%',
         label: { show: true, position: 'right', formatter: '{c}%', color: '#495057', fontSize: 11 },
       },

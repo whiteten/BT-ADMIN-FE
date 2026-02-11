@@ -20,12 +20,15 @@ const createChartOption = (data: IntentCheckFailTopItem[]): EChartsOption => {
   const sorted = [...data].sort((a, b) => b.rank - a.rank);
   return {
     tooltip: { trigger: 'axis', axisPointer: { type: 'shadow' } },
-    legend: { data: ['Check', 'Fail'], right: 10, top: 0, icon: 'roundRect' },
+    legend: { data: ['Check', 'Fail'], right: 10, top: 5, icon: 'roundRect', selectedMode: false },
     grid: { ...commonGridStyle, top: 30 },
     xAxis: {
       type: 'value',
+      splitNumber: 4,
       ...commonAxisStyle,
-      axisLabel: { ...commonAxisStyle.axisLabel, formatter: '{value}%' },
+      name: '(%)',
+      nameLocation: 'end',
+      nameTextStyle: commonAxisStyle.axisLabel,
       splitLine: commonSplitLineStyle,
     },
     yAxis: {

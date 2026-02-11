@@ -1,4 +1,5 @@
 import type { EChartsOption } from 'echarts';
+import type { CallbackDataParams } from 'echarts/types/dist/shared';
 import ReactECharts from 'echarts-for-react';
 import { CHART_COLORS, commonAxisStyle, commonGridStyle, commonSplitLineStyle } from './chartStyles';
 import type { SlotRetryDistTopItem } from '../types/dashboard.types';
@@ -157,29 +158,64 @@ const sampleData: SlotRetryDistTopItem[] = [
 ];
 
 const createChartOption = (data: SlotRetryDistTopItem[]): EChartsOption => {
-  const sorted = [...data].sort((a, b) => b.rank - a.rank);
   return {
-    tooltip: { trigger: 'axis', axisPointer: { type: 'shadow' } },
-    grid: commonGridStyle,
+    tooltip: {
+      trigger: 'axis',
+      axisPointer: { type: 'shadow' },
+      formatter: (params) => {
+        const list = params as CallbackDataParams[];
+        const item = data[list[0].dataIndex];
+        const title = `${item.serviceName} > ${item.dialogName} > ${item.slotName}`;
+        const lines = list.map((p) => `${p.marker} ${p.seriesName}: ${p.value}%`);
+        return `${title}<br/>${lines.join('<br/>')}`;
+      },
+    },
+    legend: { data: ['1회 이하', '2회', '3회 이상'], right: 10, top: 5, icon: 'roundRect', selectedMode: false },
+    grid: { ...commonGridStyle, top: 30 },
     xAxis: {
       type: 'value',
+      max: 100,
       ...commonAxisStyle,
-      axisLabel: { ...commonAxisStyle.axisLabel, formatter: '{value}회' },
+      name: '(%)',
+      nameLocation: 'end',
+      nameTextStyle: commonAxisStyle.axisLabel,
       splitLine: commonSplitLineStyle,
     },
     yAxis: {
       type: 'category',
-      data: sorted.map((item) => item.slotName),
+      data: data.map((item) => item.slotName),
       ...commonAxisStyle,
       axisLine: { show: false },
     },
     series: [
       {
+        name: '1회 이하',
         type: 'bar',
-        data: sorted.map((item) => item.avgRetryCount),
-        itemStyle: { color: CHART_COLORS.orange, borderRadius: [0, 4, 4, 0] },
+        stack: 'total',
+        data: data.map((item) => item.oneTimeCompleteRate),
+        itemStyle: { color: CHART_COLORS.success },
         barWidth: '60%',
-        label: { show: true, position: 'right', formatter: '{c}회', color: '#495057', fontSize: 11 },
+      },
+      {
+        name: '2회',
+        type: 'bar',
+        stack: 'total',
+        data: data.map((item) => item.twoTimeCompleteRate),
+        itemStyle: { color: '#FB923C' },
+      },
+      {
+        name: '3회 이상',
+        type: 'bar',
+        stack: 'total',
+        data: data.map((item) => item.threeOrMoreCompleteRate),
+        itemStyle: { color: CHART_COLORS.danger, borderRadius: [0, 4, 4, 0] },
+        label: {
+          show: true,
+          position: 'right',
+          formatter: (params) => `${data[params.dataIndex].completeCnt}`,
+          color: '#495057',
+          fontSize: 11,
+        },
       },
     ],
   };
