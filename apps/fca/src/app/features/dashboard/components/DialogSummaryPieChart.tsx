@@ -14,36 +14,84 @@ const sampleData: DialogSummary = {
   incompleteRateDiff: -1.8,
 };
 
-const createChartOption = (data: DialogSummary): EChartsOption => ({
-  tooltip: { trigger: 'item', formatter: '{b}: {c} ({d}%)' },
-  legend: { orient: 'vertical', right: 10, top: 'center', icon: 'roundRect' },
-  color: PIE_COLORS,
-  series: [
-    {
-      type: 'pie',
-      radius: ['40%', '70%'],
-      center: ['45%', '50%'],
-      avoidLabelOverlap: false,
-      label: { show: true, formatter: '{d}%' },
-      emphasis: {
-        label: {
-          show: true,
-          fontWeight: 'bold',
+const createChartOption = (data: DialogSummary): EChartsOption => {
+  const seriesData = [
+    { name: '완결', value: data.completeCnt, rate: data.completeRate, diff: data.completeRateDiff },
+    { name: '미완결', value: data.incompleteCnt, rate: data.incompleteRate, diff: data.incompleteRateDiff },
+  ];
+
+  return {
+    tooltip: {
+      trigger: 'item',
+      formatter: (params: unknown) => {
+        const { name, value } = params as { name: string; value: number };
+        const item = seriesData.find((d) => d.name === name);
+        return `${name}: ${value} (${item?.rate ?? 0}%)`;
+      },
+    },
+    legend: {
+      orient: 'horizontal',
+      left: 'center',
+      bottom: '5%',
+      itemGap: 13,
+      icon: 'roundRect',
+      selectedMode: false,
+      formatter: (name: string) => {
+        const item = seriesData.find((d) => d.name === name);
+        if (!item) return name;
+        const diff = item.diff;
+        if (diff === 0) {
+          return `{name|${name}}  {rate|${item.rate}%} {zero|- 0%}`;
+        }
+        const arrow = diff > 0 ? '▲' : '▼';
+        const diffStyle = diff > 0 ? 'up' : 'down';
+        return `{name|${name}}  {rate|${item.rate}%} {${diffStyle}|${arrow} ${Math.abs(diff)}%}`;
+      },
+      textStyle: {
+        rich: {
+          name: { fontSize: 14, color: '#333', width: 75 },
+          rate: { fontSize: 14, fontWeight: 'bold', color: '#333', width: 50 },
+          up: { fontSize: 13, color: '#10B981' },
+          down: { fontSize: 13, color: '#F06548' },
+          zero: { fontSize: 13, color: '#999' },
         },
       },
-      itemStyle: {
-        borderRadius: 10,
-        borderColor: '#fff',
-        borderWidth: 2,
-      },
-      data: [
-        { name: '완결', value: data.completeCnt },
-        { name: '미완결', value: data.incompleteCnt },
-      ],
     },
-  ],
-});
+    color: PIE_COLORS,
+    series: [
+      {
+        type: 'pie',
+        radius: ['30%', '60%'],
+        center: ['50%', '40%'],
+        avoidLabelOverlap: false,
+        label: {
+          show: true,
+          formatter: (params: { name: string }) => {
+            const item = seriesData.find((d) => d.name === params.name);
+            return `${item?.rate ?? 0}%`;
+          },
+        },
+        emphasis: {
+          label: {
+            show: true,
+            fontWeight: 'bold',
+          },
+        },
+        itemStyle: {
+          borderRadius: 10,
+          borderColor: '#fff',
+          borderWidth: 2,
+        },
+        data: seriesData,
+      },
+    ],
+  };
+};
 
-export default function DialogSummaryPieChart() {
-  return <ReactECharts option={createChartOption(sampleData)} style={{ height: '100%', width: '100%' }} />;
+interface DialogSummaryPieChartProps {
+  data?: DialogSummary;
+}
+
+export default function DialogSummaryPieChart({ data = sampleData }: DialogSummaryPieChartProps) {
+  return <ReactECharts option={createChartOption(data)} style={{ height: '100%', width: '100%' }} />;
 }

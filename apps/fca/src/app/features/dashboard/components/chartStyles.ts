@@ -11,7 +11,7 @@ export const CHART_COLORS = {
   teal: '#14B8A6',
 } as const;
 
-export const PIE_COLORS = [CHART_COLORS.primary, CHART_COLORS.warning, CHART_COLORS.success];
+export const PIE_COLORS = [CHART_COLORS.orange, CHART_COLORS.primary, CHART_COLORS.purple];
 
 export const LINE_COLORS = [CHART_COLORS.primary, CHART_COLORS.success, CHART_COLORS.warning, CHART_COLORS.danger, CHART_COLORS.purple];
 

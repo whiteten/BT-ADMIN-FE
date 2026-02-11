@@ -3,6 +3,7 @@ import { type Layout, type LayoutItem, Responsive, type ResponsiveLayouts, useCo
 import 'react-grid-layout/css/styles.css';
 import { MultiSelect, type Option } from 'react-multi-select-component';
 import { type BreadcrumbProps, Button, Card } from 'antd';
+import styles from './BotDashboard.module.scss';
 import DialogIncompleteTopBarChart from '../../features/dashboard/components/DialogIncompleteTopBarChart';
 import DialogSummaryPieChart from '../../features/dashboard/components/DialogSummaryPieChart';
 import EntityTopBarChart from '../../features/dashboard/components/EntityTopBarChart';
@@ -205,7 +206,7 @@ export default function BotDashboard() {
       <div
         ref={containerRef}
         className={cn(
-          'flex-1 min-h-0 overflow-y-auto pr-2 rounded-lg transition-colors',
+          `${styles['grid-container']} flex-1 min-h-0 overflow-y-auto pr-2 rounded-lg transition-colors`,
           isEditMode && 'bg-[radial-gradient(circle,#cbd5e1_1px,transparent_1px)] bg-[length:16px_16px]',
         )}
       >
