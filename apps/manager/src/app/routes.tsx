@@ -15,6 +15,12 @@ const RoleDetailPage = React.lazy(() => import('./pages/iam/RoleDetailPage'));
 // 계정 정책 페이지
 const AccountPolicyPage = React.lazy(() => import('./pages/account-policy/AccountPolicyPage'));
 
+// 메뉴 관리 페이지
+const MenuManagement = React.lazy(() => import('./pages/menu/MenuManagement'));
+
+// API Flow 관리 페이지
+const BffFlowManagement = React.lazy(() => import('./pages/bff-flow/BffFlowManagement'));
+
 // 작업이력 페이지
 const WorkHistoryList = React.lazy(() => import('./pages/work-history/WorkHistoryList'));
 
@@ -93,6 +99,14 @@ export const routes = [
                 element: <RoleDetailPage />,
               },
             ],
+          },
+          {
+            path: 'menu',
+            element: <MenuManagement />,
+          },
+          {
+            path: 'bff-flow',
+            element: <BffFlowManagement />,
           },
           {
             path: 'account-policy',
