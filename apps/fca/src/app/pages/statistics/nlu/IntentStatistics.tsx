@@ -1,11 +1,11 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import type { ColDef, ExcelExportParams, ProcessCellForExportParams } from 'ag-grid-community';
 import { AgGridReact } from 'ag-grid-react';
-import { type BreadcrumbProps, Button, Checkbox, DatePicker, Divider, Input, Select, TimePicker, message } from 'antd';
+import { type BreadcrumbProps, Button, Checkbox, DatePicker, Divider, Select, TimePicker } from 'antd';
 import dayjs, { type Dayjs } from 'dayjs';
 import { ChevronDown, Download } from 'lucide-react';
 import { toast } from '@/shared-util';
-import { useGetModels } from '../../../features/bot-config/hooks/useModelQueries';
+import { useGetIntents, useGetModels } from '../../../features/bot-config/hooks/useModelQueries';
 import {
   createDisabledDate,
   createEndDisabledDate,
@@ -31,7 +31,7 @@ const breadcrumb: BreadcrumbProps['items'] = [
 export default function IntentStatistics() {
   // UI 상태 (사용자가 입력하는 값들)
   const [modelIds, setModelIds] = useState<string[]>([]);
-  const [intentName, setIntentName] = useState('');
+  const [intentIds, setIntentIds] = useState<string[]>([]);
   const [timeUnit, setTimeUnit] = useState<string>('DD');
   const [startDate, setStartDate] = useState<Dayjs | null>(dayjs().startOf('day'));
   const [endDate, setEndDate] = useState<Dayjs | null>(dayjs().endOf('day'));
@@ -54,6 +54,7 @@ export default function IntentStatistics() {
       fromTime: fromDate,
       toTime: toDate,
       modelIds: modelIds,
+      intentIds: intentIds,
       excludeLunch: false,
       useInterval: false,
       hourFrom: '',
@@ -75,10 +76,27 @@ export default function IntentStatistics() {
   const disabledDate = useMemo(() => createDisabledDate(timeUnit), [timeUnit]);
   const disabledEndDate = useMemo(() => createEndDisabledDate(startDate, timeUnit), [startDate, timeUnit]);
 
+  // 모델 옵션 조회
   const modelSelectOptions = useMemo(
     () => (modelList ?? []).filter((m) => Boolean(m?.modelId && m?.modelName)).map((m) => ({ label: String(m.modelName), value: String(m.modelId) })),
     [modelList],
   );
+
+  // 의도 옵션 조회
+  const { data: intentOptionList } = useGetIntents({
+    params: { modelId: modelIds },
+    queryOptions: { enabled: modelIds.length > 0 },
+  });
+
+  const intentSelectOptions = useMemo(
+    () => (intentOptionList ?? []).filter((i) => Boolean(i?.intentId && i?.intentName)).map((i) => ({ label: String(i.intentName), value: String(i.intentId) })),
+    [intentOptionList],
+  );
+
+  // 모델 변경 시 의도명 옵션 초기화
+  useEffect(() => {
+    setIntentIds([]);
+  }, [modelIds]);
 
   // 의도 통계 조회
   const { data: intentStatList, isLoading: isLoadingIntentStatList } = useGetIntentStatList({
@@ -86,24 +104,9 @@ export default function IntentStatistics() {
     queryOptions: { enabled: isSearched },
   });
 
-  // 의도 통계 필터링
-  const filteredList = useMemo(() => {
-    if (!intentStatList) return [];
-    const trimmedIntentName = intentName?.trim().toLowerCase();
-    if (!trimmedIntentName) return intentStatList;
-    return intentStatList.filter((intentStat) => {
-      const matchesIntentName =
-        !trimmedIntentName ||
-        String(intentStat.intent ?? '')
-          .toLowerCase()
-          .includes(trimmedIntentName);
-      return matchesIntentName;
-    });
-  }, [intentStatList, intentName]);
-
   useEffect(() => {
-    setRowData(filteredList ?? []);
-  }, [filteredList]);
+    setRowData(intentStatList ?? []);
+  }, [intentStatList]);
 
   // 합계 행 계산 (pinnedBottomRowData)
   const summaryRow = useMemo<IntentStatListItem[]>(() => {
@@ -159,6 +162,11 @@ export default function IntentStatistics() {
       return;
     }
 
+    if (useInterval && intervalStartTime && intervalEndTime && intervalStartTime.isAfter(intervalEndTime)) {
+      toast.warning('구간검색 시작시간이 종료시간보다 늦을 수 없습니다.');
+      return;
+    }
+
     // 날짜 범위 검증 (timeUnit별 최대 기간 체크)
     if (!validateDateRange(startDate, endDate, timeUnit)) {
       const maxDays = getMaxDays(timeUnit);
@@ -179,12 +187,21 @@ export default function IntentStatistics() {
     const fromDateMI = startDate.format('YYYYMMDD') + startTime?.format('HHmm');
     const toDateMI = endDate.format('YYYYMMDD') + endTime?.format('HHmm');
 
+    const fromTime = timeUnit === 'MI' ? fromDateMI : timeUnit === 'HH' ? fromDateHH : timeUnit === 'DD' ? fromDateDD : timeUnit === 'MM' ? fromDateMM : fromDateYY;
+    const toTime = timeUnit === 'MI' ? toDateMI : timeUnit === 'HH' ? toDateHH : timeUnit === 'DD' ? toDateDD : timeUnit === 'MM' ? toDateMM : toDateYY;
+
+    if (fromTime && toTime && fromTime > toTime) {
+      toast.warning('검색 시작시간이 종료시간보다 늦을 수 없습니다.');
+      return;
+    }
+
     setIsSearched(true);
     setQueryParams({
       timeUnit,
-      fromTime: timeUnit === 'MI' ? fromDateMI : timeUnit === 'HH' ? fromDateHH : timeUnit === 'DD' ? fromDateDD : timeUnit === 'MM' ? fromDateMM : fromDateYY,
-      toTime: timeUnit === 'MI' ? toDateMI : timeUnit === 'HH' ? toDateHH : timeUnit === 'DD' ? toDateDD : timeUnit === 'MM' ? toDateMM : toDateYY,
+      fromTime,
+      toTime,
       modelIds: [modelIds].flat().filter(Boolean),
+      intentIds: [intentIds].flat().filter(Boolean),
       excludeLunch,
       useInterval,
       hourFrom: useInterval && intervalStartTime ? intervalStartTime.format('HH00') : '',
@@ -381,7 +398,19 @@ export default function IntentStatistics() {
             <CollapsibleContent>
               <div className="flex items-center gap-3">
                 <span className="text-sm font-medium text-[#495057] shrink-0">의도명</span>
-                <Input value={intentName} onChange={(e) => setIntentName(e.target.value)} className="!min-w-[200px] !max-w-[250px]" placeholder="검색할 의도명을 입력하세요." />
+                <Select
+                  mode="multiple"
+                  value={intentIds}
+                  onChange={(value) => setIntentIds(value ?? [])}
+                  allowClear
+                  showSearch
+                  maxTagCount="responsive"
+                  options={intentSelectOptions}
+                  placeholder="검색할 대화명을 선택하세요."
+                  optionFilterProp="label"
+                  className="!min-w-[250px] !max-w-[400px]"
+                  popupMatchSelectWidth={false}
+                />
                 {timeUnit !== 'MM' && timeUnit !== 'YY' ? (
                   <>
                     <Divider orientation="vertical" className="!h-5 !m-0" />

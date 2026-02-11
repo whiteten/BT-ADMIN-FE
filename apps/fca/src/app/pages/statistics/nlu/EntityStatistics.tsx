@@ -1,11 +1,11 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import type { ColDef, ExcelExportParams, ProcessCellForExportParams } from 'ag-grid-community';
 import { AgGridReact } from 'ag-grid-react';
-import { type BreadcrumbProps, Button, Checkbox, DatePicker, Divider, Input, Select, TimePicker, message } from 'antd';
+import { type BreadcrumbProps, Button, Checkbox, DatePicker, Divider, Select, TimePicker } from 'antd';
 import dayjs, { type Dayjs } from 'dayjs';
 import { ChevronDown, Download } from 'lucide-react';
 import { toast } from '@/shared-util';
-import { useGetModels } from '../../../features/bot-config/hooks/useModelQueries';
+import { useGetEntities, useGetModels } from '../../../features/bot-config/hooks/useModelQueries';
 import {
   createDisabledDate,
   createEndDisabledDate,
@@ -31,8 +31,7 @@ const breadcrumb: BreadcrumbProps['items'] = [
 export default function EntityStatistics() {
   // UI 상태 (사용자가 입력하는 값들)
   const [modelIds, setModelIds] = useState<string[]>([]);
-  const [filterColumn, setFilterColumn] = useState('entityTag');
-  const [searchValue, setSearchValue] = useState('');
+  const [entityTagIds, setEntityTagIds] = useState<string[]>([]);
   const [timeUnit, setTimeUnit] = useState<string>('DD');
   const [startDate, setStartDate] = useState<Dayjs | null>(dayjs().startOf('day'));
   const [endDate, setEndDate] = useState<Dayjs | null>(dayjs().endOf('day'));
@@ -55,6 +54,7 @@ export default function EntityStatistics() {
       fromTime: fromDate,
       toTime: toDate,
       modelIds: modelIds,
+      entityTagIds: entityTagIds,
       excludeLunch: false,
       useInterval: false,
       hourFrom: '',
@@ -76,10 +76,27 @@ export default function EntityStatistics() {
   const disabledDate = useMemo(() => createDisabledDate(timeUnit), [timeUnit]);
   const disabledEndDate = useMemo(() => createEndDisabledDate(startDate, timeUnit), [startDate, timeUnit]);
 
+  // 모델 옵션 조회
   const modelSelectOptions = useMemo(
     () => (modelList ?? []).filter((m) => Boolean(m?.modelId && m?.modelName)).map((m) => ({ label: String(m.modelName), value: String(m.modelId) })),
     [modelList],
   );
+
+  // 개체 태그 옵션 조회
+  const { data: entityTagOptionList } = useGetEntities({
+    params: { modelId: modelIds },
+    queryOptions: { enabled: modelIds.length > 0 },
+  });
+
+  const entityTagSelectOptions = useMemo(
+    () => (entityTagOptionList ?? []).filter((e) => Boolean(e?.entityId && e?.entityName)).map((e) => ({ label: String(e.entityName), value: String(e.entityId) })),
+    [entityTagOptionList],
+  );
+
+  // 모델 변경 시 개체 태그 옵션 초기화
+  useEffect(() => {
+    setEntityTagIds([]);
+  }, [modelIds]);
 
   // 개체 통계 조회
   const { data: entityStatList, isLoading: isLoadingEntityStatList } = useGetEntityStatList({
@@ -87,24 +104,9 @@ export default function EntityStatistics() {
     queryOptions: { enabled: isSearched },
   });
 
-  // 개체 통계 필터링
-  const filteredList = useMemo(() => {
-    if (!entityStatList) return [];
-    const trimmedSearchValue = searchValue?.trim().toLowerCase();
-    if (!trimmedSearchValue) return entityStatList;
-    return entityStatList.filter((entityStat) => {
-      const matchesSearchValue =
-        !trimmedSearchValue ||
-        String(entityStat[filterColumn as keyof EntityStatListItem] ?? '')
-          .toLowerCase()
-          .includes(trimmedSearchValue);
-      return matchesSearchValue;
-    });
-  }, [entityStatList, filterColumn, searchValue]);
-
   useEffect(() => {
-    setRowData(filteredList ?? []);
-  }, [filteredList]);
+    setRowData(entityStatList ?? []);
+  }, [entityStatList]);
 
   // 합계 행 계산 (pinnedBottomRowData)
   const summaryRow = useMemo<EntityStatListItem[]>(() => {
@@ -158,6 +160,11 @@ export default function EntityStatistics() {
       return;
     }
 
+    if (useInterval && intervalStartTime && intervalEndTime && intervalStartTime.isAfter(intervalEndTime)) {
+      toast.warning('구간검색 시작시간이 종료시간보다 늦을 수 없습니다.');
+      return;
+    }
+
     // 날짜 범위 검증 (timeUnit별 최대 기간 체크)
     if (!validateDateRange(startDate, endDate, timeUnit)) {
       const maxDays = getMaxDays(timeUnit);
@@ -178,12 +185,21 @@ export default function EntityStatistics() {
     const fromDateMI = startDate.format('YYYYMMDD') + startTime?.format('HHmm');
     const toDateMI = endDate.format('YYYYMMDD') + endTime?.format('HHmm');
 
+    const fromTime = timeUnit === 'MI' ? fromDateMI : timeUnit === 'HH' ? fromDateHH : timeUnit === 'DD' ? fromDateDD : timeUnit === 'MM' ? fromDateMM : fromDateYY;
+    const toTime = timeUnit === 'MI' ? toDateMI : timeUnit === 'HH' ? toDateHH : timeUnit === 'DD' ? toDateDD : timeUnit === 'MM' ? toDateMM : toDateYY;
+
+    if (fromTime && toTime && fromTime > toTime) {
+      toast.warning('검색 시작시간이 종료시간보다 늦을 수 없습니다.');
+      return;
+    }
+
     setIsSearched(true);
     setQueryParams({
       timeUnit,
-      fromTime: timeUnit === 'MI' ? fromDateMI : timeUnit === 'HH' ? fromDateHH : timeUnit === 'DD' ? fromDateDD : timeUnit === 'MM' ? fromDateMM : fromDateYY,
-      toTime: timeUnit === 'MI' ? toDateMI : timeUnit === 'HH' ? toDateHH : timeUnit === 'DD' ? toDateDD : timeUnit === 'MM' ? toDateMM : toDateYY,
+      fromTime,
+      toTime,
       modelIds: [modelIds].flat().filter(Boolean),
+      entityTagIds: [entityTagIds].flat().filter(Boolean),
       excludeLunch,
       useInterval,
       hourFrom: useInterval && intervalStartTime ? intervalStartTime.format('HH00') : '',
@@ -356,17 +372,20 @@ export default function EntityStatistics() {
             </div>
             <CollapsibleContent>
               <div className="flex items-center gap-3">
+                <span className="text-sm font-medium text-[#495057] shrink-0">개체 태그</span>
                 <Select
-                  value={filterColumn}
-                  onChange={setFilterColumn}
-                  options={[
-                    { label: '개체 태그', value: 'entityTag' },
-                    { label: '개체 값', value: 'entityValue' },
-                  ]}
-                  className="!max-w-[150px] !min-w-[100px]"
+                  mode="multiple"
+                  value={entityTagIds}
+                  onChange={(value) => setEntityTagIds(value ?? [])}
+                  allowClear
+                  showSearch
+                  maxTagCount="responsive"
+                  options={entityTagSelectOptions}
+                  placeholder="검색할 개체 태그를 선택하세요."
+                  optionFilterProp="label"
+                  className="!min-w-[250px] !max-w-[400px]"
                   popupMatchSelectWidth={false}
                 />
-                <Input value={searchValue} onChange={(e) => setSearchValue(e.target.value)} className="!min-w-[200px] !max-w-[250px]" placeholder="검색어를 입력하세요." />
                 {timeUnit !== 'MM' && timeUnit !== 'YY' ? (
                   <>
                     <Divider orientation="vertical" className="!h-5 !m-0" />

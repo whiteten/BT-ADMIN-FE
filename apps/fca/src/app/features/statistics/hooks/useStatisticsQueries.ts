@@ -2,7 +2,16 @@ import { useQuery } from '@tanstack/react-query';
 import { createQueryKeys } from '@lukemorales/query-key-factory';
 import type { QueryHookWithParamsOptions } from '@/shared-util';
 import { statisticsApi } from '../api/statisticsApi';
-import type { DialogStatListItem, EntityStatListItem, IntentStatListItem, KeywordStatListItem, ServiceStatListItem, SlotStatListItem } from '../types/statistics.types';
+import type {
+  DialogOptionListItem,
+  DialogStatListItem,
+  EntityStatListItem,
+  IntentStatListItem,
+  KeywordStatListItem,
+  ServiceStatListItem,
+  SlotOptionListItem,
+  SlotStatListItem,
+} from '../types/statistics.types';
 
 export const statisticsQueryKeys = createQueryKeys('statistics', {
   getServiceStatList: (params?: Record<string, unknown>) => [params],
@@ -11,6 +20,8 @@ export const statisticsQueryKeys = createQueryKeys('statistics', {
   getIntentStatList: (params?: Record<string, unknown>) => [params],
   getEntityStatList: (params?: Record<string, unknown>) => [params],
   getKeywordStatList: (params?: Record<string, unknown>) => [params],
+  getDialogOptionList: (params?: Record<string, unknown>) => [params],
+  getSlotOptionList: (params?: Record<string, unknown>) => [params],
 });
 
 export const useGetServiceStatList = ({ params, queryOptions }: QueryHookWithParamsOptions<ServiceStatListItem[]> = {}) => {
@@ -57,6 +68,22 @@ export const useGetKeywordStatList = ({ params, queryOptions }: QueryHookWithPar
   return useQuery({
     queryKey: statisticsQueryKeys.getKeywordStatList(params).queryKey,
     queryFn: () => statisticsApi.getKeywordStatList(params),
+    ...queryOptions,
+  });
+};
+
+export const useGetDialogOptionList = ({ params, queryOptions }: QueryHookWithParamsOptions<DialogOptionListItem[]> = {}) => {
+  return useQuery({
+    queryKey: statisticsQueryKeys.getDialogOptionList(params).queryKey,
+    queryFn: () => statisticsApi.getDialogOptionList(params),
+    ...queryOptions,
+  });
+};
+
+export const useGetSlotOptionList = ({ params, queryOptions }: QueryHookWithParamsOptions<SlotOptionListItem[]> = {}) => {
+  return useQuery({
+    queryKey: statisticsQueryKeys.getSlotOptionList(params).queryKey,
+    queryFn: () => statisticsApi.getSlotOptionList(params),
     ...queryOptions,
   });
 };

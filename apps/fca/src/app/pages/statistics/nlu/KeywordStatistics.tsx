@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import type { ColDef, ExcelExportParams, ProcessCellForExportParams } from 'ag-grid-community';
 import { AgGridReact } from 'ag-grid-react';
-import { type BreadcrumbProps, Button, Checkbox, DatePicker, Divider, Input, Select, TimePicker, message } from 'antd';
+import { type BreadcrumbProps, Button, Checkbox, DatePicker, Divider, Select, TimePicker } from 'antd';
 import dayjs, { type Dayjs } from 'dayjs';
 import { ChevronDown, Download } from 'lucide-react';
 import { toast } from '@/shared-util';
@@ -31,8 +31,6 @@ const breadcrumb: BreadcrumbProps['items'] = [
 export default function KeywordStatistics() {
   // UI 상태 (사용자가 입력하는 값들)
   const [modelIds, setModelIds] = useState<string[]>([]);
-  const [filterColumn, setFilterColumn] = useState('entityTag');
-  const [searchValue, setSearchValue] = useState('');
   const [timeUnit, setTimeUnit] = useState<string>('DD');
   const [startDate, setStartDate] = useState<Dayjs | null>(dayjs().startOf('day'));
   const [endDate, setEndDate] = useState<Dayjs | null>(dayjs().endOf('day'));
@@ -76,6 +74,7 @@ export default function KeywordStatistics() {
   const disabledDate = useMemo(() => createDisabledDate(timeUnit), [timeUnit]);
   const disabledEndDate = useMemo(() => createEndDisabledDate(startDate, timeUnit), [startDate, timeUnit]);
 
+  // 모델 옵션 조회
   const modelSelectOptions = useMemo(
     () => (modelList ?? []).filter((m) => Boolean(m?.modelId && m?.modelName)).map((m) => ({ label: String(m.modelName), value: String(m.modelId) })),
     [modelList],
@@ -87,24 +86,9 @@ export default function KeywordStatistics() {
     queryOptions: { enabled: isSearched },
   });
 
-  // 키워드 통계 필터링
-  const filteredList = useMemo(() => {
-    if (!keywordStatList) return [];
-    const trimmedSearchValue = searchValue?.trim().toLowerCase();
-    if (!trimmedSearchValue) return keywordStatList;
-    return keywordStatList.filter((keywordStat) => {
-      const matchesSearchValue =
-        !trimmedSearchValue ||
-        String(keywordStat[filterColumn as keyof KeywordStatListItem] ?? '')
-          .toLowerCase()
-          .includes(trimmedSearchValue);
-      return matchesSearchValue;
-    });
-  }, [keywordStatList, filterColumn, searchValue]);
-
   useEffect(() => {
-    setRowData(filteredList ?? []);
-  }, [filteredList]);
+    setRowData(keywordStatList ?? []);
+  }, [keywordStatList]);
 
   // 합계 행 계산 (pinnedBottomRowData)
   const summaryRow = useMemo<KeywordStatListItem[]>(() => {
@@ -158,6 +142,11 @@ export default function KeywordStatistics() {
       return;
     }
 
+    if (useInterval && intervalStartTime && intervalEndTime && intervalStartTime.isAfter(intervalEndTime)) {
+      toast.warning('구간검색 시작시간이 종료시간보다 늦을 수 없습니다.');
+      return;
+    }
+
     // 날짜 범위 검증 (timeUnit별 최대 기간 체크)
     if (!validateDateRange(startDate, endDate, timeUnit)) {
       const maxDays = getMaxDays(timeUnit);
@@ -178,11 +167,19 @@ export default function KeywordStatistics() {
     const fromDateMI = startDate.format('YYYYMMDD') + startTime?.format('HHmm');
     const toDateMI = endDate.format('YYYYMMDD') + endTime?.format('HHmm');
 
+    const fromTime = timeUnit === 'MI' ? fromDateMI : timeUnit === 'HH' ? fromDateHH : timeUnit === 'DD' ? fromDateDD : timeUnit === 'MM' ? fromDateMM : fromDateYY;
+    const toTime = timeUnit === 'MI' ? toDateMI : timeUnit === 'HH' ? toDateHH : timeUnit === 'DD' ? toDateDD : timeUnit === 'MM' ? toDateMM : toDateYY;
+
+    if (fromTime && toTime && fromTime > toTime) {
+      toast.warning('검색 시작시간이 종료시간보다 늦을 수 없습니다.');
+      return;
+    }
+
     setIsSearched(true);
     setQueryParams({
       timeUnit,
-      fromTime: timeUnit === 'MI' ? fromDateMI : timeUnit === 'HH' ? fromDateHH : timeUnit === 'DD' ? fromDateDD : timeUnit === 'MM' ? fromDateMM : fromDateYY,
-      toTime: timeUnit === 'MI' ? toDateMI : timeUnit === 'HH' ? toDateHH : timeUnit === 'DD' ? toDateDD : timeUnit === 'MM' ? toDateMM : toDateYY,
+      fromTime,
+      toTime,
       modelIds: [modelIds].flat().filter(Boolean),
       excludeLunch,
       useInterval,
@@ -356,20 +353,8 @@ export default function KeywordStatistics() {
             </div>
             <CollapsibleContent>
               <div className="flex items-center gap-3">
-                <Select
-                  value={filterColumn}
-                  onChange={setFilterColumn}
-                  options={[
-                    { label: '개체 태그', value: 'entityTag' },
-                    { label: '키워드', value: 'keyword' },
-                  ]}
-                  className="!max-w-[150px] !min-w-[100px]"
-                  popupMatchSelectWidth={false}
-                />
-                <Input value={searchValue} onChange={(e) => setSearchValue(e.target.value)} className="!min-w-[200px] !max-w-[250px]" placeholder="검색어를 입력하세요." />
                 {timeUnit !== 'MM' && timeUnit !== 'YY' ? (
                   <>
-                    <Divider orientation="vertical" className="!h-5 !m-0" />
                     <span className="text-sm font-medium text-[#495057] shrink-0">제외요일</span>
                     <Select
                       mode="multiple"

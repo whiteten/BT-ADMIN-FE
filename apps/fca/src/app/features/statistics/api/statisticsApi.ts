@@ -1,5 +1,14 @@
 import ApiClient, { type ListResponse, extractList } from '@/shared-util';
-import type { DialogStatListItem, EntityStatListItem, IntentStatListItem, KeywordStatListItem, ServiceStatListItem, SlotStatListItem } from '../types/statistics.types';
+import type {
+  DialogOptionListItem,
+  DialogStatListItem,
+  EntityStatListItem,
+  IntentStatListItem,
+  KeywordStatListItem,
+  ServiceStatListItem,
+  SlotOptionListItem,
+  SlotStatListItem,
+} from '../types/statistics.types';
 
 const apiClient = new ApiClient({ serviceURL: '/bff' });
 
@@ -40,6 +49,18 @@ export const statisticsApi = {
   // 키워드 통계 목록 조회
   getKeywordStatList: async (params?: Record<string, unknown>): Promise<KeywordStatListItem[]> => {
     const response = await apiClient.post<ListResponse<KeywordStatListItem>>('/stat-nlu-keyword', params);
+    return extractList(response);
+  },
+
+  // 대화 옵션 목록 조회
+  getDialogOptionList: async (params?: Record<string, unknown>): Promise<DialogOptionListItem[]> => {
+    const response = await apiClient.get<ListResponse<DialogOptionListItem>>('/stat-dialog-options', { params });
+    return extractList(response);
+  },
+
+  // 슬롯 옵션 목록 조회
+  getSlotOptionList: async (params?: Record<string, unknown>): Promise<SlotOptionListItem[]> => {
+    const response = await apiClient.get<ListResponse<SlotOptionListItem>>('/stat-slot-options', { params });
     return extractList(response);
   },
 };

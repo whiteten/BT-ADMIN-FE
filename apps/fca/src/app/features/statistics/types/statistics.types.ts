@@ -98,3 +98,17 @@ export interface KeywordStatItem {
 }
 
 export type KeywordStatListItem = KeywordStatItem;
+
+export interface DialogOptionItem {
+  dialogId: string; // 대화 ID
+  dialogName: string; // 대화명
+}
+
+export type DialogOptionListItem = DialogOptionItem;
+
+export interface SlotOptionItem {
+  slotId: string; // 슬롯 ID
+  slotName: string; // 슬롯명
+}
+
+export type SlotOptionListItem = SlotOptionItem;

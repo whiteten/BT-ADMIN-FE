@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import type { ColDef, ExcelExportParams, ProcessCellForExportParams } from 'ag-grid-community';
 import { AgGridReact } from 'ag-grid-react';
-import { type BreadcrumbProps, Button, Checkbox, DatePicker, Divider, Input, Select, TimePicker, message } from 'antd';
+import { type BreadcrumbProps, Button, Checkbox, DatePicker, Divider, Select, TimePicker } from 'antd';
 import dayjs, { type Dayjs } from 'dayjs';
 import { ChevronDown, Download } from 'lucide-react';
 import { toast } from '@/shared-util';
@@ -15,7 +15,7 @@ import {
   getTimeFormat,
   validateDateRange,
 } from '../../../features/statistics/hooks/useDateRangeLimit';
-import { useGetDialogStatList } from '../../../features/statistics/hooks/useStatisticsQueries';
+import { useGetDialogOptionList, useGetDialogStatList } from '../../../features/statistics/hooks/useStatisticsQueries';
 import type { DialogStatListItem } from '../../../features/statistics/types/statistics.types';
 import PageHeader from '@/components/custom/PageHeader';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/libs/shared-ui/src/components/shadcn/collapsible';
@@ -31,7 +31,7 @@ const breadcrumb: BreadcrumbProps['items'] = [
 export default function DialogStatistics() {
   // UI 상태 (사용자가 입력하는 값들)
   const [serviceIds, setServiceIds] = useState<string[]>([]);
-  const [dialogName, setDialogName] = useState('');
+  const [dialogIds, setDialogIds] = useState<string[]>([]);
   const [timeUnit, setTimeUnit] = useState<string>('DD');
   const [startDate, setStartDate] = useState<Dayjs | null>(dayjs().startOf('day'));
   const [endDate, setEndDate] = useState<Dayjs | null>(dayjs().endOf('day'));
@@ -54,6 +54,7 @@ export default function DialogStatistics() {
       fromTime: fromDate,
       toTime: toDate,
       serviceIds: serviceIds,
+      dialogIds: dialogIds,
       excludeLunch: false,
       useInterval: false,
       hourFrom: '',
@@ -75,10 +76,28 @@ export default function DialogStatistics() {
   const disabledDate = useMemo(() => createDisabledDate(timeUnit), [timeUnit]);
   const disabledEndDate = useMemo(() => createEndDisabledDate(startDate, timeUnit), [startDate, timeUnit]);
 
+  // 봇서비스 옵션 조회
   const serviceSelectOptions = useMemo(
     () => (botList ?? []).filter((b) => Boolean(b?.serviceId && b?.serviceName)).map((b) => ({ label: String(b.serviceName), value: String(b.serviceId) })),
     [botList],
   );
+
+  // 대화 옵션 조회 (봇서비스 선택 시)
+  const serviceIdParams = [serviceIds].flat().filter(Boolean);
+  const { data: dialogOptionList } = useGetDialogOptionList({
+    params: { serviceIds: serviceIdParams },
+    queryOptions: { enabled: serviceIdParams.length > 0 },
+  });
+
+  const dialogSelectOptions = useMemo(
+    () => (dialogOptionList ?? []).filter((d) => Boolean(d?.dialogId && d?.dialogName)).map((d) => ({ label: String(d.dialogName), value: String(d.dialogId) })),
+    [dialogOptionList],
+  );
+
+  // 봇서비스 변경 시 대화명 옵션 초기화
+  useEffect(() => {
+    setDialogIds([]);
+  }, [serviceIds]);
 
   // 대화 통계 조회
   const { data: dialogStatList, isLoading: isLoadingDialogStatList } = useGetDialogStatList({
@@ -86,24 +105,9 @@ export default function DialogStatistics() {
     queryOptions: { enabled: isSearched },
   });
 
-  // 대화 통계 필터링
-  const filteredList = useMemo(() => {
-    if (!dialogStatList) return [];
-    const trimmedDialogName = dialogName?.trim().toLowerCase();
-    if (!trimmedDialogName) return dialogStatList;
-    return dialogStatList.filter((dialogStat) => {
-      const matchesDialogName =
-        !trimmedDialogName ||
-        String(dialogStat.dialogName ?? '')
-          .toLowerCase()
-          .includes(trimmedDialogName);
-      return matchesDialogName;
-    });
-  }, [dialogStatList, dialogName]);
-
   useEffect(() => {
-    setRowData(filteredList ?? []);
-  }, [filteredList]);
+    setRowData(dialogStatList ?? []);
+  }, [dialogStatList]);
 
   // 합계 행 계산 (pinnedBottomRowData)
   const summaryRow = useMemo<DialogStatListItem[]>(() => {
@@ -160,6 +164,11 @@ export default function DialogStatistics() {
       return;
     }
 
+    if (useInterval && intervalStartTime && intervalEndTime && intervalStartTime.isAfter(intervalEndTime)) {
+      toast.warning('구간검색 시작시간이 종료시간보다 늦을 수 없습니다.');
+      return;
+    }
+
     // 날짜 범위 검증 (timeUnit별 최대 기간 체크)
     if (!validateDateRange(startDate, endDate, timeUnit)) {
       const maxDays = getMaxDays(timeUnit);
@@ -180,12 +189,21 @@ export default function DialogStatistics() {
     const fromDateMI = startDate.format('YYYYMMDD') + startTime?.format('HHmm');
     const toDateMI = endDate.format('YYYYMMDD') + endTime?.format('HHmm');
 
+    const fromTime = timeUnit === 'MI' ? fromDateMI : timeUnit === 'HH' ? fromDateHH : timeUnit === 'DD' ? fromDateDD : timeUnit === 'MM' ? fromDateMM : fromDateYY;
+    const toTime = timeUnit === 'MI' ? toDateMI : timeUnit === 'HH' ? toDateHH : timeUnit === 'DD' ? toDateDD : timeUnit === 'MM' ? toDateMM : toDateYY;
+
+    if (fromTime && toTime && fromTime > toTime) {
+      toast.warning('검색 시작시간이 종료시간보다 늦을 수 없습니다.');
+      return;
+    }
+
     setIsSearched(true);
     setQueryParams({
       timeUnit,
-      fromTime: timeUnit === 'MI' ? fromDateMI : timeUnit === 'HH' ? fromDateHH : timeUnit === 'DD' ? fromDateDD : timeUnit === 'MM' ? fromDateMM : fromDateYY,
-      toTime: timeUnit === 'MI' ? toDateMI : timeUnit === 'HH' ? toDateHH : timeUnit === 'DD' ? toDateDD : timeUnit === 'MM' ? toDateMM : toDateYY,
+      fromTime,
+      toTime,
       serviceIds: [serviceIds].flat().filter(Boolean),
+      dialogIds: [dialogIds].flat().filter(Boolean),
       excludeLunch: timeUnit === 'MI' || timeUnit === 'HH' ? excludeLunch : false,
       useInterval: timeUnit === 'MI' || timeUnit === 'HH' ? useInterval : false,
       hourFrom: timeUnit === 'MI' || timeUnit === 'HH' ? (useInterval && intervalStartTime ? intervalStartTime.format('HH00') : '') : '',
@@ -209,7 +227,7 @@ export default function DialogStatistics() {
       cellStyle: (params) => (params.node?.rowPinned === 'bottom' ? { fontWeight: 'bold', alignItems: 'center' } : { fontWeight: 'normal', alignItems: 'center' }),
     },
     { headerName: '봇서비스ID', field: 'serviceId', hide: true },
-    { headerName: '봇서비스', field: 'serviceName', hide: true },
+    { headerName: '봇서비스', field: 'serviceName', flex: 2 },
     { headerName: '대화ID', field: 'dialogId', hide: true },
     { headerName: '대화명', field: 'dialogName', flex: 2 },
     {
@@ -376,7 +394,19 @@ export default function DialogStatistics() {
             <CollapsibleContent>
               <div className="flex items-center gap-3">
                 <span className="text-sm font-medium text-[#495057] shrink-0">대화명</span>
-                <Input value={dialogName} onChange={(e) => setDialogName(e.target.value)} className="!min-w-[200px] !max-w-[250px]" placeholder="검색할 대화명을 입력하세요." />
+                <Select
+                  mode="multiple"
+                  value={dialogIds}
+                  onChange={(value) => setDialogIds(value ?? [])}
+                  allowClear
+                  showSearch
+                  maxTagCount="responsive"
+                  options={dialogSelectOptions}
+                  placeholder="검색할 대화명을 선택하세요."
+                  optionFilterProp="label"
+                  className="!min-w-[250px] !max-w-[400px]"
+                  popupMatchSelectWidth={false}
+                />
                 {timeUnit !== 'MM' && timeUnit !== 'YY' ? (
                   <>
                     <Divider orientation="vertical" className="!h-5 !m-0" />
