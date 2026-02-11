@@ -119,4 +119,8 @@ export default class ApiClient {
   delete<T = unknown, R = AxiosResponse<T>, D = unknown>(url: string, config?: AxiosRequestConfig<D> | undefined): Promise<R> {
     return this.#instance.delete<T, R, D>(url, config);
   }
+
+  patch<T = unknown, R = AxiosResponse<T>, D = unknown>(url: string, data?: D | undefined, config?: AxiosRequestConfig<D> | undefined): Promise<R> {
+    return this.#instance.patch<T, R, D>(url, data, config);
+  }
 }

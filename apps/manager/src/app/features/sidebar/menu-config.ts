@@ -65,6 +65,13 @@ const menuConfig = {
           index: 5,
           hide: false,
         },
+        {
+          menuId: 54,
+          label: '클라이언트 관리',
+          path: 'resource/client/list',
+          index: 4,
+          hide: false,
+        },
       ],
     },
   ],
