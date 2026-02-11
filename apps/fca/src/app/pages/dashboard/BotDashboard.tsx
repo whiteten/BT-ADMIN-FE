@@ -233,7 +233,7 @@ export default function BotDashboard() {
                     classNames={{
                       title: 'text-base font-semibold text-[#495057]',
                       header: '!min-h-0 !h-[45px] !px-4',
-                      body: 'flex-1 min-h-0',
+                      body: 'flex-1 min-h-0 !p-0',
                     }}
                     loading={isLoading}
                   >

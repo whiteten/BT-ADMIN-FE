@@ -22,9 +22,20 @@ const createChartOption = (data: DialogSummary): EChartsOption => ({
     {
       type: 'pie',
       radius: ['40%', '70%'],
-      center: ['35%', '50%'],
+      center: ['45%', '50%'],
       avoidLabelOverlap: false,
       label: { show: true, formatter: '{d}%' },
+      emphasis: {
+        label: {
+          show: true,
+          fontWeight: 'bold',
+        },
+      },
+      itemStyle: {
+        borderRadius: 10,
+        borderColor: '#fff',
+        borderWidth: 2,
+      },
       data: [
         { name: '완결', value: data.completeCnt },
         { name: '미완결', value: data.incompleteCnt },
