@@ -4,6 +4,7 @@ import { AgGridReact } from 'ag-grid-react';
 import { type BreadcrumbProps, Button, Checkbox, DatePicker, Divider, Input, Select, TimePicker, message } from 'antd';
 import dayjs, { type Dayjs } from 'dayjs';
 import { ChevronDown, Download } from 'lucide-react';
+import { toast } from '@/shared-util';
 import { useGetBots } from '../../../features/bot-config/hooks/useBotQueries';
 import {
   createDisabledDate,
@@ -63,6 +64,7 @@ export default function DialogStatistics() {
     };
   });
 
+  const [isSearched, setIsSearched] = useState(false);
   const [isFilterOpen, setIsFilterOpen] = useState(false);
   const { gridOptions } = useAggridOptions();
   const gridRef = useRef<AgGridReact<DialogStatListItem>>(null);
@@ -81,6 +83,7 @@ export default function DialogStatistics() {
   // 대화 통계 조회
   const { data: dialogStatList, isLoading: isLoadingDialogStatList } = useGetDialogStatList({
     params: queryParams,
+    queryOptions: { enabled: isSearched },
   });
 
   // 대화 통계 필터링
@@ -142,13 +145,18 @@ export default function DialogStatistics() {
   }, [timeUnit]);
 
   const handleSearch = () => {
+    if (serviceIds.length === 0) {
+      toast.warning('봇서비스를 선택해주세요.');
+      return;
+    }
+
     if (!startDate || !endDate) {
-      message.warning('검색일자를 선택해주세요.');
+      toast.warning('검색일자를 선택해주세요.');
       return;
     }
 
     if ((timeUnit === 'MI' || timeUnit === 'HH') && (!startTime || !endTime)) {
-      message.warning('검색시간을 선택해주세요.');
+      toast.warning('검색시간을 선택해주세요.');
       return;
     }
 
@@ -156,7 +164,7 @@ export default function DialogStatistics() {
     if (!validateDateRange(startDate, endDate, timeUnit)) {
       const maxDays = getMaxDays(timeUnit);
       const dateRangeLabel = timeUnit === 'MI' ? '2일' : timeUnit === 'HH' ? '7일' : timeUnit === 'DD' ? '15일' : timeUnit === 'MM' ? '6개월' : '5년';
-      message.warning(`검색 기간은 ${dateRangeLabel} 이내로 설정해주세요. (최대 ${maxDays}일)`);
+      toast.warning(`검색 기간은 ${dateRangeLabel} 이내로 설정해주세요. (최대 ${maxDays}일)`);
       return;
     }
 
@@ -172,11 +180,12 @@ export default function DialogStatistics() {
     const fromDateMI = startDate.format('YYYYMMDD') + startTime?.format('HHmm');
     const toDateMI = endDate.format('YYYYMMDD') + endTime?.format('HHmm');
 
+    setIsSearched(true);
     setQueryParams({
       timeUnit,
       fromTime: timeUnit === 'MI' ? fromDateMI : timeUnit === 'HH' ? fromDateHH : timeUnit === 'DD' ? fromDateDD : timeUnit === 'MM' ? fromDateMM : fromDateYY,
       toTime: timeUnit === 'MI' ? toDateMI : timeUnit === 'HH' ? toDateHH : timeUnit === 'DD' ? toDateDD : timeUnit === 'MM' ? toDateMM : toDateYY,
-      serviceIds: serviceIds,
+      serviceIds: [serviceIds].flat().filter(Boolean),
       excludeLunch: timeUnit === 'MI' || timeUnit === 'HH' ? excludeLunch : false,
       useInterval: timeUnit === 'MI' || timeUnit === 'HH' ? useInterval : false,
       hourFrom: timeUnit === 'MI' || timeUnit === 'HH' ? (useInterval && intervalStartTime ? intervalStartTime.format('HH00') : '') : '',
@@ -230,7 +239,7 @@ export default function DialogStatistics() {
     const api = gridRef.current?.api;
     if (!api) return;
     if (!rowData?.length) {
-      message.warning('다운로드할 데이터가 없습니다.');
+      toast.warning('다운로드할 데이터가 없습니다.');
       return;
     }
 

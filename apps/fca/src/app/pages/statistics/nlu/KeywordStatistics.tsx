@@ -4,6 +4,7 @@ import { AgGridReact } from 'ag-grid-react';
 import { type BreadcrumbProps, Button, Checkbox, DatePicker, Divider, Input, Select, TimePicker, message } from 'antd';
 import dayjs, { type Dayjs } from 'dayjs';
 import { ChevronDown, Download } from 'lucide-react';
+import { toast } from '@/shared-util';
 import { useGetModels } from '../../../features/bot-config/hooks/useModelQueries';
 import {
   createDisabledDate,
@@ -64,6 +65,7 @@ export default function KeywordStatistics() {
     };
   });
 
+  const [isSearched, setIsSearched] = useState(false);
   const [isFilterOpen, setIsFilterOpen] = useState(false);
   const { gridOptions } = useAggridOptions();
   const gridRef = useRef<AgGridReact<KeywordStatListItem>>(null);
@@ -82,6 +84,7 @@ export default function KeywordStatistics() {
   // 키워드 통계 조회
   const { data: keywordStatList, isLoading: isLoadingKeywordStatList } = useGetKeywordStatList({
     params: queryParams,
+    queryOptions: { enabled: isSearched },
   });
 
   // 키워드 통계 필터링
@@ -140,13 +143,18 @@ export default function KeywordStatistics() {
   }, [timeUnit]);
 
   const handleSearch = () => {
+    if (modelIds.length === 0) {
+      toast.warning('모델을 선택해주세요.');
+      return;
+    }
+
     if (!startDate || !endDate) {
-      message.warning('검색일자를 선택해주세요.');
+      toast.warning('검색일자를 선택해주세요.');
       return;
     }
 
     if ((timeUnit === 'MI' || timeUnit === 'HH') && (!startTime || !endTime)) {
-      message.warning('검색시간을 선택해주세요.');
+      toast.warning('검색시간을 선택해주세요.');
       return;
     }
 
@@ -154,7 +162,7 @@ export default function KeywordStatistics() {
     if (!validateDateRange(startDate, endDate, timeUnit)) {
       const maxDays = getMaxDays(timeUnit);
       const dateRangeLabel = timeUnit === 'MI' ? '2일' : timeUnit === 'HH' ? '7일' : timeUnit === 'DD' ? '15일' : timeUnit === 'MM' ? '6개월' : '5년';
-      message.warning(`검색 기간은 ${dateRangeLabel} 이내로 설정해주세요. (최대 ${maxDays}일)`);
+      toast.warning(`검색 기간은 ${dateRangeLabel} 이내로 설정해주세요. (최대 ${maxDays}일)`);
       return;
     }
 
@@ -170,11 +178,12 @@ export default function KeywordStatistics() {
     const fromDateMI = startDate.format('YYYYMMDD') + startTime?.format('HHmm');
     const toDateMI = endDate.format('YYYYMMDD') + endTime?.format('HHmm');
 
+    setIsSearched(true);
     setQueryParams({
       timeUnit,
       fromTime: timeUnit === 'MI' ? fromDateMI : timeUnit === 'HH' ? fromDateHH : timeUnit === 'DD' ? fromDateDD : timeUnit === 'MM' ? fromDateMM : fromDateYY,
       toTime: timeUnit === 'MI' ? toDateMI : timeUnit === 'HH' ? toDateHH : timeUnit === 'DD' ? toDateDD : timeUnit === 'MM' ? toDateMM : toDateYY,
-      modelIds: modelIds,
+      modelIds: [modelIds].flat().filter(Boolean),
       excludeLunch,
       useInterval,
       hourFrom: useInterval && intervalStartTime ? intervalStartTime.format('HH00') : '',
@@ -215,7 +224,7 @@ export default function KeywordStatistics() {
     const api = gridRef.current?.api;
     if (!api) return;
     if (!rowData?.length) {
-      message.warning('다운로드할 데이터가 없습니다.');
+      toast.warning('다운로드할 데이터가 없습니다.');
       return;
     }
 
