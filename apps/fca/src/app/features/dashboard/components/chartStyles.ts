@@ -10,5 +10,3 @@ export const CHART_COLORS = {
   indigo: '#6366F1',
   teal: '#14B8A6',
 } as const;
-
-export const PIE_COLORS = [CHART_COLORS.orange, CHART_COLORS.primary, CHART_COLORS.purple];

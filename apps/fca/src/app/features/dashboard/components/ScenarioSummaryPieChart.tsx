@@ -1,6 +1,6 @@
 import type { EChartsOption } from 'echarts';
 import ReactECharts from 'echarts-for-react';
-import { PIE_COLORS } from './chartStyles';
+import { CHART_COLORS } from './chartStyles';
 import type { ScenarioSummary } from '../types/dashboard.types';
 
 const sampleData: ScenarioSummary = {
@@ -63,7 +63,7 @@ const createChartOption = (data: ScenarioSummary): EChartsOption => {
         },
       },
     },
-    color: PIE_COLORS,
+    color: [CHART_COLORS.orange, CHART_COLORS.primary, CHART_COLORS.purple],
     series: [
       {
         type: 'pie',

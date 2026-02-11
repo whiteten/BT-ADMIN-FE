@@ -1,6 +1,6 @@
 import type { EChartsOption } from 'echarts';
 import ReactECharts from 'echarts-for-react';
-import { PIE_COLORS } from './chartStyles';
+import { CHART_COLORS } from './chartStyles';
 import type { SlotSummary } from '../types/dashboard.types';
 
 const sampleData: SlotSummary = {
@@ -57,7 +57,7 @@ const createChartOption = (data: SlotSummary): EChartsOption => {
         },
       },
     },
-    color: PIE_COLORS,
+    color: [CHART_COLORS.orange, CHART_COLORS.primary],
     series: [
       {
         type: 'pie',
