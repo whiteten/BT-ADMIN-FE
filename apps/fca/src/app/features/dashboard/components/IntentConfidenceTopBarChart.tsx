@@ -1,6 +1,5 @@
 import type { EChartsOption } from 'echarts';
 import ReactECharts from 'echarts-for-react';
-import { commonAxisStyle, commonGridStyle, commonSplitLineStyle } from './chartStyles';
 import type { IntentConfidenceTopItem } from '../types/dashboard.types';
 
 const sampleData: IntentConfidenceTopItem[] = [
@@ -19,21 +18,24 @@ const sampleData: IntentConfidenceTopItem[] = [
 const createChartOption = (data: IntentConfidenceTopItem[]): EChartsOption => {
   return {
     tooltip: { trigger: 'axis', axisPointer: { type: 'shadow' } },
-    grid: commonGridStyle,
+    grid: { left: 20, right: 50, bottom: 20, top: 20, containLabel: true },
     xAxis: {
       type: 'value',
       splitNumber: 4,
-      ...commonAxisStyle,
+      axisLine: { lineStyle: { color: '#E9EBEC' } },
+      axisTick: { show: false },
+      axisLabel: { color: '#495057', fontSize: 12 },
       name: '(%)',
       nameLocation: 'end',
-      nameTextStyle: commonAxisStyle.axisLabel,
-      splitLine: commonSplitLineStyle,
+      nameTextStyle: { color: '#495057', fontSize: 12 },
+      splitLine: { lineStyle: { type: 'dashed' as const, color: '#E9EBEC' } },
     },
     yAxis: {
       type: 'category',
       data: data.map((item) => item.intent),
-      ...commonAxisStyle,
       axisLine: { show: false },
+      axisTick: { show: false },
+      axisLabel: { color: '#495057', fontSize: 12 },
     },
     series: [
       {

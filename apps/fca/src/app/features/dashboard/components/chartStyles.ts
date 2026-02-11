@@ -12,23 +12,3 @@ export const CHART_COLORS = {
 } as const;
 
 export const PIE_COLORS = [CHART_COLORS.orange, CHART_COLORS.primary, CHART_COLORS.purple];
-
-export const LINE_COLORS = [CHART_COLORS.primary, CHART_COLORS.success, CHART_COLORS.warning, CHART_COLORS.danger, CHART_COLORS.purple];
-
-export const commonAxisStyle = {
-  axisLine: { lineStyle: { color: '#E9EBEC' } },
-  axisTick: { show: false },
-  axisLabel: { color: '#495057', fontSize: 12 },
-} as const;
-
-export const commonGridStyle = {
-  left: 20,
-  right: 50,
-  bottom: 20,
-  top: 20,
-  containLabel: true,
-} as const;
-
-export const commonSplitLineStyle = {
-  lineStyle: { type: 'dashed' as const, color: '#E9EBEC' },
-} as const;

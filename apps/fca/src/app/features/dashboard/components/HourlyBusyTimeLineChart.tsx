@@ -1,6 +1,5 @@
 import type { EChartsOption } from 'echarts';
 import ReactECharts from 'echarts-for-react';
-import { LINE_COLORS, commonAxisStyle, commonGridStyle, commonSplitLineStyle } from './chartStyles';
 import type { HourlyScenarioItem } from '../types/dashboard.types';
 
 const sampleData: HourlyScenarioItem[] = [
@@ -100,21 +99,24 @@ const createChartOption = (data: HourlyScenarioItem[]): EChartsOption => ({
     bottom: 0,
     icon: 'roundRect',
   },
-  grid: { ...commonGridStyle, bottom: 40 },
+  grid: { left: 20, right: 50, bottom: 40, top: 20, containLabel: true },
   xAxis: {
     type: 'category',
     data: Array.from({ length: 24 }, (_, i) => `${i}시`),
-    ...commonAxisStyle,
+    axisLine: { lineStyle: { color: '#E9EBEC' } },
+    axisTick: { show: false },
+    axisLabel: { color: '#495057', fontSize: 12 },
     boundaryGap: false,
   },
   yAxis: {
     type: 'value',
-    ...commonAxisStyle,
-    axisLabel: { ...commonAxisStyle.axisLabel, formatter: '{value}초' },
-    splitLine: commonSplitLineStyle,
     axisLine: { show: false },
+    axisTick: { show: false },
+    axisLabel: { color: '#495057', fontSize: 12, formatter: '{value}초' },
+    splitLine: {
+      lineStyle: { type: 'dashed' as const, color: '#E9EBEC' },
+    },
   },
-  color: LINE_COLORS,
   series: data.map((item) => ({
     name: item.serviceName,
     type: 'line' as const,

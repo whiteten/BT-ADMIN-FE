@@ -1,7 +1,7 @@
 import type { EChartsOption } from 'echarts';
 import type { CallbackDataParams } from 'echarts/types/dist/shared';
 import ReactECharts from 'echarts-for-react';
-import { CHART_COLORS, commonAxisStyle, commonGridStyle, commonSplitLineStyle } from './chartStyles';
+import { CHART_COLORS } from './chartStyles';
 import type { SlotRetryDistTopItem } from '../types/dashboard.types';
 
 const sampleData: SlotRetryDistTopItem[] = [
@@ -171,21 +171,26 @@ const createChartOption = (data: SlotRetryDistTopItem[]): EChartsOption => {
       },
     },
     legend: { data: ['1회 이하', '2회', '3회 이상'], right: 10, top: 5, icon: 'roundRect', selectedMode: false },
-    grid: { ...commonGridStyle, top: 30 },
+    grid: { left: 20, right: 50, bottom: 20, top: 30, containLabel: true },
     xAxis: {
       type: 'value',
       max: 100,
-      ...commonAxisStyle,
+      axisLine: { lineStyle: { color: '#E9EBEC' } },
+      axisTick: { show: false },
+      axisLabel: { color: '#495057', fontSize: 12 },
       name: '(%)',
       nameLocation: 'end',
-      nameTextStyle: commonAxisStyle.axisLabel,
-      splitLine: commonSplitLineStyle,
+      nameTextStyle: { color: '#495057', fontSize: 12 },
+      splitLine: {
+        lineStyle: { type: 'dashed' as const, color: '#E9EBEC' },
+      },
     },
     yAxis: {
       type: 'category',
       data: data.map((item) => item.slotName),
-      ...commonAxisStyle,
       axisLine: { show: false },
+      axisTick: { show: false },
+      axisLabel: { color: '#495057', fontSize: 12 },
     },
     series: [
       {

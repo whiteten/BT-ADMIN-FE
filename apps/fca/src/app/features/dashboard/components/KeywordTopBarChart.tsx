@@ -1,6 +1,5 @@
 import type { EChartsOption } from 'echarts';
 import ReactECharts from 'echarts-for-react';
-import { commonAxisStyle, commonGridStyle, commonSplitLineStyle } from './chartStyles';
 import type { KeywordTopItem } from '../types/dashboard.types';
 
 const sampleData: KeywordTopItem[] = [
@@ -19,21 +18,26 @@ const sampleData: KeywordTopItem[] = [
 const createChartOption = (data: KeywordTopItem[]): EChartsOption => {
   return {
     tooltip: { trigger: 'axis', axisPointer: { type: 'shadow' } },
-    grid: commonGridStyle,
+    grid: { left: 20, right: 50, bottom: 20, top: 20, containLabel: true },
     xAxis: {
       type: 'value',
       splitNumber: 4,
-      ...commonAxisStyle,
+      axisLine: { lineStyle: { color: '#E9EBEC' } },
+      axisTick: { show: false },
+      axisLabel: { color: '#495057', fontSize: 12 },
       name: '(건)',
       nameLocation: 'end',
-      nameTextStyle: commonAxisStyle.axisLabel,
-      splitLine: commonSplitLineStyle,
+      nameTextStyle: { color: '#495057', fontSize: 12 },
+      splitLine: {
+        lineStyle: { type: 'dashed' as const, color: '#E9EBEC' },
+      },
     },
     yAxis: {
       type: 'category',
       data: data.map((item) => item.keyword),
-      ...commonAxisStyle,
       axisLine: { show: false },
+      axisTick: { show: false },
+      axisLabel: { color: '#495057', fontSize: 12 },
     },
     series: [
       {

@@ -1,6 +1,5 @@
 import type { EChartsOption } from 'echarts';
 import ReactECharts from 'echarts-for-react';
-import { commonAxisStyle, commonGridStyle, commonSplitLineStyle } from './chartStyles';
 import type { SlotRetryAvgTopItem } from '../types/dashboard.types';
 
 const sampleData: SlotRetryAvgTopItem[] = [
@@ -129,21 +128,26 @@ const sampleData: SlotRetryAvgTopItem[] = [
 const createChartOption = (data: SlotRetryAvgTopItem[]): EChartsOption => {
   return {
     tooltip: { trigger: 'axis', axisPointer: { type: 'shadow' } },
-    grid: commonGridStyle,
+    grid: { left: 20, right: 50, bottom: 20, top: 20, containLabel: true },
     xAxis: {
       type: 'value',
       splitNumber: 4,
-      ...commonAxisStyle,
+      axisLine: { lineStyle: { color: '#E9EBEC' } },
+      axisTick: { show: false },
+      axisLabel: { color: '#495057', fontSize: 12 },
       name: '(회)',
       nameLocation: 'end',
-      nameTextStyle: commonAxisStyle.axisLabel,
-      splitLine: commonSplitLineStyle,
+      nameTextStyle: { color: '#495057', fontSize: 12 },
+      splitLine: {
+        lineStyle: { type: 'dashed' as const, color: '#E9EBEC' },
+      },
     },
     yAxis: {
       type: 'category',
       data: data.map((item) => item.slotName),
-      ...commonAxisStyle,
       axisLine: { show: false },
+      axisTick: { show: false },
+      axisLabel: { color: '#495057', fontSize: 12 },
     },
     series: [
       {

@@ -1,6 +1,6 @@
 import type { EChartsOption } from 'echarts';
 import ReactECharts from 'echarts-for-react';
-import { CHART_COLORS, commonAxisStyle, commonGridStyle, commonSplitLineStyle } from './chartStyles';
+import { CHART_COLORS } from './chartStyles';
 import type { IntentCheckFailTopItem } from '../types/dashboard.types';
 
 const sampleData: IntentCheckFailTopItem[] = [
@@ -20,21 +20,26 @@ const createChartOption = (data: IntentCheckFailTopItem[]): EChartsOption => {
   return {
     tooltip: { trigger: 'axis', axisPointer: { type: 'shadow' } },
     legend: { data: ['Check', 'Fail'], right: 10, top: 5, icon: 'roundRect', selectedMode: false },
-    grid: { ...commonGridStyle, top: 30 },
+    grid: { left: 20, right: 50, bottom: 20, top: 30, containLabel: true },
     xAxis: {
       type: 'value',
       splitNumber: 4,
-      ...commonAxisStyle,
+      axisLine: { lineStyle: { color: '#E9EBEC' } },
+      axisTick: { show: false },
+      axisLabel: { color: '#495057', fontSize: 12 },
       name: '(%)',
       nameLocation: 'end',
-      nameTextStyle: commonAxisStyle.axisLabel,
-      splitLine: commonSplitLineStyle,
+      nameTextStyle: { color: '#495057', fontSize: 12 },
+      splitLine: {
+        lineStyle: { type: 'dashed' as const, color: '#E9EBEC' },
+      },
     },
     yAxis: {
       type: 'category',
       data: data.map((item) => item.intent),
-      ...commonAxisStyle,
       axisLine: { show: false },
+      axisTick: { show: false },
+      axisLabel: { color: '#495057', fontSize: 12 },
     },
     series: [
       {
