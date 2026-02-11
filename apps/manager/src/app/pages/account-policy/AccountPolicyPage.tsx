@@ -7,7 +7,7 @@
 
 import React, { useEffect, useState } from 'react';
 import { type BreadcrumbProps, Button, Divider, Form, InputNumber, Radio, Switch, Typography } from 'antd';
-import { AlertTriangle, Check, Clock, Hash, KeyRound, Lock, Monitor, MoonStar, RefreshCw, Save, Timer, UserX } from 'lucide-react';
+import { AlertTriangle, Check, Clock, Hash, KeyRound, Lock, Monitor, MoonStar, RefreshCw, Timer, UserX } from 'lucide-react';
 import { toast } from '@/shared-util';
 import { useGetAccountPolicy, useUpdateAccountPolicy } from '../../features/account-policy/hooks/useAccountPolicyQueries';
 import { type AccountPolicyUpdateData, CONCURRENT_LOGIN_ACTION_OPTIONS, DEFAULT_ACCOUNT_POLICY } from '../../features/account-policy/types/accountPolicy.types';
@@ -453,9 +453,9 @@ export default function AccountPolicyPage() {
 
               {/* 하단 버튼 */}
               <div className="px-6 py-4 border-t border-gray-100 bg-gray-50/50">
-                <div className="flex justify-end">
-                  <Button type="primary" icon={<Save className="w-4 h-4" />} onClick={handleSave} loading={isUpdating} size="large">
-                    변경사항 저장
+                <div className="flex justify-center">
+                  <Button type="primary" onClick={handleSave} loading={isUpdating}>
+                    저장
                   </Button>
                 </div>
               </div>
