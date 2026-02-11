@@ -127,7 +127,6 @@ const sampleData: SlotRetryAvgTopItem[] = [
 ];
 
 const createChartOption = (data: SlotRetryAvgTopItem[]): EChartsOption => {
-  const sorted = [...data].sort((a, b) => b.rank - a.rank);
   return {
     tooltip: { trigger: 'axis', axisPointer: { type: 'shadow' } },
     grid: commonGridStyle,
@@ -142,18 +141,18 @@ const createChartOption = (data: SlotRetryAvgTopItem[]): EChartsOption => {
     },
     yAxis: {
       type: 'category',
-      data: sorted.map((item) => item.slotName),
+      data: data.map((item) => item.slotName),
       ...commonAxisStyle,
       axisLine: { show: false },
     },
     series: [
       {
         type: 'bar',
-        data: sorted.map((item) => item.avgRetryCount),
+        data: data.map((item) => item.avgRetryCount),
         colorBy: 'data',
         itemStyle: { borderRadius: [0, 4, 4, 0] },
         barWidth: '60%',
-        label: { show: true, position: 'right', formatter: '{c}회', color: '#495057', fontSize: 11 },
+        label: { show: true, position: 'right', formatter: '{c}', color: '#495057', fontSize: 11 },
       },
     ],
   };

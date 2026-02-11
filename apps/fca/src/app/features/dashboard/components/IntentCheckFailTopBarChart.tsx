@@ -17,7 +17,6 @@ const sampleData: IntentCheckFailTopItem[] = [
 ];
 
 const createChartOption = (data: IntentCheckFailTopItem[]): EChartsOption => {
-  const sorted = [...data].sort((a, b) => b.rank - a.rank);
   return {
     tooltip: { trigger: 'axis', axisPointer: { type: 'shadow' } },
     legend: { data: ['Check', 'Fail'], right: 10, top: 5, icon: 'roundRect', selectedMode: false },
@@ -33,7 +32,7 @@ const createChartOption = (data: IntentCheckFailTopItem[]): EChartsOption => {
     },
     yAxis: {
       type: 'category',
-      data: sorted.map((item) => item.intent),
+      data: data.map((item) => item.intent),
       ...commonAxisStyle,
       axisLine: { show: false },
     },
@@ -42,7 +41,7 @@ const createChartOption = (data: IntentCheckFailTopItem[]): EChartsOption => {
         name: 'Check',
         type: 'bar',
         stack: 'total',
-        data: sorted.map((item) => item.checkRate),
+        data: data.map((item) => item.checkRate),
         itemStyle: { color: CHART_COLORS.warning },
         barWidth: '60%',
       },
@@ -50,7 +49,7 @@ const createChartOption = (data: IntentCheckFailTopItem[]): EChartsOption => {
         name: 'Fail',
         type: 'bar',
         stack: 'total',
-        data: sorted.map((item) => item.failRate),
+        data: data.map((item) => item.failRate),
         itemStyle: { color: CHART_COLORS.danger, borderRadius: [0, 4, 4, 0] },
       },
     ],

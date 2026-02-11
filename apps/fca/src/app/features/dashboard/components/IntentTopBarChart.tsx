@@ -17,7 +17,6 @@ const sampleData: IntentTopItem[] = [
 ];
 
 const createChartOption = (data: IntentTopItem[]): EChartsOption => {
-  const sorted = [...data].sort((a, b) => b.rank - a.rank);
   return {
     tooltip: { trigger: 'axis', axisPointer: { type: 'shadow' } },
     grid: commonGridStyle,
@@ -32,18 +31,18 @@ const createChartOption = (data: IntentTopItem[]): EChartsOption => {
     },
     yAxis: {
       type: 'category',
-      data: sorted.map((item) => item.intent),
+      data: data.map((item) => item.intent),
       ...commonAxisStyle,
       axisLine: { show: false },
     },
     series: [
       {
         type: 'bar',
-        data: sorted.map((item) => item.detectCnt),
+        data: data.map((item) => item.detectCnt),
         colorBy: 'data',
         itemStyle: { borderRadius: [0, 4, 4, 0] },
         barWidth: '60%',
-        label: { show: true, position: 'right', formatter: '{c}건', color: '#495057', fontSize: 11 },
+        label: { show: true, position: 'right', formatter: '{c}', color: '#495057', fontSize: 11 },
       },
     ],
   };

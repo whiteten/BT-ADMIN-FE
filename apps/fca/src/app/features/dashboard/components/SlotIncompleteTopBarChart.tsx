@@ -17,7 +17,6 @@ const sampleData: SlotIncompleteTopItem[] = [
 ];
 
 const createChartOption = (data: SlotIncompleteTopItem[]): EChartsOption => {
-  const sorted = [...data].sort((a, b) => b.rank - a.rank);
   return {
     tooltip: { trigger: 'axis', axisPointer: { type: 'shadow' } },
     grid: commonGridStyle,
@@ -32,18 +31,18 @@ const createChartOption = (data: SlotIncompleteTopItem[]): EChartsOption => {
     },
     yAxis: {
       type: 'category',
-      data: sorted.map((item) => item.slotName),
+      data: data.map((item) => item.slotName),
       ...commonAxisStyle,
       axisLine: { show: false },
     },
     series: [
       {
         type: 'bar',
-        data: sorted.map((item) => item.incompleteRate),
+        data: data.map((item) => item.incompleteRate),
         colorBy: 'data',
         itemStyle: { borderRadius: [0, 4, 4, 0] },
         barWidth: '60%',
-        label: { show: true, position: 'right', formatter: '{c}%', color: '#495057', fontSize: 11 },
+        label: { show: true, position: 'right', formatter: '{c}', color: '#495057', fontSize: 11 },
       },
     ],
   };
