@@ -2,17 +2,20 @@
  * 권한 목록 탭
  */
 
-import { useMemo, useState } from 'react';
+import { useMemo, useRef, useState } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import type { ColDef, ICellRendererParams } from 'ag-grid-community';
 import { AgGridReact } from 'ag-grid-react';
-import { Button, Form, Input, Modal, Select, Tag, Tooltip } from 'antd';
-import { Copy, Plus, Search, Trash2 } from 'lucide-react';
+import { Button, Input, Select, Tag, Tooltip } from 'antd';
+import { Copy, Search } from 'lucide-react';
 import { toast } from '@/shared-util';
+import PermissionAddDrawer, { type PermissionAddDrawerRef } from '../components/PermissionAddDrawer';
 import { useGetApps } from '../hooks/useAppQueries';
-import { permissionQueryKeys, useCreatePermission, useDeletePermission, useGetAuthList } from '../hooks/usePermissionQueries';
-import type { PermissionCreateRequest, PermissionFlat } from '../types/iam.types';
+import { permissionQueryKeys, useDeletePermission, useGetAuthList } from '../hooks/usePermissionQueries';
+import type { PermissionFlat } from '../types/iam.types';
+import { IconTrash } from '@/components/custom/Icons';
 import useAggridOptions from '@/libs/shared-ui/src/hooks/useAggridOptions';
+import { useModal } from '@/libs/shared-ui/src/hooks/useModal';
 
 const actionColorMap: Record<string, string> = {
   read: 'blue',
@@ -24,35 +27,19 @@ const actionColorMap: Record<string, string> = {
 export default function PermissionListTab() {
   const { gridOptions } = useAggridOptions();
   const queryClient = useQueryClient();
+  const modal = useModal();
+  const drawerRef = useRef<PermissionAddDrawerRef>(null);
   const [appId, setAppId] = useState<string>('');
   const [domain, setDomain] = useState<string>('');
   const [action, setAction] = useState<string>('');
   const [keyword, setKeyword] = useState('');
   const [searchParams, setSearchParams] = useState<{ appId?: string; domain?: string; action?: string; keyword?: string }>({});
-  const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
-  const [form] = Form.useForm<PermissionCreateRequest>();
 
   // API 연동: Flat 권한 목록 조회
   const { data: allPermissions = [], isLoading: loading } = useGetAuthList();
 
   // API 연동: 앱 목록 조회
   const { data: apps = [] } = useGetApps();
-
-  // 권한 생성 Mutation
-  const createPermissionMutation = useCreatePermission({
-    mutationOptions: {
-      onSuccess: () => {
-        toast.success('권한이 생성되었습니다');
-        setIsCreateModalOpen(false);
-        form.resetFields();
-        queryClient.invalidateQueries({ queryKey: permissionQueryKeys.getAuthList.queryKey });
-        queryClient.invalidateQueries({ queryKey: permissionQueryKeys.getGroupedPermissions.queryKey });
-      },
-      onError: () => {
-        toast.error('권한 생성에 실패했습니다');
-      },
-    },
-  });
 
   // 권한 삭제 Mutation
   const deletePermissionMutation = useDeletePermission({
@@ -61,9 +48,6 @@ export default function PermissionListTab() {
         toast.success('권한이 삭제되었습니다');
         queryClient.invalidateQueries({ queryKey: permissionQueryKeys.getAuthList.queryKey });
         queryClient.invalidateQueries({ queryKey: permissionQueryKeys.getGroupedPermissions.queryKey });
-      },
-      onError: () => {
-        toast.error('권한 삭제에 실패했습니다');
       },
     },
   });
@@ -82,13 +66,9 @@ export default function PermissionListTab() {
   // 클라이언트 필터링
   const permissions = useMemo(() => {
     return allPermissions.filter((p) => {
-      // 앱 필터
       if (searchParams.appId && p.appId !== searchParams.appId) return false;
-      // 도메인 필터
       if (searchParams.domain && p.domain !== searchParams.domain) return false;
-      // 액션 필터
       if (searchParams.action && p.action !== searchParams.action) return false;
-      // 키워드 필터
       if (searchParams.keyword) {
         const lowerKeyword = searchParams.keyword.toLowerCase();
         const matchKey = p.authKey.toLowerCase().includes(lowerKeyword);
@@ -101,13 +81,7 @@ export default function PermissionListTab() {
 
   // 삭제 핸들러
   const handleDelete = (authId: number) => {
-    Modal.confirm({
-      title: '권한 삭제',
-      content: '이 권한을 삭제하시겠습니까?',
-      okText: '삭제',
-      cancelText: '취소',
-      okButtonProps: { danger: true },
-      centered: true,
+    modal.confirm.delete({
       onOk: () => deletePermissionMutation.mutate(authId),
     });
   };
@@ -175,7 +149,7 @@ export default function PermissionListTab() {
                 handleDelete(data.authId);
               }}
             >
-              <Trash2 className="size-4 text-red-500 hover:text-red-700 hover:cursor-pointer" />
+              <IconTrash className="size-5 text-red-500 hover:cursor-pointer" />
             </button>
           );
         },
@@ -193,15 +167,6 @@ export default function PermissionListTab() {
     });
   };
 
-  const handleCreatePermission = async () => {
-    try {
-      const values = await form.validateFields();
-      createPermissionMutation.mutate(values);
-    } catch {
-      // Form validation error
-    }
-  };
-
   return (
     <div className="flex flex-col gap-4 h-full">
       {/* 필터 */}
@@ -215,12 +180,9 @@ export default function PermissionListTab() {
             검색
           </Button>
         </div>
-        <div className="flex gap-2 items-center">
-          <span className="text-sm text-gray-500">검색결과 {permissions.length}개</span>
-          <Button type="primary" icon={<Plus className="size-4" />} onClick={() => setIsCreateModalOpen(true)}>
-            권한 추가
-          </Button>
-        </div>
+        <Button type="primary" onClick={() => drawerRef.current?.open()}>
+          추가
+        </Button>
       </div>
 
       {/* 그리드 */}
@@ -228,49 +190,8 @@ export default function PermissionListTab() {
         <AgGridReact<PermissionFlat> {...{ rowData: permissions, columnDefs, gridOptions, loading }} />
       </div>
 
-      {/* 권한 추가 모달 */}
-      <Modal
-        title="권한 추가"
-        open={isCreateModalOpen}
-        onOk={handleCreatePermission}
-        onCancel={() => {
-          setIsCreateModalOpen(false);
-          form.resetFields();
-        }}
-        okText="생성"
-        cancelText="취소"
-        confirmLoading={createPermissionMutation.isPending}
-      >
-        <Form form={form} layout="vertical" className="mt-4">
-          <Form.Item label="앱" name="appId" rules={[{ required: true, message: '앱을 선택해주세요' }]}>
-            <Select placeholder="앱 선택" options={filterOptions.apps.filter((opt) => opt.value !== '')} />
-          </Form.Item>
-
-          <Form.Item label="도메인" name="domain" rules={[{ required: true, message: '도메인을 입력해주세요' }]}>
-            <Input placeholder="예: menu, user, role" />
-          </Form.Item>
-
-          <Form.Item label="리소스" name="resourceKey" rules={[{ required: true, message: '리소스를 입력해주세요' }]}>
-            <Input placeholder="예: list, detail, settings" />
-          </Form.Item>
-
-          <Form.Item label="액션" name="action" rules={[{ required: true, message: '액션을 선택해주세요' }]}>
-            <Select
-              placeholder="액션 선택"
-              options={[
-                { label: 'read', value: 'read' },
-                { label: 'write', value: 'write' },
-                { label: 'delete', value: 'delete' },
-                { label: 'execute', value: 'execute' },
-              ]}
-            />
-          </Form.Item>
-
-          <Form.Item label="설명" name="description">
-            <Input.TextArea placeholder="권한에 대한 설명을 입력해주세요" rows={3} />
-          </Form.Item>
-        </Form>
-      </Modal>
+      {/* 권한 추가 Drawer */}
+      <PermissionAddDrawer ref={drawerRef} />
     </div>
   );
 }

@@ -6,7 +6,7 @@ import { useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useQueryClient } from '@tanstack/react-query';
 import { Button, Input } from 'antd';
-import { Plus, Search } from 'lucide-react';
+import { Search } from 'lucide-react';
 import { sharedApi } from '@/shared-api';
 import { toast } from '@/shared-util';
 import { RoleCard } from '../components/RoleCard';
@@ -31,10 +31,6 @@ export default function RoleManagementTab() {
       onSuccess: () => {
         toast.success('역할이 삭제되었습니다.');
         queryClient.invalidateQueries({ queryKey: sharedApi.role.queryKeys.getRoles().queryKey });
-      },
-      onError: (error) => {
-        const errorMessage = error instanceof Error ? error.message : '역할 삭제에 실패했습니다.';
-        toast.error(errorMessage);
       },
     },
   });
@@ -79,8 +75,8 @@ export default function RoleManagementTab() {
             검색
           </Button>
         </div>
-        <Button type="primary" icon={<Plus className="size-4" />} onClick={handleCreate}>
-          역할 추가
+        <Button type="primary" onClick={handleCreate}>
+          추가
         </Button>
       </div>
 

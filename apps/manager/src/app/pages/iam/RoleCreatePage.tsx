@@ -108,10 +108,6 @@ export default function RoleCreatePage() {
         navigate('/manager/resource/auth-group/list');
         queryClient.invalidateQueries({ queryKey: sharedApi.role.queryKeys.getRoles().queryKey });
       },
-      onError: (error) => {
-        const errorMessage = error instanceof Error ? error.message : '역할 생성에 실패했습니다.';
-        toast.error(errorMessage);
-      },
     },
   });
 

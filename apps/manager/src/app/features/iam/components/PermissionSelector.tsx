@@ -7,10 +7,11 @@
  */
 
 import { useMemo, useState } from 'react';
-import { Checkbox, Input, Spin } from 'antd';
+import { Checkbox, Input } from 'antd';
 import { ChevronDown, ChevronRight, Folder, Search } from 'lucide-react';
 import { useGetGroupedPermissions } from '../hooks/usePermissionQueries';
 import type { MenuWithPermissions, PermissionGroup, PermissionSummary } from '../types/iam.types';
+import { FallbackSpinner } from '@/components/custom/FallbackSpinner';
 import NoData from '@/components/custom/NoData';
 import { cn } from '@/libs/shared-ui/src/lib/utils';
 
@@ -265,10 +266,8 @@ export default function PermissionSelector({ value = new Set(), onChange, classN
 
   if (isLoading) {
     return (
-      <div className="flex items-center justify-center py-12">
-        <Spin tip="권한 목록을 불러오는 중...">
-          <div className="py-12" />
-        </Spin>
+      <div className="flex items-center justify-center w-full h-full">
+        <FallbackSpinner />
       </div>
     );
   }
