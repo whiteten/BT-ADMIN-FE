@@ -239,11 +239,10 @@ export default function WorkHistoryList() {
             allowClear
             onPressEnter={handleSearch}
           />
-          <Button type="primary" icon={<Search className="w-3.5 h-3.5" />} onClick={handleSearch} loading={isFetching}>
-            검색
-          </Button>
         </div>
-        <span className="text-sm text-gray-500 flex-shrink-0">{isFetching ? '조회 중...' : `${listData?.total?.toLocaleString() ?? 0}건`}</span>
+        <Button type="primary" onClick={handleSearch} loading={isFetching}>
+          조회
+        </Button>
       </div>
 
       {/* 그리드 */}
