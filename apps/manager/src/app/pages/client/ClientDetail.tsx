@@ -8,16 +8,16 @@
 import { useEffect, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { useQueryClient } from '@tanstack/react-query';
-import { Button, Divider, Form, Input, Select, Switch, Tag, Transfer, type TransferProps } from 'antd';
+import { Button, Divider, Form, Input, Switch, Transfer, type TransferProps } from 'antd';
 import dayjs from 'dayjs';
 import { Calendar, Hash, KeyRound } from 'lucide-react';
 import { toast } from '@/shared-util';
+import ClientStatusBadge from '../../features/client/components/ClientStatusBadge';
 import { clientQueryKeys, useDeleteClient, useGetAuthList, useGetClient, useUpdateClient } from '../../features/client/hooks/useClientQueries';
-import { type ClientUpdateRequest, GRANT_TYPE_OPTIONS, transformToBackendFormat } from '../../features/client/types/client.types';
+import { type ClientUpdateRequest, transformToBackendFormat } from '../../features/client/types/client.types';
 import type { PermissionFlat } from '../../features/iam/types/iam.types';
 import { FallbackSpinner } from '@/components/custom/FallbackSpinner';
 import PageHeader from '@/components/custom/PageHeader';
-import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { useModal } from '@/libs/shared-ui/src/hooks/useModal';
 
@@ -30,7 +30,6 @@ const breadcrumb = [
 interface ClientUpdateFormValues {
   clientName: string;
   description?: string;
-  grantTypes: string[];
   isActive: boolean;
 }
 
@@ -62,7 +61,6 @@ export default function ClientDetail() {
       form.setFieldsValue({
         clientName: client.clientName,
         description: client.description,
-        grantTypes: client.grantTypes,
         isActive: client.isActive,
       });
       setTargetKeys(client.scopes || []);
@@ -124,7 +122,6 @@ export default function ClientDetail() {
   // 현재 폼 값 (요약 패널용)
   const currentValues = formValues ?? {
     clientName: client?.clientName ?? '',
-    grantTypes: client?.grantTypes ?? [],
     isActive: client?.isActive ?? false,
   };
 
@@ -172,10 +169,6 @@ export default function ClientDetail() {
 
               <Form.Item label="설명" name="description">
                 <Input.TextArea placeholder="클라이언트 설명" rows={3} maxLength={500} />
-              </Form.Item>
-
-              <Form.Item label="Grant Types" name="grantTypes" rules={[{ required: true, message: 'Grant Type을 선택하세요.' }]}>
-                <Select mode="multiple" placeholder="Grant Type 선택" options={GRANT_TYPE_OPTIONS} />
               </Form.Item>
 
               <Form.Item label="활성 여부" name="isActive" valuePropName="checked">
@@ -245,29 +238,13 @@ export default function ClientDetail() {
                   <div className="space-y-2">
                     <div className="flex items-center justify-between py-2">
                       <span className="text-sm text-gray-500">상태</span>
-                      <Badge variant={currentValues.isActive ? 'default' : 'secondary'} className="text-xs">
-                        {currentValues.isActive ? '활성' : '비활성'}
-                      </Badge>
+                      <ClientStatusBadge isActive={currentValues.isActive} />
                     </div>
                     <div className="flex items-center justify-between py-2">
                       <span className="text-sm text-gray-500">클라이언트명</span>
                       <span className="text-sm font-medium text-gray-900 truncate max-w-[160px]" title={currentValues.clientName}>
                         {currentValues.clientName || '-'}
                       </span>
-                    </div>
-                    <div className="flex items-start justify-between py-2">
-                      <span className="text-sm text-gray-500">Grant Types</span>
-                      <div className="flex flex-wrap gap-1 justify-end max-w-[160px]">
-                        {currentValues.grantTypes && currentValues.grantTypes.length > 0 ? (
-                          currentValues.grantTypes.map((type) => (
-                            <Tag key={type} color="blue" className="text-xs m-0">
-                              {type}
-                            </Tag>
-                          ))
-                        ) : (
-                          <span className="text-sm text-gray-400">-</span>
-                        )}
-                      </div>
                     </div>
                   </div>
                 </div>

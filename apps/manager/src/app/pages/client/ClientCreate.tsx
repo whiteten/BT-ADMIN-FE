@@ -7,11 +7,11 @@
 
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Button, Form, Input, Select, Switch, Transfer, type TransferProps } from 'antd';
+import { Button, Form, Input, Switch, Transfer, type TransferProps } from 'antd';
 import { toast } from '@/shared-util';
-import { ClientSecretDialog } from '../../features/client/components/ClientSecretDialog';
+import ClientSecretDialog from '../../features/client/components/ClientSecretDialog';
 import { useCreateClient, useGetAuthList } from '../../features/client/hooks/useClientQueries';
-import { type Client, type ClientCreateRequest, GRANT_TYPE_OPTIONS, transformToBackendFormat } from '../../features/client/types/client.types';
+import { type Client, type ClientCreateRequest, transformToBackendFormat } from '../../features/client/types/client.types';
 import type { PermissionFlat } from '../../features/iam/types/iam.types';
 import { FallbackSpinner } from '@/components/custom/FallbackSpinner';
 import PageHeader from '@/components/custom/PageHeader';
@@ -26,7 +26,6 @@ interface ClientCreateFormValues {
   clientKey: string;
   clientName: string;
   description?: string;
-  grantTypes: string[];
   isActive: boolean;
 }
 
@@ -103,7 +102,7 @@ export default function ClientCreate() {
       <PageHeader breadcrumb={breadcrumb} />
 
       <div className="w-full h-full overflow-y-auto bg-white bt-shadow p-6">
-        <Form form={form} layout="vertical" onFinish={handleSubmit} initialValues={{ isActive: true, grantTypes: [] }}>
+        <Form form={form} layout="vertical" onFinish={handleSubmit} initialValues={{ isActive: true }}>
           {/* 기본정보 섹션 */}
           <div className="mb-8">
             <h3 className="text-lg font-semibold mb-4">기본 정보</h3>
@@ -125,10 +124,6 @@ export default function ClientCreate() {
 
             <Form.Item label="설명" name="description">
               <Input.TextArea placeholder="클라이언트 설명" rows={3} maxLength={500} />
-            </Form.Item>
-
-            <Form.Item label="Grant Types" name="grantTypes" rules={[{ required: true, message: 'Grant Type을 선택하세요.' }]}>
-              <Select mode="multiple" placeholder="Grant Type 선택" options={GRANT_TYPE_OPTIONS} />
             </Form.Item>
 
             <Form.Item label="활성 여부" name="isActive" valuePropName="checked">

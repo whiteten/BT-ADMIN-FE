@@ -1,25 +1,18 @@
-/**
- * OAuth2 클라이언트 목록 페이지
- * - ag-Grid 기반 목록 표시
- * - 필터/검색 기능
- * - 활성/비활성 토글, 삭제 기능
- */
-
 import { useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useQueryClient } from '@tanstack/react-query';
 import type { ColDef, ICellRendererParams } from 'ag-grid-community';
 import { AgGridReact } from 'ag-grid-react';
-import { Button, Input, Switch, Tag } from 'antd';
+import { Button, Input } from 'antd';
 import dayjs from 'dayjs';
 import { toast } from '@/shared-util';
-import { clientQueryKeys, useDeleteClient, useGetClients, useToggleActive } from '../../features/client/hooks/useClientQueries';
+import ClientStatusBadge from '../../features/client/components/ClientStatusBadge';
+import { clientQueryKeys, useDeleteClient, useGetClients } from '../../features/client/hooks/useClientQueries';
 import type { Client } from '../../features/client/types/client.types';
 import { FallbackSpinner } from '@/components/custom/FallbackSpinner';
 import { IconTrash } from '@/components/custom/Icons';
 import NoData from '@/components/custom/NoData';
 import PageHeader from '@/components/custom/PageHeader';
-import { Badge } from '@/components/ui/badge';
 import useAggridOptions from '@/libs/shared-ui/src/hooks/useAggridOptions';
 import { useModal } from '@/libs/shared-ui/src/hooks/useModal';
 
@@ -34,25 +27,13 @@ export default function ClientList() {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const modal = useModal();
-
   const [searchValue, setSearchValue] = useState('');
-
   const { data: clientList, isLoading } = useGetClients();
-
   const { mutate: deleteClient } = useDeleteClient({
     mutationOptions: {
       onSuccess: () => {
         queryClient.invalidateQueries({ queryKey: clientQueryKeys.getClients().queryKey });
         toast.success('클라이언트가 삭제되었습니다.');
-      },
-    },
-  });
-
-  const { mutate: toggleActive } = useToggleActive({
-    mutationOptions: {
-      onSuccess: () => {
-        queryClient.invalidateQueries({ queryKey: clientQueryKeys.getClients().queryKey });
-        toast.success('활성 상태가 변경되었습니다.');
       },
     },
   });
@@ -68,29 +49,18 @@ export default function ClientList() {
       maxWidth: 100,
       cellRenderer: (params: ICellRendererParams<Client>) => {
         const isActive = params.value as boolean;
-        return (
-          <Badge variant={isActive ? 'default' : 'secondary'} className="text-xs">
-            {isActive ? '활성' : '비활성'}
-          </Badge>
-        );
+        if (isActive === undefined || isActive === null) return '-';
+        return <ClientStatusBadge isActive={isActive} />;
       },
     },
     {
       headerName: 'Grant Types',
       field: 'grantTypes',
       flex: 1,
-      cellRenderer: (params: ICellRendererParams<Client>) => {
+      valueFormatter: (params) => {
         const grantTypes = params.value as string[];
         if (!grantTypes || grantTypes.length === 0) return '-';
-        return (
-          <div className="flex flex-wrap gap-1">
-            {grantTypes.map((type) => (
-              <Tag key={type} color="blue" className="text-xs">
-                {type}
-              </Tag>
-            ))}
-          </div>
-        );
+        return grantTypes.join(', ');
       },
     },
     {
@@ -107,28 +77,6 @@ export default function ClientList() {
       field: 'createdAt',
       maxWidth: 160,
       valueFormatter: (params) => (params.value ? dayjs(params.value).format('YYYY-MM-DD HH:mm') : '-'),
-    },
-    {
-      headerName: '활성',
-      maxWidth: 80,
-      sortable: false,
-      filter: false,
-      suppressHeaderMenuButton: true,
-      cellStyle: { display: 'flex', alignItems: 'center', justifyContent: 'center' },
-      cellRenderer: (params: ICellRendererParams<Client>) => {
-        const { data } = params;
-        if (!data) return null;
-        return (
-          <Switch
-            checked={data.isActive}
-            size="small"
-            onChange={() => {
-              toggleActive({ clientId: data.clientId });
-            }}
-            onClick={(_checked, e) => e.stopPropagation()}
-          />
-        );
-      },
     },
     {
       headerName: '',
@@ -221,7 +169,7 @@ export default function ClientList() {
                     <h3 className="font-semibold">{client.clientName}</h3>
                     <p className="text-sm text-gray-500">{client.clientKey}</p>
                   </div>
-                  <Badge variant={client.isActive ? 'default' : 'secondary'}>{client.isActive ? '활성' : '비활성'}</Badge>
+                  <ClientStatusBadge isActive={client.isActive} />
                 </div>
                 <div className="text-sm text-gray-600">권한: {client.scopes?.length || 0}개</div>
               </div>

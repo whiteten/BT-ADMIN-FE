@@ -11,8 +11,7 @@ import { type Client, type ClientBackendResponse, type ClientCreateRequest, type
  * - client-create: POST /api/bff/flows/client-create
  * - client-update: PUT /api/bff/flows/client-update
  * - client-delete: DELETE /api/bff/flows/client-delete
- * - client-regenerate-secret: POST /api/bff/flows/client-regenerate-secret
- * - client-toggle-active: PATCH /api/bff/flows/client-toggle-active
+ * - client-toggle-active: PUT /api/bff/flows/client-toggle-active
  */
 const apiClient = new ApiClient({ serviceURL: '/bff' });
 
@@ -80,8 +79,7 @@ export const clientApi = {
    * @flow client-toggle-active
    */
   toggleActive: async (params: Record<string, unknown>) => {
-    const clientId = params.clientId;
-    const response = await apiClient.patch(`/client-toggle-active/${clientId}`);
+    const response = await apiClient.put('/client-toggle-active', {}, { params });
     return response;
   },
 };

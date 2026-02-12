@@ -93,13 +93,3 @@ export function transformClientResponse(backendClient: ClientBackendResponse): C
 export function transformToBackendFormat(isActive: boolean): string {
   return isActive ? 'Y' : 'N';
 }
-
-/**
- * Grant Type 옵션
- */
-export const GRANT_TYPE_OPTIONS = [
-  { label: 'Authorization Code', value: 'authorization_code' },
-  { label: 'Client Credentials', value: 'client_credentials' },
-  { label: 'Refresh Token', value: 'refresh_token' },
-  { label: 'Password', value: 'password' },
-];
