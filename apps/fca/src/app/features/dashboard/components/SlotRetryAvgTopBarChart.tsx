@@ -8,7 +8,17 @@ const createChartOption = (data: SlotRetryAvgTopItem[]): EChartsOption => {
   const sorted = [...data].filter((item) => item.rank >= 1 && item.rank <= 10).sort((a, b) => a.rank - b.rank);
 
   return {
-    tooltip: { trigger: 'axis', axisPointer: { type: 'shadow' } },
+    tooltip: {
+      trigger: 'axis',
+      axisPointer: { type: 'shadow' },
+      formatter: (params: unknown) => {
+        const list = Array.isArray(params) ? params : [params];
+        const first = list[0] as { dataIndex: number; marker: string };
+        if (first?.dataIndex == null) return '';
+        const item = sorted[first.dataIndex];
+        return `${first.marker}<strong>${item.serviceName} &gt; ${item.dialogName} &gt; ${item.slotName}</strong><br/>평균 재시도: ${item.avgRetryCount}회<br/>진입: ${item.entryCnt}건<br/>완결: ${item.completeCnt}건`;
+      },
+    },
     grid: { left: 20, right: 50, bottom: 20, top: 20, containLabel: true },
     xAxis: {
       type: 'value',

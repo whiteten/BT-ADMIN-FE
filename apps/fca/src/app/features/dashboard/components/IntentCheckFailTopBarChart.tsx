@@ -1,4 +1,5 @@
 import type { EChartsOption } from 'echarts';
+import type { CallbackDataParams } from 'echarts/types/dist/shared';
 import ReactECharts from 'echarts-for-react';
 import { CHART_COLORS } from './chartStyles';
 import type { IntentCheckFailTopItem } from '../types/dashboard.types';
@@ -8,7 +9,17 @@ const createChartOption = (data: IntentCheckFailTopItem[]): EChartsOption => {
   const sorted = [...data].filter((item) => item.rank >= 1 && item.rank <= 10).sort((a, b) => a.rank - b.rank);
 
   return {
-    tooltip: { trigger: 'axis', axisPointer: { type: 'shadow' } },
+    tooltip: {
+      trigger: 'axis',
+      axisPointer: { type: 'shadow' },
+      formatter: (params) => {
+        const list = params as CallbackDataParams[];
+        const item = sorted[list[0].dataIndex];
+        const title = `<strong>${item.serviceName} &gt; ${item.modelName} &gt; ${item.intent}</strong>`;
+        const lines = list.map((p) => `${p.marker} ${p.seriesName}: ${p.value}%`);
+        return `${title}<br/>인식수: ${item.detectCnt}건 / 평균 신뢰도: ${item.avgConfidence}%<br/>${lines.join('<br/>')}`;
+      },
+    },
     legend: { data: ['Check', 'Fail'], right: 10, top: 5, icon: 'roundRect', selectedMode: false },
     grid: { left: 20, right: 50, bottom: 20, top: 30, containLabel: true },
     xAxis: {
