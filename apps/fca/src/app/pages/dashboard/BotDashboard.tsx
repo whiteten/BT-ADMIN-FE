@@ -1,5 +1,5 @@
 import { type ComponentType, useEffect, useState } from 'react';
-import { type Layout, type LayoutItem, Responsive, type ResponsiveLayouts, useContainerWidth } from 'react-grid-layout';
+import { GridLayout, type Layout, type LayoutItem, useContainerWidth } from 'react-grid-layout';
 import 'react-grid-layout/css/styles.css';
 import { MultiSelect, type Option } from 'react-multi-select-component';
 import { type BreadcrumbProps, Button, Card } from 'antd';
@@ -18,13 +18,17 @@ import SlotIncompleteTopBarChart from '../../features/dashboard/components/SlotI
 import SlotRetryAvgTopBarChart from '../../features/dashboard/components/SlotRetryAvgTopBarChart';
 import SlotRetryDistTopBarChart from '../../features/dashboard/components/SlotRetryDistTopBarChart';
 import SlotSummaryPieChart from '../../features/dashboard/components/SlotSummaryPieChart';
-import { DEFAULT_LAYOUTS, useBotDashboardStore } from '../../features/dashboard/hooks/useBotDashboardStore';
+import { DEFAULT_LAYOUT, useBotDashboardStore } from '../../features/dashboard/hooks/useBotDashboardStore';
 import { useGetBotDashboard } from '../../features/dashboard/hooks/useDashboardQueries';
 import PageHeader from '@/components/custom/PageHeader';
 import { cn } from '@/lib/utils';
 
-const breakpoints = { lg: 1200, md: 996, sm: 768, xs: 480, xxs: 0 };
-const cols = { lg: 60, md: 50, sm: 30, xs: 20, xxs: 10 };
+const breadcrumb: BreadcrumbProps['items'] = [
+  { title: '대시보드', path: '/fca/dashboard' },
+  { title: '콜봇 현황', path: '/fca/dashboard/call-bot' },
+];
+
+const GRID_COLS = 60;
 
 function findTopLeftPosition(existingItems: LayoutItem[], itemW: number, itemH: number, totalCols: number): { x: number; y: number } {
   const collides = (x: number, y: number, w: number, h: number, item: LayoutItem) => x < item.x + item.w && x + w > item.x && y < item.y + item.h && y + h > item.y;
@@ -37,11 +41,6 @@ function findTopLeftPosition(existingItems: LayoutItem[], itemW: number, itemH: 
   }
   return { x: 0, y: maxY };
 }
-
-const breadcrumb: BreadcrumbProps['items'] = [
-  { title: '대시보드', path: '/fca/dashboard' },
-  { title: '콜봇 현황', path: '/fca/dashboard/call-bot' },
-];
 
 const sampleServiceIdList = [1001, 1002, 1003, 1004, 1005];
 
@@ -85,64 +84,54 @@ export default function BotDashboard() {
     params: { serviceIds: selectedService.map((item) => item.value as string) },
     queryOptions: { enabled: false }, // TODO: api 개발 후 selectedService.length > 0 조건으로 변경
   });
-  const { layouts, setLayouts } = useBotDashboardStore();
+  const { layout: storedLayout, setLayout } = useBotDashboardStore();
   const { width, containerRef, mounted } = useContainerWidth();
 
   const [isEditMode, setIsEditMode] = useState(false);
-  const [draftLayouts, setDraftLayouts] = useState<ResponsiveLayouts>(layouts);
-  const layoutFilterOptions =
-    DEFAULT_LAYOUTS.lg?.map((layout) => ({ label: layoutRenderMapper[layout.i as keyof typeof layoutRenderMapper]?.title ?? layout.i, value: layout.i })) ?? [];
+  const [draftLayout, setDraftLayout] = useState<LayoutItem[]>([...storedLayout]);
+  const layoutFilterOptions = DEFAULT_LAYOUT.map((item) => ({ label: layoutRenderMapper[item.i as keyof typeof layoutRenderMapper]?.title ?? item.i, value: item.i }));
   const [selectedLayoutFilterItems, setSelectedLayoutFilterItems] = useState<Option[]>(layoutFilterOptions);
 
   const handleStartEdit = () => {
-    setDraftLayouts(layouts);
     setIsEditMode(true);
   };
 
   const handleCancelEdit = () => {
+    setDraftLayout([...storedLayout]);
     setIsEditMode(false);
   };
 
   const handleSaveEdit = () => {
-    // const breakpoint = getBreakpointFromWidth(breakpoints, width);
-    setLayouts(draftLayouts);
+    setLayout(draftLayout);
     setIsEditMode(false);
   };
 
   const handleResetLayouts = () => {
-    setDraftLayouts(DEFAULT_LAYOUTS);
+    setDraftLayout([...DEFAULT_LAYOUT]);
   };
 
-  const handleLayoutChange = (_layout: Layout, allLayouts: ResponsiveLayouts) => {
-    setDraftLayouts(allLayouts);
+  const handleLayoutChange = (newLayout: Layout) => {
+    setDraftLayout([...newLayout]);
   };
 
   useEffect(() => {
     const selectedIds = new Set(selectedLayoutFilterItems.map((item) => item.value as string));
-
-    setDraftLayouts((prev) => {
-      const newLayouts: ResponsiveLayouts = {};
-      for (const [breakpoint, layouts] of Object.entries(prev)) {
-        if (!layouts) continue;
-        // 선택된 항목만 유지
-        const filtered = layouts.filter((item) => selectedIds.has(item.i));
-        // 현재 브레이크포인트에 없지만 선택된 항목 → 가장 좌측 상단 빈 공간에 추가
-        const existingIds = new Set(filtered.map((item) => item.i));
-        const colCount = cols[breakpoint as keyof typeof cols] ?? cols.lg;
-        const toAdd: LayoutItem[] = [];
-        for (const id of selectedIds) {
-          if (existingIds.has(id)) continue;
-          const defaultItem = DEFAULT_LAYOUTS.lg?.find((d) => d.i === id);
-          if (!defaultItem) continue;
-          const pos = findTopLeftPosition([...filtered, ...toAdd], defaultItem.w, defaultItem.h, colCount);
-          toAdd.push({ ...defaultItem, ...pos });
-        }
-        newLayouts[breakpoint as keyof typeof newLayouts] = [...filtered, ...toAdd];
+    setDraftLayout((prev) => {
+      const filtered = prev.filter((item) => selectedIds.has(item.i));
+      const existingIds = new Set(filtered.map((item) => item.i));
+      const toAdd: LayoutItem[] = [];
+      for (const id of selectedIds) {
+        if (existingIds.has(id)) continue;
+        const defaultItem = DEFAULT_LAYOUT.find((d) => d.i === id);
+        if (!defaultItem) continue;
+        const pos = findTopLeftPosition([...filtered, ...toAdd], defaultItem.w, defaultItem.h, GRID_COLS);
+        toAdd.push({ ...defaultItem, ...pos });
       }
-
-      return newLayouts;
+      return [...filtered, ...toAdd];
     });
   }, [selectedLayoutFilterItems]);
+
+  const displayLayout = isEditMode ? draftLayout : storedLayout;
 
   const extra = (
     <div className="flex gap-2 w-fit items-center shrink-0">
@@ -206,29 +195,30 @@ export default function BotDashboard() {
       <div
         ref={containerRef}
         className={cn(
-          `${styles['grid-container']} flex-1 min-h-0 overflow-y-auto pr-2 rounded-lg transition-colors`,
+          `${styles['grid-container']} flex-1 min-h-0 overflow-hidden overflow-y-auto pr-2 rounded-lg transition-colors`,
           isEditMode && 'bg-[radial-gradient(circle,#cbd5e1_1px,transparent_1px)] bg-[length:16px_16px]',
         )}
       >
         {mounted && (
-          <Responsive
-            layouts={isEditMode ? draftLayouts : layouts}
-            breakpoints={breakpoints}
-            cols={cols}
+          <GridLayout
+            layout={displayLayout}
             width={width}
-            rowHeight={60}
-            containerPadding={[0, 5]}
+            gridConfig={{
+              cols: GRID_COLS,
+              rowHeight: 60,
+              containerPadding: [0, 5],
+            }}
             dragConfig={{ enabled: isEditMode, bounded: true }}
             resizeConfig={{ enabled: isEditMode, handles: ['sw', 'nw', 'se', 'ne'] }}
             onLayoutChange={handleLayoutChange}
           >
-            {(isEditMode ? draftLayouts.lg : layouts.lg)?.map((layout) => {
-              const layoutItem = layoutRenderMapper[layout.i as keyof typeof layoutRenderMapper];
-              const WidgetComponent = layoutItem?.component;
+            {displayLayout.map((item) => {
+              const mapEntry = layoutRenderMapper[item.i as keyof typeof layoutRenderMapper];
+              const WidgetComponent = mapEntry?.component;
               return (
-                <div key={layout.i} className="w-full h-full">
+                <div key={item.i} className="w-full h-full">
                   <Card
-                    title={layoutItem?.title ?? layout.i}
+                    title={mapEntry?.title ?? item.i}
                     variant="borderless"
                     className="h-full flex flex-col"
                     classNames={{
@@ -243,7 +233,7 @@ export default function BotDashboard() {
                 </div>
               );
             })}
-          </Responsive>
+          </GridLayout>
         )}
       </div>
     </div>
