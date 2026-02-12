@@ -72,7 +72,7 @@ const layoutRenderMapper: Record<string, { title: string; component?: ComponentT
   keywordTop: { title: '키워드 Top 10', component: KeywordTopBarChart },
   entityTop: { title: '개체 Top 10', component: EntityTopBarChart },
   intentTop: { title: '의도 Top 10', component: IntentTopBarChart },
-  intentCheckFailTop: { title: '의도 재질의 Top 10', component: IntentCheckFailTopBarChart },
+  intentCheckFailTop: { title: '의도 Check/Fail Top 10', component: IntentCheckFailTopBarChart },
   intentConfidenceTop: { title: '의도 평균 신회도 Top 10', component: IntentConfidenceTopBarChart },
   hourlyEntry: { title: '시간대별 봇 진입 현황', component: HourlyEntryLineChart },
   hourlyBusyTime: { title: '시간대별 봇 점유 현황', component: HourlyBusyTimeLineChart },
