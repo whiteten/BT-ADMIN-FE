@@ -63,7 +63,7 @@ const createChartOption = (data: ScenarioSummary): EChartsOption => {
         },
       },
     },
-    color: [CHART_COLORS.orange, CHART_COLORS.primary, CHART_COLORS.purple],
+    color: [CHART_COLORS.success, CHART_COLORS.danger, CHART_COLORS.warning],
     series: [
       {
         type: 'pie',

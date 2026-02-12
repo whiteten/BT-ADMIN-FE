@@ -57,7 +57,7 @@ const createChartOption = (data: DialogSummary): EChartsOption => {
         },
       },
     },
-    color: [CHART_COLORS.orange, CHART_COLORS.primary],
+    color: [CHART_COLORS.success, CHART_COLORS.danger],
     series: [
       {
         type: 'pie',
