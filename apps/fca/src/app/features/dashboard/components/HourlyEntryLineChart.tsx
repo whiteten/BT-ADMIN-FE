@@ -43,5 +43,5 @@ interface HourlyEntryLineChartProps {
 
 export default function HourlyEntryLineChart({ data }: HourlyEntryLineChartProps) {
   if (!data?.length) return null;
-  return <ReactECharts option={createChartOption(data)} style={{ height: '100%', width: '100%' }} />;
+  return <ReactECharts option={createChartOption(data)} notMerge style={{ height: '100%', width: '100%' }} />;
 }

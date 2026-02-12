@@ -31,6 +31,7 @@ const breadcrumb: BreadcrumbProps['items'] = [
 ];
 
 const GRID_COLS = 12;
+const REFRESH_INTERVAL = 3000;
 
 function findTopLeftPosition(existingItems: LayoutItem[], itemW: number, itemH: number, totalCols: number): { x: number; y: number } {
   const collides = (x: number, y: number, w: number, h: number, item: LayoutItem) => x < item.x + item.w && x + w > item.x && y < item.y + item.h && y + h > item.y;
@@ -84,7 +85,7 @@ export default function BotDashboard() {
   const [selectedService, setSelectedService] = useState<Option[]>(serviceOptions);
   const { data, isLoading } = useGetBotDashboard({
     params: { serviceIds: selectedService.map((item) => item.value as string) },
-    queryOptions: { enabled: !!selectedService.length },
+    queryOptions: { enabled: !!selectedService.length, refetchInterval: REFRESH_INTERVAL },
   });
   const { layout: storedLayout, setLayout } = useBotDashboardStore();
   const { width, containerRef, mounted } = useContainerWidth();

@@ -48,5 +48,5 @@ interface IntentTopBarChartProps {
 
 export default function IntentTopBarChart({ data }: IntentTopBarChartProps) {
   if (!data?.length) return null;
-  return <ReactECharts option={createChartOption(data)} style={{ height: '100%', width: '100%' }} />;
+  return <ReactECharts option={createChartOption(data)} notMerge style={{ height: '100%', width: '100%' }} />;
 }
