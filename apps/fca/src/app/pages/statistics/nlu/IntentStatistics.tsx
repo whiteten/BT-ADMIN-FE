@@ -225,7 +225,7 @@ export default function IntentStatistics() {
       cellStyle: (params) => (params.node?.rowPinned === 'bottom' ? { fontWeight: 'bold', alignItems: 'center' } : { fontWeight: 'normal', alignItems: 'center' }),
     },
     { headerName: '모델ID', field: 'modelId', hide: true },
-    { headerName: '모델명', field: 'modelName', flex: 1 },
+    { headerName: '모델명', field: 'modelName', flex: 2 },
     { headerName: '의도명', field: 'intent', flex: 1 },
     {
       headerName: '검출횟수',

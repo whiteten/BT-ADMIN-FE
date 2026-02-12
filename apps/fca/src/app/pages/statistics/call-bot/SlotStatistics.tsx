@@ -253,7 +253,7 @@ export default function SlotStatistics() {
       field: 'successPercent',
       flex: 1,
       cellStyle: (params) => (params.node?.rowPinned === 'bottom' ? { fontWeight: 'bold', alignItems: 'center' } : { fontWeight: 'normal', alignItems: 'center' }),
-      valueFormatter: ({ value }: { value?: number }) => (value ? `${value}%` : '-'),
+      valueFormatter: ({ value }: { value?: number }) => (value ? `${value}%` : '0%'),
     },
     {
       headerName: '재질문(성공)',

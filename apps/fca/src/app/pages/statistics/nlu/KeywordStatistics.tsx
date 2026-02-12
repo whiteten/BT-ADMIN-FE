@@ -204,7 +204,7 @@ export default function KeywordStatistics() {
       cellStyle: (params) => (params.node?.rowPinned === 'bottom' ? { fontWeight: 'bold', alignItems: 'center' } : { fontWeight: 'normal', alignItems: 'center' }),
     },
     { headerName: '모델ID', field: 'modelId', hide: true },
-    { headerName: '모델명', field: 'modelName', flex: 1 },
+    { headerName: '모델명', field: 'modelName', flex: 2 },
     { headerName: '개체 태그', field: 'entityTag', flex: 1 },
     { headerName: '키워드', field: 'keyword', flex: 1 },
     {

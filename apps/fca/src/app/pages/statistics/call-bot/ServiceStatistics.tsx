@@ -228,7 +228,7 @@ export default function ServiceStatistics() {
       field: 'serviceCompletePercent',
       flex: 1,
       cellStyle: (params) => (params.node?.rowPinned === 'bottom' ? { fontWeight: 'bold', alignItems: 'center' } : { fontWeight: 'normal', alignItems: 'center' }),
-      valueFormatter: ({ value }: { value?: number }) => (value != null ? `${value}%` : '-'),
+      valueFormatter: ({ value }: { value?: number }) => (value != null ? `${value}%` : '0%'),
     },
     {
       headerName: '상담연결수',
@@ -241,14 +241,14 @@ export default function ServiceStatistics() {
       field: 'enterReqAgentPercent',
       flex: 1,
       cellStyle: (params) => (params.node?.rowPinned === 'bottom' ? { fontWeight: 'bold', alignItems: 'center' } : { fontWeight: 'normal', alignItems: 'center' }),
-      valueFormatter: ({ value }: { value?: number }) => (value != null ? `${value}%` : '-'),
+      valueFormatter: ({ value }: { value?: number }) => (value != null ? `${value}%` : '0%'),
     },
     {
       headerName: '완결별 상담연결율',
       field: 'completeReqAgentPercent',
       flex: 1,
       cellStyle: (params) => (params.node?.rowPinned === 'bottom' ? { fontWeight: 'bold', alignItems: 'center' } : { fontWeight: 'normal', alignItems: 'center' }),
-      valueFormatter: ({ value }: { value?: number }) => (value != null ? `${value}%` : '-'),
+      valueFormatter: ({ value }: { value?: number }) => (value != null ? `${value}%` : '0%'),
     },
     {
       headerName: '질의수',
