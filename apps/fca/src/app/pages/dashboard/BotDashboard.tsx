@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { GridLayout, type Layout, type LayoutItem, useContainerWidth } from 'react-grid-layout';
 import 'react-grid-layout/css/styles.css';
 import { MultiSelect, type Option } from 'react-multi-select-component';
+import { keepPreviousData } from '@tanstack/react-query';
 import { type BreadcrumbProps, Button, Card } from 'antd';
 import styles from './BotDashboard.module.scss';
 import DialogIncompleteTopBarChart from '../../features/dashboard/components/DialogIncompleteTopBarChart';
@@ -85,7 +86,7 @@ export default function BotDashboard() {
   const [selectedService, setSelectedService] = useState<Option[]>(serviceOptions);
   const { data, isLoading } = useGetBotDashboard({
     params: { serviceIds: selectedService.map((item) => item.value as string) },
-    queryOptions: { enabled: !!selectedService.length, refetchInterval: REFRESH_INTERVAL },
+    queryOptions: { enabled: !!selectedService.length, refetchInterval: REFRESH_INTERVAL, placeholderData: keepPreviousData },
   });
   const { layout: storedLayout, setLayout } = useBotDashboardStore();
   const { width, containerRef, mounted } = useContainerWidth();
