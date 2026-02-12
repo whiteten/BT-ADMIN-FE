@@ -1,4 +1,4 @@
-import { type ComponentType, useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { GridLayout, type Layout, type LayoutItem, useContainerWidth } from 'react-grid-layout';
 import 'react-grid-layout/css/styles.css';
 import { MultiSelect, type Option } from 'react-multi-select-component';
@@ -20,6 +20,7 @@ import SlotRetryDistTopBarChart from '../../features/dashboard/components/SlotRe
 import SlotSummaryPieChart from '../../features/dashboard/components/SlotSummaryPieChart';
 import { DEFAULT_LAYOUT, useBotDashboardStore } from '../../features/dashboard/hooks/useBotDashboardStore';
 import { useGetBotDashboard } from '../../features/dashboard/hooks/useDashboardQueries';
+import type { BotDashboardResponse } from '../../features/dashboard/types/dashboard.types';
 import PageHeader from '@/components/custom/PageHeader';
 import { cn } from '@/lib/utils';
 
@@ -61,28 +62,28 @@ const multiSelectStrings = {
   create: '생성',
 };
 
-const layoutRenderMapper: Record<string, { title: string; component?: ComponentType }> = {
-  scenarioSummary: { title: '시나리오 현황', component: ScenarioSummaryPieChart },
-  dialogSummary: { title: '대화 현황', component: DialogSummaryPieChart },
-  slotSummary: { title: '슬롯 현황', component: SlotSummaryPieChart },
-  dialogIncompleteTop: { title: '대화 미완결율 Top 10', component: DialogIncompleteTopBarChart },
-  slotIncompleteTop: { title: '슬롯 미완결율 Top 10', component: SlotIncompleteTopBarChart },
-  slotRetryAvgTop: { title: '슬롯 평균 재시도 횟수 Top 10', component: SlotRetryAvgTopBarChart },
-  slotRetryDistTop: { title: '슬롯 재시도 분포 Top 10', component: SlotRetryDistTopBarChart },
-  keywordTop: { title: '키워드 Top 10', component: KeywordTopBarChart },
-  entityTop: { title: '개체 Top 10', component: EntityTopBarChart },
-  intentTop: { title: '의도 Top 10', component: IntentTopBarChart },
-  intentCheckFailTop: { title: '의도 Check/Fail Top 10', component: IntentCheckFailTopBarChart },
-  intentConfidenceTop: { title: '의도 평균 신회도 Top 10', component: IntentConfidenceTopBarChart },
-  hourlyEntry: { title: '시간대별 봇 진입 현황', component: HourlyEntryLineChart },
-  hourlyBusyTime: { title: '시간대별 봇 점유 현황', component: HourlyBusyTimeLineChart },
+const layoutRenderMapper: Record<string, { title: string; render?: (data?: BotDashboardResponse) => React.ReactNode }> = {
+  scenarioSummary: { title: '시나리오 현황', render: (d) => <ScenarioSummaryPieChart data={d?.scenarioSummary} /> },
+  dialogSummary: { title: '대화 현황', render: (d) => <DialogSummaryPieChart data={d?.dialogSummary} /> },
+  slotSummary: { title: '슬롯 현황', render: (d) => <SlotSummaryPieChart data={d?.slotSummary} /> },
+  dialogIncompleteTop: { title: '대화 미완결율 Top 10', render: (d) => <DialogIncompleteTopBarChart data={d?.dialogIncompleteTop} /> },
+  slotIncompleteTop: { title: '슬롯 미완결율 Top 10', render: (d) => <SlotIncompleteTopBarChart data={d?.slotIncompleteTop} /> },
+  slotRetryAvgTop: { title: '슬롯 평균 재시도 횟수 Top 10', render: (d) => <SlotRetryAvgTopBarChart data={d?.slotRetryAvgTop} /> },
+  slotRetryDistTop: { title: '슬롯 재시도 분포 Top 10', render: (d) => <SlotRetryDistTopBarChart data={d?.slotRetryDistTop} /> },
+  keywordTop: { title: '키워드 Top 10', render: (d) => <KeywordTopBarChart data={d?.keywordTop} /> },
+  entityTop: { title: '개체 Top 10', render: (d) => <EntityTopBarChart data={d?.entityTop} /> },
+  intentTop: { title: '의도 Top 10', render: (d) => <IntentTopBarChart data={d?.intentTop} /> },
+  intentCheckFailTop: { title: '의도 Check/Fail Top 10', render: (d) => <IntentCheckFailTopBarChart data={d?.intentCheckFailTop} /> },
+  intentConfidenceTop: { title: '의도 평균 신회도 Top 10', render: (d) => <IntentConfidenceTopBarChart data={d?.intentConfidenceTop} /> },
+  hourlyEntry: { title: '시간대별 봇 진입 현황', render: (d) => <HourlyEntryLineChart data={d?.hourlyEntry} /> },
+  hourlyBusyTime: { title: '시간대별 봇 점유 현황', render: (d) => <HourlyBusyTimeLineChart data={d?.hourlyBusyTime} /> },
 };
 
 export default function BotDashboard() {
   const [selectedService, setSelectedService] = useState<Option[]>(serviceOptions);
   const { data, isLoading } = useGetBotDashboard({
     params: { serviceIds: selectedService.map((item) => item.value as string) },
-    queryOptions: { enabled: false }, // TODO: api 개발 후 selectedService.length > 0 조건으로 변경
+    queryOptions: { enabled: !!selectedService.length },
   });
   const { layout: storedLayout, setLayout } = useBotDashboardStore();
   const { width, containerRef, mounted } = useContainerWidth();
@@ -214,7 +215,6 @@ export default function BotDashboard() {
           >
             {displayLayout.map((item) => {
               const mapEntry = layoutRenderMapper[item.i as keyof typeof layoutRenderMapper];
-              const WidgetComponent = mapEntry?.component;
               return (
                 <div key={item.i} className="w-full h-full">
                   <Card
@@ -228,7 +228,7 @@ export default function BotDashboard() {
                     }}
                     loading={isLoading}
                   >
-                    {WidgetComponent ? <WidgetComponent /> : null}
+                    {mapEntry?.render ? mapEntry.render(data) : null}
                   </Card>
                 </div>
               );

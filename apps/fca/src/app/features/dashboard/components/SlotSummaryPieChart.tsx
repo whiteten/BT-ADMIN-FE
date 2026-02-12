@@ -3,17 +3,6 @@ import ReactECharts from 'echarts-for-react';
 import { CHART_COLORS } from './chartStyles';
 import type { SlotSummary } from '../types/dashboard.types';
 
-const sampleData: SlotSummary = {
-  entryCnt: 5800,
-  entryDiff: 2.1,
-  completeCnt: 4930,
-  completeRate: 85.0,
-  completeRateDiff: 0.9,
-  incompleteCnt: 870,
-  incompleteRate: 15.0,
-  incompleteRateDiff: -0.9,
-};
-
 const createChartOption = (data: SlotSummary): EChartsOption => {
   const seriesData = [
     { name: '완결', value: data.completeCnt, rate: data.completeRate, diff: data.completeRateDiff },
@@ -92,6 +81,7 @@ interface SlotSummaryPieChartProps {
   data?: SlotSummary;
 }
 
-export default function SlotSummaryPieChart({ data = sampleData }: SlotSummaryPieChartProps) {
+export default function SlotSummaryPieChart({ data }: SlotSummaryPieChartProps) {
+  if (!data) return null;
   return <ReactECharts option={createChartOption(data)} style={{ height: '100%', width: '100%' }} />;
 }

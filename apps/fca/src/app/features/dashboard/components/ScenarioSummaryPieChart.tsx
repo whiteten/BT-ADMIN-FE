@@ -3,22 +3,6 @@ import ReactECharts from 'echarts-for-react';
 import { CHART_COLORS } from './chartStyles';
 import type { ScenarioSummary } from '../types/dashboard.types';
 
-const sampleData: ScenarioSummary = {
-  entryCnt: 1250,
-  entryDiff: 5.2,
-  completeCnt: 980,
-  completeRate: 78.4,
-  completeRateDiff: 2.1,
-  agentReqCnt: 150,
-  agentTransferRate: 12.0,
-  agentTransferRateDiff: -1.3,
-  incompleteCnt: 120,
-  incompleteRate: 9.6,
-  incompleteRateDiff: -0.8,
-  avgBusyTime: 45.3,
-  avgBusyTimeDiff: 3.2,
-};
-
 const createChartOption = (data: ScenarioSummary): EChartsOption => {
   const seriesData = [
     { name: '완결', value: data.completeCnt, rate: data.completeRate, diff: data.completeRateDiff },
@@ -98,6 +82,7 @@ interface ScenarioSummaryPieChartProps {
   data?: ScenarioSummary;
 }
 
-export default function ScenarioSummaryPieChart({ data = sampleData }: ScenarioSummaryPieChartProps) {
+export default function ScenarioSummaryPieChart({ data }: ScenarioSummaryPieChartProps) {
+  if (!data) return null;
   return <ReactECharts option={createChartOption(data)} style={{ height: '100%', width: '100%' }} />;
 }

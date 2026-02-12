@@ -3,19 +3,6 @@ import ReactECharts from 'echarts-for-react';
 import { getGradientColor } from './chartStyles';
 import type { IntentTopItem } from '../types/dashboard.types';
 
-const sampleData: IntentTopItem[] = [
-  { rank: 1, intent: '계좌이체', detectCnt: 720 },
-  { rank: 2, intent: '잔액조회', detectCnt: 650 },
-  { rank: 3, intent: '카드결제', detectCnt: 580 },
-  { rank: 4, intent: '대출신청', detectCnt: 510 },
-  { rank: 5, intent: '비밀번호변경', detectCnt: 440 },
-  { rank: 6, intent: '카드분실신고', detectCnt: 370 },
-  { rank: 7, intent: '해지신청', detectCnt: 300 },
-  { rank: 8, intent: '주소변경', detectCnt: 230 },
-  { rank: 9, intent: '금리조회', detectCnt: 180 },
-  { rank: 10, intent: '상담원연결', detectCnt: 120 },
-];
-
 const createChartOption = (data: IntentTopItem[]): EChartsOption => {
   return {
     tooltip: { trigger: 'axis', axisPointer: { type: 'shadow' } },
@@ -52,6 +39,11 @@ const createChartOption = (data: IntentTopItem[]): EChartsOption => {
   };
 };
 
-export default function IntentTopBarChart() {
-  return <ReactECharts option={createChartOption(sampleData)} style={{ height: '100%', width: '100%' }} />;
+interface IntentTopBarChartProps {
+  data?: IntentTopItem[];
+}
+
+export default function IntentTopBarChart({ data }: IntentTopBarChartProps) {
+  if (!data?.length) return null;
+  return <ReactECharts option={createChartOption(data)} style={{ height: '100%', width: '100%' }} />;
 }

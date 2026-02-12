@@ -3,19 +3,6 @@ import ReactECharts from 'echarts-for-react';
 import { getGradientColor } from './chartStyles';
 import type { KeywordTopItem } from '../types/dashboard.types';
 
-const sampleData: KeywordTopItem[] = [
-  { rank: 1, keyword: '계좌이체', detectCnt: 520 },
-  { rank: 2, keyword: '잔액조회', detectCnt: 480 },
-  { rank: 3, keyword: '카드결제', detectCnt: 430 },
-  { rank: 4, keyword: '비밀번호', detectCnt: 390 },
-  { rank: 5, keyword: '대출상담', detectCnt: 350 },
-  { rank: 6, keyword: '해지신청', detectCnt: 310 },
-  { rank: 7, keyword: '주소변경', detectCnt: 270 },
-  { rank: 8, keyword: '카드분실', detectCnt: 230 },
-  { rank: 9, keyword: '금리조회', detectCnt: 190 },
-  { rank: 10, keyword: '상담원연결', detectCnt: 150 },
-];
-
 const createChartOption = (data: KeywordTopItem[]): EChartsOption => {
   return {
     tooltip: { trigger: 'axis', axisPointer: { type: 'shadow' } },
@@ -52,6 +39,11 @@ const createChartOption = (data: KeywordTopItem[]): EChartsOption => {
   };
 };
 
-export default function KeywordTopBarChart() {
-  return <ReactECharts option={createChartOption(sampleData)} style={{ height: '100%', width: '100%' }} />;
+interface KeywordTopBarChartProps {
+  data?: KeywordTopItem[];
+}
+
+export default function KeywordTopBarChart({ data }: KeywordTopBarChartProps) {
+  if (!data?.length) return null;
+  return <ReactECharts option={createChartOption(data)} style={{ height: '100%', width: '100%' }} />;
 }

@@ -2,99 +2,6 @@ import type { EChartsOption } from 'echarts';
 import ReactECharts from 'echarts-for-react';
 import type { HourlyEntryItem } from '../types/dashboard.types';
 
-const sampleData: HourlyEntryItem[] = [
-  {
-    serviceId: '1001',
-    serviceName: '서비스 1001',
-    hourlyStats: [
-      { hour: '00', entryCnt: 5 },
-      { hour: '01', entryCnt: 3 },
-      { hour: '02', entryCnt: 2 },
-      { hour: '03', entryCnt: 1 },
-      { hour: '04', entryCnt: 2 },
-      { hour: '05', entryCnt: 8 },
-      { hour: '06', entryCnt: 15 },
-      { hour: '07', entryCnt: 35 },
-      { hour: '08', entryCnt: 60 },
-      { hour: '09', entryCnt: 85 },
-      { hour: '10', entryCnt: 92 },
-      { hour: '11', entryCnt: 88 },
-      { hour: '12', entryCnt: 55 },
-      { hour: '13', entryCnt: 78 },
-      { hour: '14', entryCnt: 82 },
-      { hour: '15', entryCnt: 75 },
-      { hour: '16', entryCnt: 68 },
-      { hour: '17', entryCnt: 45 },
-      { hour: '18', entryCnt: 30 },
-      { hour: '19', entryCnt: 22 },
-      { hour: '20', entryCnt: 18 },
-      { hour: '21', entryCnt: 12 },
-      { hour: '22', entryCnt: 8 },
-      { hour: '23', entryCnt: 5 },
-    ],
-  },
-  {
-    serviceId: '1002',
-    serviceName: '서비스 1002',
-    hourlyStats: [
-      { hour: '00', entryCnt: 3 },
-      { hour: '01', entryCnt: 2 },
-      { hour: '02', entryCnt: 1 },
-      { hour: '03', entryCnt: 1 },
-      { hour: '04', entryCnt: 1 },
-      { hour: '05', entryCnt: 5 },
-      { hour: '06', entryCnt: 10 },
-      { hour: '07', entryCnt: 25 },
-      { hour: '08', entryCnt: 45 },
-      { hour: '09', entryCnt: 65 },
-      { hour: '10', entryCnt: 72 },
-      { hour: '11', entryCnt: 70 },
-      { hour: '12', entryCnt: 42 },
-      { hour: '13', entryCnt: 62 },
-      { hour: '14', entryCnt: 68 },
-      { hour: '15', entryCnt: 58 },
-      { hour: '16', entryCnt: 50 },
-      { hour: '17', entryCnt: 35 },
-      { hour: '18', entryCnt: 22 },
-      { hour: '19', entryCnt: 15 },
-      { hour: '20', entryCnt: 12 },
-      { hour: '21', entryCnt: 8 },
-      { hour: '22', entryCnt: 5 },
-      { hour: '23', entryCnt: 3 },
-    ],
-  },
-  {
-    serviceId: '1003',
-    serviceName: '서비스 1003',
-    hourlyStats: [
-      { hour: '00', entryCnt: 2 },
-      { hour: '01', entryCnt: 1 },
-      { hour: '02', entryCnt: 1 },
-      { hour: '03', entryCnt: 0 },
-      { hour: '04', entryCnt: 1 },
-      { hour: '05', entryCnt: 3 },
-      { hour: '06', entryCnt: 8 },
-      { hour: '07', entryCnt: 18 },
-      { hour: '08', entryCnt: 32 },
-      { hour: '09', entryCnt: 48 },
-      { hour: '10', entryCnt: 55 },
-      { hour: '11', entryCnt: 52 },
-      { hour: '12', entryCnt: 30 },
-      { hour: '13', entryCnt: 45 },
-      { hour: '14', entryCnt: 50 },
-      { hour: '15', entryCnt: 42 },
-      { hour: '16', entryCnt: 38 },
-      { hour: '17', entryCnt: 25 },
-      { hour: '18', entryCnt: 15 },
-      { hour: '19', entryCnt: 10 },
-      { hour: '20', entryCnt: 8 },
-      { hour: '21', entryCnt: 5 },
-      { hour: '22', entryCnt: 3 },
-      { hour: '23', entryCnt: 2 },
-    ],
-  },
-];
-
 const createChartOption = (data: HourlyEntryItem[]): EChartsOption => ({
   tooltip: { trigger: 'axis' },
   legend: { data: data.map((item) => item.serviceName), bottom: '2%', icon: 'roundRect' },
@@ -130,6 +37,11 @@ const createChartOption = (data: HourlyEntryItem[]): EChartsOption => ({
   })),
 });
 
-export default function HourlyEntryLineChart() {
-  return <ReactECharts option={createChartOption(sampleData)} style={{ height: '100%', width: '100%' }} />;
+interface HourlyEntryLineChartProps {
+  data?: HourlyEntryItem[];
+}
+
+export default function HourlyEntryLineChart({ data }: HourlyEntryLineChartProps) {
+  if (!data?.length) return null;
+  return <ReactECharts option={createChartOption(data)} style={{ height: '100%', width: '100%' }} />;
 }

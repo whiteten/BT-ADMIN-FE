@@ -2,99 +2,6 @@ import type { EChartsOption } from 'echarts';
 import ReactECharts from 'echarts-for-react';
 import type { HourlyBusyTimeItem } from '../types/dashboard.types';
 
-const sampleData: HourlyBusyTimeItem[] = [
-  {
-    serviceId: '1001',
-    serviceName: '서비스 1001',
-    hourlyStats: [
-      { hour: '00', sumBusyTime: 12 },
-      { hour: '01', sumBusyTime: 8 },
-      { hour: '02', sumBusyTime: 5 },
-      { hour: '03', sumBusyTime: 3 },
-      { hour: '04', sumBusyTime: 4 },
-      { hour: '05', sumBusyTime: 20 },
-      { hour: '06', sumBusyTime: 38 },
-      { hour: '07', sumBusyTime: 85 },
-      { hour: '08', sumBusyTime: 150 },
-      { hour: '09', sumBusyTime: 210 },
-      { hour: '10', sumBusyTime: 230 },
-      { hour: '11', sumBusyTime: 220 },
-      { hour: '12', sumBusyTime: 140 },
-      { hour: '13', sumBusyTime: 195 },
-      { hour: '14', sumBusyTime: 205 },
-      { hour: '15', sumBusyTime: 190 },
-      { hour: '16', sumBusyTime: 170 },
-      { hour: '17', sumBusyTime: 110 },
-      { hour: '18', sumBusyTime: 75 },
-      { hour: '19', sumBusyTime: 55 },
-      { hour: '20', sumBusyTime: 45 },
-      { hour: '21', sumBusyTime: 30 },
-      { hour: '22', sumBusyTime: 20 },
-      { hour: '23', sumBusyTime: 13 },
-    ],
-  },
-  {
-    serviceId: '1002',
-    serviceName: '서비스 1002',
-    hourlyStats: [
-      { hour: '00', sumBusyTime: 8 },
-      { hour: '01', sumBusyTime: 5 },
-      { hour: '02', sumBusyTime: 3 },
-      { hour: '03', sumBusyTime: 2 },
-      { hour: '04', sumBusyTime: 3 },
-      { hour: '05', sumBusyTime: 13 },
-      { hour: '06', sumBusyTime: 25 },
-      { hour: '07', sumBusyTime: 62 },
-      { hour: '08', sumBusyTime: 110 },
-      { hour: '09', sumBusyTime: 160 },
-      { hour: '10', sumBusyTime: 180 },
-      { hour: '11', sumBusyTime: 175 },
-      { hour: '12', sumBusyTime: 105 },
-      { hour: '13', sumBusyTime: 155 },
-      { hour: '14', sumBusyTime: 170 },
-      { hour: '15', sumBusyTime: 145 },
-      { hour: '16', sumBusyTime: 125 },
-      { hour: '17', sumBusyTime: 88 },
-      { hour: '18', sumBusyTime: 55 },
-      { hour: '19', sumBusyTime: 38 },
-      { hour: '20', sumBusyTime: 30 },
-      { hour: '21', sumBusyTime: 20 },
-      { hour: '22', sumBusyTime: 13 },
-      { hour: '23', sumBusyTime: 8 },
-    ],
-  },
-  {
-    serviceId: '1003',
-    serviceName: '서비스 1003',
-    hourlyStats: [
-      { hour: '00', sumBusyTime: 5 },
-      { hour: '01', sumBusyTime: 3 },
-      { hour: '02', sumBusyTime: 2 },
-      { hour: '03', sumBusyTime: 1 },
-      { hour: '04', sumBusyTime: 2 },
-      { hour: '05', sumBusyTime: 8 },
-      { hour: '06', sumBusyTime: 20 },
-      { hour: '07', sumBusyTime: 45 },
-      { hour: '08', sumBusyTime: 80 },
-      { hour: '09', sumBusyTime: 120 },
-      { hour: '10', sumBusyTime: 138 },
-      { hour: '11', sumBusyTime: 130 },
-      { hour: '12', sumBusyTime: 75 },
-      { hour: '13', sumBusyTime: 113 },
-      { hour: '14', sumBusyTime: 125 },
-      { hour: '15', sumBusyTime: 105 },
-      { hour: '16', sumBusyTime: 95 },
-      { hour: '17', sumBusyTime: 63 },
-      { hour: '18', sumBusyTime: 38 },
-      { hour: '19', sumBusyTime: 25 },
-      { hour: '20', sumBusyTime: 20 },
-      { hour: '21', sumBusyTime: 13 },
-      { hour: '22', sumBusyTime: 8 },
-      { hour: '23', sumBusyTime: 5 },
-    ],
-  },
-];
-
 const createChartOption = (data: HourlyBusyTimeItem[]): EChartsOption => ({
   tooltip: { trigger: 'axis' },
   legend: { data: data.map((item) => item.serviceName), bottom: '2%', icon: 'roundRect' },
@@ -130,6 +37,11 @@ const createChartOption = (data: HourlyBusyTimeItem[]): EChartsOption => ({
   })),
 });
 
-export default function HourlyBusyTimeLineChart() {
-  return <ReactECharts option={createChartOption(sampleData)} style={{ height: '100%', width: '100%' }} />;
+interface HourlyBusyTimeLineChartProps {
+  data?: HourlyBusyTimeItem[];
+}
+
+export default function HourlyBusyTimeLineChart({ data }: HourlyBusyTimeLineChartProps) {
+  if (!data?.length) return null;
+  return <ReactECharts option={createChartOption(data)} style={{ height: '100%', width: '100%' }} />;
 }

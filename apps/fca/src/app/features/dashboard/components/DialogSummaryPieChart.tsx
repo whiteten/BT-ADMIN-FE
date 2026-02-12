@@ -3,17 +3,6 @@ import ReactECharts from 'echarts-for-react';
 import { CHART_COLORS } from './chartStyles';
 import type { DialogSummary } from '../types/dashboard.types';
 
-const sampleData: DialogSummary = {
-  entryCnt: 3200,
-  entryDiff: 3.5,
-  completeCnt: 2560,
-  completeRate: 80.0,
-  completeRateDiff: 1.8,
-  incompleteCnt: 640,
-  incompleteRate: 20.0,
-  incompleteRateDiff: -1.8,
-};
-
 const createChartOption = (data: DialogSummary): EChartsOption => {
   const seriesData = [
     { name: '완결', value: data.completeCnt, rate: data.completeRate, diff: data.completeRateDiff },
@@ -92,6 +81,7 @@ interface DialogSummaryPieChartProps {
   data?: DialogSummary;
 }
 
-export default function DialogSummaryPieChart({ data = sampleData }: DialogSummaryPieChartProps) {
+export default function DialogSummaryPieChart({ data }: DialogSummaryPieChartProps) {
+  if (!data) return null;
   return <ReactECharts option={createChartOption(data)} style={{ height: '100%', width: '100%' }} />;
 }
