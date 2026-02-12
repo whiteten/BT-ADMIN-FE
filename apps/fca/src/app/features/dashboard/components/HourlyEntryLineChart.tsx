@@ -1,6 +1,7 @@
 import type { EChartsOption } from 'echarts';
 import ReactECharts from 'echarts-for-react';
 import type { HourlyEntryItem } from '../types/dashboard.types';
+import NoData from '@/components/custom/NoData';
 
 const createChartOption = (data: HourlyEntryItem[]): EChartsOption => ({
   tooltip: { trigger: 'axis' },
@@ -42,6 +43,6 @@ interface HourlyEntryLineChartProps {
 }
 
 export default function HourlyEntryLineChart({ data }: HourlyEntryLineChartProps) {
-  if (!data?.length) return null;
+  if (!data?.length) return <NoData message={`조회된 데이터가 없습니다.`} fontSize="text-base" gap={2} />;
   return <ReactECharts option={createChartOption(data)} notMerge style={{ height: '100%', width: '100%' }} />;
 }

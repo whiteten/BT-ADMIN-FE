@@ -2,6 +2,7 @@ import type { EChartsOption } from 'echarts';
 import ReactECharts from 'echarts-for-react';
 import { CHART_COLORS } from './chartStyles';
 import type { ScenarioSummary } from '../types/dashboard.types';
+import NoData from '@/components/custom/NoData';
 
 const createChartOption = (data: ScenarioSummary): EChartsOption => {
   const seriesData = [
@@ -83,6 +84,6 @@ interface ScenarioSummaryPieChartProps {
 }
 
 export default function ScenarioSummaryPieChart({ data }: ScenarioSummaryPieChartProps) {
-  if (!data) return null;
+  if (!data?.completeCnt && !data?.incompleteCnt && !data?.agentReqCnt) return <NoData message={`조회된 데이터가 없습니다.`} fontSize="text-base" gap={2} />;
   return <ReactECharts option={createChartOption(data)} style={{ height: '100%', width: '100%' }} />;
 }

@@ -3,6 +3,7 @@ import type { CallbackDataParams } from 'echarts/types/dist/shared';
 import ReactECharts from 'echarts-for-react';
 import { CHART_COLORS } from './chartStyles';
 import type { SlotRetryDistTopItem } from '../types/dashboard.types';
+import NoData from '@/components/custom/NoData';
 
 const createChartOption = (data: SlotRetryDistTopItem[]): EChartsOption => {
   const sorted = [...data].filter((item) => item.rank >= 1 && item.rank <= 10).sort((a, b) => a.rank - b.rank);
@@ -74,6 +75,6 @@ interface SlotRetryDistTopBarChartProps {
 }
 
 export default function SlotRetryDistTopBarChart({ data }: SlotRetryDistTopBarChartProps) {
-  if (!data?.length) return null;
+  if (!data?.length) return <NoData message={`조회된 데이터가 없습니다.`} fontSize="text-base" gap={2} />;
   return <ReactECharts option={createChartOption(data)} notMerge style={{ height: '100%', width: '100%' }} />;
 }

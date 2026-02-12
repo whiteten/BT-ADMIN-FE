@@ -2,6 +2,7 @@ import type { EChartsOption } from 'echarts';
 import ReactECharts from 'echarts-for-react';
 import { CHART_COLORS } from './chartStyles';
 import type { SlotSummary } from '../types/dashboard.types';
+import NoData from '@/components/custom/NoData';
 
 const createChartOption = (data: SlotSummary): EChartsOption => {
   const seriesData = [
@@ -82,6 +83,6 @@ interface SlotSummaryPieChartProps {
 }
 
 export default function SlotSummaryPieChart({ data }: SlotSummaryPieChartProps) {
-  if (!data) return null;
+  if (!data?.completeCnt && !data?.incompleteCnt) return <NoData message={`조회된 데이터가 없습니다.`} fontSize="text-base" gap={2} />;
   return <ReactECharts option={createChartOption(data)} style={{ height: '100%', width: '100%' }} />;
 }
