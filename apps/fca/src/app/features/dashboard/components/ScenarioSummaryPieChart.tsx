@@ -11,6 +11,10 @@ const createChartOption = (data: ScenarioSummary): EChartsOption => {
     { name: '상담원 전환', value: data.agentReqCnt, rate: data.agentTransferRate, diff: data.agentTransferRateDiff },
   ];
 
+  const diff = data.avgBusyTimeDiff;
+  const diffText = diff === 0 ? '- 0초' : `${diff > 0 ? '▲' : '▼'} ${Math.abs(diff)}초`;
+  const diffColor = diff === 0 ? '#999' : diff > 0 ? '#10B981' : '#F06548';
+
   return {
     tooltip: {
       trigger: 'item',
@@ -74,6 +78,20 @@ const createChartOption = (data: ScenarioSummary): EChartsOption => {
           borderWidth: 2,
         },
         data: seriesData,
+      },
+    ],
+    graphic: [
+      {
+        type: 'text',
+        left: 'center',
+        bottom: '26%',
+        style: {
+          rich: {
+            label: { fontSize: 14, fontWeight: 'bold', fill: '#333' },
+            diff: { fontSize: 12, fill: diffColor },
+          },
+          text: `{label|평균통화시간: ${data.avgBusyTime}초}  {diff|${diffText}}`,
+        },
       },
     ],
   };
