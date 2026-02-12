@@ -1,5 +1,6 @@
 import type { EChartsOption } from 'echarts';
 import ReactECharts from 'echarts-for-react';
+import { getGradientColor } from './chartStyles';
 import type { SlotRetryAvgTopItem } from '../types/dashboard.types';
 
 const sampleData: SlotRetryAvgTopItem[] = [
@@ -153,8 +154,7 @@ const createChartOption = (data: SlotRetryAvgTopItem[]): EChartsOption => {
       {
         type: 'bar',
         data: data.map((item) => item.avgRetryCount),
-        colorBy: 'data',
-        itemStyle: { borderRadius: [0, 4, 4, 0] },
+        itemStyle: { borderRadius: [0, 4, 4, 0], color: getGradientColor },
         barWidth: '60%',
         label: { show: true, position: 'right', formatter: '{c}', color: '#495057', fontSize: 11 },
       },

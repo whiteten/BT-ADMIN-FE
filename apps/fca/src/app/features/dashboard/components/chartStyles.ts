@@ -10,3 +10,8 @@ export const CHART_COLORS = {
   indigo: '#6366F1',
   teal: '#14B8A6',
 } as const;
+
+export const getGradientColor = (params: { dataIndex: number }) => {
+  const opacity = 1 - params.dataIndex * 0.07;
+  return `rgba(59, 130, 246, ${opacity})`;
+};
