@@ -275,27 +275,54 @@ export interface IntentConfidenceTopItem {
 }
 
 /**
- * 시간대별 통계 항목
+ * 시간대별 기본 데이터
  *
- * - hour: 시간대 (0~23)
- * - entryCnt: 진입수
- * - sumBusyTime: 점유시간 (초)
+ * - serviceId: 시나리오 ID
+ * - serviceName: 시나리오명
  */
-export interface HourlyStatsItem {
-  hour: number;
-  entryCnt: number;
-  sumBusyTime: number;
+interface HourlyBaseItem {
+  serviceId: string;
+  serviceName: string;
 }
 
 /**
  * 시간대별 시나리오 데이터
  *
- * - serviceName: 시나리오명
  * - hourlyStats: 시간대별 통계 (00~23시)
  */
-export interface HourlyScenarioItem {
-  serviceName: string;
-  hourlyStats: HourlyStatsItem[];
+export interface HourlyEntryItem extends HourlyBaseItem {
+  hourlyStats: HourlyEntryStatsItem[];
+}
+
+/**
+ * 시간대별 점유시간 데이터
+ *
+ * - hourlyStats: 시간대별 통계 (00~23시)
+ */
+export interface HourlyBusyTimeItem extends HourlyBaseItem {
+  hourlyStats: HourlyBusyTimeStatsItem[];
+}
+
+/**
+ * 시간대별 진입수 데이터
+ *
+ * - hour: 시간대 (0~23)
+ * - entryCnt: 진입수
+ */
+interface HourlyEntryStatsItem {
+  hour: string;
+  entryCnt: number;
+}
+
+/**
+ * 시간대별 점유시간 데이터
+ *
+ * - hour: 시간대 (0~23)
+ * - sumBusyTime: 점유시간 (초)
+ */
+interface HourlyBusyTimeStatsItem {
+  hour: string;
+  sumBusyTime: number;
 }
 
 /**
@@ -329,6 +356,6 @@ export interface BotDashboardResponse {
   intentTop: IntentTopItem[];
   intentCheckFailTop: IntentCheckFailTopItem[];
   intentConfidenceTop: IntentConfidenceTopItem[];
-  hourlyEntry: HourlyScenarioItem[];
-  hourlyBusyTime: HourlyScenarioItem[];
+  hourlyEntry: HourlyEntryItem[];
+  hourlyBusyTime: HourlyBusyTimeItem[];
 }
