@@ -21,43 +21,43 @@ const createChartOption = (data: SlotSummary): EChartsOption => {
     legend: {
       orient: 'horizontal',
       left: 'center',
-      bottom: '5%',
+      bottom: '12%',
       itemGap: 13,
       icon: 'roundRect',
       selectedMode: false,
-      formatter: (name: string) => {
-        const item = seriesData.find((d) => d.name === name);
-        if (!item) return name;
-        const diff = item.diff;
-        if (diff === 0) {
-          return `{name|${name}}  {rate|${item.rate}%} {zero|- 0%}`;
-        }
-        const arrow = diff > 0 ? '▲' : '▼';
-        const diffStyle = diff > 0 ? 'up' : 'down';
-        return `{name|${name}}  {rate|${item.rate}%} {${diffStyle}|${arrow} ${Math.abs(diff)}%}`;
-      },
       textStyle: {
-        rich: {
-          name: { fontSize: 14, color: '#333', width: 75 },
-          rate: { fontSize: 14, fontWeight: 'bold', color: '#333', width: 50 },
-          up: { fontSize: 13, color: '#10B981' },
-          down: { fontSize: 13, color: '#F06548' },
-          zero: { fontSize: 13, color: '#999' },
-        },
+        fontSize: 14,
+        color: '#333',
       },
     },
     color: [CHART_COLORS.success, CHART_COLORS.danger],
     series: [
       {
         type: 'pie',
-        radius: ['30%', '60%'],
-        center: ['50%', '40%'],
+        radius: ['40%', '80%'],
+        center: ['50%', '60%'],
+        startAngle: 180,
+        endAngle: 360,
         avoidLabelOverlap: false,
         label: {
           show: true,
           formatter: (params: { name: string }) => {
             const item = seriesData.find((d) => d.name === params.name);
-            return `${item?.rate ?? 0}%`;
+            if (!item) return params.name;
+            const diff = item.diff;
+            if (diff === 0) {
+              return `{name|${item.name}}\n{rate|${item.rate}%}\n{zero|- 0%}`;
+            }
+            const arrow = diff > 0 ? '▲' : '▼';
+            const diffStyle = diff > 0 ? 'up' : 'down';
+            return `{name|${item.name}}\n{rate|${item.rate}%}\n{${diffStyle}|${arrow} ${Math.abs(diff)}%}`;
+          },
+          rich: {
+            name: { fontSize: 13, color: '#333', lineHeight: 22 },
+            rate: { fontSize: 13, fontWeight: 'bold', color: '#333', lineHeight: 22 },
+            up: { fontSize: 12, color: '#10B981', lineHeight: 22 },
+            down: { fontSize: 12, color: '#F06548', lineHeight: 22 },
+            zero: { fontSize: 12, color: '#999', lineHeight: 22 },
           },
         },
         emphasis: {
@@ -67,7 +67,7 @@ const createChartOption = (data: SlotSummary): EChartsOption => {
           },
         },
         itemStyle: {
-          borderRadius: 10,
+          borderRadius: 6,
           borderColor: '#fff',
           borderWidth: 2,
         },
