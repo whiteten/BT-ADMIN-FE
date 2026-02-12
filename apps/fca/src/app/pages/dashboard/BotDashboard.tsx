@@ -13,7 +13,7 @@ import HourlyEntryLineChart from '../../features/dashboard/components/HourlyEntr
 import IntentCheckFailTopBarChart from '../../features/dashboard/components/IntentCheckFailTopBarChart';
 import IntentConfidenceTopBarChart from '../../features/dashboard/components/IntentConfidenceTopBarChart';
 import IntentTopBarChart from '../../features/dashboard/components/IntentTopBarChart';
-import KeywordTopBarChart from '../../features/dashboard/components/KeywordTopBarChart';
+import KeywordWordCloud from '../../features/dashboard/components/KeywordWordCloud';
 import ScenarioSummaryPieChart from '../../features/dashboard/components/ScenarioSummaryPieChart';
 import SlotIncompleteTopBarChart from '../../features/dashboard/components/SlotIncompleteTopBarChart';
 import SlotRetryAvgTopBarChart from '../../features/dashboard/components/SlotRetryAvgTopBarChart';
@@ -66,14 +66,14 @@ const multiSelectStrings = {
 };
 
 const layoutRenderMapper: Record<string, { title: string; render?: (data?: BotDashboardResponse) => React.ReactNode }> = {
-  scenarioSummary: { title: '시나리오 현황', render: (d) => <ScenarioSummaryPieChart data={d?.scenarioSummary} /> },
+  scenarioSummary: { title: '봇 현황', render: (d) => <ScenarioSummaryPieChart data={d?.scenarioSummary} /> },
   dialogSummary: { title: '대화 현황', render: (d) => <DialogSummaryPieChart data={d?.dialogSummary} /> },
   slotSummary: { title: '슬롯 현황', render: (d) => <SlotSummaryPieChart data={d?.slotSummary} /> },
   dialogIncompleteTop: { title: '대화 미완결율 Top 10', render: (d) => <DialogIncompleteTopBarChart data={d?.dialogIncompleteTop} /> },
   slotIncompleteTop: { title: '슬롯 미완결율 Top 10', render: (d) => <SlotIncompleteTopBarChart data={d?.slotIncompleteTop} /> },
   slotRetryAvgTop: { title: '슬롯 평균 재시도 횟수 Top 10', render: (d) => <SlotRetryAvgTopBarChart data={d?.slotRetryAvgTop} /> },
   slotRetryDistTop: { title: '슬롯 재시도 분포 Top 10', render: (d) => <SlotRetryDistTopBarChart data={d?.slotRetryDistTop} /> },
-  keywordTop: { title: '키워드 Top 10', render: (d) => <KeywordTopBarChart data={d?.keywordTop} /> },
+  keywordTop: { title: '키워드 현황', render: (d) => <KeywordWordCloud data={d?.keywordTop} /> },
   entityTop: { title: '개체 Top 10', render: (d) => <EntityTopBarChart data={d?.entityTop} /> },
   intentTop: { title: '의도 Top 10', render: (d) => <IntentTopBarChart data={d?.intentTop} /> },
   intentCheckFailTop: { title: '의도 Check/Fail Top 10', render: (d) => <IntentCheckFailTopBarChart data={d?.intentCheckFailTop} /> },

@@ -85,12 +85,13 @@ const createChartOption = (data: ScenarioSummary): EChartsOption => {
         type: 'text',
         left: 'center',
         bottom: '26%',
+        cursor: 'default',
         style: {
           rich: {
             label: { fontSize: 14, fontWeight: 'bold', fill: '#333' },
             diff: { fontSize: 12, fill: diffColor },
           },
-          text: `{label|평균통화시간: ${data.avgBusyTime}초}  {diff|${diffText}}`,
+          text: `{label|평균점유시간: ${data.avgBusyTime}초}  {diff|${diffText}}`,
         },
       },
     ],
