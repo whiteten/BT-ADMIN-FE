@@ -23,6 +23,7 @@ import { useGetBotDashboard } from '../../features/dashboard/hooks/useDashboardQ
 import type { BotDashboardResponse } from '../../features/dashboard/types/dashboard.types';
 import PageHeader from '@/components/custom/PageHeader';
 import { cn } from '@/lib/utils';
+import { FallbackSpinner } from '@/libs/shared-ui/src/components/custom/FallbackSpinner';
 
 const breadcrumb: BreadcrumbProps['items'] = [
   { title: '대시보드', path: '/fca/dashboard' },
@@ -74,7 +75,7 @@ const layoutRenderMapper: Record<string, { title: string; render?: (data?: BotDa
   entityTop: { title: '개체 Top 10', render: (d) => <EntityTopBarChart data={d?.entityTop} /> },
   intentTop: { title: '의도 Top 10', render: (d) => <IntentTopBarChart data={d?.intentTop} /> },
   intentCheckFailTop: { title: '의도 Check/Fail Top 10', render: (d) => <IntentCheckFailTopBarChart data={d?.intentCheckFailTop} /> },
-  intentConfidenceTop: { title: '의도 평균 신회도 Top 10', render: (d) => <IntentConfidenceTopBarChart data={d?.intentConfidenceTop} /> },
+  intentConfidenceTop: { title: '의도 평균 신뢰도 Top 10', render: (d) => <IntentConfidenceTopBarChart data={d?.intentConfidenceTop} /> },
   hourlyEntry: { title: '시간대별 봇 진입 현황', render: (d) => <HourlyEntryLineChart data={d?.hourlyEntry} /> },
   hourlyBusyTime: { title: '시간대별 봇 점유 현황', render: (d) => <HourlyBusyTimeLineChart data={d?.hourlyBusyTime} /> },
 };
@@ -226,9 +227,14 @@ export default function BotDashboard() {
                       header: '!min-h-0 !h-[45px] !px-4',
                       body: 'flex-1 min-h-0 !p-0',
                     }}
-                    loading={isLoading}
                   >
-                    {mapEntry?.render ? mapEntry.render(data) : null}
+                    {isLoading ? (
+                      <div className="w-full h-full flex items-center justify-center">
+                        <FallbackSpinner />
+                      </div>
+                    ) : mapEntry?.render ? (
+                      mapEntry.render(data)
+                    ) : null}
                   </Card>
                 </div>
               );

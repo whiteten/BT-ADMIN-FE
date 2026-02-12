@@ -5,13 +5,15 @@ import { CHART_COLORS } from './chartStyles';
 import type { SlotRetryDistTopItem } from '../types/dashboard.types';
 
 const createChartOption = (data: SlotRetryDistTopItem[]): EChartsOption => {
+  const sorted = [...data].filter((item) => item.rank >= 1 && item.rank <= 10).sort((a, b) => a.rank - b.rank);
+
   return {
     tooltip: {
       trigger: 'axis',
       axisPointer: { type: 'shadow' },
       formatter: (params) => {
         const list = params as CallbackDataParams[];
-        const item = data[list[0].dataIndex];
+        const item = sorted[list[0].dataIndex];
         const title = `${item.serviceName} > ${item.dialogName} > ${item.slotName}`;
         const lines = list.map((p) => `${p.marker} ${p.seriesName}: ${p.value}%`);
         return `${title}<br/>${lines.join('<br/>')}`;
@@ -34,7 +36,8 @@ const createChartOption = (data: SlotRetryDistTopItem[]): EChartsOption => {
     },
     yAxis: {
       type: 'category',
-      data: data.map((item) => item.slotName),
+      data: sorted.map((item) => item.slotName),
+      inverse: true,
       axisLine: { show: false },
       axisTick: { show: false },
       axisLabel: { color: '#495057', fontSize: 12 },
@@ -44,7 +47,7 @@ const createChartOption = (data: SlotRetryDistTopItem[]): EChartsOption => {
         name: '1회 이하',
         type: 'bar',
         stack: 'total',
-        data: data.map((item) => item.oneTimeCompleteRate),
+        data: sorted.map((item) => item.oneTimeCompleteRate),
         itemStyle: { color: CHART_COLORS.success },
         barWidth: '60%',
       },
@@ -52,22 +55,15 @@ const createChartOption = (data: SlotRetryDistTopItem[]): EChartsOption => {
         name: '2회',
         type: 'bar',
         stack: 'total',
-        data: data.map((item) => item.twoTimeCompleteRate),
+        data: sorted.map((item) => item.twoTimeCompleteRate),
         itemStyle: { color: '#FB923C' },
       },
       {
         name: '3회 이상',
         type: 'bar',
         stack: 'total',
-        data: data.map((item) => item.threeOrMoreCompleteRate),
+        data: sorted.map((item) => item.threeOrMoreCompleteRate),
         itemStyle: { color: CHART_COLORS.danger, borderRadius: [0, 4, 4, 0] },
-        label: {
-          show: true,
-          position: 'right',
-          formatter: (params) => `${data[params.dataIndex].completeCnt}`,
-          color: '#495057',
-          fontSize: 11,
-        },
       },
     ],
   };

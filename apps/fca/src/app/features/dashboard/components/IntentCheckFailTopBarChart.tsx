@@ -4,6 +4,8 @@ import { CHART_COLORS } from './chartStyles';
 import type { IntentCheckFailTopItem } from '../types/dashboard.types';
 
 const createChartOption = (data: IntentCheckFailTopItem[]): EChartsOption => {
+  const sorted = [...data].filter((item) => item.rank >= 1 && item.rank <= 10).sort((a, b) => a.rank - b.rank);
+
   return {
     tooltip: { trigger: 'axis', axisPointer: { type: 'shadow' } },
     legend: { data: ['Check', 'Fail'], right: 10, top: 5, icon: 'roundRect', selectedMode: false },
@@ -23,7 +25,8 @@ const createChartOption = (data: IntentCheckFailTopItem[]): EChartsOption => {
     },
     yAxis: {
       type: 'category',
-      data: data.map((item) => item.intent),
+      data: sorted.map((item) => item.intent),
+      inverse: true,
       axisLine: { show: false },
       axisTick: { show: false },
       axisLabel: { color: '#495057', fontSize: 12 },
@@ -33,7 +36,7 @@ const createChartOption = (data: IntentCheckFailTopItem[]): EChartsOption => {
         name: 'Check',
         type: 'bar',
         stack: 'total',
-        data: data.map((item) => item.checkRate),
+        data: sorted.map((item) => item.checkRate),
         itemStyle: { color: CHART_COLORS.warning },
         barWidth: '60%',
       },
@@ -41,7 +44,7 @@ const createChartOption = (data: IntentCheckFailTopItem[]): EChartsOption => {
         name: 'Fail',
         type: 'bar',
         stack: 'total',
-        data: data.map((item) => item.failRate),
+        data: sorted.map((item) => item.failRate),
         itemStyle: { color: CHART_COLORS.danger, borderRadius: [0, 4, 4, 0] },
       },
     ],
