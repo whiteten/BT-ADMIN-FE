@@ -28,7 +28,7 @@ const breadcrumb: BreadcrumbProps['items'] = [
   { title: '콜봇 현황', path: '/fca/dashboard/call-bot' },
 ];
 
-const GRID_COLS = 60;
+const GRID_COLS = 12;
 
 function findTopLeftPosition(existingItems: LayoutItem[], itemW: number, itemH: number, totalCols: number): { x: number; y: number } {
   const collides = (x: number, y: number, w: number, h: number, item: LayoutItem) => x < item.x + item.w && x + w > item.x && y < item.y + item.h && y + h > item.y;
@@ -62,20 +62,20 @@ const multiSelectStrings = {
 };
 
 const layoutRenderMapper: Record<string, { title: string; component?: ComponentType }> = {
-  '1-1': { title: '시나리오 현황', component: ScenarioSummaryPieChart },
-  '1-2': { title: '대화 현황', component: DialogSummaryPieChart },
-  '1-3': { title: '슬롯 현황', component: SlotSummaryPieChart },
-  '2-1': { title: '대화 미완결율 Top 10', component: DialogIncompleteTopBarChart },
-  '2-2': { title: '슬롯 미완결율 Top 10', component: SlotIncompleteTopBarChart },
-  '2-3': { title: '슬롯 평균 재시도 횟수 Top 10', component: SlotRetryAvgTopBarChart },
-  '2-4': { title: '슬롯 재시도 분포 Top 10', component: SlotRetryDistTopBarChart },
-  '3-1': { title: '키워드 Top 10', component: KeywordTopBarChart },
-  '3-2': { title: '개체 Top 10', component: EntityTopBarChart },
-  '3-3': { title: '의도 Top 10', component: IntentTopBarChart },
-  '3-4': { title: '의도 재질의 Top 10', component: IntentCheckFailTopBarChart },
-  '3-5': { title: '의도 평균 신회도 Top 10', component: IntentConfidenceTopBarChart },
-  '4-1': { title: '시간대별 봇 진입 현황', component: HourlyEntryLineChart },
-  '4-2': { title: '시간대별 봇 점유 현황', component: HourlyBusyTimeLineChart },
+  scenarioSummary: { title: '시나리오 현황', component: ScenarioSummaryPieChart },
+  dialogSummary: { title: '대화 현황', component: DialogSummaryPieChart },
+  slotSummary: { title: '슬롯 현황', component: SlotSummaryPieChart },
+  dialogIncompleteTop: { title: '대화 미완결율 Top 10', component: DialogIncompleteTopBarChart },
+  slotIncompleteTop: { title: '슬롯 미완결율 Top 10', component: SlotIncompleteTopBarChart },
+  slotRetryAvgTop: { title: '슬롯 평균 재시도 횟수 Top 10', component: SlotRetryAvgTopBarChart },
+  slotRetryDistTop: { title: '슬롯 재시도 분포 Top 10', component: SlotRetryDistTopBarChart },
+  keywordTop: { title: '키워드 Top 10', component: KeywordTopBarChart },
+  entityTop: { title: '개체 Top 10', component: EntityTopBarChart },
+  intentTop: { title: '의도 Top 10', component: IntentTopBarChart },
+  intentCheckFailTop: { title: '의도 재질의 Top 10', component: IntentCheckFailTopBarChart },
+  intentConfidenceTop: { title: '의도 평균 신회도 Top 10', component: IntentConfidenceTopBarChart },
+  hourlyEntry: { title: '시간대별 봇 진입 현황', component: HourlyEntryLineChart },
+  hourlyBusyTime: { title: '시간대별 봇 점유 현황', component: HourlyBusyTimeLineChart },
 };
 
 export default function BotDashboard() {
