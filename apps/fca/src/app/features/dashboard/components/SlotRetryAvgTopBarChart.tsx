@@ -34,7 +34,7 @@ const createChartOption = (data: SlotRetryAvgTopItem[]): EChartsOption => {
       {
         type: 'bar',
         data: sorted.map((item) => item.avgRetryCount),
-        itemStyle: { borderRadius: [0, 4, 4, 0], color: getGradientColor },
+        itemStyle: { borderRadius: [0, 4, 4, 0], color: (params) => getGradientColor(params, [255, 127, 103]) },
         barWidth: '60%',
         label: { show: true, position: 'right', formatter: '{c}', color: '#495057', fontSize: 11 },
       },
