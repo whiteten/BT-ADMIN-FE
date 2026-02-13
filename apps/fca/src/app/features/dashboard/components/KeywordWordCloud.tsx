@@ -17,11 +17,11 @@ const createChartOption = (data: KeywordTopItem[]) => {
     series: [
       {
         type: 'wordCloud',
-        sizeRange: [14, 48],
+        sizeRange: [12, 48],
         rotationRange: [-45, 45],
         rotationStep: 45,
-        gridSize: 8,
-        shape: 'circle',
+        gridSize: 7,
+        shape: 'square',
         width: '90%',
         height: '90%',
         left: 'center',
