@@ -10,3 +10,6 @@ export const CHART_COLORS = {
   indigo: '#6366F1',
   teal: '#14B8A6',
 } as const;
+
+export const GRID_COLS = 12;
+export const REFRESH_INTERVAL = 3000;

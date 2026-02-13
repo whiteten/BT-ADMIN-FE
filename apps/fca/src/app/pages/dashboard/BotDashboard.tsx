@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { GridLayout, type Layout, type LayoutItem, useContainerWidth } from 'react-grid-layout';
 import 'react-grid-layout/css/styles.css';
 import type { Option } from 'react-multi-select-component';
@@ -20,9 +20,11 @@ import SlotIncompleteTopBarChart from '../../features/dashboard/components/SlotI
 import SlotRetryAvgTopBarChart from '../../features/dashboard/components/SlotRetryAvgTopBarChart';
 import SlotRetryDistTopBarChart from '../../features/dashboard/components/SlotRetryDistTopBarChart';
 import SlotSummaryPieChart from '../../features/dashboard/components/SlotSummaryPieChart';
+import { GRID_COLS, REFRESH_INTERVAL } from '../../features/dashboard/constants/dashboardConstants';
 import { DEFAULT_LAYOUT, useBotDashboardStore } from '../../features/dashboard/hooks/useBotDashboardStore';
 import { useGetBotDashboard } from '../../features/dashboard/hooks/useDashboardQueries';
 import type { BotDashboardResponse } from '../../features/dashboard/types/dashboard.types';
+import { syncLayoutWithFilter } from '../../features/dashboard/utils/dashboardUtils';
 import PageHeader from '@/components/custom/PageHeader';
 import { cn } from '@/lib/utils';
 import { FallbackSpinner } from '@/libs/shared-ui/src/components/custom/FallbackSpinner';
@@ -31,21 +33,6 @@ const breadcrumb: BreadcrumbProps['items'] = [
   { title: '대시보드', path: '/fca/dashboard' },
   { title: '콜봇 현황', path: '/fca/dashboard/call-bot' },
 ];
-
-const GRID_COLS = 12;
-const REFRESH_INTERVAL = 3000;
-
-function findTopLeftPosition(existingItems: LayoutItem[], itemW: number, itemH: number, totalCols: number): { x: number; y: number } {
-  const collides = (x: number, y: number, w: number, h: number, item: LayoutItem) => x < item.x + item.w && x + w > item.x && y < item.y + item.h && y + h > item.y;
-  const maxY = existingItems.reduce((max, item) => Math.max(max, item.y + item.h), 0);
-  for (let y = 0; y <= maxY; y++) {
-    for (let x = 0; x <= totalCols - itemW; x++) {
-      const hasCollision = existingItems.some((item) => collides(x, y, itemW, itemH, item));
-      if (!hasCollision) return { x, y };
-    }
-  }
-  return { x: 0, y: maxY };
-}
 
 const sampleServiceIdList = [1001, 1002, 1003, 1004, 1005];
 
@@ -81,9 +68,10 @@ export default function BotDashboard() {
   const { width, containerRef, mounted } = useContainerWidth();
 
   const [isEditMode, setIsEditMode] = useState(false);
-  const [draftLayout, setDraftLayout] = useState<LayoutItem[]>([...storedLayout]);
   const layoutFilterOptions = DEFAULT_LAYOUT.map((item) => ({ label: layoutRenderMapper[item.i as keyof typeof layoutRenderMapper]?.title ?? item.i, value: item.i }));
   const [selectedLayoutFilterItems, setSelectedLayoutFilterItems] = useState<Option[]>(layoutFilterOptions);
+  // storedLayout에 빠진 항목이 있을 수 있으므로, 초기 필터(전체 선택)와 동기화하여 보정한다
+  const [draftLayout, setDraftLayout] = useState<LayoutItem[]>(() => syncLayoutWithFilter([...storedLayout], layoutFilterOptions, DEFAULT_LAYOUT, GRID_COLS));
 
   const handleStartEdit = () => {
     setIsEditMode(true);
@@ -107,23 +95,13 @@ export default function BotDashboard() {
     setDraftLayout([...newLayout]);
   };
 
-  useEffect(() => {
-    const selectedIds = new Set(selectedLayoutFilterItems.map((item) => item.value as string));
-    setDraftLayout((prev) => {
-      const filtered = prev.filter((item) => selectedIds.has(item.i));
-      const existingIds = new Set(filtered.map((item) => item.i));
-      const toAdd: LayoutItem[] = [];
-      for (const id of selectedIds) {
-        if (existingIds.has(id)) continue;
-        const defaultItem = DEFAULT_LAYOUT.find((d) => d.i === id);
-        if (!defaultItem) continue;
-        const pos = findTopLeftPosition([...filtered, ...toAdd], defaultItem.w, defaultItem.h, GRID_COLS);
-        toAdd.push({ ...defaultItem, ...pos });
-      }
-      return [...filtered, ...toAdd];
-    });
-  }, [selectedLayoutFilterItems]);
+  // 필터와 레이아웃을 한번에 업데이트 처리
+  const handleLayoutFilterChange = (newFilterItems: Option[]) => {
+    setSelectedLayoutFilterItems(newFilterItems);
+    setDraftLayout((prev) => syncLayoutWithFilter(prev, newFilterItems, DEFAULT_LAYOUT, GRID_COLS));
+  };
 
+  // 편집 중에는 임시(draft) 레이아웃을, 아닐 때는 저장된 레이아웃을 표시한다
   const displayLayout = isEditMode ? draftLayout : storedLayout;
 
   const extra = (
@@ -133,7 +111,7 @@ export default function BotDashboard() {
       selectedLayoutFilterItems={selectedLayoutFilterItems}
       serviceOptions={serviceOptions}
       selectedService={selectedService}
-      onLayoutFilterChange={setSelectedLayoutFilterItems}
+      onLayoutFilterChange={handleLayoutFilterChange}
       onStartEdit={handleStartEdit}
       onCancelEdit={handleCancelEdit}
       onSaveEdit={handleSaveEdit}
