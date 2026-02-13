@@ -1,7 +1,7 @@
 import type { EChartsOption } from 'echarts';
 import ReactECharts from 'echarts-for-react';
-import { getGradientColor } from './chartStyles';
 import type { IntentConfidenceTopItem } from '../types/dashboard.types';
+import { getGradientColor } from '../utils/dashboardUtils';
 import NoData from '@/components/custom/NoData';
 
 const createChartOption = (data: IntentConfidenceTopItem[]): EChartsOption => {

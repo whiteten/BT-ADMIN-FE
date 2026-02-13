@@ -173,11 +173,7 @@ export default function BotDashboard() {
                     title={mapEntry?.title ?? item.i}
                     variant="borderless"
                     className="h-full flex flex-col"
-                    classNames={{
-                      title: 'text-base font-semibold text-[#495057]',
-                      header: '!min-h-0 !h-[45px] !px-4',
-                      body: 'flex-1 min-h-0 !p-0',
-                    }}
+                    classNames={{ title: 'text-base font-semibold text-[#495057]', header: '!min-h-0 !h-[45px] !px-4', body: 'flex-1 min-h-0 !p-0' }}
                   >
                     {isLoading ? (
                       <div className="w-full h-full flex items-center justify-center">

@@ -1,6 +1,6 @@
 import type { EChartsOption } from 'echarts';
 import ReactECharts from 'echarts-for-react';
-import { CHART_COLORS } from './chartStyles';
+import { CHART_COLORS } from '../constants/dashboardConstants';
 import type { SlotSummary } from '../types/dashboard.types';
 import NoData from '@/components/custom/NoData';
 
