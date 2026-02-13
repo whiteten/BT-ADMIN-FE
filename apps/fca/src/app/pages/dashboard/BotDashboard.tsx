@@ -1,10 +1,11 @@
 import { useEffect, useState } from 'react';
 import { GridLayout, type Layout, type LayoutItem, useContainerWidth } from 'react-grid-layout';
 import 'react-grid-layout/css/styles.css';
-import { MultiSelect, type Option } from 'react-multi-select-component';
+import type { Option } from 'react-multi-select-component';
 import { keepPreviousData } from '@tanstack/react-query';
-import { type BreadcrumbProps, Button, Card } from 'antd';
+import { type BreadcrumbProps, Card } from 'antd';
 import styles from './BotDashboard.module.scss';
+import BotDashboardToolbar from '../../features/dashboard/components/BotDashboardToolbar';
 import DialogIncompleteTopBarChart from '../../features/dashboard/components/DialogIncompleteTopBarChart';
 import DialogSummaryPieChart from '../../features/dashboard/components/DialogSummaryPieChart';
 import EntityTopBarChart from '../../features/dashboard/components/EntityTopBarChart';
@@ -52,18 +53,6 @@ const serviceOptions: Option[] = sampleServiceIdList.map((id) => ({
   label: id.toString(),
   value: id,
 }));
-
-const multiSelectStrings = {
-  selectSomeItems: '봇서비스를 선택하세요.',
-  allItemsAreSelected: '전체 선택됨',
-  selectAll: '전체 선택',
-  selectAllFiltered: '전체 선택 (필터)',
-  search: '검색어를 입력하세요.',
-  clearSearch: '검색 초기화',
-  clearSelected: '선택 초기화',
-  noOptions: '옵션 없음',
-  create: '생성',
-};
 
 const layoutRenderMapper: Record<string, { title: string; render?: (data?: BotDashboardResponse) => React.ReactNode }> = {
   scenarioSummary: { title: '봇 현황', render: (d) => <ScenarioSummaryPieChart data={d?.scenarioSummary} /> },
@@ -138,59 +127,19 @@ export default function BotDashboard() {
   const displayLayout = isEditMode ? draftLayout : storedLayout;
 
   const extra = (
-    <div className="flex gap-2 w-fit items-center shrink-0">
-      {isEditMode ? (
-        <div className="flex flex-wrap items-center gap-2">
-          <span className="text-sm font-medium text-[#495057] shrink-0">현황판 선택</span>
-          <MultiSelect
-            options={layoutFilterOptions}
-            value={selectedLayoutFilterItems}
-            onChange={setSelectedLayoutFilterItems}
-            labelledBy="현황판 선택"
-            hasSelectAll
-            overrideStrings={multiSelectStrings}
-            valueRenderer={(selected, options) => {
-              if (selected.length === 0) return '현황판을 선택하세요.';
-              if (selected.length === options.length) return '전체 선택됨';
-              if (selected.length === 1) return selected[0].label;
-              return `${selected.length}개 선택됨`;
-            }}
-            isLoading={false}
-            className="w-[250px]"
-          />
-          <Button onClick={handleCancelEdit}>취소</Button>
-          <Button variant="solid" color="orange" onClick={handleResetLayouts}>
-            초기화
-          </Button>
-          <Button variant="solid" color="cyan" onClick={handleSaveEdit}>
-            저장
-          </Button>
-        </div>
-      ) : (
-        <div className="flex flex-wrap items-center gap-2">
-          <span className="text-sm font-medium text-[#495057] shrink-0">봇서비스</span>
-          <MultiSelect
-            options={serviceOptions}
-            value={selectedService}
-            onChange={setSelectedService}
-            labelledBy="봇서비스 선택"
-            hasSelectAll
-            overrideStrings={multiSelectStrings}
-            valueRenderer={(selected, options) => {
-              if (selected.length === 0) return '봇서비스를 선택하세요.';
-              if (selected.length === options.length) return '전체 선택됨';
-              if (selected.length === 1) return selected[0].label;
-              return `${selected.length}개 선택됨`;
-            }}
-            isLoading={false}
-            className="w-[250px]"
-          />
-          <Button variant="solid" color="primary" onClick={handleStartEdit}>
-            화면편집
-          </Button>
-        </div>
-      )}
-    </div>
+    <BotDashboardToolbar
+      isEditMode={isEditMode}
+      layoutFilterOptions={layoutFilterOptions}
+      selectedLayoutFilterItems={selectedLayoutFilterItems}
+      serviceOptions={serviceOptions}
+      selectedService={selectedService}
+      onLayoutFilterChange={setSelectedLayoutFilterItems}
+      onStartEdit={handleStartEdit}
+      onCancelEdit={handleCancelEdit}
+      onSaveEdit={handleSaveEdit}
+      onResetLayouts={handleResetLayouts}
+      onServiceChange={setSelectedService}
+    />
   );
 
   return (
