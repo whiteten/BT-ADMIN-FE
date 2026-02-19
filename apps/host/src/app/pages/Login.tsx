@@ -116,7 +116,7 @@ export default function Login() {
           case 'invalid_grant': {
             const msg = errorData.error_description ?? '아이디 또는 비밀번호가 올바르지 않습니다.';
             const attempts = errorData.remaining_attempts;
-            const toastMsg = attempts !== undefined ? `${msg} (남은 시도: ${attempts}회)` : msg;
+            const toastMsg = attempts != null && attempts >= 0 ? `${msg} (남은 시도: ${attempts}회)` : msg;
             toast.error(toastMsg);
             break;
           }

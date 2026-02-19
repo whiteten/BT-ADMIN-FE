@@ -7,7 +7,7 @@
 
 import { useMemo } from 'react';
 import { Button, Select, Tree, type TreeProps } from 'antd';
-import { File, Folder } from 'lucide-react';
+import { AppWindow, File, Folder } from 'lucide-react';
 import type { Menu, MenuTreeNode } from '../types/menu.types';
 
 interface MenuTreeProps {
@@ -21,11 +21,10 @@ interface MenuTreeProps {
 }
 
 /** flat 메뉴 목록을 tree 구조로 변환 */
-function buildTree(menus: Menu[]): MenuTreeNode[] {
+function buildMenuTree(menus: Menu[]): MenuTreeNode[] {
   const map = new Map<number, MenuTreeNode>();
   const roots: MenuTreeNode[] = [];
 
-  // 먼저 모든 노드 생성
   for (const menu of menus) {
     map.set(menu.menuId, {
       key: menu.menuId,
@@ -36,7 +35,6 @@ function buildTree(menus: Menu[]): MenuTreeNode[] {
     });
   }
 
-  // 부모-자식 관계 설정
   for (const menu of menus) {
     const node = map.get(menu.menuId);
     if (!node) continue;
@@ -51,6 +49,31 @@ function buildTree(menus: Menu[]): MenuTreeNode[] {
   return roots;
 }
 
+/** 앱별로 그룹핑한 tree 구조 생성 */
+function buildTree(menus: Menu[]): MenuTreeNode[] {
+  // appId별 메뉴 그룹핑
+  const menusByApp = new Map<string, { appName: string; menus: Menu[] }>();
+  for (const menu of menus) {
+    const group = menusByApp.get(menu.appId) ?? { appName: menu.appName ?? menu.appId, menus: [] };
+    group.menus.push(menu);
+    menusByApp.set(menu.appId, group);
+  }
+
+  // 앱별로 트리 노드 생성
+  const result: MenuTreeNode[] = [];
+  for (const [appId, { appName, menus: appMenus }] of menusByApp) {
+    result.push({
+      key: `app:${appId}`,
+      title: appName,
+      children: buildMenuTree(appMenus),
+      icon: <AppWindow className="size-4 text-green-600" />,
+      selectable: false,
+    });
+  }
+
+  return result;
+}
+
 export default function MenuTree({ menus, apps, selectedAppId, onAppChange, selectedMenuId, onSelect, onAdd }: MenuTreeProps) {
   // 앱 필터 적용
   const filteredMenus = useMemo(() => {
@@ -58,7 +81,7 @@ export default function MenuTree({ menus, apps, selectedAppId, onAppChange, sele
     return menus.filter((m) => m.appId === selectedAppId);
   }, [menus, selectedAppId]);
 
-  // 트리 데이터 생성
+  // 트리 데이터 생성 (앱별 그룹핑)
   const treeData = useMemo(() => buildTree(filteredMenus), [filteredMenus]);
 
   // 노드 선택 핸들러
@@ -67,8 +90,9 @@ export default function MenuTree({ menus, apps, selectedAppId, onAppChange, sele
       onSelect(null);
       return;
     }
-    const menuId = selectedKeys[0] as number;
-    const found = menus.find((m) => m.menuId === menuId);
+    const key = selectedKeys[0];
+    if (typeof key === 'string') return; // 앱 그룹 노드 (selectable: false이지만 방어)
+    const found = menus.find((m) => m.menuId === key);
     onSelect(found ?? null);
   };
 

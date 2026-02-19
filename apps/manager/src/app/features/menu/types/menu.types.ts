@@ -8,6 +8,7 @@ export interface Menu {
   parentId: number | null;
   menuKey: string;
   appId: string;
+  appName: string | null;
   label: string;
   type: 'FOLDER' | 'PAGE';
   i18nKey: string | null;
@@ -34,9 +35,10 @@ export interface MenuUpsertRequest {
 
 /** Ant Design Tree 노드용 변환 타입 */
 export interface MenuTreeNode {
-  key: number;
+  key: string | number;
   title: string;
   children: MenuTreeNode[];
   icon?: React.ReactNode;
-  data: Menu;
+  data?: Menu;
+  selectable?: boolean;
 }

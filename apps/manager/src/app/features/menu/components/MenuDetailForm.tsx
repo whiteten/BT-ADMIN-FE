@@ -8,21 +8,22 @@
 import { useEffect, useMemo } from 'react';
 import { Button, Checkbox, Form, Input, InputNumber, Modal, Select, Switch } from 'antd';
 import { Trash2 } from 'lucide-react';
-import { useGetApps } from '../../iam/hooks/useAppQueries';
+import type { App } from '../../iam/api/appApi';
 import { useGetAuthList } from '../../iam/hooks/usePermissionQueries';
 import type { Menu, MenuUpsertRequest } from '../types/menu.types';
 
 interface MenuDetailFormProps {
   menu: Menu;
+  apps: App[];
   onSave: (id: number, data: MenuUpsertRequest) => void;
   onDelete: (id: number) => void;
   saving?: boolean;
 }
 
-export default function MenuDetailForm({ menu, onSave, onDelete, saving }: MenuDetailFormProps) {
+export default function MenuDetailForm({ menu, apps, onSave, onDelete, saving }: MenuDetailFormProps) {
   const [form] = Form.useForm<MenuUpsertRequest>();
   const { data: allPermissions = [] } = useGetAuthList();
-  const { data: apps = [] } = useGetApps();
+  const watchedAppId = Form.useWatch('appId', form);
 
   // 메뉴 변경 시 폼 초기화
   useEffect(() => {
@@ -40,13 +41,16 @@ export default function MenuDetailForm({ menu, onSave, onDelete, saving }: MenuD
     });
   }, [menu, form]);
 
-  // 현재 메뉴 앱에 해당하는 권한만 필터 (+ 전체 권한도 선택 가능하도록)
+  // 앱에 해당하는 권한만 필터 (앱 변경 시 동적 반영)
   const permissionOptions = useMemo(() => {
-    return allPermissions.map((p) => ({
-      label: `${p.authKey}${p.description ? ` - ${p.description}` : ''}`,
-      value: p.authKey,
-    }));
-  }, [allPermissions]);
+    const effectiveAppId = watchedAppId ?? menu.appId;
+    return allPermissions
+      .filter((p) => p.appId === effectiveAppId)
+      .map((p) => ({
+        label: `${p.authKey}${p.description ? ` - ${p.description}` : ''}`,
+        value: p.authKey,
+      }));
+  }, [allPermissions, watchedAppId, menu.appId]);
 
   const appOptions = useMemo(() => {
     return apps.map((a) => ({ label: a.appName, value: a.appId }));
@@ -55,6 +59,9 @@ export default function MenuDetailForm({ menu, onSave, onDelete, saving }: MenuD
   const handleSubmit = async () => {
     try {
       const values = await form.validateFields();
+      // 현재 앱에 속하는 권한만 필터 (앱 전환 시 이전 앱 권한 누수 방지)
+      const validPermKeys = new Set(permissionOptions.map((o) => o.value));
+      values.permissions = (values.permissions ?? []).filter((p) => validPermKeys.has(p));
       onSave(menu.menuId, values);
     } catch {
       // validation error
@@ -82,6 +89,10 @@ export default function MenuDetailForm({ menu, onSave, onDelete, saving }: MenuD
 
       <div className="flex-1 overflow-auto">
         <Form form={form} layout="vertical" className="max-w-2xl">
+          <Form.Item name="parentId" hidden>
+            <Input />
+          </Form.Item>
+
           {/* 기본정보 */}
           <div className="border border-gray-200 rounded-lg p-4 mb-4">
             <h4 className="text-sm font-semibold text-gray-600 mb-3">기본정보</h4>
@@ -92,7 +103,7 @@ export default function MenuDetailForm({ menu, onSave, onDelete, saving }: MenuD
               </Form.Item>
 
               <Form.Item label="앱" name="appId" rules={[{ required: true, message: '앱을 선택해주세요' }]}>
-                <Select placeholder="앱 선택" options={appOptions} />
+                <Select placeholder="앱 선택" options={appOptions} onChange={() => form.setFieldValue('permissions', [])} />
               </Form.Item>
 
               <Form.Item label="라벨" name="label" rules={[{ required: true, message: '라벨을 입력해주세요' }]}>

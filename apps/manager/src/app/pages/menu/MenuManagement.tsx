@@ -129,7 +129,7 @@ export default function MenuManagement() {
         {/* 우측: 상세 폼 */}
         <div className="flex-1 border border-gray-200 rounded-lg p-4 overflow-auto">
           {selectedMenu ? (
-            <MenuDetailForm menu={selectedMenu} onSave={handleSave} onDelete={handleDelete} saving={updateMenuMutation.isPending} />
+            <MenuDetailForm menu={selectedMenu} apps={apps} onSave={handleSave} onDelete={handleDelete} saving={updateMenuMutation.isPending} />
           ) : (
             <div className="flex items-center justify-center h-full">
               <NoData message="좌측 트리에서 메뉴를 선택해주세요" />
@@ -139,7 +139,7 @@ export default function MenuManagement() {
       </div>
 
       {/* 메뉴 생성 Drawer */}
-      <MenuCreateDrawer ref={drawerRef} menus={menus} onOk={handleCreate} confirmLoading={createMenuMutation.isPending} />
+      <MenuCreateDrawer ref={drawerRef} menus={menus} apps={apps} onOk={handleCreate} confirmLoading={createMenuMutation.isPending} />
     </div>
   );
 }

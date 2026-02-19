@@ -8,7 +8,7 @@ import dayjs from 'dayjs';
 import { toast } from '@/shared-util';
 import { UserInfoCard } from './UserInfoCard';
 import AccountStatusBadge from '../../features/user/components/AccountStatusBadge';
-import { useDeleteUser, useGetUsers, userQueryKeys } from '../../features/user/hooks/useUserQueries';
+import { useDeleteUser, useGetUsers, useUnlockUser, userQueryKeys } from '../../features/user/hooks/useUserQueries';
 import type { AccountStatus, User } from '../../features/user/types/user.types';
 import { FallbackSpinner } from '@/components/custom/FallbackSpinner';
 import { IconTrash } from '@/components/custom/Icons';
@@ -42,6 +42,15 @@ export default function UserList() {
     },
   });
 
+  const { mutate: unlockUser } = useUnlockUser({
+    mutationOptions: {
+      onSuccess: () => {
+        queryClient.invalidateQueries({ queryKey: userQueryKeys.getUsers().queryKey });
+        toast.success('로그인 잠금이 해제되었습니다.');
+      },
+    },
+  });
+
   // 그리드 컬럼 정의 (베스트 프랙티스 순서: ID → 식별정보 → 권한 → 상태 → 소속 → 날짜 → 액션)
   const columnDefs: ColDef<User>[] = [
     { headerName: 'ID', field: 'id', maxWidth: 80 },
@@ -56,6 +65,27 @@ export default function UserList() {
         const status = params.value as AccountStatus;
         if (!status) return '-';
         return <AccountStatusBadge status={status} />;
+      },
+    },
+    {
+      headerName: '잠금',
+      field: 'loginLocked',
+      maxWidth: 100,
+      cellRenderer: (params: ICellRendererParams<User>) => {
+        const { data } = params;
+        if (!data?.loginLocked) return '-';
+        return (
+          <button
+            type="button"
+            className="text-xs text-orange-600 bg-orange-50 border border-orange-200 rounded px-2 py-0.5 hover:bg-orange-100"
+            onClick={(e) => {
+              e.stopPropagation();
+              handleUnlock(data.id);
+            }}
+          >
+            잠금해제
+          </button>
+        );
       },
     },
     { headerName: '테넌트', field: 'tenantName', flex: 1 },
@@ -127,6 +157,16 @@ export default function UserList() {
     if (userId) {
       navigate(`../${userId}`);
     }
+  };
+
+  const handleUnlock = (userId: number) => {
+    modal.confirm.execute({
+      onOk: () => unlockUser({ params: { userId } }),
+      options: {
+        title: '로그인 잠금 해제',
+        content: '해당 사용자의 로그인 잠금을 해제하시겠습니까?',
+      },
+    });
   };
 
   const handleDelete = (userId: number) => {

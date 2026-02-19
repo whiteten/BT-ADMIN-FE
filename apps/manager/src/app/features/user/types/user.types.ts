@@ -48,6 +48,8 @@ export interface User {
   roles?: string[];
   /** 중복 로그인 허용 여부 */
   allowConcurrentLogin?: boolean;
+  /** 로그인 잠금 여부 (Redis 기반, 비밀번호 N회 실패 시 잠금) */
+  loginLocked?: boolean;
 }
 
 /**

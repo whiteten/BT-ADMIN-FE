@@ -7,7 +7,7 @@
 
 import { forwardRef, useImperativeHandle, useMemo, useState } from 'react';
 import { Button, Col, Drawer, Form, Input, InputNumber, Row, Select, Switch, TreeSelect } from 'antd';
-import { useGetApps } from '../../iam/hooks/useAppQueries';
+import type { App } from '../../iam/api/appApi';
 import type { Menu, MenuUpsertRequest } from '../types/menu.types';
 
 export interface MenuCreateDrawerRef {
@@ -17,6 +17,7 @@ export interface MenuCreateDrawerRef {
 
 interface MenuCreateDrawerProps {
   menus: Menu[];
+  apps: App[];
   onOk: (data: MenuUpsertRequest) => void;
   confirmLoading?: boolean;
 }
@@ -56,10 +57,9 @@ function buildTreeSelectData(menus: Menu[]): TreeSelectNode[] {
   return roots;
 }
 
-const MenuCreateDrawer = forwardRef<MenuCreateDrawerRef, MenuCreateDrawerProps>(({ menus, onOk, confirmLoading }, ref) => {
+const MenuCreateDrawer = forwardRef<MenuCreateDrawerRef, MenuCreateDrawerProps>(({ menus, apps, onOk, confirmLoading }, ref) => {
   const [isOpen, setIsOpen] = useState(false);
   const [form] = Form.useForm<MenuUpsertRequest>();
-  const { data: apps = [] } = useGetApps();
 
   const appOptions = useMemo(() => {
     return apps.map((a) => ({ label: a.appName, value: a.appId }));
