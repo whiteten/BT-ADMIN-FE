@@ -1,10 +1,11 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { GridLayout, type Layout, type LayoutItem, useContainerWidth } from 'react-grid-layout';
 import 'react-grid-layout/css/styles.css';
 import type { Option } from 'react-multi-select-component';
 import { keepPreviousData } from '@tanstack/react-query';
 import { type BreadcrumbProps, Card } from 'antd';
 import styles from './BotDashboard.module.scss';
+import { useGetBots } from '../../features/bot-config/hooks/useBotQueries';
 import BotDashboardToolbar from '../../features/dashboard/components/BotDashboardToolbar';
 import DialogIncompleteTopBarChart from '../../features/dashboard/components/DialogIncompleteTopBarChart';
 import DialogSummaryPieChart from '../../features/dashboard/components/DialogSummaryPieChart';
@@ -34,13 +35,6 @@ const breadcrumb: BreadcrumbProps['items'] = [
   { title: '콜봇 현황', path: '/fca/dashboard/call-bot' },
 ];
 
-const sampleServiceIdList = [1001, 1002, 1003, 1004, 1005];
-
-const serviceOptions: Option[] = sampleServiceIdList.map((id) => ({
-  label: id.toString(),
-  value: id,
-}));
-
 const layoutRenderMapper: Record<string, { title: string; render?: (data?: BotDashboardResponse) => React.ReactNode }> = {
   scenarioSummary: { title: '봇 현황', render: (d) => <ScenarioSummaryPieChart data={d?.scenarioSummary} /> },
   dialogSummary: { title: '대화 현황', render: (d) => <DialogSummaryPieChart data={d?.dialogSummary} /> },
@@ -59,7 +53,19 @@ const layoutRenderMapper: Record<string, { title: string; render?: (data?: BotDa
 };
 
 export default function BotDashboard() {
-  const [selectedService, setSelectedService] = useState<Option[]>(serviceOptions);
+  const { data: botList } = useGetBots();
+  const serviceOptions: Option[] = (botList ?? [])
+    .filter((b) => Boolean(b?.serviceId && b?.serviceName))
+    .map((b) => ({ label: String(b.serviceName), value: String(b.serviceId) }));
+
+  const [selectedService, setSelectedService] = useState<Option[]>([]);
+
+  useEffect(() => {
+    if (serviceOptions.length > 0) {
+      setSelectedService(serviceOptions);
+    }
+  }, [serviceOptions]);
+
   const { data, isLoading } = useGetBotDashboard({
     params: { serviceIds: selectedService.map((item) => item.value as string) },
     queryOptions: { enabled: !!selectedService.length, refetchInterval: REFRESH_INTERVAL, placeholderData: keepPreviousData },
