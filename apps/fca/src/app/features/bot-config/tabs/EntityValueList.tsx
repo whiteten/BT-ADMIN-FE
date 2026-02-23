@@ -259,7 +259,7 @@ export default function EntityValueList() {
   // API Hooks
   const { data: entityValueList, isLoading } = useGetEntityValues({
     params: { modelId, entityId },
-    queryOptions: { enabled: !!modelId && !!entityId && !editingRowId },
+    queryOptions: { enabled: !!modelId && !!entityId },
   });
   const { mutate: createEntityValue, isPending: isCreating } = useCreateEntityValue({
     mutationOptions: {
