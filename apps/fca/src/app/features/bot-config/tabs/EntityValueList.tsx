@@ -436,6 +436,7 @@ export default function EntityValueList() {
 
   const cancelEditing = () => {
     gridApiRef.current?.stopEditing(true);
+    (document.activeElement as HTMLElement)?.blur();
   };
 
   const handleDelete = (data: EntityValueListItem) => {

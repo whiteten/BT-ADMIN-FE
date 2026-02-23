@@ -422,6 +422,7 @@ export default function ModelRetrainList() {
 
   const cancelEditing = () => {
     gridApiRef.current?.stopEditing(true);
+    (document.activeElement as HTMLElement)?.blur();
   };
 
   const columnDefs: ColDef<RetrainListItem>[] = [

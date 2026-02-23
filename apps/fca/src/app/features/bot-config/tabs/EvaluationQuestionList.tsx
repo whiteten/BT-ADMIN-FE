@@ -412,6 +412,7 @@ export default function EvaluationQuestionList() {
 
   const cancelEditing = () => {
     gridApiRef.current?.stopEditing(true);
+    (document.activeElement as HTMLElement)?.blur();
   };
 
   const handleDelete = (data: EvaluationQuestionListItem) => {

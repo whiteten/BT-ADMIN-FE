@@ -324,6 +324,7 @@ export default function IntentSentenceList() {
 
   const cancelEditing = () => {
     gridApiRef.current?.stopEditing(true);
+    (document.activeElement as HTMLElement)?.blur();
   };
 
   // 외부 필터 함수
