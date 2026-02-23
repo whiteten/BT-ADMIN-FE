@@ -70,16 +70,22 @@ export default function ModelInferenceModal({ modelId }: ModelInferenceModalProp
   const prodScrollRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    if (testScrollRef.current) {
-      testScrollRef.current.scrollTop = testScrollRef.current.scrollHeight;
-    }
-  }, [testMessages]);
+    if (!isOpen) return;
+    requestAnimationFrame(() => {
+      if (testScrollRef.current) {
+        testScrollRef.current.scrollTop = testScrollRef.current.scrollHeight;
+      }
+    });
+  }, [isOpen, testMessages]);
 
   useEffect(() => {
-    if (prodScrollRef.current) {
-      prodScrollRef.current.scrollTop = prodScrollRef.current.scrollHeight;
-    }
-  }, [prodMessages]);
+    if (!isOpen) return;
+    requestAnimationFrame(() => {
+      if (prodScrollRef.current) {
+        prodScrollRef.current.scrollTop = prodScrollRef.current.scrollHeight;
+      }
+    });
+  }, [isOpen, prodMessages]);
 
   const handleOpenChange = (open: boolean) => {
     setIsOpen(open);
@@ -189,12 +195,12 @@ export default function ModelInferenceModal({ modelId }: ModelInferenceModalProp
                     배포모델
                   </TabsTrigger>
                 </TabsList>
-                <TabsContent value={TargetServer.TEST} className="flex-1 min-h-0">
+                <TabsContent forceMount value={TargetServer.TEST} className="flex-1 min-h-0" hidden={activeTab !== TargetServer.TEST}>
                   <div ref={testScrollRef} className="w-full h-full overflow-y-auto p-5">
                     {renderMessages(testMessages)}
                   </div>
                 </TabsContent>
-                <TabsContent value={TargetServer.PROD} className="flex-1 min-h-0">
+                <TabsContent forceMount value={TargetServer.PROD} className="flex-1 min-h-0" hidden={activeTab !== TargetServer.PROD}>
                   <div ref={prodScrollRef} className="w-full h-full overflow-y-auto p-5">
                     {renderMessages(prodMessages)}
                   </div>
