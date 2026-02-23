@@ -54,9 +54,10 @@ const layoutRenderMapper: Record<string, { title: string; render?: (data?: BotDa
 
 export default function BotDashboard() {
   const { data: botList } = useGetBots();
-  const serviceOptions: Option[] = (botList ?? [])
-    .filter((b) => Boolean(b?.serviceId && b?.serviceName))
-    .map((b) => ({ label: String(b.serviceName), value: String(b.serviceId) }));
+  const serviceOptions: Option[] = (botList ?? []).map((b) => ({
+    label: b.serviceName ? String(b.serviceName) : String(b.serviceId),
+    value: String(b.serviceId),
+  }));
 
   const [selectedService, setSelectedService] = useState<Option[]>([]);
 
