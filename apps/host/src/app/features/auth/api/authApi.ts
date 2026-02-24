@@ -1,10 +1,8 @@
-import ApiClient, { type DetailResponse, type ListResponse, extractDetail, extractList } from '@/shared-util';
+import ApiClient, { type DetailResponse, extractDetail } from '@/shared-util';
 import type {
   ChangePasswordRequest,
-  LoginAuditLogSearchParams,
   LoginRequestDatas,
   LoginResponse,
-  PagedLoginAuditLogResponse,
   PasswordPolicy,
   ResetPasswordRequest,
   ResetPasswordResponse,
@@ -55,14 +53,6 @@ export const authApi = {
       params: { tenantId },
     });
     return extractDetail(response);
-  },
-  /**
-   * 로그인 이력 조회
-   * @flow login-log-list
-   */
-  getLoginHistory: async (params: LoginAuditLogSearchParams): Promise<PagedLoginAuditLogResponse> => {
-    const response = await bffClient.get<ListResponse<PagedLoginAuditLogResponse>>('/login-log-list', { params });
-    return extractList(response) as unknown as PagedLoginAuditLogResponse;
   },
   /**
    * 비밀번호 강제 변경 (Reset Token 기반)
