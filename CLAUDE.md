@@ -1,156 +1,156 @@
 # CLAUDE.md
 
-This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
+이 파일은 Claude Code(claude.ai/code)가 이 저장소의 코드를 작업할 때 참고하는 가이드입니다.
 
-# Important Instructions
+# 중요 지침
 
-Must answer Korean.
-NEVER proactively create documentation files (\*.md) or README files. Only create documentation files if explicitly requested by the User.
-ALWAYS run `npx eslint --fix <file-path>` after modifying any TypeScript or JavaScript files to ensure code quality and consistency.
-NEVER commit automatically. Only commit when the user explicitly requests it.
-This project uses **React Compiler** - do NOT use `useMemo` or `useCallback` unless explicitly necessary, as the compiler automatically optimizes re-renders.
+반드시 한국어로 답변할 것.
+문서 파일(\*.md)이나 README 파일을 선제적으로 생성하지 말 것. 사용자가 명시적으로 요청한 경우에만 생성.
+TypeScript 또는 JavaScript 파일을 수정한 후에는 반드시 `npx eslint --fix <file-path>`를 실행하여 코드 품질과 일관성을 보장할 것.
+자동으로 커밋하지 말 것. 사용자가 명시적으로 요청한 경우에만 커밋.
+이 프로젝트는 **React Compiler**를 사용합니다. 컴파일러가 자동으로 리렌더링을 최적화하므로, 명시적으로 필요한 경우가 아니면 `useMemo`나 `useCallback`을 사용하지 말 것.
 
-## Project Architecture
+## 프로젝트 아키텍처
 
-This is an **Nx monorepo** using **Module Federation** to build micro-frontends. The workspace contains:
+**Nx 모노레포**이며, **Module Federation**을 사용하여 마이크로 프론트엔드를 구축합니다. 워크스페이스 구성:
 
-### Applications
+### 애플리케이션
 
-- **Host App** (`apps/host`): Main shell application that consumes micro-frontends
-  - Login page
-  - Main layout with sidebar navigation
+- **Host App** (`apps/host`): 마이크로 프론트엔드를 소비하는 메인 셸 애플리케이션
+  - 로그인 페이지
+  - 사이드바 내비게이션이 있는 메인 레이아웃
 - **Remote Apps**:
-  - `apps/manager`: Manager (User management, Dashboard)
-  - `apps/fca`: Focus AI (Bot management features)
+  - `apps/manager`: 매니저 (사용자 관리, 대시보드)
+  - `apps/fca`: Focus AI (봇 관리 기능)
 
-### Libraries
+### 라이브러리
 
-- **Shared UI** (`libs/shared-ui`): Reusable React components
-  - 47 shadcn/ui components (Badge, Button, Card, Dialog, Table, etc.)
-  - Custom components (AggridNoRowsOverlay, AggridRowDataSidebar, FallbackSpinner, Icons, NoData, NotFound, PageHeader, PageTabs)
-- **Shared Store** (`libs/shared-store`): State management using Zustand
-- **Shared Util** (`libs/shared-util`): Utility functions and helpers
+- **Shared UI** (`libs/shared-ui`): 재사용 가능한 React 컴포넌트
+  - 47개의 shadcn/ui 컴포넌트 (Badge, Button, Card, Dialog, Table 등)
+  - 커스텀 컴포넌트 (AggridNoRowsOverlay, AggridRowDataSidebar, FallbackSpinner, Icons, NoData, NotFound, PageHeader, PageTabs)
+- **Shared Store** (`libs/shared-store`): Zustand를 사용한 상태 관리
+- **Shared Util** (`libs/shared-util`): 유틸리티 함수 및 헬퍼
 
-### Module Federation Structure
+### Module Federation 구조
 
-- Each remote app exposes modules through `module-federation.config.ts`
-- Host app consumes these remotes and routes to them
-- All apps share the same libraries for consistency
+- 각 Remote 앱은 `module-federation.config.ts`를 통해 모듈을 노출
+- Host 앱은 이 Remote들을 소비하고 라우팅
+- 모든 앱은 일관성을 위해 동일한 라이브러리를 공유
 
-## Development Commands
+## 개발 명령어
 
-### Building
+### 빌드
 
 ```bash
-# Build projects (interactive selection)
+# 프로젝트 빌드 (대화형 선택)
 pnpm run build
-# This runs: node scripts/build-selective.js
-# Allows selecting specific apps to build or all apps
+# 실행: node scripts/build-selective.js
+# 특정 앱 또는 전체 앱을 선택하여 빌드 가능
 
-# Build specific project directly
+# 특정 프로젝트 직접 빌드
 npx nx build <project-name>
 
-# Build multiple projects
+# 여러 프로젝트 빌드
 npx nx run-many --target=build --projects=host,manager
 ```
 
-### Development Server
+### 개발 서버
 
 ```bash
-# Start host application (serves all micro-frontends)
+# Host 애플리케이션 시작 (모든 마이크로 프론트엔드 서빙)
 pnpm run serve
-# This runs: node scripts/serve-host.js
+# 실행: node scripts/serve-host.js
 
-# Serve specific project
+# 특정 프로젝트 서빙
 npx nx serve <project-name>
 
-# Serve production build
+# 프로덕션 빌드 서빙
 pnpm run serve:prod
-# This runs: pnpm exec serve dist/apps/host -l 4200 -s
+# 실행: pnpm exec serve dist/apps/host -l 4200 -s
 ```
 
-### Linting and Type Checking
+### 린팅 및 타입 검사
 
 ```bash
-# Lint all projects
+# 전체 프로젝트 린트
 npx nx run-many --target=lint --all
 
-# Type check all projects
+# 전체 프로젝트 타입 검사
 npx nx run-many --target=typecheck --all
 
-# Lint specific project
+# 특정 프로젝트 린트
 npx nx lint <project-name>
 ```
 
-### Testing
+### 테스트
 
 ```bash
-# Run all tests
+# 전체 테스트 실행
 npx nx run-many --target=test --all
 
-# Test specific project
+# 특정 프로젝트 테스트
 npx nx test <project-name>
 ```
 
-### Adding Components
+### 컴포넌트 추가
 
 ```bash
-# Add shadcn/ui components to shared-ui library
+# shared-ui 라이브러리에 shadcn/ui 컴포넌트 추가
 pnpm run shadcn:add <component-name>
-# This uses: cross-env TS_NODE_PROJECT=tsconfig.base.json npx shadcn@latest add
+# 사용: cross-env TS_NODE_PROJECT=tsconfig.base.json npx shadcn@latest add
 ```
 
-### Creating New Remotes
+### 새 Remote 생성
 
 ```bash
-# Create new micro-frontend
+# 새 마이크로 프론트엔드 생성
 pnpm run create-remote
-# This runs: node scripts/create-remote.js
+# 실행: node scripts/create-remote.js
 ```
 
-## Technology Stack
+## 기술 스택
 
-### Core Technologies
+### 핵심 기술
 
-- **Framework**: React 19 with TypeScript 5.8
-- **Build Tool**: Webpack 5 with @module-federation/enhanced
-- **Monorepo**: Nx 21.3.5
-- **Package Manager**: pnpm
+- **프레임워크**: React 19 with TypeScript 5.8
+- **빌드 도구**: Webpack 5 with @module-federation/enhanced
+- **모노레포**: Nx 21.3.5
+- **패키지 관리자**: pnpm
 
-### UI & Styling
+### UI 및 스타일링
 
-- **Styling**: Tailwind CSS v4 with PostCSS
-- **UI Components**:
+- **스타일링**: Tailwind CSS v4 with PostCSS
+- **UI 컴포넌트**:
   - shadcn/ui with Radix UI primitives
   - Ant Design v6
-  - AG-Grid Enterprise for data tables
-- **Icons**: Lucide React
-- **Themes**: next-themes for dark mode support
+  - AG-Grid Enterprise (데이터 테이블)
+- **아이콘**: Lucide React
+- **테마**: next-themes (다크 모드 지원)
 
-### State & Forms
+### 상태 및 폼
 
-- **State Management**: Zustand
-- **Server State**: TanStack Query (React Query)
-- **Form Management**: React Hook Form with Zod validation
-- **Routing**: React Router DOM 6.29
+- **상태 관리**: Zustand
+- **서버 상태**: TanStack Query (React Query)
+- **폼 관리**: React Hook Form with Zod validation
+- **라우팅**: React Router DOM 6.29
 
-## API Integration Guidelines
+## API 통합 가이드라인
 
-When integrating APIs, always use **TanStack Query** with custom hooks. Never call `apiClient` directly in components.
+API 통합 시 반드시 **TanStack Query**와 커스텀 훅을 사용합니다. 컴포넌트에서 `apiClient`를 직접 호출하지 마세요.
 
-### File Structure
+### 파일 구조
 
 ```
 apps/*/src/app/features/<feature>/
 ├── api/
-│   └── <feature>Api.ts         # API function definitions
+│   └── <feature>Api.ts         # API 함수 정의
 ├── hooks/
-│   └── use<Feature>Queries.ts  # TanStack Query hooks
+│   └── use<Feature>Queries.ts  # TanStack Query 훅
 └── types/
-    └── <feature>.types.ts      # Type definitions
+    └── <feature>.types.ts      # 타입 정의
 ```
 
-### API Function Definition Example
+### API 함수 정의 예시
 
 ```typescript
 // apps/manager/src/app/features/user/api/userApi.ts
@@ -166,9 +166,9 @@ export const userApi = {
 };
 ```
 
-### TanStack Query Hook Example
+### TanStack Query 훅 예시
 
-Use `@lukemorales/query-key-factory` for query key management:
+쿼리 키 관리에 `@lukemorales/query-key-factory`를 사용합니다:
 
 ```typescript
 // apps/manager/src/app/features/user/hooks/useUserQueries.ts
@@ -178,13 +178,13 @@ import type { MutationHookOptions, QueryHookWithParamsOptions } from '@/shared-u
 import { userApi } from '../api/userApi';
 import type { User, UserListItem } from '../types/user.types';
 
-// Define query keys using factory pattern
+// 팩토리 패턴으로 쿼리 키 정의
 export const userQueryKeys = createQueryKeys('users', {
   getUsers: (params?: Record<string, unknown>) => [params],
   getUser: (params?: Record<string, unknown>) => [params],
 });
 
-// Query hooks - use { params, queryOptions } pattern
+// 쿼리 훅 - { params, queryOptions } 패턴 사용
 export const useGetUsers = ({ params, queryOptions }: QueryHookWithParamsOptions<UserListItem[]> = {}) => {
   return useQuery({
     queryKey: userQueryKeys.getUsers(params).queryKey,
@@ -201,7 +201,7 @@ export const useGetUser = ({ params, queryOptions }: QueryHookWithParamsOptions<
   });
 };
 
-// Mutation hooks - use { mutationOptions } pattern
+// 뮤테이션 훅 - { mutationOptions } 패턴 사용
 export const useCreateUser = ({ mutationOptions }: MutationHookOptions = {}) => {
   return useMutation({
     mutationFn: userApi.createUser,
@@ -224,7 +224,7 @@ export const useDeleteUser = ({ mutationOptions }: MutationHookOptions = {}) => 
 };
 ```
 
-### Component Usage Example
+### 컴포넌트 사용 예시
 
 ```typescript
 // apps/manager/src/app/pages/user/UserList.tsx
@@ -237,17 +237,17 @@ export function UserList() {
   const createUser = useCreateUser({
     mutationOptions: {
       onSuccess: () => {
-        // Invalidate cache after mutation
+        // 뮤테이션 후 캐시 무효화
         queryClient.invalidateQueries({ queryKey: userQueryKeys.useGetUsers().queryKey });
       },
     },
   });
 
-  // ❌ WRONG - Direct apiClient call
+  // ❌ 잘못된 방법 - apiClient 직접 호출
   // const [users, setUsers] = useState([]);
   // useEffect(() => { apiClient.get('/users').then(setUsers); }, []);
 
-  // ✅ CORRECT - Using custom hooks
+  // ✅ 올바른 방법 - 커스텀 훅 사용
   if (isLoading) return <FallbackSpinner />;
   if (error) return <div>Error: {error.message}</div>;
 
@@ -255,31 +255,31 @@ export function UserList() {
 }
 ```
 
-### Key Rules
+### 핵심 규칙
 
-1. **No direct apiClient usage**: Never import and use `apiClient` directly in components
-2. **Query Key Factory**: Use `@lukemorales/query-key-factory` with `createQueryKeys`
-3. **Hook Parameters**: Query hooks use `{ params, queryOptions }`, Mutation hooks use `{ mutationOptions }`
-4. **Hook Naming**: `useGet<Feature>s` (list), `useGet<Feature>` (single), `useCreate<Feature>`, `useUpdate<Feature>`, `useDelete<Feature>`
-5. **Cache Invalidation**: Handle in component via `mutationOptions.onSuccess`
+1. **apiClient 직접 사용 금지**: 컴포넌트에서 `apiClient`를 직접 import하여 사용하지 말 것
+2. **Query Key Factory**: `@lukemorales/query-key-factory`의 `createQueryKeys` 사용
+3. **훅 파라미터**: 쿼리 훅은 `{ params, queryOptions }`, 뮤테이션 훅은 `{ mutationOptions }` 사용
+4. **훅 네이밍**: `useGet<Feature>s` (목록), `useGet<Feature>` (단건), `useCreate<Feature>`, `useUpdate<Feature>`, `useDelete<Feature>`
+5. **캐시 무효화**: 컴포넌트에서 `mutationOptions.onSuccess`를 통해 처리
 
-### Development Tools
+### 개발 도구
 
-- **Testing**: Jest with Testing Library
-- **Linting**: ESLint 9 with TypeScript support
-- **Formatting**: Prettier
+- **테스트**: Jest with Testing Library
+- **린팅**: ESLint 9 with TypeScript 지원
+- **포맷팅**: Prettier
 - **Git Hooks**: Husky with lint-staged
-- **Commit Convention**: Commitizen with cz-git
+- **커밋 컨벤션**: Commitizen with cz-git
 
-## Commit Guidelines
+## 커밋 가이드라인
 
-This project uses **commitizen** with cz-git for consistent commit messages. Always use:
+이 프로젝트는 일관된 커밋 메시지를 위해 **commitizen** + cz-git을 사용합니다. 항상 다음 명령어를 사용하세요:
 
 ```bash
 pnpm commit
 ```
 
-Supported commit types include: 🎉 init, ✨ feat, 📦️ chore, 💄 design, 🐛 fix, ✅ test, 🚀 deploy, 🔨 refactor, 🚚 rename, 📚 docs, 🔥 remove
+지원되는 커밋 타입: 🎉 init, ✨ feat, 📦️ chore, 💄 design, 🐛 fix, ✅ test, 🚀 deploy, 🔨 refactor, 🚚 rename, 📚 docs, 🔥 remove
 
 ### Scope 작성 규칙
 
@@ -294,49 +294,49 @@ Supported commit types include: 🎉 init, ✨ feat, 📦️ chore, 💄 design,
 ✨feat: 공통 컴포넌트 스타일 수정
 ```
 
-## File Structure Conventions
+## 파일 구조 컨벤션
 
-### Applications
+### 애플리케이션
 
-- `apps/*/src/app/` - Main application components
-- `apps/*/src/app/pages/` - Page components
-- `apps/*/src/app/features/` - Feature-specific logic and types
-- `apps/*/src/remote-entry.ts` - Module Federation entry points
-- `apps/*/module-federation.config.ts` - Module Federation configurations
-- `apps/*/webpack.config.ts` - Webpack configurations
+- `apps/*/src/app/` - 메인 애플리케이션 컴포넌트
+- `apps/*/src/app/pages/` - 페이지 컴포넌트
+- `apps/*/src/app/features/` - 기능별 로직 및 타입
+- `apps/*/src/remote-entry.ts` - Module Federation 진입점
+- `apps/*/module-federation.config.ts` - Module Federation 설정
+- `apps/*/webpack.config.ts` - Webpack 설정
 
-### Libraries
+### 라이브러리
 
-- `libs/shared-ui/src/components/shadcn/` - shadcn/ui components
-- `libs/shared-ui/src/components/custom/` - Custom reusable components
-- `libs/shared-ui/src/lib/utils.ts` - UI utility functions (cn, etc.)
-- `libs/shared-store/src/` - Global state management
-- `libs/shared-util/src/` - Shared utility functions
+- `libs/shared-ui/src/components/shadcn/` - shadcn/ui 컴포넌트
+- `libs/shared-ui/src/components/custom/` - 커스텀 재사용 컴포넌트
+- `libs/shared-ui/src/lib/utils.ts` - UI 유틸리티 함수 (cn 등)
+- `libs/shared-store/src/` - 전역 상태 관리
+- `libs/shared-util/src/` - 공유 유틸리티 함수
 
-## Import Path Conventions
+## Import 경로 컨벤션
 
-### Path Resolution Rules
+### 경로 해석 규칙
 
-1. **Within the same app**: Use **relative paths**
+1. **같은 앱 내부**: **상대 경로** 사용
 
    ```typescript
-   // Inside apps/manager/src/app/pages/user/UserDetail.tsx
+   // apps/manager/src/app/pages/user/UserDetail.tsx 내부에서
    import { UserCard } from './UserCard';
    import { userApi } from '../../features/user/api';
    ```
 
-2. **Across different apps or from libraries**: Use **absolute paths with `@` alias**
+2. **다른 앱 또는 라이브러리에서**: **`@` 별칭이 있는 절대 경로** 사용
    ```typescript
-   // From any app importing shared libraries
+   // 공유 라이브러리를 import하는 모든 앱에서
    import { Button } from '@/components/ui/button';
    import { PageHeader } from '@/components/custom/PageHeader';
    ```
 
-### Path Aliases (defined in `tsconfig.base.json`)
+### 경로 별칭 (`tsconfig.base.json`에 정의)
 
-Always use the shortest alias available when importing from libraries:
+라이브러리에서 import할 때는 항상 가장 짧은 별칭을 사용하세요:
 
-| Full Path                                | Use This Alias          |
+| 전체 경로                                | 사용할 별칭             |
 | ---------------------------------------- | ----------------------- |
 | `libs/shared-ui/src/components/shadcn/*` | `@/components/ui/*`     |
 | `libs/shared-ui/src/components/custom/*` | `@/components/custom/*` |
@@ -347,53 +347,53 @@ Always use the shortest alias available when importing from libraries:
 | `libs/*`                                 | `@/libs/*`              |
 | `apps/*`                                 | `@/app/*`               |
 
-### Common Import Examples
+### 일반적인 Import 예시
 
 ```typescript
-// UI Components (shadcn)
+// UI 컴포넌트 (shadcn)
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { Dialog, DialogContent } from '@/components/ui/dialog';
 
-// Custom Components
+// 커스텀 컴포넌트
 import { PageHeader } from '@/components/custom/PageHeader';
 import { FallbackSpinner } from '@/components/custom/FallbackSpinner';
 
-// Utilities
+// 유틸리티
 import { cn } from '@/lib/utils';
 import { Log } from '@/log';
 import { toast } from '@/shared-util';
 
-// State Management
+// 상태 관리
 import { useAuthStore } from '@/shared-store';
 ```
 
-## Code Quality
+## 코드 품질
 
-The project enforces code quality through:
+프로젝트는 다음을 통해 코드 품질을 강제합니다:
 
-- **lint-staged**: Runs ESLint and TypeScript checks on staged files
-- **Husky**: Pre-commit hooks for automated checks
-- **commitlint**: Ensures consistent commit message format
-- **TypeScript**: Strict type checking enabled
-- **ESLint**: Configured with React, TypeScript, and Prettier plugins
+- **lint-staged**: 스테이징된 파일에 ESLint 및 TypeScript 검사 실행
+- **Husky**: 자동 검사를 위한 pre-commit 훅
+- **commitlint**: 일관된 커밋 메시지 형식 보장
+- **TypeScript**: 엄격한 타입 검사 활성화
+- **ESLint**: React, TypeScript, Prettier 플러그인으로 설정
 
-## Key Dependencies
+## 주요 의존성
 
-### UI Libraries
+### UI 라이브러리
 
-- `@radix-ui/*`: Complete set of Radix UI primitives
-- `ag-grid-react`: Data grid with enterprise features
-- `antd`: Ant Design components (v6)
-- `lucide-react`: Icon library
-- `recharts`: Chart library
-- `echarts` & `echarts-for-react`: Chart library
-- `cmdk`: Command menu component
-- `sonner`: Toast notifications
+- `@radix-ui/*`: Radix UI 프리미티브 전체 세트
+- `ag-grid-react`: 엔터프라이즈 기능이 포함된 데이터 그리드
+- `antd`: Ant Design 컴포넌트 (v6)
+- `lucide-react`: 아이콘 라이브러리
+- `recharts`: 차트 라이브러리
+- `echarts` & `echarts-for-react`: 차트 라이브러리
+- `cmdk`: 커맨드 메뉴 컴포넌트
+- `sonner`: 토스트 알림
 
-### Utilities
+### 유틸리티
 
-- `clsx` & `tailwind-merge`: Class name utilities
-- `date-fns` & `dayjs`: Date manipulation
-- `lodash`: Utility functions
-- `zod`: Schema validation
+- `clsx` & `tailwind-merge`: 클래스 이름 유틸리티
+- `date-fns` & `dayjs`: 날짜 처리
+- `lodash`: 유틸리티 함수
+- `zod`: 스키마 유효성 검사
