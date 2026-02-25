@@ -26,8 +26,9 @@ TypeScript 또는 JavaScript 파일을 수정한 후에는 반드시 `npx eslint
 ### 라이브러리
 
 - **Shared UI** (`libs/shared-ui`): 재사용 가능한 React 컴포넌트
-  - 47개의 shadcn/ui 컴포넌트 (Badge, Button, Card, Dialog, Table 등)
-  - 커스텀 컴포넌트 (AggridNoRowsOverlay, AggridRowDataSidebar, FallbackSpinner, Icons, NoData, NotFound, PageHeader, PageTabs)
+  - shadcn/ui 컴포넌트 (Badge, Button, Card, Dialog, Table 등)
+  - 커스텀 컴포넌트 (AggridNoRowsOverlay, AggridRowDataSidebar, FallbackSpinner, Icons, NoData, NotFound, PageHeader, PageTabs 등)
+- **Shared API** (`libs/shared-api`): 여러 앱에서 공통으로 사용하는 API 및 타입 (역할, 네비게이션, 북마크 등)
 - **Shared Store** (`libs/shared-store`): Zustand를 사용한 상태 관리
 - **Shared Util** (`libs/shared-util`): 유틸리티 함수 및 헬퍼
 
@@ -343,6 +344,7 @@ pnpm commit
 | `libs/shared-ui/src/lib/utils`           | `@/lib/utils`           |
 | `libs/shared-util/src/lib/log.ts`        | `@/log`                 |
 | `libs/shared-util/src/index.ts`          | `@/shared-util`         |
+| `libs/shared-api/src/index.ts`           | `@/shared-api`          |
 | `libs/shared-store/src/index.ts`         | `@/shared-store`        |
 | `libs/*`                                 | `@/libs/*`              |
 | `apps/*`                                 | `@/app/*`               |
