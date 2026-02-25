@@ -9,6 +9,18 @@
 TypeScript 또는 JavaScript 파일을 수정한 후에는 반드시 `npx eslint --fix <file-path>`를 실행하여 코드 품질과 일관성을 보장할 것.
 자동으로 커밋하지 말 것. 사용자가 명시적으로 요청한 경우에만 커밋.
 이 프로젝트는 **React Compiler**를 사용합니다. 컴파일러가 자동으로 리렌더링을 최적화하므로, 명시적으로 필요한 경우가 아니면 `useMemo`나 `useCallback`을 사용하지 말 것.
+`pnpm-lock.yaml`에는 `ag-grid-enterprise` 패치 정보(`patchedDependencies`, `patch_hash`)가 포함되어 있으므로, lock 파일 수정·충돌 해결 시 해당 내용이 제거되지 않도록 주의할 것. 패치가 누락되면 AG-Grid Enterprise 라이선스 관련 동작에 영향을 줄 수 있음. 또한 pnpm 메이저 버전이 다르면 lock 파일 포맷과 패치 해시가 달라질 수 있으므로, 필수 환경 요구사항에 명시된 pnpm 버전을 준수할 것.
+
+## 필수 환경 요구사항
+
+아래 항목은 프로젝트 실행 전 **직접 설치**가 필요합니다:
+
+| 항목        | 버전     |
+| ----------- | -------- |
+| **Node.js** | v22.17.0 |
+| **pnpm**    | 10.29.2  |
+
+> Nx, TypeScript, Webpack 등 나머지 도구는 `package.json`에 버전이 명시되어 있으며, `pnpm install` 시 자동 설치됩니다.
 
 ## 프로젝트 아키텍처
 
