@@ -54,10 +54,13 @@ TypeScript 또는 JavaScript 파일을 수정한 후에는 반드시 `npx eslint
 
 ## 개발 명령어
 
+빌드와 개발 서버 실행은 프로젝트 스크립트(`pnpm run build`, `pnpm run serve`)를 우선 사용할 것. 스크립트에는 대화형 앱 선택, 의존성 확인 등 추가 로직이 포함되어 있으며, 특정 앱만 실행하는 것도 스크립트 내에서 선택 가능. Nx의 특정 옵션이 필요한 경우에만 `npx nx` 직접 명령을 사용.
+새 Remote 생성 시 반드시 `pnpm run create-remote` 스크립트를 사용할 것. Module Federation 설정, 라우팅 등록 등 추가 로직이 포함되어 있어 수동 생성 시 정상 동작하지 않을 수 있음.
+
 ### 빌드
 
 ```bash
-# 프로젝트 빌드 (대화형 선택)
+# 프로젝트 빌드 (대화형 선택) — 우선 사용
 pnpm run build
 # 실행: node scripts/build-selective.js
 # 특정 앱 또는 전체 앱을 선택하여 빌드 가능
@@ -72,7 +75,7 @@ npx nx run-many --target=build --projects=host,manager
 ### 개발 서버
 
 ```bash
-# Host 애플리케이션 시작 (모든 마이크로 프론트엔드 서빙)
+# Host 애플리케이션 시작 (모든 마이크로 프론트엔드 서빙) — 우선 사용
 pnpm run serve
 # 실행: node scripts/serve-host.js
 
@@ -118,9 +121,10 @@ pnpm run shadcn:add <component-name>
 ### 새 Remote 생성
 
 ```bash
-# 새 마이크로 프론트엔드 생성
+# 새 마이크로 프론트엔드 생성 (반드시 스크립트 사용)
 pnpm run create-remote
 # 실행: node scripts/create-remote.js
+# Module Federation 설정, 라우팅 등록 등 추가 로직 포함 — 수동 생성 시 정상 동작하지 않을 수 있음
 ```
 
 ## 기술 스택

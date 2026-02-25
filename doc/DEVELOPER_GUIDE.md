@@ -1244,13 +1244,16 @@ git push origin feat/add-user-search
 
 ### 자주 쓰는 개발 명령어
 
+> **스크립트 우선 사용**: 빌드와 서빙은 `pnpm run build`, `pnpm run serve` 스크립트를 우선 사용하세요. 스크립트에는 대화형 앱 선택, 의존성 확인 등 추가 로직이 포함되어 있으며, 특정 앱만 실행하는 것도 스크립트 내에서 선택 가능합니다. Nx의 특정 옵션이 필요한 경우에만 `npx nx` 직접 명령을 사용하세요.
+> **새 Remote 생성은 반드시 스크립트 사용**: `pnpm run create-remote`만 사용하세요. Module Federation 설정, 라우팅 등록 등 추가 로직이 포함되어 있어 수동 생성 시 정상 동작하지 않을 수 있습니다.
+
 ```bash
-# 개발 서버
+# 개발 서버 (우선 사용)
 pnpm run serve              # 대화형으로 실행할 Remote 선택
 
-# 빌드
+# 빌드 (우선 사용)
 pnpm run build              # 대화형으로 빌드할 앱 선택
-npx nx build fca            # fca 앱만 빌드
+npx nx build fca            # fca 앱만 빌드 (특정 앱만 필요할 때)
 
 # 린트
 npx nx lint fca             # fca 앱 린트
