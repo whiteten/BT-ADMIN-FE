@@ -16,7 +16,7 @@ TypeScript 또는 JavaScript 파일을 수정한 후에는 반드시 `npx eslint
 
 ### 애플리케이션
 
-- **Host App** (`apps/host`): 마이크로 프론트엔드를 소비하는 메인 셸 애플리케이션
+- **Host App** (`apps/host`): Remote 앱들을 통합하는 메인 셸 애플리케이션
   - 로그인 페이지
   - 사이드바 내비게이션이 있는 메인 레이아웃
 - **Remote Apps**:
@@ -35,7 +35,7 @@ TypeScript 또는 JavaScript 파일을 수정한 후에는 반드시 `npx eslint
 ### Module Federation 구조
 
 - 각 Remote 앱은 `module-federation.config.ts`를 통해 모듈을 노출
-- Host 앱은 이 Remote들을 소비하고 라우팅
+- Host 앱은 이 Remote들을 통합하고 라우팅
 - 모든 앱은 일관성을 위해 동일한 라이브러리를 공유
 
 ## 개발 명령어
@@ -130,26 +130,29 @@ pnpm run create-remote
 
 ### 상태 및 폼
 
-- **상태 관리**: Zustand
-- **서버 상태**: TanStack Query (React Query)
-- **폼 관리**: React Hook Form with Zod validation
-- **라우팅**: React Router DOM 6.29
+- **상태 관리**: Zustand (`zustand`)
+- **서버 상태**: TanStack Query (`@tanstack/react-query`)
+- **폼 관리**: React Hook Form (`react-hook-form`) with Zod (`zod`) validation
+- **라우팅**: React Router DOM 6.29 (`react-router-dom`)
+
+### 유틸리티
+
+- `clsx` & `tailwind-merge`: 클래스 이름 유틸리티
+- `date-fns` & `dayjs`: 날짜 처리
+- `lodash`: 유틸리티 함수
+
+### 코드 품질 도구
+
+- **테스트**: Jest with Testing Library
+- **린팅**: ESLint 9 with TypeScript, React, Prettier 플러그인
+- **포맷팅**: Prettier
+- **Git Hooks**: Husky with lint-staged (스테이징된 파일에 ESLint 및 TypeScript 검사 자동 실행)
+- **커밋 컨벤션**: Commitizen with cz-git, commitlint
+- **TypeScript**: 엄격한 타입 검사 활성화
 
 ## API 통합 가이드라인
 
 API 통합 시 반드시 **TanStack Query**와 커스텀 훅을 사용합니다. 컴포넌트에서 `apiClient`를 직접 호출하지 마세요.
-
-### 파일 구조
-
-```
-apps/*/src/app/features/<feature>/
-├── api/
-│   └── <feature>Api.ts         # API 함수 정의
-├── hooks/
-│   └── use<Feature>Queries.ts  # TanStack Query 훅
-└── types/
-    └── <feature>.types.ts      # 타입 정의
-```
 
 ### API 함수 정의 예시
 
@@ -264,14 +267,6 @@ export function UserList() {
 4. **훅 네이밍**: `useGet<Feature>s` (목록), `useGet<Feature>` (단건), `useCreate<Feature>`, `useUpdate<Feature>`, `useDelete<Feature>`
 5. **캐시 무효화**: 컴포넌트에서 `mutationOptions.onSuccess`를 통해 처리
 
-### 개발 도구
-
-- **테스트**: Jest with Testing Library
-- **린팅**: ESLint 9 with TypeScript 지원
-- **포맷팅**: Prettier
-- **Git Hooks**: Husky with lint-staged
-- **커밋 컨벤션**: Commitizen with cz-git
-
 ## 커밋 가이드라인
 
 이 프로젝트는 일관된 커밋 메시지를 위해 **commitizen** + cz-git을 사용합니다. 항상 다음 명령어를 사용하세요:
@@ -313,6 +308,51 @@ pnpm commit
 - `libs/shared-ui/src/lib/utils.ts` - UI 유틸리티 함수 (cn 등)
 - `libs/shared-store/src/` - 전역 상태 관리
 - `libs/shared-util/src/` - 공유 유틸리티 함수
+
+### Feature 디렉토리 구조
+
+각 feature 폴더는 아래 구조를 따릅니다. 모든 하위 폴더가 필수는 아니며, 필요한 것만 생성합니다:
+
+```
+features/<feature>/
+├── api/
+│   └── <feature>Api.ts           # API 함수 정의
+├── components/
+│   ├── <Feature>Card.tsx         # UI 컴포넌트
+│   ├── <Feature>Toolbar.tsx      # 툴바 컴포넌트
+│   ├── <Feature>Drawer.tsx       # 드로어 (추가/편집)
+│   └── <Feature>Modal.tsx        # 모달
+├── constants/
+│   └── <feature>Constants.ts     # 상수 정의
+├── hooks/
+│   ├── use<Feature>Queries.ts    # TanStack Query 훅
+│   └── use<Feature>Store.ts      # Zustand 스토어 (필요 시)
+├── tabs/
+│   └── <Feature>*.tsx            # 상세 페이지 탭 컴포넌트
+├── types/
+│   ├── index.ts                  # barrel export
+│   ├── <domain>.ts               # 도메인별 타입 파일
+│   └── ...
+└── utils/
+    └── <feature>Utils.ts         # 유틸리티 함수 (필요 시)
+```
+
+#### tabs/ 디렉토리
+
+상세 페이지에서 탭으로 분리되는 컴포넌트는 `tabs/` 폴더에 배치합니다:
+
+```typescript
+// pages/bot-config/BotDetail.tsx
+import BotBasicInfo from '../../features/bot-config/tabs/BotBasicInfo';
+import BotEnvList from '../../features/bot-config/tabs/BotEnvList';
+import BotVersionList from '../../features/bot-config/tabs/BotVersionList';
+
+const tabItems = [
+  { key: 'basic', label: '기본 정보', children: <BotBasicInfo /> },
+  { key: 'env', label: '환경 설정', children: <BotEnvList /> },
+  { key: 'version', label: '버전 관리', children: <BotVersionList /> },
+];
+```
 
 ## Import 경로 컨벤션
 
@@ -370,32 +410,443 @@ import { toast } from '@/shared-util';
 import { useAuthStore } from '@/shared-store';
 ```
 
-## 코드 품질
+## 코딩 컨벤션
 
-프로젝트는 다음을 통해 코드 품질을 강제합니다:
+### 컴포넌트 Export 패턴
 
-- **lint-staged**: 스테이징된 파일에 ESLint 및 TypeScript 검사 실행
-- **Husky**: 자동 검사를 위한 pre-commit 훅
-- **commitlint**: 일관된 커밋 메시지 형식 보장
-- **TypeScript**: 엄격한 타입 검사 활성화
-- **ESLint**: React, TypeScript, Prettier 플러그인으로 설정
+- **컴포넌트**: `default export` 사용
+- **API 함수, 유틸리티, 타입, 상수**: `named export` 사용
 
-## 주요 의존성
+```typescript
+// ✅ 컴포넌트 - default export
+const BotCard = ({ bot }: BotCardProps) => {
+  return <Card>{/* ... */}</Card>;
+};
+export default BotCard;
 
-### UI 라이브러리
+// ✅ forwardRef 컴포넌트 - default export + displayName
+const EntityDrawer = forwardRef<EntityDrawerRef>((_, ref) => {
+  // ...
+});
+EntityDrawer.displayName = 'EntityDrawer';
+export default EntityDrawer;
 
-- `@radix-ui/*`: Radix UI 프리미티브 전체 세트
-- `ag-grid-react`: 엔터프라이즈 기능이 포함된 데이터 그리드
-- `antd`: Ant Design 컴포넌트 (v6)
-- `lucide-react`: 아이콘 라이브러리
-- `recharts`: 차트 라이브러리
-- `echarts` & `echarts-for-react`: 차트 라이브러리
-- `cmdk`: 커맨드 메뉴 컴포넌트
-- `sonner`: 토스트 알림
+// ✅ API 함수 - named export (객체 형태)
+export const botApi = {
+  getBots: async (params?: Record<string, unknown>) => { /* ... */ },
+  getBot: async (params?: Record<string, unknown>) => { /* ... */ },
+};
 
-### 유틸리티
+// ✅ 타입 - named export
+export interface Bot { /* ... */ }
+export type BotListItem = Omit<Bot, 'serviceDesc'>;
 
-- `clsx` & `tailwind-merge`: 클래스 이름 유틸리티
-- `date-fns` & `dayjs`: 날짜 처리
-- `lodash`: 유틸리티 함수
-- `zod`: 스키마 유효성 검사
+// ✅ 상수 - named export
+export const CHART_COLORS = { /* ... */ } as const;
+```
+
+### 타입 정의 컨벤션
+
+타입 파일은 `features/<feature>/types/` 아래에 도메인별로 분리하고, `index.ts`에서 barrel export합니다.
+
+#### 파일 구조
+
+```
+features/<feature>/types/
+├── index.ts          # barrel export (export * from './bot'; ...)
+├── bot.ts            # 봇 관련 타입
+├── model.ts          # 모델 관련 타입
+├── intent.ts         # 인텐트 관련 타입
+└── entity.ts         # 엔티티 관련 타입
+```
+
+#### DTO 서픽스 규칙
+
+용도에 따라 서픽스를 붙여 타입을 구분합니다:
+
+| 서픽스        | 용도                      | 예시                                 |
+| ------------- | ------------------------- | ------------------------------------ |
+| (없음)        | 기본 도메인 타입          | `Bot`, `Model`                       |
+| `ListItem`    | 목록 조회용 (제한된 필드) | `BotListItem`, `ModelListItem`       |
+| `Item`        | 상세 조회용 (확장된 필드) | `BotItem`, `ModelItem`               |
+| `CreateDatas` | 생성 요청용               | `BotCreateDatas`, `ModelCreateDatas` |
+| `UpdateDatas` | 수정 요청용               | `BotBasicInfoUpdateDatas`            |
+
+```typescript
+// 기본 도메인 타입
+export interface Bot {
+  serviceId: string;
+  serviceName: string;
+  serviceDesc?: string;
+  confidence: [number, number];
+  tags?: string[];
+}
+
+// 목록용 - Omit으로 불필요한 필드 제거 + 추가 필드
+export type BotListItem = Omit<Bot, 'serviceDesc' | 'confidence'> & {
+  conversationCount: number;
+  updateTime: string;
+};
+
+// 상세 조회용 - 교차 타입으로 확장
+export type BotItem = Bot & BotSchedule & BotVoice;
+
+// 생성용 - Omit으로 서버 생성 필드 제거
+export type BotCreateDatas = Omit<Bot, 'serviceId' | 'workTime'> & BotVoice;
+
+// 수정용
+export type BotBasicInfoUpdateDatas = Omit<Bot, 'workTime'>;
+
+// 상태 Union 타입
+export type TrainStatus = 0 | 1 | 2 | 3;
+export type TrainDiffStatus = 'ADDED' | 'MODIFIED' | 'DELETED';
+```
+
+### 모달/드로어 제어 패턴
+
+모달과 드로어는 `forwardRef` + `useImperativeHandle`을 사용하여 부모에서 명령형으로 제어합니다.
+
+#### Ref 인터페이스 정의
+
+```typescript
+// Ref 타입은 컴포넌트 파일 상단에 export
+export interface EntityDrawerRef {
+  open: (params: { modelId: string; entityData?: EntityListItem }) => void;
+  close: () => void;
+}
+```
+
+#### 컴포넌트 구현
+
+```typescript
+interface DrawerState {
+  open: boolean;
+  modelId: string;
+  entityData?: EntityListItem; // 편집 모드 시 데이터
+}
+
+const EntityDrawer = forwardRef<EntityDrawerRef>((_, ref) => {
+  const [state, setState] = useState<DrawerState>({ open: false, modelId: '' });
+  const isEditMode = !!state.entityData;
+
+  useImperativeHandle(ref, () => ({
+    open: (params) => setState({ open: true, ...params }),
+    close: () => setState((prev) => ({ ...prev, open: false })),
+  }));
+
+  return (
+    <Drawer open={state.open} onClose={() => setState((prev) => ({ ...prev, open: false }))}>
+      {/* ... */}
+    </Drawer>
+  );
+});
+EntityDrawer.displayName = 'EntityDrawer';
+export default EntityDrawer;
+```
+
+#### 부모 컴포넌트에서 사용
+
+```typescript
+const drawerRef = useRef<EntityDrawerRef>(null);
+
+// 열기
+drawerRef.current?.open({ modelId: '123' });
+
+// 편집 모드로 열기
+drawerRef.current?.open({ modelId: '123', entityData: selectedEntity });
+
+// JSX
+<EntityDrawer ref={drawerRef} />
+```
+
+### AG-Grid 사용 패턴
+
+#### 기본 설정
+
+`useAggridOptions` 훅으로 공통 그리드 옵션을 적용합니다:
+
+```typescript
+import useAggridOptions from '@/libs/shared-ui/src/hooks/useAggridOptions';
+
+const { gridOptions, sideBar } = useAggridOptions();
+
+<AgGridReact
+  rowData={data}
+  columnDefs={columnDefs}
+  getRowId={(params) => params.data.id}
+  gridOptions={{
+    ...gridOptions,
+    // 필요 시 추가 옵션 오버라이드
+    editType: 'fullRow',
+    readOnlyEdit: true,
+    suppressClickEdit: true,
+  }}
+  loading={isLoading}
+  onGridReady={handleGridReady}
+/>
+```
+
+#### ColDef 정의
+
+타입 파라미터로 row 데이터 타입을 지정합니다:
+
+```typescript
+const columnDefs: ColDef<IntentSentenceListItem>[] = [
+  // 숨김 ID 컬럼
+  { headerName: 'ID', field: 'sentenceId', hide: true },
+
+  // 편집 가능 컬럼 (커스텀 에디터)
+  {
+    headerName: '문장',
+    field: 'sentence',
+    flex: 3,
+    editable: true,
+    cellEditor: InputTextCellEditor,
+    cellEditorParams: { placeholder: '문장을 입력하세요.' },
+  },
+
+  // 커스텀 렌더러 컬럼
+  {
+    headerName: '학습상태',
+    field: 'trainStatus',
+    maxWidth: 120,
+    cellStyle: { display: 'flex', alignItems: 'center' },
+    cellRenderer: (params) => <TrainStatusBadge status={params.value} />,
+  },
+
+  // 액션 버튼 컬럼
+  {
+    headerName: '',
+    colId: 'actions',
+    maxWidth: 100,
+    sortable: false,
+    filter: false,
+    suppressHeaderMenuButton: true,
+    cellRenderer: ActionCellRenderer,
+    cellRendererParams: { onSave: handleSave, onDelete: handleDelete },
+  },
+];
+```
+
+#### 커스텀 셀 에디터
+
+```typescript
+interface InputTextCellEditorProps {
+  value: string;
+  onValueChange: (value: string) => void;
+  placeholder?: string;
+  cellStartedEdit?: boolean;
+}
+
+const InputTextCellEditor = ({ value = '', onValueChange, placeholder, cellStartedEdit }: InputTextCellEditorProps) => {
+  const inputRef = useRef<InputRef>(null);
+
+  useEffect(() => {
+    if (cellStartedEdit) inputRef.current?.focus();
+  }, [cellStartedEdit]);
+
+  return <Input ref={inputRef} value={value} onChange={(e) => onValueChange(e.target.value)} placeholder={placeholder} />;
+};
+```
+
+### Zustand 스토어 컨벤션
+
+feature 단위의 로컬 상태는 `hooks/use<Feature>Store.ts`에 정의합니다.
+
+#### 핵심 규칙
+
+- 상태 값을 직접 변경하지 않고, 반드시 `set` 메서드를 통해 업데이트
+- 각 상태 필드마다 대응하는 `set<Field>` 메서드를 정의
+- 단일 인터페이스에 상태와 액션을 함께 정의
+
+#### 기본 스토어
+
+```typescript
+// libs/shared-store/src/lib/useMenuStore.ts
+import { create } from 'zustand';
+
+interface MenuStore {
+  menuConfigs: MenuConfig[];
+  isLoading: boolean;
+  setMenuConfigs: (menuConfigs: MenuConfig[]) => void;
+  setIsLoading: (isLoading: boolean) => void;
+}
+
+export const useMenuStore = create<MenuStore>((set) => ({
+  menuConfigs: [],
+  isLoading: false,
+  setMenuConfigs: (menuConfigs) => set({ menuConfigs }),
+  setIsLoading: (isLoading) => set({ isLoading }),
+}));
+```
+
+#### 영속 스토어 (localStorage / sessionStorage)
+
+`localStorage`나 `sessionStorage`에 상태를 유지해야 할 경우, `zustand/middleware`의 `persist` + `createJSONStorage`를 사용합니다:
+
+```typescript
+// apps/host/src/app/features/auth/hooks/useRememberMeStore.ts
+import { create } from 'zustand';
+import { createJSONStorage, persist } from 'zustand/middleware';
+
+interface RememberMeData {
+  userAccount: string;
+  tenant: string;
+  rememberMe: boolean;
+}
+
+interface RememberMeStore {
+  data: RememberMeData;
+  setRememberMeData: (data: Partial<RememberMeData>) => void;
+  clearRememberMeData: () => void;
+}
+
+const initialData: RememberMeData = {
+  userAccount: '',
+  tenant: '',
+  rememberMe: false,
+};
+
+export const useRememberMeStore = create<RememberMeStore>()(
+  persist(
+    (set) => ({
+      data: initialData,
+      setRememberMeData: (newData) =>
+        set((state) => ({
+          data: { ...state.data, ...newData },
+        })),
+      clearRememberMeData: () => set({ data: initialData }),
+    }),
+    {
+      name: 'remember-me-storage', // 스토리지 키
+      storage: createJSONStorage(() => localStorage), // 또는 sessionStorage
+    },
+  ),
+);
+```
+
+영속 스토어 작성 시 포인트:
+
+1. **`create<Store>()(persist(...))`**: 제네릭 뒤에 `()` 호출이 한 번 더 필요
+2. **`initialData`를 별도 상수로 분리**: `clear` 시 초기값으로 리셋
+3. **`Partial<Data>`로 부분 업데이트 지원**: 전체 데이터를 넘기지 않아도 됨
+4. **`name`**: 스토리지에 저장되는 키 이름
+5. **`storage`**: `createJSONStorage(() => localStorage)` 또는 `createJSONStorage(() => sessionStorage)`
+
+### 유틸리티 사용 패턴
+
+#### 로깅
+
+```typescript
+import { Log } from '@/log';
+
+Log.debug('onFinish', values); // 디버그 로그
+Log.warn('onFinishFailed', errorInfo); // 경고 로그
+```
+
+#### 토스트 알림
+
+```typescript
+import { toast } from '@/shared-util';
+
+toast.success('봇이 저장되었습니다.');
+toast.error('오류가 발생했습니다.');
+toast.warning('학습이 완료된 모델만 배포할 수 있습니다.');
+```
+
+#### 확인 모달 (useModal)
+
+```typescript
+import { useModal } from '@/libs/shared-ui/src/hooks/useModal';
+
+const modal = useModal();
+
+// 삭제 확인
+modal.confirm.delete({
+  onOk: () => deleteBot({ serviceId }),
+});
+
+// 커스텀 확인
+modal.confirm.execute({
+  options: {
+    title: '모델배포 확인',
+    okText: '배포',
+    cancelText: '취소',
+  },
+  onOk: () => deployModel({ ... }),
+});
+```
+
+### 페이지 Lazy Loading 패턴
+
+모든 페이지 컴포넌트는 `React.lazy`로 지연 로드합니다. 라우트 파일(`routes.tsx`)에서 import합니다:
+
+```typescript
+// apps/fca/src/app/routes.tsx
+import { lazy } from 'react';
+
+const BotList = lazy(() => import('./pages/bot-config/BotList'));
+const BotCreate = lazy(() => import('./pages/bot-config/BotCreate'));
+const BotDetail = lazy(() => import('./pages/bot-config/BotDetail'));
+const ModelList = lazy(() => import('./pages/bot-config/ModelList'));
+const BotDashboard = lazy(() => import('./pages/dashboard/BotDashboard'));
+
+export const routes = [
+  {
+    path: '/',
+    element: <RootLayout />,
+    children: [
+      { index: true, element: <Navigate to="main" replace /> },
+      {
+        path: 'bot-config/bot',
+        children: [
+          { path: 'list', element: <BotList /> },
+          { path: 'create', element: <BotCreate /> },
+          { path: ':serviceId', element: <BotDetail /> },
+        ],
+      },
+    ],
+  },
+  { path: '*', element: <NotFound homePath="/fca" /> },
+];
+```
+
+### 상수 정의 패턴
+
+상수는 `features/<feature>/constants/` 아래에 정의합니다.
+
+#### 네이밍 규칙
+
+- 상수명: `UPPER_SNAKE_CASE`
+- 파일명: `<feature>Constants.ts` (camelCase)
+- 객체 상수는 `as const`로 불변 처리
+
+```typescript
+// features/dashboard/constants/dashboardConstants.ts
+
+// 단순 상수
+export const GRID_COLS = 12;
+export const REFRESH_INTERVAL = 3000;
+
+// 색상 매핑 상수
+export const CHART_COLORS = {
+  primary: '#3B82F6',
+  success: '#10B981',
+  warning: '#F59E0B',
+  danger: '#F06548',
+} as const;
+
+// 라벨 매핑 (Record 타입 사용)
+export const ENTITY_TYPE_LABELS: Record<EntityType, string> = {
+  SAME: '동의어',
+  SYNONYMS: '유사어',
+  PATTERNS: '패턴형',
+};
+
+// 색상 매핑
+export const ENTITY_TYPE_COLORS: Record<EntityType, string> = {
+  SAME: 'blue',
+  SYNONYMS: 'green',
+  PATTERNS: 'orange',
+};
+```
