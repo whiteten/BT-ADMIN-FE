@@ -13,8 +13,9 @@ import dayjs from 'dayjs';
 import { Calendar, Hash, KeyRound } from 'lucide-react';
 import { toast } from '@/shared-util';
 import ClientStatusBadge from '../../features/client/components/ClientStatusBadge';
-import { clientQueryKeys, useDeleteClient, useGetAuthList, useGetClient, useUpdateClient } from '../../features/client/hooks/useClientQueries';
+import { clientQueryKeys, useDeleteClient, useGetClient, useUpdateClient } from '../../features/client/hooks/useClientQueries';
 import { type ClientUpdateRequest, transformToBackendFormat } from '../../features/client/types/client.types';
+import { useGetAuthList } from '../../features/iam/hooks/usePermissionQueries';
 import type { PermissionFlat } from '../../features/iam/types/iam.types';
 import { FallbackSpinner } from '@/components/custom/FallbackSpinner';
 import PageHeader from '@/components/custom/PageHeader';
@@ -105,7 +106,7 @@ export default function ClientDetail() {
     });
   };
 
-  const handleSubmit = async (values: ClientUpdateFormValues) => {
+  const handleSubmit = (values: ClientUpdateFormValues) => {
     if (!client) return;
 
     const requestData: ClientUpdateRequest = {
@@ -150,7 +151,6 @@ export default function ClientDetail() {
   return (
     <div className="flex flex-col gap-4 w-full h-full">
       <PageHeader breadcrumb={breadcrumb} />
-
       <div className="flex flex-1 min-h-0 gap-4">
         {/* 메인 폼 영역 */}
         <div className="flex-1 min-w-0 bg-white bt-shadow overflow-y-auto p-6">

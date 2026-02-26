@@ -7,6 +7,7 @@
 
 import { useState } from 'react';
 import { CheckCircle2, Copy } from 'lucide-react';
+import { Log } from '@/log';
 import { AlertDialog, AlertDialogAction, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 import { Button } from '@/components/ui/button';
 
@@ -26,7 +27,7 @@ export default function ClientSecretDialog({ open, onOpenChange, clientSecret, c
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
     } catch (error) {
-      console.error('Failed to copy:', error);
+      Log.warn('handleCopy failed', error);
     }
   };
 

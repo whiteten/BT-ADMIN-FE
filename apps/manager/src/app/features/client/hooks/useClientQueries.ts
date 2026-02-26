@@ -7,9 +7,6 @@ import type { MutationHookOptions, QueryHookWithParamsOptions } from '@/shared-u
 import { clientApi } from '../api/clientApi';
 import type { Client } from '../types/client.types';
 
-// 권한 목록 조회를 위해 IAM 훅 재사용
-export { useGetAuthList } from '../../iam/hooks/usePermissionQueries';
-
 export const clientQueryKeys = createQueryKeys('oauth-clients', {
   getClients: (params?: Record<string, unknown>) => [params],
   getClient: (params?: Record<string, unknown>) => [params],
@@ -63,26 +60,6 @@ export const useUpdateClient = ({ mutationOptions }: MutationHookOptions = {}) =
 export const useDeleteClient = ({ mutationOptions }: MutationHookOptions = {}) => {
   return useMutation({
     mutationFn: clientApi.deleteClient,
-    ...mutationOptions,
-  });
-};
-
-/**
- * 클라이언트 시크릿 재생성 훅
- */
-export const useRegenerateSecret = ({ mutationOptions }: MutationHookOptions = {}) => {
-  return useMutation({
-    mutationFn: clientApi.regenerateSecret,
-    ...mutationOptions,
-  });
-};
-
-/**
- * 클라이언트 활성/비활성 토글 훅
- */
-export const useToggleActive = ({ mutationOptions }: MutationHookOptions = {}) => {
-  return useMutation({
-    mutationFn: clientApi.toggleActive,
     ...mutationOptions,
   });
 };

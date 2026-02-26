@@ -10,8 +10,9 @@ import { useNavigate } from 'react-router-dom';
 import { Button, Form, Input, Switch, Transfer, type TransferProps } from 'antd';
 import { toast } from '@/shared-util';
 import ClientSecretDialog from '../../features/client/components/ClientSecretDialog';
-import { useCreateClient, useGetAuthList } from '../../features/client/hooks/useClientQueries';
+import { useCreateClient } from '../../features/client/hooks/useClientQueries';
 import { type Client, type ClientCreateRequest, transformToBackendFormat } from '../../features/client/types/client.types';
+import { useGetAuthList } from '../../features/iam/hooks/usePermissionQueries';
 import type { PermissionFlat } from '../../features/iam/types/iam.types';
 import { FallbackSpinner } from '@/components/custom/FallbackSpinner';
 import PageHeader from '@/components/custom/PageHeader';
@@ -76,7 +77,7 @@ export default function ClientCreate() {
     navigate('../list');
   };
 
-  const handleSubmit = async (values: ClientCreateFormValues) => {
+  const handleSubmit = (values: ClientCreateFormValues) => {
     const requestData: ClientCreateRequest = {
       clientKey: values.clientKey,
       clientName: values.clientName,
@@ -112,7 +113,7 @@ export default function ClientCreate() {
               name="clientKey"
               rules={[
                 { required: true, message: '클라이언트 키를 입력하세요.' },
-                { pattern: /^[a-zA-Z0-9_-]+$/, message: '영문, 숫자, -, _ 만 사용 가능합니다.' },
+                { pattern: /^[a-z0-9_-]+$/, message: '소문자, 숫자, -, _ 만 사용 가능합니다.' },
               ]}
             >
               <Input placeholder="예: my-oauth-client" maxLength={100} />

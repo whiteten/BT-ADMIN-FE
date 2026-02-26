@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { useQueryClient } from '@tanstack/react-query';
 import type { ColDef, ICellRendererParams } from 'ag-grid-community';
 import { AgGridReact } from 'ag-grid-react';
-import { Button, Input } from 'antd';
+import { Button, Input, Select } from 'antd';
 import dayjs from 'dayjs';
 import { toast } from '@/shared-util';
 import ClientStatusBadge from '../../features/client/components/ClientStatusBadge';
@@ -27,6 +27,7 @@ export default function ClientList() {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const modal = useModal();
+  const [filterColumn, setFilterColumn] = useState('clientName');
   const [searchValue, setSearchValue] = useState('');
   const { data: clientList, isLoading } = useGetClients();
   const { mutate: deleteClient } = useDeleteClient({
@@ -109,9 +110,16 @@ export default function ClientList() {
 
     const keyword = searchValue.toLowerCase();
     return clientList.filter((client) => {
-      return client.clientName?.toLowerCase().includes(keyword) || client.clientKey?.toLowerCase().includes(keyword);
+      const value = client[filterColumn as keyof typeof client];
+      if (value == null) return false;
+      return String(value).toLowerCase().includes(keyword);
     });
-  }, [clientList, searchValue]);
+  }, [clientList, filterColumn, searchValue]);
+
+  const handleColumnChange = (value: string) => {
+    setFilterColumn(value);
+    setSearchValue('');
+  };
 
   const handleCreate = () => {
     navigate('../create');
@@ -136,7 +144,17 @@ export default function ClientList() {
       {/* Filter */}
       <div className="flex items-center justify-between gap-2 w-full h-[76px] bg-white bt-shadow px-7 py-5">
         <div className="flex gap-2 w-full items-center">
-          <Input value={searchValue} onChange={(e) => setSearchValue(e.target.value)} className="w-full max-w-[400px]" placeholder="클라이언트명 또는 키로 검색" />
+          <Select
+            value={filterColumn}
+            onChange={handleColumnChange}
+            options={[
+              { label: '클라이언트명', value: 'clientName' },
+              { label: '클라이언트 키', value: 'clientKey' },
+            ]}
+            className="!max-w-[150px] !min-w-[120px]"
+            popupMatchSelectWidth={false}
+          />
+          <Input value={searchValue} onChange={(e) => setSearchValue(e.target.value)} className="w-full max-w-[400px]" placeholder="검색어를 입력하세요." />
         </div>
         <div>
           <Button type="primary" onClick={handleCreate}>

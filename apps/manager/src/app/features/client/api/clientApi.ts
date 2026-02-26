@@ -63,23 +63,4 @@ export const clientApi = {
     const response = await apiClient.delete('/client-delete', { params });
     return response;
   },
-
-  /**
-   * 클라이언트 시크릿 재생성
-   * @flow client-regenerate-secret
-   */
-  regenerateSecret: async (params: Record<string, unknown>): Promise<Client> => {
-    const response = await apiClient.post<DetailResponse<ClientBackendResponse>>('/client-regenerate-secret', {}, { params });
-    const backendClient = extractDetail(response);
-    return transformClientResponse(backendClient);
-  },
-
-  /**
-   * 클라이언트 활성/비활성 토글
-   * @flow client-toggle-active
-   */
-  toggleActive: async (params: Record<string, unknown>) => {
-    const response = await apiClient.put('/client-toggle-active', {}, { params });
-    return response;
-  },
 };
