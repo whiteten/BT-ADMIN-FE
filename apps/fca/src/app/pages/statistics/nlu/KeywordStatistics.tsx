@@ -43,6 +43,7 @@ export default function KeywordStatistics() {
   const [excludeDays, setExcludeDays] = useState<string[]>([]);
   const [excludeBusinessHoliday, setExcludeBusinessHoliday] = useState(false);
   const [excludeStatHoliday, setExcludeStatHoliday] = useState(false);
+  const [isNotExistEntity, setIsNotExistEntity] = useState(false);
 
   // 조회 확정된 파라미터 (조회 버튼 눌렀을 때만 업데이트)
   const [queryParams, setQueryParams] = useState(() => {
@@ -60,6 +61,7 @@ export default function KeywordStatistics() {
       excludeDays: [] as string[],
       excludeBusinessHoliday: false,
       excludeStatHoliday: false,
+      isNotExistEntity: false,
     };
   });
 
@@ -188,6 +190,7 @@ export default function KeywordStatistics() {
       excludeDays,
       excludeBusinessHoliday,
       excludeStatHoliday,
+      isNotExistEntity,
     });
   };
 
@@ -414,6 +417,11 @@ export default function KeywordStatistics() {
                     ) : null}
                   </>
                 ) : null}
+                <Divider orientation="vertical" className="!h-5 !m-0" />
+                <div className="flex items-center gap-3">
+                  <span className="text-sm font-medium text-[#495057] shrink-0">개체 태그 미분류</span>
+                  <Checkbox checked={isNotExistEntity} onChange={(e) => setIsNotExistEntity(e.target.checked)} />
+                </div>
               </div>
             </CollapsibleContent>
           </header>
