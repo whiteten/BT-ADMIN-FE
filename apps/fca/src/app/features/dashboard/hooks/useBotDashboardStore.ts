@@ -1,6 +1,6 @@
 import type { Layout, LayoutItem } from 'react-grid-layout';
 import { create } from 'zustand';
-import { createJSONStorage, persist } from 'zustand/middleware';
+import { createJSONStorage, devtools, persist } from 'zustand/middleware';
 
 export const DEFAULT_LAYOUT: LayoutItem[] = [
   { i: 'scenarioSummary', x: 0, y: 0, w: 4, h: 5 },
@@ -25,14 +25,17 @@ interface BotDashboardStore {
 }
 
 export const useBotDashboardStore = create<BotDashboardStore>()(
-  persist(
-    (set) => ({
-      layout: DEFAULT_LAYOUT,
-      setLayout: (layout) => set({ layout }),
-    }),
-    {
-      name: 'dashboard-bot-storage',
-      storage: createJSONStorage(() => localStorage),
-    },
+  devtools(
+    persist(
+      (set) => ({
+        layout: DEFAULT_LAYOUT,
+        setLayout: (layout) => set({ layout }, false, 'setLayout'),
+      }),
+      {
+        name: 'dashboard-bot-storage',
+        storage: createJSONStorage(() => localStorage),
+      },
+    ),
+    { name: 'BotDashboardStore' },
   ),
 );

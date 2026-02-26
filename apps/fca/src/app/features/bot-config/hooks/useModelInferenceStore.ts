@@ -1,4 +1,5 @@
 import { create } from 'zustand';
+import { devtools } from 'zustand/middleware';
 import { TargetServer } from '../types/inference';
 
 export interface ChatMessage {
@@ -26,19 +27,28 @@ interface ModelInferenceActions {
 
 type ModelInferenceStore = ModelInferenceState & ModelInferenceActions;
 
-export const useModelInferenceStore = create<ModelInferenceStore>((set) => ({
-  isOpen: false,
-  activeTab: TargetServer.TEST,
-  inputValue: '',
-  testMessages: [],
-  prodMessages: [],
+export const useModelInferenceStore = create<ModelInferenceStore>()(
+  devtools(
+    (set) => ({
+      isOpen: false,
+      activeTab: TargetServer.TEST,
+      inputValue: '',
+      testMessages: [],
+      prodMessages: [],
 
-  setIsOpen: (isOpen) => set({ isOpen }),
-  setActiveTab: (activeTab) => set({ activeTab }),
-  setInputValue: (inputValue) => set({ inputValue }),
-  addMessage: (tab, message) =>
-    set((state) => ({
-      [tab === TargetServer.TEST ? 'testMessages' : 'prodMessages']: [...(tab === TargetServer.TEST ? state.testMessages : state.prodMessages), message],
-    })),
-  clearMessages: (tab) => set(tab ? { [tab === TargetServer.TEST ? 'testMessages' : 'prodMessages']: [] } : { testMessages: [], prodMessages: [] }),
-}));
+      setIsOpen: (isOpen) => set({ isOpen }, false, 'setIsOpen'),
+      setActiveTab: (activeTab) => set({ activeTab }, false, 'setActiveTab'),
+      setInputValue: (inputValue) => set({ inputValue }, false, 'setInputValue'),
+      addMessage: (tab, message) =>
+        set(
+          (state) => ({
+            [tab === TargetServer.TEST ? 'testMessages' : 'prodMessages']: [...(tab === TargetServer.TEST ? state.testMessages : state.prodMessages), message],
+          }),
+          false,
+          'addMessage',
+        ),
+      clearMessages: (tab) => set(tab ? { [tab === TargetServer.TEST ? 'testMessages' : 'prodMessages']: [] } : { testMessages: [], prodMessages: [] }, false, 'clearMessages'),
+    }),
+    { name: 'ModelInferenceStore' },
+  ),
+);

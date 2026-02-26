@@ -1,4 +1,5 @@
 import { create } from 'zustand';
+import { devtools } from 'zustand/middleware';
 import type { MenuConfig } from '../types/menu.types';
 
 interface MenuStore {
@@ -8,9 +9,14 @@ interface MenuStore {
   setIsLoading: (isLoading: boolean) => void;
 }
 
-export const useMenuStore = create<MenuStore>((set) => ({
-  menuConfigs: [],
-  isLoading: false,
-  setMenuConfigs: (menuConfigs) => set({ menuConfigs }),
-  setIsLoading: (isLoading) => set({ isLoading }),
-}));
+export const useMenuStore = create<MenuStore>()(
+  devtools(
+    (set) => ({
+      menuConfigs: [],
+      isLoading: false,
+      setMenuConfigs: (menuConfigs) => set({ menuConfigs }, false, 'setMenuConfigs'),
+      setIsLoading: (isLoading) => set({ isLoading }, false, 'setIsLoading'),
+    }),
+    { name: 'MenuStore' },
+  ),
+);

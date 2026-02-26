@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import { createJSONStorage, persist } from 'zustand/middleware';
+import { createJSONStorage, devtools, persist } from 'zustand/middleware';
 
 interface RememberMeData {
   userAccount: string;
@@ -20,18 +20,25 @@ const initialData: RememberMeData = {
 };
 
 export const useRememberMeStore = create<RememberMeStore>()(
-  persist(
-    (set) => ({
-      data: initialData,
-      setRememberMeData: (newData) =>
-        set((state) => ({
-          data: { ...state.data, ...newData },
-        })),
-      clearRememberMeData: () => set({ data: initialData }),
-    }),
-    {
-      name: 'remember-me-storage',
-      storage: createJSONStorage(() => localStorage),
-    },
+  devtools(
+    persist(
+      (set) => ({
+        data: initialData,
+        setRememberMeData: (newData) =>
+          set(
+            (state) => ({
+              data: { ...state.data, ...newData },
+            }),
+            false,
+            'setRememberMeData',
+          ),
+        clearRememberMeData: () => set({ data: initialData }, false, 'clearRememberMeData'),
+      }),
+      {
+        name: 'remember-me-storage',
+        storage: createJSONStorage(() => localStorage),
+      },
+    ),
+    { name: 'RememberMeStore' },
   ),
 );

@@ -1,4 +1,5 @@
 import { create } from 'zustand';
+import { devtools } from 'zustand/middleware';
 
 /**
  * 사용자 정보 (서버 /api/auth/me 응답)
@@ -68,38 +69,43 @@ const initialState = {
   passwordExpiringWarning: null,
 };
 
-export const useAuthStore = create<AuthStore>((set, get) => ({
-  ...initialState,
+export const useAuthStore = create<AuthStore>()(
+  devtools(
+    (set, get) => ({
+      ...initialState,
 
-  setUserInfo: (userInfo) => set({ userInfo }),
-  setRoleList: (roleList) => set({ roleList }),
-  setIsLoading: (isLoading) => set({ isLoading }),
-  setPasswordExpiringWarning: (warning) => set({ passwordExpiringWarning: warning }),
-  reset: () => set(initialState),
+      setUserInfo: (userInfo) => set({ userInfo }, false, 'setUserInfo'),
+      setRoleList: (roleList) => set({ roleList }, false, 'setRoleList'),
+      setIsLoading: (isLoading) => set({ isLoading }, false, 'setIsLoading'),
+      setPasswordExpiringWarning: (warning) => set({ passwordExpiringWarning: warning }, false, 'setPasswordExpiringWarning'),
+      reset: () => set(initialState, false, 'reset'),
 
-  getRoleName: (roleCode: string) => {
-    const { roleList } = get();
-    const role = roleList.find((r) => r.roleCode === roleCode);
-    return role?.roleName ?? roleCode;
-  },
+      getRoleName: (roleCode: string) => {
+        const { roleList } = get();
+        const role = roleList.find((r) => r.roleCode === roleCode);
+        return role?.roleName ?? roleCode;
+      },
 
-  getCurrentRoleName: () => {
-    const { userInfo, roleList } = get();
-    if (!userInfo?.roles?.length) return '-';
-    // 첫 번째 역할의 역할명 반환
-    const firstRoleCode = userInfo.roles[0];
-    const role = roleList.find((r) => r.roleCode === firstRoleCode);
-    return role?.roleName ?? firstRoleCode;
-  },
+      getCurrentRoleName: () => {
+        const { userInfo, roleList } = get();
+        if (!userInfo?.roles?.length) return '-';
+        // 첫 번째 역할의 역할명 반환
+        const firstRoleCode = userInfo.roles[0];
+        const role = roleList.find((r) => r.roleCode === firstRoleCode);
+        return role?.roleName ?? firstRoleCode;
+      },
 
-  /** 현재 사용자가 비밀번호 초기화 권한을 가지고 있는지 확인 */
-  canResetPassword: () => {
-    const { userInfo, roleList } = get();
-    if (!userInfo?.roles?.length) return false;
-    // 사용자의 역할 중 하나라도 canResetPassword가 true면 권한 있음
-    return userInfo.roles.some((roleCode) => {
-      const role = roleList.find((r) => r.roleCode === roleCode);
-      return role?.canResetPassword === true;
-    });
-  },
-}));
+      /** 현재 사용자가 비밀번호 초기화 권한을 가지고 있는지 확인 */
+      canResetPassword: () => {
+        const { userInfo, roleList } = get();
+        if (!userInfo?.roles?.length) return false;
+        // 사용자의 역할 중 하나라도 canResetPassword가 true면 권한 있음
+        return userInfo.roles.some((roleCode) => {
+          const role = roleList.find((r) => r.roleCode === roleCode);
+          return role?.canResetPassword === true;
+        });
+      },
+    }),
+    { name: 'AuthStore' },
+  ),
+);
