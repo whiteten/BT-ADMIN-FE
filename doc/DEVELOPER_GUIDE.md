@@ -551,9 +551,12 @@ queryClient.invalidateQueries({ queryKey: userQueryKeys.getUsers().queryKey });
 
 ### Zustand 스토어 작성법
 
+모든 스토어에 `devtools` 미들웨어를 적용하여 Redux DevTools에서 상태를 확인할 수 있도록 합니다.
+
 ```typescript
 // features/bot-config/hooks/useBotStore.ts
 import { create } from 'zustand';
+import { devtools } from 'zustand/middleware';
 
 // 1. 인터페이스에 상태와 액션을 함께 정의
 interface BotStore {
@@ -566,17 +569,27 @@ interface BotStore {
   setIsDrawerOpen: (open: boolean) => void;
 }
 
-// 2. create로 스토어 생성
-export const useBotStore = create<BotStore>((set) => ({
-  // 초기값
-  selectedBotId: null,
-  isDrawerOpen: false,
+// 2. create로 스토어 생성 (devtools 미들웨어 적용)
+export const useBotStore = create<BotStore>()(
+  devtools(
+    (set) => ({
+      // 초기값
+      selectedBotId: null,
+      isDrawerOpen: false,
 
-  // 액션 구현
-  setSelectedBotId: (id) => set({ selectedBotId: id }),
-  setIsDrawerOpen: (open) => set({ isDrawerOpen: open }),
-}));
+      // 액션 구현 — set()의 세 번째 인자로 액션 이름 지정
+      setSelectedBotId: (id) => set({ selectedBotId: id }, false, 'setSelectedBotId'),
+      setIsDrawerOpen: (open) => set({ isDrawerOpen: open }, false, 'setIsDrawerOpen'),
+    }),
+    { name: 'BotStore' },  // Redux DevTools에 표시될 스토어 이름
+  ),
+);
 ```
+
+> **`set(상태, replace, 액션이름)` 인자 설명:**
+> - **첫 번째**: 변경할 상태
+> - **두 번째 `false`**: 기존 상태에 머지 (기본 동작, `true`이면 완전 교체)
+> - **세 번째**: Redux DevTools에 표시될 액션 이름 (생략하면 "anonymous"로 표시)
 
 **사용:**
 
@@ -601,11 +614,12 @@ const MyComponent = () => {
 
 ### 영속 스토어 (새로고침해도 유지)
 
-로그인 정보처럼 새로고침 후에도 유지해야 하는 상태는 `persist` 미들웨어를 사용합니다:
+로그인 정보처럼 새로고침 후에도 유지해야 하는 상태는 `persist` 미들웨어를 사용합니다.
+`devtools`는 `persist`를 감싸는 형태로 적용합니다:
 
 ```typescript
 import { create } from 'zustand';
-import { createJSONStorage, persist } from 'zustand/middleware';
+import { createJSONStorage, devtools, persist } from 'zustand/middleware';
 
 interface RememberMeStore {
   data: { userAccount: string; rememberMe: boolean };
@@ -613,21 +627,28 @@ interface RememberMeStore {
 }
 
 export const useRememberMeStore = create<RememberMeStore>()(  // ⚠️ ()가 하나 더 있음!
-  persist(
-    (set) => ({
-      data: { userAccount: '', rememberMe: false },
-      setRememberMeData: (newData) =>
-        set((state) => ({ data: { ...state.data, ...newData } })),
-    }),
-    {
-      name: 'remember-me-storage',                    // localStorage 키 이름
-      storage: createJSONStorage(() => localStorage),  // 또는 sessionStorage
-    },
+  devtools(
+    persist(
+      (set) => ({
+        data: { userAccount: '', rememberMe: false },
+        setRememberMeData: (newData) =>
+          set(
+            (state) => ({ data: { ...state.data, ...newData } }),
+            false,
+            'setRememberMeData',
+          ),
+      }),
+      {
+        name: 'remember-me-storage',                    // localStorage 키 이름
+        storage: createJSONStorage(() => localStorage),  // 또는 sessionStorage
+      },
+    ),
+    { name: 'RememberMeStore' },  // Redux DevTools에 표시될 스토어 이름
   ),
 );
 ```
 
-> **주의:** `create<Store>()(persist(...))` — 제네릭 뒤에 `()`가 한 번 더 필요합니다. 빠뜨리면 타입 에러가 납니다.
+> **주의:** `create<Store>()(devtools(persist(...)))` — 미들웨어 순서는 `devtools > persist`입니다. 제네릭 뒤에 `()`가 한 번 더 필요합니다. 빠뜨리면 타입 에러가 납니다.
 
 ### 흔한 실수: 서버 상태를 Zustand에 넣지 마세요
 
@@ -1353,11 +1374,31 @@ pnpm exec git-cz
 - 캐시된 데이터 확인 → 쿼리를 클릭하면 응답 데이터가 보임
 - 캐시 무효화 테스트 → 수동으로 refetch 가능
 
+### Redux DevTools (Zustand 상태 디버깅)
+
+모든 Zustand 스토어에 `devtools` 미들웨어가 적용되어 있어, Redux DevTools 확장 프로그램으로 상태를 실시간 확인할 수 있습니다.
+
+**사전 준비:** Chrome 웹 스토어에서 [Redux DevTools](https://chromewebstore.google.com/detail/redux-devtools/lmhkpmbekcpmknklioeibfkpmmfibljd) 확장 프로그램 설치
+
+**사용법:**
+1. 개발자도구(F12) 열기
+2. **Redux** 탭 선택
+3. 상단 드롭다운에서 스토어 선택 (AuthStore, MenuStore 등)
+
+**주요 기능:**
+- **State 탭**: 현재 스토어의 전체 상태를 트리 구조로 확인
+- **Action 탭**: `set()` 호출 시마다 어떤 액션이 발생했는지 기록 (예: `setUserInfo`, `setMenuConfigs`)
+- **Diff 탭**: 이전 상태와 현재 상태의 차이점 표시
+- **Time Travel**: 과거 특정 시점의 상태로 되돌려서 확인 가능
+
+> Redux DevTools는 프로덕션 빌드에서 자동으로 비활성화됩니다.
+
 ### 브라우저 개발자 도구
 
 - **Network 탭**: API 요청/응답 확인, 상태 코드, 응답 시간
 - **Console 탭**: `Log.debug()`로 찍은 로그 확인
 - **Components 탭** (React DevTools): 컴포넌트 트리, props, state 확인
+- **Redux 탭** (Redux DevTools): Zustand 스토어 상태, 액션 히스토리, 상태 diff 확인
 
 ### 자주 만나는 에러와 해결법
 
