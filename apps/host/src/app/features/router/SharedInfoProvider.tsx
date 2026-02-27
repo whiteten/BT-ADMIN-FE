@@ -7,6 +7,7 @@ import { toast } from '@/shared-util';
 import { useGetUserInfo, useGetWsTicket } from '../auth/hooks/useAuthQueries';
 import { useGetNavigation } from '../common/hooks/useNavigationQueries';
 import { useSessionSocket } from '../common/hooks/useSessionSocket';
+import { useMenuLoader } from '../layout/hooks/useMenuLoader';
 import { useGetRoles } from '../management/hooks/useRoleQueries';
 import { FallbackSpinner } from '@/components/custom/FallbackSpinner';
 
@@ -19,6 +20,7 @@ export default function SharedInfoProvider() {
   const { data: roles, isLoading: isRolesLoading, error: rolesError } = useGetRoles();
   const { data: navigation, isLoading: isNavigationLoading, error: navigationError } = useGetNavigation();
   const { data: ticketResponse, isLoading: isWsTicketLoading, error: wsTicketError, refetch: refetchWsTicket } = useGetWsTicket();
+  const { load: loadMenuConfigs } = useMenuLoader();
 
   const handleWsError = () => {
     const RETRY_DELAY = 5000;
@@ -55,6 +57,10 @@ export default function SharedInfoProvider() {
       setNavigation(navigation);
     }
   }, [navigation, setNavigation]);
+
+  useEffect(() => {
+    loadMenuConfigs();
+  }, [loadMenuConfigs]);
 
   useEffect(() => {
     setIsLoading(isRolesLoading || isUserInfoLoading);

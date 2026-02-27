@@ -1,4 +1,3 @@
-import { useEffect } from 'react';
 import { Outlet } from 'react-router-dom';
 import { App, ConfigProvider } from 'antd';
 import koKR from 'antd/locale/ko_KR';
@@ -9,16 +8,9 @@ import LNBBody from './LNBBody';
 import LNBFooter from './LNBFooter';
 import LNBHeader from './LNBHeader';
 import { antdTheme } from './config/antdTheme';
-import { useMenuLoader } from './hooks/useMenuLoader';
 import { Sidebar, SidebarInset, SidebarProvider } from '@/components/ui/sidebar';
 
 export function Layout() {
-  const { load } = useMenuLoader();
-
-  useEffect(() => {
-    load();
-  }, [load]);
-
   return (
     <ConfigProvider theme={antdTheme} locale={koKR} drawer={{ mask: { blur: false } }} modal={{ mask: { blur: false } }}>
       <SidebarProvider
