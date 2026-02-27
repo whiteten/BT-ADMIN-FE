@@ -145,29 +145,6 @@ export const routes = [
           },
         ],
       },
-      // 권한 관리 (iam) - 기존 경로 호환을 위한 리다이렉트
-      {
-        path: 'iam',
-        element: <Outlet />,
-        children: [
-          {
-            index: true,
-            element: <Navigate to="/manager/resource/auth-group" replace />,
-          },
-          {
-            path: 'auth-group/*',
-            element: <Navigate to="/manager/resource/auth-group/list" replace />,
-          },
-          {
-            path: 'role/*',
-            element: <Navigate to="/manager/resource/auth-group/list" replace />,
-          },
-          {
-            path: 'account-policy',
-            element: <Navigate to="/manager/resource/account-policy" replace />,
-          },
-        ],
-      },
     ],
   },
   {
