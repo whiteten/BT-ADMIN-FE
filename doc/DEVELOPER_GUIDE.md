@@ -752,6 +752,43 @@ const filteredBots = bots.filter(b => b.active);
 const handleClick = () => { /* ... */ };
 ```
 
+### 이벤트 핸들러는 추출하는 것을 권장합니다
+
+컴포넌트 props에 콜백 함수를 전달할 때, `handle` 접두사로 시작하는 핸들러 함수를 별도로 선언한 뒤 전달하면 JSX가 간결해지고, 핸들러의 역할을 이름만으로 파악할 수 있습니다.
+
+```typescript
+// 💡 인라인 함수를 직접 전달하면 JSX가 길어질 수 있습니다
+<ChangePasswordDialog
+  onClose={() => {
+    setPendingLoginResponse(null);
+    setPasswordPolicy(undefined);
+    form.resetFields();
+  }}
+  onError={(error) => {
+    Log.error('Password change failed:', error);
+  }}
+/>
+
+// ✅ 핸들러로 추출하면 깔끔하고 역할이 명확해집니다
+const handleClose = () => {
+  setPendingLoginResponse(null);
+  setPasswordPolicy(undefined);
+  form.resetFields();
+};
+
+const handleError = (error: Error) => {
+  Log.error('Password change failed:', error);
+};
+
+<ChangePasswordDialog
+  onClose={handleClose}
+  onError={handleError}
+/>
+```
+
+> **네이밍 규칙**: 핸들러 함수명은 `handle`로 시작하는 것을 권장합니다.
+> 예: `handleSubmit`, `handleClose`, `handleDelete`, `handlePasswordChange`
+
 ---
 
 ## 8. 모달/드로어 패턴

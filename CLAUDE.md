@@ -520,6 +520,30 @@ export type TrainStatus = 0 | 1 | 2 | 3;
 export type TrainDiffStatus = 'ADDED' | 'MODIFIED' | 'DELETED';
 ```
 
+### 이벤트 핸들러 패턴
+
+컴포넌트 props에 콜백 함수를 전달할 때, 인라인 함수를 직접 작성하지 말고 `handle` 접두사로 시작하는 핸들러 함수를 선언한 뒤 전달합니다.
+
+```typescript
+// ❌ 인라인 함수를 직접 전달
+<ChangePasswordDialog
+  onClose={() => {
+    setPendingLoginResponse(null);
+    setPasswordPolicy(undefined);
+    form.resetFields();
+  }}
+/>
+
+// ✅ 핸들러로 추출 후 전달
+const handleClose = () => {
+  setPendingLoginResponse(null);
+  setPasswordPolicy(undefined);
+  form.resetFields();
+};
+
+<ChangePasswordDialog onClose={handleClose} />
+```
+
 ### 모달/드로어 제어 패턴
 
 모달과 드로어는 `forwardRef` + `useImperativeHandle`을 사용하여 부모에서 명령형으로 제어합니다.
