@@ -3,6 +3,7 @@ import { Outlet } from 'react-router-dom';
 import { LOG } from '@/log';
 
 import { useAuthStore, useNavigationStore } from '@/shared-store';
+import { toast } from '@/shared-util';
 import { useGetUserInfo, useGetWsTicket } from '../auth/hooks/useAuthQueries';
 import { useGetNavigation } from '../common/hooks/useNavigationQueries';
 import { useSessionSocket } from '../common/hooks/useSessionSocket';
@@ -12,7 +13,7 @@ import { FallbackSpinner } from '@/components/custom/FallbackSpinner';
 const Log = new LOG('SharedInfoProvider');
 
 export default function SharedInfoProvider() {
-  const { setRoleList, setUserInfo, setIsLoading } = useAuthStore();
+  const { setRoleList, setUserInfo, setIsLoading, passwordExpiringWarning, setPasswordExpiringWarning } = useAuthStore();
   const { setNavigation } = useNavigationStore();
   const { data: userInfo, isLoading: isUserInfoLoading, error: userInfoError } = useGetUserInfo();
   const { data: roles, isLoading: isRolesLoading, error: rolesError } = useGetRoles();
@@ -80,6 +81,14 @@ export default function SharedInfoProvider() {
   useEffect(() => {
     if (wsTicketError) Log.error('Failed to fetch ws ticket', wsTicketError);
   }, [wsTicketError]);
+
+  // 비밀번호 만료 경고 토스트 표시 (로그인 후 메인 화면 진입 시)
+  useEffect(() => {
+    if (passwordExpiringWarning?.show && passwordExpiringWarning.daysUntilExpiration !== null) {
+      toast.warning(`비밀번호가 ${passwordExpiringWarning.daysUntilExpiration}일 후 만료됩니다. 비밀번호를 변경해주세요.`);
+      setPasswordExpiringWarning(null);
+    }
+  }, [passwordExpiringWarning, setPasswordExpiringWarning]);
 
   if (isRolesLoading || isUserInfoLoading || isNavigationLoading || isWsTicketLoading) {
     return <FallbackSpinner useFullScreen />;
