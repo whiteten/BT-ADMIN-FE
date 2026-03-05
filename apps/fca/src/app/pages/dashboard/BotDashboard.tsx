@@ -90,6 +90,7 @@ export default function BotDashboard() {
 
   const handleCancelEdit = () => {
     setDraftLayout([...storedLayout]);
+    setSelectedLayoutFilterItems(layoutFilterOptions.filter((opt) => storedLayoutIds.has(opt.value)));
     setIsEditMode(false);
   };
 
@@ -100,6 +101,7 @@ export default function BotDashboard() {
 
   const handleResetLayouts = () => {
     setDraftLayout([...DEFAULT_LAYOUT]);
+    setSelectedLayoutFilterItems(layoutFilterOptions);
   };
 
   const handleLayoutChange = (newLayout: Layout) => {
