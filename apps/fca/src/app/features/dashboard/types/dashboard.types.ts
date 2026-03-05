@@ -326,6 +326,17 @@ interface HourlyBusyTimeStatsItem {
 }
 
 /**
+ * 점유율 항목
+ *
+ * - key: 명칭
+ * - callCount: 실시간 콜수
+ */
+export interface OccupancyItem {
+  key: string;
+  callCount: number;
+}
+
+/**
  * 봇 대시보드 API 응답
  *
  * - scenarioSummary: 시나리오 현황
@@ -342,6 +353,9 @@ interface HourlyBusyTimeStatsItem {
  * - intentConfidenceTop: 인텐트 신뢰도 TOP
  * - hourlyEntry: 시간대별 봇 진입 현황
  * - hourlyBusyTime: 시간대별 봇 점유 현황
+ * - serviceOccupancy: 봇 점유 현황
+ * - dialogOccupancy: 대화 점유 현황
+ * - slotOccupancy: 슬롯 점유 현황
  */
 export interface BotDashboardResponse {
   scenarioSummary: ScenarioSummary;
@@ -358,4 +372,7 @@ export interface BotDashboardResponse {
   intentConfidenceTop: IntentConfidenceTopItem[];
   hourlyEntry: HourlyEntryItem[];
   hourlyBusyTime: HourlyBusyTimeItem[];
+  serviceOccupancy: OccupancyItem[];
+  dialogOccupancy: OccupancyItem[];
+  slotOccupancy: OccupancyItem[];
 }

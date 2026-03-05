@@ -16,6 +16,7 @@ import IntentCheckFailTopBarChart from '../../features/dashboard/components/Inte
 import IntentConfidenceTopBarChart from '../../features/dashboard/components/IntentConfidenceTopBarChart';
 import IntentTopBarChart from '../../features/dashboard/components/IntentTopBarChart';
 import KeywordWordCloud from '../../features/dashboard/components/KeywordWordCloud';
+import OccupancyBarChart from '../../features/dashboard/components/OccupancyBarChart';
 import ScenarioSummaryPieChart from '../../features/dashboard/components/ScenarioSummaryPieChart';
 import SlotIncompleteTopBarChart from '../../features/dashboard/components/SlotIncompleteTopBarChart';
 import SlotRetryAvgTopBarChart from '../../features/dashboard/components/SlotRetryAvgTopBarChart';
@@ -36,6 +37,9 @@ const breadcrumb: BreadcrumbProps['items'] = [
 ];
 
 const layoutRenderMapper: Record<string, { title: string; render?: (data?: BotDashboardResponse) => React.ReactNode }> = {
+  serviceOccupancy: { title: '봇 점유 현황', render: (d) => <OccupancyBarChart data={d?.serviceOccupancy} /> },
+  dialogOccupancy: { title: '대화 점유 현황', render: (d) => <OccupancyBarChart data={d?.dialogOccupancy} /> },
+  slotOccupancy: { title: '슬롯 점유 현황', render: (d) => <OccupancyBarChart data={d?.slotOccupancy} /> },
   scenarioSummary: { title: '봇 현황', render: (d) => <ScenarioSummaryPieChart data={d?.scenarioSummary} /> },
   dialogSummary: { title: '대화 현황', render: (d) => <DialogSummaryPieChart data={d?.dialogSummary} /> },
   slotSummary: { title: '슬롯 현황', render: (d) => <SlotSummaryPieChart data={d?.slotSummary} /> },
