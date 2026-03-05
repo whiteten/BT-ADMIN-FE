@@ -3,7 +3,7 @@ import type { Option } from 'react-multi-select-component';
 
 /** 순위(dataIndex)가 낮아질수록 투명도가 증가하는 그라데이션 색상을 반환한다. */
 export const getGradientColor = (params: { dataIndex: number }, rgb: [number, number, number] = [59, 130, 246]) => {
-  const opacity = 1 - params.dataIndex * 0.07;
+  const opacity = Math.max(1 - params.dataIndex * 0.07, 0.3);
   return `rgba(${rgb[0]}, ${rgb[1]}, ${rgb[2]}, ${opacity})`;
 };
 
