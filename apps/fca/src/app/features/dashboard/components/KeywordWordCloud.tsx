@@ -1,3 +1,4 @@
+import { useRef } from 'react';
 import 'echarts-wordcloud';
 import ReactECharts from 'echarts-for-react';
 import { CHART_COLORS } from '../constants/dashboardConstants';
@@ -52,6 +53,17 @@ interface KeywordWordCloudProps {
 }
 
 export default function KeywordWordCloud({ data }: KeywordWordCloudProps) {
+  const prevDataRef = useRef<string>(undefined);
+  const optionRef = useRef<ReturnType<typeof createChartOption>>(undefined);
+
+  if (data?.length) {
+    const serialized = JSON.stringify(data);
+    if (serialized !== prevDataRef.current) {
+      prevDataRef.current = serialized;
+      optionRef.current = createChartOption(data);
+    }
+  }
+
   if (!data?.length) return <NoData message={`조회된 데이터가 없습니다.`} fontSize="text-base" gap={2} />;
-  return <ReactECharts option={createChartOption(data)} notMerge style={{ height: '100%', width: '100%' }} />;
+  return <ReactECharts option={optionRef.current} notMerge style={{ height: '100%', width: '100%' }} />;
 }
