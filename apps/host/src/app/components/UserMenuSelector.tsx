@@ -131,11 +131,6 @@ export default function UserMenuSelector() {
                 {roleName}
               </Badge>
             </div>
-            <div className="flex items-center">
-              <Dot className="h-4 w-4" />
-              <span className="">최근 접속일 :</span>
-              <span className="ml-1">{dayjs().format('YY-MM-DD HH:mm:ss')}</span>
-            </div>
           </div>
         </DropdownMenuLabel>
         <DropdownMenuSeparator />
