@@ -7,6 +7,8 @@ import NoData from '@/components/custom/NoData';
 
 const createChartOption = (data: IntentCheckFailTopItem[]): EChartsOption => {
   const sorted = [...data].filter((item) => item.rank >= 1 && item.rank <= 10).sort((a, b) => a.rank - b.rank);
+  const dataMax = Math.max(...sorted.map((item) => item.checkRate + item.failRate));
+  const axisMax = Math.min(Math.ceil(dataMax / 20) * 20, 100);
 
   return {
     tooltip: {
@@ -24,7 +26,8 @@ const createChartOption = (data: IntentCheckFailTopItem[]): EChartsOption => {
     grid: { left: 20, right: 50, bottom: 20, top: 30, containLabel: true },
     xAxis: {
       type: 'value',
-      splitNumber: 4,
+      max: axisMax,
+      interval: axisMax / 4,
       axisLine: { lineStyle: { color: '#E9EBEC' } },
       axisTick: { show: false },
       axisLabel: { color: '#495057', fontSize: 12 },

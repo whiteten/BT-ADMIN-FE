@@ -25,6 +25,7 @@ const createChartOption = (data: SlotRetryDistTopItem[]): EChartsOption => {
     xAxis: {
       type: 'value',
       max: 100,
+      interval: 25,
       axisLine: { lineStyle: { color: '#E9EBEC' } },
       axisTick: { show: false },
       axisLabel: { color: '#495057', fontSize: 12 },

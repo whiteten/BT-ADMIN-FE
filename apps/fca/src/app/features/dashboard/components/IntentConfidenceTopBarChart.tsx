@@ -6,6 +6,8 @@ import NoData from '@/components/custom/NoData';
 
 const createChartOption = (data: IntentConfidenceTopItem[]): EChartsOption => {
   const sorted = [...data].filter((item) => item.rank >= 1 && item.rank <= 10).sort((a, b) => a.rank - b.rank);
+  const dataMax = Math.max(...sorted.map((item) => item.avgConfidence));
+  const axisMax = Math.min(Math.ceil(dataMax / 20) * 20, 100);
 
   return {
     tooltip: {
@@ -22,7 +24,8 @@ const createChartOption = (data: IntentConfidenceTopItem[]): EChartsOption => {
     grid: { left: 20, right: 50, bottom: 20, top: 20, containLabel: true },
     xAxis: {
       type: 'value',
-      splitNumber: 4,
+      max: axisMax,
+      interval: axisMax / 4,
       axisLine: { lineStyle: { color: '#E9EBEC' } },
       axisTick: { show: false },
       axisLabel: { color: '#495057', fontSize: 12 },
