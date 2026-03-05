@@ -13,6 +13,7 @@ const createChartOption = (data: OccupancyItem[]): EChartsOption => {
     xAxis: {
       type: 'value',
       splitNumber: 4,
+      minInterval: 1,
       axisLine: { lineStyle: { color: '#E9EBEC' } },
       axisTick: { show: false },
       axisLabel: { color: '#495057', fontSize: 12 },
