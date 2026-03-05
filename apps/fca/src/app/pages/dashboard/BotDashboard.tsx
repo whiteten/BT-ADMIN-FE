@@ -46,7 +46,7 @@ const layoutRenderMapper: Record<string, { title: string; render?: (data?: BotDa
   dialogIncompleteTop: { title: '대화 미완결율 Top 10', render: (d) => <DialogIncompleteTopBarChart data={d?.dialogIncompleteTop} /> },
   slotIncompleteTop: { title: '슬롯 미완결율 Top 10', render: (d) => <SlotIncompleteTopBarChart data={d?.slotIncompleteTop} /> },
   slotRetryAvgTop: { title: '슬롯 평균 재시도 횟수 Top 10', render: (d) => <SlotRetryAvgTopBarChart data={d?.slotRetryAvgTop} /> },
-  slotRetryDistTop: { title: '슬롯 재시도 분포 Top 10', render: (d) => <SlotRetryDistTopBarChart data={d?.slotRetryDistTop} /> },
+  slotRetryDistTop: { title: '슬롯 완결 건 재시도 분포 TOP 10', render: (d) => <SlotRetryDistTopBarChart data={d?.slotRetryDistTop} /> },
   keywordTop: { title: '키워드 현황', render: (d) => <KeywordWordCloud data={d?.keywordTop} /> },
   entityTop: { title: '개체 Top 10', render: (d) => <EntityTopBarChart data={d?.entityTop} /> },
   intentTop: { title: '의도 Top 10', render: (d) => <IntentTopBarChart data={d?.intentTop} /> },

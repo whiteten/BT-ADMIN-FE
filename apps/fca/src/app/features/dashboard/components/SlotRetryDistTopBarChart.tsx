@@ -20,7 +20,7 @@ const createChartOption = (data: SlotRetryDistTopItem[]): EChartsOption => {
         return `${title}<br/>진입: ${item.entryCnt}건 / 완결: ${item.completeCnt}건<br/>${lines.join('<br/>')}`;
       },
     },
-    legend: { data: ['1회 이하', '2회', '3회 이상'], right: 10, top: 5, icon: 'roundRect', selectedMode: false },
+    legend: { data: ['3회 이상', '2회', '1회 이하'], right: 10, top: 5, icon: 'roundRect', selectedMode: false },
     grid: { left: 20, right: 50, bottom: 20, top: 30, containLabel: true },
     xAxis: {
       type: 'value',
@@ -46,26 +46,41 @@ const createChartOption = (data: SlotRetryDistTopItem[]): EChartsOption => {
     },
     series: [
       {
-        name: '1회 이하',
+        name: '3회 이상',
         type: 'bar',
         stack: 'total',
-        data: sorted.map((item) => item.oneTimeCompleteRate),
-        itemStyle: { color: CHART_COLORS.success },
+        data: sorted.map((item) => ({
+          value: item.threeOrMoreCompleteRate,
+          itemStyle: {
+            borderRadius: item.twoTimeCompleteRate === 0 && item.oneTimeCompleteRate === 0 ? [0, 4, 4, 0] : undefined,
+          },
+        })),
+        itemStyle: { color: CHART_COLORS.danger },
         barWidth: '60%',
       },
       {
         name: '2회',
         type: 'bar',
         stack: 'total',
-        data: sorted.map((item) => item.twoTimeCompleteRate),
+        data: sorted.map((item) => ({
+          value: item.twoTimeCompleteRate,
+          itemStyle: {
+            borderRadius: item.oneTimeCompleteRate === 0 ? [0, 4, 4, 0] : undefined,
+          },
+        })),
         itemStyle: { color: '#FB923C' },
       },
       {
-        name: '3회 이상',
+        name: '1회 이하',
         type: 'bar',
         stack: 'total',
-        data: sorted.map((item) => item.threeOrMoreCompleteRate),
-        itemStyle: { color: CHART_COLORS.danger, borderRadius: [0, 4, 4, 0] },
+        data: sorted.map((item) => ({
+          value: item.oneTimeCompleteRate,
+          itemStyle: {
+            borderRadius: item.oneTimeCompleteRate > 0 ? [0, 4, 4, 0] : undefined,
+          },
+        })),
+        itemStyle: { color: CHART_COLORS.success },
       },
     ],
   };
