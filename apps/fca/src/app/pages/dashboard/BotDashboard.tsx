@@ -80,9 +80,9 @@ export default function BotDashboard() {
 
   const [isEditMode, setIsEditMode] = useState(false);
   const layoutFilterOptions = DEFAULT_LAYOUT.map((item) => ({ label: layoutRenderMapper[item.i as keyof typeof layoutRenderMapper]?.title ?? item.i, value: item.i }));
-  const [selectedLayoutFilterItems, setSelectedLayoutFilterItems] = useState<Option[]>(layoutFilterOptions);
-  // storedLayout에 빠진 항목이 있을 수 있으므로, 초기 필터(전체 선택)와 동기화하여 보정한다
-  const [draftLayout, setDraftLayout] = useState<LayoutItem[]>(() => syncLayoutWithFilter([...storedLayout], layoutFilterOptions, DEFAULT_LAYOUT, GRID_COLS));
+  const storedLayoutIds = new Set(storedLayout.map((item) => item.i));
+  const [selectedLayoutFilterItems, setSelectedLayoutFilterItems] = useState<Option[]>(() => layoutFilterOptions.filter((opt) => storedLayoutIds.has(opt.value)));
+  const [draftLayout, setDraftLayout] = useState<LayoutItem[]>(() => [...storedLayout]);
 
   const handleStartEdit = () => {
     setIsEditMode(true);
