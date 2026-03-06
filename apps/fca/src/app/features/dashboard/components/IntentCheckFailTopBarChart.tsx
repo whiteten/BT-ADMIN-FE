@@ -51,7 +51,12 @@ const createChartOption = (data: IntentCheckFailTopItem[]): EChartsOption => {
         name: 'Check',
         type: 'bar',
         stack: 'total',
-        data: sorted.map((item) => item.checkRate),
+        data: sorted.map((item) => ({
+          value: item.checkRate,
+          itemStyle: {
+            borderRadius: item.failRate === 0 ? [0, 4, 4, 0] : undefined,
+          },
+        })),
         itemStyle: { color: CHART_COLORS.warning },
         barWidth: '60%',
       },
@@ -59,8 +64,13 @@ const createChartOption = (data: IntentCheckFailTopItem[]): EChartsOption => {
         name: 'Fail',
         type: 'bar',
         stack: 'total',
-        data: sorted.map((item) => item.failRate),
-        itemStyle: { color: CHART_COLORS.danger, borderRadius: [0, 4, 4, 0] },
+        data: sorted.map((item) => ({
+          value: item.failRate,
+          itemStyle: {
+            borderRadius: item.failRate > 0 ? [0, 4, 4, 0] : undefined,
+          },
+        })),
+        itemStyle: { color: CHART_COLORS.danger },
       },
     ],
   };
