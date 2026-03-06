@@ -29,7 +29,7 @@ const createChartOption = (data: IntentTopItem[]): EChartsOption => {
       inverse: true,
       axisLine: { show: false },
       axisTick: { show: false },
-      axisLabel: { color: '#495057', fontSize: 12 },
+      axisLabel: { color: '#495057', fontSize: 12, width: 100, overflow: 'truncate' },
     },
     series: [
       {
