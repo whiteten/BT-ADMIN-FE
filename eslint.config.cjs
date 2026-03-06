@@ -16,7 +16,7 @@ module.exports = [
 
   // Global ignores
   {
-    ignores: ['**/dist', '**/node_modules', 'e2e/**'],
+    ignores: ['**/dist', '**/node_modules', 'e2e/**', '**/webpack.config.ts', '**/module-federation.config.ts'],
   },
 
   // Nx module boundaries for all files
