@@ -4,7 +4,7 @@ import { withReact } from '@nx/react';
 import { composePlugins, withNx } from '@nx/webpack';
 
 import baseConfig from './module-federation.config';
-import { createSharedConfig, withDefinePlugin } from './webpack-helpers';
+import { createSharedConfig, withDefinePlugin, withHmrPath } from './webpack-helpers';
 
 const config: ModuleFederationConfig = {
   ...baseConfig,
@@ -17,4 +17,4 @@ const config: ModuleFederationConfig = {
  * The DTS Plugin can be enabled by setting dts: true
  * Learn more about the DTS Plugin here: https://module-federation.io/configure/dts.html
  */
-export default composePlugins(withNx(), withReact(), withModuleFederation(config, { dts: false }), withDefinePlugin);
+export default composePlugins(withNx(), withReact(), withModuleFederation(config, { dts: false }), withDefinePlugin, withHmrPath);
