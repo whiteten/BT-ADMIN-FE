@@ -1,5 +1,5 @@
 import { Database } from 'lucide-react';
-import { IconMenuItemsPlus, IconMenuMain } from '@/components/custom/Icons';
+import { IconDocument, IconLayer, IconMenuItemsPlus, IconMenuMain, IconSlidersHorizontal } from '@/components/custom/Icons';
 
 const appId = 'manager';
 const appName = 'MANAGER';
@@ -18,58 +18,93 @@ const menuConfig = {
     },
     {
       menuId: 18,
-      label: '자원 관리',
+      label: '사용자 관리',
       icon: IconMenuItemsPlus,
       index: 1,
       hide: false,
       children: [
         {
           menuId: 19,
-          label: '사용자',
+          label: '사용자 계정 관리',
           path: 'resource/user/list',
           index: 0,
           hide: false,
         },
         {
           menuId: 20,
-          label: '역할',
+          label: '역할/권한 관리',
           path: 'resource/auth-group/list',
           index: 1,
           hide: false,
         },
-        {
-          menuId: 52,
-          label: '메뉴',
-          path: 'resource/menu',
-          index: 2,
-          hide: false,
-        },
-        {
-          menuId: 53,
-          label: 'API Flow',
-          path: 'resource/bff-flow',
-          index: 3,
-          hide: false,
-        },
+      ],
+    },
+    {
+      menuId: 57,
+      label: '보안 관리',
+      icon: IconSlidersHorizontal,
+      index: 2,
+      hide: false,
+      children: [
         {
           menuId: 21,
-          label: '계정 정책',
+          label: '계정 보안 정책',
           path: 'resource/account-policy',
-          index: 4,
+          index: 0,
           hide: false,
         },
+      ],
+    },
+    {
+      menuId: 58,
+      label: '시스템 관리',
+      icon: IconLayer,
+      index: 3,
+      hide: false,
+      children: [
+        {
+          menuId: 62,
+          label: '플랫폼 설정',
+          index: 0,
+          hide: false,
+          children: [
+            {
+              menuId: 52,
+              label: '메뉴 관리',
+              path: 'resource/menu',
+              index: 0,
+              hide: false,
+            },
+            {
+              menuId: 53,
+              label: 'API 경로 관리',
+              path: 'resource/bff-flow',
+              index: 1,
+              hide: false,
+            },
+            {
+              menuId: 54,
+              label: '외부 앱 연동 관리',
+              path: 'resource/client/list',
+              index: 2,
+              hide: false,
+            },
+          ],
+        },
+      ],
+    },
+    {
+      menuId: 59,
+      label: '감사 관리',
+      icon: IconDocument,
+      index: 4,
+      hide: false,
+      children: [
         {
           menuId: 30,
-          label: '작업이력',
+          label: '작업 이력 조회',
           path: 'resource/work-history',
-          index: 5,
-          hide: false,
-        },
-        {
-          menuId: 54,
-          label: '클라이언트 관리',
-          path: 'resource/client/list',
-          index: 4,
+          index: 0,
           hide: false,
         },
       ],
