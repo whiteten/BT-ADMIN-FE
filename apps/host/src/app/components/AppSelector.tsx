@@ -27,7 +27,7 @@ export default function AppSelector({ className, ...props }: React.ComponentProp
     <DropdownMenu>
       <DropdownMenuTrigger asChild>{TriggerBtn}</DropdownMenuTrigger>
       <DropdownMenuContent className="w-[--radix-dropdown-menu-trigger-width]" align="end">
-        <DropdownMenuLabel>Select Application</DropdownMenuLabel>
+        <DropdownMenuLabel>어플리케이션을 선택해주세요.</DropdownMenuLabel>
         <DropdownMenuSeparator />
         <DropdownMenuGroup>
           {remotes.map((remote) => (
