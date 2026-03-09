@@ -6,7 +6,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { ReactQueryDevtools } from '@tanstack/react-query-devtools';
 import { Layout } from './features/layout/Layout';
 import CsrfGuard from './features/router/CsrfGuard';
-import RouteGuard from './features/router/RouteGuard';
+import SessionGuard from './features/router/SessionGuard';
 import SharedInfoProvider from './features/router/SharedInfoProvider';
 import WsSessionEventHandler from './features/router/WsSessionEventHandler';
 import { useApiErrorHandler } from './hooks/useApiErrorHandler';
@@ -26,7 +26,7 @@ const AppRoutes = () => {
   return (
     <Routes>
       <Route path="/" element={<CsrfGuard />}>
-        <Route element={<RouteGuard />}>
+        <Route element={<SessionGuard />}>
           <Route element={<SharedInfoProvider />}>
             <Route element={<WsSessionEventHandler />}>
               <Route path="/" element={<Navigate to="/fca" />} />

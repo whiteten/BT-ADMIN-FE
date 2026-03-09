@@ -6,9 +6,9 @@ import { LOG } from '@/log';
 import { useGetSession } from '../common/hooks/useSessionQueries';
 import { FallbackSpinner } from '@/components/custom/FallbackSpinner';
 
-const Log = new LOG('RouteGuard');
+const Log = new LOG('SessionGuard');
 
-export default function RouteGuard() {
+export default function SessionGuard() {
   const { data: response, isLoading, isError, error } = useGetSession({ params: { t: dayjs().format('YYYYMMDDHHmmss') } });
 
   useEffect(() => {
