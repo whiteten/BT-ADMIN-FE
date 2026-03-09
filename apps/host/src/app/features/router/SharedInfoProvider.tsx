@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import React, { useEffect } from 'react';
 import { Outlet } from 'react-router-dom';
 import { LOG } from '@/log';
 
@@ -13,7 +13,7 @@ import { FallbackSpinner } from '@/components/custom/FallbackSpinner';
 
 const Log = new LOG('SharedInfoProvider');
 
-export default function SharedInfoProvider() {
+export default function SharedInfoProvider({ children }: { children?: React.ReactNode }) {
   const { setRoleList, setUserInfo, setIsLoading, passwordExpiringWarning, setPasswordExpiringWarning } = useAuthStore();
   const { setNavigation } = useNavigationStore();
   const { data: userInfo, isLoading: isUserInfoLoading, error: userInfoError } = useGetUserInfo();
@@ -100,5 +100,5 @@ export default function SharedInfoProvider() {
     return <FallbackSpinner useFullScreen />;
   }
 
-  return <Outlet />;
+  return children ?? <Outlet />;
 }

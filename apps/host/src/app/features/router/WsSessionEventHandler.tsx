@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import React, { useEffect } from 'react';
 import { Outlet, useNavigate } from 'react-router-dom';
 import { useQueryClient } from '@tanstack/react-query';
 import { LOG } from '@/log';
@@ -11,7 +11,7 @@ const WS_SESSION_EVENT_TYPES = {
   LOGOUT: 'LOGOUT',
 } as const;
 
-export default function WsSessionEventHandler() {
+export default function WsSessionEventHandler({ children }: { children?: React.ReactNode }) {
   const queryClient = useQueryClient();
   const navigate = useNavigate();
   useEffect(() => {
@@ -35,5 +35,5 @@ export default function WsSessionEventHandler() {
     return () => window.removeEventListener('WS_SESSION', handler);
   }, [queryClient, navigate]);
 
-  return <Outlet />;
+  return children ?? <Outlet />;
 }

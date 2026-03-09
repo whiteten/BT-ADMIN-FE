@@ -26,17 +26,21 @@ const AppRoutes = () => {
   return (
     <Routes>
       <Route path="/" element={<CsrfGuard />}>
-        <Route element={<SessionGuard />}>
-          <Route element={<SharedInfoProvider />}>
-            <Route element={<WsSessionEventHandler />}>
-              <Route path="/" element={<Navigate to="/fca" />} />
-              <Route path="/manager" element={<Layout />}>
-                <Route index path="*" element={<Manager />} />
-              </Route>
-              <Route path="/fca" element={<Layout />}>
-                <Route index path="*" element={<Fca />} />
-              </Route>
-            </Route>
+        <Route
+          element={
+            <SessionGuard>
+              <SharedInfoProvider>
+                <WsSessionEventHandler />
+              </SharedInfoProvider>
+            </SessionGuard>
+          }
+        >
+          <Route path="/" element={<Navigate to="/fca" />} />
+          <Route path="/manager" element={<Layout />}>
+            <Route index path="*" element={<Manager />} />
+          </Route>
+          <Route path="/fca" element={<Layout />}>
+            <Route index path="*" element={<Fca />} />
           </Route>
         </Route>
         <Route path="/login" element={<Login />} />

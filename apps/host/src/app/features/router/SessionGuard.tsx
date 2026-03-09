@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import React, { useEffect } from 'react';
 import { Navigate, Outlet } from 'react-router-dom';
 import dayjs from 'dayjs';
 import { LOG } from '@/log';
@@ -8,7 +8,7 @@ import { FallbackSpinner } from '@/components/custom/FallbackSpinner';
 
 const Log = new LOG('SessionGuard');
 
-export default function SessionGuard() {
+export default function SessionGuard({ children }: { children?: React.ReactNode }) {
   const { data: response, isLoading, isError, error } = useGetSession({ params: { t: dayjs().format('YYYYMMDDHHmmss') } });
 
   useEffect(() => {
@@ -24,5 +24,5 @@ export default function SessionGuard() {
     Log.error('Failed to check session', error);
     return <Navigate to="/login" />;
   }
-  return <Outlet />;
+  return children ?? <Outlet />;
 }
