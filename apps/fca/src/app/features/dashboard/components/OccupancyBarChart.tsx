@@ -10,10 +10,12 @@ interface OccupancyBarChartProps {
 
 const RANK_ICONS = [rank1, rank2, rank3];
 
+const ICON_OFFSET = 48; // h-10(40px) + mb-2(8px)
+
 const PODIUM_CONFIG = [
-  { rank: 2, order: 'order-1', height: 'h-[50%]', color: 'bg-[#878A99]' },
-  { rank: 1, order: 'order-2', height: 'h-[70%]', color: 'bg-[#3B82F6]' },
-  { rank: 3, order: 'order-3', height: 'h-[35%]', color: 'bg-[#878A99]' },
+  { rank: 2, order: 'order-1', height: '70%', color: 'bg-[#878A99]' },
+  { rank: 1, order: 'order-2', height: '90%', color: 'bg-[#3B82F6]' },
+  { rank: 3, order: 'order-3', height: '50%', color: 'bg-[#878A99]' },
 ] as const;
 
 export default function OccupancyBarChart({ data }: OccupancyBarChartProps) {
@@ -32,7 +34,10 @@ export default function OccupancyBarChart({ data }: OccupancyBarChartProps) {
           return (
             <div key={config.rank} className={`flex h-full min-w-0 flex-1 flex-col justify-end ${config.order} px-0.5`}>
               <img src={RANK_ICONS[config.rank - 1]} alt={`rank${config.rank}`} className="mx-auto mb-2 h-10 w-10" />
-              <div className={`${config.height} ${config.color} flex shrink-0 flex-col items-center justify-center gap-0.5 rounded-t-lg px-1`}>
+              <div
+                style={{ height: `calc(${config.height} - ${ICON_OFFSET}px)` }}
+                className={`${config.color} flex shrink-0 flex-col items-center justify-center gap-0.5 rounded-t-lg px-1`}
+              >
                 <span className="w-full break-all text-center text-sm font-bold leading-tight text-white line-clamp-2">{item?.key ?? '-'}</span>
                 {item && (
                   <span className="text-base font-bold text-white">
