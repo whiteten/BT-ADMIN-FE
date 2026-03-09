@@ -20,7 +20,8 @@ import NoData from '@/components/custom/NoData';
 import PageHeader from '@/components/custom/PageHeader';
 
 const breadcrumb: BreadcrumbProps['items'] = [
-  { title: '자원 관리', path: '/manager/resource' },
+  { title: '시스템', path: '/manager/resource/menu' },
+  { title: '플랫폼', path: '/manager/resource/menu' },
   { title: '메뉴', path: '/manager/resource/menu' },
 ];
 

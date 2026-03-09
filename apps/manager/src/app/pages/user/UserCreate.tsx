@@ -23,8 +23,8 @@ import { FallbackSpinner } from '@/components/custom/FallbackSpinner';
 import PageHeader from '@/components/custom/PageHeader';
 
 const breadcrumb: BreadcrumbProps['items'] = [
-  { title: '자원 관리', path: '/manager/resource' },
-  { title: '사용자', path: '/manager/resource/user' },
+  { title: '사용자', path: '/manager/resource/user/list' },
+  { title: '사용자 계정', path: '/manager/resource/user/list' },
   { title: '등록', path: '/manager/resource/user/create' },
 ];
 

@@ -18,8 +18,9 @@ import { FallbackSpinner } from '@/components/custom/FallbackSpinner';
 import PageHeader from '@/components/custom/PageHeader';
 
 const breadcrumb = [
-  { title: '자원 관리', path: '/manager/resource' },
-  { title: '클라이언트 관리', path: '/manager/resource/client' },
+  { title: '시스템', path: '/manager/resource/menu' },
+  { title: '플랫폼', path: '/manager/resource/client/list' },
+  { title: '외부 앱 연동', path: '/manager/resource/client/list' },
   { title: '생성', path: '/manager/resource/client/create' },
 ];
 

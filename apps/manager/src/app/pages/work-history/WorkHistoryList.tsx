@@ -16,8 +16,8 @@ import useAggridOptions from '@/libs/shared-ui/src/hooks/useAggridOptions';
 const PAGE_SIZE = 20;
 
 const breadcrumb = [
-  { title: '자원 관리', path: '/manager' },
-  { title: '작업이력', path: '/manager/resource/work-history' },
+  { title: '감사', path: '/manager/resource/work-history' },
+  { title: '작업 이력', path: '/manager/resource/work-history' },
 ];
 
 /** 상태 배지 컴포넌트 */
