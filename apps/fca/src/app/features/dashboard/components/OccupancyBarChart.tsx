@@ -33,7 +33,7 @@ export default function OccupancyBarChart({ data }: OccupancyBarChartProps) {
             <div key={config.rank} className={`flex h-full min-w-0 flex-1 flex-col justify-end ${config.order} px-0.5`}>
               <img src={RANK_ICONS[config.rank - 1]} alt={`rank${config.rank}`} className="mx-auto mb-2 h-10 w-10" />
               <div className={`${config.height} ${config.color} flex shrink-0 flex-col items-center justify-center gap-0.5 rounded-t-lg px-1`}>
-                <span className="w-full text-center text-sm font-bold leading-tight text-white line-clamp-2">{item?.key ?? '-'}</span>
+                <span className="w-full break-all text-center text-sm font-bold leading-tight text-white line-clamp-2">{item?.key ?? '-'}</span>
                 {item && (
                   <span className="text-base font-bold text-white">
                     {item.callCount.toLocaleString()}
