@@ -32,3 +32,5 @@ export { ReactComponent as IconAoe } from '../../assets/images/icon/icon-aoe.svg
 export { ReactComponent as IconRollback } from '../../assets/images/icon/icon-rollback.svg';
 export { ReactComponent as IconBot } from '../../assets/images/icon/icon-bot.svg';
 export { ReactComponent as IconAlertTriangle } from '../../assets/images/icon/icon-alert-triangle.svg';
+export { ReactComponent as IconChartLine } from '../../assets/images/icon/icon-chart-line.svg';
+export { ReactComponent as IconGrid } from '../../assets/images/icon/icon-grid.svg';
