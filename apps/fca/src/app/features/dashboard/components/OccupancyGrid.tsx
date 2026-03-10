@@ -1,0 +1,33 @@
+import type { ColDef } from 'ag-grid-community';
+import { AgGridReact } from 'ag-grid-react';
+import type { OccupancyItem } from '../types/dashboard.types';
+import useAggridOptions from '@/libs/shared-ui/src/hooks/useAggridOptions';
+
+const columnDefs: ColDef<OccupancyItem>[] = [
+  { headerName: '명칭', field: 'key' },
+  { headerName: '실시간 콜수', field: 'callCount' },
+];
+
+interface OccupancyGridProps {
+  data?: OccupancyItem[];
+}
+
+export default function OccupancyGrid({ data }: OccupancyGridProps) {
+  const { gridOptions } = useAggridOptions();
+
+  return (
+    <div className="h-full w-full p-2">
+      <AgGridReact<OccupancyItem>
+        rowData={data ?? []}
+        columnDefs={columnDefs}
+        gridOptions={gridOptions}
+        pagination={false}
+        statusBar={{ statusPanels: [] }}
+        sideBar={false}
+        rowNumbers={false}
+        headerHeight={32}
+        rowHeight={28}
+      />
+    </div>
+  );
+}

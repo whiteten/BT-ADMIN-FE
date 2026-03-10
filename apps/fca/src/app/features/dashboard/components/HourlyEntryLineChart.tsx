@@ -30,11 +30,8 @@ const createChartOption = (data: HourlyEntryItem[]): EChartsOption => ({
     name: item.serviceName,
     type: 'line' as const,
     data: item.hourlyStats.map((stat) => stat.entryCnt),
-    symbol: 'roundRect',
-    symbolSize: [28, 20],
     itemStyle: { borderRadius: 4 },
     lineStyle: { width: 2 },
-    label: { show: true, position: 'inside' as const, color: '#fff', fontSize: 11, fontWeight: 'bold' as const },
   })),
 });
 

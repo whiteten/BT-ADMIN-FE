@@ -376,3 +376,9 @@ export interface BotDashboardResponse {
   dialogOccupancy: OccupancyItem[];
   slotOccupancy: OccupancyItem[];
 }
+
+export const DASHBOARD_VIEW = {
+  CHART: 'chart',
+  TABLE: 'table',
+} as const;
+export type DashboardViewMode = (typeof DASHBOARD_VIEW)[keyof typeof DASHBOARD_VIEW];
