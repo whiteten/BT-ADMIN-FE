@@ -6,14 +6,10 @@ import NoData from '@/components/custom/NoData';
 
 const createChartOption = (data: ScenarioSummary): EChartsOption => {
   const seriesData = [
-    { name: '완결', value: data.completeCnt, rate: data.completeRate, diff: data.completeRateDiff },
-    { name: '미완결', value: data.incompleteCnt, rate: data.incompleteRate, diff: data.incompleteRateDiff },
-    { name: '상담원 전환', value: data.agentReqCnt, rate: data.agentTransferRate, diff: data.agentTransferRateDiff },
+    { name: '완결', value: data.completeCnt, rate: data.completeRate },
+    { name: '미완결', value: data.incompleteCnt, rate: data.incompleteRate },
+    { name: '상담원 전환', value: data.agentReqCnt, rate: data.agentTransferRate },
   ];
-
-  const diff = data.avgBusyTimeDiff;
-  const diffText = diff === 0 ? '- 0초' : `${diff > 0 ? '▲' : '▼'} ${Math.abs(diff)}초`;
-  const diffColor = diff === 0 ? '#999' : diff > 0 ? '#10B981' : '#F06548';
 
   return {
     tooltip: {
@@ -50,20 +46,11 @@ const createChartOption = (data: ScenarioSummary): EChartsOption => {
           formatter: (params: { name: string }) => {
             const item = seriesData.find((d) => d.name === params.name);
             if (!item) return params.name;
-            const diff = item.diff;
-            if (diff === 0) {
-              return `{name|${item.name}}\n{rate|${item.value}건}\n{zero|- 0%}`;
-            }
-            const arrow = diff > 0 ? '▲' : '▼';
-            const diffStyle = diff > 0 ? 'up' : 'down';
-            return `{name|${item.name}}\n{rate|${item.value}건}\n{${diffStyle}|${arrow} ${Math.abs(diff)}%}`;
+            return `{name|${item.name}}\n{rate|${item.value}건}`;
           },
           rich: {
             name: { fontSize: 13, color: '#333', lineHeight: 22 },
             rate: { fontSize: 13, fontWeight: 'bold', color: '#333', lineHeight: 22 },
-            up: { fontSize: 12, color: '#10B981', lineHeight: 22 },
-            down: { fontSize: 12, color: '#F06548', lineHeight: 22 },
-            zero: { fontSize: 12, color: '#999', lineHeight: 22 },
           },
         },
         emphasis: {
@@ -78,21 +65,6 @@ const createChartOption = (data: ScenarioSummary): EChartsOption => {
           borderWidth: 2,
         },
         data: seriesData,
-      },
-    ],
-    graphic: [
-      {
-        type: 'text',
-        left: 'center',
-        bottom: '26%',
-        cursor: 'default',
-        style: {
-          rich: {
-            label: { fontSize: 14, fontWeight: 'bold', fill: '#333' },
-            diff: { fontSize: 12, fill: diffColor },
-          },
-          text: `{label|평균점유시간: ${data.avgBusyTime}초}  {diff|${diffText}}`,
-        },
       },
     ],
   };

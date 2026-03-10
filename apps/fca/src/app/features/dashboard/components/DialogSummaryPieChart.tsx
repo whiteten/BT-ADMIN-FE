@@ -6,8 +6,8 @@ import NoData from '@/components/custom/NoData';
 
 const createChartOption = (data: DialogSummary): EChartsOption => {
   const seriesData = [
-    { name: '완결', value: data.completeCnt, rate: data.completeRate, diff: data.completeRateDiff },
-    { name: '미완결', value: data.incompleteCnt, rate: data.incompleteRate, diff: data.incompleteRateDiff },
+    { name: '완결', value: data.completeCnt, rate: data.completeRate },
+    { name: '미완결', value: data.incompleteCnt, rate: data.incompleteRate },
   ];
 
   return {
@@ -45,20 +45,11 @@ const createChartOption = (data: DialogSummary): EChartsOption => {
           formatter: (params: { name: string }) => {
             const item = seriesData.find((d) => d.name === params.name);
             if (!item) return params.name;
-            const diff = item.diff;
-            if (diff === 0) {
-              return `{name|${item.name}}\n{rate|${item.value}건}\n{zero|- 0%}`;
-            }
-            const arrow = diff > 0 ? '▲' : '▼';
-            const diffStyle = diff > 0 ? 'up' : 'down';
-            return `{name|${item.name}}\n{rate|${item.value}건}\n{${diffStyle}|${arrow} ${Math.abs(diff)}%}`;
+            return `{name|${item.name}}\n{rate|${item.value}건}`;
           },
           rich: {
             name: { fontSize: 13, color: '#333', lineHeight: 22 },
             rate: { fontSize: 13, fontWeight: 'bold', color: '#333', lineHeight: 22 },
-            up: { fontSize: 12, color: '#10B981', lineHeight: 22 },
-            down: { fontSize: 12, color: '#F06548', lineHeight: 22 },
-            zero: { fontSize: 12, color: '#999', lineHeight: 22 },
           },
         },
         emphasis: {

@@ -7,19 +7,17 @@ interface SummaryRow {
   category: string;
   count: number;
   rate: number;
-  rateDiff: number;
 }
 
 const columnDefs: ColDef<SummaryRow>[] = [
   { headerName: '구분', field: 'category' },
   { headerName: '건수', field: 'count' },
   { headerName: '비율(%)', field: 'rate' },
-  { headerName: '전일대비(%p)', field: 'rateDiff' },
 ];
 
 const toRows = (data: DialogSummary): SummaryRow[] => [
-  { category: '완결', count: data.completeCnt, rate: data.completeRate, rateDiff: data.completeRateDiff },
-  { category: '미완결', count: data.incompleteCnt, rate: data.incompleteRate, rateDiff: data.incompleteRateDiff },
+  { category: '완결', count: data.completeCnt, rate: data.completeRate },
+  { category: '미완결', count: data.incompleteCnt, rate: data.incompleteRate },
 ];
 
 interface DialogSummaryGridProps {
