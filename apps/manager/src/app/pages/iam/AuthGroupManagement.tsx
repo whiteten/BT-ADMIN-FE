@@ -14,9 +14,8 @@ const RoleManagementTab = React.lazy(() => import('../../features/iam/tabs/RoleM
 const PermissionListTab = React.lazy(() => import('../../features/iam/tabs/PermissionListTab'));
 
 const breadcrumb: BreadcrumbProps['items'] = [
-  { title: '자원 관리', path: '/manager/resource' },
-  { title: '역할', path: '/manager/resource/auth-group' },
-  { title: '목록', path: '/manager/resource/auth-group/list' },
+  { title: '사용자', path: '/manager/resource/auth-group/list' },
+  { title: '역할/권한', path: '/manager/resource/auth-group/list' },
 ];
 
 const tabs: PageTab[] = [

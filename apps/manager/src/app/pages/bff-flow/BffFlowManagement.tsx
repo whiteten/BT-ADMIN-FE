@@ -17,8 +17,9 @@ import NoData from '@/components/custom/NoData';
 import PageHeader from '@/components/custom/PageHeader';
 
 const breadcrumb: BreadcrumbProps['items'] = [
-  { title: '자원 관리', path: '/manager/resource' },
-  { title: 'API Flow', path: '/manager/resource/bff-flow' },
+  { title: '시스템', path: '/manager/resource/menu' },
+  { title: '플랫폼', path: '/manager/resource/bff-flow' },
+  { title: 'API 경로', path: '/manager/resource/bff-flow' },
 ];
 
 export default function BffFlowManagement() {

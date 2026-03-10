@@ -47,7 +47,7 @@ export function useSessionSocket({ ticket, onClose, onError }: UseSessionSocketO
 
     client.connect().catch((error) => {
       Log.error('Failed to connect Session WS', error);
-      toast.error('Failed to connect Session WS');
+      // toast.error('Failed to connect Session WS');
     });
 
     return () => {

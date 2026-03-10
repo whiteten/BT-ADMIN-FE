@@ -20,7 +20,7 @@ import { cn } from '@/libs/shared-ui/src/lib/utils';
 const { Text } = Typography;
 
 const breadcrumb: BreadcrumbProps['items'] = [
-  { title: '자원 관리', path: '/manager/resource' },
+  { title: '보안', path: '/manager/resource/account-policy' },
   { title: '계정 보안 정책', path: '/manager/resource/account-policy' },
 ];
 

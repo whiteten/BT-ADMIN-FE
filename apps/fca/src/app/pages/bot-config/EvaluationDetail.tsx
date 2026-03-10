@@ -26,7 +26,7 @@ export default function EvaluationDetail() {
   const { data: evaluation } = useGetEvaluation({ params: { modelId, evalId } });
 
   const privateBreadcrumb: BreadcrumbProps['items'] = [
-    { title: '봇 관리', path: '/fca/bot-config' },
+    { title: '관리', path: '/fca/bot-config' },
     { title: '모델', path: '/fca/bot-config/model' },
     { title: ':modelName', path: `/fca/bot-config/model/${modelId}` },
     { title: '평가', path: `/fca/bot-config/model/${modelId}?tab=tab4` },
@@ -34,7 +34,7 @@ export default function EvaluationDetail() {
   ];
 
   const publicBreadcrumb: BreadcrumbProps['items'] = [
-    { title: '봇 관리', path: '/fca/bot-config' },
+    { title: '공용', path: '/fca/global' },
     { title: '공용 모델', path: '/fca/global/model' },
     { title: ':modelName', path: `/fca/global/model/${modelId}` },
     { title: '평가', path: `/fca/global/model/${modelId}?tab=tab4` },

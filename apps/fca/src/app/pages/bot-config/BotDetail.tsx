@@ -28,7 +28,7 @@ export default function BotDetail() {
   const { data: bot } = useGetBot({ params: { serviceId } });
 
   const breadcrumb: BreadcrumbProps['items'] = [
-    { title: '봇 관리', path: '/fca/bot-config' },
+    { title: '관리', path: '/fca/bot-config' },
     { title: '봇', path: '/fca/bot-config/bot' },
     { title: ':botName', path: `/fca/bot-config/bot/${serviceId}` },
   ];

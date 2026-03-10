@@ -18,9 +18,8 @@ import useAggridOptions from '@/libs/shared-ui/src/hooks/useAggridOptions';
 import { useModal } from '@/libs/shared-ui/src/hooks/useModal';
 
 const breadcrumb = [
-  { title: '자원 관리', path: '/manager/resource' },
-  { title: '사용자', path: '/manager/resource/user' },
-  { title: '목록', path: '/manager/resource/user/list' },
+  { title: '사용자', path: '/manager/resource/user/list' },
+  { title: '사용자 계정', path: '/manager/resource/user/list' },
 ];
 
 export default function UserList() {

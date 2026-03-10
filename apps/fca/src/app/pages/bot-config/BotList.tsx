@@ -12,7 +12,7 @@ import PageHeader from '@/components/custom/PageHeader';
 import { useModal } from '@/libs/shared-ui/src/hooks/useModal';
 
 const breadcrumb: BreadcrumbProps['items'] = [
-  { title: '봇 관리', path: '/fca/bot-config' },
+  { title: '관리', path: '/fca/bot-config' },
   { title: '봇', path: '/fca/bot-config/bot' },
   { title: '봇 목록', path: '/fca/bot-config/bot/list' },
 ];

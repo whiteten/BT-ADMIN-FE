@@ -17,9 +17,9 @@ import useAggridOptions from '@/libs/shared-ui/src/hooks/useAggridOptions';
 import { useModal } from '@/libs/shared-ui/src/hooks/useModal';
 
 const breadcrumb = [
-  { title: '자원 관리', path: '/manager/resource' },
-  { title: '클라이언트 관리', path: '/manager/resource/client' },
-  { title: '목록', path: '/manager/resource/client/list' },
+  { title: '시스템', path: '/manager/resource/menu' },
+  { title: '플랫폼', path: '/manager/resource/client/list' },
+  { title: '외부 앱 연동', path: '/manager/resource/client/list' },
 ];
 
 export default function ClientList() {

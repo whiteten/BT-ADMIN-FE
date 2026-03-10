@@ -18,21 +18,21 @@ const menuConfig = {
     },
     {
       menuId: 18,
-      label: '사용자 관리',
+      label: '사용자',
       icon: IconMenuItemsPlus,
       index: 1,
       hide: false,
       children: [
         {
           menuId: 19,
-          label: '사용자 계정 관리',
+          label: '사용자 계정',
           path: 'resource/user/list',
           index: 0,
           hide: false,
         },
         {
           menuId: 20,
-          label: '역할/권한 관리',
+          label: '역할/권한',
           path: 'resource/auth-group/list',
           index: 1,
           hide: false,
@@ -41,7 +41,7 @@ const menuConfig = {
     },
     {
       menuId: 57,
-      label: '보안 관리',
+      label: '보안',
       icon: IconSlidersHorizontal,
       index: 2,
       hide: false,
@@ -57,34 +57,34 @@ const menuConfig = {
     },
     {
       menuId: 58,
-      label: '시스템 관리',
+      label: '시스템',
       icon: IconLayer,
       index: 3,
       hide: false,
       children: [
         {
           menuId: 62,
-          label: '플랫폼 설정',
+          label: '플랫폼',
           index: 0,
           hide: false,
           children: [
             {
               menuId: 52,
-              label: '메뉴 관리',
+              label: '메뉴',
               path: 'resource/menu',
               index: 0,
               hide: false,
             },
             {
               menuId: 53,
-              label: 'API 경로 관리',
+              label: 'API 경로',
               path: 'resource/bff-flow',
               index: 1,
               hide: false,
             },
             {
               menuId: 54,
-              label: '외부 앱 연동 관리',
+              label: '외부 앱 연동',
               path: 'resource/client/list',
               index: 2,
               hide: false,
@@ -95,14 +95,14 @@ const menuConfig = {
     },
     {
       menuId: 59,
-      label: '감사 관리',
+      label: '감사',
       icon: IconDocument,
       index: 4,
       hide: false,
       children: [
         {
           menuId: 30,
-          label: '작업 이력 조회',
+          label: '작업 이력',
           path: 'resource/work-history',
           index: 0,
           hide: false,

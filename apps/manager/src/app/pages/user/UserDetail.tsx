@@ -86,8 +86,8 @@ export default function UserDetail() {
   const [resourceStats, setResourceStats] = useState<ResourceStats | null>(null);
 
   const breadcrumb: BreadcrumbProps['items'] = [
-    { title: '자원 관리', path: '/manager/resource' },
-    { title: '사용자', path: '/manager/resource/user' },
+    { title: '사용자', path: '/manager/resource/user/list' },
+    { title: '사용자 계정', path: '/manager/resource/user/list' },
     { title: ':username', path: `/manager/resource/user/${userId}` },
   ];
 

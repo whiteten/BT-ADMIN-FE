@@ -31,13 +31,13 @@ export default function ModelDetail() {
   const { data: model } = useGetModel({ params: { modelId } });
 
   const privateBreadcrumb: BreadcrumbProps['items'] = [
-    { title: '봇 관리', path: '/fca/bot-config' },
+    { title: '관리', path: '/fca/bot-config' },
     { title: '모델', path: '/fca/bot-config/model' },
     { title: ':modelName', path: `/fca/bot-config/model/${modelId}` },
   ];
 
   const publicBreadcrumb: BreadcrumbProps['items'] = [
-    { title: '봇 관리', path: '/fca/bot-config' },
+    { title: '공용', path: '/fca/global' },
     { title: '공용 모델', path: '/fca/global/model' },
     { title: ':modelName', path: `/fca/global/model/${modelId}` },
   ];
