@@ -66,7 +66,7 @@ export default function IntentStatistics() {
   });
 
   const [isSearched, setIsSearched] = useState(false);
-  const [isFilterOpen, setIsFilterOpen] = useState(false);
+  const [isFilterOpen, setIsFilterOpen] = useState(true);
   const { gridOptions } = useAggridOptions();
   const gridRef = useRef<AgGridReact<IntentStatListItem>>(null);
   const { data: modelList } = useGetModels();
@@ -97,6 +97,11 @@ export default function IntentStatistics() {
   useEffect(() => {
     setIntentIds([]);
   }, [modelIds]);
+
+  // 의도명 옵션 로드 시 전체 선택
+  useEffect(() => {
+    setIntentIds(intentSelectOptions.map((o) => o.value));
+  }, [intentSelectOptions]);
 
   // 의도 통계 조회
   const { data: intentStatList, isLoading: isLoadingIntentStatList } = useGetIntentStatList({
@@ -406,10 +411,33 @@ export default function IntentStatistics() {
                   showSearch
                   maxTagCount="responsive"
                   options={intentSelectOptions}
-                  placeholder="검색할 대화명을 선택하세요."
+                  placeholder="검색할 의도명을 선택하세요."
                   optionFilterProp="label"
                   className="!min-w-[250px] !max-w-[400px]"
                   popupMatchSelectWidth={false}
+                  dropdownRender={(menu) => (
+                    <>
+                      <div
+                        className="flex items-center gap-2 px-3 py-2 cursor-pointer hover:bg-gray-50"
+                        onMouseDown={(e) => e.preventDefault()}
+                        onClick={() => {
+                          if (intentIds.length === intentSelectOptions.length) {
+                            setIntentIds([]);
+                          } else {
+                            setIntentIds(intentSelectOptions.map((o) => o.value));
+                          }
+                        }}
+                      >
+                        <Checkbox
+                          checked={intentIds.length === intentSelectOptions.length && intentSelectOptions.length > 0}
+                          indeterminate={intentIds.length > 0 && intentIds.length < intentSelectOptions.length}
+                        />
+                        <span className="text-sm">전체 선택</span>
+                      </div>
+                      <Divider style={{ margin: '4px 0' }} />
+                      {menu}
+                    </>
+                  )}
                 />
                 {timeUnit !== 'MM' && timeUnit !== 'YY' ? (
                   <>

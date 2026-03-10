@@ -66,7 +66,7 @@ export default function SlotStatistics() {
   });
 
   const [isSearched, setIsSearched] = useState(false);
-  const [isFilterOpen, setIsFilterOpen] = useState(false);
+  const [isFilterOpen, setIsFilterOpen] = useState(true);
   const { gridOptions } = useAggridOptions();
   const gridRef = useRef<AgGridReact<SlotStatListItem>>(null);
   const { data: botList } = useGetBots();
@@ -98,6 +98,11 @@ export default function SlotStatistics() {
   useEffect(() => {
     setDialogIds([]);
   }, [serviceIds]);
+
+  // 대화명 옵션 로드 시 전체 선택
+  useEffect(() => {
+    setDialogIds(dialogSelectOptions.map((o) => o.value));
+  }, [dialogSelectOptions]);
 
   // 슬롯 통계 조회
   const { data: slotStatList, isLoading: isLoadingSlotStatList } = useGetSlotStatList({
@@ -435,6 +440,29 @@ export default function SlotStatistics() {
                   optionFilterProp="label"
                   className="!min-w-[250px] !max-w-[400px]"
                   popupMatchSelectWidth={false}
+                  dropdownRender={(menu) => (
+                    <>
+                      <div
+                        className="flex items-center gap-2 px-3 py-2 cursor-pointer hover:bg-gray-50"
+                        onMouseDown={(e) => e.preventDefault()}
+                        onClick={() => {
+                          if (dialogIds.length === dialogSelectOptions.length) {
+                            setDialogIds([]);
+                          } else {
+                            setDialogIds(dialogSelectOptions.map((o) => o.value));
+                          }
+                        }}
+                      >
+                        <Checkbox
+                          checked={dialogIds.length === dialogSelectOptions.length && dialogSelectOptions.length > 0}
+                          indeterminate={dialogIds.length > 0 && dialogIds.length < dialogSelectOptions.length}
+                        />
+                        <span className="text-sm">전체 선택</span>
+                      </div>
+                      <Divider style={{ margin: '4px 0' }} />
+                      {menu}
+                    </>
+                  )}
                 />
                 {timeUnit !== 'MM' && timeUnit !== 'YY' ? (
                   <>

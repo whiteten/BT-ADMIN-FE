@@ -66,7 +66,7 @@ export default function EntityStatistics() {
   });
 
   const [isSearched, setIsSearched] = useState(false);
-  const [isFilterOpen, setIsFilterOpen] = useState(false);
+  const [isFilterOpen, setIsFilterOpen] = useState(true);
   const { gridOptions } = useAggridOptions();
   const gridRef = useRef<AgGridReact<EntityStatListItem>>(null);
   const { data: modelList } = useGetModels();
@@ -97,6 +97,11 @@ export default function EntityStatistics() {
   useEffect(() => {
     setEntityTagIds([]);
   }, [modelIds]);
+
+  // 개체 태그 옵션 로드 시 전체 선택
+  useEffect(() => {
+    setEntityTagIds(entityTagSelectOptions.map((o) => o.value));
+  }, [entityTagSelectOptions]);
 
   // 개체 통계 조회
   const { data: entityStatList, isLoading: isLoadingEntityStatList } = useGetEntityStatList({
@@ -385,6 +390,29 @@ export default function EntityStatistics() {
                   optionFilterProp="label"
                   className="!min-w-[250px] !max-w-[400px]"
                   popupMatchSelectWidth={false}
+                  dropdownRender={(menu) => (
+                    <>
+                      <div
+                        className="flex items-center gap-2 px-3 py-2 cursor-pointer hover:bg-gray-50"
+                        onMouseDown={(e) => e.preventDefault()}
+                        onClick={() => {
+                          if (entityTagIds.length === entityTagSelectOptions.length) {
+                            setEntityTagIds([]);
+                          } else {
+                            setEntityTagIds(entityTagSelectOptions.map((o) => o.value));
+                          }
+                        }}
+                      >
+                        <Checkbox
+                          checked={entityTagIds.length === entityTagSelectOptions.length && entityTagSelectOptions.length > 0}
+                          indeterminate={entityTagIds.length > 0 && entityTagIds.length < entityTagSelectOptions.length}
+                        />
+                        <span className="text-sm">전체 선택</span>
+                      </div>
+                      <Divider style={{ margin: '4px 0' }} />
+                      {menu}
+                    </>
+                  )}
                 />
                 {timeUnit !== 'MM' && timeUnit !== 'YY' ? (
                   <>

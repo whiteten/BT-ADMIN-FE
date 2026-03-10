@@ -66,7 +66,7 @@ export default function KeywordStatistics() {
   });
 
   const [isSearched, setIsSearched] = useState(false);
-  const [isFilterOpen, setIsFilterOpen] = useState(false);
+  const [isFilterOpen, setIsFilterOpen] = useState(true);
   const { gridOptions } = useAggridOptions();
   const gridRef = useRef<AgGridReact<KeywordStatListItem>>(null);
   const { data: modelList } = useGetModels();
@@ -356,8 +356,13 @@ export default function KeywordStatistics() {
             </div>
             <CollapsibleContent>
               <div className="flex items-center gap-3">
+                <div className="flex items-center gap-3">
+                  <span className="text-sm font-medium text-[#495057] shrink-0">개체 태그 미분류</span>
+                  <Checkbox checked={isNotExistEntity} onChange={(e) => setIsNotExistEntity(e.target.checked)} />
+                </div>
                 {timeUnit !== 'MM' && timeUnit !== 'YY' ? (
                   <>
+                    <Divider orientation="vertical" className="!h-5 !m-0" />
                     <span className="text-sm font-medium text-[#495057] shrink-0">제외요일</span>
                     <Select
                       mode="multiple"
@@ -417,11 +422,6 @@ export default function KeywordStatistics() {
                     ) : null}
                   </>
                 ) : null}
-                <Divider orientation="vertical" className="!h-5 !m-0" />
-                <div className="flex items-center gap-3">
-                  <span className="text-sm font-medium text-[#495057] shrink-0">개체 태그 미분류</span>
-                  <Checkbox checked={isNotExistEntity} onChange={(e) => setIsNotExistEntity(e.target.checked)} />
-                </div>
               </div>
             </CollapsibleContent>
           </header>

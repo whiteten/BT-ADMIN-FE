@@ -64,7 +64,7 @@ export default function ServiceStatistics() {
   });
 
   const [isSearched, setIsSearched] = useState(false);
-  const [isFilterOpen, setIsFilterOpen] = useState(false);
+  const [isFilterOpen, setIsFilterOpen] = useState(true);
   const { gridOptions } = useAggridOptions();
   const gridRef = useRef<AgGridReact<ServiceStatListItem>>(null);
   const { data: botList } = useGetBots();
