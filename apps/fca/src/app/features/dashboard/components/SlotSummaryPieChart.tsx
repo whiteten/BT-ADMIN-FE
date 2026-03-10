@@ -47,11 +47,11 @@ const createChartOption = (data: SlotSummary): EChartsOption => {
             if (!item) return params.name;
             const diff = item.diff;
             if (diff === 0) {
-              return `{name|${item.name}}\n{rate|${item.rate}%}\n{zero|- 0%}`;
+              return `{name|${item.name}}\n{rate|${item.value}건}\n{zero|- 0%}`;
             }
             const arrow = diff > 0 ? '▲' : '▼';
             const diffStyle = diff > 0 ? 'up' : 'down';
-            return `{name|${item.name}}\n{rate|${item.rate}%}\n{${diffStyle}|${arrow} ${Math.abs(diff)}%}`;
+            return `{name|${item.name}}\n{rate|${item.value}건}\n{${diffStyle}|${arrow} ${Math.abs(diff)}%}`;
           },
           rich: {
             name: { fontSize: 13, color: '#333', lineHeight: 22 },
