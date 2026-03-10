@@ -2,14 +2,13 @@
  * 권한 목록 탭
  */
 
-import { useMemo, useRef, useState } from 'react';
+import { useMemo, useState } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import type { ColDef, ICellRendererParams } from 'ag-grid-community';
 import { AgGridReact } from 'ag-grid-react';
 import { Button, Input, Select, Tag, Tooltip } from 'antd';
 import { Copy, Search } from 'lucide-react';
 import { toast } from '@/shared-util';
-import PermissionAddDrawer, { type PermissionAddDrawerRef } from '../components/PermissionAddDrawer';
 import { useGetApps } from '../hooks/useAppQueries';
 import { permissionQueryKeys, useDeletePermission, useGetAuthList } from '../hooks/usePermissionQueries';
 import type { PermissionFlat } from '../types/iam.types';
@@ -28,12 +27,10 @@ export default function PermissionListTab() {
   const { gridOptions } = useAggridOptions();
   const queryClient = useQueryClient();
   const modal = useModal();
-  const drawerRef = useRef<PermissionAddDrawerRef>(null);
   const [appId, setAppId] = useState<string>('');
-  const [domain, setDomain] = useState<string>('');
   const [action, setAction] = useState<string>('');
   const [keyword, setKeyword] = useState('');
-  const [searchParams, setSearchParams] = useState<{ appId?: string; domain?: string; action?: string; keyword?: string }>({});
+  const [searchParams, setSearchParams] = useState<{ appId?: string; action?: string; keyword?: string }>({});
 
   // API 연동: Flat 권한 목록 조회
   const { data: allPermissions = [], isLoading: loading } = useGetAuthList();
@@ -52,13 +49,11 @@ export default function PermissionListTab() {
     },
   });
 
-  // 동적 필터 옵션 생성 (앱: API, 도메인/액션: 그리드 데이터에서 추출)
+  // 동적 필터 옵션 생성
   const filterOptions = useMemo(() => {
-    const domains = [...new Set(allPermissions.map((p) => p.domain))].sort();
     const actions = [...new Set(allPermissions.map((p) => p.action))].sort();
     return {
       apps: [{ label: '전체 앱', value: '' }, ...apps.map((a) => ({ label: a.appName, value: a.appId }))],
-      domains: [{ label: '전체 도메인', value: '' }, ...domains.map((d) => ({ label: d, value: d }))],
       actions: [{ label: '전체 액션', value: '' }, ...actions.map((a) => ({ label: a, value: a }))],
     };
   }, [apps, allPermissions]);
@@ -67,7 +62,6 @@ export default function PermissionListTab() {
   const permissions = useMemo(() => {
     return allPermissions.filter((p) => {
       if (searchParams.appId && p.appId !== searchParams.appId) return false;
-      if (searchParams.domain && p.domain !== searchParams.domain) return false;
       if (searchParams.action && p.action !== searchParams.action) return false;
       if (searchParams.keyword) {
         const lowerKeyword = searchParams.keyword.toLowerCase();
@@ -98,8 +92,7 @@ export default function PermissionListTab() {
           return <Tag color="cyan">{appName}</Tag>;
         },
       },
-      { headerName: '도메인', field: 'domain', width: 100, cellRenderer: (params: { value: string }) => <span className="capitalize">{params.value}</span> },
-      { headerName: '리소스', field: 'resourceKey', width: 100 },
+      { headerName: '연결된 메뉴', field: 'menuLabel', width: 160 },
       {
         headerName: '액션',
         field: 'action',
@@ -130,7 +123,6 @@ export default function PermissionListTab() {
         ),
       },
       { headerName: '설명', field: 'description', flex: 1, minWidth: 150 },
-      { headerName: '연결된 메뉴', field: 'menuLabel', width: 150 },
       {
         headerName: '',
         maxWidth: 60,
@@ -161,7 +153,6 @@ export default function PermissionListTab() {
   const handleSearch = () => {
     setSearchParams({
       appId: appId || undefined,
-      domain: domain || undefined,
       action: action || undefined,
       keyword: keyword || undefined,
     });
@@ -170,18 +161,12 @@ export default function PermissionListTab() {
   return (
     <div className="flex flex-col gap-4 h-full">
       {/* 필터 */}
-      <div className="flex items-center justify-between gap-2">
-        <div className="flex gap-2 items-center">
-          <Select options={filterOptions.apps} value={appId} onChange={setAppId} className="!w-[140px]" />
-          <Select options={filterOptions.domains} value={domain} onChange={setDomain} className="!w-[140px]" />
-          <Select options={filterOptions.actions} value={action} onChange={setAction} className="!w-[140px]" />
-          <Input placeholder="권한 키 또는 설명 검색" value={keyword} onChange={(e) => setKeyword(e.target.value)} onPressEnter={handleSearch} className="!w-[250px]" />
-          <Button type="primary" icon={<Search className="size-4" />} onClick={handleSearch}>
-            검색
-          </Button>
-        </div>
-        <Button type="primary" onClick={() => drawerRef.current?.open()}>
-          추가
+      <div className="flex gap-2 items-center">
+        <Select options={filterOptions.apps} value={appId} onChange={setAppId} className="!w-[140px]" />
+        <Select options={filterOptions.actions} value={action} onChange={setAction} className="!w-[140px]" />
+        <Input placeholder="권한 키 또는 설명 검색" value={keyword} onChange={(e) => setKeyword(e.target.value)} onPressEnter={handleSearch} className="!w-[250px]" />
+        <Button type="primary" icon={<Search className="size-4" />} onClick={handleSearch}>
+          검색
         </Button>
       </div>
 
@@ -189,9 +174,6 @@ export default function PermissionListTab() {
       <div className="flex-1">
         <AgGridReact<PermissionFlat> {...{ rowData: permissions, columnDefs, gridOptions, loading }} />
       </div>
-
-      {/* 권한 추가 Drawer */}
-      <PermissionAddDrawer ref={drawerRef} />
     </div>
   );
 }

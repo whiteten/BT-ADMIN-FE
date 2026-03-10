@@ -13,7 +13,9 @@ import { ChevronLeft, ChevronRight, Shield } from 'lucide-react';
 import { type RoleBasicFormValues, RoleDetailProvider } from './context/RoleDetailContext';
 import { useGetGroupedPermissions } from '../../features/iam/hooks/usePermissionQueries';
 import { useGetRole } from '../../features/iam/hooks/useRoleQueries';
-import type { MenuWithPermissions, PermissionSummary } from '../../features/iam/types/iam.types';
+import type { MenuWithPermissions } from '../../features/iam/types/iam.types';
+
+type PermEntry = { authId: number; action: string };
 import { FallbackSpinner } from '@/components/custom/FallbackSpinner';
 import { IconDocument, IconSlidersHorizontal } from '@/components/custom/Icons';
 import PageHeader from '@/components/custom/PageHeader';
@@ -22,9 +24,17 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/libs/shared-ui/src/c
 /**
  * 메뉴와 모든 하위 메뉴의 권한을 재귀적으로 수집
  */
-function collectAllPermissions(menu: MenuWithPermissions): PermissionSummary[] {
-  const perms = [...(menu.permissions || [])];
-  for (const child of menu.children || []) {
+function collectAllPermissions(menu: MenuWithPermissions): PermEntry[] {
+  const p = menu.permissions;
+  const perms: PermEntry[] = [];
+  if (p) {
+    if (p.read != null) perms.push({ authId: p.read, action: 'read' });
+    if (p.write != null) perms.push({ authId: p.write, action: 'write' });
+    if (p.delete != null) perms.push({ authId: p.delete, action: 'delete' });
+    if (p.apply != null) perms.push({ authId: p.apply, action: 'apply' });
+    if (p.export != null) perms.push({ authId: p.export, action: 'export' });
+  }
+  for (const child of menu.children ?? []) {
     perms.push(...collectAllPermissions(child));
   }
   return perms;
@@ -194,33 +204,26 @@ export default function RoleDetailPage() {
           </div>
           {/* 권한 타입별 카운트 */}
           {permissionCount > 0 && (
-            <div className="flex gap-3 mt-2">
-              {(['read', 'write', 'delete'] as const).map((action) => {
+            <div className="flex gap-3 mt-2 flex-wrap">
+              {(['read', 'write', 'delete', 'apply', 'export'] as const).map((action) => {
                 const count = permissionArray.filter((authId) => {
                   const perm = allPermissions.find((p) => p.authId === authId);
                   return perm?.action === action;
                 }).length;
-                const colorClass = action === 'read' ? 'text-blue-600' : action === 'write' ? 'text-emerald-600' : 'text-rose-600';
+                const colorMap: Record<string, string> = {
+                  read: 'text-blue-600',
+                  write: 'text-emerald-600',
+                  delete: 'text-rose-600',
+                  apply: 'text-violet-600',
+                  export: 'text-teal-600',
+                };
                 return (
                   <div key={action} className="flex items-center gap-1 text-xs">
-                    <span className={`uppercase font-medium ${colorClass}`}>{action}</span>
+                    <span className={`uppercase font-medium ${colorMap[action]}`}>{action}</span>
                     <span className="text-gray-500">{count}</span>
                   </div>
                 );
               })}
-            </div>
-          )}
-          {permissionCount > 0 && (
-            <div className="flex flex-wrap gap-1 mt-2">
-              {permissionArray.slice(0, 8).map((authId) => {
-                const perm = allPermissions.find((p) => p.authId === authId);
-                return perm ? (
-                  <Tag key={authId} color="cyan" className="text-xs m-0">
-                    {perm.description}
-                  </Tag>
-                ) : null;
-              })}
-              {permissionCount > 8 && <span className="text-xs text-gray-400">외 {permissionCount - 8}개</span>}
             </div>
           )}
         </div>

@@ -16,15 +16,25 @@ import { toast } from '@/shared-util';
 import PermissionSelector from '../../features/iam/components/PermissionSelector';
 import { useGetGroupedPermissions } from '../../features/iam/hooks/usePermissionQueries';
 import { useCreateRole, useGetRoles } from '../../features/iam/hooks/useRoleQueries';
-import type { MenuWithPermissions, PermissionSummary, RoleCreateDatas } from '../../features/iam/types/iam.types';
+import type { MenuWithPermissions, RoleCreateDatas } from '../../features/iam/types/iam.types';
+
+type PermEntry = { authId: number; action: string };
 import PageHeader from '@/components/custom/PageHeader';
 
 /**
  * 메뉴와 모든 하위 메뉴의 권한을 재귀적으로 수집
  */
-function collectAllPermissions(menu: MenuWithPermissions): PermissionSummary[] {
-  const perms = [...(menu.permissions || [])];
-  for (const child of menu.children || []) {
+function collectAllPermissions(menu: MenuWithPermissions): PermEntry[] {
+  const p = menu.permissions;
+  const perms: PermEntry[] = [];
+  if (p) {
+    if (p.read != null) perms.push({ authId: p.read, action: 'read' });
+    if (p.write != null) perms.push({ authId: p.write, action: 'write' });
+    if (p.delete != null) perms.push({ authId: p.delete, action: 'delete' });
+    if (p.apply != null) perms.push({ authId: p.apply, action: 'apply' });
+    if (p.export != null) perms.push({ authId: p.export, action: 'export' });
+  }
+  for (const child of menu.children ?? []) {
     perms.push(...collectAllPermissions(child));
   }
   return perms;
@@ -314,7 +324,7 @@ export default function RoleCreatePage() {
                   const perm = allPermissions.find((p) => p.authId === authId);
                   return perm ? (
                     <Tag key={authId} color="cyan" className="text-xs m-0">
-                      {perm.description}
+                      {perm.action}
                     </Tag>
                   ) : null;
                 })}

@@ -9,7 +9,6 @@ import { useQueryClient } from '@tanstack/react-query';
 import type { BreadcrumbProps } from 'antd';
 import { toast } from '@/shared-util';
 import { useGetApps } from '../../features/iam/hooks/useAppQueries';
-import { permissionQueryKeys } from '../../features/iam/hooks/usePermissionQueries';
 import MenuCreateDrawer, { type MenuCreateDrawerRef } from '../../features/menu/components/MenuCreateDrawer';
 import MenuDetailForm from '../../features/menu/components/MenuDetailForm';
 import MenuTree from '../../features/menu/components/MenuTree';
@@ -28,6 +27,7 @@ export default function MenuManagement() {
   const queryClient = useQueryClient();
   const [selectedAppId, setSelectedAppId] = useState<string>('');
   const [selectedMenu, setSelectedMenu] = useState<Menu | null>(null);
+  const [selectedTreeAppId, setSelectedTreeAppId] = useState<string | null>(null);
   const drawerRef = useRef<MenuCreateDrawerRef>(null);
 
   // 데이터 조회
@@ -42,7 +42,6 @@ export default function MenuManagement() {
   // 메뉴 목록 무효화 헬퍼
   const invalidateMenus = () => {
     queryClient.invalidateQueries({ queryKey: menuQueryKeys.getMenus.queryKey });
-    queryClient.invalidateQueries({ queryKey: permissionQueryKeys.getGroupedPermissions.queryKey });
   };
 
   // 메뉴 생성
@@ -121,8 +120,19 @@ export default function MenuManagement() {
             selectedAppId={selectedAppId}
             onAppChange={setSelectedAppId}
             selectedMenuId={selectedMenu?.menuId ?? null}
-            onSelect={setSelectedMenu}
-            onAdd={() => drawerRef.current?.open()}
+            selectedTreeAppId={selectedTreeAppId}
+            onSelect={(menu) => {
+              setSelectedMenu(menu);
+              setSelectedTreeAppId(null);
+            }}
+            onTreeAppSelect={(appId) => {
+              setSelectedTreeAppId(appId);
+              setSelectedMenu(null);
+            }}
+            onAdd={() => {
+              const fallbackAppId = selectedMenu?.appId || selectedTreeAppId || selectedAppId || undefined;
+              drawerRef.current?.open(selectedMenu, fallbackAppId);
+            }}
           />
         </div>
 

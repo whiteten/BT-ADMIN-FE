@@ -1,15 +1,13 @@
 /**
  * 메뉴 상세/편집 폼
  * - 선택된 메뉴의 상세 정보 편집
- * - 권한 매핑 (체크박스)
  * - 저장/삭제/취소 버튼
  */
 
 import { useEffect, useMemo } from 'react';
-import { Button, Checkbox, Form, Input, InputNumber, Modal, Select, Switch } from 'antd';
+import { Button, Form, Input, InputNumber, Modal, Select, Switch } from 'antd';
 import { Trash2 } from 'lucide-react';
 import type { App } from '../../iam/api/appApi';
-import { useGetAuthList } from '../../iam/hooks/usePermissionQueries';
 import type { Menu, MenuUpsertRequest } from '../types/menu.types';
 
 interface MenuDetailFormProps {
@@ -22,8 +20,6 @@ interface MenuDetailFormProps {
 
 export default function MenuDetailForm({ menu, apps, onSave, onDelete, saving }: MenuDetailFormProps) {
   const [form] = Form.useForm<MenuUpsertRequest>();
-  const { data: allPermissions = [] } = useGetAuthList();
-  const watchedAppId = Form.useWatch('appId', form);
 
   // 메뉴 변경 시 폼 초기화
   useEffect(() => {
@@ -37,20 +33,8 @@ export default function MenuDetailForm({ menu, apps, onSave, onDelete, saving }:
       sortOrder: menu.sortOrder,
       featureFlag: menu.featureFlag ?? undefined,
       visible: menu.visible,
-      permissions: menu.permissions ?? [],
     });
   }, [menu, form]);
-
-  // 앱에 해당하는 권한만 필터 (앱 변경 시 동적 반영)
-  const permissionOptions = useMemo(() => {
-    const effectiveAppId = watchedAppId ?? menu.appId;
-    return allPermissions
-      .filter((p) => p.appId === effectiveAppId)
-      .map((p) => ({
-        label: `${p.authKey}${p.description ? ` - ${p.description}` : ''}`,
-        value: p.authKey,
-      }));
-  }, [allPermissions, watchedAppId, menu.appId]);
 
   const appOptions = useMemo(() => {
     return apps.map((a) => ({ label: a.appName, value: a.appId }));
@@ -59,9 +43,6 @@ export default function MenuDetailForm({ menu, apps, onSave, onDelete, saving }:
   const handleSubmit = async () => {
     try {
       const values = await form.validateFields();
-      // 현재 앱에 속하는 권한만 필터 (앱 전환 시 이전 앱 권한 누수 방지)
-      const validPermKeys = new Set(permissionOptions.map((o) => o.value));
-      values.permissions = (values.permissions ?? []).filter((p) => validPermKeys.has(p));
       onSave(menu.menuId, values);
     } catch {
       // validation error
@@ -103,7 +84,7 @@ export default function MenuDetailForm({ menu, apps, onSave, onDelete, saving }:
               </Form.Item>
 
               <Form.Item label="앱" name="appId" rules={[{ required: true, message: '앱을 선택해주세요' }]}>
-                <Select placeholder="앱 선택" options={appOptions} onChange={() => form.setFieldValue('permissions', [])} />
+                <Select placeholder="앱 선택" options={appOptions} />
               </Form.Item>
 
               <Form.Item label="라벨" name="label" rules={[{ required: true, message: '라벨을 입력해주세요' }]}>
@@ -136,38 +117,19 @@ export default function MenuDetailForm({ menu, apps, onSave, onDelete, saving }:
               </Form.Item>
             </div>
           </div>
-
-          {/* 필요 권한 */}
-          <div className="border border-gray-200 rounded-lg p-4 mb-4">
-            <h4 className="text-sm font-semibold text-gray-600 mb-3">필요 권한</h4>
-            <Form.Item name="permissions" noStyle>
-              <Checkbox.Group className="flex flex-col gap-1">
-                {permissionOptions.map((opt) => (
-                  <Checkbox key={opt.value} value={opt.value} className="!ml-0">
-                    <code className="text-xs bg-gray-100 px-1.5 py-0.5 rounded">{opt.label}</code>
-                  </Checkbox>
-                ))}
-              </Checkbox.Group>
-            </Form.Item>
-            {permissionOptions.length === 0 && <div className="text-sm text-gray-400">등록된 권한이 없습니다.</div>}
-          </div>
         </Form>
       </div>
 
       {/* 액션 버튼 */}
-      <div className="flex items-center justify-between pt-4 border-t border-gray-200">
-        <div>
-          {!menu.isSystem && (
-            <Button danger icon={<Trash2 className="size-4" />} onClick={handleDelete}>
-              삭제
-            </Button>
-          )}
-        </div>
-        <div className="flex gap-2">
-          <Button type="primary" onClick={handleSubmit} loading={saving}>
-            저장
+      <div className="flex items-center justify-center gap-2 pt-4 border-t border-gray-200">
+        {!menu.isSystem && (
+          <Button danger icon={<Trash2 className="size-4" />} onClick={handleDelete}>
+            삭제
           </Button>
-        </div>
+        )}
+        <Button type="primary" onClick={handleSubmit} loading={saving}>
+          저장
+        </Button>
       </div>
     </div>
   );

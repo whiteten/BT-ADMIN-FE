@@ -1,17 +1,17 @@
 /**
  * 메뉴 생성 Drawer
- * - 부모 메뉴 선택 (TreeSelect)
+ * - 트리에서 선택된 노드 기반 부모 메뉴 자동 결정
  * - 기본 정보 입력
- * - ref.open() / ref.close()
+ * - ref.open(selectedMenu, fallbackAppId) / ref.close()
  */
 
 import { forwardRef, useImperativeHandle, useMemo, useState } from 'react';
-import { Button, Col, Drawer, Form, Input, InputNumber, Row, Select, Switch, TreeSelect } from 'antd';
+import { Button, Col, Drawer, Form, Input, InputNumber, Row, Select, Switch } from 'antd';
 import type { App } from '../../iam/api/appApi';
 import type { Menu, MenuUpsertRequest } from '../types/menu.types';
 
 export interface MenuCreateDrawerRef {
-  open: () => void;
+  open: (selectedMenu?: Menu | null, fallbackAppId?: string) => void;
   close: () => void;
 }
 
@@ -22,53 +22,56 @@ interface MenuCreateDrawerProps {
   confirmLoading?: boolean;
 }
 
-interface TreeSelectNode {
-  value: number;
-  title: string;
-  children: TreeSelectNode[];
-}
-
-/** flat 메뉴 목록을 TreeSelect 구조로 변환 */
-function buildTreeSelectData(menus: Menu[]): TreeSelectNode[] {
-  const map = new Map<number, TreeSelectNode>();
-  const roots: TreeSelectNode[] = [];
-
-  for (const menu of menus) {
-    if (menu.type !== 'FOLDER') continue;
-    map.set(menu.menuId, {
-      value: menu.menuId,
-      title: menu.label,
-      children: [],
-    });
-  }
-
-  for (const menu of menus) {
-    if (menu.type !== 'FOLDER') continue;
-    const node = map.get(menu.menuId);
-    if (!node) continue;
-    const parent = menu.parentId ? map.get(menu.parentId) : null;
-    if (parent) {
-      parent.children.push(node);
-    } else {
-      roots.push(node);
-    }
-  }
-
-  return roots;
-}
-
 const MenuCreateDrawer = forwardRef<MenuCreateDrawerRef, MenuCreateDrawerProps>(({ menus, apps, onOk, confirmLoading }, ref) => {
   const [isOpen, setIsOpen] = useState(false);
+  const [parentMenu, setParentMenu] = useState<Menu | null>(null);
+  const [presetAppId, setPresetAppId] = useState<string | null>(null);
   const [form] = Form.useForm<MenuUpsertRequest>();
 
   const appOptions = useMemo(() => {
     return apps.map((a) => ({ label: a.appName, value: a.appId }));
   }, [apps]);
 
-  const treeSelectData = useMemo(() => buildTreeSelectData(menus), [menus]);
+  /** 선택된 메뉴 기반으로 부모 메뉴 결정: FOLDER면 그대로, PAGE면 그 부모 */
+  const resolveParent = (menu: Menu | null | undefined): Menu | null => {
+    if (!menu) return null;
+    if (menu.type === 'FOLDER') return menu;
+    if (menu.parentId) return menus.find((m) => m.menuId === menu.parentId) ?? null;
+    return null;
+  };
+
+  /** 부모 메뉴 표시 텍스트 */
+  const getParentDisplay = () => {
+    if (parentMenu) {
+      return `[${parentMenu.appName ?? parentMenu.appId}] ${parentMenu.label}`;
+    }
+    if (presetAppId) {
+      const app = apps.find((a) => a.appId === presetAppId);
+      return `[${app?.appName ?? presetAppId}] 최상위`;
+    }
+    return '최상위 (없음)';
+  };
 
   useImperativeHandle(ref, () => ({
-    open: () => setIsOpen(true),
+    open: (selected?: Menu | null, fallbackAppId?: string) => {
+      const resolved = resolveParent(selected);
+      setParentMenu(resolved);
+      form.resetFields();
+
+      if (resolved) {
+        // 부모 폴더가 결정됨 → parentId, appId 모두 부모에서 상속
+        setPresetAppId(null);
+        form.setFieldsValue({ parentId: resolved.menuId, appId: resolved.appId });
+      } else {
+        // 부모 없음 → 선택된 메뉴의 appId 또는 fallback appId 사용
+        const appId = selected?.appId ?? fallbackAppId ?? null;
+        setPresetAppId(appId);
+        if (appId) {
+          form.setFieldsValue({ appId });
+        }
+      }
+      setIsOpen(true);
+    },
     close: () => setIsOpen(false),
   }));
 
@@ -99,14 +102,17 @@ const MenuCreateDrawer = forwardRef<MenuCreateDrawerRef, MenuCreateDrawerProps>(
   return (
     <Drawer open={isOpen} onClose={handleClose} title="메뉴 추가" closable={{ placement: 'end' }} size={480} footer={footer} destroyOnHidden>
       <Form form={form} layout="vertical" initialValues={{ type: 'PAGE', visible: true, sortOrder: 0 }}>
-        <Form.Item label="부모 메뉴" name="parentId">
-          <TreeSelect placeholder="최상위 메뉴 (선택 안 함)" treeData={treeSelectData} treeDefaultExpandAll allowClear />
+        <Form.Item label="부모 메뉴">
+          <Input value={getParentDisplay()} disabled />
+        </Form.Item>
+        <Form.Item name="parentId" hidden>
+          <Input />
         </Form.Item>
 
         <Row gutter={16}>
           <Col span={12}>
             <Form.Item label="앱" name="appId" rules={[{ required: true, message: '앱을 선택해주세요' }]}>
-              <Select placeholder="앱 선택" options={appOptions} />
+              <Select placeholder="앱 선택" options={appOptions} disabled={!!parentMenu || !!presetAppId} />
             </Form.Item>
           </Col>
           <Col span={12}>

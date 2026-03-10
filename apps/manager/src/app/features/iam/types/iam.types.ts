@@ -16,12 +16,20 @@ export interface App {
 // 역할 마스터
 export type Role = SharedRole;
 
+// 액션별 권한 ID
+export interface ActionAuthIds {
+  read: number | null;
+  write: number | null;
+  delete: number | null;
+  apply: number | null;
+  export: number | null;
+}
+
 // 권한 마스터
 export interface Permission {
   authId: number;
   appId: string;
-  domain: string;
-  resource: string;
+  menuId: number;
   action: string;
   authKey: string;
   description?: string;
@@ -127,16 +135,6 @@ export interface RoleUpdateDatas {
   authIds?: number[];
 }
 
-// 권한 요약 정보 (메뉴별 권한 조회용)
-export interface PermissionSummary {
-  authId: number;
-  authKey: string;
-  description?: string;
-  domain: string;
-  resourceKey: string;
-  action: string;
-}
-
 // 메뉴별 권한 목록 (백엔드 응답 - 트리 구조)
 export interface MenuWithPermissions {
   menuId: number;
@@ -147,7 +145,7 @@ export interface MenuWithPermissions {
   appName: string;
   menuType: string;
   sortOrder: number;
-  permissions: PermissionSummary[];
+  permissions: ActionAuthIds;
   children: MenuWithPermissions[];
 }
 
@@ -169,8 +167,6 @@ export interface IamFilter {
 export interface PermissionFlat {
   authId: number;
   appId: string;
-  domain: string;
-  resourceKey: string;
   action: string;
   authKey: string;
   description?: string;
@@ -183,8 +179,8 @@ export interface PermissionFlat {
 // 권한 생성 요청
 export interface PermissionCreateRequest {
   appId: string;
-  domain: string;
-  resourceKey: string;
+  menuId: number;
+  menuKey: string;
   action: string;
   description?: string;
 }

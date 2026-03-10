@@ -16,7 +16,9 @@ interface MenuTreeProps {
   selectedAppId: string;
   onAppChange: (appId: string) => void;
   selectedMenuId: number | null;
+  selectedTreeAppId?: string | null;
   onSelect: (menu: Menu | null) => void;
+  onTreeAppSelect?: (appId: string | null) => void;
   onAdd: () => void;
 }
 
@@ -67,14 +69,13 @@ function buildTree(menus: Menu[]): MenuTreeNode[] {
       title: appName,
       children: buildMenuTree(appMenus),
       icon: <AppWindow className="size-4 text-green-600" />,
-      selectable: false,
     });
   }
 
   return result;
 }
 
-export default function MenuTree({ menus, apps, selectedAppId, onAppChange, selectedMenuId, onSelect, onAdd }: MenuTreeProps) {
+export default function MenuTree({ menus, apps, selectedAppId, onAppChange, selectedMenuId, selectedTreeAppId, onSelect, onTreeAppSelect, onAdd }: MenuTreeProps) {
   // 앱 필터 적용
   const filteredMenus = useMemo(() => {
     if (!selectedAppId) return menus;
@@ -88,13 +89,24 @@ export default function MenuTree({ menus, apps, selectedAppId, onAppChange, sele
   const handleSelect: TreeProps['onSelect'] = (selectedKeys) => {
     if (selectedKeys.length === 0) {
       onSelect(null);
+      onTreeAppSelect?.(null);
       return;
     }
     const key = selectedKeys[0];
-    if (typeof key === 'string') return; // 앱 그룹 노드 (selectable: false이지만 방어)
+    if (typeof key === 'string' && String(key).startsWith('app:')) {
+      // 앱 그룹 노드 선택
+      const appId = String(key).replace('app:', '');
+      onSelect(null);
+      onTreeAppSelect?.(appId);
+      return;
+    }
+    onTreeAppSelect?.(null);
     const found = menus.find((m) => m.menuId === key);
     onSelect(found ?? null);
   };
+
+  // 선택된 키: 메뉴 또는 앱 노드
+  const derivedSelectedKeys = selectedTreeAppId ? [`app:${selectedTreeAppId}`] : selectedMenuId ? [selectedMenuId] : [];
 
   return (
     <div className="flex flex-col gap-3 h-full">
@@ -109,7 +121,7 @@ export default function MenuTree({ menus, apps, selectedAppId, onAppChange, sele
       {/* 트리 */}
       <div className="flex-1 overflow-auto border border-gray-200 rounded-lg p-2">
         {treeData.length > 0 ? (
-          <Tree showIcon defaultExpandAll treeData={treeData} selectedKeys={selectedMenuId ? [selectedMenuId] : []} onSelect={handleSelect} className="menu-tree" />
+          <Tree showIcon defaultExpandAll treeData={treeData} selectedKeys={derivedSelectedKeys} onSelect={handleSelect} className="menu-tree" />
         ) : (
           <div className="flex items-center justify-center h-full text-gray-400 text-sm">메뉴가 없습니다</div>
         )}
