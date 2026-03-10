@@ -9,6 +9,7 @@ import { useGetBots } from '../../features/bot-config/hooks/useBotQueries';
 import BotDashboardToolbar from '../../features/dashboard/components/BotDashboardToolbar';
 import DialogIncompleteTopBarChart from '../../features/dashboard/components/DialogIncompleteTopBarChart';
 import DialogIncompleteTopGrid from '../../features/dashboard/components/DialogIncompleteTopGrid';
+import DialogSummaryGrid from '../../features/dashboard/components/DialogSummaryGrid';
 import DialogSummaryPieChart from '../../features/dashboard/components/DialogSummaryPieChart';
 import EntityTopBarChart from '../../features/dashboard/components/EntityTopBarChart';
 import EntityTopGrid from '../../features/dashboard/components/EntityTopGrid';
@@ -26,6 +27,7 @@ import KeywordTopGrid from '../../features/dashboard/components/KeywordTopGrid';
 import KeywordWordCloud from '../../features/dashboard/components/KeywordWordCloud';
 import OccupancyBarChart from '../../features/dashboard/components/OccupancyBarChart';
 import OccupancyGrid from '../../features/dashboard/components/OccupancyGrid';
+import ScenarioSummaryGrid from '../../features/dashboard/components/ScenarioSummaryGrid';
 import ScenarioSummaryPieChart from '../../features/dashboard/components/ScenarioSummaryPieChart';
 import SlotIncompleteTopBarChart from '../../features/dashboard/components/SlotIncompleteTopBarChart';
 import SlotIncompleteTopGrid from '../../features/dashboard/components/SlotIncompleteTopGrid';
@@ -33,6 +35,7 @@ import SlotRetryAvgTopBarChart from '../../features/dashboard/components/SlotRet
 import SlotRetryAvgTopGrid from '../../features/dashboard/components/SlotRetryAvgTopGrid';
 import SlotRetryDistTopBarChart from '../../features/dashboard/components/SlotRetryDistTopBarChart';
 import SlotRetryDistTopGrid from '../../features/dashboard/components/SlotRetryDistTopGrid';
+import SlotSummaryGrid from '../../features/dashboard/components/SlotSummaryGrid';
 import SlotSummaryPieChart from '../../features/dashboard/components/SlotSummaryPieChart';
 import { GRID_COLS, REFRESH_INTERVAL } from '../../features/dashboard/constants/dashboardConstants';
 import { DEFAULT_LAYOUT, useBotDashboardStore } from '../../features/dashboard/hooks/useBotDashboardStore';
@@ -73,18 +76,18 @@ const layoutRenderMapper: Record<string, LayoutRenderEntry> = {
   },
   scenarioSummary: {
     title: '봇 현황',
-    supportedModes: [DASHBOARD_VIEW.CHART],
-    render: (d) => <ScenarioSummaryPieChart data={d?.scenarioSummary} />,
+    supportedModes: [DASHBOARD_VIEW.CHART, DASHBOARD_VIEW.TABLE],
+    render: (d, vm) => (vm === DASHBOARD_VIEW.TABLE ? <ScenarioSummaryGrid data={d?.scenarioSummary} /> : <ScenarioSummaryPieChart data={d?.scenarioSummary} />),
   },
   dialogSummary: {
     title: '대화 현황',
-    supportedModes: [DASHBOARD_VIEW.CHART],
-    render: (d) => <DialogSummaryPieChart data={d?.dialogSummary} />,
+    supportedModes: [DASHBOARD_VIEW.CHART, DASHBOARD_VIEW.TABLE],
+    render: (d, vm) => (vm === DASHBOARD_VIEW.TABLE ? <DialogSummaryGrid data={d?.dialogSummary} /> : <DialogSummaryPieChart data={d?.dialogSummary} />),
   },
   slotSummary: {
     title: '슬롯 현황',
-    supportedModes: [DASHBOARD_VIEW.CHART],
-    render: (d) => <SlotSummaryPieChart data={d?.slotSummary} />,
+    supportedModes: [DASHBOARD_VIEW.CHART, DASHBOARD_VIEW.TABLE],
+    render: (d, vm) => (vm === DASHBOARD_VIEW.TABLE ? <SlotSummaryGrid data={d?.slotSummary} /> : <SlotSummaryPieChart data={d?.slotSummary} />),
   },
   dialogIncompleteTop: {
     title: '대화 미완결율 Top 10',
