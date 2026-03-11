@@ -3,27 +3,30 @@ import { AgGridReact } from 'ag-grid-react';
 import type { HourlyBusyTimeItem } from '../types/dashboard.types';
 import useAggridOptions from '@/libs/shared-ui/src/hooks/useAggridOptions';
 
-interface FlatHourlyBusyTimeRow {
-  serviceName: string;
+interface PivotedRow {
   hour: string;
-  sumBusyTime: number;
+  [serviceId: string]: number | string;
 }
 
-const columnDefs: ColDef<FlatHourlyBusyTimeRow>[] = [
-  { headerName: '시나리오명', field: 'serviceName' },
-  { headerName: '시간대', field: 'hour' },
-  { headerName: '점유시간', field: 'sumBusyTime', valueFormatter: (p) => (p.value != null ? `${p.value}초` : '') },
+const buildColumnDefs = (data: HourlyBusyTimeItem[]): ColDef<PivotedRow>[] => [
+  { headerName: '시간대', field: 'hour', pinned: 'left', maxWidth: 80 },
+  ...data.map((item) => ({
+    headerName: item.serviceName,
+    field: String(item.serviceId),
+    valueFormatter: (p: { value?: number }) => (p.value != null ? `${p.value}초` : ''),
+  })),
 ];
 
-const flattenData = (data?: HourlyBusyTimeItem[]): FlatHourlyBusyTimeRow[] => {
-  if (!data) return [];
-  return data.flatMap((item) =>
-    item.hourlyStats.map((stat) => ({
-      serviceName: item.serviceName,
-      hour: stat.hour,
-      sumBusyTime: stat.sumBusyTime,
-    })),
-  );
+const pivotData = (data?: HourlyBusyTimeItem[]): PivotedRow[] => {
+  if (!data?.length) return [];
+  const hours = data[0].hourlyStats;
+  return hours.map((_, hourIndex) => {
+    const row: PivotedRow = { hour: `${data[0].hourlyStats[hourIndex].hour}시` };
+    for (const item of data) {
+      row[String(item.serviceId)] = item.hourlyStats[hourIndex].sumBusyTime;
+    }
+    return row;
+  });
 };
 
 interface HourlyBusyTimeGridProps {
@@ -32,11 +35,12 @@ interface HourlyBusyTimeGridProps {
 
 export default function HourlyBusyTimeGrid({ data }: HourlyBusyTimeGridProps) {
   const { gridOptions } = useAggridOptions();
-  const rowData = flattenData(data);
+  const rowData = pivotData(data);
+  const columnDefs = buildColumnDefs(data ?? []);
 
   return (
     <div className="h-full w-full p-2">
-      <AgGridReact<FlatHourlyBusyTimeRow>
+      <AgGridReact<PivotedRow>
         rowData={rowData}
         columnDefs={columnDefs}
         gridOptions={gridOptions}

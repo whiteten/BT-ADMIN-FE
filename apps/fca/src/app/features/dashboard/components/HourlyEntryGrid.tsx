@@ -3,27 +3,30 @@ import { AgGridReact } from 'ag-grid-react';
 import type { HourlyEntryItem } from '../types/dashboard.types';
 import useAggridOptions from '@/libs/shared-ui/src/hooks/useAggridOptions';
 
-interface FlatHourlyEntryRow {
-  serviceName: string;
+interface PivotedRow {
   hour: string;
-  entryCnt: number;
+  [serviceId: string]: number | string;
 }
 
-const columnDefs: ColDef<FlatHourlyEntryRow>[] = [
-  { headerName: '시나리오명', field: 'serviceName' },
-  { headerName: '시간대', field: 'hour' },
-  { headerName: '진입수', field: 'entryCnt', valueFormatter: (p) => (p.value != null ? `${p.value}건` : '') },
+const buildColumnDefs = (data: HourlyEntryItem[]): ColDef<PivotedRow>[] => [
+  { headerName: '시간대', field: 'hour', pinned: 'left', maxWidth: 80 },
+  ...data.map((item) => ({
+    headerName: item.serviceName,
+    field: String(item.serviceId),
+    valueFormatter: (p: { value?: number }) => (p.value != null ? `${p.value}건` : ''),
+  })),
 ];
 
-const flattenData = (data?: HourlyEntryItem[]): FlatHourlyEntryRow[] => {
-  if (!data) return [];
-  return data.flatMap((item) =>
-    item.hourlyStats.map((stat) => ({
-      serviceName: item.serviceName,
-      hour: stat.hour,
-      entryCnt: stat.entryCnt,
-    })),
-  );
+const pivotData = (data?: HourlyEntryItem[]): PivotedRow[] => {
+  if (!data?.length) return [];
+  const hours = data[0].hourlyStats;
+  return hours.map((_, hourIndex) => {
+    const row: PivotedRow = { hour: `${data[0].hourlyStats[hourIndex].hour}시` };
+    for (const item of data) {
+      row[String(item.serviceId)] = item.hourlyStats[hourIndex].entryCnt;
+    }
+    return row;
+  });
 };
 
 interface HourlyEntryGridProps {
@@ -32,11 +35,12 @@ interface HourlyEntryGridProps {
 
 export default function HourlyEntryGrid({ data }: HourlyEntryGridProps) {
   const { gridOptions } = useAggridOptions();
-  const rowData = flattenData(data);
+  const rowData = pivotData(data);
+  const columnDefs = buildColumnDefs(data ?? []);
 
   return (
     <div className="h-full w-full p-2">
-      <AgGridReact<FlatHourlyEntryRow>
+      <AgGridReact<PivotedRow>
         rowData={rowData}
         columnDefs={columnDefs}
         gridOptions={gridOptions}
