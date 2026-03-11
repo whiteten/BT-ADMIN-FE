@@ -199,7 +199,10 @@ export default function BotDashboard() {
   const { width, containerRef, mounted } = useContainerWidth();
 
   const [isEditMode, setIsEditMode] = useState(false);
-  const layoutFilterOptions = DEFAULT_LAYOUT.map((item) => ({ label: layoutRenderMapper[item.i as keyof typeof layoutRenderMapper]?.title ?? item.i, value: item.i }));
+  const layoutFilterOptions = DEFAULT_LAYOUT.filter((item) => item.i in layoutRenderMapper).map((item) => ({
+    label: layoutRenderMapper[item.i as keyof typeof layoutRenderMapper]?.title ?? item.i,
+    value: item.i,
+  }));
   const storedLayoutIds = new Set(storedLayout.map((item) => item.i));
   const [selectedLayoutFilterItems, setSelectedLayoutFilterItems] = useState<Option[]>(() => layoutFilterOptions.filter((opt) => storedLayoutIds.has(opt.value)));
   const [draftLayout, setDraftLayout] = useState<LayoutItem[]>(() => [...storedLayout]);
@@ -278,6 +281,7 @@ export default function BotDashboard() {
           >
             {displayLayout.map((item) => {
               const mapEntry = layoutRenderMapper[item.i as keyof typeof layoutRenderMapper];
+              if (!mapEntry) return null;
               return (
                 <div key={item.i} className="w-full h-full">
                   <DashboardCardItem layoutKey={item.i} mapEntry={mapEntry} data={data} isLoading={isLoading} />
