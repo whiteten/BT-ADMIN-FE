@@ -55,94 +55,112 @@ const breadcrumb: BreadcrumbProps['items'] = [
 interface LayoutRenderEntry {
   title: string;
   supportedModes?: DashboardViewMode[];
-  render?: (data?: BotDashboardResponse, viewMode?: DashboardViewMode) => React.ReactNode;
+  renderChart?: (data?: BotDashboardResponse) => React.ReactNode;
+  renderTable?: (data?: BotDashboardResponse) => React.ReactNode;
 }
 
 const layoutRenderMapper: Record<string, LayoutRenderEntry> = {
   serviceOccupancy: {
     title: '봇 점유 현황',
     supportedModes: [DASHBOARD_VIEW.CHART, DASHBOARD_VIEW.TABLE],
-    render: (d, vm) => (vm === DASHBOARD_VIEW.TABLE ? <OccupancyGrid data={d?.serviceOccupancy} /> : <OccupancyBarChart data={d?.serviceOccupancy} />),
+    renderChart: (d) => <OccupancyBarChart data={d?.serviceOccupancy} />,
+    renderTable: (d) => <OccupancyGrid data={d?.serviceOccupancy} />,
   },
   dialogOccupancy: {
     title: '대화 점유 현황',
     supportedModes: [DASHBOARD_VIEW.CHART, DASHBOARD_VIEW.TABLE],
-    render: (d, vm) => (vm === DASHBOARD_VIEW.TABLE ? <OccupancyGrid data={d?.dialogOccupancy} /> : <OccupancyBarChart data={d?.dialogOccupancy} />),
+    renderChart: (d) => <OccupancyBarChart data={d?.dialogOccupancy} />,
+    renderTable: (d) => <OccupancyGrid data={d?.dialogOccupancy} />,
   },
   slotOccupancy: {
     title: '슬롯 점유 현황',
     supportedModes: [DASHBOARD_VIEW.CHART, DASHBOARD_VIEW.TABLE],
-    render: (d, vm) => (vm === DASHBOARD_VIEW.TABLE ? <OccupancyGrid data={d?.slotOccupancy} /> : <OccupancyBarChart data={d?.slotOccupancy} />),
+    renderChart: (d) => <OccupancyBarChart data={d?.slotOccupancy} />,
+    renderTable: (d) => <OccupancyGrid data={d?.slotOccupancy} />,
   },
   scenarioSummary: {
     title: '봇 현황',
     supportedModes: [DASHBOARD_VIEW.CHART, DASHBOARD_VIEW.TABLE],
-    render: (d, vm) => (vm === DASHBOARD_VIEW.TABLE ? <ScenarioSummaryGrid data={d?.scenarioSummary} /> : <ScenarioSummaryPieChart data={d?.scenarioSummary} />),
+    renderChart: (d) => <ScenarioSummaryPieChart data={d?.scenarioSummary} />,
+    renderTable: (d) => <ScenarioSummaryGrid data={d?.scenarioSummary} />,
   },
   dialogSummary: {
     title: '대화 현황',
     supportedModes: [DASHBOARD_VIEW.CHART, DASHBOARD_VIEW.TABLE],
-    render: (d, vm) => (vm === DASHBOARD_VIEW.TABLE ? <DialogSummaryGrid data={d?.dialogSummary} /> : <DialogSummaryPieChart data={d?.dialogSummary} />),
+    renderChart: (d) => <DialogSummaryPieChart data={d?.dialogSummary} />,
+    renderTable: (d) => <DialogSummaryGrid data={d?.dialogSummary} />,
   },
   slotSummary: {
     title: '슬롯 현황',
     supportedModes: [DASHBOARD_VIEW.CHART, DASHBOARD_VIEW.TABLE],
-    render: (d, vm) => (vm === DASHBOARD_VIEW.TABLE ? <SlotSummaryGrid data={d?.slotSummary} /> : <SlotSummaryPieChart data={d?.slotSummary} />),
+    renderChart: (d) => <SlotSummaryPieChart data={d?.slotSummary} />,
+    renderTable: (d) => <SlotSummaryGrid data={d?.slotSummary} />,
   },
   dialogIncompleteTop: {
     title: '대화 미완결율 Top 10',
     supportedModes: [DASHBOARD_VIEW.CHART, DASHBOARD_VIEW.TABLE],
-    render: (d, vm) => (vm === DASHBOARD_VIEW.TABLE ? <DialogIncompleteTopGrid data={d?.dialogIncompleteTop} /> : <DialogIncompleteTopBarChart data={d?.dialogIncompleteTop} />),
+    renderChart: (d) => <DialogIncompleteTopBarChart data={d?.dialogIncompleteTop} />,
+    renderTable: (d) => <DialogIncompleteTopGrid data={d?.dialogIncompleteTop} />,
   },
   slotIncompleteTop: {
     title: '슬롯 미완결율 Top 10',
     supportedModes: [DASHBOARD_VIEW.CHART, DASHBOARD_VIEW.TABLE],
-    render: (d, vm) => (vm === DASHBOARD_VIEW.TABLE ? <SlotIncompleteTopGrid data={d?.slotIncompleteTop} /> : <SlotIncompleteTopBarChart data={d?.slotIncompleteTop} />),
+    renderChart: (d) => <SlotIncompleteTopBarChart data={d?.slotIncompleteTop} />,
+    renderTable: (d) => <SlotIncompleteTopGrid data={d?.slotIncompleteTop} />,
   },
   slotRetryAvgTop: {
     title: '슬롯 평균 재시도 횟수 Top 10',
     supportedModes: [DASHBOARD_VIEW.CHART, DASHBOARD_VIEW.TABLE],
-    render: (d, vm) => (vm === DASHBOARD_VIEW.TABLE ? <SlotRetryAvgTopGrid data={d?.slotRetryAvgTop} /> : <SlotRetryAvgTopBarChart data={d?.slotRetryAvgTop} />),
+    renderChart: (d) => <SlotRetryAvgTopBarChart data={d?.slotRetryAvgTop} />,
+    renderTable: (d) => <SlotRetryAvgTopGrid data={d?.slotRetryAvgTop} />,
   },
   slotRetryDistTop: {
     title: '슬롯 완결 건 재시도 분포 TOP 10',
     supportedModes: [DASHBOARD_VIEW.CHART, DASHBOARD_VIEW.TABLE],
-    render: (d, vm) => (vm === DASHBOARD_VIEW.TABLE ? <SlotRetryDistTopGrid data={d?.slotRetryDistTop} /> : <SlotRetryDistTopBarChart data={d?.slotRetryDistTop} />),
+    renderChart: (d) => <SlotRetryDistTopBarChart data={d?.slotRetryDistTop} />,
+    renderTable: (d) => <SlotRetryDistTopGrid data={d?.slotRetryDistTop} />,
   },
   keywordTop: {
     title: '키워드 현황',
     supportedModes: [DASHBOARD_VIEW.CHART, DASHBOARD_VIEW.TABLE],
-    render: (d, vm) => (vm === DASHBOARD_VIEW.TABLE ? <KeywordTopGrid data={d?.keywordTop} /> : <KeywordWordCloud data={d?.keywordTop} />),
+    renderChart: (d) => <KeywordWordCloud data={d?.keywordTop} />,
+    renderTable: (d) => <KeywordTopGrid data={d?.keywordTop} />,
   },
   entityTop: {
     title: '개체 Top 10',
     supportedModes: [DASHBOARD_VIEW.CHART, DASHBOARD_VIEW.TABLE],
-    render: (d, vm) => (vm === DASHBOARD_VIEW.TABLE ? <EntityTopGrid data={d?.entityTop} /> : <EntityTopBarChart data={d?.entityTop} />),
+    renderChart: (d) => <EntityTopBarChart data={d?.entityTop} />,
+    renderTable: (d) => <EntityTopGrid data={d?.entityTop} />,
   },
   intentTop: {
     title: '의도 Top 10',
     supportedModes: [DASHBOARD_VIEW.CHART, DASHBOARD_VIEW.TABLE],
-    render: (d, vm) => (vm === DASHBOARD_VIEW.TABLE ? <IntentTopGrid data={d?.intentTop} /> : <IntentTopBarChart data={d?.intentTop} />),
+    renderChart: (d) => <IntentTopBarChart data={d?.intentTop} />,
+    renderTable: (d) => <IntentTopGrid data={d?.intentTop} />,
   },
   intentCheckFailTop: {
     title: '의도 Check/Fail Top 10',
     supportedModes: [DASHBOARD_VIEW.CHART, DASHBOARD_VIEW.TABLE],
-    render: (d, vm) => (vm === DASHBOARD_VIEW.TABLE ? <IntentCheckFailTopGrid data={d?.intentCheckFailTop} /> : <IntentCheckFailTopBarChart data={d?.intentCheckFailTop} />),
+    renderChart: (d) => <IntentCheckFailTopBarChart data={d?.intentCheckFailTop} />,
+    renderTable: (d) => <IntentCheckFailTopGrid data={d?.intentCheckFailTop} />,
   },
   intentConfidenceTop: {
     title: '의도 평균 신뢰도 Top 10',
     supportedModes: [DASHBOARD_VIEW.CHART, DASHBOARD_VIEW.TABLE],
-    render: (d, vm) => (vm === DASHBOARD_VIEW.TABLE ? <IntentConfidenceTopGrid data={d?.intentConfidenceTop} /> : <IntentConfidenceTopBarChart data={d?.intentConfidenceTop} />),
+    renderChart: (d) => <IntentConfidenceTopBarChart data={d?.intentConfidenceTop} />,
+    renderTable: (d) => <IntentConfidenceTopGrid data={d?.intentConfidenceTop} />,
   },
   hourlyEntry: {
     title: '시간대별 봇 진입 현황',
     supportedModes: [DASHBOARD_VIEW.CHART, DASHBOARD_VIEW.TABLE],
-    render: (d, vm) => (vm === DASHBOARD_VIEW.TABLE ? <HourlyEntryGrid data={d?.hourlyEntry} /> : <HourlyEntryLineChart data={d?.hourlyEntry} />),
+    renderChart: (d) => <HourlyEntryLineChart data={d?.hourlyEntry} />,
+    renderTable: (d) => <HourlyEntryGrid data={d?.hourlyEntry} />,
   },
   hourlyBusyTime: {
     title: '시간대별 봇 점유 현황',
     supportedModes: [DASHBOARD_VIEW.CHART, DASHBOARD_VIEW.TABLE],
-    render: (d, vm) => (vm === DASHBOARD_VIEW.TABLE ? <HourlyBusyTimeGrid data={d?.hourlyBusyTime} /> : <HourlyBusyTimeLineChart data={d?.hourlyBusyTime} />),
+    renderChart: (d) => <HourlyBusyTimeLineChart data={d?.hourlyBusyTime} />,
+    renderTable: (d) => <HourlyBusyTimeGrid data={d?.hourlyBusyTime} />,
   },
 };
 
@@ -155,6 +173,7 @@ interface DashboardCardItemProps {
 
 function DashboardCardItem({ layoutKey, mapEntry, data, isLoading }: DashboardCardItemProps) {
   const supportedModes = mapEntry.supportedModes ?? [DASHBOARD_VIEW.CHART];
+  const hasMultipleModes = supportedModes.length >= 2;
   const { viewMode, extra } = useDashboardViewMode(supportedModes);
 
   return (
@@ -169,8 +188,17 @@ function DashboardCardItem({ layoutKey, mapEntry, data, isLoading }: DashboardCa
         <div className="w-full h-full flex items-center justify-center">
           <FallbackSpinner />
         </div>
+      ) : hasMultipleModes ? (
+        <div className="relative h-full">
+          <div className="absolute inset-0" style={{ visibility: viewMode === DASHBOARD_VIEW.CHART ? 'visible' : 'hidden' }}>
+            {mapEntry.renderChart?.(data)}
+          </div>
+          <div className="absolute inset-0" style={{ visibility: viewMode === DASHBOARD_VIEW.TABLE ? 'visible' : 'hidden' }}>
+            {mapEntry.renderTable?.(data)}
+          </div>
+        </div>
       ) : (
-        mapEntry.render?.(data, viewMode)
+        mapEntry.renderChart?.(data)
       )}
     </Card>
   );
