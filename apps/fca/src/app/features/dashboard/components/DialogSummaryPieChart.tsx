@@ -22,7 +22,7 @@ const createChartOption = (data: DialogSummary): EChartsOption => {
     legend: {
       orient: 'horizontal',
       left: 'center',
-      bottom: '12%',
+      top: '75%',
       itemGap: 13,
       icon: 'roundRect',
       selectedMode: false,
@@ -36,7 +36,7 @@ const createChartOption = (data: DialogSummary): EChartsOption => {
       {
         type: 'pie',
         radius: ['40%', '80%'],
-        center: ['50%', '60%'],
+        center: ['50%', '65%'],
         startAngle: 180,
         endAngle: 360,
         avoidLabelOverlap: false,
