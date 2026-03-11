@@ -12,7 +12,7 @@ interface FlatHourlyBusyTimeRow {
 const columnDefs: ColDef<FlatHourlyBusyTimeRow>[] = [
   { headerName: '시나리오명', field: 'serviceName' },
   { headerName: '시간대', field: 'hour' },
-  { headerName: '점유시간 (초)', field: 'sumBusyTime' },
+  { headerName: '점유시간', field: 'sumBusyTime', valueFormatter: (p) => (p.value != null ? `${p.value}초` : '') },
 ];
 
 const flattenData = (data?: HourlyBusyTimeItem[]): FlatHourlyBusyTimeRow[] => {

@@ -6,7 +6,7 @@ import useAggridOptions from '@/libs/shared-ui/src/hooks/useAggridOptions';
 const columnDefs: ColDef<KeywordTopItem>[] = [
   { headerName: '순위', field: 'rank', maxWidth: 80 },
   { headerName: '키워드', field: 'keyword' },
-  { headerName: '검출 횟수', field: 'detectCnt' },
+  { headerName: '검출 횟수', field: 'detectCnt', valueFormatter: (p) => (p.value != null ? `${p.value}건` : '') },
 ];
 
 interface KeywordTopGridProps {

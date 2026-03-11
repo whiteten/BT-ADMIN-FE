@@ -5,7 +5,7 @@ import useAggridOptions from '@/libs/shared-ui/src/hooks/useAggridOptions';
 
 const columnDefs: ColDef<OccupancyItem>[] = [
   { headerName: '명칭', field: 'key' },
-  { headerName: '실시간 콜수', field: 'callCount' },
+  { headerName: '실시간 콜수', field: 'callCount', valueFormatter: (p) => (p.value != null ? `${p.value}건` : '') },
 ];
 
 interface OccupancyGridProps {

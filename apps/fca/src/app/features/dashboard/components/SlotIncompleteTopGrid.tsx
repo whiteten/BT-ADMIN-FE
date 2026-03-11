@@ -8,11 +8,11 @@ const columnDefs: ColDef<SlotIncompleteTopItem>[] = [
   { headerName: '시나리오명', field: 'serviceName' },
   { headerName: '대화명', field: 'dialogName' },
   { headerName: '슬롯명', field: 'slotName' },
-  { headerName: '진입수', field: 'entryCnt' },
-  { headerName: '완결수', field: 'completeCnt' },
-  { headerName: '완결률 (%)', field: 'completeRate' },
-  { headerName: '미완결수', field: 'incompleteCnt' },
-  { headerName: '미완결률 (%)', field: 'incompleteRate' },
+  { headerName: '진입수', field: 'entryCnt', valueFormatter: (p) => (p.value != null ? `${p.value}건` : '') },
+  { headerName: '완결수', field: 'completeCnt', valueFormatter: (p) => (p.value != null ? `${p.value}건` : '') },
+  { headerName: '완결률', field: 'completeRate', valueFormatter: (p) => (p.value != null ? `${p.value}%` : '') },
+  { headerName: '미완결수', field: 'incompleteCnt', valueFormatter: (p) => (p.value != null ? `${p.value}건` : '') },
+  { headerName: '미완결률', field: 'incompleteRate', valueFormatter: (p) => (p.value != null ? `${p.value}%` : '') },
 ];
 
 interface SlotIncompleteTopGridProps {

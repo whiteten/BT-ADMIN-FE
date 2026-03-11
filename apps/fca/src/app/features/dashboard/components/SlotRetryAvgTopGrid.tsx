@@ -8,12 +8,12 @@ const columnDefs: ColDef<SlotRetryAvgTopItem>[] = [
   { headerName: '시나리오명', field: 'serviceName' },
   { headerName: '대화명', field: 'dialogName' },
   { headerName: '슬롯명', field: 'slotName' },
-  { headerName: '진입수', field: 'entryCnt' },
-  { headerName: '완결수', field: 'completeCnt' },
-  { headerName: '평균 재시도', field: 'avgRetryCount' },
-  { headerName: '1회이하 완결수', field: 'oneTimeCompleteCnt' },
-  { headerName: '2회 완결수', field: 'twoTimeCompleteCnt' },
-  { headerName: '3회이상 완결수', field: 'threeOrMoreCompleteCnt' },
+  { headerName: '진입수', field: 'entryCnt', valueFormatter: (p) => (p.value != null ? `${p.value}건` : '') },
+  { headerName: '완결수', field: 'completeCnt', valueFormatter: (p) => (p.value != null ? `${p.value}건` : '') },
+  { headerName: '평균 재시도', field: 'avgRetryCount', valueFormatter: (p) => (p.value != null ? `${p.value}회` : '') },
+  { headerName: '1회이하 완결수', field: 'oneTimeCompleteCnt', valueFormatter: (p) => (p.value != null ? `${p.value}건` : '') },
+  { headerName: '2회 완결수', field: 'twoTimeCompleteCnt', valueFormatter: (p) => (p.value != null ? `${p.value}건` : '') },
+  { headerName: '3회이상 완결수', field: 'threeOrMoreCompleteCnt', valueFormatter: (p) => (p.value != null ? `${p.value}건` : '') },
 ];
 
 interface SlotRetryAvgTopGridProps {

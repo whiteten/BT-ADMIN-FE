@@ -8,11 +8,11 @@ const columnDefs: ColDef<IntentConfidenceTopItem>[] = [
   { headerName: '시나리오명', field: 'serviceName' },
   { headerName: '모델명', field: 'modelName' },
   { headerName: '인텐트명', field: 'intent' },
-  { headerName: '인식수', field: 'detectCnt' },
-  { headerName: '평균 신뢰도', field: 'avgConfidence' },
-  { headerName: 'Pass 비율 (%)', field: 'passRate' },
-  { headerName: 'Check 비율 (%)', field: 'checkRate' },
-  { headerName: 'Fail 비율 (%)', field: 'failRate' },
+  { headerName: '인식수', field: 'detectCnt', valueFormatter: (p) => (p.value != null ? `${p.value}건` : '') },
+  { headerName: '평균 신뢰도', field: 'avgConfidence', valueFormatter: (p) => (p.value != null ? `${p.value}%` : '') },
+  { headerName: 'Pass 비율', field: 'passRate', valueFormatter: (p) => (p.value != null ? `${p.value}%` : '') },
+  { headerName: 'Check 비율', field: 'checkRate', valueFormatter: (p) => (p.value != null ? `${p.value}%` : '') },
+  { headerName: 'Fail 비율', field: 'failRate', valueFormatter: (p) => (p.value != null ? `${p.value}%` : '') },
 ];
 
 interface IntentConfidenceTopGridProps {

@@ -12,7 +12,7 @@ interface FlatHourlyEntryRow {
 const columnDefs: ColDef<FlatHourlyEntryRow>[] = [
   { headerName: '시나리오명', field: 'serviceName' },
   { headerName: '시간대', field: 'hour' },
-  { headerName: '진입수', field: 'entryCnt' },
+  { headerName: '진입수', field: 'entryCnt', valueFormatter: (p) => (p.value != null ? `${p.value}건` : '') },
 ];
 
 const flattenData = (data?: HourlyEntryItem[]): FlatHourlyEntryRow[] => {

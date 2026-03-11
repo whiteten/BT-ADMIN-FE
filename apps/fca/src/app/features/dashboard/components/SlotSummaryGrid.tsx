@@ -11,8 +11,8 @@ interface SummaryRow {
 
 const columnDefs: ColDef<SummaryRow>[] = [
   { headerName: '구분', field: 'category' },
-  { headerName: '건수', field: 'count' },
-  { headerName: '비율(%)', field: 'rate' },
+  { headerName: '건수', field: 'count', valueFormatter: (p) => (p.value != null ? `${p.value}건` : '') },
+  { headerName: '비율', field: 'rate', valueFormatter: (p) => (p.value != null ? `${p.value}%` : '') },
 ];
 
 const toRows = (data: SlotSummary): SummaryRow[] => [
