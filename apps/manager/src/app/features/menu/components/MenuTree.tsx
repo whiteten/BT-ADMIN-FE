@@ -106,6 +106,7 @@ export default function MenuTree({ menus, apps, selectedAppId, onAppChange, sele
   };
 
   // 선택된 키: 메뉴 또는 앱 노드
+
   const derivedSelectedKeys = selectedTreeAppId ? [`app:${selectedTreeAppId}`] : selectedMenuId ? [selectedMenuId] : [];
 
   return (

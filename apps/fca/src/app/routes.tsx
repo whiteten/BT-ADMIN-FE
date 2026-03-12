@@ -22,6 +22,7 @@ const SlotStatistics = React.lazy(() => import('./pages/statistics/call-bot/Slot
 const IntentStatistics = React.lazy(() => import('./pages/statistics/nlu/IntentStatistics'));
 const EntityStatistics = React.lazy(() => import('./pages/statistics/nlu/EntityStatistics'));
 const KeywordStatistics = React.lazy(() => import('./pages/statistics/nlu/KeywordStatistics'));
+const BotTracking = React.lazy(() => import('./pages/tracking/BotTracking'));
 const BotDashboard = React.lazy(() => import('./pages/dashboard/BotDashboard'));
 
 const sharedModelRoutes = [
@@ -109,6 +110,14 @@ export const routes = [
               },
             ],
           },
+        ],
+      },
+      {
+        path: 'tracking',
+        element: <Outlet />,
+        children: [
+          { index: true, element: <Navigate to="realtime" replace /> },
+          { path: 'realtime', element: <BotTracking /> },
         ],
       },
       {

@@ -1,4 +1,4 @@
-import { Bot } from 'lucide-react';
+import { Activity, Bot } from 'lucide-react';
 import { IconMenuBotCommon, IconMenuBotConfig, IconMenuDashboard, IconMenuMain, IconMenuStatistics } from '@/components/custom/Icons';
 
 const appId = 'fca';
@@ -63,9 +63,25 @@ const menuConfig = {
       ],
     },
     {
+      menuId: 55,
+      label: '트레킹',
+      index: 3,
+      hide: false,
+      icon: Activity,
+      children: [
+        {
+          menuId: 56,
+          label: '실시간 봇 트래킹',
+          path: 'tracking/realtime',
+          index: 0,
+          hide: false,
+        },
+      ],
+    },
+    {
       menuId: 4,
       label: '대시보드',
-      index: 3,
+      index: 4,
       hide: false,
       icon: IconMenuDashboard,
       children: [
@@ -81,7 +97,7 @@ const menuConfig = {
     {
       menuId: 5,
       label: '통계',
-      index: 4,
+      index: 5,
       hide: false,
       icon: IconMenuStatistics,
       children: [
