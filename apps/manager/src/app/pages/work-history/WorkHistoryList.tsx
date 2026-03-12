@@ -1,11 +1,12 @@
 import { useCallback, useMemo, useRef, useState } from 'react';
+import { useQueryClient } from '@tanstack/react-query';
 import type { ColDef, ICellRendererParams, RowDoubleClickedEvent } from 'ag-grid-community';
 import { AgGridReact } from 'ag-grid-react';
 import { Button, DatePicker, Input, Select, TimePicker } from 'antd';
 import dayjs from 'dayjs';
 import { Database, Search } from 'lucide-react';
 import { WorkHistoryDetailDrawer, type WorkHistoryDetailDrawerRef } from './WorkHistoryDetailDrawer';
-import { useWorkHistoryList } from '../../features/workHistory/hooks/useWorkHistoryQueries';
+import { useWorkHistoryList, workHistoryQueryKeys } from '../../features/workHistory/hooks/useWorkHistoryQueries';
 import type { WorkHistoryListItem, WorkHistoryListParams } from '../../features/workHistory/types/workHistory.types';
 import { FallbackSpinner } from '@/components/custom/FallbackSpinner';
 import NoData from '@/components/custom/NoData';
@@ -58,6 +59,7 @@ function IdsBadge() {
 }
 
 export default function WorkHistoryList() {
+  const queryClient = useQueryClient();
   const { gridOptions } = useAggridOptions();
   const drawerRef = useRef<WorkHistoryDetailDrawerRef>(null);
 
@@ -88,8 +90,7 @@ export default function WorkHistoryList() {
 
   // 검색 버튼 핸들러
   const handleSearch = useCallback(() => {
-    setCurrentPage(0);
-    setParams({
+    const newParams: WorkHistoryListParams = {
       fromDate: selectedDate.format('YYYY-MM-DD'),
       fromTime: fromTime.format('HH:mm'),
       toDate: selectedDate.format('YYYY-MM-DD'),
@@ -99,8 +100,11 @@ export default function WorkHistoryList() {
       userName: userSearch || undefined,
       page: 0,
       size: PAGE_SIZE,
-    });
-  }, [selectedDate, fromTime, toTime, statusFilter, methodFilter, userSearch]);
+    };
+    setCurrentPage(0);
+    queryClient.invalidateQueries({ queryKey: workHistoryQueryKeys.list(params).queryKey });
+    setParams(newParams);
+  }, [selectedDate, fromTime, toTime, statusFilter, methodFilter, userSearch, params, queryClient]);
 
   // 페이지 변경 핸들러
   const handlePageChange = useCallback((newPage: number) => {
