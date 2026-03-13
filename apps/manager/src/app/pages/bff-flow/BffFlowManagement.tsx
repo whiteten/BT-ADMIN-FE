@@ -1,16 +1,15 @@
 /**
- * API Flow 관리 페이지
- * - 좌측: Flow 리스트 (검색)
- * - 우측: Flow 생성/상세/편집 폼
+ * API 경로 (BFF Flow) 관리 페이지
+ * - 좌측: Flow 리스트 (검색 + 추가)
+ * - 우측: Flow 생성/상세 (탭 구조)
  */
 
-import { useState } from 'react';
-import { useQueryClient } from '@tanstack/react-query';
+import { useRef, useState } from 'react';
 import type { BreadcrumbProps } from 'antd';
 import { toast } from '@/shared-util';
 import FlowDetailForm from '../../features/bff-flow/components/FlowDetailForm';
 import FlowList from '../../features/bff-flow/components/FlowList';
-import { bffFlowQueryKeys, useDeleteFlow, useGetFlows, useSaveFlow } from '../../features/bff-flow/hooks/useBffFlowQueries';
+import { useDeleteFlow, useGetFlows, useSaveFlow } from '../../features/bff-flow/hooks/useBffFlowQueries';
 import type { BffFlow, FlowSpec } from '../../features/bff-flow/types/bffFlow.types';
 import { FallbackSpinner } from '@/components/custom/FallbackSpinner';
 import NoData from '@/components/custom/NoData';
@@ -23,22 +22,18 @@ const breadcrumb: BreadcrumbProps['items'] = [
 ];
 
 export default function BffFlowManagement() {
-  const queryClient = useQueryClient();
   const [selectedFlow, setSelectedFlow] = useState<BffFlow | null>(null);
   const [isCreating, setIsCreating] = useState(false);
+  // onSave 호출 시점의 isCreating 값을 onSuccess 콜백에서 참조하기 위해 ref 사용
+  const isCreatingRef = useRef(false);
 
   const { data: flows = [], isLoading } = useGetFlows();
 
-  const invalidateFlows = () => {
-    queryClient.invalidateQueries({ queryKey: bffFlowQueryKeys.getFlows.queryKey });
-  };
-
-  // Flow 저장
+  // Flow 저장 (생성 및 수정 공통) — useSaveFlow 내부에서 BFF 리프레시 + 목록 캐시 무효화 처리
   const saveFlowMutation = useSaveFlow({
     mutationOptions: {
       onSuccess: (saved) => {
-        toast.success('Flow가 저장되었습니다');
-        invalidateFlows();
+        toast.success(isCreatingRef.current ? 'Flow가 생성되었습니다' : '저장되었습니다');
         setIsCreating(false);
         if (saved) {
           setSelectedFlow(saved);
@@ -47,18 +42,18 @@ export default function BffFlowManagement() {
     },
   });
 
-  // Flow 삭제
+  // Flow 삭제 — useDeleteFlow 내부에서 BFF 리프레시 + 목록 캐시 무효화 처리
   const deleteFlowMutation = useDeleteFlow({
     mutationOptions: {
       onSuccess: () => {
         toast.success('Flow가 삭제되었습니다');
         setSelectedFlow(null);
-        invalidateFlows();
       },
     },
   });
 
   const handleSave = (flowId: string, spec: FlowSpec) => {
+    isCreatingRef.current = isCreating;
     saveFlowMutation.mutate({ flowId, spec });
   };
 
@@ -88,24 +83,25 @@ export default function BffFlowManagement() {
   }
 
   const showForm = selectedFlow !== null || isCreating;
+  // flow가 바뀔 때 FlowDetailForm을 리마운트해 탭 상태(활성 탭)를 초기화
+  const formKey = selectedFlow?.flowId ?? (isCreating ? '__new__' : '');
 
   return (
     <div className="flex flex-col gap-4 w-full h-full">
       <PageHeader breadcrumb={breadcrumb} />
 
-      {/* List + Detail Split */}
       <div className="flex gap-4 flex-1 min-h-0">
-        {/* 좌측: Flow 리스트 */}
-        <div className="w-[300px] shrink-0">
+        {/* 좌측: Flow 리스트 — bg-white bt-shadow 적용 */}
+        <div className="w-[300px] shrink-0 bg-white bt-shadow p-4 flex flex-col gap-3">
           <FlowList flows={flows} selectedFlowId={selectedFlow?.flowId ?? null} onSelect={handleSelect} onAdd={handleAdd} />
         </div>
 
-        {/* 우측: 생성/상세 폼 */}
-        <div className="flex-1 border border-gray-200 rounded-lg p-4 overflow-auto">
+        {/* 우측: 생성/상세 */}
+        <div className="flex-1 min-h-0">
           {showForm ? (
-            <FlowDetailForm flow={selectedFlow} onSave={handleSave} onDelete={handleDelete} saving={saveFlowMutation.isPending} />
+            <FlowDetailForm key={formKey} flow={selectedFlow} onSave={handleSave} onDelete={handleDelete} saving={saveFlowMutation.isPending} />
           ) : (
-            <div className="flex items-center justify-center h-full">
+            <div className="h-full bg-white bt-shadow flex items-center justify-center">
               <NoData message="좌측 리스트에서 Flow를 선택하거나 추가해주세요" />
             </div>
           )}
