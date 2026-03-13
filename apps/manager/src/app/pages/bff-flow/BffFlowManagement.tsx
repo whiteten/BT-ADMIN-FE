@@ -10,7 +10,7 @@ import type { BreadcrumbProps } from 'antd';
 import { toast } from '@/shared-util';
 import FlowDetailForm from '../../features/bff-flow/components/FlowDetailForm';
 import FlowList from '../../features/bff-flow/components/FlowList';
-import { bffFlowQueryKeys, useDeleteFlow, useGetFlows, useRefreshFlows, useSaveFlow } from '../../features/bff-flow/hooks/useBffFlowQueries';
+import { bffFlowQueryKeys, useDeleteFlow, useGetFlows, useSaveFlow } from '../../features/bff-flow/hooks/useBffFlowQueries';
 import type { BffFlow, FlowSpec } from '../../features/bff-flow/types/bffFlow.types';
 import { FallbackSpinner } from '@/components/custom/FallbackSpinner';
 import NoData from '@/components/custom/NoData';
@@ -58,25 +58,12 @@ export default function BffFlowManagement() {
     },
   });
 
-  // 캐시 리프레시
-  const refreshMutation = useRefreshFlows({
-    mutationOptions: {
-      onSuccess: () => {
-        toast.success('Flow 캐시가 리프레시되었습니다');
-      },
-    },
-  });
-
   const handleSave = (flowId: string, spec: FlowSpec) => {
     saveFlowMutation.mutate({ flowId, spec });
   };
 
   const handleDelete = (flowId: string) => {
     deleteFlowMutation.mutate(flowId);
-  };
-
-  const handleRefresh = () => {
-    refreshMutation.mutate();
   };
 
   const handleAdd = () => {
@@ -116,7 +103,7 @@ export default function BffFlowManagement() {
         {/* 우측: 생성/상세 폼 */}
         <div className="flex-1 border border-gray-200 rounded-lg p-4 overflow-auto">
           {showForm ? (
-            <FlowDetailForm flow={selectedFlow} onSave={handleSave} onDelete={handleDelete} onRefresh={handleRefresh} saving={saveFlowMutation.isPending} />
+            <FlowDetailForm flow={selectedFlow} onSave={handleSave} onDelete={handleDelete} saving={saveFlowMutation.isPending} />
           ) : (
             <div className="flex items-center justify-center h-full">
               <NoData message="좌측 리스트에서 Flow를 선택하거나 추가해주세요" />

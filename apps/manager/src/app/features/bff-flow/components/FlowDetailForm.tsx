@@ -18,7 +18,6 @@ interface FlowDetailFormProps {
   flow: BffFlow | null;
   onSave: (flowId: string, spec: FlowSpec) => void;
   onDelete?: (flowId: string) => void;
-  onRefresh?: () => void;
   saving?: boolean;
 }
 
@@ -29,7 +28,7 @@ const METHOD_COLORS: Record<string, string> = {
   DELETE: 'red',
 };
 
-export default function FlowDetailForm({ flow, onSave, onDelete, onRefresh, saving }: FlowDetailFormProps) {
+export default function FlowDetailForm({ flow, onSave, onDelete, saving }: FlowDetailFormProps) {
   const [form] = Form.useForm<{ flowId: string; description: string; stopOnError: boolean }>();
   const [steps, setSteps] = useState<FlowStep[]>([]);
   const [editingStep, setEditingStep] = useState<FlowStep | null>(null);
@@ -55,6 +54,7 @@ export default function FlowDetailForm({ flow, onSave, onDelete, onRefresh, savi
   const handleSubmit = async () => {
     try {
       const values = await form.validateFields();
+      const flowId = isCreateMode ? values.flowId : (flow?.flowId ?? '');
       const spec: FlowSpec = {
         description: values.description,
         stopOnError: values.stopOnError,
@@ -62,7 +62,7 @@ export default function FlowDetailForm({ flow, onSave, onDelete, onRefresh, savi
         compensation: flow?.spec.compensation,
         compose: flow?.spec.compose,
       };
-      onSave(values.flowId, spec);
+      onSave(flowId, spec);
     } catch {
       // validation error
     }
@@ -216,12 +216,9 @@ export default function FlowDetailForm({ flow, onSave, onDelete, onRefresh, savi
       {/* 액션 버튼 */}
       <div className="flex items-center justify-center gap-2 pt-4 border-t border-gray-200">
         {!isCreateMode && (
-          <>
-            <Button danger onClick={handleDelete}>
-              삭제
-            </Button>
-            <Button onClick={onRefresh}>리프레시</Button>
-          </>
+          <Button danger onClick={handleDelete}>
+            삭제
+          </Button>
         )}
         <Button type="primary" onClick={handleSubmit} loading={saving}>
           {isCreateMode ? '생성' : '저장'}
