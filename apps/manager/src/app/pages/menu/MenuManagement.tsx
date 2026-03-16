@@ -114,7 +114,7 @@ export default function MenuManagement() {
       {/* Tree + Detail Split */}
       <div className="flex gap-4 flex-1 min-h-0">
         {/* 좌측: 메뉴 트리 */}
-        <div className="w-[300px] shrink-0">
+        <div className="w-[300px] shrink-0 bg-white bt-shadow p-4 flex flex-col gap-3">
           <MenuTree
             menus={menus}
             apps={appFilterOptions}
@@ -138,11 +138,11 @@ export default function MenuManagement() {
         </div>
 
         {/* 우측: 상세 폼 */}
-        <div className="flex-1 border border-gray-200 rounded-lg p-4 overflow-auto">
+        <div className="flex-1 min-h-0">
           {selectedMenu ? (
             <MenuDetailForm menu={selectedMenu} apps={apps} onSave={handleSave} onDelete={handleDelete} saving={updateMenuMutation.isPending} />
           ) : (
-            <div className="flex items-center justify-center h-full">
+            <div className="h-full bg-white bt-shadow flex items-center justify-center">
               <NoData message="좌측 트리에서 메뉴를 선택해주세요" />
             </div>
           )}

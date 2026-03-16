@@ -120,7 +120,7 @@ export default function MenuTree({ menus, apps, selectedAppId, onAppChange, sele
       </div>
 
       {/* 트리 */}
-      <div className="flex-1 overflow-auto border border-gray-200 rounded-lg p-2">
+      <div className="flex-1 overflow-auto">
         {treeData.length > 0 ? (
           <Tree showIcon defaultExpandAll treeData={treeData} selectedKeys={derivedSelectedKeys} onSelect={handleSelect} className="menu-tree" />
         ) : (
