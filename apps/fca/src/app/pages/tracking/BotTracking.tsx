@@ -2,6 +2,7 @@ import { useRef } from 'react';
 import type { ColDef, RowDoubleClickedEvent } from 'ag-grid-community';
 import { AgGridReact } from 'ag-grid-react';
 import type { BreadcrumbProps } from 'antd';
+import { Play, Square } from 'lucide-react';
 import TrackingDetailDrawer, { type TrackingDetailDrawerRef } from '../../features/tracking/components/TrackingDetailDrawer';
 import { useTrackingSse } from '../../features/tracking/hooks/useTrackingSse';
 import type { TrackingSession } from '../../features/tracking/types/tracking.types';
@@ -27,7 +28,7 @@ function formatDuration(seconds: number): string {
 export default function BotTracking() {
   const { gridOptions } = useAggridOptions();
   const drawerRef = useRef<TrackingDetailDrawerRef>(null);
-  const { sessions, connected, sessionDetail, clearSessionDetail } = useTrackingSse();
+  const { sessions, connected, isPlaying, connect, disconnect, sessionDetail, clearSessionDetail } = useTrackingSse();
 
   const columnDefs: ColDef<TrackingSession>[] = [
     { headerName: '시나리오명', field: 'serviceName', flex: 1.5, minWidth: 140 },
@@ -67,10 +68,33 @@ export default function BotTracking() {
     <div className="flex flex-col gap-4 w-full h-full">
       <PageHeader breadcrumb={breadcrumb} />
 
-      {/* SSE 연결 상태 */}
-      <div className="flex items-center gap-2 px-1">
-        <span className={`inline-block w-2.5 h-2.5 rounded-full ${connected ? 'bg-green-500' : 'bg-red-500'}`} />
-        <span className="text-sm text-gray-500">{connected ? '실시간 연결됨' : '연결 끊김 (재연결 중...)'}</span>
+      {/* SSE 연결 상태 + Play/Stop 버튼 */}
+      <div className="flex items-center gap-3 px-1">
+        <button
+          type="button"
+          onClick={isPlaying ? disconnect : connect}
+          className={`flex items-center gap-1.5 px-3 py-1.5 rounded text-sm font-medium transition-colors ${
+            isPlaying ? 'bg-red-500 hover:bg-red-600 text-white' : 'bg-green-500 hover:bg-green-600 text-white'
+          }`}
+        >
+          {isPlaying ? (
+            <>
+              <Square className="w-3.5 h-3.5 fill-white" />
+              중지
+            </>
+          ) : (
+            <>
+              <Play className="w-3.5 h-3.5 fill-white" />
+              시작
+            </>
+          )}
+        </button>
+        {isPlaying && (
+          <>
+            <span className={`inline-block w-2.5 h-2.5 rounded-full ${connected ? 'bg-green-500' : 'bg-red-500'}`} />
+            <span className="text-sm text-gray-500">{connected ? '실시간 연결됨' : '연결 끊김 (재연결 중...)'}</span>
+          </>
+        )}
       </div>
 
       {/* ag-Grid 테이블 */}

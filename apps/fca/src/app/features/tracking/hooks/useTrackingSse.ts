@@ -6,6 +6,7 @@ const SSE_URL = '/api/bff/sse/fca/tracking/bot-realtime';
 export function useTrackingSse() {
   const [sessions, setSessions] = useState<TrackingSession[]>([]);
   const [connected, setConnected] = useState(false);
+  const [isPlaying, setIsPlaying] = useState(false);
   const [sessionDetail, setSessionDetail] = useState<TrackingSessionDetail | null>(null);
   const eventSourceRef = useRef<EventSource | null>(null);
 
@@ -13,6 +14,8 @@ export function useTrackingSse() {
     if (eventSourceRef.current) {
       eventSourceRef.current.close();
     }
+
+    setIsPlaying(true);
 
     const es = new EventSource(SSE_URL);
     eventSourceRef.current = es;
@@ -51,16 +54,22 @@ export function useTrackingSse() {
       eventSourceRef.current = null;
     }
     setConnected(false);
+    setIsPlaying(false);
+    setSessions([]);
   }, []);
 
   const clearSessionDetail = useCallback(() => {
     setSessionDetail(null);
   }, []);
 
+  // 언마운트 시 정리
   useEffect(() => {
-    connect();
-    return () => disconnect();
-  }, [connect, disconnect]);
+    return () => {
+      if (eventSourceRef.current) {
+        eventSourceRef.current.close();
+      }
+    };
+  }, []);
 
-  return { sessions, connected, sessionDetail, clearSessionDetail };
+  return { sessions, connected, isPlaying, connect, disconnect, sessionDetail, clearSessionDetail };
 }

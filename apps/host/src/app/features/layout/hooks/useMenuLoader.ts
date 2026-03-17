@@ -73,7 +73,6 @@ const processMenuItems = (menus: MenuItem[]): MenuItem[] => {
 export function useMenuLoader() {
   const { setMenuConfigs, setIsLoading } = useMenuStore();
   const { apps } = useNavigationStore();
-
   const load = useCallback(async () => {
     setIsLoading(true);
     try {

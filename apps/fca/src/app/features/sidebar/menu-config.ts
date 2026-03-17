@@ -76,6 +76,13 @@ const menuConfig = {
           index: 0,
           hide: false,
         },
+        {
+          menuId: 75,
+          label: '대화이력',
+          path: 'tracking/realtime',
+          index: 1,
+          hide: false,
+        },
       ],
     },
     {
