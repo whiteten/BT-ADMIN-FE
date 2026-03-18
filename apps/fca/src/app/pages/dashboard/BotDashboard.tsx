@@ -2,10 +2,11 @@ import { useEffect, useState } from 'react';
 import { GridLayout, type Layout, type LayoutItem, useContainerWidth } from 'react-grid-layout';
 import 'react-grid-layout/css/styles.css';
 import type { Option } from 'react-multi-select-component';
-import { type BreadcrumbProps, Card } from 'antd';
+import { type BreadcrumbProps } from 'antd';
 import styles from './BotDashboard.module.scss';
 import { useGetBots } from '../../features/bot-config/hooks/useBotQueries';
 import BotDashboardToolbar from '../../features/dashboard/components/BotDashboardToolbar';
+import DashboardCardItem from '../../features/dashboard/components/DashboardCardItem';
 import DialogIncompleteTopBarChart from '../../features/dashboard/components/DialogIncompleteTopBarChart';
 import DialogIncompleteTopGrid from '../../features/dashboard/components/DialogIncompleteTopGrid';
 import DialogSummaryGrid from '../../features/dashboard/components/DialogSummaryGrid';
@@ -39,25 +40,15 @@ import SlotSummaryPieChart from '../../features/dashboard/components/SlotSummary
 import { GRID_COLS } from '../../features/dashboard/constants/dashboardConstants';
 import { DEFAULT_LAYOUT, useBotDashboardStore } from '../../features/dashboard/hooks/useBotDashboardStore';
 import { useDashboardSocket } from '../../features/dashboard/hooks/useDashboardSocket';
-import useDashboardViewMode from '../../features/dashboard/hooks/useDashboardViewMode';
-import { useWidgetSubscription } from '../../features/dashboard/hooks/useWidgetSubscription';
-import { type BotDashboardResponse, DASHBOARD_VIEW, type DashboardViewMode, type DashboardWidgetType } from '../../features/dashboard/types/dashboard.types';
+import { DASHBOARD_VIEW, type LayoutRenderEntry } from '../../features/dashboard/types/dashboard.types';
 import { syncLayoutWithFilter } from '../../features/dashboard/utils/dashboardUtils';
 import PageHeader from '@/components/custom/PageHeader';
 import { cn } from '@/lib/utils';
-import { FallbackSpinner } from '@/libs/shared-ui/src/components/custom/FallbackSpinner';
 
 const breadcrumb: BreadcrumbProps['items'] = [
   { title: '대시보드', path: '/fca/dashboard' },
   { title: '콜봇 현황', path: '/fca/dashboard/call-bot' },
 ];
-
-interface LayoutRenderEntry {
-  title: string;
-  supportedModes?: DashboardViewMode[];
-  renderChart?: (data?: BotDashboardResponse) => React.ReactNode;
-  renderTable?: (data?: BotDashboardResponse) => React.ReactNode;
-}
 
 const layoutRenderMapper: Record<string, LayoutRenderEntry> = {
   serviceOccupancy: {
@@ -163,57 +154,6 @@ const layoutRenderMapper: Record<string, LayoutRenderEntry> = {
     renderTable: (d) => <HourlyBusyTimeGrid data={d?.hourlyBusyTime} />,
   },
 };
-
-interface DashboardCardItemProps {
-  layoutKey: string;
-  mapEntry: LayoutRenderEntry;
-  globalOptions: { serviceIds: string[] };
-}
-
-function DashboardCardItem({ layoutKey, mapEntry, globalOptions }: DashboardCardItemProps) {
-  // 글로벌 옵션과 위젯별 옵션을 병합하여 최종 구독 옵션 생성
-  const options = { ...globalOptions };
-
-  const { data, error } = useWidgetSubscription({
-    widgetType: layoutKey as DashboardWidgetType,
-    options,
-    enabled: globalOptions.serviceIds.length > 0,
-  });
-
-  const wrappedData = data !== undefined ? ({ [layoutKey]: data } as unknown as BotDashboardResponse) : undefined;
-  const isLoading = data === undefined && !error;
-
-  const supportedModes = mapEntry.supportedModes ?? [DASHBOARD_VIEW.CHART];
-  const hasMultipleModes = supportedModes.length >= 2;
-  const { viewMode, viewModeToggleNode } = useDashboardViewMode(supportedModes);
-
-  return (
-    <Card
-      title={mapEntry.title ?? layoutKey}
-      variant="borderless"
-      className="h-full flex flex-col"
-      classNames={{ title: 'text-base font-semibold text-[#495057]', header: '!min-h-0 !h-[45px] !px-4', body: 'flex-1 min-h-0 !p-0' }}
-      extra={viewModeToggleNode}
-    >
-      {isLoading ? (
-        <div className="w-full h-full flex items-center justify-center">
-          <FallbackSpinner />
-        </div>
-      ) : hasMultipleModes ? (
-        <div className="relative h-full">
-          <div className="absolute inset-0" style={{ visibility: viewMode === DASHBOARD_VIEW.CHART ? 'visible' : 'hidden' }}>
-            {mapEntry.renderChart?.(wrappedData)}
-          </div>
-          <div className="absolute inset-0" style={{ visibility: viewMode === DASHBOARD_VIEW.TABLE ? 'visible' : 'hidden' }}>
-            {mapEntry.renderTable?.(wrappedData)}
-          </div>
-        </div>
-      ) : (
-        mapEntry.renderChart?.(wrappedData)
-      )}
-    </Card>
-  );
-}
 
 export default function BotDashboard() {
   const { data: botList } = useGetBots();
