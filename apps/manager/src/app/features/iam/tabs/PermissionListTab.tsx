@@ -8,7 +8,7 @@ import type { ColDef, ICellRendererParams } from 'ag-grid-community';
 import { AgGridReact } from 'ag-grid-react';
 import { Button, Input, Select, Tag, Tooltip } from 'antd';
 import { Copy, Search } from 'lucide-react';
-import { toast } from '@/shared-util';
+import { copyToClipboard, toast } from '@/shared-util';
 import { useGetApps } from '../hooks/useAppQueries';
 import { permissionQueryKeys, useDeletePermission, useGetAuthList } from '../hooks/usePermissionQueries';
 import type { PermissionFlat } from '../types/iam.types';
@@ -112,16 +112,7 @@ export default function PermissionListTab() {
                 className="p-1 hover:bg-gray-200 rounded shrink-0"
                 onClick={(e) => {
                   e.stopPropagation();
-                  if (navigator.clipboard) {
-                    navigator.clipboard.writeText(params.value);
-                  } else {
-                    const el = document.createElement('textarea');
-                    el.value = params.value;
-                    document.body.appendChild(el);
-                    el.select();
-                    document.execCommand('copy');
-                    el.remove();
-                  }
+                  copyToClipboard(params.value);
                   toast.success('복사됨');
                 }}
               >
