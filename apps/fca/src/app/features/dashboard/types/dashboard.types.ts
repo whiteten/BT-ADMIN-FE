@@ -226,31 +226,6 @@ export interface IntentCheckFailTopItem {
 }
 
 /**
- * 인텐트 평균 신뢰도 TOP
- *
- * - rank: 순위
- * - serviceName: 시나리오명
- * - modelName: 모델명
- * - intent: 인텐트명
- * - detectCnt: 인식수
- * - avgConfidence: 평균 신뢰도
- * - passRate: Pass 비율 (%)
- * - checkRate: Check 비율 (%)
- * - failRate: Fail 비율 (%)
- */
-export interface IntentConfidenceTopItem {
-  rank: number;
-  serviceName: string;
-  modelName: string;
-  intent: string;
-  detectCnt: number;
-  avgConfidence: number;
-  passRate: number;
-  checkRate: number;
-  failRate: number;
-}
-
-/**
  * 시간대별 기본 데이터
  *
  * - serviceId: 시나리오 ID
@@ -271,15 +246,6 @@ export interface HourlyEntryItem extends HourlyBaseItem {
 }
 
 /**
- * 시간대별 점유시간 데이터
- *
- * - hourlyStats: 시간대별 통계 (00~23시)
- */
-export interface HourlyBusyTimeItem extends HourlyBaseItem {
-  hourlyStats: HourlyBusyTimeStatsItem[];
-}
-
-/**
  * 시간대별 진입수 데이터
  *
  * - hour: 시간대 (0~23)
@@ -288,17 +254,6 @@ export interface HourlyBusyTimeItem extends HourlyBaseItem {
 interface HourlyEntryStatsItem {
   hour: string;
   entryCnt: number;
-}
-
-/**
- * 시간대별 점유시간 데이터
- *
- * - hour: 시간대 (0~23)
- * - sumBusyTime: 점유시간 (초)
- */
-interface HourlyBusyTimeStatsItem {
-  hour: string;
-  sumBusyTime: number;
 }
 
 /**
@@ -326,9 +281,7 @@ export interface OccupancyItem {
  * - entityTop: 엔티티 TOP
  * - intentTop: 인텐트 TOP
  * - intentCheckFailTop: 인텐트 Check/Fail TOP
- * - intentConfidenceTop: 인텐트 신뢰도 TOP
  * - hourlyEntry: 시간대별 봇 진입 현황
- * - hourlyBusyTime: 시간대별 봇 점유 현황
  * - serviceOccupancy: 봇 점유 현황
  * - dialogOccupancy: 대화 점유 현황
  * - slotOccupancy: 슬롯 점유 현황
@@ -345,9 +298,7 @@ export interface BotDashboardResponse {
   entityTop: EntityTopItem[];
   intentTop: IntentTopItem[];
   intentCheckFailTop: IntentCheckFailTopItem[];
-  intentConfidenceTop: IntentConfidenceTopItem[];
   hourlyEntry: HourlyEntryItem[];
-  hourlyBusyTime: HourlyBusyTimeItem[];
   serviceOccupancy: OccupancyItem[];
   dialogOccupancy: OccupancyItem[];
   slotOccupancy: OccupancyItem[];

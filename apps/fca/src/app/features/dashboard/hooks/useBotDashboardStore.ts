@@ -18,8 +18,6 @@ export const DEFAULT_LAYOUT: LayoutItem[] = [
   { i: 'intentTop', x: 4, y: 16, w: 4, h: 5 },
   { i: 'hourlyEntry', x: 0, y: 21, w: 7, h: 5 },
   { i: 'intentCheckFailTop', x: 9, y: 21, w: 5, h: 5 },
-  { i: 'hourlyBusyTime', x: 0, y: 26, w: 7, h: 5 },
-  { i: 'intentConfidenceTop', x: 9, y: 26, w: 5, h: 5 },
 ];
 
 interface BotDashboardStore {

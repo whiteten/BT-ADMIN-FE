@@ -4,14 +4,10 @@ import DialogSummaryGrid from '../components/DialogSummaryGrid';
 import DialogSummaryPieChart from '../components/DialogSummaryPieChart';
 import EntityTopBarChart from '../components/EntityTopBarChart';
 import EntityTopGrid from '../components/EntityTopGrid';
-import HourlyBusyTimeGrid from '../components/HourlyBusyTimeGrid';
-import HourlyBusyTimeLineChart from '../components/HourlyBusyTimeLineChart';
 import HourlyEntryGrid from '../components/HourlyEntryGrid';
 import HourlyEntryLineChart from '../components/HourlyEntryLineChart';
 import IntentCheckFailTopBarChart from '../components/IntentCheckFailTopBarChart';
 import IntentCheckFailTopGrid from '../components/IntentCheckFailTopGrid';
-import IntentConfidenceTopBarChart from '../components/IntentConfidenceTopBarChart';
-import IntentConfidenceTopGrid from '../components/IntentConfidenceTopGrid';
 import IntentTopBarChart from '../components/IntentTopBarChart';
 import IntentTopGrid from '../components/IntentTopGrid';
 import KeywordTopGrid from '../components/KeywordTopGrid';
@@ -123,22 +119,10 @@ export const layoutRenderMapper: Record<string, LayoutRenderEntry> = {
     renderChart: (d) => <IntentCheckFailTopBarChart data={d?.intentCheckFailTop} />,
     renderTable: (d) => <IntentCheckFailTopGrid data={d?.intentCheckFailTop} />,
   },
-  intentConfidenceTop: {
-    title: '의도 평균 신뢰도 Top 10',
-    supportedModes: [DASHBOARD_VIEW.CHART, DASHBOARD_VIEW.TABLE],
-    renderChart: (d) => <IntentConfidenceTopBarChart data={d?.intentConfidenceTop} />,
-    renderTable: (d) => <IntentConfidenceTopGrid data={d?.intentConfidenceTop} />,
-  },
   hourlyEntry: {
     title: '시간대별 봇 진입 현황',
     supportedModes: [DASHBOARD_VIEW.CHART, DASHBOARD_VIEW.TABLE],
     renderChart: (d) => <HourlyEntryLineChart data={d?.hourlyEntry} />,
     renderTable: (d) => <HourlyEntryGrid data={d?.hourlyEntry} />,
-  },
-  hourlyBusyTime: {
-    title: '시간대별 봇 점유 현황',
-    supportedModes: [DASHBOARD_VIEW.CHART, DASHBOARD_VIEW.TABLE],
-    renderChart: (d) => <HourlyBusyTimeLineChart data={d?.hourlyBusyTime} />,
-    renderTable: (d) => <HourlyBusyTimeGrid data={d?.hourlyBusyTime} />,
   },
 };
