@@ -48,9 +48,9 @@ const actionStyles: Record<ActionType, { header: string; cell: string; text: str
     text: 'text-violet-600',
   },
   export: {
-    header: 'text-teal-600 bg-teal-50/50',
-    cell: 'hover:bg-teal-50',
-    text: 'text-teal-600',
+    header: 'text-slate-600 bg-slate-100/80',
+    cell: 'hover:bg-slate-100',
+    text: 'text-slate-600',
   },
 };
 

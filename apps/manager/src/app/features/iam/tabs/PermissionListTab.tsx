@@ -21,6 +21,8 @@ const actionColorMap: Record<string, string> = {
   write: 'green',
   delete: 'red',
   execute: 'purple',
+  apply: 'purple',
+  export: 'slategray',
 };
 
 export default function PermissionListTab() {
