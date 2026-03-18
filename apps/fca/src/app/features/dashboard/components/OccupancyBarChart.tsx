@@ -2,7 +2,7 @@ import rank1 from '../../../../assets/images/icon/rank1.png';
 import rank2 from '../../../../assets/images/icon/rank2.png';
 import rank3 from '../../../../assets/images/icon/rank3.png';
 import type { OccupancyItem } from '../types/dashboard.types';
-import NoData from '@/components/custom/NoData';
+// import NoData from '@/components/custom/NoData';
 
 interface OccupancyBarChartProps {
   data?: OccupancyItem[];
@@ -19,9 +19,8 @@ const PODIUM_CONFIG = [
 ] as const;
 
 export default function OccupancyBarChart({ data }: OccupancyBarChartProps) {
-  if (!data?.length) return <NoData message={`조회된 데이터가 없습니다.`} fontSize="text-base" gap={2} />;
-
-  const sorted = [...data].sort((a, b) => b.callCount - a.callCount);
+  // if (!data?.length) return <NoData message={`조회된 데이터가 없습니다.`} fontSize="text-base" gap={2} />;
+  const sorted = [...(data ?? [])].sort((a, b) => b.callCount - a.callCount);
   const topThree = sorted.slice(0, 3);
   const rest = sorted.slice(3);
 
