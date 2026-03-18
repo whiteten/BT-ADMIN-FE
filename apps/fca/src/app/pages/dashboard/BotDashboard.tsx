@@ -2,7 +2,6 @@ import { useEffect, useState } from 'react';
 import { GridLayout, type Layout, type LayoutItem, useContainerWidth } from 'react-grid-layout';
 import 'react-grid-layout/css/styles.css';
 import type { Option } from 'react-multi-select-component';
-import { keepPreviousData } from '@tanstack/react-query';
 import { type BreadcrumbProps, Card } from 'antd';
 import styles from './BotDashboard.module.scss';
 import { useGetBots } from '../../features/bot-config/hooks/useBotQueries';
@@ -37,11 +36,12 @@ import SlotRetryDistTopBarChart from '../../features/dashboard/components/SlotRe
 import SlotRetryDistTopGrid from '../../features/dashboard/components/SlotRetryDistTopGrid';
 import SlotSummaryGrid from '../../features/dashboard/components/SlotSummaryGrid';
 import SlotSummaryPieChart from '../../features/dashboard/components/SlotSummaryPieChart';
-import { GRID_COLS, REFRESH_INTERVAL } from '../../features/dashboard/constants/dashboardConstants';
+import { GRID_COLS } from '../../features/dashboard/constants/dashboardConstants';
 import { DEFAULT_LAYOUT, useBotDashboardStore } from '../../features/dashboard/hooks/useBotDashboardStore';
-import { useGetBotDashboard } from '../../features/dashboard/hooks/useDashboardQueries';
+import { useDashboardSocket } from '../../features/dashboard/hooks/useDashboardSocket';
 import useDashboardViewMode from '../../features/dashboard/hooks/useDashboardViewMode';
-import { type BotDashboardResponse, DASHBOARD_VIEW, type DashboardViewMode } from '../../features/dashboard/types/dashboard.types';
+import { useWidgetSubscription } from '../../features/dashboard/hooks/useWidgetSubscription';
+import { type BotDashboardResponse, DASHBOARD_VIEW, type DashboardViewMode, type DashboardWidgetType } from '../../features/dashboard/types/dashboard.types';
 import { syncLayoutWithFilter } from '../../features/dashboard/utils/dashboardUtils';
 import PageHeader from '@/components/custom/PageHeader';
 import { cn } from '@/lib/utils';
@@ -167,11 +167,19 @@ const layoutRenderMapper: Record<string, LayoutRenderEntry> = {
 interface DashboardCardItemProps {
   layoutKey: string;
   mapEntry: LayoutRenderEntry;
-  data?: BotDashboardResponse;
-  isLoading: boolean;
+  serviceIds: string[];
 }
 
-function DashboardCardItem({ layoutKey, mapEntry, data, isLoading }: DashboardCardItemProps) {
+function DashboardCardItem({ layoutKey, mapEntry, serviceIds }: DashboardCardItemProps) {
+  const { data, error } = useWidgetSubscription({
+    widgetType: layoutKey as DashboardWidgetType,
+    serviceIds,
+    enabled: serviceIds.length > 0,
+  });
+
+  const wrappedData = data !== undefined ? ({ [layoutKey]: data } as unknown as BotDashboardResponse) : undefined;
+  const isLoading = data === undefined && !error;
+
   const supportedModes = mapEntry.supportedModes ?? [DASHBOARD_VIEW.CHART];
   const hasMultipleModes = supportedModes.length >= 2;
   const { viewMode, extra } = useDashboardViewMode(supportedModes);
@@ -191,14 +199,14 @@ function DashboardCardItem({ layoutKey, mapEntry, data, isLoading }: DashboardCa
       ) : hasMultipleModes ? (
         <div className="relative h-full">
           <div className="absolute inset-0" style={{ visibility: viewMode === DASHBOARD_VIEW.CHART ? 'visible' : 'hidden' }}>
-            {mapEntry.renderChart?.(data)}
+            {mapEntry.renderChart?.(wrappedData)}
           </div>
           <div className="absolute inset-0" style={{ visibility: viewMode === DASHBOARD_VIEW.TABLE ? 'visible' : 'hidden' }}>
-            {mapEntry.renderTable?.(data)}
+            {mapEntry.renderTable?.(wrappedData)}
           </div>
         </div>
       ) : (
-        mapEntry.renderChart?.(data)
+        mapEntry.renderChart?.(wrappedData)
       )}
     </Card>
   );
@@ -219,10 +227,9 @@ export default function BotDashboard() {
     }
   }, [serviceOptions]);
 
-  const { data, isLoading } = useGetBotDashboard({
-    params: { serviceIds: selectedService.map((item) => item.value as string) },
-    queryOptions: { enabled: !!selectedService.length, refetchInterval: REFRESH_INTERVAL, placeholderData: keepPreviousData },
-  });
+  useDashboardSocket();
+  const serviceIds = selectedService.map((item) => item.value as string);
+
   const { layout: storedLayout, setLayout } = useBotDashboardStore();
   const { width, containerRef, mounted } = useContainerWidth();
 
@@ -312,7 +319,7 @@ export default function BotDashboard() {
               if (!mapEntry) return null;
               return (
                 <div key={item.i} className="w-full h-full">
-                  <DashboardCardItem layoutKey={item.i} mapEntry={mapEntry} data={data} isLoading={isLoading} />
+                  <DashboardCardItem layoutKey={item.i} mapEntry={mapEntry} serviceIds={serviceIds} />
                 </div>
               );
             })}

@@ -25,28 +25,32 @@ export function useSessionSocket({ ticket, onClose, onError }: UseSessionSocketO
     const client = new WebSocketClient(wsUrl);
     wsRef.current = client;
 
+    client.onopen = () => {
+      Log.info('[onopen]');
+    };
+
     client.onmessage = (event: MessageEvent) => {
       try {
         const wsEvent = JSON.parse(event.data);
         window.dispatchEvent(new CustomEvent('WS_SESSION', { detail: wsEvent }));
       } catch (error) {
-        Log.error('Failed to parse Session WS message', error);
+        Log.error('[onmessage error]', error);
         toast.error('Failed to parse Session WS message');
       }
     };
 
     client.onclose = (event) => {
-      Log.warn('Session WS closed', event);
+      Log.warn('[onclose]', event);
       onClose?.();
     };
 
     client.onerror = (event) => {
-      Log.error('Session WS occurred error', event);
+      Log.error('[onerror]', event);
       onError?.();
     };
 
     client.connect().catch((error) => {
-      Log.error('Failed to connect Session WS', error);
+      Log.error('[connect error]', error);
       // toast.error('Failed to connect Session WS');
     });
 

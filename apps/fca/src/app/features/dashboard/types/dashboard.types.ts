@@ -358,3 +358,56 @@ export const DASHBOARD_VIEW = {
   TABLE: 'table',
 } as const;
 export type DashboardViewMode = (typeof DASHBOARD_VIEW)[keyof typeof DASHBOARD_VIEW];
+
+// --- WebSocket 메시지 프로토콜 타입 ---
+
+export type DashboardWidgetType = keyof BotDashboardResponse;
+
+/** 클라이언트 → 서버: 위젯 구독 */
+export interface DashboardWsSubscribeMessage {
+  wsId: string;
+  type: 'SUBSCRIBE';
+  widgetId: string;
+  widgetType: DashboardWidgetType;
+  options: { serviceIds: string[] };
+}
+
+/** 클라이언트 → 서버: 위젯 구독 해제 */
+export interface DashboardWsUnsubscribeMessage {
+  wsId: string;
+  type: 'UNSUBSCRIBE';
+  widgetId: string;
+}
+
+/** 서버 → 클라이언트: 데이터 push */
+export interface DashboardWsDataMessage {
+  wsId: string;
+  type: 'DATA';
+  widgetId: string;
+  widgetType: DashboardWidgetType;
+  data: unknown;
+}
+
+/** 서버 → 클라이언트: 에러 */
+export interface DashboardWsErrorMessage {
+  wsId: string;
+  type: 'ERROR';
+  widgetId: string;
+  message: string;
+}
+
+/** 서버 → 클라이언트: 연결 시 wsId 전달 */
+export interface DashboardWsConnectedMessage {
+  wsId: string;
+  type: 'CONNECTED';
+}
+
+export interface DashboardWsSubscribedMessage {
+  wsId: string;
+  type: 'SUBSCRIBED';
+  widgetId: string;
+  widgetType: DashboardWidgetType;
+  options: { serviceIds: string[] };
+}
+
+export type DashboardWsServerMessage = DashboardWsDataMessage | DashboardWsErrorMessage | DashboardWsConnectedMessage | DashboardWsSubscribedMessage;
