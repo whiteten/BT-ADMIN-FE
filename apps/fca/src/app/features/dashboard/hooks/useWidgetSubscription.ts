@@ -1,10 +1,7 @@
 import { useEffect, useRef } from 'react';
-import { LOG } from '@/log';
 import { createUUID } from '@/shared-util';
 import { useDashboardSocketStore } from './useDashboardSocketStore';
 import type { DashboardGlobalOptions, DashboardWidgetOptions, DashboardWidgetType } from '../types/dashboard.types';
-
-const Log = new LOG('useWidgetSubscription');
 
 interface UseWidgetSubscriptionOptions {
   widgetType: DashboardWidgetType;
@@ -39,8 +36,8 @@ export function useWidgetSubscription({ widgetType, globalOptions, widgetOptions
 
   // SUBSCRIBE: wsId가 존재하고 연결됐을 때 전송, 옵션 변경 시 재전송
   useEffect(() => {
+    if (!enabled || !wsId || !isConnected || !send) return;
     const mergedOptions = { ...globalOptions, ...widgetOptions };
-    if (!enabled || !wsId || !isConnected || !send || mergedOptions.serviceIds.length === 0) return;
     send({
       wsId,
       type: 'SUBSCRIBE',
@@ -55,7 +52,6 @@ export function useWidgetSubscription({ widgetType, globalOptions, widgetOptions
     const id = widgetId;
     return () => {
       const { send: currentSend, wsId: currentWsId, removeWidget } = useDashboardSocketStore.getState();
-
       if (currentSend && currentWsId) {
         currentSend({
           wsId: currentWsId,
@@ -63,7 +59,6 @@ export function useWidgetSubscription({ widgetType, globalOptions, widgetOptions
           widgetId: id,
         });
       }
-
       removeWidget(id);
     };
   }, [widgetId]);
