@@ -1,7 +1,7 @@
 import { useEffect, useRef } from 'react';
 import { createUUID } from '@/shared-util';
 import { useDashboardSocketStore } from './useDashboardSocketStore';
-import type { DashboardGlobalOptions, DashboardWidgetOptions, DashboardWidgetType } from '../types/dashboard.types';
+import { DASHBOARD_MSG_TYPE, type DashboardGlobalOptions, type DashboardWidgetOptions, type DashboardWidgetType } from '../types/dashboard.types';
 
 interface UseWidgetSubscriptionOptions {
   widgetType: DashboardWidgetType;
@@ -40,7 +40,7 @@ export function useWidgetSubscription({ widgetType, globalOptions, widgetOptions
     const mergedOptions = { ...globalOptions, ...widgetOptions };
     send({
       wsId,
-      type: 'SUBSCRIBE',
+      type: DASHBOARD_MSG_TYPE.SUBSCRIBE,
       widgetId,
       widgetType,
       options: mergedOptions,
@@ -55,7 +55,7 @@ export function useWidgetSubscription({ widgetType, globalOptions, widgetOptions
       if (currentSend && currentWsId) {
         currentSend({
           wsId: currentWsId,
-          type: 'UNSUBSCRIBE',
+          type: DASHBOARD_MSG_TYPE.UNSUBSCRIBE,
           widgetId: id,
         });
       }

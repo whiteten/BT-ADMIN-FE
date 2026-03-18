@@ -2,7 +2,7 @@ import { useEffect, useRef } from 'react';
 import { LOG } from '@/log';
 import { WebSocketClient } from '@/shared-util';
 import { useDashboardSocketStore } from './useDashboardSocketStore';
-import type { DashboardWsServerMessage } from '../types/dashboard.types';
+import { DASHBOARD_MSG_TYPE, type DashboardWsServerMessage } from '../types/dashboard.types';
 
 const Log = new LOG('useDashboardSocket');
 
@@ -37,17 +37,21 @@ export function useDashboardSocket() {
       try {
         const msg = JSON.parse(event.data) as DashboardWsServerMessage;
         switch (msg.type) {
-          case 'CONNECTED':
+          case DASHBOARD_MSG_TYPE.CONNECTED:
             setWsId(msg.wsId);
             Log.success('[onmessage][CONNECTED]', msg);
             break;
-          case 'SUBSCRIBED':
+          case DASHBOARD_MSG_TYPE.SUBSCRIBED:
             Log.success('[onmessage][SUBSCRIBED]', msg);
             break;
-          case 'DATA':
-            setWidgetData(msg.widgetId, msg.data);
+          case DASHBOARD_MSG_TYPE.UNSUBSCRIBED:
+            Log.success('[onmessage][UNSUBSCRIBED]', msg);
             break;
-          case 'ERROR':
+          case DASHBOARD_MSG_TYPE.DATA:
+            setWidgetData(msg.widgetId, msg.data);
+            // Log.debug('[onmessage][DATA]', msg);
+            break;
+          case DASHBOARD_MSG_TYPE.ERROR:
             Log.error('[onmessage][ERROR]', msg);
             setWidgetError(msg.widgetId, msg.message);
             break;

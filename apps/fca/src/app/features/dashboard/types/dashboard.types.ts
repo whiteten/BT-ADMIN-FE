@@ -376,51 +376,72 @@ export type DashboardSubscribeOptions = DashboardGlobalOptions & DashboardWidget
 
 export type DashboardWidgetType = keyof BotDashboardResponse;
 
-/** 클라이언트 → 서버: 위젯 구독 */
-export interface DashboardWsSubscribeMessage {
+export const DASHBOARD_MSG_TYPE = {
+  SUBSCRIBE: 'SUBSCRIBE',
+  UNSUBSCRIBE: 'UNSUBSCRIBE',
+  DATA: 'DATA',
+  ERROR: 'ERROR',
+  CONNECTED: 'CONNECTED',
+  SUBSCRIBED: 'SUBSCRIBED',
+  UNSUBSCRIBED: 'UNSUBSCRIBED',
+} as const;
+export type DashboardMsgType = (typeof DASHBOARD_MSG_TYPE)[keyof typeof DASHBOARD_MSG_TYPE];
+
+interface DashboardWsBaseMessage {
   wsId: string;
-  type: 'SUBSCRIBE';
+}
+
+/** 클라이언트 → 서버: 위젯 구독 */
+export interface DashboardWsSubscribeMessage extends DashboardWsBaseMessage {
+  type: typeof DASHBOARD_MSG_TYPE.SUBSCRIBE;
   widgetId: string;
   widgetType: DashboardWidgetType;
   options: DashboardSubscribeOptions;
 }
 
 /** 클라이언트 → 서버: 위젯 구독 해제 */
-export interface DashboardWsUnsubscribeMessage {
-  wsId: string;
-  type: 'UNSUBSCRIBE';
+export interface DashboardWsUnsubscribeMessage extends DashboardWsBaseMessage {
+  type: typeof DASHBOARD_MSG_TYPE.UNSUBSCRIBE;
   widgetId: string;
 }
 
 /** 서버 → 클라이언트: 데이터 push */
-export interface DashboardWsDataMessage {
-  wsId: string;
-  type: 'DATA';
+export interface DashboardWsDataMessage extends DashboardWsBaseMessage {
+  type: typeof DASHBOARD_MSG_TYPE.DATA;
   widgetId: string;
   widgetType: DashboardWidgetType;
   data: unknown;
 }
 
 /** 서버 → 클라이언트: 에러 */
-export interface DashboardWsErrorMessage {
-  wsId: string;
-  type: 'ERROR';
+export interface DashboardWsErrorMessage extends DashboardWsBaseMessage {
+  type: typeof DASHBOARD_MSG_TYPE.ERROR;
   widgetId: string;
   message: string;
 }
 
 /** 서버 → 클라이언트: 연결 시 wsId 전달 */
-export interface DashboardWsConnectedMessage {
-  wsId: string;
-  type: 'CONNECTED';
+export interface DashboardWsConnectedMessage extends DashboardWsBaseMessage {
+  type: typeof DASHBOARD_MSG_TYPE.CONNECTED;
 }
 
-export interface DashboardWsSubscribedMessage {
-  wsId: string;
-  type: 'SUBSCRIBED';
+/** 서버 → 클라이언트: 위젯 구독 시 전달 */
+export interface DashboardWsSubscribedMessage extends DashboardWsBaseMessage {
+  type: typeof DASHBOARD_MSG_TYPE.SUBSCRIBED;
   widgetId: string;
   widgetType: DashboardWidgetType;
   options: DashboardSubscribeOptions;
 }
 
-export type DashboardWsServerMessage = DashboardWsDataMessage | DashboardWsErrorMessage | DashboardWsConnectedMessage | DashboardWsSubscribedMessage;
+/** 서버 → 클라이언트: 위젯 구독 해제 시 전달 */
+export interface DashboardWsUnsubscribedMessage extends DashboardWsBaseMessage {
+  type: typeof DASHBOARD_MSG_TYPE.UNSUBSCRIBED;
+  widgetId: string;
+}
+
+export type DashboardWsServerMessage =
+  | DashboardWsDataMessage
+  | DashboardWsErrorMessage
+  | DashboardWsConnectedMessage
+  | DashboardWsSubscribedMessage
+  | DashboardWsUnsubscribedMessage;
