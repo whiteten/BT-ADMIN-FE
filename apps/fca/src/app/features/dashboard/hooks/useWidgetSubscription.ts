@@ -22,7 +22,7 @@ interface UseWidgetSubscriptionReturn {
  * - options 변경 시 SUBSCRIBE 재전송
  */
 export function useWidgetSubscription({ widgetType, options, enabled = true }: UseWidgetSubscriptionOptions): UseWidgetSubscriptionReturn {
-  const widgetIdRef = useRef(createUUID());
+  const widgetIdRef = useRef(createUUID().split('-')[0]);
   const widgetId = widgetIdRef.current;
 
   const wsId = useDashboardSocketStore((s) => s.wsId);
