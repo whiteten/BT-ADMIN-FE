@@ -188,7 +188,7 @@ function DashboardCardItem({ layoutKey, mapEntry, globalOptions }: DashboardCard
 
   const supportedModes = mapEntry.supportedModes ?? [DASHBOARD_VIEW.CHART];
   const hasMultipleModes = supportedModes.length >= 2;
-  const { viewMode, extra } = useDashboardViewMode(supportedModes);
+  const { viewMode, viewModeToggleNode } = useDashboardViewMode(supportedModes);
 
   return (
     <Card
@@ -196,7 +196,7 @@ function DashboardCardItem({ layoutKey, mapEntry, globalOptions }: DashboardCard
       variant="borderless"
       className="h-full flex flex-col"
       classNames={{ title: 'text-base font-semibold text-[#495057]', header: '!min-h-0 !h-[45px] !px-4', body: 'flex-1 min-h-0 !p-0' }}
-      extra={extra}
+      extra={viewModeToggleNode}
     >
       {isLoading ? (
         <div className="w-full h-full flex items-center justify-center">

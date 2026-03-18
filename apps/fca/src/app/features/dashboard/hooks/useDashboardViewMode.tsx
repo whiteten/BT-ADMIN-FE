@@ -5,7 +5,7 @@ import { IconChartLine, IconGrid } from '@/libs/shared-ui/src/components/custom/
 const useDashboardViewMode = (supportedModes: DashboardViewMode[]) => {
   const [viewMode, setViewMode] = useState<DashboardViewMode>(DASHBOARD_VIEW.CHART);
 
-  const extra =
+  const viewModeToggleNode =
     supportedModes.length >= 2 ? (
       <div className="flex items-center gap-1">
         <span
@@ -23,7 +23,7 @@ const useDashboardViewMode = (supportedModes: DashboardViewMode[]) => {
       </div>
     ) : undefined;
 
-  return { viewMode, extra };
+  return { viewMode, viewModeToggleNode };
 };
 
 export default useDashboardViewMode;
