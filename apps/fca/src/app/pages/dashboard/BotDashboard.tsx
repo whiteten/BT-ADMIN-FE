@@ -41,7 +41,13 @@ import { DEFAULT_LAYOUT, useBotDashboardStore } from '../../features/dashboard/h
 import { useDashboardSocket } from '../../features/dashboard/hooks/useDashboardSocket';
 import useDashboardViewMode from '../../features/dashboard/hooks/useDashboardViewMode';
 import { useWidgetSubscription } from '../../features/dashboard/hooks/useWidgetSubscription';
-import { type BotDashboardResponse, DASHBOARD_VIEW, type DashboardViewMode, type DashboardWidgetType } from '../../features/dashboard/types/dashboard.types';
+import {
+  type BotDashboardResponse,
+  DASHBOARD_VIEW,
+  type DashboardGlobalOptions,
+  type DashboardViewMode,
+  type DashboardWidgetType,
+} from '../../features/dashboard/types/dashboard.types';
 import { syncLayoutWithFilter } from '../../features/dashboard/utils/dashboardUtils';
 import PageHeader from '@/components/custom/PageHeader';
 import { cn } from '@/lib/utils';
@@ -167,14 +173,14 @@ const layoutRenderMapper: Record<string, LayoutRenderEntry> = {
 interface DashboardCardItemProps {
   layoutKey: string;
   mapEntry: LayoutRenderEntry;
-  serviceIds: string[];
+  globalOptions: DashboardGlobalOptions;
 }
 
-function DashboardCardItem({ layoutKey, mapEntry, serviceIds }: DashboardCardItemProps) {
+function DashboardCardItem({ layoutKey, mapEntry, globalOptions }: DashboardCardItemProps) {
   const { data, error } = useWidgetSubscription({
     widgetType: layoutKey as DashboardWidgetType,
-    serviceIds,
-    enabled: serviceIds.length > 0,
+    globalOptions,
+    enabled: globalOptions.serviceIds.length > 0,
   });
 
   const wrappedData = data !== undefined ? ({ [layoutKey]: data } as unknown as BotDashboardResponse) : undefined;
@@ -228,7 +234,9 @@ export default function BotDashboard() {
   }, [serviceOptions]);
 
   useDashboardSocket();
-  const serviceIds = selectedService.map((item) => item.value as string);
+  const globalOptions: DashboardGlobalOptions = {
+    serviceIds: selectedService.map((item) => item.value as string),
+  };
 
   const { layout: storedLayout, setLayout } = useBotDashboardStore();
   const { width, containerRef, mounted } = useContainerWidth();
@@ -319,7 +327,7 @@ export default function BotDashboard() {
               if (!mapEntry) return null;
               return (
                 <div key={item.i} className="w-full h-full">
-                  <DashboardCardItem layoutKey={item.i} mapEntry={mapEntry} serviceIds={serviceIds} />
+                  <DashboardCardItem layoutKey={item.i} mapEntry={mapEntry} globalOptions={globalOptions} />
                 </div>
               );
             })}

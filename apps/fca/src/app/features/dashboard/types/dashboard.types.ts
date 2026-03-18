@@ -359,6 +359,19 @@ export const DASHBOARD_VIEW = {
 } as const;
 export type DashboardViewMode = (typeof DASHBOARD_VIEW)[keyof typeof DASHBOARD_VIEW];
 
+// --- 대시보드 옵션 타입 ---
+
+/** 글로벌 옵션: 모든 위젯에 일괄 적용 */
+export interface DashboardGlobalOptions {
+  serviceIds: string[];
+}
+
+/** 위젯별 옵션: 글로벌 옵션 오버라이드 + 위젯 전용 옵션 */
+export type DashboardWidgetOptions = Partial<DashboardGlobalOptions>;
+
+/** 서버 전송용 병합 옵션 (globalOptions 스프레드 후 widgetOptions 스프레드) */
+export type DashboardSubscribeOptions = DashboardGlobalOptions & DashboardWidgetOptions;
+
 // --- WebSocket 메시지 프로토콜 타입 ---
 
 export type DashboardWidgetType = keyof BotDashboardResponse;
@@ -369,7 +382,7 @@ export interface DashboardWsSubscribeMessage {
   type: 'SUBSCRIBE';
   widgetId: string;
   widgetType: DashboardWidgetType;
-  options: { serviceIds: string[] };
+  options: DashboardSubscribeOptions;
 }
 
 /** 클라이언트 → 서버: 위젯 구독 해제 */
@@ -407,7 +420,7 @@ export interface DashboardWsSubscribedMessage {
   type: 'SUBSCRIBED';
   widgetId: string;
   widgetType: DashboardWidgetType;
-  options: { serviceIds: string[] };
+  options: DashboardSubscribeOptions;
 }
 
 export type DashboardWsServerMessage = DashboardWsDataMessage | DashboardWsErrorMessage | DashboardWsConnectedMessage | DashboardWsSubscribedMessage;

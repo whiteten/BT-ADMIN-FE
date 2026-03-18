@@ -27,7 +27,10 @@ export function useDashboardSocket() {
     client.onopen = () => {
       Log.info('[onopen]');
       setIsConnected(true);
-      setSend((data: Record<string, unknown>) => client.send(data));
+      setSend((data: Record<string, unknown>) => {
+        Log.debug(`[send][${data.type}]`, data);
+        client.send(data);
+      });
     };
 
     client.onmessage = (event: MessageEvent) => {
