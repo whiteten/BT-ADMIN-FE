@@ -1,12 +1,11 @@
 import { useEffect, useRef } from 'react';
 import { createUUID } from '@/shared-util';
 import { useDashboardSocketStore } from './useDashboardSocketStore';
-import { DASHBOARD_MSG_TYPE, type DashboardGlobalOptions, type DashboardWidgetOptions, type DashboardWidgetType } from '../types/dashboard.types';
+import { DASHBOARD_MSG_TYPE, type DashboardSubscribeOptions, type DashboardWidgetType } from '../types/dashboard.types';
 
 interface UseWidgetSubscriptionOptions {
   widgetType: DashboardWidgetType;
-  globalOptions: DashboardGlobalOptions;
-  widgetOptions?: DashboardWidgetOptions;
+  options: DashboardSubscribeOptions;
   enabled?: boolean;
 }
 
@@ -20,9 +19,9 @@ interface UseWidgetSubscriptionReturn {
  *
  * - mount 시 SUBSCRIBE 메시지 전송
  * - unmount 시 UNSUBSCRIBE 메시지 전송
- * - globalOptions 또는 widgetOptions 변경 시 SUBSCRIBE 재전송
+ * - options 변경 시 SUBSCRIBE 재전송
  */
-export function useWidgetSubscription({ widgetType, globalOptions, widgetOptions, enabled = true }: UseWidgetSubscriptionOptions): UseWidgetSubscriptionReturn {
+export function useWidgetSubscription({ widgetType, options, enabled = true }: UseWidgetSubscriptionOptions): UseWidgetSubscriptionReturn {
   const widgetIdRef = useRef(createUUID());
   const widgetId = widgetIdRef.current;
 
@@ -32,20 +31,19 @@ export function useWidgetSubscription({ widgetType, globalOptions, widgetOptions
   const data = useDashboardSocketStore((s) => s.widgetData[widgetId]);
   const error = useDashboardSocketStore((s) => s.widgetErrors[widgetId]);
 
-  const optionsKey = JSON.stringify({ ...globalOptions, ...widgetOptions });
+  const optionsKey = JSON.stringify(options);
 
   // SUBSCRIBE: wsId가 존재하고 연결됐을 때 전송, 옵션 변경 시 재전송
   useEffect(() => {
     if (!enabled || !wsId || !isConnected || !send) return;
-    const mergedOptions = { ...globalOptions, ...widgetOptions };
     send({
       wsId,
       type: DASHBOARD_MSG_TYPE.SUBSCRIBE,
       widgetId,
       widgetType,
-      options: mergedOptions,
+      options,
     });
-  }, [wsId, isConnected, send, enabled, widgetType, widgetId, globalOptions, widgetOptions, optionsKey]);
+  }, [wsId, isConnected, send, enabled, widgetType, widgetId, options, optionsKey]);
 
   // UNSUBSCRIBE: unmount 시 전송
   useEffect(() => {

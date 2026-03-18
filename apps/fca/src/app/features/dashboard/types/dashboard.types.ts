@@ -361,16 +361,8 @@ export type DashboardViewMode = (typeof DASHBOARD_VIEW)[keyof typeof DASHBOARD_V
 
 // --- 대시보드 옵션 타입 ---
 
-/** 글로벌 옵션: 모든 위젯에 일괄 적용 */
-export interface DashboardGlobalOptions {
-  serviceIds: string[];
-}
-
-/** 위젯별 옵션: 글로벌 옵션 오버라이드 + 위젯 전용 옵션 */
-export type DashboardWidgetOptions = Partial<DashboardGlobalOptions>;
-
-/** 서버 전송용 병합 옵션 (globalOptions 스프레드 후 widgetOptions 스프레드) */
-export type DashboardSubscribeOptions = DashboardGlobalOptions & DashboardWidgetOptions;
+/** 위젯 구독 옵션 (위젯마다 자유롭게 구성) */
+export type DashboardSubscribeOptions = Record<string, unknown>;
 
 // --- WebSocket 메시지 프로토콜 타입 ---
 
