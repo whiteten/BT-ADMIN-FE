@@ -359,14 +359,6 @@ export const DASHBOARD_VIEW = {
 } as const;
 export type DashboardViewMode = (typeof DASHBOARD_VIEW)[keyof typeof DASHBOARD_VIEW];
 
-/** 레이아웃 렌더 매퍼 항목 */
-export interface LayoutRenderEntry {
-  title: string;
-  supportedModes?: DashboardViewMode[];
-  renderChart?: (data?: BotDashboardResponse) => React.ReactNode;
-  renderTable?: (data?: BotDashboardResponse) => React.ReactNode;
-}
-
 // --- 대시보드 옵션 타입 ---
 
 /** 위젯 구독 옵션 (위젯마다 자유롭게 구성) */

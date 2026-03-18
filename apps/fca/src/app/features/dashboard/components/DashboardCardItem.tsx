@@ -1,7 +1,8 @@
 import { Card } from 'antd';
+import type { LayoutRenderEntry } from '../constants/layoutRenderMapper';
 import useDashboardViewMode from '../hooks/useDashboardViewMode';
 import { useWidgetSubscription } from '../hooks/useWidgetSubscription';
-import { type BotDashboardResponse, DASHBOARD_VIEW, type DashboardWidgetType, type LayoutRenderEntry } from '../types/dashboard.types';
+import { type BotDashboardResponse, DASHBOARD_VIEW, type DashboardWidgetType } from '../types/dashboard.types';
 import { FallbackSpinner } from '@/libs/shared-ui/src/components/custom/FallbackSpinner';
 
 interface DashboardCardItemProps {
