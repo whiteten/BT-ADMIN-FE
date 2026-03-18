@@ -6,17 +6,24 @@ export default class WebSocketClient {
   #url: string;
   #key: string;
   #Log: InstanceType<typeof LOG>;
+  #messageLog: boolean;
 
   onopen?: () => void;
   onmessage?: (event: MessageEvent) => void;
   onerror?: (event: Event) => void;
   onclose?: (event: CloseEvent) => void;
 
-  constructor(url: string) {
+  constructor(url: string, options?: { messageLog?: boolean }) {
     this.#url = url;
     this.#ws = null;
     this.#key = createUUID().split('-')[0];
     this.#Log = new LOG(`WS-Client-${this.#key}`);
+    this.#messageLog = options?.messageLog ?? true;
+  }
+
+  setmessageLog(enabled: boolean): this {
+    this.#messageLog = enabled;
+    return this;
   }
 
   /**
@@ -25,33 +32,33 @@ export default class WebSocketClient {
   connect(): Promise<this> {
     return new Promise((resolve, reject) => {
       try {
-        this.#Log.info('[CONNECT]', `Connecting to ${this.#url}`);
+        this.#Log.info('[connect]', `Connecting to ${this.#url}`);
 
         this.#ws = new WebSocket(this.#url);
 
         this.#ws.onopen = () => {
-          this.#Log.success('[OPEN]', this.#url);
+          this.#Log.success('[onopen]', this.#url);
           this.onopen?.();
           resolve(this);
         };
 
         this.#ws.onmessage = (event) => {
-          this.#Log.success('[MESSAGE]', event.data);
+          if (this.#messageLog) this.#Log.success('[onmessage]', event.data);
           this.onmessage?.(event);
         };
 
         this.#ws.onerror = (event) => {
-          this.#Log.error('[ERROR]', event);
+          this.#Log.error('[onerror]', event);
           this.onerror?.(event);
           reject(event);
         };
 
         this.#ws.onclose = (event) => {
-          this.#Log.warn('[CLOSE]', `Code: ${event.code}, Reason: ${event.reason}`);
+          this.#Log.warn('[onclose]', `Code: ${event.code}, Reason: ${event.reason}`);
           this.onclose?.(event);
         };
       } catch (error) {
-        this.#Log.error('[CONNECT]', error);
+        this.#Log.error('[connect error]', error);
         reject(error);
       }
     });
@@ -61,7 +68,7 @@ export default class WebSocketClient {
    * Disconnect from WebSocket server
    */
   disconnect(): this {
-    this.#Log.success('[DISCONNECT]', 'Disconnecting');
+    if (this.#messageLog) this.#Log.success('[disconnect]', 'Disconnecting');
 
     if (this.#ws) {
       this.#ws.close();
@@ -76,15 +83,15 @@ export default class WebSocketClient {
    */
   send(data: string | Record<string, unknown>): this {
     if (!this.isConnected() || !this.#ws) {
-      this.#Log.error('[SEND]', 'WebSocket is not connected');
+      this.#Log.error('[send]', 'WebSocket is not connected');
       return this;
     }
     try {
       const message = typeof data === 'string' ? data : JSON.stringify(data);
       this.#ws.send(message);
-      this.#Log.success('[SEND]', data);
+      if (this.#messageLog) this.#Log.success('[send]', data);
     } catch (error) {
-      this.#Log.error('[SEND]', error);
+      this.#Log.error('[send error]', error);
     }
     return this;
   }

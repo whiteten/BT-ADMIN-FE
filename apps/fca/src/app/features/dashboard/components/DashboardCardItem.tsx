@@ -1,0 +1,59 @@
+import { Card } from 'antd';
+import type { LayoutRenderEntry } from '../constants/layoutRenderMapper';
+import useDashboardViewMode from '../hooks/useDashboardViewMode';
+import { useWidgetSubscription } from '../hooks/useWidgetSubscription';
+import { type BotDashboardResponse, DASHBOARD_VIEW, type DashboardWidgetType } from '../types/dashboard.types';
+import { FallbackSpinner } from '@/libs/shared-ui/src/components/custom/FallbackSpinner';
+
+interface DashboardCardItemProps {
+  layoutKey: string;
+  mapEntry: LayoutRenderEntry;
+  globalOptions: { serviceIds: string[] };
+}
+
+const DashboardCardItem = ({ layoutKey, mapEntry, globalOptions }: DashboardCardItemProps) => {
+  // 글로벌 옵션과 위젯별 옵션을 병합하여 최종 구독 옵션 생성
+  const options = { ...globalOptions };
+
+  const { data, error } = useWidgetSubscription({
+    widgetType: layoutKey as DashboardWidgetType,
+    options,
+    enabled: globalOptions.serviceIds.length > 0,
+  });
+
+  const wrappedData = data !== undefined ? ({ [layoutKey]: data } as unknown as BotDashboardResponse) : undefined;
+  const isLoading = data === undefined && !error;
+
+  const supportedModes = mapEntry.supportedModes ?? [DASHBOARD_VIEW.CHART];
+  const hasMultipleModes = supportedModes.length >= 2;
+  const { viewMode, viewModeToggleNode } = useDashboardViewMode(supportedModes);
+
+  return (
+    <Card
+      title={mapEntry.title ?? layoutKey}
+      variant="borderless"
+      className="h-full flex flex-col"
+      classNames={{ title: 'text-base font-semibold text-[#495057]', header: '!min-h-0 !h-[45px] !px-4', body: 'flex-1 min-h-0 !p-0' }}
+      extra={viewModeToggleNode}
+    >
+      {isLoading ? (
+        <div className="w-full h-full flex items-center justify-center">
+          <FallbackSpinner />
+        </div>
+      ) : hasMultipleModes ? (
+        <div className="relative h-full">
+          <div className="absolute inset-0" style={{ visibility: viewMode === DASHBOARD_VIEW.CHART ? 'visible' : 'hidden' }}>
+            {mapEntry.renderChart?.(wrappedData)}
+          </div>
+          <div className="absolute inset-0" style={{ visibility: viewMode === DASHBOARD_VIEW.TABLE ? 'visible' : 'hidden' }}>
+            {mapEntry.renderTable?.(wrappedData)}
+          </div>
+        </div>
+      ) : (
+        mapEntry.renderChart?.(wrappedData)
+      )}
+    </Card>
+  );
+};
+
+export default DashboardCardItem;

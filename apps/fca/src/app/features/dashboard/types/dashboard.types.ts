@@ -226,31 +226,6 @@ export interface IntentCheckFailTopItem {
 }
 
 /**
- * 인텐트 평균 신뢰도 TOP
- *
- * - rank: 순위
- * - serviceName: 시나리오명
- * - modelName: 모델명
- * - intent: 인텐트명
- * - detectCnt: 인식수
- * - avgConfidence: 평균 신뢰도
- * - passRate: Pass 비율 (%)
- * - checkRate: Check 비율 (%)
- * - failRate: Fail 비율 (%)
- */
-export interface IntentConfidenceTopItem {
-  rank: number;
-  serviceName: string;
-  modelName: string;
-  intent: string;
-  detectCnt: number;
-  avgConfidence: number;
-  passRate: number;
-  checkRate: number;
-  failRate: number;
-}
-
-/**
  * 시간대별 기본 데이터
  *
  * - serviceId: 시나리오 ID
@@ -271,15 +246,6 @@ export interface HourlyEntryItem extends HourlyBaseItem {
 }
 
 /**
- * 시간대별 점유시간 데이터
- *
- * - hourlyStats: 시간대별 통계 (00~23시)
- */
-export interface HourlyBusyTimeItem extends HourlyBaseItem {
-  hourlyStats: HourlyBusyTimeStatsItem[];
-}
-
-/**
  * 시간대별 진입수 데이터
  *
  * - hour: 시간대 (0~23)
@@ -288,17 +254,6 @@ export interface HourlyBusyTimeItem extends HourlyBaseItem {
 interface HourlyEntryStatsItem {
   hour: string;
   entryCnt: number;
-}
-
-/**
- * 시간대별 점유시간 데이터
- *
- * - hour: 시간대 (0~23)
- * - sumBusyTime: 점유시간 (초)
- */
-interface HourlyBusyTimeStatsItem {
-  hour: string;
-  sumBusyTime: number;
 }
 
 /**
@@ -326,9 +281,7 @@ export interface OccupancyItem {
  * - entityTop: 엔티티 TOP
  * - intentTop: 인텐트 TOP
  * - intentCheckFailTop: 인텐트 Check/Fail TOP
- * - intentConfidenceTop: 인텐트 신뢰도 TOP
  * - hourlyEntry: 시간대별 봇 진입 현황
- * - hourlyBusyTime: 시간대별 봇 점유 현황
  * - serviceOccupancy: 봇 점유 현황
  * - dialogOccupancy: 대화 점유 현황
  * - slotOccupancy: 슬롯 점유 현황
@@ -345,9 +298,7 @@ export interface BotDashboardResponse {
   entityTop: EntityTopItem[];
   intentTop: IntentTopItem[];
   intentCheckFailTop: IntentCheckFailTopItem[];
-  intentConfidenceTop: IntentConfidenceTopItem[];
   hourlyEntry: HourlyEntryItem[];
-  hourlyBusyTime: HourlyBusyTimeItem[];
   serviceOccupancy: OccupancyItem[];
   dialogOccupancy: OccupancyItem[];
   slotOccupancy: OccupancyItem[];
@@ -358,3 +309,82 @@ export const DASHBOARD_VIEW = {
   TABLE: 'table',
 } as const;
 export type DashboardViewMode = (typeof DASHBOARD_VIEW)[keyof typeof DASHBOARD_VIEW];
+
+// --- 대시보드 옵션 타입 ---
+
+/** 위젯 구독 옵션 (위젯마다 자유롭게 구성) */
+export type DashboardSubscribeOptions = Record<string, unknown>;
+
+// --- WebSocket 메시지 프로토콜 타입 ---
+
+export type DashboardWidgetType = keyof BotDashboardResponse;
+
+export const DASHBOARD_MSG_TYPE = {
+  SUBSCRIBE: 'SUBSCRIBE',
+  UNSUBSCRIBE: 'UNSUBSCRIBE',
+  DATA: 'DATA',
+  ERROR: 'ERROR',
+  CONNECTED: 'CONNECTED',
+  SUBSCRIBED: 'SUBSCRIBED',
+  UNSUBSCRIBED: 'UNSUBSCRIBED',
+} as const;
+export type DashboardMsgType = (typeof DASHBOARD_MSG_TYPE)[keyof typeof DASHBOARD_MSG_TYPE];
+
+interface DashboardWsBaseMessage {
+  wsId: string;
+}
+
+/** 클라이언트 → 서버: 위젯 구독 */
+export interface DashboardWsSubscribeMessage extends DashboardWsBaseMessage {
+  type: typeof DASHBOARD_MSG_TYPE.SUBSCRIBE;
+  widgetId: string;
+  widgetType: DashboardWidgetType;
+  options: DashboardSubscribeOptions;
+}
+
+/** 클라이언트 → 서버: 위젯 구독 해제 */
+export interface DashboardWsUnsubscribeMessage extends DashboardWsBaseMessage {
+  type: typeof DASHBOARD_MSG_TYPE.UNSUBSCRIBE;
+  widgetId: string;
+}
+
+/** 서버 → 클라이언트: 데이터 push */
+export interface DashboardWsDataMessage extends DashboardWsBaseMessage {
+  type: typeof DASHBOARD_MSG_TYPE.DATA;
+  widgetId: string;
+  widgetType: DashboardWidgetType;
+  data: unknown;
+}
+
+/** 서버 → 클라이언트: 에러 */
+export interface DashboardWsErrorMessage extends DashboardWsBaseMessage {
+  type: typeof DASHBOARD_MSG_TYPE.ERROR;
+  widgetId: string;
+  message: string;
+}
+
+/** 서버 → 클라이언트: 연결 시 wsId 전달 */
+export interface DashboardWsConnectedMessage extends DashboardWsBaseMessage {
+  type: typeof DASHBOARD_MSG_TYPE.CONNECTED;
+}
+
+/** 서버 → 클라이언트: 위젯 구독 시 전달 */
+export interface DashboardWsSubscribedMessage extends DashboardWsBaseMessage {
+  type: typeof DASHBOARD_MSG_TYPE.SUBSCRIBED;
+  widgetId: string;
+  widgetType: DashboardWidgetType;
+  options: DashboardSubscribeOptions;
+}
+
+/** 서버 → 클라이언트: 위젯 구독 해제 시 전달 */
+export interface DashboardWsUnsubscribedMessage extends DashboardWsBaseMessage {
+  type: typeof DASHBOARD_MSG_TYPE.UNSUBSCRIBED;
+  widgetId: string;
+}
+
+export type DashboardWsServerMessage =
+  | DashboardWsDataMessage
+  | DashboardWsErrorMessage
+  | DashboardWsConnectedMessage
+  | DashboardWsSubscribedMessage
+  | DashboardWsUnsubscribedMessage;
