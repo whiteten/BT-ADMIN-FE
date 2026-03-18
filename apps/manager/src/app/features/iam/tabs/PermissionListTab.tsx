@@ -112,7 +112,16 @@ export default function PermissionListTab() {
                 className="p-1 hover:bg-gray-200 rounded shrink-0"
                 onClick={(e) => {
                   e.stopPropagation();
-                  navigator.clipboard.writeText(params.value);
+                  if (navigator.clipboard) {
+                    navigator.clipboard.writeText(params.value);
+                  } else {
+                    const el = document.createElement('textarea');
+                    el.value = params.value;
+                    document.body.appendChild(el);
+                    el.select();
+                    document.execCommand('copy');
+                    el.remove();
+                  }
                   toast.success('복사됨');
                 }}
               >

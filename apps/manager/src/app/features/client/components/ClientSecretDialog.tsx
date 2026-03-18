@@ -23,7 +23,16 @@ export default function ClientSecretDialog({ open, onOpenChange, clientSecret, c
 
   const handleCopy = async () => {
     try {
-      await navigator.clipboard.writeText(clientSecret);
+      if (navigator.clipboard) {
+        await navigator.clipboard.writeText(clientSecret);
+      } else {
+        const el = document.createElement('textarea');
+        el.value = clientSecret;
+        document.body.appendChild(el);
+        el.select();
+        document.execCommand('copy');
+        el.remove();
+      }
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
     } catch (error) {
