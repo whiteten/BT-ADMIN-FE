@@ -6,9 +6,9 @@ import NoData from '@/components/custom/NoData';
 
 const createChartOption = (data: ScenarioSummary): EChartsOption => {
   const seriesData = [
-    { name: '완결', value: data.completeCnt, rate: data.completeRate },
-    { name: '미완결', value: data.incompleteCnt, rate: data.incompleteRate },
-    { name: '상담원 전환', value: data.agentReqCnt, rate: data.agentTransferRate },
+    { name: '봇 해결', value: data.completeCnt, rate: data.completeRate },
+    { name: '미해결 종료', value: data.incompleteCnt, rate: data.incompleteRate },
+    { name: '상담사 연결', value: data.agentReqCnt, rate: data.agentTransferRate },
   ];
 
   return {

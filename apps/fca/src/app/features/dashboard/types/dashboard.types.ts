@@ -1,13 +1,13 @@
 /**
- * 시나리오 현황
+ * 봇 현황
  *
  * - entryCnt: 진입수
- * - completeCnt: 완결수
- * - completeRate: 완결률 (%)
- * - agentReqCnt: 상담원 전환수
- * - agentTransferRate: 상담원 전환률 (%)
- * - incompleteCnt: 미완결수
- * - incompleteRate: 미완결률 (%)
+ * - completeCnt: 봇 해결수
+ * - completeRate: 봇 해결률 (%)
+ * - agentReqCnt: 상담사 연결수
+ * - agentTransferRate: 상담사 연결률 (%)
+ * - incompleteCnt: 미해결 종료수
+ * - incompleteRate: 미해결 종료율 (%)
  */
 export interface ScenarioSummary {
   entryCnt: number;
@@ -54,7 +54,7 @@ export interface SlotSummary {
 }
 
 /**
- * 대화 미완결율 TOP
+ * 대화 미완결율 순위
  *
  * - rank: 순위 (미완결 기준)
  * - serviceName: 시나리오명
@@ -77,7 +77,7 @@ export interface DialogIncompleteTopItem {
 }
 
 /**
- * 슬롯 미완결율 TOP
+ * 슬롯 미완결율 순위
  *
  * - rank: 순위 (미완결 기준)
  * - serviceName: 시나리오명
@@ -102,7 +102,7 @@ export interface SlotIncompleteTopItem {
 }
 
 /**
- * 슬롯 평균 재시도 횟수 TOP
+ * 슬롯 평균 재시도 횟수 순위
  *
  * - rank: 순위
  * - serviceName: 시나리오명
@@ -129,7 +129,7 @@ export interface SlotRetryAvgTopItem {
 }
 
 /**
- * 슬롯 재시도 분포 TOP
+ * 슬롯 완결 건 재시도 분포 순위
  *
  * - rank: 순위
  * - serviceName: 시나리오명
@@ -162,7 +162,7 @@ export interface SlotRetryDistTopItem {
 }
 
 /**
- * 키워드 TOP
+ * 키워드 현황
  *
  * - rank: 순위
  * - keyword: 키워드
@@ -175,7 +175,7 @@ export interface KeywordTopItem {
 }
 
 /**
- * 엔티티 TOP
+ * 개체 순위
  *
  * - rank: 순위
  * - entityTag: 엔티티 태그
@@ -188,7 +188,7 @@ export interface EntityTopItem {
 }
 
 /**
- * 인텐트 TOP
+ * 의도 순위
  *
  * - rank: 순위
  * - intent: 인텐트명
@@ -201,7 +201,7 @@ export interface IntentTopItem {
 }
 
 /**
- * 인텐트 Check/Fail TOP
+ * 의도 Check/Fail 순위
  *
  * - rank: 순위
  * - serviceId: 시나리오 ID
@@ -278,17 +278,17 @@ export interface OccupancyItem {
 /**
  * 봇 대시보드 API 응답
  *
- * - scenarioSummary: 시나리오 현황
+ * - scenarioSummary: 봇 현황
  * - dialogSummary: 대화 현황
  * - slotSummary: 슬롯 현황
- * - dialogIncompleteTop: 대화 미완결율 TOP
- * - slotIncompleteTop: 슬롯 미완결율 TOP
- * - slotRetryAvgTop: 슬롯 평균 재시도 TOP
- * - slotRetryDistTop: 슬롯 재시도 분포 TOP
- * - keywordTop: 키워드 TOP
- * - entityTop: 엔티티 TOP
- * - intentTop: 인텐트 TOP
- * - intentCheckFailTop: 인텐트 Check/Fail TOP
+ * - dialogIncompleteTop: 대화 미완결율 순위
+ * - slotIncompleteTop: 슬롯 미완결율 순위
+ * - slotRetryAvgTop: 슬롯 평균 재시도 횟수 순위
+ * - slotRetryDistTop: 슬롯 완결 건 재시도 분포 순위
+ * - keywordTop: 키워드 현황
+ * - entityTop: 개체 순위
+ * - intentTop: 의도 순위
+ * - intentCheckFailTop: 의도 Check/Fail 순위
  * - hourlyEntry: 시간대별 봇 진입 현황
  * - serviceOccupancy: 봇 점유 현황
  * - dialogOccupancy: 대화 점유 현황

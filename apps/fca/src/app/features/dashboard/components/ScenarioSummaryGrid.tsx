@@ -16,9 +16,9 @@ const columnDefs: ColDef<SummaryRow>[] = [
 ];
 
 const toRows = (data: ScenarioSummary): SummaryRow[] => [
-  { category: '완결', count: data.completeCnt, rate: data.completeRate },
-  { category: '미완결', count: data.incompleteCnt, rate: data.incompleteRate },
-  { category: '상담원 전환', count: data.agentReqCnt, rate: data.agentTransferRate },
+  { category: '봇 해결', count: data.completeCnt, rate: data.completeRate },
+  { category: '미해결 종료', count: data.incompleteCnt, rate: data.incompleteRate },
+  { category: '상담사 연결', count: data.agentReqCnt, rate: data.agentTransferRate },
 ];
 
 interface ScenarioSummaryGridProps {
