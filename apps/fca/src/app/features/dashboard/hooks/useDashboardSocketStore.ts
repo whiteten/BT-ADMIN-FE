@@ -1,3 +1,4 @@
+import { isEqual } from 'lodash';
 import { create } from 'zustand';
 import { devtools } from 'zustand/middleware';
 
@@ -31,9 +32,10 @@ export const useDashboardSocketStore = create<DashboardSocketStore>()(
       setSend: (send) => set({ send }, false, 'setSend'),
       setWidgetData: (widgetId, data) =>
         set(
-          (state) => ({
-            widgetData: { ...state.widgetData, [widgetId]: data },
-          }),
+          (state) => {
+            if (isEqual(state.widgetData[widgetId], data)) return state;
+            return { widgetData: { ...state.widgetData, [widgetId]: data } };
+          },
           false,
           'setWidgetData',
         ),
