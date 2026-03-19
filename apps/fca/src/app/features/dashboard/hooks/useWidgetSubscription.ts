@@ -12,6 +12,7 @@ interface UseWidgetSubscriptionOptions {
 interface UseWidgetSubscriptionReturn {
   data: unknown;
   error: string | undefined;
+  widgetId: string;
 }
 
 /**
@@ -61,5 +62,5 @@ export function useWidgetSubscription({ widgetType, options, enabled = true }: U
     };
   }, [widgetId]);
 
-  return { data, error };
+  return { data, error, widgetId };
 }

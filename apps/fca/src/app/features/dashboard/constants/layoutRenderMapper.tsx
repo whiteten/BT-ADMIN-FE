@@ -1,4 +1,5 @@
 import DialogIncompleteTopBarChart from '../components/DialogIncompleteTopBarChart';
+import DialogIncompleteTopDrawer from '../components/DialogIncompleteTopDrawer';
 import DialogIncompleteTopGrid from '../components/DialogIncompleteTopGrid';
 import DialogSummaryGrid from '../components/DialogSummaryGrid';
 import DialogSummaryPieChart from '../components/DialogSummaryPieChart';
@@ -26,10 +27,26 @@ import SlotSummaryGrid from '../components/SlotSummaryGrid';
 import SlotSummaryPieChart from '../components/SlotSummaryPieChart';
 import { type BotDashboardResponse, DASHBOARD_VIEW, type DashboardViewMode } from '../types/dashboard.types';
 
+/** 위젯 메뉴 액션에 전달되는 컨텍스트 */
+export interface WidgetActionContext {
+  widgetOptions: Record<string, unknown>;
+  setOption: (key: string, value: unknown) => void;
+}
+
+/** 위젯 드롭다운 메뉴의 개별 액션 항목 */
+export interface WidgetMenuAction {
+  key: string;
+  label: string;
+  icon?: React.ReactNode;
+  renderContent: (ctx: WidgetActionContext & { open: boolean; onClose: () => void }) => React.ReactNode;
+}
+
 /** 레이아웃 렌더 매퍼 항목 */
 export interface LayoutRenderEntry {
   title: string;
   supportedModes?: DashboardViewMode[];
+  menuActions?: WidgetMenuAction[];
+  defaultOptions?: Record<string, unknown>;
   renderChart?: (data?: BotDashboardResponse) => React.ReactNode;
   renderTable?: (data?: BotDashboardResponse) => React.ReactNode;
 }
@@ -72,25 +89,35 @@ export const layoutRenderMapper: Record<string, LayoutRenderEntry> = {
     renderTable: (d) => <SlotSummaryGrid data={d?.slotSummary} />,
   },
   dialogIncompleteTop: {
-    title: '대화 미완결율 Top 10',
+    title: '대화 미완결율 순위',
     supportedModes: [DASHBOARD_VIEW.CHART, DASHBOARD_VIEW.TABLE],
+    // defaultOptions: { topN: 10 },
+    // menuActions: [
+    //   {
+    //     key: 'settings',
+    //     label: '상세 설정',
+    //     renderContent: ({ widgetOptions, setOption, open, onClose }) => (
+    //       <DialogIncompleteTopDrawer widgetOptions={widgetOptions} setOption={setOption} open={open} onClose={onClose} />
+    //     ),
+    //   },
+    // ],
     renderChart: (d) => <DialogIncompleteTopBarChart data={d?.dialogIncompleteTop} />,
     renderTable: (d) => <DialogIncompleteTopGrid data={d?.dialogIncompleteTop} />,
   },
   slotIncompleteTop: {
-    title: '슬롯 미완결율 Top 10',
+    title: '슬롯 미완결율 순위',
     supportedModes: [DASHBOARD_VIEW.CHART, DASHBOARD_VIEW.TABLE],
     renderChart: (d) => <SlotIncompleteTopBarChart data={d?.slotIncompleteTop} />,
     renderTable: (d) => <SlotIncompleteTopGrid data={d?.slotIncompleteTop} />,
   },
   slotRetryAvgTop: {
-    title: '슬롯 평균 재시도 횟수 Top 10',
+    title: '슬롯 평균 재시도 횟수 순위',
     supportedModes: [DASHBOARD_VIEW.CHART, DASHBOARD_VIEW.TABLE],
     renderChart: (d) => <SlotRetryAvgTopBarChart data={d?.slotRetryAvgTop} />,
     renderTable: (d) => <SlotRetryAvgTopGrid data={d?.slotRetryAvgTop} />,
   },
   slotRetryDistTop: {
-    title: '슬롯 완결 건 재시도 분포 TOP 10',
+    title: '슬롯 완결 건 재시도 분포 순위',
     supportedModes: [DASHBOARD_VIEW.CHART, DASHBOARD_VIEW.TABLE],
     renderChart: (d) => <SlotRetryDistTopBarChart data={d?.slotRetryDistTop} />,
     renderTable: (d) => <SlotRetryDistTopGrid data={d?.slotRetryDistTop} />,
@@ -102,19 +129,19 @@ export const layoutRenderMapper: Record<string, LayoutRenderEntry> = {
     renderTable: (d) => <KeywordTopGrid data={d?.keywordTop} />,
   },
   entityTop: {
-    title: '개체 Top 10',
+    title: '개체 순위',
     supportedModes: [DASHBOARD_VIEW.CHART, DASHBOARD_VIEW.TABLE],
     renderChart: (d) => <EntityTopBarChart data={d?.entityTop} />,
     renderTable: (d) => <EntityTopGrid data={d?.entityTop} />,
   },
   intentTop: {
-    title: '의도 Top 10',
+    title: '의도 순위',
     supportedModes: [DASHBOARD_VIEW.CHART, DASHBOARD_VIEW.TABLE],
     renderChart: (d) => <IntentTopBarChart data={d?.intentTop} />,
     renderTable: (d) => <IntentTopGrid data={d?.intentTop} />,
   },
   intentCheckFailTop: {
-    title: '의도 Check/Fail Top 10',
+    title: '의도 Check/Fail 순위',
     supportedModes: [DASHBOARD_VIEW.CHART, DASHBOARD_VIEW.TABLE],
     renderChart: (d) => <IntentCheckFailTopBarChart data={d?.intentCheckFailTop} />,
     renderTable: (d) => <IntentCheckFailTopGrid data={d?.intentCheckFailTop} />,
