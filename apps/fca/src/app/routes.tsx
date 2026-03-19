@@ -117,9 +117,9 @@ export const routes = [
         path: 'tracking',
         element: <Outlet />,
         children: [
-          { index: true, element: <Navigate to="dialog" replace /> },
-          { path: 'dialog', element: <DialogHistory /> },
-          { path: 'realtime', element: <BotTracking /> },
+          { index: true, element: <Navigate to="bot-dialog" replace /> },
+          { path: 'bot-dialog', element: <DialogHistory /> },
+          { path: 'bot-realtime', element: <BotTracking /> },
         ],
       },
       {

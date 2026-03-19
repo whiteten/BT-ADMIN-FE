@@ -62,7 +62,11 @@ function BotBubble({ item }: { item: TrackingFlowItem }) {
           {item.startTime && <span className="text-[10px] text-slate-300">{item.startTime}</span>}
         </div>
         <div className="bg-white border border-slate-200 rounded-lg rounded-bl-sm px-3 py-2 shadow-sm">
-          <p className="text-sm text-slate-700 leading-relaxed break-words">{text}</p>
+          {item.imagePath ? (
+            <img src={item.imagePath} alt="멀티모달 이미지" className="max-w-full rounded" />
+          ) : (
+            <p className="text-sm text-slate-700 leading-relaxed break-words">{text}</p>
+          )}
         </div>
         {item.result && <span className={`text-[10px] font-medium ${resultColor}`}>{item.result}</span>}
       </div>
@@ -114,8 +118,8 @@ export default function TrackingDialogView({ items }: TrackingDialogViewProps) {
         // 숨김 처리
         if (role === 'HIDDEN') return null;
 
-        // 메뉴 진입 → 구분선
-        if (item.type === 0) {
+        // 메뉴 진입 → 구분선 (menuId 또는 menuName이 있을 때만)
+        if (item.type === 0 && (item.menuId || item.menuName)) {
           return <MenuEntryDivider key={idx} item={item} />;
         }
 

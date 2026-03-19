@@ -5,7 +5,7 @@ const apiClient = new ApiClient({ serviceURL: '/bff' });
 
 export const historyApi = {
   getBotServices: async (params?: Record<string, unknown>): Promise<BotServiceDto[]> => {
-    const response = await apiClient.get<ListResponse<BotServiceDto>>('/dialog-history-bot-services', { params });
+    const response = await apiClient.get<ListResponse<BotServiceDto>>('/bot-services', { params });
     return extractList(response);
   },
   getDialogHistory: async (params?: Record<string, unknown>): Promise<ListResponse<DialogHistoryListItem>> => {

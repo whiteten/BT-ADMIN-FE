@@ -11,7 +11,7 @@ import useAggridOptions from '@/libs/shared-ui/src/hooks/useAggridOptions';
 
 const breadcrumb: BreadcrumbProps['items'] = [
   { title: '트래킹', path: '/fca/tracking' },
-  { title: '실시간 봇 트래킹', path: '/fca/tracking/realtime' },
+  { title: '실시간 봇 트래킹', path: '/fca/tracking/bot-realtime' },
 ];
 
 function formatCallTime(callTime: string): string {
@@ -32,6 +32,7 @@ export default function BotTracking() {
 
   const columnDefs: ColDef<TrackingSession>[] = [
     { headerName: '시나리오명', field: 'serviceName', flex: 1.5, minWidth: 140 },
+    { headerName: 'UCID', field: 'ucid', flex: 1.5, minWidth: 150 },
     { headerName: '발신번호', field: 'ani', flex: 1.2, minWidth: 130 },
     { headerName: '착신번호', field: 'dnis', flex: 1, minWidth: 100 },
     {

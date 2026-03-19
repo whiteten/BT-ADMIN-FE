@@ -47,11 +47,13 @@ export interface TrackingFlowItem {
   seq: number;
   type: number;
   typeName: string;
-  menuId: string;
-  menuName: string;
+  menuId: string | null;
+  menuName: string | null;
   block: string;
   startTime: string;
-  description: string;
+  description: string | null;
+  /** 멀티모달(type=2/3) 이미지 URL. BFF를 통해 이미지를 로드할 경로. */
+  imagePath: string | null;
   result: string;
   dialogRole: DialogRole;
   rawValues: string[];
