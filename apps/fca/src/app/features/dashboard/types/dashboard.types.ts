@@ -204,22 +204,32 @@ export interface IntentTopItem {
  * 인텐트 Check/Fail TOP
  *
  * - rank: 순위
+ * - serviceId: 시나리오 ID
  * - serviceName: 시나리오명
+ * - modelId: 모델 ID
  * - modelName: 모델명
  * - intent: 인텐트명
  * - detectCnt: 인식수
+ * - passCnt: Pass 건수
  * - passRate: Pass 비율 (%)
+ * - checkCnt: Check 건수
  * - checkRate: Check 비율 (%)
+ * - failCnt: Fail 건수
  * - failRate: Fail 비율 (%)
  */
 export interface IntentCheckFailTopItem {
   rank: number;
+  serviceId: number;
   serviceName: string;
+  modelId: string;
   modelName: string;
   intent: string;
   detectCnt: number;
+  passCnt: number;
   passRate: number;
+  checkCnt: number;
   checkRate: number;
+  failCnt: number;
   failRate: number;
 }
 

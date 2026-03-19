@@ -7,8 +7,8 @@ import NoData from '@/components/custom/NoData';
 
 const createChartOption = (data: IntentCheckFailTopItem[]): EChartsOption => {
   const sorted = [...data].filter((item) => item.rank >= 1 && item.rank <= 10).sort((a, b) => a.rank - b.rank);
-  const dataMax = Math.max(...sorted.map((item) => item.checkRate + item.failRate));
-  const axisMax = Math.min(Math.ceil(dataMax / 20) * 20, 100);
+  const dataMax = Math.max(...sorted.map((item) => item.failCnt + item.checkCnt + item.passCnt));
+  const axisMax = Math.ceil(dataMax / 5) * 5 || 10;
 
   return {
     tooltip: {
@@ -18,11 +18,11 @@ const createChartOption = (data: IntentCheckFailTopItem[]): EChartsOption => {
         const list = params as CallbackDataParams[];
         const item = sorted[list[0].dataIndex];
         const title = `<strong>${item.serviceName} &gt; ${item.modelName} &gt; ${item.intent}</strong>`;
-        const lines = list.map((p) => `${p.marker} ${p.seriesName}: ${p.value}%`);
+        const lines = list.map((p) => `${p.marker} ${p.seriesName}: ${p.value}건`);
         return `${title}<br/>인식수: ${item.detectCnt}건<br/>${lines.join('<br/>')}`;
       },
     },
-    legend: { data: ['Check', 'Fail'], right: 10, top: 5, icon: 'roundRect', selectedMode: false },
+    legend: { data: ['Fail', 'Check', 'Pass'], right: 10, top: 5, icon: 'roundRect', selectedMode: false },
     grid: { left: 20, right: 50, bottom: 20, top: 30, containLabel: true },
     xAxis: {
       type: 'value',
@@ -31,7 +31,7 @@ const createChartOption = (data: IntentCheckFailTopItem[]): EChartsOption => {
       axisLine: { lineStyle: { color: '#E9EBEC' } },
       axisTick: { show: false },
       axisLabel: { color: '#495057', fontSize: 12 },
-      name: '(%)',
+      name: '(건)',
       nameLocation: 'end',
       nameTextStyle: { color: '#495057', fontSize: 12 },
       splitLine: {
@@ -48,29 +48,31 @@ const createChartOption = (data: IntentCheckFailTopItem[]): EChartsOption => {
     },
     series: [
       {
-        name: 'Check',
-        type: 'bar',
-        stack: 'total',
-        data: sorted.map((item) => ({
-          value: item.checkRate,
-          itemStyle: {
-            borderRadius: item.failRate === 0 ? [0, 4, 4, 0] : undefined,
-          },
-        })),
-        itemStyle: { color: CHART_COLORS.warning },
-        barWidth: '60%',
-      },
-      {
         name: 'Fail',
         type: 'bar',
         stack: 'total',
+        data: sorted.map((item) => item.failCnt),
+        itemStyle: { color: CHART_COLORS.danger },
+        barWidth: '60%',
+      },
+      {
+        name: 'Check',
+        type: 'bar',
+        stack: 'total',
+        data: sorted.map((item) => item.checkCnt),
+        itemStyle: { color: CHART_COLORS.warning },
+      },
+      {
+        name: 'Pass',
+        type: 'bar',
+        stack: 'total',
         data: sorted.map((item) => ({
-          value: item.failRate,
+          value: item.passCnt,
           itemStyle: {
-            borderRadius: item.failRate > 0 ? [0, 4, 4, 0] : undefined,
+            borderRadius: item.passCnt > 0 ? [0, 4, 4, 0] : undefined,
           },
         })),
-        itemStyle: { color: CHART_COLORS.danger },
+        itemStyle: { color: CHART_COLORS.success },
       },
     ],
   };
