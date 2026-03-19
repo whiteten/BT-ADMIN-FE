@@ -19,7 +19,7 @@ const createChartOption = (data: IntentCheckFailTopItem[]): EChartsOption => {
         const item = sorted[list[0].dataIndex];
         const title = `<strong>${item.serviceName} &gt; ${item.modelName} &gt; ${item.intent}</strong>`;
         const lines = list.map((p) => `${p.marker} ${p.seriesName}: ${p.value}%`);
-        return `${title}<br/>인식수: ${item.detectCnt}건 / 평균 신뢰도: ${item.avgConfidence}%<br/>${lines.join('<br/>')}`;
+        return `${title}<br/>인식수: ${item.detectCnt}건<br/>${lines.join('<br/>')}`;
       },
     },
     legend: { data: ['Check', 'Fail'], right: 10, top: 5, icon: 'roundRect', selectedMode: false },

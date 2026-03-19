@@ -208,7 +208,6 @@ export interface IntentTopItem {
  * - modelName: 모델명
  * - intent: 인텐트명
  * - detectCnt: 인식수
- * - avgConfidence: 평균 신뢰도
  * - passRate: Pass 비율 (%)
  * - checkRate: Check 비율 (%)
  * - failRate: Fail 비율 (%)
@@ -219,7 +218,6 @@ export interface IntentCheckFailTopItem {
   modelName: string;
   intent: string;
   detectCnt: number;
-  avgConfidence: number;
   passRate: number;
   checkRate: number;
   failRate: number;
