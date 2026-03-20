@@ -5,8 +5,6 @@ import { getGradientColor } from '../utils/dashboardUtils';
 import NoData from '@/components/custom/NoData';
 
 const createChartOption = (data: EntityTopItem[]): EChartsOption => {
-  const sorted = [...data].filter((item) => item.rank >= 1 && item.rank <= 10).sort((a, b) => a.rank - b.rank);
-
   return {
     tooltip: { trigger: 'axis', axisPointer: { type: 'shadow' } },
     grid: { left: 20, right: 50, bottom: 20, top: 20, containLabel: true },
@@ -25,7 +23,7 @@ const createChartOption = (data: EntityTopItem[]): EChartsOption => {
     },
     yAxis: {
       type: 'category',
-      data: sorted.map((item) => item.entityTag),
+      data: data.map((item) => item.entityTag),
       inverse: true,
       axisLine: { show: false },
       axisTick: { show: false },
@@ -34,7 +32,7 @@ const createChartOption = (data: EntityTopItem[]): EChartsOption => {
     series: [
       {
         type: 'bar',
-        data: sorted.map((item) => item.detectCnt),
+        data: data.map((item) => item.detectCnt),
         itemStyle: { borderRadius: [0, 4, 4, 0], color: getGradientColor },
         barWidth: '60%',
         label: { show: true, position: 'right', formatter: '{c}', color: '#495057', fontSize: 11 },

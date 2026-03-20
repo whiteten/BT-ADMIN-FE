@@ -5,8 +5,6 @@ import { getGradientColor } from '../utils/dashboardUtils';
 import NoData from '@/components/custom/NoData';
 
 const createChartOption = (data: SlotRetryAvgTopItem[]): EChartsOption => {
-  const sorted = [...data].filter((item) => item.rank >= 1 && item.rank <= 10).sort((a, b) => a.rank - b.rank);
-
   return {
     tooltip: {
       trigger: 'axis',
@@ -15,7 +13,7 @@ const createChartOption = (data: SlotRetryAvgTopItem[]): EChartsOption => {
         const list = Array.isArray(params) ? params : [params];
         const first = list[0] as { dataIndex: number; marker: string };
         if (first?.dataIndex == null) return '';
-        const item = sorted[first.dataIndex];
+        const item = data[first.dataIndex];
         return `${first.marker}<strong>${item.serviceName} &gt; ${item.dialogName} &gt; ${item.slotName}</strong><br/>평균 재시도: ${item.avgRetryCount}회<br/>진입: ${item.entryCnt}건<br/>완결: ${item.completeCnt}건`;
       },
     },
@@ -35,7 +33,7 @@ const createChartOption = (data: SlotRetryAvgTopItem[]): EChartsOption => {
     },
     yAxis: {
       type: 'category',
-      data: sorted.map((item) => item.slotName),
+      data: data.map((item) => item.slotName),
       inverse: true,
       axisLine: { show: false },
       axisTick: { show: false },
@@ -44,7 +42,7 @@ const createChartOption = (data: SlotRetryAvgTopItem[]): EChartsOption => {
     series: [
       {
         type: 'bar',
-        data: sorted.map((item) => item.avgRetryCount),
+        data: data.map((item) => item.avgRetryCount),
         itemStyle: { borderRadius: [0, 4, 4, 0], color: (params) => getGradientColor(params, [255, 127, 103]) },
         barWidth: '60%',
         label: { show: true, position: 'right', formatter: '{c}', color: '#495057', fontSize: 11 },

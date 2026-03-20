@@ -5,8 +5,7 @@ import { getGradientColor } from '../utils/dashboardUtils';
 import NoData from '@/components/custom/NoData';
 
 const createChartOption = (data: SlotIncompleteTopItem[]): EChartsOption => {
-  const sorted = [...data].filter((item) => item.rank >= 1 && item.rank <= 10).sort((a, b) => a.rank - b.rank);
-  const dataMax = Math.max(...sorted.map((item) => item.incompleteRate));
+  const dataMax = Math.max(...data.map((item) => item.incompleteRate));
   const axisMax = Math.min(Math.ceil(dataMax / 20) * 20, 100);
 
   return {
@@ -17,7 +16,7 @@ const createChartOption = (data: SlotIncompleteTopItem[]): EChartsOption => {
         const list = Array.isArray(params) ? params : [params];
         const first = list[0] as { dataIndex: number; marker: string };
         if (first?.dataIndex == null) return '';
-        const item = sorted[first.dataIndex];
+        const item = data[first.dataIndex];
         return `${first.marker}<strong>${item.serviceName} &gt; ${item.dialogName} &gt; ${item.slotName}</strong><br/>미완결율: ${item.incompleteRate}%<br/>미완결: ${item.incompleteCnt}건<br/>진입: ${item.entryCnt}건`;
       },
     },
@@ -38,7 +37,7 @@ const createChartOption = (data: SlotIncompleteTopItem[]): EChartsOption => {
     },
     yAxis: {
       type: 'category',
-      data: sorted.map((item) => item.slotName),
+      data: data.map((item) => item.slotName),
       inverse: true,
       axisLine: { show: false },
       axisTick: { show: false },
@@ -47,7 +46,7 @@ const createChartOption = (data: SlotIncompleteTopItem[]): EChartsOption => {
     series: [
       {
         type: 'bar',
-        data: sorted.map((item) => item.incompleteRate),
+        data: data.map((item) => item.incompleteRate),
         itemStyle: { borderRadius: [0, 4, 4, 0], color: (params) => getGradientColor(params, [255, 127, 103]) },
         barWidth: '60%',
         label: { show: true, position: 'right', formatter: '{c}', color: '#495057', fontSize: 11 },

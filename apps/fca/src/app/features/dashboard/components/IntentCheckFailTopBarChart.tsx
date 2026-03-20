@@ -6,8 +6,7 @@ import type { IntentCheckFailTopItem } from '../types/dashboard.types';
 import NoData from '@/components/custom/NoData';
 
 const createChartOption = (data: IntentCheckFailTopItem[]): EChartsOption => {
-  const sorted = [...data].filter((item) => item.rank >= 1 && item.rank <= 10).sort((a, b) => a.rank - b.rank);
-  const dataMax = Math.max(...sorted.map((item) => item.failCnt + item.checkCnt + item.passCnt));
+  const dataMax = Math.max(...data.map((item) => item.failCnt + item.checkCnt + item.passCnt));
   const axisMax = Math.ceil(dataMax / 5) * 5 || 10;
 
   return {
@@ -16,7 +15,7 @@ const createChartOption = (data: IntentCheckFailTopItem[]): EChartsOption => {
       axisPointer: { type: 'shadow' },
       formatter: (params) => {
         const list = params as CallbackDataParams[];
-        const item = sorted[list[0].dataIndex];
+        const item = data[list[0].dataIndex];
         const title = `<strong>${item.serviceName} &gt; ${item.modelName} &gt; ${item.intent}</strong>`;
         const lines = list.map((p) => `${p.marker} ${p.seriesName}: ${p.value}건`);
         return `${title}<br/>인식수: ${item.detectCnt}건<br/>${lines.join('<br/>')}`;
@@ -40,7 +39,7 @@ const createChartOption = (data: IntentCheckFailTopItem[]): EChartsOption => {
     },
     yAxis: {
       type: 'category',
-      data: sorted.map((item) => item.intent),
+      data: data.map((item) => item.intent),
       inverse: true,
       axisLine: { show: false },
       axisTick: { show: false },
@@ -51,7 +50,7 @@ const createChartOption = (data: IntentCheckFailTopItem[]): EChartsOption => {
         name: 'Fail',
         type: 'bar',
         stack: 'total',
-        data: sorted.map((item) => item.failCnt),
+        data: data.map((item) => item.failCnt),
         itemStyle: { color: CHART_COLORS.danger },
         barWidth: '60%',
       },
@@ -59,14 +58,14 @@ const createChartOption = (data: IntentCheckFailTopItem[]): EChartsOption => {
         name: 'Check',
         type: 'bar',
         stack: 'total',
-        data: sorted.map((item) => item.checkCnt),
+        data: data.map((item) => item.checkCnt),
         itemStyle: { color: CHART_COLORS.warning },
       },
       {
         name: 'Pass',
         type: 'bar',
         stack: 'total',
-        data: sorted.map((item) => ({
+        data: data.map((item) => ({
           value: item.passCnt,
           itemStyle: {
             borderRadius: item.passCnt > 0 ? [0, 4, 4, 0] : undefined,
