@@ -48,25 +48,21 @@ function BotBubble({ item }: { item: TrackingFlowItem }) {
   const text = item.description ?? item.typeName;
 
   return (
-    <div className="flex items-end gap-2 max-w-[80%]">
+    <div className="flex items-end gap-2 max-w-[80%] ml-auto flex-row-reverse">
       {/* 아바타 */}
       <div className="flex-shrink-0 w-7 h-7 rounded-full bg-blue-100 flex items-center justify-center">
         <Bot size={15} className="text-blue-600" />
       </div>
 
       {/* 말풍선 */}
-      <div className="flex flex-col gap-0.5">
+      <div className="flex flex-col items-end gap-0.5">
         <div className="flex items-center gap-1.5 mb-0.5">
-          <Icon size={11} className={cfg.color} />
-          <span className="text-[10px] text-slate-400">{item.typeName}</span>
           {item.startTime && <span className="text-[10px] text-slate-300">{item.startTime}</span>}
+          <span className="text-[10px] text-slate-400">{item.typeName}</span>
+          <Icon size={11} className={cfg.color} />
         </div>
-        <div className="bg-white border border-slate-200 rounded-lg rounded-bl-sm px-3 py-2 shadow-sm">
-          {item.imagePath ? (
-            <img src={item.imagePath} alt="멀티모달 이미지" className="max-w-full rounded" />
-          ) : (
-            <p className="text-sm text-slate-700 leading-relaxed break-words">{text}</p>
-          )}
+        <div className="bg-blue-50 border border-blue-200 rounded-lg rounded-br-sm px-3 py-2 shadow-sm">
+          <p className="text-sm text-slate-700 leading-relaxed break-words">{text}</p>
         </div>
         {item.result && <span className={`text-[10px] font-medium ${resultColor}`}>{item.result}</span>}
       </div>
@@ -82,20 +78,20 @@ function CustomerBubble({ item }: { item: TrackingFlowItem }) {
   const text = item.description ?? (isFailed ? '인식 실패' : item.typeName);
 
   return (
-    <div className={`flex items-end gap-2 max-w-[80%] ml-auto flex-row-reverse ${isFailed ? 'opacity-60' : ''}`}>
+    <div className={`flex items-end gap-2 max-w-[80%] ${isFailed ? 'opacity-60' : ''}`}>
       {/* 아바타 */}
       <div className={`flex-shrink-0 w-7 h-7 rounded-full flex items-center justify-center ${isFailed ? 'bg-slate-100' : 'bg-green-100'}`}>
         <User size={15} className={isFailed ? 'text-slate-400' : 'text-green-600'} />
       </div>
 
       {/* 말풍선 */}
-      <div className="flex flex-col items-end gap-0.5">
+      <div className="flex flex-col gap-0.5">
         <div className="flex items-center gap-1.5 mb-0.5">
-          {item.startTime && <span className="text-[10px] text-slate-300">{item.startTime}</span>}
-          <span className="text-[10px] text-slate-400">{item.typeName}</span>
           <Icon size={11} className={cfg.color} />
+          <span className="text-[10px] text-slate-400">{item.typeName}</span>
+          {item.startTime && <span className="text-[10px] text-slate-300">{item.startTime}</span>}
         </div>
-        <div className={`border rounded-lg rounded-br-sm px-3 py-2 shadow-sm ${isFailed ? 'bg-slate-50 border-slate-200' : 'bg-green-50 border-green-200'}`}>
+        <div className={`border rounded-lg rounded-bl-sm px-3 py-2 shadow-sm ${isFailed ? 'bg-slate-50 border-slate-200' : 'bg-green-50 border-green-200'}`}>
           <p className={`text-sm leading-relaxed break-words ${isFailed ? 'text-slate-400 italic' : 'text-slate-700'}`}>{text}</p>
         </div>
         {item.result && <span className={`text-[10px] font-medium ${resultColor}`}>{item.result}</span>}
@@ -115,8 +111,8 @@ export default function TrackingDialogView({ items }: TrackingDialogViewProps) {
       {items.map((item, idx) => {
         const role = item.dialogRole;
 
-        // 숨김 처리
-        if (role === 'HIDDEN') return null;
+        // 숨김 처리 (멀티모달 type 2/3 포함)
+        if (role === 'HIDDEN' || item.type === 2 || item.type === 3) return null;
 
         // 메뉴 진입 → 구분선 (menuId 또는 menuName이 있을 때만)
         if (item.type === 0 && (item.menuId || item.menuName)) {

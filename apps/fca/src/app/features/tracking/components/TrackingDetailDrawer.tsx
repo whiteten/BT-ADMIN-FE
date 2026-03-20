@@ -226,8 +226,6 @@ const TrackingDetailDrawer = forwardRef<TrackingDetailDrawerRef, TrackingDetailD
               </Descriptions.Item>
               <Descriptions.Item label="발신번호">{session.ani}</Descriptions.Item>
               <Descriptions.Item label="착신번호">{session.dnis}</Descriptions.Item>
-              <Descriptions.Item label="시스템ID">{session.systemId}</Descriptions.Item>
-              <Descriptions.Item label="채널번호">{session.sleeChno}</Descriptions.Item>
             </Descriptions>
           </div>
         )}

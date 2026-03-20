@@ -49,8 +49,6 @@ export default function BotTracking() {
       minWidth: 90,
       valueFormatter: ({ value }) => (typeof value === 'number' ? formatDuration(value) : '-'),
     },
-    { headerName: '봇 대화', field: 'botDialog', flex: 2, minWidth: 180 },
-    { headerName: '봇 슬롯', field: 'botSlot', flex: 1.2, minWidth: 120 },
   ];
 
   const handleRowDoubleClicked = (event: RowDoubleClickedEvent<TrackingSession>) => {
@@ -70,7 +68,8 @@ export default function BotTracking() {
       <PageHeader breadcrumb={breadcrumb} />
 
       {/* SSE 연결 상태 + Play/Stop 버튼 */}
-      <div className="flex items-center gap-3 px-1">
+      <div className="flex items-center justify-end gap-3 bg-white bt-shadow px-7 py-5 h-[76px]">
+        {isPlaying && <span className={`inline-block w-2.5 h-2.5 rounded-full ${connected ? 'bg-green-500' : 'bg-red-500'}`} />}
         <button
           type="button"
           onClick={isPlaying ? disconnect : connect}
@@ -90,12 +89,6 @@ export default function BotTracking() {
             </>
           )}
         </button>
-        {isPlaying && (
-          <>
-            <span className={`inline-block w-2.5 h-2.5 rounded-full ${connected ? 'bg-green-500' : 'bg-red-500'}`} />
-            <span className="text-sm text-gray-500">{connected ? '실시간 연결됨' : '연결 끊김 (재연결 중...)'}</span>
-          </>
-        )}
       </div>
 
       {/* ag-Grid 테이블 */}

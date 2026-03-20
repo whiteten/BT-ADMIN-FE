@@ -20,16 +20,6 @@ export interface TrackingSession {
   callStep: number;
   dbUpdateTime: string;
 
-  // Redis 실시간 상태
-  channelNo: number;
-  channelStatus: number;
-  botDialog: string;
-  botSlot: string;
-  custGrade: string;
-  mediaType: number;
-  serviceAni: string;
-  serviceDnis: string;
-
   // 계산 필드
   duration: number;
 }
