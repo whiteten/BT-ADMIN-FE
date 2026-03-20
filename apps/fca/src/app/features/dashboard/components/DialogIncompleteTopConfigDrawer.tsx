@@ -1,6 +1,6 @@
-import { Button, Drawer, Form, Radio } from 'antd';
+import { Button, Drawer, Form, Slider } from 'antd';
 import { Log } from '@/log';
-import type { WidgetActionContext } from '../constants/layoutRenderMapper';
+import type { WidgetActionContext } from '../constants/BotDashboardLayoutRenderMapper';
 
 interface DialogIncompleteTopDrawerProps extends WidgetActionContext {
   open: boolean;
@@ -9,14 +9,15 @@ interface DialogIncompleteTopDrawerProps extends WidgetActionContext {
 
 const WIDGET_TITLE = '대화 미완결율 순위';
 
-const TOP_N_OPTIONS = [5, 10, 20];
+const ROW_CNT_MIN = 1;
+const ROW_CNT_MAX = 10;
 
 const DialogIncompleteTopDrawer = ({ open, onClose, widgetOptions, setOption }: DialogIncompleteTopDrawerProps) => {
   const [form] = Form.useForm();
 
   const handleAfterOpenChange = (visible: boolean) => {
     if (visible) {
-      form.setFieldsValue({ topN: widgetOptions.topN });
+      form.setFieldsValue({ rowCnt: widgetOptions.rowCnt });
     }
   };
 
@@ -51,14 +52,12 @@ const DialogIncompleteTopDrawer = ({ open, onClose, widgetOptions, setOption }: 
         <p className="text-base font-semibold text-gray-800">{WIDGET_TITLE}</p>
       </div>
       <Form form={form} layout="vertical" onFinish={onFinish} onFinishFailed={onFinishFailed}>
-        <Form.Item name="topN" label="표시 개수">
-          <Radio.Group>
-            {TOP_N_OPTIONS.map((n) => (
-              <Radio key={n} value={n}>
-                Top {n}
-              </Radio>
-            ))}
-          </Radio.Group>
+        <Form.Item name="rowCnt" label="최대 표시 개수">
+          <Slider
+            min={ROW_CNT_MIN}
+            max={ROW_CNT_MAX}
+            marks={Object.fromEntries(Array.from({ length: ROW_CNT_MAX - ROW_CNT_MIN + 1 }, (_, i) => [ROW_CNT_MIN + i, `${ROW_CNT_MIN + i}`]))}
+          />
         </Form.Item>
       </Form>
     </Drawer>

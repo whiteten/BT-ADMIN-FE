@@ -1,6 +1,6 @@
 import { Card } from 'antd';
 import WidgetOptionsMenu from './WidgetOptionsMenu';
-import type { LayoutRenderEntry } from '../constants/layoutRenderMapper';
+import type { LayoutRenderEntry } from '../constants/BotDashboardLayoutRenderMapper';
 import useDashboardViewMode from '../hooks/useDashboardViewMode';
 import useWidgetOptions from '../hooks/useWidgetOptions';
 

@@ -1,6 +1,6 @@
 import { Fragment, useState } from 'react';
 import { Settings } from 'lucide-react';
-import type { WidgetMenuAction } from '../constants/layoutRenderMapper';
+import type { WidgetMenuAction } from '../constants/BotDashboardLayoutRenderMapper';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 
 interface WidgetOptionsMenuProps {
