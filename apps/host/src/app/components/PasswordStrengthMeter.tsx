@@ -7,7 +7,7 @@
 import { useMemo } from 'react';
 import { Progress } from 'antd';
 import { Check, X } from 'lucide-react';
-import { cn } from '../../lib/utils';
+import { cn } from '@/lib/utils';
 
 /**
  * 비밀번호 정책 타입 (core 앱의 타입과 동일)

@@ -64,7 +64,7 @@ const menuConfig = {
     },
     {
       menuId: 55,
-      label: '트레킹',
+      label: '트래킹',
       index: 3,
       hide: false,
       icon: Activity,

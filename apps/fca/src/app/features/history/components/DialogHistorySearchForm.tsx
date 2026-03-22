@@ -16,7 +16,7 @@ interface DialogHistorySearchFormProps {
 
 const DialogHistorySearchForm: React.FC<DialogHistorySearchFormProps> = ({ onSearch, onExcelDownload, isLoading, isExporting }) => {
   const [dates, setDates] = React.useState<[Dayjs, Dayjs]>([dayjs().startOf('day'), dayjs().endOf('day')]);
-  const [serviceId, setServiceId] = React.useState<number | undefined>();
+  const [serviceIds, setServiceIds] = React.useState<number[]>([]);
   const [completeYn, setCompleteYn] = React.useState<number | undefined>();
   const [ucid, setUcid] = React.useState<string>('');
 
@@ -33,9 +33,9 @@ const DialogHistorySearchForm: React.FC<DialogHistorySearchFormProps> = ({ onSea
 
   const handleSearch = () => {
     onSearch({
-      fromDate: dates[0].format('YYYY-MM-DD'),
-      toDate: dates[1].format('YYYY-MM-DD'),
-      serviceId,
+      fromDate: dates[0].format('YYYY-MM-DDTHH:mm:ss'),
+      toDate: dates[1].format('YYYY-MM-DDTHH:mm:ss'),
+      serviceIds: serviceIds.length > 0 ? serviceIds : undefined,
       completeYn,
       ucid: ucid.trim() || undefined,
     });
@@ -46,14 +46,25 @@ const DialogHistorySearchForm: React.FC<DialogHistorySearchFormProps> = ({ onSea
       <div className="flex items-center flex-wrap gap-4">
         <div className="flex items-center gap-2">
           <span className="text-sm font-medium text-[#495057] shrink-0">검색일자</span>
-          <RangePicker value={dates} onChange={(val) => val && setDates([val[0]!, val[1]!])} format="YYYY-MM-DD" allowClear={false} />
+          <RangePicker showTime={{ format: 'HH:mm' }} value={dates} onChange={(val) => val && setDates([val[0]!, val[1]!])} format="YYYY-MM-DD HH:mm" allowClear={false} />
         </div>
 
         <Divider orientation="vertical" className="!h-5 !m-0" />
 
         <div className="flex items-center gap-2">
           <span className="text-sm font-medium text-[#495057] shrink-0">봇서비스</span>
-          <Select value={serviceId} onChange={setServiceId} options={botOptions} placeholder="전체" allowClear className="w-48" showSearch optionFilterProp="label" />
+          <Select
+            mode="multiple"
+            value={serviceIds}
+            onChange={setServiceIds}
+            options={botOptions}
+            placeholder="전체"
+            allowClear
+            maxTagCount="responsive"
+            className="min-w-[12rem]"
+            showSearch
+            optionFilterProp="label"
+          />
         </div>
 
         <div className="flex items-center gap-2">

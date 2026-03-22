@@ -1,8 +1,9 @@
 import { useQuery } from '@tanstack/react-query';
 import { createQueryKeys } from '@lukemorales/query-key-factory';
 import type { QueryHookWithParamsOptions } from '@/shared-util';
+import type { TrackingFlowItem } from '../../tracking/types/tracking.types';
 import { historyApi } from '../api/history.api';
-import type { BotServiceDto, ChatBubbleDto, DialogHistoryListItem } from '../types/history.types';
+import type { BotServiceDto, DialogHistoryListItem } from '../types/history.types';
 
 export const historyQueryKeys = createQueryKeys('history', {
   getBotServices: (params?: Record<string, unknown>) => [params],
@@ -36,7 +37,7 @@ export const useGetDialogHistory = ({ params, queryOptions }: QueryHookWithParam
 /**
  * 채팅 버블 목록 조회 훅
  */
-export const useGetBubbles = ({ params, queryOptions }: QueryHookWithParamsOptions<ChatBubbleDto[]> = {}) => {
+export const useGetBubbles = ({ params, queryOptions }: QueryHookWithParamsOptions<TrackingFlowItem[]> = {}) => {
   return useQuery({
     queryKey: historyQueryKeys.getBubbles(params).queryKey,
     queryFn: () => historyApi.getBubbles(params),

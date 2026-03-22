@@ -1,6 +1,8 @@
 import React, { useState } from 'react';
 import type { BreadcrumbProps } from 'antd';
 import dayjs from 'dayjs';
+
+const DATETIME_FORMAT = 'YYYY-MM-DDTHH:mm:ss';
 import { historyApi } from '../../features/history/api/history.api';
 import ChatBubblePanel from '../../features/history/components/ChatBubblePanel';
 import DialogHistorySearchForm from '../../features/history/components/DialogHistorySearchForm';
@@ -17,10 +19,10 @@ const breadcrumb: BreadcrumbProps['items'] = [
 const DialogHistoryPage: React.FC = () => {
   // 검색 파라미터 상태
   const [searchParams, setSearchParams] = useState<DialogHistorySearchRequest>({
-    fromDate: dayjs().format('YYYY-MM-DD'),
-    toDate: dayjs().format('YYYY-MM-DD'),
+    fromDate: dayjs().startOf('day').format(DATETIME_FORMAT),
+    toDate: dayjs().endOf('day').format(DATETIME_FORMAT),
     page: 0,
-    size: 20,
+    size: 5000,
   });
 
   // 선택된 행 상태 (UCID + NextHop + CdrPkey 조합으로 식별)
@@ -50,15 +52,15 @@ const DialogHistoryPage: React.FC = () => {
     setSearchParams({
       ...newParams,
       page: 0,
-      size: searchParams.size,
+      size: 5000,
     });
     setSelectedRow(null); // 검색 시 상세 선택 해제
   };
 
-  const handlePageChange = (page: number) => {
+  const handlePageChange = (newPage: number) => {
     setSearchParams((prev: DialogHistorySearchRequest) => ({
       ...prev,
-      page,
+      page: newPage,
     }));
   };
 
@@ -97,7 +99,7 @@ const DialogHistoryPage: React.FC = () => {
 
           {/* 상세 버블 영역 (30%) */}
           <div className="flex-[3] flex flex-col min-h-0 bg-white bt-shadow">
-            <ChatBubblePanel bubbles={bubbleData ?? []} isLoading={isBubbleLoading} ucid={selectedRow?.ucid} nextHop={selectedRow?.nextHop} cdrPkey={selectedRow?.cdrPkey} />
+            <ChatBubblePanel items={bubbleData ?? []} isLoading={isBubbleLoading} ucid={selectedRow?.ucid} nextHop={selectedRow?.nextHop} cdrPkey={selectedRow?.cdrPkey} />
           </div>
         </div>
       </div>

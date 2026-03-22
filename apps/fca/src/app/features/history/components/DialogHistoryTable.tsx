@@ -26,6 +26,7 @@ const DialogHistoryTable: React.FC<DialogHistoryTableProps> = ({ rowData, total,
         headerName: '시작일시',
         field: 'svcStartTime',
         flex: 1.5,
+        minWidth: 170,
         valueFormatter: (params) => (params.value ? dayjs(params.value).format('YYYY-MM-DD HH:mm:ss') : '-'),
         sort: 'desc',
       },
@@ -70,11 +71,17 @@ const DialogHistoryTable: React.FC<DialogHistoryTableProps> = ({ rowData, total,
         valueFormatter: (params) => params.value?.toLocaleString() ?? '0',
       },
       {
-        headerName: '통화시간(초)',
+        headerName: '통화시간',
         field: 'durationSec',
         width: 110,
         cellClass: 'text-right',
-        valueFormatter: (params) => params.value?.toLocaleString() ?? '0',
+        valueFormatter: (params) => {
+          const sec = params.value ?? 0;
+          const h = Math.floor(sec / 3600);
+          const m = Math.floor((sec % 3600) / 60);
+          const s = sec % 60;
+          return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
+        },
       },
     ],
     [],
@@ -88,6 +95,8 @@ const DialogHistoryTable: React.FC<DialogHistoryTableProps> = ({ rowData, total,
           columnDefs={columnDefs}
           gridOptions={{
             ...gridOptions,
+            pagination: false,
+            statusBar: undefined,
             onRowClicked: (event) => event.data && onRowClick(event.data),
             rowClassRules: {
               'bg-blue-50': (params) => {

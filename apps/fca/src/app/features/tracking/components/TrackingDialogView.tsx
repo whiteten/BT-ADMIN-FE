@@ -1,10 +1,15 @@
 import { Bot, PhoneOff, User } from 'lucide-react';
 import { getResultColor, getTrackingItemConfig } from '../config/trackingItemConfig';
 import type { TrackingFlowItem } from '../types/tracking.types';
+import { cn } from '@/lib/utils';
 
 interface TrackingDialogViewProps {
   items: TrackingFlowItem[];
   callEnded?: boolean;
+  /** 아이템 클릭 콜백 (대화이력 NLU 분석 등에 활용) */
+  onItemClick?: (item: TrackingFlowItem) => void;
+  /** 선택된 Seq 번호 (선택 링 표시용) */
+  selectedSeq?: number | null;
 }
 
 function EmptyState() {
@@ -42,14 +47,14 @@ function SystemBubble({ item }: { item: TrackingFlowItem }) {
   );
 }
 
-function BotBubble({ item }: { item: TrackingFlowItem }) {
+function BotBubble({ item, isSelected, onClick }: { item: TrackingFlowItem; isSelected?: boolean; onClick?: () => void }) {
   const cfg = getTrackingItemConfig(item.type);
   const Icon = cfg.icon;
   const resultColor = getResultColor(item.result);
   const text = item.description ?? item.typeName;
 
   return (
-    <div className="flex items-end gap-2 max-w-[80%] ml-auto flex-row-reverse">
+    <div className={cn('flex items-end gap-2 max-w-[80%] ml-auto flex-row-reverse', onClick && 'cursor-pointer')} onClick={onClick}>
       {/* 아바타 */}
       <div className="flex-shrink-0 w-7 h-7 rounded-full bg-blue-100 flex items-center justify-center">
         <Bot size={15} className="text-blue-600" />
@@ -62,7 +67,7 @@ function BotBubble({ item }: { item: TrackingFlowItem }) {
           <span className="text-[10px] text-slate-400">{item.typeName}</span>
           <Icon size={11} className={cfg.color} />
         </div>
-        <div className="bg-blue-50 border border-blue-200 rounded-lg rounded-br-sm px-3 py-2 shadow-sm">
+        <div className={cn('bg-blue-50 border border-blue-200 rounded-lg rounded-br-sm px-3 py-2 shadow-sm', isSelected && 'ring-2 ring-blue-300 ring-offset-1')}>
           <p className="text-sm text-slate-700 leading-relaxed break-words">{text}</p>
         </div>
         {item.result && <span className={`text-[10px] font-medium ${resultColor}`}>{item.result}</span>}
@@ -71,7 +76,7 @@ function BotBubble({ item }: { item: TrackingFlowItem }) {
   );
 }
 
-function CustomerBubble({ item }: { item: TrackingFlowItem }) {
+function CustomerBubble({ item, isSelected, onClick }: { item: TrackingFlowItem; isSelected?: boolean; onClick?: () => void }) {
   const cfg = getTrackingItemConfig(item.type);
   const Icon = cfg.icon;
   const resultColor = getResultColor(item.result);
@@ -79,7 +84,7 @@ function CustomerBubble({ item }: { item: TrackingFlowItem }) {
   const text = item.description ?? (isFailed ? '인식 실패' : item.typeName);
 
   return (
-    <div className={`flex items-end gap-2 max-w-[80%] ${isFailed ? 'opacity-60' : ''}`}>
+    <div className={cn('flex items-end gap-2 max-w-[80%]', isFailed && 'opacity-60', onClick && 'cursor-pointer')} onClick={onClick}>
       {/* 아바타 */}
       <div className={`flex-shrink-0 w-7 h-7 rounded-full flex items-center justify-center ${isFailed ? 'bg-slate-100' : 'bg-green-100'}`}>
         <User size={15} className={isFailed ? 'text-slate-400' : 'text-green-600'} />
@@ -92,7 +97,13 @@ function CustomerBubble({ item }: { item: TrackingFlowItem }) {
           <span className="text-[10px] text-slate-400">{item.typeName}</span>
           {item.startTime && <span className="text-[10px] text-slate-300">{item.startTime}</span>}
         </div>
-        <div className={`border rounded-lg rounded-bl-sm px-3 py-2 shadow-sm ${isFailed ? 'bg-slate-50 border-slate-200' : 'bg-green-50 border-green-200'}`}>
+        <div
+          className={cn(
+            'border rounded-lg rounded-bl-sm px-3 py-2 shadow-sm',
+            isFailed ? 'bg-slate-50 border-slate-200' : 'bg-green-50 border-green-200',
+            isSelected && 'ring-2 ring-blue-300 ring-offset-1',
+          )}
+        >
           <p className={`text-sm leading-relaxed break-words ${isFailed ? 'text-slate-400 italic' : 'text-slate-700'}`}>{text}</p>
         </div>
         {item.result && <span className={`text-[10px] font-medium ${resultColor}`}>{item.result}</span>}
@@ -110,8 +121,8 @@ function CallEndedBanner() {
   );
 }
 
-/** TRACKING_DATA 기반 대화 채팅 버블 UI */
-export default function TrackingDialogView({ items, callEnded }: TrackingDialogViewProps) {
+/** 대화 채팅 버블 UI (실시간 트래킹 + 대화이력 공용) */
+export default function TrackingDialogView({ items, callEnded, onItemClick, selectedSeq }: TrackingDialogViewProps) {
   if (items.length === 0 && !callEnded) {
     return <EmptyState />;
   }
@@ -120,6 +131,8 @@ export default function TrackingDialogView({ items, callEnded }: TrackingDialogV
     <div className="flex flex-col gap-3 px-1">
       {items.map((item, idx) => {
         const role = item.dialogRole;
+        const isSelected = selectedSeq != null && selectedSeq === item.seq;
+        const handleClick = onItemClick ? () => onItemClick(item) : undefined;
 
         // 숨김 처리 (멀티모달 type 2/3 포함)
         if (role === 'HIDDEN' || item.type === 2 || item.type === 3) return null;
@@ -134,14 +147,14 @@ export default function TrackingDialogView({ items, callEnded }: TrackingDialogV
           return <SystemBubble key={idx} item={item} />;
         }
 
-        // 봇 발화 → 좌측 말풍선
+        // 봇 발화 → 우측 말풍선
         if (role === 'BOT') {
-          return <BotBubble key={idx} item={item} />;
+          return <BotBubble key={idx} item={item} isSelected={isSelected} onClick={handleClick} />;
         }
 
-        // 고객 입력 → 우측 말풍선
+        // 고객 입력 → 좌측 말풍선
         if (role === 'CUSTOMER') {
-          return <CustomerBubble key={idx} item={item} />;
+          return <CustomerBubble key={idx} item={item} isSelected={isSelected} onClick={handleClick} />;
         }
 
         return null;

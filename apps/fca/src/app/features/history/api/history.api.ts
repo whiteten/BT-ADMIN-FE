@@ -1,5 +1,6 @@
 import ApiClient, { type DetailResponse, type ListResponse, extractDetail, extractList } from '@/shared-util';
-import type { BotServiceDto, ChatBubbleDto, DialogHistoryListItem } from '../types/history.types';
+import type { TrackingFlowItem } from '../../tracking/types/tracking.types';
+import type { BotServiceDto, DialogHistoryListItem, PagedDialogHistory } from '../types/history.types';
 
 const apiClient = new ApiClient({ serviceURL: '/bff' });
 
@@ -8,12 +9,12 @@ export const historyApi = {
     const response = await apiClient.get<ListResponse<BotServiceDto>>('/bot-services', { params });
     return extractList(response);
   },
-  getDialogHistory: async (params?: Record<string, unknown>): Promise<ListResponse<DialogHistoryListItem>> => {
-    const response = await apiClient.get<ListResponse<DialogHistoryListItem>>('/dialog-history-list', { params });
-    return response.data;
+  getDialogHistory: async (params?: Record<string, unknown>): Promise<PagedDialogHistory> => {
+    const response = await apiClient.get<{ data: PagedDialogHistory }>('/dialog-history-list', { params });
+    return response.data?.data ?? { items: [], page: 0, size: 0, total: 0 };
   },
-  getBubbles: async (params?: Record<string, unknown>): Promise<ChatBubbleDto[]> => {
-    const response = await apiClient.get<ListResponse<ChatBubbleDto>>('/dialog-history-bubbles', { params });
+  getBubbles: async (params?: Record<string, unknown>): Promise<TrackingFlowItem[]> => {
+    const response = await apiClient.get<ListResponse<TrackingFlowItem>>('/dialog-history-bubbles', { params });
     return extractList(response);
   },
   getNluAnalysis: async (params?: Record<string, unknown>): Promise<any> => {
