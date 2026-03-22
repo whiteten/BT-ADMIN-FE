@@ -4,7 +4,7 @@ import { AgGridReact } from 'ag-grid-react';
 import type { BreadcrumbProps } from 'antd';
 import { Play, Square } from 'lucide-react';
 import TrackingDetailDrawer, { type TrackingDetailDrawerRef } from '../../features/tracking/components/TrackingDetailDrawer';
-import { useTrackingSse } from '../../features/tracking/hooks/useTrackingSse';
+import { useTrackingSocket } from '../../features/tracking/hooks/useTrackingSocket';
 import type { TrackingSession } from '../../features/tracking/types/tracking.types';
 import PageHeader from '@/components/custom/PageHeader';
 import useAggridOptions from '@/libs/shared-ui/src/hooks/useAggridOptions';
@@ -28,7 +28,7 @@ function formatDuration(seconds: number): string {
 export default function BotTracking() {
   const { gridOptions } = useAggridOptions();
   const drawerRef = useRef<TrackingDetailDrawerRef>(null);
-  const { sessions, connected, isPlaying, connect, disconnect, sessionDetail, clearSessionDetail } = useTrackingSse();
+  const { sessions, connected, isPlaying, connect, disconnect, sessionDetail, clearSessionDetail, send } = useTrackingSocket();
 
   const columnDefs: ColDef<TrackingSession>[] = [
     { headerName: '시나리오명', field: 'serviceName', flex: 1.5, minWidth: 140 },
@@ -103,7 +103,7 @@ export default function BotTracking() {
         />
       </div>
 
-      <TrackingDetailDrawer ref={drawerRef} sseDetail={sessionDetail} onClose={clearSessionDetail} />
+      <TrackingDetailDrawer ref={drawerRef} sseDetail={sessionDetail} onClose={clearSessionDetail} onSend={send} />
     </div>
   );
 }

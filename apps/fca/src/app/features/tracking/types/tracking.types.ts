@@ -54,6 +54,8 @@ export interface TrackingSessionDetail {
   session: TrackingSession;
   trackingFlow: TrackingFlowItem[];
   callEndInfo: Record<string, string> | null;
+  /** 콜 종료 여부 (DB 레코드 삭제 감지 시 true) */
+  callEnded: boolean;
 }
 
 /** 트래킹 명령 요청 */

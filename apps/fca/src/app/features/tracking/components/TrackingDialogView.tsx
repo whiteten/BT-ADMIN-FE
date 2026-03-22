@@ -1,13 +1,14 @@
-import { Bot, User } from 'lucide-react';
+import { Bot, PhoneOff, User } from 'lucide-react';
 import { getResultColor, getTrackingItemConfig } from '../config/trackingItemConfig';
 import type { TrackingFlowItem } from '../types/tracking.types';
 
 interface TrackingDialogViewProps {
   items: TrackingFlowItem[];
+  callEnded?: boolean;
 }
 
 function EmptyState() {
-  return <p className="py-6 text-center text-sm text-slate-400">트래킹 데이터가 없습니다. 트래킹을 시작해주세요.</p>;
+  return <p className="py-6 text-center text-sm text-slate-400">트래킹 조회중입니다.</p>;
 }
 
 function MenuEntryDivider({ item }: { item: TrackingFlowItem }) {
@@ -100,9 +101,18 @@ function CustomerBubble({ item }: { item: TrackingFlowItem }) {
   );
 }
 
+function CallEndedBanner() {
+  return (
+    <div className="flex items-center gap-2 px-3 py-2.5 bg-slate-100 border border-slate-200 rounded-lg">
+      <PhoneOff size={14} className="text-slate-400 shrink-0" />
+      <span className="text-xs text-slate-500 font-medium">콜이 종료되었습니다.</span>
+    </div>
+  );
+}
+
 /** TRACKING_DATA 기반 대화 채팅 버블 UI */
-export default function TrackingDialogView({ items }: TrackingDialogViewProps) {
-  if (items.length === 0) {
+export default function TrackingDialogView({ items, callEnded }: TrackingDialogViewProps) {
+  if (items.length === 0 && !callEnded) {
     return <EmptyState />;
   }
 
@@ -136,6 +146,7 @@ export default function TrackingDialogView({ items }: TrackingDialogViewProps) {
 
         return null;
       })}
+      {callEnded && <CallEndedBanner />}
     </div>
   );
 }

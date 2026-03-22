@@ -1,8 +1,10 @@
 import { forwardRef, useEffect, useImperativeHandle, useRef, useState } from 'react';
 import { Descriptions, Drawer, Spin, message } from 'antd';
 import { ChevronsDown, Copy, Pin } from 'lucide-react';
+import { toast } from '@/shared-util';
 import TrackingDialogView from './TrackingDialogView';
 import { useSendTrackingCommand } from '../hooks/useTrackingQueries';
+import type { TrackingWsMessage } from '../hooks/useTrackingSocket';
 import type { TrackingCommandRequest, TrackingSessionDetail } from '../types/tracking.types';
 
 /** HTTP/HTTPS 환경 모두에서 동작하는 클립보드 복사 */
@@ -48,13 +50,15 @@ interface DrawerState {
 }
 
 interface TrackingDetailDrawerProps {
-  /** SSE session-detail 이벤트로 수신된 상세 데이터 */
+  /** WebSocket session-detail 메시지로 수신된 상세 데이터 */
   sseDetail?: TrackingSessionDetail | null;
   /** 드로어 닫힐 때 상위에서 detail 상태 초기화 */
   onClose?: () => void;
+  /** WebSocket TRACK/UNTRACK 메시지 전송 함수 */
+  onSend?: (msg: TrackingWsMessage) => void;
 }
 
-const TrackingDetailDrawer = forwardRef<TrackingDetailDrawerRef, TrackingDetailDrawerProps>(({ sseDetail, onClose }, ref) => {
+const TrackingDetailDrawer = forwardRef<TrackingDetailDrawerRef, TrackingDetailDrawerProps>(({ sseDetail, onClose, onSend }, ref) => {
   const [drawerState, setDrawerState] = useState<DrawerState>({ open: false, params: null });
   const [isTracking, setIsTracking] = useState(false);
   /** 자동 스크롤 활성 여부 — 기본값 true (자동 따라내려가기) */
@@ -105,8 +109,18 @@ const TrackingDetailDrawer = forwardRef<TrackingDetailDrawerRef, TrackingDetailD
   // Auto-start tracking when drawer opens
   useEffect(() => {
     if (drawerState.open && params) {
-      sendCommand(buildCommandRequest(params, 1));
+      sendCommand(buildCommandRequest(params, 1), {
+        onSuccess: (result) => {
+          if (!result.success) {
+            toast.warning(result.message);
+            setIsTracking(false);
+            setDrawerState((prev) => ({ ...prev, open: false }));
+            onClose?.();
+          }
+        },
+      });
       setIsTracking(true);
+      onSend?.({ type: 'TRACK', ucid: params.ucid, nexthop: params.nexthop, systemId: params.systemId, sleeChno: params.sleeChno });
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [drawerState.open]);
@@ -116,6 +130,7 @@ const TrackingDetailDrawer = forwardRef<TrackingDetailDrawerRef, TrackingDetailD
     const { isTracking: tracking, params: p } = trackingRef.current;
     if (tracking && p) {
       sendCommand(buildCommandRequest(p, 2));
+      onSend?.({ type: 'UNTRACK' });
     }
     setIsTracking(false);
     setDrawerState((prev) => ({ ...prev, open: false }));
@@ -232,7 +247,7 @@ const TrackingDetailDrawer = forwardRef<TrackingDetailDrawerRef, TrackingDetailD
 
         {/* 대화 흐름 — 남은 공간 전체 차지 */}
         <div ref={scrollRef} className="flex-1 min-h-0 overflow-y-auto pr-1">
-          <TrackingDialogView items={trackingFlow} />
+          <TrackingDialogView items={trackingFlow} callEnded={sseDetail?.callEnded} />
         </div>
       </div>
     </Drawer>
