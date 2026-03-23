@@ -1,3 +1,5 @@
+import type { LayoutItem } from 'react-grid-layout';
+
 /**
  * 봇 현황
  *
@@ -310,6 +312,11 @@ export interface BotDashboardResponse {
   serviceOccupancy: OccupancyItem[];
   dialogOccupancy: OccupancyItem[];
   slotOccupancy: OccupancyItem[];
+}
+
+/** 위젯 타입 정보를 포함하는 확장 레이아웃 아이템 */
+export interface DashboardLayoutItem extends LayoutItem {
+  widgetType: DashboardWidgetType;
 }
 
 export const DASHBOARD_VIEW = {

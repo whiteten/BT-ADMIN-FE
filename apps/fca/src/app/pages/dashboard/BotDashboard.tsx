@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { GridLayout, type Layout, type LayoutItem, useContainerWidth } from 'react-grid-layout';
+import { GridLayout, type Layout, useContainerWidth } from 'react-grid-layout';
 import 'react-grid-layout/css/styles.css';
 import type { Option } from 'react-multi-select-component';
 import { type BreadcrumbProps } from 'antd';
@@ -11,7 +11,8 @@ import { botDashboardLayoutRenderMapper } from '../../features/dashboard/constan
 import { GRID_COLS } from '../../features/dashboard/constants/dashboardConstants';
 import { DEFAULT_LAYOUT, useBotDashboardStore } from '../../features/dashboard/hooks/useBotDashboardStore';
 import { useDashboardSocket } from '../../features/dashboard/hooks/useDashboardSocket';
-import { syncLayoutWithFilter } from '../../features/dashboard/utils/dashboardUtils';
+import type { DashboardLayoutItem, DashboardWidgetType } from '../../features/dashboard/types/dashboard.types';
+import { generateWidgetId, syncLayoutWithFilter } from '../../features/dashboard/utils/dashboardUtils';
 import PageHeader from '@/components/custom/PageHeader';
 import { cn } from '@/lib/utils';
 
@@ -44,13 +45,13 @@ export default function BotDashboard() {
   const { width, containerRef, mounted } = useContainerWidth();
 
   const [isEditMode, setIsEditMode] = useState(false);
-  const layoutFilterOptions = DEFAULT_LAYOUT.filter((item) => item.i in botDashboardLayoutRenderMapper).map((item) => ({
-    label: botDashboardLayoutRenderMapper[item.i as keyof typeof botDashboardLayoutRenderMapper]?.title ?? item.i,
-    value: item.i,
+  const layoutFilterOptions = DEFAULT_LAYOUT.filter((item) => item.widgetType in botDashboardLayoutRenderMapper).map((item) => ({
+    label: botDashboardLayoutRenderMapper[item.widgetType]?.title ?? item.widgetType,
+    value: item.widgetType,
   }));
-  const storedLayoutIds = new Set(storedLayout.map((item) => item.i));
-  const [selectedLayoutFilterItems, setSelectedLayoutFilterItems] = useState<Option[]>(() => layoutFilterOptions.filter((opt) => storedLayoutIds.has(opt.value)));
-  const [draftLayout, setDraftLayout] = useState<LayoutItem[]>(() => [...storedLayout]);
+  const storedLayoutTypes = new Set(storedLayout.map((item) => item.widgetType));
+  const [selectedLayoutFilterItems, setSelectedLayoutFilterItems] = useState<Option[]>(() => layoutFilterOptions.filter((opt) => storedLayoutTypes.has(opt.value)));
+  const [draftLayout, setDraftLayout] = useState<DashboardLayoutItem[]>(() => [...storedLayout]);
 
   const handleStartEdit = () => {
     setIsEditMode(true);
@@ -58,7 +59,7 @@ export default function BotDashboard() {
 
   const handleCancelEdit = () => {
     setDraftLayout([...storedLayout]);
-    setSelectedLayoutFilterItems(layoutFilterOptions.filter((opt) => storedLayoutIds.has(opt.value)));
+    setSelectedLayoutFilterItems(layoutFilterOptions.filter((opt) => storedLayoutTypes.has(opt.value)));
     setIsEditMode(false);
   };
 
@@ -68,12 +69,18 @@ export default function BotDashboard() {
   };
 
   const handleResetLayouts = () => {
-    setDraftLayout([...DEFAULT_LAYOUT]);
+    setDraftLayout(DEFAULT_LAYOUT.map((item) => ({ ...item, i: generateWidgetId() })));
     setSelectedLayoutFilterItems(layoutFilterOptions);
   };
 
   const handleLayoutChange = (newLayout: Layout) => {
-    setDraftLayout([...newLayout]);
+    setDraftLayout((prev) => {
+      const widgetTypeMap = new Map(prev.map((item) => [item.i, item.widgetType]));
+      return newLayout.map((item) => ({
+        ...item,
+        widgetType: widgetTypeMap.get(item.i) ?? (item.i as DashboardWidgetType),
+      }));
+    });
   };
 
   // 필터와 레이아웃을 한번에 업데이트 처리
@@ -125,11 +132,11 @@ export default function BotDashboard() {
             onLayoutChange={handleLayoutChange}
           >
             {displayLayout.map((item) => {
-              const mapEntry = botDashboardLayoutRenderMapper[item.i as keyof typeof botDashboardLayoutRenderMapper];
+              const mapEntry = botDashboardLayoutRenderMapper[item.widgetType];
               if (!mapEntry) return null;
               return (
                 <div key={item.i} className="w-full h-full">
-                  <DashboardCardItem layoutKey={item.i} mapEntry={mapEntry} globalOptions={globalOptions} />
+                  <DashboardCardItem widgetType={item.widgetType} mapEntry={mapEntry} globalOptions={globalOptions} />
                 </div>
               );
             })}
