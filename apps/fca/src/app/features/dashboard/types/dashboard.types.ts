@@ -10,6 +10,10 @@ import type { LayoutItem } from 'react-grid-layout';
  * - agentTransferRate: 상담사 연결률 (%)
  * - incompleteCnt: 미해결 종료수
  * - incompleteRate: 미해결 종료율 (%)
+ * - prevEntryCnt: 전일 진입수
+ * - prevCompleteCnt: 전일 봇 해결수
+ * - prevAgentReqCnt: 전일 상담사 연결수
+ * - prevIncompleteCnt: 전일 미해결 종료수
  */
 export interface ScenarioSummary {
   entryCnt: number;
@@ -19,6 +23,10 @@ export interface ScenarioSummary {
   agentTransferRate: number;
   incompleteCnt: number;
   incompleteRate: number;
+  prevEntryCnt: number;
+  prevCompleteCnt: number;
+  prevAgentReqCnt: number;
+  prevIncompleteCnt: number;
 }
 
 /**
@@ -29,6 +37,9 @@ export interface ScenarioSummary {
  * - completeRate: 완결률 (%)
  * - incompleteCnt: 미완결수
  * - incompleteRate: 미완결률 (%)
+ * - prevEntryCnt: 전일 진입수
+ * - prevCompleteCnt: 전일 완결수
+ * - prevIncompleteCnt: 전일 미완결수
  */
 export interface DialogSummary {
   entryCnt: number;
@@ -36,6 +47,9 @@ export interface DialogSummary {
   completeRate: number;
   incompleteCnt: number;
   incompleteRate: number;
+  prevEntryCnt: number;
+  prevCompleteCnt: number;
+  prevIncompleteCnt: number;
 }
 
 /**
@@ -46,6 +60,9 @@ export interface DialogSummary {
  * - completeRate: 완결률 (%)
  * - incompleteCnt: 미완결수
  * - incompleteRate: 미완결률 (%)
+ * - prevEntryCnt: 전일 진입수
+ * - prevCompleteCnt: 전일 완결수
+ * - prevIncompleteCnt: 전일 미완결수
  */
 export interface SlotSummary {
   entryCnt: number;
@@ -53,6 +70,9 @@ export interface SlotSummary {
   completeRate: number;
   incompleteCnt: number;
   incompleteRate: number;
+  prevEntryCnt: number;
+  prevCompleteCnt: number;
+  prevIncompleteCnt: number;
 }
 
 /**

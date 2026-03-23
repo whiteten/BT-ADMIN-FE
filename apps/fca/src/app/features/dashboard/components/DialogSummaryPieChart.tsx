@@ -6,11 +6,35 @@ import NoData from '@/components/custom/NoData';
 
 const createChartOption = (data: DialogSummary): EChartsOption => {
   const seriesData = [
-    { name: '완결', value: data.completeCnt, rate: data.completeRate },
-    { name: '미완결', value: data.incompleteCnt, rate: data.incompleteRate },
+    { name: '완결', value: data.completeCnt, rate: data.completeRate, prevValue: data.prevCompleteCnt },
+    { name: '미완결', value: data.incompleteCnt, rate: data.incompleteRate, prevValue: data.prevIncompleteCnt },
   ];
 
   return {
+    graphic: [
+      {
+        type: 'text',
+        left: 'center',
+        top: '55%',
+        style: {
+          text: `{value|${data.entryCnt.toLocaleString()}}{unit|건}`,
+          rich: {
+            value: { fontSize: 28, fontWeight: 'bold', fill: '#333' },
+            unit: { fontSize: 16, fill: '#333', verticalAlign: 'bottom', fontFamily: 'Noto Sans KR' },
+          },
+        },
+      },
+      {
+        type: 'text',
+        left: 'center',
+        top: '67%',
+        style: {
+          text: `전일: ${data.prevEntryCnt.toLocaleString()}건`,
+          fontSize: 13,
+          fill: '#999',
+        },
+      },
+    ],
     tooltip: {
       trigger: 'item',
       formatter: (params: unknown) => {
@@ -22,7 +46,7 @@ const createChartOption = (data: DialogSummary): EChartsOption => {
     legend: {
       orient: 'horizontal',
       left: 'center',
-      top: '75%',
+      top: '82%',
       itemGap: 13,
       icon: 'roundRect',
       selectedMode: false,
@@ -35,8 +59,8 @@ const createChartOption = (data: DialogSummary): EChartsOption => {
     series: [
       {
         type: 'pie',
-        radius: ['40%', '80%'],
-        center: ['50%', '65%'],
+        radius: ['62%', '100%'],
+        center: ['50%', '72%'],
         startAngle: 180,
         endAngle: 360,
         avoidLabelOverlap: false,
@@ -45,11 +69,12 @@ const createChartOption = (data: DialogSummary): EChartsOption => {
           formatter: (params: { name: string }) => {
             const item = seriesData.find((d) => d.name === params.name);
             if (!item) return params.name;
-            return `{name|${item.name}}\n{rate|${item.value}건}`;
+            return `{name|${item.name}}\n{rate|${item.value}건}\n{prev|전일: ${item.prevValue ?? 0}건}`;
           },
           rich: {
             name: { fontSize: 13, color: '#333', lineHeight: 22 },
             rate: { fontSize: 13, fontWeight: 'bold', color: '#333', lineHeight: 22 },
+            prev: { fontSize: 12, color: '#999', lineHeight: 20 },
           },
         },
         emphasis: {
