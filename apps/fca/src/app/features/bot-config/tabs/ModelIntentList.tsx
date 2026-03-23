@@ -8,12 +8,13 @@ import dayjs from 'dayjs';
 import { debounce } from 'lodash';
 import { ChevronDown, CloudDownload, Download } from 'lucide-react';
 import { toast } from '@/shared-util';
+import ExcelImportResultModal, { type ExcelImportResultModalRef } from '../components/ExcelImportResultModal';
 import IntentDrawer, { type IntentDrawerRef } from '../components/IntentDrawer';
 import IntentSentenceCustomDetail from '../components/IntentSentenceCustomDetail';
 import TrainDiffStatusBadge from '../components/TrainDiffStatusBadge';
 import TrainStatusBadge from '../components/TrainStatusBadge';
 import { modelQueryKeys, useDeleteIntent, useExportIntent, useGetIntents, useImportIntent } from '../hooks/useModelQueries';
-import type { IntentListItem, TrainDiffStatus, TrainStatus } from '../types';
+import type { ExcelImportResult, IntentListItem, TrainDiffStatus, TrainStatus } from '../types';
 import FileImportModal, { type FileImportModalRef } from '@/components/custom/FileImportModal';
 import { IconTrash } from '@/components/custom/Icons';
 import useAggridOptions from '@/libs/shared-ui/src/hooks/useAggridOptions';
@@ -33,6 +34,7 @@ export default function ModelIntentList() {
   const gridRef = useRef<AgGridReact<IntentListItem>>(null);
   const drawerRef = useRef<IntentDrawerRef>(null);
   const importModalRef = useRef<FileImportModalRef>(null);
+  const importResultModalRef = useRef<ExcelImportResultModalRef>(null);
 
   const debouncedSetKeyword = useRef(
     debounce((value: string) => {
@@ -66,10 +68,10 @@ export default function ModelIntentList() {
 
   const { mutate: importIntent, isPending: isImporting } = useImportIntent({
     mutationOptions: {
-      onSuccess: () => {
-        toast.success('완료되었습니다.');
+      onSuccess: (data) => {
         queryClient.invalidateQueries({ queryKey: modelQueryKeys.getIntents({ modelId }).queryKey });
         importModalRef.current?.close();
+        importResultModalRef.current?.open(data as ExcelImportResult);
       },
     },
   });
@@ -296,6 +298,7 @@ export default function ModelIntentList() {
       </div>
       <IntentDrawer ref={drawerRef} />
       <FileImportModal ref={importModalRef} title="Import" accept=".xlsx,.xls" onConfirm={handleImportIntent} confirmLoading={isImporting} />
+      <ExcelImportResultModal ref={importResultModalRef} nameColumnTitle="인텐트명" />
     </div>
   );
 }

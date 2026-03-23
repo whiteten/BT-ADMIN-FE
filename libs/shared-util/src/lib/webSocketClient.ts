@@ -1,5 +1,5 @@
 import { LOG } from './log';
-import { createUUID } from './util';
+import { createShortId } from './util';
 
 export default class WebSocketClient {
   #ws: WebSocket | null;
@@ -16,7 +16,7 @@ export default class WebSocketClient {
   constructor(url: string, options?: { messageLog?: boolean }) {
     this.#url = url;
     this.#ws = null;
-    this.#key = createUUID().split('-')[0];
+    this.#key = createShortId();
     this.#Log = new LOG(`WS-Client-${this.#key}`);
     this.#messageLog = options?.messageLog ?? true;
   }

@@ -1,17 +1,20 @@
+import { useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { type BreadcrumbProps, Button, Col, Form, type FormProps, Input, Row, Upload, type UploadFile } from 'antd';
 import { Log } from '@/log';
 import { toast } from '@/shared-util';
+import ModelImportResultModal, { type ModelImportResultModalRef } from '../../features/bot-config/components/ModelImportResultModal';
 import { useCreateModel } from '../../features/bot-config/hooks/useModelQueries';
 import { useModelRoute } from '../../features/bot-config/hooks/useModelRoute';
 import type { ModelCreateDatas } from '../../features/bot-config/types';
-import { ModelType } from '../../features/bot-config/types/model';
+import { type ModelImportResult, ModelType } from '../../features/bot-config/types/model';
 import PageHeader from '@/components/custom/PageHeader';
 
 export default function ModelCreate() {
   const navigate = useNavigate();
   const [form] = Form.useForm();
   const { isPublic } = useModelRoute();
+  const importResultModalRef = useRef<ModelImportResultModalRef>(null);
 
   const privateBreadcrumb: BreadcrumbProps['items'] = [
     { title: '관리', path: '/fca/bot-config' },
@@ -29,9 +32,16 @@ export default function ModelCreate() {
 
   const { mutate: createModel, isPending: isCreatingModel } = useCreateModel({
     mutationOptions: {
-      onSuccess: () => {
-        toast.success('모델이 생성되었습니다.');
-        navigate('../list');
+      onSuccess: (data) => {
+        const result = data as ModelImportResult;
+        const hasImportResult = result.intentResult || result.entityResult;
+        if (hasImportResult) {
+          toast.success('모델이 생성되었습니다.');
+          importResultModalRef.current?.open(result);
+        } else {
+          toast.success('모델이 생성되었습니다.');
+          navigate('../list');
+        }
       },
     },
   });
@@ -42,6 +52,10 @@ export default function ModelCreate() {
   };
   const onFinishFailed: FormProps<ModelCreateDatas>['onFinishFailed'] = (errorInfo) => {
     Log.warn('onFinishFailed', errorInfo);
+  };
+
+  const handleImportResultClose = () => {
+    navigate('../list');
   };
   return (
     <div className="flex flex-col gap-4 w-full h-full">
@@ -122,6 +136,7 @@ export default function ModelCreate() {
           </Form>
         </div>
       </div>
+      <ModelImportResultModal ref={importResultModalRef} onClose={handleImportResultClose} />
     </div>
   );
 }

@@ -1,5 +1,12 @@
 import type { LayoutItem } from 'react-grid-layout';
 import type { Option } from 'react-multi-select-component';
+import { createShortId } from '@/shared-util';
+import type { DashboardLayoutItem, DashboardWidgetType } from '../types/dashboard.types';
+
+/** 위젯 인스턴스를 식별하는 고유 ID를 생성한다. */
+export function generateWidgetId(): string {
+  return createShortId();
+}
 
 /** 순위(dataIndex)가 낮아질수록 투명도가 증가하는 그라데이션 색상을 반환한다. */
 export const getGradientColor = (params: { dataIndex: number }, rgb: [number, number, number] = [59, 130, 246]) => {
@@ -30,19 +37,19 @@ export function findTopLeftPosition(existingItems: LayoutItem[], itemW: number, 
  * 1단계: 선택 해제된 항목을 레이아웃에서 제거
  * 2단계: 새로 선택된 항목을 기본 크기로 빈 자리에 추가
  */
-export function syncLayoutWithFilter(currentLayout: LayoutItem[], filterItems: Option[], defaultLayout: LayoutItem[], totalCols: number): LayoutItem[] {
-  const selectedIds = new Set(filterItems.map((item) => item.value as string));
-  // 1단계: 선택된 항목만 남긴다
-  const filtered = currentLayout.filter((item) => selectedIds.has(item.i));
-  // 2단계: 기존 레이아웃에 없는 새 항목을 기본 크기로 빈 자리에 배치한다
-  const existingIds = new Set(filtered.map((item) => item.i));
-  const toAdd: LayoutItem[] = [];
-  for (const id of selectedIds) {
-    if (existingIds.has(id)) continue;
-    const defaultItem = defaultLayout.find((d) => d.i === id);
+export function syncLayoutWithFilter(currentLayout: DashboardLayoutItem[], filterItems: Option[], defaultLayout: DashboardLayoutItem[], totalCols: number): DashboardLayoutItem[] {
+  const selectedTypes = new Set(filterItems.map((item) => item.value as DashboardWidgetType));
+  // 1단계: widgetType 기준으로 선택된 항목만 남긴다
+  const filtered = currentLayout.filter((item) => selectedTypes.has(item.widgetType));
+  // 2단계: 기존 레이아웃에 없는 widgetType을 기본 크기로 빈 자리에 배치한다
+  const existingTypes = new Set(filtered.map((item) => item.widgetType));
+  const toAdd: DashboardLayoutItem[] = [];
+  for (const type of selectedTypes) {
+    if (existingTypes.has(type)) continue;
+    const defaultItem = defaultLayout.find((d) => d.widgetType === type);
     if (!defaultItem) continue;
     const pos = findTopLeftPosition([...filtered, ...toAdd], defaultItem.w, defaultItem.h, totalCols);
-    toAdd.push({ ...defaultItem, ...pos });
+    toAdd.push({ ...defaultItem, i: generateWidgetId(), ...pos });
   }
   return [...filtered, ...toAdd];
 }

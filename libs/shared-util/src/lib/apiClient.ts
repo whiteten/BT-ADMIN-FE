@@ -1,7 +1,7 @@
 import axios, { type AxiosError, type AxiosInstance, type AxiosRequestConfig, type AxiosResponse, type InternalAxiosRequestConfig } from 'axios';
 import qs from 'qs';
 import { LOG } from './log';
-import { createUUID, getCookie } from './util';
+import { createShortId, getCookie } from './util';
 
 const Log = new LOG('Api');
 
@@ -87,7 +87,7 @@ export default class ApiClient {
     const token = getCookie('XSRF-TOKEN');
     config.headers['X-CSRF-TOKEN'] = token;
     const extendedConfig = config as ExtendedAxiosRequestConfig;
-    extendedConfig.key = createUUID().split('-')[0]; // 로그 트래킹을 위한 key.
+    extendedConfig.key = createShortId(); // 로그 트래킹을 위한 key.
     return extendedConfig;
   }
 

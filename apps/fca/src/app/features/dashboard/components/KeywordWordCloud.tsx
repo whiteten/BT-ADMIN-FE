@@ -1,16 +1,15 @@
 import { useRef } from 'react';
 import 'echarts-wordcloud';
 import ReactECharts from 'echarts-for-react';
-import { CHART_COLORS } from '../constants/dashboardConstants';
+import { WORD_CLOUD_COLORS } from '../constants/dashboardConstants';
 import type { KeywordTopItem } from '../types/dashboard.types';
 import NoData from '@/components/custom/NoData';
-
-const WORD_CLOUD_COLORS = Object.values(CHART_COLORS);
 
 const createChartOption = (data: KeywordTopItem[]) => {
   return {
     tooltip: {
       show: true,
+      appendTo: 'body',
       formatter: (params: { name: string; value: number }) => {
         return `<strong>${params.name}</strong><br/>검출 횟수: ${params.value}건`;
       },

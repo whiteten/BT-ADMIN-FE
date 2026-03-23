@@ -6,15 +6,14 @@ import type { SlotRetryDistTopItem } from '../types/dashboard.types';
 import NoData from '@/components/custom/NoData';
 
 const createChartOption = (data: SlotRetryDistTopItem[]): EChartsOption => {
-  const sorted = [...data].filter((item) => item.rank >= 1 && item.rank <= 10).sort((a, b) => a.rank - b.rank);
-
   return {
     tooltip: {
       trigger: 'axis',
       axisPointer: { type: 'shadow' },
+      appendTo: 'body',
       formatter: (params) => {
         const list = params as CallbackDataParams[];
-        const item = sorted[list[0].dataIndex];
+        const item = data[list[0].dataIndex];
         const title = `<strong>${item.serviceName} &gt; ${item.dialogName} &gt; ${item.slotName}</strong>`;
         const lines = list.map((p) => `${p.marker} ${p.seriesName}: ${p.value}%`);
         return `${title}<br/>진입: ${item.entryCnt}건 / 완결: ${item.completeCnt}건<br/>${lines.join('<br/>')}`;
@@ -38,7 +37,7 @@ const createChartOption = (data: SlotRetryDistTopItem[]): EChartsOption => {
     },
     yAxis: {
       type: 'category',
-      data: sorted.map((item) => item.slotName),
+      data: data.map((item) => item.slotName),
       inverse: true,
       axisLine: { show: false },
       axisTick: { show: false },
@@ -49,7 +48,7 @@ const createChartOption = (data: SlotRetryDistTopItem[]): EChartsOption => {
         name: '3회 이상',
         type: 'bar',
         stack: 'total',
-        data: sorted.map((item) => ({
+        data: data.map((item) => ({
           value: item.threeOrMoreCompleteRate,
           itemStyle: {
             borderRadius: item.twoTimeCompleteRate === 0 && item.oneTimeCompleteRate === 0 ? [0, 4, 4, 0] : undefined,
@@ -62,7 +61,7 @@ const createChartOption = (data: SlotRetryDistTopItem[]): EChartsOption => {
         name: '2회',
         type: 'bar',
         stack: 'total',
-        data: sorted.map((item) => ({
+        data: data.map((item) => ({
           value: item.twoTimeCompleteRate,
           itemStyle: {
             borderRadius: item.oneTimeCompleteRate === 0 ? [0, 4, 4, 0] : undefined,
@@ -74,7 +73,7 @@ const createChartOption = (data: SlotRetryDistTopItem[]): EChartsOption => {
         name: '1회 이하',
         type: 'bar',
         stack: 'total',
-        data: sorted.map((item) => ({
+        data: data.map((item) => ({
           value: item.oneTimeCompleteRate,
           itemStyle: {
             borderRadius: item.oneTimeCompleteRate > 0 ? [0, 4, 4, 0] : undefined,

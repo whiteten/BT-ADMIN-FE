@@ -210,7 +210,7 @@ export default function ModelRetrainList() {
   // State
   const [dateRange, setDateRange] = useState<[Dayjs, Dayjs]>([dayjs().subtract(7, 'day'), dayjs()]);
   const [confidenceRange, setConfidenceRange] = useState<[number, number]>([0, 100]);
-  const [successFilter, setSuccessFilter] = useState<number>(-1);
+  const [successFilter, setSuccessFilter] = useState<string>('ALL');
   const [statusFilter, setStatusFilter] = useState<number>(-1);
   const [callTypeFilter, setCallTypeFilter] = useState<string>('ALL');
   const [isFilterOpen, setIsFilterOpen] = useState(false);
@@ -332,7 +332,11 @@ export default function ModelRetrainList() {
     const isInConfRange = confidence >= minConf && confidence <= maxConf;
 
     // 인식결과 필터
-    const isSuccessMatch = successFilter === -1 || node.data.isSuccess === successFilter;
+    const isSuccessMatch =
+      successFilter === 'ALL' ||
+      (successFilter === 'SUCCESS' && node.data.isSuccess === 1) ||
+      (successFilter === 'CHECK' && node.data.isCheck === 1) ||
+      (successFilter === 'FAILED' && node.data.isFailed === 1);
 
     // 반영여부 필터
     const isStatusMatch = statusFilter === -1 || node.data.status === statusFilter;
@@ -459,10 +463,16 @@ export default function ModelRetrainList() {
       maxWidth: 100,
       cellRenderer: (params: ICellRendererParams<RetrainListItem>) => {
         if (!params.data) return null;
-        const isSuccess = params.data.isSuccess === 1;
+        const { isSuccess, isCheck } = params.data;
+        const result =
+          isSuccess === 1
+            ? { label: '성공', style: 'text-[#0AB39C] bg-[#0AB39C1A]' }
+            : isCheck === 1
+              ? { label: '재확인', style: 'text-[#495057] bg-[#4950571A]' }
+              : { label: '실패', style: 'text-[#F06548] bg-[#F065481A]' };
         return (
-          <Badge variant="secondary" className={cn('text-[13px] font-medium !h-6', isSuccess ? 'text-[#0AB39C] bg-[#0AB39C1A]' : 'text-[#F06548] bg-[#F065481A]')}>
-            {isSuccess ? '성공' : '실패'}
+          <Badge variant="secondary" className={cn('text-[13px] font-medium !h-6', result.style)}>
+            {result.label}
           </Badge>
         );
       },
@@ -584,9 +594,10 @@ export default function ModelRetrainList() {
                   value={successFilter}
                   onChange={(e) => setSuccessFilter(e.target.value)}
                   options={[
-                    { label: '전체', value: -1 },
-                    { label: '성공', value: 1 },
-                    { label: '실패', value: 0 },
+                    { label: '전체', value: 'ALL' },
+                    { label: '성공', value: 'SUCCESS' },
+                    { label: '재확인', value: 'CHECK' },
+                    { label: '실패', value: 'FAILED' },
                   ]}
                 />
                 <Divider orientation="vertical" className="!h-5 !m-0" />

@@ -7,18 +7,20 @@ interface SummaryRow {
   category: string;
   count: number;
   rate: number;
+  prevCount: number;
 }
 
 const columnDefs: ColDef<SummaryRow>[] = [
   { headerName: '구분', field: 'category' },
-  { headerName: '건수', field: 'count', valueFormatter: (p) => (p.value != null ? `${p.value}건` : '') },
+  { headerName: '금일', field: 'count', valueFormatter: (p) => (p.value != null ? `${p.value}건` : '') },
+  { headerName: '전일', field: 'prevCount', valueFormatter: (p) => (p.value != null ? `${p.value}건` : '') },
   { headerName: '비율', field: 'rate', valueFormatter: (p) => (p.value != null ? `${p.value}%` : '') },
 ];
 
 const toRows = (data: ScenarioSummary): SummaryRow[] => [
-  { category: '완결', count: data.completeCnt, rate: data.completeRate },
-  { category: '미완결', count: data.incompleteCnt, rate: data.incompleteRate },
-  { category: '상담원 전환', count: data.agentReqCnt, rate: data.agentTransferRate },
+  { category: '봇 해결', count: data.completeCnt, rate: data.completeRate, prevCount: data.prevCompleteCnt },
+  { category: '미해결 종료', count: data.incompleteCnt, rate: data.incompleteRate, prevCount: data.prevIncompleteCnt },
+  { category: '상담사 연결', count: data.agentReqCnt, rate: data.agentTransferRate, prevCount: data.prevAgentReqCnt },
 ];
 
 interface ScenarioSummaryGridProps {

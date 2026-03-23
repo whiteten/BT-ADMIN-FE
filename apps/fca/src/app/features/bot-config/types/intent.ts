@@ -34,3 +34,23 @@ export type IntentSentenceItem = IntentSentence;
 export type IntentSentenceCreateDatas = Pick<IntentSentence, 'sentence'>;
 export type IntentSentenceCreateBulkDatas = { sentences: string[] };
 export type IntentSentenceUpdateDatas = Pick<IntentSentence, 'sentence'>;
+
+/**
+ * 엑셀 업로드 결과 행
+ */
+export interface ExcelImportResultRow {
+  rowNumber: number;
+  name: string;
+  status: 'SUCCESS' | 'FAIL';
+  reason: string | null;
+}
+
+/**
+ * 엑셀 업로드 결과
+ */
+export interface ExcelImportResult {
+  totalCount: number;
+  successCount: number;
+  failCount: number;
+  rows: ExcelImportResultRow[];
+}

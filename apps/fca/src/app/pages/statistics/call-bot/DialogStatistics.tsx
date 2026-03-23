@@ -45,32 +45,13 @@ export default function DialogStatistics() {
   const [excludeBusinessHoliday, setExcludeBusinessHoliday] = useState(false);
   const [excludeStatHoliday, setExcludeStatHoliday] = useState(false);
 
-  // 조회 확정된 파라미터 (조회 버튼 눌렀을 때만 업데이트)
-  const [queryParams, setQueryParams] = useState(() => {
-    const fromDate = dayjs().startOf('day').format('YYYYMMDD');
-    const toDate = dayjs().endOf('day').format('YYYYMMDD');
-    return {
-      timeUnit: 'DD',
-      fromTime: fromDate,
-      toTime: toDate,
-      serviceIds: serviceIds,
-      dialogIds: dialogIds,
-      excludeLunch: false,
-      useInterval: false,
-      hourFrom: '',
-      hourTo: '',
-      excludeDays: [] as string[],
-      excludeBusinessHoliday: false,
-      excludeStatHoliday: false,
-    };
-  });
-
-  const [isSearched, setIsSearched] = useState(false);
   const [isFilterOpen, setIsFilterOpen] = useState(true);
   const { gridOptions } = useAggridOptions();
   const gridRef = useRef<AgGridReact<DialogStatListItem>>(null);
   const { data: botList } = useGetBots();
   const [rowData, setRowData] = useState<DialogStatListItem[]>([]);
+  // 조회 시점의 timeUnit (그리드 날짜 포맷팅에 사용)
+  const [displayTimeUnit, setDisplayTimeUnit] = useState<string>('DD');
 
   // disabledDate 함수 (시작일: 미래 날짜 비활성화, 종료일: 시작일 이전 + maxDays 초과 비활성화)
   const disabledDate = useMemo(() => createDisabledDate(timeUnit), [timeUnit]);
@@ -104,14 +85,50 @@ export default function DialogStatistics() {
     setDialogIds(dialogSelectOptions.map((o) => o.value));
   }, [dialogSelectOptions]);
 
+  // fromTime / toTime 계산 (UI state에서 직접 도출)
+  const fromTime = (() => {
+    if (!startDate) return '';
+    if (timeUnit === 'MI') return startDate.format('YYYYMMDD') + (startTime?.format('HHmm') ?? '0000');
+    if (timeUnit === 'HH') return startDate.format('YYYYMMDD') + (startTime?.format('HH') ?? '00');
+    if (timeUnit === 'DD') return startDate.format('YYYYMMDD');
+    if (timeUnit === 'MM') return startDate.format('YYYYMM');
+    return startDate.format('YYYY');
+  })();
+
+  const toTime = (() => {
+    if (!endDate) return '';
+    if (timeUnit === 'MI') return endDate.format('YYYYMMDD') + (endTime?.format('HHmm') ?? '2359');
+    if (timeUnit === 'HH') return endDate.format('YYYYMMDD') + (endTime?.format('HH') ?? '23');
+    if (timeUnit === 'DD') return endDate.format('YYYYMMDD');
+    if (timeUnit === 'MM') return endDate.format('YYYYMM');
+    return endDate.format('YYYY');
+  })();
+
   // 대화 통계 조회
-  const { data: dialogStatList, isLoading: isLoadingDialogStatList } = useGetDialogStatList({
-    params: queryParams,
-    queryOptions: { enabled: isSearched },
+  const {
+    data: dialogStatList,
+    isLoading: isLoadingDialogStatList,
+    refetch,
+  } = useGetDialogStatList({
+    params: {
+      timeUnit,
+      fromTime,
+      toTime,
+      serviceIds: [serviceIds].flat().filter(Boolean),
+      dialogIds: [dialogIds].flat().filter(Boolean),
+      excludeLunch: timeUnit === 'MI' || timeUnit === 'HH' ? excludeLunch : false,
+      useInterval: timeUnit === 'MI' || timeUnit === 'HH' ? useInterval : false,
+      hourFrom: timeUnit === 'MI' || timeUnit === 'HH' ? (useInterval && intervalStartTime ? intervalStartTime.format('HH00') : '') : '',
+      hourTo: timeUnit === 'MI' || timeUnit === 'HH' ? (useInterval && intervalEndTime ? intervalEndTime.format('HH00') : '') : '',
+      excludeDays: timeUnit !== 'MM' && timeUnit !== 'YY' ? excludeDays : [],
+      excludeBusinessHoliday: timeUnit !== 'MM' && timeUnit !== 'YY' ? excludeBusinessHoliday : false,
+      excludeStatHoliday: timeUnit !== 'MM' && timeUnit !== 'YY' ? excludeStatHoliday : false,
+    },
+    queryOptions: { enabled: false },
   });
 
   useEffect(() => {
-    setRowData(dialogStatList ?? []);
+    if (dialogStatList !== undefined) setRowData(dialogStatList);
   }, [dialogStatList]);
 
   // 합계 행 계산 (pinnedBottomRowData)
@@ -182,52 +199,24 @@ export default function DialogStatistics() {
       return;
     }
 
-    // 조회 버튼 클릭 시에만 queryParams 업데이트 → React Query 재조회
-    const fromDateYY = startDate.format('YYYY');
-    const toDateYY = endDate.format('YYYY');
-    const fromDateMM = startDate.format('YYYYMM');
-    const toDateMM = endDate.format('YYYYMM');
-    const fromDateDD = startDate.format('YYYYMMDD');
-    const toDateDD = endDate.format('YYYYMMDD');
-    const fromDateHH = startDate.format('YYYYMMDD') + startTime?.format('HH');
-    const toDateHH = endDate.format('YYYYMMDD') + endTime?.format('HH');
-    const fromDateMI = startDate.format('YYYYMMDD') + startTime?.format('HHmm');
-    const toDateMI = endDate.format('YYYYMMDD') + endTime?.format('HHmm');
-
-    const fromTime = timeUnit === 'MI' ? fromDateMI : timeUnit === 'HH' ? fromDateHH : timeUnit === 'DD' ? fromDateDD : timeUnit === 'MM' ? fromDateMM : fromDateYY;
-    const toTime = timeUnit === 'MI' ? toDateMI : timeUnit === 'HH' ? toDateHH : timeUnit === 'DD' ? toDateDD : timeUnit === 'MM' ? toDateMM : toDateYY;
-
     if (fromTime && toTime && fromTime > toTime) {
       toast.warning('검색 시작시간이 종료시간보다 늦을 수 없습니다.');
       return;
     }
 
-    setIsSearched(true);
-    setQueryParams({
-      timeUnit,
-      fromTime,
-      toTime,
-      serviceIds: [serviceIds].flat().filter(Boolean),
-      dialogIds: [dialogIds].flat().filter(Boolean),
-      excludeLunch: timeUnit === 'MI' || timeUnit === 'HH' ? excludeLunch : false,
-      useInterval: timeUnit === 'MI' || timeUnit === 'HH' ? useInterval : false,
-      hourFrom: timeUnit === 'MI' || timeUnit === 'HH' ? (useInterval && intervalStartTime ? intervalStartTime.format('HH00') : '') : '',
-      hourTo: timeUnit === 'MI' || timeUnit === 'HH' ? (useInterval && intervalEndTime ? intervalEndTime.format('HH00') : '') : '',
-      excludeDays: timeUnit !== 'MM' && timeUnit !== 'YY' ? excludeDays : [],
-      excludeBusinessHoliday: timeUnit !== 'MM' && timeUnit !== 'YY' ? excludeBusinessHoliday : false,
-      excludeStatHoliday: timeUnit !== 'MM' && timeUnit !== 'YY' ? excludeStatHoliday : false,
-    });
+    setDisplayTimeUnit(timeUnit);
+    refetch();
   };
 
   const columnDefs: ColDef<DialogStatListItem>[] = [
     {
       headerName: '날짜',
       field: 'psrTimeKey',
-      flex: queryParams.timeUnit === 'MI' || queryParams.timeUnit === 'HH' ? 2 : 1,
+      flex: displayTimeUnit === 'MI' || displayTimeUnit === 'HH' ? 2 : 1,
       colSpan: (params) => (params.node?.rowPinned === 'bottom' ? 2 : 1),
       valueFormatter: ({ value, node }) => {
         if (node?.rowPinned === 'bottom') return value ?? '';
-        return value ? dayjs(value).format(getTimeFormat(queryParams.timeUnit)) : '-';
+        return value ? dayjs(value).format(getTimeFormat(displayTimeUnit)) : '-';
       },
       cellStyle: (params) => (params.node?.rowPinned === 'bottom' ? { fontWeight: 'bold', alignItems: 'center' } : { fontWeight: 'normal', alignItems: 'center' }),
     },
@@ -277,7 +266,7 @@ export default function DialogStatistics() {
         const v = p.value;
 
         if (colId === 'psrTimeKey') {
-          return v ? dayjs(String(v)).format(getTimeFormat(queryParams.timeUnit)) : '-';
+          return v ? dayjs(String(v)).format(getTimeFormat(displayTimeUnit)) : '-';
         }
 
         if (colId === 'successPercent') {

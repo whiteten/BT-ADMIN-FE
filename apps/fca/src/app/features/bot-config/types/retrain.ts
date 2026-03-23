@@ -8,6 +8,8 @@ export interface Retrain {
   intent: string;
   confidence: number;
   isSuccess: number;
+  isCheck: number;
+  isFailed: number;
   answer: string;
   dbInsertTime: string;
   status: RetrainStatus;
