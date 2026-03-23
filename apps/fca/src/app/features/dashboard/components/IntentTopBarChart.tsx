@@ -6,7 +6,7 @@ import NoData from '@/components/custom/NoData';
 
 const createChartOption = (data: IntentTopItem[]): EChartsOption => {
   return {
-    tooltip: { trigger: 'axis', axisPointer: { type: 'shadow' } },
+    tooltip: { trigger: 'axis', axisPointer: { type: 'shadow' }, appendTo: 'body' },
     grid: { left: 20, right: 50, bottom: 20, top: 20, containLabel: true },
     xAxis: {
       type: 'value',

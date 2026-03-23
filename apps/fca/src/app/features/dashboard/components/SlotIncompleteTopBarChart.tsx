@@ -12,6 +12,7 @@ const createChartOption = (data: SlotIncompleteTopItem[]): EChartsOption => {
     tooltip: {
       trigger: 'axis',
       axisPointer: { type: 'shadow' },
+      appendTo: 'body',
       formatter: (params: unknown) => {
         const list = Array.isArray(params) ? params : [params];
         const first = list[0] as { dataIndex: number; marker: string };

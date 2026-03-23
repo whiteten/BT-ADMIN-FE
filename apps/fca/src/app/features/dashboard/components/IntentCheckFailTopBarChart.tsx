@@ -10,6 +10,7 @@ const createChartOption = (data: IntentCheckFailTopItem[]): EChartsOption => {
     tooltip: {
       trigger: 'axis',
       axisPointer: { type: 'shadow' },
+      appendTo: 'body',
       formatter: (params) => {
         const list = params as CallbackDataParams[];
         const item = data[list[0].dataIndex];

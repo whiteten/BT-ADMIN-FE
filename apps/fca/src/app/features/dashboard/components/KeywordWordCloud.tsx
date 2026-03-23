@@ -9,6 +9,7 @@ const createChartOption = (data: KeywordTopItem[]) => {
   return {
     tooltip: {
       show: true,
+      appendTo: 'body',
       formatter: (params: { name: string; value: number }) => {
         return `<strong>${params.name}</strong><br/>검출 횟수: ${params.value}건`;
       },

@@ -4,7 +4,7 @@ import type { HourlyEntryItem } from '../types/dashboard.types';
 import NoData from '@/components/custom/NoData';
 
 const createChartOption = (data: HourlyEntryItem[]): EChartsOption => ({
-  tooltip: { trigger: 'axis' },
+  tooltip: { trigger: 'axis', appendTo: 'body' },
   legend: { type: 'scroll', data: data.map((item) => item.serviceName), bottom: 15, padding: [0, 40, 0, 40], icon: 'roundRect' },
   grid: { left: 20, right: 50, bottom: 50, top: 40, containLabel: true },
   xAxis: {

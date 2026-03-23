@@ -37,6 +37,7 @@ const createChartOption = (data: DialogSummary): EChartsOption => {
     ],
     tooltip: {
       trigger: 'item',
+      appendTo: 'body',
       formatter: (params: unknown) => {
         const { name, value } = params as { name: string; value: number };
         const item = seriesData.find((d) => d.name === name);
