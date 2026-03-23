@@ -7,7 +7,7 @@ import styles from './BotDashboard.module.scss';
 import { useGetBots } from '../../features/bot-config/hooks/useBotQueries';
 import BotDashboardToolbar from '../../features/dashboard/components/BotDashboardToolbar';
 import DashboardCardItem from '../../features/dashboard/components/DashboardCardItem';
-import { layoutRenderMapper } from '../../features/dashboard/constants/BotDashboardLayoutRenderMapper';
+import { botDashboardLayoutRenderMapper } from '../../features/dashboard/constants/BotDashboardLayoutRenderMapper';
 import { GRID_COLS } from '../../features/dashboard/constants/dashboardConstants';
 import { DEFAULT_LAYOUT, useBotDashboardStore } from '../../features/dashboard/hooks/useBotDashboardStore';
 import { useDashboardSocket } from '../../features/dashboard/hooks/useDashboardSocket';
@@ -44,8 +44,8 @@ export default function BotDashboard() {
   const { width, containerRef, mounted } = useContainerWidth();
 
   const [isEditMode, setIsEditMode] = useState(false);
-  const layoutFilterOptions = DEFAULT_LAYOUT.filter((item) => item.i in layoutRenderMapper).map((item) => ({
-    label: layoutRenderMapper[item.i as keyof typeof layoutRenderMapper]?.title ?? item.i,
+  const layoutFilterOptions = DEFAULT_LAYOUT.filter((item) => item.i in botDashboardLayoutRenderMapper).map((item) => ({
+    label: botDashboardLayoutRenderMapper[item.i as keyof typeof botDashboardLayoutRenderMapper]?.title ?? item.i,
     value: item.i,
   }));
   const storedLayoutIds = new Set(storedLayout.map((item) => item.i));
@@ -125,7 +125,7 @@ export default function BotDashboard() {
             onLayoutChange={handleLayoutChange}
           >
             {displayLayout.map((item) => {
-              const mapEntry = layoutRenderMapper[item.i as keyof typeof layoutRenderMapper];
+              const mapEntry = botDashboardLayoutRenderMapper[item.i as keyof typeof botDashboardLayoutRenderMapper];
               if (!mapEntry) return null;
               return (
                 <div key={item.i} className="w-full h-full">

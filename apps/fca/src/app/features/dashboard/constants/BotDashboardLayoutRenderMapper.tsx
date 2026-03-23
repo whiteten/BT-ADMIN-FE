@@ -58,7 +58,7 @@ export interface LayoutRenderEntry {
   renderTable?: (data?: BotDashboardResponse) => React.ReactNode;
 }
 
-export const layoutRenderMapper: Record<string, LayoutRenderEntry> = {
+export const botDashboardLayoutRenderMapper: Record<string, LayoutRenderEntry> = {
   serviceOccupancy: {
     title: '봇 점유 현황',
     supportedModes: [DASHBOARD_VIEW.CHART, DASHBOARD_VIEW.TABLE],
