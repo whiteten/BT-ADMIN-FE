@@ -1,17 +1,16 @@
-import { useState } from 'react';
+import { useBotDashboardStore } from './useBotDashboardStore';
 
-const useWidgetOptions = (defaultOptions?: Record<string, unknown>) => {
-  const [widgetOptions, setWidgetOptions] = useState<Record<string, unknown>>(() => ({ ...defaultOptions }));
+const useWidgetOptions = (widgetId: string, defaultOptions?: Record<string, unknown>) => {
+  const storedOptions = useBotDashboardStore((s) => s.widgetOptions[widgetId]);
+  const storeSetWidgetOption = useBotDashboardStore((s) => s.setWidgetOption);
+
+  const widgetOptions = storedOptions ?? { ...defaultOptions };
 
   const setOption = (key: string, value: unknown) => {
-    setWidgetOptions((prev) => ({ ...prev, [key]: value }));
+    storeSetWidgetOption(widgetId, key, value);
   };
 
-  const resetOptions = () => {
-    setWidgetOptions({ ...defaultOptions });
-  };
-
-  return { widgetOptions, setOption, resetOptions };
+  return { widgetOptions, setOption };
 };
 
 export default useWidgetOptions;

@@ -41,7 +41,7 @@ export default function BotDashboard() {
     serviceIds: selectedService.map((item) => item.value as string),
   };
 
-  const { layout: storedLayout, setLayout } = useBotDashboardStore();
+  const { layout: storedLayout, setLayout, setWidgetOptions } = useBotDashboardStore();
   const { width, containerRef, mounted } = useContainerWidth();
 
   const [isEditMode, setIsEditMode] = useState(false);
@@ -65,6 +65,14 @@ export default function BotDashboard() {
 
   const handleSaveEdit = () => {
     setLayout(draftLayout);
+    // draftLayout에 존재하는 위젯 ID만 남기고 고아 옵션 정리
+    const activeIds = new Set(draftLayout.map((item) => item.i));
+    const currentOptions = useBotDashboardStore.getState().widgetOptions;
+    const cleanedOptions: Record<string, Record<string, unknown>> = {};
+    for (const id of activeIds) {
+      if (currentOptions[id]) cleanedOptions[id] = currentOptions[id];
+    }
+    setWidgetOptions(cleanedOptions);
     setIsEditMode(false);
   };
 
@@ -136,7 +144,7 @@ export default function BotDashboard() {
               if (!mapEntry) return null;
               return (
                 <div key={item.i} className="w-full h-full">
-                  <DashboardCardItem widgetType={item.widgetType} mapEntry={mapEntry} globalOptions={globalOptions} />
+                  <DashboardCardItem widgetId={item.i} widgetType={item.widgetType} mapEntry={mapEntry} globalOptions={globalOptions} />
                 </div>
               );
             })}

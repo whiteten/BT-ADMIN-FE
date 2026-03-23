@@ -23,9 +23,14 @@ export const DEFAULT_LAYOUT: DashboardLayoutItem[] = [
   { i: generateWidgetId(), widgetType: 'intentCheckFailTop', x: 9, y: 21, w: 5, h: 5 },
 ];
 
+type WidgetOptionsMap = Record<string, Record<string, unknown>>;
+
 interface BotDashboardStore {
   layout: DashboardLayoutItem[];
+  widgetOptions: WidgetOptionsMap;
   setLayout: (layout: DashboardLayoutItem[]) => void;
+  setWidgetOption: (widgetId: string, key: string, value: unknown) => void;
+  setWidgetOptions: (widgetOptions: WidgetOptionsMap) => void;
 }
 
 export const useBotDashboardStore = create<BotDashboardStore>()(
@@ -33,7 +38,20 @@ export const useBotDashboardStore = create<BotDashboardStore>()(
     persist(
       (set) => ({
         layout: DEFAULT_LAYOUT,
+        widgetOptions: {},
         setLayout: (layout) => set({ layout }, false, 'setLayout'),
+        setWidgetOption: (widgetId, key, value) =>
+          set(
+            (state) => ({
+              widgetOptions: {
+                ...state.widgetOptions,
+                [widgetId]: { ...state.widgetOptions[widgetId], [key]: value },
+              },
+            }),
+            false,
+            'setWidgetOption',
+          ),
+        setWidgetOptions: (widgetOptions) => set({ widgetOptions }, false, 'setWidgetOptions'),
       }),
       {
         name: 'dashboard-bot-storage',
@@ -51,6 +69,7 @@ export const useBotDashboardStore = create<BotDashboardStore>()(
                   widgetType: item.i as DashboardWidgetType,
                   i: generateWidgetId(),
                 })),
+              widgetOptions: {},
             };
           }
           return persisted as BotDashboardStore;

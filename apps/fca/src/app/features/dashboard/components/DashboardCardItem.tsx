@@ -9,13 +9,14 @@ import { type BotDashboardResponse, DASHBOARD_VIEW, type DashboardWidgetType } f
 import { FallbackSpinner } from '@/libs/shared-ui/src/components/custom/FallbackSpinner';
 
 interface DashboardCardItemProps {
+  widgetId: string;
   widgetType: DashboardWidgetType;
   mapEntry: LayoutRenderEntry;
   globalOptions: { serviceIds: string[] };
 }
 
-const DashboardCardItem = ({ widgetType, mapEntry, globalOptions }: DashboardCardItemProps) => {
-  const { widgetOptions, setOption } = useWidgetOptions(mapEntry.defaultOptions);
+const DashboardCardItem = ({ widgetId, widgetType, mapEntry, globalOptions }: DashboardCardItemProps) => {
+  const { widgetOptions, setOption } = useWidgetOptions(widgetId, mapEntry.defaultOptions);
 
   // 글로벌 옵션과 위젯별 옵션을 병합하여 최종 구독 옵션 생성
   const options = { ...globalOptions, ...widgetOptions };
