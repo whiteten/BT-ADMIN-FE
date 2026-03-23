@@ -13,7 +13,7 @@ const menuConfig = {
   icon: Component,
   menus: [
     {
-      menuId: 'replace_menuId',
+      menuId: '78',
       label: '메인',
       path: 'main',
       index: 0,
