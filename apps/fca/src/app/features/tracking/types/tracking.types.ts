@@ -42,6 +42,8 @@ export interface TrackingFlowItem {
   block: string;
   startTime: string;
   description: string | null;
+  /** 멀티모달 이미지 URL (Type=2일 때만 존재) */
+  imagePath: string | null;
   result: string;
   dialogRole: DialogRole;
   rawValues: string[];

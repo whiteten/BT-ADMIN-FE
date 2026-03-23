@@ -4,6 +4,7 @@ import { AgGridReact } from 'ag-grid-react';
 import dayjs from 'dayjs';
 import type { DialogHistoryListItem } from '../types/history.types';
 import ServerPagination from '@/components/custom/ServerPagination';
+import { Badge } from '@/components/ui/badge';
 import useAggridOptions from '@/libs/shared-ui/src/hooks/useAggridOptions';
 
 interface DialogHistoryTableProps {
@@ -49,18 +50,30 @@ const DialogHistoryTable: React.FC<DialogHistoryTableProps> = ({ rowData, total,
         headerName: '완결여부',
         field: 'serviceCompleteYn',
         width: 100,
+        cellStyle: { display: 'flex', alignItems: 'center' },
         cellRenderer: (params: any) => {
           const val = params.value;
-          return <span className={val === 1 ? 'text-blue-600 font-medium' : 'text-gray-500'}>{val === 1 ? '완결' : '미완결'}</span>;
+          const isComplete = val === 1;
+          return (
+            <Badge variant="secondary" className={`text-[13px] leading-[13px] font-medium !h-6 ${isComplete ? 'text-[#0AB39C] bg-[#0AB39C1A]' : 'text-[#495057] bg-[#E9EBEC]'}`}>
+              {isComplete ? '완결' : '미완결'}
+            </Badge>
+          );
         },
       },
       {
         headerName: '상담사연결',
         field: 'reqAgentYn',
         width: 110,
+        cellStyle: { display: 'flex', alignItems: 'center' },
         cellRenderer: (params: any) => {
           const val = params.value;
-          return <span className={val === 1 ? 'text-red-500 font-medium' : 'text-gray-500'}>{val === 1 ? '연결' : '미연결'}</span>;
+          const isConnected = val === 1;
+          return (
+            <Badge variant="secondary" className={`text-[13px] leading-[13px] font-medium !h-6 ${isConnected ? 'text-[#F06548] bg-[#F065481A]' : 'text-[#495057] bg-[#E9EBEC]'}`}>
+              {isConnected ? '연결' : '미연결'}
+            </Badge>
+          );
         },
       },
       {

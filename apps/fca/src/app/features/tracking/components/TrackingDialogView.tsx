@@ -1,4 +1,4 @@
-import { Bot, PhoneOff, User } from 'lucide-react';
+import { Bot, Monitor, PhoneOff, User } from 'lucide-react';
 import { getResultColor, getTrackingItemConfig } from '../config/trackingItemConfig';
 import type { TrackingFlowItem } from '../types/tracking.types';
 import { cn } from '@/lib/utils';
@@ -112,6 +112,26 @@ function CustomerBubble({ item, isSelected, onClick }: { item: TrackingFlowItem;
   );
 }
 
+/** 멀티모달 이미지 버블 (Type=2, 보이는 ARS) */
+function ImageBubble({ item, onClick }: { item: TrackingFlowItem; onClick?: () => void }) {
+  return (
+    <div className={cn('flex items-end gap-2 max-w-[80%] ml-auto flex-row-reverse', onClick && 'cursor-pointer')} onClick={onClick}>
+      <div className="flex-shrink-0 w-7 h-7 rounded-full bg-blue-100 flex items-center justify-center">
+        <Monitor size={15} className="text-blue-600" />
+      </div>
+      <div className="flex flex-col items-end gap-0.5">
+        <div className="flex items-center gap-1.5 mb-0.5">
+          {item.startTime && <span className="text-[10px] text-slate-300">{item.startTime}</span>}
+          <span className="text-[10px] text-slate-400">{item.typeName}</span>
+        </div>
+        <div className="bg-blue-50 border border-blue-200 rounded-lg rounded-br-sm p-2 shadow-sm">
+          <img src={item.imagePath!} alt="보이는 ARS" className="max-w-full rounded" loading="lazy" />
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function CallEndedBanner() {
   return (
     <div className="flex items-center gap-2 px-3 py-2.5 bg-slate-100 border border-slate-200 rounded-lg">
@@ -134,8 +154,15 @@ export default function TrackingDialogView({ items, callEnded, onItemClick, sele
         const isSelected = selectedSeq != null && selectedSeq === item.seq;
         const handleClick = onItemClick ? () => onItemClick(item) : undefined;
 
-        // 숨김 처리 (멀티모달 type 2/3 포함)
-        if (role === 'HIDDEN' || item.type === 2 || item.type === 3) return null;
+        // 숨김 처리
+        if (role === 'HIDDEN') return null;
+
+        // 멀티모달 이미지 (Type=2): imagePath가 있으면 이미지 버블
+        if (item.type === 2 && item.imagePath) {
+          return <ImageBubble key={idx} item={item} onClick={handleClick} />;
+        }
+        // Type=2인데 imagePath 없으면 (실시간 트래킹 등) 숨김
+        if (item.type === 2) return null;
 
         // 메뉴 진입 → 구분선 (menuId 또는 menuName이 있을 때만)
         if (item.type === 0 && (item.menuId || item.menuName)) {
