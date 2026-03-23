@@ -7,9 +7,10 @@ interface WidgetOptionsMenuProps {
   menuActions?: WidgetMenuAction[];
   widgetOptions: Record<string, unknown>;
   onOptionChange: (key: string, value: unknown) => void;
+  globalOptions: Record<string, unknown>;
 }
 
-const WidgetOptionsMenu = ({ menuActions, widgetOptions, onOptionChange }: WidgetOptionsMenuProps) => {
+const WidgetOptionsMenu = ({ menuActions, widgetOptions, onOptionChange, globalOptions }: WidgetOptionsMenuProps) => {
   const [activeAction, setActiveAction] = useState<string | null>(null);
 
   if (!menuActions?.length) return null;
@@ -39,6 +40,7 @@ const WidgetOptionsMenu = ({ menuActions, widgetOptions, onOptionChange }: Widge
           {action.renderContent({
             widgetOptions,
             setOption: onOptionChange,
+            globalOptions,
             open: activeAction === action.key,
             onClose: handleClose,
           })}

@@ -12,7 +12,7 @@ interface DashboardCardItemProps {
   widgetId: string;
   widgetType: DashboardWidgetType;
   mapEntry: LayoutRenderEntry;
-  globalOptions: { serviceIds: string[] };
+  globalOptions: Record<string, unknown>;
 }
 
 const DashboardCardItem = ({ widgetId, widgetType, mapEntry, globalOptions }: DashboardCardItemProps) => {
@@ -24,7 +24,7 @@ const DashboardCardItem = ({ widgetId, widgetType, mapEntry, globalOptions }: Da
   const { data, error } = useWidgetSubscription({
     widgetType,
     options,
-    enabled: globalOptions.serviceIds.length > 0,
+    enabled: (globalOptions.serviceIds as string[])?.length > 0,
   });
 
   const wrappedData = data !== undefined ? ({ [widgetType]: data } as unknown as BotDashboardResponse) : undefined;
@@ -37,7 +37,7 @@ const DashboardCardItem = ({ widgetId, widgetType, mapEntry, globalOptions }: Da
   const extraNode = (
     <div className="flex items-center gap-1">
       {viewModeToggleNode}
-      <WidgetOptionsMenu menuActions={mapEntry.menuActions} widgetOptions={widgetOptions} onOptionChange={setOption} />
+      <WidgetOptionsMenu menuActions={mapEntry.menuActions} widgetOptions={widgetOptions} onOptionChange={setOption} globalOptions={globalOptions} />
     </div>
   );
 

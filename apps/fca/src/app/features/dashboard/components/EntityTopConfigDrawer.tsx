@@ -12,7 +12,7 @@ const WIDGET_TITLE = '개체 순위';
 const ROW_CNT_MIN = 1;
 const ROW_CNT_MAX = 10;
 
-const EntityTopDrawer = ({ open, onClose, widgetOptions, setOption }: EntityTopDrawerProps) => {
+const EntityTopDrawer = ({ open, onClose, widgetOptions, setOption, globalOptions }: EntityTopDrawerProps) => {
   const [form] = Form.useForm();
 
   const handleAfterOpenChange = (visible: boolean) => {

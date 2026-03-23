@@ -39,6 +39,7 @@ import { type BotDashboardResponse, DASHBOARD_VIEW, type DashboardViewMode } fro
 export interface WidgetActionContext {
   widgetOptions: Record<string, unknown>;
   setOption: (key: string, value: unknown) => void;
+  globalOptions: Record<string, unknown>;
 }
 
 /** 위젯 드롭다운 메뉴의 개별 액션 항목 */
@@ -104,8 +105,8 @@ export const botDashboardLayoutRenderMapper: Record<string, LayoutRenderEntry> =
       {
         key: 'settings',
         label: '상세 설정',
-        renderContent: ({ widgetOptions, setOption, open, onClose }) => (
-          <DialogIncompleteTopConfigDrawer widgetOptions={widgetOptions} setOption={setOption} open={open} onClose={onClose} />
+        renderContent: ({ widgetOptions, setOption, globalOptions, open, onClose }) => (
+          <DialogIncompleteTopConfigDrawer widgetOptions={widgetOptions} setOption={setOption} globalOptions={globalOptions} open={open} onClose={onClose} />
         ),
       },
     ],
@@ -120,8 +121,8 @@ export const botDashboardLayoutRenderMapper: Record<string, LayoutRenderEntry> =
       {
         key: 'settings',
         label: '상세 설정',
-        renderContent: ({ widgetOptions, setOption, open, onClose }) => (
-          <SlotIncompleteTopConfigDrawer widgetOptions={widgetOptions} setOption={setOption} open={open} onClose={onClose} />
+        renderContent: ({ widgetOptions, setOption, globalOptions, open, onClose }) => (
+          <SlotIncompleteTopConfigDrawer widgetOptions={widgetOptions} setOption={setOption} globalOptions={globalOptions} open={open} onClose={onClose} />
         ),
       },
     ],
@@ -136,8 +137,8 @@ export const botDashboardLayoutRenderMapper: Record<string, LayoutRenderEntry> =
       {
         key: 'settings',
         label: '상세 설정',
-        renderContent: ({ widgetOptions, setOption, open, onClose }) => (
-          <SlotRetryAvgTopConfigDrawer widgetOptions={widgetOptions} setOption={setOption} open={open} onClose={onClose} />
+        renderContent: ({ widgetOptions, setOption, globalOptions, open, onClose }) => (
+          <SlotRetryAvgTopConfigDrawer widgetOptions={widgetOptions} setOption={setOption} globalOptions={globalOptions} open={open} onClose={onClose} />
         ),
       },
     ],
@@ -152,8 +153,8 @@ export const botDashboardLayoutRenderMapper: Record<string, LayoutRenderEntry> =
       {
         key: 'settings',
         label: '상세 설정',
-        renderContent: ({ widgetOptions, setOption, open, onClose }) => (
-          <SlotRetryDistTopConfigDrawer widgetOptions={widgetOptions} setOption={setOption} open={open} onClose={onClose} />
+        renderContent: ({ widgetOptions, setOption, globalOptions, open, onClose }) => (
+          <SlotRetryDistTopConfigDrawer widgetOptions={widgetOptions} setOption={setOption} globalOptions={globalOptions} open={open} onClose={onClose} />
         ),
       },
     ],
@@ -168,8 +169,8 @@ export const botDashboardLayoutRenderMapper: Record<string, LayoutRenderEntry> =
       {
         key: 'settings',
         label: '상세 설정',
-        renderContent: ({ widgetOptions, setOption, open, onClose }) => (
-          <KeywordTopConfigDrawer widgetOptions={widgetOptions} setOption={setOption} open={open} onClose={onClose} />
+        renderContent: ({ widgetOptions, setOption, globalOptions, open, onClose }) => (
+          <KeywordTopConfigDrawer widgetOptions={widgetOptions} setOption={setOption} globalOptions={globalOptions} open={open} onClose={onClose} />
         ),
       },
     ],
@@ -184,7 +185,9 @@ export const botDashboardLayoutRenderMapper: Record<string, LayoutRenderEntry> =
       {
         key: 'settings',
         label: '상세 설정',
-        renderContent: ({ widgetOptions, setOption, open, onClose }) => <EntityTopConfigDrawer widgetOptions={widgetOptions} setOption={setOption} open={open} onClose={onClose} />,
+        renderContent: ({ widgetOptions, setOption, globalOptions, open, onClose }) => (
+          <EntityTopConfigDrawer widgetOptions={widgetOptions} setOption={setOption} globalOptions={globalOptions} open={open} onClose={onClose} />
+        ),
       },
     ],
     renderChart: (d) => <EntityTopBarChart data={d?.entityTop} />,
@@ -198,7 +201,9 @@ export const botDashboardLayoutRenderMapper: Record<string, LayoutRenderEntry> =
       {
         key: 'settings',
         label: '상세 설정',
-        renderContent: ({ widgetOptions, setOption, open, onClose }) => <IntentTopConfigDrawer widgetOptions={widgetOptions} setOption={setOption} open={open} onClose={onClose} />,
+        renderContent: ({ widgetOptions, setOption, globalOptions, open, onClose }) => (
+          <IntentTopConfigDrawer widgetOptions={widgetOptions} setOption={setOption} globalOptions={globalOptions} open={open} onClose={onClose} />
+        ),
       },
     ],
     renderChart: (d) => <IntentTopBarChart data={d?.intentTop} />,
@@ -212,8 +217,8 @@ export const botDashboardLayoutRenderMapper: Record<string, LayoutRenderEntry> =
       {
         key: 'settings',
         label: '상세 설정',
-        renderContent: ({ widgetOptions, setOption, open, onClose }) => (
-          <IntentCheckFailTopConfigDrawer widgetOptions={widgetOptions} setOption={setOption} open={open} onClose={onClose} />
+        renderContent: ({ widgetOptions, setOption, globalOptions, open, onClose }) => (
+          <IntentCheckFailTopConfigDrawer widgetOptions={widgetOptions} setOption={setOption} globalOptions={globalOptions} open={open} onClose={onClose} />
         ),
       },
     ],
