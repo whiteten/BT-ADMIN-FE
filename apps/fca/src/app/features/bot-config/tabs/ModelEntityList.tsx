@@ -8,10 +8,11 @@ import dayjs from 'dayjs';
 import { ChevronDown, CloudDownload, Download } from 'lucide-react';
 import { toast } from '@/shared-util';
 import EntityDrawer, { type EntityDrawerRef } from '../components/EntityDrawer';
+import ExcelImportResultModal, { type ExcelImportResultModalRef } from '../components/ExcelImportResultModal';
 import TrainDiffStatusBadge from '../components/TrainDiffStatusBadge';
 import TrainStatusBadge from '../components/TrainStatusBadge';
 import { modelQueryKeys, useDeleteEntity, useExportEntity, useGetEntities, useImportEntity } from '../hooks/useModelQueries';
-import type { EntityListItem, TrainDiffStatus, TrainStatus } from '../types';
+import type { EntityListItem, ExcelImportResult, TrainDiffStatus, TrainStatus } from '../types';
 import FileImportModal, { type FileImportModalRef } from '@/components/custom/FileImportModal';
 import { IconTag, IconTrash } from '@/components/custom/Icons';
 import useAggridOptions from '@/libs/shared-ui/src/hooks/useAggridOptions';
@@ -111,6 +112,7 @@ export default function ModelEntityList() {
   const [searchValue, setSearchValue] = useState('');
   const drawerRef = useRef<EntityDrawerRef>(null);
   const importModalRef = useRef<FileImportModalRef>(null);
+  const importResultModalRef = useRef<ExcelImportResultModalRef>(null);
 
   const { data: entityList, isFetching } = useGetEntities({ params: { modelId } });
 
@@ -127,10 +129,10 @@ export default function ModelEntityList() {
 
   const { mutate: importEntity, isPending: isImporting } = useImportEntity({
     mutationOptions: {
-      onSuccess: () => {
-        toast.success('완료되었습니다.');
+      onSuccess: (data) => {
         queryClient.invalidateQueries({ queryKey: modelQueryKeys.getEntities({ modelId }).queryKey });
         importModalRef.current?.close();
+        importResultModalRef.current?.open(data as ExcelImportResult);
       },
     },
   });
@@ -316,6 +318,7 @@ export default function ModelEntityList() {
       </div>
       <EntityDrawer ref={drawerRef} />
       <FileImportModal ref={importModalRef} title="Import" accept=".xlsx,.xls" onConfirm={handleImportEntity} confirmLoading={isImporting} />
+      <ExcelImportResultModal ref={importResultModalRef} nameColumnTitle="엔티티명" />
     </div>
   );
 }

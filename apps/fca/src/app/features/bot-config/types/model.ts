@@ -1,3 +1,5 @@
+import type { ExcelImportResult } from './intent';
+
 export interface Model {
   modelId: string;
   modelName: string;
@@ -53,3 +55,12 @@ export type ModelBasicInfoUpdateDatas = Pick<Model, 'modelName' | 'expansion1'>;
  * 4. values: 엑셀 데이터 (2차원 배열 (예: [["홍길동","30","개발팀"],["김철수","25","기획팀"]]))
  */
 export type GenerateExcelDatas = { fileName: string; sheetName: string; keys: string[]; values: string[][] };
+
+/**
+ * 모델 엑셀 업로드 결과 (인텐트 + 엔티티 통합)
+ */
+export interface ModelImportResult {
+  model: { modelId: string; modelName: string; modelType: number };
+  intentResult: ExcelImportResult;
+  entityResult: ExcelImportResult;
+}

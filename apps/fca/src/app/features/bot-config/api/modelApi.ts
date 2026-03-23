@@ -26,6 +26,7 @@ import type {
 } from '../types/evaluation';
 import type { InferenceResponse } from '../types/inference';
 import type {
+  ExcelImportResult,
   IntentBasicInfoUpdateDatas,
   IntentCreateDatas,
   IntentItem,
@@ -35,7 +36,7 @@ import type {
   IntentSentenceListItem,
   IntentSentenceUpdateDatas,
 } from '../types/intent';
-import type { GenerateExcelDatas, ModelBasicInfoUpdateDatas, ModelCreateDatas, ModelItem, ModelListItem } from '../types/model';
+import type { GenerateExcelDatas, ModelBasicInfoUpdateDatas, ModelCreateDatas, ModelImportResult, ModelItem, ModelListItem } from '../types/model';
 
 const apiClient = new ApiClient({ serviceURL: '/bff' });
 
@@ -48,14 +49,14 @@ export const modelApi = {
     const response = await apiClient.get<DetailResponse<ModelItem>>('/model-detail', { params });
     return extractDetail(response);
   },
-  createModel: async (data: ModelCreateDatas) => {
+  createModel: async (data: ModelCreateDatas): Promise<ModelImportResult> => {
     const formData = new FormData();
     if (data.file) formData.append('uploadFile', data.file);
     formData.append('modelName', data.modelName);
     formData.append('expansion1', data.expansion1 ?? '');
     formData.append('modelType', String(data.modelType));
-    const response = await apiClient.post('/model-create', formData);
-    return response;
+    const response = await apiClient.post<DetailResponse<ModelImportResult>>('/model-create', formData);
+    return extractDetail(response);
   },
   updateModel: async ({ params, data }: { params: Record<string, unknown>; data: ModelBasicInfoUpdateDatas }) => {
     const response = await apiClient.put('/model-update', data, { params });
@@ -97,11 +98,11 @@ export const modelApi = {
     const response = await apiClient.delete('/intent-delete', { params });
     return response;
   },
-  importIntent: async ({ params, data }: { params: Record<string, unknown>; data: File }) => {
+  importIntent: async ({ params, data }: { params: Record<string, unknown>; data: File }): Promise<ExcelImportResult> => {
     const formData = new FormData();
     formData.append('uploadFile', data);
-    const response = await apiClient.post('/intent-excel-import', formData, { params });
-    return response;
+    const response = await apiClient.post<DetailResponse<ExcelImportResult>>('/intent-excel-import', formData, { params });
+    return extractDetail(response);
   },
   exportIntent: async (params: Record<string, unknown>) => {
     const response = await apiClient.get<Blob>('/intent-excel-export', { params, responseType: 'blob' });
@@ -173,11 +174,11 @@ export const modelApi = {
     const response = await apiClient.delete('/entity-values-delete', { params });
     return response;
   },
-  importEntity: async ({ params, data }: { params: Record<string, unknown>; data: File }) => {
+  importEntity: async ({ params, data }: { params: Record<string, unknown>; data: File }): Promise<ExcelImportResult> => {
     const formData = new FormData();
     formData.append('uploadFile', data);
-    const response = await apiClient.post('/entity-excel-import', formData, { params });
-    return response;
+    const response = await apiClient.post<DetailResponse<ExcelImportResult>>('/entity-excel-import', formData, { params });
+    return extractDetail(response);
   },
   exportEntity: async (params: Record<string, unknown>) => {
     const response = await apiClient.get<Blob>('/entity-excel-export', { params, responseType: 'blob' });
