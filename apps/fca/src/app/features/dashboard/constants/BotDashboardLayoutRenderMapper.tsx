@@ -1,3 +1,4 @@
+import { DEFAULT_ROW_CNT } from './dashboardConstants';
 import DialogIncompleteTopBarChart from '../components/DialogIncompleteTopBarChart';
 import DialogIncompleteTopConfigDrawer from '../components/DialogIncompleteTopConfigDrawer';
 import DialogIncompleteTopGrid from '../components/DialogIncompleteTopGrid';
@@ -98,7 +99,7 @@ export const botDashboardLayoutRenderMapper: Record<string, LayoutRenderEntry> =
   dialogIncompleteTop: {
     title: '대화 미완결율 순위',
     supportedModes: [DASHBOARD_VIEW.CHART, DASHBOARD_VIEW.TABLE],
-    defaultOptions: { rowCnt: 10 },
+    defaultOptions: { rowCnt: DEFAULT_ROW_CNT },
     menuActions: [
       {
         key: 'settings',
@@ -114,7 +115,7 @@ export const botDashboardLayoutRenderMapper: Record<string, LayoutRenderEntry> =
   slotIncompleteTop: {
     title: '슬롯 미완결율 순위',
     supportedModes: [DASHBOARD_VIEW.CHART, DASHBOARD_VIEW.TABLE],
-    defaultOptions: { rowCnt: 10 },
+    defaultOptions: { rowCnt: DEFAULT_ROW_CNT },
     menuActions: [
       {
         key: 'settings',
@@ -130,7 +131,7 @@ export const botDashboardLayoutRenderMapper: Record<string, LayoutRenderEntry> =
   slotRetryAvgTop: {
     title: '슬롯 평균 재시도 횟수 순위',
     supportedModes: [DASHBOARD_VIEW.CHART, DASHBOARD_VIEW.TABLE],
-    defaultOptions: { rowCnt: 10 },
+    defaultOptions: { rowCnt: DEFAULT_ROW_CNT },
     menuActions: [
       {
         key: 'settings',
@@ -146,7 +147,7 @@ export const botDashboardLayoutRenderMapper: Record<string, LayoutRenderEntry> =
   slotRetryDistTop: {
     title: '슬롯 완결 건 재시도 분포 순위',
     supportedModes: [DASHBOARD_VIEW.CHART, DASHBOARD_VIEW.TABLE],
-    defaultOptions: { rowCnt: 10 },
+    defaultOptions: { rowCnt: DEFAULT_ROW_CNT },
     menuActions: [
       {
         key: 'settings',
@@ -178,7 +179,7 @@ export const botDashboardLayoutRenderMapper: Record<string, LayoutRenderEntry> =
   entityTop: {
     title: '개체 순위',
     supportedModes: [DASHBOARD_VIEW.CHART, DASHBOARD_VIEW.TABLE],
-    defaultOptions: { rowCnt: 10 },
+    defaultOptions: { rowCnt: DEFAULT_ROW_CNT },
     menuActions: [
       {
         key: 'settings',
@@ -192,7 +193,7 @@ export const botDashboardLayoutRenderMapper: Record<string, LayoutRenderEntry> =
   intentTop: {
     title: '의도 순위',
     supportedModes: [DASHBOARD_VIEW.CHART, DASHBOARD_VIEW.TABLE],
-    defaultOptions: { rowCnt: 10 },
+    defaultOptions: { rowCnt: DEFAULT_ROW_CNT },
     menuActions: [
       {
         key: 'settings',
@@ -206,7 +207,7 @@ export const botDashboardLayoutRenderMapper: Record<string, LayoutRenderEntry> =
   intentCheckFailTop: {
     title: '의도 Check/Fail 순위',
     supportedModes: [DASHBOARD_VIEW.CHART, DASHBOARD_VIEW.TABLE],
-    defaultOptions: { rowCnt: 10 },
+    defaultOptions: { rowCnt: DEFAULT_ROW_CNT },
     menuActions: [
       {
         key: 'settings',

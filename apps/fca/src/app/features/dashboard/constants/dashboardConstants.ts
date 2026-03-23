@@ -21,5 +21,6 @@ export const WORD_CLOUD_COLORS = [
   '#86198F', '#BE185D', '#1E3A8A', '#166534', '#92400E', '#581C87', '#155E75', '#7C2D12', '#312E81', '#134E4A',
 ] as const;
 
+export const DEFAULT_ROW_CNT = 10;
 export const GRID_COLS = 12;
 export const REFRESH_INTERVAL = 3000;
