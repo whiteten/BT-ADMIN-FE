@@ -1,5 +1,5 @@
 import { useEffect, useRef } from 'react';
-import { createUUID } from '@/shared-util';
+import { createShortId } from '@/shared-util';
 import { useDashboardSocketStore } from './useDashboardSocketStore';
 import { DASHBOARD_MSG_TYPE, type DashboardSubscribeOptions, type DashboardWidgetType } from '../types/dashboard.types';
 
@@ -23,7 +23,7 @@ interface UseWidgetSubscriptionReturn {
  * - options 변경 시 SUBSCRIBE 재전송
  */
 export function useWidgetSubscription({ widgetType, options, enabled = true }: UseWidgetSubscriptionOptions): UseWidgetSubscriptionReturn {
-  const widgetIdRef = useRef(createUUID().split('-')[0]);
+  const widgetIdRef = useRef(createShortId());
   const widgetId = widgetIdRef.current;
 
   const wsId = useDashboardSocketStore((s) => s.wsId);

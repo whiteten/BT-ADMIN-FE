@@ -1,11 +1,11 @@
 import type { LayoutItem } from 'react-grid-layout';
 import type { Option } from 'react-multi-select-component';
-import { createUUID } from '@/shared-util';
+import { createShortId } from '@/shared-util';
 import type { DashboardLayoutItem, DashboardWidgetType } from '../types/dashboard.types';
 
 /** 위젯 인스턴스를 식별하는 고유 ID를 생성한다. */
 export function generateWidgetId(): string {
-  return createUUID().split('-')[0];
+  return createShortId();
 }
 
 /** 순위(dataIndex)가 낮아질수록 투명도가 증가하는 그라데이션 색상을 반환한다. */

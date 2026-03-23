@@ -2,6 +2,11 @@ export function createUUID(): string {
   return '10000000-1000-4000-8000-100000000000'.replace(/[018]/g, (c) => (+c ^ (crypto.getRandomValues(new Uint8Array(1))[0] & (15 >> (+c / 4)))).toString(16));
 }
 
+/** UUID의 첫 번째 세그먼트(8자리 hex)를 반환하는 단축 ID 생성 함수 */
+export function createShortId(): string {
+  return createUUID().split('-')[0];
+}
+
 export function getCookie(name: string): string | null {
   return (
     document.cookie
