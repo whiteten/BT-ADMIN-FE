@@ -6,9 +6,6 @@ import type { IntentCheckFailTopItem } from '../types/dashboard.types';
 import NoData from '@/components/custom/NoData';
 
 const createChartOption = (data: IntentCheckFailTopItem[]): EChartsOption => {
-  const dataMax = Math.max(...data.map((item) => item.failCnt + item.checkCnt + item.passCnt));
-  const axisMax = Math.ceil(dataMax / 5) * 5 || 10;
-
   return {
     tooltip: {
       trigger: 'axis',
@@ -25,8 +22,6 @@ const createChartOption = (data: IntentCheckFailTopItem[]): EChartsOption => {
     grid: { left: 20, right: 50, bottom: 20, top: 30, containLabel: true },
     xAxis: {
       type: 'value',
-      max: axisMax,
-      interval: axisMax / 4,
       axisLine: { lineStyle: { color: '#E9EBEC' } },
       axisTick: { show: false },
       axisLabel: { color: '#495057', fontSize: 12 },
