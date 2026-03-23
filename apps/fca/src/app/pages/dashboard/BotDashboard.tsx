@@ -15,6 +15,7 @@ import type { DashboardLayoutItem, DashboardWidgetType } from '../../features/da
 import { generateWidgetId, syncLayoutWithFilter } from '../../features/dashboard/utils/dashboardUtils';
 import PageHeader from '@/components/custom/PageHeader';
 import { cn } from '@/lib/utils';
+import { useModal } from '@/libs/shared-ui/src/hooks/useModal';
 
 const breadcrumb: BreadcrumbProps['items'] = [
   { title: '대시보드', path: '/fca/dashboard' },
@@ -41,6 +42,7 @@ export default function BotDashboard() {
     serviceIds: selectedService.map((item) => item.value as string),
   };
 
+  const modal = useModal();
   const { layout: storedLayout, setLayout, setWidgetOptions } = useBotDashboardStore();
   const { width, containerRef, mounted } = useContainerWidth();
 
@@ -77,8 +79,25 @@ export default function BotDashboard() {
   };
 
   const handleResetLayouts = () => {
-    setDraftLayout(DEFAULT_LAYOUT.map((item) => ({ ...item, i: generateWidgetId() })));
-    setSelectedLayoutFilterItems(layoutFilterOptions);
+    modal.confirm.execute({
+      options: {
+        title: '레이아웃 초기화 안내',
+        width: 600,
+        content: (
+          <>
+            <span>레이아웃을 초기화하면, 각 위젯에 설정한 옵션도 함께 초기화됩니다.</span>
+            <br />
+            <span>저장 시 초기화가 반영됩니다. 진행하시겠습니까?</span>
+          </>
+        ),
+        okText: '초기화',
+        okType: 'danger',
+      },
+      onOk: () => {
+        setDraftLayout(DEFAULT_LAYOUT.map((item) => ({ ...item, i: generateWidgetId() })));
+        setSelectedLayoutFilterItems(layoutFilterOptions);
+      },
+    });
   };
 
   const handleLayoutChange = (newLayout: Layout) => {
