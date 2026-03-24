@@ -256,6 +256,31 @@ export interface IntentCheckFailTopItem {
 }
 
 /**
+ * 의도 실패율 순위
+ *
+ * - rank: 순위
+ * - serviceId: 시나리오 ID
+ * - serviceName: 시나리오명
+ * - modelId: 모델 ID
+ * - modelName: 모델명
+ * - intent: 인텐트명
+ * - detectCnt: 인식수
+ * - failCnt: Fail 수
+ * - failRate: 실패율 (%)
+ */
+export interface IntentFailRateTopItem {
+  rank: number;
+  serviceId: number;
+  serviceName: string;
+  modelId: string;
+  modelName: string;
+  intent: string;
+  detectCnt: number;
+  failCnt: number;
+  failRate: number;
+}
+
+/**
  * 시간대별 기본 데이터
  *
  * - serviceId: 시나리오 ID
@@ -328,6 +353,7 @@ export interface BotDashboardResponse {
   entityTop: EntityTopItem[];
   intentTop: IntentTopItem[];
   intentCheckFailTop: IntentCheckFailTopItem[];
+  intentFailRateTop: IntentFailRateTopItem[];
   hourlyEntry: HourlyEntryItem[];
   serviceOccupancy: OccupancyItem[];
   dialogOccupancy: OccupancyItem[];

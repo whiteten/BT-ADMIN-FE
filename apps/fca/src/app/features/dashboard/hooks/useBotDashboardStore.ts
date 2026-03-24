@@ -19,8 +19,9 @@ export const DEFAULT_LAYOUT: DashboardLayoutItem[] = [
   { i: generateWidgetId(), widgetType: 'keywordTop', x: 0, y: 16, w: 4, h: 5 },
   { i: generateWidgetId(), widgetType: 'entityTop', x: 8, y: 16, w: 4, h: 5 },
   { i: generateWidgetId(), widgetType: 'intentTop', x: 4, y: 16, w: 4, h: 5 },
-  { i: generateWidgetId(), widgetType: 'hourlyEntry', x: 0, y: 21, w: 7, h: 5 },
-  { i: generateWidgetId(), widgetType: 'intentCheckFailTop', x: 9, y: 21, w: 5, h: 5 },
+  { i: generateWidgetId(), widgetType: 'intentCheckFailTop', x: 0, y: 21, w: 7, h: 5 },
+  { i: generateWidgetId(), widgetType: 'intentFailRateTop', x: 7, y: 21, w: 5, h: 5 },
+  { i: generateWidgetId(), widgetType: 'hourlyEntry', x: 0, y: 26, w: 12, h: 5 },
 ];
 
 type WidgetOptionsMap = Record<string, Record<string, unknown>>;
