@@ -2,6 +2,9 @@ export interface CallbotHistorySearchRequest {
   fromDate: string;
   toDate: string;
   serviceIds?: number[];
+  intentIds?: string[];
+  confidenceMin?: number;
+  confidenceMax?: number;
   completeYn?: number;
   ucid?: string;
   page?: number;
@@ -28,9 +31,15 @@ export interface CallbotHistoryListItem {
   reqAgentYn: number;
   dialogCount: number;
   durationSec: number;
+  avgConfidence: number | null;
 }
 
 export interface BotServiceDto {
   serviceId: number;
   serviceName: string;
+}
+
+export interface IntentDto {
+  intentId: string;
+  intentName: string;
 }

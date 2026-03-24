@@ -77,6 +77,13 @@ const CallbotHistoryTable: React.FC<CallbotHistoryTableProps> = ({ rowData, tota
         },
       },
       {
+        headerName: '신뢰도',
+        field: 'avgConfidence',
+        width: 110,
+        cellClass: 'text-right',
+        valueFormatter: (params) => (params.value != null ? `${params.value}` : '-'),
+      },
+      {
         headerName: '대화수',
         field: 'dialogCount',
         width: 90,

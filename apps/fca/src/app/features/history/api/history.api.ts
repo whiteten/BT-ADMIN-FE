@@ -1,6 +1,6 @@
 import ApiClient, { type ListResponse, extractList } from '@/shared-util';
 import type { TrackingFlowItem } from '../../tracking/types/tracking.types';
-import type { BotServiceDto, PagedCallbotHistory } from '../types/history.types';
+import type { BotServiceDto, IntentDto, PagedCallbotHistory } from '../types/history.types';
 
 const apiClient = new ApiClient({ serviceURL: '/bff' });
 
@@ -12,6 +12,10 @@ export const historyApi = {
   getCallbotHistory: async (params?: Record<string, unknown>): Promise<PagedCallbotHistory> => {
     const response = await apiClient.get<{ data: PagedCallbotHistory }>('/callbot-history-list', { params });
     return response.data?.data ?? { items: [], page: 0, size: 0, total: 0 };
+  },
+  getIntents: async (params?: Record<string, unknown>): Promise<IntentDto[]> => {
+    const response = await apiClient.get<ListResponse<IntentDto>>('/callbot-history-intents', { params });
+    return extractList(response);
   },
   getBubbles: async (params?: Record<string, unknown>): Promise<TrackingFlowItem[]> => {
     const response = await apiClient.get<ListResponse<TrackingFlowItem>>('/callbot-history-bubbles', { params });

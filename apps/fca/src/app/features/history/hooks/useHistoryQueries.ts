@@ -3,10 +3,11 @@ import { createQueryKeys } from '@lukemorales/query-key-factory';
 import type { QueryHookWithParamsOptions } from '@/shared-util';
 import type { TrackingFlowItem } from '../../tracking/types/tracking.types';
 import { historyApi } from '../api/history.api';
-import type { BotServiceDto } from '../types/history.types';
+import type { BotServiceDto, IntentDto } from '../types/history.types';
 
 export const historyQueryKeys = createQueryKeys('history', {
   getBotServices: (params?: Record<string, unknown>) => [params],
+  getIntents: (params?: Record<string, unknown>) => [params],
   getCallbotHistory: (params?: Record<string, unknown>) => [params],
   getBubbles: (params?: Record<string, unknown>) => [params],
 });
@@ -18,6 +19,17 @@ export const useGetBotServices = ({ params, queryOptions }: QueryHookWithParamsO
   return useQuery({
     queryKey: historyQueryKeys.getBotServices(params).queryKey,
     queryFn: () => historyApi.getBotServices(params),
+    ...queryOptions,
+  });
+};
+
+/**
+ * 봇서비스에 할당된 의도 목록 조회 훅
+ */
+export const useGetIntents = ({ params, queryOptions }: QueryHookWithParamsOptions<IntentDto[]> = {}) => {
+  return useQuery({
+    queryKey: historyQueryKeys.getIntents(params).queryKey,
+    queryFn: () => historyApi.getIntents(params),
     ...queryOptions,
   });
 };
