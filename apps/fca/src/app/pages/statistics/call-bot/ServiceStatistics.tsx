@@ -355,6 +355,7 @@ export default function ServiceStatistics() {
                 <div className="flex items-center gap-3">
                   <span className="text-sm font-medium text-[#495057] shrink-0">봇서비스</span>
                   <Select
+                    mode="multiple"
                     value={serviceIds}
                     onChange={(value) => setServiceIds(value ?? [])}
                     allowClear
