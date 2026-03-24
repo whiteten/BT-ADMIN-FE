@@ -29,6 +29,14 @@ const ClientList = React.lazy(() => import('./pages/client/ClientList'));
 const ClientCreate = React.lazy(() => import('./pages/client/ClientCreate'));
 const ClientDetail = React.lazy(() => import('./pages/client/ClientDetail'));
 
+// 라이선스 관리 페이지
+const LicenseList = React.lazy(() => import('./pages/license/LicenseList'));
+
+// 테넌트 관리 페이지
+const TenantList = React.lazy(() => import('./features/tenant-management/pages/TenantList'));
+const TenantCreate = React.lazy(() => import('./features/tenant-management/pages/TenantCreate'));
+const TenantDetail = React.lazy(() => import('./features/tenant-management/pages/TenantDetail'));
+
 export const routes = [
   {
     path: '/',
@@ -140,6 +148,42 @@ export const routes = [
               {
                 path: ':clientId',
                 element: <ClientDetail />,
+              },
+            ],
+          },
+          {
+            path: 'license',
+            element: <Outlet />,
+            children: [
+              {
+                index: true,
+                element: <Navigate to="list" replace />,
+              },
+              {
+                path: 'list',
+                element: <LicenseList />,
+              },
+            ],
+          },
+          {
+            path: 'tenant-management',
+            element: <Outlet />,
+            children: [
+              {
+                index: true,
+                element: <Navigate to="list" replace />,
+              },
+              {
+                path: 'list',
+                element: <TenantList />,
+              },
+              {
+                path: 'create',
+                element: <TenantCreate />,
+              },
+              {
+                path: ':tenantId',
+                element: <TenantDetail />,
               },
             ],
           },
