@@ -32,6 +32,29 @@ export interface TrackingPushData {
 /** 대화 화자 역할 */
 export type DialogRole = 'BOT' | 'CUSTOMER' | 'SYSTEM' | 'HIDDEN';
 
+/** NLU 엔티티 항목 */
+export interface NluEntityItem {
+  entityTag: string;
+  entityValue: string;
+}
+
+/** NLU 분석 결과 (HOP 단위) */
+export interface NluAnalysisItem {
+  questionText: string;
+  intent: string;
+  confidence: number | null;
+  threshold: number | null;
+  thresholdFail: number | null;
+  isSuccess: number | null;
+  isCheck: number | null;
+  isFailed: number | null;
+  isEntity: number | null;
+  modelName: string;
+  ifeNodeName: string;
+  hop: number;
+  entities: NluEntityItem[];
+}
+
 /** 트래킹 플로우 아이템 */
 export interface TrackingFlowItem {
   seq: number;
@@ -47,6 +70,8 @@ export interface TrackingFlowItem {
   result: string;
   dialogRole: DialogRole;
   rawValues: string[];
+  /** NLU 분석 결과 (고객 발화에만 존재, HOP 단위 목록) */
+  nluResults?: NluAnalysisItem[] | null;
 }
 
 /** 세션 상세 */

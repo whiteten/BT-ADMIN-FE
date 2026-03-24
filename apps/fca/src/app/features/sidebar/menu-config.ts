@@ -78,8 +78,8 @@ const menuConfig = {
         },
         {
           menuId: 75,
-          label: '대화이력',
-          path: 'tracking/bot-dialog',
+          label: '콜봇이력',
+          path: 'tracking/bot-callbot',
           index: 1,
           hide: false,
         },

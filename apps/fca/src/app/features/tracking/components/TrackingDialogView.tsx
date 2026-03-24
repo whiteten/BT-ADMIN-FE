@@ -6,7 +6,7 @@ import { cn } from '@/lib/utils';
 interface TrackingDialogViewProps {
   items: TrackingFlowItem[];
   callEnded?: boolean;
-  /** 아이템 클릭 콜백 (대화이력 NLU 분석 등에 활용) */
+  /** 아이템 클릭 콜백 (콜봇이력 NLU 분석 등에 활용) */
   onItemClick?: (item: TrackingFlowItem) => void;
   /** 선택된 Seq 번호 (선택 링 표시용) */
   selectedSeq?: number | null;
@@ -38,9 +38,9 @@ function SystemBubble({ item }: { item: TrackingFlowItem }) {
 
   return (
     <div className="flex justify-center">
-      <div className="flex items-center gap-1.5 px-3 py-1 bg-slate-50 border border-slate-200 rounded-full max-w-xs">
-        <Icon size={11} className={cfg.color} />
-        <span className="text-xs text-slate-500 truncate">{text}</span>
+      <div className="flex items-center gap-1.5 px-3 py-1 bg-slate-50 border border-slate-200 rounded-full max-w-[80%]">
+        <Icon size={11} className={cn(cfg.color, 'shrink-0')} />
+        <span className="text-xs text-slate-500 break-all">{text}</span>
         {item.result && <span className={`text-xs font-medium shrink-0 ${resultColor}`}>{item.result}</span>}
       </div>
     </div>
@@ -68,7 +68,7 @@ function BotBubble({ item, isSelected, onClick }: { item: TrackingFlowItem; isSe
           <Icon size={11} className={cfg.color} />
         </div>
         <div className={cn('bg-blue-50 border border-blue-200 rounded-lg rounded-br-sm px-3 py-2 shadow-sm', isSelected && 'ring-2 ring-blue-300 ring-offset-1')}>
-          <p className="text-sm text-slate-700 leading-relaxed break-words">{text}</p>
+          <p className="text-sm text-slate-700 leading-relaxed break-all whitespace-pre-wrap">{text}</p>
         </div>
         {item.result && <span className={`text-[10px] font-medium ${resultColor}`}>{item.result}</span>}
       </div>
@@ -104,7 +104,7 @@ function CustomerBubble({ item, isSelected, onClick }: { item: TrackingFlowItem;
             isSelected && 'ring-2 ring-blue-300 ring-offset-1',
           )}
         >
-          <p className={`text-sm leading-relaxed break-words ${isFailed ? 'text-slate-400 italic' : 'text-slate-700'}`}>{text}</p>
+          <p className={`text-sm leading-relaxed break-all whitespace-pre-wrap ${isFailed ? 'text-slate-400 italic' : 'text-slate-700'}`}>{text}</p>
         </div>
         {item.result && <span className={`text-[10px] font-medium ${resultColor}`}>{item.result}</span>}
       </div>
@@ -125,7 +125,7 @@ function ImageBubble({ item, onClick }: { item: TrackingFlowItem; onClick?: () =
           <span className="text-[10px] text-slate-400">{item.typeName}</span>
         </div>
         <div className="bg-blue-50 border border-blue-200 rounded-lg rounded-br-sm p-2 shadow-sm">
-          <img src={item.imagePath!} alt="보이는 ARS" className="max-w-full rounded" loading="lazy" />
+          <img src={item.imagePath!} alt="보이는 ARS" className="max-w-[280px] rounded" loading="lazy" />
         </div>
       </div>
     </div>
@@ -141,7 +141,7 @@ function CallEndedBanner() {
   );
 }
 
-/** 대화 채팅 버블 UI (실시간 트래킹 + 대화이력 공용) */
+/** 대화 채팅 버블 UI (실시간 트래킹 + 콜봇이력 공용) */
 export default function TrackingDialogView({ items, callEnded, onItemClick, selectedSeq }: TrackingDialogViewProps) {
   if (items.length === 0 && !callEnded) {
     return <EmptyState />;

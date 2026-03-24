@@ -1,21 +1,21 @@
 import React, { useMemo } from 'react';
-import { Button, DatePicker, Divider, Input, Select, Space } from 'antd';
+import { Button, DatePicker, Divider, Input, Select } from 'antd';
 import dayjs, { type Dayjs } from 'dayjs';
-import { Download, Search } from 'lucide-react';
+import { Search } from 'lucide-react';
+import { toast } from '@/shared-util';
+
+const MAX_DAYS = 30;
 import { useGetBotServices } from '../hooks/useHistoryQueries';
-import type { BotServiceDto, DialogHistorySearchRequest } from '../types/history.types';
+import type { BotServiceDto, CallbotHistorySearchRequest } from '../types/history.types';
 
-const { RangePicker } = DatePicker;
-
-interface DialogHistorySearchFormProps {
-  onSearch: (values: DialogHistorySearchRequest) => void;
-  onExcelDownload: () => void;
+interface CallbotHistorySearchFormProps {
+  onSearch: (values: CallbotHistorySearchRequest) => void;
   isLoading?: boolean;
-  isExporting?: boolean;
 }
 
-const DialogHistorySearchForm: React.FC<DialogHistorySearchFormProps> = ({ onSearch, onExcelDownload, isLoading, isExporting }) => {
-  const [dates, setDates] = React.useState<[Dayjs, Dayjs]>([dayjs().startOf('day'), dayjs().endOf('day')]);
+const CallbotHistorySearchForm: React.FC<CallbotHistorySearchFormProps> = ({ onSearch, isLoading }) => {
+  const [startDate, setStartDate] = React.useState<Dayjs>(dayjs().startOf('day'));
+  const [endDate, setEndDate] = React.useState<Dayjs>(dayjs().endOf('day'));
   const [serviceIds, setServiceIds] = React.useState<number[]>([]);
   const [completeYn, setCompleteYn] = React.useState<number | undefined>();
   const [ucid, setUcid] = React.useState<string>('');
@@ -32,9 +32,13 @@ const DialogHistorySearchForm: React.FC<DialogHistorySearchFormProps> = ({ onSea
   );
 
   const handleSearch = () => {
+    if (endDate.diff(startDate, 'day') > MAX_DAYS) {
+      toast.warning(`조회 기간은 최대 ${MAX_DAYS}일까지 가능합니다.`);
+      return;
+    }
     onSearch({
-      fromDate: dates[0].format('YYYY-MM-DDTHH:mm:ss'),
-      toDate: dates[1].format('YYYY-MM-DDTHH:mm:ss'),
+      fromDate: startDate.format('YYYY-MM-DDTHH:mm:ss'),
+      toDate: endDate.format('YYYY-MM-DDTHH:mm:ss'),
       serviceIds: serviceIds.length > 0 ? serviceIds : undefined,
       completeYn,
       ucid: ucid.trim() || undefined,
@@ -46,7 +50,25 @@ const DialogHistorySearchForm: React.FC<DialogHistorySearchFormProps> = ({ onSea
       <div className="flex items-center flex-wrap gap-4">
         <div className="flex items-center gap-2">
           <span className="text-sm font-medium text-[#495057] shrink-0">검색일자</span>
-          <RangePicker showTime={{ format: 'HH:mm' }} value={dates} onChange={(val) => val && setDates([val[0]!, val[1]!])} format="YYYY-MM-DD HH:mm" allowClear={false} />
+          <DatePicker
+            value={startDate}
+            onChange={(date) => date && setStartDate(date)}
+            showTime={{ format: 'HH:mm' }}
+            format="YYYY-MM-DD HH:mm"
+            disabledDate={(current) => current && current > dayjs().endOf('day')}
+            inputReadOnly
+            allowClear={false}
+          />
+          <span className="text-sm font-medium text-[#495057] shrink-0">~</span>
+          <DatePicker
+            value={endDate}
+            onChange={(date) => date && setEndDate(date)}
+            showTime={{ format: 'HH:mm' }}
+            format="YYYY-MM-DD HH:mm"
+            disabledDate={(current) => current && (current > dayjs().endOf('day') || current < startDate.startOf('day') || current > startDate.add(MAX_DAYS, 'day').endOf('day'))}
+            inputReadOnly
+            allowClear={false}
+          />
         </div>
 
         <Divider orientation="vertical" className="!h-5 !m-0" />
@@ -87,22 +109,11 @@ const DialogHistorySearchForm: React.FC<DialogHistorySearchFormProps> = ({ onSea
         </div>
       </div>
 
-      <Space size="small" className="shrink-0">
-        <Button type="primary" icon={<Search className="size-4" />} onClick={handleSearch} loading={isLoading} className="flex items-center gap-1">
-          조회
-        </Button>
-        <Button
-          type="primary"
-          icon={<Download className="size-4" />}
-          onClick={onExcelDownload}
-          loading={isExporting}
-          className="!bg-[#10B981] !border-[#10B981] hover:!bg-[#0FA968] flex items-center gap-1"
-        >
-          엑셀
-        </Button>
-      </Space>
+      <Button type="primary" icon={<Search className="size-4" />} onClick={handleSearch} loading={isLoading} className="flex items-center gap-1 shrink-0">
+        조회
+      </Button>
     </div>
   );
 };
 
-export default DialogHistorySearchForm;
+export default CallbotHistorySearchForm;

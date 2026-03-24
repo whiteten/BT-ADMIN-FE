@@ -1,4 +1,4 @@
-export interface DialogHistorySearchRequest {
+export interface CallbotHistorySearchRequest {
   fromDate: string;
   toDate: string;
   serviceIds?: number[];
@@ -9,20 +9,21 @@ export interface DialogHistorySearchRequest {
   [key: string]: any; // Record<string, unknown> 호환을 위한 인덱스 시그니처
 }
 
-export interface PagedDialogHistory {
-  items: DialogHistoryListItem[];
+export interface PagedCallbotHistory {
+  items: CallbotHistoryListItem[];
   page: number;
   size: number;
   total: number;
 }
 
-export interface DialogHistoryListItem {
+export interface CallbotHistoryListItem {
   ucid: string;
   nextHop: number;
   cdrPkey: number;
   svcStartTime: string;
   serviceName: string;
   ani: string;
+  dnis: string;
   serviceCompleteYn: number;
   reqAgentYn: number;
   dialogCount: number;

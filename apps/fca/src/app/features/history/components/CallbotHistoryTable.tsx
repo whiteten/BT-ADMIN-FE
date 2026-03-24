@@ -2,26 +2,26 @@ import React, { useMemo } from 'react';
 import type { ColDef } from 'ag-grid-community';
 import { AgGridReact } from 'ag-grid-react';
 import dayjs from 'dayjs';
-import type { DialogHistoryListItem } from '../types/history.types';
+import type { CallbotHistoryListItem } from '../types/history.types';
 import ServerPagination from '@/components/custom/ServerPagination';
 import { Badge } from '@/components/ui/badge';
 import useAggridOptions from '@/libs/shared-ui/src/hooks/useAggridOptions';
 
-interface DialogHistoryTableProps {
-  rowData: DialogHistoryListItem[];
+interface CallbotHistoryTableProps {
+  rowData: CallbotHistoryListItem[];
   total: number;
   isLoading?: boolean;
   page: number;
   size: number;
   onPageChange: (page: number) => void;
-  onRowClick: (data: DialogHistoryListItem) => void;
+  onRowClick: (data: CallbotHistoryListItem) => void;
   selectedRowId?: string;
 }
 
-const DialogHistoryTable: React.FC<DialogHistoryTableProps> = ({ rowData, total, isLoading, page, size, onPageChange, onRowClick, selectedRowId }) => {
+const CallbotHistoryTable: React.FC<CallbotHistoryTableProps> = ({ rowData, total, isLoading, page, size, onPageChange, onRowClick, selectedRowId }) => {
   const { gridOptions } = useAggridOptions();
 
-  const columnDefs: ColDef<DialogHistoryListItem>[] = useMemo(
+  const columnDefs: ColDef<CallbotHistoryListItem>[] = useMemo(
     () => [
       {
         headerName: '시작일시',
@@ -103,7 +103,7 @@ const DialogHistoryTable: React.FC<DialogHistoryTableProps> = ({ rowData, total,
   return (
     <div className="flex flex-col flex-1 min-h-0 bg-white bt-shadow">
       <div className="flex-1 w-full overflow-hidden">
-        <AgGridReact<DialogHistoryListItem>
+        <AgGridReact<CallbotHistoryListItem>
           rowData={rowData}
           columnDefs={columnDefs}
           gridOptions={{
@@ -126,4 +126,4 @@ const DialogHistoryTable: React.FC<DialogHistoryTableProps> = ({ rowData, total,
   );
 };
 
-export default DialogHistoryTable;
+export default CallbotHistoryTable;

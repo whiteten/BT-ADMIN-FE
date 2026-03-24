@@ -161,7 +161,7 @@ const TrackingDetailDrawer = forwardRef<TrackingDetailDrawerRef, TrackingDetailD
   }, []);
 
   const session = sseDetail?.session;
-  const trackingFlow = sseDetail?.trackingFlow ?? [];
+  const trackingFlow = (sseDetail?.trackingFlow ?? []).filter((item) => item.type !== 2 && item.type !== 3);
   const isLoading = drawerState.open && isTracking && !sseDetail;
 
   const drawerTitle = '세션 상세';

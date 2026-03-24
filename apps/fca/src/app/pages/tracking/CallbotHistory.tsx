@@ -3,24 +3,23 @@ import type { BreadcrumbProps } from 'antd';
 import dayjs from 'dayjs';
 
 const DATETIME_FORMAT = 'YYYY-MM-DDTHH:mm:ss';
-import { historyApi } from '../../features/history/api/history.api';
-import DialogHistoryDrawer, { type DialogHistoryDrawerRef } from '../../features/history/components/DialogHistoryDrawer';
-import DialogHistorySearchForm from '../../features/history/components/DialogHistorySearchForm';
-import DialogHistoryTable from '../../features/history/components/DialogHistoryTable';
-import { useGetDialogHistory } from '../../features/history/hooks/useHistoryQueries';
-import type { DialogHistoryListItem, DialogHistorySearchRequest } from '../../features/history/types/history.types';
+import CallbotHistoryDrawer, { type CallbotHistoryDrawerRef } from '../../features/history/components/CallbotHistoryDrawer';
+import CallbotHistorySearchForm from '../../features/history/components/CallbotHistorySearchForm';
+import CallbotHistoryTable from '../../features/history/components/CallbotHistoryTable';
+import { useGetCallbotHistory } from '../../features/history/hooks/useHistoryQueries';
+import type { CallbotHistoryListItem, CallbotHistorySearchRequest } from '../../features/history/types/history.types';
 import PageHeader from '@/components/custom/PageHeader';
 
 const breadcrumb: BreadcrumbProps['items'] = [
   { title: '트래킹', path: '/fca/tracking' },
-  { title: '대화 이력', path: '/fca/tracking/bot-dialog' },
+  { title: '콜봇이력', path: '/fca/tracking/bot-callbot' },
 ];
 
-const DialogHistoryPage: React.FC = () => {
-  const drawerRef = useRef<DialogHistoryDrawerRef>(null);
+const CallbotHistoryPage: React.FC = () => {
+  const drawerRef = useRef<CallbotHistoryDrawerRef>(null);
 
   // 검색 파라미터 상태
-  const [searchParams, setSearchParams] = useState<DialogHistorySearchRequest>({
+  const [searchParams, setSearchParams] = useState<CallbotHistorySearchRequest>({
     fromDate: dayjs().startOf('day').format(DATETIME_FORMAT),
     toDate: dayjs().endOf('day').format(DATETIME_FORMAT),
     page: 0,
@@ -30,15 +29,15 @@ const DialogHistoryPage: React.FC = () => {
   // 선택된 행 상태 (그리드 선택 표시용)
   const [selectedRowId, setSelectedRowId] = useState<string | undefined>();
 
-  // 대화 이력 목록 조회
-  const { data: historyData, isLoading: isListLoading } = useGetDialogHistory({
+  // 콜봇이력 목록 조회
+  const { data: historyData, isLoading: isListLoading } = useGetCallbotHistory({
     params: searchParams,
     queryOptions: {
       placeholderData: (previousData: any) => previousData,
     },
   });
 
-  const handleSearch = (newParams: DialogHistorySearchRequest) => {
+  const handleSearch = (newParams: CallbotHistorySearchRequest) => {
     setSearchParams({
       ...newParams,
       page: 0,
@@ -48,18 +47,13 @@ const DialogHistoryPage: React.FC = () => {
   };
 
   const handlePageChange = (newPage: number) => {
-    setSearchParams((prev: DialogHistorySearchRequest) => ({
+    setSearchParams((prev: CallbotHistorySearchRequest) => ({
       ...prev,
       page: newPage,
     }));
   };
 
-  const handleExcelDownload = () => {
-    const url = historyApi.getExcelDownloadUrl(searchParams);
-    window.location.href = url;
-  };
-
-  const handleRowClick = (data: DialogHistoryListItem) => {
+  const handleRowClick = (data: CallbotHistoryListItem) => {
     setSelectedRowId(`${data.ucid}_${data.nextHop}_${data.cdrPkey}`);
     drawerRef.current?.open(data);
   };
@@ -69,11 +63,11 @@ const DialogHistoryPage: React.FC = () => {
       <PageHeader breadcrumb={breadcrumb} />
 
       <div className="flex-1 flex flex-col min-h-0">
-        <DialogHistorySearchForm onSearch={handleSearch} onExcelDownload={handleExcelDownload} isLoading={isListLoading} />
+        <CallbotHistorySearchForm onSearch={handleSearch} isLoading={isListLoading} />
 
         <div className="flex flex-1 min-h-0 mb-4 px-1">
           <div className="flex-1 flex flex-col min-h-0">
-            <DialogHistoryTable
+            <CallbotHistoryTable
               rowData={historyData?.items ?? []}
               total={historyData?.total ?? 0}
               isLoading={isListLoading}
@@ -87,9 +81,9 @@ const DialogHistoryPage: React.FC = () => {
         </div>
       </div>
 
-      <DialogHistoryDrawer ref={drawerRef} />
+      <CallbotHistoryDrawer ref={drawerRef} />
     </div>
   );
 };
 
-export default DialogHistoryPage;
+export default CallbotHistoryPage;
