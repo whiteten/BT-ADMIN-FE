@@ -133,13 +133,15 @@ export default function IntentStatistics() {
   // 합계 행 계산 (pinnedBottomRowData)
   const summaryRow = useMemo<IntentStatListItem[]>(() => {
     if (!rowData?.length) return [];
+    const count = rowData.length;
     const sum = (field: keyof IntentStatListItem) => rowData.reduce((acc, row) => acc + (Number(row[field]) || 0), 0);
+    const avg = (field: keyof IntentStatListItem) => Math.round((sum(field) / count) * 10) / 10;
     return [
       {
         psrTimeKey: '전체합계',
         modelName: '',
         intentCnt: sum('intentCnt'),
-        confidence: sum('confidence'),
+        confidence: avg('confidence'),
         thresholdMaxCnt: sum('thresholdMaxCnt'),
         thresholdCheckCnt: sum('thresholdCheckCnt'),
         thresholdFailCnt: sum('thresholdFailCnt'),
@@ -228,10 +230,11 @@ export default function IntentStatistics() {
       cellStyle: (params) => (params.node?.rowPinned === 'bottom' ? { fontWeight: 'bold', alignItems: 'center' } : { fontWeight: 'normal', alignItems: 'center' }),
     },
     {
-      headerName: '평균 신뢰도(%)',
+      headerName: '평균 신뢰도',
       field: 'confidence',
       flex: 1,
       cellStyle: (params) => (params.node?.rowPinned === 'bottom' ? { fontWeight: 'bold', alignItems: 'center' } : { fontWeight: 'normal', alignItems: 'center' }),
+      valueFormatter: ({ value }: { value?: number }) => (value != null ? `${value}%` : '0%'),
     },
     {
       headerName: '임계값 최대',

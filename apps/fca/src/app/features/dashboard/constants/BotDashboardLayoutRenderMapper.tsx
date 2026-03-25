@@ -12,6 +12,9 @@ import HourlyEntryLineChart from '../components/HourlyEntryLineChart';
 import IntentCheckFailTopBarChart from '../components/IntentCheckFailTopBarChart';
 import IntentCheckFailTopConfigDrawer from '../components/IntentCheckFailTopConfigDrawer';
 import IntentCheckFailTopGrid from '../components/IntentCheckFailTopGrid';
+import IntentFailRateTopBarChart from '../components/IntentFailRateTopBarChart';
+import IntentFailRateTopConfigDrawer from '../components/IntentFailRateTopConfigDrawer';
+import IntentFailRateTopGrid from '../components/IntentFailRateTopGrid';
 import IntentTopBarChart from '../components/IntentTopBarChart';
 import IntentTopConfigDrawer from '../components/IntentTopConfigDrawer';
 import IntentTopGrid from '../components/IntentTopGrid';
@@ -224,6 +227,22 @@ export const botDashboardLayoutRenderMapper: Record<string, LayoutRenderEntry> =
     ],
     renderChart: (d) => <IntentCheckFailTopBarChart data={d?.intentCheckFailTop} />,
     renderTable: (d) => <IntentCheckFailTopGrid data={d?.intentCheckFailTop} />,
+  },
+  intentFailRateTop: {
+    title: '의도 실패율 순위',
+    supportedModes: [DASHBOARD_VIEW.CHART, DASHBOARD_VIEW.TABLE],
+    defaultOptions: { rowCnt: DEFAULT_ROW_CNT },
+    menuActions: [
+      {
+        key: 'settings',
+        label: '상세 설정',
+        renderContent: ({ widgetOptions, setOption, globalOptions, open, onClose }) => (
+          <IntentFailRateTopConfigDrawer widgetOptions={widgetOptions} setOption={setOption} globalOptions={globalOptions} open={open} onClose={onClose} />
+        ),
+      },
+    ],
+    renderChart: (d) => <IntentFailRateTopBarChart data={d?.intentFailRateTop} />,
+    renderTable: (d) => <IntentFailRateTopGrid data={d?.intentFailRateTop} />,
   },
   hourlyEntry: {
     title: '시간대별 봇 진입 현황',

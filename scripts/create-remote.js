@@ -133,6 +133,9 @@ function createRemote() {
       // 신규앱의 nx-welcome.tsx 파일 삭제
       removeNxWelcome(trimmedAppName);
 
+      // 신규앱의 app.spec.tsx 파일 삭제
+      removeAppSpec(trimmedAppName);
+
       // build-selective.js와 serve-host.js 업데이트
       updateBuildScripts(trimmedAppName);
 
@@ -705,6 +708,23 @@ function removeNxWelcome(appName) {
     }
   } catch (error) {
     logError(appName, 'nx-welcome.tsx 삭제', error);
+  }
+}
+
+function removeAppSpec(appName) {
+  const timer = createTimer();
+  logStart(appName, 'app.spec.tsx 파일 삭제');
+  try {
+    const specPath = path.join(process.cwd(), `apps/${appName}/src/app/app.spec.tsx`);
+
+    if (fs.existsSync(specPath)) {
+      fs.unlinkSync(specPath);
+      logSuccess(appName, 'app.spec.tsx 파일 삭제', timer);
+    } else {
+      logInfo(appName, 'app.spec.tsx 파일이 존재하지 않음 (스킵)');
+    }
+  } catch (error) {
+    logError(appName, 'app.spec.tsx 삭제', error);
   }
 }
 
