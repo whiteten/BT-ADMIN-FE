@@ -1,11 +1,13 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import type { ColDef, ColGroupDef, ExcelExportParams, ProcessCellForExportParams } from 'ag-grid-community';
+import type { ColDef, ColGroupDef } from 'ag-grid-community';
 import { AgGridReact } from 'ag-grid-react';
 import { type BreadcrumbProps, Button, Checkbox, DatePicker, Divider, Select, TimePicker } from 'antd';
 import dayjs, { type Dayjs } from 'dayjs';
 import { ChevronDown, Download } from 'lucide-react';
-import { toast } from '@/shared-util';
+import { useNavigationStore } from '@/shared-store';
+import { downloadBlob, extractFileName, toast } from '@/shared-util';
 import { useGetBots } from '../../../features/bot-config/hooks/useBotQueries';
+import { statisticsApi } from '../../../features/statistics/api/statisticsApi';
 import {
   createDisabledDate,
   createEndDisabledDate,
@@ -274,40 +276,40 @@ export default function SlotStatistics() {
     },
   ];
 
+  const { permissions } = useNavigationStore();
+  const hasExcelPermission = permissions.includes('fca:stats-slot:excel');
+
   const [isExporting, setIsExporting] = useState(false);
 
-  const handleExcelDownload = () => {
-    const api = gridRef.current?.api;
-    if (!api) return;
+  const handleExcelDownload = async () => {
     if (!rowData?.length) {
       toast.warning('다운로드할 데이터가 없습니다.');
       return;
     }
 
     setIsExporting(true);
-    const fileName = `SLOT_STATISTICS_${dayjs().format('YYYYMMDD_HHmmss')}.xlsx`;
-
-    const exportParams: ExcelExportParams = {
-      fileName,
-      sheetName: '슬롯 통계',
-      processCellCallback: (p: ProcessCellForExportParams) => {
-        const colId = p.column.getColId();
-        const v = p.value;
-
-        if (colId === 'psrTimeKey') {
-          return v ? dayjs(String(v)).format(getTimeFormat(displayTimeUnit)) : '-';
-        }
-
-        if (colId === 'successPercent') {
-          return typeof v === 'number' ? `${v}%` : v ? `${v}%` : '-';
-        }
-
-        return v ?? '-';
-      },
-    };
-
-    api.exportDataAsExcel(exportParams);
-    window.setTimeout(() => setIsExporting(false), 300);
+    try {
+      const response = await statisticsApi.exportSlotStatExcel({
+        timeUnit: displayTimeUnit,
+        fromTime,
+        toTime,
+        serviceIds: [serviceIds].flat().filter(Boolean),
+        dialogIds: [dialogIds].flat().filter(Boolean),
+        excludeLunch: displayTimeUnit === 'MI' || displayTimeUnit === 'HH' ? excludeLunch : false,
+        useInterval: displayTimeUnit === 'MI' || displayTimeUnit === 'HH' ? useInterval : false,
+        hourFrom: displayTimeUnit === 'MI' || displayTimeUnit === 'HH' ? (useInterval && intervalStartTime ? intervalStartTime.format('HH00') : '') : '',
+        hourTo: displayTimeUnit === 'MI' || displayTimeUnit === 'HH' ? (useInterval && intervalEndTime ? intervalEndTime.format('HH00') : '') : '',
+        excludeDays: displayTimeUnit !== 'MM' && displayTimeUnit !== 'YY' ? excludeDays : [],
+        excludeBusinessHoliday: displayTimeUnit !== 'MM' && displayTimeUnit !== 'YY' ? excludeBusinessHoliday : false,
+        excludeStatHoliday: displayTimeUnit !== 'MM' && displayTimeUnit !== 'YY' ? excludeStatHoliday : false,
+      });
+      const fileName = extractFileName(response.headers['content-disposition'], `SLOT_STATISTICS_${dayjs().format('YYYYMMDD_HHmmss')}.xlsx`);
+      downloadBlob(response.data, fileName);
+    } catch {
+      toast.error('엑셀 다운로드에 실패했습니다.');
+    } finally {
+      setIsExporting(false);
+    }
   };
 
   return (
@@ -404,15 +406,17 @@ export default function SlotStatistics() {
                 <Button type="primary" onClick={handleSearch}>
                   조회
                 </Button>
-                <Button
-                  type="primary"
-                  loading={isExporting}
-                  icon={<Download className="size-4" />}
-                  className="!bg-[#10B981] !border-[#10B981] hover:!bg-[#0FA968]"
-                  onClick={handleExcelDownload}
-                >
-                  엑셀
-                </Button>
+                {hasExcelPermission && (
+                  <Button
+                    type="primary"
+                    loading={isExporting}
+                    icon={<Download className="size-4" />}
+                    className="!bg-[#10B981] !border-[#10B981] hover:!bg-[#0FA968]"
+                    onClick={handleExcelDownload}
+                  >
+                    엑셀
+                  </Button>
+                )}
               </div>
             </div>
             <CollapsibleContent>
