@@ -1,8 +1,10 @@
 import { forwardRef, useCallback, useImperativeHandle, useRef, useState } from 'react';
 import { Descriptions, Drawer, Spin, Tag, message } from 'antd';
 import { Brain, Copy, Info } from 'lucide-react';
+import { toast } from '@/shared-util';
 import TrackingDialogView from '../../tracking/components/TrackingDialogView';
 import type { NluAnalysisItem, TrackingFlowItem } from '../../tracking/types/tracking.types';
+import { historyApi } from '../api/history.api';
 import { useGetBubbles } from '../hooks/useHistoryQueries';
 import type { CallbotHistoryListItem } from '../types/history.types';
 import { cn } from '@/lib/utils';
@@ -127,19 +129,24 @@ const CallbotHistoryDrawer = forwardRef<CallbotHistoryDrawerRef>((_, ref) => {
   const [isOpen, setIsOpen] = useState(false);
   const [selectedRow, setSelectedRow] = useState<CallbotHistoryListItem | null>(null);
   const [selectedSeq, setSelectedSeq] = useState<number | null>(null);
+  const [highlightedSeq, setHighlightedSeq] = useState<number | null>(null);
   const nluRefs = useRef<Map<number, HTMLDivElement>>(new Map());
+  const bubbleRefs = useRef<Map<number, HTMLDivElement>>(new Map());
 
   useImperativeHandle(ref, () => ({
     open: (row: CallbotHistoryListItem) => {
       setSelectedRow(row);
       setSelectedSeq(null);
+      setHighlightedSeq(null);
       nluRefs.current.clear();
+      bubbleRefs.current.clear();
       setIsOpen(true);
     },
     close: () => {
       setIsOpen(false);
       setSelectedRow(null);
       setSelectedSeq(null);
+      setHighlightedSeq(null);
     },
   }));
 
@@ -147,6 +154,7 @@ const CallbotHistoryDrawer = forwardRef<CallbotHistoryDrawerRef>((_, ref) => {
     setIsOpen(false);
     setSelectedRow(null);
     setSelectedSeq(null);
+    setHighlightedSeq(null);
   };
 
   const { data: bubbleData, isLoading: isBubbleLoading } = useGetBubbles({
@@ -174,10 +182,52 @@ const CallbotHistoryDrawer = forwardRef<CallbotHistoryDrawerRef>((_, ref) => {
     }, 50);
   }, []);
 
+  const handleIfeLink = useCallback(
+    async (item: TrackingFlowItem) => {
+      if (!selectedRow || !item.subFlowId || !item.nodeName) return;
+      try {
+        const redirectUrl = await historyApi.getIfeRedirectUrl({
+          serviceId: selectedRow.serviceId,
+          serviceVer: selectedRow.serviceVer,
+          subFlowId: item.subFlowId,
+          nodeName: item.nodeName,
+        });
+        if (redirectUrl) {
+          window.open(redirectUrl, '_blank');
+        }
+      } catch (e) {
+        toast.error('IFE 시나리오 열기에 실패했습니다.');
+      }
+    },
+    [selectedRow],
+  );
+
   const setNluRef = useCallback((seq: number, el: HTMLDivElement | null) => {
     if (el) {
       nluRefs.current.set(seq, el);
     }
+  }, []);
+
+  const setBubbleRef = useCallback((seq: number, el: HTMLDivElement | null) => {
+    if (el) {
+      bubbleRefs.current.set(seq, el);
+    }
+  }, []);
+
+  const highlightTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const handleNluCardClick = useCallback((seq: number) => {
+    setSelectedSeq(seq);
+    setHighlightedSeq(seq);
+    // 이전 타이머 정리
+    if (highlightTimer.current) clearTimeout(highlightTimer.current);
+    // 1000ms 후 자동 축소
+    highlightTimer.current = setTimeout(() => setHighlightedSeq(null), 1000);
+    // 왼쪽 패널에서 해당 버블로 스크롤
+    setTimeout(() => {
+      const el = bubbleRefs.current.get(seq);
+      el?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }, 50);
   }, []);
 
   return (
@@ -230,7 +280,14 @@ const CallbotHistoryDrawer = forwardRef<CallbotHistoryDrawerRef>((_, ref) => {
                 <Spin />
               </div>
             ) : (
-              <TrackingDialogView items={items} onItemClick={handleBubbleClick} selectedSeq={selectedSeq} />
+              <TrackingDialogView
+                items={items}
+                onItemClick={handleBubbleClick}
+                selectedSeq={selectedSeq}
+                highlightedSeq={highlightedSeq}
+                onIfeLink={handleIfeLink}
+                setBubbleRef={setBubbleRef}
+              />
             )}
           </div>
 
@@ -245,7 +302,7 @@ const CallbotHistoryDrawer = forwardRef<CallbotHistoryDrawerRef>((_, ref) => {
 
               <div className="space-y-3">
                 {nluItems.map((item) => (
-                  <div key={item.seq} ref={(el) => setNluRef(item.seq, el)}>
+                  <div key={item.seq} ref={(el) => setNluRef(item.seq, el)} className="cursor-pointer" onClick={() => handleNluCardClick(item.seq)}>
                     <NluCard seq={item.seq} nluResults={item.nluResults!} isSelected={selectedSeq === item.seq} />
                   </div>
                 ))}

@@ -69,6 +69,10 @@ export interface TrackingFlowItem {
   imagePath: string | null;
   result: string;
   dialogRole: DialogRole;
+  /** IFE SubFlow ID (Type=0일 때) */
+  subFlowId: string | null;
+  /** IFE Node Name (Type=0일 때) */
+  nodeName: string | null;
   rawValues: string[];
   /** NLU 분석 결과 (고객 발화에만 존재, HOP 단위 목록) */
   nluResults?: NluAnalysisItem[] | null;

@@ -26,12 +26,15 @@ const CallbotHistoryPage: React.FC = () => {
     size: 5000,
   });
 
+  // 조회 버튼 클릭 시마다 강제 refetch를 위한 타임스탬프
+  const [searchTs, setSearchTs] = useState<number>(Date.now());
+
   // 선택된 행 상태 (그리드 선택 표시용)
   const [selectedRowId, setSelectedRowId] = useState<string | undefined>();
 
-  // 콜봇이력 목록 조회
-  const { data: historyData, isLoading: isListLoading } = useGetCallbotHistory({
-    params: searchParams,
+  // 콜봇이력 목록 조회 (searchTs를 queryKey에만 포함하여 매 조회 시 강제 refetch)
+  const { data: historyData, isFetching: isListLoading } = useGetCallbotHistory({
+    params: { ...searchParams, _t: searchTs },
     queryOptions: {
       placeholderData: (previousData: any) => previousData,
     },
@@ -43,6 +46,7 @@ const CallbotHistoryPage: React.FC = () => {
       page: 0,
       size: 5000,
     });
+    setSearchTs(Date.now());
     setSelectedRowId(undefined);
   };
 
@@ -74,7 +78,7 @@ const CallbotHistoryPage: React.FC = () => {
               page={searchParams.page ?? 0}
               size={searchParams.size ?? 20}
               onPageChange={handlePageChange}
-              onRowClick={handleRowClick}
+              onRowDoubleClick={handleRowClick}
               selectedRowId={selectedRowId}
             />
           </div>

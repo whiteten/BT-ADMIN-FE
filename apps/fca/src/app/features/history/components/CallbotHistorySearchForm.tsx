@@ -23,6 +23,7 @@ const CallbotHistorySearchForm: React.FC<CallbotHistorySearchFormProps> = ({ onS
   const [confidenceRange, setConfidenceRange] = React.useState<[number, number]>([0, 100]);
   const [completeYn, setCompleteYn] = React.useState<string | number>(COMPLETE_ALL);
   const [ucid, setUcid] = React.useState<string>('');
+  const [ani, setAni] = React.useState<string>('');
 
   const { data: botServices } = useGetBotServices();
 
@@ -77,6 +78,7 @@ const CallbotHistorySearchForm: React.FC<CallbotHistorySearchFormProps> = ({ onS
       confidenceMax: confidenceMax < 100 ? confidenceMax : undefined,
       completeYn: completeYn === COMPLETE_ALL ? undefined : (completeYn as number),
       ucid: ucid.trim() || undefined,
+      ani: ani.trim() || undefined,
     });
   };
 
@@ -196,6 +198,13 @@ const CallbotHistorySearchForm: React.FC<CallbotHistorySearchFormProps> = ({ onS
             ]}
             className="w-28"
           />
+        </div>
+
+        <Divider type="vertical" className="!h-5 !m-0" />
+
+        <div className="flex items-center gap-2">
+          <span className="text-sm font-medium text-[#495057] shrink-0">발신번호</span>
+          <Input value={ani} onChange={(e) => setAni(e.target.value)} placeholder="발신번호 검색" className="w-40" onPressEnter={handleSearch} />
         </div>
 
         <Divider type="vertical" className="!h-5 !m-0" />

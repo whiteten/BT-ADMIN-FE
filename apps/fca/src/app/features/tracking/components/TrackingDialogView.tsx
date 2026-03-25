@@ -1,5 +1,5 @@
-import { Bot, Monitor, PhoneOff, User } from 'lucide-react';
-import { getResultColor, getTrackingItemConfig } from '../config/trackingItemConfig';
+import { Bot, ExternalLink, Monitor, PhoneOff, User } from 'lucide-react';
+import { getTrackingItemConfig } from '../config/trackingItemConfig';
 import type { TrackingFlowItem } from '../types/tracking.types';
 import { cn } from '@/lib/utils';
 
@@ -10,6 +10,12 @@ interface TrackingDialogViewProps {
   onItemClick?: (item: TrackingFlowItem) => void;
   /** 선택된 Seq 번호 (선택 링 표시용) */
   selectedSeq?: number | null;
+  /** 강조된 Seq 번호 (NLU 카드에서 클릭 시 확대 표시용) */
+  highlightedSeq?: number | null;
+  /** IFE 링크 클릭 콜백 (type=0 봇 버블에서 시나리오 아이템 이동) */
+  onIfeLink?: (item: TrackingFlowItem) => void;
+  /** 버블 요소 ref 등록 콜백 */
+  setBubbleRef?: (seq: number, el: HTMLDivElement | null) => void;
 }
 
 function EmptyState() {
@@ -33,7 +39,6 @@ function MenuEntryDivider({ item }: { item: TrackingFlowItem }) {
 function SystemBubble({ item }: { item: TrackingFlowItem }) {
   const cfg = getTrackingItemConfig(item.type);
   const Icon = cfg.icon;
-  const resultColor = getResultColor(item.result);
   const text = item.description ?? item.typeName;
 
   return (
@@ -41,20 +46,17 @@ function SystemBubble({ item }: { item: TrackingFlowItem }) {
       <div className="flex items-center gap-1.5 px-3 py-1 bg-slate-50 border border-slate-200 rounded-full max-w-[80%]">
         <Icon size={11} className={cn(cfg.color, 'shrink-0')} />
         <span className="text-xs text-slate-500 break-all">{text}</span>
-        {item.result && <span className={`text-xs font-medium shrink-0 ${resultColor}`}>{item.result}</span>}
       </div>
     </div>
   );
 }
 
-function BotBubble({ item, isSelected, onClick }: { item: TrackingFlowItem; isSelected?: boolean; onClick?: () => void }) {
-  const cfg = getTrackingItemConfig(item.type);
-  const Icon = cfg.icon;
-  const resultColor = getResultColor(item.result);
+function BotBubble({ item, isSelected, onClick, onIfeLink }: { item: TrackingFlowItem; isSelected?: boolean; onClick?: () => void; onIfeLink?: (item: TrackingFlowItem) => void }) {
   const text = item.description ?? item.typeName;
+  const hasIfeLink = item.type === 0 && item.subFlowId != null && onIfeLink != null;
 
   return (
-    <div className={cn('flex items-end gap-2 max-w-[80%] ml-auto flex-row-reverse', onClick && 'cursor-pointer')} onClick={onClick}>
+    <div className={cn('flex items-start gap-2 max-w-[80%] ml-auto flex-row-reverse', onClick && 'cursor-pointer')} onClick={onClick}>
       {/* 아바타 */}
       <div className="flex-shrink-0 w-7 h-7 rounded-full bg-blue-100 flex items-center justify-center">
         <Bot size={15} className="text-blue-600" />
@@ -65,26 +67,36 @@ function BotBubble({ item, isSelected, onClick }: { item: TrackingFlowItem; isSe
         <div className="flex items-center gap-1.5 mb-0.5">
           {item.startTime && <span className="text-[10px] text-slate-300">{item.startTime}</span>}
           <span className="text-[10px] text-slate-400">{item.typeName}</span>
-          <Icon size={11} className={cfg.color} />
         </div>
-        <div className={cn('bg-blue-50 border border-blue-200 rounded-lg rounded-br-sm px-3 py-2 shadow-sm', isSelected && 'ring-2 ring-blue-300 ring-offset-1')}>
-          <p className="text-sm text-slate-700 leading-relaxed break-all whitespace-pre-wrap">{text}</p>
+        <div className="flex items-center gap-1">
+          {hasIfeLink && (
+            <button
+              type="button"
+              title="IFE 시나리오 보기"
+              className="flex-shrink-0 p-1 rounded hover:bg-blue-100 transition-colors"
+              onClick={(e) => {
+                e.stopPropagation();
+                onIfeLink(item);
+              }}
+            >
+              <ExternalLink size={12} className="text-blue-400 hover:text-blue-600" />
+            </button>
+          )}
+          <div className={cn('bg-blue-50 border border-blue-200 rounded-lg rounded-br-sm px-3 py-2 shadow-sm', isSelected && 'ring-2 ring-blue-300 ring-offset-1')}>
+            <p className="text-sm text-slate-700 leading-relaxed break-all whitespace-pre-wrap">{text}</p>
+          </div>
         </div>
-        {item.result && <span className={`text-[10px] font-medium ${resultColor}`}>{item.result}</span>}
       </div>
     </div>
   );
 }
 
 function CustomerBubble({ item, isSelected, onClick }: { item: TrackingFlowItem; isSelected?: boolean; onClick?: () => void }) {
-  const cfg = getTrackingItemConfig(item.type);
-  const Icon = cfg.icon;
-  const resultColor = getResultColor(item.result);
   const isFailed = item.result?.startsWith('F') === true;
   const text = item.description ?? (isFailed ? '인식 실패' : item.typeName);
 
   return (
-    <div className={cn('flex items-end gap-2 max-w-[80%]', isFailed && 'opacity-60', onClick && 'cursor-pointer')} onClick={onClick}>
+    <div className={cn('flex items-start gap-2 max-w-[80%]', isFailed && 'opacity-60', onClick && 'cursor-pointer')} onClick={onClick}>
       {/* 아바타 */}
       <div className={`flex-shrink-0 w-7 h-7 rounded-full flex items-center justify-center ${isFailed ? 'bg-slate-100' : 'bg-green-100'}`}>
         <User size={15} className={isFailed ? 'text-slate-400' : 'text-green-600'} />
@@ -93,7 +105,6 @@ function CustomerBubble({ item, isSelected, onClick }: { item: TrackingFlowItem;
       {/* 말풍선 */}
       <div className="flex flex-col gap-0.5">
         <div className="flex items-center gap-1.5 mb-0.5">
-          <Icon size={11} className={cfg.color} />
           <span className="text-[10px] text-slate-400">{item.typeName}</span>
           {item.startTime && <span className="text-[10px] text-slate-300">{item.startTime}</span>}
         </div>
@@ -106,7 +117,6 @@ function CustomerBubble({ item, isSelected, onClick }: { item: TrackingFlowItem;
         >
           <p className={`text-sm leading-relaxed break-all whitespace-pre-wrap ${isFailed ? 'text-slate-400 italic' : 'text-slate-700'}`}>{text}</p>
         </div>
-        {item.result && <span className={`text-[10px] font-medium ${resultColor}`}>{item.result}</span>}
       </div>
     </div>
   );
@@ -115,7 +125,7 @@ function CustomerBubble({ item, isSelected, onClick }: { item: TrackingFlowItem;
 /** 멀티모달 이미지 버블 (Type=2, 보이는 ARS) */
 function ImageBubble({ item, onClick }: { item: TrackingFlowItem; onClick?: () => void }) {
   return (
-    <div className={cn('flex items-end gap-2 max-w-[80%] ml-auto flex-row-reverse', onClick && 'cursor-pointer')} onClick={onClick}>
+    <div className={cn('flex items-start gap-2 max-w-[80%] ml-auto flex-row-reverse', onClick && 'cursor-pointer')} onClick={onClick}>
       <div className="flex-shrink-0 w-7 h-7 rounded-full bg-blue-100 flex items-center justify-center">
         <Monitor size={15} className="text-blue-600" />
       </div>
@@ -142,20 +152,24 @@ function CallEndedBanner() {
 }
 
 /** 대화 채팅 버블 UI (실시간 트래킹 + 콜봇이력 공용) */
-export default function TrackingDialogView({ items, callEnded, onItemClick, selectedSeq }: TrackingDialogViewProps) {
+export default function TrackingDialogView({ items, callEnded, onItemClick, selectedSeq, highlightedSeq, onIfeLink, setBubbleRef }: TrackingDialogViewProps) {
   if (items.length === 0 && !callEnded) {
     return <EmptyState />;
   }
 
   return (
-    <div className="flex flex-col gap-3 px-1">
+    <div className="flex flex-col gap-1.5 px-1">
       {items.map((item, idx) => {
         const role = item.dialogRole;
         const isSelected = selectedSeq != null && selectedSeq === item.seq;
+        const isHighlighted = highlightedSeq != null && highlightedSeq === item.seq;
         const handleClick = onItemClick ? () => onItemClick(item) : undefined;
 
         // 숨김 처리
         if (role === 'HIDDEN') return null;
+
+        // 멀티모달 고객 (Type=3) 숨김
+        if (item.type === 3) return null;
 
         // 멀티모달 이미지 (Type=2): imagePath가 있으면 이미지 버블
         if (item.type === 2 && item.imagePath) {
@@ -176,12 +190,20 @@ export default function TrackingDialogView({ items, callEnded, onItemClick, sele
 
         // 봇 발화 → 우측 말풍선
         if (role === 'BOT') {
-          return <BotBubble key={idx} item={item} isSelected={isSelected} onClick={handleClick} />;
+          return (
+            <div key={idx} ref={(el) => setBubbleRef?.(item.seq, el)} className={cn('transition-transform duration-300 origin-right', isHighlighted && 'scale-110')}>
+              <BotBubble item={item} isSelected={isSelected} onClick={handleClick} onIfeLink={onIfeLink} />
+            </div>
+          );
         }
 
         // 고객 입력 → 좌측 말풍선
         if (role === 'CUSTOMER') {
-          return <CustomerBubble key={idx} item={item} isSelected={isSelected} onClick={handleClick} />;
+          return (
+            <div key={idx} ref={(el) => setBubbleRef?.(item.seq, el)} className={cn('transition-transform duration-300 origin-left', isHighlighted && 'scale-110')}>
+              <CustomerBubble item={item} isSelected={isSelected} onClick={handleClick} />
+            </div>
+          );
         }
 
         return null;
