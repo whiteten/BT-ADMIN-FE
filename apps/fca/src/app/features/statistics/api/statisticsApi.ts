@@ -63,4 +63,34 @@ export const statisticsApi = {
     const response = await apiClient.get<ListResponse<SlotOptionListItem>>('/stat-slot-options', { params });
     return extractList(response);
   },
+
+  // 서비스 통계 엑셀 내보내기
+  exportServiceStatExcel: async (params?: Record<string, unknown>) => {
+    return await apiClient.post<Blob>('/stat-bot-service-export', params, { responseType: 'blob' });
+  },
+
+  // 대화 통계 엑셀 내보내기
+  exportDialogStatExcel: async (params?: Record<string, unknown>) => {
+    return await apiClient.post<Blob>('/stat-bot-dialog-export', params, { responseType: 'blob' });
+  },
+
+  // 슬롯 통계 엑셀 내보내기
+  exportSlotStatExcel: async (params?: Record<string, unknown>) => {
+    return await apiClient.post<Blob>('/stat-bot-slot-export', params, { responseType: 'blob' });
+  },
+
+  // 의도 통계 엑셀 내보내기
+  exportIntentStatExcel: async (params?: Record<string, unknown>) => {
+    return await apiClient.post<Blob>('/stat-nlu-intent-export', params, { responseType: 'blob' });
+  },
+
+  // 개체 통계 엑셀 내보내기
+  exportEntityStatExcel: async (params?: Record<string, unknown>) => {
+    return await apiClient.post<Blob>('/stat-nlu-entity-export', params, { responseType: 'blob' });
+  },
+
+  // 키워드 통계 엑셀 내보내기
+  exportKeywordStatExcel: async (params?: Record<string, unknown>) => {
+    return await apiClient.post<Blob>('/stat-nlu-keyword-export', params, { responseType: 'blob' });
+  },
 };
