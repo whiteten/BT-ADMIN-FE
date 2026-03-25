@@ -10,7 +10,7 @@ interface TrackingDialogViewProps {
   onItemClick?: (item: TrackingFlowItem) => void;
   /** 선택된 Seq 번호 (선택 링 표시용) */
   selectedSeq?: number | null;
-  /** 강조된 Seq 번호 (NLU 카드에서 클릭 시 확대 표시용) */
+  /** 강조된 Seq 번호 (NLU 카드에서 클릭 시 하이라이트용) */
   highlightedSeq?: number | null;
   /** IFE 링크 클릭 콜백 (type=0 봇 버블에서 시나리오 아이템 이동) */
   onIfeLink?: (item: TrackingFlowItem) => void;
@@ -56,17 +56,17 @@ function BotBubble({ item, isSelected, onClick, onIfeLink }: { item: TrackingFlo
   const hasIfeLink = item.type === 0 && item.subFlowId != null && onIfeLink != null;
 
   return (
-    <div className={cn('flex items-start gap-2 max-w-[80%] ml-auto flex-row-reverse', onClick && 'cursor-pointer')} onClick={onClick}>
+    <div className={cn('flex items-start gap-2.5 max-w-[80%] ml-auto flex-row-reverse', onClick && 'cursor-pointer')} onClick={onClick}>
       {/* 아바타 */}
-      <div className="flex-shrink-0 w-7 h-7 rounded-full bg-blue-100 flex items-center justify-center">
-        <Bot size={15} className="text-blue-600" />
+      <div className="flex-shrink-0 w-7 h-7 rounded-full bg-blue-500/10 flex items-center justify-center">
+        <Bot size={14} className="text-blue-600" />
       </div>
 
       {/* 말풍선 */}
       <div className="flex flex-col items-end gap-0.5">
         <div className="flex items-center gap-1.5 mb-0.5">
-          {item.startTime && <span className="text-[10px] text-slate-300">{item.startTime}</span>}
-          <span className="text-[10px] text-slate-400">{item.typeName}</span>
+          {item.startTime && <span className="text-[10px] text-slate-500 tabular-nums">{item.startTime}</span>}
+          <span className="text-[10px] font-medium text-blue-600/70">IVR</span>
         </div>
         <div className="flex items-center gap-1">
           {hasIfeLink && (
@@ -82,8 +82,8 @@ function BotBubble({ item, isSelected, onClick, onIfeLink }: { item: TrackingFlo
               <ExternalLink size={12} className="text-blue-400 hover:text-blue-600" />
             </button>
           )}
-          <div className={cn('bg-blue-50 border border-blue-200 rounded-lg rounded-br-sm px-3 py-2 shadow-sm', isSelected && 'ring-2 ring-blue-300 ring-offset-1')}>
-            <p className="text-sm text-slate-700 leading-relaxed break-all whitespace-pre-wrap">{text}</p>
+          <div className={cn('bg-blue-50 border border-blue-100 rounded-2xl rounded-br-md px-3.5 py-2 shadow-sm', isSelected && 'ring-2 ring-blue-300 ring-offset-1')}>
+            <p className="text-[13px] text-slate-700 leading-relaxed break-all whitespace-pre-wrap">{text}</p>
           </div>
         </div>
       </div>
@@ -91,31 +91,36 @@ function BotBubble({ item, isSelected, onClick, onIfeLink }: { item: TrackingFlo
   );
 }
 
-function CustomerBubble({ item, isSelected, onClick }: { item: TrackingFlowItem; isSelected?: boolean; onClick?: () => void }) {
+function CustomerBubble({ item, isSelected, isHighlighted, onClick }: { item: TrackingFlowItem; isSelected?: boolean; isHighlighted?: boolean; onClick?: () => void }) {
   const isFailed = item.result?.startsWith('F') === true;
   const text = item.description ?? (isFailed ? '인식 실패' : item.typeName);
 
   return (
-    <div className={cn('flex items-start gap-2 max-w-[80%]', isFailed && 'opacity-60', onClick && 'cursor-pointer')} onClick={onClick}>
+    <div className={cn('flex items-start gap-2.5 max-w-[80%]', isFailed && 'opacity-60', onClick && 'cursor-pointer')} onClick={onClick}>
       {/* 아바타 */}
-      <div className={`flex-shrink-0 w-7 h-7 rounded-full flex items-center justify-center ${isFailed ? 'bg-slate-100' : 'bg-green-100'}`}>
-        <User size={15} className={isFailed ? 'text-slate-400' : 'text-green-600'} />
+      <div
+        className={cn(
+          'flex-shrink-0 w-7 h-7 rounded-full flex items-center justify-center transition-all duration-300',
+          isFailed ? 'bg-slate-100' : isHighlighted ? 'bg-blue-500/20 scale-125' : 'bg-emerald-500/10',
+        )}
+      >
+        <User size={14} className={cn(isFailed ? 'text-slate-400' : isHighlighted ? 'text-blue-600' : 'text-emerald-600', 'transition-colors duration-300')} />
       </div>
 
       {/* 말풍선 */}
       <div className="flex flex-col gap-0.5">
         <div className="flex items-center gap-1.5 mb-0.5">
-          <span className="text-[10px] text-slate-400">{item.typeName}</span>
-          {item.startTime && <span className="text-[10px] text-slate-300">{item.startTime}</span>}
+          <span className="text-[10px] font-medium text-emerald-600/70">고객</span>
+          {item.startTime && <span className="text-[10px] text-slate-500 tabular-nums">{item.startTime}</span>}
         </div>
         <div
           className={cn(
-            'border rounded-lg rounded-bl-sm px-3 py-2 shadow-sm',
-            isFailed ? 'bg-slate-50 border-slate-200' : 'bg-green-50 border-green-200',
+            'border rounded-2xl rounded-bl-md px-3.5 py-2 shadow-sm',
+            isFailed ? 'bg-slate-50 border-slate-200' : 'bg-emerald-50 border-emerald-100',
             isSelected && 'ring-2 ring-blue-300 ring-offset-1',
           )}
         >
-          <p className={`text-sm leading-relaxed break-all whitespace-pre-wrap ${isFailed ? 'text-slate-400 italic' : 'text-slate-700'}`}>{text}</p>
+          <p className={cn('text-[13px] leading-relaxed break-all whitespace-pre-wrap', isFailed ? 'text-slate-400 italic' : 'text-slate-700')}>{text}</p>
         </div>
       </div>
     </div>
@@ -125,17 +130,17 @@ function CustomerBubble({ item, isSelected, onClick }: { item: TrackingFlowItem;
 /** 멀티모달 이미지 버블 (Type=2, 보이는 ARS) */
 function ImageBubble({ item, onClick }: { item: TrackingFlowItem; onClick?: () => void }) {
   return (
-    <div className={cn('flex items-start gap-2 max-w-[80%] ml-auto flex-row-reverse', onClick && 'cursor-pointer')} onClick={onClick}>
-      <div className="flex-shrink-0 w-7 h-7 rounded-full bg-blue-100 flex items-center justify-center">
-        <Monitor size={15} className="text-blue-600" />
+    <div className={cn('flex items-start gap-2.5 max-w-[80%] ml-auto flex-row-reverse', onClick && 'cursor-pointer')} onClick={onClick}>
+      <div className="flex-shrink-0 w-7 h-7 rounded-full bg-blue-500/10 flex items-center justify-center">
+        <Monitor size={14} className="text-blue-600" />
       </div>
       <div className="flex flex-col items-end gap-0.5">
         <div className="flex items-center gap-1.5 mb-0.5">
-          {item.startTime && <span className="text-[10px] text-slate-300">{item.startTime}</span>}
-          <span className="text-[10px] text-slate-400">{item.typeName}</span>
+          {item.startTime && <span className="text-[10px] text-slate-500 tabular-nums">{item.startTime}</span>}
+          <span className="text-[10px] font-medium text-blue-600/70">{item.typeName}</span>
         </div>
-        <div className="bg-blue-50 border border-blue-200 rounded-lg rounded-br-sm p-2 shadow-sm">
-          <img src={item.imagePath!} alt="보이는 ARS" className="max-w-[280px] rounded" loading="lazy" />
+        <div className="bg-blue-50 border border-blue-100 rounded-2xl rounded-br-md p-2 shadow-sm">
+          <img src={item.imagePath!} alt="보이는 ARS" className="max-w-[280px] rounded-lg" loading="lazy" />
         </div>
       </div>
     </div>
@@ -158,7 +163,7 @@ export default function TrackingDialogView({ items, callEnded, onItemClick, sele
   }
 
   return (
-    <div className="flex flex-col gap-1.5 px-1">
+    <div className="flex flex-col gap-3 px-1">
       {items.map((item, idx) => {
         const role = item.dialogRole;
         const isSelected = selectedSeq != null && selectedSeq === item.seq;
@@ -191,7 +196,7 @@ export default function TrackingDialogView({ items, callEnded, onItemClick, sele
         // 봇 발화 → 우측 말풍선
         if (role === 'BOT') {
           return (
-            <div key={idx} ref={(el) => setBubbleRef?.(item.seq, el)} className={cn('transition-transform duration-300 origin-right', isHighlighted && 'scale-110')}>
+            <div key={idx} ref={(el) => setBubbleRef?.(item.seq, el)}>
               <BotBubble item={item} isSelected={isSelected} onClick={handleClick} onIfeLink={onIfeLink} />
             </div>
           );
@@ -200,8 +205,8 @@ export default function TrackingDialogView({ items, callEnded, onItemClick, sele
         // 고객 입력 → 좌측 말풍선
         if (role === 'CUSTOMER') {
           return (
-            <div key={idx} ref={(el) => setBubbleRef?.(item.seq, el)} className={cn('transition-transform duration-300 origin-left', isHighlighted && 'scale-110')}>
-              <CustomerBubble item={item} isSelected={isSelected} onClick={handleClick} />
+            <div key={idx} ref={(el) => setBubbleRef?.(item.seq, el)} className="transition-all duration-300">
+              <CustomerBubble item={item} isSelected={isSelected} isHighlighted={isHighlighted} onClick={handleClick} />
             </div>
           );
         }

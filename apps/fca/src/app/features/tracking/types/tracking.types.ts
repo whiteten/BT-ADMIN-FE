@@ -53,6 +53,13 @@ export interface NluAnalysisItem {
   ifeNodeName: string;
   hop: number;
   entities: NluEntityItem[];
+  keywords: { keyword: string }[];
+  modelId: string | null;
+  questionSeq: number;
+  ucidGkey: string;
+  retrainStatus: number | null; // null=미수정, 1=미반영, 2=반영
+  modifiedQuestion: string | null;
+  retrainAnswer: string | null;
 }
 
 /** 트래킹 플로우 아이템 */

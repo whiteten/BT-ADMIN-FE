@@ -1,11 +1,13 @@
 import { forwardRef, useCallback, useImperativeHandle, useRef, useState } from 'react';
-import { Descriptions, Drawer, Spin, Tag, message } from 'antd';
-import { Brain, Copy, Info } from 'lucide-react';
+import { useQueryClient } from '@tanstack/react-query';
+import { Descriptions, Drawer, Input, Select, Spin, message } from 'antd';
+import { Bookmark, Brain, Check, Copy, Pencil, X } from 'lucide-react';
 import { toast } from '@/shared-util';
+import { useApplyRetrain, useGetIntents, useUpdateRetrain } from '../../bot-config/hooks/useModelQueries';
 import TrackingDialogView from '../../tracking/components/TrackingDialogView';
 import type { NluAnalysisItem, TrackingFlowItem } from '../../tracking/types/tracking.types';
 import { historyApi } from '../api/history.api';
-import { useGetBubbles } from '../hooks/useHistoryQueries';
+import { historyQueryKeys, useGetBubbles } from '../hooks/useHistoryQueries';
 import type { CallbotHistoryListItem } from '../types/history.types';
 import { cn } from '@/lib/utils';
 
@@ -30,14 +32,6 @@ function copyToClipboard(text: string): Promise<void> {
   }
 }
 
-/** confidence 값 기반 상태 색상 결정 */
-function getConfidenceColor(item: NluAnalysisItem): string {
-  if (item.isSuccess === 1) return 'bg-green-500';
-  if (item.isCheck === 1) return 'bg-amber-400';
-  if (item.isFailed === 1) return 'bg-red-500';
-  return 'bg-gray-400';
-}
-
 /** confidence 값 기반 텍스트 색상 */
 function getConfidenceTextColor(item: NluAnalysisItem): string {
   if (item.isSuccess === 1) return 'text-green-600';
@@ -47,71 +41,240 @@ function getConfidenceTextColor(item: NluAnalysisItem): string {
 }
 
 /** NLU 카드 단일 항목 */
-function NluCard({ seq, nluResults, isSelected }: { seq: number; nluResults: NluAnalysisItem[]; isSelected: boolean }) {
+interface NluCardProps {
+  seq: number;
+  nluResults: NluAnalysisItem[];
+  onRetrainSuccess?: () => void;
+}
+
+function NluCard({ seq, nluResults, onRetrainSuccess }: NluCardProps) {
+  const [editingHop, setEditingHop] = useState<number | null>(null);
+  const [editQuestion, setEditQuestion] = useState('');
+  const [editAnswer, setEditAnswer] = useState('');
+
+  const modelId = nluResults[0]?.modelId;
+  const { data: intentList } = useGetIntents({
+    params: { modelId: modelId ?? '' },
+    queryOptions: { enabled: !!modelId && editingHop !== null },
+  });
+  const intentOptions = (intentList ?? []).map((item) => ({
+    value: item.intentName,
+    label: item.intentName,
+  }));
+
+  const updateMutation = useUpdateRetrain({});
+  const applyMutation = useApplyRetrain({});
+
+  const handleEditStart = (nlu: NluAnalysisItem) => {
+    if (nlu.retrainStatus === 2) return;
+    setEditingHop(nlu.hop);
+    setEditQuestion(nlu.modifiedQuestion ?? nlu.questionText ?? '');
+    setEditAnswer(nlu.retrainAnswer ?? nlu.intent ?? '');
+  };
+
+  const handleEditCancel = () => {
+    setEditingHop(null);
+    setEditQuestion('');
+    setEditAnswer('');
+  };
+
+  const handleSave = async (nlu: NluAnalysisItem) => {
+    if (!editQuestion.trim() || !editAnswer.trim()) {
+      toast.error('발화와 정답의도를 모두 입력해주세요.');
+      return;
+    }
+    try {
+      await updateMutation.mutateAsync({
+        params: {
+          modelId: nlu.modelId,
+          ucidGkey: nlu.ucidGkey,
+          questionSeq: nlu.questionSeq,
+          hop: nlu.hop,
+        },
+        data: { question: editQuestion, answer: editAnswer },
+      });
+      toast.success('재학습 데이터가 저장되었습니다.');
+      setEditingHop(null);
+      onRetrainSuccess?.();
+    } catch (e) {
+      toast.error('저장에 실패했습니다.');
+    }
+  };
+
+  const handleApply = async (nlu: NluAnalysisItem) => {
+    const question = nlu.modifiedQuestion ?? nlu.questionText;
+    const answer = nlu.retrainAnswer ?? nlu.intent;
+    if (!question?.trim() || !answer?.trim()) {
+      toast.error('발화와 정답의도를 먼저 저장해주세요.');
+      return;
+    }
+    try {
+      await applyMutation.mutateAsync({
+        params: {
+          modelId: nlu.modelId,
+          ucidGkey: nlu.ucidGkey,
+          questionSeq: nlu.questionSeq,
+          hop: nlu.hop,
+        },
+        data: {},
+      });
+      toast.success('학습 데이터에 반영되었습니다.');
+      onRetrainSuccess?.();
+    } catch (e) {
+      toast.error('반영에 실패했습니다.');
+    }
+  };
+
   return (
-    <div className={cn('rounded-lg border p-3 space-y-2 transition-all', isSelected ? 'border-blue-400 bg-blue-50/50 ring-1 ring-blue-300' : 'border-gray-200 bg-white')}>
-      {nluResults.map((nlu) => (
-        <div key={nlu.hop} className="space-y-1.5">
-          {nluResults.length > 1 && <div className="text-[10px] text-gray-400 font-medium">HOP {nlu.hop}</div>}
-
-          {/* 발화 원문 */}
-          {nlu.questionText && (
-            <div className="text-xs text-gray-600 bg-gray-50 rounded px-2 py-1 break-all">
-              <span className="text-[10px] text-gray-400 mr-1">발화:</span>
-              {nlu.questionText}
+    <div className="rounded-lg border border-gray-200 bg-white">
+      {nluResults.map((nlu, idx) => (
+        <div key={nlu.hop} className={cn('p-3 space-y-2.5', idx > 0 && 'border-t border-gray-100')} {...(editingHop === nlu.hop ? { 'data-retrain-edit': true } : {})}>
+          {/* HOP 헤더 + 재학습 상태 + 편집 버튼 */}
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-1.5">
+              {nluResults.length > 1 && <span className="inline-block text-[10px] font-semibold text-gray-400 bg-gray-100 rounded px-1.5 py-0.5">HOP {nlu.hop}</span>}
+              {nlu.retrainStatus === 1 && <span className="text-[10px] font-medium text-amber-600 bg-amber-50 rounded px-1.5 py-0.5">미반영</span>}
+              {nlu.retrainStatus === 2 && <span className="text-[10px] font-medium text-green-600 bg-green-50 rounded px-1.5 py-0.5">반영</span>}
             </div>
-          )}
-
-          {/* INTENT + CONFIDENCE */}
-          <div className="flex items-center gap-2 flex-wrap">
-            <Tag color="blue" className="m-0 text-[10px]">
-              INTENT
-            </Tag>
-            <span className="text-xs font-medium">{nlu.intent ?? '-'}</span>
-
-            {nlu.confidence != null && (
-              <div className="flex items-center gap-1.5 ml-auto">
-                <div className="w-16 h-1.5 bg-gray-200 rounded-full overflow-hidden">
-                  <div className={cn('h-full rounded-full', getConfidenceColor(nlu))} style={{ width: `${Math.min(nlu.confidence, 100)}%` }} />
-                </div>
-                <span className={cn('text-[10px] font-medium', getConfidenceTextColor(nlu))}>{nlu.confidence}%</span>
-              </div>
+            {nlu.retrainStatus !== 2 && editingHop !== nlu.hop && (
+              <button
+                type="button"
+                title="재학습 편집"
+                className="p-0.5 rounded hover:bg-gray-100 transition-colors"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  handleEditStart(nlu);
+                }}
+              >
+                <Pencil size={12} className="text-gray-400 hover:text-blue-500" />
+              </button>
             )}
           </div>
 
-          {/* 임계치 */}
-          {(nlu.threshold != null || nlu.thresholdFail != null) && (
-            <div className="flex items-center gap-3 text-[10px] text-gray-500">
-              {nlu.threshold != null && (
-                <span>
-                  성공: <span className="text-green-600 font-medium">{nlu.threshold}</span>
-                </span>
-              )}
-              {nlu.thresholdFail != null && (
-                <span>
-                  실패: <span className="text-red-500 font-medium">{nlu.thresholdFail}</span>
-                </span>
-              )}
+          {/* 의도 */}
+          <div className="flex gap-2">
+            <span className="w-12 shrink-0 text-[11px] font-semibold text-gray-500 leading-5">의도</span>
+            {editingHop === nlu.hop ? (
+              <Select
+                size="small"
+                className="flex-1"
+                value={editAnswer}
+                onChange={setEditAnswer}
+                options={intentOptions}
+                showSearch
+                filterOption={(input, option) => (option?.label ?? '').toLowerCase().includes(input.toLowerCase())}
+                placeholder="정답의도 선택"
+              />
+            ) : (
+              <span className="text-xs font-medium text-gray-800">{nlu.retrainAnswer ?? nlu.intent ?? '-'}</span>
+            )}
+          </div>
+
+          {/* 신뢰도 / 성공 / 실패 */}
+          {(nlu.confidence != null || nlu.threshold != null || nlu.thresholdFail != null) && (
+            <div className="flex gap-2">
+              <span className="w-12 shrink-0" />
+              <div className="flex items-center gap-3 text-[10px] text-gray-400">
+                {nlu.confidence != null && (
+                  <span>
+                    신뢰도 <span className={cn('font-medium', getConfidenceTextColor(nlu))}>{nlu.confidence}</span>
+                  </span>
+                )}
+                {nlu.threshold != null && (
+                  <span>
+                    성공 <span className="text-green-600 font-medium">{nlu.threshold}</span>
+                  </span>
+                )}
+                {nlu.thresholdFail != null && (
+                  <span>
+                    실패 <span className="text-red-500 font-medium">{nlu.thresholdFail}</span>
+                  </span>
+                )}
+              </div>
             </div>
           )}
 
-          {/* 엔티티 */}
+          {/* 고객발화 */}
+          <div className="flex gap-2">
+            <span className="w-12 shrink-0 text-[11px] font-semibold text-gray-500 leading-5">고객발화</span>
+            {editingHop === nlu.hop ? (
+              <Input size="small" className="flex-1" value={editQuestion} onChange={(e) => setEditQuestion(e.target.value)} placeholder="사용자 발화 수정" />
+            ) : (
+              <p className="flex-1 text-xs text-gray-700 leading-5 break-all">{nlu.modifiedQuestion ?? nlu.questionText}</p>
+            )}
+          </div>
+
+          {/* 키워드 */}
+          {nlu.keywords && nlu.keywords.length > 0 && (
+            <div className="flex gap-2">
+              <span className="w-12 shrink-0 text-[11px] font-semibold text-gray-500 leading-5">키워드</span>
+              <div className="flex-1 flex flex-wrap gap-1">
+                {nlu.keywords.map((kw, i) => (
+                  <span key={i} className="inline-flex items-center text-[11px] bg-violet-50 text-violet-700 rounded px-1.5 py-0.5">
+                    {kw.keyword}
+                  </span>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* 개체 */}
           {nlu.isEntity === 1 && (
-            <div className="space-y-1">
-              <Tag color="green" className="m-0 text-[10px]">
-                ENTITIES
-              </Tag>
-              <div className="flex flex-wrap gap-1 mt-1">
+            <div className="flex gap-2">
+              <span className="w-12 shrink-0 text-[11px] font-semibold text-gray-500 leading-5">개체</span>
+              <div className="flex-1 flex flex-wrap gap-1">
                 {nlu.entities.length > 0 ? (
                   nlu.entities.map((ent, i) => (
-                    <Tag key={i} className="m-0 text-[10px] bg-gray-50">
-                      {ent.entityTag}: <span className="text-blue-600">{ent.entityValue}</span>
-                    </Tag>
+                    <span key={i} className="inline-flex items-center gap-0.5 text-[11px] bg-emerald-50 text-emerald-700 rounded px-1.5 py-0.5">
+                      <span className="font-medium">{ent.entityTag}</span>
+                      <span className="text-emerald-400">:</span>
+                      <span>{ent.entityValue}</span>
+                    </span>
                   ))
                 ) : (
-                  <span className="text-[10px] text-gray-400">추출된 개체명 없음</span>
+                  <span className="text-[11px] text-gray-400">추출된 개체 없음</span>
                 )}
               </div>
+            </div>
+          )}
+
+          {/* 재학습 액션 버튼 */}
+          {editingHop === nlu.hop && (
+            <div className="flex items-center gap-1.5 pt-1 border-t border-gray-100">
+              <button
+                type="button"
+                className="flex items-center gap-1 px-2 py-1 text-[11px] font-medium text-white bg-blue-500 hover:bg-blue-600 rounded transition-colors"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  handleSave(nlu);
+                }}
+                disabled={updateMutation.isPending}
+              >
+                <Check size={11} /> 저장
+              </button>
+              {nlu.retrainStatus === 1 && (
+                <button
+                  type="button"
+                  className="flex items-center gap-1 px-2 py-1 text-[11px] font-medium text-white bg-green-500 hover:bg-green-600 rounded transition-colors"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    handleApply(nlu);
+                  }}
+                  disabled={applyMutation.isPending}
+                >
+                  <Bookmark size={11} /> 반영
+                </button>
+              )}
+              <button
+                type="button"
+                className="flex items-center gap-1 px-2 py-1 text-[11px] font-medium text-gray-500 hover:bg-gray-100 rounded transition-colors"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  handleEditCancel();
+                }}
+              >
+                <X size={11} /> 취소
+              </button>
             </div>
           )}
         </div>
@@ -126,26 +289,23 @@ export interface CallbotHistoryDrawerRef {
 }
 
 const CallbotHistoryDrawer = forwardRef<CallbotHistoryDrawerRef>((_, ref) => {
+  const queryClient = useQueryClient();
   const [isOpen, setIsOpen] = useState(false);
   const [selectedRow, setSelectedRow] = useState<CallbotHistoryListItem | null>(null);
-  const [selectedSeq, setSelectedSeq] = useState<number | null>(null);
   const [highlightedSeq, setHighlightedSeq] = useState<number | null>(null);
-  const nluRefs = useRef<Map<number, HTMLDivElement>>(new Map());
   const bubbleRefs = useRef<Map<number, HTMLDivElement>>(new Map());
+  const highlightTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useImperativeHandle(ref, () => ({
     open: (row: CallbotHistoryListItem) => {
       setSelectedRow(row);
-      setSelectedSeq(null);
       setHighlightedSeq(null);
-      nluRefs.current.clear();
       bubbleRefs.current.clear();
       setIsOpen(true);
     },
     close: () => {
       setIsOpen(false);
       setSelectedRow(null);
-      setSelectedSeq(null);
       setHighlightedSeq(null);
     },
   }));
@@ -153,9 +313,33 @@ const CallbotHistoryDrawer = forwardRef<CallbotHistoryDrawerRef>((_, ref) => {
   const handleClose = () => {
     setIsOpen(false);
     setSelectedRow(null);
-    setSelectedSeq(null);
     setHighlightedSeq(null);
   };
+
+  const setBubbleRef = useCallback((seq: number, el: HTMLDivElement | null) => {
+    if (el) bubbleRefs.current.set(seq, el);
+  }, []);
+
+  const handleNluCardClick = useCallback((seq: number) => {
+    setHighlightedSeq(seq);
+    if (highlightTimer.current) clearTimeout(highlightTimer.current);
+    highlightTimer.current = setTimeout(() => setHighlightedSeq(null), 1200);
+    setTimeout(() => {
+      const el = bubbleRefs.current.get(seq);
+      el?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }, 50);
+  }, []);
+
+  const handleRetrainSuccess = useCallback(() => {
+    if (!selectedRow) return;
+    queryClient.invalidateQueries({
+      queryKey: historyQueryKeys.getBubbles({
+        ucid: selectedRow.ucid,
+        nextHop: selectedRow.nextHop,
+        cdrPkey: selectedRow.cdrPkey,
+      }).queryKey,
+    });
+  }, [selectedRow, queryClient]);
 
   const { data: bubbleData, isLoading: isBubbleLoading } = useGetBubbles({
     params: {
@@ -171,16 +355,6 @@ const CallbotHistoryDrawer = forwardRef<CallbotHistoryDrawerRef>((_, ref) => {
   // 고객 발화 중 NLU 데이터가 있는 항목 추출
   const nluItems = items.filter((item) => item.dialogRole === 'CUSTOMER' && item.nluResults && item.nluResults.length > 0);
   const hasNluData = nluItems.length > 0;
-
-  const handleBubbleClick = useCallback((item: TrackingFlowItem) => {
-    if (item.dialogRole !== 'CUSTOMER') return;
-    setSelectedSeq(item.seq);
-    // 우측 패널에서 해당 NLU 카드로 스크롤
-    setTimeout(() => {
-      const el = nluRefs.current.get(item.seq);
-      el?.scrollIntoView({ behavior: 'smooth', block: 'center' });
-    }, 50);
-  }, []);
 
   const handleIfeLink = useCallback(
     async (item: TrackingFlowItem) => {
@@ -202,41 +376,13 @@ const CallbotHistoryDrawer = forwardRef<CallbotHistoryDrawerRef>((_, ref) => {
     [selectedRow],
   );
 
-  const setNluRef = useCallback((seq: number, el: HTMLDivElement | null) => {
-    if (el) {
-      nluRefs.current.set(seq, el);
-    }
-  }, []);
-
-  const setBubbleRef = useCallback((seq: number, el: HTMLDivElement | null) => {
-    if (el) {
-      bubbleRefs.current.set(seq, el);
-    }
-  }, []);
-
-  const highlightTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
-
-  const handleNluCardClick = useCallback((seq: number) => {
-    setSelectedSeq(seq);
-    setHighlightedSeq(seq);
-    // 이전 타이머 정리
-    if (highlightTimer.current) clearTimeout(highlightTimer.current);
-    // 1000ms 후 자동 축소
-    highlightTimer.current = setTimeout(() => setHighlightedSeq(null), 1000);
-    // 왼쪽 패널에서 해당 버블로 스크롤
-    setTimeout(() => {
-      const el = bubbleRefs.current.get(seq);
-      el?.scrollIntoView({ behavior: 'smooth', block: 'center' });
-    }, 50);
-  }, []);
-
   return (
     <Drawer
       open={isOpen}
       onClose={handleClose}
       title="대화 상세"
       closable={{ placement: 'end' }}
-      width={hasNluData ? 960 : 640}
+      width={960}
       destroyOnHidden
       styles={{ body: { padding: '24px', display: 'flex', flexDirection: 'column', overflow: 'hidden' } }}
     >
@@ -274,26 +420,19 @@ const CallbotHistoryDrawer = forwardRef<CallbotHistoryDrawerRef>((_, ref) => {
         {/* 좌우 분할 영역 */}
         <div className={cn('flex-1 min-h-0 flex gap-4', !hasNluData && 'flex-col')}>
           {/* 왼쪽: 대화 흐름 */}
-          <div className={cn('min-h-0 overflow-y-auto pr-1', hasNluData ? 'w-3/5' : 'flex-1')}>
+          <div className={cn('min-h-0 overflow-y-auto pr-1', hasNluData ? 'w-2/3' : 'flex-1')}>
             {isBubbleLoading ? (
               <div className="flex justify-center py-6">
                 <Spin />
               </div>
             ) : (
-              <TrackingDialogView
-                items={items}
-                onItemClick={handleBubbleClick}
-                selectedSeq={selectedSeq}
-                highlightedSeq={highlightedSeq}
-                onIfeLink={handleIfeLink}
-                setBubbleRef={setBubbleRef}
-              />
+              <TrackingDialogView items={items} highlightedSeq={highlightedSeq} onIfeLink={handleIfeLink} setBubbleRef={setBubbleRef} />
             )}
           </div>
 
           {/* 오른쪽: NLU 분석 결과 */}
           {hasNluData && (
-            <div className="w-2/5 min-h-0 overflow-y-auto border-l pl-4">
+            <div className="w-1/3 min-h-0 overflow-y-auto border-l pl-4">
               <div className="flex items-center gap-2 mb-3 sticky top-0 bg-white pb-2 z-10">
                 <Brain className="size-4 text-blue-500" />
                 <span className="text-xs font-bold">NLU 분석 결과</span>
@@ -302,8 +441,16 @@ const CallbotHistoryDrawer = forwardRef<CallbotHistoryDrawerRef>((_, ref) => {
 
               <div className="space-y-3">
                 {nluItems.map((item) => (
-                  <div key={item.seq} ref={(el) => setNluRef(item.seq, el)} className="cursor-pointer" onClick={() => handleNluCardClick(item.seq)}>
-                    <NluCard seq={item.seq} nluResults={item.nluResults!} isSelected={selectedSeq === item.seq} />
+                  <div
+                    key={item.seq}
+                    className="cursor-pointer"
+                    onClick={(e) => {
+                      // 편집 UI 내부 클릭 시 카드 클릭 무시
+                      if ((e.target as HTMLElement).closest('[data-retrain-edit]')) return;
+                      handleNluCardClick(item.seq);
+                    }}
+                  >
+                    <NluCard seq={item.seq} nluResults={item.nluResults!} onRetrainSuccess={handleRetrainSuccess} />
                   </div>
                 ))}
               </div>
