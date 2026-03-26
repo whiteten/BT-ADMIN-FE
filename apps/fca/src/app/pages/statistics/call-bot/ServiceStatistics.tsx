@@ -114,7 +114,7 @@ export default function ServiceStatistics() {
     if (!rowData?.length) return [];
     const count = rowData.length;
     const sum = (field: keyof ServiceStatListItem) => rowData.reduce((acc, row) => acc + (Number(row[field]) || 0), 0);
-    const avg = (field: keyof ServiceStatListItem) => Math.round((sum(field) / count) * 10) / 10;
+    const avg = (field: keyof ServiceStatListItem) => Math.round((sum(field) / count) * 100) / 100;
     return [
       {
         psrTimeKey: '전체합계',
