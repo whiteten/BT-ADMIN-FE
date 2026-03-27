@@ -329,7 +329,7 @@ export default function PermissionSelector({ value = new Set(), onChange, classN
                   <tbody>
                     {group.flatMenus.map((item, idx) => {
                       const rowState = getRowCheckState(item.menu);
-                      const isFolder = !item.hasPermissions && item.hasChildrenWithPermissions;
+                      const isFolder = item.menu.menuType === 'FOLDER';
                       const isEven = idx % 2 === 0;
 
                       return (

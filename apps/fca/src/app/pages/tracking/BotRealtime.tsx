@@ -3,15 +3,15 @@ import type { ColDef, RowDoubleClickedEvent } from 'ag-grid-community';
 import { AgGridReact } from 'ag-grid-react';
 import type { BreadcrumbProps } from 'antd';
 import { Play, Square } from 'lucide-react';
-import TrackingDetailDrawer, { type TrackingDetailDrawerRef } from '../../features/tracking/components/TrackingDetailDrawer';
-import { useTrackingSse } from '../../features/tracking/hooks/useTrackingSse';
+import BotRealtimeDetailDrawer, { type BotRealtimeDetailDrawerRef } from '../../features/tracking/components/BotRealtimeDetailDrawer';
+import { useBotRealtimeSocket } from '../../features/tracking/hooks/useBotRealtimeSocket';
 import type { TrackingSession } from '../../features/tracking/types/tracking.types';
 import PageHeader from '@/components/custom/PageHeader';
 import useAggridOptions from '@/libs/shared-ui/src/hooks/useAggridOptions';
 
 const breadcrumb: BreadcrumbProps['items'] = [
   { title: '트래킹', path: '/fca/tracking' },
-  { title: '실시간 봇 트래킹', path: '/fca/tracking/realtime' },
+  { title: '실시간 봇 트래킹', path: '/fca/tracking/bot-realtime' },
 ];
 
 function formatCallTime(callTime: string): string {
@@ -25,13 +25,14 @@ function formatDuration(seconds: number): string {
   return `${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
 }
 
-export default function BotTracking() {
+export default function BotRealtime() {
   const { gridOptions } = useAggridOptions();
-  const drawerRef = useRef<TrackingDetailDrawerRef>(null);
-  const { sessions, connected, isPlaying, connect, disconnect, sessionDetail, clearSessionDetail } = useTrackingSse();
+  const drawerRef = useRef<BotRealtimeDetailDrawerRef>(null);
+  const { sessions, connected, isPlaying, connect, disconnect, sessionDetail, clearSessionDetail, send } = useBotRealtimeSocket();
 
   const columnDefs: ColDef<TrackingSession>[] = [
     { headerName: '시나리오명', field: 'serviceName', flex: 1.5, minWidth: 140 },
+    { headerName: 'UCID', field: 'ucid', flex: 1.5, minWidth: 150 },
     { headerName: '발신번호', field: 'ani', flex: 1.2, minWidth: 130 },
     { headerName: '착신번호', field: 'dnis', flex: 1, minWidth: 100 },
     {
@@ -48,8 +49,6 @@ export default function BotTracking() {
       minWidth: 90,
       valueFormatter: ({ value }) => (typeof value === 'number' ? formatDuration(value) : '-'),
     },
-    { headerName: '봇 대화', field: 'botDialog', flex: 2, minWidth: 180 },
-    { headerName: '봇 슬롯', field: 'botSlot', flex: 1.2, minWidth: 120 },
   ];
 
   const handleRowDoubleClicked = (event: RowDoubleClickedEvent<TrackingSession>) => {
@@ -69,7 +68,8 @@ export default function BotTracking() {
       <PageHeader breadcrumb={breadcrumb} />
 
       {/* SSE 연결 상태 + Play/Stop 버튼 */}
-      <div className="flex items-center gap-3 px-1">
+      <div className="flex items-center justify-end gap-3 bg-white bt-shadow px-7 py-5 h-[76px]">
+        {isPlaying && <span className={`inline-block w-2.5 h-2.5 rounded-full ${connected ? 'bg-green-500' : 'bg-red-500'}`} />}
         <button
           type="button"
           onClick={isPlaying ? disconnect : connect}
@@ -89,12 +89,6 @@ export default function BotTracking() {
             </>
           )}
         </button>
-        {isPlaying && (
-          <>
-            <span className={`inline-block w-2.5 h-2.5 rounded-full ${connected ? 'bg-green-500' : 'bg-red-500'}`} />
-            <span className="text-sm text-gray-500">{connected ? '실시간 연결됨' : '연결 끊김 (재연결 중...)'}</span>
-          </>
-        )}
       </div>
 
       {/* ag-Grid 테이블 */}
@@ -109,7 +103,7 @@ export default function BotTracking() {
         />
       </div>
 
-      <TrackingDetailDrawer ref={drawerRef} sseDetail={sessionDetail} onClose={clearSessionDetail} />
+      <BotRealtimeDetailDrawer ref={drawerRef} sseDetail={sessionDetail} onClose={clearSessionDetail} onSend={send} />
     </div>
   );
 }

@@ -71,7 +71,7 @@ const menuConfig = {
     },
     {
       menuId: 55,
-      label: '트레킹',
+      label: '트래킹',
       index: 3,
       hide: false,
       icon: Activity,
@@ -79,14 +79,14 @@ const menuConfig = {
         {
           menuId: 56,
           label: '실시간 봇 트래킹',
-          path: 'tracking/realtime',
+          path: 'tracking/bot-realtime',
           index: 0,
           hide: false,
         },
         {
           menuId: 75,
           label: '대화이력',
-          path: 'tracking/realtime',
+          path: 'tracking/bot-dialog-history',
           index: 1,
           hide: false,
         },

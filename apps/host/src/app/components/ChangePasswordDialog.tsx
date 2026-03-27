@@ -9,9 +9,9 @@ import { forwardRef, useCallback, useEffect, useImperativeHandle, useState } fro
 import { Button, Form, Input, Progress } from 'antd';
 import { AlertCircle, Clock, KeyRound, Lock, ShieldCheck } from 'lucide-react';
 import { type PasswordPolicy, PasswordStrengthMeter, isPasswordValid } from './PasswordStrengthMeter';
-import { cn } from '../../lib/utils';
-import { Alert, AlertDescription, AlertTitle } from '../shadcn/alert';
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '../shadcn/dialog';
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { cn } from '@/lib/utils';
 
 export type ChangePasswordMode = 'manual' | 'first-login' | 'expired';
 
