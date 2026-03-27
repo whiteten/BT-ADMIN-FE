@@ -16,6 +16,7 @@ const IntentDetail = React.lazy(() => import('./pages/bot-config/IntentDetail'))
 const EntityDetail = React.lazy(() => import('./pages/bot-config/EntityDetail'));
 const EvaluationDetail = React.lazy(() => import('./pages/bot-config/EvaluationDetail'));
 const AoeConfig = React.lazy(() => import('./pages/global/AoeConfig'));
+const GlobalEnvList = React.lazy(() => import('./pages/global/GlobalEnvList'));
 const ServiceStatistics = React.lazy(() => import('./pages/statistics/call-bot/ServiceStatistics'));
 const DialogStatistics = React.lazy(() => import('./pages/statistics/call-bot/DialogStatistics'));
 const SlotStatistics = React.lazy(() => import('./pages/statistics/call-bot/SlotStatistics'));
@@ -95,6 +96,10 @@ export const routes = [
           {
             path: 'model',
             children: [...sharedModelRoutes],
+          },
+          {
+            path: 'env',
+            element: <GlobalEnvList />,
           },
           {
             path: 'aoe',

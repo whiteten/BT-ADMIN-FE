@@ -54,10 +54,17 @@ const menuConfig = {
           hide: false,
         },
         {
+          menuId: 85,
+          label: '공용 환경변수',
+          path: 'global/env',
+          index: 1,
+          hide: false,
+        },
+        {
           menuId: 22,
           label: 'AOE 확장',
           path: 'global/aoe/config',
-          index: 1,
+          index: 2,
           hide: false,
         },
       ],
