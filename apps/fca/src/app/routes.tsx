@@ -23,8 +23,8 @@ const IntentStatistics = React.lazy(() => import('./pages/statistics/nlu/IntentS
 const EntityStatistics = React.lazy(() => import('./pages/statistics/nlu/EntityStatistics'));
 const KeywordStatistics = React.lazy(() => import('./pages/statistics/nlu/KeywordStatistics'));
 const BotDashboard = React.lazy(() => import('./pages/dashboard/BotDashboard'));
-const CallbotHistory = React.lazy(() => import('./pages/tracking/CallbotHistory'));
-const BotTracking = React.lazy(() => import('./pages/tracking/BotTracking'));
+const BotDialogHistory = React.lazy(() => import('./pages/tracking/BotDialogHistory'));
+const BotRealtime = React.lazy(() => import('./pages/tracking/BotRealtime'));
 
 const sharedModelRoutes = [
   { index: true, element: <Navigate to="list" replace /> },
@@ -117,9 +117,9 @@ export const routes = [
         path: 'tracking',
         element: <Outlet />,
         children: [
-          { index: true, element: <Navigate to="bot-callbot" replace /> },
-          { path: 'bot-callbot', element: <CallbotHistory /> },
-          { path: 'bot-realtime', element: <BotTracking /> },
+          { index: true, element: <Navigate to="bot-dialog-history" replace /> },
+          { path: 'bot-dialog-history', element: <BotDialogHistory /> },
+          { path: 'bot-realtime', element: <BotRealtime /> },
         ],
       },
       {

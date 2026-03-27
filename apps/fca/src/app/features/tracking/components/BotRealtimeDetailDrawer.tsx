@@ -3,8 +3,8 @@ import { Descriptions, Drawer, Spin, message } from 'antd';
 import { ChevronsDown, Copy, Pin } from 'lucide-react';
 import { toast } from '@/shared-util';
 import TrackingDialogView from './TrackingDialogView';
-import { useSendTrackingCommand } from '../hooks/useTrackingQueries';
-import type { TrackingWsMessage } from '../hooks/useTrackingSocket';
+import { useSendTrackingCommand } from '../hooks/useBotRealtimeQueries';
+import type { TrackingWsMessage } from '../hooks/useBotRealtimeSocket';
 import type { TrackingCommandRequest, TrackingSessionDetail } from '../types/tracking.types';
 
 /** HTTP/HTTPS 환경 모두에서 동작하는 클립보드 복사 */
@@ -29,9 +29,9 @@ function copyToClipboard(text: string): Promise<void> {
   }
 }
 
-const TRACKING_COMMAND_URL = '/api/bff/sse/fca/tracking/bot-realtime/command';
+const TRACKING_COMMAND_URL = '/api/bff/bot-realtime-command';
 
-export interface TrackingDetailDrawerRef {
+export interface BotRealtimeDetailDrawerRef {
   open: (params: { ucid: string; nexthop: number; systemId: number; sleeChno: number; nodeId: number }) => void;
   close: () => void;
 }
@@ -49,7 +49,7 @@ interface DrawerState {
   params: DrawerParams | null;
 }
 
-interface TrackingDetailDrawerProps {
+interface BotRealtimeDetailDrawerProps {
   /** WebSocket session-detail 메시지로 수신된 상세 데이터 */
   sseDetail?: TrackingSessionDetail | null;
   /** 드로어 닫힐 때 상위에서 detail 상태 초기화 */
@@ -58,7 +58,7 @@ interface TrackingDetailDrawerProps {
   onSend?: (msg: TrackingWsMessage) => void;
 }
 
-const TrackingDetailDrawer = forwardRef<TrackingDetailDrawerRef, TrackingDetailDrawerProps>(({ sseDetail, onClose, onSend }, ref) => {
+const BotRealtimeDetailDrawer = forwardRef<BotRealtimeDetailDrawerRef, BotRealtimeDetailDrawerProps>(({ sseDetail, onClose, onSend }, ref) => {
   const [drawerState, setDrawerState] = useState<DrawerState>({ open: false, params: null });
   const [isTracking, setIsTracking] = useState(false);
   /** 자동 스크롤 활성 여부 — 기본값 true (자동 따라내려가기) */
@@ -164,7 +164,7 @@ const TrackingDetailDrawer = forwardRef<TrackingDetailDrawerRef, TrackingDetailD
   const trackingFlow = (sseDetail?.trackingFlow ?? []).filter((item) => item.type !== 2 && item.type !== 3);
   const isLoading = drawerState.open && isTracking && !sseDetail;
 
-  const drawerTitle = '세션 상세';
+  const drawerTitle = '대화 상세';
 
   const handleCopyUcid = (ucid: string) => {
     copyToClipboard(ucid)
@@ -254,6 +254,6 @@ const TrackingDetailDrawer = forwardRef<TrackingDetailDrawerRef, TrackingDetailD
   );
 });
 
-TrackingDetailDrawer.displayName = 'TrackingDetailDrawer';
+BotRealtimeDetailDrawer.displayName = 'BotRealtimeDetailDrawer';
 
-export default TrackingDetailDrawer;
+export default BotRealtimeDetailDrawer;

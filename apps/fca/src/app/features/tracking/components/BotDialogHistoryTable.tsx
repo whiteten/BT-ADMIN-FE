@@ -2,26 +2,26 @@ import React, { useMemo } from 'react';
 import type { ColDef } from 'ag-grid-community';
 import { AgGridReact } from 'ag-grid-react';
 import dayjs from 'dayjs';
-import type { CallbotHistoryListItem } from '../types/history.types';
+import type { BotDialogHistoryListItem } from '../types/botDialogHistory.types';
 import ServerPagination from '@/components/custom/ServerPagination';
 import { Badge } from '@/components/ui/badge';
 import useAggridOptions from '@/libs/shared-ui/src/hooks/useAggridOptions';
 
-interface CallbotHistoryTableProps {
-  rowData: CallbotHistoryListItem[];
+interface BotDialogHistoryTableProps {
+  rowData: BotDialogHistoryListItem[];
   total: number;
   isLoading?: boolean;
   page: number;
   size: number;
   onPageChange: (page: number) => void;
-  onRowDoubleClick: (data: CallbotHistoryListItem) => void;
+  onRowDoubleClick: (data: BotDialogHistoryListItem) => void;
   selectedRowId?: string;
 }
 
-const CallbotHistoryTable: React.FC<CallbotHistoryTableProps> = ({ rowData, total, isLoading, page, size, onPageChange, onRowDoubleClick, selectedRowId }) => {
+const BotDialogHistoryTable: React.FC<BotDialogHistoryTableProps> = ({ rowData, total, isLoading, page, size, onPageChange, onRowDoubleClick, selectedRowId }) => {
   const { gridOptions } = useAggridOptions();
 
-  const columnDefs: ColDef<CallbotHistoryListItem>[] = useMemo(
+  const columnDefs: ColDef<BotDialogHistoryListItem>[] = useMemo(
     () => [
       {
         headerName: '봇서비스',
@@ -66,7 +66,6 @@ const CallbotHistoryTable: React.FC<CallbotHistoryTableProps> = ({ rowData, tota
         flex: 1.5,
         minWidth: 170,
         valueFormatter: (params) => (params.value ? dayjs(params.value).format('YYYY-MM-DD HH:mm:ss') : '-'),
-        sort: 'desc',
       },
       {
         headerName: '종료일시',
@@ -144,7 +143,7 @@ const CallbotHistoryTable: React.FC<CallbotHistoryTableProps> = ({ rowData, tota
   return (
     <div className="flex flex-col flex-1 min-h-0 bg-white bt-shadow">
       <div className="flex-1 w-full overflow-hidden">
-        <AgGridReact<CallbotHistoryListItem>
+        <AgGridReact<BotDialogHistoryListItem>
           rowData={rowData}
           columnDefs={columnDefs}
           gridOptions={{
@@ -168,4 +167,4 @@ const CallbotHistoryTable: React.FC<CallbotHistoryTableProps> = ({ rowData, tota
   );
 };
 
-export default CallbotHistoryTable;
+export default BotDialogHistoryTable;

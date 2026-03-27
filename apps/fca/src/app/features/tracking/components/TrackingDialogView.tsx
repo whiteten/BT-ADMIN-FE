@@ -6,7 +6,7 @@ import { cn } from '@/lib/utils';
 interface TrackingDialogViewProps {
   items: TrackingFlowItem[];
   callEnded?: boolean;
-  /** 아이템 클릭 콜백 (콜봇이력 NLU 분석 등에 활용) */
+  /** 아이템 클릭 콜백 (대화이력 NLU 분석 등에 활용) */
   onItemClick?: (item: TrackingFlowItem) => void;
   /** 선택된 Seq 번호 (선택 링 표시용) */
   selectedSeq?: number | null;
@@ -73,7 +73,7 @@ function BotBubble({ item, isSelected, onClick, onIfeLink }: { item: TrackingFlo
             <button
               type="button"
               title="IFE 시나리오 보기"
-              className="flex-shrink-0 p-1 rounded hover:bg-blue-100 transition-colors"
+              className="flex-shrink-0 p-1 rounded hover:bg-blue-100 transition-colors cursor-pointer"
               onClick={(e) => {
                 e.stopPropagation();
                 onIfeLink(item);
@@ -98,13 +98,30 @@ function CustomerBubble({ item, isSelected, isHighlighted, onClick }: { item: Tr
   return (
     <div className={cn('flex items-start gap-2.5 max-w-[80%]', isFailed && 'opacity-60', onClick && 'cursor-pointer')} onClick={onClick}>
       {/* 아바타 */}
-      <div
-        className={cn(
-          'flex-shrink-0 w-7 h-7 rounded-full flex items-center justify-center transition-all duration-300',
-          isFailed ? 'bg-slate-100' : isHighlighted ? 'bg-blue-500/20 scale-125' : 'bg-emerald-500/10',
+      <div className="relative flex-shrink-0 w-7 h-7">
+        {/* 리플: 원형 테두리가 바깥으로 퍼져나가며 사라짐 */}
+        {isHighlighted && !isFailed && (
+          <span
+            className="absolute inset-0 rounded-full border-2 border-blue-400"
+            style={{
+              animation: 'bubble-ripple 0.8s ease-out forwards',
+            }}
+          />
         )}
-      >
-        <User size={14} className={cn(isFailed ? 'text-slate-400' : isHighlighted ? 'text-blue-600' : 'text-emerald-600', 'transition-colors duration-300')} />
+        <div
+          className={cn(
+            'relative w-7 h-7 rounded-full flex items-center justify-center transition-all duration-300',
+            isFailed ? 'bg-slate-100' : isHighlighted ? 'bg-blue-500/30 scale-110' : 'bg-emerald-500/10',
+          )}
+        >
+          <User size={14} className={cn(isFailed ? 'text-slate-400' : isHighlighted ? 'text-blue-600' : 'text-emerald-600', 'transition-colors duration-300')} />
+        </div>
+        <style>{`
+          @keyframes bubble-ripple {
+            0% { transform: scale(1); opacity: 0.7; }
+            100% { transform: scale(2.5); opacity: 0; }
+          }
+        `}</style>
       </div>
 
       {/* 말풍선 */}
@@ -156,7 +173,7 @@ function CallEndedBanner() {
   );
 }
 
-/** 대화 채팅 버블 UI (실시간 트래킹 + 콜봇이력 공용) */
+/** 대화 채팅 버블 UI (실시간 트래킹 + 대화이력 공용) */
 export default function TrackingDialogView({ items, callEnded, onItemClick, selectedSeq, highlightedSeq, onIfeLink, setBubbleRef }: TrackingDialogViewProps) {
   if (items.length === 0 && !callEnded) {
     return <EmptyState />;

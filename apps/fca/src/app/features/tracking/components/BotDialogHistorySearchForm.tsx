@@ -1,21 +1,23 @@
 import React, { useEffect, useMemo } from 'react';
 import { Button, Checkbox, DatePicker, Divider, Input, Select, Slider } from 'antd';
 import dayjs, { type Dayjs } from 'dayjs';
-import { Search } from 'lucide-react';
+import { Download, Search } from 'lucide-react';
 import { toast } from '@/shared-util';
 
 const MAX_DAYS = 30;
 const COMPLETE_ALL = 'all' as const;
 
-import { useGetBotServices, useGetIntents } from '../hooks/useHistoryQueries';
-import type { BotServiceDto, CallbotHistorySearchRequest, IntentDto } from '../types/history.types';
+import { useGetBotServices, useGetIntents } from '../hooks/useBotDialogHistoryQueries';
+import type { BotDialogHistorySearchRequest, BotServiceDto, IntentDto } from '../types/botDialogHistory.types';
 
-interface CallbotHistorySearchFormProps {
-  onSearch: (values: CallbotHistorySearchRequest) => void;
+interface BotDialogHistorySearchFormProps {
+  onSearch: (values: BotDialogHistorySearchRequest) => void;
   isLoading?: boolean;
+  onExcelDownload?: () => void;
+  isExporting?: boolean;
 }
 
-const CallbotHistorySearchForm: React.FC<CallbotHistorySearchFormProps> = ({ onSearch, isLoading }) => {
+const BotDialogHistorySearchForm: React.FC<BotDialogHistorySearchFormProps> = ({ onSearch, isLoading, onExcelDownload, isExporting }) => {
   const [startDate, setStartDate] = React.useState<Dayjs>(dayjs().startOf('day'));
   const [endDate, setEndDate] = React.useState<Dayjs>(dayjs().endOf('day'));
   const [serviceIds, setServiceIds] = React.useState<number[]>([]);
@@ -214,14 +216,25 @@ const CallbotHistorySearchForm: React.FC<CallbotHistorySearchFormProps> = ({ onS
           <Input value={ucid} onChange={(e) => setUcid(e.target.value)} placeholder="UCID 검색" className="w-64" onPressEnter={handleSearch} />
         </div>
 
-        <div className="ml-auto">
+        <div className="ml-auto flex items-center gap-2">
           <Button type="primary" icon={<Search className="size-4" />} onClick={handleSearch} loading={isLoading} className="flex items-center gap-1 shrink-0">
             조회
           </Button>
+          {onExcelDownload && (
+            <Button
+              type="primary"
+              loading={isExporting}
+              icon={<Download className="size-4" />}
+              className="!bg-[#10B981] !border-[#10B981] hover:!bg-[#0FA968] flex items-center gap-1 shrink-0"
+              onClick={onExcelDownload}
+            >
+              엑셀
+            </Button>
+          )}
         </div>
       </div>
     </div>
   );
 };
 
-export default CallbotHistorySearchForm;
+export default BotDialogHistorySearchForm;

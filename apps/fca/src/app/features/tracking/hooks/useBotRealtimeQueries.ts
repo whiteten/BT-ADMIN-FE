@@ -1,17 +1,17 @@
 import { useMutation, useQuery } from '@tanstack/react-query';
 import { createQueryKeys } from '@lukemorales/query-key-factory';
 import type { MutationHookOptions, QueryHookOptions } from '@/shared-util';
-import { trackingApi } from '../api/trackingApi';
+import { botRealtimeApi } from '../api/botRealtimeApi';
 import type { TrackingCommandRequest, TrackingCommandResult, TrackingSessionDetail } from '../types/tracking.types';
 
-export const trackingQueryKeys = createQueryKeys('tracking', {
+export const botRealtimeQueryKeys = createQueryKeys('tracking', {
   getSessionDetail: (ucid: string, nexthop: number) => [ucid, nexthop],
 });
 
 export const useGetSessionDetail = (ucid: string, nexthop: number, { queryOptions }: QueryHookOptions<TrackingSessionDetail> = {}) => {
   return useQuery({
-    queryKey: trackingQueryKeys.getSessionDetail(ucid, nexthop).queryKey,
-    queryFn: () => trackingApi.getSessionDetail(ucid, nexthop),
+    queryKey: botRealtimeQueryKeys.getSessionDetail(ucid, nexthop).queryKey,
+    queryFn: () => botRealtimeApi.getSessionDetail(ucid, nexthop),
     enabled: !!ucid,
     ...queryOptions,
   });
@@ -19,7 +19,7 @@ export const useGetSessionDetail = (ucid: string, nexthop: number, { queryOption
 
 export const useSendTrackingCommand = ({ mutationOptions }: MutationHookOptions<TrackingCommandResult, TrackingCommandRequest> = {}) => {
   return useMutation({
-    mutationFn: trackingApi.sendCommand,
+    mutationFn: botRealtimeApi.sendCommand,
     ...mutationOptions,
   });
 };

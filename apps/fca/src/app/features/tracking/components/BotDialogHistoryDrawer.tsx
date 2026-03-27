@@ -1,14 +1,14 @@
-import { forwardRef, useCallback, useImperativeHandle, useRef, useState } from 'react';
+import { forwardRef, useCallback, useImperativeHandle, useMemo, useRef, useState } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { Descriptions, Drawer, Input, Select, Spin, message } from 'antd';
 import { Bookmark, Brain, Check, Copy, Pencil, X } from 'lucide-react';
 import { toast } from '@/shared-util';
+import TrackingDialogView from './TrackingDialogView';
 import { useApplyRetrain, useGetIntents, useUpdateRetrain } from '../../bot-config/hooks/useModelQueries';
-import TrackingDialogView from '../../tracking/components/TrackingDialogView';
-import type { NluAnalysisItem, TrackingFlowItem } from '../../tracking/types/tracking.types';
-import { historyApi } from '../api/history.api';
-import { historyQueryKeys, useGetBubbles } from '../hooks/useHistoryQueries';
-import type { CallbotHistoryListItem } from '../types/history.types';
+import { botDialogHistoryApi } from '../api/botDialogHistoryApi';
+import { botDialogHistoryQueryKeys, useGetBubbles, useGetNluAnalysis } from '../hooks/useBotDialogHistoryQueries';
+import type { BotDialogHistoryListItem } from '../types/botDialogHistory.types';
+import type { NluAnalysisItem, TrackingFlowItem } from '../types/tracking.types';
 import { cn } from '@/lib/utils';
 
 /** HTTP/HTTPS 환경 모두에서 동작하는 클립보드 복사 */
@@ -44,7 +44,7 @@ function getConfidenceTextColor(item: NluAnalysisItem): string {
 interface NluCardProps {
   seq: number;
   nluResults: NluAnalysisItem[];
-  onRetrainSuccess?: () => void;
+  onRetrainSuccess?: () => void | Promise<void>;
 }
 
 function NluCard({ seq, nluResults, onRetrainSuccess }: NluCardProps) {
@@ -68,7 +68,7 @@ function NluCard({ seq, nluResults, onRetrainSuccess }: NluCardProps) {
   const handleEditStart = (nlu: NluAnalysisItem) => {
     if (nlu.retrainStatus === 2) return;
     setEditingHop(nlu.hop);
-    setEditQuestion(nlu.modifiedQuestion ?? nlu.questionText ?? '');
+    setEditQuestion((nlu.modifiedQuestion ?? nlu.questionText ?? '').trim());
     setEditAnswer(nlu.retrainAnswer ?? nlu.intent ?? '');
   };
 
@@ -94,8 +94,8 @@ function NluCard({ seq, nluResults, onRetrainSuccess }: NluCardProps) {
         data: { question: editQuestion, answer: editAnswer },
       });
       toast.success('재학습 데이터가 저장되었습니다.');
+      await onRetrainSuccess?.();
       setEditingHop(null);
-      onRetrainSuccess?.();
     } catch (e) {
       toast.error('저장에 실패했습니다.');
     }
@@ -119,7 +119,7 @@ function NluCard({ seq, nluResults, onRetrainSuccess }: NluCardProps) {
         data: {},
       });
       toast.success('학습 데이터에 반영되었습니다.');
-      onRetrainSuccess?.();
+      await onRetrainSuccess?.();
     } catch (e) {
       toast.error('반영에 실패했습니다.');
     }
@@ -239,7 +239,7 @@ function NluCard({ seq, nluResults, onRetrainSuccess }: NluCardProps) {
           )}
 
           {/* 재학습 액션 버튼 */}
-          {editingHop === nlu.hop && (
+          {editingHop === nlu.hop ? (
             <div className="flex items-center gap-1.5 pt-1 border-t border-gray-100">
               <button
                 type="button"
@@ -252,7 +252,20 @@ function NluCard({ seq, nluResults, onRetrainSuccess }: NluCardProps) {
               >
                 <Check size={11} /> 저장
               </button>
-              {nlu.retrainStatus === 1 && (
+              <button
+                type="button"
+                className="flex items-center gap-1 px-2 py-1 text-[11px] font-medium text-white bg-gray-400 hover:bg-gray-500 rounded transition-colors"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  handleEditCancel();
+                }}
+              >
+                <X size={11} /> 취소
+              </button>
+            </div>
+          ) : (
+            nlu.retrainStatus === 1 && (
+              <div className="flex items-center gap-1.5 pt-1 border-t border-gray-100">
                 <button
                   type="button"
                   className="flex items-center gap-1 px-2 py-1 text-[11px] font-medium text-white bg-green-500 hover:bg-green-600 rounded transition-colors"
@@ -264,18 +277,8 @@ function NluCard({ seq, nluResults, onRetrainSuccess }: NluCardProps) {
                 >
                   <Bookmark size={11} /> 반영
                 </button>
-              )}
-              <button
-                type="button"
-                className="flex items-center gap-1 px-2 py-1 text-[11px] font-medium text-gray-500 hover:bg-gray-100 rounded transition-colors"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  handleEditCancel();
-                }}
-              >
-                <X size={11} /> 취소
-              </button>
-            </div>
+              </div>
+            )
           )}
         </div>
       ))}
@@ -283,21 +286,21 @@ function NluCard({ seq, nluResults, onRetrainSuccess }: NluCardProps) {
   );
 }
 
-export interface CallbotHistoryDrawerRef {
-  open: (row: CallbotHistoryListItem) => void;
+export interface BotDialogHistoryDrawerRef {
+  open: (row: BotDialogHistoryListItem) => void;
   close: () => void;
 }
 
-const CallbotHistoryDrawer = forwardRef<CallbotHistoryDrawerRef>((_, ref) => {
+const BotDialogHistoryDrawer = forwardRef<BotDialogHistoryDrawerRef>((_, ref) => {
   const queryClient = useQueryClient();
   const [isOpen, setIsOpen] = useState(false);
-  const [selectedRow, setSelectedRow] = useState<CallbotHistoryListItem | null>(null);
+  const [selectedRow, setSelectedRow] = useState<BotDialogHistoryListItem | null>(null);
   const [highlightedSeq, setHighlightedSeq] = useState<number | null>(null);
   const bubbleRefs = useRef<Map<number, HTMLDivElement>>(new Map());
   const highlightTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useImperativeHandle(ref, () => ({
-    open: (row: CallbotHistoryListItem) => {
+    open: (row: BotDialogHistoryListItem) => {
       setSelectedRow(row);
       setHighlightedSeq(null);
       bubbleRefs.current.clear();
@@ -330,13 +333,11 @@ const CallbotHistoryDrawer = forwardRef<CallbotHistoryDrawerRef>((_, ref) => {
     }, 50);
   }, []);
 
-  const handleRetrainSuccess = useCallback(() => {
+  const handleRetrainSuccess = useCallback(async () => {
     if (!selectedRow) return;
-    queryClient.invalidateQueries({
-      queryKey: historyQueryKeys.getBubbles({
+    await queryClient.invalidateQueries({
+      queryKey: botDialogHistoryQueryKeys.getNluAnalysis({
         ucid: selectedRow.ucid,
-        nextHop: selectedRow.nextHop,
-        cdrPkey: selectedRow.cdrPkey,
       }).queryKey,
     });
   }, [selectedRow, queryClient]);
@@ -350,17 +351,35 @@ const CallbotHistoryDrawer = forwardRef<CallbotHistoryDrawerRef>((_, ref) => {
     queryOptions: { enabled: !!selectedRow && isOpen },
   });
 
+  // NLU 분석 결과 별도 조회 (경량 — 재학습 갱신 시 이 쿼리만 invalidate)
+  const { data: nluData } = useGetNluAnalysis({
+    params: { ucid: selectedRow?.ucid },
+    queryOptions: { enabled: !!selectedRow && isOpen },
+  });
+
   const items: TrackingFlowItem[] = bubbleData ?? [];
 
-  // 고객 발화 중 NLU 데이터가 있는 항목 추출
-  const nluItems = items.filter((item) => item.dialogRole === 'CUSTOMER' && item.nluResults && item.nluResults.length > 0);
+  // NLU 데이터를 questionSeq 기준으로 그룹핑하여 고객 발화 버블과 매칭
+  const nluBySeq = useMemo(() => {
+    const map = new Map<number, NluAnalysisItem[]>();
+    if (!nluData) return map;
+    for (const nlu of nluData) {
+      const list = map.get(nlu.questionSeq) ?? [];
+      list.push(nlu);
+      map.set(nlu.questionSeq, list);
+    }
+    return map;
+  }, [nluData]);
+
+  // 고객 발화 중 NLU 데이터가 있는 항목 추출 (NLU 별도 쿼리 기준)
+  const nluItems = items.filter((item) => item.dialogRole === 'CUSTOMER' && nluBySeq.has(item.seq)).map((item) => ({ ...item, nluResults: nluBySeq.get(item.seq)! }));
   const hasNluData = nluItems.length > 0;
 
   const handleIfeLink = useCallback(
     async (item: TrackingFlowItem) => {
       if (!selectedRow || !item.subFlowId || !item.nodeName) return;
       try {
-        const redirectUrl = await historyApi.getIfeRedirectUrl({
+        const redirectUrl = await botDialogHistoryApi.getIfeRedirectUrl({
           serviceId: selectedRow.serviceId,
           serviceVer: selectedRow.serviceVer,
           subFlowId: item.subFlowId,
@@ -462,6 +481,6 @@ const CallbotHistoryDrawer = forwardRef<CallbotHistoryDrawerRef>((_, ref) => {
   );
 });
 
-CallbotHistoryDrawer.displayName = 'CallbotHistoryDrawer';
+BotDialogHistoryDrawer.displayName = 'BotDialogHistoryDrawer';
 
-export default CallbotHistoryDrawer;
+export default BotDialogHistoryDrawer;

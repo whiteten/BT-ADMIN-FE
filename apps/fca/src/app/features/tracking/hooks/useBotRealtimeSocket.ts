@@ -18,7 +18,7 @@ export interface UntrackMessage {
 
 export type TrackingWsMessage = TrackMessage | UntrackMessage;
 
-export function useTrackingSocket() {
+export function useBotRealtimeSocket() {
   const [sessions, setSessions] = useState<TrackingSession[]>([]);
   const [connected, setConnected] = useState(false);
   const [isPlaying, setIsPlaying] = useState(false);

@@ -3,8 +3,8 @@ import type { ColDef, RowDoubleClickedEvent } from 'ag-grid-community';
 import { AgGridReact } from 'ag-grid-react';
 import type { BreadcrumbProps } from 'antd';
 import { Play, Square } from 'lucide-react';
-import TrackingDetailDrawer, { type TrackingDetailDrawerRef } from '../../features/tracking/components/TrackingDetailDrawer';
-import { useTrackingSocket } from '../../features/tracking/hooks/useTrackingSocket';
+import BotRealtimeDetailDrawer, { type BotRealtimeDetailDrawerRef } from '../../features/tracking/components/BotRealtimeDetailDrawer';
+import { useBotRealtimeSocket } from '../../features/tracking/hooks/useBotRealtimeSocket';
 import type { TrackingSession } from '../../features/tracking/types/tracking.types';
 import PageHeader from '@/components/custom/PageHeader';
 import useAggridOptions from '@/libs/shared-ui/src/hooks/useAggridOptions';
@@ -25,10 +25,10 @@ function formatDuration(seconds: number): string {
   return `${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
 }
 
-export default function BotTracking() {
+export default function BotRealtime() {
   const { gridOptions } = useAggridOptions();
-  const drawerRef = useRef<TrackingDetailDrawerRef>(null);
-  const { sessions, connected, isPlaying, connect, disconnect, sessionDetail, clearSessionDetail, send } = useTrackingSocket();
+  const drawerRef = useRef<BotRealtimeDetailDrawerRef>(null);
+  const { sessions, connected, isPlaying, connect, disconnect, sessionDetail, clearSessionDetail, send } = useBotRealtimeSocket();
 
   const columnDefs: ColDef<TrackingSession>[] = [
     { headerName: '시나리오명', field: 'serviceName', flex: 1.5, minWidth: 140 },
@@ -103,7 +103,7 @@ export default function BotTracking() {
         />
       </div>
 
-      <TrackingDetailDrawer ref={drawerRef} sseDetail={sessionDetail} onClose={clearSessionDetail} onSend={send} />
+      <BotRealtimeDetailDrawer ref={drawerRef} sseDetail={sessionDetail} onClose={clearSessionDetail} onSend={send} />
     </div>
   );
 }
