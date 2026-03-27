@@ -1,11 +1,20 @@
 pipeline {
     agent any
 
+    triggers {
+        gitlab(
+            triggerOnPush: true,
+            triggerOnMergeRequest: false,
+            branchFilterType: 'NameBasedFilter',
+            includeBranchesSpec: 'master'
+        )
+    }
+
     parameters {
         gitParameter(
             name: 'BRANCH_NAME',
             type: 'PT_BRANCH',
-            defaultValue: 'main',
+            defaultValue: 'master',
             description: '빌드할 브랜치 선택',
             sortMode: 'DESCENDING_SMART',
             selectedValue: 'DEFAULT'
