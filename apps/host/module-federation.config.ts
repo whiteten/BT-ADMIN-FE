@@ -15,7 +15,7 @@ const config: ModuleFederationConfig = {
    * declare module 'my-external-remote';
    *
    */
-  remotes: ['manager', 'fca'],
+  remotes: ['manager', 'fca', 'dashboard'],
   shared: createSharedConfig(),
   additionalShared: [
     ['@/components/ui/sidebar', { singleton: true, strictVersion: true, requiredVersion: false }],

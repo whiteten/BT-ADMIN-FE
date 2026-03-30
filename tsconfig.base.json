@@ -27,9 +27,9 @@
       "@/lib/utils": ["libs/shared-ui/src/lib/utils"],
       "@/libs/*": ["libs/*"],
       "@/log": ["libs/shared-util/src/lib/log.ts"],
+      "@/shared-api": ["libs/shared-api/src/index.ts"],
       "@/shared-store": ["libs/shared-store/src/index.ts"],
-      "@/shared-util": ["libs/shared-util/src/index.ts"],
-      "@/shared-api": ["libs/shared-api/src/index.ts"]
+      "@/shared-util": ["libs/shared-util/src/index.ts"]
     }
   },
   "exclude": ["node_modules", "tmp"]
