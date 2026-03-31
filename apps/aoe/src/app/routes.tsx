@@ -21,11 +21,19 @@ export const routes = [
         element: <Main />,
       },
       {
-        path: 'agent-config/agent',
+        path: 'agent-config',
+        element: <Outlet />,
         children: [
-          { path: 'list', element: <AgentList /> },
-          { path: 'create', element: <AgentCreate /> },
-          { path: ':agentId', element: <AgentDetail /> },
+          { index: true, element: <Navigate to="agent" replace /> },
+          {
+            path: 'agent',
+            children: [
+              { index: true, element: <Navigate to="list" replace /> },
+              { path: 'list', element: <AgentList /> },
+              { path: 'create', element: <AgentCreate /> },
+              { path: ':agentId', element: <AgentDetail /> },
+            ],
+          },
         ],
       },
     ],

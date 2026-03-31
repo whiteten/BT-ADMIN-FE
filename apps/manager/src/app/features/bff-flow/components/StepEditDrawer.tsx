@@ -27,6 +27,7 @@ const SERVICE_KEY_OPTIONS = [
   { label: 'manager', value: 'manager' },
   { label: 'fca', value: 'fca' },
   { label: 'auth', value: 'auth' },
+  { label: 'aoe', value: 'aoe' },
 ];
 
 export default function StepEditDrawer({ open, step, onOk, onCancel, onDelete }: StepEditDrawerProps) {

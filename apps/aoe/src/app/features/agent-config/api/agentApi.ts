@@ -1,11 +1,11 @@
 import ApiClient, { type DetailResponse, type ListResponse, extractDetail, extractList } from '@/shared-util';
-import type { AgentCreateDatas, AgentItem, AgentListItem, AgentUpdateDatas } from '../types';
+import type { AgentCreateDatas, AgentItem, AgentListItem, AgentUpdateDatas, AoeStudioInfo } from '../types';
 
 const apiClient = new ApiClient({ serviceURL: '/bff' });
 
 export const agentApi = {
   getAgents: async (params?: Record<string, unknown>) => {
-    const response = await apiClient.get<ListResponse<AgentListItem>>('/agents', { params });
+    const response = await apiClient.get<ListResponse<AgentListItem>>('/aoe-agents-list', { params });
     return extractList(response);
   },
   getAgent: async (params?: Record<string, unknown>) => {
@@ -23,5 +23,9 @@ export const agentApi = {
   deleteAgent: async (agentId: string) => {
     const response = await apiClient.delete(`/agent/${agentId}`);
     return response;
+  },
+  getAoeStudioInfo: async ({ params, data }: { params: Record<string, unknown>; data: Record<string, unknown> }): Promise<AoeStudioInfo> => {
+    const response = await apiClient.post<DetailResponse<AoeStudioInfo>>('/aoe-studio-info', data, { params });
+    return extractDetail(response);
   },
 };

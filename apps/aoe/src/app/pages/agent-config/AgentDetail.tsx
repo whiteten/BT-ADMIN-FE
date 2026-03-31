@@ -3,8 +3,8 @@ import type { BreadcrumbProps } from 'antd';
 import PageHeader from '@/components/custom/PageHeader';
 
 const breadcrumb: BreadcrumbProps['items'] = [
-  { title: '관리', path: '/aoe/bot-config' },
-  { title: 'Agent', path: '/aoe/bot-config/bot' },
+  { title: '관리', path: '/aoe/agent-config' },
+  { title: 'Agent', path: '/aoe/agent-config/agent/list' },
   { title: 'Agent 상세', path: '' },
 ];
 
