@@ -63,14 +63,18 @@ export function downloadBlob(blob: Blob, fileName: string): void {
  * 텍스트를 클립보드에 복사 (HTTP 환경 폴백 포함)
  */
 export async function copyToClipboard(text: string): Promise<void> {
-  if (navigator.clipboard) {
-    await navigator.clipboard.writeText(text);
-  } else {
+  const execCommandFallback = () => {
     const el = document.createElement('textarea');
     el.value = text;
     document.body.appendChild(el);
     el.select();
     document.execCommand('copy');
     el.remove();
+  };
+
+  if (navigator.clipboard) {
+    await navigator.clipboard.writeText(text).catch(execCommandFallback);
+  } else {
+    execCommandFallback();
   }
 }
