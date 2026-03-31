@@ -128,11 +128,11 @@ export const modelApi = {
     const response = await apiClient.delete('/intent-sentence-delete', { params });
     return response;
   },
-  importIntentSentence: async ({ params, data }: { params: Record<string, unknown>; data: File }) => {
+  importIntentSentence: async ({ params, data }: { params: Record<string, unknown>; data: File }): Promise<ExcelImportResult> => {
     const formData = new FormData();
     formData.append('uploadFile', data);
-    const response = await apiClient.post('/intent-sentence-excel-import', formData, { params });
-    return response;
+    const response = await apiClient.post<DetailResponse<ExcelImportResult>>('/intent-sentence-excel-import', formData, { params });
+    return extractDetail(response);
   },
   exportIntentSentence: async (params: Record<string, unknown>) => {
     const response = await apiClient.get<Blob>('/intent-sentence-excel-export', { params, responseType: 'blob' });
@@ -236,11 +236,11 @@ export const modelApi = {
     const response = await apiClient.delete('/evaluation-question-delete', { params });
     return response;
   },
-  importEvaluationQuestion: async ({ params, data }: { params: Record<string, unknown>; data: File }) => {
+  importEvaluationQuestion: async ({ params, data }: { params: Record<string, unknown>; data: File }): Promise<ExcelImportResult> => {
     const formData = new FormData();
     formData.append('uploadFile', data);
-    const response = await apiClient.post('/evaluation-question-excel-import', formData, { params });
-    return response;
+    const response = await apiClient.post<DetailResponse<ExcelImportResult>>('/evaluation-question-excel-import', formData, { params });
+    return extractDetail(response);
   },
   exportEvaluationQuestion: async (params: Record<string, unknown>) => {
     const response = await apiClient.get<Blob>('/evaluation-question-excel-export', { params, responseType: 'blob' });
