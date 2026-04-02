@@ -56,19 +56,22 @@ function BotBubble({ item, isSelected, onClick, onIfeLink }: { item: TrackingFlo
   const hasIfeLink = item.type === 0 && item.subFlowId != null && onIfeLink != null;
 
   return (
-    <div className={cn('flex items-start gap-2.5 max-w-[80%] ml-auto flex-row-reverse', onClick && 'cursor-pointer')} onClick={onClick}>
+    <div className={cn('flex items-start gap-2.5 max-w-[80%]', onClick && 'cursor-pointer')} onClick={onClick}>
       {/* 아바타 */}
       <div className="flex-shrink-0 w-7 h-7 rounded-full bg-blue-500/10 flex items-center justify-center">
         <Bot size={14} className="text-blue-600" />
       </div>
 
       {/* 말풍선 */}
-      <div className="flex flex-col items-end gap-0.5">
+      <div className="flex flex-col gap-0.5">
         <div className="flex items-center gap-1.5 mb-0.5">
-          {item.startTime && <span className="text-[10px] text-slate-500 tabular-nums">{item.startTime}</span>}
           <span className="text-[10px] font-medium text-blue-600/70">IVR</span>
+          {item.startTime && <span className="text-[10px] text-slate-500 tabular-nums">{item.startTime}</span>}
         </div>
         <div className="flex items-center gap-1">
+          <div className={cn('bg-blue-50 border border-blue-100 rounded-2xl rounded-bl-md px-3.5 py-2 shadow-sm', isSelected && 'ring-2 ring-blue-300 ring-offset-1')}>
+            <p className="text-[13px] text-slate-700 leading-relaxed break-all whitespace-pre-wrap">{text}</p>
+          </div>
           {hasIfeLink && (
             <button
               type="button"
@@ -82,9 +85,6 @@ function BotBubble({ item, isSelected, onClick, onIfeLink }: { item: TrackingFlo
               <ExternalLink size={12} className="text-blue-400 hover:text-blue-600" />
             </button>
           )}
-          <div className={cn('bg-blue-50 border border-blue-100 rounded-2xl rounded-br-md px-3.5 py-2 shadow-sm', isSelected && 'ring-2 ring-blue-300 ring-offset-1')}>
-            <p className="text-[13px] text-slate-700 leading-relaxed break-all whitespace-pre-wrap">{text}</p>
-          </div>
         </div>
       </div>
     </div>
@@ -96,7 +96,7 @@ function CustomerBubble({ item, isSelected, isHighlighted, onClick }: { item: Tr
   const text = item.description ?? (isFailed ? '인식 실패' : item.typeName);
 
   return (
-    <div className={cn('flex items-start gap-2.5 max-w-[80%]', isFailed && 'opacity-60', onClick && 'cursor-pointer')} onClick={onClick}>
+    <div className={cn('flex items-start gap-2.5 max-w-[80%] ml-auto flex-row-reverse', isFailed && 'opacity-60', onClick && 'cursor-pointer')} onClick={onClick}>
       {/* 아바타 */}
       <div className="relative flex-shrink-0 w-7 h-7">
         {/* 리플: 원형 테두리가 바깥으로 퍼져나가며 사라짐 */}
@@ -125,14 +125,14 @@ function CustomerBubble({ item, isSelected, isHighlighted, onClick }: { item: Tr
       </div>
 
       {/* 말풍선 */}
-      <div className="flex flex-col gap-0.5">
+      <div className="flex flex-col items-end gap-0.5">
         <div className="flex items-center gap-1.5 mb-0.5">
-          <span className="text-[10px] font-medium text-emerald-600/70">고객</span>
           {item.startTime && <span className="text-[10px] text-slate-500 tabular-nums">{item.startTime}</span>}
+          <span className="text-[10px] font-medium text-emerald-600/70">고객</span>
         </div>
         <div
           className={cn(
-            'border rounded-2xl rounded-bl-md px-3.5 py-2 shadow-sm',
+            'border rounded-2xl rounded-br-md px-3.5 py-2 shadow-sm',
             isFailed ? 'bg-slate-50 border-slate-200' : 'bg-emerald-50 border-emerald-100',
             isSelected && 'ring-2 ring-blue-300 ring-offset-1',
           )}
@@ -147,16 +147,16 @@ function CustomerBubble({ item, isSelected, isHighlighted, onClick }: { item: Tr
 /** 멀티모달 이미지 버블 (Type=2, 보이는 ARS) */
 function ImageBubble({ item, onClick }: { item: TrackingFlowItem; onClick?: () => void }) {
   return (
-    <div className={cn('flex items-start gap-2.5 max-w-[80%] ml-auto flex-row-reverse', onClick && 'cursor-pointer')} onClick={onClick}>
+    <div className={cn('flex items-start gap-2.5 max-w-[80%]', onClick && 'cursor-pointer')} onClick={onClick}>
       <div className="flex-shrink-0 w-7 h-7 rounded-full bg-blue-500/10 flex items-center justify-center">
         <Monitor size={14} className="text-blue-600" />
       </div>
-      <div className="flex flex-col items-end gap-0.5">
+      <div className="flex flex-col gap-0.5">
         <div className="flex items-center gap-1.5 mb-0.5">
-          {item.startTime && <span className="text-[10px] text-slate-500 tabular-nums">{item.startTime}</span>}
           <span className="text-[10px] font-medium text-blue-600/70">{item.typeName}</span>
+          {item.startTime && <span className="text-[10px] text-slate-500 tabular-nums">{item.startTime}</span>}
         </div>
-        <div className="bg-blue-50 border border-blue-100 rounded-2xl rounded-br-md p-2 shadow-sm">
+        <div className="bg-blue-50 border border-blue-100 rounded-2xl rounded-bl-md p-2 shadow-sm">
           <img src={item.imagePath!} alt="보이는 ARS" className="max-w-[280px] rounded-lg" loading="lazy" />
         </div>
       </div>
