@@ -345,8 +345,6 @@ const BotDialogHistoryDrawer = forwardRef<BotDialogHistoryDrawerRef>((_, ref) =>
   const { data: bubbleData, isLoading: isBubbleLoading } = useGetBubbles({
     params: {
       ucid: selectedRow?.ucid,
-      nextHop: selectedRow?.nextHop,
-      cdrPkey: selectedRow?.cdrPkey,
     },
     queryOptions: { enabled: !!selectedRow && isOpen },
   });
