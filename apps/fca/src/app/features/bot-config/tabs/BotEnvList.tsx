@@ -31,7 +31,7 @@ export default function BotEnvList() {
           ...((sideBar as SideBarDef)?.toolPanels ?? []),
           {
             id: 'envDeployInfo',
-            labelDefault: '배포현황',
+            labelDefault: '적용이력',
             labelKey: 'envDeployInfo',
             iconKey: 'eye',
             toolPanel: AggridEnvDeploySidebar,
