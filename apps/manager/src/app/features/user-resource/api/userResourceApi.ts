@@ -32,15 +32,23 @@ export const userResourceApi = {
    * 봇 서비스 목록 조회
    */
   getBots: async (): Promise<BotService[]> => {
-    const response = await apiClient.get<ListResponse<BotService>>('/bot-list');
-    return extractList(response);
+    try {
+      const response = await apiClient.get<ListResponse<BotService>>('/bot-list', { silent: true });
+      return extractList(response);
+    } catch {
+      return [];
+    }
   },
 
   /**
    * NLU 모델 목록 조회
    */
   getModels: async (): Promise<NluModel[]> => {
-    const response = await apiClient.get<ListResponse<NluModel>>('/model-list');
-    return extractList(response);
+    try {
+      const response = await apiClient.get<ListResponse<NluModel>>('/model-list', { silent: true });
+      return extractList(response);
+    } catch {
+      return [];
+    }
   },
 };

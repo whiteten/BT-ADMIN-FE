@@ -2,11 +2,12 @@ import { useMutation, useQuery } from '@tanstack/react-query';
 import { createQueryKeys } from '@lukemorales/query-key-factory';
 import type { MutationHookOptions, QueryHookWithParamsOptions } from '@/shared-util';
 import { agentApi } from '../api/agentApi';
-import type { AgentItem, AgentListItem } from '../types';
+import type { AgentItem, AgentListItem, AgentType } from '../types';
 
 export const agentQueryKeys = createQueryKeys('agents', {
   getAgents: (params?: Record<string, unknown>) => [params],
   getAgent: (params?: Record<string, unknown>) => [params],
+  getAgentTypes: (params?: Record<string, unknown>) => [params],
 });
 
 export const useGetAgents = ({ params, queryOptions }: QueryHookWithParamsOptions<AgentListItem[]> = {}) => {
@@ -43,6 +44,14 @@ export const useDeleteAgent = ({ mutationOptions }: MutationHookOptions = {}) =>
   return useMutation({
     mutationFn: agentApi.deleteAgent,
     ...mutationOptions,
+  });
+};
+
+export const useGetAgentTypes = ({ params, queryOptions }: QueryHookWithParamsOptions<AgentType[]> = {}) => {
+  return useQuery({
+    queryKey: agentQueryKeys.getAgentTypes(params).queryKey,
+    queryFn: () => agentApi.getAgentTypes(params),
+    ...queryOptions,
   });
 };
 

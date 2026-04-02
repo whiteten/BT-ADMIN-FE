@@ -1,5 +1,5 @@
 import ApiClient, { type DetailResponse, type ListResponse, extractDetail, extractList } from '@/shared-util';
-import type { AgentCreateDatas, AgentItem, AgentListItem, AgentUpdateDatas, AoeStudioInfo } from '../types';
+import type { AgentCreateDatas, AgentDeleteDatas, AgentItem, AgentListItem, AgentType, AgentUpdateDatas, AoeStudioInfo } from '../types';
 
 const apiClient = new ApiClient({ serviceURL: '/bff' });
 
@@ -9,23 +9,27 @@ export const agentApi = {
     return extractList(response);
   },
   getAgent: async (params?: Record<string, unknown>) => {
-    const response = await apiClient.get<DetailResponse<AgentItem>>('/agent', { params });
+    const response = await apiClient.get<DetailResponse<AgentItem>>('/aoe-agents-detail', { params });
     return extractDetail(response);
   },
   createAgent: async (data: AgentCreateDatas) => {
-    const response = await apiClient.post('/agent', data);
+    const response = await apiClient.post('/aoe-agents-create', data);
     return response;
   },
   updateAgent: async ({ agentId, data }: { agentId: string; data: AgentUpdateDatas }) => {
     const response = await apiClient.patch(`/agent/${agentId}`, data);
     return response;
   },
-  deleteAgent: async (agentId: string) => {
-    const response = await apiClient.delete(`/agent/${agentId}`);
+  deleteAgent: async (params: AgentDeleteDatas) => {
+    const response = await apiClient.delete('/aoe-agents-delete', { params });
     return response;
   },
-  getAoeStudioInfo: async ({ params, data }: { params: Record<string, unknown>; data: Record<string, unknown> }): Promise<AoeStudioInfo> => {
-    const response = await apiClient.post<DetailResponse<AoeStudioInfo>>('/aoe-studio-info', data, { params });
+  getAgentTypes: async (params?: Record<string, unknown>) => {
+    const response = await apiClient.get<ListResponse<AgentType>>('/agent-types', { params });
+    return extractList(response);
+  },
+  getAoeStudioInfo: async (params: Record<string, unknown>): Promise<AoeStudioInfo> => {
+    const response = await apiClient.get<DetailResponse<AoeStudioInfo>>('/aoe-studio-info', { params });
     return extractDetail(response);
   },
 };

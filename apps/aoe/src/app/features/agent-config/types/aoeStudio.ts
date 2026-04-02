@@ -1,3 +1,3 @@
 export interface AoeStudioInfo {
-  redirectUrl: string | null;
+  studioUrl: string | null;
 }

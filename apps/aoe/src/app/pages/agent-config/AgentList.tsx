@@ -1,11 +1,15 @@
 import { useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useQueryClient } from '@tanstack/react-query';
 import { type BreadcrumbProps, Button, Input, Select } from 'antd';
+import { toast } from '@/shared-util';
 import AgentCard from '../../features/agent-config/components/AgentCard';
-import { useGetAgents } from '../../features/agent-config/hooks/useAgentQueries';
+import { agentQueryKeys, useDeleteAgent, useGetAgents, useGetAoeStudioInfo } from '../../features/agent-config/hooks/useAgentQueries';
+import type { AgentDeleteDatas, AoeStudioInfo } from '../../features/agent-config/types';
 import { FallbackSpinner } from '@/components/custom/FallbackSpinner';
 import NoData from '@/components/custom/NoData';
 import PageHeader from '@/components/custom/PageHeader';
+import { useModal } from '@/libs/shared-ui/src/hooks/useModal';
 
 const breadcrumb: BreadcrumbProps['items'] = [
   { title: '관리', path: '/aoe/agent-config' },
@@ -20,10 +24,37 @@ const FILTER_OPTIONS = [
 
 export default function AgentList() {
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
+  const modal = useModal();
   const [filterColumn, setFilterColumn] = useState('agentName');
   const [searchValue, setSearchValue] = useState('');
 
   const { data: agents, isLoading } = useGetAgents({});
+  const { mutate: getAoeStudioInfo } = useGetAoeStudioInfo({
+    mutationOptions: {
+      onSuccess: (data) => {
+        const studioInfo = data as AoeStudioInfo;
+        if (!studioInfo.studioUrl) {
+          toast.warning('워크플로우 접속 정보가 없습니다.');
+          return;
+        }
+        window.open(studioInfo.studioUrl, '_blank');
+      },
+    },
+  });
+
+  const handleOpenStudio = (agentId: string) => {
+    getAoeStudioInfo({ agentId });
+  };
+
+  const { mutate: deleteAgent } = useDeleteAgent({
+    mutationOptions: {
+      onSuccess: () => {
+        toast.success('에이전트가 삭제되었습니다.');
+        queryClient.invalidateQueries({ queryKey: agentQueryKeys.getAgents().queryKey });
+      },
+    },
+  });
 
   const filteredList = useMemo(() => {
     if (!agents) return [];
@@ -50,6 +81,12 @@ export default function AgentList() {
     navigate(`../${agentId}`);
   };
 
+  const handleDelete = (data: AgentDeleteDatas) => {
+    modal.confirm.delete({
+      onOk: () => deleteAgent(data),
+    });
+  };
+
   return (
     <div className="flex flex-col gap-4 w-full h-full">
       <PageHeader breadcrumb={breadcrumb} />
@@ -69,7 +106,7 @@ export default function AgentList() {
       ) : filteredList.length ? (
         <div className="grid grid-cols-[repeat(auto-fill,minmax(350px,1fr))] gap-4 w-full overflow-y-auto">
           {filteredList.map((agent) => (
-            <AgentCard key={agent.agentId} {...agent} onDetail={handleDetail} />
+            <AgentCard key={agent.agentId} {...agent} onDetail={handleDetail} onDelete={handleDelete} onOpenStudio={handleOpenStudio} />
           ))}
         </div>
       ) : (

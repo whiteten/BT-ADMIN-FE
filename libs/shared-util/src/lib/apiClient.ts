@@ -14,6 +14,11 @@ export type ApiErrorEvent = CustomEvent<AxiosError>;
 interface ExtendedAxiosRequestConfig extends InternalAxiosRequestConfig {
   key?: string;
   _retry?: boolean;
+  silent?: boolean;
+}
+
+export interface ApiRequestConfig extends AxiosRequestConfig {
+  silent?: boolean;
 }
 
 export interface ApiClientOptions {
@@ -78,7 +83,9 @@ export default class ApiClient {
         return Promise.reject(error);
       }
     }
-    this.#responseErrorHandler(error);
+    if (!originalRequest?.silent) {
+      this.#responseErrorHandler(error);
+    }
     return Promise.reject(error);
   };
 
@@ -104,23 +111,23 @@ export default class ApiClient {
     window.dispatchEvent(new CustomEvent(API_ERROR_EVENT, { detail: error }));
   }
 
-  get<T = unknown, R = AxiosResponse<T>, D = unknown>(url: string, config?: AxiosRequestConfig<D> | undefined): Promise<R> {
+  get<T = unknown, R = AxiosResponse<T>, D = unknown>(url: string, config?: ApiRequestConfig): Promise<R> {
     return this.#instance.get<T, R, D>(url, config);
   }
 
-  post<T = unknown, R = AxiosResponse<T>, D = unknown>(url: string, data?: D | undefined, config?: AxiosRequestConfig<D> | undefined): Promise<R> {
+  post<T = unknown, R = AxiosResponse<T>, D = unknown>(url: string, data?: D | undefined, config?: ApiRequestConfig): Promise<R> {
     return this.#instance.post<T, R, D>(url, data, config);
   }
 
-  put<T = unknown, R = AxiosResponse<T>, D = unknown>(url: string, data?: D | undefined, config?: AxiosRequestConfig<D> | undefined): Promise<R> {
+  put<T = unknown, R = AxiosResponse<T>, D = unknown>(url: string, data?: D | undefined, config?: ApiRequestConfig): Promise<R> {
     return this.#instance.put<T, R, D>(url, data, config);
   }
 
-  delete<T = unknown, R = AxiosResponse<T>, D = unknown>(url: string, config?: AxiosRequestConfig<D> | undefined): Promise<R> {
+  delete<T = unknown, R = AxiosResponse<T>, D = unknown>(url: string, config?: ApiRequestConfig): Promise<R> {
     return this.#instance.delete<T, R, D>(url, config);
   }
 
-  patch<T = unknown, R = AxiosResponse<T>, D = unknown>(url: string, data?: D | undefined, config?: AxiosRequestConfig<D> | undefined): Promise<R> {
+  patch<T = unknown, R = AxiosResponse<T>, D = unknown>(url: string, data?: D | undefined, config?: ApiRequestConfig): Promise<R> {
     return this.#instance.patch<T, R, D>(url, data, config);
   }
 }

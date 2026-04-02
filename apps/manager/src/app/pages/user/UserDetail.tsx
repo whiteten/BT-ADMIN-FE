@@ -11,7 +11,7 @@ import React, { Suspense, useCallback, useEffect, useMemo, useRef, useState } fr
 import { useParams, useSearchParams } from 'react-router-dom';
 import { type BreadcrumbProps, Button, Divider, Tag } from 'antd';
 import { Check, ChevronLeft, ChevronRight, History, Layers, Shield } from 'lucide-react';
-import { useAuthStore } from '@/shared-store';
+import { useAuthStore, useNavigationStore } from '@/shared-store';
 import { type PermissionStats, type ResourceStats, type UserAdditionalFormValues, type UserBasicFormValues, UserDetailProvider } from './context/UserDetailContext';
 import AccountStatusBadge from '../../features/user/components/AccountStatusBadge';
 import { useGetUser } from '../../features/user/hooks/useUserQueries';
@@ -33,7 +33,7 @@ interface PageTab {
   component: React.ComponentType | React.LazyExoticComponent<React.ComponentType>;
 }
 
-const tabs: PageTab[] = [
+const BASE_TABS: PageTab[] = [
   { id: 'tab1', label: '기본정보', icon: IconDocument, component: UserBasicInfoTab },
   { id: 'tab2', label: '리소스 접근', icon: Layers, component: UserResourceAccessTab },
   { id: 'tab3', label: '개별 권한', icon: Shield, component: UserPermissionTab },
@@ -75,6 +75,10 @@ export default function UserDetail() {
   const [searchParams] = useSearchParams();
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   const numericUserId = userId ? Number(userId) : undefined;
+
+  const apps = useNavigationStore((state) => state.apps);
+  const hasFca = apps.some((app) => app.appId === 'fca');
+  const tabs = hasFca ? BASE_TABS : BASE_TABS.filter((t) => t.id !== 'tab2');
 
   const tabFromUrl = searchParams.get('tab');
   const [activeTab, setActiveTab] = useState(tabFromUrl ?? tabs[0]?.id ?? '');
@@ -136,6 +140,13 @@ export default function UserDetail() {
   useEffect(() => {
     resetToServerData();
   }, [resetToServerData]);
+
+  // 활성 탭이 탭 목록에 없을 경우 첫 번째 탭으로 리셋
+  useEffect(() => {
+    if (!tabs.some((t) => t.id === activeTab)) {
+      setActiveTab(tabs[0]?.id ?? '');
+    }
+  }, [tabs, activeTab]);
 
   /**
    * 탭 전환 핸들러
@@ -206,30 +217,34 @@ export default function UserDetail() {
           </div>
         </div>
         <Divider className="!my-3" />
-        {/* 리소스 접근 */}
-        <div className="space-y-2">
-          <div className="flex items-center gap-1">
-            <span className="text-gray-500 w-28 shrink-0">봇 서비스</span>
-            <span className="text-gray-800 flex-1">
-              {resourceStats && resourceStats.botCount > 0 ? (
-                <span className="text-blue-600 font-medium">{resourceStats.botCount}개 설정</span>
-              ) : (
-                <span className="text-gray-400 text-sm">전체 허용</span>
-              )}
-            </span>
-          </div>
-          <div className="flex items-center gap-1">
-            <span className="text-gray-500 w-28 shrink-0">NLU 모델</span>
-            <span className="text-gray-800 flex-1">
-              {resourceStats && resourceStats.modelCount > 0 ? (
-                <span className="text-blue-600 font-medium">{resourceStats.modelCount}개 설정</span>
-              ) : (
-                <span className="text-gray-400 text-sm">전체 허용</span>
-              )}
-            </span>
-          </div>
-        </div>
-        <Divider className="!my-3" />
+        {/* 리소스 접근 - FCA 앱이 있을 때만 표시 */}
+        {hasFca && (
+          <>
+            <div className="space-y-2">
+              <div className="flex items-center gap-1">
+                <span className="text-gray-500 w-28 shrink-0">봇 서비스</span>
+                <span className="text-gray-800 flex-1">
+                  {resourceStats && resourceStats.botCount > 0 ? (
+                    <span className="text-blue-600 font-medium">{resourceStats.botCount}개 설정</span>
+                  ) : (
+                    <span className="text-gray-400 text-sm">전체 허용</span>
+                  )}
+                </span>
+              </div>
+              <div className="flex items-center gap-1">
+                <span className="text-gray-500 w-28 shrink-0">NLU 모델</span>
+                <span className="text-gray-800 flex-1">
+                  {resourceStats && resourceStats.modelCount > 0 ? (
+                    <span className="text-blue-600 font-medium">{resourceStats.modelCount}개 설정</span>
+                  ) : (
+                    <span className="text-gray-400 text-sm">전체 허용</span>
+                  )}
+                </span>
+              </div>
+            </div>
+            <Divider className="!my-3" />
+          </>
+        )}
         {/* 개별 권한 (Replacement 모델) */}
         <div className="space-y-2">
           <div className="flex items-center gap-1">
