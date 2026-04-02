@@ -11,9 +11,22 @@ type AgentCardProps = AgentListItem & {
   onDetail?: (agentId: string) => void;
   onOpenStudio?: (agentId: string) => void;
   onDelete?: (data: AgentDeleteDatas) => void;
+  onPlayground?: (agentId: string) => void;
 };
 
-export default function AgentCard({ agentId, agentName, agentTypeName, aoeDeployFlag, aoeApiKey, deployTime, onDetail, onOpenStudio, onDelete }: AgentCardProps) {
+export default function AgentCard({ agentId, agentName, agentTypeName, aoeDeployFlag, aoeApiKey, deployTime, onDetail, onOpenStudio, onDelete, onPlayground }: AgentCardProps) {
+  const title = (
+    <span
+      className="hover:cursor-pointer hover:!text-[var(--color-bt-primary)]"
+      onClick={(e) => {
+        e.stopPropagation();
+        onDetail?.(agentId);
+      }}
+    >
+      {agentName}
+    </span>
+  );
+
   const extra = (
     <DropdownMenu>
       <DropdownMenuTrigger asChild onClick={(e) => e.stopPropagation()}>
@@ -23,6 +36,12 @@ export default function AgentCard({ agentId, agentName, agentTypeName, aoeDeploy
         </Button>
       </DropdownMenuTrigger>
       <DropdownMenuContent className="dark" align="end" onClick={(e) => e.stopPropagation()}>
+        <DropdownMenuItem onClick={() => onDetail?.(agentId)} className="hover:cursor-pointer">
+          상세보기
+        </DropdownMenuItem>
+        <DropdownMenuItem onClick={() => onPlayground?.(agentId)} className="hover:cursor-pointer">
+          Playground
+        </DropdownMenuItem>
         <DropdownMenuItem onClick={() => onDelete?.({ agentId, aoeDeployFlag, aoeApiKey })} className="hover:cursor-pointer">
           삭제
         </DropdownMenuItem>
@@ -32,11 +51,11 @@ export default function AgentCard({ agentId, agentName, agentTypeName, aoeDeploy
 
   return (
     <Card
-      title={agentName}
+      title={title}
       styles={{ header: { paddingRight: '0 20px 0 20px' }, body: { padding: '20px', paddingTop: '16px' } }}
       extra={extra}
       className="hover:!border-[var(--color-bt-primary)] hover:cursor-pointer"
-      onClick={() => onDetail?.(agentId)}
+      onClick={() => onPlayground?.(agentId)}
     >
       <div className="flex flex-col text-[#495057] gap-2">
         <div className="flex">

@@ -35,6 +35,7 @@ export default function AgentBasicInfo() {
       onSuccess: () => {
         toast.success('에이전트 기본 정보가 저장되었습니다.');
         queryClient.invalidateQueries({ queryKey: agentQueryKeys.getAgent({ agentId }).queryKey });
+        navigate('../list');
       },
     },
   });

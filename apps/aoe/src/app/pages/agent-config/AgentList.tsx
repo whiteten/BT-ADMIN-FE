@@ -1,9 +1,10 @@
-import { useMemo, useState } from 'react';
+import { useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useQueryClient } from '@tanstack/react-query';
 import { type BreadcrumbProps, Button, Input, Select } from 'antd';
 import { toast } from '@/shared-util';
 import AgentCard from '../../features/agent-config/components/AgentCard';
+import AgentPlaygroundDrawer, { type AgentPlaygroundDrawerRef } from '../../features/agent-config/components/AgentPlaygroundDrawer';
 import { agentQueryKeys, useDeleteAgent, useGetAgents, useGetAoeStudioInfo } from '../../features/agent-config/hooks/useAgentQueries';
 import type { AgentDeleteDatas, AoeStudioInfo } from '../../features/agent-config/types';
 import { FallbackSpinner } from '@/components/custom/FallbackSpinner';
@@ -26,6 +27,7 @@ export default function AgentList() {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const modal = useModal();
+  const playgroundRef = useRef<AgentPlaygroundDrawerRef>(null);
   const [filterColumn, setFilterColumn] = useState('agentName');
   const [searchValue, setSearchValue] = useState('');
 
@@ -87,8 +89,19 @@ export default function AgentList() {
     });
   };
 
+  const handlePlayground = (agentId: string) => {
+    const agent = agents?.find((a) => a.agentId === agentId);
+    if (!agent) return;
+    if (!agent.aoeDeployFlag) {
+      toast.warning('배포된 에이전트만 Playground를 사용할 수 있습니다.');
+      return;
+    }
+    playgroundRef.current?.open({ agentId, agentName: agent.agentName });
+  };
+
   return (
     <div className="flex flex-col gap-4 w-full h-full">
+      <AgentPlaygroundDrawer ref={playgroundRef} />
       <PageHeader breadcrumb={breadcrumb} />
       <div className="flex items-center justify-between gap-2 w-full h-[76px] bg-white bt-shadow px-7 py-5">
         <div className="flex gap-2 w-full items-center">
@@ -106,7 +119,7 @@ export default function AgentList() {
       ) : filteredList.length ? (
         <div className="grid grid-cols-[repeat(auto-fill,minmax(350px,1fr))] gap-4 w-full overflow-y-auto">
           {filteredList.map((agent) => (
-            <AgentCard key={agent.agentId} {...agent} onDetail={handleDetail} onDelete={handleDelete} onOpenStudio={handleOpenStudio} />
+            <AgentCard key={agent.agentId} {...agent} onDetail={handleDetail} onDelete={handleDelete} onOpenStudio={handleOpenStudio} onPlayground={handlePlayground} />
           ))}
         </div>
       ) : (

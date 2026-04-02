@@ -55,6 +55,20 @@ export const useGetAgentTypes = ({ params, queryOptions }: QueryHookWithParamsOp
   });
 };
 
+export const useTestAgent = ({ mutationOptions }: MutationHookOptions = {}) => {
+  return useMutation({
+    mutationFn: agentApi.testAgent,
+    ...mutationOptions,
+  });
+};
+
+export const useRefreshAgent = ({ mutationOptions }: MutationHookOptions = {}) => {
+  return useMutation({
+    mutationFn: agentApi.refreshAgent,
+    ...mutationOptions,
+  });
+};
+
 export const useGetAoeStudioInfo = ({ mutationOptions }: MutationHookOptions = {}) => {
   return useMutation({
     mutationFn: agentApi.getAoeStudioInfo,

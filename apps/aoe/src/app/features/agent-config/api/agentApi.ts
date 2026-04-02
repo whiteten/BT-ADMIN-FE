@@ -1,5 +1,5 @@
 import ApiClient, { type DetailResponse, type ListResponse, extractDetail, extractList } from '@/shared-util';
-import type { AgentCreateDatas, AgentDeleteDatas, AgentItem, AgentListItem, AgentType, AgentUpdateDatas, AoeStudioInfo } from '../types';
+import type { AgentCreateDatas, AgentDeleteDatas, AgentItem, AgentListItem, AgentTestRequest, AgentType, AgentUpdateDatas, AoeStudioInfo } from '../types';
 
 const apiClient = new ApiClient({ serviceURL: '/bff' });
 
@@ -17,7 +17,7 @@ export const agentApi = {
     return response;
   },
   updateAgent: async ({ agentId, data }: { agentId: string; data: AgentUpdateDatas }) => {
-    const response = await apiClient.patch(`/agent/${agentId}`, data);
+    const response = await apiClient.put('/aoe-agents-update', data, { params: { agentId } });
     return response;
   },
   deleteAgent: async (params: AgentDeleteDatas) => {
@@ -27,6 +27,14 @@ export const agentApi = {
   getAgentTypes: async (params?: Record<string, unknown>) => {
     const response = await apiClient.get<ListResponse<AgentType>>('/agent-types', { params });
     return extractList(response);
+  },
+  testAgent: async ({ agentId, body }: AgentTestRequest) => {
+    const response = await apiClient.post<DetailResponse<{ result: string }>>('/aoe-agents-test', body, { params: { agentId } });
+    return extractDetail(response);
+  },
+  refreshAgent: async ({ agentId, body }: AgentTestRequest) => {
+    const response = await apiClient.post<DetailResponse<{ result: string }>>('/aoe-agents-refresh', body, { params: { agentId } });
+    return extractDetail(response);
   },
   getAoeStudioInfo: async (params: Record<string, unknown>): Promise<AoeStudioInfo> => {
     const response = await apiClient.get<DetailResponse<AoeStudioInfo>>('/aoe-studio-info', { params });
