@@ -65,7 +65,7 @@ function BotBubble({ item, isSelected, onClick, onIfeLink }: { item: TrackingFlo
       {/* 말풍선 */}
       <div className="flex flex-col gap-0.5">
         <div className="flex items-center gap-1.5 mb-0.5">
-          <span className="text-[10px] font-medium text-blue-600/70">IVR</span>
+          <span className="text-[10px] font-medium text-blue-600/70">보이스봇</span>
           {item.startTime && <span className="text-[10px] text-slate-500 tabular-nums">{item.startTime}</span>}
         </div>
         <div className="flex items-center gap-1">
@@ -153,7 +153,7 @@ function ImageBubble({ item, onClick }: { item: TrackingFlowItem; onClick?: () =
       </div>
       <div className="flex flex-col gap-0.5">
         <div className="flex items-center gap-1.5 mb-0.5">
-          <span className="text-[10px] font-medium text-blue-600/70">{item.typeName}</span>
+          <span className="text-[10px] font-medium text-blue-600/70">보이스봇</span>
           {item.startTime && <span className="text-[10px] text-slate-500 tabular-nums">{item.startTime}</span>}
         </div>
         <div className="bg-blue-50 border border-blue-100 rounded-2xl rounded-bl-md p-2 shadow-sm">
