@@ -3,11 +3,11 @@
  * BFF Aggregation Flow 기반
  *
  * 등록된 flow (DB: TB_BT_CM_AGG_FLOW_MST):
- * - ipron-didroute-list:     GET    DID라우트 목록 조회
- * - ipron-didroute-detail:   GET    DID라우트 상세 조회
- * - ipron-didroute-create:   POST   DID라우트 등록
- * - ipron-didroute-update:   PUT    DID라우트 수정
- * - ipron-didroute-delete:   DELETE DID라우트 삭제
+ * - ipron-did-route-list:     GET    DID라우트 목록 조회
+ * - ipron-did-route-detail:   GET    DID라우트 상세 조회
+ * - ipron-did-route-create:   POST   DID라우트 등록
+ * - ipron-did-route-update:   PUT    DID라우트 수정
+ * - ipron-did-route-delete:   DELETE DID라우트 삭제
  * - manager-node-list:       GET    노드 목록 조회 (cross-service)
  * - ipron-route-list:        GET    발신라우트 목록 조회 (라우트 select용)
  */
@@ -32,39 +32,39 @@ export const didRouteApi = {
 
   /**
    * DID라우트 목록 조회
-   * @flow ipron-didroute-list
+   * @flow ipron-did-route-list
    * Backend: ApiResponse<List<DidRouteResponse>> -> BFF: data.value[]
    */
   getList: async (params?: Record<string, unknown>): Promise<DidRoute[]> => {
-    const response = await apiClient.get<DetailResponse<{ value: DidRoute[] }>>('/ipron-didroute-list', { params });
+    const response = await apiClient.get<DetailResponse<{ value: DidRoute[] }>>('/ipron-did-route-list', { params });
     return extractDetail(response)?.value ?? [];
   },
 
   /**
    * DID라우트 상세 조회
-   * @flow ipron-didroute-detail
+   * @flow ipron-did-route-detail
    * Backend: ApiResponse<DidRouteResponse> -> BFF: data:{...}
    */
   getDetail: async (params: Record<string, unknown>): Promise<DidRoute> => {
-    const response = await apiClient.get<DetailResponse<DidRoute>>('/ipron-didroute-detail', { params });
+    const response = await apiClient.get<DetailResponse<DidRoute>>('/ipron-did-route-detail', { params });
     return extractDetail(response);
   },
 
   /**
    * DID라우트 등록
-   * @flow ipron-didroute-create
+   * @flow ipron-did-route-create
    */
   create: async (data: DidRouteCreateRequest): Promise<DidRoute> => {
-    const response = await apiClient.post<DetailResponse<DidRoute>>('/ipron-didroute-create', data);
+    const response = await apiClient.post<DetailResponse<DidRoute>>('/ipron-did-route-create', data);
     return extractDetail(response);
   },
 
   /**
    * DID라우트 수정
-   * @flow ipron-didroute-update
+   * @flow ipron-did-route-update
    */
   update: async ({ id, data }: { id: number; data: DidRouteUpdateRequest }): Promise<DidRoute> => {
-    const response = await apiClient.put<DetailResponse<DidRoute>>('/ipron-didroute-update', data, {
+    const response = await apiClient.put<DetailResponse<DidRoute>>('/ipron-did-route-update', data, {
       params: { id },
     });
     return extractDetail(response);
@@ -72,10 +72,10 @@ export const didRouteApi = {
 
   /**
    * DID라우트 삭제
-   * @flow ipron-didroute-delete
+   * @flow ipron-did-route-delete
    */
   delete: async (params: Record<string, unknown>) => {
-    return await apiClient.delete('/ipron-didroute-delete', { params });
+    return await apiClient.delete('/ipron-did-route-delete', { params });
   },
 
   // ─── Node (cross-service) ────────────────────────────────────────────────────
