@@ -99,6 +99,13 @@ const menuConfig = {
           index: 6,
           hide: false,
         },
+        {
+          menuId: 110,
+          label: 'DID라우트관리',
+          path: 'line/did-route',
+          index: 7,
+          hide: false,
+        },
       ],
     },
   ],

@@ -17,6 +17,8 @@ const MediaDeliveryFormPage = React.lazy(() => import('./features/media-delivery
 const AclListPage = React.lazy(() => import('./features/acl/pages/AclListPage'));
 const DidTransListPage = React.lazy(() => import('./features/did-trans/pages/DidTransListPage'));
 const PreNumTransListPage = React.lazy(() => import('./features/pre-num-trans/pages/PreNumTransListPage'));
+const DidRouteListPage = React.lazy(() => import('./features/did-route/pages/DidRouteListPage'));
+const DidRouteFormPage = React.lazy(() => import('./features/did-route/pages/DidRouteFormPage'));
 export const routes = [
   {
     path: '/',
@@ -101,6 +103,18 @@ export const routes = [
       {
         path: 'line/pre-num-trans',
         element: <PreNumTransListPage />,
+      },
+      {
+        path: 'line/did-route',
+        element: <DidRouteListPage />,
+      },
+      {
+        path: 'line/did-route/form',
+        element: <DidRouteFormPage />,
+      },
+      {
+        path: 'line/did-route/form/:id',
+        element: <DidRouteFormPage />,
       },
     ],
   },
