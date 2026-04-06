@@ -133,6 +133,13 @@ export default function DidRouteFormPage() {
     try {
       if (currentStep === 0) {
         await form.validateFields(['didrouteName', 'nodeId', 'priority']);
+        // ANI 또는 DNIS 하나 이상 필수
+        const aniVal = form.getFieldValue('aniPattern');
+        const dnisVal = form.getFieldValue('dnisPattern');
+        if (!aniVal && !dnisVal) {
+          toast.error('ANI 패턴 또는 DNIS 패턴 중 하나 이상 입력해야 합니다.');
+          return;
+        }
       }
       setCurrentStep((prev) => Math.min(prev + 1, steps.length - 1));
     } catch {
@@ -208,11 +215,11 @@ export default function DidRouteFormPage() {
         {/* 1. 기본정보 */}
         <div className="space-y-2">
           <div className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2">1. 기본정보</div>
-          <SummaryRow label="라우트명" value={displayValue(values.didrouteName)} />
-          <SummaryRow label="노드" value={displayValue(nodeName)} />
-          <SummaryRow label="ANI 패턴" value={displayValue(values.aniPattern)} />
-          <SummaryRow label="DNIS 패턴" value={displayValue(values.dnisPattern)} />
-          <SummaryRow label="우선순위" value={displayValue(values.priority)} />
+          <SummaryRow label="라우트명" value={displayValue(values.didrouteName)} required />
+          <SummaryRow label="노드" value={displayValue(nodeName)} required />
+          <SummaryRow label="ANI 패턴" value={displayValue(values.aniPattern)} required />
+          <SummaryRow label="DNIS 패턴" value={displayValue(values.dnisPattern)} required />
+          <SummaryRow label="우선순위" value={displayValue(values.priority)} required />
           <SummaryRow label="익명통화 차단" value={displayValue(values.anonyCallBlock === 1 ? '설정' : '해제')} />
         </div>
 
@@ -356,7 +363,7 @@ export default function DidRouteFormPage() {
                     </Row>
                     <Row gutter={20}>
                       <Col span={8}>
-                        <Form.Item name="aniPattern" label="ANI 패턴" rules={[{ max: 256, message: '256자 이내여야 합니다' }]}>
+                        <Form.Item name="aniPattern" label="ANI 패턴" required rules={[{ max: 256, message: '256자 이내여야 합니다' }]} tooltip="ANI 또는 DNIS 중 하나 이상 필수">
                           <Input
                             placeholder="ANI 패턴"
                             maxLength={256}
@@ -369,7 +376,7 @@ export default function DidRouteFormPage() {
                         </Form.Item>
                       </Col>
                       <Col span={8}>
-                        <Form.Item name="dnisPattern" label="DNIS 패턴" rules={[{ max: 256, message: '256자 이내여야 합니다' }]}>
+                        <Form.Item name="dnisPattern" label="DNIS 패턴" required rules={[{ max: 256, message: '256자 이내여야 합니다' }]} tooltip="ANI 또는 DNIS 중 하나 이상 필수">
                           <Input
                             placeholder="DNIS 패턴"
                             maxLength={256}
@@ -553,10 +560,13 @@ export default function DidRouteFormPage() {
 }
 
 // ─── 요약 행 컴포넌트 ─────────────────────────────────────────────────────────
-function SummaryRow({ label, value }: { label: string; value: React.ReactNode }) {
+function SummaryRow({ label, value, required }: { label: string; value: React.ReactNode; required?: boolean }) {
   return (
     <div className="flex items-center gap-1">
-      <span className="text-gray-500 w-[140px] shrink-0">{label}</span>
+      <span className="text-gray-500 w-[140px] shrink-0">
+        {label}
+        {required && <span className="text-red-500 ml-0.5">*</span>}
+      </span>
       <span className="text-gray-800 font-medium flex-1">{value}</span>
     </div>
   );
