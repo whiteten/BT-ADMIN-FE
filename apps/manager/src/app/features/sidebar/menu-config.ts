@@ -63,9 +63,16 @@ const menuConfig = {
       hide: false,
       children: [
         {
+          menuId: 106,
+          label: '데이터 보관주기',
+          path: 'resource/data-retention',
+          index: 0,
+          hide: false,
+        },
+        {
           menuId: 62,
           label: '플랫폼',
-          index: 0,
+          index: 1,
           hide: false,
           children: [
             {
