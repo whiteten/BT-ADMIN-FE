@@ -6,13 +6,14 @@ import { useMutation, useQuery } from '@tanstack/react-query';
 import { createQueryKeys } from '@lukemorales/query-key-factory';
 import type { MutationHookOptions, QueryHookOptions, QueryHookWithParamsOptions } from '@/shared-util';
 import { emergProfileApi } from '../api/emergProfileApi';
-import type { EmergCode, EmergProfile, EmergProfileDetail, NodeSimpleResponse } from '../types/emergProfile.types';
+import type { EmergCode, EmergProfile, EmergProfileDetail, NodeSimpleResponse, RouteSimpleResponse } from '../types/emergProfile.types';
 
 export const emergProfileQueryKeys = createQueryKeys('emergProfiles', {
   getProfiles: (params?: Record<string, unknown>) => [params],
   getProfileDetail: (params?: Record<string, unknown>) => [params],
   getCodes: (params?: Record<string, unknown>) => [params],
   getNodes: null,
+  getRoutesByNode: (nodeId?: number) => [nodeId],
 });
 
 // ─── Profile Queries ─────────────────────────────────────────────────────────
@@ -131,6 +132,18 @@ export const useGetNodes = ({ queryOptions }: QueryHookOptions<NodeSimpleRespons
   return useQuery({
     queryKey: emergProfileQueryKeys.getNodes.queryKey,
     queryFn: () => emergProfileApi.getNodes(),
+    ...queryOptions,
+  });
+};
+
+/**
+ * 노드별 발신라우트 목록 조회
+ */
+export const useGetRoutesByNode = (nodeId: number | null, { queryOptions }: QueryHookOptions<RouteSimpleResponse[]> = {}) => {
+  return useQuery({
+    queryKey: emergProfileQueryKeys.getRoutesByNode(nodeId ?? undefined).queryKey,
+    queryFn: () => emergProfileApi.getRoutesByNode(nodeId!),
+    enabled: !!nodeId,
     ...queryOptions,
   });
 };

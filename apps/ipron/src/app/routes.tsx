@@ -19,6 +19,8 @@ const DidTransListPage = React.lazy(() => import('./features/did-trans/pages/Did
 const PreNumTransListPage = React.lazy(() => import('./features/pre-num-trans/pages/PreNumTransListPage'));
 const DidRouteListPage = React.lazy(() => import('./features/did-route/pages/DidRouteListPage'));
 const DidRouteFormPage = React.lazy(() => import('./features/did-route/pages/DidRouteFormPage'));
+const DodTransListPage = React.lazy(() => import('./features/dod-trans/pages/DodTransListPage'));
+const CallScreenListPage = React.lazy(() => import('./features/call-screen/pages/CallScreenListPage'));
 export const routes = [
   {
     path: '/',
@@ -115,6 +117,14 @@ export const routes = [
       {
         path: 'line/did-route/form/:id',
         element: <DidRouteFormPage />,
+      },
+      {
+        path: 'line/dod-trans',
+        element: <DodTransListPage />,
+      },
+      {
+        path: 'line/call-screen',
+        element: <CallScreenListPage />,
       },
     ],
   },

@@ -87,7 +87,7 @@ const NodeMsSettingDrawer = forwardRef<NodeMsSettingDrawerRef, Props>(({ onSucce
       title={`노드 기본 MS 설정 - ${nodeName}`}
       open={visible}
       onClose={() => setVisible(false)}
-      width={380}
+      styles={{ wrapper: { width: 380 } }}
       loading={loading}
       footer={
         <div className="flex justify-end gap-2">

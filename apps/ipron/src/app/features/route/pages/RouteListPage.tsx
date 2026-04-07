@@ -343,9 +343,9 @@ export default function RouteListPage() {
       <PageHeader breadcrumb={breadcrumb} />
 
       {/* Split container: Left Tree + Right (Cards + Bottom Panel) */}
-      <div className="flex flex-1 min-h-0 bg-white bt-shadow overflow-hidden rounded-md border border-gray-200">
+      <div className="flex flex-1 min-h-0 gap-4">
         {/* ===== Left Panel: Node Tree (280px) ===== */}
-        <div className="w-[280px] min-w-[280px] border-r border-gray-200 flex flex-col overflow-hidden">
+        <div className="w-[280px] min-w-[280px] bg-white bt-shadow rounded-md border border-gray-200 flex flex-col overflow-hidden">
           <div className="px-4 py-3 border-b border-gray-100 flex-shrink-0">
             <Input placeholder="라우트명 검색" size="small" allowClear value={searchText} onChange={(e) => setSearchText(e.target.value)} />
           </div>
@@ -419,11 +419,11 @@ export default function RouteListPage() {
         </div>
 
         {/* ===== Right Panel: Cards (top) + RoutePoint (bottom) ===== */}
-        <div className="flex-1 flex flex-col overflow-hidden">
+        <div className="flex-1 flex flex-col gap-4 min-w-0">
           {selectedNodeId ? (
             <>
               {/* -- Top: Card Slider Area -- */}
-              <div className="flex flex-col overflow-hidden flex-shrink-0">
+              <div className="bg-white bt-shadow rounded-md border border-gray-200 flex flex-col overflow-hidden flex-shrink-0">
                 {/* Card grid header */}
                 <div className="px-5 py-3 border-b border-gray-100 flex items-center justify-between flex-shrink-0">
                   <span className="text-sm font-semibold text-gray-800">
@@ -528,7 +528,7 @@ export default function RouteListPage() {
               </div>
 
               {/* -- Bottom: RoutePoint Panel -- */}
-              <div className="border-t border-gray-200 flex flex-col flex-1 min-h-0">
+              <div className="bg-white bt-shadow rounded-md border border-gray-200 flex flex-col flex-1 min-h-0 overflow-hidden">
                 {selectedRoute ? (
                   <div className="flex flex-col flex-1 min-h-0">
                     {/* Bottom header: selected route name + status */}
@@ -578,7 +578,7 @@ export default function RouteListPage() {
             </>
           ) : (
             /* Empty state when no node selected */
-            <div className="flex flex-col items-center justify-center h-full text-gray-400 gap-3 px-8">
+            <div className="bg-white bt-shadow rounded-md border border-gray-200 flex flex-col items-center justify-center h-full text-gray-400 gap-3 px-8">
               <Empty description={false} />
               <span className="text-sm">좌측에서 노드를 선택하세요</span>
             </div>

@@ -80,7 +80,15 @@ const EmergProfileDrawer = forwardRef<EmergProfileDrawerRef, EmergProfileDrawerP
   );
 
   return (
-    <Drawer open={isOpen} onClose={handleClose} title={isEditMode ? '프로파일 수정' : '프로파일 등록'} closable={{ placement: 'end' }} width={420} footer={footer} destroyOnHidden>
+    <Drawer
+      open={isOpen}
+      onClose={handleClose}
+      title={isEditMode ? '프로파일 수정' : '프로파일 등록'}
+      closable={{ placement: 'end' }}
+      styles={{ wrapper: { width: 420 } }}
+      footer={footer}
+      destroyOnHidden
+    >
       <Form form={form} layout="vertical">
         <Form.Item
           label="프로파일명"

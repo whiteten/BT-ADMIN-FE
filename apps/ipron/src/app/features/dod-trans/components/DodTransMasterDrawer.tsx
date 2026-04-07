@@ -1,21 +1,16 @@
 /**
- * 미디어전달그룹 등록/수정 Drawer
+ * DOD DNIS 변환 마스터 등록/수정 Drawer
  * forwardRef + useImperativeHandle 패턴
  */
 import { forwardRef, useCallback, useEffect, useImperativeHandle, useState } from 'react';
-import { Button, Drawer, Form, Input, Select } from 'antd';
+import { Button, Drawer, Form, Input } from 'antd';
 import { toast } from '@/shared-util';
-import { useCreateMdGrp, useDeleteMdGrp, useUpdateMdGrp } from '../hooks/useMediaDeliveryQueries';
-import type { MdGrp } from '../types/mediaDelivery.types';
+import { useCreateMaster, useDeleteMaster, useUpdateMaster } from '../hooks/useDodTransQueries';
+import type { DodTransMaster } from '../types/dodTrans.types';
 import { useModal } from '@/libs/shared-ui/src/hooks/useModal';
 
-interface NodeOption {
-  nodeId: number;
-  nodeName: string;
-}
-
-export interface MdGrpDrawerRef {
-  open: (data?: MdGrp, nodeId?: number, nodeName?: string, nodeList?: NodeOption[]) => void;
+export interface DodTransMasterDrawerRef {
+  open: (data?: DodTransMaster, nodeId?: number, nodeName?: string, tenantId?: number, tenantName?: string) => void;
   close: () => void;
 }
 
@@ -23,24 +18,25 @@ interface Props {
   onSuccess: () => void;
 }
 
-const MdGrpDrawer = forwardRef<MdGrpDrawerRef, Props>(({ onSuccess }, ref) => {
+const DodTransMasterDrawer = forwardRef<DodTransMasterDrawerRef, Props>(({ onSuccess }, ref) => {
   const [form] = Form.useForm();
   const modal = useModal();
   const [visible, setVisible] = useState(false);
-  const [editData, setEditData] = useState<MdGrp | null>(null);
+  const [editData, setEditData] = useState<DodTransMaster | null>(null);
   const [nodeId, setNodeId] = useState<number | null>(null);
   const [nodeName, setNodeName] = useState<string>('');
-  const [nodeOptions, setNodeOptions] = useState<NodeOption[]>([]);
+  const [tenantId, setTenantId] = useState<number | null>(null);
+  const [tenantName, setTenantName] = useState<string>('');
 
   const isEditMode = !!editData;
-  const isNodeSelectable = !isEditMode && !nodeId && nodeOptions.length > 0;
 
   useImperativeHandle(ref, () => ({
-    open: (data?: MdGrp, initNodeId?: number, initNodeName?: string, nodeList?: NodeOption[]) => {
+    open: (data?: DodTransMaster, initNodeId?: number, initNodeName?: string, initTenantId?: number, initTenantName?: string) => {
       setEditData(data ?? null);
       setNodeId(data?.nodeId ?? initNodeId ?? null);
       setNodeName(data?.nodeName ?? initNodeName ?? '');
-      setNodeOptions(nodeList ?? []);
+      setTenantId(data?.tenantId ?? initTenantId ?? null);
+      setTenantName(data?.tenantName ?? initTenantName ?? '');
       setVisible(true);
     },
     close: () => {
@@ -48,7 +44,6 @@ const MdGrpDrawer = forwardRef<MdGrpDrawerRef, Props>(({ onSuccess }, ref) => {
       setEditData(null);
       setNodeId(null);
       setNodeName('');
-      setNodeOptions([]);
       form.resetFields();
     },
   }));
@@ -56,7 +51,7 @@ const MdGrpDrawer = forwardRef<MdGrpDrawerRef, Props>(({ onSuccess }, ref) => {
   useEffect(() => {
     if (visible && editData) {
       form.setFieldsValue({
-        grpName: editData.grpName,
+        dodTransName: editData.dodTransName,
       });
     } else if (visible) {
       form.resetFields();
@@ -64,30 +59,30 @@ const MdGrpDrawer = forwardRef<MdGrpDrawerRef, Props>(({ onSuccess }, ref) => {
   }, [visible, editData, form]);
 
   // ─── Mutations ──────────────────────────────────────────────────────────────
-  const { mutate: createMdGrp, isPending: isCreating } = useCreateMdGrp({
+  const { mutate: createMaster, isPending: isCreating } = useCreateMaster({
     mutationOptions: {
       onSuccess: () => {
-        toast.success('미디어전달그룹이 등록되었습니다.');
+        toast.success('DOD DNIS 변환이 등록되었습니다.');
         handleClose();
         onSuccess();
       },
     },
   });
 
-  const { mutate: updateMdGrp, isPending: isUpdating } = useUpdateMdGrp({
+  const { mutate: updateMaster, isPending: isUpdating } = useUpdateMaster({
     mutationOptions: {
       onSuccess: () => {
-        toast.success('미디어전달그룹이 수정되었습니다.');
+        toast.success('DOD DNIS 변환이 수정되었습니다.');
         handleClose();
         onSuccess();
       },
     },
   });
 
-  const { mutate: deleteMdGrp, isPending: isDeleting } = useDeleteMdGrp({
+  const { mutate: deleteMaster, isPending: isDeleting } = useDeleteMaster({
     mutationOptions: {
       onSuccess: () => {
-        toast.success('미디어전달그룹이 삭제되었습니다.');
+        toast.success('DOD DNIS 변환이 삭제되었습니다.');
         handleClose();
         onSuccess();
       },
@@ -101,48 +96,49 @@ const MdGrpDrawer = forwardRef<MdGrpDrawerRef, Props>(({ onSuccess }, ref) => {
     setEditData(null);
     setNodeId(null);
     setNodeName('');
-    setNodeOptions([]);
+    setTenantId(null);
+    setTenantName('');
     form.resetFields();
   }, [form]);
 
   const handleSubmit = useCallback(async () => {
     try {
       const values = await form.validateFields();
-      const targetNodeId = nodeId ?? values.nodeId;
-      if (!targetNodeId) {
-        toast.error('노드를 선택하세요.');
+      if (!nodeId) {
+        toast.error('노드 정보가 없습니다.');
         return;
       }
 
       const payload = {
-        nodeId: targetNodeId,
-        grpName: values.grpName,
+        nodeId,
+        tenantId: tenantId ?? undefined,
+        dodTransName: values.dodTransName,
       };
 
       if (isEditMode && editData) {
-        updateMdGrp({ id: editData.grpId, data: payload });
+        updateMaster({ id: editData.dodTransId, data: payload });
       } else {
-        createMdGrp(payload);
+        createMaster(payload);
       }
     } catch {
       /* validation failed */
     }
-  }, [form, isEditMode, editData, nodeId, createMdGrp, updateMdGrp]);
+  }, [form, isEditMode, editData, nodeId, createMaster, updateMaster]);
 
   const handleDelete = useCallback(() => {
     if (!editData) return;
     modal.confirm.execute({
-      onOk: () => deleteMdGrp({ id: editData.grpId }),
+      onOk: () => deleteMaster({ id: editData.dodTransId }),
       options: {
-        title: '미디어전달그룹 삭제',
-        content: `"${editData.grpName}" 그룹을 삭제하시겠습니까?\n할당된 미디어전달이 있으면 삭제할 수 없습니다.`,
+        title: 'DOD DNIS 변환 삭제',
+        content: `"${editData.dodTransName}" 변환을 삭제하시겠습니까?\n등록된 패턴이 있으면 삭제할 수 없습니다.`,
       },
     });
-  }, [editData, modal, deleteMdGrp]);
+  }, [editData, modal, deleteMaster]);
 
   return (
     <Drawer
-      title={isEditMode ? '미디어전달그룹 수정' : '미디어전달그룹 등록'}
+      title={isEditMode ? 'DOD DNIS 변환 수정' : 'DOD DNIS 변환 등록'}
       open={visible}
       onClose={handleClose}
       styles={{ wrapper: { width: 420 } }}
@@ -165,37 +161,29 @@ const MdGrpDrawer = forwardRef<MdGrpDrawerRef, Props>(({ onSuccess }, ref) => {
       }
     >
       <Form form={form} layout="vertical">
-        {isNodeSelectable ? (
-          <Form.Item name="nodeId" label="노드" required rules={[{ required: true, message: '노드를 선택하세요' }]}>
-            <Select placeholder="노드를 선택하세요">
-              {nodeOptions.map((n) => (
-                <Select.Option key={n.nodeId} value={n.nodeId}>
-                  {n.nodeName}
-                </Select.Option>
-              ))}
-            </Select>
-          </Form.Item>
-        ) : (
-          <Form.Item label="노드">
-            <Input value={nodeName || (nodeId ? `Node ${nodeId}` : '')} disabled />
-          </Form.Item>
-        )}
+        <Form.Item label="노드">
+          <Input value={nodeName || (nodeId ? `Node ${nodeId}` : '')} disabled />
+        </Form.Item>
+
+        <Form.Item label="테넌트">
+          <Input value={tenantName || (tenantId ? `Tenant ${tenantId}` : '')} disabled />
+        </Form.Item>
 
         <Form.Item
-          name="grpName"
-          label="그룹명"
+          name="dodTransName"
+          label="DOD DNIS 변환명"
           required
           rules={[
-            { required: true, message: '그룹명은 필수입니다' },
-            { max: 128, message: '그룹명은 128자 이내여야 합니다' },
+            { required: true, message: 'DOD DNIS 변환명은 필수입니다' },
+            { max: 100, message: 'DOD DNIS 변환명은 100자 이내여야 합니다' },
           ]}
         >
-          <Input placeholder="그룹명을 입력하세요" maxLength={128} />
+          <Input placeholder="DOD DNIS 변환명을 입력하세요" maxLength={100} />
         </Form.Item>
       </Form>
     </Drawer>
   );
 });
 
-MdGrpDrawer.displayName = 'MdGrpDrawer';
-export default MdGrpDrawer;
+DodTransMasterDrawer.displayName = 'DodTransMasterDrawer';
+export default DodTransMasterDrawer;

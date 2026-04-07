@@ -288,9 +288,9 @@ export default function SipHeaderManagePage() {
       <PageHeader breadcrumb={breadcrumb} />
 
       {/* Split container: Left Groups + Right Relays Grid */}
-      <div className="flex flex-1 min-h-0 bg-white bt-shadow overflow-hidden rounded-md border border-gray-200">
+      <div className="flex flex-1 min-h-0 gap-4">
         {/* ===== Left Panel: Header Groups (280px) ===== */}
-        <div className="w-[280px] min-w-[280px] border-r border-gray-200 flex flex-col overflow-hidden">
+        <div className="w-[280px] min-w-[280px] bg-white bt-shadow rounded-md border border-gray-200 flex flex-col overflow-hidden">
           <div className="px-4 py-3 border-b border-gray-200 flex items-center justify-between flex-shrink-0">
             <span className="text-sm font-semibold text-gray-700">헤더 그룹</span>
             <Button size="small" onClick={handleGroupCreate}>
@@ -330,7 +330,7 @@ export default function SipHeaderManagePage() {
         </div>
 
         {/* ===== Right Panel: Relay Grid ===== */}
-        <div className="flex-1 flex flex-col overflow-hidden">
+        <div className="flex-1 flex flex-col overflow-hidden bg-white bt-shadow rounded-md border border-gray-200">
           {selectedGroup ? (
             <>
               <div className="px-5 py-3 border-b border-gray-200 flex items-center justify-between flex-shrink-0">

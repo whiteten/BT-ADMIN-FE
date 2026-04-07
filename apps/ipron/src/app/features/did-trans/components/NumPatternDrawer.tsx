@@ -183,7 +183,7 @@ const NumPatternDrawer = forwardRef<NumPatternDrawerRef, Props>(({ onSelect, onC
       }
       open={visible}
       onClose={handleClose}
-      width={560}
+      styles={{ wrapper: { width: 560 } }}
       afterOpenChange={(open) => {
         if (open) refetch();
       }}

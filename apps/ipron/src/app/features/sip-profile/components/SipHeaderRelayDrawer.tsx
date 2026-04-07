@@ -54,7 +54,7 @@ const SipHeaderRelayDrawer = forwardRef<SipHeaderRelayDrawerRef, SipHeaderRelayD
   );
 
   return (
-    <Drawer title="헤더 릴레이 등록" open={isOpen} onClose={handleClose} width={420} footer={footer} destroyOnClose>
+    <Drawer title="헤더 릴레이 등록" open={isOpen} onClose={handleClose} styles={{ wrapper: { width: 420 } }} footer={footer} destroyOnClose>
       <Form form={form} layout="vertical">
         <Form.Item
           label="헤더명"

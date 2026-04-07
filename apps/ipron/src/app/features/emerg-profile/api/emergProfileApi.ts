@@ -14,6 +14,7 @@
  * - ipron-emerg-code-update:      PUT    코드 수정
  * - ipron-emerg-code-delete:      DELETE 코드 삭제
  * - manager-node-list:            GET    노드 목록 조회 (cross-service)
+ * - ipron-route-list:             GET    발신라우트 목록 조회 (라우트 select용)
  */
 import ApiClient, { type DetailResponse, type ListResponse, extractDetail, extractList } from '@/shared-util';
 import type {
@@ -29,6 +30,7 @@ import type {
   ProfileCreateData,
   ProfileDetailBackendResponse,
   ProfileUpdateData,
+  RouteSimpleResponse,
 } from '../types/emergProfile.types';
 
 const apiClient = new ApiClient({ serviceURL: '/bff' });
@@ -43,6 +45,7 @@ function transformProfile(raw: ProfileBackendResponse): EmergProfile {
     nodeId: raw.nodeId,
     nodeName: raw.nodeName ?? '',
     codeCount: raw.codeCount,
+    hasUnassignedRoute: raw.hasUnassignedRoute ?? false,
   };
 }
 
@@ -183,5 +186,16 @@ export const emergProfileApi = {
   getNodes: async (): Promise<NodeSimpleResponse[]> => {
     const response = await apiClient.get<ListResponse<NodeSimpleResponse>>('/manager-node-list');
     return extractList(response);
+  },
+
+  /**
+   * 발신라우트 목록 조회 (노드별 필터)
+   * @flow ipron-route-list
+   */
+  getRoutesByNode: async (nodeId: number): Promise<RouteSimpleResponse[]> => {
+    const response = await apiClient.get<DetailResponse<{ value: RouteSimpleResponse[] }>>('/ipron-route-list', {
+      params: { nodeId },
+    });
+    return extractDetail(response)?.value ?? [];
   },
 };

@@ -15,6 +15,7 @@ export interface ProfileBackendResponse {
   nodeId: number;
   nodeName: string | null;
   codeCount: number;
+  hasUnassignedRoute: boolean;
 }
 
 /**
@@ -61,6 +62,7 @@ export interface EmergProfile {
   nodeId: number;
   nodeName: string;
   codeCount: number;
+  hasUnassignedRoute: boolean;
 }
 
 /**
@@ -93,6 +95,15 @@ export interface NodeProfileGroup {
   nodeId: number;
   nodeName: string;
   profiles: EmergProfile[];
+}
+
+/**
+ * 발신라우트 간단 응답 (ipron-route-list 재사용)
+ */
+export interface RouteSimpleResponse {
+  routeId: number;
+  routeName: string;
+  nodeId: number;
 }
 
 // ─── 요청 타입 ───────────────────────────────────────────────────────────────

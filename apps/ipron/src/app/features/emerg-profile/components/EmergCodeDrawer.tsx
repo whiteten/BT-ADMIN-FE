@@ -86,7 +86,15 @@ const EmergCodeDrawer = forwardRef<EmergCodeDrawerRef, EmergCodeDrawerProps>(({ 
   );
 
   return (
-    <Drawer open={isOpen} onClose={handleClose} title={isEditMode ? '긴급코드 수정' : '긴급코드 등록'} closable={{ placement: 'end' }} width={420} footer={footer} destroyOnHidden>
+    <Drawer
+      open={isOpen}
+      onClose={handleClose}
+      title={isEditMode ? '긴급코드 수정' : '긴급코드 등록'}
+      closable={{ placement: 'end' }}
+      styles={{ wrapper: { width: 420 } }}
+      footer={footer}
+      destroyOnHidden
+    >
       <Form form={form} layout="vertical">
         <Form.Item
           label="긴급코드"

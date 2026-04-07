@@ -225,7 +225,7 @@ const MsGroupMemberDrawer = forwardRef<MsGroupMemberDrawerRef, Props>(({ onSucce
           setMsGroup(null);
           setMemberRows([]);
         }}
-        width={680}
+        styles={{ wrapper: { width: 680 } }}
         footer={
           <div className="flex items-center justify-between">
             <span className="text-sm text-gray-500">선택: {assignedCount}개</span>

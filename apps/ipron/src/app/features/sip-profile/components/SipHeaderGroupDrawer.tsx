@@ -73,7 +73,7 @@ const SipHeaderGroupDrawer = forwardRef<SipHeaderGroupDrawerRef, SipHeaderGroupD
   );
 
   return (
-    <Drawer title={isEditMode ? '헤더 그룹 수정' : '헤더 그룹 등록'} open={isOpen} onClose={handleClose} width={420} footer={footer} destroyOnClose>
+    <Drawer title={isEditMode ? '헤더 그룹 수정' : '헤더 그룹 등록'} open={isOpen} onClose={handleClose} styles={{ wrapper: { width: 420 } }} footer={footer} destroyOnClose>
       <Form form={form} layout="vertical">
         <Form.Item
           label="그룹명"

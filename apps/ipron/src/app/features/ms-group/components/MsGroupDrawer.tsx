@@ -111,7 +111,7 @@ const MsGroupDrawer = forwardRef<MsGroupDrawerRef, Props>(({ onSuccess }, ref) =
         setNodeId(null);
         form.resetFields();
       }}
-      width={420}
+      styles={{ wrapper: { width: 420 } }}
       footer={
         <div className="flex justify-end gap-2">
           <Button

@@ -108,7 +108,7 @@ const EndpointMemberDrawer = forwardRef<EndpointMemberDrawerRef, Props>(({ endpt
         setEditData(null);
         form.resetFields();
       }}
-      width={420}
+      styles={{ wrapper: { width: 420 } }}
       footer={
         <div className="flex justify-end gap-2">
           <Button

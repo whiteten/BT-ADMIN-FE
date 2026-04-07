@@ -381,9 +381,9 @@ export default function MsGroupListPage() {
       <PageHeader breadcrumb={breadcrumb} />
 
       {/* Split container: Left Tree + Right (Cards + Bottom Grid) */}
-      <div className="flex flex-1 min-h-0 bg-white bt-shadow overflow-hidden rounded-md border border-gray-200">
+      <div className="flex flex-1 min-h-0 gap-4">
         {/* ===== Left Panel: Node Tree (280px) ===== */}
-        <div className="w-[280px] min-w-[280px] border-r border-gray-200 flex flex-col overflow-hidden">
+        <div className="w-[280px] min-w-[280px] bg-white bt-shadow rounded-md border border-gray-200 flex flex-col overflow-hidden">
           <div className="px-4 py-3 border-b border-gray-100 flex-shrink-0">
             <Input placeholder="MS그룹명 검색" size="small" allowClear value={searchText} onChange={(e) => setSearchText(e.target.value)} />
           </div>
@@ -457,11 +457,11 @@ export default function MsGroupListPage() {
         </div>
 
         {/* ===== Right Panel: Cards (top) + Media Server Grid (bottom) ===== */}
-        <div className="flex-1 flex flex-col overflow-hidden">
+        <div className="flex-1 flex flex-col gap-4 min-w-0">
           {selectedNodeId ? (
             <>
               {/* ── Top: Card Slider Area ── */}
-              <div className="flex flex-col overflow-hidden flex-shrink-0">
+              <div className="bg-white bt-shadow rounded-md border border-gray-200 flex flex-col overflow-hidden flex-shrink-0">
                 {/* Card grid header */}
                 <div className="px-5 py-3 border-b border-gray-100 flex items-center justify-between flex-shrink-0">
                   <div className="flex items-center gap-3">
@@ -480,9 +480,6 @@ export default function MsGroupListPage() {
                       }}
                     >
                       노드 기본 MS설정
-                    </Button>
-                    <Button size="small" icon={<Plus className="size-3.5" />} onClick={handleCreateMediaServer}>
-                      미디어서버
                     </Button>
                     <Button type="primary" size="small" icon={<Plus className="size-3.5" />} onClick={handleCreateMsGroup}>
                       MS그룹 추가
@@ -589,14 +586,19 @@ export default function MsGroupListPage() {
               </div>
 
               {/* ── Bottom: Media Server Grid ── */}
-              <div className="border-t border-gray-200 flex flex-col flex-1 min-h-0">
+              <div className="bg-white bt-shadow rounded-md border border-gray-200 flex flex-col flex-1 min-h-0 overflow-hidden">
                 <div className="flex flex-col flex-1 min-h-0">
                   {/* Bottom header */}
                   <div className="px-5 py-2 flex items-center justify-between flex-shrink-0 border-b border-gray-100">
                     <span className="text-sm font-semibold text-gray-800">미디어서버 ({filteredMediaServers.length})</span>
-                    <Button size="small" icon={<Users className="size-3.5" />} onClick={handleMemberManage} disabled={!selectedGroup}>
-                      MS그룹 멤버관리
-                    </Button>
+                    <div className="flex gap-2">
+                      <Button size="small" icon={<Plus className="size-3.5" />} onClick={handleCreateMediaServer}>
+                        미디어서버 추가
+                      </Button>
+                      <Button size="small" icon={<Users className="size-3.5" />} onClick={handleMemberManage} disabled={!selectedGroup}>
+                        MS그룹 멤버관리
+                      </Button>
+                    </div>
                   </div>
 
                   {/* Grid content */}
@@ -623,7 +625,7 @@ export default function MsGroupListPage() {
             </>
           ) : (
             /* Empty state when no node selected */
-            <div className="flex flex-col items-center justify-center h-full text-gray-400 gap-3 px-8">
+            <div className="bg-white bt-shadow rounded-md border border-gray-200 flex flex-col items-center justify-center h-full text-gray-400 gap-3 px-8">
               <Empty description={false} />
               <span className="text-sm">좌측에서 노드를 선택하세요</span>
             </div>
