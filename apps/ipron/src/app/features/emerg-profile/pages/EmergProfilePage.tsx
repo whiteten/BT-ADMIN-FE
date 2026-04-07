@@ -574,9 +574,15 @@ export default function EmergProfilePage() {
                         rowData={codes}
                         columnDefs={columnDefs}
                         defaultColDef={defaultColDef}
-                        gridOptions={gridOptions}
+                        gridOptions={{
+                          ...gridOptions,
+                          statusBar: undefined,
+                          pagination: false,
+                          sideBar: false,
+                        }}
                         loading={isCodesLoading}
-                        onRowClicked={(e) => {
+                        getRowId={(params) => params.data.emergencyCode}
+                        onRowDoubleClicked={(e) => {
                           if (e.data) handleCodeEdit(e.data);
                         }}
                       />
