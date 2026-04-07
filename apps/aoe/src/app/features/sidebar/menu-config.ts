@@ -30,6 +30,13 @@ const menuConfig = {
           index: 0,
           hide: false,
         },
+        {
+          menuId: 107,
+          label: 'AI 모델',
+          path: 'agent-config/model/list',
+          index: 1,
+          hide: false,
+        },
       ],
     },
   ],

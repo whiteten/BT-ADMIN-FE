@@ -37,13 +37,16 @@ const AgentPlaygroundDrawer = forwardRef<AgentPlaygroundDrawerRef>((_, ref) => {
   const { mutate: testAgent, isPending: isTesting } = useTestAgent({
     mutationOptions: {
       onSuccess: (data) => {
-        addMessage({ id: Date.now(), type: 'response', content: data as object, timestamp: dayjs().format('HH:mm') });
-        inputRef.current?.focus();
+        const response = data as unknown as { result: string | null };
+        if (response?.result != null) {
+          addMessage({ id: Date.now(), type: 'response', content: response, timestamp: dayjs().format('HH:mm') });
+        }
+        requestAnimationFrame(() => inputRef.current?.focus());
       },
       onError: (error) => {
         Log.warn('testAgent error', error);
         addMessage({ id: Date.now(), type: 'response', content: { error: '오류가 발생했습니다.' }, timestamp: dayjs().format('HH:mm') });
-        inputRef.current?.focus();
+        requestAnimationFrame(() => inputRef.current?.focus());
       },
     },
   });
@@ -63,13 +66,24 @@ const AgentPlaygroundDrawer = forwardRef<AgentPlaygroundDrawerRef>((_, ref) => {
   useImperativeHandle(ref, () => ({
     open: ({ agentId, agentName }) => {
       const uuid = crypto.randomUUID();
-      setServiceId(`test_${uuid}`);
-      setThreadId(`${agentId}_${uuid}`);
+      const newServiceId = `test_${uuid}`;
+      const newThreadId = `${agentId}_${uuid}`;
+      setServiceId(newServiceId);
+      setThreadId(newThreadId);
       setMessages([]);
       setInputValue('');
       setState({ open: true, agentId, agentName });
+      testAgent({ agentId, body: { firstYn: 'Y', serviceId: newServiceId, threadId: newThreadId, userInput: '' } });
     },
-    close: () => setState((prev) => ({ ...prev, open: false })),
+    close: () => {
+      setState((prev) => ({ ...prev, open: false }));
+      if (messages.length > 0) {
+        setMessages([]);
+        setInputValue('');
+        setThreadId('');
+        setServiceId('');
+      }
+    },
   }));
 
   useEffect(() => {
@@ -102,7 +116,7 @@ const AgentPlaygroundDrawer = forwardRef<AgentPlaygroundDrawerRef>((_, ref) => {
 
   const handleSend = () => {
     const trimmed = inputValue.trim();
-    if (!trimmed || isTesting) return;
+    if (!trimmed || isTesting || isRefreshing) return;
 
     addMessage({ id: Date.now(), type: 'request', content: trimmed, timestamp: dayjs().format('HH:mm') });
     setInputValue('');
@@ -118,21 +132,38 @@ const AgentPlaygroundDrawer = forwardRef<AgentPlaygroundDrawerRef>((_, ref) => {
     refreshAgent({ agentId: state.agentId, body: { firstYn: 'Y', serviceId: newServiceId, threadId: newThreadId, userInput: '' } });
   };
 
-  const handleClose = () => setState((prev) => ({ ...prev, open: false }));
+  const handleClose = () => {
+    setState((prev) => ({ ...prev, open: false }));
+    if (messages.length > 0) {
+      setMessages([]);
+      setInputValue('');
+      setThreadId('');
+      setServiceId('');
+    }
+  };
 
   return (
     <Drawer
       title={
         <div className="flex items-center justify-between pr-2">
-          <span>Playground · {state.agentName}</span>
-          <Button variant="ghost" size="sm" onClick={handleRefresh} disabled={isRefreshing} className="text-gray-500 hover:text-gray-700 gap-1">
-            <RotateCcw className="size-4" />
+          <span className="text-white font-medium">Playground · {state.agentName}</span>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={handleRefresh}
+            disabled={isRefreshing}
+            className="gap-1.5 border-white/40 text-white bg-transparent hover:bg-white/15 hover:text-white hover:border-white/60 disabled:opacity-40"
+          >
+            <RotateCcw className={`size-3.5 ${isRefreshing ? 'animate-spin' : ''}`} />
             초기화
           </Button>
         </div>
       }
       open={state.open}
       onClose={handleClose}
+      afterOpenChange={(open) => {
+        if (open) inputRef.current?.focus();
+      }}
       width={drawerWidth}
       styles={{ body: { display: 'flex', flexDirection: 'column', padding: 0, height: '100%', position: 'relative' } }}
       closable
@@ -176,10 +207,10 @@ const AgentPlaygroundDrawer = forwardRef<AgentPlaygroundDrawerRef>((_, ref) => {
           onChange={(e) => setInputValue(e.target.value)}
           onPressEnter={handleSend}
           placeholder="메시지를 입력하세요..."
-          disabled={isTesting}
+          disabled={isTesting || isRefreshing}
           className="flex-1"
         />
-        <Button size="sm" onClick={handleSend} disabled={isTesting || !inputValue.trim()} className="shrink-0">
+        <Button size="sm" onClick={handleSend} disabled={isTesting || isRefreshing || !inputValue.trim()} className="shrink-0">
           <IconSend />
         </Button>
       </div>

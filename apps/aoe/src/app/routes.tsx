@@ -6,6 +6,9 @@ const Main = React.lazy(() => import('./pages/main/Main'));
 const AgentList = React.lazy(() => import('./pages/agent-config/AgentList'));
 const AgentCreate = React.lazy(() => import('./pages/agent-config/AgentCreate'));
 const AgentDetail = React.lazy(() => import('./pages/agent-config/AgentDetail'));
+const ModelList = React.lazy(() => import('./pages/agent-config/ModelList'));
+const ModelCreate = React.lazy(() => import('./pages/agent-config/ModelCreate'));
+const ModelDetail = React.lazy(() => import('./pages/agent-config/ModelDetail'));
 
 export const routes = [
   {
@@ -32,6 +35,15 @@ export const routes = [
               { path: 'list', element: <AgentList /> },
               { path: 'create', element: <AgentCreate /> },
               { path: ':agentId', element: <AgentDetail /> },
+            ],
+          },
+          {
+            path: 'model',
+            children: [
+              { index: true, element: <Navigate to="list" replace /> },
+              { path: 'list', element: <ModelList /> },
+              { path: 'create', element: <ModelCreate /> },
+              { path: ':modelId', element: <ModelDetail /> },
             ],
           },
         ],

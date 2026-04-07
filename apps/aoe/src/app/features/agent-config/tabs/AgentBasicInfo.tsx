@@ -5,9 +5,10 @@ import { Badge, Button, Col, Form, type FormProps, Input, Row, Select } from 'an
 import { CheckCircle2, Copy } from 'lucide-react';
 import { Log } from '@/log';
 import { copyToClipboard, toast } from '@/shared-util';
-import { agentQueryKeys, useGetAgent, useGetAgentTypes, useUpdateAgent } from '../hooks/useAgentQueries';
+import { agentQueryKeys, useDeleteAgent, useGetAgent, useGetAgentTypes, useUpdateAgent } from '../hooks/useAgentQueries';
 import type { AgentUpdateDatas } from '../types';
 import { FallbackSpinner } from '@/components/custom/FallbackSpinner';
+import { useModal } from '@/libs/shared-ui/src/hooks/useModal';
 
 export default function AgentBasicInfo() {
   const { agentId } = useParams();
@@ -30,6 +31,8 @@ export default function AgentBasicInfo() {
   const { data: agentTypeList, isFetching: isFetchingAgentTypes } = useGetAgentTypes({});
   const agentTypeOptions = agentTypeList?.map((type) => ({ label: type.agentTypeName, value: type.agentType })) ?? [];
 
+  const modal = useModal();
+
   const { mutate: updateAgent, isPending: isUpdating } = useUpdateAgent({
     mutationOptions: {
       onSuccess: () => {
@@ -40,9 +43,28 @@ export default function AgentBasicInfo() {
     },
   });
 
+  const { mutate: deleteAgent } = useDeleteAgent({
+    mutationOptions: {
+      onSuccess: () => {
+        toast.success('에이전트가 삭제되었습니다.');
+        navigate('../list');
+      },
+      onError: (error) => Log.warn('deleteAgent failed', error),
+    },
+  });
+
+  const handleDelete = () => {
+    modal.confirm.delete({
+      onOk: () => {
+        if (agentId && agent) deleteAgent({ agentId, aoeDeployFlag: agent.aoeDeployFlag, aoeApiKey: agent.aoeApiKey });
+      },
+    });
+  };
+
   const onFinish: FormProps<AgentUpdateDatas>['onFinish'] = (values) => {
     Log.debug('onFinish', values);
-    updateAgent({ agentId: agentId!, data: values });
+    if (!agentId) return;
+    updateAgent({ agentId, data: values });
   };
 
   const onFinishFailed: FormProps<AgentUpdateDatas>['onFinishFailed'] = (errorInfo) => {
@@ -113,6 +135,11 @@ export default function AgentBasicInfo() {
             <Col>
               <Button variant="solid" onClick={() => navigate('../list')}>
                 취소
+              </Button>
+            </Col>
+            <Col>
+              <Button color="danger" variant="solid" onClick={handleDelete}>
+                삭제
               </Button>
             </Col>
             <Col>
