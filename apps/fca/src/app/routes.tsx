@@ -105,13 +105,11 @@ export const routes = [
             path: 'aoe',
             children: [
               { index: true, element: <Navigate to="config" replace /> },
-              { path: 'config', element: <AoeConfig /> },
               {
-                path: 'faq',
-                element: <Outlet />,
+                path: 'config',
                 children: [
-                  { index: true, element: <Navigate to=".." replace /> },
-                  { path: ':agentId', element: <FaqDetail /> },
+                  { index: true, element: <AoeConfig /> },
+                  { path: ':agentId/faq', element: <FaqDetail /> },
                 ],
               },
             ],
