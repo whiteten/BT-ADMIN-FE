@@ -60,6 +60,7 @@ export interface RetentionPoliciesUpdateRequest {
 /** 삭제 실행 이력 아이템 */
 export interface RetentionLogItem {
   logId: number;
+  policyId: number;
   policyName: string;
   executedAt: string;
   deletedCount: number;
@@ -78,7 +79,7 @@ export interface RetentionLogListResponse {
 
 /** 카테고리 한글 레이블 */
 export const RETENTION_CATEGORY_LABELS: Record<RetentionCategory, string> = {
-  DATA: '데이터',
+  DATA: 'CDR',
   HISTORY: '이력',
   LOG: '로그',
 };

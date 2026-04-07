@@ -49,7 +49,7 @@ export const dataRetentionApi = {
    * 삭제 실행 이력 조회
    * BFF Flow: data-retention-logs
    */
-  getLogs: async (params: { page: number; size: number }): Promise<RetentionLogListResponse> => {
+  getLogs: async (params: { policyId: number; page: number; size: number }): Promise<RetentionLogListResponse> => {
     const response = await apiClient.get<ApiResponse<RetentionLogListResponse>>('/data-retention-logs', { params });
     return response.data.data;
   },
