@@ -17,7 +17,7 @@ import {
   getTimeFormat,
   validateDateRange,
 } from '../../../features/statistics/hooks/useDateRangeLimit';
-import { useGetEntityStatList } from '../../../features/statistics/hooks/useStatisticsQueries';
+import { useGetEntityOptionList, useGetEntityStatList } from '../../../features/statistics/hooks/useStatisticsQueries';
 import type { EntityStatListItem } from '../../../features/statistics/types/statistics.types';
 import PageHeader from '@/components/custom/PageHeader';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
@@ -65,10 +65,11 @@ export default function EntityStatistics() {
     [modelList],
   );
 
-  // 개체 태그 옵션 조회
-  const { data: entityTagOptionList } = useGetEntities({
-    params: { modelId: modelIds },
-    queryOptions: { enabled: modelIds.length > 0 },
+  // 개체 태그 옵션 조회 (모델 선택 시)
+  const modelIdParams = [modelIds].flat().filter(Boolean);
+  const { data: entityTagOptionList } = useGetEntityOptionList({
+    params: { modelId: modelIdParams },
+    queryOptions: { enabled: modelIdParams.length > 0 },
   });
 
   const entityTagSelectOptions = useMemo(
@@ -337,6 +338,7 @@ export default function EntityStatistics() {
                 <div className="flex items-center gap-3">
                   <span className="text-sm font-medium text-[#495057] shrink-0">모델</span>
                   <Select
+                    mode="multiple"
                     value={modelIds}
                     onChange={(value) => setModelIds(value ?? [])}
                     allowClear
@@ -345,7 +347,7 @@ export default function EntityStatistics() {
                     options={modelSelectOptions}
                     placeholder="검색할 모델을 선택하세요."
                     optionFilterProp="label"
-                    className="!min-w-[250px] !max-w-[400px]"
+                    className="w-[15rem]"
                     popupMatchSelectWidth={false}
                   />
                 </div>
@@ -367,7 +369,7 @@ export default function EntityStatistics() {
                     className="!bg-[#10B981] !border-[#10B981] hover:!bg-[#0FA968]"
                     onClick={handleExcelDownload}
                   >
-                    엑셀
+                    Export
                   </Button>
                 )}
               </div>

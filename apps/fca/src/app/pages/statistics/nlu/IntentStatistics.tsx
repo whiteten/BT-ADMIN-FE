@@ -17,7 +17,7 @@ import {
   getTimeFormat,
   validateDateRange,
 } from '../../../features/statistics/hooks/useDateRangeLimit';
-import { useGetIntentStatList } from '../../../features/statistics/hooks/useStatisticsQueries';
+import { useGetIntentOptionList, useGetIntentStatList } from '../../../features/statistics/hooks/useStatisticsQueries';
 import type { IntentStatListItem } from '../../../features/statistics/types/statistics.types';
 import PageHeader from '@/components/custom/PageHeader';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
@@ -65,10 +65,11 @@ export default function IntentStatistics() {
     [modelList],
   );
 
-  // 의도 옵션 조회
-  const { data: intentOptionList } = useGetIntents({
-    params: { modelId: modelIds },
-    queryOptions: { enabled: modelIds.length > 0 },
+  // 의도 옵션 조회 (모델 선택 시)
+  const modelIdParams = [modelIds].flat().filter(Boolean);
+  const { data: intentOptionList } = useGetIntentOptionList({
+    params: { modelIds: modelIdParams },
+    queryOptions: { enabled: modelIdParams.length > 0 },
   });
 
   const intentSelectOptions = useMemo(
@@ -365,6 +366,7 @@ export default function IntentStatistics() {
                 <div className="flex items-center gap-3">
                   <span className="text-sm font-medium text-[#495057] shrink-0">모델</span>
                   <Select
+                    mode="multiple"
                     value={modelIds}
                     onChange={(value) => setModelIds(value ?? [])}
                     allowClear
@@ -373,7 +375,7 @@ export default function IntentStatistics() {
                     options={modelSelectOptions}
                     placeholder="검색할 모델을 선택하세요."
                     optionFilterProp="label"
-                    className="!min-w-[250px] !max-w-[400px]"
+                    className="w-[15rem]"
                     popupMatchSelectWidth={false}
                   />
                 </div>
@@ -395,7 +397,7 @@ export default function IntentStatistics() {
                     className="!bg-[#10B981] !border-[#10B981] hover:!bg-[#0FA968]"
                     onClick={handleExcelDownload}
                   >
-                    엑셀
+                    Export
                   </Button>
                 )}
               </div>

@@ -316,6 +316,7 @@ export default function KeywordStatistics() {
                 <div className="flex items-center gap-3">
                   <span className="text-sm font-medium text-[#495057] shrink-0">모델</span>
                   <Select
+                    mode="multiple"
                     value={modelIds}
                     onChange={(value) => setModelIds(value ?? [])}
                     allowClear
@@ -324,7 +325,7 @@ export default function KeywordStatistics() {
                     options={modelSelectOptions}
                     placeholder="검색할 모델을 선택하세요."
                     optionFilterProp="label"
-                    className="!min-w-[250px] !max-w-[400px]"
+                    className="w-[15rem]"
                     popupMatchSelectWidth={false}
                   />
                 </div>
@@ -346,7 +347,7 @@ export default function KeywordStatistics() {
                     className="!bg-[#10B981] !border-[#10B981] hover:!bg-[#0FA968]"
                     onClick={handleExcelDownload}
                   >
-                    엑셀
+                    Export
                   </Button>
                 )}
               </div>

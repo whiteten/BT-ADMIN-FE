@@ -2,7 +2,9 @@ import ApiClient, { type ListResponse, extractList } from '@/shared-util';
 import type {
   DialogOptionListItem,
   DialogStatListItem,
+  EntityOptionListItem,
   EntityStatListItem,
+  IntentOptionListItem,
   IntentStatListItem,
   KeywordStatListItem,
   ServiceStatListItem,
@@ -61,6 +63,18 @@ export const statisticsApi = {
   // 슬롯 옵션 목록 조회
   getSlotOptionList: async (params?: Record<string, unknown>): Promise<SlotOptionListItem[]> => {
     const response = await apiClient.get<ListResponse<SlotOptionListItem>>('/stat-slot-options', { params });
+    return extractList(response);
+  },
+
+  // 의도 옵션 목록 조회
+  getIntentOptionList: async (params?: Record<string, unknown>): Promise<IntentOptionListItem[]> => {
+    const response = await apiClient.get<ListResponse<IntentOptionListItem>>('/stat-intent-options', { params });
+    return extractList(response);
+  },
+
+  // 개체 옵션 목록 조회
+  getEntityOptionList: async (params?: Record<string, unknown>): Promise<EntityOptionListItem[]> => {
+    const response = await apiClient.get<ListResponse<EntityOptionListItem>>('/stat-entity-options', { params });
     return extractList(response);
   },
 

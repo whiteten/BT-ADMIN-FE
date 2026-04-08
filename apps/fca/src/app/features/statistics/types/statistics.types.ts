@@ -112,3 +112,17 @@ export interface SlotOptionItem {
 }
 
 export type SlotOptionListItem = SlotOptionItem;
+
+export interface IntentOptionItem {
+  intentId: string; // 대화 ID
+  intentName: string; // 대화명
+}
+
+export type IntentOptionListItem = IntentOptionItem;
+
+export interface EntityOptionItem {
+  entityId: string; // 대화 ID
+  entityName: string; // 대화명
+}
+
+export type EntityOptionListItem = EntityOptionItem;

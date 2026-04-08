@@ -365,7 +365,7 @@ export default function ServiceStatistics() {
                     options={serviceSelectOptions}
                     placeholder="검색할 봇서비스를 선택하세요."
                     optionFilterProp="label"
-                    className="!min-w-[250px] !max-w-[400px]"
+                    className="w-[15rem]"
                     popupMatchSelectWidth={false}
                   />
                 </div>
@@ -387,7 +387,7 @@ export default function ServiceStatistics() {
                     className="!bg-[#10B981] !border-[#10B981] hover:!bg-[#0FA968]"
                     onClick={handleExcelDownload}
                   >
-                    엑셀
+                    Export
                   </Button>
                 )}
               </div>
