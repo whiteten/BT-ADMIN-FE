@@ -1,5 +1,5 @@
 import { forwardRef, useEffect, useImperativeHandle, useState } from 'react';
-import { Button, Drawer, Form, InputNumber, TimePicker } from 'antd';
+import { Button, Drawer, Form, Input, InputNumber, Space, TimePicker } from 'antd';
 import dayjs from 'dayjs';
 import { toast } from '@/shared-util';
 import { useGetRetentionTargets, useUpdateRetentionPolicies } from '../hooks/useDataRetentionQueries';
@@ -88,7 +88,7 @@ const RetentionEditDrawer = forwardRef<RetentionEditDrawerRef, RetentionEditDraw
   );
 
   return (
-    <Drawer open={state.open} onClose={handleClose} title={state.policy?.policyName ?? ''} width={480} footer={footer} destroyOnHidden>
+    <Drawer open={state.open} onClose={handleClose} title={state.policy?.policyName ?? ''} styles={{ wrapper: { width: 480 } }} footer={footer} destroyOnHidden>
       {state.policy && (
         <div className="flex flex-col gap-6">
           {/* 정책 기본 정보 */}
@@ -113,15 +113,20 @@ const RetentionEditDrawer = forwardRef<RetentionEditDrawerRef, RetentionEditDraw
 
           {/* 편집 폼 */}
           <Form form={form} layout="horizontal" labelCol={{ span: 5 }} wrapperCol={{ span: 19 }}>
-            <Form.Item
-              name="retentionMonths"
-              label="보관기간"
-              rules={[
-                { required: true, message: '보관기간을 입력해주세요.' },
-                { type: 'number', min: 1, message: '최소 1개월 이상이어야 합니다.' },
-              ]}
-            >
-              <InputNumber min={1} addonAfter="개월" style={{ width: 130 }} />
+            <Form.Item label="보관기간">
+              <Space.Compact>
+                <Form.Item
+                  name="retentionMonths"
+                  noStyle
+                  rules={[
+                    { required: true, message: '보관기간을 입력해주세요.' },
+                    { type: 'number', min: 1, message: '최소 1개월 이상이어야 합니다.' },
+                  ]}
+                >
+                  <InputNumber min={1} style={{ width: 100 }} />
+                </Form.Item>
+                <Input value="개월" disabled style={{ width: 60, textAlign: 'center' }} />
+              </Space.Compact>
             </Form.Item>
             <Form.Item name="executionTime" label="실행시각" rules={[{ required: true, message: '실행시각을 선택해주세요.' }]}>
               <TimePicker format="HH:mm" style={{ width: 180 }} allowClear={false} showNow={false} minuteStep={10} />
