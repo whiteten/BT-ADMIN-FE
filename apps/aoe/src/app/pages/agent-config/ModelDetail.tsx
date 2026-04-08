@@ -42,7 +42,7 @@ export default function ModelDetail() {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const modal = useModal();
-  const [form] = Form.useForm<{ modelName: string }>();
+  const [form] = Form.useForm<{ modelName: string; useYn: 0 | 1 }>();
   const [currentStep, setCurrentStep] = useState(0);
   const [detailChanges, setDetailChanges] = useState<Record<string, ModelDetailUpdateDatas>>({});
 
@@ -73,7 +73,7 @@ export default function ModelDetail() {
 
   useEffect(() => {
     if (!model) return;
-    form.setFieldsValue({ modelName: model.modelName });
+    form.setFieldsValue({ modelName: model.modelName, useYn: model.useYn ?? 0 });
   }, [model, form]);
 
   // step2 진입 시 변경 초기화
@@ -140,7 +140,7 @@ export default function ModelDetail() {
           costPerInputToken: detailChanges[d.detailId]?.costPerInputToken ?? d.costPerInputToken,
           costPerOutputToken: detailChanges[d.detailId]?.costPerOutputToken ?? d.costPerOutputToken,
         }));
-        if (modelId) updateModel({ modelId, modelName: values.modelName, modelVersions });
+        if (modelId) updateModel({ modelId, modelName: values.modelName, useYn: values.useYn, modelVersions });
       })
       .catch(Log.warn);
   };
@@ -203,6 +203,13 @@ export default function ModelDetail() {
           <Col span={8}>
             <Form.Item name="modelName" label="모델 그룹명" required rules={[{ required: true, message: '모델 그룹명을 입력해 주세요.' }]}>
               <Input placeholder="모델 그룹명을 입력하세요." />
+            </Form.Item>
+          </Col>
+        </Row>
+        <Row gutter={20}>
+          <Col span={8}>
+            <Form.Item name="useYn" label="활성화 여부" valuePropName="checked" getValueProps={(value) => ({ checked: value === 1 })} normalize={(value) => (value ? 1 : 0)}>
+              <Switch />
             </Form.Item>
           </Col>
         </Row>

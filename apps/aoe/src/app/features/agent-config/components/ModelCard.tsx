@@ -2,6 +2,7 @@ import { Card } from 'antd';
 import { Brain, Cpu, FlaskConical, type LucideIcon, Server, Sparkles, Wand2, Zap } from 'lucide-react';
 import type { ModelListItem } from '../types';
 import { IconMoreVertical } from '@/components/custom/Icons';
+import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 
@@ -76,7 +77,7 @@ export default function ModelCard({ modelId, modelName, modelTypeName, activeDet
     <Card
       title={title}
       extra={extra}
-      styles={{ header: { padding: '0 20px' }, body: { padding: '20px', paddingTop: '16px' } }}
+      styles={{ header: { padding: '0 20px' }, body: { padding: '20px', paddingTop: '16px', minHeight: '148px' } }}
       className="hover:!border-[var(--color-bt-primary)] hover:cursor-pointer"
       onClick={() => onDetail?.(modelId)}
     >
@@ -87,9 +88,9 @@ export default function ModelCard({ modelId, modelName, modelTypeName, activeDet
         </div>
         <div className="flex items-center">
           <span className="w-[104px]">활성화 여부</span>
-          <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${useYn === 1 ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-500'}`}>
+          <Badge variant="secondary" className={`text-[13px] leading-[13px] font-medium !h-6 ${useYn === 1 ? 'text-[#0AB39C] bg-[#0AB39C1A]' : 'text-[#495057] bg-[#E9EBEC]'}`}>
             {useYn === 1 ? '활성화' : '비활성화'}
-          </span>
+          </Badge>
         </div>
         <div className="flex">
           <span className="w-[104px]">활성화 모델</span>

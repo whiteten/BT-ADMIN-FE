@@ -52,7 +52,7 @@ export default function AgentCard({ agentId, agentName, agentTypeName, aoeDeploy
   return (
     <Card
       title={title}
-      styles={{ header: { paddingRight: '0 20px 0 20px' }, body: { padding: '20px', paddingTop: '16px' } }}
+      styles={{ header: { padding: '0 20px' }, body: { padding: '20px', paddingTop: '16px', minHeight: '148px' } }}
       extra={extra}
       className="hover:!border-[var(--color-bt-primary)] hover:cursor-pointer"
       onClick={() => onPlayground?.(agentId)}

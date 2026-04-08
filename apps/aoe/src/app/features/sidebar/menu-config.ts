@@ -37,6 +37,13 @@ const menuConfig = {
           index: 1,
           hide: false,
         },
+        {
+          menuId: 115,
+          label: '지식',
+          path: 'agent-config/knowledge/list',
+          index: 2,
+          hide: false,
+        },
       ],
     },
   ],

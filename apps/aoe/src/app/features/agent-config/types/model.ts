@@ -75,5 +75,6 @@ export interface ModelUpdateVersionItem {
 
 export interface ModelUpdateRequest {
   modelName: string;
+  useYn?: 0 | 1;
   modelVersions?: ModelUpdateVersionItem[];
 }
