@@ -1,10 +1,10 @@
-import { useRef, useState } from 'react';
+import React, { useRef, useState } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import type { ColDef, ICellRendererParams } from 'ag-grid-community';
 import { AgGridReact } from 'ag-grid-react';
 import { type BreadcrumbProps, Button } from 'antd';
 import dayjs from 'dayjs';
-import { Pencil, Play } from 'lucide-react';
+import { Database, History, Pencil, Play, ScrollText } from 'lucide-react';
 import { toast } from '@/shared-util';
 import RetentionEditDrawer, { type RetentionEditDrawerRef } from '../../features/data-retention/components/RetentionEditDrawer';
 import { dataRetentionQueryKeys, useExecuteRetentionNow, useGetRetentionLogs, useGetRetentionPolicies } from '../../features/data-retention/hooks/useDataRetentionQueries';
@@ -16,15 +16,11 @@ import {
   type RetentionPolicyListItem,
 } from '../../features/data-retention/types/dataRetention.types';
 import { FallbackSpinner } from '@/components/custom/FallbackSpinner';
-import NoData from '@/components/custom/NoData';
 import PageHeader from '@/components/custom/PageHeader';
-import ServerPagination from '@/components/custom/ServerPagination';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { cn } from '@/lib/utils';
 import useAggridOptions from '@/libs/shared-ui/src/hooks/useAggridOptions';
 import { useModal } from '@/libs/shared-ui/src/hooks/useModal';
-
-const LOG_PAGE_SIZE = 20;
 
 const breadcrumb: BreadcrumbProps['items'] = [
   { title: '시스템', path: '/manager/resource/data-retention' },
@@ -35,6 +31,12 @@ const categoryOrder: RetentionCategory[] = ['DATA', 'HISTORY', 'LOG'];
 
 const tabTriggerStyle =
   'w-auto hover:cursor-pointer !shadow-none border-1 border-transparent !rounded-none border-r-[#E9EBEC] text-[#495057] data-[state=active]:border-b-2 data-[state=active]:border-b-[var(--color-bt-primary)] data-[state=active]:text-[var(--color-bt-primary)]';
+
+const RETENTION_CATEGORY_ICONS: Record<RetentionCategory, React.ElementType> = {
+  DATA: Database,
+  HISTORY: History,
+  LOG: ScrollText,
+};
 
 /** 실행 상태 배지 */
 function ExecutionStatusBadge({ status }: { status: RetentionLogItem['status'] }) {
@@ -122,21 +124,9 @@ export default function DataRetentionPage() {
 
   const [selectedPolicy, setSelectedPolicy] = useState<RetentionPolicyListItem | null>(null);
   const [activeCategory, setActiveCategory] = useState<RetentionCategory>('DATA');
-  const [logPage, setLogPage] = useState(0);
 
   const { data: policiesData, isLoading: isPoliciesLoading } = useGetRetentionPolicies();
-  const {
-    data: logsData,
-    isLoading: isLogsLoading,
-    isFetching: isLogsFetching,
-  } = useGetRetentionLogs(
-    {
-      policyId: selectedPolicy?.policyId ?? 0,
-      page: logPage,
-      size: LOG_PAGE_SIZE,
-    },
-    selectedPolicy !== null,
-  );
+  const { data: logsData, isLoading: isLogsLoading } = useGetRetentionLogs(selectedPolicy?.policyId ?? 0, selectedPolicy !== null);
 
   const { mutate: executeNow, isPending: isExecuting } = useExecuteRetentionNow({
     mutationOptions: {
@@ -144,7 +134,7 @@ export default function DataRetentionPage() {
         toast.success('즉시 삭제 실행이 완료되었습니다.');
         if (selectedPolicy) {
           queryClient.invalidateQueries({
-            queryKey: dataRetentionQueryKeys.logs({ policyId: selectedPolicy.policyId, page: logPage, size: LOG_PAGE_SIZE }).queryKey,
+            queryKey: dataRetentionQueryKeys.logs(selectedPolicy.policyId).queryKey,
           });
         }
       },
@@ -161,13 +151,12 @@ export default function DataRetentionPage() {
     return acc;
   }, {});
 
-  const availableCategories = categoryOrder.filter((c) => (groupedPolicies[c]?.length ?? 0) > 0);
+  const availableCategories = categoryOrder;
 
   const logs = logsData?.items ?? [];
 
   const handleSelectPolicy = (policy: RetentionPolicyListItem) => {
     setSelectedPolicy((prev) => (prev?.policyId === policy.policyId ? null : policy));
-    setLogPage(0);
   };
 
   const handleEditPolicy = (policy: RetentionPolicyListItem) => {
@@ -194,10 +183,6 @@ export default function DataRetentionPage() {
   const handleCategoryChange = (value: string) => {
     setActiveCategory(value as RetentionCategory);
     setSelectedPolicy(null);
-  };
-
-  const handleLogPageChange = (page: number) => {
-    setLogPage(page);
   };
 
   // 이력 컬럼 — 전체 조회 시 정책명 포함, 필터링 시 제외
@@ -258,12 +243,17 @@ export default function DataRetentionPage() {
       {/* 정책 카드 영역 */}
       <div className="bg-white bt-shadow flex flex-col">
         <Tabs value={activeCategory} onValueChange={handleCategoryChange} className="flex flex-col">
-          {/* 탭 헤더 + 즉시실행 버튼 */}
-          <div className="flex items-center justify-between w-full h-[48px] min-h-[48px] border-b border-[#E9EBEC] bg-white pr-4">
+          <div className="flex items-center justify-between w-full h-[48px] min-h-[48px] border-b border-[#E9EBEC] pr-4">
             <TabsList className="h-full p-0 bg-white">
               {availableCategories.map((category) => (
                 <TabsTrigger key={category} value={category} className={cn(tabTriggerStyle)}>
-                  <div className="flex items-center justify-center min-w-[80px]">{RETENTION_CATEGORY_LABELS[category]}</div>
+                  <div className="flex items-center justify-center gap-1.5 min-w-[110px]">
+                    {(() => {
+                      const Icon = RETENTION_CATEGORY_ICONS[category];
+                      return <Icon className="w-4 h-4" />;
+                    })()}
+                    {RETENTION_CATEGORY_LABELS[category]}
+                  </div>
                 </TabsTrigger>
               ))}
             </TabsList>
@@ -272,7 +262,6 @@ export default function DataRetentionPage() {
             </Button>
           </div>
 
-          {/* 탭 콘텐츠 */}
           {availableCategories.map((category) => (
             <TabsContent key={category} value={category} forceMount className="m-0 data-[state=inactive]:hidden">
               <div className="p-4 grid gap-3 grid-cols-[repeat(auto-fill,minmax(200px,1fr))]">
@@ -301,28 +290,17 @@ export default function DataRetentionPage() {
         </div>
 
         <div className="flex-1 min-h-0">
-          {isLogsLoading ? (
-            <FallbackSpinner />
-          ) : logs.length === 0 ? (
-            <NoData message="삭제 실행 이력이 없습니다." iconSize={40} />
-          ) : (
-            <AgGridReact<RetentionLogItem>
-              rowData={logs}
-              columnDefs={logColumnDefs}
-              gridOptions={{
-                ...gridOptions,
-                pagination: false,
-                statusBar: undefined,
-              }}
-              loading={isLogsFetching}
-              getRowId={(params) => String(params.data.logId)}
-            />
-          )}
+          <AgGridReact<RetentionLogItem>
+            rowData={logs}
+            columnDefs={logColumnDefs}
+            gridOptions={{
+              ...gridOptions,
+              noRowsOverlayComponentParams: { message: '삭제 실행 이력이 없습니다.' },
+            }}
+            loading={isLogsLoading}
+            getRowId={(params) => String(params.data.logId)}
+          />
         </div>
-
-        {(logsData?.total ?? 0) > LOG_PAGE_SIZE && !!selectedPolicy && (
-          <ServerPagination currentPage={logPage} totalItems={logsData?.total ?? 0} pageSize={LOG_PAGE_SIZE} onPageChange={handleLogPageChange} />
-        )}
       </div>
 
       {/* 편집 드로어 */}

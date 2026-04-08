@@ -6,7 +6,7 @@ import { dataRetentionApi } from '../api/dataRetentionApi';
 export const dataRetentionQueryKeys = createQueryKeys('dataRetention', {
   policies: null,
   targets: (policyId: number) => [policyId],
-  logs: (params: { policyId: number; page: number; size: number }) => [params],
+  logs: (policyId: number) => [policyId],
 });
 
 export const useGetRetentionPolicies = () => {
@@ -24,10 +24,10 @@ export const useGetRetentionTargets = (policyId: number | null) => {
   });
 };
 
-export const useGetRetentionLogs = (params: { policyId: number; page: number; size: number }, enabled = true) => {
+export const useGetRetentionLogs = (policyId: number, enabled = true) => {
   return useQuery({
-    queryKey: dataRetentionQueryKeys.logs(params).queryKey,
-    queryFn: () => dataRetentionApi.getLogs(params),
+    queryKey: dataRetentionQueryKeys.logs(policyId).queryKey,
+    queryFn: () => dataRetentionApi.getLogs({ policyId, page: 0, size: 10000 }),
     enabled,
   });
 };
