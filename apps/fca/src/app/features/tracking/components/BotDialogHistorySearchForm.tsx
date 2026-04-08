@@ -129,6 +129,8 @@ const BotDialogHistorySearchForm: React.FC<BotDialogHistorySearchFormProps> = ({
           />
         </div>
 
+        <Divider type="vertical" className="!h-5 !m-0" />
+
         <div className="flex items-center gap-2">
           <span className="text-sm font-medium text-[#495057] shrink-0">의도</span>
           <Select

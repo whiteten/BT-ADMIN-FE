@@ -415,7 +415,7 @@ export default function IntentStatistics() {
                   options={intentSelectOptions}
                   placeholder="검색할 의도명을 선택하세요."
                   optionFilterProp="label"
-                  className="!min-w-[250px] !max-w-[400px]"
+                  style={{ width: '15rem' }}
                   popupMatchSelectWidth={false}
                   dropdownRender={(menu) => (
                     <>

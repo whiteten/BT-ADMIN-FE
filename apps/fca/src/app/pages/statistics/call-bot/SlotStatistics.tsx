@@ -432,7 +432,7 @@ export default function SlotStatistics() {
                   options={dialogSelectOptions}
                   placeholder="검색할 대화명을 선택하세요."
                   optionFilterProp="label"
-                  className="!min-w-[250px] !max-w-[400px]"
+                  style={{ width: '15rem' }}
                   popupMatchSelectWidth={false}
                   dropdownRender={(menu) => (
                     <>
