@@ -437,7 +437,7 @@ const BotDialogHistoryDrawer = forwardRef<BotDialogHistoryDrawerRef>((_, ref) =>
         {/* 좌우 분할 영역 */}
         <div className={cn('flex-1 min-h-0 flex gap-4', !hasNluData && 'flex-col')}>
           {/* 왼쪽: 대화 흐름 */}
-          <div className={cn('min-h-0 overflow-y-auto pr-1', hasNluData ? 'w-2/3' : 'flex-1')}>
+          <div className={cn('min-h-0 overflow-y-auto overflow-x-hidden pr-1', hasNluData ? 'w-3/5' : 'flex-1')}>
             {isBubbleLoading ? (
               <div className="flex justify-center py-6">
                 <Spin />
@@ -449,7 +449,7 @@ const BotDialogHistoryDrawer = forwardRef<BotDialogHistoryDrawerRef>((_, ref) =>
 
           {/* 오른쪽: NLU 분석 결과 */}
           {hasNluData && (
-            <div className="w-1/3 min-h-0 overflow-y-auto border-l pl-4">
+            <div className="w-2/5 min-h-0 overflow-y-auto border-l pl-4 pr-1">
               <div className="flex items-center gap-2 mb-3 sticky top-0 bg-white pb-2 z-10">
                 <Brain className="size-4 text-blue-500" />
                 <span className="text-xs font-bold">NLU 분석 결과</span>

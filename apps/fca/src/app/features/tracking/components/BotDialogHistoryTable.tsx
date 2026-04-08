@@ -111,7 +111,7 @@ const BotDialogHistoryTable: React.FC<BotDialogHistoryTableProps> = ({ rowData, 
           const val = params.value;
           const isConnected = val === 1;
           return (
-            <Badge variant="secondary" className={`text-[13px] leading-[13px] font-medium !h-6 ${isConnected ? 'text-[#F06548] bg-[#F065481A]' : 'text-[#495057] bg-[#E9EBEC]'}`}>
+            <Badge variant="secondary" className={`text-[13px] leading-[13px] font-medium !h-6 ${isConnected ? 'text-[#0AB39C] bg-[#0AB39C1A]' : 'text-[#495057] bg-[#E9EBEC]'}`}>
               {isConnected ? '연결' : '미연결'}
             </Badge>
           );
