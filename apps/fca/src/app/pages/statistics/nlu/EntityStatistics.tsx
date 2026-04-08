@@ -347,7 +347,7 @@ export default function EntityStatistics() {
                     options={modelSelectOptions}
                     placeholder="검색할 모델을 선택하세요."
                     optionFilterProp="label"
-                    className="w-[15rem]"
+                    style={{ width: '15rem' }}
                     popupMatchSelectWidth={false}
                   />
                 </div>

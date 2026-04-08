@@ -363,7 +363,7 @@ export default function DialogStatistics() {
                     options={serviceSelectOptions}
                     placeholder="검색할 봇서비스를 선택하세요."
                     optionFilterProp="label"
-                    className="w-[15rem]"
+                    style={{ width: '15rem' }}
                     popupMatchSelectWidth={false}
                   />
                 </div>

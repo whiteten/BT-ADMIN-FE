@@ -123,9 +123,9 @@ const BotDialogHistorySearchForm: React.FC<BotDialogHistorySearchFormProps> = ({
             placeholder="전체"
             allowClear
             maxTagCount="responsive"
-            className="w-[12rem]"
             showSearch
             optionFilterProp="label"
+            style={{ width: '12rem' }}
           />
         </div>
 
@@ -139,9 +139,9 @@ const BotDialogHistorySearchForm: React.FC<BotDialogHistorySearchFormProps> = ({
             placeholder="전체"
             allowClear
             maxTagCount="responsive"
-            className="w-[12rem]"
             showSearch
             optionFilterProp="label"
+            style={{ width: '12rem' }}
             popupMatchSelectWidth={false}
             dropdownRender={(menu) => (
               <>
