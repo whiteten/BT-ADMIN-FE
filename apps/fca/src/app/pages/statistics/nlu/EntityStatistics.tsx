@@ -68,7 +68,7 @@ export default function EntityStatistics() {
   // 개체 태그 옵션 조회 (모델 선택 시)
   const modelIdParams = [modelIds].flat().filter(Boolean);
   const { data: entityTagOptionList } = useGetEntityOptionList({
-    params: { modelId: modelIdParams },
+    params: { modelIds: modelIdParams },
     queryOptions: { enabled: modelIdParams.length > 0 },
   });
 

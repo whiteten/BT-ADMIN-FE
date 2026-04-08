@@ -56,25 +56,25 @@ export const statisticsApi = {
 
   // 대화 옵션 목록 조회
   getDialogOptionList: async (params?: Record<string, unknown>): Promise<DialogOptionListItem[]> => {
-    const response = await apiClient.get<ListResponse<DialogOptionListItem>>('/stat-dialog-options', { params });
+    const response = await apiClient.post<ListResponse<DialogOptionListItem>>('/stat-dialog-options', params);
     return extractList(response);
   },
 
   // 슬롯 옵션 목록 조회
   getSlotOptionList: async (params?: Record<string, unknown>): Promise<SlotOptionListItem[]> => {
-    const response = await apiClient.get<ListResponse<SlotOptionListItem>>('/stat-slot-options', { params });
+    const response = await apiClient.post<ListResponse<SlotOptionListItem>>('/stat-slot-options', params);
     return extractList(response);
   },
 
   // 의도 옵션 목록 조회
   getIntentOptionList: async (params?: Record<string, unknown>): Promise<IntentOptionListItem[]> => {
-    const response = await apiClient.get<ListResponse<IntentOptionListItem>>('/stat-intent-options', { params });
+    const response = await apiClient.post<ListResponse<IntentOptionListItem>>('/stat-intent-options', params);
     return extractList(response);
   },
 
   // 개체 옵션 목록 조회
   getEntityOptionList: async (params?: Record<string, unknown>): Promise<EntityOptionListItem[]> => {
-    const response = await apiClient.get<ListResponse<EntityOptionListItem>>('/stat-entity-options', { params });
+    const response = await apiClient.post<ListResponse<EntityOptionListItem>>('/stat-entity-options', params);
     return extractList(response);
   },
 
