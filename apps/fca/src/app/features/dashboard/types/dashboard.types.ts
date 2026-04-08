@@ -4,12 +4,18 @@ import type { LayoutItem } from 'react-grid-layout';
  * 봇 현황
  *
  * - entryCnt: 진입수
+ * - entryDiff: 진입수 전일대비
  * - completeCnt: 봇 해결수
  * - completeRate: 봇 해결률 (%)
+ * - completeRateDiff: 봇 해결률 전일대비 (%p)
  * - agentReqCnt: 상담사 연결수
  * - agentTransferRate: 상담사 연결률 (%)
+ * - agentTransferRateDiff: 상담사 연결률 전일대비 (%p)
  * - incompleteCnt: 미해결 종료수
  * - incompleteRate: 미해결 종료율 (%)
+ * - incompleteRateDiff: 미해결 종료율 전일대비 (%p)
+ * - avgBusyTime: 평균 점유시간 (초)
+ * - avgBusyTimeDiff: 평균 점유시간 전일대비 (초)
  * - prevEntryCnt: 전일 진입수
  * - prevCompleteCnt: 전일 봇 해결수
  * - prevAgentReqCnt: 전일 상담사 연결수
@@ -17,12 +23,18 @@ import type { LayoutItem } from 'react-grid-layout';
  */
 export interface ScenarioSummary {
   entryCnt: number;
+  entryDiff: number;
   completeCnt: number;
   completeRate: number;
+  completeRateDiff: number;
   agentReqCnt: number;
   agentTransferRate: number;
+  agentTransferRateDiff: number;
   incompleteCnt: number;
   incompleteRate: number;
+  incompleteRateDiff: number;
+  avgBusyTime: number;
+  avgBusyTimeDiff: number;
   prevEntryCnt: number;
   prevCompleteCnt: number;
   prevAgentReqCnt: number;
@@ -33,20 +45,26 @@ export interface ScenarioSummary {
  * 대화 현황
  *
  * - entryCnt: 진입수
+ * - entryDiff: 진입수 전일대비
  * - completeCnt: 완결수
  * - completeRate: 완결률 (%)
+ * - completeRateDiff: 완결률 전일대비 (%p)
  * - incompleteCnt: 미완결수
  * - incompleteRate: 미완결률 (%)
+ * - incompleteRateDiff: 미완결률 전일대비 (%p)
  * - prevEntryCnt: 전일 진입수
  * - prevCompleteCnt: 전일 완결수
  * - prevIncompleteCnt: 전일 미완결수
  */
 export interface DialogSummary {
   entryCnt: number;
+  entryDiff: number;
   completeCnt: number;
   completeRate: number;
+  completeRateDiff: number;
   incompleteCnt: number;
   incompleteRate: number;
+  incompleteRateDiff: number;
   prevEntryCnt: number;
   prevCompleteCnt: number;
   prevIncompleteCnt: number;
@@ -56,20 +74,26 @@ export interface DialogSummary {
  * 슬롯 현황
  *
  * - entryCnt: 진입수
+ * - entryDiff: 진입수 전일대비
  * - completeCnt: 완결수
  * - completeRate: 완결률 (%)
+ * - completeRateDiff: 완결률 전일대비 (%p)
  * - incompleteCnt: 미완결수
  * - incompleteRate: 미완결률 (%)
+ * - incompleteRateDiff: 미완결률 전일대비 (%p)
  * - prevEntryCnt: 전일 진입수
  * - prevCompleteCnt: 전일 완결수
  * - prevIncompleteCnt: 전일 미완결수
  */
 export interface SlotSummary {
   entryCnt: number;
+  entryDiff: number;
   completeCnt: number;
   completeRate: number;
+  completeRateDiff: number;
   incompleteCnt: number;
   incompleteRate: number;
+  incompleteRateDiff: number;
   prevEntryCnt: number;
   prevCompleteCnt: number;
   prevIncompleteCnt: number;

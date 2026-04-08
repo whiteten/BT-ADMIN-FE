@@ -1,4 +1,4 @@
-import { DEFAULT_ROW_CNT } from './dashboardConstants';
+import { DEFAULT_ROW_CNT, ROW_CNT_MAX } from './dashboardConstants';
 import DialogIncompleteTopBarChart from '../components/DialogIncompleteTopBarChart';
 import DialogIncompleteTopConfigDrawer from '../components/DialogIncompleteTopConfigDrawer';
 import DialogIncompleteTopGrid from '../components/DialogIncompleteTopGrid';
@@ -167,7 +167,7 @@ export const botDashboardLayoutRenderMapper: Record<string, LayoutRenderEntry> =
   keywordTop: {
     title: '키워드 현황',
     supportedModes: [DASHBOARD_VIEW.CHART, DASHBOARD_VIEW.TABLE],
-    defaultOptions: { excludeWords: [] as string[] },
+    defaultOptions: { rowCnt: ROW_CNT_MAX, excludeWords: [] as string[] },
     menuActions: [
       {
         key: 'settings',
