@@ -387,7 +387,7 @@ export default function EntityStatistics() {
                   options={entityTagSelectOptions}
                   placeholder="검색할 개체 태그를 선택하세요."
                   optionFilterProp="label"
-                  className="!min-w-[250px] !max-w-[400px]"
+                  style={{ width: '15rem' }}
                   popupMatchSelectWidth={false}
                   dropdownRender={(menu) => (
                     <>
