@@ -7,6 +7,7 @@ export interface Role {
   sortOrder: number;
   isUse: boolean;
   canResetPassword: boolean;
+  canManageResourceAccess: boolean;
   isSystem: boolean;
   permissionCount?: number;
   userCount?: number;

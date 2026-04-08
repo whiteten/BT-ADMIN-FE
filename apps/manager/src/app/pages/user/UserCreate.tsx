@@ -66,7 +66,8 @@ export default function UserCreate() {
   const [assignedModels, setAssignedModels] = useState<AssignedResource[]>([]);
 
   // 역할 목록은 RouteGuard에서 이미 로드되어 Zustand에 저장됨
-  const { roleList, isLoading: isFetchingRoles } = useAuthStore();
+  const { roleList, isLoading: isFetchingRoles, canManageResourceAccess } = useAuthStore();
+  const hasResourceAccessPermission = canManageResourceAccess();
   const roleOptions = roleList.map((role) => ({ label: role.roleName, value: role.roleId }));
 
   const initialValues: Partial<UserFormValues> = {
@@ -94,11 +95,12 @@ export default function UserCreate() {
       });
   }, [formValues, form]);
 
-  const steps = [
+  const baseSteps = [
     { title: '기본 정보', requiredFieldNames: ['username', 'userAccount', 'roleId'], content: renderStep1 },
-    { title: '리소스 접근', requiredFieldNames: [], content: renderStep2 },
+    { title: '리소스 접근', requiredFieldNames: [], content: renderStep2, requiresResourceAccess: true },
     { title: '부가사항', requiredFieldNames: [], content: renderStep3 },
   ];
+  const steps = baseSteps.filter((step) => !step.requiresResourceAccess || hasResourceAccessPermission);
 
   const createUserMutation = useCreateUser({
     mutationOptions: {
@@ -438,26 +440,34 @@ export default function UserCreate() {
           </div>
         </div>
         <Divider className="!my-3" />
-        {/* Step 2: 리소스 접근 */}
-        <div className="space-y-2">
-          <div className="flex items-center gap-1">
-            <span className="text-gray-500 w-28 shrink-0">봇 서비스</span>
-            <span className="text-gray-800 flex-1">
-              {assignedBots.length > 0 ? <span className="text-blue-600 font-medium">{assignedBots.length}개 설정</span> : <span className="text-gray-400 text-sm">전체 허용</span>}
-            </span>
-          </div>
-          <div className="flex items-center gap-1">
-            <span className="text-gray-500 w-28 shrink-0">NLU 모델</span>
-            <span className="text-gray-800 flex-1">
-              {assignedModels.length > 0 ? (
-                <span className="text-blue-600 font-medium">{assignedModels.length}개 설정</span>
-              ) : (
-                <span className="text-gray-400 text-sm">전체 허용</span>
-              )}
-            </span>
-          </div>
-        </div>
-        <Divider className="!my-3" />
+        {/* Step 2: 리소스 접근 (권한이 있을 때만 표시) */}
+        {hasResourceAccessPermission && (
+          <>
+            <div className="space-y-2">
+              <div className="flex items-center gap-1">
+                <span className="text-gray-500 w-28 shrink-0">봇 서비스</span>
+                <span className="text-gray-800 flex-1">
+                  {assignedBots.length > 0 ? (
+                    <span className="text-blue-600 font-medium">{assignedBots.length}개 설정</span>
+                  ) : (
+                    <span className="text-gray-400 text-sm">전체 허용</span>
+                  )}
+                </span>
+              </div>
+              <div className="flex items-center gap-1">
+                <span className="text-gray-500 w-28 shrink-0">NLU 모델</span>
+                <span className="text-gray-800 flex-1">
+                  {assignedModels.length > 0 ? (
+                    <span className="text-blue-600 font-medium">{assignedModels.length}개 설정</span>
+                  ) : (
+                    <span className="text-gray-400 text-sm">전체 허용</span>
+                  )}
+                </span>
+              </div>
+            </div>
+            <Divider className="!my-3" />
+          </>
+        )}
         {/* Step 3: 부가사항 */}
         <div className="space-y-2">
           <div className="flex items-center gap-1">

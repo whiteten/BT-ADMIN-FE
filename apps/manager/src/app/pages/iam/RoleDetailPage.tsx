@@ -106,6 +106,7 @@ export default function RoleDetailPage() {
         sortOrder: role.sortOrder,
         isUse: role.isUse,
         canResetPassword: role.canResetPassword,
+        canManageResourceAccess: role.canManageResourceAccess,
       });
       setSelectedPermissions(new Set(role.authIds ?? []));
     }
@@ -189,6 +190,12 @@ export default function RoleDetailPage() {
             <span className="text-gray-500 w-20 shrink-0">비밀번호 초기화</span>
             <span className="flex-1">
               <Tag color={currentBasic.canResetPassword ? 'orange' : 'default'}>{currentBasic.canResetPassword ? '허용' : '불가'}</Tag>
+            </span>
+          </div>
+          <div className="flex items-center gap-1">
+            <span className="text-gray-500 w-20 shrink-0">리소스 접근 관리</span>
+            <span className="flex-1">
+              <Tag color={currentBasic.canManageResourceAccess ? 'purple' : 'default'}>{currentBasic.canManageResourceAccess ? '허용' : '불가'}</Tag>
             </span>
           </div>
         </div>
