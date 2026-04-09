@@ -164,10 +164,10 @@ export interface SlotIncompleteTopItem {
 export interface SlotRetryAvgTopItem {
   rank: number;
   serviceName: string;
-  dialogName: string;
   slotName: string;
   entryCnt: number;
   completeCnt: number;
+  retryCnt: number;
   avgRetryCount: number;
   oneTimeCompleteCnt: number;
   twoTimeCompleteCnt: number;
