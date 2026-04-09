@@ -245,10 +245,25 @@ export default function UserCreate() {
     );
   }
 
+  // IP 유효성 검사 (IPv4)
+  const validateIp = (ip: string): string | null => {
+    const parts = ip.split('.');
+    if (parts.length !== 4) return '올바른 IP 주소 형식이 아닙니다. (예: 192.168.1.1)';
+    for (const part of parts) {
+      if (!/^\d+$/.test(part)) return '올바른 IP 주소 형식이 아닙니다. (예: 192.168.1.1)';
+      const num = Number(part);
+      if (num < 0 || num > 255) return 'IP 주소의 각 자리는 0~255 사이의 숫자여야 합니다.';
+    }
+    return null;
+  };
+
   // IP 추가 핸들러
   const handleAddIp = () => {
     const trimmedIp = newIp.trim();
-    if (!trimmedIp) {
+    if (!trimmedIp) return;
+    const validationError = validateIp(trimmedIp);
+    if (validationError) {
+      setIpError(validationError);
       return;
     }
     if (watchedAllowedIps.includes(trimmedIp)) {
@@ -327,49 +342,36 @@ export default function UserCreate() {
             <Form.Item name="allowedIps" hidden>
               <Input />
             </Form.Item>
-            <div className="ant-form-item">
-              <div className="ant-form-item-label">
-                <label title="접근 허용 IP">
-                  접근 허용 IP
-                  <span
-                    className="ant-form-item-tooltip ml-1 text-gray-400 cursor-help"
-                    title="사용자가 로그인할 수 있는 IP 주소를 설정합니다. 설정하지 않으면 모든 IP에서 접근 가능합니다."
-                  >
-                    ?
-                  </span>
-                </label>
-              </div>
-              <div className="ant-form-item-control">
-                <div className="space-y-3">
-                  <div className="flex gap-2">
-                    <Input
-                      value={newIp}
-                      onChange={handleIpChange}
-                      onKeyDown={handleIpKeyDown}
-                      placeholder="IP 주소 입력 (예: 192.168.1.* )"
-                      className="flex-1"
-                      maxLength={15}
-                      status={ipError ? 'error' : undefined}
-                    />
-                    <Button type="primary" onClick={handleAddIp}>
-                      <Plus className="w-4 h-4" />
-                      추가
-                    </Button>
-                  </div>
-                  {ipError && <div className="text-red-500 text-sm">{ipError}</div>}
-                  {watchedAllowedIps.length > 0 && (
-                    <div className="flex flex-wrap gap-2 p-3 bg-gray-50 rounded-md border border-gray-200">
-                      {watchedAllowedIps.map((ip: string) => (
-                        <Tag key={ip} closable onClose={() => handleRemoveIp(ip)} className="flex items-center gap-1 text-sm py-1 px-2">
-                          {ip}
-                        </Tag>
-                      ))}
-                    </div>
-                  )}
-                  {watchedAllowedIps.length === 0 && <div className="text-gray-400 text-sm">등록된 IP가 없습니다. 모든 IP에서 접근 가능합니다.</div>}
+            <Form.Item label="접근 허용 IP" tooltip="사용자가 로그인할 수 있는 IP 주소를 설정합니다. 설정하지 않으면 모든 IP에서 접근 가능합니다.">
+              <div className="space-y-3">
+                <div className="flex gap-2">
+                  <Input
+                    value={newIp}
+                    onChange={handleIpChange}
+                    onKeyDown={handleIpKeyDown}
+                    placeholder="IP 주소 입력 (예: 192.168.1.1)"
+                    className="flex-1"
+                    maxLength={15}
+                    status={ipError ? 'error' : undefined}
+                  />
+                  <Button type="primary" onClick={handleAddIp}>
+                    <Plus className="w-4 h-4" />
+                    추가
+                  </Button>
                 </div>
+                {ipError && <div className="text-red-500 text-sm">{ipError}</div>}
+                {watchedAllowedIps.length > 0 && (
+                  <div className="flex flex-wrap gap-2 p-3 bg-gray-50 rounded-md border border-gray-200">
+                    {watchedAllowedIps.map((ip: string) => (
+                      <Tag key={ip} closable onClose={() => handleRemoveIp(ip)} className="flex items-center gap-1 text-sm py-1 px-2">
+                        {ip}
+                      </Tag>
+                    ))}
+                  </div>
+                )}
+                {watchedAllowedIps.length === 0 && <div className="text-gray-400 text-sm">등록된 IP가 없습니다. 모든 IP에서 접근 가능합니다.</div>}
               </div>
-            </div>
+            </Form.Item>
           </Col>
         </Row>
       </>

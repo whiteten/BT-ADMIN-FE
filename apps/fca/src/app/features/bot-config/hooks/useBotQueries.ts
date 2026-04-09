@@ -258,3 +258,14 @@ export const useImportEnv = ({ mutationOptions }: MutationHookOptions = {}) => {
     ...mutationOptions,
   });
 };
+
+export const useDownloadScenario = ({ mutationOptions }: MutationHookOptions = {}) => {
+  return useMutation({
+    mutationFn: async (params: Record<string, unknown>) => {
+      const response = await botApi.downloadScenario(params);
+      const fileName = extractFileName(response.headers['content-disposition'], `scenario_${params['serviceId']}_${params['serviceVer']}.xml`);
+      downloadBlob(response.data, fileName);
+    },
+    ...mutationOptions,
+  });
+};
