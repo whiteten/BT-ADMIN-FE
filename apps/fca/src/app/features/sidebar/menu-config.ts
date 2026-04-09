@@ -2,7 +2,7 @@ import { Activity, Bot } from 'lucide-react';
 import { IconMenuBotCommon, IconMenuBotConfig, IconMenuDashboard, IconMenuMain, IconMenuStatistics } from '@/components/custom/Icons';
 
 const appId = 'fca';
-const appName = 'FOCUS AI';
+const appName = 'FORCUS AI';
 const menuConfig = {
   appId: appId,
   appName: appName,

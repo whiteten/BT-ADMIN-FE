@@ -36,7 +36,7 @@ TypeScript 또는 JavaScript 파일을 수정한 후에는 반드시 `npx eslint
   - 사이드바 내비게이션이 있는 메인 레이아웃
 - **Remote Apps**:
   - `apps/manager`: 매니저 (사용자 관리, 대시보드)
-  - `apps/fca`: Focus AI (봇 관리 기능)
+  - `apps/fca`: ForCus AI (봇 관리 기능)
 
 ### 라이브러리
 
