@@ -58,6 +58,7 @@ export default function BotVersionList() {
     mutationOptions: {
       onSuccess: (data) => {
         publishResultModalRef.current?.open(data as PublishBotVersionResult);
+        queryClient.invalidateQueries({ queryKey: botQueryKeys.getBotDeployConfig({ serviceId }).queryKey });
       },
     },
   });
