@@ -153,4 +153,8 @@ export const botApi = {
     const response = await apiClient.post<DetailResponse<ExcelImportResult>>('/bot-slee-config-excel-import', formData, { params });
     return extractDetail(response);
   },
+  downloadScenario: async (params: Record<string, unknown>) => {
+    const response = await apiClient.get<Blob>('/bot-scenario-download', { params, responseType: 'blob' });
+    return response;
+  },
 };
