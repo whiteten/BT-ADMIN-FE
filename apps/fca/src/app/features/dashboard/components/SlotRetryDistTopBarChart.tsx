@@ -14,7 +14,7 @@ const createChartOption = (data: SlotRetryDistTopItem[]): EChartsOption => {
       formatter: (params) => {
         const list = params as CallbackDataParams[];
         const item = data[list[0].dataIndex];
-        const title = `<strong>${item.serviceName} &gt; ${item.dialogName} &gt; ${item.slotName}</strong>`;
+        const title = `<strong>${item.serviceName} &gt; ${item.slotName}</strong>`;
         const lines = list.map((p) => `${p.marker} ${p.seriesName}: ${p.value}%`);
         return `${title}<br/>진입: ${item.entryCnt}건 / 완결: ${item.completeCnt}건<br/>${lines.join('<br/>')}`;
       },

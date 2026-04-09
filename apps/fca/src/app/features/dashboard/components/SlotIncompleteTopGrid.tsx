@@ -6,7 +6,6 @@ import useAggridOptions from '@/libs/shared-ui/src/hooks/useAggridOptions';
 const columnDefs: ColDef<SlotIncompleteTopItem>[] = [
   { headerName: '순위', field: 'rank', maxWidth: 80 },
   { headerName: '시나리오명', field: 'serviceName' },
-  { headerName: '대화명', field: 'dialogName' },
   { headerName: '슬롯명', field: 'slotName' },
   { headerName: '진입수', field: 'entryCnt', valueFormatter: (p) => (p.value != null ? `${p.value}건` : '') },
   { headerName: '완결수', field: 'completeCnt', valueFormatter: (p) => (p.value != null ? `${p.value}건` : '') },

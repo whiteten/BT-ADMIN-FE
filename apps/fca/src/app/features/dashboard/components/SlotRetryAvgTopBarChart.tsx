@@ -15,7 +15,7 @@ const createChartOption = (data: SlotRetryAvgTopItem[]): EChartsOption => {
         const first = list[0] as { dataIndex: number; marker: string };
         if (first?.dataIndex == null) return '';
         const item = data[first.dataIndex];
-        return `${first.marker}<strong>${item.serviceName} &gt; ${item.dialogName} &gt; ${item.slotName}</strong><br/>평균 재시도: ${item.avgRetryCount}회<br/>진입: ${item.entryCnt}건<br/>완결: ${item.completeCnt}건`;
+        return `${first.marker}<strong>${item.serviceName} &gt; ${item.slotName}</strong><br/>평균 재시도: ${item.avgRetryCount}회<br/>진입: ${item.entryCnt}건<br/>완결: ${item.completeCnt}건`;
       },
     },
     grid: { left: 20, right: 50, bottom: 20, top: 20, containLabel: true },

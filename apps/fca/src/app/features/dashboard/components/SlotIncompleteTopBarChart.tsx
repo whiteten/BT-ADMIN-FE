@@ -18,7 +18,7 @@ const createChartOption = (data: SlotIncompleteTopItem[]): EChartsOption => {
         const first = list[0] as { dataIndex: number; marker: string };
         if (first?.dataIndex == null) return '';
         const item = data[first.dataIndex];
-        return `${first.marker}<strong>${item.serviceName} &gt; ${item.dialogName} &gt; ${item.slotName}</strong><br/>미완결율: ${item.incompleteRate}%<br/>미완결: ${item.incompleteCnt}건<br/>진입: ${item.entryCnt}건`;
+        return `${first.marker}<strong>${item.serviceName} &gt; ${item.slotName}</strong><br/>미완결율: ${item.incompleteRate}%<br/>미완결: ${item.incompleteCnt}건<br/>진입: ${item.entryCnt}건`;
       },
     },
     grid: { left: 20, right: 50, bottom: 20, top: 20, containLabel: true },
