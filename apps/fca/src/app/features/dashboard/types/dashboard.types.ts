@@ -175,11 +175,10 @@ export interface SlotRetryAvgTopItem {
 }
 
 /**
- * 슬롯 완결 건 재시도 분포 순위
+ * 슬롯 재시도 분포 순위
  *
  * - rank: 순위
  * - serviceName: 시나리오명
- * - dialogName: 대화명
  * - slotName: 슬롯명
  * - entryCnt: 진입수
  * - completeCnt: 완결수
@@ -355,7 +354,7 @@ export interface OccupancyItem {
  * - dialogIncompleteTop: 대화 미완결율 순위
  * - slotIncompleteTop: 슬롯 미완결율 순위
  * - slotRetryAvgTop: 슬롯 평균 재시도 횟수 순위
- * - slotRetryDistTop: 슬롯 완결 건 재시도 분포 순위
+ * - slotRetryDistTop: 슬롯 재시도 분포 순위
  * - keywordTop: 키워드 현황
  * - entityTop: 개체 순위
  * - intentTop: 의도 순위

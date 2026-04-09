@@ -8,7 +8,7 @@ interface SlotRetryDistTopDrawerProps extends WidgetActionContext {
   onClose: () => void;
 }
 
-const WIDGET_TITLE = '슬롯 완결 건 재시도 분포 순위';
+const WIDGET_TITLE = '슬롯 재시도 분포 순위';
 
 const SlotRetryDistTopDrawer = ({ open, onClose, widgetOptions, setOption }: SlotRetryDistTopDrawerProps) => {
   const [form] = Form.useForm();

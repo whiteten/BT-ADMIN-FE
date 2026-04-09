@@ -149,7 +149,7 @@ export const botDashboardLayoutRenderMapper: Record<string, LayoutRenderEntry> =
     renderTable: (d) => <SlotRetryAvgTopGrid data={d?.slotRetryAvgTop} />,
   },
   slotRetryDistTop: {
-    title: '슬롯 완결 건 재시도 분포 순위',
+    title: '슬롯 재시도 분포 순위',
     supportedModes: [DASHBOARD_VIEW.CHART, DASHBOARD_VIEW.TABLE],
     defaultOptions: { rowCnt: DEFAULT_ROW_CNT },
     menuActions: [
