@@ -295,40 +295,41 @@ const BotDialogHistoryDrawer = forwardRef<BotDialogHistoryDrawerRef>((_, ref) =>
   const queryClient = useQueryClient();
   const [isOpen, setIsOpen] = useState(false);
   const [selectedRow, setSelectedRow] = useState<BotDialogHistoryListItem | null>(null);
-  const [highlightedSeq, setHighlightedSeq] = useState<number | null>(null);
-  const bubbleRefs = useRef<Map<number, HTMLDivElement>>(new Map());
+  const [highlightedNluSeq, setHighlightedNluSeq] = useState<number | null>(null);
+  const nluCardRefs = useRef<Map<number, HTMLDivElement>>(new Map());
   const highlightTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useImperativeHandle(ref, () => ({
     open: (row: BotDialogHistoryListItem) => {
       setSelectedRow(row);
-      setHighlightedSeq(null);
-      bubbleRefs.current.clear();
+      setHighlightedNluSeq(null);
+      nluCardRefs.current.clear();
       setIsOpen(true);
     },
     close: () => {
       setIsOpen(false);
       setSelectedRow(null);
-      setHighlightedSeq(null);
+      setHighlightedNluSeq(null);
     },
   }));
 
   const handleClose = () => {
     setIsOpen(false);
     setSelectedRow(null);
-    setHighlightedSeq(null);
+    setHighlightedNluSeq(null);
   };
 
-  const setBubbleRef = useCallback((seq: number, el: HTMLDivElement | null) => {
-    if (el) bubbleRefs.current.set(seq, el);
+  const setNluCardRef = useCallback((seq: number, el: HTMLDivElement | null) => {
+    if (el) nluCardRefs.current.set(seq, el);
   }, []);
 
-  const handleNluCardClick = useCallback((seq: number) => {
-    setHighlightedSeq(seq);
+  const handleBubbleClick = useCallback((item: TrackingFlowItem) => {
+    if (item.dialogRole !== 'CUSTOMER') return;
+    setHighlightedNluSeq(item.seq);
     if (highlightTimer.current) clearTimeout(highlightTimer.current);
-    highlightTimer.current = setTimeout(() => setHighlightedSeq(null), 1200);
+    highlightTimer.current = setTimeout(() => setHighlightedNluSeq(null), 1200);
     setTimeout(() => {
-      const el = bubbleRefs.current.get(seq);
+      const el = nluCardRefs.current.get(item.seq);
       el?.scrollIntoView({ behavior: 'smooth', block: 'center' });
     }, 50);
   }, []);
@@ -443,7 +444,7 @@ const BotDialogHistoryDrawer = forwardRef<BotDialogHistoryDrawerRef>((_, ref) =>
                 <Spin />
               </div>
             ) : (
-              <TrackingDialogView items={items} highlightedSeq={highlightedSeq} onIfeLink={handleIfeLink} setBubbleRef={setBubbleRef} />
+              <TrackingDialogView items={items} onItemClick={handleBubbleClick} onIfeLink={handleIfeLink} />
             )}
           </div>
 
@@ -456,16 +457,12 @@ const BotDialogHistoryDrawer = forwardRef<BotDialogHistoryDrawerRef>((_, ref) =>
                 <span className="text-[10px] text-gray-400">({nluItems.length}건)</span>
               </div>
 
-              <div className="space-y-3">
+              <div className="space-y-3 pb-4">
                 {nluItems.map((item) => (
                   <div
                     key={item.seq}
-                    className="cursor-pointer"
-                    onClick={(e) => {
-                      // 편집 UI 내부 클릭 시 카드 클릭 무시
-                      if ((e.target as HTMLElement).closest('[data-retrain-edit]')) return;
-                      handleNluCardClick(item.seq);
-                    }}
+                    ref={(el) => setNluCardRef(item.seq, el)}
+                    className={cn('transition-all duration-300 rounded-lg', highlightedNluSeq === item.seq && 'ring-2 ring-blue-400 ring-offset-2 bg-blue-50/50')}
                   >
                     <NluCard seq={item.seq} nluResults={item.nluResults!} onRetrainSuccess={handleRetrainSuccess} />
                   </div>

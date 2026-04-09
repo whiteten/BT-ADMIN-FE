@@ -67,9 +67,6 @@ export interface TrackingFlowItem {
   seq: number;
   type: number;
   typeName: string;
-  menuId: string | null;
-  menuName: string | null;
-  block: string;
   startTime: string;
   description: string | null;
   /** 멀티모달 이미지 URL (Type=2일 때만 존재) */
@@ -80,7 +77,9 @@ export interface TrackingFlowItem {
   subFlowId: string | null;
   /** IFE Node Name (Type=0일 때) */
   nodeName: string | null;
+  /** 원시 값 (VAL1~VAL10) */
   rawValues: string[];
+
   /** NLU 분석 결과 (고객 발화에만 존재, HOP 단위 목록) */
   nluResults?: NluAnalysisItem[] | null;
 }
