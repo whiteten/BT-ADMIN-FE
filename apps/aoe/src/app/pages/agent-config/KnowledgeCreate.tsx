@@ -143,23 +143,25 @@ export default function KnowledgeCreate() {
 
   function renderStep2() {
     return (
-      <div className="flex gap-4 h-full min-h-0">
+      <div className="flex gap-4 w-full h-full min-h-0">
         {/* 왼쪽: 설정 패널 */}
-        <div className="flex-1 min-w-0 flex flex-col gap-4 overflow-y-auto">
-          {/* 문서 정보 */}
-          <Card title="설정" size="small">
+        <div className="flex-1 min-w-0 flex flex-col border border-gray-200 rounded-lg overflow-hidden">
+          <div className="px-4 py-3 border-b border-gray-200 bg-gray-50 shrink-0">
+            <span className="text-sm font-semibold text-gray-700">설정</span>
+          </div>
+          <div className="flex-1 overflow-y-auto p-4">
             <Form form={step2Form} layout="vertical" initialValues={{ chunkSize: 500, chunkOverlap: 50, topK: 3, enableHybridSearch: '0', denseWeight: 0.0, bm25Weight: 1.0 }}>
               {/* 청크 설정 */}
               <div className="text-sm font-semibold text-gray-700 mb-3 mt-1">청크 설정</div>
               <Row gutter={16}>
                 <Col span={12}>
                   <Form.Item name="chunkSize" label="최대 청크 길이" rules={[{ required: true }]}>
-                    <InputNumber className="w-full" min={1} max={10000} />
+                    <InputNumber style={{ width: '100%' }} min={1} max={10000} />
                   </Form.Item>
                 </Col>
                 <Col span={12}>
                   <Form.Item name="chunkOverlap" label="청크 중첩" rules={[{ required: true }]}>
-                    <InputNumber className="w-full" min={0} />
+                    <InputNumber style={{ width: '100%' }} min={0} />
                   </Form.Item>
                 </Col>
               </Row>
@@ -177,7 +179,7 @@ export default function KnowledgeCreate() {
                 </Col>
                 <Col span={12}>
                   <Form.Item name="topK" label="상위 K" rules={[{ required: true }]}>
-                    <InputNumber className="w-full" min={1} />
+                    <InputNumber style={{ width: '100%' }} min={1} />
                   </Form.Item>
                 </Col>
               </Row>
@@ -185,23 +187,23 @@ export default function KnowledgeCreate() {
                 <Row gutter={16}>
                   <Col span={12}>
                     <Form.Item name="denseWeight" label="Dense Weight">
-                      <InputNumber className="w-full" min={0} max={1} step={0.1} />
+                      <InputNumber style={{ width: '100%' }} min={0} max={1} step={0.1} />
                     </Form.Item>
                   </Col>
                   <Col span={12}>
                     <Form.Item name="bm25Weight" label="BM25 Weight">
-                      <InputNumber className="w-full" min={0} max={1} step={0.1} />
+                      <InputNumber style={{ width: '100%' }} min={0} max={1} step={0.1} />
                     </Form.Item>
                   </Col>
                 </Row>
               )}
             </Form>
-          </Card>
+          </div>
         </div>
 
         {/* 오른쪽: 미리보기 패널 */}
-        <div className="w-[420px] min-w-[420px] flex flex-col border border-gray-200 rounded-lg overflow-hidden">
-          <div className="px-4 py-3 border-b border-gray-200 bg-gray-50">
+        <div className="flex-1 min-w-0 flex flex-col border border-gray-200 rounded-lg overflow-hidden">
+          <div className="px-4 py-3 border-b border-gray-200 bg-gray-50 shrink-0">
             <span className="text-sm font-semibold text-gray-700">미리보기</span>
           </div>
           <div className="flex-1 overflow-y-auto p-4">
@@ -318,12 +320,16 @@ export default function KnowledgeCreate() {
         <Steps current={currentStep} items={steps.map((step) => ({ title: step.title }))} size="small" style={{ width: `${steps.length * 250}px` }} responsive={false} />
       </div>
       <div className="w-full flex-1 min-h-0 bg-white bt-shadow flex flex-col">
-        <div className="flex-1 min-h-0 overflow-y-auto p-7 pb-0">
-          <div style={{ display: currentStep === 0 ? 'block' : 'none' }}>{renderStep1()}</div>
-          <div style={{ display: currentStep === 1 ? 'flex' : 'none' }} className="h-full">
+        <div className="flex-1 min-h-0 flex flex-col p-7 pb-0">
+          <div style={{ display: currentStep === 0 ? 'block' : 'none' }} className="overflow-y-auto h-full">
+            {renderStep1()}
+          </div>
+          <div style={{ display: currentStep === 1 ? 'flex' : 'none' }} className="flex-1 min-h-0 w-full">
             {renderStep2()}
           </div>
-          <div style={{ display: currentStep === 2 ? 'block' : 'none' }}>{renderStep3()}</div>
+          <div style={{ display: currentStep === 2 ? 'block' : 'none' }} className="overflow-y-auto h-full">
+            {renderStep3()}
+          </div>
         </div>
         <div className="w-full px-7 pb-7 pt-4">{renderFooter()}</div>
       </div>
