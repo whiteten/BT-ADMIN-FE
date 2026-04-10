@@ -37,6 +37,7 @@ export interface SlotStatItem {
   dialogName: string; // 대화명
   slotId: string; // 슬롯 ID
   slotName: string; // 슬롯명
+  isCustomSlot: number; // 슬롯타입
   prevSlotId: string; //
   prevSlotName: string; //
   entityTag: string; //

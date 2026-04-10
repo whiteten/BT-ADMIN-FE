@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import type { ColDef, ColGroupDef } from 'ag-grid-community';
 import { AgGridReact } from 'ag-grid-react';
-import { type BreadcrumbProps, Button, Checkbox, DatePicker, Divider, Select, TimePicker } from 'antd';
+import { type BreadcrumbProps, Button, Checkbox, DatePicker, Divider, Input, Select, TimePicker } from 'antd';
 import dayjs, { type Dayjs } from 'dayjs';
 import { ChevronDown, Download } from 'lucide-react';
 import { useNavigationStore } from '@/shared-store';
@@ -17,6 +17,7 @@ import {
   getTimeFormat,
   validateDateRange,
 } from '../../../features/statistics/hooks/useDateRangeLimit';
+import { useStatisticsFilterStore } from '../../../features/statistics/hooks/useStatisticsFilterStore';
 import { useGetDialogOptionList, useGetSlotStatList } from '../../../features/statistics/hooks/useStatisticsQueries';
 import type { SlotStatListItem } from '../../../features/statistics/types/statistics.types';
 import PageHeader from '@/components/custom/PageHeader';
@@ -31,14 +32,20 @@ const breadcrumb: BreadcrumbProps['items'] = [
 ];
 
 export default function SlotStatistics() {
+  const { serviceIds, setServiceIds } = useStatisticsFilterStore();
   // UI 상태 (사용자가 입력하는 값들)
-  const [serviceIds, setServiceIds] = useState<string[]>([]);
   const [dialogIds, setDialogIds] = useState<string[]>([]);
   const [timeUnit, setTimeUnit] = useState<string>('DD');
   const [startDate, setStartDate] = useState<Dayjs | null>(dayjs().startOf('day'));
   const [endDate, setEndDate] = useState<Dayjs | null>(dayjs().endOf('day'));
   const [startTime, setStartTime] = useState<Dayjs | null>(dayjs().hour(0).minute(0));
   const [endTime, setEndTime] = useState<Dayjs | null>(dayjs().hour(23).minute(50));
+  const [customSlot, setCustomSlot] = useState<number | null>(null);
+  const [slotFilterColumn, setSlotFilterColumn] = useState<'slotName' | 'entityTag'>('slotName');
+  const [slotSearchValue, setSlotSearchValue] = useState('');
+
+  const slotName = slotFilterColumn === 'slotName' ? slotSearchValue : '';
+  const entityTag = slotFilterColumn === 'entityTag' ? slotSearchValue : '';
   const [excludeLunch, setExcludeLunch] = useState(false);
   const [useInterval, setUseInterval] = useState(false);
   const [intervalStartTime, setIntervalStartTime] = useState<Dayjs | null>(dayjs().hour(0).minute(0));
@@ -118,6 +125,9 @@ export default function SlotStatistics() {
       toTime,
       serviceIds: [serviceIds].flat().filter(Boolean),
       dialogIds: [dialogIds].flat().filter(Boolean),
+      customSlot,
+      slotName,
+      entityTag,
       excludeLunch: timeUnit === 'MI' || timeUnit === 'HH' ? excludeLunch : false,
       useInterval: timeUnit === 'MI' || timeUnit === 'HH' ? useInterval : false,
       hourFrom: timeUnit === 'MI' || timeUnit === 'HH' ? (useInterval && intervalStartTime ? intervalStartTime.format('HH00') : '') : '',
@@ -231,6 +241,14 @@ export default function SlotStatistics() {
     { headerName: '대화명', field: 'dialogName', flex: 2 },
     { headerName: '슬롯ID', field: 'slotId', hide: true },
     { headerName: '슬롯명', field: 'slotName', flex: 1 },
+    {
+      headerName: '슬롯타입',
+      field: 'isCustomSlot',
+      flex: 1,
+      valueFormatter: ({ value }) => {
+        return value === 1 ? '커스텀 슬롯' : '일반 슬롯';
+      },
+    },
     { headerName: '개체 태그', field: 'entityTag', flex: 1 },
     {
       headerName: '진입수',
@@ -295,6 +313,9 @@ export default function SlotStatistics() {
         toTime,
         serviceIds: [serviceIds].flat().filter(Boolean),
         dialogIds: [dialogIds].flat().filter(Boolean),
+        customSlot,
+        slotName,
+        entityTag,
         excludeLunch: displayTimeUnit === 'MI' || displayTimeUnit === 'HH' ? excludeLunch : false,
         useInterval: displayTimeUnit === 'MI' || displayTimeUnit === 'HH' ? useInterval : false,
         hourFrom: displayTimeUnit === 'MI' || displayTimeUnit === 'HH' ? (useInterval && intervalStartTime ? intervalStartTime.format('HH00') : '') : '',
@@ -319,8 +340,8 @@ export default function SlotStatistics() {
       <div className="flex flex-col w-full h-full bg-white bt-shadow p-5">
         <Collapsible open={isFilterOpen} onOpenChange={setIsFilterOpen}>
           <header className="flex flex-col gap-3 pb-5">
-            <div className="flex items-center justify-between gap-2">
-              <div className="flex items-center gap-3">
+            <div className="flex items-start gap-3">
+              <div className="flex flex-wrap items-center gap-3 flex-1 min-w-0">
                 <div className="flex items-center gap-3">
                   <span className="text-sm font-medium text-[#495057] shrink-0">검색일자</span>
                   <Select
@@ -394,6 +415,29 @@ export default function SlotStatistics() {
                     optionFilterProp="label"
                     style={{ width: '15rem' }}
                     popupMatchSelectWidth={false}
+                    dropdownRender={(menu) => (
+                      <>
+                        <div
+                          className="flex items-center gap-2 px-3 py-2 cursor-pointer hover:bg-gray-50"
+                          onMouseDown={(e) => e.preventDefault()}
+                          onClick={() => {
+                            if (serviceIds.length === serviceSelectOptions.length) {
+                              setServiceIds([]);
+                            } else {
+                              setServiceIds(serviceSelectOptions.map((o) => o.value));
+                            }
+                          }}
+                        >
+                          <Checkbox
+                            checked={serviceIds.length === serviceSelectOptions.length && serviceSelectOptions.length > 0}
+                            indeterminate={serviceIds.length > 0 && serviceIds.length < serviceSelectOptions.length}
+                          />
+                          <span className="text-sm">전체 선택</span>
+                        </div>
+                        <Divider style={{ margin: '4px 0' }} />
+                        {menu}
+                      </>
+                    )}
                   />
                 </div>
                 <div className="flex items-center gap-3">
@@ -402,120 +446,158 @@ export default function SlotStatistics() {
                   </CollapsibleTrigger>
                 </div>
               </div>
-              <div className="flex items-center gap-2 shrink-0">
+              <div className="flex items-center gap-3 shrink-0">
                 <Button type="primary" onClick={handleSearch}>
                   조회
                 </Button>
                 {hasExcelPermission && (
-                  <Button
-                    type="primary"
-                    loading={isExporting}
-                    icon={<Download className="size-4" />}
-                    className="!bg-[#10B981] !border-[#10B981] hover:!bg-[#0FA968]"
-                    onClick={handleExcelDownload}
-                  >
+                  <Button color="cyan" variant="solid" loading={isExporting} icon={<Download className="size-4" />} onClick={handleExcelDownload}>
                     Export
                   </Button>
                 )}
               </div>
             </div>
             <CollapsibleContent>
-              <div className="flex items-center gap-3">
-                <span className="text-sm font-medium text-[#495057] shrink-0">대화명</span>
-                <Select
-                  mode="multiple"
-                  value={dialogIds}
-                  onChange={(value) => setDialogIds(value ?? [])}
-                  allowClear
-                  showSearch
-                  maxTagCount="responsive"
-                  options={dialogSelectOptions}
-                  placeholder="검색할 대화명을 선택하세요."
-                  optionFilterProp="label"
-                  style={{ width: '15rem' }}
-                  popupMatchSelectWidth={false}
-                  dropdownRender={(menu) => (
-                    <>
-                      <div
-                        className="flex items-center gap-2 px-3 py-2 cursor-pointer hover:bg-gray-50"
-                        onMouseDown={(e) => e.preventDefault()}
-                        onClick={() => {
-                          if (dialogIds.length === dialogSelectOptions.length) {
-                            setDialogIds([]);
-                          } else {
-                            setDialogIds(dialogSelectOptions.map((o) => o.value));
-                          }
-                        }}
-                      >
-                        <Checkbox
-                          checked={dialogIds.length === dialogSelectOptions.length && dialogSelectOptions.length > 0}
-                          indeterminate={dialogIds.length > 0 && dialogIds.length < dialogSelectOptions.length}
-                        />
-                        <span className="text-sm">전체 선택</span>
-                      </div>
-                      <Divider style={{ margin: '4px 0' }} />
-                      {menu}
-                    </>
-                  )}
-                />
+              <div className="flex flex-wrap items-center gap-3">
+                <div className="flex items-center gap-3">
+                  <span className="text-sm font-medium text-[#495057] shrink-0">대화명</span>
+                  <Select
+                    mode="multiple"
+                    value={dialogIds}
+                    onChange={(value) => setDialogIds(value ?? [])}
+                    allowClear
+                    showSearch
+                    maxTagCount="responsive"
+                    options={dialogSelectOptions}
+                    placeholder="검색할 대화명을 선택하세요."
+                    optionFilterProp="label"
+                    style={{ width: '15rem' }}
+                    popupMatchSelectWidth={false}
+                    dropdownRender={(menu) => (
+                      <>
+                        <div
+                          className="flex items-center gap-2 px-3 py-2 cursor-pointer hover:bg-gray-50"
+                          onMouseDown={(e) => e.preventDefault()}
+                          onClick={() => {
+                            if (dialogIds.length === dialogSelectOptions.length) {
+                              setDialogIds([]);
+                            } else {
+                              setDialogIds(dialogSelectOptions.map((o) => o.value));
+                            }
+                          }}
+                        >
+                          <Checkbox
+                            checked={dialogIds.length === dialogSelectOptions.length && dialogSelectOptions.length > 0}
+                            indeterminate={dialogIds.length > 0 && dialogIds.length < dialogSelectOptions.length}
+                          />
+                          <span className="text-sm">전체 선택</span>
+                        </div>
+                        <Divider style={{ margin: '4px 0' }} />
+                        {menu}
+                      </>
+                    )}
+                  />
+                </div>
+                <Divider orientation="vertical" className="!h-5 !m-0" />
+                <div className="flex items-center gap-2">
+                  <Select
+                    value={slotFilterColumn}
+                    onChange={(v) => {
+                      setSlotFilterColumn(v);
+                      setSlotSearchValue('');
+                    }}
+                    options={[
+                      { label: '슬롯명', value: 'slotName' },
+                      { label: '개체 태그', value: 'entityTag' },
+                    ]}
+                    className="!max-w-[120px] !min-w-[100px]"
+                    popupMatchSelectWidth={false}
+                  />
+                  <Input value={slotSearchValue} onChange={(e) => setSlotSearchValue(e.target.value)} placeholder="검색어를 입력하세요." style={{ width: '180px' }} allowClear />
+                </div>
+                <Divider orientation="vertical" className="!h-5 !m-0" />
+                <div className="flex items-center gap-3">
+                  <span className="text-sm font-medium text-[#495057] shrink-0">슬롯 유형</span>
+                  <Select
+                    value={customSlot}
+                    onChange={(v) => setCustomSlot(v)}
+                    options={[
+                      { label: '전체', value: null },
+                      { label: '일반 슬롯', value: 0 },
+                      { label: '커스텀 슬롯', value: 1 },
+                    ]}
+                    className="!min-w-[120px]"
+                    popupMatchSelectWidth={false}
+                  />
+                </div>
                 {timeUnit !== 'MM' && timeUnit !== 'YY' ? (
                   <>
                     <Divider orientation="vertical" className="!h-5 !m-0" />
-                    <span className="text-sm font-medium text-[#495057] shrink-0">제외요일</span>
-                    <Select
-                      mode="multiple"
-                      value={excludeDays}
-                      onChange={(value) => setExcludeDays(value ?? [])}
-                      allowClear
-                      maxTagCount="responsive"
-                      options={[
-                        { label: '월요일', value: 'MON' },
-                        { label: '화요일', value: 'TUE' },
-                        { label: '수요일', value: 'WED' },
-                        { label: '목요일', value: 'THU' },
-                        { label: '금요일', value: 'FRI' },
-                        { label: '토요일', value: 'SAT' },
-                        { label: '일요일', value: 'SUN' },
-                      ]}
-                      placeholder="제외할 요일 선택"
-                      className="!min-w-[150px] !max-w-[300px]"
-                      popupMatchSelectWidth={false}
-                    />
+                    <div className="flex items-center gap-3">
+                      <span className="text-sm font-medium text-[#495057] shrink-0">제외요일</span>
+                      <Select
+                        mode="multiple"
+                        value={excludeDays}
+                        onChange={(value) => setExcludeDays(value ?? [])}
+                        allowClear
+                        maxTagCount="responsive"
+                        options={[
+                          { label: '월요일', value: 'MON' },
+                          { label: '화요일', value: 'TUE' },
+                          { label: '수요일', value: 'WED' },
+                          { label: '목요일', value: 'THU' },
+                          { label: '금요일', value: 'FRI' },
+                          { label: '토요일', value: 'SAT' },
+                          { label: '일요일', value: 'SUN' },
+                        ]}
+                        placeholder="제외할 요일 선택"
+                        className="!min-w-[150px] !max-w-[300px]"
+                        popupMatchSelectWidth={false}
+                      />
+                    </div>
                     <Divider orientation="vertical" className="!h-5 !m-0" />
-                    <span className="text-sm font-medium text-[#495057] shrink-0">업무공휴일 제외</span>
-                    <Checkbox checked={excludeBusinessHoliday} onChange={(e) => setExcludeBusinessHoliday(e.target.checked)} />
+                    <div className="flex items-center gap-3">
+                      <span className="text-sm font-medium text-[#495057] shrink-0">업무공휴일 제외</span>
+                      <Checkbox checked={excludeBusinessHoliday} onChange={(e) => setExcludeBusinessHoliday(e.target.checked)} />
+                    </div>
                     <Divider orientation="vertical" className="!h-5 !m-0" />
-                    <span className="text-sm font-medium text-[#495057] shrink-0">통계공휴일 제외</span>
-                    <Checkbox checked={excludeStatHoliday} onChange={(e) => setExcludeStatHoliday(e.target.checked)} />
-                  </>
-                ) : null}
-                {timeUnit === 'MI' || timeUnit === 'HH' ? (
-                  <>
-                    <Divider orientation="vertical" className="!h-5 !m-0" />
-                    <span className="text-sm font-medium text-[#495057] shrink-0">점심시간 제외</span>
-                    <Checkbox checked={excludeLunch} onChange={(e) => setExcludeLunch(e.target.checked)} />
-                    <Divider orientation="vertical" className="!h-5 !m-0" />
-                    <span className="text-sm font-medium text-[#495057] shrink-0">구간검색</span>
-                    <Checkbox checked={useInterval} onChange={(e) => setUseInterval(e.target.checked)} />
-                    {useInterval ? (
+                    <div className="flex items-center gap-3">
+                      <span className="text-sm font-medium text-[#495057] shrink-0">통계공휴일 제외</span>
+                      <Checkbox checked={excludeStatHoliday} onChange={(e) => setExcludeStatHoliday(e.target.checked)} />
+                    </div>
+                    {timeUnit === 'MI' || timeUnit === 'HH' ? (
                       <>
-                        <TimePicker
-                          value={intervalStartTime}
-                          onChange={(date) => setIntervalStartTime(date)}
-                          inputReadOnly
-                          allowClear={false}
-                          format="HH:00"
-                          style={{ width: '100px' }}
-                        />
-                        <span className="text-sm font-medium text-[#495057] shrink-0">~</span>
-                        <TimePicker
-                          value={intervalEndTime}
-                          onChange={(date) => setIntervalEndTime(date)}
-                          inputReadOnly
-                          allowClear={false}
-                          format="HH:00"
-                          style={{ width: '100px' }}
-                        />
+                        <Divider orientation="vertical" className="!h-5 !m-0" />
+                        <div className="flex items-center gap-3">
+                          <span className="text-sm font-medium text-[#495057] shrink-0">점심시간 제외</span>
+                          <Checkbox checked={excludeLunch} onChange={(e) => setExcludeLunch(e.target.checked)} />
+                        </div>
+                        <Divider orientation="vertical" className="!h-5 !m-0" />
+                        <div className="flex items-center gap-3">
+                          <span className="text-sm font-medium text-[#495057] shrink-0">구간검색</span>
+                          <Checkbox checked={useInterval} onChange={(e) => setUseInterval(e.target.checked)} />
+                          {useInterval ? (
+                            <>
+                              <TimePicker
+                                value={intervalStartTime}
+                                onChange={(date) => setIntervalStartTime(date)}
+                                inputReadOnly
+                                allowClear={false}
+                                format="HH:00"
+                                style={{ width: '100px' }}
+                              />
+                              <span className="text-sm font-medium text-[#495057] shrink-0">~</span>
+                              <TimePicker
+                                value={intervalEndTime}
+                                onChange={(date) => setIntervalEndTime(date)}
+                                inputReadOnly
+                                allowClear={false}
+                                format="HH:00"
+                                style={{ width: '100px' }}
+                              />
+                            </>
+                          ) : null}
+                        </div>
                       </>
                     ) : null}
                   </>
