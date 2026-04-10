@@ -265,7 +265,8 @@ export default function SlotStatistics() {
       headerName: '슬롯타입',
       field: 'isCustomSlot',
       flex: 1,
-      valueFormatter: ({ value }) => {
+      valueFormatter: ({ value, node }) => {
+        if (node?.rowPinned === 'bottom') return '';
         return value === 1 ? '커스텀 슬롯' : '일반 슬롯';
       },
     },
