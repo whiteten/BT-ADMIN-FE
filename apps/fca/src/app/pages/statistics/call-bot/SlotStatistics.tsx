@@ -1,11 +1,12 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import type { ColDef, ColGroupDef } from 'ag-grid-community';
+import type { ColDef, ColGroupDef, ICellRendererParams } from 'ag-grid-community';
 import { AgGridReact } from 'ag-grid-react';
 import { type BreadcrumbProps, Button, Checkbox, DatePicker, Divider, Input, Select, TimePicker } from 'antd';
 import dayjs, { type Dayjs } from 'dayjs';
 import { ChevronDown, Download } from 'lucide-react';
 import { useNavigationStore } from '@/shared-store';
 import { downloadBlob, extractFileName, toast } from '@/shared-util';
+import { ReactComponent as IconLinkIfe } from '../../../../assets/images/icon/icon-link-ife.svg';
 import { useGetBots } from '../../../features/bot-config/hooks/useBotQueries';
 import { statisticsApi } from '../../../features/statistics/api/statisticsApi';
 import {
@@ -20,6 +21,7 @@ import {
 import { useStatisticsFilterStore } from '../../../features/statistics/hooks/useStatisticsFilterStore';
 import { useGetDialogOptionList, useGetSlotStatList } from '../../../features/statistics/hooks/useStatisticsQueries';
 import type { SlotStatListItem } from '../../../features/statistics/types/statistics.types';
+import { botDialogHistoryApi } from '../../../features/tracking/api/botDialogHistoryApi';
 import PageHeader from '@/components/custom/PageHeader';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/libs/shared-ui/src/components/shadcn/collapsible';
 import useAggridOptions from '@/libs/shared-ui/src/hooks/useAggridOptions';
@@ -71,6 +73,24 @@ export default function SlotStatistics() {
     () => (botList ?? []).filter((b) => Boolean(b?.serviceId && b?.serviceName)).map((b) => ({ label: String(b.serviceName), value: String(b.serviceId) })),
     [botList],
   );
+
+  // IFE 시나리오 열기
+  const handleIfeLink = async (row: SlotStatListItem) => {
+    if (!row.serviceId || !row.slotName) return;
+    try {
+      const redirectUrl = await botDialogHistoryApi.getIfeRedirectUrl({
+        serviceId: Number(row.serviceId),
+        serviceVer: row.serviceVer || '1.0.0',
+        subFlowId: row.fnId,
+        nodeName: row.slotName,
+      });
+      if (redirectUrl) {
+        window.open(redirectUrl, '_blank');
+      }
+    } catch {
+      toast.error('IFE 시나리오 열기에 실패했습니다.');
+    }
+  };
 
   // 대화 옵션 조회 (봇서비스 선택 시)
   const serviceIdParams = [serviceIds].flat().filter(Boolean);
@@ -291,6 +311,33 @@ export default function SlotStatistics() {
           cellStyle: (params) => (params.node?.rowPinned === 'bottom' ? { fontWeight: 'bold', alignItems: 'center' } : { fontWeight: 'normal', alignItems: 'center' }),
         },
       ],
+    },
+    {
+      headerName: '',
+      width: 44,
+      maxWidth: 44,
+      suppressSizeToFit: true,
+      resizable: false,
+      sortable: false,
+      filter: false,
+      suppressHeaderMenuButton: true,
+      cellRenderer: (params: ICellRendererParams<SlotStatListItem>) => {
+        const row = params.data;
+        if (!row || params.node?.rowPinned) return null;
+        const isDisabled = !row.serviceId || !row.fnId || !row.slotName;
+        const handleClick = () => {
+          if (isDisabled) {
+            toast.warning('IFE 시나리오 이동에 필요한 정보가 없습니다.');
+            return;
+          }
+          handleIfeLink(row);
+        };
+        return (
+          <div className="flex items-center h-full">
+            <IconLinkIfe className={isDisabled ? 'opacity-30 cursor-not-allowed' : 'hover:cursor-pointer'} onClick={handleClick} />
+          </div>
+        );
+      },
     },
   ];
 
