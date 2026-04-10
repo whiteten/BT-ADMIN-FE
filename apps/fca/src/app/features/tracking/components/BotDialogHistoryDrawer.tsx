@@ -3,10 +3,11 @@ import { useQueryClient } from '@tanstack/react-query';
 import { Descriptions, Drawer, Input, Select, Spin, message } from 'antd';
 import { Bookmark, Brain, Check, Copy, Pencil, X } from 'lucide-react';
 import { toast } from '@/shared-util';
+import BubbleDecryptReasonModal from './BubbleDecryptReasonModal';
 import TrackingDialogView from './TrackingDialogView';
 import { useApplyRetrain, useGetIntents, useUpdateRetrain } from '../../bot-config/hooks/useModelQueries';
 import { botDialogHistoryApi } from '../api/botDialogHistoryApi';
-import { botDialogHistoryQueryKeys, useGetBubbles, useGetNluAnalysis } from '../hooks/useBotDialogHistoryQueries';
+import { botDialogHistoryQueryKeys, useDecryptBubbles, useGetBubbles, useGetNluAnalysis } from '../hooks/useBotDialogHistoryQueries';
 import type { BotDialogHistoryListItem } from '../types/botDialogHistory.types';
 import type { NluAnalysisItem, TrackingFlowItem } from '../types/tracking.types';
 import { cn } from '@/lib/utils';
@@ -299,17 +300,28 @@ const BotDialogHistoryDrawer = forwardRef<BotDialogHistoryDrawerRef>((_, ref) =>
   const nluCardRefs = useRef<Map<number, HTMLDivElement>>(new Map());
   const highlightTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
+  // 🔒 암호화 버블 복호화 상태
+  const [reasonModalOpen, setReasonModalOpen] = useState(false);
+  const [targetBubbleKey, setTargetBubbleKey] = useState<string | null>(null);
+  const [revealedBubbles, setRevealedBubbles] = useState<Record<string, string>>({});
+
   useImperativeHandle(ref, () => ({
     open: (row: BotDialogHistoryListItem) => {
       setSelectedRow(row);
       setHighlightedNluSeq(null);
       nluCardRefs.current.clear();
+      setRevealedBubbles({});
+      setReasonModalOpen(false);
+      setTargetBubbleKey(null);
       setIsOpen(true);
     },
     close: () => {
       setIsOpen(false);
       setSelectedRow(null);
       setHighlightedNluSeq(null);
+      setRevealedBubbles({});
+      setReasonModalOpen(false);
+      setTargetBubbleKey(null);
     },
   }));
 
@@ -317,6 +329,9 @@ const BotDialogHistoryDrawer = forwardRef<BotDialogHistoryDrawerRef>((_, ref) =>
     setIsOpen(false);
     setSelectedRow(null);
     setHighlightedNluSeq(null);
+    setRevealedBubbles({});
+    setReasonModalOpen(false);
+    setTargetBubbleKey(null);
   };
 
   const setNluCardRef = useCallback((seq: number, el: HTMLDivElement | null) => {
@@ -342,6 +357,53 @@ const BotDialogHistoryDrawer = forwardRef<BotDialogHistoryDrawerRef>((_, ref) =>
       }).queryKey,
     });
   }, [selectedRow, queryClient]);
+
+  // 암호화 버블 복호화 mutation — 캐시하지 않고 결과만 state에 병합
+  const decryptMutation = useDecryptBubbles({
+    mutationOptions: {
+      onSuccess: (decrypted) => {
+        if (!decrypted || decrypted.length === 0) return;
+        setRevealedBubbles((prev) => {
+          const next = { ...prev };
+          for (const row of decrypted) {
+            next[row.bubbleKey] = row.description;
+          }
+          return next;
+        });
+      },
+    },
+  });
+
+  /** 🔒 아이콘 클릭 → 사유 모달 오픈 */
+  const handleEncryptedClick = useCallback((item: TrackingFlowItem) => {
+    if (!item.bubbleKey) return;
+    setTargetBubbleKey(item.bubbleKey);
+    setReasonModalOpen(true);
+  }, []);
+
+  /** 사유 확인 → 복호화 API 호출 */
+  const handleConfirmReason = useCallback(
+    async (reason: string) => {
+      if (!selectedRow || !targetBubbleKey) return;
+      try {
+        await decryptMutation.mutateAsync({
+          params: { ucid: selectedRow.ucid },
+          data: { bubbleKeys: [targetBubbleKey], reason },
+        });
+        setReasonModalOpen(false);
+        setTargetBubbleKey(null);
+      } catch (e) {
+        // 에러 토스트는 글로벌 핸들러에서 처리
+      }
+    },
+    [selectedRow, targetBubbleKey, decryptMutation],
+  );
+
+  const handleCancelReason = useCallback(() => {
+    if (decryptMutation.isPending) return;
+    setReasonModalOpen(false);
+    setTargetBubbleKey(null);
+  }, [decryptMutation.isPending]);
 
   const { data: bubbleData, isLoading: isBubbleLoading } = useGetBubbles({
     params: {
@@ -444,9 +506,19 @@ const BotDialogHistoryDrawer = forwardRef<BotDialogHistoryDrawerRef>((_, ref) =>
                 <Spin />
               </div>
             ) : (
-              <TrackingDialogView items={items} onItemClick={handleBubbleClick} onIfeLink={handleIfeLink} />
+              <TrackingDialogView
+                items={items}
+                onItemClick={handleBubbleClick}
+                onIfeLink={handleIfeLink}
+                revealedBubbles={revealedBubbles}
+                onEncryptedClick={handleEncryptedClick}
+                decryptingBubbleKey={decryptMutation.isPending ? targetBubbleKey : null}
+              />
             )}
           </div>
+
+          {/* 🔒 암호화 버블 열람 사유 모달 */}
+          <BubbleDecryptReasonModal open={reasonModalOpen} loading={decryptMutation.isPending} onCancel={handleCancelReason} onConfirm={handleConfirmReason} />
 
           {/* 오른쪽: NLU 분석 결과 */}
           {hasNluData && (
