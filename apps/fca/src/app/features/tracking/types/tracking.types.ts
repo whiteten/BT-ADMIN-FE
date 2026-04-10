@@ -79,9 +79,6 @@ export interface TrackingFlowItem {
   nodeName: string | null;
   /** 원시 값 (VAL1~VAL10) */
   rawValues: string[];
-
-  /** NLU 분석 결과 (고객 발화에만 존재, HOP 단위 목록) */
-  nluResults?: NluAnalysisItem[] | null;
 }
 
 /** 세션 상세 */
