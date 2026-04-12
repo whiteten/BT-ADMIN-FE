@@ -26,6 +26,7 @@ const KeywordStatistics = React.lazy(() => import('./pages/statistics/nlu/Keywor
 const BotDashboard = React.lazy(() => import('./pages/dashboard/BotDashboard'));
 const BotDialogHistory = React.lazy(() => import('./pages/tracking/BotDialogHistory'));
 const BotRealtime = React.lazy(() => import('./pages/tracking/BotRealtime'));
+const DecryptLog = React.lazy(() => import('./pages/tracking/DecryptLog'));
 
 const sharedModelRoutes = [
   { index: true, element: <Navigate to="list" replace /> },
@@ -123,6 +124,7 @@ export const routes = [
           { index: true, element: <Navigate to="bot-realtime" replace /> },
           { path: 'bot-dialog-history', element: <BotDialogHistory /> },
           { path: 'bot-realtime', element: <BotRealtime /> },
+          { path: 'decrypt-log', element: <DecryptLog /> },
         ],
       },
       {

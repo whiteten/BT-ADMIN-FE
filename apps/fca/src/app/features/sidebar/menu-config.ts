@@ -90,6 +90,13 @@ const menuConfig = {
           index: 1,
           hide: false,
         },
+        {
+          menuId: 117,
+          label: '개인정보 열람 이력',
+          path: 'tracking/decrypt-log',
+          index: 2,
+          hide: false,
+        },
       ],
     },
     {

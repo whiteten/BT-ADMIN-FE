@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { ArrowRightLeft, Bot, ExternalLink, Monitor, PhoneOff, User } from 'lucide-react';
+import { ArrowRightLeft, Bot, ExternalLink, Lock, LockOpen, Monitor, PhoneOff, User } from 'lucide-react';
 import { getTrackingItemConfig } from '../config/trackingItemConfig';
 import type { TrackingFlowItem } from '../types/tracking.types';
 import { cn } from '@/lib/utils';
@@ -20,6 +20,15 @@ interface TrackingDialogViewProps {
   selectedSeq?: number | null;
   /** IFE 링크 클릭 콜백 (type=0 봇 버블에서 시나리오 아이템 이동) */
   onIfeLink?: (item: TrackingFlowItem) => void;
+  /**
+   * 복호화된 버블 맵 (bubbleKey → 평문). 콜봇 이력 전용 — 실시간 트래킹에서는 생략.
+   * 값이 있으면 🔓 "복호화됨" 배지와 함께 평문을 렌더링합니다.
+   */
+  revealedBubbles?: Record<string, string>;
+  /** 🔒 아이콘 클릭 시 호출 — 사유 모달을 열어야 합니다 */
+  onEncryptedClick?: (item: TrackingFlowItem) => void;
+  /** 복호화 진행 중인 버블의 키 (스피너 표시용) */
+  decryptingBubbleKey?: string | null;
 }
 
 function EmptyState() {
@@ -47,18 +56,35 @@ function BotBubble({
   onClick,
   onIfeLink,
   botRight,
+  revealed,
+  decrypting,
+  onEncryptedClick,
 }: {
   item: TrackingFlowItem;
   isSelected?: boolean;
   onClick?: () => void;
   onIfeLink?: (item: TrackingFlowItem) => void;
   botRight: boolean;
+  revealed?: string;
+  decrypting?: boolean;
+  onEncryptedClick?: (item: TrackingFlowItem) => void;
 }) {
-  const text = item.description ?? item.typeName;
-  const hasIfeLink = item.type === 0 && item.subFlowId != null && onIfeLink != null;
+  const isLocked = item.encrypted === true && revealed == null;
+  const wasDecrypted = item.encrypted === true && revealed != null;
+  const text = isLocked ? '🔒 암호화된 내용' : (revealed ?? item.description ?? item.typeName);
+  const hasIfeLink = item.type === 0 && item.subFlowId != null && onIfeLink != null && !isLocked;
+
+  const handleLockClick = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (decrypting) return;
+    onEncryptedClick?.(item);
+  };
 
   return (
-    <div className={cn('flex items-start gap-2.5 max-w-[80%]', botRight && 'ml-auto flex-row-reverse', onClick && 'cursor-pointer')} onClick={onClick}>
+    <div
+      className={cn('flex items-start gap-2.5 max-w-[80%]', botRight && 'ml-auto flex-row-reverse', onClick && !isLocked && 'cursor-pointer')}
+      onClick={isLocked ? undefined : onClick}
+    >
       {/* 아바타 */}
       <div className="flex-shrink-0 w-7 h-7 rounded-full bg-blue-500/10 flex items-center justify-center">
         <Bot size={14} className="text-blue-600" />
@@ -82,12 +108,31 @@ function BotBubble({
         <div className={cn('flex items-center gap-1', botRight && 'flex-row-reverse')}>
           <div
             className={cn(
-              'bg-blue-50 border border-blue-100 rounded-2xl px-3.5 py-2 shadow-sm',
+              'rounded-2xl px-3.5 py-2 shadow-sm border',
               botRight ? 'rounded-br-md' : 'rounded-bl-md',
               isSelected && 'ring-2 ring-blue-300 ring-offset-1',
+              isLocked
+                ? 'bg-amber-50/80 border-amber-200 border-dashed cursor-pointer hover:bg-amber-100/80 transition-colors'
+                : wasDecrypted
+                  ? 'bg-amber-50/80 border-amber-200'
+                  : 'bg-blue-50 border-blue-100',
             )}
+            onClick={isLocked ? handleLockClick : undefined}
+            title={isLocked ? '클릭하여 열람 (감사 로그 기록됨)' : undefined}
           >
-            <p className="text-[13px] text-slate-700 leading-relaxed break-all whitespace-pre-wrap">{text}</p>
+            {isLocked ? (
+              <div className="flex items-start gap-1.5">
+                <Lock size={12} className={cn('text-amber-600 shrink-0 mt-0.5', decrypting && 'animate-pulse')} />
+                <p className="text-[13px] text-amber-800 leading-relaxed font-medium break-all whitespace-pre-wrap">{decrypting ? '복호화 중…' : (item.description ?? '')}</p>
+              </div>
+            ) : wasDecrypted ? (
+              <div className="flex items-start gap-1.5">
+                <LockOpen size={12} className="text-amber-600 shrink-0 mt-0.5" />
+                <p className="text-[13px] text-amber-800 leading-relaxed font-medium break-all whitespace-pre-wrap">{text}</p>
+              </div>
+            ) : (
+              <p className="text-[13px] text-slate-700 leading-relaxed break-all whitespace-pre-wrap">{text}</p>
+            )}
           </div>
           {hasIfeLink && (
             <button
@@ -108,13 +153,40 @@ function BotBubble({
   );
 }
 
-function CustomerBubble({ item, isSelected, onClick, botRight }: { item: TrackingFlowItem; isSelected?: boolean; onClick?: () => void; botRight: boolean }) {
+function CustomerBubble({
+  item,
+  isSelected,
+  onClick,
+  botRight,
+  revealed,
+  decrypting,
+  onEncryptedClick,
+}: {
+  item: TrackingFlowItem;
+  isSelected?: boolean;
+  onClick?: () => void;
+  botRight: boolean;
+  revealed?: string;
+  decrypting?: boolean;
+  onEncryptedClick?: (item: TrackingFlowItem) => void;
+}) {
   const isFailed = item.result?.startsWith('F') === true;
-  const text = item.description ?? (isFailed ? '인식 실패' : item.typeName);
+  const isLocked = item.encrypted === true && revealed == null;
+  const wasDecrypted = item.encrypted === true && revealed != null;
+  const text = isLocked ? '🔒 암호화된 내용' : (revealed ?? item.description ?? (isFailed ? '인식 실패' : item.typeName));
   const isRight = !botRight;
 
+  const handleLockClick = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (decrypting) return;
+    onEncryptedClick?.(item);
+  };
+
   return (
-    <div className={cn('flex items-start gap-2.5 max-w-[80%]', isRight && 'ml-auto flex-row-reverse', isFailed && 'opacity-60', onClick && 'cursor-pointer')} onClick={onClick}>
+    <div
+      className={cn('flex items-start gap-2.5 max-w-[80%]', isRight && 'ml-auto flex-row-reverse', isFailed && 'opacity-60', onClick && !isLocked && 'cursor-pointer')}
+      onClick={isLocked ? undefined : onClick}
+    >
       {/* 아바타 */}
       <div className={cn('flex-shrink-0 w-7 h-7 rounded-full flex items-center justify-center', isFailed ? 'bg-slate-100' : 'bg-emerald-500/10')}>
         <User size={14} className={cn(isFailed ? 'text-slate-400' : 'text-emerald-600')} />
@@ -139,11 +211,31 @@ function CustomerBubble({ item, isSelected, onClick, botRight }: { item: Trackin
           className={cn(
             'border rounded-2xl px-3.5 py-2 shadow-sm',
             isRight ? 'rounded-br-md' : 'rounded-bl-md',
-            isFailed ? 'bg-slate-50 border-slate-200' : 'bg-emerald-50 border-emerald-100',
+            isLocked
+              ? 'bg-amber-50/80 border-amber-200 border-dashed cursor-pointer hover:bg-amber-100/80 transition-colors'
+              : wasDecrypted
+                ? 'bg-amber-50/80 border-amber-200'
+                : isFailed
+                  ? 'bg-slate-50 border-slate-200'
+                  : 'bg-emerald-50 border-emerald-100',
             isSelected && 'ring-2 ring-blue-300 ring-offset-1',
           )}
+          onClick={isLocked ? handleLockClick : undefined}
+          title={isLocked ? '클릭하여 열람 (감사 로그 기록됨)' : undefined}
         >
-          <p className={cn('text-[13px] leading-relaxed break-all whitespace-pre-wrap', isFailed ? 'text-slate-400 italic' : 'text-slate-700')}>{text}</p>
+          {isLocked ? (
+            <div className="flex items-start gap-1.5">
+              <Lock size={12} className={cn('text-amber-600 shrink-0 mt-0.5', decrypting && 'animate-pulse')} />
+              <p className="text-[13px] text-amber-800 leading-relaxed font-medium break-all whitespace-pre-wrap">{decrypting ? '복호화 중…' : (item.description ?? '')}</p>
+            </div>
+          ) : wasDecrypted ? (
+            <div className="flex items-start gap-1.5">
+              <LockOpen size={12} className="text-amber-600 shrink-0 mt-0.5" />
+              <p className="text-[13px] text-amber-800 leading-relaxed font-medium break-all whitespace-pre-wrap">{text}</p>
+            </div>
+          ) : (
+            <p className={cn('text-[13px] leading-relaxed break-all whitespace-pre-wrap', isFailed ? 'text-slate-400 italic' : 'text-slate-700')}>{text}</p>
+          )}
         </div>
       </div>
     </div>
@@ -189,7 +281,16 @@ function CallEndedBanner() {
 }
 
 /** 대화 채팅 버블 UI (실시간 트래킹 + 대화이력 공용) */
-export default function TrackingDialogView({ items, callEnded, onItemClick, selectedSeq, onIfeLink }: TrackingDialogViewProps) {
+export default function TrackingDialogView({
+  items,
+  callEnded,
+  onItemClick,
+  selectedSeq,
+  onIfeLink,
+  revealedBubbles,
+  onEncryptedClick,
+  decryptingBubbleKey,
+}: TrackingDialogViewProps) {
   const [botRight, setBotRight] = useState(readLayout);
 
   const handleToggle = () => {
@@ -259,6 +360,10 @@ export default function TrackingDialogView({ items, callEnded, onItemClick, sele
         const isSelected = selectedSeq != null && selectedSeq === item.seq;
         const handleClick = onItemClick ? () => onItemClick(item) : undefined;
 
+        // 암호화 버블 관련 파생 상태
+        const revealed = item.encrypted && item.bubbleKey ? revealedBubbles?.[item.bubbleKey] : undefined;
+        const decrypting = item.bubbleKey != null && decryptingBubbleKey === item.bubbleKey;
+
         // 숨김 처리
         if (role === 'HIDDEN') return null;
 
@@ -281,7 +386,16 @@ export default function TrackingDialogView({ items, callEnded, onItemClick, sele
         if (role === 'BOT') {
           return (
             <div key={idx}>
-              <BotBubble item={item} isSelected={isSelected} onClick={handleClick} onIfeLink={onIfeLink} botRight={botRight} />
+              <BotBubble
+                item={item}
+                isSelected={isSelected}
+                onClick={handleClick}
+                onIfeLink={onIfeLink}
+                botRight={botRight}
+                revealed={revealed}
+                decrypting={decrypting}
+                onEncryptedClick={onEncryptedClick}
+              />
             </div>
           );
         }
@@ -290,7 +404,15 @@ export default function TrackingDialogView({ items, callEnded, onItemClick, sele
         if (role === 'CUSTOMER') {
           return (
             <div key={idx}>
-              <CustomerBubble item={item} isSelected={isSelected} onClick={handleClick} botRight={botRight} />
+              <CustomerBubble
+                item={item}
+                isSelected={isSelected}
+                onClick={handleClick}
+                botRight={botRight}
+                revealed={revealed}
+                decrypting={decrypting}
+                onEncryptedClick={onEncryptedClick}
+              />
             </div>
           );
         }

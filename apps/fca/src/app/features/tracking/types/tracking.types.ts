@@ -79,6 +79,16 @@ export interface TrackingFlowItem {
   nodeName: string | null;
   /** 원시 값 (VAL1~VAL10) */
   rawValues: string[];
+  /**
+   * 암호화 버블 여부 (Val4=1). true면 `description`은 암호문이며, 복호화 API를 통해
+   * 열람해야 평문을 볼 수 있습니다. 콜봇 이력 전용 — 실시간 트래킹에서는 항상 false.
+   */
+  encrypted?: boolean;
+  /**
+   * 복호화 API 호출 시 대상 식별자. 형식: `"{seq}:{innerIdx}"`.
+   * encrypted=true일 때만 값이 존재합니다.
+   */
+  bubbleKey?: string | null;
 }
 
 /** 세션 상세 */
