@@ -3,7 +3,7 @@ import { useQueryClient } from '@tanstack/react-query';
 import { Descriptions, Drawer, Input, Select, Spin, message } from 'antd';
 import { Bookmark, Brain, Check, Copy, Pencil, X } from 'lucide-react';
 import { toast } from '@/shared-util';
-import BubbleDecryptReasonModal from './BubbleDecryptReasonModal';
+import BubbleDecryptReasonModal, { type BubbleDecryptReason } from './BubbleDecryptReasonModal';
 import TrackingDialogView from './TrackingDialogView';
 import { useApplyRetrain, useGetIntents, useUpdateRetrain } from '../../bot-config/hooks/useModelQueries';
 import { botDialogHistoryApi } from '../api/botDialogHistoryApi';
@@ -383,12 +383,12 @@ const BotDialogHistoryDrawer = forwardRef<BotDialogHistoryDrawerRef>((_, ref) =>
 
   /** 사유 확인 → 복호화 API 호출 */
   const handleConfirmReason = useCallback(
-    async (reason: string) => {
+    async ({ reasonCode, reasonText }: BubbleDecryptReason) => {
       if (!selectedRow || !targetBubbleKey) return;
       try {
         await decryptMutation.mutateAsync({
           params: { ucid: selectedRow.ucid },
-          data: { bubbleKeys: [targetBubbleKey], reason },
+          data: { bubbleKeys: [targetBubbleKey], reasonCode, reasonText },
         });
         setReasonModalOpen(false);
         setTargetBubbleKey(null);

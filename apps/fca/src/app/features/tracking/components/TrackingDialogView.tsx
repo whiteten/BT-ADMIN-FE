@@ -50,20 +50,6 @@ function SystemBubble({ item }: { item: TrackingFlowItem }) {
   );
 }
 
-function DecryptedBadge({ align }: { align: 'left' | 'right' }) {
-  return (
-    <span
-      className={cn(
-        'inline-flex items-center gap-0.5 text-[9px] font-medium text-amber-600 bg-amber-50 border border-amber-200 rounded-full px-1.5 py-[1px]',
-        align === 'right' ? 'ml-1' : 'mr-1',
-      )}
-      title="감사 로그에 열람 이력이 기록되었습니다"
-    >
-      <LockOpen size={8} /> 복호화됨
-    </span>
-  );
-}
-
 function BotBubble({
   item,
   isSelected,
@@ -109,7 +95,6 @@ function BotBubble({
         <div className="flex items-center gap-1.5 mb-0.5">
           {botRight ? (
             <>
-              {wasDecrypted && <DecryptedBadge align="right" />}
               {item.startTime && <span className="text-[10px] text-slate-500 tabular-nums">{item.startTime}</span>}
               <span className="text-[10px] font-medium text-blue-600/70">보이스봇</span>
             </>
@@ -117,7 +102,6 @@ function BotBubble({
             <>
               <span className="text-[10px] font-medium text-blue-600/70">보이스봇</span>
               {item.startTime && <span className="text-[10px] text-slate-500 tabular-nums">{item.startTime}</span>}
-              {wasDecrypted && <DecryptedBadge align="left" />}
             </>
           )}
         </div>
@@ -130,16 +114,21 @@ function BotBubble({
               isLocked
                 ? 'bg-amber-50/80 border-amber-200 border-dashed cursor-pointer hover:bg-amber-100/80 transition-colors'
                 : wasDecrypted
-                  ? 'bg-blue-50 border-amber-200'
+                  ? 'bg-amber-50/80 border-amber-200'
                   : 'bg-blue-50 border-blue-100',
             )}
             onClick={isLocked ? handleLockClick : undefined}
             title={isLocked ? '클릭하여 열람 (감사 로그 기록됨)' : undefined}
           >
             {isLocked ? (
-              <div className="flex items-center gap-1.5">
-                <Lock size={12} className={cn('text-amber-600 shrink-0', decrypting && 'animate-pulse')} />
-                <p className="text-[13px] text-amber-800 leading-relaxed font-medium select-none">{decrypting ? '복호화 중…' : '암호화된 내용 (클릭하여 열람)'}</p>
+              <div className="flex items-start gap-1.5">
+                <Lock size={12} className={cn('text-amber-600 shrink-0 mt-0.5', decrypting && 'animate-pulse')} />
+                <p className="text-[13px] text-amber-800 leading-relaxed font-medium break-all whitespace-pre-wrap">{decrypting ? '복호화 중…' : (item.description ?? '')}</p>
+              </div>
+            ) : wasDecrypted ? (
+              <div className="flex items-start gap-1.5">
+                <LockOpen size={12} className="text-amber-600 shrink-0 mt-0.5" />
+                <p className="text-[13px] text-amber-800 leading-relaxed font-medium break-all whitespace-pre-wrap">{text}</p>
               </div>
             ) : (
               <p className="text-[13px] text-slate-700 leading-relaxed break-all whitespace-pre-wrap">{text}</p>
@@ -208,7 +197,6 @@ function CustomerBubble({
         <div className="flex items-center gap-1.5 mb-0.5">
           {isRight ? (
             <>
-              {wasDecrypted && <DecryptedBadge align="right" />}
               {item.startTime && <span className="text-[10px] text-slate-500 tabular-nums">{item.startTime}</span>}
               <span className="text-[10px] font-medium text-emerald-600/70">고객</span>
             </>
@@ -216,7 +204,6 @@ function CustomerBubble({
             <>
               <span className="text-[10px] font-medium text-emerald-600/70">고객</span>
               {item.startTime && <span className="text-[10px] text-slate-500 tabular-nums">{item.startTime}</span>}
-              {wasDecrypted && <DecryptedBadge align="left" />}
             </>
           )}
         </div>
@@ -227,7 +214,7 @@ function CustomerBubble({
             isLocked
               ? 'bg-amber-50/80 border-amber-200 border-dashed cursor-pointer hover:bg-amber-100/80 transition-colors'
               : wasDecrypted
-                ? 'bg-emerald-50 border-amber-200'
+                ? 'bg-amber-50/80 border-amber-200'
                 : isFailed
                   ? 'bg-slate-50 border-slate-200'
                   : 'bg-emerald-50 border-emerald-100',
@@ -237,9 +224,14 @@ function CustomerBubble({
           title={isLocked ? '클릭하여 열람 (감사 로그 기록됨)' : undefined}
         >
           {isLocked ? (
-            <div className="flex items-center gap-1.5">
-              <Lock size={12} className={cn('text-amber-600 shrink-0', decrypting && 'animate-pulse')} />
-              <p className="text-[13px] text-amber-800 leading-relaxed font-medium select-none">{decrypting ? '복호화 중…' : '암호화된 내용 (클릭하여 열람)'}</p>
+            <div className="flex items-start gap-1.5">
+              <Lock size={12} className={cn('text-amber-600 shrink-0 mt-0.5', decrypting && 'animate-pulse')} />
+              <p className="text-[13px] text-amber-800 leading-relaxed font-medium break-all whitespace-pre-wrap">{decrypting ? '복호화 중…' : (item.description ?? '')}</p>
+            </div>
+          ) : wasDecrypted ? (
+            <div className="flex items-start gap-1.5">
+              <LockOpen size={12} className="text-amber-600 shrink-0 mt-0.5" />
+              <p className="text-[13px] text-amber-800 leading-relaxed font-medium break-all whitespace-pre-wrap">{text}</p>
             </div>
           ) : (
             <p className={cn('text-[13px] leading-relaxed break-all whitespace-pre-wrap', isFailed ? 'text-slate-400 italic' : 'text-slate-700')}>{text}</p>

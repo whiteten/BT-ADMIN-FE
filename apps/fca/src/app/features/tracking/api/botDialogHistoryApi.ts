@@ -15,7 +15,13 @@ export interface DecryptedBubbleDto {
 /** 복호화 요청 파라미터 */
 export interface DecryptBubblesArgs {
   params: { ucid: string };
-  data: { bubbleKeys: string[]; reason?: string };
+  data: {
+    bubbleKeys: string[];
+    /** 서버 REASON_CODE (프리셋: MINWON/QUALITY/SECURITY/LEGAL/CUSTOMER/CUSTOM) */
+    reasonCode?: string;
+    /** 서버 REASON_TEXT (프리셋 라벨 또는 자유 입력) */
+    reasonText?: string;
+  };
 }
 
 export const botDialogHistoryApi = {
