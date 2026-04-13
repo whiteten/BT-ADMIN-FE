@@ -293,7 +293,7 @@ export default function SlotStatistics() {
       cellStyle: (params) => (params.node?.rowPinned === 'bottom' ? { fontWeight: 'bold', alignItems: 'center' } : { fontWeight: 'normal', alignItems: 'center' }),
     },
     {
-      headerName: '재질문',
+      headerName: '재시도',
       children: [
         {
           headerName: '1회이하',
