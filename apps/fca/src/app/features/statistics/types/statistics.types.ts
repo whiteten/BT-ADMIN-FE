@@ -28,7 +28,9 @@ export interface DialogStatItem {
   dialogName: string; // 대화명
   inCount: number; // 진입수
   successCount: number; // 완결수
+  failCount: number; // 미완결수
   successPercent: number; // 완결율
+  failPercent: number; // 미완결율
 }
 
 export type DialogStatListItem = DialogStatItem;

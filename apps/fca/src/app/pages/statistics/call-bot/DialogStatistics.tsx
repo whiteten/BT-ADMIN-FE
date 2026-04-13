@@ -147,7 +147,9 @@ export default function DialogStatistics() {
         dialogName: '',
         inCount: sum('inCount'),
         successCount: sum('successCount'),
+        failCount: sum('failCount'),
         successPercent: avg('successPercent'),
+        failPercent: avg('failPercent'),
       } as DialogStatListItem,
     ];
   }, [rowData]);
@@ -240,11 +242,24 @@ export default function DialogStatistics() {
       cellStyle: (params) => (params.node?.rowPinned === 'bottom' ? { fontWeight: 'bold', alignItems: 'center' } : { fontWeight: 'normal', alignItems: 'center' }),
     },
     {
+      headerName: '미완결수',
+      field: 'failCount',
+      flex: 1,
+      cellStyle: (params) => (params.node?.rowPinned === 'bottom' ? { fontWeight: 'bold', alignItems: 'center' } : { fontWeight: 'normal', alignItems: 'center' }),
+    },
+    {
       headerName: '완결율',
       field: 'successPercent',
       flex: 1,
       cellStyle: (params) => (params.node?.rowPinned === 'bottom' ? { fontWeight: 'bold', alignItems: 'center' } : { fontWeight: 'normal', alignItems: 'center' }),
       valueFormatter: ({ value }: { value?: number }) => (value ? `${value}%` : '0%'),
+    },
+    {
+      headerName: '미완결율',
+      field: 'failPercent',
+      flex: 1,
+      cellStyle: (params) => (params.node?.rowPinned === 'bottom' ? { fontWeight: 'bold', alignItems: 'center' } : { fontWeight: 'normal', alignItems: 'center' }),
+      valueFormatter: ({ value }: { value?: number }) => (value != null ? `${value}%` : '0%'),
     },
   ];
 
