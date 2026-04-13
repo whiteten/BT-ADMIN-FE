@@ -5,10 +5,15 @@ export interface ServiceStatItem {
   serviceName: string; // 서비스명
   serviceEnterCount: number; // 진입수
   serviceCompleteCount: number; // 완결수
+  serviceFailCount: number; // 미완결수
   serviceCompletePercent: number; // 완결율
-  reqAgentCount: number; // 상담연결수
-  enterReqAgentPercent: number; // 진입수별 상담 연결율
-  completeReqAgentPercent: number; // 완결수별 상담 연결율
+  serviceFailPercent: number; // 미완결율
+  reqAgentCount: number; // 진입별 상담연결수
+  enterReqAgentPercent: number; // 진입별 상담 연결율
+  completeReqAgentCount: number; // 완결별 상담연결수
+  completeReqAgentPercent: number; // 완결별 상담 연결율
+  failReqAgentCount: number; // 미완결별 상담연결수
+  failReqAgentPercent: number; // 미완결별 상담 연결율
   botSlotInCount: number; // 질의수
 }
 
