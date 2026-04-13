@@ -51,7 +51,10 @@ export interface SlotStatItem {
   prevEntityTag: string; //
   inCount: number; // 진입수
   successCount: number; // 완결수
+  failCount: number; // 미완결수
   successPercent: number; // 완결율
+  failPercent: number; // 미완결율
+  retryCount: number; // 재시도 횟수
   oneTimeOrLess: number; //
   oneTimeOrLessPercent: number; //
   twoTimes: number; //
