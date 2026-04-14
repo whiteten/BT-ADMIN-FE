@@ -66,13 +66,13 @@ export default function SlotStatistics() {
   const disabledDate = useMemo(() => createDisabledDate(timeUnit), [timeUnit]);
   const disabledEndDate = useMemo(() => createEndDisabledDate(startDate, timeUnit), [startDate, timeUnit]);
 
-  // 봇서비스 옵션 조회
+  // 봇 옵션 조회
   const serviceSelectOptions = useMemo(
     () => (botList ?? []).filter((b) => Boolean(b?.serviceId && b?.serviceName)).map((b) => ({ label: String(b.serviceName), value: String(b.serviceId) })),
     [botList],
   );
 
-  // 대화 옵션 조회 (봇서비스 선택 시)
+  // 대화 옵션 조회 (봇 선택 시)
   const serviceIdParams = [serviceIds].flat().filter(Boolean);
   const { data: dialogOptionList } = useGetDialogOptionList({
     params: { serviceIds: serviceIdParams },
@@ -84,7 +84,7 @@ export default function SlotStatistics() {
     [dialogOptionList],
   );
 
-  // 봇서비스 변경 시 대화명 옵션 초기화
+  // 봇 변경 시 대화명 옵션 초기화
   useEffect(() => {
     setDialogIds([]);
   }, [serviceIds]);
@@ -190,7 +190,7 @@ export default function SlotStatistics() {
 
   const handleSearch = () => {
     if (serviceIds.length === 0) {
-      toast.warning('봇서비스를 선택해주세요.');
+      toast.warning('봇을 선택해주세요.');
       return;
     }
 
@@ -238,8 +238,8 @@ export default function SlotStatistics() {
       },
       cellStyle: (params) => (params.node?.rowPinned === 'bottom' ? { fontWeight: 'bold', alignItems: 'center' } : { fontWeight: 'normal', alignItems: 'center' }),
     },
-    { headerName: '봇서비스ID', field: 'serviceId', hide: true },
-    { headerName: '봇서비스', field: 'serviceName', flex: 2 },
+    { headerName: '봇ID', field: 'serviceId', hide: true },
+    { headerName: '봇', field: 'serviceName', flex: 2 },
     { headerName: '대화ID', field: 'dialogId', hide: true },
     { headerName: '대화명', field: 'dialogName', flex: 2 },
     { headerName: '슬롯ID', field: 'slotId', hide: true },
@@ -261,26 +261,26 @@ export default function SlotStatistics() {
       cellStyle: (params) => (params.node?.rowPinned === 'bottom' ? { fontWeight: 'bold', alignItems: 'center' } : { fontWeight: 'normal', alignItems: 'center' }),
     },
     {
-      headerName: '완결수',
+      headerName: '완료건',
       field: 'successCount',
       flex: 1,
       cellStyle: (params) => (params.node?.rowPinned === 'bottom' ? { fontWeight: 'bold', alignItems: 'center' } : { fontWeight: 'normal', alignItems: 'center' }),
     },
     {
-      headerName: '미완결수',
+      headerName: '미완료건',
       field: 'failCount',
       flex: 1,
       cellStyle: (params) => (params.node?.rowPinned === 'bottom' ? { fontWeight: 'bold', alignItems: 'center' } : { fontWeight: 'normal', alignItems: 'center' }),
     },
     {
-      headerName: '완결율',
+      headerName: '완료율',
       field: 'successPercent',
       flex: 1,
       cellStyle: (params) => (params.node?.rowPinned === 'bottom' ? { fontWeight: 'bold', alignItems: 'center' } : { fontWeight: 'normal', alignItems: 'center' }),
       valueFormatter: ({ value }: { value?: number }) => (value ? `${value}%` : '0%'),
     },
     {
-      headerName: '미완결율',
+      headerName: '미완료율',
       field: 'failPercent',
       flex: 1,
       cellStyle: (params) => (params.node?.rowPinned === 'bottom' ? { fontWeight: 'bold', alignItems: 'center' } : { fontWeight: 'normal', alignItems: 'center' }),
@@ -425,7 +425,7 @@ export default function SlotStatistics() {
                 </div>
                 <Divider orientation="vertical" className="!h-5 !m-0" />
                 <div className="flex items-center gap-3">
-                  <span className="text-sm font-medium text-[#495057] shrink-0">봇서비스</span>
+                  <span className="text-sm font-medium text-[#495057] shrink-0">봇</span>
                   <Select
                     mode="multiple"
                     value={serviceIds}
@@ -434,7 +434,7 @@ export default function SlotStatistics() {
                     showSearch
                     maxTagCount="responsive"
                     options={serviceSelectOptions}
-                    placeholder="검색할 봇서비스를 선택하세요."
+                    placeholder="검색할 봇을 선택하세요."
                     optionFilterProp="label"
                     style={{ width: '15rem' }}
                     popupMatchSelectWidth={false}

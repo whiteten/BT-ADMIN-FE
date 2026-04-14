@@ -241,19 +241,19 @@ export default function IntentStatistics() {
       valueFormatter: ({ value }: { value?: number }) => (value != null ? `${value}%` : '0%'),
     },
     {
-      headerName: '임계값 최대',
+      headerName: '신뢰도 성공',
       field: 'thresholdMaxCnt',
       flex: 1,
       cellStyle: (params) => (params.node?.rowPinned === 'bottom' ? { fontWeight: 'bold', alignItems: 'center' } : { fontWeight: 'normal', alignItems: 'center' }),
     },
     {
-      headerName: '임계값 체크',
+      headerName: '신뢰도 재확인',
       field: 'thresholdCheckCnt',
       flex: 1,
       cellStyle: (params) => (params.node?.rowPinned === 'bottom' ? { fontWeight: 'bold', alignItems: 'center' } : { fontWeight: 'normal', alignItems: 'center' }),
     },
     {
-      headerName: '임계값 실패',
+      headerName: '신뢰도 실패',
       field: 'thresholdFailCnt',
       flex: 1,
       cellStyle: (params) => (params.node?.rowPinned === 'bottom' ? { fontWeight: 'bold', alignItems: 'center' } : { fontWeight: 'normal', alignItems: 'center' }),
