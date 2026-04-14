@@ -319,6 +319,7 @@ export default function EmergProfilePage() {
       sortable: true,
       filter: true,
       resizable: true,
+      suppressHeaderMenuButton: true,
     }),
     [],
   );

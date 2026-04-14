@@ -1,33 +1,20 @@
 /**
  * 발신라우트 관리 목록 페이지
- * 좌측 노드 트리(라우트 하위) + 우측 상단 카드 슬라이더 + 우측 하단 국선배정 ag-Grid
- *
- * Layout:
- * ┌─────────────┬──────────────────────────────────────┐
- * │ 노드 트리    │ 카드 슬라이더 (< 카드들 >)             │
- * │ (280px)     │ 카드: *라우트명, 분배방식, ANI, 국선수   │
- * │             ├──────────────────────────────────────┤
- * │ ▼ C1N1 (2)  │ 국선 배정 (선택된 라우트)               │
- * │   ● 라우트1  │ ag-Grid: 국선명│유형│노드│우선순위│백업  │
- * │   ● 라우트2  │ [국선 배정] [삭제]                     │
- * │ ▼ C1N5 (2)  │                                      │
- * │   ● 라우트3  │                                      │
- * │   ● 라우트4  │                                      │
- * │ [라우트 추가]│                                      │
- * └─────────────┴──────────────────────────────────────┘
+ * 상단: 노드 탭 바 + 카드 슬라이더
+ * 하단: 선택 라우트의 국선 배정 ag-Grid
  */
-import { useCallback, useMemo, useRef, useState } from 'react';
+import { type ChangeEvent, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useQueryClient } from '@tanstack/react-query';
 import type { ColDef, ICellRendererParams } from 'ag-grid-community';
 import { AgGridReact } from 'ag-grid-react';
 import { Button, Dropdown, Empty, Input } from 'antd';
-import { Ban, ChevronDown, ChevronLeft, ChevronRight, MoreVertical, Network, Plus, Trash2 } from 'lucide-react';
+import { Ban, ChevronLeft, ChevronRight, Layers, MoreVertical, Network, Plus, Search, Trash2 } from 'lucide-react';
 import { toast } from '@/shared-util';
 import { ENDPOINT_TYPE_LABELS } from '../../endpoint/types/endpoint.types';
 import RoutePointDialog, { type RoutePointDialogRef } from '../components/RoutePointDialog';
 import { routeQueryKeys, useDeleteRoute, useDeleteRoutePoint, useGetNodes, useGetRoutePoints, useGetRoutes } from '../hooks/useRouteQueries';
-import { ANI_TYPE_LABELS, type NodeRouteGroup, ROUTE_TYPE_LABELS, type Route, type RoutePoint, getRouteStatusInfo, getRouteTagList } from '../types/route.types';
+import { ANI_TYPE_LABELS, ROUTE_TYPE_LABELS, type Route, type RoutePoint, getRouteStatusInfo, getRouteTagList } from '../types/route.types';
 import { IconTrash } from '@/components/custom/Icons';
 import PageHeader from '@/components/custom/PageHeader';
 import useAggridOptions from '@/libs/shared-ui/src/hooks/useAggridOptions';
@@ -53,9 +40,9 @@ export default function RouteListPage() {
   // ─── State ──────────────────────────────────────────────────────────────────
   const [selectedNodeId, setSelectedNodeId] = useState<number | null>(initNodeId);
   const [selectedRouteId, setSelectedRouteId] = useState<number | null>(initRouteId);
-  const [collapsedNodes, setCollapsedNodes] = useState<Set<number>>(new Set());
   const [searchText, setSearchText] = useState('');
   const cardScrollRef = useRef<HTMLDivElement>(null);
+  const tabScrollRef = useRef<HTMLDivElement>(null);
   const routePointDialogRef = useRef<RoutePointDialogRef>(null);
 
   // ─── Queries ────────────────────────────────────────────────────────────────
@@ -102,70 +89,32 @@ export default function RouteListPage() {
   }, [queryClient, selectedRouteId]);
 
   // ─── Derived data ─────────────────────────────────────────────────────────
-  const nodeRouteGroups: NodeRouteGroup[] = useMemo(() => {
-    const groupMap = new Map<number, NodeRouteGroup>();
+  const isSearching = searchText.trim().length > 0;
 
-    for (const node of nodes) {
-      groupMap.set(node.nodeId, {
-        nodeId: node.nodeId,
-        nodeName: node.nodeName,
-        routes: [],
-      });
-    }
+  const searchFilteredRoutes = useMemo(() => {
+    if (!isSearching) return routes;
+    const kw = searchText.trim().toLowerCase();
+    return routes.filter((r) => [r.routeName, r.nodeName].some((v) => v?.toString().toLowerCase().includes(kw)));
+  }, [routes, isSearching, searchText]);
 
-    for (const route of routes) {
-      let group = groupMap.get(route.nodeId);
-      if (!group) {
-        group = {
-          nodeId: route.nodeId,
-          nodeName: route.nodeName || `Node ${route.nodeId}`,
-          routes: [],
-        };
-        groupMap.set(route.nodeId, group);
-      }
-      group.routes.push(route);
-    }
-
-    return Array.from(groupMap.values())
-      .map((g) => (searchText ? { ...g, routes: g.routes.filter((r) => r.routeName?.toLowerCase().includes(searchText.toLowerCase())) } : g))
-      .filter((g) => (searchText ? g.routes.length > 0 : true))
-      .sort((a, b) => a.nodeId - b.nodeId);
-  }, [routes, nodes, searchText]);
-
-  const selectedRoutes = useMemo(() => {
-    if (!selectedNodeId) return [];
-    return routes.filter((r) => r.nodeId === selectedNodeId);
-  }, [routes, selectedNodeId]);
-
-  const filteredRoutes = useMemo(() => {
-    if (!searchText) return selectedRoutes;
-    return selectedRoutes.filter((r) => r.routeName?.toLowerCase().includes(searchText.toLowerCase()));
-  }, [selectedRoutes, searchText]);
-
-  const selectedNodeName = useMemo(() => {
-    if (!selectedNodeId) return '';
-    const node = nodes.find((n) => n.nodeId === selectedNodeId);
-    return node?.nodeName ?? `Node ${selectedNodeId}`;
-  }, [nodes, selectedNodeId]);
+  const filteredRoutes = useMemo(
+    () => (isSearching || selectedNodeId === null ? searchFilteredRoutes : searchFilteredRoutes.filter((r) => r.nodeId === selectedNodeId)),
+    [searchFilteredRoutes, selectedNodeId, isSearching],
+  );
 
   const selectedRoute = useMemo(() => {
     if (!selectedRouteId) return null;
     return routes.find((r) => r.routeId === selectedRouteId) ?? null;
   }, [routes, selectedRouteId]);
 
-  // ─── Handlers ─────────────────────────────────────────────────────────────
-  const toggleNodeGroup = (nodeId: number) => {
-    setCollapsedNodes((prev) => {
-      const next = new Set(prev);
-      if (next.has(nodeId)) {
-        next.delete(nodeId);
-      } else {
-        next.add(nodeId);
-      }
-      return next;
-    });
-  };
+  // ─── Auto-select first route when none selected ──────────────────────────
+  useEffect(() => {
+    if (!selectedRouteId && filteredRoutes.length > 0) {
+      setSelectedRouteId(filteredRoutes[0].routeId);
+    }
+  }, [filteredRoutes, selectedRouteId]);
 
+  // ─── Handlers ─────────────────────────────────────────────────────────────
   const handleNodeSelect = (nodeId: number) => {
     setSelectedNodeId(nodeId);
     setSelectedRouteId(null);
@@ -176,14 +125,12 @@ export default function RouteListPage() {
     setSelectedRouteId(route.routeId);
   };
 
-  const handleTreeItemClick = (route: Route) => {
-    setSelectedNodeId(route.nodeId);
-    setSelectedRouteId(route.routeId);
-    // Scroll card into view
-    setTimeout(() => {
-      const card = document.getElementById(`route-card-${route.routeId}`);
-      card?.scrollIntoView({ behavior: 'smooth', inline: 'center', block: 'nearest' });
-    }, 100);
+  const handleSearchChange = (e: ChangeEvent<HTMLInputElement>) => {
+    setSearchText(e.target.value);
+    if (e.target.value.trim().length > 0) {
+      setSelectedNodeId(null);
+      setSelectedRouteId(null);
+    }
   };
 
   const handleCreate = useCallback(() => {
@@ -342,245 +289,246 @@ export default function RouteListPage() {
     <div className="flex flex-col gap-4 w-full h-full">
       <PageHeader breadcrumb={breadcrumb} />
 
-      {/* Split container: Left Tree + Right (Cards + Bottom Panel) */}
-      <div className="flex flex-1 min-h-0 gap-4">
-        {/* ===== Left Panel: Node Tree (280px) ===== */}
-        <div className="w-[280px] min-w-[280px] bg-white bt-shadow rounded-md border border-gray-200 flex flex-col overflow-hidden">
-          <div className="px-4 py-3 border-b border-gray-100 flex-shrink-0">
-            <Input placeholder="라우트명 검색" size="small" allowClear value={searchText} onChange={(e) => setSearchText(e.target.value)} />
+      {/* Single column: Top (Tab bar + Card slider) + Bottom (Grid) */}
+      <div className="flex flex-1 min-h-0 flex-col gap-4">
+        {/* ===== Top: Node Tab Bar + Card Slider ===== */}
+        <div className="bg-white bt-shadow rounded-md border border-gray-200 flex flex-col overflow-hidden flex-shrink-0">
+          {/* Header: 노드 탭 바 + 검색 + 추가 버튼 */}
+          <div className="flex items-stretch bg-white border-b border-gray-200 pr-3 flex-shrink-0 h-[56px]">
+            {/* 좌측 스크롤 버튼 */}
+            <button
+              type="button"
+              className="flex-shrink-0 w-8 flex items-center justify-center hover:bg-gray-100 border-r border-gray-200 cursor-pointer"
+              onClick={() => tabScrollRef.current?.scrollBy({ left: -300, behavior: 'smooth' })}
+            >
+              <ChevronLeft className="size-4 text-gray-500" />
+            </button>
+
+            {/* 탭 스크롤 컨테이너 */}
+            <div
+              ref={tabScrollRef}
+              className="flex items-stretch max-w-[900px] min-w-0 overflow-x-auto divide-x divide-gray-200"
+              style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
+            >
+              {/* 전체 탭 */}
+              <button
+                type="button"
+                className={`flex items-center justify-center gap-2 px-3 py-2.5 text-[13px] font-medium cursor-pointer border-b-2 -mb-[1px] min-w-[120px] max-w-[200px] flex-shrink-0 transition-colors ${
+                  selectedNodeId === null && !isSearching
+                    ? 'text-[var(--color-bt-primary)] border-b-[var(--color-bt-primary)]'
+                    : 'text-gray-500 border-b-transparent hover:text-gray-700'
+                }`}
+                onClick={() => {
+                  setSelectedNodeId(null);
+                  setSearchText('');
+                  setSelectedRouteId(null);
+                }}
+              >
+                <Layers className="size-3.5" />
+                <span>전체</span>
+                <span className="text-[11px] text-gray-400">({searchFilteredRoutes.length})</span>
+              </button>
+
+              {/* 노드 탭들 */}
+              {nodes.map((node) => {
+                const nodeRoutes = searchFilteredRoutes.filter((r) => r.nodeId === node.nodeId);
+                const isActive = selectedNodeId === node.nodeId && !isSearching;
+                return (
+                  <button
+                    key={node.nodeId}
+                    type="button"
+                    className={`flex items-center justify-center gap-2 px-3 py-2.5 text-[13px] font-medium cursor-pointer border-b-2 -mb-[1px] min-w-[120px] max-w-[200px] flex-shrink-0 transition-colors ${
+                      isActive ? 'text-[var(--color-bt-primary)] border-b-[var(--color-bt-primary)]' : 'text-gray-500 border-b-transparent hover:text-gray-700'
+                    }`}
+                    onClick={(e) => {
+                      handleNodeSelect(node.nodeId);
+                      (e.currentTarget as HTMLElement).scrollIntoView({ behavior: 'smooth', inline: 'center', block: 'nearest' });
+                    }}
+                  >
+                    <Network className="size-3.5 flex-shrink-0" />
+                    <span className="truncate">{node.nodeName}</span>
+                    <span className="text-[11px] text-gray-400 flex-shrink-0">({nodeRoutes.length})</span>
+                  </button>
+                );
+              })}
+            </div>
+
+            {/* 우측 스크롤 버튼 */}
+            <button
+              type="button"
+              className="flex-shrink-0 w-8 flex items-center justify-center hover:bg-gray-100 border-l border-r border-gray-200 cursor-pointer"
+              onClick={() => tabScrollRef.current?.scrollBy({ left: 300, behavior: 'smooth' })}
+            >
+              <ChevronRight className="size-4 text-gray-500" />
+            </button>
+
+            {/* 우측: 검색 + 추가 */}
+            <div className="ml-auto flex items-center gap-2 flex-shrink-0 pl-3">
+              <Input
+                allowClear
+                prefix={<Search className="size-3.5 text-gray-400" />}
+                placeholder="발신라우트 검색"
+                value={searchText}
+                onChange={handleSearchChange}
+                style={{ width: 200 }}
+              />
+              <Button type="primary" icon={<Plus className="size-3.5" />} onClick={handleCreate}>
+                추가
+              </Button>
+            </div>
           </div>
 
-          <div className="flex-1 overflow-y-auto py-2">
-            {nodeRouteGroups.length === 0 ? (
-              <div className="flex flex-col items-center justify-center h-full text-gray-400 gap-2 px-4">
-                <span className="text-sm">등록된 라우트가 없습니다</span>
+          {/* Card slider body */}
+          <div className="flex items-center px-4 py-3 h-[185px]">
+            {filteredRoutes.length === 0 ? (
+              <div className="flex flex-col items-center justify-center w-full h-full text-gray-400 gap-3">
+                <Empty description={false} />
+                <span className="text-sm">{isSearching ? '검색 결과가 없습니다' : '등록된 라우트가 없습니다'}</span>
               </div>
             ) : (
-              nodeRouteGroups.map((group) => {
-                const isCollapsed = collapsedNodes.has(group.nodeId);
-                const isNodeSelected = selectedNodeId === group.nodeId;
-                return (
-                  <div key={group.nodeId} className="mb-0.5">
-                    {/* Node group header */}
-                    <button
-                      type="button"
-                      className={`w-full flex items-center gap-2 px-4 py-2.5 cursor-pointer select-none text-[13px] font-semibold transition-colors border-l-[3px] ${
-                        isNodeSelected ? 'bg-[#e8ecf4] border-l-[#405189] text-[#405189]' : 'border-l-transparent text-gray-800 hover:bg-gray-50'
-                      }`}
-                      onClick={() => {
-                        handleNodeSelect(group.nodeId);
-                        if (isCollapsed) toggleNodeGroup(group.nodeId);
-                      }}
-                    >
-                      <button
-                        type="button"
-                        className="p-0 bg-transparent border-none cursor-pointer"
+              <div className="relative flex items-center gap-2 w-full">
+                <Button
+                  type="text"
+                  icon={<ChevronLeft className="size-5" />}
+                  onClick={() => cardScrollRef.current?.scrollBy({ left: -260, behavior: 'smooth' })}
+                  className="!flex-shrink-0 !w-8 !h-8 !p-0"
+                />
+                <div ref={cardScrollRef} className="flex gap-3 overflow-x-auto py-2 px-1 flex-1" style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}>
+                  {filteredRoutes.map((route) => {
+                    const isCardSelected = selectedRouteId === route.routeId;
+                    const tags = getRouteTagList(route);
+                    const status = getRouteStatusInfo(route);
+                    return (
+                      <div
+                        key={route.routeId}
+                        id={`route-card-${route.routeId}`}
+                        className={`bg-white border rounded-lg p-3 cursor-pointer transition-all w-[220px] h-[155px] flex-shrink-0 flex flex-col ${
+                          isCardSelected
+                            ? 'border-[#405189] shadow-[0_0_0_2px_rgba(64,81,137,0.15)]'
+                            : 'border-gray-200 hover:border-[#c5cbe0] hover:shadow-[0_2px_8px_rgba(0,0,0,0.06)]'
+                        }`}
                         onClick={(e) => {
-                          e.stopPropagation();
-                          toggleNodeGroup(group.nodeId);
+                          handleCardSelect(route);
+                          (e.currentTarget as HTMLElement).scrollIntoView({ behavior: 'smooth', inline: 'center', block: 'nearest' });
                         }}
+                        onDoubleClick={() => navigate(`/ipron/line/route/${route.routeId}`)}
                       >
-                        {isCollapsed ? <ChevronRight className="size-3.5 text-gray-400 flex-shrink-0" /> : <ChevronDown className="size-3.5 text-gray-400 flex-shrink-0" />}
-                      </button>
-                      <Network className="size-4 text-gray-500 flex-shrink-0" />
-                      <span className="truncate">{group.nodeName}</span>
-                      <span className="ml-auto text-[11px] text-gray-400 font-normal">{group.routes.length}</span>
-                    </button>
-
-                    {/* Route items under node */}
-                    {!isCollapsed && (
-                      <div>
-                        {group.routes.map((route) => {
-                          const isItemSelected = selectedRouteId === route.routeId;
-                          return (
-                            <div
-                              key={route.routeId}
-                              className={`group flex items-center gap-2 pl-[42px] pr-4 py-1.5 cursor-pointer text-[12px] transition-colors border-l-[3px] ${
-                                isItemSelected ? 'bg-[#e8ecf4] border-l-[#405189] text-[#405189] font-medium' : 'border-l-transparent text-gray-500 hover:bg-gray-50'
-                              }`}
-                              onClick={() => handleTreeItemClick(route)}
-                            >
+                        {/* Card header: 라우트명 + 차단 배지 + 더보기 */}
+                        <div className="flex items-center justify-between mb-1.5">
+                          <div className="flex items-center gap-2 min-w-0">
+                            {status && (
                               <span
-                                className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${isItemSelected ? 'bg-[#405189]' : route.routeBlockYn === 1 ? 'bg-red-500' : 'bg-green-500'}`}
-                              />
-                              <span className="truncate flex-1">{route.routeName}</span>
-                              {route.routeBlockYn === 1 && <Ban className="size-3 text-orange-500 flex-shrink-0" />}
-                              <span className="text-[10px] text-gray-400">{ROUTE_TYPE_LABELS[route.routeType] ?? route.routeType}</span>
-                            </div>
-                          );
-                        })}
+                                className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-bold border flex-shrink-0"
+                                style={{ color: status.color, backgroundColor: status.bgColor, borderColor: status.color + '40' }}
+                              >
+                                {status.label}
+                              </span>
+                            )}
+                            <span className="text-sm font-semibold text-gray-800 truncate">{route.routeName}</span>
+                          </div>
+                          <div onClick={(e) => e.stopPropagation()}>
+                            <Dropdown menu={{ items: getCardMenuItems(route) }} trigger={['click']} placement="bottomRight">
+                              <button type="button" className="p-1 rounded hover:bg-gray-100 transition-colors">
+                                <MoreVertical className="size-4 text-gray-400" />
+                              </button>
+                            </Dropdown>
+                          </div>
+                        </div>
+
+                        {/* Card info */}
+                        <div className="text-xs text-gray-500 space-y-0.5">
+                          <div className="flex items-center gap-1">
+                            <Network className="size-3 text-gray-400" />
+                            <span>{route.nodeName ?? `Node ${route.nodeId}`}</span>
+                          </div>
+                          <div>분배방식: {ROUTE_TYPE_LABELS[route.routeType] ?? route.routeType}</div>
+                          <div>
+                            ANI: {ANI_TYPE_LABELS[route.aniType] ?? route.aniType}
+                            {route.aniNo ? ` (${route.aniNo})` : ''}
+                          </div>
+                          <div>배정 국선: {route.routePointCount ?? 0}개</div>
+                        </div>
+
+                        {/* Tags */}
+                        {tags.length > 0 && (
+                          <div className="flex flex-wrap gap-1 mt-2">
+                            {tags.map((tag) => (
+                              <span
+                                key={tag.label}
+                                className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium border"
+                                style={{ color: tag.color, backgroundColor: tag.bgColor, borderColor: tag.borderColor }}
+                              >
+                                {tag.label}
+                              </span>
+                            ))}
+                          </div>
+                        )}
+                        {route.routeBlockYn === 1 && (
+                          <div className="flex items-center gap-1 mt-1.5 text-[10px] text-orange-600">
+                            <Ban className="size-3" />
+                            <span>차단</span>
+                          </div>
+                        )}
                       </div>
-                    )}
-                  </div>
-                );
-              })
+                    );
+                  })}
+                </div>
+                <Button
+                  type="text"
+                  icon={<ChevronRight className="size-5" />}
+                  onClick={() => cardScrollRef.current?.scrollBy({ left: 260, behavior: 'smooth' })}
+                  className="!flex-shrink-0 !w-8 !h-8 !p-0"
+                />
+              </div>
             )}
           </div>
         </div>
 
-        {/* ===== Right Panel: Cards (top) + RoutePoint (bottom) ===== */}
-        <div className="flex-1 flex flex-col gap-4 min-w-0">
-          {selectedNodeId ? (
-            <>
-              {/* -- Top: Card Slider Area -- */}
-              <div className="bg-white bt-shadow rounded-md border border-gray-200 flex flex-col overflow-hidden flex-shrink-0">
-                {/* Card grid header */}
-                <div className="px-5 py-3 border-b border-gray-100 flex items-center justify-between flex-shrink-0">
-                  <span className="text-sm font-semibold text-gray-800">
-                    {selectedNodeName} 라우트 ({filteredRoutes.length})
-                  </span>
-                  <Button type="primary" size="small" icon={<Plus className="size-3.5" />} onClick={handleCreate}>
-                    라우트 추가
-                  </Button>
-                </div>
-
-                {/* Card slider body */}
-                <div className="flex items-center px-4 py-3">
-                  {filteredRoutes.length === 0 ? (
-                    <div className="flex flex-col items-center justify-center w-full h-full text-gray-400 gap-3">
-                      <Empty description={false} />
-                      <span className="text-sm">{searchText ? '검색 결과가 없습니다' : '이 노드에 등록된 라우트가 없습니다'}</span>
-                    </div>
-                  ) : (
-                    <div className="relative flex items-center gap-2 w-full">
-                      <Button
-                        type="text"
-                        icon={<ChevronLeft className="size-5" />}
-                        onClick={() => cardScrollRef.current?.scrollBy({ left: -260, behavior: 'smooth' })}
-                        className="!flex-shrink-0 !w-8 !h-8 !p-0"
-                      />
-                      <div ref={cardScrollRef} className="flex gap-3 overflow-x-auto py-2 px-1 flex-1" style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}>
-                        {filteredRoutes.map((route) => {
-                          const isCardSelected = selectedRouteId === route.routeId;
-                          const tags = getRouteTagList(route);
-                          const status = getRouteStatusInfo(route);
-                          return (
-                            <div
-                              key={route.routeId}
-                              id={`route-card-${route.routeId}`}
-                              className={`bg-white border rounded-lg p-3.5 cursor-pointer transition-all min-w-[220px] max-w-[260px] flex-shrink-0 ${
-                                isCardSelected
-                                  ? 'border-[#405189] shadow-[0_0_0_2px_rgba(64,81,137,0.15)]'
-                                  : 'border-gray-200 hover:border-[#c5cbe0] hover:shadow-[0_2px_8px_rgba(0,0,0,0.06)]'
-                              }`}
-                              onClick={() => handleCardSelect(route)}
-                              onDoubleClick={() => navigate(`/ipron/line/route/${route.routeId}`)}
-                            >
-                              {/* Card header: 라우트명 + 차단 배지 + 더보기 */}
-                              <div className="flex items-center justify-between mb-1.5">
-                                <div className="flex items-center gap-2 min-w-0">
-                                  {status && (
-                                    <span
-                                      className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-bold border flex-shrink-0"
-                                      style={{ color: status.color, backgroundColor: status.bgColor, borderColor: status.color + '40' }}
-                                    >
-                                      {status.label}
-                                    </span>
-                                  )}
-                                  <span className="text-sm font-semibold text-gray-800 truncate">{route.routeName}</span>
-                                </div>
-                                <div onClick={(e) => e.stopPropagation()}>
-                                  <Dropdown menu={{ items: getCardMenuItems(route) }} trigger={['click']} placement="bottomRight">
-                                    <button type="button" className="p-1 rounded hover:bg-gray-100 transition-colors">
-                                      <MoreVertical className="size-4 text-gray-400" />
-                                    </button>
-                                  </Dropdown>
-                                </div>
-                              </div>
-
-                              {/* Card info */}
-                              <div className="text-xs text-gray-500 space-y-0.5">
-                                <div>분배방식: {ROUTE_TYPE_LABELS[route.routeType] ?? route.routeType}</div>
-                                <div>
-                                  ANI: {ANI_TYPE_LABELS[route.aniType] ?? route.aniType}
-                                  {route.aniNo ? ` (${route.aniNo})` : ''}
-                                </div>
-                                <div>배정 국선: {route.routePointCount ?? 0}개</div>
-                              </div>
-
-                              {/* Tags */}
-                              {tags.length > 0 && (
-                                <div className="flex flex-wrap gap-1 mt-2">
-                                  {tags.map((tag) => (
-                                    <span
-                                      key={tag.label}
-                                      className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium border"
-                                      style={{ color: tag.color, backgroundColor: tag.bgColor, borderColor: tag.borderColor }}
-                                    >
-                                      {tag.label}
-                                    </span>
-                                  ))}
-                                </div>
-                              )}
-                            </div>
-                          );
-                        })}
-                      </div>
-                      <Button
-                        type="text"
-                        icon={<ChevronRight className="size-5" />}
-                        onClick={() => cardScrollRef.current?.scrollBy({ left: 260, behavior: 'smooth' })}
-                        className="!flex-shrink-0 !w-8 !h-8 !p-0"
-                      />
-                    </div>
-                  )}
-                </div>
+        {/* ===== Bottom: RoutePoint Panel ===== */}
+        <div className="bg-white bt-shadow rounded-md border border-gray-200 flex flex-col flex-1 min-h-0 overflow-hidden">
+          {selectedRoute ? (
+            <div className="flex flex-col flex-1 min-h-0">
+              {/* Bottom header: selected route name + status */}
+              <div className="px-5 py-2 flex items-center gap-3 flex-shrink-0">
+                <span className="text-sm font-semibold text-gray-800">{selectedRoute.routeName}</span>
+                {(() => {
+                  const status = getRouteStatusInfo(selectedRoute);
+                  if (!status) return null;
+                  return (
+                    <span
+                      className="inline-flex items-center px-1.5 py-0.5 rounded text-[11px] border"
+                      style={{ color: status.color, backgroundColor: status.bgColor, borderColor: status.color + '40' }}
+                    >
+                      {status.label}
+                    </span>
+                  );
+                })()}
               </div>
 
-              {/* -- Bottom: RoutePoint Panel -- */}
-              <div className="bg-white bt-shadow rounded-md border border-gray-200 flex flex-col flex-1 min-h-0 overflow-hidden">
-                {selectedRoute ? (
-                  <div className="flex flex-col flex-1 min-h-0">
-                    {/* Bottom header: selected route name + status */}
-                    <div className="px-5 py-2 flex items-center gap-3 flex-shrink-0">
-                      <span className="text-sm font-semibold text-gray-800">{selectedRoute.routeName}</span>
-                      {(() => {
-                        const status = getRouteStatusInfo(selectedRoute);
-                        if (!status) return null;
-                        return (
-                          <span
-                            className="inline-flex items-center px-1.5 py-0.5 rounded text-[11px] border"
-                            style={{ color: status.color, backgroundColor: status.bgColor, borderColor: status.color + '40' }}
-                          >
-                            {status.label}
-                          </span>
-                        );
-                      })()}
-                    </div>
-
-                    {/* Action bar */}
-                    <div className="px-5 py-2 flex items-center justify-between flex-shrink-0 border-b border-gray-100">
-                      <span className="text-[13px] text-gray-400">국선 배정 ({routePoints.length}/32)</span>
-                      <Button type="primary" size="small" icon={<Plus className="size-3.5" />} onClick={() => routePointDialogRef.current?.open()}>
-                        국선 배정
-                      </Button>
-                    </div>
-
-                    {/* ag-Grid */}
-                    <div className="flex-1">
-                      <AgGridReact<RoutePoint>
-                        rowData={routePoints}
-                        columnDefs={pointColumnDefs}
-                        gridOptions={{ ...gridOptions, statusBar: undefined, pagination: false, sideBar: false }}
-                        loading={isPointsLoading}
-                        getRowId={(params) => String(params.data.endptId)}
-                        defaultColDef={{ filter: true, sortable: true }}
-                      />
-                    </div>
-                  </div>
-                ) : (
-                  <div className="flex flex-col items-center justify-center flex-1 text-gray-400 gap-3">
-                    <Empty description={false} />
-                    <span className="text-sm">라우트를 선택하면 국선 배정을 확인할 수 있습니다</span>
-                  </div>
-                )}
+              {/* Action bar */}
+              <div className="px-5 py-2 flex items-center justify-between flex-shrink-0 border-b border-gray-100">
+                <span className="text-[13px] text-gray-400">국선 배정 ({routePoints.length}/32)</span>
+                <Button type="primary" icon={<Plus className="size-3.5" />} onClick={() => routePointDialogRef.current?.open()}>
+                  국선 배정
+                </Button>
               </div>
-            </>
+
+              {/* ag-Grid */}
+              <div className="flex-1">
+                <AgGridReact<RoutePoint>
+                  rowData={routePoints}
+                  columnDefs={pointColumnDefs}
+                  gridOptions={{ ...gridOptions, statusBar: undefined, pagination: false, sideBar: false }}
+                  loading={isPointsLoading}
+                  getRowId={(params) => String(params.data.endptId)}
+                  defaultColDef={{ filter: true, sortable: true, suppressHeaderMenuButton: true }}
+                />
+              </div>
+            </div>
           ) : (
-            /* Empty state when no node selected */
-            <div className="bg-white bt-shadow rounded-md border border-gray-200 flex flex-col items-center justify-center h-full text-gray-400 gap-3 px-8">
+            <div className="flex flex-col items-center justify-center flex-1 text-gray-400 gap-3">
               <Empty description={false} />
-              <span className="text-sm">좌측에서 노드를 선택하세요</span>
+              <span className="text-sm">라우트를 선택하면 국선 배정을 확인할 수 있습니다</span>
             </div>
           )}
         </div>

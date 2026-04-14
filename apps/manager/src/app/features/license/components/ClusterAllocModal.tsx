@@ -37,7 +37,7 @@ const ClusterAllocModal = forwardRef<ClusterAllocModalRef, ClusterAllocModalProp
         params.clusters.map((c) => ({
           clusterId: c.clusterId,
           clusterName: c.clusterName,
-          quantity: c.allocatedQuantity,
+          quantity: c.allocQty,
         })),
       );
       setIsOpen(true);
@@ -61,7 +61,7 @@ const ClusterAllocModal = forwardRef<ClusterAllocModalRef, ClusterAllocModalProp
     onSave({
       licenseKind,
       request: {
-        allocations: rows.map((row) => ({ clusterId: row.clusterId, quantity: row.quantity })),
+        allocations: rows.map((row) => ({ clusterId: row.clusterId, licenseKind, allocQty: row.quantity })),
       },
     });
   };

@@ -1,13 +1,24 @@
 /**
  * DOD DNIS 변환 마스터 등록/수정 Drawer
  * forwardRef + useImperativeHandle 패턴
+ *
+ * 등록 시 노드/테넌트 모두 Select로 선택 가능
+ * - 노드 선택 → 해당 노드의 테넌트만 노출
+ * - 초기값(initNodeId/initTenantId)은 전달된 경우 prefill
+ * - 수정 시 노드/테넌트는 disabled (변경 불가)
  */
-import { forwardRef, useCallback, useEffect, useImperativeHandle, useState } from 'react';
-import { Button, Drawer, Form, Input } from 'antd';
+import { forwardRef, useCallback, useEffect, useImperativeHandle, useMemo, useState } from 'react';
+import { Button, Drawer, Form, Input, Select } from 'antd';
 import { toast } from '@/shared-util';
+import type { NodeTenantItem } from '../api/dodTransApi';
 import { useCreateMaster, useDeleteMaster, useUpdateMaster } from '../hooks/useDodTransQueries';
 import type { DodTransMaster } from '../types/dodTrans.types';
 import { useModal } from '@/libs/shared-ui/src/hooks/useModal';
+
+interface NodeOption {
+  nodeId: number;
+  nodeName: string;
+}
 
 export interface DodTransMasterDrawerRef {
   open: (data?: DodTransMaster, nodeId?: number, nodeName?: string, tenantId?: number, tenantName?: string) => void;
@@ -16,36 +27,43 @@ export interface DodTransMasterDrawerRef {
 
 interface Props {
   onSuccess: () => void;
+  nodes: NodeOption[];
+  nodeTenants: NodeTenantItem[];
 }
 
-const DodTransMasterDrawer = forwardRef<DodTransMasterDrawerRef, Props>(({ onSuccess }, ref) => {
+const DodTransMasterDrawer = forwardRef<DodTransMasterDrawerRef, Props>(({ onSuccess, nodes, nodeTenants }, ref) => {
   const [form] = Form.useForm();
   const modal = useModal();
   const [visible, setVisible] = useState(false);
   const [editData, setEditData] = useState<DodTransMaster | null>(null);
   const [nodeId, setNodeId] = useState<number | null>(null);
-  const [nodeName, setNodeName] = useState<string>('');
   const [tenantId, setTenantId] = useState<number | null>(null);
-  const [tenantName, setTenantName] = useState<string>('');
 
   const isEditMode = !!editData;
 
+  // 노드 옵션
+  const nodeOptions = useMemo(() => nodes.map((n) => ({ label: n.nodeName, value: n.nodeId })), [nodes]);
+
+  // 선택된 노드의 테넌트 옵션
+  const tenantOptions = useMemo(() => {
+    if (!nodeId) return [];
+    const map = new Map<number, string>();
+    for (const nt of nodeTenants) {
+      if (nt.nodeId === nodeId && !map.has(nt.tenantId)) {
+        map.set(nt.tenantId, nt.tenantName);
+      }
+    }
+    return Array.from(map.entries()).map(([id, name]) => ({ label: name, value: id }));
+  }, [nodeId, nodeTenants]);
+
   useImperativeHandle(ref, () => ({
-    open: (data?: DodTransMaster, initNodeId?: number, initNodeName?: string, initTenantId?: number, initTenantName?: string) => {
+    open: (data?: DodTransMaster, initNodeId?: number, _initNodeName?: string, initTenantId?: number, _initTenantName?: string) => {
       setEditData(data ?? null);
       setNodeId(data?.nodeId ?? initNodeId ?? null);
-      setNodeName(data?.nodeName ?? initNodeName ?? '');
       setTenantId(data?.tenantId ?? initTenantId ?? null);
-      setTenantName(data?.tenantName ?? initTenantName ?? '');
       setVisible(true);
     },
-    close: () => {
-      setVisible(false);
-      setEditData(null);
-      setNodeId(null);
-      setNodeName('');
-      form.resetFields();
-    },
+    close: () => handleClose(),
   }));
 
   useEffect(() => {
@@ -57,6 +75,14 @@ const DodTransMasterDrawer = forwardRef<DodTransMasterDrawerRef, Props>(({ onSuc
       form.resetFields();
     }
   }, [visible, editData, form]);
+
+  // 노드 변경 시 테넌트가 새 노드에 없으면 초기화
+  useEffect(() => {
+    if (!nodeId || isEditMode) return;
+    if (tenantId === null) return;
+    const exists = nodeTenants.some((nt) => nt.nodeId === nodeId && nt.tenantId === tenantId);
+    if (!exists) setTenantId(null);
+  }, [nodeId, tenantId, nodeTenants, isEditMode]);
 
   // ─── Mutations ──────────────────────────────────────────────────────────────
   const { mutate: createMaster, isPending: isCreating } = useCreateMaster({
@@ -95,9 +121,7 @@ const DodTransMasterDrawer = forwardRef<DodTransMasterDrawerRef, Props>(({ onSuc
     setVisible(false);
     setEditData(null);
     setNodeId(null);
-    setNodeName('');
     setTenantId(null);
-    setTenantName('');
     form.resetFields();
   }, [form]);
 
@@ -105,13 +129,17 @@ const DodTransMasterDrawer = forwardRef<DodTransMasterDrawerRef, Props>(({ onSuc
     try {
       const values = await form.validateFields();
       if (!nodeId) {
-        toast.error('노드 정보가 없습니다.');
+        toast.error('노드를 선택하세요.');
+        return;
+      }
+      if (!tenantId) {
+        toast.error('테넌트를 선택하세요.');
         return;
       }
 
       const payload = {
         nodeId,
-        tenantId: tenantId ?? undefined,
+        tenantId,
         dodTransName: values.dodTransName,
       };
 
@@ -123,7 +151,7 @@ const DodTransMasterDrawer = forwardRef<DodTransMasterDrawerRef, Props>(({ onSuc
     } catch {
       /* validation failed */
     }
-  }, [form, isEditMode, editData, nodeId, createMaster, updateMaster]);
+  }, [form, isEditMode, editData, nodeId, tenantId, createMaster, updateMaster]);
 
   const handleDelete = useCallback(() => {
     if (!editData) return;
@@ -161,12 +189,19 @@ const DodTransMasterDrawer = forwardRef<DodTransMasterDrawerRef, Props>(({ onSuc
       }
     >
       <Form form={form} layout="vertical">
-        <Form.Item label="노드">
-          <Input value={nodeName || (nodeId ? `Node ${nodeId}` : '')} disabled />
+        <Form.Item label="노드" required>
+          <Select placeholder="노드를 선택하세요" options={nodeOptions} value={nodeId ?? undefined} onChange={(v) => setNodeId(v)} disabled={isEditMode} />
         </Form.Item>
 
-        <Form.Item label="테넌트">
-          <Input value={tenantName || (tenantId ? `Tenant ${tenantId}` : '')} disabled />
+        <Form.Item label="테넌트" required>
+          <Select
+            placeholder={nodeId ? '테넌트를 선택하세요' : '노드를 먼저 선택하세요'}
+            options={tenantOptions}
+            value={tenantId ?? undefined}
+            onChange={(v) => setTenantId(v)}
+            disabled={isEditMode || !nodeId}
+            notFoundContent={nodeId ? '이 노드에 등록된 테넌트가 없습니다' : null}
+          />
         </Form.Item>
 
         <Form.Item

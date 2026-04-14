@@ -1,26 +1,24 @@
 /**
  * IP 접근관리 목록 페이지 (PBX + CTI 통합)
  *
- * 좌측 트리 (280px):
- * ┌─────────────┐
- * │ 노드명 검색  │
- * ├─────────────┤
- * │ ▼ PBX       │  ← 클릭 시 PBX 전체 조회
- * │   C1N1      │  ← 클릭 시 PBX + 해당 노드만
- * │   C1N2      │
- * │ ▼ CTI       │  ← 클릭 시 CTI 전체 조회
- * │   C1N1      │  ← 클릭 시 CTI + 해당 노드만
- * │   C1N2      │
- * └─────────────┘
+ * 상단: PBX/CTI 탭 + 노드 카드 슬라이더 (전체 카드 + 노드별 카드)
+ * 하단: ACL 그리드
  *
- * 우측: ag-Grid (노드명, 접근제어명, IP NET, IP MASK, 활성화, 비고, 삭제)
+ * Layout:
+ * ┌──────────────────────────────────────────────────────┐
+ * │ [PBX] [CTI]                              [+ 추가]    │
+ * │ [전체] [C1N1] [C1N2] [C1N3] ...                       │
+ * ├──────────────────────────────────────────────────────┤
+ * │ {카테고리} {노드명|전체} IP 접근관리 (n건)             │
+ * │ ag-Grid: 노드명│접근제어명│IP NET│IP MASK│활성│비고│   │
+ * └──────────────────────────────────────────────────────┘
  */
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { type ChangeEvent, useCallback, useMemo, useRef, useState } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import type { ColDef, ICellRendererParams } from 'ag-grid-community';
 import { AgGridReact } from 'ag-grid-react';
 import { Button, Empty, Input } from 'antd';
-import { ChevronDown, ChevronRight, Network, Phone, Plus, Radio } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Layers, Network, Phone, Plus, Radio, Search } from 'lucide-react';
 import AclDrawer, { type AclDrawerRef } from '../components/AclDrawer';
 import { aclQueryKeys, useDeleteAcl, useDeleteCtiAcl, useGetAcls, useGetCtiAcls, useGetNodes } from '../hooks/useAclQueries';
 import { type Acl, USE_YN_LABELS } from '../types/acl.types';
@@ -37,6 +35,11 @@ const breadcrumb = [
   { title: 'IP 접근관리', path: '/ipron/line/acl' },
 ];
 
+const CATEGORY_STYLES: Record<AclCategory, { label: string; icon: typeof Phone }> = {
+  pbx: { label: 'PBX', icon: Phone },
+  cti: { label: 'CTI', icon: Radio },
+};
+
 export default function AclListPage() {
   const queryClient = useQueryClient();
   const { gridOptions } = useAggridOptions();
@@ -46,31 +49,43 @@ export default function AclListPage() {
   const [category, setCategory] = useState<AclCategory>('pbx');
   const [selectedNodeId, setSelectedNodeId] = useState<number | null>(null);
   const [searchText, setSearchText] = useState('');
-  const [pbxExpanded, setPbxExpanded] = useState(true);
-  const [ctiExpanded, setCtiExpanded] = useState(true);
 
   // ─── Refs ─────────────────────────────────────────────────────────────────
   const aclDrawerRef = useRef<AclDrawerRef>(null);
+  const cardScrollRef = useRef<HTMLDivElement>(null);
 
   // ─── Queries ────────────────────────────────────────────────────────────────
   const { data: nodes = [] } = useGetNodes();
 
-  // PBX ACL (nodeId가 null이면 전체 조회)
-  const pbxParams = useMemo(() => (category === 'pbx' ? (selectedNodeId ? { nodeId: selectedNodeId } : undefined) : undefined), [category, selectedNodeId]);
-  const { data: pbxAcls = [], isLoading: isPbxLoading } = useGetAcls({
-    params: pbxParams,
-    queryOptions: { enabled: category === 'pbx' },
-  });
+  // PBX/CTI 전체 ACL을 한 번에 가져와서 클라이언트에서 필터링/카운트
+  const { data: allPbxAcls = [], isLoading: isPbxLoading } = useGetAcls({ params: undefined });
+  const { data: allCtiAcls = [], isLoading: isCtiLoading } = useGetCtiAcls({ params: undefined });
 
-  // CTI ACL
-  const ctiParams = useMemo(() => (category === 'cti' ? (selectedNodeId ? { nodeId: selectedNodeId } : undefined) : undefined), [category, selectedNodeId]);
-  const { data: ctiAcls = [], isLoading: isCtiLoading } = useGetCtiAcls({
-    params: ctiParams,
-    queryOptions: { enabled: category === 'cti' },
-  });
-
-  const acls = category === 'pbx' ? pbxAcls : ctiAcls;
+  const allAclsForCategory = category === 'pbx' ? allPbxAcls : allCtiAcls;
   const isLoading = category === 'pbx' ? isPbxLoading : isCtiLoading;
+
+  // 검색어로 필터링 (검색 필드: 접근제어명, IP NET, IP MASK, 비고, 노드명)
+  const isSearching = searchText.trim().length > 0;
+  const searchFilteredAcls = useMemo(() => {
+    if (!isSearching) return allAclsForCategory;
+    const kw = searchText.trim().toLowerCase();
+    return allAclsForCategory.filter((a) => [a.aclName, a.ipNet, a.ipMask, a.aclDesc, a.nodeName].some((v) => v?.toString().toLowerCase().includes(kw)));
+  }, [allAclsForCategory, isSearching, searchText]);
+
+  // 검색 중이면 노드 선택 무시 (전체 표시), 아니면 노드 선택 적용
+  const acls = useMemo(
+    () => (isSearching || !selectedNodeId ? searchFilteredAcls : searchFilteredAcls.filter((a) => a.nodeId === selectedNodeId)),
+    [searchFilteredAcls, selectedNodeId, isSearching],
+  );
+
+  // 노드별 ACL 개수 (검색 결과 기준)
+  const aclCountByNode = useMemo(() => {
+    const map = new Map<number, number>();
+    for (const a of searchFilteredAcls) {
+      map.set(a.nodeId, (map.get(a.nodeId) ?? 0) + 1);
+    }
+    return map;
+  }, [searchFilteredAcls]);
 
   // ─── Derived data ─────────────────────────────────────────────────────────
   const selectedNodeName = useMemo(() => {
@@ -79,39 +94,34 @@ export default function AclListPage() {
   }, [nodes, selectedNodeId]);
 
   const gridHeaderText = useMemo(() => {
-    const prefix = category === 'pbx' ? 'PBX' : 'CTI';
-    const suffix = selectedNodeName ? `${selectedNodeName}` : '전체';
+    const prefix = CATEGORY_STYLES[category].label;
+    const suffix = selectedNodeName ?? '전체';
     return `${prefix} ${suffix} IP 접근관리 (${acls.length}건)`;
   }, [category, selectedNodeName, acls.length]);
 
-  const filteredNodes = useMemo(() => {
-    if (!searchText) return nodes;
-    return nodes.filter((n) => n.nodeName?.toLowerCase().includes(searchText.toLowerCase()));
-  }, [nodes, searchText]);
-
-  // Auto-select PBX category on mount
-  useEffect(() => {
-    setCategory('pbx');
-  }, []);
-
   // ─── Invalidation helpers ──────────────────────────────────────────────────
   const invalidateAcls = useCallback(() => {
-    if (category === 'pbx') {
-      queryClient.invalidateQueries({ queryKey: aclQueryKeys.getAcls(pbxParams).queryKey });
-    } else {
-      queryClient.invalidateQueries({ queryKey: aclQueryKeys.getCtiAcls(ctiParams).queryKey });
-    }
-  }, [queryClient, category, pbxParams, ctiParams]);
+    queryClient.invalidateQueries({ queryKey: aclQueryKeys.getAcls(undefined).queryKey });
+    queryClient.invalidateQueries({ queryKey: aclQueryKeys.getCtiAcls(undefined).queryKey });
+  }, [queryClient]);
 
   // ─── Handlers ─────────────────────────────────────────────────────────────
   const handleCategorySelect = (cat: AclCategory) => {
     setCategory(cat);
-    setSelectedNodeId(null); // 카테고리 클릭 → 전체 조회
+    setSelectedNodeId(null);
+    setSearchText('');
   };
 
-  const handleNodeSelect = (cat: AclCategory, nodeId: number) => {
-    setCategory(cat);
-    setSelectedNodeId(nodeId);
+  const handleNodeSelect = (nodeId: number) => {
+    setSelectedNodeId((prev) => (prev === nodeId ? null : nodeId));
+  };
+
+  const handleSearchChange = (e: ChangeEvent<HTMLInputElement>) => {
+    setSearchText(e.target.value);
+    if (e.target.value.trim().length > 0) {
+      // 검색 시작 시 노드 필터 자동 해제 → 전체 결과 표시
+      setSelectedNodeId(null);
+    }
   };
 
   const handleCreate = useCallback(() => {
@@ -207,109 +217,136 @@ export default function AclListPage() {
     [handleDelete],
   );
 
-  // ─── Tree Node Renderer ──────────────────────────────────────────────────
-  const categoryStyles = {
-    pbx: {
-      icon: Phone,
-      badgeBg: 'bg-blue-100',
-      badgeText: 'text-blue-700',
-      activeBg: 'bg-blue-50',
-      activeBorder: 'border-l-blue-600',
-      activeText: 'text-blue-700',
-    },
-    cti: {
-      icon: Radio,
-      badgeBg: 'bg-violet-100',
-      badgeText: 'text-violet-700',
-      activeBg: 'bg-violet-50',
-      activeBorder: 'border-l-violet-600',
-      activeText: 'text-violet-700',
-    },
-  };
-
-  const renderCategoryTree = (cat: AclCategory, label: string, expanded: boolean, toggle: () => void) => {
-    const isCategorySelected = category === cat && selectedNodeId === null;
-    const isAnyCatSelected = category === cat;
-    const style = categoryStyles[cat];
-    const Icon = style.icon;
-
-    return (
-      <div className="mb-1">
-        {/* Category header */}
-        <button
-          type="button"
-          className={`w-full flex items-center gap-2 px-4 py-2.5 cursor-pointer select-none text-[13px] font-bold transition-colors border-l-[3px] ${
-            isCategorySelected ? `${style.activeBg} ${style.activeBorder} ${style.activeText}` : 'border-l-transparent text-gray-800 hover:bg-gray-50'
-          }`}
-          onClick={() => handleCategorySelect(cat)}
-        >
-          <button
-            type="button"
-            className="p-0 bg-transparent border-none cursor-pointer flex items-center"
-            onClick={(e) => {
-              e.stopPropagation();
-              toggle();
-            }}
-          >
-            {expanded ? <ChevronDown className="size-3.5 text-gray-400" /> : <ChevronRight className="size-3.5 text-gray-400" />}
-          </button>
-          <div className={`w-6 h-6 rounded flex items-center justify-center ${style.badgeBg} flex-shrink-0`}>
-            <Icon className={`size-3.5 ${style.badgeText}`} />
-          </div>
-          <span>{label}</span>
-        </button>
-
-        {/* Node list */}
-        {expanded &&
-          filteredNodes.map((node) => {
-            const isSelected = category === cat && selectedNodeId === node.nodeId;
-            return (
-              <button
-                key={`${cat}-${node.nodeId}`}
-                type="button"
-                className={`w-full flex items-center gap-2 pl-10 pr-4 py-2 cursor-pointer select-none text-[13px] font-medium transition-colors border-l-[3px] ${
-                  isSelected ? `${style.activeBg} ${style.activeBorder} ${style.activeText}` : 'border-l-transparent text-gray-600 hover:bg-gray-50'
-                }`}
-                onClick={() => handleNodeSelect(cat, node.nodeId)}
-              >
-                <Network className={`size-3.5 ${isSelected ? style.badgeText : 'text-gray-400'} flex-shrink-0`} />
-                <span className="truncate">{node.nodeName}</span>
-              </button>
-            );
-          })}
-      </div>
-    );
-  };
-
   // ─── Render ───────────────────────────────────────────────────────────────
   return (
     <div className="flex flex-col gap-4 w-full h-full">
       <PageHeader breadcrumb={breadcrumb} />
 
-      <div className="flex flex-1 min-h-0 gap-4">
-        {/* ===== Left Panel: PBX/CTI Tree (280px) ===== */}
-        <div className="w-[280px] min-w-[280px] bg-white bt-shadow rounded-md border border-gray-200 flex flex-col overflow-hidden">
-          <div className="px-4 py-3 border-b border-gray-100 flex-shrink-0">
-            <Input placeholder="노드명 검색" size="small" allowClear value={searchText} onChange={(e) => setSearchText(e.target.value)} />
+      <div className="flex flex-1 min-h-0 flex-col gap-4">
+        {/* ===== 상단: 카테고리 탭 + 노드 카드 슬라이더 ===== */}
+        <div className="bg-white bt-shadow rounded-md border border-gray-200 flex flex-col overflow-hidden flex-shrink-0">
+          {/* Header: 카테고리 탭 + 추가 버튼 */}
+          <div className="flex items-stretch bg-white border-b border-gray-200 pr-3 flex-shrink-0 divide-x divide-gray-200 h-[56px]">
+            {(Object.keys(CATEGORY_STYLES) as AclCategory[]).map((cat) => {
+              const style = CATEGORY_STYLES[cat];
+              const Icon = style.icon;
+              const isActive = category === cat;
+              const total = cat === 'pbx' ? allPbxAcls.length : allCtiAcls.length;
+              return (
+                <button
+                  key={cat}
+                  type="button"
+                  className={`flex items-center justify-center gap-2 px-5 py-2.5 text-[13px] font-medium cursor-pointer border-b-2 -mb-[1px] min-w-[120px] transition-colors ${
+                    isActive ? 'text-[var(--color-bt-primary)] border-b-[var(--color-bt-primary)]' : 'text-gray-500 border-b-transparent hover:text-gray-700'
+                  }`}
+                  onClick={() => handleCategorySelect(cat)}
+                >
+                  <Icon className="size-3.5" />
+                  <span>{style.label}</span>
+                  <span className="text-[11px] text-gray-400">({total})</span>
+                </button>
+              );
+            })}
+            <div className="ml-auto flex items-center gap-2">
+              <Input
+                allowClear
+                prefix={<Search className="size-3.5 text-gray-400" />}
+                placeholder="IP 접근관리 검색"
+                value={searchText}
+                onChange={handleSearchChange}
+                style={{ width: 200 }}
+              />
+              <Button type="primary" icon={<Plus className="size-3.5" />} onClick={handleCreate}>
+                추가
+              </Button>
+            </div>
           </div>
 
-          <div className="flex-1 overflow-y-auto py-2">
-            {renderCategoryTree('pbx', 'PBX', pbxExpanded, () => setPbxExpanded((p) => !p))}
-            {renderCategoryTree('cti', 'CTI', ctiExpanded, () => setCtiExpanded((p) => !p))}
+          {/* Card slider body */}
+          <div className="flex items-center px-4 py-3 h-[170px]">
+            {nodes.length === 0 ? (
+              <div className="flex flex-col items-center justify-center w-full h-full text-gray-400 gap-2">
+                <Empty description={false} imageStyle={{ height: 40 }} />
+                <span className="text-sm">등록된 노드가 없습니다</span>
+              </div>
+            ) : (
+              <div className="relative flex items-center gap-2 w-full">
+                <Button
+                  type="text"
+                  icon={<ChevronLeft className="size-5" />}
+                  onClick={() => cardScrollRef.current?.scrollBy({ left: -260, behavior: 'smooth' })}
+                  className="!flex-shrink-0 !w-8 !h-8 !p-0"
+                />
+                <div ref={cardScrollRef} className="flex gap-3 overflow-x-auto py-2 px-1 flex-1" style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}>
+                  {/* 전체 카드 (작은 사이즈) */}
+                  {(() => {
+                    const isAllSelected = selectedNodeId === null;
+                    return (
+                      <div
+                        key="__all__"
+                        className={`border rounded-lg p-3 cursor-pointer transition-all w-[110px] h-[130px] flex-shrink-0 flex flex-col items-center justify-center gap-1.5 ${
+                          isAllSelected
+                            ? 'border-[#405189] bg-[#405189] text-white shadow-[0_0_0_2px_rgba(64,81,137,0.15)]'
+                            : 'border-dashed border-gray-300 bg-white text-gray-500 hover:border-[#c5cbe0] hover:text-[#405189]'
+                        }`}
+                        onClick={() => setSelectedNodeId(null)}
+                      >
+                        <Layers className="size-5" />
+                        <span className="text-sm font-semibold">전체</span>
+                        <span className={`text-[11px] ${isAllSelected ? 'text-white/80' : 'text-gray-400'}`}>{allAclsForCategory.length}건</span>
+                      </div>
+                    );
+                  })()}
+
+                  {/* 노드 카드들 */}
+                  {nodes.map((node) => {
+                    const isSelected = selectedNodeId === node.nodeId;
+                    const count = aclCountByNode.get(node.nodeId) ?? 0;
+                    return (
+                      <div
+                        key={node.nodeId}
+                        className={`bg-white border rounded-lg p-3.5 cursor-pointer transition-all w-[220px] h-[130px] flex-shrink-0 flex flex-col ${
+                          isSelected
+                            ? 'border-[#405189] shadow-[0_0_0_2px_rgba(64,81,137,0.15)]'
+                            : 'border-gray-200 hover:border-[#c5cbe0] hover:shadow-[0_2px_8px_rgba(0,0,0,0.06)]'
+                        }`}
+                        onClick={() => handleNodeSelect(node.nodeId)}
+                      >
+                        <div className="flex items-center gap-2 mb-1.5">
+                          <Network className={`size-4 flex-shrink-0 ${isSelected ? 'text-[#405189]' : 'text-gray-400'}`} />
+                          <span className="text-sm font-semibold text-gray-800 truncate">{node.nodeName}</span>
+                        </div>
+                        <div className="text-xs text-gray-500">Node ID: {node.nodeId}</div>
+                        <div className="flex flex-wrap gap-1 mt-auto pt-2">
+                          <span
+                            className={`inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium border ${
+                              count > 0 ? 'text-green-700 bg-green-50 border-green-200' : 'text-gray-500 bg-gray-50 border-gray-200'
+                            }`}
+                          >
+                            {count > 0 ? `ACL ${count}건` : '미등록'}
+                          </span>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+                <Button
+                  type="text"
+                  icon={<ChevronRight className="size-5" />}
+                  onClick={() => cardScrollRef.current?.scrollBy({ left: 260, behavior: 'smooth' })}
+                  className="!flex-shrink-0 !w-8 !h-8 !p-0"
+                />
+              </div>
+            )}
           </div>
         </div>
 
-        {/* ===== Right Panel: ACL Grid ===== */}
-        <div className="flex-1 flex flex-col overflow-hidden bg-white bt-shadow rounded-md border border-gray-200">
-          {/* Header */}
+        {/* ===== 하단: ACL 그리드 ===== */}
+        <div className="bg-white bt-shadow rounded-md border border-gray-200 flex flex-col flex-1 min-h-0 overflow-hidden">
           <div className="px-5 py-3 border-b border-gray-100 flex items-center justify-between flex-shrink-0">
             <span className="text-sm font-semibold text-gray-800">{gridHeaderText}</span>
-            <Button type="primary" size="small" icon={<Plus className="size-3.5" />} onClick={handleCreate}>
-              추가
-            </Button>
           </div>
 
-          {/* Grid */}
           <div className="flex-1">
             <AgGridReact<Acl>
               rowData={acls}
@@ -322,7 +359,7 @@ export default function AclListPage() {
               }}
               loading={isLoading}
               getRowId={(params) => String(params.data.aclId)}
-              defaultColDef={{ filter: true, sortable: true }}
+              defaultColDef={{ filter: true, sortable: true, suppressHeaderMenuButton: true }}
               onRowDoubleClicked={(e) => {
                 if (e.data) handleEdit(e.data);
               }}

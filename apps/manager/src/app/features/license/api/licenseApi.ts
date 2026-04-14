@@ -243,8 +243,8 @@ export const licenseApi = {
    * @flow license-clusters
    */
   getClusterAllocations: async (params: Record<string, unknown>): Promise<ClusterAllocation[]> => {
-    const response = await apiClient.get<ListResponse<ClusterAllocation>>('/license-clusters', { params });
-    return extractList(response);
+    const response = await apiClient.get<DetailResponse<{ value: ClusterAllocation[] }>>('/license-clusters', { params });
+    return extractDetail(response)?.value ?? [];
   },
 
   /**

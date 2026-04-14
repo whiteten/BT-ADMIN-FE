@@ -1,33 +1,30 @@
 /**
  * MS 관리 목록 페이지
- * Pattern: 좌측 노드 트리 + 우측 상단 카드 슬라이더 (MS그룹) + 우측 하단 미디어서버 ag-Grid
+ * Pattern: 상단 노드 탭 바 + 카드 슬라이더 (MS그룹) + 하단 미디어서버 ag-Grid
  *
  * Layout:
- * ┌────────────┬─────────────────────────────────────────┐
- * │ 노드 트리   │ 카드 슬라이더 (MS그룹)                    │
- * │ (280px)    │ ┌────┐ ┌────┐ ┌────┐                    │
- * │            │ │그룹 │ │그룹 │ │그룹 │                    │
- * │ ▼ 노드1    │ └────┘ └────┘ └────┘                    │
- * │ ▼ 노드2    │ [+ 미디어서버] [+ MS그룹 추가]            │
- * │            ├─────────────────────────────────────────┤
- * │            │ 미디어서버 ag-Grid (선택 그룹의 서버)      │
- * │            │ [MS그룹 멤버관리]                         │
- * └────────────┴─────────────────────────────────────────┘
+ * ┌──────────────────────────────────────────────────────┐
+ * │ [←] [전체(n)] [C1N1(2)] [C1N2(3)] [→]  🔍[검색] [+추가] │  ← 노드 탭 바
+ * │ [Card1] [Card2] [Card3] ...                           │  ← MS그룹 카드 슬라이더
+ * ├──────────────────────────────────────────────────────┤
+ * │ {그룹명} 미디어서버 (n건)         [멤버관리][+서버추가]  │
+ * │ ag-Grid                                               │
+ * └──────────────────────────────────────────────────────┘
  */
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { type ChangeEvent, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { useQueryClient } from '@tanstack/react-query';
 import type { ColDef, ICellRendererParams } from 'ag-grid-community';
 import { AgGridReact } from 'ag-grid-react';
 import { Button, Dropdown, Empty, Input } from 'antd';
-import { AlertTriangle, ChevronDown, ChevronLeft, ChevronRight, MoreVertical, Network, Plus, Settings, Trash2, Users } from 'lucide-react';
+import { AlertTriangle, ChevronLeft, ChevronRight, Layers, MoreVertical, Network, Plus, Search, Settings, Trash2, Users } from 'lucide-react';
 import { toast } from '@/shared-util';
 import MediaServerDrawer, { type MediaServerDrawerRef } from '../components/MediaServerDrawer';
 import MsGroupDrawer, { type MsGroupDrawerRef } from '../components/MsGroupDrawer';
 import MsGroupMemberDrawer, { type MsGroupMemberDrawerRef } from '../components/MsGroupMemberDrawer';
 import NodeMsSettingDrawer, { type NodeMsSettingDrawerRef } from '../components/NodeMsSettingDrawer';
 import { msGroupQueryKeys, useDeleteMsGroup, useGetMediaServers, useGetMsGroupMembers, useGetMsGroups, useGetNodes } from '../hooks/useMsGroupQueries';
-import { type MediaServer, type MsGroup, type NodeMsGroupGroup, ROUTE_TYPE_LABELS, getMsGroupTagList } from '../types/msGroup.types';
+import { type MediaServer, type MsGroup, ROUTE_TYPE_LABELS, getMsGroupTagList } from '../types/msGroup.types';
 import PageHeader from '@/components/custom/PageHeader';
 import useAggridOptions from '@/libs/shared-ui/src/hooks/useAggridOptions';
 import { useModal } from '@/libs/shared-ui/src/hooks/useModal';
@@ -51,9 +48,9 @@ export default function MsGroupListPage() {
   // ─── State ──────────────────────────────────────────────────────────────────
   const [selectedNodeId, setSelectedNodeId] = useState<number | null>(initNodeId);
   const [selectedGroupId, setSelectedGroupId] = useState<number | null>(initGroupId);
-  const [collapsedNodes, setCollapsedNodes] = useState<Set<number>>(new Set());
   const [searchText, setSearchText] = useState('');
   const cardScrollRef = useRef<HTMLDivElement>(null);
+  const tabScrollRef = useRef<HTMLDivElement>(null);
 
   // ─── Refs ─────────────────────────────────────────────────────────────────
   const msGroupDrawerRef = useRef<MsGroupDrawerRef>(null);
@@ -97,12 +94,12 @@ export default function MsGroupListPage() {
     }
   }, [queryClient, selectedNodeId]);
 
-  // 전체 미디어서버 (트리 장애 표시용 — 노드 무관하게 전체 조회)
+  // 전체 미디어서버 (장애 표시용 — 노드 무관하게 전체 조회)
   const { data: allServersForStatus = [] } = useGetMediaServers({
     queryOptions: { enabled: true },
   });
 
-  // ─── 노드별 장애 상태 집계 (트리/카드 표시용) ────────────────────────────
+  // ─── 노드별 장애 상태 집계 (탭/카드 표시용) ────────────────────────────
   const nodesFaultMap = useMemo(() => {
     const map = new Map<number, boolean>();
     for (const ms of allServersForStatus) {
@@ -115,47 +112,20 @@ export default function MsGroupListPage() {
   }, [allServersForStatus]);
 
   // ─── Derived data ─────────────────────────────────────────────────────────
-  const nodeMsGroupGroups: NodeMsGroupGroup[] = useMemo(() => {
-    const groupMap = new Map<number, NodeMsGroupGroup>();
+  const isSearching = searchText.trim().length > 0;
 
-    // All nodes shown in tree (even without MS groups)
-    for (const node of nodes) {
-      groupMap.set(node.nodeId, {
-        nodeId: node.nodeId,
-        nodeName: node.nodeName,
-        msGroups: [],
-      });
-    }
+  const nodeNameMap = useMemo(() => new Map(nodes.map((n) => [n.nodeId, n.nodeName])), [nodes]);
 
-    for (const grp of msGroups) {
-      let group = groupMap.get(grp.nodeId);
-      if (!group) {
-        group = {
-          nodeId: grp.nodeId,
-          nodeName: `Node ${grp.nodeId}`,
-          msGroups: [],
-        };
-        groupMap.set(grp.nodeId, group);
-      }
-      group.msGroups.push(grp);
-    }
+  const searchFilteredMsGroups = useMemo(() => {
+    if (!isSearching) return msGroups;
+    const kw = searchText.trim().toLowerCase();
+    return msGroups.filter((g) => [g.msGroupName, nodeNameMap.get(g.nodeId)].some((v) => v?.toString().toLowerCase().includes(kw)));
+  }, [msGroups, isSearching, searchText, nodeNameMap]);
 
-    return Array.from(groupMap.values())
-      .map((g) =>
-        searchText
-          ? {
-              ...g,
-              msGroups: g.msGroups.filter((grp) => grp.msGroupName?.toLowerCase().includes(searchText.toLowerCase())),
-            }
-          : g,
-      )
-      .sort((a, b) => a.nodeId - b.nodeId);
-  }, [msGroups, nodes, searchText]);
-
-  const selectedMsGroups = useMemo(() => {
-    if (!selectedNodeId) return [];
-    return msGroups.filter((grp) => grp.nodeId === selectedNodeId);
-  }, [msGroups, selectedNodeId]);
+  const filteredMsGroups = useMemo(
+    () => (isSearching || selectedNodeId === null ? searchFilteredMsGroups : searchFilteredMsGroups.filter((g) => g.nodeId === selectedNodeId)),
+    [searchFilteredMsGroups, selectedNodeId, isSearching],
+  );
 
   const selectedNode = useMemo(() => {
     if (!selectedNodeId) return null;
@@ -170,11 +140,6 @@ export default function MsGroupListPage() {
     return msGroups.find((grp) => grp.msGroupId === selectedGroupId) ?? null;
   }, [msGroups, selectedGroupId]);
 
-  const filteredMsGroups = useMemo(() => {
-    if (!searchText) return selectedMsGroups;
-    return selectedMsGroups.filter((grp) => grp.msGroupName?.toLowerCase().includes(searchText.toLowerCase()));
-  }, [selectedMsGroups, searchText]);
-
   // 선택된 그룹에 배정된 미디어서버 (AS-IS: INNER JOIN TB_IE_MS_GRP_LIST)
   const filteredMediaServers = useMemo(() => {
     if (!selectedGroupId || groupMembers.length === 0) return [];
@@ -187,51 +152,38 @@ export default function MsGroupListPage() {
       });
   }, [selectedGroupId, groupMembers, allMediaServers]);
 
-  // Auto-select first node
+  // Auto-select first group when list changes
   useEffect(() => {
-    if (!selectedNodeId && nodes.length > 0) {
-      setSelectedNodeId(nodes[0].nodeId);
+    if (!selectedGroupId && filteredMsGroups.length > 0) {
+      setSelectedGroupId(filteredMsGroups[0].msGroupId);
     }
-  }, [nodes, selectedNodeId]);
+  }, [filteredMsGroups, selectedGroupId]);
 
   // ─── Handlers ─────────────────────────────────────────────────────────────
-  const toggleNodeGroup = (nodeId: number) => {
-    setCollapsedNodes((prev) => {
-      const next = new Set(prev);
-      if (next.has(nodeId)) {
-        next.delete(nodeId);
-      } else {
-        next.add(nodeId);
-      }
-      return next;
-    });
-  };
-
   const handleNodeSelect = (nodeId: number) => {
-    setSelectedNodeId(nodeId);
+    setSelectedNodeId((prev) => (prev === nodeId ? null : nodeId));
     setSelectedGroupId(null);
     setSearchText('');
+  };
+
+  const handleSearchChange = (e: ChangeEvent<HTMLInputElement>) => {
+    setSearchText(e.target.value);
+    if (e.target.value.trim().length > 0) {
+      setSelectedNodeId(null);
+      setSelectedGroupId(null);
+    }
   };
 
   const handleCardSelect = (grp: MsGroup) => {
     setSelectedGroupId(grp.msGroupId);
   };
 
-  const handleTreeItemClick = (grp: MsGroup) => {
-    setSelectedNodeId(grp.nodeId);
-    setSelectedGroupId(grp.msGroupId);
-    // scroll card into view
-    setTimeout(() => {
-      const card = document.getElementById(`msg-card-${grp.msGroupId}`);
-      card?.scrollIntoView({ behavior: 'smooth', inline: 'center', block: 'nearest' });
-    }, 100);
-  };
-
   const handleCreateMsGroup = useCallback(() => {
-    if (selectedNodeId) {
-      msGroupDrawerRef.current?.open(undefined, selectedNodeId);
+    const nodeId = selectedNodeId ?? nodes[0]?.nodeId;
+    if (nodeId) {
+      msGroupDrawerRef.current?.open(undefined, nodeId);
     }
-  }, [selectedNodeId]);
+  }, [selectedNodeId, nodes]);
 
   const handleEditMsGroup = useCallback((grp: MsGroup) => {
     msGroupDrawerRef.current?.open(grp);
@@ -251,10 +203,11 @@ export default function MsGroupListPage() {
   );
 
   const handleCreateMediaServer = useCallback(() => {
-    if (selectedNodeId) {
-      mediaServerDrawerRef.current?.open(undefined, selectedNodeId);
+    const nodeId = selectedNodeId ?? selectedGroup?.nodeId ?? nodes[0]?.nodeId;
+    if (nodeId) {
+      mediaServerDrawerRef.current?.open(undefined, nodeId);
     }
-  }, [selectedNodeId]);
+  }, [selectedNodeId, selectedGroup, nodes]);
 
   const handleEditMediaServer = useCallback((ms: MediaServer) => {
     mediaServerDrawerRef.current?.open(ms);
@@ -265,6 +218,14 @@ export default function MsGroupListPage() {
       msGroupMemberDrawerRef.current?.open(selectedGroup);
     }
   }, [selectedGroup]);
+
+  const handleNodeMsSetting = useCallback(() => {
+    const nodeId = selectedNodeId ?? nodes[0]?.nodeId;
+    if (!nodeId) return;
+    const nodeName = nodes.find((n) => n.nodeId === nodeId)?.nodeName ?? '';
+    const nodeGroups = msGroups.filter((g) => g.nodeId === nodeId);
+    nodeSettingDrawerRef.current?.open(nodeId, nodeName, nodeGroups);
+  }, [selectedNodeId, nodes, msGroups]);
 
   const handleMsGroupDrawerSuccess = useCallback(() => {
     invalidateMsGroups();
@@ -380,256 +341,249 @@ export default function MsGroupListPage() {
     <div className="flex flex-col gap-4 w-full h-full">
       <PageHeader breadcrumb={breadcrumb} />
 
-      {/* Split container: Left Tree + Right (Cards + Bottom Grid) */}
-      <div className="flex flex-1 min-h-0 gap-4">
-        {/* ===== Left Panel: Node Tree (280px) ===== */}
-        <div className="w-[280px] min-w-[280px] bg-white bt-shadow rounded-md border border-gray-200 flex flex-col overflow-hidden">
-          <div className="px-4 py-3 border-b border-gray-100 flex-shrink-0">
-            <Input placeholder="MS그룹명 검색" size="small" allowClear value={searchText} onChange={(e) => setSearchText(e.target.value)} />
+      {/* Single column: Cards (top) + Media Server Grid (bottom) */}
+      <div className="flex flex-1 min-h-0 flex-col gap-4">
+        {/* ===== 상단: 노드 탭 바 + 카드 슬라이더 ===== */}
+        <div className="bg-white bt-shadow rounded-md border border-gray-200 flex flex-col overflow-hidden flex-shrink-0">
+          {/* Header: 노드 탭 바 + 검색 + 추가 버튼 */}
+          <div className="flex items-stretch bg-white border-b border-gray-200 pr-3 flex-shrink-0 h-[56px]">
+            {/* 좌측 스크롤 버튼 */}
+            <button
+              type="button"
+              className="flex-shrink-0 w-8 flex items-center justify-center hover:bg-gray-100 border-r border-gray-200 cursor-pointer"
+              onClick={() => tabScrollRef.current?.scrollBy({ left: -300, behavior: 'smooth' })}
+              aria-label="이전 탭"
+            >
+              <ChevronLeft className="size-4 text-gray-500" />
+            </button>
+
+            {/* 탭 스크롤 컨테이너 */}
+            <div
+              ref={tabScrollRef}
+              className="flex items-stretch max-w-[900px] min-w-0 overflow-x-auto divide-x divide-gray-200"
+              style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
+            >
+              {/* 전체 탭 */}
+              <button
+                type="button"
+                className={`flex items-center justify-center gap-2 px-3 py-2.5 text-[13px] font-medium cursor-pointer border-b-2 -mb-[1px] min-w-[120px] max-w-[200px] flex-shrink-0 transition-colors ${
+                  selectedNodeId === null && !isSearching
+                    ? 'text-[var(--color-bt-primary)] border-b-[var(--color-bt-primary)]'
+                    : 'text-gray-500 border-b-transparent hover:text-gray-700'
+                }`}
+                onClick={() => {
+                  setSelectedNodeId(null);
+                  setSearchText('');
+                  setSelectedGroupId(null);
+                }}
+              >
+                <Layers className="size-3.5" />
+                <span>전체</span>
+                <span className="text-[11px] text-gray-400">({searchFilteredMsGroups.length})</span>
+              </button>
+
+              {/* 노드 탭들 */}
+              {nodes.map((node) => {
+                const nodeGroups = searchFilteredMsGroups.filter((g) => g.nodeId === node.nodeId);
+                const hasFault = nodesFaultMap.get(node.nodeId) ?? false;
+                const isActive = selectedNodeId === node.nodeId;
+                return (
+                  <button
+                    key={node.nodeId}
+                    type="button"
+                    className={`flex items-center justify-center gap-2 px-3 py-2.5 text-[13px] font-medium cursor-pointer border-b-2 -mb-[1px] min-w-[120px] max-w-[200px] flex-shrink-0 transition-colors ${
+                      isActive ? 'text-[var(--color-bt-primary)] border-b-[var(--color-bt-primary)]' : 'text-gray-500 border-b-transparent hover:text-gray-700'
+                    }`}
+                    onClick={(e) => {
+                      handleNodeSelect(node.nodeId);
+                      (e.currentTarget as HTMLElement).scrollIntoView({ behavior: 'smooth', inline: 'center', block: 'nearest' });
+                    }}
+                  >
+                    <Network className="size-3.5 flex-shrink-0" />
+                    <span className="truncate">{node.nodeName}</span>
+                    <span className="text-[11px] text-gray-400 flex-shrink-0">({nodeGroups.length})</span>
+                    {hasFault && <AlertTriangle className="size-3 text-red-500" />}
+                  </button>
+                );
+              })}
+            </div>
+
+            {/* 우측 스크롤 버튼 */}
+            <button
+              type="button"
+              className="flex-shrink-0 w-8 flex items-center justify-center hover:bg-gray-100 border-l border-r border-gray-200 cursor-pointer"
+              onClick={() => tabScrollRef.current?.scrollBy({ left: 300, behavior: 'smooth' })}
+              aria-label="다음 탭"
+            >
+              <ChevronRight className="size-4 text-gray-500" />
+            </button>
+
+            {/* 우측: 검색 + 노드 기본 MS설정 + MS그룹 추가 */}
+            <div className="ml-auto flex items-center gap-2 flex-shrink-0 pl-3">
+              <Input
+                allowClear
+                prefix={<Search className="size-3.5 text-gray-400" />}
+                placeholder="MS그룹 검색"
+                value={searchText}
+                onChange={handleSearchChange}
+                style={{ width: 200 }}
+              />
+              <Button icon={<Settings className="size-3.5" />} onClick={handleNodeMsSetting} disabled={!selectedNodeId}>
+                노드 기본 MS설정
+              </Button>
+              <Button type="primary" icon={<Plus className="size-3.5" />} onClick={handleCreateMsGroup}>
+                추가
+              </Button>
+            </div>
           </div>
 
-          <div className="flex-1 overflow-y-auto py-2">
-            {nodeMsGroupGroups.length === 0 ? (
-              <div className="flex flex-col items-center justify-center h-full text-gray-400 gap-2 px-4">
-                <span className="text-sm">등록된 노드가 없습니다</span>
+          {/* Card slider body — 높이 고정 */}
+          <div className="flex items-center px-4 py-3 h-[180px]">
+            {filteredMsGroups.length === 0 ? (
+              <div className="flex flex-col items-center justify-center w-full h-full text-gray-400 gap-3 min-h-[100px]">
+                <Empty description={false} imageStyle={{ height: 40 }} />
+                <span className="text-sm">{isSearching ? '검색 결과가 없습니다' : selectedNodeId ? '이 노드에 등록된 MS그룹이 없습니다' : '등록된 MS그룹이 없습니다'}</span>
               </div>
             ) : (
-              nodeMsGroupGroups.map((group) => {
-                const isCollapsed = collapsedNodes.has(group.nodeId);
-                const isNodeSelected = selectedNodeId === group.nodeId;
-                return (
-                  <div key={group.nodeId} className="mb-0.5">
-                    {/* Node group header */}
-                    <button
-                      type="button"
-                      className={`w-full flex items-center gap-2 px-4 py-2.5 cursor-pointer select-none text-[13px] font-semibold transition-colors border-l-[3px] ${
-                        isNodeSelected ? 'bg-[#e8ecf4] border-l-[#405189] text-[#405189]' : 'border-l-transparent text-gray-800 hover:bg-gray-50'
-                      }`}
-                      onClick={() => {
-                        handleNodeSelect(group.nodeId);
-                        if (isCollapsed) toggleNodeGroup(group.nodeId);
-                      }}
-                    >
-                      <button
-                        type="button"
-                        className="p-0 bg-transparent border-none cursor-pointer"
+              <div className="relative flex items-center gap-2 w-full">
+                <Button
+                  type="text"
+                  icon={<ChevronLeft className="size-5" />}
+                  onClick={() => cardScrollRef.current?.scrollBy({ left: -260, behavior: 'smooth' })}
+                  className="!flex-shrink-0 !w-8 !h-8 !p-0"
+                />
+                <div ref={cardScrollRef} className="flex gap-3 overflow-x-auto py-2 px-1 flex-1" style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}>
+                  {filteredMsGroups.map((grp) => {
+                    const isCardSelected = selectedGroupId === grp.msGroupId;
+                    const isDefaultGroup = defaultMsGroupId === grp.msGroupId && selectedNodeId === grp.nodeId;
+                    const tags = getMsGroupTagList(grp);
+                    const grpNodeFault = nodesFaultMap.get(grp.nodeId) ?? false;
+                    return (
+                      <div
+                        key={grp.msGroupId}
+                        id={`msg-card-${grp.msGroupId}`}
+                        className={`bg-white border rounded-lg p-3.5 cursor-pointer transition-all w-[220px] h-[145px] flex-shrink-0 flex flex-col ${
+                          isCardSelected
+                            ? 'border-[#405189] shadow-[0_0_0_2px_rgba(64,81,137,0.15)]'
+                            : 'border-gray-200 hover:border-[#c5cbe0] hover:shadow-[0_2px_8px_rgba(0,0,0,0.06)]'
+                        }`}
                         onClick={(e) => {
-                          e.stopPropagation();
-                          toggleNodeGroup(group.nodeId);
+                          handleCardSelect(grp);
+                          (e.currentTarget as HTMLElement).scrollIntoView({ behavior: 'smooth', inline: 'center', block: 'nearest' });
                         }}
+                        onDoubleClick={() => handleEditMsGroup(grp)}
                       >
-                        {isCollapsed ? <ChevronRight className="size-3.5 text-gray-400 flex-shrink-0" /> : <ChevronDown className="size-3.5 text-gray-400 flex-shrink-0" />}
-                      </button>
-                      <Network className="size-4 text-gray-500 flex-shrink-0" />
-                      <span className="truncate">{group.nodeName}</span>
-                      <span className="ml-auto text-[11px] text-gray-400 font-normal">{group.msGroups.length}</span>
-                    </button>
+                        {/* Card header: 상태배지 + 그룹명 + 기본 뱃지 + 더보기 */}
+                        <div className="flex items-center justify-between mb-1.5">
+                          <div className="flex items-center gap-2 min-w-0">
+                            {grpNodeFault && (
+                              <span
+                                className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-bold border flex-shrink-0"
+                                style={{ color: '#ff4d4f', backgroundColor: '#fff2f0', borderColor: '#ff4d4f40' }}
+                              >
+                                장애
+                              </span>
+                            )}
+                            <span className="text-sm font-semibold text-gray-800 truncate">{grp.msGroupName}</span>
+                            {isDefaultGroup && (
+                              <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-semibold bg-blue-50 text-blue-600 border border-blue-200">기본</span>
+                            )}
+                          </div>
+                          <div onClick={(e) => e.stopPropagation()}>
+                            <Dropdown menu={{ items: getCardMenuItems(grp) }} trigger={['click']} placement="bottomRight">
+                              <button type="button" className="p-1 rounded hover:bg-gray-100 transition-colors">
+                                <MoreVertical className="size-4 text-gray-400" />
+                              </button>
+                            </Dropdown>
+                          </div>
+                        </div>
 
-                    {/* MS Group items under node */}
-                    {!isCollapsed && (
-                      <div>
-                        {group.msGroups.map((grp) => {
-                          const isItemSelected = selectedGroupId === grp.msGroupId;
-                          // 선택된 노드이고 장애 서버가 있으면 dot을 빨간색으로
-                          const grpNodeFault = nodesFaultMap.get(group.nodeId) ?? false;
-                          const grpDotColor = isItemSelected ? 'bg-[#405189]' : grpNodeFault ? 'bg-red-500' : 'bg-green-500';
-                          return (
-                            <div
-                              key={grp.msGroupId}
-                              className={`group flex items-center gap-2 pl-[42px] pr-4 py-1.5 cursor-pointer text-[12px] transition-colors border-l-[3px] ${
-                                isItemSelected ? 'bg-[#e8ecf4] border-l-[#405189] text-[#405189] font-medium' : 'border-l-transparent text-gray-500 hover:bg-gray-50'
-                              }`}
-                              onClick={() => handleTreeItemClick(grp)}
-                            >
-                              <span className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${grpDotColor}`} />
-                              <span className="truncate flex-1">{grp.msGroupName}</span>
-                              {grpNodeFault && <AlertTriangle className="size-3 text-red-500 flex-shrink-0" />}
-                            </div>
-                          );
-                        })}
+                        {/* Card info */}
+                        <div className="text-xs text-gray-500 space-y-0.5">
+                          <div className="flex items-center gap-1">
+                            <Network className="size-3 text-gray-400" />
+                            <span className="truncate">{nodeNameMap.get(grp.nodeId) ?? `Node ${grp.nodeId}`}</span>
+                          </div>
+                          <div>분배방식: {ROUTE_TYPE_LABELS[grp.routeType] ?? grp.routeType}</div>
+                          <div>할당 MS 수: {grp.routeCnt ?? 0}</div>
+                        </div>
+
+                        {/* Tags */}
+                        {tags.length > 0 && (
+                          <div className="flex flex-wrap gap-1 mt-2">
+                            {tags.map((tag) => (
+                              <span
+                                key={tag.label}
+                                className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium border"
+                                style={{
+                                  color: tag.color,
+                                  backgroundColor: tag.bgColor,
+                                  borderColor: tag.borderColor,
+                                }}
+                              >
+                                {tag.label}
+                              </span>
+                            ))}
+                          </div>
+                        )}
                       </div>
-                    )}
-                  </div>
-                );
-              })
+                    );
+                  })}
+                </div>
+                <Button
+                  type="text"
+                  icon={<ChevronRight className="size-5" />}
+                  onClick={() => cardScrollRef.current?.scrollBy({ left: 260, behavior: 'smooth' })}
+                  className="!flex-shrink-0 !w-8 !h-8 !p-0"
+                />
+              </div>
             )}
           </div>
         </div>
 
-        {/* ===== Right Panel: Cards (top) + Media Server Grid (bottom) ===== */}
-        <div className="flex-1 flex flex-col gap-4 min-w-0">
-          {selectedNodeId ? (
-            <>
-              {/* ── Top: Card Slider Area ── */}
-              <div className="bg-white bt-shadow rounded-md border border-gray-200 flex flex-col overflow-hidden flex-shrink-0">
-                {/* Card grid header */}
-                <div className="px-5 py-3 border-b border-gray-100 flex items-center justify-between flex-shrink-0">
-                  <div className="flex items-center gap-3">
-                    <span className="text-sm font-semibold text-gray-800">
-                      {selectedNodeName} MS그룹 ({filteredMsGroups.length})
-                    </span>
-                  </div>
-                  <div className="flex gap-2">
-                    <Button
-                      size="small"
-                      icon={<Settings className="size-3.5" />}
-                      onClick={() => {
-                        if (selectedNodeId) {
-                          nodeSettingDrawerRef.current?.open(selectedNodeId, selectedNodeName, selectedMsGroups);
-                        }
-                      }}
-                    >
-                      노드 기본 MS설정
-                    </Button>
-                    <Button type="primary" size="small" icon={<Plus className="size-3.5" />} onClick={handleCreateMsGroup}>
-                      MS그룹 추가
-                    </Button>
-                  </div>
-                </div>
-
-                {/* Card slider body */}
-                <div className="flex items-center px-4 py-3">
-                  {filteredMsGroups.length === 0 ? (
-                    <div className="flex flex-col items-center justify-center w-full h-full text-gray-400 gap-3">
-                      <Empty description={false} />
-                      <span className="text-sm">{searchText ? '검색 결과가 없습니다' : '이 노드에 등록된 MS그룹이 없습니다'}</span>
-                    </div>
-                  ) : (
-                    <div className="relative flex items-center gap-2 w-full">
-                      <Button
-                        type="text"
-                        icon={<ChevronLeft className="size-5" />}
-                        onClick={() => cardScrollRef.current?.scrollBy({ left: -260, behavior: 'smooth' })}
-                        className="!flex-shrink-0 !w-8 !h-8 !p-0"
-                      />
-                      <div ref={cardScrollRef} className="flex gap-3 overflow-x-auto py-2 px-1 flex-1" style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}>
-                        {filteredMsGroups.map((grp) => {
-                          const isCardSelected = selectedGroupId === grp.msGroupId;
-                          const isDefaultGroup = defaultMsGroupId === grp.msGroupId;
-                          const tags = getMsGroupTagList(grp);
-                          return (
-                            <div
-                              key={grp.msGroupId}
-                              id={`msg-card-${grp.msGroupId}`}
-                              className={`bg-white border rounded-lg p-3.5 cursor-pointer transition-all min-w-[220px] max-w-[260px] flex-shrink-0 ${
-                                isCardSelected
-                                  ? 'border-[#405189] shadow-[0_0_0_2px_rgba(64,81,137,0.15)]'
-                                  : 'border-gray-200 hover:border-[#c5cbe0] hover:shadow-[0_2px_8px_rgba(0,0,0,0.06)]'
-                              }`}
-                              onClick={() => handleCardSelect(grp)}
-                              onDoubleClick={() => handleEditMsGroup(grp)}
-                            >
-                              {/* Card header: 상태배지 + 그룹명 + 기본 뱃지 + 더보기 */}
-                              <div className="flex items-center justify-between mb-1.5">
-                                <div className="flex items-center gap-2 min-w-0">
-                                  {(nodesFaultMap.get(grp.nodeId) ?? false) && (
-                                    <span
-                                      className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-bold border flex-shrink-0"
-                                      style={{ color: '#ff4d4f', backgroundColor: '#fff2f0', borderColor: '#ff4d4f40' }}
-                                    >
-                                      장애
-                                    </span>
-                                  )}
-                                  <span className="text-sm font-semibold text-gray-800 truncate">{grp.msGroupName}</span>
-                                  {isDefaultGroup && (
-                                    <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-semibold bg-blue-50 text-blue-600 border border-blue-200">
-                                      기본
-                                    </span>
-                                  )}
-                                </div>
-                                <div onClick={(e) => e.stopPropagation()}>
-                                  <Dropdown menu={{ items: getCardMenuItems(grp) }} trigger={['click']} placement="bottomRight">
-                                    <button type="button" className="p-1 rounded hover:bg-gray-100 transition-colors">
-                                      <MoreVertical className="size-4 text-gray-400" />
-                                    </button>
-                                  </Dropdown>
-                                </div>
-                              </div>
-
-                              {/* Card info */}
-                              <div className="text-xs text-gray-500 space-y-0.5">
-                                <div>분배방식: {ROUTE_TYPE_LABELS[grp.routeType] ?? grp.routeType}</div>
-                                <div>할당 MS 수: {grp.routeCnt ?? 0}</div>
-                              </div>
-
-                              {/* Tags */}
-                              {tags.length > 0 && (
-                                <div className="flex flex-wrap gap-1 mt-2">
-                                  {tags.map((tag) => (
-                                    <span
-                                      key={tag.label}
-                                      className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium border"
-                                      style={{
-                                        color: tag.color,
-                                        backgroundColor: tag.bgColor,
-                                        borderColor: tag.borderColor,
-                                      }}
-                                    >
-                                      {tag.label}
-                                    </span>
-                                  ))}
-                                </div>
-                              )}
-                            </div>
-                          );
-                        })}
-                      </div>
-                      <Button
-                        type="text"
-                        icon={<ChevronRight className="size-5" />}
-                        onClick={() => cardScrollRef.current?.scrollBy({ left: 260, behavior: 'smooth' })}
-                        className="!flex-shrink-0 !w-8 !h-8 !p-0"
-                      />
-                    </div>
-                  )}
-                </div>
-              </div>
-
-              {/* ── Bottom: Media Server Grid ── */}
-              <div className="bg-white bt-shadow rounded-md border border-gray-200 flex flex-col flex-1 min-h-0 overflow-hidden">
-                <div className="flex flex-col flex-1 min-h-0">
-                  {/* Bottom header */}
-                  <div className="px-5 py-2 flex items-center justify-between flex-shrink-0 border-b border-gray-100">
-                    <span className="text-sm font-semibold text-gray-800">미디어서버 ({filteredMediaServers.length})</span>
-                    <div className="flex gap-2">
-                      <Button size="small" icon={<Plus className="size-3.5" />} onClick={handleCreateMediaServer}>
-                        미디어서버 추가
-                      </Button>
-                      <Button size="small" icon={<Users className="size-3.5" />} onClick={handleMemberManage} disabled={!selectedGroup}>
-                        MS그룹 멤버관리
-                      </Button>
-                    </div>
-                  </div>
-
-                  {/* Grid content */}
-                  <div className="flex-1">
-                    <AgGridReact<MediaServer>
-                      rowData={filteredMediaServers}
-                      columnDefs={mediaServerColumnDefs}
-                      gridOptions={{
-                        ...gridOptions,
-                        statusBar: undefined,
-                        pagination: false,
-                        sideBar: false,
-                      }}
-                      loading={isMediaServersLoading}
-                      getRowId={(params) => String(params.data.mediaServerId)}
-                      defaultColDef={{ filter: true, sortable: true }}
-                      onRowDoubleClicked={(e) => {
-                        if (e.data) handleEditMediaServer(e.data);
-                      }}
-                    />
-                  </div>
-                </div>
-              </div>
-            </>
-          ) : (
-            /* Empty state when no node selected */
-            <div className="bg-white bt-shadow rounded-md border border-gray-200 flex flex-col items-center justify-center h-full text-gray-400 gap-3 px-8">
-              <Empty description={false} />
-              <span className="text-sm">좌측에서 노드를 선택하세요</span>
+        {/* ===== 하단: 미디어서버 ag-Grid ===== */}
+        <div className="bg-white bt-shadow rounded-md border border-gray-200 flex flex-col flex-1 min-h-0 overflow-hidden">
+          {/* Bottom header */}
+          <div className="px-5 py-2 flex items-center justify-between flex-shrink-0 border-b border-gray-100">
+            <span className="text-sm font-semibold text-gray-800">
+              {selectedGroup ? `${selectedGroup.msGroupName} 미디어서버` : '미디어서버'} ({filteredMediaServers.length})
+            </span>
+            <div className="flex gap-2">
+              <Button icon={<Users className="size-3.5" />} onClick={handleMemberManage} disabled={!selectedGroup}>
+                멤버관리
+              </Button>
+              <Button icon={<Plus className="size-3.5" />} onClick={handleCreateMediaServer}>
+                미디어서버 추가
+              </Button>
             </div>
-          )}
+          </div>
+
+          {/* Grid content */}
+          <div className="flex-1 min-h-0">
+            {selectedGroupId ? (
+              <AgGridReact<MediaServer>
+                rowData={filteredMediaServers}
+                columnDefs={mediaServerColumnDefs}
+                gridOptions={{
+                  ...gridOptions,
+                  statusBar: undefined,
+                  pagination: false,
+                  sideBar: false,
+                }}
+                loading={isMediaServersLoading}
+                getRowId={(params) => String(params.data.mediaServerId)}
+                defaultColDef={{ filter: true, sortable: true, suppressHeaderMenuButton: true }}
+                onRowDoubleClicked={(e) => {
+                  if (e.data) handleEditMediaServer(e.data);
+                }}
+              />
+            ) : (
+              <div className="flex flex-col items-center justify-center h-full text-gray-400 gap-3 px-8">
+                <Empty description={false} />
+                <span className="text-sm">상단에서 MS그룹을 선택하세요</span>
+              </div>
+            )}
+          </div>
         </div>
       </div>
 

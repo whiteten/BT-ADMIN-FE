@@ -21,6 +21,7 @@ import '@/libs/shared-ui/src/lib/aggridSetup';
 
 const Manager = React.lazy(() => import('manager/Module').catch(() => ({ default: () => <NotFound /> })));
 const Fca = React.lazy(() => import('fca/Module').catch(() => ({ default: () => <NotFound /> })));
+const Ipron = React.lazy(() => import('ipron/Module').catch(() => ({ default: () => <NotFound /> })));
 
 const AppRoutes = () => {
   useApiErrorHandler();
@@ -45,6 +46,9 @@ const AppRoutes = () => {
           </Route>
           <Route path="/fca" element={<Layout />}>
             <Route index path="*" element={<Fca />} />
+          </Route>
+          <Route path="/ipron" element={<Layout />}>
+            <Route index path="*" element={<Ipron />} />
           </Route>
         </Route>
         <Route path="/login" element={<Login />} />

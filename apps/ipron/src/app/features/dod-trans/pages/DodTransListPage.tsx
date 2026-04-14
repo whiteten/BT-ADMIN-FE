@@ -1,27 +1,28 @@
 /**
  * DOD DNIS 관리 목록 페이지
- * Pattern: 좌측 노드 트리 + 우측 상단 카드 슬라이더 (DOD DNIS 마스터) + 우측 하단 패턴 ag-Grid
+ * Pattern: 상단 노드 탭 바 + 카드 슬라이더 (테넌트 Dropdown + DOD 변환 카드) + 하단 패턴 ag-Grid
  *
  * Layout:
- * +--------------+--------------------------------------------+
- * | 노드 트리     | 카드 슬라이더 (DOD DNIS 변환)                |
- * | (280px)      | [카드] [카드] [카드]                          |
- * |              | [+ 추가]                                    |
- * | > 노드1      +--------------------------------------------+
- * | > 노드2      | 패턴 ag-Grid (선택 변환의 아이템)              |
- * +--------------+--------------------------------------------+
+ * ┌──────────────────────────────────────────────────────┐
+ * │ [←] [전체][C1N1][C1N2] [→]           🔍[검색] [+추가] │ ← 노드 탭 바
+ * │ [테넌트▼] [Master1] [Master2] ...                     │ ← 슬라이더 (테넌트 Dropdown + 마스터 카드)
+ * ├──────────────────────────────────────────────────────┤
+ * │ {마스터} 패턴 (n건)                          [+ 패턴]  │
+ * │ ag-Grid                                               │
+ * └──────────────────────────────────────────────────────┘
  */
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { type ChangeEvent, useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { useQueryClient } from '@tanstack/react-query';
 import type { ColDef, ICellRendererParams } from 'ag-grid-community';
 import { AgGridReact } from 'ag-grid-react';
-import { Button, Dropdown, Empty, Input } from 'antd';
-import { ChevronDown, ChevronLeft, ChevronRight, MoreVertical, Network, Plus, Trash2 } from 'lucide-react';
+import { Button, Dropdown, Empty, Input, type MenuProps } from 'antd';
+import { Building2, ChevronDown, ChevronLeft, ChevronRight, Layers, MoreVertical, Network, Plus, Search, Trash2 } from 'lucide-react';
 import { toast } from '@/shared-util';
 import DodTransItemDrawer, { type DodTransItemDrawerRef } from '../components/DodTransItemDrawer';
 import DodTransMasterDrawer, { type DodTransMasterDrawerRef } from '../components/DodTransMasterDrawer';
 import { dodTransQueryKeys, useDeleteItem, useDeleteMaster, useGetItemList, useGetMasterList, useGetNodeTenants, useGetNodes } from '../hooks/useDodTransQueries';
-import { type DodTransItem, type DodTransMaster, EDIT_OPT_LABELS, type NodeDodTransGroup, TRANS_YN_LABELS } from '../types/dodTrans.types';
+import { type DodTransItem, type DodTransMaster, EDIT_OPT_LABELS, TRANS_YN_LABELS } from '../types/dodTrans.types';
 import { IconTrash } from '@/components/custom/Icons';
 import PageHeader from '@/components/custom/PageHeader';
 import useAggridOptions from '@/libs/shared-ui/src/hooks/useAggridOptions';
@@ -34,16 +35,22 @@ const breadcrumb = [
 ];
 
 export default function DodTransListPage() {
+  const [searchParams] = useSearchParams();
   const queryClient = useQueryClient();
   const { gridOptions } = useAggridOptions();
   const modal = useModal();
 
+  // URL query params for initial selection
+  const initNodeId = searchParams.get('nodeId') ? Number(searchParams.get('nodeId')) : null;
+  const initTenantId = searchParams.get('tenantId') ? Number(searchParams.get('tenantId')) : null;
+  const initMasterId = searchParams.get('dodTransId') ? Number(searchParams.get('dodTransId')) : null;
+
   // ─── State ──────────────────────────────────────────────────────────────────
-  const [selectedNodeId, setSelectedNodeId] = useState<number | null>(null);
-  const [selectedTenantId, setSelectedTenantId] = useState<number | null>(null);
-  const [selectedMasterId, setSelectedMasterId] = useState<number | null>(null);
-  const [collapsedNodes, setCollapsedNodes] = useState<Set<number>>(new Set());
+  const [selectedNodeId, setSelectedNodeId] = useState<number | null>(initNodeId);
+  const [selectedTenantId, setSelectedTenantId] = useState<number | null>(initTenantId);
+  const [selectedMasterId, setSelectedMasterId] = useState<number | null>(initMasterId);
   const [searchText, setSearchText] = useState('');
+  const tabScrollRef = useRef<HTMLDivElement>(null);
   const cardScrollRef = useRef<HTMLDivElement>(null);
 
   // ─── Refs ─────────────────────────────────────────────────────────────────
@@ -93,58 +100,61 @@ export default function DodTransListPage() {
     }
   }, [queryClient, selectedMasterId]);
 
-  // ─── Derived data: 노드 > 테넌트 트리 구조 ──────────────────────────────────
-  interface TenantInfo {
-    tenantId: number;
-    tenantName: string;
-    masterCount: number;
-  }
-  interface NodeTenantGroup {
-    nodeId: number;
-    nodeName: string;
-    tenants: TenantInfo[];
-  }
+  // ─── Derived data ─────────────────────────────────────────────────────────
+  const isSearching = searchText.trim().length > 0;
 
-  const nodeTenantTree: NodeTenantGroup[] = useMemo(() => {
-    // TB_CC_NODETENANTMASTER 기반으로 노드 > 테넌트 트리 구성
-    const nodeMap = new Map<number, { nodeName: string; tenantMap: Map<number, { tenantName: string; masterCount: number }> }>();
+  const searchFilteredMasters = useMemo(() => {
+    if (!isSearching) return masters;
+    const kw = searchText.trim().toLowerCase();
+    return masters.filter((m) => [m.dodTransName, m.nodeName, m.tenantName].some((v) => v?.toString().toLowerCase().includes(kw)));
+  }, [masters, isSearching, searchText]);
 
-    for (const nt of nodeTenants) {
-      if (!nodeMap.has(nt.nodeId)) {
-        nodeMap.set(nt.nodeId, { nodeName: nt.nodeName, tenantMap: new Map() });
+  // 노드 필터 적용된 마스터 카드 목록 (테넌트 필터는 그룹 표시로 대체)
+  const filteredMasters = useMemo(() => {
+    let list = searchFilteredMasters;
+    if (!isSearching && selectedNodeId !== null) list = list.filter((m) => m.nodeId === selectedNodeId);
+    return list;
+  }, [searchFilteredMasters, selectedNodeId, isSearching]);
+
+  // 테넌트별 그룹화 (카드 슬라이더 표시용)
+  const mastersByTenant = useMemo(() => {
+    const groupMap = new Map<number, { tenantId: number; tenantName: string; masters: typeof filteredMasters }>();
+    for (const m of filteredMasters) {
+      if (!groupMap.has(m.tenantId)) {
+        groupMap.set(m.tenantId, { tenantId: m.tenantId, tenantName: m.tenantName, masters: [] });
       }
-      const node = nodeMap.get(nt.nodeId)!;
-      if (!node.tenantMap.has(nt.tenantId)) {
-        node.tenantMap.set(nt.tenantId, { tenantName: nt.tenantName, masterCount: 0 });
-      }
+      groupMap.get(m.tenantId)!.masters.push(m);
     }
+    return Array.from(groupMap.values()).sort((a, b) => a.tenantName.localeCompare(b.tenantName));
+  }, [filteredMasters]);
 
-    // 마스터 데이터에서 카운트 집계
-    for (const m of masters) {
-      const node = nodeMap.get(m.nodeId);
-      if (node) {
-        const tenant = node.tenantMap.get(m.tenantId);
-        if (tenant) tenant.masterCount++;
-      }
+  // 선택 가능한 테넌트 목록 (선택 노드의 테넌트들)
+  const tenantOptionsForNode = useMemo(() => {
+    const map = new Map<number, { tenantId: number; tenantName: string }>();
+    const source = selectedNodeId === null ? masters : masters.filter((m) => m.nodeId === selectedNodeId);
+    for (const m of source) {
+      if (!map.has(m.tenantId)) map.set(m.tenantId, { tenantId: m.tenantId, tenantName: m.tenantName });
     }
+    return Array.from(map.values());
+  }, [masters, selectedNodeId]);
 
-    return Array.from(nodeMap.entries())
-      .map(([nodeId, data]) => ({
-        nodeId,
-        nodeName: data.nodeName,
-        tenants: Array.from(data.tenantMap.entries()).map(([tenantId, t]) => ({
-          tenantId,
-          tenantName: t.tenantName,
-          masterCount: t.masterCount,
-        })),
-      }))
-      .sort((a, b) => a.nodeId - b.nodeId);
-  }, [nodeTenants, masters]);
+  const tenantMenuItems: MenuProps['items'] = useMemo(
+    () => [
+      { key: 'all', label: '전체 테넌트', onClick: () => setSelectedTenantId(null) },
+      { type: 'divider' as const },
+      ...tenantOptionsForNode.map((t) => ({
+        key: String(t.tenantId),
+        label: t.tenantName,
+        onClick: () => setSelectedTenantId(t.tenantId),
+      })),
+    ],
+    [tenantOptionsForNode],
+  );
 
-  const selectedMasters = useMemo(() => {
-    if (!selectedNodeId || !selectedTenantId) return [];
-    return masters.filter((m) => m.nodeId === selectedNodeId && m.tenantId === selectedTenantId);
-  }, [masters, selectedNodeId, selectedTenantId]);
+  const selectedTenantLabel = useMemo(() => {
+    if (selectedTenantId === null) return '전체 테넌트';
+    return tenantOptionsForNode.find((t) => t.tenantId === selectedTenantId)?.tenantName ?? '전체 테넌트';
+  }, [selectedTenantId, tenantOptionsForNode]);
 
   const selectedNode = useMemo(() => {
     if (!selectedNodeId) return null;
@@ -154,70 +164,63 @@ export default function DodTransListPage() {
   const selectedNodeName = selectedNode?.nodeName ?? '';
 
   const selectedTenantName = useMemo(() => {
-    if (!selectedNodeId || !selectedTenantId) return '';
-    const group = nodeTenantTree.find((g) => g.nodeId === selectedNodeId);
-    return group?.tenants.find((t) => t.tenantId === selectedTenantId)?.tenantName ?? '';
-  }, [nodeTenantTree, selectedNodeId, selectedTenantId]);
+    if (!selectedTenantId) return '';
+    const m = masters.find((x) => x.tenantId === selectedTenantId);
+    return m?.tenantName ?? '';
+  }, [masters, selectedTenantId]);
 
   const selectedMaster = useMemo(() => {
     if (!selectedMasterId) return null;
     return masters.find((m) => m.dodTransId === selectedMasterId) ?? null;
   }, [masters, selectedMasterId]);
 
-  const filteredMasters = useMemo(() => {
-    if (!searchText) return selectedMasters;
-    return selectedMasters.filter((m) => m.dodTransName?.toLowerCase().includes(searchText.toLowerCase()));
-  }, [selectedMasters, searchText]);
-
-  // Auto-select first node+tenant
+  // ─── Effects ─────────────────────────────────────────────────────────────
+  // 노드 변경 시 현재 선택된 테넌트가 노드에 없으면 해제
   useEffect(() => {
-    if (!selectedNodeId && nodeTenantTree.length > 0) {
-      const first = nodeTenantTree[0];
-      setSelectedNodeId(first.nodeId);
-      if (first.tenants.length > 0) {
-        setSelectedTenantId(first.tenants[0].tenantId);
-      }
+    if (selectedTenantId !== null && selectedNodeId !== null) {
+      const exists = tenantOptionsForNode.some((t) => t.tenantId === selectedTenantId);
+      if (!exists) setSelectedTenantId(null);
     }
-  }, [nodeTenantTree, selectedNodeId]);
+  }, [selectedNodeId, tenantOptionsForNode, selectedTenantId]);
+
+  // 자동 마스터 선택 — 그룹화된 첫 테넌트의 첫 마스터로 (정렬 일관성 유지)
+  useEffect(() => {
+    const firstMaster = mastersByTenant[0]?.masters[0];
+    if (!selectedMasterId && firstMaster) {
+      setSelectedMasterId(firstMaster.dodTransId);
+    } else if (selectedMasterId && !filteredMasters.some((m) => m.dodTransId === selectedMasterId)) {
+      setSelectedMasterId(firstMaster?.dodTransId ?? null);
+    }
+  }, [mastersByTenant, filteredMasters, selectedMasterId]);
 
   // ─── Handlers ─────────────────────────────────────────────────────────────
-  const toggleNodeGroup = (nodeId: number) => {
-    setCollapsedNodes((prev) => {
-      const next = new Set(prev);
-      if (next.has(nodeId)) {
-        next.delete(nodeId);
-      } else {
-        next.add(nodeId);
-      }
-      return next;
-    });
-  };
-
-  const handleTenantSelect = (nodeId: number, tenantId: number) => {
+  const handleNodeSelect = (nodeId: number | null) => {
     setSelectedNodeId(nodeId);
-    setSelectedTenantId(tenantId);
     setSelectedMasterId(null);
     setSearchText('');
+  };
+
+  const handleSearchChange = (e: ChangeEvent<HTMLInputElement>) => {
+    setSearchText(e.target.value);
+    if (e.target.value.trim().length > 0) {
+      setSelectedNodeId(null);
+      setSelectedTenantId(null);
+      setSelectedMasterId(null);
+    }
   };
 
   const handleCardSelect = (master: DodTransMaster) => {
     setSelectedMasterId(master.dodTransId);
   };
 
-  const handleTreeItemClick = (master: DodTransMaster) => {
-    setSelectedNodeId(master.nodeId);
-    setSelectedMasterId(master.dodTransId);
-    setTimeout(() => {
-      const card = document.getElementById(`dod-trans-card-${master.dodTransId}`);
-      card?.scrollIntoView({ behavior: 'smooth', inline: 'center', block: 'nearest' });
-    }, 100);
-  };
-
   const handleCreateMaster = useCallback(() => {
-    if (selectedNodeId && selectedTenantId) {
-      masterDrawerRef.current?.open(undefined, selectedNodeId, selectedNodeName, selectedTenantId, selectedTenantName);
-    }
-  }, [selectedNodeId, selectedTenantId, selectedNodeName, selectedTenantName]);
+    const nodeId = selectedNodeId ?? nodes[0]?.nodeId;
+    if (!nodeId) return;
+    const nodeName = nodes.find((n) => n.nodeId === nodeId)?.nodeName ?? '';
+    const tenantId = selectedTenantId ?? undefined;
+    const tenantName = selectedTenantName || '';
+    masterDrawerRef.current?.open(undefined, nodeId, nodeName, tenantId, tenantName);
+  }, [selectedNodeId, selectedTenantId, selectedTenantName, nodes]);
 
   const handleEditMaster = useCallback((master: DodTransMaster) => {
     masterDrawerRef.current?.open(master);
@@ -286,6 +289,20 @@ export default function DodTransListPage() {
   // ─── ag-Grid Column Defs ──────────────────────────────────────────────────
   const columnDefs: ColDef<DodTransItem>[] = useMemo(
     () => [
+      {
+        headerName: '노드명',
+        colId: 'nodeName',
+        flex: 1,
+        minWidth: 110,
+        valueGetter: () => selectedMaster?.nodeName ?? '-',
+      },
+      {
+        headerName: '테넌트',
+        colId: 'tenantName',
+        flex: 1,
+        minWidth: 110,
+        valueGetter: () => selectedMaster?.tenantName ?? '-',
+      },
       {
         headerName: '번호패턴',
         field: 'numPattern',
@@ -359,7 +376,7 @@ export default function DodTransListPage() {
         },
       },
     ],
-    [handleDeleteItem],
+    [handleDeleteItem, selectedMaster],
   );
 
   // ─── Render ───────────────────────────────────────────────────────────────
@@ -367,122 +384,159 @@ export default function DodTransListPage() {
     <div className="flex flex-col gap-4 w-full h-full">
       <PageHeader breadcrumb={breadcrumb} />
 
-      {/* Split container: Left Tree + Right (Cards + Bottom Grid) */}
-      <div className="flex flex-1 min-h-0 gap-4">
-        {/* ===== Left Panel: Node Tree (280px) ===== */}
-        <div className="w-[280px] min-w-[280px] bg-white bt-shadow rounded-md border border-gray-200 flex flex-col overflow-hidden">
-          <div className="px-4 py-3 border-b border-gray-100 flex-shrink-0">
-            <Input placeholder="변환명 검색" size="small" allowClear value={searchText} onChange={(e) => setSearchText(e.target.value)} />
-          </div>
+      {/* Single column: Tab + Cards (top) + Item Grid (bottom) */}
+      <div className="flex flex-1 min-h-0 flex-col gap-4">
+        {/* ===== 상단: 노드 탭 바 + 카드 슬라이더 ===== */}
+        <div className="bg-white bt-shadow rounded-md border border-gray-200 flex flex-col overflow-hidden flex-shrink-0">
+          {/* Header: 노드 탭 바 + 검색 + 추가 버튼 */}
+          <div className="flex items-stretch bg-white border-b border-gray-200 pr-3 flex-shrink-0 h-[56px]">
+            {/* 좌측 스크롤 버튼 */}
+            <button
+              type="button"
+              className="flex-shrink-0 w-8 flex items-center justify-center hover:bg-gray-100 border-r border-gray-200 cursor-pointer"
+              onClick={() => tabScrollRef.current?.scrollBy({ left: -300, behavior: 'smooth' })}
+              aria-label="이전 탭"
+            >
+              <ChevronLeft className="size-4 text-gray-500" />
+            </button>
 
-          <div className="flex-1 overflow-y-auto py-2">
-            {nodeTenantTree.length === 0 ? (
-              <div className="flex flex-col items-center justify-center h-full text-gray-400 gap-2 px-4">
-                <span className="text-sm">등록된 데이터가 없습니다</span>
-              </div>
-            ) : (
-              nodeTenantTree.map((group) => {
-                const isCollapsed = collapsedNodes.has(group.nodeId);
+            {/* 탭 스크롤 컨테이너 */}
+            <div
+              ref={tabScrollRef}
+              className="flex items-stretch max-w-[900px] min-w-0 overflow-x-auto divide-x divide-gray-200"
+              style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
+            >
+              {/* 전체 탭 */}
+              <button
+                type="button"
+                className={`flex items-center justify-center gap-2 px-3 py-2.5 text-[13px] font-medium cursor-pointer border-b-2 -mb-[1px] min-w-[120px] max-w-[200px] flex-shrink-0 transition-colors ${
+                  selectedNodeId === null && !isSearching
+                    ? 'text-[var(--color-bt-primary)] border-b-[var(--color-bt-primary)]'
+                    : 'text-gray-500 border-b-transparent hover:text-gray-700'
+                }`}
+                onClick={() => handleNodeSelect(null)}
+              >
+                <Layers className="size-3.5" />
+                <span>전체</span>
+                <span className="text-[11px] text-gray-400">({searchFilteredMasters.length})</span>
+              </button>
+
+              {/* 노드 탭들 */}
+              {nodes.map((node) => {
+                const nodeCount = searchFilteredMasters.filter((m) => m.nodeId === node.nodeId).length;
+                const isActive = selectedNodeId === node.nodeId;
                 return (
-                  <div key={group.nodeId} className="mb-0.5">
-                    {/* Node header */}
-                    <button
-                      type="button"
-                      className="w-full flex items-center gap-2 px-4 py-2.5 cursor-pointer select-none text-[13px] font-bold transition-colors border-l-[3px] border-l-transparent text-gray-800 hover:bg-gray-50"
-                      onClick={() => toggleNodeGroup(group.nodeId)}
-                    >
-                      {isCollapsed ? <ChevronRight className="size-3.5 text-gray-400 flex-shrink-0" /> : <ChevronDown className="size-3.5 text-gray-400 flex-shrink-0" />}
-                      <Network className="size-4 text-gray-500 flex-shrink-0" />
-                      <span className="truncate">{group.nodeName}</span>
-                      <span className="ml-auto text-[11px] text-gray-400 font-normal">{group.tenants.length}</span>
-                    </button>
-
-                    {/* Tenant items under node */}
-                    {!isCollapsed && (
-                      <div>
-                        {group.tenants.map((tenant) => {
-                          const isSelected = selectedNodeId === group.nodeId && selectedTenantId === tenant.tenantId;
-                          return (
-                            <button
-                              key={`${group.nodeId}-${tenant.tenantId}`}
-                              type="button"
-                              className={`w-full flex items-center gap-2 pl-[42px] pr-4 py-1.5 cursor-pointer text-[12px] text-left transition-colors border-l-[3px] ${
-                                isSelected ? 'bg-[#e8ecf4] border-l-[#405189] text-[#405189] font-medium' : 'border-l-transparent text-gray-500 hover:bg-gray-50'
-                              }`}
-                              onClick={() => handleTenantSelect(group.nodeId, tenant.tenantId)}
-                            >
-                              <span className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${isSelected ? 'bg-[#405189]' : 'bg-green-500'}`} />
-                              <span className="truncate flex-1">{tenant.tenantName}</span>
-                              <span className="text-[10px] text-gray-400">{tenant.masterCount}</span>
-                            </button>
-                          );
-                        })}
-                      </div>
-                    )}
-                  </div>
+                  <button
+                    key={node.nodeId}
+                    type="button"
+                    className={`flex items-center justify-center gap-2 px-3 py-2.5 text-[13px] font-medium cursor-pointer border-b-2 -mb-[1px] min-w-[120px] max-w-[200px] flex-shrink-0 transition-colors ${
+                      isActive ? 'text-[var(--color-bt-primary)] border-b-[var(--color-bt-primary)]' : 'text-gray-500 border-b-transparent hover:text-gray-700'
+                    }`}
+                    onClick={(e) => {
+                      handleNodeSelect(node.nodeId);
+                      (e.currentTarget as HTMLElement).scrollIntoView({ behavior: 'smooth', inline: 'center', block: 'nearest' });
+                    }}
+                  >
+                    <Network className="size-3.5 flex-shrink-0" />
+                    <span className="truncate">{node.nodeName}</span>
+                    <span className="text-[11px] text-gray-400 flex-shrink-0">({nodeCount})</span>
+                  </button>
                 );
-              })
-            )}
-          </div>
-        </div>
+              })}
+            </div>
 
-        {/* ===== Right Panel: Cards (top) + Item Grid (bottom) ===== */}
-        <div className="flex-1 flex flex-col gap-4 min-w-0">
-          {selectedNodeId ? (
-            <>
-              {/* -- Top: Card Slider Area -- */}
-              <div className="bg-white bt-shadow rounded-md border border-gray-200 flex flex-col overflow-hidden flex-shrink-0">
-                {/* Card grid header */}
-                <div className="px-5 py-3 border-b border-gray-100 flex items-center justify-between flex-shrink-0">
-                  <div className="flex items-center gap-3">
-                    <span className="text-sm font-semibold text-gray-800">
-                      {selectedNodeName} {selectedTenantName && `/ ${selectedTenantName}`} DOD DNIS 변환 ({filteredMasters.length}건)
+            {/* 우측 스크롤 버튼 */}
+            <button
+              type="button"
+              className="flex-shrink-0 w-8 flex items-center justify-center hover:bg-gray-100 border-l border-r border-gray-200 cursor-pointer"
+              onClick={() => tabScrollRef.current?.scrollBy({ left: 300, behavior: 'smooth' })}
+              aria-label="다음 탭"
+            >
+              <ChevronRight className="size-4 text-gray-500" />
+            </button>
+
+            {/* 우측: 검색 + 추가 버튼 */}
+            <div className="ml-auto flex items-center gap-2 flex-shrink-0 pl-3">
+              <Input
+                allowClear
+                prefix={<Search className="size-3.5 text-gray-400" />}
+                placeholder="DOD DNIS 검색"
+                value={searchText}
+                onChange={handleSearchChange}
+                style={{ width: 200 }}
+              />
+              <Button type="primary" icon={<Plus className="size-3.5" />} onClick={handleCreateMaster}>
+                추가
+              </Button>
+            </div>
+          </div>
+
+          {/* Card slider body — 높이 고정 */}
+          <div className="flex items-center h-[170px] px-4 py-3">
+            <div className="relative flex items-center gap-2 w-full">
+              <Button
+                type="text"
+                icon={<ChevronLeft className="size-5" />}
+                onClick={() => cardScrollRef.current?.scrollBy({ left: -260, behavior: 'smooth' })}
+                className="!flex-shrink-0 !w-8 !h-8 !p-0"
+              />
+              <div ref={cardScrollRef} className="flex gap-3 overflow-x-auto py-2 px-1 flex-1" style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}>
+                {/* 마스터 카드들 — 테넌트별 그룹화 */}
+                {mastersByTenant.length === 0 ? (
+                  <div className="flex flex-col items-center justify-center flex-1 text-gray-400 gap-2 min-h-[100px]">
+                    <Empty description={false} imageStyle={{ height: 40 }} />
+                    <span className="text-sm">
+                      {isSearching ? '검색 결과가 없습니다' : selectedNodeId ? '이 노드에 등록된 DOD DNIS 변환이 없습니다' : '등록된 DOD DNIS 변환이 없습니다'}
                     </span>
                   </div>
-                  <div className="flex gap-2">
-                    <Button type="primary" size="small" icon={<Plus className="size-3.5" />} onClick={handleCreateMaster}>
-                      추가
-                    </Button>
-                  </div>
-                </div>
+                ) : (
+                  mastersByTenant.map((group, groupIdx) => {
+                    const isTenantActive = selectedMaster?.tenantId === group.tenantId;
+                    return (
+                      <div key={group.tenantId} className="flex items-stretch gap-3 flex-shrink-0">
+                        {/* 테넌트 라벨 (그룹 헤더) — 선택된 마스터의 테넌트면 강조 */}
+                        <div
+                          className={`flex flex-col items-center justify-center w-[100px] flex-shrink-0 px-2 rounded transition-all border-l-4 ${
+                            isTenantActive
+                              ? 'border-l-[#405189] bg-[#405189] text-white shadow-[0_2px_8px_rgba(64,81,137,0.25)]'
+                              : 'border-l-[#a3b1d6] bg-blue-50/50 text-[#405189]'
+                          }`}
+                        >
+                          <Building2 className={`size-4 flex-shrink-0 ${isTenantActive ? 'text-white' : 'text-[#405189]'}`} />
+                          <span
+                            className={`text-[11px] font-semibold mt-1 w-full text-center truncate ${isTenantActive ? 'text-white' : 'text-[#405189]'}`}
+                            title={group.tenantName}
+                          >
+                            {group.tenantName}
+                          </span>
+                          <span className={`text-[10px] ${isTenantActive ? 'text-white/80' : 'text-gray-500'}`}>{group.masters.length}건</span>
+                        </div>
 
-                {/* Card slider body */}
-                <div className="flex items-center px-4 py-3 h-[150px]">
-                  {filteredMasters.length === 0 ? (
-                    <div className="flex flex-col items-center justify-center w-full h-full text-gray-400 gap-2">
-                      <Empty description={false} imageStyle={{ height: 40 }} />
-                      <span className="text-sm">{searchText ? '검색 결과가 없습니다' : '이 테넌트에 등록된 DOD DNIS 변환이 없습니다'}</span>
-                    </div>
-                  ) : (
-                    <div className="relative flex items-center gap-2 w-full">
-                      <Button
-                        type="text"
-                        icon={<ChevronLeft className="size-5" />}
-                        onClick={() => cardScrollRef.current?.scrollBy({ left: -260, behavior: 'smooth' })}
-                        className="!flex-shrink-0 !w-8 !h-8 !p-0"
-                      />
-                      <div ref={cardScrollRef} className="flex gap-3 overflow-x-auto py-2 px-1 flex-1" style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}>
-                        {filteredMasters.map((master) => {
+                        {/* 그룹 내 마스터 카드들 */}
+                        {group.masters.map((master) => {
                           const isCardSelected = selectedMasterId === master.dodTransId;
                           return (
                             <div
                               key={master.dodTransId}
                               id={`dod-trans-card-${master.dodTransId}`}
-                              className={`bg-white border rounded-lg p-3.5 cursor-pointer transition-all min-w-[220px] max-w-[260px] min-h-[100px] flex-shrink-0 flex flex-col ${
+                              className={`bg-white border rounded-lg p-3 cursor-pointer transition-all w-[160px] h-[130px] flex-shrink-0 flex flex-col ${
                                 isCardSelected
                                   ? 'border-[#405189] shadow-[0_0_0_2px_rgba(64,81,137,0.15)]'
                                   : 'border-gray-200 hover:border-[#c5cbe0] hover:shadow-[0_2px_8px_rgba(0,0,0,0.06)]'
                               }`}
-                              onClick={() => handleCardSelect(master)}
+                              onClick={(e) => {
+                                handleCardSelect(master);
+                                (e.currentTarget as HTMLElement).scrollIntoView({ behavior: 'smooth', inline: 'center', block: 'nearest' });
+                              }}
                               onDoubleClick={() => handleEditMaster(master)}
                             >
                               {/* Card header */}
-                              <div className="flex items-center justify-between mb-1.5">
+                              <div className="flex items-center justify-between mb-1">
                                 <span className="text-sm font-semibold text-gray-800 truncate">{master.dodTransName}</span>
                                 <div onClick={(e) => e.stopPropagation()}>
                                   <Dropdown menu={{ items: getCardMenuItems(master) }} trigger={['click']} placement="bottomRight">
-                                    <button type="button" className="p-1 rounded hover:bg-gray-100 transition-colors">
-                                      <MoreVertical className="size-4 text-gray-400" />
+                                    <button type="button" className="p-0.5 rounded hover:bg-gray-100 transition-colors flex-shrink-0">
+                                      <MoreVertical className="size-3.5 text-gray-400" />
                                     </button>
                                   </Dropdown>
                                 </div>
@@ -490,89 +544,88 @@ export default function DodTransListPage() {
 
                               {/* Card info */}
                               <div className="text-xs text-gray-500 space-y-0.5">
-                                <div>{master.nodeName}</div>
-                                <div>패턴: {master.itemCount}건</div>
+                                <div className="flex items-center gap-1">
+                                  <Network className="size-3 text-gray-400" />
+                                  <span className="truncate">{master.nodeName ?? `Node ${master.nodeId}`}</span>
+                                </div>
                               </div>
 
-                              {/* Item count tag */}
-                              <div className="flex flex-wrap gap-1 mt-auto pt-2">
+                              {/* 패턴 건수 태그 */}
+                              <div className="flex flex-wrap gap-1 mt-auto">
                                 <span
                                   className={`inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium border ${
                                     master.itemCount > 0 ? 'text-green-700 bg-green-50 border-green-200' : 'text-gray-500 bg-gray-50 border-gray-200'
                                   }`}
                                 >
-                                  {master.itemCount > 0 ? `${master.itemCount}건 등록` : '패턴 미등록'}
+                                  {master.itemCount > 0 ? `패턴 ${master.itemCount}건` : '패턴 미등록'}
                                 </span>
                               </div>
                             </div>
                           );
                         })}
+
+                        {/* 그룹 사이 구분선 */}
+                        {groupIdx < mastersByTenant.length - 1 && <div className="border-l border-gray-200 mx-1" />}
                       </div>
-                      <Button
-                        type="text"
-                        icon={<ChevronRight className="size-5" />}
-                        onClick={() => cardScrollRef.current?.scrollBy({ left: 260, behavior: 'smooth' })}
-                        className="!flex-shrink-0 !w-8 !h-8 !p-0"
-                      />
-                    </div>
-                  )}
-                </div>
+                    );
+                  })
+                )}
               </div>
-
-              {/* -- Bottom: Item Grid -- */}
-              <div className="bg-white bt-shadow rounded-md border border-gray-200 flex flex-col flex-1 min-h-0 overflow-hidden">
-                {/* Bottom header */}
-                <div className="px-5 py-2 flex items-center justify-between flex-shrink-0 border-b border-gray-100 min-h-[40px]">
-                  <span className="text-sm font-semibold text-gray-800">
-                    {selectedMaster ? `${selectedMaster.dodTransName} ` : ''}패턴 ({items.length}건)
-                  </span>
-                  {selectedMaster && (
-                    <Button size="small" icon={<Plus className="size-3.5" />} onClick={handleCreateItem}>
-                      추가
-                    </Button>
-                  )}
-                </div>
-
-                {/* Grid */}
-                <div className="flex-1">
-                  {selectedMasterId ? (
-                    <AgGridReact<DodTransItem>
-                      rowData={items}
-                      columnDefs={columnDefs}
-                      gridOptions={{
-                        ...gridOptions,
-                        statusBar: undefined,
-                        pagination: false,
-                        sideBar: false,
-                      }}
-                      loading={isItemsLoading}
-                      getRowId={(params) => `${params.data.dodTransId}-${params.data.listSeq}`}
-                      defaultColDef={{ filter: true, sortable: true }}
-                      onRowDoubleClicked={(e) => {
-                        if (e.data) handleEditItem(e.data);
-                      }}
-                    />
-                  ) : (
-                    <div className="flex flex-col items-center justify-center h-full text-gray-400 gap-3">
-                      <Empty description={false} />
-                      <span className="text-sm">상단에서 변환을 선택하세요</span>
-                    </div>
-                  )}
-                </div>
-              </div>
-            </>
-          ) : (
-            /* Empty state when no node selected */
-            <div className="bg-white bt-shadow rounded-md border border-gray-200 flex flex-col items-center justify-center h-full text-gray-400 gap-3 px-8">
-              <Empty description={false} />
-              <span className="text-sm">좌측에서 테넌트를 선택하세요</span>
+              <Button
+                type="text"
+                icon={<ChevronRight className="size-5" />}
+                onClick={() => cardScrollRef.current?.scrollBy({ left: 260, behavior: 'smooth' })}
+                className="!flex-shrink-0 !w-8 !h-8 !p-0"
+              />
             </div>
-          )}
+          </div>
+        </div>
+
+        {/* ===== 하단: 패턴 ag-Grid ===== */}
+        <div className="bg-white bt-shadow rounded-md border border-gray-200 flex flex-col flex-1 min-h-0 overflow-hidden">
+          {/* Bottom header */}
+          <div className="px-5 py-2 flex items-center justify-between flex-shrink-0 border-b border-gray-100 min-h-[40px]">
+            <span className="text-sm font-semibold text-gray-800">
+              {selectedMaster ? `${selectedMaster.dodTransName} ` : ''}패턴 ({items.length}건)
+            </span>
+            {selectedMaster && (
+              <Button icon={<Plus className="size-3.5" />} onClick={handleCreateItem}>
+                패턴 추가
+              </Button>
+            )}
+          </div>
+
+          {/* Grid */}
+          <div className="flex-1 min-h-0">
+            {selectedMasterId ? (
+              <AgGridReact<DodTransItem>
+                rowData={items}
+                columnDefs={columnDefs}
+                gridOptions={{
+                  ...gridOptions,
+                  statusBar: undefined,
+                  pagination: false,
+                  sideBar: false,
+                }}
+                loading={isItemsLoading}
+                getRowId={(params) => `${params.data.dodTransId}-${params.data.listSeq}`}
+                defaultColDef={{ filter: true, sortable: true, suppressHeaderMenuButton: true }}
+                onRowDoubleClicked={(e) => {
+                  if (e.data) handleEditItem(e.data);
+                }}
+              />
+            ) : (
+              <div className="flex flex-col items-center justify-center h-full text-gray-400 gap-3">
+                <Empty description={false} />
+                <span className="text-sm">상단에서 변환을 선택하세요</span>
+              </div>
+            )}
+          </div>
         </div>
       </div>
 
       {/* ===== Drawers ===== */}
-      <DodTransMasterDrawer ref={masterDrawerRef} onSuccess={handleMasterDrawerSuccess} />
+      <DodTransMasterDrawer ref={masterDrawerRef} onSuccess={handleMasterDrawerSuccess} nodes={nodes} nodeTenants={nodeTenants} />
       <DodTransItemDrawer ref={itemDrawerRef} onSuccess={handleItemDrawerSuccess} />
     </div>
   );

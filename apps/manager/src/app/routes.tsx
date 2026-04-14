@@ -37,6 +37,14 @@ const TenantList = React.lazy(() => import('./features/tenant-management/pages/T
 const TenantCreate = React.lazy(() => import('./features/tenant-management/pages/TenantCreate'));
 const TenantDetail = React.lazy(() => import('./features/tenant-management/pages/TenantDetail'));
 
+// 노드/클러스터 관리 페이지
+const NodeListPage = React.lazy(() => import('./features/node-management/pages/NodeListPage'));
+const NodeCreatePage = React.lazy(() => import('./features/node-management/pages/NodeCreatePage'));
+const NodeDetailPage = React.lazy(() => import('./features/node-management/pages/NodeDetailPage'));
+const NodeSettingPage = React.lazy(() => import('./features/node-management/pages/NodeSettingPage'));
+const ClusterConfigPage = React.lazy(() => import('./features/node-management/pages/ClusterConfigPage'));
+const TenantAllocWizardPage = React.lazy(() => import('./features/node-management/pages/TenantAllocWizardPage'));
+
 export const routes = [
   {
     path: '/',
@@ -184,6 +192,40 @@ export const routes = [
               {
                 path: ':tenantId',
                 element: <TenantDetail />,
+              },
+            ],
+          },
+          {
+            path: 'node-management',
+            element: <Outlet />,
+            children: [
+              {
+                index: true,
+                element: <Navigate to="list" replace />,
+              },
+              {
+                path: 'list',
+                element: <NodeListPage />,
+              },
+              {
+                path: 'create',
+                element: <NodeCreatePage />,
+              },
+              {
+                path: ':nodeId',
+                element: <NodeDetailPage />,
+              },
+              {
+                path: ':nodeId/settings',
+                element: <NodeSettingPage />,
+              },
+              {
+                path: ':nodeId/cluster-config',
+                element: <ClusterConfigPage />,
+              },
+              {
+                path: ':nodeId/alloc/:tenantId',
+                element: <TenantAllocWizardPage />,
               },
             ],
           },

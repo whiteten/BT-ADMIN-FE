@@ -1,7 +1,7 @@
 /**
  * SIP 헤더 관리 페이지
- * 좌측(280px): 헤더 그룹 목록 + 더보기 메뉴 (수정/삭제) + [그룹 추가]
- * 우측: ag-Grid 릴레이 목록 + 체크박스로 그룹 배정 관리
+ * 상단: 카드 슬라이더 (헤더 그룹 목록) + 더보기 메뉴 (수정/삭제) + [그룹 추가]
+ * 하단: ag-Grid 릴레이 목록 + 체크박스로 그룹 배정 관리
  *   - 체크/언체크 → updateGroupMembers API 호출 (replace 패턴)
  *   - headerType=1인 사용자 추가 릴레이만 삭제 가능
  */
@@ -10,7 +10,7 @@ import { useQueryClient } from '@tanstack/react-query';
 import type { ColDef, ICellRendererParams } from 'ag-grid-community';
 import { AgGridReact } from 'ag-grid-react';
 import { Button, Dropdown, Empty } from 'antd';
-import { Edit3, MoreVertical, Plus, Trash2 } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Edit3, MoreVertical, Plus, Trash2 } from 'lucide-react';
 import { toast } from '@/shared-util';
 import SipHeaderGroupDrawer, { type SipHeaderGroupDrawerRef } from '../components/SipHeaderGroupDrawer';
 import SipHeaderRelayDrawer, { type SipHeaderRelayDrawerRef } from '../components/SipHeaderRelayDrawer';
@@ -49,6 +49,7 @@ export default function SipHeaderManagePage() {
   // ─── Refs ─────────────────────────────────────────────────────────────────
   const groupDrawerRef = useRef<SipHeaderGroupDrawerRef>(null);
   const relayDrawerRef = useRef<SipHeaderRelayDrawerRef>(null);
+  const cardScrollRef = useRef<HTMLDivElement>(null);
 
   // ─── Queries ──────────────────────────────────────────────────────────────
   const { data: headerGroups = [] } = useGetSipHeaderGroups();
@@ -165,6 +166,10 @@ export default function SipHeaderManagePage() {
         content: `"${group.sipHeaderGrpName}" 그룹을 삭제하시겠습니까?`,
       },
     });
+  };
+
+  const handleCardSelect = (group: SipHeaderGroup) => {
+    setSelectedGroupId(group.sipHeaderGrpId);
   };
 
   const handleRelayCreate = () => {
@@ -287,81 +292,109 @@ export default function SipHeaderManagePage() {
     <div className="flex flex-col gap-4 w-full h-full">
       <PageHeader breadcrumb={breadcrumb} />
 
-      {/* Split container: Left Groups + Right Relays Grid */}
-      <div className="flex flex-1 min-h-0 gap-4">
-        {/* ===== Left Panel: Header Groups (280px) ===== */}
-        <div className="w-[280px] min-w-[280px] bg-white bt-shadow rounded-md border border-gray-200 flex flex-col overflow-hidden">
-          <div className="px-4 py-3 border-b border-gray-200 flex items-center justify-between flex-shrink-0">
-            <span className="text-sm font-semibold text-gray-700">헤더 그룹</span>
-            <Button size="small" onClick={handleGroupCreate}>
-              그룹 추가
-            </Button>
-          </div>
-
-          <div className="flex-1 overflow-y-auto py-2">
-            {headerGroups.length === 0 ? (
-              <div className="flex flex-col items-center justify-center h-full text-gray-400 gap-2 px-4">
-                <span className="text-sm">등록된 그룹이 없습니다</span>
-              </div>
-            ) : (
-              headerGroups.map((group) => {
-                const isSelected = selectedGroupId === group.sipHeaderGrpId;
-                return (
-                  <div
-                    key={group.sipHeaderGrpId}
-                    className={`group flex items-center gap-2 px-4 py-2 cursor-pointer text-[13px] transition-all border-l-[3px] ${
-                      isSelected ? 'bg-[#e8ecf4] border-l-[#405189] text-[#405189] font-medium' : 'border-l-transparent text-gray-600 hover:bg-gray-50'
-                    }`}
-                    onClick={() => setSelectedGroupId(group.sipHeaderGrpId)}
-                  >
-                    <span className="truncate flex-1">{group.sipHeaderGrpName}</span>
-                    <span className="text-[11px] text-gray-400 mr-1">{group.memberCount}</span>
-
-                    <Dropdown menu={{ items: getGroupMenuItems(group) }} trigger={['click']} placement="bottomRight">
-                      <button type="button" className="opacity-0 group-hover:opacity-100 transition-opacity p-0.5 rounded hover:bg-gray-200" onClick={(e) => e.stopPropagation()}>
-                        <MoreVertical className="size-4 text-gray-500" />
-                      </button>
-                    </Dropdown>
-                  </div>
-                );
-              })
-            )}
-          </div>
+      {/* ===== Top: Card Slider (Header Groups) ===== */}
+      <div className="bg-white bt-shadow rounded-md border border-gray-200 flex flex-col flex-shrink-0">
+        <div className="px-5 py-3 border-b border-gray-100 flex items-center justify-between flex-shrink-0">
+          <span className="text-sm font-semibold text-gray-800">헤더 그룹 ({headerGroups.length}건)</span>
+          <Button size="small" icon={<Plus className="size-3.5" />} onClick={handleGroupCreate}>
+            그룹 추가
+          </Button>
         </div>
 
-        {/* ===== Right Panel: Relay Grid ===== */}
-        <div className="flex-1 flex flex-col overflow-hidden bg-white bt-shadow rounded-md border border-gray-200">
-          {selectedGroup ? (
-            <>
-              <div className="px-5 py-3 border-b border-gray-200 flex items-center justify-between flex-shrink-0">
-                <div className="flex items-center gap-4">
-                  <span className="text-[15px] font-semibold text-gray-800">헤더 릴레이 목록</span>
-                  <span className="text-[13px] text-gray-500">
-                    그룹: <b className="text-gray-700 font-medium">{selectedGroup.sipHeaderGrpName}</b>
-                  </span>
-                </div>
-                <Button size="small" icon={<Plus className="size-3.5" />} onClick={handleRelayCreate}>
-                  릴레이 추가
-                </Button>
-              </div>
-
-              <div className="flex-1">
-                <AgGridReact<SipHeaderRelay>
-                  rowData={headerRelays}
-                  columnDefs={columnDefs}
-                  gridOptions={gridOptions}
-                  loading={isRelaysLoading}
-                  getRowId={(params) => String(params.data.sipHeaderId)}
-                />
-              </div>
-            </>
-          ) : (
-            <div className="flex flex-col items-center justify-center h-full text-gray-400 gap-3 px-8">
+        <div className="flex items-center px-4 py-3">
+          {headerGroups.length === 0 ? (
+            <div className="flex flex-col items-center justify-center w-full py-4 text-gray-400 gap-3">
               <Empty description={false} />
-              <span className="text-sm">좌측에서 헤더 그룹을 선택하세요</span>
+              <span className="text-sm">등록된 그룹이 없습니다</span>
+            </div>
+          ) : (
+            <div className="relative flex items-center gap-2 w-full">
+              <Button
+                type="text"
+                icon={<ChevronLeft className="size-5" />}
+                onClick={() => cardScrollRef.current?.scrollBy({ left: -260, behavior: 'smooth' })}
+                className="!flex-shrink-0 !w-8 !h-8 !p-0"
+              />
+              <div ref={cardScrollRef} className="flex gap-3 overflow-x-auto py-2 px-1 flex-1" style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}>
+                {headerGroups.map((group) => {
+                  const isCardSelected = selectedGroupId === group.sipHeaderGrpId;
+                  return (
+                    <div
+                      key={group.sipHeaderGrpId}
+                      className={`bg-white border rounded-lg p-3.5 cursor-pointer transition-all min-w-[220px] max-w-[260px] flex-shrink-0 ${
+                        isCardSelected
+                          ? 'border-[#405189] shadow-[0_0_0_2px_rgba(64,81,137,0.15)]'
+                          : 'border-gray-200 hover:border-[#c5cbe0] hover:shadow-[0_2px_8px_rgba(0,0,0,0.06)]'
+                      }`}
+                      onClick={() => handleCardSelect(group)}
+                      onDoubleClick={() => handleGroupEdit(group)}
+                    >
+                      {/* Card header: 그룹명 + 더보기 */}
+                      <div className="flex items-center justify-between mb-1.5">
+                        <span className="text-sm font-semibold text-gray-800 truncate">{group.sipHeaderGrpName}</span>
+                        <div onClick={(e) => e.stopPropagation()}>
+                          <Dropdown menu={{ items: getGroupMenuItems(group) }} trigger={['click']} placement="bottomRight">
+                            <button type="button" className="p-1 rounded hover:bg-gray-100 transition-colors">
+                              <MoreVertical className="size-4 text-gray-400" />
+                            </button>
+                          </Dropdown>
+                        </div>
+                      </div>
+
+                      {/* Card info */}
+                      <div className="text-xs text-gray-500">
+                        <div>할당 릴레이: {group.memberCount ?? 0}건</div>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+              <Button
+                type="text"
+                icon={<ChevronRight className="size-5" />}
+                onClick={() => cardScrollRef.current?.scrollBy({ left: 260, behavior: 'smooth' })}
+                className="!flex-shrink-0 !w-8 !h-8 !p-0"
+              />
             </div>
           )}
         </div>
+      </div>
+
+      {/* ===== Bottom: Relay Grid ===== */}
+      <div className="bg-white bt-shadow rounded-md border border-gray-200 flex-1 flex flex-col min-h-0 overflow-hidden">
+        {selectedGroup ? (
+          <>
+            <div className="px-5 py-3 border-b border-gray-100 flex items-center justify-between flex-shrink-0">
+              <span className="text-sm font-semibold text-gray-800">
+                {selectedGroup.sipHeaderGrpName} 헤더 릴레이 ({headerRelays.length}건)
+              </span>
+              <Button size="small" icon={<Plus className="size-3.5" />} onClick={handleRelayCreate}>
+                릴레이 추가
+              </Button>
+            </div>
+
+            <div className="flex-1">
+              <AgGridReact<SipHeaderRelay>
+                rowData={headerRelays}
+                columnDefs={columnDefs}
+                gridOptions={{
+                  ...gridOptions,
+                  statusBar: undefined,
+                  pagination: false,
+                  sideBar: false,
+                }}
+                loading={isRelaysLoading}
+                getRowId={(params) => String(params.data.sipHeaderId)}
+                defaultColDef={{ filter: true, sortable: true, suppressHeaderMenuButton: true }}
+              />
+            </div>
+          </>
+        ) : (
+          <div className="flex flex-col items-center justify-center h-full text-gray-400 gap-3 px-8">
+            <Empty description={false} />
+            <span className="text-sm">헤더 그룹을 선택하세요</span>
+          </div>
+        )}
       </div>
 
       {/* ===== Drawers ===== */}

@@ -1,24 +1,22 @@
 /**
  * 수신번호 차단 관리 목록 페이지
- * Pattern: 좌측 노드>테넌트 트리 + 우측 ag-Grid + Drawer CRUD
+ * Pattern: 상단 노드 탭 바 + 테넌트 카드 슬라이더 + 하단 ag-Grid
  *
  * Layout:
- * +--------------+--------------------------------------------+
- * | 노드 트리     | ag-Grid (차단번호 목록)                      |
- * | (280px)      | 테넌트명 | 차단번호패턴 | 차단설명 | 🗑️     |
- * |              |                                            |
- * | > 노드1      |                                            |
- * |   - 테넌트A  |                                            |
- * |   - 테넌트B  |                                            |
- * | > 노드2      |                                            |
- * +--------------+--------------------------------------------+
+ * +----------------------------------------------------------+
+ * | [전체] [C1N1] [C1N2] [테스트노드]    [검색] [+추가]         |
+ * | [테넌트A 카드] [테넌트B 카드] ...                           |
+ * +----------------------------------------------------------+
+ * | {노드} / {테넌트} 수신번호차단 (n건)                        |
+ * | ag-Grid: 테넌트명 | 차단번호패턴 | 차단설명 | 삭제            |
+ * +----------------------------------------------------------+
  */
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { type ChangeEvent, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import type { ColDef, ICellRendererParams } from 'ag-grid-community';
 import { AgGridReact } from 'ag-grid-react';
-import { Button, Empty } from 'antd';
-import { ChevronDown, ChevronRight, Network, Plus } from 'lucide-react';
+import { Button, Empty, Input } from 'antd';
+import { ChevronLeft, ChevronRight, Layers, Network, Plus, Search } from 'lucide-react';
 import { toast } from '@/shared-util';
 import CallScreenDrawer, { type CallScreenDrawerRef } from '../components/CallScreenDrawer';
 import { callScreenQueryKeys, useDeleteCallScreen, useGetCallScreenList, useGetNodeTenants } from '../hooks/useCallScreenQueries';
@@ -42,17 +40,37 @@ export default function CallScreenListPage() {
   // ─── State ──────────────────────────────────────────────────────────────────
   const [selectedNodeId, setSelectedNodeId] = useState<number | null>(null);
   const [selectedTenantId, setSelectedTenantId] = useState<number | null>(null);
-  const [collapsedNodes, setCollapsedNodes] = useState<Set<number>>(new Set());
+  const [searchText, setSearchText] = useState('');
+  const cardScrollRef = useRef<HTMLDivElement>(null);
+  const tabScrollRef = useRef<HTMLDivElement>(null);
 
   // ─── Refs ─────────────────────────────────────────────────────────────────
   const drawerRef = useRef<CallScreenDrawerRef>(null);
 
   // ─── Queries ────────────────────────────────────────────────────────────────
   const { data: nodeTenants = [] } = useGetNodeTenants();
-  const { data: callScreens = [], isLoading } = useGetCallScreenList({
-    params: selectedNodeId && selectedTenantId ? { nodeId: selectedNodeId, tenantId: selectedTenantId } : undefined,
-    queryOptions: { enabled: !!selectedNodeId && !!selectedTenantId },
+
+  // 선택된 노드의 전체 차단번호 1회 fetch → 클라이언트에서 테넌트별 필터 + 카운트
+  const nodeListParams = useMemo(() => (selectedNodeId ? { nodeId: selectedNodeId } : undefined), [selectedNodeId]);
+  const { data: nodeCallScreens = [], isLoading } = useGetCallScreenList({
+    params: nodeListParams,
+    queryOptions: { enabled: !!nodeListParams },
   });
+
+  // 그리드 표시용: 전체 테넌트면 노드 전체, 개별 테넌트면 해당 테넌트만
+  const callScreens = useMemo(() => {
+    if (selectedTenantId === -1 || selectedTenantId === null) return nodeCallScreens;
+    return nodeCallScreens.filter((cs) => cs.tenantId === selectedTenantId);
+  }, [nodeCallScreens, selectedTenantId]);
+
+  // 테넌트별 차단번호 개수
+  const callScreenCountByTenant = useMemo(() => {
+    const map = new Map<number, number>();
+    for (const cs of nodeCallScreens) {
+      map.set(cs.tenantId, (map.get(cs.tenantId) ?? 0) + 1);
+    }
+    return map;
+  }, [nodeCallScreens]);
 
   // ─── Mutations ──────────────────────────────────────────────────────────────
   const { mutate: deleteCallScreen } = useDeleteCallScreen({
@@ -66,25 +84,27 @@ export default function CallScreenListPage() {
 
   // ─── Invalidation helpers ──────────────────────────────────────────────────
   const invalidateList = useCallback(() => {
-    if (selectedNodeId && selectedTenantId) {
+    if (nodeListParams) {
       queryClient.invalidateQueries({
-        queryKey: callScreenQueryKeys.getList({ nodeId: selectedNodeId, tenantId: selectedTenantId }).queryKey,
+        queryKey: callScreenQueryKeys.getList(nodeListParams).queryKey,
       });
     }
-  }, [queryClient, selectedNodeId, selectedTenantId]);
+  }, [queryClient, nodeListParams]);
 
-  // ─── Derived data: 노드 > 테넌트 트리 구조 ──────────────────────────────────
+  // ─── Derived data: 노드 > 테넌트 구조 ──────────────────────────────────────
   interface TenantInfo {
     tenantId: number;
     tenantName: string;
-  }
-  interface NodeTenantGroup {
     nodeId: number;
     nodeName: string;
-    tenants: TenantInfo[];
+  }
+  interface NodeGroup {
+    nodeId: number;
+    nodeName: string;
+    tenantCount: number;
   }
 
-  const nodeTenantTree: NodeTenantGroup[] = useMemo(() => {
+  const { nodeGroups, allTenants } = useMemo(() => {
     const nodeMap = new Map<number, { nodeName: string; tenantMap: Map<number, string> }>();
 
     for (const nt of nodeTenants) {
@@ -97,56 +117,91 @@ export default function CallScreenListPage() {
       }
     }
 
-    return Array.from(nodeMap.entries())
-      .map(([nodeId, data]) => ({
-        nodeId,
-        nodeName: data.nodeName,
-        tenants: Array.from(data.tenantMap.entries()).map(([tenantId, tenantName]) => ({
-          tenantId,
-          tenantName,
-        })),
-      }))
-      .sort((a, b) => a.nodeId - b.nodeId);
+    const groups: NodeGroup[] = [];
+    const tenants: TenantInfo[] = [];
+
+    for (const [nodeId, data] of Array.from(nodeMap.entries()).sort((a, b) => a[0] - b[0])) {
+      groups.push({ nodeId, nodeName: data.nodeName, tenantCount: data.tenantMap.size });
+      for (const [tenantId, tenantName] of data.tenantMap.entries()) {
+        tenants.push({ tenantId, tenantName, nodeId, nodeName: data.nodeName });
+      }
+    }
+
+    return { nodeGroups: groups, allTenants: tenants };
   }, [nodeTenants]);
+
+  // 검색 + 노드 필터 적용된 테넌트 카드 목록
+  const isSearching = searchText.trim().length > 0;
+
+  const filteredTenants = useMemo(() => {
+    let list = allTenants;
+
+    // 검색 중이면 노드 필터 무시, 아니면 선택된 노드 필터 적용
+    if (!isSearching && selectedNodeId !== null) {
+      list = list.filter((t) => t.nodeId === selectedNodeId);
+    }
+
+    if (isSearching) {
+      const kw = searchText.trim().toLowerCase();
+      list = list.filter((t) => t.tenantName.toLowerCase().includes(kw) || t.nodeName.toLowerCase().includes(kw));
+    }
+
+    return list;
+  }, [allTenants, selectedNodeId, isSearching, searchText]);
+
+  // 노드별 테넌트 수 (검색 결과 기준)
+  const tenantCountByNode = useMemo(() => {
+    const map = new Map<number, number>();
+    const source = isSearching ? filteredTenants : allTenants;
+    for (const t of source) {
+      map.set(t.nodeId, (map.get(t.nodeId) ?? 0) + 1);
+    }
+    return map;
+  }, [allTenants, filteredTenants, isSearching]);
 
   const selectedNodeName = useMemo(() => {
     if (!selectedNodeId) return '';
-    return nodeTenantTree.find((g) => g.nodeId === selectedNodeId)?.nodeName ?? '';
-  }, [nodeTenantTree, selectedNodeId]);
+    return nodeGroups.find((g) => g.nodeId === selectedNodeId)?.nodeName ?? '';
+  }, [nodeGroups, selectedNodeId]);
 
   const selectedTenantName = useMemo(() => {
-    if (!selectedNodeId || !selectedTenantId) return '';
-    const group = nodeTenantTree.find((g) => g.nodeId === selectedNodeId);
-    return group?.tenants.find((t) => t.tenantId === selectedTenantId)?.tenantName ?? '';
-  }, [nodeTenantTree, selectedNodeId, selectedTenantId]);
+    if (!selectedTenantId) return '';
+    return allTenants.find((t) => t.tenantId === selectedTenantId)?.tenantName ?? '';
+  }, [allTenants, selectedTenantId]);
 
-  // Auto-select first node+tenant
+  // Auto-select: 첫 노드 자동 선택
   useEffect(() => {
-    if (!selectedNodeId && nodeTenantTree.length > 0) {
-      const first = nodeTenantTree[0];
-      setSelectedNodeId(first.nodeId);
-      if (first.tenants.length > 0) {
-        setSelectedTenantId(first.tenants[0].tenantId);
-      }
+    if (selectedNodeId === null && nodeGroups.length > 0) {
+      setSelectedNodeId(nodeGroups[0].nodeId);
     }
-  }, [nodeTenantTree, selectedNodeId]);
+  }, [nodeGroups, selectedNodeId]);
+
+  // Auto-select: 노드 선택되면 기본으로 "전체 테넌트"(-1)에 포커스
+  useEffect(() => {
+    if (selectedNodeId !== null && selectedTenantId === null) {
+      setSelectedTenantId(-1);
+    }
+  }, [selectedNodeId, selectedTenantId]);
 
   // ─── Handlers ─────────────────────────────────────────────────────────────
-  const toggleNodeGroup = (nodeId: number) => {
-    setCollapsedNodes((prev) => {
-      const next = new Set(prev);
-      if (next.has(nodeId)) {
-        next.delete(nodeId);
-      } else {
-        next.add(nodeId);
-      }
-      return next;
-    });
+  const handleNodeSelect = (nodeId: number) => {
+    setSelectedNodeId(nodeId);
+    setSelectedTenantId(null);
+    setSearchText('');
   };
 
-  const handleTenantSelect = (nodeId: number, tenantId: number) => {
-    setSelectedNodeId(nodeId);
-    setSelectedTenantId(tenantId);
+  const handleSearchChange = (e: ChangeEvent<HTMLInputElement>) => {
+    setSearchText(e.target.value);
+    if (e.target.value.trim().length > 0) {
+      // 검색 시작 시 노드/테넌트 선택 자동 해제
+      setSelectedNodeId(null);
+      setSelectedTenantId(null);
+    }
+  };
+
+  const handleCardSelect = (tenant: TenantInfo) => {
+    setSelectedNodeId(tenant.nodeId);
+    setSelectedTenantId(tenant.tenantId);
   };
 
   const handleCreate = useCallback(() => {
@@ -179,6 +234,13 @@ export default function CallScreenListPage() {
   // ─── ag-Grid Column Defs ──────────────────────────────────────────────────
   const columnDefs: ColDef<CallScreen>[] = useMemo(
     () => [
+      {
+        headerName: '노드명',
+        field: 'nodeName',
+        flex: 1,
+        minWidth: 110,
+        valueFormatter: (params) => params.data?.nodeName ?? `Node ${params.data?.nodeId ?? '-'}`,
+      },
       {
         headerName: '테넌트명',
         field: 'tenantName',
@@ -231,80 +293,173 @@ export default function CallScreenListPage() {
     <div className="flex flex-col gap-4 w-full h-full">
       <PageHeader breadcrumb={breadcrumb} />
 
-      {/* Split container: Left Tree + Right Grid */}
-      <div className="flex flex-1 min-h-0 gap-4">
-        {/* ===== Left Panel: Node > Tenant Tree (280px) ===== */}
-        <div className="w-[280px] min-w-[280px] bg-white bt-shadow rounded-md border border-gray-200 flex flex-col overflow-hidden">
-          <div className="px-4 py-3 border-b border-gray-100 flex-shrink-0">
-            <span className="text-sm font-semibold text-gray-700">노드 / 테넌트</span>
+      <div className="flex flex-1 min-h-0 flex-col gap-4">
+        {/* ===== 상단: 노드 탭 바 + 테넌트 카드 슬라이더 ===== */}
+        <div className="bg-white bt-shadow rounded-md border border-gray-200 flex flex-col overflow-hidden flex-shrink-0">
+          {/* Header: 노드 탭 바 + 검색 + 추가 버튼 */}
+          <div className="flex items-stretch bg-white border-b border-gray-200 pr-3 flex-shrink-0 h-[56px]">
+            {/* 좌측 스크롤 버튼 */}
+            <button
+              type="button"
+              className="flex-shrink-0 w-8 flex items-center justify-center hover:bg-gray-100 border-r border-gray-200 cursor-pointer"
+              onClick={() => tabScrollRef.current?.scrollBy({ left: -300, behavior: 'smooth' })}
+              aria-label="이전 탭"
+            >
+              <ChevronLeft className="size-4 text-gray-500" />
+            </button>
+
+            {/* 탭 스크롤 컨테이너 */}
+            <div
+              ref={tabScrollRef}
+              className="flex items-stretch max-w-[900px] min-w-0 overflow-x-auto divide-x divide-gray-200"
+              style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
+            >
+              {/* 노드 탭들 */}
+              {nodeGroups.map((node) => {
+                const count = tenantCountByNode.get(node.nodeId) ?? 0;
+                const isActive = selectedNodeId === node.nodeId;
+                return (
+                  <button
+                    key={node.nodeId}
+                    type="button"
+                    className={`flex items-center justify-center gap-2 px-3 py-2.5 text-[13px] font-medium cursor-pointer border-b-2 -mb-[1px] min-w-[120px] max-w-[200px] flex-shrink-0 transition-colors ${
+                      isActive ? 'text-[var(--color-bt-primary)] border-b-[var(--color-bt-primary)]' : 'text-gray-500 border-b-transparent hover:text-gray-700'
+                    }`}
+                    onClick={(e) => {
+                      handleNodeSelect(node.nodeId);
+                      (e.currentTarget as HTMLElement).scrollIntoView({ behavior: 'smooth', inline: 'center', block: 'nearest' });
+                    }}
+                  >
+                    <Network className="size-3.5 flex-shrink-0" />
+                    <span className="truncate">{node.nodeName}</span>
+                    <span className="text-[11px] text-gray-400 flex-shrink-0">({count})</span>
+                  </button>
+                );
+              })}
+            </div>
+
+            {/* 우측 스크롤 버튼 */}
+            <button
+              type="button"
+              className="flex-shrink-0 w-8 flex items-center justify-center hover:bg-gray-100 border-l border-r border-gray-200 cursor-pointer"
+              onClick={() => tabScrollRef.current?.scrollBy({ left: 300, behavior: 'smooth' })}
+              aria-label="다음 탭"
+            >
+              <ChevronRight className="size-4 text-gray-500" />
+            </button>
+
+            {/* 우측: 검색 + 추가 버튼 */}
+            <div className="ml-auto flex items-center gap-2 flex-shrink-0 pl-3">
+              <Input
+                allowClear
+                prefix={<Search className="size-3.5 text-gray-400" />}
+                placeholder="수신번호차단 검색"
+                value={searchText}
+                onChange={handleSearchChange}
+                style={{ width: 200 }}
+              />
+              <Button type="primary" icon={<Plus className="size-3.5" />} disabled={!selectedNodeId || !selectedTenantId} onClick={handleCreate}>
+                추가
+              </Button>
+            </div>
           </div>
 
-          <div className="flex-1 overflow-y-auto py-2">
-            {nodeTenantTree.length === 0 ? (
-              <div className="flex flex-col items-center justify-center h-full text-gray-400 gap-2 px-4">
-                <span className="text-sm">등록된 데이터가 없습니다</span>
+          {/* Card slider body */}
+          <div className="flex items-center h-[170px] px-4 py-3">
+            {filteredTenants.length === 0 ? (
+              <div className="flex flex-col items-center justify-center w-full h-full text-gray-400 gap-2">
+                <Empty description={false} imageStyle={{ height: 40 }} />
+                <span className="text-sm">{isSearching ? '검색 결과가 없습니다' : '테넌트가 없습니다'}</span>
               </div>
             ) : (
-              nodeTenantTree.map((group) => {
-                const isCollapsed = collapsedNodes.has(group.nodeId);
-                return (
-                  <div key={group.nodeId} className="mb-0.5">
-                    {/* Node header */}
-                    <button
-                      type="button"
-                      className="w-full flex items-center gap-2 px-4 py-2.5 cursor-pointer select-none text-[13px] font-bold transition-colors border-l-[3px] border-l-transparent text-gray-800 hover:bg-gray-50"
-                      onClick={() => toggleNodeGroup(group.nodeId)}
+              <div className="relative flex items-center gap-2 w-full">
+                <Button
+                  type="text"
+                  icon={<ChevronLeft className="size-5" />}
+                  onClick={() => cardScrollRef.current?.scrollBy({ left: -260, behavior: 'smooth' })}
+                  className="!flex-shrink-0 !w-8 !h-8 !p-0"
+                />
+                <div ref={cardScrollRef} className="flex gap-3 overflow-x-auto py-2 px-1 flex-1" style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}>
+                  {/* 전체 테넌트 카드 (선택 노드의 모든 테넌트 차단번호 통합 조회) */}
+                  {selectedNodeId && !isSearching && (
+                    <div
+                      key="__all_tenant__"
+                      className={`border rounded-lg p-3 cursor-pointer transition-all w-[110px] h-[130px] flex-shrink-0 flex flex-col items-center justify-center gap-1 ${
+                        selectedTenantId === -1
+                          ? 'border-[#405189] bg-[#405189] text-white shadow-[0_0_0_2px_rgba(64,81,137,0.15)]'
+                          : 'border-dashed border-gray-300 bg-white text-gray-500 hover:border-[#c5cbe0] hover:text-[#405189]'
+                      }`}
+                      onClick={() => setSelectedTenantId(-1)}
                     >
-                      {isCollapsed ? <ChevronRight className="size-3.5 text-gray-400 flex-shrink-0" /> : <ChevronDown className="size-3.5 text-gray-400 flex-shrink-0" />}
-                      <Network className="size-4 text-gray-500 flex-shrink-0" />
-                      <span className="truncate">{group.nodeName}</span>
-                      <span className="ml-auto text-[11px] text-gray-400 font-normal">{group.tenants.length}</span>
-                    </button>
+                      <Layers className="size-5" />
+                      <span className="text-sm font-semibold">전체</span>
+                      <span className={`text-[11px] ${selectedTenantId === -1 ? 'text-white/80' : 'text-gray-400'}`}>차단 {nodeCallScreens.length}건</span>
+                    </div>
+                  )}
 
-                    {/* Tenant items under node */}
-                    {!isCollapsed && (
-                      <div>
-                        {group.tenants.map((tenant) => {
-                          const isSelected = selectedNodeId === group.nodeId && selectedTenantId === tenant.tenantId;
-                          return (
-                            <button
-                              key={`${group.nodeId}-${tenant.tenantId}`}
-                              type="button"
-                              className={`w-full flex items-center gap-2 pl-[42px] pr-4 py-1.5 cursor-pointer text-[12px] text-left transition-colors border-l-[3px] ${
-                                isSelected ? 'bg-[#e8ecf4] border-l-[#405189] text-[#405189] font-medium' : 'border-l-transparent text-gray-500 hover:bg-gray-50'
-                              }`}
-                              onClick={() => handleTenantSelect(group.nodeId, tenant.tenantId)}
-                            >
-                              <span className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${isSelected ? 'bg-[#405189]' : 'bg-green-500'}`} />
-                              <span className="truncate flex-1">{tenant.tenantName}</span>
-                            </button>
-                          );
-                        })}
+                  {filteredTenants.map((tenant) => {
+                    const isCardSelected = selectedNodeId === tenant.nodeId && selectedTenantId === tenant.tenantId;
+                    const count = callScreenCountByTenant.get(tenant.tenantId) ?? 0;
+                    return (
+                      <div
+                        key={`${tenant.nodeId}-${tenant.tenantId}`}
+                        className={`bg-white border rounded-lg p-3.5 cursor-pointer transition-all w-[220px] h-[130px] flex-shrink-0 flex flex-col ${
+                          isCardSelected
+                            ? 'border-[#405189] shadow-[0_0_0_2px_rgba(64,81,137,0.15)]'
+                            : 'border-gray-200 hover:border-[#c5cbe0] hover:shadow-[0_2px_8px_rgba(0,0,0,0.06)]'
+                        }`}
+                        onClick={(e) => {
+                          handleCardSelect(tenant);
+                          (e.currentTarget as HTMLElement).scrollIntoView({ behavior: 'smooth', inline: 'center', block: 'nearest' });
+                        }}
+                      >
+                        {/* Card header: 테넌트명 */}
+                        <div className="flex items-center justify-between mb-1.5">
+                          <span className="text-sm font-semibold text-gray-800 truncate">{tenant.tenantName}</span>
+                        </div>
+
+                        {/* Card info: 노드명 */}
+                        <div className="text-xs text-gray-500 space-y-0.5">
+                          <div className="flex items-center gap-1">
+                            <Network className="size-3 text-gray-400" />
+                            <span className="truncate">{tenant.nodeName}</span>
+                          </div>
+                        </div>
+
+                        {/* 하단 태그: 차단번호 등록건수 */}
+                        <div className="flex flex-wrap gap-1 mt-auto pt-2">
+                          <span
+                            className={`inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium border ${
+                              count > 0 ? 'text-green-700 bg-green-50 border-green-200' : 'text-gray-500 bg-gray-50 border-gray-200'
+                            }`}
+                          >
+                            {count > 0 ? `차단 ${count}건` : '미등록'}
+                          </span>
+                        </div>
                       </div>
-                    )}
-                  </div>
-                );
-              })
+                    );
+                  })}
+                </div>
+                <Button
+                  type="text"
+                  icon={<ChevronRight className="size-5" />}
+                  onClick={() => cardScrollRef.current?.scrollBy({ left: 260, behavior: 'smooth' })}
+                  className="!flex-shrink-0 !w-8 !h-8 !p-0"
+                />
+              </div>
             )}
           </div>
         </div>
 
-        {/* ===== Right Panel: ag-Grid ===== */}
-        <div className="flex-1 bg-white bt-shadow rounded-md border border-gray-200 flex flex-col min-w-0 overflow-hidden">
+        {/* ===== 하단: 차단번호 그리드 ===== */}
+        <div className="bg-white bt-shadow rounded-md border border-gray-200 flex flex-col flex-1 min-h-0 overflow-hidden">
           {selectedNodeId && selectedTenantId ? (
             <>
               {/* Grid header */}
               <div className="px-5 py-3 border-b border-gray-100 flex items-center justify-between flex-shrink-0">
-                <div className="flex items-center gap-3">
-                  <span className="text-sm font-semibold text-gray-800">
-                    {selectedNodeName} / {selectedTenantName} 수신번호 차단 ({callScreens.length}건)
-                  </span>
-                </div>
-                <div className="flex gap-2">
-                  <Button type="primary" size="small" icon={<Plus className="size-3.5" />} onClick={handleCreate}>
-                    추가
-                  </Button>
-                </div>
+                <span className="text-sm font-semibold text-gray-800">
+                  {selectedNodeName} / {selectedTenantId === -1 ? '전체 테넌트' : selectedTenantName} 수신번호차단 ({callScreens.length}건)
+                </span>
               </div>
 
               {/* Grid */}
@@ -326,7 +481,7 @@ export default function CallScreenListPage() {
                     }}
                     loading={isLoading}
                     getRowId={(params) => String(params.data.callscreenId)}
-                    defaultColDef={{ filter: true, sortable: true }}
+                    defaultColDef={{ filter: true, sortable: true, suppressHeaderMenuButton: true }}
                     onRowDoubleClicked={(e) => {
                       if (e.data) handleEdit(e.data);
                     }}
@@ -338,7 +493,7 @@ export default function CallScreenListPage() {
             /* Empty state when no tenant selected */
             <div className="flex flex-col items-center justify-center h-full text-gray-400 gap-3 px-8">
               <Empty description={false} />
-              <span className="text-sm">좌측에서 테넌트를 선택하세요</span>
+              <span className="text-sm">상단에서 테넌트를 선택하세요</span>
             </div>
           )}
         </div>

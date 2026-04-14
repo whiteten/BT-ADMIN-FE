@@ -118,6 +118,13 @@ const menuConfig = {
               index: 0,
               hide: false,
             },
+            {
+              menuId: 83,
+              label: '클러스터 관리',
+              path: 'resource/node-management/list',
+              index: 1,
+              hide: false,
+            },
           ],
         },
       ],

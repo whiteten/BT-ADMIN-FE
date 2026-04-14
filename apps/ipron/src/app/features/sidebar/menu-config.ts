@@ -120,6 +120,13 @@ const menuConfig = {
           index: 9,
           hide: false,
         },
+        {
+          menuId: 116,
+          label: 'DNIS관리(MCS)',
+          path: 'line/mcs-dnis',
+          index: 10,
+          hide: false,
+        },
       ],
     },
   ],

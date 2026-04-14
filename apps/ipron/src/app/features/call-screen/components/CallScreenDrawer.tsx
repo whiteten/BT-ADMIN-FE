@@ -7,7 +7,7 @@
  */
 import { forwardRef, useCallback, useEffect, useImperativeHandle, useRef, useState } from 'react';
 import { Button, Drawer, Form, Input, Select } from 'antd';
-import { Search } from 'lucide-react';
+import { List } from 'lucide-react';
 import { toast } from '@/shared-util';
 import NumPatternDrawer, { type NumPatternDrawerRef } from '../../did-trans/components/NumPatternDrawer';
 import type { NumPattern } from '../../did-trans/types/didTrans.types';
@@ -204,19 +204,26 @@ const CallScreenDrawer = forwardRef<CallScreenDrawerRef, Props>(({ onSuccess }, 
 
           <Form.Item
             name="numPattern"
-            label="차단번호 패턴"
+            label={
+              <div className="flex items-center gap-1">
+                <span>차단번호 패턴</span>
+                <Button
+                  type="text"
+                  size="small"
+                  icon={<List className="size-3.5" />}
+                  onClick={handleOpenPatternDrawer}
+                  title="번호 패턴 관리"
+                  className="text-gray-400 hover:text-blue-500"
+                />
+              </div>
+            }
             required
             rules={[
               { required: true, message: '차단번호 패턴은 필수입니다' },
               { max: 256, message: '차단번호 패턴은 256자 이내여야 합니다' },
             ]}
           >
-            <Input
-              placeholder="차단번호 패턴을 입력하세요"
-              maxLength={256}
-              style={{ fontFamily: 'monospace' }}
-              suffix={<Button type="text" size="small" icon={<Search className="size-3.5 text-gray-400" />} onClick={handleOpenPatternDrawer} className="!p-0 !h-auto" />}
-            />
+            <Input placeholder="차단번호 패턴을 입력하세요" maxLength={256} style={{ fontFamily: 'monospace' }} />
           </Form.Item>
 
           <Form.Item name="screenDesc" label="차단 설명" rules={[{ max: 64, message: '차단 설명은 64자 이내여야 합니다' }]}>

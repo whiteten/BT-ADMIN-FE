@@ -141,7 +141,7 @@ export interface ClusterAllocation {
   clusterId: number;
   clusterName: string;
   licenseKind: string;
-  allocatedQuantity: number;
+  allocQty: number;
 }
 
 /**
@@ -229,5 +229,5 @@ export interface LicenseSummaryBackendResponse {
  * PUT /api/bff/license-cluster-update
  */
 export interface UpdateClusterRequest {
-  allocations: { clusterId: number; quantity: number }[];
+  allocations: { clusterId: number; licenseKind: string; allocQty: number }[];
 }

@@ -1,8 +1,7 @@
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
-import { Button, Checkbox } from 'antd';
+import { Button, Checkbox, Drawer, InputNumber } from 'antd';
 import { toast } from '@/shared-util';
-import ClusterAllocModal, { type ClusterAllocModalRef } from '../../features/license/components/ClusterAllocModal';
 import LicenseCardSlider from '../../features/license/components/LicenseCardSlider';
 import LicenseDetailSidebar from '../../features/license/components/LicenseDetailSidebar';
 import LicenseGroupTable from '../../features/license/components/LicenseGroupTable';
@@ -18,7 +17,7 @@ import {
   useGetTotalUsage,
   useUpdateClusterAllocations,
 } from '../../features/license/hooks/useLicenseQueries';
-import { type ClusterAllocation, LICENSE_GROUP_ORDER, type ServerGroupUsage, type UpdateClusterRequest } from '../../features/license/types/license.types';
+import { LICENSE_GROUP_ORDER, type ServerGroupUsage, type UpdateClusterRequest } from '../../features/license/types/license.types';
 import { FallbackSpinner } from '@/components/custom/FallbackSpinner';
 import NoData from '@/components/custom/NoData';
 import PageHeader from '@/components/custom/PageHeader';
@@ -34,12 +33,13 @@ export default function LicenseList() {
   const queryClient = useQueryClient();
   const modal = useModal();
   const registerDrawerRef = useRef<LicenseRegisterDrawerRef>(null);
-  const clusterModalRef = useRef<ClusterAllocModalRef>(null);
 
   // 상태
   const [selectedLicenseId, setSelectedLicenseId] = useState<number | null>(null);
   const [activeOnly, setActiveOnly] = useState(true);
-  const [clusterQueryParams, setClusterQueryParams] = useState<{ licenseId: number; licenseKind: string } | null>(null);
+  const [clusterQueryParams, setClusterQueryParams] = useState<{ licenseKind: string } | null>(null);
+  const [clusterAllocInfo, setClusterAllocInfo] = useState<{ licenseKind: string; kindName: string; totalQty: number } | null>(null);
+  const [editingAllocations, setEditingAllocations] = useState<{ clusterId: number; clusterName: string; quantity: number }[]>([]);
 
   // ─── 데이터 조회 ──────────────────────────────────────────────────────────────
 
@@ -55,8 +55,8 @@ export default function LicenseList() {
   // 전체 활성 라이선스 사용 현황 (항상 조회 - 메인 영역 고정)
   const { data: totalUsage } = useGetTotalUsage({});
 
-  // 클러스터 할당 조회 (모달 열기 시)
-  useGetClusterAllocations({
+  // 클러스터 할당 조회 (사이드바 열기 시)
+  const { data: clusterAllocations, isFetching: isClusterLoading } = useGetClusterAllocations({
     params: clusterQueryParams ?? {},
     queryOptions: { enabled: !!clusterQueryParams },
   });
@@ -93,7 +93,7 @@ export default function LicenseList() {
           queryClient.invalidateQueries({ queryKey: licenseQueryKeys.getClusterAllocations(clusterQueryParams).queryKey });
         }
         toast.success('클러스터 할당이 저장되었습니다.');
-        clusterModalRef.current?.close();
+        handleCloseClusterSidebar();
       },
     },
   });
@@ -116,6 +116,7 @@ export default function LicenseList() {
 
   const handleSelect = (licenseId: number) => {
     setSelectedLicenseId((prev) => (prev === licenseId ? null : licenseId));
+    handleCloseClusterSidebar(); // 클러스터 사이드바 닫기
   };
 
   const handleCloseSidebar = () => {
@@ -133,36 +134,54 @@ export default function LicenseList() {
   };
 
   const handleClusterAlloc = (licenseKind: string) => {
-    // 전체 사용현황 테이블에서 해당 항목 찾기
     const usageItem = serverGroups.flatMap((g) => g.items).find((item) => item.licenseKind === licenseKind);
     if (!usageItem) return;
-
-    setClusterQueryParams({ licenseId: 0, licenseKind });
-
-    // 캐시에서 클러스터 데이터 확인
-    const cachedClusters = queryClient.getQueryData<ClusterAllocation[]>(licenseQueryKeys.getClusterAllocations({ licenseId: 0, licenseKind }).queryKey);
-
-    const openModal = (clusters: ClusterAllocation[]) => {
-      clusterModalRef.current?.open({
-        licenseKind,
-        kindName: usageItem.licenseKindName,
-        clusters,
-        totalQty: usageItem.totalQuantity ?? 0,
-      });
-    };
-
-    if (cachedClusters) {
-      openModal(cachedClusters);
-    } else {
-      setTimeout(() => {
-        const data = queryClient.getQueryData<ClusterAllocation[]>(licenseQueryKeys.getClusterAllocations({ licenseId: 0, licenseKind }).queryKey);
-        openModal(data ?? []);
-      }, 500);
-    }
+    setSelectedLicenseId(null); // 라이선스 상세 닫기
+    setClusterQueryParams({ licenseKind });
+    setClusterAllocInfo({ licenseKind, kindName: usageItem.licenseKindName, totalQty: usageItem.totalQuantity ?? 0 });
   };
 
-  const handleSaveClusters = ({ licenseKind, request }: { licenseKind: string; request: UpdateClusterRequest }) => {
-    updateClusters({ licenseKind, data: request });
+  // 클러스터 데이터 로드 시 편집 상태 초기화
+  useEffect(() => {
+    if (clusterAllocations && clusterAllocInfo) {
+      setEditingAllocations(
+        clusterAllocations.map((a) => ({
+          clusterId: a.clusterId,
+          clusterName: a.clusterName ?? `클러스터 ${a.clusterId}`,
+          quantity: a.allocQty ?? 0,
+        })),
+      );
+    }
+  }, [clusterAllocations, clusterAllocInfo]);
+
+  const handleAllocQtyChange = (index: number, value: number | null) => {
+    setEditingAllocations((prev) => prev.map((row, i) => (i === index ? { ...row, quantity: value ?? 0 } : row)));
+  };
+
+  const allocSum = editingAllocations.reduce((sum, r) => sum + r.quantity, 0);
+  const isOverAllocated = clusterAllocInfo ? allocSum > clusterAllocInfo.totalQty : false;
+
+  const handleSaveClusters = () => {
+    if (!clusterAllocInfo) return;
+    if (isOverAllocated) {
+      toast.warning(`할당 합계가 총 수량을 초과합니다.`);
+      return;
+    }
+    updateClusters({
+      licenseKind: clusterAllocInfo.licenseKind,
+      data: {
+        allocations: editingAllocations.map((r) => ({
+          clusterId: r.clusterId,
+          licenseKind: clusterAllocInfo.licenseKind,
+          allocQty: r.quantity,
+        })),
+      },
+    });
+  };
+
+  const handleCloseClusterSidebar = () => {
+    setClusterQueryParams(null);
+    setClusterAllocInfo(null);
   };
 
   const handleOpenRegisterDrawer = () => {
@@ -190,7 +209,7 @@ export default function LicenseList() {
           <span className="text-xs text-slate-400 bg-slate-100 px-2 py-0.5 rounded-full">{filteredList.length}건</span>
         </div>
         <Button type="primary" onClick={handleOpenRegisterDrawer}>
-          등록
+          라이선스 등록
         </Button>
       </div>
 
@@ -234,9 +253,68 @@ export default function LicenseList() {
         {selectedLicenseId && <LicenseDetailSidebar detail={licenseDetail} isLoading={isDetailLoading} onClose={handleCloseSidebar} />}
       </div>
 
-      {/* Drawer / Modal */}
+      {/* Drawer: 라이선스 등록 */}
       <LicenseRegisterDrawer ref={registerDrawerRef} onRegister={handleRegister} isLoading={isCreating} />
-      <ClusterAllocModal ref={clusterModalRef} onSave={handleSaveClusters} isLoading={isUpdatingClusters} />
+
+      {/* Drawer: 클러스터 할당 (슬라이드) */}
+      <Drawer
+        title={
+          <div>
+            <div className="text-base font-semibold">클러스터 할당</div>
+            {clusterAllocInfo && (
+              <div className="text-xs text-gray-400 mt-0.5 font-normal">
+                {clusterAllocInfo.kindName} — 총 {clusterAllocInfo.totalQty.toLocaleString()}
+              </div>
+            )}
+          </div>
+        }
+        open={!!clusterAllocInfo}
+        onClose={handleCloseClusterSidebar}
+        width={400}
+        styles={{ body: { padding: '16px 20px' } }}
+      >
+        {isClusterLoading ? (
+          <div className="flex items-center justify-center h-40">
+            <FallbackSpinner />
+          </div>
+        ) : editingAllocations.length > 0 ? (
+          <div className="space-y-3">
+            {editingAllocations.map((row, index) => (
+              <div key={row.clusterId} className="flex items-center justify-between py-2 border-b border-gray-100">
+                <div className="flex items-center gap-2">
+                  <div className="w-2 h-2 rounded-full bg-blue-400" />
+                  <span className="text-sm text-gray-700">{row.clusterName}</span>
+                </div>
+                <InputNumber
+                  min={0}
+                  max={clusterAllocInfo?.totalQty}
+                  value={row.quantity}
+                  onChange={(value) => handleAllocQtyChange(index, value)}
+                  className="!w-28"
+                  size="small"
+                  formatter={(value) => `${value}`.replace(/\B(?=(\d{3})+(?!\d))/g, ',')}
+                  parser={(value) => Number(value?.replace(/,/g, '') ?? 0)}
+                />
+              </div>
+            ))}
+            <div className="flex items-center justify-between pt-3 border-t border-gray-300">
+              <span className="text-sm font-semibold text-gray-700">합계</span>
+              <span className={`text-sm font-bold tabular-nums ${isOverAllocated ? 'text-red-500' : 'text-blue-600'}`}>
+                {allocSum.toLocaleString()}
+                {clusterAllocInfo && <span className="text-gray-400 font-normal"> / {clusterAllocInfo.totalQty.toLocaleString()}</span>}
+              </span>
+            </div>
+            {isOverAllocated && <div className="text-xs text-red-500 text-center">할당 합계가 총 수량을 초과합니다.</div>}
+            <div className="pt-4">
+              <Button type="primary" block onClick={handleSaveClusters} loading={isUpdatingClusters} disabled={isOverAllocated}>
+                저장
+              </Button>
+            </div>
+          </div>
+        ) : (
+          <div className="text-sm text-gray-400 text-center py-8">클러스터 할당 정보가 없습니다.</div>
+        )}
+      </Drawer>
     </div>
   );
 }

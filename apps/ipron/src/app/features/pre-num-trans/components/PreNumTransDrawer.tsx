@@ -6,7 +6,7 @@
  * NumPatternDrawer 재사용 (did-trans 공유)
  */
 import { forwardRef, useCallback, useEffect, useImperativeHandle, useMemo, useRef, useState } from 'react';
-import { Button, Drawer, Form, Input, InputNumber, Select } from 'antd';
+import { Button, Col, Drawer, Form, Input, InputNumber, Row, Select } from 'antd';
 import { List } from 'lucide-react';
 import { toast } from '@/shared-util';
 import NumPatternDrawer, { type NumPatternDrawerRef } from '../../did-trans/components/NumPatternDrawer';
@@ -260,41 +260,56 @@ const PreNumTransDrawer = forwardRef<PreNumTransDrawerRef, Props>(({ onSuccess }
           <Input placeholder="DNIS 패턴을 입력하세요" maxLength={256} />
         </Form.Item>
 
-        <Form.Item name="editOpt" label="편집옵션" rules={[{ required: true, message: '편집옵션은 필수입니다' }]}>
-          <Select options={[...EDIT_OPT_OPTIONS]} placeholder="편집옵션을 선택하세요" />
-        </Form.Item>
+        <Row gutter={12}>
+          <Col span={12}>
+            <Form.Item name="editOpt" label="편집옵션" rules={[{ required: true, message: '편집옵션은 필수입니다' }]}>
+              <Select options={[...EDIT_OPT_OPTIONS]} placeholder="선택" />
+            </Form.Item>
+          </Col>
+          <Col span={12}>
+            <Form.Item name="delCount" label="편집 Digit 수" rules={[{ required: true, message: '필수' }]}>
+              <InputNumber min={-1} max={99} placeholder="0" className="w-full" />
+            </Form.Item>
+          </Col>
+        </Row>
 
-        <Form.Item name="delCount" label="편집 Digit 수" rules={[{ required: true, message: '편집 Digit 수는 필수입니다' }]}>
-          <InputNumber min={-1} max={99} placeholder="0" className="w-full" />
-        </Form.Item>
+        <Row gutter={12}>
+          <Col span={12}>
+            <Form.Item name="addDigit" label="추가 Digit" rules={[{ max: 24, message: '24자 이내' }]}>
+              <Input placeholder="추가 Digit" maxLength={24} />
+            </Form.Item>
+          </Col>
+          <Col span={12}>
+            <Form.Item name="priority" label="우선순위" rules={[{ required: true, message: '필수' }]}>
+              <InputNumber min={1} max={999} placeholder="1" className="w-full" />
+            </Form.Item>
+          </Col>
+        </Row>
 
-        <Form.Item name="addDigit" label="추가 Digit" rules={[{ max: 24, message: '추가 Digit은 24자 이내여야 합니다' }]}>
-          <Input placeholder="추가 Digit을 입력하세요" maxLength={24} />
-        </Form.Item>
-
-        <Form.Item name="priority" label="우선순위" rules={[{ required: true, message: '우선순위는 필수입니다' }]}>
-          <InputNumber min={1} max={999} placeholder="1" className="w-full" />
-        </Form.Item>
-
-        <Form.Item name="transAction" label="변환 동작" rules={[{ required: true, message: '변환 동작은 필수입니다' }]}>
-          <Select options={[...TRANS_ACTION_OPTIONS]} placeholder="변환 동작을 선택하세요" />
-        </Form.Item>
-
-        <Form.Item
-          name="routeId"
-          label="변환 후 라우트"
-          rules={[
-            {
-              required: transAction === 2,
-              message: '변환 후 라우트는 필수입니다',
-            },
-          ]}
-        >
-          <Select options={routeOptions} placeholder="라우트를 선택하세요" allowClear disabled={transAction !== 2} />
-        </Form.Item>
+        <Row gutter={12}>
+          <Col span={10}>
+            <Form.Item name="transAction" label="변환 동작" rules={[{ required: true, message: '필수' }]}>
+              <Select options={[...TRANS_ACTION_OPTIONS]} placeholder="선택" />
+            </Form.Item>
+          </Col>
+          <Col span={14}>
+            <Form.Item
+              name="routeId"
+              label="변환 후 라우트"
+              rules={[
+                {
+                  required: transAction === 2,
+                  message: '변환 후 라우트는 필수입니다',
+                },
+              ]}
+            >
+              <Select options={routeOptions} placeholder="라우트를 선택하세요" allowClear disabled={transAction !== 2} />
+            </Form.Item>
+          </Col>
+        </Row>
 
         <Form.Item name="transDesc" label="비고" rules={[{ max: 256, message: '비고는 256자 이내여야 합니다' }]}>
-          <Input.TextArea placeholder="비고를 입력하세요" maxLength={256} rows={3} />
+          <Input.TextArea placeholder="비고를 입력하세요" maxLength={256} rows={2} />
         </Form.Item>
       </Form>
 
