@@ -8,7 +8,7 @@ interface SlotIncompleteTopDrawerProps extends WidgetActionContext {
   onClose: () => void;
 }
 
-const WIDGET_TITLE = '슬롯 미완결율 순위';
+const WIDGET_TITLE = '슬롯 미완료율 순위';
 
 const SlotIncompleteTopDrawer = ({ open, onClose, widgetOptions, setOption }: SlotIncompleteTopDrawerProps) => {
   const [form] = Form.useForm();

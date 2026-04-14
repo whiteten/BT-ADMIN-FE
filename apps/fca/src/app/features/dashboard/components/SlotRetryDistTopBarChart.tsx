@@ -16,7 +16,7 @@ const createChartOption = (data: SlotRetryDistTopItem[]): EChartsOption => {
         const item = data[list[0].dataIndex];
         const title = `<strong>${item.serviceName} &gt; ${item.slotName}</strong>`;
         const lines = list.map((p) => `${p.marker} ${p.seriesName}: ${p.value}%`);
-        return `${title}<br/>진입: ${item.entryCnt}건 / 완결: ${item.completeCnt}건<br/>${lines.join('<br/>')}`;
+        return `${title}<br/>진입: ${item.entryCnt}건 / 완료: ${item.completeCnt}건<br/>${lines.join('<br/>')}`;
       },
     },
     legend: { data: ['3회 이상', '2회', '1회 이하'], right: 10, top: 5, icon: 'roundRect', selectedMode: false },

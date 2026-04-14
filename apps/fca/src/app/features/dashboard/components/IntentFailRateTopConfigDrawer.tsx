@@ -8,7 +8,7 @@ interface IntentFailRateTopDrawerProps extends WidgetActionContext {
   onClose: () => void;
 }
 
-const WIDGET_TITLE = '의도 실패율 순위';
+const WIDGET_TITLE = '의도 신뢰도 실패율 순위';
 
 const IntentFailRateTopDrawer = ({ open, onClose, widgetOptions, setOption }: IntentFailRateTopDrawerProps) => {
   const [form] = Form.useForm();

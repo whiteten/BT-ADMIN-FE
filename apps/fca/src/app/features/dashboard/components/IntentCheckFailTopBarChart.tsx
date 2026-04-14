@@ -19,7 +19,7 @@ const createChartOption = (data: IntentCheckFailTopItem[]): EChartsOption => {
         return `${title}<br/>인식수: ${item.detectCnt}건<br/>${lines.join('<br/>')}`;
       },
     },
-    legend: { data: ['Fail', 'Check', 'Pass'], right: 10, top: 5, icon: 'roundRect', selectedMode: false },
+    legend: { data: ['실패', '재확인', '성공'], right: 10, top: 5, icon: 'roundRect', selectedMode: false },
     grid: { left: 20, right: 50, bottom: 20, top: 30, containLabel: true },
     xAxis: {
       type: 'value',
@@ -43,7 +43,7 @@ const createChartOption = (data: IntentCheckFailTopItem[]): EChartsOption => {
     },
     series: [
       {
-        name: 'Fail',
+        name: '실패',
         type: 'bar',
         stack: 'total',
         data: data.map((item) => item.failCnt),
@@ -51,14 +51,14 @@ const createChartOption = (data: IntentCheckFailTopItem[]): EChartsOption => {
         barWidth: '60%',
       },
       {
-        name: 'Check',
+        name: '재확인',
         type: 'bar',
         stack: 'total',
         data: data.map((item) => item.checkCnt),
         itemStyle: { color: CHART_COLORS.warning },
       },
       {
-        name: 'Pass',
+        name: '성공',
         type: 'bar',
         stack: 'total',
         data: data.map((item) => ({

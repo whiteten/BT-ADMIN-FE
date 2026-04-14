@@ -36,9 +36,9 @@ const columnDefs: ColDef<SummaryRow>[] = [
 const calcPrevRate = (rate: number, rateDiff: number) => Math.round((rate - rateDiff) * 10) / 10;
 
 const toRows = (data: DialogSummary): SummaryRow[] => [
-  { category: '완결', count: data.completeCnt, rate: data.completeRate, prevRate: calcPrevRate(data.completeRate, data.completeRateDiff), rateDiff: data.completeRateDiff },
+  { category: '완료', count: data.completeCnt, rate: data.completeRate, prevRate: calcPrevRate(data.completeRate, data.completeRateDiff), rateDiff: data.completeRateDiff },
   {
-    category: '미완결',
+    category: '미완료',
     count: data.incompleteCnt,
     rate: data.incompleteRate,
     prevRate: calcPrevRate(data.incompleteRate, data.incompleteRateDiff),

@@ -101,7 +101,7 @@ export const botDashboardLayoutRenderMapper: Record<string, LayoutRenderEntry> =
     renderTable: (d) => <SlotSummaryGrid data={d?.slotSummary} />,
   },
   dialogIncompleteTop: {
-    title: '대화 미완결율 순위',
+    title: '대화 미완료율 순위',
     supportedModes: [DASHBOARD_VIEW.CHART, DASHBOARD_VIEW.TABLE],
     defaultOptions: { rowCnt: DEFAULT_ROW_CNT },
     menuActions: [
@@ -117,7 +117,7 @@ export const botDashboardLayoutRenderMapper: Record<string, LayoutRenderEntry> =
     renderTable: (d) => <DialogIncompleteTopGrid data={d?.dialogIncompleteTop} />,
   },
   slotIncompleteTop: {
-    title: '슬롯 미완결율 순위',
+    title: '슬롯 미완료율 순위',
     supportedModes: [DASHBOARD_VIEW.CHART, DASHBOARD_VIEW.TABLE],
     defaultOptions: { rowCnt: DEFAULT_ROW_CNT },
     menuActions: [
@@ -213,7 +213,7 @@ export const botDashboardLayoutRenderMapper: Record<string, LayoutRenderEntry> =
     renderTable: (d) => <IntentTopGrid data={d?.intentTop} />,
   },
   intentCheckFailTop: {
-    title: '의도 Check/Fail 순위',
+    title: '의도 신뢰도 재확인/실패 순위',
     supportedModes: [DASHBOARD_VIEW.CHART, DASHBOARD_VIEW.TABLE],
     defaultOptions: { rowCnt: DEFAULT_ROW_CNT },
     menuActions: [
@@ -229,7 +229,7 @@ export const botDashboardLayoutRenderMapper: Record<string, LayoutRenderEntry> =
     renderTable: (d) => <IntentCheckFailTopGrid data={d?.intentCheckFailTop} />,
   },
   intentFailRateTop: {
-    title: '의도 실패율 순위',
+    title: '의도 신뢰도 실패율 순위',
     supportedModes: [DASHBOARD_VIEW.CHART, DASHBOARD_VIEW.TABLE],
     defaultOptions: { rowCnt: DEFAULT_ROW_CNT },
     menuActions: [

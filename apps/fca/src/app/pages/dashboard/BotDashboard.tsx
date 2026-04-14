@@ -19,7 +19,7 @@ import { useModal } from '@/libs/shared-ui/src/hooks/useModal';
 
 const breadcrumb: BreadcrumbProps['items'] = [
   { title: '대시보드', path: '/fca/dashboard' },
-  { title: '콜봇 현황', path: '/fca/dashboard/call-bot' },
+  { title: '봇 현황', path: '/fca/dashboard/call-bot' },
 ];
 
 export default function BotDashboard() {

@@ -8,7 +8,7 @@ interface DialogIncompleteTopDrawerProps extends WidgetActionContext {
   onClose: () => void;
 }
 
-const WIDGET_TITLE = '대화 미완결율 순위';
+const WIDGET_TITLE = '대화 미완료율 순위';
 
 const DialogIncompleteTopDrawer = ({ open, onClose, widgetOptions, setOption }: DialogIncompleteTopDrawerProps) => {
   const [form] = Form.useForm();

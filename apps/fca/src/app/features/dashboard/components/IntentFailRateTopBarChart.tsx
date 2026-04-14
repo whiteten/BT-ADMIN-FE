@@ -18,7 +18,7 @@ const createChartOption = (data: IntentFailRateTopItem[]): EChartsOption => {
         const first = list[0] as { dataIndex: number; marker: string };
         if (first?.dataIndex == null) return '';
         const item = data[first.dataIndex];
-        return `${first.marker}<strong>${item.serviceName} &gt; ${item.modelName} &gt; ${item.intent}</strong><br/>실패율: ${item.failRate}%<br/>Fail 수: ${item.failCnt}건<br/>인식수: ${item.detectCnt}건`;
+        return `${first.marker}<strong>${item.serviceName} &gt; ${item.modelName} &gt; ${item.intent}</strong><br/>신뢰도 실패율: ${item.failRate}%<br/>실패 수: ${item.failCnt}건<br/>인식수: ${item.detectCnt}건`;
       },
     },
     grid: { left: 20, right: 50, bottom: 20, top: 20, containLabel: true },
