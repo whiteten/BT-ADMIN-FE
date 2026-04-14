@@ -21,7 +21,7 @@ const BotDialogHistorySearchForm: React.FC<BotDialogHistorySearchFormProps> = ({
   const [startDate, setStartDate] = React.useState<Dayjs>(dayjs().startOf('day'));
   const [endDate, setEndDate] = React.useState<Dayjs>(dayjs().endOf('day'));
   const [serviceIds, setServiceIds] = React.useState<number[]>([]);
-  const [intentIds, setIntentIds] = React.useState<string[]>([]);
+  const [intentNames, setIntentNames] = React.useState<string[]>([]);
   const [confidenceRange, setConfidenceRange] = React.useState<[number, number]>([0, 100]);
   const [completeYn, setCompleteYn] = React.useState<string | number>(COMPLETE_ALL);
   const [ucid, setUcid] = React.useState<string>('');
@@ -37,7 +37,7 @@ const BotDialogHistorySearchForm: React.FC<BotDialogHistorySearchFormProps> = ({
 
   // 봇 변경 시 의도 선택 초기화
   useEffect(() => {
-    setIntentIds([]);
+    setIntentNames([]);
   }, [serviceIds]);
 
   const botOptions = useMemo(
@@ -55,14 +55,14 @@ const BotDialogHistorySearchForm: React.FC<BotDialogHistorySearchFormProps> = ({
         .filter((i) => Boolean(i?.intentId && i?.intentName))
         .map((intent: IntentDto) => ({
           label: intent.intentName,
-          value: intent.intentId,
+          value: intent.intentName,
         })),
     [intents],
   );
 
   // 의도 옵션 로드 시 전체 자동 선택
   useEffect(() => {
-    setIntentIds(intentOptions.map((o) => o.value));
+    setIntentNames(intentOptions.map((o) => o.value));
   }, [intentOptions]);
 
   const handleSearch = () => {
@@ -75,7 +75,7 @@ const BotDialogHistorySearchForm: React.FC<BotDialogHistorySearchFormProps> = ({
       fromDate: startDate.format('YYYY-MM-DDTHH:mm:ss'),
       toDate: endDate.format('YYYY-MM-DDTHH:mm:ss'),
       serviceIds: serviceIds.length > 0 ? serviceIds : undefined,
-      intentIds: intentIds.length > 0 ? intentIds : undefined,
+      intentNames: intentNames.length > 0 ? intentNames : undefined,
       confidenceMin: confidenceMin > 0 ? confidenceMin : undefined,
       confidenceMax: confidenceMax < 100 ? confidenceMax : undefined,
       completeYn: completeYn === COMPLETE_ALL ? undefined : (completeYn as number),
@@ -135,8 +135,8 @@ const BotDialogHistorySearchForm: React.FC<BotDialogHistorySearchFormProps> = ({
           <span className="text-sm font-medium text-[#495057] shrink-0">의도</span>
           <Select
             mode="multiple"
-            value={intentIds}
-            onChange={(value) => setIntentIds(value ?? [])}
+            value={intentNames}
+            onChange={(value) => setIntentNames(value ?? [])}
             options={intentOptions}
             placeholder="전체"
             allowClear
@@ -151,16 +151,16 @@ const BotDialogHistorySearchForm: React.FC<BotDialogHistorySearchFormProps> = ({
                   className="flex items-center gap-2 px-3 py-2 cursor-pointer hover:bg-gray-50"
                   onMouseDown={(e) => e.preventDefault()}
                   onClick={() => {
-                    if (intentIds.length === intentOptions.length) {
-                      setIntentIds([]);
+                    if (intentNames.length === intentOptions.length) {
+                      setIntentNames([]);
                     } else {
-                      setIntentIds(intentOptions.map((o) => o.value));
+                      setIntentNames(intentOptions.map((o) => o.value));
                     }
                   }}
                 >
                   <Checkbox
-                    checked={intentIds.length === intentOptions.length && intentOptions.length > 0}
-                    indeterminate={intentIds.length > 0 && intentIds.length < intentOptions.length}
+                    checked={intentNames.length === intentOptions.length && intentOptions.length > 0}
+                    indeterminate={intentNames.length > 0 && intentNames.length < intentOptions.length}
                   />
                   <span className="text-sm">전체 선택</span>
                 </div>
