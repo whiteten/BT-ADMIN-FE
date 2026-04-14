@@ -450,6 +450,8 @@ importers:
 
   apps/manager: {}
 
+  apps/sd: {}
+
 packages:
 
   '@alloc/quick-lru@5.2.0':

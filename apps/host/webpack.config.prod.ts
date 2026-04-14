@@ -28,6 +28,7 @@ const prodConfig: ModuleFederationConfig = {
   remotes: [
     ['manager', '/remotes/manager/remoteEntry.js'],
     ['fca', '/remotes/fca/remoteEntry.js'],
+    ['sd', '/remotes/sd/remoteEntry.js'],
   ],
 };
 

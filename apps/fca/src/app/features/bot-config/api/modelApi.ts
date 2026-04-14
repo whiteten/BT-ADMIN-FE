@@ -184,6 +184,10 @@ export const modelApi = {
     const response = await apiClient.get<Blob>('/entity-excel-export', { params, responseType: 'blob' });
     return response;
   },
+  exportIntentAndEntity: async (params: Record<string, unknown>) => {
+    const response = await apiClient.get<Blob>('/model-intent-entity-export', { params, responseType: 'blob' });
+    return response;
+  },
   getAoeAgents: async (params?: Record<string, unknown>): Promise<AoeListItem[]> => {
     const response = await apiClient.get<ListResponse<AoeListItem>>('/aoe-agent-list', { params });
     return extractList(response);

@@ -461,6 +461,17 @@ export const useExportIntent = ({ mutationOptions }: MutationHookOptions = {}) =
   });
 };
 
+export const useExportIntentAndEntity = ({ mutationOptions }: MutationHookOptions = {}) => {
+  return useMutation({
+    mutationFn: async (params: Record<string, unknown>) => {
+      const response = await modelApi.exportIntentAndEntity(params);
+      const fileName = extractFileName(response.headers['content-disposition'], `INTENT_ENTITY_${dayjs().format('YYYYMMDD')}.xlsx`);
+      downloadBlob(response.data, fileName);
+    },
+    ...mutationOptions,
+  });
+};
+
 export const useImportIntent = ({ mutationOptions }: MutationHookOptions = {}) => {
   return useMutation({
     mutationFn: modelApi.importIntent,
