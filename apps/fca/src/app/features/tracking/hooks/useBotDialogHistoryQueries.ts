@@ -25,7 +25,7 @@ export const useGetBotServices = ({ params, queryOptions }: QueryHookWithParamsO
 };
 
 /**
- * 봇서비스에 할당된 의도 목록 조회 훅
+ * 봇에 할당된 의도 목록 조회 훅
  */
 export const useGetIntents = ({ params, queryOptions }: QueryHookWithParamsOptions<IntentDto[]> = {}) => {
   return useQuery({
