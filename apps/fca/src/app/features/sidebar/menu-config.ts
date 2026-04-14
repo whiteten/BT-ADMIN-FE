@@ -108,7 +108,7 @@ const menuConfig = {
       children: [
         {
           menuId: 9,
-          label: '콜봇 현황',
+          label: '봇 현황',
           path: 'dashboard/call-bot',
           index: 0,
           hide: false,

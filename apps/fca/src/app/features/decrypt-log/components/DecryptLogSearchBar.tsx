@@ -59,7 +59,7 @@ const DecryptLogSearchBar: React.FC<DecryptLogSearchBarProps> = ({ onSearch, isL
 
   return (
     <div className="flex flex-col gap-3 p-5 bg-white bt-shadow mb-4">
-      {/* 1행: 시간 범위, 봇서비스, 결과, 사유 */}
+      {/* 1행: 시간 범위, 봇, 결과, 사유 */}
       <div className="flex items-center gap-4 flex-wrap">
         <div className="flex items-center gap-2">
           <span className="text-sm font-medium text-[#495057] shrink-0">열람일자</span>
@@ -85,7 +85,7 @@ const DecryptLogSearchBar: React.FC<DecryptLogSearchBarProps> = ({ onSearch, isL
         <Divider type="vertical" className="!h-5 !m-0" />
 
         <div className="flex items-center gap-2">
-          <span className="text-sm font-medium text-[#495057] shrink-0">봇서비스</span>
+          <span className="text-sm font-medium text-[#495057] shrink-0">봇</span>
           <Select
             value={serviceId}
             onChange={(v) => setServiceId(v)}

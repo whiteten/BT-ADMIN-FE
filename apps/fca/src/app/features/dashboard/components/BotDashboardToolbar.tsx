@@ -2,7 +2,7 @@ import { MultiSelect, type Option } from 'react-multi-select-component';
 import { Button } from 'antd';
 
 const multiSelectStrings = {
-  selectSomeItems: '봇서비스를 선택하세요.',
+  selectSomeItems: '봇을 선택하세요.',
   allItemsAreSelected: '전체 선택됨',
   selectAll: '전체 선택',
   selectAllFiltered: '전체 선택 (필터)',
@@ -73,15 +73,15 @@ export default function BotDashboardToolbar({
         </div>
       ) : (
         <div className="flex flex-wrap items-center gap-2">
-          <span className="text-sm font-medium text-[#495057] shrink-0">봇서비스</span>
+          <span className="text-sm font-medium text-[#495057] shrink-0">봇</span>
           <MultiSelect
             options={serviceOptions}
             value={selectedService}
             onChange={onServiceChange}
-            labelledBy="봇서비스 선택"
+            labelledBy="봇 선택"
             hasSelectAll
             overrideStrings={multiSelectStrings}
-            valueRenderer={createValueRenderer('봇서비스를 선택하세요.')}
+            valueRenderer={createValueRenderer('봇을 선택하세요.')}
             isLoading={false}
             className="w-[250px]"
           />

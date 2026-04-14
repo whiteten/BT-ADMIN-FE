@@ -45,14 +45,14 @@ const toRows = (data: ScenarioSummary): SummaryRow[] => [
     rateDiff: data.incompleteRateDiff,
   },
   {
-    category: '상담사 연결(완결)',
+    category: '상담사 연결(완료)',
     count: data.completeReqAgentCnt,
     rate: data.completeReqAgentRate,
     prevRate: calcPrevRate(data.completeReqAgentRate, data.completeReqAgentRateDiff),
     rateDiff: data.completeReqAgentRateDiff,
   },
   {
-    category: '상담사 연결(미완결)',
+    category: '상담사 연결(미완료)',
     count: data.failReqAgentCnt,
     rate: data.failReqAgentRate,
     prevRate: calcPrevRate(data.failReqAgentRate, data.failReqAgentRateDiff),

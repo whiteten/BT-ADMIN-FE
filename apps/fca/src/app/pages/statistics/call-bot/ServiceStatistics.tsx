@@ -28,7 +28,7 @@ import { cn } from '@/libs/shared-ui/src/lib/utils';
 const breadcrumb: BreadcrumbProps['items'] = [
   { title: '통계', path: '/fca/statistics' },
   { title: '콜봇 통계', path: '/fca/statistics/call-bot' },
-  { title: '서비스 통계', path: '/fca/statistics/call-bot/service' },
+  { title: '봇(서비스) 통계', path: '/fca/statistics/call-bot/service' },
 ];
 
 export default function ServiceStatistics() {
@@ -59,7 +59,7 @@ export default function ServiceStatistics() {
   const disabledDate = useMemo(() => createDisabledDate(timeUnit), [timeUnit]);
   const disabledEndDate = useMemo(() => createEndDisabledDate(startDate, timeUnit), [startDate, timeUnit]);
 
-  // 봇서비스 옵션 조회
+  // 봇 옵션 조회
   const serviceSelectOptions = useMemo(
     () => (botList ?? []).filter((b) => Boolean(b?.serviceId && b?.serviceName)).map((b) => ({ label: String(b.serviceName), value: String(b.serviceId) })),
     [botList],
@@ -84,7 +84,7 @@ export default function ServiceStatistics() {
     return endDate.format('YYYY');
   })();
 
-  // 서비스 통계 조회
+  // 봇(서비스) 통계 조회
   const {
     data: serviceStatList,
     isLoading: isLoadingServiceStatList,
@@ -159,7 +159,7 @@ export default function ServiceStatistics() {
 
   const handleSearch = () => {
     if (serviceIds.length === 0) {
-      toast.warning('봇서비스를 선택해주세요.');
+      toast.warning('봇을 선택해주세요.');
       return;
     }
 
@@ -207,8 +207,8 @@ export default function ServiceStatistics() {
       },
       cellStyle: (params) => (params.node?.rowPinned === 'bottom' ? { fontWeight: 'bold', alignItems: 'center' } : { fontWeight: 'normal', alignItems: 'center' }),
     },
-    { headerName: '봇서비스ID', field: 'serviceId', hide: true },
-    { headerName: '봇서비스', field: 'serviceName', flex: 2 },
+    { headerName: '봇ID', field: 'serviceId', hide: true },
+    { headerName: '봇', field: 'serviceName', flex: 2 },
     {
       headerName: '진입수',
       field: 'serviceEnterCount',
@@ -216,26 +216,26 @@ export default function ServiceStatistics() {
       cellStyle: (params) => (params.node?.rowPinned === 'bottom' ? { fontWeight: 'bold', alignItems: 'center' } : { fontWeight: 'normal', alignItems: 'center' }),
     },
     {
-      headerName: '완결수',
+      headerName: '완료건',
       field: 'serviceCompleteCount',
       flex: 1,
       cellStyle: (params) => (params.node?.rowPinned === 'bottom' ? { fontWeight: 'bold', alignItems: 'center' } : { fontWeight: 'normal', alignItems: 'center' }),
     },
     {
-      headerName: '미완결수',
+      headerName: '미완료건',
       field: 'serviceFailCount',
       flex: 1,
       cellStyle: (params) => (params.node?.rowPinned === 'bottom' ? { fontWeight: 'bold', alignItems: 'center' } : { fontWeight: 'normal', alignItems: 'center' }),
     },
     {
-      headerName: '완결율',
+      headerName: '완료율',
       field: 'serviceCompletePercent',
       flex: 1,
       cellStyle: (params) => (params.node?.rowPinned === 'bottom' ? { fontWeight: 'bold', alignItems: 'center' } : { fontWeight: 'normal', alignItems: 'center' }),
       valueFormatter: ({ value }: { value?: number }) => (value != null ? `${value}%` : '0%'),
     },
     {
-      headerName: '미완결율',
+      headerName: '미완료율',
       field: 'serviceFailPercent',
       flex: 1,
       cellStyle: (params) => (params.node?.rowPinned === 'bottom' ? { fontWeight: 'bold', alignItems: 'center' } : { fontWeight: 'normal', alignItems: 'center' }),
@@ -255,26 +255,26 @@ export default function ServiceStatistics() {
       valueFormatter: ({ value }: { value?: number }) => (value != null ? `${value}%` : '0%'),
     },
     {
-      headerName: '완결별 상담연결수',
+      headerName: '완료별 상담연결수',
       field: 'completeReqAgentCount',
       flex: 1.5,
       cellStyle: (params) => (params.node?.rowPinned === 'bottom' ? { fontWeight: 'bold', alignItems: 'center' } : { fontWeight: 'normal', alignItems: 'center' }),
     },
     {
-      headerName: '완결별 상담연결율',
+      headerName: '완료별 상담연결율',
       field: 'completeReqAgentPercent',
       flex: 1.5,
       cellStyle: (params) => (params.node?.rowPinned === 'bottom' ? { fontWeight: 'bold', alignItems: 'center' } : { fontWeight: 'normal', alignItems: 'center' }),
       valueFormatter: ({ value }: { value?: number }) => (value != null ? `${value}%` : '0%'),
     },
     {
-      headerName: '미완결별 상담연결수',
+      headerName: '미완료별 상담연결수',
       field: 'failReqAgentCount',
       flex: 1.5,
       cellStyle: (params) => (params.node?.rowPinned === 'bottom' ? { fontWeight: 'bold', alignItems: 'center' } : { fontWeight: 'normal', alignItems: 'center' }),
     },
     {
-      headerName: '미완결별 상담연결율',
+      headerName: '미완료별 상담연결율',
       field: 'failReqAgentPercent',
       flex: 1.5,
       cellStyle: (params) => (params.node?.rowPinned === 'bottom' ? { fontWeight: 'bold', alignItems: 'center' } : { fontWeight: 'normal', alignItems: 'center' }),
@@ -392,7 +392,7 @@ export default function ServiceStatistics() {
                 </div>
                 <Divider orientation="vertical" className="!h-5 !m-0" />
                 <div className="flex items-center gap-3">
-                  <span className="text-sm font-medium text-[#495057] shrink-0">봇서비스</span>
+                  <span className="text-sm font-medium text-[#495057] shrink-0">봇</span>
                   <Select
                     mode="multiple"
                     value={serviceIds}
@@ -401,7 +401,7 @@ export default function ServiceStatistics() {
                     showSearch
                     maxTagCount="responsive"
                     options={serviceSelectOptions}
-                    placeholder="검색할 봇서비스를 선택하세요."
+                    placeholder="검색할 봇을 선택하세요."
                     optionFilterProp="label"
                     style={{ width: '15rem' }}
                     popupMatchSelectWidth={false}

@@ -37,7 +37,7 @@ export default function BotRealtime() {
   }, [sessions, aniSearch]);
 
   const columnDefs: ColDef<TrackingSession>[] = [
-    { headerName: '시나리오명', field: 'serviceName', flex: 1.5, minWidth: 140 },
+    { headerName: '봇', field: 'serviceName', flex: 1.5, minWidth: 140 },
     { headerName: 'UCID', field: 'ucid', flex: 1.5, minWidth: 150 },
     { headerName: '발신번호', field: 'ani', flex: 1.2, minWidth: 130 },
     { headerName: '착신번호', field: 'dnis', flex: 1, minWidth: 100 },

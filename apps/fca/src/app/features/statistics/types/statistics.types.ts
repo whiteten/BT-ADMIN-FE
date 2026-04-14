@@ -22,8 +22,8 @@ export type ServiceStatListItem = ServiceStatItem;
 export interface DialogStatItem {
   psrTimeKey: string; // 날짜시간
   tenantId?: number; // 테넌트 ID
-  serviceId?: string; // 봇서비스 ID
-  serviceName: string; // 봇서비스명
+  serviceId?: string; // 봇 ID
+  serviceName: string; // 봇명
   dialogId: string; // 대화 ID
   dialogName: string; // 대화명
   inCount: number; // 진입수
@@ -38,8 +38,8 @@ export type DialogStatListItem = DialogStatItem;
 export interface SlotStatItem {
   psrTimeKey: string; // 날짜시간
   tenantId?: number; // 테넌트 ID
-  serviceId?: string; // 봇서비스 ID
-  serviceName: string; // 봇서비스명
+  serviceId?: string; // 봇 ID
+  serviceName: string; // 봇명
   dialogId: string; // 대화 ID
   dialogName: string; // 대화명
   slotId: string; // 슬롯 ID
@@ -68,8 +68,8 @@ export type SlotStatListItem = SlotStatItem;
 export interface IntentStatItem {
   psrTimeKey: string; // 날짜시간
   tenantId?: number; // 테넌트 ID
-  scnId?: string; // 봇서비스 ID
-  scnName: string; // 봇서비스명
+  scnId?: string; // 봇 ID
+  scnName: string; // 봇명
   modelId: string; // 모델 ID
   modelName: string; // 모델명
   intent: string; // 의도
@@ -85,8 +85,8 @@ export type IntentStatListItem = IntentStatItem;
 export interface EntityStatItem {
   psrTimeKey: string; // 날짜시간
   tenantId?: number; // 테넌트 ID
-  scnId?: string; // 봇서비스 ID
-  scnName: string; // 봇서비스명
+  scnId?: string; // 봇 ID
+  scnName: string; // 봇명
   modelId: string; // 모델 ID
   modelName: string; // 모델명
   entityTag: string; // 개체 태그
@@ -99,8 +99,8 @@ export type EntityStatListItem = EntityStatItem;
 export interface KeywordStatItem {
   psrTimeKey: string; // 날짜시간
   tenantId?: number; // 테넌트 ID
-  scnId?: string; // 봇서비스 ID
-  scnName: string; // 봇서비스명
+  scnId?: string; // 봇 ID
+  scnName: string; // 봇명
   modelId: string; // 모델 ID
   modelName: string; // 모델명
   entityTag: string; // 개체 태그

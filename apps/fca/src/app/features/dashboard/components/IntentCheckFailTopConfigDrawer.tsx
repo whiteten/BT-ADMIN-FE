@@ -8,7 +8,7 @@ interface IntentCheckFailTopDrawerProps extends WidgetActionContext {
   onClose: () => void;
 }
 
-const WIDGET_TITLE = '의도 Check/Fail 순위';
+const WIDGET_TITLE = '의도 신뢰도 재확인/실패 순위';
 
 const IntentCheckFailTopDrawer = ({ open, onClose, widgetOptions, setOption }: IntentCheckFailTopDrawerProps) => {
   const [form] = Form.useForm();

@@ -19,8 +19,8 @@ const formatPrevRate = (rate: number, rateDiff: number) => {
 
 const createChartOption = (data: DialogSummary): EChartsOption => {
   const seriesData = [
-    { name: '완결', value: data.completeCnt, rate: data.completeRate, rateDiff: data.completeRateDiff },
-    { name: '미완결', value: data.incompleteCnt, rate: data.incompleteRate, rateDiff: data.incompleteRateDiff },
+    { name: '완료', value: data.completeCnt, rate: data.completeRate, rateDiff: data.completeRateDiff },
+    { name: '미완료', value: data.incompleteCnt, rate: data.incompleteRate, rateDiff: data.incompleteRateDiff },
   ];
 
   const entryDiff = formatDiff(data.entryDiff, '');

@@ -29,13 +29,13 @@ const BotDialogHistorySearchForm: React.FC<BotDialogHistorySearchFormProps> = ({
 
   const { data: botServices } = useGetBotServices();
 
-  // 봇서비스 선택 시 의도 목록 조회
+  // 봇 선택 시 의도 목록 조회
   const { data: intents } = useGetIntents({
     params: { serviceIds },
     queryOptions: { enabled: serviceIds.length > 0 },
   });
 
-  // 봇서비스 변경 시 의도 선택 초기화
+  // 봇 변경 시 의도 선택 초기화
   useEffect(() => {
     setIntentNames([]);
   }, [serviceIds]);
@@ -86,7 +86,7 @@ const BotDialogHistorySearchForm: React.FC<BotDialogHistorySearchFormProps> = ({
 
   return (
     <div className="flex flex-col gap-3 p-5 bg-white bt-shadow mb-4">
-      {/* 1행: 검색일자, 봇서비스, 의도, 신뢰구간 */}
+      {/* 1행: 검색일자, 봇, 의도, 신뢰구간 */}
       <div className="flex items-center gap-4">
         <div className="flex items-center gap-2">
           <span className="text-sm font-medium text-[#495057] shrink-0">검색일자</span>
@@ -114,7 +114,7 @@ const BotDialogHistorySearchForm: React.FC<BotDialogHistorySearchFormProps> = ({
         <Divider type="vertical" className="!h-5 !m-0" />
 
         <div className="flex items-center gap-2">
-          <span className="text-sm font-medium text-[#495057] shrink-0">봇서비스</span>
+          <span className="text-sm font-medium text-[#495057] shrink-0">봇</span>
           <Select
             mode="multiple"
             value={serviceIds}

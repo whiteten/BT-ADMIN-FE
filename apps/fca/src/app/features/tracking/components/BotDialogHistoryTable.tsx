@@ -24,7 +24,7 @@ const BotDialogHistoryTable: React.FC<BotDialogHistoryTableProps> = ({ rowData, 
   const columnDefs: ColDef<BotDialogHistoryListItem>[] = useMemo(
     () => [
       {
-        headerName: '봇서비스',
+        headerName: '봇',
         field: 'serviceName',
         flex: 1.5,
       },
