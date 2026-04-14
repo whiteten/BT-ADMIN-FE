@@ -8,9 +8,12 @@ import type { LayoutItem } from 'react-grid-layout';
  * - completeCnt: 봇 해결수
  * - completeRate: 봇 해결률 (%)
  * - completeRateDiff: 봇 해결률 전일대비 (%p)
- * - agentReqCnt: 상담사 연결수
- * - agentTransferRate: 상담사 연결률 (%)
- * - agentTransferRateDiff: 상담사 연결률 전일대비 (%p)
+ * - completeReqAgentCnt: 완결별 상담연결수
+ * - completeReqAgentRate: 완결별 상담연결율 (%)
+ * - completeReqAgentRateDiff: 완결별 상담연결율 전일대비 (%p)
+ * - failReqAgentCnt: 미완결별 상담연결수
+ * - failReqAgentRate: 미완결별 상담연결율 (%)
+ * - failReqAgentRateDiff: 미완결별 상담연결율 전일대비 (%p)
  * - incompleteCnt: 미해결 종료수
  * - incompleteRate: 미해결 종료율 (%)
  * - incompleteRateDiff: 미해결 종료율 전일대비 (%p)
@@ -18,7 +21,12 @@ import type { LayoutItem } from 'react-grid-layout';
  * - avgBusyTimeDiff: 평균 점유시간 전일대비 (초)
  * - prevEntryCnt: 전일 진입수
  * - prevCompleteCnt: 전일 봇 해결수
- * - prevAgentReqCnt: 전일 상담사 연결수
+ * - prevCompleteReqAgentCnt: 전일 완결별 상담연결수
+ * - prevCompleteReqAgentRate: 전일 완결별 상담연결율 (%)
+ * - prevFailReqAgentCnt: 전일 미완결별 상담연결수
+ * - prevFailReqAgentRate: 전일 미완결별 상담연결율 (%)
+ * - completeReqAgentCntChangeRate: 완결별 상담연결수 증감율 (%)
+ * - failReqAgentCntChangeRate: 미완결별 상담연결수 증감율 (%)
  * - prevIncompleteCnt: 전일 미해결 종료수
  */
 export interface ScenarioSummary {
@@ -27,9 +35,12 @@ export interface ScenarioSummary {
   completeCnt: number;
   completeRate: number;
   completeRateDiff: number;
-  agentReqCnt: number;
-  agentTransferRate: number;
-  agentTransferRateDiff: number;
+  completeReqAgentCnt: number;
+  completeReqAgentRate: number;
+  completeReqAgentRateDiff: number;
+  failReqAgentCnt: number;
+  failReqAgentRate: number;
+  failReqAgentRateDiff: number;
   incompleteCnt: number;
   incompleteRate: number;
   incompleteRateDiff: number;
@@ -37,7 +48,12 @@ export interface ScenarioSummary {
   avgBusyTimeDiff: number;
   prevEntryCnt: number;
   prevCompleteCnt: number;
-  prevAgentReqCnt: number;
+  prevCompleteReqAgentCnt: number;
+  prevCompleteReqAgentRate: number;
+  prevFailReqAgentCnt: number;
+  prevFailReqAgentRate: number;
+  completeReqAgentCntChangeRate: number;
+  failReqAgentCntChangeRate: number;
   prevIncompleteCnt: number;
 }
 

@@ -22,7 +22,8 @@ const createChartOption = (data: ScenarioSummary): EChartsOption => {
   const seriesData = [
     { name: '봇 해결', value: data.completeCnt, rate: data.completeRate, rateDiff: data.completeRateDiff },
     { name: '미해결 종료', value: data.incompleteCnt, rate: data.incompleteRate, rateDiff: data.incompleteRateDiff },
-    { name: '상담사 연결', value: data.agentReqCnt, rate: data.agentTransferRate, rateDiff: data.agentTransferRateDiff },
+    { name: '상담사 연결(완결)', value: data.completeReqAgentCnt, rate: data.completeReqAgentRate, rateDiff: data.completeReqAgentRateDiff },
+    { name: '상담사 연결(미완결)', value: data.failReqAgentCnt, rate: data.failReqAgentRate, rateDiff: data.failReqAgentRateDiff },
   ];
 
   const entryDiff = formatDiff(data.entryDiff, '');
@@ -108,7 +109,7 @@ const createChartOption = (data: ScenarioSummary): EChartsOption => {
         color: '#333',
       },
     },
-    color: [CHART_COLORS.success, CHART_COLORS.danger, CHART_COLORS.warning],
+    color: [CHART_COLORS.success, CHART_COLORS.danger, CHART_COLORS.warning, CHART_COLORS.cyan],
     series: [
       {
         type: 'pie',
@@ -148,6 +149,7 @@ interface ScenarioSummaryPieChartProps {
 }
 
 export default function ScenarioSummaryPieChart({ data }: ScenarioSummaryPieChartProps) {
-  if (!data?.completeCnt && !data?.incompleteCnt && !data?.agentReqCnt) return <NoData message={`조회된 데이터가 없습니다.`} fontSize="text-base" gap={2} />;
+  if (!data?.completeCnt && !data?.incompleteCnt && !data?.completeReqAgentCnt && !data?.failReqAgentCnt)
+    return <NoData message={`조회된 데이터가 없습니다.`} fontSize="text-base" gap={2} />;
   return <ReactECharts option={createChartOption(data)} style={{ height: '100%', width: '100%' }} />;
 }
