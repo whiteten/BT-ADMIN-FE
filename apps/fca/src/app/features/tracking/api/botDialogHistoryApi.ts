@@ -24,7 +24,17 @@ export interface DecryptBubblesArgs {
   };
 }
 
+/** 대화이력 기능 설정 */
+export interface DialogHistoryConfig {
+  mediaPlayerEnabled: boolean;
+}
+
 export const botDialogHistoryApi = {
+  /** 대화이력 기능 설정 조회 */
+  getConfig: async (): Promise<DialogHistoryConfig> => {
+    const response = await apiClient.get<{ data: DialogHistoryConfig }>('/bot-dialog-history-config');
+    return response.data?.data ?? { mediaPlayerEnabled: false };
+  },
   getBotServices: async (params?: Record<string, unknown>): Promise<BotServiceDto[]> => {
     const response = await apiClient.get<ListResponse<BotServiceDto>>('/bot-services', { params });
     return extractList(response);
@@ -57,6 +67,14 @@ export const botDialogHistoryApi = {
   getIfeRedirectUrl: async (params: { serviceId: number; serviceVer: string; subFlowId: string; nodeName: string }): Promise<string | null> => {
     const response = await apiClient.get<{ data: { redirectUrl: string } }>('/bot-dialog-history-ife-redirect', { params });
     return response.data?.data?.redirectUrl ?? '';
+  },
+  /** 녹취 오디오 Blob 조회 */
+  getAudioBlob: async (params: { ucid: string; nextHop: number; cdrPkey: number }): Promise<Blob> => {
+    const response = await apiClient.get<Blob>('/bot-dialog-history-audio', {
+      params,
+      responseType: 'blob',
+    });
+    return response.data as unknown as Blob;
   },
   exportExcel: async (params?: Record<string, unknown>) => {
     return await apiClient.post<Blob>('/bot-dialog-history-export', params, { responseType: 'blob' });

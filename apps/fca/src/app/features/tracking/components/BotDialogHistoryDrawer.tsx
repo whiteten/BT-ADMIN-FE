@@ -1,13 +1,13 @@
-import { forwardRef, useCallback, useImperativeHandle, useMemo, useRef, useState } from 'react';
+import { forwardRef, useCallback, useEffect, useImperativeHandle, useMemo, useRef, useState } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { Descriptions, Drawer, Input, Select, Spin, message } from 'antd';
-import { Bookmark, Brain, Check, Copy, Pencil, X } from 'lucide-react';
+import { Bookmark, Brain, Check, Copy, Pencil, Volume2, X } from 'lucide-react';
 import { toast } from '@/shared-util';
 import BubbleDecryptReasonModal, { type BubbleDecryptReason } from './BubbleDecryptReasonModal';
 import TrackingDialogView from './TrackingDialogView';
 import { useApplyRetrain, useGetIntents, useUpdateRetrain } from '../../bot-config/hooks/useModelQueries';
 import { botDialogHistoryApi } from '../api/botDialogHistoryApi';
-import { botDialogHistoryQueryKeys, useDecryptBubbles, useGetBubbles, useGetNluAnalysis } from '../hooks/useBotDialogHistoryQueries';
+import { botDialogHistoryQueryKeys, useDecryptBubbles, useGetBubbles, useGetDialogHistoryConfig, useGetNluAnalysis } from '../hooks/useBotDialogHistoryQueries';
 import type { BotDialogHistoryListItem } from '../types/botDialogHistory.types';
 import type { NluAnalysisItem, TrackingFlowItem } from '../types/tracking.types';
 import { cn } from '@/lib/utils';
@@ -287,6 +287,46 @@ function NluCard({ seq, nluResults, onRetrainSuccess }: NluCardProps) {
   );
 }
 
+/** 녹취 오디오 플레이어 */
+function AudioPlayer({ ucid, nextHop, cdrPkey }: { ucid: string; nextHop: number; cdrPkey: number }) {
+  const [audioUrl, setAudioUrl] = useState<string | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState(false);
+
+  useEffect(() => {
+    let revoked = false;
+    setLoading(true);
+    setError(false);
+    botDialogHistoryApi
+      .getAudioBlob({ ucid, nextHop, cdrPkey })
+      .then((blob) => {
+        if (revoked) return;
+        const url = URL.createObjectURL(blob);
+        setAudioUrl(url);
+      })
+      .catch(() => {
+        if (revoked) return;
+        setError(true);
+      })
+      .finally(() => {
+        if (!revoked) setLoading(false);
+      });
+    return () => {
+      revoked = true;
+      setAudioUrl((prev) => {
+        if (prev) URL.revokeObjectURL(prev);
+        return null;
+      });
+    };
+  }, [ucid, nextHop, cdrPkey]);
+
+  if (loading) return <Spin size="small" />;
+  if (error) return <span className="text-xs text-red-400">녹취 파일을 불러올 수 없습니다.</span>;
+  if (!audioUrl) return null;
+
+  return <audio controls src={audioUrl} className="h-8 w-full" preload="auto" />;
+}
+
 export interface BotDialogHistoryDrawerRef {
   open: (row: BotDialogHistoryListItem) => void;
   close: () => void;
@@ -294,6 +334,8 @@ export interface BotDialogHistoryDrawerRef {
 
 const BotDialogHistoryDrawer = forwardRef<BotDialogHistoryDrawerRef>((_, ref) => {
   const queryClient = useQueryClient();
+  const { data: featureConfig } = useGetDialogHistoryConfig();
+  const mediaPlayerEnabled = featureConfig?.mediaPlayerEnabled ?? false;
   const [isOpen, setIsOpen] = useState(false);
   const [selectedRow, setSelectedRow] = useState<BotDialogHistoryListItem | null>(null);
   const [highlightedNluSeq, setHighlightedNluSeq] = useState<number | null>(null);
@@ -494,6 +536,17 @@ const BotDialogHistoryDrawer = forwardRef<BotDialogHistoryDrawerRef>((_, ref) =>
               <Descriptions.Item label="발신번호">{selectedRow.ani}</Descriptions.Item>
               <Descriptions.Item label="착신번호">{selectedRow.dnis}</Descriptions.Item>
             </Descriptions>
+
+            {/* 녹취 플레이어 */}
+            {mediaPlayerEnabled && selectedRow.recordYn === 1 && (
+              <div className="flex items-center gap-2 mt-2 p-2 bg-gray-50 rounded-lg">
+                <Volume2 size={16} className="text-blue-500 shrink-0" />
+                <span className="text-xs font-medium text-gray-600 shrink-0">녹취</span>
+                <div className="flex-1">
+                  <AudioPlayer ucid={selectedRow.ucid} nextHop={selectedRow.nextHop} cdrPkey={selectedRow.cdrPkey} />
+                </div>
+              </div>
+            )}
           </div>
         )}
 

@@ -1,17 +1,29 @@
 import { useMutation, useQuery } from '@tanstack/react-query';
 import { createQueryKeys } from '@lukemorales/query-key-factory';
 import type { MutationHookOptions, QueryHookWithParamsOptions } from '@/shared-util';
-import { type DecryptBubblesArgs, type DecryptedBubbleDto, botDialogHistoryApi } from '../api/botDialogHistoryApi';
+import { type DecryptBubblesArgs, type DecryptedBubbleDto, type DialogHistoryConfig, botDialogHistoryApi } from '../api/botDialogHistoryApi';
 import type { BotServiceDto, IntentDto } from '../types/botDialogHistory.types';
 import type { NluAnalysisItem, TrackingFlowItem } from '../types/tracking.types';
 
 export const botDialogHistoryQueryKeys = createQueryKeys('history', {
+  getConfig: null,
   getBotServices: (params?: Record<string, unknown>) => [params],
   getIntents: (params?: Record<string, unknown>) => [params],
   getBotDialogHistory: (params?: Record<string, unknown>) => [params],
   getBubbles: (params?: Record<string, unknown>) => [params],
   getNluAnalysis: (params?: Record<string, unknown>) => [params],
 });
+
+/**
+ * 대화이력 기능 설정 조회 훅 (mediaPlayerEnabled 등)
+ */
+export const useGetDialogHistoryConfig = () => {
+  return useQuery({
+    queryKey: botDialogHistoryQueryKeys.getConfig.queryKey,
+    queryFn: () => botDialogHistoryApi.getConfig(),
+    staleTime: 5 * 60 * 1000,
+  });
+};
 
 /**
  * 봇 서비스 목록 조회 훅

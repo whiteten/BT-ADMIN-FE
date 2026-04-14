@@ -6,10 +6,5 @@ const { join } = require('path');
 // See: https://nx.dev/guides/using-tailwind-css-in-react#step-4:-applying-configuration-to-libraries
 
 module.exports = {
-  plugins: [
-    require('@tailwindcss/postcss')({
-      config: join(__dirname, 'tailwind.config.js'),
-    }),
-    require('autoprefixer'),
-  ],
+  plugins: [require('@tailwindcss/postcss')(), require('autoprefixer')],
 };
