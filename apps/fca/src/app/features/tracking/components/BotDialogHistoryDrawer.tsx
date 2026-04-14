@@ -471,7 +471,7 @@ const BotDialogHistoryDrawer = forwardRef<BotDialogHistoryDrawerRef>((_, ref) =>
         {selectedRow && (
           <div className="flex-shrink-0">
             <Descriptions column={2} size="small" bordered>
-              <Descriptions.Item label="시나리오명" span={2}>
+              <Descriptions.Item label="봇" span={2}>
                 {selectedRow.serviceName}
               </Descriptions.Item>
               <Descriptions.Item label="UCID" span={2}>
