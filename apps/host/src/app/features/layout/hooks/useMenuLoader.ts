@@ -12,7 +12,6 @@ type MenuModule = { default: MenuConfig | Record<string, never> };
 const MENU_LOADERS: Record<string, () => Promise<MenuModule>> = {
   manager: () => import('manager/MenuConfig').catch(() => ({ default: {} })) as Promise<MenuModule>,
   fca: () => import('fca/MenuConfig').catch(() => ({ default: {} })) as Promise<MenuModule>,
-  sd: () => import('sd/MenuConfig').catch(() => ({ default: {} })) as Promise<MenuModule>,
 };
 
 /** NaviApp[]에서 모든 menuId → label 매핑을 재귀적으로 수집 */
