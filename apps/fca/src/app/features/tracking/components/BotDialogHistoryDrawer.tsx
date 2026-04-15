@@ -342,6 +342,23 @@ const BotDialogHistoryDrawer = forwardRef<BotDialogHistoryDrawerRef>((_, ref) =>
   const nluCardRefs = useRef<Map<number, HTMLDivElement>>(new Map());
   const highlightTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
+  // 녹취 재생 하이라이트 상태
+  const [audioPlayingIdx, setAudioPlayingIdx] = useState<number | null>(null);
+  const bubbleRefs = useRef<Map<number, HTMLDivElement>>(new Map());
+  const itemsRef = useRef<TrackingFlowItem[]>([]);
+
+  const setBubbleRef = useCallback((idx: number, el: HTMLDivElement | null) => {
+    if (el) bubbleRefs.current.set(idx, el);
+    else bubbleRefs.current.delete(idx);
+  }, []);
+
+  // 재생 중 버블 변경 시 자동 스크롤
+  useEffect(() => {
+    if (audioPlayingIdx == null) return;
+    const el = bubbleRefs.current.get(audioPlayingIdx);
+    el?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  }, [audioPlayingIdx]);
+
   // 🔒 암호화 버블 복호화 상태
   const [reasonModalOpen, setReasonModalOpen] = useState(false);
   const [targetBubbleKey, setTargetBubbleKey] = useState<string | null>(null);
@@ -355,6 +372,7 @@ const BotDialogHistoryDrawer = forwardRef<BotDialogHistoryDrawerRef>((_, ref) =>
       setRevealedBubbles({});
       setReasonModalOpen(false);
       setTargetBubbleKey(null);
+      setAudioPlayingIdx(null);
       setIsOpen(true);
     },
     close: () => {
@@ -364,6 +382,7 @@ const BotDialogHistoryDrawer = forwardRef<BotDialogHistoryDrawerRef>((_, ref) =>
       setRevealedBubbles({});
       setReasonModalOpen(false);
       setTargetBubbleKey(null);
+      setAudioPlayingIdx(null);
     },
   }));
 
@@ -374,6 +393,7 @@ const BotDialogHistoryDrawer = forwardRef<BotDialogHistoryDrawerRef>((_, ref) =>
     setRevealedBubbles({});
     setReasonModalOpen(false);
     setTargetBubbleKey(null);
+    setAudioPlayingIdx(null);
   };
 
   const setNluCardRef = useCallback((seq: number, el: HTMLDivElement | null) => {
@@ -381,6 +401,7 @@ const BotDialogHistoryDrawer = forwardRef<BotDialogHistoryDrawerRef>((_, ref) =>
   }, []);
 
   const handleBubbleClick = useCallback((item: TrackingFlowItem) => {
+    // 고객 버블 클릭 → NLU 카드 하이라이트
     if (item.dialogRole !== 'CUSTOMER') return;
     setHighlightedNluSeq(item.seq);
     if (highlightTimer.current) clearTimeout(highlightTimer.current);
@@ -461,6 +482,7 @@ const BotDialogHistoryDrawer = forwardRef<BotDialogHistoryDrawerRef>((_, ref) =>
   });
 
   const items: TrackingFlowItem[] = bubbleData ?? [];
+  itemsRef.current = items;
 
   // NLU 데이터를 questionSeq 기준으로 그룹핑하여 고객 발화 버블과 매칭
   const nluBySeq = useMemo(() => {
@@ -566,6 +588,8 @@ const BotDialogHistoryDrawer = forwardRef<BotDialogHistoryDrawerRef>((_, ref) =>
                 revealedBubbles={revealedBubbles}
                 onEncryptedClick={handleEncryptedClick}
                 decryptingBubbleKey={decryptMutation.isPending ? targetBubbleKey : null}
+                audioPlayingIdx={audioPlayingIdx}
+                onBubbleRef={setBubbleRef}
               />
             )}
           </div>
