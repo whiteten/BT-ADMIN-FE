@@ -188,17 +188,17 @@ const BotDialogHistorySearchForm: React.FC<BotDialogHistorySearchFormProps> = ({
         </div>
       </div>
 
-      {/* 2행: 완결여부, UCID, 조회 버튼 */}
+      {/* 2행: 완료여부, UCID, 조회 버튼 */}
       <div className="flex items-center gap-4">
         <div className="flex items-center gap-2">
-          <span className="text-sm font-medium text-[#495057] shrink-0">완결여부</span>
+          <span className="text-sm font-medium text-[#495057] shrink-0">완료여부</span>
           <Select
             value={completeYn}
             onChange={setCompleteYn}
             options={[
               { label: '전체', value: COMPLETE_ALL },
-              { label: '완결', value: 1 },
-              { label: '미완결', value: 0 },
+              { label: '완료', value: 1 },
+              { label: '미완료', value: 0 },
             ]}
             className="w-28"
           />
