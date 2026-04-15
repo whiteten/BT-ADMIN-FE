@@ -17,13 +17,14 @@
         "main": "apps/fca/src/main.ts",
         "tsConfig": "apps/fca/tsconfig.app.json",
         "assets": ["apps/fca/src/favicon.ico", "apps/fca/src/assets"],
-        "styles": ["libs/shared-ui/src/styles/global.css"],
+        "styles": [],
         "scripts": [],
         "webpackConfig": "apps/fca/webpack.config.ts",
         "postcssConfig": "apps/fca/postcss.config.js"
       },
       "configurations": {
         "development": {
+          "styles": ["libs/shared-ui/src/styles/global.css"],
           "extractLicenses": false,
           "optimization": false,
           "sourceMap": false,
