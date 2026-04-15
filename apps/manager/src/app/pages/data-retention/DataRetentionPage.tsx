@@ -4,21 +4,15 @@ import type { ColDef, ICellRendererParams } from 'ag-grid-community';
 import { AgGridReact } from 'ag-grid-react';
 import { type BreadcrumbProps, Button } from 'antd';
 import dayjs from 'dayjs';
-import { Database, History, Pencil, Play, ScrollText } from 'lucide-react';
+import { Database, History, Play, ScrollText } from 'lucide-react';
 import { toast } from '@/shared-util';
+import PolicyCardSlider from '../../features/data-retention/components/PolicyCardSlider';
 import RetentionEditDrawer, { type RetentionEditDrawerRef } from '../../features/data-retention/components/RetentionEditDrawer';
 import { dataRetentionQueryKeys, useExecuteRetentionNow, useGetRetentionLogs, useGetRetentionPolicies } from '../../features/data-retention/hooks/useDataRetentionQueries';
-import {
-  RETENTION_CATEGORY_LABELS,
-  RETENTION_PRODUCT_CODE_LABELS,
-  type RetentionCategory,
-  type RetentionLogItem,
-  type RetentionPolicyListItem,
-} from '../../features/data-retention/types/dataRetention.types';
+import { RETENTION_CATEGORY_LABELS, type RetentionCategory, type RetentionLogItem, type RetentionPolicyListItem } from '../../features/data-retention/types/dataRetention.types';
 import { FallbackSpinner } from '@/components/custom/FallbackSpinner';
 import PageHeader from '@/components/custom/PageHeader';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { cn } from '@/lib/utils';
 import useAggridOptions from '@/libs/shared-ui/src/hooks/useAggridOptions';
 import { useModal } from '@/libs/shared-ui/src/hooks/useModal';
 
@@ -47,73 +41,6 @@ function ExecutionStatusBadge({ status }: { status: RetentionLogItem['status'] }
   };
   const { label, className } = config[status] ?? { label: status, className: 'bg-gray-100 text-gray-800' };
   return <span className={`px-2 py-0.5 rounded text-xs font-medium ${className}`}>{label}</span>;
-}
-
-/** 정책 카드 — 단일클릭: 이력조회, 더블클릭: 편집 드로어 */
-interface PolicyCardProps {
-  policy: RetentionPolicyListItem;
-  selected: boolean;
-  onSelect: (policy: RetentionPolicyListItem) => void;
-  onEdit: (policy: RetentionPolicyListItem) => void;
-}
-
-function PolicyCard({ policy, selected, onSelect, onEdit }: PolicyCardProps) {
-  const handleDoubleClick = () => {
-    onEdit(policy);
-  };
-
-  const handleEditButtonClick = (e: React.MouseEvent) => {
-    e.stopPropagation();
-    onEdit(policy);
-  };
-
-  return (
-    <div
-      className={cn(
-        'relative flex flex-col gap-3 p-4 rounded-lg border-2 cursor-pointer transition-all hover:shadow-md select-none',
-        selected ? 'border-[var(--color-bt-primary)] bg-blue-50/40 shadow-sm' : 'border-gray-200 bg-white hover:border-gray-300 hover:bg-gray-50/50',
-      )}
-      onClick={() => onSelect(policy)}
-      onDoubleClick={handleDoubleClick}
-    >
-      {/* 수정 버튼 (더블클릭 대체 접근성) */}
-      <button
-        type="button"
-        className="absolute top-3 right-3 p-1.5 rounded-md text-gray-300 hover:text-[var(--color-bt-primary)] hover:bg-blue-50 transition-colors"
-        onClick={handleEditButtonClick}
-        title="편집 (더블클릭)"
-      >
-        <Pencil className="w-3.5 h-3.5" />
-      </button>
-
-      {/* 제품 배지 + 정책명 */}
-      <div className="pr-8">
-        <span className="inline-flex items-center px-1.5 py-0.5 rounded text-xs font-medium bg-indigo-50 text-indigo-700 mb-1.5">
-          {RETENTION_PRODUCT_CODE_LABELS[policy.productCode]}
-        </span>
-        <p className="text-sm font-semibold text-gray-900 leading-tight">{policy.policyName}</p>
-        {policy.description && <p className="text-xs text-gray-400 mt-0.5 line-clamp-2">{policy.description}</p>}
-      </div>
-
-      <div className="border-t border-gray-100" />
-
-      {/* 주요 정보 */}
-      <div className="flex flex-col gap-1.5">
-        <div className="flex items-center justify-between">
-          <span className="text-xs text-gray-500">보관기간</span>
-          <span className="text-xs font-semibold text-gray-800">{policy.retentionMonths}개월</span>
-        </div>
-        <div className="flex items-center justify-between">
-          <span className="text-xs text-gray-500">실행시각</span>
-          <span className="text-xs font-semibold text-gray-800">매일 {policy.executionTime}</span>
-        </div>
-        <div className="flex items-center justify-between">
-          <span className="text-xs text-gray-500">대상 테이블</span>
-          <span className="text-xs font-semibold text-gray-800">{policy.targetCount}개</span>
-        </div>
-      </div>
-    </div>
-  );
 }
 
 export default function DataRetentionPage() {
@@ -246,7 +173,7 @@ export default function DataRetentionPage() {
           <div className="flex items-center justify-between w-full h-[48px] min-h-[48px] border-b border-[#E9EBEC] pr-4">
             <TabsList className="h-full p-0 bg-white">
               {availableCategories.map((category) => (
-                <TabsTrigger key={category} value={category} className={cn(tabTriggerStyle)}>
+                <TabsTrigger key={category} value={category} className={tabTriggerStyle}>
                   <div className="flex items-center justify-center gap-1.5 min-w-[110px]">
                     {(() => {
                       const Icon = RETENTION_CATEGORY_ICONS[category];
@@ -264,16 +191,13 @@ export default function DataRetentionPage() {
 
           {availableCategories.map((category) => (
             <TabsContent key={category} value={category} forceMount className="m-0 data-[state=inactive]:hidden">
-              <div className="p-4 grid gap-3 grid-cols-[repeat(auto-fill,minmax(200px,1fr))]">
-                {(groupedPolicies[category] ?? []).map((policy) => (
-                  <PolicyCard
-                    key={policy.policyId}
-                    policy={policy}
-                    selected={selectedPolicy?.policyId === policy.policyId}
-                    onSelect={handleSelectPolicy}
-                    onEdit={handleEditPolicy}
-                  />
-                ))}
+              <div className="h-[200px] flex items-center px-2 py-3">
+                <PolicyCardSlider
+                  policies={groupedPolicies[category] ?? []}
+                  selectedId={selectedPolicy?.policyId ?? null}
+                  onSelect={handleSelectPolicy}
+                  onEdit={handleEditPolicy}
+                />
               </div>
             </TabsContent>
           ))}
