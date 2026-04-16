@@ -53,7 +53,8 @@
       "options": {
         "buildTarget": "fca:build",
         "hmr": true,
-        "port": 4202
+        "port": 4202,
+        "host": "0.0.0.0"
       },
       "configurations": {
         "development": {
