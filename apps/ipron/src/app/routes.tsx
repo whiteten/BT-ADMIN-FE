@@ -21,6 +21,7 @@ const DidRouteListPage = React.lazy(() => import('./features/did-route/pages/Did
 const DidRouteFormPage = React.lazy(() => import('./features/did-route/pages/DidRouteFormPage'));
 const DodTransListPage = React.lazy(() => import('./features/dod-trans/pages/DodTransListPage'));
 const CallScreenListPage = React.lazy(() => import('./features/call-screen/pages/CallScreenListPage'));
+const DevfuncProfilePage = React.lazy(() => import('./features/devfunc-profile/pages/DevfuncProfilePage'));
 export const routes = [
   {
     path: '/',
@@ -53,6 +54,10 @@ export const routes = [
       {
         path: 'profile/sip-profile/header-manage',
         element: <SipHeaderManagePage />,
+      },
+      {
+        path: 'profile/devfunc-profile',
+        element: <DevfuncProfilePage />,
       },
       {
         path: 'line/endpoint',

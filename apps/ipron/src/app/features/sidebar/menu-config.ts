@@ -41,6 +41,13 @@ const menuConfig = {
           index: 1,
           hide: false,
         },
+        {
+          menuId: 114,
+          label: '전화기능코드 프로파일',
+          path: 'profile/devfunc-profile',
+          index: 2,
+          hide: false,
+        },
       ],
     },
     {
