@@ -29,6 +29,7 @@ const prodConfig: ModuleFederationConfig = {
     ['manager', '/remotes/manager/remoteEntry.js'],
     ['fca', '/remotes/fca/remoteEntry.js'],
     ['aoe', '/remotes/aoe/remoteEntry.js'],
+    ['stt', '/remotes/stt/remoteEntry.js'],
   ],
 };
 
