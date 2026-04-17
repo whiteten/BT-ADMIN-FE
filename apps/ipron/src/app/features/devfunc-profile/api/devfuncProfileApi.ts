@@ -1,5 +1,5 @@
 /**
- * 전화기능코드 프로파일 관리 API 클라이언트
+ * 기능코드 프로파일 관리 API 클라이언트
  * BFF Aggregation Flow 기반
  *
  * 등록된 flow (DB: TB_BT_CM_AGG_FLOW_MST):

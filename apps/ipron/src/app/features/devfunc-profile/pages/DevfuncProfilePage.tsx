@@ -1,6 +1,6 @@
 /**
- * 전화기능코드 프로파일 관리 메인 페이지
- * Pattern: 좌측 테넌트 트리 (280px) + 우측 상단 카드 슬라이더 (프로파일) + 우측 하단 ag-Grid (전화기능코드)
+ * 기능코드 프로파일 관리 메인 페이지
+ * Pattern: 좌측 테넌트 트리 (280px) + 우측 상단 카드 슬라이더 (프로파일) + 우측 하단 ag-Grid (기능코드)
  *
  * Layout:
  * ┌────────────┬─────────────────────────────────────────┐
@@ -10,7 +10,7 @@
  * │ ▼ 테넌트1   │ └────┘ └────┘ └────┘                    │
  * │ ▼ 테넌트2   │ [+ 프로파일 추가]                         │
  * │            ├─────────────────────────────────────────┤
- * │            │ 전화기능코드 ag-Grid (선택 프로파일의 코드)   │
+ * │            │ 기능코드 ag-Grid (선택 프로파일의 코드)   │
  * │            │ [+ 코드 추가]                             │
  * └────────────┴─────────────────────────────────────────┘
  */
@@ -46,7 +46,7 @@ import { useModal } from '@/libs/shared-ui/src/hooks/useModal';
 const breadcrumb = [
   { title: 'IPRON', path: '/ipron' },
   { title: '프로파일 관리', path: '/ipron/profile/devfunc-profile' },
-  { title: '전화기능코드 프로파일', path: '/ipron/profile/devfunc-profile' },
+  { title: '기능코드 프로파일', path: '/ipron/profile/devfunc-profile' },
 ];
 
 export default function DevfuncProfilePage() {
@@ -228,7 +228,7 @@ export default function DevfuncProfilePage() {
   const { mutate: createCode, isPending: isCreatingCode } = useCreateCode({
     mutationOptions: {
       onSuccess: () => {
-        toast.success('전화기능코드가 등록되었습니다.');
+        toast.success('기능코드가 등록되었습니다.');
         codeDrawerRef.current?.close();
         invalidateAll();
       },
@@ -238,7 +238,7 @@ export default function DevfuncProfilePage() {
   const { mutate: updateCode, isPending: isUpdatingCode } = useUpdateCode({
     mutationOptions: {
       onSuccess: () => {
-        toast.success('전화기능코드가 수정되었습니다.');
+        toast.success('기능코드가 수정되었습니다.');
         codeDrawerRef.current?.close();
         invalidateCodes();
       },
@@ -248,7 +248,7 @@ export default function DevfuncProfilePage() {
   const { mutate: deleteCode } = useDeleteCode({
     mutationOptions: {
       onSuccess: () => {
-        toast.success('전화기능코드가 삭제되었습니다.');
+        toast.success('기능코드가 삭제되었습니다.');
         invalidateAll();
       },
     },
@@ -285,7 +285,7 @@ export default function DevfuncProfilePage() {
       onOk: () => deleteProfile({ id: profile.devfuncCodeProfileId }),
       options: {
         title: '프로파일 삭제',
-        content: `"${profile.devfuncCodeProfileName}" 프로파일을 삭제하시겠습니까?\n하위 전화기능코드도 함께 삭제됩니다.`,
+        content: `"${profile.devfuncCodeProfileName}" 프로파일을 삭제하시겠습니까?\n하위 기능코드도 함께 삭제됩니다.`,
       },
     });
   };
@@ -317,7 +317,7 @@ export default function DevfuncProfilePage() {
           code: code.devfuncCode,
         }),
       options: {
-        title: '전화기능코드 삭제',
+        title: '기능코드 삭제',
         content: `"${code.devfuncCodeName}" (${code.devfuncCode}) 코드를 삭제하시겠습니까?`,
       },
     });
@@ -601,7 +601,7 @@ export default function DevfuncProfilePage() {
                     {/* Grid header */}
                     <div className="px-5 py-2 flex items-center justify-between flex-shrink-0 border-b border-gray-100">
                       <span className="text-sm font-semibold text-gray-800">
-                        {selectedProfile.devfuncCodeProfileName} 전화기능코드 ({codes.length}건)
+                        {selectedProfile.devfuncCodeProfileName} 기능코드 ({codes.length}건)
                       </span>
                       <Button size="small" icon={<Plus className="size-3.5" />} onClick={handleCodeCreate}>
                         코드 추가

@@ -1,5 +1,5 @@
 /**
- * 전화기능코드 프로파일 등록/수정 Drawer
+ * 기능코드 프로파일 등록/수정 Drawer
  * - forwardRef + useImperativeHandle 패턴
  * - 등록: 테넌트 선택 + 프로파일명
  * - 수정: 프로파일명만 수정 (테넌트 disabled)
