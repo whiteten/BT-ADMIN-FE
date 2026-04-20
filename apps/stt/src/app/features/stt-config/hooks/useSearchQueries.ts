@@ -1,7 +1,7 @@
 import { useQuery } from '@tanstack/react-query';
 import { createQueryKeys } from '@lukemorales/query-key-factory';
 import type { QueryHookWithParamsOptions } from '@/shared-util';
-import { sttApi } from '../api/sttApi';
+import { searchApi } from '../api/searchApi';
 import type { SttSearchCallbotDetailItem, SttSearchCallbotDetailParams, SttSearchCallbotItem, SttSearchCallbotParams, SttSearchItem, SttSearchParams, TenantItem } from '../types';
 
 export const sttQueryKeys = createQueryKeys('stts', {
@@ -14,7 +14,7 @@ export const sttQueryKeys = createQueryKeys('stts', {
 export const useGetTenants = ({ params, queryOptions }: QueryHookWithParamsOptions<TenantItem[]> = {}) => {
   return useQuery({
     queryKey: sttQueryKeys.getTenants(params).queryKey,
-    queryFn: () => sttApi.getTenants(params),
+    queryFn: () => searchApi.getTenants(params),
     ...queryOptions,
   });
 };
@@ -22,7 +22,7 @@ export const useGetTenants = ({ params, queryOptions }: QueryHookWithParamsOptio
 export const useGetSttSearch = ({ params, queryOptions }: QueryHookWithParamsOptions<SttSearchItem[]> = {}) => {
   return useQuery({
     queryKey: sttQueryKeys.getSttSearch(params as SttSearchParams).queryKey,
-    queryFn: () => sttApi.getSttSearch(params as SttSearchParams),
+    queryFn: () => searchApi.getSttSearch(params as SttSearchParams),
     ...queryOptions,
   });
 };
@@ -30,7 +30,7 @@ export const useGetSttSearch = ({ params, queryOptions }: QueryHookWithParamsOpt
 export const useGetSttSearchCallbot = ({ params, queryOptions }: QueryHookWithParamsOptions<SttSearchCallbotItem[]> = {}) => {
   return useQuery({
     queryKey: sttQueryKeys.getSttSearchCallbotList(params as SttSearchCallbotParams).queryKey,
-    queryFn: () => sttApi.getSttSearchCallbot(params as SttSearchCallbotParams),
+    queryFn: () => searchApi.getSttSearchCallbot(params as SttSearchCallbotParams),
     ...queryOptions,
   });
 };
@@ -38,7 +38,7 @@ export const useGetSttSearchCallbot = ({ params, queryOptions }: QueryHookWithPa
 export const useGetSttSearchCallbotDetail = ({ params, queryOptions }: QueryHookWithParamsOptions<SttSearchCallbotDetailItem[]> = {}) => {
   return useQuery({
     queryKey: sttQueryKeys.getSttSearchCallbotDetail(params as SttSearchCallbotDetailParams).queryKey,
-    queryFn: () => sttApi.getSttSearchCallbotDetail(params as SttSearchCallbotDetailParams),
+    queryFn: () => searchApi.getSttSearchCallbotDetail(params as SttSearchCallbotDetailParams),
     ...queryOptions,
   });
 };

@@ -1,0 +1,36 @@
+export interface KeywordBoostingSearchParams {
+  keyword?: string;
+  engineCode?: string;
+}
+
+export interface KeywordBoostingItem {
+  id: number;
+  keyword: string;
+  engineCode?: string;
+  workUser: string;
+  workTime: string;
+}
+
+export interface KeywordBoostingCreateData {
+  keyword: string;
+  engineCode?: string;
+}
+
+export interface SttDictionarySearchParams {
+  keyword?: string;
+}
+
+export interface SttDictionaryItem {
+  id: number;
+  beforeWord: string;
+  afterWord: string;
+  useYn: string;
+  workUser: string;
+  workTime: string;
+}
+
+export interface SttDictionaryCreateData {
+  beforeWord: string;
+  afterWord: string;
+  useYn: string;
+}

@@ -3,7 +3,7 @@ import type { SttSearchCallbotDetailItem, SttSearchCallbotDetailParams, SttSearc
 
 const apiClient = new ApiClient({ serviceURL: '/bff' });
 
-export const sttApi = {
+export const searchApi = {
   getTenants: async (params?: Record<string, unknown>) => {
     const response = await apiClient.get<ListResponse<TenantItem>>('/stt-tenants-list', { params });
     return extractList(response);

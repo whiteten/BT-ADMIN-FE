@@ -4,7 +4,7 @@ import { AgGridReact } from 'ag-grid-react';
 import { Button, DatePicker, Input, Select, TimePicker } from 'antd';
 import dayjs, { type Dayjs } from 'dayjs';
 import { toast } from '@/shared-util';
-import { useGetSttSearchCallbot, useGetSttSearchCallbotDetail, useGetTenants } from '../hooks/useSttQueries';
+import { useGetSttSearchCallbot, useGetSttSearchCallbotDetail, useGetTenants } from '../hooks/useSearchQueries';
 import type { SttSearchCallbotDetailItem, SttSearchCallbotDetailParams, SttSearchCallbotItem, SttSearchCallbotParams } from '../types';
 import useAggridOptions from '@/libs/shared-ui/src/hooks/useAggridOptions';
 
@@ -60,6 +60,18 @@ export default function SttSearchCallbot() {
   const handleSearch = () => {
     if (!searchDate) {
       toast.warning('검색일자를 선택해주세요.');
+      return;
+    }
+    const startDateTime = searchDate
+      .hour(startTime?.hour() ?? 0)
+      .minute(startTime?.minute() ?? 0)
+      .second(startTime?.second() ?? 0);
+    const endDateTime = searchDate
+      .hour(endTime?.hour() ?? 23)
+      .minute(endTime?.minute() ?? 59)
+      .second(endTime?.second() ?? 59);
+    if (startDateTime.isAfter(endDateTime)) {
+      toast.warning('시작일시가 종료일시보다 늦을 수 없습니다.');
       return;
     }
     setSelectedOrgUcid(undefined);
@@ -140,7 +152,7 @@ export default function SttSearchCallbot() {
           <Input value={ucidGkey} onChange={(e) => setUcidGkey(e.target.value)} onPressEnter={handleSearch} placeholder="고유번호를 입력하세요" style={{ width: 200 }} />
         </div>
         <div className="flex items-center gap-2 ml-auto">
-          <Select value={tenantId} onChange={setTenantId} options={tenantOptions} placeholder="기본테넌트" allowClear popupMatchSelectWidth={false} style={{ width: 160 }} />
+          <Select value={tenantId} onChange={setTenantId} options={tenantOptions} placeholder="기본테넌트" popupMatchSelectWidth={false} style={{ width: 160 }} />
           <Button type="primary" onClick={handleSearch}>
             조회
           </Button>

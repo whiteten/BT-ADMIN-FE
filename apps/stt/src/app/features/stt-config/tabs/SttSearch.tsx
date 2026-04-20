@@ -4,14 +4,14 @@ import { AgGridReact } from 'ag-grid-react';
 import { Button, DatePicker, Input, Select, TimePicker } from 'antd';
 import dayjs, { type Dayjs } from 'dayjs';
 import { toast } from '@/shared-util';
-import { useGetSttSearch, useGetTenants } from '../hooks/useSttQueries';
+import { useGetSttSearch, useGetTenants } from '../hooks/useSearchQueries';
 import type { SttSearchItem, SttSearchParams } from '../types';
 import useAggridOptions from '@/libs/shared-ui/src/hooks/useAggridOptions';
 
 const IN_OUT_OPTIONS = [
   { label: '전체', value: '' },
-  { label: 'I/B (인바운드)', value: 'IB' },
-  { label: 'O/B (아웃바운드)', value: 'OB' },
+  { label: 'I/B (인바운드)', value: '0' },
+  { label: 'O/B (아웃바운드)', value: '1' },
 ];
 
 const PAGE_SIZE = 10;
@@ -73,8 +73,16 @@ export default function SttSearch() {
       toast.warning('검색일자를 선택해주세요.');
       return;
     }
-    if (startDate.isAfter(endDate)) {
-      toast.warning('시작일이 종료일보다 늦을 수 없습니다.');
+    const startDateTime = startDate
+      .hour(startTime?.hour() ?? 0)
+      .minute(startTime?.minute() ?? 0)
+      .second(startTime?.second() ?? 0);
+    const endDateTime = endDate
+      .hour(endTime?.hour() ?? 23)
+      .minute(endTime?.minute() ?? 59)
+      .second(endTime?.second() ?? 59);
+    if (startDateTime.isAfter(endDateTime)) {
+      toast.warning('시작일시가 종료일시보다 늦을 수 없습니다.');
       return;
     }
     setSearchParams(buildParams());
@@ -163,7 +171,7 @@ export default function SttSearch() {
             <Input value={dnNo} onChange={(e) => setDnNo(e.target.value)} onPressEnter={handleSearch} placeholder="내선번호를 입력하세요" style={{ width: 160 }} />
           </div>
           <div className="flex items-center gap-2 ml-auto">
-            <Select value={tenantId} onChange={setTenantId} options={tenantOptions} placeholder="테넌트 선택" allowClear popupMatchSelectWidth={false} style={{ width: 180 }} />
+            <Select value={tenantId} onChange={setTenantId} options={tenantOptions} placeholder="테넌트 선택" popupMatchSelectWidth={false} style={{ width: 180 }} />
             <Button type="primary" onClick={handleSearch}>
               조회
             </Button>

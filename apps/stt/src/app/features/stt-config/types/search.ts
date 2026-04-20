@@ -1,22 +1,3 @@
-export interface SttType {
-  sttType: string;
-  sttTypeName: string;
-}
-
-export interface Stt {
-  sttId: string;
-  sttName: string;
-  sttType: string;
-  sttTypeName: string;
-  sttDesc?: string;
-  apiKey?: string;
-  apiUrl?: string;
-  useYn: 0 | 1;
-  workTime?: string;
-}
-
-export type SttListItem = Pick<Stt, 'sttId' | 'sttName' | 'sttTypeName' | 'useYn' | 'workTime'>;
-
 // 테넌트
 export interface TenantItem {
   tenantId: number;

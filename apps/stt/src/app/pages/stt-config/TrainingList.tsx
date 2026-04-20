@@ -4,8 +4,8 @@ import { IconMenuBotConfig } from '@/components/custom/Icons';
 import PageHeader from '@/components/custom/PageHeader';
 import PageTabs, { type PageTab } from '@/components/custom/PageTabs';
 
-const ConfidenceLearning = React.lazy(() => import('../../features/training/tabs/ConfidenceLearning'));
-const TextCorrection = React.lazy(() => import('../../features/training/tabs/TextCorrection'));
+const ConfidenceTraining = React.lazy(() => import('../../features/stt-config/tabs/ConfidenceTraining'));
+const TuningSentence = React.lazy(() => import('../../features/stt-config/tabs/TuningSentence'));
 
 const breadcrumb: BreadcrumbProps['items'] = [
   { title: 'STT 관리', path: '/stt/stt-config' },
@@ -13,8 +13,8 @@ const breadcrumb: BreadcrumbProps['items'] = [
 ];
 
 const tabs: PageTab[] = [
-  { id: 'confidence', label: '신뢰도별 학습', icon: IconMenuBotConfig, component: ConfidenceLearning },
-  { id: 'text-correction', label: '문자수정', icon: IconMenuBotConfig, component: TextCorrection },
+  { id: 'confidence-training', label: '신뢰도별 학습', icon: IconMenuBotConfig, component: ConfidenceTraining },
+  { id: 'tuning-sentence', label: '문자수정', icon: IconMenuBotConfig, component: TuningSentence },
 ];
 
 export default function TrainingList() {

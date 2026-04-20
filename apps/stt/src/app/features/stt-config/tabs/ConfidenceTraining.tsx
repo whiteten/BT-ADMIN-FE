@@ -1,31 +1,38 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import type { ColDef, ICellRendererParams } from 'ag-grid-community';
 import { AgGridReact } from 'ag-grid-react';
 import { Button, DatePicker, Input, Select, TimePicker } from 'antd';
 import dayjs, { type Dayjs } from 'dayjs';
 import { PlayCircle } from 'lucide-react';
 import { toast } from '@/shared-util';
-import { useGetTenants } from '../../stt-search/hooks/useSttQueries';
+import { useGetTenants } from '../hooks/useSearchQueries';
 import { useGetTrainingList, useRegisterTraining } from '../hooks/useTrainingQueries';
-import type { TrainingItem, TrainingSearchParams } from '../types';
+import type { ConfidenceTrainingItem, ConfidenceTrainingSearchParams } from '../types';
 import useAggridOptions from '@/libs/shared-ui/src/hooks/useAggridOptions';
 
 const IN_OUT_OPTIONS = [
   { label: '전체', value: '' },
-  { label: 'I/B (인바운드)', value: 'IB' },
-  { label: 'O/B (아웃바운드)', value: 'OB' },
+  { label: 'I/B (인바운드)', value: '0' },
+  { label: 'O/B (아웃바운드)', value: '1' },
 ];
 
-const SPEAKER_OPTIONS = [
+const RXTX_OPTIONS = [
   { label: '전체', value: '' },
-  { label: '상담원', value: 'agent' },
-  { label: '고객', value: 'customer' },
+  { label: '통합', value: '9' },
+  { label: '고객', value: '1' },
+  { label: '상담원', value: '2' },
+];
+
+const ENGINE_OPTIONS = [
+  { label: '전체', value: '' },
+  { label: 'ENGINE#0', value: 'ENGINE0' },
+  { label: 'ENGINE#1', value: 'ENGINE1' },
 ];
 
 const PAGE_SIZE = 10;
 
-interface RegisterCellRendererParams extends ICellRendererParams<TrainingItem> {
-  onRegister: (data: TrainingItem) => void;
+interface RegisterCellRendererParams extends ICellRendererParams<ConfidenceTrainingItem> {
+  onRegister: (data: ConfidenceTrainingItem) => void;
 }
 
 function RegisterCellRenderer({ data, onRegister }: RegisterCellRendererParams) {
@@ -45,7 +52,7 @@ function PlayCellRenderer() {
   );
 }
 
-export default function ConfidenceLearning() {
+export default function ConfidenceTraining() {
   const { gridOptions } = useAggridOptions();
 
   const [startDate, setStartDate] = useState<Dayjs | null>(dayjs());
@@ -53,37 +60,48 @@ export default function ConfidenceLearning() {
   const [startTime, setStartTime] = useState<Dayjs | null>(dayjs().hour(0).minute(0).second(0));
   const [endTime, setEndTime] = useState<Dayjs | null>(dayjs().hour(23).minute(59).second(59));
   const [keyword, setKeyword] = useState('');
-  const [inOutType, setInOutType] = useState('');
-  const [ucid, setUcid] = useState('');
-  const [extension, setExtension] = useState('');
-  const [speakerType, setSpeakerType] = useState('');
+  const [inoutKind, setInOutKind] = useState('');
+  const [ucidGkey, setUcidGkey] = useState('');
+  const [dnNo, setDnNo] = useState('');
+  const [rxtxKind, setRxtxKind] = useState('');
+  const [engineCode, setEngineCode] = useState('');
   const [tenantId, setTenantId] = useState<string | undefined>();
 
   const { data: tenants } = useGetTenants({});
   const tenantOptions = tenants?.map((t) => ({ label: t.tenantName, value: String(t.tenantId) })) ?? [];
 
-  const buildParams = (): TrainingSearchParams => ({
-    startDate: startDate ? startDate.format('YYYYMMDD') : undefined,
-    startTime: startTime ? startTime.format('HHmmss') : undefined,
-    endDate: endDate ? endDate.format('YYYYMMDD') : undefined,
-    endTime: endTime ? endTime.format('HHmmss') : undefined,
+  useEffect(() => {
+    if (tenants && tenants.length > 0) {
+      const firstTenantId = String(tenants[0].tenantId);
+      setTenantId((prev) => {
+        const resolved = prev ?? firstTenantId;
+        setSearchParams({
+          fromDateTime: dayjs().format('YYYYMMDD') + '000000',
+          toDateTime: dayjs().format('YYYYMMDD') + '235959',
+          tenantId: Number(resolved),
+        });
+        return resolved;
+      });
+    }
+  }, [tenants]);
+
+  const buildParams = (): ConfidenceTrainingSearchParams => ({
+    fromDateTime: startDate && startTime ? startDate.format('YYYYMMDD') + startTime.format('HHmmss') : undefined,
+    toDateTime: endDate && endTime ? endDate.format('YYYYMMDD') + endTime.format('HHmmss') : undefined,
     keyword: keyword || undefined,
-    inOutType: inOutType || undefined,
-    ucid: ucid || undefined,
-    extension: extension || undefined,
-    speakerType: speakerType || undefined,
+    inoutKind: inoutKind || undefined,
+    ucidGkey: ucidGkey || undefined,
+    dnNo: dnNo || undefined,
+    rxtxKind: rxtxKind || undefined,
+    engineCode: engineCode || undefined,
     tenantId: tenantId,
   });
 
-  const [searchParams, setSearchParams] = useState<TrainingSearchParams>({});
+  const [searchParams, setSearchParams] = useState<ConfidenceTrainingSearchParams | null>(null);
 
-  const {
-    data: rowData,
-    isLoading,
-    refetch,
-  } = useGetTrainingList({
+  const { data: rowData, isLoading } = useGetTrainingList({
     params: searchParams as Record<string, unknown>,
-    queryOptions: { enabled: false },
+    queryOptions: { enabled: !!searchParams },
   });
 
   const { mutate: registerTraining } = useRegisterTraining({
@@ -102,19 +120,26 @@ export default function ConfidenceLearning() {
       toast.warning('검색일자를 선택해주세요.');
       return;
     }
-    if (startDate.isAfter(endDate)) {
-      toast.warning('시작일이 종료일보다 늦을 수 없습니다.');
+    const startDateTime = startDate
+      .hour(startTime?.hour() ?? 0)
+      .minute(startTime?.minute() ?? 0)
+      .second(startTime?.second() ?? 0);
+    const endDateTime = endDate
+      .hour(endTime?.hour() ?? 23)
+      .minute(endTime?.minute() ?? 59)
+      .second(endTime?.second() ?? 59);
+    if (startDateTime.isAfter(endDateTime)) {
+      toast.warning('시작일시가 종료일시보다 늦을 수 없습니다.');
       return;
     }
     setSearchParams(buildParams());
-    setTimeout(() => refetch(), 0);
   };
 
-  const handleRegister = (data: TrainingItem) => {
-    registerTraining({ ucid: data.ucid, sentence: data.sentence, confidence: data.confidence });
+  const handleRegister = (data: ConfidenceTrainingItem) => {
+    registerTraining({ ucidGkey: data.ucidGkey, sentence: data.sentence, confidence: data.confidence });
   };
 
-  const columnDefs: ColDef<TrainingItem>[] = [
+  const columnDefs: ColDef<ConfidenceTrainingItem>[] = [
     {
       headerName: '',
       colId: 'play',
@@ -126,30 +151,30 @@ export default function ConfidenceLearning() {
     },
     {
       headerName: '고유번호(UCID)',
-      field: 'ucid',
+      field: 'ucidGkey',
       flex: 3,
-      tooltipField: 'ucid',
+      tooltipField: 'ucidGkey',
     },
     {
       headerName: '내선번호',
-      field: 'extension',
+      field: 'dnNo',
       maxWidth: 110,
       flex: 1,
     },
     {
       headerName: '통화일시',
-      field: 'callDate',
+      field: 'callDatetime',
       flex: 2,
     },
     {
       headerName: '발화시간',
-      field: 'callDuration',
+      field: 'talkTime',
       maxWidth: 100,
       flex: 1,
     },
     {
       headerName: '화자',
-      field: 'speaker',
+      field: 'rxtxKind',
       maxWidth: 90,
       flex: 1,
     },
@@ -179,12 +204,6 @@ export default function ConfidenceLearning() {
 
   return (
     <div className="flex flex-col gap-4 h-full">
-      {/* 제목 */}
-      <div className="flex items-center gap-2">
-        <span className="font-semibold text-base">신뢰도별 학습</span>
-        <span className="text-sm text-blue-500">신뢰도 95 이하로 조회됩니다.</span>
-      </div>
-
       {/* 검색 필터 */}
       <div className="flex flex-col gap-3">
         {/* 1행: 검색일자 / 키워드 / IN/OUT 구분 */}
@@ -203,7 +222,7 @@ export default function ConfidenceLearning() {
           </div>
           <div className="flex items-center gap-2">
             <span className="text-sm font-medium text-[#495057] shrink-0">IN/OUT 구분</span>
-            <Select value={inOutType} onChange={setInOutType} options={IN_OUT_OPTIONS} popupMatchSelectWidth={false} style={{ width: 180 }} />
+            <Select value={inoutKind} onChange={setInOutKind} options={IN_OUT_OPTIONS} popupMatchSelectWidth={false} style={{ width: 180 }} />
           </div>
         </div>
 
@@ -211,18 +230,22 @@ export default function ConfidenceLearning() {
         <div className="flex items-center gap-4 flex-wrap">
           <div className="flex items-center gap-2">
             <span className="text-sm font-medium text-[#495057] shrink-0">고유번호</span>
-            <Input value={ucid} onChange={(e) => setUcid(e.target.value)} onPressEnter={handleSearch} placeholder="고유번호를 입력하세요" style={{ width: 200 }} />
+            <Input value={ucidGkey} onChange={(e) => setUcidGkey(e.target.value)} onPressEnter={handleSearch} placeholder="고유번호를 입력하세요" style={{ width: 200 }} />
           </div>
           <div className="flex items-center gap-2">
             <span className="text-sm font-medium text-[#495057] shrink-0">내선</span>
-            <Input value={extension} onChange={(e) => setExtension(e.target.value)} onPressEnter={handleSearch} placeholder="내선번호를 입력하세요" style={{ width: 160 }} />
+            <Input value={dnNo} onChange={(e) => setDnNo(e.target.value)} onPressEnter={handleSearch} placeholder="내선번호를 입력하세요" style={{ width: 160 }} />
           </div>
           <div className="flex items-center gap-2">
             <span className="text-sm font-medium text-[#495057] shrink-0">화자구분</span>
-            <Select value={speakerType} onChange={setSpeakerType} options={SPEAKER_OPTIONS} popupMatchSelectWidth={false} style={{ width: 120 }} />
+            <Select value={rxtxKind} onChange={setRxtxKind} options={RXTX_OPTIONS} popupMatchSelectWidth={false} style={{ width: 120 }} />
+          </div>
+          <div className="flex items-center gap-2">
+            <span className="text-sm font-medium text-[#495057] shrink-0">엔진</span>
+            <Select value={engineCode} onChange={setEngineCode} options={ENGINE_OPTIONS} popupMatchSelectWidth={false} style={{ width: 120 }} />
           </div>
           <div className="flex items-center gap-2 ml-auto">
-            <Select value={tenantId} onChange={setTenantId} options={tenantOptions} placeholder="기본테넌트" allowClear popupMatchSelectWidth={false} style={{ width: 160 }} />
+            <Select value={tenantId} onChange={setTenantId} options={tenantOptions} placeholder="기본테넌트" popupMatchSelectWidth={false} style={{ width: 160 }} />
             <Button type="primary" onClick={handleSearch}>
               조회
             </Button>
@@ -232,7 +255,7 @@ export default function ConfidenceLearning() {
 
       {/* 그리드 */}
       <div className="flex-1 min-h-[300px]">
-        <AgGridReact<TrainingItem>
+        <AgGridReact<ConfidenceTrainingItem>
           rowData={rowData ?? []}
           columnDefs={columnDefs}
           gridOptions={{
