@@ -1,0 +1,55 @@
+# Taskboard App
+
+-- 테이블 생성
+CREATE TABLE TB_TK_TASKBOARD_BGLIST (
+TENANT_ID        VARCHAR2(10)   NOT NULL,   -- 테넌트 ID (10자리)
+PAGE_ID          CHAR(3)   NOT NULL,        -- 페이지 아이디 (PK 구성요소)
+PAGE_NAME        NVARCHAR2(200) NOT NULL,   -- 페이지 이름
+FILE_NAME        NVARCHAR2(500) NOT NULL,   -- 파일명 (경로 포함 가능성을 고려하여 여유있게 설정)
+AUTHOR_NAME      NVARCHAR2(200),            -- 만든이 (사용자명)
+AUTH_ROLE        VARCHAR2(50),              -- 권한 (읽기, 쓰기 등 특정 권한 문자열)
+GEN_TYPE         VARCHAR2(20)   NOT NULL,   -- 생성구분자 (AI: AI생성, DIRECT: 직접입력 등)
+USE_YN           CHAR(1)        DEFAULT 'Y' NOT NULL, -- 사용여부 (Y: 사용, N: 삭제/미사용)
+REG_DT           DATE           DEFAULT SYSDATE NOT NULL -- 생성날짜 및 시간
+);
+
+-- 테이블 코멘트 추가
+COMMENT ON TABLE TB_TK_TASKBOARD_BGLIST IS '전광판 배경화면 목록 관리 테이블';
+
+-- 컬럼 코멘트 추가
+COMMENT ON COLUMN TB_TK_TASKBOARD_BGLIST.TENANT_ID IS '테넌트 ID';
+COMMENT ON COLUMN TB_TK_TASKBOARD_BGLIST.PAGE_ID IS '페이지 아이디';
+COMMENT ON COLUMN TB_TK_TASKBOARD_BGLIST.PAGE_NAME IS '페이지 이름';
+COMMENT ON COLUMN TB_TK_TASKBOARD_BGLIST.FILE_NAME IS '파일명';
+COMMENT ON COLUMN TB_TK_TASKBOARD_BGLIST.AUTHOR_NAME IS '만든이';
+COMMENT ON COLUMN TB_TK_TASKBOARD_BGLIST.AUTH_ROLE IS '권한';
+COMMENT ON COLUMN TB_TK_TASKBOARD_BGLIST.GEN_TYPE IS '생성 구분자 (AI/DIRECT 등)';
+COMMENT ON COLUMN TB_TK_TASKBOARD_BGLIST.USE_YN IS '사용여부 (Y:사용, N:미사용)';
+COMMENT ON COLUMN TB_TK_TASKBOARD_BGLIST.REG_DT IS '생성 일시';
+
+-- 기본키(PK) 제약조건 추가
+-- (멀티 테넌트 환경을 고려하여 TENANT_ID와 PAGE_ID를 복합키로 설정)
+ALTER TABLE TB_TK_TASKBOARD_BGLIST
+ADD CONSTRAINT PK_TB_TK_TASKBOARD_BGLIST PRIMARY KEY (TENANT_ID, PAGE_ID);
+
+-- 1. 리스트 조회용 인덱스 (테넌트별 사용 중인 목록 빠른 조회)
+CREATE INDEX IDX_TB_TK_TASKBOARD_BGLIST_01
+ON TB_TK_TASKBOARD_BGLIST (TENANT_ID, USE_YN);
+
+-- 2. 사용자(만든이) 기반 검색을 위한 인덱스
+CREATE INDEX IDX_TB_TK_TASKBOARD_BGLIST_02
+ON TB_TK_TASKBOARD_BGLIST (TENANT_ID, AUTHOR_NAME);
+
+-- 3. 생성구분자(AI vs 직접생성) 통계 및 필터링용 인덱스
+CREATE INDEX IDX_TB_TK_TASKBOARD_BGLIST_03
+ON TB_TK_TASKBOARD_BGLIST (TENANT_ID, GEN_TYPE);
+
+## 개발
+
+```bash
+# Host와 함께 시작 (권장)
+pnpm run serve
+
+# Manager만 단독 실행
+npx nx serve manager
+```

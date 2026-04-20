@@ -28,6 +28,8 @@ const prodConfig: ModuleFederationConfig = {
   remotes: [
     ['manager', '/remotes/manager/remoteEntry.js'],
     ['fca', '/remotes/fca/remoteEntry.js'],
+    ['dashboard', '/remotes/dashboard/remoteEntry.js'],
+    ['taskboard', '/remotes/taskboard/remoteEntry.js'],
   ],
 };
 
