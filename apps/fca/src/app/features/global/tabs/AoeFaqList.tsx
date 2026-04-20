@@ -8,6 +8,8 @@ import dayjs from 'dayjs';
 import { ChevronDown, CloudDownload, Download } from 'lucide-react';
 import { Log } from '@/log';
 import { toast } from '@/shared-util';
+import ExcelImportResultModal, { type ExcelImportResultModalRef } from '../../bot-config/components/ExcelImportResultModal';
+import type { ExcelImportResult } from '../../bot-config/types/intent';
 import AoeFaqDrawer, { type AoeFaqDrawerRef } from '../components/AoeFaqDrawer';
 import { aoeQueryKeys, useApplyFaq, useDeleteFaq, useExportFaq, useGetFaqList, useImportFaq } from '../hooks/useAoeQueries';
 import type { FaqListItem } from '../types/aoe.types';
@@ -23,6 +25,7 @@ export default function AoeFaqList() {
   const { gridOptions } = useAggridOptions();
   const faqDrawerRef = useRef<AoeFaqDrawerRef>(null);
   const importModalRef = useRef<FileImportModalRef>(null);
+  const importResultModalRef = useRef<ExcelImportResultModalRef>(null);
   const modal = useModal();
   const queryClient = useQueryClient();
 
@@ -58,10 +61,10 @@ export default function AoeFaqList() {
   // FAQ Import
   const { mutate: importFaq, isPending: isImporting } = useImportFaq({
     mutationOptions: {
-      onSuccess: () => {
-        toast.success('완료되었습니다.');
+      onSuccess: (data) => {
         queryClient.invalidateQueries({ queryKey: aoeQueryKeys.getFaqList({ aoeAgentId: agentId }).queryKey });
         importModalRef.current?.close();
+        importResultModalRef.current?.open(data as ExcelImportResult);
       },
     },
   });
@@ -188,7 +191,7 @@ export default function AoeFaqList() {
         const isActive = params.data.faqEnable === 1;
         return (
           <Badge variant="secondary" className={cn('text-[13px] font-medium !h-6', isActive ? 'text-[#10B981] bg-[#10B9811A]' : 'text-[#6B7280] bg-[#6B72801A]')}>
-            {isActive ? '활성' : '비활성'}
+            {isActive ? '활성' : '비활성'}ㅋ
           </Badge>
         );
       },
@@ -294,6 +297,7 @@ export default function AoeFaqList() {
         }}
       />
       <FileImportModal ref={importModalRef} title="FAQ Import" accept=".xlsx,.xls" onConfirm={handleImportFaq} confirmLoading={isImporting} />
+      <ExcelImportResultModal ref={importResultModalRef} nameColumnTitle="질의문" />
     </div>
   );
 }

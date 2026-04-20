@@ -8,9 +8,10 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigge
 
 type KnowledgeCardProps = KnowledgeListItem & {
   onDetail?: (documentId: string) => void;
+  onDelete?: (documentId: string) => void;
 };
 
-export default function KnowledgeCard({ documentId, documentName, description, fileCount, updatedAt, onDetail }: KnowledgeCardProps) {
+export default function KnowledgeCard({ documentId, documentName, description, fileCount, updatedAt, onDetail, onDelete }: KnowledgeCardProps) {
   const title = (
     <div className="flex items-center gap-2">
       <div className="w-7 h-7 rounded-md bg-blue-500 flex items-center justify-center shrink-0">
@@ -39,6 +40,9 @@ export default function KnowledgeCard({ documentId, documentName, description, f
       <DropdownMenuContent className="dark" align="end" onClick={(e) => e.stopPropagation()}>
         <DropdownMenuItem onClick={() => onDetail?.(documentId)} className="hover:cursor-pointer">
           상세보기
+        </DropdownMenuItem>
+        <DropdownMenuItem onClick={() => onDelete?.(documentId)} className="hover:cursor-pointer">
+          삭제
         </DropdownMenuItem>
       </DropdownMenuContent>
     </DropdownMenu>

@@ -1,13 +1,55 @@
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { type BreadcrumbProps, Button, Card, Col, Form, Input, InputNumber, Row, Select, Steps, Upload } from 'antd';
-import { CloudUpload, FileText } from 'lucide-react';
+import { ChevronDown, ChevronUp, CloudUpload, FileText } from 'lucide-react';
 import { Log } from '@/log';
 import { toast } from '@/shared-util';
-import { usePreviewKnowledge } from '../../features/agent-config/hooks/useKnowledgeQueries';
+import { usePreviewKnowledge, useProcessKnowledge } from '../../features/agent-config/hooks/useKnowledgeQueries';
 import type { KnowledgeChunkData } from '../../features/agent-config/types';
 import NoData from '@/components/custom/NoData';
 import PageHeader from '@/components/custom/PageHeader';
+
+function ChunkCard({ chunk }: { chunk: KnowledgeChunkData }) {
+  const [isExpanded, setIsExpanded] = useState(false);
+  const [isClamped, setIsClamped] = useState(false);
+  const contentRef = useRef<HTMLParagraphElement>(null);
+
+  useEffect(() => {
+    const el = contentRef.current;
+    if (el) setIsClamped(el.scrollHeight > el.clientHeight);
+  }, [chunk.content]);
+
+  return (
+    <div className="border border-gray-200 rounded-md p-3 text-sm">
+      <div className="flex items-center gap-2 mb-2">
+        <FileText className="size-4 text-blue-500 shrink-0" />
+        <span className="text-xs text-gray-500 font-medium">Chunk {chunk.id}</span>
+        <span className="ml-auto text-xs text-gray-400">{chunk.characters}자</span>
+      </div>
+      <p ref={contentRef} className={`text-gray-600 text-xs leading-relaxed whitespace-pre-wrap ${isExpanded ? '' : 'line-clamp-6'}`}>
+        {chunk.content}
+      </p>
+      {(isClamped || isExpanded) && (
+        <button
+          type="button"
+          onClick={() => setIsExpanded(!isExpanded)}
+          className="mt-2 w-full text-xs text-gray-400 hover:text-gray-600 flex items-center justify-center gap-1 transition-colors"
+        >
+          {isExpanded ? (
+            <>
+              <ChevronUp className="size-3" />
+              접기
+            </>
+          ) : (
+            <>
+              <ChevronDown className="size-3" />더 보기
+            </>
+          )}
+        </button>
+      )}
+    </div>
+  );
+}
 
 const breadcrumb: BreadcrumbProps['items'] = [
   { title: '관리', path: '/aoe/agent-config' },
@@ -49,10 +91,23 @@ export default function KnowledgeCreate() {
   const { mutate: previewKnowledge, isPending: isPreviewing } = usePreviewKnowledge({
     mutationOptions: {
       onSuccess: (data) => {
-        setChunks(data ?? []);
-        if (!data?.length) toast.warning('청크 데이터가 없습니다.');
+        setChunks(data);
+        if (!data.length) toast.warning('청크 데이터가 없습니다.');
       },
       onError: (error) => Log.warn('previewKnowledge failed', error),
+    },
+  });
+
+  const { mutate: processKnowledge, isPending: isProcessing } = useProcessKnowledge({
+    mutationOptions: {
+      onSuccess: () => {
+        toast.success('지식이 추가되었습니다.');
+        navigate('../list');
+      },
+      onError: (error) => {
+        Log.warn('processKnowledge failed', error);
+        toast.error('지식 추가에 실패했습니다.');
+      },
     },
   });
 
@@ -96,10 +151,18 @@ export default function KnowledgeCreate() {
       toast.warning('파일을 업로드해 주세요.');
       return;
     }
-    Log.debug('[KnowledgeCreate] submit', { step2Values, files });
-    // TODO: API 연동
-    toast.success('지식이 추가되었습니다.');
-    navigate('../list');
+    processKnowledge({
+      documentName: step1Values.documentName,
+      chunkSize: step2Values.chunkSize ?? 500,
+      chunkOverlap: step2Values.chunkOverlap ?? 50,
+      topK: step2Values.topK ?? 3,
+      enableHybridSearch: step2Values.enableHybridSearch ?? '0',
+      ...(step2Values.enableHybridSearch === '1' && {
+        denseWeight: step2Values.denseWeight,
+        bm25Weight: step2Values.bm25Weight,
+      }),
+      files,
+    });
   };
 
   function renderStep1() {
@@ -166,7 +229,7 @@ export default function KnowledgeCreate() {
                 </Col>
               </Row>
               <Button variant="outlined" className="w-full" onClick={handlePreviewChunk} loading={isPreviewing}>
-                프리뷰 청크
+                청크 미리보기
               </Button>
 
               {/* 검색 설정 */}
@@ -187,12 +250,12 @@ export default function KnowledgeCreate() {
                 <Row gutter={16}>
                   <Col span={12}>
                     <Form.Item name="denseWeight" label="Dense Weight">
-                      <InputNumber style={{ width: '100%' }} min={0} max={1} step={0.1} />
+                      <InputNumber style={{ width: '100%' }} min={0} step={0.1} />
                     </Form.Item>
                   </Col>
                   <Col span={12}>
                     <Form.Item name="bm25Weight" label="BM25 Weight">
-                      <InputNumber style={{ width: '100%' }} min={0} max={1} step={0.1} />
+                      <InputNumber style={{ width: '100%' }} min={0} step={0.1} />
                     </Form.Item>
                   </Col>
                 </Row>
@@ -204,7 +267,7 @@ export default function KnowledgeCreate() {
         {/* 오른쪽: 미리보기 패널 */}
         <div className="flex-1 min-w-0 flex flex-col border border-gray-200 rounded-lg overflow-hidden">
           <div className="px-4 py-3 border-b border-gray-200 bg-gray-50 shrink-0">
-            <span className="text-sm font-semibold text-gray-700">미리보기</span>
+            <span className="text-sm font-semibold text-gray-700">미리보기 (10건)</span>
           </div>
           <div className="flex-1 overflow-y-auto p-4">
             {chunks.length === 0 ? (
@@ -212,14 +275,7 @@ export default function KnowledgeCreate() {
             ) : (
               <div className="flex flex-col gap-3">
                 {chunks.map((chunk) => (
-                  <div key={chunk.id} className="border border-gray-200 rounded-md p-3 text-sm">
-                    <div className="flex items-center gap-2 mb-2">
-                      <FileText className="size-4 text-blue-500 shrink-0" />
-                      <span className="text-xs text-gray-500 font-medium">Chunk {chunk.id}</span>
-                      <span className="ml-auto text-xs text-gray-400">{chunk.characters}자</span>
-                    </div>
-                    <p className="text-gray-600 text-xs leading-relaxed whitespace-pre-wrap line-clamp-6">{chunk.content}</p>
-                  </div>
+                  <ChunkCard key={chunk.id} chunk={chunk} />
                 ))}
               </div>
             )}
@@ -304,7 +360,7 @@ export default function KnowledgeCreate() {
         )}
         {currentStep === steps.length - 1 && (
           <Col>
-            <Button color="primary" variant="solid" onClick={handleSubmit}>
+            <Button color="primary" variant="solid" onClick={handleSubmit} loading={isProcessing}>
               실행
             </Button>
           </Col>
