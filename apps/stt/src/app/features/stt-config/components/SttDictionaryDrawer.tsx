@@ -4,32 +4,22 @@ import { Button, Col, Drawer, Form, type FormProps, Input, Radio, Row } from 'an
 import { Log } from '@/log';
 import { toast } from '@/shared-util';
 import { dictionaryQueryKeys, useCreateSttDictionary } from '../hooks/useDictionaryQueries';
-import type { SttDictionaryCreateData, SttDictionarySearchParams } from '../types';
+import type { SttDictionaryCreateData } from '../types';
 
 export interface SttDictionaryDrawerRef {
-  open: (params: { searchParams: SttDictionarySearchParams }) => void;
+  open: () => void;
   close: () => void;
 }
 
-interface DrawerState {
-  open: boolean;
-  searchParams: SttDictionarySearchParams;
-}
-
 const SttDictionaryDrawer = forwardRef<SttDictionaryDrawerRef>((_, ref) => {
-  const [drawerState, setDrawerState] = useState<DrawerState>({
-    open: false,
-    searchParams: {},
-  });
-
-  const { open, searchParams } = drawerState;
+  const [open, setOpen] = useState(false);
 
   useImperativeHandle(ref, () => ({
-    open: (params) => setDrawerState({ open: true, searchParams: params.searchParams }),
-    close: () => setDrawerState((prev) => ({ ...prev, open: false })),
+    open: () => setOpen(true),
+    close: () => setOpen(false),
   }));
 
-  const handleClose = () => setDrawerState((prev) => ({ ...prev, open: false }));
+  const handleClose = () => setOpen(false);
 
   const [form] = Form.useForm();
   const queryClient = useQueryClient();
@@ -38,7 +28,7 @@ const SttDictionaryDrawer = forwardRef<SttDictionaryDrawerRef>((_, ref) => {
     mutationOptions: {
       onSuccess: () => {
         toast.success('등록되었습니다.');
-        queryClient.invalidateQueries({ queryKey: dictionaryQueryKeys.getSttDictionaryList(searchParams).queryKey });
+        queryClient.invalidateQueries({ queryKey: dictionaryQueryKeys.getSttDictionaryList(undefined).queryKey });
         handleClose();
       },
       onError: () => {

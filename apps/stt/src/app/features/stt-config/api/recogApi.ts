@@ -1,0 +1,53 @@
+import ApiClient, { type ListResponse, extractList } from '@/shared-util';
+import type {
+  RecogAccuracyResult,
+  RecogGroupCreateData,
+  RecogGroupDetail,
+  RecogGroupItem,
+  RecogGroupUpdateData,
+  RecogTargetAddData,
+  RecogTargetItem,
+  RecogTargetListItem,
+  RecogTargetSearchParams,
+} from '../types';
+
+const apiClient = new ApiClient({ serviceURL: '/bff' });
+
+export const recogApi = {
+  getRecogGroupList: async () => {
+    const response = await apiClient.post<ListResponse<RecogGroupItem>>('/recog-group-list');
+    return extractList(response);
+  },
+  createRecogGroup: async (data: RecogGroupCreateData) => {
+    return apiClient.post('/recog-group-create', data);
+  },
+  updateRecogGroup: async (data: RecogGroupUpdateData) => {
+    return apiClient.post('/recog-group-update', data);
+  },
+  deleteRecogGroup: async (groupCode: string) => {
+    await apiClient.delete('/recog-group-delete', { params: { groupCode } });
+  },
+  getRecogGroupDetail: async (groupCode: string) => {
+    return apiClient.post<RecogGroupDetail>('/recog-group-detail', { groupCode });
+  },
+  searchRecogTarget: async (params?: RecogTargetSearchParams) => {
+    const response = await apiClient.post<ListResponse<RecogTargetItem>>('/recog-target-search', params);
+    return extractList(response);
+  },
+  addRecogTarget: async (data: RecogTargetAddData) => {
+    return apiClient.post('/recog-target-add', data);
+  },
+  getRecogTargetList: async (groupCode: string) => {
+    const response = await apiClient.post<ListResponse<RecogTargetListItem>>('/recog-target-list', { groupCode });
+    return extractList(response);
+  },
+  deleteRecogTarget: async (id: number) => {
+    await apiClient.delete('/recog-target-delete', { params: { id } });
+  },
+  deleteRecogTargets: async (ids: number[]) => {
+    return apiClient.post('/recog-target-delete-bulk', { ids });
+  },
+  measureRecogAccuracy: async (groupCode: string) => {
+    return apiClient.post<RecogAccuracyResult>('/recog-accuracy-measure', { groupCode });
+  },
+};

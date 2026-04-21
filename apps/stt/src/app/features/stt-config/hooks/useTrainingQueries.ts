@@ -17,7 +17,7 @@ export const useGetTrainingList = ({ params, queryOptions }: QueryHookWithParams
   });
 };
 
-export const useRegisterTraining = ({ mutationOptions }: MutationHookOptions<unknown, ConfidenceTrainingCreateDatas> = {}) => {
+export const useCreateConfidenceTraining = ({ mutationOptions }: MutationHookOptions<unknown, ConfidenceTrainingCreateDatas> = {}) => {
   return useMutation({
     mutationFn: trainingApi.createConfidenceTraining,
     ...mutationOptions,
@@ -32,7 +32,7 @@ export const useGetTuningSentenceList = ({ params, queryOptions }: QueryHookWith
   });
 };
 
-export const useDeleteTuningSentence = ({ mutationOptions }: MutationHookOptions<unknown, number> = {}) => {
+export const useDeleteTuningSentence = ({ mutationOptions }: MutationHookOptions<unknown, { ucidGkey: string; armsoffset: number; rxtxKind: string }> = {}) => {
   return useMutation({
     mutationFn: trainingApi.deleteTuningSentence,
     ...mutationOptions,

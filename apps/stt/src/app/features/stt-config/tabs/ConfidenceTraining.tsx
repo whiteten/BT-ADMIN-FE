@@ -1,12 +1,13 @@
-import { useEffect, useState } from 'react';
-import type { ColDef, ICellRendererParams } from 'ag-grid-community';
+import { useEffect, useRef, useState } from 'react';
+import { useQueryClient } from '@tanstack/react-query';
+import type { ColDef, ICellRendererParams, RowEditingStartedEvent } from 'ag-grid-community';
 import { AgGridReact } from 'ag-grid-react';
 import { Button, DatePicker, Input, Select, TimePicker } from 'antd';
 import dayjs, { type Dayjs } from 'dayjs';
 import { PlayCircle } from 'lucide-react';
 import { toast } from '@/shared-util';
-import { useGetTenants } from '../hooks/useSearchQueries';
-import { useGetTrainingList, useRegisterTraining } from '../hooks/useTrainingQueries';
+import { useGetTenants } from '../hooks/useCommonQueries';
+import { trainingQueryKeys, useCreateConfidenceTraining, useGetTrainingList } from '../hooks/useTrainingQueries';
 import type { ConfidenceTrainingItem, ConfidenceTrainingSearchParams } from '../types';
 import useAggridOptions from '@/libs/shared-ui/src/hooks/useAggridOptions';
 
@@ -30,15 +31,16 @@ const ENGINE_OPTIONS = [
 ];
 
 const PAGE_SIZE = 10;
+const CONFIDENCE_THRESHOLD = 95;
 
 interface RegisterCellRendererParams extends ICellRendererParams<ConfidenceTrainingItem> {
   onRegister: (data: ConfidenceTrainingItem) => void;
 }
 
-function RegisterCellRenderer({ data, onRegister }: RegisterCellRendererParams) {
+function CreateCellRenderer({ data, onRegister }: RegisterCellRendererParams) {
   if (!data) return null;
   return (
-    <Button type="primary" size="small" onClick={() => onRegister(data)}>
+    <Button type="primary" size="small" onClick={() => onRegister(data)} style={{ height: 26 }}>
       등록
     </Button>
   );
@@ -54,6 +56,8 @@ function PlayCellRenderer() {
 
 export default function ConfidenceTraining() {
   const { gridOptions } = useAggridOptions();
+  const queryClient = useQueryClient();
+  const gridRef = useRef<AgGridReact<ConfidenceTrainingItem>>(null);
 
   const [startDate, setStartDate] = useState<Dayjs | null>(dayjs());
   const [endDate, setEndDate] = useState<Dayjs | null>(dayjs());
@@ -79,6 +83,7 @@ export default function ConfidenceTraining() {
           fromDateTime: dayjs().format('YYYYMMDD') + '000000',
           toDateTime: dayjs().format('YYYYMMDD') + '235959',
           tenantId: Number(resolved),
+          confidence: CONFIDENCE_THRESHOLD,
         });
         return resolved;
       });
@@ -95,6 +100,7 @@ export default function ConfidenceTraining() {
     rxtxKind: rxtxKind || undefined,
     engineCode: engineCode || undefined,
     tenantId: tenantId,
+    confidence: CONFIDENCE_THRESHOLD,
   });
 
   const [searchParams, setSearchParams] = useState<ConfidenceTrainingSearchParams | null>(null);
@@ -104,10 +110,11 @@ export default function ConfidenceTraining() {
     queryOptions: { enabled: !!searchParams },
   });
 
-  const { mutate: registerTraining } = useRegisterTraining({
+  const { mutate: createConfidenceTraining } = useCreateConfidenceTraining({
     mutationOptions: {
       onSuccess: () => {
         toast.success('등록되었습니다.');
+        queryClient.invalidateQueries({ queryKey: trainingQueryKeys.getTrainingList(searchParams ?? undefined).queryKey });
       },
       onError: () => {
         toast.error('등록에 실패했습니다.');
@@ -135,8 +142,20 @@ export default function ConfidenceTraining() {
     setSearchParams(buildParams());
   };
 
-  const handleRegister = (data: ConfidenceTrainingItem) => {
-    registerTraining({ ucidGkey: data.ucidGkey, sentence: data.sentence, confidence: data.confidence });
+  const handleAdd = (data: ConfidenceTrainingItem, editedSentence?: string) => {
+    createConfidenceTraining({
+      ucidGkey: data.ucidGkey,
+      armsoffset: data.armsoffset,
+      rxtxKind: data.rxtxKind,
+      trString: editedSentence ?? data.sentence,
+      tenantId: searchParams?.tenantId,
+      engineCode: data.engineCode,
+    });
+    gridRef.current?.api?.stopEditing();
+  };
+
+  const handleRowEditingStarted = (event: RowEditingStartedEvent<ConfidenceTrainingItem>) => {
+    event.api.refreshCells({ rowNodes: [event.node], force: true });
   };
 
   const columnDefs: ColDef<ConfidenceTrainingItem>[] = [
@@ -171,12 +190,14 @@ export default function ConfidenceTraining() {
       field: 'talkTime',
       maxWidth: 100,
       flex: 1,
+      valueFormatter: (params) => (params.value != null ? `${params.value}초` : ''),
     },
     {
       headerName: '화자',
       field: 'rxtxKind',
       maxWidth: 90,
       flex: 1,
+      valueFormatter: (params) => ({ '1': '고객', '2': '상담원', '9': '통합' })[String(params.value)] ?? params.value,
     },
     {
       headerName: '신뢰도',
@@ -185,20 +206,24 @@ export default function ConfidenceTraining() {
       flex: 1,
     },
     {
-      headerName: '대표문장',
+      headerName: '대화내용',
       field: 'sentence',
       flex: 4,
       tooltipField: 'sentence',
+      editable: true,
+      cellEditor: 'agTextCellEditor',
+      cellEditorParams: { useFormatter: true },
     },
     {
       headerName: '',
-      colId: 'register',
+      colId: 'create',
       maxWidth: 80,
       sortable: false,
       filter: false,
+      editable: false,
       cellStyle: { display: 'flex', alignItems: 'center', justifyContent: 'center' },
-      cellRenderer: RegisterCellRenderer,
-      cellRendererParams: { onRegister: handleRegister },
+      cellRenderer: CreateCellRenderer,
+      cellRendererParams: { onRegister: (data: ConfidenceTrainingItem) => handleAdd(data) },
     },
   ];
 
@@ -256,12 +281,16 @@ export default function ConfidenceTraining() {
       {/* 그리드 */}
       <div className="flex-1 min-h-[300px]">
         <AgGridReact<ConfidenceTrainingItem>
+          ref={gridRef}
           rowData={rowData ?? []}
           columnDefs={columnDefs}
           gridOptions={{
             ...gridOptions,
             paginationPageSize: PAGE_SIZE,
+            editType: 'fullRow',
+            suppressClickEdit: false,
           }}
+          onRowEditingStarted={handleRowEditingStarted}
           loading={isLoading}
           sideBar={false}
         />

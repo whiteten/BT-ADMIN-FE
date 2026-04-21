@@ -4,7 +4,8 @@ import { AgGridReact } from 'ag-grid-react';
 import { Button, DatePicker, Input, Select, TimePicker } from 'antd';
 import dayjs, { type Dayjs } from 'dayjs';
 import { toast } from '@/shared-util';
-import { useGetSttSearchCallbot, useGetSttSearchCallbotDetail, useGetTenants } from '../hooks/useSearchQueries';
+import { useGetTenants } from '../hooks/useCommonQueries';
+import { useGetSttSearchCallbot, useGetSttSearchCallbotDetail } from '../hooks/useSearchQueries';
 import type { SttSearchCallbotDetailItem, SttSearchCallbotDetailParams, SttSearchCallbotItem, SttSearchCallbotParams } from '../types';
 import useAggridOptions from '@/libs/shared-ui/src/hooks/useAggridOptions';
 

@@ -1,9 +1,3 @@
-// 테넌트
-export interface TenantItem {
-  tenantId: number;
-  tenantName: string;
-}
-
 // STT 검색 (SttSearchRequest)
 export interface SttSearchParams {
   tenantId?: number;

@@ -8,6 +8,7 @@ export interface ConfidenceTrainingSearchParams {
   rxtxKind?: string;
   engineCode?: string;
   tenantId?: string | number;
+  confidence?: number;
 }
 
 export interface ConfidenceTrainingItem {
@@ -23,11 +24,18 @@ export interface ConfidenceTrainingItem {
   inoutKind: string;
   dnNo: string;
   agentId: string;
-  engineCode?: string;
+  engineCode: string;
   confidence: number;
 }
 
-export type ConfidenceTrainingCreateDatas = Pick<ConfidenceTrainingItem, 'ucidGkey' | 'sentence' | 'confidence'>;
+export interface ConfidenceTrainingCreateDatas {
+  ucidGkey: string;
+  armsoffset: number;
+  rxtxKind: string;
+  trString: string;
+  tenantId?: string | number;
+  engineCode?: string;
+}
 
 // 문자수정
 export interface TuningSentenceSearchParams {
@@ -35,14 +43,19 @@ export interface TuningSentenceSearchParams {
   toDate?: string; // YYYYMMDD
   engineCode?: string;
   keyword?: string;
-  tuningKind?: string; // '': 전체, '1': 반영, '2': 미반영
+  tunningKind?: string; // '': 전체, '1': 반영, '2': 미반영
 }
 
 export interface TuningSentenceItem {
   dataKey: number;
   ucidGkey: string;
   armsoffset: number;
+  rxtxKind: string;
   trString: string;
-  tuningKind?: string;
+  tunningKind?: string;
+  engineCode: string;
+  trManageId: string;
   workTime: string;
 }
+
+export type TuningSentenceCreateDatas = Pick<TuningSentenceItem, 'ucidGkey' | 'trString'>;

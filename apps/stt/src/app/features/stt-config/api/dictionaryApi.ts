@@ -11,8 +11,8 @@ export const dictionaryApi = {
   createKeywordBoosting: async (data: KeywordBoostingCreateData) => {
     return apiClient.post('/keyword-boosting-create', data);
   },
-  deleteKeywordBoosting: async (id: number) => {
-    await apiClient.delete('/keyword-boosting-delete', { params: { id } });
+  deleteKeywordBoosting: async (params: { engineCode: string; keyword: string }) => {
+    await apiClient.delete(`/keyword-boosting-delete`, { params });
   },
   getSttDictionaryList: async (params?: SttDictionarySearchParams) => {
     const response = await apiClient.get<ListResponse<SttDictionaryItem>>('/stt-dictionary-list', { params });
@@ -21,7 +21,7 @@ export const dictionaryApi = {
   createSttDictionary: async (data: SttDictionaryCreateData) => {
     return apiClient.post('/stt-dictionary-create', data);
   },
-  deleteSttDictionary: async (id: number) => {
-    await apiClient.delete('/stt-dictionary-delete', { params: { id } });
+  deleteSttDictionary: async (params: { beforeWord: string }) => {
+    await apiClient.delete('/stt-dictionary-delete', { params });
   },
 };

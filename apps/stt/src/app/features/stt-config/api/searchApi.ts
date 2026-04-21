@@ -4,10 +4,6 @@ import type { SttSearchCallbotDetailItem, SttSearchCallbotDetailParams, SttSearc
 const apiClient = new ApiClient({ serviceURL: '/bff' });
 
 export const searchApi = {
-  getTenants: async (params?: Record<string, unknown>) => {
-    const response = await apiClient.get<ListResponse<TenantItem>>('/stt-tenants-list', { params });
-    return extractList(response);
-  },
   getSttSearch: async (params?: SttSearchParams) => {
     const response = await apiClient.post<ListResponse<SttSearchItem>>('/stt-search-list', params);
     return extractList(response);

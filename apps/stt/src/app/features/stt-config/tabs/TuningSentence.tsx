@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import type { ColDef } from 'ag-grid-community';
 import { AgGridReact } from 'ag-grid-react';
@@ -6,6 +6,7 @@ import { Button, DatePicker, Input, Select } from 'antd';
 import dayjs, { type Dayjs } from 'dayjs';
 import { Bookmark, Trash2 } from 'lucide-react';
 import { toast } from '@/shared-util';
+import { useGetEngines } from '../hooks/useCommonQueries';
 import { trainingQueryKeys, useDeleteTuningSentence, useGetTuningSentenceList } from '../hooks/useTrainingQueries';
 import type { TuningSentenceItem, TuningSentenceSearchParams } from '../types';
 import useAggridOptions from '@/libs/shared-ui/src/hooks/useAggridOptions';
@@ -17,18 +18,11 @@ const TUNING_OPTIONS = [
   { label: '미반영', value: '1' },
 ];
 
-// TODO 공통 데이터 조회
-const ENGINE_OPTIONS = [
-  { label: '전체', value: '' },
-  { label: 'ENGINE#0', value: 'ENGINE0' },
-  { label: 'ENGINE#1', value: 'ENGINE1' },
-];
-
 const PAGE_SIZE = 10;
 
 interface ActionCellRendererParams {
   data?: TuningSentenceItem;
-  onDelete: (id: number) => void;
+  onDelete: (data: TuningSentenceItem) => void;
 }
 
 interface BookmarkCellRendererParams {
@@ -36,7 +30,7 @@ interface BookmarkCellRendererParams {
 }
 
 function BookmarkCellRenderer({ data }: BookmarkCellRendererParams) {
-  const filled = data?.tuningKind === '0';
+  const filled = data?.tunningKind === '0';
   return (
     <button className="flex items-center justify-center">
       <Bookmark size={15} className={filled ? 'text-blue-500 fill-blue-500' : 'text-gray-400'} />
@@ -47,7 +41,7 @@ function BookmarkCellRenderer({ data }: BookmarkCellRendererParams) {
 function ActionCellRenderer({ data, onDelete }: ActionCellRendererParams) {
   if (!data) return null;
   return (
-    <button onClick={() => onDelete(data.dataKey)} className="flex items-center justify-center text-red-400 hover:text-red-600 transition-colors">
+    <button onClick={() => onDelete(data)} className="flex items-center justify-center text-red-400 hover:text-red-600 transition-colors">
       <Trash2 size={15} />
     </button>
   );
@@ -61,12 +55,26 @@ export default function TuningSentence() {
   const [fromDate, setFromDate] = useState<Dayjs | null>(dayjs());
   const [toDate, setToDate] = useState<Dayjs | null>(dayjs());
   const [keyword, setKeyword] = useState('');
-  const [tuningKind, setTuningKind] = useState('');
+  const [tunningKind, setTunningKind] = useState('');
   const [engineCode, setEngineCode] = useState('');
-  const [searchParams, setSearchParams] = useState<TuningSentenceSearchParams>({
-    fromDate: dayjs().format('YYYYMMDD'),
-    toDate: dayjs().format('YYYYMMDD'),
-  });
+  const [searchParams, setSearchParams] = useState<TuningSentenceSearchParams | null>(null);
+
+  const { data: engines } = useGetEngines({});
+  const engineOptions = engines?.map((e) => ({ label: e.value, value: e.code })) ?? [];
+
+  useEffect(() => {
+    if (engines && engines.length > 0) {
+      setEngineCode((prev) => {
+        const resolved = prev || engines[0].code;
+        setSearchParams({
+          fromDate: dayjs().format('YYYYMMDD'),
+          toDate: dayjs().format('YYYYMMDD'),
+          engineCode: resolved,
+        });
+        return resolved;
+      });
+    }
+  }, [engines]);
 
   const {
     data: rowData = [],
@@ -74,12 +82,17 @@ export default function TuningSentence() {
     refetch,
   } = useGetTuningSentenceList({
     params: searchParams as Record<string, unknown>,
+    queryOptions: { enabled: !!searchParams },
   });
 
-  const { mutate: deleteItem } = useDeleteTuningSentence({
+  const { mutate: deleteTuningSentence } = useDeleteTuningSentence({
     mutationOptions: {
       onSuccess: () => {
-        queryClient.invalidateQueries({ queryKey: trainingQueryKeys.getTuningSentenceList(searchParams).queryKey });
+        toast.success('삭제되었습니다.');
+        queryClient.invalidateQueries({ queryKey: trainingQueryKeys.getTuningSentenceList(searchParams ?? undefined).queryKey });
+      },
+      onError: () => {
+        toast.error('삭제에 실패했습니다.');
       },
     },
   });
@@ -97,15 +110,15 @@ export default function TuningSentence() {
       fromDate: fromDate.format('YYYYMMDD'),
       toDate: toDate.format('YYYYMMDD'),
       keyword: keyword || undefined,
-      tuningKind: tuningKind || undefined,
+      tunningKind: tunningKind || undefined,
       engineCode: engineCode || undefined,
     };
     setSearchParams(next);
     setTimeout(() => refetch(), 0);
   };
 
-  const handleDelete = (id: number) => {
-    modal.confirm.delete({ onOk: () => deleteItem(id) });
+  const handleDelete = (data: TuningSentenceItem) => {
+    modal.confirm.delete({ onOk: () => deleteTuningSentence({ ucidGkey: data.ucidGkey, armsoffset: data.armsoffset, rxtxKind: data.rxtxKind }) });
   };
 
   const columnDefs: ColDef<TuningSentenceItem>[] = [
@@ -119,10 +132,22 @@ export default function TuningSentence() {
       cellRenderer: BookmarkCellRenderer,
     },
     {
+      headerName: '고유번호(UCID)',
+      field: 'ucidGkey',
+      flex: 3,
+    },
+    {
       headerName: 'TEXT',
       field: 'trString',
       flex: 4,
       tooltipField: 'trString',
+    },
+    {
+      headerName: '화자',
+      field: 'rxtxKind',
+      maxWidth: 90,
+      flex: 1,
+      valueFormatter: (params) => ({ '1': '고객', '2': '상담원', '9': '통합' })[String(params.value)] ?? params.value,
     },
     {
       headerName: '등록일',
@@ -157,11 +182,11 @@ export default function TuningSentence() {
         </div>
         <div className="flex items-center gap-2">
           <span className="text-sm font-medium text-[#495057] shrink-0">반영여부</span>
-          <Select value={tuningKind} onChange={setTuningKind} options={TUNING_OPTIONS} style={{ width: 120 }} />
+          <Select value={tunningKind} onChange={setTunningKind} options={TUNING_OPTIONS} style={{ width: 120 }} />
         </div>
         <div className="flex items-center gap-2">
           <span className="text-sm font-medium text-[#495057] shrink-0">엔진</span>
-          <Select value={engineCode} onChange={setEngineCode} options={ENGINE_OPTIONS} popupMatchSelectWidth={false} style={{ width: 120 }} />
+          <Select value={engineCode} onChange={setEngineCode} options={engineOptions} style={{ width: 140 }} />
         </div>
         <div className="flex items-center gap-2 ml-auto">
           <Button type="primary" onClick={handleSearch}>

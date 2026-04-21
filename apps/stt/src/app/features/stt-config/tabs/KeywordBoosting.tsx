@@ -1,32 +1,27 @@
-import { useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import type { ColDef } from 'ag-grid-community';
 import { AgGridReact } from 'ag-grid-react';
 import { Button, Input, Select } from 'antd';
 import { Trash2 } from 'lucide-react';
 import { toast } from '@/shared-util';
+import { useGetEngines } from '../hooks/useCommonQueries';
 import { dictionaryQueryKeys, useCreateKeywordBoosting, useDeleteKeywordBoosting, useGetKeywordBoostingList } from '../hooks/useDictionaryQueries';
-import type { KeywordBoostingItem, KeywordBoostingSearchParams } from '../types';
+import type { KeywordBoostingItem } from '../types';
 import useAggridOptions from '@/libs/shared-ui/src/hooks/useAggridOptions';
 import { useModal } from '@/libs/shared-ui/src/hooks/useModal';
 
 const PAGE_SIZE = 10;
 
-const ENGINE_OPTIONS = [
-  { label: '전체', value: '' },
-  { label: 'ENGINE#0', value: 'ENGINE0' },
-  { label: 'ENGINE#1', value: 'ENGINE1' },
-];
-
 interface DeleteCellRendererParams {
   data?: KeywordBoostingItem;
-  onDelete: (id: number) => void;
+  onDelete: (data: KeywordBoostingItem) => void;
 }
 
 function DeleteCellRenderer({ data, onDelete }: DeleteCellRendererParams) {
   if (!data) return null;
   return (
-    <button onClick={() => onDelete(data.id)} className="flex items-center justify-center text-red-400 hover:text-red-600 transition-colors">
+    <button onClick={() => onDelete(data)} className="flex items-center justify-center text-red-400 hover:text-red-600 transition-colors">
       <Trash2 size={15} />
     </button>
   );
@@ -41,18 +36,31 @@ export default function KeywordBoosting() {
   const [engineCode, setEngineCode] = useState('');
   const [newKeyword, setNewKeyword] = useState('');
 
-  const [searchParams, setSearchParams] = useState<KeywordBoostingSearchParams>({});
+  const { data: engines } = useGetEngines({});
+  const engineOptions = engines?.map((e) => ({ label: e.value, value: e.code })) ?? [];
 
-  const { data: rowData = [], isLoading } = useGetKeywordBoostingList({
-    params: searchParams as Record<string, unknown>,
+  useEffect(() => {
+    if (engines && engines.length > 0) {
+      setEngineCode((prev) => prev || engines[0].code);
+    }
+  }, [engines]);
+
+  const { data: allData = [], isLoading } = useGetKeywordBoostingList({
+    params: { engineCode: engineCode || undefined },
+    queryOptions: { enabled: !!engineCode },
   });
 
-  const { mutate: createKeyword } = useCreateKeywordBoosting({
+  const filteredList = useMemo(() => {
+    if (!keyword.trim()) return allData;
+    return allData.filter((item) => item.keyword.toLowerCase().includes(keyword.toLowerCase()));
+  }, [allData, keyword]);
+
+  const { mutate: createKeywordBoosting } = useCreateKeywordBoosting({
     mutationOptions: {
       onSuccess: () => {
         toast.success('등록되었습니다.');
         setNewKeyword('');
-        queryClient.invalidateQueries({ queryKey: dictionaryQueryKeys.getKeywordBoostingList(searchParams).queryKey });
+        queryClient.invalidateQueries({ queryKey: dictionaryQueryKeys.getKeywordBoostingList({ engineCode }).queryKey });
       },
       onError: () => {
         toast.error('등록에 실패했습니다.');
@@ -64,7 +72,7 @@ export default function KeywordBoosting() {
     mutationOptions: {
       onSuccess: () => {
         toast.success('삭제되었습니다.');
-        queryClient.invalidateQueries({ queryKey: dictionaryQueryKeys.getKeywordBoostingList(searchParams).queryKey });
+        queryClient.invalidateQueries({ queryKey: dictionaryQueryKeys.getKeywordBoostingList({ engineCode }).queryKey });
       },
       onError: () => {
         toast.error('삭제에 실패했습니다.');
@@ -72,23 +80,16 @@ export default function KeywordBoosting() {
     },
   });
 
-  const handleSearch = () => {
-    setSearchParams({
-      keyword: keyword || undefined,
-      engineCode: engineCode || undefined,
-    });
-  };
-
   const handleAdd = () => {
     if (!newKeyword.trim()) {
       toast.warning('키워드를 입력해주세요.');
       return;
     }
-    createKeyword({ keyword: newKeyword.trim(), engineCode });
+    createKeywordBoosting({ keyword: newKeyword.trim(), engineCode });
   };
 
-  const handleDelete = (id: number) => {
-    modal.confirm.delete({ onOk: () => deleteKeyword(id) });
+  const handleDelete = (data: KeywordBoostingItem) => {
+    modal.confirm.delete({ onOk: () => deleteKeyword({ engineCode: data.engineCode ?? '', keyword: data.keyword }) });
   };
 
   const columnDefs: ColDef<KeywordBoostingItem>[] = [
@@ -135,11 +136,19 @@ export default function KeywordBoosting() {
       <div className="flex items-center gap-4 flex-wrap">
         <div className="flex items-center gap-2">
           <span className="text-sm font-medium text-[#495057] shrink-0">키워드</span>
-          <Input value={keyword} onChange={(e) => setKeyword(e.target.value)} onPressEnter={handleSearch} placeholder="키워드를 입력하세요" style={{ width: 200 }} />
+          <Input value={keyword} onChange={(e) => setKeyword(e.target.value)} placeholder="키워드를 입력하세요" style={{ width: 200 }} />
         </div>
         <div className="flex items-center gap-2">
           <span className="text-sm font-medium text-[#495057] shrink-0">엔진</span>
-          <Select value={engineCode} onChange={setEngineCode} options={ENGINE_OPTIONS} style={{ width: 140 }} />
+          <Select
+            value={engineCode}
+            onChange={(val) => {
+              setEngineCode(val);
+              setKeyword('');
+            }}
+            options={engineOptions}
+            style={{ width: 140 }}
+          />
         </div>
         <div className="flex items-center gap-2 ml-auto">
           <Input
@@ -160,7 +169,7 @@ export default function KeywordBoosting() {
       {/* 그리드 */}
       <div className="flex-1 min-h-[300px]">
         <AgGridReact<KeywordBoostingItem>
-          rowData={rowData}
+          rowData={filteredList}
           columnDefs={columnDefs}
           gridOptions={{
             ...gridOptions,
