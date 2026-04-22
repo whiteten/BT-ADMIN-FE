@@ -78,6 +78,14 @@ export default function BotVersionList() {
         }
         window.open(ifeInfo.redirectUrl, '_blank');
       },
+      onError: (error) => {
+        const axiosError = error as { response?: { data?: { code?: string } } };
+        if (axiosError.response?.data?.code === 'IFE_VERSION_NOT_FOUND') {
+          modal.show.info('해당 시나리오의 버전 정보가 없습니다.', '알림');
+          return;
+        }
+        toast.error('편집기 접속 정보 조회에 실패했습니다.');
+      },
     },
   });
 

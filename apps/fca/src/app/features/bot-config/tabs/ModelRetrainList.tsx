@@ -300,7 +300,12 @@ export default function ModelRetrainList() {
             finalUrl += `&nodeName=${encodeURIComponent(data.ifeNodeName)}`;
           }
           window.open(finalUrl, '_blank');
-        } catch {
+        } catch (err) {
+          const axiosError = err as { response?: { data?: { code?: string } } };
+          if (axiosError.response?.data?.code === 'IFE_VERSION_NOT_FOUND') {
+            modal.show.info('해당 시나리오의 버전 정보가 없습니다.', '알림');
+            return;
+          }
           toast.error('편집기 실행에 실패했습니다.');
         }
       },

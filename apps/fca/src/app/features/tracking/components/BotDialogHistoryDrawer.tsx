@@ -514,7 +514,7 @@ const BotDialogHistoryDrawer = forwardRef<BotDialogHistoryDrawerRef>((_, ref) =>
           window.open(redirectUrl, '_blank');
         }
       } catch (e) {
-        toast.error('IFE 시나리오 열기에 실패했습니다.');
+        toast.error('해당 시나리오 버전 또는 플로우를 찾을 수 없습니다.');
       }
     },
     [selectedRow],
