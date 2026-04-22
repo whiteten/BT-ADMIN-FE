@@ -17,7 +17,7 @@ import { useQueryClient } from '@tanstack/react-query';
 import type { ColDef, ICellRendererParams } from 'ag-grid-community';
 import { AgGridReact } from 'ag-grid-react';
 import { Button, Dropdown, Empty, Input, type MenuProps } from 'antd';
-import { Building2, ChevronDown, ChevronLeft, ChevronRight, Layers, MoreVertical, Network, Plus, Search, Trash2 } from 'lucide-react';
+import { ArrowUpDown, Building2, ChevronDown, ChevronLeft, ChevronRight, Layers, MoreVertical, Network, Plus, Search, Trash2 } from 'lucide-react';
 import { toast } from '@/shared-util';
 import DodTransItemDrawer, { type DodTransItemDrawerRef } from '../components/DodTransItemDrawer';
 import DodTransMasterDrawer, { type DodTransMasterDrawerRef } from '../components/DodTransMasterDrawer';
@@ -46,6 +46,8 @@ export default function DodTransListPage() {
   const initMasterId = searchParams.get('dodTransId') ? Number(searchParams.get('dodTransId')) : null;
 
   // ─── State ──────────────────────────────────────────────────────────────────
+  // viewMode: byNode(탭=노드, 카드그룹=테넌트) / byTenant(탭=테넌트, 카드그룹=노드)
+  const [viewMode, setViewMode] = useState<'byNode' | 'byTenant'>('byNode');
   const [selectedNodeId, setSelectedNodeId] = useState<number | null>(initNodeId);
   const [selectedTenantId, setSelectedTenantId] = useState<number | null>(initTenantId);
   const [selectedMasterId, setSelectedMasterId] = useState<number | null>(initMasterId);
@@ -109,24 +111,60 @@ export default function DodTransListPage() {
     return masters.filter((m) => [m.dodTransName, m.nodeName, m.tenantName].some((v) => v?.toString().toLowerCase().includes(kw)));
   }, [masters, isSearching, searchText]);
 
-  // 노드 필터 적용된 마스터 카드 목록 (테넌트 필터는 그룹 표시로 대체)
+  // 탭(1차 필터) 적용된 마스터 목록
   const filteredMasters = useMemo(() => {
     let list = searchFilteredMasters;
-    if (!isSearching && selectedNodeId !== null) list = list.filter((m) => m.nodeId === selectedNodeId);
-    return list;
-  }, [searchFilteredMasters, selectedNodeId, isSearching]);
-
-  // 테넌트별 그룹화 (카드 슬라이더 표시용)
-  const mastersByTenant = useMemo(() => {
-    const groupMap = new Map<number, { tenantId: number; tenantName: string; masters: typeof filteredMasters }>();
-    for (const m of filteredMasters) {
-      if (!groupMap.has(m.tenantId)) {
-        groupMap.set(m.tenantId, { tenantId: m.tenantId, tenantName: m.tenantName, masters: [] });
+    if (!isSearching) {
+      if (viewMode === 'byNode' && selectedNodeId !== null) {
+        list = list.filter((m) => m.nodeId === selectedNodeId);
+      } else if (viewMode === 'byTenant' && selectedTenantId !== null) {
+        list = list.filter((m) => m.tenantId === selectedTenantId);
       }
-      groupMap.get(m.tenantId)!.masters.push(m);
     }
-    return Array.from(groupMap.values()).sort((a, b) => a.tenantName.localeCompare(b.tenantName));
-  }, [filteredMasters]);
+    return list;
+  }, [searchFilteredMasters, selectedNodeId, selectedTenantId, isSearching, viewMode]);
+
+  // 2차 그룹화 — byNode: 테넌트별 / byTenant: 노드별 (카드 섹션 라벨)
+  const mastersByGroup = useMemo(() => {
+    const groupMap = new Map<number, { groupId: number; groupName: string; masters: typeof filteredMasters }>();
+    for (const m of filteredMasters) {
+      const key = viewMode === 'byNode' ? m.tenantId : m.nodeId;
+      const name = (viewMode === 'byNode' ? m.tenantName : m.nodeName) ?? '-';
+      if (!groupMap.has(key)) {
+        groupMap.set(key, { groupId: key, groupName: name, masters: [] });
+      }
+      groupMap.get(key)!.masters.push(m);
+    }
+    return Array.from(groupMap.values()).sort((a, b) => a.groupName.localeCompare(b.groupName));
+  }, [filteredMasters, viewMode]);
+
+  // byTenant 모드 탭용 — 마스터 보유 테넌트
+  const assignedTenants = useMemo(() => {
+    const map = new Map<number, { tenantId: number; tenantName: string }>();
+    for (const m of masters) {
+      if (!map.has(m.tenantId)) map.set(m.tenantId, { tenantId: m.tenantId, tenantName: m.tenantName });
+    }
+    return Array.from(map.values()).sort((a, b) => a.tenantName.localeCompare(b.tenantName));
+  }, [masters]);
+
+  // 뷰 모드 토글
+  const toggleViewMode = useCallback(() => {
+    setViewMode((prev) => (prev === 'byNode' ? 'byTenant' : 'byNode'));
+    setSelectedNodeId(null);
+    setSelectedTenantId(null);
+    setSelectedMasterId(null);
+    setSearchText('');
+  }, []);
+
+  const handleTabSelect = useCallback(
+    (id: number | null) => {
+      if (viewMode === 'byNode') setSelectedNodeId(id);
+      else setSelectedTenantId(id);
+      setSelectedMasterId(null);
+      setSearchText('');
+    },
+    [viewMode],
+  );
 
   // 선택 가능한 테넌트 목록 (선택 노드의 테넌트들)
   const tenantOptionsForNode = useMemo(() => {
@@ -183,15 +221,15 @@ export default function DodTransListPage() {
     }
   }, [selectedNodeId, tenantOptionsForNode, selectedTenantId]);
 
-  // 자동 마스터 선택 — 그룹화된 첫 테넌트의 첫 마스터로 (정렬 일관성 유지)
+  // 자동 마스터 선택 — 그룹화된 첫 그룹의 첫 마스터로
   useEffect(() => {
-    const firstMaster = mastersByTenant[0]?.masters[0];
+    const firstMaster = mastersByGroup[0]?.masters[0];
     if (!selectedMasterId && firstMaster) {
       setSelectedMasterId(firstMaster.dodTransId);
     } else if (selectedMasterId && !filteredMasters.some((m) => m.dodTransId === selectedMasterId)) {
       setSelectedMasterId(firstMaster?.dodTransId ?? null);
     }
-  }, [mastersByTenant, filteredMasters, selectedMasterId]);
+  }, [mastersByGroup, filteredMasters, selectedMasterId]);
 
   // ─── Handlers ─────────────────────────────────────────────────────────────
   const handleNodeSelect = (nodeId: number | null) => {
@@ -390,6 +428,18 @@ export default function DodTransListPage() {
         <div className="bg-white bt-shadow rounded-md border border-gray-200 flex flex-col overflow-hidden flex-shrink-0">
           {/* Header: 노드 탭 바 + 검색 + 추가 버튼 */}
           <div className="flex items-stretch bg-white border-b border-gray-200 pr-3 flex-shrink-0 h-[56px]">
+            {/* 뷰 모드 전환 버튼 (아이콘만) */}
+            <button
+              type="button"
+              onClick={toggleViewMode}
+              title={`현재: 탭=${viewMode === 'byNode' ? '노드' : '테넌트'} / 카드그룹=${viewMode === 'byNode' ? '테넌트' : '노드'}. 클릭 시 전환`}
+              className="flex-shrink-0 flex flex-col items-center justify-center w-[44px] h-[56px] border-r border-gray-200 hover:bg-blue-50 cursor-pointer transition-colors"
+            >
+              {viewMode === 'byNode' ? <Network size={14} className="text-blue-600" /> : <Building2 size={14} className="text-blue-600" />}
+              <ArrowUpDown size={12} className="text-blue-500 my-0.5" />
+              {viewMode === 'byNode' ? <Building2 size={14} className="text-gray-500" /> : <Network size={14} className="text-gray-500" />}
+            </button>
+
             {/* 좌측 스크롤 버튼 */}
             <button
               type="button"
@@ -410,39 +460,43 @@ export default function DodTransListPage() {
               <button
                 type="button"
                 className={`flex items-center justify-center gap-2 px-3 py-2.5 text-[13px] font-medium cursor-pointer border-b-2 -mb-[1px] min-w-[120px] max-w-[200px] flex-shrink-0 transition-colors ${
-                  selectedNodeId === null && !isSearching
+                  (viewMode === 'byNode' ? selectedNodeId : selectedTenantId) === null && !isSearching
                     ? 'text-[var(--color-bt-primary)] border-b-[var(--color-bt-primary)]'
                     : 'text-gray-500 border-b-transparent hover:text-gray-700'
                 }`}
-                onClick={() => handleNodeSelect(null)}
+                onClick={() => handleTabSelect(null)}
               >
                 <Layers className="size-3.5" />
                 <span>전체</span>
                 <span className="text-[11px] text-gray-400">({searchFilteredMasters.length})</span>
               </button>
 
-              {/* 노드 탭들 */}
-              {nodes.map((node) => {
-                const nodeCount = searchFilteredMasters.filter((m) => m.nodeId === node.nodeId).length;
-                const isActive = selectedNodeId === node.nodeId;
-                return (
-                  <button
-                    key={node.nodeId}
-                    type="button"
-                    className={`flex items-center justify-center gap-2 px-3 py-2.5 text-[13px] font-medium cursor-pointer border-b-2 -mb-[1px] min-w-[120px] max-w-[200px] flex-shrink-0 transition-colors ${
-                      isActive ? 'text-[var(--color-bt-primary)] border-b-[var(--color-bt-primary)]' : 'text-gray-500 border-b-transparent hover:text-gray-700'
-                    }`}
-                    onClick={(e) => {
-                      handleNodeSelect(node.nodeId);
-                      (e.currentTarget as HTMLElement).scrollIntoView({ behavior: 'smooth', inline: 'center', block: 'nearest' });
-                    }}
-                  >
-                    <Network className="size-3.5 flex-shrink-0" />
-                    <span className="truncate">{node.nodeName}</span>
-                    <span className="text-[11px] text-gray-400 flex-shrink-0">({nodeCount})</span>
-                  </button>
-                );
-              })}
+              {/* 탭들 — viewMode에 따라 노드 탭 or 테넌트 탭 */}
+              {(viewMode === 'byNode' ? nodes.map((n) => ({ id: n.nodeId, name: n.nodeName })) : assignedTenants.map((t) => ({ id: t.tenantId, name: t.tenantName }))).map(
+                (item) => {
+                  const itemCount = searchFilteredMasters.filter((m) => (viewMode === 'byNode' ? m.nodeId === item.id : m.tenantId === item.id)).length;
+                  const currentSelected = viewMode === 'byNode' ? selectedNodeId : selectedTenantId;
+                  const isActive = currentSelected === item.id;
+                  const Icon = viewMode === 'byNode' ? Network : Building2;
+                  return (
+                    <button
+                      key={item.id}
+                      type="button"
+                      className={`flex items-center justify-center gap-2 px-3 py-2.5 text-[13px] font-medium cursor-pointer border-b-2 -mb-[1px] min-w-[120px] max-w-[200px] flex-shrink-0 transition-colors ${
+                        isActive ? 'text-[var(--color-bt-primary)] border-b-[var(--color-bt-primary)]' : 'text-gray-500 border-b-transparent hover:text-gray-700'
+                      }`}
+                      onClick={(e) => {
+                        handleTabSelect(item.id);
+                        (e.currentTarget as HTMLElement).scrollIntoView({ behavior: 'smooth', inline: 'center', block: 'nearest' });
+                      }}
+                    >
+                      <Icon className="size-3.5 flex-shrink-0" />
+                      <span className="truncate">{item.name}</span>
+                      <span className="text-[11px] text-gray-400 flex-shrink-0">({itemCount})</span>
+                    </button>
+                  );
+                },
+              )}
             </div>
 
             {/* 우측 스크롤 버튼 */}
@@ -481,35 +535,38 @@ export default function DodTransListPage() {
                 className="!flex-shrink-0 !w-8 !h-8 !p-0"
               />
               <div ref={cardScrollRef} className="flex gap-3 overflow-x-auto py-2 px-1 flex-1" style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}>
-                {/* 마스터 카드들 — 테넌트별 그룹화 */}
-                {mastersByTenant.length === 0 ? (
+                {/* 마스터 카드들 — viewMode에 따라 테넌트별 or 노드별 그룹화 */}
+                {mastersByGroup.length === 0 ? (
                   <div className="flex flex-col items-center justify-center flex-1 text-gray-400 gap-2 min-h-[100px]">
                     <Empty description={false} imageStyle={{ height: 40 }} />
                     <span className="text-sm">
-                      {isSearching ? '검색 결과가 없습니다' : selectedNodeId ? '이 노드에 등록된 DOD DNIS 변환이 없습니다' : '등록된 DOD DNIS 변환이 없습니다'}
+                      {isSearching
+                        ? '검색 결과가 없습니다'
+                        : viewMode === 'byNode' && selectedNodeId
+                          ? '이 노드에 등록된 DOD DNIS 변환이 없습니다'
+                          : viewMode === 'byTenant' && selectedTenantId
+                            ? '이 테넌트에 등록된 DOD DNIS 변환이 없습니다'
+                            : '등록된 DOD DNIS 변환이 없습니다'}
                     </span>
                   </div>
                 ) : (
-                  mastersByTenant.map((group, groupIdx) => {
-                    const isTenantActive = selectedMaster?.tenantId === group.tenantId;
+                  mastersByGroup.map((group, groupIdx) => {
+                    const selectedGroupKey = viewMode === 'byNode' ? selectedMaster?.tenantId : selectedMaster?.nodeId;
+                    const isGroupActive = selectedGroupKey === group.groupId;
+                    const GroupIcon = viewMode === 'byNode' ? Building2 : Network;
                     return (
-                      <div key={group.tenantId} className="flex items-stretch gap-3 flex-shrink-0">
-                        {/* 테넌트 라벨 (그룹 헤더) — 선택된 마스터의 테넌트면 강조 */}
+                      <div key={group.groupId} className="flex items-stretch gap-3 flex-shrink-0">
+                        {/* 그룹 라벨 (byNode: 테넌트 / byTenant: 노드) — 선택된 마스터의 그룹이면 강조 */}
                         <div
                           className={`flex flex-col items-center justify-center w-[100px] flex-shrink-0 px-2 rounded transition-all border-l-4 ${
-                            isTenantActive
-                              ? 'border-l-[#405189] bg-[#405189] text-white shadow-[0_2px_8px_rgba(64,81,137,0.25)]'
-                              : 'border-l-[#a3b1d6] bg-blue-50/50 text-[#405189]'
+                            isGroupActive ? 'border-l-[#405189] bg-[#405189] text-white shadow-[0_2px_8px_rgba(64,81,137,0.25)]' : 'border-l-[#a3b1d6] bg-blue-50/50 text-[#405189]'
                           }`}
                         >
-                          <Building2 className={`size-4 flex-shrink-0 ${isTenantActive ? 'text-white' : 'text-[#405189]'}`} />
-                          <span
-                            className={`text-[11px] font-semibold mt-1 w-full text-center truncate ${isTenantActive ? 'text-white' : 'text-[#405189]'}`}
-                            title={group.tenantName}
-                          >
-                            {group.tenantName}
+                          <GroupIcon className={`size-4 flex-shrink-0 ${isGroupActive ? 'text-white' : 'text-[#405189]'}`} />
+                          <span className={`text-[11px] font-semibold mt-1 w-full text-center truncate ${isGroupActive ? 'text-white' : 'text-[#405189]'}`} title={group.groupName}>
+                            {group.groupName}
                           </span>
-                          <span className={`text-[10px] ${isTenantActive ? 'text-white/80' : 'text-gray-500'}`}>{group.masters.length}건</span>
+                          <span className={`text-[10px] ${isGroupActive ? 'text-white/80' : 'text-gray-500'}`}>{group.masters.length}건</span>
                         </div>
 
                         {/* 그룹 내 마스터 카드들 */}
@@ -565,7 +622,7 @@ export default function DodTransListPage() {
                         })}
 
                         {/* 그룹 사이 구분선 */}
-                        {groupIdx < mastersByTenant.length - 1 && <div className="border-l border-gray-200 mx-1" />}
+                        {groupIdx < mastersByGroup.length - 1 && <div className="border-l border-gray-200 mx-1" />}
                       </div>
                     );
                   })

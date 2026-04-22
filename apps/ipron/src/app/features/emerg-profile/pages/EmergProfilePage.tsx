@@ -1,25 +1,22 @@
 /**
  * 긴급코드 프로파일 관리 메인 페이지
- * Pattern: 좌측 노드 트리 (280px) + 우측 상단 카드 슬라이더 (프로파일) + 우측 하단 ag-Grid (긴급코드)
+ * Pattern: 상단 노드 탭 + 프로파일 카드 슬라이더 + 하단 긴급코드 ag-Grid
  *
  * Layout:
- * ┌────────────┬─────────────────────────────────────────┐
- * │ 노드 트리   │ 카드 슬라이더 (프로파일)                   │
- * │ (280px)    │ ┌────┐ ┌────┐ ┌────┐                    │
- * │            │ │prof│ │prof│ │prof│                    │
- * │ ▼ 노드1    │ └────┘ └────┘ └────┘                    │
- * │ ▼ 노드2    │ [+ 프로파일 추가]                         │
- * │            ├─────────────────────────────────────────┤
- * │            │ 긴급코드 ag-Grid (선택 프로파일의 코드)     │
- * │            │ [+ 긴급코드 추가]                         │
- * └────────────┴─────────────────────────────────────────┘
+ * ┌──────────────────────────────────────────────────────┐
+ * │ [←] [전체(n)] [C1N1(2)] [C1N2(3)] [→]  🔍[검색] [+추가] │  ← 노드 탭 바
+ * │ [Card1] [Card2] [Card3] ...                           │  ← 프로파일 카드 슬라이더
+ * ├──────────────────────────────────────────────────────┤
+ * │ {프로파일명} 긴급코드 (n건)              [+긴급코드 추가]  │
+ * │ ag-Grid                                               │
+ * └──────────────────────────────────────────────────────┘
  */
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { type ChangeEvent, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import type { ColDef, ICellRendererParams } from 'ag-grid-community';
 import { AgGridReact } from 'ag-grid-react';
 import { Button, Dropdown, Empty, Input } from 'antd';
-import { AlertTriangle, ChevronDown, ChevronLeft, ChevronRight, Copy, Edit3, MoreVertical, Network, Plus, Trash2 } from 'lucide-react';
+import { AlertTriangle, ChevronLeft, ChevronRight, Copy, Edit3, Layers, MoreVertical, Network, Plus, Search, Trash2 } from 'lucide-react';
 import { toast } from '@/shared-util';
 import EmergCodeDrawer, { type EmergCodeDrawerRef } from '../components/EmergCodeDrawer';
 import EmergProfileCopyDialog, { type EmergProfileCopyDialogRef } from '../components/EmergProfileCopyDialog';
@@ -58,82 +55,84 @@ export default function EmergProfilePage() {
   // ─── State ──────────────────────────────────────────────────────────────────
   const [selectedNodeId, setSelectedNodeId] = useState<number | null>(null);
   const [selectedProfileId, setSelectedProfileId] = useState<number | null>(null);
-  const [collapsedNodes, setCollapsedNodes] = useState<Set<number>>(new Set());
   const [searchText, setSearchText] = useState('');
   const cardScrollRef = useRef<HTMLDivElement>(null);
+  const tabScrollRef = useRef<HTMLDivElement>(null);
 
   // ─── Refs ───────────────────────────────────────────────────────────────────
   const profileDrawerRef = useRef<EmergProfileDrawerRef>(null);
   const codeDrawerRef = useRef<EmergCodeDrawerRef>(null);
   const copyDialogRef = useRef<EmergProfileCopyDialogRef>(null);
+  // 초기 마운트 시 1회만 첫 노드 자동 선택 — 이후 사용자가 "전체"(null) 선택하면 유지.
+  const hasInitializedNodeRef = useRef(false);
 
   // ─── Queries ────────────────────────────────────────────────────────────────
   const { data: profiles = [] } = useGetProfiles();
   const { data: nodes = [] } = useGetNodes();
   const { data: codes = [], isLoading: isCodesLoading } = useGetCodes({
     params: selectedProfileId ? { profileId: selectedProfileId } : undefined,
-    queryOptions: {
-      enabled: !!selectedProfileId,
-    },
+    queryOptions: { enabled: !!selectedProfileId },
   });
   const { data: routes = [] } = useGetRoutesByNode(selectedNodeId);
 
   // ─── Derived data ───────────────────────────────────────────────────────────
+  const isSearching = searchText.trim().length > 0;
+
+  const searchFilteredProfiles = useMemo(() => {
+    if (!isSearching) return profiles;
+    const kw = searchText.trim().toLowerCase();
+    return profiles.filter((p) => p.emergencyCodeProfileName.toLowerCase().includes(kw));
+  }, [profiles, isSearching, searchText]);
+
+  const filteredProfiles = useMemo(
+    () => (isSearching || selectedNodeId === null ? searchFilteredProfiles : searchFilteredProfiles.filter((p) => p.nodeId === selectedNodeId)),
+    [searchFilteredProfiles, selectedNodeId, isSearching],
+  );
+
   const selectedProfile = useMemo(() => profiles.find((p) => p.emergencyCodeProfileId === selectedProfileId) ?? null, [profiles, selectedProfileId]);
 
-  /** Route options for EmergCodeDrawer */
   const routeOptions = useMemo(() => routes.map((r) => ({ label: r.routeName, value: r.routeId })), [routes]);
 
-  /** Nodes with profiles grouped (for the left tree) */
-  const nodeList = useMemo(() => {
-    const list = nodes.map((node) => ({
-      ...node,
-      nodeProfiles: profiles.filter((p) => p.nodeId === node.nodeId),
-      profileCount: profiles.filter((p) => p.nodeId === node.nodeId).length,
-    }));
-
-    if (!searchText) return list;
-
-    // Filter: show nodes/profiles matching search text
-    const lower = searchText.toLowerCase();
-    return list
-      .map((node) => ({
-        ...node,
-        nodeProfiles: node.nodeProfiles.filter((p) => p.emergencyCodeProfileName.toLowerCase().includes(lower)),
-      }))
-      .filter((node) => node.nodeName.toLowerCase().includes(lower) || node.nodeProfiles.length > 0);
-  }, [nodes, profiles, searchText]);
-
-  /** Profiles filtered by selected node */
-  const filteredProfiles = useMemo(() => {
-    if (!selectedNodeId) return [];
-    return profiles.filter((p) => p.nodeId === selectedNodeId);
-  }, [profiles, selectedNodeId]);
-
-  /** Selected node name */
-  const selectedNodeName = useMemo(() => {
-    const node = nodes.find((n) => n.nodeId === selectedNodeId);
-    return node?.nodeName ?? '';
-  }, [nodes, selectedNodeId]);
-
-  // ─── Auto-select first node on load ──────────────────────────────────────────
+  // ─── Auto-select ────────────────────────────────────────────────────────────
+  // 최초 1회만 첫 노드로 기본 선택. "전체"(null) 로 전환한 이후엔 덮어쓰지 않음.
   useEffect(() => {
-    if (nodes.length > 0 && selectedNodeId === null) {
+    if (hasInitializedNodeRef.current) return;
+    if (nodes.length > 0) {
       setSelectedNodeId(nodes[0].nodeId);
+      hasInitializedNodeRef.current = true;
     }
-  }, [nodes, selectedNodeId]);
+  }, [nodes]);
 
-  // ─── Auto-select first profile when node changes ─────────────────────────────
   useEffect(() => {
-    if (selectedNodeId) {
-      const nodeProfiles = profiles.filter((p) => p.nodeId === selectedNodeId);
-      if (nodeProfiles.length > 0) {
-        setSelectedProfileId(nodeProfiles[0].emergencyCodeProfileId);
-      } else {
-        setSelectedProfileId(null);
-      }
+    if (!selectedProfileId && filteredProfiles.length > 0) {
+      setSelectedProfileId(filteredProfiles[0].emergencyCodeProfileId);
     }
-  }, [selectedNodeId, profiles]);
+  }, [filteredProfiles, selectedProfileId]);
+
+  // ─── Handlers ───────────────────────────────────────────────────────────────
+  const handleNodeSelect = useCallback((nodeId: number | null) => {
+    setSelectedNodeId(nodeId);
+    setSelectedProfileId(null);
+    setSearchText('');
+  }, []);
+
+  const handleSearchChange = useCallback((e: ChangeEvent<HTMLInputElement>) => {
+    setSearchText(e.target.value);
+    if (e.target.value.trim()) {
+      setSelectedNodeId(null);
+      setSelectedProfileId(null);
+    }
+  }, []);
+
+  const handleCardSelect = useCallback(
+    (profile: EmergProfile) => {
+      setSelectedProfileId(profile.emergencyCodeProfileId);
+      if (!selectedNodeId || selectedNodeId !== profile.nodeId) {
+        setSelectedNodeId(profile.nodeId);
+      }
+    },
+    [selectedNodeId],
+  );
 
   // ─── Invalidate helpers ─────────────────────────────────────────────────────
   const invalidateProfiles = useCallback(() => {
@@ -223,31 +222,10 @@ export default function EmergProfilePage() {
     },
   });
 
-  // ─── Node selection ──────────────────────────────────────────────────────────
-  const toggleNodeGroup = (nodeId: number) => {
-    setCollapsedNodes((prev) => {
-      const next = new Set(prev);
-      if (next.has(nodeId)) {
-        next.delete(nodeId);
-      } else {
-        next.add(nodeId);
-      }
-      return next;
-    });
-  };
-
-  const handleNodeSelect = (nodeId: number) => {
-    setSelectedNodeId(nodeId);
-  };
-
   // ─── Profile actions ───────────────────────────────────────────────────────
-  const handleProfileCreate = () => {
-    profileDrawerRef.current?.open();
-  };
-
-  const handleProfileEdit = (profile: EmergProfile) => {
-    profileDrawerRef.current?.open(profile);
-  };
+  const handleProfileCreate = () => profileDrawerRef.current?.open();
+  const handleProfileEdit = (profile: EmergProfile) => profileDrawerRef.current?.open(profile);
+  const handleProfileCopy = (profile: EmergProfile) => copyDialogRef.current?.open(profile);
 
   const handleProfileDelete = (profile: EmergProfile) => {
     modal.confirm.execute({
@@ -259,23 +237,9 @@ export default function EmergProfilePage() {
     });
   };
 
-  const handleProfileCopy = (profile: EmergProfile) => {
-    copyDialogRef.current?.open(profile);
-  };
-
-  const handleProfileSelect = (profileId: number) => {
-    setSelectedProfileId(profileId);
-  };
-
   // ─── Code actions ──────────────────────────────────────────────────────────
-  const handleCodeCreate = () => {
-    codeDrawerRef.current?.open();
-  };
-
-  const handleCodeEdit = (code: EmergCode) => {
-    codeDrawerRef.current?.open(code);
-  };
-
+  const handleCodeCreate = () => codeDrawerRef.current?.open();
+  const handleCodeEdit = (code: EmergCode) => codeDrawerRef.current?.open(code);
   const handleCodeDelete = (code: EmergCode) => {
     modal.confirm.execute({
       onOk: () =>
@@ -292,50 +256,17 @@ export default function EmergProfilePage() {
 
   // ─── Profile dropdown menu ─────────────────────────────────────────────────
   const getProfileMenuItems = (profile: EmergProfile) => [
-    {
-      key: 'edit',
-      label: '수정',
-      icon: <Edit3 className="size-4" />,
-      onClick: () => handleProfileEdit(profile),
-    },
-    {
-      key: 'copy',
-      label: '복사',
-      icon: <Copy className="size-4" />,
-      onClick: () => handleProfileCopy(profile),
-    },
-    {
-      key: 'delete',
-      label: '삭제',
-      icon: <Trash2 className="size-4" />,
-      danger: true,
-      onClick: () => handleProfileDelete(profile),
-    },
+    { key: 'edit', label: '수정', icon: <Edit3 className="size-4" />, onClick: () => handleProfileEdit(profile) },
+    { key: 'copy', label: '복사', icon: <Copy className="size-4" />, onClick: () => handleProfileCopy(profile) },
+    { key: 'delete', label: '삭제', icon: <Trash2 className="size-4" />, danger: true, onClick: () => handleProfileDelete(profile) },
   ];
 
   // ─── ag-Grid columns ──────────────────────────────────────────────────────
-  const defaultColDef: ColDef = useMemo(
-    () => ({
-      sortable: true,
-      filter: true,
-      resizable: true,
-      suppressHeaderMenuButton: true,
-    }),
-    [],
-  );
+  const defaultColDef: ColDef = useMemo(() => ({ sortable: true, filter: true, resizable: true, suppressHeaderMenuButton: true }), []);
 
   const columnDefs: ColDef<EmergCode>[] = [
-    {
-      headerName: '긴급코드',
-      field: 'emergencyCode',
-      minWidth: 120,
-      maxWidth: 150,
-    },
-    {
-      headerName: '코드명',
-      field: 'emergencyCodeName',
-      flex: 1,
-    },
+    { headerName: '긴급코드', field: 'emergencyCode', minWidth: 120, maxWidth: 150 },
+    { headerName: '코드명', field: 'emergencyCodeName', flex: 1 },
     {
       headerName: '라우트',
       field: 'routeName',
@@ -345,12 +276,7 @@ export default function EmergProfilePage() {
         return <span className="text-red-500 font-semibold">⚠ 미지정</span>;
       },
     },
-    {
-      headerName: '설명',
-      field: 'emergencyCodeDesc',
-      flex: 1,
-      valueFormatter: (params) => params.value ?? '-',
-    },
+    { headerName: '설명', field: 'emergencyCodeDesc', flex: 1, valueFormatter: (params) => params.value ?? '-' },
     {
       headerName: '',
       maxWidth: 60,
@@ -381,228 +307,224 @@ export default function EmergProfilePage() {
     <div className="flex flex-col gap-4 w-full h-full">
       <PageHeader breadcrumb={breadcrumb} />
 
-      {/* Split container: Left Tree + Right (Cards + Bottom Grid) */}
-      <div className="flex flex-1 min-h-0 gap-4">
-        {/* ===== Left Panel: Node Tree (280px) ===== */}
-        <div className="w-[280px] min-w-[280px] bg-white bt-shadow rounded-md border border-gray-200 flex flex-col overflow-hidden">
-          <div className="px-4 py-3 border-b border-gray-100 flex-shrink-0">
-            <Input placeholder="프로파일명 검색" size="small" allowClear value={searchText} onChange={(e) => setSearchText(e.target.value)} />
+      <div className="flex flex-1 min-h-0 flex-col gap-4">
+        {/* ===== 상단: 노드 탭 바 + 프로파일 카드 슬라이더 ===== */}
+        <div className="bg-white bt-shadow rounded-md border border-gray-200 flex flex-col overflow-hidden flex-shrink-0">
+          {/* Header: 노드 탭 바 + 검색 + 추가 버튼 */}
+          <div className="flex items-stretch bg-white border-b border-gray-200 pr-3 flex-shrink-0 h-[56px]">
+            {/* 좌측 스크롤 버튼 */}
+            <button
+              type="button"
+              className="flex-shrink-0 w-8 flex items-center justify-center hover:bg-gray-100 border-r border-gray-200 cursor-pointer"
+              onClick={() => tabScrollRef.current?.scrollBy({ left: -300, behavior: 'smooth' })}
+            >
+              <ChevronLeft className="size-4 text-gray-500" />
+            </button>
+
+            {/* 탭 스크롤 컨테이너 */}
+            <div
+              ref={tabScrollRef}
+              className="flex items-stretch max-w-[900px] min-w-0 overflow-x-auto divide-x divide-gray-200"
+              style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
+            >
+              {/* 전체 탭 */}
+              <button
+                type="button"
+                className={`flex items-center justify-center gap-2 px-3 py-2.5 text-[13px] font-medium cursor-pointer border-b-2 -mb-[1px] min-w-[120px] max-w-[200px] flex-shrink-0 transition-colors ${
+                  selectedNodeId === null && !isSearching
+                    ? 'text-[var(--color-bt-primary)] border-b-[var(--color-bt-primary)]'
+                    : 'text-gray-500 border-b-transparent hover:text-gray-700'
+                }`}
+                onClick={() => handleNodeSelect(null)}
+              >
+                <Layers className="size-3.5" />
+                <span>전체</span>
+                <span className="text-[11px] text-gray-400">({searchFilteredProfiles.length})</span>
+              </button>
+
+              {/* 노드 탭들 */}
+              {nodes.map((node) => {
+                const nodeProfiles = searchFilteredProfiles.filter((p) => p.nodeId === node.nodeId);
+                const hasUnassigned = nodeProfiles.some((p) => p.hasUnassignedRoute);
+                const isActive = selectedNodeId === node.nodeId;
+                return (
+                  <button
+                    key={node.nodeId}
+                    type="button"
+                    className={`flex items-center justify-center gap-2 px-3 py-2.5 text-[13px] font-medium cursor-pointer border-b-2 -mb-[1px] min-w-[120px] max-w-[200px] flex-shrink-0 transition-colors ${
+                      isActive ? 'text-[var(--color-bt-primary)] border-b-[var(--color-bt-primary)]' : 'text-gray-500 border-b-transparent hover:text-gray-700'
+                    }`}
+                    onClick={(e) => {
+                      handleNodeSelect(node.nodeId);
+                      (e.currentTarget as HTMLElement).scrollIntoView({ behavior: 'smooth', inline: 'center', block: 'nearest' });
+                    }}
+                  >
+                    {hasUnassigned && <AlertTriangle className="size-3.5 text-amber-500 flex-shrink-0" />}
+                    <Network className="size-3.5 flex-shrink-0" />
+                    <span className="truncate">{node.nodeName}</span>
+                    <span className="text-[11px] text-gray-400 flex-shrink-0">({nodeProfiles.length})</span>
+                  </button>
+                );
+              })}
+            </div>
+
+            {/* 우측 스크롤 버튼 */}
+            <button
+              type="button"
+              className="flex-shrink-0 w-8 flex items-center justify-center hover:bg-gray-100 border-l border-r border-gray-200 cursor-pointer"
+              onClick={() => tabScrollRef.current?.scrollBy({ left: 300, behavior: 'smooth' })}
+            >
+              <ChevronRight className="size-4 text-gray-500" />
+            </button>
+
+            {/* 우측: 검색 + 추가 버튼 */}
+            <div className="ml-auto flex items-center gap-2 flex-shrink-0 pl-3">
+              <Input
+                allowClear
+                prefix={<Search className="size-3.5 text-gray-400" />}
+                placeholder="프로파일 검색"
+                value={searchText}
+                onChange={handleSearchChange}
+                style={{ width: 200 }}
+              />
+              <Button type="primary" icon={<Plus className="size-3.5" />} onClick={handleProfileCreate}>
+                추가
+              </Button>
+            </div>
           </div>
 
-          <div className="flex-1 overflow-y-auto py-2">
-            {nodeList.length === 0 ? (
-              <div className="flex flex-col items-center justify-center h-full text-gray-400 gap-2 px-4">
-                <span className="text-sm">{searchText ? '검색 결과가 없습니다' : '등록된 노드가 없습니다'}</span>
+          {/* Card slider body */}
+          <div className="flex items-center px-4 py-3 h-[170px]">
+            {filteredProfiles.length === 0 ? (
+              <div className="flex flex-col items-center justify-center w-full h-full text-gray-400 gap-2">
+                <Empty description={false} imageStyle={{ height: 40 }} />
+                <span className="text-sm">{isSearching ? '검색 결과가 없습니다' : '등록된 프로파일이 없습니다'}</span>
               </div>
             ) : (
-              nodeList.map((node) => {
-                const isCollapsed = collapsedNodes.has(node.nodeId);
-                const isNodeSelected = selectedNodeId === node.nodeId;
-                return (
-                  <div key={node.nodeId} className="mb-0.5">
-                    {/* Node group header */}
-                    <button
-                      type="button"
-                      className={`w-full flex items-center gap-2 px-4 py-2.5 cursor-pointer select-none text-[13px] font-semibold transition-colors border-l-[3px] ${
-                        isNodeSelected ? 'bg-[#e8ecf4] border-l-[#405189] text-[#405189]' : 'border-l-transparent text-gray-800 hover:bg-gray-50'
-                      }`}
-                      onClick={() => {
-                        handleNodeSelect(node.nodeId);
-                        if (isCollapsed) toggleNodeGroup(node.nodeId);
-                      }}
-                    >
-                      <button
-                        type="button"
-                        className="p-0 bg-transparent border-none cursor-pointer"
+              <div className="relative flex items-center gap-2 w-full">
+                <Button
+                  type="text"
+                  icon={<ChevronLeft className="size-5" />}
+                  onClick={() => cardScrollRef.current?.scrollBy({ left: -260, behavior: 'smooth' })}
+                  className="!flex-shrink-0 !w-8 !h-8 !p-0"
+                />
+                <div ref={cardScrollRef} className="flex gap-3 overflow-x-auto py-2 px-1 flex-1" style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}>
+                  {filteredProfiles.map((profile) => {
+                    const isCardSelected = selectedProfileId === profile.emergencyCodeProfileId;
+                    const cardHasUnassigned = profile.hasUnassignedRoute;
+                    return (
+                      <div
+                        key={profile.emergencyCodeProfileId}
+                        className={`bg-white border rounded-lg p-3.5 cursor-pointer transition-all w-[220px] h-[130px] flex-shrink-0 flex flex-col ${
+                          isCardSelected
+                            ? 'border-[#405189] shadow-[0_0_0_2px_rgba(64,81,137,0.15)]'
+                            : 'border-gray-200 hover:border-[#c5cbe0] hover:shadow-[0_2px_8px_rgba(0,0,0,0.06)]'
+                        }`}
                         onClick={(e) => {
-                          e.stopPropagation();
-                          toggleNodeGroup(node.nodeId);
+                          handleCardSelect(profile);
+                          (e.currentTarget as HTMLElement).scrollIntoView({ behavior: 'smooth', inline: 'center', block: 'nearest' });
                         }}
+                        onDoubleClick={() => handleProfileEdit(profile)}
                       >
-                        {isCollapsed ? <ChevronRight className="size-3.5 text-gray-400 flex-shrink-0" /> : <ChevronDown className="size-3.5 text-gray-400 flex-shrink-0" />}
-                      </button>
-                      <Network className="size-4 text-gray-500 flex-shrink-0" />
-                      <span className="truncate flex-1 text-left">{node.nodeName}</span>
-                      <span className="ml-auto text-[11px] text-gray-400 font-normal">{node.profileCount}</span>
-                    </button>
+                        {/* Card header: 상태배지 + 프로파일명 + 더보기 */}
+                        <div className="flex items-center justify-between mb-1.5">
+                          <div className="flex items-center gap-2 min-w-0">
+                            {cardHasUnassigned && (
+                              <span
+                                className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-bold border flex-shrink-0"
+                                style={{ color: '#ff4d4f', backgroundColor: '#fff2f0', borderColor: '#ff4d4f40' }}
+                              >
+                                미지정
+                              </span>
+                            )}
+                            <span className="text-sm font-semibold text-gray-800 truncate">{profile.emergencyCodeProfileName}</span>
+                          </div>
+                          <div onClick={(e) => e.stopPropagation()}>
+                            <Dropdown menu={{ items: getProfileMenuItems(profile) }} trigger={['click']} placement="bottomRight">
+                              <button type="button" className="p-1 rounded hover:bg-gray-100 transition-colors">
+                                <MoreVertical className="size-4 text-gray-400" />
+                              </button>
+                            </Dropdown>
+                          </div>
+                        </div>
 
-                    {/* Profile items under node */}
-                    {!isCollapsed && (
-                      <div>
-                        {node.nodeProfiles.map((profile) => {
-                          const isItemSelected = selectedProfileId === profile.emergencyCodeProfileId;
-                          const dotColor = isItemSelected ? 'bg-[#405189]' : profile.hasUnassignedRoute ? 'bg-red-500' : profile.codeCount > 0 ? 'bg-green-500' : 'bg-gray-300';
-                          return (
-                            <div
-                              key={profile.emergencyCodeProfileId}
-                              className={`group flex items-center gap-2 pl-[42px] pr-2 py-1.5 cursor-pointer text-[12px] transition-colors border-l-[3px] ${
-                                isItemSelected ? 'bg-[#e8ecf4] border-l-[#405189] text-[#405189] font-medium' : 'border-l-transparent text-gray-500 hover:bg-gray-50'
-                              }`}
-                              onClick={() => {
-                                setSelectedNodeId(profile.nodeId);
-                                handleProfileSelect(profile.emergencyCodeProfileId);
-                              }}
-                            >
-                              <span className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${dotColor}`} />
-                              <span className="truncate flex-1">{profile.emergencyCodeProfileName}</span>
-                              {profile.hasUnassignedRoute && <AlertTriangle className="size-3 text-red-500 flex-shrink-0" />}
-                              <span className="text-[11px] text-gray-400">{profile.codeCount ?? 0}</span>
-                              <div className="opacity-0 group-hover:opacity-100 transition-opacity" onClick={(e) => e.stopPropagation()}>
-                                <Dropdown menu={{ items: getProfileMenuItems(profile) }} trigger={['click']} placement="bottomRight">
-                                  <button type="button" className="p-0.5 rounded hover:bg-gray-200 transition-colors">
-                                    <MoreVertical className="size-3.5 text-gray-400" />
-                                  </button>
-                                </Dropdown>
-                              </div>
-                            </div>
-                          );
-                        })}
+                        {/* Card info */}
+                        <div className="text-xs text-gray-500 space-y-0.5">
+                          <div className="flex items-center gap-1">
+                            <Network className="size-3 text-gray-400" />
+                            <span className="truncate">{nodes.find((n) => n.nodeId === profile.nodeId)?.nodeName ?? `Node ${profile.nodeId}`}</span>
+                          </div>
+                          <div>긴급코드: {profile.codeCount ?? 0}건</div>
+                        </div>
+
+                        {/* 하단 태그 */}
+                        <div className="flex flex-wrap gap-1 mt-auto pt-2">
+                          <span
+                            className={`inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium border ${
+                              (profile.codeCount ?? 0) > 0 ? 'text-green-700 bg-green-50 border-green-200' : 'text-gray-500 bg-gray-50 border-gray-200'
+                            }`}
+                          >
+                            {(profile.codeCount ?? 0) > 0 ? `${profile.codeCount}건 등록` : '미등록'}
+                          </span>
+                          {cardHasUnassigned && (
+                            <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium border text-amber-700 bg-amber-50 border-amber-200">
+                              라우트 미지정
+                            </span>
+                          )}
+                        </div>
                       </div>
-                    )}
-                  </div>
-                );
-              })
+                    );
+                  })}
+                </div>
+                <Button
+                  type="text"
+                  icon={<ChevronRight className="size-5" />}
+                  onClick={() => cardScrollRef.current?.scrollBy({ left: 260, behavior: 'smooth' })}
+                  className="!flex-shrink-0 !w-8 !h-8 !p-0"
+                />
+              </div>
             )}
           </div>
         </div>
 
-        {/* ===== Right Panel: Cards (top) + Code Grid (bottom) ===== */}
-        <div className="flex-1 flex flex-col gap-4 min-w-0">
-          {selectedNodeId ? (
+        {/* ===== 하단: 긴급코드 ag-Grid ===== */}
+        <div className="bg-white bt-shadow rounded-md border border-gray-200 flex flex-col flex-1 min-h-0 overflow-hidden">
+          {selectedProfile ? (
             <>
-              {/* ── Top: Card Slider Area ── */}
-              <div className="bg-white bt-shadow rounded-md border border-gray-200 flex flex-col overflow-hidden flex-shrink-0">
-                {/* Card slider header */}
-                <div className="px-5 py-3 border-b border-gray-100 flex items-center justify-between flex-shrink-0">
-                  <div className="flex items-center gap-3">
-                    <span className="text-sm font-semibold text-gray-800">
-                      {selectedNodeName} 프로파일 ({filteredProfiles.length}건)
-                    </span>
-                  </div>
-                  <Button type="primary" size="small" icon={<Plus className="size-3.5" />} onClick={handleProfileCreate}>
-                    프로파일 추가
-                  </Button>
-                </div>
-
-                {/* Card slider body */}
-                <div className="flex items-center px-4 py-3">
-                  {filteredProfiles.length === 0 ? (
-                    <div className="flex flex-col items-center justify-center w-full h-full text-gray-400 gap-3">
-                      <Empty description={false} />
-                      <span className="text-sm">이 노드에 등록된 프로파일이 없습니다</span>
-                    </div>
-                  ) : (
-                    <div className="relative flex items-center gap-2 w-full">
-                      <Button
-                        type="text"
-                        icon={<ChevronLeft className="size-5" />}
-                        onClick={() => cardScrollRef.current?.scrollBy({ left: -260, behavior: 'smooth' })}
-                        className="!flex-shrink-0 !w-8 !h-8 !p-0"
-                      />
-                      <div ref={cardScrollRef} className="flex gap-3 overflow-x-auto py-2 px-1 flex-1" style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}>
-                        {filteredProfiles.map((profile) => {
-                          const isCardSelected = selectedProfileId === profile.emergencyCodeProfileId;
-                          const cardHasUnassigned = profile.hasUnassignedRoute;
-                          return (
-                            <div
-                              key={profile.emergencyCodeProfileId}
-                              className={`bg-white border rounded-lg p-3.5 cursor-pointer transition-all min-w-[220px] max-w-[260px] flex-shrink-0 ${
-                                isCardSelected
-                                  ? 'border-[#405189] shadow-[0_0_0_2px_rgba(64,81,137,0.15)]'
-                                  : 'border-gray-200 hover:border-[#c5cbe0] hover:shadow-[0_2px_8px_rgba(0,0,0,0.06)]'
-                              }`}
-                              onClick={() => handleProfileSelect(profile.emergencyCodeProfileId)}
-                              onDoubleClick={() => handleProfileEdit(profile)}
-                            >
-                              {/* Card header: 상태배지 + 프로파일명 + 더보기 */}
-                              <div className="flex items-center justify-between mb-1.5">
-                                <div className="flex items-center gap-2 min-w-0">
-                                  {cardHasUnassigned && (
-                                    <span
-                                      className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-bold border flex-shrink-0"
-                                      style={{ color: '#ff4d4f', backgroundColor: '#fff2f0', borderColor: '#ff4d4f40' }}
-                                    >
-                                      미지정
-                                    </span>
-                                  )}
-                                  <span className="text-sm font-semibold text-gray-800 truncate">{profile.emergencyCodeProfileName}</span>
-                                </div>
-                                <div onClick={(e) => e.stopPropagation()}>
-                                  <Dropdown menu={{ items: getProfileMenuItems(profile) }} trigger={['click']} placement="bottomRight">
-                                    <button type="button" className="p-1 rounded hover:bg-gray-100 transition-colors">
-                                      <MoreVertical className="size-4 text-gray-400" />
-                                    </button>
-                                  </Dropdown>
-                                </div>
-                              </div>
-
-                              {/* Card info */}
-                              <div className="text-xs text-gray-500 space-y-0.5">
-                                <div>긴급코드 수: {profile.codeCount ?? 0}</div>
-                              </div>
-                            </div>
-                          );
-                        })}
-                      </div>
-                      <Button
-                        type="text"
-                        icon={<ChevronRight className="size-5" />}
-                        onClick={() => cardScrollRef.current?.scrollBy({ left: 260, behavior: 'smooth' })}
-                        className="!flex-shrink-0 !w-8 !h-8 !p-0"
-                      />
-                    </div>
-                  )}
-                </div>
+              {/* Grid header */}
+              <div className="px-5 py-3 flex items-center justify-between flex-shrink-0 border-b border-gray-100">
+                <span className="text-sm font-semibold text-gray-800">
+                  {selectedProfile.emergencyCodeProfileName} 긴급코드 ({codes.length}건)
+                </span>
+                <Button icon={<Plus className="size-3.5" />} onClick={handleCodeCreate}>
+                  긴급코드 추가
+                </Button>
               </div>
 
-              {/* ── Bottom: Code Grid ── */}
-              <div className="bg-white bt-shadow rounded-md border border-gray-200 flex flex-col flex-1 min-h-0 overflow-hidden">
-                {selectedProfile ? (
-                  <>
-                    {/* Grid header */}
-                    <div className="px-5 py-2 flex items-center justify-between flex-shrink-0 border-b border-gray-100">
-                      <span className="text-sm font-semibold text-gray-800">
-                        {selectedProfile.emergencyCodeProfileName} 긴급코드 ({codes.length}건)
-                      </span>
-                      <Button size="small" icon={<Plus className="size-3.5" />} onClick={handleCodeCreate}>
-                        긴급코드 추가
-                      </Button>
-                    </div>
-
-                    {/* ag-Grid */}
-                    <div className="flex-1">
-                      <AgGridReact<EmergCode>
-                        rowData={codes}
-                        columnDefs={columnDefs}
-                        defaultColDef={defaultColDef}
-                        gridOptions={{
-                          ...gridOptions,
-                          statusBar: undefined,
-                          pagination: false,
-                          sideBar: false,
-                        }}
-                        loading={isCodesLoading}
-                        getRowId={(params) => params.data.emergencyCode}
-                        onRowDoubleClicked={(e) => {
-                          if (e.data) handleCodeEdit(e.data);
-                        }}
-                      />
-                    </div>
-                  </>
-                ) : (
-                  /* Empty state when no profile selected */
-                  <div className="flex flex-col items-center justify-center h-full text-gray-400 gap-3 px-8">
-                    <Empty description={false} />
-                    <span className="text-sm">프로파일을 선택하세요</span>
-                  </div>
-                )}
+              {/* ag-Grid */}
+              <div className="flex-1">
+                <AgGridReact<EmergCode>
+                  rowData={codes}
+                  columnDefs={columnDefs}
+                  defaultColDef={defaultColDef}
+                  gridOptions={{
+                    ...gridOptions,
+                    statusBar: undefined,
+                    pagination: false,
+                    sideBar: false,
+                  }}
+                  loading={isCodesLoading}
+                  getRowId={(params) => params.data.emergencyCode}
+                  onRowDoubleClicked={(e) => {
+                    if (e.data) handleCodeEdit(e.data);
+                  }}
+                />
               </div>
             </>
           ) : (
-            /* Empty state when no node selected */
-            <div className="bg-white bt-shadow rounded-md border border-gray-200 flex flex-col items-center justify-center h-full text-gray-400 gap-3 px-8">
+            <div className="flex flex-col items-center justify-center h-full text-gray-400 gap-3 px-8">
               <Empty description={false} />
-              <span className="text-sm">좌측에서 노드를 선택하세요</span>
+              <span className="text-sm">프로파일을 선택하세요</span>
             </div>
           )}
         </div>

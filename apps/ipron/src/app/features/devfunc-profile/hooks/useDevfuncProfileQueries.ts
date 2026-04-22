@@ -1,5 +1,5 @@
 /**
- * 전화기능코드 프로파일 관리 React Query 훅
+ * 기능코드 프로파일 관리 React Query 훅
  */
 import { useMutation, useQuery } from '@tanstack/react-query';
 import { createQueryKeys } from '@lukemorales/query-key-factory';

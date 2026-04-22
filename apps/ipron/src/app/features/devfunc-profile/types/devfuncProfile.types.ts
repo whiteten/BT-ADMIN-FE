@@ -1,5 +1,5 @@
 /**
- * 전화기능코드 프로파일 관리 타입 정의
+ * 기능코드 프로파일 관리 타입 정의
  * Backend: DevfuncProfileController 기반
  */
 
@@ -68,7 +68,7 @@ export interface DevfuncProfile {
 }
 
 /**
- * 프론트엔드용 전화기능코드
+ * 프론트엔드용 기능코드
  */
 export interface DevfuncCode {
   devfuncCodeProfileId: number;

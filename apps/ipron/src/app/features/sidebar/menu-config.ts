@@ -1,4 +1,4 @@
-import { AlertTriangle, Cable, Component } from 'lucide-react';
+import { AlertTriangle, Cable, Component, Hash } from 'lucide-react';
 import { IconMenuMain } from '@/components/custom/Icons';
 /**
  * 자동 생성된 menu-config.ts 파일에서,
@@ -43,9 +43,23 @@ const menuConfig = {
         },
         {
           menuId: 114,
-          label: '전화기능코드 프로파일',
+          label: '기능코드 프로파일',
           path: 'profile/devfunc-profile',
           index: 2,
+          hide: false,
+        },
+        {
+          menuId: 140,
+          label: '접근코드 프로파일',
+          path: 'profile/access-profile',
+          index: 3,
+          hide: false,
+        },
+        {
+          menuId: 141,
+          label: '내선 프로파일',
+          path: 'profile/dn-profile',
+          index: 4,
           hide: false,
         },
       ],
@@ -133,6 +147,37 @@ const menuConfig = {
           path: 'line/mcs-dnis',
           index: 10,
           hide: false,
+        },
+      ],
+    },
+    {
+      menuId: 132,
+      label: '번호자원관리',
+      icon: Hash,
+      index: 3,
+      hide: false,
+      children: [
+        {
+          menuId: 133,
+          label: 'COS 설정',
+          path: 'cos',
+          index: 0,
+          hide: false,
+        },
+        {
+          menuId: 143,
+          label: 'DN관리',
+          index: 1,
+          hide: false,
+          children: [
+            {
+              menuId: 142,
+              label: '내선관리',
+              path: 'dn',
+              index: 0,
+              hide: false,
+            },
+          ],
         },
       ],
     },

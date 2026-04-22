@@ -1,25 +1,23 @@
 /**
- * 전화기능코드 프로파일 관리 메인 페이지
- * Pattern: 좌측 테넌트 트리 (280px) + 우측 상단 카드 슬라이더 (프로파일) + 우측 하단 ag-Grid (전화기능코드)
+ * 기능코드 프로파일 관리 메인 페이지
+ * Pattern: 상단 테넌트 탭 + 프로파일 카드 슬라이더 + 하단 기능코드 ag-Grid
  *
  * Layout:
- * ┌────────────┬─────────────────────────────────────────┐
- * │ 테넌트 트리  │ 카드 슬라이더 (프로파일)                   │
- * │ (280px)    │ ┌────┐ ┌────┐ ┌────┐                    │
- * │            │ │prof│ │prof│ │prof│                    │
- * │ ▼ 테넌트1   │ └────┘ └────┘ └────┘                    │
- * │ ▼ 테넌트2   │ [+ 프로파일 추가]                         │
- * │            ├─────────────────────────────────────────┤
- * │            │ 전화기능코드 ag-Grid (선택 프로파일의 코드)   │
- * │            │ [+ 코드 추가]                             │
- * └────────────┴─────────────────────────────────────────┘
+ * ┌──────────────────────────────────────────────────────┐
+ * │ [←] [전체(n)] [T1(2)] [T2(3)] [→]  🔍[검색] [+추가]    │  ← 테넌트 탭 바
+ * │ [Card1] [Card2] [Card3] ...                           │  ← 프로파일 카드 슬라이더
+ * ├──────────────────────────────────────────────────────┤
+ * │ {프로파일명} 기능코드 (n건)         [+코드 추가]      │
+ * │ [검색바]                                               │
+ * │ ag-Grid                                               │
+ * └──────────────────────────────────────────────────────┘
  */
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { type ChangeEvent, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import type { ColDef, ICellRendererParams } from 'ag-grid-community';
 import { AgGridReact } from 'ag-grid-react';
 import { Button, Dropdown, Empty, Input } from 'antd';
-import { Building2, ChevronDown, ChevronLeft, ChevronRight as ChevronRightIcon, Copy, Edit3, MoreVertical, Plus, Search, Trash2 } from 'lucide-react';
+import { Building2, ChevronLeft, ChevronRight, Copy, Edit3, MoreVertical, Plus, Search, Trash2 } from 'lucide-react';
 import { toast } from '@/shared-util';
 import DevfuncCodeDrawer, { type DevfuncCodeDrawerRef } from '../components/DevfuncCodeDrawer';
 import DevfuncProfileCopyDialog, { type DevfuncProfileCopyDialogRef } from '../components/DevfuncProfileCopyDialog';
@@ -37,7 +35,7 @@ import {
   useUpdateCode,
   useUpdateProfile,
 } from '../hooks/useDevfuncProfileQueries';
-import type { DevfuncCode, DevfuncProfile, TenantProfileGroup } from '../types/devfuncProfile.types';
+import type { DevfuncCode, DevfuncProfile } from '../types/devfuncProfile.types';
 import { IconTrash } from '@/components/custom/Icons';
 import PageHeader from '@/components/custom/PageHeader';
 import useAggridOptions from '@/libs/shared-ui/src/hooks/useAggridOptions';
@@ -46,7 +44,7 @@ import { useModal } from '@/libs/shared-ui/src/hooks/useModal';
 const breadcrumb = [
   { title: 'IPRON', path: '/ipron' },
   { title: '프로파일 관리', path: '/ipron/profile/devfunc-profile' },
-  { title: '전화기능코드 프로파일', path: '/ipron/profile/devfunc-profile' },
+  { title: '기능코드 프로파일', path: '/ipron/profile/devfunc-profile' },
 ];
 
 export default function DevfuncProfilePage() {
@@ -57,11 +55,9 @@ export default function DevfuncProfilePage() {
   // ─── State ──────────────────────────────────────────────────────────────────
   const [selectedTenantId, setSelectedTenantId] = useState<number | null>(null);
   const [selectedProfileId, setSelectedProfileId] = useState<number | null>(null);
-  const [collapsedTenants, setCollapsedTenants] = useState<Set<number>>(new Set());
   const [searchText, setSearchText] = useState('');
-  const [searchCode, setSearchCode] = useState('');
-  const [searchName, setSearchName] = useState('');
   const cardScrollRef = useRef<HTMLDivElement>(null);
+  const tabScrollRef = useRef<HTMLDivElement>(null);
 
   // ─── Refs ───────────────────────────────────────────────────────────────────
   const profileDrawerRef = useRef<DevfuncProfileDrawerRef>(null);
@@ -72,99 +68,63 @@ export default function DevfuncProfilePage() {
   const { data: profiles = [] } = useGetProfiles();
   const { data: tenants = [] } = useGetTenants();
   const { data: codes = [], isLoading: isCodesLoading } = useGetCodes({
-    params: selectedProfileId
-      ? {
-          profileId: selectedProfileId,
-          ...(searchCode ? { devfuncCode: searchCode } : {}),
-          ...(searchName ? { devfuncCodeName: searchName } : {}),
-        }
-      : undefined,
-    queryOptions: {
-      enabled: !!selectedProfileId,
-    },
+    params: selectedProfileId ? { profileId: selectedProfileId } : undefined,
+    queryOptions: { enabled: !!selectedProfileId },
   });
 
   // ─── Derived data ───────────────────────────────────────────────────────────
-  const tenantProfileGroups: TenantProfileGroup[] = useMemo(() => {
-    const tenantMap = new Map<number, TenantProfileGroup>();
+  const isSearching = searchText.trim().length > 0;
 
-    // 테넌트 목록 초기화
-    for (const tenant of tenants) {
-      tenantMap.set(tenant.tenantId, {
-        tenantId: tenant.tenantId,
-        tenantName: tenant.tenantName,
-        profiles: [],
-      });
-    }
+  const searchFilteredProfiles = useMemo(() => {
+    if (!isSearching) return profiles;
+    const kw = searchText.trim().toLowerCase();
+    return profiles.filter((p) => p.devfuncCodeProfileName.toLowerCase().includes(kw));
+  }, [profiles, isSearching, searchText]);
 
-    // 프로파일을 테넌트별로 그룹핑
-    for (const profile of profiles) {
-      let group = tenantMap.get(profile.tenantId);
-      if (!group) {
-        group = { tenantId: profile.tenantId, tenantName: profile.tenantName || `Tenant ${profile.tenantId}`, profiles: [] };
-        tenantMap.set(profile.tenantId, group);
-      }
-      group.profiles.push(profile);
-    }
+  const filteredProfiles = useMemo(
+    () => (isSearching || selectedTenantId === null ? searchFilteredProfiles : searchFilteredProfiles.filter((p) => p.tenantId === selectedTenantId)),
+    [searchFilteredProfiles, selectedTenantId, isSearching],
+  );
 
-    // 프로파일이 있는 테넌트만 표시
-    return Array.from(tenantMap.values())
-      .filter((g) => g.profiles.length > 0)
-      .sort((a, b) => a.tenantId - b.tenantId);
-  }, [tenants, profiles]);
+  const selectedProfile = useMemo(() => profiles.find((p) => p.devfuncCodeProfileId === selectedProfileId) ?? null, [profiles, selectedProfileId]);
 
-  const selectedProfile = useMemo(() => {
-    for (const group of tenantProfileGroups) {
-      const found = group.profiles.find((p) => p.devfuncCodeProfileId === selectedProfileId);
-      if (found) return found;
-    }
-    return null;
-  }, [tenantProfileGroups, selectedProfileId]);
-
-  /** Tenants with profile count (for the left tree), filtered by search */
-  const tenantList = useMemo(() => {
-    if (!searchText) return tenantProfileGroups;
-    const lower = searchText.toLowerCase();
-    return tenantProfileGroups
-      .map((group) => ({
-        ...group,
-        profiles: group.profiles.filter((p) => p.devfuncCodeProfileName.toLowerCase().includes(lower)),
-      }))
-      .filter((group) => group.tenantName.toLowerCase().includes(lower) || group.profiles.length > 0);
-  }, [tenantProfileGroups, searchText]);
-
-  /** Profiles filtered by selected tenant */
-  const filteredProfiles = useMemo(() => {
-    if (!selectedTenantId) return [];
-    const group = tenantProfileGroups.find((g) => g.tenantId === selectedTenantId);
-    return group?.profiles ?? [];
-  }, [tenantProfileGroups, selectedTenantId]);
-
-  /** Selected tenant name */
-  const selectedTenantName = useMemo(() => {
-    const group = tenantProfileGroups.find((g) => g.tenantId === selectedTenantId);
-    return group?.tenantName ?? '';
-  }, [tenantProfileGroups, selectedTenantId]);
-
-  // ─── Auto-select first tenant on load ────────────────────────────────────────
+  // ─── Auto-select ────────────────────────────────────────────────────────────
   useEffect(() => {
-    if (tenantProfileGroups.length > 0 && selectedTenantId === null) {
-      setSelectedTenantId(tenantProfileGroups[0].tenantId);
+    if (tenants.length > 0 && selectedTenantId === null && !isSearching) {
+      setSelectedTenantId(tenants[0].tenantId);
     }
-  }, [tenantProfileGroups, selectedTenantId]);
+  }, [tenants, selectedTenantId, isSearching]);
 
-  // ─── Auto-select first profile when tenant changes ───────────────────────────
   useEffect(() => {
-    if (selectedTenantId) {
-      const group = tenantProfileGroups.find((g) => g.tenantId === selectedTenantId);
-      const profs = group?.profiles ?? [];
-      if (profs.length > 0) {
-        setSelectedProfileId(profs[0].devfuncCodeProfileId);
-      } else {
-        setSelectedProfileId(null);
-      }
+    if (!selectedProfileId && filteredProfiles.length > 0) {
+      setSelectedProfileId(filteredProfiles[0].devfuncCodeProfileId);
     }
-  }, [selectedTenantId, tenantProfileGroups]);
+  }, [filteredProfiles, selectedProfileId]);
+
+  // ─── Handlers ───────────────────────────────────────────────────────────────
+  const handleTenantSelect = useCallback((tenantId: number | null) => {
+    setSelectedTenantId(tenantId);
+    setSelectedProfileId(null);
+    setSearchText('');
+  }, []);
+
+  const handleSearchChange = useCallback((e: ChangeEvent<HTMLInputElement>) => {
+    setSearchText(e.target.value);
+    if (e.target.value.trim()) {
+      setSelectedTenantId(null);
+      setSelectedProfileId(null);
+    }
+  }, []);
+
+  const handleCardSelect = useCallback(
+    (profile: DevfuncProfile) => {
+      setSelectedProfileId(profile.devfuncCodeProfileId);
+      if (!selectedTenantId || selectedTenantId !== profile.tenantId) {
+        setSelectedTenantId(profile.tenantId);
+      }
+    },
+    [selectedTenantId],
+  );
 
   // ─── Invalidate helpers ─────────────────────────────────────────────────────
   const invalidateProfiles = useCallback(() => {
@@ -228,7 +188,7 @@ export default function DevfuncProfilePage() {
   const { mutate: createCode, isPending: isCreatingCode } = useCreateCode({
     mutationOptions: {
       onSuccess: () => {
-        toast.success('전화기능코드가 등록되었습니다.');
+        toast.success('기능코드가 등록되었습니다.');
         codeDrawerRef.current?.close();
         invalidateAll();
       },
@@ -238,7 +198,7 @@ export default function DevfuncProfilePage() {
   const { mutate: updateCode, isPending: isUpdatingCode } = useUpdateCode({
     mutationOptions: {
       onSuccess: () => {
-        toast.success('전화기능코드가 수정되었습니다.');
+        toast.success('기능코드가 수정되었습니다.');
         codeDrawerRef.current?.close();
         invalidateCodes();
       },
@@ -248,28 +208,11 @@ export default function DevfuncProfilePage() {
   const { mutate: deleteCode } = useDeleteCode({
     mutationOptions: {
       onSuccess: () => {
-        toast.success('전화기능코드가 삭제되었습니다.');
+        toast.success('기능코드가 삭제되었습니다.');
         invalidateAll();
       },
     },
   });
-
-  // ─── Tenant selection ───────────────────────────────────────────────────────
-  const toggleTenantGroup = (tenantId: number) => {
-    setCollapsedTenants((prev) => {
-      const next = new Set(prev);
-      if (next.has(tenantId)) {
-        next.delete(tenantId);
-      } else {
-        next.add(tenantId);
-      }
-      return next;
-    });
-  };
-
-  const handleTenantSelect = (tenantId: number) => {
-    setSelectedTenantId(tenantId);
-  };
 
   // ─── Profile actions ───────────────────────────────────────────────────────
   const handleProfileCreate = () => {
@@ -285,19 +228,13 @@ export default function DevfuncProfilePage() {
       onOk: () => deleteProfile({ id: profile.devfuncCodeProfileId }),
       options: {
         title: '프로파일 삭제',
-        content: `"${profile.devfuncCodeProfileName}" 프로파일을 삭제하시겠습니까?\n하위 전화기능코드도 함께 삭제됩니다.`,
+        content: `"${profile.devfuncCodeProfileName}" 프로파일을 삭제하시겠습니까?\n하위 기능코드도 함께 삭제됩니다.`,
       },
     });
   };
 
   const handleProfileCopy = (profile: DevfuncProfile) => {
     copyDialogRef.current?.open(profile);
-  };
-
-  const handleProfileSelect = (profileId: number) => {
-    setSelectedProfileId(profileId);
-    setSearchCode('');
-    setSearchName('');
   };
 
   // ─── Code actions ──────────────────────────────────────────────────────────
@@ -317,55 +254,22 @@ export default function DevfuncProfilePage() {
           code: code.devfuncCode,
         }),
       options: {
-        title: '전화기능코드 삭제',
+        title: '기능코드 삭제',
         content: `"${code.devfuncCodeName}" (${code.devfuncCode}) 코드를 삭제하시겠습니까?`,
       },
     });
   };
 
   // ─── Search ─────────────────────────────────────────────────────────────────
-  const handleSearch = () => {
-    invalidateCodes();
-  };
-
-  const handleSearchReset = () => {
-    setSearchCode('');
-    setSearchName('');
-    setTimeout(() => invalidateCodes(), 0);
-  };
-
   // ─── Profile dropdown menu ─────────────────────────────────────────────────
   const getProfileMenuItems = (profile: DevfuncProfile) => [
-    {
-      key: 'edit',
-      label: '수정',
-      icon: <Edit3 className="size-4" />,
-      onClick: () => handleProfileEdit(profile),
-    },
-    {
-      key: 'copy',
-      label: '복사',
-      icon: <Copy className="size-4" />,
-      onClick: () => handleProfileCopy(profile),
-    },
-    {
-      key: 'delete',
-      label: '삭제',
-      icon: <Trash2 className="size-4" />,
-      danger: true,
-      onClick: () => handleProfileDelete(profile),
-    },
+    { key: 'edit', label: '수정', icon: <Edit3 className="size-4" />, onClick: () => handleProfileEdit(profile) },
+    { key: 'copy', label: '복사', icon: <Copy className="size-4" />, onClick: () => handleProfileCopy(profile) },
+    { key: 'delete', label: '삭제', icon: <Trash2 className="size-4" />, danger: true, onClick: () => handleProfileDelete(profile) },
   ];
 
   // ─── ag-Grid columns ──────────────────────────────────────────────────────
-  const defaultColDef: ColDef = useMemo(
-    () => ({
-      sortable: true,
-      filter: true,
-      resizable: true,
-    }),
-    [],
-  );
+  const defaultColDef: ColDef = useMemo(() => ({ sortable: true, filter: true, resizable: true, suppressHeaderMenuButton: true }), []);
 
   const columnDefs: ColDef<DevfuncCode>[] = [
     {
@@ -431,231 +335,186 @@ export default function DevfuncProfilePage() {
     <div className="flex flex-col gap-4 w-full h-full">
       <PageHeader breadcrumb={breadcrumb} />
 
-      {/* Split container: Left Tree + Right (Cards + Bottom Grid) */}
-      <div className="flex flex-1 min-h-0 gap-4">
-        {/* ===== Left Panel: Tenant Tree (280px) ===== */}
-        <div className="w-[280px] min-w-[280px] bg-white bt-shadow rounded-md border border-gray-200 flex flex-col overflow-hidden">
-          <div className="px-4 py-3 border-b border-gray-100 flex-shrink-0">
-            <Input placeholder="프로파일명 검색" size="small" allowClear value={searchText} onChange={(e) => setSearchText(e.target.value)} />
+      <div className="flex flex-1 min-h-0 flex-col gap-4">
+        {/* ===== 상단: 테넌트 탭 바 + 프로파일 카드 슬라이더 ===== */}
+        <div className="bg-white bt-shadow rounded-md border border-gray-200 flex flex-col overflow-hidden flex-shrink-0">
+          {/* Header: 테넌트 탭 바 + 검색 + 추가 버튼 */}
+          <div className="flex items-stretch bg-white border-b border-gray-200 pr-3 flex-shrink-0 h-[56px]">
+            {/* 좌측 스크롤 버튼 */}
+            <button
+              type="button"
+              className="flex-shrink-0 w-8 flex items-center justify-center hover:bg-gray-100 border-r border-gray-200 cursor-pointer"
+              onClick={() => tabScrollRef.current?.scrollBy({ left: -300, behavior: 'smooth' })}
+            >
+              <ChevronLeft className="size-4 text-gray-500" />
+            </button>
+
+            {/* 탭 스크롤 컨테이너 */}
+            <div
+              ref={tabScrollRef}
+              className="flex items-stretch max-w-[900px] min-w-0 overflow-x-auto divide-x divide-gray-200"
+              style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
+            >
+              {/* 테넌트 탭들 */}
+              {tenants.map((tenant) => {
+                const tenantProfiles = searchFilteredProfiles.filter((p) => p.tenantId === tenant.tenantId);
+                const isActive = selectedTenantId === tenant.tenantId;
+                return (
+                  <button
+                    key={tenant.tenantId}
+                    type="button"
+                    className={`flex items-center justify-center gap-2 px-3 py-2.5 text-[13px] font-medium cursor-pointer border-b-2 -mb-[1px] min-w-[120px] max-w-[200px] flex-shrink-0 transition-colors ${
+                      isActive ? 'text-[var(--color-bt-primary)] border-b-[var(--color-bt-primary)]' : 'text-gray-500 border-b-transparent hover:text-gray-700'
+                    }`}
+                    onClick={(e) => {
+                      handleTenantSelect(tenant.tenantId);
+                      (e.currentTarget as HTMLElement).scrollIntoView({ behavior: 'smooth', inline: 'center', block: 'nearest' });
+                    }}
+                  >
+                    <Building2 className="size-3.5 flex-shrink-0" />
+                    <span className="truncate">{tenant.tenantName}</span>
+                    <span className="text-[11px] text-gray-400 flex-shrink-0">({tenantProfiles.length})</span>
+                  </button>
+                );
+              })}
+            </div>
+
+            {/* 우측 스크롤 버튼 */}
+            <button
+              type="button"
+              className="flex-shrink-0 w-8 flex items-center justify-center hover:bg-gray-100 border-l border-r border-gray-200 cursor-pointer"
+              onClick={() => tabScrollRef.current?.scrollBy({ left: 300, behavior: 'smooth' })}
+            >
+              <ChevronRight className="size-4 text-gray-500" />
+            </button>
+
+            {/* 우측: 검색 + 추가 버튼 */}
+            <div className="ml-auto flex items-center gap-2 flex-shrink-0 pl-3">
+              <Input
+                allowClear
+                prefix={<Search className="size-3.5 text-gray-400" />}
+                placeholder="프로파일 검색"
+                value={searchText}
+                onChange={handleSearchChange}
+                style={{ width: 200 }}
+              />
+              <Button type="primary" icon={<Plus className="size-3.5" />} onClick={handleProfileCreate}>
+                추가
+              </Button>
+            </div>
           </div>
 
-          <div className="flex-1 overflow-y-auto py-2">
-            {tenantList.length === 0 ? (
-              <div className="flex flex-col items-center justify-center h-full text-gray-400 gap-2 px-4">
-                <span className="text-sm">{searchText ? '검색 결과가 없습니다' : '등록된 테넌트가 없습니다'}</span>
+          {/* Card slider body */}
+          <div className="flex items-center px-4 py-3 h-[170px]">
+            {filteredProfiles.length === 0 ? (
+              <div className="flex flex-col items-center justify-center w-full h-full text-gray-400 gap-2">
+                <Empty description={false} imageStyle={{ height: 40 }} />
+                <span className="text-sm">{isSearching ? '검색 결과가 없습니다' : '등록된 프로파일이 없습니다'}</span>
               </div>
             ) : (
-              tenantList.map((group) => {
-                const isCollapsed = collapsedTenants.has(group.tenantId);
-                const isTenantSelected = selectedTenantId === group.tenantId;
-                return (
-                  <div key={group.tenantId} className="mb-0.5">
-                    {/* Tenant group header */}
-                    <button
-                      type="button"
-                      className={`w-full flex items-center gap-2 px-4 py-2.5 cursor-pointer select-none text-[13px] font-semibold transition-colors border-l-[3px] ${
-                        isTenantSelected ? 'bg-[#e8ecf4] border-l-[#405189] text-[#405189]' : 'border-l-transparent text-gray-800 hover:bg-gray-50'
-                      }`}
-                      onClick={() => {
-                        handleTenantSelect(group.tenantId);
-                        if (isCollapsed) toggleTenantGroup(group.tenantId);
-                      }}
-                    >
-                      <span
-                        role="button"
-                        className="p-0 bg-transparent border-none cursor-pointer"
+              <div className="relative flex items-center gap-2 w-full">
+                <Button
+                  type="text"
+                  icon={<ChevronLeft className="size-5" />}
+                  onClick={() => cardScrollRef.current?.scrollBy({ left: -260, behavior: 'smooth' })}
+                  className="!flex-shrink-0 !w-8 !h-8 !p-0"
+                />
+                <div ref={cardScrollRef} className="flex gap-3 overflow-x-auto py-2 px-1 flex-1" style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}>
+                  {filteredProfiles.map((profile) => {
+                    const isCardSelected = selectedProfileId === profile.devfuncCodeProfileId;
+                    const tenantName = profile.tenantName ?? tenants.find((t) => t.tenantId === profile.tenantId)?.tenantName ?? `Tenant ${profile.tenantId}`;
+                    return (
+                      <div
+                        key={profile.devfuncCodeProfileId}
+                        className={`bg-white border rounded-lg p-3.5 cursor-pointer transition-all w-[220px] h-[130px] flex-shrink-0 flex flex-col ${
+                          isCardSelected
+                            ? 'border-[#405189] shadow-[0_0_0_2px_rgba(64,81,137,0.15)]'
+                            : 'border-gray-200 hover:border-[#c5cbe0] hover:shadow-[0_2px_8px_rgba(0,0,0,0.06)]'
+                        }`}
                         onClick={(e) => {
-                          e.stopPropagation();
-                          toggleTenantGroup(group.tenantId);
+                          handleCardSelect(profile);
+                          (e.currentTarget as HTMLElement).scrollIntoView({ behavior: 'smooth', inline: 'center', block: 'nearest' });
                         }}
+                        onDoubleClick={() => handleProfileEdit(profile)}
                       >
-                        {isCollapsed ? <ChevronRightIcon className="size-3.5 text-gray-400 flex-shrink-0" /> : <ChevronDown className="size-3.5 text-gray-400 flex-shrink-0" />}
-                      </span>
-                      <Building2 className="size-4 text-gray-500 flex-shrink-0" />
-                      <span className="truncate flex-1 text-left">{group.tenantName}</span>
-                      <span className="ml-auto text-[11px] text-gray-400 font-normal">{group.profiles.length}</span>
-                    </button>
+                        {/* Card header: 프로파일명 + 더보기 */}
+                        <div className="flex items-center justify-between mb-1.5">
+                          <span className="text-sm font-semibold text-gray-800 truncate">{profile.devfuncCodeProfileName}</span>
+                          <div onClick={(e) => e.stopPropagation()}>
+                            <Dropdown menu={{ items: getProfileMenuItems(profile) }} trigger={['click']} placement="bottomRight">
+                              <button type="button" className="p-1 rounded hover:bg-gray-100 transition-colors">
+                                <MoreVertical className="size-4 text-gray-400" />
+                              </button>
+                            </Dropdown>
+                          </div>
+                        </div>
 
-                    {/* Profile items under tenant */}
-                    {!isCollapsed && (
-                      <div>
-                        {group.profiles.map((profile) => {
-                          const isItemSelected = selectedProfileId === profile.devfuncCodeProfileId;
-                          const dotColor = isItemSelected ? 'bg-[#405189]' : profile.codeCount > 0 ? 'bg-green-500' : 'bg-gray-300';
-                          return (
-                            <div
-                              key={profile.devfuncCodeProfileId}
-                              className={`group flex items-center gap-2 pl-[42px] pr-2 py-1.5 cursor-pointer text-[12px] transition-colors border-l-[3px] ${
-                                isItemSelected ? 'bg-[#e8ecf4] border-l-[#405189] text-[#405189] font-medium' : 'border-l-transparent text-gray-500 hover:bg-gray-50'
-                              }`}
-                              onClick={() => {
-                                setSelectedTenantId(profile.tenantId);
-                                handleProfileSelect(profile.devfuncCodeProfileId);
-                              }}
-                            >
-                              <span className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${dotColor}`} />
-                              <span className="truncate flex-1">{profile.devfuncCodeProfileName}</span>
-                              <span className="text-[11px] text-gray-400">{profile.codeCount ?? 0}</span>
-                              <div className="opacity-0 group-hover:opacity-100 transition-opacity" onClick={(e) => e.stopPropagation()}>
-                                <Dropdown menu={{ items: getProfileMenuItems(profile) }} trigger={['click']} placement="bottomRight">
-                                  <button type="button" className="p-0.5 rounded hover:bg-gray-200 transition-colors">
-                                    <MoreVertical className="size-3.5 text-gray-400" />
-                                  </button>
-                                </Dropdown>
-                              </div>
-                            </div>
-                          );
-                        })}
+                        {/* Card info */}
+                        <div className="text-xs text-gray-500 space-y-0.5">
+                          <div className="flex items-center gap-1">
+                            <Building2 className="size-3 text-gray-400 flex-shrink-0" />
+                            <span className="truncate">{tenantName}</span>
+                          </div>
+                          <div>기능코드: {profile.codeCount ?? 0}건</div>
+                        </div>
+
+                        {/* 하단 태그 */}
+                        <div className="flex flex-wrap gap-1 mt-auto pt-2">
+                          <span
+                            className={`inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium border ${
+                              (profile.codeCount ?? 0) > 0 ? 'text-green-700 bg-green-50 border-green-200' : 'text-gray-500 bg-gray-50 border-gray-200'
+                            }`}
+                          >
+                            {(profile.codeCount ?? 0) > 0 ? `${profile.codeCount}건 등록` : '미등록'}
+                          </span>
+                        </div>
                       </div>
-                    )}
-                  </div>
-                );
-              })
+                    );
+                  })}
+                </div>
+                <Button
+                  type="text"
+                  icon={<ChevronRight className="size-5" />}
+                  onClick={() => cardScrollRef.current?.scrollBy({ left: 260, behavior: 'smooth' })}
+                  className="!flex-shrink-0 !w-8 !h-8 !p-0"
+                />
+              </div>
             )}
           </div>
         </div>
 
-        {/* ===== Right Panel: Cards (top) + Code Grid (bottom) ===== */}
-        <div className="flex-1 flex flex-col gap-4 min-w-0">
-          {selectedTenantId ? (
+        {/* ===== 하단: 기능코드 ag-Grid ===== */}
+        <div className="bg-white bt-shadow rounded-md border border-gray-200 flex flex-col flex-1 min-h-0 overflow-hidden">
+          {selectedProfile ? (
             <>
-              {/* ── Top: Card Slider Area ── */}
-              <div className="bg-white bt-shadow rounded-md border border-gray-200 flex flex-col overflow-hidden flex-shrink-0">
-                {/* Card slider header */}
-                <div className="px-5 py-3 border-b border-gray-100 flex items-center justify-between flex-shrink-0">
-                  <div className="flex items-center gap-3">
-                    <span className="text-sm font-semibold text-gray-800">
-                      {selectedTenantName} 프로파일 ({filteredProfiles.length}건)
-                    </span>
-                  </div>
-                  <Button type="primary" size="small" icon={<Plus className="size-3.5" />} onClick={handleProfileCreate}>
-                    프로파일 추가
-                  </Button>
-                </div>
-
-                {/* Card slider body */}
-                <div className="flex items-center px-4 py-3">
-                  {filteredProfiles.length === 0 ? (
-                    <div className="flex flex-col items-center justify-center w-full h-full text-gray-400 gap-3">
-                      <Empty description={false} />
-                      <span className="text-sm">이 테넌트에 등록된 프로파일이 없습니다</span>
-                    </div>
-                  ) : (
-                    <div className="relative flex items-center gap-2 w-full">
-                      <Button
-                        type="text"
-                        icon={<ChevronLeft className="size-5" />}
-                        onClick={() => cardScrollRef.current?.scrollBy({ left: -260, behavior: 'smooth' })}
-                        className="!flex-shrink-0 !w-8 !h-8 !p-0"
-                      />
-                      <div ref={cardScrollRef} className="flex gap-3 overflow-x-auto py-2 px-1 flex-1" style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}>
-                        {filteredProfiles.map((profile) => {
-                          const isCardSelected = selectedProfileId === profile.devfuncCodeProfileId;
-                          return (
-                            <div
-                              key={profile.devfuncCodeProfileId}
-                              className={`bg-white border rounded-lg p-3.5 cursor-pointer transition-all min-w-[220px] max-w-[260px] flex-shrink-0 ${
-                                isCardSelected
-                                  ? 'border-[#405189] shadow-[0_0_0_2px_rgba(64,81,137,0.15)]'
-                                  : 'border-gray-200 hover:border-[#c5cbe0] hover:shadow-[0_2px_8px_rgba(0,0,0,0.06)]'
-                              }`}
-                              onClick={() => handleProfileSelect(profile.devfuncCodeProfileId)}
-                              onDoubleClick={() => handleProfileEdit(profile)}
-                            >
-                              <div className="flex items-center justify-between mb-1.5">
-                                <span className="text-sm font-semibold text-gray-800 truncate">{profile.devfuncCodeProfileName}</span>
-                                <div onClick={(e) => e.stopPropagation()}>
-                                  <Dropdown menu={{ items: getProfileMenuItems(profile) }} trigger={['click']} placement="bottomRight">
-                                    <button type="button" className="p-1 rounded hover:bg-gray-100 transition-colors">
-                                      <MoreVertical className="size-4 text-gray-400" />
-                                    </button>
-                                  </Dropdown>
-                                </div>
-                              </div>
-                              <div className="text-xs text-gray-500">
-                                <div>테넌트: {profile.tenantName}</div>
-                              </div>
-                            </div>
-                          );
-                        })}
-                      </div>
-                      <Button
-                        type="text"
-                        icon={<ChevronRightIcon className="size-5" />}
-                        onClick={() => cardScrollRef.current?.scrollBy({ left: 260, behavior: 'smooth' })}
-                        className="!flex-shrink-0 !w-8 !h-8 !p-0"
-                      />
-                    </div>
-                  )}
-                </div>
+              {/* Grid header */}
+              <div className="px-5 py-3 flex items-center justify-between flex-shrink-0 border-b border-gray-100">
+                <span className="text-sm font-semibold text-gray-800">
+                  {selectedProfile.devfuncCodeProfileName} 기능코드 ({codes.length}건)
+                </span>
+                <Button icon={<Plus className="size-3.5" />} onClick={handleCodeCreate}>
+                  코드 추가
+                </Button>
               </div>
 
-              {/* ── Bottom: Code Grid ── */}
-              <div className="bg-white bt-shadow rounded-md border border-gray-200 flex flex-col flex-1 min-h-0 overflow-hidden">
-                {selectedProfile ? (
-                  <>
-                    {/* Grid header */}
-                    <div className="px-5 py-2 flex items-center justify-between flex-shrink-0 border-b border-gray-100">
-                      <span className="text-sm font-semibold text-gray-800">
-                        {selectedProfile.devfuncCodeProfileName} 전화기능코드 ({codes.length}건)
-                      </span>
-                      <Button size="small" icon={<Plus className="size-3.5" />} onClick={handleCodeCreate}>
-                        코드 추가
-                      </Button>
-                    </div>
-
-                    {/* Search bar */}
-                    <div className="px-5 py-2 border-b border-gray-100 flex items-center gap-2 flex-shrink-0">
-                      <Input
-                        placeholder="기능코드"
-                        value={searchCode}
-                        onChange={(e) => setSearchCode(e.target.value)}
-                        onPressEnter={handleSearch}
-                        className="w-[120px]"
-                        size="small"
-                      />
-                      <Input
-                        placeholder="코드명"
-                        value={searchName}
-                        onChange={(e) => setSearchName(e.target.value)}
-                        onPressEnter={handleSearch}
-                        className="w-[140px]"
-                        size="small"
-                      />
-                      <Button size="small" icon={<Search className="size-3.5" />} onClick={handleSearch}>
-                        검색
-                      </Button>
-                      <Button size="small" onClick={handleSearchReset}>
-                        초기화
-                      </Button>
-                    </div>
-
-                    {/* ag-Grid (no pagination) */}
-                    <div className="flex-1">
-                      <AgGridReact<DevfuncCode>
-                        rowData={codes}
-                        columnDefs={columnDefs}
-                        defaultColDef={defaultColDef}
-                        gridOptions={{ ...gridOptions, statusBar: undefined, pagination: false, sideBar: false }}
-                        loading={isCodesLoading}
-                        onRowDoubleClicked={(e) => {
-                          if (e.data) handleCodeEdit(e.data);
-                        }}
-                      />
-                    </div>
-                  </>
-                ) : (
-                  <div className="flex flex-col items-center justify-center h-full text-gray-400 gap-3 px-8">
-                    <Empty description={false} />
-                    <span className="text-sm">프로파일을 선택하세요</span>
-                  </div>
-                )}
+              {/* ag-Grid */}
+              <div className="flex-1">
+                <AgGridReact<DevfuncCode>
+                  rowData={codes}
+                  columnDefs={columnDefs}
+                  defaultColDef={defaultColDef}
+                  gridOptions={{ ...gridOptions, statusBar: undefined, pagination: false, sideBar: false }}
+                  loading={isCodesLoading}
+                  onRowDoubleClicked={(e) => {
+                    if (e.data) handleCodeEdit(e.data);
+                  }}
+                />
               </div>
             </>
           ) : (
-            <div className="bg-white bt-shadow rounded-md border border-gray-200 flex flex-col items-center justify-center h-full text-gray-400 gap-3 px-8">
+            <div className="flex flex-col items-center justify-center h-full text-gray-400 gap-3 px-8">
               <Empty description={false} />
-              <span className="text-sm">좌측에서 테넌트를 선택하세요</span>
+              <span className="text-sm">프로파일을 선택하세요</span>
             </div>
           )}
         </div>

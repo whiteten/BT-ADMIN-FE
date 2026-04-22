@@ -23,6 +23,13 @@ const DodTransListPage = React.lazy(() => import('./features/dod-trans/pages/Dod
 const CallScreenListPage = React.lazy(() => import('./features/call-screen/pages/CallScreenListPage'));
 const McsDnisPage = React.lazy(() => import('./features/mcs-dnis/components/McsDnisPage'));
 const DevfuncProfilePage = React.lazy(() => import('./features/devfunc-profile/pages/DevfuncProfilePage'));
+const AccessProfilePage = React.lazy(() => import('./features/access-profile/pages/AccessProfilePage'));
+const DnProfilePage = React.lazy(() => import('./features/dn-profile/pages/DnProfilePage'));
+const DnProfileFormPage = React.lazy(() => import('./features/dn-profile/pages/DnProfileFormPage'));
+const CosListPage = React.lazy(() => import('./features/cos/pages/CosListPage'));
+const CosFormPage = React.lazy(() => import('./features/cos/pages/CosFormPage'));
+const DnListPage = React.lazy(() => import('./features/dn/pages/DnListPage'));
+const DnFormPage = React.lazy(() => import('./features/dn/pages/DnFormPage'));
 export const routes = [
   {
     path: '/',
@@ -59,6 +66,22 @@ export const routes = [
       {
         path: 'profile/devfunc-profile',
         element: <DevfuncProfilePage />,
+      },
+      {
+        path: 'profile/access-profile',
+        element: <AccessProfilePage />,
+      },
+      {
+        path: 'profile/dn-profile',
+        element: <DnProfilePage />,
+      },
+      {
+        path: 'profile/dn-profile/create',
+        element: <DnProfileFormPage />,
+      },
+      {
+        path: 'profile/dn-profile/:id/edit',
+        element: <DnProfileFormPage />,
       },
       {
         path: 'line/endpoint',
@@ -135,6 +158,30 @@ export const routes = [
       {
         path: 'line/mcs-dnis',
         element: <McsDnisPage />,
+      },
+      {
+        path: 'cos',
+        element: <CosListPage />,
+      },
+      {
+        path: 'cos/create',
+        element: <CosFormPage />,
+      },
+      {
+        path: 'cos/:cosId/edit',
+        element: <CosFormPage />,
+      },
+      {
+        path: 'dn',
+        element: <DnListPage />,
+      },
+      {
+        path: 'dn/create',
+        element: <DnFormPage />,
+      },
+      {
+        path: 'dn/:id/edit',
+        element: <DnFormPage />,
       },
     ],
   },

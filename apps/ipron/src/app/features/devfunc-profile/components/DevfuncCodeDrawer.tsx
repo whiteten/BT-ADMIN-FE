@@ -1,5 +1,5 @@
 /**
- * 전화기능코드 등록/수정 Drawer (420px)
+ * 기능코드 등록/수정 Drawer (420px)
  * - forwardRef + useImperativeHandle 패턴
  * - 등록: 기능코드 + 코드명 + 최소/최대 자릿수 + 설명
  * - 수정: 기능코드 disabled, 나머지 수정 가능
@@ -90,7 +90,7 @@ const DevfuncCodeDrawer = forwardRef<DevfuncCodeDrawerRef, DevfuncCodeDrawerProp
   );
 
   return (
-    <Drawer open={isOpen} onClose={handleClose} title={isEditMode ? '전화기능코드 수정' : '전화기능코드 등록'} closable={{ placement: 'end' }} footer={footer} destroyOnHidden>
+    <Drawer open={isOpen} onClose={handleClose} title={isEditMode ? '기능코드 수정' : '기능코드 등록'} closable={{ placement: 'end' }} footer={footer} destroyOnHidden>
       <Form form={form} layout="vertical">
         <Form.Item
           label="기능코드"
