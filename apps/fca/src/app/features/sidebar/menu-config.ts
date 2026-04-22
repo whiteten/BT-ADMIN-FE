@@ -2,7 +2,7 @@ import { Activity, Bot } from 'lucide-react';
 import { IconMenuBotCommon, IconMenuBotConfig, IconMenuDashboard, IconMenuMain, IconMenuStatistics } from '@/components/custom/Icons';
 
 const appId = 'fca';
-const appName = 'FOCUS AI';
+const appName = 'FORCUS AI';
 const menuConfig = {
   appId: appId,
   appName: appName,
@@ -54,17 +54,24 @@ const menuConfig = {
           hide: false,
         },
         {
+          menuId: 85,
+          label: '공용 환경변수',
+          path: 'global/env',
+          index: 1,
+          hide: false,
+        },
+        {
           menuId: 22,
           label: 'AOE 확장',
           path: 'global/aoe/config',
-          index: 1,
+          index: 2,
           hide: false,
         },
       ],
     },
     {
       menuId: 55,
-      label: '트레킹',
+      label: '트래킹',
       index: 3,
       hide: false,
       icon: Activity,
@@ -72,15 +79,22 @@ const menuConfig = {
         {
           menuId: 56,
           label: '실시간 봇 트래킹',
-          path: 'tracking/realtime',
+          path: 'tracking/bot-realtime',
           index: 0,
           hide: false,
         },
         {
           menuId: 75,
           label: '대화이력',
-          path: 'tracking/realtime',
+          path: 'tracking/bot-dialog-history',
           index: 1,
+          hide: false,
+        },
+        {
+          menuId: 117,
+          label: '개인정보 열람 이력',
+          path: 'tracking/decrypt-log',
+          index: 2,
           hide: false,
         },
       ],
@@ -94,7 +108,7 @@ const menuConfig = {
       children: [
         {
           menuId: 9,
-          label: '콜봇 현황',
+          label: '봇 현황',
           path: 'dashboard/call-bot',
           index: 0,
           hide: false,

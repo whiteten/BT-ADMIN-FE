@@ -121,6 +121,7 @@ export interface RoleCreateDatas {
   sortOrder?: number;
   isUse?: boolean;
   canResetPassword?: boolean;
+  canManageResourceAccess?: boolean;
   authIds?: number[];
 }
 
@@ -132,6 +133,7 @@ export interface RoleUpdateDatas {
   sortOrder?: number;
   isUse: boolean;
   canResetPassword: boolean;
+  canManageResourceAccess: boolean;
   authIds?: number[];
 }
 
@@ -174,6 +176,8 @@ export interface PermissionFlat {
   menuId?: number;
   menuKey?: string;
   menuLabel?: string;
+  roleCount: number;
+  userOverrideCount: number;
 }
 
 // 권한 생성 요청

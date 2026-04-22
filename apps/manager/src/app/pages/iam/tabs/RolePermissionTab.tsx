@@ -52,6 +52,7 @@ export default function RolePermissionTab() {
       sortOrder: role.sortOrder ?? 0,
       isUse: role.isUse,
       canResetPassword: role.canResetPassword,
+      canManageResourceAccess: role.canManageResourceAccess,
       // 권한 매핑만 업데이트
       authIds: Array.from(selectedPermissions),
     };

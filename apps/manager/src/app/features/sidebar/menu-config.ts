@@ -107,6 +107,13 @@ const menuConfig = {
           index: 0,
           hide: false,
         },
+        {
+          menuId: 106,
+          label: '데이터 보관주기',
+          path: 'resource/data-retention',
+          index: 1,
+          hide: false,
+        },
       ],
     },
   ],

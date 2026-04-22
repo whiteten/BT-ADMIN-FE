@@ -46,7 +46,7 @@ const ExcelImportResultModal = forwardRef<ExcelImportResultModalRef, ExcelImport
 
   if (!data) return null;
 
-  const { totalCount, successCount, failCount, rows } = data;
+  const { totalCount, successCount, failCount, rows = [] } = data;
   const isAllSuccess = failCount === 0;
   const isAllFail = successCount === 0;
 
@@ -54,15 +54,16 @@ const ExcelImportResultModal = forwardRef<ExcelImportResultModalRef, ExcelImport
   rows
     .filter((row) => row.status === 'FAIL')
     .forEach((row) => {
+      const name = row.name ?? '';
       const existing = groupedFailRows.find((g) => g.reason === row.reason);
       if (existing) {
-        if (!existing.names.includes(row.name)) {
-          existing.names.push(row.name);
+        if (!existing.names.includes(name)) {
+          existing.names.push(name);
         }
       } else {
         groupedFailRows.push({
           reason: row.reason ?? '',
-          names: [row.name],
+          names: [name],
         });
       }
     });
@@ -87,9 +88,9 @@ const ExcelImportResultModal = forwardRef<ExcelImportResultModalRef, ExcelImport
       width: 200,
       render: (names: string[]) => (
         <div className="flex flex-wrap gap-1 max-h-[120px] overflow-y-auto">
-          {names.map((name) => (
-            <Tag key={name} color="red">
-              {name}
+          {names.map((name, index) => (
+            <Tag key={`${name}-${index}`} color="red">
+              {name || '-'}
             </Tag>
           ))}
         </div>

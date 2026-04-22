@@ -18,6 +18,7 @@ import { Button, Dropdown, Input, type InputRef, Select, Tooltip } from 'antd';
 import { Check, ChevronDown, CloudDownload, Download, X } from 'lucide-react';
 import { toast } from '@/shared-util';
 import EvaluationSentenceAutoGenDrawer, { type EvaluationSentenceAutoGenDrawerRef } from '../components/EvaluationSentenceAutoGenDrawer';
+import ExcelImportResultModal, { type ExcelImportResultModalRef } from '../components/ExcelImportResultModal';
 import {
   modelQueryKeys,
   useCreateEvaluationQuestion,
@@ -138,6 +139,7 @@ export default function EvaluationQuestionList() {
   const { gridOptions } = useAggridOptions();
   const refEvaluationSentenceAutoGenDrawer = useRef<EvaluationSentenceAutoGenDrawerRef>(null);
   const importModalRef = useRef<FileImportModalRef>(null);
+  const importResultModalRef = useRef<ExcelImportResultModalRef>(null);
 
   // State
   const [filterColumn, setFilterColumn] = useState('question');
@@ -251,10 +253,10 @@ export default function EvaluationQuestionList() {
 
   const { mutate: importEvaluationQuestion, isPending: isImporting } = useImportEvaluationQuestion({
     mutationOptions: {
-      onSuccess: () => {
-        toast.success('완료되었습니다.');
+      onSuccess: (data) => {
         queryClient.invalidateQueries({ queryKey: modelQueryKeys.getEvaluationQuestions({ modelId, evalId }).queryKey });
         importModalRef.current?.close();
+        importResultModalRef.current?.open(data);
       },
     },
   });
@@ -557,6 +559,7 @@ export default function EvaluationQuestionList() {
         isAdding={isCreatingBulk}
       />
       <FileImportModal ref={importModalRef} title="Import" accept=".xlsx,.xls" onConfirm={handleImportEvaluationQuestion} confirmLoading={isImporting} />
+      <ExcelImportResultModal ref={importResultModalRef} nameColumnTitle="질문" />
     </div>
   );
 }

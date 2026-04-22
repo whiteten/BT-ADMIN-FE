@@ -1,55 +1,37 @@
 /**
- * 권한 목록 탭
+ * 권한 목록 탭 (읽기 전용 참조 뷰)
+ * - 시스템에 등록된 전체 권한 현황을 조회
+ * - 역할/사용자 할당 수를 표시하여 권한 사용 현황 파악
  */
 
 import { useMemo, useState } from 'react';
-import { useQueryClient } from '@tanstack/react-query';
-import type { ColDef, ICellRendererParams } from 'ag-grid-community';
+import type { ColDef } from 'ag-grid-community';
 import { AgGridReact } from 'ag-grid-react';
 import { Button, Input, Select, Tag, Tooltip } from 'antd';
-import { Copy, Search } from 'lucide-react';
+import { Copy, Search, Shield, User } from 'lucide-react';
 import { copyToClipboard, toast } from '@/shared-util';
 import { useGetApps } from '../hooks/useAppQueries';
-import { permissionQueryKeys, useDeletePermission, useGetAuthList } from '../hooks/usePermissionQueries';
+import { useGetAuthList } from '../hooks/usePermissionQueries';
 import type { PermissionFlat } from '../types/iam.types';
-import { IconTrash } from '@/components/custom/Icons';
 import useAggridOptions from '@/libs/shared-ui/src/hooks/useAggridOptions';
-import { useModal } from '@/libs/shared-ui/src/hooks/useModal';
 
 const actionColorMap: Record<string, string> = {
   read: 'blue',
   write: 'green',
   delete: 'red',
-  execute: 'purple',
   apply: 'purple',
   export: 'slategray',
 };
 
 export default function PermissionListTab() {
   const { gridOptions } = useAggridOptions();
-  const queryClient = useQueryClient();
-  const modal = useModal();
   const [appId, setAppId] = useState<string>('');
   const [action, setAction] = useState<string>('');
   const [keyword, setKeyword] = useState('');
   const [searchParams, setSearchParams] = useState<{ appId?: string; action?: string; keyword?: string }>({});
 
-  // API 연동: Flat 권한 목록 조회
   const { data: allPermissions = [], isLoading: loading } = useGetAuthList();
-
-  // API 연동: 앱 목록 조회
   const { data: apps = [] } = useGetApps();
-
-  // 권한 삭제 Mutation
-  const deletePermissionMutation = useDeletePermission({
-    mutationOptions: {
-      onSuccess: () => {
-        toast.success('권한이 삭제되었습니다');
-        queryClient.invalidateQueries({ queryKey: permissionQueryKeys.getAuthList.queryKey });
-        queryClient.invalidateQueries({ queryKey: permissionQueryKeys.getGroupedPermissions.queryKey });
-      },
-    },
-  });
 
   // 동적 필터 옵션 생성
   const filterOptions = useMemo(() => {
@@ -74,13 +56,6 @@ export default function PermissionListTab() {
       return true;
     });
   }, [allPermissions, searchParams]);
-
-  // 삭제 핸들러
-  const handleDelete = (authId: number) => {
-    modal.confirm.delete({
-      onOk: () => deletePermissionMutation.mutate(authId),
-    });
-  };
 
   const columnDefs: ColDef<PermissionFlat>[] = useMemo(
     () => [
@@ -126,30 +101,35 @@ export default function PermissionListTab() {
       },
       { headerName: '설명', field: 'description', flex: 1, minWidth: 150 },
       {
-        headerName: '',
-        maxWidth: 60,
-        sortable: false,
-        filter: false,
-        suppressHeaderMenuButton: true,
+        headerName: '역할',
+        field: 'roleCount',
+        width: 80,
         cellStyle: { display: 'flex', alignItems: 'center', justifyContent: 'center' },
-        cellRenderer: (params: ICellRendererParams<PermissionFlat>) => {
-          const { data } = params;
-          if (!data || data.isSystem) return null;
-          return (
-            <button
-              type="button"
-              onClick={(e) => {
-                e.stopPropagation();
-                handleDelete(data.authId);
-              }}
-            >
-              <IconTrash className="size-5 text-red-500 hover:cursor-pointer" />
-            </button>
-          );
-        },
+        cellRenderer: (params: { value: number }) => (
+          <Tooltip title={`${params.value}개 역할에 할당됨`}>
+            <div className="flex items-center gap-1 text-sm">
+              <Shield className="size-3.5 text-blue-500" />
+              <span className="font-medium text-gray-700">{params.value}</span>
+            </div>
+          </Tooltip>
+        ),
+      },
+      {
+        headerName: '사용자',
+        field: 'userOverrideCount',
+        width: 80,
+        cellStyle: { display: 'flex', alignItems: 'center', justifyContent: 'center' },
+        cellRenderer: (params: { value: number }) => (
+          <Tooltip title={`${params.value}명 사용자에게 개별 할당됨`}>
+            <div className="flex items-center gap-1 text-sm">
+              <User className="size-3.5 text-violet-500" />
+              <span className="font-medium text-gray-700">{params.value}</span>
+            </div>
+          </Tooltip>
+        ),
       },
     ],
-    [apps, handleDelete],
+    [apps],
   );
 
   const handleSearch = () => {

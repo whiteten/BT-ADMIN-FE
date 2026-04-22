@@ -1,4 +1,4 @@
-import { useMutation, useQuery } from '@tanstack/react-query';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { createQueryKeys } from '@lukemorales/query-key-factory';
 import type { MutationHookOptions, QueryHookWithParamsOptions } from '@/shared-util';
 import { accountPolicyApi } from '../api/accountPolicyApi';
@@ -26,8 +26,13 @@ export const useGetAccountPolicy = ({ params, queryOptions }: QueryHookWithParam
  * 계정 보안 정책 수정 훅
  */
 export const useUpdateAccountPolicy = ({ mutationOptions }: MutationHookOptions = {}) => {
+  const queryClient = useQueryClient();
   return useMutation({
     mutationFn: accountPolicyApi.updatePolicy,
     ...mutationOptions,
+    onSuccess: async (...args) => {
+      await queryClient.invalidateQueries({ queryKey: accountPolicyQueryKeys.detail().queryKey });
+      mutationOptions?.onSuccess?.(...args);
+    },
   });
 };

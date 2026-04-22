@@ -23,6 +23,8 @@ CLAUDE.md의 컨벤션을 기반으로, **왜 이렇게 하는지**와 **흔히 
 14. [개발 워크플로우](#14-개발-워크플로우)
 15. [디버깅 팁](#15-디버깅-팁)
 16. [상수 정의 패턴](#16-상수-정의-패턴)
+17. [페이지 레이아웃 가이드](#17-페이지-레이아웃-가이드)
+18. [폼(Form) 작성 가이드](#18-폼form-작성-가이드)
 
 ---
 
@@ -79,7 +81,7 @@ bt-admin-fe/
 ├── apps/                    # 애플리케이션들
 │   ├── host/                # 🏠 Host App (메인 셸)
 │   ├── manager/             # 👤 매니저 (사용자 관리, 대시보드)
-│   └── fca/                 # 🤖 Focus AI (봇 관리)
+│   └── fca/                 # 🤖 ForCus AI (봇 관리)
 ├── libs/                    # 공유 라이브러리들
 │   ├── shared-ui/           # 🎨 재사용 UI 컴포넌트
 │   ├── shared-api/          # 🔌 공통 API 및 타입
@@ -1529,3 +1531,291 @@ export const STATUS_LABELS: Record<TrainStatus, string> = {
 > **`as const`가 뭔가요?**
 > 객체의 모든 값을 읽기 전용(readonly)으로 만들어서, 실수로 값을 변경하는 것을 방지합니다.
 > 또한 타입이 `string`이 아닌 `'#3B82F6'` 같은 리터럴 타입이 됩니다.
+
+---
+
+## 17. 페이지 레이아웃 가이드
+
+### 콘텐츠 영역은 반드시 시각적으로 구분하세요
+
+이 프로젝트의 페이지 배경은 회색 계열입니다. 이 배경 위에 버튼, 입력 필드, 테이블 같은 UI 요소를 직접 배치하면 요소가 공중에 떠 있는 것처럼 보여 완성도가 떨어집니다.
+
+UI 요소는 반드시 **흰색 배경 컨테이너**(`bg-white bt-shadow`)나 **Card 컴포넌트**로 감싸서, 콘텐츠 영역이 배경과 명확히 구분되도록 해주세요.
+
+```typescript
+// ❌ 이렇게 하면 요소들이 회색 배경 위에 둥둥 떠 보입니다
+<div className="flex flex-col gap-4 w-full h-full">
+  <PageHeader breadcrumb={breadcrumb} />
+  <Select ... />
+  <Input ... />
+  <Button type="primary">추가</Button>
+  <AgGridReact rowData={data} columnDefs={columnDefs} />
+</div>
+```
+
+```typescript
+// ✅ 툴바와 테이블이 각각 흰색 배경으로 감싸져 있어 깔끔합니다
+<div className="flex flex-col gap-4 w-full h-full">
+  <PageHeader breadcrumb={breadcrumb} />
+
+  {/* 필터/액션 바 */}
+  <div className="flex items-center justify-between gap-2 w-full h-[76px] bg-white bt-shadow px-7 py-5">
+    <div className="flex gap-2 w-full items-center">
+      <Select ... />
+      <Input ... />
+    </div>
+    <Button type="primary">추가</Button>
+  </div>
+
+  {/* 데이터 테이블 */}
+  <div className="w-full h-full bg-white bt-shadow">
+    <AgGridReact rowData={data} columnDefs={columnDefs} />
+  </div>
+</div>
+```
+
+### 목록 페이지의 기본 구조
+
+프로젝트의 목록 페이지들은 대체로 아래 세 영역으로 구성됩니다:
+
+| 영역 | 역할 | 스타일 |
+|------|------|--------|
+| **PageHeader** | 브레드크럼 네비게이션 | 배경 없음 (투명) |
+| **필터/액션 바** | 검색, 필터, 추가 버튼 등 | `bg-white bt-shadow`, 고정 높이 `h-[76px]` |
+| **콘텐츠** | AG-Grid 테이블 또는 Card 그리드 | `bg-white bt-shadow` 또는 개별 Card 컴포넌트 |
+
+> **왜 `bt-shadow`를 쓰나요?**
+> 프로젝트 전역에 정의된 커스텀 box-shadow 클래스입니다. 흰색 배경과 함께 사용하면 콘텐츠 영역이 배경에서 살짝 떠오르는 효과를 주어 시각적 계층을 만들어 줍니다.
+
+### Card 그리드 레이아웃
+
+데이터를 카드 형태로 나열할 때는 CSS Grid의 `auto-fill`을 활용해 반응형 레이아웃을 구성합니다:
+
+```typescript
+<div className="grid grid-cols-[repeat(auto-fill,minmax(350px,1fr))] gap-4 w-full overflow-y-auto">
+  {botList.map((bot) => (
+    <BotCard key={bot.serviceId} {...bot} />
+  ))}
+</div>
+```
+
+각 카드가 최소 350px 너비를 유지하면서 화면 크기에 따라 자동으로 열 수가 조정됩니다.
+
+---
+
+## 18. 폼(Form) 작성 가이드
+
+### 왜 Ant Design Form을 쓰나요?
+
+데이터를 추가하거나 수정하는 페이지에서는 여러 입력 필드의 값을 수집하고, 유효성을 검사하고, 서버에 전송해야 합니다. 이런 작업을 `useState`로 필드마다 개별 관리하면 코드가 금방 복잡해집니다.
+
+Ant Design의 `Form`을 사용하면 이런 부분을 선언적으로 처리할 수 있습니다:
+
+- **값 수집**: `onFinish` 콜백에서 모든 필드 값을 한 번에 받음
+- **유효성 검사**: `rules`로 선언만 하면 자동으로 검증 + 에러 메시지 표시
+- **초기값 세팅**: `initialValues`나 `form.setFieldsValue()`로 일괄 설정
+- **리셋**: `form.resetFields()` 한 줄로 모든 필드 초기화
+
+### 기본 구조
+
+```typescript
+import { Form, Input, Select } from 'antd';
+import type { FormProps } from 'antd';
+
+const MyCreatePage = () => {
+  const [form] = Form.useForm<MyFormValues>();
+
+  // 폼 제출 성공 시 (모든 유효성 검사 통과)
+  const onFinish: FormProps<MyFormValues>['onFinish'] = (values) => {
+    // values에 모든 필드 값이 담겨 있음
+    createMutation.mutate(values);
+  };
+
+  // 폼 제출 실패 시 (유효성 검사 실패)
+  const onFinishFailed: FormProps<MyFormValues>['onFinishFailed'] = (errorInfo) => {
+    const firstError = errorInfo.errorFields?.[0]?.errors?.[0];
+    toast.error(firstError ?? '입력 항목을 확인해주세요.');
+  };
+
+  return (
+    <Form
+      form={form}
+      layout="vertical"
+      onFinish={onFinish}
+      onFinishFailed={onFinishFailed}
+      initialValues={{ status: 'ACTIVE' }}
+    >
+      <Form.Item
+        name="username"
+        label="이름"
+        required
+        hasFeedback
+        rules={[
+          { required: true, message: '이름을 입력하세요.' },
+          { max: 50, message: '최대 50자까지 입력 가능합니다.' },
+        ]}
+      >
+        <Input placeholder="이름을 입력하세요." />
+      </Form.Item>
+
+      <Form.Item
+        name="roleId"
+        label="역할"
+        required
+        hasFeedback
+        rules={[{ required: true, message: '역할을 선택해 주세요.' }]}
+      >
+        <Select
+          options={roleOptions}
+          showSearch
+          optionFilterProp="label"
+          placeholder="역할을 선택하세요."
+        />
+      </Form.Item>
+
+      <Button type="primary" htmlType="submit">
+        저장
+      </Button>
+    </Form>
+  );
+};
+```
+
+> **`layout="vertical"`이 뭔가요?**
+> 레이블이 입력 필드 **위에** 표시되는 레이아웃입니다. 이 프로젝트에서 주로 사용하는 방식입니다.
+> `"horizontal"`(레이블이 왼쪽)이나 `"inline"`(한 줄에 나열)도 있지만, 대부분의 경우 vertical이 적합합니다.
+
+### 주요 속성 설명
+
+#### Form.Item의 자주 쓰는 props
+
+| prop | 역할 | 예시 |
+|------|------|------|
+| `name` | 폼 데이터의 키 이름 | `name="username"` |
+| `label` | 필드 위에 표시되는 레이블 | `label="이름"` |
+| `required` | 필수 표시(*) UI만 추가 | `required` |
+| `hasFeedback` | 유효성 검사 아이콘(✓, ✕) 표시 | `hasFeedback` |
+| `rules` | 유효성 검사 규칙 배열 | 아래 참고 |
+| `tooltip` | 레이블 옆 물음표 도움말 | `tooltip="로그인에 사용됩니다"` |
+| `valuePropName` | boolean 컴포넌트(Switch 등)에 필요 | `valuePropName="checked"` |
+
+#### 자주 쓰는 유효성 검사 rules
+
+```typescript
+rules={[
+  { required: true, message: '필수 입력 항목입니다.' },
+  { min: 3, message: '최소 3자 이상 입력해주세요.' },
+  { max: 100, message: '최대 100자까지 입력 가능합니다.' },
+  { pattern: /^[a-zA-Z0-9_]+$/, message: '영문, 숫자, 언더스코어만 입력 가능합니다.' },
+]}
+```
+
+공통으로 자주 쓰는 규칙은 shared-util에서 가져올 수 있습니다:
+
+```typescript
+import { emailRule, phoneRule } from '@/shared-util';
+
+// 이메일 필드
+<Form.Item name="email" label="이메일" rules={[emailRule]}>
+  <Input placeholder="예: user@example.com" />
+</Form.Item>
+
+// 전화번호 필드
+<Form.Item name="phone" label="전화번호" rules={[phoneRule]}>
+  <Input placeholder="예: 010-1234-5678" />
+</Form.Item>
+```
+
+### 수정 페이지에서 기존 데이터 불러오기
+
+수정 페이지나 상세 탭에서는 서버에서 가져온 데이터를 폼에 채워 넣어야 합니다. `form.setFieldsValue()`를 사용합니다:
+
+```typescript
+const { data: bot } = useGetBot({ params: { serviceId } });
+
+// API 응답이 오면 폼에 값 세팅
+useEffect(() => {
+  if (!bot) return;
+  form.setFieldsValue({
+    serviceName: bot.serviceName,
+    serviceDesc: bot.serviceDesc,
+    confidence: bot.confidence,
+  });
+}, [bot, form]);
+```
+
+> **`initialValues`와 `setFieldsValue`의 차이**
+> - `initialValues`: 폼이 처음 렌더링될 때 한 번만 적용됩니다. 이미 값을 알고 있을 때 사용합니다. (예: 생성 페이지에서 기본값)
+> - `setFieldsValue()`: 폼이 렌더링된 후에 동적으로 값을 채워 넣습니다. API 응답을 기다려야 할 때 사용합니다. (예: 수정 페이지)
+
+### Drawer에서의 폼 관리
+
+Drawer에서 폼을 사용할 때는 **열릴 때 초기화**, **닫힐 때 리셋**하는 생명주기를 관리해야 합니다.
+리셋 없이 Drawer를 다시 열면 이전에 입력했던 값이 그대로 남아 있을 수 있습니다.
+
+```typescript
+const [form] = Form.useForm();
+
+useEffect(() => {
+  if (!open) return;
+
+  // Drawer가 열릴 때: 기존 데이터가 있으면 폼에 세팅
+  if (initialData) {
+    form.setFieldsValue({
+      category: initialData.category,
+      value: initialData.value,
+    });
+  }
+
+  // Drawer가 닫힐 때: 폼 리셋
+  return () => form.resetFields();
+}, [initialData, form, open]);
+```
+
+### 실시간 폼 값 감시 — Form.useWatch
+
+폼 값이 바뀔 때마다 UI를 업데이트해야 하는 경우(예: Summary 사이드바, 조건부 필드 표시) `Form.useWatch`를 사용합니다:
+
+```typescript
+// 전체 폼 값 감시
+const formValues = Form.useWatch([], form);
+
+// 특정 필드만 감시
+const selectedType = Form.useWatch('entityType', form);
+
+// 감시한 값에 따라 UI 분기
+{selectedType === 'PATTERNS' && (
+  <Form.Item name="pattern" label="패턴">
+    <Input placeholder="정규식을 입력하세요." />
+  </Form.Item>
+)}
+```
+
+### 흔한 실수
+
+#### useState로 각 필드를 따로 관리
+
+```typescript
+// ❌ 필드가 늘어날수록 관리가 어려워짐
+const [name, setName] = useState('');
+const [email, setEmail] = useState('');
+const [role, setRole] = useState('');
+const [status, setStatus] = useState('ACTIVE');
+
+const handleSubmit = () => {
+  if (!name) { toast.error('이름을 입력하세요.'); return; }
+  if (!email) { toast.error('이메일을 입력하세요.'); return; }
+  createMutation.mutate({ name, email, role, status });
+};
+
+// ✅ Form으로 통합 관리
+const [form] = Form.useForm();
+
+const onFinish = (values) => {
+  createMutation.mutate(values);  // 유효성 검사는 rules가 알아서 처리
+};
+```
+
+#### Drawer를 닫을 때 resetFields를 빠뜨림
+
+Drawer가 닫혔다가 다시 열릴 때 이전에 입력한 값이 잔존하는 문제가 생길 수 있습니다. `useEffect`의 cleanup 함수에서 `form.resetFields()`를 호출해주세요.

@@ -7,20 +7,57 @@ interface SummaryRow {
   category: string;
   count: number;
   rate: number;
-  prevCount: number;
+  prevRate: number;
+  rateDiff: number;
 }
 
 const columnDefs: ColDef<SummaryRow>[] = [
   { headerName: '구분', field: 'category' },
-  { headerName: '금일', field: 'count', valueFormatter: (p) => (p.value != null ? `${p.value}건` : '') },
-  { headerName: '전일', field: 'prevCount', valueFormatter: (p) => (p.value != null ? `${p.value}건` : '') },
+  { headerName: '금일', field: 'count', valueFormatter: (p) => (p.value != null ? `${p.value.toLocaleString()}건` : '') },
   { headerName: '비율', field: 'rate', valueFormatter: (p) => (p.value != null ? `${p.value}%` : '') },
+  { headerName: '전일 비율', field: 'prevRate', valueFormatter: (p) => (p.value != null ? `${p.value}%` : '') },
+  {
+    headerName: '증감',
+    field: 'rateDiff',
+    valueFormatter: (p) => {
+      if (p.value == null) return '';
+      if (p.value === 0) return '- 0%p';
+      const arrow = p.value > 0 ? '▲' : '▼';
+      return `${arrow} ${Math.abs(p.value)}%p`;
+    },
+    cellStyle: (p) => {
+      if (p.value > 0) return { color: '#10B981' };
+      if (p.value < 0) return { color: '#F06548' };
+      return { color: '#999' };
+    },
+  },
 ];
 
+const calcPrevRate = (rate: number, rateDiff: number) => Math.round((rate - rateDiff) * 10) / 10;
+
 const toRows = (data: ScenarioSummary): SummaryRow[] => [
-  { category: '봇 해결', count: data.completeCnt, rate: data.completeRate, prevCount: data.prevCompleteCnt },
-  { category: '미해결 종료', count: data.incompleteCnt, rate: data.incompleteRate, prevCount: data.prevIncompleteCnt },
-  { category: '상담사 연결', count: data.agentReqCnt, rate: data.agentTransferRate, prevCount: data.prevAgentReqCnt },
+  { category: '봇 해결', count: data.completeCnt, rate: data.completeRate, prevRate: calcPrevRate(data.completeRate, data.completeRateDiff), rateDiff: data.completeRateDiff },
+  {
+    category: '미해결 종료',
+    count: data.incompleteCnt,
+    rate: data.incompleteRate,
+    prevRate: calcPrevRate(data.incompleteRate, data.incompleteRateDiff),
+    rateDiff: data.incompleteRateDiff,
+  },
+  {
+    category: '상담사 연결(완료)',
+    count: data.completeReqAgentCnt,
+    rate: data.completeReqAgentRate,
+    prevRate: calcPrevRate(data.completeReqAgentRate, data.completeReqAgentRateDiff),
+    rateDiff: data.completeReqAgentRateDiff,
+  },
+  {
+    category: '상담사 연결(미완료)',
+    count: data.failReqAgentCnt,
+    rate: data.failReqAgentRate,
+    prevRate: calcPrevRate(data.failReqAgentRate, data.failReqAgentRateDiff),
+    rateDiff: data.failReqAgentRateDiff,
+  },
 ];
 
 interface ScenarioSummaryGridProps {

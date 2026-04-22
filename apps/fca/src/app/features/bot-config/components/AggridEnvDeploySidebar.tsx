@@ -17,6 +17,7 @@ function AggridEnvDeploySidebar(props: CustomToolPanelProps<EnvListItem>) {
   const { serviceId = '' } = useParams();
   const [selectedRowData, setSelectedRowData] = useState<EnvListItem | null>(null);
   const [isOpened, setIsOpened] = useState(false);
+  const [applyingSystemId, setApplyingSystemId] = useState<number | null>(null);
 
   // 선택된 row의 category, property로 노드 목록 조회
   const { data: nodes = [], isLoading } = useGetEnvNodeList({
@@ -30,12 +31,16 @@ function AggridEnvDeploySidebar(props: CustomToolPanelProps<EnvListItem>) {
     },
   });
 
-  const { mutate: applyEnv, isPending: isApplying } = useApplyEnv({
+  const { mutate: applyEnv } = useApplyEnv({
     mutationOptions: {
       onSuccess: () => {
         queryClient.invalidateQueries({ queryKey: botQueryKeys.getEnvList({ serviceId }).queryKey });
         queryClient.invalidateQueries({ queryKey: botQueryKeys.getEnvNodeList({ serviceId, category: selectedRowData?.category, property: selectedRowData?.property }).queryKey });
         toast.success('적용되었습니다.');
+        setApplyingSystemId(null);
+      },
+      onError: () => {
+        setApplyingSystemId(null);
       },
     },
   });
@@ -69,6 +74,8 @@ function AggridEnvDeploySidebar(props: CustomToolPanelProps<EnvListItem>) {
   }, [api]);
 
   const handleApply = (node: EnvNodeItem) => {
+    if (applyingSystemId !== null) return;
+    setApplyingSystemId(node.systemId);
     applyEnv({ params: { serviceId, systemId: node.systemId, category: selectedRowData?.category, property: selectedRowData?.property }, data: {} });
   };
 
@@ -109,15 +116,17 @@ function AggridEnvDeploySidebar(props: CustomToolPanelProps<EnvListItem>) {
               <Clock className="size-3 shrink-0" />
               <span>{node.workTime ? dayjs(node.workTime).format('YYYY-MM-DD HH:mm:ss') : '-'}</span>
             </div>
-            <Button
-              size="small"
-              icon={<RotateCcw className="size-3" />}
-              onClick={() => handleApply(node)}
-              loading={isApplying}
-              style={{ fontSize: 12, padding: '0 6px', height: 22, gap: 3 }}
-            >
-              적용
-            </Button>
+            <div className={applyingSystemId !== null && applyingSystemId !== node.systemId ? 'pointer-events-none' : ''}>
+              <Button
+                size="small"
+                icon={<RotateCcw className="size-3" />}
+                onClick={() => handleApply(node)}
+                loading={applyingSystemId === node.systemId}
+                style={{ fontSize: 12, padding: '0 6px', height: 22, gap: 3 }}
+              >
+                적용
+              </Button>
+            </div>
           </div>
         </div>
       </div>
@@ -145,7 +154,7 @@ function AggridEnvDeploySidebar(props: CustomToolPanelProps<EnvListItem>) {
     }
     return (
       <div className="flex flex-col gap-3">
-        <span className="text-sm font-semibold text-foreground">적용 노드 ({nodes.length})</span>
+        <span className="text-sm font-semibold text-foreground">적용이력 ({nodes.length})</span>
         <div className="flex flex-col gap-2">{nodes.map((node) => renderNodeCard(node))}</div>
       </div>
     );

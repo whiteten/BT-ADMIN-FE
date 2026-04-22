@@ -3,12 +3,16 @@ import { useParams } from 'react-router-dom';
 import { useQueryClient } from '@tanstack/react-query';
 import type { ColDef, ICellRendererParams, RowDoubleClickedEvent, SideBarDef } from 'ag-grid-community';
 import { AgGridReact } from 'ag-grid-react';
-import { Button, Input, Select } from 'antd';
+import { Button, Dropdown, Input, Select, Tooltip } from 'antd';
+import { ChevronDown, CloudDownload, Download } from 'lucide-react';
 import { toast } from '@/shared-util';
 import AggridEnvDeploySidebar from '../components/AggridEnvDeploySidebar';
 import BotEnvDrawer, { type BotEnvDrawerRef } from '../components/BotEnvDrawer';
-import { botQueryKeys, useDeleteEnv, useGetBotDeployConfig, useGetEnvList } from '../hooks/useBotQueries';
+import ExcelImportResultModal, { type ExcelImportResultModalRef } from '../components/ExcelImportResultModal';
+import { botQueryKeys, useDeleteEnv, useExportEnv, useGetBotDeployConfig, useGetEnvList, useImportEnv } from '../hooks/useBotQueries';
 import type { EnvListItem } from '../types';
+import type { ExcelImportResult } from '../types/intent';
+import FileImportModal, { type FileImportModalRef } from '@/components/custom/FileImportModal';
 import { IconAlertTriangle, IconTrash } from '@/components/custom/Icons';
 import useAggridOptions from '@/libs/shared-ui/src/hooks/useAggridOptions';
 import { useModal } from '@/libs/shared-ui/src/hooks/useModal';
@@ -27,7 +31,7 @@ export default function BotEnvList() {
           ...((sideBar as SideBarDef)?.toolPanels ?? []),
           {
             id: 'envDeployInfo',
-            labelDefault: '배포현황',
+            labelDefault: '적용이력',
             labelKey: 'envDeployInfo',
             iconKey: 'eye',
             toolPanel: AggridEnvDeploySidebar,
@@ -63,12 +67,26 @@ export default function BotEnvList() {
     queryOptions: { enabled: false },
   });
 
+  const { mutate: exportEnv, isPending: isExporting } = useExportEnv();
+
+  const { mutate: importEnv, isPending: isImporting } = useImportEnv({
+    mutationOptions: {
+      onSuccess: (data) => {
+        queryClient.invalidateQueries({ queryKey: botQueryKeys.getEnvList({ serviceId }).queryKey });
+        importModalRef.current?.close();
+        importResultModalRef.current?.open(data as ExcelImportResult);
+      },
+    },
+  });
+
   const [rowData, setRowData] = useState<EnvListItem[]>([]);
   const [filterColumn, setFilterColumn] = useState('category');
   const [searchValue, setSearchValue] = useState('');
 
   const gridRef = useRef<AgGridReact<EnvListItem>>(null);
   const envDrawerRef = useRef<BotEnvDrawerRef>(null);
+  const importModalRef = useRef<FileImportModalRef>(null);
+  const importResultModalRef = useRef<ExcelImportResultModalRef>(null);
 
   const filteredList = useMemo(() => {
     if (!searchValue.trim()) return envList;
@@ -156,6 +174,60 @@ export default function BotEnvList() {
     },
   ];
 
+  const handleClickImport = () => {
+    importModalRef.current?.open();
+  };
+
+  const handleImportEnv = async (files: File[]) => {
+    const file = files[0];
+    importEnv({ params: { serviceId }, data: file });
+  };
+
+  const handleClickExportData = () => {
+    exportEnv({ serviceId, isTemplate: 0 });
+  };
+
+  const handleClickExportTemplate = () => {
+    exportEnv({ serviceId, isTemplate: 1 });
+  };
+
+  const exportMenu = {
+    items: [
+      {
+        label: (
+          <Tooltip
+            title={<span style={{ whiteSpace: 'pre-line' }}>{`전체 데이터 파일(엑셀)을 다운로드합니다.\n데이터를 일괄 내보내기 위한 용도입니다.`}</span>}
+            placement="left"
+            styles={{ root: { maxWidth: '300px' } }}
+          >
+            <span className="flex items-center gap-2">
+              <CloudDownload className="size-4" />
+              데이터 다운로드
+            </span>
+          </Tooltip>
+        ),
+        key: 'export-data',
+        onClick: handleClickExportData,
+      },
+      {
+        label: (
+          <Tooltip
+            title={<span style={{ whiteSpace: 'pre-line' }}>{`빈 템플릿 파일(엑셀)을 다운로드합니다.\n데이터를 직접 입력하기 위한 용도입니다.`}</span>}
+            placement="left"
+            styles={{ root: { maxWidth: '300px' } }}
+          >
+            <span className="flex items-center gap-2">
+              <Download className="size-4" />
+              템플릿 다운로드
+            </span>
+          </Tooltip>
+        ),
+        key: 'export-template',
+        onClick: handleClickExportTemplate,
+      },
+    ],
+  };
+
   const handleClickAddEnv = async () => {
     const { data: deployConfig } = await refetchBotDeployConfig();
     const hasAssignedServer = deployConfig?.some((config) => config.assignYn === 1);
@@ -190,6 +262,14 @@ export default function BotEnvList() {
           <Input value={searchValue} onChange={(e) => setSearchValue(e.target.value)} className="w-full lg:max-w-[400px]" placeholder="검색어를 입력하세요." />
         </div>
         <div className="flex items-center gap-2.5">
+          <Button variant="solid" onClick={handleClickImport}>
+            Import
+          </Button>
+          <Dropdown menu={exportMenu} trigger={['click']} placement="bottomRight">
+            <Button color="cyan" variant="solid" loading={isExporting} icon={<ChevronDown className="size-4" />} iconPlacement="end">
+              Export
+            </Button>
+          </Dropdown>
           <Button variant="solid" color="primary" onClick={handleClickAddEnv}>
             추가
           </Button>
@@ -199,6 +279,8 @@ export default function BotEnvList() {
         <AgGridReact<EnvListItem> ref={gridRef} rowData={rowData} columnDefs={columnDefs} onRowDoubleClicked={handleRowDoubleClicked} gridOptions={customGridOptions} />
       </div>
       <BotEnvDrawer ref={envDrawerRef} />
+      <FileImportModal ref={importModalRef} title="Import" accept=".xlsx,.xls" onConfirm={handleImportEnv} confirmLoading={isImporting} />
+      <ExcelImportResultModal ref={importResultModalRef} nameColumnTitle="환경변수명" />
     </div>
   );
 }

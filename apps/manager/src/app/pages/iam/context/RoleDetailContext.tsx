@@ -17,6 +17,7 @@ export interface RoleBasicFormValues {
   sortOrder?: number;
   isUse: boolean;
   canResetPassword: boolean;
+  canManageResourceAccess: boolean;
 }
 
 /**

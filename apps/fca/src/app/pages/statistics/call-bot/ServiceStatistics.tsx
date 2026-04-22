@@ -1,11 +1,13 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import type { ColDef, ExcelExportParams, ProcessCellForExportParams } from 'ag-grid-community';
+import type { ColDef } from 'ag-grid-community';
 import { AgGridReact } from 'ag-grid-react';
 import { type BreadcrumbProps, Button, Checkbox, DatePicker, Divider, Select, TimePicker } from 'antd';
 import dayjs, { type Dayjs } from 'dayjs';
 import { ChevronDown, Download } from 'lucide-react';
-import { toast } from '@/shared-util';
+import { useNavigationStore } from '@/shared-store';
+import { downloadBlob, extractFileName, toast } from '@/shared-util';
 import { useGetBots } from '../../../features/bot-config/hooks/useBotQueries';
+import { statisticsApi } from '../../../features/statistics/api/statisticsApi';
 import {
   createDisabledDate,
   createEndDisabledDate,
@@ -15,6 +17,7 @@ import {
   getTimeFormat,
   validateDateRange,
 } from '../../../features/statistics/hooks/useDateRangeLimit';
+import { useStatisticsFilterStore } from '../../../features/statistics/hooks/useStatisticsFilterStore';
 import { useGetServiceStatList } from '../../../features/statistics/hooks/useStatisticsQueries';
 import type { ServiceStatListItem } from '../../../features/statistics/types/statistics.types';
 import PageHeader from '@/components/custom/PageHeader';
@@ -25,12 +28,12 @@ import { cn } from '@/libs/shared-ui/src/lib/utils';
 const breadcrumb: BreadcrumbProps['items'] = [
   { title: '통계', path: '/fca/statistics' },
   { title: '콜봇 통계', path: '/fca/statistics/call-bot' },
-  { title: '서비스 통계', path: '/fca/statistics/call-bot/service' },
+  { title: '봇(서비스) 통계', path: '/fca/statistics/call-bot/service' },
 ];
 
 export default function ServiceStatistics() {
+  const { serviceIds, setServiceIds } = useStatisticsFilterStore();
   // UI 상태 (사용자가 입력하는 값들)
-  const [serviceIds, setServiceIds] = useState<string[]>([]);
   const [timeUnit, setTimeUnit] = useState<string>('DD');
   const [startDate, setStartDate] = useState<Dayjs | null>(dayjs().startOf('day'));
   const [endDate, setEndDate] = useState<Dayjs | null>(dayjs().endOf('day'));
@@ -56,7 +59,7 @@ export default function ServiceStatistics() {
   const disabledDate = useMemo(() => createDisabledDate(timeUnit), [timeUnit]);
   const disabledEndDate = useMemo(() => createEndDisabledDate(startDate, timeUnit), [startDate, timeUnit]);
 
-  // 봇서비스 옵션 조회
+  // 봇 옵션 조회
   const serviceSelectOptions = useMemo(
     () => (botList ?? []).filter((b) => Boolean(b?.serviceId && b?.serviceName)).map((b) => ({ label: String(b.serviceName), value: String(b.serviceId) })),
     [botList],
@@ -81,7 +84,7 @@ export default function ServiceStatistics() {
     return endDate.format('YYYY');
   })();
 
-  // 서비스 통계 조회
+  // 봇(서비스) 통계 조회
   const {
     data: serviceStatList,
     isLoading: isLoadingServiceStatList,
@@ -112,17 +115,22 @@ export default function ServiceStatistics() {
     if (!rowData?.length) return [];
     const count = rowData.length;
     const sum = (field: keyof ServiceStatListItem) => rowData.reduce((acc, row) => acc + (Number(row[field]) || 0), 0);
-    const avg = (field: keyof ServiceStatListItem) => Math.round((sum(field) / count) * 10) / 10;
+    const avg = (field: keyof ServiceStatListItem) => Math.round((sum(field) / count) * 100) / 100;
     return [
       {
         psrTimeKey: '전체합계',
         serviceName: '',
         serviceEnterCount: sum('serviceEnterCount'),
         serviceCompleteCount: sum('serviceCompleteCount'),
+        serviceFailCount: sum('serviceFailCount'),
         serviceCompletePercent: avg('serviceCompletePercent'),
+        serviceFailPercent: avg('serviceFailPercent'),
         reqAgentCount: sum('reqAgentCount'),
         enterReqAgentPercent: avg('enterReqAgentPercent'),
+        completeReqAgentCount: sum('completeReqAgentCount'),
         completeReqAgentPercent: avg('completeReqAgentPercent'),
+        failReqAgentCount: sum('failReqAgentCount'),
+        failReqAgentPercent: avg('failReqAgentPercent'),
         botSlotInCount: sum('botSlotInCount'),
       } as ServiceStatListItem,
     ];
@@ -151,7 +159,7 @@ export default function ServiceStatistics() {
 
   const handleSearch = () => {
     if (serviceIds.length === 0) {
-      toast.warning('봇서비스를 선택해주세요.');
+      toast.warning('봇을 선택해주세요.');
       return;
     }
 
@@ -199,8 +207,8 @@ export default function ServiceStatistics() {
       },
       cellStyle: (params) => (params.node?.rowPinned === 'bottom' ? { fontWeight: 'bold', alignItems: 'center' } : { fontWeight: 'normal', alignItems: 'center' }),
     },
-    { headerName: '봇서비스ID', field: 'serviceId', hide: true },
-    { headerName: '봇서비스', field: 'serviceName', flex: 2 },
+    { headerName: '봇ID', field: 'serviceId', hide: true },
+    { headerName: '봇', field: 'serviceName', flex: 2 },
     {
       headerName: '진입수',
       field: 'serviceEnterCount',
@@ -208,35 +216,67 @@ export default function ServiceStatistics() {
       cellStyle: (params) => (params.node?.rowPinned === 'bottom' ? { fontWeight: 'bold', alignItems: 'center' } : { fontWeight: 'normal', alignItems: 'center' }),
     },
     {
-      headerName: '완결수',
+      headerName: '완료건',
       field: 'serviceCompleteCount',
       flex: 1,
       cellStyle: (params) => (params.node?.rowPinned === 'bottom' ? { fontWeight: 'bold', alignItems: 'center' } : { fontWeight: 'normal', alignItems: 'center' }),
     },
     {
-      headerName: '완결율',
+      headerName: '미완료건',
+      field: 'serviceFailCount',
+      flex: 1,
+      cellStyle: (params) => (params.node?.rowPinned === 'bottom' ? { fontWeight: 'bold', alignItems: 'center' } : { fontWeight: 'normal', alignItems: 'center' }),
+    },
+    {
+      headerName: '완료율',
       field: 'serviceCompletePercent',
       flex: 1,
       cellStyle: (params) => (params.node?.rowPinned === 'bottom' ? { fontWeight: 'bold', alignItems: 'center' } : { fontWeight: 'normal', alignItems: 'center' }),
       valueFormatter: ({ value }: { value?: number }) => (value != null ? `${value}%` : '0%'),
     },
     {
-      headerName: '상담연결수',
-      field: 'reqAgentCount',
-      flex: 1,
-      cellStyle: (params) => (params.node?.rowPinned === 'bottom' ? { fontWeight: 'bold', alignItems: 'center' } : { fontWeight: 'normal', alignItems: 'center' }),
-    },
-    {
-      headerName: '진입별 상담연결율',
-      field: 'enterReqAgentPercent',
+      headerName: '미완료율',
+      field: 'serviceFailPercent',
       flex: 1,
       cellStyle: (params) => (params.node?.rowPinned === 'bottom' ? { fontWeight: 'bold', alignItems: 'center' } : { fontWeight: 'normal', alignItems: 'center' }),
       valueFormatter: ({ value }: { value?: number }) => (value != null ? `${value}%` : '0%'),
     },
     {
-      headerName: '완결별 상담연결율',
+      headerName: '진입별 상담연결수',
+      field: 'reqAgentCount',
+      flex: 1.5,
+      cellStyle: (params) => (params.node?.rowPinned === 'bottom' ? { fontWeight: 'bold', alignItems: 'center' } : { fontWeight: 'normal', alignItems: 'center' }),
+    },
+    {
+      headerName: '진입별 상담연결율',
+      field: 'enterReqAgentPercent',
+      flex: 1.5,
+      cellStyle: (params) => (params.node?.rowPinned === 'bottom' ? { fontWeight: 'bold', alignItems: 'center' } : { fontWeight: 'normal', alignItems: 'center' }),
+      valueFormatter: ({ value }: { value?: number }) => (value != null ? `${value}%` : '0%'),
+    },
+    {
+      headerName: '완료별 상담연결수',
+      field: 'completeReqAgentCount',
+      flex: 1.5,
+      cellStyle: (params) => (params.node?.rowPinned === 'bottom' ? { fontWeight: 'bold', alignItems: 'center' } : { fontWeight: 'normal', alignItems: 'center' }),
+    },
+    {
+      headerName: '완료별 상담연결율',
       field: 'completeReqAgentPercent',
-      flex: 1,
+      flex: 1.5,
+      cellStyle: (params) => (params.node?.rowPinned === 'bottom' ? { fontWeight: 'bold', alignItems: 'center' } : { fontWeight: 'normal', alignItems: 'center' }),
+      valueFormatter: ({ value }: { value?: number }) => (value != null ? `${value}%` : '0%'),
+    },
+    {
+      headerName: '미완료별 상담연결수',
+      field: 'failReqAgentCount',
+      flex: 1.5,
+      cellStyle: (params) => (params.node?.rowPinned === 'bottom' ? { fontWeight: 'bold', alignItems: 'center' } : { fontWeight: 'normal', alignItems: 'center' }),
+    },
+    {
+      headerName: '미완료별 상담연결율',
+      field: 'failReqAgentPercent',
+      flex: 1.5,
       cellStyle: (params) => (params.node?.rowPinned === 'bottom' ? { fontWeight: 'bold', alignItems: 'center' } : { fontWeight: 'normal', alignItems: 'center' }),
       valueFormatter: ({ value }: { value?: number }) => (value != null ? `${value}%` : '0%'),
     },
@@ -248,40 +288,39 @@ export default function ServiceStatistics() {
     },
   ];
 
+  const { permissions } = useNavigationStore();
+  const hasExcelPermission = permissions.includes('fca:stats-service:excel');
+
   const [isExporting, setIsExporting] = useState(false);
 
-  const handleExcelDownload = () => {
-    const api = gridRef.current?.api;
-    if (!api) return;
+  const handleExcelDownload = async () => {
     if (!rowData?.length) {
       toast.warning('다운로드할 데이터가 없습니다.');
       return;
     }
 
     setIsExporting(true);
-    const fileName = `SERVICE_STATISTICS_${dayjs().format('YYYYMMDD_HHmmss')}.xlsx`;
-
-    const exportParams: ExcelExportParams = {
-      fileName,
-      sheetName: '서비스 통계',
-      processCellCallback: (p: ProcessCellForExportParams) => {
-        const colId = p.column.getColId();
-        const v = p.value;
-
-        if (colId === 'psrTimeKey') {
-          return v ? dayjs(String(v)).format(getTimeFormat(displayTimeUnit)) : '-';
-        }
-
-        if (colId === 'serviceCompletePercent' || colId === 'enterReqAgentPercent' || colId === 'completeReqAgentPercent') {
-          return typeof v === 'number' ? `${v}%` : v ? `${v}%` : '-';
-        }
-
-        return v ?? '-';
-      },
-    };
-
-    api.exportDataAsExcel(exportParams);
-    window.setTimeout(() => setIsExporting(false), 300);
+    try {
+      const response = await statisticsApi.exportServiceStatExcel({
+        timeUnit: displayTimeUnit,
+        fromTime,
+        toTime,
+        serviceIds: [serviceIds].flat().filter(Boolean),
+        excludeLunch: displayTimeUnit === 'MI' || displayTimeUnit === 'HH' ? excludeLunch : false,
+        useInterval: displayTimeUnit === 'MI' || displayTimeUnit === 'HH' ? useInterval : false,
+        hourFrom: displayTimeUnit === 'MI' || displayTimeUnit === 'HH' ? (useInterval && intervalStartTime ? intervalStartTime.format('HH00') : '') : '',
+        hourTo: displayTimeUnit === 'MI' || displayTimeUnit === 'HH' ? (useInterval && intervalEndTime ? intervalEndTime.format('HH00') : '') : '',
+        excludeDays: displayTimeUnit !== 'MM' && displayTimeUnit !== 'YY' ? excludeDays : [],
+        excludeBusinessHoliday: displayTimeUnit !== 'MM' && displayTimeUnit !== 'YY' ? excludeBusinessHoliday : false,
+        excludeStatHoliday: displayTimeUnit !== 'MM' && displayTimeUnit !== 'YY' ? excludeStatHoliday : false,
+      });
+      const fileName = extractFileName(response.headers['content-disposition'], `SERVICE_STATISTICS_${dayjs().format('YYYYMMDD_HHmmss')}.xlsx`);
+      downloadBlob(response.data, fileName);
+    } catch {
+      toast.error('엑셀 다운로드에 실패했습니다.');
+    } finally {
+      setIsExporting(false);
+    }
   };
 
   return (
@@ -291,8 +330,8 @@ export default function ServiceStatistics() {
       <div className="flex flex-col w-full h-full bg-white bt-shadow p-5">
         <Collapsible open={isFilterOpen} onOpenChange={setIsFilterOpen}>
           <header className="flex flex-col gap-3 pb-5">
-            <div className="flex items-center justify-between gap-2">
-              <div className="flex items-center gap-3">
+            <div className="flex items-start gap-3">
+              <div className="flex flex-wrap items-center gap-3 flex-1 min-w-0">
                 <div className="flex items-center gap-3">
                   <span className="text-sm font-medium text-[#495057] shrink-0">검색일자</span>
                   <Select
@@ -353,18 +392,42 @@ export default function ServiceStatistics() {
                 </div>
                 <Divider orientation="vertical" className="!h-5 !m-0" />
                 <div className="flex items-center gap-3">
-                  <span className="text-sm font-medium text-[#495057] shrink-0">봇서비스</span>
+                  <span className="text-sm font-medium text-[#495057] shrink-0">봇</span>
                   <Select
+                    mode="multiple"
                     value={serviceIds}
                     onChange={(value) => setServiceIds(value ?? [])}
                     allowClear
                     showSearch
                     maxTagCount="responsive"
                     options={serviceSelectOptions}
-                    placeholder="검색할 봇서비스를 선택하세요."
+                    placeholder="검색할 봇을 선택하세요."
                     optionFilterProp="label"
-                    className="!min-w-[250px] !max-w-[400px]"
+                    style={{ width: '15rem' }}
                     popupMatchSelectWidth={false}
+                    dropdownRender={(menu) => (
+                      <>
+                        <div
+                          className="flex items-center gap-2 px-3 py-2 cursor-pointer hover:bg-gray-50"
+                          onMouseDown={(e) => e.preventDefault()}
+                          onClick={() => {
+                            if (serviceIds.length === serviceSelectOptions.length) {
+                              setServiceIds([]);
+                            } else {
+                              setServiceIds(serviceSelectOptions.map((o) => o.value));
+                            }
+                          }}
+                        >
+                          <Checkbox
+                            checked={serviceIds.length === serviceSelectOptions.length && serviceSelectOptions.length > 0}
+                            indeterminate={serviceIds.length > 0 && serviceIds.length < serviceSelectOptions.length}
+                          />
+                          <span className="text-sm">전체 선택</span>
+                        </div>
+                        <Divider style={{ margin: '4px 0' }} />
+                        {menu}
+                      </>
+                    )}
                   />
                 </div>
                 <div className="flex items-center gap-3">
@@ -373,86 +436,92 @@ export default function ServiceStatistics() {
                   </CollapsibleTrigger>
                 </div>
               </div>
-              <div className="flex items-center gap-2 shrink-0">
+              <div className="flex items-center gap-3 shrink-0">
                 <Button type="primary" onClick={handleSearch}>
                   조회
                 </Button>
-                <Button
-                  type="primary"
-                  loading={isExporting}
-                  icon={<Download className="size-4" />}
-                  className="!bg-[#10B981] !border-[#10B981] hover:!bg-[#0FA968]"
-                  onClick={handleExcelDownload}
-                >
-                  엑셀
-                </Button>
+                {hasExcelPermission && (
+                  <Button color="cyan" variant="solid" loading={isExporting} icon={<Download className="size-4" />} onClick={handleExcelDownload}>
+                    Export
+                  </Button>
+                )}
               </div>
             </div>
-            <CollapsibleContent>
-              <div className="flex items-center gap-3">
-                {timeUnit !== 'MM' && timeUnit !== 'YY' ? (
-                  <>
-                    <span className="text-sm font-medium text-[#495057] shrink-0">제외요일</span>
-                    <Select
-                      mode="multiple"
-                      value={excludeDays}
-                      onChange={(value) => setExcludeDays(value ?? [])}
-                      allowClear
-                      maxTagCount="responsive"
-                      options={[
-                        { label: '월요일', value: 'MON' },
-                        { label: '화요일', value: 'TUE' },
-                        { label: '수요일', value: 'WED' },
-                        { label: '목요일', value: 'THU' },
-                        { label: '금요일', value: 'FRI' },
-                        { label: '토요일', value: 'SAT' },
-                        { label: '일요일', value: 'SUN' },
-                      ]}
-                      placeholder="제외할 요일 선택"
-                      className="!min-w-[150px] !max-w-[300px]"
-                      popupMatchSelectWidth={false}
-                    />
+            {timeUnit !== 'MM' && timeUnit !== 'YY' ? (
+              <>
+                <CollapsibleContent>
+                  <div className="flex flex-wrap items-center gap-3">
+                    <div className="flex items-center gap-3">
+                      <span className="text-sm font-medium text-[#495057] shrink-0">제외요일</span>
+                      <Select
+                        mode="multiple"
+                        value={excludeDays}
+                        onChange={(value) => setExcludeDays(value ?? [])}
+                        allowClear
+                        maxTagCount="responsive"
+                        options={[
+                          { label: '월요일', value: 'MON' },
+                          { label: '화요일', value: 'TUE' },
+                          { label: '수요일', value: 'WED' },
+                          { label: '목요일', value: 'THU' },
+                          { label: '금요일', value: 'FRI' },
+                          { label: '토요일', value: 'SAT' },
+                          { label: '일요일', value: 'SUN' },
+                        ]}
+                        placeholder="제외할 요일 선택"
+                        className="!min-w-[150px] !max-w-[300px]"
+                        popupMatchSelectWidth={false}
+                      />
+                    </div>
                     <Divider orientation="vertical" className="!h-5 !m-0" />
-                    <span className="text-sm font-medium text-[#495057] shrink-0">업무공휴일 제외</span>
-                    <Checkbox checked={excludeBusinessHoliday} onChange={(e) => setExcludeBusinessHoliday(e.target.checked)} />
+                    <div className="flex items-center gap-3">
+                      <span className="text-sm font-medium text-[#495057] shrink-0">업무공휴일 제외</span>
+                      <Checkbox checked={excludeBusinessHoliday} onChange={(e) => setExcludeBusinessHoliday(e.target.checked)} />
+                    </div>
                     <Divider orientation="vertical" className="!h-5 !m-0" />
-                    <span className="text-sm font-medium text-[#495057] shrink-0">통계공휴일 제외</span>
-                    <Checkbox checked={excludeStatHoliday} onChange={(e) => setExcludeStatHoliday(e.target.checked)} />
-                  </>
-                ) : null}
-                {timeUnit === 'MI' || timeUnit === 'HH' ? (
-                  <>
-                    <Divider orientation="vertical" className="!h-5 !m-0" />
-                    <span className="text-sm font-medium text-[#495057] shrink-0">점심시간 제외</span>
-                    <Checkbox checked={excludeLunch} onChange={(e) => setExcludeLunch(e.target.checked)} />
-                    <Divider orientation="vertical" className="!h-5 !m-0" />
-                    <span className="text-sm font-medium text-[#495057] shrink-0">구간검색</span>
-                    <Checkbox checked={useInterval} onChange={(e) => setUseInterval(e.target.checked)} />
-                    {useInterval ? (
+                    <div className="flex items-center gap-3">
+                      <span className="text-sm font-medium text-[#495057] shrink-0">통계공휴일 제외</span>
+                      <Checkbox checked={excludeStatHoliday} onChange={(e) => setExcludeStatHoliday(e.target.checked)} />
+                    </div>
+                    {timeUnit === 'MI' || timeUnit === 'HH' ? (
                       <>
-                        <TimePicker
-                          value={intervalStartTime}
-                          onChange={(date) => setIntervalStartTime(date)}
-                          inputReadOnly
-                          allowClear={false}
-                          format="HH:00"
-                          style={{ width: '100px' }}
-                        />
-                        <span className="text-sm font-medium text-[#495057] shrink-0">~</span>
-                        <TimePicker
-                          value={intervalEndTime}
-                          onChange={(date) => setIntervalEndTime(date)}
-                          inputReadOnly
-                          allowClear={false}
-                          format="HH:00"
-                          style={{ width: '100px' }}
-                        />
+                        <Divider orientation="vertical" className="!h-5 !m-0" />
+                        <div className="flex items-center gap-3">
+                          <span className="text-sm font-medium text-[#495057] shrink-0">점심시간 제외</span>
+                          <Checkbox checked={excludeLunch} onChange={(e) => setExcludeLunch(e.target.checked)} />
+                        </div>
+                        <Divider orientation="vertical" className="!h-5 !m-0" />
+                        <div className="flex items-center gap-3">
+                          <span className="text-sm font-medium text-[#495057] shrink-0">구간검색</span>
+                          <Checkbox checked={useInterval} onChange={(e) => setUseInterval(e.target.checked)} />
+                          {useInterval ? (
+                            <>
+                              <TimePicker
+                                value={intervalStartTime}
+                                onChange={(date) => setIntervalStartTime(date)}
+                                inputReadOnly
+                                allowClear={false}
+                                format="HH:00"
+                                style={{ width: '100px' }}
+                              />
+                              <span className="text-sm font-medium text-[#495057] shrink-0">~</span>
+                              <TimePicker
+                                value={intervalEndTime}
+                                onChange={(date) => setIntervalEndTime(date)}
+                                inputReadOnly
+                                allowClear={false}
+                                format="HH:00"
+                                style={{ width: '100px' }}
+                              />
+                            </>
+                          ) : null}
+                        </div>
                       </>
                     ) : null}
-                  </>
-                ) : null}
-              </div>
-            </CollapsibleContent>
+                  </div>
+                </CollapsibleContent>
+              </>
+            ) : null}
           </header>
         </Collapsible>
         <div className="w-full flex-1">

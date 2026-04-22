@@ -61,3 +61,19 @@ export interface SttSearchCallbotDetailItem {
   talkTime: string;
   startSentence: string;
 }
+
+// STT 검색 상세 조회 파라미터
+export interface SttResultSentenceParams {
+  ucidGkey: string;
+  tenantId?: number;
+}
+
+// STT 검색 상세 결과
+export interface SttResultSentenceItem {
+  ucidGkey: string;
+  armsoffset: number;
+  rxtxKind: string;
+  sentence: string;
+  orgSentence: string;
+  groupCode: string;
+}

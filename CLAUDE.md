@@ -36,7 +36,7 @@ TypeScript 또는 JavaScript 파일을 수정한 후에는 반드시 `npx eslint
   - 사이드바 내비게이션이 있는 메인 레이아웃
 - **Remote Apps**:
   - `apps/manager`: 매니저 (사용자 관리, 대시보드)
-  - `apps/fca`: Focus AI (봇 관리 기능)
+  - `apps/fca`: ForCus AI (봇 관리 기능)
 
 ### 라이브러리
 
@@ -913,3 +913,108 @@ export const ENTITY_TYPE_COLORS: Record<EntityType, string> = {
   PATTERNS: 'orange',
 };
 ```
+
+### UI 레이아웃 규칙
+
+레이아웃 배경(회색 계열) 위에 버튼, 입력 필드, 테이블 등의 UI 요소를 직접 배치하지 말 것. 배경과의 시각적 분리가 없으면 요소가 부유하는 느낌을 주어 완성도가 떨어집니다. 반드시 `bg-white bt-shadow` 컨테이너, `Card` 등으로 감싸 콘텐츠 영역을 명확히 구분할 것.
+
+```typescript
+// ❌ 레이아웃 배경 위에 UI 요소 직접 배치
+<div className="flex flex-col gap-4 w-full h-full">
+  <PageHeader breadcrumb={breadcrumb} />
+  <Select ... />
+  <Input ... />
+  <Button type="primary">추가</Button>
+  <AgGridReact rowData={data} columnDefs={columnDefs} />
+</div>
+
+// ✅ 툴바와 테이블을 각각 배경 컨테이너로 감싸서 영역 구분
+<div className="flex flex-col gap-4 w-full h-full">
+  <PageHeader breadcrumb={breadcrumb} />
+  <div className="flex items-center justify-between gap-2 w-full h-[76px] bg-white bt-shadow px-7 py-5">
+    <div className="flex gap-2 w-full items-center">
+      <Select ... />
+      <Input ... />
+    </div>
+    <Button type="primary">추가</Button>
+  </div>
+  <div className="w-full h-full bg-white bt-shadow">
+    <AgGridReact rowData={data} columnDefs={columnDefs} />
+  </div>
+</div>
+```
+
+### 데이터 추가/수정 폼 패턴
+
+데이터를 추가하거나 수정하는 UI를 구성할 때는 **Ant Design Form** 활용을 권장합니다. `useState`로 필드를 개별 관리하기보다 `Form.useForm`으로 폼 상태를 통합 관리하는 방향을 지향합니다.
+
+#### 기본 구조
+
+```typescript
+import { Form, Input, Select } from 'antd';
+import type { FormProps } from 'antd';
+
+const [form] = Form.useForm<MyFormValues>();
+
+const onFinish: FormProps<MyFormValues>['onFinish'] = (values) => {
+  createMutation.mutate(values);
+};
+
+const onFinishFailed: FormProps<MyFormValues>['onFinishFailed'] = (errorInfo) => {
+  const firstError = errorInfo.errorFields?.[0]?.errors?.[0];
+  toast.error(firstError ?? '입력 항목을 확인해주세요.');
+};
+
+<Form form={form} layout="vertical" onFinish={onFinish} onFinishFailed={onFinishFailed} initialValues={{ status: 'ACTIVE' }}>
+  <Form.Item
+    name="username"
+    label="이름"
+    required
+    hasFeedback
+    rules={[
+      { required: true, message: '이름을 입력하세요.' },
+      { max: 50, message: '최대 50자까지 입력 가능합니다.' },
+    ]}
+  >
+    <Input placeholder="이름을 입력하세요." />
+  </Form.Item>
+</Form>
+```
+
+#### 수정 페이지/탭 — API 데이터로 폼 초기화
+
+```typescript
+const { data } = useGetBot({ params: { serviceId } });
+
+useEffect(() => {
+  if (!data) return;
+  form.setFieldsValue({
+    serviceName: data.serviceName,
+    serviceDesc: data.serviceDesc,
+  });
+}, [data, form]);
+```
+
+#### Drawer에서의 폼 초기화/리셋
+
+Drawer에서 폼을 사용할 때는 열릴 때 데이터를 세팅하고, 닫힐 때 리셋하는 흐름을 권장합니다:
+
+```typescript
+useEffect(() => {
+  if (!open) return;
+  if (initialData) {
+    form.setFieldsValue({ category: initialData.category, value: initialData.value });
+  }
+  return () => form.resetFields();
+}, [initialData, form, open]);
+```
+
+#### 권장 사항
+
+1. **Form.useForm 활용**: `useState`로 필드를 개별 관리하기보다 폼 인스턴스로 통합 관리
+2. **layout="vertical"**: 레이블이 입력 필드 위에 오는 수직 레이아웃 선호
+3. **rules로 유효성 검사**: `required`, `min`, `max`, `pattern` 등 선언적으로 정의
+4. **hasFeedback**: 유효성 검사 결과 아이콘(✓, ✕)을 필드에 표시하여 사용자 피드백 제공
+5. **onFinishFailed**: 첫 번째 에러 메시지를 `toast.error`로 안내
+6. **수정 시 초기화**: `form.setFieldsValue()`로 API 데이터를 폼에 세팅
+7. **Drawer 닫힐 때**: `form.resetFields()`로 폼 상태 초기화

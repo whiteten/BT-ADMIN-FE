@@ -1,9 +1,10 @@
 import { useEffect, useRef, useState } from 'react';
-import type { ColDef } from 'ag-grid-community';
+import type { ColDef, RowDoubleClickedEvent } from 'ag-grid-community';
 import { AgGridReact } from 'ag-grid-react';
 import { Button, DatePicker, Input, Select, TimePicker } from 'antd';
 import dayjs, { type Dayjs } from 'dayjs';
 import { toast } from '@/shared-util';
+import SttSearchDetailDrawer, { type SttSearchDetailDrawerRef } from '../components/SttSearchDetailDrawer';
 import { useGetTenants } from '../hooks/useCommonQueries';
 import { useGetSttSearch } from '../hooks/useSearchQueries';
 import type { SttSearchItem, SttSearchParams } from '../types';
@@ -20,6 +21,7 @@ const PAGE_SIZE = 10;
 export default function SttSearch() {
   const { gridOptions } = useAggridOptions();
   const gridRef = useRef<AgGridReact<SttSearchItem>>(null);
+  const drawerRef = useRef<SttSearchDetailDrawerRef>(null);
 
   const [startDate, setStartDate] = useState<Dayjs | null>(dayjs());
   const [endDate, setEndDate] = useState<Dayjs | null>(dayjs());
@@ -68,6 +70,11 @@ export default function SttSearch() {
     params: searchParams as Record<string, unknown>,
     queryOptions: { enabled: !!searchParams },
   });
+
+  const handleRowDoubleClicked = (event: RowDoubleClickedEvent<SttSearchItem>) => {
+    if (!event.data) return;
+    drawerRef.current?.open(event.data);
+  };
 
   const handleSearch = () => {
     if (!startDate || !endDate) {
@@ -190,10 +197,13 @@ export default function SttSearch() {
             ...gridOptions,
             paginationPageSize: PAGE_SIZE,
           }}
+          onRowDoubleClicked={handleRowDoubleClicked}
           loading={isLoading}
           sideBar={false}
         />
       </div>
+
+      <SttSearchDetailDrawer ref={drawerRef} />
     </div>
   );
 }

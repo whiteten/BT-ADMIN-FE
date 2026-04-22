@@ -10,11 +10,7 @@
     "shadcn:add": "cross-env TS_NODE_PROJECT=tsconfig.base.json npx shadcn@latest add",
     "create-remote": "node scripts/create-remote.js",
     "prepare": "husky",
-    "serve:prod": "pnpm exec serve dist/apps/host -l 4200 -s",
-    "e2e": "playwright test --config=e2e/playwright.config.ts",
-    "e2e:ui": "playwright test --config=e2e/playwright.config.ts --ui",
-    "e2e:headed": "playwright test --config=e2e/playwright.config.ts --headed",
-    "e2e:report": "playwright show-report e2e/playwright-report"
+    "serve:prod": "pnpm exec serve dist/apps/host -l 4200 -s"
   },
   "private": true,
   "devDependencies": {
@@ -33,7 +29,6 @@
     "@nx/web": "21.3.5",
     "@nx/webpack": "^21.3.5",
     "@nx/workspace": "21.3.5",
-    "@playwright/test": "^1.58.0",
     "@pmmmwh/react-refresh-webpack-plugin": "^0.5.7",
     "@svgr/webpack": "^8.0.1",
     "@swc-node/register": "~1.9.1",
@@ -167,7 +162,7 @@
   },
   "lint-staged": {
     "*.{js,jsx,ts,tsx}": [
-      "eslint --fix --ignore-pattern 'e2e/**' --ignore-pattern '**/webpack*.ts'",
+      "eslint --fix --ignore-pattern '**/webpack*.ts'",
       "prettier --write",
       "node scripts/typecheck-staged.js"
     ]

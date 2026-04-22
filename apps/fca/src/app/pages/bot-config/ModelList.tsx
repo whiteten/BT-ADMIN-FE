@@ -9,6 +9,7 @@ import { ModelType } from '../../features/bot-config/types/model';
 import { FallbackSpinner } from '@/components/custom/FallbackSpinner';
 import NoData from '@/components/custom/NoData';
 import PageHeader from '@/components/custom/PageHeader';
+import { Spinner } from '@/libs/shared-ui/src/components/shadcn/spinner';
 import { useModal } from '@/libs/shared-ui/src/hooks/useModal';
 
 export default function ModelList() {
@@ -33,7 +34,7 @@ export default function ModelList() {
   const [searchValue, setSearchValue] = useState('');
 
   const { data: modelList, isLoading } = useGetModels();
-  const { mutate: deleteModel } = useDeleteModel({
+  const { mutate: deleteModel, isPending: isDeleting } = useDeleteModel({
     mutationOptions: {
       onSuccess: () => {
         queryClient.invalidateQueries({ queryKey: modelQueryKeys.getModels().queryKey });
@@ -111,10 +112,17 @@ export default function ModelList() {
           <FallbackSpinner />
         </div>
       ) : filteredList.length ? (
-        <div className="grid grid-cols-[repeat(auto-fill,minmax(350px,1fr))] gap-4 w-full overflow-y-auto">
-          {filteredList.map((model) => (
-            <ModelCard key={model.modelId} {...model} onDetail={handleDetail} onDelete={handleDelete} onExport={handleExport} />
-          ))}
+        <div className="relative w-full overflow-y-auto">
+          {isDeleting && (
+            <div className="absolute inset-0 z-10 flex items-center justify-center bg-white/60">
+              <Spinner variant="infinite" className="text-[var(--color-bt-primary)]" size={100} />
+            </div>
+          )}
+          <div className="grid grid-cols-[repeat(auto-fill,minmax(350px,1fr))] gap-4 w-full">
+            {filteredList.map((model) => (
+              <ModelCard key={model.modelId} {...model} onDetail={handleDetail} onDelete={handleDelete} onExport={handleExport} />
+            ))}
+          </div>
         </div>
       ) : (
         <div className="flex items-center justify-center w-full h-full bg-white bt-shadow">

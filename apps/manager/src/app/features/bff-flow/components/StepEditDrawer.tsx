@@ -6,6 +6,7 @@ import { useEffect, useState } from 'react';
 import { Button, Drawer, Form, Input, Select, Switch, Tag } from 'antd';
 import { ChevronDown } from 'lucide-react';
 import KeyValueEditor from './KeyValueEditor';
+import { useGetApps } from '../../iam/hooks/useAppQueries';
 import type { FlowStep } from '../types/bffFlow.types';
 
 interface StepEditDrawerProps {
@@ -23,16 +24,10 @@ const METHOD_OPTIONS = [
   { label: 'DELETE', value: 'DELETE' },
 ];
 
-const SERVICE_KEY_OPTIONS = [
-  { label: 'manager', value: 'manager' },
-  { label: 'fca', value: 'fca' },
-  { label: 'auth', value: 'auth' },
-  { label: 'aoe', value: 'aoe' },
-  { label: 'stt', value: 'stt' },
-];
-
 export default function StepEditDrawer({ open, step, onOk, onCancel, onDelete }: StepEditDrawerProps) {
   const [form] = Form.useForm<FlowStep>();
+  const { data: appList, isLoading: isAppListLoading } = useGetApps();
+  const serviceKeyOptions = (appList ?? []).map((app) => ({ label: app.appId, value: app.appId }));
   const [advancedOpen, setAdvancedOpen] = useState(false);
   const isEdit = step !== null;
 
@@ -144,7 +139,7 @@ export default function StepEditDrawer({ open, step, onOk, onCancel, onDelete }:
           </Form.Item>
 
           <Form.Item label="서비스 키" name="serviceKey" rules={[{ required: true, message: '서비스 키를 선택해주세요' }]}>
-            <Select placeholder="선택" options={SERVICE_KEY_OPTIONS} />
+            <Select placeholder="선택" options={serviceKeyOptions} loading={isAppListLoading} />
           </Form.Item>
         </div>
 

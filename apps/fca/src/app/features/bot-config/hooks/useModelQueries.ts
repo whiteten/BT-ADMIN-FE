@@ -13,7 +13,7 @@ import type {
   EvaluationResultListByEvalDateItem,
   EvaluationResultListItem,
 } from '../types/evaluation';
-import type { IntentItem, IntentListItem, IntentSentenceListItem } from '../types/intent';
+import type { ExcelImportResult, IntentItem, IntentListItem, IntentSentenceListItem } from '../types/intent';
 import type { GenerateExcelDatas, ModelItem, ModelListItem } from '../types/model';
 import type { RetrainDetail, RetrainListItem } from '../types/retrain';
 import type { SnapshotCompareResult, SnapshotListItem } from '../types/snapshot';
@@ -461,6 +461,17 @@ export const useExportIntent = ({ mutationOptions }: MutationHookOptions = {}) =
   });
 };
 
+export const useExportIntentAndEntity = ({ mutationOptions }: MutationHookOptions = {}) => {
+  return useMutation({
+    mutationFn: async (params: Record<string, unknown>) => {
+      const response = await modelApi.exportIntentAndEntity(params);
+      const fileName = extractFileName(response.headers['content-disposition'], `INTENT_ENTITY_${dayjs().format('YYYYMMDD')}.xlsx`);
+      downloadBlob(response.data, fileName);
+    },
+    ...mutationOptions,
+  });
+};
+
 export const useImportIntent = ({ mutationOptions }: MutationHookOptions = {}) => {
   return useMutation({
     mutationFn: modelApi.importIntent,
@@ -497,7 +508,7 @@ export const useGenerateExcel = ({ mutationOptions }: MutationHookOptions = {}) 
   });
 };
 
-export const useImportIntentSentence = ({ mutationOptions }: MutationHookOptions = {}) => {
+export const useImportIntentSentence = ({ mutationOptions }: MutationHookOptions<ExcelImportResult> = {}) => {
   return useMutation({
     mutationFn: modelApi.importIntentSentence,
     ...mutationOptions,
@@ -515,7 +526,7 @@ export const useExportEvaluationQuestion = ({ mutationOptions }: MutationHookOpt
   });
 };
 
-export const useImportEvaluationQuestion = ({ mutationOptions }: MutationHookOptions = {}) => {
+export const useImportEvaluationQuestion = ({ mutationOptions }: MutationHookOptions<ExcelImportResult> = {}) => {
   return useMutation({
     mutationFn: modelApi.importEvaluationQuestion,
     ...mutationOptions,

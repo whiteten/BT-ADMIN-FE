@@ -1,5 +1,14 @@
 import ApiClient, { type ListResponse, extractList } from '@/shared-util';
-import type { SttSearchCallbotDetailItem, SttSearchCallbotDetailParams, SttSearchCallbotItem, SttSearchCallbotParams, SttSearchItem, SttSearchParams, TenantItem } from '../types';
+import type {
+  SttResultSentenceItem,
+  SttResultSentenceParams,
+  SttSearchCallbotDetailItem,
+  SttSearchCallbotDetailParams,
+  SttSearchCallbotItem,
+  SttSearchCallbotParams,
+  SttSearchItem,
+  SttSearchParams,
+} from '../types';
 
 const apiClient = new ApiClient({ serviceURL: '/bff' });
 
@@ -14,6 +23,10 @@ export const searchApi = {
   },
   getSttSearchCallbotDetail: async (params?: SttSearchCallbotDetailParams) => {
     const response = await apiClient.post<ListResponse<SttSearchCallbotDetailItem>>('/stt-search-callbot-detail', params);
+    return extractList(response);
+  },
+  getSttResultSentence: async (params: SttResultSentenceParams) => {
+    const response = await apiClient.get<ListResponse<SttResultSentenceItem>>('/stt-search-result-sentence', { params });
     return extractList(response);
   },
 };

@@ -2,12 +2,22 @@ import { useQuery } from '@tanstack/react-query';
 import { createQueryKeys } from '@lukemorales/query-key-factory';
 import type { QueryHookWithParamsOptions } from '@/shared-util';
 import { searchApi } from '../api/searchApi';
-import type { SttSearchCallbotDetailItem, SttSearchCallbotDetailParams, SttSearchCallbotItem, SttSearchCallbotParams, SttSearchItem, SttSearchParams } from '../types';
+import type {
+  SttResultSentenceItem,
+  SttResultSentenceParams,
+  SttSearchCallbotDetailItem,
+  SttSearchCallbotDetailParams,
+  SttSearchCallbotItem,
+  SttSearchCallbotParams,
+  SttSearchItem,
+  SttSearchParams,
+} from '../types';
 
 export const searchQueryKeys = createQueryKeys('stts', {
   getSttSearch: (params?: SttSearchParams) => [params],
   getSttSearchCallbotList: (params?: SttSearchCallbotParams) => [params],
   getSttSearchCallbotDetail: (params?: SttSearchCallbotDetailParams) => [params],
+  getSttResultSentence: (params?: SttResultSentenceParams) => [params],
 });
 
 export const useGetSttSearch = ({ params, queryOptions }: QueryHookWithParamsOptions<SttSearchItem[]> = {}) => {
@@ -30,6 +40,14 @@ export const useGetSttSearchCallbotDetail = ({ params, queryOptions }: QueryHook
   return useQuery({
     queryKey: searchQueryKeys.getSttSearchCallbotDetail(params as SttSearchCallbotDetailParams).queryKey,
     queryFn: () => searchApi.getSttSearchCallbotDetail(params as SttSearchCallbotDetailParams),
+    ...queryOptions,
+  });
+};
+
+export const useGetSttResultSentence = ({ params, queryOptions }: QueryHookWithParamsOptions<SttResultSentenceItem[]> = {}) => {
+  return useQuery({
+    queryKey: searchQueryKeys.getSttResultSentence(params as unknown as SttResultSentenceParams).queryKey,
+    queryFn: () => searchApi.getSttResultSentence(params as unknown as SttResultSentenceParams),
     ...queryOptions,
   });
 };

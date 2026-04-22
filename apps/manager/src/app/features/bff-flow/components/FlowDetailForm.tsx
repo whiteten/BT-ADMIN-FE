@@ -15,7 +15,9 @@ import { useEffect, useRef, useState } from 'react';
 import type { ColDef, ICellRendererParams, RowDoubleClickedEvent } from 'ag-grid-community';
 import { AgGridReact } from 'ag-grid-react';
 import { Button, Col, Form, Input, Row, Switch, Tag } from 'antd';
+import { toast } from '@/shared-util';
 import StepEditDrawer from './StepEditDrawer';
+import { useSaveFlow } from '../hooks/useBffFlowQueries';
 import type { BffFlow, FlowSpec, FlowStep } from '../types/bffFlow.types';
 import { IconDocument, IconLayer, IconTrash } from '@/components/custom/Icons';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/libs/shared-ui/src/components/shadcn/tabs';
@@ -25,6 +27,7 @@ import { useModal } from '@/libs/shared-ui/src/hooks/useModal';
 interface FlowDetailFormProps {
   flow: BffFlow | null;
   onSave: (flowId: string, spec: FlowSpec) => void;
+  onSaved?: (flow: BffFlow) => void;
   onDelete?: (flowId: string) => void;
   saving?: boolean;
 }
@@ -40,13 +43,35 @@ const METHOD_COLORS: Record<string, string> = {
 const TAB_TRIGGER_CLASS =
   'w-auto hover:cursor-pointer !shadow-none border-1 border-transparent !rounded-none border-r-[#E9EBEC] text-[#495057] data-[state=active]:border-b-2 data-[state=active]:border-b-[var(--color-bt-primary)] data-[state=active]:text-[var(--color-bt-primary)]';
 
-export default function FlowDetailForm({ flow, onSave, onDelete, saving }: FlowDetailFormProps) {
+export default function FlowDetailForm({ flow, onSave, onSaved, onDelete, saving }: FlowDetailFormProps) {
   const [form] = Form.useForm<{ flowId: string; description: string; stopOnError: boolean }>();
   const [editingStep, setEditingStep] = useState<FlowStep | null>(null);
   const [isStepDrawerOpen, setIsStepDrawerOpen] = useState(false);
   const prevFlowIdRef = useRef<string | null>(null);
   const modal = useModal();
   const { gridOptions } = useAggridOptions();
+
+  const { mutate: saveStep, isPending: isSavingStep } = useSaveFlow({
+    mutationOptions: {
+      onSuccess: (saved) => {
+        toast.success('저장되었습니다');
+        setIsStepDrawerOpen(false);
+        setEditingStep(null);
+        onSaved?.(saved);
+      },
+    },
+  });
+
+  const { mutate: deleteStep, isPending: isDeletingStep } = useSaveFlow({
+    mutationOptions: {
+      onSuccess: (saved) => {
+        toast.success('삭제되었습니다');
+        setIsStepDrawerOpen(false);
+        setEditingStep(null);
+        onSaved?.(saved);
+      },
+    },
+  });
 
   const isCreateMode = flow === null;
 
@@ -112,35 +137,38 @@ export default function FlowDetailForm({ flow, onSave, onDelete, saving }: FlowD
 
   // ── 편집 모드: Steps ───────────────────────────────────────────────────────
 
-  // 변경된 steps로 Flow 전체 저장 (기본정보는 서버에 저장된 값 기준)
-  const saveWithSteps = (updatedSteps: FlowStep[]) => {
-    if (!flow) return;
-    onSave(flow.flowId, {
-      description: flow.spec.description ?? flow.description,
-      stopOnError: flow.spec.stopOnError,
-      steps: updatedSteps,
-      compensation: flow.spec.compensation,
-      compose: flow.spec.compose,
-    });
-  };
-
   const handleStepSave = (step: FlowStep) => {
-    const currentSteps = flow?.spec.steps ?? [];
+    if (!flow) return;
+    const currentSteps = flow.spec.steps ?? [];
     const updatedSteps = editingStep ? currentSteps.map((s) => (s.id === editingStep.id ? step : s)) : [...currentSteps, step];
-
-    saveWithSteps(updatedSteps);
-    setIsStepDrawerOpen(false);
-    setEditingStep(null);
+    saveStep({
+      flowId: flow.flowId,
+      spec: {
+        description: flow.spec.description ?? flow.description,
+        stopOnError: flow.spec.stopOnError,
+        steps: updatedSteps,
+        compensation: flow.spec.compensation,
+        compose: flow.spec.compose,
+      },
+    });
   };
 
   const handleStepDelete = (stepId: string) => {
     modal.confirm.delete({
       options: { content: `"${stepId}" Step을 삭제하시겠습니까?` },
       onOk: () => {
-        const updatedSteps = (flow?.spec.steps ?? []).filter((s) => s.id !== stepId);
-        saveWithSteps(updatedSteps);
-        setIsStepDrawerOpen(false);
-        setEditingStep(null);
+        if (!flow) return;
+        const updatedSteps = flow.spec.steps.filter((s) => s.id !== stepId);
+        deleteStep({
+          flowId: flow.flowId,
+          spec: {
+            description: flow.spec.description ?? flow.description,
+            stopOnError: flow.spec.stopOnError,
+            steps: updatedSteps,
+            compensation: flow.spec.compensation,
+            compose: flow.spec.compose,
+          },
+        });
       },
     });
   };
@@ -340,7 +368,7 @@ export default function FlowDetailForm({ flow, onSave, onDelete, saving }: FlowD
                   <IconLayer className="h-5 w-5" />
                   <span className="text-[20px] font-bold">Steps ({steps.length})</span>
                 </div>
-                <Button disabled={saving} onClick={handleStepAddClick}>
+                <Button disabled={isSavingStep || isDeletingStep} onClick={handleStepAddClick}>
                   + 추가
                 </Button>
               </div>

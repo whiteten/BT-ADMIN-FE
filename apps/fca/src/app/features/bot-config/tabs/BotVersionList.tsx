@@ -5,13 +5,14 @@ import type { ColDef, ICellRendererParams, RowDoubleClickedEvent, SideBarDef } f
 import { AgGridReact } from 'ag-grid-react';
 import { Button, Input, Select } from 'antd';
 import dayjs from 'dayjs';
+import { Download } from 'lucide-react';
 import { Log } from '@/log';
 import { toast } from '@/shared-util';
 import AggridDeployServerInfoSidebar from '../components/AggridDeployServerInfoSidebar';
 import BotDeployConfigDrawer, { type BotDeployConfigDrawerRef } from '../components/BotDeployConfigDrawer';
 import BotVersionDrawer, { type BotVersionDrawerRef } from '../components/BotVersionDrawer';
 import BotVersionPublishResultModal, { type BotVersionPublishResultModalRef } from '../components/BotVersionPublishResultModal';
-import { botQueryKeys, useCheckDeployable, useDeleteBotVersion, useGetBotDeployConfig, useGetBotVersions, useGetIfeInfo, usePublishBotVersion } from '../hooks/useBotQueries';
+import { botQueryKeys, useCheckDeployable, useDeleteBotVersion, useDownloadScenario, useGetBotVersions, useGetIfeInfo, usePublishBotVersion } from '../hooks/useBotQueries';
 import type { BotVersionListItem, IfeInfo, PublishBotVersionResult } from '../types';
 import { IconTrash } from '@/components/custom/Icons';
 import useAggridOptions from '@/libs/shared-ui/src/hooks/useAggridOptions';
@@ -57,6 +58,7 @@ export default function BotVersionList() {
     mutationOptions: {
       onSuccess: (data) => {
         publishResultModalRef.current?.open(data as PublishBotVersionResult);
+        queryClient.invalidateQueries({ queryKey: botQueryKeys.getBotDeployConfig({ serviceId }).queryKey });
       },
     },
   });
@@ -75,6 +77,14 @@ export default function BotVersionList() {
           return;
         }
         window.open(ifeInfo.redirectUrl, '_blank');
+      },
+    },
+  });
+
+  const { mutate: downloadScenario } = useDownloadScenario({
+    mutationOptions: {
+      onError: () => {
+        toast.error('시나리오 파일 다운로드에 실패했습니다.');
       },
     },
   });
@@ -98,7 +108,32 @@ export default function BotVersionList() {
     { headerName: 'ID', field: 'serviceId', hide: true },
     { headerName: '버전', field: 'serviceVer', maxWidth: 100 },
     { headerName: '버전명', field: 'versionName' },
-    { headerName: '시나리오파일', field: 'scenarioFile' },
+    {
+      headerName: '시나리오파일',
+      field: 'scenarioFile',
+      cellStyle: { display: 'flex', alignItems: 'center', gap: '6px' },
+      cellRenderer: (params: ICellRendererParams<BotVersionListItem>) => {
+        const { data } = params;
+        if (!data) return null;
+        return (
+          <>
+            <span className="truncate">{data.scenarioFile}</span>
+            {data.scenarioFile && (
+              <button
+                type="button"
+                title="시나리오 파일 다운로드"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  downloadScenario({ serviceId, serviceVer: data.serviceVer });
+                }}
+              >
+                <Download className="size-4 text-blue-500 hover:text-blue-700 hover:cursor-pointer shrink-0" />
+              </button>
+            )}
+          </>
+        );
+      },
+    },
     { headerName: '변경내용', field: 'versionDesc' },
     { headerName: '작업자', field: 'workUserName', maxWidth: 120 },
     { headerName: '작업일시', field: 'workTime', valueFormatter: (params: { value: string }) => (params.value ? dayjs(params.value).format('YYYY-MM-DD HH:mm:ss') : '-') },

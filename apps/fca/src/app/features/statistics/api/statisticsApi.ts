@@ -2,7 +2,9 @@ import ApiClient, { type ListResponse, extractList } from '@/shared-util';
 import type {
   DialogOptionListItem,
   DialogStatListItem,
+  EntityOptionListItem,
   EntityStatListItem,
+  IntentOptionListItem,
   IntentStatListItem,
   KeywordStatListItem,
   ServiceStatListItem,
@@ -54,13 +56,55 @@ export const statisticsApi = {
 
   // 대화 옵션 목록 조회
   getDialogOptionList: async (params?: Record<string, unknown>): Promise<DialogOptionListItem[]> => {
-    const response = await apiClient.get<ListResponse<DialogOptionListItem>>('/stat-dialog-options', { params });
+    const response = await apiClient.post<ListResponse<DialogOptionListItem>>('/stat-dialog-options', params);
     return extractList(response);
   },
 
   // 슬롯 옵션 목록 조회
   getSlotOptionList: async (params?: Record<string, unknown>): Promise<SlotOptionListItem[]> => {
-    const response = await apiClient.get<ListResponse<SlotOptionListItem>>('/stat-slot-options', { params });
+    const response = await apiClient.post<ListResponse<SlotOptionListItem>>('/stat-slot-options', params);
     return extractList(response);
+  },
+
+  // 의도 옵션 목록 조회
+  getIntentOptionList: async (params?: Record<string, unknown>): Promise<IntentOptionListItem[]> => {
+    const response = await apiClient.post<ListResponse<IntentOptionListItem>>('/stat-intent-options', params);
+    return extractList(response);
+  },
+
+  // 개체 옵션 목록 조회
+  getEntityOptionList: async (params?: Record<string, unknown>): Promise<EntityOptionListItem[]> => {
+    const response = await apiClient.post<ListResponse<EntityOptionListItem>>('/stat-entity-options', params);
+    return extractList(response);
+  },
+
+  // 서비스 통계 엑셀 내보내기
+  exportServiceStatExcel: async (params?: Record<string, unknown>) => {
+    return await apiClient.post<Blob>('/stat-bot-service-export', params, { responseType: 'blob' });
+  },
+
+  // 대화 통계 엑셀 내보내기
+  exportDialogStatExcel: async (params?: Record<string, unknown>) => {
+    return await apiClient.post<Blob>('/stat-bot-dialog-export', params, { responseType: 'blob' });
+  },
+
+  // 슬롯 통계 엑셀 내보내기
+  exportSlotStatExcel: async (params?: Record<string, unknown>) => {
+    return await apiClient.post<Blob>('/stat-bot-slot-export', params, { responseType: 'blob' });
+  },
+
+  // 의도 통계 엑셀 내보내기
+  exportIntentStatExcel: async (params?: Record<string, unknown>) => {
+    return await apiClient.post<Blob>('/stat-nlu-intent-export', params, { responseType: 'blob' });
+  },
+
+  // 개체 통계 엑셀 내보내기
+  exportEntityStatExcel: async (params?: Record<string, unknown>) => {
+    return await apiClient.post<Blob>('/stat-nlu-entity-export', params, { responseType: 'blob' });
+  },
+
+  // 키워드 통계 엑셀 내보내기
+  exportKeywordStatExcel: async (params?: Record<string, unknown>) => {
+    return await apiClient.post<Blob>('/stat-nlu-keyword-export', params, { responseType: 'blob' });
   },
 };
