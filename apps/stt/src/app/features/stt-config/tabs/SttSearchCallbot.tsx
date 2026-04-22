@@ -1,16 +1,18 @@
-import { useEffect, useState } from 'react';
-import type { ColDef, RowClickedEvent } from 'ag-grid-community';
+import { useEffect, useRef, useState } from 'react';
+import type { ColDef, RowClickedEvent, RowDoubleClickedEvent } from 'ag-grid-community';
 import { AgGridReact } from 'ag-grid-react';
 import { Button, DatePicker, Input, Select, TimePicker } from 'antd';
 import dayjs, { type Dayjs } from 'dayjs';
 import { toast } from '@/shared-util';
+import SttSearchDetailDrawer, { type SttSearchDetailDrawerRef } from '../components/SttSearchDetailDrawer';
 import { useGetTenants } from '../hooks/useCommonQueries';
 import { useGetSttSearchCallbot, useGetSttSearchCallbotDetail } from '../hooks/useSearchQueries';
-import type { SttSearchCallbotDetailItem, SttSearchCallbotDetailParams, SttSearchCallbotItem, SttSearchCallbotParams } from '../types';
+import type { SttSearchCallbotDetailItem, SttSearchCallbotDetailParams, SttSearchCallbotItem, SttSearchCallbotParams, SttSearchItem } from '../types';
 import useAggridOptions from '@/libs/shared-ui/src/hooks/useAggridOptions';
 
 export default function SttSearchCallbot() {
   const { gridOptions } = useAggridOptions();
+  const drawerRef = useRef<SttSearchDetailDrawerRef>(null);
 
   const [searchDate, setSearchDate] = useState<Dayjs | null>(dayjs());
   const [startTime, setStartTime] = useState<Dayjs | null>(dayjs().hour(0).minute(0).second(0));
@@ -57,6 +59,11 @@ export default function SttSearchCallbot() {
     params: detailParams as Record<string, unknown>,
     queryOptions: { enabled: !!detailParams?.orgUcid },
   });
+
+  const handleRowDoubleClicked = (event: RowDoubleClickedEvent<SttSearchCallbotDetailItem>) => {
+    if (!event.data) return;
+    drawerRef.current?.open(event.data as unknown as SttSearchItem);
+  };
 
   const handleSearch = () => {
     if (!searchDate) {
@@ -185,10 +192,19 @@ export default function SttSearchCallbot() {
               목록에서 항목을 선택하면 대화 내용이 표시됩니다.
             </div>
           ) : (
-            <AgGridReact<SttSearchCallbotDetailItem> rowData={detailData ?? []} columnDefs={detailColumnDefs} gridOptions={gridOptions} loading={isDetailLoading} sideBar={false} />
+            <AgGridReact<SttSearchCallbotDetailItem>
+              rowData={detailData ?? []}
+              columnDefs={detailColumnDefs}
+              gridOptions={gridOptions}
+              onRowDoubleClicked={handleRowDoubleClicked}
+              loading={isDetailLoading}
+              sideBar={false}
+            />
           )}
         </div>
       </div>
+
+      <SttSearchDetailDrawer ref={drawerRef} />
     </div>
   );
 }

@@ -10,6 +10,8 @@ import type {
   SttSearchCallbotItem,
   SttSearchCallbotParams,
   SttSearchItem,
+  SttSearchListenParams,
+  SttSearchListenParsed,
   SttSearchParams,
 } from '../types';
 
@@ -18,6 +20,7 @@ export const searchQueryKeys = createQueryKeys('stts', {
   getSttSearchCallbotList: (params?: SttSearchCallbotParams) => [params],
   getSttSearchCallbotDetail: (params?: SttSearchCallbotDetailParams) => [params],
   getSttResultSentence: (params?: SttResultSentenceParams) => [params],
+  getSttSearchListen: (params?: SttSearchListenParams) => [params],
 });
 
 export const useGetSttSearch = ({ params, queryOptions }: QueryHookWithParamsOptions<SttSearchItem[]> = {}) => {
@@ -48,6 +51,14 @@ export const useGetSttResultSentence = ({ params, queryOptions }: QueryHookWithP
   return useQuery({
     queryKey: searchQueryKeys.getSttResultSentence(params as unknown as SttResultSentenceParams).queryKey,
     queryFn: () => searchApi.getSttResultSentence(params as unknown as SttResultSentenceParams),
+    ...queryOptions,
+  });
+};
+
+export const useGetSttSearchListen = ({ params, queryOptions }: QueryHookWithParamsOptions<SttSearchListenParsed> = {}) => {
+  return useQuery({
+    queryKey: searchQueryKeys.getSttSearchListen(params as unknown as SttSearchListenParams).queryKey,
+    queryFn: () => searchApi.getSttSearchListen(params as unknown as SttSearchListenParams),
     ...queryOptions,
   });
 };

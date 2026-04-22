@@ -23,6 +23,9 @@ export interface SttSearchItem {
   dnNo: string;
   agentId: string;
   agentName: string;
+  recSystemIp: string;
+  saFilepath: string;
+  saFilename: string;
   startSentence: string;
 }
 
@@ -59,16 +62,20 @@ export interface SttSearchCallbotDetailItem {
   orgNum: string;
   callDatetime: string;
   talkTime: string;
+  recSystemIp: string;
+  saFilepath: string;
+  saFilename: string;
   startSentence: string;
 }
 
-// STT 검색 상세 조회 파라미터
+// STT 검색 대화 상세 조회 파라미터
 export interface SttResultSentenceParams {
   ucidGkey: string;
   tenantId?: number;
+  rxtxKind?: string;
 }
 
-// STT 검색 상세 결과
+// STT 검색 대화 상세 결과
 export interface SttResultSentenceItem {
   ucidGkey: string;
   armsoffset: number;
@@ -76,4 +83,23 @@ export interface SttResultSentenceItem {
   sentence: string;
   orgSentence: string;
   groupCode: string;
+}
+
+// STT 청취 데이터 조회 파라미터
+export interface SttSearchListenParams {
+  recSystemIp: string;
+  request: {
+    saFilepath: string;
+    saFilename: string;
+    saFileformat: string;
+    playerWidth: string;
+    type: string;
+  };
+}
+
+// STT 청취 데이터 파싱 결과
+export interface SttSearchListenParsed {
+  waveData: number[] | null;
+  waveInterval: number; // 샘플 간격 (ms)
+  audioBlob: Blob | null;
 }
