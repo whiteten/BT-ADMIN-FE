@@ -4,8 +4,11 @@ import type { MutationHookOptions, QueryHookWithParamsOptions } from '@/shared-u
 import { knowledgeApi } from '../api/knowledgeApi';
 import type {
   KnowledgeChunkData,
+  KnowledgeChunkItem,
+  KnowledgeEvalCreateDatas,
   KnowledgeEvalExecution,
   KnowledgeEvalItem,
+  KnowledgeEvalLLMGenerateResult,
   KnowledgeEvalResult,
   KnowledgeFileItem,
   KnowledgeItem,
@@ -20,6 +23,7 @@ export const knowledgeQueryKeys = createQueryKeys('knowledges', {
   getKnowledges: (params?: Record<string, unknown>) => [params],
   getKnowledge: (params?: Record<string, unknown>) => [params],
   getKnowledgeFiles: (params?: Record<string, unknown>) => [params],
+  getKnowledgeChunks: (params?: Record<string, unknown>) => [params],
   getKnowledgeMetadata: (params?: Record<string, unknown>) => [params],
   getKnowledgeSearchRecords: (params?: Record<string, unknown>) => [params],
   getKnowledgeEvals: (params?: Record<string, unknown>) => [params],
@@ -172,6 +176,31 @@ export const useGetKnowledgeEvalResult = ({ params, queryOptions }: QueryHookWit
     queryFn: () => knowledgeApi.getKnowledgeEvalResult(params as { resultId: string }),
     enabled: !!params?.resultId,
     ...queryOptions,
+  });
+};
+
+export const useGetKnowledgeChunks = ({ params, queryOptions }: QueryHookWithParamsOptions<KnowledgeChunkItem[]> = {}) => {
+  return useQuery({
+    queryKey: knowledgeQueryKeys.getKnowledgeChunks(params).queryKey,
+    queryFn: () => knowledgeApi.getKnowledgeChunks(params as { fileId: string }),
+    enabled: !!params?.fileId,
+    ...queryOptions,
+  });
+};
+
+export const useCreateKnowledgeEval = ({ mutationOptions }: MutationHookOptions<void, KnowledgeEvalCreateDatas> = {}) => {
+  return useMutation({
+    mutationFn: knowledgeApi.createKnowledgeEval,
+    ...mutationOptions,
+  });
+};
+
+export const useGenerateKnowledgeEvalLLM = ({
+  mutationOptions,
+}: MutationHookOptions<KnowledgeEvalLLMGenerateResult[], { documentId: string; chunkIds: string[]; chunkCount: number; difficultyLvl: string }> = {}) => {
+  return useMutation({
+    mutationFn: knowledgeApi.generateKnowledgeEvalLLM,
+    ...mutationOptions,
   });
 };
 

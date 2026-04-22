@@ -1,9 +1,10 @@
 import { useRef, useState } from 'react';
-import { useParams } from 'react-router-dom';
+import { useNavigate, useParams } from 'react-router-dom';
 import { useQueryClient } from '@tanstack/react-query';
 import type { ColDef, ICellRendererParams } from 'ag-grid-community';
 import { AgGridReact } from 'ag-grid-react';
 import { Button, Input } from 'antd';
+import dayjs from 'dayjs';
 import { Log } from '@/log';
 import { toast } from '@/shared-util';
 import KnowledgeEvalRunDrawer, { type KnowledgeEvalRunDrawerRef } from '../components/KnowledgeEvalRunDrawer';
@@ -16,6 +17,7 @@ import { useModal } from '@/libs/shared-ui/src/hooks/useModal';
 
 export default function KnowledgeEvalList() {
   const { documentId } = useParams();
+  const navigate = useNavigate();
   const queryClient = useQueryClient();
   const modal = useModal();
   const { gridOptions } = useAggridOptions();
@@ -64,14 +66,14 @@ export default function KnowledgeEvalList() {
     },
     {
       headerName: '파일 수',
-      field: 'fileCount',
+      field: 'itemCount',
       maxWidth: 110,
-      cellStyle: { display: 'flex', alignItems: 'center', justifyContent: 'center' },
+      cellStyle: { display: 'flex', alignItems: 'center' },
       valueFormatter: (params) => params.value ?? 0,
     },
     {
       headerName: '상태',
-      field: 'evalStatus',
+      field: 'status',
       maxWidth: 120,
       cellStyle: { display: 'flex', alignItems: 'center' },
       cellRenderer: (params: ICellRendererParams<KnowledgeEvalItem>) => {
@@ -81,10 +83,10 @@ export default function KnowledgeEvalList() {
     },
     {
       headerName: '작업일시',
-      field: 'workTime',
+      field: 'createdAt',
       maxWidth: 180,
       cellStyle: { display: 'flex', alignItems: 'center', justifyContent: 'center' },
-      valueFormatter: (params) => params.value ?? '-',
+      valueFormatter: (params) => (params.value ? dayjs(params.value).format('YYYY-MM-DD HH:mm:ss') : '-'),
     },
     {
       headerName: '',
@@ -136,7 +138,7 @@ export default function KnowledgeEvalList() {
     <div className="flex flex-col gap-4 w-full h-full">
       <header className="flex items-center justify-between w-full gap-2">
         <Input value={searchValue} onChange={(e) => setSearchValue(e.target.value)} placeholder="평가셋 명으로 검색하세요." className="w-full max-w-[300px]" />
-        <Button variant="solid" color="primary">
+        <Button variant="solid" color="primary" onClick={() => navigate(`/aoe/agent-config/knowledge/${documentId}/eval/create`)}>
           추가
         </Button>
       </header>

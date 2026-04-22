@@ -1,6 +1,6 @@
 import { forwardRef, useImperativeHandle, useState } from 'react';
 import { Button, Drawer, Input } from 'antd';
-import { FileText, Search, SearchX } from 'lucide-react';
+import { ChevronDown, ChevronUp, FileText, Search, SearchX } from 'lucide-react';
 import { Log } from '@/log';
 import { toast } from '@/shared-util';
 import { useSearchKnowledge } from '../hooks/useKnowledgeQueries';
@@ -17,6 +17,49 @@ interface DrawerState {
 }
 
 const MAX_QUERY_LENGTH = 200;
+const COLLAPSED_LINES = 4;
+
+function SearchResultCard({ result }: { result: KnowledgeSearchChunk }) {
+  const [expanded, setExpanded] = useState(false);
+  const lines = result.chunk.split('\n');
+  const isLong = lines.length > COLLAPSED_LINES || result.chunk.length > 200;
+  const displayedChunk = !expanded && isLong ? lines.slice(0, COLLAPSED_LINES).join('\n') : result.chunk;
+
+  return (
+    <div className="border border-gray-200 rounded-lg bg-white overflow-hidden hover:border-blue-200 hover:shadow-sm transition-all shrink-0">
+      <div className="flex items-center justify-between px-4 py-2.5 bg-gray-50 border-b border-gray-100">
+        <div className="flex items-center gap-2.5">
+          <span className="text-xs font-bold text-gray-500 bg-white border border-gray-200 rounded px-1.5 py-0.5">#{result.chunkIndex}</span>
+          <span className="text-xs text-gray-400">{result.chunkCharacters.toLocaleString()}자</span>
+        </div>
+        <span
+          className={`text-xs font-semibold px-2 py-0.5 rounded-full border ${
+            result.score >= 0.8
+              ? 'text-green-700 bg-green-50 border-green-200'
+              : result.score >= 0.5
+                ? 'text-blue-700 bg-blue-50 border-blue-200'
+                : 'text-gray-600 bg-gray-50 border-gray-200'
+          }`}
+        >
+          SCORE {result.score.toFixed(3)}
+        </span>
+      </div>
+      <div className="p-4">
+        <p className="text-sm text-gray-800 leading-relaxed whitespace-pre-wrap mb-2">{displayedChunk}</p>
+        {isLong && (
+          <button type="button" onClick={() => setExpanded((prev) => !prev)} className="flex items-center gap-1 text-xs text-blue-500 hover:text-blue-700 mb-3">
+            {expanded ? <ChevronUp className="size-3.5" /> : <ChevronDown className="size-3.5" />}
+            {expanded ? '접기' : '더 보기'}
+          </button>
+        )}
+        <div className="flex items-center gap-2 pt-3 border-t border-gray-100">
+          <FileText className="size-3.5 text-red-400 shrink-0" />
+          <span className="text-xs text-gray-500 truncate">{result.filename}</span>
+        </div>
+      </div>
+    </div>
+  );
+}
 
 const KnowledgeSearchDrawer = forwardRef<KnowledgeSearchDrawerRef>((_, ref) => {
   const [drawerState, setDrawerState] = useState<DrawerState>({ open: false, documentId: '' });
@@ -128,34 +171,7 @@ const KnowledgeSearchDrawer = forwardRef<KnowledgeSearchDrawerRef>((_, ref) => {
             </div>
           </div>
         ) : (
-          searchResults.map((result, idx) => (
-            <div key={idx} className="border border-gray-200 rounded-lg bg-white overflow-hidden hover:border-blue-200 hover:shadow-sm transition-all shrink-0">
-              <div className="flex items-center justify-between px-4 py-2.5 bg-gray-50 border-b border-gray-100">
-                <div className="flex items-center gap-2.5">
-                  <span className="text-xs font-bold text-gray-500 bg-white border border-gray-200 rounded px-1.5 py-0.5">#{result.chunkIndex}</span>
-                  <span className="text-xs text-gray-400">{result.chunkCharacters.toLocaleString()}자</span>
-                </div>
-                <span
-                  className={`text-xs font-semibold px-2 py-0.5 rounded-full border ${
-                    result.score >= 0.8
-                      ? 'text-green-700 bg-green-50 border-green-200'
-                      : result.score >= 0.5
-                        ? 'text-blue-700 bg-blue-50 border-blue-200'
-                        : 'text-gray-600 bg-gray-50 border-gray-200'
-                  }`}
-                >
-                  SCORE {result.score.toFixed(3)}
-                </span>
-              </div>
-              <div className="p-4">
-                <p className="text-sm text-gray-800 leading-relaxed whitespace-pre-wrap mb-3">{result.chunk}</p>
-                <div className="flex items-center gap-2 pt-3 border-t border-gray-100">
-                  <FileText className="size-3.5 text-red-400 shrink-0" />
-                  <span className="text-xs text-gray-500 truncate">{result.filename}</span>
-                </div>
-              </div>
-            </div>
-          ))
+          searchResults.map((result, idx) => <SearchResultCard key={idx} result={result} />)
         )}
       </div>
     </Drawer>

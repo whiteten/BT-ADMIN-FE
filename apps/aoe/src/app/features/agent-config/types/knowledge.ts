@@ -23,6 +23,7 @@ export interface KnowledgeItem extends KnowledgeListItem {
 
 export interface KnowledgeUpdateDatas {
   documentName?: string;
+  description?: string;
   option?: KnowledgeOptionItem;
 }
 
@@ -70,10 +71,9 @@ export interface KnowledgeEvalItem {
   evalId: string;
   evalName: string;
   description?: string;
-  evalStatus: KnowledgeEvalStatus;
-  fileCount?: number;
-  chunkCount?: number;
-  workTime?: string;
+  status?: KnowledgeEvalStatus;
+  itemCount?: number;
+  createdAt?: string;
 }
 
 export interface KnowledgeEvalExecution {
@@ -104,4 +104,35 @@ export interface KnowledgeEvalResult {
   resultId: string;
   evalName: string;
   items: KnowledgeEvalResultItem[];
+}
+
+export interface KnowledgeChunkItem {
+  chunkId: string;
+  chunk: string;
+  chunkIndex: number;
+  chunkCharacters?: number;
+  fileName: string;
+}
+
+export interface EvalQuestionSetting {
+  id: string;
+  question: string;
+  answer: string;
+}
+
+export interface EvalChunkSetting {
+  chunkId: string;
+  questions: EvalQuestionSetting[];
+}
+
+export interface KnowledgeEvalCreateDatas {
+  evalName: string;
+  description?: string;
+  documentId: string;
+  chunkSettings: EvalChunkSetting[];
+}
+
+export interface KnowledgeEvalLLMGenerateResult {
+  chunkId: string;
+  questions: { question: string; answer: string }[];
 }

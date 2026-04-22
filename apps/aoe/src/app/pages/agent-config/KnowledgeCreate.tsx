@@ -68,6 +68,7 @@ const SEARCH_TYPE_OPTIONS = [
 
 interface Step1FormValues {
   documentName: string;
+  description?: string;
   fileList: { originFileObj: File }[];
 }
 
@@ -153,6 +154,7 @@ export default function KnowledgeCreate() {
     }
     processKnowledge({
       documentName: step1Values.documentName,
+      description: step1Values.description,
       chunkSize: step2Values.chunkSize ?? 500,
       chunkOverlap: step2Values.chunkOverlap ?? 50,
       topK: step2Values.topK ?? 3,
@@ -171,7 +173,10 @@ export default function KnowledgeCreate() {
         <Form.Item name="documentName" label="문서 그룹명" required rules={[{ required: true, message: '문서 그룹명을 입력해 주세요.' }]}>
           <Input placeholder="문서 이름을 입력하세요" />
         </Form.Item>
-        <Form.Item name="fileList" label="파일 업로드" valuePropName="fileList" getValueFromEvent={(e) => (Array.isArray(e) ? e : e?.fileList)}>
+        <Form.Item name="description" label="설명">
+          <Input.TextArea placeholder="지식에 대한 설명을 입력하세요." autoSize={{ minRows: 3, maxRows: 5 }} />
+        </Form.Item>
+        <Form.Item name="fileList" label="파일 업로드" required valuePropName="fileList" getValueFromEvent={(e) => (Array.isArray(e) ? e : e?.fileList)}>
           <Upload.Dragger
             accept={ACCEPTED_EXTENSIONS}
             multiple
@@ -298,6 +303,10 @@ export default function KnowledgeCreate() {
           <div className="flex gap-2">
             <span className="w-36 text-gray-500 shrink-0">문서 그룹명</span>
             <span className="font-medium">{step1Values.documentName ?? '-'}</span>
+          </div>
+          <div className="flex gap-2">
+            <span className="w-36 text-gray-500 shrink-0">설명</span>
+            <span>{step1Values.description || '-'}</span>
           </div>
           <div className="flex gap-2">
             <span className="w-36 text-gray-500 shrink-0">업로드 파일</span>

@@ -16,6 +16,7 @@ const SEARCH_TYPE_OPTIONS = [
 
 interface FormValues {
   documentName: string;
+  description?: string;
   enableHybridSearch: string;
   topK: number;
   denseWeight: number;
@@ -57,6 +58,7 @@ export default function KnowledgeBasicInfo() {
     const opt = knowledge.option;
     form.setFieldsValue({
       documentName: knowledge.documentName,
+      description: knowledge.description,
       enableHybridSearch: opt?.enableHybridSearch ?? '0',
       topK: opt?.topK ?? 3,
       denseWeight: opt?.denseWeight ?? 0.0,
@@ -69,6 +71,7 @@ export default function KnowledgeBasicInfo() {
     Log.debug('onFinish', values);
     const data: KnowledgeUpdateDatas = {
       documentName: values.documentName,
+      description: values.description,
       option: {
         enableHybridSearch: values.enableHybridSearch,
         topK: values.topK,
@@ -103,6 +106,13 @@ export default function KnowledgeBasicInfo() {
             <Col span={12}>
               <Form.Item name="documentName" label="문서명" required rules={[{ required: true, message: '문서명을 입력해 주세요.' }]}>
                 <Input placeholder="문서명을 입력하세요." />
+              </Form.Item>
+            </Col>
+          </Row>
+          <Row gutter={20}>
+            <Col span={12}>
+              <Form.Item name="description" label="설명">
+                <Input.TextArea placeholder="지식에 대한 설명을 입력하세요." autoSize={{ minRows: 3, maxRows: 5 }} />
               </Form.Item>
             </Col>
           </Row>

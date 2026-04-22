@@ -4,6 +4,7 @@ import { useQueryClient } from '@tanstack/react-query';
 import type { CellEditingStoppedEvent, ColDef, ICellRendererParams } from 'ag-grid-community';
 import { AgGridReact } from 'ag-grid-react';
 import { Button, Input, Select } from 'antd';
+import dayjs from 'dayjs';
 import { FileText, SearchCheck } from 'lucide-react';
 import { Log } from '@/log';
 import { toast } from '@/shared-util';
@@ -144,7 +145,7 @@ export default function KnowledgeFileList() {
       headerName: '청크 수',
       field: 'chunkCount',
       maxWidth: 120,
-      cellStyle: { display: 'flex', alignItems: 'center', justifyContent: 'center' },
+      cellStyle: { display: 'flex', alignItems: 'center' },
       valueFormatter: (params) => params.value ?? 0,
     },
     {
@@ -165,6 +166,7 @@ export default function KnowledgeFileList() {
       field: 'uploadedAt',
       maxWidth: 200,
       cellStyle: { display: 'flex', alignItems: 'center', justifyContent: 'center' },
+      valueFormatter: (params) => (params.value ? dayjs(params.value).format('YYYY-MM-DD HH:mm:ss') : '-'),
     },
   ];
 

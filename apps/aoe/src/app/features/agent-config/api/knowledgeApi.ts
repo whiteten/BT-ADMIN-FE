@@ -1,8 +1,11 @@
 import ApiClient, { type DetailResponse, type ListResponse, extractDetail, extractList } from '@/shared-util';
 import type {
   KnowledgeChunkData,
+  KnowledgeChunkItem,
+  KnowledgeEvalCreateDatas,
   KnowledgeEvalExecution,
   KnowledgeEvalItem,
+  KnowledgeEvalLLMGenerateResult,
   KnowledgeEvalResult,
   KnowledgeFileItem,
   KnowledgeItem,
@@ -90,8 +93,20 @@ export const knowledgeApi = {
     const response = await apiClient.get<DetailResponse<KnowledgeEvalResult>>('/aoe-knowledge-eval-result', { params });
     return extractDetail(response);
   },
+  getKnowledgeChunks: async (params: { fileId: string }) => {
+    const response = await apiClient.get<ListResponse<KnowledgeChunkItem>>('/aoe-knowledge-chunks', { params });
+    return extractList(response);
+  },
+  createKnowledgeEval: async (data: KnowledgeEvalCreateDatas) => {
+    await apiClient.post('/aoe-knowledge-eval-create', data);
+  },
+  generateKnowledgeEvalLLM: async (data: { documentId: string; chunkIds: string[]; chunkCount: number; difficultyLvl: string }) => {
+    const response = await apiClient.post<ListResponse<KnowledgeEvalLLMGenerateResult>>('/aoe-knowledge-eval-generate', data);
+    return extractList(response);
+  },
   processKnowledge: async (data: {
     documentName: string;
+    description?: string;
     chunkSize: number;
     chunkOverlap: number;
     topK: number;
@@ -102,6 +117,7 @@ export const knowledgeApi = {
   }) => {
     const formData = new FormData();
     formData.append('documentName', data.documentName);
+    if (data.description) formData.append('description', data.description);
     formData.append('chunkSize', String(data.chunkSize));
     formData.append('chunkOverlap', String(data.chunkOverlap));
     formData.append('topK', String(data.topK));
