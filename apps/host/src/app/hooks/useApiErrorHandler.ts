@@ -37,8 +37,6 @@ export function useApiErrorHandler() {
       }
       // 사용자 친화적 에러 메시지 추출
       const responseData = error.response?.data as Record<string, unknown> | undefined;
-      // 개별 onError에서 직접 처리하는 에러 코드는 전역 toast 스킵
-      if (responseData?.code === 'IFE_VERSION_NOT_FOUND' || responseData?.code === 'IFE_NODE_NOT_FOUND') return;
       const msg = (responseData?.message as string) ?? (responseData?.error_description as string) ?? error.response?.statusText ?? '요청 처리 중 오류가 발생했습니다.';
       toast.error(msg);
     };

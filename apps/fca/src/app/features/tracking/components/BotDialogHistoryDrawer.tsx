@@ -513,8 +513,8 @@ const BotDialogHistoryDrawer = forwardRef<BotDialogHistoryDrawerRef>((_, ref) =>
         if (redirectUrl) {
           window.open(redirectUrl, '_blank');
         }
-      } catch (e) {
-        toast.error('해당 시나리오 버전 또는 플로우를 찾을 수 없습니다.');
+      } catch {
+        // 글로벌 핸들러(useApiErrorHandler)가 서버 message로 toast 처리
       }
     },
     [selectedRow],
