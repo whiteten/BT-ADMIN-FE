@@ -2,6 +2,7 @@ import AppSelector from '../../components/AppSelector';
 import SidebarTriggerCustom from '../../components/SidebarTriggerCustom';
 import Sitemap from '../../components/Sitemap';
 import UserMenuSelector from '../../components/UserMenuSelector';
+import GlobalSearch from '../search/components/GlobalSearch';
 import { Separator } from '@/components/ui/separator';
 
 export default function InsetHeader() {
@@ -10,6 +11,9 @@ export default function InsetHeader() {
       <div className="flex items-center gap-2 px-4 w-full justify-between">
         <div className="flex items-center gap-2">
           <SidebarTriggerCustom className="-ml-1" />
+        </div>
+        <div className="flex flex-1 justify-center">
+          <GlobalSearch />
         </div>
         <div className="flex items-center gap-2">
           <AppSelector />
