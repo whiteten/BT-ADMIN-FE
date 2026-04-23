@@ -636,10 +636,9 @@ export default function SlotStatistics() {
             rowData={rowData}
             getRowId={(params) => `${params.data.psrTimeKey}_${params.data.serviceId}_${params.data.dialogId}_${params.data.slotId}`}
             columnDefs={columnDefs}
-            gridOptions={gridOptions}
+            gridOptions={{ ...gridOptions, statusBar: undefined }}
             loading={isLoadingSlotStatList}
             pagination={false}
-            statusBar={{ statusPanels: [] }}
             rowNumbers={false}
             sideBar={false}
             pinnedBottomRowData={summaryRow}

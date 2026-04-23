@@ -30,9 +30,8 @@ export default function SlotRetryDistTopGrid({ data }: SlotRetryDistTopGridProps
       <AgGridReact<SlotRetryDistTopItem>
         rowData={data ?? []}
         columnDefs={columnDefs}
-        gridOptions={gridOptions}
+        gridOptions={{ ...gridOptions, statusBar: undefined }}
         pagination={false}
-        statusBar={{ statusPanels: [] }}
         sideBar={false}
         rowNumbers={false}
         headerHeight={32}

@@ -26,9 +26,8 @@ export default function SlotIncompleteTopGrid({ data }: SlotIncompleteTopGridPro
       <AgGridReact<SlotIncompleteTopItem>
         rowData={data ?? []}
         columnDefs={columnDefs}
-        gridOptions={gridOptions}
+        gridOptions={{ ...gridOptions, statusBar: undefined }}
         pagination={false}
-        statusBar={{ statusPanels: [] }}
         sideBar={false}
         rowNumbers={false}
         headerHeight={32}

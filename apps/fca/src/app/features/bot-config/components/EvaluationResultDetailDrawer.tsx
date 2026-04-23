@@ -210,7 +210,7 @@ const EvaluationResultDetailDrawer = forwardRef<EvaluationResultDetailDrawerRef>
       ...gridOptions,
       sideBar: false,
       pagination: false,
-      statusBar: { statusPanels: [] },
+      statusBar: undefined,
     }),
     [gridOptions],
   );
