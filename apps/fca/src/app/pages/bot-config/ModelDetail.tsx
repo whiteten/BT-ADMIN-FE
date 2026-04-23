@@ -46,8 +46,8 @@ export default function ModelDetail() {
 
   return (
     <div className="flex flex-col gap-4 w-full h-full">
-      <PageHeader breadcrumb={isPublic ? publicBreadcrumb : privateBreadcrumb} params={params} extra={<ModelToolbar modelId={modelId} />} />
-      <PageTabs tabs={tabs} />
+      <PageHeader breadcrumb={isPublic ? publicBreadcrumb : privateBreadcrumb} params={params} />
+      <PageTabs tabs={tabs} extra={<ModelToolbar modelId={modelId} />} />
     </div>
   );
 }

@@ -29,7 +29,7 @@ export function Layout() {
         <SidebarInset className="h-[100vh] overflow-hidden">
           <InsetHeader />
           <App className="w-full h-full overflow-hidden">
-            <div className="w-full h-full p-5 overflow-y-auto bg-[#f3f3f9]" style={{ scrollbarGutter: 'stable' }}>
+            <div className="w-full h-full p-4 overflow-y-auto bg-[#f3f3f9]" style={{ scrollbarGutter: 'stable' }}>
               <Outlet />
             </div>
           </App>

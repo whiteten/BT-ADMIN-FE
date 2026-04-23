@@ -6,7 +6,7 @@ import { Separator } from '@/components/ui/separator';
 
 export default function InsetHeader() {
   return (
-    <header className="flex h-16 shrink-0 items-center gap-2">
+    <header className="flex h-14 shrink-0 items-center gap-2">
       <div className="flex items-center gap-2 px-4 w-full justify-between">
         <div className="flex items-center gap-2">
           <SidebarTriggerCustom className="-ml-1" />

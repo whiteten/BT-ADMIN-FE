@@ -119,25 +119,22 @@ export default function BotDashboard() {
   // 편집 중에는 임시(draft) 레이아웃을, 아닐 때는 저장된 레이아웃을 표시한다
   const displayLayout = isEditMode ? draftLayout : storedLayout;
 
-  const extra = (
-    <BotDashboardToolbar
-      isEditMode={isEditMode}
-      layoutFilterOptions={layoutFilterOptions}
-      selectedLayoutFilterItems={selectedLayoutFilterItems}
-      serviceOptions={serviceOptions}
-      selectedService={selectedService}
-      onLayoutFilterChange={handleLayoutFilterChange}
-      onStartEdit={handleStartEdit}
-      onCancelEdit={handleCancelEdit}
-      onSaveEdit={handleSaveEdit}
-      onResetLayouts={handleResetLayouts}
-      onServiceChange={setSelectedService}
-    />
-  );
-
   return (
     <div className="flex flex-col gap-2 w-full h-full">
-      <PageHeader breadcrumb={breadcrumb} extra={extra} />
+      <PageHeader breadcrumb={breadcrumb} />
+      <BotDashboardToolbar
+        isEditMode={isEditMode}
+        layoutFilterOptions={layoutFilterOptions}
+        selectedLayoutFilterItems={selectedLayoutFilterItems}
+        serviceOptions={serviceOptions}
+        selectedService={selectedService}
+        onLayoutFilterChange={handleLayoutFilterChange}
+        onStartEdit={handleStartEdit}
+        onCancelEdit={handleCancelEdit}
+        onSaveEdit={handleSaveEdit}
+        onResetLayouts={handleResetLayouts}
+        onServiceChange={setSelectedService}
+      />
       <div
         ref={containerRef}
         className={cn(
