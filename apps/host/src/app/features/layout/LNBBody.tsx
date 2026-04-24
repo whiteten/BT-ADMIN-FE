@@ -42,7 +42,7 @@ const LNBBody = () => {
         <SidebarGroupLabel>{selectedRemoteMenuConfig.appName}</SidebarGroupLabel>
         <SidebarMenu>
           {selectedRemoteMenuConfig.menus?.length > 0 ? (
-            selectedRemoteMenuConfig.menus.map((item) => <MenuItem key={item.menuId} item={item} appId={selectedRemoteMenuConfig.appId} />)
+            selectedRemoteMenuConfig.menus.map((item) => <MenuItem key={item.menuKey} item={item} appId={selectedRemoteMenuConfig.appId} />)
           ) : (
             <div className="w-full h-[400px]">
               <NoData message={`${selectedRemoteMenuConfig.appName}\n메뉴 정보를\n찾을 수 없습니다.`} color="!text-white" />

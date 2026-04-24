@@ -65,7 +65,7 @@ function MenuLink({ item, appId, query, onNavigate }: { item: MenuItem; appId: s
       </span>
       {/* bookmark — 항상 표시 */}
       <span className="shrink-0" onClick={(e) => e.stopPropagation()}>
-        <BookmarkButton menuId={item.menuId} label={item.label} path={item.path ?? ''} appId={appId} />
+        <BookmarkButton menuKey={item.menuKey} label={item.label} path={item.path ?? ''} appId={appId} />
       </span>
     </div>
   );
@@ -85,7 +85,7 @@ function ChildList({ items, appId, query, onNavigate, asGrid }: { items: MenuIte
     return (
       <div className="grid grid-cols-2 gap-x-6 gap-y-1">
         {visible.map((item) => (
-          <div key={item.menuId}>
+          <div key={item.menuKey}>
             <p className="text-sm text-[#878a99] tracking-wider mb-1.5 mt-1">
               <Highlight text={item.label} query={query} />
             </p>
@@ -100,11 +100,11 @@ function ChildList({ items, appId, query, onNavigate, asGrid }: { items: MenuIte
     <div className="space-y-px">
       {visible.map((item) => {
         if (item.path && !item.children?.length) {
-          return <MenuLink key={item.menuId} item={item} appId={appId} query={query} onNavigate={onNavigate} />;
+          return <MenuLink key={item.menuKey} item={item} appId={appId} query={query} onNavigate={onNavigate} />;
         }
         if (item.children?.length) {
           return (
-            <div key={item.menuId} className="mt-2.5 first:mt-0">
+            <div key={item.menuKey} className="mt-2.5 first:mt-0">
               <p className="text-sm text-[#878a99] tracking-wider mb-1.5">
                 <Highlight text={item.label} query={query} />
               </p>
@@ -173,7 +173,7 @@ function AppSection({ config, query, onNavigate }: { config: MenuConfig; query: 
       {/* 메가 메뉴 그리드 */}
       <div className="grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
         {visibleMenus.map((menu) => (
-          <MenuCard key={menu.menuId} menu={menu} appId={config.appId} query={query} onNavigate={onNavigate} />
+          <MenuCard key={menu.menuKey} menu={menu} appId={config.appId} query={query} onNavigate={onNavigate} />
         ))}
       </div>
     </section>
