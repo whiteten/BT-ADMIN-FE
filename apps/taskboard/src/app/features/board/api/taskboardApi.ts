@@ -1,4 +1,4 @@
-import ApiTaskboard, { type DetailResponse, type ListResponse, extractDetail, extractList } from '@/shared-util';
+import ApiTaskboard, { type DetailResponse, extractDetail } from '@/shared-util';
 import { type TaskboardBg } from '../types/taskboard.types';
 
 /**
@@ -18,24 +18,44 @@ const apiTaskboard = new ApiTaskboard({ serviceURL: '/bff' });
 export const taskboardApi = {
   /**
    * 전광판배경 목록 조회
-   * @flow client-list
+   * @flow taskbaord-list
    */
   getTaskBoardBgs: async (params?: Record<string, unknown>): Promise<TaskboardBg[]> => {
-    // 백엔드에서 TaskboardBg 리스트를 내려준다고 가정
-    const response = await apiTaskboard.get<ListResponse<TaskboardBg>>('/taskboard-bglist', { params });
-    return extractList(response);
+    const response = await apiTaskboard.get<any>('/taskboard-bglist', { params });
+    const resultList = response?.data?.data?.value ?? response?.data?.data;
+    if (Array.isArray(resultList)) return resultList;
+
+    return []; // 데이터가 없거나 형식이 다를 경우 빈 배열 리턴
+  },
+
+  /**
+   * 전광판배경 삭제
+   * @flow taskboard-bgdelete
+   */
+  deleteTaskBoardBg: async (pageId: number): Promise<any> => {
+    const response = await apiTaskboard.delete('/taskboard-bgdelete', { params: { bgId: pageId } });
+    return response.data;
+  },
+
+  /**
+   * 전광판 레이아웃 JSON 저장
+   * @flow taskboard-bgupdate
+   */
+  updateTaskBoardLayout: async ({ bgId, layoutJson }: { bgId: number; layoutJson: string }): Promise<any> => {
+    const response = await apiTaskboard.put('/taskboard-bgupdate', { layoutJson }, { params: { bgId } });
+    return response.data;
   },
 
   /**
    * [BG INSERT] 전광판 배경 생성 (이미지 파일 + JSON 데이터)
    */
-  createTaskBoardBg: async (formData: FormData): Promise<any> => {
-    // 파일이 포함된 FormData는 헤더에 multipart/form-data를 선언해줍니다.
-    const response = await apiTaskboard.post('/taskboard-insert', formData, {
-      headers: {
-        'Content-Type': 'multipart/form-data',
-      },
-    });
-    return response;
+  createTaskBoardBg: async ({ params, data }: { params: Record<string, unknown>; data: File }): Promise<any> => {
+    const formData = new FormData();
+    formData.append('uploadFile', data); // BE @RequestParam("uploadFile") 과 일치
+    if (params?.data) {
+      formData.append('data', String(params.data));
+    }
+    const response = await apiTaskboard.post<DetailResponse<any>>('/taskboard-bginsert', formData);
+    return extractDetail(response);
   },
 };

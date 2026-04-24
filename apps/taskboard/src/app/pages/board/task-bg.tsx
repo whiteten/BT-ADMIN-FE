@@ -1,18 +1,58 @@
 import { type ChangeEvent, useRef, useState } from 'react';
-// 사용하지 않는 useNavigate 제거
+import { useNavigate } from 'react-router-dom';
 import { useQueryClient } from '@tanstack/react-query';
-//import { Button, Input, Select } from 'antd';
 import dayjs from 'dayjs';
 import { toast } from '@/shared-util';
-//import NoData from '@/components/custom/NoData';
-
-//import PageHeader from '@/components/custom/PageHeader';
-//import useAggridOptions from '@/libs/shared-ui/src/hooks/useAggridOptions';
-//import { useModal } from '@/libs/shared-ui/src/hooks/useModal';
-import { clientQueryKeys, useCreateTaskboardBg, useGetTaskboardBg } from '../../features/board/hooks/useTaskboardQueries';
-import type { TaskboardBg } from '../../features/board/types/taskboard.types';
+import { taskboardQueryKeys, useCreateTaskboardBg, useDeleteTaskboardBg, useGetTaskboardBg } from '../../features/board/hooks/useTaskboardQueries';
+import type { LayoutTemplate, TaskboardBg } from '../../features/board/types/taskboard.types';
 import { FallbackSpinner } from '@/components/custom/FallbackSpinner';
-import { IconTrash } from '@/components/custom/Icons';
+import { IconEdit, IconTrash } from '@/components/custom/Icons';
+
+const LAYOUT_TEMPLATES: LayoutTemplate[] = [
+  {
+    id: 'dashboard',
+    name: '대시보드형',
+    description: '상단 헤더 + 4개 카드 + 하단 콘텐츠',
+    zones: [
+      { id: 'header', label: '헤더', x: 0, y: 0, width: 100, height: 12, color: '#0f5b9e' },
+      { id: 'card1', label: '카드1', x: 0, y: 14, width: 23, height: 22, color: '#1e3a5f' },
+      { id: 'card2', label: '카드2', x: 25, y: 14, width: 23, height: 22, color: '#1e3a5f' },
+      { id: 'card3', label: '카드3', x: 50, y: 14, width: 23, height: 22, color: '#1e3a5f' },
+      { id: 'card4', label: '카드4', x: 75, y: 14, width: 25, height: 22, color: '#1e3a5f' },
+      { id: 'content', label: '콘텐츠', x: 0, y: 38, width: 100, height: 60, color: '#172554' },
+    ],
+  },
+  {
+    id: 'status-board',
+    name: '현황판형',
+    description: '헤더 + 좌측 리스트 + 우측 지표',
+    zones: [
+      { id: 'header', label: '헤더', x: 0, y: 0, width: 100, height: 14, color: '#0f5b9e' },
+      { id: 'sidebar', label: '좌측 리스트', x: 0, y: 16, width: 38, height: 82, color: '#1e3a5f' },
+      { id: 'main', label: '우측 지표', x: 40, y: 16, width: 60, height: 82, color: '#172554' },
+    ],
+  },
+  {
+    id: 'stats',
+    name: '통계형',
+    description: '헤더 + 차트 영역 + 하단 테이블',
+    zones: [
+      { id: 'header', label: '헤더', x: 0, y: 0, width: 100, height: 12, color: '#0f5b9e' },
+      { id: 'chart', label: '차트', x: 0, y: 14, width: 100, height: 45, color: '#1e3a5f' },
+      { id: 'table', label: '테이블', x: 0, y: 61, width: 100, height: 37, color: '#172554' },
+    ],
+  },
+  {
+    id: 'notice',
+    name: '알림판형',
+    description: '전체 넓이 헤더 + 좌우 분할 패널',
+    zones: [
+      { id: 'header', label: '헤더', x: 0, y: 0, width: 100, height: 20, color: '#0f5b9e' },
+      { id: 'left', label: '좌측 패널', x: 0, y: 22, width: 49, height: 76, color: '#1e3a5f' },
+      { id: 'right', label: '우측 패널', x: 51, y: 22, width: 49, height: 76, color: '#172554' },
+    ],
+  },
+];
 
 // 해상도 세팅
 const RESOLUTIONS = {
@@ -44,16 +84,19 @@ const dataURLtoFile = (dataurl: string, filename: string) => {
 };
 
 export default function TaskBg() {
-  // 사용하지 않는 상태값 읽기 변수 제거, setter만 유지
-  const [, setImages] = useState<ImageData[]>([]);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [selectedRes, setSelectedRes] = useState<ResolutionKey>('FHD');
   const [, setUploadedFile] = useState<File | null>(null);
   const [originalImgUrl, setOriginalImgUrl] = useState<string>('');
   const [previewImages, setPreviewImages] = useState<ImageData[]>([]);
+  const navigate = useNavigate();
   const queryClient = useQueryClient();
-  const { data: tasBoardList, isLoading } = useGetTaskboardBg();
+  const [modalStep, setModalStep] = useState<1 | 2>(1);
+  const [selectedLayout, setSelectedLayout] = useState<LayoutTemplate>(LAYOUT_TEMPLATES[0]);
+  const { data: tasBoardList = [], isLoading } = useGetTaskboardBg();
   const { mutateAsync: createBgMutate } = useCreateTaskboardBg();
+  const { mutateAsync: deleteBgMutate } = useDeleteTaskboardBg();
+  const [deleteTargetId, setDeleteTargetId] = useState<number | null>(null);
 
   // 로딩 상태
   const [isAnalyzing, setIsAnalyzing] = useState(false);
@@ -62,18 +105,38 @@ export default function TaskBg() {
   // Ref
   const directUploadInputRef = useRef<HTMLInputElement>(null);
 
-  // 1. [완성이미지] 직접 업로드 핸들러
-  const handleDirectUpload = (e: ChangeEvent<HTMLInputElement>) => {
+  const handleDirectUpload = async (e: ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
 
-    const reader = new FileReader();
-    reader.onload = (event) => {
-      const url = event.target?.result as string;
-      setImages((prev) => [{ id: Date.now(), url, previewUrl: url, res: 'FHD', type: 'DIRECT' }, ...prev]);
-    };
-    reader.readAsDataURL(file);
-    if (directUploadInputRef.current) directUploadInputRef.current.value = '';
+    try {
+      const requestData: TaskboardBg = {
+        tenantId: '2000000001',
+        pageId: 0,
+        pageName: `직접 업로드 ${Date.now().toString().slice(-4)}`,
+        authorName: 'admin',
+        authRole: 'MASTER',
+        genType: 'DIRECT',
+        useYn: 'Y',
+        regDt: new Date().toISOString(),
+        fileName: '',
+      };
+
+      // FormData 생성 로직 제거하고 객체 형태로 전송
+      await createBgMutate({
+        params: { data: JSON.stringify(requestData) }, // 백엔드가 요구하는 'data' 키에 할당
+        data: file, // AI 생성 버튼쪽에서는 imageFile을 넣어주시면 됩니다.
+      });
+
+      toast.success('정상적으로 저장되었습니다!');
+      await queryClient.invalidateQueries({ queryKey: taskboardQueryKeys.getBgList().queryKey });
+    } catch (error) {
+      console.error('API 에러:', error);
+      toast.error('업로드 중 오류가 발생했습니다.');
+    } finally {
+      // input 초기화 (같은 파일 연속 업로드 가능하도록)
+      if (directUploadInputRef.current) directUploadInputRef.current.value = '';
+    }
   };
 
   // 2. [png 자동생성] 모달 내 CI 파일 업로드
@@ -92,12 +155,20 @@ export default function TaskBg() {
     }
   };
 
-  // 3. 카드 삭제 핸들러
-  //const handleDeleteCard = (id: number) => {
-  //  if (window.confirm('저장된 배경 이미지를 삭제하시겠습니까?')) {
-  //    setImages((prev) => prev.filter((img) => img.id !== id));
-  //  }
-  //};
+  const handleDeleteConfirm = async () => {
+    if (deleteTargetId === null) return;
+    try {
+      await deleteBgMutate(deleteTargetId);
+
+      toast.success('성공적으로 삭제되었습니다.');
+      await queryClient.invalidateQueries({ queryKey: taskboardQueryKeys.getBgList().queryKey });
+    } catch (error) {
+      console.error('Delete error:', error);
+      toast.error('삭제 중 오류가 발생했습니다.');
+    } finally {
+      setDeleteTargetId(null); // 팝업 닫기
+    }
+  };
 
   // 4. CI 색상 추출 (배경색 제외)
   const extractDominantColor = (img: HTMLImageElement): [number, number, number] => {
@@ -338,6 +409,8 @@ export default function TaskBg() {
 
   const closeAndResetModal = () => {
     setIsModalOpen(false);
+    setModalStep(1);
+    setSelectedLayout(LAYOUT_TEMPLATES[0]);
     setUploadedFile(null);
     setOriginalImgUrl('');
     setPreviewImages([]);
@@ -390,6 +463,30 @@ export default function TaskBg() {
             >
               {/* 이미지 영역 */}
               <div className="aspect-video bg-slate-100 relative overflow-hidden group">
+                {/* 호버 시 나타나는 액션 버튼 묶음 */}
+                <div className="absolute top-2 right-2 flex gap-1 opacity-0 group-hover:opacity-100 transition-all z-20">
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      navigate('/taskboard/board/task-create', { state: { bg: item } });
+                    }}
+                    className="bg-white/90 hover:bg-blue-50 text-slate-400 hover:text-[#0f5b9e] p-1.5 rounded-md shadow-sm transition-all"
+                    title="꾸미기"
+                  >
+                    <IconEdit className="w-4 h-4" />
+                  </button>
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setDeleteTargetId(item.pageId);
+                    }}
+                    className="bg-white/90 hover:bg-red-50 text-slate-400 hover:text-red-500 p-1.5 rounded-md shadow-sm transition-all"
+                    title="삭제"
+                  >
+                    <IconTrash className="w-4 h-4" />
+                  </button>
+                </div>
+
                 <img
                   src={item.fileName}
                   alt={item.pageName}
@@ -448,7 +545,14 @@ export default function TaskBg() {
           <div className="bg-white w-[900px] max-h-[90vh] rounded-2xl shadow-2xl flex flex-col overflow-hidden">
             {/* 모달 헤더 */}
             <div className="px-6 py-4 border-b flex justify-between items-center bg-white">
-              <h2 className="text-xl font-bold text-slate-800">CI 기반 배경 자동생성</h2>
+              <div className="flex items-center gap-3">
+                <h2 className="text-xl font-bold text-slate-800">CI 기반 배경 자동생성</h2>
+                <div className="flex items-center gap-1 text-xs text-slate-400">
+                  <span className={`px-2 py-0.5 rounded-full font-semibold ${modalStep === 1 ? 'bg-[#0f5b9e] text-white' : 'bg-slate-100 text-slate-400'}`}>1단계: 레이아웃</span>
+                  <span>→</span>
+                  <span className={`px-2 py-0.5 rounded-full font-semibold ${modalStep === 2 ? 'bg-[#0f5b9e] text-white' : 'bg-slate-100 text-slate-400'}`}>2단계: AI 생성</span>
+                </div>
+              </div>
               <button onClick={closeAndResetModal} className="text-slate-400 hover:text-slate-600 text-2xl font-bold transition-colors">
                 ×
               </button>
@@ -456,128 +560,199 @@ export default function TaskBg() {
 
             {/* 모달 컨텐츠 */}
             <div className="p-6 overflow-y-auto flex-1 bg-slate-50">
-              {/* 업로드 컨트롤 및 원본 이미지 영역 */}
-              <div className="flex flex-col md:flex-row gap-6 mb-8 bg-white p-5 rounded-xl border border-slate-200 shadow-sm">
-                <div className="flex-1 flex flex-col justify-center gap-4">
-                  {/* 해상도 선택기 (모달 내부로 이동) */}
-                  <div>
-                    <label className="block text-sm font-semibold text-slate-700 mb-2">출력 해상도 설정</label>
-                    <select
-                      value={selectedRes}
-                      onChange={(e) => setSelectedRes(e.target.value as ResolutionKey)}
-                      className="w-full border border-slate-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:border-[#0f5b9e] bg-white font-medium text-slate-700"
-                    >
-                      {Object.entries(RESOLUTIONS).map(([key, { label }]) => (
-                        <option key={key} value={key}>
-                          {label}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-
-                  <div>
-                    <label className="block text-sm font-semibold text-slate-700 mb-2">CI 로고 이미지 업로드</label>
-                    <input
-                      type="file"
-                      onChange={handleAutoFileChange}
-                      accept="image/png, image/jpeg"
-                      className="block w-full text-sm text-slate-500 file:mr-4 file:py-2.5 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-bold file:bg-blue-50 file:text-[#0f5b9e] hover:file:bg-blue-100 cursor-pointer border border-slate-200 rounded-md"
-                    />
-                  </div>
-
-                  <button
-                    onClick={handleAnalyze}
-                    disabled={isAnalyzing || !originalImgUrl}
-                    className={`py-3 mt-2 w-full rounded-md text-sm font-bold shadow-sm transition-all ${isAnalyzing || !originalImgUrl ? 'bg-slate-300 text-slate-500 cursor-not-allowed' : 'bg-[#0f5b9e] text-white hover:bg-[#0c4a82]'}`}
-                  >
-                    {isAnalyzing ? '데이터 분석 및 렌더링 중...' : '디자인 분석 및 20종 생성'}
-                  </button>
-                </div>
-
-                {/* 원본 CI 미리보기 */}
-                <div className="w-full md:w-64 aspect-video bg-slate-100 rounded-lg border border-slate-200 flex flex-col items-center justify-center p-2 relative">
-                  {originalImgUrl ? (
-                    <>
-                      <span className="absolute top-2 left-2 text-[10px] bg-slate-800 text-white px-2 py-1 rounded font-bold z-10">원본 CI</span>
-                      <img src={originalImgUrl} alt="Original CI" className="max-w-full max-h-full object-contain drop-shadow-md" />
-                    </>
-                  ) : (
-                    <span className="text-sm text-slate-400 font-medium">로고 영역</span>
-                  )}
-                </div>
-              </div>
-
-              {/* 분석 로딩바 */}
-              {isAnalyzing && (
-                <div className="mb-8">
-                  <div className="flex justify-between text-sm font-bold text-[#0f5b9e] mb-2">
-                    <span>최적화된 대시보드 패턴 렌더링 중...</span>
-                    <span>{progress}%</span>
-                  </div>
-                  <div className="w-full bg-slate-200 rounded-full h-2.5 overflow-hidden">
-                    <div className="bg-[#0f5b9e] h-2.5 rounded-full transition-all duration-200 ease-out" style={{ width: `${progress}%` }}></div>
-                  </div>
-                </div>
-              )}
-
-              {/* 생성된 추천 프리뷰 영역 */}
-              {previewImages.length > 0 && !isAnalyzing && (
+              {/* ─── Step 1: 레이아웃 선택 ─── */}
+              {modalStep === 1 && (
                 <div>
-                  <h3 className="text-sm font-bold text-slate-700 mb-4 flex items-center">
-                    <span className="w-2 h-2 rounded-full bg-[#0f5b9e] mr-2"></span>추천 배경 패턴 (20종)
-                  </h3>
-                  <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                    {previewImages.map((preview) => (
-                      <div
-                        key={preview.id}
-                        className="aspect-video bg-slate-100 relative group rounded-lg overflow-hidden border-2 border-transparent hover:border-[#0f5b9e] shadow-sm hover:shadow-md cursor-pointer"
+                  <p className="text-sm text-slate-500 mb-5">전광판에 적용할 레이아웃 템플릿을 선택하세요. 선택된 영역 구조를 기반으로 AI가 배경을 생성합니다.</p>
+                  <div className="grid grid-cols-2 gap-4 mb-6">
+                    {LAYOUT_TEMPLATES.map((tpl) => (
+                      <button
+                        key={tpl.id}
+                        onClick={() => setSelectedLayout(tpl)}
+                        className={`text-left p-4 rounded-xl border-2 transition-all ${selectedLayout.id === tpl.id ? 'border-[#0f5b9e] bg-blue-50 shadow-md' : 'border-slate-200 bg-white hover:border-slate-300 hover:shadow-sm'}`}
                       >
-                        <img src={preview.previewUrl} alt="Preview" className="w-full h-full object-cover" />
-
-                        {/* CSS 커튼 버그 해결: 확실하게 opacity-0 으로 투명하게 숨기고 hover 시에만 보이게 변경 */}
-                        <div className="absolute inset-0 bg-[rgba(0,0,0,0.5)] opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
-                          <button
-                            onClick={async () => {
-                              try {
-                                const imageFile = dataURLtoFile(preview.url, `bg_${Date.now()}.jpg`);
-
-                                const requestData: TaskboardBg = {
-                                  tenantId: 'TENANT_001',
-                                  pageId: `PAGE_${Date.now()}`,
-                                  pageName: `자동생성 테마 ${Date.now().toString().slice(-4)}`,
-                                  authorName: 'admin',
-                                  authRole: 'MASTER',
-                                  genType: 'AI',
-                                  useYn: 'Y',
-                                  regDt: new Date().toISOString(), // 날짜 추가
-                                  fileName: '',
-                                };
-
-                                const formData = new FormData();
-                                formData.append('image', imageFile);
-                                formData.append('data', new Blob([JSON.stringify(requestData)], { type: 'application/json' }));
-
-                                // fetch 대신 깔끔하게 React Query 훅 사용!
-                                await createBgMutate(formData);
-
-                                toast.success('서버에 정상적으로 저장되었습니다!');
-                                await queryClient.invalidateQueries({ queryKey: clientQueryKeys.getClients().queryKey });
-                                setIsModalOpen(false);
-                              } catch (error) {
-                                console.error('API 에러:', error);
-                                toast.error('오류가 발생했습니다.');
-                              }
-                            }}
-                            className="transform translate-y-2 group-hover:translate-y-0 px-4 py-2 bg-white text-[#0f5b9e] text-xs font-bold rounded-md shadow-lg transition-all duration-200"
-                          >
-                            서버에 저장하기
-                          </button>
+                        {/* 미니 레이아웃 프리뷰 */}
+                        <div className="w-full aspect-video bg-slate-800 rounded-md mb-3 relative overflow-hidden">
+                          {tpl.zones.map((z) => (
+                            <div
+                              key={z.id}
+                              style={{ left: `${z.x}%`, top: `${z.y}%`, width: `${z.width}%`, height: `${z.height}%`, backgroundColor: z.color }}
+                              className="absolute rounded-sm flex items-center justify-center"
+                            >
+                              <span className="text-white text-[7px] font-bold truncate px-1">{z.label}</span>
+                            </div>
+                          ))}
                         </div>
-                      </div>
+                        <div className="font-bold text-slate-800 text-sm">{tpl.name}</div>
+                        <div className="text-xs text-slate-500 mt-0.5">{tpl.description}</div>
+                      </button>
                     ))}
                   </div>
+                  <div className="flex justify-end">
+                    <button
+                      onClick={() => setModalStep(2)}
+                      className="px-6 py-2.5 bg-[#0f5b9e] text-white text-sm font-bold rounded-lg hover:bg-[#0c4a82] transition-colors shadow-sm"
+                    >
+                      다음 단계: AI 생성 →
+                    </button>
+                  </div>
                 </div>
               )}
+
+              {/* ─── Step 2: CI 업로드 + AI 생성 (기존 로직) ─── */}
+              {modalStep === 2 && (
+                <>
+                  {/* 이전 단계로 돌아가기 */}
+                  <button onClick={() => setModalStep(1)} className="mb-4 text-xs text-[#0f5b9e] hover:underline font-semibold">
+                    ← 레이아웃 다시 선택 ({selectedLayout.name})
+                  </button>
+                  {/* 업로드 컨트롤 및 원본 이미지 영역 */}
+                  <div className="flex flex-col md:flex-row gap-6 mb-8 bg-white p-5 rounded-xl border border-slate-200 shadow-sm">
+                    <div className="flex-1 flex flex-col justify-center gap-4">
+                      {/* 해상도 선택기 (모달 내부로 이동) */}
+                      <div>
+                        <label className="block text-sm font-semibold text-slate-700 mb-2">출력 해상도 설정</label>
+                        <select
+                          value={selectedRes}
+                          onChange={(e) => setSelectedRes(e.target.value as ResolutionKey)}
+                          className="w-full border border-slate-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:border-[#0f5b9e] bg-white font-medium text-slate-700"
+                        >
+                          {Object.entries(RESOLUTIONS).map(([key, { label }]) => (
+                            <option key={key} value={key}>
+                              {label}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+
+                      <div>
+                        <label className="block text-sm font-semibold text-slate-700 mb-2">CI 로고 이미지 업로드</label>
+                        <input
+                          type="file"
+                          onChange={handleAutoFileChange}
+                          accept="image/png, image/jpeg"
+                          className="block w-full text-sm text-slate-500 file:mr-4 file:py-2.5 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-bold file:bg-blue-50 file:text-[#0f5b9e] hover:file:bg-blue-100 cursor-pointer border border-slate-200 rounded-md"
+                        />
+                      </div>
+
+                      <button
+                        onClick={handleAnalyze}
+                        disabled={isAnalyzing || !originalImgUrl}
+                        className={`py-3 mt-2 w-full rounded-md text-sm font-bold shadow-sm transition-all ${isAnalyzing || !originalImgUrl ? 'bg-slate-300 text-slate-500 cursor-not-allowed' : 'bg-[#0f5b9e] text-white hover:bg-[#0c4a82]'}`}
+                      >
+                        {isAnalyzing ? '데이터 분석 및 렌더링 중...' : '디자인 분석 및 20종 생성'}
+                      </button>
+                    </div>
+
+                    {/* 원본 CI 미리보기 */}
+                    <div className="w-full md:w-64 aspect-video bg-slate-100 rounded-lg border border-slate-200 flex flex-col items-center justify-center p-2 relative">
+                      {originalImgUrl ? (
+                        <>
+                          <span className="absolute top-2 left-2 text-[10px] bg-slate-800 text-white px-2 py-1 rounded font-bold z-10">원본 CI</span>
+                          <img src={originalImgUrl} alt="Original CI" className="max-w-full max-h-full object-contain drop-shadow-md" />
+                        </>
+                      ) : (
+                        <span className="text-sm text-slate-400 font-medium">로고 영역</span>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* 분석 로딩바 */}
+                  {isAnalyzing && (
+                    <div className="mb-8">
+                      <div className="flex justify-between text-sm font-bold text-[#0f5b9e] mb-2">
+                        <span>최적화된 대시보드 패턴 렌더링 중...</span>
+                        <span>{progress}%</span>
+                      </div>
+                      <div className="w-full bg-slate-200 rounded-full h-2.5 overflow-hidden">
+                        <div className="bg-[#0f5b9e] h-2.5 rounded-full transition-all duration-200 ease-out" style={{ width: `${progress}%` }}></div>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* 생성된 추천 프리뷰 영역 */}
+                  {previewImages.length > 0 && !isAnalyzing && (
+                    <div>
+                      <h3 className="text-sm font-bold text-slate-700 mb-4 flex items-center">
+                        <span className="w-2 h-2 rounded-full bg-[#0f5b9e] mr-2"></span>추천 배경 패턴 (20종)
+                      </h3>
+                      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                        {previewImages.map((preview) => (
+                          <div
+                            key={preview.id}
+                            className="aspect-video bg-slate-100 relative group rounded-lg overflow-hidden border-2 border-transparent hover:border-[#0f5b9e] shadow-sm hover:shadow-md cursor-pointer"
+                          >
+                            <img src={preview.previewUrl} alt="Preview" className="w-full h-full object-cover" />
+
+                            {/* CSS 커튼 버그 해결: 확실하게 opacity-0 으로 투명하게 숨기고 hover 시에만 보이게 변경 */}
+                            <div className="absolute inset-0 bg-[rgba(0,0,0,0.5)] opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                              <button
+                                onClick={async () => {
+                                  try {
+                                    const imageFile = dataURLtoFile(preview.url, `bg_${Date.now()}.jpg`);
+
+                                    const requestData: TaskboardBg = {
+                                      tenantId: '2000000001',
+                                      pageId: 0,
+                                      pageName: `자동생성 테마 ${Date.now().toString().slice(-4)}`,
+                                      authorName: 'admin',
+                                      authRole: 'MASTER',
+                                      genType: 'AI',
+                                      useYn: 'Y',
+                                      regDt: new Date().toISOString(),
+                                      fileName: '',
+                                    };
+
+                                    await createBgMutate({
+                                      params: { data: JSON.stringify(requestData) },
+                                      data: imageFile,
+                                    });
+                                    toast.success('서버에 정상적으로 저장되었습니다!');
+                                    await queryClient.invalidateQueries({ queryKey: taskboardQueryKeys.getBgList().queryKey });
+                                  } catch (error) {
+                                    console.error('API 에러:', error);
+                                    toast.error('오류가 발생했습니다.');
+                                  }
+                                }}
+                                className="transform translate-y-2 group-hover:translate-y-0 px-4 py-2 bg-white text-[#0f5b9e] text-xs font-bold rounded-md shadow-lg transition-all duration-200"
+                              >
+                                서버에 저장하기
+                              </button>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+      {deleteTargetId !== null && (
+        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-slate-900/40 backdrop-blur-sm">
+          <div className="bg-white rounded-xl shadow-2xl w-[320px] overflow-hidden">
+            <div className="p-6 text-center">
+              <div className="w-12 h-12 rounded-full bg-red-100 text-red-500 flex items-center justify-center mx-auto mb-4">
+                <IconTrash className="w-6 h-6" />
+              </div>
+              <h3 className="text-lg font-bold text-slate-800 mb-2">배경 이미지 삭제</h3>
+              <p className="text-sm text-slate-500">
+                선택하신 배경을 삭제하시겠습니까?
+                <br />이 작업은 되돌릴 수 없습니다.
+              </p>
+            </div>
+            <div className="flex border-t border-slate-100">
+              <button
+                onClick={() => setDeleteTargetId(null)}
+                className="flex-1 py-3 text-sm font-semibold text-slate-600 hover:bg-slate-50 transition-colors border-r border-slate-100"
+              >
+                취소
+              </button>
+              <button onClick={handleDeleteConfirm} className="flex-1 py-3 text-sm font-bold text-red-500 hover:bg-red-50 transition-colors">
+                삭제
+              </button>
             </div>
           </div>
         </div>

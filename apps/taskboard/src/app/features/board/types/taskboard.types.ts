@@ -77,15 +77,62 @@ export interface ClientUpdateRequest {
 }
 
 export interface TaskboardBg {
-  tenantId: string; // 테넌트 ID (10자리)
-  pageId: string; // 페이지 아이디 (PK 구성요소)
-  pageName: string; // 페이지 이름
-  fileName: string; // 파일명 (이미지 URL 경로)
-  authorName?: string; // 만든이 (사용자명)
-  authRole?: string; // 권한 (읽기, 쓰기 등 특정 권한 문자열)
-  genType: string; // 생성구분자 (AI: AI생성, DIRECT: 직접입력 등)
-  useYn: string; // 사용여부 ('Y' 또는 'N')
-  regDt: string; // 생성날짜 및 시간 (ISO 문자열 형태)
+  tenantId: string;
+  pageId: number;
+  pageName: string;
+  fileName: string;
+  authorName?: string;
+  authRole?: string;
+  genType: string;
+  useYn: string;
+  regDt: string;
+  layoutJson?: string;
+}
+
+/** 드래그 가능한 콜데이터 위젯 아이템 */
+export interface CallDataItem {
+  id: string;
+  category: 'IVR' | 'CTI' | 'Agent' | 'Group' | 'Skill' | 'Tenant' | 'etc';
+  label: string;
+  unit?: string;
+  sampleValue: string | number;
+  color: string; // 카테고리 대표 색상
+}
+
+/** 위젯 스타일 */
+export interface WidgetStyle {
+  fontSize: number;
+  fontFamily: string;
+  color: string;
+  bgColor: string;
+}
+
+/** 전광판 캔버스에 드랍된 위젯 */
+export interface DroppedWidget {
+  id: string;
+  item: CallDataItem;
+  x: number;
+  y: number;
+  style: WidgetStyle;
+}
+
+/** 레이아웃 존 */
+export interface LayoutZone {
+  id: string;
+  label: string;
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+  color: string;
+}
+
+/** 레이아웃 템플릿 */
+export interface LayoutTemplate {
+  id: string;
+  name: string;
+  description: string;
+  zones: LayoutZone[];
 }
 
 /**
