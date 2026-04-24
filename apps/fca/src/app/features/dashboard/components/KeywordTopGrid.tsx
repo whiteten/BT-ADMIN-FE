@@ -21,9 +21,8 @@ export default function KeywordTopGrid({ data }: KeywordTopGridProps) {
       <AgGridReact<KeywordTopItem>
         rowData={data ?? []}
         columnDefs={columnDefs}
-        gridOptions={gridOptions}
+        gridOptions={{ ...gridOptions, statusBar: undefined }}
         pagination={false}
-        statusBar={{ statusPanels: [] }}
         sideBar={false}
         rowNumbers={false}
         headerHeight={32}

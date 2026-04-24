@@ -28,9 +28,8 @@ export default function SlotRetryAvgTopGrid({ data }: SlotRetryAvgTopGridProps) 
       <AgGridReact<SlotRetryAvgTopItem>
         rowData={data ?? []}
         columnDefs={columnDefs}
-        gridOptions={gridOptions}
+        gridOptions={{ ...gridOptions, statusBar: undefined }}
         pagination={false}
-        statusBar={{ statusPanels: [] }}
         sideBar={false}
         rowNumbers={false}
         headerHeight={32}

@@ -24,7 +24,6 @@
       },
       "configurations": {
         "development": {
-          "styles": ["libs/shared-ui/src/styles/global.css"],
           "extractLicenses": false,
           "optimization": false,
           "sourceMap": false,

@@ -78,6 +78,9 @@ export default function BotVersionList() {
         }
         window.open(ifeInfo.redirectUrl, '_blank');
       },
+      onError: () => {
+        // 글로벌 핸들러(useApiErrorHandler)가 서버 message로 toast 처리
+      },
     },
   });
 

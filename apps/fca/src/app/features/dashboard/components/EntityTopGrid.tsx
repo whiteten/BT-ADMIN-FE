@@ -21,9 +21,8 @@ export default function EntityTopGrid({ data }: EntityTopGridProps) {
       <AgGridReact<EntityTopItem>
         rowData={data ?? []}
         columnDefs={columnDefs}
-        gridOptions={gridOptions}
+        gridOptions={{ ...gridOptions, statusBar: undefined }}
         pagination={false}
-        statusBar={{ statusPanels: [] }}
         sideBar={false}
         rowNumbers={false}
         headerHeight={32}

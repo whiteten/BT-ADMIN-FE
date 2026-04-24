@@ -613,10 +613,10 @@ function updateProjectJson(appName) {
     const projectJsonContent = fs.readFileSync(targetProjectJsonPath, 'utf8');
     const projectJson = JSON.parse(projectJsonContent);
 
-    // targets.build.options.styles 값 변경
+    // targets.build.options.styles 값 변경 (host가 global.css를 주입하므로 remote는 빈 배열)
     if (projectJson.targets && projectJson.targets.build && projectJson.targets.build.options) {
-      projectJson.targets.build.options.styles = ['libs/shared-ui/src/styles/global.css'];
-      logInfo(appName, 'styles 설정을 libs/shared-ui/src/styles/global.css로 변경');
+      projectJson.targets.build.options.styles = [];
+      logInfo(appName, 'styles 설정을 빈 배열로 변경 (host가 global.css 주입)');
     } else {
       logError(appName, 'targets.build.options 구조를 찾을 수 없음');
       return;
