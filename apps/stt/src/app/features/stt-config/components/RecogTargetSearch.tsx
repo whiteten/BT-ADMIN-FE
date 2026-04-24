@@ -30,7 +30,7 @@ const ENGINE_OPTIONS = [
   { label: 'ENGINE#2', value: 'ENGINE2' },
 ];
 
-const PAGE_SIZE = 10;
+const PAGE_SIZE = 20;
 
 interface RegisterCellRendererParams extends ICellRendererParams<RecogTargetItem> {
   onRegister: (data: RecogTargetItem) => void;

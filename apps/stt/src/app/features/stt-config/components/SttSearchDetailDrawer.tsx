@@ -77,8 +77,8 @@ function SentenceBubble({
           className={cn(
             'rounded-2xl border px-3.5 py-2 shadow-sm transition-colors',
             isCustomer
-              ? cn('rounded-tl-md', isActive ? 'border-emerald-300 bg-emerald-100 shadow-md' : 'border-emerald-100 bg-emerald-50')
-              : cn('rounded-tr-md', isActive ? 'border-blue-300 bg-blue-100 shadow-md' : 'border-blue-100 bg-blue-50'),
+              ? cn('rounded-tl-md', isActive ? 'border-emerald-400 bg-emerald-100 shadow-md' : 'border-emerald-100 bg-emerald-50')
+              : cn('rounded-tr-md', isActive ? 'border-blue-400 bg-blue-100 shadow-md' : 'border-blue-100 bg-blue-50'),
           )}
         >
           <p className="whitespace-pre-wrap break-all text-[13px] leading-relaxed text-slate-700">{item.sentence}</p>
@@ -178,12 +178,11 @@ const SttSearchDetailDrawer = forwardRef<SttSearchDetailDrawerRef>((_, ref) => {
               </Descriptions.Item>
               <Descriptions.Item label="통화시간">{state.row.talkTime ?? '-'}</Descriptions.Item>
               <Descriptions.Item label="I/O 구분">{INOUT_LABEL[state.row.inoutKind] ?? state.row.inoutKind}</Descriptions.Item>
-              {state.row.agentName && (
-                <Descriptions.Item label="상담원" span={2}>
-                  {state.row.agentName}
-                  {state.row.agentId && <span className="ml-1.5 text-[11px] text-gray-400">({state.row.agentId})</span>}
-                </Descriptions.Item>
-              )}
+              <Descriptions.Item label="상담원">
+                {state.row.agentName ?? '-'}
+                {state.row.agentId && <span className="ml-1.5 text-[11px] text-gray-400">({state.row.agentId})</span>}
+              </Descriptions.Item>
+              <Descriptions.Item label="내선번호">{state.row.dnNo ?? '-'}</Descriptions.Item>
             </Descriptions>
           </div>
         )}

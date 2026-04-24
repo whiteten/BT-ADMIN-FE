@@ -18,7 +18,7 @@ const TUNING_OPTIONS = [
   { label: '미반영', value: '1' },
 ];
 
-const PAGE_SIZE = 10;
+const PAGE_SIZE = 20;
 
 interface ActionCellRendererParams {
   data?: TuningSentenceItem;

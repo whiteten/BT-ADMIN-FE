@@ -14,6 +14,7 @@ export interface ConfidenceTrainingSearchParams {
 export interface ConfidenceTrainingItem {
   ucidGkey: string;
   armsoffset: number;
+  endoffset: number;
   talkTime: string;
   sentence: string;
   rxtxKind: string;

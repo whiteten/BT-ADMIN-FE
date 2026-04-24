@@ -16,7 +16,7 @@ const IN_OUT_OPTIONS = [
   { label: 'O/B (아웃바운드)', value: '1' },
 ];
 
-const PAGE_SIZE = 10;
+const PAGE_SIZE = 20;
 
 export default function SttSearch() {
   const { gridOptions } = useAggridOptions();

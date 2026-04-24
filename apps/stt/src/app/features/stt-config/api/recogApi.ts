@@ -15,14 +15,14 @@ const apiClient = new ApiClient({ serviceURL: '/bff' });
 
 export const recogApi = {
   getRecogGroupList: async () => {
-    const response = await apiClient.post<ListResponse<RecogGroupItem>>('/recog-group-list');
+    const response = await apiClient.get<ListResponse<RecogGroupItem>>('/recog-group-list');
     return extractList(response);
   },
   createRecogGroup: async (data: RecogGroupCreateData) => {
     return apiClient.post('/recog-group-create', data);
   },
   updateRecogGroup: async (data: RecogGroupUpdateData) => {
-    return apiClient.post('/recog-group-update', data);
+    return apiClient.put('/recog-group-update', { groupName: data.groupName }, { params: { groupCode: data.groupCode } });
   },
   deleteRecogGroup: async (groupCode: string) => {
     await apiClient.delete('/recog-group-delete', { params: { groupCode } });

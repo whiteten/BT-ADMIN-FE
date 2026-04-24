@@ -4,11 +4,13 @@ import type { ColDef, ICellRendererParams, RowEditingStartedEvent } from 'ag-gri
 import { AgGridReact } from 'ag-grid-react';
 import { Button, DatePicker, Input, Select, TimePicker } from 'antd';
 import dayjs, { type Dayjs } from 'dayjs';
-import { PlayCircle } from 'lucide-react';
+import { PlayCircle, StopCircle } from 'lucide-react';
 import { toast } from '@/shared-util';
 import { useGetTenants } from '../hooks/useCommonQueries';
+import { useGetSttSearchListen } from '../hooks/useSearchQueries';
 import { trainingQueryKeys, useCreateConfidenceTraining, useGetTrainingList } from '../hooks/useTrainingQueries';
-import type { ConfidenceTrainingItem, ConfidenceTrainingSearchParams } from '../types';
+import type { ConfidenceTrainingItem, ConfidenceTrainingSearchParams, SttSearchListenParams } from '../types';
+import { cn } from '@/lib/utils';
 import useAggridOptions from '@/libs/shared-ui/src/hooks/useAggridOptions';
 
 const IN_OUT_OPTIONS = [
@@ -30,8 +32,8 @@ const ENGINE_OPTIONS = [
   { label: 'ENGINE#1', value: 'ENGINE1' },
 ];
 
-const PAGE_SIZE = 10;
-const CONFIDENCE_THRESHOLD = 95;
+const PAGE_SIZE = 20;
+const CONFIDENCE_THRESHOLD = 95; // 조회할 신뢰도 설정 값
 
 interface RegisterCellRendererParams extends ICellRendererParams<ConfidenceTrainingItem> {
   onRegister: (data: ConfidenceTrainingItem) => void;
@@ -46,10 +48,75 @@ function CreateCellRenderer({ data, onRegister }: RegisterCellRendererParams) {
   );
 }
 
-function PlayCellRenderer() {
+const RXTX_LISTEN_TYPE: Record<string, string> = { '1': '4', '2': '5', '9': '3' };
+
+function PlayCellRenderer({ data }: ICellRendererParams<ConfidenceTrainingItem>) {
+  const [playing, setPlaying] = useState(false);
+  const audioRef = useRef<HTMLAudioElement | null>(null);
+
+  const listenParams: SttSearchListenParams | undefined =
+    data?.recSystemIp && data.saFilename
+      ? {
+          recSystemIp: data.recSystemIp,
+          request: {
+            saFilepath: data.saFilepath ?? '',
+            saFilename: data.saFilename,
+            saFileformat: '1',
+            playerWidth: '800',
+            type: RXTX_LISTEN_TYPE[data.rxtxKind] ?? '3',
+          },
+        }
+      : undefined;
+
+  const { data: listenData } = useGetSttSearchListen({
+    params: listenParams as unknown as Record<string, unknown>,
+    queryOptions: { enabled: playing && !!listenParams, staleTime: Infinity },
+  });
+
+  useEffect(() => {
+    if (!listenData?.audioBlob || !playing || !data) return;
+
+    const url = URL.createObjectURL(listenData.audioBlob);
+    const audio = new Audio(url);
+    audio.currentTime = data.armsoffset / 1000;
+    void audio.play();
+    audioRef.current = audio;
+
+    const endSec = data.endoffset / 1000;
+    const handleTimeUpdate = () => {
+      if (audio.currentTime >= endSec) {
+        audio.pause();
+        setPlaying(false);
+      }
+    };
+    audio.addEventListener('timeupdate', handleTimeUpdate);
+    audio.addEventListener('ended', () => setPlaying(false));
+
+    return () => {
+      audio.pause();
+      audio.removeEventListener('timeupdate', handleTimeUpdate);
+      URL.revokeObjectURL(url);
+      audioRef.current = null;
+    };
+  }, [listenData?.audioBlob, playing, data]);
+
+  const handleClick = () => {
+    if (playing) {
+      audioRef.current?.pause();
+      setPlaying(false);
+    } else {
+      setPlaying(true);
+    }
+  };
+
+  if (!data?.recSystemIp) return null;
+
   return (
-    <button className="flex items-center justify-center text-blue-500 hover:text-blue-700">
-      <PlayCircle size={18} />
+    <button
+      onClick={handleClick}
+      className={cn('flex items-center justify-center transition-colors', playing ? 'text-red-500 hover:text-red-700' : 'text-blue-500 hover:text-blue-700')}
+    >
+      {playing ? <StopCircle size={18} /> : <PlayCircle size={18} />}
     </button>
   );
 }
@@ -139,6 +206,22 @@ export default function ConfidenceTraining() {
       toast.warning('시작일시가 종료일시보다 늦을 수 없습니다.');
       return;
     }
+
+    const diffMinutes = endDateTime.diff(startDateTime, 'minute');
+
+    if (startDate.isSame(endDate, 'day') && diffMinutes > 180) {
+      toast.warning('같은 날짜 조회 시 최대 3시간까지만 가능합니다.');
+      return;
+    }
+    if (diffMinutes > 7 * 24 * 60) {
+      toast.warning('검색기간은 최대 1주일까지 가능합니다.');
+      return;
+    }
+    if (diffMinutes > 24 * 60 && !dnNo.trim()) {
+      toast.warning('조회기간이 하루를 초과하면 내선번호 입력이 필요합니다.');
+      return;
+    }
+
     setSearchParams(buildParams());
   };
 
