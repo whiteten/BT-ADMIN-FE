@@ -288,26 +288,9 @@ export function UserList() {
 
 ## 커밋 가이드라인
 
-이 프로젝트는 일관된 커밋 메시지를 위해 **commitizen** + cz-git을 사용합니다. 항상 다음 명령어를 사용하세요:
+이 프로젝트는 **commitizen** + cz-git을 사용합니다. 사람이 직접 커밋할 때는 `pnpm commit`(대화형)을 사용하세요.
 
-```bash
-pnpm commit
-```
-
-지원되는 커밋 타입: 🎉 init, ✨ feat, 📦️ chore, 💄 design, 🐛 fix, ✅ test, 🚀 deploy, 🔨 refactor, 🚚 rename, 📚 docs, 🔥 remove
-
-### Scope 작성 규칙
-
-- **단일 remote 작업**: scope에 해당 remote 명칭을 작성 (예: `fca`, `manager`, `host`)
-- **여러 remote 작업**: scope를 비워둠
-
-```bash
-# 단일 remote 작업 예시
-✨feat(fca): TTS 발화자 입력 유효성 검사 추가
-
-# 여러 remote 작업 예시
-✨feat: 공통 컴포넌트 스타일 수정
-```
+**Claude가 커밋 메시지를 작성할 때**: [.claude/skills/commit/SKILL.md](.claude/skills/commit/SKILL.md) 스킬을 사용합니다. 카테고리(이모지) 전체 목록, scope 판정 규칙(remote 명칭 사용 / feature명 금지), 단계별 절차 등 상세 규칙은 모두 해당 스킬에 정리되어 있습니다.
 
 ## 파일 구조 컨벤션
 
