@@ -34,6 +34,8 @@ export interface RecogGroupUpdateData {
 }
 
 export interface RecogTargetSearchParams {
+  groupCode?: string;
+  engineCode?: string;
   fromDateTime?: string;
   toDateTime?: string;
   keyword?: string;
@@ -41,25 +43,36 @@ export interface RecogTargetSearchParams {
   ucidGkey?: string;
   dnNo?: string;
   rxtxKind?: string;
-  engineCode?: string;
   tenantId?: number;
 }
 
-export interface RecogTargetItem {
+export interface RecogTargetSearchItem {
   ucidGkey: string;
-  dnNo: string;
-  callDatetime: string;
+  armsoffset: number;
+  endoffset: number;
   talkTime: string;
-  rxtxKind: string;
   sentence: string;
+  rxtxKind: string;
+  recSystemIp: string;
+  saFilepath: string;
+  saFilename: string;
+  callDatetime: string;
+  inoutKind: string;
+  dnNo: string;
+  agentId: string;
+  engineCode: string;
 }
 
 export interface RecogTargetListItem {
   id: number;
-  sentence: string;
-  rxtxKind: string;
+  groupCode: string;
   ucidGkey: string;
-  workTime: string;
+  armsoffset: number;
+  rxtxKind: string;
+  orgSentence: string;
+  saLoadResult: number;
+  loadUser: number;
+  loadTime: string;
 }
 
 export interface RecogTargetAddData {

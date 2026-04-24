@@ -2,13 +2,13 @@ import { type UseQueryOptions, useMutation, useQuery } from '@tanstack/react-que
 import { createQueryKeys } from '@lukemorales/query-key-factory';
 import type { MutationHookOptions } from '@/shared-util';
 import { recogApi } from '../api/recogApi';
-import type { RecogGroupCreateData, RecogGroupItem, RecogGroupUpdateData, RecogTargetAddData, RecogTargetItem } from '../types';
+import type { RecogGroupCreateData, RecogGroupItem, RecogGroupUpdateData, RecogTargetAddData, RecogTargetSearchItem } from '../types';
 
 export const recogQueryKeys = createQueryKeys('recog', {
   getRecogGroupList: null,
   getRecogGroupDetail: (groupCode?: string) => [{ groupCode }],
   searchRecogTarget: (params?: Record<string, unknown>) => [params],
-  getRecogTargetList: (groupCode?: string) => [{ groupCode }],
+  getRecogTargetList: (params?: { groupCode?: string; engineCode?: string }) => [params],
 });
 
 export const useGetRecogGroupList = ({ queryOptions }: { queryOptions?: UseQueryOptions<RecogGroupItem[]> } = {}) => {
@@ -16,14 +16,6 @@ export const useGetRecogGroupList = ({ queryOptions }: { queryOptions?: UseQuery
     queryKey: recogQueryKeys.getRecogGroupList.queryKey,
     queryFn: () => recogApi.getRecogGroupList(),
     ...queryOptions,
-  });
-};
-
-export const useGetRecogGroupDetail = (groupCode: string | undefined) => {
-  return useQuery({
-    queryKey: recogQueryKeys.getRecogGroupDetail(groupCode).queryKey,
-    queryFn: () => recogApi.getRecogGroupDetail(groupCode as string),
-    enabled: !!groupCode,
   });
 };
 
@@ -48,10 +40,10 @@ export const useDeleteRecogGroup = ({ mutationOptions }: MutationHookOptions<unk
   });
 };
 
-export const useSearchRecogTarget = ({ params, queryOptions }: { params?: Record<string, unknown> | null; queryOptions?: UseQueryOptions<RecogTargetItem[]> } = {}) => {
+export const useGetRecogTargetSearch = ({ params, queryOptions }: { params?: Record<string, unknown> | null; queryOptions?: UseQueryOptions<RecogTargetSearchItem[]> } = {}) => {
   return useQuery({
     queryKey: recogQueryKeys.searchRecogTarget(params ?? undefined).queryKey,
-    queryFn: () => recogApi.searchRecogTarget(params as Record<string, unknown>),
+    queryFn: () => recogApi.getRecogTargetSearch(params as Record<string, unknown>),
     enabled: !!params,
     ...queryOptions,
   });
@@ -64,18 +56,11 @@ export const useAddRecogTarget = ({ mutationOptions }: MutationHookOptions<unkno
   });
 };
 
-export const useGetRecogTargetList = (groupCode: string | undefined) => {
+export const useGetRecogTargetList = (params: { groupCode: string; engineCode?: string } | undefined) => {
   return useQuery({
-    queryKey: recogQueryKeys.getRecogTargetList(groupCode).queryKey,
-    queryFn: () => recogApi.getRecogTargetList(groupCode as string),
-    enabled: !!groupCode,
-  });
-};
-
-export const useDeleteRecogTarget = ({ mutationOptions }: MutationHookOptions<unknown, number> = {}) => {
-  return useMutation({
-    mutationFn: recogApi.deleteRecogTarget,
-    ...mutationOptions,
+    queryKey: recogQueryKeys.getRecogTargetList(params).queryKey,
+    queryFn: () => recogApi.getRecogTargetList(params as { groupCode: string; engineCode?: string }),
+    enabled: !!params?.groupCode,
   });
 };
 

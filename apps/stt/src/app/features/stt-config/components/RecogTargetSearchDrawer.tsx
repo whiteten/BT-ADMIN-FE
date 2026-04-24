@@ -1,13 +1,16 @@
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
-import type { ColDef, ICellRendererParams } from 'ag-grid-community';
+import type { ColDef, ICellRendererParams, RowEditingStartedEvent } from 'ag-grid-community';
 import { AgGridReact } from 'ag-grid-react';
 import { Button, DatePicker, Input, Select, TimePicker } from 'antd';
 import dayjs, { type Dayjs } from 'dayjs';
-import { PlayCircle } from 'lucide-react';
+import { PlayCircle, StopCircle } from 'lucide-react';
 import { toast } from '@/shared-util';
-import { recogQueryKeys, useAddRecogTarget, useSearchRecogTarget } from '../hooks/useRecogQueries';
-import type { RecogTargetItem, RecogTargetSearchParams } from '../types';
+import { useGetTenants } from '../hooks/useCommonQueries';
+import { recogQueryKeys, useAddRecogTarget, useGetRecogTargetSearch } from '../hooks/useRecogQueries';
+import { useGetSttSearchListen } from '../hooks/useSearchQueries';
+import type { RecogTargetSearchItem, RecogTargetSearchParams, SttSearchListenParams } from '../types';
+import { cn } from '@/lib/utils';
 import useAggridOptions from '@/libs/shared-ui/src/hooks/useAggridOptions';
 
 const IN_OUT_OPTIONS = [
@@ -23,64 +26,141 @@ const RXTX_OPTIONS = [
   { label: '상담원', value: '2' },
 ];
 
-const ENGINE_OPTIONS = [
-  { label: '전체', value: '' },
-  { label: 'ENGINE#0', value: 'ENGINE0' },
-  { label: 'ENGINE#1', value: 'ENGINE1' },
-  { label: 'ENGINE#2', value: 'ENGINE2' },
-];
-
 const PAGE_SIZE = 20;
+const RXTX_LISTEN_TYPE: Record<string, string> = { '1': '4', '2': '5', '9': '3' };
 
-interface RegisterCellRendererParams extends ICellRendererParams<RecogTargetItem> {
-  onRegister: (data: RecogTargetItem) => void;
+interface RegisterCellRendererParams extends ICellRendererParams<RecogTargetSearchItem> {
+  onRegister: (data: RecogTargetSearchItem) => void;
 }
 
 function RegisterCellRenderer({ data, onRegister }: RegisterCellRendererParams) {
   if (!data) return null;
   return (
-    <Button type="primary" size="small" onClick={() => onRegister(data)}>
+    <Button type="primary" size="small" onClick={() => onRegister(data)} style={{ height: 26 }}>
       등록
     </Button>
   );
 }
 
-function PlayCellRenderer() {
+function PlayCellRenderer({ data }: ICellRendererParams<RecogTargetSearchItem>) {
+  const [playing, setPlaying] = useState(false);
+  const audioRef = useRef<HTMLAudioElement | null>(null);
+
+  const listenParams: SttSearchListenParams | undefined =
+    data?.recSystemIp && data.saFilename
+      ? {
+          recSystemIp: data.recSystemIp,
+          request: {
+            saFilepath: data.saFilepath ?? '',
+            saFilename: data.saFilename,
+            saFileformat: '1',
+            playerWidth: '800',
+            type: RXTX_LISTEN_TYPE[data.rxtxKind] ?? '3',
+          },
+        }
+      : undefined;
+
+  const { data: listenData } = useGetSttSearchListen({
+    params: listenParams as unknown as Record<string, unknown>,
+    queryOptions: { enabled: playing && !!listenParams, staleTime: Infinity },
+  });
+
+  useEffect(() => {
+    if (!listenData?.audioBlob || !playing || !data) return;
+
+    const url = URL.createObjectURL(listenData.audioBlob);
+    const audio = new Audio(url);
+    audio.currentTime = data.armsoffset / 1000;
+    void audio.play();
+    audioRef.current = audio;
+
+    const endSec = data.endoffset / 1000;
+    const handleTimeUpdate = () => {
+      if (audio.currentTime >= endSec) {
+        audio.pause();
+        setPlaying(false);
+      }
+    };
+    audio.addEventListener('timeupdate', handleTimeUpdate);
+    audio.addEventListener('ended', () => setPlaying(false));
+
+    return () => {
+      audio.pause();
+      audio.removeEventListener('timeupdate', handleTimeUpdate);
+      URL.revokeObjectURL(url);
+      audioRef.current = null;
+    };
+  }, [listenData?.audioBlob, playing, data]);
+
+  const handleClick = () => {
+    if (playing) {
+      audioRef.current?.pause();
+      setPlaying(false);
+    } else {
+      setPlaying(true);
+    }
+  };
+
+  if (!data?.recSystemIp) return null;
+
   return (
-    <button className="flex items-center justify-center text-blue-500 hover:text-blue-700">
-      <PlayCircle size={18} />
+    <button
+      onClick={handleClick}
+      className={cn('flex items-center justify-center transition-colors', playing ? 'text-red-500 hover:text-red-700' : 'text-blue-500 hover:text-blue-700')}
+    >
+      {playing ? <StopCircle size={18} /> : <PlayCircle size={18} />}
     </button>
   );
 }
 
 interface RecogTargetSearchProps {
   groupCode: string;
+  engineCode?: string;
 }
 
-export default function RecogTargetSearch({ groupCode }: RecogTargetSearchProps) {
+export default function RecogTargetSearchDrawer({ groupCode, engineCode }: RecogTargetSearchProps) {
   const queryClient = useQueryClient();
   const { gridOptions } = useAggridOptions();
+  const gridRef = useRef<AgGridReact<RecogTargetSearchItem>>(null);
 
   const [startDate, setStartDate] = useState<Dayjs | null>(dayjs());
   const [endDate, setEndDate] = useState<Dayjs | null>(dayjs());
-  const [startTime, setStartTime] = useState<Dayjs | null>(dayjs().hour(0).minute(0).second(0));
-  const [endTime, setEndTime] = useState<Dayjs | null>(dayjs().hour(23).minute(59).second(59));
+  const [startTime, setStartTime] = useState<Dayjs | null>(dayjs().subtract(3, 'hour').startOf('hour'));
+  const [endTime, setEndTime] = useState<Dayjs | null>(dayjs().startOf('hour'));
   const [keyword, setKeyword] = useState('');
   const [inoutKind, setInoutKind] = useState('');
   const [ucidGkey, setUcidGkey] = useState('');
   const [dnNo, setDnNo] = useState('');
   const [rxtxKind, setRxtxKind] = useState('');
-  const [engineCode, setEngineCode] = useState('');
   const [tenantId, setTenantId] = useState<string | undefined>();
   const [searchParams, setSearchParams] = useState<RecogTargetSearchParams | null>(null);
 
-  const { data: rowData, isLoading } = useSearchRecogTarget({ params: searchParams as Record<string, unknown> });
+  const { data: tenants } = useGetTenants({});
+  const tenantOptions = tenants?.map((t) => ({ label: t.tenantName, value: String(t.tenantId) })) ?? [];
+
+  useEffect(() => {
+    if (!tenants?.length) return;
+    setTenantId((prev) => prev ?? String(tenants[0].tenantId));
+  }, [tenants]);
+
+  useEffect(() => {
+    if (!tenantId) return;
+    setSearchParams((prev) => {
+      const base: RecogTargetSearchParams = prev ?? {
+        fromDateTime: dayjs().subtract(3, 'hour').startOf('hour').format('YYYYMMDDHHmmss'),
+        toDateTime: dayjs().startOf('hour').format('YYYYMMDDHHmmss'),
+      };
+      return { ...base, groupCode, engineCode, tenantId: Number(tenantId) };
+    });
+  }, [groupCode, engineCode, tenantId]);
+
+  const { data: rowData, isLoading } = useGetRecogTargetSearch({ params: searchParams as Record<string, unknown> });
 
   const { mutate: addTarget } = useAddRecogTarget({
     mutationOptions: {
       onSuccess: () => {
         toast.success('등록되었습니다.');
-        queryClient.invalidateQueries({ queryKey: recogQueryKeys.getRecogTargetList(groupCode).queryKey });
+        queryClient.invalidateQueries({ queryKey: recogQueryKeys.getRecogTargetList({ groupCode, engineCode }).queryKey });
       },
       onError: () => {
         toast.error('등록에 실패했습니다.');
@@ -105,7 +185,25 @@ export default function RecogTargetSearch({ groupCode }: RecogTargetSearchProps)
       toast.warning('시작일시가 종료일시보다 늦을 수 없습니다.');
       return;
     }
+
+    const diffMinutes = endDateTime.diff(startDateTime, 'minute');
+
+    if (startDate.isSame(endDate, 'day') && diffMinutes > 180) {
+      toast.warning('같은 날짜 조회 시 최대 3시간까지만 가능합니다.');
+      return;
+    }
+    if (diffMinutes > 7 * 24 * 60) {
+      toast.warning('검색기간은 최대 1주일까지 가능합니다.');
+      return;
+    }
+    if (diffMinutes > 24 * 60 && !dnNo.trim()) {
+      toast.warning('조회기간이 하루를 초과하면 내선번호 입력이 필요합니다.');
+      return;
+    }
+
     setSearchParams({
+      groupCode,
+      engineCode,
       fromDateTime: startDate.format('YYYYMMDD') + (startTime?.format('HHmmss') ?? '000000'),
       toDateTime: endDate.format('YYYYMMDD') + (endTime?.format('HHmmss') ?? '235959'),
       keyword: keyword || undefined,
@@ -113,16 +211,20 @@ export default function RecogTargetSearch({ groupCode }: RecogTargetSearchProps)
       ucidGkey: ucidGkey || undefined,
       dnNo: dnNo || undefined,
       rxtxKind: rxtxKind || undefined,
-      engineCode: engineCode || undefined,
       tenantId: tenantId ? Number(tenantId) : undefined,
     });
   };
 
-  const handleRegister = (data: RecogTargetItem) => {
+  const handleRegister = (data: RecogTargetSearchItem) => {
     addTarget({ groupCode, ucidGkey: data.ucidGkey, sentence: data.sentence });
+    gridRef.current?.api?.stopEditing();
   };
 
-  const columnDefs: ColDef<RecogTargetItem>[] = [
+  const handleRowEditingStarted = (event: RowEditingStartedEvent<RecogTargetSearchItem>) => {
+    event.api.refreshCells({ rowNodes: [event.node], force: true });
+  };
+
+  const columnDefs: ColDef<RecogTargetSearchItem>[] = [
     {
       headerName: '',
       colId: 'play',
@@ -137,13 +239,22 @@ export default function RecogTargetSearch({ groupCode }: RecogTargetSearchProps)
     { headerName: '통화일시', field: 'callDatetime', flex: 2 },
     { headerName: '발화시간', field: 'talkTime', maxWidth: 100 },
     { headerName: '화자', field: 'rxtxKind', maxWidth: 90 },
-    { headerName: '대표문장', field: 'sentence', flex: 4, tooltipField: 'sentence' },
+    {
+      headerName: '대화내용',
+      field: 'sentence',
+      flex: 4,
+      tooltipField: 'sentence',
+      editable: true,
+      cellEditor: 'agTextCellEditor',
+      cellEditorParams: { useFormatter: true },
+    },
     {
       headerName: '',
       colId: 'register',
       maxWidth: 80,
       sortable: false,
       filter: false,
+      editable: false,
       cellStyle: { display: 'flex', alignItems: 'center', justifyContent: 'center' },
       cellRenderer: RegisterCellRenderer,
       cellRendererParams: { onRegister: handleRegister },
@@ -152,7 +263,7 @@ export default function RecogTargetSearch({ groupCode }: RecogTargetSearchProps)
 
   return (
     <div className="flex flex-col gap-3 h-full">
-      {/* 1행: 검색일자 / 키워드 / IN/OUT 구분 */}
+      {/* 검색 조건 */}
       <div className="flex items-center gap-4 flex-wrap">
         <div className="flex items-center gap-2 shrink-0">
           <span className="text-sm font-medium text-[#495057] shrink-0">검색일자</span>
@@ -170,10 +281,6 @@ export default function RecogTargetSearch({ groupCode }: RecogTargetSearchProps)
           <span className="text-sm font-medium text-[#495057] shrink-0">IN/OUT 구분</span>
           <Select value={inoutKind} onChange={setInoutKind} options={IN_OUT_OPTIONS} popupMatchSelectWidth={false} style={{ width: 160 }} />
         </div>
-      </div>
-
-      {/* 2행: 고유번호 / 내선 / 화자구분 / 엔진 / 테넌트 / 조회 */}
-      <div className="flex items-center gap-4 flex-wrap">
         <div className="flex items-center gap-2">
           <span className="text-sm font-medium text-[#495057] shrink-0">고유번호</span>
           <Input value={ucidGkey} onChange={(e) => setUcidGkey(e.target.value)} onPressEnter={handleSearch} placeholder="고유번호를 입력하세요" style={{ width: 200 }} />
@@ -186,12 +293,8 @@ export default function RecogTargetSearch({ groupCode }: RecogTargetSearchProps)
           <span className="text-sm font-medium text-[#495057] shrink-0">화자구분</span>
           <Select value={rxtxKind} onChange={setRxtxKind} options={RXTX_OPTIONS} popupMatchSelectWidth={false} style={{ width: 120 }} />
         </div>
-        <div className="flex items-center gap-2">
-          <span className="text-sm font-medium text-[#495057] shrink-0">엔진</span>
-          <Select value={engineCode} onChange={setEngineCode} options={ENGINE_OPTIONS} popupMatchSelectWidth={false} style={{ width: 120 }} />
-        </div>
         <div className="flex items-center gap-2 ml-auto">
-          <Select value={tenantId} onChange={setTenantId} placeholder="테넌트 선택" popupMatchSelectWidth={false} style={{ width: 160 }} />
+          <Select value={tenantId} onChange={setTenantId} options={tenantOptions} placeholder="기본테넌트" popupMatchSelectWidth={false} style={{ width: 160 }} />
           <Button type="primary" onClick={handleSearch}>
             조회
           </Button>
@@ -200,10 +303,17 @@ export default function RecogTargetSearch({ groupCode }: RecogTargetSearchProps)
 
       {/* 그리드 */}
       <div className="flex-1 min-h-[200px]">
-        <AgGridReact<RecogTargetItem>
+        <AgGridReact<RecogTargetSearchItem>
+          ref={gridRef}
           rowData={rowData ?? []}
           columnDefs={columnDefs}
-          gridOptions={{ ...gridOptions, paginationPageSize: PAGE_SIZE }}
+          gridOptions={{
+            ...gridOptions,
+            paginationPageSize: PAGE_SIZE,
+            editType: 'fullRow',
+            suppressClickEdit: false,
+          }}
+          onRowEditingStarted={handleRowEditingStarted}
           loading={isLoading}
           sideBar={false}
         />

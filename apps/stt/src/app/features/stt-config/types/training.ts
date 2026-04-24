@@ -29,7 +29,7 @@ export interface ConfidenceTrainingItem {
   confidence: number;
 }
 
-export interface ConfidenceTrainingCreateDatas {
+export interface TuningSentenceCreateDatas {
   ucidGkey: string;
   armsoffset: number;
   rxtxKind: string;
@@ -58,5 +58,3 @@ export interface TuningSentenceItem {
   trManageId: string;
   workTime: string;
 }
-
-export type TuningSentenceCreateDatas = Pick<TuningSentenceItem, 'ucidGkey' | 'trString'>;

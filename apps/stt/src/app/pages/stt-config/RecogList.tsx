@@ -1,10 +1,10 @@
 import { useState } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
-import { type BreadcrumbProps, Button, Col, Form, type FormProps, Input, Row } from 'antd';
+import { type BreadcrumbProps, Button, Col, Drawer, Form, type FormProps, Input, Row } from 'antd';
 import { toast } from '@/shared-util';
 import RecogGroupTree, { type RecogTreeSelection } from '../../features/stt-config/components/RecogGroupTree';
 import RecogTargetList from '../../features/stt-config/components/RecogTargetList';
-import RecogTargetSearch from '../../features/stt-config/components/RecogTargetSearch';
+import RecogTargetSearchDrawer from '../../features/stt-config/components/RecogTargetSearchDrawer';
 import { recogQueryKeys, useCreateRecogGroup } from '../../features/stt-config/hooks/useRecogQueries';
 import type { RecogGroupCreateData, RecogGroupItem } from '../../features/stt-config/types';
 import NoData from '@/components/custom/NoData';
@@ -60,20 +60,23 @@ function EngineDetailPanel({ engineCode, onCreated }: { engineCode: string; onCr
 }
 
 function GroupDetailPanel({ group }: { group: RecogGroupItem }) {
+  const [drawerOpen, setDrawerOpen] = useState(false);
+
   return (
-    <div className="flex flex-col flex-1 min-h-0 gap-4">
+    <div className="flex flex-col flex-1 min-h-0">
       <div className="flex-1 min-h-0 bg-white bt-shadow p-7 overflow-hidden flex flex-col">
-        <div className="flex items-center gap-2 text-[var(--color-bt-primary)] mb-4">
-          <span className="text-[20px] font-bold">정답지 등록</span>
-        </div>
-        <div className="flex-1 min-h-0">
-          <RecogTargetSearch groupCode={group.groupCode} />
-        </div>
+        <RecogTargetList groupCode={group.groupCode} engineCode={group.engineCode} onRegisterClick={() => setDrawerOpen(true)} />
       </div>
 
-      <div className="flex-1 min-h-0 bg-white bt-shadow p-7 overflow-hidden flex flex-col">
-        <RecogTargetList groupCode={group.groupCode} />
-      </div>
+      <Drawer
+        title="정답지 등록"
+        open={drawerOpen}
+        onClose={() => setDrawerOpen(false)}
+        width="65%"
+        styles={{ body: { display: 'flex', flexDirection: 'column', overflow: 'hidden' } }}
+      >
+        <RecogTargetSearchDrawer groupCode={group.groupCode} engineCode={group.engineCode} />
+      </Drawer>
     </div>
   );
 }

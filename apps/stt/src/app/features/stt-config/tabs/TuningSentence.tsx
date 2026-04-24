@@ -52,7 +52,7 @@ export default function TuningSentence() {
   const modal = useModal();
   const queryClient = useQueryClient();
 
-  const [fromDate, setFromDate] = useState<Dayjs | null>(dayjs());
+  const [fromDate, setFromDate] = useState<Dayjs | null>(dayjs().subtract(7, 'day'));
   const [toDate, setToDate] = useState<Dayjs | null>(dayjs());
   const [keyword, setKeyword] = useState('');
   const [tunningKind, setTunningKind] = useState('');
@@ -67,7 +67,7 @@ export default function TuningSentence() {
       setEngineCode((prev) => {
         const resolved = prev || engines[0].code;
         setSearchParams({
-          fromDate: dayjs().format('YYYYMMDD'),
+          fromDate: dayjs().subtract(7, 'day').format('YYYYMMDD'),
           toDate: dayjs().format('YYYYMMDD'),
           engineCode: resolved,
         });

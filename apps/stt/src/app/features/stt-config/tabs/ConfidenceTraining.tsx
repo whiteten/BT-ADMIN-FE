@@ -8,7 +8,7 @@ import { PlayCircle, StopCircle } from 'lucide-react';
 import { toast } from '@/shared-util';
 import { useGetTenants } from '../hooks/useCommonQueries';
 import { useGetSttSearchListen } from '../hooks/useSearchQueries';
-import { trainingQueryKeys, useCreateConfidenceTraining, useGetTrainingList } from '../hooks/useTrainingQueries';
+import { trainingQueryKeys, useCreateTuningSentence, useGetTrainingList } from '../hooks/useTrainingQueries';
 import type { ConfidenceTrainingItem, ConfidenceTrainingSearchParams, SttSearchListenParams } from '../types';
 import { cn } from '@/lib/utils';
 import useAggridOptions from '@/libs/shared-ui/src/hooks/useAggridOptions';
@@ -128,8 +128,8 @@ export default function ConfidenceTraining() {
 
   const [startDate, setStartDate] = useState<Dayjs | null>(dayjs());
   const [endDate, setEndDate] = useState<Dayjs | null>(dayjs());
-  const [startTime, setStartTime] = useState<Dayjs | null>(dayjs().hour(0).minute(0).second(0));
-  const [endTime, setEndTime] = useState<Dayjs | null>(dayjs().hour(23).minute(59).second(59));
+  const [startTime, setStartTime] = useState<Dayjs | null>(dayjs().subtract(3, 'hour').startOf('hour'));
+  const [endTime, setEndTime] = useState<Dayjs | null>(dayjs().startOf('hour'));
   const [keyword, setKeyword] = useState('');
   const [inoutKind, setInOutKind] = useState('');
   const [ucidGkey, setUcidGkey] = useState('');
@@ -147,8 +147,8 @@ export default function ConfidenceTraining() {
       setTenantId((prev) => {
         const resolved = prev ?? firstTenantId;
         setSearchParams({
-          fromDateTime: dayjs().format('YYYYMMDD') + '000000',
-          toDateTime: dayjs().format('YYYYMMDD') + '235959',
+          fromDateTime: dayjs().subtract(3, 'hour').startOf('hour').format('YYYYMMDDHHmmss'),
+          toDateTime: dayjs().startOf('hour').format('YYYYMMDDHHmmss'),
           tenantId: Number(resolved),
           confidence: CONFIDENCE_THRESHOLD,
         });
@@ -177,7 +177,7 @@ export default function ConfidenceTraining() {
     queryOptions: { enabled: !!searchParams },
   });
 
-  const { mutate: createConfidenceTraining } = useCreateConfidenceTraining({
+  const { mutate: createTuningSentence } = useCreateTuningSentence({
     mutationOptions: {
       onSuccess: () => {
         toast.success('등록되었습니다.');
@@ -226,7 +226,7 @@ export default function ConfidenceTraining() {
   };
 
   const handleAdd = (data: ConfidenceTrainingItem, editedSentence?: string) => {
-    createConfidenceTraining({
+    createTuningSentence({
       ucidGkey: data.ucidGkey,
       armsoffset: data.armsoffset,
       rxtxKind: data.rxtxKind,

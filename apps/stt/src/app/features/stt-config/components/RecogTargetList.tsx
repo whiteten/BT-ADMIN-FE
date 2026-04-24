@@ -13,9 +13,11 @@ const PAGE_SIZE = 20;
 
 interface RecogTargetListProps {
   groupCode: string;
+  engineCode?: string;
+  onRegisterClick?: () => void;
 }
 
-export default function RecogTargetList({ groupCode }: RecogTargetListProps) {
+export default function RecogTargetList({ groupCode, engineCode, onRegisterClick }: RecogTargetListProps) {
   const queryClient = useQueryClient();
   const modal = useModal();
   const gridRef = useRef<AgGridReact<RecogTargetListItem>>(null);
@@ -24,19 +26,19 @@ export default function RecogTargetList({ groupCode }: RecogTargetListProps) {
   const [searchValue, setSearchValue] = useState('');
   const [measureResult, setMeasureResult] = useState<RecogAccuracyResult | null>(null);
 
-  const { data: targetList = [], isLoading } = useGetRecogTargetList(groupCode);
+  const { data: targetList = [], isLoading } = useGetRecogTargetList({ groupCode, engineCode });
 
   const filteredList = useMemo(() => {
     if (!searchValue.trim()) return targetList;
     const keyword = searchValue.toLowerCase();
-    return targetList.filter((t) => t.sentence.toLowerCase().includes(keyword) || t.ucidGkey.toLowerCase().includes(keyword));
+    return targetList.filter((t) => t.orgSentence.toLowerCase().includes(keyword) || t.ucidGkey.toLowerCase().includes(keyword));
   }, [targetList, searchValue]);
 
   const { mutate: deleteTargets, isPending: isDeleting } = useDeleteRecogTargets({
     mutationOptions: {
       onSuccess: () => {
         toast.success('삭제되었습니다.');
-        queryClient.invalidateQueries({ queryKey: recogQueryKeys.getRecogTargetList(groupCode).queryKey });
+        queryClient.invalidateQueries({ queryKey: recogQueryKeys.getRecogTargetList({ groupCode, engineCode }).queryKey });
         gridRef.current?.api?.deselectAll();
       },
       onError: () => {
@@ -81,10 +83,10 @@ export default function RecogTargetList({ groupCode }: RecogTargetListProps) {
       checkboxSelection: true,
       headerCheckboxSelection: true,
     },
-    { headerName: 'TEXT', field: 'sentence', flex: 4, tooltipField: 'sentence' },
+    { headerName: 'TEXT', field: 'orgSentence', flex: 4, tooltipField: 'orgSentence' },
     { headerName: '화자', field: 'rxtxKind', maxWidth: 90 },
     { headerName: 'UCID_GKEY', field: 'ucidGkey', flex: 3, tooltipField: 'ucidGkey' },
-    { headerName: '등록일', field: 'workTime', flex: 2 },
+    { headerName: '등록일', field: 'loadTime', flex: 2 },
   ];
 
   return (
@@ -107,6 +109,11 @@ export default function RecogTargetList({ groupCode }: RecogTargetListProps) {
           <Button color="cyan" variant="solid" loading={isMeasuring} onClick={handleMeasure}>
             인식률측정
           </Button>
+          {onRegisterClick && (
+            <Button type="primary" onClick={onRegisterClick}>
+              정답지 등록
+            </Button>
+          )}
         </div>
       </div>
 

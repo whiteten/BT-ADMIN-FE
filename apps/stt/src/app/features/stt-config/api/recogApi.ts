@@ -6,8 +6,8 @@ import type {
   RecogGroupItem,
   RecogGroupUpdateData,
   RecogTargetAddData,
-  RecogTargetItem,
   RecogTargetListItem,
+  RecogTargetSearchItem,
   RecogTargetSearchParams,
 } from '../types';
 
@@ -30,15 +30,15 @@ export const recogApi = {
   getRecogGroupDetail: async (groupCode: string) => {
     return apiClient.post<RecogGroupDetail>('/recog-group-detail', { groupCode });
   },
-  searchRecogTarget: async (params?: RecogTargetSearchParams) => {
-    const response = await apiClient.post<ListResponse<RecogTargetItem>>('/recog-target-search', params);
+  getRecogTargetSearch: async (params?: RecogTargetSearchParams) => {
+    const response = await apiClient.post<ListResponse<RecogTargetSearchItem>>('/recog-target-search', params);
     return extractList(response);
   },
   addRecogTarget: async (data: RecogTargetAddData) => {
     return apiClient.post('/recog-target-add', data);
   },
-  getRecogTargetList: async (groupCode: string) => {
-    const response = await apiClient.post<ListResponse<RecogTargetListItem>>('/recog-target-list', { groupCode });
+  getRecogTargetList: async (params: { groupCode: string; engineCode?: string }) => {
+    const response = await apiClient.get<ListResponse<RecogTargetListItem>>('/recog-target-list', { params });
     return extractList(response);
   },
   deleteRecogTarget: async (id: number) => {
