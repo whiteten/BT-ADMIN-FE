@@ -15,12 +15,15 @@ const MENU_LOADERS: Record<string, () => Promise<MenuModule>> = {
   taskboard: () => import('taskboard/MenuConfig').catch(() => ({ default: {} })) as Promise<MenuModule>,
 };
 
-/** NaviApp[]에서 모든 menuId → label 매핑을 재귀적으로 수집 */
-const collectMenuMap = (apps: NaviApp[]): Map<number, string> => {
-  const map = new Map<number, string>();
+/**
+ * NaviApp[]에서 모든 menuKey → label 매핑을 재귀적으로 수집.
+ * IAM 재설계 v2.2: menuId(number) → menuKey(string).
+ */
+const collectMenuMap = (apps: NaviApp[]): Map<string, string> => {
+  const map = new Map<string, string>();
   const collect = (items: NaviMenuItem[]) => {
     for (const item of items) {
-      map.set(item.menuId, item.label);
+      map.set(item.menuKey, item.label);
       if (item.children.length > 0) collect(item.children);
     }
   };
@@ -28,13 +31,13 @@ const collectMenuMap = (apps: NaviApp[]): Map<number, string> => {
   return map;
 };
 
-/** MenuItem[]를 재귀 순회하며 menuMap 기반으로 hide/label 적용 */
-const applyMenuVisibility = (menus: MenuItem[], menuMap: Map<number, string>): MenuItem[] => {
+/** MenuItem[]을 재귀 순회하며 menuMap 기반으로 hide/label 적용 */
+const applyMenuVisibility = (menus: MenuItem[], menuMap: Map<string, string>): MenuItem[] => {
   return menus.map((item) => {
-    const naviLabel = menuMap.get(item.menuId);
+    const naviLabel = menuMap.get(item.menuKey);
     return {
       ...item,
-      hide: !menuMap.has(item.menuId),
+      hide: !menuMap.has(item.menuKey),
       ...(naviLabel ? { label: naviLabel } : {}),
       ...(item.children && item.children.length > 0 ? { children: applyMenuVisibility(item.children, menuMap) } : {}),
     };
@@ -51,12 +54,6 @@ const loadMenuConfigs = async () => {
   return configs;
 };
 
-/**
- * 메뉴 아이템을 정렬하고 숨김 처리된 항목을 필터링합니다.
- * - hide가 true인 항목 제외
- * - index(오름차순) → label(오름차순) 기준 정렬
- * - 자식이 모두 필터링되면 부모도 제외 (단일 순회)
- */
 const processMenuItems = (menus: MenuItem[]): MenuItem[] => {
   return _.orderBy(menus, ['index', 'label'], ['asc', 'asc'])
     .filter((item) => !item.hide)

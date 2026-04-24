@@ -15,7 +15,7 @@ import { useGetGroupedPermissions } from '../../features/iam/hooks/usePermission
 import { useGetRole } from '../../features/iam/hooks/useRoleQueries';
 import type { MenuWithPermissions } from '../../features/iam/types/iam.types';
 
-type PermEntry = { authId: number; action: string };
+type PermEntry = { authKey: string; action: string };
 import { FallbackSpinner } from '@/components/custom/FallbackSpinner';
 import { IconDocument, IconSlidersHorizontal } from '@/components/custom/Icons';
 import PageHeader from '@/components/custom/PageHeader';
@@ -28,11 +28,11 @@ function collectAllPermissions(menu: MenuWithPermissions): PermEntry[] {
   const p = menu.permissions;
   const perms: PermEntry[] = [];
   if (p) {
-    if (p.read != null) perms.push({ authId: p.read, action: 'read' });
-    if (p.write != null) perms.push({ authId: p.write, action: 'write' });
-    if (p.delete != null) perms.push({ authId: p.delete, action: 'delete' });
-    if (p.apply != null) perms.push({ authId: p.apply, action: 'apply' });
-    if (p.export != null) perms.push({ authId: p.export, action: 'export' });
+    if (p.read != null) perms.push({ authKey: p.read, action: 'read' });
+    if (p.write != null) perms.push({ authKey: p.write, action: 'write' });
+    if (p.delete != null) perms.push({ authKey: p.delete, action: 'delete' });
+    if (p.apply != null) perms.push({ authKey: p.apply, action: 'apply' });
+    if (p.export != null) perms.push({ authKey: p.export, action: 'export' });
   }
   for (const child of menu.children ?? []) {
     perms.push(...collectAllPermissions(child));
@@ -72,7 +72,7 @@ export default function RoleDetailPage() {
 
   // 폼 상태 (실시간 요약 정보용)
   const [basicFormValues, setBasicFormValues] = useState<Partial<RoleBasicFormValues>>({});
-  const [selectedPermissions, setSelectedPermissions] = useState<Set<number>>(new Set());
+  const [selectedPermissions, setSelectedPermissions] = useState<Set<string>>(new Set());
 
   const breadcrumb: BreadcrumbProps['items'] = [
     { title: '사용자', path: '/manager/resource/auth-group/list' },
@@ -108,7 +108,7 @@ export default function RoleDetailPage() {
         canResetPassword: role.canResetPassword,
         canManageResourceAccess: role.canManageResourceAccess,
       });
-      setSelectedPermissions(new Set(role.authIds ?? []));
+      setSelectedPermissions(new Set(role.authKeys ?? []));
     }
   }, [role]);
 
@@ -213,8 +213,8 @@ export default function RoleDetailPage() {
           {permissionCount > 0 && (
             <div className="flex gap-3 mt-2 flex-wrap">
               {(['read', 'write', 'delete', 'apply', 'export'] as const).map((action) => {
-                const count = permissionArray.filter((authId) => {
-                  const perm = allPermissions.find((p) => p.authId === authId);
+                const count = permissionArray.filter((authKey) => {
+                  const perm = allPermissions.find((p) => p.authKey === authKey);
                   return perm?.action === action;
                 }).length;
                 const colorMap: Record<string, string> = {

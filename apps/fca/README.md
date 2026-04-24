@@ -47,9 +47,5 @@ Host 앱에서 `fca/Module`로 라우팅되며, `fca/MenuConfig`로 사이드바
 ## 개발
 
 ```bash
-# Host와 함께 시작 (권장)
 pnpm run serve
-
-# FCA만 단독 실행
-npx nx serve fca
 ```

@@ -54,7 +54,7 @@ export default function RolePermissionTab() {
       canResetPassword: role.canResetPassword,
       canManageResourceAccess: role.canManageResourceAccess,
       // 권한 매핑만 업데이트
-      authIds: Array.from(selectedPermissions),
+      authKeys: Array.from(selectedPermissions),
     };
     updateRole({ params: { roleId: numericRoleId }, data: request });
   };

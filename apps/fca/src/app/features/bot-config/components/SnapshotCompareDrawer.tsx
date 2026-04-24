@@ -193,7 +193,7 @@ const SnapshotCompareDrawer = forwardRef<SnapshotCompareDrawerRef>((_, ref) => {
       groupDefaultExpanded: 0,
       pagination: false,
       sideBar: false,
-      statusBar: { statusPanels: [] },
+      statusBar: undefined,
       noRowsOverlayComponentParams: {
         message: '비교 결과가 없습니다.',
       },

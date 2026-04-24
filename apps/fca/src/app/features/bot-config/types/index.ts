@@ -6,6 +6,7 @@ export * from './model';
 export * from './intent';
 export * from './entity';
 export * from './aoe';
+export * from './keyword';
 export * from './retrain';
 export * from './snapshot';
 export * from './inference';

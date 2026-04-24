@@ -1,11 +1,16 @@
 /** 메뉴 타입 */
 export type NaviMenuType = 'PAGE' | 'FOLDER';
 
-/** 메뉴 항목 (재귀 구조) */
+/**
+ * 메뉴 항목 (재귀 구조).
+ *
+ * IAM 재설계 v2.2: menuId(number) → menuKey(string).
+ */
 export interface NaviMenuItem {
-  menuId: number;
+  menuKey: string;
   label: string;
   type: NaviMenuType;
+  permissions?: string[];
   children: NaviMenuItem[];
 }
 
@@ -20,7 +25,6 @@ export interface NaviApp {
 export interface Bookmark {
   appId: string;
   label: string;
-  menuId: number;
   menuKey: string;
   sortOrder: number;
 }
