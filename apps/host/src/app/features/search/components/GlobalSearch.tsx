@@ -131,115 +131,167 @@ export default function GlobalSearch() {
       <PopoverAnchor asChild>
         <Button
           variant="outline"
-          className="relative h-9 w-80 justify-start gap-2 rounded-full text-sm text-muted-foreground font-normal px-4 border-border/60 bg-muted/40 hover:bg-muted/70 hover:border-border hover:cursor-pointer shadow-none transition-colors"
+          className="relative h-10 w-[480px] justify-start gap-3 rounded-full text-sm text-muted-foreground font-normal pl-5 pr-3 border-border/50 bg-background/80 hover:bg-muted/50 hover:border-border hover:cursor-pointer shadow-sm transition-all duration-200 group"
           onClick={() => setOpen(true)}
         >
-          <Search className="h-3.5 w-3.5 shrink-0 text-muted-foreground/70" />
-          <span>통합 검색</span>
+          <Search className="h-4 w-4 shrink-0 text-muted-foreground/60 group-hover:text-muted-foreground transition-colors" />
+          <span className="flex-1 text-left">통합 검색</span>
+          <kbd className="hidden sm:inline-flex items-center gap-0.5 rounded-md border border-border/60 bg-muted/60 px-1.5 py-0.5 text-[10px] font-mono text-muted-foreground/60 shadow-none">
+            <span className="text-[11px]">⌘</span>K
+          </kbd>
         </Button>
       </PopoverAnchor>
       <PopoverContent
-        className="w-[var(--radix-popover-anchor-width)] min-w-80 p-0 overflow-hidden rounded-2xl shadow-2xl border-border/50"
+        className="w-[560px] p-0 overflow-hidden rounded-2xl shadow-[0_20px_60px_-12px_rgba(0,0,0,0.25)] border border-border/40"
         align="center"
-        sideOffset={8}
+        sideOffset={10}
         onOpenAutoFocus={(e) => {
           e.preventDefault();
           (e.currentTarget as HTMLElement | null)?.querySelector<HTMLInputElement>('[data-slot="command-input"]')?.focus();
         }}
       >
         <Command shouldFilter={false} className="rounded-2xl">
-          <div className="relative">
-            <CommandInput placeholder="메뉴, 기능 검색..." value={query} onValueChange={setQuery} className="h-12 text-sm" />
-            {isLoading && debouncedQuery.length > 0 && <Loader2 className="absolute right-4 top-1/2 -translate-y-1/2 h-4 w-4 animate-spin text-muted-foreground" />}
+          <div className="relative border-b border-border/40">
+            <CommandInput placeholder="메뉴, 기능, 문서 검색..." value={query} onValueChange={setQuery} className="h-14 text-base px-5 placeholder:text-muted-foreground/50" />
+            {isLoading && debouncedQuery.length > 0 && <Loader2 className="absolute right-5 top-1/2 -translate-y-1/2 h-4 w-4 animate-spin text-muted-foreground/60" />}
           </div>
-          <CommandList className="max-h-[400px]">
-            {debouncedQuery.length === 0 && <div className="py-8 text-center text-sm text-muted-foreground">검색어를 입력하세요.</div>}
-            {showEmpty && <div className="py-8 text-center text-sm text-muted-foreground">검색 결과가 없습니다.</div>}
+
+          <CommandList className="max-h-[520px] overflow-y-auto">
+            {debouncedQuery.length === 0 && (
+              <div className="flex flex-col items-center justify-center py-14 gap-3">
+                <div className="flex items-center justify-center w-12 h-12 rounded-2xl bg-muted/60">
+                  <Search className="h-5 w-5 text-muted-foreground/40" />
+                </div>
+                <p className="text-sm text-muted-foreground/60">검색어를 입력하세요</p>
+              </div>
+            )}
+            {showEmpty && (
+              <div className="flex flex-col items-center justify-center py-14 gap-3">
+                <div className="flex items-center justify-center w-12 h-12 rounded-2xl bg-muted/60">
+                  <Search className="h-5 w-5 text-muted-foreground/40" />
+                </div>
+                <p className="text-sm text-muted-foreground/60">
+                  <span className="font-medium text-foreground/70">"{debouncedQuery}"</span>에 대한 결과가 없습니다
+                </p>
+              </div>
+            )}
+
             {menus.length > 0 && (
               <CommandGroup
-                className="px-2 pb-2"
+                className="px-3 pt-3 pb-2"
                 heading={
-                  <span className="flex items-center justify-between px-1 pt-1">
-                    <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">메뉴</span>
-                    <span className="text-xs text-muted-foreground">{menus.length}건</span>
-                  </span>
+                  <div className="flex items-center justify-between px-1 pb-1.5">
+                    <div className="flex items-center gap-1.5">
+                      <div className="w-1.5 h-1.5 rounded-full bg-primary/60" />
+                      <span className="text-[11px] font-semibold text-muted-foreground/80 uppercase tracking-widest">메뉴</span>
+                    </div>
+                    <span className="text-[11px] text-muted-foreground/50 tabular-nums">{menus.length}건</span>
+                  </div>
                 }
               >
                 {menus.map((result) => (
-                  <CommandItem key={result.id} value={result.id} onSelect={() => handleSelectMenu(result)} className="flex items-center gap-3 px-3 py-3 rounded-xl cursor-pointer">
-                    <div className="flex items-center justify-center w-8 h-8 rounded-lg bg-primary/10 shrink-0">
-                      <Search className="h-3.5 w-3.5 text-primary" />
+                  <CommandItem
+                    key={result.id}
+                    value={result.id}
+                    onSelect={() => handleSelectMenu(result)}
+                    className="flex items-center gap-3.5 px-3 py-3.5 rounded-xl cursor-pointer data-[selected=true]:bg-primary/8 group/item mb-0.5 last:mb-0"
+                  >
+                    <div className="flex items-center justify-center w-9 h-9 rounded-xl bg-primary/10 shrink-0 group-data-[selected=true]/item:bg-primary/15 transition-colors">
+                      <Search className="h-4 w-4 text-primary/70" />
                     </div>
-                    <div className="flex flex-col gap-0.5 flex-1 min-w-0">
+                    <div className="flex flex-col gap-1 flex-1 min-w-0">
                       <div className="flex items-center gap-2">
-                        <span className="font-medium text-sm">{result.label}</span>
-                        <Badge variant="secondary" className="text-[10px] h-4 px-1.5 shrink-0 rounded-full">
+                        <span className="font-semibold text-sm text-foreground/90 truncate">{result.label}</span>
+                        <Badge variant="secondary" className="text-[10px] h-4 px-1.5 shrink-0 rounded-full bg-primary/8 text-primary/70 border-0 font-medium">
                           {RESULT_TYPE_LABEL[result.type]}
                         </Badge>
                       </div>
-                      <div className="flex items-center gap-1 text-xs text-muted-foreground">
+                      <div className="flex items-center gap-1 text-[11px] text-muted-foreground/60 truncate">
                         {result.breadcrumb.map((crumb, idx) => (
-                          <span key={idx} className="flex items-center gap-1">
-                            {idx > 0 && <ChevronRight className="h-2.5 w-2.5 shrink-0" />}
+                          <span key={idx} className="flex items-center gap-1 shrink-0">
+                            {idx > 0 && <ChevronRight className="h-2.5 w-2.5 shrink-0 text-muted-foreground/40" />}
                             {crumb}
                           </span>
                         ))}
                       </div>
                     </div>
+                    <ChevronRight className="h-4 w-4 text-muted-foreground/30 shrink-0 opacity-0 group-data-[selected=true]/item:opacity-100 transition-opacity" />
                   </CommandItem>
                 ))}
               </CommandGroup>
             )}
-            {menus.length > 0 && docs.length > 0 && <CommandSeparator />}
+
+            {menus.length > 0 && docs.length > 0 && <CommandSeparator className="mx-3 my-1 bg-border/30" />}
+
             {docs.length > 0 && (
               <CommandGroup
-                className="px-2 pb-2"
+                className="px-3 pt-3 pb-2"
                 heading={
-                  <span className="flex items-center justify-between px-1 pt-1">
-                    <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">문서</span>
-                    <span className="text-xs text-muted-foreground">{docs.length}건</span>
-                  </span>
+                  <div className="flex items-center justify-between px-1 pb-1.5">
+                    <div className="flex items-center gap-1.5">
+                      <div className="w-1.5 h-1.5 rounded-full bg-blue-500/60" />
+                      <span className="text-[11px] font-semibold text-muted-foreground/80 uppercase tracking-widest">문서</span>
+                    </div>
+                    <span className="text-[11px] text-muted-foreground/50 tabular-nums">{docs.length}건</span>
+                  </div>
                 }
               >
                 {docs.map((result) => (
-                  <CommandItem key={result.id} value={result.id} onSelect={() => handleSelectDoc(result)} className="flex items-center gap-3 px-3 py-3 rounded-xl cursor-pointer">
-                    <div className="flex items-center justify-center w-8 h-8 rounded-lg bg-blue-500/10 shrink-0">
-                      <BookOpen className="h-3.5 w-3.5 text-blue-500" />
+                  <CommandItem
+                    key={result.id}
+                    value={result.id}
+                    onSelect={() => handleSelectDoc(result)}
+                    className="flex items-center gap-3.5 px-3 py-3.5 rounded-xl cursor-pointer data-[selected=true]:bg-blue-500/8 group/item mb-0.5 last:mb-0"
+                  >
+                    <div className="flex items-center justify-center w-9 h-9 rounded-xl bg-blue-500/10 shrink-0 group-data-[selected=true]/item:bg-blue-500/15 transition-colors">
+                      <BookOpen className="h-4 w-4 text-blue-500/70" />
                     </div>
-                    <div className="flex flex-col gap-0.5 flex-1 min-w-0">
+                    <div className="flex flex-col gap-1 flex-1 min-w-0">
                       <div className="flex items-center gap-2">
-                        <span className="font-medium text-sm">{result.label}</span>
-                        <Badge variant="secondary" className="text-[10px] h-4 px-1.5 shrink-0 rounded-full">
+                        <span className="font-semibold text-sm text-foreground/90 truncate">{result.label}</span>
+                        <Badge variant="secondary" className="text-[10px] h-4 px-1.5 shrink-0 rounded-full bg-blue-500/8 text-blue-600/70 border-0 font-medium">
                           {RESULT_TYPE_LABEL[result.type]}
                         </Badge>
                       </div>
-                      <div className="flex items-center gap-1 text-xs text-muted-foreground">
+                      <div className="flex items-center gap-1 text-[11px] text-muted-foreground/60 truncate">
                         {result.breadcrumb.map((crumb, idx) => (
-                          <span key={idx} className="flex items-center gap-1">
-                            {idx > 0 && <ChevronRight className="h-2.5 w-2.5 shrink-0" />}
+                          <span key={idx} className="flex items-center gap-1 shrink-0">
+                            {idx > 0 && <ChevronRight className="h-2.5 w-2.5 shrink-0 text-muted-foreground/40" />}
                             {crumb}
                           </span>
                         ))}
                       </div>
                     </div>
+                    <ChevronRight className="h-4 w-4 text-muted-foreground/30 shrink-0 opacity-0 group-data-[selected=true]/item:opacity-100 transition-opacity" />
                   </CommandItem>
                 ))}
               </CommandGroup>
             )}
           </CommandList>
-          {hasResults && (
-            <div className="border-t border-border/50 px-4 py-2.5 flex items-center gap-4 text-[11px] text-muted-foreground/70 bg-muted/20">
-              <span>
-                <kbd className="rounded-md border bg-background px-1.5 py-0.5 font-mono shadow-sm">↑↓</kbd> 이동
+
+          <div className="border-t border-border/30 px-5 py-3 flex items-center justify-between bg-muted/20">
+            <div className="flex items-center gap-4 text-[11px] text-muted-foreground/50">
+              <span className="flex items-center gap-1.5">
+                <kbd className="inline-flex items-center justify-center rounded border border-border/60 bg-background px-1.5 py-px font-mono text-[10px] shadow-sm leading-none h-4">
+                  ↑↓
+                </kbd>
+                <span>이동</span>
               </span>
-              <span>
-                <kbd className="rounded-md border bg-background px-1.5 py-0.5 font-mono shadow-sm">Enter</kbd> 이동
+              <span className="flex items-center gap-1.5">
+                <kbd className="inline-flex items-center justify-center rounded border border-border/60 bg-background px-1.5 py-px font-mono text-[10px] shadow-sm leading-none h-4">
+                  ↵
+                </kbd>
+                <span>선택</span>
               </span>
-              <span>
-                <kbd className="rounded-md border bg-background px-1.5 py-0.5 font-mono shadow-sm">Esc</kbd> 닫기
+              <span className="flex items-center gap-1.5">
+                <kbd className="inline-flex items-center justify-center rounded border border-border/60 bg-background px-1.5 py-px font-mono text-[10px] shadow-sm leading-none h-4">
+                  Esc
+                </kbd>
+                <span>닫기</span>
               </span>
             </div>
-          )}
+            {hasResults && <span className="text-[11px] text-muted-foreground/40 tabular-nums">총 {menus.length + docs.length}건</span>}
+          </div>
         </Command>
       </PopoverContent>
     </Popover>
