@@ -99,7 +99,7 @@ export default function BffFlowManagement() {
         {/* 우측: 생성/상세 */}
         <div className="flex-1 min-h-0">
           {showForm ? (
-            <FlowDetailForm key={formKey} flow={selectedFlow} onSave={handleSave} onDelete={handleDelete} saving={saveFlowMutation.isPending} />
+            <FlowDetailForm key={formKey} flow={selectedFlow} onSave={handleSave} onSaved={setSelectedFlow} onDelete={handleDelete} saving={saveFlowMutation.isPending} />
           ) : (
             <div className="h-full bg-white bt-shadow flex items-center justify-center">
               <NoData message="좌측 리스트에서 Flow를 선택하거나 추가해주세요" />

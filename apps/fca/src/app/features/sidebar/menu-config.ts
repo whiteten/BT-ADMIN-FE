@@ -1,15 +1,19 @@
 import { Activity, Bot } from 'lucide-react';
 import { IconMenuBotCommon, IconMenuBotConfig, IconMenuDashboard, IconMenuMain, IconMenuStatistics } from '@/components/custom/Icons';
 
+/**
+ * FCA 앱 로컬 메뉴 설정.
+ * IAM 재설계 v2.2: menuId(number) → menuKey(string).
+ */
 const appId = 'fca';
-const appName = 'FOCUS AI';
+const appName = 'FORCUS AI';
 const menuConfig = {
   appId: appId,
   appName: appName,
   icon: Bot,
   menus: [
     {
-      menuId: 1,
+      menuKey: 'fca-main',
       label: '메인',
       path: 'main',
       index: 0,
@@ -17,21 +21,21 @@ const menuConfig = {
       hide: false,
     },
     {
-      menuId: 2,
+      menuKey: 'fca-mgmt',
       label: '봇 관리',
       icon: IconMenuBotConfig,
       index: 1,
       hide: false,
       children: [
         {
-          menuId: 6,
+          menuKey: 'bot',
           label: '봇',
           path: 'bot-config/bot/list',
           index: 0,
           hide: false,
         },
         {
-          menuId: 7,
+          menuKey: 'model',
           label: '모델',
           path: 'bot-config/model/list',
           index: 1,
@@ -40,60 +44,74 @@ const menuConfig = {
       ],
     },
     {
-      menuId: 3,
+      menuKey: 'fca-cm',
       label: '공용',
       index: 2,
       hide: false,
       icon: IconMenuBotCommon,
       children: [
         {
-          menuId: 8,
+          menuKey: 'cm-model',
           label: '공용모델',
           path: 'global/model/list',
           index: 0,
           hide: false,
         },
         {
-          menuId: 22,
+          menuKey: 'cm-global-env',
+          label: '공용 환경변수',
+          path: 'global/env',
+          index: 1,
+          hide: false,
+        },
+        {
+          menuKey: 'cm-aoe-ext',
           label: 'AOE 확장',
           path: 'global/aoe/config',
-          index: 1,
+          index: 2,
           hide: false,
         },
       ],
     },
     {
-      menuId: 55,
-      label: '트레킹',
+      menuKey: 'fca-tracking',
+      label: '트래킹',
       index: 3,
       hide: false,
       icon: Activity,
       children: [
         {
-          menuId: 56,
+          menuKey: 'tracking-realtime',
           label: '실시간 봇 트래킹',
-          path: 'tracking/realtime',
+          path: 'tracking/bot-realtime',
           index: 0,
           hide: false,
         },
         {
-          menuId: 75,
+          menuKey: 'fca-bot-dialog-history',
           label: '대화이력',
-          path: 'tracking/realtime',
+          path: 'tracking/bot-dialog-history',
           index: 1,
+          hide: false,
+        },
+        {
+          menuKey: 'bot-dialog-decrypt-log',
+          label: '개인정보 열람 이력',
+          path: 'tracking/decrypt-log',
+          index: 2,
           hide: false,
         },
       ],
     },
     {
-      menuId: 4,
+      menuKey: 'fca-dashboard',
       label: '대시보드',
       index: 4,
       hide: false,
       icon: IconMenuDashboard,
       children: [
         {
-          menuId: 9,
+          menuKey: 'call-bot-status',
           label: '콜봇 현황',
           path: 'dashboard/call-bot',
           index: 0,
@@ -102,34 +120,34 @@ const menuConfig = {
       ],
     },
     {
-      menuId: 5,
+      menuKey: 'fca-stats',
       label: '통계',
       index: 5,
       hide: false,
       icon: IconMenuStatistics,
       children: [
         {
-          menuId: 10,
+          menuKey: 'callbot-stats',
           label: '콜봇 통계',
           index: 0,
           hide: false,
           children: [
             {
-              menuId: 12,
+              menuKey: 'stats-service',
               label: '서비스 통계',
               path: 'statistics/call-bot/service',
               index: 0,
               hide: false,
             },
             {
-              menuId: 13,
+              menuKey: 'stats-dialog',
               label: '대화 통계',
               path: 'statistics/call-bot/dialog',
               index: 1,
               hide: false,
             },
             {
-              menuId: 23,
+              menuKey: 'stat-slot',
               label: '슬롯 통계',
               path: 'statistics/call-bot/slot',
               index: 2,
@@ -138,27 +156,27 @@ const menuConfig = {
           ],
         },
         {
-          menuId: 11,
+          menuKey: 'nlu-stats',
           label: 'NLU 통계',
           index: 1,
           hide: false,
           children: [
             {
-              menuId: 14,
+              menuKey: 'stats-intent',
               label: '의도 통계',
               path: 'statistics/nlu/intent',
               index: 0,
               hide: false,
             },
             {
-              menuId: 15,
+              menuKey: 'stats-entity',
               label: '개체 통계',
               path: 'statistics/nlu/entity',
               index: 1,
               hide: false,
             },
             {
-              menuId: 16,
+              menuKey: 'stats-keyword',
               label: '키워드 통계',
               path: 'statistics/nlu/keyword',
               index: 2,

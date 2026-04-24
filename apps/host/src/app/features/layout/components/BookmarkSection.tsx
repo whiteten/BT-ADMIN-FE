@@ -14,12 +14,15 @@ import { SidebarGroup, SidebarGroupLabel, SidebarMenu, SidebarMenuButton, Sideba
 import type { Bookmark } from '@/libs/shared-api/src/lib/types/navi.types';
 import type { MenuConfig, MenuItem } from '@/libs/shared-store/src/types/menu.types';
 
-/** menuConfigs에서 bookmark의 menuId에 해당하는 메뉴의 최상위 부모 아이콘과 path를 조회 */
+/**
+ * menuConfigs에서 bookmark의 menuKey에 해당하는 메뉴의 최상위 부모 아이콘과 path를 조회.
+ * IAM 재설계 v2.2: menuId → menuKey.
+ */
 const findMenuInfo = (menuConfigs: MenuConfig[], bookmark: Bookmark): { icon?: React.ElementType; path?: string } => {
   for (const config of menuConfigs) {
     if (config.appId !== bookmark.appId) continue;
     for (const menu of config.menus) {
-      const result = findMenuItemRecursive(menu, bookmark.menuId);
+      const result = findMenuItemRecursive(menu, bookmark.menuKey);
       if (result) {
         return { icon: menu.icon, path: result.path };
       }
@@ -28,14 +31,14 @@ const findMenuInfo = (menuConfigs: MenuConfig[], bookmark: Bookmark): { icon?: R
   return {};
 };
 
-/** 메뉴 트리를 재귀적으로 탐색하여 menuId가 일치하는 항목을 반환 */
-const findMenuItemRecursive = (item: MenuItem, menuId: number): { path?: string } | null => {
-  if (item.menuId === menuId) {
+/** 메뉴 트리를 재귀적으로 탐색하여 menuKey가 일치하는 항목을 반환 */
+const findMenuItemRecursive = (item: MenuItem, menuKey: string): { path?: string } | null => {
+  if (item.menuKey === menuKey) {
     return { path: item.path };
   }
   if (item.children) {
     for (const child of item.children) {
-      const result = findMenuItemRecursive(child, menuId);
+      const result = findMenuItemRecursive(child, menuKey);
       if (result) return result;
     }
   }
@@ -51,7 +54,7 @@ interface SortableBookmarkItemProps {
 
 const SortableBookmarkItem = ({ bookmark, icon: Icon, path, isEditMode }: SortableBookmarkItemProps) => {
   const { attributes, listeners, setNodeRef, transform, transition } = useSortable({
-    id: bookmark.menuId,
+    id: bookmark.menuKey,
   });
 
   const style = {
@@ -106,11 +109,11 @@ const BookmarkSection = () => {
 
   const handleToggleEditMode = () => {
     if (isEditMode) {
-      const menuIds = sortedFavorites.map((f) => f.menuId);
-      const originalMenuIds = [...favorites].sort((a, b) => a.sortOrder - b.sortOrder).map((f) => f.menuId);
-      const hasChanged = menuIds.some((id, index) => id !== originalMenuIds[index]);
+      const menuKeys = sortedFavorites.map((f) => f.menuKey);
+      const originalMenuKeys = [...favorites].sort((a, b) => a.sortOrder - b.sortOrder).map((f) => f.menuKey);
+      const hasChanged = menuKeys.some((k, index) => k !== originalMenuKeys[index]);
       if (hasChanged) {
-        updateBookmark({ params: {}, data: { menuIds } });
+        updateBookmark({ params: {}, data: { menuKeys } });
       }
     }
     setIsEditMode(!isEditMode);
@@ -121,8 +124,8 @@ const BookmarkSection = () => {
     if (!over || active.id === over.id) return;
 
     setSortedFavorites((prev) => {
-      const oldIndex = prev.findIndex((item) => item.menuId === active.id);
-      const newIndex = prev.findIndex((item) => item.menuId === over.id);
+      const oldIndex = prev.findIndex((item) => item.menuKey === active.id);
+      const newIndex = prev.findIndex((item) => item.menuKey === over.id);
       return arrayMove(prev, oldIndex, newIndex);
     });
   };
@@ -142,17 +145,17 @@ const BookmarkSection = () => {
       <SidebarMenu>
         {isEditMode ? (
           <DndContext collisionDetection={closestCenter} modifiers={[restrictToVerticalAxis, restrictToParentElement]} onDragEnd={handleDragEnd}>
-            <SortableContext items={sortedFavorites.map((f) => f.menuId)} strategy={verticalListSortingStrategy}>
+            <SortableContext items={sortedFavorites.map((f) => f.menuKey)} strategy={verticalListSortingStrategy}>
               {sortedFavorites.map((bookmark) => {
                 const { icon, path } = findMenuInfo(menuConfigs, bookmark);
-                return <SortableBookmarkItem key={bookmark.menuId} bookmark={bookmark} icon={icon} path={path} isEditMode />;
+                return <SortableBookmarkItem key={bookmark.menuKey} bookmark={bookmark} icon={icon} path={path} isEditMode />;
               })}
             </SortableContext>
           </DndContext>
         ) : (
           sortedFavorites.map((bookmark) => {
             const { icon, path } = findMenuInfo(menuConfigs, bookmark);
-            return <SortableBookmarkItem key={bookmark.menuId} bookmark={bookmark} icon={icon} path={path} isEditMode={false} />;
+            return <SortableBookmarkItem key={bookmark.menuKey} bookmark={bookmark} icon={icon} path={path} isEditMode={false} />;
           })
         )}
       </SidebarMenu>

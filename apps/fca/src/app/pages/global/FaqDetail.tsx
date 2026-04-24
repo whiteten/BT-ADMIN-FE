@@ -15,7 +15,7 @@ export default function FaqDetail() {
   const breadcrumb: BreadcrumbProps['items'] = [
     { title: '공용', path: '/fca/global' },
     { title: 'AOE 확장', path: '/fca/global/aoe/config' },
-    { title: ':agentName', path: `/fca/global/aoe/faq/${agentId}` },
+    { title: ':agentName', path: `/fca/global/aoe/config/${agentId}/faq` },
   ];
   const params: BreadcrumbProps['params'] = { agentName: aoeAgent?.agentName ?? '-' };
   return (

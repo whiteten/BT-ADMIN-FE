@@ -1,12 +1,13 @@
 /**
- * 메뉴 관리 타입 정의
+ * 메뉴 관리 타입 정의.
+ *
+ * IAM 재설계 v2.3: menuId/parentId(number) → menuKey/parentKey(string).
  */
 
 /** 백엔드 MenuResponse와 1:1 매핑 */
 export interface Menu {
-  menuId: number;
-  parentId: number | null;
   menuKey: string;
+  parentKey: string | null;
   appId: string;
   appName: string | null;
   label: string;
@@ -20,7 +21,7 @@ export interface Menu {
 
 /** 백엔드 MenuUpsertRequest와 1:1 매핑 */
 export interface MenuUpsertRequest {
-  parentId?: number | null;
+  parentKey?: string | null;
   menuKey: string;
   appId: string;
   label: string;
@@ -28,12 +29,12 @@ export interface MenuUpsertRequest {
   i18nKey?: string;
   sortOrder?: number;
   featureFlag?: string;
-  visible: boolean;
+  visible: number;
 }
 
 /** Ant Design Tree 노드용 변환 타입 */
 export interface MenuTreeNode {
-  key: string | number;
+  key: string;
   title: string;
   children: MenuTreeNode[];
   icon?: React.ReactNode;

@@ -81,7 +81,7 @@ bt-admin-fe/
 ├── apps/                    # 애플리케이션들
 │   ├── host/                # 🏠 Host App (메인 셸)
 │   ├── manager/             # 👤 매니저 (사용자 관리, 대시보드)
-│   └── fca/                 # 🤖 Focus AI (봇 관리)
+│   └── fca/                 # 🤖 ForCus AI (봇 관리)
 ├── libs/                    # 공유 라이브러리들
 │   ├── shared-ui/           # 🎨 재사용 UI 컴포넌트
 │   ├── shared-api/          # 🔌 공통 API 및 타입

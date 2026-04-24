@@ -1,6 +1,7 @@
 import { useMutation, useQuery } from '@tanstack/react-query';
 import { createQueryKeys } from '@lukemorales/query-key-factory';
-import type { MutationHookOptions, QueryHookWithParamsOptions } from '@/shared-util';
+import dayjs from 'dayjs';
+import { type MutationHookOptions, type QueryHookWithParamsOptions, downloadBlob, extractFileName } from '@/shared-util';
 import { botApi } from '../api/botApi';
 import type {
   BotAoeDetailItem,
@@ -236,6 +237,35 @@ export const useGetEnvNodeList = ({ params, queryOptions }: QueryHookWithParamsO
 export const useApplyEnv = ({ mutationOptions }: MutationHookOptions = {}) => {
   return useMutation({
     mutationFn: botApi.applyEnv,
+    ...mutationOptions,
+  });
+};
+
+export const useExportEnv = ({ mutationOptions }: MutationHookOptions = {}) => {
+  return useMutation({
+    mutationFn: async (params: Record<string, unknown>) => {
+      const response = await botApi.exportEnv(params);
+      const fileName = extractFileName(response.headers['content-disposition'], `SLEE_CONFIG_${dayjs().format('YYYYMMDD')}.xlsx`);
+      downloadBlob(response.data, fileName);
+    },
+    ...mutationOptions,
+  });
+};
+
+export const useImportEnv = ({ mutationOptions }: MutationHookOptions = {}) => {
+  return useMutation({
+    mutationFn: botApi.importEnv,
+    ...mutationOptions,
+  });
+};
+
+export const useDownloadScenario = ({ mutationOptions }: MutationHookOptions = {}) => {
+  return useMutation({
+    mutationFn: async (params: Record<string, unknown>) => {
+      const response = await botApi.downloadScenario(params);
+      const fileName = extractFileName(response.headers['content-disposition'], `scenario_${params['serviceId']}_${params['serviceVer']}.xml`);
+      downloadBlob(response.data, fileName);
+    },
     ...mutationOptions,
   });
 };

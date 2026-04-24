@@ -19,6 +19,7 @@ import { Button, Input, type InputRef, Select } from 'antd';
 import dayjs from 'dayjs';
 import { Check, X } from 'lucide-react';
 import { toast } from '@/shared-util';
+import ExcelImportResultModal, { type ExcelImportResultModalRef } from '../components/ExcelImportResultModal';
 import IntentSentenceAutoGenDrawer, { type IntentSentenceAutoGenDrawerRef } from '../components/IntentSentenceAutoGenDrawer';
 import { modelInferenceModal } from '../components/ModelInferenceModal';
 import TrainDiffStatusBadge from '../components/TrainDiffStatusBadge';
@@ -131,6 +132,7 @@ export default function IntentSentenceList() {
   // Refs
   const refAutoGenDrawer = useRef<IntentSentenceAutoGenDrawerRef>(null);
   const importModalRef = useRef<FileImportModalRef>(null);
+  const importResultModalRef = useRef<ExcelImportResultModalRef>(null);
   const gridApiRef = useRef<GridApi<IntentSentenceListItem> | null>(null);
 
   // State
@@ -181,10 +183,10 @@ export default function IntentSentenceList() {
   });
   const { mutate: importIntentSentence, isPending: isImporting } = useImportIntentSentence({
     mutationOptions: {
-      onSuccess: () => {
-        toast.success('완료되었습니다.');
+      onSuccess: (data) => {
         queryClient.invalidateQueries({ queryKey: modelQueryKeys.getIntentSentences({ modelId, intentId }).queryKey });
         importModalRef.current?.close();
+        importResultModalRef.current?.open(data);
       },
     },
   });
@@ -469,6 +471,7 @@ export default function IntentSentenceList() {
       </div>
       <IntentSentenceAutoGenDrawer ref={refAutoGenDrawer} onAdd={handleCreateBulkIntentSentenceByDrawer} isAdding={isCreatingBulk} />
       <FileImportModal ref={importModalRef} title="Import" accept=".xlsx,.xls" onConfirm={handleImportIntentSentence} confirmLoading={isImporting} />
+      <ExcelImportResultModal ref={importResultModalRef} nameColumnTitle="문장" />
     </div>
   );
 }

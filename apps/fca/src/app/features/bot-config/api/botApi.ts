@@ -25,6 +25,7 @@ import type {
   TtsListItem,
   WorkTime,
 } from '../types';
+import type { ExcelImportResult } from '../types/intent';
 
 const apiClient = new ApiClient({ serviceURL: '/bff' });
 
@@ -140,6 +141,20 @@ export const botApi = {
   },
   applyEnv: async ({ params, data }: { params: Record<string, unknown>; data: Record<string, unknown> }) => {
     const response = await apiClient.post('/bot-slee-config-apply', data, { params });
+    return response;
+  },
+  exportEnv: async (params: Record<string, unknown>) => {
+    const response = await apiClient.get<Blob>('/bot-slee-config-excel-export', { params, responseType: 'blob' });
+    return response;
+  },
+  importEnv: async ({ params, data }: { params: Record<string, unknown>; data: File }): Promise<ExcelImportResult> => {
+    const formData = new FormData();
+    formData.append('uploadFile', data);
+    const response = await apiClient.post<DetailResponse<ExcelImportResult>>('/bot-slee-config-excel-import', formData, { params });
+    return extractDetail(response);
+  },
+  downloadScenario: async (params: Record<string, unknown>) => {
+    const response = await apiClient.get<Blob>('/bot-scenario-download', { params, responseType: 'blob' });
     return response;
   },
 };

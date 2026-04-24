@@ -1,8 +1,8 @@
-# FCA App (Focus AI)
+# FCA App (ForCus AI)
 
 > 작성일: 2025-02-25
 
-Module Federation **Remote** 애플리케이션입니다. 챗봇 관리, 대시보드, 통계 등 Focus AI 관련 기능을 제공합니다.
+Module Federation **Remote** 애플리케이션입니다. 챗봇 관리, 대시보드, 통계 등 ForCus AI 관련 기능을 제공합니다.
 
 - **패키지**: `@bridgetec/ui-remote-fca`
 - **포트**: 4202
@@ -47,9 +47,5 @@ Host 앱에서 `fca/Module`로 라우팅되며, `fca/MenuConfig`로 사이드바
 ## 개발
 
 ```bash
-# Host와 함께 시작 (권장)
 pnpm run serve
-
-# FCA만 단독 실행
-npx nx serve fca
 ```

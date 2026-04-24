@@ -5,10 +5,15 @@ export interface ServiceStatItem {
   serviceName: string; // 서비스명
   serviceEnterCount: number; // 진입수
   serviceCompleteCount: number; // 완결수
+  serviceFailCount: number; // 미완결수
   serviceCompletePercent: number; // 완결율
-  reqAgentCount: number; // 상담연결수
-  enterReqAgentPercent: number; // 진입수별 상담 연결율
-  completeReqAgentPercent: number; // 완결수별 상담 연결율
+  serviceFailPercent: number; // 미완결율
+  reqAgentCount: number; // 진입별 상담연결수
+  enterReqAgentPercent: number; // 진입별 상담 연결율
+  completeReqAgentCount: number; // 완결별 상담연결수
+  completeReqAgentPercent: number; // 완결별 상담 연결율
+  failReqAgentCount: number; // 미완결별 상담연결수
+  failReqAgentPercent: number; // 미완결별 상담 연결율
   botSlotInCount: number; // 질의수
 }
 
@@ -17,13 +22,15 @@ export type ServiceStatListItem = ServiceStatItem;
 export interface DialogStatItem {
   psrTimeKey: string; // 날짜시간
   tenantId?: number; // 테넌트 ID
-  serviceId?: string; // 봇서비스 ID
-  serviceName: string; // 봇서비스명
+  serviceId?: string; // 봇 ID
+  serviceName: string; // 봇명
   dialogId: string; // 대화 ID
   dialogName: string; // 대화명
   inCount: number; // 진입수
   successCount: number; // 완결수
+  failCount: number; // 미완결수
   successPercent: number; // 완결율
+  failPercent: number; // 미완결율
 }
 
 export type DialogStatListItem = DialogStatItem;
@@ -31,19 +38,23 @@ export type DialogStatListItem = DialogStatItem;
 export interface SlotStatItem {
   psrTimeKey: string; // 날짜시간
   tenantId?: number; // 테넌트 ID
-  serviceId?: string; // 봇서비스 ID
-  serviceName: string; // 봇서비스명
+  serviceId?: string; // 봇 ID
+  serviceName: string; // 봇명
   dialogId: string; // 대화 ID
   dialogName: string; // 대화명
   slotId: string; // 슬롯 ID
   slotName: string; // 슬롯명
+  isCustomSlot: number; // 슬롯타입
   prevSlotId: string; //
   prevSlotName: string; //
   entityTag: string; //
   prevEntityTag: string; //
   inCount: number; // 진입수
   successCount: number; // 완결수
+  failCount: number; // 미완결수
   successPercent: number; // 완결율
+  failPercent: number; // 미완결율
+  retryCount: number; // 재시도 횟수
   oneTimeOrLess: number; //
   oneTimeOrLessPercent: number; //
   twoTimes: number; //
@@ -57,8 +68,8 @@ export type SlotStatListItem = SlotStatItem;
 export interface IntentStatItem {
   psrTimeKey: string; // 날짜시간
   tenantId?: number; // 테넌트 ID
-  scnId?: string; // 봇서비스 ID
-  scnName: string; // 봇서비스명
+  scnId?: string; // 봇 ID
+  scnName: string; // 봇명
   modelId: string; // 모델 ID
   modelName: string; // 모델명
   intent: string; // 의도
@@ -74,8 +85,8 @@ export type IntentStatListItem = IntentStatItem;
 export interface EntityStatItem {
   psrTimeKey: string; // 날짜시간
   tenantId?: number; // 테넌트 ID
-  scnId?: string; // 봇서비스 ID
-  scnName: string; // 봇서비스명
+  scnId?: string; // 봇 ID
+  scnName: string; // 봇명
   modelId: string; // 모델 ID
   modelName: string; // 모델명
   entityTag: string; // 개체 태그
@@ -88,8 +99,8 @@ export type EntityStatListItem = EntityStatItem;
 export interface KeywordStatItem {
   psrTimeKey: string; // 날짜시간
   tenantId?: number; // 테넌트 ID
-  scnId?: string; // 봇서비스 ID
-  scnName: string; // 봇서비스명
+  scnId?: string; // 봇 ID
+  scnName: string; // 봇명
   modelId: string; // 모델 ID
   modelName: string; // 모델명
   entityTag: string; // 개체 태그
@@ -112,3 +123,17 @@ export interface SlotOptionItem {
 }
 
 export type SlotOptionListItem = SlotOptionItem;
+
+export interface IntentOptionItem {
+  intentId: string; // 대화 ID
+  intentName: string; // 대화명
+}
+
+export type IntentOptionListItem = IntentOptionItem;
+
+export interface EntityOptionItem {
+  entityId: string; // 대화 ID
+  entityName: string; // 대화명
+}
+
+export type EntityOptionListItem = EntityOptionItem;

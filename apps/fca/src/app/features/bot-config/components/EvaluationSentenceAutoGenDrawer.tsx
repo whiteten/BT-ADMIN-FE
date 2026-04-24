@@ -178,7 +178,7 @@ const EvaluationSentenceAutoGenDrawer = forwardRef<EvaluationSentenceAutoGenDraw
       data: {
         fileName: `평가문장_자동생성_${dayjs().format('YYYYMMDD')}`,
         sheetName: '평가문장_자동생성',
-        keys: ['평가문장', '정답의도'],
+        keys: ['질문', '정답'],
         values,
       },
     });

@@ -13,7 +13,7 @@ bt-admin-fe/
 ├── apps/
 │   ├── host/         # Host 앱 (셸, 인증, 레이아웃)     :4200
 │   ├── manager/      # Remote - 매니저 (사용자·권한 관리)  :4201
-│   └── fca/          # Remote - Focus AI (봇·대시보드)    :4202
+│   └── fca/          # Remote - ForCus AI (봇·대시보드)    :4202
 ├── libs/
 │   ├── shared-ui/    # 공통 UI 컴포넌트 (shadcn/ui, 커스텀)
 │   ├── shared-api/   # 공통 API (역할, 네비게이션, 북마크)

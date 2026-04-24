@@ -24,6 +24,9 @@ const BffFlowManagement = React.lazy(() => import('./pages/bff-flow/BffFlowManag
 // 작업이력 페이지
 const WorkHistoryList = React.lazy(() => import('./pages/work-history/WorkHistoryList'));
 
+// 데이터 보관주기 관리 페이지
+const DataRetentionPage = React.lazy(() => import('./pages/data-retention/DataRetentionPage'));
+
 // 클라이언트 관리 페이지
 const ClientList = React.lazy(() => import('./pages/client/ClientList'));
 const ClientCreate = React.lazy(() => import('./pages/client/ClientCreate'));
@@ -136,6 +139,10 @@ export const routes = [
           {
             path: 'work-history',
             element: <WorkHistoryList />,
+          },
+          {
+            path: 'data-retention',
+            element: <DataRetentionPage />,
           },
           {
             path: 'client',

@@ -42,8 +42,8 @@ export default function FlowList({ flows, selectedFlowId, onSelect, onAdd }: Flo
             {filteredFlows.map((flow) => (
               <li key={flow.flowId} className={`px-3 py-2 cursor-pointer hover:bg-blue-50 ${selectedFlowId === flow.flowId ? 'bg-blue-100' : ''}`} onClick={() => onSelect(flow)}>
                 <div className="min-w-0">
-                  <div className="text-sm font-medium truncate">{flow.flowId}</div>
-                  {flow.description && <div className="text-xs text-gray-400 truncate">{flow.description}</div>}
+                  <div className="text-sm font-medium truncate">{flow.description || flow.flowId}</div>
+                  <div className="text-xs text-gray-400 truncate">{flow.flowId}</div>
                 </div>
               </li>
             ))}

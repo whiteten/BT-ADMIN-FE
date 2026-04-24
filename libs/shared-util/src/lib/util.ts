@@ -61,16 +61,25 @@ export function downloadBlob(blob: Blob, fileName: string): void {
 
 /**
  * 텍스트를 클립보드에 복사 (HTTP 환경 폴백 포함)
+ * 모달/다이얼로그 내부에서도 동작하도록 포커스 트랩을 고려한 구현
  */
 export async function copyToClipboard(text: string): Promise<void> {
-  if (navigator.clipboard) {
-    await navigator.clipboard.writeText(text);
-  } else {
+  const execCommandFallback = () => {
     const el = document.createElement('textarea');
     el.value = text;
-    document.body.appendChild(el);
+    // 모달 내부에서 호출될 경우 포커스 트랩을 피하기 위해 다이얼로그 요소 안에 추가
+    const dialogEl = document.querySelector('[role="alertdialog"], [role="dialog"]');
+    const container = dialogEl ?? document.body;
+    container.appendChild(el);
+    el.focus();
     el.select();
     document.execCommand('copy');
     el.remove();
+  };
+
+  if (navigator.clipboard) {
+    await navigator.clipboard.writeText(text).catch(execCommandFallback);
+  } else {
+    execCommandFallback();
   }
 }
