@@ -33,7 +33,7 @@ export default function AoeFaqAgentList() {
   };
 
   const handleDetail = (agentId: string) => {
-    navigate(`../faq/${agentId}`);
+    navigate(`${agentId}/faq`);
   };
 
   if (isFetching) {

@@ -2,17 +2,17 @@
  * 권한 관리 API
  */
 import ApiClient, { type ListResponse, extractList } from '@/shared-util';
-import type { MenuWithPermissions, Permission, PermissionCreateRequest, PermissionFlat } from '../types/iam.types';
+import type { Permission, PermissionCreateRequest, PermissionFlat, PermissionGroup } from '../types/iam.types';
 
 const apiClient = new ApiClient({ serviceURL: '/bff' });
 
 export const permissionApi = {
   /**
-   * 메뉴별 권한 목록 조회
-   * 메뉴 트리 구조와 각 메뉴에 매핑된 권한 목록을 조회한다.
+   * 앱별 권한 목록 조회
+   * 메뉴 트리 구조와 각 메뉴에 매핑된 권한 목록을 앱별로 그룹화하여 조회한다.
    */
-  getMenusWithPermissions: async (): Promise<MenuWithPermissions[]> => {
-    const response = await apiClient.get<ListResponse<MenuWithPermissions>>('/permission-list');
+  getGroupedPermissions: async (): Promise<PermissionGroup[]> => {
+    const response = await apiClient.get<ListResponse<PermissionGroup>>('/permission-list');
     return extractList(response);
   },
 
@@ -36,7 +36,7 @@ export const permissionApi = {
   /**
    * 권한 삭제
    */
-  delete: async (authId: number): Promise<void> => {
-    await apiClient.delete('/permission-delete', { params: { authId } });
+  delete: async (authKey: string): Promise<void> => {
+    await apiClient.delete('/permission-delete', { params: { authKey } });
   },
 };

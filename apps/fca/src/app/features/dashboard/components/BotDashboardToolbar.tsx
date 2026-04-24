@@ -2,7 +2,7 @@ import { MultiSelect, type Option } from 'react-multi-select-component';
 import { Button } from 'antd';
 
 const multiSelectStrings = {
-  selectSomeItems: '봇서비스를 선택하세요.',
+  selectSomeItems: '봇을 선택하세요.',
   allItemsAreSelected: '전체 선택됨',
   selectAll: '전체 선택',
   selectAllFiltered: '전체 선택 (필터)',
@@ -48,48 +48,50 @@ export default function BotDashboardToolbar({
   onServiceChange,
 }: BotDashboardToolbarProps) {
   return (
-    <div className="flex gap-2 w-fit items-center shrink-0">
-      {isEditMode ? (
-        <div className="flex flex-wrap items-center gap-2">
-          <span className="text-sm font-medium text-[#495057] shrink-0">현황판 선택</span>
-          <MultiSelect
-            options={layoutFilterOptions}
-            value={selectedLayoutFilterItems}
-            onChange={onLayoutFilterChange}
-            labelledBy="현황판 선택"
-            hasSelectAll
-            overrideStrings={multiSelectStrings}
-            valueRenderer={createValueRenderer('현황판을 선택하세요.')}
-            isLoading={false}
-            className="w-[250px]"
-          />
-          <Button onClick={onCancelEdit}>취소</Button>
-          <Button variant="solid" color="orange" onClick={onResetLayouts}>
-            초기화
-          </Button>
-          <Button variant="solid" color="cyan" onClick={onSaveEdit}>
-            저장
-          </Button>
-        </div>
-      ) : (
-        <div className="flex flex-wrap items-center gap-2">
-          <span className="text-sm font-medium text-[#495057] shrink-0">봇서비스</span>
+    <div className="flex gap-2 w-full h-[58px] min-h-[58px] items-center shrink-0 bg-white bt-shadow px-5">
+      <div className="w-full flex flex-wrap items-center justify-between">
+        <div className="flex items-center gap-2">
+          <span className="text-sm font-medium text-[#495057] shrink-0">봇 선택</span>
           <MultiSelect
             options={serviceOptions}
             value={selectedService}
             onChange={onServiceChange}
-            labelledBy="봇서비스 선택"
+            labelledBy="봇 선택"
             hasSelectAll
             overrideStrings={multiSelectStrings}
-            valueRenderer={createValueRenderer('봇서비스를 선택하세요.')}
+            valueRenderer={createValueRenderer('봇을 선택하세요.')}
             isLoading={false}
             className="w-[250px]"
           />
+        </div>
+        {isEditMode ? (
+          <div className="flex items-center gap-2">
+            <span className="text-sm font-medium text-[#495057] shrink-0">현황판 선택</span>
+            <MultiSelect
+              options={layoutFilterOptions}
+              value={selectedLayoutFilterItems}
+              onChange={onLayoutFilterChange}
+              labelledBy="현황판 선택"
+              hasSelectAll
+              overrideStrings={multiSelectStrings}
+              valueRenderer={createValueRenderer('현황판을 선택하세요.')}
+              isLoading={false}
+              className="w-[250px]"
+            />
+            <Button onClick={onCancelEdit}>취소</Button>
+            <Button variant="solid" color="orange" onClick={onResetLayouts}>
+              초기화
+            </Button>
+            <Button variant="solid" color="cyan" onClick={onSaveEdit}>
+              저장
+            </Button>
+          </div>
+        ) : (
           <Button variant="solid" color="primary" onClick={onStartEdit}>
             화면편집
           </Button>
-        </div>
-      )}
+        )}
+      </div>
     </div>
   );
 }

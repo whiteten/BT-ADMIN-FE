@@ -43,9 +43,8 @@ export default function HourlyEntryGrid({ data }: HourlyEntryGridProps) {
       <AgGridReact<PivotedRow>
         rowData={rowData}
         columnDefs={columnDefs}
-        gridOptions={gridOptions}
+        gridOptions={{ ...gridOptions, statusBar: undefined }}
         pagination={false}
-        statusBar={{ statusPanels: [] }}
         sideBar={false}
         rowNumbers={false}
         headerHeight={32}

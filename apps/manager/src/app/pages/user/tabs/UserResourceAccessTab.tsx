@@ -139,9 +139,27 @@ export default function UserResourceAccessTab() {
   return (
     <div className="flex flex-col h-full overflow-hidden">
       <div className="flex-1 min-h-0 overflow-y-auto p-2">
-        <ResourceSection title="봇 서비스" drawerTitle="봇 서비스 추가" availableResources={availableBots} assignedItems={botItems} onAssignedItemsChange={setBotItems} />
-
-        <ResourceSection title="NLU 모델" drawerTitle="NLU 모델 추가" availableResources={availableModels} assignedItems={modelItems} onAssignedItemsChange={setModelItems} />
+        <ResourceSection
+          title="리소스 접근"
+          groups={[
+            {
+              resourceType: 'BOT',
+              title: '봇 서비스',
+              drawerTitle: '봇 서비스 추가',
+              availableResources: availableBots,
+              assignedItems: botItems,
+              onAssignedItemsChange: setBotItems,
+            },
+            {
+              resourceType: 'NLU_MODEL',
+              title: 'NLU 모델',
+              drawerTitle: 'NLU 모델 추가',
+              availableResources: availableModels,
+              assignedItems: modelItems,
+              onAssignedItemsChange: setModelItems,
+            },
+          ]}
+        />
       </div>
 
       {/* 버튼 */}

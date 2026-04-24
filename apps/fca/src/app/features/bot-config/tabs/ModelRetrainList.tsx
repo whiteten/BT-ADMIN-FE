@@ -301,7 +301,7 @@ export default function ModelRetrainList() {
           }
           window.open(finalUrl, '_blank');
         } catch {
-          toast.error('편집기 실행에 실패했습니다.');
+          // 글로벌 핸들러(useApiErrorHandler)가 서버 message로 toast 처리
         }
       },
     });

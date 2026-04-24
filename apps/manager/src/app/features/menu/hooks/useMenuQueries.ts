@@ -33,9 +33,9 @@ export const useCreateMenu = ({ mutationOptions }: MutationHookOptions<Menu, Men
 };
 
 /**
- * 메뉴 수정 훅
+ * 메뉴 수정 훅 (IAM v2.3: menuKey 기반)
  */
-export const useUpdateMenu = ({ mutationOptions }: MutationHookOptions<Menu, { id: number; data: MenuUpsertRequest }> = {}) => {
+export const useUpdateMenu = ({ mutationOptions }: MutationHookOptions<Menu, { menuKey: string; data: MenuUpsertRequest }> = {}) => {
   return useMutation({
     mutationFn: menuApi.update,
     ...mutationOptions,
@@ -43,9 +43,9 @@ export const useUpdateMenu = ({ mutationOptions }: MutationHookOptions<Menu, { i
 };
 
 /**
- * 메뉴 삭제 훅
+ * 메뉴 삭제 훅 (menuKey 기반)
  */
-export const useDeleteMenu = ({ mutationOptions }: MutationHookOptions<void, number> = {}) => {
+export const useDeleteMenu = ({ mutationOptions }: MutationHookOptions<void, string> = {}) => {
   return useMutation({
     mutationFn: menuApi.delete,
     ...mutationOptions,

@@ -6,12 +6,12 @@ import { Lock, User, Users } from 'lucide-react';
 import { useAuthStore } from '@/shared-store';
 import { toast } from '@/shared-util';
 import styles from './Login.module.scss';
+import { ChangePasswordDialog, type ChangePasswordDialogRef, type ChangePasswordMode } from '../components/ChangePasswordDialog';
 import { authApi } from '../features/auth/api/authApi';
 import { useLogin, useResetPassword } from '../features/auth/hooks/useAuthQueries';
 import { useRememberMeStore } from '../features/auth/hooks/useRememberMeStore';
 import type { LoginErrorResponse, LoginResponse, PasswordPolicy } from '../features/auth/types/auth';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { ChangePasswordDialog, type ChangePasswordDialogRef, type ChangePasswordMode } from '@/libs/shared-ui/src/components/custom/ChangePasswordDialog';
 import { Log } from '@/libs/shared-util/src/lib/log';
 
 export default function Login() {

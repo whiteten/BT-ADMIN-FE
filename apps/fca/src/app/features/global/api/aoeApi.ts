@@ -1,4 +1,5 @@
 import ApiClient, { type DetailResponse, type ListResponse, extractDetail, extractList } from '@/shared-util';
+import type { ExcelImportResult } from '../../bot-config/types/intent';
 import type { AoeBasicCreateDatas, AoeBasicDetailItem, FaqAgentListItem, FaqCreateDatas, FaqDetailItem, FaqListItem, FaqUpdateDatas } from '../types/aoe.types';
 
 const apiClient = new ApiClient({ serviceURL: '/bff' });
@@ -61,7 +62,7 @@ export const aoeApi = {
   importFaq: async ({ params, data }: { params: Record<string, unknown>; data: File }) => {
     const formData = new FormData();
     formData.append('uploadFile', data);
-    const response = await apiClient.post('/faq-excel-import', formData, { params });
-    return response;
+    const response = await apiClient.post<DetailResponse<ExcelImportResult>>('/faq-excel-import', formData, { params });
+    return extractDetail(response);
   },
 };

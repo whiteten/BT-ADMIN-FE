@@ -10,14 +10,14 @@ import { useMemo, useState } from 'react';
 import { Checkbox, Input } from 'antd';
 import { ChevronDown, ChevronRight, Folder, Search } from 'lucide-react';
 import { useGetGroupedPermissions } from '../hooks/usePermissionQueries';
-import type { ActionAuthIds, MenuWithPermissions, PermissionGroup } from '../types/iam.types';
+import type { ActionAuthKeys, MenuWithPermissions, PermissionGroup } from '../types/iam.types';
 import { FallbackSpinner } from '@/components/custom/FallbackSpinner';
 import NoData from '@/components/custom/NoData';
 import { cn } from '@/libs/shared-ui/src/lib/utils';
 
 interface PermissionSelectorProps {
-  value?: Set<number>;
-  onChange?: (authIds: Set<number>) => void;
+  value?: Set<string>;
+  onChange?: (authKeys: Set<string>) => void;
   className?: string;
 }
 
@@ -54,27 +54,27 @@ const actionStyles: Record<ActionType, { header: string; cell: string; text: str
   },
 };
 
-const EMPTY_AUTH_IDS: ActionAuthIds = { read: null, write: null, delete: null, apply: null, export: null };
+const EMPTY_AUTH_KEYS: ActionAuthKeys = { read: null, write: null, delete: null, apply: null, export: null };
 
 /**
- * ActionAuthIds에서 non-null authId 목록 반환
+ * ActionAuthKeys에서 non-null authKey 목록 반환
  */
-function getAuthIds(perms: ActionAuthIds): number[] {
-  return Object.values(perms).filter((v): v is number => v !== null);
+function getAuthKeys(perms: ActionAuthKeys): string[] {
+  return Object.values(perms).filter((v): v is string => v !== null);
 }
 
 /**
- * ActionAuthIds에서 특정 액션의 authId 반환
+ * ActionAuthKeys에서 특정 액션의 authKey 반환
  */
-function getAuthId(perms: ActionAuthIds, action: string): number | null {
-  return perms[action as keyof ActionAuthIds] ?? null;
+function getAuthKey(perms: ActionAuthKeys, action: string): string | null {
+  return perms[action as keyof ActionAuthKeys] ?? null;
 }
 
 /**
  * 메뉴 트리에서 권한이 있는지 확인 (어떤 액션이든 non-null이면 true)
  */
 function hasPermissionsInTree(menu: MenuWithPermissions): boolean {
-  if (getAuthIds(menu.permissions ?? EMPTY_AUTH_IDS).length > 0) return true;
+  if (getAuthKeys(menu.permissions ?? EMPTY_AUTH_KEYS).length > 0) return true;
   for (const child of menu.children ?? []) {
     if (hasPermissionsInTree(child)) return true;
   }
@@ -82,34 +82,34 @@ function hasPermissionsInTree(menu: MenuWithPermissions): boolean {
 }
 
 /**
- * 메뉴와 하위 메뉴의 모든 authId 수집
+ * 메뉴와 하위 메뉴의 모든 authKey 수집
  */
-function collectAuthIdsFromMenu(menu: MenuWithPermissions): number[] {
-  const ids = getAuthIds(menu.permissions ?? EMPTY_AUTH_IDS);
+function collectAuthKeysFromMenu(menu: MenuWithPermissions): string[] {
+  const keys = getAuthKeys(menu.permissions ?? EMPTY_AUTH_KEYS);
   for (const child of menu.children ?? []) {
-    ids.push(...collectAuthIdsFromMenu(child));
+    keys.push(...collectAuthKeysFromMenu(child));
   }
-  return ids;
+  return keys;
 }
 
 /**
- * 그룹에서 모든 authId 수집
+ * 그룹에서 모든 authKey 수집
  */
-function collectAllAuthIdsFromGroup(group: PermissionGroup): number[] {
-  return group.menus.flatMap((menu) => collectAuthIdsFromMenu(menu));
+function collectAllAuthKeysFromGroup(group: PermissionGroup): string[] {
+  return group.menus.flatMap((menu) => collectAuthKeysFromMenu(menu));
 }
 
 /**
- * 특정 액션 타입의 authId만 수집
+ * 특정 액션 타입의 authKey만 수집
  */
-function collectAuthIdsByAction(group: PermissionGroup, action: string): number[] {
-  const collect = (menu: MenuWithPermissions): number[] => {
-    const id = getAuthId(menu.permissions ?? EMPTY_AUTH_IDS, action);
-    const ids: number[] = id !== null ? [id] : [];
+function collectAuthKeysByAction(group: PermissionGroup, action: string): string[] {
+  const collect = (menu: MenuWithPermissions): string[] => {
+    const key = getAuthKey(menu.permissions ?? EMPTY_AUTH_KEYS, action);
+    const keys: string[] = key !== null ? [key] : [];
     for (const child of menu.children ?? []) {
-      ids.push(...collect(child));
+      keys.push(...collect(child));
     }
-    return ids;
+    return keys;
   };
   return group.menus.flatMap((menu) => collect(menu));
 }
@@ -130,7 +130,7 @@ interface FlatMenuItem {
  */
 function flattenMenuTree(menu: MenuWithPermissions, depth = 0): FlatMenuItem[] {
   const result: FlatMenuItem[] = [];
-  const hasPerms = getAuthIds(menu.permissions ?? EMPTY_AUTH_IDS).length > 0;
+  const hasPerms = getAuthKeys(menu.permissions ?? EMPTY_AUTH_KEYS).length > 0;
   const hasChildPerms = (menu.children ?? []).some((child) => hasPermissionsInTree(child));
 
   if (hasPerms || hasChildPerms) {
@@ -171,37 +171,37 @@ export default function PermissionSelector({ value = new Set(), onChange, classN
   }, [flatMenusByApp, searchText]);
 
   // 권한 토글
-  const handlePermissionToggle = (authId: number) => {
+  const handlePermissionToggle = (authKey: string) => {
     const next = new Set(value);
-    if (next.has(authId)) {
-      next.delete(authId);
+    if (next.has(authKey)) {
+      next.delete(authKey);
     } else {
-      next.add(authId);
+      next.add(authKey);
     }
     onChange?.(next);
   };
 
   // 메뉴(행) 전체 선택/해제
   const handleRowToggle = (menu: MenuWithPermissions, checked: boolean) => {
-    const allIds = collectAuthIdsFromMenu(menu);
+    const allKeys = collectAuthKeysFromMenu(menu);
     const next = new Set(value);
-    allIds.forEach((id) => (checked ? next.add(id) : next.delete(id)));
+    allKeys.forEach((key) => (checked ? next.add(key) : next.delete(key)));
     onChange?.(next);
   };
 
   // 열(액션 타입) 전체 선택/해제
   const handleColumnToggle = (group: PermissionGroup, action: string, checked: boolean) => {
-    const actionIds = collectAuthIdsByAction(group, action);
+    const actionKeys = collectAuthKeysByAction(group, action);
     const next = new Set(value);
-    actionIds.forEach((id) => (checked ? next.add(id) : next.delete(id)));
+    actionKeys.forEach((key) => (checked ? next.add(key) : next.delete(key)));
     onChange?.(next);
   };
 
   // 앱 전체 선택/해제
   const handleAppToggle = (group: PermissionGroup, checked: boolean) => {
-    const allIds = collectAllAuthIdsFromGroup(group);
+    const allKeys = collectAllAuthKeysFromGroup(group);
     const next = new Set(value);
-    allIds.forEach((id) => (checked ? next.add(id) : next.delete(id)));
+    allKeys.forEach((key) => (checked ? next.add(key) : next.delete(key)));
     onChange?.(next);
   };
 
@@ -218,29 +218,29 @@ export default function PermissionSelector({ value = new Set(), onChange, classN
 
   // 행(메뉴) 선택 상태
   const getRowCheckState = (menu: MenuWithPermissions) => {
-    const allIds = collectAuthIdsFromMenu(menu);
-    if (allIds.length === 0) return { checked: false, indeterminate: false };
-    const selectedCount = allIds.filter((id) => value.has(id)).length;
-    return { checked: selectedCount === allIds.length, indeterminate: selectedCount > 0 && selectedCount < allIds.length };
+    const allKeys = collectAuthKeysFromMenu(menu);
+    if (allKeys.length === 0) return { checked: false, indeterminate: false };
+    const selectedCount = allKeys.filter((key) => value.has(key)).length;
+    return { checked: selectedCount === allKeys.length, indeterminate: selectedCount > 0 && selectedCount < allKeys.length };
   };
 
   // 열(액션 타입) 선택 상태
   const getColumnCheckState = (group: PermissionGroup, action: string) => {
-    const actionIds = collectAuthIdsByAction(group, action);
-    if (actionIds.length === 0) return { checked: false, indeterminate: false, disabled: true };
-    const selectedCount = actionIds.filter((id) => value.has(id)).length;
-    return { checked: selectedCount === actionIds.length, indeterminate: selectedCount > 0 && selectedCount < actionIds.length, disabled: false };
+    const actionKeys = collectAuthKeysByAction(group, action);
+    if (actionKeys.length === 0) return { checked: false, indeterminate: false, disabled: true };
+    const selectedCount = actionKeys.filter((key) => value.has(key)).length;
+    return { checked: selectedCount === actionKeys.length, indeterminate: selectedCount > 0 && selectedCount < actionKeys.length, disabled: false };
   };
 
   // 앱 선택 상태
   const getAppCheckState = (group: PermissionGroup) => {
-    const allIds = collectAllAuthIdsFromGroup(group);
-    if (allIds.length === 0) return { checked: false, indeterminate: false };
-    const selectedCount = allIds.filter((id) => value.has(id)).length;
-    return { checked: selectedCount === allIds.length, indeterminate: selectedCount > 0 && selectedCount < allIds.length };
+    const allKeys = collectAllAuthKeysFromGroup(group);
+    if (allKeys.length === 0) return { checked: false, indeterminate: false };
+    const selectedCount = allKeys.filter((key) => value.has(key)).length;
+    return { checked: selectedCount === allKeys.length, indeterminate: selectedCount > 0 && selectedCount < allKeys.length };
   };
 
-  const getAppPermissionCount = (group: PermissionGroup) => collectAllAuthIdsFromGroup(group).length;
+  const getAppPermissionCount = (group: PermissionGroup) => collectAllAuthKeysFromGroup(group).length;
 
   if (isLoading) {
     return (
@@ -329,11 +329,11 @@ export default function PermissionSelector({ value = new Set(), onChange, classN
                   <tbody>
                     {group.flatMenus.map((item, idx) => {
                       const rowState = getRowCheckState(item.menu);
-                      const isFolder = !item.hasPermissions && item.hasChildrenWithPermissions;
+                      const isFolder = item.menu.menuType === 'FOLDER';
                       const isEven = idx % 2 === 0;
 
                       return (
-                        <tr key={item.menu.menuId} className={cn('transition-colors', isEven ? 'bg-white' : 'bg-gray-50/50', isFolder && 'bg-amber-50/30')}>
+                        <tr key={item.menu.menuKey} className={cn('transition-colors', isEven ? 'bg-white' : 'bg-gray-50/50', isFolder && 'bg-amber-50/30')}>
                           {/* 메뉴명 셀 */}
                           <td className="py-2 px-4 border-b border-gray-100">
                             <div className="flex items-center gap-2" style={{ paddingLeft: `${item.depth * 20}px` }}>
@@ -354,10 +354,10 @@ export default function PermissionSelector({ value = new Set(), onChange, classN
 
                           {/* 권한 체크박스 셀 */}
                           {ACTION_COLUMNS.map((action) => {
-                            const authId = getAuthId(item.menu.permissions ?? EMPTY_AUTH_IDS, action);
+                            const authKey = getAuthKey(item.menu.permissions ?? EMPTY_AUTH_KEYS, action);
                             const style = actionStyles[action];
 
-                            if (authId === null) {
+                            if (authKey === null) {
                               return (
                                 <td key={action} className="py-2 px-3 text-center border-b border-gray-100">
                                   <span className="text-gray-300 text-xs">—</span>
@@ -365,14 +365,14 @@ export default function PermissionSelector({ value = new Set(), onChange, classN
                               );
                             }
 
-                            const isSelected = value.has(authId);
+                            const isSelected = value.has(authKey);
                             return (
                               <td
                                 key={action}
                                 className={cn('py-2 px-3 text-center border-b border-gray-100 transition-colors cursor-pointer', style.cell)}
-                                onClick={() => handlePermissionToggle(authId)}
+                                onClick={() => handlePermissionToggle(authKey)}
                               >
-                                <Checkbox checked={isSelected} onChange={() => handlePermissionToggle(authId)} onClick={(e) => e.stopPropagation()} />
+                                <Checkbox checked={isSelected} onChange={() => handlePermissionToggle(authKey)} onClick={(e) => e.stopPropagation()} />
                               </td>
                             );
                           })}
