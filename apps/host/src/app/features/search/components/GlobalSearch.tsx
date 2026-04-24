@@ -10,12 +10,12 @@ import { Command, CommandGroup, CommandInput, CommandItem, CommandList, CommandS
 import { Popover, PopoverAnchor, PopoverContent } from '@/components/ui/popover';
 import type { MenuConfig, MenuItem } from '@/libs/shared-store/src/types/menu.types';
 
-// 원본(필터링 전) 메뉴 경로 캐시: appId → { menuId → path }
-const rawMenuPathCache: Record<string, Record<number, string>> = {};
+// 원본(필터링 전) 메뉴 경로 캐시: appId → { menuKey → path }
+const rawMenuPathCache: Record<string, Record<string, string>> = {};
 
-const collectMenuPaths = (items: MenuItem[], map: Record<number, string>) => {
+const collectMenuPaths = (items: MenuItem[], map: Record<string, string>) => {
   for (const item of items) {
-    if (item.path) map[item.menuId] = item.path;
+    if (item.path) map[item.menuKey] = item.path;
     if (item.children) collectMenuPaths(item.children, map);
   }
 };
@@ -31,7 +31,7 @@ const loadRawMenuPaths = async () => {
     try {
       const mod = await load();
       const config = (mod as { default: MenuConfig }).default;
-      const map: Record<number, string> = {};
+      const map: Record<string, string> = {};
       if (config?.menus) collectMenuPaths(config.menus, map);
       rawMenuPathCache[appId] = map;
     } catch {
@@ -40,12 +40,12 @@ const loadRawMenuPaths = async () => {
   }
 };
 
-const findPathByMenuId = (menuConfigs: MenuConfig[], appId: string, menuId: number): string | undefined => {
+const findPathByMenuKey = (menuConfigs: MenuConfig[], appId: string, menuKey: string): string | undefined => {
   const config = menuConfigs.find((c) => c.appId === appId);
   if (!config) return undefined;
   const search = (items: MenuItem[]): string | undefined => {
     for (const item of items) {
-      if (item.menuId === menuId) return item.path;
+      if (item.menuKey === menuKey) return item.path;
       if (item.children) {
         const found = search(item.children);
         if (found) return found;
@@ -103,8 +103,8 @@ export default function GlobalSearch() {
   const showEmpty = debouncedQuery.length > 0 && !isLoading && !hasResults;
 
   const handleSelectMenu = (result: MenuSearchResult) => {
-    const menuId = Number(result.id.split(':')[1]);
-    const path = rawMenuPathCache[result.appId]?.[menuId] ?? findPathByMenuId(menuConfigs, result.appId, menuId);
+    const menuKey = result.id.split(':')[1];
+    const path = rawMenuPathCache[result.appId]?.[menuKey] ?? findPathByMenuKey(menuConfigs, result.appId, menuKey);
     if (path) navigate(`/${result.appId}/${path}`);
     setOpen(false);
     setQuery('');
