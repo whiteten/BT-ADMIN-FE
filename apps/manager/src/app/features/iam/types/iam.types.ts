@@ -1,7 +1,8 @@
 import type { Role as SharedRole } from '@/shared-api';
 
 /**
- * RBAC 권한 관리 시스템 타입 정의
+ * RBAC 권한 관리 시스템 타입 정의.
+ * IAM 재설계 v2.2: authId/menuId(number) → authKey/menuKey(string).
  */
 
 // 앱 마스터
@@ -16,22 +17,21 @@ export interface App {
 // 역할 마스터
 export type Role = SharedRole;
 
-// 액션별 권한 ID
-export interface ActionAuthIds {
-  read: number | null;
-  write: number | null;
-  delete: number | null;
-  apply: number | null;
-  export: number | null;
+// 액션별 권한 키 (null이면 해당 액션 권한 없음)
+export interface ActionAuthKeys {
+  read: string | null;
+  write: string | null;
+  delete: string | null;
+  apply: string | null;
+  export: string | null;
 }
 
 // 권한 마스터
 export interface Permission {
-  authId: number;
-  appId: string;
-  menuId: number;
-  action: string;
   authKey: string;
+  appId: string;
+  menuKey?: string;
+  action: string;
   description?: string;
   isSystem: boolean;
   menuLabel?: string;
@@ -40,7 +40,7 @@ export interface Permission {
 // 역할-권한 매핑
 export interface RolePermission {
   roleId: number;
-  authId: number;
+  authKey: string;
   createdBy?: string;
   createdAt?: string;
 }
@@ -49,37 +49,35 @@ export interface RolePermission {
 export interface UserRole {
   userId: string;
   roleId: number;
+  tenantId?: number;
   roleName?: string;
   roleCode?: string;
   createdBy?: string;
   createdAt?: string;
 }
 
-// 사용자-권한 직접 매핑 (User Override) - 백엔드 응답 타입
+// 사용자-권한 직접 매핑 (User Override)
 export interface UserAuthMap {
   mapId: number;
   tenantId: number;
   userId: number;
   username?: string;
-  authId: number;
-  authKey?: string;
+  authKey: string;
   authDescription?: string;
   appId?: string;
   createdAt?: string;
   createdBy?: number;
 }
 
-// 사용자-메뉴 직접 매핑 (User Override)
+// 사용자-메뉴 직접 매핑
 export interface UserMenu {
   userId: string;
-  menuId: number;
+  menuKey: string;
   grantType: 'GRANT' | 'DENY';
   reason?: string;
   expiredAt?: string;
   createdBy?: string;
   createdAt?: string;
-  // 조인 정보
-  menuKey?: string;
   menuLabel?: string;
 }
 
@@ -93,14 +91,14 @@ export interface UserAuthorityResponse {
   overrides: UserAuthMap[];
 }
 
-// 사용자 권한 동기화 요청 (역할 권한 매핑과 동일 형식)
+// 사용자 권한 동기화 요청
 export interface UserPermissionSyncRequest {
-  authIds: number[];
+  authKeys: string[];
 }
 
-// 사용자 권한 동기화 응답 (Replacement 모델)
+// 사용자 권한 동기화 응답
 export interface UserPermissionSyncResponse {
-  syncedCount: number; // 동기화된 권한 수
+  syncedCount: number;
 }
 
 // 역할 생성/수정 요청
@@ -110,7 +108,7 @@ export interface RoleUpsertDatas {
   description?: string;
   sortOrder?: number;
   isUse?: boolean;
-  authIds?: number[];
+  authKeys?: string[];
 }
 
 // 역할 생성 요청
@@ -121,7 +119,7 @@ export interface RoleCreateDatas {
   sortOrder?: number;
   isUse?: boolean;
   canResetPassword?: boolean;
-  authIds?: number[];
+  authKeys?: string[];
 }
 
 // 역할 수정 요청
@@ -132,24 +130,23 @@ export interface RoleUpdateDatas {
   sortOrder?: number;
   isUse: boolean;
   canResetPassword: boolean;
-  authIds?: number[];
+  authKeys?: string[];
 }
 
 // 메뉴별 권한 목록 (백엔드 응답 - 트리 구조)
 export interface MenuWithPermissions {
-  menuId: number;
-  parentId: number | null;
   menuKey: string;
+  parentKey: string | null;
   menuLabel: string;
   appId: string;
   appName: string;
   menuType: string;
   sortOrder: number;
-  permissions: ActionAuthIds;
+  permissions: ActionAuthKeys;
   children: MenuWithPermissions[];
 }
 
-// 권한 그룹 (UI용) - 앱별로 메뉴를 그룹화
+// 권한 그룹 (UI용)
 export interface PermissionGroup {
   appId: string;
   appName: string;
@@ -163,15 +160,13 @@ export interface IamFilter {
   useYn?: string;
 }
 
-// 권한 Flat 응답 (메뉴 정보 포함)
+// 권한 Flat 응답
 export interface PermissionFlat {
-  authId: number;
+  authKey: string;
   appId: string;
   action: string;
-  authKey: string;
   description?: string;
   isSystem: boolean;
-  menuId?: number;
   menuKey?: string;
   menuLabel?: string;
 }
@@ -179,7 +174,6 @@ export interface PermissionFlat {
 // 권한 생성 요청
 export interface PermissionCreateRequest {
   appId: string;
-  menuId: number;
   menuKey: string;
   action: string;
   description?: string;

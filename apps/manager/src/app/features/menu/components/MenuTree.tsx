@@ -1,8 +1,6 @@
 /**
- * 메뉴 트리 컴포넌트
- * - 앱 필터 Select
- * - Ant Design Tree (flat → tree 변환)
- * - 노드 선택 시 onSelect 콜백
+ * 메뉴 트리 컴포넌트.
+ * IAM 재설계 v2.3: menuId/parentId → menuKey/parentKey.
  */
 
 import { useMemo } from 'react';
@@ -15,21 +13,21 @@ interface MenuTreeProps {
   apps: { label: string; value: string }[];
   selectedAppId: string;
   onAppChange: (appId: string) => void;
-  selectedMenuId: number | null;
+  selectedMenuKey: string | null;
   selectedTreeAppId?: string | null;
   onSelect: (menu: Menu | null) => void;
   onTreeAppSelect?: (appId: string | null) => void;
   onAdd: () => void;
 }
 
-/** flat 메뉴 목록을 tree 구조로 변환 */
+/** flat 메뉴 목록을 tree 구조로 변환 (menuKey 기반) */
 function buildMenuTree(menus: Menu[]): MenuTreeNode[] {
-  const map = new Map<number, MenuTreeNode>();
+  const map = new Map<string, MenuTreeNode>();
   const roots: MenuTreeNode[] = [];
 
   for (const menu of menus) {
-    map.set(menu.menuId, {
-      key: menu.menuId,
+    map.set(menu.menuKey, {
+      key: `menu:${menu.menuKey}`,
       title: menu.label,
       children: [],
       icon: menu.type === 'FOLDER' ? <Folder className="size-4 text-amber-500" /> : <File className="size-4 text-blue-500" />,
@@ -38,9 +36,9 @@ function buildMenuTree(menus: Menu[]): MenuTreeNode[] {
   }
 
   for (const menu of menus) {
-    const node = map.get(menu.menuId);
+    const node = map.get(menu.menuKey);
     if (!node) continue;
-    const parent = menu.parentId ? map.get(menu.parentId) : null;
+    const parent = menu.parentKey ? map.get(menu.parentKey) : null;
     if (parent) {
       parent.children.push(node);
     } else {
@@ -53,7 +51,6 @@ function buildMenuTree(menus: Menu[]): MenuTreeNode[] {
 
 /** 앱별로 그룹핑한 tree 구조 생성 */
 function buildTree(menus: Menu[]): MenuTreeNode[] {
-  // appId별 메뉴 그룹핑
   const menusByApp = new Map<string, { appName: string; menus: Menu[] }>();
   for (const menu of menus) {
     const group = menusByApp.get(menu.appId) ?? { appName: menu.appName ?? menu.appId, menus: [] };
@@ -61,7 +58,6 @@ function buildTree(menus: Menu[]): MenuTreeNode[] {
     menusByApp.set(menu.appId, group);
   }
 
-  // 앱별로 트리 노드 생성
   const result: MenuTreeNode[] = [];
   for (const [appId, { appName, menus: appMenus }] of menusByApp) {
     result.push({
@@ -75,38 +71,36 @@ function buildTree(menus: Menu[]): MenuTreeNode[] {
   return result;
 }
 
-export default function MenuTree({ menus, apps, selectedAppId, onAppChange, selectedMenuId, selectedTreeAppId, onSelect, onTreeAppSelect, onAdd }: MenuTreeProps) {
-  // 앱 필터 적용
+export default function MenuTree({ menus, apps, selectedAppId, onAppChange, selectedMenuKey, selectedTreeAppId, onSelect, onTreeAppSelect, onAdd }: MenuTreeProps) {
   const filteredMenus = useMemo(() => {
     if (!selectedAppId) return menus;
     return menus.filter((m) => m.appId === selectedAppId);
   }, [menus, selectedAppId]);
 
-  // 트리 데이터 생성 (앱별 그룹핑)
   const treeData = useMemo(() => buildTree(filteredMenus), [filteredMenus]);
 
-  // 노드 선택 핸들러
   const handleSelect: TreeProps['onSelect'] = (selectedKeys) => {
     if (selectedKeys.length === 0) {
       onSelect(null);
       onTreeAppSelect?.(null);
       return;
     }
-    const key = selectedKeys[0];
-    if (typeof key === 'string' && String(key).startsWith('app:')) {
-      // 앱 그룹 노드 선택
-      const appId = String(key).replace('app:', '');
+    const keyStr = String(selectedKeys[0]);
+    if (keyStr.startsWith('app:')) {
+      const appId = keyStr.slice('app:'.length);
       onSelect(null);
       onTreeAppSelect?.(appId);
       return;
     }
-    onTreeAppSelect?.(null);
-    const found = menus.find((m) => m.menuId === key);
-    onSelect(found ?? null);
+    if (keyStr.startsWith('menu:')) {
+      const menuKey = keyStr.slice('menu:'.length);
+      onTreeAppSelect?.(null);
+      const found = menus.find((m) => m.menuKey === menuKey);
+      onSelect(found ?? null);
+    }
   };
 
-  // 선택된 키: 메뉴 또는 앱 노드
-  const derivedSelectedKeys = selectedTreeAppId ? [`app:${selectedTreeAppId}`] : selectedMenuId ? [selectedMenuId] : [];
+  const derivedSelectedKeys: string[] = selectedTreeAppId ? [`app:${selectedTreeAppId}`] : selectedMenuKey ? [`menu:${selectedMenuKey}`] : [];
 
   return (
     <div className="flex flex-col gap-3 h-full">

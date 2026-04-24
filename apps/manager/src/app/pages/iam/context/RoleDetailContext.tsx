@@ -28,8 +28,8 @@ interface RoleDetailContextValue {
   setBasicFormValues: (values: Partial<RoleBasicFormValues>) => void;
 
   // 권한 선택 상태 (실시간)
-  selectedPermissions: Set<number>;
-  setSelectedPermissions: (permissions: Set<number>) => void;
+  selectedPermissions: Set<string>;
+  setSelectedPermissions: (permissions: Set<string>) => void;
 
   // DB 원본 데이터로 리셋 (탭 전환 시 사용)
   resetToServerData: () => void;

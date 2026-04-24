@@ -53,7 +53,7 @@ export default function RolePermissionTab() {
       isUse: role.isUse,
       canResetPassword: role.canResetPassword,
       // 권한 매핑만 업데이트
-      authIds: Array.from(selectedPermissions),
+      authKeys: Array.from(selectedPermissions),
     };
     updateRole({ params: { roleId: numericRoleId }, data: request });
   };

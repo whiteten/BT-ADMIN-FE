@@ -1,6 +1,11 @@
 import { Database } from 'lucide-react';
 import { IconDocument, IconLayer, IconMenuItemsPlus, IconMenuMain, IconSlidersHorizontal } from '@/components/custom/Icons';
 
+/**
+ * Manager 앱 로컬 메뉴 설정.
+ * IAM 재설계 v2.2: menuId(number) → menuKey(string).
+ * 서버 Navigation 응답의 menuKey와 일치해야 메뉴가 렌더링됨.
+ */
 const appId = 'manager';
 const appName = 'MANAGER';
 const menuConfig = {
@@ -9,7 +14,7 @@ const menuConfig = {
   icon: Database,
   menus: [
     {
-      menuId: 17,
+      menuKey: 'manager-main',
       label: '메인',
       path: 'main',
       index: 0,
@@ -17,21 +22,21 @@ const menuConfig = {
       hide: false,
     },
     {
-      menuId: 18,
+      menuKey: 'manager-user-mgmt',
       label: '사용자',
       icon: IconMenuItemsPlus,
       index: 1,
       hide: false,
       children: [
         {
-          menuId: 19,
+          menuKey: 'manager-user',
           label: '사용자 계정',
           path: 'resource/user/list',
           index: 0,
           hide: false,
         },
         {
-          menuId: 20,
+          menuKey: 'manager-role',
           label: '역할/권한',
           path: 'resource/auth-group/list',
           index: 1,
@@ -40,14 +45,14 @@ const menuConfig = {
       ],
     },
     {
-      menuId: 57,
+      menuKey: 'manager-security',
       label: '보안',
       icon: IconSlidersHorizontal,
       index: 2,
       hide: false,
       children: [
         {
-          menuId: 21,
+          menuKey: 'manager-account-policy',
           label: '계정 보안 정책',
           path: 'resource/account-policy',
           index: 0,
@@ -56,34 +61,34 @@ const menuConfig = {
       ],
     },
     {
-      menuId: 58,
+      menuKey: 'manager-system',
       label: '시스템',
       icon: IconLayer,
       index: 3,
       hide: false,
       children: [
         {
-          menuId: 62,
+          menuKey: 'manager-platform',
           label: '플랫폼',
           index: 0,
           hide: false,
           children: [
             {
-              menuId: 52,
+              menuKey: 'manager-menu',
               label: '메뉴',
               path: 'resource/menu',
               index: 0,
               hide: false,
             },
             {
-              menuId: 53,
+              menuKey: 'bff-flow',
               label: 'API 경로',
               path: 'resource/bff-flow',
               index: 1,
               hide: false,
             },
             {
-              menuId: 54,
+              menuKey: 'manager-client',
               label: '외부 앱 연동',
               path: 'resource/client/list',
               index: 2,
@@ -94,14 +99,14 @@ const menuConfig = {
       ],
     },
     {
-      menuId: 59,
+      menuKey: 'manager-audit',
       label: '감사',
       icon: IconDocument,
       index: 4,
       hide: false,
       children: [
         {
-          menuId: 30,
+          menuKey: 'manager-work-history',
           label: '작업 이력',
           path: 'resource/work-history',
           index: 0,

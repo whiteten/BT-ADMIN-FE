@@ -74,9 +74,9 @@ export default function PermissionListTab() {
   }, [allPermissions, searchParams]);
 
   // 삭제 핸들러
-  const handleDelete = (authId: number) => {
+  const handleDelete = (authKey: string) => {
     modal.confirm.delete({
-      onOk: () => deletePermissionMutation.mutate(authId),
+      onOk: () => deletePermissionMutation.mutate(authKey),
     });
   };
 
@@ -138,7 +138,7 @@ export default function PermissionListTab() {
               type="button"
               onClick={(e) => {
                 e.stopPropagation();
-                handleDelete(data.authId);
+                handleDelete(data.authKey);
               }}
             >
               <IconTrash className="size-5 text-red-500 hover:cursor-pointer" />

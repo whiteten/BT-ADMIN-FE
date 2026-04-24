@@ -75,7 +75,7 @@ export const useCreatePermission = ({ mutationOptions }: MutationHookOptions<Per
 /**
  * 권한 삭제 훅
  */
-export const useDeletePermission = ({ mutationOptions }: MutationHookOptions<void, number> = {}) => {
+export const useDeletePermission = ({ mutationOptions }: MutationHookOptions<void, string> = {}) => {
   return useMutation({
     mutationFn: permissionApi.delete,
     ...mutationOptions,

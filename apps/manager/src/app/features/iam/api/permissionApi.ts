@@ -36,7 +36,7 @@ export const permissionApi = {
   /**
    * 권한 삭제
    */
-  delete: async (authId: number): Promise<void> => {
-    await apiClient.delete('/permission-delete', { params: { authId } });
+  delete: async (authKey: string): Promise<void> => {
+    await apiClient.delete('/permission-delete', { params: { authKey } });
   },
 };

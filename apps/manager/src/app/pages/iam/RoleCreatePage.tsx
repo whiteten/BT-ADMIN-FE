@@ -18,7 +18,7 @@ import { useGetGroupedPermissions } from '../../features/iam/hooks/usePermission
 import { useCreateRole, useGetRoles } from '../../features/iam/hooks/useRoleQueries';
 import type { MenuWithPermissions, RoleCreateDatas } from '../../features/iam/types/iam.types';
 
-type PermEntry = { authId: number; action: string };
+type PermEntry = { authKey: string; action: string };
 import PageHeader from '@/components/custom/PageHeader';
 
 /**
@@ -28,11 +28,11 @@ function collectAllPermissions(menu: MenuWithPermissions): PermEntry[] {
   const p = menu.permissions;
   const perms: PermEntry[] = [];
   if (p) {
-    if (p.read != null) perms.push({ authId: p.read, action: 'read' });
-    if (p.write != null) perms.push({ authId: p.write, action: 'write' });
-    if (p.delete != null) perms.push({ authId: p.delete, action: 'delete' });
-    if (p.apply != null) perms.push({ authId: p.apply, action: 'apply' });
-    if (p.export != null) perms.push({ authId: p.export, action: 'export' });
+    if (p.read != null) perms.push({ authKey: p.read, action: 'read' });
+    if (p.write != null) perms.push({ authKey: p.write, action: 'write' });
+    if (p.delete != null) perms.push({ authKey: p.delete, action: 'delete' });
+    if (p.apply != null) perms.push({ authKey: p.apply, action: 'apply' });
+    if (p.export != null) perms.push({ authKey: p.export, action: 'export' });
   }
   for (const child of menu.children ?? []) {
     perms.push(...collectAllPermissions(child));
@@ -63,7 +63,7 @@ export default function RoleCreatePage() {
 
   const [currentStep, setCurrentStep] = useState(0);
   const [fieldErrors, setFieldErrors] = useState<Record<string, string[]>>({});
-  const [selectedPermissions, setSelectedPermissions] = useState<Set<number>>(new Set());
+  const [selectedPermissions, setSelectedPermissions] = useState<Set<string>>(new Set());
   const [form] = Form.useForm<RoleFormValues>();
 
   // 역할 목록 조회 (중복 체크용)
@@ -167,12 +167,12 @@ export default function RoleCreatePage() {
 
   const onFinish: FormProps<RoleFormValues>['onFinish'] = (values) => {
     Log.debug('onFinish', values);
-    const authIds = Array.from(selectedPermissions);
+    const authKeys = Array.from(selectedPermissions);
 
     const request: RoleCreateDatas = {
       ...values,
       canResetPassword: values.canResetPassword,
-      authIds,
+      authKeys,
     };
     createRole(request);
   };
@@ -320,10 +320,10 @@ export default function RoleCreatePage() {
             <div className="flex flex-wrap gap-1 mt-2">
               {Array.from(selectedPermissions)
                 .slice(0, 8)
-                .map((authId) => {
-                  const perm = allPermissions.find((p) => p.authId === authId);
+                .map((authKey) => {
+                  const perm = allPermissions.find((p) => p.authKey === authKey);
                   return perm ? (
-                    <Tag key={authId} color="cyan" className="text-xs m-0">
+                    <Tag key={authKey} color="cyan" className="text-xs m-0">
                       {perm.action}
                     </Tag>
                   ) : null;
