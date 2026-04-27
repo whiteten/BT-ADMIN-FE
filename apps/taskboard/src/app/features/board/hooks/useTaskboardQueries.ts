@@ -2,10 +2,11 @@ import { useMutation, useQuery } from '@tanstack/react-query';
 import { createQueryKeys } from '@lukemorales/query-key-factory';
 import type { MutationHookOptions, QueryHookWithParamsOptions } from '@/shared-util';
 import { taskboardApi } from '../api/taskboardApi';
-import type { TaskboardBg } from '../types/taskboard.types';
+import type { TaskboardBg, TaskboardLayout } from '../types/taskboard.types';
 
 export const taskboardQueryKeys = createQueryKeys('taskboard-bg', {
   getBgList: (params?: Record<string, unknown>) => [params],
+  getLayoutList: () => [{}],
 });
 
 /**
@@ -39,12 +40,35 @@ export const useDeleteTaskboardBg = ({ mutationOptions }: MutationHookOptions<an
   });
 };
 
-/**
- * [BG LAYOUT UPDATE] 전광판 레이아웃 저장 훅
- */
-export const useUpdateTaskboardLayout = ({ mutationOptions }: MutationHookOptions<any, { bgId: number; layoutJson: string }> = {}) => {
+// ── 레이아웃 훅 ───────────────────────────────────────────────────────────
+
+export const useGetTaskboardLayoutList = ({ queryOptions }: QueryHookWithParamsOptions<TaskboardLayout[]> = {}) => {
+  return useQuery({
+    queryKey: taskboardQueryKeys.getLayoutList().queryKey,
+    queryFn: () => taskboardApi.getLayoutList(),
+    ...queryOptions,
+  });
+};
+
+export const useCreateTaskboardLayout = ({
+  mutationOptions,
+}: MutationHookOptions<any, { pageId: number; tenantId: string; layoutName: string; layoutJson: string; authorName?: string; authRole?: string }> = {}) => {
   return useMutation({
-    mutationFn: taskboardApi.updateTaskBoardLayout,
+    mutationFn: taskboardApi.createLayout,
+    ...mutationOptions,
+  });
+};
+
+export const useUpdateLayout = ({ mutationOptions }: MutationHookOptions<any, { layoutId: number; layoutName: string; layoutJson: string }> = {}) => {
+  return useMutation({
+    mutationFn: taskboardApi.updateLayout,
+    ...mutationOptions,
+  });
+};
+
+export const useDeleteTaskboardLayout = ({ mutationOptions }: MutationHookOptions<any, number> = {}) => {
+  return useMutation({
+    mutationFn: taskboardApi.deleteLayout,
     ...mutationOptions,
   });
 };

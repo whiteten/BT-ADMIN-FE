@@ -13,7 +13,7 @@ const menuConfig = {
   icon: Component,
   menus: [
     {
-      menuId: 128,
+      menuKey: 'taskboard-main',
       label: '메인',
       path: 'main',
       index: 0,
@@ -21,21 +21,21 @@ const menuConfig = {
       hide: false,
     },
     {
-      menuId: 122,
+      menuKey: 'taskboard',
       label: '얍1',
       icon: IconMenuItemsPlus,
       index: 0,
       hide: false,
       children: [
         {
-          menuId: 129,
+          menuKey: 'taskboard-bg',
           label: '배경관리',
           path: 'board/task-bg',
           index: 0,
           hide: false,
         },
         {
-          menuId: 124,
+          menuKey: 'taskboard-list2',
           label: '전광판리스트',
           path: 'board/task-list',
           index: 1,
@@ -44,14 +44,14 @@ const menuConfig = {
       ],
     },
     {
-      menuId: 125,
+      menuKey: 125,
       label: '전광판뷰',
       icon: IconMenuItemsPlus,
       index: 1,
       hide: false,
       children: [
         {
-          menuId: 127,
+          menuKey: 127,
           label: '전광판뷰-sub',
           path: 'board/task-view',
           index: 0,

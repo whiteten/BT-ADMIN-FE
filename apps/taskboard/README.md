@@ -3,7 +3,7 @@
 -- 테이블 생성
 CREATE TABLE TB_TK_TASKBOARD_BGLIST (
 TENANT_ID        VARCHAR2(10)   NOT NULL,   -- 테넌트 ID (10자리)
-PAGE_ID          NUMBER(19) NOT NULL        -- 페이지 아이디 (PK 구성요소)
+PAGE_ID          NUMBER(19) NOT NULL,        -- 페이지 아이디 (PK 구성요소)
 PAGE_NAME        NVARCHAR2(200) NOT NULL,   -- 페이지 이름
 FILE_NAME        NVARCHAR2(500) NOT NULL,   -- 파일명 (경로 포함 가능성을 고려하여 여유있게 설정)
 AUTHOR_NAME      NVARCHAR2(200),            -- 만든이 (사용자명)
@@ -30,7 +30,7 @@ COMMENT ON COLUMN TB_TK_TASKBOARD_BGLIST.REG_DT IS '생성 일시';
 -- 기본키(PK) 제약조건 추가
 -- (멀티 테넌트 환경을 고려하여 TENANT_ID와 PAGE_ID를 복합키로 설정)
 ALTER TABLE TB_TK_TASKBOARD_BGLIST
-ADD CONSTRAINT PK_TB_TK_TASKBOARD_BGLIST PRIMARY KEY (TENANT_ID, PAGE_ID);
+ADD CONSTRAINT PK_TB_TK_TASKBOARD_BGLIST PRIMARY KEY (PAGE_ID);
 
 -- 1. 리스트 조회용 인덱스 (테넌트별 사용 중인 목록 빠른 조회)
 CREATE INDEX IDX_TB_TK_TASKBOARD_BGLIST_01
@@ -49,6 +49,9 @@ START WITH 1
 INCREMENT BY 1
 NOCACHE
 NOCYCLE;
+
+
+
 
 ## 개발
 

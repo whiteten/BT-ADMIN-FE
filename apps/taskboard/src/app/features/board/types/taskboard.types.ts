@@ -86,17 +86,43 @@ export interface TaskboardBg {
   genType: string;
   useYn: string;
   regDt: string;
+}
+
+/** 레이아웃 (배경 1개 → 다수 전광판) */
+export interface TaskboardLayout {
+  layoutId: number;
+  pageId: number;
+  tenantId?: string;
+  pageName?: string; // bg 테이블에서 조인
+  fileName?: string; // bg 이미지 URL
+  layoutName: string;
   layoutJson?: string;
+  authorName?: string; // 등록자 이름
+  authRole?: string; // 등록자 권한 역할코드
+  useYn: string;
+  regDt: string;
+}
+
+/** 테이블형 위젯 컬럼 정의 */
+export interface TableColumn {
+  key: string;
+  label: string;
+  width?: string;
 }
 
 /** 드래그 가능한 콜데이터 위젯 아이템 */
 export interface CallDataItem {
   id: string;
-  category: 'IVR' | 'CTI' | 'Agent' | 'Group' | 'Skill' | 'Tenant' | 'etc';
+  category: 'IVR' | 'CTI' | 'Agent' | 'Group' | 'Skill' | 'Tenant' | 'etc' | 'List';
   label: string;
   unit?: string;
   sampleValue: string | number;
   color: string; // 카테고리 대표 색상
+  displayType?: 'value' | 'table';
+  tableConfig?: {
+    columns: TableColumn[];
+    sampleRows: Record<string, string | number>[];
+  };
 }
 
 /** 위젯 스타일 */
@@ -105,14 +131,19 @@ export interface WidgetStyle {
   fontFamily: string;
   color: string;
   bgColor: string;
+  titleAlign?: 'left' | 'center' | 'right';
 }
 
 /** 전광판 캔버스에 드랍된 위젯 */
 export interface DroppedWidget {
   id: string;
   item: CallDataItem;
-  x: number;
-  y: number;
+  x: number; // % left position
+  y: number; // % top position
+  w: number; // % width
+  h: number; // % height
+  showTitle: boolean; // 라벨(타이틀) 표시 여부
+  customTitle?: string; // 사용자 정의 타이틀 (item.label 대체)
   style: WidgetStyle;
 }
 

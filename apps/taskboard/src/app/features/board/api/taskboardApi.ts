@@ -1,5 +1,5 @@
 import ApiTaskboard, { type DetailResponse, extractDetail } from '@/shared-util';
-import { type TaskboardBg } from '../types/taskboard.types';
+import { type TaskboardBg, type TaskboardLayout } from '../types/taskboard.types';
 
 /**
  * BFF Aggregation Flow를 통한 OAuth2 클라이언트 API 클라이언트
@@ -38,15 +38,6 @@ export const taskboardApi = {
   },
 
   /**
-   * 전광판 레이아웃 JSON 저장
-   * @flow taskboard-bgupdate
-   */
-  updateTaskBoardLayout: async ({ bgId, layoutJson }: { bgId: number; layoutJson: string }): Promise<any> => {
-    const response = await apiTaskboard.put('/taskboard-bgupdate', { layoutJson }, { params: { bgId } });
-    return response.data;
-  },
-
-  /**
    * [BG INSERT] 전광판 배경 생성 (이미지 파일 + JSON 데이터)
    */
   createTaskBoardBg: async ({ params, data }: { params: Record<string, unknown>; data: File }): Promise<any> => {
@@ -57,5 +48,29 @@ export const taskboardApi = {
     }
     const response = await apiTaskboard.post<DetailResponse<any>>('/taskboard-bginsert', formData);
     return extractDetail(response);
+  },
+
+  // ── 레이아웃 API ──────────────────────────────────────────────────────────
+
+  getLayoutList: async (): Promise<TaskboardLayout[]> => {
+    const response = await apiTaskboard.get<any>('/taskboard-layoutlist');
+    const resultList = response?.data?.data?.value ?? response?.data?.data;
+    if (Array.isArray(resultList)) return resultList;
+    return [];
+  },
+
+  createLayout: async (payload: { pageId: number; tenantId: string; layoutName: string; layoutJson: string; authorName?: string; authRole?: string }): Promise<number> => {
+    const response = await apiTaskboard.post<any>('/taskboard-layoutinsert', payload);
+    return response?.data?.data ?? 0;
+  },
+
+  updateLayout: async ({ layoutId, layoutName, layoutJson }: { layoutId: number; layoutName: string; layoutJson: string }): Promise<any> => {
+    const response = await apiTaskboard.put('/taskboard-layoutupdate', { layoutName, layoutJson }, { params: { layoutId } });
+    return response.data;
+  },
+
+  deleteLayout: async (layoutId: number): Promise<any> => {
+    const response = await apiTaskboard.delete('/taskboard-layoutdelete', { params: { layoutId } });
+    return response.data;
   },
 };

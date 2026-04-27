@@ -1,12 +1,13 @@
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { useQueryClient } from '@tanstack/react-query';
 import { DndContext, type DragEndEvent, DragOverlay, type DragStartEvent, PointerSensor, useDraggable, useDroppable, useSensor, useSensors } from '@dnd-kit/core';
+import { useAuthStore } from '@/shared-store';
 import { toast } from '@/shared-util';
-import { taskboardQueryKeys, useUpdateTaskboardLayout } from '../../features/board/hooks/useTaskboardQueries';
-import type { CallDataItem, DroppedWidget, TaskboardBg, WidgetStyle } from '../../features/board/types/taskboard.types';
+import { taskboardQueryKeys, useCreateTaskboardLayout, useUpdateLayout } from '../../features/board/hooks/useTaskboardQueries';
+import type { CallDataItem, DroppedWidget, TableColumn, TaskboardBg, TaskboardLayout, WidgetStyle } from '../../features/board/types/taskboard.types';
 
-// ─── 카테고리별 콜데이터 아이템 ──────────────────────────────────────────────────
+// ─── 카테고리별 콜데이터 아이템 ─────────────────────────────────────────────────
 const CALL_DATA_CATEGORIES: Record<string, CallDataItem[]> = {
   IVR: [
     { id: 'ivr-waiting', category: 'IVR', label: '대기 호수', unit: '건', sampleValue: 42, color: '#2563eb' },
@@ -42,9 +43,97 @@ const CALL_DATA_CATEGORIES: Record<string, CallDataItem[]> = {
     { id: 'tenant-success', category: 'Tenant', label: '성공율', unit: '%', sampleValue: 91, color: '#0891b2' },
   ],
   etc: [
-    { id: 'etc-date', category: 'etc', label: '현재 날짜', unit: '', sampleValue: '2026-04-24', color: '#64748b' },
-    { id: 'etc-time', category: 'etc', label: '현재 시각', unit: '', sampleValue: '14:32:05', color: '#64748b' },
+    { id: 'etc-date', category: 'etc', label: '현재 날짜 (yyyymmdd)', unit: '', sampleValue: '20260424', color: '#64748b' },
+    { id: 'etc-time', category: 'etc', label: '현재 시각 (hh24miss)', unit: '', sampleValue: '143205', color: '#64748b' },
+    { id: 'etc-datetime', category: 'etc', label: '날짜+시각 (yyyymmdd hh24miss)', unit: '', sampleValue: '20260424 143205', color: '#64748b' },
     { id: 'etc-announcement', category: 'etc', label: '공지 메시지', unit: '', sampleValue: '시스템 정상 운영 중', color: '#64748b' },
+  ],
+  List: [
+    {
+      id: 'list-cti-work',
+      category: 'List',
+      label: 'CTI 업무 리스트',
+      sampleValue: '',
+      color: '#7c3aed',
+      displayType: 'table',
+      tableConfig: {
+        columns: [
+          { key: 'agent', label: '상담원', width: '30%' },
+          { key: 'calls', label: '처리', width: '20%' },
+          { key: 'wait', label: '대기', width: '20%' },
+          { key: 'status', label: '상태', width: '30%' },
+        ] as TableColumn[],
+        sampleRows: [
+          { agent: '김상담', calls: 23, wait: 2, status: '통화중' },
+          { agent: '이상담', calls: 18, wait: 0, status: '대기중' },
+          { agent: '박상담', calls: 31, wait: 5, status: '이석중' },
+          { agent: '최상담', calls: 14, wait: 1, status: '통화중' },
+        ],
+      },
+    },
+    {
+      id: 'list-agent',
+      category: 'List',
+      label: '상담사별 리스트',
+      sampleValue: '',
+      color: '#059669',
+      displayType: 'table',
+      tableConfig: {
+        columns: [
+          { key: 'name', label: '상담원명', width: '30%' },
+          { key: 'calls', label: '처리호수', width: '20%' },
+          { key: 'talkTime', label: '통화시간', width: '25%' },
+          { key: 'rate', label: '처리율', width: '25%' },
+        ] as TableColumn[],
+        sampleRows: [
+          { name: '김상담', calls: 23, talkTime: '142분', rate: '95%' },
+          { name: '이상담', calls: 18, talkTime: '98분', rate: '89%' },
+          { name: '박상담', calls: 31, talkTime: '187분', rate: '98%' },
+          { name: '최상담', calls: 14, talkTime: '75분', rate: '82%' },
+        ],
+      },
+    },
+    {
+      id: 'list-group',
+      category: 'List',
+      label: '상담그룹별 리스트',
+      sampleValue: '',
+      color: '#d97706',
+      displayType: 'table',
+      tableConfig: {
+        columns: [
+          { key: 'group', label: '그룹명', width: '30%' },
+          { key: 'calls', label: '처리호수', width: '23%' },
+          { key: 'wait', label: '대기호수', width: '23%' },
+          { key: 'rate', label: '처리율', width: '24%' },
+        ] as TableColumn[],
+        sampleRows: [
+          { group: 'VIP그룹', calls: 85, wait: 3, rate: '97%' },
+          { group: '일반그룹', calls: 142, wait: 8, rate: '91%' },
+          { group: '영어상담', calls: 33, wait: 1, rate: '94%' },
+        ],
+      },
+    },
+    {
+      id: 'list-ivr-queue',
+      category: 'List',
+      label: 'IVR 대기큐 리스트',
+      sampleValue: '',
+      color: '#2563eb',
+      displayType: 'table',
+      tableConfig: {
+        columns: [
+          { key: 'queue', label: '큐명', width: '35%' },
+          { key: 'waiting', label: '대기호수', width: '30%' },
+          { key: 'avgWait', label: '평균대기', width: '35%' },
+        ] as TableColumn[],
+        sampleRows: [
+          { queue: '일반대기', waiting: 12, avgWait: '38초' },
+          { queue: 'VIP대기', waiting: 3, avgWait: '12초' },
+          { queue: '영어대기', waiting: 5, avgWait: '25초' },
+        ],
+      },
+    },
   ],
 };
 
@@ -56,22 +145,27 @@ const CATEGORY_LABELS: Record<string, string> = {
   Skill: 'Skill 연동',
   Tenant: 'Tenant 연동',
   etc: '기타',
+  List: '리스트/테이블',
 };
 
 const FONT_FAMILIES: { label: string; value: string }[] = [
-  { label: '기본', value: 'inherit' },
-  { label: '고딕', value: "'Noto Sans KR', sans-serif" },
-  { label: '바탕', value: "'Nanum Myeongjo', serif" },
-  { label: '코드', value: "'Courier New', monospace" },
+  { label: '기본 (시스템)', value: 'inherit' },
+  { label: '맑은 고딕', value: "'Malgun Gothic', '맑은 고딕', 'Apple SD Gothic Neo', sans-serif" },
+  { label: '바탕체', value: "'Batang', '바탕', 'AppleMyungjo', serif" },
+  { label: '돋움', value: "'Dotum', '돋움', 'Apple SD Gothic Neo', sans-serif" },
+  { label: '굴림', value: "'Gulim', '굴림', sans-serif" },
+  { label: '코드 (고정폭)', value: "'Courier New', 'Consolas', monospace" },
 ];
 
-const FONT_SIZES = [10, 12, 14, 16, 18, 20, 24, 28, 32, 36];
+const FONT_SIZES = [10, 12, 14, 16, 18, 20, 24, 28, 32, 36, 42, 48];
 
 const DEFAULT_STYLE: WidgetStyle = { fontSize: 14, fontFamily: 'inherit', color: '#ffffff', bgColor: 'rgba(0,0,0,0.7)' };
+const DEFAULT_W = 13;
+const DEFAULT_H = 16;
 
 type DragInfo = { type: 'source'; item: CallDataItem } | { type: 'widget'; widgetId: string; item: CallDataItem };
 
-// ─── DraggableSourceItem ──────────────────────────────────────────────────────
+// ─── DraggableSourceItem ─────────────────────────────────────────────────────
 function DraggableSourceItem({ item }: { item: CallDataItem }) {
   const { attributes, listeners, setNodeRef, transform, isDragging } = useDraggable({
     id: `source-${item.id}`,
@@ -92,21 +186,94 @@ function DraggableSourceItem({ item }: { item: CallDataItem }) {
     >
       <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ backgroundColor: item.color }} />
       <span className="text-xs font-medium text-slate-700 truncate flex-1">{item.label}</span>
-      {item.unit && <span className="text-[10px] text-slate-400 flex-shrink-0">{item.unit}</span>}
+      {item.displayType === 'table' && <span className="text-[9px] bg-slate-100 text-slate-500 px-1 py-0.5 rounded font-bold">표</span>}
+      {item.unit && !item.displayType && <span className="text-[10px] text-slate-400 flex-shrink-0">{item.unit}</span>}
     </div>
   );
 }
 
-// ─── CanvasWidget (placed widget — draggable within canvas) ───────────────────
-function CanvasWidget({ widget, isSelected, onSelect, onRemove }: { widget: DroppedWidget; isSelected: boolean; onSelect: () => void; onRemove: () => void }) {
+// ─── TableWidget ─────────────────────────────────────────────────────────────
+function TableWidget({ widget }: { widget: DroppedWidget }) {
+  const cfg = widget.item.tableConfig;
+  if (!cfg) return null;
+  const showTitle = widget.showTitle !== false;
+  const displayTitle = widget.customTitle ?? widget.item.label;
+
+  return (
+    <div className="w-full h-full flex flex-col overflow-hidden">
+      {showTitle && (
+        <div
+          className="truncate font-semibold px-1 flex-shrink-0"
+          style={{
+            fontSize: `${Math.max(8, Math.round(widget.style.fontSize * 0.65))}px`,
+            textAlign: widget.style.titleAlign ?? 'left',
+            color: widget.style.color,
+            fontFamily: widget.style.fontFamily,
+          }}
+        >
+          {displayTitle}
+        </div>
+      )}
+      <div className="flex-1 overflow-hidden">
+        <table
+          className="w-full border-collapse"
+          style={{ fontSize: `${Math.max(7, Math.round(widget.style.fontSize * 0.6))}px`, color: widget.style.color, fontFamily: widget.style.fontFamily }}
+        >
+          <thead>
+            <tr>
+              {cfg.columns.map((col) => (
+                <th
+                  key={col.key}
+                  style={{ width: col.width, borderBottom: `1px solid ${widget.style.color}40`, padding: '1px 3px', textAlign: 'center', opacity: 0.7, fontWeight: 600 }}
+                >
+                  {col.label}
+                </th>
+              ))}
+            </tr>
+          </thead>
+          <tbody>
+            {cfg.sampleRows.map((row, ri) => (
+              <tr key={ri} style={{ backgroundColor: ri % 2 === 0 ? 'rgba(255,255,255,0.05)' : 'transparent' }}>
+                {cfg.columns.map((col) => (
+                  <td key={col.key} style={{ padding: '1px 3px', textAlign: 'center', borderBottom: '1px solid rgba(255,255,255,0.08)' }}>
+                    {row[col.key]}
+                  </td>
+                ))}
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  );
+}
+
+// ─── CanvasWidget ────────────────────────────────────────────────────────────
+interface CanvasWidgetProps {
+  widget: DroppedWidget;
+  isSelected: boolean;
+  onSelect: () => void;
+  onRemove: () => void;
+  onResizeStart: (widgetId: string, clientX: number, clientY: number) => void;
+}
+
+function CanvasWidget({ widget, isSelected, onSelect, onRemove, onResizeStart }: CanvasWidgetProps) {
   const { attributes, listeners, setNodeRef, transform, isDragging } = useDraggable({
     id: widget.id,
     data: { type: 'widget', widgetId: widget.id, item: widget.item } satisfies DragInfo,
   });
 
+  const w = widget.w ?? DEFAULT_W;
+  const h = widget.h ?? DEFAULT_H;
+  const showTitle = widget.showTitle !== false;
+  const displayTitle = widget.customTitle ?? widget.item.label;
+  const isTable = widget.item.displayType === 'table';
+
   const style: React.CSSProperties = {
     left: `${widget.x}%`,
     top: `${widget.y}%`,
+    width: `${w}%`,
+    height: `${h}%`,
     position: 'absolute',
     fontSize: widget.style.fontSize,
     fontFamily: widget.style.fontFamily,
@@ -115,7 +282,7 @@ function CanvasWidget({ widget, isSelected, onSelect, onRemove }: { widget: Drop
     ...(transform ? { transform: `translate3d(${transform.x}px, ${transform.y}px, 0)` } : {}),
     zIndex: isSelected ? 20 : isDragging ? 30 : 10,
     opacity: isDragging ? 0.4 : 1,
-    cursor: 'grab',
+    overflow: 'hidden',
   };
 
   return (
@@ -126,10 +293,11 @@ function CanvasWidget({ widget, isSelected, onSelect, onRemove }: { widget: Drop
         e.stopPropagation();
         onSelect();
       }}
-      className={`group backdrop-blur-sm rounded-lg p-2.5 min-w-[90px] shadow-xl border transition-all select-none ${
+      className={`group backdrop-blur-sm rounded-lg shadow-xl border transition-all select-none ${
         isSelected ? 'ring-2 ring-white ring-offset-1 ring-offset-transparent border-white/60' : 'border-white/10'
       }`}
     >
+      {/* 삭제 버튼 */}
       <button
         onClick={(e) => {
           e.stopPropagation();
@@ -139,19 +307,53 @@ function CanvasWidget({ widget, isSelected, onSelect, onRemove }: { widget: Drop
       >
         ×
       </button>
-      <div {...listeners} {...attributes} className="cursor-grab active:cursor-grabbing">
-        <div className="text-[10px] truncate mb-1 opacity-80">{widget.item.label}</div>
-        <div className="font-bold">
-          {widget.item.sampleValue}
-          {widget.item.unit && <span className="text-[10px] font-normal ml-0.5 opacity-70">{widget.item.unit}</span>}
-        </div>
-        <div className="w-full h-0.5 rounded mt-1.5" style={{ backgroundColor: widget.item.color }} />
+
+      {/* 드래그 핸들 + 콘텐츠 */}
+      <div {...listeners} {...attributes} className="cursor-grab active:cursor-grabbing w-full h-full p-2 flex flex-col justify-center">
+        {isTable ? (
+          <TableWidget widget={widget} />
+        ) : (
+          <>
+            {showTitle && (
+              <div
+                className="truncate mb-0.5 opacity-80 leading-tight"
+                style={{ fontSize: `${Math.max(8, Math.round(widget.style.fontSize * 0.65))}px`, textAlign: widget.style.titleAlign ?? 'left' }}
+              >
+                {displayTitle}
+              </div>
+            )}
+            <div className="font-bold leading-tight truncate">
+              {widget.item.sampleValue}
+              {widget.item.unit && (
+                <span className="font-normal ml-0.5 opacity-70" style={{ fontSize: `${Math.max(8, Math.round(widget.style.fontSize * 0.65))}px` }}>
+                  {widget.item.unit}
+                </span>
+              )}
+            </div>
+            <div className="w-full h-0.5 rounded mt-1" style={{ backgroundColor: widget.item.color }} />
+          </>
+        )}
+      </div>
+
+      {/* 리사이즈 핸들 (우하단) */}
+      <div
+        className="absolute bottom-0 right-0 w-4 h-4 flex items-center justify-center cursor-se-resize z-20 opacity-0 group-hover:opacity-100 transition-opacity"
+        style={{ touchAction: 'none' }}
+        onPointerDown={(e) => {
+          e.stopPropagation();
+          e.preventDefault();
+          onResizeStart(widget.id, e.clientX, e.clientY);
+        }}
+      >
+        <svg width="8" height="8" viewBox="0 0 8 8" fill="none">
+          <path d="M7 1L1 7M7 4L4 7M7 7H4" stroke="white" strokeWidth="1.5" strokeLinecap="round" />
+        </svg>
       </div>
     </div>
   );
 }
 
-// ─── DroppableBoard ───────────────────────────────────────────────────────────
+// ─── DroppableBoard ──────────────────────────────────────────────────────────
 function DroppableBoard({ children, fileName, pageName, onClickCanvas }: { children: React.ReactNode; fileName: string; pageName: string; onClickCanvas: () => void }) {
   const { setNodeRef, isOver } = useDroppable({ id: 'board-canvas' });
 
@@ -162,7 +364,7 @@ function DroppableBoard({ children, fileName, pageName, onClickCanvas }: { child
       className={`relative w-full h-full rounded-xl overflow-hidden border-2 transition-all ${isOver ? 'border-[#0f5b9e] ring-2 ring-[#0f5b9e]/30' : 'border-slate-300'}`}
     >
       {fileName ? (
-        <img src={fileName} alt={pageName} className="w-full h-full object-cover pointer-events-none" />
+        <img src={fileName} alt={pageName} className="w-full h-full object-contain pointer-events-none" />
       ) : (
         <div className="w-full h-full bg-slate-800 flex items-center justify-center">
           <span className="text-slate-500 text-sm">배경 이미지 없음</span>
@@ -178,35 +380,87 @@ function DroppableBoard({ children, fileName, pageName, onClickCanvas }: { child
   );
 }
 
-// ─── TaskCreate (메인 컴포넌트) ───────────────────────────────────────────────
+// ─── TaskCreate (메인 컴포넌트) ──────────────────────────────────────────────
 export default function TaskCreate() {
   const location = useLocation();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
-  const state = location.state as { bg?: TaskboardBg } | null;
+  const state = location.state as { bg?: TaskboardBg; layout?: TaskboardLayout } | null;
   const bg = state?.bg;
+  const layout = state?.layout;
+  const userInfo = useAuthStore((s: any) => s.userInfo);
 
-  const fileName = bg?.fileName ?? '';
-  const pageName = bg?.pageName ?? '전광판';
+  // 편집 모드: layout이 있으면 수정, 없으면 신규 생성
+  const isEditMode = !!layout?.layoutId;
+  const fileName = layout?.fileName ?? bg?.fileName ?? '';
 
-  // 저장된 레이아웃이 있으면 파싱해서 초기 상태로 사용
+  const [boardTitle, setBoardTitle] = useState(layout?.layoutName ?? bg?.pageName ?? '새 전광판');
+  const [openCategories, setOpenCategories] = useState<Set<string>>(new Set(['IVR']));
+  const [activeDrag, setActiveDrag] = useState<DragInfo | null>(null);
+  const [selectedWidgetId, setSelectedWidgetId] = useState<string | null>(null);
+  const [editingTitleId, setEditingTitleId] = useState<string | null>(null);
+
+  const { mutateAsync: createLayout, isPending: isCreating } = useCreateTaskboardLayout();
+  const { mutateAsync: updateLayout, isPending: isUpdating } = useUpdateLayout();
+  const isSaving = isCreating || isUpdating;
+
+  // 저장된 레이아웃 파싱
   const initialWidgets: DroppedWidget[] = (() => {
     try {
-      return bg?.layoutJson ? (JSON.parse(bg.layoutJson) as DroppedWidget[]) : [];
+      const json = layout?.layoutJson;
+      const parsed = json ? (JSON.parse(json) as DroppedWidget[]) : [];
+      return parsed.map((w) => ({ ...w, w: w.w ?? DEFAULT_W, h: w.h ?? DEFAULT_H, showTitle: w.showTitle !== false }));
     } catch {
       return [];
     }
   })();
 
-  const [openCategories, setOpenCategories] = useState<Set<string>>(new Set(['IVR']));
   const [droppedWidgets, setDroppedWidgets] = useState<DroppedWidget[]>(initialWidgets);
-  const [activeDrag, setActiveDrag] = useState<DragInfo | null>(null);
-  const [selectedWidgetId, setSelectedWidgetId] = useState<string | null>(null);
-
-  const { mutateAsync: updateLayout, isPending: isSaving } = useUpdateTaskboardLayout();
 
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 8 } }));
 
+  // ── 리사이즈 로직 ─────────────────────────────────────────────────────────
+  const boardContainerRef = useRef<HTMLDivElement>(null);
+  const resizeStateRef = useRef<{
+    widgetId: string;
+    startMouseX: number;
+    startMouseY: number;
+    startW: number;
+    startH: number;
+  } | null>(null);
+
+  const handleResizeStart = (widgetId: string, clientX: number, clientY: number) => {
+    const widget = droppedWidgets.find((w) => w.id === widgetId);
+    if (!widget) return;
+    resizeStateRef.current = { widgetId, startMouseX: clientX, startMouseY: clientY, startW: widget.w ?? DEFAULT_W, startH: widget.h ?? DEFAULT_H };
+  };
+
+  useEffect(() => {
+    const handlePointerMove = (e: PointerEvent) => {
+      if (!resizeStateRef.current) return;
+      const boardEl = boardContainerRef.current;
+      if (!boardEl) return;
+      const boardRect = boardEl.getBoundingClientRect();
+      const dx = ((e.clientX - resizeStateRef.current.startMouseX) / boardRect.width) * 100;
+      const dy = ((e.clientY - resizeStateRef.current.startMouseY) / boardRect.height) * 100;
+      setDroppedWidgets((prev) =>
+        prev.map((w) =>
+          w.id === resizeStateRef.current!.widgetId ? { ...w, w: Math.max(6, resizeStateRef.current!.startW + dx), h: Math.max(4, resizeStateRef.current!.startH + dy) } : w,
+        ),
+      );
+    };
+    const handlePointerUp = () => {
+      resizeStateRef.current = null;
+    };
+    window.addEventListener('pointermove', handlePointerMove);
+    window.addEventListener('pointerup', handlePointerUp);
+    return () => {
+      window.removeEventListener('pointermove', handlePointerMove);
+      window.removeEventListener('pointerup', handlePointerUp);
+    };
+  }, []);
+
+  // ── DnD 핸들러 ───────────────────────────────────────────────────────────
   const toggleCategory = (cat: string) => {
     setOpenCategories((prev) => {
       const next = new Set(prev);
@@ -223,27 +477,28 @@ export default function TaskCreate() {
   const handleDragEnd = (event: DragEndEvent) => {
     const { active, over } = event;
     setActiveDrag(null);
-
     if (over?.id !== 'board-canvas') return;
     const boardRect = over.rect;
     const activeRect = active.rect.current.translated;
     if (!activeRect) return;
 
-    const x = Math.max(0, Math.min(88, ((activeRect.left - boardRect.left) / boardRect.width) * 100));
-    const y = Math.max(0, Math.min(88, ((activeRect.top - boardRect.top) / boardRect.height) * 100));
-
     const info = active.data.current as DragInfo;
+    const wPct = info.type === 'widget' ? (droppedWidgets.find((w) => w.id === info.widgetId)?.w ?? DEFAULT_W) : DEFAULT_W;
+    const hPct = info.type === 'widget' ? (droppedWidgets.find((w) => w.id === info.widgetId)?.h ?? DEFAULT_H) : DEFAULT_H;
+    const x = Math.max(0, Math.min(Math.max(0, 100 - wPct), ((activeRect.left - boardRect.left) / boardRect.width) * 100));
+    const y = Math.max(0, Math.min(Math.max(0, 100 - hPct), ((activeRect.top - boardRect.top) / boardRect.height) * 100));
 
     if (info.type === 'widget') {
-      // 기존 위젯 위치 변경
       setDroppedWidgets((prev) => prev.map((w) => (w.id === info.widgetId ? { ...w, x, y } : w)));
     } else {
-      // 새 위젯 추가
       const newWidget: DroppedWidget = {
         id: `widget-${Date.now()}`,
         item: info.item,
         x,
         y,
+        w: info.item.displayType === 'table' ? 35 : DEFAULT_W,
+        h: info.item.displayType === 'table' ? 30 : DEFAULT_H,
+        showTitle: true,
         style: { ...DEFAULT_STYLE },
       };
       setDroppedWidgets((prev) => [...prev, newWidget]);
@@ -260,15 +515,33 @@ export default function TaskCreate() {
     setDroppedWidgets((prev) => prev.map((w) => (w.id === id ? { ...w, style: { ...w.style, ...patch } } : w)));
   };
 
+  const updateWidgetMeta = (id: string, patch: Partial<Pick<DroppedWidget, 'showTitle' | 'customTitle'>>) => {
+    setDroppedWidgets((prev) => prev.map((w) => (w.id === id ? { ...w, ...patch } : w)));
+  };
+
   const handleSave = async () => {
-    if (!bg?.pageId) {
-      toast.error('배경 정보가 없습니다. 배경 관리 페이지에서 다시 접근해주세요.');
+    const pageId = layout?.pageId ?? bg?.pageId;
+    if (!pageId) {
+      toast.error('배경 정보가 없습니다.');
       return;
     }
+    const layoutJson = JSON.stringify(droppedWidgets);
     try {
-      await updateLayout({ bgId: bg.pageId, layoutJson: JSON.stringify(droppedWidgets) });
+      if (isEditMode && layout?.layoutId) {
+        await updateLayout({ layoutId: layout.layoutId, layoutName: boardTitle, layoutJson });
+      } else {
+        await createLayout({
+          pageId,
+          tenantId: userInfo?.tenant ?? bg?.tenantId ?? '',
+          layoutName: boardTitle,
+          layoutJson,
+          authorName: userInfo?.username ?? userInfo?.userAccount,
+          authRole: userInfo?.roles?.[0],
+        });
+      }
       toast.success('레이아웃이 저장되었습니다.');
-      await queryClient.invalidateQueries({ queryKey: taskboardQueryKeys.getBgList().queryKey });
+      await queryClient.invalidateQueries({ queryKey: taskboardQueryKeys.getLayoutList().queryKey });
+      navigate('/taskboard/board/task-list');
     } catch {
       toast.error('저장 중 오류가 발생했습니다.');
     }
@@ -281,16 +554,14 @@ export default function TaskCreate() {
       <div className="flex h-screen bg-slate-100 font-sans overflow-hidden">
         {/* ── 왼쪽 패널 ── */}
         <div className="w-72 flex-shrink-0 bg-white border-r border-slate-200 flex flex-col shadow-sm">
-          {/* 헤더 */}
           <div className="px-4 py-3 border-b border-slate-100">
-            <button onClick={() => navigate('/taskboard/board/task-bg')} className="text-xs text-slate-400 hover:text-slate-600 mb-2 block">
-              ← 배경 관리로 돌아가기
+            <button onClick={() => navigate(-1)} className="text-xs text-slate-400 hover:text-slate-600 mb-2 block">
+              ← 돌아가기
             </button>
             <h2 className="text-sm font-bold text-slate-800">콜데이터 리스트</h2>
             <p className="text-xs text-slate-400 mt-0.5">항목을 오른쪽 배경에 드래그하세요</p>
           </div>
 
-          {/* 아코디언 카테고리 */}
           <div className="flex-1 overflow-y-auto">
             {Object.keys(CALL_DATA_CATEGORIES).map((cat) => (
               <div key={cat} className="border-b border-slate-100">
@@ -316,15 +587,90 @@ export default function TaskCreate() {
             ))}
           </div>
 
-          {/* 하단: 선택된 위젯 스타일 패널 or 배치된 위젯 수 */}
+          {/* 스타일 패널 */}
           {selectedWidget ? (
-            <div className="border-t border-slate-200 p-3 bg-slate-50 flex flex-col gap-2.5">
-              <div className="flex items-center justify-between mb-1">
-                <span className="text-xs font-bold text-slate-700 truncate flex-1">{selectedWidget.item.label} 스타일</span>
-                <button onClick={() => setSelectedWidgetId(null)} className="text-slate-400 hover:text-slate-600 text-xs ml-2">
+            <div className="border-t border-slate-200 p-3 bg-slate-50 flex flex-col gap-2 overflow-y-auto max-h-[60vh]">
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-bold text-slate-700 truncate flex-1">{selectedWidget.customTitle ?? selectedWidget.item.label}</span>
+                <button onClick={() => setSelectedWidgetId(null)} className="text-slate-400 hover:text-slate-600 text-xs ml-2 flex-shrink-0">
                   닫기
                 </button>
               </div>
+
+              {/* 타이틀 표시 토글 */}
+              <div className="flex items-center justify-between py-1 px-2 bg-white rounded border border-slate-200">
+                <span className="text-[10px] text-slate-600 font-semibold">타이틀 표시</span>
+                <button
+                  onClick={() => updateWidgetMeta(selectedWidget.id, { showTitle: !selectedWidget.showTitle })}
+                  className={`relative flex-shrink-0 h-5 w-9 rounded-full transition-colors ${selectedWidget.showTitle !== false ? 'bg-[#0f5b9e]' : 'bg-slate-200'}`}
+                >
+                  <span
+                    className={`absolute top-0.5 left-0.5 h-4 w-4 rounded-full bg-white shadow transition-transform ${selectedWidget.showTitle !== false ? 'translate-x-4' : 'translate-x-0'}`}
+                  />
+                </button>
+              </div>
+
+              {/* 타이틀 변경 */}
+              {selectedWidget.showTitle !== false && (
+                <div>
+                  <label className="text-[10px] text-slate-500 font-semibold uppercase tracking-wide block mb-1">타이틀 변경</label>
+                  {editingTitleId === selectedWidget.id ? (
+                    <div className="flex gap-1">
+                      <input
+                        autoFocus
+                        defaultValue={selectedWidget.customTitle ?? selectedWidget.item.label}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter') {
+                            updateWidgetMeta(selectedWidget.id, { customTitle: e.currentTarget.value || undefined });
+                            setEditingTitleId(null);
+                          } else if (e.key === 'Escape') setEditingTitleId(null);
+                        }}
+                        className="flex-1 text-xs border border-slate-200 rounded px-2 py-1 bg-white focus:outline-none focus:border-[#0f5b9e]"
+                        placeholder={selectedWidget.item.label}
+                      />
+                      <button onClick={() => setEditingTitleId(null)} className="text-[10px] px-2 py-1 bg-slate-200 rounded hover:bg-slate-300">
+                        완료
+                      </button>
+                    </div>
+                  ) : (
+                    <button
+                      onClick={() => setEditingTitleId(selectedWidget.id)}
+                      className="w-full text-left text-xs px-2 py-1.5 bg-white border border-slate-200 rounded hover:border-[#0f5b9e] text-slate-600 truncate"
+                    >
+                      {selectedWidget.customTitle ?? selectedWidget.item.label}
+                      <span className="ml-1 text-slate-400 text-[9px]">✎</span>
+                    </button>
+                  )}
+                  {selectedWidget.customTitle && (
+                    <button onClick={() => updateWidgetMeta(selectedWidget.id, { customTitle: undefined })} className="text-[9px] text-red-400 hover:text-red-600 mt-0.5">
+                      원래 이름으로 초기화
+                    </button>
+                  )}
+                </div>
+              )}
+
+              {/* 타이틀 정렬 */}
+              {selectedWidget.showTitle !== false && (
+                <div>
+                  <label className="text-[10px] text-slate-500 font-semibold uppercase tracking-wide block mb-1">타이틀 정렬</label>
+                  <div className="flex gap-1">
+                    {(['left', 'center', 'right'] as const).map((align) => (
+                      <button
+                        key={align}
+                        onClick={() => updateWidgetStyle(selectedWidget.id, { titleAlign: align })}
+                        className={`flex-1 py-1 rounded border text-[10px] font-semibold transition-colors ${
+                          (selectedWidget.style.titleAlign ?? 'left') === align
+                            ? 'bg-[#0f5b9e] text-white border-[#0f5b9e]'
+                            : 'bg-white text-slate-500 border-slate-200 hover:border-[#0f5b9e]'
+                        }`}
+                      >
+                        {align === 'left' ? '← 왼쪽' : align === 'center' ? '≡ 가운데' : '→ 오른쪽'}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+
               {/* 폰트 크기 */}
               <div>
                 <label className="text-[10px] text-slate-500 font-semibold uppercase tracking-wide block mb-1">폰트 크기</label>
@@ -340,6 +686,7 @@ export default function TaskCreate() {
                   ))}
                 </select>
               </div>
+
               {/* 폰트 패밀리 */}
               <div>
                 <label className="text-[10px] text-slate-500 font-semibold uppercase tracking-wide block mb-1">폰트</label>
@@ -354,11 +701,18 @@ export default function TaskCreate() {
                     </option>
                   ))}
                 </select>
+                <div
+                  className="mt-1 px-2 py-1 bg-slate-800 rounded text-center text-white"
+                  style={{ fontFamily: selectedWidget.style.fontFamily, fontSize: selectedWidget.style.fontSize }}
+                >
+                  Aa 가나다 123
+                </div>
               </div>
-              {/* 텍스트 색상 */}
+
+              {/* 텍스트 / 배경 색상 */}
               <div className="flex gap-2 items-center">
                 <div className="flex-1">
-                  <label className="text-[10px] text-slate-500 font-semibold uppercase tracking-wide block mb-1">텍스트 색상</label>
+                  <label className="text-[10px] text-slate-500 font-semibold uppercase tracking-wide block mb-1">텍스트</label>
                   <input
                     type="color"
                     value={selectedWidget.style.color}
@@ -367,7 +721,7 @@ export default function TaskCreate() {
                   />
                 </div>
                 <div className="flex-1">
-                  <label className="text-[10px] text-slate-500 font-semibold uppercase tracking-wide block mb-1">배경 색상</label>
+                  <label className="text-[10px] text-slate-500 font-semibold uppercase tracking-wide block mb-1">배경</label>
                   <input
                     type="color"
                     value={selectedWidget.style.bgColor.startsWith('rgba') ? '#000000' : selectedWidget.style.bgColor}
@@ -376,8 +730,9 @@ export default function TaskCreate() {
                   />
                 </div>
               </div>
-              {/* 투명 배경 빠른 프리셋 */}
-              <div className="flex gap-1.5 flex-wrap">
+
+              {/* 배경 프리셋 */}
+              <div className="flex gap-1 flex-wrap">
                 {[
                   { label: '반투명 검정', value: 'rgba(0,0,0,0.7)' },
                   { label: '반투명 파랑', value: 'rgba(15,91,158,0.85)' },
@@ -408,20 +763,26 @@ export default function TaskCreate() {
                   전체 삭제
                 </button>
               )}
-              {droppedWidgets.length > 0 && <p className="mt-1 text-[10px]">위젯을 클릭하면 스타일을 변경할 수 있어요</p>}
+              {droppedWidgets.length > 0 && <p className="mt-1 text-[10px]">위젯 클릭 → 스타일 편집 / 우하단 모서리 드래그 → 크기 조절</p>}
             </div>
           )}
         </div>
 
         {/* ── 오른쪽 패널: 전광판 캔버스 ── */}
         <div className="flex-1 flex flex-col overflow-hidden">
-          {/* 캔버스 헤더 */}
           <div className="px-6 py-3 bg-white border-b border-slate-200 flex items-center justify-between">
-            <div>
-              <h1 className="text-base font-bold text-slate-800">{pageName}</h1>
-              <p className="text-xs text-slate-400">왼쪽 항목을 배경 위로 드래그 · 위젯 클릭으로 스타일 편집 · 드래그로 위치 변경</p>
+            <div className="flex items-center gap-3 flex-1 min-w-0">
+              <div className="flex-1 min-w-0">
+                <input
+                  value={boardTitle}
+                  onChange={(e) => setBoardTitle(e.target.value)}
+                  className="text-base font-bold text-slate-800 bg-transparent border-b border-transparent hover:border-slate-300 focus:border-[#0f5b9e] outline-none px-1 w-full max-w-xs truncate"
+                  placeholder="전광판 이름 입력"
+                />
+                <p className="text-xs text-slate-400">{isEditMode ? '편집 모드' : '신규 생성'} · 왼쪽 항목 드래그 · 위젯 클릭으로 스타일 편집 · 우하단 드래그로 크기 조절</p>
+              </div>
             </div>
-            <div className="flex gap-2">
+            <div className="flex gap-2 flex-shrink-0">
               <button
                 onClick={() => {
                   setDroppedWidgets([]);
@@ -441,10 +802,9 @@ export default function TaskCreate() {
             </div>
           </div>
 
-          {/* 캔버스 영역 */}
           <div className="flex-1 p-6 flex items-center justify-center overflow-hidden">
-            <div className="w-full max-w-5xl" style={{ aspectRatio: '16/9' }}>
-              <DroppableBoard fileName={fileName} pageName={pageName} onClickCanvas={() => setSelectedWidgetId(null)}>
+            <div ref={boardContainerRef} className="w-full max-w-5xl" style={{ aspectRatio: '16/9' }}>
+              <DroppableBoard fileName={fileName} pageName={boardTitle} onClickCanvas={() => setSelectedWidgetId(null)}>
                 {droppedWidgets.map((widget) => (
                   <CanvasWidget
                     key={widget.id}
@@ -452,6 +812,7 @@ export default function TaskCreate() {
                     isSelected={selectedWidgetId === widget.id}
                     onSelect={() => setSelectedWidgetId(widget.id)}
                     onRemove={() => removeWidget(widget.id)}
+                    onResizeStart={handleResizeStart}
                   />
                 ))}
               </DroppableBoard>
@@ -460,13 +821,11 @@ export default function TaskCreate() {
         </div>
       </div>
 
-      {/* DragOverlay */}
       <DragOverlay>
         {activeDrag && (
           <div className="flex items-center gap-2 px-3 py-2 rounded-lg border border-slate-300 bg-white shadow-xl cursor-grabbing" style={{ opacity: 0.9 }}>
             <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ backgroundColor: activeDrag.item.color }} />
             <span className="text-xs font-medium text-slate-700">{activeDrag.item.label}</span>
-            {activeDrag.item.unit && <span className="text-[10px] text-slate-400">{activeDrag.item.unit}</span>}
           </div>
         )}
       </DragOverlay>
