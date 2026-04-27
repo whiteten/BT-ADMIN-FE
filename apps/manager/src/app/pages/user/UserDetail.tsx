@@ -11,7 +11,7 @@ import React, { Suspense, useCallback, useEffect, useMemo, useRef, useState } fr
 import { useParams, useSearchParams } from 'react-router-dom';
 import { type BreadcrumbProps, Button, Divider, Tag } from 'antd';
 import { Check, ChevronLeft, ChevronRight, History, Layers, Shield } from 'lucide-react';
-import { useAuthStore, useNavigationStore } from '@/shared-store';
+import { useAuthStore } from '@/shared-store';
 import { type PermissionStats, type ResourceStats, type UserAdditionalFormValues, type UserBasicFormValues, UserDetailProvider } from './context/UserDetailContext';
 import AccountStatusBadge from '../../features/user/components/AccountStatusBadge';
 import { useGetUser } from '../../features/user/hooks/useUserQueries';
@@ -33,7 +33,7 @@ interface PageTab {
   component: React.ComponentType | React.LazyExoticComponent<React.ComponentType>;
 }
 
-const BASE_TABS: PageTab[] = [
+const baseTabs: PageTab[] = [
   { id: 'tab1', label: '기본정보', icon: IconDocument, component: UserBasicInfoTab },
   { id: 'tab2', label: '리소스 접근', icon: Layers, component: UserResourceAccessTab },
   { id: 'tab3', label: '개별 권한', icon: Shield, component: UserPermissionTab },
@@ -76,9 +76,13 @@ export default function UserDetail() {
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   const numericUserId = userId ? Number(userId) : undefined;
 
-  const apps = useNavigationStore((state) => state.apps);
-  const hasFca = apps.some((app) => app.appId === 'fca');
-  const tabs = hasFca ? BASE_TABS : BASE_TABS.filter((t) => t.id !== 'tab2');
+  // 리소스 접근 관리 권한에 따라 탭 필터링
+  const { canManageResourceAccess: canManageResourceAccessFn } = useAuthStore();
+  const hasResourceAccessPermission = canManageResourceAccessFn();
+  const tabs = baseTabs.filter((tab) => {
+    if (tab.id === 'tab2') return hasResourceAccessPermission;
+    return true;
+  });
 
   const tabFromUrl = searchParams.get('tab');
   const [activeTab, setActiveTab] = useState(tabFromUrl ?? tabs[0]?.id ?? '');
@@ -216,10 +220,10 @@ export default function UserDetail() {
             <span className="text-gray-800 flex-1 truncate">{displayValue(currentBasic.description)}</span>
           </div>
         </div>
-        <Divider className="!my-3" />
-        {/* 리소스 접근 - FCA 앱이 있을 때만 표시 */}
-        {hasFca && (
+        {hasResourceAccessPermission && (
           <>
+            <Divider className="!my-3" />
+            {/* 리소스 접근 */}
             <div className="space-y-2">
               <div className="flex items-center gap-1">
                 <span className="text-gray-500 w-28 shrink-0">봇 서비스</span>
@@ -242,9 +246,9 @@ export default function UserDetail() {
                 </span>
               </div>
             </div>
-            <Divider className="!my-3" />
           </>
         )}
+        <Divider className="!my-3" />
         {/* 개별 권한 (Replacement 모델) */}
         <div className="space-y-2">
           <div className="flex items-center gap-1">

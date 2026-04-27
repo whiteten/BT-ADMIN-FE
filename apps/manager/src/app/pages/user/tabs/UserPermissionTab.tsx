@@ -24,10 +24,10 @@ export default function UserPermissionTab() {
   const numericUserId = userId ? Number(userId) : undefined;
   const { user, isUserFetching, setPermissionStats } = useUserDetailContext();
 
-  // 현재 선택된 권한 ID 목록
-  const [selectedAuthIds, setSelectedAuthIds] = useState<Set<number>>(new Set());
+  // 현재 선택된 권한 키 목록
+  const [selectedAuthKeys, setSelectedAuthKeys] = useState<Set<string>>(new Set());
   // 초기 상태 (변경 감지용)
-  const [initialSelectedAuthIds, setInitialSelectedAuthIds] = useState<Set<number>>(new Set());
+  const [initialSelectedAuthKeys, setInitialSelectedAuthKeys] = useState<Set<string>>(new Set());
   // 개별권한 모드 여부 (DB에 데이터가 있는지)
   const [hasCustomPermissions, setHasCustomPermissions] = useState(false);
 
@@ -50,36 +50,36 @@ export default function UserPermissionTab() {
   useEffect(() => {
     if (existingMaps.length > 0) {
       // 개별권한 있음 → 그 권한만 체크
-      const authIds = new Set(existingMaps.map((m) => m.authId));
-      setSelectedAuthIds(authIds);
-      setInitialSelectedAuthIds(new Set(authIds));
+      const authKeys = new Set(existingMaps.map((m) => m.authKey));
+      setSelectedAuthKeys(authKeys);
+      setInitialSelectedAuthKeys(new Set(authKeys));
       setHasCustomPermissions(true);
-    } else if (role?.authIds) {
+    } else if (role?.authKeys) {
       // 개별권한 없음 → 역할 권한을 템플릿으로 미리 체크
-      const authIds = new Set(role.authIds);
-      setSelectedAuthIds(authIds);
-      setInitialSelectedAuthIds(new Set(authIds));
+      const authKeys = new Set(role.authKeys);
+      setSelectedAuthKeys(authKeys);
+      setInitialSelectedAuthKeys(new Set(authKeys));
       setHasCustomPermissions(false);
     } else {
       // 역할도 없음 → 빈 상태
-      setSelectedAuthIds(new Set());
-      setInitialSelectedAuthIds(new Set());
+      setSelectedAuthKeys(new Set());
+      setInitialSelectedAuthKeys(new Set());
       setHasCustomPermissions(false);
     }
-  }, [existingMaps, role?.authIds]);
+  }, [existingMaps, role?.authKeys]);
 
   // 권한 통계를 Context에 전달 (우측 요약 표시용)
   useEffect(() => {
-    const roleAuthCount = role?.authIds?.length ?? 0;
+    const roleAuthCount = role?.authKeys?.length ?? 0;
     const customPermissionCount = hasCustomPermissions ? existingMaps.length : 0;
 
     setPermissionStats({
       roleAuthCount,
-      selectedCount: selectedAuthIds.size,
+      selectedCount: selectedAuthKeys.size,
       savedAllowCount: customPermissionCount,
       savedDenyCount: 0, // Replacement 모델에서는 DENY 개념 없음
     });
-  }, [role?.authIds, selectedAuthIds.size, existingMaps.length, hasCustomPermissions, setPermissionStats]);
+  }, [role?.authKeys, selectedAuthKeys.size, existingMaps.length, hasCustomPermissions, setPermissionStats]);
 
   // 동기화 Mutation
   const { mutate: syncPermissions, isPending: isSyncing } = useSyncUserPermissions({
@@ -94,26 +94,26 @@ export default function UserPermissionTab() {
 
   // 변경 여부 확인
   const hasChanges = useMemo(() => {
-    if (selectedAuthIds.size !== initialSelectedAuthIds.size) return true;
-    for (const id of selectedAuthIds) {
-      if (!initialSelectedAuthIds.has(id)) return true;
+    if (selectedAuthKeys.size !== initialSelectedAuthKeys.size) return true;
+    for (const key of selectedAuthKeys) {
+      if (!initialSelectedAuthKeys.has(key)) return true;
     }
     return false;
-  }, [selectedAuthIds, initialSelectedAuthIds]);
+  }, [selectedAuthKeys, initialSelectedAuthKeys]);
 
   // 저장 핸들러
   const handleSave = () => {
     if (!numericUserId) return;
     syncPermissions({
       userId: numericUserId,
-      data: { authIds: [...selectedAuthIds] },
+      data: { authKeys: [...selectedAuthKeys] },
     });
   };
 
   // 역할 권한으로 초기화 (템플릿 복원)
   const handleResetToRole = () => {
-    if (role?.authIds) {
-      setSelectedAuthIds(new Set(role.authIds));
+    if (role?.authKeys) {
+      setSelectedAuthKeys(new Set(role.authKeys));
     }
   };
 
@@ -145,7 +145,7 @@ export default function UserPermissionTab() {
 
       {/* 권한 선택기 (전체 권한 표시) */}
       <div className="flex-1 min-h-0 overflow-hidden">
-        <PermissionSelector value={selectedAuthIds} onChange={setSelectedAuthIds} className="h-full" />
+        <PermissionSelector value={selectedAuthKeys} onChange={setSelectedAuthKeys} className="h-full" />
       </div>
 
       {/* 버튼 */}

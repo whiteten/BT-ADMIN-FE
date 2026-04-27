@@ -8,7 +8,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { Button, Col, Row } from 'antd';
-import { useNavigationStore } from '@/shared-store';
 import { toast } from '@/shared-util';
 import ResourceSection from '../../../features/user-resource/components/ResourceSection';
 import { useGetBots, useGetModels, useGetUserResourceMaps, useSyncUserResources } from '../../../features/user-resource/hooks/useUserResourceQueries';
@@ -22,13 +21,10 @@ export default function UserResourceAccessTab() {
   const numericUserId = userId ? Number(userId) : 0;
   const { setResourceStats } = useUserDetailContext();
 
-  const apps = useNavigationStore((state) => state.apps);
-  const hasFca = useMemo(() => apps.some((app) => app.appId === 'fca'), [apps]);
-
   // API 조회
   const { data: resourceMaps, isLoading: isLoadingMaps } = useGetUserResourceMaps(numericUserId);
-  const { data: bots, isLoading: isLoadingBots } = useGetBots({ queryOptions: { enabled: hasFca } });
-  const { data: models, isLoading: isLoadingModels } = useGetModels({ queryOptions: { enabled: hasFca } });
+  const { data: bots, isLoading: isLoadingBots } = useGetBots();
+  const { data: models, isLoading: isLoadingModels } = useGetModels();
   const syncMutation = useSyncUserResources();
 
   // 로컬 상태 (Deferred Save)
@@ -130,7 +126,7 @@ export default function UserResourceAccessTab() {
   }, [numericUserId, botItems, modelItems, syncMutation]);
 
   // 로딩 상태
-  const isLoading = isLoadingMaps || (hasFca && (isLoadingBots || isLoadingModels));
+  const isLoading = isLoadingMaps || isLoadingBots || isLoadingModels;
 
   if (isLoading) {
     return (
@@ -143,12 +139,27 @@ export default function UserResourceAccessTab() {
   return (
     <div className="flex flex-col h-full overflow-hidden">
       <div className="flex-1 min-h-0 overflow-y-auto p-2">
-        {hasFca && (
-          <>
-            <ResourceSection title="봇 서비스" drawerTitle="봇 서비스 추가" availableResources={availableBots} assignedItems={botItems} onAssignedItemsChange={setBotItems} />
-            <ResourceSection title="NLU 모델" drawerTitle="NLU 모델 추가" availableResources={availableModels} assignedItems={modelItems} onAssignedItemsChange={setModelItems} />
-          </>
-        )}
+        <ResourceSection
+          title="리소스 접근"
+          groups={[
+            {
+              resourceType: 'BOT',
+              title: '봇 서비스',
+              drawerTitle: '봇 서비스 추가',
+              availableResources: availableBots,
+              assignedItems: botItems,
+              onAssignedItemsChange: setBotItems,
+            },
+            {
+              resourceType: 'NLU_MODEL',
+              title: 'NLU 모델',
+              drawerTitle: 'NLU 모델 추가',
+              availableResources: availableModels,
+              assignedItems: modelItems,
+              onAssignedItemsChange: setModelItems,
+            },
+          ]}
+        />
       </div>
 
       {/* 버튼 */}

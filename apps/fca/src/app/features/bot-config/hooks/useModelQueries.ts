@@ -13,7 +13,8 @@ import type {
   EvaluationResultListByEvalDateItem,
   EvaluationResultListItem,
 } from '../types/evaluation';
-import type { IntentItem, IntentListItem, IntentSentenceListItem } from '../types/intent';
+import type { ExcelImportResult, IntentItem, IntentListItem, IntentSentenceListItem } from '../types/intent';
+import type { KeywordCreateDatas, KeywordListItem, KeywordUpdateDatas } from '../types/keyword';
 import type { GenerateExcelDatas, ModelItem, ModelListItem } from '../types/model';
 import type { RetrainDetail, RetrainListItem } from '../types/retrain';
 import type { SnapshotCompareResult, SnapshotListItem } from '../types/snapshot';
@@ -35,6 +36,7 @@ export const modelQueryKeys = createQueryKeys('models', {
   getEvaluationResults: (params?: Record<string, unknown>) => [params],
   getEvaluationResultsByEvalDate: (params?: Record<string, unknown>) => [params],
   getEvaluationResultsByEvalDateAndQuestionSeq: (params?: Record<string, unknown>) => [params],
+  getKeywords: (params?: Record<string, unknown>) => [params],
   getRetrains: (params?: Record<string, unknown>) => [params],
   getRetrainDetail: (params?: Record<string, unknown>) => [params],
   getSnapshots: (params?: Record<string, unknown>) => [params],
@@ -461,9 +463,67 @@ export const useExportIntent = ({ mutationOptions }: MutationHookOptions = {}) =
   });
 };
 
+export const useExportIntentAndEntity = ({ mutationOptions }: MutationHookOptions = {}) => {
+  return useMutation({
+    mutationFn: async (params: Record<string, unknown>) => {
+      const response = await modelApi.exportIntentAndEntity(params);
+      const fileName = extractFileName(response.headers['content-disposition'], `INTENT_ENTITY_${dayjs().format('YYYYMMDD')}.xlsx`);
+      downloadBlob(response.data, fileName);
+    },
+    ...mutationOptions,
+  });
+};
+
 export const useImportIntent = ({ mutationOptions }: MutationHookOptions = {}) => {
   return useMutation({
     mutationFn: modelApi.importIntent,
+    ...mutationOptions,
+  });
+};
+
+export const useGetKeywords = ({ params, queryOptions }: QueryHookWithParamsOptions<KeywordListItem[]> = {}) => {
+  return useQuery({
+    queryKey: modelQueryKeys.getKeywords(params).queryKey,
+    queryFn: () => modelApi.getKeywords(params),
+    ...queryOptions,
+  });
+};
+
+export const useCreateKeyword = ({ mutationOptions }: MutationHookOptions<void, { params: Record<string, unknown>; data: KeywordCreateDatas }> = {}) => {
+  return useMutation({
+    mutationFn: modelApi.createKeyword,
+    ...mutationOptions,
+  });
+};
+
+export const useUpdateKeyword = ({ mutationOptions }: MutationHookOptions<void, { params: Record<string, unknown>; data: KeywordUpdateDatas }> = {}) => {
+  return useMutation({
+    mutationFn: modelApi.updateKeyword,
+    ...mutationOptions,
+  });
+};
+
+export const useDeleteKeyword = ({ mutationOptions }: MutationHookOptions<void, Record<string, unknown>> = {}) => {
+  return useMutation({
+    mutationFn: modelApi.deleteKeyword,
+    ...mutationOptions,
+  });
+};
+
+export const useImportKeyword = ({ mutationOptions }: MutationHookOptions<ExcelImportResult> = {}) => {
+  return useMutation({
+    mutationFn: modelApi.importKeyword,
+    ...mutationOptions,
+  });
+};
+
+export const useExportKeyword = ({ mutationOptions }: MutationHookOptions = {}) => {
+  return useMutation({
+    mutationFn: async (params: Record<string, unknown>) => {
+      const response = await modelApi.exportKeyword(params);
+      const fileName = extractFileName(response.headers['content-disposition'], `KEYWORDS_${dayjs().format('YYYYMMDD')}.xlsx`);
+      downloadBlob(response.data, fileName);
+    },
     ...mutationOptions,
   });
 };
@@ -497,7 +557,7 @@ export const useGenerateExcel = ({ mutationOptions }: MutationHookOptions = {}) 
   });
 };
 
-export const useImportIntentSentence = ({ mutationOptions }: MutationHookOptions = {}) => {
+export const useImportIntentSentence = ({ mutationOptions }: MutationHookOptions<ExcelImportResult> = {}) => {
   return useMutation({
     mutationFn: modelApi.importIntentSentence,
     ...mutationOptions,
@@ -515,7 +575,7 @@ export const useExportEvaluationQuestion = ({ mutationOptions }: MutationHookOpt
   });
 };
 
-export const useImportEvaluationQuestion = ({ mutationOptions }: MutationHookOptions = {}) => {
+export const useImportEvaluationQuestion = ({ mutationOptions }: MutationHookOptions<ExcelImportResult> = {}) => {
   return useMutation({
     mutationFn: modelApi.importEvaluationQuestion,
     ...mutationOptions,

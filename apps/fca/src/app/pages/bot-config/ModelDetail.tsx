@@ -4,7 +4,7 @@ import { type BreadcrumbProps } from 'antd';
 import ModelToolbar from '../../features/bot-config/components/ModelToolbar';
 import { useGetModel } from '../../features/bot-config/hooks/useModelQueries';
 import { useModelRoute } from '../../features/bot-config/hooks/useModelRoute';
-import { IconDocument, IconEntity, IconEvaluation, IconIntent, IconRetrain, IconSnapshot } from '@/components/custom/Icons';
+import { IconDocument, IconEntity, IconEvaluation, IconIntent, IconRetrain, IconSnapshot, IconTag } from '@/components/custom/Icons';
 import PageHeader from '@/components/custom/PageHeader';
 import PageTabs, { type PageTab } from '@/components/custom/PageTabs';
 
@@ -14,14 +14,16 @@ const ModelEntityList = React.lazy(() => import('../../features/bot-config/tabs/
 const ModelEvaluationList = React.lazy(() => import('../../features/bot-config/tabs/ModelEvaluationList'));
 const ModelRetrainList = React.lazy(() => import('../../features/bot-config/tabs/ModelRetrainList'));
 const ModelSnapshotList = React.lazy(() => import('../../features/bot-config/tabs/ModelSnapshotList'));
+const ModelKeywordList = React.lazy(() => import('../../features/bot-config/tabs/ModelKeywordList'));
 
 const tabs: PageTab[] = [
   { id: 'tab1', label: '기본정보', icon: IconDocument, component: ModelBasicInfo },
   { id: 'tab2', label: '의도', icon: IconIntent, component: ModelIntentList },
   { id: 'tab3', label: '개체', icon: IconEntity, component: ModelEntityList },
-  { id: 'tab4', label: '평가', icon: IconEvaluation, component: ModelEvaluationList },
-  { id: 'tab5', label: '재학습', icon: IconRetrain, component: ModelRetrainList },
-  { id: 'tab6', label: '스냅샷', icon: IconSnapshot, component: ModelSnapshotList },
+  { id: 'tab4', label: '키워드', icon: IconTag, component: ModelKeywordList },
+  { id: 'tab5', label: '평가', icon: IconEvaluation, component: ModelEvaluationList },
+  { id: 'tab6', label: '재학습', icon: IconRetrain, component: ModelRetrainList },
+  { id: 'tab7', label: '스냅샷', icon: IconSnapshot, component: ModelSnapshotList },
 ];
 
 export default function ModelDetail() {
@@ -46,8 +48,8 @@ export default function ModelDetail() {
 
   return (
     <div className="flex flex-col gap-4 w-full h-full">
-      <PageHeader breadcrumb={isPublic ? publicBreadcrumb : privateBreadcrumb} params={params} extra={<ModelToolbar modelId={modelId} />} />
-      <PageTabs tabs={tabs} />
+      <PageHeader breadcrumb={isPublic ? publicBreadcrumb : privateBreadcrumb} params={params} />
+      <PageTabs tabs={tabs} extra={<ModelToolbar modelId={modelId} />} />
     </div>
   );
 }

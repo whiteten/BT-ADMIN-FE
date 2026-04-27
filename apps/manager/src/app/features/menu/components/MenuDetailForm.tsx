@@ -1,7 +1,6 @@
 /**
- * 메뉴 상세/편집 폼
- * - 선택된 메뉴의 상세 정보 편집
- * - 저장/삭제/취소 버튼
+ * 메뉴 상세/편집 폼.
+ * IAM 재설계 v2.3: menuId → menuKey.
  */
 
 import { useEffect, useMemo } from 'react';
@@ -13,18 +12,19 @@ import { IconDocument } from '@/components/custom/Icons';
 interface MenuDetailFormProps {
   menu: Menu;
   apps: App[];
-  onSave: (id: number, data: MenuUpsertRequest) => void;
-  onDelete: (id: number) => void;
+  onSave: (menuKey: string, data: MenuUpsertRequest) => void;
+  onDelete: (menuKey: string) => void;
   saving?: boolean;
 }
 
-export default function MenuDetailForm({ menu, apps, onSave, onDelete, saving }: MenuDetailFormProps) {
-  const [form] = Form.useForm<MenuUpsertRequest>();
+type FormValues = Omit<MenuUpsertRequest, 'visible'> & { visible: boolean };
 
-  // 메뉴 변경 시 폼 초기화
+export default function MenuDetailForm({ menu, apps, onSave, onDelete, saving }: MenuDetailFormProps) {
+  const [form] = Form.useForm<FormValues>();
+
   useEffect(() => {
     form.setFieldsValue({
-      parentId: menu.parentId,
+      parentKey: menu.parentKey,
       menuKey: menu.menuKey,
       appId: menu.appId,
       label: menu.label,
@@ -43,7 +43,7 @@ export default function MenuDetailForm({ menu, apps, onSave, onDelete, saving }:
   const handleSubmit = async () => {
     try {
       const values = await form.validateFields();
-      onSave(menu.menuId, values);
+      onSave(menu.menuKey, { ...values, visible: values.visible ? 1 : 0 });
     } catch {
       // validation error
     }
@@ -57,7 +57,7 @@ export default function MenuDetailForm({ menu, apps, onSave, onDelete, saving }:
       cancelText: '취소',
       okButtonProps: { danger: true },
       centered: true,
-      onOk: () => onDelete(menu.menuId),
+      onOk: () => onDelete(menu.menuKey),
     });
   };
 
@@ -69,23 +69,20 @@ export default function MenuDetailForm({ menu, apps, onSave, onDelete, saving }:
             <IconDocument className="h-5 w-5" />
             <span className="text-[20px] font-bold">메뉴 상세</span>
           </div>
-          <span className="text-sm text-gray-400">ID: {menu.menuId}</span>
+          <span className="text-sm text-gray-400">Key: {menu.menuKey}</span>
         </div>
-
         <Form form={form} layout="vertical" className="max-w-2xl">
-          <Form.Item name="parentId" hidden>
+          <Form.Item name="parentKey" hidden>
             <Input />
           </Form.Item>
 
           <div className="grid grid-cols-2 gap-x-4">
-            <Form.Item label="메뉴키" name="menuKey" rules={[{ required: true, message: '메뉴키를 입력해주세요' }]}>
-              <Input placeholder="예: resource.menu.list" />
-            </Form.Item>
-
             <Form.Item label="앱" name="appId" rules={[{ required: true, message: '앱을 선택해주세요' }]}>
               <Select placeholder="앱 선택" options={appOptions} />
             </Form.Item>
-
+            <Form.Item label="메뉴키" name="menuKey" rules={[{ required: true, message: '메뉴키를 입력해주세요' }]}>
+              <Input placeholder="예: manager-menu" disabled />
+            </Form.Item>
             <Form.Item label="라벨" name="label" rules={[{ required: true, message: '라벨을 입력해주세요' }]}>
               <Input placeholder="메뉴 표시명" />
             </Form.Item>

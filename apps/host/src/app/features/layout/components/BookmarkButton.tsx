@@ -7,13 +7,13 @@ import { useCreateBookmark, useDeleteBookmark } from '../hooks/useBookmarkQuerie
 import { Button } from '@/components/ui/button';
 
 interface BookmarkButtonProps {
-  menuId: number;
+  menuKey: string;
   label: string;
   path: string;
   appId: string;
 }
 
-export const BookmarkButton = React.memo(({ menuId, label, path, appId }: BookmarkButtonProps) => {
+export const BookmarkButton = React.memo(({ menuKey, label, path, appId }: BookmarkButtonProps) => {
   const queryClient = useQueryClient();
   const { favorites } = useNavigationStore();
   const { mutate: createBookmark, isPending: isCreating } = useCreateBookmark({
@@ -30,19 +30,19 @@ export const BookmarkButton = React.memo(({ menuId, label, path, appId }: Bookma
       },
     },
   });
-  const isMenuIdInFavorites = favorites.some((bookmark) => bookmark.menuId === menuId);
+  const isBookmarked = favorites.some((bookmark) => bookmark.menuKey === menuKey);
 
   const handleToggleBookmark = useCallback(() => {
-    if (isMenuIdInFavorites) {
-      deleteBookmark({ menuId });
+    if (isBookmarked) {
+      deleteBookmark({ menuKey });
     } else {
-      createBookmark({ params: {}, data: { menuId } });
+      createBookmark({ params: {}, data: { menuKey } });
     }
-  }, [createBookmark, deleteBookmark, isMenuIdInFavorites, menuId]);
+  }, [createBookmark, deleteBookmark, isBookmarked, menuKey]);
 
   return (
     <Button type="button" variant="ghost" size="icon" className="h-8 w-8 cursor-pointer" onClick={handleToggleBookmark} disabled={isCreating || isDeleting}>
-      <IconBookmark className="size-5" fill={isMenuIdInFavorites ? 'var(--color-bt-primary)' : 'none'} color={isMenuIdInFavorites ? 'var(--color-bt-primary)' : '#495057'} />
+      <IconBookmark className="size-5" fill={isBookmarked ? 'var(--color-bt-primary)' : 'none'} color={isBookmarked ? 'var(--color-bt-primary)' : '#495057'} />
       <span className="sr-only">Toggle bookmark</span>
     </Button>
   );

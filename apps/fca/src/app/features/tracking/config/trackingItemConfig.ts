@@ -18,7 +18,6 @@ import {
   Mic2, // TYPE 18 (음성인식)
   Navigation, // TYPE 60 (메뉴호출)
   Package, // TYPE 3, 23 (패킷)
-  PhoneIncoming, // TYPE 0 (콜인입, menuId=S)
   PhoneOff, // TYPE 10 (연결해제)
   PhoneOutgoing, // TYPE 15 (외부발신)
   Radio, // TYPE 17 (채널할당)
@@ -106,11 +105,7 @@ const DEFAULT_CONFIG: TrackingItemConfig = {
   color: 'text-slate-400',
 };
 
-export function getTrackingItemConfig(type: number, menuId?: string): TrackingItemConfig {
-  // TYPE=0이고 menuId가 'S'이면 콜인입시작
-  if (type === 0 && menuId === 'S') {
-    return { icon: PhoneIncoming, color: 'text-blue-600' };
-  }
+export function getTrackingItemConfig(type: number): TrackingItemConfig {
   return TRACKING_ITEM_CONFIG[type] ?? DEFAULT_CONFIG;
 }
 

@@ -1,5 +1,10 @@
+/**
+ * 메뉴 트리 아이템.
+ *
+ * IAM 재설계 v2.2: menuId(number) → menuKey(string).
+ */
 export interface MenuItem {
-  menuId: number;
+  menuKey: string;
   label: string;
   path?: string;
   icon?: React.ElementType;

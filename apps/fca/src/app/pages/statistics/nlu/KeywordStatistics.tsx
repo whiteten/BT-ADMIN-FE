@@ -1,11 +1,13 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import type { ColDef, ExcelExportParams, ProcessCellForExportParams } from 'ag-grid-community';
+import type { ColDef } from 'ag-grid-community';
 import { AgGridReact } from 'ag-grid-react';
 import { type BreadcrumbProps, Button, Checkbox, DatePicker, Divider, Select, TimePicker } from 'antd';
 import dayjs, { type Dayjs } from 'dayjs';
 import { ChevronDown, Download } from 'lucide-react';
-import { toast } from '@/shared-util';
+import { useNavigationStore } from '@/shared-store';
+import { downloadBlob, extractFileName, toast } from '@/shared-util';
 import { useGetModels } from '../../../features/bot-config/hooks/useModelQueries';
+import { statisticsApi } from '../../../features/statistics/api/statisticsApi';
 import {
   createDisabledDate,
   createEndDisabledDate,
@@ -15,6 +17,7 @@ import {
   getTimeFormat,
   validateDateRange,
 } from '../../../features/statistics/hooks/useDateRangeLimit';
+import { useStatisticsFilterStore } from '../../../features/statistics/hooks/useStatisticsFilterStore';
 import { useGetKeywordStatList } from '../../../features/statistics/hooks/useStatisticsQueries';
 import type { KeywordStatListItem } from '../../../features/statistics/types/statistics.types';
 import PageHeader from '@/components/custom/PageHeader';
@@ -29,8 +32,8 @@ const breadcrumb: BreadcrumbProps['items'] = [
 ];
 
 export default function KeywordStatistics() {
+  const { modelIds, setModelIds } = useStatisticsFilterStore();
   // UI 상태 (사용자가 입력하는 값들)
-  const [modelIds, setModelIds] = useState<string[]>([]);
   const [timeUnit, setTimeUnit] = useState<string>('DD');
   const [startDate, setStartDate] = useState<Dayjs | null>(dayjs().startOf('day'));
   const [endDate, setEndDate] = useState<Dayjs | null>(dayjs().endOf('day'));
@@ -207,36 +210,40 @@ export default function KeywordStatistics() {
     },
   ];
 
+  const { permissions } = useNavigationStore();
+  const hasExcelPermission = permissions.includes('fca:stats-keyword:excel');
+
   const [isExporting, setIsExporting] = useState(false);
 
-  const handleExcelDownload = () => {
-    const api = gridRef.current?.api;
-    if (!api) return;
+  const handleExcelDownload = async () => {
     if (!rowData?.length) {
       toast.warning('다운로드할 데이터가 없습니다.');
       return;
     }
 
     setIsExporting(true);
-    const fileName = `KEYWORD_STATISTICS_${dayjs().format('YYYYMMDD_HHmmss')}.xlsx`;
-
-    const exportParams: ExcelExportParams = {
-      fileName,
-      sheetName: '키워드 통계',
-      processCellCallback: (p: ProcessCellForExportParams) => {
-        const colId = p.column.getColId();
-        const v = p.value;
-
-        if (colId === 'psrTimeKey') {
-          return v ? dayjs(String(v)).format(getTimeFormat(displayTimeUnit)) : '-';
-        }
-
-        return v ?? '-';
-      },
-    };
-
-    api.exportDataAsExcel(exportParams);
-    window.setTimeout(() => setIsExporting(false), 300);
+    try {
+      const response = await statisticsApi.exportKeywordStatExcel({
+        timeUnit: displayTimeUnit,
+        fromTime,
+        toTime,
+        modelIds: [modelIds].flat().filter(Boolean),
+        excludeLunch: displayTimeUnit === 'MI' || displayTimeUnit === 'HH' ? excludeLunch : false,
+        useInterval: displayTimeUnit === 'MI' || displayTimeUnit === 'HH' ? useInterval : false,
+        hourFrom: displayTimeUnit === 'MI' || displayTimeUnit === 'HH' ? (useInterval && intervalStartTime ? intervalStartTime.format('HH00') : '') : '',
+        hourTo: displayTimeUnit === 'MI' || displayTimeUnit === 'HH' ? (useInterval && intervalEndTime ? intervalEndTime.format('HH00') : '') : '',
+        excludeDays: displayTimeUnit !== 'MM' && displayTimeUnit !== 'YY' ? excludeDays : [],
+        excludeBusinessHoliday: displayTimeUnit !== 'MM' && displayTimeUnit !== 'YY' ? excludeBusinessHoliday : false,
+        excludeStatHoliday: displayTimeUnit !== 'MM' && displayTimeUnit !== 'YY' ? excludeStatHoliday : false,
+        isNotExistEntity,
+      });
+      const fileName = extractFileName(response.headers['content-disposition'], `KEYWORD_STATISTICS_${dayjs().format('YYYYMMDD_HHmmss')}.xlsx`);
+      downloadBlob(response.data, fileName);
+    } catch {
+      toast.error('엑셀 다운로드에 실패했습니다.');
+    } finally {
+      setIsExporting(false);
+    }
   };
 
   return (
@@ -246,8 +253,8 @@ export default function KeywordStatistics() {
       <div className="flex flex-col w-full h-full bg-white bt-shadow p-5">
         <Collapsible open={isFilterOpen} onOpenChange={setIsFilterOpen}>
           <header className="flex flex-col gap-3 pb-5">
-            <div className="flex items-center justify-between gap-2">
-              <div className="flex items-center gap-3">
+            <div className="flex items-start gap-3">
+              <div className="flex flex-wrap items-center gap-3 flex-1 min-w-0">
                 <div className="flex items-center gap-3">
                   <span className="text-sm font-medium text-[#495057] shrink-0">검색일자</span>
                   <Select
@@ -310,6 +317,7 @@ export default function KeywordStatistics() {
                 <div className="flex items-center gap-3">
                   <span className="text-sm font-medium text-[#495057] shrink-0">모델</span>
                   <Select
+                    mode="multiple"
                     value={modelIds}
                     onChange={(value) => setModelIds(value ?? [])}
                     allowClear
@@ -318,8 +326,31 @@ export default function KeywordStatistics() {
                     options={modelSelectOptions}
                     placeholder="검색할 모델을 선택하세요."
                     optionFilterProp="label"
-                    className="!min-w-[250px] !max-w-[400px]"
+                    style={{ width: '15rem' }}
                     popupMatchSelectWidth={false}
+                    dropdownRender={(menu) => (
+                      <>
+                        <div
+                          className="flex items-center gap-2 px-3 py-2 cursor-pointer hover:bg-gray-50"
+                          onMouseDown={(e) => e.preventDefault()}
+                          onClick={() => {
+                            if (modelIds.length === modelSelectOptions.length) {
+                              setModelIds([]);
+                            } else {
+                              setModelIds(modelSelectOptions.map((o) => o.value));
+                            }
+                          }}
+                        >
+                          <Checkbox
+                            checked={modelIds.length === modelSelectOptions.length && modelSelectOptions.length > 0}
+                            indeterminate={modelIds.length > 0 && modelIds.length < modelSelectOptions.length}
+                          />
+                          <span className="text-sm">전체 선택</span>
+                        </div>
+                        <Divider style={{ margin: '4px 0' }} />
+                        {menu}
+                      </>
+                    )}
                   />
                 </div>
                 <div className="flex items-center gap-3">
@@ -332,19 +363,15 @@ export default function KeywordStatistics() {
                 <Button type="primary" onClick={handleSearch}>
                   조회
                 </Button>
-                <Button
-                  type="primary"
-                  loading={isExporting}
-                  icon={<Download className="size-4" />}
-                  className="!bg-[#10B981] !border-[#10B981] hover:!bg-[#0FA968]"
-                  onClick={handleExcelDownload}
-                >
-                  엑셀
-                </Button>
+                {hasExcelPermission && (
+                  <Button color="cyan" variant="solid" loading={isExporting} icon={<Download className="size-4" />} onClick={handleExcelDownload}>
+                    Export
+                  </Button>
+                )}
               </div>
             </div>
             <CollapsibleContent>
-              <div className="flex items-center gap-3">
+              <div className="flex flex-wrap items-center gap-3">
                 <div className="flex items-center gap-3">
                   <span className="text-sm font-medium text-[#495057] shrink-0">개체 태그 미분류</span>
                   <Checkbox checked={isNotExistEntity} onChange={(e) => setIsNotExistEntity(e.target.checked)} />
@@ -352,61 +379,71 @@ export default function KeywordStatistics() {
                 {timeUnit !== 'MM' && timeUnit !== 'YY' ? (
                   <>
                     <Divider orientation="vertical" className="!h-5 !m-0" />
-                    <span className="text-sm font-medium text-[#495057] shrink-0">제외요일</span>
-                    <Select
-                      mode="multiple"
-                      value={excludeDays}
-                      onChange={(value) => setExcludeDays(value ?? [])}
-                      allowClear
-                      maxTagCount="responsive"
-                      options={[
-                        { label: '월요일', value: 'MON' },
-                        { label: '화요일', value: 'TUE' },
-                        { label: '수요일', value: 'WED' },
-                        { label: '목요일', value: 'THU' },
-                        { label: '금요일', value: 'FRI' },
-                        { label: '토요일', value: 'SAT' },
-                        { label: '일요일', value: 'SUN' },
-                      ]}
-                      placeholder="제외할 요일 선택"
-                      className="!min-w-[150px] !max-w-[300px]"
-                      popupMatchSelectWidth={false}
-                    />
+                    <div className="flex items-center gap-3">
+                      <span className="text-sm font-medium text-[#495057] shrink-0">제외요일</span>
+                      <Select
+                        mode="multiple"
+                        value={excludeDays}
+                        onChange={(value) => setExcludeDays(value ?? [])}
+                        allowClear
+                        maxTagCount="responsive"
+                        options={[
+                          { label: '월요일', value: 'MON' },
+                          { label: '화요일', value: 'TUE' },
+                          { label: '수요일', value: 'WED' },
+                          { label: '목요일', value: 'THU' },
+                          { label: '금요일', value: 'FRI' },
+                          { label: '토요일', value: 'SAT' },
+                          { label: '일요일', value: 'SUN' },
+                        ]}
+                        placeholder="제외할 요일 선택"
+                        className="!min-w-[150px] !max-w-[300px]"
+                        popupMatchSelectWidth={false}
+                      />
+                    </div>
                     <Divider orientation="vertical" className="!h-5 !m-0" />
-                    <span className="text-sm font-medium text-[#495057] shrink-0">업무공휴일 제외</span>
-                    <Checkbox checked={excludeBusinessHoliday} onChange={(e) => setExcludeBusinessHoliday(e.target.checked)} />
+                    <div className="flex items-center gap-3">
+                      <span className="text-sm font-medium text-[#495057] shrink-0">업무공휴일 제외</span>
+                      <Checkbox checked={excludeBusinessHoliday} onChange={(e) => setExcludeBusinessHoliday(e.target.checked)} />
+                    </div>
                     <Divider orientation="vertical" className="!h-5 !m-0" />
-                    <span className="text-sm font-medium text-[#495057] shrink-0">통계공휴일 제외</span>
-                    <Checkbox checked={excludeStatHoliday} onChange={(e) => setExcludeStatHoliday(e.target.checked)} />
-                  </>
-                ) : null}
-                {timeUnit === 'MI' || timeUnit === 'HH' ? (
-                  <>
-                    <Divider orientation="vertical" className="!h-5 !m-0" />
-                    <span className="text-sm font-medium text-[#495057] shrink-0">점심시간 제외</span>
-                    <Checkbox checked={excludeLunch} onChange={(e) => setExcludeLunch(e.target.checked)} />
-                    <Divider orientation="vertical" className="!h-5 !m-0" />
-                    <span className="text-sm font-medium text-[#495057] shrink-0">구간검색</span>
-                    <Checkbox checked={useInterval} onChange={(e) => setUseInterval(e.target.checked)} />
-                    {useInterval ? (
+                    <div className="flex items-center gap-3">
+                      <span className="text-sm font-medium text-[#495057] shrink-0">통계공휴일 제외</span>
+                      <Checkbox checked={excludeStatHoliday} onChange={(e) => setExcludeStatHoliday(e.target.checked)} />
+                    </div>
+                    {timeUnit === 'MI' || timeUnit === 'HH' ? (
                       <>
-                        <TimePicker
-                          value={intervalStartTime}
-                          onChange={(date) => setIntervalStartTime(date)}
-                          inputReadOnly
-                          allowClear={false}
-                          format="HH:00"
-                          style={{ width: '100px' }}
-                        />
-                        <span className="text-sm font-medium text-[#495057] shrink-0">~</span>
-                        <TimePicker
-                          value={intervalEndTime}
-                          onChange={(date) => setIntervalEndTime(date)}
-                          inputReadOnly
-                          allowClear={false}
-                          format="HH:00"
-                          style={{ width: '100px' }}
-                        />
+                        <Divider orientation="vertical" className="!h-5 !m-0" />
+                        <div className="flex items-center gap-3">
+                          <span className="text-sm font-medium text-[#495057] shrink-0">점심시간 제외</span>
+                          <Checkbox checked={excludeLunch} onChange={(e) => setExcludeLunch(e.target.checked)} />
+                        </div>
+                        <Divider orientation="vertical" className="!h-5 !m-0" />
+                        <div className="flex items-center gap-3">
+                          <span className="text-sm font-medium text-[#495057] shrink-0">구간검색</span>
+                          <Checkbox checked={useInterval} onChange={(e) => setUseInterval(e.target.checked)} />
+                          {useInterval ? (
+                            <>
+                              <TimePicker
+                                value={intervalStartTime}
+                                onChange={(date) => setIntervalStartTime(date)}
+                                inputReadOnly
+                                allowClear={false}
+                                format="HH:00"
+                                style={{ width: '100px' }}
+                              />
+                              <span className="text-sm font-medium text-[#495057] shrink-0">~</span>
+                              <TimePicker
+                                value={intervalEndTime}
+                                onChange={(date) => setIntervalEndTime(date)}
+                                inputReadOnly
+                                allowClear={false}
+                                format="HH:00"
+                                style={{ width: '100px' }}
+                              />
+                            </>
+                          ) : null}
+                        </div>
                       </>
                     ) : null}
                   </>
@@ -422,10 +459,9 @@ export default function KeywordStatistics() {
             rowData={rowData}
             getRowId={(params) => `${params.data.psrTimeKey}_${params.data.scnId}_${params.data.modelId}_${params.data.entityTag}_${params.data.keyword}`}
             columnDefs={columnDefs}
-            gridOptions={gridOptions}
+            gridOptions={{ ...gridOptions, statusBar: undefined }}
             loading={isLoadingKeywordStatList}
             pagination={false}
-            statusBar={{ statusPanels: [] }}
             rowNumbers={false}
             sideBar={false}
             pinnedBottomRowData={summaryRow}
