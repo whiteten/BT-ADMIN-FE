@@ -425,9 +425,9 @@ export default function DodTransListPage() {
       {/* Single column: Tab + Cards (top) + Item Grid (bottom) */}
       <div className="flex flex-1 min-h-0 flex-col gap-4">
         {/* ===== 상단: 노드 탭 바 + 카드 슬라이더 ===== */}
-        <div className="bg-white bt-shadow rounded-md border border-gray-200 flex flex-col overflow-hidden flex-shrink-0">
+        <div className="bg-white bt-shadow overflow-hidden flex-shrink-0">
           {/* Header: 노드 탭 바 + 검색 + 추가 버튼 */}
-          <div className="flex items-stretch bg-white border-b border-gray-200 pr-3 flex-shrink-0 h-[56px]">
+          <div className="flex items-stretch bg-white pr-3 flex-shrink-0 h-[56px]">
             {/* 뷰 모드 전환 버튼 (아이콘만) */}
             <button
               type="button"
@@ -524,7 +524,10 @@ export default function DodTransListPage() {
               </Button>
             </div>
           </div>
+        </div>
 
+        {/* ===== 카드 슬라이더 박스 ===== */}
+        <div className="bg-white bt-shadow overflow-hidden flex-shrink-0">
           {/* Card slider body — 높이 고정 */}
           <div className="flex items-center h-[170px] px-4 py-3">
             <div className="relative flex items-center gap-2 w-full">
@@ -639,7 +642,7 @@ export default function DodTransListPage() {
         </div>
 
         {/* ===== 하단: 패턴 ag-Grid ===== */}
-        <div className="bg-white bt-shadow rounded-md border border-gray-200 flex flex-col flex-1 min-h-0 overflow-hidden">
+        <div className="bg-white bt-shadow flex flex-col flex-1 min-h-0 overflow-hidden">
           {/* Bottom header */}
           <div className="px-5 py-2 flex items-center justify-between flex-shrink-0 border-b border-gray-100 min-h-[40px]">
             <span className="text-sm font-semibold text-gray-800">

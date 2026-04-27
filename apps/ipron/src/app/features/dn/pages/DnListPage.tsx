@@ -409,10 +409,10 @@ export default function DnListPage() {
       <PageHeader breadcrumb={breadcrumb} />
 
       <div className="flex flex-1 min-h-0 flex-col gap-4">
-        {/* ===== 상단 박스: 뷰 전환 + 탭 바 + 카드 슬라이더 ===== */}
-        <div className="bg-white bt-shadow rounded-md border border-gray-200 flex flex-col overflow-hidden flex-shrink-0">
+        {/* ===== 탭 바 박스 (노드/테넌트 탭) ===== */}
+        <div className="bg-white bt-shadow overflow-hidden flex-shrink-0">
           {/* 헤더: 뷰 전환 / 탭 / 검색·등록·일괄등록·엑셀·가져오기 */}
-          <div className="flex items-stretch bg-white border-b border-gray-200 pr-3 flex-shrink-0 h-[56px]">
+          <div className="flex items-stretch bg-white pr-3 flex-shrink-0 h-[56px]">
             {/* 뷰 모드 전환 버튼 */}
             <button
               type="button"
@@ -496,7 +496,10 @@ export default function DnListPage() {
               </Button>
             </div>
           </div>
+        </div>
 
+        {/* ===== 카드 슬라이더 박스 ===== */}
+        <div className="bg-white bt-shadow overflow-hidden flex-shrink-0">
           {/* 카드 슬라이더 body — 확장(140px): 풀 카드 / 축소(44px): 컴팩트 pill */}
           {cardExpanded ? (
             <div className="flex items-center h-[140px] px-4 py-3">
@@ -616,7 +619,7 @@ export default function DnListPage() {
         {/* 중간 검색 폼 제거 — 그리드 컬럼 필터로 대체 */}
 
         {/* ===== 하단 박스: ag-Grid ===== */}
-        <div className="bg-white bt-shadow rounded-md border border-gray-200 flex flex-col flex-1 min-h-0 overflow-hidden">
+        <div className="bg-white bt-shadow flex flex-col flex-1 min-h-0 overflow-hidden">
           <div className="px-5 py-3 border-b border-gray-100 flex items-center gap-2 h-[44px] flex-shrink-0">
             <span className="text-sm font-semibold text-gray-800">{gridHeaderText}</span>
             {selectedRows.length > 0 && (

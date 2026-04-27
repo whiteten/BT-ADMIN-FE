@@ -235,7 +235,7 @@ export default function DidRouteListPage() {
 
       <div className="flex flex-1 min-h-0 flex-col gap-4">
         {/* ===== 상단: 노드 카드 슬라이더 (DOD DNIS관리 패턴) ===== */}
-        <div className="bg-white bt-shadow rounded-md border border-gray-200 flex flex-col overflow-hidden flex-shrink-0">
+        <div className="bg-white bt-shadow overflow-hidden flex-shrink-0">
           {/* Header */}
           <div className="px-5 h-[56px] bg-white border-b border-gray-200 flex items-center justify-between flex-shrink-0">
             <span className="text-sm font-semibold text-gray-800">DID라우트 (총 {allDidRouteList.length}건)</span>
@@ -253,7 +253,10 @@ export default function DidRouteListPage() {
               </Button>
             </div>
           </div>
+        </div>
 
+        {/* ===== 카드 슬라이더 박스 ===== */}
+        <div className="bg-white bt-shadow overflow-hidden flex-shrink-0">
           {/* Card slider body */}
           <div className="flex items-center px-4 py-3 h-[170px]">
             {nodes.length === 0 ? (
@@ -338,7 +341,7 @@ export default function DidRouteListPage() {
         </div>
 
         {/* ===== 하단: DID 라우트 그리드 ===== */}
-        <div className="bg-white bt-shadow rounded-md border border-gray-200 flex flex-col flex-1 min-h-0 overflow-hidden">
+        <div className="bg-white bt-shadow flex flex-col flex-1 min-h-0 overflow-hidden">
           {/* Header */}
           <div className="px-5 py-3 border-b border-gray-100 flex items-center justify-between flex-shrink-0">
             <span className="text-sm font-semibold text-gray-800">{gridHeaderText}</span>

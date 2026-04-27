@@ -274,7 +274,7 @@ export default function DidTransListPage() {
 
       <div className="flex flex-1 min-h-0 flex-col gap-4">
         {/* ===== 상단: 카테고리 탭 + 노드 카드 슬라이더 ===== */}
-        <div className="bg-white bt-shadow rounded-md border border-gray-200 flex flex-col overflow-hidden flex-shrink-0">
+        <div className="bg-white bt-shadow overflow-hidden flex-shrink-0">
           {/* Header: 카테고리 탭 + 추가 버튼 */}
           <div className="flex items-stretch bg-white border-b border-gray-200 pr-3 flex-shrink-0 divide-x divide-gray-200 h-[56px]">
             {(Object.keys(CATEGORY_STYLES) as DidTransCategory[]).map((cat) => {
@@ -311,7 +311,10 @@ export default function DidTransListPage() {
               </Button>
             </div>
           </div>
+        </div>
 
+        {/* ===== 카드 슬라이더 박스 ===== */}
+        <div className="bg-white bt-shadow overflow-hidden flex-shrink-0">
           {/* Card slider body */}
           <div className="flex items-center px-4 py-3 h-[170px]">
             {nodes.length === 0 ? (
@@ -392,7 +395,7 @@ export default function DidTransListPage() {
         </div>
 
         {/* ===== 하단: DID 번호변환 그리드 ===== */}
-        <div className="bg-white bt-shadow rounded-md border border-gray-200 flex flex-col flex-1 min-h-0 overflow-hidden">
+        <div className="bg-white bt-shadow flex flex-col flex-1 min-h-0 overflow-hidden">
           <div className="px-5 py-3 border-b border-gray-100 flex items-center justify-between flex-shrink-0">
             <span className="text-sm font-semibold text-gray-800">{gridHeaderText}</span>
             {selectedNodeId && (

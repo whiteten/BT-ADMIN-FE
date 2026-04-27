@@ -303,10 +303,10 @@ export default function McsDnisPage() {
       <PageHeader breadcrumb={breadcrumb} />
 
       <div className="flex flex-1 min-h-0 flex-col gap-4">
-        {/* ===== 상단: 통신사 탭 + GDN 카드 슬라이더 ===== */}
-        <div className="bg-white bt-shadow rounded-md border border-gray-200 flex flex-col overflow-hidden flex-shrink-0">
+        {/* ===== 탭 바 박스 (통신사 탭) ===== */}
+        <div className="bg-white bt-shadow overflow-hidden flex-shrink-0">
           {/* Header: 전체 + 통신사 탭 + 추가 버튼 */}
-          <div className="flex items-stretch bg-white border-b border-gray-200 pr-3 flex-shrink-0 divide-x divide-gray-200 h-[56px]">
+          <div className="flex items-stretch bg-white pr-3 flex-shrink-0 divide-x divide-gray-200 h-[56px]">
             {/* 전체 탭 */}
             <button
               type="button"
@@ -354,8 +354,10 @@ export default function McsDnisPage() {
               </Button>
             </div>
           </div>
+        </div>
 
-          {/* Card slider body */}
+        {/* ===== 카드 슬라이더 박스 (GDN) ===== */}
+        <div className="bg-white bt-shadow overflow-hidden flex-shrink-0">
           <GdnCardSlider
             gdnList={filteredGdnList}
             isLoading={isGdnLoading}
@@ -367,7 +369,7 @@ export default function McsDnisPage() {
         </div>
 
         {/* ===== 하단: DNIS 그리드 ===== */}
-        <div className="bg-white bt-shadow rounded-md border border-gray-200 flex flex-col flex-1 min-h-0 overflow-hidden">
+        <div className="bg-white bt-shadow flex flex-col flex-1 min-h-0 overflow-hidden">
           <div className="px-5 py-3 border-b border-gray-100 flex items-center justify-between flex-shrink-0">
             <span className="text-sm font-semibold text-gray-800">{gridHeaderText}</span>
             <Button type="primary" icon={<Plus className="size-3.5" />} onClick={handleCreateDnis} disabled={!selectedGdn}>

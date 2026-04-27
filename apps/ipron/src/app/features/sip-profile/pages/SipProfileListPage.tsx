@@ -94,7 +94,7 @@ export default function SipProfileListPage() {
       <PageHeader breadcrumb={breadcrumb} />
 
       {/* Toolbar */}
-      <div className="flex items-center justify-between gap-2 w-full h-[76px] bg-white bt-shadow px-7 py-5">
+      <div className="flex items-center justify-between gap-2 w-full h-[56px] bg-white bt-shadow px-5 flex-shrink-0">
         <div className="flex gap-3 items-center">
           <Input
             placeholder="프로파일명 검색"
@@ -115,7 +115,7 @@ export default function SipProfileListPage() {
       </div>
 
       {/* Card Grid */}
-      <div className="flex-1 bg-white bt-shadow overflow-y-auto rounded-md border border-gray-200">
+      <div className="flex-1 bg-white bt-shadow overflow-y-auto">
         {filteredProfiles.length === 0 ? (
           <div className="flex flex-col items-center justify-center h-full text-gray-400 gap-3 px-8 py-16">
             <Empty description={false} />

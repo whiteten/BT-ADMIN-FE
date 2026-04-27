@@ -292,15 +292,18 @@ export default function SipHeaderManagePage() {
     <div className="flex flex-col gap-4 w-full h-full">
       <PageHeader breadcrumb={breadcrumb} />
 
-      {/* ===== Top: Card Slider (Header Groups) ===== */}
-      <div className="bg-white bt-shadow rounded-md border border-gray-200 flex flex-col flex-shrink-0">
-        <div className="px-5 py-3 border-b border-gray-100 flex items-center justify-between flex-shrink-0">
+      {/* ===== 헤더 박스 (그룹 타이틀 + 추가 버튼) ===== */}
+      <div className="bg-white bt-shadow overflow-hidden flex-shrink-0">
+        <div className="px-5 h-[56px] flex items-center justify-between flex-shrink-0">
           <span className="text-sm font-semibold text-gray-800">헤더 그룹 ({headerGroups.length}건)</span>
-          <Button size="small" icon={<Plus className="size-3.5" />} onClick={handleGroupCreate}>
+          <Button icon={<Plus className="size-3.5" />} onClick={handleGroupCreate}>
             그룹 추가
           </Button>
         </div>
+      </div>
 
+      {/* ===== 카드 슬라이더 박스 (Header Groups) ===== */}
+      <div className="bg-white bt-shadow overflow-hidden flex-shrink-0">
         <div className="flex items-center px-4 py-3">
           {headerGroups.length === 0 ? (
             <div className="flex flex-col items-center justify-center w-full py-4 text-gray-400 gap-3">
@@ -361,7 +364,7 @@ export default function SipHeaderManagePage() {
       </div>
 
       {/* ===== Bottom: Relay Grid ===== */}
-      <div className="bg-white bt-shadow rounded-md border border-gray-200 flex-1 flex flex-col min-h-0 overflow-hidden">
+      <div className="bg-white bt-shadow flex-1 flex flex-col min-h-0 overflow-hidden">
         {selectedGroup ? (
           <>
             <div className="px-5 py-3 border-b border-gray-100 flex items-center justify-between flex-shrink-0">

@@ -423,9 +423,9 @@ export default function AccessProfilePage() {
 
       <div className="flex flex-1 min-h-0 flex-col gap-4">
         {/* ===== 상단: 탭 바 + 프로파일 카드 슬라이더 (viewMode에 따라 탭/그룹 swap) ===== */}
-        <div className="bg-white bt-shadow rounded-md border border-gray-200 flex flex-col overflow-hidden flex-shrink-0">
+        <div className="bg-white bt-shadow overflow-hidden flex-shrink-0">
           {/* Header: [뷰 전환] [탭 바] [검색+추가] */}
-          <div className="flex items-stretch bg-white border-b border-gray-200 pr-3 flex-shrink-0 h-[56px]">
+          <div className="flex items-stretch bg-white pr-3 flex-shrink-0 h-[56px]">
             {/* 뷰 모드 전환 버튼 (아이콘만) */}
             <button
               type="button"
@@ -506,7 +506,10 @@ export default function AccessProfilePage() {
               </Button>
             </div>
           </div>
+        </div>
 
+        {/* ===== 카드 슬라이더 박스 ===== */}
+        <div className="bg-white bt-shadow overflow-hidden flex-shrink-0">
           {/* Card slider body — 높이 고정 */}
           <div className="flex items-center h-[170px] px-4 py-3">
             <div className="relative flex items-center gap-2 w-full">
@@ -615,7 +618,7 @@ export default function AccessProfilePage() {
         </div>
 
         {/* ===== 하단: 접근코드 ag-Grid ===== */}
-        <div className="bg-white bt-shadow rounded-md border border-gray-200 flex flex-col flex-1 min-h-0 overflow-hidden">
+        <div className="bg-white bt-shadow flex flex-col flex-1 min-h-0 overflow-hidden">
           {selectedProfile ? (
             <>
               {/* Grid header */}

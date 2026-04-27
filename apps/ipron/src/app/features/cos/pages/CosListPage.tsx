@@ -226,7 +226,7 @@ export default function CosListPage() {
 
       <div className="flex flex-1 min-h-0 flex-col gap-4">
         {/* ===== 상단: 테넌트 탭 바 ===== */}
-        <div className="bg-white bt-shadow rounded-md border border-gray-200 flex flex-col overflow-hidden flex-shrink-0">
+        <div className="bg-white bt-shadow flex flex-col overflow-hidden flex-shrink-0">
           <div className="flex items-stretch bg-white pr-3 flex-shrink-0 h-[56px]">
             {/* 좌측 스크롤 버튼 */}
             <button
@@ -294,7 +294,7 @@ export default function CosListPage() {
         </div>
 
         {/* ===== 하단: COS 그리드 ===== */}
-        <div className="bg-white bt-shadow rounded-md border border-gray-200 flex flex-col flex-1 min-h-0 overflow-hidden">
+        <div className="bg-white bt-shadow flex flex-col flex-1 min-h-0 overflow-hidden">
           {selectedTenantId && selectedTenantId > 0 ? (
             <>
               {/* Grid header */}

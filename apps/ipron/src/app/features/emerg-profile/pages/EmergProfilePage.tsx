@@ -309,9 +309,9 @@ export default function EmergProfilePage() {
 
       <div className="flex flex-1 min-h-0 flex-col gap-4">
         {/* ===== 상단: 노드 탭 바 + 프로파일 카드 슬라이더 ===== */}
-        <div className="bg-white bt-shadow rounded-md border border-gray-200 flex flex-col overflow-hidden flex-shrink-0">
+        <div className="bg-white bt-shadow overflow-hidden flex-shrink-0">
           {/* Header: 노드 탭 바 + 검색 + 추가 버튼 */}
-          <div className="flex items-stretch bg-white border-b border-gray-200 pr-3 flex-shrink-0 h-[56px]">
+          <div className="flex items-stretch bg-white pr-3 flex-shrink-0 h-[56px]">
             {/* 좌측 스크롤 버튼 */}
             <button
               type="button"
@@ -392,7 +392,10 @@ export default function EmergProfilePage() {
               </Button>
             </div>
           </div>
+        </div>
 
+        {/* ===== 카드 슬라이더 박스 ===== */}
+        <div className="bg-white bt-shadow overflow-hidden flex-shrink-0">
           {/* Card slider body */}
           <div className="flex items-center px-4 py-3 h-[170px]">
             {filteredProfiles.length === 0 ? (
@@ -488,7 +491,7 @@ export default function EmergProfilePage() {
         </div>
 
         {/* ===== 하단: 긴급코드 ag-Grid ===== */}
-        <div className="bg-white bt-shadow rounded-md border border-gray-200 flex flex-col flex-1 min-h-0 overflow-hidden">
+        <div className="bg-white bt-shadow flex flex-col flex-1 min-h-0 overflow-hidden">
           {selectedProfile ? (
             <>
               {/* Grid header */}

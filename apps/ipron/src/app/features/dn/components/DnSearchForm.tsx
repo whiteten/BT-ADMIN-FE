@@ -47,7 +47,7 @@ export default function DnSearchForm({ contextLabel, profileOptions, cosOptions,
   };
 
   return (
-    <div className="bg-white bt-shadow rounded-md border border-gray-200 flex items-center gap-3 h-[60px] px-5 flex-shrink-0 flex-wrap">
+    <div className="bg-white bt-shadow flex items-center gap-3 h-[60px] px-5 flex-shrink-0 flex-wrap">
       {contextLabel && (
         <>
           <span className="text-[13px] font-semibold text-gray-700">{contextLabel}</span>

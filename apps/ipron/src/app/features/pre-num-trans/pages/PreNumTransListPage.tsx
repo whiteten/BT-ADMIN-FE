@@ -217,9 +217,9 @@ export default function PreNumTransListPage() {
       <PageHeader breadcrumb={breadcrumb} />
 
       <div className="flex flex-1 min-h-0 flex-col gap-4">
-        {/* ===== 상단: 노드 카드 슬라이더 (DOD DNIS관리 패턴) ===== */}
-        <div className="bg-white bt-shadow rounded-md border border-gray-200 flex flex-col overflow-hidden flex-shrink-0">
-          <div className="px-5 h-[56px] bg-white border-b border-gray-200 flex items-center justify-between flex-shrink-0">
+        {/* ===== 상단 헤더 박스 (제목 + 검색 + 추가) ===== */}
+        <div className="bg-white bt-shadow overflow-hidden flex-shrink-0">
+          <div className="px-5 h-[56px] bg-white flex items-center justify-between flex-shrink-0">
             <span className="text-sm font-semibold text-gray-800">발신 DNIS 사전변환 (총 {allTransList.length}건)</span>
             <div className="flex items-center gap-2">
               <Input
@@ -235,7 +235,10 @@ export default function PreNumTransListPage() {
               </Button>
             </div>
           </div>
+        </div>
 
+        {/* ===== 카드 슬라이더 박스 ===== */}
+        <div className="bg-white bt-shadow overflow-hidden flex-shrink-0">
           <div className="flex items-center px-4 py-3 h-[170px]">
             {nodes.length === 0 ? (
               <div className="flex flex-col items-center justify-center w-full h-full text-gray-400 gap-2">
@@ -316,7 +319,7 @@ export default function PreNumTransListPage() {
         </div>
 
         {/* ===== 하단: 발신 DNIS 사전변환 그리드 ===== */}
-        <div className="bg-white bt-shadow rounded-md border border-gray-200 flex flex-col flex-1 min-h-0 overflow-hidden">
+        <div className="bg-white bt-shadow flex flex-col flex-1 min-h-0 overflow-hidden">
           <div className="px-5 py-3 border-b border-gray-100 flex items-center justify-between flex-shrink-0">
             <span className="text-sm font-semibold text-gray-800">{gridHeaderText}</span>
           </div>

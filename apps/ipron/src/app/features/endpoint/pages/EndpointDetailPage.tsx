@@ -209,7 +209,7 @@ export default function EndpointDetailPage() {
       </div>
 
       {/* Tabs: Members / Regnums */}
-      <div className="flex-1 min-h-0 bg-white bt-shadow rounded-md border border-gray-200 flex flex-col overflow-hidden">
+      <div className="flex-1 min-h-0 bg-white bt-shadow flex flex-col overflow-hidden">
         <Tabs
           activeKey={activeTab}
           onChange={setActiveTab}
