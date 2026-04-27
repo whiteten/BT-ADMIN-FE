@@ -388,7 +388,7 @@ export default function TaskCreate() {
   const state = location.state as { bg?: TaskboardBg; layout?: TaskboardLayout } | null;
   const bg = state?.bg;
   const layout = state?.layout;
-  const userInfo = useAuthStore((s: any) => s.userInfo);
+  const userInfo = useAuthStore((s) => s.userInfo);
 
   // 편집 모드: layout이 있으면 수정, 없으면 신규 생성
   const isEditMode = !!layout?.layoutId;
