@@ -23,6 +23,7 @@ export interface SnapshotDiffItem {
 export interface SnapshotCompareResult {
   intentDiffs: SnapshotDiffItem[];
   entityDiffs: SnapshotDiffItem[];
+  keywordDiffs: SnapshotDiffItem[];
 }
 
 /**
