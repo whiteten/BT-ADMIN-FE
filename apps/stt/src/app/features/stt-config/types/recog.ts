@@ -75,8 +75,12 @@ export interface RecogTargetListItem {
   loadTime: string;
 }
 
-export interface RecogTargetAddData {
+export interface RecogTargetCreateData {
   groupCode: string;
+  tenantId: string;
   ucidGkey: string;
-  sentence: string;
+  armsoffset: number;
+  rxtxKind: number;
+  orgSentence: string;
+  engineCode: string;
 }

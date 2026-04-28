@@ -7,7 +7,7 @@ import dayjs, { type Dayjs } from 'dayjs';
 import { PlayCircle, StopCircle } from 'lucide-react';
 import { toast } from '@/shared-util';
 import { useGetTenants } from '../hooks/useCommonQueries';
-import { recogQueryKeys, useAddRecogTarget, useGetRecogTargetSearch } from '../hooks/useRecogQueries';
+import { recogQueryKeys, useCreateRecogTarget, useGetRecogTargetSearch } from '../hooks/useRecogQueries';
 import { useGetSttSearchListen } from '../hooks/useSearchQueries';
 import type { RecogTargetSearchItem, RecogTargetSearchParams, SttSearchListenParams } from '../types';
 import { cn } from '@/lib/utils';
@@ -33,7 +33,7 @@ interface RegisterCellRendererParams extends ICellRendererParams<RecogTargetSear
   onRegister: (data: RecogTargetSearchItem) => void;
 }
 
-function RegisterCellRenderer({ data, onRegister }: RegisterCellRendererParams) {
+function CreateCellRenderer({ data, onRegister }: RegisterCellRendererParams) {
   if (!data) return null;
   return (
     <Button type="primary" size="small" onClick={() => onRegister(data)} style={{ height: 26 }}>
@@ -118,7 +118,7 @@ interface RecogTargetSearchProps {
   engineCode?: string;
 }
 
-export default function RecogTargetSearchDrawer({ groupCode, engineCode }: RecogTargetSearchProps) {
+export default function RecogTargetSearch({ groupCode, engineCode }: RecogTargetSearchProps) {
   const queryClient = useQueryClient();
   const { gridOptions } = useAggridOptions();
   const gridRef = useRef<AgGridReact<RecogTargetSearchItem>>(null);
@@ -156,11 +156,11 @@ export default function RecogTargetSearchDrawer({ groupCode, engineCode }: Recog
 
   const { data: rowData, isLoading } = useGetRecogTargetSearch({ params: searchParams as Record<string, unknown> });
 
-  const { mutate: addTarget } = useAddRecogTarget({
+  const { mutate: createTarget } = useCreateRecogTarget({
     mutationOptions: {
       onSuccess: () => {
         toast.success('등록되었습니다.');
-        queryClient.invalidateQueries({ queryKey: recogQueryKeys.getRecogTargetList({ groupCode, engineCode }).queryKey });
+        queryClient.invalidateQueries({ queryKey: recogQueryKeys.searchRecogTarget(searchParams as Record<string, unknown>).queryKey });
       },
       onError: () => {
         toast.error('등록에 실패했습니다.');
@@ -215,8 +215,16 @@ export default function RecogTargetSearchDrawer({ groupCode, engineCode }: Recog
     });
   };
 
-  const handleRegister = (data: RecogTargetSearchItem) => {
-    addTarget({ groupCode, ucidGkey: data.ucidGkey, sentence: data.sentence });
+  const handleAdd = (data: RecogTargetSearchItem) => {
+    createTarget({
+      groupCode,
+      tenantId: tenantId ?? '',
+      ucidGkey: data.ucidGkey,
+      armsoffset: data.armsoffset,
+      rxtxKind: Number(data.rxtxKind),
+      orgSentence: data.sentence,
+      engineCode: data.engineCode,
+    });
     gridRef.current?.api?.stopEditing();
   };
 
@@ -235,10 +243,16 @@ export default function RecogTargetSearchDrawer({ groupCode, engineCode }: Recog
       cellRenderer: PlayCellRenderer,
     },
     { headerName: '고유번호(UCID)', field: 'ucidGkey', flex: 3, tooltipField: 'ucidGkey' },
-    { headerName: '내선번호', field: 'dnNo', maxWidth: 110 },
+    { headerName: '내선번호', field: 'dnNo', maxWidth: 110, flex: 1 },
     { headerName: '통화일시', field: 'callDatetime', flex: 2 },
-    { headerName: '발화시간', field: 'talkTime', maxWidth: 100 },
-    { headerName: '화자', field: 'rxtxKind', maxWidth: 90 },
+    { headerName: '발화시간', field: 'talkTime', maxWidth: 100, flex: 1, valueFormatter: (params) => (params.value != null ? `${params.value}초` : '') },
+    {
+      headerName: '화자',
+      field: 'rxtxKind',
+      maxWidth: 90,
+      flex: 1,
+      valueFormatter: (params) => ({ '1': '고객', '2': '상담원', '9': '통합' })[String(params.value)] ?? params.value,
+    },
     {
       headerName: '대화내용',
       field: 'sentence',
@@ -250,14 +264,14 @@ export default function RecogTargetSearchDrawer({ groupCode, engineCode }: Recog
     },
     {
       headerName: '',
-      colId: 'register',
+      colId: 'create',
       maxWidth: 80,
       sortable: false,
       filter: false,
       editable: false,
       cellStyle: { display: 'flex', alignItems: 'center', justifyContent: 'center' },
-      cellRenderer: RegisterCellRenderer,
-      cellRendererParams: { onRegister: handleRegister },
+      cellRenderer: CreateCellRenderer,
+      cellRendererParams: { onRegister: (data: RecogTargetSearchItem) => handleAdd(data) },
     },
   ];
 
@@ -268,18 +282,14 @@ export default function RecogTargetSearchDrawer({ groupCode, engineCode }: Recog
         <div className="flex items-center gap-2 shrink-0">
           <span className="text-sm font-medium text-[#495057] shrink-0">검색일자</span>
           <DatePicker value={startDate} onChange={setStartDate} format="YYYY-MM-DD" allowClear={false} inputReadOnly />
-          <TimePicker value={startTime} onChange={setStartTime} format="HH:mm:ss" allowClear={false} inputReadOnly style={{ width: 110 }} />
+          <TimePicker value={startTime} onChange={setStartTime} format="HH:mm:ss" allowClear={false} inputReadOnly needConfirm={false} style={{ width: 110 }} />
           <span className="text-[#495057]">-</span>
           <DatePicker value={endDate} onChange={setEndDate} format="YYYY-MM-DD" allowClear={false} inputReadOnly />
-          <TimePicker value={endTime} onChange={setEndTime} format="HH:mm:ss" allowClear={false} inputReadOnly style={{ width: 110 }} />
+          <TimePicker value={endTime} onChange={setEndTime} format="HH:mm:ss" allowClear={false} inputReadOnly needConfirm={false} style={{ width: 110 }} />
         </div>
         <div className="flex items-center gap-2">
           <span className="text-sm font-medium text-[#495057] shrink-0">키워드</span>
           <Input value={keyword} onChange={(e) => setKeyword(e.target.value)} onPressEnter={handleSearch} placeholder="키워드를 입력하세요" style={{ width: 200 }} />
-        </div>
-        <div className="flex items-center gap-2">
-          <span className="text-sm font-medium text-[#495057] shrink-0">IN/OUT 구분</span>
-          <Select value={inoutKind} onChange={setInoutKind} options={IN_OUT_OPTIONS} popupMatchSelectWidth={false} style={{ width: 160 }} />
         </div>
         <div className="flex items-center gap-2">
           <span className="text-sm font-medium text-[#495057] shrink-0">고유번호</span>
@@ -288,6 +298,10 @@ export default function RecogTargetSearchDrawer({ groupCode, engineCode }: Recog
         <div className="flex items-center gap-2">
           <span className="text-sm font-medium text-[#495057] shrink-0">내선</span>
           <Input value={dnNo} onChange={(e) => setDnNo(e.target.value)} onPressEnter={handleSearch} placeholder="내선번호를 입력하세요" style={{ width: 160 }} />
+        </div>
+        <div className="flex items-center gap-2">
+          <span className="text-sm font-medium text-[#495057] shrink-0">IN/OUT 구분</span>
+          <Select value={inoutKind} onChange={setInoutKind} options={IN_OUT_OPTIONS} popupMatchSelectWidth={false} style={{ width: 160 }} />
         </div>
         <div className="flex items-center gap-2">
           <span className="text-sm font-medium text-[#495057] shrink-0">화자구분</span>

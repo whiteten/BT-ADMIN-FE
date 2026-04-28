@@ -2,7 +2,7 @@ import { type UseQueryOptions, useMutation, useQuery } from '@tanstack/react-que
 import { createQueryKeys } from '@lukemorales/query-key-factory';
 import type { MutationHookOptions } from '@/shared-util';
 import { recogApi } from '../api/recogApi';
-import type { RecogGroupCreateData, RecogGroupItem, RecogGroupUpdateData, RecogTargetAddData, RecogTargetSearchItem } from '../types';
+import type { RecogGroupCreateData, RecogGroupItem, RecogGroupUpdateData, RecogTargetCreateData, RecogTargetSearchItem } from '../types';
 
 export const recogQueryKeys = createQueryKeys('recog', {
   getRecogGroupList: null,
@@ -49,13 +49,6 @@ export const useGetRecogTargetSearch = ({ params, queryOptions }: { params?: Rec
   });
 };
 
-export const useAddRecogTarget = ({ mutationOptions }: MutationHookOptions<unknown, RecogTargetAddData> = {}) => {
-  return useMutation({
-    mutationFn: recogApi.addRecogTarget,
-    ...mutationOptions,
-  });
-};
-
 export const useGetRecogTargetList = (params: { groupCode: string; engineCode?: string } | undefined) => {
   return useQuery({
     queryKey: recogQueryKeys.getRecogTargetList(params).queryKey,
@@ -64,16 +57,23 @@ export const useGetRecogTargetList = (params: { groupCode: string; engineCode?: 
   });
 };
 
-export const useDeleteRecogTargets = ({ mutationOptions }: MutationHookOptions<unknown, number[]> = {}) => {
+export const useCreateRecogTarget = ({ mutationOptions }: MutationHookOptions<unknown, RecogTargetCreateData> = {}) => {
   return useMutation({
-    mutationFn: recogApi.deleteRecogTargets,
+    mutationFn: recogApi.createRecogTarget,
     ...mutationOptions,
   });
 };
 
-export const useMeasureRecogAccuracy = ({ mutationOptions }: MutationHookOptions<unknown, string> = {}) => {
+export const useDeleteRecogTarget = ({ mutationOptions }: MutationHookOptions<unknown, number> = {}) => {
   return useMutation({
-    mutationFn: recogApi.measureRecogAccuracy,
+    mutationFn: recogApi.deleteRecogTarget,
+    ...mutationOptions,
+  });
+};
+
+export const useDeleteRecogTargets = ({ mutationOptions }: MutationHookOptions<unknown, number[]> = {}) => {
+  return useMutation({
+    mutationFn: recogApi.deleteRecogTargets,
     ...mutationOptions,
   });
 };

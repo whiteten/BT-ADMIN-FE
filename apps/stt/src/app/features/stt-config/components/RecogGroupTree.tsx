@@ -3,7 +3,7 @@ import { useQueryClient } from '@tanstack/react-query';
 import { Tree, type TreeDataNode } from 'antd';
 import { Pencil, X } from 'lucide-react';
 import { toast } from '@/shared-util';
-import { useGetEngines } from '../hooks/useCommonQueries';
+import { useGetCodes } from '../hooks/useCommonQueries';
 import { recogQueryKeys, useDeleteRecogGroup, useGetRecogGroupList } from '../hooks/useRecogQueries';
 import type { RecogGroupItem } from '../types';
 import RecogGroupEditModal from './RecogGroupEditModal';
@@ -45,7 +45,7 @@ function GroupNodeTitle({ group, onEdit, onDelete }: GroupNodeTitleProps) {
 export default function RecogGroupTree({ selection, onSelectEngine, onSelectGroup, onGroupDeleted, onGroupUpdated }: RecogGroupTreeProps) {
   const queryClient = useQueryClient();
   const modal = useModal();
-  const { data: engines = [], isLoading: isEnginesLoading } = useGetEngines();
+  const { data: engines = [], isLoading: isEnginesLoading } = useGetCodes({ params: { classCd: 'ENGINE_KIND' } });
   const { data: groupList = [], isLoading: isGroupLoading } = useGetRecogGroupList();
   const [editTarget, setEditTarget] = useState<RecogGroupItem | null>(null);
 

@@ -19,7 +19,7 @@ export const useGetTrainingList = ({ params, queryOptions }: QueryHookWithParams
 
 export const useCreateTuningSentence = ({ mutationOptions }: MutationHookOptions<unknown, TuningSentenceCreateDatas> = {}) => {
   return useMutation({
-    mutationFn: trainingApi.useCreateTuningSentence,
+    mutationFn: trainingApi.createTuningSentence,
     ...mutationOptions,
   });
 };

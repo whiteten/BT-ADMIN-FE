@@ -8,7 +8,7 @@ export const trainingApi = {
     const response = await apiClient.post<ListResponse<ConfidenceTrainingItem>>('/confidence-training-list', params);
     return extractList(response);
   },
-  useCreateTuningSentence: async (data: TuningSentenceCreateDatas) => {
+  createTuningSentence: async (data: TuningSentenceCreateDatas) => {
     const response = await apiClient.post('/tuning-sentence-create', data);
     return response;
   },

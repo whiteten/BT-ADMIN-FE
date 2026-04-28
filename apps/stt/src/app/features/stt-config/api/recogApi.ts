@@ -5,7 +5,7 @@ import type {
   RecogGroupDetail,
   RecogGroupItem,
   RecogGroupUpdateData,
-  RecogTargetAddData,
+  RecogTargetCreateData,
   RecogTargetListItem,
   RecogTargetSearchItem,
   RecogTargetSearchParams,
@@ -34,8 +34,8 @@ export const recogApi = {
     const response = await apiClient.post<ListResponse<RecogTargetSearchItem>>('/recog-target-search', params);
     return extractList(response);
   },
-  addRecogTarget: async (data: RecogTargetAddData) => {
-    return apiClient.post('/recog-target-add', data);
+  createRecogTarget: async (data: RecogTargetCreateData) => {
+    return apiClient.post('/recog-target-create', data);
   },
   getRecogTargetList: async (params: { groupCode: string; engineCode?: string }) => {
     const response = await apiClient.get<ListResponse<RecogTargetListItem>>('/recog-target-list', { params });
@@ -46,8 +46,5 @@ export const recogApi = {
   },
   deleteRecogTargets: async (ids: number[]) => {
     return apiClient.post('/recog-target-delete-bulk', { ids });
-  },
-  measureRecogAccuracy: async (groupCode: string) => {
-    return apiClient.post<RecogAccuracyResult>('/recog-accuracy-measure', { groupCode });
   },
 };

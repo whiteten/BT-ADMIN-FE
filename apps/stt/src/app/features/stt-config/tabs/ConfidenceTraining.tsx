@@ -225,12 +225,12 @@ export default function ConfidenceTraining() {
     setSearchParams(buildParams());
   };
 
-  const handleAdd = (data: ConfidenceTrainingItem, editedSentence?: string) => {
+  const handleAdd = (data: ConfidenceTrainingItem) => {
     createTuningSentence({
       ucidGkey: data.ucidGkey,
       armsoffset: data.armsoffset,
       rxtxKind: data.rxtxKind,
-      trString: editedSentence ?? data.sentence,
+      trString: data.sentence,
       tenantId: searchParams?.tenantId,
       engineCode: data.engineCode,
     });
@@ -312,52 +312,45 @@ export default function ConfidenceTraining() {
 
   return (
     <div className="flex flex-col gap-4 h-full">
-      {/* 검색 필터 */}
-      <div className="flex flex-col gap-3">
-        {/* 1행: 검색일자 / 키워드 / IN/OUT 구분 */}
-        <div className="flex items-center gap-4 flex-wrap">
-          <div className="flex items-center gap-2 shrink-0">
-            <span className="text-sm font-medium text-[#495057] shrink-0">검색일자</span>
-            <DatePicker value={startDate} onChange={setStartDate} format="YYYY-MM-DD" allowClear={false} inputReadOnly />
-            <TimePicker value={startTime} onChange={setStartTime} format="HH:mm:ss" allowClear={false} inputReadOnly style={{ width: 110 }} />
-            <span className="text-[#495057]">-</span>
-            <DatePicker value={endDate} onChange={setEndDate} format="YYYY-MM-DD" allowClear={false} inputReadOnly />
-            <TimePicker value={endTime} onChange={setEndTime} format="HH:mm:ss" allowClear={false} inputReadOnly style={{ width: 110 }} />
-          </div>
-          <div className="flex items-center gap-2">
-            <span className="text-sm font-medium text-[#495057] shrink-0">키워드</span>
-            <Input value={keyword} onChange={(e) => setKeyword(e.target.value)} onPressEnter={handleSearch} placeholder="키워드를 입력하세요" style={{ width: 200 }} />
-          </div>
-          <div className="flex items-center gap-2">
-            <span className="text-sm font-medium text-[#495057] shrink-0">IN/OUT 구분</span>
-            <Select value={inoutKind} onChange={setInOutKind} options={IN_OUT_OPTIONS} popupMatchSelectWidth={false} style={{ width: 180 }} />
-          </div>
+      {/* 검색 조건 */}
+      <div className="flex items-center gap-4 flex-wrap">
+        <div className="flex items-center gap-2 shrink-0">
+          <span className="text-sm font-medium text-[#495057] shrink-0">검색일자</span>
+          <DatePicker value={startDate} onChange={setStartDate} format="YYYY-MM-DD" allowClear={false} inputReadOnly />
+          <TimePicker value={startTime} onChange={setStartTime} format="HH:mm:ss" allowClear={false} inputReadOnly needConfirm={false} style={{ width: 110 }} />
+          <span className="text-[#495057]">-</span>
+          <DatePicker value={endDate} onChange={setEndDate} format="YYYY-MM-DD" allowClear={false} inputReadOnly />
+          <TimePicker value={endTime} onChange={setEndTime} format="HH:mm:ss" allowClear={false} inputReadOnly needConfirm={false} style={{ width: 110 }} />
         </div>
-
-        {/* 2행: 고유번호 / 내선 / 화자구분 / 테넌트 / 조회 */}
-        <div className="flex items-center gap-4 flex-wrap">
-          <div className="flex items-center gap-2">
-            <span className="text-sm font-medium text-[#495057] shrink-0">고유번호</span>
-            <Input value={ucidGkey} onChange={(e) => setUcidGkey(e.target.value)} onPressEnter={handleSearch} placeholder="고유번호를 입력하세요" style={{ width: 200 }} />
-          </div>
-          <div className="flex items-center gap-2">
-            <span className="text-sm font-medium text-[#495057] shrink-0">내선</span>
-            <Input value={dnNo} onChange={(e) => setDnNo(e.target.value)} onPressEnter={handleSearch} placeholder="내선번호를 입력하세요" style={{ width: 160 }} />
-          </div>
-          <div className="flex items-center gap-2">
-            <span className="text-sm font-medium text-[#495057] shrink-0">화자구분</span>
-            <Select value={rxtxKind} onChange={setRxtxKind} options={RXTX_OPTIONS} popupMatchSelectWidth={false} style={{ width: 120 }} />
-          </div>
-          <div className="flex items-center gap-2">
-            <span className="text-sm font-medium text-[#495057] shrink-0">엔진</span>
-            <Select value={engineCode} onChange={setEngineCode} options={ENGINE_OPTIONS} popupMatchSelectWidth={false} style={{ width: 120 }} />
-          </div>
-          <div className="flex items-center gap-2 ml-auto">
-            <Select value={tenantId} onChange={setTenantId} options={tenantOptions} placeholder="기본테넌트" popupMatchSelectWidth={false} style={{ width: 160 }} />
-            <Button type="primary" onClick={handleSearch}>
-              조회
-            </Button>
-          </div>
+        <div className="flex items-center gap-2">
+          <span className="text-sm font-medium text-[#495057] shrink-0">키워드</span>
+          <Input value={keyword} onChange={(e) => setKeyword(e.target.value)} onPressEnter={handleSearch} placeholder="키워드를 입력하세요" style={{ width: 200 }} />
+        </div>
+        <div className="flex items-center gap-2">
+          <span className="text-sm font-medium text-[#495057] shrink-0">고유번호</span>
+          <Input value={ucidGkey} onChange={(e) => setUcidGkey(e.target.value)} onPressEnter={handleSearch} placeholder="고유번호를 입력하세요" style={{ width: 200 }} />
+        </div>
+        <div className="flex items-center gap-2">
+          <span className="text-sm font-medium text-[#495057] shrink-0">내선</span>
+          <Input value={dnNo} onChange={(e) => setDnNo(e.target.value)} onPressEnter={handleSearch} placeholder="내선번호를 입력하세요" style={{ width: 160 }} />
+        </div>
+        <div className="flex items-center gap-2">
+          <span className="text-sm font-medium text-[#495057] shrink-0">IN/OUT 구분</span>
+          <Select value={inoutKind} onChange={setInOutKind} options={IN_OUT_OPTIONS} popupMatchSelectWidth={false} style={{ width: 180 }} />
+        </div>
+        <div className="flex items-center gap-2">
+          <span className="text-sm font-medium text-[#495057] shrink-0">화자구분</span>
+          <Select value={rxtxKind} onChange={setRxtxKind} options={RXTX_OPTIONS} popupMatchSelectWidth={false} style={{ width: 120 }} />
+        </div>
+        <div className="flex items-center gap-2">
+          <span className="text-sm font-medium text-[#495057] shrink-0">엔진</span>
+          <Select value={engineCode} onChange={setEngineCode} options={ENGINE_OPTIONS} popupMatchSelectWidth={false} style={{ width: 120 }} />
+        </div>
+        <div className="flex items-center gap-2 ml-auto">
+          <Select value={tenantId} onChange={setTenantId} options={tenantOptions} placeholder="기본테넌트" popupMatchSelectWidth={false} style={{ width: 160 }} />
+          <Button type="primary" onClick={handleSearch}>
+            조회
+          </Button>
         </div>
       </div>
 

@@ -1,12 +1,12 @@
 import { useQuery } from '@tanstack/react-query';
 import { createQueryKeys } from '@lukemorales/query-key-factory';
-import type { QueryHookOptions, QueryHookWithParamsOptions } from '@/shared-util';
+import type { QueryHookWithParamsOptions } from '@/shared-util';
 import { commonApi } from '../api/commonchApi';
-import type { EngineItem, TenantItem } from '../types';
+import type { CodeItem, TenantItem } from '../types';
 
 export const commonQueryKeys = createQueryKeys('stts', {
   getTenants: (params?: Record<string, unknown>) => [params],
-  getEngineList: null,
+  getCodesList: (params?: Record<string, unknown>) => [params],
 });
 
 export const useGetTenants = ({ params, queryOptions }: QueryHookWithParamsOptions<TenantItem[]> = {}) => {
@@ -17,10 +17,10 @@ export const useGetTenants = ({ params, queryOptions }: QueryHookWithParamsOptio
   });
 };
 
-export const useGetEngines = ({ queryOptions }: QueryHookOptions<EngineItem[]> = {}) => {
+export const useGetCodes = ({ params, queryOptions }: QueryHookWithParamsOptions<CodeItem[]> = {}) => {
   return useQuery({
-    queryKey: commonQueryKeys.getEngineList.queryKey,
-    queryFn: () => commonApi.getEngineList(),
+    queryKey: commonQueryKeys.getCodesList(params).queryKey,
+    queryFn: () => commonApi.getCodesList(params),
     ...queryOptions,
   });
 };

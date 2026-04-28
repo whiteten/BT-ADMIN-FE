@@ -1,5 +1,5 @@
 import ApiClient, { type ListResponse, extractList } from '@/shared-util';
-import type { EngineItem, TenantItem } from '../types';
+import type { CodeItem, TenantItem } from '../types';
 
 const apiClient = new ApiClient({ serviceURL: '/bff' });
 
@@ -8,8 +8,8 @@ export const commonApi = {
     const response = await apiClient.get<ListResponse<TenantItem>>('/stt-tenants-list', { params });
     return extractList(response);
   },
-  getEngineList: async () => {
-    const response = await apiClient.get<ListResponse<EngineItem>>('/stt-engine-list');
+  getCodesList: async (params?: Record<string, unknown>) => {
+    const response = await apiClient.get<ListResponse<CodeItem>>('/stt-codes-list', { params });
     return extractList(response);
   },
 };

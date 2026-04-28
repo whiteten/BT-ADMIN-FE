@@ -5,7 +5,7 @@ import { AgGridReact } from 'ag-grid-react';
 import { Button, Input, Select } from 'antd';
 import { Trash2 } from 'lucide-react';
 import { toast } from '@/shared-util';
-import { useGetEngines } from '../hooks/useCommonQueries';
+import { useGetCodes } from '../hooks/useCommonQueries';
 import { dictionaryQueryKeys, useCreateKeywordBoosting, useDeleteKeywordBoosting, useGetKeywordBoostingList } from '../hooks/useDictionaryQueries';
 import type { KeywordBoostingItem } from '../types';
 import useAggridOptions from '@/libs/shared-ui/src/hooks/useAggridOptions';
@@ -36,7 +36,7 @@ export default function KeywordBoosting() {
   const [engineCode, setEngineCode] = useState('');
   const [newKeyword, setNewKeyword] = useState('');
 
-  const { data: engines } = useGetEngines({});
+  const { data: engines } = useGetCodes({ params: { classCd: 'ENGINE_KIND' } });
   const engineOptions = engines?.map((e) => ({ label: e.value, value: e.code })) ?? [];
 
   useEffect(() => {
@@ -80,12 +80,26 @@ export default function KeywordBoosting() {
     },
   });
 
+  const handleNewKeywordChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const filtered = e.target.value.replace(/[^가-힣ㄱ-ㅎㅏ-ㅣ]/g, '').slice(0, 6);
+    setNewKeyword(filtered);
+  };
+
   const handleAdd = () => {
-    if (!newKeyword.trim()) {
+    const trimmed = newKeyword.trim();
+    if (!trimmed) {
       toast.warning('키워드를 입력해주세요.');
       return;
     }
-    createKeywordBoosting({ keyword: newKeyword.trim(), engineCode });
+    if (!/^[가-힣ㄱ-ㅎㅏ-ㅣ]+$/.test(trimmed)) {
+      toast.warning('한글만 입력 가능합니다.');
+      return;
+    }
+    if (trimmed.length > 6) {
+      toast.warning('6자 이내로 입력해주세요.');
+      return;
+    }
+    createKeywordBoosting({ keyword: trimmed, engineCode });
   };
 
   const handleDelete = (data: KeywordBoostingItem) => {
@@ -151,14 +165,7 @@ export default function KeywordBoosting() {
           />
         </div>
         <div className="flex items-center gap-2 ml-auto">
-          <Input
-            value={newKeyword}
-            onChange={(e) => setNewKeyword(e.target.value)}
-            onPressEnter={handleAdd}
-            placeholder="한글 6자 이내로 입력하세요"
-            maxLength={6}
-            style={{ width: 220 }}
-          />
+          <Input value={newKeyword} onChange={handleNewKeywordChange} onPressEnter={handleAdd} placeholder="한글 6자 이내로 입력하세요" maxLength={6} style={{ width: 220 }} />
           <Button type="primary" onClick={handleAdd}>
             추가
           </Button>

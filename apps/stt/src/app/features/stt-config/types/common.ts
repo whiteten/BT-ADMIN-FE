@@ -3,7 +3,7 @@ export interface TenantItem {
   tenantName: string;
 }
 
-export interface EngineItem {
+export interface CodeItem {
   code: string;
   value: string;
 }

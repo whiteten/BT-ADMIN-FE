@@ -7,6 +7,7 @@ const SearchList = React.lazy(() => import('./pages/stt-config/SearchList'));
 const TrainingList = React.lazy(() => import('./pages/stt-config/TrainingList'));
 const DictionaryList = React.lazy(() => import('./pages/stt-config/DictionaryList'));
 const RecogGroupList = React.lazy(() => import('./pages/stt-config/RecogList'));
+const SttDnList = React.lazy(() => import('./pages/stt-config/SttDnList'));
 
 export const routes = [
   {
@@ -52,6 +53,13 @@ export const routes = [
             children: [
               { index: true, element: <Navigate to="list" replace /> },
               { path: 'list', element: <DictionaryList /> },
+            ],
+          },
+          {
+            path: 'dn',
+            children: [
+              { index: true, element: <Navigate to="list" replace /> },
+              { path: 'list', element: <SttDnList /> },
             ],
           },
         ],

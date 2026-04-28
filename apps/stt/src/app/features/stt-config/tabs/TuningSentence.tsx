@@ -6,7 +6,7 @@ import { Button, DatePicker, Input, Select } from 'antd';
 import dayjs, { type Dayjs } from 'dayjs';
 import { Bookmark, Trash2 } from 'lucide-react';
 import { toast } from '@/shared-util';
-import { useGetEngines } from '../hooks/useCommonQueries';
+import { useGetCodes } from '../hooks/useCommonQueries';
 import { trainingQueryKeys, useDeleteTuningSentence, useGetTuningSentenceList } from '../hooks/useTrainingQueries';
 import type { TuningSentenceItem, TuningSentenceSearchParams } from '../types';
 import useAggridOptions from '@/libs/shared-ui/src/hooks/useAggridOptions';
@@ -59,7 +59,7 @@ export default function TuningSentence() {
   const [engineCode, setEngineCode] = useState('');
   const [searchParams, setSearchParams] = useState<TuningSentenceSearchParams | null>(null);
 
-  const { data: engines } = useGetEngines({});
+  const { data: engines } = useGetCodes({ params: { classCd: 'ENGINE_KIND' } });
   const engineOptions = engines?.map((e) => ({ label: e.value, value: e.code })) ?? [];
 
   useEffect(() => {
