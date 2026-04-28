@@ -14,6 +14,7 @@ import { type BreadcrumbProps, Button, Col, Divider, Form, type FormProps, Input
 import { Check, Plus, X } from 'lucide-react';
 import { useAuthStore } from '@/shared-store';
 import { emailRule, phoneRule, toast } from '@/shared-util';
+import { useGetRoles } from '../../features/iam/hooks/useRoleQueries';
 import { useCreateUser } from '../../features/user/hooks/useUserQueries';
 import type { AccountStatus, UserCreateDatas } from '../../features/user/types/user.types';
 import ResourceSection from '../../features/user-resource/components/ResourceSection';
@@ -65,10 +66,11 @@ export default function UserCreate() {
   const [assignedBots, setAssignedBots] = useState<AssignedResource[]>([]);
   const [assignedModels, setAssignedModels] = useState<AssignedResource[]>([]);
 
-  // 역할 목록은 RouteGuard에서 이미 로드되어 Zustand에 저장됨
-  const { roleList, isLoading: isFetchingRoles, canManageResourceAccess } = useAuthStore();
+  // 역할 목록은 이 화면에서 직접 호출
+  const { canManageResourceAccess } = useAuthStore();
   const hasResourceAccessPermission = canManageResourceAccess();
-  const roleOptions = roleList.map((role) => ({ label: role.roleName, value: role.roleId }));
+  const { data: roles = [], isFetching: isFetchingRoles } = useGetRoles();
+  const roleOptions = roles.map((role) => ({ label: role.roleName, value: role.roleId }));
 
   // 리소스 접근 권한이 있을 때만 실제 봇/모델 목록 조회
   const { data: bots, isLoading: isLoadingBots } = useGetBots({ queryOptions: { enabled: hasResourceAccessPermission } });

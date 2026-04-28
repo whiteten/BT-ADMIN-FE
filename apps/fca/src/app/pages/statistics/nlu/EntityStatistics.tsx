@@ -109,7 +109,7 @@ export default function EntityStatistics() {
 
   // 개체 통계 조회
   const {
-    data: entityStatList,
+    data: entityStatData,
     isLoading: isLoadingEntityStatList,
     refetch,
   } = useGetEntityStatList({
@@ -131,23 +131,11 @@ export default function EntityStatistics() {
   });
 
   useEffect(() => {
-    if (entityStatList !== undefined) setRowData(entityStatList);
-  }, [entityStatList]);
+    if (entityStatData !== undefined) setRowData(entityStatData.items);
+  }, [entityStatData]);
 
-  // 합계 행 계산 (pinnedBottomRowData)
-  const summaryRow = useMemo<EntityStatListItem[]>(() => {
-    if (!rowData?.length) return [];
-    const sum = (field: keyof EntityStatListItem) => rowData.reduce((acc, row) => acc + (Number(row[field]) || 0), 0);
-    return [
-      {
-        psrTimeKey: '전체합계',
-        modelName: '',
-        entityTag: '',
-        entityValue: '',
-        entityCnt: sum('entityCnt'),
-      } as EntityStatListItem,
-    ];
-  }, [rowData]);
+  // BE에서 받은 summary에 '전체합계' 라벨 주입
+  const summaryRow: EntityStatListItem[] = entityStatData?.summary ? [{ ...entityStatData.summary, psrTimeKey: '전체합계' }] : [];
 
   // startDate 또는 timeUnit 변경 시 endDate 자동 조정
   useEffect(() => {

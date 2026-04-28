@@ -109,7 +109,7 @@ export default function IntentStatistics() {
 
   // 의도 통계 조회
   const {
-    data: intentStatList,
+    data: intentStatData,
     isLoading: isLoadingIntentStatList,
     refetch,
   } = useGetIntentStatList({
@@ -131,27 +131,11 @@ export default function IntentStatistics() {
   });
 
   useEffect(() => {
-    if (intentStatList !== undefined) setRowData(intentStatList);
-  }, [intentStatList]);
+    if (intentStatData !== undefined) setRowData(intentStatData.items);
+  }, [intentStatData]);
 
-  // 합계 행 계산 (pinnedBottomRowData)
-  const summaryRow = useMemo<IntentStatListItem[]>(() => {
-    if (!rowData?.length) return [];
-    const count = rowData.length;
-    const sum = (field: keyof IntentStatListItem) => rowData.reduce((acc, row) => acc + (Number(row[field]) || 0), 0);
-    const avg = (field: keyof IntentStatListItem) => Math.round((sum(field) / count) * 100) / 100;
-    return [
-      {
-        psrTimeKey: '전체합계',
-        modelName: '',
-        intentCnt: sum('intentCnt'),
-        confidence: avg('confidence'),
-        thresholdMaxCnt: sum('thresholdMaxCnt'),
-        thresholdCheckCnt: sum('thresholdCheckCnt'),
-        thresholdFailCnt: sum('thresholdFailCnt'),
-      } as IntentStatListItem,
-    ];
-  }, [rowData]);
+  // BE에서 받은 summary에 '전체합계' 라벨 주입
+  const summaryRow: IntentStatListItem[] = intentStatData?.summary ? [{ ...intentStatData.summary, psrTimeKey: '전체합계' }] : [];
 
   // startDate 또는 timeUnit 변경 시 endDate 자동 조정
   useEffect(() => {

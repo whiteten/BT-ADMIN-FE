@@ -10,6 +10,7 @@ import { useQueryClient } from '@tanstack/react-query';
 import { Button, Col, Form, type FormProps, Input, Row, Select, Switch } from 'antd';
 import { useAuthStore } from '@/shared-store';
 import { toast } from '@/shared-util';
+import { useGetRoles } from '../../../features/iam/hooks/useRoleQueries';
 import { useDeleteUser, useResetPasswordToAccount, useUpdateUser, userQueryKeys } from '../../../features/user/hooks/useUserQueries';
 import type { AccountStatus, UserUpdateDatas } from '../../../features/user/types/user.types';
 import { useUserDetailContext } from '../context/UserDetailContext';
@@ -68,9 +69,10 @@ export default function UserBasicInfoTab() {
     }
   }, [formValues, setBasicFormValues]);
 
-  // 역할 목록은 RouteGuard에서 이미 로드되어 Zustand에 저장됨
-  const { roleList, canResetPassword } = useAuthStore();
-  const roleOptions = roleList.map((role) => ({ label: role.roleName, value: role.roleId }));
+  // 역할 목록은 이 화면에서 직접 호출 (이전엔 RouteGuard에서 미리 로드했지만 의존 제거)
+  const { canResetPassword } = useAuthStore();
+  const { data: roles = [] } = useGetRoles();
+  const roleOptions = roles.map((role) => ({ label: role.roleName, value: role.roleId }));
   const hasResetPasswordPermission = canResetPassword();
 
   // 폼 초기화
