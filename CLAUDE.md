@@ -6,7 +6,7 @@
 
 반드시 한국어로 답변할 것.
 **프론트엔드 작업 경로 준수**: 모든 프론트엔드 관련 작업(소스 수정, 빌드, pnpm install 등)은 반드시 이 저장소 경로(**`C:\Users\user\git\BT-ADMIN-FE`**)에서 수행해야 합니다. 백엔드 저장소 하위의 폴더를 사용하지 마십시오.
-문서 파일(*.md)이나 README 파일을 선제적으로 생성하지 말 것. 사용자가 명시적으로 요청한 경우에만 생성.
+문서 파일(\*.md)이나 README 파일을 선제적으로 생성하지 말 것. 사용자가 명시적으로 요청한 경우에만 생성.
 TypeScript 또는 JavaScript 파일을 수정한 후에는 반드시 `npx eslint --fix <file-path>`를 실행하여 코드 품질과 일관성을 보장할 것.
 자동으로 커밋하지 말 것. 사용자가 명시적으로 요청한 경우에만 커밋.
 이 프로젝트는 **React Compiler**를 사용합니다. 컴파일러가 자동으로 리렌더링을 최적화하므로, 명시적으로 필요한 경우가 아니면 `useMemo`나 `useCallback`을 사용하지 말 것.
@@ -523,6 +523,27 @@ export const routes = [
   { path: '*', element: <NotFound homePath="/fca" /> },
 ];
 ```
+
+### 화면 커스터마이징(Variants) 패턴
+
+테넌트별로 같은 path에서 다른 컴포넌트를 렌더하고 싶을 때 사용합니다. routes.tsx의 path는 그대로 두고 element만 운영자 선택값에 따라 바꾸는 구조입니다.
+
+#### 핵심 규칙 (요약)
+
+1. **변형 정의 파일 위치**: 페이지 옆에 `<Page>.variants.ts`로 co-location (예: `pages/bot-config/BotList.variants.ts`)
+2. **aggregator**: 각 remote의 `apps/<remote>/src/app/features/router/pageVariants.ts`에 모든 variants 파일을 import해서 등록 (MF `./PageVariants`로 expose)
+3. **DynamicElement 래퍼**: 변형 지원 path는 `routes.tsx`에서 `<DynamicElement variants={...} />`로 감싸 element를 런타임 lookup으로 전환
+4. **컴포넌트 prop 호환성 필수**: 같은 variants 그룹의 모든 컴포넌트는 동일 prop·context·query key를 사용. 본질이 다르면 variant가 아니라 별도 path로 분리
+5. **점진적 도입**: 변형 필요 없는 path는 정적 element 그대로 두고 건드리지 않음. variant 요구사항 생긴 page만 합류
+
+#### 데이터 흐름
+
+- **API/DB**: 메뉴 row의 `componentKey` 컬럼이 SoT
+- **store**: `useMenuStore.menuConfigs[].menus[].componentKey`로 propagate
+- **렌더**: DynamicElement가 menuStore lookup → 매칭되는 variant component 렌더, 누락·미등록 시 defaultKey fallback
+- **picker**: 호스트의 `usePageVariantsStore`(메타만 보관)를 메뉴 관리 화면 picker에서 읽어 카드 그리드 노출
+
+새 변형 컴포넌트 작성·등록 절차 및 picker 통합 상세는 [DEVELOPER_GUIDE.md](doc/DEVELOPER_GUIDE.md)의 "화면 커스터마이징(Variants) 가이드" 섹션 참조.
 
 ### 상수 정의 패턴
 

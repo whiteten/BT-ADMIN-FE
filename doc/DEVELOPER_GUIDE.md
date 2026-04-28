@@ -25,6 +25,7 @@ CLAUDE.md의 컨벤션을 기반으로, **왜 이렇게 하는지**와 **흔히 
 16. [상수 정의 패턴](#16-상수-정의-패턴)
 17. [페이지 레이아웃 가이드](#17-페이지-레이아웃-가이드)
 18. [폼(Form) 작성 가이드](#18-폼form-작성-가이드)
+19. [화면 커스터마이징(Variants) 가이드](#19-화면-커스터마이징variants-가이드)
 
 ---
 
@@ -32,9 +33,9 @@ CLAUDE.md의 컨벤션을 기반으로, **왜 이렇게 하는지**와 **흔히 
 
 ### 필수 설치 항목
 
-| 항목        | 버전     | 설치 방법                                      |
-| ----------- | -------- | ---------------------------------------------- |
-| **Node.js** | v22.17.0 | [nvm](https://github.com/nvm-sh/nvm) 사용 권장 |
+| 항목        | 버전     | 설치 방법                                                     |
+| ----------- | -------- | ------------------------------------------------------------- |
+| **Node.js** | v22.17.0 | [nvm](https://github.com/nvm-sh/nvm) 사용 권장                |
 | **pnpm**    | 10.29.2  | `corepack enable && corepack prepare pnpm@10.29.2 --activate` |
 
 > **왜 정확한 버전이 필요한가요?**
@@ -133,25 +134,25 @@ apps/fca/src/app/
 
 #### pages vs features 차이점
 
-| 구분 | `pages/` | `features/` |
-|------|----------|-------------|
-| 역할 | 라우트에 1:1 매핑되는 페이지 | 페이지에서 사용하는 로직·컴포넌트 |
-| 크기 | 가능한 간결하게 (조립만) | 실제 비즈니스 로직이 여기에 |
+| 구분 | `pages/`                                      | `features/`                                               |
+| ---- | --------------------------------------------- | --------------------------------------------------------- |
+| 역할 | 라우트에 1:1 매핑되는 페이지                  | 페이지에서 사용하는 로직·컴포넌트                         |
+| 크기 | 가능한 간결하게 (조립만)                      | 실제 비즈니스 로직이 여기에                               |
 | 예시 | `BotList.tsx` — 데이터 불러와서 테이블 렌더링 | `features/bot-config/components/BotCard.tsx` — 봇 카드 UI |
 
 **pages는 "무엇을 보여줄지"를 결정하고, features는 "어떻게 보여줄지"를 담당합니다.**
 
 #### features 하위 폴더별 역할
 
-| 폴더 | 역할 | 필수 여부 | 파일명 규칙 |
-|------|------|-----------|------------|
-| `api/` | 서버 API 호출 함수 | 거의 필수 | `<feature>Api.ts` |
-| `components/` | UI 컴포넌트 | 필요 시 | `<Feature>Card.tsx`, `<Feature>Toolbar.tsx` 등 |
-| `constants/` | 상수 정의 | 필요 시 | `<feature>Constants.ts` |
-| `hooks/` | TanStack Query 훅, Zustand 스토어 | 거의 필수 | `use<Feature>Queries.ts`, `use<Feature>Store.ts` |
-| `tabs/` | 상세 페이지의 탭 컴포넌트 | 필요 시 | `<Feature>BasicInfo.tsx` 등 |
-| `types/` | TypeScript 타입/인터페이스 | 거의 필수 | `index.ts` + 도메인별 파일 |
-| `utils/` | 헬퍼 함수 | 필요 시 | `<feature>Utils.ts` |
+| 폴더          | 역할                              | 필수 여부 | 파일명 규칙                                      |
+| ------------- | --------------------------------- | --------- | ------------------------------------------------ |
+| `api/`        | 서버 API 호출 함수                | 거의 필수 | `<feature>Api.ts`                                |
+| `components/` | UI 컴포넌트                       | 필요 시   | `<Feature>Card.tsx`, `<Feature>Toolbar.tsx` 등   |
+| `constants/`  | 상수 정의                         | 필요 시   | `<feature>Constants.ts`                          |
+| `hooks/`      | TanStack Query 훅, Zustand 스토어 | 거의 필수 | `use<Feature>Queries.ts`, `use<Feature>Store.ts` |
+| `tabs/`       | 상세 페이지의 탭 컴포넌트         | 필요 시   | `<Feature>BasicInfo.tsx` 등                      |
+| `types/`      | TypeScript 타입/인터페이스        | 거의 필수 | `index.ts` + 도메인별 파일                       |
+| `utils/`      | 헬퍼 함수                         | 필요 시   | `<feature>Utils.ts`                              |
 
 > **모든 폴더를 다 만들어야 하나요?**
 > 아닙니다. 필요한 것만 만드세요. 간단한 기능이면 `api/`, `hooks/`, `types/`만으로 충분할 수 있습니다.
@@ -270,13 +271,13 @@ import type { BotCreateDatas } from '../types/bot';
 
 같은 도메인이라도 **용도에 따라 타입이 다릅니다**. 서픽스로 구분합니다.
 
-| 서픽스 | 용도 | 언제 쓰나요? | 예시 |
-|--------|------|-------------|------|
-| (없음) | 기본 도메인 타입 | API 응답의 기본 형태 | `Bot` |
-| `ListItem` | 목록 조회용 | 목록 API에서 일부 필드만 내려올 때 | `BotListItem` |
-| `Item` | 상세 조회용 | 상세 API에서 기본 + 추가 정보가 올 때 | `BotItem` |
-| `CreateDatas` | 생성 요청용 | POST 요청 body에 보낼 데이터 | `BotCreateDatas` |
-| `UpdateDatas` | 수정 요청용 | PATCH/PUT 요청 body에 보낼 데이터 | `BotUpdateDatas` |
+| 서픽스        | 용도             | 언제 쓰나요?                          | 예시             |
+| ------------- | ---------------- | ------------------------------------- | ---------------- |
+| (없음)        | 기본 도메인 타입 | API 응답의 기본 형태                  | `Bot`            |
+| `ListItem`    | 목록 조회용      | 목록 API에서 일부 필드만 내려올 때    | `BotListItem`    |
+| `Item`        | 상세 조회용      | 상세 API에서 기본 + 추가 정보가 올 때 | `BotItem`        |
+| `CreateDatas` | 생성 요청용      | POST 요청 body에 보낼 데이터          | `BotCreateDatas` |
+| `UpdateDatas` | 수정 요청용      | PATCH/PUT 요청 body에 보낼 데이터     | `BotUpdateDatas` |
 
 ### 실전 예시
 
@@ -287,7 +288,7 @@ import type { BotCreateDatas } from '../types/bot';
 export interface Bot {
   serviceId: string;
   serviceName: string;
-  serviceDesc?: string;       // '?'는 선택적(optional) 필드
+  serviceDesc?: string; // '?'는 선택적(optional) 필드
   confidence: [number, number]; // 튜플 타입: [min, max]
   tags?: string[];
 }
@@ -311,13 +312,13 @@ export type BotBasicInfoUpdateDatas = Omit<Bot, 'workTime'>;
 
 ### 자주 쓰는 TypeScript 유틸리티 타입
 
-| 유틸리티 | 설명 | 예시 |
-|----------|------|------|
-| `Omit<T, K>` | T에서 K 필드를 제거 | `Omit<Bot, 'serviceId'>` → serviceId 빼고 나머지 |
-| `Pick<T, K>` | T에서 K 필드만 선택 | `Pick<Bot, 'serviceName' \| 'tags'>` → 이 두 필드만 |
-| `Partial<T>` | T의 모든 필드를 선택적으로 | `Partial<Bot>` → 모든 필드가 `?`가 됨 |
-| `Required<T>` | T의 모든 필드를 필수로 | `Required<Bot>` → 모든 `?`가 사라짐 |
-| `Record<K, V>` | 키-값 매핑 타입 | `Record<string, number>` → `{ [key: string]: number }` |
+| 유틸리티       | 설명                       | 예시                                                   |
+| -------------- | -------------------------- | ------------------------------------------------------ |
+| `Omit<T, K>`   | T에서 K 필드를 제거        | `Omit<Bot, 'serviceId'>` → serviceId 빼고 나머지       |
+| `Pick<T, K>`   | T에서 K 필드만 선택        | `Pick<Bot, 'serviceName' \| 'tags'>` → 이 두 필드만    |
+| `Partial<T>`   | T의 모든 필드를 선택적으로 | `Partial<Bot>` → 모든 필드가 `?`가 됨                  |
+| `Required<T>`  | T의 모든 필드를 필수로     | `Required<Bot>` → 모든 `?`가 사라짐                    |
+| `Record<K, V>` | 키-값 매핑 타입            | `Record<string, number>` → `{ [key: string]: number }` |
 
 ---
 
@@ -359,28 +360,24 @@ import type { User, UserListItem, UserCreateDatas } from '../types';
 
 export const userApi = {
   // 목록 조회
-  getUsers: (params?: Record<string, unknown>) =>
-    apiClient.get<UserListItem[]>('/users', { params }),
+  getUsers: (params?: Record<string, unknown>) => apiClient.get<UserListItem[]>('/users', { params }),
 
   // 단건 조회
-  getUser: (params?: Record<string, unknown>) =>
-    apiClient.get<User>(`/users/${params?.id}`),
+  getUser: (params?: Record<string, unknown>) => apiClient.get<User>(`/users/${params?.id}`),
 
   // 생성
-  createUser: (data: UserCreateDatas) =>
-    apiClient.post<User>('/users', data),
+  createUser: (data: UserCreateDatas) => apiClient.post<User>('/users', data),
 
   // 수정
-  updateUser: (data: { id: string } & Partial<User>) =>
-    apiClient.patch<User>(`/users/${data.id}`, data),
+  updateUser: (data: { id: string } & Partial<User>) => apiClient.patch<User>(`/users/${data.id}`, data),
 
   // 삭제
-  deleteUser: (data: { id: string }) =>
-    apiClient.delete(`/users/${data.id}`),
+  deleteUser: (data: { id: string }) => apiClient.delete(`/users/${data.id}`),
 };
 ```
 
 **포인트:**
+
 - 하나의 객체로 묶어서 `named export` 합니다.
 - 제네릭(`<User>`)으로 응답 타입을 지정하면, 호출하는 곳에서 자동 완성이 됩니다.
 
@@ -419,22 +416,16 @@ import { userApi } from '../api/userApi';
 import type { User, UserListItem } from '../types';
 
 // 목록 조회 훅
-export const useGetUsers = ({
-  params,
-  queryOptions,
-}: QueryHookWithParamsOptions<UserListItem[]> = {}) => {
+export const useGetUsers = ({ params, queryOptions }: QueryHookWithParamsOptions<UserListItem[]> = {}) => {
   return useQuery({
     queryKey: userQueryKeys.getUsers(params).queryKey,
     queryFn: () => userApi.getUsers(params),
-    ...queryOptions,  // 호출하는 곳에서 추가 옵션을 덮어쓸 수 있음
+    ...queryOptions, // 호출하는 곳에서 추가 옵션을 덮어쓸 수 있음
   });
 };
 
 // 단건 조회 훅
-export const useGetUser = ({
-  params,
-  queryOptions,
-}: QueryHookWithParamsOptions<User> = {}) => {
+export const useGetUser = ({ params, queryOptions }: QueryHookWithParamsOptions<User> = {}) => {
   return useQuery({
     queryKey: userQueryKeys.getUser(params).queryKey,
     queryFn: () => userApi.getUser(params),
@@ -469,20 +460,20 @@ export const useDeleteUser = ({ mutationOptions }: MutationHookOptions = {}) => 
 
 **훅 네이밍 규칙:**
 
-| 작업 | 패턴 | 예시 |
-|------|------|------|
-| 목록 조회 | `useGet<Feature>s` | `useGetUsers` |
-| 단건 조회 | `useGet<Feature>` | `useGetUser` |
-| 생성 | `useCreate<Feature>` | `useCreateUser` |
-| 수정 | `useUpdate<Feature>` | `useUpdateUser` |
-| 삭제 | `useDelete<Feature>` | `useDeleteUser` |
+| 작업      | 패턴                 | 예시            |
+| --------- | -------------------- | --------------- |
+| 목록 조회 | `useGet<Feature>s`   | `useGetUsers`   |
+| 단건 조회 | `useGet<Feature>`    | `useGetUser`    |
+| 생성      | `useCreate<Feature>` | `useCreateUser` |
+| 수정      | `useUpdate<Feature>` | `useUpdateUser` |
+| 삭제      | `useDelete<Feature>` | `useDeleteUser` |
 
 **파라미터 패턴:**
 
-| 훅 종류 | 파라미터 | 설명 |
-|---------|---------|------|
-| Query 훅 | `{ params, queryOptions }` | params: API에 넘길 파라미터, queryOptions: useQuery 추가 옵션 |
-| Mutation 훅 | `{ mutationOptions }` | useMutation 추가 옵션 (onSuccess, onError 등) |
+| 훅 종류     | 파라미터                   | 설명                                                          |
+| ----------- | -------------------------- | ------------------------------------------------------------- |
+| Query 훅    | `{ params, queryOptions }` | params: API에 넘길 파라미터, queryOptions: useQuery 추가 옵션 |
+| Mutation 훅 | `{ mutationOptions }`      | useMutation 추가 옵션 (onSuccess, onError 등)                 |
 
 ### Step 4: 컴포넌트에서 사용
 
@@ -546,10 +537,10 @@ queryClient.invalidateQueries({ queryKey: userQueryKeys.getUsers().queryKey });
 
 이 프로젝트에서는 상태를 두 가지로 나눕니다:
 
-| 종류 | 도구 | 어디에? | 예시 |
-|------|------|---------|------|
-| **서버 상태** | TanStack Query | `hooks/use<Feature>Queries.ts` | API에서 가져온 데이터 (사용자 목록, 봇 정보 등) |
-| **클라이언트 상태** | Zustand | `hooks/use<Feature>Store.ts` | UI 상태 (사이드바 열림/닫힘, 선택된 탭 등) |
+| 종류                | 도구           | 어디에?                        | 예시                                            |
+| ------------------- | -------------- | ------------------------------ | ----------------------------------------------- |
+| **서버 상태**       | TanStack Query | `hooks/use<Feature>Queries.ts` | API에서 가져온 데이터 (사용자 목록, 봇 정보 등) |
+| **클라이언트 상태** | Zustand        | `hooks/use<Feature>Store.ts`   | UI 상태 (사이드바 열림/닫힘, 선택된 탭 등)      |
 
 ### Zustand 스토어 작성법
 
@@ -583,12 +574,13 @@ export const useBotStore = create<BotStore>()(
       setSelectedBotId: (id) => set({ selectedBotId: id }, false, 'setSelectedBotId'),
       setIsDrawerOpen: (open) => set({ isDrawerOpen: open }, false, 'setIsDrawerOpen'),
     }),
-    { name: 'BotStore' },  // Redux DevTools에 표시될 스토어 이름
+    { name: 'BotStore' }, // Redux DevTools에 표시될 스토어 이름
   ),
 );
 ```
 
 > **`set(상태, replace, 액션이름)` 인자 설명:**
+>
 > - **첫 번째**: 변경할 상태
 > - **두 번째 `false`**: 기존 상태에 머지 (기본 동작, `true`이면 완전 교체)
 > - **세 번째**: Redux DevTools에 표시될 액션 이름 (생략하면 "anonymous"로 표시)
@@ -628,24 +620,20 @@ interface RememberMeStore {
   setRememberMeData: (data: Partial<{ userAccount: string; rememberMe: boolean }>) => void;
 }
 
-export const useRememberMeStore = create<RememberMeStore>()(  // ⚠️ ()가 하나 더 있음!
+export const useRememberMeStore = create<RememberMeStore>()(
+  // ⚠️ ()가 하나 더 있음!
   devtools(
     persist(
       (set) => ({
         data: { userAccount: '', rememberMe: false },
-        setRememberMeData: (newData) =>
-          set(
-            (state) => ({ data: { ...state.data, ...newData } }),
-            false,
-            'setRememberMeData',
-          ),
+        setRememberMeData: (newData) => set((state) => ({ data: { ...state.data, ...newData } }), false, 'setRememberMeData'),
       }),
       {
-        name: 'remember-me-storage',                    // localStorage 키 이름
-        storage: createJSONStorage(() => localStorage),  // 또는 sessionStorage
+        name: 'remember-me-storage', // localStorage 키 이름
+        storage: createJSONStorage(() => localStorage), // 또는 sessionStorage
       },
     ),
-    { name: 'RememberMeStore' },  // Redux DevTools에 표시될 스토어 이름
+    { name: 'RememberMeStore' }, // Redux DevTools에 표시될 스토어 이름
   ),
 );
 ```
@@ -675,10 +663,10 @@ const { data: bots } = useGetBots({});
 
 ### Export 규칙
 
-| 대상 | Export 방식 | 이유 |
-|------|------------|------|
-| 컴포넌트 | `default export` | React.lazy()가 default export를 기대함 |
-| API 함수, 타입, 상수, 유틸 | `named export` | 한 파일에서 여러 개를 내보내야 해서 |
+| 대상                       | Export 방식      | 이유                                   |
+| -------------------------- | ---------------- | -------------------------------------- |
+| 컴포넌트                   | `default export` | React.lazy()가 default export를 기대함 |
+| API 함수, 타입, 상수, 유틸 | `named export`   | 한 파일에서 여러 개를 내보내야 해서    |
 
 ```typescript
 // ✅ 컴포넌트 — default export
@@ -717,13 +705,14 @@ const BotCreate = lazy(() => import('./pages/bot-config/BotCreate'));
 
 이 프로젝트에는 세 가지 UI 라이브러리가 있습니다:
 
-| 라이브러리 | 용도 | Import 경로 |
-|-----------|------|-------------|
-| **Ant Design** | 메인 UI 라이브러리 (Form, Table, DatePicker, Modal 등) | `antd` |
-| **shadcn/ui** | 커스텀 컴포넌트 직접 개발 시 베이스 | `@/components/ui/<component>` |
-| **AG-Grid** | 데이터 테이블 | `ag-grid-react` |
+| 라이브러리     | 용도                                                   | Import 경로                   |
+| -------------- | ------------------------------------------------------ | ----------------------------- |
+| **Ant Design** | 메인 UI 라이브러리 (Form, Table, DatePicker, Modal 등) | `antd`                        |
+| **shadcn/ui**  | 커스텀 컴포넌트 직접 개발 시 베이스                    | `@/components/ui/<component>` |
+| **AG-Grid**    | 데이터 테이블                                          | `ag-grid-react`               |
 
 > **어떤 걸 써야 하나요?**
+>
 > - **Ant Design**이 메인 UI 라이브러리입니다. 대부분의 UI 컴포넌트(Form, Button, Modal, DatePicker 등)는 Ant Design을 사용합니다.
 > - 프로젝트에 특화된 **커스텀 컴포넌트를 직접 만들어야 할 때**는 **shadcn/ui**를 베이스로 개발합니다. shadcn/ui는 소스 코드를 직접 소유하므로 자유롭게 수정할 수 있습니다.
 > - 데이터 테이블은 **AG-Grid**를 사용합니다.
@@ -733,11 +722,11 @@ const BotCreate = lazy(() => import('./pages/bot-config/BotCreate'));
 자주 쓰는 커스텀 컴포넌트들입니다:
 
 ```typescript
-import { PageHeader } from '@/components/custom/PageHeader';       // 페이지 상단 헤더
+import { PageHeader } from '@/components/custom/PageHeader'; // 페이지 상단 헤더
 import { FallbackSpinner } from '@/components/custom/FallbackSpinner'; // 로딩 스피너
-import { NoData } from '@/components/custom/NoData';               // 데이터 없음 표시
-import { NotFound } from '@/components/custom/NotFound';           // 404 페이지
-import { PageTabs } from '@/components/custom/PageTabs';           // 탭 네비게이션
+import { NoData } from '@/components/custom/NoData'; // 데이터 없음 표시
+import { NotFound } from '@/components/custom/NotFound'; // 404 페이지
+import { PageTabs } from '@/components/custom/PageTabs'; // 탭 네비게이션
 ```
 
 ### useMemo / useCallback을 쓰지 마세요
@@ -746,12 +735,16 @@ import { PageTabs } from '@/components/custom/PageTabs';           // 탭 네비
 
 ```typescript
 // ❌ 불필요 — React Compiler가 알아서 최적화
-const filteredBots = useMemo(() => bots.filter(b => b.active), [bots]);
-const handleClick = useCallback(() => { /* ... */ }, []);
+const filteredBots = useMemo(() => bots.filter((b) => b.active), [bots]);
+const handleClick = useCallback(() => {
+  /* ... */
+}, []);
 
 // ✅ 그냥 작성
-const filteredBots = bots.filter(b => b.active);
-const handleClick = () => { /* ... */ };
+const filteredBots = bots.filter((b) => b.active);
+const handleClick = () => {
+  /* ... */
+};
 ```
 
 ### 이벤트 핸들러는 추출하는 것을 권장합니다
@@ -801,6 +794,7 @@ const handleError = (error: Error) => {
 일반적인 props 방식(`isOpen={true}`)도 가능하지만, 이 프로젝트에서는 **명령형(imperative) 패턴**을 사용합니다.
 
 **장점:**
+
 - 부모에서 열기/닫기 상태를 관리할 필요 없음
 - 열 때 필요한 데이터를 함께 전달 가능
 - 모달/드로어 내부에서 상태를 독립적으로 관리
@@ -814,7 +808,7 @@ const handleError = (error: Error) => {
 
 // 부모가 호출할 수 있는 메서드를 정의
 export interface UserDrawerRef {
-  open: (params: { userId?: string }) => void;  // userId가 있으면 편집, 없으면 생성
+  open: (params: { userId?: string }) => void; // userId가 있으면 편집, 없으면 생성
   close: () => void;
 }
 ```
@@ -934,18 +928,18 @@ const UserTable = ({ data, isLoading }: UserTableProps) => {
 
 ### ColDef 주요 속성
 
-| 속성 | 설명 | 예시 |
-|------|------|------|
-| `headerName` | 헤더에 표시할 텍스트 | `'이름'` |
-| `field` | 데이터 객체의 키 | `'name'` |
-| `flex` | 남은 공간 비율 배분 | `flex: 1` (비율 1) |
-| `maxWidth` | 최대 너비 (px) | `maxWidth: 120` |
-| `hide` | 숨김 컬럼 (ID 등) | `hide: true` |
-| `editable` | 편집 가능 여부 | `editable: true` |
-| `cellRenderer` | 커스텀 셀 렌더링 | 함수 또는 컴포넌트 |
-| `cellEditor` | 커스텀 셀 에디터 | 컴포넌트 |
-| `sortable` | 정렬 가능 여부 | `sortable: false` |
-| `filter` | 필터 가능 여부 | `filter: false` |
+| 속성           | 설명                 | 예시               |
+| -------------- | -------------------- | ------------------ |
+| `headerName`   | 헤더에 표시할 텍스트 | `'이름'`           |
+| `field`        | 데이터 객체의 키     | `'name'`           |
+| `flex`         | 남은 공간 비율 배분  | `flex: 1` (비율 1) |
+| `maxWidth`     | 최대 너비 (px)       | `maxWidth: 120`    |
+| `hide`         | 숨김 컬럼 (ID 등)    | `hide: true`       |
+| `editable`     | 편집 가능 여부       | `editable: true`   |
+| `cellRenderer` | 커스텀 셀 렌더링     | 함수 또는 컴포넌트 |
+| `cellEditor`   | 커스텀 셀 에디터     | 컴포넌트           |
+| `sortable`     | 정렬 가능 여부       | `sortable: false`  |
+| `filter`       | 필터 가능 여부       | `filter: false`    |
 
 ### 주의사항
 
@@ -991,9 +985,9 @@ import { FallbackSpinner } from '@/components/custom/FallbackSpinner';
 import { NoData } from '@/components/custom/NoData';
 
 // 🔧 유틸리티
-import { cn } from '@/lib/utils';         // 클래스 이름 병합 유틸
-import { Log } from '@/log';              // 로깅
-import { toast } from '@/shared-util';    // 토스트 알림
+import { cn } from '@/lib/utils'; // 클래스 이름 병합 유틸
+import { Log } from '@/log'; // 로깅
+import { toast } from '@/shared-util'; // 토스트 알림
 
 // 📦 상태 관리
 import { useAuthStore } from '@/shared-store';
@@ -1021,40 +1015,40 @@ import { toast } from '@/shared-util';
 
 ### 파일명
 
-| 대상 | 규칙 | 예시 |
-|------|------|------|
-| 컴포넌트 | PascalCase | `BotCard.tsx`, `UserDrawer.tsx` |
-| 페이지 | PascalCase | `BotList.tsx`, `BotDetail.tsx` |
-| 훅 | camelCase + `use` 접두사 | `useBotQueries.ts`, `useBotStore.ts` |
-| API | camelCase + `Api` 접미사 | `botApi.ts`, `userApi.ts` |
-| 타입 | camelCase | `bot.ts`, `model.ts` |
-| 타입 index | - | `index.ts` |
-| 상수 | camelCase + `Constants` 접미사 | `dashboardConstants.ts` |
-| 유틸리티 | camelCase + `Utils` 접미사 | `botUtils.ts` |
+| 대상       | 규칙                           | 예시                                 |
+| ---------- | ------------------------------ | ------------------------------------ |
+| 컴포넌트   | PascalCase                     | `BotCard.tsx`, `UserDrawer.tsx`      |
+| 페이지     | PascalCase                     | `BotList.tsx`, `BotDetail.tsx`       |
+| 훅         | camelCase + `use` 접두사       | `useBotQueries.ts`, `useBotStore.ts` |
+| API        | camelCase + `Api` 접미사       | `botApi.ts`, `userApi.ts`            |
+| 타입       | camelCase                      | `bot.ts`, `model.ts`                 |
+| 타입 index | -                              | `index.ts`                           |
+| 상수       | camelCase + `Constants` 접미사 | `dashboardConstants.ts`              |
+| 유틸리티   | camelCase + `Utils` 접미사     | `botUtils.ts`                        |
 
 ### 변수/함수명
 
-| 대상 | 규칙 | 예시 |
-|------|------|------|
-| 컴포넌트 | PascalCase | `const BotCard = () => {}` |
-| 일반 함수/변수 | camelCase | `const handleSubmit = () => {}` |
-| 상수 | UPPER_SNAKE_CASE | `const MAX_RETRY_COUNT = 3` |
-| API 객체 | camelCase + Api | `export const botApi = {}` |
-| Query Key | camelCase + QueryKeys | `export const botQueryKeys = createQueryKeys(...)` |
-| Zustand 스토어 훅 | camelCase + use 접두사 + Store | `export const useBotStore = create(...)` |
+| 대상              | 규칙                           | 예시                                               |
+| ----------------- | ------------------------------ | -------------------------------------------------- |
+| 컴포넌트          | PascalCase                     | `const BotCard = () => {}`                         |
+| 일반 함수/변수    | camelCase                      | `const handleSubmit = () => {}`                    |
+| 상수              | UPPER_SNAKE_CASE               | `const MAX_RETRY_COUNT = 3`                        |
+| API 객체          | camelCase + Api                | `export const botApi = {}`                         |
+| Query Key         | camelCase + QueryKeys          | `export const botQueryKeys = createQueryKeys(...)` |
+| Zustand 스토어 훅 | camelCase + use 접두사 + Store | `export const useBotStore = create(...)`           |
 
 ### 타입/인터페이스명
 
-| 대상 | 규칙 | 예시 |
-|------|------|------|
-| 기본 타입 | PascalCase | `Bot`, `User` |
-| 목록 아이템 | PascalCase + ListItem | `BotListItem` |
-| 상세 아이템 | PascalCase + Item | `BotItem` |
-| 생성 데이터 | PascalCase + CreateDatas | `BotCreateDatas` |
-| 수정 데이터 | PascalCase + UpdateDatas | `BotUpdateDatas` |
-| Props | PascalCase + Props | `BotCardProps` |
-| Ref | PascalCase + Ref | `EntityDrawerRef` |
-| 상태 Union | PascalCase | `TrainStatus`, `TrainDiffStatus` |
+| 대상        | 규칙                     | 예시                             |
+| ----------- | ------------------------ | -------------------------------- |
+| 기본 타입   | PascalCase               | `Bot`, `User`                    |
+| 목록 아이템 | PascalCase + ListItem    | `BotListItem`                    |
+| 상세 아이템 | PascalCase + Item        | `BotItem`                        |
+| 생성 데이터 | PascalCase + CreateDatas | `BotCreateDatas`                 |
+| 수정 데이터 | PascalCase + UpdateDatas | `BotUpdateDatas`                 |
+| Props       | PascalCase + Props       | `BotCardProps`                   |
+| Ref         | PascalCase + Ref         | `EntityDrawerRef`                |
+| 상태 Union  | PascalCase               | `TrainStatus`, `TrainDiffStatus` |
 
 ---
 
@@ -1067,7 +1061,7 @@ import { toast } from '@/shared-util';
 ```typescript
 import { Log } from '@/log';
 
-Log.debug('onFinish', values);         // 디버그 (개발 중 확인용)
+Log.debug('onFinish', values); // 디버그 (개발 중 확인용)
 Log.warn('onFinishFailed', errorInfo); // 경고
 ```
 
@@ -1155,10 +1149,10 @@ const { data } = useGetBots({});
 
 ```typescript
 // ❌ React Compiler가 있으므로 불필요
-const filtered = useMemo(() => items.filter(i => i.active), [items]);
+const filtered = useMemo(() => items.filter((i) => i.active), [items]);
 
 // ✅ 그냥 작성
-const filtered = items.filter(i => i.active);
+const filtered = items.filter((i) => i.active);
 ```
 
 ### 3. 서버 상태를 useState로 관리
@@ -1171,7 +1165,8 @@ const [error, setError] = useState(null);
 
 useEffect(() => {
   setLoading(true);
-  apiClient.get('/users')
+  apiClient
+    .get('/users')
     .then(setUsers)
     .catch(setError)
     .finally(() => setLoading(false));
@@ -1201,10 +1196,14 @@ import BotCard from '../../features/bot-config/components/BotCard';
 
 ```typescript
 // ❌ React.lazy()가 default export를 기대
-export const BotList = () => { /* ... */ };
+export const BotList = () => {
+  /* ... */
+};
 
 // ✅ default export
-const BotList = () => { /* ... */ };
+const BotList = () => {
+  /* ... */
+};
 export default BotList;
 ```
 
@@ -1213,18 +1212,30 @@ export default BotList;
 ```typescript
 // ❌ 하나의 거대한 타입 파일
 // types.ts (500줄짜리...)
-export interface Bot { /* ... */ }
-export interface Model { /* ... */ }
-export interface Intent { /* ... */ }
-export interface Entity { /* ... */ }
+export interface Bot {
+  /* ... */
+}
+export interface Model {
+  /* ... */
+}
+export interface Intent {
+  /* ... */
+}
+export interface Entity {
+  /* ... */
+}
 // ...
 
 // ✅ 도메인별 분리 + barrel export
 // types/bot.ts
-export interface Bot { /* ... */ }
+export interface Bot {
+  /* ... */
+}
 
 // types/model.ts
-export interface Model { /* ... */ }
+export interface Model {
+  /* ... */
+}
 
 // types/index.ts
 export * from './bot';
@@ -1246,11 +1257,15 @@ pnpm add some-package
 
 ```typescript
 // ❌ React DevTools에서 "Anonymous"로 표시됨
-const MyDrawer = forwardRef<MyDrawerRef>((_, ref) => { /* ... */ });
+const MyDrawer = forwardRef<MyDrawerRef>((_, ref) => {
+  /* ... */
+});
 export default MyDrawer;
 
 // ✅ displayName 추가
-const MyDrawer = forwardRef<MyDrawerRef>((_, ref) => { /* ... */ });
+const MyDrawer = forwardRef<MyDrawerRef>((_, ref) => {
+  /* ... */
+});
 MyDrawer.displayName = 'MyDrawer';
 export default MyDrawer;
 ```
@@ -1409,6 +1424,7 @@ pnpm exec git-cz
 클릭하면 현재 캐시된 쿼리, 상태, 데이터를 모두 확인할 수 있습니다.
 
 **활용법:**
+
 - API 호출이 됐는지 확인 → "fresh" / "stale" / "fetching" 상태 확인
 - 캐시된 데이터 확인 → 쿼리를 클릭하면 응답 데이터가 보임
 - 캐시 무효화 테스트 → 수동으로 refetch 가능
@@ -1420,11 +1436,13 @@ pnpm exec git-cz
 **사전 준비:** Chrome 웹 스토어에서 [Redux DevTools](https://chromewebstore.google.com/detail/redux-devtools/lmhkpmbekcpmknklioeibfkpmmfibljd) 확장 프로그램 설치
 
 **사용법:**
+
 1. 개발자도구(F12) 열기
 2. **Redux** 탭 선택
 3. 상단 드롭다운에서 스토어 선택 (AuthStore, MenuStore 등)
 
 **주요 기능:**
+
 - **State 탭**: 현재 스토어의 전체 상태를 트리 구조로 확인
 - **Action 탭**: `set()` 호출 시마다 어떤 액션이 발생했는지 기록 (예: `setUserInfo`, `setMenuConfigs`)
 - **Diff 탭**: 이전 상태와 현재 상태의 차이점 표시
@@ -1578,11 +1596,11 @@ UI 요소는 반드시 **흰색 배경 컨테이너**(`bg-white bt-shadow`)나 *
 
 프로젝트의 목록 페이지들은 대체로 아래 세 영역으로 구성됩니다:
 
-| 영역 | 역할 | 스타일 |
-|------|------|--------|
-| **PageHeader** | 브레드크럼 네비게이션 | 배경 없음 (투명) |
-| **필터/액션 바** | 검색, 필터, 추가 버튼 등 | `bg-white bt-shadow`, 고정 높이 `h-[76px]` |
-| **콘텐츠** | AG-Grid 테이블 또는 Card 그리드 | `bg-white bt-shadow` 또는 개별 Card 컴포넌트 |
+| 영역             | 역할                            | 스타일                                       |
+| ---------------- | ------------------------------- | -------------------------------------------- |
+| **PageHeader**   | 브레드크럼 네비게이션           | 배경 없음 (투명)                             |
+| **필터/액션 바** | 검색, 필터, 추가 버튼 등        | `bg-white bt-shadow`, 고정 높이 `h-[76px]`   |
+| **콘텐츠**       | AG-Grid 테이블 또는 Card 그리드 | `bg-white bt-shadow` 또는 개별 Card 컴포넌트 |
 
 > **왜 `bt-shadow`를 쓰나요?**
 > 프로젝트 전역에 정의된 커스텀 box-shadow 클래스입니다. 흰색 배경과 함께 사용하면 콘텐츠 영역이 배경에서 살짝 떠오르는 효과를 주어 시각적 계층을 만들어 줍니다.
@@ -1689,15 +1707,15 @@ const MyCreatePage = () => {
 
 #### Form.Item의 자주 쓰는 props
 
-| prop | 역할 | 예시 |
-|------|------|------|
-| `name` | 폼 데이터의 키 이름 | `name="username"` |
-| `label` | 필드 위에 표시되는 레이블 | `label="이름"` |
-| `required` | 필수 표시(*) UI만 추가 | `required` |
-| `hasFeedback` | 유효성 검사 아이콘(✓, ✕) 표시 | `hasFeedback` |
-| `rules` | 유효성 검사 규칙 배열 | 아래 참고 |
-| `tooltip` | 레이블 옆 물음표 도움말 | `tooltip="로그인에 사용됩니다"` |
-| `valuePropName` | boolean 컴포넌트(Switch 등)에 필요 | `valuePropName="checked"` |
+| prop            | 역할                               | 예시                            |
+| --------------- | ---------------------------------- | ------------------------------- |
+| `name`          | 폼 데이터의 키 이름                | `name="username"`               |
+| `label`         | 필드 위에 표시되는 레이블          | `label="이름"`                  |
+| `required`      | 필수 표시(\*) UI만 추가            | `required`                      |
+| `hasFeedback`   | 유효성 검사 아이콘(✓, ✕) 표시      | `hasFeedback`                   |
+| `rules`         | 유효성 검사 규칙 배열              | 아래 참고                       |
+| `tooltip`       | 레이블 옆 물음표 도움말            | `tooltip="로그인에 사용됩니다"` |
+| `valuePropName` | boolean 컴포넌트(Switch 등)에 필요 | `valuePropName="checked"`       |
 
 #### 자주 쓰는 유효성 검사 rules
 
@@ -1745,6 +1763,7 @@ useEffect(() => {
 ```
 
 > **`initialValues`와 `setFieldsValue`의 차이**
+>
 > - `initialValues`: 폼이 처음 렌더링될 때 한 번만 적용됩니다. 이미 값을 알고 있을 때 사용합니다. (예: 생성 페이지에서 기본값)
 > - `setFieldsValue()`: 폼이 렌더링된 후에 동적으로 값을 채워 넣습니다. API 응답을 기다려야 할 때 사용합니다. (예: 수정 페이지)
 
@@ -1803,8 +1822,14 @@ const [role, setRole] = useState('');
 const [status, setStatus] = useState('ACTIVE');
 
 const handleSubmit = () => {
-  if (!name) { toast.error('이름을 입력하세요.'); return; }
-  if (!email) { toast.error('이메일을 입력하세요.'); return; }
+  if (!name) {
+    toast.error('이름을 입력하세요.');
+    return;
+  }
+  if (!email) {
+    toast.error('이메일을 입력하세요.');
+    return;
+  }
   createMutation.mutate({ name, email, role, status });
 };
 
@@ -1812,10 +1837,215 @@ const handleSubmit = () => {
 const [form] = Form.useForm();
 
 const onFinish = (values) => {
-  createMutation.mutate(values);  // 유효성 검사는 rules가 알아서 처리
+  createMutation.mutate(values); // 유효성 검사는 rules가 알아서 처리
 };
 ```
 
 #### Drawer를 닫을 때 resetFields를 빠뜨림
 
 Drawer가 닫혔다가 다시 열릴 때 이전에 입력한 값이 잔존하는 문제가 생길 수 있습니다. `useEffect`의 cleanup 함수에서 `form.resetFields()`를 호출해주세요.
+
+---
+
+## 19. 화면 커스터마이징(Variants) 가이드
+
+테넌트(고객사)별로 동일 메뉴 path에서 서로 다른 화면 컴포넌트를 렌더해야 하는 시나리오를 데이터 기반으로 처리하기 위한 패턴입니다. 운영자가 메뉴 관리 어드민에서 picker로 변형을 선택하면, 그 path 진입 시 선택된 컴포넌트가 렌더됩니다.
+
+### 왜 이 패턴인가
+
+**문제**: 같은 "봇 목록" 화면이지만 A 은행은 대출 컬럼이 추가된 표를, B 통신사는 회선 정보 컬럼이 있는 표를 보고 싶다.
+
+**잘못된 접근**:
+
+- path 분리(`/bot/list-bank-a`, `/bot/list-carrier`) → URL이 테넌트 내부 사정을 노출, 매뉴얼·딥링크 호환성 깨짐, 메뉴 데이터 모델이 복잡해짐
+- 컴포넌트 내부에 if/else 분기 → 한 파일이 모든 테넌트 분기를 떠안아 비대해짐
+
+**올바른 접근**: path는 의도(`/bot/list`)를 표현, element만 데이터 기반으로 교체. 코드 변경 없이 운영자가 어드민에서 변형 적용·해제 가능.
+
+### 전체 구조
+
+```
+┌──────────── 코드 (개발자 작성) ────────────┐
+│                                              │
+│  apps/<remote>/src/app/pages/.../            │
+│   ├── BotList.tsx                  (기본)    │
+│   ├── variants/BotListBankA.tsx    (변형)    │
+│   └── BotList.variants.ts          (선언)    │
+│                                              │
+│         │ 모든 variants 파일을 한 곳에 모음  │
+│         ▼                                    │
+│  apps/<remote>/src/app/features/router/      │
+│   pageVariants.ts                            │
+│         │ MF './PageVariants'로 expose       │
+│         ▼                                    │
+└─────────┼────────────────────────────────────┘
+          │
+          ├── (어드민) host가 메타만 추출 → usePageVariantsStore
+          │    → 메뉴 관리 picker에서 카드 그리드로 표시
+          │    → 운영자 선택 → DB의 menu row에 componentKey 저장
+          │
+          └── (사용자) routes.tsx의 <DynamicElement>가
+              menuStore의 componentKey 보고 변형 렌더
+```
+
+### 새 변형 추가 절차
+
+#### Step 1: 변형 컴포넌트 작성
+
+```
+apps/fca/src/app/pages/bot-config/
+├── BotList.tsx                    ← 기본
+├── variants/
+│   └── BotListBankA.tsx           ← 신규 작성
+└── BotList.variants.ts
+```
+
+`variants/BotListBankA.tsx`는 기본 컴포넌트와 **동일한 prop·context·query key를 사용**해야 합니다. 데이터 fetching 형태가 본질적으로 다르면 variant가 아니라 별도 path로 분리하세요.
+
+#### Step 2: 변형 정의 파일에 등록
+
+`BotList.variants.ts`:
+
+```ts
+import { lazy } from 'react';
+import type { PageVariantConfig } from '@/components/custom/DynamicElement';
+
+export const botListVariants: PageVariantConfig = {
+  appId: 'fca',
+  path: 'bot-config/bot/list',
+  defaultKey: 'BotList',
+  components: {
+    BotList: {
+      label: '기본 봇 목록',
+      description: '표준 카드 그리드',
+      component: lazy(() => import('./BotList')),
+    },
+    BotListBankA: {
+      // ← 추가
+      label: 'A 은행 전용',
+      description: '대출 컬럼 + 컴플라이언스 뱃지',
+      component: lazy(() => import('./variants/BotListBankA')),
+    },
+  },
+};
+```
+
+#### Step 3: aggregator에 추가
+
+`apps/<remote>/src/app/features/router/pageVariants.ts`:
+
+```ts
+import { botListVariants } from '../../pages/bot-config/BotList.variants';
+import type { PageVariantConfig } from '@/components/custom/DynamicElement';
+
+export const pageVariants: Record<string, PageVariantConfig> = {
+  [botListVariants.path]: botListVariants,
+  // ...
+};
+```
+
+이미 등록된 path에 변형만 추가하는 경우엔 Step 3은 생략(기존 entry 재사용).
+
+#### Step 4: routes.tsx의 element를 DynamicElement로 전환
+
+해당 path가 처음 변형을 갖는 거라면 routes.tsx에서 정적 element를 DynamicElement로 교체:
+
+```tsx
+// Before
+{ path: 'list', element: <BotList /> },
+
+// After
+import { botListVariants } from './pages/bot-config/BotList.variants';
+import DynamicElement from '@/components/custom/DynamicElement';
+
+{ path: 'list', element: <DynamicElement variants={botListVariants} /> },
+```
+
+이미 DynamicElement를 사용 중이면 Step 4도 생략.
+
+#### Step 5: 운영자가 어드민에서 적용
+
+배포 후 운영자가 메뉴 관리 화면에서:
+
+1. 해당 메뉴(예: "봇 목록")를 트리에서 선택
+2. "화면파일 변경" Select에서 새 변형(`BotListBankA`) 선택
+3. 저장 → DB의 menu row에 `componentKey: 'BotListBankA'` 기록
+4. 다음 로그인부터 그 테넌트 사용자는 변형 컴포넌트를 보게 됨
+
+### DynamicElement의 동작 원리
+
+[libs/shared-ui/src/components/custom/DynamicElement.tsx](../libs/shared-ui/src/components/custom/DynamicElement.tsx):
+
+```tsx
+const DynamicElement = ({ variants }) => {
+  // 1. menuStore에서 이 path의 componentKey 찾기
+  const selectedKey = useMenuStore((s) => {
+    const config = s.menuConfigs.find((c) => c.appId === variants.appId);
+    return config ? findComponentKey(config.menus, variants.path) : undefined;
+  });
+
+  // 2. 키 유효성: 등록되지 않은 키면 defaultKey로 fallback
+  const resolvedKey = selectedKey && variants.components[selectedKey] ? selectedKey : variants.defaultKey;
+
+  // 3. lazy 컴포넌트 참조 + Suspense
+  const Component = variants.components[resolvedKey].component;
+  return (
+    <Suspense fallback={<FallbackSpinner />}>
+      <Component />
+    </Suspense>
+  );
+};
+```
+
+- DB의 `componentKey`가 코드에서 사라진 경우 → 자동으로 default 컴포넌트로 fallback (운영 안전)
+- variants 컴포넌트는 lazy chunk로 분리되어 진입 시점에만 다운로드
+
+### Picker UI는 어떻게 알게 되는가
+
+호스트의 `SharedInfoProvider` 부팅 시:
+
+1. 각 remote의 `./PageVariants` aggregator를 dynamic import
+2. `usePageVariantsLoader`가 component 함수 참조는 버리고 메타(label/description/key)만 추출
+3. `usePageVariantsStore.variants`에 저장
+
+메뉴 관리 폼은 store에서 변형 매니페스트를 읽어 picker 옵션을 그립니다. 호스트는 변형 컴포넌트 chunk를 직접 받지 않으므로 가벼움.
+
+### 새 remote의 자동 등록
+
+`pnpm run create-remote`로 신규 remote를 생성하면 다음이 자동 처리됩니다:
+
+- `apps/<new-remote>/src/app/features/router/pageVariants.ts` 빈 aggregator 생성
+- `module-federation.config.ts`에 `'./PageVariants'` expose 항목 포함
+- 호스트의 `usePageVariantsLoader` `VARIANT_LOADERS` 맵에 신규 remote 자동 등록
+
+따라서 신규 remote는 별도 작업 없이 variants 인프라가 즉시 동작합니다.
+
+### 아이콘 레지스트리도 동일 발상
+
+화면 컴포넌트뿐 아니라 메뉴 아이콘도 운영자가 어드민에서 선택하는 구조를 따릅니다. [libs/shared-ui/src/components/custom/menuIconRegistry.ts](../libs/shared-ui/src/components/custom/menuIconRegistry.ts)에 사용 가능 아이콘이 등록되어 있고, DB의 `iconKey`(`custom:IconMenuMain` / `lucide:Activity` 등)에 따라 사이드바·picker가 해석합니다. 새 아이콘이 필요하면 레지스트리에 등록.
+
+### 흔한 실수 / 안티패턴
+
+#### prop이 다른 컴포넌트를 같은 variants 그룹에 등록
+
+```tsx
+// ❌ BotList는 props 없고 BotDetail은 :serviceId 필요 — 다른 path
+components: {
+  BotList: { ..., component: lazy(() => import('./BotList')) },
+  BotDetail: { ..., component: lazy(() => import('./BotDetail')) }, // 잘못된 그룹
+}
+```
+
+variants는 **같은 path 위에서 호환되는 컴포넌트**만 등록해야 합니다. URL 파라미터·라우트 컨텍스트가 다르면 별도 그룹.
+
+#### 모든 path를 미리 DynamicElement로 변환
+
+대부분의 page는 영영 변형이 필요 없습니다. 변형 요구사항이 실제로 생긴 page만 DynamicElement로 변환하세요. 미리 변환하면 boilerplate만 늘고 가치 없습니다.
+
+#### aggregator에 import 추가를 빼먹음
+
+신규 `*.variants.ts` 파일을 만들고 aggregator에 import를 안 넣으면 picker에 노출되지 않습니다. PR 리뷰 시 체크하거나 ESLint 룰로 검증할 수 있습니다.
+
+#### variants에 등록되지 않은 키를 DB에 저장
+
+DynamicElement는 등록 안 된 키를 만나면 default로 fallback하므로 화면이 깨지진 않지만, 운영자가 picker에서 다시 선택하기 전까진 의도와 다른 화면이 보일 수 있습니다. 변형 컴포넌트를 코드에서 제거할 땐 DB 마이그레이션도 함께 진행하세요.
