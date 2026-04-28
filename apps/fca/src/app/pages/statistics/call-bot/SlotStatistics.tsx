@@ -296,7 +296,7 @@ export default function SlotStatistics() {
       headerName: '재시도',
       children: [
         {
-          headerName: '1회이하',
+          headerName: '1회',
           field: 'oneTimeOrLess',
           flex: 1,
           cellStyle: (params) => (params.node?.rowPinned === 'bottom' ? { fontWeight: 'bold', alignItems: 'center' } : { fontWeight: 'normal', alignItems: 'center' }),
