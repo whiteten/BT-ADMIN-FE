@@ -1,10 +1,11 @@
 import { useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import dayjs from 'dayjs';
-import { Dot, KeyRound, LogOut } from 'lucide-react';
-import { useAuthStore } from '@/shared-store';
+import { Dot, KeyRound, LogOut, Repeat } from 'lucide-react';
+import { type TenantSummary, useAuthStore } from '@/shared-store';
 import { toast } from '@/shared-util';
 import { type ChangePasswordData, ChangePasswordDialog, type ChangePasswordDialogRef } from './ChangePasswordDialog';
+import { TenantSwitchDialog, type TenantSwitchDialogRef } from './TenantSwitchDialog';
 import { authApi } from '../features/auth/api/authApi';
 import { useChangePassword, useLogout } from '../features/auth/hooks/useAuthQueries';
 import type { PasswordPolicy } from '../features/auth/types/auth';
@@ -26,6 +27,7 @@ export default function UserMenuSelector() {
   const navigate = useNavigate();
   const { userInfo, getCurrentRoleName, reset } = useAuthStore();
   const changePasswordDialogRef = useRef<ChangePasswordDialogRef>(null);
+  const tenantSwitchDialogRef = useRef<TenantSwitchDialogRef>(null);
   const [passwordPolicy, setPasswordPolicy] = useState<PasswordPolicy | null>(null);
 
   const { mutate: logout } = useLogout({
@@ -87,6 +89,30 @@ export default function UserMenuSelector() {
   const username = userInfo?.username ?? userInfo?.userAccount ?? '-';
   const userAccount = userInfo?.userAccount ?? '-';
   const roleName = getCurrentRoleName();
+  const tenantName = userInfo?.tenantName?.trim() ? userInfo.tenantName : userInfo?.tenant ? `테넌트 ${userInfo.tenant}` : '-';
+  const availableTenants = userInfo?.availableTenants ?? [];
+  const isMultiTenant = availableTenants.length > 1;
+
+  // 테넌트 선택 시 호출: 서버에 전환 요청 → 성공 시 페이지 리로드
+  const handleTenantSelect = async (tenant: TenantSummary) => {
+    try {
+      await authApi.switchTenant(tenant.tenantId);
+      toast.success(`${tenant.tenantName} 테넌트로 전환되었습니다.`);
+      // 새 토큰의 권한/메뉴/테넌트명이 모든 화면에 반영되도록 리로드
+      window.location.reload();
+    } catch (err: unknown) {
+      const error = err as { response?: { data?: { code?: string; message?: string } } };
+      const code = error?.response?.data?.code;
+      if (code === 'TENANT_ACCESS_DENIED') {
+        toast.error('해당 테넌트에 접근 권한이 없습니다.');
+      } else if (code === 'UNAUTHENTICATED') {
+        toast.error('세션이 만료되었습니다. 다시 로그인하세요.');
+        navigate('/login');
+      } else {
+        toast.error(error?.response?.data?.message ?? '테넌트 전환에 실패했습니다.');
+      }
+    }
+  };
 
   const TriggerBtn = (
     <Button variant="ghost" className={cn('flex justify-start min-w-[170px] h-full p-1.5 hover:cursor-pointer')}>
@@ -126,6 +152,11 @@ export default function UserMenuSelector() {
             </div>
             <div className="flex items-center">
               <Dot className="h-4 w-4" />
+              <span className="">테넌트 :</span>
+              <span className="ml-1 font-medium text-gray-800 dark:text-gray-100">{tenantName}</span>
+            </div>
+            <div className="flex items-center">
+              <Dot className="h-4 w-4" />
               <span className="">등급 :</span>
               <Badge variant="outline" className="ml-1 h-[15px] text-xs p-2 bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200">
                 {roleName}
@@ -135,6 +166,12 @@ export default function UserMenuSelector() {
         </DropdownMenuLabel>
         <DropdownMenuSeparator />
         <DropdownMenuGroup>
+          {isMultiTenant && (
+            <DropdownMenuItem className="hover:cursor-pointer" onSelect={() => tenantSwitchDialogRef.current?.open()}>
+              <Repeat />
+              테넌트 전환
+            </DropdownMenuItem>
+          )}
           <DropdownMenuItem className="hover:cursor-pointer" onSelect={handleChangePasswordClick}>
             <KeyRound />
             비밀번호 변경
@@ -155,6 +192,9 @@ export default function UserMenuSelector() {
         onSuccess={() => toast.success('비밀번호가 변경되었습니다.')}
         onError={(error) => toast.error(error.message || '비밀번호 변경에 실패했습니다.')}
       />
+
+      {/* 테넌트 전환 Dialog */}
+      <TenantSwitchDialog ref={tenantSwitchDialogRef} currentTenantId={userInfo?.tenant ?? ''} availableTenants={availableTenants} onSelect={handleTenantSelect} />
     </DropdownMenu>
   );
 }

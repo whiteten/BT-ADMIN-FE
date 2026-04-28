@@ -63,4 +63,13 @@ export const authApi = {
     const response = await authClient.post<DetailResponse<ResetPasswordResponse>>('/reset-password', data);
     return extractDetail(response);
   },
+  /**
+   * 활성 테넌트 전환.
+   * - 세션은 유지하면서 토큰만 새 테넌트로 재발급 (서버 측에서 UserTenantMap 검증)
+   * - 성공 시 호출자가 page reload하여 새 컨텍스트로 진입
+   * - 실패: 403(권한 없음) / 401(세션 만료) / 500(기타)
+   */
+  switchTenant: async (tenantId: number): Promise<void> => {
+    await authClient.post('/switch-tenant', { tenantId });
+  },
 };

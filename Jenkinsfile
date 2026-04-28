@@ -89,7 +89,10 @@ pipeline {
                     // pnpm 설치
                     sh 'corepack enable && corepack prepare pnpm@10.29.2 --activate'
 
-                    // 의존성 설치
+                    // Nx 빌드 캐시 초기화 (node_modules는 유지하여 설치 속도 확보)
+                    sh 'rm -rf .nx/cache'
+
+                    // 의존성 설치 (node_modules 있으면 빠르게 통과)
                     sh 'pnpm install --frozen-lockfile'
 
                     // 빌드 대상 결정
