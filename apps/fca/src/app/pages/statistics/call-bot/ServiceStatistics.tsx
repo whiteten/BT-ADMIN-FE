@@ -86,7 +86,7 @@ export default function ServiceStatistics() {
 
   // 봇(서비스) 통계 조회
   const {
-    data: serviceStatList,
+    data: serviceStatData,
     isLoading: isLoadingServiceStatList,
     refetch,
   } = useGetServiceStatList({
@@ -107,34 +107,11 @@ export default function ServiceStatistics() {
   });
 
   useEffect(() => {
-    if (serviceStatList !== undefined) setRowData(serviceStatList);
-  }, [serviceStatList]);
+    if (serviceStatData !== undefined) setRowData(serviceStatData.items);
+  }, [serviceStatData]);
 
-  // 합계 행 계산 (pinnedBottomRowData)
-  const summaryRow = useMemo<ServiceStatListItem[]>(() => {
-    if (!rowData?.length) return [];
-    const count = rowData.length;
-    const sum = (field: keyof ServiceStatListItem) => rowData.reduce((acc, row) => acc + (Number(row[field]) || 0), 0);
-    const avg = (field: keyof ServiceStatListItem) => Math.round((sum(field) / count) * 100) / 100;
-    return [
-      {
-        psrTimeKey: '전체합계',
-        serviceName: '',
-        serviceEnterCount: sum('serviceEnterCount'),
-        serviceCompleteCount: sum('serviceCompleteCount'),
-        serviceFailCount: sum('serviceFailCount'),
-        serviceCompletePercent: avg('serviceCompletePercent'),
-        serviceFailPercent: avg('serviceFailPercent'),
-        reqAgentCount: sum('reqAgentCount'),
-        enterReqAgentPercent: avg('enterReqAgentPercent'),
-        completeReqAgentCount: sum('completeReqAgentCount'),
-        completeReqAgentPercent: avg('completeReqAgentPercent'),
-        failReqAgentCount: sum('failReqAgentCount'),
-        failReqAgentPercent: avg('failReqAgentPercent'),
-        botSlotInCount: sum('botSlotInCount'),
-      } as ServiceStatListItem,
-    ];
-  }, [rowData]);
+  // BE에서 받은 summary에 '전체합계' 라벨 주입
+  const summaryRow: ServiceStatListItem[] = serviceStatData?.summary ? [{ ...serviceStatData.summary, psrTimeKey: '전체합계' }] : [];
 
   // startDate 또는 timeUnit 변경 시 endDate 자동 조정
   useEffect(() => {
@@ -448,79 +425,77 @@ export default function ServiceStatistics() {
               </div>
             </div>
             {timeUnit !== 'MM' && timeUnit !== 'YY' ? (
-              <>
-                <CollapsibleContent>
-                  <div className="flex flex-wrap items-center gap-3">
-                    <div className="flex items-center gap-3">
-                      <span className="text-sm font-medium text-[#495057] shrink-0">제외요일</span>
-                      <Select
-                        mode="multiple"
-                        value={excludeDays}
-                        onChange={(value) => setExcludeDays(value ?? [])}
-                        allowClear
-                        maxTagCount="responsive"
-                        options={[
-                          { label: '월요일', value: 'MON' },
-                          { label: '화요일', value: 'TUE' },
-                          { label: '수요일', value: 'WED' },
-                          { label: '목요일', value: 'THU' },
-                          { label: '금요일', value: 'FRI' },
-                          { label: '토요일', value: 'SAT' },
-                          { label: '일요일', value: 'SUN' },
-                        ]}
-                        placeholder="제외할 요일 선택"
-                        className="!min-w-[150px] !max-w-[300px]"
-                        popupMatchSelectWidth={false}
-                      />
-                    </div>
-                    <Divider orientation="vertical" className="!h-5 !m-0" />
-                    <div className="flex items-center gap-3">
-                      <span className="text-sm font-medium text-[#495057] shrink-0">업무공휴일 제외</span>
-                      <Checkbox checked={excludeBusinessHoliday} onChange={(e) => setExcludeBusinessHoliday(e.target.checked)} />
-                    </div>
-                    <Divider orientation="vertical" className="!h-5 !m-0" />
-                    <div className="flex items-center gap-3">
-                      <span className="text-sm font-medium text-[#495057] shrink-0">통계공휴일 제외</span>
-                      <Checkbox checked={excludeStatHoliday} onChange={(e) => setExcludeStatHoliday(e.target.checked)} />
-                    </div>
-                    {timeUnit === 'MI' || timeUnit === 'HH' ? (
-                      <>
-                        <Divider orientation="vertical" className="!h-5 !m-0" />
-                        <div className="flex items-center gap-3">
-                          <span className="text-sm font-medium text-[#495057] shrink-0">점심시간 제외</span>
-                          <Checkbox checked={excludeLunch} onChange={(e) => setExcludeLunch(e.target.checked)} />
-                        </div>
-                        <Divider orientation="vertical" className="!h-5 !m-0" />
-                        <div className="flex items-center gap-3">
-                          <span className="text-sm font-medium text-[#495057] shrink-0">구간검색</span>
-                          <Checkbox checked={useInterval} onChange={(e) => setUseInterval(e.target.checked)} />
-                          {useInterval ? (
-                            <>
-                              <TimePicker
-                                value={intervalStartTime}
-                                onChange={(date) => setIntervalStartTime(date)}
-                                inputReadOnly
-                                allowClear={false}
-                                format="HH:00"
-                                style={{ width: '100px' }}
-                              />
-                              <span className="text-sm font-medium text-[#495057] shrink-0">~</span>
-                              <TimePicker
-                                value={intervalEndTime}
-                                onChange={(date) => setIntervalEndTime(date)}
-                                inputReadOnly
-                                allowClear={false}
-                                format="HH:00"
-                                style={{ width: '100px' }}
-                              />
-                            </>
-                          ) : null}
-                        </div>
-                      </>
-                    ) : null}
+              <CollapsibleContent>
+                <div className="flex flex-wrap items-center gap-3">
+                  <div className="flex items-center gap-3">
+                    <span className="text-sm font-medium text-[#495057] shrink-0">제외요일</span>
+                    <Select
+                      mode="multiple"
+                      value={excludeDays}
+                      onChange={(value) => setExcludeDays(value ?? [])}
+                      allowClear
+                      maxTagCount="responsive"
+                      options={[
+                        { label: '월요일', value: 'MON' },
+                        { label: '화요일', value: 'TUE' },
+                        { label: '수요일', value: 'WED' },
+                        { label: '목요일', value: 'THU' },
+                        { label: '금요일', value: 'FRI' },
+                        { label: '토요일', value: 'SAT' },
+                        { label: '일요일', value: 'SUN' },
+                      ]}
+                      placeholder="제외할 요일 선택"
+                      className="!min-w-[150px] !max-w-[300px]"
+                      popupMatchSelectWidth={false}
+                    />
                   </div>
-                </CollapsibleContent>
-              </>
+                  <Divider orientation="vertical" className="!h-5 !m-0" />
+                  <div className="flex items-center gap-3">
+                    <span className="text-sm font-medium text-[#495057] shrink-0">업무공휴일 제외</span>
+                    <Checkbox checked={excludeBusinessHoliday} onChange={(e) => setExcludeBusinessHoliday(e.target.checked)} />
+                  </div>
+                  <Divider orientation="vertical" className="!h-5 !m-0" />
+                  <div className="flex items-center gap-3">
+                    <span className="text-sm font-medium text-[#495057] shrink-0">통계공휴일 제외</span>
+                    <Checkbox checked={excludeStatHoliday} onChange={(e) => setExcludeStatHoliday(e.target.checked)} />
+                  </div>
+                  {timeUnit === 'MI' || timeUnit === 'HH' ? (
+                    <>
+                      <Divider orientation="vertical" className="!h-5 !m-0" />
+                      <div className="flex items-center gap-3">
+                        <span className="text-sm font-medium text-[#495057] shrink-0">점심시간 제외</span>
+                        <Checkbox checked={excludeLunch} onChange={(e) => setExcludeLunch(e.target.checked)} />
+                      </div>
+                      <Divider orientation="vertical" className="!h-5 !m-0" />
+                      <div className="flex items-center gap-3">
+                        <span className="text-sm font-medium text-[#495057] shrink-0">구간검색</span>
+                        <Checkbox checked={useInterval} onChange={(e) => setUseInterval(e.target.checked)} />
+                        {useInterval ? (
+                          <>
+                            <TimePicker
+                              value={intervalStartTime}
+                              onChange={(date) => setIntervalStartTime(date)}
+                              inputReadOnly
+                              allowClear={false}
+                              format="HH:00"
+                              style={{ width: '100px' }}
+                            />
+                            <span className="text-sm font-medium text-[#495057] shrink-0">~</span>
+                            <TimePicker
+                              value={intervalEndTime}
+                              onChange={(date) => setIntervalEndTime(date)}
+                              inputReadOnly
+                              allowClear={false}
+                              format="HH:00"
+                              style={{ width: '100px' }}
+                            />
+                          </>
+                        ) : null}
+                      </div>
+                    </>
+                  ) : null}
+                </div>
+              </CollapsibleContent>
             ) : null}
           </header>
         </Collapsible>
