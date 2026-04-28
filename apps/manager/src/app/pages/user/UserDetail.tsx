@@ -13,6 +13,7 @@ import { type BreadcrumbProps, Button, Divider, Tag } from 'antd';
 import { Check, ChevronLeft, ChevronRight, History, Layers, Shield } from 'lucide-react';
 import { useAuthStore } from '@/shared-store';
 import { type PermissionStats, type ResourceStats, type UserAdditionalFormValues, type UserBasicFormValues, UserDetailProvider } from './context/UserDetailContext';
+import { useGetRoles } from '../../features/iam/hooks/useRoleQueries';
 import AccountStatusBadge from '../../features/user/components/AccountStatusBadge';
 import { useGetUser } from '../../features/user/hooks/useUserQueries';
 import { FallbackSpinner } from '@/components/custom/FallbackSpinner';
@@ -107,9 +108,9 @@ export default function UserDetail() {
 
   const params: BreadcrumbProps['params'] = { username: user?.username ?? '-' };
 
-  // 역할 목록은 RouteGuard에서 이미 로드되어 Zustand에 저장됨
-  const { roleList } = useAuthStore();
-  const roleOptions = roleList.map((role) => ({ label: role.roleName, value: role.roleId }));
+  // 역할 목록은 이 화면에서 직접 호출
+  const { data: roles = [] } = useGetRoles();
+  const roleOptions = roles.map((role) => ({ label: role.roleName, value: role.roleId }));
 
   // DB 데이터로 폼 상태 초기화/리셋
   const resetToServerData = useCallback(() => {
