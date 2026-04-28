@@ -81,6 +81,7 @@ export default function PermissionListTab() {
         field: 'authKey',
         flex: 1,
         minWidth: 220,
+        cellStyle: { display: 'flex', alignItems: 'center', justifyContent: 'center' },
         cellRenderer: (params: { value: string }) => (
           <div className="flex items-center gap-2">
             <code className="text-xs bg-gray-100 px-2 py-0.5 rounded font-mono truncate">{params.value}</code>

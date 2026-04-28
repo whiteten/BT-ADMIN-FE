@@ -506,10 +506,9 @@ export default function ServiceStatistics() {
             rowData={rowData}
             getRowId={(params) => `${params.data.psrTimeKey}_${params.data.serviceId}`}
             columnDefs={columnDefs}
-            gridOptions={gridOptions}
+            gridOptions={{ ...gridOptions, statusBar: undefined }}
             loading={isLoadingServiceStatList}
             pagination={false}
-            statusBar={{ statusPanels: [] }}
             rowNumbers={false}
             sideBar={false}
             pinnedBottomRowData={summaryRow}

@@ -84,12 +84,12 @@ export default function MenuManagement() {
     },
   });
 
-  const handleSave = (id: number, data: MenuUpsertRequest) => {
-    updateMenuMutation.mutate({ id, data });
+  const handleSave = (menuKey: string, data: MenuUpsertRequest) => {
+    updateMenuMutation.mutate({ menuKey, data });
   };
 
-  const handleDelete = (id: number) => {
-    deleteMenuMutation.mutate(id);
+  const handleDelete = (menuKey: string) => {
+    deleteMenuMutation.mutate(menuKey);
   };
 
   const handleCreate = (data: MenuUpsertRequest) => {
@@ -120,7 +120,7 @@ export default function MenuManagement() {
             apps={appFilterOptions}
             selectedAppId={selectedAppId}
             onAppChange={setSelectedAppId}
-            selectedMenuId={selectedMenu?.menuId ?? null}
+            selectedMenuKey={selectedMenu?.menuKey ?? null}
             selectedTreeAppId={selectedTreeAppId}
             onSelect={(menu) => {
               setSelectedMenu(menu);

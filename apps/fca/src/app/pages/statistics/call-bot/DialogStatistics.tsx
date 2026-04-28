@@ -530,10 +530,9 @@ export default function DialogStatistics() {
             rowData={rowData}
             getRowId={(params) => `${params.data.psrTimeKey}_${params.data.serviceId}_${params.data.dialogId}`}
             columnDefs={columnDefs}
-            gridOptions={gridOptions}
+            gridOptions={{ ...gridOptions, statusBar: undefined }}
             loading={isLoadingDialogStatList}
             pagination={false}
-            statusBar={{ statusPanels: [] }}
             rowNumbers={false}
             sideBar={false}
             pinnedBottomRowData={summaryRow}

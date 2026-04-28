@@ -2,6 +2,7 @@ import { forwardRef, useImperativeHandle, useMemo, useState } from 'react';
 import type { ColDef, GetDataPath, ICellRendererParams } from 'ag-grid-community';
 import { AgGridReact } from 'ag-grid-react';
 import { Button, Divider, Drawer, Input, Select, Tag } from 'antd';
+import { ChevronDown, ChevronRight } from 'lucide-react';
 import { useCompareSnapshots, useGetSnapshots } from '../hooks/useModelQueries';
 import type { FlatDiffItem, SnapshotDiffItem, SnapshotListItem } from '../types/snapshot';
 import useAggridOptions from '@/libs/shared-ui/src/hooks/useAggridOptions';
@@ -88,6 +89,21 @@ const getDiffStats = (items: SnapshotDiffItem[] | undefined) => {
 };
 
 /**
+ * Keyword Diff 통계 계산
+ */
+const getKeywordDiffStats = (items: SnapshotDiffItem[] | undefined) => {
+  const empty = { total: 0, added: 0, deleted: 0, modified: 0, unchanged: 0 };
+  if (!items) return empty;
+  return {
+    total: items.length,
+    added: items.filter((i) => i.changeStatus === '추가').length,
+    deleted: items.filter((i) => i.changeStatus === '삭제').length,
+    modified: items.filter((i) => i.changeStatus === '수정').length,
+    unchanged: items.filter((i) => i.changeStatus === '변경없음').length,
+  };
+};
+
+/**
  * Entity Diff 데이터에서 통계 계산 (개체/대표값/유사어)
  */
 const getEntityDiffStats = (items: SnapshotDiffItem[] | undefined) => {
@@ -121,6 +137,16 @@ const SnapshotCompareDrawer = forwardRef<SnapshotCompareDrawerRef>((_, ref) => {
     data: null,
   });
   const [targetSnapshotId, setTargetSnapshotId] = useState<string>('');
+  const [openSections, setOpenSections] = useState<Set<string>>(new Set(['intent', 'entity', 'keyword']));
+
+  const toggleSection = (key: string) => {
+    setOpenSections((prev) => {
+      const next = new Set(prev);
+      if (next.has(key)) next.delete(key);
+      else next.add(key);
+      return next;
+    });
+  };
   const { gridOptions } = useAggridOptions();
 
   const { open, data, modelId } = drawerState;
@@ -152,6 +178,9 @@ const SnapshotCompareDrawer = forwardRef<SnapshotCompareDrawerRef>((_, ref) => {
   const intentStats = useMemo(() => getDiffStats(compareResult?.intentDiffs), [compareResult?.intentDiffs]);
   // Entity 통계 (개체/대표값/유사어)
   const entityStats = useMemo(() => getEntityDiffStats(compareResult?.entityDiffs), [compareResult?.entityDiffs]);
+  // Keyword 데이터 및 통계
+  const keywordFlatData = useMemo(() => flattenDiffItems(compareResult?.keywordDiffs ?? []), [compareResult?.keywordDiffs]);
+  const keywordStats = useMemo(() => getKeywordDiffStats(compareResult?.keywordDiffs), [compareResult?.keywordDiffs]);
 
   // Tree Data 경로 함수
   const getDataPath: GetDataPath<FlatDiffItem> = (data) => data.path;
@@ -193,7 +222,7 @@ const SnapshotCompareDrawer = forwardRef<SnapshotCompareDrawerRef>((_, ref) => {
       groupDefaultExpanded: 0,
       pagination: false,
       sideBar: false,
-      statusBar: { statusPanels: [] },
+      statusBar: undefined,
       noRowsOverlayComponentParams: {
         message: '비교 결과가 없습니다.',
       },
@@ -215,6 +244,7 @@ const SnapshotCompareDrawer = forwardRef<SnapshotCompareDrawerRef>((_, ref) => {
               ENTITY_VALUE: { color: 'geekblue', text: '대표값' },
               ENTITY_TYPEVALUES: { color: 'volcano', text: '유사어' },
               VALUE: { color: 'geekblue', text: '값' },
+              KEYWORD: { color: 'gold', text: '키워드' },
             };
 
             const config = typeConfig[type ?? ''] || { color: 'default', text: type };
@@ -294,13 +324,20 @@ const SnapshotCompareDrawer = forwardRef<SnapshotCompareDrawerRef>((_, ref) => {
 
         <div className="border-t border-gray-200" />
 
-        {/* Intent Diff 결과 */}
-        <div className="flex flex-col gap-2 flex-1 min-h-0">
-          <div className="text-sm font-medium text-gray-700 flex items-center justify-between">
-            <span>의도 변경사항</span>
+        {/* Intent Diff */}
+        <div className="flex flex-col border border-gray-200 rounded-lg overflow-hidden">
+          <button
+            type="button"
+            onClick={() => toggleSection('intent')}
+            className="flex items-center justify-between px-4 py-2.5 bg-gray-50 hover:bg-gray-100 transition-colors text-left"
+          >
+            <span className="flex items-center gap-2 text-sm font-medium text-gray-700">
+              {openSections.has('intent') ? <ChevronDown className="size-4 text-gray-400" /> : <ChevronRight className="size-4 text-gray-400" />}
+              의도 변경사항
+            </span>
             <div className="flex items-center text-xs">
               <span className="flex items-center gap-1">
-                <span className=" text-gray-900">의도:</span>
+                <span className="text-gray-900">의도:</span>
                 <span className="text-green-600">추가 {intentStats.parent.added}</span>
                 <span className="text-orange-500">수정 {intentStats.parent.modified}</span>
                 <span className="text-red-600">삭제 {intentStats.parent.deleted}</span>
@@ -308,23 +345,32 @@ const SnapshotCompareDrawer = forwardRef<SnapshotCompareDrawerRef>((_, ref) => {
               </span>
               <Divider orientation="vertical" className="!h-4" />
               <span className="flex items-center gap-1">
-                <span className=" text-gray-900">문장:</span>
+                <span className="text-gray-900">문장:</span>
                 <span className="text-green-600">추가 {intentStats.child.added}</span>
                 <span className="text-orange-500">수정 {intentStats.child.modified}</span>
                 <span className="text-red-600">삭제 {intentStats.child.deleted}</span>
                 <span className="text-gray-400">변경없음 {intentStats.child.unchanged}</span>
               </span>
             </div>
-          </div>
-          <div className="h-[350px]">
-            <AgGridReact<FlatDiffItem> rowData={intentFlatData} columnDefs={columnDefs} gridOptions={treeGridOptions} loading={isCompareLoading} />
-          </div>
+          </button>
+          {openSections.has('intent') && (
+            <div className="h-[280px]">
+              <AgGridReact<FlatDiffItem> rowData={intentFlatData} columnDefs={columnDefs} gridOptions={treeGridOptions} loading={isCompareLoading} />
+            </div>
+          )}
         </div>
 
-        {/* Entity Diff 결과 */}
-        <div className="flex flex-col gap-2 flex-1 min-h-0">
-          <div className="text-sm font-medium text-gray-700 flex items-center justify-between">
-            <span>개체 변경사항</span>
+        {/* Entity Diff */}
+        <div className="flex flex-col border border-gray-200 rounded-lg overflow-hidden">
+          <button
+            type="button"
+            onClick={() => toggleSection('entity')}
+            className="flex items-center justify-between px-4 py-2.5 bg-gray-50 hover:bg-gray-100 transition-colors text-left"
+          >
+            <span className="flex items-center gap-2 text-sm font-medium text-gray-700">
+              {openSections.has('entity') ? <ChevronDown className="size-4 text-gray-400" /> : <ChevronRight className="size-4 text-gray-400" />}
+              개체 변경사항
+            </span>
             <div className="flex items-center text-xs">
               <span className="flex items-center gap-1">
                 <span className="text-gray-900">개체:</span>
@@ -350,16 +396,42 @@ const SnapshotCompareDrawer = forwardRef<SnapshotCompareDrawerRef>((_, ref) => {
                 <span className="text-gray-400">변경없음 {entityStats.synonym.unchanged}</span>
               </span>
             </div>
-          </div>
+          </button>
+          {openSections.has('entity') && (
+            <div className="h-[280px]">
+              <AgGridReact<FlatDiffItem>
+                rowData={flattenDiffItems(compareResult?.entityDiffs ?? [])}
+                columnDefs={columnDefs}
+                gridOptions={treeGridOptions}
+                loading={isCompareLoading}
+              />
+            </div>
+          )}
+        </div>
 
-          <div className="h-[350px]">
-            <AgGridReact<FlatDiffItem>
-              rowData={flattenDiffItems(compareResult?.entityDiffs ?? [])}
-              columnDefs={columnDefs}
-              gridOptions={treeGridOptions}
-              loading={isCompareLoading}
-            />
-          </div>
+        {/* Keyword Diff */}
+        <div className="flex flex-col border border-gray-200 rounded-lg overflow-hidden">
+          <button
+            type="button"
+            onClick={() => toggleSection('keyword')}
+            className="flex items-center justify-between px-4 py-2.5 bg-gray-50 hover:bg-gray-100 transition-colors text-left"
+          >
+            <span className="flex items-center gap-2 text-sm font-medium text-gray-700">
+              {openSections.has('keyword') ? <ChevronDown className="size-4 text-gray-400" /> : <ChevronRight className="size-4 text-gray-400" />}
+              키워드 변경사항
+            </span>
+            <div className="flex items-center gap-1 text-xs">
+              <span className="text-green-600">추가 {keywordStats.added}</span>
+              <span className="text-orange-500">수정 {keywordStats.modified}</span>
+              <span className="text-red-600">삭제 {keywordStats.deleted}</span>
+              <span className="text-gray-400">변경없음 {keywordStats.unchanged}</span>
+            </div>
+          </button>
+          {openSections.has('keyword') && (
+            <div className="h-[280px]">
+              <AgGridReact<FlatDiffItem> rowData={keywordFlatData} columnDefs={columnDefs} gridOptions={treeGridOptions} loading={isCompareLoading} />
+            </div>
+          )}
         </div>
       </div>
     </Drawer>

@@ -173,112 +173,9 @@ pnpm run create-remote
 
 API 통합 시 반드시 **TanStack Query**와 커스텀 훅을 사용합니다. 컴포넌트에서 `apiClient`를 직접 호출하지 마세요.
 
-### API 함수 정의 예시
+**Claude가 API 계층/쿼리 훅을 작성할 때**: [.claude/skills/add-api/SKILL.md](.claude/skills/add-api/SKILL.md) 스킬을 사용합니다. apiClient 함수 정의, Query Key Factory, 쿼리/뮤테이션 훅 시그니처, 캐시 무효화 등 상세 규칙과 예시는 해당 스킬에 정리되어 있습니다.
 
-```typescript
-// apps/manager/src/app/features/user/api/userApi.ts
-import { apiClient } from '@/shared-util';
-import type { User, CreateUserDto } from '../types/user.types';
-
-export const userApi = {
-  getUsers: () => apiClient.get<User[]>('/users'),
-  getUser: (id: string) => apiClient.get<User>(`/users/${id}`),
-  createUser: (data: CreateUserDto) => apiClient.post<User>('/users', data),
-  updateUser: (id: string, data: Partial<User>) => apiClient.patch<User>(`/users/${id}`, data),
-  deleteUser: (id: string) => apiClient.delete(`/users/${id}`),
-};
-```
-
-### TanStack Query 훅 예시
-
-쿼리 키 관리에 `@lukemorales/query-key-factory`를 사용합니다:
-
-```typescript
-// apps/manager/src/app/features/user/hooks/useUserQueries.ts
-import { useQuery, useMutation } from '@tanstack/react-query';
-import { createQueryKeys } from '@lukemorales/query-key-factory';
-import type { MutationHookOptions, QueryHookWithParamsOptions } from '@/shared-util';
-import { userApi } from '../api/userApi';
-import type { User, UserListItem } from '../types/user.types';
-
-// 팩토리 패턴으로 쿼리 키 정의
-export const userQueryKeys = createQueryKeys('users', {
-  getUsers: (params?: Record<string, unknown>) => [params],
-  getUser: (params?: Record<string, unknown>) => [params],
-});
-
-// 쿼리 훅 - { params, queryOptions } 패턴 사용
-export const useGetUsers = ({ params, queryOptions }: QueryHookWithParamsOptions<UserListItem[]> = {}) => {
-  return useQuery({
-    queryKey: userQueryKeys.getUsers(params).queryKey,
-    queryFn: () => userApi.getUsers(params),
-    ...queryOptions,
-  });
-};
-
-export const useGetUser = ({ params, queryOptions }: QueryHookWithParamsOptions<User> = {}) => {
-  return useQuery({
-    queryKey: userQueryKeys.getUser(params).queryKey,
-    queryFn: () => userApi.getUser(params),
-    ...queryOptions,
-  });
-};
-
-// 뮤테이션 훅 - { mutationOptions } 패턴 사용
-export const useCreateUser = ({ mutationOptions }: MutationHookOptions = {}) => {
-  return useMutation({
-    mutationFn: userApi.createUser,
-    ...mutationOptions,
-  });
-};
-
-export const useUpdateUser = ({ mutationOptions }: MutationHookOptions = {}) => {
-  return useMutation({
-    mutationFn: userApi.updateUser,
-    ...mutationOptions,
-  });
-};
-
-export const useDeleteUser = ({ mutationOptions }: MutationHookOptions = {}) => {
-  return useMutation({
-    mutationFn: userApi.deleteUser,
-    ...mutationOptions,
-  });
-};
-```
-
-### 컴포넌트 사용 예시
-
-```typescript
-// apps/manager/src/app/pages/user/UserList.tsx
-import { useQueryClient } from '@tanstack/react-query';
-import { useGetUsers, useCreateUser, userQueryKeys } from '../../features/user/hooks/useUserQueries';
-
-export function UserList() {
-  const queryClient = useQueryClient();
-  const { data: users, isLoading, error } = useGetUsers({});
-  const createUser = useCreateUser({
-    mutationOptions: {
-      onSuccess: () => {
-        // 뮤테이션 후 캐시 무효화
-        queryClient.invalidateQueries({ queryKey: userQueryKeys.useGetUsers().queryKey });
-      },
-    },
-  });
-
-  // ❌ 잘못된 방법 - apiClient 직접 호출
-  // const [users, setUsers] = useState([]);
-  // useEffect(() => { apiClient.get('/users').then(setUsers); }, []);
-
-  // ✅ 올바른 방법 - 커스텀 훅 사용
-  if (isLoading) return <FallbackSpinner />;
-  if (error) return <div>Error: {error.message}</div>;
-
-  return <UserTable data={users} />;
-}
-```
-
-### 핵심 규칙
+### 핵심 규칙 (요약)
 
 1. **apiClient 직접 사용 금지**: 컴포넌트에서 `apiClient`를 직접 import하여 사용하지 말 것
 2. **Query Key Factory**: `@lukemorales/query-key-factory`의 `createQueryKeys` 사용
@@ -288,26 +185,9 @@ export function UserList() {
 
 ## 커밋 가이드라인
 
-이 프로젝트는 일관된 커밋 메시지를 위해 **commitizen** + cz-git을 사용합니다. 항상 다음 명령어를 사용하세요:
+이 프로젝트는 **commitizen** + cz-git을 사용합니다. 사람이 직접 커밋할 때는 `pnpm commit`(대화형)을 사용하세요.
 
-```bash
-pnpm commit
-```
-
-지원되는 커밋 타입: 🎉 init, ✨ feat, 📦️ chore, 💄 design, 🐛 fix, ✅ test, 🚀 deploy, 🔨 refactor, 🚚 rename, 📚 docs, 🔥 remove
-
-### Scope 작성 규칙
-
-- **단일 remote 작업**: scope에 해당 remote 명칭을 작성 (예: `fca`, `manager`, `host`)
-- **여러 remote 작업**: scope를 비워둠
-
-```bash
-# 단일 remote 작업 예시
-✨feat(fca): TTS 발화자 입력 유효성 검사 추가
-
-# 여러 remote 작업 예시
-✨feat: 공통 컴포넌트 스타일 수정
-```
+**Claude가 커밋 메시지를 작성할 때**: [.claude/skills/commit/SKILL.md](.claude/skills/commit/SKILL.md) 스킬을 사용합니다. 카테고리(이모지) 전체 목록, scope 판정 규칙(remote 명칭 사용 / feature명 금지), 단계별 절차 등 상세 규칙은 모두 해당 스킬에 정리되어 있습니다.
 
 ## 파일 구조 컨벤션
 
@@ -547,254 +427,24 @@ const handleClose = () => {
 
 ### 모달/드로어 제어 패턴
 
-모달과 드로어는 `forwardRef` + `useImperativeHandle`을 사용하여 부모에서 명령형으로 제어합니다.
-
-#### Ref 인터페이스 정의
-
-```typescript
-// Ref 타입은 컴포넌트 파일 상단에 export
-export interface EntityDrawerRef {
-  open: (params: { modelId: string; entityData?: EntityListItem }) => void;
-  close: () => void;
-}
-```
-
-#### 컴포넌트 구현
-
-```typescript
-interface DrawerState {
-  open: boolean;
-  modelId: string;
-  entityData?: EntityListItem; // 편집 모드 시 데이터
-}
-
-const EntityDrawer = forwardRef<EntityDrawerRef>((_, ref) => {
-  const [state, setState] = useState<DrawerState>({ open: false, modelId: '' });
-  const isEditMode = !!state.entityData;
-
-  useImperativeHandle(ref, () => ({
-    open: (params) => setState({ open: true, ...params }),
-    close: () => setState((prev) => ({ ...prev, open: false })),
-  }));
-
-  return (
-    <Drawer open={state.open} onClose={() => setState((prev) => ({ ...prev, open: false }))}>
-      {/* ... */}
-    </Drawer>
-  );
-});
-EntityDrawer.displayName = 'EntityDrawer';
-export default EntityDrawer;
-```
-
-#### 부모 컴포넌트에서 사용
-
-```typescript
-const drawerRef = useRef<EntityDrawerRef>(null);
-
-// 열기
-drawerRef.current?.open({ modelId: '123' });
-
-// 편집 모드로 열기
-drawerRef.current?.open({ modelId: '123', entityData: selectedEntity });
-
-// JSX
-<EntityDrawer ref={drawerRef} />
-```
+모달과 드로어는 `forwardRef` + `useImperativeHandle`을 사용하여 부모에서 명령형으로 제어합니다. 상세 절차는 [.claude/skills/add-drawer/SKILL.md](.claude/skills/add-drawer/SKILL.md) 스킬 참조.
 
 ### AG-Grid 사용 패턴
 
-#### 기본 설정
-
-`useAggridOptions` 훅으로 공통 그리드 옵션을 적용합니다:
-
-```typescript
-import useAggridOptions from '@/libs/shared-ui/src/hooks/useAggridOptions';
-
-const { gridOptions, sideBar } = useAggridOptions();
-
-<AgGridReact
-  rowData={data}
-  columnDefs={columnDefs}
-  getRowId={(params) => params.data.id}
-  gridOptions={{
-    ...gridOptions,
-    // 필요 시 추가 옵션 오버라이드
-    editType: 'fullRow',
-    readOnlyEdit: true,
-    suppressClickEdit: true,
-  }}
-  loading={isLoading}
-  onGridReady={handleGridReady}
-/>
-```
-
-#### ColDef 정의
-
-타입 파라미터로 row 데이터 타입을 지정합니다:
-
-```typescript
-const columnDefs: ColDef<IntentSentenceListItem>[] = [
-  // 숨김 ID 컬럼
-  { headerName: 'ID', field: 'sentenceId', hide: true },
-
-  // 편집 가능 컬럼 (커스텀 에디터)
-  {
-    headerName: '문장',
-    field: 'sentence',
-    flex: 3,
-    editable: true,
-    cellEditor: InputTextCellEditor,
-    cellEditorParams: { placeholder: '문장을 입력하세요.' },
-  },
-
-  // 커스텀 렌더러 컬럼
-  {
-    headerName: '학습상태',
-    field: 'trainStatus',
-    maxWidth: 120,
-    cellStyle: { display: 'flex', alignItems: 'center' },
-    cellRenderer: (params) => <TrainStatusBadge status={params.value} />,
-  },
-
-  // 액션 버튼 컬럼
-  {
-    headerName: '',
-    colId: 'actions',
-    maxWidth: 100,
-    sortable: false,
-    filter: false,
-    suppressHeaderMenuButton: true,
-    cellRenderer: ActionCellRenderer,
-    cellRendererParams: { onSave: handleSave, onDelete: handleDelete },
-  },
-];
-```
-
-#### 커스텀 셀 에디터
-
-```typescript
-interface InputTextCellEditorProps {
-  value: string;
-  onValueChange: (value: string) => void;
-  placeholder?: string;
-  cellStartedEdit?: boolean;
-}
-
-const InputTextCellEditor = ({ value = '', onValueChange, placeholder, cellStartedEdit }: InputTextCellEditorProps) => {
-  const inputRef = useRef<InputRef>(null);
-
-  useEffect(() => {
-    if (cellStartedEdit) inputRef.current?.focus();
-  }, [cellStartedEdit]);
-
-  return <Input ref={inputRef} value={value} onChange={(e) => onValueChange(e.target.value)} placeholder={placeholder} />;
-};
-```
+`useAggridOptions` 훅으로 공통 그리드 옵션을 적용하고, `ColDef<RowType>[]`로 컬럼을 정의합니다. 편집 가능 컬럼·커스텀 렌더러·액션 컬럼·커스텀 셀 에디터 구성 등 상세 절차는 [.claude/skills/add-grid/SKILL.md](.claude/skills/add-grid/SKILL.md) 스킬 참조.
 
 ### Zustand 스토어 컨벤션
 
-feature 단위의 로컬 상태는 `hooks/use<Feature>Store.ts`에 정의합니다.
+feature 단위 로컬 상태는 `hooks/use<Feature>Store.ts`, 전역 공유 상태는 `libs/shared-store/`에 정의합니다.
 
-#### 핵심 규칙
+#### 핵심 규칙 (요약)
 
-- 상태 값을 직접 변경하지 않고, 반드시 `set` 메서드를 통해 업데이트
+- 상태는 직접 변경하지 말고 반드시 `set` 메서드를 통해 업데이트
 - 각 상태 필드마다 대응하는 `set<Field>` 메서드를 정의
-- 단일 인터페이스에 상태와 액션을 함께 정의
-- 모든 스토어에 `devtools` 미들웨어를 적용하고, `set()` 호출 시 액션 이름을 지정
+- 단일 인터페이스에 상태 + 액션을 함께 정의
+- 모든 스토어에 `devtools` 미들웨어 적용, `set()` 호출 시 세 번째 인자로 액션 이름 지정
 
-#### 기본 스토어
-
-```typescript
-// libs/shared-store/src/lib/useMenuStore.ts
-import { create } from 'zustand';
-import { devtools } from 'zustand/middleware';
-
-interface MenuStore {
-  menuConfigs: MenuConfig[];
-  isLoading: boolean;
-  setMenuConfigs: (menuConfigs: MenuConfig[]) => void;
-  setIsLoading: (isLoading: boolean) => void;
-}
-
-export const useMenuStore = create<MenuStore>()(
-  devtools(
-    (set) => ({
-      menuConfigs: [],
-      isLoading: false,
-      setMenuConfigs: (menuConfigs) => set({ menuConfigs }, false, 'setMenuConfigs'),
-      setIsLoading: (isLoading) => set({ isLoading }, false, 'setIsLoading'),
-    }),
-    { name: 'MenuStore' },
-  ),
-);
-```
-
-`set()` 인자 구조: `set(상태, replace, 액션이름)`
-
-- **두 번째 인자 `false`**: 상태를 교체(replace)하지 않고 머지(merge) (기본 동작)
-- **세 번째 인자**: Redux DevTools Action 탭에 표시될 이름 (생략하면 "anonymous"로 표시)
-
-#### 영속 스토어 (localStorage / sessionStorage)
-
-`localStorage`나 `sessionStorage`에 상태를 유지해야 할 경우, `zustand/middleware`의 `persist` + `createJSONStorage`를 사용합니다. `devtools`는 `persist`를 감싸는 형태로 적용합니다:
-
-```typescript
-// apps/host/src/app/features/auth/hooks/useRememberMeStore.ts
-import { create } from 'zustand';
-import { createJSONStorage, devtools, persist } from 'zustand/middleware';
-
-interface RememberMeData {
-  userAccount: string;
-  tenant: string;
-  rememberMe: boolean;
-}
-
-interface RememberMeStore {
-  data: RememberMeData;
-  setRememberMeData: (data: Partial<RememberMeData>) => void;
-  clearRememberMeData: () => void;
-}
-
-const initialData: RememberMeData = {
-  userAccount: '',
-  tenant: '',
-  rememberMe: false,
-};
-
-export const useRememberMeStore = create<RememberMeStore>()(
-  devtools(
-    persist(
-      (set) => ({
-        data: initialData,
-        setRememberMeData: (newData) =>
-          set(
-            (state) => ({
-              data: { ...state.data, ...newData },
-            }),
-            false,
-            'setRememberMeData',
-          ),
-        clearRememberMeData: () => set({ data: initialData }, false, 'clearRememberMeData'),
-      }),
-      {
-        name: 'remember-me-storage', // 스토리지 키
-        storage: createJSONStorage(() => localStorage), // 또는 sessionStorage
-      },
-    ),
-    { name: 'RememberMeStore' },
-  ),
-);
-```
-
-영속 스토어 작성 시 포인트:
-
-1. **`create<Store>()(devtools(persist(...)))`**: `devtools`가 `persist`를 감싸는 순서로 작성
-2. **`initialData`를 별도 상수로 분리**: `clear` 시 초기값으로 리셋
-3. **`Partial<Data>`로 부분 업데이트 지원**: 전체 데이터를 넘기지 않아도 됨
-4. **`name` (persist)**: 스토리지에 저장되는 키 이름
-5. **`name` (devtools)**: Redux DevTools에 표시되는 스토어 이름
-6. **`storage`**: `createJSONStorage(() => localStorage)` 또는 `createJSONStorage(() => sessionStorage)`
+기본 스토어·영속 스토어(`persist` + `createJSONStorage`) 작성 예시는 [.claude/skills/add-store/SKILL.md](.claude/skills/add-store/SKILL.md) 스킬 참조.
 
 ### 유틸리티 사용 패턴
 
@@ -948,73 +598,14 @@ export const ENTITY_TYPE_COLORS: Record<EntityType, string> = {
 
 데이터를 추가하거나 수정하는 UI를 구성할 때는 **Ant Design Form** 활용을 권장합니다. `useState`로 필드를 개별 관리하기보다 `Form.useForm`으로 폼 상태를 통합 관리하는 방향을 지향합니다.
 
-#### 기본 구조
-
-```typescript
-import { Form, Input, Select } from 'antd';
-import type { FormProps } from 'antd';
-
-const [form] = Form.useForm<MyFormValues>();
-
-const onFinish: FormProps<MyFormValues>['onFinish'] = (values) => {
-  createMutation.mutate(values);
-};
-
-const onFinishFailed: FormProps<MyFormValues>['onFinishFailed'] = (errorInfo) => {
-  const firstError = errorInfo.errorFields?.[0]?.errors?.[0];
-  toast.error(firstError ?? '입력 항목을 확인해주세요.');
-};
-
-<Form form={form} layout="vertical" onFinish={onFinish} onFinishFailed={onFinishFailed} initialValues={{ status: 'ACTIVE' }}>
-  <Form.Item
-    name="username"
-    label="이름"
-    required
-    hasFeedback
-    rules={[
-      { required: true, message: '이름을 입력하세요.' },
-      { max: 50, message: '최대 50자까지 입력 가능합니다.' },
-    ]}
-  >
-    <Input placeholder="이름을 입력하세요." />
-  </Form.Item>
-</Form>
-```
-
-#### 수정 페이지/탭 — API 데이터로 폼 초기화
-
-```typescript
-const { data } = useGetBot({ params: { serviceId } });
-
-useEffect(() => {
-  if (!data) return;
-  form.setFieldsValue({
-    serviceName: data.serviceName,
-    serviceDesc: data.serviceDesc,
-  });
-}, [data, form]);
-```
-
-#### Drawer에서의 폼 초기화/리셋
-
-Drawer에서 폼을 사용할 때는 열릴 때 데이터를 세팅하고, 닫힐 때 리셋하는 흐름을 권장합니다:
-
-```typescript
-useEffect(() => {
-  if (!open) return;
-  if (initialData) {
-    form.setFieldsValue({ category: initialData.category, value: initialData.value });
-  }
-  return () => form.resetFields();
-}, [initialData, form, open]);
-```
-
-#### 권장 사항
+#### 권장 사항 (요약)
 
 1. **Form.useForm 활용**: `useState`로 필드를 개별 관리하기보다 폼 인스턴스로 통합 관리
 2. **layout="vertical"**: 레이블이 입력 필드 위에 오는 수직 레이아웃 선호
 3. **rules로 유효성 검사**: `required`, `min`, `max`, `pattern` 등 선언적으로 정의
-4. **hasFeedback**: 유효성 검사 결과 아이콘(✓, ✕)을 필드에 표시하여 사용자 피드백 제공
+4. **hasFeedback**: 유효성 검사 결과 아이콘(✓, ✕)을 필드에 표시
 5. **onFinishFailed**: 첫 번째 에러 메시지를 `toast.error`로 안내
 6. **수정 시 초기화**: `form.setFieldsValue()`로 API 데이터를 폼에 세팅
 7. **Drawer 닫힐 때**: `form.resetFields()`로 폼 상태 초기화
+
+기본 구조, 수정 페이지/탭 초기화, Drawer 폼 초기화·리셋 패턴, 제출 버튼 트리거 등 상세 절차는 [.claude/skills/add-form/SKILL.md](.claude/skills/add-form/SKILL.md) 스킬 참조.

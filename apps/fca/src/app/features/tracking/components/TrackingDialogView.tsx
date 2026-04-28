@@ -4,6 +4,38 @@ import { getTrackingItemConfig } from '../config/trackingItemConfig';
 import type { TrackingFlowItem } from '../types/tracking.types';
 import { cn } from '@/lib/utils';
 
+/** 이퀄라이저 애니메이션 — "Now Playing" 인디케이터 */
+function NowPlayingIndicator({ color = 'bg-blue-500' }: { color?: string }) {
+  return (
+    <div className="flex items-end gap-[2.5px] h-4 ml-1.5">
+      {[0, 1, 2, 3].map((i) => (
+        <span
+          key={i}
+          className={cn('w-[3px] rounded-full', color)}
+          style={{
+            animation: `eq-bar 0.7s ease-in-out ${i * 0.12}s infinite alternate`,
+          }}
+        />
+      ))}
+      <style>{`
+        @keyframes eq-bar {
+          0% { height: 3px; }
+          50% { height: 14px; }
+          100% { height: 6px; }
+        }
+        @keyframes bubble-glow-blue {
+          0%, 100% { box-shadow: 0 0 8px 0px rgba(59,130,246,0.25), 0 1px 3px rgba(0,0,0,0.08); }
+          50% { box-shadow: 0 0 16px 3px rgba(59,130,246,0.35), 0 1px 3px rgba(0,0,0,0.08); }
+        }
+        @keyframes bubble-glow-green {
+          0%, 100% { box-shadow: 0 0 8px 0px rgba(16,185,129,0.25), 0 1px 3px rgba(0,0,0,0.08); }
+          50% { box-shadow: 0 0 16px 3px rgba(16,185,129,0.35), 0 1px 3px rgba(0,0,0,0.08); }
+        }
+      `}</style>
+    </div>
+  );
+}
+
 const STORAGE_KEY = 'bt-dialog-bot-right';
 
 function readLayout(): boolean {
@@ -29,6 +61,10 @@ interface TrackingDialogViewProps {
   onEncryptedClick?: (item: TrackingFlowItem) => void;
   /** 복호화 진행 중인 버블의 키 (스피너 표시용) */
   decryptingBubbleKey?: string | null;
+  /** 녹취 재생 중 하이라이트할 버블 인덱스 (items 배열 기준) */
+  audioPlayingIdx?: number | null;
+  /** 버블 DOM 참조 콜백 (auto-scroll용) */
+  onBubbleRef?: (idx: number, el: HTMLDivElement | null) => void;
 }
 
 function EmptyState() {
@@ -59,6 +95,7 @@ function BotBubble({
   revealed,
   decrypting,
   onEncryptedClick,
+  isAudioPlaying,
 }: {
   item: TrackingFlowItem;
   isSelected?: boolean;
@@ -68,6 +105,7 @@ function BotBubble({
   revealed?: string;
   decrypting?: boolean;
   onEncryptedClick?: (item: TrackingFlowItem) => void;
+  isAudioPlaying?: boolean;
 }) {
   const isLocked = item.encrypted === true && revealed == null;
   const wasDecrypted = item.encrypted === true && revealed != null;
@@ -95,6 +133,7 @@ function BotBubble({
         <div className="flex items-center gap-1.5 mb-0.5">
           {botRight ? (
             <>
+              {isAudioPlaying && <NowPlayingIndicator color="bg-blue-500" />}
               {item.startTime && <span className="text-[10px] text-slate-500 tabular-nums">{item.startTime}</span>}
               <span className="text-[10px] font-medium text-blue-600/70">보이스봇</span>
             </>
@@ -102,23 +141,27 @@ function BotBubble({
             <>
               <span className="text-[10px] font-medium text-blue-600/70">보이스봇</span>
               {item.startTime && <span className="text-[10px] text-slate-500 tabular-nums">{item.startTime}</span>}
+              {isAudioPlaying && <NowPlayingIndicator color="bg-blue-500" />}
             </>
           )}
         </div>
         <div className={cn('flex items-center gap-1', botRight && 'flex-row-reverse')}>
           <div
             className={cn(
-              'rounded-2xl px-3.5 py-2 shadow-sm border',
+              'rounded-2xl px-3.5 py-2 shadow-sm border transition-all duration-300',
               botRight ? 'rounded-br-md' : 'rounded-bl-md',
               isSelected && 'ring-2 ring-blue-300 ring-offset-1',
               isLocked
                 ? 'bg-amber-50/80 border-amber-200 border-dashed cursor-pointer hover:bg-amber-100/80 transition-colors'
                 : wasDecrypted
                   ? 'bg-amber-50/80 border-amber-200'
-                  : 'bg-blue-50 border-blue-100',
+                  : isAudioPlaying
+                    ? 'bg-blue-100 border-blue-400 border-[1.5px]'
+                    : 'bg-blue-50 border-blue-100',
             )}
             onClick={isLocked ? handleLockClick : undefined}
             title={isLocked ? '클릭하여 열람 (감사 로그 기록됨)' : undefined}
+            style={isAudioPlaying && !isLocked && !wasDecrypted ? { animation: 'bubble-glow-blue 1.8s ease-in-out infinite' } : undefined}
           >
             {isLocked ? (
               <div className="flex items-start gap-1.5">
@@ -161,6 +204,7 @@ function CustomerBubble({
   revealed,
   decrypting,
   onEncryptedClick,
+  isAudioPlaying,
 }: {
   item: TrackingFlowItem;
   isSelected?: boolean;
@@ -169,6 +213,7 @@ function CustomerBubble({
   revealed?: string;
   decrypting?: boolean;
   onEncryptedClick?: (item: TrackingFlowItem) => void;
+  isAudioPlaying?: boolean;
 }) {
   const isFailed = item.result?.startsWith('F') === true;
   const isLocked = item.encrypted === true && revealed == null;
@@ -197,6 +242,7 @@ function CustomerBubble({
         <div className="flex items-center gap-1.5 mb-0.5">
           {isRight ? (
             <>
+              {isAudioPlaying && <NowPlayingIndicator color="bg-emerald-500" />}
               {item.startTime && <span className="text-[10px] text-slate-500 tabular-nums">{item.startTime}</span>}
               <span className="text-[10px] font-medium text-emerald-600/70">고객</span>
             </>
@@ -204,24 +250,28 @@ function CustomerBubble({
             <>
               <span className="text-[10px] font-medium text-emerald-600/70">고객</span>
               {item.startTime && <span className="text-[10px] text-slate-500 tabular-nums">{item.startTime}</span>}
+              {isAudioPlaying && <NowPlayingIndicator color="bg-emerald-500" />}
             </>
           )}
         </div>
         <div
           className={cn(
-            'border rounded-2xl px-3.5 py-2 shadow-sm',
+            'border rounded-2xl px-3.5 py-2 shadow-sm transition-all duration-300',
             isRight ? 'rounded-br-md' : 'rounded-bl-md',
             isLocked
               ? 'bg-amber-50/80 border-amber-200 border-dashed cursor-pointer hover:bg-amber-100/80 transition-colors'
               : wasDecrypted
                 ? 'bg-amber-50/80 border-amber-200'
-                : isFailed
-                  ? 'bg-slate-50 border-slate-200'
-                  : 'bg-emerald-50 border-emerald-100',
+                : isAudioPlaying
+                  ? 'bg-emerald-100 border-emerald-400 border-[1.5px]'
+                  : isFailed
+                    ? 'bg-slate-50 border-slate-200'
+                    : 'bg-emerald-50 border-emerald-100',
             isSelected && 'ring-2 ring-blue-300 ring-offset-1',
           )}
           onClick={isLocked ? handleLockClick : undefined}
           title={isLocked ? '클릭하여 열람 (감사 로그 기록됨)' : undefined}
+          style={isAudioPlaying && !isLocked && !wasDecrypted ? { animation: 'bubble-glow-green 1.8s ease-in-out infinite' } : undefined}
         >
           {isLocked ? (
             <div className="flex items-start gap-1.5">
@@ -290,6 +340,8 @@ export default function TrackingDialogView({
   revealedBubbles,
   onEncryptedClick,
   decryptingBubbleKey,
+  audioPlayingIdx,
+  onBubbleRef,
 }: TrackingDialogViewProps) {
   const [botRight, setBotRight] = useState(readLayout);
 
@@ -382,10 +434,13 @@ export default function TrackingDialogView({
           return <SystemBubble key={idx} item={item} />;
         }
 
+        // 녹취 재생 하이라이트 여부
+        const isAudioPlaying = audioPlayingIdx != null && audioPlayingIdx === idx;
+
         // 봇 발화
         if (role === 'BOT') {
           return (
-            <div key={idx}>
+            <div key={idx} ref={(el) => onBubbleRef?.(idx, el)}>
               <BotBubble
                 item={item}
                 isSelected={isSelected}
@@ -395,6 +450,7 @@ export default function TrackingDialogView({
                 revealed={revealed}
                 decrypting={decrypting}
                 onEncryptedClick={onEncryptedClick}
+                isAudioPlaying={isAudioPlaying}
               />
             </div>
           );
@@ -403,7 +459,7 @@ export default function TrackingDialogView({
         // 고객 입력
         if (role === 'CUSTOMER') {
           return (
-            <div key={idx}>
+            <div key={idx} ref={(el) => onBubbleRef?.(idx, el)}>
               <CustomerBubble
                 item={item}
                 isSelected={isSelected}
@@ -412,6 +468,7 @@ export default function TrackingDialogView({
                 revealed={revealed}
                 decrypting={decrypting}
                 onEncryptedClick={onEncryptedClick}
+                isAudioPlaying={isAudioPlaying}
               />
             </div>
           );

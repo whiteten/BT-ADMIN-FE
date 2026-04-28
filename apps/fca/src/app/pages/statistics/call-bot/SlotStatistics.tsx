@@ -275,7 +275,7 @@ export default function SlotStatistics() {
       headerName: '재시도',
       children: [
         {
-          headerName: '1회이하',
+          headerName: '1회',
           field: 'oneTimeOrLess',
           flex: 1,
           cellStyle: (params) => (params.node?.rowPinned === 'bottom' ? { fontWeight: 'bold', alignItems: 'center' } : { fontWeight: 'normal', alignItems: 'center' }),
@@ -615,10 +615,9 @@ export default function SlotStatistics() {
             rowData={rowData}
             getRowId={(params) => `${params.data.psrTimeKey}_${params.data.serviceId}_${params.data.dialogId}_${params.data.slotId}`}
             columnDefs={columnDefs}
-            gridOptions={gridOptions}
+            gridOptions={{ ...gridOptions, statusBar: undefined }}
             loading={isLoadingSlotStatList}
             pagination={false}
-            statusBar={{ statusPanels: [] }}
             rowNumbers={false}
             sideBar={false}
             pinnedBottomRowData={summaryRow}
