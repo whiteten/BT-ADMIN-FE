@@ -14,6 +14,7 @@ const toMenuItem = (navi: NaviMenuItem): MenuItem => {
     label: navi.label,
     hide: false,
     ...(navi.path ? { path: navi.path } : {}),
+    ...(navi.componentKey ? { componentKey: navi.componentKey } : {}),
     ...(resolveMenuIcon(navi.iconKey) ? { icon: resolveMenuIcon(navi.iconKey) } : {}),
     ...(children ? { children } : {}),
   };

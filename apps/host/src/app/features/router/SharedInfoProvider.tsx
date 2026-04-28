@@ -6,6 +6,7 @@ import { LOG } from '@/log';
 import { sharedApi } from '@/shared-api';
 import { useAuthStore, useNavigationStore } from '@/shared-store';
 import { toast } from '@/shared-util';
+import { usePageVariantsLoader } from './hooks/usePageVariantsLoader';
 import { useRemoteRoutesLoader } from './hooks/useRemoteRoutesLoader';
 import { useGetUserInfo, useGetWsTicket } from '../auth/hooks/useAuthQueries';
 import { useGetNavigation } from '../common/hooks/useNavigationQueries';
@@ -26,6 +27,7 @@ export default function SharedInfoProvider({ children }: { children?: React.Reac
   const { data: ticketResponse, isLoading: isWsTicketLoading, error: wsTicketError, refetch: refetchWsTicket } = useGetWsTicket();
   const { load: loadMenuConfigs } = useMenuLoader();
   const { load: loadRemoteRoutes } = useRemoteRoutesLoader();
+  const { load: loadPageVariants } = usePageVariantsLoader();
 
   const handleWsError = () => {
     const RETRY_DELAY = 5000;
@@ -70,6 +72,10 @@ export default function SharedInfoProvider({ children }: { children?: React.Reac
   useEffect(() => {
     loadRemoteRoutes();
   }, [loadRemoteRoutes]);
+
+  useEffect(() => {
+    loadPageVariants();
+  }, [loadPageVariants]);
 
   useEffect(() => {
     setIsLoading(isRolesLoading || isUserInfoLoading);

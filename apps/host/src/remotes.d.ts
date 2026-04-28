@@ -7,3 +7,8 @@ declare module '*/Routes' {
   import type { RouteObject } from 'react-router-dom';
   export const routes: RouteObject[];
 }
+
+declare module '*/PageVariants' {
+  import type { PageVariantConfig } from '@/components/custom/DynamicElement';
+  export const pageVariants: Record<string, PageVariantConfig>;
+}

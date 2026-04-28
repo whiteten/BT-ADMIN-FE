@@ -12,6 +12,7 @@ export interface NaviMenuItem {
   type: NaviMenuType;
   path?: string;
   iconKey?: string;
+  componentKey?: string;
   permissions?: string[];
   children: NaviMenuItem[];
 }

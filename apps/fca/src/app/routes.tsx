@@ -1,10 +1,11 @@
 import React from 'react';
 import { Navigate, Outlet } from 'react-router-dom';
 import FcaWsSessionEventHandler from './features/router/FcaWsSessionEventHandler';
+import { botListVariants } from './pages/bot-config/BotList.variants';
+import DynamicElement from '@/components/custom/DynamicElement';
 import { NotFound } from '@/components/custom/NotFound';
 
 const Main = React.lazy(() => import('./pages/main/Main'));
-const BotList = React.lazy(() => import('./pages/bot-config/BotList'));
 const BotCreate = React.lazy(() => import('./pages/bot-config/BotCreate'));
 const BotDetail = React.lazy(() => import('./pages/bot-config/BotDetail'));
 const ModelCreate = React.lazy(() => import('./pages/bot-config/ModelCreate'));
@@ -78,7 +79,7 @@ export const routes = [
             path: 'bot',
             children: [
               { index: true, element: <Navigate to="list" replace /> },
-              { path: 'list', element: <BotList /> },
+              { path: 'list', element: <DynamicElement variants={botListVariants} /> },
               { path: 'create', element: <BotCreate /> },
               { path: ':serviceId', element: <BotDetail /> },
             ],
