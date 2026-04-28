@@ -5,6 +5,7 @@ const config: ModuleFederationConfig = {
   exposes: {
     './Module': './src/remote-entry.ts',
     './MenuConfig': './src/app/features/sidebar/menu-config.ts',
+    './Routes': './src/app/routes.tsx',
   },
   additionalShared: [
     ['@/components/ui/sidebar', { singleton: true, strictVersion: true, requiredVersion: false }],

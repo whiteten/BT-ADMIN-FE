@@ -20,3 +20,8 @@ declare module '*/MenuConfig' {
   const menuConfig: MenuConfig;
   export default menuConfig;
 }
+
+declare module '*/Routes' {
+  import type { RouteObject } from 'react-router-dom';
+  export const routes: RouteObject[];
+}

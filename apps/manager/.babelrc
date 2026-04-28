@@ -8,6 +8,7 @@
     ]
   ],
   "plugins": [
+    "../../tools/babel/lazy-meta.js",
     [
       "babel-plugin-react-compiler",
       {
