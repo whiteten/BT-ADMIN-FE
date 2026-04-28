@@ -56,6 +56,13 @@ export const useGetGlobalEnvHistoryList = ({ params, queryOptions }: QueryHookWi
   });
 };
 
+export const useReapplyGlobalEnv = ({ mutationOptions }: MutationHookOptions = {}) => {
+  return useMutation({
+    mutationFn: globalEnvApi.reapplyGlobalEnv,
+    ...mutationOptions,
+  });
+};
+
 export const useExportGlobalEnv = ({ mutationOptions }: MutationHookOptions = {}) => {
   return useMutation({
     mutationFn: async (params: Record<string, unknown>) => {

@@ -2,7 +2,7 @@ export interface BotDialogHistorySearchRequest {
   fromDate: string;
   toDate: string;
   serviceIds?: number[];
-  intentIds?: string[];
+  intentNames?: string[];
   confidenceMin?: number;
   confidenceMax?: number;
   completeYn?: number;
@@ -39,6 +39,10 @@ export interface BotDialogHistoryListItem {
   reqAgentYn: number;
   botSlotInCount: number;
   avgConfidence: number | null;
+  /** 녹취 여부. 0: 미녹취, 1: 녹취 */
+  recordYn: number | null;
+  /** 녹취 파일명 */
+  recordName: string | null;
 }
 
 export interface BotServiceDto {

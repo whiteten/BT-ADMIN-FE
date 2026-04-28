@@ -1,7 +1,9 @@
 import React, { useEffect } from 'react';
 import { Outlet } from 'react-router-dom';
+import { useQueryClient } from '@tanstack/react-query';
 import { LOG } from '@/log';
 
+import { sharedApi } from '@/shared-api';
 import { useAuthStore, useNavigationStore } from '@/shared-store';
 import { toast } from '@/shared-util';
 import { useGetUserInfo, useGetWsTicket } from '../auth/hooks/useAuthQueries';
@@ -14,6 +16,7 @@ import { FallbackSpinner } from '@/components/custom/FallbackSpinner';
 const Log = new LOG('SharedInfoProvider');
 
 export default function SharedInfoProvider({ children }: { children?: React.ReactNode }) {
+  const queryClient = useQueryClient();
   const { setRoleList, setUserInfo, setIsLoading, passwordExpiringWarning, setPasswordExpiringWarning } = useAuthStore();
   const { setNavigation } = useNavigationStore();
   const { data: userInfo, isLoading: isUserInfoLoading, error: userInfoError } = useGetUserInfo();
@@ -72,9 +75,14 @@ export default function SharedInfoProvider({ children }: { children?: React.Reac
     }
   }, [ticketResponse]);
 
+  // 에러 시 빈 데이터를 캐시에 설정하여 자식 컴포넌트의 무한 refetch 방지
   useEffect(() => {
-    if (rolesError) Log.error('Failed to fetch roles', rolesError);
-  }, [rolesError]);
+    if (rolesError) {
+      Log.error('Failed to fetch roles', rolesError);
+      queryClient.setQueryData(sharedApi.role.queryKeys.getRoles().queryKey, []);
+      setRoleList([]);
+    }
+  }, [rolesError, queryClient, setRoleList]);
 
   useEffect(() => {
     if (userInfoError) Log.error('Failed to fetch user info', userInfoError);

@@ -26,6 +26,7 @@ const KeywordStatistics = React.lazy(() => import('./pages/statistics/nlu/Keywor
 const BotDashboard = React.lazy(() => import('./pages/dashboard/BotDashboard'));
 const BotDialogHistory = React.lazy(() => import('./pages/tracking/BotDialogHistory'));
 const BotRealtime = React.lazy(() => import('./pages/tracking/BotRealtime'));
+const DecryptLog = React.lazy(() => import('./pages/tracking/DecryptLog'));
 
 const sharedModelRoutes = [
   { index: true, element: <Navigate to="list" replace /> },
@@ -105,13 +106,11 @@ export const routes = [
             path: 'aoe',
             children: [
               { index: true, element: <Navigate to="config" replace /> },
-              { path: 'config', element: <AoeConfig /> },
               {
-                path: 'faq',
-                element: <Outlet />,
+                path: 'config',
                 children: [
-                  { index: true, element: <Navigate to=".." replace /> },
-                  { path: ':agentId', element: <FaqDetail /> },
+                  { index: true, element: <AoeConfig /> },
+                  { path: ':agentId/faq', element: <FaqDetail /> },
                 ],
               },
             ],
@@ -122,9 +121,10 @@ export const routes = [
         path: 'tracking',
         element: <Outlet />,
         children: [
-          { index: true, element: <Navigate to="bot-dialog-history" replace /> },
+          { index: true, element: <Navigate to="bot-realtime" replace /> },
           { path: 'bot-dialog-history', element: <BotDialogHistory /> },
           { path: 'bot-realtime', element: <BotRealtime /> },
+          { path: 'decrypt-log', element: <DecryptLog /> },
         ],
       },
       {

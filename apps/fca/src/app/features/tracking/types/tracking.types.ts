@@ -67,9 +67,6 @@ export interface TrackingFlowItem {
   seq: number;
   type: number;
   typeName: string;
-  menuId: string | null;
-  menuName: string | null;
-  block: string;
   startTime: string;
   description: string | null;
   /** 멀티모달 이미지 URL (Type=2일 때만 존재) */
@@ -80,9 +77,18 @@ export interface TrackingFlowItem {
   subFlowId: string | null;
   /** IFE Node Name (Type=0일 때) */
   nodeName: string | null;
+  /** 원시 값 (VAL1~VAL10) */
   rawValues: string[];
-  /** NLU 분석 결과 (고객 발화에만 존재, HOP 단위 목록) */
-  nluResults?: NluAnalysisItem[] | null;
+  /**
+   * 암호화 버블 여부 (Val4=1). true면 `description`은 암호문이며, 복호화 API를 통해
+   * 열람해야 평문을 볼 수 있습니다. 콜봇 이력 전용 — 실시간 트래킹에서는 항상 false.
+   */
+  encrypted?: boolean;
+  /**
+   * 복호화 API 호출 시 대상 식별자. 형식: `"{seq}:{innerIdx}"`.
+   * encrypted=true일 때만 값이 존재합니다.
+   */
+  bubbleKey?: string | null;
 }
 
 /** 세션 상세 */

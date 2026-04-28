@@ -1,8 +1,6 @@
 /**
- * 메뉴 생성 Drawer
- * - 트리에서 선택된 노드 기반 부모 메뉴 자동 결정
- * - 기본 정보 입력
- * - ref.open(selectedMenu, fallbackAppId) / ref.close()
+ * 메뉴 생성 Drawer.
+ * IAM 재설계 v2.3: menuId → menuKey, parentId → parentKey.
  */
 
 import { forwardRef, useImperativeHandle, useMemo, useState } from 'react';
@@ -22,11 +20,13 @@ interface MenuCreateDrawerProps {
   confirmLoading?: boolean;
 }
 
+type FormValues = Omit<MenuUpsertRequest, 'visible'> & { visible: boolean };
+
 const MenuCreateDrawer = forwardRef<MenuCreateDrawerRef, MenuCreateDrawerProps>(({ menus, apps, onOk, confirmLoading }, ref) => {
   const [isOpen, setIsOpen] = useState(false);
   const [parentMenu, setParentMenu] = useState<Menu | null>(null);
   const [presetAppId, setPresetAppId] = useState<string | null>(null);
-  const [form] = Form.useForm<MenuUpsertRequest>();
+  const [form] = Form.useForm<FormValues>();
 
   const appOptions = useMemo(() => {
     return apps.map((a) => ({ label: a.appName, value: a.appId }));
@@ -36,11 +36,10 @@ const MenuCreateDrawer = forwardRef<MenuCreateDrawerRef, MenuCreateDrawerProps>(
   const resolveParent = (menu: Menu | null | undefined): Menu | null => {
     if (!menu) return null;
     if (menu.type === 'FOLDER') return menu;
-    if (menu.parentId) return menus.find((m) => m.menuId === menu.parentId) ?? null;
+    if (menu.parentKey) return menus.find((m) => m.menuKey === menu.parentKey) ?? null;
     return null;
   };
 
-  /** 부모 메뉴 표시 텍스트 */
   const getParentDisplay = () => {
     if (parentMenu) {
       return `[${parentMenu.appName ?? parentMenu.appId}] ${parentMenu.label}`;
@@ -59,11 +58,9 @@ const MenuCreateDrawer = forwardRef<MenuCreateDrawerRef, MenuCreateDrawerProps>(
       form.resetFields();
 
       if (resolved) {
-        // 부모 폴더가 결정됨 → parentId, appId 모두 부모에서 상속
         setPresetAppId(null);
-        form.setFieldsValue({ parentId: resolved.menuId, appId: resolved.appId });
+        form.setFieldsValue({ parentKey: resolved.menuKey, appId: resolved.appId });
       } else {
-        // 부모 없음 → 선택된 메뉴의 appId 또는 fallback appId 사용
         const appId = selected?.appId ?? fallbackAppId ?? null;
         setPresetAppId(appId);
         if (appId) {
@@ -82,7 +79,7 @@ const MenuCreateDrawer = forwardRef<MenuCreateDrawerRef, MenuCreateDrawerProps>(
   const handleSubmit = async () => {
     try {
       const values = await form.validateFields();
-      onOk(values);
+      onOk({ ...values, visible: values.visible ? 1 : 0 });
     } catch {
       // validation error
     }
@@ -105,7 +102,7 @@ const MenuCreateDrawer = forwardRef<MenuCreateDrawerRef, MenuCreateDrawerProps>(
         <Form.Item label="부모 메뉴">
           <Input value={getParentDisplay()} disabled />
         </Form.Item>
-        <Form.Item name="parentId" hidden>
+        <Form.Item name="parentKey" hidden>
           <Input />
         </Form.Item>
 
@@ -128,7 +125,7 @@ const MenuCreateDrawer = forwardRef<MenuCreateDrawerRef, MenuCreateDrawerProps>(
         </Row>
 
         <Form.Item label="메뉴키" name="menuKey" rules={[{ required: true, message: '메뉴키를 입력해주세요' }]}>
-          <Input placeholder="예: resource.menu.list" />
+          <Input placeholder="예: manager-user" />
         </Form.Item>
 
         <Form.Item label="라벨" name="label" rules={[{ required: true, message: '라벨을 입력해주세요' }]}>

@@ -6,7 +6,7 @@ import dayjs, { type Dayjs } from 'dayjs';
 import { ChevronDown, Download } from 'lucide-react';
 import { useNavigationStore } from '@/shared-store';
 import { downloadBlob, extractFileName, toast } from '@/shared-util';
-import { useGetIntents, useGetModels } from '../../../features/bot-config/hooks/useModelQueries';
+import { useGetModels } from '../../../features/bot-config/hooks/useModelQueries';
 import { statisticsApi } from '../../../features/statistics/api/statisticsApi';
 import {
   createDisabledDate,
@@ -17,7 +17,8 @@ import {
   getTimeFormat,
   validateDateRange,
 } from '../../../features/statistics/hooks/useDateRangeLimit';
-import { useGetIntentStatList } from '../../../features/statistics/hooks/useStatisticsQueries';
+import { useStatisticsFilterStore } from '../../../features/statistics/hooks/useStatisticsFilterStore';
+import { useGetIntentOptionList, useGetIntentStatList } from '../../../features/statistics/hooks/useStatisticsQueries';
 import type { IntentStatListItem } from '../../../features/statistics/types/statistics.types';
 import PageHeader from '@/components/custom/PageHeader';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
@@ -31,8 +32,8 @@ const breadcrumb: BreadcrumbProps['items'] = [
 ];
 
 export default function IntentStatistics() {
+  const { modelIds, setModelIds } = useStatisticsFilterStore();
   // UI 상태 (사용자가 입력하는 값들)
-  const [modelIds, setModelIds] = useState<string[]>([]);
   const [intentIds, setIntentIds] = useState<string[]>([]);
   const [timeUnit, setTimeUnit] = useState<string>('DD');
   const [startDate, setStartDate] = useState<Dayjs | null>(dayjs().startOf('day'));
@@ -65,10 +66,11 @@ export default function IntentStatistics() {
     [modelList],
   );
 
-  // 의도 옵션 조회
-  const { data: intentOptionList } = useGetIntents({
-    params: { modelId: modelIds },
-    queryOptions: { enabled: modelIds.length > 0 },
+  // 의도 옵션 조회 (모델 선택 시)
+  const modelIdParams = [modelIds].flat().filter(Boolean);
+  const { data: intentOptionList } = useGetIntentOptionList({
+    params: { modelIds: modelIdParams },
+    queryOptions: { enabled: modelIdParams.length > 0 },
   });
 
   const intentSelectOptions = useMemo(
@@ -239,19 +241,19 @@ export default function IntentStatistics() {
       valueFormatter: ({ value }: { value?: number }) => (value != null ? `${value}%` : '0%'),
     },
     {
-      headerName: '임계값 최대',
+      headerName: '신뢰도 성공',
       field: 'thresholdMaxCnt',
       flex: 1,
       cellStyle: (params) => (params.node?.rowPinned === 'bottom' ? { fontWeight: 'bold', alignItems: 'center' } : { fontWeight: 'normal', alignItems: 'center' }),
     },
     {
-      headerName: '임계값 체크',
+      headerName: '신뢰도 재확인',
       field: 'thresholdCheckCnt',
       flex: 1,
       cellStyle: (params) => (params.node?.rowPinned === 'bottom' ? { fontWeight: 'bold', alignItems: 'center' } : { fontWeight: 'normal', alignItems: 'center' }),
     },
     {
-      headerName: '임계값 실패',
+      headerName: '신뢰도 실패',
       field: 'thresholdFailCnt',
       flex: 1,
       cellStyle: (params) => (params.node?.rowPinned === 'bottom' ? { fontWeight: 'bold', alignItems: 'center' } : { fontWeight: 'normal', alignItems: 'center' }),
@@ -301,8 +303,8 @@ export default function IntentStatistics() {
       <div className="flex flex-col w-full h-full bg-white bt-shadow p-5">
         <Collapsible open={isFilterOpen} onOpenChange={setIsFilterOpen}>
           <header className="flex flex-col gap-3 pb-5">
-            <div className="flex items-center justify-between gap-2">
-              <div className="flex items-center gap-3">
+            <div className="flex items-start gap-3">
+              <div className="flex flex-wrap items-center gap-3 flex-1 min-w-0">
                 <div className="flex items-center gap-3">
                   <span className="text-sm font-medium text-[#495057] shrink-0">검색일자</span>
                   <Select
@@ -365,6 +367,7 @@ export default function IntentStatistics() {
                 <div className="flex items-center gap-3">
                   <span className="text-sm font-medium text-[#495057] shrink-0">모델</span>
                   <Select
+                    mode="multiple"
                     value={modelIds}
                     onChange={(value) => setModelIds(value ?? [])}
                     allowClear
@@ -373,8 +376,31 @@ export default function IntentStatistics() {
                     options={modelSelectOptions}
                     placeholder="검색할 모델을 선택하세요."
                     optionFilterProp="label"
-                    className="!min-w-[250px] !max-w-[400px]"
+                    style={{ width: '15rem' }}
                     popupMatchSelectWidth={false}
+                    dropdownRender={(menu) => (
+                      <>
+                        <div
+                          className="flex items-center gap-2 px-3 py-2 cursor-pointer hover:bg-gray-50"
+                          onMouseDown={(e) => e.preventDefault()}
+                          onClick={() => {
+                            if (modelIds.length === modelSelectOptions.length) {
+                              setModelIds([]);
+                            } else {
+                              setModelIds(modelSelectOptions.map((o) => o.value));
+                            }
+                          }}
+                        >
+                          <Checkbox
+                            checked={modelIds.length === modelSelectOptions.length && modelSelectOptions.length > 0}
+                            indeterminate={modelIds.length > 0 && modelIds.length < modelSelectOptions.length}
+                          />
+                          <span className="text-sm">전체 선택</span>
+                        </div>
+                        <Divider style={{ margin: '4px 0' }} />
+                        {menu}
+                      </>
+                    )}
                   />
                 </div>
                 <div className="flex items-center gap-3">
@@ -388,115 +414,121 @@ export default function IntentStatistics() {
                   조회
                 </Button>
                 {hasExcelPermission && (
-                  <Button
-                    type="primary"
-                    loading={isExporting}
-                    icon={<Download className="size-4" />}
-                    className="!bg-[#10B981] !border-[#10B981] hover:!bg-[#0FA968]"
-                    onClick={handleExcelDownload}
-                  >
-                    엑셀
+                  <Button color="cyan" variant="solid" loading={isExporting} icon={<Download className="size-4" />} onClick={handleExcelDownload}>
+                    Export
                   </Button>
                 )}
               </div>
             </div>
             <CollapsibleContent>
-              <div className="flex items-center gap-3">
-                <span className="text-sm font-medium text-[#495057] shrink-0">의도명</span>
-                <Select
-                  mode="multiple"
-                  value={intentIds}
-                  onChange={(value) => setIntentIds(value ?? [])}
-                  allowClear
-                  showSearch
-                  maxTagCount="responsive"
-                  options={intentSelectOptions}
-                  placeholder="검색할 의도명을 선택하세요."
-                  optionFilterProp="label"
-                  className="!min-w-[250px] !max-w-[400px]"
-                  popupMatchSelectWidth={false}
-                  dropdownRender={(menu) => (
-                    <>
-                      <div
-                        className="flex items-center gap-2 px-3 py-2 cursor-pointer hover:bg-gray-50"
-                        onMouseDown={(e) => e.preventDefault()}
-                        onClick={() => {
-                          if (intentIds.length === intentSelectOptions.length) {
-                            setIntentIds([]);
-                          } else {
-                            setIntentIds(intentSelectOptions.map((o) => o.value));
-                          }
-                        }}
-                      >
-                        <Checkbox
-                          checked={intentIds.length === intentSelectOptions.length && intentSelectOptions.length > 0}
-                          indeterminate={intentIds.length > 0 && intentIds.length < intentSelectOptions.length}
-                        />
-                        <span className="text-sm">전체 선택</span>
-                      </div>
-                      <Divider style={{ margin: '4px 0' }} />
-                      {menu}
-                    </>
-                  )}
-                />
+              <div className="flex flex-wrap items-center gap-3">
+                <div className="flex items-center gap-3">
+                  <span className="text-sm font-medium text-[#495057] shrink-0">의도명</span>
+                  <Select
+                    mode="multiple"
+                    value={intentIds}
+                    onChange={(value) => setIntentIds(value ?? [])}
+                    allowClear
+                    showSearch
+                    maxTagCount="responsive"
+                    options={intentSelectOptions}
+                    placeholder="검색할 의도명을 선택하세요."
+                    optionFilterProp="label"
+                    style={{ width: '15rem' }}
+                    popupMatchSelectWidth={false}
+                    dropdownRender={(menu) => (
+                      <>
+                        <div
+                          className="flex items-center gap-2 px-3 py-2 cursor-pointer hover:bg-gray-50"
+                          onMouseDown={(e) => e.preventDefault()}
+                          onClick={() => {
+                            if (intentIds.length === intentSelectOptions.length) {
+                              setIntentIds([]);
+                            } else {
+                              setIntentIds(intentSelectOptions.map((o) => o.value));
+                            }
+                          }}
+                        >
+                          <Checkbox
+                            checked={intentIds.length === intentSelectOptions.length && intentSelectOptions.length > 0}
+                            indeterminate={intentIds.length > 0 && intentIds.length < intentSelectOptions.length}
+                          />
+                          <span className="text-sm">전체 선택</span>
+                        </div>
+                        <Divider style={{ margin: '4px 0' }} />
+                        {menu}
+                      </>
+                    )}
+                  />
+                </div>
                 {timeUnit !== 'MM' && timeUnit !== 'YY' ? (
                   <>
                     <Divider orientation="vertical" className="!h-5 !m-0" />
-                    <span className="text-sm font-medium text-[#495057] shrink-0">제외요일</span>
-                    <Select
-                      mode="multiple"
-                      value={excludeDays}
-                      onChange={(value) => setExcludeDays(value ?? [])}
-                      allowClear
-                      maxTagCount="responsive"
-                      options={[
-                        { label: '월요일', value: 'MON' },
-                        { label: '화요일', value: 'TUE' },
-                        { label: '수요일', value: 'WED' },
-                        { label: '목요일', value: 'THU' },
-                        { label: '금요일', value: 'FRI' },
-                        { label: '토요일', value: 'SAT' },
-                        { label: '일요일', value: 'SUN' },
-                      ]}
-                      placeholder="제외할 요일 선택"
-                      className="!min-w-[150px] !max-w-[300px]"
-                      popupMatchSelectWidth={false}
-                    />
+                    <div className="flex items-center gap-3">
+                      <span className="text-sm font-medium text-[#495057] shrink-0">제외요일</span>
+                      <Select
+                        mode="multiple"
+                        value={excludeDays}
+                        onChange={(value) => setExcludeDays(value ?? [])}
+                        allowClear
+                        maxTagCount="responsive"
+                        options={[
+                          { label: '월요일', value: 'MON' },
+                          { label: '화요일', value: 'TUE' },
+                          { label: '수요일', value: 'WED' },
+                          { label: '목요일', value: 'THU' },
+                          { label: '금요일', value: 'FRI' },
+                          { label: '토요일', value: 'SAT' },
+                          { label: '일요일', value: 'SUN' },
+                        ]}
+                        placeholder="제외할 요일 선택"
+                        className="!min-w-[150px] !max-w-[300px]"
+                        popupMatchSelectWidth={false}
+                      />
+                    </div>
                     <Divider orientation="vertical" className="!h-5 !m-0" />
-                    <span className="text-sm font-medium text-[#495057] shrink-0">업무공휴일 제외</span>
-                    <Checkbox checked={excludeBusinessHoliday} onChange={(e) => setExcludeBusinessHoliday(e.target.checked)} />
+                    <div className="flex items-center gap-3">
+                      <span className="text-sm font-medium text-[#495057] shrink-0">업무공휴일 제외</span>
+                      <Checkbox checked={excludeBusinessHoliday} onChange={(e) => setExcludeBusinessHoliday(e.target.checked)} />
+                    </div>
                     <Divider orientation="vertical" className="!h-5 !m-0" />
-                    <span className="text-sm font-medium text-[#495057] shrink-0">통계공휴일 제외</span>
-                    <Checkbox checked={excludeStatHoliday} onChange={(e) => setExcludeStatHoliday(e.target.checked)} />
-                  </>
-                ) : null}
-                {timeUnit === 'MI' || timeUnit === 'HH' ? (
-                  <>
-                    <Divider orientation="vertical" className="!h-5 !m-0" />
-                    <span className="text-sm font-medium text-[#495057] shrink-0">점심시간 제외</span>
-                    <Checkbox checked={excludeLunch} onChange={(e) => setExcludeLunch(e.target.checked)} />
-                    <Divider orientation="vertical" className="!h-5 !m-0" />
-                    <span className="text-sm font-medium text-[#495057] shrink-0">구간검색</span>
-                    <Checkbox checked={useInterval} onChange={(e) => setUseInterval(e.target.checked)} />
-                    {useInterval ? (
+                    <div className="flex items-center gap-3">
+                      <span className="text-sm font-medium text-[#495057] shrink-0">통계공휴일 제외</span>
+                      <Checkbox checked={excludeStatHoliday} onChange={(e) => setExcludeStatHoliday(e.target.checked)} />
+                    </div>
+                    {timeUnit === 'MI' || timeUnit === 'HH' ? (
                       <>
-                        <TimePicker
-                          value={intervalStartTime}
-                          onChange={(date) => setIntervalStartTime(date)}
-                          inputReadOnly
-                          allowClear={false}
-                          format="HH:00"
-                          style={{ width: '100px' }}
-                        />
-                        <span className="text-sm font-medium text-[#495057] shrink-0">~</span>
-                        <TimePicker
-                          value={intervalEndTime}
-                          onChange={(date) => setIntervalEndTime(date)}
-                          inputReadOnly
-                          allowClear={false}
-                          format="HH:00"
-                          style={{ width: '100px' }}
-                        />
+                        <Divider orientation="vertical" className="!h-5 !m-0" />
+                        <div className="flex items-center gap-3">
+                          <span className="text-sm font-medium text-[#495057] shrink-0">점심시간 제외</span>
+                          <Checkbox checked={excludeLunch} onChange={(e) => setExcludeLunch(e.target.checked)} />
+                        </div>
+                        <Divider orientation="vertical" className="!h-5 !m-0" />
+                        <div className="flex items-center gap-3">
+                          <span className="text-sm font-medium text-[#495057] shrink-0">구간검색</span>
+                          <Checkbox checked={useInterval} onChange={(e) => setUseInterval(e.target.checked)} />
+                          {useInterval ? (
+                            <>
+                              <TimePicker
+                                value={intervalStartTime}
+                                onChange={(date) => setIntervalStartTime(date)}
+                                inputReadOnly
+                                allowClear={false}
+                                format="HH:00"
+                                style={{ width: '100px' }}
+                              />
+                              <span className="text-sm font-medium text-[#495057] shrink-0">~</span>
+                              <TimePicker
+                                value={intervalEndTime}
+                                onChange={(date) => setIntervalEndTime(date)}
+                                inputReadOnly
+                                allowClear={false}
+                                format="HH:00"
+                                style={{ width: '100px' }}
+                              />
+                            </>
+                          ) : null}
+                        </div>
                       </>
                     ) : null}
                   </>
@@ -512,10 +544,9 @@ export default function IntentStatistics() {
             rowData={rowData}
             getRowId={(params) => `${params.data.psrTimeKey}_${params.data.scnId}_${params.data.modelId}_${params.data.intent}`}
             columnDefs={columnDefs}
-            gridOptions={gridOptions}
+            gridOptions={{ ...gridOptions, statusBar: undefined }}
             loading={isLoadingIntentStatList}
             pagination={false}
-            statusBar={{ statusPanels: [] }}
             rowNumbers={false}
             sideBar={false}
             pinnedBottomRowData={summaryRow}

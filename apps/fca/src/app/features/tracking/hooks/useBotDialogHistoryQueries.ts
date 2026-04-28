@@ -1,17 +1,29 @@
-import { useQuery } from '@tanstack/react-query';
+import { useMutation, useQuery } from '@tanstack/react-query';
 import { createQueryKeys } from '@lukemorales/query-key-factory';
-import type { QueryHookWithParamsOptions } from '@/shared-util';
-import { botDialogHistoryApi } from '../api/botDialogHistoryApi';
+import type { MutationHookOptions, QueryHookWithParamsOptions } from '@/shared-util';
+import { type DecryptBubblesArgs, type DecryptedBubbleDto, type DialogHistoryConfig, botDialogHistoryApi } from '../api/botDialogHistoryApi';
 import type { BotServiceDto, IntentDto } from '../types/botDialogHistory.types';
 import type { NluAnalysisItem, TrackingFlowItem } from '../types/tracking.types';
 
 export const botDialogHistoryQueryKeys = createQueryKeys('history', {
+  getConfig: null,
   getBotServices: (params?: Record<string, unknown>) => [params],
   getIntents: (params?: Record<string, unknown>) => [params],
   getBotDialogHistory: (params?: Record<string, unknown>) => [params],
   getBubbles: (params?: Record<string, unknown>) => [params],
   getNluAnalysis: (params?: Record<string, unknown>) => [params],
 });
+
+/**
+ * 대화이력 기능 설정 조회 훅 (mediaPlayerEnabled 등)
+ */
+export const useGetDialogHistoryConfig = () => {
+  return useQuery({
+    queryKey: botDialogHistoryQueryKeys.getConfig.queryKey,
+    queryFn: () => botDialogHistoryApi.getConfig(),
+    staleTime: 5 * 60 * 1000,
+  });
+};
 
 /**
  * 봇 서비스 목록 조회 훅
@@ -25,7 +37,7 @@ export const useGetBotServices = ({ params, queryOptions }: QueryHookWithParamsO
 };
 
 /**
- * 봇서비스에 할당된 의도 목록 조회 훅
+ * 봇에 할당된 의도 목록 조회 훅
  */
 export const useGetIntents = ({ params, queryOptions }: QueryHookWithParamsOptions<IntentDto[]> = {}) => {
   return useQuery({
@@ -66,4 +78,12 @@ export const useGetNluAnalysis = ({ params, queryOptions }: QueryHookWithParamsO
     queryFn: () => botDialogHistoryApi.getNluAnalysis(params),
     ...queryOptions,
   });
+};
+
+/**
+ * 암호화 버블 복호화 훅 (on-demand + 감사 로그).
+ * 캐시하지 않기 위해 React Query 캐시에 저장하지 않고 `mutate` 호출 결과만 사용합니다.
+ */
+export const useDecryptBubbles = ({ mutationOptions }: MutationHookOptions<DecryptedBubbleDto[], DecryptBubblesArgs> = {}) => {
+  return useMutation({ mutationFn: botDialogHistoryApi.decryptBubbles, ...mutationOptions });
 };

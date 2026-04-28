@@ -2,9 +2,10 @@ import { useEffect } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { useQueryClient } from '@tanstack/react-query';
 import { Button, Col, Form, type FormProps, Input, Row, Tooltip } from 'antd';
+import { FileSpreadsheet } from 'lucide-react';
 import { Log } from '@/log';
 import { toast } from '@/shared-util';
-import { modelQueryKeys, useDeleteModel, useExportModel, useGetModel, useUpdateModel } from '../hooks/useModelQueries';
+import { modelQueryKeys, useDeleteModel, useExportIntentAndEntity, useGetModel, useUpdateModel } from '../hooks/useModelQueries';
 import type { ModelBasicInfoUpdateDatas } from '../types';
 import { ModelType } from '../types/model';
 import { FallbackSpinner } from '@/components/custom/FallbackSpinner';
@@ -37,6 +38,8 @@ export default function ModelBasicInfo() {
     },
   });
 
+  const { mutate: exportIntentAndEntity, isPending: isExportingAll } = useExportIntentAndEntity();
+
   const onFinish: FormProps<ModelBasicInfoUpdateDatas>['onFinish'] = (values) => {
     Log.debug('onFinish', values);
     updateModel({ params: { modelId }, data: values });
@@ -52,10 +55,6 @@ export default function ModelBasicInfo() {
     });
   };
 
-  const { mutate: exportModel, isPending: isExporting } = useExportModel();
-  const handleClickExport = () => {
-    exportModel({ modelId });
-  };
   useEffect(() => {
     if (!model) return;
     const { modelName, expansion1 } = model;
@@ -95,8 +94,8 @@ export default function ModelBasicInfo() {
           </Row>
           <Row gutter={20} justify="center" className="sticky bottom-0 bg-white/90 z-10 pb-7">
             <Col>
-              <Button variant="solid" onClick={() => navigate('../')}>
-                취소
+              <Button color="primary" variant="solid" htmlType="submit" loading={isUpdating || isDeleting}>
+                저장
               </Button>
             </Col>
             {model?.modelType === ModelType.NORMAL && (
@@ -107,19 +106,11 @@ export default function ModelBasicInfo() {
               </Col>
             )}
             <Col>
-              <Tooltip
-                title={<span style={{ whiteSpace: 'pre-line' }}>{`모델의 의도·개체 전체 데이터 파일(엑셀)을 다운로드합니다.`}</span>}
-                styles={{ root: { maxWidth: '370px' } }}
-              >
-                <Button color="cyan" variant="solid" onClick={handleClickExport} loading={isExporting}>
-                  Export
+              <Tooltip title="인텐트와 엔티티를 하나의 엑셀 파일(시트 2개)로 통합 다운로드합니다.">
+                <Button icon={<FileSpreadsheet className="size-4" />} loading={isExportingAll} onClick={() => exportIntentAndEntity({ modelId, isTemplate: 0 })}>
+                  의도&개체 내보내기
                 </Button>
               </Tooltip>
-            </Col>
-            <Col>
-              <Button color="primary" variant="solid" htmlType="submit" loading={isUpdating || isDeleting}>
-                저장
-              </Button>
             </Col>
           </Row>
         </>

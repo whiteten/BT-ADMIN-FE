@@ -33,7 +33,7 @@ interface PageTab {
   component: React.ComponentType | React.LazyExoticComponent<React.ComponentType>;
 }
 
-const tabs: PageTab[] = [
+const baseTabs: PageTab[] = [
   { id: 'tab1', label: '기본정보', icon: IconDocument, component: UserBasicInfoTab },
   { id: 'tab2', label: '리소스 접근', icon: Layers, component: UserResourceAccessTab },
   { id: 'tab3', label: '개별 권한', icon: Shield, component: UserPermissionTab },
@@ -75,6 +75,14 @@ export default function UserDetail() {
   const [searchParams] = useSearchParams();
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   const numericUserId = userId ? Number(userId) : undefined;
+
+  // 리소스 접근 관리 권한에 따라 탭 필터링
+  const { canManageResourceAccess: canManageResourceAccessFn } = useAuthStore();
+  const hasResourceAccessPermission = canManageResourceAccessFn();
+  const tabs = baseTabs.filter((tab) => {
+    if (tab.id === 'tab2') return hasResourceAccessPermission;
+    return true;
+  });
 
   const tabFromUrl = searchParams.get('tab');
   const [activeTab, setActiveTab] = useState(tabFromUrl ?? tabs[0]?.id ?? '');
@@ -205,30 +213,34 @@ export default function UserDetail() {
             <span className="text-gray-800 flex-1 truncate">{displayValue(currentBasic.description)}</span>
           </div>
         </div>
-        <Divider className="!my-3" />
-        {/* 리소스 접근 */}
-        <div className="space-y-2">
-          <div className="flex items-center gap-1">
-            <span className="text-gray-500 w-28 shrink-0">봇 서비스</span>
-            <span className="text-gray-800 flex-1">
-              {resourceStats && resourceStats.botCount > 0 ? (
-                <span className="text-blue-600 font-medium">{resourceStats.botCount}개 설정</span>
-              ) : (
-                <span className="text-gray-400 text-sm">전체 허용</span>
-              )}
-            </span>
-          </div>
-          <div className="flex items-center gap-1">
-            <span className="text-gray-500 w-28 shrink-0">NLU 모델</span>
-            <span className="text-gray-800 flex-1">
-              {resourceStats && resourceStats.modelCount > 0 ? (
-                <span className="text-blue-600 font-medium">{resourceStats.modelCount}개 설정</span>
-              ) : (
-                <span className="text-gray-400 text-sm">전체 허용</span>
-              )}
-            </span>
-          </div>
-        </div>
+        {hasResourceAccessPermission && (
+          <>
+            <Divider className="!my-3" />
+            {/* 리소스 접근 */}
+            <div className="space-y-2">
+              <div className="flex items-center gap-1">
+                <span className="text-gray-500 w-28 shrink-0">봇 서비스</span>
+                <span className="text-gray-800 flex-1">
+                  {resourceStats && resourceStats.botCount > 0 ? (
+                    <span className="text-blue-600 font-medium">{resourceStats.botCount}개 설정</span>
+                  ) : (
+                    <span className="text-gray-400 text-sm">전체 허용</span>
+                  )}
+                </span>
+              </div>
+              <div className="flex items-center gap-1">
+                <span className="text-gray-500 w-28 shrink-0">NLU 모델</span>
+                <span className="text-gray-800 flex-1">
+                  {resourceStats && resourceStats.modelCount > 0 ? (
+                    <span className="text-blue-600 font-medium">{resourceStats.modelCount}개 설정</span>
+                  ) : (
+                    <span className="text-gray-400 text-sm">전체 허용</span>
+                  )}
+                </span>
+              </div>
+            </div>
+          </>
+        )}
         <Divider className="!my-3" />
         {/* 개별 권한 (Replacement 모델) */}
         <div className="space-y-2">

@@ -18,7 +18,7 @@ import { useGetGroupedPermissions } from '../../features/iam/hooks/usePermission
 import { useCreateRole, useGetRoles } from '../../features/iam/hooks/useRoleQueries';
 import type { MenuWithPermissions, RoleCreateDatas } from '../../features/iam/types/iam.types';
 
-type PermEntry = { authId: number; action: string };
+type PermEntry = { authKey: string; action: string };
 import PageHeader from '@/components/custom/PageHeader';
 
 /**
@@ -28,11 +28,11 @@ function collectAllPermissions(menu: MenuWithPermissions): PermEntry[] {
   const p = menu.permissions;
   const perms: PermEntry[] = [];
   if (p) {
-    if (p.read != null) perms.push({ authId: p.read, action: 'read' });
-    if (p.write != null) perms.push({ authId: p.write, action: 'write' });
-    if (p.delete != null) perms.push({ authId: p.delete, action: 'delete' });
-    if (p.apply != null) perms.push({ authId: p.apply, action: 'apply' });
-    if (p.export != null) perms.push({ authId: p.export, action: 'export' });
+    if (p.read != null) perms.push({ authKey: p.read, action: 'read' });
+    if (p.write != null) perms.push({ authKey: p.write, action: 'write' });
+    if (p.delete != null) perms.push({ authKey: p.delete, action: 'delete' });
+    if (p.apply != null) perms.push({ authKey: p.apply, action: 'apply' });
+    if (p.export != null) perms.push({ authKey: p.export, action: 'export' });
   }
   for (const child of menu.children ?? []) {
     perms.push(...collectAllPermissions(child));
@@ -55,6 +55,7 @@ interface RoleFormValues {
   sortOrder?: number;
   isUse: boolean;
   canResetPassword: boolean;
+  canManageResourceAccess: boolean;
 }
 
 export default function RoleCreatePage() {
@@ -63,7 +64,7 @@ export default function RoleCreatePage() {
 
   const [currentStep, setCurrentStep] = useState(0);
   const [fieldErrors, setFieldErrors] = useState<Record<string, string[]>>({});
-  const [selectedPermissions, setSelectedPermissions] = useState<Set<number>>(new Set());
+  const [selectedPermissions, setSelectedPermissions] = useState<Set<string>>(new Set());
   const [form] = Form.useForm<RoleFormValues>();
 
   // 역할 목록 조회 (중복 체크용)
@@ -84,6 +85,7 @@ export default function RoleCreatePage() {
     sortOrder: 0,
     isUse: true,
     canResetPassword: false,
+    canManageResourceAccess: false,
   };
 
   const formValues = Form.useWatch([], form);
@@ -167,12 +169,13 @@ export default function RoleCreatePage() {
 
   const onFinish: FormProps<RoleFormValues>['onFinish'] = (values) => {
     Log.debug('onFinish', values);
-    const authIds = Array.from(selectedPermissions);
+    const authKeys = Array.from(selectedPermissions);
 
     const request: RoleCreateDatas = {
       ...values,
       canResetPassword: values.canResetPassword,
-      authIds,
+      canManageResourceAccess: values.canManageResourceAccess,
+      authKeys,
     };
     createRole(request);
   };
@@ -215,7 +218,7 @@ export default function RoleCreatePage() {
           </Col>
         </Row>
         <Row gutter={20}>
-          <Col span={12}>
+          <Col span={6}>
             <Form.Item name="sortOrder" label="정렬 순서">
               <InputNumber min={0} className="!w-full" placeholder="정렬 순서를 입력하세요." />
             </Form.Item>
@@ -231,6 +234,16 @@ export default function RoleCreatePage() {
               label="비밀번호 초기화 권한"
               valuePropName="checked"
               tooltip="이 역할을 가진 사용자가 다른 사용자의 비밀번호를 초기화할 수 있습니다."
+            >
+              <Switch checkedChildren="허용" unCheckedChildren="불가" />
+            </Form.Item>
+          </Col>
+          <Col span={6}>
+            <Form.Item
+              name="canManageResourceAccess"
+              label="리소스 접근 관리 권한"
+              valuePropName="checked"
+              tooltip="이 역할을 가진 사용자가 다른 사용자의 리소스 접근(봇, NLU 모델)을 관리할 수 있습니다."
             >
               <Switch checkedChildren="허용" unCheckedChildren="불가" />
             </Form.Item>
@@ -268,7 +281,7 @@ export default function RoleCreatePage() {
   // 폼 정보 요약 렌더링
   function renderFormSummary() {
     const values = formValues ?? initialValues;
-    const { roleCode, roleName, description, sortOrder, isUse, canResetPassword } = values;
+    const { roleCode, roleName, description, sortOrder, isUse, canResetPassword, canManageResourceAccess } = values;
 
     return (
       <div className="space-y-4">
@@ -305,6 +318,12 @@ export default function RoleCreatePage() {
               <Tag color={canResetPassword ? 'blue' : 'default'}>{canResetPassword ? '허용' : '불가'}</Tag>
             </span>
           </div>
+          <div className="flex items-center gap-1">
+            <span className="text-gray-500 w-20 shrink-0">리소스 접근 관리</span>
+            <span className="flex-1">
+              <Tag color={canManageResourceAccess ? 'blue' : 'default'}>{canManageResourceAccess ? '허용' : '불가'}</Tag>
+            </span>
+          </div>
         </div>
 
         <Divider className="!my-3" />
@@ -320,10 +339,10 @@ export default function RoleCreatePage() {
             <div className="flex flex-wrap gap-1 mt-2">
               {Array.from(selectedPermissions)
                 .slice(0, 8)
-                .map((authId) => {
-                  const perm = allPermissions.find((p) => p.authId === authId);
+                .map((authKey) => {
+                  const perm = allPermissions.find((p) => p.authKey === authKey);
                   return perm ? (
-                    <Tag key={authId} color="cyan" className="text-xs m-0">
+                    <Tag key={authKey} color="cyan" className="text-xs m-0">
                       {perm.action}
                     </Tag>
                   ) : null;

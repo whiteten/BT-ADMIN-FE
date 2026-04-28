@@ -1,16 +1,14 @@
-import { Button, Drawer, Form, Slider } from 'antd';
+import { Button, Drawer, Form, InputNumber } from 'antd';
 import { Log } from '@/log';
 import type { WidgetActionContext } from '../constants/BotDashboardLayoutRenderMapper';
+import { ROW_CNT_MAX, ROW_CNT_MIN } from '../constants/dashboardConstants';
 
 interface DialogIncompleteTopDrawerProps extends WidgetActionContext {
   open: boolean;
   onClose: () => void;
 }
 
-const WIDGET_TITLE = '대화 미완결율 순위';
-
-const ROW_CNT_MIN = 1;
-const ROW_CNT_MAX = 10;
+const WIDGET_TITLE = '대화 미완료율 순위';
 
 const DialogIncompleteTopDrawer = ({ open, onClose, widgetOptions, setOption }: DialogIncompleteTopDrawerProps) => {
   const [form] = Form.useForm();
@@ -53,11 +51,7 @@ const DialogIncompleteTopDrawer = ({ open, onClose, widgetOptions, setOption }: 
       </div>
       <Form form={form} layout="vertical" onFinish={onFinish} onFinishFailed={onFinishFailed}>
         <Form.Item name="rowCnt" label="최대 표시 개수">
-          <Slider
-            min={ROW_CNT_MIN}
-            max={ROW_CNT_MAX}
-            marks={Object.fromEntries(Array.from({ length: ROW_CNT_MAX - ROW_CNT_MIN + 1 }, (_, i) => [ROW_CNT_MIN + i, `${ROW_CNT_MIN + i}`]))}
-          />
+          <InputNumber min={ROW_CNT_MIN} max={ROW_CNT_MAX} className="w-full" />
         </Form.Item>
       </Form>
     </Drawer>

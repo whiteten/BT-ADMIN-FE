@@ -56,6 +56,7 @@ export default function RoleBasicInfoTab() {
         sortOrder: role.sortOrder,
         isUse: role.isUse,
         canResetPassword: role.canResetPassword,
+        canManageResourceAccess: role.canManageResourceAccess,
       });
     }
   }, [role, form]);
@@ -100,6 +101,7 @@ export default function RoleBasicInfoTab() {
       sortOrder: values.sortOrder,
       isUse: values.isUse,
       canResetPassword: values.canResetPassword,
+      canManageResourceAccess: values.canManageResourceAccess,
       // authIds는 변경하지 않음 (권한 매핑 탭에서 처리)
     };
     updateRole({ params: { roleId: numericRoleId }, data: request });
@@ -147,13 +149,6 @@ export default function RoleBasicInfoTab() {
             </Col>
           </Row>
           <Row gutter={20}>
-            <Col span={24}>
-              <Form.Item name="description" label="설명">
-                <Input.TextArea rows={3} placeholder="역할에 대한 설명을 입력하세요." />
-              </Form.Item>
-            </Col>
-          </Row>
-          <Row gutter={20}>
             <Col span={12}>
               <Form.Item name="sortOrder" label="정렬 순서">
                 <InputNumber min={0} className="!w-full" placeholder="정렬 순서를 입력하세요." />
@@ -172,6 +167,25 @@ export default function RoleBasicInfoTab() {
                 tooltip="이 역할을 가진 사용자가 다른 사용자의 비밀번호를 초기화할 수 있습니다."
               >
                 <Switch checkedChildren="허용" unCheckedChildren="불가" />
+              </Form.Item>
+            </Col>
+          </Row>
+          <Row gutter={20}>
+            <Col span={6}>
+              <Form.Item
+                name="canManageResourceAccess"
+                label="리소스 접근 관리 권한"
+                valuePropName="checked"
+                tooltip="이 역할을 가진 사용자가 다른 사용자의 리소스 접근(봇, NLU 모델)을 관리할 수 있습니다."
+              >
+                <Switch checkedChildren="허용" unCheckedChildren="불가" />
+              </Form.Item>
+            </Col>
+          </Row>
+          <Row gutter={20}>
+            <Col span={24}>
+              <Form.Item name="description" label="설명">
+                <Input.TextArea rows={3} placeholder="역할에 대한 설명을 입력하세요." />
               </Form.Item>
             </Col>
           </Row>

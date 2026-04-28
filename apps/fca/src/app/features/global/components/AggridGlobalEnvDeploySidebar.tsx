@@ -1,9 +1,11 @@
 import { useEffect, useState } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import type { CustomToolPanelProps } from 'ag-grid-react';
+import { Button } from 'antd';
 import dayjs from 'dayjs';
-import { Clock, OctagonAlert, Server, ServerOff, User } from 'lucide-react';
-import { globalEnvQueryKeys, useGetGlobalEnvHistoryList } from '../hooks/useGlobalEnvQueries';
+import { Clock, OctagonAlert, RotateCcw, Server, ServerOff, User } from 'lucide-react';
+import { toast } from '@/shared-util';
+import { globalEnvQueryKeys, useGetGlobalEnvHistoryList, useReapplyGlobalEnv } from '../hooks/useGlobalEnvQueries';
 import type { GlobalEnvHistoryItem, GlobalEnvListItem } from '../types/globalEnv.types';
 import { FallbackSpinner } from '@/components/custom/FallbackSpinner';
 import { Badge } from '@/components/ui/badge';
@@ -13,6 +15,23 @@ function AggridGlobalEnvDeploySidebar(props: CustomToolPanelProps<GlobalEnvListI
   const queryClient = useQueryClient();
   const [selectedRowData, setSelectedRowData] = useState<GlobalEnvListItem | null>(null);
   const [isOpened, setIsOpened] = useState(false);
+  const [applyingSystemId, setApplyingSystemId] = useState<number | null>(null);
+
+  const { mutate: reapplyGlobalEnv } = useReapplyGlobalEnv({
+    mutationOptions: {
+      onSuccess: () => {
+        queryClient.invalidateQueries({ queryKey: globalEnvQueryKeys.getGlobalEnvList._def });
+        queryClient.invalidateQueries({
+          queryKey: globalEnvQueryKeys.getGlobalEnvHistoryList({ category: selectedRowData?.category, property: selectedRowData?.property }).queryKey,
+        });
+        toast.success('적용되었습니다.');
+        setApplyingSystemId(null);
+      },
+      onError: () => {
+        setApplyingSystemId(null);
+      },
+    },
+  });
 
   const { data: historyList = [], isLoading } = useGetGlobalEnvHistoryList({
     params: {
@@ -69,6 +88,12 @@ function AggridGlobalEnvDeploySidebar(props: CustomToolPanelProps<GlobalEnvListI
     return { className: 'text-gray-500 bg-gray-100', label: '미적용' };
   };
 
+  const handleApply = (item: GlobalEnvHistoryItem) => {
+    if (applyingSystemId !== null) return;
+    setApplyingSystemId(item.systemId);
+    reapplyGlobalEnv({ params: { systemId: item.systemId, category: selectedRowData?.category, property: selectedRowData?.property }, data: {} });
+  };
+
   const renderHistoryCard = (item: GlobalEnvHistoryItem) => {
     const { className: badgeClassName, label: badgeLabel } = getApplyResultStyle(item.applyResult);
     const key = `${item.historyId}_${item.systemId}_${item.category}_${item.property}`;
@@ -88,9 +113,22 @@ function AggridGlobalEnvDeploySidebar(props: CustomToolPanelProps<GlobalEnvListI
             <User className="size-3 shrink-0" />
             <span className="truncate">{item.workUser ?? '-'}</span>
           </div>
-          <div className="flex items-center gap-2">
-            <Clock className="size-3 shrink-0" />
-            <span>{item.workTime ? dayjs(item.workTime).format('YYYY-MM-DD HH:mm:ss') : '-'}</span>
+          <div className="flex items-center justify-between gap-2">
+            <div className="flex items-center gap-2">
+              <Clock className="size-3 shrink-0" />
+              <span>{item.workTime ? dayjs(item.workTime).format('YYYY-MM-DD HH:mm:ss') : '-'}</span>
+            </div>
+            <div className={applyingSystemId !== null && applyingSystemId !== item.systemId ? 'pointer-events-none' : ''}>
+              <Button
+                size="small"
+                icon={<RotateCcw className="size-3" />}
+                onClick={() => handleApply(item)}
+                loading={applyingSystemId === item.systemId}
+                style={{ fontSize: 12, padding: '0 6px', height: 22, gap: 3 }}
+              >
+                적용
+              </Button>
+            </div>
           </div>
         </div>
       </div>
@@ -117,7 +155,7 @@ function AggridGlobalEnvDeploySidebar(props: CustomToolPanelProps<GlobalEnvListI
     }
     return (
       <div className="flex flex-col gap-3">
-        <span className="text-sm font-semibold text-foreground">적용 이력 ({historyList.length})</span>
+        <span className="text-sm font-semibold text-foreground">적용 노드 ({historyList.length})</span>
         <div className="flex flex-col gap-2">{historyList.map((item) => renderHistoryCard(item))}</div>
       </div>
     );

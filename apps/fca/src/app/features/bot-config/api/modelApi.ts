@@ -36,6 +36,7 @@ import type {
   IntentSentenceListItem,
   IntentSentenceUpdateDatas,
 } from '../types/intent';
+import type { KeywordCreateDatas, KeywordListItem, KeywordUpdateDatas } from '../types/keyword';
 import type { GenerateExcelDatas, ModelBasicInfoUpdateDatas, ModelCreateDatas, ModelImportResult, ModelItem, ModelListItem } from '../types/model';
 
 const apiClient = new ApiClient({ serviceURL: '/bff' });
@@ -128,11 +129,11 @@ export const modelApi = {
     const response = await apiClient.delete('/intent-sentence-delete', { params });
     return response;
   },
-  importIntentSentence: async ({ params, data }: { params: Record<string, unknown>; data: File }) => {
+  importIntentSentence: async ({ params, data }: { params: Record<string, unknown>; data: File }): Promise<ExcelImportResult> => {
     const formData = new FormData();
     formData.append('uploadFile', data);
-    const response = await apiClient.post('/intent-sentence-excel-import', formData, { params });
-    return response;
+    const response = await apiClient.post<DetailResponse<ExcelImportResult>>('/intent-sentence-excel-import', formData, { params });
+    return extractDetail(response);
   },
   exportIntentSentence: async (params: Record<string, unknown>) => {
     const response = await apiClient.get<Blob>('/intent-sentence-excel-export', { params, responseType: 'blob' });
@@ -182,6 +183,33 @@ export const modelApi = {
   },
   exportEntity: async (params: Record<string, unknown>) => {
     const response = await apiClient.get<Blob>('/entity-excel-export', { params, responseType: 'blob' });
+    return response;
+  },
+  exportIntentAndEntity: async (params: Record<string, unknown>) => {
+    const response = await apiClient.get<Blob>('/model-intent-entity-export', { params, responseType: 'blob' });
+    return response;
+  },
+  getKeywords: async (params?: Record<string, unknown>): Promise<KeywordListItem[]> => {
+    const response = await apiClient.get<ListResponse<KeywordListItem>>('/keyword-list', { params });
+    return extractList(response);
+  },
+  createKeyword: async ({ params, data }: { params: Record<string, unknown>; data: KeywordCreateDatas }) => {
+    await apiClient.post('/keyword-create', data, { params });
+  },
+  updateKeyword: async ({ params, data }: { params: Record<string, unknown>; data: KeywordUpdateDatas }) => {
+    await apiClient.put('/keyword-update', data, { params });
+  },
+  deleteKeyword: async (params: Record<string, unknown>) => {
+    await apiClient.delete('/keyword-delete', { params });
+  },
+  importKeyword: async ({ params, data }: { params: Record<string, unknown>; data: File }): Promise<ExcelImportResult> => {
+    const formData = new FormData();
+    formData.append('uploadFile', data);
+    const response = await apiClient.post<DetailResponse<ExcelImportResult>>('/keyword-excel-import', formData, { params });
+    return extractDetail(response);
+  },
+  exportKeyword: async (params: Record<string, unknown>) => {
+    const response = await apiClient.get<Blob>('/keyword-excel-export', { params, responseType: 'blob' });
     return response;
   },
   getAoeAgents: async (params?: Record<string, unknown>): Promise<AoeListItem[]> => {
@@ -236,11 +264,11 @@ export const modelApi = {
     const response = await apiClient.delete('/evaluation-question-delete', { params });
     return response;
   },
-  importEvaluationQuestion: async ({ params, data }: { params: Record<string, unknown>; data: File }) => {
+  importEvaluationQuestion: async ({ params, data }: { params: Record<string, unknown>; data: File }): Promise<ExcelImportResult> => {
     const formData = new FormData();
     formData.append('uploadFile', data);
-    const response = await apiClient.post('/evaluation-question-excel-import', formData, { params });
-    return response;
+    const response = await apiClient.post<DetailResponse<ExcelImportResult>>('/evaluation-question-excel-import', formData, { params });
+    return extractDetail(response);
   },
   exportEvaluationQuestion: async (params: Record<string, unknown>) => {
     const response = await apiClient.get<Blob>('/evaluation-question-excel-export', { params, responseType: 'blob' });

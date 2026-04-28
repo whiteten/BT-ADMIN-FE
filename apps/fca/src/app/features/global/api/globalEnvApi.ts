@@ -29,6 +29,10 @@ export const globalEnvApi = {
     const response = await apiClient.get<ListResponse<GlobalEnvHistoryItem>>('/global-env-history-list', { params });
     return extractList(response);
   },
+  reapplyGlobalEnv: async ({ params, data }: { params: Record<string, unknown>; data: Record<string, unknown> }) => {
+    const response = await apiClient.post('/global-env-apply', data, { params });
+    return response;
+  },
   exportGlobalEnv: async (params: Record<string, unknown>) => {
     const response = await apiClient.get<Blob>('/global-env-excel-export', { params, responseType: 'blob' });
     return response;

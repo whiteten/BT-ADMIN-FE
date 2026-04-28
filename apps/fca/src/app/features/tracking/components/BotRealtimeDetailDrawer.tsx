@@ -223,12 +223,12 @@ const BotRealtimeDetailDrawer = forwardRef<BotRealtimeDetailDrawerRef, BotRealti
         {session && (
           <div className="flex-shrink-0">
             <Descriptions column={2} size="small" bordered>
-              <Descriptions.Item label="시나리오명" span={2}>
+              <Descriptions.Item label="봇" span={2}>
                 {session.serviceName}
               </Descriptions.Item>
               <Descriptions.Item label="UCID" span={2}>
                 <div className="flex items-center gap-1.5">
-                  <span className="font-mono text-xs">{session.ucid}</span>
+                  <span className="font-mono">{session.ucid}</span>
                   <button
                     type="button"
                     title="UCID 복사"

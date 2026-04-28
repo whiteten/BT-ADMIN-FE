@@ -15,7 +15,7 @@ import PageHeader from '@/components/custom/PageHeader';
 
 const breadcrumb: BreadcrumbProps['items'] = [
   { title: '트래킹', path: '/fca/tracking' },
-  { title: '대화이력', path: '/fca/tracking/dialog-history' },
+  { title: '대화이력', path: '/fca/tracking/bot-dialog-history' },
 ];
 
 const BotDialogHistoryPage: React.FC = () => {

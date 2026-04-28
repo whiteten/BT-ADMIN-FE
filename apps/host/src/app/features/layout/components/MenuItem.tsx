@@ -68,7 +68,7 @@ const CollapsibleMenuItem = ({ item, appId }: MenuItemProps) => {
         <CollapsibleContent>
           <SidebarMenuSub className="pr-0">
             {item.children?.map((child) => (
-              <MenuItem key={child.menuId} item={child} appId={appId} />
+              <MenuItem key={child.menuKey} item={child} appId={appId} />
             ))}
           </SidebarMenuSub>
         </CollapsibleContent>
@@ -112,7 +112,7 @@ export const MenuItem = React.memo(({ item, appId }: MenuItemProps) => {
             </SidebarMenuSubButton>
           </HoverCardTrigger>
           <HoverCardContent side="right" align="center" sideOffset={0} className="w-full p-1">
-            <MenuActionButtons menuId={item.menuId} label={item.label} path={item.path} appId={appId} />
+            <MenuActionButtons menuKey={item.menuKey} label={item.label} path={item.path} appId={appId} />
           </HoverCardContent>
         </HoverCard>
       </SidebarMenuItem>

@@ -24,7 +24,7 @@ const BotDialogHistoryTable: React.FC<BotDialogHistoryTableProps> = ({ rowData, 
   const columnDefs: ColDef<BotDialogHistoryListItem>[] = useMemo(
     () => [
       {
-        headerName: '봇서비스',
+        headerName: '봇',
         field: 'serviceName',
         flex: 1.5,
       },
@@ -88,7 +88,7 @@ const BotDialogHistoryTable: React.FC<BotDialogHistoryTableProps> = ({ rowData, 
         },
       },
       {
-        headerName: '완결여부',
+        headerName: '완료여부',
         field: 'serviceCompleteYn',
         width: 100,
         cellStyle: { display: 'flex', alignItems: 'center' },
@@ -97,7 +97,7 @@ const BotDialogHistoryTable: React.FC<BotDialogHistoryTableProps> = ({ rowData, 
           const isComplete = val === 1;
           return (
             <Badge variant="secondary" className={`text-[13px] leading-[13px] font-medium !h-6 ${isComplete ? 'text-[#0AB39C] bg-[#0AB39C1A]' : 'text-[#495057] bg-[#E9EBEC]'}`}>
-              {isComplete ? '완결' : '미완결'}
+              {isComplete ? '완료' : '미완료'}
             </Badge>
           );
         },
@@ -111,7 +111,7 @@ const BotDialogHistoryTable: React.FC<BotDialogHistoryTableProps> = ({ rowData, 
           const val = params.value;
           const isConnected = val === 1;
           return (
-            <Badge variant="secondary" className={`text-[13px] leading-[13px] font-medium !h-6 ${isConnected ? 'text-[#F06548] bg-[#F065481A]' : 'text-[#495057] bg-[#E9EBEC]'}`}>
+            <Badge variant="secondary" className={`text-[13px] leading-[13px] font-medium !h-6 ${isConnected ? 'text-[#0AB39C] bg-[#0AB39C1A]' : 'text-[#495057] bg-[#E9EBEC]'}`}>
               {isConnected ? '연결' : '미연결'}
             </Badge>
           );

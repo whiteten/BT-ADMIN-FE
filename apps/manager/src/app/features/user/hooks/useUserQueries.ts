@@ -2,7 +2,7 @@ import { useMutation, useQuery } from '@tanstack/react-query';
 import { createQueryKeys } from '@lukemorales/query-key-factory';
 import type { MutationHookOptions, QueryHookWithParamsOptions } from '@/shared-util';
 import { userApi } from '../api/userApi';
-import type { User } from '../types/user.types';
+import type { User, UserCreateDatas } from '../types/user.types';
 
 /**
  * 페이징 응답 타입
@@ -71,7 +71,7 @@ export const useGetUserByUsername = ({ params, queryOptions }: QueryHookWithPara
 /**
  * 사용자 생성 훅
  */
-export const useCreateUser = ({ mutationOptions }: MutationHookOptions = {}) => {
+export const useCreateUser = ({ mutationOptions }: MutationHookOptions<User, UserCreateDatas> = {}) => {
   return useMutation({
     mutationFn: userApi.createUser,
     ...mutationOptions,

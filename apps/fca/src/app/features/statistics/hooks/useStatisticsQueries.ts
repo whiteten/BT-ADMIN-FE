@@ -5,7 +5,9 @@ import { statisticsApi } from '../api/statisticsApi';
 import type {
   DialogOptionListItem,
   DialogStatListItem,
+  EntityOptionListItem,
   EntityStatListItem,
+  IntentOptionListItem,
   IntentStatListItem,
   KeywordStatListItem,
   ServiceStatListItem,
@@ -22,6 +24,8 @@ export const statisticsQueryKeys = createQueryKeys('statistics', {
   getKeywordStatList: (params?: Record<string, unknown>) => [params],
   getDialogOptionList: (params?: Record<string, unknown>) => [params],
   getSlotOptionList: (params?: Record<string, unknown>) => [params],
+  getIntentOptionList: (params?: Record<string, unknown>) => [params],
+  getEntityOptionList: (params?: Record<string, unknown>) => [params],
 });
 
 export const useGetServiceStatList = ({ params, queryOptions }: QueryHookWithParamsOptions<ServiceStatListItem[]> = {}) => {
@@ -84,6 +88,22 @@ export const useGetSlotOptionList = ({ params, queryOptions }: QueryHookWithPara
   return useQuery({
     queryKey: statisticsQueryKeys.getSlotOptionList(params).queryKey,
     queryFn: () => statisticsApi.getSlotOptionList(params),
+    ...queryOptions,
+  });
+};
+
+export const useGetIntentOptionList = ({ params, queryOptions }: QueryHookWithParamsOptions<IntentOptionListItem[]> = {}) => {
+  return useQuery({
+    queryKey: statisticsQueryKeys.getIntentOptionList(params).queryKey,
+    queryFn: () => statisticsApi.getIntentOptionList(params),
+    ...queryOptions,
+  });
+};
+
+export const useGetEntityOptionList = ({ params, queryOptions }: QueryHookWithParamsOptions<EntityOptionListItem[]> = {}) => {
+  return useQuery({
+    queryKey: statisticsQueryKeys.getEntityOptionList(params).queryKey,
+    queryFn: () => statisticsApi.getEntityOptionList(params),
     ...queryOptions,
   });
 };

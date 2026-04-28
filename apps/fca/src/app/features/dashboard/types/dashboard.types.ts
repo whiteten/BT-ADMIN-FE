@@ -4,28 +4,56 @@ import type { LayoutItem } from 'react-grid-layout';
  * 봇 현황
  *
  * - entryCnt: 진입수
+ * - entryDiff: 진입수 전일대비
  * - completeCnt: 봇 해결수
  * - completeRate: 봇 해결률 (%)
- * - agentReqCnt: 상담사 연결수
- * - agentTransferRate: 상담사 연결률 (%)
+ * - completeRateDiff: 봇 해결률 전일대비 (%p)
+ * - completeReqAgentCnt: 완결별 상담연결수
+ * - completeReqAgentRate: 완결별 상담연결율 (%)
+ * - completeReqAgentRateDiff: 완결별 상담연결율 전일대비 (%p)
+ * - failReqAgentCnt: 미완결별 상담연결수
+ * - failReqAgentRate: 미완결별 상담연결율 (%)
+ * - failReqAgentRateDiff: 미완결별 상담연결율 전일대비 (%p)
  * - incompleteCnt: 미해결 종료수
  * - incompleteRate: 미해결 종료율 (%)
+ * - incompleteRateDiff: 미해결 종료율 전일대비 (%p)
+ * - avgBusyTime: 평균 점유시간 (초)
+ * - avgBusyTimeDiff: 평균 점유시간 전일대비 (초)
  * - prevEntryCnt: 전일 진입수
  * - prevCompleteCnt: 전일 봇 해결수
- * - prevAgentReqCnt: 전일 상담사 연결수
+ * - prevCompleteReqAgentCnt: 전일 완결별 상담연결수
+ * - prevCompleteReqAgentRate: 전일 완결별 상담연결율 (%)
+ * - prevFailReqAgentCnt: 전일 미완결별 상담연결수
+ * - prevFailReqAgentRate: 전일 미완결별 상담연결율 (%)
+ * - completeReqAgentCntChangeRate: 완결별 상담연결수 증감율 (%)
+ * - failReqAgentCntChangeRate: 미완결별 상담연결수 증감율 (%)
  * - prevIncompleteCnt: 전일 미해결 종료수
  */
 export interface ScenarioSummary {
   entryCnt: number;
+  entryDiff: number;
   completeCnt: number;
   completeRate: number;
-  agentReqCnt: number;
-  agentTransferRate: number;
+  completeRateDiff: number;
+  completeReqAgentCnt: number;
+  completeReqAgentRate: number;
+  completeReqAgentRateDiff: number;
+  failReqAgentCnt: number;
+  failReqAgentRate: number;
+  failReqAgentRateDiff: number;
   incompleteCnt: number;
   incompleteRate: number;
+  incompleteRateDiff: number;
+  avgBusyTime: number;
+  avgBusyTimeDiff: number;
   prevEntryCnt: number;
   prevCompleteCnt: number;
-  prevAgentReqCnt: number;
+  prevCompleteReqAgentCnt: number;
+  prevCompleteReqAgentRate: number;
+  prevFailReqAgentCnt: number;
+  prevFailReqAgentRate: number;
+  completeReqAgentCntChangeRate: number;
+  failReqAgentCntChangeRate: number;
   prevIncompleteCnt: number;
 }
 
@@ -33,20 +61,26 @@ export interface ScenarioSummary {
  * 대화 현황
  *
  * - entryCnt: 진입수
+ * - entryDiff: 진입수 전일대비
  * - completeCnt: 완결수
  * - completeRate: 완결률 (%)
+ * - completeRateDiff: 완결률 전일대비 (%p)
  * - incompleteCnt: 미완결수
  * - incompleteRate: 미완결률 (%)
+ * - incompleteRateDiff: 미완결률 전일대비 (%p)
  * - prevEntryCnt: 전일 진입수
  * - prevCompleteCnt: 전일 완결수
  * - prevIncompleteCnt: 전일 미완결수
  */
 export interface DialogSummary {
   entryCnt: number;
+  entryDiff: number;
   completeCnt: number;
   completeRate: number;
+  completeRateDiff: number;
   incompleteCnt: number;
   incompleteRate: number;
+  incompleteRateDiff: number;
   prevEntryCnt: number;
   prevCompleteCnt: number;
   prevIncompleteCnt: number;
@@ -56,20 +90,26 @@ export interface DialogSummary {
  * 슬롯 현황
  *
  * - entryCnt: 진입수
+ * - entryDiff: 진입수 전일대비
  * - completeCnt: 완결수
  * - completeRate: 완결률 (%)
+ * - completeRateDiff: 완결률 전일대비 (%p)
  * - incompleteCnt: 미완결수
  * - incompleteRate: 미완결률 (%)
+ * - incompleteRateDiff: 미완결률 전일대비 (%p)
  * - prevEntryCnt: 전일 진입수
  * - prevCompleteCnt: 전일 완결수
  * - prevIncompleteCnt: 전일 미완결수
  */
 export interface SlotSummary {
   entryCnt: number;
+  entryDiff: number;
   completeCnt: number;
   completeRate: number;
+  completeRateDiff: number;
   incompleteCnt: number;
   incompleteRate: number;
+  incompleteRateDiff: number;
   prevEntryCnt: number;
   prevCompleteCnt: number;
   prevIncompleteCnt: number;
@@ -140,10 +180,10 @@ export interface SlotIncompleteTopItem {
 export interface SlotRetryAvgTopItem {
   rank: number;
   serviceName: string;
-  dialogName: string;
   slotName: string;
   entryCnt: number;
   completeCnt: number;
+  retryCnt: number;
   avgRetryCount: number;
   oneTimeCompleteCnt: number;
   twoTimeCompleteCnt: number;
@@ -151,11 +191,10 @@ export interface SlotRetryAvgTopItem {
 }
 
 /**
- * 슬롯 완결 건 재시도 분포 순위
+ * 슬롯 재시도 분포 순위
  *
  * - rank: 순위
  * - serviceName: 시나리오명
- * - dialogName: 대화명
  * - slotName: 슬롯명
  * - entryCnt: 진입수
  * - completeCnt: 완결수
@@ -331,7 +370,7 @@ export interface OccupancyItem {
  * - dialogIncompleteTop: 대화 미완결율 순위
  * - slotIncompleteTop: 슬롯 미완결율 순위
  * - slotRetryAvgTop: 슬롯 평균 재시도 횟수 순위
- * - slotRetryDistTop: 슬롯 완결 건 재시도 분포 순위
+ * - slotRetryDistTop: 슬롯 재시도 분포 순위
  * - keywordTop: 키워드 현황
  * - entityTop: 개체 순위
  * - intentTop: 의도 순위
