@@ -932,50 +932,62 @@ export default function TaskBg() {
                       <div>
                         <h3 className="text-sm font-bold text-slate-700 mb-3 flex items-center gap-2">
                           <span className="w-2 h-2 rounded-full bg-[#0f5b9e]" />
-                          추천 배경 패턴 (20종 · 행별로 테마 그룹 구분)
+                          추천 배경 패턴 (20종 · 5테마 × 4스타일)
                         </h3>
-                        <div className="grid grid-cols-4 gap-3">
-                          {previewImages.map((preview, idx) => (
-                            <div key={preview.id} className="group relative">
-                              {idx % 4 === 0 && (
-                                <div className="text-[9px] text-slate-400 font-bold mb-1 uppercase tracking-wide">
-                                  {['다크 네이비', '블랙', '라이트', 'CI 브랜드', '딥 퍼플'][Math.floor(idx / 4)]}
-                                </div>
-                              )}
-                              <div className="aspect-video bg-slate-100 relative rounded-lg overflow-hidden border-2 border-transparent hover:border-[#0f5b9e] shadow-sm cursor-pointer">
-                                <img src={preview.previewUrl} alt="Preview" className="w-full h-full object-cover" />
-                                <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
-                                  <button
-                                    onClick={async () => {
-                                      try {
-                                        const imageFile = dataURLtoFile(preview.url, `bg_${Date.now()}.jpg`);
-                                        const requestData: TaskboardBg = {
-                                          tenantId: '2000000001',
-                                          pageId: 0,
-                                          pageName: `AI생성 ${selectedLayout.name} ${Date.now().toString().slice(-4)}`,
-                                          authorName: 'admin',
-                                          authRole: 'MASTER',
-                                          genType: 'AI',
-                                          useYn: 'Y',
-                                          regDt: new Date().toISOString(),
-                                          fileName: '',
-                                        };
-                                        await createBgMutate({ params: { data: JSON.stringify(requestData) }, data: imageFile });
-                                        toast.success('저장되었습니다!');
-                                        await queryClient.invalidateQueries({ queryKey: taskboardQueryKeys.getBgList().queryKey });
-                                      } catch {
-                                        toast.error('저장 중 오류가 발생했습니다.');
-                                      }
-                                    }}
-                                    className="px-3 py-1.5 bg-white text-[#0f5b9e] text-xs font-bold rounded-md shadow-lg"
-                                  >
-                                    저장하기
-                                  </button>
-                                </div>
-                              </div>
+                        {/* 5열 컬럼 헤더 */}
+                        <div className="grid grid-cols-5 gap-2 mb-1 px-px">
+                          {['다크 네이비', '블랙', '라이트', 'CI 브랜드', '딥 퍼플'].map((t) => (
+                            <div key={t} className="text-[9px] text-slate-400 font-bold text-center uppercase tracking-wide">
+                              {t}
                             </div>
                           ))}
                         </div>
+                        {/* 4행 = 4가지 스타일 */}
+                        {['솔리드', '그라디언트', '아웃라인', '카드'].map((styleLabel, r) => (
+                          <div key={styleLabel} className="mb-2">
+                            <div className="text-[8px] text-slate-400 font-semibold mb-1 pl-px">스타일: {styleLabel}</div>
+                            <div className="grid grid-cols-5 gap-2">
+                              {[0, 1, 2, 3, 4].map((c) => {
+                                const preview = previewImages[r * 5 + c];
+                                return preview ? (
+                                  <div key={preview.id} className="group relative">
+                                    <div className="aspect-video bg-slate-100 relative rounded-lg overflow-hidden border-2 border-transparent hover:border-[#0f5b9e] shadow-sm cursor-pointer">
+                                      <img src={preview.previewUrl} alt="Preview" className="w-full h-full object-cover" />
+                                      <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                                        <button
+                                          onClick={async () => {
+                                            try {
+                                              const imageFile = dataURLtoFile(preview.url, `bg_${Date.now()}.jpg`);
+                                              const requestData: TaskboardBg = {
+                                                tenantId: '2000000001',
+                                                pageId: 0,
+                                                pageName: `AI생성 ${selectedLayout.name} ${Date.now().toString().slice(-4)}`,
+                                                authorName: 'admin',
+                                                authRole: 'MASTER',
+                                                genType: 'AI',
+                                                useYn: 'Y',
+                                                regDt: new Date().toISOString(),
+                                                fileName: '',
+                                              };
+                                              await createBgMutate({ params: { data: JSON.stringify(requestData) }, data: imageFile });
+                                              toast.success('저장되었습니다!');
+                                              await queryClient.invalidateQueries({ queryKey: taskboardQueryKeys.getBgList().queryKey });
+                                            } catch {
+                                              toast.error('저장 중 오류가 발생했습니다.');
+                                            }
+                                          }}
+                                          className="px-2 py-1 bg-white text-[#0f5b9e] text-[10px] font-bold rounded-md shadow-lg"
+                                        >
+                                          저장하기
+                                        </button>
+                                      </div>
+                                    </div>
+                                  </div>
+                                ) : null;
+                              })}
+                            </div>
+                          </div>
+                        ))}
                       </div>
                     )}
                   </div>

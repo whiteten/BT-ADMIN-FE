@@ -1,12 +1,191 @@
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useQueryClient } from '@tanstack/react-query';
 import dayjs from 'dayjs';
 import { toast } from '@/shared-util';
 import { taskboardQueryKeys, useDeleteTaskboardLayout, useGetTaskboardLayoutList } from '../../features/board/hooks/useTaskboardQueries';
-import type { DroppedWidget, TaskboardLayout } from '../../features/board/types/taskboard.types';
+import type { DroppedWidget, TableColumn, TaskboardLayout } from '../../features/board/types/taskboard.types';
 import { FallbackSpinner } from '@/components/custom/FallbackSpinner';
 import { IconEdit, IconTrash } from '@/components/custom/Icons';
+
+// ─── 모달용 위젯 렌더러 ──────────────────────────────────────────────────────
+function ModalTableWidget({ widget }: { widget: DroppedWidget }) {
+  const cfg = widget.item.tableConfig;
+  if (!cfg) return null;
+  const showTitle = widget.showTitle !== false;
+  const displayTitle = widget.customTitle ?? widget.item.label;
+  return (
+    <div className="w-full h-full flex flex-col overflow-hidden">
+      {showTitle && (
+        <div
+          className="truncate font-semibold px-1 flex-shrink-0"
+          style={{
+            fontSize: `${Math.max(8, Math.round(widget.style.fontSize * 0.65))}px`,
+            textAlign: widget.style.titleAlign ?? 'left',
+            color: widget.style.color,
+            fontFamily: widget.style.fontFamily,
+          }}
+        >
+          {displayTitle}
+        </div>
+      )}
+      <div className="flex-1 overflow-hidden">
+        <table
+          className="w-full border-collapse"
+          style={{ fontSize: `${Math.max(7, Math.round(widget.style.fontSize * 0.6))}px`, color: widget.style.color, fontFamily: widget.style.fontFamily }}
+        >
+          <thead>
+            <tr>
+              {(cfg.columns as TableColumn[]).map((col) => (
+                <th
+                  key={col.key}
+                  style={{ width: col.width, borderBottom: `1px solid ${widget.style.color}40`, padding: '1px 3px', textAlign: 'center', opacity: 0.7, fontWeight: 600 }}
+                >
+                  {col.label}
+                </th>
+              ))}
+            </tr>
+          </thead>
+          <tbody>
+            {cfg.sampleRows.map((row, ri) => (
+              <tr key={ri} style={{ backgroundColor: ri % 2 === 0 ? 'rgba(255,255,255,0.05)' : 'transparent' }}>
+                {(cfg.columns as TableColumn[]).map((col) => (
+                  <td key={col.key} style={{ padding: '1px 3px', textAlign: 'center', borderBottom: '1px solid rgba(255,255,255,0.08)' }}>
+                    {row[col.key]}
+                  </td>
+                ))}
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  );
+}
+
+function ModalValueWidget({ widget }: { widget: DroppedWidget }) {
+  const showTitle = widget.showTitle !== false;
+  const displayTitle = widget.customTitle ?? widget.item.label;
+  return (
+    <div className="w-full h-full flex flex-col justify-center px-2 overflow-hidden">
+      {showTitle && (
+        <div
+          className="truncate mb-0.5 opacity-80 leading-tight"
+          style={{ fontSize: `${Math.max(8, Math.round(widget.style.fontSize * 0.65))}px`, textAlign: widget.style.titleAlign ?? 'left' }}
+        >
+          {displayTitle}
+        </div>
+      )}
+      <div className="font-bold leading-tight truncate" style={{ fontSize: widget.style.fontSize }}>
+        {widget.item.sampleValue}
+        {widget.item.unit && (
+          <span className="font-normal ml-0.5 opacity-70" style={{ fontSize: `${Math.max(8, Math.round(widget.style.fontSize * 0.65))}px` }}>
+            {widget.item.unit}
+          </span>
+        )}
+      </div>
+      <div className="w-full h-0.5 rounded mt-1" style={{ backgroundColor: widget.item.color }} />
+    </div>
+  );
+}
+
+// ─── 레이아웃 미리보기 팝업 ──────────────────────────────────────────────────
+function LayoutViewModal({ layout, onClose }: { layout: TaskboardLayout; onClose: () => void }) {
+  const containerRef = useRef<HTMLDivElement>(null);
+  const [isFullscreen, setIsFullscreen] = useState(false);
+
+  const widgets: DroppedWidget[] = (() => {
+    try {
+      return layout.layoutJson ? (JSON.parse(layout.layoutJson) as DroppedWidget[]) : [];
+    } catch {
+      return [];
+    }
+  })();
+
+  const toggleFullscreen = async () => {
+    if (!document.fullscreenElement) {
+      await containerRef.current?.requestFullscreen();
+    } else {
+      await document.exitFullscreen();
+    }
+  };
+
+  useEffect(() => {
+    const handleFsChange = () => setIsFullscreen(!!document.fullscreenElement);
+    document.addEventListener('fullscreenchange', handleFsChange);
+    return () => document.removeEventListener('fullscreenchange', handleFsChange);
+  }, []);
+
+  useEffect(() => {
+    const handleKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape' && !document.fullscreenElement) onClose();
+    };
+    document.addEventListener('keydown', handleKey);
+    return () => document.removeEventListener('keydown', handleKey);
+  }, [onClose]);
+
+  return (
+    <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/85 backdrop-blur-sm p-6" onClick={onClose}>
+      <div
+        ref={containerRef}
+        className={`relative bg-black overflow-hidden ${isFullscreen ? 'w-screen h-screen' : 'w-full max-w-5xl rounded-xl shadow-2xl'}`}
+        style={!isFullscreen ? { aspectRatio: '16/9' } : undefined}
+        onClick={(e) => e.stopPropagation()}
+      >
+        {layout.fileName && <img src={layout.fileName} alt={layout.layoutName} className="w-full h-full object-contain absolute inset-0" />}
+
+        {widgets.map((widget) => (
+          <div
+            key={widget.id}
+            style={{
+              position: 'absolute',
+              left: `${widget.x}%`,
+              top: `${widget.y}%`,
+              width: `${widget.w ?? 13}%`,
+              height: `${widget.h ?? 16}%`,
+              backgroundColor: widget.style.bgColor,
+              color: widget.style.color,
+              fontFamily: widget.style.fontFamily,
+              fontSize: widget.style.fontSize,
+              overflow: 'hidden',
+            }}
+            className="rounded-lg shadow-xl backdrop-blur-sm border border-white/10"
+          >
+            {widget.item.displayType === 'table' ? <ModalTableWidget widget={widget} /> : <ModalValueWidget widget={widget} />}
+          </div>
+        ))}
+
+        <div className="absolute top-0 left-0 right-0 flex items-center justify-between px-3 py-2 bg-black/70 backdrop-blur-sm">
+          <div className="flex items-center gap-3">
+            <button onClick={onClose} className="text-white/70 hover:text-white text-xs font-semibold px-2 py-1 rounded hover:bg-white/10 transition-colors">
+              ✕ 닫기
+            </button>
+            <span className="text-white font-bold text-sm">{layout.layoutName}</span>
+            {layout.pageName && <span className="text-white/50 text-xs">({layout.pageName})</span>}
+          </div>
+          <div className="flex items-center gap-2">
+            <span className="text-white/40 text-xs">{widgets.length}개 위젯</span>
+            <button
+              onClick={toggleFullscreen}
+              className="text-white/70 hover:text-white p-1.5 rounded hover:bg-white/10 transition-colors"
+              title={isFullscreen ? '전체화면 종료' : '전체화면'}
+            >
+              {isFullscreen ? (
+                <svg viewBox="0 0 24 24" fill="currentColor" className="w-4 h-4">
+                  <path d="M5 16h3v3h2v-5H5v2zm3-8H5v2h5V5H8v3zm6 11h2v-3h3v-2h-5v5zm2-11V5h-2v5h5V8h-3z" />
+                </svg>
+              ) : (
+                <svg viewBox="0 0 24 24" fill="currentColor" className="w-4 h-4">
+                  <path d="M7 14H5v5h5v-2H7v-3zm-2-4h2V7h3V5H5v5zm12 7h-3v2h5v-5h-2v3zM14 5v2h3v3h2V5h-5z" />
+                </svg>
+              )}
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
 
 const getWidgetCount = (layoutJson?: string): number => {
   if (!layoutJson) return 0;
@@ -23,6 +202,7 @@ export default function TaskList() {
   const { data: layoutList = [], isLoading } = useGetTaskboardLayoutList();
   const { mutateAsync: deleteLayout } = useDeleteTaskboardLayout();
   const [deleteTarget, setDeleteTarget] = useState<TaskboardLayout | null>(null);
+  const [viewTarget, setViewTarget] = useState<TaskboardLayout | null>(null);
 
   const handleDeleteConfirm = async () => {
     if (!deleteTarget) return;
@@ -43,7 +223,7 @@ export default function TaskList() {
   };
 
   const goToView = (layout: TaskboardLayout) => {
-    navigate('/taskboard/board/task-view', { state: { layout } });
+    setViewTarget(layout);
   };
 
   return (
@@ -145,6 +325,9 @@ export default function TaskList() {
           })}
         </div>
       )}
+
+      {/* 레이아웃 미리보기 팝업 */}
+      {viewTarget && <LayoutViewModal layout={viewTarget} onClose={() => setViewTarget(null)} />}
 
       {/* 삭제 확인 모달 */}
       {deleteTarget && (

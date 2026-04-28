@@ -2,11 +2,13 @@ import { useMutation, useQuery } from '@tanstack/react-query';
 import { createQueryKeys } from '@lukemorales/query-key-factory';
 import type { MutationHookOptions, QueryHookWithParamsOptions } from '@/shared-util';
 import { taskboardApi } from '../api/taskboardApi';
-import type { TaskboardBg, TaskboardLayout } from '../types/taskboard.types';
+import type { RollingGroup, TaskboardBg, TaskboardLayout } from '../types/taskboard.types';
 
 export const taskboardQueryKeys = createQueryKeys('taskboard-bg', {
   getBgList: (params?: Record<string, unknown>) => [params],
   getLayoutList: () => [{}],
+  getRollingGroupList: () => [{}],
+  getPublicRollingGroup: (token: string) => [token],
 });
 
 /**
@@ -70,5 +72,49 @@ export const useDeleteTaskboardLayout = ({ mutationOptions }: MutationHookOption
   return useMutation({
     mutationFn: taskboardApi.deleteLayout,
     ...mutationOptions,
+  });
+};
+
+// ── 롤링 그룹 훅 ─────────────────────────────────────────────────────────
+
+export const useGetRollingGroupList = ({ queryOptions }: QueryHookWithParamsOptions<RollingGroup[]> = {}) => {
+  return useQuery({
+    queryKey: taskboardQueryKeys.getRollingGroupList().queryKey,
+    queryFn: () => taskboardApi.getRollingGroupList(),
+    ...queryOptions,
+  });
+};
+
+export const useCreateRollingGroup = ({
+  mutationOptions,
+}: MutationHookOptions<any, { groupName: string; layoutIds: string; intervalSec: number; rollingData: string; tenantId?: string }> = {}) => {
+  return useMutation({
+    mutationFn: taskboardApi.createRollingGroup,
+    ...mutationOptions,
+  });
+};
+
+export const useUpdateRollingGroup = ({
+  mutationOptions,
+}: MutationHookOptions<any, { groupId: number; groupName: string; layoutIds: string; intervalSec: number; rollingData: string }> = {}) => {
+  return useMutation({
+    mutationFn: taskboardApi.updateRollingGroup,
+    ...mutationOptions,
+  });
+};
+
+export const useDeleteRollingGroup = ({ mutationOptions }: MutationHookOptions<any, number> = {}) => {
+  return useMutation({
+    mutationFn: taskboardApi.deleteRollingGroup,
+    ...mutationOptions,
+  });
+};
+
+export const useGetPublicRollingGroup = (token: string, { queryOptions }: QueryHookWithParamsOptions<RollingGroup> = {}) => {
+  return useQuery({
+    queryKey: taskboardQueryKeys.getPublicRollingGroup(token).queryKey,
+    queryFn: () => taskboardApi.getPublicRollingGroup(token),
+    enabled: !!token,
+    ...queryOptions,
   });
 };

@@ -297,7 +297,6 @@ function CanvasWidget({ widget, isSelected, onSelect, onRemove, onResizeStart }:
         isSelected ? 'ring-2 ring-white ring-offset-1 ring-offset-transparent border-white/60' : 'border-white/10'
       }`}
     >
-      {/* 삭제 버튼 */}
       <button
         onClick={(e) => {
           e.stopPropagation();
@@ -308,7 +307,12 @@ function CanvasWidget({ widget, isSelected, onSelect, onRemove, onResizeStart }:
         ×
       </button>
 
-      {/* 드래그 핸들 + 콘텐츠 */}
+      {isSelected && (
+        <div className="absolute -top-5 left-0 bg-black/80 text-white text-[9px] px-1.5 py-0.5 rounded font-mono z-30 pointer-events-none whitespace-nowrap leading-tight">
+          X:{widget.x.toFixed(1)}% Y:{widget.y.toFixed(1)}% W:{w.toFixed(1)}% H:{h.toFixed(1)}%
+        </div>
+      )}
+
       <div {...listeners} {...attributes} className="cursor-grab active:cursor-grabbing w-full h-full p-2 flex flex-col justify-center">
         {isTable ? (
           <TableWidget widget={widget} />
@@ -335,7 +339,6 @@ function CanvasWidget({ widget, isSelected, onSelect, onRemove, onResizeStart }:
         )}
       </div>
 
-      {/* 리사이즈 핸들 (우하단) */}
       <div
         className="absolute bottom-0 right-0 w-4 h-4 flex items-center justify-center cursor-se-resize z-20 opacity-0 group-hover:opacity-100 transition-opacity"
         style={{ touchAction: 'none' }}
@@ -390,7 +393,6 @@ export default function TaskCreate() {
   const layout = state?.layout;
   const userInfo = useAuthStore((s) => s.userInfo);
 
-  // 편집 모드: layout이 있으면 수정, 없으면 신규 생성
   const isEditMode = !!layout?.layoutId;
   const fileName = layout?.fileName ?? bg?.fileName ?? '';
 
@@ -399,12 +401,24 @@ export default function TaskCreate() {
   const [activeDrag, setActiveDrag] = useState<DragInfo | null>(null);
   const [selectedWidgetId, setSelectedWidgetId] = useState<string | null>(null);
   const [editingTitleId, setEditingTitleId] = useState<string | null>(null);
+  const [imageRatio, setImageRatio] = useState<string>('16/9');
 
   const { mutateAsync: createLayout, isPending: isCreating } = useCreateTaskboardLayout();
   const { mutateAsync: updateLayout, isPending: isUpdating } = useUpdateLayout();
   const isSaving = isCreating || isUpdating;
 
-  // 저장된 레이아웃 파싱
+  // 실제 이미지 크기로 aspectRatio 계산
+  useEffect(() => {
+    if (!fileName) return;
+    const img = new Image();
+    img.onload = () => {
+      if (img.naturalWidth > 0 && img.naturalHeight > 0) {
+        setImageRatio(`${img.naturalWidth}/${img.naturalHeight}`);
+      }
+    };
+    img.src = fileName;
+  }, [fileName]);
+
   const initialWidgets: DroppedWidget[] = (() => {
     try {
       const json = layout?.layoutJson;
@@ -437,17 +451,14 @@ export default function TaskCreate() {
 
   useEffect(() => {
     const handlePointerMove = (e: PointerEvent) => {
-      if (!resizeStateRef.current) return;
+      const resize = resizeStateRef.current;
+      if (!resize) return;
       const boardEl = boardContainerRef.current;
       if (!boardEl) return;
       const boardRect = boardEl.getBoundingClientRect();
-      const dx = ((e.clientX - resizeStateRef.current.startMouseX) / boardRect.width) * 100;
-      const dy = ((e.clientY - resizeStateRef.current.startMouseY) / boardRect.height) * 100;
-      setDroppedWidgets((prev) =>
-        prev.map((w) =>
-          w.id === resizeStateRef.current!.widgetId ? { ...w, w: Math.max(6, resizeStateRef.current!.startW + dx), h: Math.max(4, resizeStateRef.current!.startH + dy) } : w,
-        ),
-      );
+      const dx = ((e.clientX - resize.startMouseX) / boardRect.width) * 100;
+      const dy = ((e.clientY - resize.startMouseY) / boardRect.height) * 100;
+      setDroppedWidgets((prev) => prev.map((w) => (w.id === resize.widgetId ? { ...w, w: Math.max(6, resize.startW + dx), h: Math.max(4, resize.startH + dy) } : w)));
     };
     const handlePointerUp = () => {
       resizeStateRef.current = null;
@@ -519,6 +530,10 @@ export default function TaskCreate() {
     setDroppedWidgets((prev) => prev.map((w) => (w.id === id ? { ...w, ...patch } : w)));
   };
 
+  const updateWidgetPosition = (id: string, patch: Partial<Pick<DroppedWidget, 'x' | 'y' | 'w' | 'h'>>) => {
+    setDroppedWidgets((prev) => prev.map((w) => (w.id === id ? { ...w, ...patch } : w)));
+  };
+
   const handleSave = async () => {
     const pageId = layout?.pageId ?? bg?.pageId;
     if (!pageId) {
@@ -552,14 +567,14 @@ export default function TaskCreate() {
   return (
     <DndContext sensors={sensors} onDragStart={handleDragStart} onDragEnd={handleDragEnd}>
       <div className="flex h-screen bg-slate-100 font-sans overflow-hidden">
-        {/* ── 왼쪽 패널 ── */}
-        <div className="w-72 flex-shrink-0 bg-white border-r border-slate-200 flex flex-col shadow-sm">
-          <div className="px-4 py-3 border-b border-slate-100">
+        {/* ── 왼쪽 패널: 콜데이터 리스트 ── */}
+        <div className="w-60 flex-shrink-0 bg-white border-r border-slate-200 flex flex-col shadow-sm">
+          <div className="px-4 py-3 border-b border-slate-100 flex-shrink-0">
             <button onClick={() => navigate(-1)} className="text-xs text-slate-400 hover:text-slate-600 mb-2 block">
               ← 돌아가기
             </button>
             <h2 className="text-sm font-bold text-slate-800">콜데이터 리스트</h2>
-            <p className="text-xs text-slate-400 mt-0.5">항목을 오른쪽 배경에 드래그하세요</p>
+            <p className="text-xs text-slate-400 mt-0.5">항목을 가운데 배경에 드래그하세요</p>
           </div>
 
           <div className="flex-1 overflow-y-auto">
@@ -586,201 +601,20 @@ export default function TaskCreate() {
               </div>
             ))}
           </div>
-
-          {/* 스타일 패널 */}
-          {selectedWidget ? (
-            <div className="border-t border-slate-200 p-3 bg-slate-50 flex flex-col gap-2 overflow-y-auto max-h-[60vh]">
-              <div className="flex items-center justify-between">
-                <span className="text-xs font-bold text-slate-700 truncate flex-1">{selectedWidget.customTitle ?? selectedWidget.item.label}</span>
-                <button onClick={() => setSelectedWidgetId(null)} className="text-slate-400 hover:text-slate-600 text-xs ml-2 flex-shrink-0">
-                  닫기
-                </button>
-              </div>
-
-              {/* 타이틀 표시 토글 */}
-              <div className="flex items-center justify-between py-1 px-2 bg-white rounded border border-slate-200">
-                <span className="text-[10px] text-slate-600 font-semibold">타이틀 표시</span>
-                <button
-                  onClick={() => updateWidgetMeta(selectedWidget.id, { showTitle: !selectedWidget.showTitle })}
-                  className={`relative flex-shrink-0 h-5 w-9 rounded-full transition-colors ${selectedWidget.showTitle !== false ? 'bg-[#0f5b9e]' : 'bg-slate-200'}`}
-                >
-                  <span
-                    className={`absolute top-0.5 left-0.5 h-4 w-4 rounded-full bg-white shadow transition-transform ${selectedWidget.showTitle !== false ? 'translate-x-4' : 'translate-x-0'}`}
-                  />
-                </button>
-              </div>
-
-              {/* 타이틀 변경 */}
-              {selectedWidget.showTitle !== false && (
-                <div>
-                  <label className="text-[10px] text-slate-500 font-semibold uppercase tracking-wide block mb-1">타이틀 변경</label>
-                  {editingTitleId === selectedWidget.id ? (
-                    <div className="flex gap-1">
-                      <input
-                        autoFocus
-                        defaultValue={selectedWidget.customTitle ?? selectedWidget.item.label}
-                        onKeyDown={(e) => {
-                          if (e.key === 'Enter') {
-                            updateWidgetMeta(selectedWidget.id, { customTitle: e.currentTarget.value || undefined });
-                            setEditingTitleId(null);
-                          } else if (e.key === 'Escape') setEditingTitleId(null);
-                        }}
-                        className="flex-1 text-xs border border-slate-200 rounded px-2 py-1 bg-white focus:outline-none focus:border-[#0f5b9e]"
-                        placeholder={selectedWidget.item.label}
-                      />
-                      <button onClick={() => setEditingTitleId(null)} className="text-[10px] px-2 py-1 bg-slate-200 rounded hover:bg-slate-300">
-                        완료
-                      </button>
-                    </div>
-                  ) : (
-                    <button
-                      onClick={() => setEditingTitleId(selectedWidget.id)}
-                      className="w-full text-left text-xs px-2 py-1.5 bg-white border border-slate-200 rounded hover:border-[#0f5b9e] text-slate-600 truncate"
-                    >
-                      {selectedWidget.customTitle ?? selectedWidget.item.label}
-                      <span className="ml-1 text-slate-400 text-[9px]">✎</span>
-                    </button>
-                  )}
-                  {selectedWidget.customTitle && (
-                    <button onClick={() => updateWidgetMeta(selectedWidget.id, { customTitle: undefined })} className="text-[9px] text-red-400 hover:text-red-600 mt-0.5">
-                      원래 이름으로 초기화
-                    </button>
-                  )}
-                </div>
-              )}
-
-              {/* 타이틀 정렬 */}
-              {selectedWidget.showTitle !== false && (
-                <div>
-                  <label className="text-[10px] text-slate-500 font-semibold uppercase tracking-wide block mb-1">타이틀 정렬</label>
-                  <div className="flex gap-1">
-                    {(['left', 'center', 'right'] as const).map((align) => (
-                      <button
-                        key={align}
-                        onClick={() => updateWidgetStyle(selectedWidget.id, { titleAlign: align })}
-                        className={`flex-1 py-1 rounded border text-[10px] font-semibold transition-colors ${
-                          (selectedWidget.style.titleAlign ?? 'left') === align
-                            ? 'bg-[#0f5b9e] text-white border-[#0f5b9e]'
-                            : 'bg-white text-slate-500 border-slate-200 hover:border-[#0f5b9e]'
-                        }`}
-                      >
-                        {align === 'left' ? '← 왼쪽' : align === 'center' ? '≡ 가운데' : '→ 오른쪽'}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-              )}
-
-              {/* 폰트 크기 */}
-              <div>
-                <label className="text-[10px] text-slate-500 font-semibold uppercase tracking-wide block mb-1">폰트 크기</label>
-                <select
-                  value={selectedWidget.style.fontSize}
-                  onChange={(e) => updateWidgetStyle(selectedWidget.id, { fontSize: Number(e.target.value) })}
-                  className="w-full text-xs border border-slate-200 rounded px-2 py-1 bg-white focus:outline-none focus:border-[#0f5b9e]"
-                >
-                  {FONT_SIZES.map((s) => (
-                    <option key={s} value={s}>
-                      {s}px
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              {/* 폰트 패밀리 */}
-              <div>
-                <label className="text-[10px] text-slate-500 font-semibold uppercase tracking-wide block mb-1">폰트</label>
-                <select
-                  value={selectedWidget.style.fontFamily}
-                  onChange={(e) => updateWidgetStyle(selectedWidget.id, { fontFamily: e.target.value })}
-                  className="w-full text-xs border border-slate-200 rounded px-2 py-1 bg-white focus:outline-none focus:border-[#0f5b9e]"
-                >
-                  {FONT_FAMILIES.map((f) => (
-                    <option key={f.value} value={f.value} style={{ fontFamily: f.value }}>
-                      {f.label}
-                    </option>
-                  ))}
-                </select>
-                <div
-                  className="mt-1 px-2 py-1 bg-slate-800 rounded text-center text-white"
-                  style={{ fontFamily: selectedWidget.style.fontFamily, fontSize: selectedWidget.style.fontSize }}
-                >
-                  Aa 가나다 123
-                </div>
-              </div>
-
-              {/* 텍스트 / 배경 색상 */}
-              <div className="flex gap-2 items-center">
-                <div className="flex-1">
-                  <label className="text-[10px] text-slate-500 font-semibold uppercase tracking-wide block mb-1">텍스트</label>
-                  <input
-                    type="color"
-                    value={selectedWidget.style.color}
-                    onChange={(e) => updateWidgetStyle(selectedWidget.id, { color: e.target.value })}
-                    className="w-full h-7 rounded border border-slate-200 cursor-pointer"
-                  />
-                </div>
-                <div className="flex-1">
-                  <label className="text-[10px] text-slate-500 font-semibold uppercase tracking-wide block mb-1">배경</label>
-                  <input
-                    type="color"
-                    value={selectedWidget.style.bgColor.startsWith('rgba') ? '#000000' : selectedWidget.style.bgColor}
-                    onChange={(e) => updateWidgetStyle(selectedWidget.id, { bgColor: e.target.value })}
-                    className="w-full h-7 rounded border border-slate-200 cursor-pointer"
-                  />
-                </div>
-              </div>
-
-              {/* 배경 프리셋 */}
-              <div className="flex gap-1 flex-wrap">
-                {[
-                  { label: '반투명 검정', value: 'rgba(0,0,0,0.7)' },
-                  { label: '반투명 파랑', value: 'rgba(15,91,158,0.85)' },
-                  { label: '불투명 흰색', value: '#ffffff' },
-                  { label: '투명', value: 'rgba(0,0,0,0)' },
-                ].map((p) => (
-                  <button
-                    key={p.value}
-                    onClick={() => updateWidgetStyle(selectedWidget.id, { bgColor: p.value })}
-                    className="text-[9px] px-2 py-1 rounded border border-slate-200 bg-white text-slate-600 hover:border-[#0f5b9e] hover:text-[#0f5b9e] transition-colors"
-                  >
-                    {p.label}
-                  </button>
-                ))}
-              </div>
-            </div>
-          ) : (
-            <div className="px-4 py-3 border-t border-slate-100 text-xs text-slate-400">
-              배치된 위젯: <span className="font-bold text-slate-600">{droppedWidgets.length}개</span>
-              {droppedWidgets.length > 0 && (
-                <button
-                  onClick={() => {
-                    setDroppedWidgets([]);
-                    setSelectedWidgetId(null);
-                  }}
-                  className="ml-2 text-red-400 hover:text-red-600 font-semibold"
-                >
-                  전체 삭제
-                </button>
-              )}
-              {droppedWidgets.length > 0 && <p className="mt-1 text-[10px]">위젯 클릭 → 스타일 편집 / 우하단 모서리 드래그 → 크기 조절</p>}
-            </div>
-          )}
         </div>
 
-        {/* ── 오른쪽 패널: 전광판 캔버스 ── */}
+        {/* ── 가운데 패널: 캔버스 ── */}
         <div className="flex-1 flex flex-col overflow-hidden">
-          <div className="px-6 py-3 bg-white border-b border-slate-200 flex items-center justify-between">
-            <div className="flex items-center gap-3 flex-1 min-w-0">
-              <div className="flex-1 min-w-0">
-                <input
-                  value={boardTitle}
-                  onChange={(e) => setBoardTitle(e.target.value)}
-                  className="text-base font-bold text-slate-800 bg-transparent border-b border-transparent hover:border-slate-300 focus:border-[#0f5b9e] outline-none px-1 w-full max-w-xs truncate"
-                  placeholder="전광판 이름 입력"
-                />
-                <p className="text-xs text-slate-400">{isEditMode ? '편집 모드' : '신규 생성'} · 왼쪽 항목 드래그 · 위젯 클릭으로 스타일 편집 · 우하단 드래그로 크기 조절</p>
-              </div>
+          {/* 헤더 바 */}
+          <div className="px-4 py-3 bg-white border-b border-slate-200 flex items-center justify-between flex-shrink-0">
+            <div className="flex-1 min-w-0 mr-4">
+              <input
+                value={boardTitle}
+                onChange={(e) => setBoardTitle(e.target.value)}
+                className="text-base font-bold text-slate-800 bg-transparent border-b border-transparent hover:border-slate-300 focus:border-[#0f5b9e] outline-none px-1 w-full max-w-xs truncate"
+                placeholder="전광판 이름 입력"
+              />
+              <p className="text-xs text-slate-400 mt-0.5">{isEditMode ? '편집 모드' : '신규 생성'} · 왼쪽 항목 드래그 · 위젯 클릭 선택 · 우하단 드래그 크기조절</p>
             </div>
             <div className="flex gap-2 flex-shrink-0">
               <button
@@ -802,8 +636,9 @@ export default function TaskCreate() {
             </div>
           </div>
 
-          <div className="flex-1 p-6 flex items-center justify-center overflow-hidden">
-            <div ref={boardContainerRef} className="w-full max-w-5xl" style={{ aspectRatio: '16/9' }}>
+          {/* 캔버스 영역 */}
+          <div className="flex-1 p-4 flex items-center justify-center overflow-hidden">
+            <div ref={boardContainerRef} className="w-full max-w-5xl" style={{ aspectRatio: imageRatio }}>
               <DroppableBoard fileName={fileName} pageName={boardTitle} onClickCanvas={() => setSelectedWidgetId(null)}>
                 {droppedWidgets.map((widget) => (
                   <CanvasWidget
@@ -818,6 +653,240 @@ export default function TaskCreate() {
               </DroppableBoard>
             </div>
           </div>
+        </div>
+
+        {/* ── 오른쪽 패널: 스타일 옵션 ── */}
+        <div className="w-72 flex-shrink-0 bg-white border-l border-slate-200 flex flex-col shadow-sm">
+          {selectedWidget ? (
+            <>
+              <div className="px-4 py-3 border-b border-slate-100 flex items-center justify-between flex-shrink-0">
+                <span className="text-sm font-bold text-slate-700 truncate flex-1">{selectedWidget.customTitle ?? selectedWidget.item.label}</span>
+                <button onClick={() => setSelectedWidgetId(null)} className="text-slate-400 hover:text-slate-600 text-xs ml-2 flex-shrink-0">
+                  닫기
+                </button>
+              </div>
+
+              <div className="flex-1 overflow-y-auto p-3 flex flex-col gap-2">
+                {/* 위치/크기 직접 입력 */}
+                <div className="grid grid-cols-4 gap-1">
+                  {(
+                    [
+                      { label: 'X', field: 'x' as const, value: selectedWidget.x, min: 0, max: 99 },
+                      { label: 'Y', field: 'y' as const, value: selectedWidget.y, min: 0, max: 99 },
+                      { label: 'W', field: 'w' as const, value: selectedWidget.w ?? DEFAULT_W, min: 6, max: 100 },
+                      { label: 'H', field: 'h' as const, value: selectedWidget.h ?? DEFAULT_H, min: 4, max: 100 },
+                    ] as const
+                  ).map(({ label, field, value, min, max }) => (
+                    <div key={`${selectedWidget.id}-${label}`} className="px-1 pt-1 pb-0.5 bg-slate-800 rounded text-center">
+                      <div className="text-[8px] text-slate-400 font-semibold">{label}</div>
+                      <input
+                        type="number"
+                        step="0.5"
+                        min={min}
+                        max={max}
+                        defaultValue={parseFloat(value.toFixed(1))}
+                        onBlur={(e) => {
+                          const num = parseFloat(e.target.value);
+                          if (!isNaN(num)) updateWidgetPosition(selectedWidget.id, { [field]: Math.max(min, Math.min(max, num)) });
+                        }}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter') e.currentTarget.blur();
+                        }}
+                        className="w-full text-[10px] font-mono text-white font-bold bg-transparent text-center border-b border-slate-600 focus:border-blue-400 outline-none"
+                      />
+                      <div className="text-[8px] text-slate-500 leading-none mt-0.5">%</div>
+                    </div>
+                  ))}
+                </div>
+
+                {/* 타이틀 표시 토글 */}
+                <div className="flex items-center justify-between py-1 px-2 bg-white rounded border border-slate-200">
+                  <span className="text-[10px] text-slate-600 font-semibold">타이틀 표시</span>
+                  <button
+                    onClick={() => updateWidgetMeta(selectedWidget.id, { showTitle: !selectedWidget.showTitle })}
+                    className={`relative flex-shrink-0 h-5 w-9 rounded-full transition-colors ${selectedWidget.showTitle !== false ? 'bg-[#0f5b9e]' : 'bg-slate-200'}`}
+                  >
+                    <span
+                      className={`absolute top-0.5 left-0.5 h-4 w-4 rounded-full bg-white shadow transition-transform ${selectedWidget.showTitle !== false ? 'translate-x-4' : 'translate-x-0'}`}
+                    />
+                  </button>
+                </div>
+
+                {/* 타이틀 변경 */}
+                {selectedWidget.showTitle !== false && (
+                  <div>
+                    <label className="text-[10px] text-slate-500 font-semibold uppercase tracking-wide block mb-1">타이틀 변경</label>
+                    {editingTitleId === selectedWidget.id ? (
+                      <div className="flex gap-1">
+                        <input
+                          autoFocus
+                          defaultValue={selectedWidget.customTitle ?? selectedWidget.item.label}
+                          onKeyDown={(e) => {
+                            if (e.key === 'Enter') {
+                              updateWidgetMeta(selectedWidget.id, { customTitle: e.currentTarget.value || undefined });
+                              setEditingTitleId(null);
+                            } else if (e.key === 'Escape') setEditingTitleId(null);
+                          }}
+                          className="flex-1 text-xs border border-slate-200 rounded px-2 py-1 bg-white focus:outline-none focus:border-[#0f5b9e]"
+                          placeholder={selectedWidget.item.label}
+                        />
+                        <button onClick={() => setEditingTitleId(null)} className="text-[10px] px-2 py-1 bg-slate-200 rounded hover:bg-slate-300">
+                          완료
+                        </button>
+                      </div>
+                    ) : (
+                      <button
+                        onClick={() => setEditingTitleId(selectedWidget.id)}
+                        className="w-full text-left text-xs px-2 py-1.5 bg-white border border-slate-200 rounded hover:border-[#0f5b9e] text-slate-600 truncate"
+                      >
+                        {selectedWidget.customTitle ?? selectedWidget.item.label}
+                        <span className="ml-1 text-slate-400 text-[9px]">✎</span>
+                      </button>
+                    )}
+                    {selectedWidget.customTitle && (
+                      <button onClick={() => updateWidgetMeta(selectedWidget.id, { customTitle: undefined })} className="text-[9px] text-red-400 hover:text-red-600 mt-0.5">
+                        원래 이름으로 초기화
+                      </button>
+                    )}
+                  </div>
+                )}
+
+                {/* 타이틀 정렬 */}
+                {selectedWidget.showTitle !== false && (
+                  <div>
+                    <label className="text-[10px] text-slate-500 font-semibold uppercase tracking-wide block mb-1">타이틀 정렬</label>
+                    <div className="flex gap-1">
+                      {(['left', 'center', 'right'] as const).map((align) => (
+                        <button
+                          key={align}
+                          onClick={() => updateWidgetStyle(selectedWidget.id, { titleAlign: align })}
+                          className={`flex-1 py-1 rounded border text-[10px] font-semibold transition-colors ${
+                            (selectedWidget.style.titleAlign ?? 'left') === align
+                              ? 'bg-[#0f5b9e] text-white border-[#0f5b9e]'
+                              : 'bg-white text-slate-500 border-slate-200 hover:border-[#0f5b9e]'
+                          }`}
+                        >
+                          {align === 'left' ? '← 왼쪽' : align === 'center' ? '≡ 가운데' : '→ 오른쪽'}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* 폰트 크기 */}
+                <div>
+                  <label className="text-[10px] text-slate-500 font-semibold uppercase tracking-wide block mb-1">폰트 크기</label>
+                  <select
+                    value={selectedWidget.style.fontSize}
+                    onChange={(e) => updateWidgetStyle(selectedWidget.id, { fontSize: Number(e.target.value) })}
+                    className="w-full text-xs border border-slate-200 rounded px-2 py-1 bg-white focus:outline-none focus:border-[#0f5b9e]"
+                  >
+                    {FONT_SIZES.map((s) => (
+                      <option key={s} value={s}>
+                        {s}px
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                {/* 폰트 패밀리 */}
+                <div>
+                  <label className="text-[10px] text-slate-500 font-semibold uppercase tracking-wide block mb-1">폰트</label>
+                  <select
+                    value={selectedWidget.style.fontFamily}
+                    onChange={(e) => updateWidgetStyle(selectedWidget.id, { fontFamily: e.target.value })}
+                    className="w-full text-xs border border-slate-200 rounded px-2 py-1 bg-white focus:outline-none focus:border-[#0f5b9e]"
+                  >
+                    {FONT_FAMILIES.map((f) => (
+                      <option key={f.value} value={f.value} style={{ fontFamily: f.value }}>
+                        {f.label}
+                      </option>
+                    ))}
+                  </select>
+                  <div
+                    className="mt-1 px-2 py-1 bg-slate-800 rounded text-center text-white"
+                    style={{ fontFamily: selectedWidget.style.fontFamily, fontSize: selectedWidget.style.fontSize }}
+                  >
+                    Aa 가나다 123
+                  </div>
+                </div>
+
+                {/* 텍스트 / 배경 색상 */}
+                <div className="flex gap-2 items-center">
+                  <div className="flex-1">
+                    <label className="text-[10px] text-slate-500 font-semibold uppercase tracking-wide block mb-1">텍스트</label>
+                    <input
+                      type="color"
+                      value={selectedWidget.style.color}
+                      onChange={(e) => updateWidgetStyle(selectedWidget.id, { color: e.target.value })}
+                      className="w-full h-7 rounded border border-slate-200 cursor-pointer"
+                    />
+                  </div>
+                  <div className="flex-1">
+                    <label className="text-[10px] text-slate-500 font-semibold uppercase tracking-wide block mb-1">배경</label>
+                    <input
+                      type="color"
+                      value={selectedWidget.style.bgColor.startsWith('rgba') ? '#000000' : selectedWidget.style.bgColor}
+                      onChange={(e) => updateWidgetStyle(selectedWidget.id, { bgColor: e.target.value })}
+                      className="w-full h-7 rounded border border-slate-200 cursor-pointer"
+                    />
+                  </div>
+                </div>
+
+                {/* 배경 프리셋 */}
+                <div className="flex gap-1 flex-wrap">
+                  {[
+                    { label: '반투명 검정', value: 'rgba(0,0,0,0.7)' },
+                    { label: '반투명 파랑', value: 'rgba(15,91,158,0.85)' },
+                    { label: '불투명 흰색', value: '#ffffff' },
+                    { label: '투명', value: 'rgba(0,0,0,0)' },
+                  ].map((p) => (
+                    <button
+                      key={p.value}
+                      onClick={() => updateWidgetStyle(selectedWidget.id, { bgColor: p.value })}
+                      className="text-[9px] px-2 py-1 rounded border border-slate-200 bg-white text-slate-600 hover:border-[#0f5b9e] hover:text-[#0f5b9e] transition-colors"
+                    >
+                      {p.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            </>
+          ) : (
+            <div className="flex flex-col h-full">
+              <div className="px-4 py-3 border-b border-slate-100 flex-shrink-0">
+                <h2 className="text-sm font-bold text-slate-700">스타일 옵션</h2>
+              </div>
+              <div className="flex-1 flex flex-col items-center justify-center gap-3 text-center px-4">
+                <div className="w-12 h-12 rounded-full bg-slate-100 flex items-center justify-center">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.5} className="w-6 h-6 text-slate-400">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
+                  </svg>
+                </div>
+                <div>
+                  <p className="text-sm font-semibold text-slate-600">위젯을 선택하세요</p>
+                  <p className="text-xs text-slate-400 mt-1">캔버스의 위젯을 클릭하면 스타일을 편집할 수 있습니다.</p>
+                </div>
+                <div className="w-full mt-2 pt-4 border-t border-slate-100">
+                  <p className="text-xs text-slate-500 mb-2">
+                    배치된 위젯: <span className="font-bold text-slate-700">{droppedWidgets.length}개</span>
+                  </p>
+                  {droppedWidgets.length > 0 && (
+                    <button
+                      onClick={() => {
+                        setDroppedWidgets([]);
+                        setSelectedWidgetId(null);
+                      }}
+                      className="w-full py-1.5 text-xs font-semibold text-red-400 border border-red-200 rounded-md hover:bg-red-50 transition-colors"
+                    >
+                      전체 위젯 삭제
+                    </button>
+                  )}
+                </div>
+                {droppedWidgets.length > 0 && <p className="text-[10px] text-slate-400">우하단 모서리 드래그 → 크기 조절</p>}
+              </div>
+            </div>
+          )}
         </div>
       </div>
 

@@ -22,9 +22,9 @@ const menuConfig = {
     },
     {
       menuKey: 'taskboard',
-      label: '얍1',
+      label: '전광판메인',
       icon: IconMenuItemsPlus,
-      index: 0,
+      index: 1,
       hide: false,
       children: [
         {
@@ -35,26 +35,17 @@ const menuConfig = {
           hide: false,
         },
         {
-          menuKey: 'taskboard-list2',
+          menuKey: 'taskboard-list',
           label: '전광판리스트',
           path: 'board/task-list',
           index: 1,
           hide: false,
         },
-      ],
-    },
-    {
-      menuKey: 125,
-      label: '전광판뷰',
-      icon: IconMenuItemsPlus,
-      index: 1,
-      hide: false,
-      children: [
         {
-          menuKey: 127,
-          label: '전광판뷰-sub',
-          path: 'board/task-view',
-          index: 0,
+          menuKey: 'taskboard-mgmt',
+          label: '전광판관리',
+          path: 'board/task-mgmt',
+          index: 2,
           hide: false,
         },
       ],

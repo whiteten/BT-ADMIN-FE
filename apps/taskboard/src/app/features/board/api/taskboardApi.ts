@@ -1,5 +1,5 @@
 import ApiTaskboard, { type DetailResponse, extractDetail } from '@/shared-util';
-import { type TaskboardBg, type TaskboardLayout } from '../types/taskboard.types';
+import { type RollingGroup, type TaskboardBg, type TaskboardLayout } from '../types/taskboard.types';
 
 /**
  * BFF Aggregation Flow를 통한 OAuth2 클라이언트 API 클라이언트
@@ -60,17 +60,52 @@ export const taskboardApi = {
   },
 
   createLayout: async (payload: { pageId: number; tenantId: string; layoutName: string; layoutJson: string; authorName?: string; authRole?: string }): Promise<number> => {
-    const response = await apiTaskboard.post<any>('/taskboard-layoutinsert', payload);
+    const formData = new FormData();
+    formData.append('data', JSON.stringify(payload));
+    const response = await apiTaskboard.post<any>('/taskboard-layoutinsert', formData);
     return response?.data?.data ?? 0;
   },
 
   updateLayout: async ({ layoutId, layoutName, layoutJson }: { layoutId: number; layoutName: string; layoutJson: string }): Promise<any> => {
-    const response = await apiTaskboard.put('/taskboard-layoutupdate', { layoutName, layoutJson }, { params: { layoutId } });
+    const formData = new FormData();
+    formData.append('data', JSON.stringify({ layoutId, layoutName, layoutJson }));
+    const response = await apiTaskboard.post('/taskboard-layoutupdate', formData, { params: { layoutId } });
     return response.data;
   },
 
   deleteLayout: async (layoutId: number): Promise<any> => {
     const response = await apiTaskboard.delete('/taskboard-layoutdelete', { params: { layoutId } });
     return response.data;
+  },
+
+  // ── 롤링 그룹 API ────────────────────────────────────────────────────────
+
+  getRollingGroupList: async (): Promise<RollingGroup[]> => {
+    const response = await apiTaskboard.get<any>('/taskboard-rollinggroup-list');
+    const list = response?.data?.data?.value ?? response?.data?.data;
+    return Array.isArray(list) ? list : [];
+  },
+
+  createRollingGroup: async (payload: { groupName: string; layoutIds: string; intervalSec: number; rollingData: string; tenantId?: string }): Promise<number> => {
+    const response = await apiTaskboard.post<any>('/taskboard-rollinggroup-insert', payload);
+    return response?.data?.data ?? 0;
+  },
+
+  updateRollingGroup: async (payload: { groupId: number; groupName: string; layoutIds: string; intervalSec: number; rollingData: string }): Promise<any> => {
+    const response = await apiTaskboard.post('/taskboard-rollinggroup-update', payload);
+    return response.data;
+  },
+
+  deleteRollingGroup: async (groupId: number): Promise<any> => {
+    const response = await apiTaskboard.delete(`/taskboard-rollinggroup-delete/${groupId}`);
+    return response.data;
+  },
+
+  /** 공개 토큰으로 롤링 그룹 조회 — 인증 없이 직접 fetch */
+  getPublicRollingGroup: async (token: string): Promise<RollingGroup> => {
+    const response = await fetch(`/api/taskboard/public/rolling-group/${token}`);
+    if (!response.ok) throw new Error(`HTTP ${response.status}`);
+    const json = await response.json();
+    return json.data as RollingGroup;
   },
 };

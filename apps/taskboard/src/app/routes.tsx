@@ -2,10 +2,10 @@ import React from 'react';
 import { Navigate, Outlet } from 'react-router-dom';
 import { NotFound } from '@/components/custom/NotFound';
 const Main = React.lazy(() => import('./pages/main/Main'));
-const View = React.lazy(() => import('./pages/board/task-view'));
 const List = React.lazy(() => import('./pages/board/task-list'));
-const Create = React.lazy(() => import('./pages/board/task-create'));
 const BgManage = React.lazy(() => import('./pages/board/task-bg'));
+const Mgmt = React.lazy(() => import('./pages/board/task-mgmt'));
+const Create = React.lazy(() => import('./pages/board/task-create'));
 export const routes = [
   {
     path: '/',
@@ -24,20 +24,20 @@ export const routes = [
         element: <Outlet />,
         children: [
           {
-            path: 'task-view',
-            element: <View />,
+            path: 'task-bg',
+            element: <BgManage />,
           },
           {
             path: 'task-list',
             element: <List />,
           },
           {
-            path: 'task-create',
-            element: <Create />,
+            path: 'task-mgmt',
+            element: <Mgmt />,
           },
           {
-            path: 'task-bg',
-            element: <BgManage />,
+            path: 'task-create',
+            element: <Create />,
           },
         ],
       },

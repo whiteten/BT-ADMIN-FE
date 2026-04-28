@@ -147,6 +147,22 @@ export interface DroppedWidget {
   style: WidgetStyle;
 }
 
+/** 전광판 롤링 그룹 (DB: TB_TK_ROLLING_GROUP) */
+export interface RollingGroup {
+  groupId: number;
+  tenantId?: string;
+  groupName: string;
+  /** 포함 레이아웃 ID 배열 JSON 문자열 "[1,2,3]" */
+  layoutIds: string;
+  intervalSec: number;
+  /** 공개 URL 접근용 UUID 토큰 (서버 자동 발급) */
+  publicToken: string;
+  /** 레이아웃 스냅샷 JSON — 공개 뷰에서 사용 */
+  rollingData?: string;
+  useYn: string;
+  regDt: string;
+}
+
 /** 레이아웃 존 */
 export interface LayoutZone {
   id: string;
