@@ -103,12 +103,6 @@ function createRemote() {
       // 신규앱의 module-federation.config.ts 파일을 manager와 동일하게 변경
       updateModuleFederationConfig(trimmedAppName);
 
-      // 신규앱의 menu-config.ts 파일을 manager의 sample에서 복사
-      createMenuConfig(trimmedAppName);
-
-      // host의 menuLoaders.ts 업데이트
-      updateMenuLoaders(trimmedAppName);
-
       // 신규앱의 package.json 파일 생성
       createPackageJson(trimmedAppName);
 
@@ -388,86 +382,6 @@ function updateModuleFederationConfig(appName) {
     logSuccess(appName, 'module-federation.config.ts 파일을 manager와 동일하게 변경', timer);
   } catch (error) {
     logError(appName, 'module-federation.config.ts 파일 처리', error);
-  }
-}
-
-function createMenuConfig(appName) {
-  const timer = createTimer();
-  logStart(appName, 'menu-config.ts 파일 생성');
-  try {
-    const menuConfigDefaultPath = path.join(process.cwd(), 'apps/manager/src/app/features/sample/menu-config.ts');
-    const targetMenuConfigDir = path.join(process.cwd(), `apps/${appName}/src/app/features/sidebar`);
-    const targetMenuConfigPath = path.join(targetMenuConfigDir, 'menu-config.ts');
-
-    // menu-config-default.ts 파일 읽기
-    if (!fs.existsSync(menuConfigDefaultPath)) {
-      logError('manager', 'src/app/features/sample/menu-config.ts 파일을 찾을 수 없음');
-      return;
-    }
-
-    let menuConfigContent = fs.readFileSync(menuConfigDefaultPath, 'utf8');
-
-    // appId, appName 변수값을 새 앱 이름으로 변경
-    menuConfigContent = menuConfigContent.replace(/const appId = '';/, `const appId = '${appName}';`);
-    menuConfigContent = menuConfigContent.replace(/const appName = '';/, `const appName = '${appName.toUpperCase()}';`);
-    menuConfigContent = menuConfigContent.replace(/menuKey: 'replace_menuKey',/, `menuKey: '${appName}-main',`);
-
-    // 디렉토리가 없으면 생성
-    if (!fs.existsSync(targetMenuConfigDir)) {
-      fs.mkdirSync(targetMenuConfigDir, { recursive: true });
-      logProgress(`${appName}/src/app/features/sidebar 디렉토리 생성`);
-    }
-
-    // menu-config.ts 파일 생성
-    fs.writeFileSync(targetMenuConfigPath, menuConfigContent);
-    logInfo(appName, `appName 변수를 '${appName}'으로 설정`);
-    logSuccess(appName, 'menu-config.ts 파일 생성', timer);
-  } catch (error) {
-    logError(appName, 'menu-config.ts 파일 처리', error);
-  }
-}
-
-function updateMenuLoaders(appName) {
-  const timer = createTimer();
-  logStart('host', `useMenuLoader.ts에 ${appName} 메뉴 로더 추가`);
-  try {
-    const useMenuLoaderPath = path.join(process.cwd(), 'apps/host/src/app/features/layout/hooks/useMenuLoader.ts');
-
-    // useMenuLoader.ts 파일이 존재하는지 확인
-    if (!fs.existsSync(useMenuLoaderPath)) {
-      logError('host', 'useMenuLoader.ts 파일을 찾을 수 없음');
-      return;
-    }
-
-    const content = fs.readFileSync(useMenuLoaderPath, 'utf8');
-
-    // MENU_LOADERS 객체 찾기
-    const menuLoadersRegex = /const MENU_LOADERS: Record<string, \(\) => Promise<MenuModule>> = \{([\s\S]*?)\};/;
-    const match = content.match(menuLoadersRegex);
-
-    if (match) {
-      const currentLoaders = match[1];
-
-      // 이미 존재하는지 확인
-      if (currentLoaders.includes(`${appName}:`)) {
-        logInfo('host', `${appName} 로더가 이미 존재함 (스킵)`);
-        return;
-      }
-
-      // 새 로더 추가 (마지막 항목 뒤에)
-      const newLoader = `  ${appName}: () => import('${appName}/MenuConfig').catch(() => ({ default: {} })) as Promise<MenuModule>,`;
-      const updatedLoaders = currentLoaders.trimEnd() + '\n' + newLoader;
-
-      const updatedContent = content.replace(menuLoadersRegex, `const MENU_LOADERS: Record<string, () => Promise<MenuModule>> = {${updatedLoaders}\n};`);
-
-      // 파일 저장
-      fs.writeFileSync(useMenuLoaderPath, updatedContent);
-      logSuccess('host', `useMenuLoader.ts에 ${appName} 메뉴 로더 추가`, timer);
-    } else {
-      logError('host', 'MENU_LOADERS 객체를 찾을 수 없음');
-    }
-  } catch (error) {
-    logError('host', `${appName} useMenuLoader.ts 업데이트`, error);
   }
 }
 

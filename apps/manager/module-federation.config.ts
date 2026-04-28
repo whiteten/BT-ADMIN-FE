@@ -4,7 +4,6 @@ const config: ModuleFederationConfig = {
   name: 'manager',
   exposes: {
     './Module': './src/remote-entry.ts',
-    './MenuConfig': './src/app/features/sidebar/menu-config.ts',
     './Routes': './src/app/routes.tsx',
   },
   additionalShared: [
