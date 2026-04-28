@@ -9,7 +9,7 @@ const menuConfig = {
   icon: Component,
   menus: [
     {
-      menuId: 78,
+      menuKey: 'aoe-main',
       label: '메인',
       path: 'main',
       index: 0,
@@ -17,28 +17,28 @@ const menuConfig = {
       hide: false,
     },
     {
-      menuId: 80,
+      menuKey: 'aoe-mgmt',
       label: '관리',
       icon: IconMenuBotConfig,
       index: 1,
       hide: false,
       children: [
         {
-          menuId: 82,
+          menuKey: 'aoe-mgmt-agent',
           label: 'Agent',
           path: 'agent-config/agent/list',
           index: 0,
           hide: false,
         },
         {
-          menuId: 107,
+          menuKey: 'aoe-mgmt-model',
           label: 'AI 모델',
           path: 'agent-config/model/list',
           index: 1,
           hide: false,
         },
         {
-          menuId: 115,
+          menuKey: 'aoe-mgmt-know',
           label: '지식',
           path: 'agent-config/knowledge/list',
           index: 2,
