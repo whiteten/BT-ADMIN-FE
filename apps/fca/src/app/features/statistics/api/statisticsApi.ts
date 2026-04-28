@@ -1,14 +1,20 @@
-import ApiClient, { type ListResponse, extractList } from '@/shared-util';
+import ApiClient, { type ListResponse, type StatListResponse, extractList, extractStatList } from '@/shared-util';
 import type {
   DialogOptionListItem,
+  DialogStatList,
   DialogStatListItem,
   EntityOptionListItem,
+  EntityStatList,
   EntityStatListItem,
   IntentOptionListItem,
+  IntentStatList,
   IntentStatListItem,
+  KeywordStatList,
   KeywordStatListItem,
+  ServiceStatList,
   ServiceStatListItem,
   SlotOptionListItem,
+  SlotStatList,
   SlotStatListItem,
 } from '../types/statistics.types';
 
@@ -19,39 +25,39 @@ const apiClient = new ApiClient({ serviceURL: '/bff' });
  */
 export const statisticsApi = {
   // 서비스 통계 목록 조회
-  getServiceStatList: async (params?: Record<string, unknown>): Promise<ServiceStatListItem[]> => {
-    const response = await apiClient.post<ListResponse<ServiceStatListItem>>('/stat-bot-service', params);
-    return extractList(response);
+  getServiceStatList: async (params?: Record<string, unknown>): Promise<ServiceStatList> => {
+    const response = await apiClient.post<StatListResponse<ServiceStatListItem>>('/stat-bot-service', params);
+    return extractStatList(response);
   },
 
   // 대화 통계 목록 조회
-  getDialogStatList: async (params?: Record<string, unknown>): Promise<DialogStatListItem[]> => {
-    const response = await apiClient.post<ListResponse<DialogStatListItem>>('/stat-bot-dialog', params);
-    return extractList(response);
+  getDialogStatList: async (params?: Record<string, unknown>): Promise<DialogStatList> => {
+    const response = await apiClient.post<StatListResponse<DialogStatListItem>>('/stat-bot-dialog', params);
+    return extractStatList(response);
   },
 
   // 슬롯 통계 목록 조회
-  getSlotStatList: async (params?: Record<string, unknown>): Promise<SlotStatListItem[]> => {
-    const response = await apiClient.post<ListResponse<SlotStatListItem>>('/stat-bot-slot', params);
-    return extractList(response);
+  getSlotStatList: async (params?: Record<string, unknown>): Promise<SlotStatList> => {
+    const response = await apiClient.post<StatListResponse<SlotStatListItem>>('/stat-bot-slot', params);
+    return extractStatList(response);
   },
 
   // 의도 통계 목록 조회
-  getIntentStatList: async (params?: Record<string, unknown>): Promise<IntentStatListItem[]> => {
-    const response = await apiClient.post<ListResponse<IntentStatListItem>>('/stat-nlu-intent', params);
-    return extractList(response);
+  getIntentStatList: async (params?: Record<string, unknown>): Promise<IntentStatList> => {
+    const response = await apiClient.post<StatListResponse<IntentStatListItem>>('/stat-nlu-intent', params);
+    return extractStatList(response);
   },
 
   // 개체 통계 목록 조회
-  getEntityStatList: async (params?: Record<string, unknown>): Promise<EntityStatListItem[]> => {
-    const response = await apiClient.post<ListResponse<EntityStatListItem>>('/stat-nlu-entity', params);
-    return extractList(response);
+  getEntityStatList: async (params?: Record<string, unknown>): Promise<EntityStatList> => {
+    const response = await apiClient.post<StatListResponse<EntityStatListItem>>('/stat-nlu-entity', params);
+    return extractStatList(response);
   },
 
   // 키워드 통계 목록 조회
-  getKeywordStatList: async (params?: Record<string, unknown>): Promise<KeywordStatListItem[]> => {
-    const response = await apiClient.post<ListResponse<KeywordStatListItem>>('/stat-nlu-keyword', params);
-    return extractList(response);
+  getKeywordStatList: async (params?: Record<string, unknown>): Promise<KeywordStatList> => {
+    const response = await apiClient.post<StatListResponse<KeywordStatListItem>>('/stat-nlu-keyword', params);
+    return extractStatList(response);
   },
 
   // 대화 옵션 목록 조회
