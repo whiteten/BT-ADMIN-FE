@@ -74,28 +74,28 @@ const menuConfig = {
       ],
     },
     {
-      menuId: 55,
+      menuKey: 'fca-tracking',
       label: '트래킹',
       index: 3,
       hide: false,
       icon: Activity,
       children: [
         {
-          menuId: 56,
+          menuKey: 'tracking-realtime',
           label: '실시간 봇 트래킹',
           path: 'tracking/bot-realtime',
           index: 0,
           hide: false,
         },
         {
-          menuId: 75,
+          menuKey: 'fca-bot-dialog-history',
           label: '대화이력',
           path: 'tracking/bot-dialog-history',
           index: 1,
           hide: false,
         },
         {
-          menuId: 117,
+          menuKey: 'bot-dialog-decrypt-log',
           label: '개인정보 열람 이력',
           path: 'tracking/decrypt-log',
           index: 2,
