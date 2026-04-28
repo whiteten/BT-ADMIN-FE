@@ -14,7 +14,7 @@ const ROUTE_LOADERS: Record<string, () => Promise<RoutesModule>> = {
 
 const PARAM_KEY_PATTERN = /:([A-Za-z_][A-Za-z0-9_]*)/g;
 
-const flattenRoutes = (routes: RouteObject[], remote: string, parentPath = ''): RemoteRouteEntry[] => {
+const flattenRoutes = (routes: RouteObject[], parentPath = ''): RemoteRouteEntry[] => {
   const entries: RemoteRouteEntry[] = [];
   for (const route of routes) {
     if (route.path === '*') continue;
@@ -22,24 +22,20 @@ const flattenRoutes = (routes: RouteObject[], remote: string, parentPath = ''): 
     const segment = route.path?.replace(/^\/+|\/+$/g, '') ?? '';
     const fullSegment = route.index ? parentPath : parentPath ? `${parentPath}/${segment}` : segment;
 
-    const elementType = (route.element as { type?: unknown } | null | undefined)?.type as { __meta?: { name?: string; file?: string } } | undefined;
+    const elementType = (route.element as { type?: unknown } | null | undefined)?.type;
     const isSkippableElement = elementType === Navigate || elementType === Outlet;
     const children = route.children && route.children.length > 0 ? route.children : null;
 
     if (route.element && !isSkippableElement && !children) {
       const paramKeys = fullSegment.match(PARAM_KEY_PATTERN)?.map((m) => m.slice(1));
-      const meta = elementType?.__meta;
       entries.push({
         path: fullSegment,
-        fullPath: `/${remote}/${fullSegment}`,
-        ...(meta?.name ? { componentName: meta.name } : {}),
-        ...(meta?.file ? { file: meta.file } : {}),
         ...(paramKeys && paramKeys.length > 0 ? { paramKeys } : {}),
       });
     }
 
     if (children) {
-      entries.push(...flattenRoutes(children, remote, fullSegment));
+      entries.push(...flattenRoutes(children, fullSegment));
     }
   }
   return entries;
@@ -49,7 +45,7 @@ const loadRemoteRoutes = async (): Promise<RemoteRoutesMap> => {
   const entries = await Promise.all(
     Object.entries(ROUTE_LOADERS).map(async ([name, loader]) => {
       const routesModule = await loader();
-      return [name, flattenRoutes(routesModule.routes, name)] as const;
+      return [name, flattenRoutes(routesModule.routes)] as const;
     }),
   );
   return Object.fromEntries(entries);
