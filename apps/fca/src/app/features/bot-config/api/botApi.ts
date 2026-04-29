@@ -157,4 +157,8 @@ export const botApi = {
     const response = await apiClient.get<Blob>('/bot-scenario-download', { params, responseType: 'blob' });
     return response;
   },
+  createBotVersionCopy: async ({ params, data }: { params: Record<string, unknown>; data: BotVersionCreateDatas }) => {
+    const response = await apiClient.post('/bot-version-copy', data, { params });
+    return response;
+  },
 };

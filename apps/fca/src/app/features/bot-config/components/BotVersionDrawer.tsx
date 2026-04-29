@@ -1,40 +1,32 @@
-import { forwardRef, useEffect, useImperativeHandle, useState } from 'react';
+import { forwardRef, useEffect, useImperativeHandle, useRef, useState } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
-import { Button, Col, Drawer, Form, type FormProps, Input, Radio, Row, Select } from 'antd';
+import { Button, Col, Drawer, Form, type FormProps, Input, Progress, Radio, Row, Select } from 'antd';
 import { Log } from '@/log';
 import { toast } from '@/shared-util';
-import { botQueryKeys, useCreateBotVersion, useDeleteBotVersion, useGetBotVersion, useGetBotVersions, useUpdateBotVersion } from '../hooks/useBotQueries';
+import { botQueryKeys, useCreateBotVersion, useCreateBotVersionCopy, useDeleteBotVersion, useGetBotVersion, useGetBotVersions, useUpdateBotVersion } from '../hooks/useBotQueries';
 import type { BotVersionCreateDatas, BotVersionUpdateDatas } from '../types';
 import { FallbackSpinner } from '@/components/custom/FallbackSpinner';
 import { useModal } from '@/libs/shared-ui/src/hooks/useModal';
 
-/**
- * BotVersionDrawer ref 타입
- * @property open - 드로어를 여는 함수. serviceVer가 없으면 추가 모드, 있으면 편집 모드
- * @property close - 드로어를 닫는 함수
- */
 export interface BotVersionDrawerRef {
   open: (params: { serviceId: string; serviceVer?: string }) => void;
   close: () => void;
 }
 
-/**
- * 드로어 내부 상태 타입
- */
 interface DrawerState {
   open: boolean;
   serviceId: string;
   serviceVer?: string;
 }
 
-/**
- * Bot 버전 등록/수정 Drawer
- * - ref.open({ serviceId }) : 추가 모드로 열기
- * - ref.open({ serviceId, serviceVer }) : 편집 모드로 열기
- * - ref.close() : 드로어 닫기
- */
+interface BotVersionCopyCompletedEvent {
+  serviceId: string;
+  serviceVer?: string;
+  status: string;
+  error?: string;
+}
+
 const BotVersionDrawer = forwardRef<BotVersionDrawerRef>((_, ref) => {
-  // 드로어 상태 (open 여부, serviceId, serviceVer)
   const [drawerState, setDrawerState] = useState<DrawerState>({
     open: false,
     serviceId: '',
@@ -42,19 +34,14 @@ const BotVersionDrawer = forwardRef<BotVersionDrawerRef>((_, ref) => {
   });
 
   const { open, serviceId, serviceVer } = drawerState;
-
-  // 생성 모드 상태 (신규생성/복사생성) - form 외부, UI 컨트롤용
   const [createMode, setCreateMode] = useState<'new' | 'copy'>('new');
+  const [isCopying, setIsCopying] = useState(false);
+  const [copyProgress, setCopyProgress] = useState(0);
+  const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   const modal = useModal();
 
-  // 부모 컴포넌트에서 ref를 통해 호출할 수 있는 메서드 정의
   useImperativeHandle(ref, () => ({
-    /**
-     * 드로어 열기
-     * @param params.serviceId - 서비스 ID (필수)
-     * @param params.serviceVer - 서비스 버전 (선택, 없으면 추가 모드)
-     */
     open: (params) => {
       setDrawerState({
         open: true,
@@ -62,16 +49,18 @@ const BotVersionDrawer = forwardRef<BotVersionDrawerRef>((_, ref) => {
         serviceVer: params.serviceVer,
       });
     },
-    /**
-     * 드로어 닫기
-     */
     close: () => {
       setDrawerState((prev) => ({ ...prev, open: false }));
     },
   }));
 
-  // 드로어 닫기 핸들러 (내부용)
   const handleClose = () => {
+    if (timerRef.current) {
+      clearInterval(timerRef.current);
+      timerRef.current = null;
+    }
+    setIsCopying(false);
+    setCopyProgress(0);
     setDrawerState((prev) => ({ ...prev, open: false }));
   };
 
@@ -120,6 +109,60 @@ const BotVersionDrawer = forwardRef<BotVersionDrawerRef>((_, ref) => {
     },
   });
 
+  const { mutate: createBotVersionCopy } = useCreateBotVersionCopy({
+    mutationOptions: {
+      onError: () => {
+        setIsCopying(false);
+        toast.error('버전 복사 요청에 실패했습니다.');
+      },
+    },
+  });
+
+  // 복사 요청 후 WS 이벤트 대기 — isCopying 중에만 리스닝
+  useEffect(() => {
+    console.log('[DEBUG] BotVersionDrawer WS useEffect 실행 — isCopying:', isCopying, 'serviceId:', serviceId);
+    if (!isCopying) return;
+
+    console.log('[DEBUG] BOT_VERSION_COPY_COMPLETED 리스너 등록 — serviceId:', serviceId);
+
+    const handler = (e: Event) => {
+      const { serviceId: wsServiceId, status, error } = (e as CustomEvent<BotVersionCopyCompletedEvent>).detail;
+      console.log('[DEBUG] BOT_VERSION_COPY_COMPLETED 수신 — wsServiceId:', wsServiceId, 'status:', status, 'drawer serviceId:', serviceId);
+
+      if (String(wsServiceId) !== String(serviceId)) {
+        console.log('[DEBUG] serviceId 불일치로 무시');
+        return;
+      }
+
+      setIsCopying(false);
+
+      if (status === 'success') {
+        if (timerRef.current) {
+          clearInterval(timerRef.current);
+          timerRef.current = null;
+        }
+        setCopyProgress(100);
+        setTimeout(() => {
+          toast.success('버전이 복사 생성되었습니다.');
+          queryClient.invalidateQueries({ queryKey: botQueryKeys.getBotVersions({ serviceId }).queryKey });
+          setIsCopying(false);
+          handleClose();
+        }, 600);
+      } else {
+        if (timerRef.current) {
+          clearInterval(timerRef.current);
+          timerRef.current = null;
+        }
+        toast.error(error ?? '버전 복사에 실패했습니다.');
+        setIsCopying(false);
+        setCopyProgress(0);
+      }
+    };
+
+    window.addEventListener('BOT_VERSION_COPY_COMPLETED', handler);
+    return () => window.removeEventListener('BOT_VERSION_COPY_COMPLETED', handler);
+  }, [isCopying, serviceId, queryClient]);
+
   useEffect(() => {
     if (!open) return;
     setCreateMode('new');
@@ -131,11 +174,27 @@ const BotVersionDrawer = forwardRef<BotVersionDrawerRef>((_, ref) => {
     };
   }, [botVersion, form, open]);
 
+  const handleStartCopy = (values: BotVersionCreateDatas) => {
+    setIsCopying(true);
+    setCopyProgress(0);
+
+    const startTime = Date.now();
+    const PROGRESS_MAX_MS = 300_000;
+    timerRef.current = setInterval(() => {
+      const elapsed = Date.now() - startTime;
+      setCopyProgress(Math.round(Math.min(95, (elapsed / PROGRESS_MAX_MS) * 100)));
+    }, 500);
+
+    createBotVersionCopy({ params: { serviceId }, data: values });
+  };
+
   const onFinish: FormProps<BotVersionCreateDatas | BotVersionUpdateDatas>['onFinish'] = (values) => {
     Log.debug('onFinish', values);
     if (serviceVer) {
       const { serviceVer: _, ...valuesOmitServiceVer } = values as BotVersionUpdateDatas;
       updateBotVersion({ params: { serviceId, serviceVer }, data: valuesOmitServiceVer as BotVersionUpdateDatas });
+    } else if (createMode === 'copy') {
+      handleStartCopy(values as BotVersionCreateDatas);
     } else {
       createBotVersion({ params: { serviceId }, data: values as BotVersionCreateDatas });
     }
@@ -157,23 +216,41 @@ const BotVersionDrawer = forwardRef<BotVersionDrawerRef>((_, ref) => {
   };
 
   const footer = (
-    <div className="flex items-center justify-end gap-2">
-      <Button variant="solid" onClick={handleClose}>
-        취소
-      </Button>
-      {serviceVer && (
-        <Button variant="solid" color="red" onClick={handleDeleteBtn} loading={isLoading || isUpdating || isDeleting}>
-          삭제
-        </Button>
+    <div className="flex flex-col gap-3">
+      {isCopying && (
+        <div>
+          <p className="text-sm text-gray-500 mb-2">버전 복사 중입니다. 최대 5분 소요될 수 있습니다.</p>
+          <Progress percent={copyProgress} status="active" strokeColor="#1677ff" />
+        </div>
       )}
-      <Button variant="solid" type="primary" onClick={handleSubmitBtn} loading={isLoading || isCreating || isUpdating || isDeleting}>
-        저장
-      </Button>
+      <div className="flex items-center justify-end gap-2">
+        <Button variant="solid" onClick={handleClose} disabled={isCopying}>
+          취소
+        </Button>
+        {serviceVer && (
+          <Button variant="solid" color="red" onClick={handleDeleteBtn} loading={isLoading || isUpdating || isDeleting} disabled={isCopying}>
+            삭제
+          </Button>
+        )}
+        <Button variant="solid" type="primary" onClick={handleSubmitBtn} loading={isLoading || isCreating || isUpdating || isDeleting || isCopying}>
+          저장
+        </Button>
+      </div>
     </div>
   );
 
   return (
-    <Drawer open={open} onClose={handleClose} title={title} closable={{ placement: 'end' }} size={480} footer={footer} destroyOnHidden>
+    <Drawer
+      open={open}
+      onClose={handleClose}
+      title={title}
+      closable={{ placement: 'end' }}
+      size={480}
+      footer={footer}
+      destroyOnHidden
+      maskClosable={!isCopying}
+      keyboard={!isCopying}
+    >
       <Form form={form} initialValues={{ serviceVer: '', versionName: '', versionDesc: '' }} onFinish={onFinish} onFinishFailed={onFinishFailed} layout="vertical">
         {isLoading ? (
           <div className="flex items-center justify-center w-full h-full">
@@ -181,7 +258,6 @@ const BotVersionDrawer = forwardRef<BotVersionDrawerRef>((_, ref) => {
           </div>
         ) : (
           <>
-            {/* 생성 모드일 때만 신규/복사 선택 라디오 표시 */}
             {!serviceVer && (
               <Row className="mb-4">
                 <Col span={24}>
