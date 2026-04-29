@@ -266,15 +266,101 @@ const dataURLtoFile = (dataurl: string, filename: string) => {
   return new File([u8arr], filename, { type: mime });
 };
 
-// 분할선 타입
-interface HLine {
+// ─── 셀 트리 구조 (비대칭 분할 지원) ─────────────────────────────────────────
+interface CellNode {
   id: string;
-  yPct: number;
+  label: string;
+  color: string;
+  split?: {
+    dir: 'h' | 'v';
+    pos: number; // 0–100: 이 셀 내에서의 비율
+    a: CellNode;
+    b: CellNode;
+  };
 }
-interface VLine {
-  id: string;
-  xPct: number;
+
+interface DividerInfo {
+  nodeId: string; // split 을 소유한 노드 id
+  dir: 'h' | 'v';
+  absPos: number; // 캔버스 전체 기준 % 위치
+  lineStart: number; // 선의 시작 % (가로선→x%, 세로선→y%)
+  lineEnd: number; // 선의 끝 %
+  cellX: number;
+  cellY: number;
+  cellW: number;
+  cellH: number; // 부모 셀 bounds (%)
 }
+
+const getLeafCells = (node: CellNode, x: number, y: number, w: number, h: number): Array<LayoutZone & { nodeId: string }> => {
+  if (!node.split) return [{ id: node.id, nodeId: node.id, label: node.label, x, y, width: w, height: h, color: node.color }];
+  const { dir, pos, a, b } = node.split;
+  if (dir === 'h') {
+    const sp = (pos / 100) * h;
+    return [...getLeafCells(a, x, y, w, sp), ...getLeafCells(b, x, y + sp, w, h - sp)];
+  }
+  const sp = (pos / 100) * w;
+  return [...getLeafCells(a, x, y, sp, h), ...getLeafCells(b, x + sp, y, w - sp, h)];
+};
+
+const getNodeDividers = (node: CellNode, x: number, y: number, w: number, h: number): DividerInfo[] => {
+  if (!node.split) return [];
+  const { dir, pos, a, b } = node.split;
+  const result: DividerInfo[] = [
+    {
+      nodeId: node.id,
+      dir,
+      absPos: dir === 'h' ? y + (pos / 100) * h : x + (pos / 100) * w,
+      lineStart: dir === 'h' ? x : y,
+      lineEnd: dir === 'h' ? x + w : y + h,
+      cellX: x,
+      cellY: y,
+      cellW: w,
+      cellH: h,
+    },
+  ];
+  if (dir === 'h') {
+    const sp = (pos / 100) * h;
+    return [...result, ...getNodeDividers(a, x, y, w, sp), ...getNodeDividers(b, x, y + sp, w, h - sp)];
+  }
+  const sp = (pos / 100) * w;
+  return [...result, ...getNodeDividers(a, x, y, sp, h), ...getNodeDividers(b, x + sp, y, w - sp, h)];
+};
+
+const splitCellNode = (node: CellNode, targetId: string, dir: 'h' | 'v', colorList: string[]): CellNode => {
+  if (node.id === targetId) {
+    const t = Date.now();
+    const idx = colorList.indexOf(node.color);
+    return {
+      ...node,
+      split: {
+        dir,
+        pos: 50,
+        a: { id: `${targetId}-a-${t}`, label: node.label + '-A', color: colorList[(idx + 1) % colorList.length] },
+        b: { id: `${targetId}-b-${t + 1}`, label: node.label + '-B', color: colorList[(idx + 2) % colorList.length] },
+      },
+    };
+  }
+  if (!node.split) return node;
+  return { ...node, split: { ...node.split, a: splitCellNode(node.split.a, targetId, dir, colorList), b: splitCellNode(node.split.b, targetId, dir, colorList) } };
+};
+
+const removeSplitNode = (node: CellNode, targetNodeId: string): CellNode => {
+  if (node.id === targetNodeId && node.split) return { id: node.id, label: node.label, color: node.color };
+  if (!node.split) return node;
+  return { ...node, split: { ...node.split, a: removeSplitNode(node.split.a, targetNodeId), b: removeSplitNode(node.split.b, targetNodeId) } };
+};
+
+const updateDividerPos = (node: CellNode, targetNodeId: string, newPos: number): CellNode => {
+  if (node.id === targetNodeId && node.split) return { ...node, split: { ...node.split, pos: Math.max(5, Math.min(95, newPos)) } };
+  if (!node.split) return node;
+  return { ...node, split: { ...node.split, a: updateDividerPos(node.split.a, targetNodeId, newPos), b: updateDividerPos(node.split.b, targetNodeId, newPos) } };
+};
+
+const renameCellNode = (node: CellNode, targetId: string, label: string): CellNode => {
+  if (node.id === targetId) return { ...node, label };
+  if (!node.split) return node;
+  return { ...node, split: { ...node.split, a: renameCellNode(node.split.a, targetId, label), b: renameCellNode(node.split.b, targetId, label) } };
+};
 
 export default function TaskBg() {
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -294,103 +380,73 @@ export default function TaskBg() {
   const [progress, setProgress] = useState(0);
   const [ciPos, setCiPos] = useState<CiPos>({ xPct: 80, yPct: 80, sizePct: 12, opacity: 0.8 });
 
-  // ── 커스텀 레이아웃 빌더 상태 (분할선 방식) ───────────────────────────────
+  // ── 커스텀 레이아웃 빌더 상태 (셀 트리 방식 — 비대칭 분할 지원) ──────────
   const [isCustomBuilderOpen, setIsCustomBuilderOpen] = useState(false);
-  const [hLines, setHLines] = useState<HLine[]>([]);
-  const [vLines, setVLines] = useState<VLine[]>([]);
-  const [cellNames, setCellNames] = useState<Record<string, string>>({});
-  const [editingCell, setEditingCell] = useState<string | null>(null);
+  const [rootCell, setRootCell] = useState<CellNode>({ id: 'root', label: '전체', color: ZONE_COLORS[0] });
+  const [editingCellId, setEditingCellId] = useState<string | null>(null);
+  const [selectedCellId, setSelectedCellId] = useState<string | null>(null);
   const [customLayouts, setCustomLayouts] = useState<LayoutTemplate[]>([]);
   const [customLayoutName, setCustomLayoutName] = useState('커스텀 레이아웃');
   const customCanvasRef = useRef<HTMLDivElement>(null);
-  const dividerDragRef = useRef<{ type: 'h' | 'v'; id: string; startPct: number; startClient: number; containerSize: number } | null>(null);
+  const dividerDragRef = useRef<{ nodeId: string; dir: 'h' | 'v'; cellX: number; cellY: number; cellW: number; cellH: number; startClient: number; startPos: number } | null>(null);
 
   const directUploadInputRef = useRef<HTMLInputElement>(null);
   const allLayoutTemplates = [...PRESET_LAYOUT_TEMPLATES, ...customLayouts];
 
-  // ── 분할선에서 셀 계산 ────────────────────────────────────────────────────
-  const getCells = useCallback((): Array<LayoutZone & { rowIdx: number; colIdx: number }> => {
-    const rowBreaks = [0, ...hLines.map((l) => l.yPct).sort((a, b) => a - b), 100];
-    const colBreaks = [0, ...vLines.map((l) => l.xPct).sort((a, b) => a - b), 100];
-    const cells: Array<LayoutZone & { rowIdx: number; colIdx: number }> = [];
-    for (let r = 0; r < rowBreaks.length - 1; r++) {
-      for (let c = 0; c < colBreaks.length - 1; c++) {
-        const key = `${r}-${c}`;
-        cells.push({
-          id: `zone-${key}`,
-          label: cellNames[key] || `영역${cells.length + 1}`,
-          x: colBreaks[c],
-          y: rowBreaks[r],
-          width: colBreaks[c + 1] - colBreaks[c],
-          height: rowBreaks[r + 1] - rowBreaks[r],
-          color: ZONE_COLORS[cells.length % ZONE_COLORS.length],
-          rowIdx: r,
-          colIdx: c,
-        });
-      }
-    }
-    return cells;
-  }, [hLines, vLines, cellNames]);
+  // 선택 해상도 ref (stale closure 방지)
+  const selectedResRef = useRef(selectedRes);
+  useEffect(() => {
+    selectedResRef.current = selectedRes;
+  }, [selectedRes]);
+
+  const leafCells = useCallback(() => getLeafCells(rootCell, 0, 0, 100, 100), [rootCell]);
+  const dividers = useCallback(() => getNodeDividers(rootCell, 0, 0, 100, 100), [rootCell]);
+
+  // ── 셀 분할 / 제거 ─────────────────────────────────────────────────────────
+  const handleSplitCell = (cellId: string, dir: 'h' | 'v') => {
+    setRootCell((prev) => splitCellNode(prev, cellId, dir, ZONE_COLORS));
+    setSelectedCellId(null);
+  };
+
+  const handleRemoveSplit = (nodeId: string) => {
+    setRootCell((prev) => removeSplitNode(prev, nodeId));
+  };
 
   // ── 분할선 드래그 ──────────────────────────────────────────────────────────
-  const handleLineDragStart = (type: 'h' | 'v', id: string, e: React.PointerEvent) => {
+  const handleDividerDragStart = (div: DividerInfo, e: React.PointerEvent) => {
     e.preventDefault();
+    e.stopPropagation();
     const el = customCanvasRef.current;
     if (!el) return;
     const rect = el.getBoundingClientRect();
-    const currentPct = type === 'h' ? (hLines.find((l) => l.id === id)?.yPct ?? 50) : (vLines.find((l) => l.id === id)?.xPct ?? 50);
-    dividerDragRef.current = { type, id, startPct: currentPct, startClient: type === 'h' ? e.clientY : e.clientX, containerSize: type === 'h' ? rect.height : rect.width };
+    const cellPxStart = div.dir === 'h' ? rect.top + (div.cellY / 100) * rect.height : rect.left + (div.cellX / 100) * rect.width;
+    const cellPxSize = div.dir === 'h' ? (div.cellH / 100) * rect.height : (div.cellW / 100) * rect.width;
+    const currentClientPos = div.dir === 'h' ? e.clientY : e.clientX;
+    const startPos = ((currentClientPos - cellPxStart) / cellPxSize) * 100;
+    dividerDragRef.current = { nodeId: div.nodeId, dir: div.dir, cellX: div.cellX, cellY: div.cellY, cellW: div.cellW, cellH: div.cellH, startClient: currentClientPos, startPos };
     (e.target as HTMLElement).setPointerCapture(e.pointerId);
   };
 
-  const handleLineDragMove = (e: React.PointerEvent) => {
+  const handleDividerDragMove = (e: React.PointerEvent) => {
     const drag = dividerDragRef.current;
     if (!drag) return;
-    const delta = (((drag.type === 'h' ? e.clientY : e.clientX) - drag.startClient) / drag.containerSize) * 100;
-    const newPct = Math.max(2, Math.min(98, drag.startPct + delta));
-    if (drag.type === 'h') setHLines((prev) => prev.map((l) => (l.id === drag.id ? { ...l, yPct: newPct } : l)));
-    else setVLines((prev) => prev.map((l) => (l.id === drag.id ? { ...l, xPct: newPct } : l)));
-    dividerDragRef.current = { ...drag, startPct: newPct, startClient: drag.type === 'h' ? e.clientY : e.clientX };
+    const el = customCanvasRef.current;
+    if (!el) return;
+    const rect = el.getBoundingClientRect();
+    const cellPxStart = drag.dir === 'h' ? rect.top + (drag.cellY / 100) * rect.height : rect.left + (drag.cellX / 100) * rect.width;
+    const cellPxSize = drag.dir === 'h' ? (drag.cellH / 100) * rect.height : (drag.cellW / 100) * rect.width;
+    const newPos = (((drag.dir === 'h' ? e.clientY : e.clientX) - cellPxStart) / cellPxSize) * 100;
+    setRootCell((prev) => updateDividerPos(prev, drag.nodeId, newPos));
   };
 
-  const handleLineDragEnd = () => {
+  const handleDividerDragEnd = () => {
     dividerDragRef.current = null;
   };
 
-  const addHLine = () => {
-    const existing = hLines.map((l) => l.yPct).sort((a, b) => a - b);
-    const breaks = [0, ...existing, 100];
-    let best = 50,
-      bestGap = 0;
-    for (let i = 0; i < breaks.length - 1; i++) {
-      const gap = breaks[i + 1] - breaks[i];
-      if (gap > bestGap) {
-        bestGap = gap;
-        best = (breaks[i] + breaks[i + 1]) / 2;
-      }
-    }
-    setHLines((prev) => [...prev, { id: `h-${Date.now()}`, yPct: best }]);
-  };
-
-  const addVLine = () => {
-    const existing = vLines.map((l) => l.xPct).sort((a, b) => a - b);
-    const breaks = [0, ...existing, 100];
-    let best = 50,
-      bestGap = 0;
-    for (let i = 0; i < breaks.length - 1; i++) {
-      const gap = breaks[i + 1] - breaks[i];
-      if (gap > bestGap) {
-        bestGap = gap;
-        best = (breaks[i] + breaks[i + 1]) / 2;
-      }
-    }
-    setVLines((prev) => [...prev, { id: `v-${Date.now()}`, xPct: best }]);
-  };
-
   const saveCustomLayout = () => {
-    const cells = getCells();
-    if (cells.length === 0) {
-      toast.error('레이아웃이 비어있습니다.');
+    const cells = leafCells();
+    if (cells.length <= 1) {
+      toast.error('셀을 2개 이상 분할하세요.');
       return;
     }
     const name = customLayoutName.trim() || `커스텀 ${customLayouts.length + 1}`;
@@ -398,14 +454,13 @@ export default function TaskBg() {
       id: `custom-${Date.now()}`,
       name,
       description: `직접 만든 레이아웃 (${cells.length}개 영역)`,
-      zones: cells.map(({ rowIdx: _r, colIdx: _c, ...zone }) => zone),
+      zones: cells.map(({ nodeId: _n, ...zone }) => zone),
     };
     setCustomLayouts((prev) => [...prev, newLayout]);
     setSelectedLayout(newLayout);
     setIsCustomBuilderOpen(false);
-    setHLines([]);
-    setVLines([]);
-    setCellNames({});
+    setRootCell({ id: 'root', label: '전체', color: ZONE_COLORS[0] });
+    setSelectedCellId(null);
     setCustomLayoutName('커스텀 레이아웃');
     toast.success(`"${name}" 레이아웃이 추가되었습니다.`);
   };
@@ -519,7 +574,8 @@ export default function TaskBg() {
     const img = new Image();
     img.onload = async () => {
       const [r, g, b] = extractDominantColor(img);
-      const { width: w, height: h } = RESOLUTIONS[selectedRes];
+      const resKey = selectedResRef.current;
+      const { width: w, height: h } = RESOLUTIONS[resKey];
       const newPreviews: PreviewImage[] = [];
 
       // 5가지 배경 테마 × 4가지 존 스타일 = 20종
@@ -642,7 +698,7 @@ export default function TaskBg() {
         const thumbCtx = thumbCanvas.getContext('2d');
         if (thumbCtx) thumbCtx.drawImage(bgCanvas, 0, 0, 480, 270);
 
-        newPreviews.push({ id: Date.now() + i, url: bgCanvas.toDataURL('image/jpeg', 0.9), previewUrl: thumbCanvas.toDataURL('image/jpeg', 0.7), res: selectedRes });
+        newPreviews.push({ id: Date.now() + i, url: bgCanvas.toDataURL('image/jpeg', 0.9), previewUrl: thumbCanvas.toDataURL('image/jpeg', 0.7), res: resKey });
         setProgress(Math.floor(((i + 1) / 20) * 100));
       }
       setPreviewImages(newPreviews);
@@ -661,7 +717,7 @@ export default function TaskBg() {
     setProgress(0);
   };
 
-  // pointermove/pointerup 는 포인터 캡처로 처리 (useEffect 불필요)
+  // 포인터 캡처 방식으로 drag 처리 → window 이벤트는 fallback용
   useEffect(() => {
     const up = () => {
       dividerDragRef.current = null;
@@ -670,7 +726,8 @@ export default function TaskBg() {
     return () => window.removeEventListener('pointerup', up);
   }, []);
 
-  const cells = getCells();
+  const cells = leafCells();
+  const cellDividers = dividers();
 
   return (
     <div className="p-6 bg-slate-50 min-h-screen w-full font-sans">
@@ -961,7 +1018,7 @@ export default function TaskBg() {
                                               const requestData: TaskboardBg = {
                                                 tenantId: '2000000001',
                                                 pageId: 0,
-                                                pageName: `AI생성 ${selectedLayout.name} ${Date.now().toString().slice(-4)}`,
+                                                pageName: `AI생성_${selectedLayout.name}_${preview.res}_${Date.now().toString().slice(-4)}`,
                                                 authorName: 'admin',
                                                 authRole: 'MASTER',
                                                 genType: 'AI',
@@ -1024,21 +1081,20 @@ export default function TaskBg() {
         </div>
       )}
 
-      {/* 커스텀 레이아웃 빌더 모달 (분할선 방식) */}
+      {/* 커스텀 레이아웃 빌더 모달 (셀 트리 방식 — 비대칭 분할 지원) */}
       {isCustomBuilderOpen && (
         <div className="fixed inset-0 z-[70] flex items-center justify-center bg-slate-900/50 backdrop-blur-sm">
           <div className="bg-white rounded-2xl shadow-2xl w-[760px] max-h-[90vh] flex flex-col overflow-hidden">
             <div className="px-5 py-4 border-b flex justify-between items-center flex-shrink-0">
               <div>
                 <h3 className="text-base font-bold text-slate-800">커스텀 레이아웃 만들기</h3>
-                <p className="text-xs text-slate-500 mt-0.5">가로선/세로선을 추가하고 드래그하여 영역을 나누세요. 셀을 클릭하면 이름을 변경할 수 있습니다.</p>
+                <p className="text-xs text-slate-500 mt-0.5">셀을 클릭하면 분할 버튼이 나타납니다. 분할선의 ×를 클릭하면 해당 선만 제거(셀 병합)됩니다.</p>
               </div>
               <button
                 onClick={() => {
                   setIsCustomBuilderOpen(false);
-                  setHLines([]);
-                  setVLines([]);
-                  setCellNames({});
+                  setRootCell({ id: 'root', label: '전체', color: ZONE_COLORS[0] });
+                  setSelectedCellId(null);
                 }}
                 className="text-slate-400 hover:text-slate-600 text-2xl font-bold"
               >
@@ -1047,21 +1103,10 @@ export default function TaskBg() {
             </div>
 
             <div className="p-5 flex-1 overflow-auto">
-              {/* 컨트롤 버튼 */}
-              <div className="flex gap-2 mb-3">
-                <button
-                  onClick={addHLine}
-                  className="flex items-center gap-1.5 px-3 py-1.5 bg-blue-50 text-[#0f5b9e] border border-blue-200 rounded-lg text-xs font-semibold hover:bg-blue-100 transition-colors"
-                >
-                  <span className="text-base leading-none">—</span> 가로선 추가
-                </button>
-                <button
-                  onClick={addVLine}
-                  className="flex items-center gap-1.5 px-3 py-1.5 bg-blue-50 text-[#0f5b9e] border border-blue-200 rounded-lg text-xs font-semibold hover:bg-blue-100 transition-colors"
-                >
-                  <span className="text-base leading-none font-bold">|</span> 세로선 추가
-                </button>
-                <span className="ml-auto text-xs text-slate-400">분할된 셀: {cells.length}개</span>
+              <div className="flex items-center gap-2 mb-3 text-xs text-slate-500">
+                <span className="px-2 py-0.5 bg-blue-50 text-[#0f5b9e] rounded font-semibold">셀 클릭 → [H분할]/[V분할]</span>
+                <span className="px-2 py-0.5 bg-red-50 text-red-500 rounded font-semibold">분할선 × → 병합</span>
+                <span className="ml-auto font-semibold">분할된 셀: {cells.length}개</span>
               </div>
 
               {/* 캔버스 */}
@@ -1069,62 +1114,126 @@ export default function TaskBg() {
                 ref={customCanvasRef}
                 className="w-full bg-slate-900 rounded-xl relative overflow-hidden select-none border border-slate-600"
                 style={{ aspectRatio: '16/9' }}
-                onPointerMove={handleLineDragMove}
-                onPointerUp={handleLineDragEnd}
+                onPointerMove={handleDividerDragMove}
+                onPointerUp={handleDividerDragEnd}
               >
                 {/* 셀 영역 */}
                 {cells.map((zone) => {
-                  const cellKey = `${zone.rowIdx}-${zone.colIdx}`;
+                  const isSelected = selectedCellId === zone.nodeId;
                   return (
                     <div
-                      key={zone.id}
-                      style={{ left: `${zone.x}%`, top: `${zone.y}%`, width: `${zone.width}%`, height: `${zone.height}%`, backgroundColor: `${zone.color}55` }}
-                      className="absolute border border-white/25 flex items-center justify-center cursor-pointer hover:bg-white/10 transition-colors"
-                      onClick={() => setEditingCell(editingCell === cellKey ? null : cellKey)}
+                      key={zone.nodeId}
+                      style={{ left: `${zone.x}%`, top: `${zone.y}%`, width: `${zone.width}%`, height: `${zone.height}%`, backgroundColor: `${zone.color}44` }}
+                      className={`absolute border transition-colors flex flex-col items-center justify-center cursor-pointer ${isSelected ? 'border-white bg-white/15 z-10' : 'border-white/20 hover:bg-white/10'}`}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setSelectedCellId(isSelected ? null : zone.nodeId);
+                        setEditingCellId(null);
+                      }}
                     >
-                      {editingCell === cellKey ? (
+                      {editingCellId === zone.nodeId ? (
                         <input
                           autoFocus
                           defaultValue={zone.label}
                           onClick={(e) => e.stopPropagation()}
                           onKeyDown={(e) => {
                             if (e.key === 'Enter') {
-                              setCellNames((prev) => ({ ...prev, [cellKey]: e.currentTarget.value || zone.label }));
-                              setEditingCell(null);
+                              setRootCell((prev) => renameCellNode(prev, zone.nodeId, e.currentTarget.value || zone.label));
+                              setEditingCellId(null);
                             }
-                            if (e.key === 'Escape') setEditingCell(null);
+                            if (e.key === 'Escape') setEditingCellId(null);
                           }}
                           onBlur={(e) => {
-                            setCellNames((prev) => ({ ...prev, [cellKey]: e.target.value || zone.label }));
-                            setEditingCell(null);
+                            setRootCell((prev) => renameCellNode(prev, zone.nodeId, e.target.value || zone.label));
+                            setEditingCellId(null);
                           }}
                           className="w-4/5 text-center text-xs bg-black/70 text-white border border-white/50 rounded px-2 py-1 focus:outline-none"
                         />
                       ) : (
-                        <span className="text-white/60 text-xs pointer-events-none select-none">{zone.label}</span>
+                        <span
+                          className="text-white/60 text-xs select-none"
+                          onDoubleClick={(e) => {
+                            e.stopPropagation();
+                            setEditingCellId(zone.nodeId);
+                            setSelectedCellId(null);
+                          }}
+                        >
+                          {zone.label}
+                        </span>
+                      )}
+
+                      {/* 셀 선택 시 분할 버튼 */}
+                      {isSelected && !editingCellId && (
+                        <div className="flex gap-1 mt-1">
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleSplitCell(zone.nodeId, 'h');
+                            }}
+                            className="px-2 py-0.5 bg-[#0f5b9e] text-white text-[10px] font-bold rounded hover:bg-[#0c4a82] transition-colors"
+                          >
+                            — H분할
+                          </button>
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleSplitCell(zone.nodeId, 'v');
+                            }}
+                            className="px-2 py-0.5 bg-[#0f5b9e] text-white text-[10px] font-bold rounded hover:bg-[#0c4a82] transition-colors"
+                          >
+                            | V분할
+                          </button>
+                        </div>
                       )}
                     </div>
                   );
                 })}
 
-                {/* 가로 분할선 */}
-                {hLines.map((line) => (
+                {/* 분할선 */}
+                {cellDividers.map((div) => (
                   <div
-                    key={line.id}
-                    style={{ top: `calc(${line.yPct}% - 4px)`, left: 0, right: 0, height: '8px', cursor: 'row-resize', touchAction: 'none' }}
-                    className="absolute z-20 flex items-center justify-center group"
-                    onPointerDown={(e) => handleLineDragStart('h', line.id, e)}
+                    key={`${div.nodeId}-${div.dir}`}
+                    style={
+                      div.dir === 'h'
+                        ? {
+                            top: `calc(${div.absPos}% - 4px)`,
+                            left: `${div.lineStart}%`,
+                            width: `${div.lineEnd - div.lineStart}%`,
+                            height: '8px',
+                            cursor: 'row-resize',
+                            touchAction: 'none',
+                          }
+                        : {
+                            left: `calc(${div.absPos}% - 4px)`,
+                            top: `${div.lineStart}%`,
+                            height: `${div.lineEnd - div.lineStart}%`,
+                            width: '8px',
+                            cursor: 'col-resize',
+                            touchAction: 'none',
+                          }
+                    }
+                    className={`absolute z-20 flex ${div.dir === 'h' ? 'items-center justify-center' : 'flex-col items-center justify-center'} group`}
+                    onPointerDown={(e) => handleDividerDragStart(div, e)}
                   >
-                    <div className="absolute inset-x-0 top-1/2 h-0.5 bg-white/50 group-hover:bg-white transition-colors" />
-                    <div className="relative bg-white/20 group-hover:bg-white/40 rounded px-2 py-0.5 flex items-center gap-1 transition-colors">
-                      <span className="text-[8px] text-white/70 font-mono">{line.yPct.toFixed(0)}%</span>
+                    <div className={`absolute ${div.dir === 'h' ? 'inset-x-0 top-1/2 h-0.5' : 'inset-y-0 left-1/2 w-0.5'} bg-white/60 group-hover:bg-white transition-colors`} />
+                    <div
+                      className={`relative bg-black/40 group-hover:bg-black/70 rounded flex ${div.dir === 'h' ? 'items-center gap-1 px-1.5 py-0.5' : 'flex-col items-center gap-0.5 px-0.5 py-1'} transition-colors z-10`}
+                    >
+                      {div.dir === 'h' ? (
+                        <span className="text-[8px] text-white/80 font-mono">{div.absPos.toFixed(0)}%</span>
+                      ) : (
+                        <span className="text-[7px] text-white/80 font-mono" style={{ writingMode: 'vertical-rl' }}>
+                          {div.absPos.toFixed(0)}%
+                        </span>
+                      )}
                       <button
                         onClick={(e) => {
                           e.stopPropagation();
-                          setHLines((prev) => prev.filter((l) => l.id !== line.id));
+                          handleRemoveSplit(div.nodeId);
                         }}
                         onPointerDown={(e) => e.stopPropagation()}
-                        className="text-white/50 hover:text-red-400 text-[10px] leading-none font-bold"
+                        className="text-white/60 hover:text-red-400 text-[10px] leading-none font-bold"
+                        title="이 분할선 제거 (셀 병합)"
                       >
                         ×
                       </button>
@@ -1132,37 +1241,10 @@ export default function TaskBg() {
                   </div>
                 ))}
 
-                {/* 세로 분할선 */}
-                {vLines.map((line) => (
-                  <div
-                    key={line.id}
-                    style={{ left: `calc(${line.xPct}% - 4px)`, top: 0, bottom: 0, width: '8px', cursor: 'col-resize', touchAction: 'none' }}
-                    className="absolute z-20 flex flex-col items-center justify-center group"
-                    onPointerDown={(e) => handleLineDragStart('v', line.id, e)}
-                  >
-                    <div className="absolute inset-y-0 left-1/2 w-0.5 bg-white/50 group-hover:bg-white transition-colors" />
-                    <div className="relative bg-white/20 group-hover:bg-white/40 rounded px-0.5 py-1 flex flex-col items-center gap-0.5 transition-colors">
-                      <span className="text-[7px] text-white/70 font-mono" style={{ writingMode: 'vertical-rl' }}>
-                        {line.xPct.toFixed(0)}%
-                      </span>
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          setVLines((prev) => prev.filter((l) => l.id !== line.id));
-                        }}
-                        onPointerDown={(e) => e.stopPropagation()}
-                        className="text-white/50 hover:text-red-400 text-[10px] leading-none font-bold"
-                      >
-                        ×
-                      </button>
-                    </div>
-                  </div>
-                ))}
-
-                {cells.length === 0 && (
+                {cells.length <= 1 && (
                   <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none gap-2">
-                    <span className="text-slate-500 text-sm">가로선/세로선을 추가하여 영역을 나누세요</span>
-                    <span className="text-slate-600 text-xs">선을 드래그하여 위치를 조정할 수 있습니다</span>
+                    <span className="text-slate-400 text-sm font-semibold">셀을 클릭하면 분할 버튼이 나타납니다</span>
+                    <span className="text-slate-600 text-xs">H분할: 가로로 나누기 / V분할: 세로로 나누기</span>
                   </div>
                 )}
               </div>
@@ -1180,9 +1262,8 @@ export default function TaskBg() {
             <div className="px-5 py-3 border-t flex justify-between items-center flex-shrink-0 bg-slate-50">
               <button
                 onClick={() => {
-                  setHLines([]);
-                  setVLines([]);
-                  setCellNames({});
+                  setRootCell({ id: 'root', label: '전체', color: ZONE_COLORS[0] });
+                  setSelectedCellId(null);
                 }}
                 className="text-sm text-red-400 hover:text-red-600"
               >
@@ -1192,9 +1273,8 @@ export default function TaskBg() {
                 <button
                   onClick={() => {
                     setIsCustomBuilderOpen(false);
-                    setHLines([]);
-                    setVLines([]);
-                    setCellNames({});
+                    setRootCell({ id: 'root', label: '전체', color: ZONE_COLORS[0] });
+                    setSelectedCellId(null);
                   }}
                   className="px-4 py-1.5 border border-slate-200 rounded-md text-sm text-slate-600 hover:bg-slate-100"
                 >
@@ -1202,7 +1282,7 @@ export default function TaskBg() {
                 </button>
                 <button
                   onClick={saveCustomLayout}
-                  disabled={cells.length === 0}
+                  disabled={cells.length <= 1}
                   className="px-4 py-1.5 bg-[#0f5b9e] text-white text-sm font-bold rounded-md hover:bg-[#0c4a82] disabled:opacity-50"
                 >
                   레이아웃 저장 ({cells.length}개 영역)

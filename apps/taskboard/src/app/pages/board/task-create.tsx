@@ -137,6 +137,76 @@ const CALL_DATA_CATEGORIES: Record<string, CallDataItem[]> = {
   ],
 };
 
+// Redis 실시간 리스트 카테고리
+CALL_DATA_CATEGORIES['Redis'] = [
+  {
+    id: 'redis-cti-queue',
+    category: 'Redis',
+    label: 'CTI 큐 리스트 (CTIQMASTER)',
+    sampleValue: '',
+    color: '#0891b2',
+    displayType: 'table',
+    isRealtime: true,
+    tableConfig: {
+      columns: [
+        { key: 'queueName', label: '큐명', width: '35%' },
+        { key: 'waitCount', label: '대기', width: '20%' },
+        { key: 'talkCount', label: '통화', width: '20%' },
+        { key: 'avgWaitSec', label: '평균대기', width: '25%' },
+      ] as TableColumn[],
+      sampleRows: [
+        { queueName: '일반대기', waitCount: 12, talkCount: 8, avgWaitSec: '38초' },
+        { queueName: 'VIP대기', waitCount: 3, talkCount: 2, avgWaitSec: '12초' },
+        { queueName: '영어대기', waitCount: 5, talkCount: 3, avgWaitSec: '25초' },
+      ],
+    },
+  },
+  {
+    id: 'redis-cti-agent',
+    category: 'Redis',
+    label: '상담사 리스트 (AGENTMASTER)',
+    sampleValue: '',
+    color: '#059669',
+    displayType: 'table',
+    isRealtime: true,
+    tableConfig: {
+      columns: [
+        { key: 'agentName', label: '상담사', width: '30%' },
+        { key: 'statusName', label: '상태', width: '20%' },
+        { key: 'talkCount', label: '처리수', width: '25%' },
+        { key: 'talkTimeSec', label: '통화시간', width: '25%' },
+      ] as TableColumn[],
+      sampleRows: [
+        { agentName: '김상담', statusName: '통화중', talkCount: 23, talkTimeSec: '142분' },
+        { agentName: '이상담', statusName: '대기중', talkCount: 18, talkTimeSec: '98분' },
+        { agentName: '박상담', statusName: '이석중', talkCount: 31, talkTimeSec: '187분' },
+      ],
+    },
+  },
+  {
+    id: 'redis-cti-group',
+    category: 'Redis',
+    label: '상담그룹 리스트 (GROUPMASTER)',
+    sampleValue: '',
+    color: '#7c3aed',
+    displayType: 'table',
+    isRealtime: true,
+    tableConfig: {
+      columns: [
+        { key: 'groupName', label: '그룹명', width: '35%' },
+        { key: 'waitCount', label: '대기', width: '20%' },
+        { key: 'talkCount', label: '통화', width: '20%' },
+        { key: 'agentCount', label: '인원', width: '25%' },
+      ] as TableColumn[],
+      sampleRows: [
+        { groupName: 'VIP그룹', waitCount: 3, talkCount: 12, agentCount: 8 },
+        { groupName: '일반그룹', waitCount: 8, talkCount: 24, agentCount: 15 },
+        { groupName: '영어상담', waitCount: 1, talkCount: 6, agentCount: 4 },
+      ],
+    },
+  },
+];
+
 const CATEGORY_LABELS: Record<string, string> = {
   IVR: 'IVR 연동',
   CTI: 'CTI 연동',
@@ -146,6 +216,7 @@ const CATEGORY_LABELS: Record<string, string> = {
   Tenant: 'Tenant 연동',
   etc: '기타',
   List: '리스트/테이블',
+  Redis: 'Redis 실시간',
 };
 
 const FONT_FAMILIES: { label: string; value: string }[] = [
@@ -159,7 +230,12 @@ const FONT_FAMILIES: { label: string; value: string }[] = [
 
 const FONT_SIZES = [10, 12, 14, 16, 18, 20, 24, 28, 32, 36, 42, 48];
 
-const DEFAULT_STYLE: WidgetStyle = { fontSize: 14, fontFamily: 'inherit', color: '#ffffff', bgColor: 'rgba(0,0,0,0.7)' };
+const DEFAULT_STYLE: WidgetStyle = { fontSize: 14, fontFamily: 'inherit', color: '#ffffff', bgColor: 'rgba(0,0,0,0.7)', valueAlign: 'left', useThousandSep: false };
+
+const formatWidgetValue = (value: string | number, useThousandSep?: boolean): string => {
+  if (useThousandSep && typeof value === 'number') return value.toLocaleString('ko-KR');
+  return String(value);
+};
 const DEFAULT_W = 13;
 const DEFAULT_H = 16;
 
@@ -186,7 +262,8 @@ function DraggableSourceItem({ item }: { item: CallDataItem }) {
     >
       <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ backgroundColor: item.color }} />
       <span className="text-xs font-medium text-slate-700 truncate flex-1">{item.label}</span>
-      {item.displayType === 'table' && <span className="text-[9px] bg-slate-100 text-slate-500 px-1 py-0.5 rounded font-bold">표</span>}
+      {item.isRealtime && <span className="text-[9px] bg-cyan-100 text-cyan-600 px-1 py-0.5 rounded font-bold">실시간</span>}
+      {item.displayType === 'table' && !item.isRealtime && <span className="text-[9px] bg-slate-100 text-slate-500 px-1 py-0.5 rounded font-bold">표</span>}
       {item.unit && !item.displayType && <span className="text-[10px] text-slate-400 flex-shrink-0">{item.unit}</span>}
     </div>
   );
@@ -326,15 +403,14 @@ function CanvasWidget({ widget, isSelected, onSelect, onRemove, onResizeStart }:
                 {displayTitle}
               </div>
             )}
-            <div className="font-bold leading-tight truncate">
-              {widget.item.sampleValue}
+            <div className="font-bold leading-tight truncate" style={{ textAlign: widget.style.valueAlign ?? 'left' }}>
+              {formatWidgetValue(widget.item.sampleValue, widget.style.useThousandSep)}
               {widget.item.unit && (
                 <span className="font-normal ml-0.5 opacity-70" style={{ fontSize: `${Math.max(8, Math.round(widget.style.fontSize * 0.65))}px` }}>
                   {widget.item.unit}
                 </span>
               )}
             </div>
-            <div className="w-full h-0.5 rounded mt-1" style={{ backgroundColor: widget.item.color }} />
           </>
         )}
       </div>
@@ -770,6 +846,46 @@ export default function TaskCreate() {
                         </button>
                       ))}
                     </div>
+                  </div>
+                )}
+
+                {/* 값 정렬 (테이블 위젯 제외) */}
+                {selectedWidget.item.displayType !== 'table' && (
+                  <div>
+                    <label className="text-[10px] text-slate-500 font-semibold uppercase tracking-wide block mb-1">값 정렬</label>
+                    <div className="flex gap-1">
+                      {(['left', 'center', 'right'] as const).map((align) => (
+                        <button
+                          key={align}
+                          onClick={() => updateWidgetStyle(selectedWidget.id, { valueAlign: align })}
+                          className={`flex-1 py-1 rounded border text-[10px] font-semibold transition-colors ${
+                            (selectedWidget.style.valueAlign ?? 'left') === align
+                              ? 'bg-[#0f5b9e] text-white border-[#0f5b9e]'
+                              : 'bg-white text-slate-500 border-slate-200 hover:border-[#0f5b9e]'
+                          }`}
+                        >
+                          {align === 'left' ? '← 왼쪽' : align === 'center' ? '≡ 가운데' : '→ 오른쪽'}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* 1000단위 콤마 (테이블 위젯 제외) */}
+                {selectedWidget.item.displayType !== 'table' && (
+                  <div className="flex items-center justify-between py-1 px-2 bg-white rounded border border-slate-200">
+                    <div>
+                      <span className="text-[10px] text-slate-600 font-semibold">1000단위 콤마</span>
+                      <span className="text-[9px] text-slate-400 ml-1">(숫자만 적용)</span>
+                    </div>
+                    <button
+                      onClick={() => updateWidgetStyle(selectedWidget.id, { useThousandSep: !selectedWidget.style.useThousandSep })}
+                      className={`relative flex-shrink-0 h-5 w-9 rounded-full transition-colors ${selectedWidget.style.useThousandSep ? 'bg-[#0f5b9e]' : 'bg-slate-200'}`}
+                    >
+                      <span
+                        className={`absolute top-0.5 left-0.5 h-4 w-4 rounded-full bg-white shadow transition-transform ${selectedWidget.style.useThousandSep ? 'translate-x-4' : 'translate-x-0'}`}
+                      />
+                    </button>
                   </div>
                 )}
 

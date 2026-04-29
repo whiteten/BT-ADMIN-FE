@@ -113,12 +113,13 @@ export interface TableColumn {
 /** 드래그 가능한 콜데이터 위젯 아이템 */
 export interface CallDataItem {
   id: string;
-  category: 'IVR' | 'CTI' | 'Agent' | 'Group' | 'Skill' | 'Tenant' | 'etc' | 'List';
+  category: 'IVR' | 'CTI' | 'Agent' | 'Group' | 'Skill' | 'Tenant' | 'etc' | 'List' | 'Redis';
   label: string;
   unit?: string;
   sampleValue: string | number;
   color: string; // 카테고리 대표 색상
   displayType?: 'value' | 'table';
+  isRealtime?: boolean;
   tableConfig?: {
     columns: TableColumn[];
     sampleRows: Record<string, string | number>[];
@@ -132,6 +133,8 @@ export interface WidgetStyle {
   color: string;
   bgColor: string;
   titleAlign?: 'left' | 'center' | 'right';
+  valueAlign?: 'left' | 'center' | 'right';
+  useThousandSep?: boolean;
 }
 
 /** 전광판 캔버스에 드랍된 위젯 */

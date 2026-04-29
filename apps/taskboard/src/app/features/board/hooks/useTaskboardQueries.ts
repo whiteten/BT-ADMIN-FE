@@ -1,6 +1,7 @@
 import { useMutation, useQuery } from '@tanstack/react-query';
 import { createQueryKeys } from '@lukemorales/query-key-factory';
 import type { MutationHookOptions, QueryHookWithParamsOptions } from '@/shared-util';
+import { type CtiAgentRow, type CtiGroupRow, type CtiQueueRow, ctiRedisApi } from '../api/ctiRedisApi';
 import { taskboardApi } from '../api/taskboardApi';
 import type { RollingGroup, TaskboardBg, TaskboardLayout } from '../types/taskboard.types';
 
@@ -115,6 +116,44 @@ export const useGetPublicRollingGroup = (token: string, { queryOptions }: QueryH
     queryKey: taskboardQueryKeys.getPublicRollingGroup(token).queryKey,
     queryFn: () => taskboardApi.getPublicRollingGroup(token),
     enabled: !!token,
+    ...queryOptions,
+  });
+};
+
+// ── CTI Redis 실시간 데이터 훅 ────────────────────────────────────────────────
+
+export const ctiRedisQueryKeys = createQueryKeys('cti-redis', {
+  queueList: () => [{}],
+  agentList: () => [{}],
+  groupList: () => [{}],
+});
+
+/** 큐 리스트 (TB_IC_CTIQMASTER via Redis) — 5초 자동 갱신 */
+export const useGetCtiQueueList = ({ queryOptions }: QueryHookWithParamsOptions<CtiQueueRow[]> = {}) => {
+  return useQuery({
+    queryKey: ctiRedisQueryKeys.queueList().queryKey,
+    queryFn: () => ctiRedisApi.getCtiQueueList(),
+    refetchInterval: 5000,
+    ...queryOptions,
+  });
+};
+
+/** 상담사 리스트 (TB_IC_AGENTMASTER via Redis) — 5초 자동 갱신 */
+export const useGetCtiAgentList = ({ queryOptions }: QueryHookWithParamsOptions<CtiAgentRow[]> = {}) => {
+  return useQuery({
+    queryKey: ctiRedisQueryKeys.agentList().queryKey,
+    queryFn: () => ctiRedisApi.getCtiAgentList(),
+    refetchInterval: 5000,
+    ...queryOptions,
+  });
+};
+
+/** 상담그룹 리스트 (TB_IC_GROUPMASTER via Redis) — 5초 자동 갱신 */
+export const useGetCtiGroupList = ({ queryOptions }: QueryHookWithParamsOptions<CtiGroupRow[]> = {}) => {
+  return useQuery({
+    queryKey: ctiRedisQueryKeys.groupList().queryKey,
+    queryFn: () => ctiRedisApi.getCtiGroupList(),
+    refetchInterval: 5000,
     ...queryOptions,
   });
 };
