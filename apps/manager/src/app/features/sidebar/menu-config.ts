@@ -3,8 +3,28 @@ import { IconDocument, IconLayer, IconMenuItemsPlus, IconMenuMain, IconSlidersHo
 
 /**
  * Manager 앱 로컬 메뉴 설정.
- * IAM 재설계 v2.2: menuId(number) → menuKey(string).
+ * IAM 재설계 v2.3: menuId(number) → menuKey(string) 전면 전환.
  * 서버 Navigation 응답의 menuKey와 일치해야 메뉴가 렌더링됨.
+ *
+ * DB 실제 구조(TB_BT_CM_MENU_MST WHERE APP_ID='manager')와 1:1 매핑:
+ *   manager-main           → main
+ *   manager-user-mgmt      (사용자)
+ *     ├─ manager-user      → resource/user/list
+ *     └─ manager-role      → resource/auth-group/list
+ *   manager-security       (보안)
+ *     └─ manager-account-policy → resource/account-policy
+ *   manager-system         (시스템)
+ *     ├─ system-license    → resource/license/list
+ *     ├─ manager-platform  (플랫폼)
+ *     │    ├─ manager-menu  → resource/menu
+ *     │    ├─ bff-flow      → resource/bff-flow
+ *     │    └─ manager-client → resource/client/list
+ *     └─ manager-resource  (자원관리)
+ *          ├─ manager-tenant → resource/tenant-management/list
+ *          └─ manager-node   → resource/node-management/list
+ *   manager-audit          (감사)
+ *     ├─ manager-work-history → resource/work-history
+ *     └─ manager-data-retention → resource/data-retention
  */
 const appId = 'manager';
 const appName = 'MANAGER';
@@ -68,9 +88,16 @@ const menuConfig = {
       hide: false,
       children: [
         {
+          menuKey: 'system-license',
+          label: '라이센스',
+          path: 'resource/license/list',
+          index: 0,
+          hide: false,
+        },
+        {
           menuKey: 'manager-platform',
           label: '플랫폼',
-          index: 0,
+          index: 1,
           hide: false,
           children: [
             {
@@ -94,37 +121,23 @@ const menuConfig = {
               index: 2,
               hide: false,
             },
-            {
-              menuId: 63,
-              label: '라이선스',
-              path: 'resource/license/list',
-              index: 3,
-              hide: false,
-            },
           ],
         },
         {
-          menuId: 74,
-          label: '라이센스',
-          path: 'resource/license',
-          index: 0,
-          hide: true,
-        },
-        {
-          menuId: 76,
+          menuKey: 'manager-resource',
           label: '자원관리',
           index: 2,
           hide: false,
           children: [
             {
-              menuId: 77,
+              menuKey: 'manager-tenant',
               label: '테넌트',
               path: 'resource/tenant-management/list',
               index: 0,
               hide: false,
             },
             {
-              menuId: 83,
+              menuKey: 'manager-node',
               label: '클러스터 관리',
               path: 'resource/node-management/list',
               index: 1,
@@ -149,7 +162,7 @@ const menuConfig = {
           hide: false,
         },
         {
-          menuId: 106,
+          menuKey: 'manager-data-retention',
           label: '데이터 보관주기',
           path: 'resource/data-retention',
           index: 1,
