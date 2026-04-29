@@ -163,9 +163,13 @@ export interface EvalGenerateDocItem {
 }
 
 /** /aoe-knowledge-eval-generate 요청 바디. */
-export interface EvalGenerateRequest {
+export interface EvalGenerateBody {
   docs: EvalGenerateDocItem[];
   chunkCount: number;
   difficultyLvl: string;
-  documentId: string;
+}
+
+export interface EvalGenerateRequest {
+  params: { documentId: string };
+  data: EvalGenerateBody;
 }

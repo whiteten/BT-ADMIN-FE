@@ -101,8 +101,8 @@ export const knowledgeApi = {
   createKnowledgeEval: async (data: KnowledgeEvalCreateDatas) => {
     await apiClient.post('/aoe-knowledge-eval-create', data);
   },
-  generateKnowledgeEvalLLM: async (data: EvalGenerateRequest) => {
-    const response = await apiClient.post<ListResponse<KnowledgeEvalLLMGenerateResult>>('/aoe-knowledge-eval-generate', data);
+  generateKnowledgeEvalLLM: async ({ params, data }: EvalGenerateRequest) => {
+    const response = await apiClient.post<ListResponse<KnowledgeEvalLLMGenerateResult>>('/aoe-knowledge-eval-generate', data, { params });
     return extractList(response);
   },
   processKnowledge: async (data: {

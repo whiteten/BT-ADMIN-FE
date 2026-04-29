@@ -304,10 +304,12 @@ export default function EvalCreate() {
     }));
 
     generateLLM({
-      docs,
-      chunkCount: llmSettings.chunkCount,
-      difficultyLvl: llmSettings.difficultyLvl,
-      documentId: documentId!,
+      params: { documentId: documentId! },
+      data: {
+        docs,
+        chunkCount: llmSettings.chunkCount,
+        difficultyLvl: llmSettings.difficultyLvl,
+      },
     });
   };
 
