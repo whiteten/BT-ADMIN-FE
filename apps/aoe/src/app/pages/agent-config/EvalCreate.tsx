@@ -12,7 +12,7 @@ import {
   useGetKnowledge,
   useGetKnowledgeFiles,
 } from '../../features/agent-config/hooks/useKnowledgeQueries';
-import type { EvalChunkSetting, EvalQuestionSetting, KnowledgeChunkItem } from '../../features/agent-config/types';
+import type { EvalChunkSetting, EvalGenerateDocItem, EvalQuestionSetting, KnowledgeChunkItem } from '../../features/agent-config/types';
 import { FallbackSpinner } from '@/components/custom/FallbackSpinner';
 import NoData from '@/components/custom/NoData';
 import PageHeader from '@/components/custom/PageHeader';
@@ -198,7 +198,7 @@ export default function EvalCreate() {
       selectedFileIds.map((fileId) =>
         apiClient
           .get<ListResponse<KnowledgeChunkItem>>('/aoe-knowledge-chunks', { params: { fileId } })
-          .then((res) => extractList(res))
+          .then((res) => extractList(res).map((chunk) => ({ ...chunk, fileId })))
           .catch(() => [] as KnowledgeChunkItem[]),
       ),
     )
@@ -274,11 +274,40 @@ export default function EvalCreate() {
   };
 
   const handleLLMGenerate = () => {
+    // 선택된 청크 객체 목록
+    const selectedChunkItems = availableChunks.filter((c) => selectedChunks.includes(c.chunkId));
+
+    // 파일(fileId) 기준으로 청크 그룹핑
+    const fileMap = new Map<string, { fileName: string; fileId: string; chunks: KnowledgeChunkItem[] }>();
+    selectedChunkItems.forEach((chunk) => {
+      const key = chunk.fileId ?? chunk.fileName;
+      if (!fileMap.has(key)) {
+        fileMap.set(key, { fileName: chunk.fileName, fileId: chunk.fileId ?? '', chunks: [] });
+      }
+      fileMap.get(key)!.chunks.push(chunk);
+    });
+
+    const docs: EvalGenerateDocItem[] = Array.from(fileMap.values()).map(({ fileName, fileId, chunks }) => ({
+      fileName,
+      fileId,
+      chunkDatas: chunks.map((chunk) => ({
+        chunkId: chunk.chunkId,
+        chunk: chunk.chunk,
+        chunkIndex: chunk.chunkIndex,
+        metaData: {
+          chunkCharacters: chunk.chunkCharacters,
+          chunkIndex: chunk.chunkIndex,
+          filename: chunk.fileName,
+          fileType: chunk.fileName.split('.').pop()?.toLowerCase(),
+        },
+      })),
+    }));
+
     generateLLM({
-      documentId: documentId!,
-      chunkIds: selectedChunks,
+      docs,
       chunkCount: llmSettings.chunkCount,
       difficultyLvl: llmSettings.difficultyLvl,
+      documentId: documentId!,
     });
   };
 

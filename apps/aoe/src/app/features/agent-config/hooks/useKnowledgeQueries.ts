@@ -3,6 +3,7 @@ import { createQueryKeys } from '@lukemorales/query-key-factory';
 import type { MutationHookOptions, QueryHookWithParamsOptions } from '@/shared-util';
 import { knowledgeApi } from '../api/knowledgeApi';
 import type {
+  EvalGenerateRequest,
   KnowledgeChunkData,
   KnowledgeChunkItem,
   KnowledgeEvalCreateDatas,
@@ -195,9 +196,7 @@ export const useCreateKnowledgeEval = ({ mutationOptions }: MutationHookOptions<
   });
 };
 
-export const useGenerateKnowledgeEvalLLM = ({
-  mutationOptions,
-}: MutationHookOptions<KnowledgeEvalLLMGenerateResult[], { documentId: string; chunkIds: string[]; chunkCount: number; difficultyLvl: string }> = {}) => {
+export const useGenerateKnowledgeEvalLLM = ({ mutationOptions }: MutationHookOptions<KnowledgeEvalLLMGenerateResult[], EvalGenerateRequest> = {}) => {
   return useMutation({
     mutationFn: knowledgeApi.generateKnowledgeEvalLLM,
     ...mutationOptions,

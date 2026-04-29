@@ -1,5 +1,6 @@
 import ApiClient, { type DetailResponse, type ListResponse, extractDetail, extractList } from '@/shared-util';
 import type {
+  EvalGenerateRequest,
   KnowledgeChunkData,
   KnowledgeChunkItem,
   KnowledgeEvalCreateDatas,
@@ -100,7 +101,7 @@ export const knowledgeApi = {
   createKnowledgeEval: async (data: KnowledgeEvalCreateDatas) => {
     await apiClient.post('/aoe-knowledge-eval-create', data);
   },
-  generateKnowledgeEvalLLM: async (data: { documentId: string; chunkIds: string[]; chunkCount: number; difficultyLvl: string }) => {
+  generateKnowledgeEvalLLM: async (data: EvalGenerateRequest) => {
     const response = await apiClient.post<ListResponse<KnowledgeEvalLLMGenerateResult>>('/aoe-knowledge-eval-generate', data);
     return extractList(response);
   },

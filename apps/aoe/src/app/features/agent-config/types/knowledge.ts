@@ -112,6 +112,8 @@ export interface KnowledgeChunkItem {
   chunkIndex: number;
   chunkCharacters?: number;
   fileName: string;
+  /** 청크 로딩 시 주입되는 파일 ID (docs 조립에 사용). */
+  fileId?: string;
 }
 
 export interface EvalQuestionSetting {
@@ -135,4 +137,35 @@ export interface KnowledgeEvalCreateDatas {
 export interface KnowledgeEvalLLMGenerateResult {
   chunkId: string;
   questions: { question: string; answer: string }[];
+}
+
+/** RAG 엔진으로 전달하는 청크 메타데이터. */
+export interface EvalGenerateChunkMeta {
+  chunkCharacters?: number;
+  chunkIndex?: number;
+  fileType?: string;
+  filename?: string;
+}
+
+/** RAG 엔진으로 전달하는 청크 데이터 항목. */
+export interface EvalGenerateChunkData {
+  chunkId: string;
+  chunk: string;
+  chunkIndex: number;
+  metaData?: EvalGenerateChunkMeta;
+}
+
+/** RAG 엔진으로 전달하는 파일 단위 docs 항목. */
+export interface EvalGenerateDocItem {
+  fileName: string;
+  fileId: string;
+  chunkDatas: EvalGenerateChunkData[];
+}
+
+/** /aoe-knowledge-eval-generate 요청 바디. */
+export interface EvalGenerateRequest {
+  docs: EvalGenerateDocItem[];
+  chunkCount: number;
+  difficultyLvl: string;
+  documentId: string;
 }
