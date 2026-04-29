@@ -1,6 +1,6 @@
 import React from 'react';
 import type { BreadcrumbProps } from 'antd';
-import { IconMenuBotConfig, IconSlidersHorizontal } from '@/components/custom/Icons';
+import { IconEvaluation, IconTag } from '@/components/custom/Icons';
 import PageHeader from '@/components/custom/PageHeader';
 import PageTabs, { type PageTab } from '@/components/custom/PageTabs';
 
@@ -13,8 +13,8 @@ const breadcrumb: BreadcrumbProps['items'] = [
 ];
 
 const tabs: PageTab[] = [
-  { id: 'keyword-boosting', label: '키워드 부스팅', icon: IconMenuBotConfig, component: KeywordBoosting },
-  { id: 'stt-dictionary', label: '후처리 사전', icon: IconSlidersHorizontal, component: SttDictionary },
+  { id: 'keyword-boosting', label: '키워드 부스팅', icon: IconTag, component: KeywordBoosting },
+  { id: 'stt-dictionary', label: '후처리 사전', icon: IconEvaluation, component: SttDictionary },
 ];
 
 export default function DictionaryList() {

@@ -7,7 +7,8 @@ const SearchList = React.lazy(() => import('./pages/stt-config/SearchList'));
 const TrainingList = React.lazy(() => import('./pages/stt-config/TrainingList'));
 const DictionaryList = React.lazy(() => import('./pages/stt-config/DictionaryList'));
 const RecogGroupList = React.lazy(() => import('./pages/stt-config/RecogList'));
-const SttDnList = React.lazy(() => import('./pages/stt-config/SttDnList'));
+const DnList = React.lazy(() => import('./pages/stt-config/DnList'));
+const FileUploadList = React.lazy(() => import('./pages/stt-config/FileUploadList'));
 
 export const routes = [
   {
@@ -59,7 +60,14 @@ export const routes = [
             path: 'dn',
             children: [
               { index: true, element: <Navigate to="list" replace /> },
-              { path: 'list', element: <SttDnList /> },
+              { path: 'list', element: <DnList /> },
+            ],
+          },
+          {
+            path: 'file-upload',
+            children: [
+              { index: true, element: <Navigate to="list" replace /> },
+              { path: 'list', element: <FileUploadList /> },
             ],
           },
         ],

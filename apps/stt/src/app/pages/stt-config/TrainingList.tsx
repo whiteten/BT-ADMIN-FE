@@ -1,6 +1,6 @@
 import React from 'react';
 import type { BreadcrumbProps } from 'antd';
-import { IconMenuBotConfig } from '@/components/custom/Icons';
+import { IconIntent, IconRetrain } from '@/components/custom/Icons';
 import PageHeader from '@/components/custom/PageHeader';
 import PageTabs, { type PageTab } from '@/components/custom/PageTabs';
 
@@ -13,8 +13,8 @@ const breadcrumb: BreadcrumbProps['items'] = [
 ];
 
 const tabs: PageTab[] = [
-  { id: 'confidence-training', label: '신뢰도별 학습', icon: IconMenuBotConfig, component: ConfidenceTraining },
-  { id: 'tuning-sentence', label: '문자수정', icon: IconMenuBotConfig, component: TuningSentence },
+  { id: 'confidence-training', label: '신뢰도별 학습', icon: IconRetrain, component: ConfidenceTraining },
+  { id: 'tuning-sentence', label: '문자수정', icon: IconIntent, component: TuningSentence },
 ];
 
 export default function TrainingList() {

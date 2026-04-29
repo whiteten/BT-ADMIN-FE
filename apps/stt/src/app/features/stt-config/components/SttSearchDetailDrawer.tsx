@@ -161,7 +161,7 @@ const SttSearchDetailDrawer = forwardRef<SttSearchDetailDrawerRef>((_, ref) => {
     <Drawer
       open={state.open}
       onClose={handleClose}
-      title="STT 검색 상세 내역"
+      title="STT 상세 정보"
       closable={{ placement: 'end' }}
       width="45%"
       destroyOnHidden

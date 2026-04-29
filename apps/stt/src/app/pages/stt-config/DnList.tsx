@@ -43,6 +43,15 @@ function UseYnCellRenderer({ value }: ICellRendererParams<SttDictionaryItem>) {
   );
 }
 
+function DnStatusCellRenderer({ value }: ICellRendererParams<SttDnItem>) {
+  const isRegistered = value === '1' || value === 1;
+  return (
+    <Badge className={`text-[13px] leading-[13px] font-medium !h-6 ${isRegistered ? 'text-[#0AB39C] bg-[#0AB39C1A]' : 'text-[#495057] bg-[#E9EBEC]'}`}>
+      {isRegistered ? '등록' : '미등록'}
+    </Badge>
+  );
+}
+
 interface DeleteCellRendererParams extends ICellRendererParams<SttDnItem> {
   onDelete: (data: SttDnItem) => void;
 }
@@ -65,12 +74,19 @@ export default function SttDnList() {
   const [selectedGroupId, setSelectedGroupId] = useState<string | null>(null);
   const [dnStatus, setDnStatus] = useState('');
   const [useYn, setUseYn] = useState('');
-  const [dnFrom, setDnFrom] = useState('');
-  const [dnTo, setDnTo] = useState('');
+  const [dnNo, setDnNo] = useState('');
   const [phoneIp, setPhoneIp] = useState('');
   const [searchParams, setSearchParams] = useState<SttDnSearchParams | null>(null);
 
-  const { data: rowData = [], isLoading } = useGetSttDnList({ params: searchParams });
+  const { data: rawData = [], isLoading } = useGetSttDnList({ params: searchParams });
+
+  const rowData = rawData.filter((item) => {
+    if (dnStatus && item.dnStatus !== dnStatus) return false;
+    if (useYn && item.useYn !== useYn) return false;
+    if (dnNo && !item.dnNo?.includes(dnNo)) return false;
+    if (phoneIp && !item.phoneIp?.includes(phoneIp)) return false;
+    return true;
+  });
 
   const { mutate: deleteDn } = useDeleteSttDn({
     mutationOptions: {
@@ -90,26 +106,7 @@ export default function SttDnList() {
 
   const handleGroupSelect = (hostName: string | null, _group: CodeItem | null) => {
     setSelectedGroupId(hostName);
-    if (hostName) {
-      setSearchParams({ hostName });
-    } else {
-      setSearchParams(null);
-    }
-  };
-
-  const handleSearch = () => {
-    if (!selectedGroupId) {
-      toast.warning('좌측 트리에서 그룹을 선택해주세요.');
-      return;
-    }
-    setSearchParams({
-      hostName: selectedGroupId,
-      dnStatus: dnStatus || undefined,
-      useYn: useYn || undefined,
-      dnFrom: dnFrom || undefined,
-      dnTo: dnTo || undefined,
-      phoneIp: phoneIp || undefined,
-    });
+    setSearchParams(hostName ? { hostName } : null);
   };
 
   const columnDefs: ColDef<SttDnItem>[] = [
@@ -121,7 +118,7 @@ export default function SttDnList() {
       field: 'dnStatus',
       maxWidth: 110,
       flex: 1,
-      valueFormatter: (params) => ({ '1': '등록', '0': '미등록' })[String(params.value)] ?? params.value,
+      cellRenderer: DnStatusCellRenderer,
     },
     {
       headerName: '사용여부',
@@ -149,43 +146,6 @@ export default function SttDnList() {
     <div className="flex flex-col gap-4 w-full h-full">
       <PageHeader breadcrumb={breadcrumb} />
 
-      {/* 검색 필터 */}
-      <div className="flex items-center gap-4 flex-wrap bg-white bt-shadow px-7 py-4">
-        <div className="flex items-center gap-2">
-          <span className="text-sm font-medium text-[#495057] shrink-0">내선상태</span>
-          <Select value={dnStatus} onChange={setDnStatus} options={DN_STATUS_OPTIONS} style={{ width: 120 }} />
-        </div>
-        <div className="flex items-center gap-2">
-          <span className="text-sm font-medium text-[#495057] shrink-0">사용여부</span>
-          <Select value={useYn} onChange={setUseYn} options={USE_YN_OPTIONS} style={{ width: 120 }} />
-        </div>
-        <div className="flex items-center gap-2 shrink-0">
-          <span className="text-sm font-medium text-[#495057] shrink-0">내선번호</span>
-          <Input value={dnFrom} onChange={(e) => setDnFrom(e.target.value)} placeholder="시작" style={{ width: 100 }} onPressEnter={handleSearch} />
-          <span className="text-[#495057]">~</span>
-          <Input value={dnTo} onChange={(e) => setDnTo(e.target.value)} placeholder="종료" style={{ width: 100 }} onPressEnter={handleSearch} />
-        </div>
-        <div className="flex items-center gap-2">
-          <span className="text-sm font-medium text-[#495057] shrink-0">전화기IP</span>
-          <Input value={phoneIp} onChange={(e) => setPhoneIp(e.target.value)} placeholder="전화기IP를 입력하세요" style={{ width: 180 }} onPressEnter={handleSearch} />
-        </div>
-        <div className="flex items-center gap-2 ml-auto">
-          <Button
-            type="primary"
-            onClick={() => {
-              if (!selectedGroupId) {
-                toast.warning('좌측 트리에서 그룹을 선택해주세요.');
-                return;
-              }
-              drawerRef.current?.open(selectedGroupId);
-            }}
-          >
-            추가
-          </Button>
-          <Button onClick={() => toast.warning('엑셀 일괄추가 기능은 준비 중입니다.')}>Import</Button>
-        </div>
-      </div>
-
       {/* 본문 */}
       <div className="flex gap-4 flex-1 min-h-0">
         {/* 좌측: PA 그룹 트리 */}
@@ -193,28 +153,66 @@ export default function SttDnList() {
           <PaGroupTree selectedGroupId={selectedGroupId} onSelect={handleGroupSelect} />
         </div>
 
-        {/* 우측: 내선 리스트 */}
-        <div className="flex-1 min-h-0 bg-white bt-shadow p-7 overflow-hidden flex flex-col gap-3">
-          <span className="text-[20px] font-bold text-[var(--color-bt-primary)]">STT 내선정보</span>
-          {!selectedGroupId ? (
-            <div className="flex-1 flex items-center justify-center">
-              <NoData message="좌측 트리에서 PA 그룹을 선택해주세요." iconSize={50} fontSize="text-lg" gap={2} />
+        {/* 우측: 검색 필터 + 내선 리스트 */}
+        <div className="flex-1 min-h-0 flex flex-col gap-4 overflow-hidden">
+          {/* 검색 필터 */}
+          <div className="flex items-center gap-4 flex-wrap bg-white bt-shadow px-7 py-4 shrink-0">
+            <div className="flex items-center gap-2">
+              <span className="text-sm font-medium text-[#495057] shrink-0">내선상태</span>
+              <Select value={dnStatus} onChange={setDnStatus} options={DN_STATUS_OPTIONS} style={{ width: 120 }} />
             </div>
-          ) : (
-            <div className="flex-1 min-h-0">
-              <AgGridReact<SttDnItem>
-                rowData={rowData}
-                columnDefs={columnDefs}
-                gridOptions={{ ...gridOptions, paginationPageSize: PAGE_SIZE }}
-                loading={isLoading}
-                sideBar={false}
-                getRowStyle={(params) => {
-                  const isInactive = params.data?.useYn === '0' || params.data?.dnStatus === '0';
-                  return isInactive ? { color: '#adb5bd' } : undefined;
+            <div className="flex items-center gap-2">
+              <span className="text-sm font-medium text-[#495057] shrink-0">사용여부</span>
+              <Select value={useYn} onChange={setUseYn} options={USE_YN_OPTIONS} style={{ width: 120 }} />
+            </div>
+            <div className="flex items-center gap-2 shrink-0">
+              <span className="text-sm font-medium text-[#495057] shrink-0">내선번호</span>
+              <Input value={dnNo} onChange={(e) => setDnNo(e.target.value)} placeholder="내선번호를 입력하세요" style={{ width: 100 }} />
+            </div>
+            <div className="flex items-center gap-2">
+              <span className="text-sm font-medium text-[#495057] shrink-0">전화기IP</span>
+              <Input value={phoneIp} onChange={(e) => setPhoneIp(e.target.value)} placeholder="전화기IP를 입력하세요" style={{ width: 180 }} />
+            </div>
+            <div className="flex items-center gap-2 ml-auto">
+              <Button
+                type="primary"
+                onClick={() => {
+                  if (!selectedGroupId) {
+                    toast.warning('좌측 트리에서 그룹을 선택해주세요.');
+                    return;
+                  }
+                  drawerRef.current?.open(selectedGroupId);
                 }}
-              />
+              >
+                추가
+              </Button>
+              <Button onClick={() => toast.warning('엑셀 일괄추가 기능은 준비 중입니다.')}>Import</Button>
             </div>
-          )}
+          </div>
+
+          {/* 내선 리스트 */}
+          <div className="flex-1 min-h-0 bg-white bt-shadow p-7 overflow-hidden flex flex-col gap-3">
+            {/*<span className="text-[20px] font-bold text-[var(--color-bt-primary)]">STT 내선정보</span>*/}
+            {!selectedGroupId ? (
+              <div className="flex-1 flex items-center justify-center">
+                <NoData message="좌측 트리에서 PA 그룹을 선택해주세요." iconSize={50} fontSize="text-lg" gap={2} />
+              </div>
+            ) : (
+              <div className="flex-1 min-h-0">
+                <AgGridReact<SttDnItem>
+                  rowData={rowData}
+                  columnDefs={columnDefs}
+                  gridOptions={{ ...gridOptions, paginationPageSize: PAGE_SIZE }}
+                  loading={isLoading}
+                  sideBar={false}
+                  getRowStyle={(params) => {
+                    const isInactive = params.data?.useYn === '0' || params.data?.dnStatus === '0';
+                    return isInactive ? { color: '#adb5bd' } : undefined;
+                  }}
+                />
+              </div>
+            )}
+          </div>
         </div>
       </div>
 

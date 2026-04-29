@@ -20,8 +20,7 @@ export interface SttDnSearchParams {
   hostName?: string;
   dnStatus?: string;
   useYn?: string;
-  dnFrom?: string;
-  dnTo?: string;
+  dnNo?: string;
   phoneIp?: string;
 }
 

@@ -1,6 +1,6 @@
 import React from 'react';
 import type { BreadcrumbProps } from 'antd';
-import { IconMenuBotConfig } from '@/components/custom/Icons';
+import { IconDocument } from '@/components/custom/Icons';
 import PageHeader from '@/components/custom/PageHeader';
 import PageTabs, { type PageTab } from '@/components/custom/PageTabs';
 
@@ -13,8 +13,8 @@ const breadcrumb: BreadcrumbProps['items'] = [
 ];
 
 const tabs: PageTab[] = [
-  { id: 'stt-search', label: 'STT 검색', icon: IconMenuBotConfig, component: SttSearch },
-  { id: 'stt-search-callbot', label: 'STT 검색(음성봇)', icon: IconMenuBotConfig, component: SttSearchCallbot },
+  { id: 'stt-search', label: 'STT 검색', icon: IconDocument, component: SttSearch },
+  { id: 'stt-search-callbot', label: 'STT 검색(음성봇)', icon: IconDocument, component: SttSearchCallbot },
 ];
 
 export default function SearchList() {

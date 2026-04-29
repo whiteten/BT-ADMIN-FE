@@ -7,6 +7,7 @@ import RecogTargetList from '../../features/stt-config/components/RecogTargetLis
 import RecogTargetSearch from '../../features/stt-config/components/RecogTargetSearch';
 import { recogQueryKeys, useCreateRecogGroup } from '../../features/stt-config/hooks/useRecogQueries';
 import type { RecogGroupCreateData, RecogGroupItem } from '../../features/stt-config/types';
+import { IconBubble, IconDocument } from '@/components/custom/Icons';
 import NoData from '@/components/custom/NoData';
 import PageHeader from '@/components/custom/PageHeader';
 import PageTabs, { type PageTab } from '@/components/custom/PageTabs';
@@ -65,8 +66,8 @@ function GroupDetailPanel({ group }: { group: RecogGroupItem }) {
   const ListTab = () => <RecogTargetList groupCode={group.groupCode} engineCode={group.engineCode} />;
 
   const tabs: PageTab[] = [
-    { id: 'register', label: '정답지 등록', component: RegisterTab },
-    { id: 'list', label: '정답지 목록', component: ListTab },
+    { id: 'register', label: '정답지 등록', icon: IconBubble, component: RegisterTab },
+    { id: 'list', label: '정답지 목록', icon: IconDocument, component: ListTab },
   ];
 
   return <PageTabs tabs={tabs} />;
