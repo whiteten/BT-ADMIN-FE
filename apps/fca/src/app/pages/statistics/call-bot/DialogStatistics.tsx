@@ -109,7 +109,7 @@ export default function DialogStatistics() {
 
   // 대화 통계 조회
   const {
-    data: dialogStatList,
+    data: dialogStatData,
     isLoading: isLoadingDialogStatList,
     refetch,
   } = useGetDialogStatList({
@@ -131,28 +131,11 @@ export default function DialogStatistics() {
   });
 
   useEffect(() => {
-    if (dialogStatList !== undefined) setRowData(dialogStatList);
-  }, [dialogStatList]);
+    if (dialogStatData !== undefined) setRowData(dialogStatData.items);
+  }, [dialogStatData]);
 
-  // 합계 행 계산 (pinnedBottomRowData)
-  const summaryRow = useMemo<DialogStatListItem[]>(() => {
-    if (!rowData?.length) return [];
-    const count = rowData.length;
-    const sum = (field: keyof DialogStatListItem) => rowData.reduce((acc, row) => acc + (Number(row[field]) || 0), 0);
-    const avg = (field: keyof DialogStatListItem) => Math.round((sum(field) / count) * 100) / 100;
-    return [
-      {
-        psrTimeKey: '전체합계',
-        serviceName: '',
-        dialogName: '',
-        inCount: sum('inCount'),
-        successCount: sum('successCount'),
-        failCount: sum('failCount'),
-        successPercent: avg('successPercent'),
-        failPercent: avg('failPercent'),
-      } as DialogStatListItem,
-    ];
-  }, [rowData]);
+  // BE에서 받은 summary에 '전체합계' 라벨 주입
+  const summaryRow: DialogStatListItem[] = dialogStatData?.summary ? [{ ...dialogStatData.summary, psrTimeKey: '전체합계' }] : [];
 
   // startDate 또는 timeUnit 변경 시 endDate 자동 조정
   useEffect(() => {
