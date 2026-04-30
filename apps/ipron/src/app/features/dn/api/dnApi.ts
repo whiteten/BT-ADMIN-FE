@@ -18,11 +18,17 @@
  * - ipron-dn-excel-export:            GET    DN 목록 엑셀 내보내기 (binary)
  * - ipron-dn-excel-import:            POST   DN 목록 엑셀 가져오기 시작 (multipart, 즉시 taskId 반환)
  * - ipron-dn-excel-import-status:     GET    DN 목록 엑셀 가져오기 진행 상태
+ * - ipron-dn-call-transfer-list:      GET    조건부 착신 전환 목록
+ * - ipron-dn-call-transfer-create:    POST   조건부 착신 전환 등록
+ * - ipron-dn-call-transfer-update:    PUT    조건부 착신 전환 수정
+ * - ipron-dn-call-transfer-delete:    DELETE 조건부 착신 전환 삭제
  */
 import ApiClient, { type DetailResponse, type ListResponse, extractDetail, extractList } from '@/shared-util';
 import type {
   CosEffectResponse,
   DnBatchCreateRequest,
+  DnCallTransferRequest,
+  DnCallTransferResponse,
   DnCountResponse,
   DnCreateRequest,
   DnFilterQuery,
@@ -351,5 +357,36 @@ export const dnApi = {
   /** @flow ipron-dn-sca-delete */
   deleteSca: async ({ dnId, scaId }: { dnId: number; scaId: number }) => {
     return await apiClient.delete('/ipron-dn-sca-delete', { params: { dnId, scaId } });
+  },
+
+  // ─── 조건부 착신 전환 (DnCallTransfer) ──────────────────────────────────────
+
+  /** @flow ipron-dn-call-transfer-list */
+  getCallTransferList: async (dnId: number): Promise<DnCallTransferResponse[]> => {
+    const response = await apiClient.get<DetailResponse<{ value: DnCallTransferResponse[] }>>('/ipron-dn-call-transfer-list', {
+      params: { dnId },
+    });
+    return extractDetail(response)?.value ?? [];
+  },
+
+  /** @flow ipron-dn-call-transfer-create */
+  createCallTransfer: async ({ dnId, data }: { dnId: number; data: DnCallTransferRequest }): Promise<DnCallTransferResponse> => {
+    const response = await apiClient.post<DetailResponse<DnCallTransferResponse>>('/ipron-dn-call-transfer-create', data, {
+      params: { dnId },
+    });
+    return extractDetail(response);
+  },
+
+  /** @flow ipron-dn-call-transfer-update */
+  updateCallTransfer: async ({ dnId, caseTransId, data }: { dnId: number; caseTransId: number; data: DnCallTransferRequest }): Promise<DnCallTransferResponse> => {
+    const response = await apiClient.put<DetailResponse<DnCallTransferResponse>>('/ipron-dn-call-transfer-update', data, {
+      params: { dnId, caseTransId },
+    });
+    return extractDetail(response);
+  },
+
+  /** @flow ipron-dn-call-transfer-delete */
+  deleteCallTransfer: async ({ dnId, caseTransId }: { dnId: number; caseTransId: number }) => {
+    return await apiClient.delete('/ipron-dn-call-transfer-delete', { params: { dnId, caseTransId } });
   },
 };

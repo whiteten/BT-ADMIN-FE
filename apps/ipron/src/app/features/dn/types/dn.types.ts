@@ -641,3 +641,92 @@ export const DN_SCA_INITIAL_VALUES: Partial<DnScaRequest> = {
   md5Authpwd: '',
   transNum: '',
 };
+
+// ─── 조건부 착신 전환 (CallTransfer) ────────────────────────────────────────
+
+/** 전환/거부 구분 */
+export type TransferDenyType = '1' | '9'; // 1=전환, 9=거부
+/** 인입호 유형 */
+export type CallTypeCode = '1' | '2' | '3'; // 1=내부, 2=외부, 3=내부/외부
+/** 착신변환 종류 */
+export type CallTransKindCode = '1' | '2' | '3'; // 1=시간조건, 2=번호조건, 3=무조건
+/** 사유 코드 */
+export type TransReasonCodeCode =
+  | '10'
+  | '11'
+  | '12'
+  | '13'
+  | '14' // TRANSFER 그룹
+  | '21'
+  | '22'
+  | '23'; // DENY 그룹
+
+export const TRANSFER_DENY_TYPE_LABELS: Record<TransferDenyType, string> = { '1': '전환', '9': '거부' };
+export const DN_CALL_TYPE_LABELS: Record<CallTypeCode, string> = { '1': '내부', '2': '외부', '3': '내부/외부' };
+export const CALL_TRANS_KIND_LABELS: Record<CallTransKindCode, string> = { '1': '시간조건', '2': '번호조건', '3': '무조건' };
+export const TRANS_REASON_CODE_LABELS: Record<TransReasonCodeCode, string> = {
+  '10': '통화중',
+  '11': '부재중',
+  '12': '회의중',
+  '13': '외근중',
+  '14': '근무시간외',
+  '21': '통화중(거부)',
+  '22': '메시지(거부)',
+  '23': '사용자(거부)',
+};
+
+/** 사유 코드의 그룹 (transType) 매핑 — UI 옵션 동적 갱신용 */
+export const TRANS_REASON_GROUPS: Record<TransReasonCodeCode, TransferDenyType> = {
+  '10': '1',
+  '11': '1',
+  '12': '1',
+  '13': '1',
+  '14': '1',
+  '21': '9',
+  '22': '9',
+  '23': '9',
+};
+
+export interface DnCallTransferResponse {
+  dnId: number;
+  caseTransId: number;
+  transType: TransferDenyType;
+  callType: CallTypeCode;
+  transKind: CallTransKindCode;
+  transReasonCode: TransReasonCodeCode;
+  holiApplyYn: number;
+  weekdayByte: string; // "1110000" (월화수)
+  startTime: string; // "0900"
+  finshTime: string; // "1800"
+  activateYn: number;
+  transDnis: string | null;
+  transPattern: string | null;
+}
+
+export interface DnCallTransferRequest {
+  transType: TransferDenyType;
+  callType: CallTypeCode;
+  transKind: CallTransKindCode;
+  transReasonCode: TransReasonCodeCode;
+  holiApplyYn: number;
+  weekdayByte: string;
+  startTime: string;
+  finshTime: string;
+  activateYn: number;
+  transDnis?: string | null;
+  transPattern?: string | null;
+}
+
+export const DN_CALL_TRANSFER_INITIAL_VALUES: Partial<DnCallTransferRequest> = {
+  transType: '1',
+  callType: '1',
+  transKind: '3',
+  transReasonCode: '11',
+  holiApplyYn: 0,
+  weekdayByte: '1111100',
+  startTime: '0900',
+  finshTime: '1800',
+  activateYn: 1,
+  transDnis: '',
+  transPattern: '',
+};

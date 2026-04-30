@@ -40,6 +40,7 @@ import { type BreadcrumbProps, Button, Col, Form, Input, InputNumber, Row, Selec
 import { Lock as LockOutlined } from 'lucide-react';
 import { toast } from '@/shared-util';
 import { useGetDnProfileNodeTenants, useGetDnProfileNodes, useGetDnProfileTenants } from '../../dn-profile/hooks/useDnProfileQueries';
+import DnCallTransferDrawer from '../components/DnCallTransferDrawer';
 import DnScaTab from '../components/DnScaTab';
 import DnSnrTab from '../components/DnSnrTab';
 import DnSummaryPanel from '../components/DnSummaryPanel';
@@ -149,6 +150,7 @@ export default function DnFormPage() {
   const modal = useModal();
   const [form] = Form.useForm();
   const [currentTab, setCurrentTab] = useState<string>('basic');
+  const [callTransferOpen, setCallTransferOpen] = useState(false);
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const [formValues, setFormValues] = useState<any>(null);
 
@@ -1432,6 +1434,13 @@ export default function DnFormPage() {
                           valuePropName="checked"
                           getValueFromEvent={(checked: boolean) => (checked ? 1 : 0)}
                           getValueProps={(v: number) => ({ checked: v === 1 })}
+                          extra={
+                            isEditMode && dnId ? (
+                              <Button size="small" type="link" disabled={form.getFieldValue('caseTransSvc') !== 1} onClick={() => setCallTransferOpen(true)} style={{ padding: 0 }}>
+                                규칙 관리 →
+                              </Button>
+                            ) : undefined
+                          }
                         >
                           <Switch checkedChildren="ON" unCheckedChildren="OFF" disabled={personalDisabled('transSvc')} />
                         </Form.Item>
@@ -1544,6 +1553,9 @@ export default function DnFormPage() {
           </div>
         </div>
       </div>
+
+      {/* 조건부 착신 전환 Drawer (수정 모드만 + caseTransSvc=1 시 활성) */}
+      {isEditMode && dnId && <DnCallTransferDrawer open={callTransferOpen} dnId={dnId} dnNo={dnDetail?.dnNo} onClose={() => setCallTransferOpen(false)} />}
     </div>
   );
 }

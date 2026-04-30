@@ -8,6 +8,7 @@ import type { MutationHookOptions, QueryHookOptions, QueryHookWithParamsOptions 
 import { dnApi } from '../api/dnApi';
 import type {
   CosEffectResponse,
+  DnCallTransferResponse,
   DnCountResponse,
   DnOptionsResponse,
   DnRangeItem,
@@ -29,6 +30,7 @@ export const dnQueryKeys = createQueryKeys('dns', {
   getSnrList: (dnId?: number) => [dnId],
   getSnrTodList: (dnId?: number, snrId?: number) => [dnId, snrId],
   getScaList: (dnId?: number) => [dnId],
+  getCallTransferList: (dnId?: number) => [dnId],
 });
 
 // ─── List / Detail ─────────────────────────────────────────────────────────
@@ -207,4 +209,27 @@ export const useUpdateDnSca = ({ mutationOptions }: MutationHookOptions = {}) =>
 
 export const useDeleteDnSca = ({ mutationOptions }: MutationHookOptions = {}) => {
   return useMutation({ mutationFn: dnApi.deleteSca, ...mutationOptions });
+};
+
+// ─── Call Transfer (조건부 착신 전환) Queries / Mutations ───────────────────
+
+export const useGetDnCallTransferList = (dnId: number | null | undefined, { queryOptions }: QueryHookOptions<DnCallTransferResponse[]> = {}) => {
+  return useQuery({
+    queryKey: dnQueryKeys.getCallTransferList(dnId ?? undefined).queryKey,
+    queryFn: () => dnApi.getCallTransferList(dnId!),
+    enabled: !!dnId,
+    ...queryOptions,
+  });
+};
+
+export const useCreateDnCallTransfer = ({ mutationOptions }: MutationHookOptions = {}) => {
+  return useMutation({ mutationFn: dnApi.createCallTransfer, ...mutationOptions });
+};
+
+export const useUpdateDnCallTransfer = ({ mutationOptions }: MutationHookOptions = {}) => {
+  return useMutation({ mutationFn: dnApi.updateCallTransfer, ...mutationOptions });
+};
+
+export const useDeleteDnCallTransfer = ({ mutationOptions }: MutationHookOptions = {}) => {
+  return useMutation({ mutationFn: dnApi.deleteCallTransfer, ...mutationOptions });
 };
