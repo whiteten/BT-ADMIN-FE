@@ -1295,23 +1295,25 @@ export default function DnFormPage() {
                       <SwitchBox name="autoReturnSvc" label="자동 호 회수" disabled={personalDisabled('autoReturnSvc')} cosDependent={cosControlled('autoReturnSvc')} />
                       <SwitchBox name="intercomOrigSvc" label="인터콤 발신" disabled={personalDisabled('intercomOrigSvc')} cosDependent={cosControlled('intercomOrigSvc')} />
                       <Form.Item
-                        name="shortDialSvc"
-                        label={
-                          <span className="inline-flex items-center gap-2">
-                            {cosDependentLabel('단축다이얼', cosControlled('shortDialSvc'))}
-                            {isEditMode && dnId && watchedShortDialSvc === 1 && (
-                              <Button size="small" type="link" onClick={() => setShortDialOpen(true)} style={{ padding: 0, height: 'auto', fontSize: 12 }}>
-                                규칙 관리 →
-                              </Button>
-                            )}
-                          </span>
-                        }
+                        label={cosDependentLabel('단축다이얼', cosControlled('shortDialSvc'))}
                         tooltip={cosControlled('shortDialSvc') ? 'COS 설정에 의해 편집 허용 여부 결정' : undefined}
-                        valuePropName="checked"
-                        getValueFromEvent={(c: boolean) => (c ? 1 : 0)}
-                        getValueProps={(v: number) => ({ checked: v === 1 })}
                       >
-                        <Switch checkedChildren="ON" unCheckedChildren="OFF" disabled={personalDisabled('shortDialSvc')} />
+                        <div className="flex items-center gap-2">
+                          <Form.Item
+                            name="shortDialSvc"
+                            valuePropName="checked"
+                            getValueFromEvent={(c: boolean) => (c ? 1 : 0)}
+                            getValueProps={(v: number) => ({ checked: v === 1 })}
+                            noStyle
+                          >
+                            <Switch checkedChildren="ON" unCheckedChildren="OFF" disabled={personalDisabled('shortDialSvc')} />
+                          </Form.Item>
+                          {isEditMode && dnId && watchedShortDialSvc === 1 && (
+                            <Button size="small" type="link" onClick={() => setShortDialOpen(true)} style={{ padding: 0, height: 'auto' }}>
+                              규칙 관리 →
+                            </Button>
+                          )}
+                        </div>
                       </Form.Item>
                       <SwitchBox name="dodNumSvc" label="DOD 발신번호표시" />
                     </div>
