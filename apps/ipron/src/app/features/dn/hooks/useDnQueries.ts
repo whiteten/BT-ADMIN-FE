@@ -14,6 +14,7 @@ import type {
   DnRangeItem,
   DnResponse,
   DnScaResponse,
+  DnShortDialResponse,
   DnSnrResponse,
   DnSnrTodResponse,
   NodeTenantItem,
@@ -31,6 +32,7 @@ export const dnQueryKeys = createQueryKeys('dns', {
   getSnrTodList: (dnId?: number, snrId?: number) => [dnId, snrId],
   getScaList: (dnId?: number) => [dnId],
   getCallTransferList: (dnId?: number) => [dnId],
+  getShortDialList: (dnId?: number) => [dnId],
 });
 
 // ─── List / Detail ─────────────────────────────────────────────────────────
@@ -232,4 +234,27 @@ export const useUpdateDnCallTransfer = ({ mutationOptions }: MutationHookOptions
 
 export const useDeleteDnCallTransfer = ({ mutationOptions }: MutationHookOptions = {}) => {
   return useMutation({ mutationFn: dnApi.deleteCallTransfer, ...mutationOptions });
+};
+
+// ─── 단축다이얼 (ShortDial) Queries / Mutations ────────────────────────────
+
+export const useGetDnShortDialList = (dnId: number | null | undefined, { queryOptions }: QueryHookOptions<DnShortDialResponse[]> = {}) => {
+  return useQuery({
+    queryKey: dnQueryKeys.getShortDialList(dnId ?? undefined).queryKey,
+    queryFn: () => dnApi.getShortDialList(dnId!),
+    enabled: !!dnId,
+    ...queryOptions,
+  });
+};
+
+export const useCreateDnShortDial = ({ mutationOptions }: MutationHookOptions = {}) => {
+  return useMutation({ mutationFn: dnApi.createShortDial, ...mutationOptions });
+};
+
+export const useUpdateDnShortDial = ({ mutationOptions }: MutationHookOptions = {}) => {
+  return useMutation({ mutationFn: dnApi.updateShortDial, ...mutationOptions });
+};
+
+export const useDeleteDnShortDial = ({ mutationOptions }: MutationHookOptions = {}) => {
+  return useMutation({ mutationFn: dnApi.deleteShortDial, ...mutationOptions });
 };

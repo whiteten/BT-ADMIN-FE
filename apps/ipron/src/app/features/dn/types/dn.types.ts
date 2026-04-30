@@ -730,3 +730,20 @@ export const DN_CALL_TRANSFER_INITIAL_VALUES: Partial<DnCallTransferRequest> = {
   transDnis: '',
   transPattern: '',
 };
+
+// ─── 단축다이얼 (ShortDial) ─────────────────────────────────────────────────
+
+export interface DnShortDialResponse {
+  dnId: number;
+  shortDial: string;
+  dialingNo: string;
+  dispName: string | null;
+  shortdialDesc: string | null;
+}
+
+export interface DnShortDialRequest {
+  shortDial: string;
+  dialingNo: string;
+  dispName?: string | null;
+  shortdialDesc?: string | null;
+}

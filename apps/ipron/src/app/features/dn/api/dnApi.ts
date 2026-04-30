@@ -22,6 +22,7 @@
  * - ipron-dn-call-transfer-create:    POST   조건부 착신 전환 등록
  * - ipron-dn-call-transfer-update:    PUT    조건부 착신 전환 수정
  * - ipron-dn-call-transfer-delete:    DELETE 조건부 착신 전환 삭제
+ * - ipron-dn-short-dial-list/create/update/delete: 단축다이얼 CRUD
  */
 import ApiClient, { type DetailResponse, type ListResponse, extractDetail, extractList } from '@/shared-util';
 import type {
@@ -38,6 +39,8 @@ import type {
   DnResponse,
   DnScaRequest,
   DnScaResponse,
+  DnShortDialRequest,
+  DnShortDialResponse,
   DnSnrRequest,
   DnSnrResponse,
   DnSnrTodRequest,
@@ -388,5 +391,30 @@ export const dnApi = {
   /** @flow ipron-dn-call-transfer-delete */
   deleteCallTransfer: async ({ dnId, caseTransId }: { dnId: number; caseTransId: number }) => {
     return await apiClient.delete('/ipron-dn-call-transfer-delete', { params: { dnId, caseTransId } });
+  },
+
+  // ─── 단축다이얼 (ShortDial) ────────────────────────────────────────────────
+
+  /** @flow ipron-dn-short-dial-list */
+  getShortDialList: async (dnId: number): Promise<DnShortDialResponse[]> => {
+    const response = await apiClient.get<DetailResponse<{ value: DnShortDialResponse[] }>>('/ipron-dn-short-dial-list', { params: { dnId } });
+    return extractDetail(response)?.value ?? [];
+  },
+
+  /** @flow ipron-dn-short-dial-create */
+  createShortDial: async ({ dnId, data }: { dnId: number; data: DnShortDialRequest }): Promise<DnShortDialResponse> => {
+    const response = await apiClient.post<DetailResponse<DnShortDialResponse>>('/ipron-dn-short-dial-create', data, { params: { dnId } });
+    return extractDetail(response);
+  },
+
+  /** @flow ipron-dn-short-dial-update */
+  updateShortDial: async ({ dnId, shortDial, data }: { dnId: number; shortDial: string; data: DnShortDialRequest }): Promise<DnShortDialResponse> => {
+    const response = await apiClient.put<DetailResponse<DnShortDialResponse>>('/ipron-dn-short-dial-update', data, { params: { dnId, shortDial } });
+    return extractDetail(response);
+  },
+
+  /** @flow ipron-dn-short-dial-delete */
+  deleteShortDial: async ({ dnId, shortDial }: { dnId: number; shortDial: string }) => {
+    return await apiClient.delete('/ipron-dn-short-dial-delete', { params: { dnId, shortDial } });
   },
 };

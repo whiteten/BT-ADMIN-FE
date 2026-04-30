@@ -42,6 +42,7 @@ import { toast } from '@/shared-util';
 import { useGetDnProfileNodeTenants, useGetDnProfileNodes, useGetDnProfileTenants } from '../../dn-profile/hooks/useDnProfileQueries';
 import DnCallTransferDrawer from '../components/DnCallTransferDrawer';
 import DnScaTab from '../components/DnScaTab';
+import DnShortDialDrawer from '../components/DnShortDialDrawer';
 import DnSnrTab from '../components/DnSnrTab';
 import DnSummaryPanel from '../components/DnSummaryPanel';
 import { dnQueryKeys, useCreateDn, useDeleteDns, useGetDnCosEffect, useGetDnDetail, useGetDnOptions, useUpdateDn } from '../hooks/useDnQueries';
@@ -151,6 +152,7 @@ export default function DnFormPage() {
   const [form] = Form.useForm();
   const [currentTab, setCurrentTab] = useState<string>('basic');
   const [callTransferOpen, setCallTransferOpen] = useState(false);
+  const [shortDialOpen, setShortDialOpen] = useState(false);
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const [formValues, setFormValues] = useState<any>(null);
 
@@ -1291,7 +1293,23 @@ export default function DnFormPage() {
                       <SwitchBox name="callResvSvc" label="통화예약서비스" disabled={personalDisabled('callReserveSvc')} cosDependent={cosControlled('callReserveSvc')} />
                       <SwitchBox name="autoReturnSvc" label="자동 호 회수" disabled={personalDisabled('autoReturnSvc')} cosDependent={cosControlled('autoReturnSvc')} />
                       <SwitchBox name="intercomOrigSvc" label="인터콤 발신" disabled={personalDisabled('intercomOrigSvc')} cosDependent={cosControlled('intercomOrigSvc')} />
-                      <SwitchBox name="shortDialSvc" label="단축다이얼" disabled={personalDisabled('shortDialSvc')} cosDependent={cosControlled('shortDialSvc')} />
+                      <Form.Item
+                        name="shortDialSvc"
+                        label={cosDependentLabel('단축다이얼', cosControlled('shortDialSvc'))}
+                        tooltip={cosControlled('shortDialSvc') ? 'COS 설정에 의해 편집 허용 여부 결정' : undefined}
+                        valuePropName="checked"
+                        getValueFromEvent={(c: boolean) => (c ? 1 : 0)}
+                        getValueProps={(v: number) => ({ checked: v === 1 })}
+                        extra={
+                          isEditMode && dnId ? (
+                            <Button size="small" type="link" disabled={form.getFieldValue('shortDialSvc') !== 1} onClick={() => setShortDialOpen(true)} style={{ padding: 0 }}>
+                              규칙 관리 →
+                            </Button>
+                          ) : undefined
+                        }
+                      >
+                        <Switch checkedChildren="ON" unCheckedChildren="OFF" disabled={personalDisabled('shortDialSvc')} />
+                      </Form.Item>
                       <SwitchBox name="dodNumSvc" label="DOD 발신번호표시" />
                     </div>
 
@@ -1556,6 +1574,7 @@ export default function DnFormPage() {
 
       {/* 조건부 착신 전환 Drawer (수정 모드만 + caseTransSvc=1 시 활성) */}
       {isEditMode && dnId && <DnCallTransferDrawer open={callTransferOpen} dnId={dnId} dnNo={dnDetail?.dnNo} onClose={() => setCallTransferOpen(false)} />}
+      {isEditMode && dnId && <DnShortDialDrawer open={shortDialOpen} dnId={dnId} dnNo={dnDetail?.dnNo} onClose={() => setShortDialOpen(false)} />}
     </div>
   );
 }
