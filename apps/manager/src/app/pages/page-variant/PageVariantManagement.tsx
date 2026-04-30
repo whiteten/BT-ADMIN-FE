@@ -5,16 +5,19 @@
  *
  * 데이터 출처:
  * - 카탈로그(manifest): usePageVariantManifestStore (각 remote가 등록한 화면 메타)
- * - 적용된 지정: useGetPageVariants (백엔드에 저장된 (appId, path) → componentKey)
+ * - 적용된 지정: usePageVariantsStore (host 부팅 시 한 번 로드된 (appId, path) → componentKey 맵)
+ *
+ * mutation 적용 후에는 query 캐시를 invalidate한다.
+ * → host loader의 useQuery가 refetch → store 자동 갱신 → 이 페이지가 리렌더된다.
  */
 
 import { useEffect, useMemo, useState } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { type BreadcrumbProps, Button, Card, Empty, Select, Tag } from 'antd';
-import { type PageVariantManifestPath, usePageVariantManifestStore } from '@/shared-store';
+import { type PageVariantManifestPath, usePageVariantManifestStore, usePageVariantsStore } from '@/shared-store';
 import { toast } from '@/shared-util';
 import { useGetApps } from '../../features/iam/hooks/useAppQueries';
-import { pageVariantQueryKeys, useDeletePageVariant, useGetPageVariants, useUpsertPageVariant } from '../../features/page-variant/hooks/usePageVariantQueries';
+import { pageVariantQueryKeys, useDeletePageVariant, useUpsertPageVariant } from '../../features/page-variant/hooks/usePageVariantQueries';
 import { FallbackSpinner } from '@/components/custom/FallbackSpinner';
 import NoData from '@/components/custom/NoData';
 import PageHeader from '@/components/custom/PageHeader';
@@ -34,9 +37,10 @@ export default function PageVariantManagement() {
   const queryClient = useQueryClient();
   const variantManifest = usePageVariantManifestStore((s) => s.variants);
   const isManifestLoaded = usePageVariantManifestStore((s) => s.isLoaded);
+  const variantMap = usePageVariantsStore((s) => s.variants);
+  const isVariantsLoaded = usePageVariantsStore((s) => s.isLoaded);
 
   const { data: apps = [] } = useGetApps();
-  const { data: variants = [], isLoading: isVariantsLoading } = useGetPageVariants();
 
   const [selectedAppId, setSelectedAppId] = useState<string>('');
   const [selectedKey, setSelectedKey] = useState<string | null>(null);
@@ -53,14 +57,8 @@ export default function PageVariantManagement() {
     return items.filter((i) => !selectedAppId || i.appId === selectedAppId);
   }, [variantManifest, apps, selectedAppId]);
 
-  const variantMap = useMemo(() => {
-    const map = new Map<string, string>();
-    variants.forEach((v) => map.set(`${v.appId}::${v.path}`, v.componentKey));
-    return map;
-  }, [variants]);
-
   const selected = useMemo(() => catalog.find((c) => `${c.appId}::${c.path}` === selectedKey) ?? null, [catalog, selectedKey]);
-  const currentKey = selected ? (variantMap.get(`${selected.appId}::${selected.path}`) ?? selected.defaultKey) : null;
+  const currentKey = selected ? (variantMap[selected.appId]?.[selected.path] ?? selected.defaultKey) : null;
 
   // 선택된 path 또는 적용된 키가 바뀌면 pending도 동기화 (=변경 사항 없는 상태로 시작)
   useEffect(() => {
@@ -108,7 +106,7 @@ export default function PageVariantManagement() {
     upsertMutation.mutate({ appId: selected.appId, path: selected.path, componentKey: pendingKey });
   };
 
-  if (!isManifestLoaded || isVariantsLoading) {
+  if (!isManifestLoaded || !isVariantsLoaded) {
     return (
       <div className="flex flex-col gap-4 w-full h-full">
         <PageHeader breadcrumb={breadcrumb} />
@@ -136,7 +134,7 @@ export default function PageVariantManagement() {
               catalog.map((item) => {
                 const itemKey = `${item.appId}::${item.path}`;
                 const active = itemKey === selectedKey;
-                const mapped = variantMap.get(itemKey);
+                const mapped = variantMap[item.appId]?.[item.path];
                 return (
                   <button
                     key={itemKey}
