@@ -1,8 +1,8 @@
 import { type ComponentType, Suspense } from 'react';
-import { usePageMappingsStore } from '@/shared-store';
+import { usePageVariantsStore } from '@/shared-store';
 import { FallbackSpinner } from './FallbackSpinner';
 
-export interface PageVariantConfig {
+export interface PageVariantManifestConfig {
   appId: string;
   path: string;
   defaultKey: string;
@@ -17,17 +17,17 @@ export interface PageVariantConfig {
 }
 
 interface Props {
-  variants: PageVariantConfig;
+  variants: PageVariantManifestConfig;
 }
 
 /**
  * routes.tsx의 element 자리에 끼우는 래퍼.
- * 운영자가 화면 지정 관리에서 선택한 componentKey(usePageMappingsStore에 저장)를 보고
+ * 운영자가 화면 지정 관리에서 선택한 componentKey(usePageVariantsStore에 저장)를 보고
  * variants.components에서 알맞은 컴포넌트를 렌더하며,
  * 지정이 없거나 등록되지 않은 키면 defaultKey의 컴포넌트로 fallback한다.
  */
 const DynamicElement = ({ variants }: Props) => {
-  const selectedKey = usePageMappingsStore((state) => state.mappings[variants.appId]?.[variants.path]);
+  const selectedKey = usePageVariantsStore((state) => state.variants[variants.appId]?.[variants.path]);
 
   const resolvedKey = selectedKey && variants.components[selectedKey] ? selectedKey : variants.defaultKey;
   const Component = variants.components[resolvedKey]?.component ?? variants.components[variants.defaultKey].component;

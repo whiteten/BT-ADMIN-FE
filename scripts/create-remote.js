@@ -121,13 +121,13 @@ function createRemote() {
       // 신규앱의 routes.tsx 파일을 manager의 sample에서 복사
       copyRoutesTemplate(trimmedAppName);
 
-      // 신규앱의 pageVariants.ts aggregator 파일을 manager의 sample에서 복사
+      // 신규앱의 pageVariantManifest.ts aggregator 파일을 manager의 sample에서 복사
       copyPageVariantsTemplate(trimmedAppName);
 
       // host의 useRemoteRoutesLoader.ts에 신규 remote 등록
       updateRouteLoaders(trimmedAppName);
 
-      // host의 usePageVariantsLoader.ts에 신규 remote 등록
+      // host의 usePageVariantManifestLoader.ts에 신규 remote 등록
       updateVariantLoaders(trimmedAppName);
 
       // 신규앱의 app.tsx 파일을 manager의 sample에서 복사 및 주석 제거
@@ -807,14 +807,14 @@ function copyRoutesTemplate(appName) {
 
 function copyPageVariantsTemplate(appName) {
   const timer = createTimer();
-  logStart(appName, 'pageVariants.ts aggregator 파일 복사');
+  logStart(appName, 'pageVariantManifest.ts aggregator 파일 복사');
   try {
-    const samplePath = path.join(process.cwd(), 'apps/manager/src/app/features/sample/pageVariants.ts');
+    const samplePath = path.join(process.cwd(), 'apps/manager/src/app/features/sample/pageVariantManifest.ts');
     const targetDir = path.join(process.cwd(), `apps/${appName}/src/app/features/router`);
-    const targetPath = path.join(targetDir, 'pageVariants.ts');
+    const targetPath = path.join(targetDir, 'pageVariantManifest.ts');
 
     if (!fs.existsSync(samplePath)) {
-      logError('manager', 'src/app/features/sample/pageVariants.ts 파일을 찾을 수 없음');
+      logError('manager', 'src/app/features/sample/pageVariantManifest.ts 파일을 찾을 수 없음');
       return;
     }
 
@@ -824,9 +824,9 @@ function copyPageVariantsTemplate(appName) {
     }
 
     fs.copyFileSync(samplePath, targetPath);
-    logSuccess(appName, 'pageVariants.ts aggregator 파일 복사', timer);
+    logSuccess(appName, 'pageVariantManifest.ts aggregator 파일 복사', timer);
   } catch (error) {
-    logError(appName, 'pageVariants.ts 복사', error);
+    logError(appName, 'pageVariantManifest.ts 복사', error);
   }
 }
 
@@ -870,17 +870,17 @@ function updateRouteLoaders(appName) {
 
 function updateVariantLoaders(appName) {
   const timer = createTimer();
-  logStart('host', `usePageVariantsLoader.ts에 ${appName} variants 로더 추가`);
+  logStart('host', `usePageVariantManifestLoader.ts에 ${appName} manifest 로더 추가`);
   try {
-    const loaderPath = path.join(process.cwd(), 'apps/host/src/app/features/router/hooks/usePageVariantsLoader.ts');
+    const loaderPath = path.join(process.cwd(), 'apps/host/src/app/features/router/hooks/usePageVariantManifestLoader.ts');
 
     if (!fs.existsSync(loaderPath)) {
-      logError('host', 'usePageVariantsLoader.ts 파일을 찾을 수 없음');
+      logError('host', 'usePageVariantManifestLoader.ts 파일을 찾을 수 없음');
       return;
     }
 
     const content = fs.readFileSync(loaderPath, 'utf8');
-    const loadersRegex = /const VARIANT_LOADERS: Record<string, \(\) => Promise<PageVariantsModule>> = \{([\s\S]*?)\};/;
+    const loadersRegex = /const VARIANT_LOADERS: Record<string, \(\) => Promise<PageVariantManifestModule>> = \{([\s\S]*?)\};/;
     const match = content.match(loadersRegex);
 
     if (!match) {
@@ -891,18 +891,18 @@ function updateVariantLoaders(appName) {
     const currentLoaders = match[1];
 
     if (currentLoaders.includes(`${appName}:`)) {
-      logInfo('host', `${appName} variants 로더가 이미 존재함 (스킵)`);
+      logInfo('host', `${appName} manifest 로더가 이미 존재함 (스킵)`);
       return;
     }
 
-    const newLoader = `  ${appName}: () => import('${appName}/PageVariants').catch(() => ({ pageVariants: {} })) as Promise<PageVariantsModule>,`;
+    const newLoader = `  ${appName}: () => import('${appName}/PageVariantManifest').catch(() => ({ pageVariantManifest: {} })) as Promise<PageVariantManifestModule>,`;
     const updatedLoaders = currentLoaders.trimEnd() + '\n' + newLoader;
-    const updatedContent = content.replace(loadersRegex, `const VARIANT_LOADERS: Record<string, () => Promise<PageVariantsModule>> = {${updatedLoaders}\n};`);
+    const updatedContent = content.replace(loadersRegex, `const VARIANT_LOADERS: Record<string, () => Promise<PageVariantManifestModule>> = {${updatedLoaders}\n};`);
 
     fs.writeFileSync(loaderPath, updatedContent);
-    logSuccess('host', `usePageVariantsLoader.ts에 ${appName} variants 로더 추가`, timer);
+    logSuccess('host', `usePageVariantManifestLoader.ts에 ${appName} manifest 로더 추가`, timer);
   } catch (error) {
-    logError('host', `${appName} usePageVariantsLoader.ts 업데이트`, error);
+    logError('host', `${appName} usePageVariantManifestLoader.ts 업데이트`, error);
   }
 }
 

@@ -6,13 +6,13 @@ import { LOG } from '@/log';
 import { sharedApi } from '@/shared-api';
 import { useAuthStore, useNavigationStore } from '@/shared-store';
 import { toast } from '@/shared-util';
-import { usePageVariantsLoader } from './hooks/usePageVariantsLoader';
+import { usePageVariantManifestLoader } from './hooks/usePageVariantManifestLoader';
 import { useRemoteRoutesLoader } from './hooks/useRemoteRoutesLoader';
 import { useGetUserInfo, useGetWsTicket } from '../auth/hooks/useAuthQueries';
 import { useGetNavigation } from '../common/hooks/useNavigationQueries';
 import { useSessionSocket } from '../common/hooks/useSessionSocket';
 import { useMenuLoader } from '../layout/hooks/useMenuLoader';
-import { usePageMappingsLoader } from '../layout/hooks/usePageMappingsLoader';
+import { usePageVariantsLoader } from '../layout/hooks/usePageVariantsLoader';
 import { useGetRoles } from '../management/hooks/useRoleQueries';
 import { FallbackSpinner } from '@/components/custom/FallbackSpinner';
 
@@ -28,8 +28,8 @@ export default function SharedInfoProvider({ children }: { children?: React.Reac
   const { data: ticketResponse, isLoading: isWsTicketLoading, error: wsTicketError, refetch: refetchWsTicket } = useGetWsTicket();
   const { load: loadMenuConfigs } = useMenuLoader();
   const { load: loadRemoteRoutes } = useRemoteRoutesLoader();
-  const { load: loadPageVariants } = usePageVariantsLoader();
-  usePageMappingsLoader();
+  const { load: loadPageVariantManifest } = usePageVariantManifestLoader();
+  usePageVariantsLoader();
 
   const handleWsError = () => {
     const RETRY_DELAY = 5000;
@@ -76,8 +76,8 @@ export default function SharedInfoProvider({ children }: { children?: React.Reac
   }, [loadRemoteRoutes]);
 
   useEffect(() => {
-    loadPageVariants();
-  }, [loadPageVariants]);
+    loadPageVariantManifest();
+  }, [loadPageVariantManifest]);
 
   useEffect(() => {
     setIsLoading(isRolesLoading || isUserInfoLoading);

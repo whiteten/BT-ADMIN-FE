@@ -19,7 +19,7 @@ const AccountPolicyPage = React.lazy(() => import('./pages/account-policy/Accoun
 const MenuManagement = React.lazy(() => import('./pages/menu/MenuManagement'));
 
 // 화면 지정 관리 페이지
-const PageMappingManagement = React.lazy(() => import('./pages/page-mapping/PageMappingManagement'));
+const PageVariantManagement = React.lazy(() => import('./pages/page-variant/PageVariantManagement'));
 
 // API Flow 관리 페이지
 const BffFlowManagement = React.lazy(() => import('./pages/bff-flow/BffFlowManagement'));
@@ -116,8 +116,8 @@ export const routes = [
             element: <MenuManagement />,
           },
           {
-            path: 'page-mapping',
-            element: <PageMappingManagement />,
+            path: 'page-variant',
+            element: <PageVariantManagement />,
           },
           {
             path: 'bff-flow',

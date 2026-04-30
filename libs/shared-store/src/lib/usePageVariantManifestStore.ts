@@ -1,16 +1,16 @@
 import { create } from 'zustand';
 import { devtools } from 'zustand/middleware';
-import type { PageVariantsMap } from '../types/pageVariant.types';
+import type { PageVariantManifestMap } from '../types/pageVariantManifest.types';
 
-interface PageVariantsStore {
-  variants: PageVariantsMap;
+interface PageVariantManifestStore {
+  variants: PageVariantManifestMap;
   isLoaded: boolean;
-  setVariants: (variants: PageVariantsMap) => void;
+  setVariants: (variants: PageVariantManifestMap) => void;
   setIsLoaded: (loaded: boolean) => void;
   reset: () => void;
 }
 
-export const usePageVariantsStore = create<PageVariantsStore>()(
+export const usePageVariantManifestStore = create<PageVariantManifestStore>()(
   devtools(
     (set) => ({
       variants: {},
@@ -19,6 +19,6 @@ export const usePageVariantsStore = create<PageVariantsStore>()(
       setIsLoaded: (isLoaded) => set({ isLoaded }, false, 'setIsLoaded'),
       reset: () => set({ variants: {}, isLoaded: false }, false, 'reset'),
     }),
-    { name: 'PageVariantsStore' },
+    { name: 'PageVariantManifestStore' },
   ),
 );

@@ -8,7 +8,7 @@ declare module '*/Routes' {
   export const routes: RouteObject[];
 }
 
-declare module '*/PageVariants' {
-  import type { PageVariantConfig } from '@/components/custom/DynamicElement';
-  export const pageVariants: Record<string, PageVariantConfig>;
+declare module '*/PageVariantManifest' {
+  import type { PageVariantManifestConfig } from '@/components/custom/DynamicElement';
+  export const pageVariantManifest: Record<string, PageVariantManifestConfig>;
 }

@@ -22,4 +22,4 @@ export interface PageVariantManifestPath {
  * appId별 path → 변형 목록 맵.
  * picker UI는 appId/path로 lookup해 변형 카드를 렌더한다.
  */
-export type PageVariantsManifestMap = Record<string, PageVariantManifestPath[]>;
+export type PageVariantManifestMap = Record<string, PageVariantManifestPath[]>;
