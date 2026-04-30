@@ -128,7 +128,7 @@ export default function PageVariantManagement() {
           <div className="flex-1 overflow-y-auto flex flex-col gap-2">
             {catalog.length === 0 ? (
               <div className="flex items-center justify-center h-full">
-                <Empty description="화면 지정이 가능한 path가 없습니다" />
+                <Empty description="화면 지정이 가능한 경로가 없습니다" />
               </div>
             ) : (
               catalog.map((item) => {
@@ -194,7 +194,7 @@ export default function PageVariantManagement() {
             </>
           ) : (
             <div className="h-full flex items-center justify-center">
-              <NoData message="좌측 목록에서 화면을 선택해주세요" />
+              <NoData message="좌측 목록에서 경로를 선택해주세요" />
             </div>
           )}
         </div>

@@ -17,7 +17,6 @@ const toVariantsMap = (variants: PageVariant[]): PageVariantsMap =>
  * 화면 지정 데이터를 React Query로 가져와 zustand store(usePageVariantsStore)에 mirror한다.
  * - DynamicElement는 store만 lookup하므로 부팅 시 한 번 적재가 필요
  * - 동일 query key를 manager 관리 화면에서도 재사용 → 네트워크 호출은 한 번
- * - 백엔드 API가 미구현 상태에서는 mock으로 fallback
  */
 export function usePageVariantsLoader() {
   const setVariants = usePageVariantsStore((s) => s.setVariants);
@@ -26,11 +25,8 @@ export function usePageVariantsLoader() {
 
   useEffect(() => {
     if (error) {
-      Log.warn('Failed to load page variants, falling back to mock:', error);
-      import('../../common/mocks/pageVariants.mock').then(({ mockPageVariants }) => {
-        setVariants(toVariantsMap(mockPageVariants));
-        setIsLoaded(true);
-      });
+      Log.warn('Failed to load page variants:', error);
+      setIsLoaded(true);
       return;
     }
     if (data) {
