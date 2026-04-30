@@ -16,7 +16,8 @@
  * - ipron-dn-range:                   GET    사용 가능 DN 범위 조회 (FreeDn)
  * - ipron-dn-profile-assign-dns:      PUT    내선 프로파일에 DN 일괄 배정
  * - ipron-dn-excel-export:            GET    DN 목록 엑셀 내보내기 (binary)
- * - ipron-dn-excel-import:            POST   DN 목록 엑셀 가져오기 (multipart)
+ * - ipron-dn-excel-import:            POST   DN 목록 엑셀 가져오기 시작 (multipart, 즉시 taskId 반환)
+ * - ipron-dn-excel-import-status:     GET    DN 목록 엑셀 가져오기 진행 상태
  */
 import ApiClient, { type DetailResponse, type ListResponse, extractDetail, extractList } from '@/shared-util';
 import type {
@@ -225,35 +226,47 @@ export const dnApi = {
   },
 
   /**
-   * DN 목록 엑셀 가져오기 (AS-IS IPR20S2020 양식, 노드/테넌트는 URL 강제).
-   * Backend: ApiResponse<DnExcelImportResult> -> BFF: data:{...} -> extractDetail
+   * DN 목록 엑셀 가져오기 시작 — 비동기. 즉시 taskId 반환 후 status polling 으로 진행률 확인.
+   * Backend: ApiResponse<{ taskId }> — BFF: data:{...} -> extractDetail
    * @flow ipron-dn-excel-import
    */
-  importExcel: async (params: {
-    nodeId: number;
-    tenantId: number;
-    file: File;
-  }): Promise<{
+  startImport: async (params: { nodeId: number; tenantId: number; file: File }): Promise<{ taskId: string }> => {
+    const formData = new FormData();
+    formData.append('file', params.file);
+    // ⚠ Content-Type 헤더는 명시하지 않는다. axios가 FormData를 감지하면
+    //    'multipart/form-data; boundary=...' 를 자동 설정한다.
+    const response = await apiClient.post<DetailResponse<{ taskId: string }>>('/ipron-dn-excel-import', formData, { params: { nodeId: params.nodeId, tenantId: params.tenantId } });
+    return extractDetail(response);
+  },
+
+  /**
+   * DN 엑셀 가져오기 진행 상태 조회 (1초 polling 용).
+   * @flow ipron-dn-excel-import-status
+   */
+  getImportStatus: async (
+    taskId: string,
+  ): Promise<{
+    taskId: string;
     total: number;
+    processed: number;
     success: number;
     failedCount: number;
     failed: Array<{ rowNum: number; dnNo: string; reason: string }>;
+    done: boolean;
+    error: string | null;
   }> => {
-    const formData = new FormData();
-    formData.append('file', params.file);
-    const response = await apiClient.post<
+    const response = await apiClient.get<
       DetailResponse<{
+        taskId: string;
         total: number;
+        processed: number;
         success: number;
         failedCount: number;
         failed: Array<{ rowNum: number; dnNo: string; reason: string }>;
+        done: boolean;
+        error: string | null;
       }>
-    >('/ipron-dn-excel-import', formData, {
-      // ⚠ Content-Type 헤더는 명시하지 않는다. axios가 FormData를 감지하면
-      //    'multipart/form-data; boundary=...' 를 자동 설정한다. 직접 'multipart/form-data'만
-      //    넣으면 boundary가 빠져 서버가 part 를 파싱하지 못한다.
-      params: { nodeId: params.nodeId, tenantId: params.tenantId },
-    });
+    >('/ipron-dn-excel-import-status', { params: { taskId } });
     return extractDetail(response);
   },
 
