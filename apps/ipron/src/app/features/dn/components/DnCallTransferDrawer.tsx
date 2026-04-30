@@ -12,13 +12,15 @@
  *  - transKind !== '1' (시간조건 외) → transPattern 필수
  *  - transType 변경 시 transReasonCode 옵션을 그룹별로 필터
  */
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { ColDef } from 'ag-grid-community';
 import { AgGridReact } from 'ag-grid-react';
 import { Button, Drawer, Form, Input, Select, Switch, Tag, TimePicker } from 'antd';
 import dayjs, { type Dayjs } from 'dayjs';
-import { Pencil, Plus, Trash2 } from 'lucide-react';
+import { List, Pencil, Plus, Trash2 } from 'lucide-react';
 import { toast } from '@/shared-util';
+import NumPatternDrawer, { type NumPatternDrawerRef } from '../../did-trans/components/NumPatternDrawer';
+import type { NumPattern } from '../../did-trans/types/didTrans.types';
 import { useCreateDnCallTransfer, useDeleteDnCallTransfer, useGetDnCallTransferList, useUpdateDnCallTransfer } from '../hooks/useDnQueries';
 import {
   CALL_TRANS_KIND_LABELS,
@@ -68,6 +70,24 @@ export default function DnCallTransferDrawer({ open, dnId, dnNo, onClose }: DnCa
   const [finshTime, setFinshTime] = useState<Dayjs | null>(dayjs('18:00', 'HH:mm'));
   const transType = Form.useWatch('transType', form) as TransferDenyType | undefined;
   const transKind = Form.useWatch('transKind', form) as CallTransKindCode | undefined;
+
+  // 번호 패턴 공용 Drawer
+  const [patternDrawerOpen, setPatternDrawerOpen] = useState(false);
+  const numPatternDrawerRef = useRef<NumPatternDrawerRef>(null);
+  const handleOpenPatternDrawer = useCallback(() => {
+    setPatternDrawerOpen(true);
+    numPatternDrawerRef.current?.open();
+  }, []);
+  const handlePatternSelect = useCallback(
+    (pattern: NumPattern) => {
+      form.setFieldsValue({ transPattern: pattern.numPattern });
+      setPatternDrawerOpen(false);
+    },
+    [form],
+  );
+  const handlePatternDrawerClose = useCallback(() => {
+    setPatternDrawerOpen(false);
+  }, []);
 
   const { data: list = [], refetch } = useGetDnCallTransferList(dnId);
   const createMut = useCreateDnCallTransfer();
@@ -202,140 +222,172 @@ export default function DnCallTransferDrawer({ open, dnId, dnNo, onClose }: DnCa
   const patternRequired = transKind && transKind !== '1';
 
   return (
-    <Drawer
-      title={`DN ${dnNo ?? ''} — 조건부 착신 전환`}
-      open={open}
-      onClose={onClose}
-      width={920}
-      placement="right"
-      footer={
-        <div className="flex justify-end gap-2">
-          <Button onClick={onClose}>닫기</Button>
+    <>
+      <Drawer
+        title={`DN ${dnNo ?? ''} — 조건부 착신 전환`}
+        open={open}
+        onClose={onClose}
+        width={920}
+        placement="right"
+        styles={{
+          body: { display: 'flex', flexDirection: 'column', padding: 16 },
+          wrapper: { width: 920, display: patternDrawerOpen ? 'none' : undefined },
+        }}
+        footer={
+          <div className="flex justify-end gap-2">
+            <Button onClick={onClose}>닫기</Button>
+          </div>
+        }
+      >
+        {/* 그리드 */}
+        <div className="flex items-center justify-between mb-2 flex-shrink-0">
+          <div className="text-sm font-semibold text-gray-700">등록된 규칙 ({list.length})</div>
+          <Button size="small" icon={<Plus className="size-3.5" />} onClick={resetForm}>
+            폼 초기화
+          </Button>
         </div>
-      }
-    >
-      {/* 그리드 */}
-      <div className="flex items-center justify-between mb-2">
-        <div className="text-sm font-semibold text-gray-700">등록된 규칙 ({list.length})</div>
-        <Button size="small" icon={<Plus className="size-3.5" />} onClick={resetForm}>
-          폼 초기화
-        </Button>
-      </div>
-      <div className="ag-theme-alpine" style={{ height: 240, width: '100%' }}>
-        <AgGridReact<DnCallTransferResponse>
-          {...gridOptions}
-          rowData={list}
-          columnDefs={columnDefs}
-          defaultColDef={{ filter: true, sortable: true, suppressHeaderMenuButton: true }}
-          onRowDoubleClicked={(e) => e.data && loadRow(e.data)}
-        />
-      </div>
+        <div className="ag-theme-alpine flex-1 min-h-[240px]" style={{ width: '100%' }}>
+          <AgGridReact<DnCallTransferResponse>
+            {...gridOptions}
+            rowData={list}
+            columnDefs={columnDefs}
+            defaultColDef={{ filter: true, sortable: true, suppressHeaderMenuButton: true }}
+            onRowDoubleClicked={(e) => e.data && loadRow(e.data)}
+            pagination={false}
+          />
+        </div>
 
-      {/* 인라인 폼 */}
-      <div className="mt-4 p-3 border border-gray-200 rounded-md bg-white">
-        <div className="text-sm font-semibold text-gray-700 mb-3">{editingId ? '수정' : '신규 등록'}</div>
-        <Form form={form} layout="vertical" initialValues={DN_CALL_TRANSFER_INITIAL_VALUES}>
-          <div className="grid grid-cols-3 gap-3">
-            <Form.Item name="transType" label="구분" required rules={[{ required: true }]}>
-              <Select
-                options={(Object.keys(TRANSFER_DENY_TYPE_LABELS) as TransferDenyType[]).map((c) => ({
-                  value: c,
-                  label: TRANSFER_DENY_TYPE_LABELS[c],
-                }))}
-              />
-            </Form.Item>
-            <Form.Item name="callType" label="인입호 유형" required rules={[{ required: true }]}>
-              <Select
-                options={(Object.keys(DN_CALL_TYPE_LABELS) as CallTypeCode[]).map((c) => ({
-                  value: c,
-                  label: DN_CALL_TYPE_LABELS[c],
-                }))}
-              />
-            </Form.Item>
-            <Form.Item name="transKind" label="착신변환 종류" required rules={[{ required: true }]}>
-              <Select
-                options={(Object.keys(CALL_TRANS_KIND_LABELS) as CallTransKindCode[]).map((c) => ({
-                  value: c,
-                  label: CALL_TRANS_KIND_LABELS[c],
-                }))}
-              />
-            </Form.Item>
-
-            <Form.Item name="transReasonCode" label="사유" required rules={[{ required: true }]}>
-              <Select options={reasonOptions} />
-            </Form.Item>
-            <Form.Item label="시작 시간">
-              <TimePicker value={startTime} onChange={setStartTime} format="HH:mm" minuteStep={5} className="w-full" />
-            </Form.Item>
-            <Form.Item label="종료 시간">
-              <TimePicker value={finshTime} onChange={setFinshTime} format="HH:mm" minuteStep={5} className="w-full" />
-            </Form.Item>
-          </div>
-
-          <Form.Item label="주단위 적용 요일" className="!mb-3">
-            <div className="flex gap-3">
-              {WEEKDAYS.map((d, i) => (
-                <label key={d} className="flex items-center gap-1 text-xs">
-                  <input
-                    type="checkbox"
-                    checked={weekdayChecks[i]}
-                    onChange={(e) => {
-                      const next = [...weekdayChecks];
-                      next[i] = e.target.checked;
-                      setWeekdayChecks(next);
-                    }}
-                  />
-                  {d}
-                </label>
-              ))}
+        {/* 인라인 폼 — 컴팩트 */}
+        <div className="mt-3 p-2.5 border border-gray-200 rounded-md bg-white flex-shrink-0">
+          <div className="text-xs font-semibold text-gray-700 mb-2">{editingId ? '수정' : '신규 등록'}</div>
+          <Form form={form} layout="vertical" size="small" initialValues={DN_CALL_TRANSFER_INITIAL_VALUES}>
+            {/* 1행: 구분 / 인입 / 착신변환 / 사유 (4열) */}
+            <div className="grid grid-cols-4 gap-2">
+              <Form.Item name="transType" label="구분" required rules={[{ required: true }]} className="!mb-2">
+                <Select
+                  options={(Object.keys(TRANSFER_DENY_TYPE_LABELS) as TransferDenyType[]).map((c) => ({
+                    value: c,
+                    label: TRANSFER_DENY_TYPE_LABELS[c],
+                  }))}
+                />
+              </Form.Item>
+              <Form.Item name="callType" label="인입호" required rules={[{ required: true }]} className="!mb-2">
+                <Select
+                  options={(Object.keys(DN_CALL_TYPE_LABELS) as CallTypeCode[]).map((c) => ({
+                    value: c,
+                    label: DN_CALL_TYPE_LABELS[c],
+                  }))}
+                />
+              </Form.Item>
+              <Form.Item name="transKind" label="착신변환" required rules={[{ required: true }]} className="!mb-2">
+                <Select
+                  options={(Object.keys(CALL_TRANS_KIND_LABELS) as CallTransKindCode[]).map((c) => ({
+                    value: c,
+                    label: CALL_TRANS_KIND_LABELS[c],
+                  }))}
+                />
+              </Form.Item>
+              <Form.Item name="transReasonCode" label="사유" required rules={[{ required: true }]} className="!mb-2">
+                <Select options={reasonOptions} />
+              </Form.Item>
             </div>
-          </Form.Item>
 
-          <div className="grid grid-cols-2 gap-3">
-            <Form.Item
-              name="transDnis"
-              label={`착신전환 DNIS${dnisRequired ? ' (필수)' : ''}`}
-              rules={[
-                { max: 31, message: '31자 이내' },
-                { pattern: /^[0-9]*$/, message: '숫자만' },
-              ]}
-            >
-              <Input placeholder={dnisRequired ? '전환 시 필수' : '거부 시 불필요'} disabled={!dnisRequired} maxLength={31} />
-            </Form.Item>
-            <Form.Item name="transPattern" label={`착신 번호 패턴${patternRequired ? ' (필수)' : ''}`} rules={[{ max: 256, message: '256자 이내' }]}>
-              <Input placeholder={patternRequired ? '시간조건 외 필수' : '시간조건 시 불필요'} disabled={!patternRequired} maxLength={256} />
-            </Form.Item>
-          </div>
+            {/* 2행: 시작/종료 시간 + 활성/휴일 (4열) */}
+            <div className="grid grid-cols-4 gap-2">
+              <Form.Item label="시작" className="!mb-2">
+                <TimePicker value={startTime} onChange={setStartTime} format="HH:mm" minuteStep={5} className="w-full" />
+              </Form.Item>
+              <Form.Item label="종료" className="!mb-2">
+                <TimePicker value={finshTime} onChange={setFinshTime} format="HH:mm" minuteStep={5} className="w-full" />
+              </Form.Item>
+              <Form.Item
+                name="activateYn"
+                label="활성"
+                valuePropName="checked"
+                getValueFromEvent={(c: boolean) => (c ? 1 : 0)}
+                getValueProps={(v: number) => ({ checked: v === 1 })}
+                className="!mb-2"
+              >
+                <Switch checkedChildren="ON" unCheckedChildren="OFF" />
+              </Form.Item>
+              <Form.Item
+                name="holiApplyYn"
+                label="휴일"
+                valuePropName="checked"
+                getValueFromEvent={(c: boolean) => (c ? 1 : 0)}
+                getValueProps={(v: number) => ({ checked: v === 1 })}
+                className="!mb-2"
+              >
+                <Switch checkedChildren="ON" unCheckedChildren="OFF" />
+              </Form.Item>
+            </div>
 
-          <div className="grid grid-cols-3 gap-3">
-            <Form.Item
-              name="holiApplyYn"
-              label="휴일 적용"
-              valuePropName="checked"
-              getValueFromEvent={(c: boolean) => (c ? 1 : 0)}
-              getValueProps={(v: number) => ({ checked: v === 1 })}
-            >
-              <Switch checkedChildren="ON" unCheckedChildren="OFF" />
+            {/* 3행: 적용 요일 (인라인) */}
+            <Form.Item label="적용 요일" className="!mb-2">
+              <div className="flex gap-2 flex-wrap">
+                {WEEKDAYS.map((d, i) => (
+                  <label key={d} className="flex items-center gap-1 text-xs cursor-pointer select-none">
+                    <input
+                      type="checkbox"
+                      checked={weekdayChecks[i]}
+                      onChange={(e) => {
+                        const next = [...weekdayChecks];
+                        next[i] = e.target.checked;
+                        setWeekdayChecks(next);
+                      }}
+                    />
+                    {d}
+                  </label>
+                ))}
+              </div>
             </Form.Item>
-            <Form.Item
-              name="activateYn"
-              label="활성화"
-              valuePropName="checked"
-              getValueFromEvent={(c: boolean) => (c ? 1 : 0)}
-              getValueProps={(v: number) => ({ checked: v === 1 })}
-            >
-              <Switch checkedChildren="ON" unCheckedChildren="OFF" />
-            </Form.Item>
-          </div>
 
-          <div className="flex justify-end gap-2 mt-3">
-            {editingId && <Button onClick={resetForm}>새로 작성</Button>}
-            <Button type="primary" onClick={handleSubmit} loading={createMut.isPending || updateMut.isPending}>
-              {editingId ? '수정' : '등록'}
-            </Button>
-          </div>
-        </Form>
-      </div>
-    </Drawer>
+            {/* 4행: DNIS / 패턴 (2열) */}
+            <div className="grid grid-cols-2 gap-2">
+              <Form.Item
+                name="transDnis"
+                label={`착신전환 DNIS${dnisRequired ? ' (필수)' : ''}`}
+                rules={[
+                  { max: 31, message: '31자 이내' },
+                  { pattern: /^[0-9]*$/, message: '숫자만' },
+                ]}
+                className="!mb-1"
+              >
+                <Input placeholder={dnisRequired ? '전환 시 필수' : '거부 시 불필요'} disabled={!dnisRequired} maxLength={31} />
+              </Form.Item>
+              <Form.Item
+                name="transPattern"
+                label={
+                  <div className="flex items-center gap-1">
+                    <span>번호 패턴{patternRequired ? ' (필수)' : ''}</span>
+                    <Button
+                      type="text"
+                      size="small"
+                      icon={<List className="size-3.5" />}
+                      onClick={handleOpenPatternDrawer}
+                      title="번호 패턴 관리"
+                      disabled={!patternRequired}
+                      className="text-gray-400 hover:text-blue-500"
+                    />
+                  </div>
+                }
+                rules={[{ max: 256, message: '256자 이내' }]}
+                className="!mb-1"
+              >
+                <Input placeholder={patternRequired ? '시간조건 외 필수' : '시간조건 시 불필요'} disabled={!patternRequired} maxLength={256} style={{ fontFamily: 'monospace' }} />
+              </Form.Item>
+            </div>
+
+            <div className="flex justify-end gap-2 mt-3">
+              {editingId && <Button onClick={resetForm}>새로 작성</Button>}
+              <Button type="primary" onClick={handleSubmit} loading={createMut.isPending || updateMut.isPending}>
+                {editingId ? '수정' : '등록'}
+              </Button>
+            </div>
+          </Form>
+        </div>
+      </Drawer>
+      <NumPatternDrawer ref={numPatternDrawerRef} onSelect={handlePatternSelect} onClose={handlePatternDrawerClose} />
+    </>
   );
 }
