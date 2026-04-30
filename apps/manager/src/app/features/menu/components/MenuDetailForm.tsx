@@ -89,7 +89,6 @@ export default function MenuDetailForm({ menu, apps, onSave, onDelete, saving }:
             <IconDocument className="h-5 w-5" />
             <span className="text-[20px] font-bold">메뉴 상세</span>
           </div>
-          <span className="text-sm text-gray-400">Key: {menu.menuKey}</span>
         </div>
         <Form form={form} layout="vertical">
           <Form.Item name="parentKey" hidden>

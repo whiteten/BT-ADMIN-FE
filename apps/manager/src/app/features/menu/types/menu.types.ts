@@ -39,9 +39,8 @@ export interface MenuUpsertRequest {
 /** Ant Design Tree 노드용 변환 타입 */
 export interface MenuTreeNode {
   key: string;
-  title: string;
+  title: React.ReactNode;
   children: MenuTreeNode[];
-  icon?: React.ReactNode;
   data?: Menu;
   selectable?: boolean;
 }
