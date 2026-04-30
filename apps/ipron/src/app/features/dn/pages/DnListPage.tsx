@@ -411,8 +411,21 @@ export default function DnListPage() {
       a.remove();
       URL.revokeObjectURL(url);
       toast.success('엑셀 내보내기 완료');
-    } catch (e) {
-      toast.error('엑셀 내보내기 실패');
+    } catch (e: unknown) {
+      // responseType=blob 이라 에러 응답이 Blob 으로 옴 → JSON 파싱해서 서버 message 추출
+      const err = e as { response?: { data?: Blob } };
+      let message = '엑셀 내보내기 실패';
+      const data = err?.response?.data;
+      if (data instanceof Blob) {
+        try {
+          const text = await data.text();
+          const json = JSON.parse(text);
+          if (json?.message) message = String(json.message);
+        } catch {
+          /* JSON 아니면 기본 메시지 */
+        }
+      }
+      toast.error(message);
       console.error(e);
     }
   };
