@@ -6,7 +6,8 @@ const Main = React.lazy(() => import('./pages/main/Main'));
 const SearchList = React.lazy(() => import('./pages/stt-config/SearchList'));
 const TrainingList = React.lazy(() => import('./pages/stt-config/TrainingList'));
 const DictionaryList = React.lazy(() => import('./pages/stt-config/DictionaryList'));
-const RecogGroupList = React.lazy(() => import('./pages/stt-config/RecogList'));
+const RecogList = React.lazy(() => import('./pages/stt-config/RecogList'));
+const ModelList = React.lazy(() => import('./pages/stt-config/ModelList'));
 const DnList = React.lazy(() => import('./pages/stt-config/DnList'));
 const FileUploadList = React.lazy(() => import('./pages/stt-config/FileUploadList'));
 
@@ -43,17 +44,24 @@ export const routes = [
             ],
           },
           {
-            path: 'recog',
-            children: [
-              { index: true, element: <Navigate to="list" replace /> },
-              { path: 'list', element: <RecogGroupList /> },
-            ],
-          },
-          {
             path: 'dictionary',
             children: [
               { index: true, element: <Navigate to="list" replace /> },
               { path: 'list', element: <DictionaryList /> },
+            ],
+          },
+          {
+            path: 'recog',
+            children: [
+              { index: true, element: <Navigate to="list" replace /> },
+              { path: 'list', element: <RecogList /> },
+            ],
+          },
+          {
+            path: 'model',
+            children: [
+              { index: true, element: <Navigate to="list" replace /> },
+              { path: 'list', element: <ModelList /> },
             ],
           },
           {

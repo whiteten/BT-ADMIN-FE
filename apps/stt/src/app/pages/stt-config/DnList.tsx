@@ -29,7 +29,7 @@ const DN_STATUS_OPTIONS = [
 const USE_YN_OPTIONS = [
   { label: '전체', value: '' },
   { label: '사용', value: '1' },
-  { label: '사용안함', value: '0' },
+  { label: '미사용', value: '0' },
 ];
 
 const PAGE_SIZE = 20;
@@ -65,7 +65,7 @@ function DeleteCellRenderer({ data, onDelete }: DeleteCellRendererParams) {
   );
 }
 
-export default function SttDnList() {
+export default function DnList() {
   const { gridOptions } = useAggridOptions();
   const queryClient = useQueryClient();
   const modal = useModal();
@@ -154,9 +154,9 @@ export default function SttDnList() {
         </div>
 
         {/* 우측: 검색 필터 + 내선 리스트 */}
-        <div className="flex-1 min-h-0 flex flex-col gap-4 overflow-hidden">
+        <div className="flex-1 min-h-0 bg-white bt-shadow overflow-hidden flex flex-col">
           {/* 검색 필터 */}
-          <div className="flex items-center gap-4 flex-wrap bg-white bt-shadow px-7 py-4 shrink-0">
+          <div className="flex items-center gap-4 flex-wrap px-5 py-4 shrink-0">
             <div className="flex items-center gap-2">
               <span className="text-sm font-medium text-[#495057] shrink-0">내선상태</span>
               <Select value={dnStatus} onChange={setDnStatus} options={DN_STATUS_OPTIONS} style={{ width: 120 }} />
@@ -166,8 +166,8 @@ export default function SttDnList() {
               <Select value={useYn} onChange={setUseYn} options={USE_YN_OPTIONS} style={{ width: 120 }} />
             </div>
             <div className="flex items-center gap-2 shrink-0">
-              <span className="text-sm font-medium text-[#495057] shrink-0">내선번호</span>
-              <Input value={dnNo} onChange={(e) => setDnNo(e.target.value)} placeholder="내선번호를 입력하세요" style={{ width: 100 }} />
+              <span className="text-sm font-medium text-[#495057] shrink-0">내선</span>
+              <Input value={dnNo} onChange={(e) => setDnNo(e.target.value)} placeholder="내선번호를 입력하세요" style={{ width: 120 }} />
             </div>
             <div className="flex items-center gap-2">
               <span className="text-sm font-medium text-[#495057] shrink-0">전화기IP</span>
@@ -190,9 +190,10 @@ export default function SttDnList() {
             </div>
           </div>
 
+          <div className="border-t border-gray-200" />
+
           {/* 내선 리스트 */}
-          <div className="flex-1 min-h-0 bg-white bt-shadow p-7 overflow-hidden flex flex-col gap-3">
-            {/*<span className="text-[20px] font-bold text-[var(--color-bt-primary)]">STT 내선정보</span>*/}
+          <div className="flex-1 min-h-0 p-5 overflow-hidden flex flex-col">
             {!selectedGroupId ? (
               <div className="flex-1 flex items-center justify-center">
                 <NoData message="좌측 트리에서 PA 그룹을 선택해주세요." iconSize={50} fontSize="text-lg" gap={2} />

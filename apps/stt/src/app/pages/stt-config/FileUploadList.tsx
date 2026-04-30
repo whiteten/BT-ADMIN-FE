@@ -141,35 +141,39 @@ export default function FileUploadList() {
     <div className="flex flex-col gap-4 w-full h-full">
       <PageHeader breadcrumb={breadcrumb} />
 
-      {/* 검색 필터 */}
-      <div className="flex items-center gap-4 flex-wrap bg-white bt-shadow px-7 py-4">
-        <div className="flex items-center gap-2 shrink-0">
-          <span className="text-sm font-medium text-[#495057] shrink-0">검색일자</span>
-          <DatePicker value={fromDate} onChange={setFromDate} format="YYYY-MM-DD" allowClear={false} inputReadOnly />
-          <span className="text-[#495057]">-</span>
-          <DatePicker value={toDate} onChange={setToDate} format="YYYY-MM-DD" allowClear={false} inputReadOnly />
+      <div className="flex-1 min-h-0 bg-white bt-shadow overflow-hidden flex flex-col">
+        {/* 검색 필터 */}
+        <div className="flex items-center gap-4 flex-wrap px-5 py-4 shrink-0">
+          <div className="flex items-center gap-2 shrink-0">
+            <span className="text-sm font-medium text-[#495057] shrink-0">검색일자</span>
+            <DatePicker value={fromDate} onChange={setFromDate} format="YYYY-MM-DD" allowClear={false} inputReadOnly />
+            <span className="text-[#495057]">-</span>
+            <DatePicker value={toDate} onChange={setToDate} format="YYYY-MM-DD" allowClear={false} inputReadOnly />
+          </div>
+          <div className="flex items-center gap-2 ml-auto">
+            <Button type="primary" onClick={handleSearch}>
+              조회
+            </Button>
+            <Button color="cyan" variant="solid" onClick={() => drawerRef.current?.open()}>
+              파일업로드
+            </Button>
+          </div>
         </div>
-        <div className="flex items-center gap-2 ml-auto">
-          <Button type="primary" onClick={handleSearch}>
-            조회
-          </Button>
-          <Button color="cyan" variant="solid" onClick={() => drawerRef.current?.open()}>
-            파일업로드
-          </Button>
-        </div>
-      </div>
 
-      {/* 그리드 */}
-      <div className="flex-1 min-h-0">
-        <AgGridReact<FileUploadItem>
-          ref={gridRef}
-          rowData={rowData ?? []}
-          columnDefs={columnDefs}
-          gridOptions={{ ...gridOptions, paginationPageSize: PAGE_SIZE }}
-          onRowDoubleClicked={handleRowDoubleClicked}
-          loading={isLoading}
-          sideBar={false}
-        />
+        <div className="border-t border-gray-200" />
+
+        {/* 그리드 */}
+        <div className="flex-1 min-h-0 p-5">
+          <AgGridReact<FileUploadItem>
+            ref={gridRef}
+            rowData={rowData ?? []}
+            columnDefs={columnDefs}
+            gridOptions={{ ...gridOptions, paginationPageSize: PAGE_SIZE }}
+            onRowDoubleClicked={handleRowDoubleClicked}
+            loading={isLoading}
+            sideBar={false}
+          />
+        </div>
       </div>
 
       <FileUploadDrawer ref={drawerRef} />

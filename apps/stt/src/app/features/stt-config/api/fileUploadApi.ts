@@ -5,7 +5,7 @@ const apiClient = new ApiClient({ serviceURL: '/bff' });
 
 export const fileUploadApi = {
   getFileUploadList: async (params?: FileUploadSearchParams) => {
-    const response = await apiClient.post<ListResponse<FileUploadItem>>('/stt-file-upload-list', params);
+    const response = await apiClient.get<ListResponse<FileUploadItem>>('/stt-file-upload-list', { params });
     return extractList(response);
   },
   deleteFileUpload: async (ucidGkey: string) => {
