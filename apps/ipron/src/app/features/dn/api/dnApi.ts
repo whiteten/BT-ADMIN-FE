@@ -249,8 +249,10 @@ export const dnApi = {
         failed: Array<{ rowNum: number; dnNo: string; reason: string }>;
       }>
     >('/ipron-dn-excel-import', formData, {
+      // ⚠ Content-Type 헤더는 명시하지 않는다. axios가 FormData를 감지하면
+      //    'multipart/form-data; boundary=...' 를 자동 설정한다. 직접 'multipart/form-data'만
+      //    넣으면 boundary가 빠져 서버가 part 를 파싱하지 못한다.
       params: { nodeId: params.nodeId, tenantId: params.tenantId },
-      headers: { 'Content-Type': 'multipart/form-data' },
     });
     return extractDetail(response);
   },
