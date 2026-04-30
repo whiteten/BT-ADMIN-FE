@@ -15,6 +15,7 @@
  * - ipron-dn-duplicate-check:         GET    DN 번호 중복 체크 (클러스터)
  * - ipron-dn-range:                   GET    사용 가능 DN 범위 조회 (FreeDn)
  * - ipron-dn-profile-assign-dns:      PUT    내선 프로파일에 DN 일괄 배정
+ * - ipron-dn-excel-export:            GET    DN 목록 엑셀 내보내기 (binary)
  */
 import ApiClient, { type DetailResponse, type ListResponse, extractDetail, extractList } from '@/shared-util';
 import type {
@@ -111,7 +112,27 @@ export const dnApi = {
    * @flow ipron-dn-batch-create
    */
   batchCreate: async (data: DnBatchCreateRequest): Promise<DnResponse[]> => {
-    const response = await apiClient.post<DetailResponse<{ value: DnResponse[] }>>('/ipron-dn-batch-create', data);
+    // FE는 범위(dnNoStart~dnNoEnd) 단일 객체로 보내지만 BE는 펼쳐진 List<DnCreateRequest>를
+    // { items: [...] } 형태로 기대하므로 여기서 변환한다.
+    const start = Number(data.dnNoStart);
+    const end = Number(data.dnNoEnd);
+    const pad = data.dnNoStart.length;
+    const items: Array<Record<string, unknown>> = [];
+    for (let n = start; n <= end; n++) {
+      items.push({
+        nodeId: data.nodeId,
+        tenantId: data.tenantId,
+        dnNo: String(n).padStart(pad, '0'),
+        dnType: data.dnType,
+        dnProfileId: data.dnProfileId,
+        cosId: data.cosId ?? null,
+        extAuthtype: data.extAuthtype,
+        md5Auth: data.md5Auth,
+        md5Authpwd: data.md5Authpwd ?? null,
+        dnStatus: data.dnStatus ?? '0',
+      });
+    }
+    const response = await apiClient.post<DetailResponse<{ value: DnResponse[] }>>('/ipron-dn-batch-create', { items });
     return extractDetail(response)?.value ?? [];
   },
 
@@ -187,6 +208,19 @@ export const dnApi = {
     return await apiClient.put('/ipron-dn-profile-assign-dns', data, {
       params: { id },
     });
+  },
+
+  /**
+   * DN 목록 엑셀 내보내기 (AS-IS IPR20S2020 16컬럼 양식).
+   * Backend: byte[] (XLSX binary) — BFF가 그대로 forward.
+   * @flow ipron-dn-excel-export
+   */
+  exportExcel: async (params?: DnFilterQuery & Record<string, unknown>): Promise<Blob> => {
+    const response = await apiClient.get<Blob>('/ipron-dn-excel-export', {
+      params,
+      responseType: 'blob',
+    });
+    return (response as unknown as { data: Blob }).data;
   },
 
   // ─── DN SNR (순차 호출) ───────────────────────────────────────────────────

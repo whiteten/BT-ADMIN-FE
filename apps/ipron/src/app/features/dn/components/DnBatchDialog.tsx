@@ -8,11 +8,10 @@
  * 파일명은 하위 호환을 위해 유지(DnBatchDialog.tsx) — 내부만 Drawer 구조로 전환.
  */
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { Alert, Button, Col, Drawer, Form, Input, Progress, Row, Select, Switch } from 'antd';
+import { Alert, Button, Col, Drawer, Form, Input, Progress, Row, Select } from 'antd';
 import { toast } from '@/shared-util';
 import { dnApi } from '../api/dnApi';
 import { DN_BATCH_INITIAL_VALUES, type DnBatchCreateRequest, type DnOptionItem, type DnResponse } from '../types/dn.types';
-import { DN_STATUS_OPTIONS, DN_TYPE_OPTIONS_PRIMARY, EXT_AUTH_TYPE_OPTIONS } from '../utils/dnEnums';
 
 /** 한 요청당 최대 DN 건수 — IDS TCP frame ~1MB 이하로 유지 (4MB 제한) */
 const CHUNK_SIZE = 500;
@@ -63,7 +62,6 @@ function buildChunks(startNo: string, endNo: string, chunkSize: number) {
 
 export default function DnBatchDialog({ open, nodeId, tenantId, nodeName, tenantName, profileOptions, cosOptions, defaultCosId, onCancel, onSuccess }: DnBatchDialogProps) {
   const [form] = Form.useForm();
-  const watchedMd5Auth = Form.useWatch('md5Auth', form);
   const startNoVal = Form.useWatch('dnNoStart', form);
   const endNoVal = Form.useWatch('dnNoEnd', form);
 
@@ -219,8 +217,23 @@ export default function DnBatchDialog({ open, nodeId, tenantId, nodeName, tenant
       />
 
       <Form form={form} layout="vertical" initialValues={DN_BATCH_INITIAL_VALUES}>
+        {/* DN 유형 / IP 유형 / DN 상태 / MD5 인증은 화면에 노출하지 않고 기본값 사용
+            (DN_BATCH_INITIAL_VALUES: dnType=11, extAuthtype=2, md5Auth=0, dnStatus=0) */}
+        <Form.Item name="dnType" hidden>
+          <Input />
+        </Form.Item>
+        <Form.Item name="extAuthtype" hidden>
+          <Input />
+        </Form.Item>
+        <Form.Item name="dnStatus" hidden>
+          <Input />
+        </Form.Item>
+        <Form.Item name="md5Auth" hidden>
+          <Input />
+        </Form.Item>
+
         <Row gutter={16}>
-          <Col span={8}>
+          <Col span={12}>
             <Form.Item
               name="dnNoStart"
               label="시작 DN"
@@ -229,18 +242,13 @@ export default function DnBatchDialog({ open, nodeId, tenantId, nodeName, tenant
               <Input placeholder="1000" maxLength={24} disabled={pending} />
             </Form.Item>
           </Col>
-          <Col span={8}>
+          <Col span={12}>
             <Form.Item
               name="dnNoEnd"
               label="종료 DN"
               rules={[{ required: true, message: '종료 DN은 필수입니다' }, { pattern: /^[0-9]+$/, message: '숫자만 가능합니다' }, { validator: rangeValidator }]}
             >
               <Input placeholder="1099" maxLength={24} disabled={pending} />
-            </Form.Item>
-          </Col>
-          <Col span={8}>
-            <Form.Item name="dnType" label="DN 유형" required rules={[{ required: true }]}>
-              <Select options={DN_TYPE_OPTIONS_PRIMARY} disabled={pending} />
             </Form.Item>
           </Col>
         </Row>
@@ -257,48 +265,6 @@ export default function DnBatchDialog({ open, nodeId, tenantId, nodeName, tenant
             </Form.Item>
           </Col>
         </Row>
-
-        <Row gutter={16}>
-          <Col span={8}>
-            <Form.Item name="extAuthtype" label="IP 유형" required>
-              <Select options={EXT_AUTH_TYPE_OPTIONS} disabled={pending} />
-            </Form.Item>
-          </Col>
-          <Col span={8}>
-            <Form.Item name="dnStatus" label="DN 상태">
-              <Select options={DN_STATUS_OPTIONS} disabled={pending} />
-            </Form.Item>
-          </Col>
-          <Col span={8}>
-            <Form.Item
-              name="md5Auth"
-              label="MD5 인증"
-              valuePropName="checked"
-              getValueFromEvent={(checked: boolean) => (checked ? 1 : 0)}
-              getValueProps={(val: number) => ({ checked: val === 1 })}
-            >
-              <Switch checkedChildren="사용" unCheckedChildren="사용안함" disabled={pending} />
-            </Form.Item>
-          </Col>
-        </Row>
-
-        {watchedMd5Auth === 1 && (
-          <Row gutter={16}>
-            <Col span={24}>
-              <Form.Item
-                name="md5Authpwd"
-                label="공통 MD5 비밀번호"
-                rules={[
-                  { required: true, message: 'MD5 사용 시 공통 비밀번호는 필수입니다' },
-                  { min: 8, max: 16, message: '8~16자여야 합니다' },
-                ]}
-                tooltip="모든 DN에 동일한 비밀번호가 적용됩니다. 개별 수정은 등록 후 각 DN 수정에서 가능합니다."
-              >
-                <Input.Password placeholder="공통 비밀번호 (8~16자)" maxLength={16} disabled={pending} />
-              </Form.Item>
-            </Col>
-          </Row>
-        )}
 
         <div className="text-xs text-gray-500 mt-1 space-y-0.5">
           {rangeCount > 0 && (

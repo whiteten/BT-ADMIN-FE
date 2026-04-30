@@ -28,6 +28,12 @@
  *  - nodeId == backUpNodeId 금지
  */
 import { useEffect, useMemo, useState } from 'react';
+
+/**
+ * MD5 인증 비밀번호 마스킹 더미 — 수정 화면 진입 시 비번 설정됨을 시각적으로 표시하기 위한 sentinel.
+ * 8자라 길이 검증(8~16)을 통과한다. 저장 시 이 값 그대로면 변경 없음 → null 로 BE에 전달.
+ */
+const MD5_PWD_MASK = '__MD5KEEP';
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { useQueryClient } from '@tanstack/react-query';
 import { type BreadcrumbProps, Button, Col, Form, Input, InputNumber, Row, Select, Steps, Switch, Tooltip } from 'antd';
@@ -421,7 +427,10 @@ export default function DnFormPage() {
         globalDnYn: dnDetail.globalDnYn ?? 0,
         md5Auth: dnDetail.md5Auth ?? 0,
         md5Authid: dnDetail.md5Authid,
-        md5Authpwd: null, // 보안상 복호화 값 폼에 내려보내지 않음
+        // 보안상 복호화 값을 내려보내지 않으나, MD5 인증 사용 중인 수정 화면에서는
+        // 비번이 설정되어 있음을 시각적으로 표시하기 위해 마스킹 더미를 채운다.
+        // 저장 시 이 값 그대로면 변경 없음(null) 으로 BE에 전달.
+        md5Authpwd: dnDetail.md5Auth === 1 ? MD5_PWD_MASK : null,
         srtpYn: dnDetail.srtpYn ?? 0,
         ieUserid: dnDetail.ieUserid,
         ieUserName: dnDetail.ieUserName,
@@ -607,7 +616,8 @@ export default function DnFormPage() {
         globalDnYn: values.globalDnYn ?? 0,
         md5Auth: values.md5Auth ?? 0,
         md5Authid: values.md5Authid ?? null,
-        md5Authpwd: values.md5Authpwd ?? null,
+        // 마스킹 더미 그대로면 변경 없음 → null (BE는 null 시 기존 암호문 유지)
+        md5Authpwd: values.md5Authpwd === MD5_PWD_MASK ? null : (values.md5Authpwd ?? null),
         srtpYn: values.srtpYn ?? 0,
         ieUserid: values.ieUserid ?? null,
         ieUserName: values.ieUserName ?? null,

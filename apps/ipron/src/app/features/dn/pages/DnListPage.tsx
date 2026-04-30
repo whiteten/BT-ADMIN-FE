@@ -28,6 +28,7 @@ import { Button, Empty, Input } from 'antd';
 import { ArrowUpDown, Building2, ChevronLeft, ChevronRight, ChevronsDown, ChevronsUp, Download, Network, Plus, Search, Trash2, Upload } from 'lucide-react';
 import { toast } from '@/shared-util';
 import { useGetDnProfileNodes, useGetDnProfileTenants } from '../../dn-profile/hooks/useDnProfileQueries';
+import { dnApi } from '../api/dnApi';
 import DnBatchDialog from '../components/DnBatchDialog';
 import DnBulkDeleteModal from '../components/DnBulkDeleteModal';
 import DnCopyDrawer from '../components/DnCopyDrawer';
@@ -396,9 +397,25 @@ export default function DnListPage() {
     setBatchOpen(true);
   };
 
-  // TODO: Import / Export (3차 범위)
-  const handleImport = () => toast.info('가져오기는 3차 범위에서 구현 예정입니다.');
-  const handleExport = () => toast.info('엑셀 내보내기는 3차 범위에서 구현 예정입니다.');
+  const handleImport = () => toast.info('가져오기는 후속 단계에서 구현 예정입니다.');
+  const handleExport = async () => {
+    try {
+      const blob = await dnApi.exportExcel(listParams);
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      const ts = new Date().toISOString().replace(/[-:T]/g, '').slice(0, 14);
+      a.download = `내선관리_${ts}.xlsx`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(url);
+      toast.success('엑셀 내보내기 완료');
+    } catch (e) {
+      toast.error('엑셀 내보내기 실패');
+      console.error(e);
+    }
+  };
 
   const selectedNodeName = nodes.find((n) => n.nodeId === selectedNodeId)?.nodeName ?? null;
   const selectedTenantName = tenants.find((t) => t.tenantId === selectedTenantId)?.tenantName ?? null;
