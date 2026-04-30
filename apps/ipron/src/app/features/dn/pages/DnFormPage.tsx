@@ -171,6 +171,7 @@ export default function DnFormPage() {
   const watchedMd5Auth = Form.useWatch('md5Auth', form);
   const watchedExtAuthtype = Form.useWatch('extAuthtype', form);
   const watchedShortDialSvc = Form.useWatch('shortDialSvc', form);
+  const watchedCaseTransSvc = Form.useWatch('caseTransSvc', form);
   const watchedIpVersion = Form.useWatch('ipVersion', form);
   const watchedAutoanswerYn = Form.useWatch('autoanswerYn', form);
   const watchedBackUpNodeId = Form.useWatch('backUpNodeId', form);
@@ -1456,21 +1457,25 @@ export default function DnFormPage() {
                       </Col>
                       <Col span={6}>
                         <Form.Item
-                          name="caseTransSvc"
                           label={cosDependentLabel('조건부 착신전환', cosControlled('transSvc'))}
                           tooltip={cosControlled('transSvc') ? 'COS 설정에 의해 편집 허용 여부 결정' : undefined}
-                          valuePropName="checked"
-                          getValueFromEvent={(checked: boolean) => (checked ? 1 : 0)}
-                          getValueProps={(v: number) => ({ checked: v === 1 })}
-                          extra={
-                            isEditMode && dnId ? (
-                              <Button size="small" type="link" disabled={form.getFieldValue('caseTransSvc') !== 1} onClick={() => setCallTransferOpen(true)} style={{ padding: 0 }}>
+                        >
+                          <div className="flex items-center gap-2">
+                            <Form.Item
+                              name="caseTransSvc"
+                              valuePropName="checked"
+                              getValueFromEvent={(c: boolean) => (c ? 1 : 0)}
+                              getValueProps={(v: number) => ({ checked: v === 1 })}
+                              noStyle
+                            >
+                              <Switch checkedChildren="ON" unCheckedChildren="OFF" disabled={personalDisabled('transSvc')} />
+                            </Form.Item>
+                            {isEditMode && dnId && watchedCaseTransSvc === 1 && (
+                              <Button size="small" type="link" onClick={() => setCallTransferOpen(true)} style={{ padding: 0, height: 'auto' }}>
                                 규칙 관리 →
                               </Button>
-                            ) : undefined
-                          }
-                        >
-                          <Switch checkedChildren="ON" unCheckedChildren="OFF" disabled={personalDisabled('transSvc')} />
+                            )}
+                          </div>
                         </Form.Item>
                       </Col>
                       <Col span={6}>
