@@ -29,7 +29,7 @@ export default function SharedInfoProvider({ children }: { children?: React.Reac
   const { load: loadMenuConfigs } = useMenuLoader();
   const { load: loadRemoteRoutes } = useRemoteRoutesLoader();
   const { load: loadPageVariants } = usePageVariantsLoader();
-  const { load: loadPageMappings } = usePageMappingsLoader();
+  usePageMappingsLoader();
 
   const handleWsError = () => {
     const RETRY_DELAY = 5000;
@@ -78,10 +78,6 @@ export default function SharedInfoProvider({ children }: { children?: React.Reac
   useEffect(() => {
     loadPageVariants();
   }, [loadPageVariants]);
-
-  useEffect(() => {
-    loadPageMappings();
-  }, [loadPageMappings]);
 
   useEffect(() => {
     setIsLoading(isRolesLoading || isUserInfoLoading);

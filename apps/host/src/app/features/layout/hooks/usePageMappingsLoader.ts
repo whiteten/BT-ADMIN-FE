@@ -1,7 +1,8 @@
-import { useCallback } from 'react';
+import { useEffect } from 'react';
 import { LOG } from '@/log';
-import { type PageMapping, sharedApi } from '@/shared-api';
+import type { PageMapping } from '@/shared-api';
 import { type PageMappingsMap, usePageMappingsStore } from '@/shared-store';
+import { useGetPageMappings } from '../../common/hooks/usePageMappingQueries';
 
 const Log = new LOG('usePageMappingsLoader');
 
@@ -12,21 +13,30 @@ const toMappingsMap = (mappings: PageMapping[]): PageMappingsMap =>
     return acc;
   }, {});
 
+/**
+ * 화면 지정 데이터를 React Query로 가져와 zustand store(usePageMappingsStore)에 mirror한다.
+ * - DynamicElement는 store만 lookup하므로 부팅 시 한 번 적재가 필요
+ * - 동일 query key를 manager 관리 화면에서도 재사용 → 네트워크 호출은 한 번
+ * - 백엔드 API가 미구현 상태에서는 mock으로 fallback
+ */
 export function usePageMappingsLoader() {
-  const { setMappings, setIsLoaded } = usePageMappingsStore();
-  const load = useCallback(async () => {
-    try {
-      const mappings = await sharedApi.pageMapping.getPageMappings();
-      setMappings(toMappingsMap(mappings));
-      Log.debug('Page mappings loaded:', mappings);
-    } catch (err) {
-      Log.warn('Failed to load page mappings, falling back to mock:', err);
-      const { mockPageMappings } = await import('../../common/mocks/pageMappings.mock');
-      setMappings(toMappingsMap(mockPageMappings));
-    } finally {
-      setIsLoaded(true);
-    }
-  }, [setMappings, setIsLoaded]);
+  const setMappings = usePageMappingsStore((s) => s.setMappings);
+  const setIsLoaded = usePageMappingsStore((s) => s.setIsLoaded);
+  const { data, error } = useGetPageMappings();
 
-  return { load };
+  useEffect(() => {
+    if (error) {
+      Log.warn('Failed to load page mappings, falling back to mock:', error);
+      import('../../common/mocks/pageMappings.mock').then(({ mockPageMappings }) => {
+        setMappings(toMappingsMap(mockPageMappings));
+        setIsLoaded(true);
+      });
+      return;
+    }
+    if (data) {
+      setMappings(toMappingsMap(data));
+      setIsLoaded(true);
+      Log.debug('Page mappings loaded:', data);
+    }
+  }, [data, error, setMappings, setIsLoaded]);
 }
