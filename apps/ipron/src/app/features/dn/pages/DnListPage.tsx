@@ -397,7 +397,41 @@ export default function DnListPage() {
     setBatchOpen(true);
   };
 
-  const handleImport = () => toast.info('가져오기는 후속 단계에서 구현 예정입니다.');
+  const handleImport = () => {
+    if (!selectedNodeId || !selectedTenantId) {
+      toast.warning('가져오기는 노드와 테넌트를 선택한 후 가능합니다.');
+      return;
+    }
+    const input = document.createElement('input');
+    input.type = 'file';
+    input.accept = '.xlsx,.xls';
+    input.onchange = async () => {
+      const file = input.files?.[0];
+      if (!file) return;
+      try {
+        const result = await dnApi.importExcel({ nodeId: selectedNodeId, tenantId: selectedTenantId, file });
+        const failedSummary = result.failed
+          .slice(0, 5)
+          .map((f) => `· 행${f.rowNum} ${f.dnNo ?? ''}: ${f.reason}`)
+          .join('\n');
+        if (result.failedCount === 0) {
+          toast.success(`가져오기 완료 — 전체 ${result.total}건 모두 등록`);
+        } else {
+          toast.warning(
+            `가져오기 완료 — 전체 ${result.total}건 중 성공 ${result.success}, 실패 ${result.failedCount}\n${failedSummary}${
+              result.failed.length > 5 ? `\n... 외 ${result.failed.length - 5}건` : ''
+            }`,
+          );
+        }
+        queryClient.invalidateQueries({ queryKey: dnQueryKeys.getList._def });
+      } catch (e: unknown) {
+        const err = e as { response?: { data?: { message?: string } } };
+        toast.error(err?.response?.data?.message ?? '엑셀 가져오기 실패');
+        console.error(e);
+      }
+    };
+    input.click();
+  };
   const handleExport = async () => {
     try {
       const blob = await dnApi.exportExcel(listParams);

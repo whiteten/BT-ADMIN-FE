@@ -16,6 +16,7 @@
  * - ipron-dn-range:                   GET    사용 가능 DN 범위 조회 (FreeDn)
  * - ipron-dn-profile-assign-dns:      PUT    내선 프로파일에 DN 일괄 배정
  * - ipron-dn-excel-export:            GET    DN 목록 엑셀 내보내기 (binary)
+ * - ipron-dn-excel-import:            POST   DN 목록 엑셀 가져오기 (multipart)
  */
 import ApiClient, { type DetailResponse, type ListResponse, extractDetail, extractList } from '@/shared-util';
 import type {
@@ -211,7 +212,7 @@ export const dnApi = {
   },
 
   /**
-   * DN 목록 엑셀 내보내기 (AS-IS IPR20S2020 16컬럼 양식).
+   * DN 목록 엑셀 내보내기 (AS-IS IPR20S2020 15컬럼 양식, 로그인ADN 제외).
    * Backend: byte[] (XLSX binary) — BFF가 그대로 forward.
    * @flow ipron-dn-excel-export
    */
@@ -221,6 +222,37 @@ export const dnApi = {
       responseType: 'blob',
     });
     return (response as unknown as { data: Blob }).data;
+  },
+
+  /**
+   * DN 목록 엑셀 가져오기 (AS-IS IPR20S2020 양식, 노드/테넌트는 URL 강제).
+   * Backend: ApiResponse<DnExcelImportResult> -> BFF: data:{...} -> extractDetail
+   * @flow ipron-dn-excel-import
+   */
+  importExcel: async (params: {
+    nodeId: number;
+    tenantId: number;
+    file: File;
+  }): Promise<{
+    total: number;
+    success: number;
+    failedCount: number;
+    failed: Array<{ rowNum: number; dnNo: string; reason: string }>;
+  }> => {
+    const formData = new FormData();
+    formData.append('file', params.file);
+    const response = await apiClient.post<
+      DetailResponse<{
+        total: number;
+        success: number;
+        failedCount: number;
+        failed: Array<{ rowNum: number; dnNo: string; reason: string }>;
+      }>
+    >('/ipron-dn-excel-import', formData, {
+      params: { nodeId: params.nodeId, tenantId: params.tenantId },
+      headers: { 'Content-Type': 'multipart/form-data' },
+    });
+    return extractDetail(response);
   },
 
   // ─── DN SNR (순차 호출) ───────────────────────────────────────────────────
