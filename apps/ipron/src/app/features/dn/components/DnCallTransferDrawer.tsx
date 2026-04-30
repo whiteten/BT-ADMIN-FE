@@ -236,12 +236,16 @@ export default function DnCallTransferDrawer({ open, dnId, dnNo, onClose }: DnCa
         footer={
           <div className="flex justify-end gap-2">
             <Button onClick={onClose}>닫기</Button>
+            {editingId && <Button onClick={resetForm}>새로 작성</Button>}
+            <Button type="primary" onClick={handleSubmit} loading={createMut.isPending || updateMut.isPending}>
+              {editingId ? '수정' : '등록'}
+            </Button>
           </div>
         }
       >
         {/* 그리드 */}
         <div className="flex items-center justify-between mb-2 flex-shrink-0">
-          <div className="text-sm font-semibold text-gray-700">등록된 규칙 ({list.length})</div>
+          <div className="text-sm font-semibold text-gray-700">조건부 착신 전환 규칙</div>
           <Button size="small" icon={<Plus className="size-3.5" />} onClick={resetForm}>
             폼 초기화
           </Button>
@@ -254,6 +258,8 @@ export default function DnCallTransferDrawer({ open, dnId, dnNo, onClose }: DnCa
             defaultColDef={{ filter: true, sortable: true, suppressHeaderMenuButton: true }}
             onRowDoubleClicked={(e) => e.data && loadRow(e.data)}
             pagination={false}
+            sideBar={false}
+            statusBar={undefined}
           />
         </div>
 
@@ -376,13 +382,6 @@ export default function DnCallTransferDrawer({ open, dnId, dnNo, onClose }: DnCa
               >
                 <Input placeholder={patternRequired ? '시간조건 외 필수' : '시간조건 시 불필요'} disabled={!patternRequired} maxLength={256} style={{ fontFamily: 'monospace' }} />
               </Form.Item>
-            </div>
-
-            <div className="flex justify-end gap-2 mt-3">
-              {editingId && <Button onClick={resetForm}>새로 작성</Button>}
-              <Button type="primary" onClick={handleSubmit} loading={createMut.isPending || updateMut.isPending}>
-                {editingId ? '수정' : '등록'}
-              </Button>
             </div>
           </Form>
         </div>
