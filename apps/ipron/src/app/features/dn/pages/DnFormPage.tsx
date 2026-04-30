@@ -1295,32 +1295,42 @@ export default function DnFormPage() {
                       <SwitchBox name="callResvSvc" label="통화예약서비스" disabled={personalDisabled('callReserveSvc')} cosDependent={cosControlled('callReserveSvc')} />
                       <SwitchBox name="autoReturnSvc" label="자동 호 회수" disabled={personalDisabled('autoReturnSvc')} cosDependent={cosControlled('autoReturnSvc')} />
                       <SwitchBox name="intercomOrigSvc" label="인터콤 발신" disabled={personalDisabled('intercomOrigSvc')} cosDependent={cosControlled('intercomOrigSvc')} />
-                      {/* SwitchBox 와 같은 박스 형태로 인라인 — Switch 우측에 [규칙 관리] 추가 */}
-                      <div
-                        className={
-                          cosControlled('shortDialSvc')
-                            ? 'flex items-center justify-between py-2 px-3 rounded-md border border-amber-200 bg-amber-50'
-                            : 'flex items-center justify-between py-2 px-3 rounded-md border border-gray-100 bg-gray-50'
-                        }
-                      >
-                        <span className={cosControlled('shortDialSvc') ? 'text-amber-700' : 'text-gray-700'}>단축다이얼</span>
-                        <div className="flex items-center gap-2">
-                          {isEditMode && dnId && watchedShortDialSvc === 1 && (
-                            <Button size="small" type="link" onClick={() => setShortDialOpen(true)} style={{ padding: 0, height: 'auto' }}>
-                              규칙 관리 →
-                            </Button>
-                          )}
-                          <Form.Item
-                            name="shortDialSvc"
-                            valuePropName="checked"
-                            getValueFromEvent={(c: boolean) => (c ? 1 : 0)}
-                            getValueProps={(v: number) => ({ checked: v === 1 })}
-                            noStyle
-                          >
-                            <Switch checkedChildren="ON" unCheckedChildren="OFF" disabled={personalDisabled('shortDialSvc')} />
-                          </Form.Item>
-                        </div>
-                      </div>
+                      {/* SwitchBox 와 같은 박스 형태로 인라인 — 자물쇠 아이콘 + [규칙 관리] 추가 */}
+                      {(() => {
+                        const isCosDep = cosControlled('shortDialSvc');
+                        const isDisabled = personalDisabled('shortDialSvc');
+                        const containerCls = isCosDep
+                          ? 'flex items-center justify-between py-2 px-3 rounded-md border border-amber-200 bg-amber-50'
+                          : 'flex items-center justify-between py-2 px-3 rounded-md border border-gray-100 bg-gray-50';
+                        const textCls = isCosDep ? 'text-amber-700' : 'text-gray-700';
+                        const iconCls = isCosDep ? 'text-amber-500' : '';
+                        const tipText = isCosDep ? (isDisabled ? 'COS 설정에서 해제되어 편집 불가 (COS에서 허용 시 편집 가능)' : 'COS 설정에 의해 편집 허용됨') : null;
+                        const row = (
+                          <div className={containerCls}>
+                            <span className={`text-sm ${textCls} flex items-center gap-1`}>
+                              단축다이얼
+                              {isCosDep && <LockOutlined className={`text-[10px] ${iconCls}`} />}
+                            </span>
+                            <div className="flex items-center gap-2">
+                              {isEditMode && dnId && watchedShortDialSvc === 1 && (
+                                <Button size="small" type="link" onClick={() => setShortDialOpen(true)} style={{ padding: 0, height: 'auto' }}>
+                                  규칙 관리 →
+                                </Button>
+                              )}
+                              <Form.Item
+                                name="shortDialSvc"
+                                valuePropName="checked"
+                                getValueFromEvent={(c: boolean) => (c ? 1 : 0)}
+                                getValueProps={(v: number) => ({ checked: v === 1 })}
+                                noStyle
+                              >
+                                <Switch size="small" checkedChildren="ON" unCheckedChildren="OFF" disabled={isDisabled} />
+                              </Form.Item>
+                            </div>
+                          </div>
+                        );
+                        return tipText ? <Tooltip title={tipText}>{row}</Tooltip> : row;
+                      })()}
                       <SwitchBox name="dodNumSvc" label="DOD 발신번호표시" />
                     </div>
 
