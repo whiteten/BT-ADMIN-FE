@@ -3,6 +3,7 @@ import ApiClient, { type DetailResponse, type ListResponse, extractDetail, extra
 import type { BookmarkCreateDatas, BookmarkUpdateDatas } from './types/bookmark.type';
 import type { Role } from './types/iam.types';
 import type { NavigationData } from './types/navi.types';
+import type { PageMapping, PageMappingUpsertRequest } from './types/pageMapping.types';
 
 const bffClient = new ApiClient({ serviceURL: '/bff' });
 
@@ -45,6 +46,31 @@ export const sharedApi = {
     getNavigation: async (params?: Record<string, unknown>): Promise<NavigationData> => {
       const response = await bffClient.get<DetailResponse<NavigationData>>('/navigation', { params });
       return extractDetail(response);
+    },
+  },
+  pageMapping: {
+    queryKeys: createQueryKeys('sharedApi:pageMapping', {
+      getPageMappings: null,
+    }),
+    /**
+     * 화면 지정 목록 조회
+     */
+    getPageMappings: async (): Promise<PageMapping[]> => {
+      const response = await bffClient.get<ListResponse<PageMapping>>('/page-mapping-list');
+      return extractList(response);
+    },
+    /**
+     * 화면 지정 upsert (없으면 생성, 있으면 갱신)
+     */
+    upsertPageMapping: async (data: PageMappingUpsertRequest): Promise<PageMapping> => {
+      const response = await bffClient.post<{ data: PageMapping }>('/page-mapping-upsert', data);
+      return response?.data?.data;
+    },
+    /**
+     * 화면 지정 삭제 (appId + path 키) — 기본 화면으로 복원
+     */
+    deletePageMapping: async ({ appId, path }: { appId: string; path: string }): Promise<void> => {
+      await bffClient.delete('/page-mapping-delete', { params: { appId, path } });
     },
   },
   bookmark: {

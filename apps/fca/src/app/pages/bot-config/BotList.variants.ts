@@ -19,5 +19,10 @@ export const botListVariants: PageVariantConfig = {
       description: '기본 봇 목록',
       component: lazy(() => import('./BotList')),
     },
+    BotList_TEST_A: {
+      label: '화면 변경 테스트 A',
+      description: '화면 지정 동작 확인용 테스트 변형. 검증 후 제거 예정.',
+      component: lazy(() => import('./variants/BotList_TEST_A')),
+    },
   },
 };

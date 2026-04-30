@@ -5,10 +5,10 @@
 
 import { forwardRef, useImperativeHandle, useMemo, useState } from 'react';
 import { Button, Col, Drawer, Form, Input, InputNumber, Row, Select, Switch } from 'antd';
-import { usePageVariantsStore, useRemoteRoutesStore } from '@/shared-store';
+import { useRemoteRoutesStore } from '@/shared-store';
 import type { App } from '../../iam/api/appApi';
 import type { Menu, MenuUpsertRequest } from '../types/menu.types';
-import { buildPathOptions, buildVariantOptions } from '../utils/menuFormOptions';
+import { buildPathOptions } from '../utils/menuFormOptions';
 import MenuIconPicker from '@/components/custom/MenuIconPicker';
 
 export interface MenuCreateDrawerRef {
@@ -32,16 +32,13 @@ const MenuCreateDrawer = forwardRef<MenuCreateDrawerRef, MenuCreateDrawerProps>(
   const [form] = Form.useForm<FormValues>();
 
   const routes = useRemoteRoutesStore((s) => s.routes);
-  const variants = usePageVariantsStore((s) => s.variants);
 
   const watchAppId = Form.useWatch('appId', form);
   const watchType = Form.useWatch('type', form);
-  const watchPath = Form.useWatch('path', form);
   const watchParentKey = Form.useWatch('parentKey', form);
 
   const appOptions = useMemo(() => apps.map((a) => ({ label: a.appName, value: a.appId })), [apps]);
   const pathOptions = useMemo(() => buildPathOptions(routes, watchAppId), [routes, watchAppId]);
-  const variantOptions = useMemo(() => buildVariantOptions(variants, watchAppId, watchPath), [variants, watchAppId, watchPath]);
 
   const isPage = watchType === 'PAGE';
   const isTopLevel = !watchParentKey;
@@ -98,7 +95,6 @@ const MenuCreateDrawer = forwardRef<MenuCreateDrawerRef, MenuCreateDrawerProps>(
         visible: values.visible ? 1 : 0,
         ...(values.path ? { path: values.path } : {}),
         ...(values.iconKey ? { iconKey: values.iconKey } : {}),
-        ...(values.componentKey ? { componentKey: values.componentKey } : {}),
       };
       onOk(payload);
     } catch {
@@ -162,25 +158,6 @@ const MenuCreateDrawer = forwardRef<MenuCreateDrawerRef, MenuCreateDrawerProps>(
         {isPage && (
           <Form.Item label="화면 경로" name="path" rules={[{ required: true, message: '화면 경로를 선택해주세요' }]}>
             <Select placeholder="화면 경로 선택" options={pathOptions} allowClear showSearch optionFilterProp="value" notFoundContent="등록된 path 없음" />
-          </Form.Item>
-        )}
-
-        {isPage && variantOptions && (
-          <Form.Item label="화면파일 변경" name="componentKey">
-            <Select
-              placeholder="변경이 필요한 경우 선택"
-              options={variantOptions}
-              allowClear
-              optionRender={(option) => {
-                const variant = variantOptions.find((v) => v.value === option.value);
-                return (
-                  <div className="flex flex-col">
-                    <span>{option.label}</span>
-                    {variant?.description && <span className="text-xs text-gray-500">{variant.description}</span>}
-                  </div>
-                );
-              }}
-            />
           </Form.Item>
         )}
 

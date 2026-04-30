@@ -5,10 +5,10 @@
 
 import { useEffect, useMemo } from 'react';
 import { Button, Col, Form, Input, InputNumber, Modal, Row, Select, Switch } from 'antd';
-import { usePageVariantsStore, useRemoteRoutesStore } from '@/shared-store';
+import { useRemoteRoutesStore } from '@/shared-store';
 import type { App } from '../../iam/api/appApi';
 import type { Menu, MenuUpsertRequest } from '../types/menu.types';
-import { buildPathOptions, buildVariantOptions } from '../utils/menuFormOptions';
+import { buildPathOptions } from '../utils/menuFormOptions';
 import { IconDocument } from '@/components/custom/Icons';
 import MenuIconPicker from '@/components/custom/MenuIconPicker';
 
@@ -26,11 +26,9 @@ export default function MenuDetailForm({ menu, apps, onSave, onDelete, saving }:
   const [form] = Form.useForm<FormValues>();
 
   const routes = useRemoteRoutesStore((s) => s.routes);
-  const variants = usePageVariantsStore((s) => s.variants);
 
   const watchAppId = Form.useWatch('appId', form);
   const watchType = Form.useWatch('type', form);
-  const watchPath = Form.useWatch('path', form);
   const watchParentKey = Form.useWatch('parentKey', form);
 
   useEffect(() => {
@@ -46,13 +44,11 @@ export default function MenuDetailForm({ menu, apps, onSave, onDelete, saving }:
       visible: menu.visible,
       path: menu.path ?? undefined,
       iconKey: menu.iconKey ?? undefined,
-      componentKey: menu.componentKey ?? undefined,
     });
   }, [menu, form]);
 
   const appOptions = useMemo(() => apps.map((a) => ({ label: a.appName, value: a.appId })), [apps]);
   const pathOptions = useMemo(() => buildPathOptions(routes, watchAppId), [routes, watchAppId]);
-  const variantOptions = useMemo(() => buildVariantOptions(variants, watchAppId, watchPath), [variants, watchAppId, watchPath]);
 
   const isPage = watchType === 'PAGE';
   const isTopLevel = !watchParentKey;
@@ -66,7 +62,6 @@ export default function MenuDetailForm({ menu, apps, onSave, onDelete, saving }:
         visible: values.visible ? 1 : 0,
         ...(values.path ? { path: values.path } : {}),
         ...(values.iconKey ? { iconKey: values.iconKey } : {}),
-        ...(values.componentKey ? { componentKey: values.componentKey } : {}),
       };
       onSave(menu.menuKey, payload);
     } catch {
@@ -145,28 +140,6 @@ export default function MenuDetailForm({ menu, apps, onSave, onDelete, saving }:
                 <Col span={8}>
                   <Form.Item label="화면 경로" name="path" rules={[{ required: true, message: '화면 경로를 선택해주세요' }]}>
                     <Select placeholder="화면 경로 선택" options={pathOptions} allowClear showSearch optionFilterProp="value" notFoundContent="등록된 path 없음" />
-                  </Form.Item>
-                </Col>
-              )}
-              {isPage && variantOptions && (
-                <Col span={8}>
-                  <Form.Item label="화면파일 변경" name="componentKey">
-                    <Select
-                      placeholder="변경이 필요한 경우 선택"
-                      options={variantOptions}
-                      allowClear
-                      optionRender={(option) => {
-                        const variant = variantOptions.find((v) => v.value === option.value);
-                        return (
-                          <div className="flex flex-col">
-                            <span>
-                              {option.label} <span className="text-xs text-gray-400">({String(option.value)})</span>
-                            </span>
-                            {variant?.description && <span className="text-xs text-gray-500">{variant.description}</span>}
-                          </div>
-                        );
-                      }}
-                    />
                   </Form.Item>
                 </Col>
               )}

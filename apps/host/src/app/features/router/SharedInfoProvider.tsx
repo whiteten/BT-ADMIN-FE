@@ -12,6 +12,7 @@ import { useGetUserInfo, useGetWsTicket } from '../auth/hooks/useAuthQueries';
 import { useGetNavigation } from '../common/hooks/useNavigationQueries';
 import { useSessionSocket } from '../common/hooks/useSessionSocket';
 import { useMenuLoader } from '../layout/hooks/useMenuLoader';
+import { usePageMappingsLoader } from '../layout/hooks/usePageMappingsLoader';
 import { useGetRoles } from '../management/hooks/useRoleQueries';
 import { FallbackSpinner } from '@/components/custom/FallbackSpinner';
 
@@ -28,6 +29,7 @@ export default function SharedInfoProvider({ children }: { children?: React.Reac
   const { load: loadMenuConfigs } = useMenuLoader();
   const { load: loadRemoteRoutes } = useRemoteRoutesLoader();
   const { load: loadPageVariants } = usePageVariantsLoader();
+  const { load: loadPageMappings } = usePageMappingsLoader();
 
   const handleWsError = () => {
     const RETRY_DELAY = 5000;
@@ -76,6 +78,10 @@ export default function SharedInfoProvider({ children }: { children?: React.Reac
   useEffect(() => {
     loadPageVariants();
   }, [loadPageVariants]);
+
+  useEffect(() => {
+    loadPageMappings();
+  }, [loadPageMappings]);
 
   useEffect(() => {
     setIsLoading(isRolesLoading || isUserInfoLoading);

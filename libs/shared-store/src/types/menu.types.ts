@@ -8,7 +8,6 @@ export interface MenuItem {
   label: string;
   path?: string;
   icon?: React.ElementType;
-  componentKey?: string;
   index?: number;
   hide?: boolean;
   children?: MenuItem[];
