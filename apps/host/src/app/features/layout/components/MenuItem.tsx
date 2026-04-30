@@ -85,7 +85,7 @@ CollapsibleMenuItem.displayName = 'CollapsibleMenuItem';
  * 메뉴 구조:
  * - children O + path X → Collapsible (부모 메뉴)
  * - children X + path O → 링크 (리프 노드)
- * - children X + path X → 경고 (데이터 오류)
+ * - children X + path X → 텍스트만 표시 (비활성 라벨)
  */
 export const MenuItem = React.memo(({ item, appId }: MenuItemProps) => {
   const { pathname } = useLocation();
@@ -119,7 +119,15 @@ export const MenuItem = React.memo(({ item, appId }: MenuItemProps) => {
     );
   }
 
-  return null;
+  // children도 path도 없으면 텍스트만 표시 (비활성 라벨)
+  return (
+    <SidebarMenuItem>
+      <SidebarMenuSubButton className="cursor-default opacity-60 hover:bg-transparent hover:text-current">
+        {item.icon && <item.icon className="!size-5" />}
+        <span className={cn('w-full', !item.icon && "before:content-['-'] before:mr-2")}>{item.label}</span>
+      </SidebarMenuSubButton>
+    </SidebarMenuItem>
+  );
 });
 
 MenuItem.displayName = 'MenuItem';
