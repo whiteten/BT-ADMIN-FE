@@ -29,7 +29,7 @@ interface ImportProgress {
   failedCount: number;
   failed: Array<{ rowNum: number; dnNo: string; reason: string }>;
   done: boolean;
-  error: string | null;
+  errorMessage: string | null;
 }
 
 type Phase = 'idle' | 'uploading' | 'polling' | 'done';
@@ -69,9 +69,9 @@ export default function DnImportDrawer({ open, nodeId, tenantId, nodeName, tenan
             pollTimer.current = null;
           }
           setPhase('done');
-          if (status.error) {
-            setErrorMsg(status.error);
-            toast.error(`가져오기 실패: ${status.error}`);
+          if (status.errorMessage) {
+            setErrorMsg(status.errorMessage);
+            toast.error(`가져오기 실패: ${status.errorMessage}`);
           } else if (status.failedCount === 0) {
             toast.success(`가져오기 완료 — 전체 ${status.total}건 모두 등록`);
           } else {
@@ -100,7 +100,7 @@ export default function DnImportDrawer({ open, nodeId, tenantId, nodeName, tenan
         failedCount: 0,
         failed: [],
         done: false,
-        error: null,
+        errorMessage: null,
       });
       startPolling(taskId);
     } catch (e: unknown) {

@@ -253,7 +253,7 @@ export const dnApi = {
     failedCount: number;
     failed: Array<{ rowNum: number; dnNo: string; reason: string }>;
     done: boolean;
-    error: string | null;
+    errorMessage: string | null;
   }> => {
     const response = await apiClient.get<
       DetailResponse<{
@@ -264,7 +264,7 @@ export const dnApi = {
         failedCount: number;
         failed: Array<{ rowNum: number; dnNo: string; reason: string }>;
         done: boolean;
-        error: string | null;
+        errorMessage: string | null;
       }>
     >('/ipron-dn-excel-import-status', { params: { taskId } });
     return extractDetail(response);
