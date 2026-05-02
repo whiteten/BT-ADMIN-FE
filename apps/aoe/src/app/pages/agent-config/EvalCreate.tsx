@@ -262,32 +262,17 @@ export default function EvalCreate() {
     }
   };
 
-  const handleSubmit = () => {
-    const values = step1Form.getFieldsValue();
-    const activeSettings = chunkSettings.filter((s) => selectedChunks.includes(s.chunkId));
-    createEval({
-      evalName: values.evalName,
-      description: values.description,
-      documentId: documentId!,
-      chunkSettings: activeSettings,
-    });
-  };
-
-  const handleLLMGenerate = () => {
-    // 선택된 청크 객체 목록
-    const selectedChunkItems = availableChunks.filter((c) => selectedChunks.includes(c.chunkId));
-
-    // 파일(fileId) 기준으로 청크 그룹핑
+  const buildDocs = (chunkIds: string[]): EvalGenerateDocItem[] => {
+    const selectedChunkItems = availableChunks.filter((c) => chunkIds.includes(c.chunkId));
     const fileMap = new Map<string, { fileName: string; fileId: string; chunks: KnowledgeChunkItem[] }>();
     selectedChunkItems.forEach((chunk) => {
       const key = chunk.fileId ?? chunk.fileName;
       if (!fileMap.has(key)) {
         fileMap.set(key, { fileName: chunk.fileName, fileId: chunk.fileId ?? '', chunks: [] });
       }
-      fileMap.get(key)!.chunks.push(chunk);
+      fileMap.get(key)?.chunks.push(chunk);
     });
-
-    const docs: EvalGenerateDocItem[] = Array.from(fileMap.values()).map(({ fileName, fileId, chunks }) => ({
+    return Array.from(fileMap.values()).map(({ fileName, fileId, chunks }) => ({
       fileName,
       fileId,
       chunkDatas: chunks.map((chunk) => ({
@@ -302,6 +287,24 @@ export default function EvalCreate() {
         },
       })),
     }));
+  };
+
+  const handleSubmit = () => {
+    const values = step1Form.getFieldsValue();
+    const activeSettings = chunkSettings.filter((s) => selectedChunks.includes(s.chunkId));
+    createEval({
+      params: { documentId: documentId! },
+      data: {
+        evalName: values.evalName,
+        description: values.description,
+        docs: buildDocs(selectedChunks),
+        chunkSettings: activeSettings,
+      },
+    });
+  };
+
+  const handleLLMGenerate = () => {
+    const docs = buildDocs(selectedChunks);
 
     generateLLM({
       params: { documentId: documentId! },

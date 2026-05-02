@@ -11,6 +11,7 @@ import type {
   KnowledgeEvalItem,
   KnowledgeEvalLLMGenerateResult,
   KnowledgeEvalResult,
+  KnowledgeEvalUpdateDatas,
   KnowledgeFileItem,
   KnowledgeItem,
   KnowledgeListItem,
@@ -28,6 +29,7 @@ export const knowledgeQueryKeys = createQueryKeys('knowledges', {
   getKnowledgeMetadata: (params?: Record<string, unknown>) => [params],
   getKnowledgeSearchRecords: (params?: Record<string, unknown>) => [params],
   getKnowledgeEvals: (params?: Record<string, unknown>) => [params],
+  getKnowledgeEval: (params?: Record<string, unknown>) => [params],
   getKnowledgeEvalHistory: (params?: Record<string, unknown>) => [params],
   getKnowledgeEvalResult: (params?: Record<string, unknown>) => [params],
 });
@@ -139,6 +141,22 @@ export const useSearchKnowledge = ({ mutationOptions }: MutationHookOptions<Know
   });
 };
 
+export const useGetKnowledgeEval = ({ params, queryOptions }: QueryHookWithParamsOptions<KnowledgeEvalItem> = {}) => {
+  return useQuery({
+    queryKey: knowledgeQueryKeys.getKnowledgeEval(params).queryKey,
+    queryFn: () => knowledgeApi.getKnowledgeEval(params as { documentId: string; evalId: string }),
+    enabled: !!params?.documentId && !!params?.evalId,
+    ...queryOptions,
+  });
+};
+
+export const useUpdateKnowledgeEval = ({ mutationOptions }: MutationHookOptions<void, { params: { documentId: string; evalId: string }; data: KnowledgeEvalUpdateDatas }> = {}) => {
+  return useMutation({
+    mutationFn: knowledgeApi.updateKnowledgeEval,
+    ...mutationOptions,
+  });
+};
+
 export const useGetKnowledgeEvals = ({ params, queryOptions }: QueryHookWithParamsOptions<KnowledgeEvalItem[]> = {}) => {
   return useQuery({
     queryKey: knowledgeQueryKeys.getKnowledgeEvals(params).queryKey,
@@ -155,7 +173,14 @@ export const useDeleteKnowledgeEval = ({ mutationOptions }: MutationHookOptions<
   });
 };
 
-export const useRunKnowledgeEval = ({ mutationOptions }: MutationHookOptions<void, { documentId: string; evalId: string; metrics: string[] }> = {}) => {
+export const useDeleteKnowledgeEvalResult = ({ mutationOptions }: MutationHookOptions<void, { documentId: string; evalId: string; resultId: string }> = {}) => {
+  return useMutation({
+    mutationFn: knowledgeApi.deleteKnowledgeEvalResult,
+    ...mutationOptions,
+  });
+};
+
+export const useRunKnowledgeEval = ({ mutationOptions }: MutationHookOptions<void, { params: { documentId: string; evalId: string }; data: { metrics: string[] } }> = {}) => {
   return useMutation({
     mutationFn: knowledgeApi.runKnowledgeEval,
     ...mutationOptions,
@@ -165,8 +190,8 @@ export const useRunKnowledgeEval = ({ mutationOptions }: MutationHookOptions<voi
 export const useGetKnowledgeEvalHistory = ({ params, queryOptions }: QueryHookWithParamsOptions<KnowledgeEvalExecution[]> = {}) => {
   return useQuery({
     queryKey: knowledgeQueryKeys.getKnowledgeEvalHistory(params).queryKey,
-    queryFn: () => knowledgeApi.getKnowledgeEvalHistory(params as { evalId: string }),
-    enabled: !!params?.evalId,
+    queryFn: () => knowledgeApi.getKnowledgeEvalHistory(params as { documentId: string; evalId: string }),
+    enabled: !!params?.documentId && !!params?.evalId,
     ...queryOptions,
   });
 };
@@ -174,8 +199,8 @@ export const useGetKnowledgeEvalHistory = ({ params, queryOptions }: QueryHookWi
 export const useGetKnowledgeEvalResult = ({ params, queryOptions }: QueryHookWithParamsOptions<KnowledgeEvalResult> = {}) => {
   return useQuery({
     queryKey: knowledgeQueryKeys.getKnowledgeEvalResult(params).queryKey,
-    queryFn: () => knowledgeApi.getKnowledgeEvalResult(params as { resultId: string }),
-    enabled: !!params?.resultId,
+    queryFn: () => knowledgeApi.getKnowledgeEvalResult(params as { documentId: string; evalId: string; resultId: string }),
+    enabled: !!params?.documentId && !!params?.evalId && !!params?.resultId,
     ...queryOptions,
   });
 };
@@ -189,7 +214,7 @@ export const useGetKnowledgeChunks = ({ params, queryOptions }: QueryHookWithPar
   });
 };
 
-export const useCreateKnowledgeEval = ({ mutationOptions }: MutationHookOptions<void, KnowledgeEvalCreateDatas> = {}) => {
+export const useCreateKnowledgeEval = ({ mutationOptions }: MutationHookOptions<void, { params: { documentId: string }; data: KnowledgeEvalCreateDatas }> = {}) => {
   return useMutation({
     mutationFn: knowledgeApi.createKnowledgeEval,
     ...mutationOptions,

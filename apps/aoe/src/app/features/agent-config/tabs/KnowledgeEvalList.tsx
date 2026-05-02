@@ -41,6 +41,10 @@ export default function KnowledgeEvalList() {
     evalRunDrawerRef.current?.open({ documentId: documentId!, evalId: data.evalId, evalName: data.evalName });
   };
 
+  const handleRowDoubleClicked = (data: KnowledgeEvalItem) => {
+    navigate(`/aoe/agent-config/knowledge/${documentId}/eval/${data.evalId}`);
+  };
+
   const handleDeleteEval = (evalId: string) => {
     modal.confirm.delete({
       onOk: () => deleteEval({ documentId: documentId!, evalId }),
@@ -50,7 +54,7 @@ export default function KnowledgeEvalList() {
   const filteredEvals = (evals ?? []).filter((item) => (searchValue.trim() ? item.evalName.toLowerCase().includes(searchValue.toLowerCase()) : true));
 
   const columnDefs: ColDef<KnowledgeEvalItem>[] = [
-    { field: 'evalId', hide: true },
+    { headerName: '평가셋 ID', field: 'evalId', hide: true },
     {
       headerName: '평가셋 명',
       field: 'evalName',
@@ -151,6 +155,7 @@ export default function KnowledgeEvalList() {
           gridOptions={gridOptions}
           getRowId={(params) => params.data.evalId}
           loading={isFetching}
+          onRowDoubleClicked={(e) => e.data && handleRowDoubleClicked(e.data)}
         />
       </div>
 

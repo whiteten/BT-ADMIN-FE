@@ -8,6 +8,7 @@ import type {
   KnowledgeEvalItem,
   KnowledgeEvalLLMGenerateResult,
   KnowledgeEvalResult,
+  KnowledgeEvalUpdateDatas,
   KnowledgeFileItem,
   KnowledgeItem,
   KnowledgeListItem,
@@ -80,17 +81,27 @@ export const knowledgeApi = {
     const response = await apiClient.get<ListResponse<KnowledgeEvalItem>>('/aoe-knowledge-evals', { params });
     return extractList(response);
   },
+  getKnowledgeEval: async (params: { documentId: string; evalId: string }) => {
+    const response = await apiClient.get<DetailResponse<KnowledgeEvalItem>>('/aoe-knowledge-eval-detail', { params });
+    return extractDetail(response);
+  },
+  updateKnowledgeEval: async ({ params, data }: { params: { documentId: string; evalId: string }; data: KnowledgeEvalUpdateDatas }) => {
+    await apiClient.put('/aoe-knowledge-eval-update', data, { params });
+  },
   deleteKnowledgeEval: async (data: { documentId: string; evalId: string }) => {
-    await apiClient.post('/aoe-knowledge-eval-delete', data);
+    await apiClient.delete('/aoe-knowledge-eval-delete', { params: data });
   },
-  runKnowledgeEval: async (data: { documentId: string; evalId: string; metrics: string[] }) => {
-    await apiClient.post('/aoe-knowledge-eval-run', data);
+  deleteKnowledgeEvalResult: async (data: { documentId: string; evalId: string; resultId: string }) => {
+    await apiClient.delete('/aoe-knowledge-eval-result-delete', { params: data });
   },
-  getKnowledgeEvalHistory: async (params: { evalId: string }) => {
-    const response = await apiClient.get<ListResponse<KnowledgeEvalExecution>>('/aoe-knowledge-eval-history', { params });
+  runKnowledgeEval: async ({ params, data }: { params: { documentId: string; evalId: string }; data: { metrics: string[] } }) => {
+    await apiClient.post('/aoe-knowledge-eval-run', data, { params });
+  },
+  getKnowledgeEvalHistory: async (params: { documentId: string; evalId: string }) => {
+    const response = await apiClient.get<ListResponse<KnowledgeEvalExecution>>('/aoe-knowledge-eval-history-list', { params });
     return extractList(response);
   },
-  getKnowledgeEvalResult: async (params: { resultId: string }) => {
+  getKnowledgeEvalResult: async (params: { documentId: string; evalId: string; resultId: string }) => {
     const response = await apiClient.get<DetailResponse<KnowledgeEvalResult>>('/aoe-knowledge-eval-result', { params });
     return extractDetail(response);
   },
@@ -98,12 +109,19 @@ export const knowledgeApi = {
     const response = await apiClient.get<ListResponse<KnowledgeChunkItem>>('/aoe-knowledge-chunks', { params });
     return extractList(response);
   },
-  createKnowledgeEval: async (data: KnowledgeEvalCreateDatas) => {
-    await apiClient.post('/aoe-knowledge-eval-create', data);
+  createKnowledgeEval: async ({ params, data }: { params: { documentId: string }; data: KnowledgeEvalCreateDatas }) => {
+    await apiClient.post('/aoe-knowledge-eval-create', data, { params });
   },
   generateKnowledgeEvalLLM: async ({ params, data }: EvalGenerateRequest) => {
-    const response = await apiClient.post<ListResponse<KnowledgeEvalLLMGenerateResult>>('/aoe-knowledge-eval-generate', data, { params });
-    return extractList(response);
+    const response = await apiClient.post<ListResponse<{ chunkId: string; index: number; question: string; answer: string }>>('/aoe-knowledge-eval-generate', data, { params });
+    const items = extractList(response);
+    const grouped = new Map<string, { question: string; answer: string }[]>();
+    for (const item of items.sort((a, b) => a.index - b.index)) {
+      if (!grouped.has(item.chunkId)) grouped.set(item.chunkId, []);
+      const entry = grouped.get(item.chunkId);
+      if (entry) entry.push({ question: item.question, answer: item.answer });
+    }
+    return Array.from(grouped.entries()).map(([chunkId, questions]) => ({ chunkId, questions })) as KnowledgeEvalLLMGenerateResult[];
   },
   processKnowledge: async (data: {
     documentName: string;

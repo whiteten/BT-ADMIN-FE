@@ -1,6 +1,7 @@
 import { forwardRef, useImperativeHandle, useRef, useState } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { Button, Checkbox, Drawer } from 'antd';
+import dayjs from 'dayjs';
 import { BarChart3, Clock, Play } from 'lucide-react';
 import { Log } from '@/log';
 import { toast } from '@/shared-util';
@@ -49,8 +50,8 @@ const KnowledgeEvalRunDrawer = forwardRef<KnowledgeEvalRunDrawerRef>((_, ref) =>
   const { open, documentId, evalId, evalName } = drawerState;
 
   const { data: history = [], isFetching: isHistoryLoading } = useGetKnowledgeEvalHistory({
-    params: { evalId },
-    queryOptions: { enabled: open && !!evalId },
+    params: { documentId, evalId },
+    queryOptions: { enabled: open && !!documentId && !!evalId },
   });
 
   const { mutate: runEval, isPending: isRunning } = useRunKnowledgeEval({
@@ -84,7 +85,7 @@ const KnowledgeEvalRunDrawer = forwardRef<KnowledgeEvalRunDrawerRef>((_, ref) =>
       toast.warning('최소 하나의 메트릭을 선택해주세요.');
       return;
     }
-    runEval({ documentId, evalId, metrics: selectedMetrics });
+    runEval({ params: { documentId, evalId }, data: { metrics: selectedMetrics } });
   };
 
   const formatMetrics = (execution: (typeof history)[0]) => {
@@ -145,7 +146,10 @@ const KnowledgeEvalRunDrawer = forwardRef<KnowledgeEvalRunDrawerRef>((_, ref) =>
 
           {/* 평가 실행 기록 */}
           <div className="flex flex-col gap-3">
-            <span className="text-sm font-semibold text-gray-700">평가 실행 기록</span>
+            <div className="flex items-center gap-2">
+              <span className="text-sm font-semibold text-gray-700">평가 실행 기록</span>
+              <span className="text-xs text-gray-400 bg-gray-100 rounded-full px-2 py-0.5">최근 3건</span>
+            </div>
             {isHistoryLoading ? (
               <div className="flex justify-center py-8">
                 <FallbackSpinner />
@@ -158,7 +162,7 @@ const KnowledgeEvalRunDrawer = forwardRef<KnowledgeEvalRunDrawerRef>((_, ref) =>
               </div>
             ) : (
               <div className="flex flex-col gap-2">
-                {history.map((execution, idx) => (
+                {history.slice(0, 3).map((execution, idx) => (
                   <div key={execution.resultId ?? idx} className="p-3 border border-gray-200 rounded-lg bg-white hover:border-blue-200 transition-colors">
                     <div className="flex items-center justify-between mb-1.5">
                       <span className="text-sm font-semibold text-gray-800">
@@ -171,12 +175,13 @@ const KnowledgeEvalRunDrawer = forwardRef<KnowledgeEvalRunDrawerRef>((_, ref) =>
                       <button
                         type="button"
                         className="flex items-center gap-1 text-xs text-blue-600 hover:underline shrink-0 ml-2"
-                        onClick={() => resultModalRef.current?.open({ resultId: execution.resultId, evalName: execution.evalName })}
+                        onClick={() => resultModalRef.current?.open({ documentId, evalId, resultId: execution.resultId, evalName: execution.evalName })}
                       >
                         <BarChart3 className="size-3" />
                         결과 보기
                       </button>
                     </div>
+                    {execution.workTime && <p className="text-xs text-gray-400 mt-1">{dayjs(execution.workTime).format('YYYY-MM-DD HH:mm')}</p>}
                   </div>
                 ))}
               </div>

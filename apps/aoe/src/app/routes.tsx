@@ -13,6 +13,7 @@ const KnowledgeList = React.lazy(() => import('./pages/agent-config/KnowledgeLis
 const KnowledgeCreate = React.lazy(() => import('./pages/agent-config/KnowledgeCreate'));
 const KnowledgeDetail = React.lazy(() => import('./pages/agent-config/KnowledgeDetail'));
 const EvalCreate = React.lazy(() => import('./pages/agent-config/EvalCreate'));
+const EvalDetail = React.lazy(() => import('./pages/agent-config/EvalDetail'));
 
 export const routes = [
   {
@@ -58,6 +59,7 @@ export const routes = [
               { path: 'create', element: <KnowledgeCreate /> },
               { path: ':documentId', element: <KnowledgeDetail /> },
               { path: ':documentId/eval/create', element: <EvalCreate /> },
+              { path: ':documentId/eval/:evalId', element: <EvalDetail /> },
             ],
           },
         ],

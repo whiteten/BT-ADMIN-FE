@@ -76,6 +76,11 @@ export interface KnowledgeEvalItem {
   createdAt?: string;
 }
 
+export interface KnowledgeEvalUpdateDatas {
+  evalName: string;
+  description?: string;
+}
+
 export interface KnowledgeEvalExecution {
   resultId: string;
   evalId: string;
@@ -86,18 +91,29 @@ export interface KnowledgeEvalExecution {
   mrr?: number;
   ndcg?: number;
   map?: number;
+  workTime?: string;
 }
 
 export interface KnowledgeEvalResultDoc {
-  content: string;
-  similarity: number;
+  retrievedChunkId: string;
+  resultChunkId: string;
+  rank: number;
+  chunk: string;
+  score: number;
 }
 
 export interface KnowledgeEvalResultItem {
-  questionIndex: number;
+  resultChunkId: string;
   question: string;
-  retrievedDocs: KnowledgeEvalResultDoc[];
-  expectedAnswer?: string;
+  answer: string;
+  precision?: number;
+  recall?: number;
+  f1?: number;
+  mrr?: number;
+  ndcg?: number;
+  map?: number;
+  correctChunk?: string;
+  rankList: KnowledgeEvalResultDoc[];
 }
 
 export interface KnowledgeEvalResult {
@@ -130,7 +146,7 @@ export interface EvalChunkSetting {
 export interface KnowledgeEvalCreateDatas {
   evalName: string;
   description?: string;
-  documentId: string;
+  docs: EvalGenerateDocItem[];
   chunkSettings: EvalChunkSetting[];
 }
 
