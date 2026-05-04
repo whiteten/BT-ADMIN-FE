@@ -14,6 +14,11 @@ const KnowledgeCreate = React.lazy(() => import('./pages/agent-config/KnowledgeC
 const KnowledgeDetail = React.lazy(() => import('./pages/agent-config/KnowledgeDetail'));
 const EvalCreate = React.lazy(() => import('./pages/agent-config/EvalCreate'));
 const EvalDetail = React.lazy(() => import('./pages/agent-config/EvalDetail'));
+const ToolList = React.lazy(() => import('./pages/agent-config/ToolList'));
+const ToolGroupDetail = React.lazy(() => import('./pages/agent-config/ToolGroupDetail'));
+const A2AList = React.lazy(() => import('./pages/agent-config/A2AList'));
+const A2ACreate = React.lazy(() => import('./pages/agent-config/A2ACreate'));
+const A2ADetail = React.lazy(() => import('./pages/agent-config/A2ADetail'));
 
 export const routes = [
   {
@@ -60,6 +65,23 @@ export const routes = [
               { path: ':documentId', element: <KnowledgeDetail /> },
               { path: ':documentId/eval/create', element: <EvalCreate /> },
               { path: ':documentId/eval/:evalId', element: <EvalDetail /> },
+            ],
+          },
+          {
+            path: 'tool',
+            children: [
+              { index: true, element: <Navigate to="list" replace /> },
+              { path: 'list', element: <ToolList /> },
+              { path: ':groupId', element: <ToolGroupDetail /> },
+            ],
+          },
+          {
+            path: 'a2a',
+            children: [
+              { index: true, element: <Navigate to="list" replace /> },
+              { path: 'list', element: <A2AList /> },
+              { path: 'create', element: <A2ACreate /> },
+              { path: ':a2aId', element: <A2ADetail /> },
             ],
           },
         ],

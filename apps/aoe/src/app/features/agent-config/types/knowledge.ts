@@ -73,12 +73,28 @@ export interface KnowledgeEvalItem {
   description?: string;
   status?: KnowledgeEvalStatus;
   itemCount?: number;
+  chunkCount?: number;
+  fileCount?: number;
   createdAt?: string;
+  chunkSettings?: KnowledgeEvalChunkSetting[];
+}
+
+export interface KnowledgeEvalChunkQuestion {
+  seq: number;
+  question: string;
+  answer: string;
+}
+
+export interface KnowledgeEvalChunkSetting {
+  chunkId: string;
+  questions: KnowledgeEvalChunkQuestion[];
 }
 
 export interface KnowledgeEvalUpdateDatas {
   evalName: string;
   description?: string;
+  docs?: EvalGenerateDocItem[];
+  chunkSettings?: KnowledgeEvalChunkSetting[];
 }
 
 export interface KnowledgeEvalExecution {
