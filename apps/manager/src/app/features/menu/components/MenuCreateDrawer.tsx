@@ -7,8 +7,9 @@ import { forwardRef, useImperativeHandle, useMemo, useState } from 'react';
 import { Button, Col, Drawer, Form, Input, InputNumber, Row, Select, Switch } from 'antd';
 import { useRemoteRoutesStore } from '@/shared-store';
 import type { App } from '../../iam/api/appApi';
+import QuerySelectorRenderer from '../selectors/QuerySelectorRenderer';
 import type { Menu, MenuUpsertRequest } from '../types/menu.types';
-import { buildPathOptions } from '../utils/menuFormOptions';
+import { buildPathOptions, joinPathQuery } from '../utils/menuFormOptions';
 import MenuIconPicker from '@/components/custom/MenuIconPicker';
 
 export interface MenuCreateDrawerRef {
@@ -29,6 +30,7 @@ const MenuCreateDrawer = forwardRef<MenuCreateDrawerRef, MenuCreateDrawerProps>(
   const [isOpen, setIsOpen] = useState(false);
   const [parentMenu, setParentMenu] = useState<Menu | null>(null);
   const [presetAppId, setPresetAppId] = useState<string | null>(null);
+  const [queryValues, setQueryValues] = useState<Record<string, string | undefined>>({});
   const [form] = Form.useForm<FormValues>();
 
   const routes = useRemoteRoutesStore((s) => s.routes);
@@ -36,12 +38,22 @@ const MenuCreateDrawer = forwardRef<MenuCreateDrawerRef, MenuCreateDrawerProps>(
   const watchAppId = Form.useWatch('appId', form);
   const watchType = Form.useWatch('type', form);
   const watchParentKey = Form.useWatch('parentKey', form);
+  const watchPath = Form.useWatch('path', form);
 
   const appOptions = useMemo(() => apps.map((a) => ({ label: a.appName, value: a.appId })), [apps]);
   const pathOptions = useMemo(() => buildPathOptions(routes, watchAppId), [routes, watchAppId]);
+  const querySpecs = useMemo(() => {
+    if (!watchAppId || !watchPath) return [];
+    const entry = routes[watchAppId]?.find((r) => r.path === watchPath);
+    return entry?.queryParams ?? [];
+  }, [routes, watchAppId, watchPath]);
 
   const isPage = watchType === 'PAGE';
   const isTopLevel = !watchParentKey;
+
+  const handleQueryChange = (key: string, value: string | undefined) => {
+    setQueryValues((prev) => ({ ...prev, [key]: value }));
+  };
 
   /** 선택된 메뉴 기반으로 부모 메뉴 결정: FOLDER면 그대로, PAGE면 그 부모 */
   const resolveParent = (menu: Menu | null | undefined): Menu | null => {
@@ -67,6 +79,7 @@ const MenuCreateDrawer = forwardRef<MenuCreateDrawerRef, MenuCreateDrawerProps>(
       const resolved = resolveParent(selected);
       setParentMenu(resolved);
       form.resetFields();
+      setQueryValues({});
 
       if (resolved) {
         setPresetAppId(null);
@@ -90,10 +103,11 @@ const MenuCreateDrawer = forwardRef<MenuCreateDrawerRef, MenuCreateDrawerProps>(
   const handleSubmit = async () => {
     try {
       const values = await form.validateFields();
+      const composedPath = values.path ? joinPathQuery(values.path, queryValues) : undefined;
       const payload: MenuUpsertRequest = {
         ...values,
         visible: values.visible ? 1 : 0,
-        ...(values.path ? { path: values.path } : {}),
+        ...(composedPath ? { path: composedPath } : {}),
         ...(values.iconKey ? { iconKey: values.iconKey } : {}),
       };
       onOk(payload);
@@ -160,6 +174,8 @@ const MenuCreateDrawer = forwardRef<MenuCreateDrawerRef, MenuCreateDrawerProps>(
             <Select placeholder="화면 경로 선택" options={pathOptions} allowClear showSearch optionFilterProp="value" notFoundContent="등록된 path 없음" />
           </Form.Item>
         )}
+
+        {isPage && querySpecs.length > 0 && <QuerySelectorRenderer specs={querySpecs} values={queryValues} onChange={handleQueryChange} />}
 
         <Row gutter={16}>
           <Col span={12}>

@@ -7,6 +7,7 @@ import { sharedApi } from '@/shared-api';
 import { useAuthStore, useNavigationStore } from '@/shared-store';
 import { toast } from '@/shared-util';
 import { usePageVariantManifestLoader } from './hooks/usePageVariantManifestLoader';
+import { useQuerySelectorsLoader } from './hooks/useQuerySelectorsLoader';
 import { useRemoteRoutesLoader } from './hooks/useRemoteRoutesLoader';
 import { useGetUserInfo, useGetWsTicket } from '../auth/hooks/useAuthQueries';
 import { useGetNavigation } from '../common/hooks/useNavigationQueries';
@@ -29,6 +30,7 @@ export default function SharedInfoProvider({ children }: { children?: React.Reac
   const { load: loadMenuConfigs } = useMenuLoader();
   const { load: loadRemoteRoutes } = useRemoteRoutesLoader();
   const { load: loadPageVariantManifest } = usePageVariantManifestLoader();
+  const { load: loadQuerySelectors } = useQuerySelectorsLoader();
   usePageVariantsLoader();
 
   const handleWsError = () => {
@@ -78,6 +80,10 @@ export default function SharedInfoProvider({ children }: { children?: React.Reac
   useEffect(() => {
     loadPageVariantManifest();
   }, [loadPageVariantManifest]);
+
+  useEffect(() => {
+    loadQuerySelectors();
+  }, [loadQuerySelectors]);
 
   useEffect(() => {
     setIsLoading(isRolesLoading || isUserInfoLoading);

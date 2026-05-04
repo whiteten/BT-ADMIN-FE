@@ -2049,3 +2049,256 @@ variants는 **같은 path 위에서 호환되는 컴포넌트**만 등록해야 
 #### variants에 등록되지 않은 키를 DB에 저장
 
 DynamicElement는 등록 안 된 키를 만나면 default로 fallback하므로 화면이 깨지진 않지만, 운영자가 picker에서 다시 선택하기 전까진 의도와 다른 화면이 보일 수 있습니다. 변형 컴포넌트를 코드에서 제거할 땐 DB 마이그레이션도 함께 진행하세요.
+
+## queryString 기반 메뉴 분기 가이드
+
+### 왜 필요한가
+
+같은 path를 여러 메뉴가 공유하면서 queryString으로 화면 분기를 하는 패턴이 있습니다. 예:
+
+- 같은 대시보드 path(`/fca/dashboard`) + 메뉴마다 다른 위젯 preset(`?presetId=ops` / `?presetId=sales`)
+- 같은 목록 path + 메뉴마다 다른 필터(`?status=active` / `?status=archived`)
+
+이 흐름을 자유 입력으로 두면 운영자가 path 컬럼에 query를 손으로 작성해야 하고, 어떤 path가 어떤 query를 받는지 메뉴 폼이 알 수 없습니다. 이 메커니즘은 **routes.tsx에 query spec을 선언하면 메뉴 폼이 path 선택 시 자동으로 그에 맞는 selector UI를 띄워주는** 구조입니다.
+
+### 전체 구조
+
+```
+┌──────────── 코드 (개발자 작성) ────────────┐
+│                                              │
+│  routes.tsx                                  │
+│   handle.queryParams: [                      │
+│     { key, label, selectorKey, ...extra }    │
+│   ]                                          │
+│         │                                    │
+│         ▼                                    │
+│  apps/<remote>/src/app/features/router/      │
+│   ├── querySelectors.ts (aggregator)         │
+│   │    - _selectors = { Xxx: lazy(...) }     │
+│   │    - SelectorKeys = { Xxx: 'fca:Xxx' }   │
+│   └── selectors/Xxx.tsx                      │
+│         │ MF './QuerySelectors'로 expose     │
+│         ▼                                    │
+└─────────┼────────────────────────────────────┘
+          │
+          ├── (host 부팅) useQuerySelectorsLoader가 모든 remote의
+          │    querySelectors를 로드 → '<appId>:<key>' prefix 적용 후
+          │    useQuerySelectorsStore.registry에 적재
+          │
+          ├── (운영자) 메뉴 폼이 path 선택 → entry.queryParams 감지 →
+          │    QuerySelectorRenderer가 registry lookup → selector 렌더 →
+          │    선택값 + path를 'path?key=value'로 합성해 DB 저장
+          │
+          └── (사용자) 메뉴 클릭 → /path?key=value 이동 →
+              컴포넌트가 useSearchParams로 query 읽어 화면 분기
+```
+
+### 책임 분리
+
+| 영역 | 책임 |
+|---|---|
+| **routes.tsx의 handle.queryParams** | 메타데이터만 — "어떤 selector + 가벼운 식별자/필터" |
+| **selector 컴포넌트** | UI 그리기 + 데이터 가져오기 (정적이면 spec.options 사용, 동적이면 useGetXxx 호출) |
+| **메뉴 폼** | selectorKey로 컴포넌트 lookup해 동일 인터페이스로 렌더만 — selector 종류·데이터 fetching에 무지 |
+
+### 두 종류의 selector
+
+#### 1. 공통 selector (manager가 기본 제공)
+
+옵션 데이터를 **routes.tsx의 spec에서 받는** 일반 selector. manager가 한 번 만들고 모든 remote가 공유합니다.
+
+대표 예: `EnumSelector` — `spec.options`에 `{ value, label }[]`을 받아 그대로 Ant Select로 렌더.
+
+```tsx
+// routes.tsx
+import { DefaultSelectorKeys } from '@/shared-store';
+
+handle: {
+  queryParams: [
+    {
+      key: 'status',
+      label: '상태',
+      selectorKey: DefaultSelectorKeys.EnumSelector,
+      options: [
+        { value: 'active', label: '활성' },
+        { value: 'inactive', label: '비활성' },
+      ],
+    },
+  ],
+}
+```
+
+새 공통 selector 추가 시:
+1. `apps/manager/src/app/features/router/selectors/Xxx.tsx` 작성 (default export)
+2. `apps/manager/src/app/features/router/querySelectors.ts`의 `_selectors`에 lazy import + 키 등록
+3. `libs/shared-store/src/lib/defaultSelectorKeys.ts`의 `DefaultSelectorKeys`에 `Xxx: 'manager:Xxx'` 항목 추가
+
+#### 2. 도메인 selector (각 remote가 자체 제공)
+
+옵션 데이터를 **selector 컴포넌트가 자체 정의/fetch하는** selector. 도메인 지식이 selector에 머무르므로 다른 remote와 의존성이 생기지 않습니다.
+
+대표 예시 (가상): `PresetSelector` — fca의 useGetPresets로 preset 목록을 fetch해서 select 그림.
+
+```tsx
+// apps/fca/src/app/features/router/selectors/PresetSelector.tsx
+import { Select } from 'antd';
+import type { QuerySelectorProps } from '@/shared-store';
+import { useGetPresets } from '../../preset/hooks/usePresetQueries';
+
+export default function PresetSelector({ spec, value, onChange }: QuerySelectorProps) {
+  const { data: presets = [], isLoading } = useGetPresets({
+    params: { targetPath: spec.filter as string },
+  });
+  return (
+    <Select
+      value={value}
+      onChange={(v) => onChange(v ?? undefined)}
+      loading={isLoading}
+      options={presets.map((p) => ({ value: p.presetId, label: p.name }))}
+      allowClear
+      placeholder="Preset 선택"
+    />
+  );
+}
+```
+
+```ts
+// apps/fca/src/app/features/router/querySelectors.ts (aggregator)
+const _selectors = {
+  PresetSelector: lazy(() => import('./selectors/PresetSelector')),
+} satisfies Record<string, QuerySelectorComponent>;
+```
+
+```tsx
+// routes.tsx
+import { SelectorKeys } from './features/router/querySelectors';
+
+handle: {
+  queryParams: [
+    {
+      key: 'presetId',
+      label: '대시보드 Preset',
+      selectorKey: SelectorKeys.PresetSelector,
+      filter: 'dashboard',  // selector가 spec.filter로 사용
+    },
+  ],
+}
+```
+
+### 새 도메인 selector 추가 절차
+
+1. **selector 컴포넌트 작성**: `apps/<remote>/src/app/features/router/selectors/Xxx.tsx` (default export, `QuerySelectorProps` 받음)
+2. **aggregator 등록**: `apps/<remote>/src/app/features/router/querySelectors.ts`의 `_selectors`에 lazy import + 키 추가. `SelectorKeys.Xxx`가 자동으로 `'<appId>:Xxx'` 타입으로 noaaow됨
+3. **routes.tsx에서 사용**: `import { SelectorKeys } from './features/router/querySelectors'` → `selectorKey: SelectorKeys.Xxx`
+
+코드 변경은 셋이 끝. host loader, MF expose, store는 모두 자동.
+
+### appId prefix와 SelectorKeys 상수
+
+selectorKey 충돌 방지와 휴먼에러 방지를 위해 두 가지 강제:
+
+1. **appId prefix 자동 적용**: host의 [useQuerySelectorsLoader.ts](../apps/host/src/app/features/router/hooks/useQuerySelectorsLoader.ts)가 각 remote의 querySelectors를 `<appId>:<key>` 형태로 변환해 store에 적재. fca의 EnumSelector와 manager의 EnumSelector가 자연스럽게 분리됨
+2. **SelectorKeys 자동 생성**: 각 remote의 `querySelectors.ts`에서 `Object.fromEntries` + `satisfies` + literal type assertion 패턴으로 SelectorKeys 객체 자동 생성. routes.tsx에서 `SelectorKeys.Xxx`로 자동완성·타입체크 받음
+
+```ts
+const APP_ID = 'fca';
+
+const _selectors = {
+  PresetSelector: lazy(() => import('./selectors/PresetSelector')),
+} satisfies Record<string, QuerySelectorComponent>;
+
+export const querySelectors = _selectors;
+
+// 자동: SelectorKeys.PresetSelector === 'fca:PresetSelector' (타입도 narrow)
+export const SelectorKeys = Object.fromEntries(
+  Object.keys(_selectors).map((k) => [k, `${APP_ID}:${k}`]),
+) as { [K in keyof typeof _selectors]: `${typeof APP_ID}:${K & string}` };
+```
+
+### 새 remote의 자동 등록
+
+`pnpm run create-remote`로 신규 remote를 생성하면 다음이 자동 처리됩니다:
+
+- `apps/<new-remote>/src/app/features/router/querySelectors.ts` 빈 aggregator 생성 (APP_ID는 새 앱 이름으로 자동 치환)
+- `module-federation.config.ts`에 `'./QuerySelectors'` expose 항목 포함
+- 호스트의 `useQuerySelectorsLoader` `SELECTOR_LOADERS` 맵에 신규 remote 자동 등록
+
+따라서 신규 remote는 별도 작업 없이 querySelectors 인프라가 즉시 동작합니다 (selector를 추가하는 시점부터 registry에 기여).
+
+### 메뉴 폼 동작
+
+메뉴 등록·편집 폼([MenuDetailForm](../apps/manager/src/app/features/menu/components/MenuDetailForm.tsx), [MenuCreateDrawer](../apps/manager/src/app/features/menu/components/MenuCreateDrawer.tsx))은 다음을 자동 처리합니다:
+
+- **path 변경 감지**: `useRemoteRoutesStore.routes`에서 entry를 찾아 `entry.queryParams` 추출
+- **selector 동적 노출**: [QuerySelectorRenderer](../apps/manager/src/app/features/menu/selectors/QuerySelectorRenderer.tsx)가 spec.map → registry lookup → 컴포넌트 렌더 (Suspense로 lazy 로드 대비)
+- **저장 시 합성**: 운영자 선택값을 `URLSearchParams`로 인코딩해 `path?key=value` 형태로 path 컬럼 저장
+- **편집 시 분해**: 저장된 path에서 `?` 기준으로 base path와 queryValues 분리 → path Select와 selector에 각각 복원
+- **queryValues 관리**: form 인스턴스 외부의 `useState`로 관리. Form.useWatch는 등록되지 않은 필드의 setFieldsValue 변경을 즉시 반영하지 않을 수 있어 별도 state로 분리한 것
+
+핵심 유틸: [menuFormOptions.tsx](../apps/manager/src/app/features/menu/utils/menuFormOptions.tsx)의 `splitPathQuery`, `joinPathQuery`.
+
+### 짚어둘 함정
+
+같은 path를 여러 메뉴가 공유할 때 다음이 자동으로 처리되지 않습니다 — 메커니즘 위에서 별도로 보완해야 합니다:
+
+#### 1. 메뉴 active 하이라이트 중복
+
+[MenuItem.tsx의 isMenuActive](../apps/host/src/app/features/layout/components/MenuItem.tsx)가 pathname만 비교하므로, 같은 path를 가진 두 메뉴가 동시에 active로 표시됩니다. queryString 분기 메뉴를 도입한다면 path + search를 같이 비교하도록 보완 필요:
+
+```ts
+const isMenuActive = (menuPath: string, location: { pathname: string; search: string }, appId: string) => {
+  const [menuPathname, menuSearch = ''] = menuPath.split('?');
+  // pathname 비교 후 menuSearch가 있으면 currentParams에 menuParams가 부분 포함되는지 확인
+  if (menuSearch) {
+    const menuParams = new URLSearchParams(menuSearch);
+    const currentParams = new URLSearchParams(location.search);
+    return [...menuParams].every(([k, v]) => currentParams.get(k) === v);
+  }
+  return true;
+};
+```
+
+#### 2. 컴포넌트 remount 안 됨
+
+메뉴 A → 메뉴 B 클릭 시 React Router는 같은 element라 컴포넌트를 재사용합니다. form state·scroll position·진행 중이던 mutation이 그대로 남아 의도와 다른 동작을 합니다. 강제 remount:
+
+```tsx
+export default function Dashboard() {
+  const [searchParams] = useSearchParams();
+  const presetId = searchParams.get('presetId') ?? '';
+  return <DashboardInner key={presetId} presetId={presetId} />;
+}
+```
+
+#### 3. TanStack Query key에 query 값 포함 필수
+
+```ts
+export const dashboardQueryKeys = createQueryKeys('dashboard', {
+  config: (params: { presetId: string }) => ({
+    queryKey: [params],  // presetId가 key에 들어감 → 메뉴 전환 시 자동 fetch
+    queryFn: () => dashboardApi.getConfig(params),
+  }),
+});
+```
+
+안 하면 메뉴 전환 후에도 이전 데이터가 그대로 보입니다.
+
+### 흔한 실수 / 안티패턴
+
+#### selectorKey를 문자열로 직접 박음
+
+```tsx
+// ❌ 오타·휴먼에러 위험
+selectorKey: 'fca:PresetSelectror',
+
+// ✅ 상수에서 import (자동완성 + 타입체크)
+selectorKey: SelectorKeys.PresetSelector,
+```
+
+#### 도메인 selector를 manager에 둠
+
+`PresetSelector`처럼 도메인 데이터에 결합된 selector를 manager에 두면 manager가 fca의 도메인 hook을 import하게 되어 의존성이 거꾸로 흐릅니다. 도메인 selector는 항상 그 도메인을 가진 remote에 둡니다.
+
+#### 본질이 다른 화면을 query 분기로 묶음
+
+queryString 분기는 **두 화면이 본질적으로 같은 자원·같은 prop·같은 query 형태인데 필터/모드만 다른 경우**에만 정당합니다. 화면 구조·데이터 형태·로직이 본질적으로 다른데 query로 분기하면 컴포넌트가 점점 비대해지고 분기가 새는 곳마다 버그가 납니다. 그런 경우엔 **path를 분리**(`/aoe/config/basic`, `/aoe/config/advanced`)하는 게 정공법입니다.

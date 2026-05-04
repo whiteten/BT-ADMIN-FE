@@ -545,6 +545,76 @@ export const routes = [
 
 새 변형 컴포넌트 작성·등록 절차 및 picker 통합 상세는 [DEVELOPER_GUIDE.md](doc/DEVELOPER_GUIDE.md)의 "화면 커스터마이징(Variants) 가이드" 섹션 참조.
 
+### queryString 기반 메뉴 분기 패턴
+
+같은 path를 여러 메뉴가 공유하면서 queryString으로 화면 분기를 하는 패턴(예: 같은 대시보드 골격에 메뉴마다 다른 위젯 preset)에 사용합니다. 메뉴 등록 폼이 path별로 어떤 query 입력을 받을지 자동 인지하도록 하는 것이 핵심입니다.
+
+#### 핵심 규칙 (요약)
+
+1. **routes.tsx의 `handle.queryParams`에 spec 선언**: React Router 표준 `handle` 슬롯에 `{ key, label, selectorKey, ...extra }` 형태로 박는다. host의 `flattenRoutes`가 추출해 `RemoteRouteEntry.queryParams`로 전파.
+2. **selectorKey 하드코딩 금지**: 반드시 `DefaultSelectorKeys`(공통) 또는 remote의 `SelectorKeys`(자체 도메인) 상수에서 import해서 사용. 오타·휴먼에러 방지.
+3. **공통 selector vs 도메인 selector 구분**:
+   - **공통 selector**: 옵션을 routes.tsx의 spec에서 받는 generic selector(EnumSelector 등). manager가 작성·등록하고 모든 remote가 `DefaultSelectorKeys.Xxx`로 공유.
+   - **도메인 selector**: 옵션을 selector 컴포넌트가 자체 정의/fetch하는 selector(특정 도메인 데이터에 결합). 해당 remote가 자기 `features/router/selectors/`에 작성하고 자체 `querySelectors.ts` aggregator에 등록.
+4. **selectorKey는 appId prefix 자동 적용**: host의 `useQuerySelectorsLoader`가 각 remote의 querySelectors를 `<appId>:<key>` 형태로 통합 registry에 적재. 같은 이름 selector가 여러 remote에 있어도 prefix로 자연스럽게 분리됨.
+5. **메뉴 폼 자동 인지**: 운영자가 path 선택 시 `RemoteRouteEntry.queryParams`를 보고 `QuerySelectorRenderer`가 selector를 동적으로 노출 → 선택값을 path에 `?key=value`로 합성해서 저장.
+
+#### 데이터 흐름
+
+- **routes.tsx**: `handle.queryParams`로 path별 query spec 선언
+- **MF expose**: 각 remote의 `apps/<remote>/src/app/features/router/querySelectors.ts`가 `'./QuerySelectors'`로 expose
+- **store**: `useQuerySelectorsStore.registry`에 `<appId>:<key>` → 컴포넌트 맵으로 적재 (host 부팅 시)
+- **메뉴 폼**: path Select 변경 시 entry.queryParams 감지 → registry lookup → selector 렌더 → 운영자 선택값을 `URLSearchParams`로 합성해 path 컬럼 저장
+- **사용자 진입**: 메뉴 클릭 → 해당 path로 이동 → 컴포넌트가 `useSearchParams`로 query 읽어 화면 분기
+
+#### 사용 예시
+
+```tsx
+// routes.tsx — 공통 selector (옵션은 spec.options에 하드코딩)
+import { DefaultSelectorKeys } from '@/shared-store';
+
+{
+  path: 'dashboard',
+  element: <Dashboard />,
+  handle: {
+    queryParams: [
+      {
+        key: 'option',
+        label: '옵션',
+        selectorKey: DefaultSelectorKeys.EnumSelector,
+        options: [
+          { value: 'A', label: '옵션 A' },
+          { value: 'B', label: '옵션 B' },
+        ],
+      },
+    ],
+  },
+}
+
+// routes.tsx — 도메인 selector (옵션은 selector 컴포넌트 내부에 정의)
+import { SelectorKeys } from './features/router/querySelectors';
+
+{
+  path: 'preset-demo',
+  element: <PresetDemo />,
+  handle: {
+    queryParams: [
+      { key: 'preset', label: '프리셋', selectorKey: SelectorKeys.PresetSelector },
+    ],
+  },
+}
+```
+
+#### 짚어둘 함정
+
+같은 path를 여러 메뉴가 공유할 때 다음을 별도로 처리해야 합니다(현재 메커니즘이 자동으로 막아주지 않음):
+
+1. **메뉴 active 하이라이트 중복**: `isMenuActive`가 pathname만 비교하므로 같은 path를 가진 두 메뉴가 동시에 active로 표시됨 → path + search 비교로 보완 필요
+2. **컴포넌트 remount 안 됨**: 메뉴 A→B 전환 시 같은 컴포넌트가 재사용되어 form state·scroll·진행 중 mutation이 유지됨 → `<Inner key={queryValue} />`로 강제 remount 권장
+3. **TanStack Query key 분리**: query 값을 query key에 포함하지 않으면 메뉴 전환 시 이전 데이터가 보임
+
+상세 절차(새 selector 추가, create-remote 자동화 등)는 [DEVELOPER_GUIDE.md](doc/DEVELOPER_GUIDE.md)의 "queryString 기반 메뉴 분기 가이드" 섹션 참조.
+
 ### 상수 정의 패턴
 
 상수는 `features/<feature>/constants/` 아래에 정의합니다.

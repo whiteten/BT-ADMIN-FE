@@ -1,7 +1,7 @@
 import { useCallback } from 'react';
 import { Navigate, Outlet, type RouteObject } from 'react-router-dom';
 import { LOG } from '@/log';
-import { type RemoteRouteEntry, type RemoteRoutesMap, useRemoteRoutesStore } from '@/shared-store';
+import { type QueryParamSpec, type RemoteRouteEntry, type RemoteRoutesMap, useRemoteRoutesStore } from '@/shared-store';
 
 const Log = new LOG('useRemoteRoutesLoader');
 
@@ -28,9 +28,11 @@ const flattenRoutes = (routes: RouteObject[], parentPath = ''): RemoteRouteEntry
 
     if (route.element && !isSkippableElement && !children) {
       const paramKeys = fullSegment.match(PARAM_KEY_PATTERN)?.map((m) => m.slice(1));
+      const handle = route.handle as { queryParams?: QueryParamSpec[] } | undefined;
       entries.push({
         path: fullSegment,
         ...(paramKeys && paramKeys.length > 0 ? { paramKeys } : {}),
+        ...(handle?.queryParams && handle.queryParams.length > 0 ? { queryParams: handle.queryParams } : {}),
       });
     }
 

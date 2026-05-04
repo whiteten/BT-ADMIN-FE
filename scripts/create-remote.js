@@ -124,11 +124,17 @@ function createRemote() {
       // 신규앱의 pageVariantManifest.ts aggregator 파일을 manager의 sample에서 복사
       copyPageVariantsTemplate(trimmedAppName);
 
+      // 신규앱의 querySelectors.ts aggregator 파일을 manager의 sample에서 복사
+      copyQuerySelectorsTemplate(trimmedAppName);
+
       // host의 useRemoteRoutesLoader.ts에 신규 remote 등록
       updateRouteLoaders(trimmedAppName);
 
       // host의 usePageVariantManifestLoader.ts에 신규 remote 등록
       updateVariantLoaders(trimmedAppName);
+
+      // host의 useQuerySelectorsLoader.ts에 신규 remote 등록
+      updateQuerySelectorLoaders(trimmedAppName);
 
       // 신규앱의 app.tsx 파일을 manager의 sample에서 복사 및 주석 제거
       copyAppTemplate(trimmedAppName);
@@ -830,6 +836,35 @@ function copyPageVariantsTemplate(appName) {
   }
 }
 
+function copyQuerySelectorsTemplate(appName) {
+  const timer = createTimer();
+  logStart(appName, 'querySelectors.ts aggregator 파일 복사');
+  try {
+    const samplePath = path.join(process.cwd(), 'apps/manager/src/app/features/sample/querySelectors.ts');
+    const targetDir = path.join(process.cwd(), `apps/${appName}/src/app/features/router`);
+    const targetPath = path.join(targetDir, 'querySelectors.ts');
+
+    if (!fs.existsSync(samplePath)) {
+      logError('manager', 'src/app/features/sample/querySelectors.ts 파일을 찾을 수 없음');
+      return;
+    }
+
+    if (!fs.existsSync(targetDir)) {
+      fs.mkdirSync(targetDir, { recursive: true });
+      logProgress(`${appName}/src/app/features/router 디렉토리 생성`);
+    }
+
+    // 템플릿 내용을 읽어 APP_ID를 새 앱 이름으로 치환
+    const templateContent = fs.readFileSync(samplePath, 'utf8');
+    const updatedContent = templateContent.replace(/const APP_ID = '[^']*';/, `const APP_ID = '${appName}';`);
+    fs.writeFileSync(targetPath, updatedContent);
+    logInfo(appName, `APP_ID를 '${appName}'으로 치환`);
+    logSuccess(appName, 'querySelectors.ts aggregator 파일 복사', timer);
+  } catch (error) {
+    logError(appName, 'querySelectors.ts 복사', error);
+  }
+}
+
 function updateRouteLoaders(appName) {
   const timer = createTimer();
   logStart('host', `useRemoteRoutesLoader.ts에 ${appName} 라우트 로더 추가`);
@@ -903,6 +938,44 @@ function updateVariantLoaders(appName) {
     logSuccess('host', `usePageVariantManifestLoader.ts에 ${appName} manifest 로더 추가`, timer);
   } catch (error) {
     logError('host', `${appName} usePageVariantManifestLoader.ts 업데이트`, error);
+  }
+}
+
+function updateQuerySelectorLoaders(appName) {
+  const timer = createTimer();
+  logStart('host', `useQuerySelectorsLoader.ts에 ${appName} selector 로더 추가`);
+  try {
+    const loaderPath = path.join(process.cwd(), 'apps/host/src/app/features/router/hooks/useQuerySelectorsLoader.ts');
+
+    if (!fs.existsSync(loaderPath)) {
+      logError('host', 'useQuerySelectorsLoader.ts 파일을 찾을 수 없음');
+      return;
+    }
+
+    const content = fs.readFileSync(loaderPath, 'utf8');
+    const loadersRegex = /const SELECTOR_LOADERS: Record<string, \(\) => Promise<SelectorsModule>> = \{([\s\S]*?)\};/;
+    const match = content.match(loadersRegex);
+
+    if (!match) {
+      logError('host', 'SELECTOR_LOADERS 객체를 찾을 수 없음');
+      return;
+    }
+
+    const currentLoaders = match[1];
+
+    if (currentLoaders.includes(`${appName}:`)) {
+      logInfo('host', `${appName} selector 로더가 이미 존재함 (스킵)`);
+      return;
+    }
+
+    const newLoader = `  ${appName}: () => import('${appName}/QuerySelectors').catch(() => ({ querySelectors: {} })) as Promise<SelectorsModule>,`;
+    const updatedLoaders = currentLoaders.trimEnd() + '\n' + newLoader;
+    const updatedContent = content.replace(loadersRegex, `const SELECTOR_LOADERS: Record<string, () => Promise<SelectorsModule>> = {${updatedLoaders}\n};`);
+
+    fs.writeFileSync(loaderPath, updatedContent);
+    logSuccess('host', `useQuerySelectorsLoader.ts에 ${appName} selector 로더 추가`, timer);
+  } catch (error) {
+    logError('host', `${appName} useQuerySelectorsLoader.ts 업데이트`, error);
   }
 }
 

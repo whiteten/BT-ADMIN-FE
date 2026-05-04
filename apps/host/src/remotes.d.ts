@@ -12,3 +12,8 @@ declare module '*/PageVariantManifest' {
   import type { PageVariantManifestConfig } from '@/components/custom/DynamicElement';
   export const pageVariantManifest: Record<string, PageVariantManifestConfig>;
 }
+
+declare module '*/QuerySelectors' {
+  import type { QuerySelectorComponent } from '@/shared-store';
+  export const querySelectors: Record<string, QuerySelectorComponent>;
+}

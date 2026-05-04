@@ -3,12 +3,13 @@
  * IAM 재설계 v2.3: menuId → menuKey.
  */
 
-import { useEffect, useMemo } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Button, Col, Form, Input, InputNumber, Modal, Row, Select, Switch } from 'antd';
 import { useRemoteRoutesStore } from '@/shared-store';
 import type { App } from '../../iam/api/appApi';
+import QuerySelectorRenderer from '../selectors/QuerySelectorRenderer';
 import type { Menu, MenuUpsertRequest } from '../types/menu.types';
-import { buildPathOptions } from '../utils/menuFormOptions';
+import { buildPathOptions, joinPathQuery, splitPathQuery } from '../utils/menuFormOptions';
 import { IconDocument } from '@/components/custom/Icons';
 import MenuIconPicker from '@/components/custom/MenuIconPicker';
 
@@ -24,14 +25,17 @@ type FormValues = Omit<MenuUpsertRequest, 'visible'> & { visible: boolean };
 
 export default function MenuDetailForm({ menu, apps, onSave, onDelete, saving }: MenuDetailFormProps) {
   const [form] = Form.useForm<FormValues>();
+  const [queryValues, setQueryValues] = useState<Record<string, string | undefined>>({});
 
   const routes = useRemoteRoutesStore((s) => s.routes);
 
   const watchAppId = Form.useWatch('appId', form);
   const watchType = Form.useWatch('type', form);
   const watchParentKey = Form.useWatch('parentKey', form);
+  const watchPath = Form.useWatch('path', form);
 
   useEffect(() => {
+    const { basePath, queryValues: parsedQuery } = splitPathQuery(menu.path);
     form.setFieldsValue({
       parentKey: menu.parentKey,
       menuKey: menu.menuKey,
@@ -42,25 +46,36 @@ export default function MenuDetailForm({ menu, apps, onSave, onDelete, saving }:
       sortOrder: menu.sortOrder,
       featureFlag: menu.featureFlag ?? undefined,
       visible: menu.visible,
-      path: menu.path ?? undefined,
+      path: basePath || undefined,
       iconKey: menu.iconKey ?? undefined,
     });
+    setQueryValues(parsedQuery);
   }, [menu, form]);
 
   const appOptions = useMemo(() => apps.map((a) => ({ label: a.appName, value: a.appId })), [apps]);
   const pathOptions = useMemo(() => buildPathOptions(routes, watchAppId), [routes, watchAppId]);
+  const querySpecs = useMemo(() => {
+    if (!watchAppId || !watchPath) return [];
+    const entry = routes[watchAppId]?.find((r) => r.path === watchPath);
+    return entry?.queryParams ?? [];
+  }, [routes, watchAppId, watchPath]);
 
   const isPage = watchType === 'PAGE';
   const isTopLevel = !watchParentKey;
   const showRow3 = isTopLevel || isPage;
 
+  const handleQueryChange = (key: string, value: string | undefined) => {
+    setQueryValues((prev) => ({ ...prev, [key]: value }));
+  };
+
   const handleSubmit = async () => {
     try {
       const values = await form.validateFields();
+      const composedPath = values.path ? joinPathQuery(values.path, queryValues) : undefined;
       const payload: MenuUpsertRequest = {
         ...values,
         visible: values.visible ? 1 : 0,
-        ...(values.path ? { path: values.path } : {}),
+        ...(composedPath ? { path: composedPath } : {}),
         ...(values.iconKey ? { iconKey: values.iconKey } : {}),
       };
       onSave(menu.menuKey, payload);
@@ -142,6 +157,14 @@ export default function MenuDetailForm({ menu, apps, onSave, onDelete, saving }:
                   </Form.Item>
                 </Col>
               )}
+            </Row>
+          )}
+
+          {isPage && querySpecs.length > 0 && (
+            <Row gutter={16}>
+              <Col span={16}>
+                <QuerySelectorRenderer specs={querySpecs} values={queryValues} onChange={handleQueryChange} />
+              </Col>
             </Row>
           )}
 
