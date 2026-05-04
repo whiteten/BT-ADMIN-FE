@@ -19,7 +19,7 @@ const createChartOption = (data: SlotRetryDistTopItem[]): EChartsOption => {
         return `${title}<br/>진입: ${item.entryCnt}건 / 완료: ${item.completeCnt}건<br/>${lines.join('<br/>')}`;
       },
     },
-    legend: { data: ['3회 이상', '2회', '1회 이하'], right: 10, top: 5, icon: 'roundRect', selectedMode: false },
+    legend: { data: ['3회 이상', '2회', '1회'], right: 10, top: 5, icon: 'roundRect', selectedMode: false },
     grid: { left: 20, right: 50, bottom: 20, top: 30, containLabel: true },
     xAxis: {
       type: 'value',
@@ -70,7 +70,7 @@ const createChartOption = (data: SlotRetryDistTopItem[]): EChartsOption => {
         itemStyle: { color: '#FB923C' },
       },
       {
-        name: '1회 이하',
+        name: '1회',
         type: 'bar',
         stack: 'total',
         data: data.map((item) => ({

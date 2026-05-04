@@ -2,6 +2,7 @@ import { useEffect } from 'react';
 import { Outlet } from 'react-router-dom';
 import { useQueryClient } from '@tanstack/react-query';
 import { LOG } from '@/log';
+import { toast } from '@/shared-util';
 import { botQueryKeys } from '../bot-config/hooks/useBotQueries';
 import { modelQueryKeys } from '../bot-config/hooks/useModelQueries';
 
@@ -18,7 +19,6 @@ export default function FcaWsSessionEventHandler() {
   useEffect(() => {
     const handler = (e: Event) => {
       const { detail } = e as CustomEvent;
-      console.log('[DEBUG] WS_SESSION 수신 — type:', detail?.type, '전체:', JSON.stringify(detail));
       switch (detail.type) {
         case WS_SESSION_EVENT_TYPES.TRAIN_STATUS_CHANGED:
           Log.info(`EVT: ${WS_SESSION_EVENT_TYPES.TRAIN_STATUS_CHANGED}`, detail);
@@ -35,21 +35,18 @@ export default function FcaWsSessionEventHandler() {
           break;
         case WS_SESSION_EVENT_TYPES.BOT_VERSION_COPY_COMPLETED: {
           Log.info(`EVT: ${WS_SESSION_EVENT_TYPES.BOT_VERSION_COPY_COMPLETED}`, detail);
-          console.log('[DEBUG] BOT_VERSION_COPY_COMPLETED WS 수신 detail:', JSON.stringify(detail));
-          // flat 구조와 nested data 구조 모두 처리
-          const payload = (detail.data ?? detail) as {
+          const { status, serviceVer, error } = detail.data as {
             serviceId: string;
-            serviceVer?: string;
-            status: string;
+            serviceVer: string;
+            status: 'success' | 'failed';
             error?: string;
           };
-          console.log('[DEBUG] BOT_VERSION_COPY_COMPLETED payload:', JSON.stringify(payload));
-          window.dispatchEvent(
-            new CustomEvent('BOT_VERSION_COPY_COMPLETED', {
-              detail: payload,
-            }),
-          );
-          console.log('[DEBUG] BOT_VERSION_COPY_COMPLETED window event 발행 완료');
+          if (status === 'success') {
+            toast.success(`버전 ${serviceVer} 복사가 완료되었습니다.`);
+          } else {
+            toast.error(`버전 ${serviceVer} 복사에 실패했습니다.${error ? ` (${error})` : ''}`);
+          }
+          queryClient.invalidateQueries({ queryKey: botQueryKeys.getBotVersions._def });
           break;
         }
         default:

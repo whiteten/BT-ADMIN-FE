@@ -1,6 +1,6 @@
-import { forwardRef, useEffect, useImperativeHandle, useRef, useState } from 'react';
+import { forwardRef, useEffect, useImperativeHandle, useState } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
-import { Button, Col, Drawer, Form, type FormProps, Input, Progress, Radio, Row, Select } from 'antd';
+import { Button, Col, Drawer, Form, type FormProps, Input, Radio, Row, Select } from 'antd';
 import { Log } from '@/log';
 import { toast } from '@/shared-util';
 import { botQueryKeys, useCreateBotVersion, useCreateBotVersionCopy, useDeleteBotVersion, useGetBotVersion, useGetBotVersions, useUpdateBotVersion } from '../hooks/useBotQueries';
@@ -19,13 +19,6 @@ interface DrawerState {
   serviceVer?: string;
 }
 
-interface BotVersionCopyCompletedEvent {
-  serviceId: string;
-  serviceVer?: string;
-  status: string;
-  error?: string;
-}
-
 const BotVersionDrawer = forwardRef<BotVersionDrawerRef>((_, ref) => {
   const [drawerState, setDrawerState] = useState<DrawerState>({
     open: false,
@@ -35,9 +28,6 @@ const BotVersionDrawer = forwardRef<BotVersionDrawerRef>((_, ref) => {
 
   const { open, serviceId, serviceVer } = drawerState;
   const [createMode, setCreateMode] = useState<'new' | 'copy'>('new');
-  const [isCopying, setIsCopying] = useState(false);
-  const [copyProgress, setCopyProgress] = useState(0);
-  const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   const modal = useModal();
 
@@ -55,12 +45,6 @@ const BotVersionDrawer = forwardRef<BotVersionDrawerRef>((_, ref) => {
   }));
 
   const handleClose = () => {
-    if (timerRef.current) {
-      clearInterval(timerRef.current);
-      timerRef.current = null;
-    }
-    setIsCopying(false);
-    setCopyProgress(0);
     setDrawerState((prev) => ({ ...prev, open: false }));
   };
 
@@ -89,6 +73,19 @@ const BotVersionDrawer = forwardRef<BotVersionDrawerRef>((_, ref) => {
     },
   });
 
+  const { mutate: copyBotVersion, isPending: isCopying } = useCreateBotVersionCopy({
+    mutationOptions: {
+      onSuccess: () => {
+        toast.info('버전 복사생성이 시작되었습니다. 완료되면 알림이 표시됩니다.');
+        queryClient.invalidateQueries({ queryKey: botQueryKeys.getBotVersions({ serviceId }).queryKey });
+        handleClose();
+      },
+      onError: () => {
+        toast.error('복사생성 요청에 실패했습니다.');
+      },
+    },
+  });
+
   const { mutate: updateBotVersion, isPending: isUpdating } = useUpdateBotVersion({
     mutationOptions: {
       onSuccess: () => {
@@ -109,60 +106,6 @@ const BotVersionDrawer = forwardRef<BotVersionDrawerRef>((_, ref) => {
     },
   });
 
-  const { mutate: createBotVersionCopy } = useCreateBotVersionCopy({
-    mutationOptions: {
-      onError: () => {
-        setIsCopying(false);
-        toast.error('버전 복사 요청에 실패했습니다.');
-      },
-    },
-  });
-
-  // 복사 요청 후 WS 이벤트 대기 — isCopying 중에만 리스닝
-  useEffect(() => {
-    console.log('[DEBUG] BotVersionDrawer WS useEffect 실행 — isCopying:', isCopying, 'serviceId:', serviceId);
-    if (!isCopying) return;
-
-    console.log('[DEBUG] BOT_VERSION_COPY_COMPLETED 리스너 등록 — serviceId:', serviceId);
-
-    const handler = (e: Event) => {
-      const { serviceId: wsServiceId, status, error } = (e as CustomEvent<BotVersionCopyCompletedEvent>).detail;
-      console.log('[DEBUG] BOT_VERSION_COPY_COMPLETED 수신 — wsServiceId:', wsServiceId, 'status:', status, 'drawer serviceId:', serviceId);
-
-      if (String(wsServiceId) !== String(serviceId)) {
-        console.log('[DEBUG] serviceId 불일치로 무시');
-        return;
-      }
-
-      setIsCopying(false);
-
-      if (status === 'success') {
-        if (timerRef.current) {
-          clearInterval(timerRef.current);
-          timerRef.current = null;
-        }
-        setCopyProgress(100);
-        setTimeout(() => {
-          toast.success('버전이 복사 생성되었습니다.');
-          queryClient.invalidateQueries({ queryKey: botQueryKeys.getBotVersions({ serviceId }).queryKey });
-          setIsCopying(false);
-          handleClose();
-        }, 600);
-      } else {
-        if (timerRef.current) {
-          clearInterval(timerRef.current);
-          timerRef.current = null;
-        }
-        toast.error(error ?? '버전 복사에 실패했습니다.');
-        setIsCopying(false);
-        setCopyProgress(0);
-      }
-    };
-
-    window.addEventListener('BOT_VERSION_COPY_COMPLETED', handler);
-    return () => window.removeEventListener('BOT_VERSION_COPY_COMPLETED', handler);
-  }, [isCopying, serviceId, queryClient]);
-
   useEffect(() => {
     if (!open) return;
     setCreateMode('new');
@@ -174,27 +117,13 @@ const BotVersionDrawer = forwardRef<BotVersionDrawerRef>((_, ref) => {
     };
   }, [botVersion, form, open]);
 
-  const handleStartCopy = (values: BotVersionCreateDatas) => {
-    setIsCopying(true);
-    setCopyProgress(0);
-
-    const startTime = Date.now();
-    const PROGRESS_MAX_MS = 300_000;
-    timerRef.current = setInterval(() => {
-      const elapsed = Date.now() - startTime;
-      setCopyProgress(Math.round(Math.min(95, (elapsed / PROGRESS_MAX_MS) * 100)));
-    }, 500);
-
-    createBotVersionCopy({ params: { serviceId }, data: values });
-  };
-
   const onFinish: FormProps<BotVersionCreateDatas | BotVersionUpdateDatas>['onFinish'] = (values) => {
     Log.debug('onFinish', values);
     if (serviceVer) {
       const { serviceVer: _, ...valuesOmitServiceVer } = values as BotVersionUpdateDatas;
       updateBotVersion({ params: { serviceId, serviceVer }, data: valuesOmitServiceVer as BotVersionUpdateDatas });
     } else if (createMode === 'copy') {
-      handleStartCopy(values as BotVersionCreateDatas);
+      copyBotVersion({ params: { serviceId }, data: values as BotVersionCreateDatas });
     } else {
       createBotVersion({ params: { serviceId }, data: values as BotVersionCreateDatas });
     }
@@ -216,41 +145,23 @@ const BotVersionDrawer = forwardRef<BotVersionDrawerRef>((_, ref) => {
   };
 
   const footer = (
-    <div className="flex flex-col gap-3">
-      {isCopying && (
-        <div>
-          <p className="text-sm text-gray-500 mb-2">버전 복사 중입니다. 최대 5분 소요될 수 있습니다.</p>
-          <Progress percent={copyProgress} status="active" strokeColor="#1677ff" />
-        </div>
+    <div className="flex items-center justify-end gap-2">
+      <Button variant="solid" onClick={handleClose}>
+        취소
+      </Button>
+      {serviceVer && (
+        <Button variant="solid" color="red" onClick={handleDeleteBtn} loading={isLoading || isUpdating || isDeleting}>
+          삭제
+        </Button>
       )}
-      <div className="flex items-center justify-end gap-2">
-        <Button variant="solid" onClick={handleClose} disabled={isCopying}>
-          취소
-        </Button>
-        {serviceVer && (
-          <Button variant="solid" color="red" onClick={handleDeleteBtn} loading={isLoading || isUpdating || isDeleting} disabled={isCopying}>
-            삭제
-          </Button>
-        )}
-        <Button variant="solid" type="primary" onClick={handleSubmitBtn} loading={isLoading || isCreating || isUpdating || isDeleting || isCopying}>
-          저장
-        </Button>
-      </div>
+      <Button variant="solid" type="primary" onClick={handleSubmitBtn} loading={isLoading || isCreating || isUpdating || isDeleting || isCopying}>
+        저장
+      </Button>
     </div>
   );
 
   return (
-    <Drawer
-      open={open}
-      onClose={handleClose}
-      title={title}
-      closable={{ placement: 'end' }}
-      size={480}
-      footer={footer}
-      destroyOnHidden
-      maskClosable={!isCopying}
-      keyboard={!isCopying}
-    >
+    <Drawer open={open} onClose={handleClose} title={title} closable={{ placement: 'end' }} size={480} footer={footer} destroyOnHidden>
       <Form form={form} initialValues={{ serviceVer: '', versionName: '', versionDesc: '' }} onFinish={onFinish} onFinishFailed={onFinishFailed} layout="vertical">
         {isLoading ? (
           <div className="flex items-center justify-center w-full h-full">
@@ -328,5 +239,7 @@ const BotVersionDrawer = forwardRef<BotVersionDrawerRef>((_, ref) => {
     </Drawer>
   );
 });
+
+BotVersionDrawer.displayName = 'BotVersionDrawer';
 
 export default BotVersionDrawer;
