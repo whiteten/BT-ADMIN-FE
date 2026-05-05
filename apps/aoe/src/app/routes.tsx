@@ -19,6 +19,9 @@ const ToolGroupDetail = React.lazy(() => import('./pages/agent-config/ToolGroupD
 const A2AList = React.lazy(() => import('./pages/agent-config/A2AList'));
 const A2ACreate = React.lazy(() => import('./pages/agent-config/A2ACreate'));
 const A2ADetail = React.lazy(() => import('./pages/agent-config/A2ADetail'));
+const McpList = React.lazy(() => import('./pages/agent-config/McpList'));
+const McpCreate = React.lazy(() => import('./pages/agent-config/McpCreate'));
+const McpDetail = React.lazy(() => import('./pages/agent-config/McpDetail'));
 
 export const routes = [
   {
@@ -82,6 +85,15 @@ export const routes = [
               { path: 'list', element: <A2AList /> },
               { path: 'create', element: <A2ACreate /> },
               { path: ':a2aId', element: <A2ADetail /> },
+            ],
+          },
+          {
+            path: 'mcp',
+            children: [
+              { index: true, element: <Navigate to="list" replace /> },
+              { path: 'list', element: <McpList /> },
+              { path: 'create', element: <McpCreate /> },
+              { path: ':mcpId', element: <McpDetail /> },
             ],
           },
         ],

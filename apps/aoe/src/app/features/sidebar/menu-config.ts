@@ -52,10 +52,17 @@ const menuConfig = {
           hide: false,
         },
         {
+          menuKey: 'aoe-mgmt-mcp',
+          label: 'MCP',
+          path: 'agent-config/mcp/list',
+          index: 4,
+          hide: false,
+        },
+        {
           menuKey: 'aoe-mgmt-a2a',
           label: 'A2A',
           path: 'agent-config/a2a/list',
-          index: 4,
+          index: 5,
           hide: false,
         },
       ],
