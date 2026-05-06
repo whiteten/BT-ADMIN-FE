@@ -606,6 +606,8 @@ import { SelectorKeys } from './features/router/querySelectors';
 ```
 
 > 분기 값을 fetch 인자로 사용한다면 React Query 일반 규칙대로 queryKey에 포함시켜 메뉴별 캐시를 분리합니다(`createQueryKeys` factory에 인자로 받으면 자동 적용).
+>
+> 메뉴 등록·편집 폼은 `handle.queryParams`에 선언된 모든 query를 무조건 필수 입력으로 검증합니다(빈 값 저장 불가, 옵트인 옵션 없음 — 선택적 query 키 케이스는 의도적으로 미지원).
 
 #### 주의사항 — 컴포넌트 remount 처리
 

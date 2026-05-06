@@ -26,6 +26,7 @@ type FormValues = Omit<MenuUpsertRequest, 'visible'> & { visible: boolean };
 export default function MenuDetailForm({ menu, apps, onSave, onDelete, saving }: MenuDetailFormProps) {
   const [form] = Form.useForm<FormValues>();
   const [queryValues, setQueryValues] = useState<Record<string, string | undefined>>({});
+  const [queryErrors, setQueryErrors] = useState<Record<string, string>>({});
 
   const routes = useRemoteRoutesStore((s) => s.routes);
 
@@ -50,6 +51,7 @@ export default function MenuDetailForm({ menu, apps, onSave, onDelete, saving }:
       iconKey: menu.iconKey ?? undefined,
     });
     setQueryValues(parsedQuery);
+    setQueryErrors({});
   }, [menu, form]);
 
   const appOptions = useMemo(() => apps.map((a) => ({ label: a.appName, value: a.appId })), [apps]);
@@ -66,11 +68,29 @@ export default function MenuDetailForm({ menu, apps, onSave, onDelete, saving }:
 
   const handleQueryChange = (key: string, value: string | undefined) => {
     setQueryValues((prev) => ({ ...prev, [key]: value }));
+    setQueryErrors((prev) => {
+      if (!prev[key]) return prev;
+      const next = { ...prev };
+      delete next[key];
+      return next;
+    });
   };
 
   const handleSubmit = async () => {
     try {
       const values = await form.validateFields();
+
+      // handle.queryParams에 선언된 모든 query는 무조건 필수
+      const newQueryErrors: Record<string, string> = {};
+      querySpecs.forEach((spec) => {
+        if (!queryValues[spec.key]) newQueryErrors[spec.key] = `${spec.label}을(를) 선택해주세요`;
+      });
+      if (Object.keys(newQueryErrors).length > 0) {
+        setQueryErrors(newQueryErrors);
+        return;
+      }
+      setQueryErrors({});
+
       const composedPath = values.path ? joinPathQuery(values.path, queryValues) : undefined;
       const payload: MenuUpsertRequest = {
         ...values,
@@ -163,7 +183,7 @@ export default function MenuDetailForm({ menu, apps, onSave, onDelete, saving }:
           {isPage && querySpecs.length > 0 && (
             <Row gutter={16}>
               <Col span={16}>
-                <QuerySelectorRenderer specs={querySpecs} values={queryValues} onChange={handleQueryChange} />
+                <QuerySelectorRenderer specs={querySpecs} values={queryValues} onChange={handleQueryChange} errors={queryErrors} />
               </Col>
             </Row>
           )}

@@ -31,6 +31,7 @@ const MenuCreateDrawer = forwardRef<MenuCreateDrawerRef, MenuCreateDrawerProps>(
   const [parentMenu, setParentMenu] = useState<Menu | null>(null);
   const [presetAppId, setPresetAppId] = useState<string | null>(null);
   const [queryValues, setQueryValues] = useState<Record<string, string | undefined>>({});
+  const [queryErrors, setQueryErrors] = useState<Record<string, string>>({});
   const [form] = Form.useForm<FormValues>();
 
   const routes = useRemoteRoutesStore((s) => s.routes);
@@ -53,6 +54,12 @@ const MenuCreateDrawer = forwardRef<MenuCreateDrawerRef, MenuCreateDrawerProps>(
 
   const handleQueryChange = (key: string, value: string | undefined) => {
     setQueryValues((prev) => ({ ...prev, [key]: value }));
+    setQueryErrors((prev) => {
+      if (!prev[key]) return prev;
+      const next = { ...prev };
+      delete next[key];
+      return next;
+    });
   };
 
   /** 선택된 메뉴 기반으로 부모 메뉴 결정: FOLDER면 그대로, PAGE면 그 부모 */
@@ -80,6 +87,7 @@ const MenuCreateDrawer = forwardRef<MenuCreateDrawerRef, MenuCreateDrawerProps>(
       setParentMenu(resolved);
       form.resetFields();
       setQueryValues({});
+      setQueryErrors({});
 
       if (resolved) {
         setPresetAppId(null);
@@ -103,6 +111,18 @@ const MenuCreateDrawer = forwardRef<MenuCreateDrawerRef, MenuCreateDrawerProps>(
   const handleSubmit = async () => {
     try {
       const values = await form.validateFields();
+
+      // handle.queryParams에 선언된 모든 query는 무조건 필수
+      const newQueryErrors: Record<string, string> = {};
+      querySpecs.forEach((spec) => {
+        if (!queryValues[spec.key]) newQueryErrors[spec.key] = `${spec.label}을(를) 선택해주세요`;
+      });
+      if (Object.keys(newQueryErrors).length > 0) {
+        setQueryErrors(newQueryErrors);
+        return;
+      }
+      setQueryErrors({});
+
       const composedPath = values.path ? joinPathQuery(values.path, queryValues) : undefined;
       const payload: MenuUpsertRequest = {
         ...values,
@@ -175,7 +195,7 @@ const MenuCreateDrawer = forwardRef<MenuCreateDrawerRef, MenuCreateDrawerProps>(
           </Form.Item>
         )}
 
-        {isPage && querySpecs.length > 0 && <QuerySelectorRenderer specs={querySpecs} values={queryValues} onChange={handleQueryChange} />}
+        {isPage && querySpecs.length > 0 && <QuerySelectorRenderer specs={querySpecs} values={queryValues} onChange={handleQueryChange} errors={queryErrors} />}
 
         <Row gutter={16}>
           <Col span={12}>

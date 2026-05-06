@@ -2238,6 +2238,8 @@ export const SelectorKeys = Object.fromEntries(
 핵심 유틸: [menuFormOptions.tsx](../apps/manager/src/app/features/menu/utils/menuFormOptions.tsx)의 `splitPathQuery`, `joinPathQuery`.
 
 > 분기 값을 fetch 인자로 사용한다면 React Query 일반 규칙대로 queryKey에 포함시켜 메뉴별 캐시를 분리합니다(`createQueryKeys` factory에 인자로 받으면 자동 적용 — 별도 항목으로 박지 않고 일반 규칙을 따르면 충분).
+>
+> 메뉴 등록·편집 폼은 `handle.queryParams`에 선언된 모든 query를 무조건 필수 입력으로 검증합니다(빈 값 저장 불가). 선택적 query 키 케이스는 의도적으로 미지원이므로 `QueryParamSpec`에 `required` 같은 옵트인 옵션도 두지 않습니다 — 검증 로직은 [MenuCreateDrawer](../apps/manager/src/app/features/menu/components/MenuCreateDrawer.tsx) / [MenuDetailForm](../apps/manager/src/app/features/menu/components/MenuDetailForm.tsx)의 `handleSubmit`이 담당하고, 빈 selector 옆에 인라인 에러 메시지를 표시합니다([QuerySelectorRenderer](../apps/manager/src/app/features/menu/selectors/QuerySelectorRenderer.tsx)의 `errors` prop).
 
 ### 주의사항 — 컴포넌트 remount 처리
 
