@@ -2240,6 +2240,15 @@ export const SelectorKeys = Object.fromEntries(
 > 분기 값을 fetch 인자로 사용한다면 React Query 일반 규칙대로 queryKey에 포함시켜 메뉴별 캐시를 분리합니다(`createQueryKeys` factory에 인자로 받으면 자동 적용 — 별도 항목으로 박지 않고 일반 규칙을 따르면 충분).
 >
 > 메뉴 등록·편집 폼은 `handle.queryParams`에 선언된 모든 query를 무조건 필수 입력으로 검증합니다(빈 값 저장 불가). 선택적 query 키 케이스는 의도적으로 미지원이므로 `QueryParamSpec`에 `required` 같은 옵트인 옵션도 두지 않습니다 — 검증 로직은 [MenuCreateDrawer](../apps/manager/src/app/features/menu/components/MenuCreateDrawer.tsx) / [MenuDetailForm](../apps/manager/src/app/features/menu/components/MenuDetailForm.tsx)의 `handleSubmit`이 담당하고, 빈 selector 옆에 인라인 에러 메시지를 표시합니다([QuerySelectorRenderer](../apps/manager/src/app/features/menu/selectors/QuerySelectorRenderer.tsx)의 `errors` prop).
+>
+> 분기 메뉴 페이지의 breadcrumb은 leaf 항목 `path`에 현재 query 값을 직접 합성해 자기 자신을 가리키도록 작성합니다. 부모(상위) 항목은 redirect-only 그룹(`<Navigate to=... replace />`로 자식 leaf에 떨어지는 path)인 경우가 많은데, 이때 `path`에 query를 박아도 redirect 단계에서 query가 사라져 분기 컨텍스트가 깨집니다 — wrapper나 routes 구조 변경을 도입하지 않는 한 이 누락은 막을 수 없으므로 부모 항목은 `path`를 작성하지 않는 것을 권장합니다. [PageHeader](../libs/shared-ui/src/components/custom/PageHeader.tsx)는 path 없는 항목을 비링크 텍스트(`<span>`)로 렌더하므로 시각적으로도 클릭 비활성임이 드러납니다.
+>
+> ```tsx
+> const breadcrumb: BreadcrumbProps['items'] = [
+>   { title: '샘플' },                                                          // 부모 — path 폐기 → 비링크 텍스트
+>   { title: '프리셋 데모', path: `/fca/sample/preset-demo?preset=${preset}` }, // leaf — 현재 query 합성
+> ];
+> ```
 
 ### 주의사항 — 컴포넌트 remount 처리
 

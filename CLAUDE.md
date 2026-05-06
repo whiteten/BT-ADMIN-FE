@@ -608,6 +608,8 @@ import { SelectorKeys } from './features/router/querySelectors';
 > 분기 값을 fetch 인자로 사용한다면 React Query 일반 규칙대로 queryKey에 포함시켜 메뉴별 캐시를 분리합니다(`createQueryKeys` factory에 인자로 받으면 자동 적용).
 >
 > 메뉴 등록·편집 폼은 `handle.queryParams`에 선언된 모든 query를 무조건 필수 입력으로 검증합니다(빈 값 저장 불가, 옵트인 옵션 없음 — 선택적 query 키 케이스는 의도적으로 미지원).
+>
+> 분기 메뉴 페이지의 breadcrumb은 leaf 항목 `path`에 query 값을 직접 합성해 자기 자신을 가리키도록 작성합니다(예: <code>path: \`/fca/sample/preset-demo?preset=${preset}\`</code>). 상위(부모) 항목은 redirect-only 그룹인 경우가 많아 query 처리가 애매하므로 `path`를 작성하지 않는 것을 권장합니다 — PageHeader가 path 없는 항목을 비링크 텍스트로 렌더해 클릭 자체를 비활성합니다.
 
 #### 주의사항 — 컴포넌트 remount 처리
 
