@@ -609,7 +609,7 @@ import { SelectorKeys } from './features/router/querySelectors';
 
 같은 path를 여러 메뉴가 공유할 때 다음을 별도로 처리해야 합니다(현재 메커니즘이 자동으로 막아주지 않음):
 
-1. **컴포넌트 remount 안 됨**: 메뉴 A→B 전환 시 같은 컴포넌트가 재사용되어 form state·scroll·진행 중 mutation이 유지됨 → `<Inner key={queryValue} />`로 강제 remount 권장
+1. **컴포넌트 remount 처리**: 메뉴 A→B 전환 시 React가 같은 컴포넌트 인스턴스를 재사용해 form state·scroll·진행 중 mutation이 유지됨. 페이지에서 outer/inner 분할 + `<Inner key={queryValue} />`로 강제 remount 필요. 분기 키 문자열은 routes의 `handle.queryParams[].key`·페이지의 `searchParams.get(...)`·(있다면) TanStack Query key 세 곳에 박아야 하며 non-data router 환경에서 자동 동기화는 불가하므로 작성자가 일관성을 챙겨야 함(키가 1~2개로 짧으면 하드코딩, 재사용·오타 위험·키 2개 이상이면 `<Page>.consts.ts`로 상수화). 자동화 메커니즘은 검토했으나 효과가 없어 React 표준 `key` 패턴을 정공법으로 채택([DEVELOPER_GUIDE.md](doc/DEVELOPER_GUIDE.md)의 "queryString 기반 메뉴 분기 가이드 → 컴포넌트 remount 처리" 참조).
 2. **TanStack Query key 분리**: query 값을 query key에 포함하지 않으면 메뉴 전환 시 이전 데이터가 보임
 
 상세 절차(새 selector 추가, create-remote 자동화 등)는 [DEVELOPER_GUIDE.md](doc/DEVELOPER_GUIDE.md)의 "queryString 기반 메뉴 분기 가이드" 섹션 참조.

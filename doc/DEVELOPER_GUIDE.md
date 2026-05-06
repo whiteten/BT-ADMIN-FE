@@ -2241,17 +2241,100 @@ export const SelectorKeys = Object.fromEntries(
 
 같은 path를 여러 메뉴가 공유할 때 다음이 자동으로 처리되지 않습니다 — 메커니즘 위에서 별도로 보완해야 합니다:
 
-#### 1. 컴포넌트 remount 안 됨
+#### 1. 컴포넌트 remount 처리
 
-메뉴 A → 메뉴 B 클릭 시 React Router는 같은 element라 컴포넌트를 재사용합니다. form state·scroll position·진행 중이던 mutation이 그대로 남아 의도와 다른 동작을 합니다. 강제 remount:
+##### 왜 필요한가
+
+같은 path를 query로 분기하는 두 메뉴(예: `?preset=sales`, `?preset=support`)를 클릭할 때 React Router는 같은 element 매칭이라 판단해 컴포넌트 인스턴스를 재사용합니다. `useSearchParams`로 새 query 값은 reactive하게 읽히지만, 다음 상태들은 그대로 남습니다:
+
+- `useState` 값(폼 입력, 카운터, 펼침 상태 등)
+- `useRef`로 잡고 있는 imperative 핸들·DOM 참조
+- 진행 중이던 mutation·polling·timer
+- AG-Grid 같은 imperative 컴포넌트의 내부 상태(컬럼 width, 정렬 순서 등)
+
+운영자 입장에서 "다른 메뉴를 클릭한 결과로 새 화면이 떠야 한다"고 기대할 때 위 상태가 남아 있으면 혼란이 발생합니다.
+
+##### 정공법: outer/inner 분할 + `key`
+
+페이지 컴포넌트를 두 단으로 나눠, outer가 query 값을 읽고 inner의 `key`로 박습니다:
 
 ```tsx
-export default function Dashboard() {
+export default function PresetDemo() {
   const [searchParams] = useSearchParams();
-  const presetId = searchParams.get('presetId') ?? '';
-  return <DashboardInner key={presetId} presetId={presetId} />;
+  const preset = searchParams.get('preset') ?? '';
+  return <PresetDemoBody key={preset} />;
+}
+
+function PresetDemoBody() {
+  // 기존 페이지 본체 — useState/useEffect/useRef/AG-Grid 등 자유롭게 사용
 }
 ```
+
+`key`가 변하면 React가 `PresetDemoBody`의 인스턴스를 unmount/remount하므로 위에 나열한 상태가 모두 초기화됩니다. fca의 [PresetDemo.tsx](../apps/fca/src/app/pages/sample/PresetDemo.tsx)가 검증 샘플로 마운트 시각·카운터를 표시해 동작을 즉시 확인할 수 있게 해둡니다.
+
+##### 분기 키 문자열의 동기화
+
+분기 키 문자열(`'preset'` 등)은 작성자가 다음 위치에 모두 박아야 합니다:
+
+- routes.tsx의 `handle.queryParams[].key`
+- 페이지 outer/inner의 `searchParams.get(...)`
+- (있다면) TanStack Query key
+
+세 군데를 사람이 맞추는 구조라 한 곳 빼먹어도 조용히 깨질 수 있지만, non-data router 환경에선 단일 출처(SoT)를 reactive하게 공유할 표준 방법이 없어 자동 동기화는 불가합니다. 키가 1~2개로 짧고 의미가 명확하면(예: `preset`, `mode`) 하드코딩이 가장 가볍고 권장됩니다. 다음 중 하나라도 해당되면 페이지 옆에 `<Page>.consts.ts` 같은 상수 모듈을 두고 routes·페이지·query key 모두 그 상수에서 import하는 것을 권장합니다:
+
+- 같은 키가 여러 페이지에서 재사용됨
+- 키 이름이 길거나 오타 위험이 있음
+- 한 페이지의 분기 query 키가 2개 이상
+
+상수 모듈 예시:
+
+```ts
+// PresetDemo.consts.ts
+import { SelectorKeys } from '../../features/router/querySelectors';
+
+export const PRESET_DEMO_QUERY_KEY = 'preset';
+export const PRESET_DEMO_QUERY_PARAMS = [
+  { key: PRESET_DEMO_QUERY_KEY, label: '프리셋', selectorKey: SelectorKeys.PresetSelector },
+] as const;
+```
+
+```tsx
+// routes.tsx
+import { PRESET_DEMO_QUERY_PARAMS } from './pages/sample/PresetDemo.consts';
+{
+  path: 'preset-demo',
+  element: <PresetDemo />,
+  handle: { queryParams: PRESET_DEMO_QUERY_PARAMS },
+}
+
+// PresetDemo.tsx
+import { PRESET_DEMO_QUERY_KEY } from './PresetDemo.consts';
+const preset = searchParams.get(PRESET_DEMO_QUERY_KEY) ?? '';
+```
+
+페이지 본체(`PresetDemo.tsx`)가 아닌 별도 파일에 두는 이유: routes.tsx는 페이지를 `React.lazy`로 import해 청크를 분리하는데, 페이지 본체에서 메타데이터를 named export하면 라우터 빌드 단계에 페이지 첫 청크가 같이 로드되며 lazy 효과가 깨질 수 있습니다.
+
+##### 적용이 필요한 케이스 / 불필요한 케이스
+
+| 케이스 | 적용 |
+| ------ | ---- |
+| 폼/입력 state·카운터·펼침 등 자체 state 보유 | ✅ |
+| AG-Grid·차트 등 imperative 내부 상태 보유 | ✅ |
+| 진행 중 mutation·polling·timer 보유 | ✅ |
+| `useSearchParams`로 query만 읽어 TanStack Query 호출하는 read-only 화면 | ❌ (state가 거의 없으면 불필요) |
+| 같은 그리드를 보여주되 필터 preset만 다른 케이스 | ❌ (오히려 컬럼 width·스크롤 유지가 자연스러움) |
+
+판단 기준: **"메뉴 A→B 전환이 새 화면 진입인가, 같은 화면의 필터 변경인가?"** 새 진입이면 적용, 필터 변경이면 그대로.
+
+##### 왜 자동화 메커니즘이 없나
+
+검토한 자동화 옵션이 모두 부적합했습니다:
+
+- **React Router 자체 옵션**: `useMatches`로 `route.handle`을 읽어 자동 wrapping하는 방식. 이 프로젝트는 non-data router(`<BrowserRouter>` + `<Routes><Route>` JSX 패턴)이고 `useMatches`는 `createBrowserRouter` 전용이라 사용 불가. 라우터 마이그레이션 비용 대비 가치 부족.
+- **host 레벨 wrapping**: host가 remote의 `./Module`(remote-entry 컴포넌트)을 통째로 마운트하는 MF 구조라, host에서 wrapping하면 remote 전체가 unmount/remount됨(사이드바·진행 중 react-query·WS 핸들러까지 다 destroy). 페이지만 정확히 remount하기 구조적으로 불가능.
+- **remote의 routes.tsx에 wrapper 적용**: `<RemountByQueryOutlet triggerKeys="preset" />` 같은 wrapper를 부모 path에 두는 방안. 동기화 책임(`triggerKeys`와 `handle.queryParams.key`)이 결국 작성자에게 남고, 추상화 한 겹만 추가됨. inner key 패턴 대비 이득 없음.
+
+결론적으로 React 본체의 `key` 메커니즘이 가장 단순하고 명료해 표준 패턴으로 채택했습니다. 컴포넌트 작성자가 outer/inner 분할로 직접 처리합니다.
 
 #### 2. TanStack Query key에 query 값 포함 필수
 
