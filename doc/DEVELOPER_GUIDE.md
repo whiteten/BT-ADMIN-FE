@@ -2241,24 +2241,7 @@ export const SelectorKeys = Object.fromEntries(
 
 같은 path를 여러 메뉴가 공유할 때 다음이 자동으로 처리되지 않습니다 — 메커니즘 위에서 별도로 보완해야 합니다:
 
-#### 1. 메뉴 active 하이라이트 중복
-
-[MenuItem.tsx의 isMenuActive](../apps/host/src/app/features/layout/components/MenuItem.tsx)가 pathname만 비교하므로, 같은 path를 가진 두 메뉴가 동시에 active로 표시됩니다. queryString 분기 메뉴를 도입한다면 path + search를 같이 비교하도록 보완 필요:
-
-```ts
-const isMenuActive = (menuPath: string, location: { pathname: string; search: string }, appId: string) => {
-  const [menuPathname, menuSearch = ''] = menuPath.split('?');
-  // pathname 비교 후 menuSearch가 있으면 currentParams에 menuParams가 부분 포함되는지 확인
-  if (menuSearch) {
-    const menuParams = new URLSearchParams(menuSearch);
-    const currentParams = new URLSearchParams(location.search);
-    return [...menuParams].every(([k, v]) => currentParams.get(k) === v);
-  }
-  return true;
-};
-```
-
-#### 2. 컴포넌트 remount 안 됨
+#### 1. 컴포넌트 remount 안 됨
 
 메뉴 A → 메뉴 B 클릭 시 React Router는 같은 element라 컴포넌트를 재사용합니다. form state·scroll position·진행 중이던 mutation이 그대로 남아 의도와 다른 동작을 합니다. 강제 remount:
 
@@ -2270,7 +2253,7 @@ export default function Dashboard() {
 }
 ```
 
-#### 3. TanStack Query key에 query 값 포함 필수
+#### 2. TanStack Query key에 query 값 포함 필수
 
 ```ts
 export const dashboardQueryKeys = createQueryKeys('dashboard', {

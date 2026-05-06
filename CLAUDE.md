@@ -609,9 +609,8 @@ import { SelectorKeys } from './features/router/querySelectors';
 
 같은 path를 여러 메뉴가 공유할 때 다음을 별도로 처리해야 합니다(현재 메커니즘이 자동으로 막아주지 않음):
 
-1. **메뉴 active 하이라이트 중복**: `isMenuActive`가 pathname만 비교하므로 같은 path를 가진 두 메뉴가 동시에 active로 표시됨 → path + search 비교로 보완 필요
-2. **컴포넌트 remount 안 됨**: 메뉴 A→B 전환 시 같은 컴포넌트가 재사용되어 form state·scroll·진행 중 mutation이 유지됨 → `<Inner key={queryValue} />`로 강제 remount 권장
-3. **TanStack Query key 분리**: query 값을 query key에 포함하지 않으면 메뉴 전환 시 이전 데이터가 보임
+1. **컴포넌트 remount 안 됨**: 메뉴 A→B 전환 시 같은 컴포넌트가 재사용되어 form state·scroll·진행 중 mutation이 유지됨 → `<Inner key={queryValue} />`로 강제 remount 권장
+2. **TanStack Query key 분리**: query 값을 query key에 포함하지 않으면 메뉴 전환 시 이전 데이터가 보임
 
 상세 절차(새 selector 추가, create-remote 자동화 등)는 [DEVELOPER_GUIDE.md](doc/DEVELOPER_GUIDE.md)의 "queryString 기반 메뉴 분기 가이드" 섹션 참조.
 

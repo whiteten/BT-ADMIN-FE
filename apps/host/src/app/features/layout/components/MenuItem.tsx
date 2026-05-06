@@ -13,30 +13,43 @@ interface MenuItemProps {
   appId: string;
 }
 
+type LocationLike = { pathname: string; search: string };
+
 /**
- * 메뉴 path가 현재 URL pathname과 매치되는지 판단한다.
+ * 메뉴 path가 현재 URL과 매치되는지 판단한다.
  *
  * - '/list'로 끝나는 메뉴: base path(list 제외) 하위 경로 전체와 매치
  *   예) 'resource/user/list' → '/manager/resource/user/*' 전체 매치
  * - 그 외: 해당 경로의 정확 매치 또는 하위 경로 매치
+ * - menuPath에 query가 있으면(`path?key=value`): 현재 URL의 searchParams가
+ *   menuPath의 모든 (k, v)를 포함해야 활성. 같은 path를 공유하는
+ *   queryString 분기 메뉴를 정확히 한 개만 active로 잡기 위함이다.
  */
-const isMenuActive = (menuPath: string, pathname: string, appId: string): boolean => {
+const isMenuActive = (menuPath: string, location: LocationLike, appId: string): boolean => {
   const prefix = `/${appId}/`;
-  if (!pathname.startsWith(prefix)) return false;
-  const relativePath = pathname.slice(prefix.length);
+  if (!location.pathname.startsWith(prefix)) return false;
+  const relativePath = location.pathname.slice(prefix.length);
 
-  if (menuPath.endsWith('/list')) {
-    const basePath = menuPath.slice(0, -'/list'.length);
-    return relativePath === basePath || relativePath.startsWith(basePath + '/');
-  }
+  const qIndex = menuPath.indexOf('?');
+  const menuPathname = qIndex < 0 ? menuPath : menuPath.slice(0, qIndex);
+  const menuSearch = qIndex < 0 ? '' : menuPath.slice(qIndex + 1);
 
-  return relativePath === menuPath || relativePath.startsWith(menuPath + '/');
+  const pathnameMatched = menuPathname.endsWith('/list')
+    ? relativePath === menuPathname.slice(0, -'/list'.length) || relativePath.startsWith(menuPathname.slice(0, -'/list'.length) + '/')
+    : relativePath === menuPathname || relativePath.startsWith(menuPathname + '/');
+
+  if (!pathnameMatched) return false;
+  if (!menuSearch) return true;
+
+  const menuParams = new URLSearchParams(menuSearch);
+  const currentParams = new URLSearchParams(location.search);
+  return [...menuParams].every(([k, v]) => currentParams.get(k) === v);
 };
 
-/** 메뉴 트리에서 현재 pathname과 매칭되는 활성 리프 노드가 있는지 재귀 검사한다. */
-const hasActiveDescendant = (item: MenuItemType, pathname: string, appId: string): boolean => {
-  if (item.path) return isMenuActive(item.path, pathname, appId);
-  return item.children?.some((child) => hasActiveDescendant(child, pathname, appId)) ?? false;
+/** 메뉴 트리에서 현재 위치와 매칭되는 활성 리프 노드가 있는지 재귀 검사한다. */
+const hasActiveDescendant = (item: MenuItemType, location: LocationLike, appId: string): boolean => {
+  if (item.path) return isMenuActive(item.path, location, appId);
+  return item.children?.some((child) => hasActiveDescendant(child, location, appId)) ?? false;
 };
 
 /**
@@ -45,8 +58,8 @@ const hasActiveDescendant = (item: MenuItemType, pathname: string, appId: string
  * URL 변경으로 활성 하위 항목이 생기면 다시 자동으로 열린다.
  */
 const CollapsibleMenuItem = ({ item, appId }: MenuItemProps) => {
-  const { pathname } = useLocation();
-  const isDescendantActive = hasActiveDescendant(item, pathname, appId);
+  const location = useLocation();
+  const isDescendantActive = hasActiveDescendant(item, location, appId);
   const [isOpen, setIsOpen] = useState(isDescendantActive);
 
   useEffect(() => {
@@ -88,7 +101,7 @@ CollapsibleMenuItem.displayName = 'CollapsibleMenuItem';
  * - children X + path X → 텍스트만 표시 (비활성 라벨)
  */
 export const MenuItem = React.memo(({ item, appId }: MenuItemProps) => {
-  const { pathname } = useLocation();
+  const location = useLocation();
   const hasChildren = item.children && item.children.length > 0;
 
   // children이 있으면 Collapsible (path는 없음)
@@ -99,7 +112,7 @@ export const MenuItem = React.memo(({ item, appId }: MenuItemProps) => {
   // children이 없으면 Link (path 필수)
   if (item.path) {
     const absolutePath = `/${appId}/${item.path}`;
-    const isActive = isMenuActive(item.path, pathname, appId);
+    const isActive = isMenuActive(item.path, location, appId);
     return (
       <SidebarMenuItem>
         <HoverCard openDelay={0} closeDelay={0}>
