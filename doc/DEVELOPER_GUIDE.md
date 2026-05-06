@@ -2237,13 +2237,13 @@ export const SelectorKeys = Object.fromEntries(
 
 핵심 유틸: [menuFormOptions.tsx](../apps/manager/src/app/features/menu/utils/menuFormOptions.tsx)의 `splitPathQuery`, `joinPathQuery`.
 
-### 짚어둘 함정
+> 분기 값을 fetch 인자로 사용한다면 React Query 일반 규칙대로 queryKey에 포함시켜 메뉴별 캐시를 분리합니다(`createQueryKeys` factory에 인자로 받으면 자동 적용 — 별도 항목으로 박지 않고 일반 규칙을 따르면 충분).
 
-같은 path를 여러 메뉴가 공유할 때 다음이 자동으로 처리되지 않습니다 — 메커니즘 위에서 별도로 보완해야 합니다:
+### 주의사항 — 컴포넌트 remount 처리
 
-#### 1. 컴포넌트 remount 처리
+같은 path를 여러 메뉴가 공유할 때 자동으로 처리되지 않는 핵심 사항입니다 — 메커니즘 위에서 작성자가 보완해야 합니다.
 
-##### 왜 필요한가
+#### 왜 필요한가
 
 같은 path를 query로 분기하는 두 메뉴(예: `?preset=sales`, `?preset=support`)를 클릭할 때 React Router는 같은 element 매칭이라 판단해 컴포넌트 인스턴스를 재사용합니다. `useSearchParams`로 새 query 값은 reactive하게 읽히지만, 다음 상태들은 그대로 남습니다:
 
@@ -2254,7 +2254,7 @@ export const SelectorKeys = Object.fromEntries(
 
 운영자 입장에서 "다른 메뉴를 클릭한 결과로 새 화면이 떠야 한다"고 기대할 때 위 상태가 남아 있으면 혼란이 발생합니다.
 
-##### 정공법: outer/inner 분할 + `key`
+#### 정공법: outer/inner 분할 + `key`
 
 페이지 컴포넌트를 두 단으로 나눠, outer가 query 값을 읽고 inner의 `key`로 박습니다:
 
@@ -2272,7 +2272,7 @@ function PresetDemoBody() {
 
 `key`가 변하면 React가 `PresetDemoBody`의 인스턴스를 unmount/remount하므로 위에 나열한 상태가 모두 초기화됩니다. fca의 [PresetDemo.tsx](../apps/fca/src/app/pages/sample/PresetDemo.tsx)가 검증 샘플로 마운트 시각·카운터를 표시해 동작을 즉시 확인할 수 있게 해둡니다.
 
-##### 분기 키 문자열의 동기화
+#### 분기 키 문자열의 동기화
 
 분기 키 문자열(`'preset'` 등)은 작성자가 다음 위치에 모두 박아야 합니다:
 
@@ -2314,7 +2314,7 @@ const preset = searchParams.get(PRESET_DEMO_QUERY_KEY) ?? '';
 
 페이지 본체(`PresetDemo.tsx`)가 아닌 별도 파일에 두는 이유: routes.tsx는 페이지를 `React.lazy`로 import해 청크를 분리하는데, 페이지 본체에서 메타데이터를 named export하면 라우터 빌드 단계에 페이지 첫 청크가 같이 로드되며 lazy 효과가 깨질 수 있습니다.
 
-##### 적용이 필요한 케이스 / 불필요한 케이스
+#### 적용이 필요한 케이스 / 불필요한 케이스
 
 | 케이스 | 적용 |
 | ------ | ---- |
@@ -2326,7 +2326,7 @@ const preset = searchParams.get(PRESET_DEMO_QUERY_KEY) ?? '';
 
 판단 기준: **"메뉴 A→B 전환이 새 화면 진입인가, 같은 화면의 필터 변경인가?"** 새 진입이면 적용, 필터 변경이면 그대로.
 
-##### 왜 자동화 메커니즘이 없나
+#### 왜 자동화 메커니즘이 없나
 
 검토한 자동화 옵션이 모두 부적합했습니다:
 
@@ -2335,19 +2335,6 @@ const preset = searchParams.get(PRESET_DEMO_QUERY_KEY) ?? '';
 - **remote의 routes.tsx에 wrapper 적용**: `<RemountByQueryOutlet triggerKeys="preset" />` 같은 wrapper를 부모 path에 두는 방안. 동기화 책임(`triggerKeys`와 `handle.queryParams.key`)이 결국 작성자에게 남고, 추상화 한 겹만 추가됨. inner key 패턴 대비 이득 없음.
 
 결론적으로 React 본체의 `key` 메커니즘이 가장 단순하고 명료해 표준 패턴으로 채택했습니다. 컴포넌트 작성자가 outer/inner 분할로 직접 처리합니다.
-
-#### 2. TanStack Query key에 query 값 포함 필수
-
-```ts
-export const dashboardQueryKeys = createQueryKeys('dashboard', {
-  config: (params: { presetId: string }) => ({
-    queryKey: [params],  // presetId가 key에 들어감 → 메뉴 전환 시 자동 fetch
-    queryFn: () => dashboardApi.getConfig(params),
-  }),
-});
-```
-
-안 하면 메뉴 전환 후에도 이전 데이터가 그대로 보입니다.
 
 ### 흔한 실수 / 안티패턴
 
