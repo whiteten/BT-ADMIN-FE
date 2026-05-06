@@ -122,6 +122,7 @@
     "@tanstack/react-query": "^5.90.5",
     "@tanstack/react-query-devtools": "^5.90.2",
     "@uiw/react-json-view": "2.0.0-alpha.40",
+    "@xyflow/react": "^12.10.2",
     "ag-grid-community": "34.1.2",
     "ag-grid-enterprise": "34.1.2",
     "ag-grid-react": "34.1.2",

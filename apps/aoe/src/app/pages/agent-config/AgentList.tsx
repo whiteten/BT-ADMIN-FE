@@ -5,8 +5,8 @@ import { type BreadcrumbProps, Button, Input, Select } from 'antd';
 import { toast } from '@/shared-util';
 import AgentCard from '../../features/agent-config/components/AgentCard';
 import AgentPlaygroundDrawer, { type AgentPlaygroundDrawerRef } from '../../features/agent-config/components/AgentPlaygroundDrawer';
-import { agentQueryKeys, useDeleteAgent, useGetAgents, useGetAoeStudioInfo } from '../../features/agent-config/hooks/useAgentQueries';
-import type { AgentDeleteDatas, AoeStudioInfo } from '../../features/agent-config/types';
+import { agentQueryKeys, useDeleteAgent, useGetAgents } from '../../features/agent-config/hooks/useAgentQueries';
+import type { AgentDeleteDatas } from '../../features/agent-config/types';
 import { FallbackSpinner } from '@/components/custom/FallbackSpinner';
 import NoData from '@/components/custom/NoData';
 import PageHeader from '@/components/custom/PageHeader';
@@ -32,21 +32,9 @@ export default function AgentList() {
   const [searchValue, setSearchValue] = useState('');
 
   const { data: agents, isLoading } = useGetAgents({});
-  const { mutate: getAoeStudioInfo } = useGetAoeStudioInfo({
-    mutationOptions: {
-      onSuccess: (data) => {
-        const studioInfo = data as AoeStudioInfo;
-        if (!studioInfo.studioUrl) {
-          toast.warning('워크플로우 접속 정보가 없습니다.');
-          return;
-        }
-        window.open(studioInfo.studioUrl, '_blank');
-      },
-    },
-  });
 
   const handleOpenStudio = (agentId: string) => {
-    getAoeStudioInfo({ agentId });
+    window.open(`/aoe-workflow/${agentId}`, '_blank', 'noopener,noreferrer');
   };
 
   const { mutate: deleteAgent } = useDeleteAgent({

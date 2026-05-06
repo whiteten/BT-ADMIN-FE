@@ -3,6 +3,11 @@ declare module '*/Module' {
   export default Module;
 }
 
+declare module '*/WorkflowApp' {
+  const WorkflowApp: React.ComponentType;
+  export default WorkflowApp;
+}
+
 declare module '*/MenuConfig' {
   interface MenuItem {
     label: string;

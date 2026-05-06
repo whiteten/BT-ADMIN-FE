@@ -68,10 +68,3 @@ export const useRefreshAgent = ({ mutationOptions }: MutationHookOptions = {}) =
     ...mutationOptions,
   });
 };
-
-export const useGetAoeStudioInfo = ({ mutationOptions }: MutationHookOptions = {}) => {
-  return useMutation({
-    mutationFn: agentApi.getAoeStudioInfo,
-    ...mutationOptions,
-  });
-};

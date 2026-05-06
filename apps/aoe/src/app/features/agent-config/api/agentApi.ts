@@ -1,5 +1,5 @@
 import ApiClient, { type DetailResponse, type ListResponse, extractDetail, extractList } from '@/shared-util';
-import type { AgentCreateDatas, AgentDeleteDatas, AgentItem, AgentListItem, AgentTestRequest, AgentType, AgentUpdateDatas, AoeStudioInfo } from '../types';
+import type { AgentCreateDatas, AgentDeleteDatas, AgentItem, AgentListItem, AgentTestRequest, AgentType, AgentUpdateDatas } from '../types';
 
 const apiClient = new ApiClient({ serviceURL: '/bff' });
 
@@ -34,10 +34,6 @@ export const agentApi = {
   },
   refreshAgent: async ({ agentId, body }: AgentTestRequest) => {
     const response = await apiClient.post<DetailResponse<{ result: string }>>('/aoe-agents-refresh', body, { params: { agentId } });
-    return extractDetail(response);
-  },
-  getAoeStudioInfo: async (params: Record<string, unknown>): Promise<AoeStudioInfo> => {
-    const response = await apiClient.get<DetailResponse<AoeStudioInfo>>('/aoe-studio-info', { params });
     return extractDetail(response);
   },
 };
