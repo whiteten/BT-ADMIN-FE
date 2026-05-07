@@ -38,3 +38,13 @@ export interface SttDnCreateData {
   tenantId: string;
   agentId: string;
 }
+
+export interface SttDnUpdateData {
+  hostName: string;
+  dnNo: string;
+  phoneIp: string;
+  dnStatus: string;
+  useYn: string;
+  tenantId: string;
+  agentId: string;
+}

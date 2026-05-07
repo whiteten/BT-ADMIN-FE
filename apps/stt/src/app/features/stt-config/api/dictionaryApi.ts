@@ -1,5 +1,13 @@
 import ApiClient, { type ListResponse, extractList } from '@/shared-util';
-import type { KeywordBoostingCreateData, KeywordBoostingItem, KeywordBoostingSearchParams, SttDictionaryCreateData, SttDictionaryItem, SttDictionarySearchParams } from '../types';
+import type {
+  KeywordBoostingCreateData,
+  KeywordBoostingItem,
+  KeywordBoostingSearchParams,
+  SttDictionaryCreateData,
+  SttDictionaryItem,
+  SttDictionarySearchParams,
+  SttDictionaryUpdateData,
+} from '../types';
 
 const apiClient = new ApiClient({ serviceURL: '/bff' });
 
@@ -20,6 +28,9 @@ export const dictionaryApi = {
   },
   createSttDictionary: async (data: SttDictionaryCreateData) => {
     return apiClient.post('/stt-dictionary-create', data);
+  },
+  updateSttDictionary: async (data: SttDictionaryUpdateData) => {
+    return apiClient.put('/stt-dictionary-update', data);
   },
   deleteSttDictionary: async (params: { beforeWord: string }) => {
     await apiClient.delete('/stt-dictionary-delete', { params });

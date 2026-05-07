@@ -1,6 +1,6 @@
 import { useMemo, useRef, useState } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
-import type { ColDef, ICellRendererParams } from 'ag-grid-community';
+import type { ColDef, ICellRendererParams, RowDoubleClickedEvent } from 'ag-grid-community';
 import { AgGridReact } from 'ag-grid-react';
 import { Button, Input } from 'antd';
 import { Trash2 } from 'lucide-react';
@@ -67,6 +67,11 @@ export default function SttDictionary() {
 
   const handleAdd = () => {
     drawerRef.current?.open();
+  };
+
+  const handleRowDoubleClicked = (event: RowDoubleClickedEvent<SttDictionaryItem>) => {
+    if (!event.data) return;
+    drawerRef.current?.open(event.data);
   };
 
   const handleDelete = (beforeWord: string) => {
@@ -146,6 +151,8 @@ export default function SttDictionary() {
             ...gridOptions,
             paginationPageSize: PAGE_SIZE,
           }}
+          onRowDoubleClicked={handleRowDoubleClicked}
+          getRowStyle={(params) => (String(params.data?.useYn) === '0' ? { color: '#adb5bd' } : undefined)}
           loading={isLoading}
           sideBar={false}
         />

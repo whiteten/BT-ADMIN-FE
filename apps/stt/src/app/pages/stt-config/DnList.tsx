@@ -1,6 +1,6 @@
 import { useRef, useState } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
-import type { ColDef, ICellRendererParams } from 'ag-grid-community';
+import type { ColDef, ICellRendererParams, RowDoubleClickedEvent } from 'ag-grid-community';
 import { AgGridReact } from 'ag-grid-react';
 import { type BreadcrumbProps, Button, Input, Select } from 'antd';
 import { Trash2 } from 'lucide-react';
@@ -99,6 +99,11 @@ export default function DnList() {
       },
     },
   });
+
+  const handleRowDoubleClicked = (event: RowDoubleClickedEvent<SttDnItem>) => {
+    if (!event.data) return;
+    drawerRef.current?.open(event.data.hostName, event.data);
+  };
 
   const handleDelete = (data: SttDnItem) => {
     modal.confirm.delete({ onOk: () => deleteDn({ tenantId: data.tenantId, dnNo: data.dnNo }) });
@@ -204,6 +209,7 @@ export default function DnList() {
                   rowData={rowData}
                   columnDefs={columnDefs}
                   gridOptions={{ ...gridOptions, paginationPageSize: PAGE_SIZE }}
+                  onRowDoubleClicked={handleRowDoubleClicked}
                   loading={isLoading}
                   sideBar={false}
                   getRowStyle={(params) => {

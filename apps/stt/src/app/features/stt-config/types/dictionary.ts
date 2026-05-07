@@ -34,3 +34,10 @@ export interface SttDictionaryCreateData {
   afterWord: string;
   useYn: string;
 }
+
+export interface SttDictionaryUpdateData {
+  id: number;
+  beforeWord: string;
+  afterWord: string;
+  useYn: string;
+}

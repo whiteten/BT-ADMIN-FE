@@ -1,5 +1,5 @@
 import ApiClient, { type ListResponse, extractList } from '@/shared-util';
-import type { SttDnCreateData, SttDnDeleteParams, SttDnItem, SttDnSearchParams } from '../types';
+import type { SttDnCreateData, SttDnDeleteParams, SttDnItem, SttDnSearchParams, SttDnUpdateData } from '../types';
 
 const apiClient = new ApiClient({ serviceURL: '/bff' });
 
@@ -10,6 +10,9 @@ export const dnApi = {
   },
   createSttDn: async (data: SttDnCreateData) => {
     return apiClient.post('/stt-dn-create', data);
+  },
+  updateSttDn: async (data: SttDnUpdateData) => {
+    return apiClient.put('/stt-dn-update', data);
   },
   deleteSttDn: async (params: SttDnDeleteParams) => {
     return apiClient.delete('/stt-dn-delete', { params });

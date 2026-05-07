@@ -1,8 +1,10 @@
 import { forwardRef, useEffect, useImperativeHandle, useState } from 'react';
+import { useQueryClient } from '@tanstack/react-query';
 import { Button, Drawer, Form, type FormProps, Input, Select } from 'antd';
 import { Log } from '@/log';
 import { toast } from '@/shared-util';
 import { useGetCodes } from '../hooks/useCommonQueries';
+import { modelQueryKeys, useCreateSttModel } from '../hooks/useModelQueries';
 import type { SttModelCreateData } from '../types';
 
 export interface SttModelDrawerRef {
@@ -26,9 +28,21 @@ const SttModelDrawer = forwardRef<SttModelDrawerRef>((_, ref) => {
   const handleClose = () => setOpen(false);
 
   const [form] = Form.useForm<SttModelCreateData>();
+  const queryClient = useQueryClient();
 
   const { data: engines } = useGetCodes({ params: { classCd: 'ENGINE_KIND' } });
   const engineOptions = engines?.map((e) => ({ label: e.value, value: e.code })) ?? [];
+
+  const { mutate: createModel, isPending } = useCreateSttModel({
+    mutationOptions: {
+      onSuccess: () => {
+        toast.success('모델이 생성되었습니다.');
+        queryClient.invalidateQueries({ queryKey: modelQueryKeys.getSttModelList._def });
+        handleClose();
+      },
+      onError: () => toast.error('모델 생성에 실패했습니다.'),
+    },
+  });
 
   useEffect(() => {
     if (!open) return;
@@ -38,8 +52,8 @@ const SttModelDrawer = forwardRef<SttModelDrawerRef>((_, ref) => {
     };
   }, [form, open]);
 
-  const onFinish: FormProps<SttModelCreateData>['onFinish'] = (_values) => {
-    toast.warning('모델 생성 API 연동 후 사용 가능합니다.');
+  const onFinish: FormProps<SttModelCreateData>['onFinish'] = (values) => {
+    createModel(values);
   };
 
   const onFinishFailed: FormProps<SttModelCreateData>['onFinishFailed'] = (errorInfo) => {
@@ -53,7 +67,7 @@ const SttModelDrawer = forwardRef<SttModelDrawerRef>((_, ref) => {
       <Button variant="solid" onClick={handleClose}>
         취소
       </Button>
-      <Button variant="solid" type="primary" onClick={() => form.submit()}>
+      <Button variant="solid" type="primary" onClick={() => form.submit()} loading={isPending}>
         저장
       </Button>
     </div>

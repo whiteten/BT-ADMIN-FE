@@ -4,17 +4,20 @@ import { Button, Col, Drawer, Form, type FormProps, Input, Radio, Row, Select } 
 import { Log } from '@/log';
 import { toast } from '@/shared-util';
 import { useGetTenants } from '../hooks/useCommonQueries';
-import { dnQueryKeys, useCreateSttDn } from '../hooks/useDnQueries';
-import type { SttDnCreateData } from '../types';
+import { dnQueryKeys, useCreateSttDn, useUpdateSttDn } from '../hooks/useDnQueries';
+import type { SttDnCreateData, SttDnItem } from '../types';
 
 export interface SttDnDrawerRef {
-  open: (hostName: string) => void;
+  open: (hostName: string, item?: SttDnItem) => void;
   close: () => void;
 }
 
 const SttDnDrawer = forwardRef<SttDnDrawerRef>((_, ref) => {
   const [open, setOpen] = useState(false);
   const [hostName, setHostName] = useState('');
+  const [editItem, setEditItem] = useState<SttDnItem | null>(null);
+  const isEdit = !!editItem;
+
   const [form] = Form.useForm<SttDnCreateData>();
   const queryClient = useQueryClient();
 
@@ -22,8 +25,9 @@ const SttDnDrawer = forwardRef<SttDnDrawerRef>((_, ref) => {
   const tenantOptions = tenants?.map((t) => ({ label: t.tenantName, value: String(t.tenantId) })) ?? [];
 
   useImperativeHandle(ref, () => ({
-    open: (hn: string) => {
+    open: (hn: string, item?: SttDnItem) => {
       setHostName(hn);
+      setEditItem(item ?? null);
       setOpen(true);
     },
     close: () => setOpen(false),
@@ -31,28 +35,52 @@ const SttDnDrawer = forwardRef<SttDnDrawerRef>((_, ref) => {
 
   const handleClose = () => setOpen(false);
 
-  const { mutate: createDn, isPending } = useCreateSttDn({
+  const invalidate = () => queryClient.invalidateQueries({ queryKey: dnQueryKeys.getSttDnList._def });
+
+  const { mutate: createDn, isPending: isCreating } = useCreateSttDn({
     mutationOptions: {
       onSuccess: () => {
         toast.success('등록되었습니다.');
-        queryClient.invalidateQueries({ queryKey: dnQueryKeys.getSttDnList._def });
+        invalidate();
         handleClose();
       },
     },
   });
 
+  const { mutate: updateDn, isPending: isUpdating } = useUpdateSttDn({
+    mutationOptions: {
+      onSuccess: () => {
+        toast.success('수정되었습니다.');
+        invalidate();
+        handleClose();
+      },
+      onError: () => toast.error('수정에 실패했습니다.'),
+    },
+  });
+
   useEffect(() => {
     if (!open) return;
-    form.setFieldsValue({
-      dnStatus: '1',
-      useYn: '1',
-      tenantId: tenants?.[0] ? String(tenants[0].tenantId) : undefined,
-    });
+    if (editItem) {
+      form.setFieldsValue({
+        dnNo: editItem.dnNo,
+        phoneIp: editItem.phoneIp,
+        tenantId: String(editItem.tenantId),
+        agentId: editItem.agentId,
+        dnStatus: String(editItem.dnStatus),
+        useYn: String(editItem.useYn),
+      });
+    } else {
+      form.setFieldsValue({
+        dnStatus: '1',
+        useYn: '1',
+        tenantId: tenants?.[0] ? String(tenants[0].tenantId) : undefined,
+      });
+    }
     return () => {
       Log.debug('SttDnDrawer resetFields');
       form.resetFields();
     };
-  }, [form, open, tenants]);
+  }, [form, open, editItem, tenants]);
 
   const handleDnNoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     form.setFieldValue('dnNo', e.target.value.replace(/[^0-9]/g, '').slice(0, 24));
@@ -63,7 +91,11 @@ const SttDnDrawer = forwardRef<SttDnDrawerRef>((_, ref) => {
   };
 
   const onFinish: FormProps<SttDnCreateData>['onFinish'] = (values) => {
-    createDn({ ...values, hostName });
+    if (isEdit) {
+      updateDn({ ...values, hostName });
+    } else {
+      createDn({ ...values, hostName });
+    }
   };
 
   const onFinishFailed: FormProps<SttDnCreateData>['onFinishFailed'] = (errorInfo) => {
@@ -76,26 +108,26 @@ const SttDnDrawer = forwardRef<SttDnDrawerRef>((_, ref) => {
       <Button variant="solid" onClick={handleClose}>
         취소
       </Button>
-      <Button variant="solid" type="primary" onClick={() => form.submit()} loading={isPending}>
+      <Button variant="solid" type="primary" onClick={() => form.submit()} loading={isCreating || isUpdating}>
         저장
       </Button>
     </div>
   );
 
   return (
-    <Drawer open={open} onClose={handleClose} title="내선정보 추가" closable={{ placement: 'end' }} size={500} footer={footer} destroyOnHidden>
+    <Drawer open={open} onClose={handleClose} title={isEdit ? '내선정보 수정' : '내선정보 추가'} closable={{ placement: 'end' }} size={500} footer={footer} destroyOnHidden>
       <Form form={form} layout="vertical" initialValues={{ dnStatus: '1', useYn: '1' }} onFinish={onFinish} onFinishFailed={onFinishFailed}>
         <Row>
           <Col span={24}>
             <Form.Item name="dnNo" label="내선번호" required hasFeedback rules={[{ required: true, message: 'DN 번호를 입력해주세요.' }]}>
-              <Input placeholder="DN 번호를 입력하세요." maxLength={24} onChange={handleDnNoChange} />
+              <Input placeholder="DN 번호를 입력하세요." maxLength={24} onChange={handleDnNoChange} disabled={isEdit} />
             </Form.Item>
           </Col>
         </Row>
         <Row>
           <Col span={24}>
             <Form.Item name="phoneIp" label="전화기IP" required hasFeedback rules={[{ required: true, message: '전화기IP를 입력해주세요.' }]}>
-              <Input placeholder="전화기IP를 입력하세요." maxLength={32} onChange={handlePhoneIpChange} />
+              <Input placeholder="전화기IP를 입력하세요." maxLength={32} onChange={handlePhoneIpChange} disabled={isEdit} />
             </Form.Item>
           </Col>
         </Row>

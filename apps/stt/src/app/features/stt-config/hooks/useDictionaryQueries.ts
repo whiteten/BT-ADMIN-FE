@@ -2,7 +2,15 @@ import { useMutation, useQuery } from '@tanstack/react-query';
 import { createQueryKeys } from '@lukemorales/query-key-factory';
 import type { MutationHookOptions, QueryHookWithParamsOptions } from '@/shared-util';
 import { dictionaryApi } from '../api/dictionaryApi';
-import type { KeywordBoostingCreateData, KeywordBoostingItem, KeywordBoostingSearchParams, SttDictionaryCreateData, SttDictionaryItem, SttDictionarySearchParams } from '../types';
+import type {
+  KeywordBoostingCreateData,
+  KeywordBoostingItem,
+  KeywordBoostingSearchParams,
+  SttDictionaryCreateData,
+  SttDictionaryItem,
+  SttDictionarySearchParams,
+  SttDictionaryUpdateData,
+} from '../types';
 
 export const dictionaryQueryKeys = createQueryKeys('dictionary', {
   getKeywordBoostingList: (params?: KeywordBoostingSearchParams) => [params],
@@ -42,6 +50,13 @@ export const useGetSttDictionaryList = ({ params, queryOptions }: QueryHookWithP
 export const useCreateSttDictionary = ({ mutationOptions }: MutationHookOptions<unknown, SttDictionaryCreateData> = {}) => {
   return useMutation({
     mutationFn: dictionaryApi.createSttDictionary,
+    ...mutationOptions,
+  });
+};
+
+export const useUpdateSttDictionary = ({ mutationOptions }: MutationHookOptions<unknown, SttDictionaryUpdateData> = {}) => {
+  return useMutation({
+    mutationFn: dictionaryApi.updateSttDictionary,
     ...mutationOptions,
   });
 };
