@@ -3,8 +3,6 @@ import type { BreadcrumbProps } from 'antd';
 import dayjs from 'dayjs';
 import { useNavigationStore } from '@/shared-store';
 import { downloadBlob, extractFileName, toast } from '@/shared-util';
-
-const DATETIME_FORMAT = 'YYYY-MM-DDTHH:mm:ss';
 import { botDialogHistoryApi } from '../../features/tracking/api/botDialogHistoryApi';
 import BotDialogHistoryDrawer, { type BotDialogHistoryDrawerRef } from '../../features/tracking/components/BotDialogHistoryDrawer';
 import BotDialogHistorySearchForm from '../../features/tracking/components/BotDialogHistorySearchForm';
@@ -12,6 +10,8 @@ import BotDialogHistoryTable from '../../features/tracking/components/BotDialogH
 import { useGetBotDialogHistory } from '../../features/tracking/hooks/useBotDialogHistoryQueries';
 import type { BotDialogHistoryListItem, BotDialogHistorySearchRequest } from '../../features/tracking/types/botDialogHistory.types';
 import PageHeader from '@/components/custom/PageHeader';
+
+const DATETIME_FORMAT = 'YYYY-MM-DDTHH:mm:ss';
 
 const breadcrumb: BreadcrumbProps['items'] = [
   { title: '트래킹', path: '/fca/tracking' },
@@ -87,33 +87,28 @@ const BotDialogHistoryPage: React.FC = () => {
   };
 
   return (
-    <div className="flex flex-col gap-4 w-full h-full overflow-hidden">
+    <div className="flex flex-col gap-4 w-full h-full">
       <PageHeader breadcrumb={breadcrumb} />
-
-      <div className="flex-1 flex flex-col min-h-0">
+      <div className="flex flex-col gap-5 w-full h-full bg-white bt-shadow p-5">
         <BotDialogHistorySearchForm
           onSearch={handleSearch}
           isLoading={isListLoading}
           onExcelDownload={hasExcelPermission ? handleExcelDownload : undefined}
           isExporting={isExporting}
         />
-
-        <div className="flex flex-1 min-h-0 mb-4 px-1">
-          <div className="flex-1 flex flex-col min-h-0">
-            <BotDialogHistoryTable
-              rowData={historyData?.items ?? []}
-              total={historyData?.total ?? 0}
-              isLoading={isListLoading}
-              page={searchParams.page ?? 0}
-              size={searchParams.size ?? 20}
-              onPageChange={handlePageChange}
-              onRowDoubleClick={handleRowClick}
-              selectedRowId={selectedRowId}
-            />
-          </div>
+        <div className="w-full h-full">
+          <BotDialogHistoryTable
+            rowData={historyData?.items ?? []}
+            total={historyData?.total ?? 0}
+            isLoading={isListLoading}
+            page={searchParams.page ?? 0}
+            size={searchParams.size ?? 20}
+            onPageChange={handlePageChange}
+            onRowDoubleClick={handleRowClick}
+            selectedRowId={selectedRowId}
+          />
         </div>
       </div>
-
       <BotDialogHistoryDrawer ref={drawerRef} />
     </div>
   );

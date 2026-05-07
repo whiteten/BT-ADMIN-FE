@@ -141,7 +141,7 @@ const BotDialogHistoryTable: React.FC<BotDialogHistoryTableProps> = ({ rowData, 
   );
 
   return (
-    <div className="flex flex-col flex-1 min-h-0 bg-white bt-shadow">
+    <div className="flex flex-col w-full h-full">
       <div className="flex-1 w-full overflow-hidden">
         <AgGridReact<BotDialogHistoryListItem>
           rowData={rowData}

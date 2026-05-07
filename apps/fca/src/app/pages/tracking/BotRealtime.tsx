@@ -72,56 +72,53 @@ export default function BotRealtime() {
   return (
     <div className="flex flex-col gap-4 w-full h-full">
       <PageHeader breadcrumb={breadcrumb} />
-
-      {/* 검색조건 + 연결 상태 + Play/Stop 버튼 */}
-      <div className="flex items-center justify-between gap-3 bg-white bt-shadow px-7 py-5 h-[76px]">
-        <div className="flex items-center gap-2">
-          <span className="text-sm font-medium text-gray-700 whitespace-nowrap">발신번호</span>
-          <Input
-            placeholder="발신번호 검색"
-            prefix={<Search className="w-4 h-4 text-gray-400" />}
-            value={aniSearch}
-            onChange={(e) => setAniSearch(e.target.value)}
-            allowClear
-            style={{ width: 200 }}
+      <div className="flex flex-col gap-5 w-full h-full bg-white bt-shadow p-5">
+        <header className="flex items-center justify-between w-full gap-2 lg:flex-nowrap flex-wrap">
+          <div className="flex items-center gap-2">
+            <span className="text-sm font-medium text-gray-700 whitespace-nowrap">발신번호</span>
+            <Input
+              placeholder="발신번호 검색"
+              prefix={<Search className="w-4 h-4 text-gray-400" />}
+              value={aniSearch}
+              onChange={(e) => setAniSearch(e.target.value)}
+              allowClear
+              style={{ width: 200 }}
+            />
+          </div>
+          <div className="flex items-center gap-3">
+            {isPlaying && <span className={`inline-block w-2.5 h-2.5 rounded-full ${connected ? 'bg-green-500' : 'bg-red-500'}`} />}
+            <button
+              type="button"
+              onClick={isPlaying ? disconnect : connect}
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded text-sm font-medium transition-colors ${
+                isPlaying ? 'bg-red-500 hover:bg-red-600 text-white' : 'bg-green-500 hover:bg-green-600 text-white'
+              }`}
+            >
+              {isPlaying ? (
+                <>
+                  <Square className="w-3.5 h-3.5 fill-white" />
+                  중지
+                </>
+              ) : (
+                <>
+                  <Play className="w-3.5 h-3.5 fill-white" />
+                  시작
+                </>
+              )}
+            </button>
+          </div>
+        </header>
+        <div className="w-full h-full">
+          <AgGridReact<TrackingSession>
+            rowModelType="clientSide"
+            rowData={filteredSessions}
+            getRowId={(params) => `${params.data.ucid}-${params.data.nexthop}`}
+            columnDefs={columnDefs}
+            gridOptions={gridOptions}
+            onRowDoubleClicked={handleRowDoubleClicked}
           />
         </div>
-        <div className="flex items-center gap-3">
-          {isPlaying && <span className={`inline-block w-2.5 h-2.5 rounded-full ${connected ? 'bg-green-500' : 'bg-red-500'}`} />}
-          <button
-            type="button"
-            onClick={isPlaying ? disconnect : connect}
-            className={`flex items-center gap-1.5 px-3 py-1.5 rounded text-sm font-medium transition-colors ${
-              isPlaying ? 'bg-red-500 hover:bg-red-600 text-white' : 'bg-green-500 hover:bg-green-600 text-white'
-            }`}
-          >
-            {isPlaying ? (
-              <>
-                <Square className="w-3.5 h-3.5 fill-white" />
-                중지
-              </>
-            ) : (
-              <>
-                <Play className="w-3.5 h-3.5 fill-white" />
-                시작
-              </>
-            )}
-          </button>
-        </div>
       </div>
-
-      {/* ag-Grid 테이블 */}
-      <div className="flex flex-col w-full flex-1 bg-white bt-shadow p-5">
-        <AgGridReact<TrackingSession>
-          rowModelType="clientSide"
-          rowData={filteredSessions}
-          getRowId={(params) => `${params.data.ucid}-${params.data.nexthop}`}
-          columnDefs={columnDefs}
-          gridOptions={gridOptions}
-          onRowDoubleClicked={handleRowDoubleClicked}
-        />
-      </div>
-
       <BotRealtimeDetailDrawer ref={drawerRef} sseDetail={sessionDetail} onClose={clearSessionDetail} onSend={send} />
     </div>
   );

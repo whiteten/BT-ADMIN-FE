@@ -259,10 +259,9 @@ export default function EntityStatistics() {
   return (
     <div className="flex flex-col gap-4 w-full h-full">
       <PageHeader breadcrumb={breadcrumb} />
-      {/* Filter */}
-      <div className="flex flex-col w-full h-full bg-white bt-shadow p-5">
+      <div className="flex flex-col gap-5 w-full h-full bg-white bt-shadow p-5">
         <Collapsible open={isFilterOpen} onOpenChange={setIsFilterOpen}>
-          <header className="flex flex-col gap-3 pb-5">
+          <header className="flex flex-col gap-3">
             <div className="flex items-start gap-3">
               <div className="flex flex-wrap items-center gap-3 flex-1 min-w-0">
                 <div className="flex items-center gap-3">
@@ -497,7 +496,7 @@ export default function EntityStatistics() {
             </CollapsibleContent>
           </header>
         </Collapsible>
-        <div className="w-full flex-1">
+        <div className="w-full h-full">
           <AgGridReact<EntityStatListItem>
             ref={gridRef}
             rowModelType="clientSide"

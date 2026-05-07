@@ -196,85 +196,81 @@ export default function WorkHistoryList() {
   return (
     <div className="flex flex-col gap-4 w-full h-full">
       <PageHeader breadcrumb={breadcrumb} />
-
-      {/* 검색 필터 영역 */}
-      <div className="flex items-center justify-between gap-2 w-full bg-white bt-shadow px-5 py-3">
-        <div className="flex gap-2 items-center flex-nowrap">
-          <DatePicker
-            value={selectedDate}
-            onChange={handleDateChange}
-            format="YYYY-MM-DD"
-            style={{ width: 130 }}
-            allowClear={false}
-            disabledDate={(current) => current && current > dayjs().endOf('day')}
-          />
-          <TimePicker value={fromTime} onChange={handleFromTimeChange} format="HH:mm" style={{ width: 85 }} allowClear={false} showNow={false} minuteStep={10} />
-          <span className="text-gray-400">~</span>
-          <TimePicker value={toTime} onChange={handleToTimeChange} format="HH:mm" style={{ width: 85 }} allowClear={false} showNow={false} minuteStep={10} />
-          <Select
-            value={statusFilter}
-            onChange={setStatusFilter}
-            options={[
-              { label: '상태', value: '' },
-              { label: '성공', value: 'SUCCESS' },
-              { label: '실패', value: 'FAIL' },
-              { label: '부분실패', value: 'PARTIAL_FAIL' },
-            ]}
-            style={{ width: 90 }}
-          />
-          <Select
-            value={methodFilter}
-            onChange={setMethodFilter}
-            options={[
-              { label: '메서드', value: '' },
-              { label: 'GET', value: 'GET' },
-              { label: 'POST', value: 'POST' },
-              { label: 'PUT', value: 'PUT' },
-              { label: 'DELETE', value: 'DELETE' },
-            ]}
-            style={{ width: 90 }}
-          />
-          <Input
-            value={userSearch}
-            onChange={(e) => setUserSearch(e.target.value)}
-            placeholder="사용자"
-            prefix={<Search className="w-3.5 h-3.5 text-gray-400" />}
-            style={{ width: 200 }}
-            allowClear
-            onPressEnter={handleSearch}
-          />
+      <div className="flex flex-col gap-5 w-full h-full bg-white bt-shadow p-5">
+        <header className="flex items-center justify-between w-full gap-2 lg:flex-nowrap flex-wrap">
+          <div className="flex gap-2 items-center flex-nowrap">
+            <DatePicker
+              value={selectedDate}
+              onChange={handleDateChange}
+              format="YYYY-MM-DD"
+              style={{ width: 130 }}
+              allowClear={false}
+              disabledDate={(current) => current && current > dayjs().endOf('day')}
+            />
+            <TimePicker value={fromTime} onChange={handleFromTimeChange} format="HH:mm" style={{ width: 85 }} allowClear={false} showNow={false} minuteStep={10} />
+            <span className="text-gray-400">~</span>
+            <TimePicker value={toTime} onChange={handleToTimeChange} format="HH:mm" style={{ width: 85 }} allowClear={false} showNow={false} minuteStep={10} />
+            <Select
+              value={statusFilter}
+              onChange={setStatusFilter}
+              options={[
+                { label: '상태', value: '' },
+                { label: '성공', value: 'SUCCESS' },
+                { label: '실패', value: 'FAIL' },
+                { label: '부분실패', value: 'PARTIAL_FAIL' },
+              ]}
+              style={{ width: 90 }}
+            />
+            <Select
+              value={methodFilter}
+              onChange={setMethodFilter}
+              options={[
+                { label: '메서드', value: '' },
+                { label: 'GET', value: 'GET' },
+                { label: 'POST', value: 'POST' },
+                { label: 'PUT', value: 'PUT' },
+                { label: 'DELETE', value: 'DELETE' },
+              ]}
+              style={{ width: 90 }}
+            />
+            <Input
+              value={userSearch}
+              onChange={(e) => setUserSearch(e.target.value)}
+              placeholder="사용자"
+              prefix={<Search className="w-3.5 h-3.5 text-gray-400" />}
+              style={{ width: 200 }}
+              allowClear
+              onPressEnter={handleSearch}
+            />
+          </div>
+          <Button type="primary" onClick={handleSearch} loading={isFetching}>
+            조회
+          </Button>
+        </header>
+        <div className="flex flex-col w-full h-full">
+          <div className="flex-1 w-full overflow-hidden">
+            {isLoading ? (
+              <FallbackSpinner />
+            ) : (listData?.items?.length ?? 0) === 0 ? (
+              <NoData message="작업이력이 없습니다." iconSize={50} />
+            ) : (
+              <AgGridReact<WorkHistoryListItem>
+                rowData={listData?.items ?? []}
+                columnDefs={columnDefs}
+                gridOptions={{
+                  ...gridOptions,
+                  pagination: false,
+                  statusBar: undefined,
+                }}
+                loading={isFetching}
+                onRowDoubleClicked={handleRowDoubleClick}
+                getRowId={(params) => params.data.workId}
+              />
+            )}
+          </div>
+          {(listData?.total ?? 0) > 0 && <ServerPagination currentPage={currentPage} totalItems={listData?.total ?? 0} pageSize={PAGE_SIZE} onPageChange={handlePageChange} />}
         </div>
-        <Button type="primary" onClick={handleSearch} loading={isFetching}>
-          조회
-        </Button>
       </div>
-
-      {/* 그리드 */}
-      <div className="flex-1 w-full bg-white bt-shadow overflow-hidden">
-        {isLoading ? (
-          <FallbackSpinner />
-        ) : (listData?.items?.length ?? 0) === 0 ? (
-          <NoData message="작업이력이 없습니다." iconSize={50} />
-        ) : (
-          <AgGridReact<WorkHistoryListItem>
-            rowData={listData?.items ?? []}
-            columnDefs={columnDefs}
-            gridOptions={{
-              ...gridOptions,
-              pagination: false,
-              statusBar: undefined,
-            }}
-            loading={isFetching}
-            onRowDoubleClicked={handleRowDoubleClick}
-            getRowId={(params) => params.data.workId}
-          />
-        )}
-      </div>
-
-      {/* 서버 사이드 페이지네이션 */}
-      {(listData?.total ?? 0) > 0 && <ServerPagination currentPage={currentPage} totalItems={listData?.total ?? 0} pageSize={PAGE_SIZE} onPageChange={handlePageChange} />}
-
-      {/* 상세 드로어 */}
       <WorkHistoryDetailDrawer ref={drawerRef} />
     </div>
   );

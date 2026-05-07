@@ -57,28 +57,23 @@ const DecryptLogPage: React.FC = () => {
   };
 
   return (
-    <div className="flex flex-col gap-2 w-full h-full overflow-hidden">
+    <div className="flex flex-col gap-4 w-full h-full">
       <PageHeader breadcrumb={breadcrumb} />
-
-      <div className="flex-1 flex flex-col min-h-0">
+      <div className="flex flex-col gap-5 w-full h-full bg-white bt-shadow p-5">
         <DecryptLogSearchBar onSearch={handleSearch} isLoading={isListLoading} />
-
-        <div className="flex flex-1 min-h-0 mb-4 px-1">
-          <div className="flex-1 flex flex-col min-h-0">
-            <DecryptLogListGrid
-              rowData={pageData?.items ?? []}
-              total={pageData?.total ?? 0}
-              isLoading={isListLoading}
-              page={searchParams.page ?? 0}
-              size={searchParams.size ?? DEFAULT_PAGE_SIZE}
-              onPageChange={handlePageChange}
-              onDetailClick={handleDetailClick}
-              selectedLogId={selectedItem?.logId}
-            />
-          </div>
+        <div className="w-full h-full">
+          <DecryptLogListGrid
+            rowData={pageData?.items ?? []}
+            total={pageData?.total ?? 0}
+            isLoading={isListLoading}
+            page={searchParams.page ?? 0}
+            size={searchParams.size ?? DEFAULT_PAGE_SIZE}
+            onPageChange={handlePageChange}
+            onDetailClick={handleDetailClick}
+            selectedLogId={selectedItem?.logId}
+          />
         </div>
       </div>
-
       <DecryptLogDetailDrawer open={drawerOpen} item={selectedItem} onClose={handleDrawerClose} />
     </div>
   );
