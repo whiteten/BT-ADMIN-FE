@@ -4,15 +4,11 @@
 
 # 중요 지침
 
-반드시 한국어로 답변할 것.
-**프론트엔드 작업 경로 준수**: 모든 프론트엔드 관련 작업(소스 수정, 빌드, pnpm install 등)은 반드시 이 저장소 경로(**`C:\Users\user\git\BT-ADMIN-FE`**)에서 수행해야 합니다. 백엔드 저장소 하위의 폴더를 사용하지 마십시오.
-문서 파일(\*.md)이나 README 파일을 선제적으로 생성하지 말 것. 사용자가 명시적으로 요청한 경우에만 생성.
 TypeScript 또는 JavaScript 파일을 수정한 후에는 반드시 `npx eslint --fix <file-path>`를 실행하여 코드 품질과 일관성을 보장할 것.
-자동으로 커밋하지 말 것. 사용자가 명시적으로 요청한 경우에만 커밋.
 이 프로젝트는 **React Compiler**를 사용합니다. 컴파일러가 자동으로 리렌더링을 최적화하므로, 명시적으로 필요한 경우가 아니면 `useMemo`나 `useCallback`을 사용하지 말 것.
 `pnpm-lock.yaml`에는 `ag-grid-enterprise` 패치 정보(`patchedDependencies`, `patch_hash`)가 포함되어 있으므로, lock 파일 수정·충돌 해결 시 해당 내용이 제거되지 않도록 주의할 것. 패치가 누락되면 AG-Grid Enterprise 라이선스 관련 동작에 영향을 줄 수 있음. 또한 pnpm 메이저 버전이 다르면 lock 파일 포맷과 패치 해시가 달라질 수 있으므로, 필수 환경 요구사항에 명시된 pnpm 버전을 준수할 것.
 커밋 메시지 작성 시 타이틀은 간결하게 작성하고, 반드시 본문(body)에 변경 사항의 상세 내용을 포함할 것. 타이틀만으로 커밋을 생성하지 말 것.
-커밋 메시지 작성 전에 반드시 `git diff --staged`(또는 `git diff`)를 실행하여 변경된 소스를 직접 비교·확인한 후, 실제 변경 내용에 기반하여 커밋 메시지를 작성할 것. 변경 사항을 확인하지 않고 추측으로 커밋 메시지를 작성하지 말 것.
+커밋 메시지를 작성할 때는 반드시 [.claude/skills/commit/SKILL.md](.claude/skills/commit/SKILL.md) 스킬을 먼저 확인하고, 해당 스킬의 카테고리(이모지)·scope 판정 규칙·절차를 따를 것.
 
 ## 필수 환경 요구사항
 
@@ -186,8 +182,6 @@ API 통합 시 반드시 **TanStack Query**와 커스텀 훅을 사용합니다.
 ## 커밋 가이드라인
 
 이 프로젝트는 **commitizen** + cz-git을 사용합니다. 사람이 직접 커밋할 때는 `pnpm commit`(대화형)을 사용하세요.
-
-**Claude가 커밋 메시지를 작성할 때**: [.claude/skills/commit/SKILL.md](.claude/skills/commit/SKILL.md) 스킬을 사용합니다. 카테고리(이모지) 전체 목록, scope 판정 규칙(remote 명칭 사용 / feature명 금지), 단계별 절차 등 상세 규칙은 모두 해당 스킬에 정리되어 있습니다.
 
 ## 파일 구조 컨벤션
 
