@@ -10,36 +10,6 @@ import { Command, CommandGroup, CommandInput, CommandItem, CommandList, CommandS
 import { Popover, PopoverAnchor, PopoverContent } from '@/components/ui/popover';
 import type { MenuConfig, MenuItem } from '@/libs/shared-store/src/types/menu.types';
 
-// 원본(필터링 전) 메뉴 경로 캐시: appId → { menuKey → path }
-const rawMenuPathCache: Record<string, Record<string, string>> = {};
-
-const collectMenuPaths = (items: MenuItem[], map: Record<string, string>) => {
-  for (const item of items) {
-    if (item.path) map[item.menuKey] = item.path;
-    if (item.children) collectMenuPaths(item.children, map);
-  }
-};
-
-const loadRawMenuPaths = async () => {
-  const loaders: Array<{ appId: string; load: () => Promise<unknown> }> = [
-    { appId: 'manager', load: () => import('manager/MenuConfig') },
-    { appId: 'fca', load: () => import('fca/MenuConfig') },
-  ];
-
-  for (const { appId, load } of loaders) {
-    if (rawMenuPathCache[appId]) continue;
-    try {
-      const mod = await load();
-      const config = (mod as { default: MenuConfig }).default;
-      const map: Record<string, string> = {};
-      if (config?.menus) collectMenuPaths(config.menus, map);
-      rawMenuPathCache[appId] = map;
-    } catch {
-      rawMenuPathCache[appId] = {};
-    }
-  }
-};
-
 const findPathByMenuKey = (menuConfigs: MenuConfig[], appId: string, menuKey: string): string | undefined => {
   const config = menuConfigs.find((c) => c.appId === appId);
   if (!config) return undefined;
@@ -67,10 +37,6 @@ export default function GlobalSearch() {
   const [debouncedQuery, setDebouncedQuery] = useState('');
   const navigate = useNavigate();
   const { menuConfigs } = useMenuStore();
-
-  useEffect(() => {
-    loadRawMenuPaths();
-  }, []);
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -104,7 +70,7 @@ export default function GlobalSearch() {
 
   const handleSelectMenu = (result: MenuSearchResult) => {
     const menuKey = result.id.split(':')[1];
-    const path = rawMenuPathCache[result.appId]?.[menuKey] ?? findPathByMenuKey(menuConfigs, result.appId, menuKey);
+    const path = findPathByMenuKey(menuConfigs, result.appId, menuKey);
     if (path) navigate(`/${result.appId}/${path}`);
     setOpen(false);
     setQuery('');

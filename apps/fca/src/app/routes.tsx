@@ -1,7 +1,6 @@
 import React from 'react';
 import { Navigate, Outlet } from 'react-router-dom';
 import FcaWsSessionEventHandler from './features/router/FcaWsSessionEventHandler';
-import FaqDetail from './pages/global/FaqDetail';
 import { NotFound } from '@/components/custom/NotFound';
 
 const Main = React.lazy(() => import('./pages/main/Main'));
@@ -16,6 +15,7 @@ const IntentDetail = React.lazy(() => import('./pages/bot-config/IntentDetail'))
 const EntityDetail = React.lazy(() => import('./pages/bot-config/EntityDetail'));
 const EvaluationDetail = React.lazy(() => import('./pages/bot-config/EvaluationDetail'));
 const AoeConfig = React.lazy(() => import('./pages/global/AoeConfig'));
+const FaqDetail = React.lazy(() => import('./pages/global/FaqDetail'));
 const GlobalEnvList = React.lazy(() => import('./pages/global/GlobalEnvList'));
 const ServiceStatistics = React.lazy(() => import('./pages/statistics/call-bot/ServiceStatistics'));
 const DialogStatistics = React.lazy(() => import('./pages/statistics/call-bot/DialogStatistics'));
