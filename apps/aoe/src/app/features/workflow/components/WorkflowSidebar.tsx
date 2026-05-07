@@ -50,7 +50,7 @@ export default function WorkflowSidebar({ onClose }: WorkflowSidebarProps) {
   };
 
   return (
-    <aside className="w-[260px] h-full bg-gray-50 border-r border-gray-200 flex flex-col shrink-0">
+    <aside className="w-[260px] h-full bg-white flex flex-col shrink-0">
       <div className="px-4 py-3 border-b border-gray-200 flex items-start justify-between gap-2">
         <div className="min-w-0">
           <h2 className="text-sm font-semibold text-gray-800">노드 목록</h2>

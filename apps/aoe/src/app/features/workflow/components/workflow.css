@@ -28,6 +28,22 @@
   transform: none !important;
 }
 
+/* properties 패널의 Collapse 섹션 구분선 */
+.aoe-properties-collapse.ant-collapse.ant-collapse-ghost > .ant-collapse-item {
+  border-bottom: 1px solid #f1f5f9;
+}
+.aoe-properties-collapse.ant-collapse.ant-collapse-ghost > .ant-collapse-item:last-child {
+  border-bottom: none;
+}
+.aoe-properties-collapse .ant-collapse-header {
+  padding-left: 0 !important;
+  padding-right: 0 !important;
+}
+.aoe-properties-collapse .ant-collapse-content-box {
+  padding-left: 0 !important;
+  padding-right: 0 !important;
+}
+
 .react-flow .react-flow__handle[data-handlepos='right'] {
   right: -6px !important;
   left: auto !important;

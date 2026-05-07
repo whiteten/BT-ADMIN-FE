@@ -46,6 +46,7 @@ const NODE_DROP_OFFSET_Y = 50; // 평균 height 약 100 / 2
 interface WorkflowCanvasInnerProps {
   agentId: string;
   graph: WorkflowGraph;
+  onSelectNode: (nodeId: string | null) => void;
 }
 
 const toReactFlowNodes = (nodes: FlowNode[] = []): Node[] =>
@@ -71,7 +72,7 @@ const toReactFlowEdges = (edges: FlowEdge[] = []): Edge[] =>
     data: e.data,
   }));
 
-function WorkflowCanvasInner({ agentId, graph }: WorkflowCanvasInnerProps) {
+function WorkflowCanvasInner({ agentId, graph, onSelectNode }: WorkflowCanvasInnerProps) {
   const queryClient = useQueryClient();
   const { screenToFlowPosition } = useReactFlow();
 
@@ -79,12 +80,18 @@ function WorkflowCanvasInner({ agentId, graph }: WorkflowCanvasInnerProps) {
   const [edges, setEdges] = useState<Edge[]>(() => toReactFlowEdges(graph.edges));
   const [interactionMode, setInteractionMode] = useState<'hand' | 'select'>('hand');
 
-  // 서버 그래프가 갱신되면 캔버스 상태 동기화 (드래그로 변경된 위치는 서버 응답으로 덮어씀)
+  // 서버 그래프가 갱신되면 캔버스 상태 동기화. ReactFlow 의 selection 등 UI 상태는 prev 에서 유지.
   useEffect(() => {
-    setNodes(toReactFlowNodes(graph.nodes));
+    setNodes((prev) => {
+      const prevSelected = new Map(prev.map((p) => [p.id, p.selected]));
+      return toReactFlowNodes(graph.nodes).map((n) => ({ ...n, selected: prevSelected.get(n.id) ?? false }));
+    });
   }, [graph.nodes]);
   useEffect(() => {
-    setEdges(toReactFlowEdges(graph.edges));
+    setEdges((prev) => {
+      const prevSelected = new Map(prev.map((p) => [p.id, p.selected]));
+      return toReactFlowEdges(graph.edges).map((e) => ({ ...e, selected: prevSelected.get(e.id) ?? false }));
+    });
   }, [graph.edges]);
 
   const setGraph = useCallback(
@@ -202,6 +209,17 @@ function WorkflowCanvasInner({ agentId, graph }: WorkflowCanvasInnerProps) {
     [agentId, createEdge],
   );
 
+  const onNodeClick = useCallback(
+    (_event: React.MouseEvent, node: Node) => {
+      onSelectNode(node.id);
+    },
+    [onSelectNode],
+  );
+
+  const onPaneClick = useCallback(() => {
+    onSelectNode(null);
+  }, [onSelectNode]);
+
   const onNodeDragStop = useCallback(
     (_event: React.MouseEvent, node: Node) => {
       const positionX = Math.round(node.position.x);
@@ -252,7 +270,10 @@ function WorkflowCanvasInner({ agentId, graph }: WorkflowCanvasInnerProps) {
         onEdgesChange={onEdgesChange}
         onConnect={onConnect}
         onNodeDragStop={onNodeDragStop}
+        onNodeClick={onNodeClick}
+        onPaneClick={onPaneClick}
         fitView
+        fitViewOptions={{ maxZoom: 0.9, padding: 0.25 }}
         deleteKeyCode={['Backspace', 'Delete']}
         panOnDrag={interactionMode === 'hand'}
         selectionOnDrag={interactionMode === 'select'}
@@ -275,12 +296,13 @@ function WorkflowCanvasInner({ agentId, graph }: WorkflowCanvasInnerProps) {
 interface WorkflowCanvasProps {
   agentId: string;
   graph: WorkflowGraph;
+  onSelectNode: (nodeId: string | null) => void;
 }
 
-export default function WorkflowCanvas({ agentId, graph }: WorkflowCanvasProps) {
+export default function WorkflowCanvas({ agentId, graph, onSelectNode }: WorkflowCanvasProps) {
   return (
     <ReactFlowProvider>
-      <WorkflowCanvasInner agentId={agentId} graph={graph} />
+      <WorkflowCanvasInner agentId={agentId} graph={graph} onSelectNode={onSelectNode} />
     </ReactFlowProvider>
   );
 }

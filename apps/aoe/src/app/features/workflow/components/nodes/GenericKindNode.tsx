@@ -34,7 +34,6 @@ interface DetailLineProps {
 
 const DetailLine = ({ meta, text, badge }: DetailLineProps) => (
   <div className="flex items-center gap-2 px-2 py-1 rounded-md mt-1.5" style={{ backgroundColor: hexToRgba(meta.color, 0.08) }}>
-    <span className="inline-block w-1.5 h-1.5 rounded-full shrink-0" style={{ backgroundColor: meta.color }} />
     <span className="text-[11px] text-gray-700 font-medium truncate flex-1">{text}</span>
     {badge && (
       <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded" style={{ backgroundColor: hexToRgba(meta.color, 0.18), color: meta.color }}>
@@ -47,23 +46,22 @@ const DetailLine = ({ meta, text, badge }: DetailLineProps) => (
 const renderDetail = (kind: string, data: GenericKindNodeData, meta: NodeKindMeta) => {
   switch (kind) {
     case 'llm': {
-      const name = (data.name ?? data.model_id) as string | undefined;
+      // form path: data.modelName / data.modelTypeName (LlmProperties 가 저장)
+      const name = (data.modelName ?? data.name ?? data.model_id) as string | undefined;
+      const typeName = data.modelTypeName as string | undefined;
       if (!name) return null;
-      return <DetailLine meta={meta} text={name} />;
+      const text = typeName ? `[${typeName}] ${name}` : name;
+      return <DetailLine meta={meta} text={text} />;
     }
     case 'knowledgeSearch': {
-      const ragConfig = (data.rag_config ?? data.collections) as unknown[] | undefined;
-      const count = Array.isArray(ragConfig) ? ragConfig.length : 0;
-      if (!count) return null;
-      const first = ragConfig?.[0];
-      const firstLabel =
-        typeof first === 'string'
-          ? first
-          : ((first as { name?: string; collectionName?: string } | undefined)?.name ??
-            (first as { name?: string; collectionName?: string } | undefined)?.collectionName ??
-            `${count}개 문서`);
-      const badge = count > 1 ? `+${count - 1}개` : undefined;
-      return <DetailLine meta={meta} text={firstLabel} badge={badge} />;
+      // form path: data.documentIds (KnowledgeSearchProperties 가 저장)
+      const documentIds = data.documentIds as unknown[] | undefined;
+      const ragConfig = data.rag_config as unknown[] | undefined;
+      const ids = Array.isArray(documentIds) ? documentIds : Array.isArray(ragConfig) ? ragConfig : [];
+      if (!ids.length) return null;
+      const text = `${ids.length}개 문서`;
+      const badge = ids.length > 1 ? `+${ids.length - 1}` : undefined;
+      return <DetailLine meta={meta} text={text} badge={badge} />;
     }
     case 'databaseSearch': {
       const conn = data.dbConnection as { dbType?: string; host?: string } | undefined;
@@ -81,7 +79,8 @@ const renderDetail = (kind: string, data: GenericKindNodeData, meta: NodeKindMet
       return <DetailLine meta={meta} text={text} />;
     }
     case 'a2a_agent': {
-      const name = data.name as string | undefined;
+      // form path: data.agentName (A2AProperties 가 저장)
+      const name = (data.agentName ?? data.name) as string | undefined;
       if (!name) return null;
       return <DetailLine meta={meta} text={name} />;
     }

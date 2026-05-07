@@ -40,6 +40,13 @@ export const useUpdateNodePosition = ({
   });
 };
 
+export const useUpdateNode = ({ mutationOptions }: MutationHookOptions<FlowNode, { params: { agentId: string; nodeId: string }; data: FlowNode }> = {}) => {
+  return useMutation({
+    mutationFn: workflowApi.updateNode,
+    ...mutationOptions,
+  });
+};
+
 export const useCreateEdge = ({ mutationOptions }: MutationHookOptions<FlowEdge, { params: { agentId: string }; data: FlowEdge }> = {}) => {
   return useMutation({
     mutationFn: workflowApi.createEdge,

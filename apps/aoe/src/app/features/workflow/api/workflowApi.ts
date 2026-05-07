@@ -19,6 +19,10 @@ export const workflowApi = {
     const response = await apiClient.put<DetailResponse<FlowNode>>('/aoe-workflow-node-update-position', data, { params });
     return extractDetail(response);
   },
+  updateNode: async ({ params, data }: { params: { agentId: string; nodeId: string }; data: FlowNode }) => {
+    const response = await apiClient.put<DetailResponse<FlowNode>>('/aoe-workflow-node-update', data, { params });
+    return extractDetail(response);
+  },
   createEdge: async ({ params, data }: { params: { agentId: string }; data: FlowEdge }) => {
     const response = await apiClient.post<DetailResponse<FlowEdge>>('/aoe-workflow-edge-create', data, { params });
     return extractDetail(response);
