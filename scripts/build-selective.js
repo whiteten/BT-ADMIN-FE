@@ -117,39 +117,49 @@ async function copyRemotesToHost(selectedApps) {
   console.log('✅ 모든 remote 앱 복사 완료');
 }
 
+async function runBuild(answer) {
+  try {
+    const selectedApps = parseSelection(answer);
+
+    console.log(`\n✅ 선택된 앱: ${selectedApps.join(', ')}`);
+    console.log('\n🚀 빌드를 시작합니다...');
+
+    // 1. nx reset 실행 -> 메모리 이슈 방지를 위해 주석 처리
+    // await runCommand('nx reset', 'Nx 캐시 초기화');
+
+    // 2. dist 폴더 삭제
+    await cleanDist();
+
+    // 3. 선택한 앱들 빌드 (순차적으로 빌드하여 메모리 이슈 방지)
+    const projects = selectedApps.join(',');
+    const buildCommand = `nx run-many --target=build --projects=${projects} --parallel=1`;
+    await runCommand(buildCommand, `앱 빌드 (${projects})`);
+
+    // 4. host가 포함된 경우 remote들을 host/remotes로 복사
+    await copyRemotesToHost(selectedApps);
+
+    console.log('\n🎉 모든 작업이 완료되었습니다!');
+    rl.close();
+    process.exit(0);
+  } catch (error) {
+    console.error(`\n❌ 오류 발생: ${error.message}`);
+    rl.close();
+    process.exit(1);
+  }
+}
+
 async function buildApps() {
+  const cliArg = process.argv[2];
+
+  if (cliArg) {
+    console.log(`\n📥 인자로 전달된 선택: ${cliArg}`);
+    await runBuild(cliArg);
+    return;
+  }
+
   showMenu();
 
-  rl.question('\n📝 번호를 입력하세요 (여러 개 선택 시 쉼표로 구분, 예: 2,3,4): ', async (answer) => {
-    try {
-      const selectedApps = parseSelection(answer);
-
-      console.log(`\n✅ 선택된 앱: ${selectedApps.join(', ')}`);
-      console.log('\n🚀 빌드를 시작합니다...');
-
-      // 1. nx reset 실행 -> 메모리 이슈 방지를 위해 주석 처리
-      // await runCommand('nx reset', 'Nx 캐시 초기화');
-
-      // 2. dist 폴더 삭제
-      await cleanDist();
-
-      // 3. 선택한 앱들 빌드 (순차적으로 빌드하여 메모리 이슈 방지)
-      const projects = selectedApps.join(',');
-      const buildCommand = `nx run-many --target=build --projects=${projects} --parallel=1`;
-      await runCommand(buildCommand, `앱 빌드 (${projects})`);
-
-      // 4. host가 포함된 경우 remote들을 host/remotes로 복사
-      await copyRemotesToHost(selectedApps);
-
-      console.log('\n🎉 모든 작업이 완료되었습니다!');
-      rl.close();
-      process.exit(0);
-    } catch (error) {
-      console.error(`\n❌ 오류 발생: ${error.message}`);
-      rl.close();
-      process.exit(1);
-    }
-  });
+  rl.question('\n📝 번호를 입력하세요 (여러 개 선택 시 쉼표로 구분, 예: 2,3,4): ', runBuild);
 }
 
 // Ctrl+C 처리
