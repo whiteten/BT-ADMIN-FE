@@ -1560,50 +1560,130 @@ export const STATUS_LABELS: Record<TrainStatus, string> = {
 
 UI 요소는 반드시 **흰색 배경 컨테이너**(`bg-white bt-shadow`)나 **Card 컴포넌트**로 감싸서, 콘텐츠 영역이 배경과 명확히 구분되도록 해주세요.
 
-```typescript
-// ❌ 이렇게 하면 요소들이 회색 배경 위에 둥둥 떠 보입니다
-<div className="flex flex-col gap-4 w-full h-full">
-  <PageHeader breadcrumb={breadcrumb} />
-  <Select ... />
-  <Input ... />
-  <Button type="primary">추가</Button>
-  <AgGridReact rowData={data} columnDefs={columnDefs} />
-</div>
-```
-
-```typescript
-// ✅ 툴바와 테이블이 각각 흰색 배경으로 감싸져 있어 깔끔합니다
-<div className="flex flex-col gap-4 w-full h-full">
-  <PageHeader breadcrumb={breadcrumb} />
-
-  {/* 필터/액션 바 */}
-  <div className="flex items-center justify-between gap-2 w-full h-[76px] bg-white bt-shadow px-7 py-5">
-    <div className="flex gap-2 w-full items-center">
-      <Select ... />
-      <Input ... />
-    </div>
-    <Button type="primary">추가</Button>
-  </div>
-
-  {/* 데이터 테이블 */}
-  <div className="w-full h-full bg-white bt-shadow">
-    <AgGridReact rowData={data} columnDefs={columnDefs} />
-  </div>
-</div>
-```
-
-### 목록 페이지의 기본 구조
-
-프로젝트의 목록 페이지들은 대체로 아래 세 영역으로 구성됩니다:
-
-| 영역             | 역할                            | 스타일                                       |
-| ---------------- | ------------------------------- | -------------------------------------------- |
-| **PageHeader**   | 브레드크럼 네비게이션           | 배경 없음 (투명)                             |
-| **필터/액션 바** | 검색, 필터, 추가 버튼 등        | `bg-white bt-shadow`, 고정 높이 `h-[76px]`   |
-| **콘텐츠**       | AG-Grid 테이블 또는 Card 그리드 | `bg-white bt-shadow` 또는 개별 Card 컴포넌트 |
-
 > **왜 `bt-shadow`를 쓰나요?**
 > 프로젝트 전역에 정의된 커스텀 box-shadow 클래스입니다. 흰색 배경과 함께 사용하면 콘텐츠 영역이 배경에서 살짝 떠오르는 효과를 주어 시각적 계층을 만들어 줍니다.
+
+### 화면 패턴별 표준 레이아웃
+
+프로젝트의 페이지들은 화면이 수행하는 기능에 따라 몇 가지 정형 패턴으로 묶입니다. 같은 패턴에 속하는 화면들은 **동일한 외곽 골격**을 공유해야 사용자가 어느 메뉴를 들어가도 일관된 경험을 받습니다. 새 화면을 만들 때는 먼저 어떤 패턴에 해당하는지 정하고 그 패턴의 골격을 그대로 따르세요. 여기에 없는 새로운 패턴이 필요하면 이 섹션에 항목을 추가합니다.
+
+### 화면 패턴: 검색·필터 + 그리드 목록
+
+상단에 검색 조건/필터를, 하단에 AG-Grid를 두는 가장 흔한 목록 페이지 패턴입니다. `apps/manager`의 `UserList`/`ClientList`/`WorkHistoryList`, `apps/fca`의 `BotDialogHistory`/`DecryptLog`/`BotRealtime`, 통계 페이지(`call-bot/*`, `nlu/*`) 등이 모두 이 패턴을 따릅니다.
+
+#### 핵심 원칙
+
+**필터와 그리드를 단일 흰색 래퍼 하나로 묶고, 그 안에서 `gap-5`로 영역을 분리합니다.** 필터와 그리드를 각각 별개의 `bg-white bt-shadow` 박스로 띄우는 구조는 사용하지 않습니다. 두 영역은 의미상 같은 "목록 화면"이므로 시각적으로도 한 덩어리로 인지되어야 합니다.
+
+#### 표준 골격
+
+```typescript
+const SomeListPage: React.FC = () => {
+  // ... hooks, queries, handlers
+
+  return (
+    <div className="flex flex-col gap-4 w-full h-full">
+      <PageHeader breadcrumb={breadcrumb} />
+
+      {/* ① 흰색 래퍼 — 필터·그리드를 모두 품는다 */}
+      <div className="flex flex-col gap-5 w-full h-full bg-white bt-shadow p-5">
+        {/* ② 필터·액션 헤더 */}
+        <header className="flex items-center justify-between w-full gap-2 lg:flex-nowrap flex-wrap">
+          <div className="flex items-center w-full gap-3">
+            <Select ... />
+            <Input ... />
+          </div>
+          <div className="flex items-center gap-2.5">
+            <Button type="primary" onClick={handleCreate}>추가</Button>
+          </div>
+        </header>
+
+        {/* ③ 그리드 */}
+        <div className="w-full h-full">
+          <AgGridReact rowData={data} columnDefs={columnDefs} gridOptions={gridOptions} />
+        </div>
+      </div>
+
+      {/* ④ Drawer·Modal은 흰색 래퍼 밖, 외곽 컨테이너 안쪽 */}
+      <SomeDetailDrawer ref={drawerRef} />
+    </div>
+  );
+};
+```
+
+#### 영역별 규칙
+
+| 영역             | 역할                                | 표준 클래스                                                                          |
+| ---------------- | ----------------------------------- | ------------------------------------------------------------------------------------ |
+| **외곽 컨테이너**    | 페이지 전체 골격                  | `flex flex-col gap-4 w-full h-full`                                                  |
+| **PageHeader**   | 브레드크럼 네비게이션              | (자체 스타일, 배경 없음)                                                             |
+| **흰색 래퍼**    | 필터·그리드를 묶는 단일 컨테이너    | `flex flex-col gap-5 w-full h-full bg-white bt-shadow p-5`                           |
+| **필터·액션 헤더** | 인라인 필터 + 우측 액션 버튼          | `<header className="flex items-center justify-between w-full gap-2 lg:flex-nowrap flex-wrap">` |
+| **그리드**       | AG-Grid 컨테이너                    | `w-full h-full` (배경·그림자 금지)                                                   |
+| **Drawer/Modal** | 상세·생성·편집용                    | 흰색 래퍼 밖, 외곽 컨테이너 안쪽에 배치                                              |
+
+#### 검색 영역이 복잡할 때 — 전용 컴포넌트로 분리
+
+검색 폼이 다단(여러 행)이거나 Collapsible(접힘) 동작·엑셀 다운로드 등 자체 로직을 갖는 경우, 검색 영역만 전용 컴포넌트(`<XxxSearchForm />`, `<XxxSearchBar />`)로 분리합니다. 단, 그 컴포넌트는 **자기 안에 흰색 배경/그림자/외부 여백을 두지 않습니다**. 흰색 래퍼는 부모가 책임지므로, 자식은 콘텐츠 레이아웃만 담당합니다.
+
+```typescript
+// ✅ 자식 컴포넌트는 배경 없이 콘텐츠만
+const BotDialogHistorySearchForm: React.FC<Props> = ({ onSearch, ... }) => {
+  return (
+    <div className="flex flex-col gap-3">
+      {/* 1행: 검색일자, 봇, 의도, 신뢰구간 */}
+      <div className="flex items-center gap-4"> ... </div>
+      {/* 2행: 사용자 ID, ANI 등 */}
+      <div className="flex items-center gap-4"> ... </div>
+    </div>
+  );
+};
+
+// ❌ 자식이 자기 배경/그림자/여백을 들고 있으면 부모 래퍼와 이중으로 떠 보인다
+<div className="flex flex-col gap-3 p-5 bg-white bt-shadow mb-4"> ... </div>
+```
+
+부모 페이지 쪽 사용:
+
+```typescript
+<div className="flex flex-col gap-5 w-full h-full bg-white bt-shadow p-5">
+  <BotDialogHistorySearchForm onSearch={handleSearch} ... />
+  <div className="w-full h-full">
+    <BotDialogHistoryTable rowData={data} ... />
+  </div>
+</div>
+```
+
+자식 그리드 컴포넌트(`BotDialogHistoryTable` 등)도 마찬가지로 자기 루트에 `bg-white bt-shadow`를 두지 않고 `flex flex-col w-full h-full`만 부여합니다.
+
+#### Collapsible 필터 (통계 페이지 패턴)
+
+통계 페이지처럼 필터 항목이 많아 접고 펴는 UI가 필요할 때는 `Collapsible` 컴포넌트를 사용하되, 흰색 래퍼·`gap-5` 골격은 동일하게 유지합니다. 필터 헤더 자체는 `flex flex-col gap-3`로 다행 구성합니다(인라인 한 줄 헤더와 다른 점).
+
+```typescript
+<div className="flex flex-col gap-5 w-full h-full bg-white bt-shadow p-5">
+  <Collapsible open={isFilterOpen} onOpenChange={setIsFilterOpen}>
+    <header className="flex flex-col gap-3">
+      {/* 항상 보이는 1행 필터 */}
+      <div className="flex items-start gap-3"> ... </div>
+      <CollapsibleContent>
+        {/* 추가 필터 행 */}
+      </CollapsibleContent>
+    </header>
+  </Collapsible>
+  <div className="w-full h-full">
+    <AgGridReact ... />
+  </div>
+</div>
+```
+
+#### 흔한 실수
+
+- ❌ 필터와 그리드를 각각 `bg-white bt-shadow` 박스로 분리 → ✅ 단일 래퍼에 `gap-5`로 묶기
+- ❌ 자식 검색/그리드 컴포넌트 안에 또 `bg-white bt-shadow` 추가 → ✅ 자식은 배경 없이 콘텐츠만 담당
+- ❌ 필터 헤더에 고정 높이 `h-[76px]` 부여 → ✅ 콘텐츠에 따라 자연스러운 높이로 두기 (`flex-wrap`만 처리)
+- ❌ Drawer/Modal을 흰색 래퍼 안쪽에 배치 → ✅ 외곽 컨테이너 직속(흰색 래퍼 형제)에 두기
+- ❌ 모바일 전용 카드 뷰를 별도 분기로 유지 → ✅ AG-Grid 자체의 반응형 동작에 맡기고 분기 제거 (과거에 `lg:hidden`/`max-lg:hidden`로 분리하던 패턴은 폐기됨)
 
 ### Card 그리드 레이아웃
 
