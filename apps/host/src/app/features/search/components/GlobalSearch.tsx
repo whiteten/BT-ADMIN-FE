@@ -103,7 +103,7 @@ export default function GlobalSearch() {
           <Search className="h-4 w-4 shrink-0 text-muted-foreground/60 group-hover:text-muted-foreground transition-colors" />
           <span className="flex-1 text-left">통합 검색</span>
           <kbd className="hidden sm:inline-flex items-center gap-0.5 rounded-md border border-border/60 bg-muted/60 px-1.5 py-0.5 text-[10px] font-mono text-muted-foreground/60 shadow-none">
-            <span className="text-[11px]">⌘</span>K
+            Ctrl+K
           </kbd>
         </Button>
       </PopoverAnchor>
