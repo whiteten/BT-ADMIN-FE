@@ -7,7 +7,6 @@ import { botDialogHistoryApi } from '../../features/tracking/api/botDialogHistor
 import BotDialogHistoryDrawer, { type BotDialogHistoryDrawerRef } from '../../features/tracking/components/BotDialogHistoryDrawer';
 import BotDialogHistorySearchForm from '../../features/tracking/components/BotDialogHistorySearchForm';
 import BotDialogHistoryTable from '../../features/tracking/components/BotDialogHistoryTable';
-import { useGetBotDialogHistory } from '../../features/tracking/hooks/useBotDialogHistoryQueries';
 import type { BotDialogHistoryListItem, BotDialogHistorySearchRequest } from '../../features/tracking/types/botDialogHistory.types';
 import PageHeader from '@/components/custom/PageHeader';
 
@@ -28,43 +27,26 @@ const BotDialogHistoryPage: React.FC = () => {
   const [searchParams, setSearchParams] = useState<BotDialogHistorySearchRequest>({
     fromDate: dayjs().startOf('day').format(DATETIME_FORMAT),
     toDate: dayjs().endOf('day').format(DATETIME_FORMAT),
-    page: 0,
-    size: 5000,
   });
 
-  // 조회 버튼 클릭 시마다 강제 refetch를 위한 타임스탬프
-  const [searchTs, setSearchTs] = useState<number>(Date.now());
+  // 조회 버튼 클릭마다 증가 — 그리드 SSRM refresh 트리거
+  const [searchVersion, setSearchVersion] = useState(0);
 
   // 선택된 행 상태 (그리드 선택 표시용)
   const [selectedRowId, setSelectedRowId] = useState<string | undefined>();
 
-  // 대화이력 목록 조회 (searchTs를 queryKey에만 포함하여 매 조회 시 강제 refetch)
-  const { data: historyData, isFetching: isListLoading } = useGetBotDialogHistory({
-    params: { ...searchParams, _t: searchTs },
-    queryOptions: {
-      placeholderData: (previousData: any) => previousData,
-    },
-  });
+  // 그리드 SSRM datasource가 응답에서 갱신해주는 값
+  const [totalRows, setTotalRows] = useState(0);
+  const [isListLoading, setIsListLoading] = useState(false);
 
   const handleSearch = (newParams: BotDialogHistorySearchRequest) => {
-    setSearchParams({
-      ...newParams,
-      page: 0,
-      size: 5000,
-    });
-    setSearchTs(Date.now());
+    setSearchParams(newParams);
+    setSearchVersion((v) => v + 1);
     setSelectedRowId(undefined);
   };
 
-  const handlePageChange = (newPage: number) => {
-    setSearchParams((prev: BotDialogHistorySearchRequest) => ({
-      ...prev,
-      page: newPage,
-    }));
-  };
-
   const handleExcelDownload = async () => {
-    if (!historyData?.items?.length) {
+    if (totalRows === 0) {
       toast.warning('다운로드할 데이터가 없습니다.');
       return;
     }
@@ -98,14 +80,12 @@ const BotDialogHistoryPage: React.FC = () => {
         />
         <div className="w-full h-full">
           <BotDialogHistoryTable
-            rowData={historyData?.items ?? []}
-            total={historyData?.total ?? 0}
-            isLoading={isListLoading}
-            page={searchParams.page ?? 0}
-            size={searchParams.size ?? 20}
-            onPageChange={handlePageChange}
+            searchParams={searchParams}
+            searchVersion={searchVersion}
             onRowDoubleClick={handleRowClick}
             selectedRowId={selectedRowId}
+            onLoadingChange={setIsListLoading}
+            onTotalRowsChange={setTotalRows}
           />
         </div>
       </div>
