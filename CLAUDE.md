@@ -535,6 +535,7 @@ export const routes = [
 3. **DynamicElement 래퍼**: 변형 지원 path는 `routes.tsx`에서 `<DynamicElement variants={...} />`로 감싸 element를 런타임 lookup으로 전환
 4. **컴포넌트 prop 호환성 필수**: 같은 variants 그룹의 모든 컴포넌트는 동일 prop·context·query key를 사용. 본질이 다르면 variant가 아니라 별도 path로 분리
 5. **점진적 도입**: 변형 필요 없는 path는 정적 element 그대로 두고 건드리지 않음. variant 요구사항 생긴 page만 합류
+6. **variant 전용 sub 컴포넌트는 폴더 승격으로 격리**: 변형이 단일 파일을 넘어 자기 전용 sub 컴포넌트(탭·드로어 등)를 가지면 `variants/<Variant>/` 폴더로 승격해 진입점을 `index.tsx`로 둠(`*.variants.ts`의 lazy import 경로는 그대로 폴더를 가리킴 — webpack이 index로 해석). 정식 `features/<feature>/...`에 variant 전용 코드를 섞지 않음
 
 #### 데이터 흐름
 

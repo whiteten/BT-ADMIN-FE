@@ -1972,6 +1972,50 @@ import DynamicElement from '@/components/custom/DynamicElement';
 3. 저장 → DB의 menu row에 `componentKey: 'BotListBankA'` 기록
 4. 다음 로그인부터 그 테넌트 사용자는 변형 컴포넌트를 보게 됨
 
+### 변형이 sub 컴포넌트를 가질 때 — 폴더로 승격
+
+route에 매핑되는 변형 컴포넌트(예: `BotDetail_TEST_A`)가 단일 파일에서 끝나지 않고, 그 내부에서 import하는 하위 컴포넌트(탭·드로어·카드 등)까지 별도 구현이 필요할 수 있습니다. 이때는 **변형을 폴더로 승격**해서 진입점과 sub 컴포넌트를 한 폴더에 격리합니다. variant 시스템은 sub 컴포넌트를 모르고 manifest에는 여전히 진입점 하나만 등록됩니다.
+
+```
+apps/fca/src/app/pages/bot-config/
+├── BotDetail.tsx                         (정식 — 손대지 않음)
+├── BotDetail.variants.ts                 (lazy import 경로 변경 없음)
+└── variants/
+    ├── BotList_TEST_A.tsx                ─ 단일 파일 variant는 그대로
+    └── BotDetail_TEST_A/                 ★ sub 컴포넌트를 가진 variant는 폴더로
+        ├── index.tsx                     ─ route 진입점(탭 골격)
+        └── BotBasicInfo.tsx              ─ 이 variant 전용 sub 컴포넌트
+
+apps/fca/src/app/features/bot-config/tabs/
+└── BotBasicInfo.tsx                      (정식 — 손대지 않음)
+```
+
+`*.variants.ts`의 lazy 경로는 그대로 폴더를 가리킵니다 — webpack이 `index.tsx`로 해석:
+
+```ts
+component: lazy(() => import('./variants/BotDetail_TEST_A')),
+```
+
+variant 내부에서는 자기 폴더 sub는 형제 상대 경로, 재사용하는 정식 sub는 원본 위치에서 그대로 import:
+
+```tsx
+// variants/BotDetail_TEST_A/index.tsx
+import BotBasicInfo from './BotBasicInfo';                                        // 이 variant 전용
+import BotVersionList from '../../../../features/bot-config/tabs/BotVersionList'; // 정식 그대로 재사용
+```
+
+#### sub 컴포넌트 위치 결정 기준
+
+| 상황                                          | 위치                                              |
+| --------------------------------------------- | ------------------------------------------------- |
+| 단일 파일 variant                             | `pages/<feature>/variants/<Variant>.tsx`          |
+| variant 전용 sub 컴포넌트가 있는 variant      | `pages/<feature>/variants/<Variant>/` 폴더로 승격 |
+| 여러 variant가 실제로 공유하는 sub 컴포넌트   | `features/<feature>/tabs/variants/` (공유 발생 시에만, YAGNI) |
+
+- variant 하나에서만 쓰는 sub 컴포넌트는 **무조건 그 variant 폴더 안에 격리**합니다. 정식 `features/<feature>/...`에 실험·테넌트 전용 코드가 섞이면 무엇이 정식인지 시간이 지날수록 흐려집니다.
+- 검증 끝나고 variant를 제거할 땐 폴더 하나만 지우면 정식 구조에 잔재가 남지 않습니다.
+- sub 컴포넌트도 정식 컴포넌트와 동일한 prop·context·query key 호환성 규칙을 그대로 따라야 합니다(같은 path 위에서 같은 라우트 컨텍스트로 동작해야 함).
+
 ### DynamicElement의 동작 원리
 
 [libs/shared-ui/src/components/custom/DynamicElement.tsx](../libs/shared-ui/src/components/custom/DynamicElement.tsx):
