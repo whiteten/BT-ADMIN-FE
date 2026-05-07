@@ -115,7 +115,7 @@ export default function SlotStatistics() {
 
   // 슬롯 통계 조회
   const {
-    data: slotStatList,
+    data: slotStatData,
     isLoading: isLoadingSlotStatList,
     refetch,
   } = useGetSlotStatList({
@@ -140,32 +140,11 @@ export default function SlotStatistics() {
   });
 
   useEffect(() => {
-    if (slotStatList !== undefined) setRowData(slotStatList);
-  }, [slotStatList]);
+    if (slotStatData !== undefined) setRowData(slotStatData.items);
+  }, [slotStatData]);
 
-  // 합계 행 계산 (pinnedBottomRowData)
-  const summaryRow = useMemo<SlotStatListItem[]>(() => {
-    if (!rowData?.length) return [];
-    const count = rowData.length;
-    const sum = (field: keyof SlotStatListItem) => rowData.reduce((acc, row) => acc + (Number(row[field]) || 0), 0);
-    const avg = (field: keyof SlotStatListItem) => Math.round((sum(field) / count) * 100) / 100;
-    return [
-      {
-        psrTimeKey: '전체합계',
-        dialogName: '',
-        slotName: '',
-        inCount: sum('inCount'),
-        successCount: sum('successCount'),
-        failCount: sum('failCount'),
-        successPercent: avg('successPercent'),
-        failPercent: avg('failPercent'),
-        retryCount: sum('retryCount'),
-        oneTimeOrLess: sum('oneTimeOrLess'),
-        twoTimes: sum('twoTimes'),
-        threeTimesOrMore: sum('threeTimesOrMore'),
-      } as SlotStatListItem,
-    ];
-  }, [rowData]);
+  // BE에서 받은 summary에 '전체합계' 라벨 주입
+  const summaryRow: SlotStatListItem[] = slotStatData?.summary ? [{ ...slotStatData.summary, psrTimeKey: '전체합계' }] : [];
 
   // startDate 또는 timeUnit 변경 시 endDate 자동 조정
   useEffect(() => {
@@ -296,7 +275,7 @@ export default function SlotStatistics() {
       headerName: '재시도',
       children: [
         {
-          headerName: '1회이하',
+          headerName: '1회',
           field: 'oneTimeOrLess',
           flex: 1,
           cellStyle: (params) => (params.node?.rowPinned === 'bottom' ? { fontWeight: 'bold', alignItems: 'center' } : { fontWeight: 'normal', alignItems: 'center' }),

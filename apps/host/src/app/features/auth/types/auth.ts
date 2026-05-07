@@ -16,19 +16,46 @@ export interface LoginRequestDatas {
 }
 
 /**
+ * 테넌트 요약 (전환 UI용)
+ */
+export interface TenantSummary {
+  tenantId: number;
+  tenantName: string;
+}
+
+/**
  * 사용자 정보 응답 타입 (/api/auth/me)
  * V23: userAccount(계정), username(사람이름), userId 분리
+ * V37: tenantName, availableTenants 추가 (테넌트 전환 UI 지원)
+ * V64: globalRoles, roleNames 추가 (시스템 관리자 글로벌 역할 + 역할명 매핑)
  *
  * @property userAccount - 로그인 계정 (Unique, 인증용)
  * @property username - 사람 이름 (표시용, 동명이인 허용)
  * @property userId - 사용자 PK
+ * @property tenant - 현재 테넌트 ID (문자열)
+ * @property tenantName - 현재 테넌트명
+ * @property availableTenants - 접근 가능한 테넌트 목록
+ * @property globalRoles - 글로벌 역할 코드 목록 (ROLE_ADMIN 등, 테넌트 무관)
+ * @property roles - 현재 테넌트의 역할 코드 목록
+ * @property roleNames - 역할 코드 → 역할명 매핑 (FE 표시용)
  */
 export interface UserInfoResponse {
   userAccount: string;
   username: string | null;
   userId: number | null;
   tenant: string;
+  tenantName: string;
+  availableTenants: TenantSummary[];
+  /** 사용자의 모든 역할 (글로벌 + 테넌트 합집합) */
   roles: string[];
+  /** 역할 코드 → 역할명 매핑 */
+  roleNames: Record<string, string>;
+  /** 시스템 관리자 여부 */
+  isSystemAdmin: boolean;
+  /** 비밀번호 초기화 권한 */
+  canResetPassword: boolean;
+  /** 리소스 접근 관리 권한 */
+  canManageResourceAccess: boolean;
 }
 
 /**

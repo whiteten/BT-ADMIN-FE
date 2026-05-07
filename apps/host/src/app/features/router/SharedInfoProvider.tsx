@@ -1,9 +1,7 @@
 import React, { useEffect } from 'react';
 import { Outlet } from 'react-router-dom';
-import { useQueryClient } from '@tanstack/react-query';
 import { LOG } from '@/log';
 
-import { sharedApi } from '@/shared-api';
 import { useAuthStore, useNavigationStore } from '@/shared-store';
 import { toast } from '@/shared-util';
 import { usePageVariantManifestLoader } from './hooks/usePageVariantManifestLoader';
@@ -14,17 +12,14 @@ import { useGetNavigation } from '../common/hooks/useNavigationQueries';
 import { useSessionSocket } from '../common/hooks/useSessionSocket';
 import { useMenuLoader } from '../layout/hooks/useMenuLoader';
 import { usePageVariantsLoader } from '../layout/hooks/usePageVariantsLoader';
-import { useGetRoles } from '../management/hooks/useRoleQueries';
 import { FallbackSpinner } from '@/components/custom/FallbackSpinner';
 
 const Log = new LOG('SharedInfoProvider');
 
 export default function SharedInfoProvider({ children }: { children?: React.ReactNode }) {
-  const queryClient = useQueryClient();
-  const { setRoleList, setUserInfo, setIsLoading, passwordExpiringWarning, setPasswordExpiringWarning } = useAuthStore();
+  const { setUserInfo, setIsLoading, passwordExpiringWarning, setPasswordExpiringWarning } = useAuthStore();
   const { setNavigation } = useNavigationStore();
   const { data: userInfo, isLoading: isUserInfoLoading, error: userInfoError } = useGetUserInfo();
-  const { data: roles, isLoading: isRolesLoading, error: rolesError } = useGetRoles();
   const { data: navigation, isLoading: isNavigationLoading, error: navigationError } = useGetNavigation();
   const { data: ticketResponse, isLoading: isWsTicketLoading, error: wsTicketError, refetch: refetchWsTicket } = useGetWsTicket();
   const { load: loadMenuConfigs } = useMenuLoader();
@@ -47,13 +42,6 @@ export default function SharedInfoProvider({ children }: { children?: React.Reac
       handleWsError();
     },
   });
-
-  useEffect(() => {
-    if (roles) {
-      Log.debug('Roles fetched successfully. roles: ', roles);
-      setRoleList(roles);
-    }
-  }, [roles, setRoleList]);
 
   useEffect(() => {
     if (userInfo) {
@@ -86,23 +74,14 @@ export default function SharedInfoProvider({ children }: { children?: React.Reac
   }, [loadQuerySelectors]);
 
   useEffect(() => {
-    setIsLoading(isRolesLoading || isUserInfoLoading);
-  }, [isRolesLoading, isUserInfoLoading, setIsLoading]);
+    setIsLoading(isUserInfoLoading);
+  }, [isUserInfoLoading, setIsLoading]);
 
   useEffect(() => {
     if (ticketResponse) {
       Log.debug('Ws ticket fetched successfully. response: ', ticketResponse);
     }
   }, [ticketResponse]);
-
-  // 에러 시 빈 데이터를 캐시에 설정하여 자식 컴포넌트의 무한 refetch 방지
-  useEffect(() => {
-    if (rolesError) {
-      Log.error('Failed to fetch roles', rolesError);
-      queryClient.setQueryData(sharedApi.role.queryKeys.getRoles().queryKey, []);
-      setRoleList([]);
-    }
-  }, [rolesError, queryClient, setRoleList]);
 
   useEffect(() => {
     if (userInfoError) Log.error('Failed to fetch user info', userInfoError);
@@ -124,7 +103,7 @@ export default function SharedInfoProvider({ children }: { children?: React.Reac
     }
   }, [passwordExpiringWarning, setPasswordExpiringWarning]);
 
-  if (isRolesLoading || isUserInfoLoading || isNavigationLoading || isWsTicketLoading) {
+  if (isUserInfoLoading || isNavigationLoading || isWsTicketLoading) {
     return <FallbackSpinner useFullScreen />;
   }
 
