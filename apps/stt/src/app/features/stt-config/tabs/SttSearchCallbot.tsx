@@ -1,11 +1,10 @@
-import { useEffect, useRef, useState } from 'react';
+import { useRef, useState } from 'react';
 import type { ColDef, RowClickedEvent, RowDoubleClickedEvent } from 'ag-grid-community';
 import { AgGridReact } from 'ag-grid-react';
-import { Button, DatePicker, Input, Select, TimePicker } from 'antd';
+import { Button, DatePicker, Input, TimePicker } from 'antd';
 import dayjs, { type Dayjs } from 'dayjs';
 import { toast } from '@/shared-util';
 import SttSearchDetailDrawer, { type SttSearchDetailDrawerRef } from '../components/SttSearchDetailDrawer';
-import { useGetTenants } from '../hooks/useCommonQueries';
 import { useGetSttSearchCallbot, useGetSttSearchCallbotDetail } from '../hooks/useSearchQueries';
 import type { SttSearchCallbotDetailItem, SttSearchCallbotDetailParams, SttSearchCallbotItem, SttSearchCallbotParams, SttSearchItem } from '../types';
 import useAggridOptions from '@/libs/shared-ui/src/hooks/useAggridOptions';
@@ -18,41 +17,23 @@ export default function SttSearchCallbot() {
   const [startTime, setStartTime] = useState<Dayjs | null>(dayjs().hour(0).minute(0).second(0));
   const [endTime, setEndTime] = useState<Dayjs | null>(dayjs().hour(23).minute(59).second(59));
   const [ucidGkey, setUcidGkey] = useState('');
-  const [tenantId, setTenantId] = useState<string | undefined>();
   const [selectedOrgUcid, setSelectedOrgUcid] = useState<string | undefined>();
-  const [listSearchParams, setListSearchParams] = useState<SttSearchCallbotParams | null>(null);
+  const [listSearchParams, setListSearchParams] = useState<SttSearchCallbotParams>({
+    fromDateTime: dayjs().format('YYYYMMDD') + '000000',
+    toDateTime: dayjs().format('YYYYMMDD') + '235959',
+    analKind: 'C',
+  });
   const [detailParams, setDetailParams] = useState<SttSearchCallbotDetailParams | undefined>();
-
-  const { data: tenants } = useGetTenants({});
-  const tenantOptions = tenants?.map((t) => ({ label: t.tenantName, value: String(t.tenantId) })) ?? [];
-
-  useEffect(() => {
-    if (tenants && tenants.length > 0) {
-      const firstTenantId = String(tenants[0].tenantId);
-      setTenantId((prev) => {
-        const resolved = prev ?? firstTenantId;
-        setListSearchParams({
-          fromDateTime: dayjs().format('YYYYMMDD') + '000000',
-          toDateTime: dayjs().format('YYYYMMDD') + '235959',
-          tenantId: Number(resolved),
-          analKind: 'C',
-        });
-        return resolved;
-      });
-    }
-  }, [tenants]);
 
   const buildListParams = (): SttSearchCallbotParams => ({
     fromDateTime: searchDate && startTime ? searchDate.format('YYYYMMDD') + startTime.format('HHmmss') : undefined,
     toDateTime: searchDate && endTime ? searchDate.format('YYYYMMDD') + endTime.format('HHmmss') : undefined,
     ucidGkey: ucidGkey || undefined,
-    tenantId: tenantId ? Number(tenantId) : undefined,
     analKind: 'C',
   });
 
   const { data: listData, isLoading: isListLoading } = useGetSttSearchCallbot({
     params: listSearchParams as Record<string, unknown>,
-    queryOptions: { enabled: !!listSearchParams },
   });
 
   const { data: detailData, isLoading: isDetailLoading } = useGetSttSearchCallbotDetail({
@@ -91,11 +72,7 @@ export default function SttSearchCallbot() {
     const orgUcid = event.data?.orgUcid;
     if (!orgUcid) return;
     setSelectedOrgUcid(orgUcid);
-    setDetailParams({
-      orgUcid,
-      tenantId: tenantId ? Number(tenantId) : undefined,
-      analKind: 'C',
-    });
+    setDetailParams({ orgUcid, analKind: 'C' });
   };
 
   const listColumnDefs: ColDef<SttSearchCallbotItem>[] = [
@@ -160,7 +137,6 @@ export default function SttSearchCallbot() {
           <Input value={ucidGkey} onChange={(e) => setUcidGkey(e.target.value)} onPressEnter={handleSearch} placeholder="고유번호를 입력하세요" style={{ width: 200 }} />
         </div>
         <div className="flex items-center gap-2 ml-auto">
-          <Select value={tenantId} onChange={setTenantId} options={tenantOptions} placeholder="기본테넌트" popupMatchSelectWidth={false} style={{ width: 160 }} />
           <Button type="primary" onClick={handleSearch}>
             조회
           </Button>

@@ -1,11 +1,10 @@
-import { useEffect, useRef, useState } from 'react';
+import { useRef, useState } from 'react';
 import type { ColDef, RowDoubleClickedEvent } from 'ag-grid-community';
 import { AgGridReact } from 'ag-grid-react';
 import { Button, DatePicker, Input, Select, TimePicker } from 'antd';
 import dayjs, { type Dayjs } from 'dayjs';
 import { toast } from '@/shared-util';
 import SttSearchDetailDrawer, { type SttSearchDetailDrawerRef } from '../components/SttSearchDetailDrawer';
-import { useGetTenants } from '../hooks/useCommonQueries';
 import { useGetSttSearch } from '../hooks/useSearchQueries';
 import type { SttSearchItem, SttSearchParams } from '../types';
 import useAggridOptions from '@/libs/shared-ui/src/hooks/useAggridOptions';
@@ -32,27 +31,11 @@ export default function SttSearch() {
   const [ucidGkey, setUcidGkey] = useState('');
   const [agentName, setAgentName] = useState('');
   const [dnNo, setDnNo] = useState('');
-  const [tenantId, setTenantId] = useState<string | undefined>();
-  const [searchParams, setSearchParams] = useState<SttSearchParams | null>(null);
-
-  const { data: tenants } = useGetTenants({});
-  const tenantOptions = tenants?.map((t) => ({ label: t.tenantName, value: String(t.tenantId) })) ?? [];
-
-  useEffect(() => {
-    if (tenants && tenants.length > 0) {
-      const firstTenantId = String(tenants[0].tenantId);
-      setTenantId((prev) => {
-        const resolved = prev ?? firstTenantId;
-        setSearchParams({
-          fromDateTime: dayjs().format('YYYYMMDD') + '000000',
-          toDateTime: dayjs().format('YYYYMMDD') + '235959',
-          tenantId: Number(resolved),
-          analKindArr: ['R', 'B'],
-        });
-        return resolved;
-      });
-    }
-  }, [tenants]);
+  const [searchParams, setSearchParams] = useState<SttSearchParams>({
+    fromDateTime: dayjs().format('YYYYMMDD') + '000000',
+    toDateTime: dayjs().format('YYYYMMDD') + '235959',
+    analKindArr: ['R', 'B'],
+  });
 
   const buildParams = (): SttSearchParams => ({
     fromDateTime: startDate && startTime ? startDate.format('YYYYMMDD') + startTime.format('HHmmss') : undefined,
@@ -62,13 +45,11 @@ export default function SttSearch() {
     ucidGkey: ucidGkey || undefined,
     agentName: agentName || undefined,
     dnNo: dnNo || undefined,
-    tenantId: tenantId ? Number(tenantId) : undefined,
     analKindArr: ['R', 'B'],
   });
 
   const { data: rowData, isLoading } = useGetSttSearch({
     params: searchParams as Record<string, unknown>,
-    queryOptions: { enabled: !!searchParams },
   });
 
   const handleRowDoubleClicked = (event: RowDoubleClickedEvent<SttSearchItem>) => {
@@ -173,7 +154,6 @@ export default function SttSearch() {
           <Select value={inOutType} onChange={setInOutType} options={IN_OUT_OPTIONS} popupMatchSelectWidth={false} style={{ width: 180 }} />
         </div>
         <div className="flex items-center gap-2 ml-auto">
-          <Select value={tenantId} onChange={setTenantId} options={tenantOptions} placeholder="테넌트 선택" popupMatchSelectWidth={false} style={{ width: 180 }} />
           <Button type="primary" onClick={handleSearch}>
             조회
           </Button>

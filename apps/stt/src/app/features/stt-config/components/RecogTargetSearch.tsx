@@ -6,7 +6,6 @@ import { Button, DatePicker, Input, Select, TimePicker } from 'antd';
 import dayjs, { type Dayjs } from 'dayjs';
 import { PlayCircle, StopCircle } from 'lucide-react';
 import { toast } from '@/shared-util';
-import { useGetTenants } from '../hooks/useCommonQueries';
 import { recogQueryKeys, useCreateRecogTarget, useGetRecogTargetSearch } from '../hooks/useRecogQueries';
 import { useGetSttSearchListen } from '../hooks/useSearchQueries';
 import type { RecogTargetSearchItem, RecogTargetSearchParams, SttSearchListenParams } from '../types';
@@ -132,27 +131,16 @@ export default function RecogTargetSearch({ groupCode, engineCode }: RecogTarget
   const [ucidGkey, setUcidGkey] = useState('');
   const [dnNo, setDnNo] = useState('');
   const [rxtxKind, setRxtxKind] = useState('');
-  const [tenantId, setTenantId] = useState<string | undefined>();
-  const [searchParams, setSearchParams] = useState<RecogTargetSearchParams | null>(null);
-
-  const { data: tenants } = useGetTenants({});
-  const tenantOptions = tenants?.map((t) => ({ label: t.tenantName, value: String(t.tenantId) })) ?? [];
-
-  useEffect(() => {
-    if (!tenants?.length) return;
-    setTenantId((prev) => prev ?? String(tenants[0].tenantId));
-  }, [tenants]);
+  const [searchParams, setSearchParams] = useState<RecogTargetSearchParams>({
+    fromDateTime: dayjs().subtract(3, 'hour').startOf('hour').format('YYYYMMDDHHmmss'),
+    toDateTime: dayjs().startOf('hour').format('YYYYMMDDHHmmss'),
+    groupCode,
+    engineCode,
+  });
 
   useEffect(() => {
-    if (!tenantId) return;
-    setSearchParams((prev) => {
-      const base: RecogTargetSearchParams = prev ?? {
-        fromDateTime: dayjs().subtract(3, 'hour').startOf('hour').format('YYYYMMDDHHmmss'),
-        toDateTime: dayjs().startOf('hour').format('YYYYMMDDHHmmss'),
-      };
-      return { ...base, groupCode, engineCode, tenantId: Number(tenantId) };
-    });
-  }, [groupCode, engineCode, tenantId]);
+    setSearchParams((prev) => ({ ...prev, groupCode, engineCode }));
+  }, [groupCode, engineCode]);
 
   const { data: rowData, isLoading } = useGetRecogTargetSearch({ params: searchParams as Record<string, unknown> });
 
@@ -211,14 +199,12 @@ export default function RecogTargetSearch({ groupCode, engineCode }: RecogTarget
       ucidGkey: ucidGkey || undefined,
       dnNo: dnNo || undefined,
       rxtxKind: rxtxKind || undefined,
-      tenantId: tenantId ? Number(tenantId) : undefined,
     });
   };
 
   const handleAdd = (data: RecogTargetSearchItem) => {
     createTarget({
       groupCode,
-      tenantId: tenantId ?? '',
       ucidGkey: data.ucidGkey,
       armsoffset: data.armsoffset,
       rxtxKind: Number(data.rxtxKind),
@@ -308,7 +294,6 @@ export default function RecogTargetSearch({ groupCode, engineCode }: RecogTarget
           <Select value={rxtxKind} onChange={setRxtxKind} options={RXTX_OPTIONS} popupMatchSelectWidth={false} style={{ width: 120 }} />
         </div>
         <div className="flex items-center gap-2 ml-auto">
-          <Select value={tenantId} onChange={setTenantId} options={tenantOptions} placeholder="기본테넌트" popupMatchSelectWidth={false} style={{ width: 160 }} />
           <Button type="primary" onClick={handleSearch}>
             조회
           </Button>

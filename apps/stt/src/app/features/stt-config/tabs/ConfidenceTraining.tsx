@@ -4,12 +4,12 @@ import type { ColDef, ICellRendererParams, RowEditingStartedEvent } from 'ag-gri
 import { AgGridReact } from 'ag-grid-react';
 import { Button, DatePicker, Input, Select, TimePicker } from 'antd';
 import dayjs, { type Dayjs } from 'dayjs';
-import { PlayCircle, StopCircle } from 'lucide-react';
+import { AlertCircle, PlayCircle, StopCircle } from 'lucide-react';
 import { toast } from '@/shared-util';
-import { useGetTenants } from '../hooks/useCommonQueries';
 import { useGetSttSearchListen } from '../hooks/useSearchQueries';
 import { trainingQueryKeys, useCreateTuningSentence, useGetTrainingList } from '../hooks/useTrainingQueries';
 import type { ConfidenceTrainingItem, ConfidenceTrainingSearchParams, SttSearchListenParams } from '../types';
+import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
 import useAggridOptions from '@/libs/shared-ui/src/hooks/useAggridOptions';
 
@@ -34,6 +34,13 @@ const ENGINE_OPTIONS = [
 
 const PAGE_SIZE = 20;
 const CONFIDENCE_THRESHOLD = 95; // 조회할 신뢰도 설정 값
+
+function ConfidenceCellRenderer({ value }: ICellRendererParams<ConfidenceTrainingItem>) {
+  if (value == null) return null;
+  const className =
+    value < 80 ? 'bg-gray-50 text-gray-700 border-gray-200' : value < 90 ? 'bg-yellow-50 text-yellow-700 border-yellow-200' : 'bg-green-50 text-green-700 border-green-200';
+  return <Badge className={className}>{value}</Badge>;
+}
 
 interface RegisterCellRendererParams extends ICellRendererParams<ConfidenceTrainingItem> {
   onRegister: (data: ConfidenceTrainingItem) => void;
@@ -136,26 +143,6 @@ export default function ConfidenceTraining() {
   const [dnNo, setDnNo] = useState('');
   const [rxtxKind, setRxtxKind] = useState('');
   const [engineCode, setEngineCode] = useState('');
-  const [tenantId, setTenantId] = useState<string | undefined>();
-
-  const { data: tenants } = useGetTenants({});
-  const tenantOptions = tenants?.map((t) => ({ label: t.tenantName, value: String(t.tenantId) })) ?? [];
-
-  useEffect(() => {
-    if (tenants && tenants.length > 0) {
-      const firstTenantId = String(tenants[0].tenantId);
-      setTenantId((prev) => {
-        const resolved = prev ?? firstTenantId;
-        setSearchParams({
-          fromDateTime: dayjs().subtract(3, 'hour').startOf('hour').format('YYYYMMDDHHmmss'),
-          toDateTime: dayjs().startOf('hour').format('YYYYMMDDHHmmss'),
-          tenantId: Number(resolved),
-          confidence: CONFIDENCE_THRESHOLD,
-        });
-        return resolved;
-      });
-    }
-  }, [tenants]);
 
   const buildParams = (): ConfidenceTrainingSearchParams => ({
     fromDateTime: startDate && startTime ? startDate.format('YYYYMMDD') + startTime.format('HHmmss') : undefined,
@@ -166,15 +153,17 @@ export default function ConfidenceTraining() {
     dnNo: dnNo || undefined,
     rxtxKind: rxtxKind || undefined,
     engineCode: engineCode || undefined,
-    tenantId: tenantId,
     confidence: CONFIDENCE_THRESHOLD,
   });
 
-  const [searchParams, setSearchParams] = useState<ConfidenceTrainingSearchParams | null>(null);
+  const [searchParams, setSearchParams] = useState<ConfidenceTrainingSearchParams>({
+    fromDateTime: dayjs().subtract(3, 'hour').startOf('hour').format('YYYYMMDDHHmmss'),
+    toDateTime: dayjs().startOf('hour').format('YYYYMMDDHHmmss'),
+    confidence: CONFIDENCE_THRESHOLD,
+  });
 
   const { data: rowData, isLoading } = useGetTrainingList({
     params: searchParams as Record<string, unknown>,
-    queryOptions: { enabled: !!searchParams },
   });
 
   const { mutate: createTuningSentence } = useCreateTuningSentence({
@@ -231,7 +220,6 @@ export default function ConfidenceTraining() {
       armsoffset: data.armsoffset,
       rxtxKind: data.rxtxKind,
       trString: data.sentence,
-      tenantId: searchParams?.tenantId,
       engineCode: data.engineCode,
     });
     gridRef.current?.api?.stopEditing();
@@ -287,6 +275,8 @@ export default function ConfidenceTraining() {
       field: 'confidence',
       maxWidth: 90,
       flex: 1,
+      cellStyle: { display: 'flex', alignItems: 'center' },
+      cellRenderer: ConfidenceCellRenderer,
     },
     {
       headerName: '대화내용',
@@ -347,7 +337,10 @@ export default function ConfidenceTraining() {
           <Select value={engineCode} onChange={setEngineCode} options={ENGINE_OPTIONS} popupMatchSelectWidth={false} style={{ width: 120 }} />
         </div>
         <div className="flex items-center gap-2 ml-auto">
-          <Select value={tenantId} onChange={setTenantId} options={tenantOptions} placeholder="기본테넌트" popupMatchSelectWidth={false} style={{ width: 160 }} />
+          <span className="flex items-center gap-1 text-xs text-amber-500">
+            <AlertCircle size={13} />
+            신뢰도 {CONFIDENCE_THRESHOLD} 미만 데이터만 조회됩니다.
+          </span>
           <Button type="primary" onClick={handleSearch}>
             조회
           </Button>

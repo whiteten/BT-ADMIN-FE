@@ -1,6 +1,5 @@
 // STT 검색 (SttSearchRequest)
 export interface SttSearchParams {
-  tenantId?: number;
   fromDateTime?: string; // yyyyMMddHHmmss
   toDateTime?: string; // yyyyMMddHHmmss
   analKind?: string;
@@ -31,7 +30,6 @@ export interface SttSearchItem {
 
 // 음성봇 검색 (SttSearchCallbotRequest)
 export interface SttSearchCallbotParams {
-  tenantId?: number;
   fromDateTime?: string; // yyyyMMddHHmmss
   toDateTime?: string; // yyyyMMddHHmmss
   analKind?: string;
@@ -51,7 +49,6 @@ export interface SttSearchCallbotItem {
 
 // 음성봇 상세 요청 (SttSearchCallbotDetailRequest)
 export interface SttSearchCallbotDetailParams {
-  tenantId?: number;
   analKind?: string;
   orgUcid?: string;
 }
@@ -71,7 +68,6 @@ export interface SttSearchCallbotDetailItem {
 // STT 검색 대화 상세 조회 파라미터
 export interface SttResultSentenceParams {
   ucidGkey: string;
-  tenantId?: number;
   rxtxKind?: string;
 }
 

@@ -43,7 +43,6 @@ export interface RecogTargetSearchParams {
   ucidGkey?: string;
   dnNo?: string;
   rxtxKind?: string;
-  tenantId?: number;
 }
 
 export interface RecogTargetSearchItem {
@@ -77,7 +76,6 @@ export interface RecogTargetListItem {
 
 export interface RecogTargetCreateData {
   groupCode: string;
-  tenantId: string;
   ucidGkey: string;
   armsoffset: number;
   rxtxKind: number;

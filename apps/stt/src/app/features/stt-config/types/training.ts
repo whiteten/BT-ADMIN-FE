@@ -7,7 +7,6 @@ export interface ConfidenceTrainingSearchParams {
   dnNo?: string;
   rxtxKind?: string;
   engineCode?: string;
-  tenantId?: string | number;
   confidence?: number;
 }
 
@@ -34,7 +33,6 @@ export interface TuningSentenceCreateDatas {
   armsoffset: number;
   rxtxKind: string;
   trString: string;
-  tenantId?: string | number;
   engineCode?: string;
 }
 
