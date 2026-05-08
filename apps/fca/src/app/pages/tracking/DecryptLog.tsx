@@ -4,7 +4,6 @@ import dayjs from 'dayjs';
 import DecryptLogDetailDrawer from '../../features/decrypt-log/components/DecryptLogDetailDrawer';
 import DecryptLogListGrid from '../../features/decrypt-log/components/DecryptLogListGrid';
 import DecryptLogSearchBar from '../../features/decrypt-log/components/DecryptLogSearchBar';
-import { useGetDecryptLogList } from '../../features/decrypt-log/hooks/useDecryptLogQueries';
 import type { DecryptLogItem, DecryptLogSearchRequest } from '../../features/decrypt-log/types/decryptLog.types';
 import PageHeader from '@/components/custom/PageHeader';
 
@@ -13,38 +12,25 @@ const breadcrumb: BreadcrumbProps['items'] = [
   { title: '개인정보 열람 이력', path: '/fca/tracking/decrypt-log' },
 ];
 
-const DEFAULT_PAGE_SIZE = 50;
-
 const DecryptLogPage: React.FC = () => {
   // 검색 파라미터 (기본: 오늘 ~ 오늘)
   const [searchParams, setSearchParams] = useState<DecryptLogSearchRequest>({
     fromDate: dayjs().format('YYYY-MM-DD'),
     toDate: dayjs().format('YYYY-MM-DD'),
-    page: 0,
-    size: DEFAULT_PAGE_SIZE,
   });
-  const [searchTs, setSearchTs] = useState<number>(Date.now());
+
+  // 조회 버튼 클릭마다 증가 — 그리드 SSRM refresh 트리거
+  const [searchVersion, setSearchVersion] = useState(0);
+
+  // 그리드 SSRM datasource fetch 상태 — SearchBar spinner용
+  const [isListLoading, setIsListLoading] = useState(false);
 
   const [selectedItem, setSelectedItem] = useState<DecryptLogItem | null>(null);
   const [drawerOpen, setDrawerOpen] = useState(false);
 
-  // 목록
-  const { data: pageData, isFetching: isListLoading } = useGetDecryptLogList({
-    params: { ...searchParams, _t: searchTs },
-    queryOptions: { placeholderData: (prev: any) => prev },
-  });
-
   const handleSearch = (newParams: DecryptLogSearchRequest) => {
-    setSearchParams({
-      ...newParams,
-      page: 0,
-      size: DEFAULT_PAGE_SIZE,
-    });
-    setSearchTs(Date.now());
-  };
-
-  const handlePageChange = (newPage: number) => {
-    setSearchParams((prev) => ({ ...prev, page: newPage }));
+    setSearchParams(newParams);
+    setSearchVersion((v) => v + 1);
   };
 
   const handleDetailClick = (item: DecryptLogItem) => {
@@ -63,14 +49,11 @@ const DecryptLogPage: React.FC = () => {
         <DecryptLogSearchBar onSearch={handleSearch} isLoading={isListLoading} />
         <div className="w-full h-full">
           <DecryptLogListGrid
-            rowData={pageData?.items ?? []}
-            total={pageData?.total ?? 0}
-            isLoading={isListLoading}
-            page={searchParams.page ?? 0}
-            size={searchParams.size ?? DEFAULT_PAGE_SIZE}
-            onPageChange={handlePageChange}
+            searchParams={searchParams}
+            searchVersion={searchVersion}
             onDetailClick={handleDetailClick}
             selectedLogId={selectedItem?.logId}
+            onLoadingChange={setIsListLoading}
           />
         </div>
       </div>
