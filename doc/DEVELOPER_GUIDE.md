@@ -946,6 +946,211 @@ const UserTable = ({ data, isLoading }: UserTableProps) => {
 - **`getRowId`는 반드시 지정하세요.** 지정하지 않으면 행이 추가/삭제될 때 깜빡임이 발생합니다.
 - **`ColDef` 제네릭에 row 데이터 타입을 지정하세요.** `ColDef<UserListItem>[]` — 이렇게 하면 `field`에 자동 완성이 됩니다.
 
+### SSRM(Server-Side Row Model) — 서버 페이징 그리드
+
+백엔드가 `page`/`size` 단위로 페이징을 지원하고 데이터 양이 한 번에 로드하기 부담스러운 화면(수천 건 이상)은 ClientSide가 아닌 **SSRM(Server-Side Row Model)**을 사용합니다. AG-Grid Enterprise 기능이며, 프로젝트는 `libs/shared-ui/src/lib/aggridSetup.ts`가 `AllEnterpriseModule`을 등록해두어 즉시 사용 가능합니다.
+
+#### 언제 쓰나요?
+
+- 백엔드가 `{ items, page, size, total }` 형태로 페이지 응답을 줄 때
+- 화면이 그리드 중심이라 사용자 인터랙션(페이지 이동·행 선택·검색 변경)과 데이터 패칭이 밀접하게 묶일 때
+- 데이터가 수천 건 이상이거나 사용자가 페이지를 자주 왔다 갔다 할 때
+
+수십~수백 건 고정 데이터(통계 페이지 등 한 번 로드 후 클라이언트에서 끝나는 화면)는 ClientSide로 충분합니다. SSRM은 명시적 선택.
+
+#### 왜 TanStack Query를 같이 쓰지 않나요?
+
+- TanStack Query 캐시 단위는 **쿼리 키(요청 파라미터 객체)**, SSRM 캐시 단위는 **행 범위(블록)**. 작동 단위가 다르고 같은 데이터가 이중으로 저장됩니다.
+- 두 캐시를 병용하면 검색 변경 시 양쪽을 모두 무효화해야 하고 진실의 원천(source of truth)이 모호해집니다.
+- SSRM 페이지는 `useGet<Feature>` 훅을 빼고 datasource의 `getRows`에서 `apiClient`를 직접 호출하는 게 표준입니다.
+
+#### 표준 골격 — 자식 그리드 컴포넌트
+
+레퍼런스 구현: [`apps/fca/src/app/features/tracking/components/BotDialogHistoryTable.tsx`](apps/fca/src/app/features/tracking/components/BotDialogHistoryTable.tsx).
+
+```typescript
+import React, { useEffect, useMemo, useRef } from 'react';
+import type { ColDef, GridApi, GridOptions, GridReadyEvent, IServerSideDatasource } from 'ag-grid-community';
+import { AgGridReact } from 'ag-grid-react';
+import { xxxApi } from '../api/xxxApi';
+import type { XxxItem, XxxSearchRequest } from '../types/xxx.types';
+import useAggridOptions from '@/libs/shared-ui/src/hooks/useAggridOptions';
+
+const PAGE_SIZE = 50;
+
+interface XxxTableProps {
+  searchParams: XxxSearchRequest;
+  searchVersion: number;                       // 검색 버튼 클릭마다 증가 — refresh 트리거
+  onRowDoubleClick: (data: XxxItem) => void;
+  selectedRowId?: string;
+  onLoadingChange?: (loading: boolean) => void;
+  onTotalRowsChange?: (total: number) => void;
+}
+
+const XxxTable: React.FC<XxxTableProps> = ({
+  searchParams, searchVersion, onRowDoubleClick, selectedRowId, onLoadingChange, onTotalRowsChange,
+}) => {
+  const { gridOptions } = useAggridOptions();
+  const gridApiRef = useRef<GridApi<XxxItem> | null>(null);
+  const searchParamsRef = useRef(searchParams);
+
+  // ① 최신 검색조건을 datasource 클로저가 항상 읽도록 ref 동기화
+  useEffect(() => {
+    searchParamsRef.current = searchParams;
+  }, [searchParams]);
+
+  // ② datasource는 1회만 생성 — useMemo([]). 클로저가 ref를 통해 최신 검색조건을 읽음
+  const serverSideDatasource = useMemo<IServerSideDatasource>(
+    () => ({
+      getRows: async (params) => {
+        const startRow = params.request.startRow ?? 0;
+        const endRow = params.request.endRow ?? startRow + PAGE_SIZE;
+        const size = endRow - startRow;
+        const page = Math.floor(startRow / size);
+        try {
+          onLoadingChange?.(true);
+          const res = await xxxApi.getList({ ...searchParamsRef.current, page, size });
+          params.success({ rowData: res.items, rowCount: res.total });
+          onTotalRowsChange?.(res.total);
+        } catch {
+          params.fail();
+        } finally {
+          onLoadingChange?.(false);
+        }
+      },
+    }),
+    [onLoadingChange, onTotalRowsChange],
+  );
+
+  // ③ 검색 버튼 클릭마다 캐시 purge + 1페이지로 reset
+  useEffect(() => {
+    if (!gridApiRef.current) return;
+    gridApiRef.current.refreshServerSide({ purge: true });
+    gridApiRef.current.deselectAll?.();
+  }, [searchVersion]);
+
+  // ④ 외부 selectedRowId 변경 시 행 강조 즉시 반영
+  useEffect(() => {
+    gridApiRef.current?.redrawRows();
+  }, [selectedRowId]);
+
+  const handleGridReady = (event: GridReadyEvent<XxxItem>) => {
+    gridApiRef.current = event.api;
+  };
+
+  const columnDefs: ColDef<XxxItem>[] = useMemo(() => [/* ... */], []);
+
+  const finalGridOptions = useMemo<GridOptions<XxxItem>>(
+    () => ({
+      ...gridOptions,
+      rowModelType: 'serverSide',
+      paginationPageSize: PAGE_SIZE,
+      cacheBlockSize: PAGE_SIZE,                                                      // ⚠️ paginationPageSize와 일치 필수
+      defaultColDef: { ...gridOptions.defaultColDef, sortable: false } as ColDef<XxxItem>,
+      getRowId: (p) => `${p.data.id}`,                                                // 반드시 지정
+      rowStyle: { cursor: 'pointer' },
+      onRowDoubleClicked: (event) => event.data && onRowDoubleClick(event.data),
+      rowClassRules: {
+        'bg-blue-50': (p) => !!selectedRowId && !!p.data && `${p.data.id}` === selectedRowId,
+      },
+    }),
+    [gridOptions, selectedRowId, onRowDoubleClick],
+  );
+
+  return (
+    <div className="w-full h-full">
+      <AgGridReact<XxxItem>
+        columnDefs={columnDefs}
+        gridOptions={finalGridOptions}
+        serverSideDatasource={serverSideDatasource}
+        onGridReady={handleGridReady}
+      />
+    </div>
+  );
+};
+
+export default XxxTable;
+```
+
+#### 표준 골격 — 부모 페이지 컴포넌트
+
+```typescript
+const XxxListPage: React.FC = () => {
+  // 검색조건만 보유. page/size 키는 두지 말 것 (그리드가 자체 결정)
+  const [searchParams, setSearchParams] = useState<XxxSearchRequest>({
+    fromDate: dayjs().startOf('day').format(DATETIME_FORMAT),
+    toDate: dayjs().endOf('day').format(DATETIME_FORMAT),
+  });
+  const [searchVersion, setSearchVersion] = useState(0);          // 검색 트리거 카운터
+  const [totalRows, setTotalRows] = useState(0);                  // 빈 데이터 체크용
+  const [isListLoading, setIsListLoading] = useState(false);      // SearchForm spinner용
+  const [selectedRowId, setSelectedRowId] = useState<string | undefined>();
+
+  const handleSearch = (newParams: XxxSearchRequest) => {
+    setSearchParams(newParams);
+    setSearchVersion((v) => v + 1);     // 검색 클릭 = 카운터 +1 → 그리드 refresh 트리거
+    setSelectedRowId(undefined);
+  };
+
+  const handleExcelDownload = async () => {
+    if (totalRows === 0) {              // 그리드가 콜백으로 알려준 total 활용
+      toast.warning('다운로드할 데이터가 없습니다.');
+      return;
+    }
+    // ... 다운로드 로직
+  };
+
+  return (
+    <div className="flex flex-col gap-4 w-full h-full">
+      <PageHeader breadcrumb={breadcrumb} />
+      <div className="flex flex-col gap-5 w-full h-full bg-white bt-shadow p-5">
+        <XxxSearchForm onSearch={handleSearch} isLoading={isListLoading} />
+        <div className="w-full h-full">
+          <XxxTable
+            searchParams={searchParams}
+            searchVersion={searchVersion}
+            onRowDoubleClick={handleRowClick}
+            selectedRowId={selectedRowId}
+            onLoadingChange={setIsListLoading}
+            onTotalRowsChange={setTotalRows}
+          />
+        </div>
+      </div>
+    </div>
+  );
+};
+```
+
+#### 핵심 규칙 / 함정 체크리스트
+
+| 항목 | 규칙 | 누락 시 증상 |
+|---|---|---|
+| `cacheBlockSize` ↔ `paginationPageSize` | 반드시 일치 | 한 페이지 보려고 백엔드를 N번 호출 |
+| `getRowId` | 반드시 지정 (PK 단일 또는 트리플 키) | 페이지 이동 후 행 강조 깜빡임 |
+| `rowData` prop | **제거 필수** | 콘솔 경고 + 동작 이상 (SSRM과 충돌) |
+| `loading` prop | 제거 — SSRM은 자체 로딩 UI 사용 | 이중 로딩 오버레이 |
+| 검색 트리거 | `searchVersion` 카운터 (객체 의존성 X) | useEffect 무한 트리거 또는 미동작 |
+| 검색 시 refresh | `refreshServerSide({ purge: true })` | 검색해도 1페이지로 안 돌아가고 잔존 캐시가 매칭 |
+| datasource 생성 | `useMemo([])`로 1회 + `searchParamsRef` | 매 렌더 재생성 시 캐시·블록 동작 불안정 |
+| 정렬 | 백엔드 sort 미지원이면 `defaultColDef.sortable: false` override | 헤더 클릭 시 잘못된 결과 |
+| `pagination: false`/`statusBar: undefined` 잔존 | 둘 다 제거(useAggridOptions 기본값 활용) | AggridPagination 안 보임 |
+| TanStack Query 병용 | 금지 — `getRows` 안에서 apiClient 직접 호출 | 캐시 이중화 + 무효화 동기화 부담 |
+| `params.fail()` 누락 | try/catch 안에서 반드시 호출 | 네트워크 실패 시 그리드 영원히 로딩 |
+| `selectedRowId` 강조 | `useEffect([selectedRowId])` + `redrawRows()` | rowClassRules가 즉시 반영 안 됨 |
+
+#### ClientSide와의 차이
+
+| 항목 | ClientSide (기본) | SSRM |
+|---|---|---|
+| `rowModelType` | `'clientSide'` (생략 시 기본) | `'serverSide'` |
+| 데이터 전달 | `rowData` prop으로 전체 | `serverSideDatasource` prop |
+| 페이지네이션 | 그리드가 메모리에서 자름 | 그리드가 page 단위로 fetch |
+| 캐시 단위 | 없음 (전체 보유) | 행 범위 블록 |
+| 정렬·필터 | 클라이언트 처리 | 백엔드 처리 (sort/filter 파라미터 필요) |
+| 적합 데이터 크기 | 수십~수백 건 | 수천 건 이상 |
+
+기존 ClientSide 그리드는 변경 없이 유지합니다. SSRM은 백엔드가 페이지 API를 제공하고 데이터 규모가 크다는 두 조건을 동시에 만족할 때만 채택하세요.
+
 ---
 
 ## 10. Import 경로 규칙

@@ -427,6 +427,26 @@ const handleClose = () => {
 
 `useAggridOptions` 훅으로 공통 그리드 옵션을 적용하고, `ColDef<RowType>[]`로 컬럼을 정의합니다. 편집 가능 컬럼·커스텀 렌더러·액션 컬럼·커스텀 셀 에디터 구성 등 상세 절차는 [.claude/skills/add-grid/SKILL.md](.claude/skills/add-grid/SKILL.md) 스킬 참조.
 
+#### SSRM(Server-Side Row Model) — 서버 페이징 그리드
+
+백엔드가 `page`/`size` 페이징을 지원하고 데이터 규모가 큰 화면(수천 건 이상)은 ClientSide가 아닌 **SSRM**을 사용합니다. AG-Grid Enterprise 기능이며 `libs/shared-ui/src/lib/aggridSetup.ts`가 `AllEnterpriseModule`을 등록해 두어 즉시 사용 가능. 레퍼런스: [BotDialogHistoryTable.tsx](apps/fca/src/app/features/tracking/components/BotDialogHistoryTable.tsx).
+
+핵심 규칙:
+
+- **TanStack Query 병용 금지**: SSRM은 그리드 자체 블록 캐시(행 범위 단위)를 가지므로 `useGet<Feature>` 훅과 같이 쓰지 말 것. `IServerSideDatasource.getRows`에서 `apiClient`를 직접 호출
+- **`cacheBlockSize === paginationPageSize`**: 반드시 일치. 안 그러면 페이지당 백엔드 호출이 N배
+- **`getRowId` 필수**: 페이지 이동 후 행 강조 안정성. PK 단일 또는 PK 트리플(예: `${ucid}_${nextHop}_${cdrPkey}`) 활용
+- **검색 트리거**: `searchParams` 객체 의존성 ❌ → 부모에서 `searchVersion` 카운터를 만들어 검색 버튼 클릭마다 +1, 자식 그리드는 `useEffect([searchVersion])`에서 `gridApi.refreshServerSide({ purge: true })` 호출
+- **datasource 안정화**: `useMemo([])`로 1회 생성 + `searchParamsRef`로 최신 검색조건을 클로저에 흘림. 매 렌더 재생성 ❌
+- **정렬**: 백엔드 sort 미지원이면 `defaultColDef: { sortable: false }`로 그리드 단위 비활성화 (헤더 클릭 시 잘못된 결과 방지)
+- **AgGridReact props**: `rowData`/`loading` 제거 필수 (SSRM과 충돌 경고)
+- **페이지네이션 UI**: `useAggridOptions` 기본 statusBar의 `AggridPagination` 활용 — `pagination: false`/`statusBar: undefined` override 금지
+- **부모 콜백**: `onLoadingChange`(SearchForm spinner용), `onTotalRowsChange`(빈 데이터 체크용) 두 콜백을 자식 그리드가 부모에 노출
+- **`params.fail()`**: try/catch 안에서 누락 시 네트워크 실패 시 그리드가 영원히 로딩 표시
+- **`selectedRowId` 강조**: 외부 state 변경은 자동 감지 안 됨 → `useEffect([selectedRowId])` + `gridApi.redrawRows()`로 즉시 반영
+
+상세 표준 골격(자식 그리드·부모 페이지 양쪽 코드 + 함정 체크리스트 + ClientSide 비교)은 [DEVELOPER_GUIDE.md](doc/DEVELOPER_GUIDE.md)의 "AG-Grid 사용 가이드 → SSRM(Server-Side Row Model)" 섹션 참조.
+
 ### Zustand 스토어 컨벤션
 
 feature 단위 로컬 상태는 `hooks/use<Feature>Store.ts`, 전역 공유 상태는 `libs/shared-store/`에 정의합니다.
