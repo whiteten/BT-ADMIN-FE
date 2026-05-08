@@ -55,7 +55,7 @@ export default function RecogGroupTree({ selection, onSelectEngine, onSelectGrou
     mutationOptions: {
       onSuccess: (_, groupCode) => {
         toast.success('삭제되었습니다.');
-        queryClient.invalidateQueries({ queryKey: recogQueryKeys.getRecogGroupList.queryKey });
+        queryClient.invalidateQueries({ queryKey: recogQueryKeys.getRecogGroupList._def });
         onGroupDeleted(groupCode);
       },
       onError: () => {

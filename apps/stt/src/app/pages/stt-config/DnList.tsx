@@ -3,6 +3,7 @@ import { useQueryClient } from '@tanstack/react-query';
 import type { ColDef, ICellRendererParams, RowDoubleClickedEvent } from 'ag-grid-community';
 import { AgGridReact } from 'ag-grid-react';
 import { type BreadcrumbProps, Button, Input, Select } from 'antd';
+import dayjs from 'dayjs';
 import { Trash2 } from 'lucide-react';
 import { toast } from '@/shared-util';
 import PaGroupTree from '../../features/stt-config/components/PaGroupTree';
@@ -134,7 +135,7 @@ export default function DnList() {
     },
     { headerName: '상담원ID', field: 'agentId', flex: 2 },
     { headerName: '시스템그룹', field: 'hostName', flex: 2 },
-    { headerName: '수정일시', field: 'saFinshDate', flex: 2 },
+    { headerName: '수정일시', field: 'saFinshDate', flex: 2, valueFormatter: ({ value }) => (value ? dayjs(value).format('YYYY-MM-DD HH:mm:ss') : '') },
     {
       headerName: '',
       colId: 'actions',

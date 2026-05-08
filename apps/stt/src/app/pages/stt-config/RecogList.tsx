@@ -78,7 +78,7 @@ export default function RecogList() {
   const [selection, setSelection] = useState<RecogTreeSelection | null>(null);
 
   const handleGroupCreated = () => {
-    queryClient.invalidateQueries({ queryKey: recogQueryKeys.getRecogGroupList.queryKey });
+    queryClient.invalidateQueries({ queryKey: recogQueryKeys.getRecogGroupList._def });
   };
 
   const handleGroupDeleted = (groupCode: string) => {

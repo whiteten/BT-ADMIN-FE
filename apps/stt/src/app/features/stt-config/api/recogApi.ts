@@ -14,8 +14,8 @@ import type {
 const apiClient = new ApiClient({ serviceURL: '/bff' });
 
 export const recogApi = {
-  getRecogGroupList: async () => {
-    const response = await apiClient.get<ListResponse<RecogGroupItem>>('/recog-group-list');
+  getRecogGroupList: async (params?: { engineCode?: string }) => {
+    const response = await apiClient.get<ListResponse<RecogGroupItem>>('/recog-group-list', { params });
     return extractList(response);
   },
   createRecogGroup: async (data: RecogGroupCreateData) => {

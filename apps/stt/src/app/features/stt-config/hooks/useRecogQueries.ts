@@ -5,16 +5,16 @@ import { recogApi } from '../api/recogApi';
 import type { RecogGroupCreateData, RecogGroupItem, RecogGroupUpdateData, RecogTargetCreateData, RecogTargetSearchItem } from '../types';
 
 export const recogQueryKeys = createQueryKeys('recog', {
-  getRecogGroupList: null,
+  getRecogGroupList: (params?: Record<string, unknown>) => [params],
   getRecogGroupDetail: (groupCode?: string) => [{ groupCode }],
   searchRecogTarget: (params?: Record<string, unknown>) => [params],
   getRecogTargetList: (params?: { groupCode?: string; engineCode?: string }) => [params],
 });
 
-export const useGetRecogGroupList = ({ queryOptions }: { queryOptions?: UseQueryOptions<RecogGroupItem[]> } = {}) => {
+export const useGetRecogGroupList = ({ params, queryOptions }: { params?: { engineCode?: string }; queryOptions?: UseQueryOptions<RecogGroupItem[]> } = {}) => {
   return useQuery({
-    queryKey: recogQueryKeys.getRecogGroupList.queryKey,
-    queryFn: () => recogApi.getRecogGroupList(),
+    queryKey: recogQueryKeys.getRecogGroupList((params as Record<string, unknown>) ?? undefined).queryKey,
+    queryFn: () => recogApi.getRecogGroupList(params),
     ...queryOptions,
   });
 };

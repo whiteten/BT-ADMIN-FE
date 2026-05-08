@@ -3,6 +3,7 @@ import { useQueryClient } from '@tanstack/react-query';
 import type { ColDef } from 'ag-grid-community';
 import { AgGridReact } from 'ag-grid-react';
 import { Button, Input, Select } from 'antd';
+import dayjs from 'dayjs';
 import { Trash2 } from 'lucide-react';
 import { toast } from '@/shared-util';
 import { useGetCodes } from '../hooks/useCommonQueries';
@@ -131,6 +132,7 @@ export default function KeywordBoosting() {
       headerName: '등록일',
       field: 'workTime',
       flex: 2,
+      valueFormatter: ({ value }) => (value ? dayjs(value).format('YYYY-MM-DD HH:mm:ss') : ''),
     },
     {
       headerName: '',

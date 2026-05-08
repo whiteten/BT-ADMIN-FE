@@ -255,6 +255,7 @@ export default function ConfidenceTraining() {
       headerName: '통화일시',
       field: 'callDatetime',
       flex: 2,
+      valueFormatter: ({ value }) => (value ? dayjs(value).format('YYYY-MM-DD HH:mm:ss') : ''),
     },
     {
       headerName: '발화시간',

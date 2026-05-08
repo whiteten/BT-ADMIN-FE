@@ -2,10 +2,11 @@ import { type UseQueryOptions, useMutation, useQuery } from '@tanstack/react-que
 import { createQueryKeys } from '@lukemorales/query-key-factory';
 import type { MutationHookOptions } from '@/shared-util';
 import { modelApi } from '../api/modelApi';
-import type { SttModelCreateData, SttModelItem, SttModelSearchParams } from '../types';
+import type { RecogResultListData, RecogResultRequestData, RecogResultSearchParams, SttModelCreateData, SttModelItem, SttModelSearchParams, SttModelUpdateData } from '../types';
 
 export const modelQueryKeys = createQueryKeys('model', {
   getSttModelList: (params?: Record<string, unknown>) => [params],
+  getRecogResultList: (params?: Record<string, unknown>) => [params],
 });
 
 export const useGetSttModelList = ({ params, queryOptions }: { params?: SttModelSearchParams | null; queryOptions?: UseQueryOptions<SttModelItem[]> } = {}) => {
@@ -20,6 +21,42 @@ export const useGetSttModelList = ({ params, queryOptions }: { params?: SttModel
 export const useCreateSttModel = ({ mutationOptions }: MutationHookOptions<unknown, SttModelCreateData> = {}) => {
   return useMutation({
     mutationFn: modelApi.createSttModel,
+    ...mutationOptions,
+  });
+};
+
+export const useUpdateSttModel = ({ mutationOptions }: MutationHookOptions<unknown, SttModelUpdateData> = {}) => {
+  return useMutation({
+    mutationFn: modelApi.updateSttModel,
+    ...mutationOptions,
+  });
+};
+
+export const useDeleteSttModel = ({ mutationOptions }: MutationHookOptions<unknown, string> = {}) => {
+  return useMutation({
+    mutationFn: modelApi.deleteSttModel,
+    ...mutationOptions,
+  });
+};
+
+export const useGetRecogResultList = ({
+  params,
+  queryOptions,
+}: {
+  params?: RecogResultSearchParams | null;
+  queryOptions?: UseQueryOptions<RecogResultListData>;
+} = {}) => {
+  return useQuery({
+    queryKey: modelQueryKeys.getRecogResultList((params as unknown as Record<string, unknown>) ?? undefined).queryKey,
+    queryFn: () => modelApi.getRecogResultList(params as RecogResultSearchParams),
+    enabled: !!params?.modelVerId && !!params?.groupCode,
+    ...queryOptions,
+  });
+};
+
+export const useRequestRecogResult = ({ mutationOptions }: MutationHookOptions<unknown, RecogResultRequestData> = {}) => {
+  return useMutation({
+    mutationFn: modelApi.requestRecogResult,
     ...mutationOptions,
   });
 };

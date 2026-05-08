@@ -24,7 +24,7 @@ export default function RecogGroupEditModal({ open, group, onClose, onUpdated }:
     mutationOptions: {
       onSuccess: () => {
         toast.success('저장되었습니다.');
-        queryClient.invalidateQueries({ queryKey: recogQueryKeys.getRecogGroupList.queryKey });
+        queryClient.invalidateQueries({ queryKey: recogQueryKeys.getRecogGroupList._def });
         onUpdated({ ...group, groupName: form.getFieldValue('groupName') as string });
         onClose();
       },

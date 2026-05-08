@@ -1,5 +1,5 @@
-import ApiClient, { type ListResponse, extractList } from '@/shared-util';
-import type { SttModelCreateData, SttModelItem, SttModelSearchParams } from '../types';
+import ApiClient, { type DetailResponse, type ListResponse, extractDetail, extractList } from '@/shared-util';
+import type { RecogResultListData, RecogResultRequestData, RecogResultSearchParams, SttModelCreateData, SttModelItem, SttModelSearchParams, SttModelUpdateData } from '../types';
 
 const apiClient = new ApiClient({ serviceURL: '/bff' });
 
@@ -10,5 +10,22 @@ export const modelApi = {
   },
   createSttModel: async (data: SttModelCreateData) => {
     return apiClient.post('/stt-model-create', data);
+  },
+  updateSttModel: async (data: SttModelUpdateData) => {
+    return apiClient.put(
+      '/stt-model-update',
+      { engineCode: data.engineCode, modelVerName: data.modelVerName, modelDesc: data.modelDesc },
+      { params: { modelVerId: data.modelVerId } },
+    );
+  },
+  deleteSttModel: async (modelVerId: string) => {
+    return apiClient.delete('/stt-model-delete', { params: { modelVerId } });
+  },
+  getRecogResultList: async (params: RecogResultSearchParams) => {
+    const response = await apiClient.get<DetailResponse<RecogResultListData>>('/stt-recog-result-list', { params });
+    return extractDetail(response);
+  },
+  requestRecogResult: async (data: RecogResultRequestData) => {
+    return apiClient.post('/stt-request-recog-result', data);
   },
 };

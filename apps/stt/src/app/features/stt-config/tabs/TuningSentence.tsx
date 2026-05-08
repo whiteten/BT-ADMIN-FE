@@ -153,6 +153,7 @@ export default function TuningSentence() {
       headerName: '등록일',
       field: 'workTime',
       flex: 2,
+      valueFormatter: ({ value }) => (value ? dayjs(value).format('YYYY-MM-DD HH:mm:ss') : ''),
     },
     {
       headerName: '',
