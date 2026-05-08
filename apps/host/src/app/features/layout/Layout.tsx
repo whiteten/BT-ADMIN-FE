@@ -2,40 +2,28 @@ import { Outlet } from 'react-router-dom';
 import { App, ConfigProvider } from 'antd';
 import koKR from 'antd/locale/ko_KR';
 import 'dayjs/locale/ko';
-// import InsetFooter from './InsetFooter';
-import InsetHeader from './InsetHeader';
-import LNBBody from './LNBBody';
-import LNBFooter from './LNBFooter';
-import LNBHeader from './LNBHeader';
+import SubHeader from './SubHeader';
+import TopHeader from './TopHeader';
 import { antdTheme } from './config/antdTheme';
-import { Sidebar, SidebarInset, SidebarProvider } from '@/components/ui/sidebar';
+import MenuPanel from './panel/MenuPanel';
+
+const TOP_HEADER_HEIGHT = 56;
+const SUB_HEADER_HEIGHT = 48;
+const TOTAL_HEADER_HEIGHT = TOP_HEADER_HEIGHT + SUB_HEADER_HEIGHT;
 
 export function Layout() {
   return (
     <ConfigProvider theme={antdTheme} locale={koKR} drawer={{ mask: { blur: false } }} modal={{ mask: { blur: false } }}>
-      <SidebarProvider
-        style={
-          {
-            '--sidebar-width': '14rem',
-            '--sidebar-width-mobile': '14rem',
-          } as React.CSSProperties
-        }
-      >
-        <Sidebar variant="sidebar">
-          <LNBHeader />
-          <LNBBody />
-          <LNBFooter />
-        </Sidebar>
-        <SidebarInset className="h-[100vh] overflow-hidden">
-          <InsetHeader />
-          <App className="w-full h-full overflow-hidden">
-            <div className="w-full h-full p-4 overflow-y-auto bg-[#f3f3f9]" style={{ scrollbarGutter: 'stable' }}>
-              <Outlet />
-            </div>
-          </App>
-          {/* <InsetFooter /> */}
-        </SidebarInset>
-      </SidebarProvider>
+      <div className="flex flex-col h-screen overflow-hidden">
+        <TopHeader />
+        <SubHeader />
+        <App className="flex-1 min-h-0 w-full overflow-hidden">
+          <main className="w-full h-full p-4 overflow-y-auto bg-[#f3f3f9]" style={{ scrollbarGutter: 'stable' }}>
+            <Outlet />
+          </main>
+        </App>
+      </div>
+      <MenuPanel topOffset={TOTAL_HEADER_HEIGHT} />
     </ConfigProvider>
   );
 }

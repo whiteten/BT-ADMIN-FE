@@ -1,7 +1,7 @@
 import { useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import dayjs from 'dayjs';
-import { Dot, KeyRound, LogOut, Repeat } from 'lucide-react';
+import { Dot, KeyRound, LogOut, Repeat, User } from 'lucide-react';
 import { type TenantSummary, useAuthStore } from '@/shared-store';
 import { toast } from '@/shared-util';
 import { type ChangePasswordData, ChangePasswordDialog, type ChangePasswordDialogRef } from './ChangePasswordDialog';
@@ -9,7 +9,7 @@ import { TenantSwitchDialog, type TenantSwitchDialogRef } from './TenantSwitchDi
 import { authApi } from '../features/auth/api/authApi';
 import { useChangePassword, useLogout } from '../features/auth/hooks/useAuthQueries';
 import type { PasswordPolicy } from '../features/auth/types/auth';
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import {
@@ -115,19 +115,23 @@ export default function UserMenuSelector() {
   };
 
   const TriggerBtn = (
-    <Button variant="ghost" className={cn('flex justify-start min-w-[170px] h-full p-1.5 hover:cursor-pointer')}>
-      <>
-        <Avatar className="h-8 w-8 rounded-lg">
-          <AvatarImage src="assets/images/icon/icon-user.svg" alt="User Icon" />
-          <AvatarFallback className="rounded-lg">USR</AvatarFallback>
-        </Avatar>
-        <div className="flex flex-col gap-1 text-left text-sm leading-tight">
-          <span className="truncate font-semibold max-w-48">{username}</span>
-          <Badge variant="outline" className="w-fit h-[15px] text-xs p-2 bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200">
-            {roleName}
-          </Badge>
-        </div>
-      </>
+    <Button
+      variant="ghost"
+      className={cn(
+        'flex justify-start min-w-[170px] h-10 p-1.5 gap-2 rounded-md text-white hover:bg-white/15 hover:text-white focus-visible:bg-white/15 focus-visible:text-white hover:cursor-pointer',
+      )}
+    >
+      <Avatar className="h-8 w-8 rounded-full ring-1 ring-white/40 bg-white/15 flex items-center justify-center">
+        <AvatarFallback className="rounded-full bg-transparent text-white">
+          <User className="h-4 w-4" />
+        </AvatarFallback>
+      </Avatar>
+      <div className="flex flex-col gap-0.5 text-left text-sm leading-tight">
+        <span className="truncate font-semibold max-w-48 text-white">{username}</span>
+        <Badge variant="outline" className="w-fit h-5 text-[11px] leading-none px-2 bg-white/20 text-white border-white/30">
+          {roleName}
+        </Badge>
+      </div>
     </Button>
   );
 
