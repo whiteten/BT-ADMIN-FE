@@ -7,6 +7,7 @@ import { useAuthStore } from '@/shared-store';
 import { toast } from '@/shared-util';
 import styles from './Login.module.scss';
 import { ChangePasswordDialog, type ChangePasswordDialogRef, type ChangePasswordMode } from '../components/ChangePasswordDialog';
+import { TenantSelectionDialog, type TenantSelectionDialogRef } from '../components/TenantSelectionDialog';
 import { authApi } from '../features/auth/api/authApi';
 import { useLogin, useResetPassword } from '../features/auth/hooks/useAuthQueries';
 import { useRememberMeStore } from '../features/auth/hooks/useRememberMeStore';
@@ -18,6 +19,7 @@ export default function Login() {
   const navigate = useNavigate();
   const [form] = Form.useForm();
   const changePasswordDialogRef = useRef<ChangePasswordDialogRef>(null);
+  const tenantSelectionDialogRef = useRef<TenantSelectionDialogRef>(null);
   const [pendingLoginResponse, setPendingLoginResponse] = useState<LoginResponse | null>(null);
   const [passwordPolicy, setPasswordPolicy] = useState<PasswordPolicy | undefined>(undefined);
   const { setPasswordExpiringWarning } = useAuthStore();
@@ -125,9 +127,16 @@ export default function Login() {
             toast.warning(errorData.error_description ?? '로그인 시도 횟수를 초과하여 계정이 일시적으로 잠겼습니다.', { autoClose: false });
             break;
 
-          case 'tenant_required':
-            toast.warning(errorData.error_description ?? '멀티테넌트 계정입니다. 테넌트를 입력해주세요.');
+          case 'tenant_required': {
+            const candidates = errorData.available_tenants;
+            if (candidates && candidates.length > 0) {
+              tenantSelectionDialogRef.current?.open({ tenants: candidates });
+            } else {
+              // 후보가 비어 있으면 기존 안내로 폴백 (입력란 직접 사용)
+              toast.warning(errorData.error_description ?? '멀티테넌트 계정입니다. 테넌트를 입력해주세요.');
+            }
             break;
+          }
 
           case 'account_dormant':
             toast.error(errorData.error_description ?? '휴면 계정입니다. 관리자에게 문의하세요.');
@@ -162,6 +171,24 @@ export default function Login() {
 
   const onFinishFailed: FormProps<{ userAccount: string; password: string; tenant?: string }>['onFinishFailed'] = (errorInfo) => {
     Log.warn('onFinishFailed', errorInfo);
+  };
+
+  /**
+   * 사용자가 테넌트 선택 모달에서 항목을 고르면 호출.
+   * 폼에 입력된 자격증명과 선택한 테넌트명으로 로그인 재시도.
+   */
+  const handleTenantSelected = (tenant: { id: number; name: string }) => {
+    const userAccount = form.getFieldValue('userAccount');
+    const password = form.getFieldValue('password');
+    if (!userAccount || !password) {
+      toast.error('아이디와 비밀번호를 다시 입력해주세요.');
+      tenantSelectionDialogRef.current?.close();
+      return;
+    }
+    // 선택한 테넌트로 폼 값을 업데이트(다음 시도/메모이제이션 일관성)
+    form.setFieldValue('tenant', tenant.name);
+    login({ userAccount, password, tenant: tenant.name });
+    tenantSelectionDialogRef.current?.close();
   };
 
   /**
@@ -265,6 +292,9 @@ export default function Login() {
           form.resetFields();
         }}
       />
+
+      {/* Tenant selection dialog (multi-tenant login) */}
+      <TenantSelectionDialog ref={tenantSelectionDialogRef} onSelect={handleTenantSelected} loading={isPending} />
     </div>
   );
 }

@@ -107,6 +107,13 @@ export const useCreateBotVersion = ({ mutationOptions }: MutationHookOptions = {
   });
 };
 
+export const useCreateBotVersionCopy = ({ mutationOptions }: MutationHookOptions = {}) => {
+  return useMutation({
+    mutationFn: botApi.createBotVersionCopy,
+    ...mutationOptions,
+  });
+};
+
 export const useUpdateBotVersion = ({ mutationOptions }: MutationHookOptions = {}) => {
   return useMutation({
     mutationFn: botApi.updateBotVersion,

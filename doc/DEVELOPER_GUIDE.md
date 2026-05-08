@@ -25,6 +25,7 @@ CLAUDE.md의 컨벤션을 기반으로, **왜 이렇게 하는지**와 **흔히 
 16. [상수 정의 패턴](#16-상수-정의-패턴)
 17. [페이지 레이아웃 가이드](#17-페이지-레이아웃-가이드)
 18. [폼(Form) 작성 가이드](#18-폼form-작성-가이드)
+19. [화면 커스터마이징(Variants) 가이드](#19-화면-커스터마이징variants-가이드)
 
 ---
 
@@ -32,9 +33,9 @@ CLAUDE.md의 컨벤션을 기반으로, **왜 이렇게 하는지**와 **흔히 
 
 ### 필수 설치 항목
 
-| 항목        | 버전     | 설치 방법                                      |
-| ----------- | -------- | ---------------------------------------------- |
-| **Node.js** | v22.17.0 | [nvm](https://github.com/nvm-sh/nvm) 사용 권장 |
+| 항목        | 버전     | 설치 방법                                                     |
+| ----------- | -------- | ------------------------------------------------------------- |
+| **Node.js** | v22.17.0 | [nvm](https://github.com/nvm-sh/nvm) 사용 권장                |
 | **pnpm**    | 10.29.2  | `corepack enable && corepack prepare pnpm@10.29.2 --activate` |
 
 > **왜 정확한 버전이 필요한가요?**
@@ -133,25 +134,25 @@ apps/fca/src/app/
 
 #### pages vs features 차이점
 
-| 구분 | `pages/` | `features/` |
-|------|----------|-------------|
-| 역할 | 라우트에 1:1 매핑되는 페이지 | 페이지에서 사용하는 로직·컴포넌트 |
-| 크기 | 가능한 간결하게 (조립만) | 실제 비즈니스 로직이 여기에 |
+| 구분 | `pages/`                                      | `features/`                                               |
+| ---- | --------------------------------------------- | --------------------------------------------------------- |
+| 역할 | 라우트에 1:1 매핑되는 페이지                  | 페이지에서 사용하는 로직·컴포넌트                         |
+| 크기 | 가능한 간결하게 (조립만)                      | 실제 비즈니스 로직이 여기에                               |
 | 예시 | `BotList.tsx` — 데이터 불러와서 테이블 렌더링 | `features/bot-config/components/BotCard.tsx` — 봇 카드 UI |
 
 **pages는 "무엇을 보여줄지"를 결정하고, features는 "어떻게 보여줄지"를 담당합니다.**
 
 #### features 하위 폴더별 역할
 
-| 폴더 | 역할 | 필수 여부 | 파일명 규칙 |
-|------|------|-----------|------------|
-| `api/` | 서버 API 호출 함수 | 거의 필수 | `<feature>Api.ts` |
-| `components/` | UI 컴포넌트 | 필요 시 | `<Feature>Card.tsx`, `<Feature>Toolbar.tsx` 등 |
-| `constants/` | 상수 정의 | 필요 시 | `<feature>Constants.ts` |
-| `hooks/` | TanStack Query 훅, Zustand 스토어 | 거의 필수 | `use<Feature>Queries.ts`, `use<Feature>Store.ts` |
-| `tabs/` | 상세 페이지의 탭 컴포넌트 | 필요 시 | `<Feature>BasicInfo.tsx` 등 |
-| `types/` | TypeScript 타입/인터페이스 | 거의 필수 | `index.ts` + 도메인별 파일 |
-| `utils/` | 헬퍼 함수 | 필요 시 | `<feature>Utils.ts` |
+| 폴더          | 역할                              | 필수 여부 | 파일명 규칙                                      |
+| ------------- | --------------------------------- | --------- | ------------------------------------------------ |
+| `api/`        | 서버 API 호출 함수                | 거의 필수 | `<feature>Api.ts`                                |
+| `components/` | UI 컴포넌트                       | 필요 시   | `<Feature>Card.tsx`, `<Feature>Toolbar.tsx` 등   |
+| `constants/`  | 상수 정의                         | 필요 시   | `<feature>Constants.ts`                          |
+| `hooks/`      | TanStack Query 훅, Zustand 스토어 | 거의 필수 | `use<Feature>Queries.ts`, `use<Feature>Store.ts` |
+| `tabs/`       | 상세 페이지의 탭 컴포넌트         | 필요 시   | `<Feature>BasicInfo.tsx` 등                      |
+| `types/`      | TypeScript 타입/인터페이스        | 거의 필수 | `index.ts` + 도메인별 파일                       |
+| `utils/`      | 헬퍼 함수                         | 필요 시   | `<feature>Utils.ts`                              |
 
 > **모든 폴더를 다 만들어야 하나요?**
 > 아닙니다. 필요한 것만 만드세요. 간단한 기능이면 `api/`, `hooks/`, `types/`만으로 충분할 수 있습니다.
@@ -270,13 +271,13 @@ import type { BotCreateDatas } from '../types/bot';
 
 같은 도메인이라도 **용도에 따라 타입이 다릅니다**. 서픽스로 구분합니다.
 
-| 서픽스 | 용도 | 언제 쓰나요? | 예시 |
-|--------|------|-------------|------|
-| (없음) | 기본 도메인 타입 | API 응답의 기본 형태 | `Bot` |
-| `ListItem` | 목록 조회용 | 목록 API에서 일부 필드만 내려올 때 | `BotListItem` |
-| `Item` | 상세 조회용 | 상세 API에서 기본 + 추가 정보가 올 때 | `BotItem` |
-| `CreateDatas` | 생성 요청용 | POST 요청 body에 보낼 데이터 | `BotCreateDatas` |
-| `UpdateDatas` | 수정 요청용 | PATCH/PUT 요청 body에 보낼 데이터 | `BotUpdateDatas` |
+| 서픽스        | 용도             | 언제 쓰나요?                          | 예시             |
+| ------------- | ---------------- | ------------------------------------- | ---------------- |
+| (없음)        | 기본 도메인 타입 | API 응답의 기본 형태                  | `Bot`            |
+| `ListItem`    | 목록 조회용      | 목록 API에서 일부 필드만 내려올 때    | `BotListItem`    |
+| `Item`        | 상세 조회용      | 상세 API에서 기본 + 추가 정보가 올 때 | `BotItem`        |
+| `CreateDatas` | 생성 요청용      | POST 요청 body에 보낼 데이터          | `BotCreateDatas` |
+| `UpdateDatas` | 수정 요청용      | PATCH/PUT 요청 body에 보낼 데이터     | `BotUpdateDatas` |
 
 ### 실전 예시
 
@@ -287,7 +288,7 @@ import type { BotCreateDatas } from '../types/bot';
 export interface Bot {
   serviceId: string;
   serviceName: string;
-  serviceDesc?: string;       // '?'는 선택적(optional) 필드
+  serviceDesc?: string; // '?'는 선택적(optional) 필드
   confidence: [number, number]; // 튜플 타입: [min, max]
   tags?: string[];
 }
@@ -311,13 +312,13 @@ export type BotBasicInfoUpdateDatas = Omit<Bot, 'workTime'>;
 
 ### 자주 쓰는 TypeScript 유틸리티 타입
 
-| 유틸리티 | 설명 | 예시 |
-|----------|------|------|
-| `Omit<T, K>` | T에서 K 필드를 제거 | `Omit<Bot, 'serviceId'>` → serviceId 빼고 나머지 |
-| `Pick<T, K>` | T에서 K 필드만 선택 | `Pick<Bot, 'serviceName' \| 'tags'>` → 이 두 필드만 |
-| `Partial<T>` | T의 모든 필드를 선택적으로 | `Partial<Bot>` → 모든 필드가 `?`가 됨 |
-| `Required<T>` | T의 모든 필드를 필수로 | `Required<Bot>` → 모든 `?`가 사라짐 |
-| `Record<K, V>` | 키-값 매핑 타입 | `Record<string, number>` → `{ [key: string]: number }` |
+| 유틸리티       | 설명                       | 예시                                                   |
+| -------------- | -------------------------- | ------------------------------------------------------ |
+| `Omit<T, K>`   | T에서 K 필드를 제거        | `Omit<Bot, 'serviceId'>` → serviceId 빼고 나머지       |
+| `Pick<T, K>`   | T에서 K 필드만 선택        | `Pick<Bot, 'serviceName' \| 'tags'>` → 이 두 필드만    |
+| `Partial<T>`   | T의 모든 필드를 선택적으로 | `Partial<Bot>` → 모든 필드가 `?`가 됨                  |
+| `Required<T>`  | T의 모든 필드를 필수로     | `Required<Bot>` → 모든 `?`가 사라짐                    |
+| `Record<K, V>` | 키-값 매핑 타입            | `Record<string, number>` → `{ [key: string]: number }` |
 
 ---
 
@@ -359,28 +360,24 @@ import type { User, UserListItem, UserCreateDatas } from '../types';
 
 export const userApi = {
   // 목록 조회
-  getUsers: (params?: Record<string, unknown>) =>
-    apiClient.get<UserListItem[]>('/users', { params }),
+  getUsers: (params?: Record<string, unknown>) => apiClient.get<UserListItem[]>('/users', { params }),
 
   // 단건 조회
-  getUser: (params?: Record<string, unknown>) =>
-    apiClient.get<User>(`/users/${params?.id}`),
+  getUser: (params?: Record<string, unknown>) => apiClient.get<User>(`/users/${params?.id}`),
 
   // 생성
-  createUser: (data: UserCreateDatas) =>
-    apiClient.post<User>('/users', data),
+  createUser: (data: UserCreateDatas) => apiClient.post<User>('/users', data),
 
   // 수정
-  updateUser: (data: { id: string } & Partial<User>) =>
-    apiClient.patch<User>(`/users/${data.id}`, data),
+  updateUser: (data: { id: string } & Partial<User>) => apiClient.patch<User>(`/users/${data.id}`, data),
 
   // 삭제
-  deleteUser: (data: { id: string }) =>
-    apiClient.delete(`/users/${data.id}`),
+  deleteUser: (data: { id: string }) => apiClient.delete(`/users/${data.id}`),
 };
 ```
 
 **포인트:**
+
 - 하나의 객체로 묶어서 `named export` 합니다.
 - 제네릭(`<User>`)으로 응답 타입을 지정하면, 호출하는 곳에서 자동 완성이 됩니다.
 
@@ -419,22 +416,16 @@ import { userApi } from '../api/userApi';
 import type { User, UserListItem } from '../types';
 
 // 목록 조회 훅
-export const useGetUsers = ({
-  params,
-  queryOptions,
-}: QueryHookWithParamsOptions<UserListItem[]> = {}) => {
+export const useGetUsers = ({ params, queryOptions }: QueryHookWithParamsOptions<UserListItem[]> = {}) => {
   return useQuery({
     queryKey: userQueryKeys.getUsers(params).queryKey,
     queryFn: () => userApi.getUsers(params),
-    ...queryOptions,  // 호출하는 곳에서 추가 옵션을 덮어쓸 수 있음
+    ...queryOptions, // 호출하는 곳에서 추가 옵션을 덮어쓸 수 있음
   });
 };
 
 // 단건 조회 훅
-export const useGetUser = ({
-  params,
-  queryOptions,
-}: QueryHookWithParamsOptions<User> = {}) => {
+export const useGetUser = ({ params, queryOptions }: QueryHookWithParamsOptions<User> = {}) => {
   return useQuery({
     queryKey: userQueryKeys.getUser(params).queryKey,
     queryFn: () => userApi.getUser(params),
@@ -469,20 +460,20 @@ export const useDeleteUser = ({ mutationOptions }: MutationHookOptions = {}) => 
 
 **훅 네이밍 규칙:**
 
-| 작업 | 패턴 | 예시 |
-|------|------|------|
-| 목록 조회 | `useGet<Feature>s` | `useGetUsers` |
-| 단건 조회 | `useGet<Feature>` | `useGetUser` |
-| 생성 | `useCreate<Feature>` | `useCreateUser` |
-| 수정 | `useUpdate<Feature>` | `useUpdateUser` |
-| 삭제 | `useDelete<Feature>` | `useDeleteUser` |
+| 작업      | 패턴                 | 예시            |
+| --------- | -------------------- | --------------- |
+| 목록 조회 | `useGet<Feature>s`   | `useGetUsers`   |
+| 단건 조회 | `useGet<Feature>`    | `useGetUser`    |
+| 생성      | `useCreate<Feature>` | `useCreateUser` |
+| 수정      | `useUpdate<Feature>` | `useUpdateUser` |
+| 삭제      | `useDelete<Feature>` | `useDeleteUser` |
 
 **파라미터 패턴:**
 
-| 훅 종류 | 파라미터 | 설명 |
-|---------|---------|------|
-| Query 훅 | `{ params, queryOptions }` | params: API에 넘길 파라미터, queryOptions: useQuery 추가 옵션 |
-| Mutation 훅 | `{ mutationOptions }` | useMutation 추가 옵션 (onSuccess, onError 등) |
+| 훅 종류     | 파라미터                   | 설명                                                          |
+| ----------- | -------------------------- | ------------------------------------------------------------- |
+| Query 훅    | `{ params, queryOptions }` | params: API에 넘길 파라미터, queryOptions: useQuery 추가 옵션 |
+| Mutation 훅 | `{ mutationOptions }`      | useMutation 추가 옵션 (onSuccess, onError 등)                 |
 
 ### Step 4: 컴포넌트에서 사용
 
@@ -546,10 +537,10 @@ queryClient.invalidateQueries({ queryKey: userQueryKeys.getUsers().queryKey });
 
 이 프로젝트에서는 상태를 두 가지로 나눕니다:
 
-| 종류 | 도구 | 어디에? | 예시 |
-|------|------|---------|------|
-| **서버 상태** | TanStack Query | `hooks/use<Feature>Queries.ts` | API에서 가져온 데이터 (사용자 목록, 봇 정보 등) |
-| **클라이언트 상태** | Zustand | `hooks/use<Feature>Store.ts` | UI 상태 (사이드바 열림/닫힘, 선택된 탭 등) |
+| 종류                | 도구           | 어디에?                        | 예시                                            |
+| ------------------- | -------------- | ------------------------------ | ----------------------------------------------- |
+| **서버 상태**       | TanStack Query | `hooks/use<Feature>Queries.ts` | API에서 가져온 데이터 (사용자 목록, 봇 정보 등) |
+| **클라이언트 상태** | Zustand        | `hooks/use<Feature>Store.ts`   | UI 상태 (사이드바 열림/닫힘, 선택된 탭 등)      |
 
 ### Zustand 스토어 작성법
 
@@ -583,12 +574,13 @@ export const useBotStore = create<BotStore>()(
       setSelectedBotId: (id) => set({ selectedBotId: id }, false, 'setSelectedBotId'),
       setIsDrawerOpen: (open) => set({ isDrawerOpen: open }, false, 'setIsDrawerOpen'),
     }),
-    { name: 'BotStore' },  // Redux DevTools에 표시될 스토어 이름
+    { name: 'BotStore' }, // Redux DevTools에 표시될 스토어 이름
   ),
 );
 ```
 
 > **`set(상태, replace, 액션이름)` 인자 설명:**
+>
 > - **첫 번째**: 변경할 상태
 > - **두 번째 `false`**: 기존 상태에 머지 (기본 동작, `true`이면 완전 교체)
 > - **세 번째**: Redux DevTools에 표시될 액션 이름 (생략하면 "anonymous"로 표시)
@@ -628,24 +620,20 @@ interface RememberMeStore {
   setRememberMeData: (data: Partial<{ userAccount: string; rememberMe: boolean }>) => void;
 }
 
-export const useRememberMeStore = create<RememberMeStore>()(  // ⚠️ ()가 하나 더 있음!
+export const useRememberMeStore = create<RememberMeStore>()(
+  // ⚠️ ()가 하나 더 있음!
   devtools(
     persist(
       (set) => ({
         data: { userAccount: '', rememberMe: false },
-        setRememberMeData: (newData) =>
-          set(
-            (state) => ({ data: { ...state.data, ...newData } }),
-            false,
-            'setRememberMeData',
-          ),
+        setRememberMeData: (newData) => set((state) => ({ data: { ...state.data, ...newData } }), false, 'setRememberMeData'),
       }),
       {
-        name: 'remember-me-storage',                    // localStorage 키 이름
-        storage: createJSONStorage(() => localStorage),  // 또는 sessionStorage
+        name: 'remember-me-storage', // localStorage 키 이름
+        storage: createJSONStorage(() => localStorage), // 또는 sessionStorage
       },
     ),
-    { name: 'RememberMeStore' },  // Redux DevTools에 표시될 스토어 이름
+    { name: 'RememberMeStore' }, // Redux DevTools에 표시될 스토어 이름
   ),
 );
 ```
@@ -675,10 +663,10 @@ const { data: bots } = useGetBots({});
 
 ### Export 규칙
 
-| 대상 | Export 방식 | 이유 |
-|------|------------|------|
-| 컴포넌트 | `default export` | React.lazy()가 default export를 기대함 |
-| API 함수, 타입, 상수, 유틸 | `named export` | 한 파일에서 여러 개를 내보내야 해서 |
+| 대상                       | Export 방식      | 이유                                   |
+| -------------------------- | ---------------- | -------------------------------------- |
+| 컴포넌트                   | `default export` | React.lazy()가 default export를 기대함 |
+| API 함수, 타입, 상수, 유틸 | `named export`   | 한 파일에서 여러 개를 내보내야 해서    |
 
 ```typescript
 // ✅ 컴포넌트 — default export
@@ -717,13 +705,14 @@ const BotCreate = lazy(() => import('./pages/bot-config/BotCreate'));
 
 이 프로젝트에는 세 가지 UI 라이브러리가 있습니다:
 
-| 라이브러리 | 용도 | Import 경로 |
-|-----------|------|-------------|
-| **Ant Design** | 메인 UI 라이브러리 (Form, Table, DatePicker, Modal 등) | `antd` |
-| **shadcn/ui** | 커스텀 컴포넌트 직접 개발 시 베이스 | `@/components/ui/<component>` |
-| **AG-Grid** | 데이터 테이블 | `ag-grid-react` |
+| 라이브러리     | 용도                                                   | Import 경로                   |
+| -------------- | ------------------------------------------------------ | ----------------------------- |
+| **Ant Design** | 메인 UI 라이브러리 (Form, Table, DatePicker, Modal 등) | `antd`                        |
+| **shadcn/ui**  | 커스텀 컴포넌트 직접 개발 시 베이스                    | `@/components/ui/<component>` |
+| **AG-Grid**    | 데이터 테이블                                          | `ag-grid-react`               |
 
 > **어떤 걸 써야 하나요?**
+>
 > - **Ant Design**이 메인 UI 라이브러리입니다. 대부분의 UI 컴포넌트(Form, Button, Modal, DatePicker 등)는 Ant Design을 사용합니다.
 > - 프로젝트에 특화된 **커스텀 컴포넌트를 직접 만들어야 할 때**는 **shadcn/ui**를 베이스로 개발합니다. shadcn/ui는 소스 코드를 직접 소유하므로 자유롭게 수정할 수 있습니다.
 > - 데이터 테이블은 **AG-Grid**를 사용합니다.
@@ -733,11 +722,11 @@ const BotCreate = lazy(() => import('./pages/bot-config/BotCreate'));
 자주 쓰는 커스텀 컴포넌트들입니다:
 
 ```typescript
-import { PageHeader } from '@/components/custom/PageHeader';       // 페이지 상단 헤더
+import { PageHeader } from '@/components/custom/PageHeader'; // 페이지 상단 헤더
 import { FallbackSpinner } from '@/components/custom/FallbackSpinner'; // 로딩 스피너
-import { NoData } from '@/components/custom/NoData';               // 데이터 없음 표시
-import { NotFound } from '@/components/custom/NotFound';           // 404 페이지
-import { PageTabs } from '@/components/custom/PageTabs';           // 탭 네비게이션
+import { NoData } from '@/components/custom/NoData'; // 데이터 없음 표시
+import { NotFound } from '@/components/custom/NotFound'; // 404 페이지
+import { PageTabs } from '@/components/custom/PageTabs'; // 탭 네비게이션
 ```
 
 ### useMemo / useCallback을 쓰지 마세요
@@ -746,12 +735,16 @@ import { PageTabs } from '@/components/custom/PageTabs';           // 탭 네비
 
 ```typescript
 // ❌ 불필요 — React Compiler가 알아서 최적화
-const filteredBots = useMemo(() => bots.filter(b => b.active), [bots]);
-const handleClick = useCallback(() => { /* ... */ }, []);
+const filteredBots = useMemo(() => bots.filter((b) => b.active), [bots]);
+const handleClick = useCallback(() => {
+  /* ... */
+}, []);
 
 // ✅ 그냥 작성
-const filteredBots = bots.filter(b => b.active);
-const handleClick = () => { /* ... */ };
+const filteredBots = bots.filter((b) => b.active);
+const handleClick = () => {
+  /* ... */
+};
 ```
 
 ### 이벤트 핸들러는 추출하는 것을 권장합니다
@@ -801,6 +794,7 @@ const handleError = (error: Error) => {
 일반적인 props 방식(`isOpen={true}`)도 가능하지만, 이 프로젝트에서는 **명령형(imperative) 패턴**을 사용합니다.
 
 **장점:**
+
 - 부모에서 열기/닫기 상태를 관리할 필요 없음
 - 열 때 필요한 데이터를 함께 전달 가능
 - 모달/드로어 내부에서 상태를 독립적으로 관리
@@ -814,7 +808,7 @@ const handleError = (error: Error) => {
 
 // 부모가 호출할 수 있는 메서드를 정의
 export interface UserDrawerRef {
-  open: (params: { userId?: string }) => void;  // userId가 있으면 편집, 없으면 생성
+  open: (params: { userId?: string }) => void; // userId가 있으면 편집, 없으면 생성
   close: () => void;
 }
 ```
@@ -934,23 +928,228 @@ const UserTable = ({ data, isLoading }: UserTableProps) => {
 
 ### ColDef 주요 속성
 
-| 속성 | 설명 | 예시 |
-|------|------|------|
-| `headerName` | 헤더에 표시할 텍스트 | `'이름'` |
-| `field` | 데이터 객체의 키 | `'name'` |
-| `flex` | 남은 공간 비율 배분 | `flex: 1` (비율 1) |
-| `maxWidth` | 최대 너비 (px) | `maxWidth: 120` |
-| `hide` | 숨김 컬럼 (ID 등) | `hide: true` |
-| `editable` | 편집 가능 여부 | `editable: true` |
-| `cellRenderer` | 커스텀 셀 렌더링 | 함수 또는 컴포넌트 |
-| `cellEditor` | 커스텀 셀 에디터 | 컴포넌트 |
-| `sortable` | 정렬 가능 여부 | `sortable: false` |
-| `filter` | 필터 가능 여부 | `filter: false` |
+| 속성           | 설명                 | 예시               |
+| -------------- | -------------------- | ------------------ |
+| `headerName`   | 헤더에 표시할 텍스트 | `'이름'`           |
+| `field`        | 데이터 객체의 키     | `'name'`           |
+| `flex`         | 남은 공간 비율 배분  | `flex: 1` (비율 1) |
+| `maxWidth`     | 최대 너비 (px)       | `maxWidth: 120`    |
+| `hide`         | 숨김 컬럼 (ID 등)    | `hide: true`       |
+| `editable`     | 편집 가능 여부       | `editable: true`   |
+| `cellRenderer` | 커스텀 셀 렌더링     | 함수 또는 컴포넌트 |
+| `cellEditor`   | 커스텀 셀 에디터     | 컴포넌트           |
+| `sortable`     | 정렬 가능 여부       | `sortable: false`  |
+| `filter`       | 필터 가능 여부       | `filter: false`    |
 
 ### 주의사항
 
 - **`getRowId`는 반드시 지정하세요.** 지정하지 않으면 행이 추가/삭제될 때 깜빡임이 발생합니다.
 - **`ColDef` 제네릭에 row 데이터 타입을 지정하세요.** `ColDef<UserListItem>[]` — 이렇게 하면 `field`에 자동 완성이 됩니다.
+
+### SSRM(Server-Side Row Model) — 서버 페이징 그리드
+
+백엔드가 `page`/`size` 단위로 페이징을 지원하고 데이터 양이 한 번에 로드하기 부담스러운 화면(수천 건 이상)은 ClientSide가 아닌 **SSRM(Server-Side Row Model)**을 사용합니다. AG-Grid Enterprise 기능이며, 프로젝트는 `libs/shared-ui/src/lib/aggridSetup.ts`가 `AllEnterpriseModule`을 등록해두어 즉시 사용 가능합니다.
+
+#### 언제 쓰나요?
+
+- 백엔드가 `{ items, page, size, total }` 형태로 페이지 응답을 줄 때
+- 화면이 그리드 중심이라 사용자 인터랙션(페이지 이동·행 선택·검색 변경)과 데이터 패칭이 밀접하게 묶일 때
+- 데이터가 수천 건 이상이거나 사용자가 페이지를 자주 왔다 갔다 할 때
+
+수십~수백 건 고정 데이터(통계 페이지 등 한 번 로드 후 클라이언트에서 끝나는 화면)는 ClientSide로 충분합니다. SSRM은 명시적 선택.
+
+#### 왜 TanStack Query를 같이 쓰지 않나요?
+
+- TanStack Query 캐시 단위는 **쿼리 키(요청 파라미터 객체)**, SSRM 캐시 단위는 **행 범위(블록)**. 작동 단위가 다르고 같은 데이터가 이중으로 저장됩니다.
+- 두 캐시를 병용하면 검색 변경 시 양쪽을 모두 무효화해야 하고 진실의 원천(source of truth)이 모호해집니다.
+- SSRM 페이지는 `useGet<Feature>` 훅을 빼고 datasource의 `getRows`에서 `apiClient`를 직접 호출하는 게 표준입니다.
+
+#### 표준 골격 — 자식 그리드 컴포넌트
+
+레퍼런스 구현: [`apps/fca/src/app/features/tracking/components/BotDialogHistoryTable.tsx`](apps/fca/src/app/features/tracking/components/BotDialogHistoryTable.tsx).
+
+```typescript
+import React, { useEffect, useMemo, useRef } from 'react';
+import type { ColDef, GridApi, GridOptions, GridReadyEvent, IServerSideDatasource } from 'ag-grid-community';
+import { AgGridReact } from 'ag-grid-react';
+import { xxxApi } from '../api/xxxApi';
+import type { XxxItem, XxxSearchRequest } from '../types/xxx.types';
+import useAggridOptions from '@/libs/shared-ui/src/hooks/useAggridOptions';
+
+const PAGE_SIZE = 50;
+
+interface XxxTableProps {
+  searchParams: XxxSearchRequest;
+  searchVersion: number;                       // 검색 버튼 클릭마다 증가 — refresh 트리거
+  onRowDoubleClick: (data: XxxItem) => void;
+  selectedRowId?: string;
+  onLoadingChange?: (loading: boolean) => void;
+  onTotalRowsChange?: (total: number) => void;
+}
+
+const XxxTable: React.FC<XxxTableProps> = ({
+  searchParams, searchVersion, onRowDoubleClick, selectedRowId, onLoadingChange, onTotalRowsChange,
+}) => {
+  const { gridOptions } = useAggridOptions();
+  const gridApiRef = useRef<GridApi<XxxItem> | null>(null);
+  const searchParamsRef = useRef(searchParams);
+
+  // ① 최신 검색조건을 datasource 클로저가 항상 읽도록 ref 동기화
+  useEffect(() => {
+    searchParamsRef.current = searchParams;
+  }, [searchParams]);
+
+  // ② datasource는 1회만 생성 — useMemo([]). 클로저가 ref를 통해 최신 검색조건을 읽음
+  const serverSideDatasource = useMemo<IServerSideDatasource>(
+    () => ({
+      getRows: async (params) => {
+        const startRow = params.request.startRow ?? 0;
+        const endRow = params.request.endRow ?? startRow + PAGE_SIZE;
+        const size = endRow - startRow;
+        const page = Math.floor(startRow / size);
+        try {
+          onLoadingChange?.(true);
+          const res = await xxxApi.getList({ ...searchParamsRef.current, page, size });
+          params.success({ rowData: res.items, rowCount: res.total });
+          onTotalRowsChange?.(res.total);
+        } catch {
+          params.fail();
+        } finally {
+          onLoadingChange?.(false);
+        }
+      },
+    }),
+    [onLoadingChange, onTotalRowsChange],
+  );
+
+  // ③ 검색 버튼 클릭마다 캐시 purge + 1페이지로 reset
+  useEffect(() => {
+    if (!gridApiRef.current) return;
+    gridApiRef.current.refreshServerSide({ purge: true });
+    gridApiRef.current.deselectAll?.();
+  }, [searchVersion]);
+
+  // ④ 외부 selectedRowId 변경 시 행 강조 즉시 반영
+  useEffect(() => {
+    gridApiRef.current?.redrawRows();
+  }, [selectedRowId]);
+
+  const handleGridReady = (event: GridReadyEvent<XxxItem>) => {
+    gridApiRef.current = event.api;
+  };
+
+  const columnDefs: ColDef<XxxItem>[] = useMemo(() => [/* ... */], []);
+
+  const finalGridOptions = useMemo<GridOptions<XxxItem>>(
+    () => ({
+      ...gridOptions,
+      rowModelType: 'serverSide',
+      paginationPageSize: PAGE_SIZE,
+      cacheBlockSize: PAGE_SIZE,                                                      // ⚠️ paginationPageSize와 일치 필수
+      defaultColDef: { ...gridOptions.defaultColDef, sortable: false } as ColDef<XxxItem>,
+      getRowId: (p) => `${p.data.id}`,                                                // 반드시 지정
+      rowStyle: { cursor: 'pointer' },
+      onRowDoubleClicked: (event) => event.data && onRowDoubleClick(event.data),
+      rowClassRules: {
+        'bg-blue-50': (p) => !!selectedRowId && !!p.data && `${p.data.id}` === selectedRowId,
+      },
+    }),
+    [gridOptions, selectedRowId, onRowDoubleClick],
+  );
+
+  return (
+    <div className="w-full h-full">
+      <AgGridReact<XxxItem>
+        columnDefs={columnDefs}
+        gridOptions={finalGridOptions}
+        serverSideDatasource={serverSideDatasource}
+        onGridReady={handleGridReady}
+      />
+    </div>
+  );
+};
+
+export default XxxTable;
+```
+
+#### 표준 골격 — 부모 페이지 컴포넌트
+
+```typescript
+const XxxListPage: React.FC = () => {
+  // 검색조건만 보유. page/size 키는 두지 말 것 (그리드가 자체 결정)
+  const [searchParams, setSearchParams] = useState<XxxSearchRequest>({
+    fromDate: dayjs().startOf('day').format(DATETIME_FORMAT),
+    toDate: dayjs().endOf('day').format(DATETIME_FORMAT),
+  });
+  const [searchVersion, setSearchVersion] = useState(0);          // 검색 트리거 카운터
+  const [totalRows, setTotalRows] = useState(0);                  // 빈 데이터 체크용
+  const [isListLoading, setIsListLoading] = useState(false);      // SearchForm spinner용
+  const [selectedRowId, setSelectedRowId] = useState<string | undefined>();
+
+  const handleSearch = (newParams: XxxSearchRequest) => {
+    setSearchParams(newParams);
+    setSearchVersion((v) => v + 1);     // 검색 클릭 = 카운터 +1 → 그리드 refresh 트리거
+    setSelectedRowId(undefined);
+  };
+
+  const handleExcelDownload = async () => {
+    if (totalRows === 0) {              // 그리드가 콜백으로 알려준 total 활용
+      toast.warning('다운로드할 데이터가 없습니다.');
+      return;
+    }
+    // ... 다운로드 로직
+  };
+
+  return (
+    <div className="flex flex-col gap-4 w-full h-full">
+      <PageHeader breadcrumb={breadcrumb} />
+      <div className="flex flex-col gap-5 w-full h-full bg-white bt-shadow p-5">
+        <XxxSearchForm onSearch={handleSearch} isLoading={isListLoading} />
+        <div className="w-full h-full">
+          <XxxTable
+            searchParams={searchParams}
+            searchVersion={searchVersion}
+            onRowDoubleClick={handleRowClick}
+            selectedRowId={selectedRowId}
+            onLoadingChange={setIsListLoading}
+            onTotalRowsChange={setTotalRows}
+          />
+        </div>
+      </div>
+    </div>
+  );
+};
+```
+
+#### 핵심 규칙 / 함정 체크리스트
+
+| 항목 | 규칙 | 누락 시 증상 |
+|---|---|---|
+| `cacheBlockSize` ↔ `paginationPageSize` | 반드시 일치 | 한 페이지 보려고 백엔드를 N번 호출 |
+| `getRowId` | 반드시 지정 (PK 단일 또는 트리플 키) | 페이지 이동 후 행 강조 깜빡임 |
+| `rowData` prop | **제거 필수** | 콘솔 경고 + 동작 이상 (SSRM과 충돌) |
+| `loading` prop | 제거 — SSRM은 자체 로딩 UI 사용 | 이중 로딩 오버레이 |
+| 검색 트리거 | `searchVersion` 카운터 (객체 의존성 X) | useEffect 무한 트리거 또는 미동작 |
+| 검색 시 refresh | `refreshServerSide({ purge: true })` | 검색해도 1페이지로 안 돌아가고 잔존 캐시가 매칭 |
+| datasource 생성 | `useMemo([])`로 1회 + `searchParamsRef` | 매 렌더 재생성 시 캐시·블록 동작 불안정 |
+| 정렬 | 백엔드 sort 미지원이면 `defaultColDef.sortable: false` override | 헤더 클릭 시 잘못된 결과 |
+| `pagination: false`/`statusBar: undefined` 잔존 | 둘 다 제거(useAggridOptions 기본값 활용) | AggridPagination 안 보임 |
+| TanStack Query 병용 | 금지 — `getRows` 안에서 apiClient 직접 호출 | 캐시 이중화 + 무효화 동기화 부담 |
+| `params.fail()` 누락 | try/catch 안에서 반드시 호출 | 네트워크 실패 시 그리드 영원히 로딩 |
+| `selectedRowId` 강조 | `useEffect([selectedRowId])` + `redrawRows()` | rowClassRules가 즉시 반영 안 됨 |
+
+#### ClientSide와의 차이
+
+| 항목 | ClientSide (기본) | SSRM |
+|---|---|---|
+| `rowModelType` | `'clientSide'` (생략 시 기본) | `'serverSide'` |
+| 데이터 전달 | `rowData` prop으로 전체 | `serverSideDatasource` prop |
+| 페이지네이션 | 그리드가 메모리에서 자름 | 그리드가 page 단위로 fetch |
+| 캐시 단위 | 없음 (전체 보유) | 행 범위 블록 |
+| 정렬·필터 | 클라이언트 처리 | 백엔드 처리 (sort/filter 파라미터 필요) |
+| 적합 데이터 크기 | 수십~수백 건 | 수천 건 이상 |
+
+기존 ClientSide 그리드는 변경 없이 유지합니다. SSRM은 백엔드가 페이지 API를 제공하고 데이터 규모가 크다는 두 조건을 동시에 만족할 때만 채택하세요.
 
 ---
 
@@ -991,9 +1190,9 @@ import { FallbackSpinner } from '@/components/custom/FallbackSpinner';
 import { NoData } from '@/components/custom/NoData';
 
 // 🔧 유틸리티
-import { cn } from '@/lib/utils';         // 클래스 이름 병합 유틸
-import { Log } from '@/log';              // 로깅
-import { toast } from '@/shared-util';    // 토스트 알림
+import { cn } from '@/lib/utils'; // 클래스 이름 병합 유틸
+import { Log } from '@/log'; // 로깅
+import { toast } from '@/shared-util'; // 토스트 알림
 
 // 📦 상태 관리
 import { useAuthStore } from '@/shared-store';
@@ -1021,40 +1220,40 @@ import { toast } from '@/shared-util';
 
 ### 파일명
 
-| 대상 | 규칙 | 예시 |
-|------|------|------|
-| 컴포넌트 | PascalCase | `BotCard.tsx`, `UserDrawer.tsx` |
-| 페이지 | PascalCase | `BotList.tsx`, `BotDetail.tsx` |
-| 훅 | camelCase + `use` 접두사 | `useBotQueries.ts`, `useBotStore.ts` |
-| API | camelCase + `Api` 접미사 | `botApi.ts`, `userApi.ts` |
-| 타입 | camelCase | `bot.ts`, `model.ts` |
-| 타입 index | - | `index.ts` |
-| 상수 | camelCase + `Constants` 접미사 | `dashboardConstants.ts` |
-| 유틸리티 | camelCase + `Utils` 접미사 | `botUtils.ts` |
+| 대상       | 규칙                           | 예시                                 |
+| ---------- | ------------------------------ | ------------------------------------ |
+| 컴포넌트   | PascalCase                     | `BotCard.tsx`, `UserDrawer.tsx`      |
+| 페이지     | PascalCase                     | `BotList.tsx`, `BotDetail.tsx`       |
+| 훅         | camelCase + `use` 접두사       | `useBotQueries.ts`, `useBotStore.ts` |
+| API        | camelCase + `Api` 접미사       | `botApi.ts`, `userApi.ts`            |
+| 타입       | camelCase                      | `bot.ts`, `model.ts`                 |
+| 타입 index | -                              | `index.ts`                           |
+| 상수       | camelCase + `Constants` 접미사 | `dashboardConstants.ts`              |
+| 유틸리티   | camelCase + `Utils` 접미사     | `botUtils.ts`                        |
 
 ### 변수/함수명
 
-| 대상 | 규칙 | 예시 |
-|------|------|------|
-| 컴포넌트 | PascalCase | `const BotCard = () => {}` |
-| 일반 함수/변수 | camelCase | `const handleSubmit = () => {}` |
-| 상수 | UPPER_SNAKE_CASE | `const MAX_RETRY_COUNT = 3` |
-| API 객체 | camelCase + Api | `export const botApi = {}` |
-| Query Key | camelCase + QueryKeys | `export const botQueryKeys = createQueryKeys(...)` |
-| Zustand 스토어 훅 | camelCase + use 접두사 + Store | `export const useBotStore = create(...)` |
+| 대상              | 규칙                           | 예시                                               |
+| ----------------- | ------------------------------ | -------------------------------------------------- |
+| 컴포넌트          | PascalCase                     | `const BotCard = () => {}`                         |
+| 일반 함수/변수    | camelCase                      | `const handleSubmit = () => {}`                    |
+| 상수              | UPPER_SNAKE_CASE               | `const MAX_RETRY_COUNT = 3`                        |
+| API 객체          | camelCase + Api                | `export const botApi = {}`                         |
+| Query Key         | camelCase + QueryKeys          | `export const botQueryKeys = createQueryKeys(...)` |
+| Zustand 스토어 훅 | camelCase + use 접두사 + Store | `export const useBotStore = create(...)`           |
 
 ### 타입/인터페이스명
 
-| 대상 | 규칙 | 예시 |
-|------|------|------|
-| 기본 타입 | PascalCase | `Bot`, `User` |
-| 목록 아이템 | PascalCase + ListItem | `BotListItem` |
-| 상세 아이템 | PascalCase + Item | `BotItem` |
-| 생성 데이터 | PascalCase + CreateDatas | `BotCreateDatas` |
-| 수정 데이터 | PascalCase + UpdateDatas | `BotUpdateDatas` |
-| Props | PascalCase + Props | `BotCardProps` |
-| Ref | PascalCase + Ref | `EntityDrawerRef` |
-| 상태 Union | PascalCase | `TrainStatus`, `TrainDiffStatus` |
+| 대상        | 규칙                     | 예시                             |
+| ----------- | ------------------------ | -------------------------------- |
+| 기본 타입   | PascalCase               | `Bot`, `User`                    |
+| 목록 아이템 | PascalCase + ListItem    | `BotListItem`                    |
+| 상세 아이템 | PascalCase + Item        | `BotItem`                        |
+| 생성 데이터 | PascalCase + CreateDatas | `BotCreateDatas`                 |
+| 수정 데이터 | PascalCase + UpdateDatas | `BotUpdateDatas`                 |
+| Props       | PascalCase + Props       | `BotCardProps`                   |
+| Ref         | PascalCase + Ref         | `EntityDrawerRef`                |
+| 상태 Union  | PascalCase               | `TrainStatus`, `TrainDiffStatus` |
 
 ---
 
@@ -1067,7 +1266,7 @@ import { toast } from '@/shared-util';
 ```typescript
 import { Log } from '@/log';
 
-Log.debug('onFinish', values);         // 디버그 (개발 중 확인용)
+Log.debug('onFinish', values); // 디버그 (개발 중 확인용)
 Log.warn('onFinishFailed', errorInfo); // 경고
 ```
 
@@ -1155,10 +1354,10 @@ const { data } = useGetBots({});
 
 ```typescript
 // ❌ React Compiler가 있으므로 불필요
-const filtered = useMemo(() => items.filter(i => i.active), [items]);
+const filtered = useMemo(() => items.filter((i) => i.active), [items]);
 
 // ✅ 그냥 작성
-const filtered = items.filter(i => i.active);
+const filtered = items.filter((i) => i.active);
 ```
 
 ### 3. 서버 상태를 useState로 관리
@@ -1171,7 +1370,8 @@ const [error, setError] = useState(null);
 
 useEffect(() => {
   setLoading(true);
-  apiClient.get('/users')
+  apiClient
+    .get('/users')
     .then(setUsers)
     .catch(setError)
     .finally(() => setLoading(false));
@@ -1201,10 +1401,14 @@ import BotCard from '../../features/bot-config/components/BotCard';
 
 ```typescript
 // ❌ React.lazy()가 default export를 기대
-export const BotList = () => { /* ... */ };
+export const BotList = () => {
+  /* ... */
+};
 
 // ✅ default export
-const BotList = () => { /* ... */ };
+const BotList = () => {
+  /* ... */
+};
 export default BotList;
 ```
 
@@ -1213,18 +1417,30 @@ export default BotList;
 ```typescript
 // ❌ 하나의 거대한 타입 파일
 // types.ts (500줄짜리...)
-export interface Bot { /* ... */ }
-export interface Model { /* ... */ }
-export interface Intent { /* ... */ }
-export interface Entity { /* ... */ }
+export interface Bot {
+  /* ... */
+}
+export interface Model {
+  /* ... */
+}
+export interface Intent {
+  /* ... */
+}
+export interface Entity {
+  /* ... */
+}
 // ...
 
 // ✅ 도메인별 분리 + barrel export
 // types/bot.ts
-export interface Bot { /* ... */ }
+export interface Bot {
+  /* ... */
+}
 
 // types/model.ts
-export interface Model { /* ... */ }
+export interface Model {
+  /* ... */
+}
 
 // types/index.ts
 export * from './bot';
@@ -1246,11 +1462,15 @@ pnpm add some-package
 
 ```typescript
 // ❌ React DevTools에서 "Anonymous"로 표시됨
-const MyDrawer = forwardRef<MyDrawerRef>((_, ref) => { /* ... */ });
+const MyDrawer = forwardRef<MyDrawerRef>((_, ref) => {
+  /* ... */
+});
 export default MyDrawer;
 
 // ✅ displayName 추가
-const MyDrawer = forwardRef<MyDrawerRef>((_, ref) => { /* ... */ });
+const MyDrawer = forwardRef<MyDrawerRef>((_, ref) => {
+  /* ... */
+});
 MyDrawer.displayName = 'MyDrawer';
 export default MyDrawer;
 ```
@@ -1409,6 +1629,7 @@ pnpm exec git-cz
 클릭하면 현재 캐시된 쿼리, 상태, 데이터를 모두 확인할 수 있습니다.
 
 **활용법:**
+
 - API 호출이 됐는지 확인 → "fresh" / "stale" / "fetching" 상태 확인
 - 캐시된 데이터 확인 → 쿼리를 클릭하면 응답 데이터가 보임
 - 캐시 무효화 테스트 → 수동으로 refetch 가능
@@ -1420,11 +1641,13 @@ pnpm exec git-cz
 **사전 준비:** Chrome 웹 스토어에서 [Redux DevTools](https://chromewebstore.google.com/detail/redux-devtools/lmhkpmbekcpmknklioeibfkpmmfibljd) 확장 프로그램 설치
 
 **사용법:**
+
 1. 개발자도구(F12) 열기
 2. **Redux** 탭 선택
 3. 상단 드롭다운에서 스토어 선택 (AuthStore, MenuStore 등)
 
 **주요 기능:**
+
 - **State 탭**: 현재 스토어의 전체 상태를 트리 구조로 확인
 - **Action 탭**: `set()` 호출 시마다 어떤 액션이 발생했는지 기록 (예: `setUserInfo`, `setMenuConfigs`)
 - **Diff 탭**: 이전 상태와 현재 상태의 차이점 표시
@@ -1542,50 +1765,130 @@ export const STATUS_LABELS: Record<TrainStatus, string> = {
 
 UI 요소는 반드시 **흰색 배경 컨테이너**(`bg-white bt-shadow`)나 **Card 컴포넌트**로 감싸서, 콘텐츠 영역이 배경과 명확히 구분되도록 해주세요.
 
-```typescript
-// ❌ 이렇게 하면 요소들이 회색 배경 위에 둥둥 떠 보입니다
-<div className="flex flex-col gap-4 w-full h-full">
-  <PageHeader breadcrumb={breadcrumb} />
-  <Select ... />
-  <Input ... />
-  <Button type="primary">추가</Button>
-  <AgGridReact rowData={data} columnDefs={columnDefs} />
-</div>
-```
-
-```typescript
-// ✅ 툴바와 테이블이 각각 흰색 배경으로 감싸져 있어 깔끔합니다
-<div className="flex flex-col gap-4 w-full h-full">
-  <PageHeader breadcrumb={breadcrumb} />
-
-  {/* 필터/액션 바 */}
-  <div className="flex items-center justify-between gap-2 w-full h-[76px] bg-white bt-shadow px-7 py-5">
-    <div className="flex gap-2 w-full items-center">
-      <Select ... />
-      <Input ... />
-    </div>
-    <Button type="primary">추가</Button>
-  </div>
-
-  {/* 데이터 테이블 */}
-  <div className="w-full h-full bg-white bt-shadow">
-    <AgGridReact rowData={data} columnDefs={columnDefs} />
-  </div>
-</div>
-```
-
-### 목록 페이지의 기본 구조
-
-프로젝트의 목록 페이지들은 대체로 아래 세 영역으로 구성됩니다:
-
-| 영역 | 역할 | 스타일 |
-|------|------|--------|
-| **PageHeader** | 브레드크럼 네비게이션 | 배경 없음 (투명) |
-| **필터/액션 바** | 검색, 필터, 추가 버튼 등 | `bg-white bt-shadow`, 고정 높이 `h-[76px]` |
-| **콘텐츠** | AG-Grid 테이블 또는 Card 그리드 | `bg-white bt-shadow` 또는 개별 Card 컴포넌트 |
-
 > **왜 `bt-shadow`를 쓰나요?**
 > 프로젝트 전역에 정의된 커스텀 box-shadow 클래스입니다. 흰색 배경과 함께 사용하면 콘텐츠 영역이 배경에서 살짝 떠오르는 효과를 주어 시각적 계층을 만들어 줍니다.
+
+### 화면 패턴별 표준 레이아웃
+
+프로젝트의 페이지들은 화면이 수행하는 기능에 따라 몇 가지 정형 패턴으로 묶입니다. 같은 패턴에 속하는 화면들은 **동일한 외곽 골격**을 공유해야 사용자가 어느 메뉴를 들어가도 일관된 경험을 받습니다. 새 화면을 만들 때는 먼저 어떤 패턴에 해당하는지 정하고 그 패턴의 골격을 그대로 따르세요. 여기에 없는 새로운 패턴이 필요하면 이 섹션에 항목을 추가합니다.
+
+### 화면 패턴: 검색·필터 + 그리드 목록
+
+상단에 검색 조건/필터를, 하단에 AG-Grid를 두는 가장 흔한 목록 페이지 패턴입니다. `apps/manager`의 `UserList`/`ClientList`/`WorkHistoryList`, `apps/fca`의 `BotDialogHistory`/`DecryptLog`/`BotRealtime`, 통계 페이지(`call-bot/*`, `nlu/*`) 등이 모두 이 패턴을 따릅니다.
+
+#### 핵심 원칙
+
+**필터와 그리드를 단일 흰색 래퍼 하나로 묶고, 그 안에서 `gap-5`로 영역을 분리합니다.** 필터와 그리드를 각각 별개의 `bg-white bt-shadow` 박스로 띄우는 구조는 사용하지 않습니다. 두 영역은 의미상 같은 "목록 화면"이므로 시각적으로도 한 덩어리로 인지되어야 합니다.
+
+#### 표준 골격
+
+```typescript
+const SomeListPage: React.FC = () => {
+  // ... hooks, queries, handlers
+
+  return (
+    <div className="flex flex-col gap-4 w-full h-full">
+      <PageHeader breadcrumb={breadcrumb} />
+
+      {/* ① 흰색 래퍼 — 필터·그리드를 모두 품는다 */}
+      <div className="flex flex-col gap-5 w-full h-full bg-white bt-shadow p-5">
+        {/* ② 필터·액션 헤더 */}
+        <header className="flex items-center justify-between w-full gap-2 lg:flex-nowrap flex-wrap">
+          <div className="flex items-center w-full gap-3">
+            <Select ... />
+            <Input ... />
+          </div>
+          <div className="flex items-center gap-2.5">
+            <Button type="primary" onClick={handleCreate}>추가</Button>
+          </div>
+        </header>
+
+        {/* ③ 그리드 */}
+        <div className="w-full h-full">
+          <AgGridReact rowData={data} columnDefs={columnDefs} gridOptions={gridOptions} />
+        </div>
+      </div>
+
+      {/* ④ Drawer·Modal은 흰색 래퍼 밖, 외곽 컨테이너 안쪽 */}
+      <SomeDetailDrawer ref={drawerRef} />
+    </div>
+  );
+};
+```
+
+#### 영역별 규칙
+
+| 영역             | 역할                                | 표준 클래스                                                                          |
+| ---------------- | ----------------------------------- | ------------------------------------------------------------------------------------ |
+| **외곽 컨테이너**    | 페이지 전체 골격                  | `flex flex-col gap-4 w-full h-full`                                                  |
+| **PageHeader**   | 브레드크럼 네비게이션              | (자체 스타일, 배경 없음)                                                             |
+| **흰색 래퍼**    | 필터·그리드를 묶는 단일 컨테이너    | `flex flex-col gap-5 w-full h-full bg-white bt-shadow p-5`                           |
+| **필터·액션 헤더** | 인라인 필터 + 우측 액션 버튼          | `<header className="flex items-center justify-between w-full gap-2 lg:flex-nowrap flex-wrap">` |
+| **그리드**       | AG-Grid 컨테이너                    | `w-full h-full` (배경·그림자 금지)                                                   |
+| **Drawer/Modal** | 상세·생성·편집용                    | 흰색 래퍼 밖, 외곽 컨테이너 안쪽에 배치                                              |
+
+#### 검색 영역이 복잡할 때 — 전용 컴포넌트로 분리
+
+검색 폼이 다단(여러 행)이거나 Collapsible(접힘) 동작·엑셀 다운로드 등 자체 로직을 갖는 경우, 검색 영역만 전용 컴포넌트(`<XxxSearchForm />`, `<XxxSearchBar />`)로 분리합니다. 단, 그 컴포넌트는 **자기 안에 흰색 배경/그림자/외부 여백을 두지 않습니다**. 흰색 래퍼는 부모가 책임지므로, 자식은 콘텐츠 레이아웃만 담당합니다.
+
+```typescript
+// ✅ 자식 컴포넌트는 배경 없이 콘텐츠만
+const BotDialogHistorySearchForm: React.FC<Props> = ({ onSearch, ... }) => {
+  return (
+    <div className="flex flex-col gap-3">
+      {/* 1행: 검색일자, 봇, 의도, 신뢰구간 */}
+      <div className="flex items-center gap-4"> ... </div>
+      {/* 2행: 사용자 ID, ANI 등 */}
+      <div className="flex items-center gap-4"> ... </div>
+    </div>
+  );
+};
+
+// ❌ 자식이 자기 배경/그림자/여백을 들고 있으면 부모 래퍼와 이중으로 떠 보인다
+<div className="flex flex-col gap-3 p-5 bg-white bt-shadow mb-4"> ... </div>
+```
+
+부모 페이지 쪽 사용:
+
+```typescript
+<div className="flex flex-col gap-5 w-full h-full bg-white bt-shadow p-5">
+  <BotDialogHistorySearchForm onSearch={handleSearch} ... />
+  <div className="w-full h-full">
+    <BotDialogHistoryTable rowData={data} ... />
+  </div>
+</div>
+```
+
+자식 그리드 컴포넌트(`BotDialogHistoryTable` 등)도 마찬가지로 자기 루트에 `bg-white bt-shadow`를 두지 않고 `flex flex-col w-full h-full`만 부여합니다.
+
+#### Collapsible 필터 (통계 페이지 패턴)
+
+통계 페이지처럼 필터 항목이 많아 접고 펴는 UI가 필요할 때는 `Collapsible` 컴포넌트를 사용하되, 흰색 래퍼·`gap-5` 골격은 동일하게 유지합니다. 필터 헤더 자체는 `flex flex-col gap-3`로 다행 구성합니다(인라인 한 줄 헤더와 다른 점).
+
+```typescript
+<div className="flex flex-col gap-5 w-full h-full bg-white bt-shadow p-5">
+  <Collapsible open={isFilterOpen} onOpenChange={setIsFilterOpen}>
+    <header className="flex flex-col gap-3">
+      {/* 항상 보이는 1행 필터 */}
+      <div className="flex items-start gap-3"> ... </div>
+      <CollapsibleContent>
+        {/* 추가 필터 행 */}
+      </CollapsibleContent>
+    </header>
+  </Collapsible>
+  <div className="w-full h-full">
+    <AgGridReact ... />
+  </div>
+</div>
+```
+
+#### 흔한 실수
+
+- ❌ 필터와 그리드를 각각 `bg-white bt-shadow` 박스로 분리 → ✅ 단일 래퍼에 `gap-5`로 묶기
+- ❌ 자식 검색/그리드 컴포넌트 안에 또 `bg-white bt-shadow` 추가 → ✅ 자식은 배경 없이 콘텐츠만 담당
+- ❌ 필터 헤더에 고정 높이 `h-[76px]` 부여 → ✅ 콘텐츠에 따라 자연스러운 높이로 두기 (`flex-wrap`만 처리)
+- ❌ Drawer/Modal을 흰색 래퍼 안쪽에 배치 → ✅ 외곽 컨테이너 직속(흰색 래퍼 형제)에 두기
+- ❌ 모바일 전용 카드 뷰를 별도 분기로 유지 → ✅ AG-Grid 자체의 반응형 동작에 맡기고 분기 제거 (과거에 `lg:hidden`/`max-lg:hidden`로 분리하던 패턴은 폐기됨)
 
 ### Card 그리드 레이아웃
 
@@ -1689,15 +1992,15 @@ const MyCreatePage = () => {
 
 #### Form.Item의 자주 쓰는 props
 
-| prop | 역할 | 예시 |
-|------|------|------|
-| `name` | 폼 데이터의 키 이름 | `name="username"` |
-| `label` | 필드 위에 표시되는 레이블 | `label="이름"` |
-| `required` | 필수 표시(*) UI만 추가 | `required` |
-| `hasFeedback` | 유효성 검사 아이콘(✓, ✕) 표시 | `hasFeedback` |
-| `rules` | 유효성 검사 규칙 배열 | 아래 참고 |
-| `tooltip` | 레이블 옆 물음표 도움말 | `tooltip="로그인에 사용됩니다"` |
-| `valuePropName` | boolean 컴포넌트(Switch 등)에 필요 | `valuePropName="checked"` |
+| prop            | 역할                               | 예시                            |
+| --------------- | ---------------------------------- | ------------------------------- |
+| `name`          | 폼 데이터의 키 이름                | `name="username"`               |
+| `label`         | 필드 위에 표시되는 레이블          | `label="이름"`                  |
+| `required`      | 필수 표시(\*) UI만 추가            | `required`                      |
+| `hasFeedback`   | 유효성 검사 아이콘(✓, ✕) 표시      | `hasFeedback`                   |
+| `rules`         | 유효성 검사 규칙 배열              | 아래 참고                       |
+| `tooltip`       | 레이블 옆 물음표 도움말            | `tooltip="로그인에 사용됩니다"` |
+| `valuePropName` | boolean 컴포넌트(Switch 등)에 필요 | `valuePropName="checked"`       |
 
 #### 자주 쓰는 유효성 검사 rules
 
@@ -1745,6 +2048,7 @@ useEffect(() => {
 ```
 
 > **`initialValues`와 `setFieldsValue`의 차이**
+>
 > - `initialValues`: 폼이 처음 렌더링될 때 한 번만 적용됩니다. 이미 값을 알고 있을 때 사용합니다. (예: 생성 페이지에서 기본값)
 > - `setFieldsValue()`: 폼이 렌더링된 후에 동적으로 값을 채워 넣습니다. API 응답을 기다려야 할 때 사용합니다. (예: 수정 페이지)
 
@@ -1803,8 +2107,14 @@ const [role, setRole] = useState('');
 const [status, setStatus] = useState('ACTIVE');
 
 const handleSubmit = () => {
-  if (!name) { toast.error('이름을 입력하세요.'); return; }
-  if (!email) { toast.error('이메일을 입력하세요.'); return; }
+  if (!name) {
+    toast.error('이름을 입력하세요.');
+    return;
+  }
+  if (!email) {
+    toast.error('이메일을 입력하세요.');
+    return;
+  }
   createMutation.mutate({ name, email, role, status });
 };
 
@@ -1812,10 +2122,576 @@ const handleSubmit = () => {
 const [form] = Form.useForm();
 
 const onFinish = (values) => {
-  createMutation.mutate(values);  // 유효성 검사는 rules가 알아서 처리
+  createMutation.mutate(values); // 유효성 검사는 rules가 알아서 처리
 };
 ```
 
 #### Drawer를 닫을 때 resetFields를 빠뜨림
 
 Drawer가 닫혔다가 다시 열릴 때 이전에 입력한 값이 잔존하는 문제가 생길 수 있습니다. `useEffect`의 cleanup 함수에서 `form.resetFields()`를 호출해주세요.
+
+---
+
+## 19. 화면 커스터마이징(Variants) 가이드
+
+테넌트(고객사)별로 동일 메뉴 path에서 서로 다른 화면 컴포넌트를 렌더해야 하는 시나리오를 데이터 기반으로 처리하기 위한 패턴입니다. 운영자가 메뉴 관리 어드민에서 picker로 변형을 선택하면, 그 path 진입 시 선택된 컴포넌트가 렌더됩니다.
+
+### 왜 이 패턴인가
+
+**문제**: 같은 "봇 목록" 화면이지만 A 은행은 대출 컬럼이 추가된 표를, B 통신사는 회선 정보 컬럼이 있는 표를 보고 싶다.
+
+**잘못된 접근**:
+
+- path 분리(`/bot/list-bank-a`, `/bot/list-carrier`) → URL이 테넌트 내부 사정을 노출, 매뉴얼·딥링크 호환성 깨짐, 메뉴 데이터 모델이 복잡해짐
+- 컴포넌트 내부에 if/else 분기 → 한 파일이 모든 테넌트 분기를 떠안아 비대해짐
+
+**올바른 접근**: path는 의도(`/bot/list`)를 표현, element만 데이터 기반으로 교체. 코드 변경 없이 운영자가 어드민에서 변형 적용·해제 가능.
+
+### 전체 구조
+
+```
+┌──────────── 코드 (개발자 작성) ────────────┐
+│                                              │
+│  apps/<remote>/src/app/pages/.../            │
+│   ├── BotList.tsx                  (기본)    │
+│   ├── variants/BotListBankA.tsx    (변형)    │
+│   └── BotList.variants.ts          (선언)    │
+│                                              │
+│         │ 모든 variants 파일을 한 곳에 모음  │
+│         ▼                                    │
+│  apps/<remote>/src/app/features/router/      │
+│   pageVariants.ts                            │
+│         │ MF './PageVariants'로 expose       │
+│         ▼                                    │
+└─────────┼────────────────────────────────────┘
+          │
+          ├── (어드민) host가 메타만 추출 → usePageVariantsStore
+          │    → 메뉴 관리 picker에서 카드 그리드로 표시
+          │    → 운영자 선택 → DB의 menu row에 componentKey 저장
+          │
+          └── (사용자) routes.tsx의 <DynamicElement>가
+              menuStore의 componentKey 보고 변형 렌더
+```
+
+### 새 변형 추가 절차
+
+#### Step 1: 변형 컴포넌트 작성
+
+```
+apps/fca/src/app/pages/bot-config/
+├── BotList.tsx                    ← 기본
+├── variants/
+│   └── BotListBankA.tsx           ← 신규 작성
+└── BotList.variants.ts
+```
+
+`variants/BotListBankA.tsx`는 기본 컴포넌트와 **동일한 prop·context·query key를 사용**해야 합니다. 데이터 fetching 형태가 본질적으로 다르면 variant가 아니라 별도 path로 분리하세요.
+
+#### Step 2: 변형 정의 파일에 등록
+
+`BotList.variants.ts`:
+
+```ts
+import { lazy } from 'react';
+import type { PageVariantConfig } from '@/components/custom/DynamicElement';
+
+export const botListVariants: PageVariantConfig = {
+  appId: 'fca',
+  path: 'bot-config/bot/list',
+  defaultKey: 'BotList',
+  components: {
+    BotList: {
+      label: '기본 봇 목록',
+      description: '표준 카드 그리드',
+      component: lazy(() => import('./BotList')),
+    },
+    BotListBankA: {
+      // ← 추가
+      label: 'A 은행 전용',
+      description: '대출 컬럼 + 컴플라이언스 뱃지',
+      component: lazy(() => import('./variants/BotListBankA')),
+    },
+  },
+};
+```
+
+#### Step 3: aggregator에 추가
+
+`apps/<remote>/src/app/features/router/pageVariants.ts`:
+
+```ts
+import { botListVariants } from '../../pages/bot-config/BotList.variants';
+import type { PageVariantConfig } from '@/components/custom/DynamicElement';
+
+export const pageVariants: Record<string, PageVariantConfig> = {
+  [botListVariants.path]: botListVariants,
+  // ...
+};
+```
+
+이미 등록된 path에 변형만 추가하는 경우엔 Step 3은 생략(기존 entry 재사용).
+
+#### Step 4: routes.tsx의 element를 DynamicElement로 전환
+
+해당 path가 처음 변형을 갖는 거라면 routes.tsx에서 정적 element를 DynamicElement로 교체:
+
+```tsx
+// Before
+{ path: 'list', element: <BotList /> },
+
+// After
+import { botListVariants } from './pages/bot-config/BotList.variants';
+import DynamicElement from '@/components/custom/DynamicElement';
+
+{ path: 'list', element: <DynamicElement variants={botListVariants} /> },
+```
+
+이미 DynamicElement를 사용 중이면 Step 4도 생략.
+
+#### Step 5: 운영자가 어드민에서 적용
+
+배포 후 운영자가 메뉴 관리 화면에서:
+
+1. 해당 메뉴(예: "봇 목록")를 트리에서 선택
+2. "화면파일 변경" Select에서 새 변형(`BotListBankA`) 선택
+3. 저장 → DB의 menu row에 `componentKey: 'BotListBankA'` 기록
+4. 다음 로그인부터 그 테넌트 사용자는 변형 컴포넌트를 보게 됨
+
+### 변형이 sub 컴포넌트를 가질 때 — 폴더로 승격
+
+route에 매핑되는 변형 컴포넌트(예: `BotDetail_TEST_A`)가 단일 파일에서 끝나지 않고, 그 내부에서 import하는 하위 컴포넌트(탭·드로어·카드 등)까지 별도 구현이 필요할 수 있습니다. 이때는 **변형을 폴더로 승격**해서 진입점과 sub 컴포넌트를 한 폴더에 격리합니다. variant 시스템은 sub 컴포넌트를 모르고 manifest에는 여전히 진입점 하나만 등록됩니다.
+
+```
+apps/fca/src/app/pages/bot-config/
+├── BotDetail.tsx                         (정식 — 손대지 않음)
+├── BotDetail.variants.ts                 (lazy import 경로 변경 없음)
+└── variants/
+    ├── BotList_TEST_A.tsx                ─ 단일 파일 variant는 그대로
+    └── BotDetail_TEST_A/                 ★ sub 컴포넌트를 가진 variant는 폴더로
+        ├── index.tsx                     ─ route 진입점(탭 골격)
+        └── BotBasicInfo.tsx              ─ 이 variant 전용 sub 컴포넌트
+
+apps/fca/src/app/features/bot-config/tabs/
+└── BotBasicInfo.tsx                      (정식 — 손대지 않음)
+```
+
+`*.variants.ts`의 lazy 경로는 그대로 폴더를 가리킵니다 — webpack이 `index.tsx`로 해석:
+
+```ts
+component: lazy(() => import('./variants/BotDetail_TEST_A')),
+```
+
+variant 내부에서는 자기 폴더 sub는 형제 상대 경로, 재사용하는 정식 sub는 원본 위치에서 그대로 import:
+
+```tsx
+// variants/BotDetail_TEST_A/index.tsx
+import BotBasicInfo from './BotBasicInfo';                                        // 이 variant 전용
+import BotVersionList from '../../../../features/bot-config/tabs/BotVersionList'; // 정식 그대로 재사용
+```
+
+#### sub 컴포넌트 위치 결정 기준
+
+| 상황                                          | 위치                                              |
+| --------------------------------------------- | ------------------------------------------------- |
+| 단일 파일 variant                             | `pages/<feature>/variants/<Variant>.tsx`          |
+| variant 전용 sub 컴포넌트가 있는 variant      | `pages/<feature>/variants/<Variant>/` 폴더로 승격 |
+| 여러 variant가 실제로 공유하는 sub 컴포넌트   | `features/<feature>/tabs/variants/` (공유 발생 시에만, YAGNI) |
+
+- variant 하나에서만 쓰는 sub 컴포넌트는 **무조건 그 variant 폴더 안에 격리**합니다. 정식 `features/<feature>/...`에 실험·테넌트 전용 코드가 섞이면 무엇이 정식인지 시간이 지날수록 흐려집니다.
+- 검증 끝나고 variant를 제거할 땐 폴더 하나만 지우면 정식 구조에 잔재가 남지 않습니다.
+- sub 컴포넌트도 정식 컴포넌트와 동일한 prop·context·query key 호환성 규칙을 그대로 따라야 합니다(같은 path 위에서 같은 라우트 컨텍스트로 동작해야 함).
+
+### DynamicElement의 동작 원리
+
+[libs/shared-ui/src/components/custom/DynamicElement.tsx](../libs/shared-ui/src/components/custom/DynamicElement.tsx):
+
+```tsx
+const DynamicElement = ({ variants }) => {
+  // 1. menuStore에서 이 path의 componentKey 찾기
+  const selectedKey = useMenuStore((s) => {
+    const config = s.menuConfigs.find((c) => c.appId === variants.appId);
+    return config ? findComponentKey(config.menus, variants.path) : undefined;
+  });
+
+  // 2. 키 유효성: 등록되지 않은 키면 defaultKey로 fallback
+  const resolvedKey = selectedKey && variants.components[selectedKey] ? selectedKey : variants.defaultKey;
+
+  // 3. lazy 컴포넌트 참조 + Suspense
+  const Component = variants.components[resolvedKey].component;
+  return (
+    <Suspense fallback={<FallbackSpinner />}>
+      <Component />
+    </Suspense>
+  );
+};
+```
+
+- DB의 `componentKey`가 코드에서 사라진 경우 → 자동으로 default 컴포넌트로 fallback (운영 안전)
+- variants 컴포넌트는 lazy chunk로 분리되어 진입 시점에만 다운로드
+
+### Picker UI는 어떻게 알게 되는가
+
+호스트의 `SharedInfoProvider` 부팅 시:
+
+1. 각 remote의 `./PageVariants` aggregator를 dynamic import
+2. `usePageVariantsLoader`가 component 함수 참조는 버리고 메타(label/description/key)만 추출
+3. `usePageVariantsStore.variants`에 저장
+
+메뉴 관리 폼은 store에서 변형 매니페스트를 읽어 picker 옵션을 그립니다. 호스트는 변형 컴포넌트 chunk를 직접 받지 않으므로 가벼움.
+
+### 새 remote의 자동 등록
+
+`pnpm run create-remote`로 신규 remote를 생성하면 다음이 자동 처리됩니다:
+
+- `apps/<new-remote>/src/app/features/router/pageVariants.ts` 빈 aggregator 생성
+- `module-federation.config.ts`에 `'./PageVariants'` expose 항목 포함
+- 호스트의 `usePageVariantsLoader` `VARIANT_LOADERS` 맵에 신규 remote 자동 등록
+
+따라서 신규 remote는 별도 작업 없이 variants 인프라가 즉시 동작합니다.
+
+### 아이콘 레지스트리도 동일 발상
+
+화면 컴포넌트뿐 아니라 메뉴 아이콘도 운영자가 어드민에서 선택하는 구조를 따릅니다. [libs/shared-ui/src/components/custom/menuIconRegistry.ts](../libs/shared-ui/src/components/custom/menuIconRegistry.ts)에 사용 가능 아이콘이 등록되어 있고, DB의 `iconKey`(`custom:IconMenuMain` / `lucide:Activity` 등)에 따라 사이드바·picker가 해석합니다. 새 아이콘이 필요하면 레지스트리에 등록.
+
+### 흔한 실수 / 안티패턴
+
+#### prop이 다른 컴포넌트를 같은 variants 그룹에 등록
+
+```tsx
+// ❌ BotList는 props 없고 BotDetail은 :serviceId 필요 — 다른 path
+components: {
+  BotList: { ..., component: lazy(() => import('./BotList')) },
+  BotDetail: { ..., component: lazy(() => import('./BotDetail')) }, // 잘못된 그룹
+}
+```
+
+variants는 **같은 path 위에서 호환되는 컴포넌트**만 등록해야 합니다. URL 파라미터·라우트 컨텍스트가 다르면 별도 그룹.
+
+#### 모든 path를 미리 DynamicElement로 변환
+
+대부분의 page는 영영 변형이 필요 없습니다. 변형 요구사항이 실제로 생긴 page만 DynamicElement로 변환하세요. 미리 변환하면 boilerplate만 늘고 가치 없습니다.
+
+#### aggregator에 import 추가를 빼먹음
+
+신규 `*.variants.ts` 파일을 만들고 aggregator에 import를 안 넣으면 picker에 노출되지 않습니다. PR 리뷰 시 체크하거나 ESLint 룰로 검증할 수 있습니다.
+
+#### variants에 등록되지 않은 키를 DB에 저장
+
+DynamicElement는 등록 안 된 키를 만나면 default로 fallback하므로 화면이 깨지진 않지만, 운영자가 picker에서 다시 선택하기 전까진 의도와 다른 화면이 보일 수 있습니다. 변형 컴포넌트를 코드에서 제거할 땐 DB 마이그레이션도 함께 진행하세요.
+
+## queryString 기반 메뉴 분기 가이드
+
+### 왜 필요한가
+
+같은 path를 여러 메뉴가 공유하면서 queryString으로 화면 분기를 하는 패턴이 있습니다. 예:
+
+- 같은 대시보드 path(`/fca/dashboard`) + 메뉴마다 다른 위젯 preset(`?presetId=ops` / `?presetId=sales`)
+- 같은 목록 path + 메뉴마다 다른 필터(`?status=active` / `?status=archived`)
+
+이 흐름을 자유 입력으로 두면 운영자가 path 컬럼에 query를 손으로 작성해야 하고, 어떤 path가 어떤 query를 받는지 메뉴 폼이 알 수 없습니다. 이 메커니즘은 **routes.tsx에 query spec을 선언하면 메뉴 폼이 path 선택 시 자동으로 그에 맞는 selector UI를 띄워주는** 구조입니다.
+
+### 전체 구조
+
+```
+┌──────────── 코드 (개발자 작성) ────────────┐
+│                                              │
+│  routes.tsx                                  │
+│   handle.queryParams: [                      │
+│     { key, label, selectorKey, ...extra }    │
+│   ]                                          │
+│         │                                    │
+│         ▼                                    │
+│  apps/<remote>/src/app/features/router/      │
+│   ├── querySelectors.ts (aggregator)         │
+│   │    - _selectors = { Xxx: lazy(...) }     │
+│   │    - SelectorKeys = { Xxx: 'fca:Xxx' }   │
+│   └── selectors/Xxx.tsx                      │
+│         │ MF './QuerySelectors'로 expose     │
+│         ▼                                    │
+└─────────┼────────────────────────────────────┘
+          │
+          ├── (host 부팅) useQuerySelectorsLoader가 모든 remote의
+          │    querySelectors를 로드 → '<appId>:<key>' prefix 적용 후
+          │    useQuerySelectorsStore.registry에 적재
+          │
+          ├── (운영자) 메뉴 폼이 path 선택 → entry.queryParams 감지 →
+          │    QuerySelectorRenderer가 registry lookup → selector 렌더 →
+          │    선택값 + path를 'path?key=value'로 합성해 DB 저장
+          │
+          └── (사용자) 메뉴 클릭 → /path?key=value 이동 →
+              컴포넌트가 useSearchParams로 query 읽어 화면 분기
+```
+
+### 책임 분리
+
+| 영역 | 책임 |
+|---|---|
+| **routes.tsx의 handle.queryParams** | 메타데이터만 — "어떤 selector + 가벼운 식별자/필터" |
+| **selector 컴포넌트** | UI 그리기 + 데이터 가져오기 (정적이면 spec.options 사용, 동적이면 useGetXxx 호출) |
+| **메뉴 폼** | selectorKey로 컴포넌트 lookup해 동일 인터페이스로 렌더만 — selector 종류·데이터 fetching에 무지 |
+
+### 두 종류의 selector
+
+#### 1. 공통 selector (manager가 기본 제공)
+
+옵션 데이터를 **routes.tsx의 spec에서 받는** 일반 selector. manager가 한 번 만들고 모든 remote가 공유합니다.
+
+대표 예: `EnumSelector` — `spec.options`에 `{ value, label }[]`을 받아 그대로 Ant Select로 렌더.
+
+```tsx
+// routes.tsx
+import { DefaultSelectorKeys } from '@/shared-store';
+
+handle: {
+  queryParams: [
+    {
+      key: 'status',
+      label: '상태',
+      selectorKey: DefaultSelectorKeys.EnumSelector,
+      options: [
+        { value: 'active', label: '활성' },
+        { value: 'inactive', label: '비활성' },
+      ],
+    },
+  ],
+}
+```
+
+새 공통 selector 추가 시:
+1. `apps/manager/src/app/features/router/selectors/Xxx.tsx` 작성 (default export)
+2. `apps/manager/src/app/features/router/querySelectors.ts`의 `_selectors`에 lazy import + 키 등록
+3. `libs/shared-store/src/lib/defaultSelectorKeys.ts`의 `DefaultSelectorKeys`에 `Xxx: 'manager:Xxx'` 항목 추가
+
+#### 2. 도메인 selector (각 remote가 자체 제공)
+
+옵션 데이터를 **selector 컴포넌트가 자체 정의/fetch하는** selector. 도메인 지식이 selector에 머무르므로 다른 remote와 의존성이 생기지 않습니다.
+
+대표 예시 (가상): `PresetSelector` — fca의 useGetPresets로 preset 목록을 fetch해서 select 그림.
+
+```tsx
+// apps/fca/src/app/features/router/selectors/PresetSelector.tsx
+import { Select } from 'antd';
+import type { QuerySelectorProps } from '@/shared-store';
+import { useGetPresets } from '../../preset/hooks/usePresetQueries';
+
+export default function PresetSelector({ spec, value, onChange }: QuerySelectorProps) {
+  const { data: presets = [], isLoading } = useGetPresets({
+    params: { targetPath: spec.filter as string },
+  });
+  return (
+    <Select
+      value={value}
+      onChange={(v) => onChange(v ?? undefined)}
+      loading={isLoading}
+      options={presets.map((p) => ({ value: p.presetId, label: p.name }))}
+      allowClear
+      placeholder="Preset 선택"
+    />
+  );
+}
+```
+
+```ts
+// apps/fca/src/app/features/router/querySelectors.ts (aggregator)
+const _selectors = {
+  PresetSelector: lazy(() => import('./selectors/PresetSelector')),
+} satisfies Record<string, QuerySelectorComponent>;
+```
+
+```tsx
+// routes.tsx
+import { SelectorKeys } from './features/router/querySelectors';
+
+handle: {
+  queryParams: [
+    {
+      key: 'presetId',
+      label: '대시보드 Preset',
+      selectorKey: SelectorKeys.PresetSelector,
+      filter: 'dashboard',  // selector가 spec.filter로 사용
+    },
+  ],
+}
+```
+
+### 새 도메인 selector 추가 절차
+
+1. **selector 컴포넌트 작성**: `apps/<remote>/src/app/features/router/selectors/Xxx.tsx` (default export, `QuerySelectorProps` 받음)
+2. **aggregator 등록**: `apps/<remote>/src/app/features/router/querySelectors.ts`의 `_selectors`에 lazy import + 키 추가. `SelectorKeys.Xxx`가 자동으로 `'<appId>:Xxx'` 타입으로 noaaow됨
+3. **routes.tsx에서 사용**: `import { SelectorKeys } from './features/router/querySelectors'` → `selectorKey: SelectorKeys.Xxx`
+
+코드 변경은 셋이 끝. host loader, MF expose, store는 모두 자동.
+
+### appId prefix와 SelectorKeys 상수
+
+selectorKey 충돌 방지와 휴먼에러 방지를 위해 두 가지 강제:
+
+1. **appId prefix 자동 적용**: host의 [useQuerySelectorsLoader.ts](../apps/host/src/app/features/router/hooks/useQuerySelectorsLoader.ts)가 각 remote의 querySelectors를 `<appId>:<key>` 형태로 변환해 store에 적재. fca의 EnumSelector와 manager의 EnumSelector가 자연스럽게 분리됨
+2. **SelectorKeys 자동 생성**: 각 remote의 `querySelectors.ts`에서 `Object.fromEntries` + `satisfies` + literal type assertion 패턴으로 SelectorKeys 객체 자동 생성. routes.tsx에서 `SelectorKeys.Xxx`로 자동완성·타입체크 받음
+
+```ts
+const APP_ID = 'fca';
+
+const _selectors = {
+  PresetSelector: lazy(() => import('./selectors/PresetSelector')),
+} satisfies Record<string, QuerySelectorComponent>;
+
+export const querySelectors = _selectors;
+
+// 자동: SelectorKeys.PresetSelector === 'fca:PresetSelector' (타입도 narrow)
+export const SelectorKeys = Object.fromEntries(
+  Object.keys(_selectors).map((k) => [k, `${APP_ID}:${k}`]),
+) as { [K in keyof typeof _selectors]: `${typeof APP_ID}:${K & string}` };
+```
+
+### 새 remote의 자동 등록
+
+`pnpm run create-remote`로 신규 remote를 생성하면 다음이 자동 처리됩니다:
+
+- `apps/<new-remote>/src/app/features/router/querySelectors.ts` 빈 aggregator 생성 (APP_ID는 새 앱 이름으로 자동 치환)
+- `module-federation.config.ts`에 `'./QuerySelectors'` expose 항목 포함
+- 호스트의 `useQuerySelectorsLoader` `SELECTOR_LOADERS` 맵에 신규 remote 자동 등록
+
+따라서 신규 remote는 별도 작업 없이 querySelectors 인프라가 즉시 동작합니다 (selector를 추가하는 시점부터 registry에 기여).
+
+### 메뉴 폼 동작
+
+메뉴 등록·편집 폼([MenuDetailForm](../apps/manager/src/app/features/menu/components/MenuDetailForm.tsx), [MenuCreateDrawer](../apps/manager/src/app/features/menu/components/MenuCreateDrawer.tsx))은 다음을 자동 처리합니다:
+
+- **path 변경 감지**: `useRemoteRoutesStore.routes`에서 entry를 찾아 `entry.queryParams` 추출
+- **selector 동적 노출**: [QuerySelectorRenderer](../apps/manager/src/app/features/menu/selectors/QuerySelectorRenderer.tsx)가 spec.map → registry lookup → 컴포넌트 렌더 (Suspense로 lazy 로드 대비)
+- **저장 시 합성**: 운영자 선택값을 `URLSearchParams`로 인코딩해 `path?key=value` 형태로 path 컬럼 저장
+- **편집 시 분해**: 저장된 path에서 `?` 기준으로 base path와 queryValues 분리 → path Select와 selector에 각각 복원
+- **queryValues 관리**: form 인스턴스 외부의 `useState`로 관리. Form.useWatch는 등록되지 않은 필드의 setFieldsValue 변경을 즉시 반영하지 않을 수 있어 별도 state로 분리한 것
+
+핵심 유틸: [menuFormOptions.tsx](../apps/manager/src/app/features/menu/utils/menuFormOptions.tsx)의 `splitPathQuery`, `joinPathQuery`.
+
+> 분기 값을 fetch 인자로 사용한다면 React Query 일반 규칙대로 queryKey에 포함시켜 메뉴별 캐시를 분리합니다(`createQueryKeys` factory에 인자로 받으면 자동 적용 — 별도 항목으로 박지 않고 일반 규칙을 따르면 충분).
+>
+> 메뉴 등록·편집 폼은 `handle.queryParams`에 선언된 모든 query를 무조건 필수 입력으로 검증합니다(빈 값 저장 불가). 선택적 query 키 케이스는 의도적으로 미지원이므로 `QueryParamSpec`에 `required` 같은 옵트인 옵션도 두지 않습니다 — 검증 로직은 [MenuCreateDrawer](../apps/manager/src/app/features/menu/components/MenuCreateDrawer.tsx) / [MenuDetailForm](../apps/manager/src/app/features/menu/components/MenuDetailForm.tsx)의 `handleSubmit`이 담당하고, 빈 selector 옆에 인라인 에러 메시지를 표시합니다([QuerySelectorRenderer](../apps/manager/src/app/features/menu/selectors/QuerySelectorRenderer.tsx)의 `errors` prop).
+>
+> 분기 메뉴 페이지의 breadcrumb은 leaf 항목 `path`에 현재 query 값을 직접 합성해 자기 자신을 가리키도록 작성합니다. 부모(상위) 항목은 redirect-only 그룹(`<Navigate to=... replace />`로 자식 leaf에 떨어지는 path)인 경우가 많은데, 이때 `path`에 query를 박아도 redirect 단계에서 query가 사라져 분기 컨텍스트가 깨집니다 — wrapper나 routes 구조 변경을 도입하지 않는 한 이 누락은 막을 수 없으므로 부모 항목은 `path`를 작성하지 않는 것을 권장합니다. [PageHeader](../libs/shared-ui/src/components/custom/PageHeader.tsx)는 path 없는 항목을 비링크 텍스트(`<span>`)로 렌더하므로 시각적으로도 클릭 비활성임이 드러납니다.
+>
+> ```tsx
+> const breadcrumb: BreadcrumbProps['items'] = [
+>   { title: '샘플' },                                                          // 부모 — path 폐기 → 비링크 텍스트
+>   { title: '프리셋 데모', path: `/fca/sample/preset-demo?preset=${preset}` }, // leaf — 현재 query 합성
+> ];
+> ```
+
+### 주의사항 — 컴포넌트 remount 처리
+
+같은 path를 여러 메뉴가 공유할 때 자동으로 처리되지 않는 핵심 사항입니다 — 메커니즘 위에서 작성자가 보완해야 합니다.
+
+#### 왜 필요한가
+
+같은 path를 query로 분기하는 두 메뉴(예: `?preset=sales`, `?preset=support`)를 클릭할 때 React Router는 같은 element 매칭이라 판단해 컴포넌트 인스턴스를 재사용합니다. `useSearchParams`로 새 query 값은 reactive하게 읽히지만, 다음 상태들은 그대로 남습니다:
+
+- `useState` 값(폼 입력, 카운터, 펼침 상태 등)
+- `useRef`로 잡고 있는 imperative 핸들·DOM 참조
+- 진행 중이던 mutation·polling·timer
+- AG-Grid 같은 imperative 컴포넌트의 내부 상태(컬럼 width, 정렬 순서 등)
+
+운영자 입장에서 "다른 메뉴를 클릭한 결과로 새 화면이 떠야 한다"고 기대할 때 위 상태가 남아 있으면 혼란이 발생합니다.
+
+#### 정공법: outer/inner 분할 + `key`
+
+페이지 컴포넌트를 두 단으로 나눠, outer가 query 값을 읽고 inner의 `key`로 박습니다:
+
+```tsx
+export default function PresetDemo() {
+  const [searchParams] = useSearchParams();
+  const preset = searchParams.get('preset') ?? '';
+  return <PresetDemoBody key={preset} />;
+}
+
+function PresetDemoBody() {
+  // 기존 페이지 본체 — useState/useEffect/useRef/AG-Grid 등 자유롭게 사용
+}
+```
+
+`key`가 변하면 React가 `PresetDemoBody`의 인스턴스를 unmount/remount하므로 위에 나열한 상태가 모두 초기화됩니다. fca의 [PresetDemo.tsx](../apps/fca/src/app/pages/sample/PresetDemo.tsx)가 검증 샘플로 마운트 시각·카운터를 표시해 동작을 즉시 확인할 수 있게 해둡니다.
+
+#### 분기 키 문자열의 동기화
+
+분기 키 문자열(`'preset'` 등)은 작성자가 다음 위치에 모두 박아야 합니다:
+
+- routes.tsx의 `handle.queryParams[].key`
+- 페이지 outer/inner의 `searchParams.get(...)`
+- (있다면) TanStack Query key
+
+세 군데를 사람이 맞추는 구조라 한 곳 빼먹어도 조용히 깨질 수 있지만, non-data router 환경에선 단일 출처(SoT)를 reactive하게 공유할 표준 방법이 없어 자동 동기화는 불가합니다. 키가 1~2개로 짧고 의미가 명확하면(예: `preset`, `mode`) 하드코딩이 가장 가볍고 권장됩니다. 다음 중 하나라도 해당되면 페이지 옆에 `<Page>.consts.ts` 같은 상수 모듈을 두고 routes·페이지·query key 모두 그 상수에서 import하는 것을 권장합니다:
+
+- 같은 키가 여러 페이지에서 재사용됨
+- 키 이름이 길거나 오타 위험이 있음
+- 한 페이지의 분기 query 키가 2개 이상
+
+상수 모듈 예시:
+
+```ts
+// PresetDemo.consts.ts
+import { SelectorKeys } from '../../features/router/querySelectors';
+
+export const PRESET_DEMO_QUERY_KEY = 'preset';
+export const PRESET_DEMO_QUERY_PARAMS = [
+  { key: PRESET_DEMO_QUERY_KEY, label: '프리셋', selectorKey: SelectorKeys.PresetSelector },
+] as const;
+```
+
+```tsx
+// routes.tsx
+import { PRESET_DEMO_QUERY_PARAMS } from './pages/sample/PresetDemo.consts';
+{
+  path: 'preset-demo',
+  element: <PresetDemo />,
+  handle: { queryParams: PRESET_DEMO_QUERY_PARAMS },
+}
+
+// PresetDemo.tsx
+import { PRESET_DEMO_QUERY_KEY } from './PresetDemo.consts';
+const preset = searchParams.get(PRESET_DEMO_QUERY_KEY) ?? '';
+```
+
+페이지 본체(`PresetDemo.tsx`)가 아닌 별도 파일에 두는 이유: routes.tsx는 페이지를 `React.lazy`로 import해 청크를 분리하는데, 페이지 본체에서 메타데이터를 named export하면 라우터 빌드 단계에 페이지 첫 청크가 같이 로드되며 lazy 효과가 깨질 수 있습니다.
+
+#### 적용이 필요한 케이스 / 불필요한 케이스
+
+| 케이스 | 적용 |
+| ------ | ---- |
+| 폼/입력 state·카운터·펼침 등 자체 state 보유 | ✅ |
+| AG-Grid·차트 등 imperative 내부 상태 보유 | ✅ |
+| 진행 중 mutation·polling·timer 보유 | ✅ |
+| `useSearchParams`로 query만 읽어 TanStack Query 호출하는 read-only 화면 | ❌ (state가 거의 없으면 불필요) |
+| 같은 그리드를 보여주되 필터 preset만 다른 케이스 | ❌ (오히려 컬럼 width·스크롤 유지가 자연스러움) |
+
+판단 기준: **"메뉴 A→B 전환이 새 화면 진입인가, 같은 화면의 필터 변경인가?"** 새 진입이면 적용, 필터 변경이면 그대로.
+
+#### 왜 자동화 메커니즘이 없나
+
+검토한 자동화 옵션이 모두 부적합했습니다:
+
+- **React Router 자체 옵션**: `useMatches`로 `route.handle`을 읽어 자동 wrapping하는 방식. 이 프로젝트는 non-data router(`<BrowserRouter>` + `<Routes><Route>` JSX 패턴)이고 `useMatches`는 `createBrowserRouter` 전용이라 사용 불가. 라우터 마이그레이션 비용 대비 가치 부족.
+- **host 레벨 wrapping**: host가 remote의 `./Module`(remote-entry 컴포넌트)을 통째로 마운트하는 MF 구조라, host에서 wrapping하면 remote 전체가 unmount/remount됨(사이드바·진행 중 react-query·WS 핸들러까지 다 destroy). 페이지만 정확히 remount하기 구조적으로 불가능.
+- **remote의 routes.tsx에 wrapper 적용**: `<RemountByQueryOutlet triggerKeys="preset" />` 같은 wrapper를 부모 path에 두는 방안. 동기화 책임(`triggerKeys`와 `handle.queryParams.key`)이 결국 작성자에게 남고, 추상화 한 겹만 추가됨. inner key 패턴 대비 이득 없음.
+
+결론적으로 React 본체의 `key` 메커니즘이 가장 단순하고 명료해 표준 패턴으로 채택했습니다. 컴포넌트 작성자가 outer/inner 분할로 직접 처리합니다.
+
+### 흔한 실수 / 안티패턴
+
+#### selectorKey를 문자열로 직접 박음
+
+```tsx
+// ❌ 오타·휴먼에러 위험
+selectorKey: 'fca:PresetSelectror',
+
+// ✅ 상수에서 import (자동완성 + 타입체크)
+selectorKey: SelectorKeys.PresetSelector,
+```
+
+#### 도메인 selector를 manager에 둠
+
+`PresetSelector`처럼 도메인 데이터에 결합된 selector를 manager에 두면 manager가 fca의 도메인 hook을 import하게 되어 의존성이 거꾸로 흐릅니다. 도메인 selector는 항상 그 도메인을 가진 remote에 둡니다.
+
+#### 본질이 다른 화면을 query 분기로 묶음
+
+queryString 분기는 **두 화면이 본질적으로 같은 자원·같은 prop·같은 query 형태인데 필터/모드만 다른 경우**에만 정당합니다. 화면 구조·데이터 형태·로직이 본질적으로 다른데 query로 분기하면 컴포넌트가 점점 비대해지고 분기가 새는 곳마다 버그가 납니다. 그런 경우엔 **path를 분리**(`/aoe/config/basic`, `/aoe/config/advanced`)하는 게 정공법입니다.

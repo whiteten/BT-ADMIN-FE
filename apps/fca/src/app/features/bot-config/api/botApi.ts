@@ -70,6 +70,10 @@ export const botApi = {
     const response = await apiClient.post('/bot-version-create', data, { params });
     return response;
   },
+  createBotVersionCopy: async ({ params, data }: { params: Record<string, unknown>; data: BotVersionCreateDatas }): Promise<BotVersionItem> => {
+    const response = await apiClient.post<DetailResponse<BotVersionItem>>('/bot-version-copy', data, { params });
+    return extractDetail(response);
+  },
   updateBotVersion: async ({ params, data }: { params: Record<string, unknown>; data: BotVersionUpdateDatas }) => {
     const response = await apiClient.put('/bot-version-update', data, { params });
     return response;

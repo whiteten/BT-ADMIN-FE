@@ -3,11 +3,15 @@
  * IAM 재설계 v2.3: menuId → menuKey.
  */
 
-import { useEffect, useMemo } from 'react';
-import { Button, Form, Input, InputNumber, Modal, Select, Switch } from 'antd';
+import { useEffect, useMemo, useState } from 'react';
+import { Button, Col, Form, Input, InputNumber, Modal, Row, Select, Switch } from 'antd';
+import { useRemoteRoutesStore } from '@/shared-store';
 import type { App } from '../../iam/api/appApi';
+import QuerySelectorRenderer from '../selectors/QuerySelectorRenderer';
 import type { Menu, MenuUpsertRequest } from '../types/menu.types';
+import { buildPathOptions, joinPathQuery, splitPathQuery } from '../utils/menuFormOptions';
 import { IconDocument } from '@/components/custom/Icons';
+import MenuIconPicker from '@/components/custom/MenuIconPicker';
 
 interface MenuDetailFormProps {
   menu: Menu;
@@ -21,8 +25,18 @@ type FormValues = Omit<MenuUpsertRequest, 'visible'> & { visible: boolean };
 
 export default function MenuDetailForm({ menu, apps, onSave, onDelete, saving }: MenuDetailFormProps) {
   const [form] = Form.useForm<FormValues>();
+  const [queryValues, setQueryValues] = useState<Record<string, string | undefined>>({});
+  const [queryErrors, setQueryErrors] = useState<Record<string, string>>({});
+
+  const routes = useRemoteRoutesStore((s) => s.routes);
+
+  const watchAppId = Form.useWatch('appId', form);
+  const watchType = Form.useWatch('type', form);
+  const watchParentKey = Form.useWatch('parentKey', form);
+  const watchPath = Form.useWatch('path', form);
 
   useEffect(() => {
+    const { basePath, queryValues: parsedQuery } = splitPathQuery(menu.path);
     form.setFieldsValue({
       parentKey: menu.parentKey,
       menuKey: menu.menuKey,
@@ -33,17 +47,58 @@ export default function MenuDetailForm({ menu, apps, onSave, onDelete, saving }:
       sortOrder: menu.sortOrder,
       featureFlag: menu.featureFlag ?? undefined,
       visible: menu.visible,
+      path: basePath || undefined,
+      iconKey: menu.iconKey ?? undefined,
     });
+    setQueryValues(parsedQuery);
+    setQueryErrors({});
   }, [menu, form]);
 
-  const appOptions = useMemo(() => {
-    return apps.map((a) => ({ label: a.appName, value: a.appId }));
-  }, [apps]);
+  const appOptions = useMemo(() => apps.map((a) => ({ label: a.appName, value: a.appId })), [apps]);
+  const pathOptions = useMemo(() => buildPathOptions(routes, watchAppId), [routes, watchAppId]);
+  const querySpecs = useMemo(() => {
+    if (!watchAppId || !watchPath) return [];
+    const entry = routes[watchAppId]?.find((r) => r.path === watchPath);
+    return entry?.queryParams ?? [];
+  }, [routes, watchAppId, watchPath]);
+
+  const isPage = watchType === 'PAGE';
+  const isTopLevel = !watchParentKey;
+  const showRow3 = isTopLevel || isPage;
+
+  const handleQueryChange = (key: string, value: string | undefined) => {
+    setQueryValues((prev) => ({ ...prev, [key]: value }));
+    setQueryErrors((prev) => {
+      if (!prev[key]) return prev;
+      const next = { ...prev };
+      delete next[key];
+      return next;
+    });
+  };
 
   const handleSubmit = async () => {
     try {
       const values = await form.validateFields();
-      onSave(menu.menuKey, { ...values, visible: values.visible ? 1 : 0 });
+
+      // handle.queryParams에 선언된 모든 query는 무조건 필수
+      const newQueryErrors: Record<string, string> = {};
+      querySpecs.forEach((spec) => {
+        if (!queryValues[spec.key]) newQueryErrors[spec.key] = `${spec.label}을(를) 선택해주세요`;
+      });
+      if (Object.keys(newQueryErrors).length > 0) {
+        setQueryErrors(newQueryErrors);
+        return;
+      }
+      setQueryErrors({});
+
+      const composedPath = values.path ? joinPathQuery(values.path, queryValues) : undefined;
+      const payload: MenuUpsertRequest = {
+        ...values,
+        visible: values.visible ? 1 : 0,
+        ...(composedPath ? { path: composedPath } : {}),
+        ...(values.iconKey ? { iconKey: values.iconKey } : {}),
+      };
+      onSave(menu.menuKey, payload);
     } catch {
       // validation error
     }
@@ -69,49 +124,95 @@ export default function MenuDetailForm({ menu, apps, onSave, onDelete, saving }:
             <IconDocument className="h-5 w-5" />
             <span className="text-[20px] font-bold">메뉴 상세</span>
           </div>
-          <span className="text-sm text-gray-400">Key: {menu.menuKey}</span>
         </div>
-        <Form form={form} layout="vertical" className="max-w-2xl">
+        <Form form={form} layout="vertical">
           <Form.Item name="parentKey" hidden>
             <Input />
           </Form.Item>
 
-          <div className="grid grid-cols-2 gap-x-4">
-            <Form.Item label="앱" name="appId" rules={[{ required: true, message: '앱을 선택해주세요' }]}>
-              <Select placeholder="앱 선택" options={appOptions} />
-            </Form.Item>
-            <Form.Item label="메뉴키" name="menuKey" rules={[{ required: true, message: '메뉴키를 입력해주세요' }]}>
-              <Input placeholder="예: manager-menu" disabled />
-            </Form.Item>
-            <Form.Item label="라벨" name="label" rules={[{ required: true, message: '라벨을 입력해주세요' }]}>
-              <Input placeholder="메뉴 표시명" />
-            </Form.Item>
+          <Row gutter={16}>
+            <Col span={8}>
+              <Form.Item label="앱" name="appId" rules={[{ required: true, message: '앱을 선택해주세요' }]}>
+                <Select placeholder="앱 선택" options={appOptions} />
+              </Form.Item>
+            </Col>
+            <Col span={8}>
+              <Form.Item label="메뉴키" name="menuKey" rules={[{ required: true, message: '메뉴키를 입력해주세요' }]}>
+                <Input placeholder="예: manager-menu" disabled />
+              </Form.Item>
+            </Col>
+          </Row>
 
-            <Form.Item label="타입" name="type" rules={[{ required: true, message: '타입을 선택해주세요' }]}>
-              <Select
-                options={[
-                  { label: 'FOLDER (폴더)', value: 'FOLDER' },
-                  { label: 'PAGE (페이지)', value: 'PAGE' },
-                ]}
-              />
-            </Form.Item>
+          <Row gutter={16}>
+            <Col span={8}>
+              <Form.Item label="라벨" name="label" rules={[{ required: true, message: '라벨을 입력해주세요' }]}>
+                <Input placeholder="메뉴 표시명" />
+              </Form.Item>
+            </Col>
+            <Col span={8}>
+              <Form.Item label="타입" name="type" rules={[{ required: true, message: '타입을 선택해주세요' }]}>
+                <Select
+                  options={[
+                    { label: 'FOLDER (폴더)', value: 'FOLDER' },
+                    { label: 'PAGE (페이지)', value: 'PAGE' },
+                  ]}
+                />
+              </Form.Item>
+            </Col>
+          </Row>
 
-            <Form.Item label="정렬순서" name="sortOrder">
-              <InputNumber min={0} className="!w-full" />
-            </Form.Item>
+          {showRow3 && (
+            <Row gutter={16}>
+              {isTopLevel && (
+                <Col span={8}>
+                  <Form.Item label="아이콘" name="iconKey">
+                    <MenuIconPicker placeholder="아이콘 선택" />
+                  </Form.Item>
+                </Col>
+              )}
+              {isPage && (
+                <Col span={8}>
+                  <Form.Item label="화면 경로" name="path" rules={[{ required: true, message: '화면 경로를 선택해주세요' }]}>
+                    <Select placeholder="화면 경로 선택" options={pathOptions} allowClear showSearch optionFilterProp="value" notFoundContent="등록된 path 없음" />
+                  </Form.Item>
+                </Col>
+              )}
+            </Row>
+          )}
 
-            <Form.Item label="표시여부" name="visible" valuePropName="checked">
-              <Switch />
-            </Form.Item>
+          {isPage && querySpecs.length > 0 && (
+            <Row gutter={16}>
+              <Col span={16}>
+                <QuerySelectorRenderer specs={querySpecs} values={queryValues} onChange={handleQueryChange} errors={queryErrors} />
+              </Col>
+            </Row>
+          )}
 
-            <Form.Item label="i18n 키" name="i18nKey">
-              <Input placeholder="선택사항" />
-            </Form.Item>
+          <Row gutter={16}>
+            <Col span={8}>
+              <Form.Item label="정렬순서" name="sortOrder">
+                <InputNumber min={0} className="!w-full" />
+              </Form.Item>
+            </Col>
+            <Col span={8}>
+              <Form.Item label="표시여부" name="visible" valuePropName="checked">
+                <Switch />
+              </Form.Item>
+            </Col>
+          </Row>
 
-            <Form.Item label="기능 플래그" name="featureFlag">
-              <Input placeholder="선택사항" />
-            </Form.Item>
-          </div>
+          <Row gutter={16}>
+            <Col span={8}>
+              <Form.Item label="i18n 키" name="i18nKey">
+                <Input placeholder="선택사항" />
+              </Form.Item>
+            </Col>
+            <Col span={8}>
+              <Form.Item label="기능 플래그" name="featureFlag">
+                <Input placeholder="선택사항" />
+              </Form.Item>
+            </Col>
+          </Row>
         </Form>
       </div>
 

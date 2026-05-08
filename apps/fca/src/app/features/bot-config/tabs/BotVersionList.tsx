@@ -5,7 +5,7 @@ import type { ColDef, ICellRendererParams, RowDoubleClickedEvent, SideBarDef } f
 import { AgGridReact } from 'ag-grid-react';
 import { Button, Input, Select } from 'antd';
 import dayjs from 'dayjs';
-import { Download } from 'lucide-react';
+import { Download, Loader2 } from 'lucide-react';
 import { Log } from '@/log';
 import { toast } from '@/shared-util';
 import AggridDeployServerInfoSidebar from '../components/AggridDeployServerInfoSidebar';
@@ -15,6 +15,7 @@ import BotVersionPublishResultModal, { type BotVersionPublishResultModalRef } fr
 import { botQueryKeys, useCheckDeployable, useDeleteBotVersion, useDownloadScenario, useGetBotVersions, useGetIfeInfo, usePublishBotVersion } from '../hooks/useBotQueries';
 import type { BotVersionListItem, IfeInfo, PublishBotVersionResult } from '../types';
 import { IconTrash } from '@/components/custom/Icons';
+import { Badge } from '@/components/ui/badge';
 import useAggridOptions from '@/libs/shared-ui/src/hooks/useAggridOptions';
 import { useModal } from '@/libs/shared-ui/src/hooks/useModal';
 
@@ -46,11 +47,14 @@ export default function BotVersionList() {
   const [rowData, setRowData] = useState<BotVersionListItem[]>([]);
   const [filterColumn, setFilterColumn] = useState('version');
   const [searchValue, setSearchValue] = useState('');
+  const [selectedRow, setSelectedRow] = useState<BotVersionListItem | null>(null);
 
   const gridRef = useRef<AgGridReact<BotVersionListItem>>(null);
   const versionDrawerRef = useRef<BotVersionDrawerRef>(null);
   const deployConfigDrawerRef = useRef<BotDeployConfigDrawerRef>(null);
   const publishResultModalRef = useRef<BotVersionPublishResultModalRef>(null);
+
+  const isSelectedCopying = selectedRow !== null && selectedRow.flowEditorId === null;
 
   const { data: versionList, isLoading: isLoadingVersionList } = useGetBotVersions({ params: { serviceId } });
 
@@ -110,7 +114,27 @@ export default function BotVersionList() {
   const columnDefs: ColDef<BotVersionListItem>[] = [
     { headerName: 'ID', field: 'serviceId', hide: true },
     { headerName: '버전', field: 'serviceVer', maxWidth: 100 },
-    { headerName: '버전명', field: 'versionName' },
+    {
+      headerName: '버전명',
+      field: 'versionName',
+      cellStyle: { display: 'flex', alignItems: 'center', gap: '4px' },
+      cellRenderer: (params: ICellRendererParams<BotVersionListItem>) => {
+        const { data } = params;
+        if (!data) return null;
+        const isCopying = data.flowEditorId === null;
+        return (
+          <div className="flex items-center gap-2">
+            <span>{data.versionName}</span>
+            {isCopying && (
+              <Badge variant="secondary" className="gap-1">
+                <Loader2 className="h-3 w-3 animate-spin" />
+                복사 중
+              </Badge>
+            )}
+          </div>
+        );
+      },
+    },
     {
       headerName: '시나리오파일',
       field: 'scenarioFile',
@@ -204,6 +228,10 @@ export default function BotVersionList() {
       toast.warning('버전을 선택해주세요.');
       return;
     }
+    if (selectedRows?.[0]?.flowEditorId === null) {
+      toast.warning('버전 복사가 진행 중입니다. 완료 후 이용하세요.');
+      return;
+    }
     const scenarioFile = selectedRows?.[0]?.scenarioFile;
     if (!scenarioFile) {
       toast.warning('업로드된 파일이 없습니다.\n대화편집에서 업로드를 진행해주세요.');
@@ -230,6 +258,10 @@ export default function BotVersionList() {
       toast.warning('버전을 선택해주세요.');
       return;
     }
+    if (selectedRows?.[0]?.flowEditorId === null) {
+      toast.warning('버전 복사가 진행 중입니다. 완료 후 이용하세요.');
+      return;
+    }
     modal.confirm.execute({
       options: {
         title: '대화편집 확인',
@@ -238,6 +270,12 @@ export default function BotVersionList() {
       onOk: () => getIfeInfo({ params: { serviceId, serviceVer }, data: {} }),
     });
   };
+
+  const handleSelectionChanged = () => {
+    const rows = gridRef.current?.api?.getSelectedRows() ?? [];
+    setSelectedRow(rows[0] ?? null);
+  };
+
   return (
     <div className="flex flex-col gap-5 w-full h-full">
       <header className="flex items-center justify-between w-full gap-2 lg:flex-nowrap flex-wrap">
@@ -260,10 +298,23 @@ export default function BotVersionList() {
           <Button variant="solid" onClick={handleClickAddVersion}>
             버전추가
           </Button>
-          <Button variant="solid" onClick={handleClickEditVersion} loading={isEditing}>
+          <Button
+            variant="solid"
+            onClick={handleClickEditVersion}
+            loading={isEditing}
+            disabled={isSelectedCopying}
+            title={isSelectedCopying ? '버전 복사가 진행 중입니다. 완료 후 이용하세요.' : undefined}
+          >
             대화편집
           </Button>
-          <Button variant="solid" color="primary" onClick={handleClickPublishVersion} loading={isPublishing || isCheckingDeployable}>
+          <Button
+            variant="solid"
+            color="primary"
+            onClick={handleClickPublishVersion}
+            loading={isPublishing || isCheckingDeployable}
+            disabled={isSelectedCopying}
+            title={isSelectedCopying ? '버전 복사가 진행 중입니다. 완료 후 이용하세요.' : undefined}
+          >
             배포
           </Button>
           <Button variant="solid" color="cyan" onClick={handleClickDeployConfig}>
@@ -278,6 +329,7 @@ export default function BotVersionList() {
           gridOptions={customGridOptions}
           loading={isLoadingVersionList}
           onRowDoubleClicked={handleRowDoubleClicked}
+          onSelectionChanged={handleSelectionChanged}
         />
       </div>
       <BotVersionDrawer ref={versionDrawerRef} />

@@ -124,7 +124,7 @@ const BotDialogHistorySearchForm: React.FC<BotDialogHistorySearchFormProps> = ({
   };
 
   return (
-    <div className="flex flex-col gap-3 p-5 bg-white bt-shadow mb-4">
+    <div className="flex flex-col gap-3">
       {/* 1행: 검색일자, 봇, 의도, 신뢰구간 */}
       <div className="flex items-center gap-4">
         <div className="flex items-center gap-2">

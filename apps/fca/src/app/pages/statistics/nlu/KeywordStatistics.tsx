@@ -87,7 +87,7 @@ export default function KeywordStatistics() {
 
   // 키워드 통계 조회
   const {
-    data: keywordStatList,
+    data: keywordStatData,
     isLoading: isLoadingKeywordStatList,
     refetch,
   } = useGetKeywordStatList({
@@ -109,23 +109,11 @@ export default function KeywordStatistics() {
   });
 
   useEffect(() => {
-    if (keywordStatList !== undefined) setRowData(keywordStatList);
-  }, [keywordStatList]);
+    if (keywordStatData !== undefined) setRowData(keywordStatData.items);
+  }, [keywordStatData]);
 
-  // 합계 행 계산 (pinnedBottomRowData)
-  const summaryRow = useMemo<KeywordStatListItem[]>(() => {
-    if (!rowData?.length) return [];
-    const sum = (field: keyof KeywordStatListItem) => rowData.reduce((acc, row) => acc + (Number(row[field]) || 0), 0);
-    return [
-      {
-        psrTimeKey: '전체합계',
-        modelName: '',
-        entityTag: '',
-        keyword: '',
-        keywordCnt: sum('keywordCnt'),
-      } as KeywordStatListItem,
-    ];
-  }, [rowData]);
+  // BE에서 받은 summary에 '전체합계' 라벨 주입
+  const summaryRow: KeywordStatListItem[] = keywordStatData?.summary ? [{ ...keywordStatData.summary, psrTimeKey: '전체합계' }] : [];
 
   // startDate 또는 timeUnit 변경 시 endDate 자동 조정
   useEffect(() => {
@@ -249,10 +237,9 @@ export default function KeywordStatistics() {
   return (
     <div className="flex flex-col gap-4 w-full h-full">
       <PageHeader breadcrumb={breadcrumb} />
-      {/* Filter */}
-      <div className="flex flex-col w-full h-full bg-white bt-shadow p-5">
+      <div className="flex flex-col gap-5 w-full h-full bg-white bt-shadow p-5">
         <Collapsible open={isFilterOpen} onOpenChange={setIsFilterOpen}>
-          <header className="flex flex-col gap-3 pb-5">
+          <header className="flex flex-col gap-3">
             <div className="flex items-start gap-3">
               <div className="flex flex-wrap items-center gap-3 flex-1 min-w-0">
                 <div className="flex items-center gap-3">
@@ -452,7 +439,7 @@ export default function KeywordStatistics() {
             </CollapsibleContent>
           </header>
         </Collapsible>
-        <div className="w-full flex-1">
+        <div className="w-full h-full">
           <AgGridReact<KeywordStatListItem>
             ref={gridRef}
             rowModelType="clientSide"

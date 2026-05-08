@@ -9,9 +9,7 @@ import { toast } from '@/shared-util';
 import ClientStatusBadge from '../../features/client/components/ClientStatusBadge';
 import { clientQueryKeys, useDeleteClient, useGetClients } from '../../features/client/hooks/useClientQueries';
 import type { Client } from '../../features/client/types/client.types';
-import { FallbackSpinner } from '@/components/custom/FallbackSpinner';
 import { IconTrash } from '@/components/custom/Icons';
-import NoData from '@/components/custom/NoData';
 import PageHeader from '@/components/custom/PageHeader';
 import useAggridOptions from '@/libs/shared-ui/src/hooks/useAggridOptions';
 import { useModal } from '@/libs/shared-ui/src/hooks/useModal';
@@ -140,62 +138,36 @@ export default function ClientList() {
   return (
     <div className="flex flex-col gap-4 w-full h-full">
       <PageHeader breadcrumb={breadcrumb} />
-
-      {/* Filter */}
-      <div className="flex items-center justify-between gap-2 w-full h-[76px] bg-white bt-shadow px-7 py-5">
-        <div className="flex gap-2 w-full items-center">
-          <Select
-            value={filterColumn}
-            onChange={handleColumnChange}
-            options={[
-              { label: '클라이언트명', value: 'clientName' },
-              { label: '클라이언트 키', value: 'clientKey' },
-            ]}
-            className="!max-w-[150px] !min-w-[120px]"
-            popupMatchSelectWidth={false}
-          />
-          <Input value={searchValue} onChange={(e) => setSearchValue(e.target.value)} className="w-full max-w-[400px]" placeholder="검색어를 입력하세요." />
-        </div>
-        <div>
-          <Button type="primary" onClick={handleCreate}>
-            추가
-          </Button>
-        </div>
-      </div>
-
-      {/* Body - Grid View */}
-      <div className="max-lg:hidden w-full h-full bg-white bt-shadow">
-        <AgGridReact<Client>
-          rowData={filteredList}
-          columnDefs={columnDefs}
-          gridOptions={gridOptions}
-          loading={isLoading}
-          onRowDoubleClicked={(e) => handleEdit(e.data?.clientId)}
-        />
-      </div>
-
-      {/* Body - Mobile View */}
-      <div className="lg:hidden w-full h-full overflow-y-auto">
-        {isLoading ? (
-          <FallbackSpinner />
-        ) : filteredList.length > 0 ? (
-          <div className="flex flex-col gap-2 p-2">
-            {filteredList.map((client) => (
-              <div key={client.clientId} className="bg-white p-4 rounded-md shadow hover:shadow-md transition-all cursor-pointer" onClick={() => handleEdit(client.clientId)}>
-                <div className="flex justify-between items-start mb-2">
-                  <div>
-                    <h3 className="font-semibold">{client.clientName}</h3>
-                    <p className="text-sm text-gray-500">{client.clientKey}</p>
-                  </div>
-                  <ClientStatusBadge isActive={client.isActive} />
-                </div>
-                <div className="text-sm text-gray-600">권한: {client.scopes?.length || 0}개</div>
-              </div>
-            ))}
+      <div className="flex flex-col gap-5 w-full h-full bg-white bt-shadow p-5">
+        <header className="flex items-center justify-between w-full gap-2 lg:flex-nowrap flex-wrap">
+          <div className="flex items-center w-full gap-3">
+            <Select
+              value={filterColumn}
+              onChange={handleColumnChange}
+              options={[
+                { label: '클라이언트명', value: 'clientName' },
+                { label: '클라이언트 키', value: 'clientKey' },
+              ]}
+              className="!max-w-[150px] !min-w-[120px]"
+              popupMatchSelectWidth={false}
+            />
+            <Input value={searchValue} onChange={(e) => setSearchValue(e.target.value)} className="w-full lg:max-w-[400px]" placeholder="검색어를 입력하세요." />
           </div>
-        ) : (
-          <NoData message="조회된 데이터가 없습니다." iconSize={50} />
-        )}
+          <div className="flex items-center gap-2.5">
+            <Button type="primary" onClick={handleCreate}>
+              추가
+            </Button>
+          </div>
+        </header>
+        <div className="w-full h-full">
+          <AgGridReact<Client>
+            rowData={filteredList}
+            columnDefs={columnDefs}
+            gridOptions={gridOptions}
+            loading={isLoading}
+            onRowDoubleClicked={(e) => handleEdit(e.data?.clientId)}
+          />
+        </div>
       </div>
     </div>
   );

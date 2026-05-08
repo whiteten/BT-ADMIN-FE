@@ -109,7 +109,7 @@ export default function DialogStatistics() {
 
   // 대화 통계 조회
   const {
-    data: dialogStatList,
+    data: dialogStatData,
     isLoading: isLoadingDialogStatList,
     refetch,
   } = useGetDialogStatList({
@@ -131,28 +131,11 @@ export default function DialogStatistics() {
   });
 
   useEffect(() => {
-    if (dialogStatList !== undefined) setRowData(dialogStatList);
-  }, [dialogStatList]);
+    if (dialogStatData !== undefined) setRowData(dialogStatData.items);
+  }, [dialogStatData]);
 
-  // 합계 행 계산 (pinnedBottomRowData)
-  const summaryRow = useMemo<DialogStatListItem[]>(() => {
-    if (!rowData?.length) return [];
-    const count = rowData.length;
-    const sum = (field: keyof DialogStatListItem) => rowData.reduce((acc, row) => acc + (Number(row[field]) || 0), 0);
-    const avg = (field: keyof DialogStatListItem) => Math.round((sum(field) / count) * 100) / 100;
-    return [
-      {
-        psrTimeKey: '전체합계',
-        serviceName: '',
-        dialogName: '',
-        inCount: sum('inCount'),
-        successCount: sum('successCount'),
-        failCount: sum('failCount'),
-        successPercent: avg('successPercent'),
-        failPercent: avg('failPercent'),
-      } as DialogStatListItem,
-    ];
-  }, [rowData]);
+  // BE에서 받은 summary에 '전체합계' 라벨 주입
+  const summaryRow: DialogStatListItem[] = dialogStatData?.summary ? [{ ...dialogStatData.summary, psrTimeKey: '전체합계' }] : [];
 
   // startDate 또는 timeUnit 변경 시 endDate 자동 조정
   useEffect(() => {
@@ -302,10 +285,9 @@ export default function DialogStatistics() {
   return (
     <div className="flex flex-col gap-4 w-full h-full">
       <PageHeader breadcrumb={breadcrumb} />
-      {/* Filter */}
-      <div className="flex flex-col w-full h-full bg-white bt-shadow p-5">
+      <div className="flex flex-col gap-5 w-full h-full bg-white bt-shadow p-5">
         <Collapsible open={isFilterOpen} onOpenChange={setIsFilterOpen}>
-          <header className="flex flex-col gap-3 pb-5">
+          <header className="flex flex-col gap-3">
             <div className="flex items-start gap-3">
               <div className="flex flex-wrap items-center gap-3 flex-1 min-w-0">
                 <div className="flex items-center gap-3">
@@ -540,7 +522,7 @@ export default function DialogStatistics() {
             </CollapsibleContent>
           </header>
         </Collapsible>
-        <div className="w-full flex-1">
+        <div className="w-full h-full">
           <AgGridReact<DialogStatListItem>
             ref={gridRef}
             rowModelType="clientSide"
