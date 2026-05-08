@@ -1,6 +1,7 @@
 import { useMemo } from 'react';
 import { useMenuStore } from '@/shared-store';
 import PanelAppList from './PanelAppList';
+import PanelControls from './PanelControls';
 import { ChildList, MenuLink } from './PanelMenuPrimitives';
 import useRemoteSelector from '../../../hooks/useRemoteSelector';
 import { APP_SWITCHER_ACTIVE_KEY, useMenuPanelStore } from '../hooks/useMenuPanelStore';
@@ -41,8 +42,13 @@ const PanelDetail = ({ onNavigate }: PanelDetailProps) => {
 
   if (!active) {
     return (
-      <div className="flex h-full items-center justify-center text-sm text-[#878a99]">
-        <p>좌측에서 메뉴 카테고리를 선택해주세요.</p>
+      <div className="flex flex-col h-full">
+        <header className="shrink-0 flex items-center justify-end gap-2 px-6 pt-6 pb-4">
+          <PanelControls />
+        </header>
+        <div className="flex-1 flex items-center justify-center text-sm text-[#878a99]">
+          <p>좌측에서 메뉴 카테고리를 선택해주세요.</p>
+        </div>
       </div>
     );
   }
@@ -51,13 +57,16 @@ const PanelDetail = ({ onNavigate }: PanelDetailProps) => {
 
   return (
     <div className="flex flex-col h-full">
-      <header className="shrink-0 flex items-center gap-2 px-6 pt-6 pb-4">
-        {Icon && (
-          <span className="flex items-center justify-center size-7 text-[var(--color-bt-primary)]">
-            <Icon className="size-7" />
-          </span>
-        )}
-        <h2 className="text-lg font-bold tracking-tight text-[#212529]">{active.label}</h2>
+      <header className="shrink-0 flex items-center justify-between gap-2 px-6 pt-6 pb-4">
+        <div className="flex items-center gap-2 min-w-0">
+          {Icon && (
+            <span className="flex items-center justify-center size-7 text-[var(--color-bt-primary)]">
+              <Icon className="size-7" />
+            </span>
+          )}
+          <h2 className="text-lg font-bold tracking-tight text-[#212529] truncate">{active.label}</h2>
+        </div>
+        <PanelControls />
       </header>
 
       <div className="flex-1 overflow-y-auto px-6 pb-6">

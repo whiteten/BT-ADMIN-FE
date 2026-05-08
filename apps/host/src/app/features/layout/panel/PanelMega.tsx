@@ -2,6 +2,7 @@ import { useMemo, useState } from 'react';
 import { Input } from 'antd';
 import { Search } from 'lucide-react';
 import { useMenuStore } from '@/shared-store';
+import PanelControls from './PanelControls';
 import { ChildList, Highlight, MenuLink, countSubgroups, hasMatch } from './PanelMenuPrimitives';
 import useRemoteSelector from '../../../hooks/useRemoteSelector';
 import { Separator } from '@/components/ui/separator';
@@ -109,7 +110,7 @@ const PanelMega = ({ onNavigate }: PanelMegaProps) => {
 
   return (
     <div className="flex flex-col h-full">
-      <div className="shrink-0 px-6 pt-5 pb-4 border-b border-[#e9ecef]">
+      <header className="shrink-0 flex items-center justify-between gap-3 px-6 pt-5 pb-4 border-b border-[#e9ecef]">
         <Input
           placeholder="메뉴 검색"
           prefix={<Search className="size-4 text-gray-400" />}
@@ -118,7 +119,8 @@ const PanelMega = ({ onNavigate }: PanelMegaProps) => {
           onChange={(e) => setSearch(e.target.value)}
           allowClear
         />
-      </div>
+        <PanelControls />
+      </header>
 
       <div className="flex-1 overflow-y-auto px-6 py-5">
         {hasResults ? (

@@ -1,4 +1,5 @@
 import { Check, LayoutGrid } from 'lucide-react';
+import PanelControls from './PanelControls';
 import useRemoteSelector from '../../../hooks/useRemoteSelector';
 import { cn } from '@/libs/shared-ui/src/lib/utils';
 
@@ -16,11 +17,14 @@ const PanelAppList = () => {
 
   return (
     <div className="flex flex-col h-full">
-      <header className="shrink-0 flex items-center gap-2 px-6 pt-6 pb-4">
-        <span className="flex items-center justify-center size-7 text-[var(--color-bt-primary)]">
-          <LayoutGrid className="size-7" />
-        </span>
-        <h2 className="text-lg font-bold tracking-tight text-[#212529]">앱 선택</h2>
+      <header className="shrink-0 flex items-center justify-between gap-2 px-6 pt-6 pb-4">
+        <div className="flex items-center gap-2 min-w-0">
+          <span className="flex items-center justify-center size-7 text-[var(--color-bt-primary)]">
+            <LayoutGrid className="size-7" />
+          </span>
+          <h2 className="text-lg font-bold tracking-tight text-[#212529] truncate">앱 선택</h2>
+        </div>
+        <PanelControls />
       </header>
 
       <div className="flex-1 overflow-y-auto px-6 pb-6">
