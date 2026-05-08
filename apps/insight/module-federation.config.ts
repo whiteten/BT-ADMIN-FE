@@ -1,7 +1,7 @@
 import type { ModuleFederationConfig } from '@nx/module-federation';
 
 const config: ModuleFederationConfig = {
-  name: 'dashboard',
+  name: 'insight',
   exposes: {
     './Module': './src/remote-entry.ts',
     './Routes': './src/app/routes.tsx',

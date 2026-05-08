@@ -1,17 +1,17 @@
 import type { QuerySelectorComponent } from '@/shared-store';
 
 /**
- * dashboard remote가 자체 expose하는 도메인 selector aggregator.
+ * insight remote가 자체 expose하는 도메인 selector aggregator.
  *
- * 새 dashboard 전용 selector 추가 시:
+ * 새 insight 전용 selector 추가 시:
  *  1. ./selectors/Xxx.tsx 작성
  *  2. 아래 _selectors에 lazy import + 키 추가
  *  3. routes.tsx에서 SelectorKeys.Xxx 로 사용
  *
  * MF './QuerySelectors'로 expose되며, host의 useQuerySelectorsLoader가
- * 'dashboard:' prefix를 붙여 통합 registry에 적재한다.
+ * 'insight:' prefix를 붙여 통합 registry에 적재한다.
  */
-const APP_ID = 'dashboard';
+const APP_ID = 'insight';
 
 const _selectors = {} satisfies Record<string, QuerySelectorComponent>;
 

@@ -5,9 +5,7 @@ const CHART_TYPES = [
   { value: 'BAR', label: '바 차트', icon: '📊' },
   { value: 'PIE', label: '파이 차트', icon: '🥧' },
   { value: 'DONUT', label: '도넛 차트', icon: '🍩' },
-  { value: 'AREA', label: '영역 차트', icon: '📉' },
-  { value: 'KPI', label: 'KPI 카드', icon: '🔢' },
-  { value: 'WORDCLOUD', label: '워드클라우드', icon: '☁️' },
+  { value: 'GRID', label: '그리드 (테이블)', icon: '📋' },
 ];
 
 interface Props {

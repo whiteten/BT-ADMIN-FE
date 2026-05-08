@@ -1,10 +1,10 @@
 import { forwardRef, useEffect, useImperativeHandle, useState } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
-import { Button, Col, Drawer, Form, Input, Radio, Row, Select, Table, Tag, Tooltip } from 'antd';
-import { Download, Info, Plus, Trash2 } from 'lucide-react';
+import { Button, Col, Drawer, Form, Input, Row, Select, Table, Tag, Tooltip } from 'antd';
+import { Download, Info, Trash2 } from 'lucide-react';
 import { toast } from '@/shared-util';
 import { datasourceQueryKeys, useCreateDatasource, useLoadSchema, useUpdateDatasource } from '../../features/datasource/hooks/useDatasourceQueries';
-import type { DataSourceFieldRequest, DataSourceItem, DataSourceRequest } from '../../features/datasource/types/datasource.types';
+import type { DataSourceFieldItem, DataSourceItem, DataSourceRequest, SchemaLoadResponse } from '../../features/datasource/types/datasource.types';
 
 /**
  * DataSourceFormDrawer ref 타입
@@ -34,11 +34,12 @@ const FIELD_ROLE_OPTIONS = [
   { value: 'TIMESTAMP', label: 'TIMESTAMP' },
 ];
 
+type FieldDraft = Omit<DataSourceFieldItem, 'id' | 'datasourceKey'>;
+
 /**
- * 데이터소스 등록/수정 Drawer
- * - ref.open() : 등록 모드로 열기
- * - ref.open(item) : 수정 모드로 열기
- * - ref.close() : 드로어 닫기
+ * 데이터소스 등록/수정 Drawer (v3.1)
+ * - DB View 단일 소스 (sourceType 제거)
+ * - dbViewPrefix 기반으로 스키마 로드
  */
 const DataSourceFormDrawer = forwardRef<DataSourceFormDrawerRef, Props>(({ onSuccess }, ref) => {
   const queryClient = useQueryClient();
@@ -46,8 +47,7 @@ const DataSourceFormDrawer = forwardRef<DataSourceFormDrawerRef, Props>(({ onSuc
 
   const [isOpen, setIsOpen] = useState(false);
   const [editItem, setEditItem] = useState<DataSourceItem | null>(null);
-  const [sourceType, setSourceType] = useState<'DB' | 'REDIS'>('DB');
-  const [fields, setFields] = useState<DataSourceFieldRequest[]>([]);
+  const [fields, setFields] = useState<FieldDraft[]>([]);
 
   const isEditMode = !!editItem;
 
@@ -55,20 +55,21 @@ const DataSourceFormDrawer = forwardRef<DataSourceFormDrawerRef, Props>(({ onSuc
     open: (item?: DataSourceItem) => {
       if (item) {
         setEditItem(item);
-        setSourceType(item.sourceType as 'DB' | 'REDIS');
         setFields(
           item.fields.map((f) => ({
             fieldName: f.fieldName,
             displayName: f.displayName,
             fieldType: f.fieldType,
             fieldRole: f.fieldRole,
+            formatterType: f.formatterType,
+            formatterOptions: f.formatterOptions,
+            isVisible: f.isVisible,
             sortOrder: f.sortOrder,
             description: f.description,
           })),
         );
       } else {
         setEditItem(null);
-        setSourceType('DB');
         setFields([]);
       }
       setIsOpen(true);
@@ -83,9 +84,7 @@ const DataSourceFormDrawer = forwardRef<DataSourceFormDrawerRef, Props>(({ onSuc
         datasourceKey: editItem.datasourceKey,
         datasourceName: editItem.datasourceName,
         productCode: editItem.productCode,
-        dbTablePrefix: editItem.dbTablePrefix,
-        dbTimeUnits: editItem.dbTimeUnits,
-        redisKeyPattern: editItem.redisKeyPattern,
+        dbViewPrefix: editItem.dbViewPrefix,
         description: editItem.description,
       });
     }
@@ -102,7 +101,6 @@ const DataSourceFormDrawer = forwardRef<DataSourceFormDrawerRef, Props>(({ onSuc
     queryClient.invalidateQueries({ queryKey: datasourceQueryKeys.getList._def });
   };
 
-  // Mutation hooks
   const createMutation = useCreateDatasource({
     mutationOptions: {
       onSuccess: () => {
@@ -110,9 +108,6 @@ const DataSourceFormDrawer = forwardRef<DataSourceFormDrawerRef, Props>(({ onSuc
         toast.success('데이터소스가 등록되었습니다.');
         handleClose();
         onSuccess();
-      },
-      onError: () => {
-        toast.error('데이터소스 등록에 실패했습니다.');
       },
     },
   });
@@ -125,29 +120,26 @@ const DataSourceFormDrawer = forwardRef<DataSourceFormDrawerRef, Props>(({ onSuc
         handleClose();
         onSuccess();
       },
-      onError: () => {
-        toast.error('데이터소스 수정에 실패했습니다.');
-      },
     },
   });
 
   const loadSchemaMutation = useLoadSchema({
     mutationOptions: {
       onSuccess: (data) => {
-        const result = data as { tableName: string; columns: Array<{ columnName: string; comment?: string; suggestedFieldType: string; suggestedFieldRole: string }> };
-        const loaded: DataSourceFieldRequest[] = result.columns.map((col, idx) => ({
-          fieldName: col.columnName,
-          displayName: col.comment || col.columnName,
-          fieldType: col.suggestedFieldType,
-          fieldRole: col.suggestedFieldRole,
-          sortOrder: idx,
-          description: '',
+        const result = data as SchemaLoadResponse;
+        const loaded: FieldDraft[] = result.fields.map((f, idx) => ({
+          fieldName: f.fieldName,
+          displayName: f.displayName,
+          fieldType: f.fieldType,
+          fieldRole: f.fieldRole,
+          formatterType: f.formatterType,
+          formatterOptions: f.formatterOptions,
+          isVisible: f.isVisible,
+          sortOrder: f.sortOrder ?? idx,
+          description: f.description,
         }));
         setFields(loaded);
-        toast.success(`${loaded.length}개 컬럼을 불러왔습니다.`);
-      },
-      onError: () => {
-        toast.error('스키마 로드에 실패했습니다.');
+        toast.success(`${loaded.length}개 필드를 불러왔습니다.`);
       },
     },
   });
@@ -155,44 +147,31 @@ const DataSourceFormDrawer = forwardRef<DataSourceFormDrawerRef, Props>(({ onSuc
   const isLoading = createMutation.isPending || updateMutation.isPending;
 
   const handleLoadSchema = () => {
-    const tableName = form.getFieldValue('dbTablePrefix') as string;
-    if (!tableName) {
-      toast.warning('테이블명을 입력하세요.');
+    const datasourceKey = form.getFieldValue('datasourceKey') as string;
+    if (!datasourceKey) {
+      toast.warning('데이터소스 키를 먼저 입력하세요.');
       return;
     }
-    loadSchemaMutation.mutate({ tableName });
-  };
-
-  const handleAddField = () => {
-    setFields([
-      ...fields,
-      {
-        fieldName: '',
-        displayName: '',
-        fieldType: 'STRING',
-        fieldRole: 'DIMENSION',
-        sortOrder: fields.length,
-        description: '',
-      },
-    ]);
+    loadSchemaMutation.mutate({ datasourceKey });
   };
 
   const handleRemoveField = (index: number) => {
     setFields(fields.filter((_, i) => i !== index));
   };
 
-  const handleFieldChange = (index: number, key: keyof DataSourceFieldRequest, value: string | number) => {
+  const handleFieldChange = (index: number, key: keyof FieldDraft, value: unknown) => {
     const updated = [...fields];
-    updated[index] = { ...updated[index], [key]: value };
+    updated[index] = { ...updated[index], [key]: value } as FieldDraft;
     setFields(updated);
   };
 
   const handleSubmit = () => {
     form.validateFields().then((values) => {
       const request: DataSourceRequest = {
-        ...values,
-        sourceType,
-        fields,
+        datasourceName: values.datasourceName,
+        productCode: values.productCode,
+        dbViewPrefix: values.dbViewPrefix,
+        description: values.description,
       };
 
       if (isEditMode && editItem) {
@@ -211,7 +190,7 @@ const DataSourceFormDrawer = forwardRef<DataSourceFormDrawerRef, Props>(({ onSuc
       title: '필드명',
       dataIndex: 'fieldName',
       width: 140,
-      render: (_: string, __: DataSourceFieldRequest, index: number) => (
+      render: (_: string, __: FieldDraft, index: number) => (
         <Input size="small" value={fields[index].fieldName} onChange={(e) => handleFieldChange(index, 'fieldName', e.target.value)} style={{ fontFamily: 'monospace' }} />
       ),
     },
@@ -219,7 +198,7 @@ const DataSourceFormDrawer = forwardRef<DataSourceFormDrawerRef, Props>(({ onSuc
       title: '표시명',
       dataIndex: 'displayName',
       width: 140,
-      render: (_: string, __: DataSourceFieldRequest, index: number) => (
+      render: (_: string, __: FieldDraft, index: number) => (
         <Input size="small" value={fields[index].displayName} onChange={(e) => handleFieldChange(index, 'displayName', e.target.value)} />
       ),
     },
@@ -227,7 +206,7 @@ const DataSourceFormDrawer = forwardRef<DataSourceFormDrawerRef, Props>(({ onSuc
       title: '데이터타입',
       dataIndex: 'fieldType',
       width: 120,
-      render: (_: string, __: DataSourceFieldRequest, index: number) => (
+      render: (_: string, __: FieldDraft, index: number) => (
         <Select size="small" value={fields[index].fieldType} onChange={(v) => handleFieldChange(index, 'fieldType', v)} options={FIELD_TYPE_OPTIONS} style={{ width: '100%' }} />
       ),
     },
@@ -235,21 +214,21 @@ const DataSourceFormDrawer = forwardRef<DataSourceFormDrawerRef, Props>(({ onSuc
       title: '역할',
       dataIndex: 'fieldRole',
       width: 130,
-      render: (_: string, __: DataSourceFieldRequest, index: number) => (
+      render: (_: string, __: FieldDraft, index: number) => (
         <Select size="small" value={fields[index].fieldRole} onChange={(v) => handleFieldChange(index, 'fieldRole', v)} options={FIELD_ROLE_OPTIONS} style={{ width: '100%' }} />
       ),
     },
     {
       title: '설명',
       dataIndex: 'description',
-      render: (_: string, __: DataSourceFieldRequest, index: number) => (
+      render: (_: string, __: FieldDraft, index: number) => (
         <Input size="small" value={fields[index].description || ''} onChange={(e) => handleFieldChange(index, 'description', e.target.value)} />
       ),
     },
     {
       title: '',
       width: 40,
-      render: (_: unknown, __: DataSourceFieldRequest, index: number) => (
+      render: (_: unknown, __: FieldDraft, index: number) => (
         <button type="button" onClick={() => handleRemoveField(index)}>
           <Trash2 size={14} className="text-red-500 hover:cursor-pointer" />
         </button>
@@ -278,22 +257,6 @@ const DataSourceFormDrawer = forwardRef<DataSourceFormDrawerRef, Props>(({ onSuc
       footer={footer}
       destroyOnHidden
     >
-      {/* Source Type Selector */}
-      <div className="mb-4">
-        <Radio.Group
-          value={sourceType}
-          onChange={(e) => {
-            setSourceType(e.target.value);
-            setFields([]);
-          }}
-          buttonStyle="solid"
-          disabled={isEditMode}
-        >
-          <Radio.Button value="DB">DB 테이블</Radio.Button>
-          <Radio.Button value="REDIS">Redis Hash</Radio.Button>
-        </Radio.Group>
-      </div>
-
       <Form form={form} layout="vertical">
         <Row gutter={16}>
           <Col span={24}>
@@ -316,35 +279,17 @@ const DataSourceFormDrawer = forwardRef<DataSourceFormDrawerRef, Props>(({ onSuc
           </Col>
         </Row>
 
-        {sourceType === 'DB' && (
-          <>
-            <Row gutter={16}>
-              <Col span={16}>
-                <Form.Item name="dbTablePrefix" label="테이블/뷰">
-                  <Input placeholder="TB_STAT_IR_BOT_SERVICE" style={{ fontFamily: 'monospace' }} />
-                </Form.Item>
-              </Col>
-              <Col span={8}>
-                <Form.Item name="dbTimeUnits" label="시간단위">
-                  <Input placeholder="MI,HH,DD,MM,YY" />
-                </Form.Item>
-              </Col>
-            </Row>
-            <Button icon={<Download size={14} />} onClick={handleLoadSchema} loading={loadSchemaMutation.isPending} className="mb-4">
-              스키마 불러오기
-            </Button>
-          </>
-        )}
+        <Row gutter={16}>
+          <Col span={24}>
+            <Form.Item name="dbViewPrefix" label="DB View Prefix" rules={[{ required: true, message: 'DB View Prefix를 입력하세요.' }]}>
+              <Input placeholder="VW_STAT_IR_BOT_SERVICE" style={{ fontFamily: 'monospace' }} />
+            </Form.Item>
+          </Col>
+        </Row>
 
-        {sourceType === 'REDIS' && (
-          <Row>
-            <Col span={24}>
-              <Form.Item name="redisKeyPattern" label="Redis 키 패턴">
-                <Input placeholder="BOT:MONI:SERVICE:{serviceId}" style={{ fontFamily: 'monospace' }} />
-              </Form.Item>
-            </Col>
-          </Row>
-        )}
+        <Button icon={<Download size={14} />} onClick={handleLoadSchema} loading={loadSchemaMutation.isPending} className="mb-4">
+          스키마 불러오기
+        </Button>
 
         <Row>
           <Col span={24}>
@@ -355,21 +300,16 @@ const DataSourceFormDrawer = forwardRef<DataSourceFormDrawerRef, Props>(({ onSuc
         </Row>
       </Form>
 
-      {/* Field Schema Editor */}
+      {/* Field Schema Viewer */}
       <div className="mt-2">
         <div className="flex items-center justify-between mb-2">
           <div className="flex items-center gap-2">
             <span className="font-medium">필드 스키마</span>
             <Tag>{fields.length}개</Tag>
-            {sourceType === 'REDIS' && (
-              <Tooltip title="Redis Hash는 스키마가 없으므로 수동으로 필드를 등록해야 합니다">
-                <Info size={14} className="text-gray-400" />
-              </Tooltip>
-            )}
+            <Tooltip title="DB View에서 자동으로 추출된 스키마입니다">
+              <Info size={14} className="text-gray-400" />
+            </Tooltip>
           </div>
-          <Button size="small" icon={<Plus size={14} />} onClick={handleAddField}>
-            필드 추가
-          </Button>
         </div>
 
         <Table
@@ -379,9 +319,7 @@ const DataSourceFormDrawer = forwardRef<DataSourceFormDrawerRef, Props>(({ onSuc
           pagination={false}
           size="small"
           bordered
-          locale={{
-            emptyText: sourceType === 'DB' ? '스키마 불러오기를 클릭하세요' : '필드 추가를 클릭하세요',
-          }}
+          locale={{ emptyText: '스키마 불러오기를 클릭하세요' }}
         />
       </div>
     </Drawer>

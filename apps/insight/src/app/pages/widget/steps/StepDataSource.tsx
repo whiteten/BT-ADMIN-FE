@@ -90,12 +90,12 @@ export default function StepDataSource({ selectedKeys, onSelectedKeysChange, joi
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2">
                         <span className="font-medium text-sm">{ds.datasourceName}</span>
-                        <Tag color={ds.sourceType === 'DB' ? 'blue' : 'red'} className="text-xs">
-                          {ds.sourceType}
+                        <Tag color="blue" className="text-xs">
+                          VIEW
                         </Tag>
                       </div>
                       <div className="text-xs text-gray-500 font-mono mt-1">{ds.datasourceKey}</div>
-                      {ds.dbTimeUnits && <div className="text-xs text-gray-400 mt-1">{ds.dbTimeUnits}</div>}
+                      {ds.availableUnits && ds.availableUnits.length > 0 && <div className="text-xs text-gray-400 mt-1">{ds.availableUnits.join(',')}</div>}
                       <div className="text-xs text-gray-400 mt-1">
                         [{ds.productCode}] {ds.fields?.length || 0}개 필드
                       </div>

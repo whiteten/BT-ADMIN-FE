@@ -80,7 +80,13 @@ const ConditionFormDrawer = forwardRef<ConditionFormDrawerRef, Props>(({ onSucce
         inputType: editItem.inputType,
         operator: editItem.operator,
         defaultValue: editItem.defaultValue,
-        optionsSource: editItem.optionsSource,
+        optionsType: editItem.optionsType,
+        optionsStatic: editItem.optionsStatic,
+        optionsQuery: editItem.optionsQuery,
+        optionsKeyColumn: editItem.optionsKeyColumn,
+        optionsLabelColumn: editItem.optionsLabelColumn,
+        optionsParentColumn: editItem.optionsParentColumn,
+        parentConditionId: editItem.parentConditionId,
         groupKey: editItem.groupKey,
         groupLabel: editItem.groupLabel,
         isRequired: editItem.isRequired,
@@ -198,9 +204,55 @@ const ConditionFormDrawer = forwardRef<ConditionFormDrawerRef, Props>(({ onSucce
         </Row>
 
         <Row gutter={16}>
+          <Col span={12}>
+            <Form.Item name="optionsType" label="옵션 소스 유형" tooltip="STATIC: 정적 옵션 / QUERY: SQL 조회">
+              <Select
+                placeholder="옵션 소스 유형"
+                allowClear
+                options={[
+                  { value: 'STATIC', label: 'STATIC (정적)' },
+                  { value: 'QUERY', label: 'QUERY (SQL)' },
+                ]}
+              />
+            </Form.Item>
+          </Col>
+          <Col span={12}>
+            <Form.Item name="optionsStatic" label="STATIC 옵션 (콤마 구분)">
+              <Input placeholder="값1,값2,값3" />
+            </Form.Item>
+          </Col>
+        </Row>
+
+        <Row gutter={16}>
           <Col span={24}>
-            <Form.Item name="optionsSource" label="선택지 소스" tooltip="STATIC:값1,값2 또는 API:/api/dashboard/options/services">
-              <Input placeholder="STATIC:값1,값2 또는 API:/api/..." />
+            <Form.Item name="optionsQuery" label="QUERY (SQL)" tooltip="SELECT key_col, label_col FROM ...">
+              <Input.TextArea rows={2} placeholder="SELECT code, name FROM tb_xxx WHERE ..." />
+            </Form.Item>
+          </Col>
+        </Row>
+
+        <Row gutter={16}>
+          <Col span={8}>
+            <Form.Item name="optionsKeyColumn" label="Key 컬럼">
+              <Input placeholder="code" />
+            </Form.Item>
+          </Col>
+          <Col span={8}>
+            <Form.Item name="optionsLabelColumn" label="Label 컬럼">
+              <Input placeholder="name" />
+            </Form.Item>
+          </Col>
+          <Col span={8}>
+            <Form.Item name="optionsParentColumn" label="Parent 컬럼">
+              <Input placeholder="parent_code" />
+            </Form.Item>
+          </Col>
+        </Row>
+
+        <Row gutter={16}>
+          <Col span={24}>
+            <Form.Item name="parentConditionId" label="부모 조건 ID (계층 종속)">
+              <Input type="number" placeholder="예: 부모 조건의 ID" />
             </Form.Item>
           </Col>
         </Row>

@@ -1,15 +1,14 @@
 /**
- * 데이터소스 관련 타입 정의
+ * 데이터소스 관련 타입 정의 (v3.1)
  */
 
 export interface DataSourceItem {
   datasourceKey: string;
   datasourceName: string;
   productCode: string;
-  sourceType: string;
-  dbTablePrefix?: string;
-  dbTimeUnits?: string;
-  redisKeyPattern?: string;
+  dbViewPrefix: string;
+  availableUnits: string[];
+  tenantColumn: string;
   description?: string;
   isSystem: boolean;
   isActive: boolean;
@@ -26,48 +25,34 @@ export interface DataSourceFieldItem {
   datasourceKey: string;
   fieldName: string;
   displayName: string;
-  fieldType: string;
-  fieldRole: string;
+  fieldType: 'NUMBER' | 'STRING' | 'DATETIME';
+  fieldRole: 'DIMENSION' | 'MEASURE' | 'TIMESTAMP';
+  formatterType?: 'NUMBER' | 'PERCENT' | 'CURRENCY' | 'DURATION' | 'DATETIME' | 'MASK' | 'NONE';
+  formatterOptions?: string;
+  isVisible: boolean;
   sortOrder: number;
   description?: string;
 }
 
 export interface DataSourceRequest {
-  datasourceKey: string;
   datasourceName: string;
   productCode: string;
-  sourceType: string;
-  dbTablePrefix?: string;
-  dbTimeUnits?: string;
-  redisKeyPattern?: string;
+  dbViewPrefix: string;
   description?: string;
-  fields?: DataSourceFieldRequest[];
 }
 
-export interface DataSourceFieldRequest {
-  fieldName: string;
-  displayName: string;
-  fieldType: string;
-  fieldRole: string;
-  sortOrder?: number;
-  description?: string;
+export interface PrefixCandidate {
+  dbViewPrefix: string;
+  availableUnits: string[];
+  suggestedKey: string;
+  suggestedProductCode: string;
 }
 
 export interface SchemaLoadRequest {
-  tableName: string;
+  datasourceKey: string;
 }
 
 export interface SchemaLoadResponse {
-  tableName: string;
-  columns: ColumnInfo[];
-}
-
-export interface ColumnInfo {
-  columnName: string;
-  dataType: string;
-  dataLength?: number;
-  comment?: string;
-  nullable: boolean;
-  suggestedFieldType: string;
-  suggestedFieldRole: string;
+  datasourceKey: string;
+  fields: DataSourceFieldItem[];
 }

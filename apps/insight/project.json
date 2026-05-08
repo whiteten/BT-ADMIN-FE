@@ -1,7 +1,7 @@
 {
-  "name": "dashboard",
+  "name": "insight",
   "$schema": "../../node_modules/nx/schemas/project-schema.json",
-  "sourceRoot": "apps/dashboard/src",
+  "sourceRoot": "apps/insight/src",
   "projectType": "application",
   "tags": [],
   "targets": {
@@ -13,21 +13,21 @@
       "defaultConfiguration": "production",
       "options": {
         "compiler": "babel",
-        "outputPath": "dist/apps/dashboard",
-        "index": "apps/dashboard/src/index.html",
+        "outputPath": "dist/apps/insight",
+        "index": "apps/insight/src/index.html",
         "baseHref": "/",
-        "main": "apps/dashboard/src/main.ts",
-        "tsConfig": "apps/dashboard/tsconfig.app.json",
+        "main": "apps/insight/src/main.ts",
+        "tsConfig": "apps/insight/tsconfig.app.json",
         "assets": [
-          "apps/dashboard/src/favicon.ico",
-          "apps/dashboard/src/assets"
+          "apps/insight/src/favicon.ico",
+          "apps/insight/src/assets"
         ],
         "styles": [
           "libs/shared-ui/src/styles/global.css"
         ],
         "scripts": [],
-        "webpackConfig": "apps/dashboard/webpack.config.ts",
-        "postcssConfig": "apps/dashboard/postcss.config.js"
+        "webpackConfig": "apps/insight/webpack.config.ts",
+        "postcssConfig": "apps/insight/postcss.config.js"
       },
       "configurations": {
         "development": {
@@ -39,8 +39,8 @@
         "production": {
           "fileReplacements": [
             {
-              "replace": "apps/dashboard/src/environments/environment.ts",
-              "with": "apps/dashboard/src/environments/environment.prod.ts"
+              "replace": "apps/insight/src/environments/environment.ts",
+              "with": "apps/insight/src/environments/environment.prod.ts"
             }
           ],
           "optimization": true,
@@ -49,7 +49,7 @@
           "namedChunks": false,
           "extractLicenses": false,
           "vendorChunk": false,
-          "webpackConfig": "apps/dashboard/webpack.config.prod.ts"
+          "webpackConfig": "apps/insight/webpack.config.prod.ts"
         }
       }
     },
@@ -57,16 +57,16 @@
       "executor": "@nx/react:module-federation-dev-server",
       "defaultConfiguration": "development",
       "options": {
-        "buildTarget": "dashboard:build",
+        "buildTarget": "insight:build",
         "hmr": true,
         "port": 4203
       },
       "configurations": {
         "development": {
-          "buildTarget": "dashboard:build:development"
+          "buildTarget": "insight:build:development"
         },
         "production": {
-          "buildTarget": "dashboard:build:production",
+          "buildTarget": "insight:build:production",
           "hmr": false
         }
       }
@@ -77,21 +77,21 @@
         "{workspaceRoot}/coverage/{projectRoot}"
       ],
       "options": {
-        "jestConfig": "apps/dashboard/jest.config.ts"
+        "jestConfig": "apps/insight/jest.config.ts"
       }
     },
     "serve-static": {
       "executor": "@nx/react:module-federation-static-server",
       "defaultConfiguration": "production",
       "options": {
-        "serveTarget": "dashboard:serve"
+        "serveTarget": "insight:serve"
       },
       "configurations": {
         "development": {
-          "serveTarget": "dashboard:serve:development"
+          "serveTarget": "insight:serve:development"
         },
         "production": {
-          "serveTarget": "dashboard:serve:production"
+          "serveTarget": "insight:serve:production"
         }
       }
     }

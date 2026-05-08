@@ -36,10 +36,7 @@ const VISUALIZATION_OPTIONS = [
   { value: 'BAR', label: '바 차트' },
   { value: 'PIE', label: '파이 차트' },
   { value: 'DONUT', label: '도넛 차트' },
-  { value: 'AREA', label: '영역 차트' },
   { value: 'GRID', label: '그리드 (테이블)' },
-  { value: 'KPI', label: 'KPI 카드' },
-  { value: 'WORDCLOUD', label: '워드클라우드' },
 ];
 
 export default function WidgetBuilderPage() {
@@ -164,7 +161,7 @@ export default function WidgetBuilderPage() {
         {
           onSuccess: () => {
             toast.success('위젯이 수정되었습니다.');
-            navigate('/dashboard/widgets');
+            navigate('/insight/widgets');
           },
           onError: () => toast.error('위젯 수정에 실패했습니다.'),
         },
@@ -173,7 +170,7 @@ export default function WidgetBuilderPage() {
       createMutation.mutate(request, {
         onSuccess: () => {
           toast.success('위젯이 생성되었습니다.');
-          navigate('/dashboard/widgets');
+          navigate('/insight/widgets');
         },
         onError: () => toast.error('위젯 생성에 실패했습니다.'),
       });
@@ -188,7 +185,7 @@ export default function WidgetBuilderPage() {
           <h2 className="text-xl font-semibold">{isEdit ? '위젯 수정' : '새 위젯 생성'}</h2>
           <p className="text-sm text-gray-500 mt-1">데이터소스를 선택하고 필드를 매핑하여 위젯을 구성합니다</p>
         </div>
-        <Button onClick={() => navigate('/dashboard/widgets')}>목록으로</Button>
+        <Button onClick={() => navigate('/insight/widgets')}>목록으로</Button>
       </div>
 
       {/* Step Indicator */}

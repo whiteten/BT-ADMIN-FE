@@ -19,24 +19,16 @@ const PRODUCT_OPTIONS = [
   { value: 'AI', label: 'AI' },
 ];
 
-const SOURCE_TYPE_OPTIONS = [
-  { value: '', label: '전체' },
-  { value: 'DB', label: 'DB' },
-  { value: 'REDIS', label: 'Redis' },
-];
-
 export default function DataSourceListPage() {
   const modal = useModal();
   const { gridOptions } = useAggridOptions();
 
   const [productCode, setProductCode] = useState('');
-  const [sourceType, setSourceType] = useState('');
   const [searchText, setSearchText] = useState('');
   const drawerRef = useRef<DataSourceFormDrawerRef>(null);
 
   const params: Record<string, unknown> = {};
   if (productCode) params.productCode = productCode;
-  if (sourceType) params.sourceType = sourceType;
 
   const { data: dataSourceList = [], isLoading, refetch } = useGetDatasourceList({ params });
 
@@ -45,9 +37,6 @@ export default function DataSourceListPage() {
       onSuccess: () => {
         toast.success('데이터소스가 삭제되었습니다.');
         refetch();
-      },
-      onError: () => {
-        toast.error('데이터소스 삭제에 실패했습니다.');
       },
     },
   });
@@ -81,16 +70,13 @@ export default function DataSourceListPage() {
     },
     { field: 'datasourceName', headerName: '데이터소스명', flex: 2 },
     { field: 'productCode', headerName: '제품군', width: 100 },
+    { field: 'dbViewPrefix', headerName: 'DB View Prefix', flex: 2, cellStyle: { fontFamily: 'monospace' } },
     {
-      field: 'sourceType',
-      headerName: '소스유형',
-      width: 110,
-      cellRenderer: (params: ICellRendererParams<DataSourceItem>) => {
-        const value = params.value as string;
-        return <Tag color={value === 'DB' ? 'blue' : 'red'}>{value}</Tag>;
-      },
+      field: 'availableUnits',
+      headerName: '시간단위',
+      width: 160,
+      valueFormatter: (p) => (Array.isArray(p.value) ? p.value.join(',') : ''),
     },
-    { field: 'dbTimeUnits', headerName: '시간단위', width: 160 },
     {
       field: 'isSystem',
       headerName: '등록유형',
@@ -166,7 +152,6 @@ export default function DataSourceListPage() {
       {/* Filter Bar */}
       <header className="flex items-center gap-3 w-full">
         <Select value={productCode} onChange={setProductCode} options={PRODUCT_OPTIONS} style={{ width: 120 }} placeholder="제품군" popupMatchSelectWidth={false} />
-        <Select value={sourceType} onChange={setSourceType} options={SOURCE_TYPE_OPTIONS} style={{ width: 120 }} placeholder="소스유형" popupMatchSelectWidth={false} />
         <Input
           prefix={<Search size={14} />}
           placeholder="데이터소스 키 또는 이름으로 검색"

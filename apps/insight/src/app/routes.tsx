@@ -33,5 +33,5 @@ export const routes: RouteObject[] = [
       { path: 'conditions', element: withSuspense(ConditionListPage) },
     ],
   },
-  { path: '*', element: <NotFound homePath="/dashboard" /> },
+  { path: '*', element: <NotFound homePath="/insight" /> },
 ];

@@ -1,39 +1,39 @@
 import ApiClient, { type DetailResponse, type ListResponse, extractDetail, extractList } from '@/shared-util';
-import type { DashboardItem, DashboardRequest, DashboardWidgetRequest, UserLayoutItem, UserLayoutRequest } from '../types/board.types';
+import type { BoardRequest, BoardWidgetRequest, DashboardItem, UserLayoutItem, UserLayoutRequest } from '../types/board.types';
 
 const apiClient = new ApiClient({ serviceURL: '/bff' });
 
 /**
- * 대시보드 관리 API
+ * 통계 보드 관리 API (v3.1)
  */
 export const boardApi = {
   getList: async (): Promise<DashboardItem[]> => {
-    const response = await apiClient.get<ListResponse<DashboardItem>>('/dashboard-board-list');
+    const response = await apiClient.get<ListResponse<DashboardItem>>('/insight-stat-board-list');
     return extractList(response);
   },
 
   getDetail: async (params?: Record<string, unknown>): Promise<DashboardItem> => {
-    const response = await apiClient.get<DetailResponse<DashboardItem>>('/dashboard-board-detail', { params });
+    const response = await apiClient.get<DetailResponse<DashboardItem>>('/insight-stat-board-detail', { params });
     return extractDetail(response);
   },
 
-  create: async (data: DashboardRequest) => {
-    const response = await apiClient.post('/dashboard-board-create', data);
+  create: async (data: BoardRequest) => {
+    const response = await apiClient.post('/insight-stat-board-create', data);
     return response;
   },
 
-  update: async ({ params, data }: { params: Record<string, unknown>; data: DashboardRequest }) => {
-    const response = await apiClient.put('/dashboard-board-update', data, { params });
+  update: async ({ params, data }: { params: Record<string, unknown>; data: BoardRequest }) => {
+    const response = await apiClient.put('/insight-stat-board-update', data, { params });
     return response;
   },
 
-  updateLayout: async ({ params, data }: { params: Record<string, unknown>; data: DashboardWidgetRequest[] }) => {
-    const response = await apiClient.put('/dashboard-board-layout', data, { params });
+  updateLayout: async ({ params, data }: { params: Record<string, unknown>; data: BoardWidgetRequest[] }) => {
+    const response = await apiClient.put('/insight-stat-board-layout', data, { params });
     return response;
   },
 
   delete: async (params: Record<string, unknown>) => {
-    const response = await apiClient.delete('/dashboard-board-delete', { params });
+    const response = await apiClient.delete('/insight-stat-board-delete', { params });
     return response;
   },
 };
@@ -43,17 +43,17 @@ export const boardApi = {
  */
 export const userLayoutApi = {
   getList: async (params?: Record<string, unknown>): Promise<UserLayoutItem[]> => {
-    const response = await apiClient.get<ListResponse<UserLayoutItem>>('/dashboard-user-layout-list', { params });
+    const response = await apiClient.get<ListResponse<UserLayoutItem>>('/insight-user-layout-list', { params });
     return extractList(response);
   },
 
   save: async (data: UserLayoutRequest) => {
-    const response = await apiClient.put('/dashboard-user-layout-save', data);
+    const response = await apiClient.put('/insight-user-layout-save', data);
     return response;
   },
 
   reset: async (params: Record<string, unknown>) => {
-    const response = await apiClient.delete('/dashboard-user-layout-reset', { params });
+    const response = await apiClient.delete('/insight-user-layout-reset', { params });
     return response;
   },
 };

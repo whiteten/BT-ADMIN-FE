@@ -1,6 +1,10 @@
 /**
- * 위젯 관련 타입 정의
+ * 위젯 관련 타입 정의 (v3.1)
+ *
+ * 시각화 5종(LINE/BAR/PIE/DONUT/GRID)으로 한정. 모니터링 위젯은 Wave B에서 추가.
  */
+
+export type WidgetVisualization = 'LINE' | 'BAR' | 'PIE' | 'DONUT' | 'GRID';
 
 export interface WidgetItem {
   widgetId: number;
@@ -9,7 +13,7 @@ export interface WidgetItem {
   description?: string;
   category: string;
   icon?: string;
-  visualization?: string;
+  visualization?: WidgetVisualization;
   refreshMode: string;
   refreshInterval?: number;
   defaultW: number;
@@ -54,6 +58,9 @@ export interface WidgetFieldMappingItem {
   thresholdMinor?: number;
   thresholdMajor?: number;
   thresholdCritical?: number;
+  /* 위젯 단 formatter override */
+  formatterType?: 'NUMBER' | 'PERCENT' | 'CURRENCY' | 'DURATION' | 'DATETIME' | 'MASK' | 'NONE';
+  formatterOptions?: string;
 }
 
 export interface WidgetCalcFieldItem {
@@ -72,6 +79,9 @@ export interface WidgetCalcFieldItem {
   thresholdMajor?: number;
   thresholdCritical?: number;
   sortOrder: number;
+  /* 위젯 단 formatter (v3.1) */
+  formatterType?: 'NUMBER' | 'PERCENT' | 'CURRENCY' | 'DURATION' | 'DATETIME' | 'MASK' | 'NONE';
+  formatterOptions?: string;
 }
 
 export interface WidgetSearchBindItem {
@@ -98,7 +108,7 @@ export interface WidgetRequest {
   description?: string;
   category: string;
   icon?: string;
-  visualization?: string;
+  visualization?: WidgetVisualization;
   refreshMode: string;
   refreshInterval?: number;
   defaultW: number;
@@ -127,3 +137,9 @@ export interface FormulaValidateResponse {
   referencedFields: string[];
   usedFunctions: string[];
 }
+
+/* 통계 위젯 한정 alias (v3.1 명명 호환) */
+export type StatWidgetItem = WidgetItem;
+export type StatWidgetRequest = WidgetRequest;
+export type StatWidgetFieldMappingItem = WidgetFieldMappingItem;
+export type StatWidgetCalcFieldItem = WidgetCalcFieldItem;
