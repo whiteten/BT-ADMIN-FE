@@ -13,7 +13,7 @@ type SelectorsModule = { querySelectors: Record<string, QuerySelectorComponent> 
 const SELECTOR_LOADERS: Record<string, () => Promise<SelectorsModule>> = {
   manager: () => import('manager/QuerySelectors').catch(() => ({ querySelectors: {} })) as Promise<SelectorsModule>,
   fca: () => import('fca/QuerySelectors').catch(() => ({ querySelectors: {} })) as Promise<SelectorsModule>,
-  dashboard: () => import('dashboard/QuerySelectors').catch(() => ({ querySelectors: {} })) as Promise<SelectorsModule>,
+  insight: () => import('insight/QuerySelectors').catch(() => ({ querySelectors: {} })) as Promise<SelectorsModule>,
 };
 
 /**

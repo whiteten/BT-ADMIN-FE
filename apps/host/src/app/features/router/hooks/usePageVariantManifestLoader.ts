@@ -10,7 +10,7 @@ type PageVariantManifestModule = { pageVariantManifest: Record<string, PageVaria
 const VARIANT_LOADERS: Record<string, () => Promise<PageVariantManifestModule>> = {
   manager: () => import('manager/PageVariantManifest').catch(() => ({ pageVariantManifest: {} })) as Promise<PageVariantManifestModule>,
   fca: () => import('fca/PageVariantManifest').catch(() => ({ pageVariantManifest: {} })) as Promise<PageVariantManifestModule>,
-  dashboard: () => import('dashboard/PageVariantManifest').catch(() => ({ pageVariantManifest: {} })) as Promise<PageVariantManifestModule>,
+  insight: () => import('insight/PageVariantManifest').catch(() => ({ pageVariantManifest: {} })) as Promise<PageVariantManifestModule>,
 };
 
 /**
