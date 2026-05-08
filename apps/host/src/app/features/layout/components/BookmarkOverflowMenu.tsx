@@ -16,15 +16,15 @@ const findMenuItemRecursive = (item: MenuItem, menuKey: string): { path?: string
   return null;
 };
 
-const findBookmarkPath = (menuConfigs: MenuConfig[], bookmark: Bookmark): string | undefined => {
+const findMenuInfo = (menuConfigs: MenuConfig[], bookmark: Bookmark): { icon?: React.ElementType; path?: string } => {
   for (const config of menuConfigs) {
     if (config.appId !== bookmark.appId) continue;
     for (const menu of config.menus) {
       const result = findMenuItemRecursive(menu, bookmark.menuKey);
-      if (result) return result.path;
+      if (result) return { icon: menu.icon, path: result.path };
     }
   }
-  return undefined;
+  return {};
 };
 
 interface BookmarkOverflowMenuProps {
@@ -36,10 +36,11 @@ export default function BookmarkOverflowMenu({ bookmarks }: BookmarkOverflowMenu
   const { menuConfigs } = useMenuStore();
 
   const items: MenuProps['items'] = bookmarks.map((bookmark) => {
-    const path = findBookmarkPath(menuConfigs, bookmark);
+    const { icon: Icon, path } = findMenuInfo(menuConfigs, bookmark);
     return {
       key: bookmark.menuKey,
       label: bookmark.label,
+      icon: Icon ? <Icon className="size-4" /> : undefined,
       disabled: !path,
       onClick: () => path && navigate(`/${bookmark.appId}/${path}`),
     };

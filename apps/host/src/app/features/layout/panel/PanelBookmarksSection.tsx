@@ -6,7 +6,7 @@ import { restrictToParentElement, restrictToVerticalAxis } from '@dnd-kit/modifi
 import { SortableContext, arrayMove, useSortable, verticalListSortingStrategy } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import { Button } from 'antd';
-import { GripVertical } from 'lucide-react';
+import { GripVertical, SquareDashed } from 'lucide-react';
 import { sharedApi } from '@/shared-api';
 import { useMenuStore, useNavigationStore } from '@/shared-store';
 import { isMenuActive } from './PanelMenuPrimitives';
@@ -61,7 +61,7 @@ const SortableBookmarkRow = ({ bookmark, icon: Icon, path, isEditMode, onClick }
         <span className="cursor-grab active:cursor-grabbing text-[#adb5bd]" {...attributes} {...listeners}>
           <GripVertical className="size-4" />
         </span>
-        {Icon ? <Icon className="size-5 shrink-0 text-[#868e96]" /> : <span className="size-1 shrink-0 rounded-full bg-[#adb5bd]" />}
+        {Icon ? <Icon className="size-5 shrink-0 text-[#868e96]" /> : <SquareDashed className="size-5 shrink-0 text-[#868e96]" />}
         <span className="flex-1 min-w-0 truncate text-sm">{bookmark.label}</span>
       </div>
     );
@@ -79,7 +79,11 @@ const SortableBookmarkRow = ({ bookmark, icon: Icon, path, isEditMode, onClick }
         isActive && 'bg-[var(--color-bt-primary)]/10 text-[var(--color-bt-primary)] font-semibold',
       )}
     >
-      {Icon && <Icon className={cn('size-5 shrink-0', isActive ? 'text-[var(--color-bt-primary)]' : 'text-[#868e96]')} />}
+      {Icon ? (
+        <Icon className={cn('size-5 shrink-0', isActive ? 'text-[var(--color-bt-primary)]' : 'text-[#868e96]')} />
+      ) : (
+        <SquareDashed className={cn('size-5 shrink-0', isActive ? 'text-[var(--color-bt-primary)]' : 'text-[#868e96]')} />
+      )}
       <span className="flex-1 min-w-0 truncate text-sm">{bookmark.label}</span>
     </button>
   );
