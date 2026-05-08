@@ -1,25 +1,71 @@
-import React, { useMemo } from 'react';
-import type { ColDef } from 'ag-grid-community';
+import React, { useEffect, useMemo, useRef } from 'react';
+import type { ColDef, GridApi, GridOptions, GridReadyEvent, IServerSideDatasource } from 'ag-grid-community';
 import { AgGridReact } from 'ag-grid-react';
 import dayjs from 'dayjs';
-import type { BotDialogHistoryListItem } from '../types/botDialogHistory.types';
-import ServerPagination from '@/components/custom/ServerPagination';
+import { botDialogHistoryApi } from '../api/botDialogHistoryApi';
+import type { BotDialogHistoryListItem, BotDialogHistorySearchRequest } from '../types/botDialogHistory.types';
 import { Badge } from '@/components/ui/badge';
 import useAggridOptions from '@/libs/shared-ui/src/hooks/useAggridOptions';
 
+const PAGE_SIZE = 50;
+
 interface BotDialogHistoryTableProps {
-  rowData: BotDialogHistoryListItem[];
-  total: number;
-  isLoading?: boolean;
-  page: number;
-  size: number;
-  onPageChange: (page: number) => void;
+  searchParams: BotDialogHistorySearchRequest;
+  searchVersion: number;
   onRowDoubleClick: (data: BotDialogHistoryListItem) => void;
   selectedRowId?: string;
+  onLoadingChange?: (loading: boolean) => void;
+  onTotalRowsChange?: (total: number) => void;
 }
 
-const BotDialogHistoryTable: React.FC<BotDialogHistoryTableProps> = ({ rowData, total, isLoading, page, size, onPageChange, onRowDoubleClick, selectedRowId }) => {
+const BotDialogHistoryTable: React.FC<BotDialogHistoryTableProps> = ({ searchParams, searchVersion, onRowDoubleClick, selectedRowId, onLoadingChange, onTotalRowsChange }) => {
   const { gridOptions } = useAggridOptions();
+  const gridApiRef = useRef<GridApi<BotDialogHistoryListItem> | null>(null);
+  const searchParamsRef = useRef(searchParams);
+
+  useEffect(() => {
+    searchParamsRef.current = searchParams;
+  }, [searchParams]);
+
+  const serverSideDatasource = useMemo<IServerSideDatasource>(
+    () => ({
+      getRows: async (params) => {
+        const startRow = params.request.startRow ?? 0;
+        const endRow = params.request.endRow ?? startRow + PAGE_SIZE;
+        const size = endRow - startRow;
+        const page = Math.floor(startRow / size);
+        try {
+          onLoadingChange?.(true);
+          const res = await botDialogHistoryApi.getBotDialogHistory({
+            ...searchParamsRef.current,
+            page,
+            size,
+          });
+          params.success({ rowData: res.items, rowCount: res.total });
+          onTotalRowsChange?.(res.total);
+        } catch {
+          params.fail();
+        } finally {
+          onLoadingChange?.(false);
+        }
+      },
+    }),
+    [onLoadingChange, onTotalRowsChange],
+  );
+
+  useEffect(() => {
+    if (!gridApiRef.current) return;
+    gridApiRef.current.refreshServerSide({ purge: true });
+    gridApiRef.current.deselectAll?.();
+  }, [searchVersion]);
+
+  useEffect(() => {
+    gridApiRef.current?.redrawRows();
+  }, [selectedRowId]);
+
+  const handleGridReady = (event: GridReadyEvent<BotDialogHistoryListItem>) => {
+    gridApiRef.current = event.api;
+  };
 
   const columnDefs: ColDef<BotDialogHistoryListItem>[] = useMemo(
     () => [
@@ -140,29 +186,29 @@ const BotDialogHistoryTable: React.FC<BotDialogHistoryTableProps> = ({ rowData, 
     [],
   );
 
+  const finalGridOptions = useMemo<GridOptions<BotDialogHistoryListItem>>(
+    () => ({
+      ...gridOptions,
+      rowModelType: 'serverSide',
+      paginationPageSize: PAGE_SIZE,
+      cacheBlockSize: PAGE_SIZE,
+      defaultColDef: { ...gridOptions.defaultColDef, sortable: false } as ColDef<BotDialogHistoryListItem>,
+      getRowId: (p) => `${p.data.ucid}_${p.data.nextHop}_${p.data.cdrPkey}`,
+      rowStyle: { cursor: 'pointer' },
+      onRowDoubleClicked: (event) => event.data && onRowDoubleClick(event.data),
+      rowClassRules: {
+        'bg-blue-50': (params) => {
+          if (!selectedRowId || !params.data) return false;
+          return `${params.data.ucid}_${params.data.nextHop}_${params.data.cdrPkey}` === selectedRowId;
+        },
+      },
+    }),
+    [gridOptions, selectedRowId, onRowDoubleClick],
+  );
+
   return (
-    <div className="flex flex-col flex-1 min-h-0 bg-white bt-shadow">
-      <div className="flex-1 w-full overflow-hidden">
-        <AgGridReact<BotDialogHistoryListItem>
-          rowData={rowData}
-          columnDefs={columnDefs}
-          gridOptions={{
-            ...gridOptions,
-            pagination: false,
-            statusBar: undefined,
-            rowStyle: { cursor: 'pointer' },
-            onRowDoubleClicked: (event) => event.data && onRowDoubleClick(event.data),
-            rowClassRules: {
-              'bg-blue-50': (params) => {
-                if (!selectedRowId || !params.data) return false;
-                return `${params.data.ucid}_${params.data.nextHop}_${params.data.cdrPkey}` === selectedRowId;
-              },
-            },
-          }}
-          loading={isLoading}
-        />
-      </div>
-      <ServerPagination totalItems={total} currentPage={page} pageSize={size} onPageChange={onPageChange} />
+    <div className="w-full h-full">
+      <AgGridReact<BotDialogHistoryListItem> columnDefs={columnDefs} gridOptions={finalGridOptions} serverSideDatasource={serverSideDatasource} onGridReady={handleGridReady} />
     </div>
   );
 };
