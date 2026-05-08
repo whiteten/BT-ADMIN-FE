@@ -1,11 +1,12 @@
 import React, { useEffect, useMemo } from 'react';
-import { Button, Checkbox, DatePicker, Divider, Input, Select, Slider } from 'antd';
+import { Button, Checkbox, DatePicker, Divider, Input, Select, Slider, TimePicker } from 'antd';
 import dayjs, { type Dayjs } from 'dayjs';
 import { Download, Search } from 'lucide-react';
 import { toast } from '@/shared-util';
 
 const MAX_DAYS = 30;
 const COMPLETE_ALL = 'all' as const;
+const MINUTE_STEP = 10;
 
 import { useGetBotServices, useGetIntents } from '../hooks/useBotDialogHistoryQueries';
 import type { BotDialogHistorySearchRequest, BotServiceDto, IntentDto } from '../types/botDialogHistory.types';
@@ -19,7 +20,9 @@ interface BotDialogHistorySearchFormProps {
 
 const BotDialogHistorySearchForm: React.FC<BotDialogHistorySearchFormProps> = ({ onSearch, isLoading, onExcelDownload, isExporting }) => {
   const [startDate, setStartDate] = React.useState<Dayjs>(dayjs().startOf('day'));
-  const [endDate, setEndDate] = React.useState<Dayjs>(dayjs().endOf('day'));
+  const [endDate, setEndDate] = React.useState<Dayjs>(dayjs().startOf('day'));
+  const [startTime, setStartTime] = React.useState<Dayjs>(dayjs().hour(0).minute(0));
+  const [endTime, setEndTime] = React.useState<Dayjs>(dayjs().hour(23).minute(50));
   const [serviceIds, setServiceIds] = React.useState<number[]>([]);
   const [intentNames, setIntentNames] = React.useState<string[]>([]);
   const [confidenceRange, setConfidenceRange] = React.useState<[number, number]>([0, 100]);
@@ -65,15 +68,51 @@ const BotDialogHistorySearchForm: React.FC<BotDialogHistorySearchFormProps> = ({
     setIntentNames(intentOptions.map((o) => o.value));
   }, [intentOptions]);
 
+  // startDate 변경 시 endDate 자동 조정 (이전 날짜이거나 MAX_DAYS 초과 시)
+  useEffect(() => {
+    if (endDate.isBefore(startDate, 'day')) {
+      setEndDate(startDate);
+    } else if (endDate.diff(startDate, 'day') > MAX_DAYS) {
+      const maxEnd = startDate.add(MAX_DAYS, 'day');
+      setEndDate(maxEnd.isAfter(dayjs(), 'day') ? dayjs().startOf('day') : maxEnd);
+    }
+  }, [startDate, endDate]);
+
+  // 시작일자 DatePicker: 미래 비활성화
+  const disabledStartDate = (current: Dayjs) => {
+    if (!current) return false;
+    return current.isAfter(dayjs(), 'day');
+  };
+
+  // 종료일자 DatePicker: 시작일자 이전 + MAX_DAYS 초과 + 미래 비활성화
+  const disabledEndDate = (current: Dayjs) => {
+    if (!current) return false;
+    if (current.isAfter(dayjs(), 'day')) return true;
+    if (current.isBefore(startDate, 'day')) return true;
+    return current.diff(startDate, 'day') > MAX_DAYS;
+  };
+
+  // 날짜 + 시간 조합 (YYYY-MM-DDTHH:mm:00)
+  const buildDateTime = (date: Dayjs, time: Dayjs, fallbackSec: string) => `${date.format('YYYY-MM-DD')}T${time.format('HH:mm')}:${fallbackSec}`;
+
   const handleSearch = () => {
     if (endDate.diff(startDate, 'day') > MAX_DAYS) {
       toast.warning(`조회 기간은 최대 ${MAX_DAYS}일까지 가능합니다.`);
       return;
     }
+
+    const fromDate = buildDateTime(startDate, startTime, '00');
+    const toDate = buildDateTime(endDate, endTime, '59');
+
+    if (fromDate > toDate) {
+      toast.warning('검색 시작일시가 종료일시보다 늦을 수 없습니다.');
+      return;
+    }
+
     const [confidenceMin, confidenceMax] = confidenceRange;
     onSearch({
-      fromDate: startDate.format('YYYY-MM-DDTHH:mm:ss'),
-      toDate: endDate.format('YYYY-MM-DDTHH:mm:ss'),
+      fromDate,
+      toDate,
       serviceIds: serviceIds.length > 0 ? serviceIds : undefined,
       intentNames: intentNames.length > 0 ? intentNames : undefined,
       confidenceMin: confidenceMin > 0 ? confidenceMin : undefined,
@@ -90,24 +129,26 @@ const BotDialogHistorySearchForm: React.FC<BotDialogHistorySearchFormProps> = ({
       <div className="flex items-center gap-4">
         <div className="flex items-center gap-2">
           <span className="text-sm font-medium text-[#495057] shrink-0">검색일자</span>
-          <DatePicker
-            value={startDate}
-            onChange={(date) => date && setStartDate(date)}
-            showTime={{ format: 'HH:mm' }}
-            format="YYYY-MM-DD HH:mm"
-            disabledDate={(current) => current && current > dayjs().endOf('day')}
+          <DatePicker value={startDate} onChange={(date) => date && setStartDate(date)} format="YYYY-MM-DD" disabledDate={disabledStartDate} inputReadOnly allowClear={false} />
+          <TimePicker
+            value={startTime}
+            onChange={(date) => date && setStartTime(date)}
+            format="HH:mm"
+            minuteStep={MINUTE_STEP}
             inputReadOnly
             allowClear={false}
+            style={{ width: '100px' }}
           />
           <span className="text-sm font-medium text-[#495057] shrink-0">~</span>
-          <DatePicker
-            value={endDate}
-            onChange={(date) => date && setEndDate(date)}
-            showTime={{ format: 'HH:mm' }}
-            format="YYYY-MM-DD HH:mm"
-            disabledDate={(current) => current && (current > dayjs().endOf('day') || current < startDate.startOf('day') || current > startDate.add(MAX_DAYS, 'day').endOf('day'))}
+          <DatePicker value={endDate} onChange={(date) => date && setEndDate(date)} format="YYYY-MM-DD" disabledDate={disabledEndDate} inputReadOnly allowClear={false} />
+          <TimePicker
+            value={endTime}
+            onChange={(date) => date && setEndTime(date)}
+            format="HH:mm"
+            minuteStep={MINUTE_STEP}
             inputReadOnly
             allowClear={false}
+            style={{ width: '100px' }}
           />
         </div>
 
