@@ -19,6 +19,11 @@ export interface ServiceStatItem {
 
 export type ServiceStatListItem = ServiceStatItem;
 
+export interface ServiceStatList {
+  items: ServiceStatListItem[];
+  summary: ServiceStatListItem | null;
+}
+
 export interface DialogStatItem {
   psrTimeKey: string; // 날짜시간
   tenantId?: number; // 테넌트 ID
@@ -34,6 +39,11 @@ export interface DialogStatItem {
 }
 
 export type DialogStatListItem = DialogStatItem;
+
+export interface DialogStatList {
+  items: DialogStatListItem[];
+  summary: DialogStatListItem | null;
+}
 
 export interface SlotStatItem {
   psrTimeKey: string; // 날짜시간
@@ -65,6 +75,11 @@ export interface SlotStatItem {
 
 export type SlotStatListItem = SlotStatItem;
 
+export interface SlotStatList {
+  items: SlotStatListItem[];
+  summary: SlotStatListItem | null;
+}
+
 export interface IntentStatItem {
   psrTimeKey: string; // 날짜시간
   tenantId?: number; // 테넌트 ID
@@ -82,6 +97,11 @@ export interface IntentStatItem {
 
 export type IntentStatListItem = IntentStatItem;
 
+export interface IntentStatList {
+  items: IntentStatListItem[];
+  summary: IntentStatListItem | null;
+}
+
 export interface EntityStatItem {
   psrTimeKey: string; // 날짜시간
   tenantId?: number; // 테넌트 ID
@@ -96,6 +116,11 @@ export interface EntityStatItem {
 
 export type EntityStatListItem = EntityStatItem;
 
+export interface EntityStatList {
+  items: EntityStatListItem[];
+  summary: EntityStatListItem | null;
+}
+
 export interface KeywordStatItem {
   psrTimeKey: string; // 날짜시간
   tenantId?: number; // 테넌트 ID
@@ -109,6 +134,11 @@ export interface KeywordStatItem {
 }
 
 export type KeywordStatListItem = KeywordStatItem;
+
+export interface KeywordStatList {
+  items: KeywordStatListItem[];
+  summary: KeywordStatListItem | null;
+}
 
 export interface DialogOptionItem {
   dialogId: string; // 대화 ID

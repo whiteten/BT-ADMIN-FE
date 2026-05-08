@@ -53,8 +53,8 @@ export interface BotVersion {
   workTime: string;
 }
 
-export type BotVersionListItem = BotVersion & { scenarioFile: string };
-export type BotVersionItem = Omit<BotVersion, 'workUser' | 'workTime'>;
+export type BotVersionListItem = BotVersion & { scenarioFile: string; flowEditorId: number | null };
+export type BotVersionItem = Omit<BotVersion, 'workUser' | 'workTime'> & { flowEditorId: number | null };
 export type BotVersionCreateDatas = Omit<BotVersion, 'serviceId' | 'workUser' | 'workTime'> & {
   sourcever?: string;
 };

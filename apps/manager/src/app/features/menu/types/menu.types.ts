@@ -17,6 +17,8 @@ export interface Menu {
   featureFlag: string | null;
   visible: boolean;
   isSystem: boolean;
+  path: string | null;
+  iconKey: string | null;
 }
 
 /** 백엔드 MenuUpsertRequest와 1:1 매핑 */
@@ -30,14 +32,15 @@ export interface MenuUpsertRequest {
   sortOrder?: number;
   featureFlag?: string;
   visible: number;
+  path?: string;
+  iconKey?: string;
 }
 
 /** Ant Design Tree 노드용 변환 타입 */
 export interface MenuTreeNode {
   key: string;
-  title: string;
+  title: React.ReactNode;
   children: MenuTreeNode[];
-  icon?: React.ReactNode;
   data?: Menu;
   selectable?: boolean;
 }

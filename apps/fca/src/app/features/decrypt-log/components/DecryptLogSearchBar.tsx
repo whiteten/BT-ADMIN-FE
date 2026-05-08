@@ -58,7 +58,7 @@ const DecryptLogSearchBar: React.FC<DecryptLogSearchBarProps> = ({ onSearch, isL
   };
 
   return (
-    <div className="flex flex-col gap-3 p-5 bg-white bt-shadow mb-4">
+    <div className="flex flex-col gap-3">
       {/* 1행: 시간 범위, 봇, 결과, 사유 */}
       <div className="flex items-center gap-4 flex-wrap">
         <div className="flex items-center gap-2">

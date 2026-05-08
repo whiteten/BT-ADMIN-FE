@@ -173,7 +173,7 @@ export interface SlotIncompleteTopItem {
  * - entryCnt: 진입수
  * - completeCnt: 완결수
  * - avgRetryCount: 평균 재시도
- * - oneTimeCompleteCnt: 1회이하 완결수
+ * - oneTimeCompleteCnt: 1회 완결수
  * - twoTimeCompleteCnt: 2회 완결수
  * - threeOrMoreCompleteCnt: 3회이상 완결수
  */
@@ -198,8 +198,8 @@ export interface SlotRetryAvgTopItem {
  * - slotName: 슬롯명
  * - entryCnt: 진입수
  * - completeCnt: 완결수
- * - oneTimeCompleteCnt: 1회이하 완결수
- * - oneTimeCompleteRate: 1회이하 비율 (%)
+ * - oneTimeCompleteCnt: 1회 완결수
+ * - oneTimeCompleteRate: 1회 비율 (%)
  * - twoTimeCompleteCnt: 2회 완결수
  * - twoTimeCompleteRate: 2회 비율 (%)
  * - threeOrMoreCompleteCnt: 3회이상 완결수

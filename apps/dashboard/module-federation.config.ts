@@ -4,7 +4,6 @@ const config: ModuleFederationConfig = {
   name: 'dashboard',
   exposes: {
     './Module': './src/remote-entry.ts',
-    './MenuConfig': './src/app/features/sidebar/menu-config.ts',
   },
   additionalShared: [
     ['@/components/ui/sidebar', { singleton: true, strictVersion: true, requiredVersion: false }],

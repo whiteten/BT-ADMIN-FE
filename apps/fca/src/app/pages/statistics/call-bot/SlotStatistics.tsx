@@ -115,7 +115,7 @@ export default function SlotStatistics() {
 
   // 슬롯 통계 조회
   const {
-    data: slotStatList,
+    data: slotStatData,
     isLoading: isLoadingSlotStatList,
     refetch,
   } = useGetSlotStatList({
@@ -140,32 +140,11 @@ export default function SlotStatistics() {
   });
 
   useEffect(() => {
-    if (slotStatList !== undefined) setRowData(slotStatList);
-  }, [slotStatList]);
+    if (slotStatData !== undefined) setRowData(slotStatData.items);
+  }, [slotStatData]);
 
-  // 합계 행 계산 (pinnedBottomRowData)
-  const summaryRow = useMemo<SlotStatListItem[]>(() => {
-    if (!rowData?.length) return [];
-    const count = rowData.length;
-    const sum = (field: keyof SlotStatListItem) => rowData.reduce((acc, row) => acc + (Number(row[field]) || 0), 0);
-    const avg = (field: keyof SlotStatListItem) => Math.round((sum(field) / count) * 100) / 100;
-    return [
-      {
-        psrTimeKey: '전체합계',
-        dialogName: '',
-        slotName: '',
-        inCount: sum('inCount'),
-        successCount: sum('successCount'),
-        failCount: sum('failCount'),
-        successPercent: avg('successPercent'),
-        failPercent: avg('failPercent'),
-        retryCount: sum('retryCount'),
-        oneTimeOrLess: sum('oneTimeOrLess'),
-        twoTimes: sum('twoTimes'),
-        threeTimesOrMore: sum('threeTimesOrMore'),
-      } as SlotStatListItem,
-    ];
-  }, [rowData]);
+  // BE에서 받은 summary에 '전체합계' 라벨 주입
+  const summaryRow: SlotStatListItem[] = slotStatData?.summary ? [{ ...slotStatData.summary, psrTimeKey: '전체합계' }] : [];
 
   // startDate 또는 timeUnit 변경 시 endDate 자동 조정
   useEffect(() => {
@@ -359,10 +338,9 @@ export default function SlotStatistics() {
   return (
     <div className="flex flex-col gap-4 w-full h-full">
       <PageHeader breadcrumb={breadcrumb} />
-      {/* Filter */}
-      <div className="flex flex-col w-full h-full bg-white bt-shadow p-5">
+      <div className="flex flex-col gap-5 w-full h-full bg-white bt-shadow p-5">
         <Collapsible open={isFilterOpen} onOpenChange={setIsFilterOpen}>
-          <header className="flex flex-col gap-3 pb-5">
+          <header className="flex flex-col gap-3">
             <div className="flex items-start gap-3">
               <div className="flex flex-wrap items-center gap-3 flex-1 min-w-0">
                 <div className="flex items-center gap-3">
@@ -629,7 +607,7 @@ export default function SlotStatistics() {
             </CollapsibleContent>
           </header>
         </Collapsible>
-        <div className="w-full flex-1">
+        <div className="w-full h-full">
           <AgGridReact<SlotStatListItem>
             ref={gridRef}
             rowModelType="clientSide"
