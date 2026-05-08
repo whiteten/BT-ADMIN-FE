@@ -57,11 +57,11 @@ const SortableBookmarkRow = ({ bookmark, icon: Icon, path, isEditMode, onClick }
 
   if (isEditMode) {
     return (
-      <div ref={setNodeRef} style={style} className="flex items-center gap-2 rounded-md px-3 py-2 text-white bg-white/[0.04] border border-white/10">
-        <span className="cursor-grab active:cursor-grabbing text-white/70" {...attributes} {...listeners}>
+      <div ref={setNodeRef} style={style} className="flex items-center gap-2 rounded-md px-3 py-2 text-[#495057] bg-white border border-[#e9ecef]">
+        <span className="cursor-grab active:cursor-grabbing text-[#adb5bd]" {...attributes} {...listeners}>
           <GripVertical className="size-4" />
         </span>
-        {Icon ? <Icon className="size-5 shrink-0" /> : <span className="size-1 shrink-0 rounded-full bg-white/40" />}
+        {Icon ? <Icon className="size-5 shrink-0 text-[#868e96]" /> : <span className="size-1 shrink-0 rounded-full bg-[#adb5bd]" />}
         <span className="flex-1 min-w-0 truncate text-sm">{bookmark.label}</span>
       </div>
     );
@@ -73,12 +73,13 @@ const SortableBookmarkRow = ({ bookmark, icon: Icon, path, isEditMode, onClick }
       onClick={() => onClick(bookmark, path)}
       disabled={!path}
       className={cn(
-        'group/row flex w-full items-center gap-2 rounded-md px-3 py-2 text-left text-white transition-colors cursor-pointer',
-        'hover:bg-white/10 disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:bg-transparent',
-        isActive && 'bg-white/10 text-lime-300',
+        'group/row flex w-full items-center gap-2 rounded-md px-3 py-2 text-left transition-colors cursor-pointer',
+        'text-[#495057] hover:bg-[var(--color-bt-primary)]/[0.08]',
+        'disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:bg-transparent',
+        isActive && 'bg-[var(--color-bt-primary)]/10 text-[var(--color-bt-primary)] font-semibold',
       )}
     >
-      {Icon && <Icon className="size-5 shrink-0" />}
+      {Icon && <Icon className={cn('size-5 shrink-0', isActive ? 'text-[var(--color-bt-primary)]' : 'text-[#868e96]')} />}
       <span className="flex-1 min-w-0 truncate text-sm">{bookmark.label}</span>
     </button>
   );
@@ -141,12 +142,12 @@ const PanelBookmarksSection = ({ className }: PanelBookmarksSectionProps) => {
   return (
     <section className={cn('flex flex-col', className)}>
       <header className="flex items-center justify-between px-3 mb-2">
-        <h3 className="text-xs font-semibold tracking-wider uppercase text-white/60">{isEditMode ? '드래그 하여 순서변경' : 'Bookmarks'}</h3>
+        <h3 className="text-xs font-semibold tracking-wider uppercase text-[#868e96]">{isEditMode ? '드래그 하여 순서변경' : 'Bookmarks'}</h3>
         {favorites?.length > 0 && (
           <Button
             size="small"
             loading={isPending}
-            className="!text-xs !px-1.5 !py-0 !h-auto !bg-transparent !border-white/40 !text-white/80 hover:!border-white"
+            className="!text-xs !px-1.5 !py-0 !h-auto !bg-transparent !border-[#ced4da] !text-[#495057] hover:!border-[var(--color-bt-primary)] hover:!text-[var(--color-bt-primary)]"
             onClick={handleToggleEditMode}
           >
             {isEditMode ? 'DONE' : 'EDIT'}
@@ -155,7 +156,7 @@ const PanelBookmarksSection = ({ className }: PanelBookmarksSectionProps) => {
       </header>
 
       {sortedFavorites.length === 0 ? (
-        <p className="text-xs text-white/40 px-3 py-4">북마크한 메뉴가 없습니다.</p>
+        <p className="text-xs text-[#adb5bd] px-3 py-4">북마크한 메뉴가 없습니다.</p>
       ) : isEditMode ? (
         <DndContext collisionDetection={closestCenter} modifiers={[restrictToVerticalAxis, restrictToParentElement]} onDragEnd={handleDragEnd}>
           <SortableContext items={sortedFavorites.map((f) => f.menuKey)} strategy={verticalListSortingStrategy}>

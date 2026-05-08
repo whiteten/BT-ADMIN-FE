@@ -195,24 +195,25 @@ export function PanelMenuRow({ item, appId, onNavigate }: PanelMenuRowProps) {
     }
   };
 
+  const highlightAsPrimary = isActive || isActiveBranch;
+
   return (
     <button
       type="button"
       onClick={handleClick}
       className={cn(
         'group/row flex w-full items-center gap-2 rounded-md px-3 py-2 text-left transition-colors cursor-pointer',
-        'hover:bg-white/10',
-        isActive && 'bg-white/10',
-        isActiveBranch && 'text-lime-300',
-        !isActiveBranch && 'text-white',
+        'hover:bg-[var(--color-bt-primary)]/[0.08]',
+        isActive && 'bg-[var(--color-bt-primary)]/10',
+        highlightAsPrimary ? 'text-[var(--color-bt-primary)] font-semibold' : 'text-[#495057]',
       )}
     >
       {Icon ? (
-        <span className="flex items-center justify-center size-5 shrink-0">
+        <span className={cn('flex items-center justify-center size-5 shrink-0', highlightAsPrimary ? 'text-[var(--color-bt-primary)]' : 'text-[#868e96]')}>
           <Icon className="!size-5" />
         </span>
       ) : (
-        <span className="size-1 shrink-0 rounded-full bg-white/40" />
+        <span className={cn('size-1 shrink-0 rounded-full', highlightAsPrimary ? 'bg-[var(--color-bt-primary)]' : 'bg-[#adb5bd]')} />
       )}
       <span className="flex-1 min-w-0 truncate text-sm">{item.label}</span>
       {isFolder && (

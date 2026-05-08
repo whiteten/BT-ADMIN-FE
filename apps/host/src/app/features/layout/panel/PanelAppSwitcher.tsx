@@ -24,16 +24,16 @@ const PanelAppSwitcher = () => {
       type="button"
       onClick={handleActivate}
       className={cn(
-        'group/row flex w-full items-center gap-2 rounded-md px-3 py-2 text-left text-white transition-colors cursor-pointer',
-        'hover:bg-white/10',
-        isActive && 'bg-white/10',
+        'group/row flex w-full items-center gap-2 rounded-md px-3 py-2 text-left transition-colors cursor-pointer',
+        'text-[#212529] hover:bg-[var(--color-bt-primary)]/[0.08]',
+        isActive && 'bg-[var(--color-bt-primary)]/10 text-[var(--color-bt-primary)]',
       )}
     >
-      <span className="flex items-center justify-center size-5 shrink-0">
+      <span className={cn('flex items-center justify-center size-5 shrink-0', isActive ? 'text-[var(--color-bt-primary)]' : 'text-[#495057]')}>
         <Icon className="!size-5" />
       </span>
       <span className="flex-1 min-w-0 truncate text-sm font-semibold">{selectedRemote.appName}</span>
-      <ChevronRight className={cn('size-4 shrink-0 opacity-60 transition-transform', isActive && 'translate-x-0.5 opacity-100')} />
+      <ChevronRight className={cn('size-4 shrink-0 opacity-60 transition-transform', isActive && 'translate-x-0.5 opacity-100 text-[var(--color-bt-primary)]')} />
     </button>
   );
 };
