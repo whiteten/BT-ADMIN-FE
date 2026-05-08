@@ -180,7 +180,7 @@ interface PanelMenuRowProps {
 
 export function PanelMenuRow({ item, appId, onNavigate }: PanelMenuRowProps) {
   const location = useLocation();
-  const { activeMenuKey, setActiveMenuKey } = useMenuPanelStore();
+  const { activeMenuKey, mode, setActiveMenuKey, setMode } = useMenuPanelStore();
   const Icon = item.icon;
   const isFolder = !!item.children?.length;
   const isLeaf = !!item.path && !isFolder;
@@ -192,6 +192,7 @@ export function PanelMenuRow({ item, appId, onNavigate }: PanelMenuRowProps) {
       onNavigate(`/${appId}/${item.path}`);
     } else if (isFolder) {
       setActiveMenuKey(item.menuKey);
+      if (mode === 'mega') setMode('compact');
     }
   };
 

@@ -10,14 +10,17 @@ import { cn } from '@/libs/shared-ui/src/lib/utils';
  */
 const PanelAppSwitcher = () => {
   const { selectedRemote } = useRemoteSelector();
-  const { activeMenuKey, setActiveMenuKey } = useMenuPanelStore();
+  const { activeMenuKey, mode, setActiveMenuKey, setMode } = useMenuPanelStore();
   const isActive = activeMenuKey === APP_SWITCHER_ACTIVE_KEY;
 
   if (!selectedRemote) return null;
 
   const Icon = selectedRemote.icon ?? LayoutGrid;
 
-  const handleActivate = () => setActiveMenuKey(APP_SWITCHER_ACTIVE_KEY);
+  const handleActivate = () => {
+    setActiveMenuKey(APP_SWITCHER_ACTIVE_KEY);
+    if (mode === 'mega') setMode('compact');
+  };
 
   return (
     <button
