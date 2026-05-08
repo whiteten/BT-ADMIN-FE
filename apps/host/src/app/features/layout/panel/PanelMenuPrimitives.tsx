@@ -169,7 +169,7 @@ export function ChildList({ items, appId, query = '', onNavigate, asGrid }: Chil
 
 /**
  * 패널 좌측의 1단계 메뉴 행.
- * - 폴더(children 있음): 클릭 시 hoveredMenuKey로 설정 → PanelDetail이 자식 표시
+ * - 폴더(children 있음): 클릭 시 activeMenuKey로 설정 → PanelDetail이 자식 표시
  * - leaf(path만 있음): 클릭 시 navigate
  */
 interface PanelMenuRowProps {
@@ -180,34 +180,29 @@ interface PanelMenuRowProps {
 
 export function PanelMenuRow({ item, appId, onNavigate }: PanelMenuRowProps) {
   const location = useLocation();
-  const { hoveredMenuKey, setHoveredMenuKey } = useMenuPanelStore();
+  const { activeMenuKey, setActiveMenuKey } = useMenuPanelStore();
   const Icon = item.icon;
   const isFolder = !!item.children?.length;
   const isLeaf = !!item.path && !isFolder;
-  const isHovered = hoveredMenuKey === item.menuKey;
+  const isActive = activeMenuKey === item.menuKey;
   const isActiveBranch = hasActiveDescendant(item, location, appId);
 
   const handleClick = () => {
     if (isLeaf) {
       onNavigate(`/${appId}/${item.path}`);
     } else if (isFolder) {
-      setHoveredMenuKey(item.menuKey);
+      setActiveMenuKey(item.menuKey);
     }
-  };
-
-  const handleMouseEnter = () => {
-    if (isFolder) setHoveredMenuKey(item.menuKey);
   };
 
   return (
     <button
       type="button"
       onClick={handleClick}
-      onMouseEnter={handleMouseEnter}
       className={cn(
-        'group/row flex w-full items-center gap-2 rounded-md px-3 py-2 text-left transition-colors',
+        'group/row flex w-full items-center gap-2 rounded-md px-3 py-2 text-left transition-colors cursor-pointer',
         'hover:bg-white/10',
-        isHovered && 'bg-white/10',
+        isActive && 'bg-white/10',
         isActiveBranch && 'text-lime-300',
         !isActiveBranch && 'text-white',
       )}
@@ -223,7 +218,7 @@ export function PanelMenuRow({ item, appId, onNavigate }: PanelMenuRowProps) {
       {isFolder && (
         <svg
           xmlns="http://www.w3.org/2000/svg"
-          className={cn('size-4 shrink-0 opacity-60 transition-transform', isHovered && 'translate-x-0.5 opacity-100')}
+          className={cn('size-4 shrink-0 opacity-60 transition-transform', isActive && 'translate-x-0.5 opacity-100')}
           viewBox="0 0 24 24"
           fill="none"
           stroke="currentColor"

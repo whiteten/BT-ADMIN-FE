@@ -50,7 +50,7 @@ export default function BookmarkChip({ bookmark, className }: BookmarkChipProps)
       onClick={handleClick}
       disabled={!path}
       className={cn(
-        'shrink-0 inline-flex items-center h-7 px-2.5 rounded text-xs whitespace-nowrap transition-colors',
+        'shrink-0 inline-flex items-center h-7 px-2.5 rounded text-xs whitespace-nowrap transition-colors cursor-pointer',
         'text-white/85 hover:bg-white/15 hover:text-white disabled:cursor-not-allowed disabled:opacity-50',
         isActive && 'bg-white/20 text-white font-semibold',
         className,

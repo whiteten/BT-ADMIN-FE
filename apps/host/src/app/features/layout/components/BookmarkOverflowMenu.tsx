@@ -51,7 +51,7 @@ export default function BookmarkOverflowMenu({ bookmarks }: BookmarkOverflowMenu
     <Dropdown menu={{ items }} trigger={['click']} placement="bottomRight">
       <button
         type="button"
-        className="shrink-0 inline-flex items-center h-7 px-2 rounded text-xs text-white/85 hover:bg-white/15 hover:text-white transition-colors"
+        className="shrink-0 inline-flex items-center h-7 px-2 rounded text-xs text-white/85 hover:bg-white/15 hover:text-white transition-colors cursor-pointer"
         aria-label="더보기"
       >
         <span className="mr-1">+{bookmarks.length}</span>

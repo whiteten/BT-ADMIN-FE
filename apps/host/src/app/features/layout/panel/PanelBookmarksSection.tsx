@@ -71,9 +71,10 @@ const SortableBookmarkRow = ({ bookmark, icon: Icon, path, isEditMode, onClick }
     <button
       type="button"
       onClick={() => onClick(bookmark, path)}
+      disabled={!path}
       className={cn(
-        'group/row flex w-full items-center gap-2 rounded-md px-3 py-2 text-left text-white transition-colors',
-        'hover:bg-white/10',
+        'group/row flex w-full items-center gap-2 rounded-md px-3 py-2 text-left text-white transition-colors cursor-pointer',
+        'hover:bg-white/10 disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:bg-transparent',
         isActive && 'bg-white/10 text-lime-300',
       )}
     >

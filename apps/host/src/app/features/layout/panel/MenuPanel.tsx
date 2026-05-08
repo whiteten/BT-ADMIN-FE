@@ -4,7 +4,7 @@ import { Maximize2, Minimize2, X } from 'lucide-react';
 import PanelDetail from './PanelDetail';
 import PanelMega from './PanelMega';
 import PanelSidebar from './PanelSidebar';
-import { APP_SWITCHER_HOVER_KEY, useMenuPanelStore } from '../hooks/useMenuPanelStore';
+import { APP_SWITCHER_ACTIVE_KEY, useMenuPanelStore } from '../hooks/useMenuPanelStore';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/libs/shared-ui/src/lib/utils';
 
@@ -16,15 +16,15 @@ interface MenuPanelProps {
 const MenuPanel = ({ topOffset }: MenuPanelProps) => {
   const navigate = useNavigate();
   const location = useLocation();
-  const { open, mode, setOpen, toggleMode, setHoveredMenuKey } = useMenuPanelStore();
+  const { open, mode, setOpen, toggleMode, setActiveMenuKey } = useMenuPanelStore();
 
   // 라우트 이동 시 패널 자동 close
   // 단, AppSwitcher row가 활성 상태이면(앱 전환 모드) 라우트 변경에도 패널 유지.
   useEffect(() => {
-    if (useMenuPanelStore.getState().hoveredMenuKey === APP_SWITCHER_HOVER_KEY) return;
+    if (useMenuPanelStore.getState().activeMenuKey === APP_SWITCHER_ACTIVE_KEY) return;
     setOpen(false);
-    setHoveredMenuKey(null);
-  }, [location.pathname, location.search, setOpen, setHoveredMenuKey]);
+    setActiveMenuKey(null);
+  }, [location.pathname, location.search, setOpen, setActiveMenuKey]);
 
   // Esc 키 close
   useEffect(() => {
@@ -73,11 +73,17 @@ const MenuPanel = ({ topOffset }: MenuPanelProps) => {
         {/* Detail / Mega */}
         <div className="flex-1 min-w-0 flex flex-col bg-white relative">
           <div className="absolute top-3 right-3 flex items-center gap-1 z-10">
-            <Button variant="ghost" size="sm" className="h-8 px-2 text-xs text-[#495057] hover:bg-[#f1f3f5]" onClick={toggleMode} aria-label={isMega ? '작게보기' : '크게보기'}>
+            <Button
+              variant="ghost"
+              size="sm"
+              className="h-8 px-2 text-xs text-[#495057] hover:bg-[#f1f3f5] cursor-pointer"
+              onClick={toggleMode}
+              aria-label={isMega ? '작게보기' : '크게보기'}
+            >
               {isMega ? <Minimize2 className="size-4 mr-1" /> : <Maximize2 className="size-4 mr-1" />}
               {isMega ? '작게보기' : '크게보기'}
             </Button>
-            <Button variant="ghost" size="icon" className="size-8 text-[#495057] hover:bg-[#f1f3f5]" onClick={handleClose} aria-label="패널 닫기">
+            <Button variant="ghost" size="icon" className="size-8 text-[#495057] hover:bg-[#f1f3f5] cursor-pointer" onClick={handleClose} aria-label="패널 닫기">
               <X className="size-4" />
             </Button>
           </div>
