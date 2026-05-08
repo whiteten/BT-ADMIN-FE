@@ -11,7 +11,7 @@ export default function MenuButton({ className }: { className?: string }) {
       type="button"
       variant="ghost"
       size="sm"
-      className={cn('h-9 px-3 gap-2 font-semibold text-sm rounded-md', 'text-white hover:bg-white/10 hover:text-white', open && 'bg-white/10', className)}
+      className={cn('h-7 px-3 gap-2 font-semibold text-sm rounded-md', 'text-white hover:bg-white/10 hover:text-white', open && 'bg-white/10', className)}
       onClick={togglePanel}
       aria-expanded={open}
       aria-label={open ? '메뉴 닫기' : '메뉴 열기'}

@@ -2,13 +2,11 @@ import { Outlet } from 'react-router-dom';
 import { App, ConfigProvider } from 'antd';
 import koKR from 'antd/locale/ko_KR';
 import 'dayjs/locale/ko';
-import SubHeader from './SubHeader';
-import TopHeader from './TopHeader';
+import SubHeader, { SUB_HEADER_HEIGHT } from './SubHeader';
+import TopHeader, { TOP_HEADER_HEIGHT } from './TopHeader';
 import { antdTheme } from './config/antdTheme';
 import MenuPanel from './panel/MenuPanel';
 
-const TOP_HEADER_HEIGHT = 56;
-const SUB_HEADER_HEIGHT = 48;
 const TOTAL_HEADER_HEIGHT = TOP_HEADER_HEIGHT + SUB_HEADER_HEIGHT;
 
 export function Layout() {
