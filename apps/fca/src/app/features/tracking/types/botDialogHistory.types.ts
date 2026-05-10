@@ -8,6 +8,7 @@ export interface BotDialogHistorySearchRequest {
   completeYn?: number;
   ucid?: string;
   ani?: string;
+  hasIntent?: boolean;
   page?: number;
   size?: number;
   [key: string]: any; // Record<string, unknown> 호환을 위한 인덱스 시그니처

@@ -27,6 +27,7 @@ const BotDialogHistorySearchForm: React.FC<BotDialogHistorySearchFormProps> = ({
   const [intentNames, setIntentNames] = React.useState<string[]>([]);
   const [confidenceRange, setConfidenceRange] = React.useState<[number, number]>([0, 100]);
   const [completeYn, setCompleteYn] = React.useState<string | number>(COMPLETE_ALL);
+  const [hasIntent, setHasIntent] = React.useState(true);
   const [ucid, setUcid] = React.useState<string>('');
   const [ani, setAni] = React.useState<string>('');
 
@@ -120,6 +121,7 @@ const BotDialogHistorySearchForm: React.FC<BotDialogHistorySearchFormProps> = ({
       completeYn: completeYn === COMPLETE_ALL ? undefined : (completeYn as number),
       ucid: ucid.trim() || undefined,
       ani: ani.trim() || undefined,
+      hasIntent,
     });
   };
 
@@ -258,6 +260,12 @@ const BotDialogHistorySearchForm: React.FC<BotDialogHistorySearchFormProps> = ({
           <span className="text-sm font-medium text-[#495057] shrink-0">UCID</span>
           <Input value={ucid} onChange={(e) => setUcid(e.target.value)} placeholder="UCID 검색" className="w-64" onPressEnter={handleSearch} />
         </div>
+
+        <Divider type="vertical" className="!h-5 !m-0" />
+
+        <Checkbox checked={!hasIntent} onChange={(e) => setHasIntent(!e.target.checked)}>
+          <span className="text-sm text-[#495057]">무응답 포함</span>
+        </Checkbox>
 
         <div className="ml-auto flex items-center gap-2">
           <Button type="primary" icon={<Search className="size-4" />} onClick={handleSearch} loading={isLoading} className="flex items-center gap-1 shrink-0">

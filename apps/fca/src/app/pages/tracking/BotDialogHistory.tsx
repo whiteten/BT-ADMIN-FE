@@ -84,6 +84,7 @@ const BotDialogHistoryPage: React.FC = () => {
             searchVersion={searchVersion}
             onRowDoubleClick={handleRowClick}
             selectedRowId={selectedRowId}
+            isLoading={isListLoading}
             onLoadingChange={setIsListLoading}
             onTotalRowsChange={setTotalRows}
           />

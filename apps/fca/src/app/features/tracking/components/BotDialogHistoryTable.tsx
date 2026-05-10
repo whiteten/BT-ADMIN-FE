@@ -14,11 +14,20 @@ interface BotDialogHistoryTableProps {
   searchVersion: number;
   onRowDoubleClick: (data: BotDialogHistoryListItem) => void;
   selectedRowId?: string;
+  isLoading?: boolean;
   onLoadingChange?: (loading: boolean) => void;
   onTotalRowsChange?: (total: number) => void;
 }
 
-const BotDialogHistoryTable: React.FC<BotDialogHistoryTableProps> = ({ searchParams, searchVersion, onRowDoubleClick, selectedRowId, onLoadingChange, onTotalRowsChange }) => {
+const BotDialogHistoryTable: React.FC<BotDialogHistoryTableProps> = ({
+  searchParams,
+  searchVersion,
+  onRowDoubleClick,
+  selectedRowId,
+  isLoading,
+  onLoadingChange,
+  onTotalRowsChange,
+}) => {
   const { gridOptions } = useAggridOptions();
   const gridApiRef = useRef<GridApi<BotDialogHistoryListItem> | null>(null);
   const searchParamsRef = useRef(searchParams);
@@ -192,6 +201,7 @@ const BotDialogHistoryTable: React.FC<BotDialogHistoryTableProps> = ({ searchPar
       rowModelType: 'serverSide',
       paginationPageSize: PAGE_SIZE,
       cacheBlockSize: PAGE_SIZE,
+      localeText: { ...gridOptions.localeText, loadingOoo: ' ' },
       defaultColDef: { ...gridOptions.defaultColDef, sortable: false } as ColDef<BotDialogHistoryListItem>,
       getRowId: (p) => `${p.data.ucid}_${p.data.nextHop}_${p.data.cdrPkey}`,
       rowStyle: { cursor: 'pointer' },
@@ -208,7 +218,13 @@ const BotDialogHistoryTable: React.FC<BotDialogHistoryTableProps> = ({ searchPar
 
   return (
     <div className="w-full h-full">
-      <AgGridReact<BotDialogHistoryListItem> columnDefs={columnDefs} gridOptions={finalGridOptions} serverSideDatasource={serverSideDatasource} onGridReady={handleGridReady} />
+      <AgGridReact<BotDialogHistoryListItem>
+        columnDefs={columnDefs}
+        gridOptions={finalGridOptions}
+        serverSideDatasource={serverSideDatasource}
+        onGridReady={handleGridReady}
+        loading={isLoading}
+      />
     </div>
   );
 };

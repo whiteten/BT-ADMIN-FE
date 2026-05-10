@@ -53,6 +53,7 @@ const DecryptLogPage: React.FC = () => {
             searchVersion={searchVersion}
             onDetailClick={handleDetailClick}
             selectedLogId={selectedItem?.logId}
+            isLoading={isListLoading}
             onLoadingChange={setIsListLoading}
           />
         </div>

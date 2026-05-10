@@ -15,6 +15,7 @@ interface DecryptLogListGridProps {
   searchVersion: number;
   onDetailClick: (item: DecryptLogItem) => void;
   selectedLogId?: string;
+  isLoading?: boolean;
   onLoadingChange?: (loading: boolean) => void;
 }
 
@@ -46,7 +47,7 @@ const dialogRoleBadgeClass = (role: string | null): string => {
   }
 };
 
-const DecryptLogListGrid: React.FC<DecryptLogListGridProps> = ({ searchParams, searchVersion, onDetailClick, selectedLogId, onLoadingChange }) => {
+const DecryptLogListGrid: React.FC<DecryptLogListGridProps> = ({ searchParams, searchVersion, onDetailClick, selectedLogId, isLoading, onLoadingChange }) => {
   const { gridOptions } = useAggridOptions();
   const gridApiRef = useRef<GridApi<DecryptLogItem> | null>(null);
   const searchParamsRef = useRef(searchParams);
@@ -196,6 +197,7 @@ const DecryptLogListGrid: React.FC<DecryptLogListGridProps> = ({ searchParams, s
       rowModelType: 'serverSide',
       paginationPageSize: PAGE_SIZE,
       cacheBlockSize: PAGE_SIZE,
+      localeText: { ...gridOptions.localeText, loadingOoo: ' ' },
       defaultColDef: { ...gridOptions.defaultColDef, sortable: false } as ColDef<DecryptLogItem>,
       getRowId: (p) => p.data.logId,
       rowStyle: { cursor: 'pointer' },
@@ -215,6 +217,7 @@ const DecryptLogListGrid: React.FC<DecryptLogListGridProps> = ({ searchParams, s
         serverSideDatasource={serverSideDatasource}
         onGridReady={handleGridReady}
         onFirstDataRendered={handleFirstDataRendered}
+        loading={isLoading}
       />
     </div>
   );
