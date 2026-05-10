@@ -103,6 +103,10 @@ export default class ApiClient {
    * 우회하여, 호출한 컴포넌트의 onError가 직접 처리할 수 있도록 한다.
    */
   #responseErrorHandler(error: AxiosError): void {
+    // 요청 config에서 skipGlobalHandler 플래그 확인 (blob 응답 등 data 파싱 불가 시)
+    const config = error.config as Record<string, unknown> | undefined;
+    if (config?.['skipGlobalHandler'] === true) return;
+    // 응답 본문에서 skipGlobalHandler 플래그 확인
     const data = error.response?.data as { skipGlobalHandler?: boolean } | undefined;
     if (data?.skipGlobalHandler === true) return;
     window.dispatchEvent(new CustomEvent(API_ERROR_EVENT, { detail: error }));
