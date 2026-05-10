@@ -7,6 +7,7 @@ import { botDialogHistoryApi } from '../../features/tracking/api/botDialogHistor
 import BotDialogHistoryDrawer, { type BotDialogHistoryDrawerRef } from '../../features/tracking/components/BotDialogHistoryDrawer';
 import BotDialogHistorySearchForm from '../../features/tracking/components/BotDialogHistorySearchForm';
 import BotDialogHistoryTable from '../../features/tracking/components/BotDialogHistoryTable';
+import SlotSankeyDrawer from '../../features/tracking/components/SlotSankeyDrawer';
 import type { BotDialogHistoryListItem, BotDialogHistorySearchRequest } from '../../features/tracking/types/botDialogHistory.types';
 import PageHeader from '@/components/custom/PageHeader';
 
@@ -38,6 +39,7 @@ const BotDialogHistoryPage: React.FC = () => {
   // 그리드 SSRM datasource가 응답에서 갱신해주는 값
   const [totalRows, setTotalRows] = useState(0);
   const [isListLoading, setIsListLoading] = useState(false);
+  const [slotChartOpen, setSlotChartOpen] = useState(false);
 
   const handleSearch = (newParams: BotDialogHistorySearchRequest) => {
     setSearchParams(newParams);
@@ -77,6 +79,7 @@ const BotDialogHistoryPage: React.FC = () => {
           isLoading={isListLoading}
           onExcelDownload={hasExcelPermission ? handleExcelDownload : undefined}
           isExporting={isExporting}
+          onSlotChart={() => setSlotChartOpen(true)}
         />
         <div className="w-full h-full">
           <BotDialogHistoryTable
@@ -91,6 +94,15 @@ const BotDialogHistoryPage: React.FC = () => {
         </div>
       </div>
       <BotDialogHistoryDrawer ref={drawerRef} />
+      <SlotSankeyDrawer
+        open={slotChartOpen}
+        onClose={() => setSlotChartOpen(false)}
+        searchParams={searchParams}
+        onEntityFilter={(entityTag) => {
+          setSearchParams((prev) => ({ ...prev, slotEntityTag: entityTag }));
+          setSearchVersion((v) => v + 1);
+        }}
+      />
     </div>
   );
 };

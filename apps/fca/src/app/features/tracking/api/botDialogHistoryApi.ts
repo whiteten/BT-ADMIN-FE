@@ -1,6 +1,6 @@
 import type { AxiosRequestConfig } from 'axios';
 import ApiClient, { type ListResponse, extractList } from '@/shared-util';
-import type { BotServiceDto, IntentDto, PagedBotDialogHistory } from '../types/botDialogHistory.types';
+import type { BotServiceDto, IntentDto, PagedBotDialogHistory, SlotSankeyItem } from '../types/botDialogHistory.types';
 import type { NluAnalysisItem, RetrainLogItem, TrackingFlowItem } from '../types/tracking.types';
 
 const apiClient = new ApiClient({ serviceURL: '/bff' });
@@ -84,6 +84,11 @@ export const botDialogHistoryApi = {
   },
   exportExcel: async (params?: Record<string, unknown>) => {
     return await apiClient.post<Blob>('/bot-dialog-history-export', params, { responseType: 'blob' });
+  },
+  /** 슬롯 Sankey 차트 데이터 조회 */
+  getSlotSankey: async (data: Record<string, unknown>): Promise<SlotSankeyItem[]> => {
+    const response = await apiClient.post<ListResponse<SlotSankeyItem>>('/bot-dialog-history-slot-sankey', data);
+    return extractList(response);
   },
   /** 재학습 변경 이력 조회 */
   getRetrainLogs: async (params: { ucidGkey: string; questionSeq: number; hop: number }): Promise<RetrainLogItem[]> => {

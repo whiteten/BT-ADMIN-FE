@@ -185,6 +185,20 @@ const BotDialogHistoryTable: React.FC<BotDialogHistoryTableProps> = ({
         valueFormatter: (params) => (params.value != null ? `${params.value}` : '-'),
       },
       {
+        headerName: '재학습',
+        field: 'retrainYn',
+        width: 100,
+        cellStyle: { display: 'flex', alignItems: 'center' },
+        cellRenderer: (params: any) => {
+          if (!params.value) return '-';
+          return (
+            <Badge variant="secondary" className="text-[13px] leading-[13px] font-medium !h-6 text-[#3577F1] bg-[#3577F11A]">
+              수정됨
+            </Badge>
+          );
+        },
+      },
+      {
         headerName: '총 봇 질의수',
         field: 'botSlotInCount',
         width: 90,
