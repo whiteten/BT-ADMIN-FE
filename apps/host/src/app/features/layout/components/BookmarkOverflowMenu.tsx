@@ -1,31 +1,9 @@
 import { useNavigate } from 'react-router-dom';
 import { Dropdown, type MenuProps } from 'antd';
-import { ChevronDown } from 'lucide-react';
+import { ChevronDown, SquareDashed } from 'lucide-react';
 import { useMenuStore } from '@/shared-store';
+import { findMenuInfo } from '../utils/findMenuInfo';
 import type { Bookmark } from '@/libs/shared-api/src/lib/types/navi.types';
-import type { MenuConfig, MenuItem } from '@/libs/shared-store/src/types/menu.types';
-
-const findMenuItemRecursive = (item: MenuItem, menuKey: string): { path?: string } | null => {
-  if (item.menuKey === menuKey) return { path: item.path };
-  if (item.children) {
-    for (const child of item.children) {
-      const result = findMenuItemRecursive(child, menuKey);
-      if (result) return result;
-    }
-  }
-  return null;
-};
-
-const findMenuInfo = (menuConfigs: MenuConfig[], bookmark: Bookmark): { icon?: React.ElementType; path?: string } => {
-  for (const config of menuConfigs) {
-    if (config.appId !== bookmark.appId) continue;
-    for (const menu of config.menus) {
-      const result = findMenuItemRecursive(menu, bookmark.menuKey);
-      if (result) return { icon: menu.icon, path: result.path };
-    }
-  }
-  return {};
-};
 
 interface BookmarkOverflowMenuProps {
   bookmarks: Bookmark[];
@@ -36,11 +14,19 @@ export default function BookmarkOverflowMenu({ bookmarks }: BookmarkOverflowMenu
   const { menuConfigs } = useMenuStore();
 
   const items: MenuProps['items'] = bookmarks.map((bookmark) => {
-    const { icon: Icon, path } = findMenuInfo(menuConfigs, bookmark);
+    const { icon: Icon, path, appName, ancestors } = findMenuInfo(menuConfigs, bookmark);
+    const subLabel = [appName, ...ancestors.slice(0, -1)].filter(Boolean).join(' › ');
     return {
       key: bookmark.menuKey,
-      label: bookmark.label,
-      icon: Icon ? <Icon className="size-4" /> : undefined,
+      label: subLabel ? (
+        <div className="flex flex-col leading-tight py-0.5">
+          <span>{bookmark.label}</span>
+          <span className="text-xs text-[#adb5bd]">{subLabel}</span>
+        </div>
+      ) : (
+        bookmark.label
+      ),
+      icon: Icon ? <Icon className="size-4" /> : <SquareDashed className="size-4" />,
       disabled: !path,
       onClick: () => path && navigate(`/${bookmark.appId}/${path}`),
     };

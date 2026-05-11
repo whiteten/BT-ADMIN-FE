@@ -12,43 +12,21 @@ import { useMenuStore, useNavigationStore } from '@/shared-store';
 import { isMenuActive } from './PanelMenuPrimitives';
 import { useUpdateBookmark } from '../hooks/useBookmarkQueries';
 import { useMenuPanelStore } from '../hooks/useMenuPanelStore';
+import { findMenuInfo } from '../utils/findMenuInfo';
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import type { Bookmark } from '@/libs/shared-api/src/lib/types/navi.types';
-import type { MenuConfig, MenuItem } from '@/libs/shared-store/src/types/menu.types';
 import { cn } from '@/libs/shared-ui/src/lib/utils';
-
-const findMenuInfo = (menuConfigs: MenuConfig[], bookmark: Bookmark): { icon?: React.ElementType; path?: string } => {
-  for (const config of menuConfigs) {
-    if (config.appId !== bookmark.appId) continue;
-    for (const menu of config.menus) {
-      const result = findMenuItemRecursive(menu, bookmark.menuKey);
-      if (result) {
-        return { icon: menu.icon, path: result.path };
-      }
-    }
-  }
-  return {};
-};
-
-const findMenuItemRecursive = (item: MenuItem, menuKey: string): { path?: string } | null => {
-  if (item.menuKey === menuKey) return { path: item.path };
-  if (item.children) {
-    for (const child of item.children) {
-      const result = findMenuItemRecursive(child, menuKey);
-      if (result) return result;
-    }
-  }
-  return null;
-};
 
 interface SortableBookmarkRowProps {
   bookmark: Bookmark;
   icon?: React.ElementType;
   path?: string;
+  tooltipText: string;
   isEditMode: boolean;
   onClick: (bookmark: Bookmark, path?: string) => void;
 }
 
-const SortableBookmarkRow = ({ bookmark, icon: Icon, path, isEditMode, onClick }: SortableBookmarkRowProps) => {
+const SortableBookmarkRow = ({ bookmark, icon: Icon, path, tooltipText, isEditMode, onClick }: SortableBookmarkRowProps) => {
   const location = useLocation();
   const { attributes, listeners, setNodeRef, transform, transition } = useSortable({ id: bookmark.menuKey });
   const isActive = path ? isMenuActive(path, location, bookmark.appId) : false;
@@ -67,7 +45,7 @@ const SortableBookmarkRow = ({ bookmark, icon: Icon, path, isEditMode, onClick }
     );
   }
 
-  return (
+  const rowButton = (
     <button
       type="button"
       onClick={() => onClick(bookmark, path)}
@@ -86,6 +64,17 @@ const SortableBookmarkRow = ({ bookmark, icon: Icon, path, isEditMode, onClick }
       )}
       <span className="flex-1 min-w-0 truncate text-sm">{bookmark.label}</span>
     </button>
+  );
+
+  if (!tooltipText) return rowButton;
+
+  return (
+    <Tooltip>
+      <TooltipTrigger asChild>{rowButton}</TooltipTrigger>
+      <TooltipContent side="right" sideOffset={8}>
+        {tooltipText}
+      </TooltipContent>
+    </Tooltip>
   );
 };
 
@@ -166,8 +155,9 @@ const PanelBookmarksSection = ({ className }: PanelBookmarksSectionProps) => {
           <SortableContext items={sortedFavorites.map((f) => f.menuKey)} strategy={verticalListSortingStrategy}>
             <div className="flex flex-col gap-1">
               {sortedFavorites.map((bookmark) => {
-                const { icon, path } = findMenuInfo(menuConfigs, bookmark);
-                return <SortableBookmarkRow key={bookmark.menuKey} bookmark={bookmark} icon={icon} path={path} isEditMode onClick={handleClick} />;
+                const { icon, path, appName, ancestors } = findMenuInfo(menuConfigs, bookmark);
+                const tooltipText = [appName, ...ancestors].filter(Boolean).join(' › ');
+                return <SortableBookmarkRow key={bookmark.menuKey} bookmark={bookmark} icon={icon} path={path} tooltipText={tooltipText} isEditMode onClick={handleClick} />;
               })}
             </div>
           </SortableContext>
@@ -175,8 +165,9 @@ const PanelBookmarksSection = ({ className }: PanelBookmarksSectionProps) => {
       ) : (
         <div className="flex flex-col gap-px">
           {sortedFavorites.map((bookmark) => {
-            const { icon, path } = findMenuInfo(menuConfigs, bookmark);
-            return <SortableBookmarkRow key={bookmark.menuKey} bookmark={bookmark} icon={icon} path={path} isEditMode={false} onClick={handleClick} />;
+            const { icon, path, appName, ancestors } = findMenuInfo(menuConfigs, bookmark);
+            const tooltipText = [appName, ...ancestors].filter(Boolean).join(' › ');
+            return <SortableBookmarkRow key={bookmark.menuKey} bookmark={bookmark} icon={icon} path={path} tooltipText={tooltipText} isEditMode={false} onClick={handleClick} />;
           })}
         </div>
       )}
