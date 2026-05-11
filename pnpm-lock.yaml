@@ -448,6 +448,8 @@ importers:
 
   apps/host: {}
 
+  apps/insight: {}
+
   apps/manager: {}
 
 packages:

@@ -1,36 +1,33 @@
-import { Suspense, lazy } from 'react';
-import { Navigate, type RouteObject } from 'react-router-dom';
-import { FallbackSpinner } from '@/components/custom/FallbackSpinner';
+import React from 'react';
+import { Navigate, Outlet } from 'react-router-dom';
 import { NotFound } from '@/components/custom/NotFound';
 
-const DataSourceListPage = lazy(() => import('./pages/datasource/DataSourceListPage'));
-const WidgetListPage = lazy(() => import('./pages/widget/WidgetListPage'));
-const WidgetBuilderPage = lazy(() => import('./pages/widget/WidgetBuilderPage'));
-const BoardListPage = lazy(() => import('./pages/board/BoardListPage'));
-const BoardViewPage = lazy(() => import('./pages/board/BoardViewPage'));
-const BoardEditPage = lazy(() => import('./pages/board/BoardEditPage'));
-const ConditionListPage = lazy(() => import('./pages/condition/ConditionListPage'));
+const StatDashboardPage = React.lazy(() => import('./pages/stat/StatDashboardPage'));
+const WidgetListPage = React.lazy(() => import('./pages/stat/widget/WidgetListPage'));
+const WidgetBuilderPage = React.lazy(() => import('./pages/stat/widget/WidgetBuilderPage'));
 
-const withSuspense = (Component: React.LazyExoticComponent<() => React.ReactNode>) => (
-  <Suspense fallback={<FallbackSpinner />}>
-    <Component />
-  </Suspense>
-);
-
-export const routes: RouteObject[] = [
+export const routes = [
   {
     path: '/',
+    element: <Outlet />,
     children: [
-      { index: true, element: <Navigate to="boards" replace /> },
-      { path: 'datasources', element: withSuspense(DataSourceListPage) },
-      { path: 'widgets', element: withSuspense(WidgetListPage) },
-      { path: 'widgets/new', element: withSuspense(WidgetBuilderPage) },
-      { path: 'widgets/:widgetId/edit', element: withSuspense(WidgetBuilderPage) },
-      { path: 'boards', element: withSuspense(BoardListPage) },
-      { path: 'boards/new', element: withSuspense(BoardEditPage) },
-      { path: 'boards/:boardId', element: withSuspense(BoardViewPage) },
-      { path: 'boards/:boardId/edit', element: withSuspense(BoardEditPage) },
-      { path: 'conditions', element: withSuspense(ConditionListPage) },
+      { index: true, element: <Navigate to="stat/dashboard" replace /> },
+      {
+        path: 'stat',
+        element: <Outlet />,
+        children: [
+          { index: true, element: <Navigate to="dashboard" replace /> },
+          { path: 'dashboard', element: <StatDashboardPage /> },
+          {
+            path: 'widget',
+            children: [
+              { index: true, element: <WidgetListPage /> },
+              { path: 'create', element: <WidgetBuilderPage /> },
+              { path: ':widgetId/edit', element: <WidgetBuilderPage /> },
+            ],
+          },
+        ],
+      },
     ],
   },
   { path: '*', element: <NotFound homePath="/insight" /> },

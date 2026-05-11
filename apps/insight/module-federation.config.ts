@@ -5,8 +5,8 @@ const config: ModuleFederationConfig = {
   exposes: {
     './Module': './src/remote-entry.ts',
     './Routes': './src/app/routes.tsx',
-    './PageVariantManifest': './src/app/features/router/pageVariantManifest.ts',
-    './QuerySelectors': './src/app/features/router/querySelectors.ts',
+    './PageVariantManifest': './src/app/features/stat/router/pageVariantManifest.ts',
+    './QuerySelectors': './src/app/features/stat/router/querySelectors.ts',
   },
   additionalShared: [
     ['@/components/ui/sidebar', { singleton: true, strictVersion: true, requiredVersion: false }],
