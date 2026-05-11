@@ -4,6 +4,9 @@ const config: ModuleFederationConfig = {
   name: 'aoe',
   exposes: {
     './Module': './src/remote-entry.ts',
+    './Routes': './src/app/routes.tsx',
+    './PageVariantManifest': './src/app/features/router/pageVariantManifest.ts',
+    './QuerySelectors': './src/app/features/router/querySelectors.ts',
     './WorkflowApp': './src/remote-entry-workflow.ts',
   },
   additionalShared: [

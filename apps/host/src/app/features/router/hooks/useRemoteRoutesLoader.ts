@@ -10,6 +10,7 @@ type RoutesModule = { routes: RouteObject[] };
 const ROUTE_LOADERS: Record<string, () => Promise<RoutesModule>> = {
   manager: () => import('manager/Routes').catch(() => ({ routes: [] })) as Promise<RoutesModule>,
   fca: () => import('fca/Routes').catch(() => ({ routes: [] })) as Promise<RoutesModule>,
+  aoe: () => import('aoe/Routes').catch(() => ({ routes: [] })) as Promise<RoutesModule>,
 };
 
 const PARAM_KEY_PATTERN = /:([A-Za-z_][A-Za-z0-9_]*)/g;

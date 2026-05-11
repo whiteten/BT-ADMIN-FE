@@ -7,9 +7,7 @@
   "targets": {
     "build": {
       "executor": "@nx/webpack:webpack",
-      "outputs": [
-        "{options.outputPath}"
-      ],
+      "outputs": ["{options.outputPath}"],
       "defaultConfiguration": "production",
       "options": {
         "compiler": "babel",
@@ -18,13 +16,8 @@
         "baseHref": "/",
         "main": "apps/aoe/src/main.ts",
         "tsConfig": "apps/aoe/tsconfig.app.json",
-        "assets": [
-          "apps/aoe/src/favicon.ico",
-          "apps/aoe/src/assets"
-        ],
-        "styles": [
-          "libs/shared-ui/src/styles/global.css"
-        ],
+        "assets": ["apps/aoe/src/favicon.ico", "apps/aoe/src/assets"],
+        "styles": [],
         "scripts": [],
         "webpackConfig": "apps/aoe/webpack.config.ts",
         "postcssConfig": "apps/aoe/postcss.config.js"
@@ -73,9 +66,7 @@
     },
     "test": {
       "executor": "@nx/jest:jest",
-      "outputs": [
-        "{workspaceRoot}/coverage/{projectRoot}"
-      ],
+      "outputs": ["{workspaceRoot}/coverage/{projectRoot}"],
       "options": {
         "jestConfig": "apps/aoe/jest.config.ts"
       }
