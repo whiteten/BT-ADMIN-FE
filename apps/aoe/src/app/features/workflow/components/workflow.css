@@ -20,11 +20,12 @@
 
 /* 핸들 위치 강제. transform 을 쓰지 않고 left/right/top 좌표로만 위치 결정.
    이유: ReactFlow 는 edge 시작점 계산 시 핸들 div 의 offsetLeft/Top + width/height 만 보고 transform 은 무시한다.
-   transform 으로 핸들을 외부로 밀면 시각적 위치와 edge 시작점이 어긋난다. 좌표 자체로 외부에 두면 일치. */
+   transform 으로 핸들을 외부로 밀면 시각적 위치와 edge 시작점이 어긋난다. 좌표 자체로 외부에 두면 일치.
+   top:18px = 헤더(h-12, 48px) 의 중앙 24px - 핸들 반지름 6px. 헤더 라인에서 edge 가 나오게 정렬한다. */
 .react-flow .react-flow__handle[data-handlepos='left'] {
   left: -6px !important;
   right: auto !important;
-  top: calc(50% - 6px) !important;
+  top: 18px !important;
   transform: none !important;
 }
 
@@ -47,7 +48,7 @@
 .react-flow .react-flow__handle[data-handlepos='right'] {
   right: -6px !important;
   left: auto !important;
-  top: calc(50% - 6px) !important;
+  top: 18px !important;
   transform: none !important;
 }
 

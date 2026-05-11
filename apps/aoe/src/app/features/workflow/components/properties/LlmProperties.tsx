@@ -1,14 +1,24 @@
 import { Collapse, Form, Input, InputNumber, Select, Slider } from 'antd';
+import OutputVariableNotice from './OutputVariableNotice';
+import VariableTextArea from './VariableTextArea';
 import { useGetModels } from '../../../agent-config/hooks/useModelQueries';
+import type { FlowNode, WorkflowGraph } from '../../types';
+import { getUpstreamVariables } from '../../utils/variableTokens';
 
 const PROMPT_NAME_SYSTEM = ['data', 'systemPrompt'];
 const PROMPT_NAME_USER = ['data', 'userPrompt'];
 
 const buildModelLabel = (modelTypeName: string | undefined, modelName: string | undefined) => (modelTypeName ? `[${modelTypeName}] ${modelName ?? ''}` : (modelName ?? ''));
 
-export default function LlmProperties() {
+interface LlmPropertiesProps {
+  node: FlowNode;
+  graph: WorkflowGraph;
+}
+
+export default function LlmProperties({ node, graph }: LlmPropertiesProps) {
   const form = Form.useFormInstance();
   const { data: models = [], isLoading: isLoadingModels } = useGetModels();
+  const variables = getUpstreamVariables(node.nodeId, graph);
 
   // form 의 현재 값 (Form.useWatch 로 reactive)
   const currentModelId = Form.useWatch(['data', 'modelId'], form) as string | undefined;
@@ -91,11 +101,11 @@ export default function LlmProperties() {
           label: <span className="text-sm font-semibold text-gray-800">프롬프트</span>,
           children: (
             <>
-              <Form.Item name={PROMPT_NAME_SYSTEM} label="System 프롬프트" extra="모델의 역할·행동 지침">
-                <Input.TextArea placeholder="시스템 프롬프트를 입력하세요." autoSize={{ minRows: 3, maxRows: 8 }} />
+              <Form.Item name={PROMPT_NAME_SYSTEM} label="System 프롬프트" extra="모델의 역할·행동 지침. `/` 입력 시 변수 dropdown.">
+                <VariableTextArea variables={variables} placeholder="시스템 프롬프트를 입력하세요." rows={3} />
               </Form.Item>
-              <Form.Item name={PROMPT_NAME_USER} label="User 프롬프트 템플릿" extra="이전 노드의 출력 변수를 {{user_input_result}} 형태로 참조 가능">
-                <Input.TextArea placeholder="사용자 프롬프트를 입력하세요." autoSize={{ minRows: 3, maxRows: 8 }} />
+              <Form.Item name={PROMPT_NAME_USER} label="User 프롬프트 템플릿" extra="이전 노드의 출력 변수를 `/` 로 검색해 삽입할 수 있습니다.">
+                <VariableTextArea variables={variables} placeholder="사용자 프롬프트를 입력하세요." rows={3} />
               </Form.Item>
             </>
           ),
@@ -104,14 +114,13 @@ export default function LlmProperties() {
           key: 'output',
           label: <span className="text-sm font-semibold text-gray-800">출력</span>,
           children: (
-            <Form.Item
-              name={['data', 'outputVariable']}
-              label="출력 변수명"
-              extra="다음 노드에서 {변수명}_result 로 참조"
-              rules={[{ pattern: /^[a-zA-Z_][a-zA-Z0-9_]*$/, message: '영문/숫자/언더스코어만, 숫자로 시작 불가' }]}
-            >
-              <Input placeholder="llm_answer" />
-            </Form.Item>
+            <OutputVariableNotice
+              nodeId={node.nodeId}
+              nodeLabel={node.nodeLabel}
+              outputVariable={node.data?.output_variable as string | undefined}
+              dataType="string"
+              description="생성된 내용"
+            />
           ),
         },
       ]}

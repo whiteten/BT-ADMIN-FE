@@ -1,7 +1,13 @@
 import { Collapse, Form, Input, Select } from 'antd';
+import OutputVariableNotice from './OutputVariableNotice';
 import { useGetA2AList } from '../../../a2a/hooks/useA2aQueries';
+import type { FlowNode } from '../../types';
 
-export default function A2AProperties() {
+interface A2APropertiesProps {
+  node: FlowNode;
+}
+
+export default function A2AProperties({ node }: A2APropertiesProps) {
   const form = Form.useFormInstance();
   const { data: a2aList = [], isLoading } = useGetA2AList();
 
@@ -79,14 +85,13 @@ export default function A2AProperties() {
           key: 'output',
           label: <span className="text-sm font-semibold text-gray-800">출력</span>,
           children: (
-            <Form.Item
-              name={['data', 'outputVariable']}
-              label="출력 변수명"
-              extra="다음 노드에서 {변수명}_result 로 참조"
-              rules={[{ pattern: /^[a-zA-Z_][a-zA-Z0-9_]*$/, message: '영문/숫자/언더스코어만, 숫자로 시작 불가' }]}
-            >
-              <Input placeholder="a2a_result" />
-            </Form.Item>
+            <OutputVariableNotice
+              nodeId={node.nodeId}
+              nodeLabel={node.nodeLabel}
+              outputVariable={node.data?.output_variable as string | undefined}
+              dataType="string"
+              description="A2A 응답"
+            />
           ),
         },
       ]}

@@ -3,10 +3,11 @@ import BasicProperties from './BasicProperties';
 import GuardrailProperties from './GuardrailProperties';
 import KnowledgeSearchProperties from './KnowledgeSearchProperties';
 import LlmProperties from './LlmProperties';
-import type { FlowNode } from '../../types';
+import type { FlowNode, WorkflowGraph } from '../../types';
 
 interface WorkflowPropertiesFactoryProps {
   node: FlowNode;
+  graph: WorkflowGraph;
 }
 
 /**
@@ -14,16 +15,16 @@ interface WorkflowPropertiesFactoryProps {
  * - 정의되지 않은 kind 는 BasicProperties 로 fallback.
  * - 모든 컴포넌트는 부모 Panel 의 Form 인스턴스 안에서 동작 (Form.Item name 으로 값 바인딩).
  */
-export default function WorkflowPropertiesFactory({ node }: WorkflowPropertiesFactoryProps) {
+export default function WorkflowPropertiesFactory({ node, graph }: WorkflowPropertiesFactoryProps) {
   switch (node.nodeKind) {
     case 'llm':
-      return <LlmProperties />;
+      return <LlmProperties node={node} graph={graph} />;
     case 'knowledgeSearch':
-      return <KnowledgeSearchProperties />;
+      return <KnowledgeSearchProperties node={node} />;
     case 'a2a_agent':
-      return <A2AProperties />;
+      return <A2AProperties node={node} />;
     case 'guardrail':
-      return <GuardrailProperties />;
+      return <GuardrailProperties node={node} graph={graph} />;
     case 'start':
     case 'answer':
     case 'error':

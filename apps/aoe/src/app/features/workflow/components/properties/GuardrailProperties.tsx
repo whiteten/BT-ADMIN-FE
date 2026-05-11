@@ -1,4 +1,8 @@
 import { Checkbox, Collapse, Form, Input, Radio, Select } from 'antd';
+import OutputVariableNotice from './OutputVariableNotice';
+import VariableTextArea from './VariableTextArea';
+import type { FlowNode, WorkflowGraph } from '../../types';
+import { getUpstreamVariables } from '../../utils/variableTokens';
 
 const SENSITIVITY_OPTIONS = [
   { label: '낮음', value: 'low' },
@@ -24,10 +28,16 @@ const PII_ENTITY_OPTIONS = [
   { label: '계좌번호', value: 'BANK_ACCOUNT' },
 ];
 
-export default function GuardrailProperties() {
+interface GuardrailPropertiesProps {
+  node: FlowNode;
+  graph: WorkflowGraph;
+}
+
+export default function GuardrailProperties({ node, graph }: GuardrailPropertiesProps) {
   const form = Form.useFormInstance();
   const moderationType = (Form.useWatch(['data', 'moderation_type'], form) as 'openai' | 'vllm' | undefined) ?? 'openai';
   const piiMaskMode = (Form.useWatch(['data', 'pii_regex', 'masking', 'mode'], form) as 'mask_char' | 'replace_with_tag' | undefined) ?? 'mask_char';
+  const variables = getUpstreamVariables(node.nodeId, graph);
 
   return (
     <Collapse
@@ -78,8 +88,8 @@ export default function GuardrailProperties() {
                   <Form.Item name={['data', 'openai_moderation', 'categories']} label="감지 카테고리">
                     <Checkbox.Group options={OPENAI_CATEGORIES} className="grid grid-cols-2 gap-1" />
                   </Form.Item>
-                  <Form.Item name={['data', 'openai_moderation', 'behavior', 'user_message_template']} label="차단 메시지">
-                    <Input.TextArea placeholder="요청을 처리할 수 없습니다." autoSize={{ minRows: 2, maxRows: 4 }} />
+                  <Form.Item name={['data', 'openai_moderation', 'behavior', 'user_message_template']} label="차단 메시지" extra="`/` 입력 시 변수 dropdown">
+                    <VariableTextArea variables={variables} placeholder="요청을 처리할 수 없습니다." rows={2} />
                   </Form.Item>
                 </>
               )}
@@ -98,8 +108,8 @@ export default function GuardrailProperties() {
                   <Form.Item name={['data', 'vllm_moderation', 'categories']} label="감지 카테고리">
                     <Checkbox.Group options={OPENAI_CATEGORIES} className="grid grid-cols-2 gap-1" />
                   </Form.Item>
-                  <Form.Item name={['data', 'vllm_moderation', 'behavior', 'user_message_template']} label="차단 메시지">
-                    <Input.TextArea placeholder="요청을 처리할 수 없습니다." autoSize={{ minRows: 2, maxRows: 4 }} />
+                  <Form.Item name={['data', 'vllm_moderation', 'behavior', 'user_message_template']} label="차단 메시지" extra="`/` 입력 시 변수 dropdown">
+                    <VariableTextArea variables={variables} placeholder="요청을 처리할 수 없습니다." rows={2} />
                   </Form.Item>
                 </>
               )}
@@ -134,14 +144,13 @@ export default function GuardrailProperties() {
           key: 'output',
           label: <span className="text-sm font-semibold text-gray-800">출력</span>,
           children: (
-            <Form.Item
-              name={['data', 'outputVariable']}
-              label="출력 변수명"
-              extra="다음 노드에서 {변수명}_result 로 참조"
-              rules={[{ pattern: /^[a-zA-Z_][a-zA-Z0-9_]*$/, message: '영문/숫자/언더스코어만, 숫자로 시작 불가' }]}
-            >
-              <Input placeholder="guardrail_result" />
-            </Form.Item>
+            <OutputVariableNotice
+              nodeId={node.nodeId}
+              nodeLabel={node.nodeLabel}
+              outputVariable={node.data?.output_variable as string | undefined}
+              dataType="string"
+              description="가드레일 결과"
+            />
           ),
         },
       ]}

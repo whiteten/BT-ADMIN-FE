@@ -1,4 +1,5 @@
 import { Collapse, Form, Input } from 'antd';
+import StartVariablesEditor from './StartVariablesEditor';
 import type { FlowNode } from '../../types';
 
 interface BasicPropertiesProps {
@@ -28,6 +29,15 @@ export default function BasicProperties({ node }: BasicPropertiesProps) {
   ];
 
   if (kind === 'start') {
+    items.push({
+      key: 'variables',
+      label: <span className="text-sm font-semibold text-gray-800">사용자 입력 변수</span>,
+      children: (
+        <Form.Item name={['data', 'variables']} noStyle>
+          <StartVariablesEditor />
+        </Form.Item>
+      ),
+    });
     items.push({
       key: 'system',
       label: <span className="text-sm font-semibold text-gray-800">시작 메시지</span>,

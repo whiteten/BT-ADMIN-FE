@@ -1,5 +1,7 @@
 import { Collapse, Form, Input, Radio, Select } from 'antd';
+import OutputVariableNotice from './OutputVariableNotice';
 import { useGetKnowledges } from '../../../agent-config/hooks/useKnowledgeQueries';
+import type { FlowNode } from '../../types';
 
 const PERMISSION_LEVEL_OPTIONS = [
   { label: 'ADMIN', value: '1' },
@@ -13,7 +15,11 @@ const TOGGLE_OPTIONS = [
   { label: '설정', value: true },
 ];
 
-export default function KnowledgeSearchProperties() {
+interface KnowledgeSearchPropertiesProps {
+  node: FlowNode;
+}
+
+export default function KnowledgeSearchProperties({ node }: KnowledgeSearchPropertiesProps) {
   const form = Form.useFormInstance();
   const { data: knowledges = [], isLoading } = useGetKnowledges();
 
@@ -95,14 +101,13 @@ export default function KnowledgeSearchProperties() {
           key: 'output',
           label: <span className="text-sm font-semibold text-gray-800">출력</span>,
           children: (
-            <Form.Item
-              name={['data', 'outputVariable']}
-              label="출력 변수명"
-              extra="다음 노드에서 {변수명}_result 로 참조"
-              rules={[{ pattern: /^[a-zA-Z_][a-zA-Z0-9_]*$/, message: '영문/숫자/언더스코어만, 숫자로 시작 불가' }]}
-            >
-              <Input placeholder="knowledge_result" />
-            </Form.Item>
+            <OutputVariableNotice
+              nodeId={node.nodeId}
+              nodeLabel={node.nodeLabel}
+              outputVariable={node.data?.output_variable as string | undefined}
+              dataType="string"
+              description="검색된 지식"
+            />
           ),
         },
       ]}

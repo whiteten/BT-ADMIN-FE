@@ -45,8 +45,8 @@ export const NODE_GROUP_LABELS: Record<NodeGroup, string> = {
 export const NODE_GROUP_ORDER: NodeGroup[] = ['system', 'ai', 'logic', 'transform', 'utility', 'error'];
 
 export const NODE_KINDS: NodeKindMeta[] = [
-  { kind: 'start', label: '시작', group: 'system', icon: CircleDot, description: '워크플로우 시작', color: '#3B82F6', enabled: true },
-  { kind: 'answer', label: '답변', group: 'system', icon: MessageCircle, description: '응답 출력', color: '#10B981', enabled: true },
+  { kind: 'start', label: '시작', group: 'system', icon: CircleDot, description: '워크플로우 시작', color: '#3B82F6', enabled: false },
+  { kind: 'answer', label: '답변', group: 'system', icon: MessageCircle, description: '응답 출력', color: '#10B981', enabled: false },
 
   { kind: 'llm', label: 'LLM', group: 'ai', icon: Bot, description: 'AI 모델 처리', color: '#3B82F6', enabled: true },
   { kind: 'a2a_agent', label: 'A2A', group: 'ai', icon: Share2, description: 'Agent to Agent 통신', color: '#3B82F6', enabled: true },

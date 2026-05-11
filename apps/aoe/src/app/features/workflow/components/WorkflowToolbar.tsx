@@ -4,6 +4,8 @@ import { Download, RefreshCw, Rocket, Workflow, X } from 'lucide-react';
 import { Log } from '@/log';
 import { toast } from '@/shared-util';
 import { useDeployAgent, useExportWorkflow, workflowQueryKeys } from '../hooks/useWorkflowQueries';
+import type { WorkflowGraph } from '../types';
+import { validateWorkflowGraph } from '../utils/validateWorkflow';
 
 interface WorkflowToolbarProps {
   agentId: string;
@@ -16,11 +18,12 @@ export default function WorkflowToolbar({ agentId, agentName }: WorkflowToolbarP
   const { mutate: deployAgent, isPending: isDeploying } = useDeployAgent({
     mutationOptions: {
       onSuccess: (data) => {
+        // BE/AOE 엔진의 영어 메시지를 그대로 노출하지 않고 한국어로 고정 (예: "Application registered successfully")
         if (data?.resultCode === 'A') {
-          toast.warning(data.message || '이미 배포되어 있습니다.');
+          toast.warning('이미 배포되어 있습니다.');
           return;
         }
-        toast.success(data?.message || '엔진 배포가 완료되었습니다.');
+        toast.success('엔진 배포가 완료되었습니다.');
         queryClient.invalidateQueries({ queryKey: workflowQueryKeys.graph(agentId).queryKey });
       },
       onError: (error) => {
@@ -45,6 +48,15 @@ export default function WorkflowToolbar({ agentId, agentName }: WorkflowToolbarP
   };
 
   const handleDeploy = () => {
+    const graph = queryClient.getQueryData<WorkflowGraph>(workflowQueryKeys.graph(agentId).queryKey);
+    if (graph) {
+      const errors = validateWorkflowGraph(graph);
+      if (errors.length > 0) {
+        Log.warn('workflow validation failed', errors);
+        toast.error(errors[0].message);
+        return;
+      }
+    }
     deployAgent({ agentId });
   };
 

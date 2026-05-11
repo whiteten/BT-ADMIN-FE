@@ -1,12 +1,15 @@
 import { memo } from 'react';
 import { Handle, type NodeProps, Position } from '@xyflow/react';
-import { MoreVertical } from 'lucide-react';
+import { Copy, MoreVertical, Scissors, Trash2 } from 'lucide-react';
 import { DEFAULT_NODE_KIND, NODE_KIND_MAP, type NodeKindMeta } from '../../constants/nodeKinds';
 
 export interface GenericKindNodeData {
   kind: string;
   label?: string;
   description?: string;
+  onCopy?: (nodeId: string) => void;
+  onCut?: (nodeId: string) => void;
+  onDelete?: (nodeId: string) => void;
   [key: string]: unknown;
 }
 
@@ -109,7 +112,7 @@ const renderDetail = (kind: string, data: GenericKindNodeData, meta: NodeKindMet
   }
 };
 
-const GenericKindNode = ({ data, selected }: NodeProps) => {
+const GenericKindNode = ({ id, data, selected }: NodeProps) => {
   const nodeData = data as GenericKindNodeData;
   const meta = NODE_KIND_MAP[nodeData.kind] ?? DEFAULT_NODE_KIND;
   const Icon = meta.icon;
@@ -118,6 +121,7 @@ const GenericKindNode = ({ data, selected }: NodeProps) => {
 
   const isStart = meta.kind === 'start';
   const isAnswer = meta.kind === 'answer';
+  const isProtected = isStart || isAnswer;
 
   return (
     <div
@@ -128,6 +132,49 @@ const GenericKindNode = ({ data, selected }: NodeProps) => {
         boxShadow: selected ? `0 0 0 3px ${hexToRgba(meta.color, 0.18)}, 0 6px 16px rgba(15, 23, 42, 0.08)` : '0 1px 2px rgba(15, 23, 42, 0.04), 0 2px 8px rgba(15, 23, 42, 0.05)',
       }}
     >
+      {/* 노드 우측 상단 위에 absolute 로 떠 있는 액션 툴바. 시작/답변 노드는 작업 대상이 아니라 숨김.
+          NodeToolbar 대신 카드 내부 absolute 로 처리 — zoom 따라 toolbar 도 같이 줌되지만 위치는 명확. */}
+      {selected && !isProtected && (
+        <div className="absolute -top-10 right-0 z-10 flex items-center gap-0.5 px-1 py-0.5 rounded-md bg-white border border-gray-200 shadow-md">
+          <button
+            type="button"
+            className="p-1.5 rounded hover:bg-gray-100 text-gray-600 hover:text-gray-800 transition-colors"
+            title="복사 (Ctrl+C)"
+            onMouseDown={(e) => e.stopPropagation()}
+            onClick={(e) => {
+              e.stopPropagation();
+              nodeData.onCopy?.(id);
+            }}
+          >
+            <Copy size={13} />
+          </button>
+          <button
+            type="button"
+            className="p-1.5 rounded hover:bg-gray-100 text-gray-600 hover:text-gray-800 transition-colors"
+            title="잘라내기 (Ctrl+X)"
+            onMouseDown={(e) => e.stopPropagation()}
+            onClick={(e) => {
+              e.stopPropagation();
+              nodeData.onCut?.(id);
+            }}
+          >
+            <Scissors size={13} />
+          </button>
+          <button
+            type="button"
+            className="p-1.5 rounded hover:bg-red-50 text-gray-500 hover:text-red-600 transition-colors"
+            title="삭제"
+            onMouseDown={(e) => e.stopPropagation()}
+            onClick={(e) => {
+              e.stopPropagation();
+              nodeData.onDelete?.(id);
+            }}
+          >
+            <Trash2 size={13} />
+          </button>
+        </div>
+      )}
+
       {!isStart && <Handle type="target" position={Position.Left} id="in" className="!w-3 !h-3 !rounded-full !border-2 !border-white" style={{ background: meta.color }} />}
 
       <div className="flex items-center gap-2 px-3 h-12 rounded-t-xl" style={{ backgroundColor: hexToRgba(meta.color, 0.1) }}>

@@ -4,7 +4,6 @@ const config: ModuleFederationConfig = {
   name: 'aoe',
   exposes: {
     './Module': './src/remote-entry.ts',
-    './MenuConfig': './src/app/features/sidebar/menu-config.ts',
     './WorkflowApp': './src/remote-entry-workflow.ts',
   },
   additionalShared: [
