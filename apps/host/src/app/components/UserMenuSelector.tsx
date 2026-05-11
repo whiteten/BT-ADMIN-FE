@@ -118,7 +118,7 @@ export default function UserMenuSelector() {
     <Button
       variant="ghost"
       className={cn(
-        'flex justify-start min-w-[170px] h-10 p-1.5 gap-2 rounded-md text-white hover:bg-white/15 hover:text-white focus-visible:bg-white/15 focus-visible:text-white hover:cursor-pointer',
+        'flex justify-start h-auto p-1.5 gap-2 rounded-md text-white hover:bg-white/15 hover:text-white focus-visible:bg-white/15 focus-visible:text-white hover:cursor-pointer',
       )}
     >
       <Avatar className="h-8 w-8 rounded-full ring-1 ring-white/40 bg-white/15 flex items-center justify-center">
@@ -128,7 +128,7 @@ export default function UserMenuSelector() {
       </Avatar>
       <div className="flex flex-col gap-0.5 text-left text-sm leading-tight">
         <span className="truncate font-semibold max-w-48 text-white">{username}</span>
-        <Badge variant="outline" className="w-fit h-5 text-[11px] leading-none px-2 bg-white/20 text-white border-white/30">
+        <Badge variant="outline" className="max-w-48 truncate w-fit h-5 text-[11px] leading-none px-2 bg-white/20 text-white border-white/30">
           {roleName}
         </Badge>
       </div>

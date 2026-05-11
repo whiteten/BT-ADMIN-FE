@@ -1,4 +1,6 @@
 import { useNavigate } from 'react-router-dom';
+import { ChevronUp } from 'lucide-react';
+import { useLayoutStore } from './hooks/useLayoutStore';
 import UserMenuSelector from '../../components/UserMenuSelector';
 import GlobalSearch from '../search/components/GlobalSearch';
 
@@ -6,6 +8,7 @@ export const TOP_HEADER_HEIGHT = 56;
 
 export default function TopHeader() {
   const navigate = useNavigate();
+  const toggleChrome = useLayoutStore((s) => s.toggleChrome);
 
   return (
     <div style={{ height: TOP_HEADER_HEIGHT }} className="relative shrink-0 bg-[var(--color-bt-primary)] text-white border-b border-white/10">
@@ -19,9 +22,19 @@ export default function TopHeader() {
         <GlobalSearch />
       </div>
 
-      {/* 우측: 유저 메뉴 */}
+      {/* 우측: 유저 메뉴 + 헤더 접기 */}
       <div className="absolute right-4 top-1/2 -translate-y-1/2 flex items-center gap-2">
         <UserMenuSelector />
+        <span aria-hidden className="h-5 w-px bg-white/20" />
+        <button
+          type="button"
+          onClick={toggleChrome}
+          className="inline-flex items-center justify-center size-8 rounded-md text-white/85 hover:bg-white/15 hover:text-white cursor-pointer transition-colors"
+          aria-label="헤더 접기"
+          title="헤더 접기"
+        >
+          <ChevronUp className="size-4" />
+        </button>
       </div>
     </div>
   );
