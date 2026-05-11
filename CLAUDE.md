@@ -4,15 +4,11 @@
 
 # 중요 지침
 
-반드시 한국어로 답변할 것.
-**프론트엔드 작업 경로 준수**: 모든 프론트엔드 관련 작업(소스 수정, 빌드, pnpm install 등)은 반드시 이 저장소 경로(**`C:\Users\user\git\BT-ADMIN-FE`**)에서 수행해야 합니다. 백엔드 저장소 하위의 폴더를 사용하지 마십시오.
-문서 파일(*.md)이나 README 파일을 선제적으로 생성하지 말 것. 사용자가 명시적으로 요청한 경우에만 생성.
 TypeScript 또는 JavaScript 파일을 수정한 후에는 반드시 `npx eslint --fix <file-path>`를 실행하여 코드 품질과 일관성을 보장할 것.
-자동으로 커밋하지 말 것. 사용자가 명시적으로 요청한 경우에만 커밋.
 이 프로젝트는 **React Compiler**를 사용합니다. 컴파일러가 자동으로 리렌더링을 최적화하므로, 명시적으로 필요한 경우가 아니면 `useMemo`나 `useCallback`을 사용하지 말 것.
 `pnpm-lock.yaml`에는 `ag-grid-enterprise` 패치 정보(`patchedDependencies`, `patch_hash`)가 포함되어 있으므로, lock 파일 수정·충돌 해결 시 해당 내용이 제거되지 않도록 주의할 것. 패치가 누락되면 AG-Grid Enterprise 라이선스 관련 동작에 영향을 줄 수 있음. 또한 pnpm 메이저 버전이 다르면 lock 파일 포맷과 패치 해시가 달라질 수 있으므로, 필수 환경 요구사항에 명시된 pnpm 버전을 준수할 것.
 커밋 메시지 작성 시 타이틀은 간결하게 작성하고, 반드시 본문(body)에 변경 사항의 상세 내용을 포함할 것. 타이틀만으로 커밋을 생성하지 말 것.
-커밋 메시지 작성 전에 반드시 `git diff --staged`(또는 `git diff`)를 실행하여 변경된 소스를 직접 비교·확인한 후, 실제 변경 내용에 기반하여 커밋 메시지를 작성할 것. 변경 사항을 확인하지 않고 추측으로 커밋 메시지를 작성하지 말 것.
+커밋 메시지를 작성할 때는 반드시 [.claude/skills/commit/SKILL.md](.claude/skills/commit/SKILL.md) 스킬을 먼저 확인하고, 해당 스킬의 카테고리(이모지)·scope 판정 규칙·절차를 따를 것.
 
 ## 필수 환경 요구사항
 
@@ -186,8 +182,6 @@ API 통합 시 반드시 **TanStack Query**와 커스텀 훅을 사용합니다.
 ## 커밋 가이드라인
 
 이 프로젝트는 **commitizen** + cz-git을 사용합니다. 사람이 직접 커밋할 때는 `pnpm commit`(대화형)을 사용하세요.
-
-**Claude가 커밋 메시지를 작성할 때**: [.claude/skills/commit/SKILL.md](.claude/skills/commit/SKILL.md) 스킬을 사용합니다. 카테고리(이모지) 전체 목록, scope 판정 규칙(remote 명칭 사용 / feature명 금지), 단계별 절차 등 상세 규칙은 모두 해당 스킬에 정리되어 있습니다.
 
 ## 파일 구조 컨벤션
 
@@ -433,6 +427,26 @@ const handleClose = () => {
 
 `useAggridOptions` 훅으로 공통 그리드 옵션을 적용하고, `ColDef<RowType>[]`로 컬럼을 정의합니다. 편집 가능 컬럼·커스텀 렌더러·액션 컬럼·커스텀 셀 에디터 구성 등 상세 절차는 [.claude/skills/add-grid/SKILL.md](.claude/skills/add-grid/SKILL.md) 스킬 참조.
 
+#### SSRM(Server-Side Row Model) — 서버 페이징 그리드
+
+백엔드가 `page`/`size` 페이징을 지원하고 데이터 규모가 큰 화면(수천 건 이상)은 ClientSide가 아닌 **SSRM**을 사용합니다. AG-Grid Enterprise 기능이며 `libs/shared-ui/src/lib/aggridSetup.ts`가 `AllEnterpriseModule`을 등록해 두어 즉시 사용 가능. 레퍼런스: [BotDialogHistoryTable.tsx](apps/fca/src/app/features/tracking/components/BotDialogHistoryTable.tsx).
+
+핵심 규칙:
+
+- **TanStack Query 병용 금지**: SSRM은 그리드 자체 블록 캐시(행 범위 단위)를 가지므로 `useGet<Feature>` 훅과 같이 쓰지 말 것. `IServerSideDatasource.getRows`에서 `apiClient`를 직접 호출
+- **`cacheBlockSize === paginationPageSize`**: 반드시 일치. 안 그러면 페이지당 백엔드 호출이 N배
+- **`getRowId` 필수**: 페이지 이동 후 행 강조 안정성. PK 단일 또는 PK 트리플(예: `${ucid}_${nextHop}_${cdrPkey}`) 활용
+- **검색 트리거**: `searchParams` 객체 의존성 ❌ → 부모에서 `searchVersion` 카운터를 만들어 검색 버튼 클릭마다 +1, 자식 그리드는 `useEffect([searchVersion])`에서 `gridApi.refreshServerSide({ purge: true })` 호출
+- **datasource 안정화**: `useMemo([])`로 1회 생성 + `searchParamsRef`로 최신 검색조건을 클로저에 흘림. 매 렌더 재생성 ❌
+- **정렬**: 백엔드 sort 미지원이면 `defaultColDef: { sortable: false }`로 그리드 단위 비활성화 (헤더 클릭 시 잘못된 결과 방지)
+- **AgGridReact props**: `rowData`/`loading` 제거 필수 (SSRM과 충돌 경고)
+- **페이지네이션 UI**: `useAggridOptions` 기본 statusBar의 `AggridPagination` 활용 — `pagination: false`/`statusBar: undefined` override 금지
+- **부모 콜백**: `onLoadingChange`(SearchForm spinner용), `onTotalRowsChange`(빈 데이터 체크용) 두 콜백을 자식 그리드가 부모에 노출
+- **`params.fail()`**: try/catch 안에서 누락 시 네트워크 실패 시 그리드가 영원히 로딩 표시
+- **`selectedRowId` 강조**: 외부 state 변경은 자동 감지 안 됨 → `useEffect([selectedRowId])` + `gridApi.redrawRows()`로 즉시 반영
+
+상세 표준 골격(자식 그리드·부모 페이지 양쪽 코드 + 함정 체크리스트 + ClientSide 비교)은 [DEVELOPER_GUIDE.md](doc/DEVELOPER_GUIDE.md)의 "AG-Grid 사용 가이드 → SSRM(Server-Side Row Model)" 섹션 참조.
+
 ### Zustand 스토어 컨벤션
 
 feature 단위 로컬 상태는 `hooks/use<Feature>Store.ts`, 전역 공유 상태는 `libs/shared-store/`에 정의합니다.
@@ -524,6 +538,100 @@ export const routes = [
 ];
 ```
 
+### 화면 커스터마이징(Variants) 패턴
+
+테넌트별로 같은 path에서 다른 컴포넌트를 렌더하고 싶을 때 사용합니다. routes.tsx의 path는 그대로 두고 element만 운영자 선택값에 따라 바꾸는 구조입니다.
+
+#### 핵심 규칙 (요약)
+
+1. **변형 정의 파일 위치**: 페이지 옆에 `<Page>.variants.ts`로 co-location (예: `pages/bot-config/BotList.variants.ts`)
+2. **aggregator**: 각 remote의 `apps/<remote>/src/app/features/router/pageVariants.ts`에 모든 variants 파일을 import해서 등록 (MF `./PageVariants`로 expose)
+3. **DynamicElement 래퍼**: 변형 지원 path는 `routes.tsx`에서 `<DynamicElement variants={...} />`로 감싸 element를 런타임 lookup으로 전환
+4. **컴포넌트 prop 호환성 필수**: 같은 variants 그룹의 모든 컴포넌트는 동일 prop·context·query key를 사용. 본질이 다르면 variant가 아니라 별도 path로 분리
+5. **점진적 도입**: 변형 필요 없는 path는 정적 element 그대로 두고 건드리지 않음. variant 요구사항 생긴 page만 합류
+6. **variant 전용 sub 컴포넌트는 폴더 승격으로 격리**: 변형이 단일 파일을 넘어 자기 전용 sub 컴포넌트(탭·드로어 등)를 가지면 `variants/<Variant>/` 폴더로 승격해 진입점을 `index.tsx`로 둠(`*.variants.ts`의 lazy import 경로는 그대로 폴더를 가리킴 — webpack이 index로 해석). 정식 `features/<feature>/...`에 variant 전용 코드를 섞지 않음
+
+#### 데이터 흐름
+
+- **API/DB**: 메뉴 row의 `componentKey` 컬럼이 SoT
+- **store**: `useMenuStore.menuConfigs[].menus[].componentKey`로 propagate
+- **렌더**: DynamicElement가 menuStore lookup → 매칭되는 variant component 렌더, 누락·미등록 시 defaultKey fallback
+- **picker**: 호스트의 `usePageVariantsStore`(메타만 보관)를 메뉴 관리 화면 picker에서 읽어 카드 그리드 노출
+
+새 변형 컴포넌트 작성·등록 절차 및 picker 통합 상세는 [DEVELOPER_GUIDE.md](doc/DEVELOPER_GUIDE.md)의 "화면 커스터마이징(Variants) 가이드" 섹션 참조.
+
+### queryString 기반 메뉴 분기 패턴
+
+같은 path를 여러 메뉴가 공유하면서 queryString으로 화면 분기를 하는 패턴(예: 같은 대시보드 골격에 메뉴마다 다른 위젯 preset)에 사용합니다. 메뉴 등록 폼이 path별로 어떤 query 입력을 받을지 자동 인지하도록 하는 것이 핵심입니다.
+
+#### 핵심 규칙 (요약)
+
+1. **routes.tsx의 `handle.queryParams`에 spec 선언**: React Router 표준 `handle` 슬롯에 `{ key, label, selectorKey, ...extra }` 형태로 박는다. host의 `flattenRoutes`가 추출해 `RemoteRouteEntry.queryParams`로 전파.
+2. **selectorKey 하드코딩 금지**: 반드시 `DefaultSelectorKeys`(공통) 또는 remote의 `SelectorKeys`(자체 도메인) 상수에서 import해서 사용. 오타·휴먼에러 방지.
+3. **공통 selector vs 도메인 selector 구분**:
+   - **공통 selector**: 옵션을 routes.tsx의 spec에서 받는 generic selector(EnumSelector 등). manager가 작성·등록하고 모든 remote가 `DefaultSelectorKeys.Xxx`로 공유.
+   - **도메인 selector**: 옵션을 selector 컴포넌트가 자체 정의/fetch하는 selector(특정 도메인 데이터에 결합). 해당 remote가 자기 `features/router/selectors/`에 작성하고 자체 `querySelectors.ts` aggregator에 등록.
+4. **selectorKey는 appId prefix 자동 적용**: host의 `useQuerySelectorsLoader`가 각 remote의 querySelectors를 `<appId>:<key>` 형태로 통합 registry에 적재. 같은 이름 selector가 여러 remote에 있어도 prefix로 자연스럽게 분리됨.
+5. **메뉴 폼 자동 인지**: 운영자가 path 선택 시 `RemoteRouteEntry.queryParams`를 보고 `QuerySelectorRenderer`가 selector를 동적으로 노출 → 선택값을 path에 `?key=value`로 합성해서 저장.
+
+#### 데이터 흐름
+
+- **routes.tsx**: `handle.queryParams`로 path별 query spec 선언
+- **MF expose**: 각 remote의 `apps/<remote>/src/app/features/router/querySelectors.ts`가 `'./QuerySelectors'`로 expose
+- **store**: `useQuerySelectorsStore.registry`에 `<appId>:<key>` → 컴포넌트 맵으로 적재 (host 부팅 시)
+- **메뉴 폼**: path Select 변경 시 entry.queryParams 감지 → registry lookup → selector 렌더 → 운영자 선택값을 `URLSearchParams`로 합성해 path 컬럼 저장
+- **사용자 진입**: 메뉴 클릭 → 해당 path로 이동 → 컴포넌트가 `useSearchParams`로 query 읽어 화면 분기
+
+#### 사용 예시
+
+```tsx
+// routes.tsx — 공통 selector (옵션은 spec.options에 하드코딩)
+import { DefaultSelectorKeys } from '@/shared-store';
+
+{
+  path: 'dashboard',
+  element: <Dashboard />,
+  handle: {
+    queryParams: [
+      {
+        key: 'option',
+        label: '옵션',
+        selectorKey: DefaultSelectorKeys.EnumSelector,
+        options: [
+          { value: 'A', label: '옵션 A' },
+          { value: 'B', label: '옵션 B' },
+        ],
+      },
+    ],
+  },
+}
+
+// routes.tsx — 도메인 selector (옵션은 selector 컴포넌트 내부에 정의)
+import { SelectorKeys } from './features/router/querySelectors';
+
+{
+  path: 'preset-demo',
+  element: <PresetDemo />,
+  handle: {
+    queryParams: [
+      { key: 'preset', label: '프리셋', selectorKey: SelectorKeys.PresetSelector },
+    ],
+  },
+}
+```
+
+> 분기 값을 fetch 인자로 사용한다면 React Query 일반 규칙대로 queryKey에 포함시켜 메뉴별 캐시를 분리합니다(`createQueryKeys` factory에 인자로 받으면 자동 적용).
+>
+> 메뉴 등록·편집 폼은 `handle.queryParams`에 선언된 모든 query를 무조건 필수 입력으로 검증합니다(빈 값 저장 불가, 옵트인 옵션 없음 — 선택적 query 키 케이스는 의도적으로 미지원).
+>
+> 분기 메뉴 페이지의 breadcrumb은 leaf 항목 `path`에 query 값을 직접 합성해 자기 자신을 가리키도록 작성합니다(예: <code>path: \`/fca/sample/preset-demo?preset=${preset}\`</code>). 상위(부모) 항목은 redirect-only 그룹인 경우가 많아 query 처리가 애매하므로 `path`를 작성하지 않는 것을 권장합니다 — PageHeader가 path 없는 항목을 비링크 텍스트로 렌더해 클릭 자체를 비활성합니다.
+
+#### 주의사항 — 컴포넌트 remount 처리
+
+같은 path를 여러 메뉴가 공유할 때 메뉴 A→B 전환 시 React가 같은 컴포넌트 인스턴스를 재사용해 form state·scroll·진행 중 mutation이 유지됩니다. 페이지에서 outer/inner 분할 + `<Inner key={queryValue} />`로 강제 remount 필요. 분기 키 문자열은 routes의 `handle.queryParams[].key`·페이지의 `searchParams.get(...)`·(있다면) TanStack Query key 세 곳에 박아야 하며 non-data router 환경에서 자동 동기화는 불가하므로 작성자가 일관성을 챙겨야 함(키가 1~2개로 짧으면 하드코딩, 재사용·오타 위험·키 2개 이상이면 `<Page>.consts.ts`로 상수화). 자동화 메커니즘은 검토했으나 효과가 없어 React 표준 `key` 패턴을 정공법으로 채택([DEVELOPER_GUIDE.md](doc/DEVELOPER_GUIDE.md)의 "queryString 기반 메뉴 분기 가이드 → 주의사항 — 컴포넌트 remount 처리" 참조).
+
+상세 절차(새 selector 추가, create-remote 자동화 등)는 [DEVELOPER_GUIDE.md](doc/DEVELOPER_GUIDE.md)의 "queryString 기반 메뉴 분기 가이드" 섹션 참조.
+
 ### 상수 정의 패턴
 
 상수는 `features/<feature>/constants/` 아래에 정의합니다.
@@ -566,33 +674,53 @@ export const ENTITY_TYPE_COLORS: Record<EntityType, string> = {
 
 ### UI 레이아웃 규칙
 
-레이아웃 배경(회색 계열) 위에 버튼, 입력 필드, 테이블 등의 UI 요소를 직접 배치하지 말 것. 배경과의 시각적 분리가 없으면 요소가 부유하는 느낌을 주어 완성도가 떨어집니다. 반드시 `bg-white bt-shadow` 컨테이너, `Card` 등으로 감싸 콘텐츠 영역을 명확히 구분할 것.
+레이아웃 배경(회색 계열) 위에 버튼·입력 필드·테이블 등을 직접 배치하지 말 것. 배경과의 시각적 분리가 없으면 요소가 부유하는 느낌을 주어 완성도가 떨어진다. 반드시 `bg-white bt-shadow` 컨테이너 또는 `Card`로 감싸 콘텐츠 영역을 명확히 구분할 것.
+
+#### 화면 패턴: 검색·필터 + 그리드 목록
+
+목록 페이지의 표준 골격은 **상단 검색·필터 + 하단 그리드를 단일 흰색 래퍼로 묶는 구조**다. 필터와 그리드를 각각 별도의 `bg-white bt-shadow` 박스로 분리하지 말고, 하나의 래퍼 안에 `gap-5`로 간격을 두어 같은 영역에 속함을 시각적으로 표현한다.
 
 ```typescript
-// ❌ 레이아웃 배경 위에 UI 요소 직접 배치
+// ✅ 표준 패턴 — 단일 흰색 래퍼
 <div className="flex flex-col gap-4 w-full h-full">
   <PageHeader breadcrumb={breadcrumb} />
-  <Select ... />
-  <Input ... />
-  <Button type="primary">추가</Button>
-  <AgGridReact rowData={data} columnDefs={columnDefs} />
+  <div className="flex flex-col gap-5 w-full h-full bg-white bt-shadow p-5">
+    {/* 인라인 필터·액션 헤더 */}
+    <header className="flex items-center justify-between w-full gap-2 lg:flex-nowrap flex-wrap">
+      <div className="flex items-center w-full gap-3">
+        <Select ... />
+        <Input ... />
+      </div>
+      <div className="flex items-center gap-2.5">
+        <Button type="primary" onClick={handleCreate}>추가</Button>
+      </div>
+    </header>
+    {/* 그리드 */}
+    <div className="w-full h-full">
+      <AgGridReact rowData={data} columnDefs={columnDefs} />
+    </div>
+  </div>
+  {/* Drawer/Modal은 흰색 래퍼 밖, 외곽 컨테이너 안쪽 */}
+  <SomeDrawer ref={drawerRef} />
 </div>
 
-// ✅ 툴바와 테이블을 각각 배경 컨테이너로 감싸서 영역 구분
+// ❌ 필터와 그리드를 분리된 박스로 나누지 말 것
 <div className="flex flex-col gap-4 w-full h-full">
-  <PageHeader breadcrumb={breadcrumb} />
-  <div className="flex items-center justify-between gap-2 w-full h-[76px] bg-white bt-shadow px-7 py-5">
-    <div className="flex gap-2 w-full items-center">
-      <Select ... />
-      <Input ... />
-    </div>
-    <Button type="primary">추가</Button>
-  </div>
-  <div className="w-full h-full bg-white bt-shadow">
-    <AgGridReact rowData={data} columnDefs={columnDefs} />
-  </div>
+  <div className="bg-white bt-shadow px-7 py-5 h-[76px]">{/* 필터 */}</div>
+  <div className="bg-white bt-shadow w-full h-full">{/* 그리드 */}</div>
 </div>
 ```
+
+핵심 규칙 (요약):
+
+- **외곽 컨테이너**: `flex flex-col gap-4 w-full h-full` — `PageHeader` → 흰색 래퍼 → Drawer 순으로 배치
+- **흰색 래퍼**: `flex flex-col gap-5 w-full h-full bg-white bt-shadow p-5` — 필터·그리드를 모두 포함
+- **인라인 필터 헤더**: `<header>` 시맨틱 태그 + `flex items-center justify-between w-full gap-2 lg:flex-nowrap flex-wrap` (좁은 화면에서 자연스럽게 줄바꿈)
+- **검색 영역이 복잡한 경우**(다단 필터·`Collapsible`·전용 컴포넌트 분리): 자식 컴포넌트 내부에서 `bg-white bt-shadow`/`p-5`/`mb-4` 등 배경·여백 클래스를 추가하지 말 것 — 흰색 래퍼는 부모가 책임진다
+- **그리드 컨테이너**: `w-full h-full`만 부여. 별도 배경·그림자 금지
+- **Drawer·Modal**: 흰색 래퍼 밖, 외곽 컨테이너 안쪽에 배치
+
+상세 절차(검색 폼 분리 기준, Collapsible 필터, 다중 그리드 등)는 [DEVELOPER_GUIDE.md](doc/DEVELOPER_GUIDE.md)의 "페이지 레이아웃 가이드 → 화면 패턴: 검색·필터 + 그리드 목록" 섹션 참조.
 
 ### 데이터 추가/수정 폼 패턴
 

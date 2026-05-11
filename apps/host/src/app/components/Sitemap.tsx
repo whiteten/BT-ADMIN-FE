@@ -112,7 +112,17 @@ function ChildList({ items, appId, query, onNavigate, asGrid }: { items: MenuIte
             </div>
           );
         }
-        return null;
+        // path도 children도 없는 항목 — LNB와 동일하게 비활성 라벨로 노출
+        return (
+          <div key={item.menuKey} className="flex items-center gap-2 rounded-lg px-2.5 py-[6px] -mx-1 cursor-default opacity-60">
+            <span className="size-[5px] shrink-0 rounded-full bg-[#adb5bd]" />
+            <span className="flex-1 min-w-0 text-[14px] text-[#495057] truncate">
+              <Highlight text={item.label} query={query} />
+            </span>
+            {/* BookmarkButton 자리 placeholder — 다른 행과 높이 정렬 */}
+            <span className="size-8 shrink-0" aria-hidden />
+          </div>
+        );
       })}
     </div>
   );

@@ -1,15 +1,17 @@
 import { forwardRef, useCallback, useEffect, useImperativeHandle, useMemo, useRef, useState } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
-import { Descriptions, Drawer, Input, Select, Spin, message } from 'antd';
-import { Bookmark, Brain, Check, Copy, Minus, Pencil, Plus, RotateCcw, Volume2, X } from 'lucide-react';
+import { Descriptions, Drawer, Input, Select, message } from 'antd';
+import { Bookmark, Brain, Check, ClipboardList, Copy, Minus, Pencil, Plus, RotateCcw, Volume2, X } from 'lucide-react';
 import { toast } from '@/shared-util';
 import BubbleDecryptReasonModal, { type BubbleDecryptReason } from './BubbleDecryptReasonModal';
 import TrackingDialogView from './TrackingDialogView';
 import { useApplyRetrain, useGetIntents, useUpdateRetrain } from '../../bot-config/hooks/useModelQueries';
 import { botDialogHistoryApi } from '../api/botDialogHistoryApi';
-import { botDialogHistoryQueryKeys, useDecryptBubbles, useGetBubbles, useGetDialogHistoryConfig, useGetNluAnalysis } from '../hooks/useBotDialogHistoryQueries';
+import { botDialogHistoryQueryKeys, useDecryptBubbles, useGetBubbles, useGetDialogHistoryConfig, useGetNluAnalysis, useGetRetrainLogs } from '../hooks/useBotDialogHistoryQueries';
 import type { BotDialogHistoryListItem } from '../types/botDialogHistory.types';
-import type { NluAnalysisItem, TrackingFlowItem } from '../types/tracking.types';
+import type { NluAnalysisItem, RetrainLogItem, TrackingFlowItem } from '../types/tracking.types';
+import { FallbackSpinner } from '@/components/custom/FallbackSpinner';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { cn } from '@/lib/utils';
 
 /** HTTP/HTTPS 환경 모두에서 동작하는 클립보드 복사 */
@@ -41,14 +43,112 @@ function getConfidenceTextColor(item: NluAnalysisItem): string {
   return 'text-gray-500';
 }
 
-/** NLU 카드 단일 항목 */
+/** 재학습 변경 이력 팝오버 */
+function RetrainLogPopover({ ucidGkey, questionSeq, hop }: { ucidGkey: string; questionSeq: number; hop: number }) {
+  const [open, setOpen] = useState(false);
+  const { data: logs, isLoading } = useGetRetrainLogs({
+    params: { ucidGkey, questionSeq, hop },
+    queryOptions: { enabled: open },
+  });
+
+  const formatTime = (dt: string | null) => {
+    if (!dt) return '';
+    const d = new Date(dt);
+    return `${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')} ${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
+  };
+
+  return (
+    <div onClick={(e) => e.stopPropagation()}>
+      <Popover open={open} onOpenChange={setOpen}>
+        <PopoverTrigger asChild>
+          <button type="button" title="변경 이력" className="p-0.5 rounded hover:bg-gray-100 transition-colors cursor-pointer">
+            <ClipboardList size={12} className="text-gray-400 hover:text-blue-500" />
+          </button>
+        </PopoverTrigger>
+        <PopoverContent
+          className="w-80 max-h-64 overflow-y-auto p-0 z-[1010]"
+          align="end"
+          side="left"
+          sideOffset={8}
+          onClick={(e) => e.stopPropagation()}
+          onOpenAutoFocus={(e) => e.preventDefault()}
+        >
+          <div className="px-3 py-2 border-b border-gray-100 sticky top-0 bg-white z-10">
+            <span className="text-xs font-bold text-gray-700">변경 이력</span>
+            {logs && <span className="text-[10px] text-gray-400 ml-1">({logs.length}건)</span>}
+          </div>
+          {isLoading ? (
+            <div className="py-6">
+              <FallbackSpinner />
+            </div>
+          ) : !logs?.length ? (
+            <p className="py-4 text-center text-xs text-gray-400">변경 이력이 없습니다.</p>
+          ) : (
+            <div className="divide-y divide-gray-50">
+              {logs.map((log, idx) => (
+                <div key={log.logId} className="px-3 py-2 space-y-1">
+                  <div className="flex items-center justify-between">
+                    <span className="text-[10px] font-semibold text-gray-400">#{logs.length - idx}</span>
+                    <span className="text-[10px] text-gray-400">
+                      {log.modifiedBy} | {formatTime(log.modifiedAt)}
+                    </span>
+                  </div>
+                  {log.beforeAnswer !== log.afterAnswer && (
+                    <div className="flex items-center gap-1 text-[11px]">
+                      <span className="text-gray-500 w-8 shrink-0">의도</span>
+                      <span className="text-red-400 line-through">{log.beforeAnswer}</span>
+                      <span className="text-gray-300">→</span>
+                      <span className="text-blue-600 font-medium">{log.afterAnswer}</span>
+                    </div>
+                  )}
+                  {log.beforeQuestion !== log.afterQuestion && (
+                    <div className="flex items-center gap-1 text-[11px]">
+                      <span className="text-gray-500 w-8 shrink-0">발화</span>
+                      <span className="text-red-400 line-through truncate max-w-[90px]">{log.beforeQuestion}</span>
+                      <span className="text-gray-300">→</span>
+                      <span className="text-blue-600 font-medium truncate max-w-[90px]">{log.afterQuestion}</span>
+                    </div>
+                  )}
+                </div>
+              ))}
+            </div>
+          )}
+        </PopoverContent>
+      </Popover>
+    </div>
+  );
+}
+
+/** NLU 고객발화 마스킹 적용 (*=마스킹, #=원문) */
+function applyNluMasking(text: string, format?: string | null): string {
+  if (format && format.length > 0) {
+    return Array.from(text)
+      .map((ch, i) => (i < format.length ? (format[i] === '*' ? '*' : ch) : ch))
+      .join('');
+  }
+  // 포맷 없으면 범용 마스킹
+  if (text.length <= 2) return '*'.repeat(text.length);
+  const show = Math.max(1, Math.floor(text.length / 4));
+  return text.slice(0, show) + '*'.repeat(text.length - show * 2) + text.slice(-show);
+}
+
 interface NluCardProps {
   seq: number;
   nluResults: NluAnalysisItem[];
   onRetrainSuccess?: () => void | Promise<void>;
+  /** 해당 seq 버블의 암호화 여부 (DIALOG_DATA Val4 기준) */
+  bubbleEncrypted?: boolean;
+  /** 해당 seq 버블의 마스킹 여부 (DIALOG_DATA Val4 기준) */
+  bubbleMasked?: boolean;
+  /** 해당 seq 버블의 마스킹 포맷 (*=마스킹, #=원문) */
+  bubbleMaskingFormat?: string | null;
+  /** 해당 seq 버블의 Entity Tag (암호화 시 대체 표시) */
+  bubbleEntityTag?: string | null;
+  /** 복호화된 발화 텍스트 (버블 복호화 시 연동) */
+  revealedQuestionText?: string | null;
 }
 
-function NluCard({ seq, nluResults, onRetrainSuccess }: NluCardProps) {
+function NluCard({ seq, nluResults, onRetrainSuccess, bubbleEncrypted, bubbleMasked, bubbleMaskingFormat, bubbleEntityTag, revealedQuestionText }: NluCardProps) {
   const [editingHop, setEditingHop] = useState<number | null>(null);
   const [editQuestion, setEditQuestion] = useState('');
   const [editAnswer, setEditAnswer] = useState('');
@@ -84,6 +184,15 @@ function NluCard({ seq, nluResults, onRetrainSuccess }: NluCardProps) {
       toast.error('발화와 정답의도를 모두 입력해주세요.');
       return;
     }
+
+    // 원본값과 동일하면 저장하지 않고 편집 모드만 닫기
+    const origQuestion = (nlu.modifiedQuestion ?? nlu.questionText ?? '').trim();
+    const origAnswer = nlu.retrainAnswer ?? nlu.intent ?? '';
+    if (editQuestion.trim() === origQuestion && editAnswer === origAnswer) {
+      setEditingHop(null);
+      return;
+    }
+
     try {
       await updateMutation.mutateAsync({
         params: {
@@ -137,7 +246,7 @@ function NluCard({ seq, nluResults, onRetrainSuccess }: NluCardProps) {
               {nlu.retrainStatus === 1 && <span className="text-[10px] font-medium text-amber-600 bg-amber-50 rounded px-1.5 py-0.5">미반영</span>}
               {nlu.retrainStatus === 2 && <span className="text-[10px] font-medium text-green-600 bg-green-50 rounded px-1.5 py-0.5">반영</span>}
             </div>
-            {nlu.retrainStatus !== 2 && editingHop !== nlu.hop && (
+            {nlu.retrainStatus !== 2 && editingHop !== nlu.hop && (!bubbleEncrypted || !!revealedQuestionText) && (
               <button
                 type="button"
                 title="재학습 편집"
@@ -200,8 +309,12 @@ function NluCard({ seq, nluResults, onRetrainSuccess }: NluCardProps) {
             <span className="w-12 shrink-0 text-[11px] font-semibold text-gray-500 leading-5">고객발화</span>
             {editingHop === nlu.hop ? (
               <Input size="small" className="flex-1" value={editQuestion} onChange={(e) => setEditQuestion(e.target.value)} placeholder="사용자 발화 수정" />
+            ) : bubbleEncrypted && !revealedQuestionText ? (
+              <p className="flex-1 text-xs text-amber-600 leading-5 italic">{bubbleEntityTag ? `🏷️ ${bubbleEntityTag}` : '🔒 암호화된 발화'}</p>
+            ) : bubbleMasked ? (
+              <p className="flex-1 text-xs text-gray-700 leading-5 break-all">{applyNluMasking(revealedQuestionText ?? nlu.questionText ?? '', bubbleMaskingFormat)}</p>
             ) : (
-              <p className="flex-1 text-xs text-gray-700 leading-5 break-all">{nlu.modifiedQuestion ?? nlu.questionText}</p>
+              <p className="flex-1 text-xs text-gray-700 leading-5 break-all">{revealedQuestionText ?? nlu.modifiedQuestion ?? nlu.questionText}</p>
             )}
           </div>
 
@@ -235,6 +348,35 @@ function NluCard({ seq, nluResults, onRetrainSuccess }: NluCardProps) {
                 ) : (
                   <span className="text-[11px] text-gray-400">추출된 개체 없음</span>
                 )}
+              </div>
+            </div>
+          )}
+
+          {/* 마지막 변경 이력 */}
+          {nlu.lastModifiedBy && (
+            <div className="pt-1.5 border-t border-gray-100 space-y-1">
+              {nlu.lastBeforeAnswer !== nlu.lastAfterAnswer && (
+                <div className="flex items-center gap-1 text-[11px]">
+                  <span className="text-gray-500 w-12 shrink-0 font-semibold">의도</span>
+                  <span className="text-red-400 line-through">{nlu.lastBeforeAnswer}</span>
+                  <span className="text-gray-300">→</span>
+                  <span className="text-blue-600 font-medium">{nlu.lastAfterAnswer}</span>
+                </div>
+              )}
+              {nlu.lastBeforeQuestion !== nlu.lastAfterQuestion && (
+                <div className="flex items-center gap-1 text-[11px]">
+                  <span className="text-gray-500 w-12 shrink-0 font-semibold">발화</span>
+                  <span className="text-red-400 line-through truncate max-w-[100px]">{nlu.lastBeforeQuestion}</span>
+                  <span className="text-gray-300">→</span>
+                  <span className="text-blue-600 font-medium truncate max-w-[100px]">{nlu.lastAfterQuestion}</span>
+                </div>
+              )}
+              <div className="flex items-center justify-between">
+                <span className="text-[10px] text-gray-400">
+                  {nlu.lastModifiedBy} |{' '}
+                  {nlu.lastModifiedAt ? new Date(nlu.lastModifiedAt).toLocaleString('ko-KR', { month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' }) : ''}
+                </span>
+                <RetrainLogPopover ucidGkey={nlu.ucidGkey} questionSeq={nlu.questionSeq} hop={nlu.hop} />
               </div>
             </div>
           )}
@@ -429,13 +571,12 @@ const AudioPlayer = forwardRef<AudioPlayerRef, AudioPlayerProps>(function AudioP
       .getAudioBlob({ ucid, nextHop, cdrPkey })
       .then((blob) => {
         if (revoked) return;
+        if (!blob) {
+          setError(true);
+          return;
+        }
         const url = URL.createObjectURL(blob);
         setAudioUrl(url);
-      })
-      .catch((e) => {
-        if (revoked) return;
-        console.warn('audio load failed', e);
-        setError(true);
       })
       .finally(() => {
         if (!revoked) setLoading(false);
@@ -463,7 +604,7 @@ const AudioPlayer = forwardRef<AudioPlayerRef, AudioPlayerProps>(function AudioP
     onPlayingIdxChange(null);
   };
 
-  if (loading) return <Spin size="small" />;
+  if (loading) return <FallbackSpinner />;
   if (error) return <span className="text-xs text-red-400">녹취 파일을 불러올 수 없습니다.</span>;
   if (!audioUrl) return null;
 
@@ -527,8 +668,10 @@ const BotDialogHistoryDrawer = forwardRef<BotDialogHistoryDrawerRef>((_, ref) =>
   const [isOpen, setIsOpen] = useState(false);
   const [selectedRow, setSelectedRow] = useState<BotDialogHistoryListItem | null>(null);
   const [highlightedNluSeq, setHighlightedNluSeq] = useState<number | null>(null);
+  const [selectedBubbleSeq, setSelectedBubbleSeq] = useState<number | null>(null);
   const nluCardRefs = useRef<Map<number, HTMLDivElement>>(new Map());
   const highlightTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const bubbleHighlightTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // 녹취 재생 하이라이트 상태
   const [audioPlayingIdx, setAudioPlayingIdx] = useState<number | null>(null);
@@ -579,6 +722,7 @@ const BotDialogHistoryDrawer = forwardRef<BotDialogHistoryDrawerRef>((_, ref) =>
     setIsOpen(false);
     setSelectedRow(null);
     setHighlightedNluSeq(null);
+    setSelectedBubbleSeq(null);
     setRevealedBubbles({});
     setReasonModalOpen(false);
     setTargetBubbleKey(null);
@@ -603,6 +747,22 @@ const BotDialogHistoryDrawer = forwardRef<BotDialogHistoryDrawerRef>((_, ref) =>
       const el = nluCardRefs.current.get(item.seq);
       el?.scrollIntoView({ behavior: 'smooth', block: 'center' });
     }, 50);
+  }, []);
+
+  /** NLU 카드 클릭 → 해당 seq의 버블로 스크롤 + 하이라이트 */
+  const handleNluCardClick = useCallback((seq: number) => {
+    setSelectedBubbleSeq(seq);
+    if (bubbleHighlightTimer.current) clearTimeout(bubbleHighlightTimer.current);
+    bubbleHighlightTimer.current = setTimeout(() => setSelectedBubbleSeq(null), 1200);
+
+    // items 배열에서 해당 seq의 버블 인덱스를 찾아 스크롤
+    const idx = itemsRef.current.findIndex((i) => i.seq === seq);
+    if (idx >= 0) {
+      setTimeout(() => {
+        const el = bubbleRefs.current.get(idx);
+        el?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      }, 50);
+    }
   }, []);
 
   const handleRetrainSuccess = useCallback(async () => {
@@ -777,13 +937,13 @@ const BotDialogHistoryDrawer = forwardRef<BotDialogHistoryDrawerRef>((_, ref) =>
           {/* 왼쪽: 대화 흐름 */}
           <div className={cn('min-h-0 overflow-y-auto overflow-x-hidden pr-1', hasNluData ? 'w-3/5' : 'flex-1')}>
             {isBubbleLoading ? (
-              <div className="flex justify-center py-6">
-                <Spin />
-              </div>
+              <FallbackSpinner />
             ) : (
               <TrackingDialogView
                 items={items}
                 onItemClick={handleBubbleClick}
+                selectedSeq={selectedBubbleSeq}
+                highlightedSeq={selectedBubbleSeq}
                 onIfeLink={handleIfeLink}
                 revealedBubbles={revealedBubbles}
                 onEncryptedClick={handleEncryptedClick}
@@ -811,9 +971,22 @@ const BotDialogHistoryDrawer = forwardRef<BotDialogHistoryDrawerRef>((_, ref) =>
                   <div
                     key={item.seq}
                     ref={(el) => setNluCardRef(item.seq, el)}
-                    className={cn('transition-all duration-300 rounded-lg', highlightedNluSeq === item.seq && 'ring-2 ring-blue-400 ring-offset-2 bg-blue-50/50')}
+                    className={cn(
+                      'transition-all duration-300 rounded-lg cursor-pointer hover:bg-slate-50',
+                      highlightedNluSeq === item.seq && 'ring-2 ring-blue-400 ring-offset-2 bg-blue-50/50',
+                    )}
+                    onClick={() => handleNluCardClick(item.seq)}
                   >
-                    <NluCard seq={item.seq} nluResults={item.nluResults!} onRetrainSuccess={handleRetrainSuccess} />
+                    <NluCard
+                      seq={item.seq}
+                      nluResults={item.nluResults!}
+                      onRetrainSuccess={handleRetrainSuccess}
+                      bubbleEncrypted={items.find((b) => b.seq === item.seq && b.dialogRole === 'CUSTOMER')?.encrypted}
+                      bubbleMasked={items.find((b) => b.seq === item.seq && b.dialogRole === 'CUSTOMER')?.masked}
+                      bubbleMaskingFormat={items.find((b) => b.seq === item.seq && b.dialogRole === 'CUSTOMER')?.maskingFormat}
+                      bubbleEntityTag={items.find((b) => b.seq === item.seq && b.dialogRole === 'CUSTOMER')?.entityTag}
+                      revealedQuestionText={Object.entries(revealedBubbles).find(([key]) => key.startsWith(`${item.seq}:`))?.[1] ?? null}
+                    />
                   </div>
                 ))}
               </div>

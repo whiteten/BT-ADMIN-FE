@@ -20,17 +20,24 @@ interface MenuTreeProps {
   onAdd: () => void;
 }
 
+const renderTitle = (icon: React.ReactNode, label: string) => (
+  <span className="inline-flex items-center gap-1.5 align-middle">
+    {icon}
+    {label}
+  </span>
+);
+
 /** flat 메뉴 목록을 tree 구조로 변환 (menuKey 기반) */
 function buildMenuTree(menus: Menu[]): MenuTreeNode[] {
   const map = new Map<string, MenuTreeNode>();
   const roots: MenuTreeNode[] = [];
 
   for (const menu of menus) {
+    const icon = menu.type === 'FOLDER' ? <Folder className="size-4 text-amber-500" /> : <File className="size-4 text-blue-500" />;
     map.set(menu.menuKey, {
       key: `menu:${menu.menuKey}`,
-      title: menu.label,
+      title: renderTitle(icon, menu.label),
       children: [],
-      icon: menu.type === 'FOLDER' ? <Folder className="size-4 text-amber-500" /> : <File className="size-4 text-blue-500" />,
       data: menu,
     });
   }
@@ -62,9 +69,8 @@ function buildTree(menus: Menu[]): MenuTreeNode[] {
   for (const [appId, { appName, menus: appMenus }] of menusByApp) {
     result.push({
       key: `app:${appId}`,
-      title: appName,
+      title: renderTitle(<AppWindow className="size-4 text-green-600" />, appName),
       children: buildMenuTree(appMenus),
-      icon: <AppWindow className="size-4 text-green-600" />,
     });
   }
 
@@ -115,7 +121,7 @@ export default function MenuTree({ menus, apps, selectedAppId, onAppChange, sele
       {/* 트리 */}
       <div className="flex-1 overflow-auto">
         {treeData.length > 0 ? (
-          <Tree showIcon defaultExpandAll treeData={treeData} selectedKeys={derivedSelectedKeys} onSelect={handleSelect} className="menu-tree" />
+          <Tree defaultExpandAll treeData={treeData} selectedKeys={derivedSelectedKeys} onSelect={handleSelect} className="menu-tree" />
         ) : (
           <div className="flex items-center justify-center h-full text-gray-400 text-sm">메뉴가 없습니다</div>
         )}
