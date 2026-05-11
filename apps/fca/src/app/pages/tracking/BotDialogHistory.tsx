@@ -3,15 +3,15 @@ import type { BreadcrumbProps } from 'antd';
 import dayjs from 'dayjs';
 import { useNavigationStore } from '@/shared-store';
 import { downloadBlob, extractFileName, toast } from '@/shared-util';
-
-const DATETIME_FORMAT = 'YYYY-MM-DDTHH:mm:ss';
 import { botDialogHistoryApi } from '../../features/tracking/api/botDialogHistoryApi';
 import BotDialogHistoryDrawer, { type BotDialogHistoryDrawerRef } from '../../features/tracking/components/BotDialogHistoryDrawer';
 import BotDialogHistorySearchForm from '../../features/tracking/components/BotDialogHistorySearchForm';
 import BotDialogHistoryTable from '../../features/tracking/components/BotDialogHistoryTable';
-import { useGetBotDialogHistory } from '../../features/tracking/hooks/useBotDialogHistoryQueries';
+import SlotSankeyDrawer from '../../features/tracking/components/SlotSankeyDrawer';
 import type { BotDialogHistoryListItem, BotDialogHistorySearchRequest } from '../../features/tracking/types/botDialogHistory.types';
 import PageHeader from '@/components/custom/PageHeader';
+
+const DATETIME_FORMAT = 'YYYY-MM-DDTHH:mm:ss';
 
 const breadcrumb: BreadcrumbProps['items'] = [
   { title: '트래킹', path: '/fca/tracking' },
@@ -28,43 +28,27 @@ const BotDialogHistoryPage: React.FC = () => {
   const [searchParams, setSearchParams] = useState<BotDialogHistorySearchRequest>({
     fromDate: dayjs().startOf('day').format(DATETIME_FORMAT),
     toDate: dayjs().endOf('day').format(DATETIME_FORMAT),
-    page: 0,
-    size: 5000,
   });
 
-  // 조회 버튼 클릭 시마다 강제 refetch를 위한 타임스탬프
-  const [searchTs, setSearchTs] = useState<number>(Date.now());
+  // 조회 버튼 클릭마다 증가 — 그리드 SSRM refresh 트리거
+  const [searchVersion, setSearchVersion] = useState(0);
 
   // 선택된 행 상태 (그리드 선택 표시용)
   const [selectedRowId, setSelectedRowId] = useState<string | undefined>();
 
-  // 대화이력 목록 조회 (searchTs를 queryKey에만 포함하여 매 조회 시 강제 refetch)
-  const { data: historyData, isFetching: isListLoading } = useGetBotDialogHistory({
-    params: { ...searchParams, _t: searchTs },
-    queryOptions: {
-      placeholderData: (previousData: any) => previousData,
-    },
-  });
+  // 그리드 SSRM datasource가 응답에서 갱신해주는 값
+  const [totalRows, setTotalRows] = useState(0);
+  const [isListLoading, setIsListLoading] = useState(false);
+  const [slotChartOpen, setSlotChartOpen] = useState(false);
 
   const handleSearch = (newParams: BotDialogHistorySearchRequest) => {
-    setSearchParams({
-      ...newParams,
-      page: 0,
-      size: 5000,
-    });
-    setSearchTs(Date.now());
+    setSearchParams(newParams);
+    setSearchVersion((v) => v + 1);
     setSelectedRowId(undefined);
   };
 
-  const handlePageChange = (newPage: number) => {
-    setSearchParams((prev: BotDialogHistorySearchRequest) => ({
-      ...prev,
-      page: newPage,
-    }));
-  };
-
   const handleExcelDownload = async () => {
-    if (!historyData?.items?.length) {
+    if (totalRows === 0) {
       toast.warning('다운로드할 데이터가 없습니다.');
       return;
     }
@@ -87,34 +71,38 @@ const BotDialogHistoryPage: React.FC = () => {
   };
 
   return (
-    <div className="flex flex-col gap-4 w-full h-full overflow-hidden">
+    <div className="flex flex-col gap-4 w-full h-full">
       <PageHeader breadcrumb={breadcrumb} />
-
-      <div className="flex-1 flex flex-col min-h-0">
+      <div className="flex flex-col gap-5 w-full h-full bg-white bt-shadow p-5">
         <BotDialogHistorySearchForm
           onSearch={handleSearch}
           isLoading={isListLoading}
           onExcelDownload={hasExcelPermission ? handleExcelDownload : undefined}
           isExporting={isExporting}
+          onSlotChart={() => setSlotChartOpen(true)}
         />
-
-        <div className="flex flex-1 min-h-0 mb-4 px-1">
-          <div className="flex-1 flex flex-col min-h-0">
-            <BotDialogHistoryTable
-              rowData={historyData?.items ?? []}
-              total={historyData?.total ?? 0}
-              isLoading={isListLoading}
-              page={searchParams.page ?? 0}
-              size={searchParams.size ?? 20}
-              onPageChange={handlePageChange}
-              onRowDoubleClick={handleRowClick}
-              selectedRowId={selectedRowId}
-            />
-          </div>
+        <div className="w-full h-full">
+          <BotDialogHistoryTable
+            searchParams={searchParams}
+            searchVersion={searchVersion}
+            onRowDoubleClick={handleRowClick}
+            selectedRowId={selectedRowId}
+            isLoading={isListLoading}
+            onLoadingChange={setIsListLoading}
+            onTotalRowsChange={setTotalRows}
+          />
         </div>
       </div>
-
       <BotDialogHistoryDrawer ref={drawerRef} />
+      <SlotSankeyDrawer
+        open={slotChartOpen}
+        onClose={() => setSlotChartOpen(false)}
+        searchParams={searchParams}
+        onEntityFilter={(entityTag) => {
+          setSearchParams((prev) => ({ ...prev, slotEntityTag: entityTag }));
+          setSearchVersion((v) => v + 1);
+        }}
+      />
     </div>
   );
 };

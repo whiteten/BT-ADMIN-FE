@@ -10,6 +10,8 @@ export interface NaviMenuItem {
   menuKey: string;
   label: string;
   type: NaviMenuType;
+  path?: string;
+  iconKey?: string;
   permissions?: string[];
   children: NaviMenuItem[];
 }
@@ -18,6 +20,7 @@ export interface NaviMenuItem {
 export interface NaviApp {
   appId: string;
   appName: string;
+  iconKey?: string;
   menus: NaviMenuItem[];
 }
 

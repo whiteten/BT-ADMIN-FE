@@ -80,6 +80,14 @@ export interface LoginResponse {
 }
 
 /**
+ * 로그인 응답에 포함되는 테넌트 선택 후보 항목 (tenant_required 응답)
+ */
+export interface AvailableTenantOption {
+  id: number;
+  name: string;
+}
+
+/**
  * Login error response from backend (OAuth2 style)
  */
 export interface LoginErrorResponse {
@@ -105,6 +113,8 @@ export interface LoginErrorResponse {
   passwordResetToken?: string;
   /** Password reset token 만료 시간 (epoch seconds) */
   tokenExpiresAt?: number;
+  /** 다중 테넌트 사용자의 선택 가능한 테넌트 목록 (tenant_required 응답 시) */
+  available_tenants?: AvailableTenantOption[];
 }
 
 /**

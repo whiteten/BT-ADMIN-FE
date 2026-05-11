@@ -1,11 +1,12 @@
 import { forwardRef, useEffect, useImperativeHandle, useRef, useState } from 'react';
-import { Descriptions, Drawer, Spin, message } from 'antd';
+import { Descriptions, Drawer, message } from 'antd';
 import { ChevronsDown, Copy, Pin } from 'lucide-react';
 import { toast } from '@/shared-util';
 import TrackingDialogView from './TrackingDialogView';
 import { useSendTrackingCommand } from '../hooks/useBotRealtimeQueries';
 import type { TrackingWsMessage } from '../hooks/useBotRealtimeSocket';
 import type { TrackingCommandRequest, TrackingSessionDetail } from '../types/tracking.types';
+import { FallbackSpinner } from '@/components/custom/FallbackSpinner';
 
 /** HTTP/HTTPS 환경 모두에서 동작하는 클립보드 복사 */
 function copyToClipboard(text: string): Promise<void> {
@@ -213,11 +214,7 @@ const BotRealtimeDetailDrawer = forwardRef<BotRealtimeDetailDrawerRef, BotRealti
     >
       <div className="flex flex-col flex-1 min-h-0 gap-4">
         {/* 인라인 로딩 */}
-        {isLoading && (
-          <div className="flex justify-center py-6">
-            <Spin />
-          </div>
-        )}
+        {isLoading && <FallbackSpinner />}
 
         {/* 세션 정보 */}
         {session && (

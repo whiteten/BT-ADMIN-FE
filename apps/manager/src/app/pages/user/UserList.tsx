@@ -6,13 +6,10 @@ import { AgGridReact } from 'ag-grid-react';
 import { Button, Input, Select } from 'antd';
 import dayjs from 'dayjs';
 import { toast } from '@/shared-util';
-import { UserInfoCard } from './UserInfoCard';
 import AccountStatusBadge from '../../features/user/components/AccountStatusBadge';
 import { useDeleteUser, useGetUsers, useUnlockUser, userQueryKeys } from '../../features/user/hooks/useUserQueries';
 import type { AccountStatus, User } from '../../features/user/types/user.types';
-import { FallbackSpinner } from '@/components/custom/FallbackSpinner';
 import { IconTrash } from '@/components/custom/Icons';
-import NoData from '@/components/custom/NoData';
 import PageHeader from '@/components/custom/PageHeader';
 import useAggridOptions from '@/libs/shared-ui/src/hooks/useAggridOptions';
 import { useModal } from '@/libs/shared-ui/src/hooks/useModal';
@@ -177,48 +174,31 @@ export default function UserList() {
   return (
     <div className="flex flex-col gap-4 w-full h-full">
       <PageHeader breadcrumb={breadcrumb} />
-
-      {/* Filter - Bot UI 스타일 */}
-      <div className="flex items-center justify-between gap-2 w-full h-[76px] bg-white bt-shadow px-7 py-5">
-        <div className="flex gap-2 w-full items-center">
-          <Select
-            value={filterColumn}
-            onChange={handleColumnChange}
-            options={[
-              { label: '사용자명', value: 'username' },
-              { label: '계정', value: 'userAccount' },
-              { label: '권한', value: 'roleName' },
-            ]}
-            className="!max-w-[150px] !min-w-[120px]"
-            popupMatchSelectWidth={false}
-          />
-          <Input value={searchValue} onChange={(e) => setSearchValue(e.target.value)} className="w-full max-w-[400px]" placeholder="검색어를 입력하세요." />
-        </div>
-        <div>
-          <Button type="primary" onClick={handleCreate}>
-            추가
-          </Button>
-        </div>
-      </div>
-
-      {/* Body - Grid View (ag-Grid with sideBar for details) */}
-      <div className="max-lg:hidden w-full h-full bg-white bt-shadow">
-        <AgGridReact<User> rowData={filteredList} columnDefs={columnDefs} gridOptions={gridOptions} loading={isLoading} onRowDoubleClicked={(e) => handleEdit(e.data?.id)} />
-      </div>
-
-      {/* Body - Card View (Mobile) */}
-      <div className="lg:hidden w-full h-full overflow-y-auto">
-        {isLoading ? (
-          <FallbackSpinner />
-        ) : filteredList.length > 0 ? (
-          <div className="grid grid-cols-2 gap-2 p-2">
-            {filteredList.map((user) => (
-              <UserInfoCard key={user.id} userInfo={user} className="hover:scale-102 transition-all" onEdit={() => handleEdit(user.id)} onDelete={() => handleDelete(user.id)} />
-            ))}
+      <div className="flex flex-col gap-5 w-full h-full bg-white bt-shadow p-5">
+        <header className="flex items-center justify-between w-full gap-2 lg:flex-nowrap flex-wrap">
+          <div className="flex items-center w-full gap-3">
+            <Select
+              value={filterColumn}
+              onChange={handleColumnChange}
+              options={[
+                { label: '사용자명', value: 'username' },
+                { label: '계정', value: 'userAccount' },
+                { label: '권한', value: 'roleName' },
+              ]}
+              className="!max-w-[150px] !min-w-[120px]"
+              popupMatchSelectWidth={false}
+            />
+            <Input value={searchValue} onChange={(e) => setSearchValue(e.target.value)} className="w-full lg:max-w-[400px]" placeholder="검색어를 입력하세요." />
           </div>
-        ) : (
-          <NoData message="조회된 데이터가 없습니다." iconSize={50} />
-        )}
+          <div className="flex items-center gap-2.5">
+            <Button type="primary" onClick={handleCreate}>
+              추가
+            </Button>
+          </div>
+        </header>
+        <div className="w-full h-full">
+          <AgGridReact<User> rowData={filteredList} columnDefs={columnDefs} gridOptions={gridOptions} loading={isLoading} onRowDoubleClicked={(e) => handleEdit(e.data?.id)} />
+        </div>
       </div>
     </div>
   );

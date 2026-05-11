@@ -4,10 +4,14 @@ import { LOG } from '@/log';
 
 import { useAuthStore, useNavigationStore } from '@/shared-store';
 import { toast } from '@/shared-util';
+import { usePageVariantManifestLoader } from './hooks/usePageVariantManifestLoader';
+import { useQuerySelectorsLoader } from './hooks/useQuerySelectorsLoader';
+import { useRemoteRoutesLoader } from './hooks/useRemoteRoutesLoader';
 import { useGetUserInfo, useGetWsTicket } from '../auth/hooks/useAuthQueries';
 import { useGetNavigation } from '../common/hooks/useNavigationQueries';
 import { useSessionSocket } from '../common/hooks/useSessionSocket';
 import { useMenuLoader } from '../layout/hooks/useMenuLoader';
+import { usePageVariantsLoader } from '../layout/hooks/usePageVariantsLoader';
 import { FallbackSpinner } from '@/components/custom/FallbackSpinner';
 
 const Log = new LOG('SharedInfoProvider');
@@ -19,6 +23,10 @@ export default function SharedInfoProvider({ children }: { children?: React.Reac
   const { data: navigation, isLoading: isNavigationLoading, error: navigationError } = useGetNavigation();
   const { data: ticketResponse, isLoading: isWsTicketLoading, error: wsTicketError, refetch: refetchWsTicket } = useGetWsTicket();
   const { load: loadMenuConfigs } = useMenuLoader();
+  const { load: loadRemoteRoutes } = useRemoteRoutesLoader();
+  const { load: loadPageVariantManifest } = usePageVariantManifestLoader();
+  const { load: loadQuerySelectors } = useQuerySelectorsLoader();
+  usePageVariantsLoader();
 
   const handleWsError = () => {
     const RETRY_DELAY = 5000;
@@ -52,6 +60,18 @@ export default function SharedInfoProvider({ children }: { children?: React.Reac
   useEffect(() => {
     loadMenuConfigs();
   }, [loadMenuConfigs]);
+
+  useEffect(() => {
+    loadRemoteRoutes();
+  }, [loadRemoteRoutes]);
+
+  useEffect(() => {
+    loadPageVariantManifest();
+  }, [loadPageVariantManifest]);
+
+  useEffect(() => {
+    loadQuerySelectors();
+  }, [loadQuerySelectors]);
 
   useEffect(() => {
     setIsLoading(isUserInfoLoading);

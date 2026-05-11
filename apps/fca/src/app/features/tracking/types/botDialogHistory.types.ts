@@ -8,6 +8,9 @@ export interface BotDialogHistorySearchRequest {
   completeYn?: number;
   ucid?: string;
   ani?: string;
+  hasIntent?: boolean;
+  retrainFilter?: string;
+  slotEntityTag?: string;
   page?: number;
   size?: number;
   [key: string]: any; // Record<string, unknown> 호환을 위한 인덱스 시그니처
@@ -39,10 +42,20 @@ export interface BotDialogHistoryListItem {
   reqAgentYn: number;
   botSlotInCount: number;
   avgConfidence: number | null;
+  /** 재학습 수정 여부 */
+  retrainYn: boolean | null;
   /** 녹취 여부. 0: 미녹취, 1: 녹취 */
   recordYn: number | null;
   /** 녹취 파일명 */
   recordName: string | null;
+}
+
+/** 슬롯 Sankey 차트 집계 항목 */
+export interface SlotSankeyItem {
+  seq: number;
+  prevEntityTag: string | null;
+  entityTag: string;
+  value: number;
 }
 
 export interface BotServiceDto {

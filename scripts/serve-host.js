@@ -45,42 +45,52 @@ function buildCommand(selectedRemotes) {
   return command;
 }
 
+function runServe(answer) {
+  try {
+    const selectedRemotes = parseSelection(answer);
+    const command = buildCommand(selectedRemotes);
+
+    console.log(`\n🚀 실행할 명령어: ${command}`);
+    console.log(`✅ 선택된 Remote: ${selectedRemotes.length > 0 ? selectedRemotes.join(', ') : '없음'}`);
+
+    console.log('\n⏳ Host 앱을 시작하고 있습니다...');
+    rl.close();
+
+    const child = spawn(command, [], { stdio: 'inherit', shell: true, windowsHide: true });
+
+    process.on('SIGINT', () => {
+      console.log('\n\n🛑 서버를 종료하는 중...');
+      child.kill('SIGTERM');
+      process.exit(0);
+    });
+
+    process.on('SIGTERM', () => {
+      child.kill('SIGTERM');
+      process.exit(0);
+    });
+
+    child.on('exit', (code) => {
+      process.exit(code);
+    });
+  } catch (error) {
+    console.error(`\n${error.message}`);
+    console.log('💡 다시 시도해주세요.');
+    rl.close();
+  }
+}
+
 function serveHost() {
+  const cliArg = process.argv[2];
+
+  if (cliArg) {
+    console.log(`\n📥 인자로 전달된 선택: ${cliArg}`);
+    runServe(cliArg);
+    return;
+  }
+
   showMenu();
 
-  rl.question('\n📝 번호를 입력하세요 (여러 개 선택 시 쉼표로 구분, 예: 3,4): ', (answer) => {
-    try {
-      const selectedRemotes = parseSelection(answer);
-      const command = buildCommand(selectedRemotes);
-
-      console.log(`\n🚀 실행할 명령어: ${command}`);
-      console.log(`✅ 선택된 Remote: ${selectedRemotes.length > 0 ? selectedRemotes.join(', ') : '없음'}`);
-
-      console.log('\n⏳ Host 앱을 시작하고 있습니다...');
-      rl.close();
-
-      const child = spawn(command, [], { stdio: 'inherit', shell: true, windowsHide: true });
-
-      process.on('SIGINT', () => {
-        console.log('\n\n🛑 서버를 종료하는 중...');
-        child.kill('SIGTERM');
-        process.exit(0);
-      });
-
-      process.on('SIGTERM', () => {
-        child.kill('SIGTERM');
-        process.exit(0);
-      });
-
-      child.on('exit', (code) => {
-        process.exit(code);
-      });
-    } catch (error) {
-      console.error(`\n${error.message}`);
-      console.log('💡 다시 시도해주세요.');
-      rl.close();
-    }
-  });
+  rl.question('\n📝 번호를 입력하세요 (여러 개 선택 시 쉼표로 구분, 예: 3,4): ', runServe);
 }
 
 serveHost();

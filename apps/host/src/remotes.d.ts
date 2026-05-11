@@ -8,20 +8,17 @@ declare module '*/WorkflowApp' {
   export default WorkflowApp;
 }
 
-declare module '*/MenuConfig' {
-  interface MenuItem {
-    label: string;
-    path: string;
-    icon?: string;
-    children?: MenuItem[];
-  }
+declare module '*/Routes' {
+  import type { RouteObject } from 'react-router-dom';
+  export const routes: RouteObject[];
+}
 
-  interface MenuConfig {
-    appId: string;
-    appName: string;
-    menus: MenuItem[];
-  }
+declare module '*/PageVariantManifest' {
+  import type { PageVariantManifestConfig } from '@/components/custom/DynamicElement';
+  export const pageVariantManifest: Record<string, PageVariantManifestConfig>;
+}
 
-  const menuConfig: MenuConfig;
-  export default menuConfig;
+declare module '*/QuerySelectors' {
+  import type { QuerySelectorComponent } from '@/shared-store';
+  export const querySelectors: Record<string, QuerySelectorComponent>;
 }
