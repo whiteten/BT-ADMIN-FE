@@ -256,6 +256,29 @@ interface CiPos {
 
 const ZONE_COLORS = ['#0f5b9e', '#1e3a5f', '#172554', '#1e293b', '#0891b2', '#059669', '#7c3aed', '#dc2626', '#d97706'];
 
+// CI 색상 HSL 변환 헬퍼 (배경 테마 동적 생성용)
+const rgbToHsl = (r: number, g: number, b: number): [number, number, number] => {
+  const rn = r / 255,
+    gn = g / 255,
+    bn = b / 255;
+  const max = Math.max(rn, gn, bn),
+    min = Math.min(rn, gn, bn);
+  const l = (max + min) / 2;
+  if (max === min) return [0, 0, l];
+  const d = max - min;
+  const s = l > 0.5 ? d / (2 - max - min) : d / (max + min);
+  const h = max === rn ? (gn - bn) / d + (gn < bn ? 6 : 0) : max === gn ? (bn - rn) / d + 2 : (rn - gn) / d + 4;
+  return [h * 60, s, l];
+};
+
+const hslToRgb = (h: number, s: number, l: number): [number, number, number] => {
+  const c = (1 - Math.abs(2 * l - 1)) * s;
+  const x = c * (1 - Math.abs(((h / 60) % 2) - 1));
+  const m = l - c / 2;
+  const [rn, gn, bn] = h < 60 ? [c, x, 0] : h < 120 ? [x, c, 0] : h < 180 ? [0, c, x] : h < 240 ? [0, x, c] : h < 300 ? [x, 0, c] : [c, 0, x];
+  return [Math.round((rn + m) * 255), Math.round((gn + m) * 255), Math.round((bn + m) * 255)];
+};
+
 const dataURLtoFile = (dataurl: string, filename: string) => {
   const arr = dataurl.split(',');
   const mime = arr[0].match(/:(.*?);/)?.[1] ?? 'image/jpeg';
@@ -379,6 +402,32 @@ export default function TaskBg() {
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [progress, setProgress] = useState(0);
   const [ciPos, setCiPos] = useState<CiPos>({ xPct: 80, yPct: 80, sizePct: 12, opacity: 0.8 });
+
+  // CI 미리보기 드래그
+  const ciPreviewRef = useRef<HTMLDivElement>(null);
+  const ciDragRef = useRef<{ startX: number; startY: number; startXPct: number; startYPct: number } | null>(null);
+
+  const handleCiPointerDown = (e: React.PointerEvent) => {
+    e.preventDefault();
+    const rect = ciPreviewRef.current?.getBoundingClientRect();
+    if (!rect) return;
+    ciDragRef.current = { startX: e.clientX, startY: e.clientY, startXPct: ciPos.xPct, startYPct: ciPos.yPct };
+    (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
+  };
+
+  const handleCiPointerMove = (e: React.PointerEvent) => {
+    const drag = ciDragRef.current;
+    if (!drag) return;
+    const rect = ciPreviewRef.current?.getBoundingClientRect();
+    if (!rect) return;
+    const dx = ((e.clientX - drag.startX) / rect.width) * 100;
+    const dy = ((e.clientY - drag.startY) / rect.height) * 100;
+    setCiPos((p) => ({ ...p, xPct: Math.max(0, Math.min(90, drag.startXPct + dx)), yPct: Math.max(0, Math.min(90, drag.startYPct + dy)) }));
+  };
+
+  const handleCiPointerUp = () => {
+    ciDragRef.current = null;
+  };
 
   // ── 커스텀 레이아웃 빌더 상태 (셀 트리 방식 — 비대칭 분할 지원) ──────────
   const [isCustomBuilderOpen, setIsCustomBuilderOpen] = useState(false);
@@ -578,20 +627,31 @@ export default function TaskBg() {
       const { width: w, height: h } = RESOLUTIONS[resKey];
       const newPreviews: PreviewImage[] = [];
 
-      // 5가지 배경 테마 × 4가지 존 스타일 = 20종
+      // CI 색상 HSL 분석 — 배경 테마 색조를 CI에 맞게 조정
+      const [hue, ciSat] = rgbToHsl(r, g, b);
+      const themeSat = Math.max(0.35, Math.min(0.75, ciSat));
+
+      // 5가지 배경 테마 × 4가지 존 스타일 = 20종 (CI 색조 기반 동적 생성)
       const bgThemes = [
+        // 0: CI 색조 기반 다크 (명도 7%, 채도 60%)
         (ctx: CanvasRenderingContext2D) => {
-          ctx.fillStyle = '#0a1628';
+          const [dr, dg, db] = hslToRgb(hue, themeSat * 0.6, 0.07);
+          ctx.fillStyle = `rgb(${dr},${dg},${db})`;
           ctx.fillRect(0, 0, w, h);
         },
+        // 1: CI 색조 기반 딥 블랙 (명도 4%, 채도 낮음)
         (ctx: CanvasRenderingContext2D) => {
-          ctx.fillStyle = '#111827';
+          const [dr, dg, db] = hslToRgb(hue, themeSat * 0.15, 0.04);
+          ctx.fillStyle = `rgb(${dr},${dg},${db})`;
           ctx.fillRect(0, 0, w, h);
         },
+        // 2: CI 색조 기반 라이트 (명도 96%, 채도 15%)
         (ctx: CanvasRenderingContext2D) => {
-          ctx.fillStyle = '#f1f5f9';
+          const [lr, lg, lb] = hslToRgb(hue, 0.15, 0.96);
+          ctx.fillStyle = `rgb(${lr},${lg},${lb})`;
           ctx.fillRect(0, 0, w, h);
         },
+        // 3: CI 브랜드 컬러 그라디언트
         (ctx: CanvasRenderingContext2D) => {
           const grd = ctx.createLinearGradient(0, 0, w, h);
           grd.addColorStop(0, `rgb(${r},${g},${b})`);
@@ -599,10 +659,14 @@ export default function TaskBg() {
           ctx.fillStyle = grd;
           ctx.fillRect(0, 0, w, h);
         },
+        // 4: CI 색조 +30° 딥 그라디언트 (보색 계열)
         (ctx: CanvasRenderingContext2D) => {
+          const deepHue = (hue + 30) % 360;
+          const [d1r, d1g, d1b] = hslToRgb(deepHue, themeSat * 0.8, 0.07);
+          const [d2r, d2g, d2b] = hslToRgb(hue, themeSat * 0.5, 0.04);
           const grd = ctx.createLinearGradient(0, 0, w, h);
-          grd.addColorStop(0, '#1a0a2e');
-          grd.addColorStop(1, '#0a1628');
+          grd.addColorStop(0, `rgb(${d1r},${d1g},${d1b})`);
+          grd.addColorStop(1, `rgb(${d2r},${d2g},${d2b})`);
           ctx.fillStyle = grd;
           ctx.fillRect(0, 0, w, h);
         },
@@ -636,7 +700,7 @@ export default function TaskBg() {
         // C: 아웃라인 (얇은 테두리만)
         (ctx: CanvasRenderingContext2D, zx: number, zy: number, zw: number, zh: number, bgIdx: number) => {
           drawRoundedZone(ctx, zx, zy, zw, zh);
-          const fillAlpha = bgIdx === 2 ? 'rgba(15,91,158,0.08)' : 'rgba(255,255,255,0.06)';
+          const fillAlpha = bgIdx === 2 ? `rgba(${r},${g},${b},0.08)` : 'rgba(255,255,255,0.06)';
           ctx.fillStyle = fillAlpha;
           ctx.fill();
           const strokeColor = bgIdx === 2 ? `rgb(${r},${g},${b})` : `rgba(255,255,255,0.6)`;
@@ -932,10 +996,23 @@ export default function TaskBg() {
                         <div className="flex flex-col gap-3">
                           <label className="block text-sm font-semibold text-slate-700">CI 로고 위치 조정</label>
                           {originalImgUrl ? (
-                            <div className="relative w-full aspect-video bg-slate-800 rounded-lg overflow-hidden border border-slate-300">
-                              <span className="absolute top-1 left-2 text-[9px] bg-black/60 text-white px-1.5 py-0.5 rounded z-10">미리보기</span>
-                              <div style={{ position: 'absolute', left: `${ciPos.xPct}%`, top: `${ciPos.yPct}%`, width: `${ciPos.sizePct}%`, opacity: ciPos.opacity }}>
-                                <img src={originalImgUrl} className="w-full h-auto object-contain" alt="CI" />
+                            <div ref={ciPreviewRef} className="relative w-full aspect-video bg-slate-800 rounded-lg overflow-hidden border border-slate-300">
+                              <span className="absolute top-1 left-2 text-[9px] bg-black/60 text-white px-1.5 py-0.5 rounded z-10">미리보기 · CI를 드래그해서 위치 조정</span>
+                              <div
+                                style={{
+                                  position: 'absolute',
+                                  left: `${ciPos.xPct}%`,
+                                  top: `${ciPos.yPct}%`,
+                                  width: `${ciPos.sizePct}%`,
+                                  opacity: ciPos.opacity,
+                                  cursor: 'move',
+                                  touchAction: 'none',
+                                }}
+                                onPointerDown={handleCiPointerDown}
+                                onPointerMove={handleCiPointerMove}
+                                onPointerUp={handleCiPointerUp}
+                              >
+                                <img src={originalImgUrl} className="w-full h-auto object-contain pointer-events-none select-none" alt="CI" />
                               </div>
                             </div>
                           ) : (
@@ -952,7 +1029,7 @@ export default function TaskBg() {
                                 <div className="flex justify-between text-slate-500 mb-0.5">
                                   <span>{label}</span>
                                   <span className="font-mono">
-                                    {ciPos[key as keyof CiPos]}
+                                    {key === 'xPct' || key === 'yPct' ? Number(ciPos[key as keyof CiPos]).toFixed(2) : ciPos[key as keyof CiPos]}
                                     {key === 'opacity' ? '' : '%'}
                                   </span>
                                 </div>
@@ -981,7 +1058,7 @@ export default function TaskBg() {
                         <div className="w-full bg-slate-200 rounded-full h-2.5">
                           <div className="bg-[#0f5b9e] h-2.5 rounded-full transition-all" style={{ width: `${progress}%` }} />
                         </div>
-                        <p className="text-xs text-slate-400 mt-1">5가지 배경 테마 (다크/블랙/라이트/브랜드컬러/딥퍼플) × 4가지 스타일 (솔리드/그라디언트/아웃라인/카드)</p>
+                        <p className="text-xs text-slate-400 mt-1">5가지 배경 테마 (CI 다크/딥블랙/라이트/브랜드/딥계열) × 4가지 스타일 (솔리드/그라디언트/아웃라인/카드)</p>
                       </div>
                     )}
 
@@ -993,7 +1070,7 @@ export default function TaskBg() {
                         </h3>
                         {/* 5열 컬럼 헤더 */}
                         <div className="grid grid-cols-5 gap-2 mb-1 px-px">
-                          {['다크 네이비', '블랙', '라이트', 'CI 브랜드', '딥 퍼플'].map((t) => (
+                          {['CI 다크', 'CI 딥블랙', 'CI 라이트', 'CI 브랜드', 'CI 딥계열'].map((t) => (
                             <div key={t} className="text-[9px] text-slate-400 font-bold text-center uppercase tracking-wide">
                               {t}
                             </div>

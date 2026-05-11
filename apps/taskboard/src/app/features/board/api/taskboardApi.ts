@@ -1,5 +1,5 @@
 import ApiTaskboard, { type DetailResponse, extractDetail } from '@/shared-util';
-import { type RollingGroup, type TaskboardBg, type TaskboardLayout } from '../types/taskboard.types';
+import { type RollingGroup, type TaskboardBg, type TaskboardLayout, type TaskboardNotice } from '../types/taskboard.types';
 
 /**
  * BFF Aggregation Flow를 통한 OAuth2 클라이언트 API 클라이언트
@@ -69,12 +69,16 @@ export const taskboardApi = {
   updateLayout: async ({ layoutId, layoutName, layoutJson }: { layoutId: number; layoutName: string; layoutJson: string }): Promise<any> => {
     const formData = new FormData();
     formData.append('data', JSON.stringify({ layoutId, layoutName, layoutJson }));
-    const response = await apiTaskboard.post('/taskboard-layoutupdate', formData, { params: { layoutId } });
+    const response = await apiTaskboard.post('/taskboard-layoutupdate', formData, {
+      params: { layoutId },
+    });
     return response.data;
   },
 
   deleteLayout: async (layoutId: number): Promise<any> => {
-    const response = await apiTaskboard.delete('/taskboard-layoutdelete', { params: { layoutId } });
+    const response = await apiTaskboard.delete('/taskboard-layoutdelete', {
+      params: { layoutId },
+    });
     return response.data;
   },
 
@@ -86,26 +90,49 @@ export const taskboardApi = {
     return Array.isArray(list) ? list : [];
   },
 
-  createRollingGroup: async (payload: { groupName: string; layoutIds: string; intervalSec: number; rollingData: string; tenantId?: string }): Promise<number> => {
+  createRollingGroup: async (payload: { groupName: string; layoutIds: string; intervalSec: number; transitionType?: string; tenantId?: string }): Promise<number> => {
     const response = await apiTaskboard.post<any>('/taskboard-rollinggroup-insert', payload);
     return response?.data?.data ?? 0;
   },
 
-  updateRollingGroup: async (payload: { groupId: number; groupName: string; layoutIds: string; intervalSec: number; rollingData: string }): Promise<any> => {
+  updateRollingGroup: async (payload: { groupId: number; groupName: string; layoutIds: string; intervalSec: number; transitionType?: string }): Promise<any> => {
     const response = await apiTaskboard.post('/taskboard-rollinggroup-update', payload);
     return response.data;
   },
 
   deleteRollingGroup: async (groupId: number): Promise<any> => {
-    const response = await apiTaskboard.delete(`/taskboard-rollinggroup-delete/${groupId}`);
+    const response = await apiTaskboard.delete(`/taskboard-rollinggroup-delete`, {
+      params: { groupId },
+    });
     return response.data;
   },
 
-  /** 공개 토큰으로 롤링 그룹 조회 — 인증 없이 직접 fetch */
-  getPublicRollingGroup: async (token: string): Promise<RollingGroup> => {
-    const response = await fetch(`/api/taskboard/public/rolling-group/${token}`);
-    if (!response.ok) throw new Error(`HTTP ${response.status}`);
-    const json = await response.json();
-    return json.data as RollingGroup;
+  // ── 공지사항 API ─────────────────────────────────────────────────────────
+
+  getNoticeList: async (): Promise<TaskboardNotice[]> => {
+    const response = await apiTaskboard.get<any>('/taskboard-noticelist');
+    const list = response?.data?.data?.value ?? response?.data?.data;
+    return Array.isArray(list) ? list : [];
+  },
+
+  getNoticeListByKey: async (noticeKey: string): Promise<TaskboardNotice[]> => {
+    const response = await apiTaskboard.get<any>(`/taskboard-noticelist/${noticeKey}`);
+    const list = response?.data?.data?.value ?? response?.data?.data;
+    return Array.isArray(list) ? list : [];
+  },
+
+  createNotice: async (payload: Partial<TaskboardNotice>): Promise<number> => {
+    const response = await apiTaskboard.post<any>('/taskboard-noticeinsert', payload);
+    return response?.data?.data ?? 0;
+  },
+
+  updateNotice: async ({ noticeId, ...payload }: Partial<TaskboardNotice> & { noticeId: number }): Promise<any> => {
+    const response = await apiTaskboard.post(`/taskboard-noticeupdate/${noticeId}`, payload);
+    return response.data;
+  },
+
+  deleteNotice: async (noticeId: number): Promise<any> => {
+    const response = await apiTaskboard.delete(`/taskboard-noticedelete/${noticeId}`);
+    return response.data;
   },
 };

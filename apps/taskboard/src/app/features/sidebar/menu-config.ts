@@ -14,7 +14,7 @@ const menuConfig = {
   menus: [
     {
       menuKey: 'taskboard-main',
-      label: '메인',
+      label: '메인2',
       path: 'main',
       index: 0,
       icon: IconMenuMain,
@@ -46,6 +46,20 @@ const menuConfig = {
           label: '전광판관리',
           path: 'board/task-mgmt',
           index: 2,
+          hide: false,
+        },
+        {
+          menuKey: 'taskboard-view',
+          label: '전광판뷰',
+          path: 'board/task-view',
+          index: 3,
+          hide: false,
+        },
+        {
+          menuKey: 'taskboard-notice',
+          label: '공지사항관리',
+          path: 'board/task-notice',
+          index: 4,
           hide: false,
         },
       ],

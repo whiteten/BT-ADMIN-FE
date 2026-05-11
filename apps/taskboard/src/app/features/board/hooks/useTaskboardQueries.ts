@@ -3,13 +3,14 @@ import { createQueryKeys } from '@lukemorales/query-key-factory';
 import type { MutationHookOptions, QueryHookWithParamsOptions } from '@/shared-util';
 import { type CtiAgentRow, type CtiGroupRow, type CtiQueueRow, ctiRedisApi } from '../api/ctiRedisApi';
 import { taskboardApi } from '../api/taskboardApi';
-import type { RollingGroup, TaskboardBg, TaskboardLayout } from '../types/taskboard.types';
+import type { RollingGroup, TaskboardBg, TaskboardLayout, TaskboardNotice } from '../types/taskboard.types';
 
 export const taskboardQueryKeys = createQueryKeys('taskboard-bg', {
   getBgList: (params?: Record<string, unknown>) => [params],
   getLayoutList: () => [{}],
   getRollingGroupList: () => [{}],
-  getPublicRollingGroup: (token: string) => [token],
+  getNoticeList: () => [{}],
+  getNoticeListByKey: (noticeKey: string) => [{ noticeKey }],
 });
 
 /**
@@ -88,7 +89,7 @@ export const useGetRollingGroupList = ({ queryOptions }: QueryHookWithParamsOpti
 
 export const useCreateRollingGroup = ({
   mutationOptions,
-}: MutationHookOptions<any, { groupName: string; layoutIds: string; intervalSec: number; rollingData: string; tenantId?: string }> = {}) => {
+}: MutationHookOptions<any, { groupName: string; layoutIds: string; intervalSec: number; transitionType?: string; tenantId?: string }> = {}) => {
   return useMutation({
     mutationFn: taskboardApi.createRollingGroup,
     ...mutationOptions,
@@ -97,7 +98,7 @@ export const useCreateRollingGroup = ({
 
 export const useUpdateRollingGroup = ({
   mutationOptions,
-}: MutationHookOptions<any, { groupId: number; groupName: string; layoutIds: string; intervalSec: number; rollingData: string }> = {}) => {
+}: MutationHookOptions<any, { groupId: number; groupName: string; layoutIds: string; intervalSec: number; transitionType?: string }> = {}) => {
   return useMutation({
     mutationFn: taskboardApi.updateRollingGroup,
     ...mutationOptions,
@@ -111,12 +112,43 @@ export const useDeleteRollingGroup = ({ mutationOptions }: MutationHookOptions<a
   });
 };
 
-export const useGetPublicRollingGroup = (token: string, { queryOptions }: QueryHookWithParamsOptions<RollingGroup> = {}) => {
+// ── 공지사항 훅 ───────────────────────────────────────────────────────────
+
+export const useGetNoticeList = ({ queryOptions }: QueryHookWithParamsOptions<TaskboardNotice[]> = {}) => {
   return useQuery({
-    queryKey: taskboardQueryKeys.getPublicRollingGroup(token).queryKey,
-    queryFn: () => taskboardApi.getPublicRollingGroup(token),
-    enabled: !!token,
+    queryKey: taskboardQueryKeys.getNoticeList().queryKey,
+    queryFn: () => taskboardApi.getNoticeList(),
     ...queryOptions,
+  });
+};
+
+export const useGetNoticeListByKey = (noticeKey: string, { queryOptions }: QueryHookWithParamsOptions<TaskboardNotice[]> = {}) => {
+  return useQuery({
+    queryKey: taskboardQueryKeys.getNoticeListByKey(noticeKey).queryKey,
+    queryFn: () => taskboardApi.getNoticeListByKey(noticeKey),
+    enabled: !!noticeKey,
+    ...queryOptions,
+  });
+};
+
+export const useCreateNotice = ({ mutationOptions }: MutationHookOptions<any, Partial<TaskboardNotice>> = {}) => {
+  return useMutation({
+    mutationFn: taskboardApi.createNotice,
+    ...mutationOptions,
+  });
+};
+
+export const useUpdateNotice = ({ mutationOptions }: MutationHookOptions<any, Partial<TaskboardNotice> & { noticeId: number }> = {}) => {
+  return useMutation({
+    mutationFn: taskboardApi.updateNotice,
+    ...mutationOptions,
+  });
+};
+
+export const useDeleteNotice = ({ mutationOptions }: MutationHookOptions<any, number> = {}) => {
+  return useMutation({
+    mutationFn: taskboardApi.deleteNotice,
+    ...mutationOptions,
   });
 };
 

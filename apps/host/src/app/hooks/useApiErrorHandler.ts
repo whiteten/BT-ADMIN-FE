@@ -24,6 +24,9 @@ export function useApiErrorHandler() {
       if (error.response?.status === 401) {
         const current = locationRef.current;
         if (current.pathname === '/login') return;
+        // 공개 전광판 토큰 접근 경로는 401 리다이렉트 제외
+        const params = new URLSearchParams(current.search);
+        if (params.has('token') && (current.pathname.includes('task-mgmt') || current.pathname.includes('task-view'))) return;
         navigate('/login');
         Log.debug('Redirect to login page. location: ', JSON.stringify(current));
         if (current.pathname === '/') return;

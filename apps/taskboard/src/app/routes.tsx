@@ -6,6 +6,8 @@ const List = React.lazy(() => import('./pages/board/task-list'));
 const BgManage = React.lazy(() => import('./pages/board/task-bg'));
 const Mgmt = React.lazy(() => import('./pages/board/task-mgmt'));
 const Create = React.lazy(() => import('./pages/board/task-create'));
+const View = React.lazy(() => import('./pages/board/task-view'));
+const Notice = React.lazy(() => import('./pages/board/task-notice'));
 export const routes = [
   {
     path: '/',
@@ -38,6 +40,14 @@ export const routes = [
           {
             path: 'task-create',
             element: <Create />,
+          },
+          {
+            path: 'task-view',
+            element: <View />,
+          },
+          {
+            path: 'task-notice',
+            element: <Notice />,
           },
         ],
       },

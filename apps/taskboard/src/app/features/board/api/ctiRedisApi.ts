@@ -13,15 +13,25 @@ const apiTaskboard = new ApiTaskboard({ serviceURL: '/bff' });
 
 /** TB_IC_CTIQMASTER 큐 행 */
 export interface CtiQueueRow {
-  queueId: string;
-  queueName: string;
-  waitCount: number;
-  talkCount: number;
-  avgWaitSec: number;
+  [key: string]: string | number | null | undefined;
+  ctiqId: string;
+  ctiqName: string;
+  gdnNo?: string | null;
+  rtsWaitCnt?: number | null;
+  totalIn?: number | null;
+  totalAnswer?: number | null;
+  totalAbandon?: number | null;
+  kpiAnswerRate?: number | null;
+  kpiAbandonRatio?: number | null;
+  avgTotwaitTime?: number | null;
+  rtsAvgwaitTime?: number | null;
+  rtsMaxwaitTime?: number | null;
+  dbUpdateTime?: string | null;
 }
 
 /** TB_IC_AGENTMASTER 상담사 행 */
 export interface CtiAgentRow {
+  [key: string]: string | number;
   agentId: string;
   agentName: string;
   statusCode: string;
@@ -32,6 +42,7 @@ export interface CtiAgentRow {
 
 /** TB_IC_GROUPMASTER 상담그룹 행 */
 export interface CtiGroupRow {
+  [key: string]: string | number;
   groupId: string;
   groupName: string;
   waitCount: number;

@@ -135,6 +135,23 @@ export interface WidgetStyle {
   titleAlign?: 'left' | 'center' | 'right';
   valueAlign?: 'left' | 'center' | 'right';
   useThousandSep?: boolean;
+  // 추가 스타일 옵션
+  fontWeight?: 'normal' | 'bold' | '300' | '500' | '600' | '700';
+  borderWidth?: number;
+  borderColor?: string;
+  borderStyle?: 'solid' | 'dashed' | 'dotted';
+  borderRadius?: number;
+  opacity?: number; // 10~100 (백분율)
+  shadow?: 'none' | 'soft' | 'hard' | 'glow';
+  paddingX?: number; // px
+  paddingY?: number; // px
+  // 분리형 레이아웃 (타이틀 헤더 + 값 본문)
+  widgetLayout?: 'unified' | 'split';
+  titleBgColor?: string;
+  valueBgColor?: string;
+  valueColor?: string;
+  titleIcon?: string;
+  valueFontScale?: number;
 }
 
 /** 전광판 캔버스에 드랍된 위젯 */
@@ -150,6 +167,44 @@ export interface DroppedWidget {
   style: WidgetStyle;
 }
 
+/**
+ * layoutJson을 파싱하여 위젯 배열 반환.
+ * 구 포맷(DroppedWidget[]) 과 신 포맷({ version:2, widgets:[] }) 모두 지원.
+ */
+export function parseLayoutWidgets(layoutJson?: string | null): DroppedWidget[] {
+  if (!layoutJson) return [];
+  try {
+    const raw = JSON.parse(layoutJson) as unknown;
+    if (Array.isArray(raw)) return raw as DroppedWidget[];
+    if (raw && typeof raw === 'object' && 'version' in raw) {
+      const typed = raw as { version: number; widgets?: DroppedWidget[] };
+      return Array.isArray(typed.widgets) ? typed.widgets : [];
+    }
+    return [];
+  } catch {
+    return [];
+  }
+}
+
+/** 공지사항 (DB: TB_TK_NOTICE) */
+export interface TaskboardNotice {
+  noticeId: number;
+  tenantId?: string;
+  noticeKey: string;
+  title?: string;
+  content: string;
+  authorName?: string;
+  authRole?: string;
+  startDt?: string;
+  endDt?: string;
+  alwaysActiveYn: string;
+  activeYn: string;
+  displayType: 'fixed' | 'slide';
+  sortOrder: number;
+  useYn: string;
+  regDt?: string;
+}
+
 /** 전광판 롤링 그룹 (DB: TB_TK_ROLLING_GROUP) */
 export interface RollingGroup {
   groupId: number;
@@ -158,10 +213,7 @@ export interface RollingGroup {
   /** 포함 레이아웃 ID 배열 JSON 문자열 "[1,2,3]" */
   layoutIds: string;
   intervalSec: number;
-  /** 공개 URL 접근용 UUID 토큰 (서버 자동 발급) */
-  publicToken: string;
-  /** 레이아웃 스냅샷 JSON — 공개 뷰에서 사용 */
-  rollingData?: string;
+  transitionType?: string;
   useYn: string;
   regDt: string;
 }

@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
-import type { DroppedWidget, TableColumn, TaskboardLayout } from '../../features/board/types/taskboard.types';
+import { type DroppedWidget, type TableColumn, type TaskboardLayout, parseLayoutWidgets } from '../../features/board/types/taskboard.types';
 
 // ─── 테이블 위젯 렌더 ────────────────────────────────────────────────────────
 function ViewTableWidget({ widget }: { widget: DroppedWidget }) {
@@ -58,9 +58,36 @@ function ViewTableWidget({ widget }: { widget: DroppedWidget }) {
 }
 
 // ─── 단일값 위젯 렌더 ────────────────────────────────────────────────────────
+const VIEW_ETC_CLOCK_IDS = new Set(['etc-date', 'etc-time', 'etc-datetime']);
+
 function ViewValueWidget({ widget }: { widget: DroppedWidget }) {
+  const isEtcClock = widget.item.category === 'etc' && VIEW_ETC_CLOCK_IDS.has(widget.item.id);
+  const [now, setNow] = useState(() => new Date());
+
+  useEffect(() => {
+    if (!isEtcClock) return;
+    const timer = setInterval(() => setNow(new Date()), 1000);
+    return () => clearInterval(timer);
+  }, [isEtcClock]);
+
+  const getLiveValue = (): string => {
+    const pad = (n: number) => String(n).padStart(2, '0');
+    const y = now.getFullYear();
+    const mo = pad(now.getMonth() + 1);
+    const d = pad(now.getDate());
+    const h = pad(now.getHours());
+    const mi = pad(now.getMinutes());
+    const s = pad(now.getSeconds());
+    if (widget.item.id === 'etc-date') return `${y}${mo}${d}`;
+    if (widget.item.id === 'etc-time') return `${h}${mi}${s}`;
+    if (widget.item.id === 'etc-datetime') return `${y}${mo}${d} ${h}:${mi}:${s}`;
+    return String(widget.item.sampleValue);
+  };
+
+  const displayValue = isEtcClock ? getLiveValue() : widget.item.sampleValue;
   const showTitle = widget.showTitle !== false;
   const displayTitle = widget.customTitle ?? widget.item.label;
+
   return (
     <div className="w-full h-full flex flex-col justify-center px-2 overflow-hidden">
       {showTitle && (
@@ -72,7 +99,7 @@ function ViewValueWidget({ widget }: { widget: DroppedWidget }) {
         </div>
       )}
       <div className="font-bold leading-tight truncate" style={{ fontSize: widget.style.fontSize }}>
-        {widget.item.sampleValue}
+        {displayValue}
         {widget.item.unit && (
           <span className="font-normal ml-0.5 opacity-70" style={{ fontSize: `${Math.max(8, Math.round(widget.style.fontSize * 0.65))}px` }}>
             {widget.item.unit}
@@ -84,25 +111,25 @@ function ViewValueWidget({ widget }: { widget: DroppedWidget }) {
   );
 }
 
-// ─── TaskView 메인 ───────────────────────────────────────────────────────────
-export default function TaskView() {
-  const location = useLocation();
+// ─── 단일 레이아웃 뷰 ────────────────────────────────────────────────────────
+function SingleLayoutView({ layout }: { layout: TaskboardLayout }) {
   const navigate = useNavigate();
   const containerRef = useRef<HTMLDivElement>(null);
-  const state = location.state as { layout?: TaskboardLayout } | null;
-  const layout = state?.layout;
-
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [showControls, setShowControls] = useState(true);
   const hideTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const [imgRatio, setImgRatio] = useState(16 / 9);
 
-  const widgets: DroppedWidget[] = (() => {
-    try {
-      return layout?.layoutJson ? (JSON.parse(layout.layoutJson) as DroppedWidget[]) : [];
-    } catch {
-      return [];
-    }
-  })();
+  const widgets = parseLayoutWidgets(layout.layoutJson);
+
+  useEffect(() => {
+    if (!layout.fileName) return;
+    const img = new Image();
+    img.onload = () => {
+      if (img.naturalWidth > 0 && img.naturalHeight > 0) setImgRatio(img.naturalWidth / img.naturalHeight);
+    };
+    img.src = layout.fileName;
+  }, [layout.fileName]);
 
   const resetHideTimer = () => {
     setShowControls(true);
@@ -133,47 +160,44 @@ export default function TaskView() {
     return () => document.removeEventListener('fullscreenchange', handleFsChange);
   }, []);
 
-  if (!layout) {
-    return (
-      <div className="h-screen flex flex-col items-center justify-center bg-slate-900 text-white gap-4">
-        <p className="text-lg">전광판 정보가 없습니다.</p>
-        <button onClick={() => navigate('/taskboard/board/task-list')} className="px-4 py-2 bg-[#0f5b9e] text-white rounded-md text-sm font-semibold hover:bg-[#0c4a82]">
-          목록으로 돌아가기
-        </button>
-      </div>
-    );
-  }
-
   return (
     <div ref={containerRef} className="w-full h-screen bg-black overflow-hidden relative select-none" onMouseMove={resetHideTimer} onTouchStart={resetHideTimer}>
-      {/* 배경 이미지 */}
-      {layout.fileName && <img src={layout.fileName} alt={layout.layoutName} className="w-full h-full object-contain absolute inset-0" />}
-
-      {/* 위젯 오버레이 */}
-      {widgets.map((widget) => (
+      {/* 이미지 비율과 일치하는 내부 컨테이너 — 위젯 좌표가 편집화면과 1:1로 대응 */}
+      <div className="absolute inset-0 flex items-center justify-center">
         <div
-          key={widget.id}
+          className="relative overflow-hidden flex-shrink-0"
           style={{
-            position: 'absolute',
-            left: `${widget.x}%`,
-            top: `${widget.y}%`,
-            width: `${widget.w ?? 13}%`,
-            height: `${widget.h ?? 16}%`,
-            backgroundColor: widget.style.bgColor,
-            color: widget.style.color,
-            fontFamily: widget.style.fontFamily,
-            fontSize: widget.style.fontSize,
-            overflow: 'hidden',
+            width: `min(100vw, calc(${imgRatio} * 100vh))`,
+            height: `min(100vh, calc(100vw / ${imgRatio}))`,
           }}
-          className="rounded-lg shadow-xl backdrop-blur-sm border border-white/10"
         >
-          {widget.item.displayType === 'table' ? <ViewTableWidget widget={widget} /> : <ViewValueWidget widget={widget} />}
-        </div>
-      ))}
+          {layout.fileName && <img src={layout.fileName} alt={layout.layoutName} className="absolute inset-0 w-full h-full object-fill pointer-events-none" />}
 
-      {/* 컨트롤 바 (hover 3초 후 숨김) */}
+          {widgets.map((widget) => (
+            <div
+              key={widget.id}
+              style={{
+                position: 'absolute',
+                left: `${widget.x}%`,
+                top: `${widget.y}%`,
+                width: `${widget.w ?? 13}%`,
+                height: `${widget.h ?? 16}%`,
+                backgroundColor: widget.style.bgColor,
+                color: widget.style.color,
+                fontFamily: widget.style.fontFamily,
+                fontSize: widget.style.fontSize,
+                overflow: 'hidden',
+              }}
+              className="rounded-lg shadow-xl backdrop-blur-sm border border-white/10"
+            >
+              {widget.item.displayType === 'table' ? <ViewTableWidget widget={widget} /> : <ViewValueWidget widget={widget} />}
+            </div>
+          ))}
+        </div>
+      </div>
+
       <div
-        className={`absolute top-0 left-0 right-0 transition-all duration-500 ${showControls ? 'opacity-100 translate-y-0' : 'opacity-0 -translate-y-full pointer-events-none'}`}
+        className={`absolute top-0 left-0 right-0 z-50 transition-all duration-500 ${showControls ? 'opacity-100 translate-y-0' : 'opacity-0 -translate-y-full pointer-events-none'}`}
       >
         <div className="flex items-center justify-between px-4 py-2 bg-black/70 backdrop-blur-sm">
           <div className="flex items-center gap-3">
@@ -207,8 +231,32 @@ export default function TaskView() {
         </div>
       </div>
 
-      {/* 마우스 커서 숨김 (controls 숨겨질 때) */}
       <style>{`body { cursor: ${showControls ? 'auto' : 'none'} !important; }`}</style>
     </div>
   );
+}
+
+// ─── TaskView 진입점 ─────────────────────────────────────────────────────────
+export default function TaskView() {
+  return <TaskViewLayout />;
+}
+
+function TaskViewLayout() {
+  const location = useLocation();
+  const navigate = useNavigate();
+  const state = location.state as { layout?: TaskboardLayout } | null;
+  const layout = state?.layout;
+
+  if (!layout) {
+    return (
+      <div className="h-screen flex flex-col items-center justify-center bg-slate-900 text-white gap-4">
+        <p className="text-lg">전광판 정보가 없습니다.</p>
+        <button onClick={() => navigate('/taskboard/board/task-list')} className="px-4 py-2 bg-[#0f5b9e] text-white rounded-md text-sm font-semibold hover:bg-[#0c4a82]">
+          목록으로 돌아가기
+        </button>
+      </div>
+    );
+  }
+
+  return <SingleLayoutView layout={layout} />;
 }

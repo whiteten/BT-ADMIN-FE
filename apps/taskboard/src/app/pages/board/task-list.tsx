@@ -4,7 +4,7 @@ import { useQueryClient } from '@tanstack/react-query';
 import dayjs from 'dayjs';
 import { toast } from '@/shared-util';
 import { taskboardQueryKeys, useDeleteTaskboardLayout, useGetTaskboardLayoutList } from '../../features/board/hooks/useTaskboardQueries';
-import type { DroppedWidget, TableColumn, TaskboardLayout } from '../../features/board/types/taskboard.types';
+import { type DroppedWidget, type TableColumn, type TaskboardLayout, parseLayoutWidgets } from '../../features/board/types/taskboard.types';
 import { FallbackSpinner } from '@/components/custom/FallbackSpinner';
 import { IconEdit, IconTrash } from '@/components/custom/Icons';
 
@@ -63,7 +63,33 @@ function ModalTableWidget({ widget }: { widget: DroppedWidget }) {
   );
 }
 
+const MODAL_ETC_CLOCK_IDS = new Set(['etc-date', 'etc-time', 'etc-datetime']);
+
 function ModalValueWidget({ widget }: { widget: DroppedWidget }) {
+  const isEtcClock = widget.item.category === 'etc' && MODAL_ETC_CLOCK_IDS.has(widget.item.id);
+  const [now, setNow] = useState(() => new Date());
+
+  useEffect(() => {
+    if (!isEtcClock) return;
+    const timer = setInterval(() => setNow(new Date()), 1000);
+    return () => clearInterval(timer);
+  }, [isEtcClock]);
+
+  const getLiveValue = (): string => {
+    const pad = (n: number) => String(n).padStart(2, '0');
+    const y = now.getFullYear();
+    const mo = pad(now.getMonth() + 1);
+    const d = pad(now.getDate());
+    const h = pad(now.getHours());
+    const mi = pad(now.getMinutes());
+    const s = pad(now.getSeconds());
+    if (widget.item.id === 'etc-date') return `${y}${mo}${d}`;
+    if (widget.item.id === 'etc-time') return `${h}${mi}${s}`;
+    if (widget.item.id === 'etc-datetime') return `${y}${mo}${d} ${h}:${mi}:${s}`;
+    return String(widget.item.sampleValue);
+  };
+
+  const displayValue = isEtcClock ? getLiveValue() : widget.item.sampleValue;
   const showTitle = widget.showTitle !== false;
   const displayTitle = widget.customTitle ?? widget.item.label;
   return (
@@ -77,7 +103,7 @@ function ModalValueWidget({ widget }: { widget: DroppedWidget }) {
         </div>
       )}
       <div className="font-bold leading-tight truncate" style={{ fontSize: widget.style.fontSize }}>
-        {widget.item.sampleValue}
+        {displayValue}
         {widget.item.unit && (
           <span className="font-normal ml-0.5 opacity-70" style={{ fontSize: `${Math.max(8, Math.round(widget.style.fontSize * 0.65))}px` }}>
             {widget.item.unit}
@@ -93,14 +119,18 @@ function ModalValueWidget({ widget }: { widget: DroppedWidget }) {
 function LayoutViewModal({ layout, onClose }: { layout: TaskboardLayout; onClose: () => void }) {
   const containerRef = useRef<HTMLDivElement>(null);
   const [isFullscreen, setIsFullscreen] = useState(false);
+  const [imgRatio, setImgRatio] = useState(16 / 9);
 
-  const widgets: DroppedWidget[] = (() => {
-    try {
-      return layout.layoutJson ? (JSON.parse(layout.layoutJson) as DroppedWidget[]) : [];
-    } catch {
-      return [];
-    }
-  })();
+  const widgets = parseLayoutWidgets(layout.layoutJson);
+
+  useEffect(() => {
+    if (!layout.fileName) return;
+    const img = new Image();
+    img.onload = () => {
+      if (img.naturalWidth > 0 && img.naturalHeight > 0) setImgRatio(img.naturalWidth / img.naturalHeight);
+    };
+    img.src = layout.fileName;
+  }, [layout.fileName]);
 
   const toggleFullscreen = async () => {
     if (!document.fullscreenElement) {
@@ -124,77 +154,94 @@ function LayoutViewModal({ layout, onClose }: { layout: TaskboardLayout; onClose
     return () => document.removeEventListener('keydown', handleKey);
   }, [onClose]);
 
+  const widgetLayer = (
+    <>
+      {widgets.map((widget) => (
+        <div
+          key={widget.id}
+          style={{
+            position: 'absolute',
+            left: `${widget.x}%`,
+            top: `${widget.y}%`,
+            width: `${widget.w ?? 13}%`,
+            height: `${widget.h ?? 16}%`,
+            backgroundColor: widget.style.bgColor,
+            color: widget.style.color,
+            fontFamily: widget.style.fontFamily,
+            fontSize: widget.style.fontSize,
+            overflow: 'hidden',
+          }}
+          className="rounded-lg shadow-xl backdrop-blur-sm border border-white/10"
+        >
+          {widget.item.displayType === 'table' ? <ModalTableWidget widget={widget} /> : <ModalValueWidget widget={widget} />}
+        </div>
+      ))}
+    </>
+  );
+
+  const controls = (
+    <div className="absolute top-0 left-0 right-0 z-50 flex items-center justify-between px-3 py-2 bg-black/70 backdrop-blur-sm">
+      <div className="flex items-center gap-3">
+        <button onClick={onClose} className="text-white/70 hover:text-white text-xs font-semibold px-2 py-1 rounded hover:bg-white/10 transition-colors">
+          ✕ 닫기
+        </button>
+        <span className="text-white font-bold text-sm">{layout.layoutName}</span>
+        {layout.pageName && <span className="text-white/50 text-xs">({layout.pageName})</span>}
+      </div>
+      <div className="flex items-center gap-2">
+        <span className="text-white/40 text-xs">{widgets.length}개 위젯</span>
+        <button
+          onClick={toggleFullscreen}
+          className="text-white/70 hover:text-white p-1.5 rounded hover:bg-white/10 transition-colors"
+          title={isFullscreen ? '전체화면 종료' : '전체화면'}
+        >
+          {isFullscreen ? (
+            <svg viewBox="0 0 24 24" fill="currentColor" className="w-4 h-4">
+              <path d="M5 16h3v3h2v-5H5v2zm3-8H5v2h5V5H8v3zm6 11h2v-3h3v-2h-5v5zm2-11V5h-2v5h5V8h-3z" />
+            </svg>
+          ) : (
+            <svg viewBox="0 0 24 24" fill="currentColor" className="w-4 h-4">
+              <path d="M7 14H5v5h5v-2H7v-3zm-2-4h2V7h3V5H5v5zm12 7h-3v2h5v-5h-2v3zM14 5v2h3v3h2V5h-5z" />
+            </svg>
+          )}
+        </button>
+      </div>
+    </div>
+  );
+
+  if (isFullscreen) {
+    return (
+      <div ref={containerRef} className="fixed inset-0 z-[60] bg-black overflow-hidden flex items-center justify-center" onClick={onClose}>
+        <div
+          className="relative overflow-hidden flex-shrink-0"
+          style={{ width: `min(100vw, calc(${imgRatio} * 100vh))`, height: `min(100vh, calc(100vw / ${imgRatio}))` }}
+          onClick={(e) => e.stopPropagation()}
+        >
+          {layout.fileName && <img src={layout.fileName} alt={layout.layoutName} className="absolute inset-0 w-full h-full object-fill pointer-events-none" />}
+          {widgetLayer}
+        </div>
+        {controls}
+      </div>
+    );
+  }
+
   return (
     <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/85 backdrop-blur-sm p-6" onClick={onClose}>
       <div
         ref={containerRef}
-        className={`relative bg-black overflow-hidden ${isFullscreen ? 'w-screen h-screen' : 'w-full max-w-5xl rounded-xl shadow-2xl'}`}
-        style={!isFullscreen ? { aspectRatio: '16/9' } : undefined}
+        className="relative bg-black overflow-hidden w-full max-w-5xl rounded-xl shadow-2xl"
+        style={{ aspectRatio: imgRatio }}
         onClick={(e) => e.stopPropagation()}
       >
-        {layout.fileName && <img src={layout.fileName} alt={layout.layoutName} className="w-full h-full object-contain absolute inset-0" />}
-
-        {widgets.map((widget) => (
-          <div
-            key={widget.id}
-            style={{
-              position: 'absolute',
-              left: `${widget.x}%`,
-              top: `${widget.y}%`,
-              width: `${widget.w ?? 13}%`,
-              height: `${widget.h ?? 16}%`,
-              backgroundColor: widget.style.bgColor,
-              color: widget.style.color,
-              fontFamily: widget.style.fontFamily,
-              fontSize: widget.style.fontSize,
-              overflow: 'hidden',
-            }}
-            className="rounded-lg shadow-xl backdrop-blur-sm border border-white/10"
-          >
-            {widget.item.displayType === 'table' ? <ModalTableWidget widget={widget} /> : <ModalValueWidget widget={widget} />}
-          </div>
-        ))}
-
-        <div className="absolute top-0 left-0 right-0 flex items-center justify-between px-3 py-2 bg-black/70 backdrop-blur-sm">
-          <div className="flex items-center gap-3">
-            <button onClick={onClose} className="text-white/70 hover:text-white text-xs font-semibold px-2 py-1 rounded hover:bg-white/10 transition-colors">
-              ✕ 닫기
-            </button>
-            <span className="text-white font-bold text-sm">{layout.layoutName}</span>
-            {layout.pageName && <span className="text-white/50 text-xs">({layout.pageName})</span>}
-          </div>
-          <div className="flex items-center gap-2">
-            <span className="text-white/40 text-xs">{widgets.length}개 위젯</span>
-            <button
-              onClick={toggleFullscreen}
-              className="text-white/70 hover:text-white p-1.5 rounded hover:bg-white/10 transition-colors"
-              title={isFullscreen ? '전체화면 종료' : '전체화면'}
-            >
-              {isFullscreen ? (
-                <svg viewBox="0 0 24 24" fill="currentColor" className="w-4 h-4">
-                  <path d="M5 16h3v3h2v-5H5v2zm3-8H5v2h5V5H8v3zm6 11h2v-3h3v-2h-5v5zm2-11V5h-2v5h5V8h-3z" />
-                </svg>
-              ) : (
-                <svg viewBox="0 0 24 24" fill="currentColor" className="w-4 h-4">
-                  <path d="M7 14H5v5h5v-2H7v-3zm-2-4h2V7h3V5H5v5zm12 7h-3v2h5v-5h-2v3zM14 5v2h3v3h2V5h-5z" />
-                </svg>
-              )}
-            </button>
-          </div>
-        </div>
+        {layout.fileName && <img src={layout.fileName} alt={layout.layoutName} className="absolute inset-0 w-full h-full object-fill pointer-events-none" />}
+        {widgetLayer}
+        {controls}
       </div>
     </div>
   );
 }
 
-const getWidgetCount = (layoutJson?: string): number => {
-  if (!layoutJson) return 0;
-  try {
-    return (JSON.parse(layoutJson) as DroppedWidget[]).length;
-  } catch {
-    return 0;
-  }
-};
+const getWidgetCount = (layoutJson?: string): number => parseLayoutWidgets(layoutJson).length;
 
 export default function TaskList() {
   const navigate = useNavigate();
