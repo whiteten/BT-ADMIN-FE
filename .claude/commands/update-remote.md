@@ -8,6 +8,10 @@ allowed-tools: Read, Write, Edit, Glob, Grep, Bash, AskUserQuestion, TodoWrite
 
 `pnpm run create-remote` 스크립트로 생성됐어야 할 파일이나 host 측 등록 구문이 누락된 remote 앱을 사후 정상화합니다. 기준 스크립트: [scripts/create-remote.js](scripts/create-remote.js).
 
+## SoT 원칙 — 점검 항목은 create-remote.js가 단일 출처
+
+이 커맨드는 점검 항목 표를 따로 들고 있지 않습니다. **매 실행마다 [scripts/create-remote.js](scripts/create-remote.js)를 직접 읽고**, `createRemote()` 함수에서 호출되는 함수들을 순서대로 분석해 동일한 작업을 "이미 되어 있는지" 검사하는 방식으로 동작합니다. create-remote.js가 수정되면 별도 동기화 없이 자동으로 반영됩니다.
+
 ## 동작 원칙
 
 - 단순 점검 도구다. 누락·차이가 있을 때만 수정한다. 멀쩡한 파일을 무조건 manager로 덮어쓰지 않는다.
@@ -25,26 +29,20 @@ allowed-tools: Read, Write, Edit, Glob, Grep, Bash, AskUserQuestion, TodoWrite
 
 3. 선택된 이름을 `<APP_NAME>`, 첫 글자만 대문자로 변환한 값을 `<COMPONENT_NAME>`이라 한다.
 
-## 2. Remote 앱 자체 파일 점검
+## 2. create-remote.js 분석 — 점검 항목 도출
 
-아래 표의 각 항목을 확인하고, 누락·차이가 있으면 `create-remote.js`의 대응 함수와 동일한 방식으로 작성한다.
+`scripts/create-remote.js`를 읽고 `createRemote()` 함수의 본문을 위에서 아래로 따라가며, 호출되는 각 함수가 **어떤 파일에 어떤 변경을 가하는지** 파악한다. 각 함수마다 점검 항목 한 개를 만들고 TodoWrite로 등록한다.
 
-| # | 파일 | 기대 상태 | 참조 함수 |
-|---|------|----------|-----------|
-| 1 | `apps/<APP_NAME>/package.json` | `{ "name": "@bridgetec/ui-remote-<APP_NAME>", "version": "0.0.1", "private": true }` | `createPackageJson` |
-| 2 | `apps/<APP_NAME>/project.json` | `targets.build.options.styles = []`, `targets.build.configurations.production.extractLicenses = false` | `updateProjectJson` |
-| 3 | `apps/<APP_NAME>/webpack-helpers.ts` | manager와 동일 | `copyWebpackHelpers` |
-| 4 | `apps/<APP_NAME>/webpack.config.ts` | manager와 동일 | `updateWebpackConfig` |
-| 5 | `apps/<APP_NAME>/module-federation.config.ts` | manager와 동일하되 `name: '<APP_NAME>'`만 치환 | `updateModuleFederationConfig` |
-| 6 | `apps/<APP_NAME>/postcss.config.js` | manager와 동일 | `copyPostcssConfig` |
-| 7 | `apps/<APP_NAME>/tailwind.config.js` | manager와 동일 | `copyTailwindConfig` |
-| 8 | `apps/<APP_NAME>/.babelrc` | host와 동일 | `copyBabelrc` |
-| 9 | `apps/<APP_NAME>/src/styles.css` | 빈 파일 | `clearStyleCss` |
-| 10 | `apps/<APP_NAME>/src/app/app.tsx` | manager `src/app/features/sample/app.tsx` 와 동일 | `copyAppTemplate` |
-| 11 | `apps/<APP_NAME>/src/app/routes.tsx` | manager `src/app/features/sample/routes.tsx`에서 주석(`//`, `/* */`)과 빈 줄 제거 + `homePath="/..."`를 `homePath="/<APP_NAME>"`로 치환한 결과 | `copyRoutesTemplate` |
-| 12 | `apps/<APP_NAME>/src/app/pages/main/Main.tsx` | manager `src/app/features/sample/Main.tsx` 와 동일. 디렉토리 없으면 생성 | `copyMainTemplate` |
-| 13 | `apps/<APP_NAME>/src/app/features/router/pageVariantManifest.ts` | manager `src/app/features/sample/pageVariantManifest.ts` 와 동일 | `copyPageVariantsTemplate` |
-| 14 | `apps/<APP_NAME>/src/app/features/router/querySelectors.ts` | manager `src/app/features/sample/querySelectors.ts`에서 `const APP_ID = '...';`를 `const APP_ID = '<APP_NAME>';`로 치환한 결과 | `copyQuerySelectorsTemplate` |
+함수 분석 시 다음 사항을 기준으로 점검 로직을 도출한다:
+
+- **manager에서 복사하는 함수** (예: `copyWebpackHelpers`, `copyPostcssConfig`, `copyTailwindConfig`, `updateWebpackConfig`): 대상 파일이 존재하고 manager 원본과 바이트 단위로 동일한지 확인. 다르면 manager 내용으로 덮어쓰기.
+- **manager에서 복사 + 치환**하는 함수 (예: `updateModuleFederationConfig`의 `name` 치환, `copyQuerySelectorsTemplate`의 `APP_ID` 치환, `copyRoutesTemplate`의 `homePath` 치환·주석 제거): 함수 본문의 치환 규칙을 그대로 적용한 결과와 대상 파일을 비교.
+- **JSON 구조를 수정**하는 함수 (예: `createPackageJson`, `updateProjectJson`): 함수가 작성·수정하는 필드만 확인 (사용자가 추가한 다른 필드는 건드리지 않는다).
+- **host 파일에 라인 추가**하는 함수 (예: `addReactLazyToApp`, `addRoutePattern`, `updateRouteLoaders`, `updateVariantLoaders`, `updateQuerySelectorLoaders`, `updateWebpackConfigProd`, `updateBuildSelective`, `updateServeHost`): 해당 라인이 이미 host 파일에 존재하는지 grep으로 확인. 없으면 함수와 동일한 패턴으로 삽입.
+- **파일 삭제** 함수 (예: `removeNxWelcome`, `removeAppSpec`): 파일이 남아있으면 삭제.
+- **`updateBuildScripts`의 분기**: `serve-host.js`는 `<APP_NAME> === 'manager'`이면 추가하지 않는 예외가 있음. 이런 함수 본문의 if문도 반드시 그대로 따른다.
+
+> 함수 이름·log 메시지·복사 경로가 명확해 별도 표 없이도 분석 가능. 분석 결과가 모호하면 사용자에게 확인을 요청한다.
 
 ### 주의 — 파일이 이미 존재할 때
 
@@ -53,12 +51,12 @@ allowed-tools: Read, Write, Edit, Glob, Grep, Bash, AskUserQuestion, TodoWrite
   - 의미 있는 사용자 코드가 들어있으면 그대로 두고 "사용자 코드 있음 — 스킵" 으로 보고만 한다.
 - `module-federation.config.ts`의 `exposes` / `additionalShared`는 remote가 자체적으로 추가했을 수 있으므로, `name` 필드만 비교/치환한다.
 
-## 3. 삭제 대상 파일
+## 3. create-remote.js에 없는 정리 작업 — menu-config 잔재 제거
+
+`create-remote.js`는 신규 생성용 스크립트라 과거 잔재 제거 로직이 없다. 이 항목은 이 커맨드가 별도로 처리한다.
 
 | 파일 경로 | 비고 |
 |----------|------|
-| `apps/<APP_NAME>/src/app/nx-welcome.tsx` | 있으면 삭제 (`removeNxWelcome`) |
-| `apps/<APP_NAME>/src/app/app.spec.tsx` | 있으면 삭제 (`removeAppSpec`) |
 | `apps/<APP_NAME>/src/app/features/sidebar/menu-config.ts` | 있으면 삭제. 삭제 후 `sidebar/` 폴더가 비면 폴더도 제거 |
 | `apps/<APP_NAME>/**/menu-config*` | 위 위치 외에 남아있는 잔재가 있는지 `Glob`로 검색해 추가 삭제 |
 
@@ -66,23 +64,9 @@ allowed-tools: Read, Write, Edit, Glob, Grep, Bash, AskUserQuestion, TodoWrite
 
 ## 4. tsconfig.base.json 정리
 
-`compilerOptions.paths`에 `<APP_NAME>/Module` 키가 남아있으면 제거한다. 제거 후 `npx prettier --write tsconfig.base.json` 실행.
+`compilerOptions.paths`에 `<APP_NAME>/Module` 키가 남아있으면 제거한다. (create-remote.js의 `removeTsConfigPath` 참조.) 제거 후 `npx prettier --write tsconfig.base.json` 실행.
 
-## 5. host 측 등록 점검
-
-각 파일에 `<APP_NAME>` 등록 구문이 누락되어 있으면 추가한다. 이미 있으면 스킵.
-
-| # | host 파일 | 등록 형식 | 참조 함수 |
-|---|----------|----------|-----------|
-| 1 | `apps/host/src/app/app.tsx` | `const <COMPONENT_NAME> = React.lazy(() => import('<APP_NAME>/Module').catch(() => ({ default: () => <NotFound /> })));` + 대응 `<Route path="/<APP_NAME>" element={<Layout />}>` 블록 | `addReactLazyToApp` / `addRoutePattern` |
-| 2 | `apps/host/src/app/features/router/hooks/useRemoteRoutesLoader.ts` | `ROUTE_LOADERS`에 `<APP_NAME>: () => import('<APP_NAME>/Routes').catch(() => ({ routes: [] })) as Promise<RoutesModule>,` | `updateRouteLoaders` |
-| 3 | `apps/host/src/app/features/router/hooks/usePageVariantManifestLoader.ts` | `VARIANT_LOADERS`에 `<APP_NAME>: () => import('<APP_NAME>/PageVariantManifest').catch(() => ({ pageVariantManifest: {} })) as Promise<PageVariantManifestModule>,` | `updateVariantLoaders` |
-| 4 | `apps/host/src/app/features/router/hooks/useQuerySelectorsLoader.ts` | `SELECTOR_LOADERS`에 `<APP_NAME>: () => import('<APP_NAME>/QuerySelectors').catch(() => ({ querySelectors: {} })) as Promise<SelectorsModule>,` | `updateQuerySelectorLoaders` |
-| 5 | `apps/host/webpack.config.prod.ts` | `remotes` 배열에 `['<APP_NAME>', '/remotes/<APP_NAME>/remoteEntry.js'],` | `updateWebpackConfigProd` |
-| 6 | `scripts/build-selective.js` | `APPS` 배열에 `'<APP_NAME>'` | `updateBuildSelective` |
-| 7 | `scripts/serve-host.js` | `REMOTE_APPS` 배열에 `'<APP_NAME>'` — 단 `<APP_NAME> === 'manager'`이면 추가하지 않음 | `updateServeHost` |
-
-## 6. 마무리
+## 5. 마무리
 
 - 수정한 TypeScript/JavaScript 파일에 대해 `npx eslint --fix <file-path>` 실행. 특히 `apps/host/src/app/app.tsx`는 반드시.
 - 최종 보고: 표로 정리
@@ -95,4 +79,4 @@ allowed-tools: Read, Write, Edit, Glob, Grep, Bash, AskUserQuestion, TodoWrite
 
 - 위 작업 중 **삭제·덮어쓰기**가 발생하는 항목이 하나라도 있으면 실행 전 표로 묶어 사용자에게 일괄 확인을 받는다.
 - 단순 추가(라인 삽입, 누락 파일 신규 생성)만 있다면 별도 확인 없이 진행한다.
-- 작업 도중 예상치 못한 파일 상태(예: manager에 sample 파일이 없음)를 발견하면 즉시 중단하고 사용자에게 보고한다.
+- create-remote.js 분석 중 해석이 모호하거나 예상치 못한 파일 상태(예: manager에 sample 파일이 없음)를 발견하면 즉시 중단하고 사용자에게 보고한다.
