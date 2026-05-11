@@ -175,7 +175,8 @@ export default function WidgetBuilderPage() {
   };
 
   const handleSave = () => {
-    form.validateFields(['category', 'refreshMode']).then((values) => {
+    form.validateFields(['category', 'refreshMode']).then(() => {
+      const values = form.getFieldsValue(true);
       const request: WidgetRequest = {
         widgetType: 'DATA',
         widgetName: reportTitle,
