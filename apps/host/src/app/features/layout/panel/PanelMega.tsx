@@ -110,7 +110,7 @@ const PanelMega = ({ onNavigate }: PanelMegaProps) => {
 
   return (
     <div className="flex flex-col h-full">
-      <header className="shrink-0 flex items-center justify-between gap-3 px-6 pt-5 pb-4 border-b border-[#e9ecef]">
+      <header className="shrink-0 flex items-center justify-between gap-3 px-6 pt-5 pb-4 min-h-[72px] border-b border-[#e9ecef]">
         <Input
           placeholder="메뉴 검색"
           prefix={<Search className="size-4 text-gray-400" />}

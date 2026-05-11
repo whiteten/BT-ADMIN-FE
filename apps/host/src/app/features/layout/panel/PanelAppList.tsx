@@ -17,7 +17,7 @@ const PanelAppList = () => {
 
   return (
     <div className="flex flex-col h-full">
-      <header className="shrink-0 flex items-center justify-between gap-2 px-6 pt-6 pb-4">
+      <header className="shrink-0 flex items-center justify-between gap-2 px-6 pt-5 pb-4 min-h-[72px] border-b border-[#e9ecef]">
         <div className="flex items-center gap-2 min-w-0">
           <span className="flex items-center justify-center size-7 text-[var(--color-bt-primary)]">
             <LayoutGrid className="size-7" />
