@@ -17,7 +17,7 @@ const PanelAppList = () => {
 
   return (
     <div className="flex flex-col h-full">
-      <header className="shrink-0 flex items-center justify-between gap-2 px-6 pt-5 pb-4 min-h-[72px] border-b border-[#e9ecef]">
+      <header className="shrink-0 flex items-center justify-between gap-2 px-6 pt-5 pb-4 min-h-[72px]">
         <div className="flex items-center gap-2 min-w-0">
           <span className="flex items-center justify-center size-7 text-[var(--color-bt-primary)]">
             <LayoutGrid className="size-7" />
@@ -26,8 +26,9 @@ const PanelAppList = () => {
         </div>
         <PanelControls />
       </header>
+      <div className="mx-6 border-t border-[#e9ecef]" />
 
-      <div className="flex-1 overflow-y-auto px-6 pb-6">
+      <div className="flex-1 overflow-y-auto px-6 pt-4 pb-6">
         {remotes.length === 0 ? (
           <p className="text-sm text-[#878a99]">사용 가능한 앱이 없습니다.</p>
         ) : (
