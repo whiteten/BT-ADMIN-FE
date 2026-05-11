@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useParams } from 'react-router-dom';
 import { useQueryClient } from '@tanstack/react-query';
-import type { ColDef, ICellRendererParams } from 'ag-grid-community';
+import type { ColDef, ICellRendererParams, RowDoubleClickedEvent } from 'ag-grid-community';
 import { AgGridReact } from 'ag-grid-react';
 import { Button, Dropdown, Input, Select, Tooltip } from 'antd';
 import dayjs from 'dayjs';
@@ -122,6 +122,11 @@ export default function ModelKeywordList() {
     setRowData(filteredList);
   }, [filteredList]);
 
+  const handleRowDoubleClick = (event: RowDoubleClickedEvent<KeywordListItem>) => {
+    if (!event.data) return;
+    drawerRef.current?.open({ modelId, keywordData: event.data });
+  };
+
   const handleClickExportData = () => exportKeyword({ modelId, isTemplate: 0 });
   const handleClickExportTemplate = () => exportKeyword({ modelId, isTemplate: 1 });
 
@@ -184,7 +189,14 @@ export default function ModelKeywordList() {
         </div>
       </header>
       <div className="w-full h-full">
-        <AgGridReact<KeywordListItem> rowData={rowData} columnDefs={columnDefs} gridOptions={gridOptions} loading={isFetching} getRowId={(params) => params.data.keywordId} />
+        <AgGridReact<KeywordListItem>
+          rowData={rowData}
+          columnDefs={columnDefs}
+          gridOptions={gridOptions}
+          loading={isFetching}
+          getRowId={(params) => params.data.keywordId}
+          onRowDoubleClicked={handleRowDoubleClick}
+        />
       </div>
       <KeywordDrawer ref={drawerRef} />
       <FileImportModal

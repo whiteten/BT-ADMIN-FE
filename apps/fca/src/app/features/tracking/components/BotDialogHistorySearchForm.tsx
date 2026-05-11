@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo } from 'react';
 import { Button, Checkbox, DatePicker, Divider, Input, Select, Slider, TimePicker } from 'antd';
 import dayjs, { type Dayjs } from 'dayjs';
-import { Download, Search } from 'lucide-react';
+import { BarChart3, Download, Search } from 'lucide-react';
 import { toast } from '@/shared-util';
 
 const MAX_DAYS = 30;
@@ -16,9 +16,10 @@ interface BotDialogHistorySearchFormProps {
   isLoading?: boolean;
   onExcelDownload?: () => void;
   isExporting?: boolean;
+  onSlotChart?: () => void;
 }
 
-const BotDialogHistorySearchForm: React.FC<BotDialogHistorySearchFormProps> = ({ onSearch, isLoading, onExcelDownload, isExporting }) => {
+const BotDialogHistorySearchForm: React.FC<BotDialogHistorySearchFormProps> = ({ onSearch, isLoading, onExcelDownload, isExporting, onSlotChart }) => {
   const [startDate, setStartDate] = React.useState<Dayjs>(dayjs().startOf('day'));
   const [endDate, setEndDate] = React.useState<Dayjs>(dayjs().startOf('day'));
   const [startTime, setStartTime] = React.useState<Dayjs>(dayjs().hour(0).minute(0));
@@ -27,6 +28,8 @@ const BotDialogHistorySearchForm: React.FC<BotDialogHistorySearchFormProps> = ({
   const [intentNames, setIntentNames] = React.useState<string[]>([]);
   const [confidenceRange, setConfidenceRange] = React.useState<[number, number]>([0, 100]);
   const [completeYn, setCompleteYn] = React.useState<string | number>(COMPLETE_ALL);
+  const [hasIntent, setHasIntent] = React.useState(true);
+  const [retrainFilter, setRetrainFilter] = React.useState<string>(COMPLETE_ALL as string);
   const [ucid, setUcid] = React.useState<string>('');
   const [ani, setAni] = React.useState<string>('');
 
@@ -120,6 +123,8 @@ const BotDialogHistorySearchForm: React.FC<BotDialogHistorySearchFormProps> = ({
       completeYn: completeYn === COMPLETE_ALL ? undefined : (completeYn as number),
       ucid: ucid.trim() || undefined,
       ani: ani.trim() || undefined,
+      hasIntent,
+      retrainFilter: retrainFilter === COMPLETE_ALL ? undefined : retrainFilter,
     });
   };
 
@@ -248,6 +253,23 @@ const BotDialogHistorySearchForm: React.FC<BotDialogHistorySearchFormProps> = ({
         <Divider type="vertical" className="!h-5 !m-0" />
 
         <div className="flex items-center gap-2">
+          <span className="text-sm font-medium text-[#495057] shrink-0">재학습</span>
+          <Select
+            value={retrainFilter}
+            onChange={setRetrainFilter}
+            options={[
+              { label: '전체', value: COMPLETE_ALL },
+              { label: '수정됨', value: 'MODIFIED' },
+              { label: '내가 수정', value: 'MY_MODIFIED' },
+              { label: '미수정', value: 'UNMODIFIED' },
+            ]}
+            className="w-28"
+          />
+        </div>
+
+        <Divider type="vertical" className="!h-5 !m-0" />
+
+        <div className="flex items-center gap-2">
           <span className="text-sm font-medium text-[#495057] shrink-0">발신번호</span>
           <Input value={ani} onChange={(e) => setAni(e.target.value)} placeholder="발신번호 검색" className="w-40" onPressEnter={handleSearch} />
         </div>
@@ -258,6 +280,12 @@ const BotDialogHistorySearchForm: React.FC<BotDialogHistorySearchFormProps> = ({
           <span className="text-sm font-medium text-[#495057] shrink-0">UCID</span>
           <Input value={ucid} onChange={(e) => setUcid(e.target.value)} placeholder="UCID 검색" className="w-64" onPressEnter={handleSearch} />
         </div>
+
+        <Divider type="vertical" className="!h-5 !m-0" />
+
+        <Checkbox checked={!hasIntent} onChange={(e) => setHasIntent(!e.target.checked)}>
+          <span className="text-sm text-[#495057]">무응답 포함</span>
+        </Checkbox>
 
         <div className="ml-auto flex items-center gap-2">
           <Button type="primary" icon={<Search className="size-4" />} onClick={handleSearch} loading={isLoading} className="flex items-center gap-1 shrink-0">
@@ -272,6 +300,11 @@ const BotDialogHistorySearchForm: React.FC<BotDialogHistorySearchFormProps> = ({
               onClick={onExcelDownload}
             >
               엑셀
+            </Button>
+          )}
+          {onSlotChart && (
+            <Button icon={<BarChart3 className="size-4" />} className="flex items-center gap-1 shrink-0" onClick={onSlotChart}>
+              슬롯 차트
             </Button>
           )}
         </div>

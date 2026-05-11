@@ -3,7 +3,7 @@ import { createQueryKeys } from '@lukemorales/query-key-factory';
 import type { MutationHookOptions, QueryHookWithParamsOptions } from '@/shared-util';
 import { type DecryptBubblesArgs, type DecryptedBubbleDto, type DialogHistoryConfig, botDialogHistoryApi } from '../api/botDialogHistoryApi';
 import type { BotServiceDto, IntentDto } from '../types/botDialogHistory.types';
-import type { NluAnalysisItem, TrackingFlowItem } from '../types/tracking.types';
+import type { NluAnalysisItem, RetrainLogItem, TrackingFlowItem } from '../types/tracking.types';
 
 export const botDialogHistoryQueryKeys = createQueryKeys('history', {
   getConfig: null,
@@ -12,6 +12,7 @@ export const botDialogHistoryQueryKeys = createQueryKeys('history', {
   getBotDialogHistory: (params?: Record<string, unknown>) => [params],
   getBubbles: (params?: Record<string, unknown>) => [params],
   getNluAnalysis: (params?: Record<string, unknown>) => [params],
+  getRetrainLogs: (params?: Record<string, unknown>) => [params],
 });
 
 /**
@@ -86,4 +87,15 @@ export const useGetNluAnalysis = ({ params, queryOptions }: QueryHookWithParamsO
  */
 export const useDecryptBubbles = ({ mutationOptions }: MutationHookOptions<DecryptedBubbleDto[], DecryptBubblesArgs> = {}) => {
   return useMutation({ mutationFn: botDialogHistoryApi.decryptBubbles, ...mutationOptions });
+};
+
+/**
+ * 재학습 변경 이력 조회 훅
+ */
+export const useGetRetrainLogs = ({ params, queryOptions }: QueryHookWithParamsOptions<RetrainLogItem[]> = {}) => {
+  return useQuery({
+    queryKey: botDialogHistoryQueryKeys.getRetrainLogs(params).queryKey,
+    queryFn: () => botDialogHistoryApi.getRetrainLogs(params as { ucidGkey: string; questionSeq: number; hop: number }),
+    ...queryOptions,
+  });
 };
