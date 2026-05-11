@@ -44,6 +44,8 @@ export interface BotDialogHistoryListItem {
   avgConfidence: number | null;
   /** 재학습 수정 여부 */
   retrainYn: boolean | null;
+  /** 현재 사용자가 직접 수정했는지 여부 */
+  retrainByMe: boolean | null;
   /** 녹취 여부. 0: 미녹취, 1: 녹취 */
   recordYn: number | null;
   /** 녹취 파일명 */

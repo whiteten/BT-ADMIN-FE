@@ -187,13 +187,28 @@ const BotDialogHistoryTable: React.FC<BotDialogHistoryTableProps> = ({
       {
         headerName: '재학습',
         field: 'retrainYn',
-        width: 100,
+        width: 110,
         cellStyle: { display: 'flex', alignItems: 'center' },
         cellRenderer: (params: any) => {
-          if (!params.value) return '-';
+          const retrainYn = params.data?.retrainYn;
+          const retrainByMe = params.data?.retrainByMe;
+          if (retrainByMe) {
+            return (
+              <Badge variant="secondary" className="text-[13px] leading-[13px] font-medium !h-6 text-[#0AB39C] bg-[#0AB39C1A]">
+                내가 수정
+              </Badge>
+            );
+          }
+          if (retrainYn) {
+            return (
+              <Badge variant="secondary" className="text-[13px] leading-[13px] font-medium !h-6 text-[#3577F1] bg-[#3577F11A]">
+                수정됨
+              </Badge>
+            );
+          }
           return (
-            <Badge variant="secondary" className="text-[13px] leading-[13px] font-medium !h-6 text-[#3577F1] bg-[#3577F11A]">
-              수정됨
+            <Badge variant="secondary" className="text-[13px] leading-[13px] font-medium !h-6 text-[#495057] bg-[#E9EBEC]">
+              미수정
             </Badge>
           );
         },
