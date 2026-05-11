@@ -97,12 +97,12 @@ export default function GlobalSearch() {
       <PopoverAnchor asChild>
         <Button
           variant="outline"
-          className="relative h-10 w-[480px] justify-start gap-3 rounded-full text-sm text-muted-foreground font-normal pl-5 pr-3 border-border/50 bg-background/80 hover:bg-muted/50 hover:border-border hover:cursor-pointer shadow-sm transition-all duration-200 group"
+          className="relative h-10 w-full justify-start gap-3 rounded-full text-sm text-white/80 font-normal pl-5 pr-3 border-white/20 bg-white/15 hover:bg-white/25 hover:border-white/40 hover:text-white hover:cursor-pointer shadow-[0_2px_8px_rgba(0,0,0,0.08)] transition-all duration-200 group"
           onClick={() => setOpen(true)}
         >
-          <Search className="h-4 w-4 shrink-0 text-muted-foreground/60 group-hover:text-muted-foreground transition-colors" />
+          <Search className="h-4 w-4 shrink-0 text-white/70 group-hover:text-white transition-colors" />
           <span className="flex-1 text-left">통합 검색</span>
-          <kbd className="hidden sm:inline-flex items-center gap-0.5 rounded-md border border-border/60 bg-muted/60 px-1.5 py-0.5 text-[10px] font-mono text-muted-foreground/60 shadow-none">
+          <kbd className="hidden sm:inline-flex items-center gap-0.5 rounded-md border border-white/30 bg-white/10 px-1.5 py-0.5 text-[10px] font-mono text-white/80 shadow-none">
             Ctrl+K
           </kbd>
         </Button>
