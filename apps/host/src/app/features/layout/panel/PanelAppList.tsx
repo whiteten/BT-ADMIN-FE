@@ -3,6 +3,21 @@ import PanelControls from './PanelControls';
 import useRemoteSelector from '../../../hooks/useRemoteSelector';
 import { cn } from '@/libs/shared-ui/src/lib/utils';
 
+const APP_BADGE_COLORS = [
+  '#DC2626', // red
+  '#7C3AED', // violet
+  '#0891B2', // cyan
+  '#CA8A04', // yellow
+  '#16A34A', // green
+  '#EA580C', // orange
+  '#2563EB', // blue
+  '#475569', // slate
+  '#DB2777', // pink
+  '#B45309', // brown
+];
+
+const getAppInitials = (appId: string) => appId.slice(0, 3).toUpperCase();
+
 /**
  * AppSwitcher row가 활성화됐을 때 PanelDetail 자리에 표시되는 앱 리스트.
  * 카드를 클릭하면 selectedRemote가 바뀌지만 패널은 유지된다(MenuPanel useEffect가
@@ -33,9 +48,10 @@ const PanelAppList = () => {
           <p className="text-sm text-[#878a99]">사용 가능한 앱이 없습니다.</p>
         ) : (
           <div className="flex flex-col gap-2">
-            {remotes.map((remote) => {
-              const Icon = remote.icon ?? LayoutGrid;
+            {remotes.map((remote, index) => {
               const isSelected = remote.appId === selectedRemote?.appId;
+              const badgeColor = APP_BADGE_COLORS[index % APP_BADGE_COLORS.length];
+              const badgeText = getAppInitials(remote.appId);
               return (
                 <button
                   key={remote.appId}
@@ -46,8 +62,8 @@ const PanelAppList = () => {
                     isSelected && 'bg-[var(--color-bt-primary)]/10 border-[var(--color-bt-primary)]/30',
                   )}
                 >
-                  <span className="flex items-center justify-center size-9 rounded-lg bg-white shadow-sm shrink-0">
-                    <Icon className="size-5 text-[var(--color-bt-primary)]" />
+                  <span className="flex items-center justify-center size-9 rounded-lg shrink-0 text-white text-xs font-bold tracking-tight" style={{ backgroundColor: badgeColor }}>
+                    {badgeText}
                   </span>
                   <div className="flex-1 min-w-0">
                     <p className={cn('text-sm font-semibold truncate', isSelected ? 'text-[var(--color-bt-primary)]' : 'text-[#212529]')}>{remote.appName}</p>
