@@ -213,6 +213,7 @@ export default function ModelRetrainList() {
   const [successFilter, setSuccessFilter] = useState<string>('ALL');
   const [statusFilter, setStatusFilter] = useState<number>(-1);
   const [callTypeFilter, setCallTypeFilter] = useState<string>('ALL');
+  const [entityTypeFilter, setEntityTypeFilter] = useState<string>('INTENT');
   const [isFilterOpen, setIsFilterOpen] = useState(false);
   const [editingRowId, setEditingRowId] = useState<string | null>(null);
 
@@ -344,13 +345,17 @@ export default function ModelRetrainList() {
     // 콜타입 필터
     const isCallTypeMatch = callTypeFilter === 'ALL' || node.data.callType === callTypeFilter;
 
-    return isInConfRange && isSuccessMatch && isStatusMatch && isCallTypeMatch;
+    // 인식타입 필터 (isEntity: 1 = 개체, 0 = 의도, 그 외 null/undefined → '전체' 에서만 보임)
+    const isEntityTypeMatch =
+      entityTypeFilter === 'ALL' || (entityTypeFilter === 'INTENT' && node.data.isEntity === 0) || (entityTypeFilter === 'ENTITY' && node.data.isEntity === 1);
+
+    return isInConfRange && isSuccessMatch && isStatusMatch && isCallTypeMatch && isEntityTypeMatch;
   };
 
   // 필터 조건 변경 시 필터 적용
   useEffect(() => {
     gridApiRef.current?.onFilterChanged();
-  }, [confidenceRange, successFilter, statusFilter, callTypeFilter]);
+  }, [confidenceRange, successFilter, statusFilter, callTypeFilter, entityTypeFilter]);
 
   const handleGridReady = (event: GridReadyEvent<RetrainListItem>) => {
     gridApiRef.current = event.api;
@@ -455,7 +460,10 @@ export default function ModelRetrainList() {
       field: 'confidence',
       maxWidth: 100,
       cellStyle: { display: 'flex', alignItems: 'center' },
-      valueFormatter: (params) => `${params.value}%`,
+      valueFormatter: (params) => {
+        if (params.data?.isEntity === 1) return '-';
+        return params.value == null ? '-' : `${params.value}%`;
+      },
     },
     {
       headerName: '인식결과',
@@ -463,7 +471,8 @@ export default function ModelRetrainList() {
       maxWidth: 100,
       cellRenderer: (params: ICellRendererParams<RetrainListItem>) => {
         if (!params.data) return null;
-        const { isSuccess, isCheck } = params.data;
+        const { isSuccess, isCheck, isEntity } = params.data;
+        if (isEntity === 1 || isSuccess == null) return <span className="text-gray-400">-</span>;
         const result =
           isSuccess === 1
             ? { label: '성공', style: 'text-[#0AB39C] bg-[#0AB39C1A]' }
@@ -624,6 +633,19 @@ export default function ModelRetrainList() {
                     { label: '전체', value: 'ALL' },
                     { label: '시험', value: 'TEST' },
                     { label: '운영', value: 'REAL' },
+                  ]}
+                />
+                <Divider orientation="vertical" className="!h-5 !m-0" />
+              </div>
+              <div className="flex items-center gap-3">
+                <span className="text-base font-medium text-[#495057] shrink-0">인식타입</span>
+                <Radio.Group
+                  value={entityTypeFilter}
+                  onChange={(e) => setEntityTypeFilter(e.target.value)}
+                  options={[
+                    { label: '전체', value: 'ALL' },
+                    { label: '의도', value: 'INTENT' },
+                    { label: '개체', value: 'ENTITY' },
                   ]}
                 />
               </div>

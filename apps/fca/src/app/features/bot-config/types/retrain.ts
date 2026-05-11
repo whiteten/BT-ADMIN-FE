@@ -18,6 +18,8 @@ export interface Retrain {
   ifeNodeName?: string;
   callType: CallType;
   cdrDatetime: string;
+  /** 1 = 개체, 0 = 의도, null/undefined = 분류 안 됨 */
+  isEntity?: number | null;
 }
 
 /**

@@ -103,12 +103,6 @@ function createRemote() {
       // 신규앱의 module-federation.config.ts 파일을 manager와 동일하게 변경
       updateModuleFederationConfig(trimmedAppName);
 
-      // 신규앱의 menu-config.ts 파일을 manager의 sample에서 복사
-      createMenuConfig(trimmedAppName);
-
-      // host의 menuLoaders.ts 업데이트
-      updateMenuLoaders(trimmedAppName);
-
       // 신규앱의 package.json 파일 생성
       createPackageJson(trimmedAppName);
 
@@ -126,6 +120,21 @@ function createRemote() {
 
       // 신규앱의 routes.tsx 파일을 manager의 sample에서 복사
       copyRoutesTemplate(trimmedAppName);
+
+      // 신규앱의 pageVariantManifest.ts aggregator 파일을 manager의 sample에서 복사
+      copyPageVariantsTemplate(trimmedAppName);
+
+      // 신규앱의 querySelectors.ts aggregator 파일을 manager의 sample에서 복사
+      copyQuerySelectorsTemplate(trimmedAppName);
+
+      // host의 useRemoteRoutesLoader.ts에 신규 remote 등록
+      updateRouteLoaders(trimmedAppName);
+
+      // host의 usePageVariantManifestLoader.ts에 신규 remote 등록
+      updateVariantLoaders(trimmedAppName);
+
+      // host의 useQuerySelectorsLoader.ts에 신규 remote 등록
+      updateQuerySelectorLoaders(trimmedAppName);
 
       // 신규앱의 app.tsx 파일을 manager의 sample에서 복사 및 주석 제거
       copyAppTemplate(trimmedAppName);
@@ -388,86 +397,6 @@ function updateModuleFederationConfig(appName) {
     logSuccess(appName, 'module-federation.config.ts 파일을 manager와 동일하게 변경', timer);
   } catch (error) {
     logError(appName, 'module-federation.config.ts 파일 처리', error);
-  }
-}
-
-function createMenuConfig(appName) {
-  const timer = createTimer();
-  logStart(appName, 'menu-config.ts 파일 생성');
-  try {
-    const menuConfigDefaultPath = path.join(process.cwd(), 'apps/manager/src/app/features/sample/menu-config.ts');
-    const targetMenuConfigDir = path.join(process.cwd(), `apps/${appName}/src/app/features/sidebar`);
-    const targetMenuConfigPath = path.join(targetMenuConfigDir, 'menu-config.ts');
-
-    // menu-config-default.ts 파일 읽기
-    if (!fs.existsSync(menuConfigDefaultPath)) {
-      logError('manager', 'src/app/features/sample/menu-config.ts 파일을 찾을 수 없음');
-      return;
-    }
-
-    let menuConfigContent = fs.readFileSync(menuConfigDefaultPath, 'utf8');
-
-    // appId, appName 변수값을 새 앱 이름으로 변경
-    menuConfigContent = menuConfigContent.replace(/const appId = '';/, `const appId = '${appName}';`);
-    menuConfigContent = menuConfigContent.replace(/const appName = '';/, `const appName = '${appName.toUpperCase()}';`);
-    menuConfigContent = menuConfigContent.replace(/menuKey: 'replace_menuKey',/, `menuKey: '${appName}-main',`);
-
-    // 디렉토리가 없으면 생성
-    if (!fs.existsSync(targetMenuConfigDir)) {
-      fs.mkdirSync(targetMenuConfigDir, { recursive: true });
-      logProgress(`${appName}/src/app/features/sidebar 디렉토리 생성`);
-    }
-
-    // menu-config.ts 파일 생성
-    fs.writeFileSync(targetMenuConfigPath, menuConfigContent);
-    logInfo(appName, `appName 변수를 '${appName}'으로 설정`);
-    logSuccess(appName, 'menu-config.ts 파일 생성', timer);
-  } catch (error) {
-    logError(appName, 'menu-config.ts 파일 처리', error);
-  }
-}
-
-function updateMenuLoaders(appName) {
-  const timer = createTimer();
-  logStart('host', `useMenuLoader.ts에 ${appName} 메뉴 로더 추가`);
-  try {
-    const useMenuLoaderPath = path.join(process.cwd(), 'apps/host/src/app/features/layout/hooks/useMenuLoader.ts');
-
-    // useMenuLoader.ts 파일이 존재하는지 확인
-    if (!fs.existsSync(useMenuLoaderPath)) {
-      logError('host', 'useMenuLoader.ts 파일을 찾을 수 없음');
-      return;
-    }
-
-    const content = fs.readFileSync(useMenuLoaderPath, 'utf8');
-
-    // MENU_LOADERS 객체 찾기
-    const menuLoadersRegex = /const MENU_LOADERS: Record<string, \(\) => Promise<MenuModule>> = \{([\s\S]*?)\};/;
-    const match = content.match(menuLoadersRegex);
-
-    if (match) {
-      const currentLoaders = match[1];
-
-      // 이미 존재하는지 확인
-      if (currentLoaders.includes(`${appName}:`)) {
-        logInfo('host', `${appName} 로더가 이미 존재함 (스킵)`);
-        return;
-      }
-
-      // 새 로더 추가 (마지막 항목 뒤에)
-      const newLoader = `  ${appName}: () => import('${appName}/MenuConfig').catch(() => ({ default: {} })) as Promise<MenuModule>,`;
-      const updatedLoaders = currentLoaders.trimEnd() + '\n' + newLoader;
-
-      const updatedContent = content.replace(menuLoadersRegex, `const MENU_LOADERS: Record<string, () => Promise<MenuModule>> = {${updatedLoaders}\n};`);
-
-      // 파일 저장
-      fs.writeFileSync(useMenuLoaderPath, updatedContent);
-      logSuccess('host', `useMenuLoader.ts에 ${appName} 메뉴 로더 추가`, timer);
-    } else {
-      logError('host', 'MENU_LOADERS 객체를 찾을 수 없음');
-    }
-  } catch (error) {
-    logError('host', `${appName} useMenuLoader.ts 업데이트`, error);
   }
 }
 
@@ -879,6 +808,174 @@ function copyRoutesTemplate(appName) {
     logSuccess(appName, 'routes.tsx 파일 복사 및 주석 제거', timer);
   } catch (error) {
     logError(appName, 'routes.tsx 복사', error);
+  }
+}
+
+function copyPageVariantsTemplate(appName) {
+  const timer = createTimer();
+  logStart(appName, 'pageVariantManifest.ts aggregator 파일 복사');
+  try {
+    const samplePath = path.join(process.cwd(), 'apps/manager/src/app/features/sample/pageVariantManifest.ts');
+    const targetDir = path.join(process.cwd(), `apps/${appName}/src/app/features/router`);
+    const targetPath = path.join(targetDir, 'pageVariantManifest.ts');
+
+    if (!fs.existsSync(samplePath)) {
+      logError('manager', 'src/app/features/sample/pageVariantManifest.ts 파일을 찾을 수 없음');
+      return;
+    }
+
+    if (!fs.existsSync(targetDir)) {
+      fs.mkdirSync(targetDir, { recursive: true });
+      logProgress(`${appName}/src/app/features/router 디렉토리 생성`);
+    }
+
+    fs.copyFileSync(samplePath, targetPath);
+    logSuccess(appName, 'pageVariantManifest.ts aggregator 파일 복사', timer);
+  } catch (error) {
+    logError(appName, 'pageVariantManifest.ts 복사', error);
+  }
+}
+
+function copyQuerySelectorsTemplate(appName) {
+  const timer = createTimer();
+  logStart(appName, 'querySelectors.ts aggregator 파일 복사');
+  try {
+    const samplePath = path.join(process.cwd(), 'apps/manager/src/app/features/sample/querySelectors.ts');
+    const targetDir = path.join(process.cwd(), `apps/${appName}/src/app/features/router`);
+    const targetPath = path.join(targetDir, 'querySelectors.ts');
+
+    if (!fs.existsSync(samplePath)) {
+      logError('manager', 'src/app/features/sample/querySelectors.ts 파일을 찾을 수 없음');
+      return;
+    }
+
+    if (!fs.existsSync(targetDir)) {
+      fs.mkdirSync(targetDir, { recursive: true });
+      logProgress(`${appName}/src/app/features/router 디렉토리 생성`);
+    }
+
+    // 템플릿 내용을 읽어 APP_ID를 새 앱 이름으로 치환
+    const templateContent = fs.readFileSync(samplePath, 'utf8');
+    const updatedContent = templateContent.replace(/const APP_ID = '[^']*';/, `const APP_ID = '${appName}';`);
+    fs.writeFileSync(targetPath, updatedContent);
+    logInfo(appName, `APP_ID를 '${appName}'으로 치환`);
+    logSuccess(appName, 'querySelectors.ts aggregator 파일 복사', timer);
+  } catch (error) {
+    logError(appName, 'querySelectors.ts 복사', error);
+  }
+}
+
+function updateRouteLoaders(appName) {
+  const timer = createTimer();
+  logStart('host', `useRemoteRoutesLoader.ts에 ${appName} 라우트 로더 추가`);
+  try {
+    const loaderPath = path.join(process.cwd(), 'apps/host/src/app/features/router/hooks/useRemoteRoutesLoader.ts');
+
+    if (!fs.existsSync(loaderPath)) {
+      logError('host', 'useRemoteRoutesLoader.ts 파일을 찾을 수 없음');
+      return;
+    }
+
+    const content = fs.readFileSync(loaderPath, 'utf8');
+    const loadersRegex = /const ROUTE_LOADERS: Record<string, \(\) => Promise<RoutesModule>> = \{([\s\S]*?)\};/;
+    const match = content.match(loadersRegex);
+
+    if (!match) {
+      logError('host', 'ROUTE_LOADERS 객체를 찾을 수 없음');
+      return;
+    }
+
+    const currentLoaders = match[1];
+
+    if (currentLoaders.includes(`${appName}:`)) {
+      logInfo('host', `${appName} 라우트 로더가 이미 존재함 (스킵)`);
+      return;
+    }
+
+    const newLoader = `  ${appName}: () => import('${appName}/Routes').catch(() => ({ routes: [] })) as Promise<RoutesModule>,`;
+    const updatedLoaders = currentLoaders.trimEnd() + '\n' + newLoader;
+    const updatedContent = content.replace(loadersRegex, `const ROUTE_LOADERS: Record<string, () => Promise<RoutesModule>> = {${updatedLoaders}\n};`);
+
+    fs.writeFileSync(loaderPath, updatedContent);
+    logSuccess('host', `useRemoteRoutesLoader.ts에 ${appName} 라우트 로더 추가`, timer);
+  } catch (error) {
+    logError('host', `${appName} useRemoteRoutesLoader.ts 업데이트`, error);
+  }
+}
+
+function updateVariantLoaders(appName) {
+  const timer = createTimer();
+  logStart('host', `usePageVariantManifestLoader.ts에 ${appName} manifest 로더 추가`);
+  try {
+    const loaderPath = path.join(process.cwd(), 'apps/host/src/app/features/router/hooks/usePageVariantManifestLoader.ts');
+
+    if (!fs.existsSync(loaderPath)) {
+      logError('host', 'usePageVariantManifestLoader.ts 파일을 찾을 수 없음');
+      return;
+    }
+
+    const content = fs.readFileSync(loaderPath, 'utf8');
+    const loadersRegex = /const VARIANT_LOADERS: Record<string, \(\) => Promise<PageVariantManifestModule>> = \{([\s\S]*?)\};/;
+    const match = content.match(loadersRegex);
+
+    if (!match) {
+      logError('host', 'VARIANT_LOADERS 객체를 찾을 수 없음');
+      return;
+    }
+
+    const currentLoaders = match[1];
+
+    if (currentLoaders.includes(`${appName}:`)) {
+      logInfo('host', `${appName} manifest 로더가 이미 존재함 (스킵)`);
+      return;
+    }
+
+    const newLoader = `  ${appName}: () => import('${appName}/PageVariantManifest').catch(() => ({ pageVariantManifest: {} })) as Promise<PageVariantManifestModule>,`;
+    const updatedLoaders = currentLoaders.trimEnd() + '\n' + newLoader;
+    const updatedContent = content.replace(loadersRegex, `const VARIANT_LOADERS: Record<string, () => Promise<PageVariantManifestModule>> = {${updatedLoaders}\n};`);
+
+    fs.writeFileSync(loaderPath, updatedContent);
+    logSuccess('host', `usePageVariantManifestLoader.ts에 ${appName} manifest 로더 추가`, timer);
+  } catch (error) {
+    logError('host', `${appName} usePageVariantManifestLoader.ts 업데이트`, error);
+  }
+}
+
+function updateQuerySelectorLoaders(appName) {
+  const timer = createTimer();
+  logStart('host', `useQuerySelectorsLoader.ts에 ${appName} selector 로더 추가`);
+  try {
+    const loaderPath = path.join(process.cwd(), 'apps/host/src/app/features/router/hooks/useQuerySelectorsLoader.ts');
+
+    if (!fs.existsSync(loaderPath)) {
+      logError('host', 'useQuerySelectorsLoader.ts 파일을 찾을 수 없음');
+      return;
+    }
+
+    const content = fs.readFileSync(loaderPath, 'utf8');
+    const loadersRegex = /const SELECTOR_LOADERS: Record<string, \(\) => Promise<SelectorsModule>> = \{([\s\S]*?)\};/;
+    const match = content.match(loadersRegex);
+
+    if (!match) {
+      logError('host', 'SELECTOR_LOADERS 객체를 찾을 수 없음');
+      return;
+    }
+
+    const currentLoaders = match[1];
+
+    if (currentLoaders.includes(`${appName}:`)) {
+      logInfo('host', `${appName} selector 로더가 이미 존재함 (스킵)`);
+      return;
+    }
+
+    const newLoader = `  ${appName}: () => import('${appName}/QuerySelectors').catch(() => ({ querySelectors: {} })) as Promise<SelectorsModule>,`;
+    const updatedLoaders = currentLoaders.trimEnd() + '\n' + newLoader;
+    const updatedContent = content.replace(loadersRegex, `const SELECTOR_LOADERS: Record<string, () => Promise<SelectorsModule>> = {${updatedLoaders}\n};`);
+
+    fs.writeFileSync(loaderPath, updatedContent);
+    logSuccess('host', `useQuerySelectorsLoader.ts에 ${appName} selector 로더 추가`, timer);
+  } catch (error) {
+    logError('host', `${appName} useQuerySelectorsLoader.ts 업데이트`, error);
   }
 }
 

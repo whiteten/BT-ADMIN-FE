@@ -94,7 +94,16 @@ const KeywordDrawer = forwardRef<KeywordDrawerRef>((_, ref) => {
       <Form form={form} initialValues={{ keyword: '' }} onFinish={onFinish} onFinishFailed={onFinishFailed} layout="vertical">
         <Row>
           <Col span={24}>
-            <Form.Item name="keyword" label="키워드명" required hasFeedback rules={[{ required: true, whitespace: true, message: '키워드명을 입력하세요.' }]}>
+            <Form.Item
+              name="keyword"
+              label="키워드명"
+              required
+              hasFeedback
+              rules={[
+                { required: true, whitespace: true, message: '키워드명을 입력하세요.' },
+                { pattern: /^[가-힣][가-힣\s]*$/, message: '한글과 공백만 입력 가능하며, 한글로 시작해야 합니다.' },
+              ]}
+            >
               <Input placeholder="키워드명을 입력하세요." />
             </Form.Item>
           </Col>

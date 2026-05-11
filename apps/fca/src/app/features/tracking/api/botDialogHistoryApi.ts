@@ -1,6 +1,7 @@
+import type { AxiosRequestConfig } from 'axios';
 import ApiClient, { type ListResponse, extractList } from '@/shared-util';
-import type { BotServiceDto, IntentDto, PagedBotDialogHistory } from '../types/botDialogHistory.types';
-import type { NluAnalysisItem, TrackingFlowItem } from '../types/tracking.types';
+import type { BotServiceDto, IntentDto, PagedBotDialogHistory, SlotSankeyItem } from '../types/botDialogHistory.types';
+import type { NluAnalysisItem, RetrainLogItem, TrackingFlowItem } from '../types/tracking.types';
 
 const apiClient = new ApiClient({ serviceURL: '/bff' });
 
@@ -68,15 +69,30 @@ export const botDialogHistoryApi = {
     const response = await apiClient.get<{ data: { redirectUrl: string } }>('/bot-dialog-history-ife-redirect', { params });
     return response.data?.data?.redirectUrl ?? '';
   },
-  /** 녹취 오디오 Blob 조회 */
-  getAudioBlob: async (params: { ucid: string; nextHop: number; cdrPkey: number }): Promise<Blob> => {
-    const response = await apiClient.get<Blob>('/bot-dialog-history-audio', {
-      params,
-      responseType: 'blob',
-    });
-    return response.data as unknown as Blob;
+  /** 녹취 오디오 Blob 조회. 녹취 파일이 없으면(404 등) null 반환 (에러 토스트 미표시). */
+  getAudioBlob: async (params: { ucid: string; nextHop: number; cdrPkey: number }): Promise<Blob | null> => {
+    try {
+      const response = await apiClient.get<Blob>('/bot-dialog-history-audio', {
+        params,
+        responseType: 'blob',
+        skipGlobalHandler: true,
+      } as AxiosRequestConfig & { skipGlobalHandler: boolean });
+      return response.data as unknown as Blob;
+    } catch {
+      return null;
+    }
   },
   exportExcel: async (params?: Record<string, unknown>) => {
     return await apiClient.post<Blob>('/bot-dialog-history-export', params, { responseType: 'blob' });
+  },
+  /** 슬롯 Sankey 차트 데이터 조회 */
+  getSlotSankey: async (data: Record<string, unknown>): Promise<SlotSankeyItem[]> => {
+    const response = await apiClient.post<ListResponse<SlotSankeyItem>>('/bot-dialog-history-slot-sankey', data);
+    return extractList(response);
+  },
+  /** 재학습 변경 이력 조회 */
+  getRetrainLogs: async (params: { ucidGkey: string; questionSeq: number; hop: number }): Promise<RetrainLogItem[]> => {
+    const response = await apiClient.get<ListResponse<RetrainLogItem>>('/bot-dialog-history-retrain-logs', { params });
+    return extractList(response);
   },
 };
