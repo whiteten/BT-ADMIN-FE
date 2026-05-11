@@ -1,9 +1,9 @@
 import { useQueryClient } from '@tanstack/react-query';
 import { Button, Tooltip } from 'antd';
-import { RefreshCw, Rocket, Workflow, X } from 'lucide-react';
+import { Download, RefreshCw, Rocket, Workflow, X } from 'lucide-react';
 import { Log } from '@/log';
 import { toast } from '@/shared-util';
-import { useDeployAgent, workflowQueryKeys } from '../hooks/useWorkflowQueries';
+import { useDeployAgent, useExportWorkflow, workflowQueryKeys } from '../hooks/useWorkflowQueries';
 
 interface WorkflowToolbarProps {
   agentId: string;
@@ -30,12 +30,26 @@ export default function WorkflowToolbar({ agentId, agentName }: WorkflowToolbarP
     },
   });
 
+  const { mutate: exportWorkflow, isPending: isExporting } = useExportWorkflow({
+    mutationOptions: {
+      onSuccess: () => toast.success('워크플로우를 다운로드했습니다.'),
+      onError: (error) => {
+        Log.warn('exportWorkflow failed', error);
+        toast.error('다운로드에 실패했습니다.');
+      },
+    },
+  });
+
   const handleRefresh = () => {
     queryClient.invalidateQueries({ queryKey: workflowQueryKeys.graph(agentId).queryKey });
   };
 
   const handleDeploy = () => {
     deployAgent({ agentId });
+  };
+
+  const handleDownload = () => {
+    exportWorkflow({ agentId, agentName });
   };
 
   const handleClose = () => {
@@ -58,6 +72,11 @@ export default function WorkflowToolbar({ agentId, agentName }: WorkflowToolbarP
         <Tooltip title="그래프 새로고침">
           <Button icon={<RefreshCw size={14} />} onClick={handleRefresh}>
             새로고침
+          </Button>
+        </Tooltip>
+        <Tooltip title="현재 그래프를 JSON 파일로 저장합니다.">
+          <Button icon={<Download size={14} />} loading={isExporting} onClick={handleDownload}>
+            다운로드
           </Button>
         </Tooltip>
         <Tooltip title="현재 그래프를 동기화하고 AOE 엔진에 배포합니다.">

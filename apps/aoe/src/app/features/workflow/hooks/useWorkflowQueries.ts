@@ -1,6 +1,7 @@
 import { useMutation, useQuery } from '@tanstack/react-query';
 import { createQueryKeys } from '@lukemorales/query-key-factory';
-import type { MutationHookOptions, QueryHookWithParamsOptions } from '@/shared-util';
+import dayjs from 'dayjs';
+import { type MutationHookOptions, type QueryHookWithParamsOptions, downloadBlob, extractFileName } from '@/shared-util';
 import { workflowApi } from '../api/workflowApi';
 import type { AgentDeployResponse, FlowEdge, FlowNode, NodeDeleteRequest, NodePositionUpdateRequest, WorkflowGraph } from '../types';
 
@@ -64,6 +65,19 @@ export const useDeleteEdge = ({ mutationOptions }: MutationHookOptions<void, { a
 export const useDeployAgent = ({ mutationOptions }: MutationHookOptions<AgentDeployResponse, { agentId: string }> = {}) => {
   return useMutation({
     mutationFn: (params) => workflowApi.deployAgent(params),
+    ...mutationOptions,
+  });
+};
+
+export const useExportWorkflow = ({ mutationOptions }: MutationHookOptions<void, { agentId: string; agentName?: string }> = {}) => {
+  return useMutation({
+    mutationFn: async ({ agentId, agentName }: { agentId: string; agentName?: string }) => {
+      const response = await workflowApi.exportWorkflow({ agentId });
+      const safeName = (agentName ?? agentId).replace(/[\\/:*?"<>|]/g, '_');
+      const fallbackName = `${safeName}_${dayjs().format('YYYYMMDD_HHmmss')}.json`;
+      const fileName = extractFileName(response.headers['content-disposition'], fallbackName);
+      downloadBlob(response.data, fileName);
+    },
     ...mutationOptions,
   });
 };

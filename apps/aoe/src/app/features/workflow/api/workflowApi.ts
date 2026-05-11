@@ -34,4 +34,8 @@ export const workflowApi = {
     const response = await apiClient.post<DetailResponse<AgentDeployResponse>>('/aoe-agents-deploy', {}, { params });
     return extractDetail(response);
   },
+  exportWorkflow: async (params: { agentId: string }) => {
+    const response = await apiClient.get<Blob>('/aoe-workflow-export', { params, responseType: 'blob' });
+    return response;
+  },
 };
