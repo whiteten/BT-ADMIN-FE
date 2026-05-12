@@ -19,6 +19,7 @@ export interface Menu {
   isSystem: boolean;
   path: string | null;
   iconKey: string | null;
+  desc: string | null;
 }
 
 /** 백엔드 MenuUpsertRequest와 1:1 매핑 */
@@ -34,6 +35,7 @@ export interface MenuUpsertRequest {
   visible: number;
   path?: string;
   iconKey?: string;
+  desc?: string;
 }
 
 /** Ant Design Tree 노드용 변환 타입 */
