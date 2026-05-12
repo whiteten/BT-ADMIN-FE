@@ -150,10 +150,9 @@ const SttModelRecogDrawer = forwardRef<SttModelRecogDrawerRef>((_, ref) => {
       onClose={handleClose}
       title="모델 인식률 측정"
       closable={{ placement: 'end' }}
-      width="60%"
       footer={null}
       destroyOnHidden
-      styles={{ body: { display: 'flex', flexDirection: 'column', overflow: 'hidden', padding: '0 24px' } }}
+      styles={{ body: { display: 'flex', flexDirection: 'column', overflow: 'hidden', padding: '0 24px' }, wrapper: { width: '60%' } }}
     >
       {/* 툴바 */}
       <div className="flex items-center gap-4 h-16 shrink-0">

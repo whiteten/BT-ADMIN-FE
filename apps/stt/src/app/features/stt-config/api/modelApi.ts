@@ -1,5 +1,15 @@
 import ApiClient, { type DetailResponse, type ListResponse, extractDetail, extractList } from '@/shared-util';
-import type { RecogResultListData, RecogResultRequestData, RecogResultSearchParams, SttModelCreateData, SttModelItem, SttModelSearchParams, SttModelUpdateData } from '../types';
+import type {
+  RecogResultListData,
+  RecogResultRequestData,
+  RecogResultSearchParams,
+  SttModelCreateData,
+  SttModelDeployItem,
+  SttModelDeploySearchParams,
+  SttModelItem,
+  SttModelSearchParams,
+  SttModelUpdateData,
+} from '../types';
 
 const apiClient = new ApiClient({ serviceURL: '/bff' });
 
@@ -27,5 +37,9 @@ export const modelApi = {
   },
   requestRecogResult: async (data: RecogResultRequestData) => {
     return apiClient.post('/stt-request-recog-result', data);
+  },
+  getSttModelDeployList: async (params?: SttModelDeploySearchParams) => {
+    const response = await apiClient.get<ListResponse<SttModelDeployItem>>('/stt-model-deploy-list', { params });
+    return extractList(response);
   },
 };

@@ -62,7 +62,7 @@ const FileUploadDrawer = forwardRef<FileUploadDrawerRef>((_, ref) => {
   );
 
   return (
-    <Drawer open={open} onClose={handleClose} title="STT 파일업로드" closable={{ placement: 'end' }} width={600} footer={footer} destroyOnHidden>
+    <Drawer open={open} onClose={handleClose} title="STT 파일업로드" closable={{ placement: 'end' }} styles={{ wrapper: { width: '600px' } }} footer={footer} destroyOnHidden>
       <div className="flex flex-col gap-6 h-full">
         {/* 파일 업로드 영역 */}
         <div className="flex flex-col gap-3">

@@ -163,9 +163,8 @@ const SttSearchDetailDrawer = forwardRef<SttSearchDetailDrawerRef>((_, ref) => {
       onClose={handleClose}
       title="STT 상세 정보"
       closable={{ placement: 'end' }}
-      width="45%"
       destroyOnHidden
-      styles={{ body: { padding: '24px', display: 'flex', flexDirection: 'column', overflow: 'hidden' } }}
+      styles={{ body: { padding: '24px', display: 'flex', flexDirection: 'column', overflow: 'hidden' }, wrapper: { width: '45%' } }}
     >
       <div className="flex flex-1 min-h-0 flex-col gap-4">
         {/* 통화 정보 */}

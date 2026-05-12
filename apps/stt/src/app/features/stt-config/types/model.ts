@@ -69,17 +69,19 @@ export interface RecogResultRequestData {
   // rxtxKind: number;
 }
 
-export type DeployStatus = 'deploying' | 'requested' | 'deployed' | 'failed';
-export type DeployType = 'realtime' | 'scheduled';
-
 export interface SttModelDeployItem {
   deployId: string;
-  modelName: string;
-  deployTime: string;
-  deployType: DeployType;
-  deployStatus: DeployStatus;
+  modelVerId: string;
+  modelVerName: string;
+  distributeType: number;
+  distributeTypeName: string;
+  distributeStatus: number;
+  distributeResult: number;
+  distributeResultName: string;
+  distributeTime: string;
 }
 
 export interface SttModelDeploySearchParams {
   modelName?: string;
+  systemId?: string;
 }

@@ -2,11 +2,22 @@ import { type UseQueryOptions, useMutation, useQuery } from '@tanstack/react-que
 import { createQueryKeys } from '@lukemorales/query-key-factory';
 import type { MutationHookOptions } from '@/shared-util';
 import { modelApi } from '../api/modelApi';
-import type { RecogResultListData, RecogResultRequestData, RecogResultSearchParams, SttModelCreateData, SttModelItem, SttModelSearchParams, SttModelUpdateData } from '../types';
+import type {
+  RecogResultListData,
+  RecogResultRequestData,
+  RecogResultSearchParams,
+  SttModelCreateData,
+  SttModelDeployItem,
+  SttModelDeploySearchParams,
+  SttModelItem,
+  SttModelSearchParams,
+  SttModelUpdateData,
+} from '../types';
 
 export const modelQueryKeys = createQueryKeys('model', {
   getSttModelList: (params?: Record<string, unknown>) => [params],
   getRecogResultList: (params?: Record<string, unknown>) => [params],
+  getSttModelDeployList: (params?: Record<string, unknown>) => [params],
 });
 
 export const useGetSttModelList = ({ params, queryOptions }: { params?: SttModelSearchParams | null; queryOptions?: UseQueryOptions<SttModelItem[]> } = {}) => {
@@ -58,5 +69,14 @@ export const useRequestRecogResult = ({ mutationOptions }: MutationHookOptions<u
   return useMutation({
     mutationFn: modelApi.requestRecogResult,
     ...mutationOptions,
+  });
+};
+
+export const useGetSttModelDeployList = ({ params, queryOptions }: { params?: SttModelDeploySearchParams; queryOptions?: UseQueryOptions<SttModelDeployItem[]> } = {}) => {
+  return useQuery({
+    queryKey: modelQueryKeys.getSttModelDeployList((params as Record<string, unknown>) ?? undefined).queryKey,
+    queryFn: () => modelApi.getSttModelDeployList(params ?? undefined),
+    enabled: !!params,
+    ...queryOptions,
   });
 };

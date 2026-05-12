@@ -1,38 +1,22 @@
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import type { ColDef, ICellRendererParams } from 'ag-grid-community';
 import { AgGridReact } from 'ag-grid-react';
-import { Button, Select } from 'antd';
+import { Button } from 'antd';
+import { ChevronLeft, ChevronRight, Server } from 'lucide-react';
 import { toast } from '@/shared-util';
-import type { DeployStatus, DeployType, SttModelDeployItem } from '../types';
+import { useGetSttSystemList } from '../hooks/useCommonQueries';
+import { useGetSttModelDeployList } from '../hooks/useModelQueries';
+import type { SttModelDeployItem } from '../types';
 import useAggridOptions from '@/libs/shared-ui/src/hooks/useAggridOptions';
 
-const DEPLOY_MODEL_OPTIONS = [{ label: '전체', value: '' }];
-
-const DEPLOY_TYPE_LABELS: Record<DeployType, string> = {
-  realtime: '실시간',
-  scheduled: '예약',
-};
-
-const DEPLOY_STATUS_CONFIG: Record<DeployStatus, { label: string; className: string }> = {
-  deploying: { label: '배포중', className: 'text-blue-600 bg-blue-100' },
-  requested: { label: '배포요청', className: 'text-gray-500 bg-gray-100' },
-  deployed: { label: '배포완료', className: 'text-emerald-600 bg-emerald-100' },
-  failed: { label: '배포실패', className: 'text-red-500 bg-red-100' },
-};
-
 const PAGE_SIZE = 20;
-
-function DeployStatusCellRenderer({ value }: ICellRendererParams<SttModelDeployItem>) {
-  const config = DEPLOY_STATUS_CONFIG[value as DeployStatus] ?? { label: String(value ?? ''), className: 'text-gray-500 bg-gray-100' };
-  return <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium ${config.className}`}>{config.label}</span>;
-}
 
 interface CancelCellParams extends ICellRendererParams<SttModelDeployItem> {
   onCancel: (data: SttModelDeployItem) => void;
 }
 
 function CancelCellRenderer({ data, onCancel }: CancelCellParams) {
-  if (!data || data.deployStatus !== 'requested') return null;
+  if (!data || data.distributeResult !== 55) return null; // 예약 대기 상태일때만 배포 취소 가능
   return (
     <Button size="small" onClick={() => onCancel(data)}>
       취소
@@ -42,12 +26,21 @@ function CancelCellRenderer({ data, onCancel }: CancelCellParams) {
 
 export default function SttModelDeploy() {
   const { gridOptions } = useAggridOptions();
+  const cardScrollRef = useRef<HTMLDivElement>(null);
 
-  const [deployModel, setDeployModel] = useState('');
+  const [selectedSystemId, setSelectedSystemId] = useState<string | null>(null);
 
-  // TODO: API 연동
-  const rowData: SttModelDeployItem[] = [];
-  const isLoading = false;
+  const { data: systems = [], isLoading: isSystemsLoading } = useGetSttSystemList();
+
+  useEffect(() => {
+    if (systems.length > 0 && selectedSystemId === null) {
+      setSelectedSystemId(systems[0].systemId);
+    }
+  }, [systems, selectedSystemId]);
+
+  const { data: rowData = [], isLoading } = useGetSttModelDeployList({
+    params: selectedSystemId ? { systemId: selectedSystemId } : undefined,
+  });
 
   const handleCancel = (_data: SttModelDeployItem) => {
     toast.warning('배포 취소 기능은 준비 중입니다.');
@@ -58,21 +51,10 @@ export default function SttModelDeploy() {
   };
 
   const columnDefs: ColDef<SttModelDeployItem>[] = [
-    { headerName: '배포 모델', field: 'modelName', flex: 4 },
-    { headerName: '배포 시간', field: 'deployTime', flex: 3 },
-    {
-      headerName: '배포 타입',
-      field: 'deployType',
-      flex: 2,
-      valueFormatter: ({ value }) => DEPLOY_TYPE_LABELS[value as DeployType] ?? value,
-    },
-    {
-      headerName: '배포 상태',
-      field: 'deployStatus',
-      flex: 2,
-      cellStyle: { display: 'flex', alignItems: 'center', justifyContent: 'center' },
-      cellRenderer: DeployStatusCellRenderer,
-    },
+    { headerName: '배포 모델', field: 'modelVerName', flex: 4 },
+    { headerName: '배포 시간', field: 'distributeTime', flex: 3 },
+    { headerName: '배포 타입', field: 'distributeTypeName', flex: 2 },
+    { headerName: '배포 상태', field: 'distributeResultName', flex: 2 },
     {
       headerName: '변경',
       colId: 'cancel',
@@ -87,13 +69,55 @@ export default function SttModelDeploy() {
 
   return (
     <div className="flex flex-col gap-4 h-full">
-      {/* 필터 */}
-      <div className="flex items-center gap-4 flex-wrap">
-        <div className="flex items-center gap-2">
-          <span className="text-sm font-medium text-[#495057] shrink-0">배포 모델</span>
-          <Select value={deployModel} onChange={setDeployModel} options={DEPLOY_MODEL_OPTIONS} style={{ width: 200 }} />
+      {/* 시스템 카드 슬라이더 */}
+      <div className="flex items-center gap-2 shrink-0">
+        <Button
+          type="text"
+          icon={<ChevronLeft className="size-5" />}
+          onClick={() => cardScrollRef.current?.scrollBy({ left: -240, behavior: 'smooth' })}
+          className="!flex-shrink-0 !w-8 !h-8 !p-0"
+        />
+        <div ref={cardScrollRef} className="flex gap-3 overflow-x-auto flex-1 py-1" style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}>
+          {isSystemsLoading ? (
+            <div className="flex items-center justify-center flex-1 h-[76px] text-sm text-gray-400">시스템 목록을 불러오는 중...</div>
+          ) : systems.length === 0 ? (
+            <div className="flex items-center justify-center flex-1 h-[76px] text-sm text-gray-400">등록된 시스템이 없습니다.</div>
+          ) : (
+            systems.map((system) => (
+              <div
+                key={system.systemId}
+                className={`flex-shrink-0 w-[220px] rounded-xl border cursor-pointer transition-all flex flex-col justify-center px-4 py-3 gap-1 hover:shadow-md ${
+                  selectedSystemId === system.systemId
+                    ? 'border-[var(--color-bt-primary)] shadow-[0_0_0_2px_rgba(64,81,137,0.15)] bg-[var(--color-bt-primary)]/5'
+                    : 'border-gray-200 bg-white hover:border-[var(--color-bt-primary)]/50'
+                }`}
+                onClick={() => setSelectedSystemId(system.systemId)}
+              >
+                <div className="flex items-center gap-1.5">
+                  <Server className="size-3.5 text-gray-400 shrink-0" />
+                  <span className="text-base font-bold text-[#212529] truncate">{system.systemName}</span>
+                </div>
+                {system.systemAlias && <span className="text-xs text-gray-500 truncate pl-5">{system.systemAlias}</span>}
+                <div className="flex items-center gap-2 mt-1">
+                  {system.sysClassCdNm && (
+                    <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[11px] font-medium bg-blue-50 text-blue-600 border border-blue-200 shrink-0">
+                      {system.sysClassCdNm}
+                    </span>
+                  )}
+                  {system.hostName && <span className="text-xs text-gray-400 font-mono truncate">{system.hostName}</span>}
+                </div>
+              </div>
+            ))
+          )}
         </div>
-        <Button color="cyan" variant="solid" onClick={handleDeploy} loading={isLoading} className="ml-auto">
+        <Button
+          type="text"
+          icon={<ChevronRight className="size-5" />}
+          onClick={() => cardScrollRef.current?.scrollBy({ left: 240, behavior: 'smooth' })}
+          className="!flex-shrink-0 !w-8 !h-8 !p-0"
+        />
+
+        <Button color="cyan" variant="solid" onClick={handleDeploy} className="shrink-0 ml-2">
           모델 배포
         </Button>
       </div>
