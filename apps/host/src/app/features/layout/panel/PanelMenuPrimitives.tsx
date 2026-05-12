@@ -1,4 +1,5 @@
 import { useLocation } from 'react-router-dom';
+import { SquareDashed } from 'lucide-react';
 import { BookmarkButton } from '../components/BookmarkButton';
 import { useMenuPanelStore } from '../hooks/useMenuPanelStore';
 import type { MenuItem } from '@/libs/shared-store/src/types/menu.types';
@@ -213,26 +214,31 @@ export function PanelMenuRow({ item, appId, onNavigate }: PanelMenuRowProps) {
     }
   };
 
+  // 폴더 hover 시 cascade로 자식 detail 자동 노출 (leaf는 직전 detail 유지)
+  const handleMouseEnter = () => {
+    if (!isFolder) return;
+    setActiveMenuKey(item.menuKey);
+    if (mode === 'mega') setMode('compact');
+  };
+
   const highlightAsPrimary = isActive || isActiveBranch;
 
   return (
     <button
       type="button"
       onClick={handleClick}
+      onMouseEnter={handleMouseEnter}
       className={cn(
-        'group/row flex w-full items-center gap-2 rounded-md px-3 py-2 text-left transition-colors cursor-pointer',
+        'group/row flex w-full items-center gap-2 rounded-md px-3 py-2 text-left transition-colors',
+        isLeaf ? 'cursor-pointer' : 'cursor-default',
         'hover:bg-[var(--color-bt-primary)]/[0.08]',
         isActive && 'bg-[var(--color-bt-primary)]/10',
         highlightAsPrimary ? 'text-[var(--color-bt-primary)] font-semibold' : 'text-[#495057]',
       )}
     >
-      {Icon ? (
-        <span className={cn('flex items-center justify-center size-5 shrink-0', highlightAsPrimary ? 'text-[var(--color-bt-primary)]' : 'text-[#868e96]')}>
-          <Icon className="!size-5" />
-        </span>
-      ) : (
-        <span className={cn('size-1 shrink-0 rounded-full', highlightAsPrimary ? 'bg-[var(--color-bt-primary)]' : 'bg-[#adb5bd]')} />
-      )}
+      <span className={cn('flex items-center justify-center size-5 shrink-0', highlightAsPrimary ? 'text-[var(--color-bt-primary)]' : 'text-[#868e96]')}>
+        {Icon ? <Icon className="!size-5" /> : <SquareDashed className="!size-5" />}
+      </span>
       <span className="flex-1 min-w-0 truncate text-sm">{item.label}</span>
       {isFolder && (
         <svg

@@ -1,7 +1,7 @@
 import { useMenuStore } from '@/shared-store';
 import { PanelMenuRow } from './PanelMenuPrimitives';
-import useRemoteSelector from '../../../hooks/useRemoteSelector';
 import { MenuSpinner } from '../components/MenuSpinner';
+import { useMenuPanelStore } from '../hooks/useMenuPanelStore';
 import NoData from '@/components/custom/NoData';
 
 interface PanelAppSectionProps {
@@ -10,7 +10,7 @@ interface PanelAppSectionProps {
 
 const PanelAppSection = ({ onNavigate }: PanelAppSectionProps) => {
   const { menuConfigs, isLoading } = useMenuStore();
-  const { selectedRemote } = useRemoteSelector();
+  const displayedAppId = useMenuPanelStore((s) => s.displayedAppId);
 
   if (isLoading) {
     return (
@@ -20,7 +20,7 @@ const PanelAppSection = ({ onNavigate }: PanelAppSectionProps) => {
     );
   }
 
-  const config = menuConfigs.find((c) => c.appId === selectedRemote?.appId);
+  const config = menuConfigs.find((c) => c.appId === displayedAppId);
 
   if (!config) {
     return <NoData message={`선택한 앱의\n메뉴 정보를\n찾을 수 없습니다.`} color="!text-[#868e96]" />;
