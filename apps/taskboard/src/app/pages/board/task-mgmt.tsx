@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { toast } from '@/shared-util';
-import { type RollingLayout, RollingPlayer, TRANSITION_OPTIONS } from '../../features/board/components/RollingDisplay';
+import { type RollingLayout, RollingPlayer, TRANSITION_OPTIONS, TRANSITION_PREVIEW_ANIMATION, TRANSITION_PREVIEW_CSS } from '../../features/board/components/RollingDisplay';
 import {
   useCreateRollingGroup,
   useDeleteRollingGroup,
@@ -166,17 +166,29 @@ function GroupEditView({ group, layoutList, onSave, onCancel }: GroupEditViewPro
 
           {/* 전환 효과 */}
           <div>
+            <style dangerouslySetInnerHTML={{ __html: TRANSITION_PREVIEW_CSS }} />
             <label className="text-xs font-semibold text-slate-600 block mb-2">전환 효과</label>
             <div className="grid grid-cols-3 gap-1.5">
-              {TRANSITION_OPTIONS.map((opt) => (
-                <button
-                  key={opt.value}
-                  onClick={() => setTransitionType(opt.value)}
-                  className={`py-1.5 rounded-lg border text-xs font-semibold transition-colors ${transitionType === opt.value ? 'border-[#0f5b9e] bg-[#0f5b9e] text-white' : 'border-slate-200 bg-white text-slate-600 hover:border-[#0f5b9e] hover:text-[#0f5b9e]'}`}
-                >
-                  {opt.label}
-                </button>
-              ))}
+              {TRANSITION_OPTIONS.map((opt) => {
+                const isSelected = transitionType === opt.value;
+                return (
+                  <button
+                    key={opt.value}
+                    onClick={() => setTransitionType(opt.value)}
+                    className={`flex flex-col items-center gap-1 py-2 px-1 rounded-lg border transition-colors overflow-hidden ${
+                      isSelected ? 'border-[#0f5b9e] bg-[#0f5b9e] text-white' : 'border-slate-200 bg-white text-slate-600 hover:border-[#0f5b9e] hover:text-[#0f5b9e]'
+                    }`}
+                  >
+                    <div className={`relative w-10 h-6 rounded overflow-hidden flex-shrink-0 ${isSelected ? 'bg-blue-800' : 'bg-slate-100'}`}>
+                      <div
+                        className={`absolute inset-x-1 inset-y-1 rounded-sm ${isSelected ? 'bg-blue-300' : 'bg-[#0f5b9e]/60'}`}
+                        style={{ animation: TRANSITION_PREVIEW_ANIMATION[opt.value] }}
+                      />
+                    </div>
+                    <span className="text-[10px] font-semibold leading-none">{opt.label}</span>
+                  </button>
+                );
+              })}
             </div>
           </div>
 
@@ -423,7 +435,7 @@ export default function TaskMgmt() {
 
   if (viewMode === 'edit') {
     return (
-      <div className="fixed inset-0 z-[200] overflow-hidden">
+      <div className="w-full h-full overflow-hidden">
         <GroupEditView
           group={editingGroup}
           layoutList={layoutList}

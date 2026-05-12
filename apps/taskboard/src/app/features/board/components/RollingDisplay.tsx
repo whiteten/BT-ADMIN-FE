@@ -28,30 +28,63 @@ export const parseRollingData = (raw?: string): RollingData => {
 };
 
 export const TRANSITION_OPTIONS = [
-  { value: 'fade', label: '페이드' },
-  { value: 'slideLeft', label: '← 슬라이드' },
-  { value: 'slideRight', label: '→ 슬라이드' },
-  { value: 'slideUp', label: '↑ 슬라이드' },
-  { value: 'zoomIn', label: '줌 인' },
-  { value: 'flip', label: '플립' },
+  { value: 'fade', label: '페이드', icon: '✦' },
+  { value: 'slideLeft', label: '← 슬라이드', icon: '←' },
+  { value: 'slideRight', label: '→ 슬라이드', icon: '→' },
+  { value: 'slideUp', label: '↑ 슬라이드', icon: '↑' },
+  { value: 'slideDown', label: '↓ 슬라이드', icon: '↓' },
+  { value: 'zoomIn', label: '줌 인', icon: '⊕' },
+  { value: 'zoomOut', label: '줌 아웃', icon: '⊖' },
+  { value: 'blur', label: '블러', icon: '◎' },
+  { value: 'flip', label: '플립', icon: '⟳' },
 ];
 
 const TRANSITION_ANIMATION: Record<string, string> = {
   fade: 'rollingFadeIn 0.7s ease-in-out',
-  slideLeft: 'rollingSlideLeft 0.55s ease-out',
-  slideRight: 'rollingSlideRight 0.55s ease-out',
-  slideUp: 'rollingSlideUp 0.55s ease-out',
+  slideLeft: 'rollingSlideLeft 0.5s ease-out',
+  slideRight: 'rollingSlideRight 0.5s ease-out',
+  slideUp: 'rollingSlideUp 0.5s ease-out',
+  slideDown: 'rollingSlideDown 0.5s ease-out',
   zoomIn: 'rollingZoomIn 0.6s ease-out',
-  flip: 'rollingFlip 0.65s ease-out',
+  zoomOut: 'rollingZoomOut 0.6s ease-out',
+  blur: 'rollingBlur 0.7s ease-in-out',
+  flip: 'rollingFlip 0.7s ease-out',
+};
+
+export const TRANSITION_PREVIEW_ANIMATION: Record<string, string> = {
+  fade: 'pvFade 2s ease-in-out infinite',
+  slideLeft: 'pvSlideLeft 2s ease-in-out infinite',
+  slideRight: 'pvSlideRight 2s ease-in-out infinite',
+  slideUp: 'pvSlideUp 2s ease-in-out infinite',
+  slideDown: 'pvSlideDown 2s ease-in-out infinite',
+  zoomIn: 'pvZoomIn 2s ease-in-out infinite',
+  zoomOut: 'pvZoomOut 2s ease-in-out infinite',
+  blur: 'pvBlur 2s ease-in-out infinite',
+  flip: 'pvFlip 2s ease-in-out infinite',
 };
 
 const TRANSITION_CSS = `
   @keyframes rollingFadeIn { from { opacity: 0; } to { opacity: 1; } }
-  @keyframes rollingSlideLeft { from { opacity: 0; transform: translateX(30%); } to { opacity: 1; transform: translateX(0); } }
-  @keyframes rollingSlideRight { from { opacity: 0; transform: translateX(-30%); } to { opacity: 1; transform: translateX(0); } }
-  @keyframes rollingSlideUp { from { opacity: 0; transform: translateY(20%); } to { opacity: 1; transform: translateY(0); } }
-  @keyframes rollingZoomIn { from { opacity: 0; transform: scale(0.85); } to { opacity: 1; transform: scale(1); } }
-  @keyframes rollingFlip { from { opacity: 0; transform: perspective(1000px) rotateY(-40deg); } to { opacity: 1; transform: perspective(1000px) rotateY(0); } }
+  @keyframes rollingSlideLeft { from { opacity: 0; transform: translateX(100%); } to { opacity: 1; transform: translateX(0); } }
+  @keyframes rollingSlideRight { from { opacity: 0; transform: translateX(-100%); } to { opacity: 1; transform: translateX(0); } }
+  @keyframes rollingSlideUp { from { opacity: 0; transform: translateY(100%); } to { opacity: 1; transform: translateY(0); } }
+  @keyframes rollingSlideDown { from { opacity: 0; transform: translateY(-100%); } to { opacity: 1; transform: translateY(0); } }
+  @keyframes rollingZoomIn { from { opacity: 0; transform: scale(0.75); } to { opacity: 1; transform: scale(1); } }
+  @keyframes rollingZoomOut { from { opacity: 0; transform: scale(1.25); } to { opacity: 1; transform: scale(1); } }
+  @keyframes rollingBlur { from { opacity: 0; filter: blur(24px); } to { opacity: 1; filter: blur(0); } }
+  @keyframes rollingFlip { from { opacity: 0; transform: perspective(1000px) rotateY(-90deg); } to { opacity: 1; transform: perspective(1000px) rotateY(0); } }
+`;
+
+export const TRANSITION_PREVIEW_CSS = `
+  @keyframes pvFade { 0%,100%{opacity:0} 40%,60%{opacity:1} }
+  @keyframes pvSlideLeft { 0%{transform:translateX(12px);opacity:0} 40%,60%{transform:translateX(0);opacity:1} 100%{transform:translateX(-12px);opacity:0} }
+  @keyframes pvSlideRight { 0%{transform:translateX(-12px);opacity:0} 40%,60%{transform:translateX(0);opacity:1} 100%{transform:translateX(12px);opacity:0} }
+  @keyframes pvSlideUp { 0%{transform:translateY(10px);opacity:0} 40%,60%{transform:translateY(0);opacity:1} 100%{transform:translateY(-10px);opacity:0} }
+  @keyframes pvSlideDown { 0%{transform:translateY(-10px);opacity:0} 40%,60%{transform:translateY(0);opacity:1} 100%{transform:translateY(10px);opacity:0} }
+  @keyframes pvZoomIn { 0%,100%{transform:scale(0.4);opacity:0} 40%,60%{transform:scale(1);opacity:1} }
+  @keyframes pvZoomOut { 0%,100%{transform:scale(1.6);opacity:0} 40%,60%{transform:scale(1);opacity:1} }
+  @keyframes pvBlur { 0%,100%{filter:blur(6px);opacity:0} 40%,60%{filter:blur(0);opacity:1} }
+  @keyframes pvFlip { 0%{transform:perspective(60px) rotateY(-90deg);opacity:0} 40%,60%{transform:perspective(60px) rotateY(0);opacity:1} 100%{transform:perspective(60px) rotateY(90deg);opacity:0} }
 `;
 
 function RollingTableWidget({ widget }: { widget: DroppedWidget }) {
@@ -268,8 +301,12 @@ export function RollingPlayer({ layouts, intervalSec, transitionType = 'fade', o
 
   const animation = TRANSITION_ANIMATION[transitionType] ?? TRANSITION_ANIMATION.fade;
 
+  const styleContent = TRANSITION_CSS + `body { cursor: ${showControls ? 'auto' : 'none'} !important; }`;
+
   return (
     <div ref={containerRef} className="w-full h-screen bg-black overflow-hidden relative select-none" onMouseMove={resetHideTimer} onTouchStart={resetHideTimer}>
+      {}
+      <style dangerouslySetInnerHTML={{ __html: styleContent }} />
       <div key={currentIndex} className="absolute inset-0" style={{ animation }}>
         <LayoutScreen layout={current} />
       </div>
@@ -330,11 +367,6 @@ export function RollingPlayer({ layouts, intervalSec, transitionType = 'fade', o
           <div className="h-full bg-[#0f5b9e] transition-none" style={{ width: `${progress}%` }} />
         </div>
       </div>
-
-      <style>
-        {TRANSITION_CSS}
-        {`body { cursor: ${showControls ? 'auto' : 'none'} !important; }`}
-      </style>
     </div>
   );
 }

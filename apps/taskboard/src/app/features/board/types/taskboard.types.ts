@@ -165,6 +165,7 @@ export interface DroppedWidget {
   showTitle: boolean; // 라벨(타이틀) 표시 여부
   customTitle?: string; // 사용자 정의 타이틀 (item.label 대체)
   style: WidgetStyle;
+  noticeKey?: string; // 공지사항 위젯 연동 키
 }
 
 /**

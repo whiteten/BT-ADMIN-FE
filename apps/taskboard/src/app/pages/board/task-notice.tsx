@@ -40,8 +40,8 @@ function NoticeForm({ initial, onSave, onCancel }: NoticeFormProps) {
           title: initial.title ?? '',
           content: initial.content,
           authorName: initial.authorName ?? '',
-          startDt: initial.startDt ?? '',
-          endDt: initial.endDt ?? '',
+          startDt: initial.startDt ? initial.startDt.substring(0, 10) : '',
+          endDt: initial.endDt ? initial.endDt.substring(0, 10) : '',
           alwaysActiveYn: initial.alwaysActiveYn,
           activeYn: initial.activeYn,
           displayType: initial.displayType,
@@ -136,7 +136,7 @@ function NoticeForm({ initial, onSave, onCancel }: NoticeFormProps) {
           </div>
 
           {/* 표시 유형 / 정렬순서 */}
-          <div className="flex gap-3">
+          <div className="flex gap-3 items-end">
             <div className="flex-1">
               <label className="text-xs font-semibold text-slate-600 block mb-1">표시 유형</label>
               <div className="flex gap-1">
@@ -144,7 +144,7 @@ function NoticeForm({ initial, onSave, onCancel }: NoticeFormProps) {
                   <button
                     key={opt.value}
                     onClick={() => set('displayType', opt.value)}
-                    className={`flex-1 py-1.5 rounded-lg border text-xs font-semibold transition-colors ${form.displayType === opt.value ? 'border-[#0f5b9e] bg-[#0f5b9e] text-white' : 'border-slate-200 bg-white text-slate-600 hover:border-[#0f5b9e]'}`}
+                    className={`flex-1 h-9 rounded-lg border text-xs font-semibold transition-colors ${form.displayType === opt.value ? 'border-[#0f5b9e] bg-[#0f5b9e] text-white' : 'border-slate-200 bg-white text-slate-600 hover:border-[#0f5b9e]'}`}
                   >
                     {opt.label}
                   </button>
@@ -158,7 +158,7 @@ function NoticeForm({ initial, onSave, onCancel }: NoticeFormProps) {
                 min={0}
                 value={form.sortOrder}
                 onChange={(e) => set('sortOrder', parseInt(e.target.value) || 0)}
-                className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm text-center focus:outline-none focus:border-[#0f5b9e]"
+                className="w-full h-9 border border-slate-200 rounded-lg px-3 text-sm text-center focus:outline-none focus:border-[#0f5b9e]"
               />
             </div>
           </div>
@@ -191,17 +191,19 @@ function NoticeForm({ initial, onSave, onCancel }: NoticeFormProps) {
             )}
           </div>
 
-          {/* 활성 / 사용 여부 */}
-          <div className="flex gap-4">
-            <label className="flex items-center gap-2 cursor-pointer">
-              <input type="checkbox" checked={form.activeYn === 'Y'} onChange={(e) => set('activeYn', e.target.checked ? 'Y' : 'N')} className="accent-[#0f5b9e]" />
-              <span className="text-xs text-slate-600 font-medium">활성화</span>
-            </label>
-            <label className="flex items-center gap-2 cursor-pointer">
-              <input type="checkbox" checked={form.useYn === 'Y'} onChange={(e) => set('useYn', e.target.checked ? 'Y' : 'N')} className="accent-[#0f5b9e]" />
-              <span className="text-xs text-slate-600 font-medium">사용 여부</span>
-            </label>
-          </div>
+          {/* 사용 여부 */}
+          <label className="flex items-center gap-2 cursor-pointer">
+            <input
+              type="checkbox"
+              checked={form.useYn === 'Y'}
+              onChange={(e) => {
+                const val = e.target.checked ? 'Y' : 'N';
+                setForm((prev) => ({ ...prev, useYn: val, activeYn: val }));
+              }}
+              className="accent-[#0f5b9e]"
+            />
+            <span className="text-xs text-slate-600 font-medium">사용 여부</span>
+          </label>
         </div>
 
         {/* 하단 버튼 */}
@@ -342,12 +344,7 @@ export default function TaskNotice() {
                     <div key={notice.noticeId} className="px-5 py-4 flex items-start gap-4 hover:bg-slate-50/60 transition-colors">
                       {/* 상태 뱃지 */}
                       <div className="flex flex-col items-center gap-1.5 flex-shrink-0 pt-0.5">
-                        <span
-                          className={`text-[9px] px-1.5 py-0.5 rounded font-bold ${notice.activeYn === 'Y' ? 'bg-emerald-100 text-emerald-700' : 'bg-slate-100 text-slate-500'}`}
-                        >
-                          {notice.activeYn === 'Y' ? '활성' : '비활성'}
-                        </span>
-                        <span className={`text-[9px] px-1.5 py-0.5 rounded font-bold ${notice.useYn === 'Y' ? 'bg-blue-100 text-blue-700' : 'bg-slate-100 text-slate-500'}`}>
+                        <span className={`text-[9px] px-1.5 py-0.5 rounded font-bold ${notice.useYn === 'Y' ? 'bg-emerald-100 text-emerald-700' : 'bg-slate-100 text-slate-500'}`}>
                           {notice.useYn === 'Y' ? '사용' : '미사용'}
                         </span>
                       </div>

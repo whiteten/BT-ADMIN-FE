@@ -11,6 +11,7 @@ import {
   useGetCtiAgentList,
   useGetCtiGroupList,
   useGetCtiQueueList,
+  useGetNoticeList,
   useUpdateLayout,
 } from '../../features/board/hooks/useTaskboardQueries';
 import type { CallDataItem, DroppedWidget, TableColumn, TaskboardBg, TaskboardLayout, WidgetStyle } from '../../features/board/types/taskboard.types';
@@ -396,6 +397,63 @@ function TableWidget({ widget }: { widget: DroppedWidget }) {
   );
 }
 
+// ─── 공지사항 위젯 ───────────────────────────────────────────────────────────
+function AnnouncementWidget({ widget }: { widget: DroppedWidget }) {
+  const { data: notices } = useGetNoticeList();
+  const active = (notices ?? []).filter((n) => n.useYn === 'Y');
+  const filtered = widget.noticeKey ? active.filter((n) => n.noticeKey === widget.noticeKey) : active;
+  const notice = filtered.sort((a, b) => a.sortOrder - b.sortOrder)[0];
+  const showTitle = widget.showTitle !== false;
+
+  if (!notice) {
+    return (
+      <div className="opacity-50 italic leading-tight truncate" style={{ fontSize: '0.8em', textAlign: widget.style.valueAlign ?? 'left', fontFamily: widget.style.fontFamily }}>
+        {widget.noticeKey ? '공지사항 없음' : '공지 키를 선택하세요'}
+      </div>
+    );
+  }
+
+  return (
+    <>
+      {showTitle && notice.title && (
+        <div
+          className="truncate mb-0.5 opacity-80 leading-tight"
+          style={{ fontSize: '0.65em', textAlign: widget.style.titleAlign ?? 'left', fontFamily: widget.style.fontFamily, fontWeight: widget.style.fontWeight ?? 'normal' }}
+        >
+          {notice.title}
+        </div>
+      )}
+      <div
+        className="leading-tight truncate"
+        style={{ textAlign: widget.style.valueAlign ?? 'left', fontFamily: widget.style.fontFamily, fontWeight: widget.style.fontWeight ?? 'normal' }}
+      >
+        {notice.content}
+      </div>
+    </>
+  );
+}
+
+// ─── 공지 키 선택 패널 (속성 패널용) ─────────────────────────────────────────
+function NoticeKeyPanel({ noticeKey, onChange }: { noticeKey?: string; onChange: (key: string | undefined) => void }) {
+  const { data: notices } = useGetNoticeList();
+  const uniqueKeys = Array.from(new Set((notices ?? []).map((n) => n.noticeKey)));
+
+  return (
+    <select
+      value={noticeKey ?? ''}
+      onChange={(e) => onChange(e.target.value || undefined)}
+      className="w-full text-xs border border-slate-200 rounded px-2 py-1 bg-white focus:outline-none focus:border-[#0f5b9e]"
+    >
+      <option value="">전체 공지</option>
+      {uniqueKeys.map((key) => (
+        <option key={key} value={key}>
+          {key}
+        </option>
+      ))}
+    </select>
+  );
+}
+
 // ─── 위젯 콘텐츠 (공유) ──────────────────────────────────────────────────────
 const ETC_CLOCK_IDS = new Set(['etc-date', 'etc-time', 'etc-datetime']);
 
@@ -429,6 +487,7 @@ function WidgetContent({ widget }: { widget: DroppedWidget }) {
   const displayValue = isEtcClock ? getLiveValue() : widget.item.sampleValue;
 
   if (isTable) return <TableWidget widget={widget} />;
+  if (widget.item.id === 'etc-announcement') return <AnnouncementWidget widget={widget} />;
 
   return (
     <>
@@ -592,7 +651,7 @@ function CanvasWidgetGrid({ widget, isSelected, onSelect, onRemove, onDuplicate,
       className={`group ${isTransparentBg ? '' : 'backdrop-blur-sm'} transition-colors select-none ${isSelected ? 'ring-2 ring-white ring-offset-1 ring-offset-transparent' : ''}`}
     >
       {/* 위젯 내부 상단 액션 버튼 (hover 시 표시) */}
-      <div className="absolute top-1 left-0 right-0 flex justify-between px-1 z-20 pointer-events-none group-hover:pointer-events-auto">
+      <div className="absolute top-1 left-0 right-0 flex justify-between px-1 z-[2] pointer-events-none group-hover:pointer-events-auto">
         <button
           onClick={(e) => {
             e.stopPropagation();
@@ -616,7 +675,7 @@ function CanvasWidgetGrid({ widget, isSelected, onSelect, onRemove, onDuplicate,
       </div>
 
       {isSelected && (
-        <div className="absolute -top-5 left-0 bg-black/80 text-white text-[9px] px-1.5 py-0.5 rounded font-mono z-30 pointer-events-none whitespace-nowrap leading-tight">
+        <div className="absolute -top-5 left-0 bg-black/80 text-white text-[9px] px-1.5 py-0.5 rounded font-mono z-[3] pointer-events-none whitespace-nowrap leading-tight">
           X:{widget.x.toFixed(1)}% Y:{widget.y.toFixed(1)}% W:{w.toFixed(1)}% H:{h.toFixed(1)}%
         </div>
       )}
@@ -1442,7 +1501,7 @@ export default function TaskCreate() {
     setDroppedWidgets((prev) => prev.map((w) => (w.id === id ? { ...w, style: { ...w.style, ...patch } } : w)));
   };
 
-  const updateWidgetMeta = (id: string, patch: Partial<Pick<DroppedWidget, 'showTitle' | 'customTitle'>>) => {
+  const updateWidgetMeta = (id: string, patch: Partial<Pick<DroppedWidget, 'showTitle' | 'customTitle' | 'noticeKey'>>) => {
     setDroppedWidgets((prev) => prev.map((w) => (w.id === id ? { ...w, ...patch } : w)));
   };
 
@@ -2178,7 +2237,7 @@ export default function TaskCreate() {
                             />
                           ))
                         : droppedWidgets.map((widget) => (
-                            <div key={widget.id} style={{ zIndex: selectedWidgetIds.includes(widget.id) ? 20 : 10 }}>
+                            <div key={widget.id}>
                               <CanvasWidgetGrid
                                 widget={widget}
                                 isSelected={selectedWidgetIds.includes(widget.id)}
@@ -2359,6 +2418,14 @@ export default function TaskCreate() {
                         className={`absolute top-0.5 left-0.5 h-4 w-4 rounded-full bg-white shadow transition-transform ${selectedWidget.style.useThousandSep ? 'translate-x-4' : 'translate-x-0'}`}
                       />
                     </button>
+                  </div>
+                )}
+
+                {/* 공지 키 선택 (공지 위젯 전용) */}
+                {selectedWidget.item.id === 'etc-announcement' && (
+                  <div>
+                    <label className="text-[10px] text-slate-500 font-semibold uppercase tracking-wide block mb-1">공지 키</label>
+                    <NoticeKeyPanel noticeKey={selectedWidget.noticeKey} onChange={(key) => updateWidgetMeta(selectedWidget.id, { noticeKey: key })} />
                   </div>
                 )}
 
