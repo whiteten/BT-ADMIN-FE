@@ -14,13 +14,12 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { type BreadcrumbProps, Button, Card, Empty, Select, Tag } from 'antd';
-import { type PageVariantManifestPath, usePageVariantManifestStore, usePageVariantsStore } from '@/shared-store';
+import { type PageVariantManifestPath, useBreadcrumbStore, usePageVariantManifestStore, usePageVariantsStore } from '@/shared-store';
 import { toast } from '@/shared-util';
 import { useGetApps } from '../../features/iam/hooks/useAppQueries';
 import { pageVariantQueryKeys, useDeletePageVariant, useUpsertPageVariant } from '../../features/page-variant/hooks/usePageVariantQueries';
 import { FallbackSpinner } from '@/components/custom/FallbackSpinner';
 import NoData from '@/components/custom/NoData';
-import PageHeader from '@/components/custom/PageHeader';
 import { cn } from '@/lib/utils';
 
 const breadcrumb: BreadcrumbProps['items'] = [
@@ -34,6 +33,14 @@ interface CatalogItem extends PageVariantManifestPath {
 }
 
 export default function PageVariantManagement() {
+  const setBreadcrumb = useBreadcrumbStore((s) => s.setBreadcrumb);
+  const clearBreadcrumb = useBreadcrumbStore((s) => s.clearBreadcrumb);
+
+  useEffect(() => {
+    setBreadcrumb(breadcrumb);
+    return () => clearBreadcrumb();
+  }, [setBreadcrumb, clearBreadcrumb]);
+
   const queryClient = useQueryClient();
   const variantManifest = usePageVariantManifestStore((s) => s.variants);
   const isManifestLoaded = usePageVariantManifestStore((s) => s.isLoaded);
@@ -109,7 +116,6 @@ export default function PageVariantManagement() {
   if (!isManifestLoaded || !isVariantsLoaded) {
     return (
       <div className="flex flex-col gap-4 w-full h-full">
-        <PageHeader breadcrumb={breadcrumb} />
         <div className="flex items-center justify-center flex-1">
           <FallbackSpinner />
         </div>
@@ -119,8 +125,6 @@ export default function PageVariantManagement() {
 
   return (
     <div className="flex flex-col gap-4 w-full h-full">
-      <PageHeader breadcrumb={breadcrumb} />
-
       <div className="flex gap-4 flex-1 min-h-0">
         {/* 좌측: 카탈로그 */}
         <div className="w-[360px] shrink-0 bg-white bt-shadow p-4 flex flex-col gap-3">

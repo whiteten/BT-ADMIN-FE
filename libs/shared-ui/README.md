@@ -39,9 +39,9 @@ pnpm run shadcn:add <component-name>
 `@/components/custom/*` 경로로 import합니다. 주요 예시:
 
 ```typescript
-import { PageHeader } from '@/components/custom/PageHeader';
 import { FallbackSpinner } from '@/components/custom/FallbackSpinner';
 import { NoData } from '@/components/custom/NoData';
+import { NotFound } from '@/components/custom/NotFound';
 ```
 
 전체 목록은 `src/components/custom/` 디렉토리를 참고하세요.

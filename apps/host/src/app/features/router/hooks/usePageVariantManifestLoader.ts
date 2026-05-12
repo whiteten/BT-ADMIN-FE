@@ -32,8 +32,14 @@ const toManifestPaths = (manifest: Record<string, PageVariantManifestConfig>): P
 const loadManifest = async (): Promise<PageVariantManifestMap> => {
   const entries = await Promise.all(
     Object.entries(VARIANT_LOADERS).map(async ([name, loader]) => {
-      const mod = await loader();
-      return [name, toManifestPaths(mod.pageVariantManifest)] as const;
+      try {
+        const mod = await loader();
+        const manifest = mod?.pageVariantManifest ?? {};
+        return [name, toManifestPaths(manifest)] as const;
+      } catch (err) {
+        Log.warn(`Failed to load page variant manifest for remote "${name}":`, err);
+        return [name, []] as const;
+      }
     }),
   );
   return Object.fromEntries(entries);

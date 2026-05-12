@@ -1,7 +1,7 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import type { BreadcrumbProps } from 'antd';
+import { useBreadcrumbStore } from '@/shared-store';
 import { IconDocument, IconFaq } from '@/components/custom/Icons';
-import PageHeader from '@/components/custom/PageHeader';
 import PageTabs, { type PageTab } from '@/components/custom/PageTabs';
 
 const AoeBasicInfo = React.lazy(() => import('../../features/global/tabs/AoeBasicInfo'));
@@ -12,14 +12,22 @@ const tabs: PageTab[] = [
   { id: 'tab2', label: 'FAQ', icon: IconFaq, component: AoeFaqAgentList },
 ];
 
+const breadcrumb: BreadcrumbProps['items'] = [
+  { title: '공용', path: '/fca/global' },
+  { title: 'AOE 확장', path: '/fca/global/aoe/config' },
+];
+
 export default function AoeConfig() {
-  const breadcrumb: BreadcrumbProps['items'] = [
-    { title: '공용', path: '/fca/global' },
-    { title: 'AOE 확장', path: '/fca/global/aoe/config' },
-  ];
+  const setBreadcrumb = useBreadcrumbStore((s) => s.setBreadcrumb);
+  const clearBreadcrumb = useBreadcrumbStore((s) => s.clearBreadcrumb);
+
+  useEffect(() => {
+    setBreadcrumb(breadcrumb);
+    return () => clearBreadcrumb();
+  }, [setBreadcrumb, clearBreadcrumb]);
+
   return (
     <div className="flex flex-col gap-4 w-full h-full">
-      <PageHeader breadcrumb={breadcrumb} />
       <PageTabs tabs={tabs} />
     </div>
   );

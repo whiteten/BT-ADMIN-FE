@@ -1,7 +1,7 @@
-import React, { useRef, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import type { BreadcrumbProps } from 'antd';
 import dayjs from 'dayjs';
-import { useNavigationStore } from '@/shared-store';
+import { useBreadcrumbStore, useNavigationStore } from '@/shared-store';
 import { downloadBlob, extractFileName, toast } from '@/shared-util';
 import { botDialogHistoryApi } from '../../features/tracking/api/botDialogHistoryApi';
 import BotDialogHistoryDrawer, { type BotDialogHistoryDrawerRef } from '../../features/tracking/components/BotDialogHistoryDrawer';
@@ -9,7 +9,6 @@ import BotDialogHistorySearchForm from '../../features/tracking/components/BotDi
 import BotDialogHistoryTable from '../../features/tracking/components/BotDialogHistoryTable';
 import SlotSankeyDrawer from '../../features/tracking/components/SlotSankeyDrawer';
 import type { BotDialogHistoryListItem, BotDialogHistorySearchRequest } from '../../features/tracking/types/botDialogHistory.types';
-import PageHeader from '@/components/custom/PageHeader';
 
 const DATETIME_FORMAT = 'YYYY-MM-DDTHH:mm:ss';
 
@@ -19,6 +18,14 @@ const breadcrumb: BreadcrumbProps['items'] = [
 ];
 
 const BotDialogHistoryPage: React.FC = () => {
+  const setBreadcrumb = useBreadcrumbStore((s) => s.setBreadcrumb);
+  const clearBreadcrumb = useBreadcrumbStore((s) => s.clearBreadcrumb);
+
+  useEffect(() => {
+    setBreadcrumb(breadcrumb);
+    return () => clearBreadcrumb();
+  }, [setBreadcrumb, clearBreadcrumb]);
+
   const drawerRef = useRef<BotDialogHistoryDrawerRef>(null);
   const { permissions } = useNavigationStore();
   const hasExcelPermission = permissions.includes('fca:bot-dialog-history:export');
@@ -40,6 +47,8 @@ const BotDialogHistoryPage: React.FC = () => {
   const [totalRows, setTotalRows] = useState(0);
   const [isListLoading, setIsListLoading] = useState(false);
   const [slotChartOpen, setSlotChartOpen] = useState(false);
+  // 슬롯차트는 현재 폼 상태(미저장 변경 포함)로 조회하므로 별도 파라미터 보관
+  const [slotChartParams, setSlotChartParams] = useState<BotDialogHistorySearchRequest | null>(null);
 
   const handleSearch = (newParams: BotDialogHistorySearchRequest) => {
     setSearchParams(newParams);
@@ -72,14 +81,16 @@ const BotDialogHistoryPage: React.FC = () => {
 
   return (
     <div className="flex flex-col gap-4 w-full h-full">
-      <PageHeader breadcrumb={breadcrumb} />
       <div className="flex flex-col gap-5 w-full h-full bg-white bt-shadow p-5">
         <BotDialogHistorySearchForm
           onSearch={handleSearch}
           isLoading={isListLoading}
           onExcelDownload={hasExcelPermission ? handleExcelDownload : undefined}
           isExporting={isExporting}
-          onSlotChart={() => setSlotChartOpen(true)}
+          onSlotChart={(values) => {
+            setSlotChartParams(values);
+            setSlotChartOpen(true);
+          }}
         />
         <div className="w-full h-full">
           <BotDialogHistoryTable
@@ -97,7 +108,7 @@ const BotDialogHistoryPage: React.FC = () => {
       <SlotSankeyDrawer
         open={slotChartOpen}
         onClose={() => setSlotChartOpen(false)}
-        searchParams={searchParams}
+        searchParams={slotChartParams ?? searchParams}
         onEntityFilter={(entityTag) => {
           setSearchParams((prev) => ({ ...prev, slotEntityTag: entityTag }));
           setSearchVersion((v) => v + 1);

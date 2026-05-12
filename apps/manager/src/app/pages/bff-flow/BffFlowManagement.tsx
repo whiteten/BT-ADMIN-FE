@@ -4,8 +4,9 @@
  * - 우측: Flow 생성/상세 (탭 구조)
  */
 
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import type { BreadcrumbProps } from 'antd';
+import { useBreadcrumbStore } from '@/shared-store';
 import { toast } from '@/shared-util';
 import FlowDetailForm from '../../features/bff-flow/components/FlowDetailForm';
 import FlowList from '../../features/bff-flow/components/FlowList';
@@ -13,7 +14,6 @@ import { useDeleteFlow, useGetFlows, useSaveFlow } from '../../features/bff-flow
 import type { BffFlow, FlowSpec } from '../../features/bff-flow/types/bffFlow.types';
 import { FallbackSpinner } from '@/components/custom/FallbackSpinner';
 import NoData from '@/components/custom/NoData';
-import PageHeader from '@/components/custom/PageHeader';
 
 const breadcrumb: BreadcrumbProps['items'] = [
   { title: '시스템', path: '/manager/resource/menu' },
@@ -22,6 +22,14 @@ const breadcrumb: BreadcrumbProps['items'] = [
 ];
 
 export default function BffFlowManagement() {
+  const setBreadcrumb = useBreadcrumbStore((s) => s.setBreadcrumb);
+  const clearBreadcrumb = useBreadcrumbStore((s) => s.clearBreadcrumb);
+
+  useEffect(() => {
+    setBreadcrumb(breadcrumb);
+    return () => clearBreadcrumb();
+  }, [setBreadcrumb, clearBreadcrumb]);
+
   const [selectedFlow, setSelectedFlow] = useState<BffFlow | null>(null);
   const [isCreating, setIsCreating] = useState(false);
   // onSave 호출 시점의 isCreating 값을 onSuccess 콜백에서 참조하기 위해 ref 사용
@@ -74,7 +82,6 @@ export default function BffFlowManagement() {
   if (isLoading) {
     return (
       <div className="flex flex-col gap-4 w-full h-full">
-        <PageHeader breadcrumb={breadcrumb} />
         <div className="flex items-center justify-center flex-1">
           <FallbackSpinner />
         </div>
@@ -88,8 +95,6 @@ export default function BffFlowManagement() {
 
   return (
     <div className="flex flex-col gap-4 w-full h-full">
-      <PageHeader breadcrumb={breadcrumb} />
-
       <div className="flex gap-4 flex-1 min-h-0">
         {/* 좌측: Flow 리스트 — bg-white bt-shadow 적용 */}
         <div className="w-[300px] shrink-0 bg-white bt-shadow p-4 flex flex-col gap-3">
