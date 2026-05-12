@@ -73,9 +73,9 @@ const PanelDetail = ({ onNavigate }: PanelDetailProps) => {
 
       <div className="flex-1 overflow-y-auto px-6 pt-4 pb-6">
         {active.path && !active.children?.length ? (
-          <MenuLink item={active} appId={config.appId} onNavigate={onNavigate} />
+          <MenuLink item={active} appId={config.appId} onNavigate={onNavigate} showDesc />
         ) : (
-          active.children?.length && <ChildList items={active.children} appId={config.appId} onNavigate={onNavigate} />
+          active.children?.length && <ChildList items={active.children} appId={config.appId} onNavigate={onNavigate} showDesc />
         )}
       </div>
     </div>
