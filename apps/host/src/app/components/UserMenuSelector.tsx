@@ -1,6 +1,5 @@
 import { useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import dayjs from 'dayjs';
 import { Dot, KeyRound, LogOut, Repeat, User } from 'lucide-react';
 import { type TenantSummary, useAuthStore } from '@/shared-store';
 import { toast } from '@/shared-util';
@@ -129,7 +128,7 @@ export default function UserMenuSelector() {
       <div className="flex flex-col gap-0.5 text-left text-sm leading-tight">
         <span className="truncate font-semibold max-w-48 text-white">{username}</span>
         <Badge variant="outline" className="max-w-48 truncate w-fit h-5 text-[11px] leading-none px-2 bg-white/20 text-white border-white/30">
-          {roleName}
+          {tenantName}
         </Badge>
       </div>
     </Button>

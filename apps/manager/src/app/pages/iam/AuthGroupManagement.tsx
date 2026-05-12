@@ -4,10 +4,10 @@
  * - PageTabs 컴포넌트 사용 (모델 관리 스타일 통일)
  */
 
-import React from 'react';
+import React, { useEffect } from 'react';
 import type { BreadcrumbProps } from 'antd';
+import { useBreadcrumbStore } from '@/shared-store';
 import { IconDocument, IconList } from '@/components/custom/Icons';
-import PageHeader from '@/components/custom/PageHeader';
 import PageTabs, { type PageTab } from '@/components/custom/PageTabs';
 
 const RoleManagementTab = React.lazy(() => import('../../features/iam/tabs/RoleManagementTab'));
@@ -24,9 +24,16 @@ const tabs: PageTab[] = [
 ];
 
 export default function AuthGroupManagement() {
+  const setBreadcrumb = useBreadcrumbStore((s) => s.setBreadcrumb);
+  const clearBreadcrumb = useBreadcrumbStore((s) => s.clearBreadcrumb);
+
+  useEffect(() => {
+    setBreadcrumb(breadcrumb);
+    return () => clearBreadcrumb();
+  }, [setBreadcrumb, clearBreadcrumb]);
+
   return (
     <div className="flex flex-col gap-4 w-full h-full">
-      <PageHeader breadcrumb={breadcrumb} />
       <PageTabs tabs={tabs} />
     </div>
   );

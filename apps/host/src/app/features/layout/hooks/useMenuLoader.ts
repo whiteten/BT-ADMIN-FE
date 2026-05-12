@@ -15,6 +15,7 @@ const toMenuItem = (navi: NaviMenuItem): MenuItem => {
     hide: false,
     ...(navi.path ? { path: navi.path } : {}),
     ...(resolveMenuIcon(navi.iconKey) ? { icon: resolveMenuIcon(navi.iconKey) } : {}),
+    ...(navi.desc ? { desc: navi.desc } : {}),
     ...(children ? { children } : {}),
   };
 };

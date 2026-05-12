@@ -1,4 +1,5 @@
 import { useLocation } from 'react-router-dom';
+import { SquareDashed } from 'lucide-react';
 import { BookmarkButton } from '../components/BookmarkButton';
 import { useMenuPanelStore } from '../hooks/useMenuPanelStore';
 import type { MenuItem } from '@/libs/shared-store/src/types/menu.types';
@@ -70,34 +71,42 @@ interface MenuLinkProps {
   appId: string;
   query?: string;
   onNavigate: (path: string) => void;
+  showDesc?: boolean;
 }
 
 /** 리프 메뉴 링크 — 패널 안에서 사용. 활성 상태 강조 + 북마크 버튼 노출 */
-export function MenuLink({ item, appId, query = '', onNavigate }: MenuLinkProps) {
+export function MenuLink({ item, appId, query = '', onNavigate, showDesc = false }: MenuLinkProps) {
   const location = useLocation();
   const isActive = item.path ? isMenuActive(item.path, location, appId) : false;
+  const showDescRow = showDesc && !!item.desc;
 
   return (
     <div
       className={cn(
-        'group/row flex items-center gap-2 rounded-lg px-2.5 py-[6px] -mx-1 cursor-pointer transition-colors',
+        'group/row flex items-center gap-2 rounded-lg px-2.5 py-2 -mx-1 cursor-pointer transition-colors',
         'hover:bg-[var(--color-bt-primary)]/[0.06]',
         isActive && 'bg-[var(--color-bt-primary)]/10',
       )}
       onClick={() => item.path && onNavigate(`/${appId}/${item.path}`)}
     >
-      <span className="size-[5px] shrink-0 rounded-full bg-[var(--color-bt-primary)] transition-colors" />
-      <span
-        className={cn(
-          'flex-1 min-w-0 text-[14px] truncate transition-colors group-hover/row:text-[var(--color-bt-primary)]',
-          isActive ? 'text-[var(--color-bt-primary)] font-semibold' : 'text-[#495057]',
-        )}
-      >
-        <Highlight text={item.label} query={query} />
-      </span>
       <span className="shrink-0" onClick={(e) => e.stopPropagation()}>
         <BookmarkButton menuKey={item.menuKey} label={item.label} path={item.path ?? ''} appId={appId} />
       </span>
+      <div className="flex-1 min-w-0">
+        <p
+          className={cn(
+            'text-[14px] truncate transition-colors group-hover/row:text-[var(--color-bt-primary)]',
+            isActive ? 'text-[var(--color-bt-primary)] font-semibold' : 'text-[#495057]',
+          )}
+        >
+          <Highlight text={item.label} query={query} />
+        </p>
+        {showDescRow && (
+          <p className="text-[12px] text-[#868e96] mt-0.5 line-clamp-2">
+            <Highlight text={item.desc as string} query={query} />
+          </p>
+        )}
+      </div>
     </div>
   );
 }
@@ -108,6 +117,7 @@ interface ChildListProps {
   query?: string;
   onNavigate: (path: string) => void;
   asGrid?: boolean;
+  showDesc?: boolean;
 }
 
 /**
@@ -115,7 +125,7 @@ interface ChildListProps {
  * - 모든 visible 자식이 children을 가진 서브그룹이면 grid 수평 배치(asGrid)
  * - leaf는 MenuLink, 하위 그룹은 라벨+ChildList 재귀
  */
-export function ChildList({ items, appId, query = '', onNavigate, asGrid }: ChildListProps) {
+export function ChildList({ items, appId, query = '', onNavigate, asGrid, showDesc = false }: ChildListProps) {
   const visible = items.filter((i) => !i.hide && (!query || hasMatch(i, query)));
   if (!visible.length) return null;
 
@@ -129,7 +139,7 @@ export function ChildList({ items, appId, query = '', onNavigate, asGrid }: Chil
             <p className="text-sm text-[#878a99] tracking-wider mb-1.5 mt-1">
               <Highlight text={item.label} query={query} />
             </p>
-            <ChildList items={item.children ?? []} appId={appId} query={query} onNavigate={onNavigate} />
+            <ChildList items={item.children ?? []} appId={appId} query={query} onNavigate={onNavigate} showDesc={showDesc} />
           </div>
         ))}
       </div>
@@ -137,10 +147,10 @@ export function ChildList({ items, appId, query = '', onNavigate, asGrid }: Chil
   }
 
   return (
-    <div className="space-y-px">
+    <div className="space-y-1.5">
       {visible.map((item) => {
         if (item.path && !item.children?.length) {
-          return <MenuLink key={item.menuKey} item={item} appId={appId} query={query} onNavigate={onNavigate} />;
+          return <MenuLink key={item.menuKey} item={item} appId={appId} query={query} onNavigate={onNavigate} showDesc={showDesc} />;
         }
         if (item.children?.length) {
           return (
@@ -148,18 +158,26 @@ export function ChildList({ items, appId, query = '', onNavigate, asGrid }: Chil
               <p className="text-sm text-[#878a99] tracking-wider mb-1.5">
                 <Highlight text={item.label} query={query} />
               </p>
-              <ChildList items={item.children} appId={appId} query={query} onNavigate={onNavigate} />
+              <ChildList items={item.children} appId={appId} query={query} onNavigate={onNavigate} showDesc={showDesc} />
             </div>
           );
         }
-        // path도 children도 없는 항목 — 비활성 라벨
+        // path도 children도 없는 항목 — 비활성 라벨 (북마크 비활성 + 전체 흐림)
         return (
-          <div key={item.menuKey} className="flex items-center gap-2 rounded-lg px-2.5 py-[6px] -mx-1 cursor-default opacity-60">
-            <span className="size-[5px] shrink-0 rounded-full bg-[#adb5bd]" />
-            <span className="flex-1 min-w-0 text-[14px] text-[#495057] truncate">
-              <Highlight text={item.label} query={query} />
+          <div key={item.menuKey} className="flex items-center gap-2 rounded-lg px-2.5 py-2 -mx-1 cursor-default opacity-50">
+            <span className="shrink-0">
+              <BookmarkButton menuKey={item.menuKey} label={item.label} path="" appId={appId} disabled />
             </span>
-            <span className="size-8 shrink-0" aria-hidden />
+            <div className="flex-1 min-w-0">
+              <p className="text-[14px] text-[#495057] truncate">
+                <Highlight text={item.label} query={query} />
+              </p>
+              {showDesc && item.desc && (
+                <p className="text-[12px] text-[#868e96] mt-0.5 line-clamp-2">
+                  <Highlight text={item.desc} query={query} />
+                </p>
+              )}
+            </div>
           </div>
         );
       })}
@@ -196,26 +214,31 @@ export function PanelMenuRow({ item, appId, onNavigate }: PanelMenuRowProps) {
     }
   };
 
+  // 폴더 hover 시 cascade로 자식 detail 자동 노출 (leaf는 직전 detail 유지)
+  const handleMouseEnter = () => {
+    if (!isFolder) return;
+    setActiveMenuKey(item.menuKey);
+    if (mode === 'mega') setMode('compact');
+  };
+
   const highlightAsPrimary = isActive || isActiveBranch;
 
   return (
     <button
       type="button"
       onClick={handleClick}
+      onMouseEnter={handleMouseEnter}
       className={cn(
-        'group/row flex w-full items-center gap-2 rounded-md px-3 py-2 text-left transition-colors cursor-pointer',
+        'group/row flex w-full items-center gap-2 rounded-md px-3 py-2 text-left transition-colors',
+        isLeaf ? 'cursor-pointer' : 'cursor-default',
         'hover:bg-[var(--color-bt-primary)]/[0.08]',
         isActive && 'bg-[var(--color-bt-primary)]/10',
         highlightAsPrimary ? 'text-[var(--color-bt-primary)] font-semibold' : 'text-[#495057]',
       )}
     >
-      {Icon ? (
-        <span className={cn('flex items-center justify-center size-5 shrink-0', highlightAsPrimary ? 'text-[var(--color-bt-primary)]' : 'text-[#868e96]')}>
-          <Icon className="!size-5" />
-        </span>
-      ) : (
-        <span className={cn('size-1 shrink-0 rounded-full', highlightAsPrimary ? 'bg-[var(--color-bt-primary)]' : 'bg-[#adb5bd]')} />
-      )}
+      <span className={cn('flex items-center justify-center size-5 shrink-0', highlightAsPrimary ? 'text-[var(--color-bt-primary)]' : 'text-[#868e96]')}>
+        {Icon ? <Icon className="!size-5" /> : <SquareDashed className="!size-5" />}
+      </span>
       <span className="flex-1 min-w-0 truncate text-sm">{item.label}</span>
       {isFolder && (
         <svg

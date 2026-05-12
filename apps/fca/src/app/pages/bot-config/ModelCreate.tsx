@@ -1,32 +1,39 @@
-import { useRef } from 'react';
+import { useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { type BreadcrumbProps, Button, Col, Form, type FormProps, Input, Row, Upload, type UploadFile } from 'antd';
 import { Log } from '@/log';
+import { useBreadcrumbStore } from '@/shared-store';
 import { toast } from '@/shared-util';
 import ModelImportResultModal, { type ModelImportResultModalRef } from '../../features/bot-config/components/ModelImportResultModal';
 import { useCreateModel } from '../../features/bot-config/hooks/useModelQueries';
 import { useModelRoute } from '../../features/bot-config/hooks/useModelRoute';
 import type { ModelCreateDatas } from '../../features/bot-config/types';
 import { type ModelImportResult, ModelType } from '../../features/bot-config/types/model';
-import PageHeader from '@/components/custom/PageHeader';
+
+const privateBreadcrumb: BreadcrumbProps['items'] = [
+  { title: '관리', path: '/fca/bot-config' },
+  { title: '모델', path: '/fca/bot-config/model' },
+  { title: '모델 생성', path: '/fca/bot-config/model/create' },
+];
+
+const publicBreadcrumb: BreadcrumbProps['items'] = [
+  { title: '공용', path: '/fca/global' },
+  { title: '공용 모델', path: '/fca/global/model' },
+  { title: '공용 모델 생성', path: '/fca/global/model/create' },
+];
 
 export default function ModelCreate() {
   const navigate = useNavigate();
   const [form] = Form.useForm();
   const { isPublic } = useModelRoute();
   const importResultModalRef = useRef<ModelImportResultModalRef>(null);
+  const setBreadcrumb = useBreadcrumbStore((s) => s.setBreadcrumb);
+  const clearBreadcrumb = useBreadcrumbStore((s) => s.clearBreadcrumb);
 
-  const privateBreadcrumb: BreadcrumbProps['items'] = [
-    { title: '관리', path: '/fca/bot-config' },
-    { title: '모델', path: '/fca/bot-config/model' },
-    { title: '모델 생성', path: '/fca/bot-config/model/create' },
-  ];
-
-  const publicBreadcrumb: BreadcrumbProps['items'] = [
-    { title: '공용', path: '/fca/global' },
-    { title: '공용 모델', path: '/fca/global/model' },
-    { title: '공용 모델 생성', path: '/fca/global/model/create' },
-  ];
+  useEffect(() => {
+    setBreadcrumb(isPublic ? publicBreadcrumb : privateBreadcrumb);
+    return () => clearBreadcrumb();
+  }, [isPublic, setBreadcrumb, clearBreadcrumb]);
 
   const initialValues = { modelName: '', expansion1: '' };
 
@@ -59,7 +66,6 @@ export default function ModelCreate() {
   };
   return (
     <div className="flex flex-col gap-4 w-full h-full">
-      <PageHeader breadcrumb={isPublic ? publicBreadcrumb : privateBreadcrumb} />
       <div className="w-full h-full bg-white bt-shadow overflow-y-auto">
         <div className="flex flex-col w-full h-full p-7 pb-0">
           <Form form={form} initialValues={initialValues} onFinish={onFinish} onFinishFailed={onFinishFailed} layout="vertical">
