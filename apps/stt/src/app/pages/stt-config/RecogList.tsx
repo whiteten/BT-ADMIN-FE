@@ -1,6 +1,7 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { type BreadcrumbProps, Button, Col, Form, type FormProps, Input, Row } from 'antd';
+import { useBreadcrumbStore } from '@/shared-store';
 import { toast } from '@/shared-util';
 import RecogGroupTree, { type RecogTreeSelection } from '../../features/stt-config/components/RecogGroupTree';
 import RecogTargetList from '../../features/stt-config/components/RecogTargetList';
@@ -9,7 +10,6 @@ import { recogQueryKeys, useCreateRecogGroup } from '../../features/stt-config/h
 import type { RecogGroupCreateData, RecogGroupItem } from '../../features/stt-config/types';
 import { IconBubble, IconDocument } from '@/components/custom/Icons';
 import NoData from '@/components/custom/NoData';
-import PageHeader from '@/components/custom/PageHeader';
 import PageTabs, { type PageTab } from '@/components/custom/PageTabs';
 
 const breadcrumb: BreadcrumbProps['items'] = [
@@ -74,6 +74,14 @@ function GroupDetailPanel({ group }: { group: RecogGroupItem }) {
 }
 
 export default function RecogList() {
+  const setBreadcrumb = useBreadcrumbStore((s) => s.setBreadcrumb);
+  const clearBreadcrumb = useBreadcrumbStore((s) => s.clearBreadcrumb);
+
+  useEffect(() => {
+    setBreadcrumb(breadcrumb);
+    return () => clearBreadcrumb();
+  }, [setBreadcrumb, clearBreadcrumb]);
+
   const queryClient = useQueryClient();
   const [selection, setSelection] = useState<RecogTreeSelection | null>(null);
 
@@ -93,8 +101,6 @@ export default function RecogList() {
 
   return (
     <div className="flex flex-col gap-4 w-full h-full">
-      <PageHeader breadcrumb={breadcrumb} />
-
       <div className="flex gap-4 flex-1 min-h-0">
         <div className="w-[280px] shrink-0 bg-white bt-shadow p-4 overflow-y-auto">
           <RecogGroupTree
