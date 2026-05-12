@@ -6,7 +6,7 @@ import { restrictToParentElement, restrictToVerticalAxis } from '@dnd-kit/modifi
 import { SortableContext, arrayMove, useSortable, verticalListSortingStrategy } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import { Button } from 'antd';
-import { GripVertical, SquareDashed } from 'lucide-react';
+import { GripVertical, SquareDashed, Trash2 } from 'lucide-react';
 import { sharedApi } from '@/shared-api';
 import { useMenuStore, useNavigationStore } from '@/shared-store';
 import { isMenuActive } from './PanelMenuPrimitives';
@@ -24,9 +24,10 @@ interface SortableBookmarkRowProps {
   tooltipText: string;
   isEditMode: boolean;
   onClick: (bookmark: Bookmark, path?: string) => void;
+  onRemove?: (menuKey: string) => void;
 }
 
-const SortableBookmarkRow = ({ bookmark, icon: Icon, path, tooltipText, isEditMode, onClick }: SortableBookmarkRowProps) => {
+const SortableBookmarkRow = ({ bookmark, icon: Icon, path, tooltipText, isEditMode, onClick, onRemove }: SortableBookmarkRowProps) => {
   const location = useLocation();
   const { attributes, listeners, setNodeRef, transform, transition } = useSortable({ id: bookmark.menuKey });
   const isActive = path ? isMenuActive(path, location, bookmark.appId) : false;
@@ -41,6 +42,14 @@ const SortableBookmarkRow = ({ bookmark, icon: Icon, path, tooltipText, isEditMo
         </span>
         {Icon ? <Icon className="size-5 shrink-0 text-[#868e96]" /> : <SquareDashed className="size-5 shrink-0 text-[#868e96]" />}
         <span className="flex-1 min-w-0 truncate text-sm">{bookmark.label}</span>
+        <button
+          type="button"
+          onClick={() => onRemove?.(bookmark.menuKey)}
+          className="shrink-0 text-[#adb5bd] hover:text-[#e03131] transition-colors cursor-pointer p-1 -m-1 rounded"
+          aria-label="북마크 삭제"
+        >
+          <Trash2 className="size-4" />
+        </button>
       </div>
     );
   }
@@ -107,12 +116,18 @@ const PanelBookmarksSection = ({ className }: PanelBookmarksSectionProps) => {
     if (isEditMode) {
       const menuKeys = sortedFavorites.map((f) => f.menuKey);
       const originalMenuKeys = [...favorites].sort((a, b) => a.sortOrder - b.sortOrder).map((f) => f.menuKey);
-      const hasChanged = menuKeys.some((k, index) => k !== originalMenuKeys[index]);
+      const hasChanged = menuKeys.length !== originalMenuKeys.length || menuKeys.some((k, index) => k !== originalMenuKeys[index]);
       if (hasChanged) {
         updateBookmark({ params: {}, data: { menuKeys } });
       }
     }
     setIsEditMode(!isEditMode);
+  };
+
+  const handleRemove = (menuKey: string) => {
+    const next = sortedFavorites.filter((b) => b.menuKey !== menuKey);
+    setSortedFavorites(next);
+    updateBookmark({ params: {}, data: { menuKeys: next.map((b) => b.menuKey) } });
   };
 
   const handleDragEnd = (event: DragEndEvent) => {
@@ -157,7 +172,18 @@ const PanelBookmarksSection = ({ className }: PanelBookmarksSectionProps) => {
               {sortedFavorites.map((bookmark) => {
                 const { icon, path, appName, ancestors } = findMenuInfo(menuConfigs, bookmark);
                 const tooltipText = [appName, ...ancestors].filter(Boolean).join(' › ');
-                return <SortableBookmarkRow key={bookmark.menuKey} bookmark={bookmark} icon={icon} path={path} tooltipText={tooltipText} isEditMode onClick={handleClick} />;
+                return (
+                  <SortableBookmarkRow
+                    key={bookmark.menuKey}
+                    bookmark={bookmark}
+                    icon={icon}
+                    path={path}
+                    tooltipText={tooltipText}
+                    isEditMode
+                    onClick={handleClick}
+                    onRemove={handleRemove}
+                  />
+                );
               })}
             </div>
           </SortableContext>
