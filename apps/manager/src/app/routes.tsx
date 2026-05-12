@@ -30,6 +30,10 @@ const WorkHistoryList = React.lazy(() => import('./pages/work-history/WorkHistor
 // 데이터 보관주기 관리 페이지
 const DataRetentionPage = React.lazy(() => import('./pages/data-retention/DataRetentionPage'));
 
+// 마스킹 정책/해지 요청 페이지
+const MaskPolicyPage = React.lazy(() => import('./pages/mask-policy/MaskPolicyPage'));
+const MaskUnmaskPage = React.lazy(() => import('./pages/mask-unmask/MaskUnmaskPage'));
+
 // 클라이언트 관리 페이지
 const ClientList = React.lazy(() => import('./pages/client/ClientList'));
 const ClientCreate = React.lazy(() => import('./pages/client/ClientCreate'));
@@ -150,6 +154,14 @@ export const routes = [
           {
             path: 'data-retention',
             element: <DataRetentionPage />,
+          },
+          {
+            path: 'mask-policy',
+            element: <MaskPolicyPage />,
+          },
+          {
+            path: 'mask-unmask',
+            element: <MaskUnmaskPage />,
           },
           {
             path: 'client',

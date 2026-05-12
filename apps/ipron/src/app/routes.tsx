@@ -30,6 +30,8 @@ const CosListPage = React.lazy(() => import('./features/cos/pages/CosListPage'))
 const CosFormPage = React.lazy(() => import('./features/cos/pages/CosFormPage'));
 const DnListPage = React.lazy(() => import('./features/dn/pages/DnListPage'));
 const DnFormPage = React.lazy(() => import('./features/dn/pages/DnFormPage'));
+const TrackingSearchPage = React.lazy(() => import('./features/tracking/components/TrackingSearchPage'));
+const CallDetailPage = React.lazy(() => import('./features/tracking/components/CallDetailPage'));
 export const routes = [
   {
     path: '/',
@@ -182,6 +184,14 @@ export const routes = [
       {
         path: 'dn/:id/edit',
         element: <DnFormPage />,
+      },
+      {
+        path: 'tracking',
+        element: <TrackingSearchPage />,
+      },
+      {
+        path: 'tracking/call/:ucid',
+        element: <CallDetailPage />,
       },
     ],
   },
