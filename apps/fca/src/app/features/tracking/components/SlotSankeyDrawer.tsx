@@ -120,7 +120,7 @@ export default function SlotSankeyDrawer({ open, onClose, searchParams, onEntity
     <Drawer
       open={open}
       onClose={onClose}
-      title="슬롯 차트"
+      title="슬롯차트"
       width={1200}
       destroyOnHidden
       styles={{ body: { padding: '24px', overflow: 'hidden', display: 'flex', flexDirection: 'column' } }}

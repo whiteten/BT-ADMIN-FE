@@ -40,6 +40,8 @@ const BotDialogHistoryPage: React.FC = () => {
   const [totalRows, setTotalRows] = useState(0);
   const [isListLoading, setIsListLoading] = useState(false);
   const [slotChartOpen, setSlotChartOpen] = useState(false);
+  // 슬롯차트는 현재 폼 상태(미저장 변경 포함)로 조회하므로 별도 파라미터 보관
+  const [slotChartParams, setSlotChartParams] = useState<BotDialogHistorySearchRequest | null>(null);
 
   const handleSearch = (newParams: BotDialogHistorySearchRequest) => {
     setSearchParams(newParams);
@@ -79,7 +81,10 @@ const BotDialogHistoryPage: React.FC = () => {
           isLoading={isListLoading}
           onExcelDownload={hasExcelPermission ? handleExcelDownload : undefined}
           isExporting={isExporting}
-          onSlotChart={() => setSlotChartOpen(true)}
+          onSlotChart={(values) => {
+            setSlotChartParams(values);
+            setSlotChartOpen(true);
+          }}
         />
         <div className="w-full h-full">
           <BotDialogHistoryTable
@@ -97,7 +102,7 @@ const BotDialogHistoryPage: React.FC = () => {
       <SlotSankeyDrawer
         open={slotChartOpen}
         onClose={() => setSlotChartOpen(false)}
-        searchParams={searchParams}
+        searchParams={slotChartParams ?? searchParams}
         onEntityFilter={(entityTag) => {
           setSearchParams((prev) => ({ ...prev, slotEntityTag: entityTag }));
           setSearchVersion((v) => v + 1);

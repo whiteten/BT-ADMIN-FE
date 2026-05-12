@@ -43,7 +43,34 @@ function getConfidenceTextColor(item: NluAnalysisItem): string {
   return 'text-gray-500';
 }
 
-/** 재학습 변경 이력 팝오버 */
+/** 변경 이력 시각 포맷 (MM-DD HH:mm) */
+function formatRetrainTime(dt: string | null): string {
+  if (!dt) return '';
+  const d = new Date(dt);
+  return `${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')} ${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
+}
+
+/** before → after 변경값 칩 (재학습 변경 이력 공용) */
+function DiffChip({ before, after, maxWidthClassName = 'max-w-[140px]' }: { before: string | null; after: string | null; maxWidthClassName?: string }) {
+  const beforeText = before && before.length > 0 ? before : '(없음)';
+  const afterText = after && after.length > 0 ? after : '(없음)';
+  return (
+    <div className="flex flex-wrap items-center gap-1 min-w-0">
+      <span title={beforeText} className={cn('inline-block truncate align-bottom rounded px-1.5 py-0.5 text-red-700 bg-red-50 ring-1 ring-inset ring-red-100', maxWidthClassName)}>
+        {beforeText}
+      </span>
+      <span className="text-gray-300 select-none">→</span>
+      <span
+        title={afterText}
+        className={cn('inline-block truncate align-bottom rounded px-1.5 py-0.5 font-medium text-blue-700 bg-blue-50 ring-1 ring-inset ring-blue-100', maxWidthClassName)}
+      >
+        {afterText}
+      </span>
+    </div>
+  );
+}
+
+/** 재학습 변경 이력 팝오버 (타임라인 형식) */
 function RetrainLogPopover({ ucidGkey, questionSeq, hop }: { ucidGkey: string; questionSeq: number; hop: number }) {
   const [open, setOpen] = useState(false);
   const { data: logs, isLoading } = useGetRetrainLogs({
@@ -51,67 +78,74 @@ function RetrainLogPopover({ ucidGkey, questionSeq, hop }: { ucidGkey: string; q
     queryOptions: { enabled: open },
   });
 
-  const formatTime = (dt: string | null) => {
-    if (!dt) return '';
-    const d = new Date(dt);
-    return `${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')} ${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
-  };
-
   return (
     <div onClick={(e) => e.stopPropagation()}>
       <Popover open={open} onOpenChange={setOpen}>
         <PopoverTrigger asChild>
-          <button type="button" title="변경 이력" className="p-0.5 rounded hover:bg-gray-100 transition-colors cursor-pointer">
+          <button type="button" title="전체 변경 이력" className="p-0.5 rounded hover:bg-gray-100 transition-colors cursor-pointer">
             <ClipboardList size={12} className="text-gray-400 hover:text-blue-500" />
           </button>
         </PopoverTrigger>
         <PopoverContent
-          className="w-80 max-h-64 overflow-y-auto p-0 z-[1010]"
+          className="w-96 max-h-80 overflow-y-auto p-0 z-[1010]"
           align="end"
           side="left"
           sideOffset={8}
           onClick={(e) => e.stopPropagation()}
           onOpenAutoFocus={(e) => e.preventDefault()}
         >
-          <div className="px-3 py-2 border-b border-gray-100 sticky top-0 bg-white z-10">
+          <div className="px-3 py-2 border-b border-gray-100 sticky top-0 bg-white z-10 flex items-center gap-1.5">
+            <ClipboardList size={12} className="text-gray-500" />
             <span className="text-xs font-bold text-gray-700">변경 이력</span>
-            {logs && <span className="text-[10px] text-gray-400 ml-1">({logs.length}건)</span>}
+            {logs && <span className="text-[10px] text-gray-400">({logs.length}건)</span>}
           </div>
           {isLoading ? (
             <div className="py-6">
               <FallbackSpinner />
             </div>
           ) : !logs?.length ? (
-            <p className="py-4 text-center text-xs text-gray-400">변경 이력이 없습니다.</p>
+            <p className="py-6 text-center text-xs text-gray-400">변경 이력이 없습니다.</p>
           ) : (
-            <div className="divide-y divide-gray-50">
-              {logs.map((log, idx) => (
-                <div key={log.logId} className="px-3 py-2 space-y-1">
-                  <div className="flex items-center justify-between">
-                    <span className="text-[10px] font-semibold text-gray-400">#{logs.length - idx}</span>
-                    <span className="text-[10px] text-gray-400">
-                      {log.modifiedBy} | {formatTime(log.modifiedAt)}
-                    </span>
-                  </div>
-                  {log.beforeAnswer !== log.afterAnswer && (
-                    <div className="flex items-center gap-1 text-[11px]">
-                      <span className="text-gray-500 w-8 shrink-0">의도</span>
-                      <span className="text-red-400 line-through">{log.beforeAnswer}</span>
-                      <span className="text-gray-300">→</span>
-                      <span className="text-blue-600 font-medium">{log.afterAnswer}</span>
+            <ol className="relative px-4 py-3">
+              {/* 세로 타임라인 라인 */}
+              <span aria-hidden className="absolute left-[20px] top-4 bottom-4 w-px bg-gray-200" />
+              {logs.map((log, idx) => {
+                const isLatest = idx === 0;
+                return (
+                  <li key={log.logId} className="relative pl-5 pb-3 last:pb-0">
+                    {/* 마커 */}
+                    <span aria-hidden className={cn('absolute left-[-2px] top-1 size-[10px] rounded-full ring-2 ring-white', isLatest ? 'bg-blue-500' : 'bg-gray-300')} />
+                    {/* 헤더 */}
+                    <div className="flex items-center gap-1.5 mb-1">
+                      <span className="text-[10px] font-semibold text-gray-500">#{logs.length - idx}</span>
+                      <span className="text-[10px] text-gray-400 truncate">
+                        {log.modifiedBy} · {formatRetrainTime(log.modifiedAt)}
+                      </span>
+                      {isLatest && (
+                        <span className="ml-auto inline-flex items-center text-[9px] font-semibold text-blue-600 bg-blue-50 px-1 py-px rounded ring-1 ring-inset ring-blue-100">
+                          최근
+                        </span>
+                      )}
                     </div>
-                  )}
-                  {log.beforeQuestion !== log.afterQuestion && (
-                    <div className="flex items-center gap-1 text-[11px]">
-                      <span className="text-gray-500 w-8 shrink-0">발화</span>
-                      <span className="text-red-400 line-through truncate max-w-[90px]">{log.beforeQuestion}</span>
-                      <span className="text-gray-300">→</span>
-                      <span className="text-blue-600 font-medium truncate max-w-[90px]">{log.afterQuestion}</span>
+                    {/* Diff 본문 */}
+                    <div className="space-y-1">
+                      {log.beforeAnswer !== log.afterAnswer && (
+                        <div className="flex items-start gap-1.5 text-[11px]">
+                          <span className="w-7 shrink-0 text-gray-500 font-semibold leading-[20px]">의도</span>
+                          <DiffChip before={log.beforeAnswer} after={log.afterAnswer} maxWidthClassName="max-w-[110px]" />
+                        </div>
+                      )}
+                      {log.beforeQuestion !== log.afterQuestion && (
+                        <div className="flex items-start gap-1.5 text-[11px]">
+                          <span className="w-7 shrink-0 text-gray-500 font-semibold leading-[20px]">발화</span>
+                          <DiffChip before={log.beforeQuestion} after={log.afterQuestion} maxWidthClassName="max-w-[110px]" />
+                        </div>
+                      )}
                     </div>
-                  )}
-                </div>
-              ))}
-            </div>
+                  </li>
+                );
+              })}
+            </ol>
           )}
         </PopoverContent>
       </Popover>
@@ -250,7 +284,7 @@ function NluCard({ seq, nluResults, onRetrainSuccess, bubbleEncrypted, bubbleMas
               <button
                 type="button"
                 title="재학습 편집"
-                className="p-0.5 rounded hover:bg-gray-100 transition-colors"
+                className="p-0.5 rounded hover:bg-gray-100 transition-colors cursor-pointer"
                 onClick={(e) => {
                   e.stopPropagation();
                   handleEditStart(nlu);
@@ -352,31 +386,36 @@ function NluCard({ seq, nluResults, onRetrainSuccess, bubbleEncrypted, bubbleMas
             </div>
           )}
 
-          {/* 마지막 변경 이력 */}
+          {/* 최근 변경 */}
           {nlu.lastModifiedBy && (
-            <div className="pt-1.5 border-t border-gray-100 space-y-1">
-              {nlu.lastBeforeAnswer !== nlu.lastAfterAnswer && (
-                <div className="flex items-center gap-1 text-[11px]">
-                  <span className="text-gray-500 w-12 shrink-0 font-semibold">의도</span>
-                  <span className="text-red-400 line-through">{nlu.lastBeforeAnswer}</span>
-                  <span className="text-gray-300">→</span>
-                  <span className="text-blue-600 font-medium">{nlu.lastAfterAnswer}</span>
+            <div className="pt-2 mt-1 border-t border-dashed border-gray-200">
+              {/* 헤더: 라벨 · 사용자/시간 · 전체이력 버튼 */}
+              <div className="flex items-center justify-between gap-2 mb-1.5">
+                <div className="flex items-center gap-1 text-[11px] text-gray-600">
+                  <RotateCcw size={10} className="text-blue-500" />
+                  <span className="font-semibold">최근 변경</span>
                 </div>
-              )}
-              {nlu.lastBeforeQuestion !== nlu.lastAfterQuestion && (
-                <div className="flex items-center gap-1 text-[11px]">
-                  <span className="text-gray-500 w-12 shrink-0 font-semibold">발화</span>
-                  <span className="text-red-400 line-through truncate max-w-[100px]">{nlu.lastBeforeQuestion}</span>
-                  <span className="text-gray-300">→</span>
-                  <span className="text-blue-600 font-medium truncate max-w-[100px]">{nlu.lastAfterQuestion}</span>
+                <div className="flex items-center gap-1.5 min-w-0">
+                  <span className="text-[10px] text-gray-400 truncate" title={`${nlu.lastModifiedBy} · ${formatRetrainTime(nlu.lastModifiedAt)}`}>
+                    {nlu.lastModifiedBy} · {formatRetrainTime(nlu.lastModifiedAt)}
+                  </span>
+                  <RetrainLogPopover ucidGkey={nlu.ucidGkey} questionSeq={nlu.questionSeq} hop={nlu.hop} />
                 </div>
-              )}
-              <div className="flex items-center justify-between">
-                <span className="text-[10px] text-gray-400">
-                  {nlu.lastModifiedBy} |{' '}
-                  {nlu.lastModifiedAt ? new Date(nlu.lastModifiedAt).toLocaleString('ko-KR', { month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' }) : ''}
-                </span>
-                <RetrainLogPopover ucidGkey={nlu.ucidGkey} questionSeq={nlu.questionSeq} hop={nlu.hop} />
+              </div>
+              {/* Diff 본문 */}
+              <div className="space-y-1">
+                {nlu.lastBeforeAnswer !== nlu.lastAfterAnswer && (
+                  <div className="flex items-start gap-2 text-[11px]">
+                    <span className="w-8 shrink-0 text-gray-500 font-semibold leading-[20px]">의도</span>
+                    <DiffChip before={nlu.lastBeforeAnswer} after={nlu.lastAfterAnswer} />
+                  </div>
+                )}
+                {nlu.lastBeforeQuestion !== nlu.lastAfterQuestion && (
+                  <div className="flex items-start gap-2 text-[11px]">
+                    <span className="w-8 shrink-0 text-gray-500 font-semibold leading-[20px]">발화</span>
+                    <DiffChip before={nlu.lastBeforeQuestion} after={nlu.lastAfterQuestion} />
+                  </div>
+                )}
               </div>
             </div>
           )}
@@ -386,7 +425,7 @@ function NluCard({ seq, nluResults, onRetrainSuccess, bubbleEncrypted, bubbleMas
             <div className="flex items-center gap-1.5 pt-1 border-t border-gray-100">
               <button
                 type="button"
-                className="flex items-center gap-1 px-2 py-1 text-[11px] font-medium text-white bg-blue-500 hover:bg-blue-600 rounded transition-colors"
+                className="flex items-center gap-1 px-2 py-1 text-[11px] font-medium text-white bg-blue-500 hover:bg-blue-600 rounded transition-colors cursor-pointer disabled:cursor-not-allowed"
                 onClick={(e) => {
                   e.stopPropagation();
                   handleSave(nlu);
@@ -397,7 +436,7 @@ function NluCard({ seq, nluResults, onRetrainSuccess, bubbleEncrypted, bubbleMas
               </button>
               <button
                 type="button"
-                className="flex items-center gap-1 px-2 py-1 text-[11px] font-medium text-white bg-gray-400 hover:bg-gray-500 rounded transition-colors"
+                className="flex items-center gap-1 px-2 py-1 text-[11px] font-medium text-white bg-gray-400 hover:bg-gray-500 rounded transition-colors cursor-pointer"
                 onClick={(e) => {
                   e.stopPropagation();
                   handleEditCancel();
@@ -411,7 +450,7 @@ function NluCard({ seq, nluResults, onRetrainSuccess, bubbleEncrypted, bubbleMas
               <div className="flex items-center gap-1.5 pt-1 border-t border-gray-100">
                 <button
                   type="button"
-                  className="flex items-center gap-1 px-2 py-1 text-[11px] font-medium text-white bg-green-500 hover:bg-green-600 rounded transition-colors"
+                  className="flex items-center gap-1 px-2 py-1 text-[11px] font-medium text-white bg-green-500 hover:bg-green-600 rounded transition-colors cursor-pointer disabled:cursor-not-allowed"
                   onClick={(e) => {
                     e.stopPropagation();
                     handleApply(nlu);
@@ -902,7 +941,7 @@ const BotDialogHistoryDrawer = forwardRef<BotDialogHistoryDrawerRef>((_, ref) =>
                         .then(() => message.success('UCID가 복사되었습니다.'))
                         .catch(() => message.error('복사에 실패했습니다.'))
                     }
-                    className="flex items-center text-slate-400 hover:text-blue-500 transition-colors"
+                    className="flex items-center text-slate-400 hover:text-blue-500 transition-colors cursor-pointer"
                   >
                     <Copy size={13} />
                   </button>
@@ -971,10 +1010,7 @@ const BotDialogHistoryDrawer = forwardRef<BotDialogHistoryDrawerRef>((_, ref) =>
                   <div
                     key={item.seq}
                     ref={(el) => setNluCardRef(item.seq, el)}
-                    className={cn(
-                      'transition-all duration-300 rounded-lg cursor-pointer hover:bg-slate-50',
-                      highlightedNluSeq === item.seq && 'ring-2 ring-blue-400 ring-offset-2 bg-blue-50/50',
-                    )}
+                    className={cn('transition-all duration-300 rounded-lg hover:bg-slate-50', highlightedNluSeq === item.seq && 'ring-2 ring-blue-400 ring-offset-2 bg-blue-50/50')}
                     onClick={() => handleNluCardClick(item.seq)}
                   >
                     <NluCard

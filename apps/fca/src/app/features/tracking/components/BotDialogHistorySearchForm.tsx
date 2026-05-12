@@ -16,7 +16,7 @@ interface BotDialogHistorySearchFormProps {
   isLoading?: boolean;
   onExcelDownload?: () => void;
   isExporting?: boolean;
-  onSlotChart?: () => void;
+  onSlotChart?: (values: BotDialogHistorySearchRequest) => void;
 }
 
 const BotDialogHistorySearchForm: React.FC<BotDialogHistorySearchFormProps> = ({ onSearch, isLoading, onExcelDownload, isExporting, onSlotChart }) => {
@@ -98,10 +98,10 @@ const BotDialogHistorySearchForm: React.FC<BotDialogHistorySearchFormProps> = ({
   // 날짜 + 시간 조합 (YYYY-MM-DDTHH:mm:00)
   const buildDateTime = (date: Dayjs, time: Dayjs, fallbackSec: string) => `${date.format('YYYY-MM-DD')}T${time.format('HH:mm')}:${fallbackSec}`;
 
-  const handleSearch = () => {
+  const buildRequest = (): BotDialogHistorySearchRequest | null => {
     if (endDate.diff(startDate, 'day') > MAX_DAYS) {
       toast.warning(`조회 기간은 최대 ${MAX_DAYS}일까지 가능합니다.`);
-      return;
+      return null;
     }
 
     const fromDate = buildDateTime(startDate, startTime, '00');
@@ -109,11 +109,11 @@ const BotDialogHistorySearchForm: React.FC<BotDialogHistorySearchFormProps> = ({
 
     if (fromDate > toDate) {
       toast.warning('검색 시작일시가 종료일시보다 늦을 수 없습니다.');
-      return;
+      return null;
     }
 
     const [confidenceMin, confidenceMax] = confidenceRange;
-    onSearch({
+    return {
       fromDate,
       toDate,
       serviceIds: serviceIds.length > 0 ? serviceIds : undefined,
@@ -125,7 +125,17 @@ const BotDialogHistorySearchForm: React.FC<BotDialogHistorySearchFormProps> = ({
       ani: ani.trim() || undefined,
       hasIntent,
       retrainFilter: retrainFilter === COMPLETE_ALL ? undefined : retrainFilter,
-    });
+    };
+  };
+
+  const handleSearch = () => {
+    const req = buildRequest();
+    if (req) onSearch(req);
+  };
+
+  const handleSlotChart = () => {
+    const req = buildRequest();
+    if (req) onSlotChart?.(req);
   };
 
   return (
@@ -291,6 +301,11 @@ const BotDialogHistorySearchForm: React.FC<BotDialogHistorySearchFormProps> = ({
           <Button type="primary" icon={<Search className="size-4" />} onClick={handleSearch} loading={isLoading} className="flex items-center gap-1 shrink-0">
             조회
           </Button>
+          {onSlotChart && (
+            <Button type="primary" icon={<BarChart3 className="size-4" />} className="flex items-center gap-1 shrink-0" onClick={handleSlotChart}>
+              슬롯차트
+            </Button>
+          )}
           {onExcelDownload && (
             <Button
               type="primary"
@@ -300,11 +315,6 @@ const BotDialogHistorySearchForm: React.FC<BotDialogHistorySearchFormProps> = ({
               onClick={onExcelDownload}
             >
               엑셀
-            </Button>
-          )}
-          {onSlotChart && (
-            <Button icon={<BarChart3 className="size-4" />} className="flex items-center gap-1 shrink-0" onClick={onSlotChart}>
-              슬롯 차트
             </Button>
           )}
         </div>
