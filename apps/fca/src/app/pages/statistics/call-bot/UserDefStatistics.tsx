@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import type { ColDef, ColGroupDef } from 'ag-grid-community';
+import type { ColDef } from 'ag-grid-community';
 import { AgGridReact } from 'ag-grid-react';
-import { type BreadcrumbProps, Button, Checkbox, DatePicker, Divider, Input, Select, TimePicker } from 'antd';
+import { type BreadcrumbProps, Button, Checkbox, DatePicker, Divider, Select, TimePicker } from 'antd';
 import dayjs, { type Dayjs } from 'dayjs';
 import { ChevronDown, Download } from 'lucide-react';
 import { useBreadcrumbStore, useNavigationStore } from '@/shared-store';
@@ -18,8 +18,8 @@ import {
   validateDateRange,
 } from '../../../features/statistics/hooks/useDateRangeLimit';
 import { useStatisticsFilterStore } from '../../../features/statistics/hooks/useStatisticsFilterStore';
-import { useGetDialogOptionList, useGetSlotStatList } from '../../../features/statistics/hooks/useStatisticsQueries';
-import type { SlotStatListItem } from '../../../features/statistics/types/statistics.types';
+import { useGetCategoryOptionList, useGetDialogOptionList, useGetUserDefStatList } from '../../../features/statistics/hooks/useStatisticsQueries';
+import type { UserDefColumnDef, UserDefStatListItem } from '../../../features/statistics/types/statistics.types';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/libs/shared-ui/src/components/shadcn/collapsible';
 import useAggridOptions from '@/libs/shared-ui/src/hooks/useAggridOptions';
 import { cn } from '@/libs/shared-ui/src/lib/utils';
@@ -27,10 +27,10 @@ import { cn } from '@/libs/shared-ui/src/lib/utils';
 const breadcrumb: BreadcrumbProps['items'] = [
   { title: '통계', path: '/fca/statistics' },
   { title: '콜봇 통계', path: '/fca/statistics/call-bot' },
-  { title: '슬롯 통계', path: '/fca/statistics/call-bot/slot' },
+  { title: '사용자 정의 통계', path: '/fca/statistics/call-bot/user-def' },
 ];
 
-export default function SlotStatistics() {
+export default function UserDefStatistics() {
   const setBreadcrumb = useBreadcrumbStore((s) => s.setBreadcrumb);
   const clearBreadcrumb = useBreadcrumbStore((s) => s.clearBreadcrumb);
 
@@ -40,19 +40,13 @@ export default function SlotStatistics() {
   }, [setBreadcrumb, clearBreadcrumb]);
 
   const { serviceIds, setServiceIds } = useStatisticsFilterStore();
-  // UI 상태 (사용자가 입력하는 값들)
+  const [categoryIds, setCategoryIds] = useState<string[]>([]);
   const [dialogIds, setDialogIds] = useState<string[]>([]);
   const [timeUnit, setTimeUnit] = useState<string>('DD');
   const [startDate, setStartDate] = useState<Dayjs | null>(dayjs().startOf('day'));
   const [endDate, setEndDate] = useState<Dayjs | null>(dayjs().endOf('day'));
   const [startTime, setStartTime] = useState<Dayjs | null>(dayjs().hour(0).minute(0));
   const [endTime, setEndTime] = useState<Dayjs | null>(dayjs().hour(23).minute(50));
-  const [customSlot, setCustomSlot] = useState<number | null>(null);
-  const [slotFilterColumn, setSlotFilterColumn] = useState<'slotName' | 'entityTag'>('slotName');
-  const [slotSearchValue, setSlotSearchValue] = useState('');
-
-  const slotName = slotFilterColumn === 'slotName' ? slotSearchValue : '';
-  const entityTag = slotFilterColumn === 'entityTag' ? slotSearchValue : '';
   const [excludeLunch, setExcludeLunch] = useState(false);
   const [useInterval, setUseInterval] = useState(false);
   const [intervalStartTime, setIntervalStartTime] = useState<Dayjs | null>(dayjs().hour(0).minute(0));
@@ -63,45 +57,55 @@ export default function SlotStatistics() {
 
   const [isFilterOpen, setIsFilterOpen] = useState(true);
   const { gridOptions } = useAggridOptions();
-  const gridRef = useRef<AgGridReact<SlotStatListItem>>(null);
+  const gridRef = useRef<AgGridReact<UserDefStatListItem>>(null);
   const { data: botList } = useGetBots();
-  const [rowData, setRowData] = useState<SlotStatListItem[]>([]);
-  // 조회 시점의 timeUnit (그리드 날짜 포맷팅에 사용)
+  const [rowData, setRowData] = useState<UserDefStatListItem[]>([]);
+  const [columnDef, setColumnDef] = useState<UserDefColumnDef[]>([]);
   const [displayTimeUnit, setDisplayTimeUnit] = useState<string>('DD');
 
-  // disabledDate 함수 (시작일: 미래 날짜 비활성화, 종료일: 시작일 이전 + maxDays 초과 비활성화)
   const disabledDate = useMemo(() => createDisabledDate(timeUnit), [timeUnit]);
   const disabledEndDate = useMemo(() => createEndDisabledDate(startDate, timeUnit), [startDate, timeUnit]);
 
-  // 봇 옵션 조회
   const serviceSelectOptions = useMemo(
     () => (botList ?? []).filter((b) => Boolean(b?.serviceId && b?.serviceName)).map((b) => ({ label: String(b.serviceName), value: String(b.serviceId) })),
     [botList],
   );
 
-  // 대화 옵션 조회 (봇 선택 시)
   const serviceIdParams = [serviceIds].flat().filter(Boolean);
+
+  const { data: categoryOptionList } = useGetCategoryOptionList({
+    params: { serviceIds: serviceIdParams },
+    queryOptions: { enabled: serviceIdParams.length > 0 },
+  });
+
   const { data: dialogOptionList } = useGetDialogOptionList({
     params: { serviceIds: serviceIdParams },
     queryOptions: { enabled: serviceIdParams.length > 0 },
   });
+
+  const categorySelectOptions = useMemo(
+    () => (categoryOptionList ?? []).filter((c) => Boolean(c?.categoryId && c?.categoryName)).map((c) => ({ label: String(c.categoryName), value: String(c.categoryId) })),
+    [categoryOptionList],
+  );
 
   const dialogSelectOptions = useMemo(
     () => (dialogOptionList ?? []).filter((d) => Boolean(d?.dialogId && d?.dialogName)).map((d) => ({ label: String(d.dialogName), value: String(d.dialogId) })),
     [dialogOptionList],
   );
 
-  // 봇 변경 시 대화명 옵션 초기화
   useEffect(() => {
+    setCategoryIds([]);
     setDialogIds([]);
   }, [serviceIds]);
 
-  // 대화명 옵션 로드 시 전체 선택
+  useEffect(() => {
+    setCategoryIds(categorySelectOptions.map((o) => o.value));
+  }, [categorySelectOptions]);
+
   useEffect(() => {
     setDialogIds(dialogSelectOptions.map((o) => o.value));
   }, [dialogSelectOptions]);
 
-  // fromTime / toTime 계산 (UI state에서 직접 도출)
   const fromTime = (() => {
     if (!startDate) return '';
     if (timeUnit === 'MI') return startDate.format('YYYYMMDD') + (startTime?.format('HHmm') ?? '0000');
@@ -120,21 +124,18 @@ export default function SlotStatistics() {
     return endDate.format('YYYY');
   })();
 
-  // 슬롯 통계 조회
   const {
-    data: slotStatData,
-    isLoading: isLoadingSlotStatList,
+    data: userDefStatData,
+    isLoading: isLoadingUserDefStatList,
     refetch,
-  } = useGetSlotStatList({
+  } = useGetUserDefStatList({
     params: {
       timeUnit,
       fromTime,
       toTime,
       serviceIds: [serviceIds].flat().filter(Boolean),
+      categoryIds: [categoryIds].flat().filter(Boolean),
       dialogIds: [dialogIds].flat().filter(Boolean),
-      customSlot,
-      slotName,
-      entityTag,
       excludeLunch: timeUnit === 'MI' || timeUnit === 'HH' ? excludeLunch : false,
       useInterval: timeUnit === 'MI' || timeUnit === 'HH' ? useInterval : false,
       hourFrom: timeUnit === 'MI' || timeUnit === 'HH' ? (useInterval && intervalStartTime ? intervalStartTime.format(timeUnit === 'MI' ? 'HHmm' : 'HH00') : '') : '',
@@ -147,13 +148,14 @@ export default function SlotStatistics() {
   });
 
   useEffect(() => {
-    if (slotStatData !== undefined) setRowData(slotStatData.items);
-  }, [slotStatData]);
+    if (userDefStatData !== undefined) {
+      setRowData(userDefStatData.items);
+      setColumnDef(userDefStatData.columnDef);
+    }
+  }, [userDefStatData]);
 
-  // BE에서 받은 summary에 '전체합계' 라벨 주입
-  const summaryRow: SlotStatListItem[] = slotStatData?.summary ? [{ ...slotStatData.summary, psrTimeKey: '전체합계' }] : [];
+  const summaryRow: UserDefStatListItem[] = userDefStatData?.summary ? [{ ...userDefStatData.summary, psrTimeKey: '전체합계' }] : [];
 
-  // startDate 또는 timeUnit 변경 시 endDate 자동 조정
   useEffect(() => {
     if (startDate && endDate) {
       const maxDays = getMaxDays(timeUnit);
@@ -166,7 +168,6 @@ export default function SlotStatistics() {
     }
   }, [endDate, startDate, timeUnit]);
 
-  // timeUnit이 HH로 변경될 때 분을 자동 조정 (시작 00분, 종료 50분)
   useEffect(() => {
     if (timeUnit === 'HH') {
       setStartTime((prev) => (prev ? prev.minute(0) : prev));
@@ -195,7 +196,6 @@ export default function SlotStatistics() {
       return;
     }
 
-    // 날짜 범위 검증 (timeUnit별 최대 기간 체크)
     if (!validateDateRange(startDate, endDate, timeUnit)) {
       const maxDays = getMaxDays(timeUnit);
       const dateRangeLabel = timeUnit === 'MI' ? '2일' : timeUnit === 'HH' ? '7일' : timeUnit === 'DD' ? '15일' : timeUnit === 'MM' ? '6개월' : '5년';
@@ -212,99 +212,53 @@ export default function SlotStatistics() {
     refetch();
   };
 
-  const columnDefs: Array<ColDef<SlotStatListItem> | ColGroupDef<SlotStatListItem>> = [
-    {
-      headerName: '날짜',
-      field: 'psrTimeKey',
-      flex: displayTimeUnit === 'MI' || displayTimeUnit === 'HH' ? 2 : 1,
-      colSpan: (params) => (params.node?.rowPinned === 'bottom' ? 3 : 1),
-      valueFormatter: ({ value, node }) => {
-        if (node?.rowPinned === 'bottom') return value ?? '';
-        return value ? dayjs(value).format(getTimeFormat(displayTimeUnit)) : '-';
-      },
-      cellStyle: (params) => (params.node?.rowPinned === 'bottom' ? { fontWeight: 'bold', alignItems: 'center' } : { fontWeight: 'normal', alignItems: 'center' }),
-    },
-    { headerName: '봇ID', field: 'serviceId', hide: true },
-    { headerName: '봇', field: 'serviceName', flex: 2 },
-    { headerName: '대화ID', field: 'dialogId', hide: true },
-    { headerName: '대화명', field: 'dialogName', flex: 2 },
-    { headerName: '슬롯ID', field: 'slotId', hide: true },
-    { headerName: '슬롯명', field: 'slotName', flex: 1 },
-    {
-      headerName: '슬롯타입',
-      field: 'isCustomSlot',
-      flex: 1,
-      valueFormatter: ({ value, node }) => {
-        if (node?.rowPinned === 'bottom') return '';
-        return value === 1 ? '커스텀 슬롯' : '일반 슬롯';
-      },
-    },
-    { headerName: '개체 태그', field: 'entityTag', flex: 1 },
-    {
-      headerName: '진입수',
-      field: 'inCount',
-      flex: 1,
-      cellStyle: (params) => (params.node?.rowPinned === 'bottom' ? { fontWeight: 'bold', alignItems: 'center' } : { fontWeight: 'normal', alignItems: 'center' }),
-    },
-    {
-      headerName: '완료건',
-      field: 'successCount',
-      flex: 1,
-      cellStyle: (params) => (params.node?.rowPinned === 'bottom' ? { fontWeight: 'bold', alignItems: 'center' } : { fontWeight: 'normal', alignItems: 'center' }),
-    },
-    {
-      headerName: '미완료건',
-      field: 'failCount',
-      flex: 1,
-      cellStyle: (params) => (params.node?.rowPinned === 'bottom' ? { fontWeight: 'bold', alignItems: 'center' } : { fontWeight: 'normal', alignItems: 'center' }),
-    },
-    {
-      headerName: '완료율',
-      field: 'successPercent',
-      flex: 1,
-      cellStyle: (params) => (params.node?.rowPinned === 'bottom' ? { fontWeight: 'bold', alignItems: 'center' } : { fontWeight: 'normal', alignItems: 'center' }),
-      valueFormatter: ({ value }: { value?: number }) => (value ? `${value}%` : '0%'),
-    },
-    {
-      headerName: '미완료율',
-      field: 'failPercent',
-      flex: 1,
-      cellStyle: (params) => (params.node?.rowPinned === 'bottom' ? { fontWeight: 'bold', alignItems: 'center' } : { fontWeight: 'normal', alignItems: 'center' }),
-      valueFormatter: ({ value }: { value?: number }) => (value != null ? `${value}%` : '0%'),
-    },
-    {
-      headerName: '재시도 횟수',
-      field: 'retryCount',
-      flex: 1,
-      cellStyle: (params) => (params.node?.rowPinned === 'bottom' ? { fontWeight: 'bold', alignItems: 'center' } : { fontWeight: 'normal', alignItems: 'center' }),
-    },
-    {
-      headerName: '재시도',
-      children: [
-        {
-          headerName: '1회',
-          field: 'oneTimeOrLess',
-          flex: 1,
-          cellStyle: (params) => (params.node?.rowPinned === 'bottom' ? { fontWeight: 'bold', alignItems: 'center' } : { fontWeight: 'normal', alignItems: 'center' }),
+  const WIDE_FIELDS = new Set(['serviceName', 'dialogName', 'categoryName']);
+
+  const columnDefs: ColDef<UserDefStatListItem>[] = columnDef.map((col): ColDef<UserDefStatListItem> => {
+    const boldStyle = (params: { node?: { rowPinned?: string | null } }) =>
+      params.node?.rowPinned === 'bottom' ? { fontWeight: 'bold', alignItems: 'center' } : { fontWeight: 'normal', alignItems: 'center' };
+
+    if (col.key === 'psrTimeKey') {
+      return {
+        headerName: col.headerName,
+        field: 'psrTimeKey',
+        flex: displayTimeUnit === 'MI' || displayTimeUnit === 'HH' ? 2 : 1,
+        colSpan: (params) => (params.node?.rowPinned === 'bottom' ? 2 : 1),
+        valueFormatter: ({ value, node }) => {
+          if (node?.rowPinned === 'bottom') return (value as string) ?? '';
+          return value ? dayjs(value as string).format(getTimeFormat(displayTimeUnit)) : '-';
         },
-        {
-          headerName: '2회',
-          field: 'twoTimes',
-          flex: 1,
-          cellStyle: (params) => (params.node?.rowPinned === 'bottom' ? { fontWeight: 'bold', alignItems: 'center' } : { fontWeight: 'normal', alignItems: 'center' }),
+        cellStyle: boldStyle,
+      };
+    }
+
+    if (col.key.includes('.')) {
+      const parts = col.key.split('.');
+      return {
+        headerName: col.headerName,
+        flex: 1,
+        valueGetter: (params) => {
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          let val: any = params.data;
+          for (const part of parts) {
+            val = val?.[part];
+          }
+          return val;
         },
-        {
-          headerName: '3회이상',
-          field: 'threeTimesOrMore',
-          flex: 1,
-          cellStyle: (params) => (params.node?.rowPinned === 'bottom' ? { fontWeight: 'bold', alignItems: 'center' } : { fontWeight: 'normal', alignItems: 'center' }),
-        },
-      ],
-    },
-  ];
+        cellStyle: boldStyle,
+      };
+    }
+
+    return {
+      headerName: col.headerName,
+      field: col.key as string,
+      flex: WIDE_FIELDS.has(col.key) ? 2 : 1,
+      cellStyle: boldStyle,
+    };
+  });
 
   const { permissions } = useNavigationStore();
-  const hasExcelPermission = permissions.includes('fca:stats-slot:excel');
+  const hasExcelPermission = permissions.includes('fca:stats-user-def:excel');
 
   const [isExporting, setIsExporting] = useState(false);
 
@@ -316,15 +270,13 @@ export default function SlotStatistics() {
 
     setIsExporting(true);
     try {
-      const response = await statisticsApi.exportSlotStatExcel({
+      const response = await statisticsApi.exportUserDefStatExcel({
         timeUnit: displayTimeUnit,
         fromTime,
         toTime,
         serviceIds: [serviceIds].flat().filter(Boolean),
+        categoryIds: [categoryIds].flat().filter(Boolean),
         dialogIds: [dialogIds].flat().filter(Boolean),
-        customSlot,
-        slotName,
-        entityTag,
         excludeLunch: displayTimeUnit === 'MI' || displayTimeUnit === 'HH' ? excludeLunch : false,
         useInterval: displayTimeUnit === 'MI' || displayTimeUnit === 'HH' ? useInterval : false,
         hourFrom:
@@ -339,7 +291,7 @@ export default function SlotStatistics() {
         excludeBusinessHoliday: displayTimeUnit !== 'MM' && displayTimeUnit !== 'YY' ? excludeBusinessHoliday : false,
         excludeStatHoliday: displayTimeUnit !== 'MM' && displayTimeUnit !== 'YY' ? excludeStatHoliday : false,
       });
-      const fileName = extractFileName(response.headers['content-disposition'], `SLOT_STATISTICS_${dayjs().format('YYYYMMDD_HHmmss')}.xlsx`);
+      const fileName = extractFileName(response.headers['content-disposition'], `USER_DEF_STATISTICS_${dayjs().format('YYYYMMDD_HHmmss')}.xlsx`);
       downloadBlob(response.data, fileName);
     } catch {
       toast.error('엑셀 다운로드에 실패했습니다.');
@@ -475,6 +427,45 @@ export default function SlotStatistics() {
             <CollapsibleContent>
               <div className="flex flex-wrap items-center gap-3">
                 <div className="flex items-center gap-3">
+                  <span className="text-sm font-medium text-[#495057] shrink-0">카테고리</span>
+                  <Select
+                    mode="multiple"
+                    value={categoryIds}
+                    onChange={(value) => setCategoryIds(value ?? [])}
+                    allowClear
+                    showSearch
+                    maxTagCount="responsive"
+                    options={categorySelectOptions}
+                    placeholder="카테고리를 선택하세요."
+                    optionFilterProp="label"
+                    style={{ width: '15rem' }}
+                    popupMatchSelectWidth={false}
+                    dropdownRender={(menu) => (
+                      <>
+                        <div
+                          className="flex items-center gap-2 px-3 py-2 cursor-pointer hover:bg-gray-50"
+                          onMouseDown={(e) => e.preventDefault()}
+                          onClick={() => {
+                            if (categoryIds.length === categorySelectOptions.length) {
+                              setCategoryIds([]);
+                            } else {
+                              setCategoryIds(categorySelectOptions.map((o) => o.value));
+                            }
+                          }}
+                        >
+                          <Checkbox
+                            checked={categoryIds.length === categorySelectOptions.length && categorySelectOptions.length > 0}
+                            indeterminate={categoryIds.length > 0 && categoryIds.length < categorySelectOptions.length}
+                          />
+                          <span className="text-sm">전체 선택</span>
+                        </div>
+                        <Divider style={{ margin: '4px 0' }} />
+                        {menu}
+                      </>
+                    )}
+                  />
+                </div>
+                <div className="flex items-center gap-3">
                   <span className="text-sm font-medium text-[#495057] shrink-0">대화명</span>
                   <Select
                     mode="multiple"
@@ -511,38 +502,6 @@ export default function SlotStatistics() {
                         {menu}
                       </>
                     )}
-                  />
-                </div>
-                <Divider orientation="vertical" className="!h-5 !m-0" />
-                <div className="flex items-center gap-2">
-                  <Select
-                    value={slotFilterColumn}
-                    onChange={(v) => {
-                      setSlotFilterColumn(v);
-                      setSlotSearchValue('');
-                    }}
-                    options={[
-                      { label: '슬롯명', value: 'slotName' },
-                      { label: '개체 태그', value: 'entityTag' },
-                    ]}
-                    className="!max-w-[120px] !min-w-[100px]"
-                    popupMatchSelectWidth={false}
-                  />
-                  <Input value={slotSearchValue} onChange={(e) => setSlotSearchValue(e.target.value)} placeholder="검색어를 입력하세요." style={{ width: '180px' }} allowClear />
-                </div>
-                <Divider orientation="vertical" className="!h-5 !m-0" />
-                <div className="flex items-center gap-3">
-                  <span className="text-sm font-medium text-[#495057] shrink-0">슬롯 유형</span>
-                  <Select
-                    value={customSlot}
-                    onChange={(v) => setCustomSlot(v)}
-                    options={[
-                      { label: '전체', value: null },
-                      { label: '일반 슬롯', value: 0 },
-                      { label: '커스텀 슬롯', value: 1 },
-                    ]}
-                    className="!min-w-[120px]"
-                    popupMatchSelectWidth={false}
                   />
                 </div>
                 {timeUnit !== 'MM' && timeUnit !== 'YY' ? (
@@ -626,14 +585,14 @@ export default function SlotStatistics() {
           </header>
         </Collapsible>
         <div className="w-full h-full">
-          <AgGridReact<SlotStatListItem>
+          <AgGridReact<UserDefStatListItem>
             ref={gridRef}
             rowModelType="clientSide"
             rowData={rowData}
-            getRowId={(params) => `${params.data.psrTimeKey}_${params.data.serviceId}_${params.data.dialogId}_${params.data.slotId}`}
+            getRowId={(params) => `${params.data.psrTimeKey}_${params.data.serviceId}_${params.data.dialogId}`}
             columnDefs={columnDefs}
             gridOptions={{ ...gridOptions, statusBar: undefined }}
-            loading={isLoadingSlotStatList}
+            loading={isLoadingUserDefStatList}
             pagination={false}
             rowNumbers={false}
             sideBar={false}
