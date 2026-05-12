@@ -22,9 +22,7 @@
           "apps/stt/src/favicon.ico",
           "apps/stt/src/assets"
         ],
-        "styles": [
-          "libs/shared-ui/src/styles/global.css"
-        ],
+        "styles": [],
         "scripts": [],
         "webpackConfig": "apps/stt/webpack.config.ts",
         "postcssConfig": "apps/stt/postcss.config.js"
