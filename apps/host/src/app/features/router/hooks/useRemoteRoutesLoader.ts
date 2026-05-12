@@ -47,8 +47,14 @@ const flattenRoutes = (routes: RouteObject[], parentPath = ''): RemoteRouteEntry
 const loadRemoteRoutes = async (): Promise<RemoteRoutesMap> => {
   const entries = await Promise.all(
     Object.entries(ROUTE_LOADERS).map(async ([name, loader]) => {
-      const routesModule = await loader();
-      return [name, flattenRoutes(routesModule.routes)] as const;
+      try {
+        const routesModule = await loader();
+        const routes = Array.isArray(routesModule?.routes) ? routesModule.routes : [];
+        return [name, flattenRoutes(routes)] as const;
+      } catch (err) {
+        Log.warn(`Failed to load routes for remote "${name}":`, err);
+        return [name, []] as const;
+      }
     }),
   );
   return Object.fromEntries(entries);
@@ -57,9 +63,14 @@ const loadRemoteRoutes = async (): Promise<RemoteRoutesMap> => {
 export function useRemoteRoutesLoader() {
   const setRoutes = useRemoteRoutesStore((s) => s.setRoutes);
   const load = useCallback(async () => {
-    const routes = await loadRemoteRoutes();
-    Log.debug('Remote routes loaded:', routes);
-    setRoutes(routes);
+    try {
+      const routes = await loadRemoteRoutes();
+      Log.debug('Remote routes loaded:', routes);
+      setRoutes(routes);
+    } catch (err) {
+      Log.error('Failed to load remote routes:', err);
+      setRoutes({});
+    }
   }, [setRoutes]);
 
   return { load };

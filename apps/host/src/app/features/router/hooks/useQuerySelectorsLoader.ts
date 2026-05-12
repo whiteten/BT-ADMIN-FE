@@ -27,8 +27,14 @@ const SELECTOR_LOADERS: Record<string, () => Promise<SelectorsModule>> = {
 const loadAllSelectors = async (): Promise<QuerySelectorRegistry> => {
   const entries = await Promise.all(
     Object.entries(SELECTOR_LOADERS).map(async ([appId, loader]) => {
-      const mod = await loader();
-      return Object.entries(mod.querySelectors).map(([key, component]) => [`${appId}:${key}`, component] as const);
+      try {
+        const mod = await loader();
+        const selectors = mod?.querySelectors ?? {};
+        return Object.entries(selectors).map(([key, component]) => [`${appId}:${key}`, component] as const);
+      } catch (err) {
+        Log.warn(`Failed to load query selectors for remote "${appId}":`, err);
+        return [] as ReadonlyArray<readonly [string, QuerySelectorComponent]>;
+      }
     }),
   );
   return Object.fromEntries(entries.flat());
@@ -37,9 +43,14 @@ const loadAllSelectors = async (): Promise<QuerySelectorRegistry> => {
 export function useQuerySelectorsLoader() {
   const setRegistry = useQuerySelectorsStore((s) => s.setRegistry);
   const load = useCallback(async () => {
-    const registry = await loadAllSelectors();
-    Log.debug('Query selectors loaded:', Object.keys(registry));
-    setRegistry(registry);
+    try {
+      const registry = await loadAllSelectors();
+      Log.debug('Query selectors loaded:', Object.keys(registry));
+      setRegistry(registry);
+    } catch (err) {
+      Log.error('Failed to load query selectors:', err);
+      setRegistry({});
+    }
   }, [setRegistry]);
 
   return { load };
