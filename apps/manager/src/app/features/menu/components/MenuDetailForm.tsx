@@ -218,7 +218,7 @@ export default function MenuDetailForm({ menu, apps, onSave, onDelete, saving }:
           <Row gutter={16}>
             <Col span={16}>
               <Form.Item label="설명" name="desc">
-                <Input.TextArea placeholder="메뉴 설명 (선택사항)" rows={3} />
+                <Input placeholder="메뉴 설명 (선택사항)" />
               </Form.Item>
             </Col>
           </Row>
