@@ -211,6 +211,34 @@ pages/<feature>/
 └── <Feature>List.tsx
 ```
 
+페이지 컴포넌트 본문 시작부에서 **breadcrumb을 host store에 push**합니다. breadcrumb은 페이지 본문이 아니라 host의 SubHeader가 그리므로 페이지에는 별도의 헤더 컴포넌트를 두지 않습니다.
+
+```typescript
+import { useEffect } from 'react';
+import type { BreadcrumbProps } from 'antd';
+import { useBreadcrumbStore } from '@/shared-store';
+
+const breadcrumb: BreadcrumbProps['items'] = [
+  { title: '관리', path: '/fca/bot-config' },
+  { title: '봇', path: '/fca/bot-config/bot' },
+  { title: '봇 목록', path: '/fca/bot-config/bot/list' },
+];
+
+export default function BotList() {
+  const setBreadcrumb = useBreadcrumbStore((s) => s.setBreadcrumb);
+  const clearBreadcrumb = useBreadcrumbStore((s) => s.clearBreadcrumb);
+
+  useEffect(() => {
+    setBreadcrumb(breadcrumb);
+    return () => clearBreadcrumb();
+  }, [setBreadcrumb, clearBreadcrumb]);
+
+  // ... 페이지 본문
+}
+```
+
+동적 라벨(예: `:botName`)은 `setBreadcrumb(items, params)`의 두 번째 인자로 전달합니다. 자세한 규칙은 "페이지 레이아웃 가이드 → Breadcrumb 표준 절차" 참조.
+
 ### Step 6: 라우트 등록
 
 `routes.tsx`에 페이지를 lazy loading으로 등록합니다.
@@ -722,12 +750,13 @@ const BotCreate = lazy(() => import('./pages/bot-config/BotCreate'));
 자주 쓰는 커스텀 컴포넌트들입니다:
 
 ```typescript
-import { PageHeader } from '@/components/custom/PageHeader'; // 페이지 상단 헤더
 import { FallbackSpinner } from '@/components/custom/FallbackSpinner'; // 로딩 스피너
 import { NoData } from '@/components/custom/NoData'; // 데이터 없음 표시
 import { NotFound } from '@/components/custom/NotFound'; // 404 페이지
 import { PageTabs } from '@/components/custom/PageTabs'; // 탭 네비게이션
 ```
+
+> 페이지 breadcrumb은 host의 SubHeader가 그립니다. 페이지 컴포넌트는 본문 시작부에서 `useBreadcrumbStore`의 `setBreadcrumb`로 push하고 unmount 시 `clearBreadcrumb`로 정리합니다(상세 절차는 "페이지 레이아웃 가이드" 참조).
 
 ### useMemo / useCallback을 쓰지 마세요
 
@@ -1102,7 +1131,6 @@ const XxxListPage: React.FC = () => {
 
   return (
     <div className="flex flex-col gap-4 w-full h-full">
-      <PageHeader breadcrumb={breadcrumb} />
       <div className="flex flex-col gap-5 w-full h-full bg-white bt-shadow p-5">
         <XxxSearchForm onSearch={handleSearch} isLoading={isListLoading} />
         <div className="w-full h-full">
@@ -1169,7 +1197,7 @@ import { useGetBots } from '../../features/bot-config/hooks/useBotQueries';
 
 // ✅ 공유 라이브러리 → @ 별칭
 import { Button } from '@/components/ui/button';
-import { PageHeader } from '@/components/custom/PageHeader';
+import { FallbackSpinner } from '@/components/custom/FallbackSpinner';
 import { cn } from '@/lib/utils';
 import { toast } from '@/shared-util';
 import { useAuthStore } from '@/shared-store';
@@ -1185,9 +1213,9 @@ import { Dialog, DialogContent, DialogHeader } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 
 // 🧩 커스텀 컴포넌트
-import { PageHeader } from '@/components/custom/PageHeader';
 import { FallbackSpinner } from '@/components/custom/FallbackSpinner';
 import { NoData } from '@/components/custom/NoData';
+import { NotFound } from '@/components/custom/NotFound';
 
 // 🔧 유틸리티
 import { cn } from '@/lib/utils'; // 클래스 이름 병합 유틸
@@ -1783,13 +1811,24 @@ UI 요소는 반드시 **흰색 배경 컨테이너**(`bg-white bt-shadow`)나 *
 #### 표준 골격
 
 ```typescript
+const breadcrumb: BreadcrumbProps['items'] = [
+  { title: '...', path: '/...' },
+  { title: '...', path: '/...' },
+];
+
 const SomeListPage: React.FC = () => {
-  // ... hooks, queries, handlers
+  // ⓪ breadcrumb store push — host SubHeader가 그리므로 페이지 본문에는 별도 헤더를 두지 않는다
+  const setBreadcrumb = useBreadcrumbStore((s) => s.setBreadcrumb);
+  const clearBreadcrumb = useBreadcrumbStore((s) => s.clearBreadcrumb);
+  useEffect(() => {
+    setBreadcrumb(breadcrumb);
+    return () => clearBreadcrumb();
+  }, [setBreadcrumb, clearBreadcrumb]);
+
+  // ... 그 외 hooks, queries, handlers
 
   return (
     <div className="flex flex-col gap-4 w-full h-full">
-      <PageHeader breadcrumb={breadcrumb} />
-
       {/* ① 흰색 래퍼 — 필터·그리드를 모두 품는다 */}
       <div className="flex flex-col gap-5 w-full h-full bg-white bt-shadow p-5">
         {/* ② 필터·액션 헤더 */}
@@ -1821,11 +1860,93 @@ const SomeListPage: React.FC = () => {
 | 영역             | 역할                                | 표준 클래스                                                                          |
 | ---------------- | ----------------------------------- | ------------------------------------------------------------------------------------ |
 | **외곽 컨테이너**    | 페이지 전체 골격                  | `flex flex-col gap-4 w-full h-full`                                                  |
-| **PageHeader**   | 브레드크럼 네비게이션              | (자체 스타일, 배경 없음)                                                             |
 | **흰색 래퍼**    | 필터·그리드를 묶는 단일 컨테이너    | `flex flex-col gap-5 w-full h-full bg-white bt-shadow p-5`                           |
 | **필터·액션 헤더** | 인라인 필터 + 우측 액션 버튼          | `<header className="flex items-center justify-between w-full gap-2 lg:flex-nowrap flex-wrap">` |
 | **그리드**       | AG-Grid 컨테이너                    | `w-full h-full` (배경·그림자 금지)                                                   |
 | **Drawer/Modal** | 상세·생성·편집용                    | 흰색 래퍼 밖, 외곽 컨테이너 안쪽에 배치                                              |
+
+#### Breadcrumb 표준 절차
+
+페이지의 breadcrumb은 **페이지 본문에 그리지 않습니다**. host 레이아웃의 `BreadcrumbSlot`이 SubHeader 우측에 그리고 있으므로, 각 페이지는 mount 시 `useBreadcrumbStore`에 push하고 unmount 시 clear하는 책임만 갖습니다.
+
+##### 정적 breadcrumb
+
+페이지 파일 상단에 `breadcrumb` 상수를 모듈 레벨로 두고, 컴포넌트 본문 시작부에서 push/clear합니다.
+
+```typescript
+import { useEffect } from 'react';
+import type { BreadcrumbProps } from 'antd';
+import { useBreadcrumbStore } from '@/shared-store';
+
+const breadcrumb: BreadcrumbProps['items'] = [
+  { title: '관리', path: '/fca/bot-config' },
+  { title: '봇', path: '/fca/bot-config/bot' },
+  { title: '봇 목록', path: '/fca/bot-config/bot/list' },
+];
+
+export default function BotList() {
+  const setBreadcrumb = useBreadcrumbStore((s) => s.setBreadcrumb);
+  const clearBreadcrumb = useBreadcrumbStore((s) => s.clearBreadcrumb);
+
+  useEffect(() => {
+    setBreadcrumb(breadcrumb);
+    return () => clearBreadcrumb();
+  }, [setBreadcrumb, clearBreadcrumb]);
+
+  // ...
+}
+```
+
+##### 동적 라벨 (fetch 결과로 채워지는 항목)
+
+title을 `:paramName` 형태로 적고 `setBreadcrumb(items, params)`의 두 번째 인자로 치환값을 전달합니다. BreadcrumbSlot이 자동으로 치환하며, 치환된 항목은 강조 스타일로 렌더됩니다. fetch 결과가 deps에 들어가야 라벨이 갱신됩니다.
+
+```typescript
+export default function BotDetail() {
+  const { serviceId } = useParams();
+  const { data: bot } = useGetBot({ params: { serviceId } });
+  const setBreadcrumb = useBreadcrumbStore((s) => s.setBreadcrumb);
+  const clearBreadcrumb = useBreadcrumbStore((s) => s.clearBreadcrumb);
+
+  useEffect(() => {
+    const items: BreadcrumbProps['items'] = [
+      { title: '관리', path: '/fca/bot-config' },
+      { title: '봇', path: '/fca/bot-config/bot' },
+      { title: ':botName', path: `/fca/bot-config/bot/${serviceId}` },
+    ];
+    setBreadcrumb(items, { botName: bot?.serviceName ?? '-' });
+    return () => clearBreadcrumb();
+  }, [serviceId, bot?.serviceName, setBreadcrumb, clearBreadcrumb]);
+
+  // ...
+}
+```
+
+##### 분기 케이스 (isPublic 등)
+
+같은 페이지 컴포넌트가 분기에 따라 다른 breadcrumb을 가져야 할 때, useEffect 내부에서 조건 분기로 items를 선택하고 분기 키를 deps에 포함합니다.
+
+```typescript
+useEffect(() => {
+  const items: BreadcrumbProps['items'] = isPublic
+    ? [
+        { title: '공용', path: '/fca/global' },
+        { title: '공용 모델', path: '/fca/global/model' },
+      ]
+    : [
+        { title: '관리', path: '/fca/bot-config' },
+        { title: '모델', path: '/fca/bot-config/model' },
+      ];
+  setBreadcrumb(items);
+  return () => clearBreadcrumb();
+}, [isPublic, setBreadcrumb, clearBreadcrumb]);
+```
+
+##### 핵심 규칙
+
+- breadcrumb push용 `useEffect`는 **본문 시작부**에 두세요. early-return으로 로딩 분기되는 페이지도 hook 순서가 깨지지 않도록 가장 위에 위치.
+- cleanup의 `clearBreadcrumb()`를 빠뜨리면 다른 페이지로 이동했을 때 이전 breadcrumb이 잠깐 남습니다.
+- 부모(redirect-only 그룹 등)는 `path` 없이 두면 BreadcrumbSlot이 비링크 텍스트로 렌더해 클릭이 자연스럽게 비활성됩니다.
 
 #### 검색 영역이 복잡할 때 — 전용 컴포넌트로 분리
 
@@ -2570,13 +2691,19 @@ export const SelectorKeys = Object.fromEntries(
 >
 > 메뉴 등록·편집 폼은 `handle.queryParams`에 선언된 모든 query를 무조건 필수 입력으로 검증합니다(빈 값 저장 불가). 선택적 query 키 케이스는 의도적으로 미지원이므로 `QueryParamSpec`에 `required` 같은 옵트인 옵션도 두지 않습니다 — 검증 로직은 [MenuCreateDrawer](../apps/manager/src/app/features/menu/components/MenuCreateDrawer.tsx) / [MenuDetailForm](../apps/manager/src/app/features/menu/components/MenuDetailForm.tsx)의 `handleSubmit`이 담당하고, 빈 selector 옆에 인라인 에러 메시지를 표시합니다([QuerySelectorRenderer](../apps/manager/src/app/features/menu/selectors/QuerySelectorRenderer.tsx)의 `errors` prop).
 >
-> 분기 메뉴 페이지의 breadcrumb은 leaf 항목 `path`에 현재 query 값을 직접 합성해 자기 자신을 가리키도록 작성합니다. 부모(상위) 항목은 redirect-only 그룹(`<Navigate to=... replace />`로 자식 leaf에 떨어지는 path)인 경우가 많은데, 이때 `path`에 query를 박아도 redirect 단계에서 query가 사라져 분기 컨텍스트가 깨집니다 — wrapper나 routes 구조 변경을 도입하지 않는 한 이 누락은 막을 수 없으므로 부모 항목은 `path`를 작성하지 않는 것을 권장합니다. [PageHeader](../libs/shared-ui/src/components/custom/PageHeader.tsx)는 path 없는 항목을 비링크 텍스트(`<span>`)로 렌더하므로 시각적으로도 클릭 비활성임이 드러납니다.
+> 분기 메뉴 페이지의 breadcrumb은 leaf 항목 `path`에 현재 query 값을 직접 합성해 자기 자신을 가리키도록 작성합니다. 부모(상위) 항목은 redirect-only 그룹(`<Navigate to=... replace />`로 자식 leaf에 떨어지는 path)인 경우가 많은데, 이때 `path`에 query를 박아도 redirect 단계에서 query가 사라져 분기 컨텍스트가 깨집니다 — wrapper나 routes 구조 변경을 도입하지 않는 한 이 누락은 막을 수 없으므로 부모 항목은 `path`를 작성하지 않는 것을 권장합니다. host의 [BreadcrumbSlot](../apps/host/src/app/features/layout/components/BreadcrumbSlot.tsx)은 path 없는 항목을 비링크 텍스트(`<span>`)로 렌더하므로 시각적으로도 클릭 비활성임이 드러납니다.
 >
 > ```tsx
-> const breadcrumb: BreadcrumbProps['items'] = [
->   { title: '샘플' },                                                          // 부모 — path 폐기 → 비링크 텍스트
->   { title: '프리셋 데모', path: `/fca/sample/preset-demo?preset=${preset}` }, // leaf — 현재 query 합성
-> ];
+> // 페이지 본문 시작부에서 useBreadcrumbStore에 push (페이지 레이아웃 가이드 → Breadcrumb 표준 절차 참조).
+> // 분기 query 값이 바뀔 때마다 leaf의 path를 다시 합성해야 하므로 deps에 분기 값을 포함시킨다.
+> useEffect(() => {
+>   const items: BreadcrumbProps['items'] = [
+>     { title: '샘플' },                                                          // 부모 — path 폐기 → 비링크 텍스트
+>     { title: '프리셋 데모', path: `/fca/sample/preset-demo?preset=${preset}` }, // leaf — 현재 query 합성
+>   ];
+>   setBreadcrumb(items);
+>   return () => clearBreadcrumb();
+> }, [preset, setBreadcrumb, clearBreadcrumb]);
 > ```
 
 ### 주의사항 — 컴포넌트 remount 처리

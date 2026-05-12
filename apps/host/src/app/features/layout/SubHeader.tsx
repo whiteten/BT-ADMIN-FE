@@ -1,4 +1,5 @@
 import BookmarkBar from './components/BookmarkBar';
+import BreadcrumbSlot from './components/BreadcrumbSlot';
 import MenuButton from './components/MenuButton';
 
 export const SUB_HEADER_HEIGHT = 40;
@@ -12,6 +13,7 @@ export default function SubHeader() {
         <div className="flex-1 min-w-0 h-9 flex items-center">
           <BookmarkBar />
         </div>
+        <BreadcrumbSlot />
       </div>
     </div>
   );

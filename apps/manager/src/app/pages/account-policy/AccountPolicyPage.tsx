@@ -8,11 +8,11 @@
 import React, { useEffect, useState } from 'react';
 import { type BreadcrumbProps, Button, Divider, Form, InputNumber, Radio, Switch, Typography } from 'antd';
 import { AlertTriangle, Check, Clock, Hash, KeyRound, Lock, Monitor, MoonStar, RefreshCw, Timer, UserX } from 'lucide-react';
+import { useBreadcrumbStore } from '@/shared-store';
 import { toast } from '@/shared-util';
 import { useGetAccountPolicy, useUpdateAccountPolicy } from '../../features/account-policy/hooks/useAccountPolicyQueries';
 import { type AccountPolicyUpdateData, CONCURRENT_LOGIN_ACTION_OPTIONS, DEFAULT_ACCOUNT_POLICY } from '../../features/account-policy/types/accountPolicy.types';
 import { FallbackSpinner } from '@/components/custom/FallbackSpinner';
-import PageHeader from '@/components/custom/PageHeader';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { cn } from '@/libs/shared-ui/src/lib/utils';
@@ -156,6 +156,14 @@ function SummaryItem({ label, value, active }: SummaryItemProps) {
 }
 
 export default function AccountPolicyPage() {
+  const setBreadcrumb = useBreadcrumbStore((s) => s.setBreadcrumb);
+  const clearBreadcrumb = useBreadcrumbStore((s) => s.clearBreadcrumb);
+
+  useEffect(() => {
+    setBreadcrumb(breadcrumb);
+    return () => clearBreadcrumb();
+  }, [setBreadcrumb, clearBreadcrumb]);
+
   const [form] = Form.useForm<AccountPolicyUpdateData>();
   const formValues = Form.useWatch([], form);
   const [activeTab, setActiveTab] = useState('complexity');
@@ -208,7 +216,6 @@ export default function AccountPolicyPage() {
   if (isLoading) {
     return (
       <div className="flex flex-col gap-4 w-full h-full">
-        <PageHeader breadcrumb={breadcrumb} />
         <div className="flex items-center justify-center w-full h-full">
           <FallbackSpinner />
         </div>
@@ -218,8 +225,6 @@ export default function AccountPolicyPage() {
 
   return (
     <div className="flex flex-col gap-4 w-full h-full">
-      <PageHeader breadcrumb={breadcrumb} />
-
       <div className="flex flex-1 min-h-0 gap-4">
         {/* 메인 폼 영역 */}
         <div className="flex-1 min-w-0 bg-white bt-shadow flex flex-col">

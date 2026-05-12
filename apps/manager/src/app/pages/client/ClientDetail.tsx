@@ -11,6 +11,7 @@ import { useQueryClient } from '@tanstack/react-query';
 import { Button, Divider, Form, Input, Switch, Transfer, type TransferProps } from 'antd';
 import dayjs from 'dayjs';
 import { Calendar, Hash, KeyRound } from 'lucide-react';
+import { useBreadcrumbStore } from '@/shared-store';
 import { toast } from '@/shared-util';
 import ClientStatusBadge from '../../features/client/components/ClientStatusBadge';
 import { clientQueryKeys, useDeleteClient, useGetClient, useUpdateClient } from '../../features/client/hooks/useClientQueries';
@@ -18,7 +19,6 @@ import { type ClientUpdateRequest, transformToBackendFormat } from '../../featur
 import { useGetAuthList } from '../../features/iam/hooks/usePermissionQueries';
 import type { PermissionFlat } from '../../features/iam/types/iam.types';
 import { FallbackSpinner } from '@/components/custom/FallbackSpinner';
-import PageHeader from '@/components/custom/PageHeader';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { useModal } from '@/libs/shared-ui/src/hooks/useModal';
 
@@ -36,6 +36,14 @@ interface ClientUpdateFormValues {
 }
 
 export default function ClientDetail() {
+  const setBreadcrumb = useBreadcrumbStore((s) => s.setBreadcrumb);
+  const clearBreadcrumb = useBreadcrumbStore((s) => s.clearBreadcrumb);
+
+  useEffect(() => {
+    setBreadcrumb(breadcrumb);
+    return () => clearBreadcrumb();
+  }, [setBreadcrumb, clearBreadcrumb]);
+
   const { clientId } = useParams();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
@@ -130,7 +138,6 @@ export default function ClientDetail() {
   if (isLoading || isPermissionsLoading) {
     return (
       <div className="flex flex-col gap-4 w-full h-full">
-        <PageHeader breadcrumb={breadcrumb} />
         <div className="flex items-center justify-center w-full h-full">
           <FallbackSpinner />
         </div>
@@ -141,7 +148,6 @@ export default function ClientDetail() {
   if (!client) {
     return (
       <div className="flex flex-col gap-4 w-full h-full">
-        <PageHeader breadcrumb={breadcrumb} />
         <div className="flex items-center justify-center w-full h-full">
           <p>클라이언트를 찾을 수 없습니다.</p>
         </div>
@@ -151,7 +157,6 @@ export default function ClientDetail() {
 
   return (
     <div className="flex flex-col gap-4 w-full h-full">
-      <PageHeader breadcrumb={breadcrumb} />
       <div className="flex flex-1 min-h-0 gap-4">
         {/* 메인 폼 영역 */}
         <div className="flex-1 min-w-0 bg-white bt-shadow overflow-y-auto p-6">

@@ -1,14 +1,14 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useQueryClient } from '@tanstack/react-query';
 import { type BreadcrumbProps, Button, Input, Select } from 'antd';
+import { useBreadcrumbStore } from '@/shared-store';
 import { toast } from '@/shared-util';
 import BotCard from '../../features/bot-config/components/BotCard';
 import { botQueryKeys, useDeleteBot, useGetBots, useGetIfeInfo } from '../../features/bot-config/hooks/useBotQueries';
 import type { IfeInfo } from '../../features/bot-config/types';
 import { FallbackSpinner } from '@/components/custom/FallbackSpinner';
 import NoData from '@/components/custom/NoData';
-import PageHeader from '@/components/custom/PageHeader';
 import { useModal } from '@/libs/shared-ui/src/hooks/useModal';
 
 const breadcrumb: BreadcrumbProps['items'] = [
@@ -21,8 +21,15 @@ export default function BotList() {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const modal = useModal();
+  const setBreadcrumb = useBreadcrumbStore((s) => s.setBreadcrumb);
+  const clearBreadcrumb = useBreadcrumbStore((s) => s.clearBreadcrumb);
   const [filterColumn, setFilterColumn] = useState('serviceName');
   const [searchValue, setSearchValue] = useState('');
+
+  useEffect(() => {
+    setBreadcrumb(breadcrumb);
+    return () => clearBreadcrumb();
+  }, [setBreadcrumb, clearBreadcrumb]);
 
   const { data: botList, isFetching } = useGetBots();
   const { mutate: deleteBot } = useDeleteBot({
@@ -95,7 +102,6 @@ export default function BotList() {
 
   return (
     <div className="flex flex-col gap-4 w-full h-full">
-      <PageHeader breadcrumb={breadcrumb} />
       {/* Filter */}
       <div className="flex items-center justify-between gap-2 w-full h-[76px] bg-white bt-shadow px-7 py-5">
         <div className="flex gap-2 w-full items-center">

@@ -11,14 +11,13 @@ import React, { Suspense, useCallback, useEffect, useMemo, useRef, useState } fr
 import { useParams, useSearchParams } from 'react-router-dom';
 import { type BreadcrumbProps, Button, Divider, Tag } from 'antd';
 import { Check, ChevronLeft, ChevronRight, History, Layers, Shield } from 'lucide-react';
-import { useAuthStore } from '@/shared-store';
+import { useAuthStore, useBreadcrumbStore } from '@/shared-store';
 import { type PermissionStats, type ResourceStats, type UserAdditionalFormValues, type UserBasicFormValues, UserDetailProvider } from './context/UserDetailContext';
 import { useGetRoles } from '../../features/iam/hooks/useRoleQueries';
 import AccountStatusBadge from '../../features/user/components/AccountStatusBadge';
 import { useGetUser } from '../../features/user/hooks/useUserQueries';
 import { FallbackSpinner } from '@/components/custom/FallbackSpinner';
 import { IconDocument, IconSlidersHorizontal } from '@/components/custom/Icons';
-import PageHeader from '@/components/custom/PageHeader';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/libs/shared-ui/src/components/shadcn/tabs';
 
 const UserBasicInfoTab = React.lazy(() => import('./tabs/UserBasicInfoTab'));
@@ -94,11 +93,8 @@ export default function UserDetail() {
   const [permissionStats, setPermissionStats] = useState<PermissionStats | null>(null);
   const [resourceStats, setResourceStats] = useState<ResourceStats | null>(null);
 
-  const breadcrumb: BreadcrumbProps['items'] = [
-    { title: '사용자', path: '/manager/resource/user/list' },
-    { title: '사용자 계정', path: '/manager/resource/user/list' },
-    { title: ':username', path: `/manager/resource/user/${userId}` },
-  ];
+  const setBreadcrumb = useBreadcrumbStore((s) => s.setBreadcrumb);
+  const clearBreadcrumb = useBreadcrumbStore((s) => s.clearBreadcrumb);
 
   // 사용자 조회
   const { data: user, isFetching } = useGetUser({
@@ -106,7 +102,15 @@ export default function UserDetail() {
     queryOptions: { enabled: !!numericUserId },
   });
 
-  const params: BreadcrumbProps['params'] = { username: user?.username ?? '-' };
+  useEffect(() => {
+    const breadcrumb: BreadcrumbProps['items'] = [
+      { title: '사용자', path: '/manager/resource/user/list' },
+      { title: '사용자 계정', path: '/manager/resource/user/list' },
+      { title: ':username', path: `/manager/resource/user/${userId}` },
+    ];
+    setBreadcrumb(breadcrumb, { username: user?.username ?? '-' });
+    return () => clearBreadcrumb();
+  }, [userId, user?.username, setBreadcrumb, clearBreadcrumb]);
 
   // 역할 목록은 이 화면에서 직접 호출
   const { data: roles = [] } = useGetRoles();
@@ -343,8 +347,6 @@ export default function UserDetail() {
 
   return (
     <div className="flex flex-col gap-4 w-full h-full">
-      <PageHeader breadcrumb={breadcrumb} params={params} />
-
       <div className="flex w-full flex-1 min-h-0 gap-4">
         {/* 메인 콘텐츠 - PageTabs 영역 */}
         <UserDetailProvider value={contextValue}>

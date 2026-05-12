@@ -10,6 +10,7 @@ import React, { Suspense, useCallback, useEffect, useMemo, useRef, useState } fr
 import { useParams, useSearchParams } from 'react-router-dom';
 import { type BreadcrumbProps, Button, Divider, Tag } from 'antd';
 import { ChevronLeft, ChevronRight, Shield } from 'lucide-react';
+import { useBreadcrumbStore } from '@/shared-store';
 import { type RoleBasicFormValues, RoleDetailProvider } from './context/RoleDetailContext';
 import { useGetGroupedPermissions } from '../../features/iam/hooks/usePermissionQueries';
 import { useGetRole } from '../../features/iam/hooks/useRoleQueries';
@@ -18,7 +19,6 @@ import type { MenuWithPermissions } from '../../features/iam/types/iam.types';
 type PermEntry = { authKey: string; action: string };
 import { FallbackSpinner } from '@/components/custom/FallbackSpinner';
 import { IconDocument, IconSlidersHorizontal } from '@/components/custom/Icons';
-import PageHeader from '@/components/custom/PageHeader';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/libs/shared-ui/src/components/shadcn/tabs';
 
 /**
@@ -74,11 +74,8 @@ export default function RoleDetailPage() {
   const [basicFormValues, setBasicFormValues] = useState<Partial<RoleBasicFormValues>>({});
   const [selectedPermissions, setSelectedPermissions] = useState<Set<string>>(new Set());
 
-  const breadcrumb: BreadcrumbProps['items'] = [
-    { title: '사용자', path: '/manager/resource/auth-group/list' },
-    { title: '역할/권한', path: '/manager/resource/auth-group/list' },
-    { title: ':roleName', path: `/manager/resource/role/${roleId}` },
-  ];
+  const setBreadcrumb = useBreadcrumbStore((s) => s.setBreadcrumb);
+  const clearBreadcrumb = useBreadcrumbStore((s) => s.clearBreadcrumb);
 
   // 역할 조회
   const { data: role, isFetching } = useGetRole({
@@ -86,7 +83,15 @@ export default function RoleDetailPage() {
     queryOptions: { enabled: !!numericRoleId },
   });
 
-  const params: BreadcrumbProps['params'] = { roleName: role?.roleName ?? '-' };
+  useEffect(() => {
+    const breadcrumb: BreadcrumbProps['items'] = [
+      { title: '사용자', path: '/manager/resource/auth-group/list' },
+      { title: '역할/권한', path: '/manager/resource/auth-group/list' },
+      { title: ':roleName', path: `/manager/resource/role/${roleId}` },
+    ];
+    setBreadcrumb(breadcrumb, { roleName: role?.roleName ?? '-' });
+    return () => clearBreadcrumb();
+  }, [roleId, role?.roleName, setBreadcrumb, clearBreadcrumb]);
 
   // 권한 목록 조회 (요약 표시용)
   const { data: permissionGroups = [] } = useGetGroupedPermissions();
@@ -252,8 +257,6 @@ export default function RoleDetailPage() {
 
   return (
     <div className="flex flex-col gap-4 w-full h-full">
-      <PageHeader breadcrumb={breadcrumb} params={params} />
-
       <div className="flex w-full flex-1 min-h-0 gap-4">
         {/* 메인 콘텐츠 - PageTabs 영역 */}
         <RoleDetailProvider value={contextValue}>
