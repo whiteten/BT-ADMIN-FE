@@ -1,9 +1,11 @@
 import { useCallback, useEffect } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
+import PanelAppBadgeStrip from './PanelAppBadgeStrip';
 import PanelDetail from './PanelDetail';
 import PanelMega from './PanelMega';
 import PanelSidebar from './PanelSidebar';
-import { APP_SWITCHER_ACTIVE_KEY, useMenuPanelStore } from '../hooks/useMenuPanelStore';
+import useRemoteSelector from '../../../hooks/useRemoteSelector';
+import { useMenuPanelStore } from '../hooks/useMenuPanelStore';
 import { cn } from '@/libs/shared-ui/src/lib/utils';
 
 interface MenuPanelProps {
@@ -14,15 +16,20 @@ interface MenuPanelProps {
 const MenuPanel = ({ topOffset }: MenuPanelProps) => {
   const navigate = useNavigate();
   const location = useLocation();
-  const { open, mode, setOpen, setActiveMenuKey } = useMenuPanelStore();
+  const { selectedRemote } = useRemoteSelector();
+  const { open, mode, setOpen, setDisplayedAppId, setActiveMenuKey } = useMenuPanelStore();
 
   // 라우트 이동 시 패널 자동 close
-  // 단, AppSwitcher row가 활성 상태이면(앱 전환 모드) 라우트 변경에도 패널 유지.
   useEffect(() => {
-    if (useMenuPanelStore.getState().activeMenuKey === APP_SWITCHER_ACTIVE_KEY) return;
     setOpen(false);
     setActiveMenuKey(null);
   }, [location.pathname, location.search, setOpen, setActiveMenuKey]);
+
+  // 패널이 열릴 때 displayedAppId를 현재 URL상 selectedRemote로 초기화
+  useEffect(() => {
+    if (!open) return;
+    setDisplayedAppId(selectedRemote?.appId ?? null);
+  }, [open, selectedRemote?.appId, setDisplayedAppId]);
 
   // Esc 키 close
   useEffect(() => {
@@ -46,7 +53,7 @@ const MenuPanel = ({ topOffset }: MenuPanelProps) => {
   const handleClose = () => setOpen(false);
 
   const isMega = mode === 'mega';
-  const panelWidth = isMega ? 'w-screen' : 'w-[760px]';
+  const panelWidth = isMega ? 'w-screen' : 'w-[820px]';
 
   return (
     <>
@@ -66,6 +73,7 @@ const MenuPanel = ({ topOffset }: MenuPanelProps) => {
         aria-modal="true"
         aria-hidden={!open}
       >
+        <PanelAppBadgeStrip />
         <PanelSidebar onNavigate={handleNavigate} />
 
         {/* Detail / Mega */}
