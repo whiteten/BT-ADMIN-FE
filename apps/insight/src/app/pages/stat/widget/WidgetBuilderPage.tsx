@@ -11,15 +11,6 @@ import StepVisualization from './steps/StepVisualization';
 import { useCreateWidget, useGetWidgetDetail, useUpdateWidget } from '../../../features/stat/hooks/useStatQueries';
 import type { WidgetRequest } from '../../../features/stat/types/widget';
 
-interface JoinCondition {
-  leftDatasourceKey: string;
-  leftFieldName: string;
-  rightDatasourceKey: string;
-  rightFieldName: string;
-  joinType: string;
-  sortOrder: number;
-}
-
 interface Section {
   id: string;
   title: string;
@@ -27,7 +18,6 @@ interface Section {
   fieldMappings: FieldMapping[];
   calcFields: CalcField[];
   searchBindings: SearchBind[];
-  joinConditions: JoinCondition[];
   visualization?: string;
 }
 
@@ -73,7 +63,6 @@ export default function WidgetBuilderPage() {
 
   // Current section editing state
   const [selectedDatasourceKeys, setSelectedDatasourceKeys] = useState<string[]>([]);
-  const [joinConditions, setJoinConditions] = useState<JoinCondition[]>([]);
   const [fieldMappings, setFieldMappings] = useState<FieldMapping[]>([]);
   const [calcFields, setCalcFields] = useState<CalcField[]>([]);
   const [searchBindings, setSearchBindings] = useState<SearchBind[]>([]);
@@ -105,7 +94,6 @@ export default function WidgetBuilderPage() {
           fieldMappings: widgetData.fieldMappings as unknown as FieldMapping[],
           calcFields: widgetData.calculatedFields as unknown as CalcField[],
           searchBindings: widgetData.searchBindings as unknown as SearchBind[],
-          joinConditions: widgetData.joinConditions as unknown as JoinCondition[],
           visualization: widgetData.visualization,
         };
         setSections([section]);
@@ -116,7 +104,6 @@ export default function WidgetBuilderPage() {
   const handleAddSection = () => {
     setEditingSectionId(null);
     setSelectedDatasourceKeys([]);
-    setJoinConditions([]);
     setFieldMappings([]);
     setCalcFields([]);
     setSearchBindings([]);
@@ -129,7 +116,6 @@ export default function WidgetBuilderPage() {
     if (!section) return;
     setEditingSectionId(sectionId);
     setSelectedDatasourceKeys(section.datasourceKeys);
-    setJoinConditions(section.joinConditions);
     setFieldMappings(section.fieldMappings);
     setCalcFields(section.calcFields);
     setSearchBindings(section.searchBindings);
@@ -152,7 +138,7 @@ export default function WidgetBuilderPage() {
       setSections((prev) =>
         prev.map((s) =>
           s.id === editingSectionId
-            ? { ...s, datasourceKeys: selectedDatasourceKeys, fieldMappings, calcFields, searchBindings, joinConditions, visualization: form.getFieldValue('visualization') }
+            ? { ...s, datasourceKeys: selectedDatasourceKeys, fieldMappings, calcFields, searchBindings, visualization: form.getFieldValue('visualization') }
             : s,
         ),
       );
@@ -164,7 +150,6 @@ export default function WidgetBuilderPage() {
         fieldMappings,
         calcFields,
         searchBindings,
-        joinConditions,
         visualization: form.getFieldValue('visualization'),
       };
       setSections((prev) => [...prev, newSection]);
@@ -201,7 +186,6 @@ export default function WidgetBuilderPage() {
             aggregation: f.aggregation || undefined,
             showRatio: f.showRatio || undefined,
           })),
-        joinConditions: joinConditions.map((j) => ({ ...j })),
         calculatedFields: calcFields
           .filter((c) => c.fieldName && c.formula)
           .map((c, idx) => ({
@@ -359,14 +343,7 @@ export default function WidgetBuilderPage() {
             {/* Step content */}
             <div className="flex-1 overflow-auto p-5">
               <Form form={form} layout="vertical">
-                {panelStep === 0 && (
-                  <StepDataSource
-                    selectedKeys={selectedDatasourceKeys}
-                    onSelectedKeysChange={setSelectedDatasourceKeys}
-                    joinConditions={joinConditions}
-                    onJoinConditionsChange={setJoinConditions}
-                  />
-                )}
+                {panelStep === 0 && <StepDataSource selectedKeys={selectedDatasourceKeys} onSelectedKeysChange={setSelectedDatasourceKeys} />}
                 {panelStep === 1 && <StepFieldMapping selectedDatasourceKeys={selectedDatasourceKeys} fieldMappings={fieldMappings} onFieldMappingsChange={setFieldMappings} />}
                 {panelStep === 2 && (
                   <StepCalcAndSearch

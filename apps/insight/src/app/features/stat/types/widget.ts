@@ -24,7 +24,6 @@ export interface WidgetItem {
   fieldMappings: WidgetFieldMappingItem[];
   calculatedFields: WidgetCalcFieldItem[];
   searchBindings: WidgetSearchBindItem[];
-  joinConditions: WidgetJoinItem[];
 }
 
 export interface WidgetDataSourceItem {
@@ -70,16 +69,6 @@ export interface WidgetSearchBindItem {
   sortOrder: number;
 }
 
-export interface WidgetJoinItem {
-  id: number;
-  leftDatasourceKey: string;
-  leftFieldName: string;
-  rightDatasourceKey: string;
-  rightFieldName: string;
-  joinType: string;
-  sortOrder: number;
-}
-
 export interface WidgetRequest {
   widgetType: string;
   widgetName: string;
@@ -96,7 +85,6 @@ export interface WidgetRequest {
   fieldMappings?: Omit<WidgetFieldMappingItem, 'id'>[];
   calculatedFields?: Omit<WidgetCalcFieldItem, 'id'>[];
   searchBindings?: { conditionId: number; bindDatasourceKey: string; bindFieldName: string; sortOrder?: number }[];
-  joinConditions?: Omit<WidgetJoinItem, 'id'>[];
 }
 
 export interface FormulaValidateRequest {
