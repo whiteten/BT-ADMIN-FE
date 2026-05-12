@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { ArrowRightLeft, Bot, ExternalLink, Lock, LockOpen, Monitor, PhoneOff, User } from 'lucide-react';
+import { ArrowRightLeft, Bot, ExternalLink, EyeOff, Lock, LockOpen, Monitor, PhoneOff, User } from 'lucide-react';
 import { getTrackingItemConfig } from '../config/trackingItemConfig';
 import type { TrackingFlowItem } from '../types/tracking.types';
 import { cn } from '@/lib/utils';
@@ -31,6 +31,10 @@ function NowPlayingIndicator({ color = 'bg-blue-500' }: { color?: string }) {
           0%, 100% { box-shadow: 0 0 8px 0px rgba(16,185,129,0.25), 0 1px 3px rgba(0,0,0,0.08); }
           50% { box-shadow: 0 0 16px 3px rgba(16,185,129,0.35), 0 1px 3px rgba(0,0,0,0.08); }
         }
+        @keyframes bubble-glow-violet {
+          0%, 100% { box-shadow: 0 0 8px 0px rgba(139,92,246,0.25), 0 1px 3px rgba(0,0,0,0.08); }
+          50% { box-shadow: 0 0 16px 3px rgba(139,92,246,0.35), 0 1px 3px rgba(0,0,0,0.08); }
+        }
       `}</style>
     </div>
   );
@@ -50,6 +54,8 @@ interface TrackingDialogViewProps {
   onItemClick?: (item: TrackingFlowItem) => void;
   /** 선택된 Seq 번호 (선택 링 표시용) */
   selectedSeq?: number | null;
+  /** 강조된 Seq 번호 (NLU 카드에서 클릭 시 확대 표시용) */
+  highlightedSeq?: number | null;
   /** IFE 링크 클릭 콜백 (type=0 봇 버블에서 시나리오 아이템 이동) */
   onIfeLink?: (item: TrackingFlowItem) => void;
   /**
@@ -79,6 +85,7 @@ function SystemBubble({ item }: { item: TrackingFlowItem }) {
   return (
     <div className="flex justify-center">
       <div className="flex items-center gap-1.5 px-3 py-1 bg-slate-50 border border-slate-200 rounded-full max-w-[80%]">
+        <span className="text-[10px] text-slate-400 tabular-nums">#{item.seq}</span>
         <Icon size={11} className={cn(cfg.color, 'shrink-0')} />
         <span className="text-xs text-slate-500 break-all">{text}</span>
       </div>
@@ -109,7 +116,9 @@ function BotBubble({
 }) {
   const isLocked = item.encrypted === true && revealed == null;
   const wasDecrypted = item.encrypted === true && revealed != null;
-  const text = isLocked ? '🔒 암호화된 내용' : (revealed ?? item.description ?? item.typeName);
+  const isMaskedAfterDecrypt = item.masked === true && wasDecrypted;
+  const lockedText = item.entityTag ? `🏷️ ${item.entityTag}` : '🔒 암호화된 내용';
+  const text = isLocked ? lockedText : (revealed ?? item.description ?? item.typeName);
   const hasIfeLink = item.type === 0 && item.subFlowId != null && onIfeLink != null && !isLocked;
 
   const handleLockClick = (e: React.MouseEvent) => {
@@ -136,9 +145,11 @@ function BotBubble({
               {isAudioPlaying && <NowPlayingIndicator color="bg-blue-500" />}
               {item.startTime && <span className="text-[10px] text-slate-500 tabular-nums">{item.startTime}</span>}
               <span className="text-[10px] font-medium text-blue-600/70">보이스봇</span>
+              <span className="text-[10px] text-slate-400 tabular-nums">#{item.seq}</span>
             </>
           ) : (
             <>
+              <span className="text-[10px] text-slate-400 tabular-nums">#{item.seq}</span>
               <span className="text-[10px] font-medium text-blue-600/70">보이스봇</span>
               {item.startTime && <span className="text-[10px] text-slate-500 tabular-nums">{item.startTime}</span>}
               {isAudioPlaying && <NowPlayingIndicator color="bg-blue-500" />}
@@ -166,11 +177,11 @@ function BotBubble({
             {isLocked ? (
               <div className="flex items-start gap-1.5">
                 <Lock size={12} className={cn('text-amber-600 shrink-0 mt-0.5', decrypting && 'animate-pulse')} />
-                <p className="text-[13px] text-amber-800 leading-relaxed font-medium break-all whitespace-pre-wrap">{decrypting ? '복호화 중…' : (item.description ?? '')}</p>
+                <p className="text-[13px] text-amber-800 leading-relaxed font-medium break-all whitespace-pre-wrap">{decrypting ? '복호화 중…' : lockedText}</p>
               </div>
             ) : wasDecrypted ? (
               <div className="flex items-start gap-1.5">
-                <LockOpen size={12} className="text-amber-600 shrink-0 mt-0.5" />
+                {isMaskedAfterDecrypt ? <EyeOff size={12} className="text-amber-600 shrink-0 mt-0.5" /> : <LockOpen size={12} className="text-amber-600 shrink-0 mt-0.5" />}
                 <p className="text-[13px] text-amber-800 leading-relaxed font-medium break-all whitespace-pre-wrap">{text}</p>
               </div>
             ) : (
@@ -216,10 +227,44 @@ function CustomerBubble({
   isAudioPlaying?: boolean;
 }) {
   const isFailed = item.result?.startsWith('F') === true;
+  const isDtmf = item.inputMethod === 'DTMF';
   const isLocked = item.encrypted === true && revealed == null;
   const wasDecrypted = item.encrypted === true && revealed != null;
-  const text = isLocked ? '🔒 암호화된 내용' : (revealed ?? item.description ?? (isFailed ? '인식 실패' : item.typeName));
+  const isMaskedOnly = item.masked === true && !item.encrypted;
+  const isMaskedAfterDecrypt = item.masked === true && wasDecrypted;
+
+  // Entity Tag: 암호화 시 암호문 대신 태그 표시
+  const lockedText = item.entityTag ? `🏷️ ${item.entityTag}` : '🔒 암호화된 내용';
+  const isUnrecognized = !item.encrypted && !isFailed && item.description == null && item.dialogRole === 'CUSTOMER';
+  const text = isLocked ? lockedText : (revealed ?? item.description ?? (isFailed ? '인식 실패' : isUnrecognized ? '(발화 미인식)' : item.typeName));
   const isRight = !botRight;
+
+  // STT(emerald) vs DTMF(violet) 컬러 테마
+  const colors = isDtmf
+    ? {
+        avatar: 'bg-violet-500/10',
+        icon: 'text-violet-600',
+        label: 'text-violet-600/70',
+        bg: 'bg-violet-50',
+        border: 'border-violet-100',
+        playBg: 'bg-violet-100',
+        playBorder: 'border-violet-400',
+        indicator: 'bg-violet-500',
+        glow: 'bubble-glow-violet',
+        labelText: '고객(DTMF)',
+      }
+    : {
+        avatar: 'bg-emerald-500/10',
+        icon: 'text-emerald-600',
+        label: 'text-emerald-600/70',
+        bg: 'bg-emerald-50',
+        border: 'border-emerald-100',
+        playBg: 'bg-emerald-100',
+        playBorder: 'border-emerald-400',
+        indicator: 'bg-emerald-500',
+        glow: 'bubble-glow-green',
+        labelText: '고객',
+      };
 
   const handleLockClick = (e: React.MouseEvent) => {
     e.stopPropagation();
@@ -227,14 +272,34 @@ function CustomerBubble({
     onEncryptedClick?.(item);
   };
 
+  /**
+   * 마스킹 적용.
+   * maskingFormat이 있으면 포맷 기반 (*=마스킹, #=원문),
+   * 없으면 범용 가운데 마스킹.
+   */
+  const applyMasking = (value: string, format?: string | null): string => {
+    if (format && format.length > 0) {
+      // 포맷 기반 마스킹: *=마스킹, #=원문 (포맷 길이와 값 길이가 다르면 포맷 기준)
+      return Array.from(value)
+        .map((ch, i) => (i < format.length ? (format[i] === '*' ? '*' : ch) : ch))
+        .join('');
+    }
+    // 범용 fallback
+    if (value.length <= 2) return '*'.repeat(value.length);
+    const show = Math.max(1, Math.floor(value.length / 4));
+    return value.slice(0, show) + '*'.repeat(value.length - show * 2) + value.slice(-show);
+  };
+
+  const displayText = isMaskedOnly || isMaskedAfterDecrypt ? applyMasking(text, item.maskingFormat) : text;
+
   return (
     <div
       className={cn('flex items-start gap-2.5 max-w-[80%]', isRight && 'ml-auto flex-row-reverse', isFailed && 'opacity-60', onClick && !isLocked && 'cursor-pointer')}
       onClick={isLocked ? undefined : onClick}
     >
       {/* 아바타 */}
-      <div className={cn('flex-shrink-0 w-7 h-7 rounded-full flex items-center justify-center', isFailed ? 'bg-slate-100' : 'bg-emerald-500/10')}>
-        <User size={14} className={cn(isFailed ? 'text-slate-400' : 'text-emerald-600')} />
+      <div className={cn('flex-shrink-0 w-7 h-7 rounded-full flex items-center justify-center', isFailed ? 'bg-slate-100' : colors.avatar)}>
+        <User size={14} className={cn(isFailed ? 'text-slate-400' : colors.icon)} />
       </div>
 
       {/* 말풍선 */}
@@ -242,15 +307,17 @@ function CustomerBubble({
         <div className="flex items-center gap-1.5 mb-0.5">
           {isRight ? (
             <>
-              {isAudioPlaying && <NowPlayingIndicator color="bg-emerald-500" />}
+              {isAudioPlaying && <NowPlayingIndicator color={colors.indicator} />}
               {item.startTime && <span className="text-[10px] text-slate-500 tabular-nums">{item.startTime}</span>}
-              <span className="text-[10px] font-medium text-emerald-600/70">고객</span>
+              <span className={cn('text-[10px] font-medium', colors.label)}>{colors.labelText}</span>
+              <span className="text-[10px] text-slate-400 tabular-nums">#{item.seq}</span>
             </>
           ) : (
             <>
-              <span className="text-[10px] font-medium text-emerald-600/70">고객</span>
+              <span className="text-[10px] text-slate-400 tabular-nums">#{item.seq}</span>
+              <span className={cn('text-[10px] font-medium', colors.label)}>{colors.labelText}</span>
               {item.startTime && <span className="text-[10px] text-slate-500 tabular-nums">{item.startTime}</span>}
-              {isAudioPlaying && <NowPlayingIndicator color="bg-emerald-500" />}
+              {isAudioPlaying && <NowPlayingIndicator color={colors.indicator} />}
             </>
           )}
         </div>
@@ -263,28 +330,40 @@ function CustomerBubble({
               : wasDecrypted
                 ? 'bg-amber-50/80 border-amber-200'
                 : isAudioPlaying
-                  ? 'bg-emerald-100 border-emerald-400 border-[1.5px]'
+                  ? cn(colors.playBg, colors.playBorder, 'border-[1.5px]')
                   : isFailed
                     ? 'bg-slate-50 border-slate-200'
-                    : 'bg-emerald-50 border-emerald-100',
+                    : cn(colors.bg, colors.border),
             isSelected && 'ring-2 ring-blue-300 ring-offset-1',
           )}
           onClick={isLocked ? handleLockClick : undefined}
           title={isLocked ? '클릭하여 열람 (감사 로그 기록됨)' : undefined}
-          style={isAudioPlaying && !isLocked && !wasDecrypted ? { animation: 'bubble-glow-green 1.8s ease-in-out infinite' } : undefined}
+          style={isAudioPlaying && !isLocked && !wasDecrypted ? { animation: `${colors.glow} 1.8s ease-in-out infinite` } : undefined}
         >
           {isLocked ? (
             <div className="flex items-start gap-1.5">
               <Lock size={12} className={cn('text-amber-600 shrink-0 mt-0.5', decrypting && 'animate-pulse')} />
-              <p className="text-[13px] text-amber-800 leading-relaxed font-medium break-all whitespace-pre-wrap">{decrypting ? '복호화 중…' : (item.description ?? '')}</p>
+              <p className="text-[13px] text-amber-800 leading-relaxed font-medium break-all whitespace-pre-wrap">{decrypting ? '복호화 중…' : lockedText}</p>
             </div>
           ) : wasDecrypted ? (
             <div className="flex items-start gap-1.5">
-              <LockOpen size={12} className="text-amber-600 shrink-0 mt-0.5" />
-              <p className="text-[13px] text-amber-800 leading-relaxed font-medium break-all whitespace-pre-wrap">{text}</p>
+              {isMaskedAfterDecrypt ? <EyeOff size={12} className="text-amber-600 shrink-0 mt-0.5" /> : <LockOpen size={12} className="text-amber-600 shrink-0 mt-0.5" />}
+              <p className="text-[13px] text-amber-800 leading-relaxed font-medium break-all whitespace-pre-wrap">{displayText}</p>
+            </div>
+          ) : isMaskedOnly ? (
+            <div className="flex items-start gap-1.5">
+              <EyeOff size={12} className="text-slate-400 shrink-0 mt-0.5" />
+              <p className="text-[13px] text-slate-700 leading-relaxed break-all whitespace-pre-wrap">{displayText}</p>
             </div>
           ) : (
-            <p className={cn('text-[13px] leading-relaxed break-all whitespace-pre-wrap', isFailed ? 'text-slate-400 italic' : 'text-slate-700')}>{text}</p>
+            <p
+              className={cn(
+                'text-[13px] leading-relaxed break-all whitespace-pre-wrap',
+                isFailed ? 'text-slate-400 italic' : isUnrecognized ? 'text-slate-400 italic' : 'text-slate-700',
+              )}
+            >
+              {text}
+            </p>
           )}
         </div>
       </div>
@@ -336,6 +415,7 @@ export default function TrackingDialogView({
   callEnded,
   onItemClick,
   selectedSeq,
+  highlightedSeq,
   onIfeLink,
   revealedBubbles,
   onEncryptedClick,
@@ -410,6 +490,7 @@ export default function TrackingDialogView({
       {items.map((item, idx) => {
         const role = item.dialogRole;
         const isSelected = selectedSeq != null && selectedSeq === item.seq;
+        const isHighlighted = highlightedSeq != null && highlightedSeq === item.seq;
         const handleClick = onItemClick ? () => onItemClick(item) : undefined;
 
         // 암호화 버블 관련 파생 상태
@@ -419,15 +500,15 @@ export default function TrackingDialogView({
         // 숨김 처리
         if (role === 'HIDDEN') return null;
 
-        // 멀티모달 고객 (Type=3) 숨김
-        if (item.type === 3) return null;
+        // 멀티모달 고객 (Type=3/21) 숨김
+        if (item.type === 3 || item.type === 21) return null;
 
-        // 멀티모달 이미지 (Type=2): imagePath가 있으면 이미지 버블
-        if (item.type === 2 && item.imagePath) {
+        // 멀티모달 이미지 (Type=2/20): imagePath가 있으면 이미지 버블
+        if ((item.type === 2 || item.type === 20) && item.imagePath) {
           return <ImageBubble key={idx} item={item} onClick={handleClick} botRight={botRight} />;
         }
-        // Type=2인데 imagePath 없으면 (실시간 트래킹 등) 숨김
-        if (item.type === 2) return null;
+        // Type=2/20인데 imagePath 없으면 (실시간 트래킹 등) 숨김
+        if (item.type === 2 || item.type === 20) return null;
 
         // 시스템 이벤트 → 중앙 작은 배지
         if (role === 'SYSTEM') {
@@ -440,7 +521,11 @@ export default function TrackingDialogView({
         // 봇 발화
         if (role === 'BOT') {
           return (
-            <div key={idx} ref={(el) => onBubbleRef?.(idx, el)}>
+            <div
+              key={idx}
+              ref={(el) => onBubbleRef?.(idx, el)}
+              className={cn('transition-transform duration-300', isHighlighted && 'scale-105', botRight ? 'origin-right' : 'origin-left')}
+            >
               <BotBubble
                 item={item}
                 isSelected={isSelected}
@@ -459,7 +544,11 @@ export default function TrackingDialogView({
         // 고객 입력
         if (role === 'CUSTOMER') {
           return (
-            <div key={idx} ref={(el) => onBubbleRef?.(idx, el)}>
+            <div
+              key={idx}
+              ref={(el) => onBubbleRef?.(idx, el)}
+              className={cn('transition-transform duration-300', isHighlighted && 'scale-105', botRight ? 'origin-left' : 'origin-right')}
+            >
               <CustomerBubble
                 item={item}
                 isSelected={isSelected}

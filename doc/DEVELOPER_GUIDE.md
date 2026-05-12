@@ -946,6 +946,211 @@ const UserTable = ({ data, isLoading }: UserTableProps) => {
 - **`getRowId`는 반드시 지정하세요.** 지정하지 않으면 행이 추가/삭제될 때 깜빡임이 발생합니다.
 - **`ColDef` 제네릭에 row 데이터 타입을 지정하세요.** `ColDef<UserListItem>[]` — 이렇게 하면 `field`에 자동 완성이 됩니다.
 
+### SSRM(Server-Side Row Model) — 서버 페이징 그리드
+
+백엔드가 `page`/`size` 단위로 페이징을 지원하고 데이터 양이 한 번에 로드하기 부담스러운 화면(수천 건 이상)은 ClientSide가 아닌 **SSRM(Server-Side Row Model)**을 사용합니다. AG-Grid Enterprise 기능이며, 프로젝트는 `libs/shared-ui/src/lib/aggridSetup.ts`가 `AllEnterpriseModule`을 등록해두어 즉시 사용 가능합니다.
+
+#### 언제 쓰나요?
+
+- 백엔드가 `{ items, page, size, total }` 형태로 페이지 응답을 줄 때
+- 화면이 그리드 중심이라 사용자 인터랙션(페이지 이동·행 선택·검색 변경)과 데이터 패칭이 밀접하게 묶일 때
+- 데이터가 수천 건 이상이거나 사용자가 페이지를 자주 왔다 갔다 할 때
+
+수십~수백 건 고정 데이터(통계 페이지 등 한 번 로드 후 클라이언트에서 끝나는 화면)는 ClientSide로 충분합니다. SSRM은 명시적 선택.
+
+#### 왜 TanStack Query를 같이 쓰지 않나요?
+
+- TanStack Query 캐시 단위는 **쿼리 키(요청 파라미터 객체)**, SSRM 캐시 단위는 **행 범위(블록)**. 작동 단위가 다르고 같은 데이터가 이중으로 저장됩니다.
+- 두 캐시를 병용하면 검색 변경 시 양쪽을 모두 무효화해야 하고 진실의 원천(source of truth)이 모호해집니다.
+- SSRM 페이지는 `useGet<Feature>` 훅을 빼고 datasource의 `getRows`에서 `apiClient`를 직접 호출하는 게 표준입니다.
+
+#### 표준 골격 — 자식 그리드 컴포넌트
+
+레퍼런스 구현: [`apps/fca/src/app/features/tracking/components/BotDialogHistoryTable.tsx`](apps/fca/src/app/features/tracking/components/BotDialogHistoryTable.tsx).
+
+```typescript
+import React, { useEffect, useMemo, useRef } from 'react';
+import type { ColDef, GridApi, GridOptions, GridReadyEvent, IServerSideDatasource } from 'ag-grid-community';
+import { AgGridReact } from 'ag-grid-react';
+import { xxxApi } from '../api/xxxApi';
+import type { XxxItem, XxxSearchRequest } from '../types/xxx.types';
+import useAggridOptions from '@/libs/shared-ui/src/hooks/useAggridOptions';
+
+const PAGE_SIZE = 50;
+
+interface XxxTableProps {
+  searchParams: XxxSearchRequest;
+  searchVersion: number;                       // 검색 버튼 클릭마다 증가 — refresh 트리거
+  onRowDoubleClick: (data: XxxItem) => void;
+  selectedRowId?: string;
+  onLoadingChange?: (loading: boolean) => void;
+  onTotalRowsChange?: (total: number) => void;
+}
+
+const XxxTable: React.FC<XxxTableProps> = ({
+  searchParams, searchVersion, onRowDoubleClick, selectedRowId, onLoadingChange, onTotalRowsChange,
+}) => {
+  const { gridOptions } = useAggridOptions();
+  const gridApiRef = useRef<GridApi<XxxItem> | null>(null);
+  const searchParamsRef = useRef(searchParams);
+
+  // ① 최신 검색조건을 datasource 클로저가 항상 읽도록 ref 동기화
+  useEffect(() => {
+    searchParamsRef.current = searchParams;
+  }, [searchParams]);
+
+  // ② datasource는 1회만 생성 — useMemo([]). 클로저가 ref를 통해 최신 검색조건을 읽음
+  const serverSideDatasource = useMemo<IServerSideDatasource>(
+    () => ({
+      getRows: async (params) => {
+        const startRow = params.request.startRow ?? 0;
+        const endRow = params.request.endRow ?? startRow + PAGE_SIZE;
+        const size = endRow - startRow;
+        const page = Math.floor(startRow / size);
+        try {
+          onLoadingChange?.(true);
+          const res = await xxxApi.getList({ ...searchParamsRef.current, page, size });
+          params.success({ rowData: res.items, rowCount: res.total });
+          onTotalRowsChange?.(res.total);
+        } catch {
+          params.fail();
+        } finally {
+          onLoadingChange?.(false);
+        }
+      },
+    }),
+    [onLoadingChange, onTotalRowsChange],
+  );
+
+  // ③ 검색 버튼 클릭마다 캐시 purge + 1페이지로 reset
+  useEffect(() => {
+    if (!gridApiRef.current) return;
+    gridApiRef.current.refreshServerSide({ purge: true });
+    gridApiRef.current.deselectAll?.();
+  }, [searchVersion]);
+
+  // ④ 외부 selectedRowId 변경 시 행 강조 즉시 반영
+  useEffect(() => {
+    gridApiRef.current?.redrawRows();
+  }, [selectedRowId]);
+
+  const handleGridReady = (event: GridReadyEvent<XxxItem>) => {
+    gridApiRef.current = event.api;
+  };
+
+  const columnDefs: ColDef<XxxItem>[] = useMemo(() => [/* ... */], []);
+
+  const finalGridOptions = useMemo<GridOptions<XxxItem>>(
+    () => ({
+      ...gridOptions,
+      rowModelType: 'serverSide',
+      paginationPageSize: PAGE_SIZE,
+      cacheBlockSize: PAGE_SIZE,                                                      // ⚠️ paginationPageSize와 일치 필수
+      defaultColDef: { ...gridOptions.defaultColDef, sortable: false } as ColDef<XxxItem>,
+      getRowId: (p) => `${p.data.id}`,                                                // 반드시 지정
+      rowStyle: { cursor: 'pointer' },
+      onRowDoubleClicked: (event) => event.data && onRowDoubleClick(event.data),
+      rowClassRules: {
+        'bg-blue-50': (p) => !!selectedRowId && !!p.data && `${p.data.id}` === selectedRowId,
+      },
+    }),
+    [gridOptions, selectedRowId, onRowDoubleClick],
+  );
+
+  return (
+    <div className="w-full h-full">
+      <AgGridReact<XxxItem>
+        columnDefs={columnDefs}
+        gridOptions={finalGridOptions}
+        serverSideDatasource={serverSideDatasource}
+        onGridReady={handleGridReady}
+      />
+    </div>
+  );
+};
+
+export default XxxTable;
+```
+
+#### 표준 골격 — 부모 페이지 컴포넌트
+
+```typescript
+const XxxListPage: React.FC = () => {
+  // 검색조건만 보유. page/size 키는 두지 말 것 (그리드가 자체 결정)
+  const [searchParams, setSearchParams] = useState<XxxSearchRequest>({
+    fromDate: dayjs().startOf('day').format(DATETIME_FORMAT),
+    toDate: dayjs().endOf('day').format(DATETIME_FORMAT),
+  });
+  const [searchVersion, setSearchVersion] = useState(0);          // 검색 트리거 카운터
+  const [totalRows, setTotalRows] = useState(0);                  // 빈 데이터 체크용
+  const [isListLoading, setIsListLoading] = useState(false);      // SearchForm spinner용
+  const [selectedRowId, setSelectedRowId] = useState<string | undefined>();
+
+  const handleSearch = (newParams: XxxSearchRequest) => {
+    setSearchParams(newParams);
+    setSearchVersion((v) => v + 1);     // 검색 클릭 = 카운터 +1 → 그리드 refresh 트리거
+    setSelectedRowId(undefined);
+  };
+
+  const handleExcelDownload = async () => {
+    if (totalRows === 0) {              // 그리드가 콜백으로 알려준 total 활용
+      toast.warning('다운로드할 데이터가 없습니다.');
+      return;
+    }
+    // ... 다운로드 로직
+  };
+
+  return (
+    <div className="flex flex-col gap-4 w-full h-full">
+      <PageHeader breadcrumb={breadcrumb} />
+      <div className="flex flex-col gap-5 w-full h-full bg-white bt-shadow p-5">
+        <XxxSearchForm onSearch={handleSearch} isLoading={isListLoading} />
+        <div className="w-full h-full">
+          <XxxTable
+            searchParams={searchParams}
+            searchVersion={searchVersion}
+            onRowDoubleClick={handleRowClick}
+            selectedRowId={selectedRowId}
+            onLoadingChange={setIsListLoading}
+            onTotalRowsChange={setTotalRows}
+          />
+        </div>
+      </div>
+    </div>
+  );
+};
+```
+
+#### 핵심 규칙 / 함정 체크리스트
+
+| 항목 | 규칙 | 누락 시 증상 |
+|---|---|---|
+| `cacheBlockSize` ↔ `paginationPageSize` | 반드시 일치 | 한 페이지 보려고 백엔드를 N번 호출 |
+| `getRowId` | 반드시 지정 (PK 단일 또는 트리플 키) | 페이지 이동 후 행 강조 깜빡임 |
+| `rowData` prop | **제거 필수** | 콘솔 경고 + 동작 이상 (SSRM과 충돌) |
+| `loading` prop | 제거 — SSRM은 자체 로딩 UI 사용 | 이중 로딩 오버레이 |
+| 검색 트리거 | `searchVersion` 카운터 (객체 의존성 X) | useEffect 무한 트리거 또는 미동작 |
+| 검색 시 refresh | `refreshServerSide({ purge: true })` | 검색해도 1페이지로 안 돌아가고 잔존 캐시가 매칭 |
+| datasource 생성 | `useMemo([])`로 1회 + `searchParamsRef` | 매 렌더 재생성 시 캐시·블록 동작 불안정 |
+| 정렬 | 백엔드 sort 미지원이면 `defaultColDef.sortable: false` override | 헤더 클릭 시 잘못된 결과 |
+| `pagination: false`/`statusBar: undefined` 잔존 | 둘 다 제거(useAggridOptions 기본값 활용) | AggridPagination 안 보임 |
+| TanStack Query 병용 | 금지 — `getRows` 안에서 apiClient 직접 호출 | 캐시 이중화 + 무효화 동기화 부담 |
+| `params.fail()` 누락 | try/catch 안에서 반드시 호출 | 네트워크 실패 시 그리드 영원히 로딩 |
+| `selectedRowId` 강조 | `useEffect([selectedRowId])` + `redrawRows()` | rowClassRules가 즉시 반영 안 됨 |
+
+#### ClientSide와의 차이
+
+| 항목 | ClientSide (기본) | SSRM |
+|---|---|---|
+| `rowModelType` | `'clientSide'` (생략 시 기본) | `'serverSide'` |
+| 데이터 전달 | `rowData` prop으로 전체 | `serverSideDatasource` prop |
+| 페이지네이션 | 그리드가 메모리에서 자름 | 그리드가 page 단위로 fetch |
+| 캐시 단위 | 없음 (전체 보유) | 행 범위 블록 |
+| 정렬·필터 | 클라이언트 처리 | 백엔드 처리 (sort/filter 파라미터 필요) |
+| 적합 데이터 크기 | 수십~수백 건 | 수천 건 이상 |
+
+기존 ClientSide 그리드는 변경 없이 유지합니다. SSRM은 백엔드가 페이지 API를 제공하고 데이터 규모가 크다는 두 조건을 동시에 만족할 때만 채택하세요.
+
 ---
 
 ## 10. Import 경로 규칙
@@ -1560,50 +1765,130 @@ export const STATUS_LABELS: Record<TrainStatus, string> = {
 
 UI 요소는 반드시 **흰색 배경 컨테이너**(`bg-white bt-shadow`)나 **Card 컴포넌트**로 감싸서, 콘텐츠 영역이 배경과 명확히 구분되도록 해주세요.
 
-```typescript
-// ❌ 이렇게 하면 요소들이 회색 배경 위에 둥둥 떠 보입니다
-<div className="flex flex-col gap-4 w-full h-full">
-  <PageHeader breadcrumb={breadcrumb} />
-  <Select ... />
-  <Input ... />
-  <Button type="primary">추가</Button>
-  <AgGridReact rowData={data} columnDefs={columnDefs} />
-</div>
-```
-
-```typescript
-// ✅ 툴바와 테이블이 각각 흰색 배경으로 감싸져 있어 깔끔합니다
-<div className="flex flex-col gap-4 w-full h-full">
-  <PageHeader breadcrumb={breadcrumb} />
-
-  {/* 필터/액션 바 */}
-  <div className="flex items-center justify-between gap-2 w-full h-[76px] bg-white bt-shadow px-7 py-5">
-    <div className="flex gap-2 w-full items-center">
-      <Select ... />
-      <Input ... />
-    </div>
-    <Button type="primary">추가</Button>
-  </div>
-
-  {/* 데이터 테이블 */}
-  <div className="w-full h-full bg-white bt-shadow">
-    <AgGridReact rowData={data} columnDefs={columnDefs} />
-  </div>
-</div>
-```
-
-### 목록 페이지의 기본 구조
-
-프로젝트의 목록 페이지들은 대체로 아래 세 영역으로 구성됩니다:
-
-| 영역             | 역할                            | 스타일                                       |
-| ---------------- | ------------------------------- | -------------------------------------------- |
-| **PageHeader**   | 브레드크럼 네비게이션           | 배경 없음 (투명)                             |
-| **필터/액션 바** | 검색, 필터, 추가 버튼 등        | `bg-white bt-shadow`, 고정 높이 `h-[76px]`   |
-| **콘텐츠**       | AG-Grid 테이블 또는 Card 그리드 | `bg-white bt-shadow` 또는 개별 Card 컴포넌트 |
-
 > **왜 `bt-shadow`를 쓰나요?**
 > 프로젝트 전역에 정의된 커스텀 box-shadow 클래스입니다. 흰색 배경과 함께 사용하면 콘텐츠 영역이 배경에서 살짝 떠오르는 효과를 주어 시각적 계층을 만들어 줍니다.
+
+### 화면 패턴별 표준 레이아웃
+
+프로젝트의 페이지들은 화면이 수행하는 기능에 따라 몇 가지 정형 패턴으로 묶입니다. 같은 패턴에 속하는 화면들은 **동일한 외곽 골격**을 공유해야 사용자가 어느 메뉴를 들어가도 일관된 경험을 받습니다. 새 화면을 만들 때는 먼저 어떤 패턴에 해당하는지 정하고 그 패턴의 골격을 그대로 따르세요. 여기에 없는 새로운 패턴이 필요하면 이 섹션에 항목을 추가합니다.
+
+### 화면 패턴: 검색·필터 + 그리드 목록
+
+상단에 검색 조건/필터를, 하단에 AG-Grid를 두는 가장 흔한 목록 페이지 패턴입니다. `apps/manager`의 `UserList`/`ClientList`/`WorkHistoryList`, `apps/fca`의 `BotDialogHistory`/`DecryptLog`/`BotRealtime`, 통계 페이지(`call-bot/*`, `nlu/*`) 등이 모두 이 패턴을 따릅니다.
+
+#### 핵심 원칙
+
+**필터와 그리드를 단일 흰색 래퍼 하나로 묶고, 그 안에서 `gap-5`로 영역을 분리합니다.** 필터와 그리드를 각각 별개의 `bg-white bt-shadow` 박스로 띄우는 구조는 사용하지 않습니다. 두 영역은 의미상 같은 "목록 화면"이므로 시각적으로도 한 덩어리로 인지되어야 합니다.
+
+#### 표준 골격
+
+```typescript
+const SomeListPage: React.FC = () => {
+  // ... hooks, queries, handlers
+
+  return (
+    <div className="flex flex-col gap-4 w-full h-full">
+      <PageHeader breadcrumb={breadcrumb} />
+
+      {/* ① 흰색 래퍼 — 필터·그리드를 모두 품는다 */}
+      <div className="flex flex-col gap-5 w-full h-full bg-white bt-shadow p-5">
+        {/* ② 필터·액션 헤더 */}
+        <header className="flex items-center justify-between w-full gap-2 lg:flex-nowrap flex-wrap">
+          <div className="flex items-center w-full gap-3">
+            <Select ... />
+            <Input ... />
+          </div>
+          <div className="flex items-center gap-2.5">
+            <Button type="primary" onClick={handleCreate}>추가</Button>
+          </div>
+        </header>
+
+        {/* ③ 그리드 */}
+        <div className="w-full h-full">
+          <AgGridReact rowData={data} columnDefs={columnDefs} gridOptions={gridOptions} />
+        </div>
+      </div>
+
+      {/* ④ Drawer·Modal은 흰색 래퍼 밖, 외곽 컨테이너 안쪽 */}
+      <SomeDetailDrawer ref={drawerRef} />
+    </div>
+  );
+};
+```
+
+#### 영역별 규칙
+
+| 영역             | 역할                                | 표준 클래스                                                                          |
+| ---------------- | ----------------------------------- | ------------------------------------------------------------------------------------ |
+| **외곽 컨테이너**    | 페이지 전체 골격                  | `flex flex-col gap-4 w-full h-full`                                                  |
+| **PageHeader**   | 브레드크럼 네비게이션              | (자체 스타일, 배경 없음)                                                             |
+| **흰색 래퍼**    | 필터·그리드를 묶는 단일 컨테이너    | `flex flex-col gap-5 w-full h-full bg-white bt-shadow p-5`                           |
+| **필터·액션 헤더** | 인라인 필터 + 우측 액션 버튼          | `<header className="flex items-center justify-between w-full gap-2 lg:flex-nowrap flex-wrap">` |
+| **그리드**       | AG-Grid 컨테이너                    | `w-full h-full` (배경·그림자 금지)                                                   |
+| **Drawer/Modal** | 상세·생성·편집용                    | 흰색 래퍼 밖, 외곽 컨테이너 안쪽에 배치                                              |
+
+#### 검색 영역이 복잡할 때 — 전용 컴포넌트로 분리
+
+검색 폼이 다단(여러 행)이거나 Collapsible(접힘) 동작·엑셀 다운로드 등 자체 로직을 갖는 경우, 검색 영역만 전용 컴포넌트(`<XxxSearchForm />`, `<XxxSearchBar />`)로 분리합니다. 단, 그 컴포넌트는 **자기 안에 흰색 배경/그림자/외부 여백을 두지 않습니다**. 흰색 래퍼는 부모가 책임지므로, 자식은 콘텐츠 레이아웃만 담당합니다.
+
+```typescript
+// ✅ 자식 컴포넌트는 배경 없이 콘텐츠만
+const BotDialogHistorySearchForm: React.FC<Props> = ({ onSearch, ... }) => {
+  return (
+    <div className="flex flex-col gap-3">
+      {/* 1행: 검색일자, 봇, 의도, 신뢰구간 */}
+      <div className="flex items-center gap-4"> ... </div>
+      {/* 2행: 사용자 ID, ANI 등 */}
+      <div className="flex items-center gap-4"> ... </div>
+    </div>
+  );
+};
+
+// ❌ 자식이 자기 배경/그림자/여백을 들고 있으면 부모 래퍼와 이중으로 떠 보인다
+<div className="flex flex-col gap-3 p-5 bg-white bt-shadow mb-4"> ... </div>
+```
+
+부모 페이지 쪽 사용:
+
+```typescript
+<div className="flex flex-col gap-5 w-full h-full bg-white bt-shadow p-5">
+  <BotDialogHistorySearchForm onSearch={handleSearch} ... />
+  <div className="w-full h-full">
+    <BotDialogHistoryTable rowData={data} ... />
+  </div>
+</div>
+```
+
+자식 그리드 컴포넌트(`BotDialogHistoryTable` 등)도 마찬가지로 자기 루트에 `bg-white bt-shadow`를 두지 않고 `flex flex-col w-full h-full`만 부여합니다.
+
+#### Collapsible 필터 (통계 페이지 패턴)
+
+통계 페이지처럼 필터 항목이 많아 접고 펴는 UI가 필요할 때는 `Collapsible` 컴포넌트를 사용하되, 흰색 래퍼·`gap-5` 골격은 동일하게 유지합니다. 필터 헤더 자체는 `flex flex-col gap-3`로 다행 구성합니다(인라인 한 줄 헤더와 다른 점).
+
+```typescript
+<div className="flex flex-col gap-5 w-full h-full bg-white bt-shadow p-5">
+  <Collapsible open={isFilterOpen} onOpenChange={setIsFilterOpen}>
+    <header className="flex flex-col gap-3">
+      {/* 항상 보이는 1행 필터 */}
+      <div className="flex items-start gap-3"> ... </div>
+      <CollapsibleContent>
+        {/* 추가 필터 행 */}
+      </CollapsibleContent>
+    </header>
+  </Collapsible>
+  <div className="w-full h-full">
+    <AgGridReact ... />
+  </div>
+</div>
+```
+
+#### 흔한 실수
+
+- ❌ 필터와 그리드를 각각 `bg-white bt-shadow` 박스로 분리 → ✅ 단일 래퍼에 `gap-5`로 묶기
+- ❌ 자식 검색/그리드 컴포넌트 안에 또 `bg-white bt-shadow` 추가 → ✅ 자식은 배경 없이 콘텐츠만 담당
+- ❌ 필터 헤더에 고정 높이 `h-[76px]` 부여 → ✅ 콘텐츠에 따라 자연스러운 높이로 두기 (`flex-wrap`만 처리)
+- ❌ Drawer/Modal을 흰색 래퍼 안쪽에 배치 → ✅ 외곽 컨테이너 직속(흰색 래퍼 형제)에 두기
+- ❌ 모바일 전용 카드 뷰를 별도 분기로 유지 → ✅ AG-Grid 자체의 반응형 동작에 맡기고 분기 제거 (과거에 `lg:hidden`/`max-lg:hidden`로 분리하던 패턴은 폐기됨)
 
 ### Card 그리드 레이아웃
 

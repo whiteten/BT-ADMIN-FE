@@ -1,22 +1,22 @@
-import React, { useCallback, useMemo, useRef } from 'react';
-import type { ColDef, FirstDataRenderedEvent, GridReadyEvent } from 'ag-grid-community';
+import React, { useCallback, useEffect, useMemo, useRef } from 'react';
+import type { ColDef, FirstDataRenderedEvent, GridApi, GridOptions, GridReadyEvent, IServerSideDatasource } from 'ag-grid-community';
 import { AgGridReact } from 'ag-grid-react';
 import dayjs from 'dayjs';
-import { type DecryptLogItem, REASON_CODE_LABELS, RESULT_LABELS } from '../types/decryptLog.types';
-import ServerPagination from '@/components/custom/ServerPagination';
+import { decryptLogApi } from '../api/decryptLogApi';
+import { type DecryptLogItem, type DecryptLogSearchRequest, REASON_CODE_LABELS, RESULT_LABELS } from '../types/decryptLog.types';
 import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
 import useAggridOptions from '@/libs/shared-ui/src/hooks/useAggridOptions';
 
+const PAGE_SIZE = 50;
+
 interface DecryptLogListGridProps {
-  rowData: DecryptLogItem[];
-  total: number;
-  isLoading?: boolean;
-  page: number;
-  size: number;
-  onPageChange: (page: number) => void;
+  searchParams: DecryptLogSearchRequest;
+  searchVersion: number;
   onDetailClick: (item: DecryptLogItem) => void;
   selectedLogId?: string;
+  isLoading?: boolean;
+  onLoadingChange?: (loading: boolean) => void;
 }
 
 /** 결과 코드별 배지 색상 */
@@ -47,9 +47,49 @@ const dialogRoleBadgeClass = (role: string | null): string => {
   }
 };
 
-const DecryptLogListGrid: React.FC<DecryptLogListGridProps> = ({ rowData, total, isLoading, page, size, onPageChange, onDetailClick, selectedLogId }) => {
+const DecryptLogListGrid: React.FC<DecryptLogListGridProps> = ({ searchParams, searchVersion, onDetailClick, selectedLogId, isLoading, onLoadingChange }) => {
   const { gridOptions } = useAggridOptions();
-  const gridRef = useRef<AgGridReact<DecryptLogItem>>(null);
+  const gridApiRef = useRef<GridApi<DecryptLogItem> | null>(null);
+  const searchParamsRef = useRef(searchParams);
+
+  useEffect(() => {
+    searchParamsRef.current = searchParams;
+  }, [searchParams]);
+
+  const serverSideDatasource = useMemo<IServerSideDatasource>(
+    () => ({
+      getRows: async (params) => {
+        const startRow = params.request.startRow ?? 0;
+        const endRow = params.request.endRow ?? startRow + PAGE_SIZE;
+        const size = endRow - startRow;
+        const page = Math.floor(startRow / size);
+        try {
+          onLoadingChange?.(true);
+          const res = await decryptLogApi.list({ ...searchParamsRef.current, page, size });
+          params.success({ rowData: res.items, rowCount: res.total });
+        } catch {
+          params.fail();
+        } finally {
+          onLoadingChange?.(false);
+        }
+      },
+    }),
+    [onLoadingChange],
+  );
+
+  useEffect(() => {
+    if (!gridApiRef.current) return;
+    gridApiRef.current.refreshServerSide({ purge: true });
+    gridApiRef.current.deselectAll?.();
+  }, [searchVersion]);
+
+  useEffect(() => {
+    gridApiRef.current?.redrawRows();
+  }, [selectedLogId]);
+
+  const handleGridReady = (event: GridReadyEvent<DecryptLogItem>) => {
+    gridApiRef.current = event.api;
+  };
 
   const handleFirstDataRendered = useCallback((event: FirstDataRenderedEvent) => {
     event.api.autoSizeAllColumns();
@@ -148,31 +188,37 @@ const DecryptLogListGrid: React.FC<DecryptLogListGridProps> = ({ rowData, total,
         valueFormatter: (params) => params.value || '-',
       },
     ],
-    [onDetailClick],
+    [],
+  );
+
+  const finalGridOptions = useMemo<GridOptions<DecryptLogItem>>(
+    () => ({
+      ...gridOptions,
+      rowModelType: 'serverSide',
+      paginationPageSize: PAGE_SIZE,
+      cacheBlockSize: PAGE_SIZE,
+      localeText: { ...gridOptions.localeText, loadingOoo: ' ' },
+      defaultColDef: { ...gridOptions.defaultColDef, sortable: false } as ColDef<DecryptLogItem>,
+      getRowId: (p) => p.data.logId,
+      rowStyle: { cursor: 'pointer' },
+      onRowDoubleClicked: (event) => event.data && onDetailClick(event.data),
+      rowClassRules: {
+        'bg-blue-50': (params) => !!selectedLogId && params.data?.logId === selectedLogId,
+      },
+    }),
+    [gridOptions, selectedLogId, onDetailClick],
   );
 
   return (
-    <div className="flex flex-col flex-1 min-h-0 bg-white bt-shadow">
-      <div className="flex-1 w-full overflow-hidden">
-        <AgGridReact<DecryptLogItem>
-          ref={gridRef}
-          rowData={rowData}
-          columnDefs={columnDefs}
-          onFirstDataRendered={handleFirstDataRendered}
-          gridOptions={{
-            ...gridOptions,
-            pagination: false,
-            statusBar: undefined,
-            rowStyle: { cursor: 'pointer' },
-            onRowDoubleClicked: (event) => event.data && onDetailClick(event.data),
-            rowClassRules: {
-              'bg-blue-50': (params) => !!selectedLogId && params.data?.logId === selectedLogId,
-            },
-          }}
-          loading={isLoading}
-        />
-      </div>
-      <ServerPagination totalItems={total} currentPage={page} pageSize={size} onPageChange={onPageChange} />
+    <div className="w-full h-full">
+      <AgGridReact<DecryptLogItem>
+        columnDefs={columnDefs}
+        gridOptions={finalGridOptions}
+        serverSideDatasource={serverSideDatasource}
+        onGridReady={handleGridReady}
+        onFirstDataRendered={handleFirstDataRendered}
+        loading={isLoading}
+      />
     </div>
   );
 };

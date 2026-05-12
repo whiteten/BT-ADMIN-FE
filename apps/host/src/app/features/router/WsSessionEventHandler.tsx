@@ -3,12 +3,14 @@ import { Outlet, useNavigate } from 'react-router-dom';
 import { useQueryClient } from '@tanstack/react-query';
 import { LOG } from '@/log';
 import { sharedApi } from '@/shared-api';
+import { toast } from '@/shared-util';
 
 const Log = new LOG('WsSessionEventHandler');
 
 const WS_SESSION_EVENT_TYPES = {
   PERMISSION_CHANGED: 'PERMISSION_CHANGED',
   LOGOUT: 'LOGOUT',
+  SESSION_EXPIRED: 'SESSION_EXPIRED',
 } as const;
 
 export default function WsSessionEventHandler({ children }: { children?: React.ReactNode }) {
@@ -24,6 +26,11 @@ export default function WsSessionEventHandler({ children }: { children?: React.R
           break;
         case WS_SESSION_EVENT_TYPES.LOGOUT:
           Log.info(`EVT: ${WS_SESSION_EVENT_TYPES.LOGOUT}`, detail);
+          navigate('/login');
+          break;
+        case WS_SESSION_EVENT_TYPES.SESSION_EXPIRED:
+          Log.info(`EVT: ${WS_SESSION_EVENT_TYPES.SESSION_EXPIRED}`, detail);
+          toast.warning(detail?.data?.message ?? '세션이 만료되었습니다. 다시 로그인해주세요.');
           navigate('/login');
           break;
         default:

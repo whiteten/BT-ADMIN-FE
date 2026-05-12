@@ -427,6 +427,26 @@ const handleClose = () => {
 
 `useAggridOptions` 훅으로 공통 그리드 옵션을 적용하고, `ColDef<RowType>[]`로 컬럼을 정의합니다. 편집 가능 컬럼·커스텀 렌더러·액션 컬럼·커스텀 셀 에디터 구성 등 상세 절차는 [.claude/skills/add-grid/SKILL.md](.claude/skills/add-grid/SKILL.md) 스킬 참조.
 
+#### SSRM(Server-Side Row Model) — 서버 페이징 그리드
+
+백엔드가 `page`/`size` 페이징을 지원하고 데이터 규모가 큰 화면(수천 건 이상)은 ClientSide가 아닌 **SSRM**을 사용합니다. AG-Grid Enterprise 기능이며 `libs/shared-ui/src/lib/aggridSetup.ts`가 `AllEnterpriseModule`을 등록해 두어 즉시 사용 가능. 레퍼런스: [BotDialogHistoryTable.tsx](apps/fca/src/app/features/tracking/components/BotDialogHistoryTable.tsx).
+
+핵심 규칙:
+
+- **TanStack Query 병용 금지**: SSRM은 그리드 자체 블록 캐시(행 범위 단위)를 가지므로 `useGet<Feature>` 훅과 같이 쓰지 말 것. `IServerSideDatasource.getRows`에서 `apiClient`를 직접 호출
+- **`cacheBlockSize === paginationPageSize`**: 반드시 일치. 안 그러면 페이지당 백엔드 호출이 N배
+- **`getRowId` 필수**: 페이지 이동 후 행 강조 안정성. PK 단일 또는 PK 트리플(예: `${ucid}_${nextHop}_${cdrPkey}`) 활용
+- **검색 트리거**: `searchParams` 객체 의존성 ❌ → 부모에서 `searchVersion` 카운터를 만들어 검색 버튼 클릭마다 +1, 자식 그리드는 `useEffect([searchVersion])`에서 `gridApi.refreshServerSide({ purge: true })` 호출
+- **datasource 안정화**: `useMemo([])`로 1회 생성 + `searchParamsRef`로 최신 검색조건을 클로저에 흘림. 매 렌더 재생성 ❌
+- **정렬**: 백엔드 sort 미지원이면 `defaultColDef: { sortable: false }`로 그리드 단위 비활성화 (헤더 클릭 시 잘못된 결과 방지)
+- **AgGridReact props**: `rowData`/`loading` 제거 필수 (SSRM과 충돌 경고)
+- **페이지네이션 UI**: `useAggridOptions` 기본 statusBar의 `AggridPagination` 활용 — `pagination: false`/`statusBar: undefined` override 금지
+- **부모 콜백**: `onLoadingChange`(SearchForm spinner용), `onTotalRowsChange`(빈 데이터 체크용) 두 콜백을 자식 그리드가 부모에 노출
+- **`params.fail()`**: try/catch 안에서 누락 시 네트워크 실패 시 그리드가 영원히 로딩 표시
+- **`selectedRowId` 강조**: 외부 state 변경은 자동 감지 안 됨 → `useEffect([selectedRowId])` + `gridApi.redrawRows()`로 즉시 반영
+
+상세 표준 골격(자식 그리드·부모 페이지 양쪽 코드 + 함정 체크리스트 + ClientSide 비교)은 [DEVELOPER_GUIDE.md](doc/DEVELOPER_GUIDE.md)의 "AG-Grid 사용 가이드 → SSRM(Server-Side Row Model)" 섹션 참조.
+
 ### Zustand 스토어 컨벤션
 
 feature 단위 로컬 상태는 `hooks/use<Feature>Store.ts`, 전역 공유 상태는 `libs/shared-store/`에 정의합니다.
@@ -654,33 +674,53 @@ export const ENTITY_TYPE_COLORS: Record<EntityType, string> = {
 
 ### UI 레이아웃 규칙
 
-레이아웃 배경(회색 계열) 위에 버튼, 입력 필드, 테이블 등의 UI 요소를 직접 배치하지 말 것. 배경과의 시각적 분리가 없으면 요소가 부유하는 느낌을 주어 완성도가 떨어집니다. 반드시 `bg-white bt-shadow` 컨테이너, `Card` 등으로 감싸 콘텐츠 영역을 명확히 구분할 것.
+레이아웃 배경(회색 계열) 위에 버튼·입력 필드·테이블 등을 직접 배치하지 말 것. 배경과의 시각적 분리가 없으면 요소가 부유하는 느낌을 주어 완성도가 떨어진다. 반드시 `bg-white bt-shadow` 컨테이너 또는 `Card`로 감싸 콘텐츠 영역을 명확히 구분할 것.
+
+#### 화면 패턴: 검색·필터 + 그리드 목록
+
+목록 페이지의 표준 골격은 **상단 검색·필터 + 하단 그리드를 단일 흰색 래퍼로 묶는 구조**다. 필터와 그리드를 각각 별도의 `bg-white bt-shadow` 박스로 분리하지 말고, 하나의 래퍼 안에 `gap-5`로 간격을 두어 같은 영역에 속함을 시각적으로 표현한다.
 
 ```typescript
-// ❌ 레이아웃 배경 위에 UI 요소 직접 배치
+// ✅ 표준 패턴 — 단일 흰색 래퍼
 <div className="flex flex-col gap-4 w-full h-full">
   <PageHeader breadcrumb={breadcrumb} />
-  <Select ... />
-  <Input ... />
-  <Button type="primary">추가</Button>
-  <AgGridReact rowData={data} columnDefs={columnDefs} />
+  <div className="flex flex-col gap-5 w-full h-full bg-white bt-shadow p-5">
+    {/* 인라인 필터·액션 헤더 */}
+    <header className="flex items-center justify-between w-full gap-2 lg:flex-nowrap flex-wrap">
+      <div className="flex items-center w-full gap-3">
+        <Select ... />
+        <Input ... />
+      </div>
+      <div className="flex items-center gap-2.5">
+        <Button type="primary" onClick={handleCreate}>추가</Button>
+      </div>
+    </header>
+    {/* 그리드 */}
+    <div className="w-full h-full">
+      <AgGridReact rowData={data} columnDefs={columnDefs} />
+    </div>
+  </div>
+  {/* Drawer/Modal은 흰색 래퍼 밖, 외곽 컨테이너 안쪽 */}
+  <SomeDrawer ref={drawerRef} />
 </div>
 
-// ✅ 툴바와 테이블을 각각 배경 컨테이너로 감싸서 영역 구분
+// ❌ 필터와 그리드를 분리된 박스로 나누지 말 것
 <div className="flex flex-col gap-4 w-full h-full">
-  <PageHeader breadcrumb={breadcrumb} />
-  <div className="flex items-center justify-between gap-2 w-full h-[76px] bg-white bt-shadow px-7 py-5">
-    <div className="flex gap-2 w-full items-center">
-      <Select ... />
-      <Input ... />
-    </div>
-    <Button type="primary">추가</Button>
-  </div>
-  <div className="w-full h-full bg-white bt-shadow">
-    <AgGridReact rowData={data} columnDefs={columnDefs} />
-  </div>
+  <div className="bg-white bt-shadow px-7 py-5 h-[76px]">{/* 필터 */}</div>
+  <div className="bg-white bt-shadow w-full h-full">{/* 그리드 */}</div>
 </div>
 ```
+
+핵심 규칙 (요약):
+
+- **외곽 컨테이너**: `flex flex-col gap-4 w-full h-full` — `PageHeader` → 흰색 래퍼 → Drawer 순으로 배치
+- **흰색 래퍼**: `flex flex-col gap-5 w-full h-full bg-white bt-shadow p-5` — 필터·그리드를 모두 포함
+- **인라인 필터 헤더**: `<header>` 시맨틱 태그 + `flex items-center justify-between w-full gap-2 lg:flex-nowrap flex-wrap` (좁은 화면에서 자연스럽게 줄바꿈)
+- **검색 영역이 복잡한 경우**(다단 필터·`Collapsible`·전용 컴포넌트 분리): 자식 컴포넌트 내부에서 `bg-white bt-shadow`/`p-5`/`mb-4` 등 배경·여백 클래스를 추가하지 말 것 — 흰색 래퍼는 부모가 책임진다
+- **그리드 컨테이너**: `w-full h-full`만 부여. 별도 배경·그림자 금지
+- **Drawer·Modal**: 흰색 래퍼 밖, 외곽 컨테이너 안쪽에 배치
+
+상세 절차(검색 폼 분리 기준, Collapsible 필터, 다중 그리드 등)는 [DEVELOPER_GUIDE.md](doc/DEVELOPER_GUIDE.md)의 "페이지 레이아웃 가이드 → 화면 패턴: 검색·필터 + 그리드 목록" 섹션 참조.
 
 ### 데이터 추가/수정 폼 패턴
 
