@@ -12,6 +12,7 @@ import { type BreadcrumbProps, Button, Col, Divider, Form, type FormProps, Input
 import { Check, Shield, X } from 'lucide-react';
 import { LOG } from '@/log';
 import { sharedApi } from '@/shared-api';
+import { useBreadcrumbStore } from '@/shared-store';
 import { toast } from '@/shared-util';
 import PermissionSelector from '../../features/iam/components/PermissionSelector';
 import { useGetGroupedPermissions } from '../../features/iam/hooks/usePermissionQueries';
@@ -19,7 +20,6 @@ import { useCreateRole, useGetRoles } from '../../features/iam/hooks/useRoleQuer
 import type { MenuWithPermissions, RoleCreateDatas } from '../../features/iam/types/iam.types';
 
 type PermEntry = { authKey: string; action: string };
-import PageHeader from '@/components/custom/PageHeader';
 
 /**
  * 메뉴와 모든 하위 메뉴의 권한을 재귀적으로 수집
@@ -58,7 +58,21 @@ interface RoleFormValues {
   canManageResourceAccess: boolean;
 }
 
+const breadcrumb: BreadcrumbProps['items'] = [
+  { title: '사용자', path: '/manager/resource/auth-group/list' },
+  { title: '역할/권한', path: '/manager/resource/auth-group/list' },
+  { title: '역할 생성', path: '/manager/resource/role/create' },
+];
+
 export default function RoleCreatePage() {
+  const setBreadcrumb = useBreadcrumbStore((s) => s.setBreadcrumb);
+  const clearBreadcrumb = useBreadcrumbStore((s) => s.clearBreadcrumb);
+
+  useEffect(() => {
+    setBreadcrumb(breadcrumb);
+    return () => clearBreadcrumb();
+  }, [setBreadcrumb, clearBreadcrumb]);
+
   const navigate = useNavigate();
   const queryClient = useQueryClient();
 
@@ -183,13 +197,6 @@ export default function RoleCreatePage() {
   const onFinishFailed: FormProps<RoleFormValues>['onFinishFailed'] = (errorInfo) => {
     Log.warn('onFinishFailed', errorInfo);
   };
-
-  // Breadcrumb 설정
-  const breadcrumb: BreadcrumbProps['items'] = [
-    { title: '사용자', path: '/manager/resource/auth-group/list' },
-    { title: '역할/권한', path: '/manager/resource/auth-group/list' },
-    { title: '역할 생성', path: '/manager/resource/role/create' },
-  ];
 
   // Step 1: 기본 정보
   function renderStep1() {
@@ -391,8 +398,6 @@ export default function RoleCreatePage() {
 
   return (
     <div className="flex flex-col gap-4 w-full h-full">
-      <PageHeader breadcrumb={breadcrumb} />
-
       {/* Steps */}
       <div className="flex items-center justify-center w-full h-[58px] min-h-[58px] bg-white bt-shadow px-7 py-2">
         <Steps

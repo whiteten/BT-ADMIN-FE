@@ -38,7 +38,7 @@ TypeScript 또는 JavaScript 파일을 수정한 후에는 반드시 `npx eslint
 
 - **Shared UI** (`libs/shared-ui`): 재사용 가능한 React 컴포넌트
   - shadcn/ui 컴포넌트 (Badge, Button, Card, Dialog, Table 등)
-  - 커스텀 컴포넌트 (AggridNoRowsOverlay, AggridRowDataSidebar, FallbackSpinner, Icons, NoData, NotFound, PageHeader, PageTabs 등)
+  - 커스텀 컴포넌트 (AggridNoRowsOverlay, AggridRowDataSidebar, FallbackSpinner, Icons, NoData, NotFound, PageTabs 등)
 - **Shared API** (`libs/shared-api`): 여러 앱에서 공통으로 사용하는 API 및 타입 (역할, 네비게이션, 북마크 등)
 - **Shared Store** (`libs/shared-store`): Zustand를 사용한 상태 관리
 - **Shared Util** (`libs/shared-util`): 유틸리티 함수 및 헬퍼
@@ -263,7 +263,7 @@ const tabItems = [
    ```typescript
    // 공유 라이브러리를 import하는 모든 앱에서
    import { Button } from '@/components/ui/button';
-   import { PageHeader } from '@/components/custom/PageHeader';
+   import { FallbackSpinner } from '@/components/custom/FallbackSpinner';
    ```
 
 ### 경로 별칭 (`tsconfig.base.json`에 정의)
@@ -291,8 +291,8 @@ import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { Dialog, DialogContent } from '@/components/ui/dialog';
 
 // 커스텀 컴포넌트
-import { PageHeader } from '@/components/custom/PageHeader';
 import { FallbackSpinner } from '@/components/custom/FallbackSpinner';
+import { NoData } from '@/components/custom/NoData';
 
 // 유틸리티
 import { cn } from '@/lib/utils';
@@ -538,6 +538,63 @@ export const routes = [
 ];
 ```
 
+### 페이지 Breadcrumb 패턴
+
+페이지의 breadcrumb은 **페이지 본문이 아니라 host의 SubHeader가 그립니다**. host 레이아웃의 `BreadcrumbSlot`이 `useBreadcrumbStore`(libs/shared-store)를 구독해 SubHeader 우측에 렌더하므로, 각 페이지 컴포넌트는 mount 시 store에 push하고 unmount 시 clear하는 책임만 갖습니다. 페이지 본문에 `<Breadcrumb />` 등 breadcrumb 컴포넌트를 직접 두지 마세요.
+
+#### 핵심 규칙 (요약)
+
+1. **store 위치**: `useBreadcrumbStore` (from `@/shared-store`) — `setBreadcrumb(items, params?)` / `clearBreadcrumb()`
+2. **호출 위치**: 페이지 컴포넌트 본문 시작부의 `useEffect`. mount 시 set, cleanup에서 clear
+3. **deps 규칙**: 정적 breadcrumb이면 `[setBreadcrumb, clearBreadcrumb]`만, 분기/동적 라벨이 있으면 그 deps도 포함 (`isPublic`, `params`, fetch 결과 등)
+4. **동적 라벨**: breadcrumb item title을 `:paramName` 형태로 적고 `setBreadcrumb`의 두 번째 인자로 `{ paramName: value }` 전달 → BreadcrumbSlot이 치환
+5. **path 없는 항목**: 부모(redirect-only 그룹 등)는 `path` 없이 두면 BreadcrumbSlot이 비링크 텍스트로 렌더해 클릭이 자연스럽게 비활성
+
+#### 예시
+
+```typescript
+// 정적 breadcrumb
+const breadcrumb: BreadcrumbProps['items'] = [
+  { title: '관리', path: '/fca/bot-config' },
+  { title: '봇', path: '/fca/bot-config/bot' },
+  { title: '봇 목록', path: '/fca/bot-config/bot/list' },
+];
+
+export default function BotList() {
+  const setBreadcrumb = useBreadcrumbStore((s) => s.setBreadcrumb);
+  const clearBreadcrumb = useBreadcrumbStore((s) => s.clearBreadcrumb);
+
+  useEffect(() => {
+    setBreadcrumb(breadcrumb);
+    return () => clearBreadcrumb();
+  }, [setBreadcrumb, clearBreadcrumb]);
+
+  // ...
+}
+
+// 동적 라벨 (fetch 결과 의존)
+export default function BotDetail() {
+  const { serviceId } = useParams();
+  const { data: bot } = useGetBot({ params: { serviceId } });
+  const setBreadcrumb = useBreadcrumbStore((s) => s.setBreadcrumb);
+  const clearBreadcrumb = useBreadcrumbStore((s) => s.clearBreadcrumb);
+
+  useEffect(() => {
+    const items: BreadcrumbProps['items'] = [
+      { title: '관리', path: '/fca/bot-config' },
+      { title: '봇', path: '/fca/bot-config/bot' },
+      { title: ':botName', path: `/fca/bot-config/bot/${serviceId}` },
+    ];
+    setBreadcrumb(items, { botName: bot?.serviceName ?? '-' });
+    return () => clearBreadcrumb();
+  }, [serviceId, bot?.serviceName, setBreadcrumb, clearBreadcrumb]);
+
+  // ...
+}
+```
+
+분기(예: `isPublic`)가 있으면 useEffect 내부에서 조건 분기로 items를 선택하고 deps에 분기 키를 포함합니다. early-return으로 로딩 분기되는 페이지도 hook 순서가 깨지지 않도록 useEffect는 본문 시작부에 두세요.
+
 ### 화면 커스터마이징(Variants) 패턴
 
 테넌트별로 같은 path에서 다른 컴포넌트를 렌더하고 싶을 때 사용합니다. routes.tsx의 path는 그대로 두고 element만 운영자 선택값에 따라 바꾸는 구조입니다.
@@ -624,7 +681,7 @@ import { SelectorKeys } from './features/router/querySelectors';
 >
 > 메뉴 등록·편집 폼은 `handle.queryParams`에 선언된 모든 query를 무조건 필수 입력으로 검증합니다(빈 값 저장 불가, 옵트인 옵션 없음 — 선택적 query 키 케이스는 의도적으로 미지원).
 >
-> 분기 메뉴 페이지의 breadcrumb은 leaf 항목 `path`에 query 값을 직접 합성해 자기 자신을 가리키도록 작성합니다(예: <code>path: \`/fca/sample/preset-demo?preset=${preset}\`</code>). 상위(부모) 항목은 redirect-only 그룹인 경우가 많아 query 처리가 애매하므로 `path`를 작성하지 않는 것을 권장합니다 — PageHeader가 path 없는 항목을 비링크 텍스트로 렌더해 클릭 자체를 비활성합니다.
+> 분기 메뉴 페이지의 breadcrumb은 leaf 항목 `path`에 query 값을 직접 합성해 자기 자신을 가리키도록 작성합니다(예: <code>path: \`/fca/sample/preset-demo?preset=${preset}\`</code>). 상위(부모) 항목은 redirect-only 그룹인 경우가 많아 query 처리가 애매하므로 `path`를 작성하지 않는 것을 권장합니다 — host의 BreadcrumbSlot이 path 없는 항목을 비링크 텍스트로 렌더해 클릭 자체를 비활성합니다.
 
 #### 주의사항 — 컴포넌트 remount 처리
 
@@ -682,8 +739,9 @@ export const ENTITY_TYPE_COLORS: Record<EntityType, string> = {
 
 ```typescript
 // ✅ 표준 패턴 — 단일 흰색 래퍼
+// breadcrumb은 host SubHeader가 그리므로 페이지 본문에는 두지 않는다.
+// 페이지 컴포넌트 본문 시작부에서 useBreadcrumbStore.setBreadcrumb을 호출한다.
 <div className="flex flex-col gap-4 w-full h-full">
-  <PageHeader breadcrumb={breadcrumb} />
   <div className="flex flex-col gap-5 w-full h-full bg-white bt-shadow p-5">
     {/* 인라인 필터·액션 헤더 */}
     <header className="flex items-center justify-between w-full gap-2 lg:flex-nowrap flex-wrap">
@@ -713,7 +771,7 @@ export const ENTITY_TYPE_COLORS: Record<EntityType, string> = {
 
 핵심 규칙 (요약):
 
-- **외곽 컨테이너**: `flex flex-col gap-4 w-full h-full` — `PageHeader` → 흰색 래퍼 → Drawer 순으로 배치
+- **외곽 컨테이너**: `flex flex-col gap-4 w-full h-full` — 흰색 래퍼 → Drawer 순으로 배치 (breadcrumb은 host SubHeader가 담당)
 - **흰색 래퍼**: `flex flex-col gap-5 w-full h-full bg-white bt-shadow p-5` — 필터·그리드를 모두 포함
 - **인라인 필터 헤더**: `<header>` 시맨틱 태그 + `flex items-center justify-between w-full gap-2 lg:flex-nowrap flex-wrap` (좁은 화면에서 자연스럽게 줄바꿈)
 - **검색 영역이 복잡한 경우**(다단 필터·`Collapsible`·전용 컴포넌트 분리): 자식 컴포넌트 내부에서 `bg-white bt-shadow`/`p-5`/`mb-4` 등 배경·여백 클래스를 추가하지 말 것 — 흰색 래퍼는 부모가 책임진다

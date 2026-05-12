@@ -3,13 +3,13 @@ import { useNavigate } from 'react-router-dom';
 import { type BreadcrumbProps, Button, Col, Divider, Form, type FormProps, Input, Row, Select, type SelectProps, Slider, Steps, Tag } from 'antd';
 import { Check, X } from 'lucide-react';
 import { Log } from '@/log';
+import { useBreadcrumbStore } from '@/shared-store';
 import { toast } from '@/shared-util';
 import { useCreateBot, useGetSttList, useGetTtsList } from '../../features/bot-config/hooks/useBotQueries';
 import { useGetModels } from '../../features/bot-config/hooks/useModelQueries';
 import type { BotCreateDatas } from '../../features/bot-config/types';
 import { FallbackSpinner } from '@/components/custom/FallbackSpinner';
 import { IconTag } from '@/components/custom/Icons';
-import PageHeader from '@/components/custom/PageHeader';
 
 const breadcrumb: BreadcrumbProps['items'] = [
   { title: '관리', path: '/fca/bot-config' },
@@ -30,6 +30,14 @@ const displayValue = (value: unknown): React.ReactNode => {
 };
 
 export default function BotCreate() {
+  const setBreadcrumb = useBreadcrumbStore((s) => s.setBreadcrumb);
+  const clearBreadcrumb = useBreadcrumbStore((s) => s.clearBreadcrumb);
+
+  useEffect(() => {
+    setBreadcrumb(breadcrumb);
+    return () => clearBreadcrumb();
+  }, [setBreadcrumb, clearBreadcrumb]);
+
   const navigate = useNavigate();
   const { TextArea } = Input;
   const [confidence, setConfidence] = useState([40, 80]);
@@ -423,7 +431,6 @@ export default function BotCreate() {
 
   return (
     <div className="flex flex-col gap-4 w-full h-full">
-      <PageHeader breadcrumb={breadcrumb} />
       <div className="flex items-center justify-center w-full h-[58px] min-h-[58px] bg-white bt-shadow px-7 py-2">
         <Steps
           current={currentStep}

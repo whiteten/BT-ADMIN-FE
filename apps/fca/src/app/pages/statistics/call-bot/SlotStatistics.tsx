@@ -4,7 +4,7 @@ import { AgGridReact } from 'ag-grid-react';
 import { type BreadcrumbProps, Button, Checkbox, DatePicker, Divider, Input, Select, TimePicker } from 'antd';
 import dayjs, { type Dayjs } from 'dayjs';
 import { ChevronDown, Download } from 'lucide-react';
-import { useNavigationStore } from '@/shared-store';
+import { useBreadcrumbStore, useNavigationStore } from '@/shared-store';
 import { downloadBlob, extractFileName, toast } from '@/shared-util';
 import { useGetBots } from '../../../features/bot-config/hooks/useBotQueries';
 import { statisticsApi } from '../../../features/statistics/api/statisticsApi';
@@ -20,7 +20,6 @@ import {
 import { useStatisticsFilterStore } from '../../../features/statistics/hooks/useStatisticsFilterStore';
 import { useGetDialogOptionList, useGetSlotStatList } from '../../../features/statistics/hooks/useStatisticsQueries';
 import type { SlotStatListItem } from '../../../features/statistics/types/statistics.types';
-import PageHeader from '@/components/custom/PageHeader';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/libs/shared-ui/src/components/shadcn/collapsible';
 import useAggridOptions from '@/libs/shared-ui/src/hooks/useAggridOptions';
 import { cn } from '@/libs/shared-ui/src/lib/utils';
@@ -32,6 +31,14 @@ const breadcrumb: BreadcrumbProps['items'] = [
 ];
 
 export default function SlotStatistics() {
+  const setBreadcrumb = useBreadcrumbStore((s) => s.setBreadcrumb);
+  const clearBreadcrumb = useBreadcrumbStore((s) => s.clearBreadcrumb);
+
+  useEffect(() => {
+    setBreadcrumb(breadcrumb);
+    return () => clearBreadcrumb();
+  }, [setBreadcrumb, clearBreadcrumb]);
+
   const { serviceIds, setServiceIds } = useStatisticsFilterStore();
   // UI 상태 (사용자가 입력하는 값들)
   const [dialogIds, setDialogIds] = useState<string[]>([]);
@@ -337,7 +344,6 @@ export default function SlotStatistics() {
 
   return (
     <div className="flex flex-col gap-4 w-full h-full">
-      <PageHeader breadcrumb={breadcrumb} />
       <div className="flex flex-col gap-5 w-full h-full bg-white bt-shadow p-5">
         <Collapsible open={isFilterOpen} onOpenChange={setIsFilterOpen}>
           <header className="flex flex-col gap-3">
