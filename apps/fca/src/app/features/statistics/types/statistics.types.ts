@@ -167,3 +167,37 @@ export interface EntityOptionItem {
 }
 
 export type EntityOptionListItem = EntityOptionItem;
+
+export interface CategoryOptionItem {
+  categoryId: string;
+  categoryName: string;
+}
+
+export type CategoryOptionListItem = CategoryOptionItem;
+
+export interface UserDefColumnDef {
+  key: string;
+  headerName: string;
+  categoryId?: string;
+  categoryName?: string;
+  seq?: number;
+}
+
+export interface UserDefStatItem {
+  psrTimeKey: string;
+  serviceId?: string;
+  serviceName: string;
+  dialogId?: string;
+  dialogName: string;
+  categoryName?: string;
+  values?: Record<string, unknown>;
+  [key: string]: unknown;
+}
+
+export type UserDefStatListItem = UserDefStatItem;
+
+export interface UserDefStatList {
+  items: UserDefStatListItem[];
+  summary: UserDefStatListItem | null;
+  columnDef: UserDefColumnDef[];
+}

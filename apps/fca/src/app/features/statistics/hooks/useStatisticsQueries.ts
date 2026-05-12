@@ -3,6 +3,7 @@ import { createQueryKeys } from '@lukemorales/query-key-factory';
 import type { QueryHookWithParamsOptions } from '@/shared-util';
 import { statisticsApi } from '../api/statisticsApi';
 import type {
+  CategoryOptionListItem,
   DialogOptionListItem,
   DialogStatList,
   EntityOptionListItem,
@@ -13,6 +14,7 @@ import type {
   ServiceStatList,
   SlotOptionListItem,
   SlotStatList,
+  UserDefStatList,
 } from '../types/statistics.types';
 
 export const statisticsQueryKeys = createQueryKeys('statistics', {
@@ -22,10 +24,12 @@ export const statisticsQueryKeys = createQueryKeys('statistics', {
   getIntentStatList: (params?: Record<string, unknown>) => [params],
   getEntityStatList: (params?: Record<string, unknown>) => [params],
   getKeywordStatList: (params?: Record<string, unknown>) => [params],
+  getUserDefStatList: (params?: Record<string, unknown>) => [params],
   getDialogOptionList: (params?: Record<string, unknown>) => [params],
   getSlotOptionList: (params?: Record<string, unknown>) => [params],
   getIntentOptionList: (params?: Record<string, unknown>) => [params],
   getEntityOptionList: (params?: Record<string, unknown>) => [params],
+  getCategoryOptionList: (params?: Record<string, unknown>) => [params],
 });
 
 export const useGetServiceStatList = ({ params, queryOptions }: QueryHookWithParamsOptions<ServiceStatList> = {}) => {
@@ -104,6 +108,22 @@ export const useGetEntityOptionList = ({ params, queryOptions }: QueryHookWithPa
   return useQuery({
     queryKey: statisticsQueryKeys.getEntityOptionList(params).queryKey,
     queryFn: () => statisticsApi.getEntityOptionList(params),
+    ...queryOptions,
+  });
+};
+
+export const useGetUserDefStatList = ({ params, queryOptions }: QueryHookWithParamsOptions<UserDefStatList> = {}) => {
+  return useQuery({
+    queryKey: statisticsQueryKeys.getUserDefStatList(params).queryKey,
+    queryFn: () => statisticsApi.getUserDefStatList(params),
+    ...queryOptions,
+  });
+};
+
+export const useGetCategoryOptionList = ({ params, queryOptions }: QueryHookWithParamsOptions<CategoryOptionListItem[]> = {}) => {
+  return useQuery({
+    queryKey: statisticsQueryKeys.getCategoryOptionList(params).queryKey,
+    queryFn: () => statisticsApi.getCategoryOptionList(params),
     ...queryOptions,
   });
 };

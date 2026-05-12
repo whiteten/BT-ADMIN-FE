@@ -128,8 +128,8 @@ export default function EntityStatistics() {
       entityTagIds: [entityTagIds].flat().filter(Boolean),
       excludeLunch: timeUnit === 'MI' || timeUnit === 'HH' ? excludeLunch : false,
       useInterval: timeUnit === 'MI' || timeUnit === 'HH' ? useInterval : false,
-      hourFrom: timeUnit === 'MI' || timeUnit === 'HH' ? (useInterval && intervalStartTime ? intervalStartTime.format('HH00') : '') : '',
-      hourTo: timeUnit === 'MI' || timeUnit === 'HH' ? (useInterval && intervalEndTime ? intervalEndTime.format('HH00') : '') : '',
+      hourFrom: timeUnit === 'MI' || timeUnit === 'HH' ? (useInterval && intervalStartTime ? intervalStartTime.format(timeUnit === 'MI' ? 'HHmm' : 'HH00') : '') : '',
+      hourTo: timeUnit === 'MI' || timeUnit === 'HH' ? (useInterval && intervalEndTime ? intervalEndTime.format(timeUnit === 'MI' ? 'HHmm' : 'HH50') : '') : '',
       excludeDays: timeUnit !== 'MM' && timeUnit !== 'YY' ? excludeDays : [],
       excludeBusinessHoliday: timeUnit !== 'MM' && timeUnit !== 'YY' ? excludeBusinessHoliday : false,
       excludeStatHoliday: timeUnit !== 'MM' && timeUnit !== 'YY' ? excludeStatHoliday : false,
@@ -248,8 +248,14 @@ export default function EntityStatistics() {
         entityTagIds: [entityTagIds].flat().filter(Boolean),
         excludeLunch: displayTimeUnit === 'MI' || displayTimeUnit === 'HH' ? excludeLunch : false,
         useInterval: displayTimeUnit === 'MI' || displayTimeUnit === 'HH' ? useInterval : false,
-        hourFrom: displayTimeUnit === 'MI' || displayTimeUnit === 'HH' ? (useInterval && intervalStartTime ? intervalStartTime.format('HH00') : '') : '',
-        hourTo: displayTimeUnit === 'MI' || displayTimeUnit === 'HH' ? (useInterval && intervalEndTime ? intervalEndTime.format('HH00') : '') : '',
+        hourFrom:
+          displayTimeUnit === 'MI' || displayTimeUnit === 'HH'
+            ? useInterval && intervalStartTime
+              ? intervalStartTime.format(displayTimeUnit === 'MI' ? 'HHmm' : 'HH00')
+              : ''
+            : '',
+        hourTo:
+          displayTimeUnit === 'MI' || displayTimeUnit === 'HH' ? (useInterval && intervalEndTime ? intervalEndTime.format(displayTimeUnit === 'MI' ? 'HHmm' : 'HH50') : '') : '',
         excludeDays: displayTimeUnit !== 'MM' && displayTimeUnit !== 'YY' ? excludeDays : [],
         excludeBusinessHoliday: displayTimeUnit !== 'MM' && displayTimeUnit !== 'YY' ? excludeBusinessHoliday : false,
         excludeStatHoliday: displayTimeUnit !== 'MM' && displayTimeUnit !== 'YY' ? excludeStatHoliday : false,
@@ -301,6 +307,7 @@ export default function EntityStatistics() {
                       onChange={(date) => setStartTime(date)}
                       inputReadOnly
                       allowClear={false}
+                      needConfirm={false}
                       format={timeUnit === 'MI' ? 'HH:mm' : 'HH:00'}
                       minuteStep={10}
                       style={{ width: '100px' }}
@@ -322,6 +329,7 @@ export default function EntityStatistics() {
                       onChange={(date) => setEndTime(date)}
                       inputReadOnly
                       allowClear={false}
+                      needConfirm={false}
                       format={timeUnit === 'MI' ? 'HH:mm' : 'HH:50'}
                       minuteStep={10}
                       style={{ width: '100px' }}
@@ -479,7 +487,9 @@ export default function EntityStatistics() {
                                 onChange={(date) => setIntervalStartTime(date)}
                                 inputReadOnly
                                 allowClear={false}
-                                format="HH:00"
+                                needConfirm={false}
+                                format={timeUnit === 'MI' ? 'HH:mm' : 'HH:00'}
+                                minuteStep={10}
                                 style={{ width: '100px' }}
                               />
                               <span className="text-sm font-medium text-[#495057] shrink-0">~</span>
@@ -488,7 +498,9 @@ export default function EntityStatistics() {
                                 onChange={(date) => setIntervalEndTime(date)}
                                 inputReadOnly
                                 allowClear={false}
-                                format="HH:00"
+                                needConfirm={false}
+                                format={timeUnit === 'MI' ? 'HH:mm' : 'HH:50'}
+                                minuteStep={10}
                                 style={{ width: '100px' }}
                               />
                             </>
