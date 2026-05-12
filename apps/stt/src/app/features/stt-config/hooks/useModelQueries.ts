@@ -7,6 +7,7 @@ import type {
   RecogResultRequestData,
   RecogResultSearchParams,
   SttModelCreateData,
+  SttModelDeployCreateData,
   SttModelDeployItem,
   SttModelDeploySearchParams,
   SttModelItem,
@@ -78,5 +79,12 @@ export const useGetSttModelDeployList = ({ params, queryOptions }: { params?: St
     queryFn: () => modelApi.getSttModelDeployList(params ?? undefined),
     enabled: !!params,
     ...queryOptions,
+  });
+};
+
+export const useDeployModel = ({ mutationOptions }: MutationHookOptions<unknown, SttModelDeployCreateData> = {}) => {
+  return useMutation({
+    mutationFn: modelApi.deployModel,
+    ...mutationOptions,
   });
 };

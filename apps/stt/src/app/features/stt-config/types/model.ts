@@ -85,3 +85,10 @@ export interface SttModelDeploySearchParams {
   modelName?: string;
   systemId?: string;
 }
+
+export interface SttModelDeployCreateData {
+  modelVerId: string;
+  distributeType: number; // 0: 즉시배포, 1: 예약배포
+  distributeDateTime: string; // 'YYYYMMDDHHmmss'
+  systemIds: string[];
+}

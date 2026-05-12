@@ -182,8 +182,8 @@ const SttModelRecogDrawer = forwardRef<SttModelRecogDrawerRef>((_, ref) => {
 
       {/* 컨텐츠 영역 */}
       <div className="flex flex-col flex-1 min-h-0">
-        {/* 그리드: 항상 60% */}
-        <div style={{ height: '55%', flexShrink: 0, overflow: 'hidden' }}>
+        {/* 그리드: 로우 미선택 시 전체, 선택 시 55% */}
+        <div style={{ height: selectedRow ? '55%' : '100%', flexShrink: 0, overflow: 'hidden' }}>
           {groupCode ? (
             <AgGridReact<RecogResultItem>
               rowData={data?.items ?? []}
@@ -200,9 +200,9 @@ const SttModelRecogDrawer = forwardRef<SttModelRecogDrawerRef>((_, ref) => {
           )}
         </div>
 
-        {/* 비교 패널: 항상 40% 차지, 로우 선택 시 내용 표시 */}
-        <div style={{ height: '45%', flexShrink: 0, overflow: 'hidden' }} className="pt-3 pb-4">
-          {selectedRow && (
+        {/* 비교 패널: 로우 선택 시에만 표시 */}
+        {selectedRow && (
+          <div style={{ height: '45%', flexShrink: 0, overflow: 'hidden' }} className="pt-3 pb-4">
             <div className="bg-gray-50 rounded-xl p-4 border border-gray-200 h-full flex flex-col gap-3">
               {/* 타이틀 + 인라인 diff */}
               <div className="flex-1 min-h-0 flex flex-col gap-2">
@@ -235,8 +235,8 @@ const SttModelRecogDrawer = forwardRef<SttModelRecogDrawerRef>((_, ref) => {
                 </div>
               </div>
             </div>
-          )}
-        </div>
+          </div>
+        )}
       </div>
     </Drawer>
   );

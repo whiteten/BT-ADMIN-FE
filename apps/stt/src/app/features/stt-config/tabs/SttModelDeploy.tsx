@@ -4,6 +4,7 @@ import { AgGridReact } from 'ag-grid-react';
 import { Button } from 'antd';
 import { ChevronLeft, ChevronRight, Server } from 'lucide-react';
 import { toast } from '@/shared-util';
+import SttModelDeployDrawer, { type SttModelDeployDrawerRef } from '../components/SttModelDeployDrawer';
 import { useGetSttSystemList } from '../hooks/useCommonQueries';
 import { useGetSttModelDeployList } from '../hooks/useModelQueries';
 import type { SttModelDeployItem } from '../types';
@@ -27,6 +28,7 @@ function CancelCellRenderer({ data, onCancel }: CancelCellParams) {
 export default function SttModelDeploy() {
   const { gridOptions } = useAggridOptions();
   const cardScrollRef = useRef<HTMLDivElement>(null);
+  const deployDrawerRef = useRef<SttModelDeployDrawerRef>(null);
 
   const [selectedSystemId, setSelectedSystemId] = useState<string | null>(null);
 
@@ -47,7 +49,7 @@ export default function SttModelDeploy() {
   };
 
   const handleDeploy = () => {
-    toast.warning('모델 배포 기능은 준비 중입니다.');
+    deployDrawerRef.current?.open();
   };
 
   const columnDefs: ColDef<SttModelDeployItem>[] = [
@@ -69,6 +71,7 @@ export default function SttModelDeploy() {
 
   return (
     <div className="flex flex-col gap-4 h-full">
+      <SttModelDeployDrawer ref={deployDrawerRef} />
       {/* 시스템 카드 슬라이더 */}
       <div className="flex items-center gap-2 shrink-0">
         <Button

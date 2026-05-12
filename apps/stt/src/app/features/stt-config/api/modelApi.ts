@@ -4,6 +4,7 @@ import type {
   RecogResultRequestData,
   RecogResultSearchParams,
   SttModelCreateData,
+  SttModelDeployCreateData,
   SttModelDeployItem,
   SttModelDeploySearchParams,
   SttModelItem,
@@ -41,5 +42,8 @@ export const modelApi = {
   getSttModelDeployList: async (params?: SttModelDeploySearchParams) => {
     const response = await apiClient.get<ListResponse<SttModelDeployItem>>('/stt-model-deploy-list', { params });
     return extractList(response);
+  },
+  deployModel: async (data: SttModelDeployCreateData) => {
+    return apiClient.post('/stt-model-deploy-create', data);
   },
 };
