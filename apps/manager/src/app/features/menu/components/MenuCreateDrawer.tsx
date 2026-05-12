@@ -197,6 +197,10 @@ const MenuCreateDrawer = forwardRef<MenuCreateDrawerRef, MenuCreateDrawerProps>(
 
         {isPage && querySpecs.length > 0 && <QuerySelectorRenderer specs={querySpecs} values={queryValues} onChange={handleQueryChange} errors={queryErrors} />}
 
+        <Form.Item label="설명" name="desc">
+          <Input.TextArea placeholder="메뉴 설명 (선택사항)" rows={3} />
+        </Form.Item>
+
         <Row gutter={16}>
           <Col span={12}>
             <Form.Item label="정렬순서" name="sortOrder">
