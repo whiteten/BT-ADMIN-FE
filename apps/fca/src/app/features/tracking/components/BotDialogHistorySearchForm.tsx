@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo } from 'react';
-import { Button, Checkbox, DatePicker, Divider, Input, Select, Slider, TimePicker } from 'antd';
+import { Button, Checkbox, DatePicker, Divider, Input, InputNumber, Select, Slider, TimePicker, Tooltip } from 'antd';
 import dayjs, { type Dayjs } from 'dayjs';
-import { BarChart3, Download, Search } from 'lucide-react';
+import { BarChart3, CircleHelp, Download, Search } from 'lucide-react';
 import { toast } from '@/shared-util';
 
 const MAX_DAYS = 30;
@@ -30,6 +30,8 @@ const BotDialogHistorySearchForm: React.FC<BotDialogHistorySearchFormProps> = ({
   const [completeYn, setCompleteYn] = React.useState<string | number>(COMPLETE_ALL);
   const [hasIntent, setHasIntent] = React.useState(true);
   const [retrainFilter, setRetrainFilter] = React.useState<string>(COMPLETE_ALL as string);
+  const [workerFilter, setWorkerFilter] = React.useState<string>(COMPLETE_ALL as string);
+  const [slotFailCountMin, setSlotFailCountMin] = React.useState<number | null>(null);
   const [ucid, setUcid] = React.useState<string>('');
   const [ani, setAni] = React.useState<string>('');
 
@@ -125,6 +127,8 @@ const BotDialogHistorySearchForm: React.FC<BotDialogHistorySearchFormProps> = ({
       ani: ani.trim() || undefined,
       hasIntent,
       retrainFilter: retrainFilter === COMPLETE_ALL ? undefined : retrainFilter,
+      workerFilter: workerFilter === COMPLETE_ALL ? undefined : workerFilter,
+      slotFailCountMin: slotFailCountMin && slotFailCountMin > 0 ? slotFailCountMin : undefined,
     };
   };
 
@@ -244,8 +248,54 @@ const BotDialogHistorySearchForm: React.FC<BotDialogHistorySearchFormProps> = ({
         </div>
       </div>
 
-      {/* 2행: 완료여부, UCID, 조회 버튼 */}
+      {/* 2행: 재학습, 슬롯실패, 완료여부, 발신번호, UCID, 무응답 포함, 조회 버튼 */}
       <div className="flex items-center gap-4">
+        <div className="flex items-center gap-2">
+          <span className="text-sm font-medium text-[#495057] shrink-0">재학습</span>
+          <Select
+            value={retrainFilter}
+            onChange={setRetrainFilter}
+            options={[
+              { label: '전체', value: COMPLETE_ALL },
+              { label: '수정-반영', value: 'APPLIED' },
+              { label: '수정-미반영', value: 'NOT_APPLIED' },
+              { label: '미수정', value: 'UNMODIFIED' },
+            ]}
+            className="w-28"
+          />
+        </div>
+
+        <Divider type="vertical" className="!h-5 !m-0" />
+
+        <div className="flex items-center gap-2">
+          <span className="text-sm font-medium text-[#495057] shrink-0">작업자</span>
+          <Select
+            value={workerFilter}
+            onChange={setWorkerFilter}
+            options={[
+              { label: '전체', value: COMPLETE_ALL },
+              { label: '내가 수정', value: 'ME' },
+            ]}
+            className="w-28"
+          />
+        </div>
+
+        <Divider type="vertical" className="!h-5 !m-0" />
+
+        <div className="flex items-center gap-2">
+          <span className="text-sm font-medium text-[#495057] shrink-0">슬롯실패</span>
+          <InputNumber
+            value={slotFailCountMin}
+            onChange={(value) => setSlotFailCountMin(value ?? null)}
+            min={0}
+            placeholder="N회 이상"
+            className="!w-28"
+            onPressEnter={handleSearch}
+          />
+        </div>
+
+        <Divider type="vertical" className="!h-5 !m-0" />
+
         <div className="flex items-center gap-2">
           <span className="text-sm font-medium text-[#495057] shrink-0">완료여부</span>
           <Select
@@ -255,23 +305,6 @@ const BotDialogHistorySearchForm: React.FC<BotDialogHistorySearchFormProps> = ({
               { label: '전체', value: COMPLETE_ALL },
               { label: '완료', value: 1 },
               { label: '미완료', value: 0 },
-            ]}
-            className="w-28"
-          />
-        </div>
-
-        <Divider type="vertical" className="!h-5 !m-0" />
-
-        <div className="flex items-center gap-2">
-          <span className="text-sm font-medium text-[#495057] shrink-0">재학습</span>
-          <Select
-            value={retrainFilter}
-            onChange={setRetrainFilter}
-            options={[
-              { label: '전체', value: COMPLETE_ALL },
-              { label: '수정됨', value: 'MODIFIED' },
-              { label: '내가 수정', value: 'MY_MODIFIED' },
-              { label: '미수정', value: 'UNMODIFIED' },
             ]}
             className="w-28"
           />
@@ -293,9 +326,14 @@ const BotDialogHistorySearchForm: React.FC<BotDialogHistorySearchFormProps> = ({
 
         <Divider type="vertical" className="!h-5 !m-0" />
 
-        <Checkbox checked={!hasIntent} onChange={(e) => setHasIntent(!e.target.checked)}>
-          <span className="text-sm text-[#495057]">무응답 포함</span>
-        </Checkbox>
+        <div className="flex items-center">
+          <Checkbox checked={!hasIntent} onChange={(e) => setHasIntent(!e.target.checked)} className="!mr-1">
+            <span className="text-sm text-[#495057]">무응답 포함</span>
+          </Checkbox>
+          <Tooltip title="고객이 발화하지 않은 대화 건까지 조회 결과에 포함합니다.">
+            <CircleHelp size={14} className="text-slate-400 hover:text-slate-600 cursor-help" />
+          </Tooltip>
+        </div>
 
         <div className="ml-auto flex items-center gap-2">
           <Button type="primary" icon={<Search className="size-4" />} onClick={handleSearch} loading={isLoading} className="flex items-center gap-1 shrink-0">

@@ -6,7 +6,7 @@ import dayjs, { type Dayjs } from 'dayjs';
 import { ChevronDown, Download } from 'lucide-react';
 import { useBreadcrumbStore, useNavigationStore } from '@/shared-store';
 import { downloadBlob, extractFileName, toast } from '@/shared-util';
-import { useGetModels } from '../../../features/bot-config/hooks/useModelQueries';
+import { useGetBots } from '../../../features/bot-config/hooks/useBotQueries';
 import { statisticsApi } from '../../../features/statistics/api/statisticsApi';
 import {
   createDisabledDate,
@@ -18,19 +18,19 @@ import {
   validateDateRange,
 } from '../../../features/statistics/hooks/useDateRangeLimit';
 import { useStatisticsFilterStore } from '../../../features/statistics/hooks/useStatisticsFilterStore';
-import { useGetIntentOptionList, useGetIntentStatList } from '../../../features/statistics/hooks/useStatisticsQueries';
-import type { IntentStatListItem } from '../../../features/statistics/types/statistics.types';
-import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
-import { cn } from '@/lib/utils';
+import { useGetCategoryOptionList, useGetDialogOptionList, useGetUserDefStatList } from '../../../features/statistics/hooks/useStatisticsQueries';
+import type { UserDefColumnDef, UserDefStatListItem } from '../../../features/statistics/types/statistics.types';
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/libs/shared-ui/src/components/shadcn/collapsible';
 import useAggridOptions from '@/libs/shared-ui/src/hooks/useAggridOptions';
+import { cn } from '@/libs/shared-ui/src/lib/utils';
 
 const breadcrumb: BreadcrumbProps['items'] = [
   { title: '통계', path: '/fca/statistics' },
-  { title: 'NLU 통계', path: '/fca/statistics/nlu' },
-  { title: '의도 통계', path: '/fca/statistics/nlu/intent' },
+  { title: '콜봇 통계', path: '/fca/statistics/call-bot' },
+  { title: '사용자 정의 통계', path: '/fca/statistics/call-bot/user-def' },
 ];
 
-export default function IntentStatistics() {
+export default function UserDefStatistics() {
   const setBreadcrumb = useBreadcrumbStore((s) => s.setBreadcrumb);
   const clearBreadcrumb = useBreadcrumbStore((s) => s.clearBreadcrumb);
 
@@ -39,14 +39,14 @@ export default function IntentStatistics() {
     return () => clearBreadcrumb();
   }, [setBreadcrumb, clearBreadcrumb]);
 
-  const { modelIds, setModelIds } = useStatisticsFilterStore();
-  // UI 상태 (사용자가 입력하는 값들)
-  const [intentIds, setIntentIds] = useState<string[]>([]);
+  const { serviceIds, setServiceIds } = useStatisticsFilterStore();
+  const [categoryIds, setCategoryIds] = useState<string[]>([]);
+  const [dialogIds, setDialogIds] = useState<string[]>([]);
   const [timeUnit, setTimeUnit] = useState<string>('DD');
   const [startDate, setStartDate] = useState<Dayjs | null>(dayjs().startOf('day'));
   const [endDate, setEndDate] = useState<Dayjs | null>(dayjs().endOf('day'));
   const [startTime, setStartTime] = useState<Dayjs | null>(dayjs().hour(0).minute(0));
-  const [endTime, setEndTime] = useState<Dayjs | null>(dayjs().hour(23).minute(59));
+  const [endTime, setEndTime] = useState<Dayjs | null>(dayjs().hour(23).minute(50));
   const [excludeLunch, setExcludeLunch] = useState(false);
   const [useInterval, setUseInterval] = useState(false);
   const [intervalStartTime, setIntervalStartTime] = useState<Dayjs | null>(dayjs().hour(0).minute(0));
@@ -57,45 +57,55 @@ export default function IntentStatistics() {
 
   const [isFilterOpen, setIsFilterOpen] = useState(true);
   const { gridOptions } = useAggridOptions();
-  const gridRef = useRef<AgGridReact<IntentStatListItem>>(null);
-  const { data: modelList } = useGetModels();
-  const [rowData, setRowData] = useState<IntentStatListItem[]>([]);
-  // 조회 시점의 timeUnit (그리드 날짜 포맷팅에 사용)
+  const gridRef = useRef<AgGridReact<UserDefStatListItem>>(null);
+  const { data: botList } = useGetBots();
+  const [rowData, setRowData] = useState<UserDefStatListItem[]>([]);
+  const [columnDef, setColumnDef] = useState<UserDefColumnDef[]>([]);
   const [displayTimeUnit, setDisplayTimeUnit] = useState<string>('DD');
 
-  // disabledDate 함수 (시작일: 미래 날짜 비활성화, 종료일: 시작일 이전 + maxDays 초과 비활성화)
   const disabledDate = useMemo(() => createDisabledDate(timeUnit), [timeUnit]);
   const disabledEndDate = useMemo(() => createEndDisabledDate(startDate, timeUnit), [startDate, timeUnit]);
 
-  // 모델 옵션 조회
-  const modelSelectOptions = useMemo(
-    () => (modelList ?? []).filter((m) => Boolean(m?.modelId && m?.modelName)).map((m) => ({ label: String(m.modelName), value: String(m.modelId) })),
-    [modelList],
+  const serviceSelectOptions = useMemo(
+    () => (botList ?? []).filter((b) => Boolean(b?.serviceId && b?.serviceName)).map((b) => ({ label: String(b.serviceName), value: String(b.serviceId) })),
+    [botList],
   );
 
-  // 의도 옵션 조회 (모델 선택 시)
-  const modelIdParams = [modelIds].flat().filter(Boolean);
-  const { data: intentOptionList } = useGetIntentOptionList({
-    params: { modelIds: modelIdParams },
-    queryOptions: { enabled: modelIdParams.length > 0 },
+  const serviceIdParams = [serviceIds].flat().filter(Boolean);
+
+  const { data: categoryOptionList } = useGetCategoryOptionList({
+    params: { serviceIds: serviceIdParams },
+    queryOptions: { enabled: serviceIdParams.length > 0 },
   });
 
-  const intentSelectOptions = useMemo(
-    () => (intentOptionList ?? []).filter((i) => Boolean(i?.intentId && i?.intentName)).map((i) => ({ label: String(i.intentName), value: String(i.intentId) })),
-    [intentOptionList],
+  const { data: dialogOptionList } = useGetDialogOptionList({
+    params: { serviceIds: serviceIdParams },
+    queryOptions: { enabled: serviceIdParams.length > 0 },
+  });
+
+  const categorySelectOptions = useMemo(
+    () => (categoryOptionList ?? []).filter((c) => Boolean(c?.categoryId && c?.categoryName)).map((c) => ({ label: String(c.categoryName), value: String(c.categoryId) })),
+    [categoryOptionList],
   );
 
-  // 모델 변경 시 의도명 옵션 초기화
-  useEffect(() => {
-    setIntentIds([]);
-  }, [modelIds]);
+  const dialogSelectOptions = useMemo(
+    () => (dialogOptionList ?? []).filter((d) => Boolean(d?.dialogId && d?.dialogName)).map((d) => ({ label: String(d.dialogName), value: String(d.dialogId) })),
+    [dialogOptionList],
+  );
 
-  // 의도명 옵션 로드 시 전체 선택
   useEffect(() => {
-    setIntentIds(intentSelectOptions.map((o) => o.value));
-  }, [intentSelectOptions]);
+    setCategoryIds([]);
+    setDialogIds([]);
+  }, [serviceIds]);
 
-  // fromTime / toTime 계산 (UI state에서 직접 도출)
+  useEffect(() => {
+    setCategoryIds(categorySelectOptions.map((o) => o.value));
+  }, [categorySelectOptions]);
+
+  useEffect(() => {
+    setDialogIds(dialogSelectOptions.map((o) => o.value));
+  }, [dialogSelectOptions]);
+
   const fromTime = (() => {
     if (!startDate) return '';
     if (timeUnit === 'MI') return startDate.format('YYYYMMDD') + (startTime?.format('HHmm') ?? '0000');
@@ -114,18 +124,18 @@ export default function IntentStatistics() {
     return endDate.format('YYYY');
   })();
 
-  // 의도 통계 조회
   const {
-    data: intentStatData,
-    isLoading: isLoadingIntentStatList,
+    data: userDefStatData,
+    isLoading: isLoadingUserDefStatList,
     refetch,
-  } = useGetIntentStatList({
+  } = useGetUserDefStatList({
     params: {
       timeUnit,
       fromTime,
       toTime,
-      modelIds: [modelIds].flat().filter(Boolean),
-      intentIds: [intentIds].flat().filter(Boolean),
+      serviceIds: [serviceIds].flat().filter(Boolean),
+      categoryIds: [categoryIds].flat().filter(Boolean),
+      dialogIds: [dialogIds].flat().filter(Boolean),
       excludeLunch: timeUnit === 'MI' || timeUnit === 'HH' ? excludeLunch : false,
       useInterval: timeUnit === 'MI' || timeUnit === 'HH' ? useInterval : false,
       hourFrom: timeUnit === 'MI' || timeUnit === 'HH' ? (useInterval && intervalStartTime ? intervalStartTime.format(timeUnit === 'MI' ? 'HHmm' : 'HH00') : '') : '',
@@ -138,13 +148,14 @@ export default function IntentStatistics() {
   });
 
   useEffect(() => {
-    if (intentStatData !== undefined) setRowData(intentStatData.items);
-  }, [intentStatData]);
+    if (userDefStatData !== undefined) {
+      setRowData(userDefStatData.items);
+      setColumnDef(userDefStatData.columnDef);
+    }
+  }, [userDefStatData]);
 
-  // BE에서 받은 summary에 '전체합계' 라벨 주입
-  const summaryRow: IntentStatListItem[] = intentStatData?.summary ? [{ ...intentStatData.summary, psrTimeKey: '전체합계' }] : [];
+  const summaryRow: UserDefStatListItem[] = userDefStatData?.summary ? [{ ...userDefStatData.summary, psrTimeKey: '전체합계' }] : [];
 
-  // startDate 또는 timeUnit 변경 시 endDate 자동 조정
   useEffect(() => {
     if (startDate && endDate) {
       const maxDays = getMaxDays(timeUnit);
@@ -157,7 +168,6 @@ export default function IntentStatistics() {
     }
   }, [endDate, startDate, timeUnit]);
 
-  // timeUnit이 HH로 변경될 때 분을 자동 조정 (시작 00분, 종료 50분)
   useEffect(() => {
     if (timeUnit === 'HH') {
       setStartTime((prev) => (prev ? prev.minute(0) : prev));
@@ -166,8 +176,8 @@ export default function IntentStatistics() {
   }, [timeUnit]);
 
   const handleSearch = () => {
-    if (modelIds.length === 0) {
-      toast.warning('모델을 선택해주세요.');
+    if (serviceIds.length === 0) {
+      toast.warning('봇을 선택해주세요.');
       return;
     }
 
@@ -186,7 +196,6 @@ export default function IntentStatistics() {
       return;
     }
 
-    // 날짜 범위 검증 (timeUnit별 최대 기간 체크)
     if (!validateDateRange(startDate, endDate, timeUnit)) {
       const maxDays = getMaxDays(timeUnit);
       const dateRangeLabel = timeUnit === 'MI' ? '2일' : timeUnit === 'HH' ? '7일' : timeUnit === 'DD' ? '15일' : timeUnit === 'MM' ? '6개월' : '5년';
@@ -203,71 +212,53 @@ export default function IntentStatistics() {
     refetch();
   };
 
-  const columnDefs: ColDef<IntentStatListItem>[] = [
-    {
-      headerName: '날짜',
-      field: 'psrTimeKey',
-      flex: displayTimeUnit === 'MI' || displayTimeUnit === 'HH' ? 2 : 1,
-      colSpan: (params) => (params.node?.rowPinned === 'bottom' ? 3 : 1),
-      valueFormatter: ({ value, node }) => {
-        if (node?.rowPinned === 'bottom') return value ?? '';
-        return value ? dayjs(value).format(getTimeFormat(displayTimeUnit)) : '-';
-      },
-      cellStyle: (params) => (params.node?.rowPinned === 'bottom' ? { fontWeight: 'bold', alignItems: 'center' } : { fontWeight: 'normal', alignItems: 'center' }),
-    },
-    { headerName: '모델ID', field: 'modelId', hide: true },
-    { headerName: '모델명', field: 'modelName', flex: 2 },
-    { headerName: '의도명', field: 'intent', flex: 1 },
-    {
-      headerName: '검출횟수',
-      field: 'intentCnt',
-      flex: 1,
-      cellStyle: (params) =>
-        params.node?.rowPinned === 'bottom'
-          ? { display: 'flex', fontWeight: 'bold', alignItems: 'center', justifyContent: 'flex-end', textAlign: 'right' }
-          : { display: 'flex', fontWeight: 'normal', alignItems: 'center', justifyContent: 'flex-end', textAlign: 'right' },
-    },
-    {
-      headerName: '평균 신뢰도',
-      field: 'confidence',
-      flex: 1,
-      cellStyle: (params) =>
-        params.node?.rowPinned === 'bottom'
-          ? { display: 'flex', fontWeight: 'bold', alignItems: 'center', justifyContent: 'flex-end', textAlign: 'right' }
-          : { display: 'flex', fontWeight: 'normal', alignItems: 'center', justifyContent: 'flex-end', textAlign: 'right' },
-      cellRenderer: 'percentBarRenderer',
-    },
-    {
-      headerName: '신뢰도 성공',
-      field: 'thresholdMaxCnt',
-      flex: 1,
-      cellStyle: (params) =>
-        params.node?.rowPinned === 'bottom'
-          ? { display: 'flex', fontWeight: 'bold', alignItems: 'center', justifyContent: 'flex-end', textAlign: 'right' }
-          : { display: 'flex', fontWeight: 'normal', alignItems: 'center', justifyContent: 'flex-end', textAlign: 'right' },
-    },
-    {
-      headerName: '신뢰도 재확인',
-      field: 'thresholdCheckCnt',
-      flex: 1,
-      cellStyle: (params) =>
-        params.node?.rowPinned === 'bottom'
-          ? { display: 'flex', fontWeight: 'bold', alignItems: 'center', justifyContent: 'flex-end', textAlign: 'right' }
-          : { display: 'flex', fontWeight: 'normal', alignItems: 'center', justifyContent: 'flex-end', textAlign: 'right' },
-    },
-    {
-      headerName: '신뢰도 실패',
-      field: 'thresholdFailCnt',
-      flex: 1,
-      cellStyle: (params) =>
-        params.node?.rowPinned === 'bottom'
-          ? { display: 'flex', fontWeight: 'bold', alignItems: 'center', justifyContent: 'flex-end', textAlign: 'right' }
-          : { display: 'flex', fontWeight: 'normal', alignItems: 'center', justifyContent: 'flex-end', textAlign: 'right' },
-    },
-  ];
+  const WIDE_FIELDS = new Set(['serviceName', 'dialogName', 'categoryName']);
+
+  const columnDefs: ColDef<UserDefStatListItem>[] = columnDef.map((col): ColDef<UserDefStatListItem> => {
+    const boldStyle = (params: { node?: { rowPinned?: string | null } }) =>
+      params.node?.rowPinned === 'bottom' ? { fontWeight: 'bold', alignItems: 'center' } : { fontWeight: 'normal', alignItems: 'center' };
+
+    if (col.key === 'psrTimeKey') {
+      return {
+        headerName: col.headerName,
+        field: 'psrTimeKey',
+        flex: displayTimeUnit === 'MI' || displayTimeUnit === 'HH' ? 2 : 1,
+        colSpan: (params) => (params.node?.rowPinned === 'bottom' ? 2 : 1),
+        valueFormatter: ({ value, node }) => {
+          if (node?.rowPinned === 'bottom') return (value as string) ?? '';
+          return value ? dayjs(value as string).format(getTimeFormat(displayTimeUnit)) : '-';
+        },
+        cellStyle: boldStyle,
+      };
+    }
+
+    if (col.key.includes('.')) {
+      const parts = col.key.split('.');
+      return {
+        headerName: col.headerName,
+        flex: 1,
+        valueGetter: (params) => {
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          let val: any = params.data;
+          for (const part of parts) {
+            val = val?.[part];
+          }
+          return val;
+        },
+        cellStyle: boldStyle,
+      };
+    }
+
+    return {
+      headerName: col.headerName,
+      field: col.key as string,
+      flex: WIDE_FIELDS.has(col.key) ? 2 : 1,
+      cellStyle: boldStyle,
+    };
+  });
 
   const { permissions } = useNavigationStore();
-  const hasExcelPermission = permissions.includes('fca:stats-intent:excel');
+  const hasExcelPermission = permissions.includes('fca:stats-user-def:excel');
 
   const [isExporting, setIsExporting] = useState(false);
 
@@ -279,12 +270,13 @@ export default function IntentStatistics() {
 
     setIsExporting(true);
     try {
-      const response = await statisticsApi.exportIntentStatExcel({
+      const response = await statisticsApi.exportUserDefStatExcel({
         timeUnit: displayTimeUnit,
         fromTime,
         toTime,
-        modelIds: [modelIds].flat().filter(Boolean),
-        intentIds: [intentIds].flat().filter(Boolean),
+        serviceIds: [serviceIds].flat().filter(Boolean),
+        categoryIds: [categoryIds].flat().filter(Boolean),
+        dialogIds: [dialogIds].flat().filter(Boolean),
         excludeLunch: displayTimeUnit === 'MI' || displayTimeUnit === 'HH' ? excludeLunch : false,
         useInterval: displayTimeUnit === 'MI' || displayTimeUnit === 'HH' ? useInterval : false,
         hourFrom:
@@ -299,7 +291,7 @@ export default function IntentStatistics() {
         excludeBusinessHoliday: displayTimeUnit !== 'MM' && displayTimeUnit !== 'YY' ? excludeBusinessHoliday : false,
         excludeStatHoliday: displayTimeUnit !== 'MM' && displayTimeUnit !== 'YY' ? excludeStatHoliday : false,
       });
-      const fileName = extractFileName(response.headers['content-disposition'], `INTENT_STATISTICS_${dayjs().format('YYYYMMDD_HHmmss')}.xlsx`);
+      const fileName = extractFileName(response.headers['content-disposition'], `USER_DEF_STATISTICS_${dayjs().format('YYYYMMDD_HHmmss')}.xlsx`);
       downloadBlob(response.data, fileName);
     } catch {
       toast.error('엑셀 다운로드에 실패했습니다.');
@@ -377,16 +369,16 @@ export default function IntentStatistics() {
                 </div>
                 <Divider orientation="vertical" className="!h-5 !m-0" />
                 <div className="flex items-center gap-3">
-                  <span className="text-sm font-medium text-[#495057] shrink-0">모델</span>
+                  <span className="text-sm font-medium text-[#495057] shrink-0">봇</span>
                   <Select
                     mode="multiple"
-                    value={modelIds}
-                    onChange={(value) => setModelIds(value ?? [])}
+                    value={serviceIds}
+                    onChange={(value) => setServiceIds(value ?? [])}
                     allowClear
                     showSearch
                     maxTagCount="responsive"
-                    options={modelSelectOptions}
-                    placeholder="검색할 모델을 선택하세요."
+                    options={serviceSelectOptions}
+                    placeholder="검색할 봇을 선택하세요."
                     optionFilterProp="label"
                     style={{ width: '15rem' }}
                     popupMatchSelectWidth={false}
@@ -396,16 +388,16 @@ export default function IntentStatistics() {
                           className="flex items-center gap-2 px-3 py-2 cursor-pointer hover:bg-gray-50"
                           onMouseDown={(e) => e.preventDefault()}
                           onClick={() => {
-                            if (modelIds.length === modelSelectOptions.length) {
-                              setModelIds([]);
+                            if (serviceIds.length === serviceSelectOptions.length) {
+                              setServiceIds([]);
                             } else {
-                              setModelIds(modelSelectOptions.map((o) => o.value));
+                              setServiceIds(serviceSelectOptions.map((o) => o.value));
                             }
                           }}
                         >
                           <Checkbox
-                            checked={modelIds.length === modelSelectOptions.length && modelSelectOptions.length > 0}
-                            indeterminate={modelIds.length > 0 && modelIds.length < modelSelectOptions.length}
+                            checked={serviceIds.length === serviceSelectOptions.length && serviceSelectOptions.length > 0}
+                            indeterminate={serviceIds.length > 0 && serviceIds.length < serviceSelectOptions.length}
                           />
                           <span className="text-sm">전체 선택</span>
                         </div>
@@ -435,16 +427,16 @@ export default function IntentStatistics() {
             <CollapsibleContent>
               <div className="flex flex-wrap items-center gap-3">
                 <div className="flex items-center gap-3">
-                  <span className="text-sm font-medium text-[#495057] shrink-0">의도명</span>
+                  <span className="text-sm font-medium text-[#495057] shrink-0">카테고리</span>
                   <Select
                     mode="multiple"
-                    value={intentIds}
-                    onChange={(value) => setIntentIds(value ?? [])}
+                    value={categoryIds}
+                    onChange={(value) => setCategoryIds(value ?? [])}
                     allowClear
                     showSearch
                     maxTagCount="responsive"
-                    options={intentSelectOptions}
-                    placeholder="검색할 의도명을 선택하세요."
+                    options={categorySelectOptions}
+                    placeholder="카테고리를 선택하세요."
                     optionFilterProp="label"
                     style={{ width: '15rem' }}
                     popupMatchSelectWidth={false}
@@ -454,16 +446,55 @@ export default function IntentStatistics() {
                           className="flex items-center gap-2 px-3 py-2 cursor-pointer hover:bg-gray-50"
                           onMouseDown={(e) => e.preventDefault()}
                           onClick={() => {
-                            if (intentIds.length === intentSelectOptions.length) {
-                              setIntentIds([]);
+                            if (categoryIds.length === categorySelectOptions.length) {
+                              setCategoryIds([]);
                             } else {
-                              setIntentIds(intentSelectOptions.map((o) => o.value));
+                              setCategoryIds(categorySelectOptions.map((o) => o.value));
                             }
                           }}
                         >
                           <Checkbox
-                            checked={intentIds.length === intentSelectOptions.length && intentSelectOptions.length > 0}
-                            indeterminate={intentIds.length > 0 && intentIds.length < intentSelectOptions.length}
+                            checked={categoryIds.length === categorySelectOptions.length && categorySelectOptions.length > 0}
+                            indeterminate={categoryIds.length > 0 && categoryIds.length < categorySelectOptions.length}
+                          />
+                          <span className="text-sm">전체 선택</span>
+                        </div>
+                        <Divider style={{ margin: '4px 0' }} />
+                        {menu}
+                      </>
+                    )}
+                  />
+                </div>
+                <div className="flex items-center gap-3">
+                  <span className="text-sm font-medium text-[#495057] shrink-0">대화명</span>
+                  <Select
+                    mode="multiple"
+                    value={dialogIds}
+                    onChange={(value) => setDialogIds(value ?? [])}
+                    allowClear
+                    showSearch
+                    maxTagCount="responsive"
+                    options={dialogSelectOptions}
+                    placeholder="검색할 대화명을 선택하세요."
+                    optionFilterProp="label"
+                    style={{ width: '15rem' }}
+                    popupMatchSelectWidth={false}
+                    dropdownRender={(menu) => (
+                      <>
+                        <div
+                          className="flex items-center gap-2 px-3 py-2 cursor-pointer hover:bg-gray-50"
+                          onMouseDown={(e) => e.preventDefault()}
+                          onClick={() => {
+                            if (dialogIds.length === dialogSelectOptions.length) {
+                              setDialogIds([]);
+                            } else {
+                              setDialogIds(dialogSelectOptions.map((o) => o.value));
+                            }
+                          }}
+                        >
+                          <Checkbox
+                            checked={dialogIds.length === dialogSelectOptions.length && dialogSelectOptions.length > 0}
+                            indeterminate={dialogIds.length > 0 && dialogIds.length < dialogSelectOptions.length}
                           />
                           <span className="text-sm">전체 선택</span>
                         </div>
@@ -554,14 +585,14 @@ export default function IntentStatistics() {
           </header>
         </Collapsible>
         <div className="w-full h-full">
-          <AgGridReact<IntentStatListItem>
+          <AgGridReact<UserDefStatListItem>
             ref={gridRef}
             rowModelType="clientSide"
             rowData={rowData}
-            getRowId={(params) => `${params.data.psrTimeKey}_${params.data.scnId}_${params.data.modelId}_${params.data.intent}`}
+            getRowId={(params) => `${params.data.psrTimeKey}_${params.data.serviceId}_${params.data.dialogId}`}
             columnDefs={columnDefs}
             gridOptions={{ ...gridOptions, statusBar: undefined }}
-            loading={isLoadingIntentStatList}
+            loading={isLoadingUserDefStatList}
             pagination={false}
             rowNumbers={false}
             sideBar={false}

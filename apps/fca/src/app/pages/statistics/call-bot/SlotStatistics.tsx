@@ -137,8 +137,8 @@ export default function SlotStatistics() {
       entityTag,
       excludeLunch: timeUnit === 'MI' || timeUnit === 'HH' ? excludeLunch : false,
       useInterval: timeUnit === 'MI' || timeUnit === 'HH' ? useInterval : false,
-      hourFrom: timeUnit === 'MI' || timeUnit === 'HH' ? (useInterval && intervalStartTime ? intervalStartTime.format('HH00') : '') : '',
-      hourTo: timeUnit === 'MI' || timeUnit === 'HH' ? (useInterval && intervalEndTime ? intervalEndTime.format('HH00') : '') : '',
+      hourFrom: timeUnit === 'MI' || timeUnit === 'HH' ? (useInterval && intervalStartTime ? intervalStartTime.format(timeUnit === 'MI' ? 'HHmm' : 'HH00') : '') : '',
+      hourTo: timeUnit === 'MI' || timeUnit === 'HH' ? (useInterval && intervalEndTime ? intervalEndTime.format(timeUnit === 'MI' ? 'HHmm' : 'HH50') : '') : '',
       excludeDays: timeUnit !== 'MM' && timeUnit !== 'YY' ? excludeDays : [],
       excludeBusinessHoliday: timeUnit !== 'MM' && timeUnit !== 'YY' ? excludeBusinessHoliday : false,
       excludeStatHoliday: timeUnit !== 'MM' && timeUnit !== 'YY' ? excludeStatHoliday : false,
@@ -244,39 +244,57 @@ export default function SlotStatistics() {
       headerName: '진입수',
       field: 'inCount',
       flex: 1,
-      cellStyle: (params) => (params.node?.rowPinned === 'bottom' ? { fontWeight: 'bold', alignItems: 'center' } : { fontWeight: 'normal', alignItems: 'center' }),
+      cellStyle: (params) =>
+        params.node?.rowPinned === 'bottom'
+          ? { display: 'flex', fontWeight: 'bold', alignItems: 'center', justifyContent: 'flex-end', textAlign: 'right' }
+          : { display: 'flex', fontWeight: 'normal', alignItems: 'center', justifyContent: 'flex-end', textAlign: 'right' },
     },
     {
       headerName: '완료건',
       field: 'successCount',
       flex: 1,
-      cellStyle: (params) => (params.node?.rowPinned === 'bottom' ? { fontWeight: 'bold', alignItems: 'center' } : { fontWeight: 'normal', alignItems: 'center' }),
+      cellStyle: (params) =>
+        params.node?.rowPinned === 'bottom'
+          ? { display: 'flex', fontWeight: 'bold', alignItems: 'center', justifyContent: 'flex-end', textAlign: 'right' }
+          : { display: 'flex', fontWeight: 'normal', alignItems: 'center', justifyContent: 'flex-end', textAlign: 'right' },
     },
     {
       headerName: '미완료건',
       field: 'failCount',
       flex: 1,
-      cellStyle: (params) => (params.node?.rowPinned === 'bottom' ? { fontWeight: 'bold', alignItems: 'center' } : { fontWeight: 'normal', alignItems: 'center' }),
+      cellStyle: (params) =>
+        params.node?.rowPinned === 'bottom'
+          ? { display: 'flex', fontWeight: 'bold', alignItems: 'center', justifyContent: 'flex-end', textAlign: 'right' }
+          : { display: 'flex', fontWeight: 'normal', alignItems: 'center', justifyContent: 'flex-end', textAlign: 'right' },
     },
     {
       headerName: '완료율',
       field: 'successPercent',
       flex: 1,
-      cellStyle: (params) => (params.node?.rowPinned === 'bottom' ? { fontWeight: 'bold', alignItems: 'center' } : { fontWeight: 'normal', alignItems: 'center' }),
-      valueFormatter: ({ value }: { value?: number }) => (value ? `${value}%` : '0%'),
+      cellStyle: (params) =>
+        params.node?.rowPinned === 'bottom'
+          ? { display: 'flex', fontWeight: 'bold', alignItems: 'center', justifyContent: 'flex-end', textAlign: 'right' }
+          : { display: 'flex', fontWeight: 'normal', alignItems: 'center', justifyContent: 'flex-end', textAlign: 'right' },
+      cellRenderer: 'percentBarRenderer',
     },
     {
       headerName: '미완료율',
       field: 'failPercent',
       flex: 1,
-      cellStyle: (params) => (params.node?.rowPinned === 'bottom' ? { fontWeight: 'bold', alignItems: 'center' } : { fontWeight: 'normal', alignItems: 'center' }),
-      valueFormatter: ({ value }: { value?: number }) => (value != null ? `${value}%` : '0%'),
+      cellStyle: (params) =>
+        params.node?.rowPinned === 'bottom'
+          ? { display: 'flex', fontWeight: 'bold', alignItems: 'center', justifyContent: 'flex-end', textAlign: 'right' }
+          : { display: 'flex', fontWeight: 'normal', alignItems: 'center', justifyContent: 'flex-end', textAlign: 'right' },
+      cellRenderer: 'percentBarRenderer',
     },
     {
       headerName: '재시도 횟수',
       field: 'retryCount',
       flex: 1,
-      cellStyle: (params) => (params.node?.rowPinned === 'bottom' ? { fontWeight: 'bold', alignItems: 'center' } : { fontWeight: 'normal', alignItems: 'center' }),
+      cellStyle: (params) =>
+        params.node?.rowPinned === 'bottom'
+          ? { display: 'flex', fontWeight: 'bold', alignItems: 'center', justifyContent: 'flex-end', textAlign: 'right' }
+          : { display: 'flex', fontWeight: 'normal', alignItems: 'center', justifyContent: 'flex-end', textAlign: 'right' },
     },
     {
       headerName: '재시도',
@@ -285,19 +303,28 @@ export default function SlotStatistics() {
           headerName: '1회',
           field: 'oneTimeOrLess',
           flex: 1,
-          cellStyle: (params) => (params.node?.rowPinned === 'bottom' ? { fontWeight: 'bold', alignItems: 'center' } : { fontWeight: 'normal', alignItems: 'center' }),
+          cellStyle: (params) =>
+            params.node?.rowPinned === 'bottom'
+              ? { display: 'flex', fontWeight: 'bold', alignItems: 'center', justifyContent: 'flex-end', textAlign: 'right' }
+              : { display: 'flex', fontWeight: 'normal', alignItems: 'center', justifyContent: 'flex-end', textAlign: 'right' },
         },
         {
           headerName: '2회',
           field: 'twoTimes',
           flex: 1,
-          cellStyle: (params) => (params.node?.rowPinned === 'bottom' ? { fontWeight: 'bold', alignItems: 'center' } : { fontWeight: 'normal', alignItems: 'center' }),
+          cellStyle: (params) =>
+            params.node?.rowPinned === 'bottom'
+              ? { display: 'flex', fontWeight: 'bold', alignItems: 'center', justifyContent: 'flex-end', textAlign: 'right' }
+              : { display: 'flex', fontWeight: 'normal', alignItems: 'center', justifyContent: 'flex-end', textAlign: 'right' },
         },
         {
           headerName: '3회이상',
           field: 'threeTimesOrMore',
           flex: 1,
-          cellStyle: (params) => (params.node?.rowPinned === 'bottom' ? { fontWeight: 'bold', alignItems: 'center' } : { fontWeight: 'normal', alignItems: 'center' }),
+          cellStyle: (params) =>
+            params.node?.rowPinned === 'bottom'
+              ? { display: 'flex', fontWeight: 'bold', alignItems: 'center', justifyContent: 'flex-end', textAlign: 'right' }
+              : { display: 'flex', fontWeight: 'normal', alignItems: 'center', justifyContent: 'flex-end', textAlign: 'right' },
         },
       ],
     },
@@ -327,8 +354,14 @@ export default function SlotStatistics() {
         entityTag,
         excludeLunch: displayTimeUnit === 'MI' || displayTimeUnit === 'HH' ? excludeLunch : false,
         useInterval: displayTimeUnit === 'MI' || displayTimeUnit === 'HH' ? useInterval : false,
-        hourFrom: displayTimeUnit === 'MI' || displayTimeUnit === 'HH' ? (useInterval && intervalStartTime ? intervalStartTime.format('HH00') : '') : '',
-        hourTo: displayTimeUnit === 'MI' || displayTimeUnit === 'HH' ? (useInterval && intervalEndTime ? intervalEndTime.format('HH00') : '') : '',
+        hourFrom:
+          displayTimeUnit === 'MI' || displayTimeUnit === 'HH'
+            ? useInterval && intervalStartTime
+              ? intervalStartTime.format(displayTimeUnit === 'MI' ? 'HHmm' : 'HH00')
+              : ''
+            : '',
+        hourTo:
+          displayTimeUnit === 'MI' || displayTimeUnit === 'HH' ? (useInterval && intervalEndTime ? intervalEndTime.format(displayTimeUnit === 'MI' ? 'HHmm' : 'HH50') : '') : '',
         excludeDays: displayTimeUnit !== 'MM' && displayTimeUnit !== 'YY' ? excludeDays : [],
         excludeBusinessHoliday: displayTimeUnit !== 'MM' && displayTimeUnit !== 'YY' ? excludeBusinessHoliday : false,
         excludeStatHoliday: displayTimeUnit !== 'MM' && displayTimeUnit !== 'YY' ? excludeStatHoliday : false,
@@ -380,6 +413,7 @@ export default function SlotStatistics() {
                       onChange={(date) => setStartTime(date)}
                       inputReadOnly
                       allowClear={false}
+                      needConfirm={false}
                       format={timeUnit === 'MI' ? 'HH:mm' : 'HH:00'}
                       minuteStep={10}
                       style={{ width: '100px' }}
@@ -401,6 +435,7 @@ export default function SlotStatistics() {
                       onChange={(date) => setEndTime(date)}
                       inputReadOnly
                       allowClear={false}
+                      needConfirm={false}
                       format={timeUnit === 'MI' ? 'HH:mm' : 'HH:50'}
                       minuteStep={10}
                       style={{ width: '100px' }}
@@ -590,7 +625,9 @@ export default function SlotStatistics() {
                                 onChange={(date) => setIntervalStartTime(date)}
                                 inputReadOnly
                                 allowClear={false}
-                                format="HH:00"
+                                needConfirm={false}
+                                format={timeUnit === 'MI' ? 'HH:mm' : 'HH:00'}
+                                minuteStep={10}
                                 style={{ width: '100px' }}
                               />
                               <span className="text-sm font-medium text-[#495057] shrink-0">~</span>
@@ -599,7 +636,9 @@ export default function SlotStatistics() {
                                 onChange={(date) => setIntervalEndTime(date)}
                                 inputReadOnly
                                 allowClear={false}
-                                format="HH:00"
+                                needConfirm={false}
+                                format={timeUnit === 'MI' ? 'HH:mm' : 'HH:50'}
+                                minuteStep={10}
                                 style={{ width: '100px' }}
                               />
                             </>
