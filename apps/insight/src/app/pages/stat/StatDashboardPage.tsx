@@ -1,11 +1,11 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Button, Select, Switch } from 'antd';
 import dayjs, { type Dayjs } from 'dayjs';
 import { Settings2 } from 'lucide-react';
-import PageHeader from '@/components/custom/PageHeader';
+import { useBreadcrumbStore } from '@/shared-store';
 
-const breadcrumb = [{ label: '통계' }, { label: '대시보드' }];
+const breadcrumb = [{ title: '통계' }, { title: '대시보드', path: '/insight/stat/dashboard' }];
 
 const QUICK_RANGES: { label: string; getRange: () => [Dayjs, Dayjs] }[] = [
   { label: '오늘', getRange: () => [dayjs().startOf('day'), dayjs().endOf('day')] },
@@ -33,6 +33,14 @@ const CANVAS_STYLE: React.CSSProperties = {
 
 function StatDashboardPage() {
   const navigate = useNavigate();
+  const setBreadcrumb = useBreadcrumbStore((s) => s.setBreadcrumb);
+  const clearBreadcrumb = useBreadcrumbStore((s) => s.clearBreadcrumb);
+
+  useEffect(() => {
+    setBreadcrumb(breadcrumb);
+    return () => clearBreadcrumb();
+  }, [setBreadcrumb, clearBreadcrumb]);
+
   const [timeUnit, setTimeUnit] = useState<(typeof TIME_UNITS)[number]>('일');
   const [startDate, setStartDate] = useState<Dayjs>(dayjs().subtract(29, 'day').startOf('day'));
   const [endDate, setEndDate] = useState<Dayjs>(dayjs().endOf('day'));
@@ -52,7 +60,6 @@ function StatDashboardPage() {
 
   return (
     <div className="flex flex-col gap-4 w-full h-full">
-      <PageHeader breadcrumb={breadcrumb} />
       <div className="flex flex-col w-full h-full bg-white bt-shadow overflow-hidden">
         {/* Report header */}
         <div className="flex items-center justify-between border-b px-5 py-3 flex-shrink-0">

@@ -1,14 +1,14 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Button, Input, Select } from 'antd';
 import { MoreHorizontal, Search } from 'lucide-react';
+import { useBreadcrumbStore } from '@/shared-store';
 import { toast } from '@/shared-util';
 import { useDeleteWidget, useGetWidgetList } from '../../../features/stat/hooks/useStatQueries';
 import type { WidgetItem, WidgetVisualization } from '../../../features/stat/types/widget';
-import PageHeader from '@/components/custom/PageHeader';
 import { useModal } from '@/libs/shared-ui/src/hooks/useModal';
 
-const breadcrumb = [{ label: '통계' }, { label: '보고서 목록' }];
+const breadcrumb = [{ title: '통계' }, { title: '보고서 목록', path: '/insight/stat/widget' }];
 
 const CATEGORY_OPTIONS = [
   { value: '', label: '전체' },
@@ -125,6 +125,13 @@ function ReportCard({ widget, onEdit, onDelete }: { widget: WidgetItem; onEdit: 
 export default function WidgetListPage() {
   const navigate = useNavigate();
   const modal = useModal();
+  const setBreadcrumb = useBreadcrumbStore((s) => s.setBreadcrumb);
+  const clearBreadcrumb = useBreadcrumbStore((s) => s.clearBreadcrumb);
+
+  useEffect(() => {
+    setBreadcrumb(breadcrumb);
+    return () => clearBreadcrumb();
+  }, [setBreadcrumb, clearBreadcrumb]);
 
   const [category, setCategory] = useState('');
   const [searchText, setSearchText] = useState('');
@@ -152,7 +159,6 @@ export default function WidgetListPage() {
 
   return (
     <div className="flex flex-col gap-4 w-full h-full">
-      <PageHeader breadcrumb={breadcrumb} />
       <div className="flex flex-col gap-5 w-full bg-white bt-shadow p-5">
         {/* Toolbar */}
         <header className="flex items-center justify-between w-full gap-2">
