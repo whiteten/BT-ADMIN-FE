@@ -2,10 +2,13 @@ import { create } from 'zustand';
 import { devtools } from 'zustand/middleware';
 
 export type MenuPanelMode = 'compact' | 'mega';
+export type MenuPanelView = 'menu' | 'bookmark';
 
 interface MenuPanelStore {
   open: boolean;
   mode: MenuPanelMode;
+  /** 패널이 현재 보여주는 컨텐츠 종류. strip 상단 북마크 버튼 토글로 'bookmark' 진입. */
+  view: MenuPanelView;
   /** 패널이 현재 보여주는 앱 id. URL상 selectedRemote와 독립적으로 뱃지 hover에 따라 갱신된다. */
   displayedAppId: string | null;
   activeMenuKey: string | null;
@@ -13,6 +16,7 @@ interface MenuPanelStore {
   togglePanel: () => void;
   setMode: (mode: MenuPanelMode) => void;
   toggleMode: () => void;
+  setView: (view: MenuPanelView) => void;
   setDisplayedAppId: (appId: string | null) => void;
   setActiveMenuKey: (menuKey: string | null) => void;
   reset: () => void;
@@ -23,15 +27,17 @@ export const useMenuPanelStore = create<MenuPanelStore>()(
     (set) => ({
       open: false,
       mode: 'compact',
+      view: 'menu',
       displayedAppId: null,
       activeMenuKey: null,
       setOpen: (open) => set({ open }, false, 'setOpen'),
       togglePanel: () => set((state) => ({ open: !state.open }), false, 'togglePanel'),
       setMode: (mode) => set({ mode }, false, 'setMode'),
       toggleMode: () => set((state) => ({ mode: state.mode === 'compact' ? 'mega' : 'compact' }), false, 'toggleMode'),
+      setView: (view) => set({ view }, false, 'setView'),
       setDisplayedAppId: (displayedAppId) => set({ displayedAppId }, false, 'setDisplayedAppId'),
       setActiveMenuKey: (activeMenuKey) => set({ activeMenuKey }, false, 'setActiveMenuKey'),
-      reset: () => set({ open: false, mode: 'compact', displayedAppId: null, activeMenuKey: null }, false, 'reset'),
+      reset: () => set({ open: false, mode: 'compact', view: 'menu', displayedAppId: null, activeMenuKey: null }, false, 'reset'),
     }),
     { name: 'menu-panel-store' },
   ),

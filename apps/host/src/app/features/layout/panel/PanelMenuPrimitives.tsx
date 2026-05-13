@@ -209,21 +209,12 @@ export function PanelMenuRow({ item, appId, onNavigate }: PanelMenuRowProps) {
     }
   };
 
-  // 폴더 hover 시 cascade로 자식 detail 자동 노출 (leaf는 직전 detail 유지)
-  const handleMouseEnter = () => {
-    if (!isFolder) return;
-    setActiveMenuKey(item.menuKey);
-    if (mode === 'mega') setMode('compact');
-  };
-
   return (
     <button
       type="button"
       onClick={handleClick}
-      onMouseEnter={handleMouseEnter}
       className={cn(
-        'group/row relative flex w-full items-center gap-2 rounded-md px-3 py-2 text-left transition-colors',
-        isLeaf ? 'cursor-pointer' : 'cursor-default',
+        'group/row relative flex w-full items-center gap-2 rounded-md px-3 py-2 text-left transition-colors cursor-pointer',
         'hover:bg-[#f1f3f5]',
         isActive && 'bg-[var(--color-bt-primary)]/[0.08]',
         isActiveBranch && 'before:absolute before:left-0 before:top-1.5 before:bottom-1.5 before:w-[3px] before:rounded-full before:bg-[var(--color-bt-primary)]',

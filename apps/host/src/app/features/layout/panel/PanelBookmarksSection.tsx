@@ -13,35 +13,41 @@ import { isMenuActive } from './PanelMenuPrimitives';
 import { useUpdateBookmark } from '../hooks/useBookmarkQueries';
 import { useMenuPanelStore } from '../hooks/useMenuPanelStore';
 import { findMenuInfo } from '../utils/findMenuInfo';
-import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import type { Bookmark } from '@/libs/shared-api/src/lib/types/navi.types';
 import { cn } from '@/libs/shared-ui/src/lib/utils';
 
-interface SortableBookmarkRowProps {
+interface BookmarkInfo {
   bookmark: Bookmark;
   icon?: React.ElementType;
   path?: string;
-  tooltipText: string;
+  breadcrumb: string;
+}
+
+interface SortableBookmarkRowProps {
+  info: BookmarkInfo;
   isEditMode: boolean;
   onClick: (bookmark: Bookmark, path?: string) => void;
   onRemove?: (menuKey: string) => void;
 }
 
-const SortableBookmarkRow = ({ bookmark, icon: Icon, path, tooltipText, isEditMode, onClick, onRemove }: SortableBookmarkRowProps) => {
+const SortableBookmarkRow = ({ info, isEditMode, onClick, onRemove }: SortableBookmarkRowProps) => {
   const location = useLocation();
+  const { bookmark, icon: Icon, path, breadcrumb } = info;
   const { attributes, listeners, setNodeRef, transform, transition } = useSortable({ id: bookmark.menuKey });
   const isActive = path ? isMenuActive(path, location, bookmark.appId) : false;
-
   const style = { transform: CSS.Transform.toString(transform), transition };
 
   if (isEditMode) {
     return (
-      <div ref={setNodeRef} style={style} className="flex items-center gap-2 rounded-md px-3 py-2 text-[#495057] bg-white border border-[#e9ecef]">
-        <span className="cursor-grab active:cursor-grabbing text-[#adb5bd]" {...attributes} {...listeners}>
+      <div ref={setNodeRef} style={style} className="flex items-center gap-3 rounded-md px-3 py-2.5 bg-white border border-[#e9ecef]">
+        <span className="cursor-grab active:cursor-grabbing text-[#adb5bd] shrink-0" {...attributes} {...listeners}>
           <GripVertical className="size-4" />
         </span>
         {Icon ? <Icon className="size-5 shrink-0 text-[#868e96]" /> : <SquareDashed className="size-5 shrink-0 text-[#868e96]" />}
-        <span className="flex-1 min-w-0 truncate text-sm">{bookmark.label}</span>
+        <div className="flex-1 min-w-0">
+          <p className="text-sm text-[#495057] truncate">{bookmark.label}</p>
+          {breadcrumb && <p className="text-[12px] text-[#adb5bd] truncate mt-0.5">{breadcrumb}</p>}
+        </div>
         <button
           type="button"
           onClick={() => onRemove?.(bookmark.menuKey)}
@@ -54,17 +60,16 @@ const SortableBookmarkRow = ({ bookmark, icon: Icon, path, tooltipText, isEditMo
     );
   }
 
-  const rowButton = (
+  return (
     <button
       type="button"
       onClick={() => onClick(bookmark, path)}
       disabled={!path}
       className={cn(
-        'group/row relative flex w-full items-center gap-2 rounded-md px-3 py-2 text-left transition-colors cursor-pointer',
+        'group/row relative flex w-full items-center gap-3 rounded-md px-3 py-2.5 text-left transition-colors cursor-pointer',
         'text-[#495057] hover:bg-[#f1f3f5]',
         'disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:bg-transparent',
-        isActive &&
-          'before:absolute before:left-0 before:top-1.5 before:bottom-1.5 before:w-[3px] before:rounded-full before:bg-[var(--color-bt-primary)] text-[var(--color-bt-primary)] font-semibold',
+        isActive && 'before:absolute before:left-0 before:top-1.5 before:bottom-1.5 before:w-[3px] before:rounded-full before:bg-[var(--color-bt-primary)]',
       )}
     >
       {Icon ? (
@@ -72,19 +77,11 @@ const SortableBookmarkRow = ({ bookmark, icon: Icon, path, tooltipText, isEditMo
       ) : (
         <SquareDashed className={cn('size-5 shrink-0', isActive ? 'text-[var(--color-bt-primary)]' : 'text-[#868e96]')} />
       )}
-      <span className="flex-1 min-w-0 truncate text-sm">{bookmark.label}</span>
+      <div className="flex-1 min-w-0">
+        <p className={cn('text-sm truncate', isActive ? 'text-[var(--color-bt-primary)] font-semibold' : 'text-[#495057]')}>{bookmark.label}</p>
+        {breadcrumb && <p className="text-[12px] text-[#adb5bd] truncate mt-0.5">{breadcrumb}</p>}
+      </div>
     </button>
-  );
-
-  if (!tooltipText) return rowButton;
-
-  return (
-    <Tooltip>
-      <TooltipTrigger asChild>{rowButton}</TooltipTrigger>
-      <TooltipContent side="right" sideOffset={8}>
-        {tooltipText}
-      </TooltipContent>
-    </Tooltip>
   );
 };
 
@@ -151,73 +148,72 @@ const PanelBookmarksSection = ({ className }: PanelBookmarksSectionProps) => {
     setOpen(false);
   };
 
+  const enrichedBookmarks: BookmarkInfo[] = sortedFavorites.map((bookmark) => {
+    const { icon, path, appName, ancestors } = findMenuInfo(menuConfigs, bookmark);
+    // ancestors는 북마크 자신의 label까지 포함하므로 마지막을 제외해 부모 경로만 표시
+    const breadcrumb = [appName, ...ancestors.slice(0, -1)].filter(Boolean).join(' › ');
+    return { bookmark, icon, path, breadcrumb };
+  });
+
+  const showToolbar = favorites.length > 0;
+  const isEmptyList = sortedFavorites.length === 0;
+
   return (
     <section className={cn('flex flex-col', className)}>
-      <header className="flex items-center justify-between px-3 mb-2">
-        <h3 className="text-xs font-semibold tracking-wider uppercase text-[#868e96]">{isEditMode ? '드래그 하여 순서변경' : 'Bookmarks'}</h3>
-        {favorites?.length > 0 &&
-          (isEditMode ? (
+      {showToolbar && (
+        <header className="flex items-center justify-between mb-3">
+          <span className="text-sm text-[#868e96]">{isEditMode ? '드래그로 순서변경, 휴지통으로 삭제' : `총 ${sortedFavorites.length}개`}</span>
+          {isEditMode ? (
             <div className="flex items-center gap-1">
               <Button
                 size="small"
                 loading={isPending}
-                icon={<Check className="size-3.5" />}
+                icon={<Check className="size-4" />}
                 aria-label="저장"
-                className="!px-1.5 !py-0 !h-auto !bg-transparent !border-[#ced4da] !text-[#495057] hover:!border-[var(--color-bt-primary)] hover:!text-[var(--color-bt-primary)]"
+                className="!px-2.5 !py-1 !h-auto !bg-transparent !border-[#ced4da] !text-[#495057] hover:!border-[var(--color-bt-primary)] hover:!text-[var(--color-bt-primary)]"
                 onClick={handleConfirm}
               />
               <Button
                 size="small"
                 disabled={isPending}
-                icon={<X className="size-3.5" />}
+                icon={<X className="size-4" />}
                 aria-label="취소"
-                className="!px-1.5 !py-0 !h-auto !bg-transparent !border-[#ced4da] !text-[#495057] hover:!border-[#e03131] hover:!text-[#e03131]"
+                className="!px-2.5 !py-1 !h-auto !bg-transparent !border-[#ced4da] !text-[#495057] hover:!border-[#e03131] hover:!text-[#e03131]"
                 onClick={handleCancel}
               />
             </div>
           ) : (
             <Button
               size="small"
-              className="!text-xs !px-1.5 !py-0 !h-auto !bg-transparent !border-[#ced4da] !text-[#495057] hover:!border-[var(--color-bt-primary)] hover:!text-[var(--color-bt-primary)]"
+              className="!text-sm !px-2.5 !py-1 !h-auto !bg-transparent !border-[#ced4da] !text-[#495057] hover:!border-[var(--color-bt-primary)] hover:!text-[var(--color-bt-primary)]"
               onClick={handleEnterEditMode}
             >
-              EDIT
+              편집
             </Button>
-          ))}
-      </header>
+          )}
+        </header>
+      )}
 
-      {sortedFavorites.length === 0 ? (
-        <p className="text-xs text-[#adb5bd] px-3 py-4">북마크한 메뉴가 없습니다.</p>
+      {isEmptyList ? (
+        <div className="flex flex-col items-center justify-center py-12 text-center">
+          <p className="text-sm text-[#878a99]">북마크한 메뉴가 없습니다.</p>
+          <p className="text-xs text-[#adb5bd] mt-1">메뉴 옆 별 아이콘을 눌러 북마크를 추가하세요.</p>
+        </div>
       ) : isEditMode ? (
         <DndContext collisionDetection={closestCenter} modifiers={[restrictToVerticalAxis, restrictToParentElement]} onDragEnd={handleDragEnd}>
-          <SortableContext items={sortedFavorites.map((f) => f.menuKey)} strategy={verticalListSortingStrategy}>
+          <SortableContext items={enrichedBookmarks.map((b) => b.bookmark.menuKey)} strategy={verticalListSortingStrategy}>
             <div className="flex flex-col gap-1">
-              {sortedFavorites.map((bookmark) => {
-                const { icon, path, appName, ancestors } = findMenuInfo(menuConfigs, bookmark);
-                const tooltipText = [appName, ...ancestors].filter(Boolean).join(' › ');
-                return (
-                  <SortableBookmarkRow
-                    key={bookmark.menuKey}
-                    bookmark={bookmark}
-                    icon={icon}
-                    path={path}
-                    tooltipText={tooltipText}
-                    isEditMode
-                    onClick={handleClick}
-                    onRemove={handleRemove}
-                  />
-                );
-              })}
+              {enrichedBookmarks.map((info) => (
+                <SortableBookmarkRow key={info.bookmark.menuKey} info={info} isEditMode onClick={handleClick} onRemove={handleRemove} />
+              ))}
             </div>
           </SortableContext>
         </DndContext>
       ) : (
         <div className="flex flex-col gap-px">
-          {sortedFavorites.map((bookmark) => {
-            const { icon, path, appName, ancestors } = findMenuInfo(menuConfigs, bookmark);
-            const tooltipText = [appName, ...ancestors].filter(Boolean).join(' › ');
-            return <SortableBookmarkRow key={bookmark.menuKey} bookmark={bookmark} icon={icon} path={path} tooltipText={tooltipText} isEditMode={false} onClick={handleClick} />;
-          })}
+          {enrichedBookmarks.map((info) => (
+            <SortableBookmarkRow key={info.bookmark.menuKey} info={info} isEditMode={false} onClick={handleClick} />
+          ))}
         </div>
       )}
     </section>
