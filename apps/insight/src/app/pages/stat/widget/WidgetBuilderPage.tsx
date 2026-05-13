@@ -1,6 +1,6 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { Button, Form, InputNumber, Radio, Select } from 'antd';
+import { Button, Form, Input, InputNumber, Radio, Select } from 'antd';
 import { ChevronRight, X } from 'lucide-react';
 import { toast } from '@/shared-util';
 import StepCalcAndSearch, { type CalcField, type SearchBind } from './steps/StepCalcAndSearch';
@@ -52,8 +52,9 @@ export default function WidgetBuilderPage() {
   const isEdit = !!widgetId;
 
   const [form] = Form.useForm();
-  const [reportTitle, setReportTitle] = useState('제목 없음');
+  const [reportTitle, setReportTitle] = useState('');
   const [isDirty, setIsDirty] = useState(false);
+  const isSubmittingRef = useRef(false);
 
   // Panel / section state
   const [isPanelOpen, setIsPanelOpen] = useState(false);
@@ -81,6 +82,7 @@ export default function WidgetBuilderPage() {
       form.setFieldsValue({
         category: widgetData.category,
         icon: widgetData.icon,
+        visualization: widgetData.visualization,
         refreshMode: widgetData.refreshMode,
         refreshInterval: widgetData.refreshInterval,
         defaultW: widgetData.defaultW,
@@ -160,67 +162,83 @@ export default function WidgetBuilderPage() {
   };
 
   const handleSave = () => {
-    form.validateFields(['category', 'refreshMode']).then(() => {
-      const values = form.getFieldsValue(true);
-      const request: WidgetRequest = {
-        widgetType: 'DATA',
-        widgetName: reportTitle,
-        description: values.description,
-        category: values.category,
-        icon: values.icon,
-        visualization: values.visualization,
-        refreshMode: values.refreshMode ?? 'MANUAL',
-        refreshInterval: values.refreshInterval,
-        defaultW: values.defaultW ?? 4,
-        defaultH: values.defaultH ?? 3,
-        dataSources: selectedDatasourceKeys.map((key, idx) => ({ datasourceKey: key, sortOrder: idx })),
-        fieldMappings: fieldMappings
-          .filter((f) => f.enabled)
-          .map((f, idx) => ({
-            datasourceKey: f.datasourceKey,
-            fieldName: f.fieldName,
-            alias: f.alias || undefined,
-            showInGrid: f.showInGrid,
-            chartRole: f.chartRole || undefined,
-            sortOrder: idx,
-            aggregation: f.aggregation || undefined,
-            showRatio: f.showRatio || undefined,
-          })),
-        calculatedFields: calcFields
-          .filter((c) => c.fieldName && c.formula)
-          .map((c, idx) => ({
-            fieldName: c.fieldName,
-            displayName: c.displayName,
-            formula: c.formula,
-            fieldType: c.fieldType,
-            showInGrid: c.showInGrid,
-            chartRole: c.chartRole || undefined,
-            showRatio: c.showRatio || undefined,
-            sortOrder: idx,
-          })),
-        searchBindings: searchBindings
-          .filter((s) => s.conditionId != null)
-          .map((s, idx) => ({
-            conditionId: s.conditionId as number,
-            bindDatasourceKey: s.bindDatasourceKey,
-            bindFieldName: s.bindFieldName,
-            sortOrder: idx,
-          })),
-      };
+    if (isSubmittingRef.current) return;
+    isSubmittingRef.current = true;
+    if (!reportTitle.trim()) {
+      toast.error('보고서명을 입력하세요.');
+      isSubmittingRef.current = false;
+      return;
+    }
+    form
+      .validateFields(['category', 'refreshMode'])
+      .then(() => {
+        const values = form.getFieldsValue(true);
+        const request: WidgetRequest = {
+          widgetType: 'DATA',
+          widgetName: reportTitle,
+          description: values.description,
+          category: values.category,
+          icon: values.icon,
+          visualization: values.visualization,
+          refreshMode: values.refreshMode ?? 'MANUAL',
+          refreshInterval: values.refreshInterval,
+          defaultW: values.defaultW ?? 4,
+          defaultH: values.defaultH ?? 3,
+          dataSources: selectedDatasourceKeys.map((key, idx) => ({ datasourceKey: key, sortOrder: idx })),
+          fieldMappings: fieldMappings
+            .filter((f) => f.enabled)
+            .map((f, idx) => ({
+              datasourceKey: f.datasourceKey,
+              fieldName: f.fieldName,
+              alias: f.alias || undefined,
+              showInGrid: f.showInGrid,
+              chartRole: f.chartRole || undefined,
+              sortOrder: idx,
+              aggregation: f.aggregation || undefined,
+              showRatio: f.showRatio || undefined,
+            })),
+          calculatedFields: calcFields
+            .filter((c) => c.fieldName && c.formula)
+            .map((c, idx) => ({
+              fieldName: c.fieldName,
+              displayName: c.displayName,
+              formula: c.formula,
+              fieldType: c.fieldType,
+              showInGrid: c.showInGrid,
+              chartRole: c.chartRole || undefined,
+              showRatio: c.showRatio || undefined,
+              sortOrder: idx,
+            })),
+          searchBindings: searchBindings
+            .filter((s) => s.conditionId != null)
+            .map((s, idx) => ({
+              conditionId: s.conditionId as number,
+              bindDatasourceKey: s.bindDatasourceKey,
+              bindFieldName: s.bindFieldName,
+              sortOrder: idx,
+            })),
+        };
 
-      const onSuccess = () => {
-        toast.success(isEdit ? '보고서가 수정되었습니다.' : '보고서가 생성되었습니다.');
-        setIsDirty(false);
-        navigate('/insight/stat/widget');
-      };
-      const onError = () => toast.error(isEdit ? '보고서 수정에 실패했습니다.' : '보고서 생성에 실패했습니다.');
+        const onSuccess = () => {
+          isSubmittingRef.current = false;
+          toast.success(isEdit ? '보고서가 수정되었습니다.' : '보고서가 생성되었습니다.');
+          setIsDirty(false);
+          navigate('/insight/stat/widget');
+        };
+        const onError = () => {
+          isSubmittingRef.current = false;
+          toast.error(isEdit ? '보고서 수정에 실패했습니다.' : '보고서 생성에 실패했습니다.');
+        };
 
-      if (isEdit) {
-        updateMutation.mutate({ params: { widgetId: Number(widgetId) }, data: request }, { onSuccess, onError });
-      } else {
-        createMutation.mutate(request, { onSuccess, onError });
-      }
-    });
+        if (isEdit) {
+          updateMutation.mutate({ params: { widgetId: Number(widgetId) }, data: request }, { onSuccess, onError });
+        } else {
+          createMutation.mutate(request, { onSuccess, onError });
+        }
+      })
+      .catch(() => {
+        isSubmittingRef.current = false;
+      });
   };
 
   const isPending = createMutation.isPending || updateMutation.isPending;
@@ -240,7 +258,8 @@ export default function WidgetBuilderPage() {
               setReportTitle(e.target.value);
               setIsDirty(true);
             }}
-            className="border-b border-transparent bg-transparent px-1 text-[14px] font-semibold focus:border-blue-500 focus:outline-none"
+            placeholder="제목 없음"
+            className="border-b border-transparent bg-transparent px-1 text-[14px] font-semibold placeholder:text-gray-300 focus:border-blue-500 focus:outline-none"
           />
           {isDirty && (
             <span className="inline-flex items-center rounded bg-yellow-50 px-1.5 py-0.5 text-[10px] font-semibold text-yellow-700 border border-yellow-200">초안 · 미저장</span>
@@ -248,10 +267,10 @@ export default function WidgetBuilderPage() {
         </div>
         <div className="flex items-center gap-2">
           <Button size="small">미리보기</Button>
-          <Button size="small" loading={isPending} onClick={handleSave}>
+          <Button size="small" loading={isPending} disabled={isPending} onClick={handleSave}>
             저장
           </Button>
-          <Button type="primary" size="small" loading={isPending} onClick={handleSave}>
+          <Button type="primary" size="small" loading={isPending} disabled={isPending} onClick={handleSave}>
             발행
           </Button>
         </div>
@@ -270,6 +289,27 @@ export default function WidgetBuilderPage() {
         {/* Canvas */}
         <div className="flex-1 overflow-auto p-5" style={CANVAS_STYLE}>
           <Form form={form} layout="vertical" initialValues={{ widgetType: 'DATA', refreshMode: 'MANUAL', defaultW: 4, defaultH: 3 }}>
+            {/* Report basic settings */}
+            <div className="mb-4 rounded border bg-white shadow-sm">
+              <div className="border-b px-4 py-2 text-[11px] font-semibold uppercase tracking-wider text-gray-400">보고서 기본 설정</div>
+              <div className="grid grid-cols-2 gap-4 p-4">
+                <Form.Item label="보고서명" required className="mb-0">
+                  <Input
+                    value={reportTitle}
+                    onChange={(e) => {
+                      setReportTitle(e.target.value);
+                      setIsDirty(true);
+                    }}
+                    placeholder="보고서 이름을 입력하세요"
+                    size="small"
+                  />
+                </Form.Item>
+                <Form.Item name="category" label="카테고리" rules={[{ required: true, message: '카테고리를 선택하세요' }]} className="mb-0">
+                  <Select placeholder="카테고리 선택" options={CATEGORY_OPTIONS} size="small" />
+                </Form.Item>
+              </div>
+            </div>
+
             {sections.length === 0 ? (
               <div className="flex h-full min-h-[300px] flex-col items-center justify-center gap-3">
                 <div className="text-[14px] font-semibold text-gray-400">아직 섹션이 없습니다</div>
@@ -364,9 +404,6 @@ export default function WidgetBuilderPage() {
                 <div className="mt-4 space-y-3 border-t pt-4">
                   <div className="text-[11px] font-semibold uppercase tracking-wider text-gray-400">보고서 설정</div>
                   <Form form={form} layout="vertical">
-                    <Form.Item name="category" label="카테고리" rules={[{ required: true, message: '카테고리를 선택하세요' }]}>
-                      <Select placeholder="카테고리 선택" options={CATEGORY_OPTIONS} size="small" />
-                    </Form.Item>
                     <Form.Item name="refreshMode" label="갱신 방식">
                       <Radio.Group buttonStyle="solid" size="small">
                         <Radio.Button value="AUTO">자동</Radio.Button>
