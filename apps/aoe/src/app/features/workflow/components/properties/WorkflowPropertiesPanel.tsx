@@ -1,14 +1,14 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
-import { Form } from 'antd';
+import { Form, Tooltip } from 'antd';
 import { Loader2, X } from 'lucide-react';
 import { Log } from '@/log';
 import { toast } from '@/shared-util';
 import WorkflowPropertiesFactory from './WorkflowPropertiesFactory';
 import { DEFAULT_NODE_KIND, NODE_KIND_MAP } from '../../constants/nodeKinds';
 import { useUpdateNode, workflowQueryKeys } from '../../hooks/useWorkflowQueries';
-import type { FlowNode, WorkflowGraph } from '../../types';
-import { buildOutputVariableId, parseVariableTokens } from '../../utils/variableTokens';
+import type { FlowEdge, FlowNode, WorkflowGraph } from '../../types';
+import { buildNodeName, buildOutputVariableFromName, getNodeDisplayName, parseVariableTokens } from '../../utils/variableTokens';
 
 interface WorkflowPropertiesPanelProps {
   agentId: string;
@@ -17,7 +17,7 @@ interface WorkflowPropertiesPanelProps {
   onClose: () => void;
 }
 
-const NODES_WITHOUT_OUTPUT = new Set(['start', 'answer', 'condition', 'error']);
+const NODES_WITHOUT_OUTPUT = new Set(['start', 'answer', 'error']);
 
 /** kind 별로 input_variables 자동 수집 대상 텍스트 필드 path */
 const VARIABLE_TEXT_FIELDS: Record<string, string[][]> = {
@@ -61,16 +61,31 @@ const nodeDataToFormData = (kind: string, data: Record<string, unknown> | undefi
   return base;
 };
 
+/** 직전(1-depth) upstream 노드들의 output_variable 수집 — input_variables 의 기본 의존성 */
+const collectDirectUpstreamOutputVars = (nodeId: string, nodes: FlowNode[], edges: FlowEdge[]): string[] => {
+  const nodeMap = new Map(nodes.map((n) => [n.nodeId, n]));
+  const result: string[] = [];
+  for (const e of edges) {
+    if (e.tgtNodeId !== nodeId) continue;
+    const src = nodeMap.get(e.srcNodeId);
+    if (!src) continue;
+    const ov = (src.data as Record<string, unknown> | undefined)?.output_variable;
+    if (typeof ov === 'string' && ov) result.push(ov);
+  }
+  return Array.from(new Set(result));
+};
+
 /** form values → node.data 형태로 변환 (별칭 → BE 형식 prompt_template 배열).
- *  form 에 systemPrompt/userPrompt 가 정의되지 않은 경우 prev 의 prompt_template 에서 fallback.
- *  - output_variable 은 nodeId 로 자동 (사용자 입력 안 받음, 옛 outputVariable 필드 정리)
- *  - input_variables 는 노드 텍스트 필드들의 {{...}} 토큰 자동 수집 */
+ *  - output_variable 은 nodeName 으로 자동 (시작 노드는 'userInput_result' 고정)
+ *  - input_variables = 직전 upstream output_variable ∪ 텍스트 필드의 {...} 토큰 */
 const formDataToNodeData = (
   kind: string,
   nodeId: string,
   nodeLabel: string | undefined,
   prevData: Record<string, unknown> | undefined,
   formData: Record<string, unknown> | undefined,
+  existingNodes?: FlowNode[],
+  existingEdges?: FlowEdge[],
 ): Record<string, unknown> => {
   const next: Record<string, unknown> = { ...(prevData ?? {}), ...(formData ?? {}) };
   if (kind === 'llm') {
@@ -90,29 +105,55 @@ const formDataToNodeData = (
     delete next.userPrompt;
   }
 
-  // 출력 변수 — start/answer/condition/error 제외
+  // condition 노드 — condition_type 에 따라 비활성 모드 데이터 제거 (BE 페이로드 클린업)
+  if (kind === 'condition') {
+    const cType = (next.condition_type as string | undefined) ?? 'operator';
+    if (cType === 'operator') {
+      delete next.routes;
+      delete next.fallback_node;
+    } else {
+      delete next.cases;
+      delete next.else_goto;
+    }
+  }
+
+  // knowledgeSearch — 옛 flat documentIds 필드 정리 (rag_config 로 대체됨)
+  if (kind === 'knowledgeSearch') {
+    delete next.documentIds;
+  }
+
+  // 시작 노드 — output_variable 고정 (BE 가 사용자 발화를 항상 같은 키로 주입), input_variables 미생성
+  if (kind === 'start') {
+    next.output_variable = 'userInput_result';
+    delete next.input_variables;
+    delete next.outputVariable;
+    return next;
+  }
+
+  // 출력 변수 — answer/error 제외 (NODES_WITHOUT_OUTPUT 가 start 제외하고 남은 케이스)
   // 노드 생성 시점에 한 번만 결정하고 이후엔 keep (다른 노드의 input_variables 참조 보호).
-  // prevData.output_variable 이 없으면 — 옛 데이터 마이그레이션 케이스나 생성 직후. 현재 nodeLabel 로 결정.
   if (!NODES_WITHOUT_OUTPUT.has(kind)) {
     const existing = prevData?.output_variable as string | undefined;
     if (existing) {
       next.output_variable = existing;
     } else {
-      next.output_variable = buildOutputVariableId(nodeLabel, nodeId);
+      const nameFromExisting = (next.nodeName as string | undefined) ?? buildNodeName(nodeId, kind, existingNodes);
+      next.output_variable = buildOutputVariableFromName(nameFromExisting);
     }
   }
   // 옛 사용자 입력 필드 정리
   delete next.outputVariable;
 
-  // input_variables 자동 수집 — 노드별 텍스트 필드의 {{...}} 토큰들
+  // input_variables 자동 수집 — 모든 노드 공통
+  // (a) 직전 upstream 노드의 output_variable — 모든 노드에서 데이터 흐름 의존성 선언
+  // (b) 텍스트 필드의 {...} 토큰 — sys.* 등 직접 upstream 이 아닌 변수까지 포함
   const tokens = new Set<string>();
-  const paths = VARIABLE_TEXT_FIELDS[kind] ?? [];
-  // formData 가 부분 변경이라 prevData + formData 머지본인 next 에서 가져와야 일관됨
-  // 단, llm prompt_template 으로 합쳐진 결과에서 추출
+  collectDirectUpstreamOutputVars(nodeId, existingNodes ?? [], existingEdges ?? []).forEach((v) => tokens.add(v));
   if (kind === 'llm') {
     const tpl = (next.prompt_template as PromptTemplateItem[] | undefined) ?? [];
     for (const item of tpl) parseVariableTokens(item.text ?? '').forEach((t) => tokens.add(t));
   } else {
+    const paths = VARIABLE_TEXT_FIELDS[kind] ?? [];
     for (const path of paths) {
       const text = String(getValueAtPath({ data: next }, path) ?? '');
       parseVariableTokens(text).forEach((t) => tokens.add(t));
@@ -258,11 +299,19 @@ export default function WorkflowPropertiesPanel({ agentId, node, graph, onClose 
         // 위치는 별도 endpoint 로 관리되므로 여기선 변경하지 않음
         positionX: node.positionX,
         positionY: node.positionY,
-        data: formDataToNodeData(node.nodeKind, node.nodeId, values.nodeLabel ?? node.nodeLabel, node.data, values.data as Record<string, unknown> | undefined),
+        data: formDataToNodeData(
+          node.nodeKind,
+          node.nodeId,
+          values.nodeLabel ?? node.nodeLabel,
+          node.data,
+          values.data as Record<string, unknown> | undefined,
+          graph.nodes,
+          graph.edges,
+        ),
       };
       updateNode({ params: { agentId, nodeId: node.nodeId }, data: merged });
     },
-    [agentId, node, updateNode],
+    [agentId, node, updateNode, graph.nodes, graph.edges],
   );
 
   // 폼 변경 시: (1) 캐시 즉시 머지로 입력값 보존, (2) debounce 후 BE 저장
@@ -277,7 +326,15 @@ export default function WorkflowPropertiesPanel({ agentId, node, graph, onClose 
         nodeKind: node.nodeKind,
         positionX: node.positionX,
         positionY: node.positionY,
-        data: formDataToNodeData(node.nodeKind, node.nodeId, allValues.nodeLabel ?? node.nodeLabel, node.data, allValues.data as Record<string, unknown> | undefined),
+        data: formDataToNodeData(
+          node.nodeKind,
+          node.nodeId,
+          allValues.nodeLabel ?? node.nodeLabel,
+          node.data,
+          allValues.data as Record<string, unknown> | undefined,
+          graph.nodes,
+          graph.edges,
+        ),
       };
       queryClient.setQueryData<WorkflowGraph>(workflowQueryKeys.graph(agentId).queryKey, (old) =>
         old ? { ...old, nodes: (old.nodes ?? []).map((n) => (n.nodeId === optimistic.nodeId ? optimistic : n)) } : old,
@@ -289,7 +346,7 @@ export default function WorkflowPropertiesPanel({ agentId, node, graph, onClose 
         form.submit();
       }, SAVE_DEBOUNCE_MS);
     },
-    [agentId, node, queryClient, form],
+    [agentId, node, queryClient, form, graph.nodes, graph.edges],
   );
 
   // 패널 닫힐 때 / 컴포넌트 unmount 시 pending 변경 즉시 flush
@@ -320,7 +377,9 @@ export default function WorkflowPropertiesPanel({ agentId, node, graph, onClose 
                   handleValuesChange(null, allValues);
                 }}
               />
-              <span className="text-[11px] text-gray-500 truncate">{node.nodeId}</span>
+              <Tooltip title={`ID: ${node.nodeId}`} placement="bottom" mouseEnterDelay={0.3}>
+                <span className="text-[11px] text-gray-500 truncate cursor-help inline-block">{getNodeDisplayName(node)}</span>
+              </Tooltip>
             </div>
             {isPending && (
               <span className="inline-flex items-center text-[11px] text-gray-400 mr-1" title="저장 중">

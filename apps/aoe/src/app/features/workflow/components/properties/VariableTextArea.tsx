@@ -73,9 +73,9 @@ class VariableNode extends DecoratorNode<ReactNode> {
     return true;
   }
 
-  /** `{{id}}` 형태로 텍스트 직렬화 — onChange 에서 string 으로 추출될 때 사용 */
+  /** `{id}` 형태로 텍스트 직렬화 — onChange 에서 string 으로 추출될 때 사용 (엔진이 단일 중괄호 사용) */
   getTextContent(): string {
-    return `{{${this.__id}}}`;
+    return `{${this.__id}}`;
   }
 
   static importJSON(serialized: SerializedVariableNode): VariableNode {
@@ -123,7 +123,7 @@ const buildInitialEditorState = (value: string, variables: UpstreamVariable[]) =
   if (root.getFirstChild() !== null) return;
   const paragraph = $createParagraphNode();
   const variableMap = new Map(variables.map((v) => [v.id, v]));
-  const regex = /\{\{([^}]+)\}\}/g;
+  const regex = /\{([^{}]+)\}/g;
   let lastIdx = 0;
   let match: RegExpExecArray | null;
   while ((match = regex.exec(value)) !== null) {

@@ -1,7 +1,7 @@
 import React from 'react';
 import { useParams } from 'react-router-dom';
 import type { BreadcrumbProps } from 'antd';
-import { useGetA2AList } from '../../features/a2a/hooks/useA2aQueries';
+import { useGetA2A } from '../../features/a2a/hooks/useA2aQueries';
 import { IconDocument } from '@/components/custom/Icons';
 import PageHeader from '@/components/custom/PageHeader';
 import PageTabs, { type PageTab } from '@/components/custom/PageTabs';
@@ -16,8 +16,7 @@ const tabs: PageTab[] = [
 
 export default function A2ADetail() {
   const { a2aId } = useParams();
-  const { data: a2aList = [] } = useGetA2AList();
-  const a2a = a2aList.find((a) => a.a2aId === a2aId);
+  const { data: a2a } = useGetA2A({ params: { a2aId }, queryOptions: { enabled: !!a2aId } });
 
   const breadcrumb: BreadcrumbProps['items'] = [{ title: '관리', path: '/aoe/agent-config' }, { title: 'A2A', path: '/aoe/agent-config/a2a/list' }, { title: ':agentName' }];
 

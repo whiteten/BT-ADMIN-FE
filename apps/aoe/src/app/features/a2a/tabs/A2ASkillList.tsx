@@ -7,7 +7,7 @@ import { Button } from 'antd';
 import { Log } from '@/log';
 import { toast } from '@/shared-util';
 import A2ASkillDrawer, { type A2ASkillDrawerRef } from '../components/A2ASkillDrawer';
-import { a2aQueryKeys, useGetA2AList, useUpdateA2A } from '../hooks/useA2aQueries';
+import { a2aQueryKeys, useGetA2A, useUpdateA2A } from '../hooks/useA2aQueries';
 import type { A2ASkill } from '../types';
 import { IconTrash } from '@/components/custom/Icons';
 import useAggridOptions from '@/libs/shared-ui/src/hooks/useAggridOptions';
@@ -20,8 +20,7 @@ export default function A2ASkillList() {
   const skillDrawerRef = useRef<A2ASkillDrawerRef>(null);
   const { gridOptions } = useAggridOptions();
 
-  const { data: a2aList = [], isFetching } = useGetA2AList();
-  const a2a = a2aList.find((a) => a.a2aId === a2aId);
+  const { data: a2a, isFetching } = useGetA2A({ params: { a2aId }, queryOptions: { enabled: !!a2aId } });
   const skills = a2a?.skills ?? [];
 
   const { mutate: updateA2A } = useUpdateA2A({
@@ -29,6 +28,7 @@ export default function A2ASkillList() {
       onSuccess: () => {
         toast.success('저장되었습니다.');
         queryClient.invalidateQueries({ queryKey: a2aQueryKeys.getA2AList().queryKey });
+        queryClient.invalidateQueries({ queryKey: a2aQueryKeys.getA2A({ a2aId: a2aId ?? '' }).queryKey });
       },
       onError: (error) => Log.warn('updateA2A failed', error),
     },

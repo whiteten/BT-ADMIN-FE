@@ -32,5 +32,5 @@ export default function WorkflowEditorPage() {
     );
   }
 
-  return <WorkflowEditor agentId={agentId} agentName={agent?.agentName} graph={graph} />;
+  return <WorkflowEditor agentId={agentId} agentName={agent?.agentName} aoeDeployFlag={agent?.aoeDeployFlag} graph={graph} />;
 }

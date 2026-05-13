@@ -4,6 +4,8 @@ export interface KnowledgeListItem {
   description?: string;
   fileCount?: number;
   updatedAt?: string;
+  /** 청크/임베딩/검색 설정. list 응답에도 nested 로 포함됨 — 워크플로우 rag_config 구성 시 collection/topK 추출 용도 */
+  option?: KnowledgeOptionItem;
 }
 
 export interface KnowledgeOptionItem {
@@ -17,9 +19,7 @@ export interface KnowledgeOptionItem {
   bm25Weight?: number;
 }
 
-export interface KnowledgeItem extends KnowledgeListItem {
-  option?: KnowledgeOptionItem;
-}
+export type KnowledgeItem = KnowledgeListItem;
 
 export interface KnowledgeUpdateDatas {
   documentName?: string;

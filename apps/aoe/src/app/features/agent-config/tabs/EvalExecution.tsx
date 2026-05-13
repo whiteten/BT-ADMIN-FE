@@ -3,7 +3,7 @@ import { useParams } from 'react-router-dom';
 import { useQueryClient } from '@tanstack/react-query';
 import type { ColDef, ICellRendererParams } from 'ag-grid-community';
 import { AgGridReact } from 'ag-grid-react';
-import { InputNumber } from 'antd';
+import { Input, InputNumber, Space } from 'antd';
 import dayjs from 'dayjs';
 import { Search, Trash2 } from 'lucide-react';
 import { Log } from '@/log';
@@ -184,16 +184,11 @@ export default function EvalExecution() {
           {FILTER_FIELDS.map(({ key, label }) => (
             <div key={key} className="flex items-center gap-1.5">
               <span className="text-sm text-gray-600 whitespace-nowrap">{label} ≥</span>
-              <InputNumber
-                min={0}
-                max={100}
-                value={filters[key]}
-                onChange={(value) => handleFilterChange(key, value)}
-                placeholder="0"
-                addonAfter="%"
-                style={{ width: 110 }}
-                size="small"
-              />
+              {/* antd v6: InputNumber.addonAfter deprecated → Space.Compact 로 % 표시 */}
+              <Space.Compact size="small">
+                <InputNumber min={0} max={100} value={filters[key]} onChange={(value) => handleFilterChange(key, value)} placeholder="0" style={{ width: 80 }} size="small" />
+                <Input value="%" disabled style={{ width: 30, textAlign: 'center' }} size="small" />
+              </Space.Compact>
             </div>
           ))}
         </div>

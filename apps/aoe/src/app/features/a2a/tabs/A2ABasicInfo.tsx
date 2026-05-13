@@ -4,7 +4,7 @@ import { useQueryClient } from '@tanstack/react-query';
 import { Button, Col, Form, type FormProps, Input, Row } from 'antd';
 import { Log } from '@/log';
 import { toast } from '@/shared-util';
-import { a2aQueryKeys, useDeleteA2A, useGetA2AList, useUpdateA2A } from '../hooks/useA2aQueries';
+import { a2aQueryKeys, useDeleteA2A, useGetA2A, useUpdateA2A } from '../hooks/useA2aQueries';
 import { FallbackSpinner } from '@/components/custom/FallbackSpinner';
 import { useModal } from '@/libs/shared-ui/src/hooks/useModal';
 
@@ -20,14 +20,14 @@ export default function A2ABasicInfo() {
   const modal = useModal();
   const [form] = Form.useForm<FormValues>();
 
-  const { data: a2aList = [], isLoading } = useGetA2AList();
-  const a2a = a2aList.find((a) => a.a2aId === a2aId);
+  const { data: a2a, isLoading } = useGetA2A({ params: { a2aId }, queryOptions: { enabled: !!a2aId } });
 
   const { mutate: updateA2A, isPending: isUpdating } = useUpdateA2A({
     mutationOptions: {
       onSuccess: () => {
         toast.success('저장되었습니다.');
         queryClient.invalidateQueries({ queryKey: a2aQueryKeys.getA2AList().queryKey });
+        queryClient.invalidateQueries({ queryKey: a2aQueryKeys.getA2A({ a2aId: a2aId ?? '' }).queryKey });
       },
       onError: (error) => Log.warn('updateA2A failed', error),
     },
@@ -79,6 +79,18 @@ export default function A2ABasicInfo() {
             <Col span={12}>
               <Form.Item name="agentName" label="Agent 명" required rules={[{ required: true, message: 'Agent 명을 입력해 주세요.' }]}>
                 <Input placeholder="Agent 명을 입력하세요." />
+              </Form.Item>
+            </Col>
+          </Row>
+          <Row gutter={20}>
+            <Col span={6}>
+              <Form.Item label="배포 Agent">
+                <Input value={a2a?.sourceAgentName ?? '-'} disabled />
+              </Form.Item>
+            </Col>
+            <Col span={6}>
+              <Form.Item label="배포 포트">
+                <Input value={a2a?.deploymentId ?? '-'} disabled />
               </Form.Item>
             </Col>
           </Row>

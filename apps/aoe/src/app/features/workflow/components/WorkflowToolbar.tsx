@@ -1,8 +1,10 @@
 import { useQueryClient } from '@tanstack/react-query';
 import { Button, Tooltip } from 'antd';
-import { Download, RefreshCw, Rocket, Workflow, X } from 'lucide-react';
+import { Download, PlayCircle, RefreshCw, Rocket, Workflow, X } from 'lucide-react';
 import { Log } from '@/log';
 import { toast } from '@/shared-util';
+import { agentQueryKeys } from '../../agent-config/hooks/useAgentQueries';
+import type { AgentItem, AoeDeployFlag } from '../../agent-config/types';
 import { useDeployAgent, useExportWorkflow, workflowQueryKeys } from '../hooks/useWorkflowQueries';
 import type { WorkflowGraph } from '../types';
 import { validateWorkflowGraph } from '../utils/validateWorkflow';
@@ -10,9 +12,11 @@ import { validateWorkflowGraph } from '../utils/validateWorkflow';
 interface WorkflowToolbarProps {
   agentId: string;
   agentName?: string;
+  aoeDeployFlag?: AoeDeployFlag;
+  onOpenPlayground: () => void;
 }
 
-export default function WorkflowToolbar({ agentId, agentName }: WorkflowToolbarProps) {
+export default function WorkflowToolbar({ agentId, agentName, aoeDeployFlag, onOpenPlayground }: WorkflowToolbarProps) {
   const queryClient = useQueryClient();
 
   const { mutate: deployAgent, isPending: isDeploying } = useDeployAgent({
@@ -25,6 +29,14 @@ export default function WorkflowToolbar({ agentId, agentName }: WorkflowToolbarP
         }
         toast.success('엔진 배포가 완료되었습니다.');
         queryClient.invalidateQueries({ queryKey: workflowQueryKeys.graph(agentId).queryKey });
+        // aoeDeployFlag 갱신 — invalidate refetch 만으로는 BE eventual consistency 로 옛 값이 돌아올 수 있어
+        // 배포 응답의 aoeDeployFlag 를 캐시에 직접 머지해 테스트 버튼이 즉시 활성화되도록
+        if (data?.aoeDeployFlag != null) {
+          queryClient.setQueryData<AgentItem>(agentQueryKeys.getAgent({ agentId }).queryKey, (old) =>
+            old ? { ...old, aoeDeployFlag: (data.aoeDeployFlag ? 1 : 0) as AoeDeployFlag } : old,
+          );
+        }
+        queryClient.invalidateQueries({ queryKey: agentQueryKeys.getAgent({ agentId }).queryKey });
       },
       onError: (error) => {
         Log.warn('deployAgent failed', error);
@@ -89,6 +101,11 @@ export default function WorkflowToolbar({ agentId, agentName }: WorkflowToolbarP
         <Tooltip title="현재 그래프를 JSON 파일로 저장합니다.">
           <Button icon={<Download size={14} />} loading={isExporting} onClick={handleDownload}>
             다운로드
+          </Button>
+        </Tooltip>
+        <Tooltip title={aoeDeployFlag ? '배포된 에이전트와 대화 테스트' : '배포 후 사용할 수 있습니다.'}>
+          <Button icon={<PlayCircle size={14} />} onClick={onOpenPlayground} disabled={!aoeDeployFlag}>
+            테스트
           </Button>
         </Tooltip>
         <Tooltip title="현재 그래프를 동기화하고 AOE 엔진에 배포합니다.">

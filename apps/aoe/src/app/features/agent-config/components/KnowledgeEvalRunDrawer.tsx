@@ -107,7 +107,7 @@ const KnowledgeEvalRunDrawer = forwardRef<KnowledgeEvalRunDrawerRef>((_, ref) =>
         open={open}
         onClose={handleClose}
         closable={{ placement: 'end' }}
-        width={560}
+        styles={{ wrapper: { width: 560 } }}
         destroyOnHidden
         footer={
           <Button type="primary" block icon={<Play className="size-3.5" />} loading={isRunning} onClick={handleRun}>

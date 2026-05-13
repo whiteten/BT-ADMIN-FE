@@ -9,6 +9,8 @@ export interface ModelListItem {
   apiUrl?: string | null;
   workTime?: string;
   useYn?: 0 | 1;
+  /** 활성(useYn=1) 디테일 목록 — LLM 노드 dropdown 의 버전 단위 옵션 평탄화에 사용 */
+  details?: ModelDetailItem[];
 }
 
 export interface ModelValidateRequest {

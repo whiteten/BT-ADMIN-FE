@@ -1,6 +1,8 @@
 import { Collapse, Form, Input, Radio, Select } from 'antd';
+import { useAuthStore } from '@/shared-store';
 import OutputVariableNotice from './OutputVariableNotice';
 import { useGetKnowledges } from '../../../agent-config/hooks/useKnowledgeQueries';
+import type { KnowledgeListItem } from '../../../agent-config/types';
 import type { FlowNode } from '../../types';
 
 const PERMISSION_LEVEL_OPTIONS = [
@@ -15,6 +17,80 @@ const TOGGLE_OPTIONS = [
   { label: '설정', value: true },
 ];
 
+interface RagConfigFilter {
+  id?: string;
+  metadataId?: string;
+  field: string;
+  dtype: 'string' | 'number' | 'time';
+  op: string;
+  value: string;
+}
+
+interface RagConfigItem {
+  tenantId: string;
+  collection: string;
+  documentId: string;
+  documentName: string;
+  topK: number;
+  logic: string;
+  filters: RagConfigFilter[];
+}
+
+interface RagConfigSelectProps {
+  value?: RagConfigItem[];
+  onChange?: (value: RagConfigItem[]) => void;
+  knowledges: KnowledgeListItem[];
+  isLoading?: boolean;
+  tenantId: string;
+}
+
+/**
+ * rag_config 배열을 Select(multi) UI 로 노출하는 controlled 컴포넌트.
+ * - 선택된 documentId 들의 multi select 로 그리되, 실제 form value 는 RagConfigItem[]
+ * - 새로 추가되는 item 은 knowledge list 응답의 tenantId/collection/topK 로 채우고 fallback 적용
+ * - 이미 선택돼 있던 item 은 기존 row 보존 (topK/logic/filters 등 사용자 편집값 유지)
+ */
+const RagConfigSelect = ({ value, onChange, knowledges, isLoading, tenantId }: RagConfigSelectProps) => {
+  const rows = value ?? [];
+  const selectedIds = rows.map((r) => r.documentId);
+
+  const handleChange = (ids: string[]) => {
+    const next: RagConfigItem[] = ids.map((id) => {
+      const existing = rows.find((r) => r.documentId === id);
+      if (existing) return existing;
+      const k = knowledges.find((kn) => kn.documentId === id);
+      return {
+        tenantId,
+        collection: k?.option?.collection ?? '',
+        documentId: id,
+        documentName: k?.documentName ?? '',
+        topK: k?.option?.topK ?? 3,
+        logic: 'AND',
+        filters: [],
+      };
+    });
+    onChange?.(next);
+  };
+
+  return (
+    <Select
+      mode="multiple"
+      showSearch
+      loading={isLoading}
+      placeholder="문서를 선택하세요."
+      value={selectedIds}
+      onChange={handleChange}
+      options={knowledges.map((k) => ({ label: k.documentName, value: k.documentId }))}
+      maxTagCount="responsive"
+      filterOption={(input, option) =>
+        String(option?.label ?? '')
+          .toLowerCase()
+          .includes(input.toLowerCase())
+      }
+    />
+  );
+};
+
 interface KnowledgeSearchPropertiesProps {
   node: FlowNode;
 }
@@ -22,14 +98,11 @@ interface KnowledgeSearchPropertiesProps {
 export default function KnowledgeSearchProperties({ node }: KnowledgeSearchPropertiesProps) {
   const form = Form.useFormInstance();
   const { data: knowledges = [], isLoading } = useGetKnowledges();
+  const userInfo = useAuthStore((s) => s.userInfo);
+  const tenantId = userInfo?.tenant ?? '';
 
   const useMetadataFilter = (Form.useWatch(['data', 'use_metadata_filter'], form) as boolean | undefined) ?? false;
   const useAccessPermission = (Form.useWatch(['data', 'use_access_permission'], form) as boolean | undefined) ?? false;
-
-  const knowledgeOptions = knowledges.map((k) => ({
-    label: k.documentName,
-    value: k.documentId,
-  }));
 
   return (
     <Collapse
@@ -56,16 +129,8 @@ export default function KnowledgeSearchProperties({ node }: KnowledgeSearchPrope
           key: 'rag',
           label: <span className="text-sm font-semibold text-gray-800">참조할 지식 문서</span>,
           children: (
-            <Form.Item name={['data', 'documentIds']} label="지식 문서" extra="검색 조건/Top K 등은 각 문서에 설정된 값을 사용합니다.">
-              <Select
-                mode="multiple"
-                showSearch
-                loading={isLoading}
-                placeholder="문서를 선택하세요."
-                options={knowledgeOptions}
-                maxTagCount="responsive"
-                filterOption={(input, option) => (option?.label ?? '').toLowerCase().includes(input.toLowerCase())}
-              />
+            <Form.Item name={['data', 'rag_config']} label="지식 문서" extra="검색 조건/Top K 등은 각 문서에 설정된 값을 사용합니다.">
+              <RagConfigSelect knowledges={knowledges} isLoading={isLoading} tenantId={tenantId} />
             </Form.Item>
           ),
         },
@@ -104,6 +169,7 @@ export default function KnowledgeSearchProperties({ node }: KnowledgeSearchPrope
             <OutputVariableNotice
               nodeId={node.nodeId}
               nodeLabel={node.nodeLabel}
+              nodeKind={node.nodeKind}
               outputVariable={node.data?.output_variable as string | undefined}
               dataType="string"
               description="검색된 지식"

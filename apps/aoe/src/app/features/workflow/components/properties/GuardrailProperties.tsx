@@ -147,6 +147,7 @@ export default function GuardrailProperties({ node, graph }: GuardrailProperties
             <OutputVariableNotice
               nodeId={node.nodeId}
               nodeLabel={node.nodeLabel}
+              nodeKind={node.nodeKind}
               outputVariable={node.data?.output_variable as string | undefined}
               dataType="string"
               description="가드레일 결과"

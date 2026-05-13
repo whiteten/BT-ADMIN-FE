@@ -1,3 +1,4 @@
+import type { AxiosRequestConfig } from 'axios';
 import ApiClient, { type DetailResponse, extractDetail } from '@/shared-util';
 import type { AgentDeployResponse, FlowEdge, FlowNode, NodeDeleteRequest, NodePositionUpdateRequest, WorkflowGraph } from '../types';
 
@@ -28,7 +29,12 @@ export const workflowApi = {
     return extractDetail(response);
   },
   deleteEdge: async (params: { agentId: string; edgeId: string }) => {
-    await apiClient.delete('/aoe-workflow-edge-delete', { params });
+    // skipGlobalHandler — 노드 cascade 삭제 시 같은 엣지가 ReactFlow auto-cascade 와 우리 cascade 양쪽으로 호출돼
+    // 한쪽이 404 가 나도 전역 토스트가 안 뜨도록. (정식 옵션이 아닌 escape hatch — local cast 패턴 유지)
+    await apiClient.delete('/aoe-workflow-edge-delete', {
+      params,
+      skipGlobalHandler: true,
+    } as AxiosRequestConfig & { skipGlobalHandler: boolean });
   },
   deployAgent: async (params: { agentId: string }) => {
     const response = await apiClient.post<DetailResponse<AgentDeployResponse>>('/aoe-agents-deploy', {}, { params });

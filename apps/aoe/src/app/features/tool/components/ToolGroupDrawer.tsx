@@ -100,7 +100,7 @@ const ToolGroupDrawer = forwardRef<ToolGroupDrawerRef>((_, ref) => {
       open={open}
       onClose={handleClose}
       closable={{ placement: 'end' }}
-      width={480}
+      styles={{ wrapper: { width: 480 } }}
       destroyOnHidden
       footer={
         <div className="flex items-center justify-between">

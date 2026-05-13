@@ -1,12 +1,16 @@
 import { useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useQueryClient } from '@tanstack/react-query';
 import { type BreadcrumbProps, Button, Input } from 'antd';
 import { Search } from 'lucide-react';
+import { toast } from '@/shared-util';
 import A2ACard from '../../features/a2a/components/A2ACard';
-import { useGetA2AList } from '../../features/a2a/hooks/useA2aQueries';
+import { a2aQueryKeys, useDeleteA2A, useGetA2AList } from '../../features/a2a/hooks/useA2aQueries';
+import type { A2AItem } from '../../features/a2a/types';
 import { FallbackSpinner } from '@/components/custom/FallbackSpinner';
 import NoData from '@/components/custom/NoData';
 import PageHeader from '@/components/custom/PageHeader';
+import { useModal } from '@/libs/shared-ui/src/hooks/useModal';
 
 const breadcrumb: BreadcrumbProps['items'] = [
   { title: '관리', path: '/aoe/agent-config' },
@@ -15,9 +19,26 @@ const breadcrumb: BreadcrumbProps['items'] = [
 
 export default function A2AList() {
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
+  const modal = useModal();
   const [searchValue, setSearchValue] = useState('');
 
   const { data: agents = [], isFetching } = useGetA2AList();
+  const { mutate: deleteA2A } = useDeleteA2A({
+    mutationOptions: {
+      onSuccess: () => {
+        toast.success('A2A 서버가 삭제되었습니다.');
+        queryClient.invalidateQueries({ queryKey: a2aQueryKeys.getA2AList().queryKey });
+      },
+    },
+  });
+
+  const handleDetail = (a2aId: string) => navigate(`../${a2aId}`);
+  const handleDelete = (a2a: A2AItem) => {
+    modal.confirm.delete({
+      onOk: () => deleteA2A({ a2aId: a2a.a2aId }),
+    });
+  };
 
   const filteredList = useMemo(() => {
     if (!searchValue.trim()) return agents;
@@ -50,7 +71,7 @@ export default function A2AList() {
       ) : filteredList.length ? (
         <div className="grid grid-cols-[repeat(auto-fill,minmax(350px,1fr))] gap-4 w-full overflow-y-auto">
           {filteredList.map((agent) => (
-            <A2ACard key={agent.a2aId} {...agent} />
+            <A2ACard key={agent.a2aId} {...agent} onDetail={handleDetail} onDelete={handleDelete} />
           ))}
         </div>
       ) : (

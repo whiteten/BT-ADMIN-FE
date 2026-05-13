@@ -1,4 +1,4 @@
-import ApiClient, { type DetailResponse, type ListResponse, extractDetail, extractList } from '@/shared-util';
+import ApiClient, { type ListResponse, extractList } from '@/shared-util';
 import type { McpApiItem, McpCreateDatas, McpItem, McpUpdateDatas } from '../types';
 
 const apiClient = new ApiClient({ serviceURL: '/bff' });
@@ -9,8 +9,9 @@ export const mcpApi = {
     return extractList(response);
   },
   getMcpTools: async (params: { serverName: string }) => {
-    const response = await apiClient.get<DetailResponse<McpApiItem[]>>('/aoe-mcp-tools', { params });
-    return extractDetail(response) ?? [];
+    // 응답은 page 형식 (data.items[]) — extractList 로 items 추출
+    const response = await apiClient.get<ListResponse<McpApiItem>>('/aoe-mcp-tools', { params });
+    return extractList(response);
   },
   createMcp: async (data: McpCreateDatas) => {
     await apiClient.post('/aoe-mcp-create', data);

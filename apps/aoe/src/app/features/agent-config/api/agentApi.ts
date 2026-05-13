@@ -29,11 +29,13 @@ export const agentApi = {
     return extractList(response);
   },
   testAgent: async ({ agentId, body }: AgentTestRequest) => {
-    const response = await apiClient.post<DetailResponse<{ result: string }>>('/aoe-agents-test', body, { params: { agentId } });
+    // BE 응답 data 가 단계별 결과로 변경: { execute: { result }, run: { result }, ... } + _steps: string[]
+    // 옛 단일 result 응답도 호환 (Record<string, unknown> 으로 풀어서 사용처가 step 키로 접근)
+    const response = await apiClient.post<DetailResponse<Record<string, unknown>>>('/aoe-agents-test', body, { params: { agentId } });
     return extractDetail(response);
   },
   refreshAgent: async ({ agentId, body }: AgentTestRequest) => {
-    const response = await apiClient.post<DetailResponse<{ result: string }>>('/aoe-agents-refresh', body, { params: { agentId } });
+    const response = await apiClient.post<DetailResponse<Record<string, unknown>>>('/aoe-agents-refresh', body, { params: { agentId } });
     return extractDetail(response);
   },
 };

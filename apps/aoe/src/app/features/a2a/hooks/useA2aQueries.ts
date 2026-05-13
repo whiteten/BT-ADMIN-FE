@@ -6,12 +6,22 @@ import type { A2ACreateDatas, A2AItem, A2AUpdateDatas } from '../types';
 
 export const a2aQueryKeys = createQueryKeys('a2a', {
   getA2AList: (params?: Record<string, unknown>) => [params],
+  getA2A: (params: { a2aId: string }) => [params],
 });
 
 export const useGetA2AList = ({ queryOptions }: QueryHookWithParamsOptions<A2AItem[]> = {}) => {
   return useQuery({
     queryKey: a2aQueryKeys.getA2AList().queryKey,
     queryFn: () => a2aApi.getA2AList(),
+    ...queryOptions,
+  });
+};
+
+export const useGetA2A = ({ params, queryOptions }: QueryHookWithParamsOptions<A2AItem> = {}) => {
+  const a2aId = (params?.a2aId as string | undefined) ?? '';
+  return useQuery({
+    queryKey: a2aQueryKeys.getA2A({ a2aId }).queryKey,
+    queryFn: () => a2aApi.getA2A({ a2aId }),
     ...queryOptions,
   });
 };

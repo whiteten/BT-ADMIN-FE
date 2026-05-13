@@ -77,7 +77,7 @@ const A2ASkillDrawer = forwardRef<A2ASkillDrawerRef, Props>(({ onSave }, ref) =>
       open={open}
       onClose={handleClose}
       closable={{ placement: 'end' }}
-      width={480}
+      styles={{ wrapper: { width: 480 } }}
       destroyOnHidden
       footer={
         <div className="flex gap-2 justify-end">

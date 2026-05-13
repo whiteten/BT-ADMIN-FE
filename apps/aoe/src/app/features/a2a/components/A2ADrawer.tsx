@@ -165,7 +165,7 @@ const A2ADrawer = forwardRef<A2ADrawerRef>((_, ref) => {
       open={open}
       onClose={handleClose}
       closable={{ placement: 'end' }}
-      width={600}
+      styles={{ wrapper: { width: 600 } }}
       destroyOnHidden
       footer={
         <div className="flex items-center justify-between">

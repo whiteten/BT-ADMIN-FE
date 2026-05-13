@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import {
   Background,
@@ -29,12 +29,13 @@ import HelperLines from './HelperLines';
 import { NODE_DRAG_MIME, NODE_KIND_MAP } from '../constants/nodeKinds';
 import { useCreateEdge, useCreateNode, useDeleteEdge, useDeleteNodes, useUpdateNodePosition, workflowQueryKeys } from '../hooks/useWorkflowQueries';
 import type { FlowEdge, FlowNode, NodeDeleteRequest, WorkflowGraph } from '../types';
+import { getEdgeBranchAttrs } from '../utils/edgeAttrs';
 import { getHelperLines } from '../utils/getHelperLines';
 import { getUniqueNodeLabel } from '../utils/getUniqueNodeLabel';
-import { buildOutputVariableId } from '../utils/variableTokens';
+import { buildNodeName, buildOutputVariableFromName } from '../utils/variableTokens';
 import GenericKindNode from './nodes/GenericKindNode';
 
-const NODES_WITHOUT_OUTPUT = new Set(['start', 'answer', 'condition', 'error']);
+const NODES_WITHOUT_OUTPUT = new Set(['start', 'answer', 'error']);
 
 const nodeTypes: NodeTypes = {
   default: GenericKindNode,
@@ -115,6 +116,9 @@ function WorkflowCanvasInner({ agentId, graph, onSelectNode }: WorkflowCanvasInn
     setHistory((prev) => [...prev, entry].slice(-HISTORY_LIMIT));
   }, []);
 
+  /** 노드 삭제 cascade 가 처리 중인 엣지 ID 집합. onEdgesChange 의 ReactFlow auto-cascade 이중 호출 방지용. */
+  const pendingEdgeDeletesRef = useRef<Set<string>>(new Set());
+
   // 서버 그래프 edges 동기화 (selection 보존). nodes 는 handlers 가 정의된 후 별도 effect 에서 처리
   useEffect(() => {
     setEdges((prev) => {
@@ -142,7 +146,7 @@ function WorkflowCanvasInner({ agentId, graph, onSelectNode }: WorkflowCanvasInn
     },
   });
 
-  const { mutate: deleteNodes } = useDeleteNodes({
+  const { mutateAsync: deleteNodesAsync } = useDeleteNodes({
     mutationOptions: {
       onSuccess: (_data, variables: { params: { agentId: string }; data: NodeDeleteRequest }) => {
         const removedIds = new Set(variables.data.nodeIds);
@@ -171,7 +175,7 @@ function WorkflowCanvasInner({ agentId, graph, onSelectNode }: WorkflowCanvasInn
     },
   });
 
-  const { mutate: deleteEdge } = useDeleteEdge({
+  const { mutate: deleteEdge, mutateAsync: deleteEdgeAsync } = useDeleteEdge({
     mutationOptions: {
       onSuccess: (_data, variables: { agentId: string; edgeId: string }) => {
         setGraph((old) => ({
@@ -181,10 +185,39 @@ function WorkflowCanvasInner({ agentId, graph, onSelectNode }: WorkflowCanvasInn
       },
       onError: (error) => {
         Log.warn('deleteEdge failed', error);
-        toast.error('엣지 삭제에 실패했습니다.');
       },
     },
   });
+
+  /** 노드 삭제 + 연결된 엣지 일괄 정리. BE 가 cascade 안 하더라도 고아 엣지가 남지 않도록 FE 가 먼저 엣지를 BE 에서 제거한 뒤 노드 삭제.
+   *  처리 중인 엣지 ID 를 pendingEdgeDeletesRef 에 기록해 onEdgesChange 의 중복 호출(404)을 막는다.
+   *  graph 캐시도 optimistic 제거 — BE 응답 기다리는 동안 useEffect re-sync 가 삭제된 항목을 되살리는 깜빡임 방지. */
+  const deleteNodesWithEdges = useCallback(
+    async (nodeIds: string[]) => {
+      if (nodeIds.length === 0) return;
+      const idSet = new Set(nodeIds);
+      const connectedEdges = (graph.edges ?? []).filter((e) => idSet.has(e.srcNodeId) || idSet.has(e.tgtNodeId));
+      const edgeIdSet = new Set(connectedEdges.map((e) => e.edgeId));
+      connectedEdges.forEach((e) => pendingEdgeDeletesRef.current.add(e.edgeId));
+      // graph 캐시 즉시 optimistic 제거 (BE 응답 전 깜빡임 방지)
+      setGraph((old) => ({
+        ...old,
+        nodes: (old.nodes ?? []).filter((n) => !idSet.has(n.nodeId)),
+        edges: (old.edges ?? []).filter((e) => !edgeIdSet.has(e.edgeId)),
+      }));
+      try {
+        await Promise.allSettled(connectedEdges.map((e) => deleteEdgeAsync({ agentId, edgeId: e.edgeId })));
+        try {
+          await deleteNodesAsync({ params: { agentId }, data: { nodeIds } });
+        } catch (error) {
+          Log.warn('deleteNodesWithEdges — node delete failed', error);
+        }
+      } finally {
+        connectedEdges.forEach((e) => pendingEdgeDeletesRef.current.delete(e.edgeId));
+      }
+    },
+    [agentId, graph.edges, deleteEdgeAsync, deleteNodesAsync, setGraph],
+  );
 
   const { mutate: updateNodePosition } = useUpdateNodePosition({
     mutationOptions: {
@@ -233,23 +266,29 @@ function WorkflowCanvasInner({ agentId, graph, onSelectNode }: WorkflowCanvasInn
       const removed = safeChanges.filter((c): c is NodeChange & { type: 'remove'; id: string } => c.type === 'remove').map((c) => c.id);
       if (removed.length > 0) {
         const snapshot = captureNodesForHistory(removed);
-        deleteNodes({ params: { agentId }, data: { nodeIds: removed } }, { onSuccess: () => pushHistory({ type: 'deleteNodes', nodes: snapshot.nodes, edges: snapshot.edges }) });
+        deleteNodesWithEdges(removed).then(() => pushHistory({ type: 'deleteNodes', nodes: snapshot.nodes, edges: snapshot.edges }));
       }
     },
-    [agentId, deleteNodes, graph.nodes, nodes, captureNodesForHistory, pushHistory],
+    [deleteNodesWithEdges, graph.nodes, nodes, captureNodesForHistory, pushHistory],
   );
 
   const onEdgesChange = useCallback(
     (changes: EdgeChange[]) => {
       setEdges((prev) => applyEdgeChanges(changes, prev));
-      changes
-        .filter((c): c is EdgeChange & { type: 'remove'; id: string } => c.type === 'remove')
-        .forEach((c) => {
-          const removedEdge = (graph.edges ?? []).find((e) => e.edgeId === c.id);
-          deleteEdge({ agentId, edgeId: c.id }, { onSuccess: () => removedEdge && pushHistory({ type: 'deleteEdge', edge: removedEdge }) });
-        });
+      const removedIds = changes.filter((c): c is EdgeChange & { type: 'remove'; id: string } => c.type === 'remove').map((c) => c.id);
+      if (removedIds.length > 0) {
+        // graph 캐시 즉시 optimistic 제거 — BE 응답 전 useEffect re-sync 가 엣지를 되살리는 깜빡임 방지
+        const removedIdSet = new Set(removedIds);
+        setGraph((old) => ({ ...old, edges: (old.edges ?? []).filter((e) => !removedIdSet.has(e.edgeId)) }));
+      }
+      removedIds.forEach((id) => {
+        // 노드 삭제 cascade 가 이미 처리 중인 엣지면 ReactFlow 의 auto-cascade 이중 호출 — skip
+        if (pendingEdgeDeletesRef.current.has(id)) return;
+        const removedEdge = (graph.edges ?? []).find((e) => e.edgeId === id);
+        deleteEdge({ agentId, edgeId: id }, { onSuccess: () => removedEdge && pushHistory({ type: 'deleteEdge', edge: removedEdge }) });
+      });
     },
-    [agentId, deleteEdge, graph.edges, pushHistory],
+    [agentId, deleteEdge, graph.edges, pushHistory, setGraph],
   );
 
   const onConnect = useCallback(
@@ -267,12 +306,17 @@ function WorkflowCanvasInner({ agentId, graph, onSelectNode }: WorkflowCanvasInn
       createEdge(
         {
           params: { agentId },
-          data: { edgeId: tempId, srcNodeId: connection.source, tgtNodeId: connection.target },
+          data: {
+            edgeId: tempId,
+            srcNodeId: connection.source,
+            tgtNodeId: connection.target,
+            ...getEdgeBranchAttrs(connection.source, connection.target, graph.nodes),
+          },
         },
         { onSuccess: (newEdge) => pushHistory({ type: 'createEdge', edge: newEdge }) },
       );
     },
-    [agentId, createEdge, pushHistory],
+    [agentId, createEdge, pushHistory, graph.nodes],
   );
 
   const onNodeClick = useCallback(
@@ -329,14 +373,16 @@ function WorkflowCanvasInner({ agentId, graph, onSelectNode }: WorkflowCanvasInn
     clipboard.forEach((src, idx) => {
       const newId = `${src.nodeKind}_${baseTs + idx}`;
       const newLabel = getUniqueNodeLabel(src.nodeLabel ?? src.nodeKind, labelPool);
+      const newName = buildNodeName(newId, src.nodeKind, labelPool);
       const clonedData = src.data ? (JSON.parse(JSON.stringify(src.data)) as Record<string, unknown>) : {};
       if (!NODES_WITHOUT_OUTPUT.has(src.nodeKind)) {
-        clonedData.output_variable = buildOutputVariableId(newLabel, newId);
+        clonedData.output_variable = buildOutputVariableFromName(newName);
       }
       const newNode: FlowNode = {
         ...src,
         nodeId: newId,
         nodeLabel: newLabel,
+        nodeName: newName,
         positionX: src.positionX + 20,
         positionY: src.positionY + 20,
         data: clonedData,
@@ -355,14 +401,12 @@ function WorkflowCanvasInner({ agentId, graph, onSelectNode }: WorkflowCanvasInn
         return;
       }
       setClipboard(cuttable);
-      const snapshot = captureNodesForHistory(cuttable.map((n) => n.nodeId));
-      deleteNodes(
-        { params: { agentId }, data: { nodeIds: cuttable.map((n) => n.nodeId) } },
-        { onSuccess: () => pushHistory({ type: 'deleteNodes', nodes: snapshot.nodes, edges: snapshot.edges }) },
-      );
+      const ids = cuttable.map((n) => n.nodeId);
+      const snapshot = captureNodesForHistory(ids);
+      deleteNodesWithEdges(ids).then(() => pushHistory({ type: 'deleteNodes', nodes: snapshot.nodes, edges: snapshot.edges }));
       toast.success(`${cuttable.length}개 노드를 잘라냈습니다.`);
     },
-    [graph.nodes, agentId, deleteNodes, captureNodesForHistory, pushHistory],
+    [graph.nodes, deleteNodesWithEdges, captureNodesForHistory, pushHistory],
   );
 
   const deleteSingleNode = useCallback(
@@ -374,9 +418,9 @@ function WorkflowCanvasInner({ agentId, graph, onSelectNode }: WorkflowCanvasInn
         return;
       }
       const snapshot = captureNodesForHistory([nodeId]);
-      deleteNodes({ params: { agentId }, data: { nodeIds: [nodeId] } }, { onSuccess: () => pushHistory({ type: 'deleteNodes', nodes: snapshot.nodes, edges: snapshot.edges }) });
+      deleteNodesWithEdges([nodeId]).then(() => pushHistory({ type: 'deleteNodes', nodes: snapshot.nodes, edges: snapshot.edges }));
     },
-    [graph.nodes, agentId, deleteNodes, captureNodesForHistory, pushHistory],
+    [graph.nodes, deleteNodesWithEdges, captureNodesForHistory, pushHistory],
   );
 
   // NodeToolbar 액션 — 각 노드의 data 에 inject. 단일 nodeId 받음
@@ -407,7 +451,7 @@ function WorkflowCanvasInner({ agentId, graph, onSelectNode }: WorkflowCanvasInn
     setHistory((prev) => prev.slice(0, -1));
     switch (entry.type) {
       case 'createNode':
-        deleteNodes({ params: { agentId }, data: { nodeIds: [entry.node.nodeId] } });
+        deleteNodesWithEdges([entry.node.nodeId]);
         toast.success('노드 추가를 되돌렸습니다.');
         break;
       case 'deleteNodes':
@@ -426,7 +470,7 @@ function WorkflowCanvasInner({ agentId, graph, onSelectNode }: WorkflowCanvasInn
       default:
         break;
     }
-  }, [history, agentId, createNode, deleteNodes, createEdge, deleteEdge]);
+  }, [history, agentId, createNode, deleteNodesWithEdges, createEdge, deleteEdge]);
 
   // 키보드 — Ctrl+C / Ctrl+X / Ctrl+V / Ctrl+Z (Mac: Cmd)
   useEffect(() => {
@@ -474,14 +518,16 @@ function WorkflowCanvasInner({ agentId, graph, onSelectNode }: WorkflowCanvasInn
       const uniqueLabel = getUniqueNodeLabel(baseLabel, graph.nodes ?? []);
 
       const newNodeId = `${kind}_${Date.now()}`;
+      const newNodeName = buildNodeName(newNodeId, kind, graph.nodes ?? []);
       const newNode: FlowNode = {
         nodeId: newNodeId,
         nodeKind: kind,
         nodeLabel: uniqueLabel,
+        nodeName: newNodeName,
         nodeGroup: meta?.group ?? 'utility',
         positionX: Math.round(position.x - NODE_DROP_OFFSET_X),
         positionY: Math.round(position.y - NODE_DROP_OFFSET_Y),
-        data: NODES_WITHOUT_OUTPUT.has(kind) ? undefined : { output_variable: buildOutputVariableId(uniqueLabel, newNodeId) },
+        data: NODES_WITHOUT_OUTPUT.has(kind) ? undefined : { output_variable: buildOutputVariableFromName(newNodeName) },
       };
       createNode({ params: { agentId }, data: newNode }, { onSuccess: (created) => pushHistory({ type: 'createNode', node: created }) });
     },

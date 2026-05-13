@@ -6,15 +6,19 @@ import { toast } from '@/shared-util';
 import WorkflowCanvas from './WorkflowCanvas';
 import WorkflowSidebar from './WorkflowSidebar';
 import WorkflowToolbar from './WorkflowToolbar';
+import AgentPlaygroundDrawer, { type AgentPlaygroundDrawerRef } from '../../agent-config/components/AgentPlaygroundDrawer';
+import type { AoeDeployFlag } from '../../agent-config/types';
 import { useCreateEdge, useCreateNode, workflowQueryKeys } from '../hooks/useWorkflowQueries';
 import type { WorkflowGraph } from '../types';
-import { buildOutputVariableId } from '../utils/variableTokens';
+import { getEdgeBranchAttrs } from '../utils/edgeAttrs';
+import { buildNodeName, buildOutputVariableFromName } from '../utils/variableTokens';
 import WorkflowPropertiesPanel from './properties/WorkflowPropertiesPanel';
 import { FallbackSpinner } from '@/components/custom/FallbackSpinner';
 
 interface WorkflowEditorProps {
   agentId: string;
   agentName?: string;
+  aoeDeployFlag?: AoeDeployFlag;
   graph: WorkflowGraph;
 }
 
@@ -24,16 +28,25 @@ const isWideViewport = () => (typeof window === 'undefined' ? true : window.inne
 
 const cardClass = 'h-full rounded-xl bg-white shadow-sm border border-gray-200 overflow-hidden';
 
-export default function WorkflowEditor({ agentId, agentName, graph }: WorkflowEditorProps) {
+export default function WorkflowEditor({ agentId, agentName, aoeDeployFlag, graph }: WorkflowEditorProps) {
   const [sidebarOpen, setSidebarOpen] = useState(isWideViewport);
   const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null);
   const [isInitializing, setIsInitializing] = useState(() => (graph.nodes ?? []).length === 0);
   const prevWideRef = useRef(isWideViewport());
   const initializedRef = useRef(false);
+  const playgroundRef = useRef<AgentPlaygroundDrawerRef>(null);
   const queryClient = useQueryClient();
 
   const { mutateAsync: createNodeAsync } = useCreateNode();
   const { mutateAsync: createEdgeAsync } = useCreateEdge();
+
+  const handleOpenPlayground = () => {
+    if (!aoeDeployFlag) {
+      toast.warning('배포된 에이전트만 Playground를 사용할 수 있습니다.');
+      return;
+    }
+    playgroundRef.current?.open({ agentId, agentName: agentName ?? '' });
+  };
 
   const selectedNode = selectedNodeId ? ((graph.nodes ?? []).find((n) => n.nodeId === selectedNodeId) ?? null) : null;
 
@@ -67,22 +80,43 @@ export default function WorkflowEditor({ agentId, agentName, graph }: WorkflowEd
 
     (async () => {
       try {
-        await createNodeAsync({ params: { agentId }, data: { nodeId: startId, nodeKind: 'start', nodeLabel: '시작', nodeGroup: 'system', positionX: 100, positionY: 200 } });
+        // 자동 초기화는 첫 노드들이라 인덱스 모두 1로 고정 (기존 노드 없음)
+        const startName = buildNodeName(startId, 'start', []);
+        const llmName = buildNodeName(llmId, 'llm', []);
+        const answerName = buildNodeName(answerId, 'answer', []);
+        await createNodeAsync({
+          params: { agentId },
+          data: {
+            nodeId: startId,
+            nodeKind: 'start',
+            nodeLabel: '시작',
+            nodeName: startName,
+            nodeGroup: 'system',
+            positionX: 100,
+            positionY: 200,
+            data: { output_variable: 'userInput_result' },
+          },
+        });
         await createNodeAsync({
           params: { agentId },
           data: {
             nodeId: llmId,
             nodeKind: 'llm',
             nodeLabel: 'LLM',
+            nodeName: llmName,
             nodeGroup: 'ai',
             positionX: 400,
             positionY: 200,
-            data: { output_variable: buildOutputVariableId('LLM', llmId) },
+            data: { output_variable: buildOutputVariableFromName(llmName) },
           },
         });
-        await createNodeAsync({ params: { agentId }, data: { nodeId: answerId, nodeKind: 'answer', nodeLabel: '답변', nodeGroup: 'system', positionX: 700, positionY: 200 } });
-        await createEdgeAsync({ params: { agentId }, data: { edgeId: `tmp-${ts + 100}`, srcNodeId: startId, tgtNodeId: llmId } });
-        await createEdgeAsync({ params: { agentId }, data: { edgeId: `tmp-${ts + 101}`, srcNodeId: llmId, tgtNodeId: answerId } });
+        await createNodeAsync({
+          params: { agentId },
+          data: { nodeId: answerId, nodeKind: 'answer', nodeLabel: '답변', nodeName: answerName, nodeGroup: 'system', positionX: 700, positionY: 200 },
+        });
+        // 자동 초기화 엣지 — 모두 비-condition source 라 kind='default'
+        await createEdgeAsync({ params: { agentId }, data: { edgeId: `tmp-${ts + 100}`, srcNodeId: startId, tgtNodeId: llmId, ...getEdgeBranchAttrs(startId, llmId) } });
+        await createEdgeAsync({ params: { agentId }, data: { edgeId: `tmp-${ts + 101}`, srcNodeId: llmId, tgtNodeId: answerId, ...getEdgeBranchAttrs(llmId, answerId) } });
         // invalidateQueries 후 새 graph 가 들어오면 위 분기에서 setIsInitializing(false) 처리됨
         queryClient.invalidateQueries({ queryKey: workflowQueryKeys.graph(agentId).queryKey });
       } catch (error) {
@@ -97,7 +131,7 @@ export default function WorkflowEditor({ agentId, agentName, graph }: WorkflowEd
   if (isInitializing) {
     return (
       <div className="flex flex-col h-screen w-screen bg-gray-100 overflow-hidden">
-        <WorkflowToolbar agentId={agentId} agentName={agentName} />
+        <WorkflowToolbar agentId={agentId} agentName={agentName} aoeDeployFlag={aoeDeployFlag} onOpenPlayground={handleOpenPlayground} />
         <div className="flex-1 flex items-center justify-center">
           <FallbackSpinner />
         </div>
@@ -107,7 +141,8 @@ export default function WorkflowEditor({ agentId, agentName, graph }: WorkflowEd
 
   return (
     <div className="flex flex-col h-screen w-screen bg-gray-100 overflow-hidden">
-      <WorkflowToolbar agentId={agentId} agentName={agentName} />
+      <AgentPlaygroundDrawer ref={playgroundRef} />
+      <WorkflowToolbar agentId={agentId} agentName={agentName} aoeDeployFlag={aoeDeployFlag} onOpenPlayground={handleOpenPlayground} />
       <div className="flex flex-1 min-h-0 p-2 relative">
         {sidebarOpen && (
           <div className={cardClass}>

@@ -1,13 +1,16 @@
 import { useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useQueryClient } from '@tanstack/react-query';
 import { type BreadcrumbProps, Button, Input } from 'antd';
 import { Search } from 'lucide-react';
+import { toast } from '@/shared-util';
 import McpCard from '../../features/mcp/components/McpCard';
-import { useGetMcpList } from '../../features/mcp/hooks/useMcpQueries';
+import { mcpQueryKeys, useDeleteMcp, useGetMcpList } from '../../features/mcp/hooks/useMcpQueries';
 import type { McpItem } from '../../features/mcp/types';
 import { FallbackSpinner } from '@/components/custom/FallbackSpinner';
 import NoData from '@/components/custom/NoData';
 import PageHeader from '@/components/custom/PageHeader';
+import { useModal } from '@/libs/shared-ui/src/hooks/useModal';
 
 const breadcrumb: BreadcrumbProps['items'] = [
   { title: '관리', path: '/aoe/agent-config' },
@@ -16,9 +19,19 @@ const breadcrumb: BreadcrumbProps['items'] = [
 
 export default function McpList() {
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
+  const modal = useModal();
   const [searchValue, setSearchValue] = useState('');
 
   const { data: mcpList = [], isFetching } = useGetMcpList();
+  const { mutate: deleteMcp } = useDeleteMcp({
+    mutationOptions: {
+      onSuccess: () => {
+        toast.success('MCP 서버가 삭제되었습니다.');
+        queryClient.invalidateQueries({ queryKey: mcpQueryKeys.getMcpList().queryKey });
+      },
+    },
+  });
 
   const filteredList = useMemo(() => {
     if (!searchValue.trim()) return mcpList;
@@ -29,6 +42,11 @@ export default function McpList() {
   }, [mcpList, searchValue]);
 
   const handleClickCard = (mcp: McpItem) => navigate(`../${mcp.mcpId}`);
+  const handleDelete = (mcp: McpItem) => {
+    modal.confirm.delete({
+      onOk: () => deleteMcp({ mcpId: mcp.mcpId }),
+    });
+  };
 
   return (
     <div className="flex flex-col gap-4 w-full h-full">
@@ -55,7 +73,7 @@ export default function McpList() {
       ) : filteredList.length ? (
         <div className="grid grid-cols-[repeat(auto-fill,minmax(350px,1fr))] gap-4 w-full overflow-y-auto">
           {filteredList.map((mcp) => (
-            <McpCard key={mcp.mcpId} mcp={mcp} onClick={handleClickCard} />
+            <McpCard key={mcp.mcpId} mcp={mcp} onClick={handleClickCard} onDetail={handleClickCard} onDelete={handleDelete} />
           ))}
         </div>
       ) : (

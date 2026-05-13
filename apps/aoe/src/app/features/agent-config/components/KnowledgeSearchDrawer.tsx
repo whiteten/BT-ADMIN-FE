@@ -115,9 +115,11 @@ const KnowledgeSearchDrawer = forwardRef<KnowledgeSearchDrawerRef>((_, ref) => {
       open={open}
       onClose={handleClose}
       closable={{ placement: 'end' }}
-      width={800}
       destroyOnHidden
-      styles={{ body: { display: 'flex', flexDirection: 'column', gap: '16px', padding: '20px', height: '100%', overflow: 'hidden' } }}
+      styles={{
+        wrapper: { width: 800 },
+        body: { display: 'flex', flexDirection: 'column', gap: '16px', padding: '20px', height: '100%', overflow: 'hidden' },
+      }}
     >
       {/* 입력 영역 */}
       <div className="flex flex-col gap-2 p-3 border border-gray-200 rounded-lg bg-white shrink-0">

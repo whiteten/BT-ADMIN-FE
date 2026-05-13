@@ -17,8 +17,8 @@ const asRecord = (data: unknown): Record<string, unknown> => (data && typeof dat
 
 const validateKnowledgeSearchNode = (node: FlowNode): WorkflowValidationError | null => {
   const data = asRecord(node.data);
-  const documentIds = data.documentIds;
-  if (!Array.isArray(documentIds) || documentIds.length === 0) {
+  const ragConfig = data.rag_config;
+  if (!Array.isArray(ragConfig) || ragConfig.length === 0) {
     return { nodeId: node.nodeId, message: `지식검색 노드(${node.nodeLabel ?? node.nodeId})에 참조할 지식 문서를 선택해 주세요.` };
   }
   return null;
@@ -69,9 +69,9 @@ const validateLlmNode = (node: FlowNode, graph: WorkflowGraph): WorkflowValidati
   // User 프롬프트에 이전 노드의 출력 변수 참조가 있어야 함 (sys.* 글로벌은 제외하고 실제 upstream 변수가 있을 때만)
   const upstreamVars = getUpstreamVariables(node.nodeId, graph).filter((v) => !v.id.startsWith('sys.'));
   if (upstreamVars.length > 0) {
-    const referenced = upstreamVars.some((v) => userPrompt.includes(`{{${v.id}}}`));
+    const referenced = upstreamVars.some((v) => userPrompt.includes(`{${v.id}}`));
     if (!referenced) {
-      const hint = upstreamVars.map((v) => `{{${v.id}}}`).join(', ');
+      const hint = upstreamVars.map((v) => `{${v.id}}`).join(', ');
       return {
         nodeId: node.nodeId,
         message: `LLM 노드(${label}): User 프롬프트에 이전 연결된 노드의 변수가 포함되어야 합니다.\n사용 가능한 변수: ${hint}`,

@@ -49,11 +49,11 @@ const DetailLine = ({ meta, text, badge }: DetailLineProps) => (
 const renderDetail = (kind: string, data: GenericKindNodeData, meta: NodeKindMeta) => {
   switch (kind) {
     case 'llm': {
-      // form path: data.modelName / data.modelTypeName (LlmProperties 가 저장)
-      const name = (data.modelName ?? data.name ?? data.model_id) as string | undefined;
+      // form path: data.modelVersion(우선) / data.modelName(폴백) / data.modelTypeName (LlmProperties 가 저장)
+      const version = (data.modelVersion ?? data.modelName ?? data.name ?? data.model_id) as string | undefined;
       const typeName = data.modelTypeName as string | undefined;
-      if (!name) return null;
-      const text = typeName ? `[${typeName}] ${name}` : name;
+      if (!version) return null;
+      const text = typeName ? `[${typeName}] ${version}` : version;
       return <DetailLine meta={meta} text={text} />;
     }
     case 'knowledgeSearch': {
@@ -93,10 +93,15 @@ const renderDetail = (kind: string, data: GenericKindNodeData, meta: NodeKindMet
       return <DetailLine meta={meta} text={moderation === 'vllm' ? 'vLLM Mod' : 'OpenAI Mod'} />;
     }
     case 'condition': {
-      const cases = data.cases as unknown[] | undefined;
       const conditionType = (data.condition_type as string | undefined) ?? 'operator';
-      if (!Array.isArray(cases) || !cases.length) return null;
-      return <DetailLine meta={meta} text={conditionType === 'operator' ? `${cases.length}개 조건` : 'Prompt 방식'} />;
+      if (conditionType === 'operator') {
+        const cases = data.cases as unknown[] | undefined;
+        if (!Array.isArray(cases) || !cases.length) return null;
+        return <DetailLine meta={meta} text={`${cases.length}개 조건`} badge="OP" />;
+      }
+      const routes = data.routes as unknown[] | undefined;
+      if (!Array.isArray(routes) || !routes.length) return null;
+      return <DetailLine meta={meta} text={`${routes.length}개 라우팅`} badge="PR" />;
     }
     case 'error': {
       const message = data.errorMessage as string | undefined;

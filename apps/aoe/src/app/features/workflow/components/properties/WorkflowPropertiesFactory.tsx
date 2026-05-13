@@ -1,6 +1,11 @@
 import A2AProperties from './A2AProperties';
 import BasicProperties from './BasicProperties';
+import CodeProperties from './CodeProperties';
+import ConditionProperties from './ConditionProperties';
+import DatabaseSearchProperties from './DatabaseSearchProperties';
+import ErrorProperties from './ErrorProperties';
 import GuardrailProperties from './GuardrailProperties';
+import HttpProperties from './HttpProperties';
 import KnowledgeSearchProperties from './KnowledgeSearchProperties';
 import LlmProperties from './LlmProperties';
 import type { FlowNode, WorkflowGraph } from '../../types';
@@ -25,9 +30,18 @@ export default function WorkflowPropertiesFactory({ node, graph }: WorkflowPrope
       return <A2AProperties node={node} />;
     case 'guardrail':
       return <GuardrailProperties node={node} graph={graph} />;
+    case 'condition':
+      return <ConditionProperties node={node} graph={graph} />;
+    case 'code':
+      return <CodeProperties node={node} />;
+    case 'databaseSearch':
+      return <DatabaseSearchProperties node={node} />;
+    case 'http':
+      return <HttpProperties node={node} />;
+    case 'error':
+      return <ErrorProperties node={node} />;
     case 'start':
     case 'answer':
-    case 'error':
     default:
       return <BasicProperties node={node} />;
   }

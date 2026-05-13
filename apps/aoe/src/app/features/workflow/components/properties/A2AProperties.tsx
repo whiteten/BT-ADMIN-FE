@@ -88,6 +88,7 @@ export default function A2AProperties({ node }: A2APropertiesProps) {
             <OutputVariableNotice
               nodeId={node.nodeId}
               nodeLabel={node.nodeLabel}
+              nodeKind={node.nodeKind}
               outputVariable={node.data?.output_variable as string | undefined}
               dataType="string"
               description="A2A 응답"
