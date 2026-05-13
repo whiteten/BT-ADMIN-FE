@@ -1,9 +1,9 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { useParams } from 'react-router-dom';
 import type { BreadcrumbProps } from 'antd';
+import { useBreadcrumbStore } from '@/shared-store';
 import { useGetKnowledge, useGetKnowledgeEval } from '../../features/agent-config/hooks/useKnowledgeQueries';
 import { IconDocument } from '@/components/custom/Icons';
-import PageHeader from '@/components/custom/PageHeader';
 import PageTabs, { type PageTab } from '@/components/custom/PageTabs';
 
 const EvalBasicInfo = React.lazy(() => import('../../features/agent-config/tabs/EvalBasicInfo'));
@@ -16,24 +16,27 @@ const tabs: PageTab[] = [
 
 export default function EvalDetail() {
   const { documentId, evalId } = useParams();
+  const setBreadcrumb = useBreadcrumbStore((s) => s.setBreadcrumb);
+  const clearBreadcrumb = useBreadcrumbStore((s) => s.clearBreadcrumb);
   const { data: knowledge } = useGetKnowledge({ params: { documentId } });
   const { data: evalData } = useGetKnowledgeEval({ params: { documentId, evalId } });
 
-  const breadcrumb: BreadcrumbProps['items'] = [
-    { title: '관리', path: '/aoe/agent-config' },
-    { title: '지식', path: '/aoe/agent-config/knowledge/list' },
-    { title: ':documentName', path: `/aoe/agent-config/knowledge/${documentId}` },
-    { title: ':evalName' },
-  ];
-
-  const params: BreadcrumbProps['params'] = {
-    documentName: knowledge?.documentName ?? '-',
-    evalName: evalData?.evalName ?? '-',
-  };
+  useEffect(() => {
+    const breadcrumb: BreadcrumbProps['items'] = [
+      { title: '관리', path: '/aoe/agent-config' },
+      { title: '지식', path: '/aoe/agent-config/knowledge/list' },
+      { title: ':documentName', path: `/aoe/agent-config/knowledge/${documentId}` },
+      { title: ':evalName' },
+    ];
+    setBreadcrumb(breadcrumb, {
+      documentName: knowledge?.documentName ?? '-',
+      evalName: evalData?.evalName ?? '-',
+    });
+    return () => clearBreadcrumb();
+  }, [documentId, knowledge?.documentName, evalData?.evalName, setBreadcrumb, clearBreadcrumb]);
 
   return (
     <div className="flex flex-col gap-4 w-full h-full">
-      <PageHeader breadcrumb={breadcrumb} params={params} />
       <PageTabs tabs={tabs} />
     </div>
   );

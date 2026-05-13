@@ -1,15 +1,15 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useQueryClient } from '@tanstack/react-query';
 import { type BreadcrumbProps, Button, Input } from 'antd';
 import { Search } from 'lucide-react';
+import { useBreadcrumbStore } from '@/shared-store';
 import { toast } from '@/shared-util';
 import McpCard from '../../features/mcp/components/McpCard';
 import { mcpQueryKeys, useDeleteMcp, useGetMcpList } from '../../features/mcp/hooks/useMcpQueries';
 import type { McpItem } from '../../features/mcp/types';
 import { FallbackSpinner } from '@/components/custom/FallbackSpinner';
 import NoData from '@/components/custom/NoData';
-import PageHeader from '@/components/custom/PageHeader';
 import { useModal } from '@/libs/shared-ui/src/hooks/useModal';
 
 const breadcrumb: BreadcrumbProps['items'] = [
@@ -21,7 +21,14 @@ export default function McpList() {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const modal = useModal();
+  const setBreadcrumb = useBreadcrumbStore((s) => s.setBreadcrumb);
+  const clearBreadcrumb = useBreadcrumbStore((s) => s.clearBreadcrumb);
   const [searchValue, setSearchValue] = useState('');
+
+  useEffect(() => {
+    setBreadcrumb(breadcrumb);
+    return () => clearBreadcrumb();
+  }, [setBreadcrumb, clearBreadcrumb]);
 
   const { data: mcpList = [], isFetching } = useGetMcpList();
   const { mutate: deleteMcp } = useDeleteMcp({
@@ -50,8 +57,6 @@ export default function McpList() {
 
   return (
     <div className="flex flex-col gap-4 w-full h-full">
-      <PageHeader breadcrumb={breadcrumb} />
-
       <div className="flex items-center justify-between gap-2 w-full h-[76px] bg-white bt-shadow px-7 py-5">
         <Input
           prefix={<Search className="size-3.5 text-gray-400" />}

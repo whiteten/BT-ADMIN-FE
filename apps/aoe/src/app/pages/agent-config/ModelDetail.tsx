@@ -4,12 +4,12 @@ import { useQueryClient } from '@tanstack/react-query';
 import { type BreadcrumbProps, Button, Col, Form, Input, InputNumber, Row, Steps, Switch } from 'antd';
 import { Brain, Check, Cpu, type LucideIcon, Server, Sparkles, Wand2, X, Zap } from 'lucide-react';
 import { Log } from '@/log';
+import { useBreadcrumbStore } from '@/shared-store';
 import { toast } from '@/shared-util';
 import { modelQueryKeys, useDeleteModel, useGetModel, useUpdateModel } from '../../features/agent-config/hooks/useModelQueries';
 import type { ModelDetailItem, ModelDetailUpdateDatas } from '../../features/agent-config/types';
 import { FallbackSpinner } from '@/components/custom/FallbackSpinner';
 import NoData from '@/components/custom/NoData';
-import PageHeader from '@/components/custom/PageHeader';
 import { useModal } from '@/libs/shared-ui/src/hooks/useModal';
 
 interface ProviderConfig {
@@ -42,6 +42,8 @@ export default function ModelDetail() {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const modal = useModal();
+  const setBreadcrumb = useBreadcrumbStore((s) => s.setBreadcrumb);
+  const clearBreadcrumb = useBreadcrumbStore((s) => s.clearBreadcrumb);
   const [form] = Form.useForm<{ modelName: string; useYn: 0 | 1 }>();
   const [currentStep, setCurrentStep] = useState(0);
   const [detailChanges, setDetailChanges] = useState<Record<string, ModelDetailUpdateDatas>>({});
@@ -81,13 +83,15 @@ export default function ModelDetail() {
     if (currentStep === 1) setDetailChanges({});
   }, [currentStep]);
 
-  const breadcrumb: BreadcrumbProps['items'] = [
-    { title: '관리', path: '/aoe/agent-config' },
-    { title: 'AI 모델', path: '/aoe/agent-config/model/list' },
-    { title: ':modelName', path: `/aoe/agent-config/model/${modelId}` },
-  ];
-
-  const params: BreadcrumbProps['params'] = { modelName: model?.modelName ?? '-' };
+  useEffect(() => {
+    const breadcrumb: BreadcrumbProps['items'] = [
+      { title: '관리', path: '/aoe/agent-config' },
+      { title: 'AI 모델', path: '/aoe/agent-config/model/list' },
+      { title: ':modelName', path: `/aoe/agent-config/model/${modelId}` },
+    ];
+    setBreadcrumb(breadcrumb, { modelName: model?.modelName ?? '-' });
+    return () => clearBreadcrumb();
+  }, [modelId, model?.modelName, setBreadcrumb, clearBreadcrumb]);
 
   const getDetailValue = (record: ModelDetailItem): ModelDetailUpdateDatas => ({
     detailId: record.detailId,
@@ -326,7 +330,6 @@ export default function ModelDetail() {
 
   return (
     <div className="flex flex-col gap-4 w-full h-full">
-      <PageHeader breadcrumb={breadcrumb} params={params} />
       <div className="flex items-center justify-center w-full h-[58px] min-h-[58px] bg-white bt-shadow px-7 py-2">
         <Steps
           current={currentStep}

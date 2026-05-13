@@ -1,11 +1,12 @@
+import { useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useQueryClient } from '@tanstack/react-query';
 import { type BreadcrumbProps, Button, Col, Form, Input, Row } from 'antd';
 import { Log } from '@/log';
+import { useBreadcrumbStore } from '@/shared-store';
 import { toast } from '@/shared-util';
 import { mcpQueryKeys, useCreateMcp } from '../../features/mcp/hooks/useMcpQueries';
 import type { McpCreateDatas } from '../../features/mcp/types';
-import PageHeader from '@/components/custom/PageHeader';
 
 interface FormValues {
   serverName: string;
@@ -20,7 +21,14 @@ const breadcrumb: BreadcrumbProps['items'] = [{ title: '관리', path: '/aoe/age
 export default function McpCreate() {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
+  const setBreadcrumb = useBreadcrumbStore((s) => s.setBreadcrumb);
+  const clearBreadcrumb = useBreadcrumbStore((s) => s.clearBreadcrumb);
   const [form] = Form.useForm<FormValues>();
+
+  useEffect(() => {
+    setBreadcrumb(breadcrumb);
+    return () => clearBreadcrumb();
+  }, [setBreadcrumb, clearBreadcrumb]);
 
   const { mutate: createMcp, isPending } = useCreateMcp({
     mutationOptions: {
@@ -45,7 +53,6 @@ export default function McpCreate() {
 
   return (
     <div className="flex flex-col gap-4 w-full h-full">
-      <PageHeader breadcrumb={breadcrumb} />
       <div className="w-full flex-1 min-h-0 bg-white bt-shadow flex flex-col">
         <div className="flex-1 min-h-0 overflow-y-auto p-7 pb-0">
           <Form form={form} layout="vertical" onFinish={handleSubmit} className="max-w-2xl">

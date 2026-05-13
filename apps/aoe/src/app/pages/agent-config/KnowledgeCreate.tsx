@@ -3,11 +3,11 @@ import { useNavigate } from 'react-router-dom';
 import { type BreadcrumbProps, Button, Card, Col, Form, Input, InputNumber, Row, Select, Steps, Upload } from 'antd';
 import { ChevronDown, ChevronUp, CloudUpload, FileText } from 'lucide-react';
 import { Log } from '@/log';
+import { useBreadcrumbStore } from '@/shared-store';
 import { toast } from '@/shared-util';
 import { usePreviewKnowledge, useProcessKnowledge } from '../../features/agent-config/hooks/useKnowledgeQueries';
 import type { KnowledgeChunkData } from '../../features/agent-config/types';
 import NoData from '@/components/custom/NoData';
-import PageHeader from '@/components/custom/PageHeader';
 
 function ChunkCard({ chunk }: { chunk: KnowledgeChunkData }) {
   const [isExpanded, setIsExpanded] = useState(false);
@@ -83,11 +83,18 @@ interface Step2FormValues {
 
 export default function KnowledgeCreate() {
   const navigate = useNavigate();
+  const setBreadcrumb = useBreadcrumbStore((s) => s.setBreadcrumb);
+  const clearBreadcrumb = useBreadcrumbStore((s) => s.clearBreadcrumb);
   const [step1Form] = Form.useForm<Step1FormValues>();
   const [step2Form] = Form.useForm<Step2FormValues>();
   const [currentStep, setCurrentStep] = useState(0);
   const [searchType, setSearchType] = useState<string>('0');
   const [chunks, setChunks] = useState<KnowledgeChunkData[]>([]);
+
+  useEffect(() => {
+    setBreadcrumb(breadcrumb);
+    return () => clearBreadcrumb();
+  }, [setBreadcrumb, clearBreadcrumb]);
 
   const { mutate: previewKnowledge, isPending: isPreviewing } = usePreviewKnowledge({
     mutationOptions: {
@@ -380,7 +387,6 @@ export default function KnowledgeCreate() {
 
   return (
     <div className="flex flex-col gap-4 w-full h-full">
-      <PageHeader breadcrumb={breadcrumb} />
       <div className="flex items-center justify-center w-full h-[58px] min-h-[58px] bg-white bt-shadow px-7 py-2">
         <Steps current={currentStep} items={steps.map((step) => ({ title: step.title }))} size="small" style={{ width: `${steps.length * 250}px` }} responsive={false} />
       </div>

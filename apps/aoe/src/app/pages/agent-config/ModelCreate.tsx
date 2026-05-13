@@ -1,13 +1,13 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 
 import { useNavigate } from 'react-router-dom';
 import { type BreadcrumbProps, Button, Checkbox, Col, Form, Input, Row, Steps } from 'antd';
 import { Brain, Check, Cpu, type LucideIcon, Server, Sparkles, Wand2, X, Zap } from 'lucide-react';
 import { Log } from '@/log';
+import { useBreadcrumbStore } from '@/shared-store';
 import { toast } from '@/shared-util';
 import { useCreateModel, useValidateModel } from '../../features/agent-config/hooks/useModelQueries';
 import type { AvailableModelItem } from '../../features/agent-config/types';
-import PageHeader from '@/components/custom/PageHeader';
 
 const breadcrumb: BreadcrumbProps['items'] = [
   { title: '관리', path: '/aoe/agent-config' },
@@ -45,12 +45,19 @@ const displayValue = (value: unknown): React.ReactNode => {
 
 export default function ModelCreate() {
   const navigate = useNavigate();
+  const setBreadcrumb = useBreadcrumbStore((s) => s.setBreadcrumb);
+  const clearBreadcrumb = useBreadcrumbStore((s) => s.clearBreadcrumb);
   const [form] = Form.useForm<Step1FormValues>();
   const [currentStep, setCurrentStep] = useState(0);
   const [selectedProvider, setSelectedProvider] = useState<string>('');
   const [validationStatus, setValidationStatus] = useState<'idle' | 'success' | 'error'>('idle');
   const [availableModels, setAvailableModels] = useState<AvailableModelItem[]>([]);
   const [selectedModelIds, setSelectedModelIds] = useState<string[]>([]);
+
+  useEffect(() => {
+    setBreadcrumb(breadcrumb);
+    return () => clearBreadcrumb();
+  }, [setBreadcrumb, clearBreadcrumb]);
 
   const { mutate: createModel, isPending: isCreating } = useCreateModel({
     mutationOptions: {
@@ -305,7 +312,6 @@ export default function ModelCreate() {
 
   return (
     <div className="flex flex-col gap-4 w-full h-full">
-      <PageHeader breadcrumb={breadcrumb} />
       <div className="flex items-center justify-center w-full h-[58px] min-h-[58px] bg-white bt-shadow px-7 py-2">
         <Steps
           current={currentStep}

@@ -4,6 +4,7 @@ import { useQueryClient } from '@tanstack/react-query';
 import { type BreadcrumbProps, Button, Checkbox, Col, Form, Input, Modal, Row, Select, Steps } from 'antd';
 import { Plus, Settings, X } from 'lucide-react';
 import { Log } from '@/log';
+import { useBreadcrumbStore } from '@/shared-store';
 import ApiClient, { type ListResponse, extractList, toast } from '@/shared-util';
 import {
   knowledgeQueryKeys,
@@ -15,7 +16,6 @@ import {
 import type { EvalChunkSetting, EvalGenerateDocItem, EvalQuestionSetting, KnowledgeChunkItem } from '../../features/agent-config/types';
 import { FallbackSpinner } from '@/components/custom/FallbackSpinner';
 import NoData from '@/components/custom/NoData';
-import PageHeader from '@/components/custom/PageHeader';
 
 const apiClient = new ApiClient({ serviceURL: '/bff' });
 
@@ -131,6 +131,8 @@ export default function EvalCreate() {
   const { documentId } = useParams();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
+  const setBreadcrumb = useBreadcrumbStore((s) => s.setBreadcrumb);
+  const clearBreadcrumb = useBreadcrumbStore((s) => s.clearBreadcrumb);
   const [step1Form] = Form.useForm<Step1FormValues>();
   const [currentStep, setCurrentStep] = useState(0);
 
@@ -320,14 +322,16 @@ export default function EvalCreate() {
 
   const steps = [{ title: '파일 선택' }, { title: 'RAG Chunk 설정' }];
 
-  const breadcrumb: BreadcrumbProps['items'] = [
-    { title: '관리', path: '/aoe/agent-config' },
-    { title: '지식', path: '/aoe/agent-config/knowledge/list' },
-    { title: ':documentName', path: `/aoe/agent-config/knowledge/${documentId}` },
-    { title: '평가셋 생성', path: `/aoe/agent-config/knowledge/${documentId}/eval/create` },
-  ];
-
-  const params: BreadcrumbProps['params'] = { documentName: knowledge?.documentName ?? '-' };
+  useEffect(() => {
+    const breadcrumb: BreadcrumbProps['items'] = [
+      { title: '관리', path: '/aoe/agent-config' },
+      { title: '지식', path: '/aoe/agent-config/knowledge/list' },
+      { title: ':documentName', path: `/aoe/agent-config/knowledge/${documentId}` },
+      { title: '평가셋 생성', path: `/aoe/agent-config/knowledge/${documentId}/eval/create` },
+    ];
+    setBreadcrumb(breadcrumb, { documentName: knowledge?.documentName ?? '-' });
+    return () => clearBreadcrumb();
+  }, [documentId, knowledge?.documentName, setBreadcrumb, clearBreadcrumb]);
 
   const fileOptions = (files ?? []).map((f) => ({
     label: `${f.fileName}${f.chunkCount !== undefined ? ` (${f.chunkCount}청크)` : ''}`,
@@ -452,7 +456,6 @@ export default function EvalCreate() {
 
   return (
     <div className="flex flex-col gap-4 w-full h-full">
-      <PageHeader breadcrumb={breadcrumb} params={params} />
       <div className="flex items-center justify-center w-full h-[58px] min-h-[58px] bg-white bt-shadow px-7 py-2">
         <Steps current={currentStep} items={steps.map((s) => ({ title: s.title }))} size="small" style={{ width: `${steps.length * 250}px` }} responsive={false} />
       </div>

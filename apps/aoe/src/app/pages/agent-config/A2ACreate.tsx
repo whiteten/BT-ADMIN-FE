@@ -1,14 +1,14 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useQueryClient } from '@tanstack/react-query';
 import { type BreadcrumbProps, Button, Col, Form, Input, Row, Select, Steps } from 'antd';
 import { Minus, Plus } from 'lucide-react';
 import { Log } from '@/log';
+import { useBreadcrumbStore } from '@/shared-store';
 import { toast } from '@/shared-util';
 import { a2aQueryKeys, useCreateA2A } from '../../features/a2a/hooks/useA2aQueries';
 import type { A2ACreateDatas } from '../../features/a2a/types';
 import { useGetAgents } from '../../features/agent-config/hooks/useAgentQueries';
-import PageHeader from '@/components/custom/PageHeader';
 
 interface Step1FormValues {
   agentId: string;
@@ -34,9 +34,16 @@ const steps = [{ title: '기본 정보' }, { title: 'Skills 설정' }];
 export default function A2ACreate() {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
+  const setBreadcrumb = useBreadcrumbStore((s) => s.setBreadcrumb);
+  const clearBreadcrumb = useBreadcrumbStore((s) => s.clearBreadcrumb);
   const [currentStep, setCurrentStep] = useState(0);
   const [step1Form] = Form.useForm<Step1FormValues>();
   const [step2Form] = Form.useForm<Step2FormValues>();
+
+  useEffect(() => {
+    setBreadcrumb(breadcrumb);
+    return () => clearBreadcrumb();
+  }, [setBreadcrumb, clearBreadcrumb]);
 
   const { data: agents = [] } = useGetAgents();
   const deployedAgents = agents.filter((a) => a.aoeDeployFlag === 1);
@@ -213,7 +220,6 @@ export default function A2ACreate() {
 
   return (
     <div className="flex flex-col gap-4 w-full h-full">
-      <PageHeader breadcrumb={breadcrumb} />
       <div className="flex items-center justify-center w-full h-[58px] min-h-[58px] bg-white bt-shadow px-7 py-2">
         <Steps current={currentStep} items={steps.map((s) => ({ title: s.title }))} size="small" style={{ width: `${steps.length * 250}px` }} responsive={false} />
       </div>

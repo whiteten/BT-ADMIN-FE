@@ -1,7 +1,8 @@
-import { useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useQueryClient } from '@tanstack/react-query';
 import { type BreadcrumbProps, Button, Input, Select } from 'antd';
+import { useBreadcrumbStore } from '@/shared-store';
 import { toast } from '@/shared-util';
 import AgentCard from '../../features/agent-config/components/AgentCard';
 import AgentPlaygroundDrawer, { type AgentPlaygroundDrawerRef } from '../../features/agent-config/components/AgentPlaygroundDrawer';
@@ -9,7 +10,6 @@ import { agentQueryKeys, useDeleteAgent, useGetAgents } from '../../features/age
 import type { AgentDeleteDatas } from '../../features/agent-config/types';
 import { FallbackSpinner } from '@/components/custom/FallbackSpinner';
 import NoData from '@/components/custom/NoData';
-import PageHeader from '@/components/custom/PageHeader';
 import { useModal } from '@/libs/shared-ui/src/hooks/useModal';
 
 const breadcrumb: BreadcrumbProps['items'] = [
@@ -27,9 +27,16 @@ export default function AgentList() {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const modal = useModal();
+  const setBreadcrumb = useBreadcrumbStore((s) => s.setBreadcrumb);
+  const clearBreadcrumb = useBreadcrumbStore((s) => s.clearBreadcrumb);
   const playgroundRef = useRef<AgentPlaygroundDrawerRef>(null);
   const [filterColumn, setFilterColumn] = useState('agentName');
   const [searchValue, setSearchValue] = useState('');
+
+  useEffect(() => {
+    setBreadcrumb(breadcrumb);
+    return () => clearBreadcrumb();
+  }, [setBreadcrumb, clearBreadcrumb]);
 
   const { data: agents, isLoading } = useGetAgents({});
 
@@ -90,7 +97,6 @@ export default function AgentList() {
   return (
     <div className="flex flex-col gap-4 w-full h-full">
       <AgentPlaygroundDrawer ref={playgroundRef} />
-      <PageHeader breadcrumb={breadcrumb} />
       <div className="flex items-center justify-between gap-2 w-full h-[76px] bg-white bt-shadow px-7 py-5">
         <div className="flex gap-2 w-full items-center">
           <Select value={filterColumn} onChange={handleColumnChange} options={FILTER_OPTIONS} className="!max-w-[150px] !min-w-[120px]" popupMatchSelectWidth={false} />

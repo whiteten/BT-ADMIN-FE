@@ -1,9 +1,9 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { useParams } from 'react-router-dom';
 import type { BreadcrumbProps } from 'antd';
+import { useBreadcrumbStore } from '@/shared-store';
 import { useGetToolGroups } from '../../features/tool/hooks/useToolQueries';
 import { IconDocument } from '@/components/custom/Icons';
-import PageHeader from '@/components/custom/PageHeader';
 import PageTabs, { type PageTab } from '@/components/custom/PageTabs';
 
 const ToolGroupBasicInfo = React.lazy(() => import('../../features/tool/tabs/ToolGroupBasicInfo'));
@@ -16,20 +16,23 @@ const tabs: PageTab[] = [
 
 export default function ToolGroupDetail() {
   const { groupId } = useParams();
+  const setBreadcrumb = useBreadcrumbStore((s) => s.setBreadcrumb);
+  const clearBreadcrumb = useBreadcrumbStore((s) => s.clearBreadcrumb);
   const { data: groups = [] } = useGetToolGroups();
   const group = groups.find((g) => g.groupId === groupId);
 
-  const breadcrumb: BreadcrumbProps['items'] = [
-    { title: '관리', path: '/aoe/agent-config' },
-    { title: '도구', path: '/aoe/agent-config/tool/list' },
-    { title: ':groupName', path: `/aoe/agent-config/tool/${groupId}` },
-  ];
-
-  const params: BreadcrumbProps['params'] = { groupName: group?.groupName ?? '-' };
+  useEffect(() => {
+    const breadcrumb: BreadcrumbProps['items'] = [
+      { title: '관리', path: '/aoe/agent-config' },
+      { title: '도구', path: '/aoe/agent-config/tool/list' },
+      { title: ':groupName', path: `/aoe/agent-config/tool/${groupId}` },
+    ];
+    setBreadcrumb(breadcrumb, { groupName: group?.groupName ?? '-' });
+    return () => clearBreadcrumb();
+  }, [groupId, group?.groupName, setBreadcrumb, clearBreadcrumb]);
 
   return (
     <div className="flex flex-col gap-4 w-full h-full">
-      <PageHeader breadcrumb={breadcrumb} params={params} />
       <PageTabs tabs={tabs} />
     </div>
   );

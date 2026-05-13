@@ -1,12 +1,13 @@
+import { useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { type BreadcrumbProps, Button, Col, Form, type FormProps, Input, Row, Select } from 'antd';
 import { Check, X } from 'lucide-react';
 import { Log } from '@/log';
+import { useBreadcrumbStore } from '@/shared-store';
 import { toast } from '@/shared-util';
 import { useCreateAgent, useGetAgentTypes } from '../../features/agent-config/hooks/useAgentQueries';
 import type { AgentCreateDatas } from '../../features/agent-config/types';
 import { FallbackSpinner } from '@/components/custom/FallbackSpinner';
-import PageHeader from '@/components/custom/PageHeader';
 
 const breadcrumb: BreadcrumbProps['items'] = [
   { title: '관리', path: '/aoe/agent-config' },
@@ -21,8 +22,15 @@ const displayValue = (value: unknown): React.ReactNode => {
 
 export default function AgentCreate() {
   const navigate = useNavigate();
+  const setBreadcrumb = useBreadcrumbStore((s) => s.setBreadcrumb);
+  const clearBreadcrumb = useBreadcrumbStore((s) => s.clearBreadcrumb);
   const [form] = Form.useForm<AgentCreateDatas>();
   const formValues = Form.useWatch([], form);
+
+  useEffect(() => {
+    setBreadcrumb(breadcrumb);
+    return () => clearBreadcrumb();
+  }, [setBreadcrumb, clearBreadcrumb]);
 
   const { data: agentTypeList, isFetching: isFetchingAgentTypes } = useGetAgentTypes({});
   const agentTypeOptions = agentTypeList?.map((type) => ({ label: type.agentTypeName, value: type.agentType })) ?? [];
@@ -82,7 +90,6 @@ export default function AgentCreate() {
 
   return (
     <div className="flex flex-col gap-4 w-full h-full">
-      <PageHeader breadcrumb={breadcrumb} />
       <div className="flex w-full flex-1 min-h-0 gap-4">
         <div className="w-full h-full min-h-0 bg-white bt-shadow flex flex-col">
           <div className="w-full flex-1 min-h-0 overflow-y-auto p-7 pb-0">

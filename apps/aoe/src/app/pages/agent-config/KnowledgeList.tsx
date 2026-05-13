@@ -1,14 +1,14 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useQueryClient } from '@tanstack/react-query';
 import { type BreadcrumbProps, Button, Input } from 'antd';
 import { Log } from '@/log';
+import { useBreadcrumbStore } from '@/shared-store';
 import { toast } from '@/shared-util';
 import KnowledgeCard from '../../features/agent-config/components/KnowledgeCard';
 import { knowledgeQueryKeys, useDeleteKnowledge, useGetKnowledges } from '../../features/agent-config/hooks/useKnowledgeQueries';
 import { FallbackSpinner } from '@/components/custom/FallbackSpinner';
 import NoData from '@/components/custom/NoData';
-import PageHeader from '@/components/custom/PageHeader';
 import { useModal } from '@/libs/shared-ui/src/hooks/useModal';
 
 const breadcrumb: BreadcrumbProps['items'] = [
@@ -21,7 +21,14 @@ export default function KnowledgeList() {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const modal = useModal();
+  const setBreadcrumb = useBreadcrumbStore((s) => s.setBreadcrumb);
+  const clearBreadcrumb = useBreadcrumbStore((s) => s.clearBreadcrumb);
   const [searchValue, setSearchValue] = useState('');
+
+  useEffect(() => {
+    setBreadcrumb(breadcrumb);
+    return () => clearBreadcrumb();
+  }, [setBreadcrumb, clearBreadcrumb]);
 
   const { data: knowledges, isLoading } = useGetKnowledges({});
 
@@ -59,7 +66,6 @@ export default function KnowledgeList() {
 
   return (
     <div className="flex flex-col gap-4 w-full h-full">
-      <PageHeader breadcrumb={breadcrumb} />
       <div className="flex items-center justify-between gap-2 w-full h-[76px] bg-white bt-shadow px-7 py-5">
         <Input value={searchValue} onChange={(e) => setSearchValue(e.target.value)} className="w-full max-w-[400px]" placeholder="지식명을 입력하세요." />
         <Button type="primary" onClick={handleClickCreateBtn}>
