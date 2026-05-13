@@ -6,7 +6,7 @@ import { restrictToParentElement, restrictToVerticalAxis } from '@dnd-kit/modifi
 import { SortableContext, arrayMove, useSortable, verticalListSortingStrategy } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import { Button } from 'antd';
-import { GripVertical, SquareDashed, Trash2 } from 'lucide-react';
+import { Check, GripVertical, SquareDashed, Trash2, X } from 'lucide-react';
 import { sharedApi } from '@/shared-api';
 import { useMenuStore, useNavigationStore } from '@/shared-store';
 import { isMenuActive } from './PanelMenuPrimitives';
@@ -60,10 +60,11 @@ const SortableBookmarkRow = ({ bookmark, icon: Icon, path, tooltipText, isEditMo
       onClick={() => onClick(bookmark, path)}
       disabled={!path}
       className={cn(
-        'group/row flex w-full items-center gap-2 rounded-md px-3 py-2 text-left transition-colors cursor-pointer',
-        'text-[#495057] hover:bg-[var(--color-bt-primary)]/[0.08]',
+        'group/row relative flex w-full items-center gap-2 rounded-md px-3 py-2 text-left transition-colors cursor-pointer',
+        'text-[#495057] hover:bg-[#f1f3f5]',
         'disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:bg-transparent',
-        isActive && 'bg-[var(--color-bt-primary)]/10 text-[var(--color-bt-primary)] font-semibold',
+        isActive &&
+          'before:absolute before:left-0 before:top-1.5 before:bottom-1.5 before:w-[3px] before:rounded-full before:bg-[var(--color-bt-primary)] text-[var(--color-bt-primary)] font-semibold',
       )}
     >
       {Icon ? (
@@ -112,22 +113,25 @@ const PanelBookmarksSection = ({ className }: PanelBookmarksSectionProps) => {
     setSortedFavorites([...favorites].sort((a, b) => a.sortOrder - b.sortOrder));
   }, [favorites]);
 
-  const handleToggleEditMode = () => {
-    if (isEditMode) {
-      const menuKeys = sortedFavorites.map((f) => f.menuKey);
-      const originalMenuKeys = [...favorites].sort((a, b) => a.sortOrder - b.sortOrder).map((f) => f.menuKey);
-      const hasChanged = menuKeys.length !== originalMenuKeys.length || menuKeys.some((k, index) => k !== originalMenuKeys[index]);
-      if (hasChanged) {
-        updateBookmark({ params: {}, data: { menuKeys } });
-      }
+  const handleEnterEditMode = () => setIsEditMode(true);
+
+  const handleConfirm = () => {
+    const menuKeys = sortedFavorites.map((f) => f.menuKey);
+    const originalMenuKeys = [...favorites].sort((a, b) => a.sortOrder - b.sortOrder).map((f) => f.menuKey);
+    const hasChanged = menuKeys.length !== originalMenuKeys.length || menuKeys.some((k, index) => k !== originalMenuKeys[index]);
+    if (hasChanged) {
+      updateBookmark({ params: {}, data: { menuKeys } });
     }
-    setIsEditMode(!isEditMode);
+    setIsEditMode(false);
+  };
+
+  const handleCancel = () => {
+    setSortedFavorites([...favorites].sort((a, b) => a.sortOrder - b.sortOrder));
+    setIsEditMode(false);
   };
 
   const handleRemove = (menuKey: string) => {
-    const next = sortedFavorites.filter((b) => b.menuKey !== menuKey);
-    setSortedFavorites(next);
-    updateBookmark({ params: {}, data: { menuKeys: next.map((b) => b.menuKey) } });
+    setSortedFavorites((prev) => prev.filter((b) => b.menuKey !== menuKey));
   };
 
   const handleDragEnd = (event: DragEndEvent) => {
@@ -151,16 +155,35 @@ const PanelBookmarksSection = ({ className }: PanelBookmarksSectionProps) => {
     <section className={cn('flex flex-col', className)}>
       <header className="flex items-center justify-between px-3 mb-2">
         <h3 className="text-xs font-semibold tracking-wider uppercase text-[#868e96]">{isEditMode ? '드래그 하여 순서변경' : 'Bookmarks'}</h3>
-        {favorites?.length > 0 && (
-          <Button
-            size="small"
-            loading={isPending}
-            className="!text-xs !px-1.5 !py-0 !h-auto !bg-transparent !border-[#ced4da] !text-[#495057] hover:!border-[var(--color-bt-primary)] hover:!text-[var(--color-bt-primary)]"
-            onClick={handleToggleEditMode}
-          >
-            {isEditMode ? 'DONE' : 'EDIT'}
-          </Button>
-        )}
+        {favorites?.length > 0 &&
+          (isEditMode ? (
+            <div className="flex items-center gap-1">
+              <Button
+                size="small"
+                loading={isPending}
+                icon={<Check className="size-3.5" />}
+                aria-label="저장"
+                className="!px-1.5 !py-0 !h-auto !bg-transparent !border-[#ced4da] !text-[#495057] hover:!border-[var(--color-bt-primary)] hover:!text-[var(--color-bt-primary)]"
+                onClick={handleConfirm}
+              />
+              <Button
+                size="small"
+                disabled={isPending}
+                icon={<X className="size-3.5" />}
+                aria-label="취소"
+                className="!px-1.5 !py-0 !h-auto !bg-transparent !border-[#ced4da] !text-[#495057] hover:!border-[#e03131] hover:!text-[#e03131]"
+                onClick={handleCancel}
+              />
+            </div>
+          ) : (
+            <Button
+              size="small"
+              className="!text-xs !px-1.5 !py-0 !h-auto !bg-transparent !border-[#ced4da] !text-[#495057] hover:!border-[var(--color-bt-primary)] hover:!text-[var(--color-bt-primary)]"
+              onClick={handleEnterEditMode}
+            >
+              EDIT
+            </Button>
+          ))}
       </header>
 
       {sortedFavorites.length === 0 ? (

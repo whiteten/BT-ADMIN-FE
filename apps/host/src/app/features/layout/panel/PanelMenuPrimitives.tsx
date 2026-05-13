@@ -83,9 +83,9 @@ export function MenuLink({ item, appId, query = '', onNavigate, showDesc = false
   return (
     <div
       className={cn(
-        'group/row flex items-center gap-2 rounded-lg px-2.5 py-2 -mx-1 cursor-pointer transition-colors',
-        'hover:bg-[var(--color-bt-primary)]/[0.06]',
-        isActive && 'bg-[var(--color-bt-primary)]/10',
+        'group/row relative flex items-center gap-2 rounded-lg px-2.5 py-2 -mx-1 cursor-pointer transition-colors',
+        'hover:bg-[#f1f3f5]',
+        isActive && 'before:absolute before:left-0 before:top-1.5 before:bottom-1.5 before:w-[3px] before:rounded-full before:bg-[var(--color-bt-primary)]',
       )}
       onClick={() => item.path && onNavigate(`/${appId}/${item.path}`)}
     >
@@ -93,12 +93,7 @@ export function MenuLink({ item, appId, query = '', onNavigate, showDesc = false
         <BookmarkButton menuKey={item.menuKey} label={item.label} path={item.path ?? ''} appId={appId} />
       </span>
       <div className="flex-1 min-w-0">
-        <p
-          className={cn(
-            'text-[14px] truncate transition-colors group-hover/row:text-[var(--color-bt-primary)]',
-            isActive ? 'text-[var(--color-bt-primary)] font-semibold' : 'text-[#495057]',
-          )}
-        >
+        <p className={cn('text-[14px] truncate transition-colors', isActive ? 'text-[var(--color-bt-primary)] font-semibold' : 'text-[#495057]')}>
           <Highlight text={item.label} query={query} />
         </p>
         {showDescRow && (
@@ -221,22 +216,21 @@ export function PanelMenuRow({ item, appId, onNavigate }: PanelMenuRowProps) {
     if (mode === 'mega') setMode('compact');
   };
 
-  const highlightAsPrimary = isActive || isActiveBranch;
-
   return (
     <button
       type="button"
       onClick={handleClick}
       onMouseEnter={handleMouseEnter}
       className={cn(
-        'group/row flex w-full items-center gap-2 rounded-md px-3 py-2 text-left transition-colors',
+        'group/row relative flex w-full items-center gap-2 rounded-md px-3 py-2 text-left transition-colors',
         isLeaf ? 'cursor-pointer' : 'cursor-default',
-        'hover:bg-[var(--color-bt-primary)]/[0.08]',
-        isActive && 'bg-[var(--color-bt-primary)]/10',
-        highlightAsPrimary ? 'text-[var(--color-bt-primary)] font-semibold' : 'text-[#495057]',
+        'hover:bg-[#f1f3f5]',
+        isActive && 'bg-[var(--color-bt-primary)]/[0.08]',
+        isActiveBranch && 'before:absolute before:left-0 before:top-1.5 before:bottom-1.5 before:w-[3px] before:rounded-full before:bg-[var(--color-bt-primary)]',
+        isActiveBranch ? 'text-[var(--color-bt-primary)] font-semibold' : 'text-[#495057]',
       )}
     >
-      <span className={cn('flex items-center justify-center size-5 shrink-0', highlightAsPrimary ? 'text-[var(--color-bt-primary)]' : 'text-[#868e96]')}>
+      <span className={cn('flex items-center justify-center size-5 shrink-0', isActiveBranch ? 'text-[var(--color-bt-primary)]' : 'text-[#868e96]')}>
         {Icon ? <Icon className="!size-5" /> : <SquareDashed className="!size-5" />}
       </span>
       <span className="flex-1 min-w-0 truncate text-sm">{item.label}</span>
