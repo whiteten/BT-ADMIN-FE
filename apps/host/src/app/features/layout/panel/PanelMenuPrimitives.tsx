@@ -183,7 +183,7 @@ export function ChildList({ items, appId, query = '', onNavigate, asGrid, showDe
 /**
  * 패널 좌측의 1단계 메뉴 행.
  * - 폴더(children 있음): 클릭 시 activeMenuKey로 설정 → PanelDetail이 자식 표시
- * - leaf(path만 있음): 클릭 시 navigate
+ * - leaf(path만 있음): 클릭 시 즉시 navigate
  */
 interface PanelMenuRowProps {
   item: MenuItem;

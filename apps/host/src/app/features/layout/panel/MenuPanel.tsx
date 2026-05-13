@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef } from 'react';
+import { useCallback, useEffect, useMemo, useRef } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { useMenuStore } from '@/shared-store';
 import PanelAppBadgeStrip from './PanelAppBadgeStrip';
@@ -20,7 +20,7 @@ const MenuPanel = ({ topOffset }: MenuPanelProps) => {
   const location = useLocation();
   const { selectedRemote } = useRemoteSelector();
   const { menuConfigs } = useMenuStore();
-  const { open, mode, view, setOpen, setView, setDisplayedAppId, setActiveMenuKey } = useMenuPanelStore();
+  const { open, mode, view, displayedAppId, activeMenuKey, setOpen, setView, setDisplayedAppId, setActiveMenuKey } = useMenuPanelStore();
   const panelRef = useRef<HTMLDivElement>(null);
 
   // 패널이 닫힐 때 displayedAppId·activeMenuKey·view를 모두 default로 리셋.
@@ -86,8 +86,20 @@ const MenuPanel = ({ topOffset }: MenuPanelProps) => {
 
   const isMega = mode === 'mega';
   const isBookmarkView = view === 'bookmark';
-  // bookmark view는 sidebar(260px)가 없으므로 panel을 그만큼 줄여 detail 폭을 menu view의 last-depth 영역(500px)과 동일하게 맞춤
-  const panelWidth = isMega ? 'w-screen' : isBookmarkView ? 'w-[560px]' : 'w-[820px]';
+
+  // 현재 activeMenuKey가 가리키는 1단계 메뉴(폴더라면 children 보유)
+  const activeMenu = useMemo(() => {
+    if (!activeMenuKey || !displayedAppId) return null;
+    const config = menuConfigs.find((c) => c.appId === displayedAppId);
+    return config?.menus.find((m) => m.menuKey === activeMenuKey) ?? null;
+  }, [activeMenuKey, displayedAppId, menuConfigs]);
+
+  // detail 영역 노출 여부 — 폴더가 활성일 때만, bookmark view·mega는 항상 노출
+  const hasFolderDetail = !!activeMenu?.children?.length;
+  const showDetailArea = isMega || isBookmarkView || hasFolderDetail;
+
+  // panel 폭: mega→viewport / bookmark→560(strip+500) / 폴더 detail→820(strip+sidebar+500) / 그 외→320(strip+sidebar)
+  const panelWidth = isMega ? 'w-screen' : isBookmarkView ? 'w-[560px]' : hasFolderDetail ? 'w-[820px]' : 'w-[320px]';
 
   return (
     <>
@@ -110,10 +122,12 @@ const MenuPanel = ({ topOffset }: MenuPanelProps) => {
         <PanelAppBadgeStrip />
         <PanelSidebar onNavigate={handleNavigate} />
 
-        {/* Detail / Mega */}
-        <div className="flex-1 min-w-0 flex flex-col bg-white">
-          <div className="flex-1 min-h-0 overflow-hidden">{isMega ? <PanelMega onNavigate={handleNavigate} /> : <PanelDetail onNavigate={handleNavigate} />}</div>
-        </div>
+        {/* Detail / Mega — 보일 게 있을 때만 렌더 (그 외엔 strip + sidebar만 표시) */}
+        {showDetailArea && (
+          <div className="flex-1 min-w-0 flex flex-col bg-white">
+            <div className="flex-1 min-h-0 overflow-hidden">{isMega ? <PanelMega onNavigate={handleNavigate} /> : <PanelDetail onNavigate={handleNavigate} />}</div>
+          </div>
+        )}
       </div>
     </>
   );
