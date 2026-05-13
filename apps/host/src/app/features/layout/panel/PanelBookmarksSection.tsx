@@ -60,10 +60,11 @@ const SortableBookmarkRow = ({ bookmark, icon: Icon, path, tooltipText, isEditMo
       onClick={() => onClick(bookmark, path)}
       disabled={!path}
       className={cn(
-        'group/row flex w-full items-center gap-2 rounded-md px-3 py-2 text-left transition-colors cursor-pointer',
-        'text-[#495057] hover:bg-[var(--color-bt-primary)]/[0.08]',
+        'group/row relative flex w-full items-center gap-2 rounded-md px-3 py-2 text-left transition-colors cursor-pointer',
+        'text-[#495057] hover:bg-[#f1f3f5]',
         'disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:bg-transparent',
-        isActive && 'bg-[var(--color-bt-primary)]/10 text-[var(--color-bt-primary)] font-semibold',
+        isActive &&
+          'before:absolute before:left-0 before:top-1.5 before:bottom-1.5 before:w-[3px] before:rounded-full before:bg-[var(--color-bt-primary)] text-[var(--color-bt-primary)] font-semibold',
       )}
     >
       {Icon ? (
