@@ -30,6 +30,8 @@ const CosListPage = React.lazy(() => import('./features/cos/pages/CosListPage'))
 const CosFormPage = React.lazy(() => import('./features/cos/pages/CosFormPage'));
 const DnListPage = React.lazy(() => import('./features/dn/pages/DnListPage'));
 const DnFormPage = React.lazy(() => import('./features/dn/pages/DnFormPage'));
+const AdnListPage = React.lazy(() => import('./features/adn/pages/AdnListPage'));
+const AdnFormPage = React.lazy(() => import('./features/adn/pages/AdnFormPage'));
 const TrackingSearchPage = React.lazy(() => import('./features/tracking/components/TrackingSearchPage'));
 const CallDetailPage = React.lazy(() => import('./features/tracking/components/CallDetailPage'));
 export const routes = [
@@ -184,6 +186,18 @@ export const routes = [
       {
         path: 'dn/:id/edit',
         element: <DnFormPage />,
+      },
+      {
+        path: 'adn',
+        element: <AdnListPage />,
+      },
+      {
+        path: 'adn/create',
+        element: <AdnFormPage />,
+      },
+      {
+        path: 'adn/:id/edit',
+        element: <AdnFormPage />,
       },
       {
         path: 'tracking',
