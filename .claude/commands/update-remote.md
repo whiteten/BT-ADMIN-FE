@@ -51,9 +51,11 @@ allowed-tools: Read, Write, Edit, Glob, Grep, Bash, AskUserQuestion, TodoWrite
   - 의미 있는 사용자 코드가 들어있으면 그대로 두고 "사용자 코드 있음 — 스킵" 으로 보고만 한다.
 - `module-federation.config.ts`의 `exposes` / `additionalShared`는 remote가 자체적으로 추가했을 수 있으므로, `name` 필드만 비교/치환한다.
 
-## 3. create-remote.js에 없는 정리 작업 — menu-config 잔재 제거
+## 3. create-remote.js에 없는 정리 작업 — 구식 패턴 잔재 제거
 
-`create-remote.js`는 신규 생성용 스크립트라 과거 잔재 제거 로직이 없다. 이 항목은 이 커맨드가 별도로 처리한다.
+`create-remote.js`는 신규 생성용 스크립트라 과거 잔재 제거 로직이 없다. 이 항목은 이 커맨드가 별도로 처리한다. 각 잔재마다 TodoWrite 항목을 따로 등록한다.
+
+### 3-1. menu-config 잔재 제거
 
 | 파일 경로 | 비고 |
 |----------|------|
@@ -61,6 +63,43 @@ allowed-tools: Read, Write, Edit, Glob, Grep, Bash, AskUserQuestion, TodoWrite
 | `apps/<APP_NAME>/**/menu-config*` | 위 위치 외에 남아있는 잔재가 있는지 `Glob`로 검색해 추가 삭제 |
 
 > menu-config 파일은 옛 `'./MenuConfig'` expose 시절의 유물이며 현재 아키텍처(`pageVariantManifest` + `querySelectors`)에서는 더 이상 사용하지 않는다. README 등 문서에 언급이 남아있어도 **실제 파일만 삭제하고 문서 수정은 이 커맨드의 범위가 아니다**.
+
+### 3-2. PageHeader → useBreadcrumbStore 패턴 마이그레이션
+
+페이지의 breadcrumb은 host SubHeader가 그리도록 표준이 바뀌었다. 페이지에서는 `useBreadcrumbStore`에 push/clear만 한다(상세 규칙: [CLAUDE.md "페이지 Breadcrumb 패턴"](../../CLAUDE.md), [DEVELOPER_GUIDE.md "페이지 레이아웃 가이드 → Breadcrumb 표준 절차"](../../doc/DEVELOPER_GUIDE.md)). 이전 표준이었던 `PageHeader` 컴포넌트는 `libs/shared-ui`에서 제거됐으므로, 페이지 파일에 import가 남아있으면 빌드가 실패한다.
+
+검사 대상은 `apps/<APP_NAME>/**/*.tsx`. 다음 두 패턴을 `Grep`으로 검색한다:
+
+| 패턴 | 처리 |
+|------|------|
+| `import PageHeader from '@/components/custom/PageHeader';` | 발견된 모든 파일에서 import 라인 제거 |
+| `<PageHeader ... />` (JSX 호출, loading early-return 분기 포함 다중 호출 가능) | JSX에서 해당 라인 모두 제거 |
+
+검출된 각 페이지마다 다음 단계를 적용한다:
+
+1. `useEffect`가 import되어 있지 않으면 react import에 추가
+2. `useBreadcrumbStore` 를 `@/shared-store` 에서 import
+3. 컴포넌트 본문 시작부에 push/clear 패턴 삽입 — 본문 시작부 위치는 hook 순서가 깨지지 않도록 가장 위에 둔다:
+   ```ts
+   const setBreadcrumb = useBreadcrumbStore((s) => s.setBreadcrumb);
+   const clearBreadcrumb = useBreadcrumbStore((s) => s.clearBreadcrumb);
+   useEffect(() => {
+     setBreadcrumb(breadcrumb /*, params */);
+     return () => clearBreadcrumb();
+   }, [/* 동적 deps */, setBreadcrumb, clearBreadcrumb]);
+   ```
+4. `breadcrumb` 상수가 컴포넌트 내부에 정의되어 있다면 모듈 레벨로 끌어올린다(useEffect deps 안정화)
+5. 동적 라벨(`:botName` 등)이 있으면 `setBreadcrumb`의 두 번째 인자에 `params` 전달 + deps에 fetch 결과 포함
+6. `isPublic` 등 분기 케이스는 useEffect 내부에서 조건 분기로 items 선택 + deps에 분기 키 포함
+
+자동 변환 범위:
+
+- **자동 진행**: 정적 const breadcrumb + 단일 `<PageHeader />` 호출 (BotList 등 패턴) — 위 6단계를 그대로 적용
+- **확인 후 진행**: 동적 `params` 호출 / `isPublic` 분기 / loading early-return 다중 `<PageHeader />` 호출 — 변환 계획을 표로 보여주고 사용자에게 일괄 확인을 받는다
+
+변환 후 해당 파일에 `npx eslint --fix` 실행 (마무리 섹션의 일괄 처리에 포함).
+
+> PageHeader 잔재는 코드만 정리한다. README 등 문서에 언급이 남아있어도 **실제 코드만 마이그레이션하고 문서 수정은 이 커맨드의 범위가 아니다**.
 
 ## 4. tsconfig.base.json 정리
 

@@ -1,11 +1,11 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import type { BreadcrumbProps } from 'antd';
 import dayjs from 'dayjs';
+import { useBreadcrumbStore } from '@/shared-store';
 import DecryptLogDetailDrawer from '../../features/decrypt-log/components/DecryptLogDetailDrawer';
 import DecryptLogListGrid from '../../features/decrypt-log/components/DecryptLogListGrid';
 import DecryptLogSearchBar from '../../features/decrypt-log/components/DecryptLogSearchBar';
 import type { DecryptLogItem, DecryptLogSearchRequest } from '../../features/decrypt-log/types/decryptLog.types';
-import PageHeader from '@/components/custom/PageHeader';
 
 const breadcrumb: BreadcrumbProps['items'] = [
   { title: '트래킹', path: '/fca/tracking' },
@@ -13,6 +13,14 @@ const breadcrumb: BreadcrumbProps['items'] = [
 ];
 
 const DecryptLogPage: React.FC = () => {
+  const setBreadcrumb = useBreadcrumbStore((s) => s.setBreadcrumb);
+  const clearBreadcrumb = useBreadcrumbStore((s) => s.clearBreadcrumb);
+
+  useEffect(() => {
+    setBreadcrumb(breadcrumb);
+    return () => clearBreadcrumb();
+  }, [setBreadcrumb, clearBreadcrumb]);
+
   // 검색 파라미터 (기본: 오늘 ~ 오늘)
   const [searchParams, setSearchParams] = useState<DecryptLogSearchRequest>({
     fromDate: dayjs().format('YYYY-MM-DD'),
@@ -44,7 +52,6 @@ const DecryptLogPage: React.FC = () => {
 
   return (
     <div className="flex flex-col gap-4 w-full h-full">
-      <PageHeader breadcrumb={breadcrumb} />
       <div className="flex flex-col gap-5 w-full h-full bg-white bt-shadow p-5">
         <DecryptLogSearchBar onSearch={handleSearch} isLoading={isListLoading} />
         <div className="w-full h-full">

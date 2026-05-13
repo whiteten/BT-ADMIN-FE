@@ -4,7 +4,7 @@ import { AgGridReact } from 'ag-grid-react';
 import { type BreadcrumbProps, Button, Checkbox, DatePicker, Divider, Select, TimePicker } from 'antd';
 import dayjs, { type Dayjs } from 'dayjs';
 import { ChevronDown, Download } from 'lucide-react';
-import { useNavigationStore } from '@/shared-store';
+import { useBreadcrumbStore, useNavigationStore } from '@/shared-store';
 import { downloadBlob, extractFileName, toast } from '@/shared-util';
 import { useGetModels } from '../../../features/bot-config/hooks/useModelQueries';
 import { statisticsApi } from '../../../features/statistics/api/statisticsApi';
@@ -20,7 +20,6 @@ import {
 import { useStatisticsFilterStore } from '../../../features/statistics/hooks/useStatisticsFilterStore';
 import { useGetIntentOptionList, useGetIntentStatList } from '../../../features/statistics/hooks/useStatisticsQueries';
 import type { IntentStatListItem } from '../../../features/statistics/types/statistics.types';
-import PageHeader from '@/components/custom/PageHeader';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { cn } from '@/lib/utils';
 import useAggridOptions from '@/libs/shared-ui/src/hooks/useAggridOptions';
@@ -32,6 +31,14 @@ const breadcrumb: BreadcrumbProps['items'] = [
 ];
 
 export default function IntentStatistics() {
+  const setBreadcrumb = useBreadcrumbStore((s) => s.setBreadcrumb);
+  const clearBreadcrumb = useBreadcrumbStore((s) => s.clearBreadcrumb);
+
+  useEffect(() => {
+    setBreadcrumb(breadcrumb);
+    return () => clearBreadcrumb();
+  }, [setBreadcrumb, clearBreadcrumb]);
+
   const { modelIds, setModelIds } = useStatisticsFilterStore();
   // UI 상태 (사용자가 입력하는 값들)
   const [intentIds, setIntentIds] = useState<string[]>([]);
@@ -121,8 +128,8 @@ export default function IntentStatistics() {
       intentIds: [intentIds].flat().filter(Boolean),
       excludeLunch: timeUnit === 'MI' || timeUnit === 'HH' ? excludeLunch : false,
       useInterval: timeUnit === 'MI' || timeUnit === 'HH' ? useInterval : false,
-      hourFrom: timeUnit === 'MI' || timeUnit === 'HH' ? (useInterval && intervalStartTime ? intervalStartTime.format('HH00') : '') : '',
-      hourTo: timeUnit === 'MI' || timeUnit === 'HH' ? (useInterval && intervalEndTime ? intervalEndTime.format('HH00') : '') : '',
+      hourFrom: timeUnit === 'MI' || timeUnit === 'HH' ? (useInterval && intervalStartTime ? intervalStartTime.format(timeUnit === 'MI' ? 'HHmm' : 'HH00') : '') : '',
+      hourTo: timeUnit === 'MI' || timeUnit === 'HH' ? (useInterval && intervalEndTime ? intervalEndTime.format(timeUnit === 'MI' ? 'HHmm' : 'HH50') : '') : '',
       excludeDays: timeUnit !== 'MM' && timeUnit !== 'YY' ? excludeDays : [],
       excludeBusinessHoliday: timeUnit !== 'MM' && timeUnit !== 'YY' ? excludeBusinessHoliday : false,
       excludeStatHoliday: timeUnit !== 'MM' && timeUnit !== 'YY' ? excludeStatHoliday : false,
@@ -265,8 +272,14 @@ export default function IntentStatistics() {
         intentIds: [intentIds].flat().filter(Boolean),
         excludeLunch: displayTimeUnit === 'MI' || displayTimeUnit === 'HH' ? excludeLunch : false,
         useInterval: displayTimeUnit === 'MI' || displayTimeUnit === 'HH' ? useInterval : false,
-        hourFrom: displayTimeUnit === 'MI' || displayTimeUnit === 'HH' ? (useInterval && intervalStartTime ? intervalStartTime.format('HH00') : '') : '',
-        hourTo: displayTimeUnit === 'MI' || displayTimeUnit === 'HH' ? (useInterval && intervalEndTime ? intervalEndTime.format('HH00') : '') : '',
+        hourFrom:
+          displayTimeUnit === 'MI' || displayTimeUnit === 'HH'
+            ? useInterval && intervalStartTime
+              ? intervalStartTime.format(displayTimeUnit === 'MI' ? 'HHmm' : 'HH00')
+              : ''
+            : '',
+        hourTo:
+          displayTimeUnit === 'MI' || displayTimeUnit === 'HH' ? (useInterval && intervalEndTime ? intervalEndTime.format(displayTimeUnit === 'MI' ? 'HHmm' : 'HH50') : '') : '',
         excludeDays: displayTimeUnit !== 'MM' && displayTimeUnit !== 'YY' ? excludeDays : [],
         excludeBusinessHoliday: displayTimeUnit !== 'MM' && displayTimeUnit !== 'YY' ? excludeBusinessHoliday : false,
         excludeStatHoliday: displayTimeUnit !== 'MM' && displayTimeUnit !== 'YY' ? excludeStatHoliday : false,
@@ -282,7 +295,6 @@ export default function IntentStatistics() {
 
   return (
     <div className="flex flex-col gap-4 w-full h-full">
-      <PageHeader breadcrumb={breadcrumb} />
       <div className="flex flex-col gap-5 w-full h-full bg-white bt-shadow p-5">
         <Collapsible open={isFilterOpen} onOpenChange={setIsFilterOpen}>
           <header className="flex flex-col gap-3">
@@ -319,6 +331,7 @@ export default function IntentStatistics() {
                       onChange={(date) => setStartTime(date)}
                       inputReadOnly
                       allowClear={false}
+                      needConfirm={false}
                       format={timeUnit === 'MI' ? 'HH:mm' : 'HH:00'}
                       minuteStep={10}
                       style={{ width: '100px' }}
@@ -340,6 +353,7 @@ export default function IntentStatistics() {
                       onChange={(date) => setEndTime(date)}
                       inputReadOnly
                       allowClear={false}
+                      needConfirm={false}
                       format={timeUnit === 'MI' ? 'HH:mm' : 'HH:50'}
                       minuteStep={10}
                       style={{ width: '100px' }}
@@ -497,7 +511,9 @@ export default function IntentStatistics() {
                                 onChange={(date) => setIntervalStartTime(date)}
                                 inputReadOnly
                                 allowClear={false}
-                                format="HH:00"
+                                needConfirm={false}
+                                format={timeUnit === 'MI' ? 'HH:mm' : 'HH:00'}
+                                minuteStep={10}
                                 style={{ width: '100px' }}
                               />
                               <span className="text-sm font-medium text-[#495057] shrink-0">~</span>
@@ -506,7 +522,9 @@ export default function IntentStatistics() {
                                 onChange={(date) => setIntervalEndTime(date)}
                                 inputReadOnly
                                 allowClear={false}
-                                format="HH:00"
+                                needConfirm={false}
+                                format={timeUnit === 'MI' ? 'HH:mm' : 'HH:50'}
+                                minuteStep={10}
                                 style={{ width: '100px' }}
                               />
                             </>

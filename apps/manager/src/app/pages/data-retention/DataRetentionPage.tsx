@@ -1,17 +1,17 @@
-import React, { useRef, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import type { ColDef, ICellRendererParams } from 'ag-grid-community';
 import { AgGridReact } from 'ag-grid-react';
 import { type BreadcrumbProps, Button } from 'antd';
 import dayjs from 'dayjs';
 import { Database, History, Play, ScrollText } from 'lucide-react';
+import { useBreadcrumbStore } from '@/shared-store';
 import { toast } from '@/shared-util';
 import PolicyCardSlider from '../../features/data-retention/components/PolicyCardSlider';
 import RetentionEditDrawer, { type RetentionEditDrawerRef } from '../../features/data-retention/components/RetentionEditDrawer';
 import { dataRetentionQueryKeys, useExecuteRetentionNow, useGetRetentionLogs, useGetRetentionPolicies } from '../../features/data-retention/hooks/useDataRetentionQueries';
 import { RETENTION_CATEGORY_LABELS, type RetentionCategory, type RetentionLogItem, type RetentionPolicyListItem } from '../../features/data-retention/types/dataRetention.types';
 import { FallbackSpinner } from '@/components/custom/FallbackSpinner';
-import PageHeader from '@/components/custom/PageHeader';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import useAggridOptions from '@/libs/shared-ui/src/hooks/useAggridOptions';
 import { useModal } from '@/libs/shared-ui/src/hooks/useModal';
@@ -44,6 +44,14 @@ function ExecutionStatusBadge({ status }: { status: RetentionLogItem['status'] }
 }
 
 export default function DataRetentionPage() {
+  const setBreadcrumb = useBreadcrumbStore((s) => s.setBreadcrumb);
+  const clearBreadcrumb = useBreadcrumbStore((s) => s.clearBreadcrumb);
+
+  useEffect(() => {
+    setBreadcrumb(breadcrumb);
+    return () => clearBreadcrumb();
+  }, [setBreadcrumb, clearBreadcrumb]);
+
   const queryClient = useQueryClient();
   const modal = useModal();
   const { gridOptions } = useAggridOptions();
@@ -155,7 +163,6 @@ export default function DataRetentionPage() {
   if (isPoliciesLoading) {
     return (
       <div className="flex flex-col gap-4 w-full h-full">
-        <PageHeader breadcrumb={breadcrumb} />
         <div className="flex items-center justify-center w-full h-full">
           <FallbackSpinner />
         </div>
@@ -165,8 +172,6 @@ export default function DataRetentionPage() {
 
   return (
     <div className="flex flex-col gap-4 w-full h-full">
-      <PageHeader breadcrumb={breadcrumb} />
-
       {/* 정책 카드 영역 */}
       <div className="bg-white bt-shadow flex flex-col">
         <Tabs value={activeCategory} onValueChange={handleCategoryChange} className="flex flex-col">

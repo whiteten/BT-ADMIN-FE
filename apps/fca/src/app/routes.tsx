@@ -20,6 +20,7 @@ const GlobalEnvList = React.lazy(() => import('./pages/global/GlobalEnvList'));
 const ServiceStatistics = React.lazy(() => import('./pages/statistics/call-bot/ServiceStatistics'));
 const DialogStatistics = React.lazy(() => import('./pages/statistics/call-bot/DialogStatistics'));
 const SlotStatistics = React.lazy(() => import('./pages/statistics/call-bot/SlotStatistics'));
+const UserDefStatistics = React.lazy(() => import('./pages/statistics/call-bot/UserDefStatistics'));
 const IntentStatistics = React.lazy(() => import('./pages/statistics/nlu/IntentStatistics'));
 const EntityStatistics = React.lazy(() => import('./pages/statistics/nlu/EntityStatistics'));
 const KeywordStatistics = React.lazy(() => import('./pages/statistics/nlu/KeywordStatistics'));
@@ -148,6 +149,7 @@ export const routes = [
               { path: 'service', element: <ServiceStatistics /> },
               { path: 'dialog', element: <DialogStatistics /> },
               { path: 'slot', element: <SlotStatistics /> },
+              { path: 'user-def', element: <UserDefStatistics /> },
             ],
           },
           {

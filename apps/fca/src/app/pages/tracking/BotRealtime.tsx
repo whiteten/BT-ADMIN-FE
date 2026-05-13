@@ -1,12 +1,12 @@
-import { useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import type { ColDef, RowDoubleClickedEvent } from 'ag-grid-community';
 import { AgGridReact } from 'ag-grid-react';
 import { type BreadcrumbProps, Input } from 'antd';
 import { Play, Search, Square } from 'lucide-react';
+import { useBreadcrumbStore } from '@/shared-store';
 import BotRealtimeDetailDrawer, { type BotRealtimeDetailDrawerRef } from '../../features/tracking/components/BotRealtimeDetailDrawer';
 import { useBotRealtimeSocket } from '../../features/tracking/hooks/useBotRealtimeSocket';
 import type { TrackingSession } from '../../features/tracking/types/tracking.types';
-import PageHeader from '@/components/custom/PageHeader';
 import useAggridOptions from '@/libs/shared-ui/src/hooks/useAggridOptions';
 
 const breadcrumb: BreadcrumbProps['items'] = [
@@ -26,6 +26,14 @@ function formatDuration(seconds: number): string {
 }
 
 export default function BotRealtime() {
+  const setBreadcrumb = useBreadcrumbStore((s) => s.setBreadcrumb);
+  const clearBreadcrumb = useBreadcrumbStore((s) => s.clearBreadcrumb);
+
+  useEffect(() => {
+    setBreadcrumb(breadcrumb);
+    return () => clearBreadcrumb();
+  }, [setBreadcrumb, clearBreadcrumb]);
+
   const { gridOptions } = useAggridOptions();
   const drawerRef = useRef<BotRealtimeDetailDrawerRef>(null);
   const { sessions, connected, isPlaying, connect, disconnect, sessionDetail, clearSessionDetail, send } = useBotRealtimeSocket();
@@ -71,7 +79,6 @@ export default function BotRealtime() {
 
   return (
     <div className="flex flex-col gap-4 w-full h-full">
-      <PageHeader breadcrumb={breadcrumb} />
       <div className="flex flex-col gap-5 w-full h-full bg-white bt-shadow p-5">
         <header className="flex items-center justify-between w-full gap-2 lg:flex-nowrap flex-wrap">
           <div className="flex items-center gap-2">

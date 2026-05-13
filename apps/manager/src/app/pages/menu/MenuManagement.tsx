@@ -4,9 +4,10 @@
  * - 우측: 메뉴 상세/편집 폼
  */
 
-import { useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import type { BreadcrumbProps } from 'antd';
+import { useBreadcrumbStore } from '@/shared-store';
 import { toast } from '@/shared-util';
 import { useGetApps } from '../../features/iam/hooks/useAppQueries';
 import MenuCreateDrawer, { type MenuCreateDrawerRef } from '../../features/menu/components/MenuCreateDrawer';
@@ -16,7 +17,6 @@ import { menuQueryKeys, useCreateMenu, useDeleteMenu, useGetMenus, useUpdateMenu
 import type { Menu, MenuUpsertRequest } from '../../features/menu/types/menu.types';
 import { FallbackSpinner } from '@/components/custom/FallbackSpinner';
 import NoData from '@/components/custom/NoData';
-import PageHeader from '@/components/custom/PageHeader';
 
 const breadcrumb: BreadcrumbProps['items'] = [
   { title: '시스템', path: '/manager/resource/menu' },
@@ -25,6 +25,14 @@ const breadcrumb: BreadcrumbProps['items'] = [
 ];
 
 export default function MenuManagement() {
+  const setBreadcrumb = useBreadcrumbStore((s) => s.setBreadcrumb);
+  const clearBreadcrumb = useBreadcrumbStore((s) => s.clearBreadcrumb);
+
+  useEffect(() => {
+    setBreadcrumb(breadcrumb);
+    return () => clearBreadcrumb();
+  }, [setBreadcrumb, clearBreadcrumb]);
+
   const queryClient = useQueryClient();
   const [selectedAppId, setSelectedAppId] = useState<string>('');
   const [selectedMenu, setSelectedMenu] = useState<Menu | null>(null);
@@ -99,7 +107,6 @@ export default function MenuManagement() {
   if (isLoading) {
     return (
       <div className="flex flex-col gap-4 w-full h-full">
-        <PageHeader breadcrumb={breadcrumb} />
         <div className="flex items-center justify-center flex-1">
           <FallbackSpinner />
         </div>
@@ -109,8 +116,6 @@ export default function MenuManagement() {
 
   return (
     <div className="flex flex-col gap-4 w-full h-full">
-      <PageHeader breadcrumb={breadcrumb} />
-
       {/* Tree + Detail Split */}
       <div className="flex gap-4 flex-1 min-h-0">
         {/* 좌측: 메뉴 트리 */}

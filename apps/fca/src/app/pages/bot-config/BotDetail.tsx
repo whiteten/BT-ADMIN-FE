@@ -1,9 +1,9 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { useParams } from 'react-router-dom';
 import type { BreadcrumbProps } from 'antd';
+import { useBreadcrumbStore } from '@/shared-store';
 import { useGetBot } from '../../features/bot-config/hooks/useBotQueries';
 import { IconAoe, IconCalendar, IconDocument, IconLayer, IconSlidersHorizontal, IconTalk } from '@/components/custom/Icons';
-import PageHeader from '@/components/custom/PageHeader';
 import PageTabs, { type PageTab } from '@/components/custom/PageTabs';
 
 const BotBasicInfo = React.lazy(() => import('../../features/bot-config/tabs/BotBasicInfo'));
@@ -24,19 +24,22 @@ const tabs: PageTab[] = [
 
 export default function BotDetail() {
   const { serviceId } = useParams();
-
   const { data: bot } = useGetBot({ params: { serviceId } });
+  const setBreadcrumb = useBreadcrumbStore((s) => s.setBreadcrumb);
+  const clearBreadcrumb = useBreadcrumbStore((s) => s.clearBreadcrumb);
 
-  const breadcrumb: BreadcrumbProps['items'] = [
-    { title: '관리', path: '/fca/bot-config' },
-    { title: '봇', path: '/fca/bot-config/bot' },
-    { title: ':botName', path: `/fca/bot-config/bot/${serviceId}` },
-  ];
+  useEffect(() => {
+    const breadcrumb: BreadcrumbProps['items'] = [
+      { title: '관리', path: '/fca/bot-config' },
+      { title: '봇', path: '/fca/bot-config/bot' },
+      { title: ':botName', path: `/fca/bot-config/bot/${serviceId}` },
+    ];
+    setBreadcrumb(breadcrumb, { botName: bot?.serviceName ?? '-' });
+    return () => clearBreadcrumb();
+  }, [serviceId, bot?.serviceName, setBreadcrumb, clearBreadcrumb]);
 
-  const params: BreadcrumbProps['params'] = { botName: bot?.serviceName ?? '-' };
   return (
     <div className="flex flex-col gap-4 w-full h-full">
-      <PageHeader breadcrumb={breadcrumb} params={params} />
       <PageTabs tabs={tabs} />
     </div>
   );

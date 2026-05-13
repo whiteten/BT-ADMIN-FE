@@ -1,31 +1,38 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useQueryClient } from '@tanstack/react-query';
 import { type BreadcrumbProps, Button, Input, Select } from 'antd';
+import { useBreadcrumbStore } from '@/shared-store';
 import ModelCard from '../../features/bot-config/components/ModelCard';
 import { modelQueryKeys, useDeleteModel, useExportModel, useGetModels } from '../../features/bot-config/hooks/useModelQueries';
 import { useModelRoute } from '../../features/bot-config/hooks/useModelRoute';
 import { ModelType } from '../../features/bot-config/types/model';
 import { FallbackSpinner } from '@/components/custom/FallbackSpinner';
 import NoData from '@/components/custom/NoData';
-import PageHeader from '@/components/custom/PageHeader';
 import { Spinner } from '@/libs/shared-ui/src/components/shadcn/spinner';
 import { useModal } from '@/libs/shared-ui/src/hooks/useModal';
 
+const privateBreadcrumb: BreadcrumbProps['items'] = [
+  { title: '관리', path: '/fca/bot-config' },
+  { title: '모델', path: '/fca/bot-config/model' },
+  { title: '모델 목록', path: '/fca/bot-config/model/list' },
+];
+
+const publicBreadcrumb: BreadcrumbProps['items'] = [
+  { title: '공용', path: '/fca/global' },
+  { title: '공용 모델', path: '/fca/global/model' },
+  { title: '공용 모델 목록', path: '/fca/global/model' },
+];
+
 export default function ModelList() {
   const { isPublic } = useModelRoute();
+  const setBreadcrumb = useBreadcrumbStore((s) => s.setBreadcrumb);
+  const clearBreadcrumb = useBreadcrumbStore((s) => s.clearBreadcrumb);
 
-  const privateBreadcrumb: BreadcrumbProps['items'] = [
-    { title: '관리', path: '/fca/bot-config' },
-    { title: '모델', path: '/fca/bot-config/model' },
-    { title: '모델 목록', path: '/fca/bot-config/model/list' },
-  ];
-
-  const publicBreadcrumb: BreadcrumbProps['items'] = [
-    { title: '공용', path: '/fca/global' },
-    { title: '공용 모델', path: '/fca/global/model' },
-    { title: '공용 모델 목록', path: '/fca/global/model' },
-  ];
+  useEffect(() => {
+    setBreadcrumb(isPublic ? publicBreadcrumb : privateBreadcrumb);
+    return () => clearBreadcrumb();
+  }, [isPublic, setBreadcrumb, clearBreadcrumb]);
 
   const navigate = useNavigate();
   const queryClient = useQueryClient();
@@ -86,7 +93,6 @@ export default function ModelList() {
 
   return (
     <div className="flex flex-col gap-4 w-full h-full">
-      <PageHeader breadcrumb={isPublic ? publicBreadcrumb : privateBreadcrumb} />
       {/* Filter */}
       <div className="flex items-center justify-between gap-2 w-full h-[76px] bg-white bt-shadow px-7 py-5">
         <div className="flex gap-2 w-full items-center">

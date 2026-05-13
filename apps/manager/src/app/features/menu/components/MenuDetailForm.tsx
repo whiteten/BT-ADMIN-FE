@@ -49,6 +49,7 @@ export default function MenuDetailForm({ menu, apps, onSave, onDelete, saving }:
       visible: menu.visible,
       path: basePath || undefined,
       iconKey: menu.iconKey ?? undefined,
+      desc: menu.desc ?? undefined,
     });
     setQueryValues(parsedQuery);
     setQueryErrors({});
@@ -210,6 +211,14 @@ export default function MenuDetailForm({ menu, apps, onSave, onDelete, saving }:
             <Col span={8}>
               <Form.Item label="기능 플래그" name="featureFlag">
                 <Input placeholder="선택사항" />
+              </Form.Item>
+            </Col>
+          </Row>
+
+          <Row gutter={16}>
+            <Col span={16}>
+              <Form.Item label="설명" name="desc">
+                <Input placeholder="메뉴 설명 (선택사항)" />
               </Form.Item>
             </Col>
           </Row>

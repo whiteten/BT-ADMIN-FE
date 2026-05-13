@@ -1,16 +1,16 @@
-import { useCallback, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import type { ColDef, ICellRendererParams, RowDoubleClickedEvent } from 'ag-grid-community';
 import { AgGridReact } from 'ag-grid-react';
 import { Button, DatePicker, Input, Select, TimePicker } from 'antd';
 import dayjs from 'dayjs';
 import { Database, Search } from 'lucide-react';
+import { useBreadcrumbStore } from '@/shared-store';
 import { WorkHistoryDetailDrawer, type WorkHistoryDetailDrawerRef } from './WorkHistoryDetailDrawer';
 import { useWorkHistoryList, workHistoryQueryKeys } from '../../features/workHistory/hooks/useWorkHistoryQueries';
 import type { WorkHistoryListItem, WorkHistoryListParams } from '../../features/workHistory/types/workHistory.types';
 import { FallbackSpinner } from '@/components/custom/FallbackSpinner';
 import NoData from '@/components/custom/NoData';
-import PageHeader from '@/components/custom/PageHeader';
 import ServerPagination from '@/components/custom/ServerPagination';
 import useAggridOptions from '@/libs/shared-ui/src/hooks/useAggridOptions';
 
@@ -59,6 +59,14 @@ function IdsBadge() {
 }
 
 export default function WorkHistoryList() {
+  const setBreadcrumb = useBreadcrumbStore((s) => s.setBreadcrumb);
+  const clearBreadcrumb = useBreadcrumbStore((s) => s.clearBreadcrumb);
+
+  useEffect(() => {
+    setBreadcrumb(breadcrumb);
+    return () => clearBreadcrumb();
+  }, [setBreadcrumb, clearBreadcrumb]);
+
   const queryClient = useQueryClient();
   const { gridOptions } = useAggridOptions();
   const drawerRef = useRef<WorkHistoryDetailDrawerRef>(null);
@@ -195,7 +203,6 @@ export default function WorkHistoryList() {
 
   return (
     <div className="flex flex-col gap-4 w-full h-full">
-      <PageHeader breadcrumb={breadcrumb} />
       <div className="flex flex-col gap-5 w-full h-full bg-white bt-shadow p-5">
         <header className="flex items-center justify-between w-full gap-2 lg:flex-nowrap flex-wrap">
           <div className="flex gap-2 items-center flex-nowrap">
