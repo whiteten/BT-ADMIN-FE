@@ -20,6 +20,7 @@ import type { ColDef, ICellRendererParams } from 'ag-grid-community';
 import { AgGridReact } from 'ag-grid-react';
 import { Button, Dropdown, Empty, Input } from 'antd';
 import { AlertTriangle, Ban, ChevronLeft, ChevronRight, Layers, MoreVertical, Network, Plus, Search, Trash2 } from 'lucide-react';
+import { useBreadcrumbStore } from '@/shared-store';
 import { toast } from '@/shared-util';
 import { endpointApi } from '../api/endpointApi';
 import EndpointMemberDrawer, { type EndpointMemberDrawerRef } from '../components/EndpointMemberDrawer';
@@ -39,7 +40,6 @@ import {
   getEndpointTagList,
 } from '../types/endpoint.types';
 import { IconTrash } from '@/components/custom/Icons';
-import PageHeader from '@/components/custom/PageHeader';
 import useAggridOptions from '@/libs/shared-ui/src/hooks/useAggridOptions';
 import { useModal } from '@/libs/shared-ui/src/hooks/useModal';
 
@@ -54,6 +54,14 @@ type BottomTab = 'member' | 'regnum';
 const TRANSPORT_LABELS: Record<number, string> = Object.fromEntries(TRANSPORT_OPTIONS.map((o) => [o.value, o.label]));
 
 export default function EndpointListPage() {
+  const setBreadcrumb = useBreadcrumbStore((s) => s.setBreadcrumb);
+  const clearBreadcrumb = useBreadcrumbStore((s) => s.clearBreadcrumb);
+
+  useEffect(() => {
+    setBreadcrumb(breadcrumb);
+    return () => clearBreadcrumb();
+  }, [setBreadcrumb, clearBreadcrumb]);
+
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const queryClient = useQueryClient();
@@ -556,8 +564,6 @@ export default function EndpointListPage() {
   // ─── Render ───────────────────────────────────────────────────────────────
   return (
     <div className="flex flex-col gap-4 w-full h-full">
-      <PageHeader breadcrumb={breadcrumb} />
-
       <div className="flex flex-1 min-h-0 flex-col gap-4">
         {/* ===== 상단: 노드 탭 바 + 카드 슬라이더 ===== */}
         <div className="bg-white bt-shadow overflow-hidden flex-shrink-0">

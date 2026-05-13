@@ -93,6 +93,18 @@ export const trackingApi = {
     return extractDetail(response);
   },
 
+  /**
+   * IE_BASICCDR hop별 raw row (118 컬럼) — Drawer 시각화용.
+   * Backend: ApiResponse<Map<String, Object>> -> BFF: data:{...} -> extractDetail
+   * @flow ipron-tracking-ie-cdr
+   */
+  getIeCdrDetail: async (ucid: string, hop: number): Promise<Record<string, unknown>> => {
+    const response = await apiClient.get<DetailResponse<Record<string, unknown>>>('/ipron-tracking-ie-cdr', {
+      params: { ucid, hop },
+    });
+    return (extractDetail(response) ?? {}) as Record<string, unknown>;
+  },
+
   // ─── IVR Step Tree ────────────────────────────────────────────────────────
 
   /**

@@ -1,10 +1,11 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { useQueryClient } from '@tanstack/react-query';
 import { DndContext, type DragEndEvent, DragOverlay, type DragStartEvent, pointerWithin, useDraggable, useDroppable } from '@dnd-kit/core';
 import { CSS } from '@dnd-kit/utilities';
-import { Badge, type BreadcrumbProps, Button, Descriptions, Tag } from 'antd';
+import { Badge, Button, Descriptions, Tag } from 'antd';
 import { GripVertical, Plus, X } from 'lucide-react';
+import { useBreadcrumbStore } from '@/shared-store';
 import { toast } from '@/shared-util';
 import { useGetTenants } from '../../tenant-management/hooks/useTenantQueries';
 import type { TenantListItem } from '../../tenant-management/types/tenant.types';
@@ -13,7 +14,6 @@ import { tenantAllocQueryKeys, useCreateTenantAlloc, useDeleteTenantAlloc, useGe
 import { LICENSE_KIND_LABELS, MCS_ROUTE_METHOD_LABELS, NAT_OPTION_LABELS, type TenantAllocItem, WORKTIME_OPT_LABELS } from '../types/node.types';
 import { FallbackSpinner } from '@/components/custom/FallbackSpinner';
 import NoData from '@/components/custom/NoData';
-import PageHeader from '@/components/custom/PageHeader';
 import { useModal } from '@/libs/shared-ui/src/hooks/useModal';
 
 /** 할당된 테넌트 드래그 카드 */
@@ -170,8 +170,13 @@ export default function NodeDetailPage() {
     },
   });
 
-  const breadcrumb: BreadcrumbProps['items'] = [{ title: '시스템' }, { title: '자원관리' }, { title: '클러스터 관리', href: '../list' }, { title: ':nodeName' }];
-  const params: BreadcrumbProps['params'] = { nodeName: node?.nodeName ?? '-' };
+  const setBreadcrumb = useBreadcrumbStore((s) => s.setBreadcrumb);
+  const clearBreadcrumb = useBreadcrumbStore((s) => s.clearBreadcrumb);
+
+  useEffect(() => {
+    setBreadcrumb([{ title: '시스템' }, { title: '자원관리' }, { title: '클러스터 관리', href: '../list' }, { title: ':nodeName' }], { nodeName: node?.nodeName ?? '-' });
+    return () => clearBreadcrumb();
+  }, [node?.nodeName, setBreadcrumb, clearBreadcrumb]);
 
   const handleDeleteAlloc = (alloc: TenantAllocItem) => {
     modal.confirm.execute({
@@ -241,8 +246,6 @@ export default function NodeDetailPage() {
 
   return (
     <div className="flex flex-col gap-4 w-full h-full">
-      <PageHeader breadcrumb={breadcrumb} params={params} />
-
       {isFetching ? (
         <div className="flex items-center justify-center w-full h-full bg-white bt-shadow">
           <FallbackSpinner />

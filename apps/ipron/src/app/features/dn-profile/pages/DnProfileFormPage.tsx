@@ -12,7 +12,8 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { useQueryClient } from '@tanstack/react-query';
-import { type BreadcrumbProps, Button, Col, Form, Input, InputNumber, Row, Select, Steps, Switch } from 'antd';
+import { Button, Col, Form, Input, InputNumber, Row, Select, Steps, Switch } from 'antd';
+import { useBreadcrumbStore } from '@/shared-store';
 import { toast } from '@/shared-util';
 import DnProfileSummaryPanel from '../components/DnProfileSummaryPanel';
 import {
@@ -29,7 +30,6 @@ import {
 import { DN_PROFILE_INITIAL_VALUES, type DnProfileCreateRequest, type DnProfileUpdateRequest } from '../types/dnProfile.types';
 import { DN_PROFILE_TYPE_OPTIONS, NAT_OPTION_OPTIONS, getRtpOptions } from '../utils/dnProfileEnums';
 import { FallbackSpinner } from '@/components/custom/FallbackSpinner';
-import PageHeader from '@/components/custom/PageHeader';
 import { useModal } from '@/libs/shared-ui/src/hooks/useModal';
 
 export default function DnProfileFormPage() {
@@ -311,12 +311,13 @@ export default function DnProfileFormPage() {
     });
   };
 
-  const breadcrumb: BreadcrumbProps['items'] = [
-    { title: 'IPRON' },
-    { title: '프로파일 관리' },
-    { title: '내선 프로파일', href: '../dn-profile' },
-    { title: isEditMode ? '수정' : '등록' },
-  ];
+  const setBreadcrumb = useBreadcrumbStore((s) => s.setBreadcrumb);
+  const clearBreadcrumb = useBreadcrumbStore((s) => s.clearBreadcrumb);
+
+  useEffect(() => {
+    setBreadcrumb([{ title: 'IPRON' }, { title: '프로파일 관리' }, { title: '내선 프로파일', href: '../dn-profile' }, { title: isEditMode ? '수정' : '등록' }]);
+    return () => clearBreadcrumb();
+  }, [isEditMode, setBreadcrumb, clearBreadcrumb]);
 
   // ─── Footer ────────────────────────────────────────────────────────────────
   function renderFooter() {
@@ -364,8 +365,6 @@ export default function DnProfileFormPage() {
 
   return (
     <div className="flex flex-col gap-4 w-full h-full">
-      <PageHeader breadcrumb={breadcrumb} />
-
       {/* Steps bar */}
       <div className="flex items-center justify-center w-full h-[58px] min-h-[58px] bg-white bt-shadow px-7 py-2">
         <Steps

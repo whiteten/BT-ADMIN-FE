@@ -28,6 +28,7 @@
  *  - nodeId == backUpNodeId 금지
  */
 import { useEffect, useMemo, useState } from 'react';
+import { useBreadcrumbStore } from '@/shared-store';
 
 /**
  * MD5 인증 비밀번호 마스킹 더미 — 수정 화면 진입 시 비번 설정됨을 시각적으로 표시하기 위한 sentinel.
@@ -36,7 +37,7 @@ import { useEffect, useMemo, useState } from 'react';
 const MD5_PWD_MASK = '__MD5KEEP';
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { useQueryClient } from '@tanstack/react-query';
-import { type BreadcrumbProps, Button, Col, Form, Input, InputNumber, Row, Select, Steps, Switch, Tooltip } from 'antd';
+import { Button, Col, Form, Input, InputNumber, Row, Select, Steps, Switch, Tooltip } from 'antd';
 import { Lock as LockOutlined } from 'lucide-react';
 import { toast } from '@/shared-util';
 import { useGetDnProfileNodeTenants, useGetDnProfileNodes, useGetDnProfileTenants } from '../../dn-profile/hooks/useDnProfileQueries';
@@ -49,7 +50,6 @@ import { dnQueryKeys, useCreateDn, useDeleteDns, useGetDnCosEffect, useGetDnDeta
 import { DN_INITIAL_VALUES, type DnCreateRequest, type DnUpdateRequest } from '../types/dn.types';
 import { ADN_DEFAULT_STATE_OPTIONS, DN_STATUS_OPTIONS, DN_TYPE_OPTIONS_PRIMARY, IP_VERSION_OPTIONS, TRANSPORT_TYPE_OPTIONS } from '../utils/dnEnums';
 import { FallbackSpinner } from '@/components/custom/FallbackSpinner';
-import PageHeader from '@/components/custom/PageHeader';
 import { useModal } from '@/libs/shared-ui/src/hooks/useModal';
 
 /**
@@ -719,13 +719,13 @@ export default function DnFormPage() {
     });
   };
 
-  const breadcrumb: BreadcrumbProps['items'] = [
-    { title: 'IPRON' },
-    { title: '번호자원관리' },
-    { title: 'DN관리' },
-    { title: '내선관리', href: '../dn' },
-    { title: isEditMode ? '수정' : '등록' },
-  ];
+  const setBreadcrumb = useBreadcrumbStore((s) => s.setBreadcrumb);
+  const clearBreadcrumb = useBreadcrumbStore((s) => s.clearBreadcrumb);
+
+  useEffect(() => {
+    setBreadcrumb([{ title: 'IPRON' }, { title: '번호자원관리' }, { title: 'DN관리' }, { title: '내선관리', href: '../dn' }, { title: isEditMode ? '수정' : '등록' }]);
+    return () => clearBreadcrumb();
+  }, [isEditMode, setBreadcrumb, clearBreadcrumb]);
 
   // 필수값 충족 여부 — 어느 스텝이든 충족되면 등록 버튼 활성
   const v = formValues ?? DN_INITIAL_VALUES;
@@ -847,8 +847,6 @@ export default function DnFormPage() {
   // ─── Render ──────────────────────────────────────────────────────────────
   return (
     <div className="flex flex-col gap-4 w-full h-full">
-      <PageHeader breadcrumb={breadcrumb} />
-
       {/* Steps bar — 뒤로는 자유, 앞으로는 현재 스텝 필수값 충족 시에만 전진 */}
       <div className="flex items-center justify-center w-full h-[58px] min-h-[58px] bg-white bt-shadow px-7 py-2">
         <Steps

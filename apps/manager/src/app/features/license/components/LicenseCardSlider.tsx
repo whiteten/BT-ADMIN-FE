@@ -1,4 +1,5 @@
 import { useRef } from 'react';
+import { useBreadcrumbStore } from '@/shared-store';
 import { Button } from 'antd';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 import LicenseCard from './LicenseCard';

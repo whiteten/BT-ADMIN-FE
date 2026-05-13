@@ -17,6 +17,7 @@ import type { ColDef, ICellRendererParams } from 'ag-grid-community';
 import { AgGridReact } from 'ag-grid-react';
 import { Button, Dropdown, Empty, Input } from 'antd';
 import { ArrowUpDown, Building2, ChevronLeft, ChevronRight, Copy, Edit3, MoreVertical, Network, Plus, Search, Trash2 } from 'lucide-react';
+import { useBreadcrumbStore } from '@/shared-store';
 import { toast } from '@/shared-util';
 import AccessCodeDrawer, { type AccessCodeDrawerRef } from '../components/AccessCodeDrawer';
 import AccessProfileCopyDialog, { type AccessProfileCopyDialogRef } from '../components/AccessProfileCopyDialog';
@@ -39,7 +40,6 @@ import {
 } from '../hooks/useAccessProfileQueries';
 import type { AccessCode, AccessProfile } from '../types/accessProfile.types';
 import { IconTrash } from '@/components/custom/Icons';
-import PageHeader from '@/components/custom/PageHeader';
 import useAggridOptions from '@/libs/shared-ui/src/hooks/useAggridOptions';
 import { useModal } from '@/libs/shared-ui/src/hooks/useModal';
 
@@ -50,6 +50,14 @@ const breadcrumb = [
 ];
 
 export default function AccessProfilePage() {
+  const setBreadcrumb = useBreadcrumbStore((s) => s.setBreadcrumb);
+  const clearBreadcrumb = useBreadcrumbStore((s) => s.clearBreadcrumb);
+
+  useEffect(() => {
+    setBreadcrumb(breadcrumb);
+    return () => clearBreadcrumb();
+  }, [setBreadcrumb, clearBreadcrumb]);
+
   const { gridOptions } = useAggridOptions();
   const queryClient = useQueryClient();
   const modal = useModal();
@@ -419,8 +427,6 @@ export default function AccessProfilePage() {
   // ─── Render ─────────────────────────────────────────────────────────────────
   return (
     <div className="flex flex-col gap-4 w-full h-full">
-      <PageHeader breadcrumb={breadcrumb} />
-
       <div className="flex flex-1 min-h-0 flex-col gap-4">
         {/* ===== 상단: 탭 바 + 프로파일 카드 슬라이더 (viewMode에 따라 탭/그룹 swap) ===== */}
         <div className="bg-white bt-shadow overflow-hidden flex-shrink-0">

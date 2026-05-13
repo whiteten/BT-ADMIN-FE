@@ -1,4 +1,5 @@
 import type { ReactNode } from 'react';
+import { useBreadcrumbStore } from '@/shared-store';
 import { useDroppable } from '@dnd-kit/core';
 
 type DroppableClusterGroupProps = {

@@ -1,3 +1,4 @@
+import { useAuthStore, useBreadcrumbStore } from '@/shared-store';
 /**
  * 사용자 상세 - 기본정보 탭
  * - 비밀번호 정책 패턴 적용: Form.useWatch로 폼 값 변경 시 Context에 실시간 반영
@@ -5,10 +6,11 @@
  */
 
 import { useEffect } from 'react';
+
 import { useNavigate, useParams } from 'react-router-dom';
 import { useQueryClient } from '@tanstack/react-query';
 import { Button, Col, Form, type FormProps, Input, Row, Select, Switch } from 'antd';
-import { useAuthStore } from '@/shared-store';
+
 import { toast } from '@/shared-util';
 import { useGetRoles } from '../../../features/iam/hooks/useRoleQueries';
 import { useDeleteUser, useResetPasswordToAccount, useUpdateUser, userQueryKeys } from '../../../features/user/hooks/useUserQueries';

@@ -6,6 +6,7 @@
  */
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useBreadcrumbStore } from '@/shared-store';
 import { useNavigate, useParams } from 'react-router-dom';
 import { Button, Col, Row } from 'antd';
 import { toast } from '@/shared-util';

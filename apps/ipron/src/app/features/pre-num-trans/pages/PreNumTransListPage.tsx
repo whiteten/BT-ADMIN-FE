@@ -12,17 +12,17 @@
  *
  * 우측: ag-Grid (노드명, DNIS패턴, 편집옵션, Digit수, 추가Digit, 우선순위, 변환동작, 변환후라우트, 비고, 삭제)
  */
-import { type ChangeEvent, useCallback, useMemo, useRef, useState } from 'react';
+import { type ChangeEvent, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import type { ColDef, ICellRendererParams } from 'ag-grid-community';
 import { AgGridReact } from 'ag-grid-react';
 import { Button, Empty, Input } from 'antd';
 import { ChevronLeft, ChevronRight, Layers, Network, Plus, Search } from 'lucide-react';
+import { useBreadcrumbStore } from '@/shared-store';
 import PreNumTransDrawer, { type PreNumTransDrawerRef } from '../components/PreNumTransDrawer';
 import { preNumTransQueryKeys, useDeletePreNumTrans, useGetNodes, useGetPreNumTransList } from '../hooks/usePreNumTransQueries';
 import { EDIT_OPT_LABELS, type PreNumTrans, TRANS_ACTION_LABELS } from '../types/preNumTrans.types';
 import { IconTrash } from '@/components/custom/Icons';
-import PageHeader from '@/components/custom/PageHeader';
 import useAggridOptions from '@/libs/shared-ui/src/hooks/useAggridOptions';
 import { useModal } from '@/libs/shared-ui/src/hooks/useModal';
 
@@ -33,6 +33,14 @@ const breadcrumb = [
 ];
 
 export default function PreNumTransListPage() {
+  const setBreadcrumb = useBreadcrumbStore((s) => s.setBreadcrumb);
+  const clearBreadcrumb = useBreadcrumbStore((s) => s.clearBreadcrumb);
+
+  useEffect(() => {
+    setBreadcrumb(breadcrumb);
+    return () => clearBreadcrumb();
+  }, [setBreadcrumb, clearBreadcrumb]);
+
   const queryClient = useQueryClient();
   const { gridOptions } = useAggridOptions();
   const modal = useModal();
@@ -214,8 +222,6 @@ export default function PreNumTransListPage() {
   // ─── Render ───────────────────────────────────────────────────────────────
   return (
     <div className="flex flex-col gap-4 w-full h-full">
-      <PageHeader breadcrumb={breadcrumb} />
-
       <div className="flex flex-1 min-h-0 flex-col gap-4">
         {/* ===== 상단 헤더 박스 (제목 + 검색 + 추가) ===== */}
         <div className="bg-white bt-shadow overflow-hidden flex-shrink-0">

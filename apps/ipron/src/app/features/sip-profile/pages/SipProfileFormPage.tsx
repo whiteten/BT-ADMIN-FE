@@ -6,8 +6,9 @@
 import { useEffect, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { useQueryClient } from '@tanstack/react-query';
-import { type BreadcrumbProps, Button, Col, Divider, Form, Input, InputNumber, Row, Select, Steps, Switch } from 'antd';
+import { Button, Col, Divider, Form, Input, InputNumber, Row, Select, Steps, Switch } from 'antd';
 import { Check, X } from 'lucide-react';
+import { useBreadcrumbStore } from '@/shared-store';
 import { toast } from '@/shared-util';
 import { sipProfileQueryKeys, useCreateSipProfile, useGetSipHeaderGroups, useGetSipProfileDetail, useUpdateSipProfile } from '../hooks/useSipProfileQueries';
 import {
@@ -21,7 +22,6 @@ import {
   type SipOptionDto,
 } from '../types/sipProfile.types';
 import { FallbackSpinner } from '@/components/custom/FallbackSpinner';
-import PageHeader from '@/components/custom/PageHeader';
 
 const initialValues = {
   ssRefreshType: 0,
@@ -124,12 +124,13 @@ export default function SipProfileFormPage() {
     }
   };
 
-  const breadcrumb: BreadcrumbProps['items'] = [
-    { title: 'IPRON' },
-    { title: '프로파일 관리' },
-    { title: 'SIP 프로파일', href: '../sip-profile' },
-    { title: isEditMode ? '수정' : '등록' },
-  ];
+  const setBreadcrumb = useBreadcrumbStore((s) => s.setBreadcrumb);
+  const clearBreadcrumb = useBreadcrumbStore((s) => s.clearBreadcrumb);
+
+  useEffect(() => {
+    setBreadcrumb([{ title: 'IPRON' }, { title: '프로파일 관리' }, { title: 'SIP 프로파일', href: '../sip-profile' }, { title: isEditMode ? '수정' : '등록' }]);
+    return () => clearBreadcrumb();
+  }, [isEditMode, setBreadcrumb, clearBreadcrumb]);
 
   // ─── 유틸 ───────────────────────────────────────────────────────────────────
   const displayValue = (v: unknown) => (v !== null && v !== undefined && v !== '' ? String(v) : <span className="text-gray-300">-</span>);
@@ -251,8 +252,6 @@ export default function SipProfileFormPage() {
   // ─── Render ──────────────────────────────────────────────────────────────────
   return (
     <div className="flex flex-col gap-4 w-full h-full">
-      <PageHeader breadcrumb={breadcrumb} />
-
       {/* Steps 바 */}
       <div className="flex items-center justify-center w-full h-[58px] min-h-[58px] bg-white bt-shadow px-7 py-2">
         <Steps

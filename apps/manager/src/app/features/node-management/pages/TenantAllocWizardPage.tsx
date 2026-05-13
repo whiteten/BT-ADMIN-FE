@@ -4,12 +4,12 @@ import { useQueryClient } from '@tanstack/react-query';
 import { type BreadcrumbProps, Button, Col, Divider, Form, type FormProps, Input, InputNumber, Radio, Row, Select, Steps } from 'antd';
 import { Check, X } from 'lucide-react';
 import { Log } from '@/log';
+import { useBreadcrumbStore } from '@/shared-store';
 import { toast } from '@/shared-util';
 import { useGetTenants } from '../../tenant-management/hooks/useTenantQueries';
 import { useGetNode } from '../hooks/useNodeQueries';
 import { tenantAllocQueryKeys, useCreateTenantAlloc, useGetTenantAllocDetail, useUpdateTenantAlloc } from '../hooks/useTenantAllocQueries';
 import { LICENSE_KIND_LABELS, type TenantAllocCreateData, type TenantAllocUpdateData, WORKTIME_OPT_LABELS } from '../types/node.types';
-import PageHeader from '@/components/custom/PageHeader';
 
 const worktimeOptOptions = Object.entries(WORKTIME_OPT_LABELS).map(([value, label]) => ({
   label,
@@ -27,6 +27,14 @@ const formatNumber = (value: number | null | undefined): string => {
 };
 
 export default function TenantAllocWizardPage() {
+  const setBreadcrumb = useBreadcrumbStore((s) => s.setBreadcrumb);
+  const clearBreadcrumb = useBreadcrumbStore((s) => s.clearBreadcrumb);
+
+  useEffect(() => {
+    setBreadcrumb(breadcrumb);
+    return () => clearBreadcrumb();
+  }, [setBreadcrumb, clearBreadcrumb]);
+
   const { nodeId, tenantId } = useParams();
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
@@ -699,7 +707,6 @@ export default function TenantAllocWizardPage() {
 
   return (
     <div className="flex flex-col gap-4 w-full h-full">
-      <PageHeader breadcrumb={breadcrumb} />
       <div className="flex items-center justify-center w-full h-[58px] min-h-[58px] bg-white bt-shadow px-7 py-2">
         <Steps
           current={currentStep}

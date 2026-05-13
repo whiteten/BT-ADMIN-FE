@@ -45,6 +45,19 @@ export const useGetTrackingDetail = (ucid: string | null | undefined, { queryOpt
   });
 };
 
+export const useGetIeCdrDetail = (
+  ucid: string | null | undefined,
+  hop: number | null | undefined,
+  { queryOptions }: QueryHookOptions<Record<string, unknown>> = {},
+) => {
+  return useQuery({
+    queryKey: ['tracking', 'ie-cdr', ucid ?? '', hop ?? -1] as const,
+    queryFn: () => trackingApi.getIeCdrDetail(ucid!, hop!),
+    enabled: !!ucid && hop != null && hop >= 0,
+    ...queryOptions,
+  });
+};
+
 export const useGetIvrSteps = (ucid: string | null | undefined, { queryOptions }: QueryHookOptions<IvrScenarioGroup[]> = {}) => {
   return useQuery({
     queryKey: trackingQueryKeys.ivrStep(ucid ?? undefined).queryKey,

@@ -16,13 +16,13 @@ import { useNavigate } from 'react-router-dom';
 import { useQueryClient } from '@tanstack/react-query';
 import { Button, Empty, Input } from 'antd';
 import { ArrowUpDown, Building2, ChevronLeft, ChevronRight, Network, Plus, Search } from 'lucide-react';
+import { useBreadcrumbStore } from '@/shared-store';
 import { toast } from '@/shared-util';
 import { dnQueryKeys } from '../../dn/hooks/useDnQueries';
 import DnAssignDialog from '../components/DnAssignDialog';
 import DnProfileTable from '../components/DnProfileTable';
 import { dnProfileQueryKeys, useDeleteDnProfile, useGetDnProfileNodeTenants, useGetDnProfileNodes, useGetDnProfiles } from '../hooks/useDnProfileQueries';
 import type { DnProfile } from '../types/dnProfile.types';
-import PageHeader from '@/components/custom/PageHeader';
 import { useModal } from '@/libs/shared-ui/src/hooks/useModal';
 
 const breadcrumb = [
@@ -32,6 +32,14 @@ const breadcrumb = [
 ];
 
 export default function DnProfilePage() {
+  const setBreadcrumb = useBreadcrumbStore((s) => s.setBreadcrumb);
+  const clearBreadcrumb = useBreadcrumbStore((s) => s.clearBreadcrumb);
+
+  useEffect(() => {
+    setBreadcrumb(breadcrumb);
+    return () => clearBreadcrumb();
+  }, [setBreadcrumb, clearBreadcrumb]);
+
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const modal = useModal();
@@ -265,8 +273,6 @@ export default function DnProfilePage() {
   // ─── Render ─────────────────────────────────────────────────────────────────
   return (
     <div className="flex flex-col gap-4 w-full h-full">
-      <PageHeader breadcrumb={breadcrumb} />
-
       <div className="flex flex-1 min-h-0 flex-col gap-4">
         {/* ===== 상단 박스: 탭 바 + 카드 슬라이더 (viewMode에 따라 내용 swap) ===== */}
         <div className="bg-white bt-shadow overflow-hidden flex-shrink-0">

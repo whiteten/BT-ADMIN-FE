@@ -6,6 +6,7 @@
  */
 
 import { useState } from 'react';
+import { useBreadcrumbStore } from '@/shared-store';
 import { CheckCircle2, Copy } from 'lucide-react';
 import { Log } from '@/log';
 import { copyToClipboard } from '@/shared-util';

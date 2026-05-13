@@ -1,11 +1,11 @@
 /**
- * 명령어 팔레트 (⌘K) — 콜트래킹 검색 입력.
+ * 명령어 팔레트 (Ctrl+M) — 콜트래킹 검색 입력.
  *
  * Ant Design Modal 위에 입력 + 문법 가이드 + 빠른 프리셋 칩.
  * SD-CALL-TRACKING.md § 7.2 검색 문법 정확히 준수.
  *
  * UX:
- *  - ⌘K / Ctrl+K 어디서든 열기 (TrackingSearchPage에서 글로벌 핸들러)
+ *  - Ctrl+M 어디서든 열기 (TrackingSearchPage에서 글로벌 핸들러, 상단 통합검색 Ctrl+K 와 충돌 회피)
  *  - Enter → onSubmit
  *  - Esc  → 닫기
  *  - 칩 클릭 → 입력창에 추가

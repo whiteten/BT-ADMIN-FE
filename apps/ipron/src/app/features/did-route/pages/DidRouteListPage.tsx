@@ -12,18 +12,18 @@
  * │ ag-Grid: 라우트명│ANI패턴│DNIS패턴│업무시간내│외│우선│  │
  * └──────────────────────────────────────────────────────┘
  */
-import { type ChangeEvent, useCallback, useMemo, useRef, useState } from 'react';
+import { type ChangeEvent, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useQueryClient } from '@tanstack/react-query';
 import type { ColDef, ICellRendererParams } from 'ag-grid-community';
 import { AgGridReact } from 'ag-grid-react';
 import { Button, Empty, Input } from 'antd';
 import { ChevronLeft, ChevronRight, Layers, Network, Plus, Search } from 'lucide-react';
+import { useBreadcrumbStore } from '@/shared-store';
 import { toast } from '@/shared-util';
 import { didRouteQueryKeys, useDeleteDidRoute, useGetDidRouteList, useGetNodes } from '../hooks/useDidRouteQueries';
 import { type DidRoute, getRoutingDisplayText } from '../types/didRoute.types';
 import { IconTrash } from '@/components/custom/Icons';
-import PageHeader from '@/components/custom/PageHeader';
 import useAggridOptions from '@/libs/shared-ui/src/hooks/useAggridOptions';
 import { useModal } from '@/libs/shared-ui/src/hooks/useModal';
 
@@ -34,6 +34,14 @@ const breadcrumb = [
 ];
 
 export default function DidRouteListPage() {
+  const setBreadcrumb = useBreadcrumbStore((s) => s.setBreadcrumb);
+  const clearBreadcrumb = useBreadcrumbStore((s) => s.clearBreadcrumb);
+
+  useEffect(() => {
+    setBreadcrumb(breadcrumb);
+    return () => clearBreadcrumb();
+  }, [setBreadcrumb, clearBreadcrumb]);
+
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const modal = useModal();
@@ -231,8 +239,6 @@ export default function DidRouteListPage() {
   // ─── Render ───────────────────────────────────────────────────────────────
   return (
     <div className="flex flex-col gap-4 w-full h-full">
-      <PageHeader breadcrumb={breadcrumb} />
-
       <div className="flex flex-1 min-h-0 flex-col gap-4">
         {/* ===== 상단: 노드 카드 슬라이더 (DOD DNIS관리 패턴) ===== */}
         <div className="bg-white bt-shadow overflow-hidden flex-shrink-0">

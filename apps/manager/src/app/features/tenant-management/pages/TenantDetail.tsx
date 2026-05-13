@@ -1,9 +1,8 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { useParams } from 'react-router-dom';
-import { type BreadcrumbProps } from 'antd';
+import { useBreadcrumbStore } from '@/shared-store';
 import { useGetTenant } from '../hooks/useTenantQueries';
 import { IconDocument, IconLayer, IconSlidersHorizontal, IconTalk } from '@/components/custom/Icons';
-import PageHeader from '@/components/custom/PageHeader';
 import PageTabs, { type PageTab } from '@/components/custom/PageTabs';
 
 const TenantBasicInfo = React.lazy(() => import('../components/tabs/TenantBasicInfo'));
@@ -22,13 +21,16 @@ export default function TenantDetail() {
   const { tenantId } = useParams();
   const { data: tenant } = useGetTenant({ params: { id: tenantId } });
 
-  const breadcrumb: BreadcrumbProps['items'] = [{ title: '시스템' }, { title: '자원관리' }, { title: ':tenantName' }];
+  const setBreadcrumb = useBreadcrumbStore((s) => s.setBreadcrumb);
+  const clearBreadcrumb = useBreadcrumbStore((s) => s.clearBreadcrumb);
 
-  const params: BreadcrumbProps['params'] = { tenantName: tenant?.tenantName ?? '-' };
+  useEffect(() => {
+    setBreadcrumb([{ title: '시스템' }, { title: '자원관리' }, { title: ':tenantName' }], { tenantName: tenant?.tenantName ?? '-' });
+    return () => clearBreadcrumb();
+  }, [tenant?.tenantName, setBreadcrumb, clearBreadcrumb]);
 
   return (
     <div className="flex flex-col gap-4 w-full h-full">
-      <PageHeader breadcrumb={breadcrumb} params={params} />
       <PageTabs tabs={tabs} />
     </div>
   );

@@ -4,6 +4,7 @@
  * 카테고리 + 입력값을 받아 실제 적용된 마스킹 결과 + 매칭된 패턴을 표시한다.
  */
 import { forwardRef, useCallback, useImperativeHandle, useState } from 'react';
+import { useBreadcrumbStore } from '@/shared-store';
 import { Button, Form, Input, Modal, Select } from 'antd';
 import { TestTube } from 'lucide-react';
 import { useMaskTest } from '../../features/mask-policy/hooks/useMaskPolicyQueries';

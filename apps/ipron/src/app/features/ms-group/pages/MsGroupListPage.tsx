@@ -18,6 +18,7 @@ import type { ColDef, ICellRendererParams } from 'ag-grid-community';
 import { AgGridReact } from 'ag-grid-react';
 import { Button, Dropdown, Empty, Input } from 'antd';
 import { AlertTriangle, ChevronLeft, ChevronRight, Layers, MoreVertical, Network, Plus, Search, Settings, Trash2, Users } from 'lucide-react';
+import { useBreadcrumbStore } from '@/shared-store';
 import { toast } from '@/shared-util';
 import MediaServerDrawer, { type MediaServerDrawerRef } from '../components/MediaServerDrawer';
 import MsGroupDrawer, { type MsGroupDrawerRef } from '../components/MsGroupDrawer';
@@ -25,7 +26,6 @@ import MsGroupMemberDrawer, { type MsGroupMemberDrawerRef } from '../components/
 import NodeMsSettingDrawer, { type NodeMsSettingDrawerRef } from '../components/NodeMsSettingDrawer';
 import { msGroupQueryKeys, useDeleteMsGroup, useGetMediaServers, useGetMsGroupMembers, useGetMsGroups, useGetNodes } from '../hooks/useMsGroupQueries';
 import { type MediaServer, type MsGroup, ROUTE_TYPE_LABELS, getMsGroupTagList } from '../types/msGroup.types';
-import PageHeader from '@/components/custom/PageHeader';
 import useAggridOptions from '@/libs/shared-ui/src/hooks/useAggridOptions';
 import { useModal } from '@/libs/shared-ui/src/hooks/useModal';
 
@@ -36,6 +36,14 @@ const breadcrumb = [
 ];
 
 export default function MsGroupListPage() {
+  const setBreadcrumb = useBreadcrumbStore((s) => s.setBreadcrumb);
+  const clearBreadcrumb = useBreadcrumbStore((s) => s.clearBreadcrumb);
+
+  useEffect(() => {
+    setBreadcrumb(breadcrumb);
+    return () => clearBreadcrumb();
+  }, [setBreadcrumb, clearBreadcrumb]);
+
   const [searchParams] = useSearchParams();
   const queryClient = useQueryClient();
   const modal = useModal();
@@ -339,8 +347,6 @@ export default function MsGroupListPage() {
   // ─── Render ───────────────────────────────────────────────────────────────
   return (
     <div className="flex flex-col gap-4 w-full h-full">
-      <PageHeader breadcrumb={breadcrumb} />
-
       {/* Single column: Cards (top) + Media Server Grid (bottom) */}
       <div className="flex flex-1 min-h-0 flex-col gap-4">
         {/* ===== 상단: 노드 탭 바 + 카드 슬라이더 ===== */}

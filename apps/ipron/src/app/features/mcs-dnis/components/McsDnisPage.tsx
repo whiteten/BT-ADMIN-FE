@@ -11,6 +11,7 @@ import type { ColDef, ICellRendererParams } from 'ag-grid-community';
 import { AgGridReact } from 'ag-grid-react';
 import { Button, Empty, Input } from 'antd';
 import { Layers, Plus, Search } from 'lucide-react';
+import { useBreadcrumbStore } from '@/shared-store';
 import { toast } from '@/shared-util';
 import DnisDrawer, { type DnisDrawerRef } from './DnisDrawer';
 import GdnCardSlider from './GdnCardSlider';
@@ -18,7 +19,6 @@ import GdnDrawer, { type GdnDrawerRef } from './GdnDrawer';
 import { mcsDnisQueryKeys, useDeleteMcsDnis, useDeleteMcsGdn, useGetMcsDnisList, useGetMcsGdns, useGetNodes } from '../hooks/useMcsDnisQueries';
 import { type McsdDnis, type McsdGdn, NETWORK_OPERATOR_LABELS, NETWORK_OPERATOR_OPTIONS, type NetworkOperator } from '../types/mcsDnis.types';
 import { IconTrash } from '@/components/custom/Icons';
-import PageHeader from '@/components/custom/PageHeader';
 import useAggridOptions from '@/libs/shared-ui/src/hooks/useAggridOptions';
 import { useModal } from '@/libs/shared-ui/src/hooks/useModal';
 
@@ -37,6 +37,14 @@ const CARRIER_TAB_STYLE: Record<NetworkOperator, { activeBg: string; activeText:
 };
 
 export default function McsDnisPage() {
+  const setBreadcrumb = useBreadcrumbStore((s) => s.setBreadcrumb);
+  const clearBreadcrumb = useBreadcrumbStore((s) => s.clearBreadcrumb);
+
+  useEffect(() => {
+    setBreadcrumb(breadcrumb);
+    return () => clearBreadcrumb();
+  }, [setBreadcrumb, clearBreadcrumb]);
+
   const queryClient = useQueryClient();
   const { gridOptions } = useAggridOptions();
   const modal = useModal();
@@ -300,8 +308,6 @@ export default function McsDnisPage() {
   // ─── Render ───────────────────────────────────────────────────────────
   return (
     <div className="flex flex-col gap-4 w-full h-full">
-      <PageHeader breadcrumb={breadcrumb} />
-
       <div className="flex flex-1 min-h-0 flex-col gap-4">
         {/* ===== 탭 바 박스 (통신사 탭) ===== */}
         <div className="bg-white bt-shadow overflow-hidden flex-shrink-0">

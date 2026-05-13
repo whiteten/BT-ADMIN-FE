@@ -3,14 +3,22 @@ import { useNavigate, useParams } from 'react-router-dom';
 import { useQueryClient } from '@tanstack/react-query';
 import { type BreadcrumbProps, Button, Col, Form, type FormProps, Input, Radio, Row } from 'antd';
 import { Log } from '@/log';
+import { useBreadcrumbStore } from '@/shared-store';
 import { toast } from '@/shared-util';
 import { useGetNode } from '../hooks/useNodeQueries';
 import { tenantAllocQueryKeys, useGetClusterConfig, useUpdateClusterConfig } from '../hooks/useTenantAllocQueries';
 import type { ClusterConfigUpdateData } from '../types/node.types';
 import { FallbackSpinner } from '@/components/custom/FallbackSpinner';
-import PageHeader from '@/components/custom/PageHeader';
 
 export default function ClusterConfigPage() {
+  const setBreadcrumb = useBreadcrumbStore((s) => s.setBreadcrumb);
+  const clearBreadcrumb = useBreadcrumbStore((s) => s.clearBreadcrumb);
+
+  useEffect(() => {
+    setBreadcrumb(breadcrumb);
+    return () => clearBreadcrumb();
+  }, [setBreadcrumb, clearBreadcrumb]);
+
   const { nodeId } = useParams();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
@@ -78,7 +86,6 @@ export default function ClusterConfigPage() {
 
   return (
     <div className="flex flex-col gap-4 w-full h-full">
-      <PageHeader breadcrumb={breadcrumb} />
       <div className="w-full flex-1 min-h-0 bg-white bt-shadow overflow-y-auto">
         {isFetching ? (
           <div className="flex items-center justify-center w-full h-full">

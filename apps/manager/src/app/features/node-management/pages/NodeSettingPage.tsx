@@ -3,12 +3,12 @@ import { useNavigate, useParams } from 'react-router-dom';
 import { useQueryClient } from '@tanstack/react-query';
 import { type BreadcrumbProps, Button, Col, Divider, Form, type FormProps, Input, InputNumber, Radio, Row, Select, Slider, Steps } from 'antd';
 import { Log } from '@/log';
+import { useBreadcrumbStore } from '@/shared-store';
 import { toast } from '@/shared-util';
 import { useGetClusterGroups } from '../hooks/useClusterGroupQueries';
 import { nodeQueryKeys, useGetNode, useGetNodes, useUpdateNode } from '../hooks/useNodeQueries';
 import { MCS_ROUTE_METHOD_LABELS, NAT_OPTION_LABELS, type NodeUpdateData } from '../types/node.types';
 import { FallbackSpinner } from '@/components/custom/FallbackSpinner';
-import PageHeader from '@/components/custom/PageHeader';
 
 const natOptions = Object.entries(NAT_OPTION_LABELS).map(([value, label]) => ({ label, value: Number(value) }));
 const enatOptions = [
@@ -25,6 +25,14 @@ const displayValue = (value: unknown): React.ReactNode => {
 };
 
 export default function NodeSettingPage() {
+  const setBreadcrumb = useBreadcrumbStore((s) => s.setBreadcrumb);
+  const clearBreadcrumb = useBreadcrumbStore((s) => s.clearBreadcrumb);
+
+  useEffect(() => {
+    setBreadcrumb(breadcrumb);
+    return () => clearBreadcrumb();
+  }, [setBreadcrumb, clearBreadcrumb]);
+
   const { nodeId } = useParams();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
@@ -364,7 +372,6 @@ export default function NodeSettingPage() {
 
   return (
     <div className="flex flex-col gap-4 w-full h-full">
-      <PageHeader breadcrumb={breadcrumb} />
       <div className="w-full h-full min-h-0 bg-white bt-shadow flex flex-col">
         {isFetching ? (
           <div className="flex items-center justify-center w-full h-full">

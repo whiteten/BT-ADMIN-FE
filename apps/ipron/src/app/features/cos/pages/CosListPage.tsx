@@ -19,12 +19,12 @@ import type { ColDef, ICellRendererParams } from 'ag-grid-community';
 import { AgGridReact } from 'ag-grid-react';
 import { Button, Empty, Input, Modal } from 'antd';
 import { Building2, ChevronLeft, ChevronRight, Layers, Plus, Search } from 'lucide-react';
+import { useBreadcrumbStore } from '@/shared-store';
 import { toast } from '@/shared-util';
 import { cosApi } from '../api/cosApi';
 import { cosQueryKeys, useDeleteCos, useGetCosList, useGetNodeTenants } from '../hooks/useCosQueries';
 import type { Cos } from '../types/cos.types';
 import { IconTrash } from '@/components/custom/Icons';
-import PageHeader from '@/components/custom/PageHeader';
 import useAggridOptions from '@/libs/shared-ui/src/hooks/useAggridOptions';
 import { useModal } from '@/libs/shared-ui/src/hooks/useModal';
 
@@ -49,6 +49,14 @@ const StatusBadgeRenderer = (params: ICellRendererParams) => {
 };
 
 export default function CosListPage() {
+  const setBreadcrumb = useBreadcrumbStore((s) => s.setBreadcrumb);
+  const clearBreadcrumb = useBreadcrumbStore((s) => s.clearBreadcrumb);
+
+  useEffect(() => {
+    setBreadcrumb(breadcrumb);
+    return () => clearBreadcrumb();
+  }, [setBreadcrumb, clearBreadcrumb]);
+
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const modal = useModal();
@@ -222,8 +230,6 @@ export default function CosListPage() {
   // ─── Render ───────────────────────────────────────────────────────────────
   return (
     <div className="flex flex-col gap-4 w-full h-full">
-      <PageHeader breadcrumb={breadcrumb} />
-
       <div className="flex flex-1 min-h-0 flex-col gap-4">
         {/* ===== 상단: 테넌트 탭 바 ===== */}
         <div className="bg-white bt-shadow flex flex-col overflow-hidden flex-shrink-0">

@@ -1,11 +1,13 @@
+import { useBreadcrumbStore, useRemoteRoutesStore } from '@/shared-store';
 /**
  * 메뉴 상세/편집 폼.
  * IAM 재설계 v2.3: menuId → menuKey.
  */
 
 import { useEffect, useMemo, useState } from 'react';
+
 import { Button, Col, Form, Input, InputNumber, Modal, Row, Select, Switch } from 'antd';
-import { useRemoteRoutesStore } from '@/shared-store';
+
 import type { App } from '../../iam/api/appApi';
 import QuerySelectorRenderer from '../selectors/QuerySelectorRenderer';
 import type { Menu, MenuUpsertRequest } from '../types/menu.types';

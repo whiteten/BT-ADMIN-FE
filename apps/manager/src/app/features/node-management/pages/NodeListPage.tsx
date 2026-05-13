@@ -1,9 +1,10 @@
-import { useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useQueryClient } from '@tanstack/react-query';
 import { DndContext, type DragEndEvent, DragOverlay, type DragStartEvent, pointerWithin } from '@dnd-kit/core';
 import { Button, Input } from 'antd';
 import { Network, Plus } from 'lucide-react';
+import { useBreadcrumbStore } from '@/shared-store';
 import { toast } from '@/shared-util';
 import ClusterGroupDialog, { type ClusterGroupDialogRef } from '../components/ClusterGroupDialog';
 import DroppableClusterGroup from '../components/DroppableClusterGroup';
@@ -13,13 +14,20 @@ import { nodeQueryKeys, useDeleteNode, useGetNodes, useMoveNodeCluster } from '.
 import type { ClusterGroup, NodeListItem } from '../types/node.types';
 import { FallbackSpinner } from '@/components/custom/FallbackSpinner';
 import { IconMoreVertical } from '@/components/custom/Icons';
-import PageHeader from '@/components/custom/PageHeader';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { useModal } from '@/libs/shared-ui/src/hooks/useModal';
 
 const breadcrumb = [{ title: '시스템' }, { title: '자원관리' }, { title: '클러스터 관리' }];
 
 export default function NodeListPage() {
+  const setBreadcrumb = useBreadcrumbStore((s) => s.setBreadcrumb);
+  const clearBreadcrumb = useBreadcrumbStore((s) => s.clearBreadcrumb);
+
+  useEffect(() => {
+    setBreadcrumb(breadcrumb);
+    return () => clearBreadcrumb();
+  }, [setBreadcrumb, clearBreadcrumb]);
+
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const modal = useModal();
@@ -204,7 +212,6 @@ export default function NodeListPage() {
 
   return (
     <div className="flex flex-col gap-4 w-full h-full">
-      <PageHeader breadcrumb={breadcrumb} />
       <div className="flex items-center justify-between gap-2 w-full h-[76px] bg-white bt-shadow px-7 py-5">
         <div className="flex gap-2 w-full items-center">
           <Input value={searchValue} onChange={(e) => setSearchValue(e.target.value)} className="w-full max-w-[400px]" placeholder="노드명, 약칭, ID로 검색" />

@@ -4,6 +4,7 @@
  */
 
 import { useMemo } from 'react';
+import { useBreadcrumbStore } from '@/shared-store';
 import { Button, Select, Tree, type TreeProps } from 'antd';
 import { AppWindow, File, Folder } from 'lucide-react';
 import type { Menu, MenuTreeNode } from '../types/menu.types';

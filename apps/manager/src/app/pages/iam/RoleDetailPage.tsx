@@ -7,19 +7,19 @@
  */
 
 import React, { Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useBreadcrumbStore } from '@/shared-store';
 import { useParams, useSearchParams } from 'react-router-dom';
 import { type BreadcrumbProps, Button, Divider, Tag } from 'antd';
 import { ChevronLeft, ChevronRight, Shield } from 'lucide-react';
-import { useBreadcrumbStore } from '@/shared-store';
 import { type RoleBasicFormValues, RoleDetailProvider } from './context/RoleDetailContext';
 import { useGetGroupedPermissions } from '../../features/iam/hooks/usePermissionQueries';
 import { useGetRole } from '../../features/iam/hooks/useRoleQueries';
 import type { MenuWithPermissions } from '../../features/iam/types/iam.types';
-
-type PermEntry = { authKey: string; action: string };
 import { FallbackSpinner } from '@/components/custom/FallbackSpinner';
 import { IconDocument, IconSlidersHorizontal } from '@/components/custom/Icons';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/libs/shared-ui/src/components/shadcn/tabs';
+
+type PermEntry = { authKey: string; action: string };
 
 /**
  * 메뉴와 모든 하위 메뉴의 권한을 재귀적으로 수집

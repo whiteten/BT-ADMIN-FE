@@ -3,6 +3,7 @@
  */
 
 import { useEffect, useState } from 'react';
+import { useBreadcrumbStore } from '@/shared-store';
 import { Button, Drawer, Form, Input, Select, Switch, Tag } from 'antd';
 import { ChevronDown } from 'lucide-react';
 import KeyValueEditor from './KeyValueEditor';

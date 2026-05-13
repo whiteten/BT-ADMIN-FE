@@ -1,3 +1,4 @@
+import { useAuthStore, useBreadcrumbStore } from '@/shared-store';
 /**
  * 마스킹 해지 요청 검토 Drawer
  *
@@ -7,8 +8,9 @@
  * 자기 승인 금지: requesterUserId === currentUserId 일 때 승인 버튼 비활성.
  */
 import { forwardRef, useCallback, useImperativeHandle, useState } from 'react';
+
 import { Button, Drawer, Form, Input, InputNumber } from 'antd';
-import { useAuthStore } from '@/shared-store';
+
 import { toast } from '@/shared-util';
 import { useApproveUnmask, useRejectUnmask } from '../../features/mask-unmask/hooks/useMaskUnmaskQueries';
 import { type MaskUnmaskRequest, TARGET_TYPE_LABELS } from '../../features/mask-unmask/types/maskUnmask.types';

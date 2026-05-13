@@ -6,7 +6,7 @@
  *  - 빠른 프리셋(기간) 칩 + DateRangePicker (사용자 지정 시 펼쳐짐)
  *  - 결과 그리드 박스: 검색 후 ag-Grid
  *
- * 글로벌 단축키: ⌘K / Ctrl+K → CommandPalette 오픈
+ * 글로벌 단축키: Ctrl+M / Ctrl+M → CommandPalette 오픈
  * 더블클릭 → /tracking/call/:ucid 이동
  */
 import { useCallback, useEffect, useMemo, useState } from 'react';
@@ -14,13 +14,14 @@ import { useNavigate } from 'react-router-dom';
 import { Button, DatePicker, Input, InputNumber, TimePicker } from 'antd';
 import dayjs, { type Dayjs } from 'dayjs';
 import { ChevronDown, ChevronUp, Download, Search, Star } from 'lucide-react';
+import { useBreadcrumbStore } from '@/shared-store';
 import { toast } from '@/shared-util';
 import CommandPalette from './CommandPalette';
+import PbxCallDetailDrawer from './PbxCallDetailDrawer';
 import SearchResultGrid from './SearchResultGrid';
 import { useSearchTracking } from '../hooks/useTrackingQueries';
 import type { CallSearchResult, DateRangePreset, RecentSearch, TrackingMode, TrackingSearchCriteria } from '../types/tracking.types';
 import { criteriaToString, parseSearchSyntax, presetToRange, validateCriteria } from '../utils/searchSyntax';
-import PageHeader from '@/components/custom/PageHeader';
 
 const MINUTE_STEP = 10;
 
@@ -44,6 +45,14 @@ const PRESET_CHIPS: Array<{ label: string; preset: DateRangePreset; icon: string
 ];
 
 export default function TrackingSearchPage() {
+  const setBreadcrumb = useBreadcrumbStore((s) => s.setBreadcrumb);
+  const clearBreadcrumb = useBreadcrumbStore((s) => s.clearBreadcrumb);
+
+  useEffect(() => {
+    setBreadcrumb(breadcrumb);
+    return () => clearBreadcrumb();
+  }, [setBreadcrumb, clearBreadcrumb]);
+
   const navigate = useNavigate();
 
   // ─── State ────────────────────────────────────────────────────────────────
@@ -106,6 +115,7 @@ export default function TrackingSearchPage() {
     }
   }, [rawQuery]);
   const [mode, setMode] = useState<TrackingMode>('PBX');
+  const [pbxCdrRow, setPbxCdrRow] = useState<CallSearchResult | null>(null);
   const [recentSearches, setRecentSearches] = useState<RecentSearch[]>([]);
   const [hasSearched, setHasSearched] = useState(false);
   const [quickOpen, setQuickOpen] = useState(true); // 빠른조회 펼침/접힘
@@ -146,10 +156,11 @@ export default function TrackingSearchPage() {
     }
   }, []);
 
-  // ─── 글로벌 ⌘K 단축키 ─────────────────────────────────────────────────────
+  // ─── 글로벌 Ctrl+M 단축키 ─────────────────────────────────────────────────────
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
-      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k') {
+      // Ctrl+M (Windows) 또는 Cmd+M (Mac) — 상단 통합검색의 Ctrl+M 와 충돌 회피 (브라우저 충돌 적음)
+      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'm') {
         e.preventDefault();
         setPaletteOpen(true);
       }
@@ -380,8 +391,6 @@ export default function TrackingSearchPage() {
 
   return (
     <div className="flex flex-col gap-4 w-full h-full">
-      <PageHeader breadcrumb={breadcrumb} />
-
       <div className="flex flex-1 min-h-0 flex-col gap-4">
         {/* ── 검색 입력 박스 ── */}
         <div className="bg-white bt-shadow rounded-md border border-gray-200 flex-shrink-0">
@@ -390,7 +399,7 @@ export default function TrackingSearchPage() {
             <div className="flex items-center justify-between mb-3">
               <div className="flex items-center gap-2">
                 <h2 className="text-[14px] font-semibold text-gray-800">콜 검색</h2>
-                <span className="text-[11px] text-gray-400">⌘K로 명령어 팔레트 열기</span>
+                <span className="text-[11px] text-gray-400">Ctrl+M로 명령어 팔레트 열기</span>
               </div>
               <div className="flex items-center gap-2">
                 <ModeToggle current={mode} onChange={updateMode} />
@@ -461,7 +470,7 @@ export default function TrackingSearchPage() {
               <span className="text-[10px] text-gray-400 ml-auto">최대 30일</span>
             </div>
 
-            {/* 검색 입력 (아래) — 직접 타이핑 가능. 팔레트는 ⌘K 또는 우측 버튼으로 보조 호출 */}
+            {/* 검색 입력 (아래) — 직접 타이핑 가능. 팔레트는 Ctrl+M 또는 우측 버튼으로 보조 호출 */}
             <div className="flex items-center gap-2">
               <Input
                 value={rawQuery
@@ -471,7 +480,7 @@ export default function TrackingSearchPage() {
                   .join(' & ')}
                 onChange={(e) => setRawQuery(e.target.value.replace(/\s*&\s*/g, ' ').replace(/=/g, ':'))}
                 onPressEnter={handleSearchClick}
-                placeholder="UCID, ANI, agent= 등 입력 (Enter 검색, ⌘K로 팔레트)"
+                placeholder="UCID, ANI, agent= 등 입력 (Enter 검색, Ctrl+M로 팔레트)"
                 prefix={<Search className="size-4 text-gray-400" />}
                 allowClear
                 suffix={
@@ -479,10 +488,10 @@ export default function TrackingSearchPage() {
                     type="button"
                     onClick={() => setPaletteOpen(true)}
                     className="text-[10px] font-mono px-1.5 py-0.5 bg-white border border-gray-200 rounded text-gray-500 hover:bg-blue-50 hover:text-blue-600 hover:border-blue-200 cursor-pointer transition-colors flex-shrink-0"
-                    title="명령어 팔레트 열기 (⌘K) — 자동완성/저장된 쿼리"
+                    title="명령어 팔레트 열기 (Ctrl+M) — 자동완성/저장된 쿼리"
                     aria-label="명령어 팔레트 열기"
                   >
-                    ⌘K
+                    Ctrl+M
                   </button>
                 }
                 className="flex-1"
@@ -672,7 +681,7 @@ export default function TrackingSearchPage() {
           <div className="bg-white bt-shadow rounded-md border border-gray-200 flex flex-col flex-1 min-h-0 overflow-hidden">
             <div className="h-[44px] px-5 flex items-center justify-between border-b border-gray-100 flex-shrink-0">
               <div className="flex items-center gap-3">
-                <h2 className="text-[13px] font-semibold text-gray-700">검색 결과</h2>
+                <h2 className="text-[13px] font-semibold text-gray-700">{mode === 'PBX' ? '교환기 CDR 정보' : '검색 결과'}</h2>
                 <span className="text-[11px] text-gray-500">
                   {rows.length}건 · 모드 {modeLabel}
                 </span>
@@ -690,10 +699,13 @@ export default function TrackingSearchPage() {
               onRowDoubleClick={handleRowDoubleClick}
               onIvrDrilldown={handleIvrDrilldown}
               onCtiDrilldown={handleCtiDrilldown}
+              onPbxCdrInspect={(r) => setPbxCdrRow(r)}
             />
           </div>
         )}
       </div>
+
+      <PbxCallDetailDrawer open={!!pbxCdrRow} row={pbxCdrRow} onClose={() => setPbxCdrRow(null)} />
 
       <CommandPalette
         open={paletteOpen}
@@ -719,9 +731,9 @@ interface ModeToggleProps {
 function ModeToggle({ current, onChange }: ModeToggleProps) {
   const [open, setOpen] = useState(false);
   const labels: Record<TrackingMode, { icon: string; label: string; description: string }> = {
-    PBX: { icon: '📞', label: 'PBX 인입 기준', description: '교환기로 들어온 일반 음성 호 (TB_DM_IE_BASICCDR)' },
-    IVR: { icon: '🤖', label: 'IVR 인입 기준', description: 'IVR 직접 인입 호 (TB_DM_IR_BASICCDR)' },
-    CTI: { icon: '🔀', label: 'CTI 인입 기준', description: 'CTI 직접 인입 호 (TB_DM_IC_BASICCDR)' },
+    PBX: { icon: '📞', label: 'PBX 인입 기준', description: '교환기로 들어온 일반 음성 호' },
+    IVR: { icon: '🤖', label: 'IVR 인입 기준', description: 'IVR 직접 인입 호' },
+    CTI: { icon: '🔀', label: 'CTI 인입 기준', description: 'CTI 직접 인입 호' },
   };
 
   return (

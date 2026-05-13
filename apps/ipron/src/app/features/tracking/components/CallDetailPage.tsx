@@ -12,6 +12,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { Button, Slider, Tabs, message } from 'antd';
 import { ChevronLeft } from 'lucide-react';
+import { useBreadcrumbStore } from '@/shared-store';
 import AgentEventTimeline from './AgentEventTimeline';
 import CallSummaryHeader from './CallSummaryHeader';
 import CtiRoutingTimeline from './CtiRoutingTimeline';
@@ -20,7 +21,6 @@ import RecordingButton from './RecordingButton';
 import { useGetAgentEvents, useGetCtiRouting, useGetIvrSteps, useGetTrackingDetail } from '../hooks/useTrackingQueries';
 import type { CallSegment } from '../types/tracking.types';
 import { FallbackSpinner } from '@/components/custom/FallbackSpinner';
-import PageHeader from '@/components/custom/PageHeader';
 
 // TODO Phase 2: shared-store에서 권한 헬퍼가 추가되면 교체
 //   현재는 placeholder — 모든 사용자가 read 가능, listen-recording은 false 가정.
@@ -86,6 +86,14 @@ export default function CallDetailPage() {
     [ucid],
   );
 
+  const setBreadcrumb = useBreadcrumbStore((s) => s.setBreadcrumb);
+  const clearBreadcrumb = useBreadcrumbStore((s) => s.clearBreadcrumb);
+
+  useEffect(() => {
+    setBreadcrumb(breadcrumb);
+    return () => clearBreadcrumb();
+  }, [breadcrumb, setBreadcrumb, clearBreadcrumb]);
+
   const segments = detailQ.data?.segments ?? [];
   const header = detailQ.data?.header;
 
@@ -115,7 +123,6 @@ export default function CallDetailPage() {
   if (detailQ.isError || !header) {
     return (
       <div className="flex flex-col gap-4 w-full h-full">
-        <PageHeader breadcrumb={breadcrumb} />
         <div className="bg-white bt-shadow rounded-md border border-gray-200 p-8 text-center">
           <div className="text-[14px] text-red-600 mb-3">콜 상세 정보를 불러올 수 없습니다.</div>
           <Button onClick={() => navigate('/tracking')}>← 검색으로 돌아가기</Button>
@@ -126,8 +133,6 @@ export default function CallDetailPage() {
 
   return (
     <div className="flex flex-col gap-4 w-full h-full">
-      <PageHeader breadcrumb={breadcrumb} />
-
       <div className="flex flex-1 min-h-0 flex-col gap-4">
         {/* 뒤로가기 + 헤더 */}
         <div className="flex items-center gap-2 flex-shrink-0">

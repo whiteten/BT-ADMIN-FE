@@ -16,6 +16,7 @@ import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useQueryClient } from '@tanstack/react-query';
 import { Button, Dropdown, Empty, Input } from 'antd';
 import { AlertTriangle, ChevronLeft, ChevronRight, Layers, MoreVertical, Network, Plus, Search, Trash2 } from 'lucide-react';
+import { useBreadcrumbStore } from '@/shared-store';
 import { toast } from '@/shared-util';
 import MdGrpDrawer, { type MdGrpDrawerRef } from '../components/MdGrpDrawer';
 import { mediaDeliveryQueryKeys, useDeleteMdGrp, useDeleteMdItem, useGetMdGrps, useGetMdItems, useGetNodes } from '../hooks/useMediaDeliveryQueries';
@@ -29,7 +30,6 @@ import {
   RTP_TRANS_TYPE_LABELS,
   TRANSPORT_TYPE_LABELS,
 } from '../types/mediaDelivery.types';
-import PageHeader from '@/components/custom/PageHeader';
 import { useModal } from '@/libs/shared-ui/src/hooks/useModal';
 
 const breadcrumb = [
@@ -39,6 +39,14 @@ const breadcrumb = [
 ];
 
 export default function MediaDeliveryListPage() {
+  const setBreadcrumb = useBreadcrumbStore((s) => s.setBreadcrumb);
+  const clearBreadcrumb = useBreadcrumbStore((s) => s.clearBreadcrumb);
+
+  useEffect(() => {
+    setBreadcrumb(breadcrumb);
+    return () => clearBreadcrumb();
+  }, [setBreadcrumb, clearBreadcrumb]);
+
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const queryClient = useQueryClient();
@@ -268,8 +276,6 @@ export default function MediaDeliveryListPage() {
   // ─── Render ───────────────────────────────────────────────────────────────
   return (
     <div className="flex flex-col gap-4 w-full h-full">
-      <PageHeader breadcrumb={breadcrumb} />
-
       {/* Single column: Cards (top) + MD Item list (bottom) */}
       <div className="flex flex-1 min-h-0 flex-col gap-4">
         {/* ===== 상단: 노드 탭 바 + 카드 슬라이더 ===== */}

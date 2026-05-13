@@ -26,6 +26,7 @@ import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useQueryClient } from '@tanstack/react-query';
 import { Button, Empty, Input } from 'antd';
 import { ArrowUpDown, Building2, ChevronLeft, ChevronRight, ChevronsDown, ChevronsUp, Download, Network, Plus, Search, Trash2, Upload } from 'lucide-react';
+import { useBreadcrumbStore } from '@/shared-store';
 import { toast } from '@/shared-util';
 import { useGetDnProfileNodes, useGetDnProfileTenants } from '../../dn-profile/hooks/useDnProfileQueries';
 import { dnApi } from '../api/dnApi';
@@ -38,7 +39,6 @@ import DnTable from '../components/DnTable';
 import DnTenantCard from '../components/DnTenantCard';
 import { dnQueryKeys, useDeleteDns, useGetDnNodeTenants, useGetDnOptions, useGetDns } from '../hooks/useDnQueries';
 import type { DnResponse } from '../types/dn.types';
-import PageHeader from '@/components/custom/PageHeader';
 import { useModal } from '@/libs/shared-ui/src/hooks/useModal';
 
 const breadcrumb = [
@@ -49,6 +49,14 @@ const breadcrumb = [
 ];
 
 export default function DnListPage() {
+  const setBreadcrumb = useBreadcrumbStore((s) => s.setBreadcrumb);
+  const clearBreadcrumb = useBreadcrumbStore((s) => s.clearBreadcrumb);
+
+  useEffect(() => {
+    setBreadcrumb(breadcrumb);
+    return () => clearBreadcrumb();
+  }, [setBreadcrumb, clearBreadcrumb]);
+
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const modal = useModal();
@@ -444,8 +452,6 @@ export default function DnListPage() {
   // ─── Render ───────────────────────────────────────────────────────────────
   return (
     <div className="flex flex-col gap-4 w-full h-full">
-      <PageHeader breadcrumb={breadcrumb} />
-
       <div className="flex flex-1 min-h-0 flex-col gap-4">
         {/* ===== 탭 바 박스 (노드/테넌트 탭) ===== */}
         <div className="bg-white bt-shadow overflow-hidden flex-shrink-0">

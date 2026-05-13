@@ -7,26 +7,34 @@
  * 또는 EndpointFormPage 하단에 임베드하여 사용할 수도 있음.
  * 현재는 독립 페이지로 구현.
  */
-import { useCallback, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { useQueryClient } from '@tanstack/react-query';
 import type { ColDef, ICellRendererParams } from 'ag-grid-community';
 import { AgGridReact } from 'ag-grid-react';
 import { Button, Empty, Tabs } from 'antd';
 import { ArrowLeft, Plus } from 'lucide-react';
+import { useBreadcrumbStore } from '@/shared-store';
 import { toast } from '@/shared-util';
 import EndpointMemberDrawer, { type EndpointMemberDrawerRef } from '../components/EndpointMemberDrawer';
 import EndpointRegnumDrawer, { type EndpointRegnumDrawerRef } from '../components/EndpointRegnumDrawer';
 import { endpointQueryKeys, useDeleteMember, useDeleteRegnum, useGetEndpointDetail, useGetMembers, useGetRegnums } from '../hooks/useEndpointQueries';
 import { type EndpointMember, type EndpointRegnum, TRANSPORT_OPTIONS } from '../types/endpoint.types';
 import { IconTrash } from '@/components/custom/Icons';
-import PageHeader from '@/components/custom/PageHeader';
 import useAggridOptions from '@/libs/shared-ui/src/hooks/useAggridOptions';
 import { useModal } from '@/libs/shared-ui/src/hooks/useModal';
 
 const breadcrumb = [{ title: 'IPRON' }, { title: '회선관리' }, { title: '국선관리', href: '/ipron/line/endpoint' }, { title: '상세' }];
 
 export default function EndpointDetailPage() {
+  const setBreadcrumb = useBreadcrumbStore((s) => s.setBreadcrumb);
+  const clearBreadcrumb = useBreadcrumbStore((s) => s.clearBreadcrumb);
+
+  useEffect(() => {
+    setBreadcrumb(breadcrumb);
+    return () => clearBreadcrumb();
+  }, [setBreadcrumb, clearBreadcrumb]);
+
   const navigate = useNavigate();
   const { id } = useParams<{ id: string }>();
   const queryClient = useQueryClient();
@@ -187,8 +195,6 @@ export default function EndpointDetailPage() {
   // ─── Render ────────────────────────────────────────────────────────────────
   return (
     <div className="flex flex-col gap-4 w-full h-full">
-      <PageHeader breadcrumb={breadcrumb} />
-
       {/* Header bar */}
       <div className="flex items-center justify-between gap-2 w-full h-[76px] bg-white bt-shadow px-7 py-5">
         <div className="flex items-center gap-3">

@@ -13,17 +13,17 @@
  * │ ag-Grid: 노드명│접근제어명│IP NET│IP MASK│활성│비고│   │
  * └──────────────────────────────────────────────────────┘
  */
-import { type ChangeEvent, useCallback, useMemo, useRef, useState } from 'react';
+import { type ChangeEvent, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import type { ColDef, ICellRendererParams } from 'ag-grid-community';
 import { AgGridReact } from 'ag-grid-react';
 import { Button, Empty, Input } from 'antd';
 import { ChevronLeft, ChevronRight, Layers, Network, Phone, Plus, Radio, Search } from 'lucide-react';
+import { useBreadcrumbStore } from '@/shared-store';
 import AclDrawer, { type AclDrawerRef } from '../components/AclDrawer';
 import { aclQueryKeys, useDeleteAcl, useDeleteCtiAcl, useGetAcls, useGetCtiAcls, useGetNodes } from '../hooks/useAclQueries';
 import { type Acl, USE_YN_LABELS } from '../types/acl.types';
 import { IconTrash } from '@/components/custom/Icons';
-import PageHeader from '@/components/custom/PageHeader';
 import useAggridOptions from '@/libs/shared-ui/src/hooks/useAggridOptions';
 import { useModal } from '@/libs/shared-ui/src/hooks/useModal';
 
@@ -41,6 +41,14 @@ const CATEGORY_STYLES: Record<AclCategory, { label: string; icon: typeof Phone }
 };
 
 export default function AclListPage() {
+  const setBreadcrumb = useBreadcrumbStore((s) => s.setBreadcrumb);
+  const clearBreadcrumb = useBreadcrumbStore((s) => s.clearBreadcrumb);
+
+  useEffect(() => {
+    setBreadcrumb(breadcrumb);
+    return () => clearBreadcrumb();
+  }, [setBreadcrumb, clearBreadcrumb]);
+
   const queryClient = useQueryClient();
   const { gridOptions } = useAggridOptions();
   const modal = useModal();
@@ -220,8 +228,6 @@ export default function AclListPage() {
   // ─── Render ───────────────────────────────────────────────────────────────
   return (
     <div className="flex flex-col gap-4 w-full h-full">
-      <PageHeader breadcrumb={breadcrumb} />
-
       <div className="flex flex-1 min-h-0 flex-col gap-4">
         {/* ===== 상단: 카테고리 탭 + 노드 카드 슬라이더 ===== */}
         <div className="bg-white bt-shadow overflow-hidden flex-shrink-0">

@@ -22,9 +22,7 @@
           "apps/ipron/src/favicon.ico",
           "apps/ipron/src/assets"
         ],
-        "styles": [
-          "libs/shared-ui/src/styles/global.css"
-        ],
+        "styles": [],
         "scripts": [],
         "webpackConfig": "apps/ipron/webpack.config.ts",
         "postcssConfig": "apps/ipron/postcss.config.js"

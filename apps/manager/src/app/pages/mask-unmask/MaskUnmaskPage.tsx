@@ -13,6 +13,7 @@ import { AgGridReact } from 'ag-grid-react';
 import { type BreadcrumbProps, Button, Empty, Input, Select } from 'antd';
 import dayjs from 'dayjs';
 import { ClipboardList, ScrollText, Search, ShieldCheck, User } from 'lucide-react';
+import { useBreadcrumbStore } from '@/shared-store';
 import { toast } from '@/shared-util';
 import MaskUnmaskReviewDrawer, { type MaskUnmaskReviewDrawerRef } from './MaskUnmaskReviewDrawer';
 import { useGetCategories } from '../../features/mask-policy/hooks/useMaskPolicyQueries';
@@ -25,7 +26,6 @@ import {
   STATUS_LABELS,
   TARGET_TYPE_LABELS,
 } from '../../features/mask-unmask/types/maskUnmask.types';
-import PageHeader from '@/components/custom/PageHeader';
 import useAggridOptions from '@/libs/shared-ui/src/hooks/useAggridOptions';
 import { useModal } from '@/libs/shared-ui/src/hooks/useModal';
 
@@ -94,6 +94,14 @@ function KpiCard({ label, value, unit = '건', hint, variant = 'default' }: KpiC
 }
 
 export default function MaskUnmaskPage() {
+  const setBreadcrumb = useBreadcrumbStore((s) => s.setBreadcrumb);
+  const clearBreadcrumb = useBreadcrumbStore((s) => s.clearBreadcrumb);
+
+  useEffect(() => {
+    setBreadcrumb(breadcrumb);
+    return () => clearBreadcrumb();
+  }, [setBreadcrumb, clearBreadcrumb]);
+
   const modal = useModal();
   const { gridOptions } = useAggridOptions();
   const reviewDrawerRef = useRef<MaskUnmaskReviewDrawerRef>(null);
@@ -458,8 +466,6 @@ export default function MaskUnmaskPage() {
   // ─── Render ───────────────────────────────────────────────────────────────
   return (
     <div className="flex flex-col gap-4 w-full h-full">
-      <PageHeader breadcrumb={breadcrumb} />
-
       {/* KPI 5개 */}
       <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3 flex-shrink-0">
         <KpiCard label="검토 필요" value={kpi.pendingCount} variant="amber" hint={kpi.urgentCount > 0 ? `긴급 처리 ${kpi.urgentCount}건` : undefined} />

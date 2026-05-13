@@ -12,6 +12,7 @@ import type { ColDef, ICellRendererParams } from 'ag-grid-community';
 import { AgGridReact } from 'ag-grid-react';
 import { type BreadcrumbProps, Button, Empty, Input, Switch } from 'antd';
 import { ChevronLeft, ChevronRight, Pencil, Play, Plus, Search } from 'lucide-react';
+import { useBreadcrumbStore } from '@/shared-store';
 import { toast } from '@/shared-util';
 import MaskCategoryEditModal, { type MaskCategoryEditModalRef } from './MaskCategoryEditModal';
 import MaskPolicyDrawer, { type MaskPolicyDrawerRef } from './MaskPolicyDrawer';
@@ -19,7 +20,6 @@ import MaskTestModal, { type MaskTestModalRef } from './MaskTestModal';
 import { useDeleteCategory, useDeletePolicy, useGetCategories, useGetPolicies } from '../../features/mask-policy/hooks/useMaskPolicyQueries';
 import { type MaskCategoryConfig, type MaskPolicy, RULE_TYPE_OPTIONS } from '../../features/mask-policy/types/maskPolicy.types';
 import { IconTrash } from '@/components/custom/Icons';
-import PageHeader from '@/components/custom/PageHeader';
 import useAggridOptions from '@/libs/shared-ui/src/hooks/useAggridOptions';
 import { useModal } from '@/libs/shared-ui/src/hooks/useModal';
 
@@ -52,6 +52,14 @@ function getSensitivityBadge(approverAuthKey: string): { label: string; classNam
 const RULE_TYPE_LABEL: Record<string, string> = Object.fromEntries(RULE_TYPE_OPTIONS.map((o) => [o.value, o.label]));
 
 export default function MaskPolicyPage() {
+  const setBreadcrumb = useBreadcrumbStore((s) => s.setBreadcrumb);
+  const clearBreadcrumb = useBreadcrumbStore((s) => s.clearBreadcrumb);
+
+  useEffect(() => {
+    setBreadcrumb(breadcrumb);
+    return () => clearBreadcrumb();
+  }, [setBreadcrumb, clearBreadcrumb]);
+
   const modal = useModal();
   const { gridOptions } = useAggridOptions();
 
@@ -267,8 +275,6 @@ export default function MaskPolicyPage() {
   // ─── Render ───────────────────────────────────────────────────────────────
   return (
     <div className="flex flex-col gap-4 w-full h-full">
-      <PageHeader breadcrumb={breadcrumb} />
-
       <div className="flex flex-1 min-h-0 flex-col gap-4">
         {/* ===== 상단: 카테고리 카드 슬라이더 ===== */}
         <div className="bg-white bt-shadow rounded-md border border-gray-200 flex flex-col overflow-hidden flex-shrink-0">

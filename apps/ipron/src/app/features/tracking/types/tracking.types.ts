@@ -167,12 +167,22 @@ export interface CallSearchResult {
   queueName?: string | null;
   result?: CallResult | null;
   ivrEntered?: boolean;
+  /** CTI 큐 분배 (IE T_TYPE=5 hop). attempt=시도, connected=한번이라도 성공, partialFailed=한번이라도 실패 */
+  ctiAttempt?: boolean | null;
+  ctiConnected?: boolean | null;
+  ctiPartialFailed?: boolean | null;
+  /** 내선 응대 (IE T_TYPE=2 hop). attempt=라우팅 시도, connected=한번이라도 응답, partialFailed=한번이라도 미응답 */
+  agentAttempt?: boolean | null;
+  agentConnected?: boolean | null;
+  agentPartialFailed?: boolean | null;
   /** IVR 모드 — 상담연결 요청 여부 (REQ_AGENT_YN) */
   reqAgent?: boolean | null;
   /** IVR 모드 — 서비스 번호 (ORIGIN_DNIS, 최초인입 DNIS). PBX 에선 null. */
   originDnis?: string | null;
   /** IVR 모드 — 종료 타입 (CDR_STATUS — IR_CDR_STATUS 공통코드 11/12/13/21/22/31/32/88/99). PBX 에선 null. */
   endStatus?: number | null;
+  /** 발신 통화품질 (O_R_FACTOR, 0-100). T_TYPE in (1=국선, 2=내선, 3=트렁크) 일 때만 활성. */
+  oRFactor?: number | null;
   queueWaitSec?: number | null;
   resultLabel?: string | null;
   tenantName?: string | null;

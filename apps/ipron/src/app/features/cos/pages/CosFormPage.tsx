@@ -7,7 +7,8 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { useQueryClient } from '@tanstack/react-query';
-import { type BreadcrumbProps, Button, Col, Divider, Form, Input, Modal, Row, Select, Steps, Switch } from 'antd';
+import { Button, Col, Divider, Form, Input, Modal, Row, Select, Steps, Switch } from 'antd';
+import { useBreadcrumbStore } from '@/shared-store';
 import { toast } from '@/shared-util';
 import NumPatternDrawer, { type NumPatternDrawerRef } from '../../did-trans/components/NumPatternDrawer';
 import { cosApi } from '../api/cosApi';
@@ -24,7 +25,6 @@ import {
   type ServiceFlag,
 } from '../types/cos.types';
 import { FallbackSpinner } from '@/components/custom/FallbackSpinner';
-import PageHeader from '@/components/custom/PageHeader';
 import { useModal } from '@/libs/shared-ui/src/hooks/useModal';
 
 const COS_FORM_STEPS = [{ title: '기본 정보' }, { title: '그룹IPT 서비스' }, { title: '개인IPT 서비스' }];
@@ -276,7 +276,13 @@ export default function CosFormPage() {
     });
   };
 
-  const breadcrumb: BreadcrumbProps['items'] = [{ title: 'IPRON' }, { title: '번호자원관리' }, { title: 'COS 설정', href: '../cos' }, { title: isEditMode ? '수정' : '등록' }];
+  const setBreadcrumb = useBreadcrumbStore((s) => s.setBreadcrumb);
+  const clearBreadcrumb = useBreadcrumbStore((s) => s.clearBreadcrumb);
+
+  useEffect(() => {
+    setBreadcrumb([{ title: 'IPRON' }, { title: '번호자원관리' }, { title: 'COS 설정', href: '../cos' }, { title: isEditMode ? '수정' : '등록' }]);
+    return () => clearBreadcrumb();
+  }, [isEditMode, setBreadcrumb, clearBreadcrumb]);
 
   // ─── 유틸 ───────────────────────────────────────────────────────────────────
   const displayValue = (v: unknown) => (v !== null && v !== undefined && v !== '' ? String(v) : <span className="text-gray-300">-</span>);
@@ -377,8 +383,6 @@ export default function CosFormPage() {
   // ─── Render ──────────────────────────────────────────────────────────────────
   return (
     <div className="flex flex-col gap-4 w-full h-full">
-      <PageHeader breadcrumb={breadcrumb} />
-
       {/* Steps bar */}
       <div className="flex items-center justify-center w-full h-[58px] min-h-[58px] bg-white bt-shadow px-7 py-2">
         <Steps

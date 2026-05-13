@@ -5,12 +5,13 @@
  *   - 체크/언체크 → updateGroupMembers API 호출 (replace 패턴)
  *   - headerType=1인 사용자 추가 릴레이만 삭제 가능
  */
-import { useCallback, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import type { ColDef, ICellRendererParams } from 'ag-grid-community';
 import { AgGridReact } from 'ag-grid-react';
 import { Button, Dropdown, Empty } from 'antd';
 import { ChevronLeft, ChevronRight, Edit3, MoreVertical, Plus, Trash2 } from 'lucide-react';
+import { useBreadcrumbStore } from '@/shared-store';
 import { toast } from '@/shared-util';
 import SipHeaderGroupDrawer, { type SipHeaderGroupDrawerRef } from '../components/SipHeaderGroupDrawer';
 import SipHeaderRelayDrawer, { type SipHeaderRelayDrawerRef } from '../components/SipHeaderRelayDrawer';
@@ -27,7 +28,6 @@ import {
 } from '../hooks/useSipProfileQueries';
 import type { SipHeaderGroup, SipHeaderRelay } from '../types/sipProfile.types';
 import { IconTrash } from '@/components/custom/Icons';
-import PageHeader from '@/components/custom/PageHeader';
 import useAggridOptions from '@/libs/shared-ui/src/hooks/useAggridOptions';
 import { useModal } from '@/libs/shared-ui/src/hooks/useModal';
 
@@ -39,6 +39,14 @@ const breadcrumb = [
 ];
 
 export default function SipHeaderManagePage() {
+  const setBreadcrumb = useBreadcrumbStore((s) => s.setBreadcrumb);
+  const clearBreadcrumb = useBreadcrumbStore((s) => s.clearBreadcrumb);
+
+  useEffect(() => {
+    setBreadcrumb(breadcrumb);
+    return () => clearBreadcrumb();
+  }, [setBreadcrumb, clearBreadcrumb]);
+
   const { gridOptions } = useAggridOptions();
   const queryClient = useQueryClient();
   const modal = useModal();
@@ -290,8 +298,6 @@ export default function SipHeaderManagePage() {
   // ─── Render ───────────────────────────────────────────────────────────────
   return (
     <div className="flex flex-col gap-4 w-full h-full">
-      <PageHeader breadcrumb={breadcrumb} />
-
       {/* ===== 헤더 박스 (그룹 타이틀 + 추가 버튼) ===== */}
       <div className="bg-white bt-shadow overflow-hidden flex-shrink-0">
         <div className="px-5 h-[56px] flex items-center justify-between flex-shrink-0">

@@ -5,6 +5,7 @@
  * 신규 카테고리 등록도 동일 모달로 처리 (mode='create' 일 때 category/label 추가 입력).
  */
 import { forwardRef, useCallback, useEffect, useImperativeHandle, useState } from 'react';
+import { useBreadcrumbStore } from '@/shared-store';
 import { Button, Col, Form, Input, InputNumber, Modal, Row, Switch } from 'antd';
 import { toast } from '@/shared-util';
 import { useCreateCategory, useUpdateCategory } from '../../features/mask-policy/hooks/useMaskPolicyQueries';

@@ -4,15 +4,15 @@
  * - 카드 클릭 → 폼 페이지 (수정)
  * - [프로파일 추가] → 폼 페이지 (등록)
  */
-import { useCallback, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useQueryClient } from '@tanstack/react-query';
 import { Button, Dropdown, Empty, Input } from 'antd';
 import { MoreVertical, Plus, Search } from 'lucide-react';
+import { useBreadcrumbStore } from '@/shared-store';
 import { toast } from '@/shared-util';
 import { sipProfileQueryKeys, useDeleteSipProfile, useGetSipProfiles } from '../hooks/useSipProfileQueries';
 import { SS_REFRESH_TYPE_LABELS, type SipProfile, getActiveSipOptionTags } from '../types/sipProfile.types';
-import PageHeader from '@/components/custom/PageHeader';
 import { useModal } from '@/libs/shared-ui/src/hooks/useModal';
 
 const breadcrumb = [
@@ -22,6 +22,14 @@ const breadcrumb = [
 ];
 
 export default function SipProfileListPage() {
+  const setBreadcrumb = useBreadcrumbStore((s) => s.setBreadcrumb);
+  const clearBreadcrumb = useBreadcrumbStore((s) => s.clearBreadcrumb);
+
+  useEffect(() => {
+    setBreadcrumb(breadcrumb);
+    return () => clearBreadcrumb();
+  }, [setBreadcrumb, clearBreadcrumb]);
+
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const modal = useModal();
@@ -91,8 +99,6 @@ export default function SipProfileListPage() {
   // ─── Render ───────────────────────────────────────────────────────────────
   return (
     <div className="flex flex-col gap-4 w-full h-full">
-      <PageHeader breadcrumb={breadcrumb} />
-
       {/* Toolbar */}
       <div className="flex items-center justify-between gap-2 w-full h-[56px] bg-white bt-shadow px-5 flex-shrink-0">
         <div className="flex gap-3 items-center">

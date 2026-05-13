@@ -18,6 +18,7 @@ import type { ColDef, ICellRendererParams } from 'ag-grid-community';
 import { AgGridReact } from 'ag-grid-react';
 import { Button, Dropdown, Empty, Input } from 'antd';
 import { Building2, ChevronLeft, ChevronRight, Copy, Edit3, MoreVertical, Plus, Search, Trash2 } from 'lucide-react';
+import { useBreadcrumbStore } from '@/shared-store';
 import { toast } from '@/shared-util';
 import DevfuncCodeDrawer, { type DevfuncCodeDrawerRef } from '../components/DevfuncCodeDrawer';
 import DevfuncProfileCopyDialog, { type DevfuncProfileCopyDialogRef } from '../components/DevfuncProfileCopyDialog';
@@ -37,7 +38,6 @@ import {
 } from '../hooks/useDevfuncProfileQueries';
 import type { DevfuncCode, DevfuncProfile } from '../types/devfuncProfile.types';
 import { IconTrash } from '@/components/custom/Icons';
-import PageHeader from '@/components/custom/PageHeader';
 import useAggridOptions from '@/libs/shared-ui/src/hooks/useAggridOptions';
 import { useModal } from '@/libs/shared-ui/src/hooks/useModal';
 
@@ -48,6 +48,14 @@ const breadcrumb = [
 ];
 
 export default function DevfuncProfilePage() {
+  const setBreadcrumb = useBreadcrumbStore((s) => s.setBreadcrumb);
+  const clearBreadcrumb = useBreadcrumbStore((s) => s.clearBreadcrumb);
+
+  useEffect(() => {
+    setBreadcrumb(breadcrumb);
+    return () => clearBreadcrumb();
+  }, [setBreadcrumb, clearBreadcrumb]);
+
   const { gridOptions } = useAggridOptions();
   const queryClient = useQueryClient();
   const modal = useModal();
@@ -333,8 +341,6 @@ export default function DevfuncProfilePage() {
   // ─── Render ─────────────────────────────────────────────────────────────────
   return (
     <div className="flex flex-col gap-4 w-full h-full">
-      <PageHeader breadcrumb={breadcrumb} />
-
       <div className="flex flex-1 min-h-0 flex-col gap-4">
         {/* ===== 상단: 테넌트 탭 바 + 프로파일 카드 슬라이더 ===== */}
         <div className="bg-white bt-shadow overflow-hidden flex-shrink-0">

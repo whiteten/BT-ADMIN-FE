@@ -8,7 +8,8 @@
 import { useEffect, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useQueryClient } from '@tanstack/react-query';
-import { type BreadcrumbProps, Button, Col, Divider, Form, Input, InputNumber, Radio, Row, Select, Steps } from 'antd';
+import { Button, Col, Divider, Form, Input, InputNumber, Radio, Row, Select, Steps } from 'antd';
+import { useBreadcrumbStore } from '@/shared-store';
 import { toast } from '@/shared-util';
 import { mediaDeliveryQueryKeys, useCreateMdItem, useDeleteMdItem, useGetMdItemDetail, useUpdateMdItem } from '../hooks/useMediaDeliveryQueries';
 import {
@@ -31,7 +32,6 @@ import {
   TRANSPORT_TYPE_OPTIONS,
 } from '../types/mediaDelivery.types';
 import { FallbackSpinner } from '@/components/custom/FallbackSpinner';
-import PageHeader from '@/components/custom/PageHeader';
 import { useModal } from '@/libs/shared-ui/src/hooks/useModal';
 
 const FORM_STEPS = [{ title: '기본정보' }, { title: '부가정보' }];
@@ -194,12 +194,13 @@ export default function MediaDeliveryFormPage() {
     });
   };
 
-  const breadcrumb: BreadcrumbProps['items'] = [
-    { title: 'IPRON' },
-    { title: '회선관리' },
-    { title: '미디어전달관리', href: '../media-delivery' },
-    { title: isEditMode ? '수정' : '등록' },
-  ];
+  const setBreadcrumb = useBreadcrumbStore((s) => s.setBreadcrumb);
+  const clearBreadcrumb = useBreadcrumbStore((s) => s.clearBreadcrumb);
+
+  useEffect(() => {
+    setBreadcrumb([{ title: 'IPRON' }, { title: '회선관리' }, { title: '미디어전달관리', href: '../media-delivery' }, { title: isEditMode ? '수정' : '등록' }]);
+    return () => clearBreadcrumb();
+  }, [isEditMode, setBreadcrumb, clearBreadcrumb]);
 
   const displayValue = (v: unknown) => (v !== null && v !== undefined && v !== '' ? String(v) : <span className="text-gray-300">-</span>);
 
@@ -282,8 +283,6 @@ export default function MediaDeliveryFormPage() {
   // ─── Render ──────────────────────────────────────────────────────────────────
   return (
     <div className="flex flex-col gap-4 w-full h-full">
-      <PageHeader breadcrumb={breadcrumb} />
-
       {/* Steps bar */}
       <div className="flex items-center justify-center w-full h-[58px] min-h-[58px] bg-white bt-shadow px-7 py-2">
         <Steps

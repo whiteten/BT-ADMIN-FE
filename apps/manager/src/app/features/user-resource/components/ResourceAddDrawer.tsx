@@ -7,6 +7,7 @@
  */
 
 import { forwardRef, useImperativeHandle, useMemo, useState } from 'react';
+import { useBreadcrumbStore } from '@/shared-store';
 import { Button, Drawer, Input, Tag, Tree, type TreeDataNode } from 'antd';
 import { Search } from 'lucide-react';
 import type { AvailableResource } from '../types/userResource.types';

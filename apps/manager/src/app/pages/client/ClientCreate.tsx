@@ -6,9 +6,9 @@
  */
 
 import { useEffect, useState } from 'react';
+import { useBreadcrumbStore } from '@/shared-store';
 import { useNavigate } from 'react-router-dom';
 import { Button, Form, Input, Switch, Transfer, type TransferProps } from 'antd';
-import { useBreadcrumbStore } from '@/shared-store';
 import { toast } from '@/shared-util';
 import ClientSecretDialog from '../../features/client/components/ClientSecretDialog';
 import { useCreateClient } from '../../features/client/hooks/useClientQueries';

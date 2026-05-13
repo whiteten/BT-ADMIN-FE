@@ -7,6 +7,7 @@
  */
 
 import { useMemo, useState } from 'react';
+import { useBreadcrumbStore } from '@/shared-store';
 import { Checkbox, Input } from 'antd';
 import { ChevronDown, ChevronRight, Folder, Search } from 'lucide-react';
 import { useGetGroupedPermissions } from '../hooks/usePermissionQueries';

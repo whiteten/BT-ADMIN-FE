@@ -6,12 +6,12 @@
  */
 
 import { useEffect, useState } from 'react';
+import { useBreadcrumbStore } from '@/shared-store';
 import { useNavigate, useParams } from 'react-router-dom';
 import { useQueryClient } from '@tanstack/react-query';
 import { Button, Divider, Form, Input, Switch, Transfer, type TransferProps } from 'antd';
 import dayjs from 'dayjs';
 import { Calendar, Hash, KeyRound } from 'lucide-react';
-import { useBreadcrumbStore } from '@/shared-store';
 import { toast } from '@/shared-util';
 import ClientStatusBadge from '../../features/client/components/ClientStatusBadge';
 import { clientQueryKeys, useDeleteClient, useGetClient, useUpdateClient } from '../../features/client/hooks/useClientQueries';

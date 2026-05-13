@@ -6,7 +6,8 @@
 import { useEffect, useState } from 'react';
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { useQueryClient } from '@tanstack/react-query';
-import { type BreadcrumbProps, Button, Col, Divider, Form, Input, InputNumber, Row, Select, Steps, Switch } from 'antd';
+import { Button, Col, Divider, Form, Input, InputNumber, Row, Select, Steps, Switch } from 'antd';
+import { useBreadcrumbStore } from '@/shared-store';
 import { toast } from '@/shared-util';
 import { routeQueryKeys, useCreateRoute, useGetNodes, useGetRouteDetail, useGetRoutesByNode, useUpdateRoute } from '../hooks/useRouteQueries';
 import {
@@ -25,7 +26,6 @@ import {
   WORKTIME_OPT_OPTIONS,
 } from '../types/route.types';
 import { FallbackSpinner } from '@/components/custom/FallbackSpinner';
-import PageHeader from '@/components/custom/PageHeader';
 
 export default function RouteFormPage() {
   const navigate = useNavigate();
@@ -192,7 +192,13 @@ export default function RouteFormPage() {
     }
   };
 
-  const breadcrumb: BreadcrumbProps['items'] = [{ title: 'IPRON' }, { title: '회선관리' }, { title: '발신라우트', href: '../route' }, { title: isEditMode ? '수정' : '등록' }];
+  const setBreadcrumb = useBreadcrumbStore((s) => s.setBreadcrumb);
+  const clearBreadcrumb = useBreadcrumbStore((s) => s.clearBreadcrumb);
+
+  useEffect(() => {
+    setBreadcrumb([{ title: 'IPRON' }, { title: '회선관리' }, { title: '발신라우트', href: '../route' }, { title: isEditMode ? '수정' : '등록' }]);
+    return () => clearBreadcrumb();
+  }, [isEditMode, setBreadcrumb, clearBreadcrumb]);
 
   // ─── 유틸 ───────────────────────────────────────────────────────────────────
   const displayValue = (v: unknown) => (v !== null && v !== undefined && v !== '' ? String(v) : <span className="text-gray-300">-</span>);
@@ -280,8 +286,6 @@ export default function RouteFormPage() {
   // ─── Render ──────────────────────────────────────────────────────────────────
   return (
     <div className="flex flex-col gap-4 w-full h-full">
-      <PageHeader breadcrumb={breadcrumb} />
-
       {/* Steps bar */}
       <div className="flex items-center justify-center w-full h-[58px] min-h-[58px] bg-white bt-shadow px-7 py-2">
         <Steps

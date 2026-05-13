@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { Button, Checkbox, Drawer, InputNumber } from 'antd';
+import { useBreadcrumbStore } from '@/shared-store';
 import { toast } from '@/shared-util';
 import LicenseCardSlider from '../../features/license/components/LicenseCardSlider';
 import LicenseDetailSidebar from '../../features/license/components/LicenseDetailSidebar';
@@ -20,7 +21,6 @@ import {
 import { LICENSE_GROUP_ORDER, type ServerGroupUsage, type UpdateClusterRequest } from '../../features/license/types/license.types';
 import { FallbackSpinner } from '@/components/custom/FallbackSpinner';
 import NoData from '@/components/custom/NoData';
-import PageHeader from '@/components/custom/PageHeader';
 import { useModal } from '@/libs/shared-ui/src/hooks/useModal';
 
 const breadcrumb = [
@@ -30,6 +30,14 @@ const breadcrumb = [
 ];
 
 export default function LicenseList() {
+  const setBreadcrumb = useBreadcrumbStore((s) => s.setBreadcrumb);
+  const clearBreadcrumb = useBreadcrumbStore((s) => s.clearBreadcrumb);
+
+  useEffect(() => {
+    setBreadcrumb(breadcrumb);
+    return () => clearBreadcrumb();
+  }, [setBreadcrumb, clearBreadcrumb]);
+
   const queryClient = useQueryClient();
   const modal = useModal();
   const registerDrawerRef = useRef<LicenseRegisterDrawerRef>(null);
@@ -192,8 +200,6 @@ export default function LicenseList() {
 
   return (
     <div className="flex flex-col gap-4 w-full h-full">
-      <PageHeader breadcrumb={breadcrumb} />
-
       {/* 필터 바 */}
       <div className="flex items-center justify-between gap-2 w-full h-[76px] bg-white bt-shadow px-7 py-5">
         <div className="flex gap-4 items-center">

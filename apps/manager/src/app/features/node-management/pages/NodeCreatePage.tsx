@@ -1,17 +1,26 @@
+import { useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { type BreadcrumbProps, Button, Col, Form, type FormProps, Input, InputNumber, Row, Select } from 'antd';
 import { Log } from '@/log';
+import { useBreadcrumbStore } from '@/shared-store';
 import { toast } from '@/shared-util';
 import { useGetClusterGroups } from '../hooks/useClusterGroupQueries';
 import { useCreateNode } from '../hooks/useNodeQueries';
 import type { NodeCreateData } from '../types/node.types';
-import PageHeader from '@/components/custom/PageHeader';
 
 const breadcrumb: BreadcrumbProps['items'] = [{ title: '시스템' }, { title: '자원관리' }, { title: '클러스터 관리', href: '../list' }, { title: '노드 등록' }];
 
 const NUMBER_PATTERN = /^[0-9]*$/;
 
 export default function NodeCreatePage() {
+  const setBreadcrumb = useBreadcrumbStore((s) => s.setBreadcrumb);
+  const clearBreadcrumb = useBreadcrumbStore((s) => s.clearBreadcrumb);
+
+  useEffect(() => {
+    setBreadcrumb(breadcrumb);
+    return () => clearBreadcrumb();
+  }, [setBreadcrumb, clearBreadcrumb]);
+
   const navigate = useNavigate();
   const [form] = Form.useForm();
 
@@ -42,7 +51,6 @@ export default function NodeCreatePage() {
 
   return (
     <div className="flex flex-col gap-4 w-full h-full">
-      <PageHeader breadcrumb={breadcrumb} />
       <div className="w-full h-full min-h-0 bg-white bt-shadow flex flex-col">
         <div className="w-full flex-1 min-h-0 overflow-y-auto p-7 pb-0">
           <div className="flex gap-2 items-center text-[var(--color-bt-primary)] mb-6">

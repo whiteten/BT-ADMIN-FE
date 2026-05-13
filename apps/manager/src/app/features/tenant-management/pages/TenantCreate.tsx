@@ -4,10 +4,10 @@ import { type BreadcrumbProps, Button, Col, Divider, Form, type FormProps, Input
 import dayjs from 'dayjs';
 import { Check, X } from 'lucide-react';
 import { Log } from '@/log';
+import { useBreadcrumbStore } from '@/shared-store';
 import { toast } from '@/shared-util';
 import { useCreateTenant } from '../hooks/useTenantQueries';
 import { STAT_TYPE_LABELS, type TenantCreateData } from '../types/tenant.types';
-import PageHeader from '@/components/custom/PageHeader';
 
 const breadcrumb: BreadcrumbProps['items'] = [{ title: '시스템' }, { title: '자원관리' }, { title: '테넌트 등록' }];
 
@@ -41,6 +41,14 @@ const formatNumber = (value: number | null | undefined): string => {
 };
 
 export default function TenantCreate() {
+  const setBreadcrumb = useBreadcrumbStore((s) => s.setBreadcrumb);
+  const clearBreadcrumb = useBreadcrumbStore((s) => s.clearBreadcrumb);
+
+  useEffect(() => {
+    setBreadcrumb(breadcrumb);
+    return () => clearBreadcrumb();
+  }, [setBreadcrumb, clearBreadcrumb]);
+
   const navigate = useNavigate();
   const [currentStep, setCurrentStep] = useState(0);
   const [fieldErrors, setFieldErrors] = useState<Record<string, string[]>>({});
@@ -602,7 +610,6 @@ export default function TenantCreate() {
 
   return (
     <div className="flex flex-col gap-4 w-full h-full">
-      <PageHeader breadcrumb={breadcrumb} />
       <div className="flex items-center justify-center w-full h-[58px] min-h-[58px] bg-white bt-shadow px-7 py-2">
         <Steps
           current={currentStep}
