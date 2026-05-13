@@ -1,7 +1,7 @@
 import { useRef, useState } from 'react';
 import type { ColDef, RowClickedEvent, RowDoubleClickedEvent } from 'ag-grid-community';
 import { AgGridReact } from 'ag-grid-react';
-import { Button, DatePicker, Input, TimePicker } from 'antd';
+import { Button, DatePicker, TimePicker } from 'antd';
 import dayjs, { type Dayjs } from 'dayjs';
 import { toast } from '@/shared-util';
 import SttSearchDetailDrawer, { type SttSearchDetailDrawerRef } from '../components/SttSearchDetailDrawer';
@@ -16,7 +16,6 @@ export default function SttSearchCallbot() {
   const [searchDate, setSearchDate] = useState<Dayjs | null>(dayjs());
   const [startTime, setStartTime] = useState<Dayjs | null>(dayjs().hour(0).minute(0).second(0));
   const [endTime, setEndTime] = useState<Dayjs | null>(dayjs().hour(23).minute(59).second(59));
-  const [ucidGkey, setUcidGkey] = useState('');
   const [selectedOrgUcid, setSelectedOrgUcid] = useState<string | undefined>();
   const [listSearchParams, setListSearchParams] = useState<SttSearchCallbotParams>({
     fromDateTime: dayjs().format('YYYYMMDD') + '000000',
@@ -28,7 +27,6 @@ export default function SttSearchCallbot() {
   const buildListParams = (): SttSearchCallbotParams => ({
     fromDateTime: searchDate && startTime ? searchDate.format('YYYYMMDD') + startTime.format('HHmmss') : undefined,
     toDateTime: searchDate && endTime ? searchDate.format('YYYYMMDD') + endTime.format('HHmmss') : undefined,
-    ucidGkey: ucidGkey || undefined,
     analKind: 'C',
   });
 
@@ -81,6 +79,7 @@ export default function SttSearchCallbot() {
       field: 'orgUcid',
       flex: 3,
       tooltipField: 'orgUcid',
+      filter: true,
     },
     {
       headerName: '통화일시',
@@ -133,10 +132,6 @@ export default function SttSearchCallbot() {
           <TimePicker value={startTime} onChange={setStartTime} format="HH:mm:ss" allowClear={false} inputReadOnly style={{ width: 110 }} />
           <span className="text-[#495057]">-</span>
           <TimePicker value={endTime} onChange={setEndTime} format="HH:mm:ss" allowClear={false} inputReadOnly style={{ width: 110 }} />
-        </div>
-        <div className="flex items-center gap-2">
-          <span className="text-sm font-medium text-[#495057] shrink-0">고유번호</span>
-          <Input value={ucidGkey} onChange={(e) => setUcidGkey(e.target.value)} onPressEnter={handleSearch} placeholder="고유번호를 입력하세요" style={{ width: 200 }} />
         </div>
         <div className="flex items-center gap-2 ml-auto">
           <Button type="primary" onClick={handleSearch}>

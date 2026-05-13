@@ -1,8 +1,7 @@
-import { useMemo, useRef, useState } from 'react';
+import { useRef } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import type { ColDef, ICellRendererParams } from 'ag-grid-community';
 import { AgGridReact } from 'ag-grid-react';
-import { Input } from 'antd';
 import { Trash2 } from 'lucide-react';
 import { toast } from '@/shared-util';
 import { recogQueryKeys, useDeleteRecogTarget, useGetRecogTargetList } from '../hooks/useRecogQueries';
@@ -36,15 +35,7 @@ export default function RecogTargetList({ groupCode, engineCode }: RecogTargetLi
   const gridRef = useRef<AgGridReact<RecogTargetListItem>>(null);
   const { gridOptions } = useAggridOptions();
 
-  const [searchValue, setSearchValue] = useState('');
-
   const { data: targetList = [], isLoading } = useGetRecogTargetList({ groupCode, engineCode });
-
-  const filteredList = useMemo(() => {
-    if (!searchValue.trim()) return targetList;
-    const keyword = searchValue.toLowerCase();
-    return targetList.filter((t) => t.orgSentence.toLowerCase().includes(keyword) || t.ucidGkey.toLowerCase().includes(keyword));
-  }, [targetList, searchValue]);
 
   const { mutate: deleteTarget } = useDeleteRecogTarget({
     mutationOptions: {
@@ -59,7 +50,7 @@ export default function RecogTargetList({ groupCode, engineCode }: RecogTargetLi
   });
 
   const handleDelete = (data: RecogTargetListItem) => {
-    modal.confirm.delete({ onOk: () => deleteTarget(data.id) });
+    modal.confirm.delete({ onOk: () => deleteTarget({ ucidGkey: data.ucidGkey, armsoffset: data.armsoffset, rxtxKind: data.rxtxKind }) });
   };
 
   const columnDefs: ColDef<RecogTargetListItem>[] = [
@@ -87,14 +78,10 @@ export default function RecogTargetList({ groupCode, engineCode }: RecogTargetLi
 
   return (
     <div className="flex flex-col gap-3 h-full">
-      <div className="flex items-center">
-        <Input value={searchValue} onChange={(e) => setSearchValue(e.target.value)} placeholder="문장 또는 UCID 검색" allowClear style={{ width: 220 }} />
-      </div>
-
       <div className="flex-1 min-h-[200px]">
         <AgGridReact<RecogTargetListItem>
           ref={gridRef}
-          rowData={filteredList}
+          rowData={targetList}
           columnDefs={columnDefs}
           gridOptions={{
             ...gridOptions,

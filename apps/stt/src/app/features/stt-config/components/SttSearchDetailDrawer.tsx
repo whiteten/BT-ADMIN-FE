@@ -1,5 +1,6 @@
 import { forwardRef, useEffect, useImperativeHandle, useRef, useState } from 'react';
 import { Descriptions, Drawer, Empty, Select, Spin } from 'antd';
+import dayjs from 'dayjs';
 import { Headphones, User } from 'lucide-react';
 import { useGetSttResultSentence, useGetSttSearchListen } from '../hooks/useSearchQueries';
 import type { SttResultSentenceItem, SttSearchItem, SttSearchListenParams } from '../types';
@@ -171,7 +172,7 @@ const SttSearchDetailDrawer = forwardRef<SttSearchDetailDrawerRef>((_, ref) => {
         {state.row && (
           <div className="flex-shrink-0">
             <Descriptions column={2} size="small" bordered>
-              <Descriptions.Item label="통화일시">{state.row.callDatetime ?? '-'}</Descriptions.Item>
+              <Descriptions.Item label="통화일시">{state.row.callDatetime ? dayjs(state.row.callDatetime).format('YYYY-MM-DD HH:mm:ss') : '-'}</Descriptions.Item>
               <Descriptions.Item label="고유번호">
                 <span className="font-mono">{state.row.ucidGkey ?? '-'}</span>
               </Descriptions.Item>

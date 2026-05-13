@@ -41,8 +41,8 @@ export const recogApi = {
     const response = await apiClient.get<ListResponse<RecogTargetListItem>>('/recog-target-list', { params });
     return extractList(response);
   },
-  deleteRecogTarget: async (id: number) => {
-    await apiClient.delete('/recog-target-delete', { params: { id } });
+  deleteRecogTarget: async (params: { ucidGkey: string; armsoffset: number; rxtxKind: string }) => {
+    await apiClient.delete('/recog-target-delete', { params });
   },
   deleteRecogTargets: async (ids: number[]) => {
     return apiClient.post('/recog-target-delete-bulk', { ids });

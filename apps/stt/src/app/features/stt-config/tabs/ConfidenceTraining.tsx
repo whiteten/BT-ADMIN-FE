@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
-import type { ColDef, ICellRendererParams, RowEditingStartedEvent } from 'ag-grid-community';
+import type { CellKeyDownEvent, ColDef, ICellRendererParams, RowEditingStartedEvent } from 'ag-grid-community';
 import { AgGridReact } from 'ag-grid-react';
 import { Button, DatePicker, Input, Select, TimePicker } from 'antd';
 import dayjs, { type Dayjs } from 'dayjs';
@@ -12,19 +12,6 @@ import type { ConfidenceTrainingItem, ConfidenceTrainingSearchParams, SttSearchL
 import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
 import useAggridOptions from '@/libs/shared-ui/src/hooks/useAggridOptions';
-
-const IN_OUT_OPTIONS = [
-  { label: '전체', value: '' },
-  { label: 'I/B (인바운드)', value: '0' },
-  { label: 'O/B (아웃바운드)', value: '1' },
-];
-
-const RXTX_OPTIONS = [
-  { label: '전체', value: '' },
-  { label: '통합', value: '9' },
-  { label: '고객', value: '1' },
-  { label: '상담원', value: '2' },
-];
 
 const ENGINE_OPTIONS = [
   { label: '전체', value: '' },
@@ -137,21 +124,13 @@ export default function ConfidenceTraining() {
   const [endDate, setEndDate] = useState<Dayjs | null>(dayjs());
   const [startTime, setStartTime] = useState<Dayjs | null>(dayjs().subtract(3, 'hour').startOf('hour'));
   const [endTime, setEndTime] = useState<Dayjs | null>(dayjs().startOf('hour'));
-  const [keyword, setKeyword] = useState('');
-  const [inoutKind, setInOutKind] = useState('');
-  const [ucidGkey, setUcidGkey] = useState('');
   const [dnNo, setDnNo] = useState('');
-  const [rxtxKind, setRxtxKind] = useState('');
   const [engineCode, setEngineCode] = useState('');
 
   const buildParams = (): ConfidenceTrainingSearchParams => ({
     fromDateTime: startDate && startTime ? startDate.format('YYYYMMDD') + startTime.format('HHmmss') : undefined,
     toDateTime: endDate && endTime ? endDate.format('YYYYMMDD') + endTime.format('HHmmss') : undefined,
-    keyword: keyword || undefined,
-    inoutKind: inoutKind || undefined,
-    ucidGkey: ucidGkey || undefined,
     dnNo: dnNo || undefined,
-    rxtxKind: rxtxKind || undefined,
     engineCode: engineCode || undefined,
     confidence: CONFIDENCE_THRESHOLD,
   });
@@ -214,15 +193,36 @@ export default function ConfidenceTraining() {
     setSearchParams(buildParams());
   };
 
-  const handleAdd = (data: ConfidenceTrainingItem) => {
-    createTuningSentence({
-      ucidGkey: data.ucidGkey,
-      armsoffset: data.armsoffset,
-      rxtxKind: data.rxtxKind,
-      trString: data.sentence,
-      engineCode: data.engineCode,
+  const handleAdd = (originData: ConfidenceTrainingItem) => {
+    const editingCells = gridRef.current?.api?.getEditingCells() ?? [];
+    const cellEditors = gridRef.current?.api?.getCellEditorInstances() ?? [];
+
+    let sentence = originData.sentence;
+    editingCells.forEach((cell, index) => {
+      if (cell.colId === 'sentence') {
+        const editor = cellEditors[index];
+        if (editor) sentence = editor.getValue() as string;
+      }
     });
+
     gridRef.current?.api?.stopEditing();
+
+    createTuningSentence({
+      ucidGkey: originData.ucidGkey,
+      armsoffset: originData.armsoffset,
+      rxtxKind: originData.rxtxKind,
+      trString: sentence,
+      engineCode: originData.engineCode,
+    });
+  };
+
+  const handleCellKeyDown = (event: CellKeyDownEvent<ConfidenceTrainingItem>) => {
+    if ((event.event as KeyboardEvent)?.key !== 'Enter') return;
+    if (!event.data) return;
+    const isEditing = (gridRef.current?.api?.getEditingCells() ?? []).length > 0;
+    if (!isEditing) return;
+    (event.event as KeyboardEvent).stopPropagation();
+    handleAdd(event.data);
   };
 
   const handleRowEditingStarted = (event: RowEditingStartedEvent<ConfidenceTrainingItem>) => {
@@ -243,6 +243,7 @@ export default function ConfidenceTraining() {
       headerName: '고유번호(UCID)',
       field: 'ucidGkey',
       flex: 3,
+      filter: true,
       tooltipField: 'ucidGkey',
     },
     {
@@ -250,6 +251,7 @@ export default function ConfidenceTraining() {
       field: 'dnNo',
       maxWidth: 110,
       flex: 1,
+      filter: true,
     },
     {
       headerName: '통화일시',
@@ -269,6 +271,7 @@ export default function ConfidenceTraining() {
       field: 'rxtxKind',
       maxWidth: 90,
       flex: 1,
+      filter: true,
       valueFormatter: (params) => ({ '1': '고객', '2': '상담원', '9': '통합' })[String(params.value)] ?? params.value,
     },
     {
@@ -283,10 +286,12 @@ export default function ConfidenceTraining() {
       headerName: '대화내용',
       field: 'sentence',
       flex: 4,
+      filter: true,
       tooltipField: 'sentence',
       editable: true,
       cellEditor: 'agTextCellEditor',
       cellEditorParams: { useFormatter: true },
+      suppressKeyboardEvent: (params) => params.editing && params.event.key === 'Enter',
     },
     {
       headerName: '',
@@ -314,24 +319,8 @@ export default function ConfidenceTraining() {
           <TimePicker value={endTime} onChange={setEndTime} format="HH:mm:ss" allowClear={false} inputReadOnly needConfirm={false} style={{ width: 110 }} />
         </div>
         <div className="flex items-center gap-2">
-          <span className="text-sm font-medium text-[#495057] shrink-0">키워드</span>
-          <Input value={keyword} onChange={(e) => setKeyword(e.target.value)} onPressEnter={handleSearch} placeholder="키워드를 입력하세요" style={{ width: 200 }} />
-        </div>
-        <div className="flex items-center gap-2">
-          <span className="text-sm font-medium text-[#495057] shrink-0">고유번호</span>
-          <Input value={ucidGkey} onChange={(e) => setUcidGkey(e.target.value)} onPressEnter={handleSearch} placeholder="고유번호를 입력하세요" style={{ width: 200 }} />
-        </div>
-        <div className="flex items-center gap-2">
           <span className="text-sm font-medium text-[#495057] shrink-0">내선</span>
           <Input value={dnNo} onChange={(e) => setDnNo(e.target.value)} onPressEnter={handleSearch} placeholder="내선번호를 입력하세요" style={{ width: 160 }} />
-        </div>
-        <div className="flex items-center gap-2">
-          <span className="text-sm font-medium text-[#495057] shrink-0">IN/OUT 구분</span>
-          <Select value={inoutKind} onChange={setInOutKind} options={IN_OUT_OPTIONS} popupMatchSelectWidth={false} style={{ width: 180 }} />
-        </div>
-        <div className="flex items-center gap-2">
-          <span className="text-sm font-medium text-[#495057] shrink-0">화자구분</span>
-          <Select value={rxtxKind} onChange={setRxtxKind} options={RXTX_OPTIONS} popupMatchSelectWidth={false} style={{ width: 120 }} />
         </div>
         <div className="flex items-center gap-2">
           <span className="text-sm font-medium text-[#495057] shrink-0">엔진</span>
@@ -361,6 +350,7 @@ export default function ConfidenceTraining() {
             suppressClickEdit: false,
           }}
           onRowEditingStarted={handleRowEditingStarted}
+          onCellKeyDown={handleCellKeyDown}
           loading={isLoading}
           sideBar={false}
         />

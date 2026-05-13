@@ -1,8 +1,8 @@
-import { useMemo, useRef, useState } from 'react';
+import { useRef } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import type { ColDef, ICellRendererParams, RowDoubleClickedEvent } from 'ag-grid-community';
 import { AgGridReact } from 'ag-grid-react';
-import { Button, Input } from 'antd';
+import { Button } from 'antd';
 import dayjs from 'dayjs';
 import { Trash2 } from 'lucide-react';
 import { toast } from '@/shared-util';
@@ -44,15 +44,7 @@ export default function SttDictionary() {
   const queryClient = useQueryClient();
   const drawerRef = useRef<SttDictionaryDrawerRef>(null);
 
-  const [keyword, setKeyword] = useState('');
-
   const { data: allData = [], isLoading } = useGetSttDictionaryList({});
-
-  const filteredList = useMemo(() => {
-    if (!keyword.trim()) return allData;
-    const kw = keyword.toLowerCase();
-    return allData.filter((item) => item.beforeWord.toLowerCase().includes(kw) || item.afterWord.toLowerCase().includes(kw));
-  }, [allData, keyword]);
 
   const { mutate: deleteDictionary } = useDeleteSttDictionary({
     mutationOptions: {
@@ -93,9 +85,10 @@ export default function SttDictionary() {
       headerName: '변경할 단어',
       field: 'beforeWord',
       flex: 2,
+      filter: true,
     },
     {
-      headerName: '변경할 단어',
+      headerName: '수정 단어',
       field: 'afterWord',
       flex: 2,
     },
@@ -133,10 +126,6 @@ export default function SttDictionary() {
     <div className="flex flex-col gap-4 h-full">
       {/* 필터 및 추가 */}
       <div className="flex items-center gap-4 flex-wrap">
-        <div className="flex items-center gap-2">
-          <span className="text-sm font-medium text-[#495057] shrink-0">키워드</span>
-          <Input value={keyword} onChange={(e) => setKeyword(e.target.value)} placeholder="키워드를 입력하세요" style={{ width: 200 }} />
-        </div>
         <div className="flex items-center gap-2 ml-auto">
           <Button type="primary" onClick={handleAdd}>
             추가
@@ -147,7 +136,7 @@ export default function SttDictionary() {
       {/* 그리드 */}
       <div className="flex-1 min-h-[300px]">
         <AgGridReact<SttDictionaryItem>
-          rowData={filteredList}
+          rowData={allData}
           columnDefs={columnDefs}
           gridOptions={{
             ...gridOptions,

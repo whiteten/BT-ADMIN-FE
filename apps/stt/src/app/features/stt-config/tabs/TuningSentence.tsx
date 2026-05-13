@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import type { ColDef } from 'ag-grid-community';
 import { AgGridReact } from 'ag-grid-react';
-import { Button, DatePicker, Input, Select } from 'antd';
+import { Button, DatePicker, Select } from 'antd';
 import dayjs, { type Dayjs } from 'dayjs';
 import { Bookmark, Trash2 } from 'lucide-react';
 import { toast } from '@/shared-util';
@@ -11,12 +11,6 @@ import { trainingQueryKeys, useDeleteTuningSentence, useGetTuningSentenceList } 
 import type { TuningSentenceItem, TuningSentenceSearchParams } from '../types';
 import useAggridOptions from '@/libs/shared-ui/src/hooks/useAggridOptions';
 import { useModal } from '@/libs/shared-ui/src/hooks/useModal';
-
-const TUNING_OPTIONS = [
-  { label: '전체', value: '' },
-  { label: '반영', value: '0' },
-  { label: '미반영', value: '1' },
-];
 
 const PAGE_SIZE = 20;
 
@@ -54,8 +48,6 @@ export default function TuningSentence() {
 
   const [fromDate, setFromDate] = useState<Dayjs | null>(dayjs().subtract(7, 'day'));
   const [toDate, setToDate] = useState<Dayjs | null>(dayjs());
-  const [keyword, setKeyword] = useState('');
-  const [tunningKind, setTunningKind] = useState('');
   const [engineCode, setEngineCode] = useState('');
   const [searchParams, setSearchParams] = useState<TuningSentenceSearchParams | null>(null);
 
@@ -109,8 +101,6 @@ export default function TuningSentence() {
     const next = {
       fromDate: fromDate.format('YYYYMMDD'),
       toDate: toDate.format('YYYYMMDD'),
-      keyword: keyword || undefined,
-      tunningKind: tunningKind || undefined,
       engineCode: engineCode || undefined,
     };
     setSearchParams(next);
@@ -127,7 +117,7 @@ export default function TuningSentence() {
       colId: 'bookmark',
       maxWidth: 50,
       sortable: false,
-      filter: false,
+      filter: true,
       cellStyle: { display: 'flex', alignItems: 'center', justifyContent: 'center' },
       cellRenderer: BookmarkCellRenderer,
     },
@@ -135,12 +125,14 @@ export default function TuningSentence() {
       headerName: '고유번호(UCID)',
       field: 'ucidGkey',
       flex: 3,
+      filter: true,
     },
     {
       headerName: 'TEXT',
       field: 'trString',
       flex: 4,
       tooltipField: 'trString',
+      filter: true,
     },
     {
       headerName: '화자',
@@ -176,14 +168,6 @@ export default function TuningSentence() {
           <DatePicker value={fromDate} onChange={setFromDate} format="YYYY-MM-DD" allowClear={false} inputReadOnly />
           <span className="text-[#495057]">-</span>
           <DatePicker value={toDate} onChange={setToDate} format="YYYY-MM-DD" allowClear={false} inputReadOnly />
-        </div>
-        <div className="flex items-center gap-2">
-          <span className="text-sm font-medium text-[#495057] shrink-0">키워드</span>
-          <Input value={keyword} onChange={(e) => setKeyword(e.target.value)} onPressEnter={handleSearch} placeholder="키워드를 입력하세요" style={{ width: 200 }} />
-        </div>
-        <div className="flex items-center gap-2">
-          <span className="text-sm font-medium text-[#495057] shrink-0">반영여부</span>
-          <Select value={tunningKind} onChange={setTunningKind} options={TUNING_OPTIONS} style={{ width: 120 }} />
         </div>
         <div className="flex items-center gap-2">
           <span className="text-sm font-medium text-[#495057] shrink-0">엔진</span>

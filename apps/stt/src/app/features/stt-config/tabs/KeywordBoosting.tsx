@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import type { ColDef } from 'ag-grid-community';
 import { AgGridReact } from 'ag-grid-react';
@@ -33,7 +33,6 @@ export default function KeywordBoosting() {
   const modal = useModal();
   const queryClient = useQueryClient();
 
-  const [keyword, setKeyword] = useState('');
   const [engineCode, setEngineCode] = useState('');
   const [newKeyword, setNewKeyword] = useState('');
 
@@ -50,11 +49,6 @@ export default function KeywordBoosting() {
     params: { engineCode: engineCode || undefined },
     queryOptions: { enabled: !!engineCode },
   });
-
-  const filteredList = useMemo(() => {
-    if (!keyword.trim()) return allData;
-    return allData.filter((item) => item.keyword.toLowerCase().includes(keyword.toLowerCase()));
-  }, [allData, keyword]);
 
   const { mutate: createKeywordBoosting } = useCreateKeywordBoosting({
     mutationOptions: {
@@ -122,6 +116,7 @@ export default function KeywordBoosting() {
       field: 'keyword',
       flex: 4,
       tooltipField: 'keyword',
+      filter: true,
     },
     {
       headerName: '등록자',
@@ -151,16 +146,11 @@ export default function KeywordBoosting() {
       {/* 필터 및 추가 */}
       <div className="flex items-center gap-4 flex-wrap">
         <div className="flex items-center gap-2">
-          <span className="text-sm font-medium text-[#495057] shrink-0">키워드</span>
-          <Input value={keyword} onChange={(e) => setKeyword(e.target.value)} placeholder="키워드를 입력하세요" style={{ width: 200 }} />
-        </div>
-        <div className="flex items-center gap-2">
           <span className="text-sm font-medium text-[#495057] shrink-0">엔진</span>
           <Select
             value={engineCode}
             onChange={(val) => {
               setEngineCode(val);
-              setKeyword('');
             }}
             options={engineOptions}
             style={{ width: 140 }}
@@ -178,7 +168,7 @@ export default function KeywordBoosting() {
       {/* 그리드 */}
       <div className="flex-1 min-h-[300px]">
         <AgGridReact<KeywordBoostingItem>
-          rowData={filteredList}
+          rowData={allData}
           columnDefs={columnDefs}
           gridOptions={{
             ...gridOptions,

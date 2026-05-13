@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import type { ColDef, ICellRendererParams, RowDoubleClickedEvent } from 'ag-grid-community';
 import { AgGridReact } from 'ag-grid-react';
-import { type BreadcrumbProps, Button, Input, Select } from 'antd';
+import { type BreadcrumbProps, Button } from 'antd';
 import dayjs from 'dayjs';
 import { Trash2 } from 'lucide-react';
 import { useBreadcrumbStore } from '@/shared-store';
@@ -19,18 +19,6 @@ import { useModal } from '@/libs/shared-ui/src/hooks/useModal';
 const breadcrumb: BreadcrumbProps['items'] = [
   { title: 'STT 관리', path: '/stt/stt-config' },
   { title: 'STT 내선 관리', path: '/stt/stt-config/dn/list' },
-];
-
-const DN_STATUS_OPTIONS = [
-  { label: '전체', value: '' },
-  { label: '등록', value: '1' },
-  { label: '미등록', value: '0' },
-];
-
-const USE_YN_OPTIONS = [
-  { label: '전체', value: '' },
-  { label: '사용', value: '1' },
-  { label: '미사용', value: '0' },
 ];
 
 const PAGE_SIZE = 20;
@@ -81,21 +69,9 @@ export default function DnList() {
   const drawerRef = useRef<SttDnDrawerRef>(null);
 
   const [selectedGroupId, setSelectedGroupId] = useState<string | null>(null);
-  const [dnStatus, setDnStatus] = useState('');
-  const [useYn, setUseYn] = useState('');
-  const [dnNo, setDnNo] = useState('');
-  const [phoneIp, setPhoneIp] = useState('');
   const [searchParams, setSearchParams] = useState<SttDnSearchParams | null>(null);
 
-  const { data: rawData = [], isLoading } = useGetSttDnList({ params: searchParams });
-
-  const rowData = rawData.filter((item) => {
-    if (dnStatus && item.dnStatus !== dnStatus) return false;
-    if (useYn && item.useYn !== useYn) return false;
-    if (dnNo && !item.dnNo?.includes(dnNo)) return false;
-    if (phoneIp && !item.phoneIp?.includes(phoneIp)) return false;
-    return true;
-  });
+  const { data: rowData = [], isLoading } = useGetSttDnList({ params: searchParams });
 
   const { mutate: deleteDn } = useDeleteSttDn({
     mutationOptions: {
@@ -125,13 +101,14 @@ export default function DnList() {
 
   const columnDefs: ColDef<SttDnItem>[] = [
     { headerName: '테넌트명', field: 'tenantName', flex: 2 },
-    { headerName: '내선번호', field: 'dnNo', flex: 1, maxWidth: 100 },
-    { headerName: '전화기IP', field: 'phoneIp', flex: 2 },
+    { headerName: '내선번호', field: 'dnNo', flex: 1, maxWidth: 100, filter: true },
+    { headerName: '전화기IP', field: 'phoneIp', flex: 2, filter: true },
     {
       headerName: '내선상태',
       field: 'dnStatus',
       maxWidth: 110,
       flex: 1,
+      filter: true,
       cellRenderer: DnStatusCellRenderer,
     },
     {
@@ -139,6 +116,7 @@ export default function DnList() {
       field: 'useYn',
       maxWidth: 110,
       flex: 1,
+      filter: true,
       cellRenderer: UseYnCellRenderer,
     },
     { headerName: '상담원ID', field: 'agentId', flex: 2 },
@@ -169,22 +147,6 @@ export default function DnList() {
         <div className="flex-1 min-h-0 bg-white bt-shadow overflow-hidden flex flex-col">
           {/* 검색 필터 */}
           <div className="flex items-center gap-4 flex-wrap px-5 py-4 shrink-0">
-            <div className="flex items-center gap-2">
-              <span className="text-sm font-medium text-[#495057] shrink-0">내선상태</span>
-              <Select value={dnStatus} onChange={setDnStatus} options={DN_STATUS_OPTIONS} style={{ width: 120 }} />
-            </div>
-            <div className="flex items-center gap-2">
-              <span className="text-sm font-medium text-[#495057] shrink-0">사용여부</span>
-              <Select value={useYn} onChange={setUseYn} options={USE_YN_OPTIONS} style={{ width: 120 }} />
-            </div>
-            <div className="flex items-center gap-2 shrink-0">
-              <span className="text-sm font-medium text-[#495057] shrink-0">내선</span>
-              <Input value={dnNo} onChange={(e) => setDnNo(e.target.value)} placeholder="내선번호를 입력하세요" style={{ width: 120 }} />
-            </div>
-            <div className="flex items-center gap-2">
-              <span className="text-sm font-medium text-[#495057] shrink-0">전화기IP</span>
-              <Input value={phoneIp} onChange={(e) => setPhoneIp(e.target.value)} placeholder="전화기IP를 입력하세요" style={{ width: 180 }} />
-            </div>
             <div className="flex items-center gap-2 ml-auto">
               <Button
                 type="primary"

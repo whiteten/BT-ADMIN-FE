@@ -1,19 +1,14 @@
-import { useRef, useState } from 'react';
+import React, { useRef, useState } from 'react';
 import type { ColDef, RowDoubleClickedEvent } from 'ag-grid-community';
 import { AgGridReact } from 'ag-grid-react';
-import { Button, DatePicker, Input, Select, TimePicker } from 'antd';
+import { Button, DatePicker, Input, TimePicker } from 'antd';
 import dayjs, { type Dayjs } from 'dayjs';
 import { toast } from '@/shared-util';
 import SttSearchDetailDrawer, { type SttSearchDetailDrawerRef } from '../components/SttSearchDetailDrawer';
 import { useGetSttSearch } from '../hooks/useSearchQueries';
 import type { SttSearchItem, SttSearchParams } from '../types';
+import { Badge } from '@/components/ui/badge';
 import useAggridOptions from '@/libs/shared-ui/src/hooks/useAggridOptions';
-
-const IN_OUT_OPTIONS = [
-  { label: '전체', value: '' },
-  { label: 'I/B (인바운드)', value: '0' },
-  { label: 'O/B (아웃바운드)', value: '1' },
-];
 
 const PAGE_SIZE = 20;
 
@@ -27,10 +22,6 @@ export default function SttSearch() {
   const [startTime, setStartTime] = useState<Dayjs | null>(dayjs().hour(0).minute(0).second(0));
   const [endTime, setEndTime] = useState<Dayjs | null>(dayjs().hour(23).minute(59).second(59));
   const [keyword, setKeyword] = useState('');
-  const [inOutType, setInOutType] = useState('');
-  const [ucidGkey, setUcidGkey] = useState('');
-  const [agentName, setAgentName] = useState('');
-  const [dnNo, setDnNo] = useState('');
   const [searchParams, setSearchParams] = useState<SttSearchParams>({
     fromDateTime: dayjs().format('YYYYMMDD') + '000000',
     toDateTime: dayjs().format('YYYYMMDD') + '235959',
@@ -41,10 +32,6 @@ export default function SttSearch() {
     fromDateTime: startDate && startTime ? startDate.format('YYYYMMDD') + startTime.format('HHmmss') : undefined,
     toDateTime: endDate && endTime ? endDate.format('YYYYMMDD') + endTime.format('HHmmss') : undefined,
     keyword: keyword || undefined,
-    inoutKind: inOutType || undefined,
-    ucidGkey: ucidGkey || undefined,
-    agentName: agentName || undefined,
-    dnNo: dnNo || undefined,
     analKindArr: ['R', 'B'],
   });
 
@@ -95,6 +82,7 @@ export default function SttSearch() {
       field: 'ucidGkey',
       flex: 3,
       tooltipField: 'ucidGkey',
+      filter: true,
     },
     {
       headerName: '통화시간',
@@ -107,18 +95,32 @@ export default function SttSearch() {
       field: 'agentName',
       maxWidth: 100,
       flex: 1,
+      filter: true,
     },
     {
       headerName: '내선번호',
       field: 'dnNo',
       maxWidth: 100,
       flex: 1,
+      filter: true,
     },
     {
       headerName: 'I/O 구분',
       field: 'inoutKind',
       maxWidth: 130,
       flex: 1,
+      cellRenderer: ({ value }: { value: string }) =>
+        value === '인바운드' || value === '아웃바운드' ? (
+          <Badge
+            variant="secondary"
+            className={`text-[13px] leading-[13px] font-medium !h-6 ${value === '인바운드' ? 'text-[#3577F1] bg-[#3577F11A]' : 'text-[#F7B84B] bg-[#F7B84B1A]'}`}
+          >
+            {value}
+          </Badge>
+        ) : (
+          '-'
+        ),
+      filter: true,
     },
   ];
 
@@ -137,22 +139,6 @@ export default function SttSearch() {
         <div className="flex items-center gap-2">
           <span className="text-sm font-medium text-[#495057] shrink-0">키워드</span>
           <Input value={keyword} onChange={(e) => setKeyword(e.target.value)} onPressEnter={handleSearch} placeholder="키워드를 입력하세요" style={{ width: 200 }} />
-        </div>
-        <div className="flex items-center gap-2">
-          <span className="text-sm font-medium text-[#495057] shrink-0">고유번호</span>
-          <Input value={ucidGkey} onChange={(e) => setUcidGkey(e.target.value)} onPressEnter={handleSearch} placeholder="고유번호를 입력하세요" style={{ width: 200 }} />
-        </div>
-        <div className="flex items-center gap-2">
-          <span className="text-sm font-medium text-[#495057] shrink-0">상담사명</span>
-          <Input value={agentName} onChange={(e) => setAgentName(e.target.value)} onPressEnter={handleSearch} placeholder="상담사를 입력하세요" style={{ width: 200 }} />
-        </div>
-        <div className="flex items-center gap-2">
-          <span className="text-sm font-medium text-[#495057] shrink-0">내선</span>
-          <Input value={dnNo} onChange={(e) => setDnNo(e.target.value)} onPressEnter={handleSearch} placeholder="내선번호를 입력하세요" style={{ width: 160 }} />
-        </div>
-        <div className="flex items-center gap-2">
-          <span className="text-sm font-medium text-[#495057] shrink-0">IN/OUT 구분</span>
-          <Select value={inOutType} onChange={setInOutType} options={IN_OUT_OPTIONS} popupMatchSelectWidth={false} style={{ width: 180 }} />
         </div>
         <div className="flex items-center gap-2 ml-auto">
           <Button type="primary" onClick={handleSearch}>

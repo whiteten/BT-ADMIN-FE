@@ -1,8 +1,8 @@
 import { useEffect, useRef, useState } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
-import type { ColDef, ICellRendererParams, RowEditingStartedEvent } from 'ag-grid-community';
+import type { CellKeyDownEvent, ColDef, ICellRendererParams, RowEditingStartedEvent } from 'ag-grid-community';
 import { AgGridReact } from 'ag-grid-react';
-import { Button, DatePicker, Input, Select, TimePicker } from 'antd';
+import { Button, DatePicker, Input, TimePicker } from 'antd';
 import dayjs, { type Dayjs } from 'dayjs';
 import { PlayCircle, StopCircle } from 'lucide-react';
 import { toast } from '@/shared-util';
@@ -11,19 +11,6 @@ import { useGetSttSearchListen } from '../hooks/useSearchQueries';
 import type { RecogTargetSearchItem, RecogTargetSearchParams, SttSearchListenParams } from '../types';
 import { cn } from '@/lib/utils';
 import useAggridOptions from '@/libs/shared-ui/src/hooks/useAggridOptions';
-
-const IN_OUT_OPTIONS = [
-  { label: '전체', value: '' },
-  { label: 'I/B (인바운드)', value: '0' },
-  { label: 'O/B (아웃바운드)', value: '1' },
-];
-
-const RXTX_OPTIONS = [
-  { label: '전체', value: '' },
-  { label: '통합', value: '9' },
-  { label: '고객', value: '1' },
-  { label: '상담원', value: '2' },
-];
 
 const PAGE_SIZE = 20;
 const RXTX_LISTEN_TYPE: Record<string, string> = { '1': '4', '2': '5', '9': '3' };
@@ -126,11 +113,7 @@ export default function RecogTargetSearch({ groupCode, engineCode }: RecogTarget
   const [endDate, setEndDate] = useState<Dayjs | null>(dayjs());
   const [startTime, setStartTime] = useState<Dayjs | null>(dayjs().subtract(3, 'hour').startOf('hour'));
   const [endTime, setEndTime] = useState<Dayjs | null>(dayjs().startOf('hour'));
-  const [keyword, setKeyword] = useState('');
-  const [inoutKind, setInoutKind] = useState('');
-  const [ucidGkey, setUcidGkey] = useState('');
   const [dnNo, setDnNo] = useState('');
-  const [rxtxKind, setRxtxKind] = useState('');
   const [searchParams, setSearchParams] = useState<RecogTargetSearchParams>({
     fromDateTime: dayjs().subtract(3, 'hour').startOf('hour').format('YYYYMMDDHHmmss'),
     toDateTime: dayjs().startOf('hour').format('YYYYMMDDHHmmss'),
@@ -194,24 +177,41 @@ export default function RecogTargetSearch({ groupCode, engineCode }: RecogTarget
       engineCode,
       fromDateTime: startDate.format('YYYYMMDD') + (startTime?.format('HHmmss') ?? '000000'),
       toDateTime: endDate.format('YYYYMMDD') + (endTime?.format('HHmmss') ?? '235959'),
-      keyword: keyword || undefined,
-      inoutKind: inoutKind || undefined,
-      ucidGkey: ucidGkey || undefined,
       dnNo: dnNo || undefined,
-      rxtxKind: rxtxKind || undefined,
     });
   };
 
-  const handleAdd = (data: RecogTargetSearchItem) => {
+  const handleAdd = (originData: RecogTargetSearchItem) => {
+    const editingCells = gridRef.current?.api?.getEditingCells() ?? [];
+    const cellEditors = gridRef.current?.api?.getCellEditorInstances() ?? [];
+
+    let sentence = originData.sentence;
+    editingCells.forEach((cell, index) => {
+      if (cell.colId === 'sentence') {
+        const editor = cellEditors[index];
+        if (editor) sentence = editor.getValue() as string;
+      }
+    });
+
+    gridRef.current?.api?.stopEditing();
+
     createTarget({
       groupCode,
-      ucidGkey: data.ucidGkey,
-      armsoffset: data.armsoffset,
-      rxtxKind: Number(data.rxtxKind),
-      orgSentence: data.sentence,
-      engineCode: data.engineCode,
+      ucidGkey: originData.ucidGkey,
+      armsoffset: originData.armsoffset,
+      rxtxKind: Number(originData.rxtxKind),
+      orgSentence: sentence,
+      engineCode: originData.engineCode,
     });
-    gridRef.current?.api?.stopEditing();
+  };
+
+  const handleCellKeyDown = (event: CellKeyDownEvent<RecogTargetSearchItem>) => {
+    if ((event.event as KeyboardEvent)?.key !== 'Enter') return;
+    if (!event.data) return;
+    const isEditing = (gridRef.current?.api?.getEditingCells() ?? []).length > 0;
+    if (!isEditing) return;
+    (event.event as KeyboardEvent).stopPropagation();
+    handleAdd(event.data);
   };
 
   const handleRowEditingStarted = (event: RowEditingStartedEvent<RecogTargetSearchItem>) => {
@@ -228,8 +228,8 @@ export default function RecogTargetSearch({ groupCode, engineCode }: RecogTarget
       cellStyle: { display: 'flex', alignItems: 'center', justifyContent: 'center' },
       cellRenderer: PlayCellRenderer,
     },
-    { headerName: '고유번호(UCID)', field: 'ucidGkey', flex: 3, tooltipField: 'ucidGkey' },
-    { headerName: '내선번호', field: 'dnNo', maxWidth: 110, flex: 1 },
+    { headerName: '고유번호(UCID)', field: 'ucidGkey', flex: 3, filter: true, tooltipField: 'ucidGkey' },
+    { headerName: '내선번호', field: 'dnNo', maxWidth: 110, flex: 1, filter: true },
     { headerName: '통화일시', field: 'callDatetime', flex: 2 },
     { headerName: '발화시간', field: 'talkTime', maxWidth: 100, flex: 1, valueFormatter: (params) => (params.value != null ? `${params.value}초` : '') },
     {
@@ -243,10 +243,12 @@ export default function RecogTargetSearch({ groupCode, engineCode }: RecogTarget
       headerName: '대화내용',
       field: 'sentence',
       flex: 4,
+      filter: true,
       tooltipField: 'sentence',
       editable: true,
       cellEditor: 'agTextCellEditor',
       cellEditorParams: { useFormatter: true },
+      suppressKeyboardEvent: (params) => params.editing && params.event.key === 'Enter',
     },
     {
       headerName: '',
@@ -274,24 +276,8 @@ export default function RecogTargetSearch({ groupCode, engineCode }: RecogTarget
           <TimePicker value={endTime} onChange={setEndTime} format="HH:mm:ss" allowClear={false} inputReadOnly needConfirm={false} style={{ width: 110 }} />
         </div>
         <div className="flex items-center gap-2">
-          <span className="text-sm font-medium text-[#495057] shrink-0">키워드</span>
-          <Input value={keyword} onChange={(e) => setKeyword(e.target.value)} onPressEnter={handleSearch} placeholder="키워드를 입력하세요" style={{ width: 200 }} />
-        </div>
-        <div className="flex items-center gap-2">
-          <span className="text-sm font-medium text-[#495057] shrink-0">고유번호</span>
-          <Input value={ucidGkey} onChange={(e) => setUcidGkey(e.target.value)} onPressEnter={handleSearch} placeholder="고유번호를 입력하세요" style={{ width: 200 }} />
-        </div>
-        <div className="flex items-center gap-2">
           <span className="text-sm font-medium text-[#495057] shrink-0">내선</span>
           <Input value={dnNo} onChange={(e) => setDnNo(e.target.value)} onPressEnter={handleSearch} placeholder="내선번호를 입력하세요" style={{ width: 160 }} />
-        </div>
-        <div className="flex items-center gap-2">
-          <span className="text-sm font-medium text-[#495057] shrink-0">IN/OUT 구분</span>
-          <Select value={inoutKind} onChange={setInoutKind} options={IN_OUT_OPTIONS} popupMatchSelectWidth={false} style={{ width: 160 }} />
-        </div>
-        <div className="flex items-center gap-2">
-          <span className="text-sm font-medium text-[#495057] shrink-0">화자구분</span>
-          <Select value={rxtxKind} onChange={setRxtxKind} options={RXTX_OPTIONS} popupMatchSelectWidth={false} style={{ width: 120 }} />
         </div>
         <div className="flex items-center gap-2 ml-auto">
           <Button type="primary" onClick={handleSearch}>
@@ -313,6 +299,7 @@ export default function RecogTargetSearch({ groupCode, engineCode }: RecogTarget
             suppressClickEdit: false,
           }}
           onRowEditingStarted={handleRowEditingStarted}
+          onCellKeyDown={handleCellKeyDown}
           loading={isLoading}
           sideBar={false}
         />
