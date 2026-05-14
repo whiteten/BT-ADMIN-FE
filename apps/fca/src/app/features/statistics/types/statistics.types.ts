@@ -202,6 +202,7 @@ export interface UserDefStatList {
   columnDef: UserDefColumnDef[];
 }
 
+/** 캠페인 발신결과 통계 — BFF `stat-campaign-call-result` (V69) */
 export interface CallResultStatItem {
   psrTimeKey: string; // 통화일자 (YYYYMMDD / YYYYMM / YYYY)
   tenantId?: string; // 테넌트 ID
@@ -237,8 +238,11 @@ export type CallResultStatListItem = CallResultStatItem;
 export interface CallResultStatList {
   items: CallResultStatListItem[];
   summary: CallResultStatListItem | null;
+  /** FCA StatListResponse.columnDef — 그리드/엑셀 메타 (V69 stat-campaign-call-result) */
+  columnDef: UserDefColumnDef[];
 }
 
+/** 활성 테넌트 옵션 — BFF `stat-tenant-options` (V69) */
 export interface TenantOptionItem {
   tenantId: string;
   tenantName: string;
@@ -246,6 +250,7 @@ export interface TenantOptionItem {
 
 export type TenantOptionListItem = TenantOptionItem;
 
+/** 캠페인·시나리오 옵션 — BFF `stat-campaign-options` (V69) */
 export interface CampaignOptionItem {
   tenantId: string;
   campaignId: string;
