@@ -1,27 +1,29 @@
-import { useEffect, useRef, useState } from 'react';
+import { Fragment, useEffect, useRef, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { Button, Form, Input, InputNumber, Radio, Select } from 'antd';
-import { ChevronRight, X } from 'lucide-react';
+import { Button, Form, InputNumber, Radio, Select } from 'antd';
+import { Check, ChevronRight } from 'lucide-react';
 import { toast } from '@/shared-util';
-import StepCalcAndSearch, { type CalcField, type SearchBind } from './steps/StepCalcAndSearch';
+import StepCalcAndSearch, { type SearchBind } from './steps/StepCalcAndSearch';
 import StepDataSource from './steps/StepDataSource';
-import StepFieldMapping, { type FieldMapping } from './steps/StepFieldMapping';
+import StepFieldMapping, { type CalcField, type FieldMapping } from './steps/StepFieldMapping';
 import StepPreview from './steps/StepPreview';
 import StepVisualization from './steps/StepVisualization';
 import { useCreateWidget, useGetWidgetDetail, useUpdateWidget } from '../../../features/stat/hooks/useStatQueries';
 import type { WidgetRequest } from '../../../features/stat/types/widget';
 
-interface Section {
-  id: string;
+interface StepDef {
+  key: string;
   title: string;
-  datasourceKeys: string[];
-  fieldMappings: FieldMapping[];
-  calcFields: CalcField[];
-  searchBindings: SearchBind[];
-  visualization?: string;
+  icon: string;
 }
 
-const PANEL_STEPS = [{ title: '데이터소스' }, { title: '필드 매핑' }, { title: '계산 필드' }, { title: '시각화' }, { title: '미리보기' }];
+const STEPS: StepDef[] = [
+  { key: 'datasource', title: '데이터소스', icon: '⬡' },
+  { key: 'fieldmapping', title: '필드 매핑', icon: '⊞' },
+  { key: 'search', title: '검색조건', icon: '⌕' },
+  { key: 'visualization', title: '시각화', icon: '◈' },
+  { key: 'preview', title: '미리보기', icon: '◉' },
+];
 
 const CATEGORY_OPTIONS = [
   { value: 'FCA', label: 'FCA (ForCus-AI)' },
@@ -32,19 +34,60 @@ const CATEGORY_OPTIONS = [
   { value: 'COMMON', label: '공통' },
 ];
 
-const CANVAS_STYLE: React.CSSProperties = {
-  backgroundImage: 'linear-gradient(to right, #e4e7ec 1px, transparent 1px), linear-gradient(to bottom, #e4e7ec 1px, transparent 1px)',
-  backgroundSize: '24px 24px',
-  backgroundColor: '#f1f3f6',
-};
+interface StepNavProps {
+  activeStep: number;
+  completedSteps: Set<number>;
+  summaries: (string | null)[];
+  onStepClick: (i: number) => void;
+}
 
-const VIZ_LABELS: Record<string, string> = {
-  LINE: 'LINE',
-  BAR: 'BAR',
-  PIE: 'PIE',
-  DONUT: 'DONUT',
-  GRID: 'GRID',
-};
+function StepNav({ activeStep, completedSteps, summaries, onStepClick }: StepNavProps) {
+  return (
+    <div className="flex items-start border-b bg-white px-10 pt-5 pb-0 select-none">
+      {STEPS.map((step, i) => {
+        const isActive = i === activeStep;
+        const isDone = completedSteps.has(i);
+        return (
+          <Fragment key={step.key}>
+            <button className="group flex flex-col items-center gap-1.5 flex-shrink-0 pb-4 relative" style={{ minWidth: 88 }} onClick={() => onStepClick(i)}>
+              {/* Circle */}
+              <div
+                className={[
+                  'h-7 w-7 rounded-full flex items-center justify-center text-[11px] font-bold transition-all duration-200',
+                  isDone ? 'bg-emerald-500 text-white' : isActive ? 'bg-blue-600 text-white' : 'bg-gray-100 text-gray-400 group-hover:bg-gray-200',
+                  isActive ? 'shadow-[0_0_0_4px_rgba(37,99,235,0.12)]' : '',
+                ].join(' ')}
+              >
+                {isDone ? <Check size={12} strokeWidth={3} /> : i + 1}
+              </div>
+
+              {/* Title */}
+              <span
+                className={['text-[11px] font-semibold whitespace-nowrap transition-colors', isDone ? 'text-emerald-600' : isActive ? 'text-blue-600' : 'text-gray-400'].join(' ')}
+              >
+                {step.title}
+              </span>
+
+              {/* Summary chip */}
+              {summaries[i] && !isActive && (
+                <span className="absolute top-[46px] left-1/2 -translate-x-1/2 whitespace-nowrap rounded-full bg-gray-100 px-2 py-0.5 text-[10px] text-gray-500 font-normal">
+                  {summaries[i]}
+                </span>
+              )}
+
+              {/* Active underline */}
+              {isActive && <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-blue-600 rounded-t-full" />}
+            </button>
+
+            {i < STEPS.length - 1 && (
+              <div className={['flex-1 h-[2px] mt-3.5 mx-1.5 rounded-full transition-colors duration-300 min-w-[16px]', isDone ? 'bg-emerald-300' : 'bg-gray-200'].join(' ')} />
+            )}
+          </Fragment>
+        );
+      })}
+    </div>
+  );
+}
 
 export default function WidgetBuilderPage() {
   const navigate = useNavigate();
@@ -56,13 +99,9 @@ export default function WidgetBuilderPage() {
   const [isDirty, setIsDirty] = useState(false);
   const isSubmittingRef = useRef(false);
 
-  // Panel / section state
-  const [isPanelOpen, setIsPanelOpen] = useState(false);
-  const [panelStep, setPanelStep] = useState(0);
-  const [editingSectionId, setEditingSectionId] = useState<string | null>(null);
-  const [sections, setSections] = useState<Section[]>([]);
+  const [activeStep, setActiveStep] = useState(0);
+  const [completedSteps, setCompletedSteps] = useState<Set<number>>(new Set());
 
-  // Current section editing state
   const [selectedDatasourceKeys, setSelectedDatasourceKeys] = useState<string[]>([]);
   const [fieldMappings, setFieldMappings] = useState<FieldMapping[]>([]);
   const [calcFields, setCalcFields] = useState<CalcField[]>([]);
@@ -77,89 +116,39 @@ export default function WidgetBuilderPage() {
   });
 
   useEffect(() => {
-    if (widgetData) {
-      setReportTitle(widgetData.widgetName);
-      form.setFieldsValue({
-        category: widgetData.category,
-        icon: widgetData.icon,
-        visualization: widgetData.visualization,
-        refreshMode: widgetData.refreshMode,
-        refreshInterval: widgetData.refreshInterval,
-        defaultW: widgetData.defaultW,
-        defaultH: widgetData.defaultH,
-      });
-      if (widgetData.dataSources?.length) {
-        const section: Section = {
-          id: 'main',
-          title: widgetData.widgetName,
-          datasourceKeys: widgetData.dataSources.map((d) => d.datasourceKey),
-          fieldMappings: widgetData.fieldMappings as unknown as FieldMapping[],
-          calcFields: widgetData.calculatedFields as unknown as CalcField[],
-          searchBindings: widgetData.searchBindings as unknown as SearchBind[],
-          visualization: widgetData.visualization,
-        };
-        setSections([section]);
-      }
+    if (!widgetData) return;
+    setReportTitle(widgetData.widgetName);
+    form.setFieldsValue({
+      category: widgetData.category,
+      icon: widgetData.icon,
+      visualization: widgetData.visualization,
+      refreshMode: widgetData.refreshMode,
+      refreshInterval: widgetData.refreshInterval,
+      defaultW: widgetData.defaultW,
+      defaultH: widgetData.defaultH,
+    });
+    if (widgetData.dataSources?.length) {
+      setSelectedDatasourceKeys(widgetData.dataSources.map((d) => d.datasourceKey));
+      setFieldMappings(widgetData.fieldMappings as unknown as FieldMapping[]);
+      setCalcFields(widgetData.calculatedFields as unknown as CalcField[]);
+      setSearchBindings(widgetData.searchBindings as unknown as SearchBind[]);
+      setCompletedSteps(new Set([0, 1, 2, 3]));
     }
   }, [widgetData, form]);
 
-  const handleAddSection = () => {
-    setEditingSectionId(null);
-    setSelectedDatasourceKeys([]);
-    setFieldMappings([]);
-    setCalcFields([]);
-    setSearchBindings([]);
-    setPanelStep(0);
-    setIsPanelOpen(true);
-  };
-
-  const handleEditSection = (sectionId: string) => {
-    const section = sections.find((s) => s.id === sectionId);
-    if (!section) return;
-    setEditingSectionId(sectionId);
-    setSelectedDatasourceKeys(section.datasourceKeys);
-    setFieldMappings(section.fieldMappings);
-    setCalcFields(section.calcFields);
-    setSearchBindings(section.searchBindings);
-    setPanelStep(0);
-    setIsPanelOpen(true);
-  };
-
-  const handleDeleteSection = (sectionId: string) => {
-    setSections((prev) => prev.filter((s) => s.id !== sectionId));
-    if (editingSectionId === sectionId) {
-      setIsPanelOpen(false);
-      setEditingSectionId(null);
+  const goToStep = (i: number) => {
+    if (activeStep !== i) {
+      setCompletedSteps((prev) => {
+        const next = new Set(prev);
+        next.add(activeStep);
+        return next;
+      });
     }
-    setIsDirty(true);
+    setActiveStep(i);
   };
 
-  const handleAddToCanvas = () => {
-    const sectionTitle = selectedDatasourceKeys[0] ?? '새 섹션';
-    if (editingSectionId) {
-      setSections((prev) =>
-        prev.map((s) =>
-          s.id === editingSectionId
-            ? { ...s, datasourceKeys: selectedDatasourceKeys, fieldMappings, calcFields, searchBindings, visualization: form.getFieldValue('visualization') }
-            : s,
-        ),
-      );
-    } else {
-      const newSection: Section = {
-        id: `section-${Date.now()}`,
-        title: sectionTitle,
-        datasourceKeys: selectedDatasourceKeys,
-        fieldMappings,
-        calcFields,
-        searchBindings,
-        visualization: form.getFieldValue('visualization'),
-      };
-      setSections((prev) => [...prev, newSection]);
-    }
-    setIsPanelOpen(false);
-    setEditingSectionId(null);
-    setIsDirty(true);
-  };
+  const handleNext = () => goToStep(Math.min(STEPS.length - 1, activeStep + 1));
+  const handlePrev = () => setActiveStep((p) => Math.max(0, p - 1));
 
   const handleSave = () => {
     if (isSubmittingRef.current) return;
@@ -170,7 +159,7 @@ export default function WidgetBuilderPage() {
       return;
     }
     form
-      .validateFields(['category', 'refreshMode'])
+      .validateFields(['category'])
       .then(() => {
         const values = form.getFieldsValue(true);
         const request: WidgetRequest = {
@@ -243,30 +232,73 @@ export default function WidgetBuilderPage() {
 
   const isPending = createMutation.isPending || updateMutation.isPending;
 
+  const activeFieldCount = fieldMappings.filter((f) => f.enabled).length;
+  const activeBindingCount = searchBindings.filter((s) => s.conditionId != null).length;
+  const vizValue = form.getFieldValue('visualization') as string | undefined;
+
+  const stepSummaries: (string | null)[] = [
+    selectedDatasourceKeys.length > 0 ? selectedDatasourceKeys[0] : null,
+    activeFieldCount > 0 ? `${activeFieldCount}개 활성` + (calcFields.length > 0 ? ` +${calcFields.length}계산` : '') : null,
+    activeBindingCount > 0 ? `${activeBindingCount}개 바인딩` : null,
+    vizValue ?? null,
+    null,
+  ];
+
   return (
-    <div className="flex flex-col w-full h-full overflow-hidden">
-      {/* Report header */}
-      <header className="flex flex-shrink-0 items-center justify-between border-b bg-white px-5 py-3">
-        <div className="flex items-center gap-2">
-          <button onClick={() => navigate('/insight/stat/widget')} className="text-[12px] text-gray-400 hover:text-gray-700">
+    <Form form={form} layout="vertical" initialValues={{ refreshMode: 'MANUAL', defaultW: 4, defaultH: 3 }} className="flex flex-col w-full h-full overflow-hidden">
+      {/* Header */}
+      <header className="flex flex-shrink-0 items-center gap-4 border-b bg-white px-5 py-3">
+        <div className="flex items-center gap-2 min-w-0 flex-1">
+          <button type="button" onClick={() => navigate('/insight/stat/widget')} className="flex-shrink-0 text-[12px] text-gray-400 hover:text-gray-700 transition-colors">
             보고서 목록
           </button>
-          <ChevronRight size={12} className="text-gray-300" />
-          <input
-            value={reportTitle}
-            onChange={(e) => {
-              setReportTitle(e.target.value);
-              setIsDirty(true);
-            }}
-            placeholder="제목 없음"
-            className="border-b border-transparent bg-transparent px-1 text-[14px] font-semibold placeholder:text-gray-300 focus:border-blue-500 focus:outline-none"
-          />
+          <ChevronRight size={12} className="flex-shrink-0 text-gray-300" />
+          <div className="flex items-center gap-1.5 rounded-md border border-gray-200 bg-gray-50 px-2.5 py-1.5 transition-colors focus-within:border-blue-400 focus-within:bg-white">
+            <span className="flex-shrink-0 text-[11px] font-medium text-gray-400">보고서명</span>
+            <input
+              value={reportTitle}
+              onChange={(e) => {
+                setReportTitle(e.target.value);
+                setIsDirty(true);
+              }}
+              placeholder="제목을 입력하세요"
+              className="w-48 bg-transparent text-[14px] font-semibold text-gray-900 placeholder:text-gray-400 focus:outline-none"
+            />
+          </div>
           {isDirty && (
-            <span className="inline-flex items-center rounded bg-yellow-50 px-1.5 py-0.5 text-[10px] font-semibold text-yellow-700 border border-yellow-200">초안 · 미저장</span>
+            <span className="flex-shrink-0 inline-flex items-center rounded-full bg-amber-50 border border-amber-200 px-2 py-0.5 text-[10px] font-semibold text-amber-700">
+              미저장
+            </span>
           )}
         </div>
-        <div className="flex items-center gap-2">
-          <Button size="small">미리보기</Button>
+
+        <div className="flex flex-shrink-0 items-center gap-3">
+          <Form.Item name="category" noStyle rules={[{ required: true, message: '카테고리를 선택하세요' }]}>
+            <Select placeholder="카테고리 선택" options={CATEGORY_OPTIONS} size="small" style={{ width: 160 }} onChange={() => setIsDirty(true)} />
+          </Form.Item>
+
+          <div className="h-4 w-px bg-gray-200" />
+
+          <div className="flex items-center gap-1.5">
+            <Form.Item name="refreshMode" noStyle>
+              <Radio.Group buttonStyle="solid" size="small" onChange={() => setIsDirty(true)}>
+                <Radio.Button value="AUTO">자동</Radio.Button>
+                <Radio.Button value="MANUAL">수동</Radio.Button>
+              </Radio.Group>
+            </Form.Item>
+          </div>
+
+          <div className="flex items-center gap-1">
+            <Form.Item name="defaultW" noStyle>
+              <InputNumber min={1} max={12} size="small" style={{ width: 64 }} addonAfter="W" onChange={() => setIsDirty(true)} />
+            </Form.Item>
+            <Form.Item name="defaultH" noStyle>
+              <InputNumber min={1} max={12} size="small" style={{ width: 64 }} addonAfter="H" onChange={() => setIsDirty(true)} />
+            </Form.Item>
+          </div>
+
+          <div className="h-4 w-px bg-gray-200" />
+
           <Button size="small" loading={isPending} disabled={isPending} onClick={handleSave}>
             저장
           </Button>
@@ -276,234 +308,87 @@ export default function WidgetBuilderPage() {
         </div>
       </header>
 
-      {/* Global filter bar - placeholder */}
-      <div className="flex flex-shrink-0 items-center gap-3 border-b bg-gray-50/50 px-5 py-3 text-[12px] text-gray-400">
-        <span className="rounded bg-gray-100 px-2 py-1">기간</span>
-        <span className="rounded bg-gray-100 px-2 py-1">단위</span>
-        <span className="rounded bg-gray-100 px-2 py-1">비교 기간</span>
-        <span className="ml-auto text-[11px]">글로벌 필터는 모든 섹션에 일괄 적용</span>
-      </div>
+      {/* Step navigator */}
+      <StepNav activeStep={activeStep} completedSteps={completedSteps} summaries={stepSummaries} onStepClick={goToStep} />
 
-      {/* Main content: canvas + side panel */}
-      <div className="flex flex-1 overflow-hidden">
-        {/* Canvas */}
-        <div className="flex-1 overflow-auto p-5" style={CANVAS_STYLE}>
-          <Form form={form} layout="vertical" initialValues={{ widgetType: 'DATA', refreshMode: 'MANUAL', defaultW: 4, defaultH: 3 }}>
-            {/* Report basic settings */}
-            <div className="mb-4 rounded border bg-white shadow-sm">
-              <div className="border-b px-4 py-2 text-[11px] font-semibold uppercase tracking-wider text-gray-400">보고서 기본 설정</div>
-              <div className="grid grid-cols-2 gap-4 p-4">
-                <Form.Item label="보고서명" required className="mb-0">
-                  <Input
-                    value={reportTitle}
-                    onChange={(e) => {
-                      setReportTitle(e.target.value);
-                      setIsDirty(true);
-                    }}
-                    placeholder="보고서 이름을 입력하세요"
-                    size="small"
-                  />
-                </Form.Item>
-                <Form.Item name="category" label="카테고리" rules={[{ required: true, message: '카테고리를 선택하세요' }]} className="mb-0">
-                  <Select placeholder="카테고리 선택" options={CATEGORY_OPTIONS} size="small" />
-                </Form.Item>
-              </div>
-            </div>
-
-            {sections.length === 0 ? (
-              <div className="flex h-full min-h-[300px] flex-col items-center justify-center gap-3">
-                <div className="text-[14px] font-semibold text-gray-400">아직 섹션이 없습니다</div>
-                <p className="max-w-md text-center text-[12px] text-gray-400">섹션을 추가하면 데이터소스를 선택하고 그리드 또는 차트로 시각화한 뒤 캔버스에 배치할 수 있습니다.</p>
-                <Button type="primary" onClick={handleAddSection}>
-                  + 섹션 추가
-                </Button>
-              </div>
-            ) : (
-              <div className="space-y-3">
-                {sections.map((section) => (
-                  <SectionCard
-                    key={section.id}
-                    section={section}
-                    isEditing={editingSectionId === section.id && isPanelOpen}
-                    onEdit={() => handleEditSection(section.id)}
-                    onDelete={() => handleDeleteSection(section.id)}
-                  />
-                ))}
-                <div className="flex items-center justify-center rounded border-2 border-dashed border-gray-200 bg-white/40 p-4">
-                  <button className="text-[12px] font-medium text-gray-400 hover:text-blue-500" onClick={handleAddSection}>
-                    + 섹션 추가
-                  </button>
-                </div>
-              </div>
-            )}
-          </Form>
-        </div>
-
-        {/* Side panel */}
-        {isPanelOpen && (
-          <aside className="flex w-[420px] flex-shrink-0 flex-col border-l bg-white">
-            {/* Panel header */}
-            <div className="flex flex-shrink-0 items-center justify-between border-b px-5 py-3">
-              <span className="text-[13px] font-semibold">섹션 편집</span>
-              <button
-                className="rounded p-1 text-gray-400 hover:bg-gray-100 hover:text-gray-600"
-                onClick={() => {
-                  setIsPanelOpen(false);
-                  setEditingSectionId(null);
+      {/* Step content */}
+      <div className="flex-1 overflow-auto bg-gray-50/60 p-5">
+        <div className="bg-white rounded-lg bt-shadow min-h-full flex flex-col">
+          <div className="flex-1 p-6">
+            {activeStep === 0 && (
+              <StepDataSource
+                selectedKeys={selectedDatasourceKeys}
+                onSelectedKeysChange={(keys) => {
+                  setSelectedDatasourceKeys(keys);
+                  setFieldMappings([]);
+                  setIsDirty(true);
                 }}
-              >
-                <X size={14} />
-              </button>
-            </div>
+              />
+            )}
+            {activeStep === 1 && (
+              <StepFieldMapping
+                selectedDatasourceKeys={selectedDatasourceKeys}
+                fieldMappings={fieldMappings}
+                onFieldMappingsChange={(m) => {
+                  setFieldMappings(m);
+                  setIsDirty(true);
+                }}
+                calcFields={calcFields}
+                onCalcFieldsChange={(c) => {
+                  setCalcFields(c);
+                  setIsDirty(true);
+                }}
+              />
+            )}
+            {activeStep === 2 && (
+              <StepCalcAndSearch
+                searchBindings={searchBindings}
+                onSearchBindingsChange={(s) => {
+                  setSearchBindings(s);
+                  setIsDirty(true);
+                }}
+                selectedDatasourceKeys={selectedDatasourceKeys}
+              />
+            )}
+            {activeStep === 3 && <StepVisualization form={form} />}
+            {activeStep === 4 && <StepPreview />}
+          </div>
 
-            {/* Step progress */}
-            <ol className="flex flex-shrink-0 items-center gap-1 border-b px-5 py-3 text-[11px]">
-              {PANEL_STEPS.map((step, i) => (
-                <li key={i} className="flex items-center gap-1">
-                  <button
-                    className={`flex items-center gap-1.5 transition ${
-                      i < panelStep ? 'font-semibold text-green-600' : i === panelStep ? 'font-semibold text-blue-600' : 'text-gray-400'
-                    }`}
-                    onClick={() => setPanelStep(i)}
-                  >
-                    <span
-                      className={`flex h-4 w-4 items-center justify-center rounded-full text-[9px] text-white ${
-                        i < panelStep ? 'bg-green-600' : i === panelStep ? 'bg-blue-600' : 'border border-gray-300 text-gray-400'
-                      }`}
-                    >
-                      {i < panelStep ? '✓' : i + 1}
-                    </span>
-                    {step.title}
-                  </button>
-                  {i < PANEL_STEPS.length - 1 && <span className="text-gray-200">—</span>}
-                </li>
+          {/* Step footer nav */}
+          <div className="flex flex-shrink-0 items-center justify-between border-t px-6 py-3 bg-gray-50/50 rounded-b-lg">
+            <button
+              type="button"
+              onClick={handlePrev}
+              disabled={activeStep === 0}
+              className="text-[12px] font-medium text-gray-400 hover:text-gray-600 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+            >
+              ← 이전
+            </button>
+            <div className="flex items-center gap-1.5">
+              {STEPS.map((_, i) => (
+                <button
+                  key={i}
+                  type="button"
+                  onClick={() => goToStep(i)}
+                  className={[
+                    'h-1.5 rounded-full transition-all duration-200',
+                    i === activeStep ? 'w-5 bg-blue-500' : completedSteps.has(i) ? 'w-1.5 bg-emerald-400' : 'w-1.5 bg-gray-300',
+                  ].join(' ')}
+                />
               ))}
-            </ol>
-
-            {/* Step content */}
-            <div className="flex-1 overflow-auto p-5">
-              <Form form={form} layout="vertical">
-                {panelStep === 0 && <StepDataSource selectedKeys={selectedDatasourceKeys} onSelectedKeysChange={setSelectedDatasourceKeys} />}
-                {panelStep === 1 && <StepFieldMapping selectedDatasourceKeys={selectedDatasourceKeys} fieldMappings={fieldMappings} onFieldMappingsChange={setFieldMappings} />}
-                {panelStep === 2 && (
-                  <StepCalcAndSearch
-                    calcFields={calcFields}
-                    onCalcFieldsChange={setCalcFields}
-                    searchBindings={searchBindings}
-                    onSearchBindingsChange={setSearchBindings}
-                    selectedDatasourceKeys={selectedDatasourceKeys}
-                    availableFields={fieldMappings.filter((f) => f.enabled).map((f) => f.fieldName)}
-                  />
-                )}
-                {panelStep === 3 && <StepVisualization form={form} />}
-                {panelStep === 4 && <StepPreview />}
-              </Form>
-
-              {/* Category/refresh settings only visible on step 0 */}
-              {panelStep === 0 && (
-                <div className="mt-4 space-y-3 border-t pt-4">
-                  <div className="text-[11px] font-semibold uppercase tracking-wider text-gray-400">보고서 설정</div>
-                  <Form form={form} layout="vertical">
-                    <Form.Item name="refreshMode" label="갱신 방식">
-                      <Radio.Group buttonStyle="solid" size="small">
-                        <Radio.Button value="AUTO">자동</Radio.Button>
-                        <Radio.Button value="MANUAL">수동</Radio.Button>
-                      </Radio.Group>
-                    </Form.Item>
-                    <div className="grid grid-cols-2 gap-3">
-                      <Form.Item name="defaultW" label="기본 너비 (칸)">
-                        <InputNumber min={1} max={12} size="small" style={{ width: '100%' }} />
-                      </Form.Item>
-                      <Form.Item name="defaultH" label="기본 높이 (칸)">
-                        <InputNumber min={1} max={12} size="small" style={{ width: '100%' }} />
-                      </Form.Item>
-                    </div>
-                  </Form>
-                </div>
-              )}
             </div>
-
-            {/* Panel footer */}
-            <div className="flex flex-shrink-0 items-center justify-between border-t bg-gray-50 px-5 py-3">
-              <button
-                onClick={() => setPanelStep((p) => Math.max(0, p - 1))}
-                disabled={panelStep === 0}
-                className="text-[12px] text-gray-400 hover:text-gray-600 disabled:opacity-40"
-              >
-                ← 이전
-              </button>
-              <div className="flex items-center gap-2">
-                {panelStep < PANEL_STEPS.length - 1 && (
-                  <Button size="small" onClick={() => setPanelStep((p) => p + 1)}>
-                    건너뛰기
-                  </Button>
-                )}
-                {panelStep < PANEL_STEPS.length - 1 ? (
-                  <Button size="small" type="primary" onClick={() => setPanelStep((p) => p + 1)}>
-                    다음 →
-                  </Button>
-                ) : (
-                  <Button size="small" type="primary" onClick={handleAddToCanvas}>
-                    캔버스에 추가
-                  </Button>
-                )}
-              </div>
-            </div>
-          </aside>
-        )}
-      </div>
-    </div>
-  );
-}
-
-function SectionCard({ section, isEditing, onEdit, onDelete }: { section: Section; isEditing: boolean; onEdit: () => void; onDelete: () => void }) {
-  const vizLabel = section.visualization ? VIZ_LABELS[section.visualization] : null;
-  const datasourceKey = section.datasourceKeys[0] ?? '';
-
-  return (
-    <div className={`rounded border-2 bg-white shadow-sm transition ${isEditing ? 'border-blue-500' : 'border-gray-200 hover:border-blue-300'}`} onDoubleClick={onEdit}>
-      {/* Section header */}
-      <div className="flex items-center justify-between border-b border-gray-100 px-4 py-2.5">
-        <div className="flex items-center gap-2">
-          <span className="text-[13px] font-semibold">{section.title}</span>
-          {isEditing && <span className="rounded bg-blue-50 px-1.5 py-0.5 text-[10px] font-semibold text-blue-600">편집 중</span>}
-          {vizLabel && <span className="rounded bg-blue-50 px-1.5 py-0.5 text-[10px] font-semibold text-blue-600">{vizLabel}</span>}
-          {datasourceKey && <span className="rounded bg-gray-100 px-1.5 py-0.5 font-mono text-[10px] text-gray-500">{datasourceKey}</span>}
-        </div>
-        <div className="flex items-center gap-1 text-gray-400">
-          <button className="rounded p-1 hover:bg-gray-100" title="검색조건">
-            ⌕
-          </button>
-          <button className="rounded p-1 hover:bg-gray-100" title="편집" onClick={onEdit}>
-            ⚙
-          </button>
-          <button className="rounded p-1 hover:bg-gray-100 hover:text-red-500" title="삭제" onClick={onDelete}>
-            ×
-          </button>
-        </div>
-      </div>
-
-      {/* Section content placeholder */}
-      <div className="px-4 py-6 text-center text-[11px] text-gray-400">
-        {section.fieldMappings.filter((f) => f.enabled).length > 0 ? (
-          <div className="space-y-1 text-left">
-            {section.fieldMappings
-              .filter((f) => f.enabled)
-              .slice(0, 4)
-              .map((f, i) => (
-                <div key={i} className="flex items-center justify-between rounded border border-gray-100 px-2.5 py-1.5 text-[12px]">
-                  <span className="font-mono text-gray-700">{f.fieldName}</span>
-                  <span className="text-gray-400">{f.chartRole || (f.showInGrid ? '그리드' : '숨김')}</span>
-                </div>
-              ))}
-            {section.fieldMappings.filter((f) => f.enabled).length > 4 && (
-              <div className="text-[11px] text-gray-400">+ {section.fieldMappings.filter((f) => f.enabled).length - 4}개 더</div>
+            {activeStep < STEPS.length - 1 ? (
+              <Button size="small" type="primary" onClick={handleNext}>
+                다음 →
+              </Button>
+            ) : (
+              <Button size="small" type="primary" loading={isPending} onClick={handleSave}>
+                저장 완료
+              </Button>
             )}
           </div>
-        ) : (
-          <span>섹션을 더블클릭하여 설정을 시작하세요</span>
-        )}
+        </div>
       </div>
-    </div>
+    </Form>
   );
 }

@@ -48,9 +48,7 @@ export default function StepDataSource({ selectedKeys, onSelectedKeysChange }: P
           </div>
           <div className="font-mono text-gray-500">{selectedDs.datasourceKey}</div>
           {selectedDs.availableUnits?.length > 0 && <div className="mt-1 text-gray-400">{selectedDs.availableUnits.join(' / ')}</div>}
-          <div className="mt-1 text-gray-400">
-            [{selectedDs.productCode}] 필드 {selectedDs.fields?.length || 0}개
-          </div>
+          <div className="mt-1 text-gray-400">[{selectedDs.productCode}]</div>
         </div>
       )}
     </div>
