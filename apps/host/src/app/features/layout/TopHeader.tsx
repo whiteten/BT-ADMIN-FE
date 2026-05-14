@@ -18,7 +18,7 @@ export default function TopHeader() {
       </div>
 
       {/* 정중앙: 통합 검색 */}
-      <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-[min(480px,calc(100%-440px))]">
+      <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-[min(400px,calc(100%-440px))]">
         <GlobalSearch />
       </div>
 
