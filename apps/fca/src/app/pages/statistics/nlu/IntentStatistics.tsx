@@ -222,32 +222,47 @@ export default function IntentStatistics() {
       headerName: '검출횟수',
       field: 'intentCnt',
       flex: 1,
-      cellStyle: (params) => (params.node?.rowPinned === 'bottom' ? { fontWeight: 'bold', alignItems: 'center' } : { fontWeight: 'normal', alignItems: 'center' }),
+      cellStyle: (params) =>
+        params.node?.rowPinned === 'bottom'
+          ? { display: 'flex', fontWeight: 'bold', alignItems: 'center', justifyContent: 'flex-end', textAlign: 'right' }
+          : { display: 'flex', fontWeight: 'normal', alignItems: 'center', justifyContent: 'flex-end', textAlign: 'right' },
     },
     {
       headerName: '평균 신뢰도',
       field: 'confidence',
       flex: 1,
-      cellStyle: (params) => (params.node?.rowPinned === 'bottom' ? { fontWeight: 'bold', alignItems: 'center' } : { fontWeight: 'normal', alignItems: 'center' }),
-      valueFormatter: ({ value }: { value?: number }) => (value != null ? `${value}%` : '0%'),
+      cellStyle: (params) =>
+        params.node?.rowPinned === 'bottom'
+          ? { display: 'flex', fontWeight: 'bold', alignItems: 'center', justifyContent: 'flex-end', textAlign: 'right' }
+          : { display: 'flex', fontWeight: 'normal', alignItems: 'center', justifyContent: 'flex-end', textAlign: 'right' },
+      cellRenderer: 'percentBarRenderer',
     },
     {
       headerName: '신뢰도 성공',
       field: 'thresholdMaxCnt',
       flex: 1,
-      cellStyle: (params) => (params.node?.rowPinned === 'bottom' ? { fontWeight: 'bold', alignItems: 'center' } : { fontWeight: 'normal', alignItems: 'center' }),
+      cellStyle: (params) =>
+        params.node?.rowPinned === 'bottom'
+          ? { display: 'flex', fontWeight: 'bold', alignItems: 'center', justifyContent: 'flex-end', textAlign: 'right' }
+          : { display: 'flex', fontWeight: 'normal', alignItems: 'center', justifyContent: 'flex-end', textAlign: 'right' },
     },
     {
       headerName: '신뢰도 재확인',
       field: 'thresholdCheckCnt',
       flex: 1,
-      cellStyle: (params) => (params.node?.rowPinned === 'bottom' ? { fontWeight: 'bold', alignItems: 'center' } : { fontWeight: 'normal', alignItems: 'center' }),
+      cellStyle: (params) =>
+        params.node?.rowPinned === 'bottom'
+          ? { display: 'flex', fontWeight: 'bold', alignItems: 'center', justifyContent: 'flex-end', textAlign: 'right' }
+          : { display: 'flex', fontWeight: 'normal', alignItems: 'center', justifyContent: 'flex-end', textAlign: 'right' },
     },
     {
       headerName: '신뢰도 실패',
       field: 'thresholdFailCnt',
       flex: 1,
-      cellStyle: (params) => (params.node?.rowPinned === 'bottom' ? { fontWeight: 'bold', alignItems: 'center' } : { fontWeight: 'normal', alignItems: 'center' }),
+      cellStyle: (params) =>
+        params.node?.rowPinned === 'bottom'
+          ? { display: 'flex', fontWeight: 'bold', alignItems: 'center', justifyContent: 'flex-end', textAlign: 'right' }
+          : { display: 'flex', fontWeight: 'normal', alignItems: 'center', justifyContent: 'flex-end', textAlign: 'right' },
     },
   ];
 

@@ -31,7 +31,7 @@ const PanelAppSection = ({ onNavigate }: PanelAppSectionProps) => {
   return (
     <section className="flex flex-col">
       <header className="px-3 mb-2">
-        <h3 className="text-xs font-semibold tracking-wider uppercase text-[#868e96]">{config.appName}</h3>
+        <h3 className="text-sm font-semibold tracking-wider uppercase text-[#868e96]">{config.appName}</h3>
       </header>
       {visibleMenus.length === 0 ? (
         <p className="text-xs text-[#adb5bd] px-3 py-4">메뉴 정보를 찾을 수 없습니다.</p>

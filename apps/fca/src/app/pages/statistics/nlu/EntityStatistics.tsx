@@ -223,7 +223,10 @@ export default function EntityStatistics() {
       headerName: '검출횟수',
       field: 'entityCnt',
       flex: 1,
-      cellStyle: (params) => (params.node?.rowPinned === 'bottom' ? { fontWeight: 'bold', alignItems: 'center' } : { fontWeight: 'normal', alignItems: 'center' }),
+      cellStyle: (params) =>
+        params.node?.rowPinned === 'bottom'
+          ? { display: 'flex', fontWeight: 'bold', alignItems: 'center', justifyContent: 'flex-end', textAlign: 'right' }
+          : { display: 'flex', fontWeight: 'normal', alignItems: 'center', justifyContent: 'flex-end', textAlign: 'right' },
     },
   ];
 

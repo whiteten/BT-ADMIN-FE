@@ -180,9 +180,9 @@ const BotDialogHistoryTable: React.FC<BotDialogHistoryTableProps> = ({
       {
         headerName: '신뢰도',
         field: 'avgConfidence',
-        width: 110,
-        cellClass: 'text-right',
-        valueFormatter: (params) => (params.value != null ? `${params.value}` : '-'),
+        width: 140,
+        cellStyle: { display: 'flex', alignItems: 'center' },
+        cellRenderer: 'percentBarRenderer',
       },
       {
         headerName: '재학습',

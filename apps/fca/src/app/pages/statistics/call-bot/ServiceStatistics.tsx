@@ -197,78 +197,114 @@ export default function ServiceStatistics() {
       headerName: '진입수',
       field: 'serviceEnterCount',
       flex: 1,
-      cellStyle: (params) => (params.node?.rowPinned === 'bottom' ? { fontWeight: 'bold', alignItems: 'center' } : { fontWeight: 'normal', alignItems: 'center' }),
+      cellStyle: (params) =>
+        params.node?.rowPinned === 'bottom'
+          ? { display: 'flex', fontWeight: 'bold', alignItems: 'center', justifyContent: 'flex-end', textAlign: 'right' }
+          : { display: 'flex', fontWeight: 'normal', alignItems: 'center', justifyContent: 'flex-end', textAlign: 'right' },
     },
     {
       headerName: '완료건',
       field: 'serviceCompleteCount',
       flex: 1,
-      cellStyle: (params) => (params.node?.rowPinned === 'bottom' ? { fontWeight: 'bold', alignItems: 'center' } : { fontWeight: 'normal', alignItems: 'center' }),
+      cellStyle: (params) =>
+        params.node?.rowPinned === 'bottom'
+          ? { display: 'flex', fontWeight: 'bold', alignItems: 'center', justifyContent: 'flex-end', textAlign: 'right' }
+          : { display: 'flex', fontWeight: 'normal', alignItems: 'center', justifyContent: 'flex-end', textAlign: 'right' },
     },
     {
       headerName: '미완료건',
       field: 'serviceFailCount',
       flex: 1,
-      cellStyle: (params) => (params.node?.rowPinned === 'bottom' ? { fontWeight: 'bold', alignItems: 'center' } : { fontWeight: 'normal', alignItems: 'center' }),
+      cellStyle: (params) =>
+        params.node?.rowPinned === 'bottom'
+          ? { display: 'flex', fontWeight: 'bold', alignItems: 'center', justifyContent: 'flex-end', textAlign: 'right' }
+          : { display: 'flex', fontWeight: 'normal', alignItems: 'center', justifyContent: 'flex-end', textAlign: 'right' },
     },
     {
       headerName: '완료율',
       field: 'serviceCompletePercent',
       flex: 1,
-      cellStyle: (params) => (params.node?.rowPinned === 'bottom' ? { fontWeight: 'bold', alignItems: 'center' } : { fontWeight: 'normal', alignItems: 'center' }),
-      valueFormatter: ({ value }: { value?: number }) => (value != null ? `${value}%` : '0%'),
+      cellStyle: (params) =>
+        params.node?.rowPinned === 'bottom'
+          ? { display: 'flex', fontWeight: 'bold', alignItems: 'center', justifyContent: 'flex-end', textAlign: 'right' }
+          : { display: 'flex', fontWeight: 'normal', alignItems: 'center', justifyContent: 'flex-end', textAlign: 'right' },
+      cellRenderer: 'percentBarRenderer',
     },
     {
       headerName: '미완료율',
       field: 'serviceFailPercent',
       flex: 1,
-      cellStyle: (params) => (params.node?.rowPinned === 'bottom' ? { fontWeight: 'bold', alignItems: 'center' } : { fontWeight: 'normal', alignItems: 'center' }),
-      valueFormatter: ({ value }: { value?: number }) => (value != null ? `${value}%` : '0%'),
+      cellStyle: (params) =>
+        params.node?.rowPinned === 'bottom'
+          ? { display: 'flex', fontWeight: 'bold', alignItems: 'center', justifyContent: 'flex-end', textAlign: 'right' }
+          : { display: 'flex', fontWeight: 'normal', alignItems: 'center', justifyContent: 'flex-end', textAlign: 'right' },
+      cellRenderer: 'percentBarRenderer',
     },
     {
       headerName: '진입별 상담연결수',
       field: 'reqAgentCount',
       flex: 1.5,
-      cellStyle: (params) => (params.node?.rowPinned === 'bottom' ? { fontWeight: 'bold', alignItems: 'center' } : { fontWeight: 'normal', alignItems: 'center' }),
+      cellStyle: (params) =>
+        params.node?.rowPinned === 'bottom'
+          ? { display: 'flex', fontWeight: 'bold', alignItems: 'center', justifyContent: 'flex-end', textAlign: 'right' }
+          : { display: 'flex', fontWeight: 'normal', alignItems: 'center', justifyContent: 'flex-end', textAlign: 'right' },
     },
     {
       headerName: '진입별 상담연결율',
       field: 'enterReqAgentPercent',
       flex: 1.5,
-      cellStyle: (params) => (params.node?.rowPinned === 'bottom' ? { fontWeight: 'bold', alignItems: 'center' } : { fontWeight: 'normal', alignItems: 'center' }),
-      valueFormatter: ({ value }: { value?: number }) => (value != null ? `${value}%` : '0%'),
+      cellStyle: (params) =>
+        params.node?.rowPinned === 'bottom'
+          ? { display: 'flex', fontWeight: 'bold', alignItems: 'center', justifyContent: 'flex-end', textAlign: 'right' }
+          : { display: 'flex', fontWeight: 'normal', alignItems: 'center', justifyContent: 'flex-end', textAlign: 'right' },
+      cellRenderer: 'percentBarRenderer',
     },
     {
       headerName: '완료별 상담연결수',
       field: 'completeReqAgentCount',
       flex: 1.5,
-      cellStyle: (params) => (params.node?.rowPinned === 'bottom' ? { fontWeight: 'bold', alignItems: 'center' } : { fontWeight: 'normal', alignItems: 'center' }),
+      cellStyle: (params) =>
+        params.node?.rowPinned === 'bottom'
+          ? { display: 'flex', fontWeight: 'bold', alignItems: 'center', justifyContent: 'flex-end', textAlign: 'right' }
+          : { display: 'flex', fontWeight: 'normal', alignItems: 'center', justifyContent: 'flex-end', textAlign: 'right' },
     },
     {
       headerName: '완료별 상담연결율',
       field: 'completeReqAgentPercent',
       flex: 1.5,
-      cellStyle: (params) => (params.node?.rowPinned === 'bottom' ? { fontWeight: 'bold', alignItems: 'center' } : { fontWeight: 'normal', alignItems: 'center' }),
-      valueFormatter: ({ value }: { value?: number }) => (value != null ? `${value}%` : '0%'),
+      cellStyle: (params) =>
+        params.node?.rowPinned === 'bottom'
+          ? { display: 'flex', fontWeight: 'bold', alignItems: 'center', justifyContent: 'flex-end', textAlign: 'right' }
+          : { display: 'flex', fontWeight: 'normal', alignItems: 'center', justifyContent: 'flex-end', textAlign: 'right' },
+      cellRenderer: 'percentBarRenderer',
     },
     {
       headerName: '미완료별 상담연결수',
       field: 'failReqAgentCount',
       flex: 1.5,
-      cellStyle: (params) => (params.node?.rowPinned === 'bottom' ? { fontWeight: 'bold', alignItems: 'center' } : { fontWeight: 'normal', alignItems: 'center' }),
+      cellStyle: (params) =>
+        params.node?.rowPinned === 'bottom'
+          ? { display: 'flex', fontWeight: 'bold', alignItems: 'center', justifyContent: 'flex-end', textAlign: 'right' }
+          : { display: 'flex', fontWeight: 'normal', alignItems: 'center', justifyContent: 'flex-end', textAlign: 'right' },
     },
     {
       headerName: '미완료별 상담연결율',
       field: 'failReqAgentPercent',
       flex: 1.5,
-      cellStyle: (params) => (params.node?.rowPinned === 'bottom' ? { fontWeight: 'bold', alignItems: 'center' } : { fontWeight: 'normal', alignItems: 'center' }),
-      valueFormatter: ({ value }: { value?: number }) => (value != null ? `${value}%` : '0%'),
+      cellStyle: (params) =>
+        params.node?.rowPinned === 'bottom'
+          ? { display: 'flex', fontWeight: 'bold', alignItems: 'center', justifyContent: 'flex-end', textAlign: 'right' }
+          : { display: 'flex', fontWeight: 'normal', alignItems: 'center', justifyContent: 'flex-end', textAlign: 'right' },
+      cellRenderer: 'percentBarRenderer',
     },
     {
       headerName: '질의수',
       field: 'botSlotInCount',
       flex: 1,
-      cellStyle: (params) => (params.node?.rowPinned === 'bottom' ? { fontWeight: 'bold', alignItems: 'center' } : { fontWeight: 'normal', alignItems: 'center' }),
+      cellStyle: (params) =>
+        params.node?.rowPinned === 'bottom'
+          ? { display: 'flex', fontWeight: 'bold', alignItems: 'center', justifyContent: 'flex-end', textAlign: 'right' }
+          : { display: 'flex', fontWeight: 'normal', alignItems: 'center', justifyContent: 'flex-end', textAlign: 'right' },
     },
   ];
 
