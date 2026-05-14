@@ -126,7 +126,7 @@ export default function GlobalSearch() {
                   <Search className="h-5 w-5 text-muted-foreground/40" />
                 </div>
                 <p className="text-sm text-muted-foreground/60">
-                  <span className="font-medium text-foreground/70">"{debouncedQuery}"</span>에 대한 결과가 없습니다
+                  <span className="font-medium text-foreground/70">{`"${debouncedQuery}"`}</span>에 대한 결과가 없습니다
                 </p>
               </div>
             )}
