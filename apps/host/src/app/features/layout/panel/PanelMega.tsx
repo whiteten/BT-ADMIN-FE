@@ -12,12 +12,15 @@ import { cn } from '@/libs/shared-ui/src/lib/utils';
 
 const LINE = '#dee2e6';
 
-/** 깊이별 노드 점 — 2단계: 앰버, 3단계 이상: 아웃라인 블루. 첫 줄 높이(h-5)에 수직 중앙 정렬 */
-const Dot = ({ depth }: { depth: number }) => (
-  <span className="ml-1 flex h-5 shrink-0 items-center">
-    {depth === 2 ? <span className="size-2.5 rounded-full bg-[#f59e0b]" /> : <span className="size-[9px] rounded-full border-[1.5px] border-[var(--color-bt-primary)] bg-white" />}
-  </span>
-);
+/** 역할별 노드 점 — 자식이 있는 폴더는 점 없음(라벨 bold로 구분, 자리도 차지 안 함), 이동 가능한(leaf)·빈 메뉴는 채운 파란 점. 깊이는 커넥터 선이 표현하므로 색에 담지 않음. 첫 줄 높이(h-5)에 수직 중앙 정렬 */
+const Dot = ({ hasChildren }: { hasChildren: boolean }) => {
+  if (hasChildren) return null;
+  return (
+    <span className="ml-1 flex h-5 shrink-0 items-center">
+      <span className="size-[9px] rounded-full bg-[var(--color-bt-primary)]" />
+    </span>
+  );
+};
 
 /** 이동 가능한 메뉴 우측의 북마크 토글 — 첫 줄 높이(h-5)에 수직 중앙 정렬. hover 시 노출, 북마크된 항목은 상시 표시 */
 const BookmarkSlot = ({ item, appId }: { item: MenuItem; appId: string }) => {
@@ -25,7 +28,7 @@ const BookmarkSlot = ({ item, appId }: { item: MenuItem; appId: string }) => {
 
   return (
     <span
-      className={cn('flex h-5 shrink-0 items-center transition-opacity', isBookmarked ? 'opacity-100' : 'opacity-0 group-hover/row:opacity-100')}
+      className={cn('flex h-7 shrink-0 items-center transition-opacity', isBookmarked ? 'opacity-100' : 'opacity-0 group-hover/row:opacity-100')}
       onClick={(e) => e.stopPropagation()}
     >
       <BookmarkButton menuKey={item.menuKey} label={item.label} path={item.path ?? ''} appId={appId} />
@@ -35,7 +38,6 @@ const BookmarkSlot = ({ item, appId }: { item: MenuItem; appId: string }) => {
 
 interface TreeNodeProps {
   item: MenuItem;
-  depth: number;
   isLast: boolean;
   appId: string;
   query: string;
@@ -43,7 +45,7 @@ interface TreeNodeProps {
 }
 
 /** 2단계 이하 메뉴 — 커넥터 선(세로 spine + 가로 tick) + 점 + 라벨. 재귀 */
-const TreeNode = ({ item, depth, isLast, appId, query, onNavigate }: TreeNodeProps) => {
+const TreeNode = ({ item, isLast, appId, query, onNavigate }: TreeNodeProps) => {
   const location = useLocation();
   const childItems = (item.children ?? []).filter((c) => !c.hide && (!query || hasMatch(c, query)));
   const hasChildren = childItems.length > 0;
@@ -57,38 +59,39 @@ const TreeNode = ({ item, depth, isLast, appId, query, onNavigate }: TreeNodePro
       <span className={cn('absolute left-0 top-0 w-px', isLast ? 'h-[14px]' : 'h-full')} style={{ backgroundColor: LINE }} />
       {/* 가로 tick */}
       <span className="absolute left-0 top-[14px] h-px w-4" style={{ backgroundColor: LINE }} />
-      {/* 행 */}
-      <div
-        className={cn(
-          'group/row flex items-start gap-2 rounded-md py-1 pr-1.5 transition-colors',
-          isLeaf ? 'cursor-pointer hover:bg-[#f5f6f8]' : 'cursor-default',
-          isEmpty && 'opacity-50',
-          isActive && 'bg-[var(--color-bt-primary)]/[0.08]',
-        )}
-        onClick={() => isLeaf && item.path && onNavigate(`/${appId}/${item.path}`)}
-      >
-        <Dot depth={depth} />
-        <span
+      {/* 행 — 회색 hover/active 강조는 점+라벨 영역(내부 div)만, 북마크는 제외 */}
+      <div className={cn('group/row flex items-start gap-1 pr-1.5', isEmpty && 'opacity-50')}>
+        <div
           className={cn(
-            'min-w-0 flex-1 text-[14px] leading-snug transition-colors',
-            isActive
-              ? 'font-semibold text-[var(--color-bt-primary)]'
-              : hasChildren
-                ? 'font-semibold text-[#343a40]'
-                : isLeaf
-                  ? 'text-[#495057] group-hover/row:text-[#212529]'
-                  : 'text-[#868e96]',
+            'flex min-w-0 flex-1 items-start gap-2 rounded-md py-1 pr-1 transition-colors',
+            isLeaf ? 'cursor-pointer hover:bg-[#f5f6f8]' : 'cursor-default',
+            isActive && 'bg-[var(--color-bt-primary)]/[0.08]',
           )}
+          onClick={() => isLeaf && item.path && onNavigate(`/${appId}/${item.path}`)}
         >
-          <Highlight text={item.label} query={query} />
-        </span>
+          <Dot hasChildren={hasChildren} />
+          <span
+            className={cn(
+              'min-w-0 flex-1 text-[14px] leading-snug transition-colors',
+              isActive
+                ? 'font-semibold text-[var(--color-bt-primary)]'
+                : hasChildren
+                  ? 'font-semibold text-[#343a40]'
+                  : isLeaf
+                    ? 'text-[#495057] group-hover/row:text-[#212529]'
+                    : 'text-[#868e96]',
+            )}
+          >
+            <Highlight text={item.label} query={query} />
+          </span>
+        </div>
         {isLeaf && <BookmarkSlot item={item} appId={appId} />}
       </div>
       {/* 자식 */}
       {hasChildren && (
         <ul className="relative ml-1">
           {childItems.map((child, i) => (
-            <TreeNode key={child.menuKey} item={child} depth={depth + 1} isLast={i === childItems.length - 1} appId={appId} query={query} onNavigate={onNavigate} />
+            <TreeNode key={child.menuKey} item={child} isLast={i === childItems.length - 1} appId={appId} query={query} onNavigate={onNavigate} />
           ))}
         </ul>
       )}
@@ -135,7 +138,7 @@ const FirstLevelColumn = ({ menu, appId, query, onNavigate }: FirstLevelColumnPr
       {childItems.length > 0 && (
         <ul className="relative ml-[22px] mt-2">
           {childItems.map((child, i) => (
-            <TreeNode key={child.menuKey} item={child} depth={2} isLast={i === childItems.length - 1} appId={appId} query={query} onNavigate={onNavigate} />
+            <TreeNode key={child.menuKey} item={child} isLast={i === childItems.length - 1} appId={appId} query={query} onNavigate={onNavigate} />
           ))}
         </ul>
       )}
