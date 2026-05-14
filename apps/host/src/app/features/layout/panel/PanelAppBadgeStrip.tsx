@@ -57,20 +57,20 @@ const PanelAppBadgeStrip = () => {
   const sortedRemotes = [...remotes].sort((a, b) => (a.appId === 'manager' ? -1 : b.appId === 'manager' ? 1 : 0));
 
   return (
-    <aside className="w-[60px] shrink-0 h-full bg-[#f8f9fb] border-r border-[#ced4da] shadow-[1px_0_4px_-2px_rgba(0,0,0,0.06)] flex flex-col items-center gap-2 py-4 relative z-10">
-      <div className="relative size-9 shrink-0">
+    <aside className="w-[60px] shrink-0 h-full bg-[#f8f9fb] border-r border-[#ced4da] shadow-[1px_0_4px_-2px_rgba(0,0,0,0.06)] flex flex-col items-center gap-2.5 py-4 relative z-10">
+      <div className="relative size-10 shrink-0">
         {isBookmarkView && <span className="absolute left-[-12px] top-1/2 -translate-y-1/2 w-1 h-6 rounded-r bg-[var(--color-bt-primary)] z-10" />}
         <button
           type="button"
           onClick={handleBookmarkClick}
           className={cn(
-            'absolute top-0 left-0 z-20 flex items-center h-9 w-fit max-w-9 hover:max-w-[280px] rounded-lg text-white text-xs font-bold tracking-tight transition-[max-width] duration-200 cursor-pointer overflow-hidden shadow-sm hover:shadow-md',
+            'absolute top-0 left-0 z-20 flex items-center h-10 w-fit max-w-10 hover:max-w-[280px] rounded-lg text-white text-xs font-bold tracking-tight transition-[max-width] duration-200 cursor-pointer overflow-hidden shadow-sm hover:shadow-md',
             isBookmarkView && 'ring-2 ring-[var(--color-bt-primary)]/40',
           )}
           style={{ backgroundColor: '#F59E0B' }}
         >
-          <span className="flex items-center justify-center size-9 shrink-0">
-            <Bookmark className="size-[18px]" />
+          <span className="flex items-center justify-center size-10 shrink-0">
+            <Bookmark className="size-5" />
           </span>
           <span className="shrink-0 pr-3 text-[13px] font-semibold whitespace-nowrap">북마크</span>
         </button>
@@ -90,13 +90,13 @@ const PanelAppBadgeStrip = () => {
               type="button"
               onClick={() => handleAppClick(remote.appId)}
               className={cn(
-                'absolute top-0 left-0 z-20 flex items-center h-9 w-fit max-w-9 hover:max-w-[280px] rounded-lg text-white text-xs font-bold tracking-tight transition-[max-width] duration-200 cursor-pointer overflow-hidden shadow-sm hover:shadow-md',
+                'absolute top-0 left-0 z-20 flex items-center h-10 w-fit max-w-10 hover:max-w-[280px] rounded-lg text-white text-xs font-bold tracking-tight transition-[max-width] duration-200 cursor-pointer overflow-hidden shadow-sm hover:shadow-md',
                 isDisplayed && 'ring-2 ring-[var(--color-bt-primary)]/40',
               )}
               style={{ backgroundColor: badgeColor }}
             >
-              <span className="flex items-center justify-center size-9 shrink-0">
-                <Icon className="size-[18px]" />
+              <span className="flex items-center justify-center size-10 shrink-0">
+                <Icon className="size-5" />
               </span>
               <span className="shrink-0 pr-3 text-[13px] font-semibold whitespace-nowrap">{remote.appName}</span>
             </button>
