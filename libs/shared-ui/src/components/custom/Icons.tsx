@@ -34,3 +34,5 @@ export { ReactComponent as IconBot } from '../../assets/images/icon/icon-bot.svg
 export { ReactComponent as IconAlertTriangle } from '../../assets/images/icon/icon-alert-triangle.svg';
 export { ReactComponent as IconChartLine } from '../../assets/images/icon/icon-chart-line.svg';
 export { ReactComponent as IconGrid } from '../../assets/images/icon/icon-grid.svg';
+export { ReactComponent as IconRemoteFca } from '../../assets/images/icon/icon-remote-fca.svg';
+export { ReactComponent as IconRemoteIpron } from '../../assets/images/icon/icon-remote-ipron.svg';

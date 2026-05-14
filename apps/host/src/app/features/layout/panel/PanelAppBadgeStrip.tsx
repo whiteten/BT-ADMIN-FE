@@ -1,6 +1,8 @@
-import { Bookmark, Bot, ClipboardList, Gauge, Headphones, LayoutDashboard, type LucideIcon, Mic, PhoneCall, Settings, Sparkles, SquareDashed } from 'lucide-react';
+import type { ComponentType, SVGProps } from 'react';
+import { Bookmark, Settings, SquareDashed } from 'lucide-react';
 import useRemoteSelector from '../../../hooks/useRemoteSelector';
 import { useMenuPanelStore } from '../hooks/useMenuPanelStore';
+import { IconRemoteFca, IconRemoteIpron } from '@/components/custom/Icons';
 import { cn } from '@/libs/shared-ui/src/lib/utils';
 
 const APP_BADGE_COLORS = [
@@ -16,17 +18,11 @@ const APP_BADGE_COLORS = [
   '#B45309', // brown
 ];
 
-// 앱별 뱃지 아이콘. 임시 매핑이며 추후 메뉴 API 확장 또는 별도 설정으로 이동 예정.
-const APP_BADGE_ICONS: Record<string, LucideIcon> = {
-  taskboard: ClipboardList,
-  sd: LayoutDashboard,
-  stt: Mic,
+// 앱별 뱃지 아이콘.
+const APP_BADGE_ICONS: Record<string, ComponentType<SVGProps<SVGSVGElement>>> = {
   manager: Settings,
-  ivr: Headphones,
-  fca: Bot,
-  ipron: PhoneCall,
-  dashboard: Gauge,
-  aoe: Sparkles,
+  fca: IconRemoteFca,
+  ipron: IconRemoteIpron,
 };
 
 /**
@@ -57,6 +53,9 @@ const PanelAppBadgeStrip = () => {
 
   const isBookmarkView = view === 'bookmark';
 
+  // manager를 항상 맨 앞으로 정렬
+  const sortedRemotes = [...remotes].sort((a, b) => (a.appId === 'manager' ? -1 : b.appId === 'manager' ? 1 : 0));
+
   return (
     <aside className="w-[60px] shrink-0 h-full bg-[#f8f9fb] border-r border-[#ced4da] shadow-[1px_0_4px_-2px_rgba(0,0,0,0.06)] flex flex-col items-center gap-2 py-4 relative z-10">
       <div className="relative size-9 shrink-0">
@@ -79,7 +78,7 @@ const PanelAppBadgeStrip = () => {
 
       <div className="w-7 border-t border-[#dee2e6] my-1 shrink-0" />
 
-      {remotes.map((remote, index) => {
+      {sortedRemotes.map((remote, index) => {
         const isDisplayed = !isBookmarkView && remote.appId === displayedAppId;
         const badgeColor = APP_BADGE_COLORS[index % APP_BADGE_COLORS.length];
         const Icon = APP_BADGE_ICONS[remote.appId] ?? SquareDashed;
