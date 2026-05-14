@@ -1,33 +1,109 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
-import type { ColDef } from 'ag-grid-community';
+import type { ColDef, ICellRendererParams } from 'ag-grid-community';
 import { AgGridReact } from 'ag-grid-react';
 import { Button, DatePicker, Select } from 'antd';
 import dayjs, { type Dayjs } from 'dayjs';
-import { Bookmark, Trash2 } from 'lucide-react';
+import { CheckCircle2, PlayCircle, StopCircle, Trash2, XCircle } from 'lucide-react';
 import { toast } from '@/shared-util';
 import { useGetCodes } from '../hooks/useCommonQueries';
-import { trainingQueryKeys, useDeleteTuningSentence, useGetTuningSentenceList } from '../hooks/useTrainingQueries';
-import type { TuningSentenceItem, TuningSentenceSearchParams } from '../types';
+import { useGetSttSearchListen } from '../hooks/useSearchQueries';
+import { trainingQueryKeys, useDeleteTuningSentence, useGetTuningSentenceList, useUpdateTunningKind } from '../hooks/useTrainingQueries';
+import type { SttSearchListenParams, TuningSentenceItem, TuningSentenceSearchParams } from '../types';
+import { cn } from '@/lib/utils';
 import useAggridOptions from '@/libs/shared-ui/src/hooks/useAggridOptions';
 import { useModal } from '@/libs/shared-ui/src/hooks/useModal';
 
 const PAGE_SIZE = 20;
+const RXTX_LISTEN_TYPE: Record<string, string> = { '1': '4', '2': '5', '9': '3' };
+
+function PlayCellRenderer({ data }: ICellRendererParams<TuningSentenceItem>) {
+  const [playing, setPlaying] = useState(false);
+  const audioRef = useRef<HTMLAudioElement | null>(null);
+
+  const listenParams: SttSearchListenParams | undefined =
+    data?.recSystemIp && data.saFilename
+      ? {
+          recSystemIp: data.recSystemIp,
+          request: {
+            saFilepath: data.saFilepath ?? '',
+            saFilename: data.saFilename,
+            saFileformat: '1',
+            playerWidth: '800',
+            type: RXTX_LISTEN_TYPE[data.rxtxKind] ?? '3',
+          },
+        }
+      : undefined;
+
+  const { data: listenData } = useGetSttSearchListen({
+    params: listenParams as unknown as Record<string, unknown>,
+    queryOptions: { enabled: playing && !!listenParams, staleTime: Infinity },
+  });
+
+  useEffect(() => {
+    if (!listenData?.audioBlob || !playing || !data) return;
+
+    const url = URL.createObjectURL(listenData.audioBlob);
+    const audio = new Audio(url);
+    audio.currentTime = data.armsoffset / 1000;
+    void audio.play();
+    audioRef.current = audio;
+
+    const endSec = data.endoffset / 1000;
+    const handleTimeUpdate = () => {
+      if (audio.currentTime >= endSec) {
+        audio.pause();
+        setPlaying(false);
+      }
+    };
+    audio.addEventListener('timeupdate', handleTimeUpdate);
+    audio.addEventListener('ended', () => setPlaying(false));
+
+    return () => {
+      audio.pause();
+      audio.removeEventListener('timeupdate', handleTimeUpdate);
+      URL.revokeObjectURL(url);
+      audioRef.current = null;
+    };
+  }, [listenData?.audioBlob, playing, data]);
+
+  const handleClick = () => {
+    if (playing) {
+      audioRef.current?.pause();
+      setPlaying(false);
+    } else {
+      setPlaying(true);
+    }
+  };
+
+  if (!data?.recSystemIp) return null;
+
+  return (
+    <button
+      onClick={handleClick}
+      className={cn('flex items-center justify-center transition-colors', playing ? 'text-red-500 hover:text-red-700' : 'text-blue-500 hover:text-blue-700')}
+    >
+      {playing ? <StopCircle size={18} /> : <PlayCircle size={18} />}
+    </button>
+  );
+}
 
 interface ActionCellRendererParams {
   data?: TuningSentenceItem;
   onDelete: (data: TuningSentenceItem) => void;
 }
 
-interface BookmarkCellRendererParams {
+interface TunningKindCellRendererParams {
   data?: TuningSentenceItem;
+  onToggle: (data: TuningSentenceItem) => void;
 }
 
-function BookmarkCellRenderer({ data }: BookmarkCellRendererParams) {
-  const filled = data?.tunningKind === '0';
+function TunningKindCellRenderer({ data, onToggle }: TunningKindCellRendererParams) {
+  if (!data) return null;
+  const reflected = data.tunningKind === '0';
   return (
-    <button className="flex items-center justify-center">
-      <Bookmark size={15} className={filled ? 'text-blue-500 fill-blue-500' : 'text-gray-400'} />
+    <button onClick={() => onToggle(data)} className="flex items-center justify-center">
+      {reflected ? <CheckCircle2 size={16} className="text-green-500 hover:text-green-600" /> : <XCircle size={16} className="text-gray-300 hover:text-gray-400" />}
     </button>
   );
 }
@@ -89,6 +165,26 @@ export default function TuningSentence() {
     },
   });
 
+  const { mutate: updateTunningKind } = useUpdateTunningKind({
+    mutationOptions: {
+      onSuccess: () => {
+        queryClient.invalidateQueries({ queryKey: trainingQueryKeys.getTuningSentenceList(searchParams ?? undefined).queryKey });
+      },
+      onError: () => {
+        toast.error('반영여부 변경에 실패했습니다.');
+      },
+    },
+  });
+
+  const handleToggleTunningKind = (data: TuningSentenceItem) => {
+    updateTunningKind({
+      tunningKind: data.tunningKind === '0' ? '1' : '0',
+      ucidGkey: data.ucidGkey,
+      armsoffset: data.armsoffset,
+      rxtxKind: data.rxtxKind,
+    });
+  };
+
   const handleSearch = () => {
     if (!fromDate || !toDate) {
       toast.warning('검색일자를 선택해주세요.');
@@ -114,12 +210,21 @@ export default function TuningSentence() {
   const columnDefs: ColDef<TuningSentenceItem>[] = [
     {
       headerName: '',
-      colId: 'bookmark',
+      colId: 'play',
       maxWidth: 50,
       sortable: false,
-      filter: true,
+      filter: false,
       cellStyle: { display: 'flex', alignItems: 'center', justifyContent: 'center' },
-      cellRenderer: BookmarkCellRenderer,
+      cellRenderer: PlayCellRenderer,
+    },
+    {
+      headerName: '',
+      colId: 'tunningKind',
+      maxWidth: 50,
+      sortable: false,
+      cellStyle: { display: 'flex', alignItems: 'center', justifyContent: 'center' },
+      cellRenderer: TunningKindCellRenderer,
+      cellRendererParams: { onToggle: handleToggleTunningKind },
     },
     {
       headerName: '고유번호(UCID)',
@@ -128,11 +233,11 @@ export default function TuningSentence() {
       filter: true,
     },
     {
-      headerName: 'TEXT',
+      headerName: '문자수정 내용',
       field: 'trString',
       flex: 4,
-      tooltipField: 'trString',
       filter: true,
+      tooltipField: 'trString',
     },
     {
       headerName: '화자',

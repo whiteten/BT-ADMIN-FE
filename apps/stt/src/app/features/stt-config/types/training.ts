@@ -49,10 +49,14 @@ export interface TuningSentenceItem {
   dataKey: number;
   ucidGkey: string;
   armsoffset: number;
+  endoffset: number;
   rxtxKind: string;
   trString: string;
   tunningKind?: string;
   engineCode: string;
   trManageId: string;
   workTime: string;
+  recSystemIp: string;
+  saFilepath: string;
+  saFilename: string;
 }

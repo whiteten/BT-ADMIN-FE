@@ -19,4 +19,7 @@ export const trainingApi = {
   deleteTuningSentence: async (params: { ucidGkey: string; armsoffset: number; rxtxKind: string }) => {
     await apiClient.delete('/tuning-sentence-delete', { params });
   },
+  updateTunningKind: async (data: { tunningKind: string; ucidGkey: string; armsoffset: number; rxtxKind: string }) => {
+    await apiClient.put('/tuning-kind-update', data);
+  },
 };

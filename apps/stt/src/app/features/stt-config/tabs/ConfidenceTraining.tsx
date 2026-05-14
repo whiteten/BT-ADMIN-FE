@@ -36,7 +36,7 @@ interface RegisterCellRendererParams extends ICellRendererParams<ConfidenceTrain
 function CreateCellRenderer({ data, onRegister }: RegisterCellRendererParams) {
   if (!data) return null;
   return (
-    <Button type="primary" size="small" onClick={() => onRegister(data)} style={{ height: 26 }}>
+    <Button type="primary" size="small" onClick={() => onRegister(data)} style={{ fontSize: '12px' }}>
       등록
     </Button>
   );
@@ -347,7 +347,7 @@ export default function ConfidenceTraining() {
             ...gridOptions,
             paginationPageSize: PAGE_SIZE,
             editType: 'fullRow',
-            suppressClickEdit: false,
+            singleClickEdit: true,
           }}
           onRowEditingStarted={handleRowEditingStarted}
           onCellKeyDown={handleCellKeyDown}

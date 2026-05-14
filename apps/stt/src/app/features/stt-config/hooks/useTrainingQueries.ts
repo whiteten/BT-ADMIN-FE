@@ -38,3 +38,10 @@ export const useDeleteTuningSentence = ({ mutationOptions }: MutationHookOptions
     ...mutationOptions,
   });
 };
+
+export const useUpdateTunningKind = ({ mutationOptions }: MutationHookOptions<unknown, { tunningKind: string; ucidGkey: string; armsoffset: number; rxtxKind: string }> = {}) => {
+  return useMutation({
+    mutationFn: trainingApi.updateTunningKind,
+    ...mutationOptions,
+  });
+};
