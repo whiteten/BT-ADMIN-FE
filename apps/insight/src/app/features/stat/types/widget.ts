@@ -37,28 +37,45 @@ export interface WidgetFieldMappingItem {
   datasourceKey: string;
   fieldName: string;
   alias?: string;
-  showInGrid: boolean;
-  chartRole?: string;
+  groupHeaderName?: string;
   sortOrder: number;
+  // Column role flags (legacy)
+  groupYn?: boolean;
+  selectYn?: boolean;
+  valueYn?: boolean;
+  whereYn?: boolean;
+  pivotYn?: boolean;
+  compareYn?: boolean;
+  footerHideYn?: boolean;
+  refColYn?: boolean;
+  // Data
+  agg?: string; // Unselected|Sum|Avg|Max|Min|Cnt
+  format?: string; // Unselected|Number|String|Time|Rate|Date|Decimal
+  filter?: string; // Unselected|=|>=|<=|BETWEEN|IN|NOT IN
+  // Derived/computed — kept for BE compatibility
+  showInGrid?: boolean;
   aggregation?: string;
-  showRatio?: boolean;
-  format?: string;
-  formatterType?: 'NUMBER' | 'PERCENT' | 'CURRENCY' | 'DURATION' | 'DATETIME' | 'MASK' | 'NONE';
-  formatterOptions?: string;
 }
 
 export interface WidgetCalcFieldItem {
   id: number;
   fieldName: string;
   displayName: string;
+  alias?: string;
+  groupHeaderName?: string;
   formula: string;
   fieldType: string;
-  showInGrid: boolean;
-  chartRole?: string;
-  showRatio?: boolean;
   sortOrder: number;
-  formatterType?: 'NUMBER' | 'PERCENT' | 'CURRENCY' | 'DURATION' | 'DATETIME' | 'MASK' | 'NONE';
-  formatterOptions?: string;
+  groupYn?: boolean;
+  selectYn?: boolean;
+  valueYn?: boolean;
+  whereYn?: boolean;
+  footerHideYn?: boolean;
+  refColYn?: boolean;
+  agg?: string;
+  format?: string;
+  filter?: string;
+  showInGrid?: boolean;
 }
 
 export interface WidgetSearchBindItem {

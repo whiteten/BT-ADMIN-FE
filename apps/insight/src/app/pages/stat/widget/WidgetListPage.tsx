@@ -4,6 +4,8 @@ import { Button, Input, Select } from 'antd';
 import { MoreHorizontal, Search } from 'lucide-react';
 import { useBreadcrumbStore } from '@/shared-store';
 import { toast } from '@/shared-util';
+import WidgetTemplateModal from './WidgetTemplateModal';
+import type { WidgetTemplate } from '../../../features/stat/constants/widgetTemplates';
 import { useDeleteWidget, useGetWidgetList } from '../../../features/stat/hooks/useStatQueries';
 import type { WidgetItem, WidgetVisualization } from '../../../features/stat/types/widget';
 import { useModal } from '@/libs/shared-ui/src/hooks/useModal';
@@ -135,6 +137,12 @@ export default function WidgetListPage() {
 
   const [category, setCategory] = useState('');
   const [searchText, setSearchText] = useState('');
+  const [templateModalOpen, setTemplateModalOpen] = useState(false);
+
+  const handleTemplateSelect = (template: WidgetTemplate | null) => {
+    setTemplateModalOpen(false);
+    navigate('/insight/stat/widget/create', { state: template ? { template } : undefined });
+  };
 
   const params: Record<string, unknown> = {};
   if (category) params.category = category;
@@ -167,7 +175,7 @@ export default function WidgetListPage() {
             <Select value={category} onChange={setCategory} options={CATEGORY_OPTIONS} style={{ width: 120 }} placeholder="전체" popupMatchSelectWidth={false} />
             <span className="text-[12px] text-gray-400 whitespace-nowrap">사용자 보고서 {filteredList.length}개</span>
           </div>
-          <Button type="primary" onClick={() => navigate('/insight/stat/widget/create')}>
+          <Button type="primary" onClick={() => setTemplateModalOpen(true)}>
             + 새 보고서
           </Button>
         </header>
@@ -183,7 +191,7 @@ export default function WidgetListPage() {
             {/* New report card */}
             <div
               className="flex cursor-pointer flex-col items-center justify-center gap-2 rounded border-2 border-dashed border-gray-200 bg-white p-4 transition hover:border-blue-500 hover:bg-blue-50/30"
-              onClick={() => navigate('/insight/stat/widget/create')}
+              onClick={() => setTemplateModalOpen(true)}
             >
               <div className="text-[24px] font-light text-gray-300">+</div>
               <div className="text-[12px] font-medium text-gray-400">새 보고서</div>
@@ -191,6 +199,7 @@ export default function WidgetListPage() {
           </div>
         )}
       </div>
+      <WidgetTemplateModal open={templateModalOpen} onSelect={handleTemplateSelect} onCancel={() => setTemplateModalOpen(false)} />
     </div>
   );
 }

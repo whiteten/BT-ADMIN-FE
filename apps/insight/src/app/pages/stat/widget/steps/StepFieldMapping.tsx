@@ -1,7 +1,33 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
-import { Button, Checkbox, Form, Input, Modal, Select, Table, Tag, Tooltip } from 'antd';
+import { Badge, Button, Checkbox, Form, Input, Modal, Select, Table, Tabs, Tag, Tooltip } from 'antd';
 import { CheckCircle, Edit2, GripVertical, Plus, Trash2, XCircle } from 'lucide-react';
-import { useGetDatasourceDetail, useValidateFormula } from '../../../../features/stat/hooks/useStatQueries';
+import { toast } from '@/shared-util';
+import { useGetConditionList, useGetDatasourceDetail, useValidateFormula } from '../../../../features/stat/hooks/useStatQueries';
+
+// ─── Constants ────────────────────────────────────────────────────────────────
+
+export const FORMAT_OPTIONS = ['Unselected', 'Number', 'String', 'Time', 'Rate', 'Date', 'Decimal'] as const;
+export const AGG_OPTIONS = ['Unselected', 'Sum', 'Avg', 'Max', 'Min', 'Cnt'] as const;
+export const FILTER_OPTIONS = ['Unselected', '=', '>=', '<=', 'BETWEEN', 'IN', 'NOT IN'] as const;
+
+type Format = (typeof FORMAT_OPTIONS)[number];
+type Agg = (typeof AGG_OPTIONS)[number];
+type Filter = (typeof FILTER_OPTIONS)[number];
+
+const DEFAULT_FLAGS = {
+  groupYn: false,
+  selectYn: false,
+  valueYn: false,
+  whereYn: false,
+  pivotYn: false,
+  compareYn: false,
+  footerHideYn: false,
+  refColYn: false,
+  agg: 'Unselected' as Agg,
+  format: 'Unselected' as Format,
+  filter: 'Unselected' as Filter,
+  groupHeaderName: '',
+};
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -9,14 +35,21 @@ export interface FieldMapping {
   datasourceKey: string;
   fieldName: string;
   displayName: string;
-  fieldType: string;
-  fieldRole: string;
+  fieldType: string; // NUMBER | STRING | DATETIME
+  fieldRole: string; // DIMENSION | MEASURE | TIMESTAMP
   alias: string;
-  showInGrid: boolean;
-  chartRole: string;
-  aggregation: string;
-  showRatio: boolean;
-  format: string;
+  groupHeaderName: string;
+  groupYn: boolean;
+  selectYn: boolean;
+  valueYn: boolean;
+  whereYn: boolean;
+  pivotYn: boolean;
+  compareYn: boolean;
+  footerHideYn: boolean;
+  refColYn: boolean;
+  agg: Agg;
+  format: Format;
+  filter: Filter;
   sortOrder: number;
   enabled: boolean;
 }
@@ -24,12 +57,29 @@ export interface FieldMapping {
 export interface CalcField {
   fieldName: string;
   displayName: string;
+  alias: string;
   formula: string;
   fieldType: string;
-  showInGrid: boolean;
-  chartRole: string;
-  showRatio: boolean;
-  format: string;
+  groupHeaderName: string;
+  groupYn: boolean;
+  selectYn: boolean;
+  valueYn: boolean;
+  whereYn: boolean;
+  pivotYn: boolean;
+  compareYn: boolean;
+  footerHideYn: boolean;
+  refColYn: boolean;
+  agg: Agg;
+  format: Format;
+  filter: Filter;
+  sortOrder: number;
+}
+
+export interface SearchBind {
+  conditionId: number | null;
+  conditionName: string;
+  bindDatasourceKey: string;
+  bindFieldName: string;
   sortOrder: number;
 }
 
@@ -38,19 +88,26 @@ interface FieldRow {
   isCalc: boolean;
   sortOrder: number;
   fieldName: string;
-  aliasName: string;
-  originalDisplayName: string;
+  displayName: string;
+  alias: string;
+  groupHeaderName: string;
   enabled: boolean;
-  showInGrid: boolean;
-  chartRole: string;
-  fieldRole?: string;
-  aggregation?: string;
-  showRatio?: boolean;
-  format?: string;
   datasourceKey?: string;
   fieldType?: string;
+  fieldRole?: string;
   formula?: string;
-  calcType?: string;
+  calcFieldType?: string;
+  groupYn: boolean;
+  selectYn: boolean;
+  valueYn: boolean;
+  whereYn: boolean;
+  pivotYn: boolean;
+  compareYn: boolean;
+  footerHideYn: boolean;
+  refColYn: boolean;
+  agg: Agg;
+  format: Format;
+  filter: Filter;
 }
 
 interface Props {
@@ -59,6 +116,8 @@ interface Props {
   onFieldMappingsChange: (m: FieldMapping[]) => void;
   calcFields: CalcField[];
   onCalcFieldsChange: (c: CalcField[]) => void;
+  searchBindings: SearchBind[];
+  onSearchBindingsChange: (bindings: SearchBind[]) => void;
 }
 
 // ─── Converters ──────────────────────────────────────────────────────────────
@@ -67,21 +126,28 @@ function toFieldRows(fieldMappings: FieldMapping[], calcFields: CalcField[]): Fi
   return [
     ...fieldMappings.map(
       (f): FieldRow => ({
-        rowId: `f:${f.fieldName}`,
+        rowId: `f:${f.datasourceKey}:${f.fieldName}`,
         isCalc: false,
         sortOrder: f.sortOrder,
         fieldName: f.fieldName,
-        aliasName: f.alias || f.displayName,
-        originalDisplayName: f.displayName,
+        displayName: f.displayName,
+        alias: f.alias,
+        groupHeaderName: f.groupHeaderName,
         enabled: f.enabled,
-        showInGrid: f.showInGrid,
-        chartRole: f.chartRole,
-        fieldRole: f.fieldRole,
-        aggregation: f.aggregation,
-        showRatio: f.showRatio,
-        format: f.format,
         datasourceKey: f.datasourceKey,
         fieldType: f.fieldType,
+        fieldRole: f.fieldRole,
+        groupYn: f.groupYn,
+        selectYn: f.selectYn,
+        valueYn: f.valueYn,
+        whereYn: f.whereYn,
+        pivotYn: f.pivotYn,
+        compareYn: f.compareYn,
+        footerHideYn: f.footerHideYn,
+        refColYn: f.refColYn,
+        agg: f.agg,
+        format: f.format,
+        filter: f.filter,
       }),
     ),
     ...calcFields.map(
@@ -90,13 +156,24 @@ function toFieldRows(fieldMappings: FieldMapping[], calcFields: CalcField[]): Fi
         isCalc: true,
         sortOrder: c.sortOrder,
         fieldName: c.fieldName,
-        aliasName: c.displayName,
-        originalDisplayName: c.displayName,
+        displayName: c.displayName,
+        alias: c.alias,
+        groupHeaderName: c.groupHeaderName,
         enabled: true,
-        showInGrid: c.showInGrid,
-        chartRole: c.chartRole,
         formula: c.formula,
-        calcType: c.fieldType,
+        calcFieldType: c.fieldType,
+        fieldType: c.fieldType,
+        groupYn: c.groupYn,
+        selectYn: c.selectYn,
+        valueYn: c.valueYn,
+        whereYn: c.whereYn,
+        pivotYn: c.pivotYn,
+        compareYn: c.compareYn,
+        footerHideYn: c.footerHideYn,
+        refColYn: c.refColYn,
+        agg: c.agg,
+        format: c.format,
+        filter: c.filter,
       }),
     ),
   ].sort((a, b) => a.sortOrder - b.sortOrder);
@@ -109,28 +186,44 @@ function fromFieldRows(rows: FieldRow[]): { fieldMappings: FieldMapping[]; calcF
     if (row.isCalc) {
       calcFields.push({
         fieldName: row.fieldName,
-        displayName: row.aliasName,
+        displayName: row.displayName,
+        alias: row.alias,
         formula: row.formula ?? '',
-        fieldType: row.calcType ?? 'NUMBER',
-        showInGrid: row.showInGrid,
-        chartRole: row.chartRole,
-        showRatio: false,
-        format: '',
+        fieldType: row.calcFieldType ?? 'NUMBER',
+        groupHeaderName: row.groupHeaderName,
+        groupYn: row.groupYn,
+        selectYn: row.selectYn,
+        valueYn: row.valueYn,
+        whereYn: row.whereYn,
+        pivotYn: row.pivotYn,
+        compareYn: row.compareYn,
+        footerHideYn: row.footerHideYn,
+        refColYn: row.refColYn,
+        agg: row.agg,
+        format: row.format,
+        filter: row.filter,
         sortOrder: idx,
       });
     } else {
       fieldMappings.push({
         datasourceKey: row.datasourceKey ?? '',
         fieldName: row.fieldName,
-        displayName: row.originalDisplayName,
+        displayName: row.displayName,
         fieldType: row.fieldType ?? '',
         fieldRole: row.fieldRole ?? '',
-        alias: row.aliasName !== row.originalDisplayName ? row.aliasName : '',
-        showInGrid: row.showInGrid,
-        chartRole: row.chartRole,
-        aggregation: row.aggregation ?? '',
-        showRatio: row.showRatio ?? false,
-        format: row.format ?? '',
+        alias: row.alias,
+        groupHeaderName: row.groupHeaderName,
+        groupYn: row.groupYn,
+        selectYn: row.selectYn,
+        valueYn: row.valueYn,
+        whereYn: row.whereYn,
+        pivotYn: row.pivotYn,
+        compareYn: row.compareYn,
+        footerHideYn: row.footerHideYn,
+        refColYn: row.refColYn,
+        agg: row.agg,
+        format: row.format,
+        filter: row.filter,
         sortOrder: idx,
         enabled: row.enabled,
       });
@@ -178,26 +271,6 @@ function DraggableBodyRow({ 'data-row-key': rowId, style, ...props }: React.HTML
   );
 }
 
-// ─── Constants ────────────────────────────────────────────────────────────────
-
-const CHART_ROLE_OPTIONS = [
-  { value: '', label: '-' },
-  { value: 'X_AXIS', label: 'X축' },
-  { value: 'Y_AXIS', label: 'Y축' },
-  { value: 'GROUP', label: '그룹' },
-  { value: 'VALUE', label: '값' },
-  { value: 'LABEL', label: '라벨' },
-];
-
-const AGGREGATION_OPTIONS = [
-  { value: '', label: '-' },
-  { value: 'SUM', label: 'SUM' },
-  { value: 'AVG', label: 'AVG' },
-  { value: 'COUNT', label: 'COUNT' },
-  { value: 'MAX', label: 'MAX' },
-  { value: 'MIN', label: 'MIN' },
-];
-
 const ROLE_COLOR: Record<string, string> = {
   DIMENSION: 'cyan',
   MEASURE: 'purple',
@@ -206,9 +279,126 @@ const ROLE_COLOR: Record<string, string> = {
 
 const TABLE_COMPONENTS = { body: { row: DraggableBodyRow } };
 
+const PSR_TIME_KEY = 'PSR_TIME_KEY';
+
+// ─── SearchBindingTab ─────────────────────────────────────────────────────────
+
+interface SearchBindingTabProps {
+  searchBindings: SearchBind[];
+  onSearchBindingsChange: (bindings: SearchBind[]) => void;
+  selectedDatasourceKeys: string[];
+}
+
+function SearchBindingTab({ searchBindings, onSearchBindingsChange, selectedDatasourceKeys }: SearchBindingTabProps) {
+  const { data: conditions = [] } = useGetConditionList({});
+
+  const addSearchBind = () => {
+    onSearchBindingsChange([
+      ...searchBindings,
+      { conditionId: null, conditionName: '', bindDatasourceKey: selectedDatasourceKeys[0] || '', bindFieldName: '', sortOrder: searchBindings.length },
+    ]);
+  };
+
+  const updateBind = (index: number, key: keyof SearchBind, value: unknown) => {
+    const updated = [...searchBindings];
+    updated[index] = { ...updated[index], [key]: value };
+    if (key === 'conditionId') {
+      const cond = conditions.find((c) => c.conditionId === value);
+      if (cond) updated[index] = { ...updated[index], conditionName: cond.conditionName };
+    }
+    onSearchBindingsChange(updated);
+  };
+
+  return (
+    <div>
+      <div className="flex items-start justify-between mb-4">
+        <div>
+          <h3 className="text-[13px] font-semibold text-gray-900">검색조건 바인딩</h3>
+          <p className="text-[12px] text-gray-500 mt-0.5">등록된 검색조건을 데이터소스 필드에 바인딩합니다.</p>
+        </div>
+        <Button icon={<Plus size={14} />} onClick={addSearchBind}>
+          검색조건 추가
+        </Button>
+      </div>
+      {searchBindings.length === 0 ? (
+        <div className="flex flex-col items-center justify-center rounded-lg border-2 border-dashed border-gray-200 py-14 text-[12px] text-gray-400">
+          <p className="font-medium">바인딩된 검색조건이 없습니다</p>
+          <button type="button" className="mt-2 text-blue-500 hover:underline" onClick={addSearchBind}>
+            + 검색조건 추가
+          </button>
+        </div>
+      ) : (
+        <Table
+          dataSource={searchBindings}
+          rowKey={(_, idx) => String(idx)}
+          pagination={false}
+          size="small"
+          bordered
+          columns={[
+            {
+              title: '검색조건',
+              width: 240,
+              render: (_: unknown, __: SearchBind, idx: number) => (
+                <Select
+                  size="small"
+                  value={searchBindings[idx].conditionId}
+                  onChange={(v) => updateBind(idx, 'conditionId', v)}
+                  options={conditions.map((c) => ({ value: c.conditionId, label: `${c.conditionName} (${c.inputType})` }))}
+                  placeholder="검색조건 선택"
+                  style={{ width: '100%' }}
+                />
+              ),
+            },
+            {
+              title: '바인딩 데이터소스',
+              width: 200,
+              render: (_: unknown, __: SearchBind, idx: number) => (
+                <Select
+                  size="small"
+                  value={searchBindings[idx].bindDatasourceKey}
+                  onChange={(v) => updateBind(idx, 'bindDatasourceKey', v)}
+                  options={selectedDatasourceKeys.map((k) => ({ value: k, label: k }))}
+                  style={{ width: '100%' }}
+                />
+              ),
+            },
+            {
+              title: '바인딩 필드',
+              render: (_: unknown, __: SearchBind, idx: number) => (
+                <Input
+                  size="small"
+                  value={searchBindings[idx].bindFieldName}
+                  onChange={(e) => updateBind(idx, 'bindFieldName', e.target.value)}
+                  placeholder="STAT_DATE"
+                  style={{ fontFamily: 'monospace' }}
+                />
+              ),
+            },
+            {
+              title: '',
+              width: 48,
+              render: (_: unknown, __: SearchBind, idx: number) => (
+                <Button size="small" type="text" danger icon={<Trash2 size={14} />} onClick={() => onSearchBindingsChange(searchBindings.filter((_, i) => i !== idx))} />
+              ),
+            },
+          ]}
+        />
+      )}
+    </div>
+  );
+}
+
 // ─── Component ────────────────────────────────────────────────────────────────
 
-export default function StepFieldMapping({ selectedDatasourceKeys, fieldMappings, onFieldMappingsChange, calcFields, onCalcFieldsChange }: Props) {
+export default function StepFieldMapping({
+  selectedDatasourceKeys,
+  fieldMappings,
+  onFieldMappingsChange,
+  calcFields,
+  onCalcFieldsChange,
+  searchBindings,
+  onSearchBindingsChange,
+}: Props) {
   const selectedKey = selectedDatasourceKeys[0] ?? undefined;
 
   const { data: datasourceDetail } = useGetDatasourceDetail({
@@ -220,30 +410,25 @@ export default function StepFieldMapping({ selectedDatasourceKeys, fieldMappings
 
   const [draggingId, setDraggingId] = useState<string | null>(null);
   const [dragOverId, setDragOverId] = useState<string | null>(null);
-
   const [calcModalOpen, setCalcModalOpen] = useState(false);
   const [calcEditRowId, setCalcEditRowId] = useState<string | null>(null);
   const [calcForm] = Form.useForm();
   const [validationResult, setValidationResult] = useState<{ valid: boolean; message: string } | null>(null);
-
   const [importModalOpen, setImportModalOpen] = useState(false);
 
-  // selectedKey 변경 시 초기화 추적 리셋
   const initializedKeyRef = useRef<string | null>(null);
   useEffect(() => {
     initializedKeyRef.current = null;
   }, [selectedKey]);
 
-  // ── 필드 초기 로드/보강 (최초 1회/datasource 변경 시) ────────────────────
   useEffect(() => {
     if (!selectedKey || !datasourceDetail?.fields?.length) return;
-    if (initializedKeyRef.current === selectedKey) return; // 이미 처리됨
+    if (initializedKeyRef.current === selectedKey) return;
     initializedKeyRef.current = selectedKey;
 
     const dsFieldMap = new Map(datasourceDetail.fields.map((f) => [f.fieldName, f]));
 
     if (fieldMappings.length === 0) {
-      // 신규 생성: 전체 비활성 로드
       onFieldMappingsChange(
         datasourceDetail.fields.map((field, order) => ({
           datasourceKey: selectedKey,
@@ -252,21 +437,18 @@ export default function StepFieldMapping({ selectedDatasourceKeys, fieldMappings
           fieldType: field.fieldType,
           fieldRole: field.fieldRole,
           alias: '',
-          showInGrid: true,
-          chartRole: '',
-          aggregation: '',
-          showRatio: false,
-          format: '',
+          ...DEFAULT_FLAGS,
           sortOrder: order,
           enabled: false,
         })),
       );
-    } else {
-      // 수정 모드: 저장된 필드에 fieldRole/fieldType 보강 + enabled: true 적용
+    } else if (fieldMappings.some((fm) => !fm.fieldType)) {
+      // 수정 모드(서버 로드): fieldType 없는 경우에만 보강
       onFieldMappingsChange(
         fieldMappings.map((fm) => {
           const dsField = dsFieldMap.get(fm.fieldName);
           return {
+            ...DEFAULT_FLAGS,
             ...fm,
             enabled: true,
             fieldRole: dsField?.fieldRole ?? fm.fieldRole ?? '',
@@ -275,87 +457,83 @@ export default function StepFieldMapping({ selectedDatasourceKeys, fieldMappings
         }),
       );
     }
-  }, [datasourceDetail, selectedKey]); // fieldMappings 의도적으로 제외
+  }, [datasourceDetail, selectedKey]);
 
-  // ── Derived rows ──────────────────────────────────────────────────────────
   const rows = useMemo(() => toFieldRows(fieldMappings, calcFields), [fieldMappings, calcFields]);
   const rowsRef = useRef(rows);
   rowsRef.current = rows;
 
-  // ── Row helpers ───────────────────────────────────────────────────────────
+  // ── Row update helpers ────────────────────────────────────────────────────
+
+  const applyRowChanges = useCallback(
+    (updated: FieldRow[]) => {
+      const { fieldMappings: fm, calcFields: cf } = fromFieldRows(updated);
+      onFieldMappingsChange(fm);
+      onCalcFieldsChange(cf);
+    },
+    [onFieldMappingsChange, onCalcFieldsChange],
+  );
+
   const updateRow = useCallback(
     (rowId: string, changes: Partial<FieldRow>) => {
       const updated = rowsRef.current.map((r) => (r.rowId === rowId ? { ...r, ...changes } : r));
-      const { fieldMappings: fm, calcFields: cf } = fromFieldRows(updated);
-      onFieldMappingsChange(fm);
-      onCalcFieldsChange(cf);
+      applyRowChanges(updated);
     },
-    [onFieldMappingsChange, onCalcFieldsChange],
+    [applyRowChanges],
   );
 
-  const handleSelectAll = useCallback(
-    (enabled: boolean) => {
-      const updated = rowsRef.current.map((r) => (r.isCalc ? r : { ...r, enabled }));
-      const { fieldMappings: fm, calcFields: cf } = fromFieldRows(updated);
-      onFieldMappingsChange(fm);
-      onCalcFieldsChange(cf);
+  // PSR_TIME_KEY 자동 설정
+  const handleEnabledChange = useCallback(
+    (rowId: string, enabled: boolean) => {
+      const row = rowsRef.current.find((r) => r.rowId === rowId);
+      if (!row) return;
+      if (enabled && row.fieldName.toUpperCase() === PSR_TIME_KEY) {
+        updateRow(rowId, { enabled, groupYn: true, selectYn: true, format: 'Date', valueYn: false, agg: 'Unselected', compareYn: false });
+      } else {
+        updateRow(rowId, { enabled });
+      }
     },
-    [onFieldMappingsChange, onCalcFieldsChange],
+    [updateRow],
   );
 
-  // ── 컬럼 가져오기 ─────────────────────────────────────────────────────────
-  const handleImportReset = () => {
-    if (!datasourceDetail?.fields?.length || !selectedKey) return;
-    initializedKeyRef.current = selectedKey;
-    onFieldMappingsChange(
-      datasourceDetail.fields.map((field, order) => ({
-        datasourceKey: selectedKey,
-        fieldName: field.fieldName,
-        displayName: field.displayName,
-        fieldType: field.fieldType,
-        fieldRole: field.fieldRole,
-        alias: '',
-        showInGrid: true,
-        chartRole: '',
-        aggregation: '',
-        showRatio: false,
-        format: '',
-        sortOrder: order,
-        enabled: false,
-      })),
-    );
-    setImportModalOpen(false);
-  };
+  // 피벗: 1개 제한 + 비교와 상호 배타
+  const handlePivotYnChange = useCallback(
+    (rowId: string, value: boolean) => {
+      if (value) {
+        const hasCompare = rowsRef.current.some((r) => r.compareYn);
+        if (hasCompare) {
+          toast.error('피벗 컬럼과 비교 컬럼은 동시에 설정할 수 없습니다.');
+          return;
+        }
+        const updated = rowsRef.current.map((r) => ({ ...r, pivotYn: r.rowId === rowId }));
+        applyRowChanges(updated);
+      } else {
+        updateRow(rowId, { pivotYn: false });
+      }
+    },
+    [applyRowChanges, updateRow],
+  );
 
-  const handleImportKeep = () => {
-    if (!datasourceDetail?.fields?.length || !selectedKey) return;
-    const existingNames = new Set(fieldMappings.map((f) => f.fieldName));
-    const newFields = datasourceDetail.fields
-      .filter((f) => !existingNames.has(f.fieldName))
-      .map((field, i) => ({
-        datasourceKey: selectedKey,
-        fieldName: field.fieldName,
-        displayName: field.displayName,
-        fieldType: field.fieldType,
-        fieldRole: field.fieldRole,
-        alias: '',
-        showInGrid: true,
-        chartRole: '',
-        aggregation: '',
-        showRatio: false,
-        format: '',
-        sortOrder: fieldMappings.length + i,
-        enabled: false,
-      }));
-    if (newFields.length === 0) {
-      setImportModalOpen(false);
-      return;
-    }
-    onFieldMappingsChange([...fieldMappings, ...newFields]);
-    setImportModalOpen(false);
-  };
+  // 비교: 1개 제한 + 피벗과 상호 배타
+  const handleCompareYnChange = useCallback(
+    (rowId: string, value: boolean) => {
+      if (value) {
+        const hasPivot = rowsRef.current.some((r) => r.pivotYn);
+        if (hasPivot) {
+          toast.error('피벗 컬럼과 비교 컬럼은 동시에 설정할 수 없습니다.');
+          return;
+        }
+        const updated = rowsRef.current.map((r) => ({ ...r, compareYn: r.rowId === rowId }));
+        applyRowChanges(updated);
+      } else {
+        updateRow(rowId, { compareYn: false });
+      }
+    },
+    [applyRowChanges, updateRow],
+  );
 
   // ── Drag ──────────────────────────────────────────────────────────────────
+
   const handleDrop = useCallback(
     (targetId: string) => {
       const current = rowsRef.current;
@@ -367,11 +545,9 @@ export default function StepFieldMapping({ selectedDatasourceKeys, fieldMappings
       const next = [...current];
       const [moved] = next.splice(fromIdx, 1);
       next.splice(toIdx, 0, moved);
-      const { fieldMappings: fm, calcFields: cf } = fromFieldRows(next);
-      onFieldMappingsChange(fm);
-      onCalcFieldsChange(cf);
+      applyRowChanges(next);
     },
-    [draggingId, onFieldMappingsChange, onCalcFieldsChange],
+    [draggingId, applyRowChanges],
   );
 
   const dragCtx = useMemo<DragCtx>(
@@ -389,10 +565,62 @@ export default function StepFieldMapping({ selectedDatasourceKeys, fieldMappings
     [draggingId, dragOverId, handleDrop],
   );
 
+  // ── Import handlers ───────────────────────────────────────────────────────
+
+  const makeDefaultField = (field: { fieldName: string; displayName: string; fieldType: string; fieldRole: string }, order: number): FieldMapping => ({
+    datasourceKey: selectedKey!,
+    fieldName: field.fieldName,
+    displayName: field.displayName,
+    fieldType: field.fieldType,
+    fieldRole: field.fieldRole,
+    alias: '',
+    ...DEFAULT_FLAGS,
+    sortOrder: order,
+    enabled: false,
+  });
+
+  const handleImportReset = () => {
+    if (!datasourceDetail?.fields?.length || !selectedKey) return;
+    initializedKeyRef.current = selectedKey;
+    onFieldMappingsChange(datasourceDetail.fields.map(makeDefaultField));
+    setImportModalOpen(false);
+  };
+
+  const handleImportKeep = () => {
+    if (!datasourceDetail?.fields?.length || !selectedKey) return;
+    const existing = new Set(fieldMappings.map((f) => f.fieldName));
+    const newFields = datasourceDetail.fields.filter((f) => !existing.has(f.fieldName)).map((f, i) => makeDefaultField(f, fieldMappings.length + i));
+    if (newFields.length === 0) {
+      setImportModalOpen(false);
+      return;
+    }
+    onFieldMappingsChange([...fieldMappings, ...newFields]);
+    setImportModalOpen(false);
+  };
+
   // ── Calc modal ────────────────────────────────────────────────────────────
+
   const openAddCalcModal = () => {
     setCalcEditRowId(null);
-    calcForm.setFieldsValue({ fieldType: 'NUMBER', showInGrid: true, showRatio: false, chartRole: '', fieldName: '', displayName: '', formula: '' });
+    calcForm.setFieldsValue({
+      fieldType: 'NUMBER',
+      formula: '',
+      fieldName: '',
+      displayName: '',
+      alias: '',
+      groupHeaderName: '',
+      groupYn: false,
+      selectYn: false,
+      valueYn: false,
+      whereYn: false,
+      pivotYn: false,
+      compareYn: false,
+      footerHideYn: false,
+      refColYn: false,
+      agg: 'Unselected',
+      format: 'Unselected',
+      filter: 'Unselected',
+    });
     setValidationResult(null);
     setCalcModalOpen(true);
   };
@@ -401,12 +629,22 @@ export default function StepFieldMapping({ selectedDatasourceKeys, fieldMappings
     setCalcEditRowId(row.rowId);
     calcForm.setFieldsValue({
       fieldName: row.fieldName,
-      displayName: row.aliasName,
+      displayName: row.displayName,
+      alias: row.alias,
       formula: row.formula ?? '',
-      fieldType: row.calcType ?? 'NUMBER',
-      chartRole: row.chartRole,
-      showInGrid: row.showInGrid,
-      showRatio: false,
+      fieldType: row.calcFieldType ?? 'NUMBER',
+      groupHeaderName: row.groupHeaderName,
+      groupYn: row.groupYn,
+      selectYn: row.selectYn,
+      valueYn: row.valueYn,
+      whereYn: row.whereYn,
+      pivotYn: row.pivotYn,
+      compareYn: row.compareYn,
+      footerHideYn: row.footerHideYn,
+      refColYn: row.refColYn,
+      agg: row.agg,
+      format: row.format,
+      filter: row.filter,
     });
     setValidationResult(null);
     setCalcModalOpen(true);
@@ -416,80 +654,87 @@ export default function StepFieldMapping({ selectedDatasourceKeys, fieldMappings
     calcForm.validateFields().then((values) => {
       const current = rowsRef.current;
       let next: FieldRow[];
+      const changes: Partial<FieldRow> = {
+        fieldName: values.fieldName as string,
+        displayName: (values.displayName as string) || (values.fieldName as string),
+        alias: (values.alias as string) || '',
+        formula: values.formula as string,
+        calcFieldType: values.fieldType as string,
+        fieldType: values.fieldType as string,
+        groupHeaderName: (values.groupHeaderName as string) || '',
+        groupYn: !!values.groupYn,
+        selectYn: !!values.selectYn,
+        valueYn: !!values.valueYn,
+        whereYn: !!values.whereYn,
+        pivotYn: !!values.pivotYn,
+        compareYn: !!values.compareYn,
+        footerHideYn: !!values.footerHideYn,
+        refColYn: !!values.refColYn,
+        agg: (values.agg as Agg) || 'Unselected',
+        format: (values.format as Format) || 'Unselected',
+        filter: (values.filter as Filter) || 'Unselected',
+      };
       if (calcEditRowId) {
-        next = current.map((r) =>
-          r.rowId === calcEditRowId
-            ? {
-                ...r,
-                fieldName: values.fieldName as string,
-                aliasName: (values.displayName as string) || (values.fieldName as string),
-                originalDisplayName: (values.displayName as string) || (values.fieldName as string),
-                formula: values.formula as string,
-                calcType: values.fieldType as string,
-                chartRole: (values.chartRole as string) ?? '',
-                showInGrid: values.showInGrid as boolean,
-              }
-            : r,
-        );
+        next = current.map((r) => (r.rowId === calcEditRowId ? { ...r, ...changes } : r));
       } else {
-        const newRow: FieldRow = {
-          rowId: `c:${values.fieldName as string}`,
-          isCalc: true,
-          sortOrder: current.length,
-          fieldName: values.fieldName as string,
-          aliasName: (values.displayName as string) || (values.fieldName as string),
-          originalDisplayName: (values.displayName as string) || (values.fieldName as string),
-          enabled: true,
-          showInGrid: (values.showInGrid as boolean) ?? true,
-          chartRole: (values.chartRole as string) ?? '',
-          formula: values.formula as string,
-          calcType: (values.fieldType as string) ?? 'NUMBER',
-        };
-        next = [...current, newRow];
+        next = [
+          ...current,
+          {
+            rowId: `c:${values.fieldName as string}`,
+            isCalc: true,
+            sortOrder: current.length,
+            enabled: true,
+            ...changes,
+          } as FieldRow,
+        ];
       }
-      const { fieldMappings: fm, calcFields: cf } = fromFieldRows(next);
-      onFieldMappingsChange(fm);
-      onCalcFieldsChange(cf);
+      applyRowChanges(next);
       setCalcModalOpen(false);
     });
   };
 
   const removeCalcRow = useCallback(
     (rowId: string) => {
-      const updated = rowsRef.current.filter((r) => r.rowId !== rowId);
-      const { fieldMappings: fm, calcFields: cf } = fromFieldRows(updated);
-      onFieldMappingsChange(fm);
-      onCalcFieldsChange(cf);
+      applyRowChanges(rowsRef.current.filter((r) => r.rowId !== rowId));
     },
-    [onFieldMappingsChange, onCalcFieldsChange],
+    [applyRowChanges],
   );
 
   const handleValidate = () => {
     const formula = calcForm.getFieldValue('formula') as string;
-    const available = rowsRef.current.filter((r) => !r.isCalc && r.enabled).map((r) => r.fieldName);
+    const available = rowsRef.current.filter((r) => !r.isCalc).map((r) => r.fieldName);
     validateMutation.mutate(
       { formula, availableFields: available },
       {
-        onSuccess: (result) =>
-          setValidationResult({
-            valid: result.valid,
-            message: result.valid ? '유효한 수식입니다' : result.errors.join(', '),
-          }),
+        onSuccess: (result) => setValidationResult({ valid: result.valid, message: result.valid ? '유효한 수식입니다' : result.errors.join(', ') }),
       },
     );
   };
 
   // ── Stats ─────────────────────────────────────────────────────────────────
-  const enabledCount = rows.filter((r) => r.enabled || r.isCalc).length;
-  const yAxisCount = rows.filter((r) => (r.enabled || r.isCalc) && r.chartRole === 'Y_AXIS').length;
-  const calcCount = rows.filter((r) => r.isCalc).length;
 
-  // ── Columns ───────────────────────────────────────────────────────────────
+  const enabledRows = rows.filter((r) => r.enabled || r.isCalc);
+  const selectCount = enabledRows.filter((r) => r.selectYn).length;
+  const valueCount = enabledRows.filter((r) => r.valueYn).length;
+  const pivotCount = enabledRows.filter((r) => r.pivotYn).length;
+  const compareCount = enabledRows.filter((r) => r.compareYn).length;
+
+  // ── Column Definitions (Legacy Layout) ────────────────────────────────────
+
+  const CB = (record: FieldRow, key: keyof FieldRow, handler?: (rowId: string, val: boolean) => void) => {
+    const disabled = !record.isCalc && !record.enabled;
+    const checked = !!record[key];
+    const handleChange = handler
+      ? (e: { target: { checked: boolean } }) => handler(record.rowId, e.target.checked)
+      : (e: { target: { checked: boolean } }) => updateRow(record.rowId, { [key]: e.target.checked });
+    return <Checkbox checked={checked} onChange={handleChange} disabled={disabled} />;
+  };
+
   const columns = [
     {
       title: '',
       key: 'drag',
-      width: 36,
+      width: 32,
       render: () => (
         <div className="flex justify-center text-gray-300 cursor-grab">
           <GripVertical size={14} />
@@ -497,9 +742,24 @@ export default function StepFieldMapping({ selectedDatasourceKeys, fieldMappings
       ),
     },
     {
-      title: <span className="text-[11px]">활성</span>,
+      title: () => {
+        const nonCalc = rowsRef.current.filter((r) => !r.isCalc);
+        const enabledCount = nonCalc.filter((r) => r.enabled).length;
+        const allChecked = nonCalc.length > 0 && enabledCount === nonCalc.length;
+        const indeterminate = enabledCount > 0 && !allChecked;
+        const handleHeaderChange = () => {
+          const next = !allChecked;
+          applyRowChanges(rowsRef.current.map((r) => (r.isCalc ? r : { ...r, enabled: next })));
+        };
+        return (
+          <div className="flex flex-col items-center gap-0.5">
+            <Checkbox checked={allChecked} indeterminate={indeterminate} onChange={handleHeaderChange} />
+            <span className="text-[10px] text-gray-500">활성</span>
+          </div>
+        );
+      },
       key: 'enabled',
-      width: 52,
+      width: 50,
       align: 'center' as const,
       render: (_: unknown, record: FieldRow) =>
         record.isCalc ? (
@@ -507,17 +767,17 @@ export default function StepFieldMapping({ selectedDatasourceKeys, fieldMappings
             계산
           </Tag>
         ) : (
-          <Checkbox checked={record.enabled} onChange={(e) => updateRow(record.rowId, { enabled: e.target.checked })} />
+          <Checkbox checked={record.enabled} onChange={(e) => handleEnabledChange(record.rowId, e.target.checked)} />
         ),
     },
     {
       title: '컬럼',
       key: 'fieldName',
-      width: 200,
+      width: 170,
       render: (_: unknown, record: FieldRow) => (
         <div>
           <span className={`font-mono text-[12px] leading-tight ${record.isCalc ? 'text-purple-700' : 'text-gray-800'}`}>{record.fieldName}</span>
-          <div className="mt-0.5">
+          <div className="mt-0.5 flex gap-1">
             {!record.isCalc && record.fieldRole && (
               <Tag color={ROLE_COLOR[record.fieldRole] ?? 'default'} className="text-[10px] !m-0">
                 {record.fieldRole}
@@ -525,7 +785,7 @@ export default function StepFieldMapping({ selectedDatasourceKeys, fieldMappings
             )}
             {record.isCalc && record.formula && (
               <Tooltip title={record.formula}>
-                <span className="text-[10px] text-purple-400 font-mono cursor-default">{record.formula.length > 22 ? record.formula.slice(0, 22) + '…' : record.formula}</span>
+                <span className="text-[10px] text-purple-400 font-mono cursor-default">{record.formula.length > 18 ? record.formula.slice(0, 18) + '…' : record.formula}</span>
               </Tooltip>
             )}
           </div>
@@ -534,78 +794,191 @@ export default function StepFieldMapping({ selectedDatasourceKeys, fieldMappings
     },
     {
       title: '표시명',
-      key: 'aliasName',
+      key: 'alias',
       render: (_: unknown, record: FieldRow) => (
-        <Input size="small" value={record.aliasName} onChange={(e) => updateRow(record.rowId, { aliasName: e.target.value })} disabled={!record.isCalc && !record.enabled} />
-      ),
-    },
-    {
-      title: '그리드',
-      key: 'showInGrid',
-      width: 56,
-      align: 'center' as const,
-      render: (_: unknown, record: FieldRow) => (
-        <Checkbox checked={record.showInGrid} onChange={(e) => updateRow(record.rowId, { showInGrid: e.target.checked })} disabled={!record.isCalc && !record.enabled} />
-      ),
-    },
-    {
-      title: '차트 역할',
-      key: 'chartRole',
-      width: 120,
-      render: (_: unknown, record: FieldRow) => (
-        <Select
+        <Input
           size="small"
-          value={record.chartRole}
-          onChange={(v) => updateRow(record.rowId, { chartRole: v })}
-          options={CHART_ROLE_OPTIONS}
-          style={{ width: '100%' }}
+          value={record.alias || record.displayName}
+          onChange={(e) => updateRow(record.rowId, { alias: e.target.value })}
           disabled={!record.isCalc && !record.enabled}
         />
       ),
     },
+    // ── 기준 컬럼 group ──
     {
-      title: '집계',
-      key: 'aggregation',
-      width: 96,
-      render: (_: unknown, record: FieldRow) =>
-        !record.isCalc && record.fieldRole === 'MEASURE' ? (
-          <Select
-            size="small"
-            value={record.aggregation}
-            onChange={(v) => updateRow(record.rowId, { aggregation: v })}
-            options={AGGREGATION_OPTIONS}
-            style={{ width: '100%' }}
-            disabled={!record.enabled}
-          />
-        ) : (
-          <span className="px-2 text-[12px] text-gray-300">—</span>
-        ),
+      title: '기준 컬럼',
+      key: 'group_header',
+      children: [
+        {
+          title: '기준',
+          key: 'groupYn',
+          width: 46,
+          align: 'center' as const,
+          render: (_: unknown, record: FieldRow) => CB(record, 'groupYn'),
+        },
+        {
+          title: '차원',
+          key: 'selectYn',
+          width: 46,
+          align: 'center' as const,
+          render: (_: unknown, record: FieldRow) => CB(record, 'selectYn'),
+        },
+        {
+          title: '헤더명',
+          key: 'groupHeaderName',
+          width: 90,
+          render: (_: unknown, record: FieldRow) => (
+            <Input
+              size="small"
+              value={record.groupHeaderName}
+              onChange={(e) => updateRow(record.rowId, { groupHeaderName: e.target.value })}
+              disabled={!record.isCalc && !record.enabled}
+            />
+          ),
+        },
+      ],
     },
+    // ── 피벗 ──
     {
-      title: '비율%',
-      key: 'showRatio',
-      width: 56,
-      align: 'center' as const,
-      render: (_: unknown, record: FieldRow) =>
-        !record.isCalc && record.fieldRole === 'MEASURE' ? (
-          <Checkbox checked={record.showRatio ?? false} onChange={(e) => updateRow(record.rowId, { showRatio: e.target.checked })} disabled={!record.enabled} />
-        ) : null,
+      title: '피벗',
+      key: 'pivot_header',
+      children: [
+        {
+          title: '피벗',
+          key: 'pivotYn',
+          width: 46,
+          align: 'center' as const,
+          render: (_: unknown, record: FieldRow) => {
+            if (!record.isCalc && record.fieldName.toUpperCase() === PSR_TIME_KEY) return null;
+            return CB(record, 'pivotYn', handlePivotYnChange);
+          },
+        },
+      ],
     },
+    // ── 비교 ──
     {
-      title: '포맷',
-      key: 'format',
-      width: 100,
-      render: (_: unknown, record: FieldRow) =>
-        !record.isCalc ? (
-          <Input size="small" value={record.format ?? ''} onChange={(e) => updateRow(record.rowId, { format: e.target.value })} placeholder="#,###" disabled={!record.enabled} />
-        ) : (
-          <span className="px-2 text-[12px] text-gray-300">—</span>
-        ),
+      title: '비교',
+      key: 'compare_header',
+      children: [
+        {
+          title: '비교',
+          key: 'compareYn',
+          width: 46,
+          align: 'center' as const,
+          render: (_: unknown, record: FieldRow) => {
+            if (!record.isCalc && record.fieldName.toUpperCase() === PSR_TIME_KEY) return null;
+            return CB(record, 'compareYn', handleCompareYnChange);
+          },
+        },
+      ],
+    },
+    // ── 값 컬럼 group ──
+    {
+      title: '값 컬럼',
+      key: 'value_header',
+      children: [
+        {
+          title: '값',
+          key: 'valueYn',
+          width: 46,
+          align: 'center' as const,
+          render: (_: unknown, record: FieldRow) => CB(record, 'valueYn'),
+        },
+        {
+          title: '집계',
+          key: 'agg',
+          width: 90,
+          render: (_: unknown, record: FieldRow) => {
+            const disabled = !record.isCalc && !record.enabled;
+            return (
+              <Select
+                size="small"
+                value={record.agg}
+                style={{ width: '100%' }}
+                disabled={disabled || !record.valueYn}
+                onChange={(v) => updateRow(record.rowId, { agg: v as Agg })}
+                options={AGG_OPTIONS.map((o) => ({ value: o, label: o === 'Unselected' ? '-' : o }))}
+              />
+            );
+          },
+        },
+        {
+          title: '합계미표시',
+          key: 'footerHideYn',
+          width: 52,
+          align: 'center' as const,
+          render: (_: unknown, record: FieldRow) => CB(record, 'footerHideYn'),
+        },
+        {
+          title: '참조',
+          key: 'refColYn',
+          width: 46,
+          align: 'center' as const,
+          render: (_: unknown, record: FieldRow) => CB(record, 'refColYn'),
+        },
+      ],
+    },
+    // ── 서식 ──
+    {
+      title: '서식',
+      key: 'format_header',
+      children: [
+        {
+          title: '컬럼 서식',
+          key: 'format',
+          width: 110,
+          render: (_: unknown, record: FieldRow) => {
+            const disabled = !record.isCalc && !record.enabled;
+            return (
+              <Select
+                size="small"
+                value={record.format}
+                style={{ width: '100%' }}
+                disabled={disabled}
+                onChange={(v) => updateRow(record.rowId, { format: v as Format })}
+                options={FORMAT_OPTIONS.map((o) => ({ value: o, label: o === 'Unselected' ? '-' : o }))}
+              />
+            );
+          },
+        },
+      ],
+    },
+    // ── 필터 컬럼 group ──
+    {
+      title: '필터 컬럼',
+      key: 'filter_header',
+      children: [
+        {
+          title: '지정',
+          key: 'whereYn',
+          width: 46,
+          align: 'center' as const,
+          render: (_: unknown, record: FieldRow) => CB(record, 'whereYn'),
+        },
+        {
+          title: '필터수식',
+          key: 'filter',
+          width: 110,
+          render: (_: unknown, record: FieldRow) => {
+            const disabled = !record.isCalc && !record.enabled;
+            return (
+              <Select
+                size="small"
+                value={record.filter}
+                style={{ width: '100%' }}
+                disabled={disabled || !record.whereYn}
+                onChange={(v) => updateRow(record.rowId, { filter: v as Filter })}
+                options={FILTER_OPTIONS.map((o) => ({ value: o, label: o === 'Unselected' ? '-' : o }))}
+              />
+            );
+          },
+        },
+      ],
     },
     {
       title: '',
       key: 'actions',
-      width: 68,
+      width: 56,
       render: (_: unknown, record: FieldRow) =>
         record.isCalc ? (
           <div className="flex gap-1">
@@ -617,43 +990,43 @@ export default function StepFieldMapping({ selectedDatasourceKeys, fieldMappings
   ];
 
   const isEmpty = rows.length === 0;
+  const activeSearchCount = searchBindings.filter((s) => s.conditionId != null).length;
 
-  return (
-    <div className="space-y-4">
+  const fieldTab = (
+    <div className="space-y-3 pt-4">
       {/* Header */}
       <div className="flex items-start justify-between">
         <div>
-          <h3 className="text-[13px] font-semibold text-gray-900">필드 매핑</h3>
-          <p className="text-[12px] text-gray-500 mt-0.5">활성할 필드를 선택하고 역할·집계를 설정합니다. 행을 드래그해 순서를 변경할 수 있습니다.</p>
+          <h3 className="text-[13px] font-semibold text-gray-900">필드 설정</h3>
+          <p className="text-[12px] text-gray-500 mt-0.5">활성 필드의 기준·피벗·비교·값·서식·필터 역할을 설정합니다.</p>
           {!isEmpty && (
-            <div className="flex gap-2 mt-2">
+            <div className="flex flex-wrap gap-1.5 mt-2">
               <Tag color="blue">
-                활성: {enabledCount}/{rows.length}
+                활성: {enabledRows.length}/{rows.length}
               </Tag>
-              {yAxisCount > 0 && <Tag color="green">Y축: {yAxisCount}</Tag>}
-              {calcCount > 0 && <Tag color="purple">계산컬럼: {calcCount}</Tag>}
+              {selectCount > 0 && <Tag color="cyan">차원: {selectCount}</Tag>}
+              {valueCount > 0 && <Tag color="purple">값: {valueCount}</Tag>}
+              {pivotCount > 0 && <Tag color="orange">피벗: {pivotCount}</Tag>}
+              {compareCount > 0 && <Tag color="red">비교: {compareCount}</Tag>}
             </div>
           )}
         </div>
         <div className="flex items-center gap-2">
-          {!isEmpty && (
-            <>
-              <Button size="small" onClick={() => handleSelectAll(true)}>
-                전체 선택
-              </Button>
-              <Button size="small" onClick={() => handleSelectAll(false)}>
-                전체 해제
-              </Button>
-            </>
-          )}
           <Button size="small" disabled={!selectedKey} onClick={() => setImportModalOpen(true)}>
             컬럼 가져오기
           </Button>
-          <Button icon={<Plus size={14} />} onClick={openAddCalcModal} disabled={!selectedKey}>
+          <Button size="small" icon={<Plus size={14} />} onClick={openAddCalcModal} disabled={!selectedKey}>
             계산컬럼 추가
           </Button>
         </div>
       </div>
+
+      {/* Validation hints */}
+      {!isEmpty && (selectCount === 0 || valueCount === 0) && (
+        <div className="rounded-md bg-amber-50 border border-amber-200 px-3 py-2 text-[11px] text-amber-700">
+          차원(선택) 컬럼과 값 컬럼을 각각 1개 이상 설정해야 저장할 수 있습니다.
+        </div>
+      )}
 
       {/* Table */}
       {isEmpty ? (
@@ -671,10 +1044,38 @@ export default function StepFieldMapping({ selectedDatasourceKeys, fieldMappings
             pagination={false}
             size="small"
             bordered
+            scroll={{ x: 'max-content' }}
             rowClassName={(record: FieldRow) => (!record.isCalc && !record.enabled ? 'opacity-40' : '')}
           />
         </DragContext.Provider>
       )}
+    </div>
+  );
+
+  return (
+    <>
+      <Tabs
+        defaultActiveKey="fields"
+        type="card"
+        size="small"
+        items={[
+          { key: 'fields', label: '📋 필드 설정', children: fieldTab },
+          {
+            key: 'search',
+            label: (
+              <span className="flex items-center gap-1.5">
+                🔍 검색조건 바인딩
+                {activeSearchCount > 0 && <Badge count={activeSearchCount} size="small" />}
+              </span>
+            ),
+            children: (
+              <div className="pt-4">
+                <SearchBindingTab searchBindings={searchBindings} onSearchBindingsChange={onSearchBindingsChange} selectedDatasourceKeys={selectedDatasourceKeys} />
+              </div>
+            ),
+          },
+        ]}
+      />
 
       {/* Calc modal */}
       <Modal
@@ -683,16 +1084,19 @@ export default function StepFieldMapping({ selectedDatasourceKeys, fieldMappings
         onOk={handleCalcOk}
         onCancel={() => setCalcModalOpen(false)}
         okText={calcEditRowId ? '수정' : '추가'}
-        width={600}
+        width={640}
         destroyOnHidden
       >
         <Form form={calcForm} layout="vertical" className="mt-4">
-          <div className="grid grid-cols-2 gap-x-4">
+          <div className="grid grid-cols-3 gap-x-4">
             <Form.Item name="fieldName" label="필드명" rules={[{ required: true, message: '필드명을 입력하세요' }]}>
               <Input placeholder="CONVERSION_RATE" className="font-mono" />
             </Form.Item>
             <Form.Item name="displayName" label="표시명">
               <Input placeholder="전환율" />
+            </Form.Item>
+            <Form.Item name="alias" label="별칭">
+              <Input placeholder="별칭" />
             </Form.Item>
           </div>
           <Form.Item name="formula" label="수식" rules={[{ required: true, message: '수식을 입력하세요' }]}>
@@ -721,7 +1125,7 @@ export default function StepFieldMapping({ selectedDatasourceKeys, fieldMappings
               </code>
             ))}
           </div>
-          <div className="grid grid-cols-2 gap-x-4">
+          <div className="grid grid-cols-3 gap-x-4">
             <Form.Item name="fieldType" label="데이터 타입">
               <Select
                 options={[
@@ -730,17 +1134,22 @@ export default function StepFieldMapping({ selectedDatasourceKeys, fieldMappings
                 ]}
               />
             </Form.Item>
-            <Form.Item name="chartRole" label="차트 역할">
-              <Select options={CHART_ROLE_OPTIONS} />
+            <Form.Item name="agg" label="집계">
+              <Select options={AGG_OPTIONS.map((o) => ({ value: o, label: o === 'Unselected' ? '-' : o }))} />
+            </Form.Item>
+            <Form.Item name="format" label="서식">
+              <Select options={FORMAT_OPTIONS.map((o) => ({ value: o, label: o === 'Unselected' ? '-' : o }))} />
             </Form.Item>
           </div>
-          <div className="flex gap-6">
-            <Form.Item name="showInGrid" valuePropName="checked" className="mb-0">
-              <Checkbox>그리드 표시</Checkbox>
-            </Form.Item>
-            <Form.Item name="showRatio" valuePropName="checked" className="mb-0">
-              <Checkbox>비율% 표시</Checkbox>
-            </Form.Item>
+          <Form.Item name="groupHeaderName" label="헤더명">
+            <Input placeholder="그룹 헤더명" />
+          </Form.Item>
+          <div className="flex flex-wrap gap-5">
+            {(['groupYn', 'selectYn', 'valueYn', 'whereYn', 'footerHideYn', 'refColYn'] as const).map((key) => (
+              <Form.Item key={key} name={key} valuePropName="checked" className="mb-0">
+                <Checkbox>{{ groupYn: '기준', selectYn: '차원', valueYn: '값', whereYn: '지정(Where)', footerHideYn: '합계미표시', refColYn: '참조컬럼' }[key]}</Checkbox>
+              </Form.Item>
+            ))}
           </div>
         </Form>
       </Modal>
@@ -767,6 +1176,6 @@ export default function StepFieldMapping({ selectedDatasourceKeys, fieldMappings
           </button>
         </div>
       </Modal>
-    </div>
+    </>
   );
 }

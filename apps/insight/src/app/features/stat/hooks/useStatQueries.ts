@@ -1,9 +1,10 @@
 import { useMutation, useQuery } from '@tanstack/react-query';
 import { createQueryKeys } from '@lukemorales/query-key-factory';
 import type { MutationHookOptions, QueryHookWithParamsOptions } from '@/shared-util';
-import { conditionApi, datasourceApi, widgetApi } from '../api/statApi';
+import { conditionApi, datasourceApi, statQueryApi, widgetApi } from '../api/statApi';
 import type { SearchConditionItem } from '../types/condition';
 import type { DataSourceItem, PrefixCandidate } from '../types/datasource';
+import type { StatisticsPreviewRequest, StatisticsQueryResponse } from '../types/query';
 import type { WidgetItem } from '../types/widget';
 
 // Widget
@@ -64,3 +65,7 @@ export const useCreateCondition = ({ mutationOptions }: MutationHookOptions = {}
 export const useUpdateCondition = ({ mutationOptions }: MutationHookOptions = {}) => useMutation({ mutationFn: conditionApi.update, ...mutationOptions });
 
 export const useDeleteCondition = ({ mutationOptions }: MutationHookOptions = {}) => useMutation({ mutationFn: conditionApi.delete, ...mutationOptions });
+
+// Stat Query
+export const usePreviewStatQuery = ({ mutationOptions }: MutationHookOptions<StatisticsQueryResponse, StatisticsPreviewRequest> = {}) =>
+  useMutation({ mutationFn: statQueryApi.preview, ...mutationOptions });

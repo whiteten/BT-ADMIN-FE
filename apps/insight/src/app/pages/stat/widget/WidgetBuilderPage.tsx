@@ -1,13 +1,12 @@
 import { Fragment, useEffect, useRef, useState } from 'react';
-import { useNavigate, useParams } from 'react-router-dom';
+import { useLocation, useNavigate, useParams } from 'react-router-dom';
 import { Button, Form, InputNumber, Radio, Select } from 'antd';
 import { Check, ChevronRight } from 'lucide-react';
 import { toast } from '@/shared-util';
-import StepCalcAndSearch, { type SearchBind } from './steps/StepCalcAndSearch';
 import StepDataSource from './steps/StepDataSource';
-import StepFieldMapping, { type CalcField, type FieldMapping } from './steps/StepFieldMapping';
-import StepPreview from './steps/StepPreview';
-import StepVisualization from './steps/StepVisualization';
+import StepFieldMapping, { type CalcField, type FieldMapping, type SearchBind } from './steps/StepFieldMapping';
+import StepVisualizeAndPreview from './steps/StepVisualizeAndPreview';
+import type { WidgetTemplate } from '../../../features/stat/constants/widgetTemplates';
 import { useCreateWidget, useGetWidgetDetail, useUpdateWidget } from '../../../features/stat/hooks/useStatQueries';
 import type { WidgetRequest } from '../../../features/stat/types/widget';
 
@@ -19,10 +18,8 @@ interface StepDef {
 
 const STEPS: StepDef[] = [
   { key: 'datasource', title: '데이터소스', icon: '⬡' },
-  { key: 'fieldmapping', title: '필드 매핑', icon: '⊞' },
-  { key: 'search', title: '검색조건', icon: '⌕' },
-  { key: 'visualization', title: '시각화', icon: '◈' },
-  { key: 'preview', title: '미리보기', icon: '◉' },
+  { key: 'fieldmapping', title: '필드 설정', icon: '⊞' },
+  { key: 'visualize', title: '시각화', icon: '◈' },
 ];
 
 const CATEGORY_OPTIONS = [
@@ -50,7 +47,6 @@ function StepNav({ activeStep, completedSteps, summaries, onStepClick }: StepNav
         return (
           <Fragment key={step.key}>
             <button className="group flex flex-col items-center gap-1.5 flex-shrink-0 pb-4 relative" style={{ minWidth: 88 }} onClick={() => onStepClick(i)}>
-              {/* Circle */}
               <div
                 className={[
                   'h-7 w-7 rounded-full flex items-center justify-center text-[11px] font-bold transition-all duration-200',
@@ -60,25 +56,18 @@ function StepNav({ activeStep, completedSteps, summaries, onStepClick }: StepNav
               >
                 {isDone ? <Check size={12} strokeWidth={3} /> : i + 1}
               </div>
-
-              {/* Title */}
               <span
                 className={['text-[11px] font-semibold whitespace-nowrap transition-colors', isDone ? 'text-emerald-600' : isActive ? 'text-blue-600' : 'text-gray-400'].join(' ')}
               >
                 {step.title}
               </span>
-
-              {/* Summary chip */}
               {summaries[i] && !isActive && (
                 <span className="absolute top-[46px] left-1/2 -translate-x-1/2 whitespace-nowrap rounded-full bg-gray-100 px-2 py-0.5 text-[10px] text-gray-500 font-normal">
                   {summaries[i]}
                 </span>
               )}
-
-              {/* Active underline */}
               {isActive && <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-blue-600 rounded-t-full" />}
             </button>
-
             {i < STEPS.length - 1 && (
               <div className={['flex-1 h-[2px] mt-3.5 mx-1.5 rounded-full transition-colors duration-300 min-w-[16px]', isDone ? 'bg-emerald-300' : 'bg-gray-200'].join(' ')} />
             )}
@@ -91,18 +80,22 @@ function StepNav({ activeStep, completedSteps, summaries, onStepClick }: StepNav
 
 export default function WidgetBuilderPage() {
   const navigate = useNavigate();
+  const location = useLocation();
   const { widgetId } = useParams<{ widgetId: string }>();
   const isEdit = !!widgetId;
 
+  // 템플릿 진입 시 동기 초기화 (useEffect + setFieldsValue 는 Select 업데이트 불안정)
+  const initialTemplate = (location.state as { template?: WidgetTemplate } | null)?.template ?? null;
+
   const [form] = Form.useForm();
-  const [reportTitle, setReportTitle] = useState('');
+  const [reportTitle, setReportTitle] = useState(initialTemplate?.name ?? '');
   const [isDirty, setIsDirty] = useState(false);
   const isSubmittingRef = useRef(false);
 
   const [activeStep, setActiveStep] = useState(0);
   const [completedSteps, setCompletedSteps] = useState<Set<number>>(new Set());
 
-  const [selectedDatasourceKeys, setSelectedDatasourceKeys] = useState<string[]>([]);
+  const [selectedDatasourceKeys, setSelectedDatasourceKeys] = useState<string[]>(initialTemplate ? [initialTemplate.datasourceKey] : []);
   const [fieldMappings, setFieldMappings] = useState<FieldMapping[]>([]);
   const [calcFields, setCalcFields] = useState<CalcField[]>([]);
   const [searchBindings, setSearchBindings] = useState<SearchBind[]>([]);
@@ -132,7 +125,7 @@ export default function WidgetBuilderPage() {
       setFieldMappings(widgetData.fieldMappings as unknown as FieldMapping[]);
       setCalcFields(widgetData.calculatedFields as unknown as CalcField[]);
       setSearchBindings(widgetData.searchBindings as unknown as SearchBind[]);
-      setCompletedSteps(new Set([0, 1, 2, 3]));
+      setCompletedSteps(new Set([0, 1]));
     }
   }, [widgetData, form]);
 
@@ -147,8 +140,40 @@ export default function WidgetBuilderPage() {
     setActiveStep(i);
   };
 
-  const handleNext = () => goToStep(Math.min(STEPS.length - 1, activeStep + 1));
+  // Phase 1: validation gate
+  const handleNext = () => {
+    if (activeStep === 0 && selectedDatasourceKeys.length === 0) {
+      toast.error('데이터소스를 선택해야 다음 단계로 이동할 수 있습니다.');
+      return;
+    }
+    if (activeStep === 1) {
+      const enabled = fieldMappings.filter((f) => f.enabled);
+      if (enabled.length === 0 && calcFields.length === 0) {
+        toast.error('활성화된 필드가 1개 이상 필요합니다.');
+        return;
+      }
+      const allActive = [...enabled, ...calcFields.map((c) => ({ selectYn: c.selectYn, valueYn: c.valueYn }))];
+      if (!allActive.some((f) => f.selectYn) || !allActive.some((f) => f.valueYn)) {
+        toast.error('차원(선택) 컬럼과 값 컬럼을 각각 1개 이상 설정해야 합니다.');
+        return;
+      }
+    }
+    goToStep(Math.min(STEPS.length - 1, activeStep + 1));
+  };
+
   const handlePrev = () => setActiveStep((p) => Math.max(0, p - 1));
+
+  // Phase 1: browser close/refresh warning
+  useEffect(() => {
+    const handler = (e: BeforeUnloadEvent) => {
+      if (isDirty) {
+        e.preventDefault();
+        e.returnValue = '';
+      }
+    };
+    window.addEventListener('beforeunload', handler);
+    return () => window.removeEventListener('beforeunload', handler);
+  }, [isDirty]);
 
   const handleSave = () => {
     if (isSubmittingRef.current) return;
@@ -179,24 +204,42 @@ export default function WidgetBuilderPage() {
             .map((f, idx) => ({
               datasourceKey: f.datasourceKey,
               fieldName: f.fieldName,
-              alias: f.alias || undefined,
-              showInGrid: f.showInGrid,
-              chartRole: f.chartRole || undefined,
+              alias: f.alias ?? undefined,
+              groupHeaderName: f.groupHeaderName ?? undefined,
+              showInGrid: f.selectYn || f.groupYn || f.valueYn,
               sortOrder: idx,
-              aggregation: f.aggregation || undefined,
-              showRatio: f.showRatio || undefined,
+              groupYn: f.groupYn,
+              selectYn: f.selectYn,
+              valueYn: f.valueYn,
+              whereYn: f.whereYn,
+              pivotYn: f.pivotYn,
+              compareYn: f.compareYn,
+              footerHideYn: f.footerHideYn,
+              refColYn: f.refColYn,
+              agg: f.agg !== 'Unselected' ? f.agg : undefined,
+              format: f.format !== 'Unselected' ? f.format : undefined,
+              filter: f.filter !== 'Unselected' ? f.filter : undefined,
             })),
           calculatedFields: calcFields
             .filter((c) => c.fieldName && c.formula)
             .map((c, idx) => ({
               fieldName: c.fieldName,
               displayName: c.displayName,
+              alias: c.alias ?? undefined,
+              groupHeaderName: c.groupHeaderName ?? undefined,
               formula: c.formula,
               fieldType: c.fieldType,
-              showInGrid: c.showInGrid,
-              chartRole: c.chartRole || undefined,
-              showRatio: c.showRatio || undefined,
+              showInGrid: c.selectYn || c.groupYn || c.valueYn,
               sortOrder: idx,
+              groupYn: c.groupYn,
+              selectYn: c.selectYn,
+              valueYn: c.valueYn,
+              whereYn: c.whereYn,
+              footerHideYn: c.footerHideYn,
+              refColYn: c.refColYn,
+              agg: c.agg !== 'Unselected' ? c.agg : undefined,
+              format: c.format !== 'Unselected' ? c.format : undefined,
+              filter: c.filter !== 'Unselected' ? c.filter : undefined,
             })),
           searchBindings: searchBindings
             .filter((s) => s.conditionId != null)
@@ -233,19 +276,27 @@ export default function WidgetBuilderPage() {
   const isPending = createMutation.isPending || updateMutation.isPending;
 
   const activeFieldCount = fieldMappings.filter((f) => f.enabled).length;
-  const activeBindingCount = searchBindings.filter((s) => s.conditionId != null).length;
   const vizValue = form.getFieldValue('visualization') as string | undefined;
 
   const stepSummaries: (string | null)[] = [
     selectedDatasourceKeys.length > 0 ? selectedDatasourceKeys[0] : null,
     activeFieldCount > 0 ? `${activeFieldCount}개 활성` + (calcFields.length > 0 ? ` +${calcFields.length}계산` : '') : null,
-    activeBindingCount > 0 ? `${activeBindingCount}개 바인딩` : null,
     vizValue ?? null,
-    null,
   ];
 
   return (
-    <Form form={form} layout="vertical" initialValues={{ refreshMode: 'MANUAL', defaultW: 4, defaultH: 3 }} className="flex flex-col w-full h-full overflow-hidden">
+    <Form
+      form={form}
+      layout="vertical"
+      initialValues={{
+        refreshMode: 'MANUAL',
+        defaultW: initialTemplate?.defaultW ?? 4,
+        defaultH: initialTemplate?.defaultH ?? 3,
+        category: initialTemplate?.category,
+        visualization: initialTemplate?.defaultVisualization,
+      }}
+      className="flex flex-col w-full h-full overflow-hidden"
+    >
       {/* Header */}
       <header className="flex flex-shrink-0 items-center gap-4 border-b bg-white px-5 py-3">
         <div className="flex items-center gap-2 min-w-0 flex-1">
@@ -299,11 +350,8 @@ export default function WidgetBuilderPage() {
 
           <div className="h-4 w-px bg-gray-200" />
 
-          <Button size="small" loading={isPending} disabled={isPending} onClick={handleSave}>
-            저장
-          </Button>
-          <Button type="primary" size="small" loading={isPending} disabled={isPending} onClick={handleSave}>
-            발행
+          <Button size="small" loading={isPending} disabled={isPending || !isDirty} onClick={handleSave}>
+            임시저장
           </Button>
         </div>
       </header>
@@ -338,23 +386,17 @@ export default function WidgetBuilderPage() {
                   setCalcFields(c);
                   setIsDirty(true);
                 }}
-              />
-            )}
-            {activeStep === 2 && (
-              <StepCalcAndSearch
                 searchBindings={searchBindings}
                 onSearchBindingsChange={(s) => {
                   setSearchBindings(s);
                   setIsDirty(true);
                 }}
-                selectedDatasourceKeys={selectedDatasourceKeys}
               />
             )}
-            {activeStep === 3 && <StepVisualization form={form} />}
-            {activeStep === 4 && <StepPreview />}
+            {activeStep === 2 && <StepVisualizeAndPreview form={form} datasourceKey={selectedDatasourceKeys[0]} fieldMappings={fieldMappings} />}
           </div>
 
-          {/* Step footer nav */}
+          {/* Footer */}
           <div className="flex flex-shrink-0 items-center justify-between border-t px-6 py-3 bg-gray-50/50 rounded-b-lg">
             <button
               type="button"
@@ -364,19 +406,9 @@ export default function WidgetBuilderPage() {
             >
               ← 이전
             </button>
-            <div className="flex items-center gap-1.5">
-              {STEPS.map((_, i) => (
-                <button
-                  key={i}
-                  type="button"
-                  onClick={() => goToStep(i)}
-                  className={[
-                    'h-1.5 rounded-full transition-all duration-200',
-                    i === activeStep ? 'w-5 bg-blue-500' : completedSteps.has(i) ? 'w-1.5 bg-emerald-400' : 'w-1.5 bg-gray-300',
-                  ].join(' ')}
-                />
-              ))}
-            </div>
+            <span className="text-[11px] text-gray-400">
+              {activeStep + 1} / {STEPS.length}
+            </span>
             {activeStep < STEPS.length - 1 ? (
               <Button size="small" type="primary" onClick={handleNext}>
                 다음 →

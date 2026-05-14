@@ -1,6 +1,7 @@
 import ApiClient, { type DetailResponse, type ListResponse, extractDetail, extractList } from '@/shared-util';
 import type { ConditionRequest, OptionItem, SearchConditionItem } from '../types/condition';
 import type { DataSourceItem, DataSourceRequest, PrefixCandidate, SchemaLoadRequest, SchemaLoadResponse } from '../types/datasource';
+import type { StatisticsPreviewRequest, StatisticsQueryResponse } from '../types/query';
 import type { FormulaValidateRequest, FormulaValidateResponse, WidgetItem, WidgetRequest } from '../types/widget';
 
 const apiClient = new ApiClient({ serviceURL: '/bff' });
@@ -96,5 +97,12 @@ export const conditionApi = {
     if (parentValue !== undefined && parentValue !== null) params.parentValue = parentValue;
     const response = await apiClient.get<ListResponse<OptionItem>>('/insight-condition-options', { params });
     return extractList(response);
+  },
+};
+
+export const statQueryApi = {
+  preview: async (data: StatisticsPreviewRequest): Promise<StatisticsQueryResponse> => {
+    const response = await apiClient.post<DetailResponse<StatisticsQueryResponse>>('/insight-stat-query-preview', data);
+    return extractDetail(response);
   },
 };
