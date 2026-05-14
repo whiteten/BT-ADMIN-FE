@@ -3,6 +3,8 @@ import { createQueryKeys } from '@lukemorales/query-key-factory';
 import type { QueryHookWithParamsOptions } from '@/shared-util';
 import { statisticsApi } from '../api/statisticsApi';
 import type {
+  CallResultStatList,
+  CampaignOptionListItem,
   CategoryOptionListItem,
   DialogOptionListItem,
   DialogStatList,
@@ -14,6 +16,7 @@ import type {
   ServiceStatList,
   SlotOptionListItem,
   SlotStatList,
+  TenantOptionListItem,
   UserDefStatList,
 } from '../types/statistics.types';
 
@@ -25,11 +28,14 @@ export const statisticsQueryKeys = createQueryKeys('statistics', {
   getEntityStatList: (params?: Record<string, unknown>) => [params],
   getKeywordStatList: (params?: Record<string, unknown>) => [params],
   getUserDefStatList: (params?: Record<string, unknown>) => [params],
+  getCallResultStatList: (params?: Record<string, unknown>) => [params],
   getDialogOptionList: (params?: Record<string, unknown>) => [params],
   getSlotOptionList: (params?: Record<string, unknown>) => [params],
   getIntentOptionList: (params?: Record<string, unknown>) => [params],
   getEntityOptionList: (params?: Record<string, unknown>) => [params],
   getCategoryOptionList: (params?: Record<string, unknown>) => [params],
+  getTenantOptionList: (params?: Record<string, unknown>) => [params],
+  getCampaignOptionList: (params?: Record<string, unknown>) => [params],
 });
 
 export const useGetServiceStatList = ({ params, queryOptions }: QueryHookWithParamsOptions<ServiceStatList> = {}) => {
@@ -124,6 +130,30 @@ export const useGetCategoryOptionList = ({ params, queryOptions }: QueryHookWith
   return useQuery({
     queryKey: statisticsQueryKeys.getCategoryOptionList(params).queryKey,
     queryFn: () => statisticsApi.getCategoryOptionList(params),
+    ...queryOptions,
+  });
+};
+
+export const useGetCallResultStatList = ({ params, queryOptions }: QueryHookWithParamsOptions<CallResultStatList> = {}) => {
+  return useQuery({
+    queryKey: statisticsQueryKeys.getCallResultStatList(params).queryKey,
+    queryFn: () => statisticsApi.getCallResultStatList(params),
+    ...queryOptions,
+  });
+};
+
+export const useGetTenantOptionList = ({ params, queryOptions }: QueryHookWithParamsOptions<TenantOptionListItem[]> = {}) => {
+  return useQuery({
+    queryKey: statisticsQueryKeys.getTenantOptionList(params).queryKey,
+    queryFn: () => statisticsApi.getTenantOptionList(params),
+    ...queryOptions,
+  });
+};
+
+export const useGetCampaignOptionList = ({ params, queryOptions }: QueryHookWithParamsOptions<CampaignOptionListItem[]> = {}) => {
+  return useQuery({
+    queryKey: statisticsQueryKeys.getCampaignOptionList(params).queryKey,
+    queryFn: () => statisticsApi.getCampaignOptionList(params),
     ...queryOptions,
   });
 };

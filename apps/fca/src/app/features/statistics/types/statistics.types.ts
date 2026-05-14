@@ -201,3 +201,57 @@ export interface UserDefStatList {
   summary: UserDefStatListItem | null;
   columnDef: UserDefColumnDef[];
 }
+
+export interface CallResultStatItem {
+  psrTimeKey: string; // 통화일자 (YYYYMMDD / YYYYMM / YYYY)
+  tenantId?: string; // 테넌트 ID
+  tenantName: string; // 테넌트명
+  campaignId?: string; // 캠페인 ID
+  campaignName: string; // 캠페인명
+  campaignListId?: string; // 캠페인 시나리오 ID
+  campaignListName: string; // 시나리오명
+  seq: number; // 차수
+  totalCnt: number; // 전체대상자
+  tryCnt: number; // 통화시도
+  tryDoneCnt: number; // 통화완료
+  tryFailCnt: number; // 통화실패
+  exceptCnt: number; // 제외대상
+  tryDoneRate: number; // 성공률 (통화완료/통화시도)
+  progressStatus90: number; // 통화종료
+  transCnt: number; // 호전환 (93)
+  preprocessCnt: number; // 수발신중지 (91)
+  tryFailRate: number; // 실패율 (통화실패/통화시도)
+  progressStatus31: number; // 통화중
+  progressStatus32: number; // 무응답
+  progressStatus33: number; // 결번
+  progressStatus34: number; // 음성사서함
+  progressStatus35: number; // 팩스연결
+  progressStatus36: number; // 통화거절
+  progressStatus37: number; // 전원꺼짐
+  progressStatus38: number; // 로밍
+  progressStatusEtc: number; // 기타
+}
+
+export type CallResultStatListItem = CallResultStatItem;
+
+export interface CallResultStatList {
+  items: CallResultStatListItem[];
+  summary: CallResultStatListItem | null;
+}
+
+export interface TenantOptionItem {
+  tenantId: string;
+  tenantName: string;
+}
+
+export type TenantOptionListItem = TenantOptionItem;
+
+export interface CampaignOptionItem {
+  tenantId: string;
+  campaignId: string;
+  campaignName: string;
+  campaignListId?: string;
+  campaignListName?: string;
+}
+
+export type CampaignOptionListItem = CampaignOptionItem;

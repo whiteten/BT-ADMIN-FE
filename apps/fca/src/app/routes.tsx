@@ -24,6 +24,7 @@ const UserDefStatistics = React.lazy(() => import('./pages/statistics/call-bot/U
 const IntentStatistics = React.lazy(() => import('./pages/statistics/nlu/IntentStatistics'));
 const EntityStatistics = React.lazy(() => import('./pages/statistics/nlu/EntityStatistics'));
 const KeywordStatistics = React.lazy(() => import('./pages/statistics/nlu/KeywordStatistics'));
+const CallResultStatistics = React.lazy(() => import('./pages/statistics/campaign/CallResultStatistics'));
 const BotDashboard = React.lazy(() => import('./pages/dashboard/BotDashboard'));
 const BotDialogHistory = React.lazy(() => import('./pages/tracking/BotDialogHistory'));
 const BotRealtime = React.lazy(() => import('./pages/tracking/BotRealtime'));
@@ -160,6 +161,14 @@ export const routes = [
               { path: 'intent', element: <IntentStatistics /> },
               { path: 'entity', element: <EntityStatistics /> },
               { path: 'keyword', element: <KeywordStatistics /> },
+            ],
+          },
+          {
+            path: 'campaign',
+            element: <Outlet />,
+            children: [
+              { index: true, element: <Navigate to="call-result" replace /> },
+              { path: 'call-result', element: <CallResultStatistics /> },
             ],
           },
         ],

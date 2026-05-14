@@ -1,5 +1,8 @@
 import ApiClient, { type ListResponse, type StatListResponse, extractList, extractStatList } from '@/shared-util';
 import type {
+  CallResultStatList,
+  CallResultStatListItem,
+  CampaignOptionListItem,
   CategoryOptionListItem,
   DialogOptionListItem,
   DialogStatList,
@@ -17,6 +20,7 @@ import type {
   SlotOptionListItem,
   SlotStatList,
   SlotStatListItem,
+  TenantOptionListItem,
   UserDefColumnDef,
   UserDefStatList,
   UserDefStatListItem,
@@ -140,5 +144,28 @@ export const statisticsApi = {
   // 사용자 정의 통계 엑셀 내보내기
   exportUserDefStatExcel: async (params?: Record<string, unknown>) => {
     return await apiClient.post<Blob>('/stat-bot-user-def-export', params, { responseType: 'blob' });
+  },
+
+  // 캠페인 발신결과 통계 목록 조회
+  getCallResultStatList: async (params?: Record<string, unknown>): Promise<CallResultStatList> => {
+    const response = await apiClient.post<StatListResponse<CallResultStatListItem>>('/stat-campaign-call-result', params);
+    return extractStatList(response);
+  },
+
+  // 캠페인 발신결과 통계 엑셀 내보내기
+  exportCallResultStatExcel: async (params?: Record<string, unknown>) => {
+    return await apiClient.post<Blob>('/stat-campaign-call-result-export', params, { responseType: 'blob' });
+  },
+
+  // 테넌트 옵션 목록 조회
+  getTenantOptionList: async (params?: Record<string, unknown>): Promise<TenantOptionListItem[]> => {
+    const response = await apiClient.post<ListResponse<TenantOptionListItem>>('/stat-tenant-options', params);
+    return extractList(response);
+  },
+
+  // 캠페인 옵션 목록 조회
+  getCampaignOptionList: async (params?: Record<string, unknown>): Promise<CampaignOptionListItem[]> => {
+    const response = await apiClient.post<ListResponse<CampaignOptionListItem>>('/stat-campaign-options', params);
+    return extractList(response);
   },
 };
