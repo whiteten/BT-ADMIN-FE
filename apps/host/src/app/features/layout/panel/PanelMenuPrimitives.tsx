@@ -1,6 +1,7 @@
 import { useLocation } from 'react-router-dom';
 import { SquareDashed } from 'lucide-react';
 import { FavoriteButton } from '../components/FavoriteButton';
+import { MenuActionButtons } from '../components/MenuActionButtons';
 import { useMenuPanelStore } from '../hooks/useMenuPanelStore';
 import type { MenuItem } from '@/libs/shared-store/src/types/menu.types';
 import { cn } from '@/libs/shared-ui/src/lib/utils';
@@ -102,7 +103,7 @@ export function MenuLink({ item, appId, query = '', onNavigate, showDesc = false
         )}
       </div>
       <span className="shrink-0 ml-1" onClick={(e) => e.stopPropagation()}>
-        <FavoriteButton menuKey={item.menuKey} label={item.label} path={item.path ?? ''} appId={appId} />
+        <MenuActionButtons menuKey={item.menuKey} label={item.label} path={item.path ?? ''} appId={appId} />
       </span>
     </div>
   );

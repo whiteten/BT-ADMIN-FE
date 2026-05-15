@@ -13,8 +13,14 @@ export const NewWindowButton = React.memo(({ path, appId }: NewWindowButtonProps
   }, [appId, path]);
 
   return (
-    <Button type="button" variant="ghost" size="icon" className="h-8 w-8 cursor-pointer" onClick={handleNewWindow}>
-      <AppWindow className="h-4 w-4 text-gray-700" />
+    <Button
+      type="button"
+      variant="ghost"
+      size="icon"
+      className="h-8 w-8 cursor-pointer text-[#CED4DA] hover:bg-transparent hover:text-[var(--color-bt-primary)]"
+      onClick={handleNewWindow}
+    >
+      <AppWindow className="h-4 w-4" />
       <span className="sr-only">Open in new window</span>
     </Button>
   );
