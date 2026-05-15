@@ -17,8 +17,8 @@ export default function TopHeader() {
         <img src="/assets/images/ci-white.svg" alt="CI" className="h-8 w-auto object-contain cursor-pointer" onClick={() => navigate('/')} />
       </div>
 
-      {/* 정중앙: 통합 검색 */}
-      <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-[min(400px,calc(100%-440px))]">
+      {/* 정중앙: 통합 검색 — 640px 미만(sm 이하)에서는 좁아 충돌하므로 숨김 */}
+      <div className="hidden sm:block absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-[min(400px,calc(100%-440px))]">
         <GlobalSearch />
       </div>
 
