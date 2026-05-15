@@ -1,8 +1,8 @@
 import type { ComponentType, SVGProps } from 'react';
-import { Bookmark, Settings, SquareDashed } from 'lucide-react';
+import { Settings, SquareDashed } from 'lucide-react';
 import useRemoteSelector from '../../../hooks/useRemoteSelector';
 import { useMenuPanelStore } from '../hooks/useMenuPanelStore';
-import { IconRemoteFca, IconRemoteIpron } from '@/components/custom/Icons';
+import { IconRemoteFca, IconRemoteIpron, IconStar } from '@/components/custom/Icons';
 import { cn } from '@/libs/shared-ui/src/lib/utils';
 
 const APP_BADGE_COLORS = [
@@ -26,12 +26,12 @@ const APP_BADGE_ICONS: Record<string, ComponentType<SVGProps<SVGSVGElement>>> = 
 };
 
 /**
- * 패널 가장 왼쪽 60px 컬럼. 최상단 북마크 버튼 + 구분선 + remote 앱 뱃지로 구성.
+ * 패널 가장 왼쪽 60px 컬럼. 최상단 즐겨찾기 버튼 + 구분선 + remote 앱 뱃지로 구성.
  * - manager 앱은 항상 맨 하단에 배치하고, 그 위에 구분선을 둔다.
- *   단 북마크와 manager 사이에 다른 remote가 없으면 구분선은 하나만 노출한다.
+ *   단 즐겨찾기와 manager 사이에 다른 remote가 없으면 구분선은 하나만 노출한다.
  * - 뱃지 hover → 우측으로 늘어나며 앱 이름 노출 (strip 폭 60px는 유지, 뱃지가 사이드바 위로 오버레이)
  * - 뱃지 click → view='menu' 전환 + displayedAppId 갱신 + activeMenuKey 초기화
- * - 북마크 버튼 click → view='bookmark' 전환 (사이드바를 북마크 목록으로 교체)
+ * - 즐겨찾기 버튼 click → view='bookmark' 전환 (사이드바를 즐겨찾기 목록으로 교체)
  * - overflow-y-auto 미사용: 수평 hover 확장이 클리핑되지 않도록. remote 수가 매우 많아지면 portal 기반 label 재검토.
  */
 const PanelAppBadgeStrip = () => {
@@ -52,7 +52,7 @@ const PanelAppBadgeStrip = () => {
   };
 
   const handleBookmarkClick = () => {
-    // 크게보기(mega) 상태였어도 compact로 접으면서 북마크 화면을 노출
+    // 크게보기(mega) 상태였어도 compact로 접으면서 즐겨찾기 화면을 노출
     setMode('compact');
     setView('bookmark');
     setActiveMenuKey(null);
@@ -106,18 +106,18 @@ const PanelAppBadgeStrip = () => {
           style={{ backgroundColor: '#F59E0B' }}
         >
           <span className="flex items-center justify-center size-10 shrink-0">
-            <Bookmark className="size-5" />
+            <IconStar className="size-5" />
           </span>
-          <span className="shrink-0 pr-3 text-[13px] font-semibold whitespace-nowrap">북마크</span>
+          <span className="shrink-0 pr-3 text-[13px] font-semibold whitespace-nowrap">즐겨찾기</span>
         </button>
       </div>
 
-      {/* 북마크 아래 구분선 — 아래에 뱃지가 하나라도 있을 때만 */}
+      {/* 즐겨찾기 아래 구분선 — 아래에 뱃지가 하나라도 있을 때만 */}
       {(otherRemotes.length > 0 || managerRemote) && divider}
 
       {otherRemotes.map((remote, index) => renderBadge(remote, index))}
 
-      {/* manager — 항상 맨 하단. 위에 다른 remote가 있을 때만 구분선 추가 (없으면 북마크 구분선 하나로 충분) */}
+      {/* manager — 항상 맨 하단. 위에 다른 remote가 있을 때만 구분선 추가 (없으면 즐겨찾기 구분선 하나로 충분) */}
       {managerRemote && (
         <>
           {otherRemotes.length > 0 && divider}

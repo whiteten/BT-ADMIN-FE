@@ -8,9 +8,9 @@ import { useNavigationStore } from '@/shared-store';
 import BookmarkChip from './BookmarkChip';
 import BookmarkOverflowMenu from './BookmarkOverflowMenu';
 import SortableBookmarkChip from './SortableBookmarkChip';
-import { ReactComponent as IconBookmark } from '../../../../assets/images/icon/icon-bookmark.svg';
 import { useUpdateBookmark } from '../hooks/useBookmarkQueries';
 import { useOverflowItems } from '../hooks/useOverflowItems';
+import { IconStar } from '@/components/custom/Icons';
 import type { Bookmark } from '@/libs/shared-api/src/lib/types/navi.types';
 
 const RESERVED_OVERFLOW_WIDTH = 64;
@@ -53,16 +53,16 @@ export default function BookmarkBar() {
   if (sorted.length === 0) {
     return (
       <div className="flex-1 min-w-0 flex items-center gap-1.5 text-white/40 text-sm">
-        <IconBookmark className="size-4 shrink-0" />
-        <span className="truncate">자주 쓰는 메뉴를 북마크 해보세요.</span>
+        <IconStar className="size-4 shrink-0" />
+        <span className="truncate">자주 쓰는 메뉴를 즐겨찾기 해보세요.</span>
       </div>
     );
   }
 
   return (
     <div className="flex-1 min-w-0 h-9 flex items-center gap-1">
-      {/* 영역 마커 — 좌측에 고정된 북마크 아이콘으로 "여기는 북마크 영역" 표시 (overflow 계산 대상에서 제외) */}
-      <IconBookmark className="size-5 shrink-0 text-white/80" aria-hidden />
+      {/* 영역 마커 — 좌측에 고정된 별 아이콘으로 "여기는 즐겨찾기 영역" 표시 (overflow 계산 대상에서 제외) */}
+      <IconStar className="size-5 shrink-0 text-white/80" aria-hidden />
 
       <div ref={containerRef} className="relative flex-1 min-w-0 h-full flex items-center overflow-hidden">
         {/* 측정용 — 화면 밖에서 모든 칩 폭 측정 */}

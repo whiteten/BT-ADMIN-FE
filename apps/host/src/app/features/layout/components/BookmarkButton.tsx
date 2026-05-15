@@ -2,8 +2,8 @@ import React, { useCallback } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { sharedApi } from '@/shared-api';
 import { useNavigationStore } from '@/shared-store';
-import { ReactComponent as IconBookmark } from '../../../../assets/images/icon/icon-bookmark.svg';
 import { useCreateBookmark, useDeleteBookmark } from '../hooks/useBookmarkQueries';
+import { IconStar } from '@/components/custom/Icons';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 
@@ -49,13 +49,13 @@ export const BookmarkButton = React.memo(({ menuKey, label, path, appId, disable
       size="icon"
       className={cn(
         'h-8 w-8 cursor-pointer hover:bg-transparent',
-        isBookmarked ? 'text-[var(--color-bt-primary)] hover:text-[var(--color-bt-primary)]' : 'text-[#495057] hover:text-[var(--color-bt-primary)] disabled:hover:text-[#495057]',
+        isBookmarked ? 'text-[#FFA700] hover:text-[#FFA700]' : 'text-[#CED4DA] hover:text-[#FFA700] disabled:hover:text-[#CED4DA]',
       )}
       onClick={handleToggleBookmark}
       disabled={isCreating || isDeleting || disabled}
     >
-      <IconBookmark className="size-5" fill={isBookmarked ? 'var(--color-bt-primary)' : 'none'} />
-      <span className="sr-only">Toggle bookmark</span>
+      <IconStar className="size-5" fill={isBookmarked ? '#FFA700' : 'none'} />
+      <span className="sr-only">즐겨찾기 토글</span>
     </Button>
   );
 });

@@ -10,10 +10,10 @@ import { Check, GripVertical, SquareDashed, Trash2, X } from 'lucide-react';
 import { sharedApi } from '@/shared-api';
 import { useMenuStore, useNavigationStore } from '@/shared-store';
 import { isMenuActive } from './PanelMenuPrimitives';
-import { ReactComponent as IconBookmark } from '../../../../assets/images/icon/icon-bookmark.svg';
 import { useUpdateBookmark } from '../hooks/useBookmarkQueries';
 import { useMenuPanelStore } from '../hooks/useMenuPanelStore';
 import { findMenuInfo } from '../utils/findMenuInfo';
+import { IconStar } from '@/components/custom/Icons';
 import type { Bookmark } from '@/libs/shared-api/src/lib/types/navi.types';
 import { cn } from '@/libs/shared-ui/src/lib/utils';
 
@@ -53,7 +53,7 @@ const SortableBookmarkRow = ({ info, isEditMode, onClick, onRemove }: SortableBo
           type="button"
           onClick={() => onRemove?.(bookmark.menuKey)}
           className="shrink-0 text-[#adb5bd] hover:text-[#e03131] transition-colors cursor-pointer p-1 -m-1 rounded"
-          aria-label="북마크 삭제"
+          aria-label="즐겨찾기 삭제"
         >
           <Trash2 className="size-4" />
         </button>
@@ -151,7 +151,7 @@ const PanelBookmarksSection = ({ className }: PanelBookmarksSectionProps) => {
 
   const enrichedBookmarks: BookmarkInfo[] = sortedFavorites.map((bookmark) => {
     const { icon, path, appName, ancestors } = findMenuInfo(menuConfigs, bookmark);
-    // ancestors는 북마크 자신의 label까지 포함하므로 마지막을 제외해 부모 경로만 표시
+    // ancestors는 즐겨찾기 자신의 label까지 포함하므로 마지막을 제외해 부모 경로만 표시
     const breadcrumb = [appName, ...ancestors.slice(0, -1)].filter(Boolean).join(' › ');
     return { bookmark, icon, path, breadcrumb };
   });
@@ -197,9 +197,9 @@ const PanelBookmarksSection = ({ className }: PanelBookmarksSectionProps) => {
 
       {isEmptyList ? (
         <div className="flex flex-col items-center justify-center py-12 text-center">
-          <p className="text-base text-[#878a99]">북마크한 메뉴가 없습니다.</p>
+          <p className="text-base text-[#878a99]">즐겨찾기한 메뉴가 없습니다.</p>
           <p className="text-sm text-[#adb5bd] mt-1 inline-flex items-center gap-1">
-            메뉴 옆 <IconBookmark className="size-3.5 shrink-0" /> 아이콘을 눌러 추가해보세요.
+            메뉴 옆 <IconStar className="size-3.5 shrink-0" /> 아이콘을 눌러 추가해보세요.
           </p>
         </div>
       ) : isEditMode ? (

@@ -1,10 +1,10 @@
 import { useMemo } from 'react';
-import { Bookmark } from 'lucide-react';
 import { useMenuStore } from '@/shared-store';
 import PanelBookmarksSection from './PanelBookmarksSection';
 import PanelControls from './PanelControls';
 import { ChildList } from './PanelMenuPrimitives';
 import { useMenuPanelStore } from '../hooks/useMenuPanelStore';
+import { IconStar } from '@/components/custom/Icons';
 import type { MenuItem } from '@/libs/shared-store/src/types/menu.types';
 
 const findMenuByKey = (menus: MenuItem[], key: string): MenuItem | null => {
@@ -41,9 +41,9 @@ const PanelDetail = ({ onNavigate }: PanelDetailProps) => {
         <header className="shrink-0 flex items-center justify-between gap-2 px-6 pt-5 pb-4 min-h-[72px]">
           <div className="flex items-center gap-2 min-w-0">
             <span className="flex items-center justify-center size-7 text-[var(--color-bt-primary)]">
-              <Bookmark className="size-7" />
+              <IconStar className="size-7" />
             </span>
-            <h2 className="text-lg font-bold tracking-tight text-[#212529] truncate">북마크</h2>
+            <h2 className="text-lg font-bold tracking-tight text-[#212529] truncate">즐겨찾기</h2>
           </div>
           <PanelControls />
         </header>

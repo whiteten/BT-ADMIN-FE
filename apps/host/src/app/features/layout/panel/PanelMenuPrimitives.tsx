@@ -74,7 +74,7 @@ interface MenuLinkProps {
   showDesc?: boolean;
 }
 
-/** 리프 메뉴 링크 — 패널 안에서 사용. 활성 상태 강조 + 북마크 버튼 노출 */
+/** 리프 메뉴 링크 — 패널 안에서 사용. 활성 상태 강조 + 즐겨찾기 버튼 노출 */
 export function MenuLink({ item, appId, query = '', onNavigate, showDesc = false }: MenuLinkProps) {
   const location = useLocation();
   const isActive = item.path ? isMenuActive(item.path, location, appId) : false;
@@ -91,10 +91,7 @@ export function MenuLink({ item, appId, query = '', onNavigate, showDesc = false
       )}
       onClick={() => item.path && onNavigate(`/${appId}/${item.path}`)}
     >
-      <span className="shrink-0" onClick={(e) => e.stopPropagation()}>
-        <BookmarkButton menuKey={item.menuKey} label={item.label} path={item.path ?? ''} appId={appId} />
-      </span>
-      <div className="flex-1 min-w-0">
+      <div className="flex-1 min-w-0 pl-1">
         <p className={cn('text-[14px] truncate transition-colors', isActive ? 'text-[var(--color-bt-primary)] font-semibold' : 'text-[#495057]')}>
           <Highlight text={item.label} query={query} />
         </p>
@@ -104,6 +101,9 @@ export function MenuLink({ item, appId, query = '', onNavigate, showDesc = false
           </p>
         )}
       </div>
+      <span className="shrink-0 ml-1" onClick={(e) => e.stopPropagation()}>
+        <BookmarkButton menuKey={item.menuKey} label={item.label} path={item.path ?? ''} appId={appId} />
+      </span>
     </div>
   );
 }
@@ -159,13 +159,10 @@ export function ChildList({ items, appId, query = '', onNavigate, asGrid, showDe
             </div>
           );
         }
-        // path도 children도 없는 항목 — 비활성 라벨 (북마크 비활성 + 전체 흐림)
+        // path도 children도 없는 항목 — 비활성 라벨 (즐겨찾기 비활성 + 전체 흐림)
         return (
           <div key={item.menuKey} className="flex items-center gap-2 rounded-lg px-2.5 py-2 -mx-1 cursor-default opacity-50">
-            <span className="shrink-0">
-              <BookmarkButton menuKey={item.menuKey} label={item.label} path="" appId={appId} disabled />
-            </span>
-            <div className="flex-1 min-w-0">
+            <div className="flex-1 min-w-0 pl-1">
               <p className="text-[14px] text-[#495057] truncate">
                 <Highlight text={item.label} query={query} />
               </p>
@@ -175,6 +172,9 @@ export function ChildList({ items, appId, query = '', onNavigate, asGrid, showDe
                 </p>
               )}
             </div>
+            <span className="shrink-0 ml-1">
+              <BookmarkButton menuKey={item.menuKey} label={item.label} path="" appId={appId} disabled />
+            </span>
           </div>
         );
       })}

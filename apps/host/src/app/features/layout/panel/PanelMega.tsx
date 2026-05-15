@@ -2,7 +2,7 @@ import { useMemo, useState } from 'react';
 import { useLocation } from 'react-router-dom';
 import { Input } from 'antd';
 import { Search, SquareDashed } from 'lucide-react';
-import { useMenuStore, useNavigationStore } from '@/shared-store';
+import { useMenuStore } from '@/shared-store';
 import PanelControls from './PanelControls';
 import { Highlight, hasMatch, isMenuActive } from './PanelMenuPrimitives';
 import useRemoteSelector from '../../../hooks/useRemoteSelector';
@@ -22,19 +22,12 @@ const Dot = ({ hasChildren }: { hasChildren: boolean }) => {
   );
 };
 
-/** 이동 가능한 메뉴 우측의 북마크 토글 — 첫 줄 높이(h-5)에 수직 중앙 정렬. hover 시 노출, 북마크된 항목은 상시 표시 */
-const BookmarkSlot = ({ item, appId }: { item: MenuItem; appId: string }) => {
-  const isBookmarked = useNavigationStore((s) => s.favorites.some((f) => f.menuKey === item.menuKey));
-
-  return (
-    <span
-      className={cn('flex h-7 shrink-0 items-center transition-opacity', isBookmarked ? 'opacity-100' : 'opacity-0 group-hover/row:opacity-100')}
-      onClick={(e) => e.stopPropagation()}
-    >
-      <BookmarkButton menuKey={item.menuKey} label={item.label} path={item.path ?? ''} appId={appId} />
-    </span>
-  );
-};
+/** 이동 가능한 메뉴 우측의 즐겨찾기 토글 — 첫 줄 높이(h-5)에 수직 중앙 정렬. 활성·비활성 상관없이 상시 노출 */
+const BookmarkSlot = ({ item, appId }: { item: MenuItem; appId: string }) => (
+  <span className="flex h-7 shrink-0 items-center" onClick={(e) => e.stopPropagation()}>
+    <BookmarkButton menuKey={item.menuKey} label={item.label} path={item.path ?? ''} appId={appId} />
+  </span>
+);
 
 interface TreeNodeProps {
   item: MenuItem;
@@ -59,7 +52,7 @@ const TreeNode = ({ item, isLast, appId, query, onNavigate }: TreeNodeProps) => 
       <span className={cn('absolute left-0 top-0 w-px', isLast ? 'h-[14px]' : 'h-full')} style={{ backgroundColor: LINE }} />
       {/* 가로 tick */}
       <span className="absolute left-0 top-[14px] h-px w-4" style={{ backgroundColor: LINE }} />
-      {/* 행 — 회색 hover/active 강조는 점+라벨 영역(내부 div)만, 북마크는 제외 */}
+      {/* 행 — 회색 hover/active 강조는 점+라벨 영역(내부 div)만, 즐겨찾기는 제외 */}
       <div className={cn('group/row flex items-start gap-1 pr-1.5', isEmpty && 'opacity-50')}>
         <div
           className={cn(

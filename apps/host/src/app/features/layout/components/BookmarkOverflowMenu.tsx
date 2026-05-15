@@ -2,8 +2,8 @@ import { useNavigate } from 'react-router-dom';
 import { Dropdown, type MenuProps } from 'antd';
 import { ChevronDown } from 'lucide-react';
 import { useMenuStore } from '@/shared-store';
-import { ReactComponent as IconBookmark } from '../../../../assets/images/icon/icon-bookmark.svg';
 import { findMenuInfo } from '../utils/findMenuInfo';
+import { IconStar } from '@/components/custom/Icons';
 import type { Bookmark } from '@/libs/shared-api/src/lib/types/navi.types';
 
 interface BookmarkOverflowMenuProps {
@@ -27,8 +27,8 @@ export default function BookmarkOverflowMenu({ bookmarks }: BookmarkOverflowMenu
       ) : (
         bookmark.label
       ),
-      // 모든 항목이 북마크이므로 메뉴별 아이콘 대신 북마크 아이콘으로 통일
-      icon: <IconBookmark className="size-4 text-[var(--color-bt-primary)]" />,
+      // 모든 항목이 즐겨찾기이므로 메뉴별 아이콘 대신 별 아이콘으로 통일
+      icon: <IconStar className="size-4 text-[var(--color-bt-primary)]" />,
       disabled: !path,
       onClick: () => path && navigate(`/${bookmark.appId}/${path}`),
     };
