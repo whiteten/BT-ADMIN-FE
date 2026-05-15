@@ -85,7 +85,9 @@ export function MenuLink({ item, appId, query = '', onNavigate, showDesc = false
       className={cn(
         'group/row relative flex items-center gap-2 rounded-lg px-2.5 py-2 -mx-1 cursor-pointer transition-colors',
         'hover:bg-[#f1f3f5]',
-        isActive && 'before:absolute before:left-0 before:top-1.5 before:bottom-1.5 before:w-[3px] before:rounded-full before:bg-[var(--color-bt-primary)]',
+        // active 상태: 1뎁스(PanelMenuRow)와 동일한 푸른 배경 + 좌측 세로 인디케이터
+        isActive &&
+          'bg-[var(--color-bt-primary)]/[0.08] before:absolute before:left-0 before:top-1.5 before:bottom-1.5 before:w-[3px] before:rounded-full before:bg-[var(--color-bt-primary)]',
       )}
       onClick={() => item.path && onNavigate(`/${appId}/${item.path}`)}
     >
