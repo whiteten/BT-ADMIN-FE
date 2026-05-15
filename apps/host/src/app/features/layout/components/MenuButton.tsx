@@ -11,6 +11,7 @@ export default function MenuButton({ className }: { className?: string }) {
       type="button"
       variant="ghost"
       size="sm"
+      data-menu-panel-trigger
       className={cn('h-7 px-3 gap-2 font-semibold text-sm rounded-md', 'text-white hover:bg-white/10 hover:text-white', open && 'bg-white/10', className)}
       onClick={togglePanel}
       aria-expanded={open}

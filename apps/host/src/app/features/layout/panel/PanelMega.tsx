@@ -1,83 +1,178 @@
 import { useMemo, useState } from 'react';
+import { useLocation } from 'react-router-dom';
 import { Input } from 'antd';
-import { Search } from 'lucide-react';
-import { useMenuStore } from '@/shared-store';
+import { Search, SquareDashed } from 'lucide-react';
+import { useMenuStore, useNavigationStore } from '@/shared-store';
 import PanelControls from './PanelControls';
-import { ChildList, Highlight, MenuLink, countSubgroups, hasMatch } from './PanelMenuPrimitives';
+import { Highlight, hasMatch, isMenuActive } from './PanelMenuPrimitives';
 import useRemoteSelector from '../../../hooks/useRemoteSelector';
-import { Separator } from '@/components/ui/separator';
+import { BookmarkButton } from '../components/BookmarkButton';
 import type { MenuConfig, MenuItem } from '@/libs/shared-store/src/types/menu.types';
+import { cn } from '@/libs/shared-ui/src/lib/utils';
 
-/** 메뉴 트리에서 visible leaf 수 — 앱 헤더에 'N menus' 표시용 */
-const countLeaves = (menus: MenuItem[]): number => {
-  let n = 0;
-  for (const m of menus) {
-    if (m.hide) continue;
-    if (m.path && !m.children?.length) n++;
-    if (m.children?.length) n += countLeaves(m.children);
-  }
-  return n;
+const LINE = '#dee2e6';
+
+/** 역할별 노드 점 — 자식이 있는 폴더는 점 없음(라벨 bold로 구분, 자리도 차지 안 함), 이동 가능한(leaf)·빈 메뉴는 채운 파란 점. 깊이는 커넥터 선이 표현하므로 색에 담지 않음. 첫 줄 높이(h-5)에 수직 중앙 정렬 */
+const Dot = ({ hasChildren }: { hasChildren: boolean }) => {
+  if (hasChildren) return null;
+  return (
+    <span className="ml-1 flex h-5 shrink-0 items-center">
+      <span className="size-[9px] rounded-full bg-[var(--color-bt-primary)]" />
+    </span>
+  );
 };
 
-interface MenuCardProps {
+/** 이동 가능한 메뉴 우측의 북마크 토글 — 첫 줄 높이(h-5)에 수직 중앙 정렬. hover 시 노출, 북마크된 항목은 상시 표시 */
+const BookmarkSlot = ({ item, appId }: { item: MenuItem; appId: string }) => {
+  const isBookmarked = useNavigationStore((s) => s.favorites.some((f) => f.menuKey === item.menuKey));
+
+  return (
+    <span
+      className={cn('flex h-7 shrink-0 items-center transition-opacity', isBookmarked ? 'opacity-100' : 'opacity-0 group-hover/row:opacity-100')}
+      onClick={(e) => e.stopPropagation()}
+    >
+      <BookmarkButton menuKey={item.menuKey} label={item.label} path={item.path ?? ''} appId={appId} />
+    </span>
+  );
+};
+
+interface TreeNodeProps {
+  item: MenuItem;
+  isLast: boolean;
+  appId: string;
+  query: string;
+  onNavigate: (path: string) => void;
+}
+
+/** 2단계 이하 메뉴 — 커넥터 선(세로 spine + 가로 tick) + 점 + 라벨. 재귀 */
+const TreeNode = ({ item, isLast, appId, query, onNavigate }: TreeNodeProps) => {
+  const location = useLocation();
+  const childItems = (item.children ?? []).filter((c) => !c.hide && (!query || hasMatch(c, query)));
+  const hasChildren = childItems.length > 0;
+  const isLeaf = !!item.path && !item.children?.length;
+  const isEmpty = !isLeaf && !hasChildren; // path도 children도 없는 항목
+  const isActive = item.path ? isMenuActive(item.path, location, appId) : false;
+
+  return (
+    <li className="relative pl-5 pb-1">
+      {/* 세로 spine — 마지막 항목은 점까지만 */}
+      <span className={cn('absolute left-0 top-0 w-px', isLast ? 'h-[14px]' : 'h-full')} style={{ backgroundColor: LINE }} />
+      {/* 가로 tick */}
+      <span className="absolute left-0 top-[14px] h-px w-4" style={{ backgroundColor: LINE }} />
+      {/* 행 — 회색 hover/active 강조는 점+라벨 영역(내부 div)만, 북마크는 제외 */}
+      <div className={cn('group/row flex items-start gap-1 pr-1.5', isEmpty && 'opacity-50')}>
+        <div
+          className={cn(
+            'flex min-w-0 flex-1 items-start gap-2 rounded-md py-1 pr-1 transition-colors',
+            isLeaf ? 'cursor-pointer hover:bg-[#f5f6f8]' : 'cursor-default',
+            isActive && 'bg-[var(--color-bt-primary)]/[0.08]',
+          )}
+          onClick={() => isLeaf && item.path && onNavigate(`/${appId}/${item.path}`)}
+        >
+          <Dot hasChildren={hasChildren} />
+          <span
+            className={cn(
+              'min-w-0 flex-1 text-[14px] leading-snug transition-colors',
+              isActive
+                ? 'font-semibold text-[var(--color-bt-primary)]'
+                : hasChildren
+                  ? 'font-semibold text-[#343a40]'
+                  : isLeaf
+                    ? 'text-[#495057] group-hover/row:text-[#212529]'
+                    : 'text-[#868e96]',
+            )}
+          >
+            <Highlight text={item.label} query={query} />
+          </span>
+        </div>
+        {isLeaf && <BookmarkSlot item={item} appId={appId} />}
+      </div>
+      {/* 자식 */}
+      {hasChildren && (
+        <ul className="relative ml-1">
+          {childItems.map((child, i) => (
+            <TreeNode key={child.menuKey} item={child} isLast={i === childItems.length - 1} appId={appId} query={query} onNavigate={onNavigate} />
+          ))}
+        </ul>
+      )}
+    </li>
+  );
+};
+
+interface FirstLevelColumnProps {
   menu: MenuItem;
   appId: string;
   query: string;
   onNavigate: (path: string) => void;
 }
 
-/** 1단계 메뉴 → 배경 카드 컬럼. 3뎁스 메뉴는 서브그룹 수만큼 col-span */
-const MenuCard = ({ menu, appId, query, onNavigate }: MenuCardProps) => {
+/** 1단계 메뉴 — 원형 아이콘 노드 + 하위 트리 컬럼 */
+const FirstLevelColumn = ({ menu, appId, query, onNavigate }: FirstLevelColumnProps) => {
+  const location = useLocation();
   const Icon = menu.icon;
-  const colSpan = countSubgroups(menu);
+  const childItems = (menu.children ?? []).filter((c) => !c.hide && (!query || hasMatch(c, query)));
+  const isLeafNode = !!menu.path && !menu.children?.length;
+  const isEmpty = !menu.path && !menu.children?.length; // path도 children도 없는 항목
+  const isActive = menu.path ? isMenuActive(menu.path, location, appId) : false;
 
   return (
-    <div className="rounded-xl bg-[#f8f9fb] p-5 min-w-0" style={colSpan > 1 ? { gridColumn: `span ${colSpan}` } : undefined}>
-      <div className="flex items-center gap-1.5 mb-3">
-        {Icon && (
-          <span className="flex items-center justify-center size-6">
-            <Icon className="size-6 text-[var(--color-bt-primary)]" />
-          </span>
-        )}
-        <span className="text-[14px] font-bold text-[#343a40] truncate">
+    <div className="min-w-0 px-3">
+      {/* 노드 */}
+      <div className={cn('group/row flex items-center gap-1', isEmpty && 'opacity-50')}>
+        <span className="flex size-11 shrink-0 items-center justify-center rounded-full bg-[var(--color-bt-primary)] shadow-sm">
+          {Icon ? <Icon className="size-6 text-white" /> : <SquareDashed className="size-6 text-white" />}
+        </span>
+        <span
+          className={cn(
+            'min-w-0 flex-1 truncate rounded-md px-2 py-1.5 text-[15px] font-bold leading-tight transition-colors',
+            isLeafNode && 'cursor-pointer hover:bg-[#f5f6f8]',
+            isActive ? 'bg-[var(--color-bt-primary)]/[0.08] text-[var(--color-bt-primary)]' : isEmpty ? 'text-[#868e96]' : 'text-[#212529]',
+          )}
+          onClick={() => isLeafNode && menu.path && onNavigate(`/${appId}/${menu.path}`)}
+        >
           <Highlight text={menu.label} query={query} />
         </span>
+        {isLeafNode && <BookmarkSlot item={menu} appId={appId} />}
       </div>
-
-      {menu.path && !menu.children?.length && <MenuLink item={menu} appId={appId} query={query} onNavigate={onNavigate} />}
-      {!!menu.children?.length && <ChildList items={menu.children} appId={appId} query={query} onNavigate={onNavigate} asGrid />}
+      {/* 하위 트리 */}
+      {childItems.length > 0 && (
+        <ul className="relative ml-[22px] mt-2">
+          {childItems.map((child, i) => (
+            <TreeNode key={child.menuKey} item={child} isLast={i === childItems.length - 1} appId={appId} query={query} onNavigate={onNavigate} />
+          ))}
+        </ul>
+      )}
     </div>
   );
 };
 
-interface AppSectionProps {
+interface RemoteSitemapProps {
   config: MenuConfig;
   query: string;
   onNavigate: (path: string) => void;
 }
 
-/** 한 앱 단위 섹션 — 앱 헤더 + 1단계 메뉴 카드 그리드 */
-const AppSection = ({ config, query, onNavigate }: AppSectionProps) => {
+/** 한 리모트 = 사이트맵 카드 하나. 앱 타이틀 + 1단계 노드 컬럼들 */
+const RemoteSitemap = ({ config, query, onNavigate }: RemoteSitemapProps) => {
   const AppIcon = config.icon;
   const visibleMenus = config.menus.filter((m) => !m.hide && (!query || hasMatch(m, query)));
   if (!visibleMenus.length) return null;
 
-  const leafCount = countLeaves(config.menus);
-
   return (
-    <section className="border-l-4 border-[var(--color-bt-primary)]/60 pl-5">
-      <div className="flex items-center gap-3 mb-4">
+    <section className="rounded-xl border border-[#eef0f2] bg-white p-6 shadow-[0_1px_2px_rgba(0,0,0,0.03)]">
+      {/* 앱 타이틀 */}
+      <div className="mb-6 flex items-center gap-2.5">
         {AppIcon && (
-          <span className="flex items-center justify-center size-6">
-            <AppIcon className="size-6 text-[var(--color-bt-primary)]" />
+          <span className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-[var(--color-bt-primary)]/[0.08]">
+            <AppIcon className="size-[22px] text-[var(--color-bt-primary)]" />
           </span>
         )}
-        <h2 className="text-base font-bold tracking-tight text-[#212529]">{config.appName}</h2>
-        <span className="text-xs text-[#adb5bd] font-medium tabular-nums">{leafCount} menus</span>
+        <h2 className="text-lg font-bold tracking-tight text-[#212529]">{config.appName}</h2>
       </div>
-      <div className="grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+      {/* 1단계 컬럼들 — 한 줄에 최대 4개, 화면 좁아지면 3·2·1개로 */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 items-start gap-y-8">
         {visibleMenus.map((menu) => (
-          <MenuCard key={menu.menuKey} menu={menu} appId={config.appId} query={query} onNavigate={onNavigate} />
+          <FirstLevelColumn key={menu.menuKey} menu={menu} appId={config.appId} query={query} onNavigate={onNavigate} />
         ))}
       </div>
     </section>
@@ -123,14 +218,11 @@ const PanelMega = ({ onNavigate }: PanelMegaProps) => {
       </header>
       <div className="mx-6 border-t border-[#e9ecef]" />
 
-      <div className="flex-1 overflow-y-auto px-6 py-5">
+      <div className="flex-1 overflow-y-auto bg-[#f8f9fb] px-6 py-5">
         {hasResults ? (
-          <div>
-            {visibleConfigs.map((config, idx) => (
-              <div key={config.appId}>
-                {idx > 0 && <Separator className="my-8" />}
-                <AppSection config={config} query={search} onNavigate={onNavigate} />
-              </div>
+          <div className="space-y-6">
+            {visibleConfigs.map((config) => (
+              <RemoteSitemap key={config.appId} config={config} query={search} onNavigate={onNavigate} />
             ))}
           </div>
         ) : (

@@ -236,7 +236,7 @@ function CustomerBubble({
   // Entity Tag: 암호화 시 암호문 대신 태그 표시
   const lockedText = item.entityTag ? `🏷️ ${item.entityTag}` : '🔒 암호화된 내용';
   const isUnrecognized = !item.encrypted && !isFailed && item.description == null && item.dialogRole === 'CUSTOMER';
-  const text = isLocked ? lockedText : (revealed ?? item.description ?? (isFailed ? '인식 실패' : isUnrecognized ? '(발화 미인식)' : item.typeName));
+  const text = isLocked ? lockedText : (revealed ?? item.description ?? (isFailed ? '인식 실패' : isUnrecognized ? '' : item.typeName));
   const isRight = !botRight;
 
   // STT(emerald) vs DTMF(violet) 컬러 테마
@@ -320,6 +320,7 @@ function CustomerBubble({
               {isAudioPlaying && <NowPlayingIndicator color={colors.indicator} />}
             </>
           )}
+          {isFailed && <span className="text-[10px] font-medium text-red-500 bg-red-50 px-1.5 py-0.5 rounded">인식 실패</span>}
         </div>
         <div
           className={cn(
@@ -348,7 +349,7 @@ function CustomerBubble({
           ) : wasDecrypted ? (
             <div className="flex items-start gap-1.5">
               {isMaskedAfterDecrypt ? <EyeOff size={12} className="text-amber-600 shrink-0 mt-0.5" /> : <LockOpen size={12} className="text-amber-600 shrink-0 mt-0.5" />}
-              <p className="text-[13px] text-amber-800 leading-relaxed font-medium break-all whitespace-pre-wrap">{displayText}</p>
+              <p className="text-[13px] text-amber-800 leading-relaxed font-medium break-all whitespace-pre-wrap min-h-5">{displayText}</p>
             </div>
           ) : isMaskedOnly ? (
             <div className="flex items-start gap-1.5">
@@ -359,7 +360,7 @@ function CustomerBubble({
             <p
               className={cn(
                 'text-[13px] leading-relaxed break-all whitespace-pre-wrap',
-                isFailed ? 'text-slate-400 italic' : isUnrecognized ? 'text-slate-400 italic' : 'text-slate-700',
+                isFailed ? 'text-slate-400 italic' : isUnrecognized ? 'text-slate-400 italic min-h-5' : 'text-slate-700',
               )}
             >
               {text}

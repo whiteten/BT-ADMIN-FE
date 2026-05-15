@@ -816,12 +816,17 @@ const BotDialogHistoryDrawer = forwardRef<BotDialogHistoryDrawerRef>((_, ref) =>
   // 암호화 버블 복호화 mutation — 캐시하지 않고 결과만 state에 병합
   const decryptMutation = useDecryptBubbles({
     mutationOptions: {
-      onSuccess: (decrypted) => {
-        if (!decrypted || decrypted.length === 0) return;
+      onSuccess: (decrypted, variables) => {
+        const requested = variables?.data?.bubbleKeys ?? [];
         setRevealedBubbles((prev) => {
           const next = { ...prev };
-          for (const row of decrypted) {
+          for (const row of decrypted ?? []) {
             next[row.bubbleKey] = row.description;
+          }
+          // 응답에 없는 요청 키는 빈 값 처리: BE에서 cipher 없거나 빈 케이스
+          // (잠금 상태가 풀리고 빈 본문 + '인식 실패' 배지로 표시되도록)
+          for (const key of requested) {
+            if (!(key in next)) next[key] = '';
           }
           return next;
         });

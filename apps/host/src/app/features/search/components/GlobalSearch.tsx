@@ -1,12 +1,13 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { Command as CommandPrimitive } from 'cmdk';
+import { debounce } from 'lodash';
 import { BookOpen, ChevronRight, Loader2, Search } from 'lucide-react';
 import { useMenuStore } from '@/shared-store';
 import { useSearchMenus } from '../hooks/useSearchQueries';
 import type { DocSearchResult, MenuSearchResult } from '../types/search';
 import { Badge } from '@/components/ui/badge';
-import { Button } from '@/components/ui/button';
-import { Command, CommandGroup, CommandInput, CommandItem, CommandList, CommandSeparator } from '@/components/ui/command';
+import { Command, CommandGroup, CommandItem, CommandList, CommandSeparator } from '@/components/ui/command';
 import { Popover, PopoverAnchor, PopoverContent } from '@/components/ui/popover';
 import type { MenuConfig, MenuItem } from '@/libs/shared-store/src/types/menu.types';
 
@@ -35,24 +36,25 @@ export default function GlobalSearch() {
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState('');
   const [debouncedQuery, setDebouncedQuery] = useState('');
+  const [debouncedSetQuery] = useState(() => debounce((value: string) => setDebouncedQuery(value), 300));
+  const anchorRef = useRef<HTMLDivElement>(null);
   const navigate = useNavigate();
   const { menuConfigs } = useMenuStore();
 
-  useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if ((e.ctrlKey || e.metaKey) && e.key === 'k') {
-        e.preventDefault();
-        setOpen((prev) => !prev);
-      }
-    };
-    document.addEventListener('keydown', handleKeyDown);
-    return () => document.removeEventListener('keydown', handleKeyDown);
-  }, []);
+  const handleQueryChange = (value: string) => {
+    setQuery(value);
+    const trimmed = value.trim();
+    if (trimmed.length === 0) {
+      debouncedSetQuery.cancel();
+      setDebouncedQuery('');
+      return;
+    }
+    debouncedSetQuery(trimmed);
+  };
 
   useEffect(() => {
-    const timer = setTimeout(() => setDebouncedQuery(query.trim()), 300);
-    return () => clearTimeout(timer);
-  }, [query]);
+    return () => debouncedSetQuery.cancel();
+  }, [debouncedSetQuery]);
 
   const { data, isFetching } = useSearchMenus({
     params: { q: debouncedQuery, limit: 20 },
@@ -94,34 +96,33 @@ export default function GlobalSearch() {
 
   return (
     <Popover open={open} onOpenChange={handleOpenChange}>
-      <PopoverAnchor asChild>
-        <Button
-          variant="outline"
-          className="relative h-10 w-full justify-start gap-3 rounded-full text-sm text-white/80 font-normal pl-5 pr-3 border-white/20 bg-white/15 hover:bg-white/25 hover:border-white/40 hover:text-white hover:cursor-pointer shadow-[0_2px_8px_rgba(0,0,0,0.08)] transition-all duration-200 group"
-          onClick={() => setOpen(true)}
-        >
-          <Search className="h-4 w-4 shrink-0 text-white/70 group-hover:text-white transition-colors" />
-          <span className="flex-1 text-left">통합 검색</span>
-          <kbd className="hidden sm:inline-flex items-center gap-0.5 rounded-md border border-white/30 bg-white/10 px-1.5 py-0.5 text-[10px] font-mono text-white/80 shadow-none">
-            Ctrl+K
-          </kbd>
-        </Button>
-      </PopoverAnchor>
-      <PopoverContent
-        className="w-[560px] p-0 overflow-hidden rounded-2xl shadow-[0_20px_60px_-12px_rgba(0,0,0,0.25)] border border-border/40"
-        align="center"
-        sideOffset={10}
-        onOpenAutoFocus={(e) => {
-          e.preventDefault();
-          (e.currentTarget as HTMLElement | null)?.querySelector<HTMLInputElement>('[data-slot="command-input"]')?.focus();
-        }}
-      >
-        <Command shouldFilter={false} className="rounded-2xl">
-          <div className="relative border-b border-border/40">
-            <CommandInput placeholder="메뉴, 기능, 문서 검색..." value={query} onValueChange={setQuery} className="h-14 text-base px-5 placeholder:text-muted-foreground/50" />
-            {isLoading && debouncedQuery.length > 0 && <Loader2 className="absolute right-5 top-1/2 -translate-y-1/2 h-4 w-4 animate-spin text-muted-foreground/60" />}
+      <Command shouldFilter={false} className="bg-transparent overflow-visible">
+        <PopoverAnchor asChild>
+          <div
+            ref={anchorRef}
+            className="relative h-10 w-full flex items-center gap-3 rounded-full pl-5 pr-3 border border-white/20 bg-white/15 hover:bg-white/25 hover:border-white/40 focus-within:bg-white/25 focus-within:border-white/40 shadow-[0_2px_8px_rgba(0,0,0,0.08)] transition-all duration-200 group"
+          >
+            <Search className="h-4 w-4 shrink-0 text-white/70 group-hover:text-white group-focus-within:text-white transition-colors" />
+            <CommandPrimitive.Input
+              value={query}
+              onValueChange={handleQueryChange}
+              onFocus={() => setOpen(true)}
+              placeholder="통합 검색"
+              className="flex-1 bg-transparent outline-none text-sm text-white placeholder:text-white/60"
+            />
+            {isLoading && debouncedQuery.length > 0 && <Loader2 className="h-4 w-4 shrink-0 animate-spin text-white/70" />}
           </div>
-
+        </PopoverAnchor>
+        <PopoverContent
+          className="w-[560px] p-0 overflow-hidden rounded-2xl shadow-[0_20px_60px_-12px_rgba(0,0,0,0.25)] border border-border/40"
+          align="center"
+          sideOffset={10}
+          onOpenAutoFocus={(e) => e.preventDefault()}
+          onCloseAutoFocus={(e) => e.preventDefault()}
+          onInteractOutside={(e) => {
+            if (anchorRef.current?.contains(e.target as Node)) e.preventDefault();
+          }}
+        >
           <CommandList className="max-h-[520px] overflow-y-auto">
             {debouncedQuery.length === 0 && (
               <div className="flex flex-col items-center justify-center py-14 gap-3">
@@ -131,13 +132,21 @@ export default function GlobalSearch() {
                 <p className="text-sm text-muted-foreground/60">검색어를 입력하세요</p>
               </div>
             )}
+            {debouncedQuery.length > 0 && isLoading && !hasResults && (
+              <div className="flex flex-col items-center justify-center py-14 gap-3">
+                <div className="flex items-center justify-center w-12 h-12 rounded-2xl bg-muted/60">
+                  <Loader2 className="h-5 w-5 text-muted-foreground/40 animate-spin" />
+                </div>
+                <p className="text-sm text-muted-foreground/60">검색중</p>
+              </div>
+            )}
             {showEmpty && (
               <div className="flex flex-col items-center justify-center py-14 gap-3">
                 <div className="flex items-center justify-center w-12 h-12 rounded-2xl bg-muted/60">
                   <Search className="h-5 w-5 text-muted-foreground/40" />
                 </div>
                 <p className="text-sm text-muted-foreground/60">
-                  <span className="font-medium text-foreground/70">"{debouncedQuery}"</span>에 대한 결과가 없습니다
+                  <span className="font-medium text-foreground/70">{`"${debouncedQuery}"`}</span>에 대한 결과가 없습니다
                 </p>
               </div>
             )}
@@ -258,8 +267,8 @@ export default function GlobalSearch() {
             </div>
             {hasResults && <span className="text-[11px] text-muted-foreground/40 tabular-nums">총 {menus.length + docs.length}건</span>}
           </div>
-        </Command>
-      </PopoverContent>
+        </PopoverContent>
+      </Command>
     </Popover>
   );
 }

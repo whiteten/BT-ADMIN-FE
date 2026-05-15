@@ -49,7 +49,7 @@ export const BookmarkButton = React.memo(({ menuKey, label, path, appId, disable
       size="icon"
       className={cn(
         'h-8 w-8 cursor-pointer hover:bg-transparent',
-        isBookmarked ? 'text-[var(--color-bt-primary)]' : 'text-[#495057] hover:text-[var(--color-bt-primary)] disabled:hover:text-[#495057]',
+        isBookmarked ? 'text-[var(--color-bt-primary)] hover:text-[var(--color-bt-primary)]' : 'text-[#495057] hover:text-[var(--color-bt-primary)] disabled:hover:text-[#495057]',
       )}
       onClick={handleToggleBookmark}
       disabled={isCreating || isDeleting || disabled}
