@@ -179,8 +179,9 @@ export default function ModelKeywordList() {
             Import
           </Button>
           <Dropdown menu={exportMenu} trigger={['click']} placement="bottomRight">
-            <Button color="cyan" variant="solid" loading={isExporting} icon={<ChevronDown className="size-4" />} iconPlacement="end">
+            <Button color="cyan" variant="solid" loading={isExporting} icon={<Download className="size-4" />}>
               Export
+              <ChevronDown className="size-4" />
             </Button>
           </Dropdown>
           <Button variant="solid" color="primary" onClick={() => drawerRef.current?.open({ modelId })}>
