@@ -1,5 +1,5 @@
 import { useNavigate } from 'react-router-dom';
-import { ChevronUp } from 'lucide-react';
+import { Maximize2 } from 'lucide-react';
 import { useLayoutStore } from './hooks/useLayoutStore';
 import UserMenuSelector from '../../components/UserMenuSelector';
 import GlobalSearch from '../search/components/GlobalSearch';
@@ -33,7 +33,7 @@ export default function TopHeader() {
           aria-label="헤더 접기"
           title="헤더 접기"
         >
-          <ChevronUp className="size-4" />
+          <Maximize2 className="size-4" />
         </button>
       </div>
     </div>
