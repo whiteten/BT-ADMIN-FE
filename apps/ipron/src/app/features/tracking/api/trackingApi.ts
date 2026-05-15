@@ -30,6 +30,145 @@ import type {
 
 const apiClient = new ApiClient({ serviceURL: '/bff' });
 
+// ─── Backend CallDetail (평면) → FE {header, segments} 변환 ─────────────────
+
+interface BackendCallFlowSegment {
+  segmentType: 'IE' | 'IR' | 'IC_QUEUE' | 'IC_AGENT' | 'IC_ROUTING' | string;
+  hop: number | null;
+  cdrPkey: number | null;
+  parentId: number | null;
+  systemId: number | null;
+  systemName: string | null;
+  nodeId: number | null;
+  nodeName: string | null;
+  tenantId: number | null;
+  queueId: number | null;
+  queueName: string | null;
+  agentId: number | null;
+  agentName: string | null;
+  serviceName: string | null;
+  startTime: string | null;
+  endTime: string | null;
+  durationSec: number | null;
+  endReason: string | null;
+  oName: string | null;
+  tName: string | null;
+}
+
+interface BackendCallDetail {
+  ucid: string;
+  ani: string | null;
+  dnis: string | null;
+  startTime: string | null;
+  endTime: string | null;
+  totalDurationSec: number | null;
+  overallResult: string | null;
+  tenantId: number | null;
+  tenantName: string | null;
+  segments: BackendCallFlowSegment[];
+}
+
+function emptyHeader(ucid: string): CallDetailHeader {
+  return {
+    ucid,
+    startTime: '',
+    endTime: null,
+    durationSec: null,
+    ani: null,
+    aniMasked: false,
+    dnis: null,
+    agentId: null,
+    agentName: null,
+    queueName: null,
+    result: null,
+    resultLabel: null,
+    tenantId: null,
+    tenantName: null,
+    nodeId: null,
+    nodeName: null,
+    transferCount: 0,
+    unmaskAvailable: false,
+  };
+}
+
+/** segmentType + hop 조합으로 FE kind 매핑. IE 는 hop 0 = INBOUND, 그 외 = OTHER (PBX 단일 segment 시 fallback). */
+function mapSegmentKind(segmentType: string, hop: number | null): CallSegment['kind'] {
+  switch (segmentType) {
+    case 'IR':
+      return 'IVR';
+    case 'IC_QUEUE':
+    case 'IC_ROUTING':
+      return 'CTI';
+    case 'IC_AGENT':
+      return 'AGENT';
+    case 'IE':
+      return hop === 0 ? 'INBOUND' : 'OTHER';
+    default:
+      return 'OTHER';
+  }
+}
+
+function segmentLabel(seg: BackendCallFlowSegment, kind: CallSegment['kind']): string {
+  if (kind === 'IVR' && seg.serviceName) return `IVR · ${seg.serviceName}`;
+  if (kind === 'CTI' && seg.queueName) return `큐 · ${seg.queueName}`;
+  if (kind === 'AGENT' && seg.agentName) return `상담사 · ${seg.agentName}`;
+  if (kind === 'INBOUND') return `인입 · ${seg.tName ?? seg.oName ?? `hop ${seg.hop ?? 0}`}`;
+  return seg.tName ?? seg.oName ?? `hop ${seg.hop ?? '?'}`;
+}
+
+function mapCallDetail(raw: BackendCallDetail): { header: CallDetailHeader; segments: CallSegment[] } {
+  const aniMasked = /\*/.test(raw.ani ?? '');
+  const segments: CallSegment[] = (raw.segments ?? []).map((s, idx) => {
+    const kind = mapSegmentKind(s.segmentType, s.hop);
+    return {
+      segmentId: `${s.segmentType}-${s.hop ?? idx}-${s.cdrPkey ?? idx}`,
+      kind,
+      startTime: s.startTime ?? raw.startTime ?? '',
+      endTime: s.endTime,
+      durationSec: s.durationSec,
+      label: segmentLabel(s, kind),
+      meta: {
+        queueId: s.queueId,
+        queueName: s.queueName,
+        agentId: s.agentId,
+        agentName: s.agentName,
+        nodeId: s.nodeId,
+        nodeName: s.nodeName,
+        serviceName: s.serviceName,
+        endReason: s.endReason,
+      },
+      isError: false,
+    };
+  });
+
+  // 헤더 — agent/queue 가 segments 에서 가장 먼저 발견되는 것 사용
+  const firstAgent = (raw.segments ?? []).find((s) => s.agentName || s.agentId != null);
+  const firstQueue = (raw.segments ?? []).find((s) => s.queueName || s.queueId != null);
+
+  const header: CallDetailHeader = {
+    ucid: raw.ucid,
+    startTime: raw.startTime ?? '',
+    endTime: raw.endTime,
+    durationSec: raw.totalDurationSec,
+    ani: raw.ani,
+    aniMasked,
+    dnis: raw.dnis,
+    agentId: firstAgent?.agentId != null ? String(firstAgent.agentId) : null,
+    agentName: firstAgent?.agentName ?? null,
+    queueName: firstQueue?.queueName ?? null,
+    result: (raw.overallResult as CallDetailHeader['result']) ?? null,
+    resultLabel: raw.overallResult ?? null,
+    tenantId: raw.tenantId,
+    tenantName: raw.tenantName,
+    nodeId: raw.segments?.[0]?.nodeId ?? null,
+    nodeName: raw.segments?.[0]?.nodeName ?? null,
+    transferCount: 0,
+    unmaskAvailable: aniMasked,
+  };
+
+  return { header, segments };
+}
+
 /** ISO String("…Z" 또는 ms 포함)을 Java LocalDateTime 호환 형식으로 변환. */
 function toLocalDateTime(s: string | null | undefined): string | null {
   if (!s) return null;
@@ -70,27 +209,34 @@ export const trackingApi = {
   // ─── Search ───────────────────────────────────────────────────────────────
 
   /**
-   * 콜 검색.
-   * Backend: ApiResponse<PagedResponse<CallSearchResult>> -> BFF: data.items[] -> extractList
+   * 콜 검색 — 백엔드 페이징 응답 그대로 반환.
+   * Backend: ApiResponse<PagedResponse<CallSearchResult>> -> BFF: data:{items, page, size, total}
    * @flow ipron-tracking-search
    */
-  search: async (criteria: TrackingSearchCriteria): Promise<CallSearchResult[]> => {
-    const response = await apiClient.post<ListResponse<CallSearchResult>>('/ipron-tracking-search', toSearchRequest(criteria));
-    return extractList(response);
+  search: async (criteria: TrackingSearchCriteria): Promise<{ items: CallSearchResult[]; page: number; size: number; total: number }> => {
+    const response = await apiClient.post<DetailResponse<{ items: CallSearchResult[]; page: number; size: number; total: number }>>(
+      '/ipron-tracking-search',
+      toSearchRequest(criteria),
+    );
+    const data = extractDetail(response);
+    return data ?? { items: [], page: 0, size: 0, total: 0 };
   },
 
   // ─── Detail (헤더 + segment) ──────────────────────────────────────────────
 
   /**
    * 콜 상세 헤더 + segment 목록.
-   * Backend: ApiResponse<{ header, segments }> -> BFF: data:{...} -> extractDetail
+   * Backend(CallDetail): 평면 {ucid, ani, dnis, startTime, endTime, totalDurationSec, ..., segments[{segmentType, hop, ...}]}
+   * FE 가 기대하는 nested {header, segments} 로 변환 + segmentType('IE'|'IR'|'IC_*') → kind ('INBOUND'|'IVR'|'CTI'|'AGENT'|...) 매핑.
    * @flow ipron-tracking-detail
    */
   getDetail: async (ucid: string): Promise<{ header: CallDetailHeader; segments: CallSegment[] }> => {
-    const response = await apiClient.get<DetailResponse<{ header: CallDetailHeader; segments: CallSegment[] }>>('/ipron-tracking-detail', {
+    const response = await apiClient.get<DetailResponse<BackendCallDetail>>('/ipron-tracking-detail', {
       params: { ucid },
     });
-    return extractDetail(response);
+    const raw = extractDetail(response);
+    if (!raw) return { header: emptyHeader(ucid), segments: [] };
+    return mapCallDetail(raw);
   },
 
   /**

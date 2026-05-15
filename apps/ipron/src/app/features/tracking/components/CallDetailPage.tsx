@@ -73,7 +73,16 @@ export default function CallDetailPage() {
   // 상세 + 부속 데이터
   const detailQ = useGetTrackingDetail(ucid);
   const ivrQ = useGetIvrSteps(ucid);
-  const ctiQ = useGetCtiRouting(ucid, selectedSegmentId);
+  // CTI route는 segmentId 가 'IR-{hop}-{cdrPkey}' 형식일 때만 hop 추출 (IR segment 만 CTI 라우팅 정보 보유).
+  // IE segment 클릭 시 호출 자체 skip.
+  const ctiNexthop = useMemo(() => {
+    if (!selectedSegmentId) return null;
+    const parts = selectedSegmentId.split('-');
+    if (parts.length < 2 || parts[0] !== 'IR') return null;
+    const hop = Number(parts[1]);
+    return Number.isFinite(hop) ? String(hop) : null;
+  }, [selectedSegmentId]);
+  const ctiQ = useGetCtiRouting(ucid, ctiNexthop);
   const agentQ = useGetAgentEvents(ucid);
 
   const breadcrumb = useMemo(
@@ -125,7 +134,7 @@ export default function CallDetailPage() {
       <div className="flex flex-col gap-4 w-full h-full">
         <div className="bg-white bt-shadow rounded-md border border-gray-200 p-8 text-center">
           <div className="text-[14px] text-red-600 mb-3">콜 상세 정보를 불러올 수 없습니다.</div>
-          <Button onClick={() => navigate('/tracking')}>← 검색으로 돌아가기</Button>
+          <Button onClick={() => navigate('/ipron/tracking')}>← 검색으로 돌아가기</Button>
         </div>
       </div>
     );
@@ -136,7 +145,7 @@ export default function CallDetailPage() {
       <div className="flex flex-1 min-h-0 flex-col gap-4">
         {/* 뒤로가기 + 헤더 */}
         <div className="flex items-center gap-2 flex-shrink-0">
-          <Button size="small" icon={<ChevronLeft className="size-3.5" />} onClick={() => navigate('/tracking')}>
+          <Button size="small" icon={<ChevronLeft className="size-3.5" />} onClick={() => navigate('/ipron/tracking')}>
             검색으로
           </Button>
         </div>

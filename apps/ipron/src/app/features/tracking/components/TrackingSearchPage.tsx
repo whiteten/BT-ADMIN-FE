@@ -23,7 +23,7 @@ import { useSearchTracking } from '../hooks/useTrackingQueries';
 import type { CallSearchResult, DateRangePreset, RecentSearch, TrackingMode, TrackingSearchCriteria } from '../types/tracking.types';
 import { criteriaToString, parseSearchSyntax, presetToRange, validateCriteria } from '../utils/searchSyntax';
 
-const MINUTE_STEP = 10;
+const MINUTE_STEP = 1;
 
 const breadcrumb = [
   { title: 'IPRON', path: '/ipron' },
@@ -169,9 +169,10 @@ export default function TrackingSearchPage() {
     return () => window.removeEventListener('keydown', handler);
   }, []);
 
-  // ─── Search ────────────────────────────────────────────────────────────────
+  // ─── Search (ag-Grid clientSide row model + 한 번에 최대 10,000건) ────────
   const search = useSearchTracking();
-  const rows: CallSearchResult[] = search.data ?? [];
+  const rows: CallSearchResult[] = search.data?.items ?? [];
+  const totalCount = search.data?.total ?? 0;
 
   const buildCriteria = useCallback(
     (rawInput: string, presetOverride?: DateRangePreset, customOverride?: [Dayjs, Dayjs] | null): TrackingSearchCriteria | { error: string } => {
@@ -217,14 +218,14 @@ export default function TrackingSearchPage() {
         reqAgent: quickReqAgent || null,
         ivrSelfServiced: quickIvrSelf || null,
         page: 0,
-        size: 100,
+        size: 10000, // 한 번에 최대 1만건 받음 (그 이상은 기간을 좁혀야 함)
       };
 
       const err = validateCriteria(criteria);
       if (err) return { error: err };
       return criteria;
     },
-    [activePreset, customRange, mode],
+    [activePreset, customRange, mode, quickAbandoned, quickReqAgent, quickIvrSelf],
   );
 
   const persistRecent = useCallback((rawInput: string, criteria: TrackingSearchCriteria, count: number) => {
@@ -253,8 +254,11 @@ export default function TrackingSearchPage() {
       search.mutate(built, {
         onSuccess: (data) => {
           setHasSearched(true);
-          setQuickOpen(false); // 검색 직후 빠른조회 접어서 결과 그리드 영역 확장
-          persistRecent(rawInput || criteriaToString(built, presetOverride ?? activePreset), built, data.length);
+          setQuickOpen(false);
+          if (data.total >= 10000) {
+            toast.warning('결과가 1만건을 초과합니다. 기간을 줄여 다시 검색하세요. (현재 1만건만 표시)');
+          }
+          persistRecent(rawInput || criteriaToString(built, presetOverride ?? activePreset), built, data.total);
         },
         onError: (err: unknown) => {
           const m = err instanceof Error ? err.message : '검색 중 오류가 발생했습니다';
@@ -297,7 +301,7 @@ export default function TrackingSearchPage() {
 
   const handleRowDoubleClick = useCallback(
     (row: CallSearchResult) => {
-      navigate(`/tracking/call/${encodeURIComponent(row.ucid)}`);
+      navigate(`/ipron/tracking/call/${encodeURIComponent(row.ucid)}`);
     },
     [navigate],
   );
@@ -497,7 +501,7 @@ export default function TrackingSearchPage() {
                 className="flex-1"
                 style={{ height: 40, fontFamily: rawQuery ? 'monospace' : undefined, fontSize: 12 }}
               />
-              <Button type="primary" icon={<Search className="size-3.5" />} onClick={handleSearchClick} loading={search.isPending}>
+              <Button type="primary" icon={<Search className="size-3.5" />} onClick={handleSearchClick}>
                 검색
               </Button>
             </div>
@@ -683,7 +687,7 @@ export default function TrackingSearchPage() {
               <div className="flex items-center gap-3">
                 <h2 className="text-[13px] font-semibold text-gray-700">{mode === 'PBX' ? '교환기 CDR 정보' : '검색 결과'}</h2>
                 <span className="text-[11px] text-gray-500">
-                  {rows.length}건 · 모드 {modeLabel}
+                  총 {totalCount.toLocaleString()}건 · 모드 {modeLabel}
                 </span>
               </div>
               <div className="flex items-center gap-2">
