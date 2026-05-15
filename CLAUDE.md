@@ -124,6 +124,17 @@ pnpm run create-remote
 # Module Federation 설정, 라우팅 등록 등 추가 로직 포함 — 수동 생성 시 정상 동작하지 않을 수 있음
 ```
 
+#### 생성 후 수동 단계 — remote 앱 뱃지 아이콘
+
+`create-remote`는 사이드바 좌측 60px 컬럼([PanelAppBadgeStrip.tsx](apps/host/src/app/features/layout/panel/PanelAppBadgeStrip.tsx))의 remote 뱃지 아이콘은 자동 처리하지 않습니다. 미등록 시 lucide `SquareDashed` placeholder가 fallback으로 표시되므로, 신규 remote가 정식 출시되기 전 다음 절차로 교체해야 합니다.
+
+1. **디자인팀에 의뢰**해 제품 컨셉에 맞는 SVG를 받습니다. 기존 자산(`icon-remote-fca.svg`, `icon-remote-ipron.svg`)과 동일한 스펙(단색·여백·viewBox)을 가이드로 첨부할 것.
+2. 받은 파일을 [libs/shared-ui/src/assets/images/icon/](libs/shared-ui/src/assets/images/icon/)에 `icon-remote-<appId>.svg`로 저장. `<appId>`는 `create-remote`로 입력한 kebab-case 앱 이름과 일치해야 합니다.
+3. [libs/shared-ui/src/components/custom/Icons.tsx](libs/shared-ui/src/components/custom/Icons.tsx)에 기존 `IconRemoteFca`·`IconRemoteIpron` export와 동일한 패턴으로 `IconRemote<AppId>` 한 줄 추가.
+4. [PanelAppBadgeStrip.tsx](apps/host/src/app/features/layout/panel/PanelAppBadgeStrip.tsx)의 `APP_BADGE_ICONS` 객체에 `<appId>: IconRemote<AppId>` 항목 추가. 키는 remote `appId`(kebab-case 그대로), 값은 3번에서 export한 컴포넌트.
+
+> 메뉴 트리 항목별 아이콘(`menuIconRegistry`)과는 별개 자산이므로 혼동하지 마세요. 상세 절차·주의사항은 [DEVELOPER_GUIDE.md](doc/DEVELOPER_GUIDE.md)의 "수동 단계 — remote 앱 뱃지 아이콘 추가" 섹션 참조.
+
 ## 기술 스택
 
 ### 핵심 기술

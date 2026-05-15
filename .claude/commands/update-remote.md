@@ -1,5 +1,5 @@
 ---
-description: 기존 remote 앱을 점검해 create-remote.js 기준으로 누락된 파일·구문을 보강하고 menu-config 잔재를 제거
+description: 기존 remote 앱을 점검해 create-remote.js 기준으로 누락된 파일·구문을 보강하고 menu-config 잔재 제거 및 뱃지 아이콘 등록 누락을 점검
 argument-hint: [remote-name]
 allowed-tools: Read, Write, Edit, Glob, Grep, Bash, AskUserQuestion, TodoWrite
 ---
@@ -101,6 +101,31 @@ allowed-tools: Read, Write, Edit, Glob, Grep, Bash, AskUserQuestion, TodoWrite
 
 > PageHeader 잔재는 코드만 정리한다. README 등 문서에 언급이 남아있어도 **실제 코드만 마이그레이션하고 문서 수정은 이 커맨드의 범위가 아니다**.
 
+### 3-3. remote 앱 뱃지 아이콘 등록 점검
+
+사이드바 좌측 60px 컬럼([PanelAppBadgeStrip.tsx](../../apps/host/src/app/features/layout/panel/PanelAppBadgeStrip.tsx))의 remote 뱃지 아이콘은 `create-remote.js`가 자동 처리하지 않는다. 미등록 상태면 lucide `SquareDashed` placeholder가 fallback으로 표시되므로, 신규 remote가 정식 출시되기 전 다음 3개 항목이 모두 갖춰져야 한다(상세 절차: [CLAUDE.md "생성 후 수동 단계 — remote 앱 뱃지 아이콘"](../../CLAUDE.md), [DEVELOPER_GUIDE.md "수동 단계 — remote 앱 뱃지 아이콘 추가"](../../doc/DEVELOPER_GUIDE.md)).
+
+세 항목을 차례대로 점검한다:
+
+| # | 점검 대상 | 점검 방법 |
+|---|----------|----------|
+| ① | SVG 자산 | `libs/shared-ui/src/assets/images/icon/icon-remote-<APP_NAME>.svg` 파일 존재 여부 |
+| ② | Icons.tsx export | `libs/shared-ui/src/components/custom/Icons.tsx`에 `IconRemote<COMPONENT_NAME>` export 라인 존재 여부 (`Grep`으로 확인) |
+| ③ | PanelAppBadgeStrip 매핑 | `apps/host/src/app/features/layout/panel/PanelAppBadgeStrip.tsx`의 `APP_BADGE_ICONS` 객체에 `<APP_NAME>:` 키 존재 여부 |
+
+상태별 처리:
+
+- **① 누락** — SVG는 디자인팀에 의뢰해야 하므로 커맨드가 자동 처리할 수 없다. 보고 표에 "디자인팀 의뢰 필요"로 남기고 ②·③은 **자동 처리하지 않는다**(SVG 없이 export·매핑만 추가하면 빌드 실패). 사용자에게 다음 안내문구를 출력한다:
+  > ⚠️ `<APP_NAME>` remote의 뱃지 아이콘 SVG가 없습니다. 디자인팀에 제품 컨셉에 맞는 아이콘을 의뢰하세요. 기존 자산(`icon-remote-fca.svg`, `icon-remote-ipron.svg`)과 동일한 스펙(단색·여백·viewBox)을 가이드로 첨부할 것. 받은 파일을 `libs/shared-ui/src/assets/images/icon/icon-remote-<APP_NAME>.svg`로 저장한 뒤 `/update-remote <APP_NAME>`을 다시 실행하면 export·매핑은 자동으로 추가됩니다.
+- **① 존재, ② 누락** — Icons.tsx 하단 `IconRemoteFca`/`IconRemoteIpron` export 옆에 동일 패턴으로 한 줄 추가:
+  ```ts
+  export { ReactComponent as IconRemote<COMPONENT_NAME> } from '../../assets/images/icon/icon-remote-<APP_NAME>.svg';
+  ```
+- **①·② 존재, ③ 누락** — PanelAppBadgeStrip.tsx의 import에 `IconRemote<COMPONENT_NAME>` 추가하고, `APP_BADGE_ICONS` 객체에 `<APP_NAME>: IconRemote<COMPONENT_NAME>,` 항목 추가.
+- **세 항목 모두 존재** — 스킵.
+
+> menu-config 잔재나 PageHeader 마이그레이션과 달리 이 항목은 디자인 자산 의존성이 있어 자동 완료가 보장되지 않는다. 보고 시 ① 누락 케이스는 **반드시 별도 경고 블록으로 강조**해 사용자가 디자인 의뢰 단계를 놓치지 않게 한다.
+
 ## 4. tsconfig.base.json 정리
 
 `compilerOptions.paths`에 `<APP_NAME>/Module` 키가 남아있으면 제거한다. (create-remote.js의 `removeTsConfigPath` 참조.) 제거 후 `npx prettier --write tsconfig.base.json` 실행.
@@ -113,6 +138,7 @@ allowed-tools: Read, Write, Edit, Glob, Grep, Bash, AskUserQuestion, TodoWrite
   - 수정된 파일 (어떤 라인이 추가/치환됐는지 한 줄 요약)
   - 삭제된 파일
   - 스킵된 항목 (사용자 코드 보존)
+  - **디자인 자산 의뢰 필요** (3-3에서 뱃지 아이콘 SVG가 누락된 경우 — 별도 경고 블록으로 강조)
 
 ## 안전 장치
 
