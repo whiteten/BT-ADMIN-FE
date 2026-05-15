@@ -2,7 +2,14 @@ import { useMutation, useQuery } from '@tanstack/react-query';
 import { createQueryKeys } from '@lukemorales/query-key-factory';
 import type { MutationHookOptions, QueryHookWithParamsOptions } from '@/shared-util';
 import { trainingApi } from '../api/trainingApi';
-import type { ConfidenceTrainingItem, ConfidenceTrainingSearchParams, TuningSentenceCreateDatas, TuningSentenceItem, TuningSentenceSearchParams } from '../types';
+import type {
+  ConfidenceTrainingItem,
+  ConfidenceTrainingSearchParams,
+  TuningSentenceCreateDatas,
+  TuningSentenceItem,
+  TuningSentenceSearchParams,
+  TuningSentenceUpdateDatas,
+} from '../types';
 
 export const trainingQueryKeys = createQueryKeys('training', {
   getTrainingList: (params?: ConfidenceTrainingSearchParams) => [params],
@@ -42,6 +49,13 @@ export const useDeleteTuningSentence = ({ mutationOptions }: MutationHookOptions
 export const useUpdateTunningKind = ({ mutationOptions }: MutationHookOptions<unknown, { tunningKind: string; ucidGkey: string; armsoffset: number; rxtxKind: string }> = {}) => {
   return useMutation({
     mutationFn: trainingApi.updateTunningKind,
+    ...mutationOptions,
+  });
+};
+
+export const useUpdateTuningSentence = ({ mutationOptions }: MutationHookOptions<unknown, TuningSentenceUpdateDatas> = {}) => {
+  return useMutation({
+    mutationFn: trainingApi.updateTuningSentence,
     ...mutationOptions,
   });
 };

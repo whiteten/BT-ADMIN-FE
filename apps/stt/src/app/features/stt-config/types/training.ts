@@ -36,6 +36,14 @@ export interface TuningSentenceCreateDatas {
   engineCode?: string;
 }
 
+export interface TuningSentenceUpdateDatas {
+  ucidGkey: string;
+  armsoffset: number;
+  rxtxKind: string;
+  trString: string;
+  engineCode: string;
+}
+
 // 문자수정
 export interface TuningSentenceSearchParams {
   fromDate?: string; // YYYYMMDD

@@ -90,7 +90,7 @@ export const searchApi = {
     return extractList(response);
   },
   getSttSearchListen: async (params?: SttSearchListenParams): Promise<SttSearchListenParsed> => {
-    const response = await apiClient.post<ArrayBuffer>('/stt-search-listen', params, { responseType: 'arraybuffer' });
+    const response = await apiClient.post<ArrayBuffer>('/stt-search-listen', params, { responseType: 'arraybuffer', silent: true });
     const buffer = response.data as ArrayBuffer;
     const contentType = (response.headers as Record<string, string>)['content-type'] ?? '';
     return parseMultipartMixed(buffer, contentType);

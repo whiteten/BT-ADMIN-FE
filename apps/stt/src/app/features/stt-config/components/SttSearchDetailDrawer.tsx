@@ -1,11 +1,27 @@
 import { forwardRef, useEffect, useImperativeHandle, useRef, useState } from 'react';
 import { Descriptions, Drawer, Empty, Select, Spin } from 'antd';
+import type { AxiosError } from 'axios';
 import dayjs from 'dayjs';
 import { Headphones, User } from 'lucide-react';
+import { toast } from '@/shared-util';
 import { useGetSttResultSentence, useGetSttSearchListen } from '../hooks/useSearchQueries';
 import type { SttResultSentenceItem, SttSearchItem, SttSearchListenParams } from '../types';
 import SttAudioPlayer, { type SttAudioPlayerRef } from './SttAudioPlayer';
 import { cn } from '@/lib/utils';
+
+function getListenErrorMessage(error: Error): string {
+  const buffer = (error as AxiosError<ArrayBuffer>).response?.data;
+  if (buffer instanceof ArrayBuffer) {
+    try {
+      const text = new TextDecoder().decode(buffer);
+      const json = JSON.parse(text) as { message?: string };
+      if (json.message) return json.message;
+    } catch {
+      // ignore parse errors
+    }
+  }
+  return '음성 파일을 불러올 수 없습니다.';
+}
 
 export interface SttSearchDetailDrawerRef {
   open: (row: SttSearchItem) => void;
@@ -136,10 +152,19 @@ const SttSearchDetailDrawer = forwardRef<SttSearchDetailDrawerRef>((_, ref) => {
         }
       : undefined;
 
-  const { data: listenData, isLoading: isListenLoading } = useGetSttSearchListen({
+  const {
+    data: listenData,
+    isLoading: isListenLoading,
+    error: listenError,
+  } = useGetSttSearchListen({
     params: listenParams as unknown as Record<string, unknown>,
     queryOptions: { enabled: state.open && !!listenParams },
   });
+
+  useEffect(() => {
+    if (!listenError) return;
+    toast.warning(getListenErrorMessage(listenError));
+  }, [listenError]);
 
   // 현재 재생 중인 문장 인덱스 (armsoffset <= currentTimeMs 인 마지막 항목)
   const activeIdx = sentences && currentTimeMs > 0 ? sentences.reduce((acc, s, i) => (s.armsoffset <= currentTimeMs ? i : acc), -1) : -1;

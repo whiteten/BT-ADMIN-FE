@@ -31,6 +31,8 @@ function CreateCellRenderer({ data, onRegister }: RegisterCellRendererParams) {
 function PlayCellRenderer({ data }: ICellRendererParams<RecogTargetSearchItem>) {
   const [playing, setPlaying] = useState(false);
   const audioRef = useRef<HTMLAudioElement | null>(null);
+  const playingRef = useRef(false);
+  playingRef.current = playing;
 
   const listenParams: SttSearchListenParams | undefined =
     data?.recSystemIp && data.saFilename
@@ -46,10 +48,28 @@ function PlayCellRenderer({ data }: ICellRendererParams<RecogTargetSearchItem>) 
         }
       : undefined;
 
-  const { data: listenData } = useGetSttSearchListen({
+  const { data: listenData, error: listenError } = useGetSttSearchListen({
     params: listenParams as unknown as Record<string, unknown>,
     queryOptions: { enabled: playing && !!listenParams, staleTime: Infinity },
   });
+
+  useEffect(() => {
+    if (!listenError || !playingRef.current) return;
+    setPlaying(false);
+    try {
+      const buffer = (listenError as { response?: { data?: unknown } }).response?.data;
+      if (buffer instanceof ArrayBuffer) {
+        const msg = (JSON.parse(new TextDecoder().decode(buffer)) as { message?: string }).message;
+        if (msg) {
+          toast.warning(msg);
+          return;
+        }
+      }
+    } catch {
+      /* ignore parse errors */
+    }
+    toast.warning('음성 파일을 불러올 수 없습니다.');
+  }, [listenError]);
 
   useEffect(() => {
     if (!listenData?.audioBlob || !playing || !data) return;

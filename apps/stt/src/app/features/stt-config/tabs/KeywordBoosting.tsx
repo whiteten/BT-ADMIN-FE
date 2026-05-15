@@ -103,15 +103,6 @@ export default function KeywordBoosting() {
 
   const columnDefs: ColDef<KeywordBoostingItem>[] = [
     {
-      headerName: '',
-      colId: 'rowNum',
-      maxWidth: 60,
-      sortable: false,
-      filter: false,
-      valueGetter: (params) => (params.node?.rowIndex ?? 0) + 1,
-      cellStyle: { display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#6b7280' },
-    },
-    {
       headerName: '키워드',
       field: 'keyword',
       flex: 4,

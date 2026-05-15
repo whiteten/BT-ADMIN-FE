@@ -1,14 +1,14 @@
 import { useEffect, useRef, useState } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
-import type { ColDef, ICellRendererParams } from 'ag-grid-community';
+import type { CellKeyDownEvent, ColDef, ICellRendererParams, RowEditingStartedEvent, RowEditingStoppedEvent } from 'ag-grid-community';
 import { AgGridReact } from 'ag-grid-react';
 import { Button, DatePicker, Select } from 'antd';
 import dayjs, { type Dayjs } from 'dayjs';
-import { CheckCircle2, PlayCircle, StopCircle, Trash2, XCircle } from 'lucide-react';
+import { Check, CheckCircle2, PlayCircle, StopCircle, Trash2, X, XCircle } from 'lucide-react';
 import { toast } from '@/shared-util';
 import { useGetCodes } from '../hooks/useCommonQueries';
 import { useGetSttSearchListen } from '../hooks/useSearchQueries';
-import { trainingQueryKeys, useDeleteTuningSentence, useGetTuningSentenceList, useUpdateTunningKind } from '../hooks/useTrainingQueries';
+import { trainingQueryKeys, useDeleteTuningSentence, useGetTuningSentenceList, useUpdateTuningSentence, useUpdateTunningKind } from '../hooks/useTrainingQueries';
 import type { SttSearchListenParams, TuningSentenceItem, TuningSentenceSearchParams } from '../types';
 import { cn } from '@/lib/utils';
 import useAggridOptions from '@/libs/shared-ui/src/hooks/useAggridOptions';
@@ -20,6 +20,8 @@ const RXTX_LISTEN_TYPE: Record<string, string> = { '1': '4', '2': '5', '9': '3' 
 function PlayCellRenderer({ data }: ICellRendererParams<TuningSentenceItem>) {
   const [playing, setPlaying] = useState(false);
   const audioRef = useRef<HTMLAudioElement | null>(null);
+  const playingRef = useRef(false);
+  playingRef.current = playing;
 
   const listenParams: SttSearchListenParams | undefined =
     data?.recSystemIp && data.saFilename
@@ -35,10 +37,28 @@ function PlayCellRenderer({ data }: ICellRendererParams<TuningSentenceItem>) {
         }
       : undefined;
 
-  const { data: listenData } = useGetSttSearchListen({
+  const { data: listenData, error: listenError } = useGetSttSearchListen({
     params: listenParams as unknown as Record<string, unknown>,
     queryOptions: { enabled: playing && !!listenParams, staleTime: Infinity },
   });
+
+  useEffect(() => {
+    if (!listenError || !playingRef.current) return;
+    setPlaying(false);
+    try {
+      const buffer = (listenError as { response?: { data?: unknown } }).response?.data;
+      if (buffer instanceof ArrayBuffer) {
+        const msg = (JSON.parse(new TextDecoder().decode(buffer)) as { message?: string }).message;
+        if (msg) {
+          toast.warning(msg);
+          return;
+        }
+      }
+    } catch {
+      /* ignore parse errors */
+    }
+    toast.warning('음성 파일을 불러올 수 없습니다.');
+  }, [listenError]);
 
   useEffect(() => {
     if (!listenData?.audioBlob || !playing || !data) return;
@@ -90,6 +110,9 @@ function PlayCellRenderer({ data }: ICellRendererParams<TuningSentenceItem>) {
 
 interface ActionCellRendererParams {
   data?: TuningSentenceItem;
+  editingRowId: number | null;
+  onSave: (data: TuningSentenceItem) => void;
+  onCancel: () => void;
   onDelete: (data: TuningSentenceItem) => void;
 }
 
@@ -108,8 +131,34 @@ function TunningKindCellRenderer({ data, onToggle }: TunningKindCellRendererPara
   );
 }
 
-function ActionCellRenderer({ data, onDelete }: ActionCellRendererParams) {
+function ActionCellRenderer({ data, editingRowId, onSave, onCancel, onDelete }: ActionCellRendererParams) {
   if (!data) return null;
+
+  if (editingRowId === data.dataKey) {
+    return (
+      <div className="flex items-center gap-2">
+        <button
+          type="button"
+          onClick={(e) => {
+            e.stopPropagation();
+            onSave(data);
+          }}
+        >
+          <Check className="size-5 text-green-500 hover:text-green-600 hover:cursor-pointer" />
+        </button>
+        <button
+          type="button"
+          onClick={(e) => {
+            e.stopPropagation();
+            onCancel();
+          }}
+        >
+          <X className="size-5 text-gray-500 hover:text-gray-600 hover:cursor-pointer" />
+        </button>
+      </div>
+    );
+  }
+
   return (
     <button onClick={() => onDelete(data)} className="flex items-center justify-center text-red-400 hover:text-red-600 transition-colors">
       <Trash2 size={15} />
@@ -121,6 +170,8 @@ export default function TuningSentence() {
   const { gridOptions } = useAggridOptions();
   const modal = useModal();
   const queryClient = useQueryClient();
+  const gridRef = useRef<AgGridReact<TuningSentenceItem>>(null);
+  const [editingRowId, setEditingRowId] = useState<number | null>(null);
 
   const [fromDate, setFromDate] = useState<Dayjs | null>(dayjs().subtract(7, 'day'));
   const [toDate, setToDate] = useState<Dayjs | null>(dayjs());
@@ -151,6 +202,18 @@ export default function TuningSentence() {
   } = useGetTuningSentenceList({
     params: searchParams as Record<string, unknown>,
     queryOptions: { enabled: !!searchParams },
+  });
+
+  const { mutate: updateTuningSentence } = useUpdateTuningSentence({
+    mutationOptions: {
+      onSuccess: () => {
+        toast.success('문자수정 내용이 수정되었습니다.');
+        queryClient.invalidateQueries({ queryKey: trainingQueryKeys.getTuningSentenceList(searchParams ?? undefined).queryKey });
+      },
+      onError: () => {
+        toast.error('수정에 실패했습니다.');
+      },
+    },
   });
 
   const { mutate: deleteTuningSentence } = useDeleteTuningSentence({
@@ -203,6 +266,51 @@ export default function TuningSentence() {
     setTimeout(() => refetch(), 0);
   };
 
+  const handleSave = (originData: TuningSentenceItem) => {
+    const editingCells = gridRef.current?.api?.getEditingCells() ?? [];
+    const cellEditors = gridRef.current?.api?.getCellEditorInstances() ?? [];
+
+    let trString = originData.trString;
+    editingCells.forEach((cell, index) => {
+      if (cell.colId === 'trString') {
+        const editor = cellEditors[index];
+        if (editor) trString = editor.getValue() as string;
+      }
+    });
+
+    gridRef.current?.api?.stopEditing();
+
+    updateTuningSentence({
+      ucidGkey: originData.ucidGkey,
+      armsoffset: originData.armsoffset,
+      rxtxKind: originData.rxtxKind,
+      trString,
+      engineCode: searchParams?.engineCode ?? '',
+    });
+  };
+
+  const handleCellKeyDown = (event: CellKeyDownEvent<TuningSentenceItem>) => {
+    if ((event.event as KeyboardEvent)?.key !== 'Enter') return;
+    if (!event.data) return;
+    const isEditing = (gridRef.current?.api?.getEditingCells() ?? []).length > 0;
+    if (!isEditing) return;
+    (event.event as KeyboardEvent).stopPropagation();
+    handleSave(event.data);
+  };
+
+  const handleRowEditingStarted = (event: RowEditingStartedEvent<TuningSentenceItem>) => {
+    setEditingRowId(event.data?.dataKey ?? null);
+    event.api.refreshCells({ rowNodes: [event.node], force: true });
+  };
+
+  const handleRowEditingStopped = (_event: RowEditingStoppedEvent<TuningSentenceItem>) => {
+    setEditingRowId(null);
+  };
+
+  const cancelEditing = () => {
+    gridRef.current?.api?.stopEditing(true);
+  };
+
   const handleDelete = (data: TuningSentenceItem) => {
     modal.confirm.delete({ onOk: () => deleteTuningSentence({ ucidGkey: data.ucidGkey, armsoffset: data.armsoffset, rxtxKind: data.rxtxKind }) });
   };
@@ -238,6 +346,10 @@ export default function TuningSentence() {
       flex: 4,
       filter: true,
       tooltipField: 'trString',
+      editable: true,
+      cellEditor: 'agTextCellEditor',
+      cellEditorParams: { useFormatter: true },
+      suppressKeyboardEvent: (params) => params.editing && params.event.key === 'Enter',
     },
     {
       headerName: '화자',
@@ -255,12 +367,18 @@ export default function TuningSentence() {
     {
       headerName: '',
       colId: 'actions',
-      maxWidth: 60,
+      maxWidth: 80,
       sortable: false,
       filter: false,
-      cellStyle: { display: 'flex', alignItems: 'center', justifyContent: 'center' },
+      editable: false,
+      cellStyle: { display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' },
       cellRenderer: ActionCellRenderer,
-      cellRendererParams: { onDelete: handleDelete },
+      cellRendererParams: {
+        editingRowId,
+        onSave: handleSave,
+        onCancel: cancelEditing,
+        onDelete: handleDelete,
+      },
     },
   ];
 
@@ -288,12 +406,18 @@ export default function TuningSentence() {
       {/* 그리드 */}
       <div className="flex-1 min-h-[300px]">
         <AgGridReact<TuningSentenceItem>
+          ref={gridRef}
           rowData={rowData}
           columnDefs={columnDefs}
           gridOptions={{
             ...gridOptions,
             paginationPageSize: PAGE_SIZE,
+            editType: 'fullRow',
+            singleClickEdit: true,
           }}
+          onRowEditingStarted={handleRowEditingStarted}
+          onRowEditingStopped={handleRowEditingStopped}
+          onCellKeyDown={handleCellKeyDown}
           loading={isLoading}
           sideBar={false}
         />
