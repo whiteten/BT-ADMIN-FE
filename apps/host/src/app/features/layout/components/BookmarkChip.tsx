@@ -32,9 +32,10 @@ export default function BookmarkChip({ bookmark, className, disableTooltip }: Bo
       onClick={handleClick}
       disabled={!path}
       className={cn(
-        'shrink-0 inline-flex items-center gap-1.5 h-7 px-2.5 rounded text-sm whitespace-nowrap transition-colors cursor-pointer',
-        'text-white/85 hover:bg-white/15 hover:text-white disabled:cursor-not-allowed disabled:opacity-50',
-        isActive && 'bg-white/20 text-white font-semibold',
+        'shrink-0 inline-flex items-center gap-1.5 h-7 px-2.5 text-sm whitespace-nowrap transition-colors cursor-pointer',
+        // 하이라이트는 하단 보더로 표현 — 기본은 투명 보더로 두어 상태 전환 시 레이아웃 흔들림 방지
+        'border-b-2 border-transparent text-white/85 hover:border-white/40 hover:text-white disabled:cursor-not-allowed disabled:opacity-50',
+        isActive && 'border-white text-white font-semibold',
         className,
       )}
     >

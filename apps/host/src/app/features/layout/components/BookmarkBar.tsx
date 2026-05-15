@@ -3,6 +3,7 @@ import { useQueryClient } from '@tanstack/react-query';
 import { DndContext, type DragEndEvent, KeyboardSensor, PointerSensor, closestCenter, useSensor, useSensors } from '@dnd-kit/core';
 import { restrictToHorizontalAxis, restrictToParentElement } from '@dnd-kit/modifiers';
 import { SortableContext, arrayMove, horizontalListSortingStrategy, sortableKeyboardCoordinates } from '@dnd-kit/sortable';
+import { Bookmark as BookmarkIcon } from 'lucide-react';
 import { sharedApi } from '@/shared-api';
 import { useNavigationStore } from '@/shared-store';
 import BookmarkChip from './BookmarkChip';
@@ -50,7 +51,12 @@ export default function BookmarkBar() {
   };
 
   if (sorted.length === 0) {
-    return <div className="flex-1 min-w-0" aria-hidden />;
+    return (
+      <div className="flex-1 min-w-0 flex items-center gap-1.5 text-white/40 text-sm">
+        <BookmarkIcon className="size-4 shrink-0" />
+        <span className="truncate">자주 쓰는 메뉴를 북마크 해보세요.</span>
+      </div>
+    );
   }
 
   return (
@@ -66,8 +72,8 @@ export default function BookmarkBar() {
       <div className="flex items-center gap-1 min-w-0">
         <DndContext sensors={sensors} collisionDetection={closestCenter} modifiers={[restrictToHorizontalAxis, restrictToParentElement]} onDragEnd={handleDragEnd}>
           <SortableContext items={visibleItems.map((b) => b.menuKey)} strategy={horizontalListSortingStrategy}>
-            {visibleItems.map((bookmark) => (
-              <SortableBookmarkChip key={bookmark.menuKey} bookmark={bookmark} />
+            {visibleItems.map((bookmark, index) => (
+              <SortableBookmarkChip key={bookmark.menuKey} bookmark={bookmark} isFirst={index === 0} isLast={index === visibleItems.length - 1} />
             ))}
           </SortableContext>
         </DndContext>
