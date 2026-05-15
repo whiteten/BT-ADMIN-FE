@@ -53,6 +53,10 @@ interface BackendCallFlowSegment {
   endReason: string | null;
   oName: string | null;
   tName: string | null;
+  // IE hop 의 단계 추론용 (T_TYPE: 1=국선, 2=내선, 3=IVR, 4=IVR큐, 5=CTI큐, 6=ACD큐)
+  oType: number | null;
+  tType: number | null;
+  ccEnd: number | null;
 }
 
 interface BackendCallDetail {
@@ -91,9 +95,25 @@ function emptyHeader(ucid: string): CallDetailHeader {
   };
 }
 
-/** segmentType + hop 조합으로 FE kind 매핑. IE 는 hop 0 = INBOUND, 그 외 = OTHER (PBX 단일 segment 시 fallback). */
-function mapSegmentKind(segmentType: string, hop: number | null): CallSegment['kind'] {
-  switch (segmentType) {
+/**
+ * segment → FE kind 매핑.
+ *
+ * 규칙:
+ * 1) IR / IC_QUEUE / IC_ROUTING / IC_AGENT 는 segmentType 자체로 단계 결정
+ * 2) IE 는 hop 의 T_TYPE 으로 세분 (PBX/IVR/CTI front 모두 안전):
+ *    - T_TYPE=3 (IVR)       → IVR
+ *    - T_TYPE=4,5,6 (큐 계열) → CTI
+ *    - T_TYPE=2 (내선 EDN)  → AGENT
+ *    - 그 외 + ccEnd=1       → DISCONNECT (콜 종료 hop)
+ *    - 그 외 + isFirst       → INBOUND (호 진입)
+ *    - 그 외                  → OTHER
+ * 3) 첫 segment(시간상 가장 처음)는 항상 INBOUND 로 우선 처리 (설계서 § 2.0)
+ */
+function mapSegmentKind(seg: BackendCallFlowSegment, isFirst: boolean, isLast: boolean): CallSegment['kind'] {
+  // 1) 첫 segment 는 호 진입점 — 항상 INBOUND (설계서 § 2.0)
+  if (isFirst) return 'INBOUND';
+
+  switch (seg.segmentType) {
     case 'IR':
       return 'IVR';
     case 'IC_QUEUE':
@@ -101,8 +121,15 @@ function mapSegmentKind(segmentType: string, hop: number | null): CallSegment['k
       return 'CTI';
     case 'IC_AGENT':
       return 'AGENT';
-    case 'IE':
-      return hop === 0 ? 'INBOUND' : 'OTHER';
+    case 'IE': {
+      // 중간/끝 IE hop — T_TYPE 으로 단계 분류
+      const t = seg.tType;
+      if (t === 3) return 'IVR';
+      if (t === 4 || t === 5 || t === 6) return 'CTI';
+      if (t === 2) return 'AGENT';
+      if (seg.ccEnd === 1 || isLast) return 'DISCONNECT';
+      return 'OTHER';
+    }
     default:
       return 'OTHER';
   }
@@ -118,8 +145,9 @@ function segmentLabel(seg: BackendCallFlowSegment, kind: CallSegment['kind']): s
 
 function mapCallDetail(raw: BackendCallDetail): { header: CallDetailHeader; segments: CallSegment[] } {
   const aniMasked = /\*/.test(raw.ani ?? '');
+  const total = raw.segments?.length ?? 0;
   const segments: CallSegment[] = (raw.segments ?? []).map((s, idx) => {
-    const kind = mapSegmentKind(s.segmentType, s.hop);
+    const kind = mapSegmentKind(s, idx === 0, idx === total - 1);
     return {
       segmentId: `${s.segmentType}-${s.hop ?? idx}-${s.cdrPkey ?? idx}`,
       kind,

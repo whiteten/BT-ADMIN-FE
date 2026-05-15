@@ -27,7 +27,15 @@ export const trackingQueryKeys = createQueryKeys('tracking', {
 
 // ─── Search (mutation 형태로 운영 — criteria 변경에 즉시 반응) ──────────────
 
-export const useSearchTracking = ({ mutationOptions }: MutationHookOptions<CallSearchResult[], TrackingSearchCriteria> = {}) => {
+/** 검색 응답 페이지 메타 — 백엔드 페이징 (page/size/total) */
+export interface TrackingSearchResult {
+  items: CallSearchResult[];
+  page: number;
+  size: number;
+  total: number;
+}
+
+export const useSearchTracking = ({ mutationOptions }: MutationHookOptions<TrackingSearchResult, TrackingSearchCriteria> = {}) => {
   return useMutation({
     mutationFn: (criteria: TrackingSearchCriteria) => trackingApi.search(criteria),
     ...mutationOptions,
@@ -45,11 +53,7 @@ export const useGetTrackingDetail = (ucid: string | null | undefined, { queryOpt
   });
 };
 
-export const useGetIeCdrDetail = (
-  ucid: string | null | undefined,
-  hop: number | null | undefined,
-  { queryOptions }: QueryHookOptions<Record<string, unknown>> = {},
-) => {
+export const useGetIeCdrDetail = (ucid: string | null | undefined, hop: number | null | undefined, { queryOptions }: QueryHookOptions<Record<string, unknown>> = {}) => {
   return useQuery({
     queryKey: ['tracking', 'ie-cdr', ucid ?? '', hop ?? -1] as const,
     queryFn: () => trackingApi.getIeCdrDetail(ucid!, hop!),

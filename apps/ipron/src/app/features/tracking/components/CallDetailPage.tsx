@@ -14,6 +14,7 @@ import { Button, Slider, Tabs, message } from 'antd';
 import { ChevronLeft } from 'lucide-react';
 import { useBreadcrumbStore } from '@/shared-store';
 import AgentEventTimeline from './AgentEventTimeline';
+import CallFlowDiagram from './CallFlowDiagram';
 import CallSummaryHeader from './CallSummaryHeader';
 import CtiRoutingTimeline from './CtiRoutingTimeline';
 import IvrStepTree from './IvrStepTree';
@@ -218,28 +219,35 @@ export default function CallDetailPage() {
             </div>
           </div>
 
-          {/* 우: 탭 + 상세 */}
-          <div className="flex-1 bg-white bt-shadow rounded-md border border-gray-200 flex flex-col min-w-0 min-h-0 overflow-hidden">
-            <div className="h-[44px] px-4 flex items-center justify-between border-b border-gray-100 flex-shrink-0">
-              <Tabs
-                activeKey={activeTab}
-                onChange={(k) => setActiveTab(k as 'ivr' | 'cti' | 'agent')}
-                size="small"
-                className="-mb-3"
-                items={[
-                  { key: 'ivr', label: '🤖 IVR Steps' },
-                  { key: 'cti', label: '🔀 CTI Routing' },
-                  { key: 'agent', label: '🎧 Agent 이벤트' },
-                ]}
-              />
-              {selectedSegment?.kind === 'AGENT' && (
-                <RecordingButton ucid={header.ucid} userid={selectedSegment.meta?.agentId != null ? String(selectedSegment.meta.agentId) : header.agentId} canListen={canListen} />
-              )}
-            </div>
-            <div className="flex-1 overflow-y-auto">
-              {activeTab === 'ivr' && <IvrStepTree groups={ivrQ.data ?? []} loading={ivrQ.isLoading} />}
-              {activeTab === 'cti' && <CtiRoutingTimeline hops={ctiQ.data ?? []} loading={ctiQ.isLoading} />}
-              {activeTab === 'agent' && <AgentEventTimeline events={agentQ.data ?? []} loading={agentQ.isLoading} />}
+          {/* 우: CallFlow 카드 + 탭 + 상세 (상하 분할) */}
+          <div className="flex-1 flex flex-col min-w-0 min-h-0 gap-4">
+            <CallFlowDiagram segments={segments} selectedSegmentId={selectedSegmentId} onSelect={setSelectedSegmentId} />
+            <div className="bg-white bt-shadow rounded-md border border-gray-200 flex flex-col flex-1 min-h-0 overflow-hidden">
+              <div className="h-[44px] px-4 flex items-center justify-between border-b border-gray-100 flex-shrink-0">
+                <Tabs
+                  activeKey={activeTab}
+                  onChange={(k) => setActiveTab(k as 'ivr' | 'cti' | 'agent')}
+                  size="small"
+                  className="-mb-3"
+                  items={[
+                    { key: 'ivr', label: '🤖 IVR Steps' },
+                    { key: 'cti', label: '🔀 CTI Routing' },
+                    { key: 'agent', label: '🎧 Agent 이벤트' },
+                  ]}
+                />
+                {selectedSegment?.kind === 'AGENT' && (
+                  <RecordingButton
+                    ucid={header.ucid}
+                    userid={selectedSegment.meta?.agentId != null ? String(selectedSegment.meta.agentId) : header.agentId}
+                    canListen={canListen}
+                  />
+                )}
+              </div>
+              <div className="flex-1 overflow-y-auto">
+                {activeTab === 'ivr' && <IvrStepTree groups={ivrQ.data ?? []} loading={ivrQ.isLoading} />}
+                {activeTab === 'cti' && <CtiRoutingTimeline hops={ctiQ.data ?? []} loading={ctiQ.isLoading} />}
+                {activeTab === 'agent' && <AgentEventTimeline events={agentQ.data ?? []} loading={agentQ.isLoading} />}
+              </div>
             </div>
           </div>
         </div>

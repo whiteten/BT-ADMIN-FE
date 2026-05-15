@@ -14,6 +14,8 @@ import { toast } from '@/shared-util';
 import type { CallSearchResult, TrackingMode } from '../types/tracking.types';
 import useAggridOptions from '@/libs/shared-ui/src/hooks/useAggridOptions';
 
+const DEFAULT_PAGE_SIZE = 100;
+
 async function copyToClipboard(text: string) {
   try {
     if (navigator.clipboard && window.isSecureContext) {
@@ -35,7 +37,9 @@ async function copyToClipboard(text: string) {
 }
 
 interface Props {
+  /** 검색 결과 rows — 백엔드에서 한 번에 최대 10,000건 받아 메모리 보관 */
   rows: CallSearchResult[];
+  /** 로딩 상태 */
   loading?: boolean;
   /** 현재 트래킹 모드 — IVR 시 컬럼 셋 분기 */
   mode?: TrackingMode;
@@ -139,7 +143,7 @@ const RESULT_BADGE: Record<string, { color: string; label: string }> = {
   DISCONNECTED: { color: 'bg-red-50 text-red-700', label: '호단절' },
 };
 
-export default function SearchResultGrid({ rows, loading, mode = 'PBX', onRowDoubleClick, onIvrDrilldown, onCtiDrilldown, onPbxCdrInspect }: Props) {
+export default function SearchResultGrid({ rows, loading = false, mode = 'PBX', onRowDoubleClick, onIvrDrilldown, onCtiDrilldown, onPbxCdrInspect }: Props) {
   const isIvr = mode === 'IVR';
   const { gridOptions } = useAggridOptions();
 
@@ -222,10 +226,7 @@ export default function SearchResultGrid({ rows, loading, mode = 'PBX', onRowDou
           if (!v) return '-';
           return (
             <span className="font-mono text-[11px] flex items-center justify-end gap-1.5 whitespace-nowrap overflow-hidden">
-              <span
-                className="truncate text-right min-w-0 flex-1"
-                style={{ direction: 'rtl', unicodeBidi: 'plaintext' }}
-              >
+              <span className="truncate text-right min-w-0 flex-1" style={{ direction: 'rtl', unicodeBidi: 'plaintext' }}>
                 {v}
               </span>
               <button
@@ -392,8 +393,18 @@ export default function SearchResultGrid({ rows, loading, mode = 'PBX', onRowDou
             title = 'CTI 큐 인입 실패 — 클릭하여 CTI 모드 검색';
           }
           return (
-            <button type="button" onClick={(e) => { e.stopPropagation(); if (r) onCtiDrilldown?.(r); }}
-              title={title} aria-label="CTI 모드로 검색" className={cls}>{icon}</button>
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation();
+                if (r) onCtiDrilldown?.(r);
+              }}
+              title={title}
+              aria-label="CTI 모드로 검색"
+              className={cls}
+            >
+              {icon}
+            </button>
           );
         },
       },
@@ -438,8 +449,18 @@ export default function SearchResultGrid({ rows, loading, mode = 'PBX', onRowDou
             title = '상담사 분배 미응답 — 호출했으나 응답 못 받음. 클릭하여 CTI 모드 검색';
           }
           return (
-            <button type="button" onClick={(e) => { e.stopPropagation(); if (r) onCtiDrilldown?.(r); }}
-              title={title} aria-label="CTI 모드로 검색" className={cls}>{icon}</button>
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation();
+                if (r) onCtiDrilldown?.(r);
+              }}
+              title={title}
+              aria-label="CTI 모드로 검색"
+              className={cls}
+            >
+              {icon}
+            </button>
           );
         },
       },
@@ -564,7 +585,10 @@ export default function SearchResultGrid({ rows, loading, mode = 'PBX', onRowDou
           return (
             <button
               type="button"
-              onClick={(e) => { e.stopPropagation(); onPbxCdrInspect?.(r); }}
+              onClick={(e) => {
+                e.stopPropagation();
+                onPbxCdrInspect?.(r);
+              }}
               title="교환기 CDR 상세 보기"
               aria-label="교환기 CDR 상세"
               className="inline-flex items-center justify-center text-gray-500 hover:text-blue-700 hover:bg-blue-50 rounded px-1 py-0.5 transition-colors"
@@ -579,14 +603,17 @@ export default function SearchResultGrid({ rows, loading, mode = 'PBX', onRowDou
   );
 
   return (
-    <div className="flex-1 min-h-0 w-full">
+    <div className="flex-1 min-h-0 w-full [&_.ag-loading]:!hidden [&_.ag-loading-row]:!hidden [&_.ag-loading-center]:!hidden [&_.ag-cell-wrapper>.ag-icon-loading]:!hidden">
       <AgGridReact<CallSearchResult>
         rowData={rows}
         columnDefs={columnDefs}
         gridOptions={gridOptions}
-        loading={loading}
         sideBar={false}
-        defaultColDef={{ filter: true, sortable: true, resizable: true, suppressHeaderMenuButton: true }}
+        loading={loading}
+        pagination
+        paginationPageSize={DEFAULT_PAGE_SIZE}
+        paginationPageSizeSelector={[20, 50, 100, 200, 500]}
+        defaultColDef={{ filter: true, sortable: true, resizable: true, floatingFilter: false }}
         getRowId={(p) => p.data.ucid}
         onRowDoubleClicked={(e: RowDoubleClickedEvent<CallSearchResult>) => {
           if (e.data && onRowDoubleClick) onRowDoubleClick(e.data);
