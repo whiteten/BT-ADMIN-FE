@@ -1,7 +1,8 @@
 import { useNavigate } from 'react-router-dom';
 import { Dropdown, type MenuProps } from 'antd';
-import { ChevronDown, SquareDashed } from 'lucide-react';
+import { ChevronDown } from 'lucide-react';
 import { useMenuStore } from '@/shared-store';
+import { ReactComponent as IconBookmark } from '../../../../assets/images/icon/icon-bookmark.svg';
 import { findMenuInfo } from '../utils/findMenuInfo';
 import type { Bookmark } from '@/libs/shared-api/src/lib/types/navi.types';
 
@@ -14,7 +15,7 @@ export default function BookmarkOverflowMenu({ bookmarks }: BookmarkOverflowMenu
   const { menuConfigs } = useMenuStore();
 
   const items: MenuProps['items'] = bookmarks.map((bookmark) => {
-    const { icon: Icon, path, appName, ancestors } = findMenuInfo(menuConfigs, bookmark);
+    const { path, appName, ancestors } = findMenuInfo(menuConfigs, bookmark);
     const subLabel = [appName, ...ancestors.slice(0, -1)].filter(Boolean).join(' › ');
     return {
       key: bookmark.menuKey,
@@ -26,7 +27,8 @@ export default function BookmarkOverflowMenu({ bookmarks }: BookmarkOverflowMenu
       ) : (
         bookmark.label
       ),
-      icon: Icon ? <Icon className="size-4" /> : <SquareDashed className="size-4" />,
+      // 모든 항목이 북마크이므로 메뉴별 아이콘 대신 북마크 아이콘으로 통일
+      icon: <IconBookmark className="size-4 text-[var(--color-bt-primary)]" />,
       disabled: !path,
       onClick: () => path && navigate(`/${bookmark.appId}/${path}`),
     };

@@ -10,6 +10,7 @@ import { Check, GripVertical, SquareDashed, Trash2, X } from 'lucide-react';
 import { sharedApi } from '@/shared-api';
 import { useMenuStore, useNavigationStore } from '@/shared-store';
 import { isMenuActive } from './PanelMenuPrimitives';
+import { ReactComponent as IconBookmark } from '../../../../assets/images/icon/icon-bookmark.svg';
 import { useUpdateBookmark } from '../hooks/useBookmarkQueries';
 import { useMenuPanelStore } from '../hooks/useMenuPanelStore';
 import { findMenuInfo } from '../utils/findMenuInfo';
@@ -196,8 +197,10 @@ const PanelBookmarksSection = ({ className }: PanelBookmarksSectionProps) => {
 
       {isEmptyList ? (
         <div className="flex flex-col items-center justify-center py-12 text-center">
-          <p className="text-sm text-[#878a99]">북마크한 메뉴가 없습니다.</p>
-          <p className="text-xs text-[#adb5bd] mt-1">메뉴 옆 별 아이콘을 눌러 북마크를 추가하세요.</p>
+          <p className="text-base text-[#878a99]">북마크한 메뉴가 없습니다.</p>
+          <p className="text-sm text-[#adb5bd] mt-1 inline-flex items-center gap-1">
+            메뉴 옆 <IconBookmark className="size-3.5 shrink-0" /> 아이콘을 눌러 추가해보세요.
+          </p>
         </div>
       ) : isEditMode ? (
         <DndContext collisionDetection={closestCenter} modifiers={[restrictToVerticalAxis, restrictToParentElement]} onDragEnd={handleDragEnd}>
