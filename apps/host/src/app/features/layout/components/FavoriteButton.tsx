@@ -2,12 +2,12 @@ import React, { useCallback } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { sharedApi } from '@/shared-api';
 import { useNavigationStore } from '@/shared-store';
-import { useCreateBookmark, useDeleteBookmark } from '../hooks/useBookmarkQueries';
+import { useCreateFavorite, useDeleteFavorite } from '../hooks/useFavoriteQueries';
 import { IconStar } from '@/components/custom/Icons';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 
-interface BookmarkButtonProps {
+interface FavoriteButtonProps {
   menuKey: string;
   label: string;
   path: string;
@@ -15,32 +15,32 @@ interface BookmarkButtonProps {
   disabled?: boolean;
 }
 
-export const BookmarkButton = React.memo(({ menuKey, label, path, appId, disabled = false }: BookmarkButtonProps) => {
+export const FavoriteButton = React.memo(({ menuKey, label, path, appId, disabled = false }: FavoriteButtonProps) => {
   const queryClient = useQueryClient();
   const { favorites } = useNavigationStore();
-  const { mutate: createBookmark, isPending: isCreating } = useCreateBookmark({
+  const { mutate: createFavorite, isPending: isCreating } = useCreateFavorite({
     mutationOptions: {
       onSettled: () => {
         queryClient.invalidateQueries({ queryKey: sharedApi.common.queryKeys.getNavigation().queryKey });
       },
     },
   });
-  const { mutate: deleteBookmark, isPending: isDeleting } = useDeleteBookmark({
+  const { mutate: deleteFavorite, isPending: isDeleting } = useDeleteFavorite({
     mutationOptions: {
       onSettled: () => {
         queryClient.invalidateQueries({ queryKey: sharedApi.common.queryKeys.getNavigation().queryKey });
       },
     },
   });
-  const isBookmarked = favorites.some((bookmark) => bookmark.menuKey === menuKey);
+  const isFavorited = favorites.some((favorite) => favorite.menuKey === menuKey);
 
-  const handleToggleBookmark = useCallback(() => {
-    if (isBookmarked) {
-      deleteBookmark({ menuKey });
+  const handleToggleFavorite = useCallback(() => {
+    if (isFavorited) {
+      deleteFavorite({ menuKey });
     } else {
-      createBookmark({ params: {}, data: { menuKey } });
+      createFavorite({ params: {}, data: { menuKey } });
     }
-  }, [createBookmark, deleteBookmark, isBookmarked, menuKey]);
+  }, [createFavorite, deleteFavorite, isFavorited, menuKey]);
 
   return (
     <Button
@@ -49,15 +49,15 @@ export const BookmarkButton = React.memo(({ menuKey, label, path, appId, disable
       size="icon"
       className={cn(
         'h-8 w-8 cursor-pointer hover:bg-transparent',
-        isBookmarked ? 'text-[#FFA700] hover:text-[#FFA700]' : 'text-[#CED4DA] hover:text-[#FFA700] disabled:hover:text-[#CED4DA]',
+        isFavorited ? 'text-[#FFA700] hover:text-[#FFA700]' : 'text-[#CED4DA] hover:text-[#FFA700] disabled:hover:text-[#CED4DA]',
       )}
-      onClick={handleToggleBookmark}
+      onClick={handleToggleFavorite}
       disabled={isCreating || isDeleting || disabled}
     >
-      <IconStar className="size-5" fill={isBookmarked ? '#FFA700' : 'none'} />
+      <IconStar className="size-5" fill={isFavorited ? '#FFA700' : 'none'} />
       <span className="sr-only">즐겨찾기 토글</span>
     </Button>
   );
 });
 
-BookmarkButton.displayName = 'BookmarkButton';
+FavoriteButton.displayName = 'FavoriteButton';

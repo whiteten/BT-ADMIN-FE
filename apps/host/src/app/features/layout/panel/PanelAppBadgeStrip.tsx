@@ -31,7 +31,7 @@ const APP_BADGE_ICONS: Record<string, ComponentType<SVGProps<SVGSVGElement>>> = 
  *   단 즐겨찾기와 manager 사이에 다른 remote가 없으면 구분선은 하나만 노출한다.
  * - 뱃지 hover → 우측으로 늘어나며 앱 이름 노출 (strip 폭 60px는 유지, 뱃지가 사이드바 위로 오버레이)
  * - 뱃지 click → view='menu' 전환 + displayedAppId 갱신 + activeMenuKey 초기화
- * - 즐겨찾기 버튼 click → view='bookmark' 전환 (사이드바를 즐겨찾기 목록으로 교체)
+ * - 즐겨찾기 버튼 click → view='favorite' 전환 (사이드바를 즐겨찾기 목록으로 교체)
  * - overflow-y-auto 미사용: 수평 hover 확장이 클리핑되지 않도록. remote 수가 매우 많아지면 portal 기반 label 재검토.
  */
 const PanelAppBadgeStrip = () => {
@@ -51,21 +51,21 @@ const PanelAppBadgeStrip = () => {
     setActiveMenuKey(null);
   };
 
-  const handleBookmarkClick = () => {
+  const handleFavoriteClick = () => {
     // 크게보기(mega) 상태였어도 compact로 접으면서 즐겨찾기 화면을 노출
     setMode('compact');
-    setView('bookmark');
+    setView('favorite');
     setActiveMenuKey(null);
   };
 
-  const isBookmarkView = view === 'bookmark';
+  const isFavoriteView = view === 'favorite';
 
   // manager는 항상 맨 하단, 나머지 remote는 원래 순서 유지
   const managerRemote = remotes.find((r) => r.appId === 'manager');
   const otherRemotes = remotes.filter((r) => r.appId !== 'manager');
 
   const renderBadge = (remote: (typeof remotes)[number], index: number) => {
-    const isDisplayed = !isBookmarkView && remote.appId === displayedAppId;
+    const isDisplayed = !isFavoriteView && remote.appId === displayedAppId;
     const badgeColor = APP_BADGE_COLORS[index % APP_BADGE_COLORS.length];
     const Icon = APP_BADGE_ICONS[remote.appId] ?? SquareDashed;
 
@@ -95,13 +95,13 @@ const PanelAppBadgeStrip = () => {
   return (
     <aside className="w-[60px] shrink-0 h-full bg-[#f8f9fb] border-r border-[#ced4da] shadow-[1px_0_4px_-2px_rgba(0,0,0,0.06)] flex flex-col items-center gap-2.5 py-4 relative z-10">
       <div className="relative size-10 shrink-0">
-        {isBookmarkView && <span className="absolute left-[-12px] top-1/2 -translate-y-1/2 w-1 h-6 rounded-r bg-[var(--color-bt-primary)] z-10" />}
+        {isFavoriteView && <span className="absolute left-[-12px] top-1/2 -translate-y-1/2 w-1 h-6 rounded-r bg-[var(--color-bt-primary)] z-10" />}
         <button
           type="button"
-          onClick={handleBookmarkClick}
+          onClick={handleFavoriteClick}
           className={cn(
             'absolute top-0 left-0 z-20 flex items-center h-10 w-fit max-w-10 hover:max-w-[280px] rounded-lg text-white text-xs font-bold tracking-tight transition-[max-width] duration-200 cursor-pointer overflow-hidden shadow-sm hover:shadow-md',
-            isBookmarkView && 'ring-2 ring-[var(--color-bt-primary)]/40',
+            isFavoriteView && 'ring-2 ring-[var(--color-bt-primary)]/40',
           )}
           style={{ backgroundColor: '#F59E0B' }}
         >

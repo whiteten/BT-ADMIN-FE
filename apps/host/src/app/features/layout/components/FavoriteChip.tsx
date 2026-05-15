@@ -3,26 +3,26 @@ import { useMenuStore } from '@/shared-store';
 import { isMenuActive } from '../panel/PanelMenuPrimitives';
 import { findMenuInfo } from '../utils/findMenuInfo';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
-import type { Bookmark } from '@/libs/shared-api/src/lib/types/navi.types';
+import type { Favorite } from '@/libs/shared-api/src/lib/types/navi.types';
 import { cn } from '@/libs/shared-ui/src/lib/utils';
 
-interface BookmarkChipProps {
-  bookmark: Bookmark;
+interface FavoriteChipProps {
+  favorite: Favorite;
   className?: string;
   disableTooltip?: boolean;
 }
 
-export default function BookmarkChip({ bookmark, className, disableTooltip }: BookmarkChipProps) {
+export default function FavoriteChip({ favorite, className, disableTooltip }: FavoriteChipProps) {
   const navigate = useNavigate();
   const location = useLocation();
   const { menuConfigs } = useMenuStore();
-  const { path, appName, ancestors } = findMenuInfo(menuConfigs, bookmark);
-  const isActive = path ? isMenuActive(path, location, bookmark.appId) : false;
+  const { path, appName, ancestors } = findMenuInfo(menuConfigs, favorite);
+  const isActive = path ? isMenuActive(path, location, favorite.appId) : false;
   const tooltipText = [appName, ...ancestors].filter(Boolean).join(' › ');
 
   const handleClick = () => {
     if (!path) return;
-    navigate(`/${bookmark.appId}/${path}`);
+    navigate(`/${favorite.appId}/${path}`);
   };
 
   const buttonEl = (
@@ -38,7 +38,7 @@ export default function BookmarkChip({ bookmark, className, disableTooltip }: Bo
         className,
       )}
     >
-      {bookmark.label}
+      {favorite.label}
     </button>
   );
 

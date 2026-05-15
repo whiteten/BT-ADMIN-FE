@@ -6,7 +6,7 @@ import { useMenuStore } from '@/shared-store';
 import PanelControls from './PanelControls';
 import { Highlight, hasMatch, isMenuActive } from './PanelMenuPrimitives';
 import useRemoteSelector from '../../../hooks/useRemoteSelector';
-import { BookmarkButton } from '../components/BookmarkButton';
+import { FavoriteButton } from '../components/FavoriteButton';
 import type { MenuConfig, MenuItem } from '@/libs/shared-store/src/types/menu.types';
 import { cn } from '@/libs/shared-ui/src/lib/utils';
 
@@ -23,9 +23,9 @@ const Dot = ({ hasChildren }: { hasChildren: boolean }) => {
 };
 
 /** 이동 가능한 메뉴 우측의 즐겨찾기 토글 — 첫 줄 높이(h-5)에 수직 중앙 정렬. 활성·비활성 상관없이 상시 노출 */
-const BookmarkSlot = ({ item, appId }: { item: MenuItem; appId: string }) => (
+const FavoriteSlot = ({ item, appId }: { item: MenuItem; appId: string }) => (
   <span className="flex h-7 shrink-0 items-center" onClick={(e) => e.stopPropagation()}>
-    <BookmarkButton menuKey={item.menuKey} label={item.label} path={item.path ?? ''} appId={appId} />
+    <FavoriteButton menuKey={item.menuKey} label={item.label} path={item.path ?? ''} appId={appId} />
   </span>
 );
 
@@ -78,7 +78,7 @@ const TreeNode = ({ item, isLast, appId, query, onNavigate }: TreeNodeProps) => 
             <Highlight text={item.label} query={query} />
           </span>
         </div>
-        {isLeaf && <BookmarkSlot item={item} appId={appId} />}
+        {isLeaf && <FavoriteSlot item={item} appId={appId} />}
       </div>
       {/* 자식 */}
       {hasChildren && (
@@ -125,7 +125,7 @@ const FirstLevelColumn = ({ menu, appId, query, onNavigate }: FirstLevelColumnPr
         >
           <Highlight text={menu.label} query={query} />
         </span>
-        {isLeafNode && <BookmarkSlot item={menu} appId={appId} />}
+        {isLeafNode && <FavoriteSlot item={menu} appId={appId} />}
       </div>
       {/* 하위 트리 */}
       {childItems.length > 0 && (

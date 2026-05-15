@@ -5,26 +5,26 @@ import { restrictToHorizontalAxis, restrictToParentElement } from '@dnd-kit/modi
 import { SortableContext, arrayMove, horizontalListSortingStrategy, sortableKeyboardCoordinates } from '@dnd-kit/sortable';
 import { sharedApi } from '@/shared-api';
 import { useNavigationStore } from '@/shared-store';
-import BookmarkChip from './BookmarkChip';
-import BookmarkOverflowMenu from './BookmarkOverflowMenu';
-import SortableBookmarkChip from './SortableBookmarkChip';
-import { useUpdateBookmark } from '../hooks/useBookmarkQueries';
+import FavoriteChip from './FavoriteChip';
+import FavoriteOverflowMenu from './FavoriteOverflowMenu';
+import SortableFavoriteChip from './SortableFavoriteChip';
+import { useUpdateFavorite } from '../hooks/useFavoriteQueries';
 import { useOverflowItems } from '../hooks/useOverflowItems';
 import { IconStar } from '@/components/custom/Icons';
-import type { Bookmark } from '@/libs/shared-api/src/lib/types/navi.types';
+import type { Favorite } from '@/libs/shared-api/src/lib/types/navi.types';
 
 const RESERVED_OVERFLOW_WIDTH = 64;
 
-export default function BookmarkBar() {
+export default function FavoriteBar() {
   const queryClient = useQueryClient();
   const { favorites } = useNavigationStore();
-  const [sorted, setSorted] = useState<Bookmark[]>([]);
+  const [sorted, setSorted] = useState<Favorite[]>([]);
 
   useEffect(() => {
     setSorted([...favorites].sort((a, b) => a.sortOrder - b.sortOrder));
   }, [favorites]);
 
-  const { mutate: updateBookmark } = useUpdateBookmark({
+  const { mutate: updateFavorite } = useUpdateFavorite({
     mutationOptions: {
       onSettled: () => {
         queryClient.invalidateQueries({ queryKey: sharedApi.common.queryKeys.getNavigation().queryKey });
@@ -34,7 +34,7 @@ export default function BookmarkBar() {
 
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 5 } }), useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }));
 
-  const { containerRef, measureRef, visibleItems, overflowItems } = useOverflowItems<Bookmark>(sorted, RESERVED_OVERFLOW_WIDTH);
+  const { containerRef, measureRef, visibleItems, overflowItems } = useOverflowItems<Favorite>(sorted, RESERVED_OVERFLOW_WIDTH);
 
   const handleDragEnd = (event: DragEndEvent) => {
     const { active, over } = event;
@@ -45,7 +45,7 @@ export default function BookmarkBar() {
       const newIndex = prev.findIndex((item) => item.menuKey === over.id);
       if (oldIndex < 0 || newIndex < 0) return prev;
       const next = arrayMove(prev, oldIndex, newIndex);
-      updateBookmark({ params: {}, data: { menuKeys: next.map((f) => f.menuKey) } });
+      updateFavorite({ params: {}, data: { menuKeys: next.map((f) => f.menuKey) } });
       return next;
     });
   };
@@ -67,8 +67,8 @@ export default function BookmarkBar() {
       <div ref={containerRef} className="relative flex-1 min-w-0 h-full flex items-center overflow-hidden">
         {/* 측정용 — 화면 밖에서 모든 칩 폭 측정 */}
         <div ref={measureRef} className="absolute invisible pointer-events-none flex items-center gap-1 -top-[9999px] left-0">
-          {sorted.map((bookmark) => (
-            <BookmarkChip key={`measure-${bookmark.menuKey}`} bookmark={bookmark} />
+          {sorted.map((favorite) => (
+            <FavoriteChip key={`measure-${favorite.menuKey}`} favorite={favorite} />
           ))}
         </div>
 
@@ -76,12 +76,12 @@ export default function BookmarkBar() {
         <div className="flex items-center gap-1 min-w-0 mt-0.5">
           <DndContext sensors={sensors} collisionDetection={closestCenter} modifiers={[restrictToHorizontalAxis, restrictToParentElement]} onDragEnd={handleDragEnd}>
             <SortableContext items={visibleItems.map((b) => b.menuKey)} strategy={horizontalListSortingStrategy}>
-              {visibleItems.map((bookmark, index) => (
-                <SortableBookmarkChip key={bookmark.menuKey} bookmark={bookmark} isFirst={index === 0} isLast={index === visibleItems.length - 1} />
+              {visibleItems.map((favorite, index) => (
+                <SortableFavoriteChip key={favorite.menuKey} favorite={favorite} isFirst={index === 0} isLast={index === visibleItems.length - 1} />
               ))}
             </SortableContext>
           </DndContext>
-          {overflowItems.length > 0 && <BookmarkOverflowMenu bookmarks={overflowItems} />}
+          {overflowItems.length > 0 && <FavoriteOverflowMenu favorites={overflowItems} />}
         </div>
       </div>
     </div>

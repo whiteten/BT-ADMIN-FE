@@ -2,12 +2,12 @@ import { create } from 'zustand';
 import { devtools } from 'zustand/middleware';
 
 export type MenuPanelMode = 'compact' | 'mega';
-export type MenuPanelView = 'menu' | 'bookmark';
+export type MenuPanelView = 'menu' | 'favorite';
 
 interface MenuPanelStore {
   open: boolean;
   mode: MenuPanelMode;
-  /** 패널이 현재 보여주는 컨텐츠 종류. strip 상단 즐겨찾기 버튼 토글로 'bookmark' 진입. */
+  /** 패널이 현재 보여주는 컨텐츠 종류. strip 상단 즐겨찾기 버튼 토글로 'favorite' 진입. */
   view: MenuPanelView;
   /** 패널이 현재 보여주는 앱 id. URL상 selectedRemote와 독립적으로 뱃지 hover에 따라 갱신된다. */
   displayedAppId: string | null;

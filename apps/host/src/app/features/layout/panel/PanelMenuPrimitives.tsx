@@ -1,6 +1,6 @@
 import { useLocation } from 'react-router-dom';
 import { SquareDashed } from 'lucide-react';
-import { BookmarkButton } from '../components/BookmarkButton';
+import { FavoriteButton } from '../components/FavoriteButton';
 import { useMenuPanelStore } from '../hooks/useMenuPanelStore';
 import type { MenuItem } from '@/libs/shared-store/src/types/menu.types';
 import { cn } from '@/libs/shared-ui/src/lib/utils';
@@ -102,7 +102,7 @@ export function MenuLink({ item, appId, query = '', onNavigate, showDesc = false
         )}
       </div>
       <span className="shrink-0 ml-1" onClick={(e) => e.stopPropagation()}>
-        <BookmarkButton menuKey={item.menuKey} label={item.label} path={item.path ?? ''} appId={appId} />
+        <FavoriteButton menuKey={item.menuKey} label={item.label} path={item.path ?? ''} appId={appId} />
       </span>
     </div>
   );
@@ -173,7 +173,7 @@ export function ChildList({ items, appId, query = '', onNavigate, asGrid, showDe
               )}
             </div>
             <span className="shrink-0 ml-1">
-              <BookmarkButton menuKey={item.menuKey} label={item.label} path="" appId={appId} disabled />
+              <FavoriteButton menuKey={item.menuKey} label={item.label} path="" appId={appId} disabled />
             </span>
           </div>
         );

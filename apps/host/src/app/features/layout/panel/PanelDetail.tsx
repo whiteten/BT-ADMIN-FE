@@ -1,7 +1,7 @@
 import { useMemo } from 'react';
 import { useMenuStore } from '@/shared-store';
-import PanelBookmarksSection from './PanelBookmarksSection';
 import PanelControls from './PanelControls';
+import PanelFavoritesSection from './PanelFavoritesSection';
 import { ChildList } from './PanelMenuPrimitives';
 import { useMenuPanelStore } from '../hooks/useMenuPanelStore';
 import { IconStar } from '@/components/custom/Icons';
@@ -35,7 +35,7 @@ const PanelDetail = ({ onNavigate }: PanelDetailProps) => {
     return findMenuByKey(config.menus, activeMenuKey);
   }, [config, activeMenuKey]);
 
-  if (view === 'bookmark') {
+  if (view === 'favorite') {
     return (
       <div className="flex flex-col h-full">
         <header className="shrink-0 flex items-center justify-between gap-2 px-6 pt-5 pb-4 min-h-[72px]">
@@ -49,7 +49,7 @@ const PanelDetail = ({ onNavigate }: PanelDetailProps) => {
         </header>
         <div className="mx-6 border-t border-[#e9ecef]" />
         <div className="flex-1 overflow-y-auto px-6 pt-4 pb-6">
-          <PanelBookmarksSection />
+          <PanelFavoritesSection />
         </div>
       </div>
     );

@@ -10,32 +10,32 @@ import { Check, GripVertical, SquareDashed, Trash2, X } from 'lucide-react';
 import { sharedApi } from '@/shared-api';
 import { useMenuStore, useNavigationStore } from '@/shared-store';
 import { isMenuActive } from './PanelMenuPrimitives';
-import { useUpdateBookmark } from '../hooks/useBookmarkQueries';
+import { useUpdateFavorite } from '../hooks/useFavoriteQueries';
 import { useMenuPanelStore } from '../hooks/useMenuPanelStore';
 import { findMenuInfo } from '../utils/findMenuInfo';
 import { IconStar } from '@/components/custom/Icons';
-import type { Bookmark } from '@/libs/shared-api/src/lib/types/navi.types';
+import type { Favorite } from '@/libs/shared-api/src/lib/types/navi.types';
 import { cn } from '@/libs/shared-ui/src/lib/utils';
 
-interface BookmarkInfo {
-  bookmark: Bookmark;
+interface FavoriteInfo {
+  favorite: Favorite;
   icon?: React.ElementType;
   path?: string;
   breadcrumb: string;
 }
 
-interface SortableBookmarkRowProps {
-  info: BookmarkInfo;
+interface SortableFavoriteRowProps {
+  info: FavoriteInfo;
   isEditMode: boolean;
-  onClick: (bookmark: Bookmark, path?: string) => void;
+  onClick: (favorite: Favorite, path?: string) => void;
   onRemove?: (menuKey: string) => void;
 }
 
-const SortableBookmarkRow = ({ info, isEditMode, onClick, onRemove }: SortableBookmarkRowProps) => {
+const SortableFavoriteRow = ({ info, isEditMode, onClick, onRemove }: SortableFavoriteRowProps) => {
   const location = useLocation();
-  const { bookmark, icon: Icon, path, breadcrumb } = info;
-  const { attributes, listeners, setNodeRef, transform, transition } = useSortable({ id: bookmark.menuKey });
-  const isActive = path ? isMenuActive(path, location, bookmark.appId) : false;
+  const { favorite, icon: Icon, path, breadcrumb } = info;
+  const { attributes, listeners, setNodeRef, transform, transition } = useSortable({ id: favorite.menuKey });
+  const isActive = path ? isMenuActive(path, location, favorite.appId) : false;
   const style = { transform: CSS.Transform.toString(transform), transition };
 
   if (isEditMode) {
@@ -46,12 +46,12 @@ const SortableBookmarkRow = ({ info, isEditMode, onClick, onRemove }: SortableBo
         </span>
         {Icon ? <Icon className="size-5 shrink-0 text-[#868e96]" /> : <SquareDashed className="size-5 shrink-0 text-[#868e96]" />}
         <div className="flex-1 min-w-0">
-          <p className="text-sm text-[#495057] truncate">{bookmark.label}</p>
+          <p className="text-sm text-[#495057] truncate">{favorite.label}</p>
           {breadcrumb && <p className="text-[12px] text-[#adb5bd] truncate mt-0.5">{breadcrumb}</p>}
         </div>
         <button
           type="button"
-          onClick={() => onRemove?.(bookmark.menuKey)}
+          onClick={() => onRemove?.(favorite.menuKey)}
           className="shrink-0 text-[#adb5bd] hover:text-[#e03131] transition-colors cursor-pointer p-1 -m-1 rounded"
           aria-label="즐겨찾기 삭제"
         >
@@ -64,7 +64,7 @@ const SortableBookmarkRow = ({ info, isEditMode, onClick, onRemove }: SortableBo
   return (
     <button
       type="button"
-      onClick={() => onClick(bookmark, path)}
+      onClick={() => onClick(favorite, path)}
       disabled={!path}
       className={cn(
         'group/row relative flex w-full items-center gap-3 rounded-md px-3 py-2.5 text-left transition-colors cursor-pointer',
@@ -79,27 +79,27 @@ const SortableBookmarkRow = ({ info, isEditMode, onClick, onRemove }: SortableBo
         <SquareDashed className={cn('size-5 shrink-0', isActive ? 'text-[var(--color-bt-primary)]' : 'text-[#868e96]')} />
       )}
       <div className="flex-1 min-w-0">
-        <p className={cn('text-sm truncate', isActive ? 'text-[var(--color-bt-primary)] font-semibold' : 'text-[#495057]')}>{bookmark.label}</p>
+        <p className={cn('text-sm truncate', isActive ? 'text-[var(--color-bt-primary)] font-semibold' : 'text-[#495057]')}>{favorite.label}</p>
         {breadcrumb && <p className="text-[12px] text-[#adb5bd] truncate mt-0.5">{breadcrumb}</p>}
       </div>
     </button>
   );
 };
 
-interface PanelBookmarksSectionProps {
+interface PanelFavoritesSectionProps {
   className?: string;
 }
 
-const PanelBookmarksSection = ({ className }: PanelBookmarksSectionProps) => {
+const PanelFavoritesSection = ({ className }: PanelFavoritesSectionProps) => {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const { menuConfigs } = useMenuStore();
   const { favorites } = useNavigationStore();
   const { setOpen } = useMenuPanelStore();
   const [isEditMode, setIsEditMode] = useState(false);
-  const [sortedFavorites, setSortedFavorites] = useState<Bookmark[]>([]);
+  const [sortedFavorites, setSortedFavorites] = useState<Favorite[]>([]);
 
-  const { mutate: updateBookmark, isPending } = useUpdateBookmark({
+  const { mutate: updateFavorite, isPending } = useUpdateFavorite({
     mutationOptions: {
       onSettled: () => {
         queryClient.invalidateQueries({ queryKey: sharedApi.common.queryKeys.getNavigation().queryKey });
@@ -118,7 +118,7 @@ const PanelBookmarksSection = ({ className }: PanelBookmarksSectionProps) => {
     const originalMenuKeys = [...favorites].sort((a, b) => a.sortOrder - b.sortOrder).map((f) => f.menuKey);
     const hasChanged = menuKeys.length !== originalMenuKeys.length || menuKeys.some((k, index) => k !== originalMenuKeys[index]);
     if (hasChanged) {
-      updateBookmark({ params: {}, data: { menuKeys } });
+      updateFavorite({ params: {}, data: { menuKeys } });
     }
     setIsEditMode(false);
   };
@@ -143,17 +143,17 @@ const PanelBookmarksSection = ({ className }: PanelBookmarksSectionProps) => {
     });
   };
 
-  const handleClick = (bookmark: Bookmark, path?: string) => {
+  const handleClick = (favorite: Favorite, path?: string) => {
     if (!path) return;
-    navigate(`/${bookmark.appId}/${path}`);
+    navigate(`/${favorite.appId}/${path}`);
     setOpen(false);
   };
 
-  const enrichedBookmarks: BookmarkInfo[] = sortedFavorites.map((bookmark) => {
-    const { icon, path, appName, ancestors } = findMenuInfo(menuConfigs, bookmark);
+  const enrichedFavorites: FavoriteInfo[] = sortedFavorites.map((favorite) => {
+    const { icon, path, appName, ancestors } = findMenuInfo(menuConfigs, favorite);
     // ancestors는 즐겨찾기 자신의 label까지 포함하므로 마지막을 제외해 부모 경로만 표시
     const breadcrumb = [appName, ...ancestors.slice(0, -1)].filter(Boolean).join(' › ');
-    return { bookmark, icon, path, breadcrumb };
+    return { favorite, icon, path, breadcrumb };
   });
 
   const showToolbar = favorites.length > 0;
@@ -204,18 +204,18 @@ const PanelBookmarksSection = ({ className }: PanelBookmarksSectionProps) => {
         </div>
       ) : isEditMode ? (
         <DndContext collisionDetection={closestCenter} modifiers={[restrictToVerticalAxis, restrictToParentElement]} onDragEnd={handleDragEnd}>
-          <SortableContext items={enrichedBookmarks.map((b) => b.bookmark.menuKey)} strategy={verticalListSortingStrategy}>
+          <SortableContext items={enrichedFavorites.map((b) => b.favorite.menuKey)} strategy={verticalListSortingStrategy}>
             <div className="flex flex-col gap-1">
-              {enrichedBookmarks.map((info) => (
-                <SortableBookmarkRow key={info.bookmark.menuKey} info={info} isEditMode onClick={handleClick} onRemove={handleRemove} />
+              {enrichedFavorites.map((info) => (
+                <SortableFavoriteRow key={info.favorite.menuKey} info={info} isEditMode onClick={handleClick} onRemove={handleRemove} />
               ))}
             </div>
           </SortableContext>
         </DndContext>
       ) : (
         <div className="flex flex-col gap-px">
-          {enrichedBookmarks.map((info) => (
-            <SortableBookmarkRow key={info.bookmark.menuKey} info={info} isEditMode={false} onClick={handleClick} />
+          {enrichedFavorites.map((info) => (
+            <SortableFavoriteRow key={info.favorite.menuKey} info={info} isEditMode={false} onClick={handleClick} />
           ))}
         </div>
       )}
@@ -223,4 +223,4 @@ const PanelBookmarksSection = ({ className }: PanelBookmarksSectionProps) => {
   );
 };
 
-export default PanelBookmarksSection;
+export default PanelFavoritesSection;
