@@ -99,7 +99,7 @@ export default function SlotSankeyDrawer({ open, onClose, searchParams, onEntity
 
       Modal.confirm({
         title: '콜 목록 조회',
-        content: `"${entityTag}" 엔티티를 거친 콜 목록을 조회하시겠습니까?`,
+        content: `"${entityTag}" 개체를 거친 콜 목록을 조회하시겠습니까?`,
         okText: '조회',
         cancelText: '취소',
         centered: true,

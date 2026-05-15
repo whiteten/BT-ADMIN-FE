@@ -5,13 +5,13 @@ import type { ColDef, ICellRendererParams, RowDoubleClickedEvent } from 'ag-grid
 import { AgGridReact } from 'ag-grid-react';
 import { Button, Dropdown, Input, Select, Tag, Tooltip } from 'antd';
 import dayjs from 'dayjs';
-import { ChevronDown, CloudDownload, Download } from 'lucide-react';
+import { ChevronDown, CloudDownload, Download, FileSpreadsheet } from 'lucide-react';
 import { toast } from '@/shared-util';
 import EntityDrawer, { type EntityDrawerRef } from '../components/EntityDrawer';
 import ExcelImportResultModal, { type ExcelImportResultModalRef } from '../components/ExcelImportResultModal';
 import TrainDiffStatusBadge from '../components/TrainDiffStatusBadge';
 import TrainStatusBadge from '../components/TrainStatusBadge';
-import { modelQueryKeys, useDeleteEntity, useExportEntity, useGetEntities, useImportEntity } from '../hooks/useModelQueries';
+import { modelQueryKeys, useDeleteEntity, useExportEntity, useExportIntentAndEntity, useGetEntities, useImportEntity } from '../hooks/useModelQueries';
 import type { EntityListItem, ExcelImportResult, TrainDiffStatus, TrainStatus } from '../types';
 import FileImportModal, { type FileImportModalRef } from '@/components/custom/FileImportModal';
 import { IconTag, IconTrash } from '@/components/custom/Icons';
@@ -126,6 +126,7 @@ export default function ModelEntityList() {
   });
 
   const { mutate: exportEntity, isPending: isExporting } = useExportEntity();
+  const { mutate: exportIntentAndEntity, isPending: isExportingAll } = useExportIntentAndEntity();
 
   const { mutate: importEntity, isPending: isImporting } = useImportEntity({
     mutationOptions: {
@@ -242,6 +243,10 @@ export default function ModelEntityList() {
     exportEntity({ modelId, isTemplate: 1 });
   };
 
+  const handleClickExportIntentAndEntity = () => {
+    exportIntentAndEntity({ modelId, isTemplate: 0 });
+  };
+
   const exportMenu = {
     items: [
       {
@@ -276,6 +281,23 @@ export default function ModelEntityList() {
         key: 'export-template',
         onClick: handleClickExportTemplate,
       },
+      { type: 'divider' as const },
+      {
+        label: (
+          <Tooltip
+            title={<span style={{ whiteSpace: 'pre-line' }}>{`의도와 개체를 하나의 엑셀 파일(시트 2개)로\n통합 다운로드합니다.`}</span>}
+            placement="left"
+            overlayStyle={{ maxWidth: '300px' }}
+          >
+            <span className="flex items-center gap-2">
+              <FileSpreadsheet className="size-4" />
+              의도&개체 통합 다운로드
+            </span>
+          </Tooltip>
+        ),
+        key: 'export-intent-entity',
+        onClick: handleClickExportIntentAndEntity,
+      },
     ],
   };
 
@@ -304,8 +326,9 @@ export default function ModelEntityList() {
             Import
           </Button>
           <Dropdown menu={exportMenu} trigger={['click']} placement="bottomRight">
-            <Button color="cyan" variant="solid" loading={isExporting} icon={<ChevronDown className="size-4" />} iconPlacement="end">
+            <Button color="cyan" variant="solid" loading={isExporting || isExportingAll} icon={<Download className="size-4" />}>
               Export
+              <ChevronDown className="size-4" />
             </Button>
           </Dropdown>
           <Button variant="solid" color="primary" onClick={handleClickAddEntity}>
@@ -318,7 +341,7 @@ export default function ModelEntityList() {
       </div>
       <EntityDrawer ref={drawerRef} />
       <FileImportModal ref={importModalRef} title="Import" accept=".xlsx,.xls" onConfirm={handleImportEntity} confirmLoading={isImporting} />
-      <ExcelImportResultModal ref={importResultModalRef} nameColumnTitle="엔티티명" />
+      <ExcelImportResultModal ref={importResultModalRef} nameColumnTitle="개체명" />
     </div>
   );
 }

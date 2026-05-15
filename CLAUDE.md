@@ -360,8 +360,8 @@ features/<feature>/types/
 ├── index.ts          # barrel export (export * from './bot'; ...)
 ├── bot.ts            # 봇 관련 타입
 ├── model.ts          # 모델 관련 타입
-├── intent.ts         # 인텐트 관련 타입
-└── entity.ts         # 엔티티 관련 타입
+├── intent.ts         # 의도 관련 타입
+└── entity.ts         # 개체 관련 타입
 ```
 
 #### DTO 서픽스 규칙

@@ -346,13 +346,14 @@ const BotDialogHistorySearchForm: React.FC<BotDialogHistorySearchFormProps> = ({
           )}
           {onExcelDownload && (
             <Button
-              type="primary"
+              color="cyan"
+              variant="solid"
               loading={isExporting}
               icon={<Download className="size-4" />}
-              className="!bg-[#10B981] !border-[#10B981] hover:!bg-[#0FA968] flex items-center gap-1 shrink-0"
+              className="flex items-center gap-1 shrink-0"
               onClick={onExcelDownload}
             >
-              엑셀
+              Export
             </Button>
           )}
         </div>
