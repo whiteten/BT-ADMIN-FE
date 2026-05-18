@@ -32,7 +32,7 @@ export interface TrackingPushData {
 /** 대화 화자 역할 */
 export type DialogRole = 'BOT' | 'CUSTOMER' | 'SYSTEM' | 'HIDDEN';
 
-/** NLU 엔티티 항목 */
+/** NLU 개체 항목 */
 export interface NluEntityItem {
   entityTag: string;
   entityValue: string;

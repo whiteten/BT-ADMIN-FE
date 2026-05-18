@@ -2,7 +2,6 @@ import { useMenuStore } from '@/shared-store';
 import { PanelMenuRow } from './PanelMenuPrimitives';
 import { MenuSpinner } from '../components/MenuSpinner';
 import { useMenuPanelStore } from '../hooks/useMenuPanelStore';
-import NoData from '@/components/custom/NoData';
 
 interface PanelAppSectionProps {
   onNavigate: (path: string) => void;
@@ -23,7 +22,11 @@ const PanelAppSection = ({ onNavigate }: PanelAppSectionProps) => {
   const config = menuConfigs.find((c) => c.appId === displayedAppId);
 
   if (!config) {
-    return <NoData message={`선택한 앱의\n메뉴 정보를\n찾을 수 없습니다.`} color="!text-[#868e96]" />;
+    return (
+      <div className="h-full flex items-center justify-center px-3">
+        <p className="text-sm text-[#adb5bd]">메뉴를 선택해 주세요.</p>
+      </div>
+    );
   }
 
   const visibleMenus = config.menus.filter((m) => !m.hide);

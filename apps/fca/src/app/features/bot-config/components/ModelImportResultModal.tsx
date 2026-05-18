@@ -129,8 +129,8 @@ const ModelImportResultModal = forwardRef<ModelImportResultModalRef, ModelImport
       ? [
           {
             key: 'intent',
-            label: `인텐트 (${intentResult.successCount}/${intentResult.totalCount} 성공)`,
-            children: <ResultSection result={intentResult} nameColumnTitle="인텐트명" />,
+            label: `의도 (${intentResult.successCount}/${intentResult.totalCount} 성공)`,
+            children: <ResultSection result={intentResult} nameColumnTitle="의도명" />,
           },
         ]
       : []),
@@ -138,8 +138,8 @@ const ModelImportResultModal = forwardRef<ModelImportResultModalRef, ModelImport
       ? [
           {
             key: 'entity',
-            label: `엔티티 (${entityResult.successCount}/${entityResult.totalCount} 성공)`,
-            children: <ResultSection result={entityResult} nameColumnTitle="엔티티명" />,
+            label: `개체 (${entityResult.successCount}/${entityResult.totalCount} 성공)`,
+            children: <ResultSection result={entityResult} nameColumnTitle="개체명" />,
           },
         ]
       : []),

@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Command as CommandPrimitive } from 'cmdk';
+import { debounce } from 'lodash';
 import { BookOpen, ChevronRight, Loader2, Search } from 'lucide-react';
 import { useMenuStore } from '@/shared-store';
 import { useSearchMenus } from '../hooks/useSearchQueries';
@@ -35,14 +36,25 @@ export default function GlobalSearch() {
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState('');
   const [debouncedQuery, setDebouncedQuery] = useState('');
+  const [debouncedSetQuery] = useState(() => debounce((value: string) => setDebouncedQuery(value), 300));
   const anchorRef = useRef<HTMLDivElement>(null);
   const navigate = useNavigate();
   const { menuConfigs } = useMenuStore();
 
+  const handleQueryChange = (value: string) => {
+    setQuery(value);
+    const trimmed = value.trim();
+    if (trimmed.length === 0) {
+      debouncedSetQuery.cancel();
+      setDebouncedQuery('');
+      return;
+    }
+    debouncedSetQuery(trimmed);
+  };
+
   useEffect(() => {
-    const timer = setTimeout(() => setDebouncedQuery(query.trim()), 300);
-    return () => clearTimeout(timer);
-  }, [query]);
+    return () => debouncedSetQuery.cancel();
+  }, [debouncedSetQuery]);
 
   const { data, isFetching } = useSearchMenus({
     params: { q: debouncedQuery, limit: 20 },
@@ -93,7 +105,7 @@ export default function GlobalSearch() {
             <Search className="h-4 w-4 shrink-0 text-white/70 group-hover:text-white group-focus-within:text-white transition-colors" />
             <CommandPrimitive.Input
               value={query}
-              onValueChange={setQuery}
+              onValueChange={handleQueryChange}
               onFocus={() => setOpen(true)}
               placeholder="통합 검색"
               className="flex-1 bg-transparent outline-none text-sm text-white placeholder:text-white/60"
@@ -118,6 +130,14 @@ export default function GlobalSearch() {
                   <Search className="h-5 w-5 text-muted-foreground/40" />
                 </div>
                 <p className="text-sm text-muted-foreground/60">검색어를 입력하세요</p>
+              </div>
+            )}
+            {debouncedQuery.length > 0 && isLoading && !hasResults && (
+              <div className="flex flex-col items-center justify-center py-14 gap-3">
+                <div className="flex items-center justify-center w-12 h-12 rounded-2xl bg-muted/60">
+                  <Loader2 className="h-5 w-5 text-muted-foreground/40 animate-spin" />
+                </div>
+                <p className="text-sm text-muted-foreground/60">검색중</p>
               </div>
             )}
             {showEmpty && (

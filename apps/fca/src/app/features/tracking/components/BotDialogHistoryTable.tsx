@@ -220,6 +220,13 @@ const BotDialogHistoryTable: React.FC<BotDialogHistoryTableProps> = ({
         cellClass: 'text-right',
         valueFormatter: (params) => params.value?.toLocaleString() ?? '0',
       },
+      {
+        headerName: '슬롯실패건수',
+        field: 'botSlotFailCount',
+        width: 110,
+        cellClass: 'text-right',
+        valueFormatter: (params) => params.value?.toLocaleString() ?? '0',
+      },
     ],
     [],
   );

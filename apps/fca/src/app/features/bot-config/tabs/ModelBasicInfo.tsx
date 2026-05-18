@@ -106,7 +106,7 @@ export default function ModelBasicInfo() {
               </Col>
             )}
             <Col>
-              <Tooltip title="인텐트와 엔티티를 하나의 엑셀 파일(시트 2개)로 통합 다운로드합니다.">
+              <Tooltip title="의도와 개체를 하나의 엑셀 파일(시트 2개)로 통합 다운로드합니다.">
                 <Button icon={<FileSpreadsheet className="size-4" />} loading={isExportingAll} onClick={() => exportIntentAndEntity({ modelId, isTemplate: 0 })}>
                   의도&개체 내보내기
                 </Button>
