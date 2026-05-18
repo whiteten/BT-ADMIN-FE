@@ -119,8 +119,8 @@ const MenuPanel = ({ topOffset }: MenuPanelProps) => {
         aria-modal="true"
         aria-hidden={!open}
       >
-        <PanelAppBadgeStrip />
-        <PanelSidebar onNavigate={handleNavigate} />
+        {!isMega && <PanelAppBadgeStrip />}
+        {!isMega && <PanelSidebar onNavigate={handleNavigate} />}
 
         {/* Detail / Mega — 보일 게 있을 때만 렌더 (그 외엔 strip + sidebar만 표시) */}
         {showDetailArea && (
