@@ -98,7 +98,7 @@ const PanelAppBadgeStrip = () => {
   return (
     <aside className="w-[60px] shrink-0 h-full bg-[#f8f9fb] border-r border-[#ced4da] shadow-[1px_0_4px_-2px_rgba(0,0,0,0.06)] flex flex-col items-center py-4 relative z-10">
       {/* 즐겨찾기 — 스크롤 영역과 분리해 상단 고정 */}
-      <div className="shrink-0">
+      <div className="shrink-0 pb-2.5">
         <Tooltip title="즐겨찾기" placement="right">
           <button
             type="button"
@@ -116,7 +116,7 @@ const PanelAppBadgeStrip = () => {
       {(otherRemotes.length > 0 || managerRemote) && divider}
 
       {/* 스크롤 영역 — remote 뱃지들만. 즐겨찾기·핀 토글은 스크롤에서 제외. py-1.5는 뱃지 우상단 빨간 점(노치)이 스크롤 박스 모서리에 잘리지 않도록 한 여유. */}
-      <div className="flex-1 min-h-0 w-full overflow-y-auto flex flex-col items-center gap-2.5 py-1.5 [scrollbar-width:thin]">
+      <div className="flex-1 min-h-0 w-full overflow-y-auto flex flex-col items-center gap-2.5 py-2.5 [scrollbar-width:thin]">
         {otherRemotes.map((remote, index) => renderBadge(remote, index))}
 
         {/* manager — 맨 하단(핀 위). 위에 다른 remote가 있을 때만 구분선 추가 (없으면 즐겨찾기 구분선 하나로 충분) */}
@@ -128,8 +128,8 @@ const PanelAppBadgeStrip = () => {
         )}
       </div>
 
-      {/* 핀 토글 — 스크롤 영역과 분리해 하단 고정. 켜면 패널이 닫혀도 strip이 메인 레이아웃에 남는다. */}
-      <div className="shrink-0 pt-2.5">
+      {/* 핀 토글 — strip footer. 앱 뱃지(컬러 사각형)와 혼동되지 않도록 ghost 아이콘 버튼 + 전체 폭 상단 구분선으로 "도구" 영역임을 표현. */}
+      <div className="shrink-0 w-full pt-2.5 mt-2 border-t border-[#dee2e6] flex justify-center">
         <Tooltip title={pinned ? '메뉴 고정 해제' : '메뉴 고정'} placement="right">
           <button
             type="button"
@@ -137,11 +137,13 @@ const PanelAppBadgeStrip = () => {
             aria-pressed={pinned}
             aria-label={pinned ? '메뉴 고정 해제' : '메뉴 고정'}
             className={cn(
-              'flex items-center justify-center size-10 shrink-0 rounded-lg text-white cursor-pointer shadow-sm hover:shadow-md transition-shadow',
-              pinned ? 'bg-[#475569] ring-2 ring-[var(--color-bt-primary)]/40' : 'bg-[#adb5bd]',
+              'flex items-center justify-center size-9 shrink-0 rounded-md cursor-pointer transition-colors',
+              pinned
+                ? 'text-[var(--color-bt-primary)] bg-[var(--color-bt-primary)]/10 hover:bg-[var(--color-bt-primary)]/15'
+                : 'text-[#868e96] hover:text-[#495057] hover:bg-[#e9ecef]',
             )}
           >
-            {pinned ? <PinOff className="size-5" /> : <Pin className="size-5" />}
+            {pinned ? <PinOff className="size-4" /> : <Pin className="size-4" />}
           </button>
         </Tooltip>
       </div>
