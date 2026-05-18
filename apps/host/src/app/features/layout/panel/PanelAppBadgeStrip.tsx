@@ -34,7 +34,7 @@ const APP_BADGE_ICONS: Record<string, ComponentType<SVGProps<SVGSVGElement>>> = 
  * - 뱃지 click → view='menu' 전환 + displayedAppId 갱신 + activeMenuKey 초기화 + 패널 open.
  * - 즐겨찾기 버튼 click → view='favorite' 전환 (사이드바를 즐겨찾기 목록으로 교체).
  * - 핀 토글 click → 패널이 닫혀도 strip이 메인 레이아웃 좌측에 상주(Layout이 pinned 구독).
- * - 스크롤: 뱃지 영역만 overflow-y-auto. 핀 토글은 별도 영역으로 하단 고정.
+ * - 스크롤: remote 뱃지 영역만 overflow-y-auto. 즐겨찾기는 상단 고정, 핀 토글은 하단 고정으로 스크롤 영역에서 제외.
  */
 const PanelAppBadgeStrip = () => {
   const { remotes, selectedRemote } = useRemoteSelector();
@@ -95,8 +95,8 @@ const PanelAppBadgeStrip = () => {
 
   return (
     <aside className="w-[60px] shrink-0 h-full bg-[#f8f9fb] border-r border-[#ced4da] shadow-[1px_0_4px_-2px_rgba(0,0,0,0.06)] flex flex-col items-center py-4 relative z-10">
-      {/* 스크롤 영역 — 즐겨찾기 + remote 뱃지들. 핀 토글은 별도 영역(하단 고정) */}
-      <div className="flex-1 min-h-0 w-full overflow-y-auto flex flex-col items-center gap-2.5 [scrollbar-width:thin]">
+      {/* 즐겨찾기 — 스크롤 영역과 분리해 상단 고정 */}
+      <div className="shrink-0">
         <Tooltip title="즐겨찾기" placement="right">
           <button
             type="button"
@@ -108,10 +108,13 @@ const PanelAppBadgeStrip = () => {
             <IconStar className="size-5" />
           </button>
         </Tooltip>
+      </div>
 
-        {/* 즐겨찾기 아래 구분선 — 아래에 뱃지가 하나라도 있을 때만 */}
-        {(otherRemotes.length > 0 || managerRemote) && divider}
+      {/* 즐겨찾기와 스크롤 영역 사이 구분선 — 스크롤 영역 안에 두면 함께 스크롤되므로 형제로 분리 */}
+      {(otherRemotes.length > 0 || managerRemote) && divider}
 
+      {/* 스크롤 영역 — remote 뱃지들만. 즐겨찾기·핀 토글은 스크롤에서 제외 */}
+      <div className="flex-1 min-h-0 w-full overflow-y-auto flex flex-col items-center gap-2.5 [scrollbar-width:thin]">
         {otherRemotes.map((remote, index) => renderBadge(remote, index))}
 
         {/* manager — 맨 하단(핀 위). 위에 다른 remote가 있을 때만 구분선 추가 (없으면 즐겨찾기 구분선 하나로 충분) */}
