@@ -38,11 +38,15 @@ const MenuPanel = ({ topOffset }: MenuPanelProps) => {
   }, [location.pathname, location.search, setOpen]);
 
   // 패널이 열릴 때 displayedAppId를 현재 URL상 selectedRemote로 초기화하고,
-  // URL이 속한 1단계 메뉴를 찾아 activeMenuKey도 함께 세팅 → detail이 곧바로 마지막 뎁스 메뉴를 표시
+  // URL이 속한 1단계 메뉴를 찾아 activeMenuKey도 함께 세팅 → detail이 곧바로 마지막 뎁스 메뉴를 표시.
+  // pinned strip에서 다른 앱 뱃지를 클릭한 경우(handleAppClick)에는 setOpen(true)와 setDisplayedAppId(clicked)
+  // 가 같은 사이클에 batch되므로, displayedAppId가 이미 설정돼 있으면 그 값을 우선 유지한다 — 안 그러면
+  // selectedRemote로 덮어써져 첫 클릭 시 현재 URL의 앱 메뉴가 표시되는 문제가 발생한다.
   useEffect(() => {
     if (!open) return;
-    const appId = selectedRemote?.appId ?? null;
-    setDisplayedAppId(appId);
+    const stored = useMenuPanelStore.getState().displayedAppId;
+    const appId = stored ?? selectedRemote?.appId ?? null;
+    if (appId !== stored) setDisplayedAppId(appId);
     if (!appId) return;
     const config = menuConfigs.find((c) => c.appId === appId);
     if (!config) return;
