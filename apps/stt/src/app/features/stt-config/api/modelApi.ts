@@ -1,7 +1,7 @@
 import ApiClient, { type DetailResponse, type ListResponse, extractDetail, extractList } from '@/shared-util';
 import type {
+  RecogEvaluateRequestData,
   RecogResultListData,
-  RecogResultRequestData,
   RecogResultSearchParams,
   SttModelCreateData,
   SttModelDeployCreateData,
@@ -36,8 +36,8 @@ export const modelApi = {
     const response = await apiClient.get<DetailResponse<RecogResultListData>>('/stt-recog-result-list', { params });
     return extractDetail(response);
   },
-  requestRecogResult: async (data: RecogResultRequestData) => {
-    return apiClient.post('/stt-request-recog-result', data);
+  executeRecogEvaluate: async (data: RecogEvaluateRequestData) => {
+    return apiClient.post('/stt-recog-evaluate', data);
   },
   getSttModelDeployList: async (params?: SttModelDeploySearchParams) => {
     const response = await apiClient.get<ListResponse<SttModelDeployItem>>('/stt-model-deploy-list', { params });

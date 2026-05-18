@@ -50,7 +50,7 @@ export default function RecogTargetList({ groupCode, engineCode }: RecogTargetLi
   });
 
   const handleDelete = (data: RecogTargetListItem) => {
-    modal.confirm.delete({ onOk: () => deleteTarget({ ucidGkey: data.ucidGkey, armsoffset: data.armsoffset, rxtxKind: data.rxtxKind }) });
+    modal.confirm.delete({ onOk: () => deleteTarget({ ucidGkey: data.ucidGkey, armsoffset: data.armsoffset, rxtxKind: data.rxtxKind, groupCode }) });
   };
 
   const columnDefs: ColDef<RecogTargetListItem>[] = [

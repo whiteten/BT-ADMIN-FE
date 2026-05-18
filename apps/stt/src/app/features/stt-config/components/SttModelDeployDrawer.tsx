@@ -92,12 +92,12 @@ const SttModelDeployDrawer = forwardRef<SttModelDeployDrawerRef>((_, ref) => {
       return;
     }
 
-    const distributeDateTime = deployType === 0 ? dayjs().format('YYYYMMDDHHmmss') : `${scheduleDate!.format('YYYYMMDD')}${scheduleTime!.format('HHmmss')}`;
+    const distributeTime = deployType === 0 ? dayjs().format('YYYYMMDDHHmmss') : `${scheduleDate!.format('YYYYMMDD')}${scheduleTime!.format('HHmmss')}`;
 
     deployModel({
       modelVerId: selectedModelVerId,
       distributeType: deployType,
-      distributeDateTime,
+      distributeTime,
       systemIds: selectedSystems.map((s) => s.systemId),
     });
   };

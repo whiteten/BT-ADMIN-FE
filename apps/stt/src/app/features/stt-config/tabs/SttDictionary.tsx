@@ -121,6 +121,7 @@ export default function SttDictionary() {
           <Button type="primary" onClick={handleAdd}>
             추가
           </Button>
+          <Button onClick={() => toast.warning('Import 기능은 준비 중입니다.')}>Import</Button>
         </div>
       </div>
 

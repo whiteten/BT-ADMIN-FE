@@ -64,7 +64,7 @@ export const useCreateRecogTarget = ({ mutationOptions }: MutationHookOptions<un
   });
 };
 
-export const useDeleteRecogTarget = ({ mutationOptions }: MutationHookOptions<unknown, { ucidGkey: string; armsoffset: number; rxtxKind: string }> = {}) => {
+export const useDeleteRecogTarget = ({ mutationOptions }: MutationHookOptions<unknown, { ucidGkey: string; armsoffset: number; rxtxKind: string; groupCode: string }> = {}) => {
   return useMutation({
     mutationFn: recogApi.deleteRecogTarget,
     ...mutationOptions,

@@ -3,8 +3,8 @@ import { createQueryKeys } from '@lukemorales/query-key-factory';
 import type { MutationHookOptions } from '@/shared-util';
 import { modelApi } from '../api/modelApi';
 import type {
+  RecogEvaluateRequestData,
   RecogResultListData,
-  RecogResultRequestData,
   RecogResultSearchParams,
   SttModelCreateData,
   SttModelDeployCreateData,
@@ -66,9 +66,9 @@ export const useGetRecogResultList = ({
   });
 };
 
-export const useRequestRecogResult = ({ mutationOptions }: MutationHookOptions<unknown, RecogResultRequestData> = {}) => {
+export const useExecuteRecogEvaluate = ({ mutationOptions }: MutationHookOptions<unknown, RecogEvaluateRequestData> = {}) => {
   return useMutation({
-    mutationFn: modelApi.requestRecogResult,
+    mutationFn: modelApi.executeRecogEvaluate,
     ...mutationOptions,
   });
 };

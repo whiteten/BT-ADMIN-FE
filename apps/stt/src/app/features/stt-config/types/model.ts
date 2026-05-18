@@ -61,9 +61,10 @@ export interface RecogResultSearchParams {
   groupCode: string;
 }
 
-export interface RecogResultRequestData {
+export interface RecogEvaluateRequestData {
   modelVerId: string;
   groupCode: string;
+  engineCode: string;
   // ucidGkey: string;
   // armsoffset: number;
   // rxtxKind: number;
@@ -89,6 +90,6 @@ export interface SttModelDeploySearchParams {
 export interface SttModelDeployCreateData {
   modelVerId: string;
   distributeType: number; // 0: 즉시배포, 1: 예약배포
-  distributeDateTime: string; // 'YYYYMMDDHHmmss'
+  distributeTime: string; // 'YYYYMMDDHHmmss'
   systemIds: string[];
 }

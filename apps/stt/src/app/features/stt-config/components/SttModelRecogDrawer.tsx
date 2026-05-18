@@ -5,8 +5,9 @@ import { AgGridReact } from 'ag-grid-react';
 import { Button, Drawer, Select } from 'antd';
 import dayjs from 'dayjs';
 import { toast } from '@/shared-util';
-import { modelQueryKeys, useGetRecogResultList, useRequestRecogResult } from '../hooks/useModelQueries';
-import { useGetRecogGroupList } from '../hooks/useRecogQueries';
+import { recogApi } from '../api/recogApi';
+import { modelQueryKeys, useExecuteRecogEvaluate, useGetRecogResultList } from '../hooks/useModelQueries';
+import { recogQueryKeys, useGetRecogGroupList } from '../hooks/useRecogQueries';
 import type { RecogResultItem, SttModelItem } from '../types';
 import NoData from '@/components/custom/NoData';
 import useAggridOptions from '@/libs/shared-ui/src/hooks/useAggridOptions';
@@ -117,7 +118,7 @@ const SttModelRecogDrawer = forwardRef<SttModelRecogDrawerRef>((_, ref) => {
 
   const { data, isFetching } = useGetRecogResultList({ params: searchParams });
 
-  const { mutate: requestResult, isPending } = useRequestRecogResult({
+  const { mutate: requestResult, isPending } = useExecuteRecogEvaluate({
     mutationOptions: {
       onSuccess: () => {
         toast.success('인식률 측정이 시작되었습니다.');
@@ -127,12 +128,20 @@ const SttModelRecogDrawer = forwardRef<SttModelRecogDrawerRef>((_, ref) => {
     },
   });
 
-  const handleMeasure = () => {
+  const handleEvaluate = async () => {
     if (!model || !groupCode) {
       toast.warning('정답지 그룹을 선택해주세요.');
       return;
     }
-    requestResult({ modelVerId: model.modelVerId, groupCode });
+    const targets = await queryClient.fetchQuery({
+      queryKey: recogQueryKeys.getRecogTargetList({ groupCode, engineCode }).queryKey,
+      queryFn: () => recogApi.getRecogTargetList({ groupCode, engineCode }),
+    });
+    if (!targets?.length) {
+      toast.warning('해당 그룹에 인식률 측정 데이터가 없습니다. 정답지를 등록해주세요.');
+      return;
+    }
+    requestResult({ modelVerId: model.modelVerId, groupCode, engineCode });
   };
 
   const handleGroupChange = (value: string) => {
@@ -174,7 +183,7 @@ const SttModelRecogDrawer = forwardRef<SttModelRecogDrawerRef>((_, ref) => {
         </div>
 
         <div className="ml-auto">
-          <Button type="primary" onClick={handleMeasure} loading={isPending}>
+          <Button type="primary" onClick={handleEvaluate} loading={isPending}>
             인식률 측정
           </Button>
         </div>

@@ -59,6 +59,7 @@ export interface TuningSentenceItem {
   armsoffset: number;
   endoffset: number;
   rxtxKind: string;
+  sentence: string;
   trString: string;
   tunningKind?: string;
   engineCode: string;

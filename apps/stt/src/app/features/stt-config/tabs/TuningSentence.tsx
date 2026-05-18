@@ -341,6 +341,12 @@ export default function TuningSentence() {
       filter: true,
     },
     {
+      headerName: 'STT 원문',
+      field: 'sentence',
+      flex: 4,
+      filter: true,
+    },
+    {
       headerName: '문자수정 내용',
       field: 'trString',
       flex: 4,
