@@ -1,5 +1,5 @@
 import * as React from 'react';
-import { Navigate, Route, Routes } from 'react-router-dom';
+import { Route, Routes } from 'react-router-dom';
 import { type Theme, ToastContainer, type ToastPosition } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
@@ -12,6 +12,7 @@ import SharedInfoProvider from './features/router/SharedInfoProvider';
 import WsSessionEventHandler from './features/router/WsSessionEventHandler';
 import { useApiErrorHandler } from './hooks/useApiErrorHandler';
 import Login from './pages/Login';
+import Main from './pages/Main';
 import { FallbackSpinner } from '@/components/custom/FallbackSpinner';
 import { Forbidden } from '@/components/custom/Forbidden';
 import { NotFound } from '@/components/custom/NotFound';
@@ -39,7 +40,9 @@ const AppRoutes = () => {
             </SessionGuard>
           }
         >
-          <Route path="/" element={<Navigate to="/fca" />} />
+          <Route path="/" element={<Layout />}>
+            <Route index element={<Main />} />
+          </Route>
           <Route path="/manager" element={<Layout />}>
             <Route index path="*" element={<Manager />} />
           </Route>

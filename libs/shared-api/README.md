@@ -18,7 +18,7 @@ src/
 ├── lib/
 │   ├── shared-api.ts     # 공통 API 함수
 │   └── types/
-│       ├── bookmark.type.ts  # 북마크 타입
+│       ├── favorite.type.ts  # 즐겨찾기 타입
 │       ├── iam.types.ts      # IAM 타입 (역할 등)
 │       ├── navi.types.ts     # 네비게이션 타입
 │       └── index.ts
@@ -45,13 +45,13 @@ src/
 | `sharedApi.common.getNavigation(params)` | 네비게이션 데이터 조회 |
 | `sharedApi.common.queryKeys` | `createQueryKeys('sharedApi:common', ...)` |
 
-### bookmark
+### favorite
 
 | 함수 | 설명 |
 | --- | --- |
-| `sharedApi.bookmark.createBookmark({ params, data })` | 북마크 생성 |
-| `sharedApi.bookmark.updateBookmark({ params, data })` | 북마크 수정 |
-| `sharedApi.bookmark.deleteBookmark(params)` | 북마크 삭제 |
+| `sharedApi.favorite.createFavorite({ params, data })` | 즐겨찾기 생성 |
+| `sharedApi.favorite.updateFavorite({ params, data })` | 즐겨찾기 수정 |
+| `sharedApi.favorite.deleteFavorite(params)` | 즐겨찾기 삭제 |
 
 ## 사용 예시
 

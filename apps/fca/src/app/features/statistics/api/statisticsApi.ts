@@ -174,4 +174,10 @@ export const statisticsApi = {
     const response = await apiClient.post<ListResponse<CampaignOptionListItem>>('/stat-campaign-options', params ?? {});
     return extractList(response);
   },
+
+  // IFE 리다이렉트
+  getIfeRedirectUrl: async (params: { serviceId: number; subFlowId: string; nodeName: string }): Promise<string | null> => {
+    const response = await apiClient.get<{ data: { redirectUrl: string } }>('/stat-bot-slot-ife-redirect', { params });
+    return response.data?.data?.redirectUrl ?? '';
+  },
 };

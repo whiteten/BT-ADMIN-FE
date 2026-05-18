@@ -1,4 +1,4 @@
-import type { Bookmark } from '@/libs/shared-api/src/lib/types/navi.types';
+import type { Favorite } from '@/libs/shared-api/src/lib/types/navi.types';
 import type { MenuConfig, MenuItem } from '@/libs/shared-store/src/types/menu.types';
 
 export interface MenuLookup {
@@ -20,11 +20,11 @@ const findMenuItemRecursive = (item: MenuItem, menuKey: string, ancestors: strin
   return null;
 };
 
-export const findMenuInfo = (menuConfigs: MenuConfig[], bookmark: Bookmark): MenuLookup => {
+export const findMenuInfo = (menuConfigs: MenuConfig[], favorite: Favorite): MenuLookup => {
   for (const config of menuConfigs) {
-    if (config.appId !== bookmark.appId) continue;
+    if (config.appId !== favorite.appId) continue;
     for (const menu of config.menus) {
-      const result = findMenuItemRecursive(menu, bookmark.menuKey, []);
+      const result = findMenuItemRecursive(menu, favorite.menuKey, []);
       if (result) return { icon: menu.icon, path: result.path, appName: config.appName, ancestors: result.ancestors };
     }
   }

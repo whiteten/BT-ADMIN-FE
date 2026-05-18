@@ -85,7 +85,7 @@ const MenuPanel = ({ topOffset }: MenuPanelProps) => {
   );
 
   const isMega = mode === 'mega';
-  const isBookmarkView = view === 'bookmark';
+  const isFavoriteView = view === 'favorite';
 
   // 현재 activeMenuKey가 가리키는 1단계 메뉴(폴더라면 children 보유)
   const activeMenu = useMemo(() => {
@@ -94,12 +94,12 @@ const MenuPanel = ({ topOffset }: MenuPanelProps) => {
     return config?.menus.find((m) => m.menuKey === activeMenuKey) ?? null;
   }, [activeMenuKey, displayedAppId, menuConfigs]);
 
-  // detail 영역 노출 여부 — 폴더가 활성일 때만, bookmark view·mega는 항상 노출
+  // detail 영역 노출 여부 — 폴더가 활성일 때만, favorite view·mega는 항상 노출
   const hasFolderDetail = !!activeMenu?.children?.length;
-  const showDetailArea = isMega || isBookmarkView || hasFolderDetail;
+  const showDetailArea = isMega || isFavoriteView || hasFolderDetail;
 
-  // panel 폭: mega→viewport / bookmark→560(strip+500) / 폴더 detail→820(strip+sidebar+500) / 그 외→320(strip+sidebar)
-  const panelWidth = isMega ? 'w-screen' : isBookmarkView ? 'w-[560px]' : hasFolderDetail ? 'w-[820px]' : 'w-[320px]';
+  // panel 폭: mega→viewport / favorite→560(strip+500) / 폴더 detail→820(strip+sidebar+500) / 그 외→320(strip+sidebar)
+  const panelWidth = isMega ? 'w-screen' : isFavoriteView ? 'w-[560px]' : hasFolderDetail ? 'w-[820px]' : 'w-[320px]';
 
   return (
     <>

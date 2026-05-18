@@ -52,6 +52,10 @@ export interface SlotStatItem {
   serviceName: string; // 봇명
   dialogId: string; // 대화 ID
   dialogName: string; // 대화명
+  prevDialogId: number; // 이전 대화 ID
+  prevDialogName: string; // 이전 대화명
+  fnId: string; // IFE SubFlow ID
+  fnName: string; // IFE SubFlow명
   slotId: string; // 슬롯 ID
   slotName: string; // 슬롯명
   isCustomSlot: number; // 슬롯타입

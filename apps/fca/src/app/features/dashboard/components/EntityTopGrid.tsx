@@ -5,7 +5,7 @@ import useAggridOptions from '@/libs/shared-ui/src/hooks/useAggridOptions';
 
 const columnDefs: ColDef<EntityTopItem>[] = [
   { headerName: '순위', field: 'rank', maxWidth: 80 },
-  { headerName: '엔티티 태그', field: 'entityTag' },
+  { headerName: '개체 태그', field: 'entityTag' },
   { headerName: '검출 횟수', field: 'detectCnt', valueFormatter: (p) => (p.value != null ? `${p.value}건` : '') },
 ];
 

@@ -3,7 +3,6 @@ import { Navigate, Outlet } from 'react-router-dom';
 import FcaWsSessionEventHandler from './features/router/FcaWsSessionEventHandler';
 import { NotFound } from '@/components/custom/NotFound';
 
-const Main = React.lazy(() => import('./pages/main/Main'));
 const BotList = React.lazy(() => import('./pages/bot-config/BotList'));
 const BotCreate = React.lazy(() => import('./pages/bot-config/BotCreate'));
 const BotDetail = React.lazy(() => import('./pages/bot-config/BotDetail'));
@@ -69,8 +68,7 @@ export const routes = [
     path: '/',
     element: <FcaWsSessionEventHandler />,
     children: [
-      { index: true, element: <Navigate to="main" replace /> },
-      { path: 'main', element: <Main /> },
+      { index: true, element: <Navigate to="/" replace /> },
       {
         path: 'bot-config',
         element: <Outlet />,
@@ -175,5 +173,5 @@ export const routes = [
       },
     ],
   },
-  { path: '*', element: <NotFound homePath="/fca" /> },
+  { path: '*', element: <NotFound homePath="/" /> },
 ];

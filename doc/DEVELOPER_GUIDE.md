@@ -273,7 +273,7 @@ features/bot-config/types/
 ├── index.ts          # export * from './bot'; export * from './model'; ...
 ├── bot.ts            # 봇 관련 타입
 ├── model.ts          # 모델 관련 타입
-└── entity.ts         # 엔티티 관련 타입
+└── entity.ts         # 개체 관련 타입
 ```
 
 ### 왜 파일을 분리하나요?
@@ -2469,6 +2469,26 @@ const DynamicElement = ({ variants }) => {
 - 호스트의 `usePageVariantsLoader` `VARIANT_LOADERS` 맵에 신규 remote 자동 등록
 
 따라서 신규 remote는 별도 작업 없이 variants 인프라가 즉시 동작합니다.
+
+### 수동 단계 — remote 앱 뱃지 아이콘 추가
+
+`create-remote`가 자동 처리하지 못하는 유일한 후속 작업입니다. 사이드바 좌측 60px 컬럼([PanelAppBadgeStrip.tsx](../apps/host/src/app/features/layout/panel/PanelAppBadgeStrip.tsx))에 노출되는 remote별 뱃지 아이콘은 디자인 자산이 필요하므로 코드 생성만으로는 완성할 수 없습니다. 미등록 상태에서는 lucide의 `SquareDashed` placeholder가 fallback으로 표시되니, 신규 remote가 정식 메뉴에 들어가기 전 아래 절차로 교체하세요.
+
+#### 절차
+
+1. **디자인팀에 의뢰** — 제품 컨셉에 맞는 아이콘 SVG를 요청합니다. 기존 자산(`icon-remote-fca.svg`, `icon-remote-ipron.svg`)과 동일한 스펙(단색·여백·viewBox)을 유지하도록 가이드를 첨부하세요.
+2. **SVG 배치** — 받은 파일을 `libs/shared-ui/src/assets/images/icon/icon-remote-<appId>.svg`로 저장합니다. 파일명의 `<appId>`는 `create-remote`로 입력한 kebab-case 앱 이름과 일치해야 합니다.
+3. **Icons.tsx에 export 추가** — [libs/shared-ui/src/components/custom/Icons.tsx](../libs/shared-ui/src/components/custom/Icons.tsx) 하단의 기존 `IconRemoteFca` / `IconRemoteIpron` export 옆에 동일한 패턴으로 한 줄 추가합니다.
+   ```ts
+   export { ReactComponent as IconRemote<AppId> } from '../../assets/images/icon/icon-remote-<app-id>.svg';
+   ```
+4. **PanelAppBadgeStrip의 `APP_BADGE_ICONS` 매핑 추가** — [PanelAppBadgeStrip.tsx](../apps/host/src/app/features/layout/panel/PanelAppBadgeStrip.tsx)의 `APP_BADGE_ICONS` 객체에 `<appId>: IconRemote<AppId>` 항목을 추가합니다. 키는 remote의 `appId`(kebab-case 그대로), 값은 3번에서 export한 컴포넌트입니다.
+5. **확인** — 호스트를 띄워 사이드바 좌측 뱃지가 placeholder가 아닌 의도한 아이콘으로 그려지는지, hover 시 앱 이름이 옆으로 펼쳐지는 동작이 정상인지 확인합니다.
+
+#### 주의
+
+- **메뉴 아이콘과 혼동 금지**: 아래 "아이콘 레지스트리도 동일 발상"에서 다루는 `menuIconRegistry`는 메뉴 트리 항목별 아이콘(운영자가 picker에서 선택)을 위한 것입니다. remote 뱃지 아이콘은 사이드바 가장 왼쪽 컬럼에 remote 자체를 대표하는 별도 자산이므로 `menuIconRegistry`에는 등록할 필요가 없습니다.
+- **fallback의 의미**: `SquareDashed`가 보인다면 4번 매핑이 누락된 상태입니다. 운영 환경에서도 동작은 하지만 신규 remote가 정식 출시되기 전 반드시 교체하세요.
 
 ### 아이콘 레지스트리도 동일 발상
 
