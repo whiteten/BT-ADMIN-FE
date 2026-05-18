@@ -6,7 +6,7 @@ import PanelDetail from './PanelDetail';
 import PanelMega from './PanelMega';
 import { hasActiveDescendant } from './PanelMenuPrimitives';
 import PanelSidebar from './PanelSidebar';
-import useRemoteSelector from '../../../hooks/useRemoteSelector';
+import useCurrentRemote from '../../../hooks/useCurrentRemote';
 import { useMenuPanelStore } from '../hooks/useMenuPanelStore';
 import { cn } from '@/libs/shared-ui/src/lib/utils';
 
@@ -18,7 +18,7 @@ interface MenuPanelProps {
 const MenuPanel = ({ topOffset }: MenuPanelProps) => {
   const navigate = useNavigate();
   const location = useLocation();
-  const { selectedRemote } = useRemoteSelector();
+  const selectedRemote = useCurrentRemote();
   const { menuConfigs } = useMenuStore();
   const { open, mode, view, displayedAppId, activeMenuKey, setOpen, setView, setDisplayedAppId, setActiveMenuKey } = useMenuPanelStore();
   const panelRef = useRef<HTMLDivElement>(null);

@@ -1,7 +1,8 @@
 import type { ComponentType, SVGProps } from 'react';
 import { Tooltip } from 'antd';
 import { Pin, PinOff, Settings, SquareDashed } from 'lucide-react';
-import useRemoteSelector from '../../../hooks/useRemoteSelector';
+import { useMenuStore } from '@/shared-store';
+import useCurrentRemote from '../../../hooks/useCurrentRemote';
 import { useMenuPanelStore } from '../hooks/useMenuPanelStore';
 import { IconRemoteFca, IconRemoteIpron, IconStar } from '@/components/custom/Icons';
 import { cn } from '@/libs/shared-ui/src/lib/utils';
@@ -37,7 +38,8 @@ const APP_BADGE_ICONS: Record<string, ComponentType<SVGProps<SVGSVGElement>>> = 
  * - 스크롤: remote 뱃지 영역만 overflow-y-auto. 즐겨찾기는 상단 고정, 핀 토글은 하단 고정으로 스크롤 영역에서 제외.
  */
 const PanelAppBadgeStrip = () => {
-  const { remotes, selectedRemote } = useRemoteSelector();
+  const remotes = useMenuStore((s) => s.menuConfigs);
+  const selectedRemote = useCurrentRemote();
   const pinned = useMenuPanelStore((s) => s.pinned);
   const setOpen = useMenuPanelStore((s) => s.setOpen);
   const setMode = useMenuPanelStore((s) => s.setMode);
