@@ -10,6 +10,7 @@ import { Check, GripVertical, SquareDashed, Trash2, X } from 'lucide-react';
 import { sharedApi } from '@/shared-api';
 import { useMenuStore, useNavigationStore } from '@/shared-store';
 import { isMenuActive } from './PanelMenuPrimitives';
+import { NewWindowButton } from '../components/NewWindowButton';
 import { useUpdateFavorite } from '../hooks/useFavoriteQueries';
 import { useMenuPanelStore } from '../hooks/useMenuPanelStore';
 import { findMenuInfo } from '../utils/findMenuInfo';
@@ -62,14 +63,11 @@ const SortableFavoriteRow = ({ info, isEditMode, onClick, onRemove }: SortableFa
   }
 
   return (
-    <button
-      type="button"
+    <div
       onClick={() => onClick(favorite, path)}
-      disabled={!path}
       className={cn(
-        'group/row relative flex w-full items-center gap-3 rounded-md px-3 py-2.5 text-left transition-colors cursor-pointer',
-        'text-[#495057] hover:bg-[#f1f3f5]',
-        'disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:bg-transparent',
+        'group/row relative flex w-full items-center gap-3 rounded-md px-3 py-2.5 text-left transition-colors',
+        path ? 'cursor-pointer text-[#495057] hover:bg-[#f1f3f5]' : 'cursor-not-allowed opacity-50',
         isActive && 'before:absolute before:left-0 before:top-1.5 before:bottom-1.5 before:w-[3px] before:rounded-full before:bg-[var(--color-bt-primary)]',
       )}
     >
@@ -82,7 +80,12 @@ const SortableFavoriteRow = ({ info, isEditMode, onClick, onRemove }: SortableFa
         <p className={cn('text-sm truncate', isActive ? 'text-[var(--color-bt-primary)] font-semibold' : 'text-[#495057]')}>{favorite.label}</p>
         {breadcrumb && <p className="text-[12px] text-[#adb5bd] truncate mt-0.5">{breadcrumb}</p>}
       </div>
-    </button>
+      {path && (
+        <span className="shrink-0 ml-1" onClick={(e) => e.stopPropagation()}>
+          <NewWindowButton path={path} appId={favorite.appId} />
+        </span>
+      )}
+    </div>
   );
 };
 
