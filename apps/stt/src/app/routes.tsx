@@ -2,7 +2,6 @@ import React from 'react';
 import { Navigate, Outlet } from 'react-router-dom';
 import { NotFound } from '@/components/custom/NotFound';
 
-const Main = React.lazy(() => import('./pages/main/Main'));
 const SearchList = React.lazy(() => import('./pages/stt-config/SearchList'));
 const TrainingList = React.lazy(() => import('./pages/stt-config/TrainingList'));
 const DictionaryList = React.lazy(() => import('./pages/stt-config/DictionaryList'));
@@ -18,11 +17,7 @@ export const routes = [
     children: [
       {
         index: true,
-        element: <Navigate to="main" replace />,
-      },
-      {
-        path: 'main',
-        element: <Main />,
+        element: <Navigate to="/" replace />,
       },
       {
         path: 'stt-config',
@@ -84,6 +79,6 @@ export const routes = [
   },
   {
     path: '*',
-    element: <NotFound homePath="/stt" />,
+    element: <NotFound homePath="/" />,
   },
 ];
