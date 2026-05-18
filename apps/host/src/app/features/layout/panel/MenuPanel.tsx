@@ -47,12 +47,15 @@ const MenuPanel = ({ topOffset }: MenuPanelProps) => {
     const stored = useMenuPanelStore.getState().displayedAppId;
     const appId = stored ?? selectedRemote?.appId ?? null;
     if (appId !== stored) setDisplayedAppId(appId);
-    if (!appId) return;
-    const config = menuConfigs.find((c) => c.appId === appId);
-    if (!config) return;
+    const config = appId ? menuConfigs.find((c) => c.appId === appId) : undefined;
+    // 표시할 앱 메뉴가 없으면(host 영역 등) 즐겨찾기 뷰로 자동 전환
+    if (!appId || !config) {
+      setView('favorite');
+      return;
+    }
     const matched = config.menus.find((m) => !m.hide && hasActiveDescendant(m, location, appId));
     if (matched) setActiveMenuKey(matched.menuKey);
-  }, [open, selectedRemote?.appId, location, menuConfigs, setDisplayedAppId, setActiveMenuKey]);
+  }, [open, selectedRemote?.appId, location, menuConfigs, setDisplayedAppId, setActiveMenuKey, setView]);
 
   // Esc 키 close
   useEffect(() => {
