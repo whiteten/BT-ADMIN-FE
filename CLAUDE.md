@@ -534,7 +534,7 @@ export const routes = [
     path: '/',
     element: <RootLayout />,
     children: [
-      { index: true, element: <Navigate to="main" replace /> },
+      { index: true, element: <Navigate to="/" replace /> },
       {
         path: 'bot-config/bot',
         children: [
@@ -545,7 +545,7 @@ export const routes = [
       },
     ],
   },
-  { path: '*', element: <NotFound homePath="/fca" /> },
+  { path: '*', element: <NotFound homePath="/" /> },
 ];
 ```
 

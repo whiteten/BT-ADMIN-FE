@@ -36,7 +36,7 @@ allowed-tools: Read, Write, Edit, Glob, Grep, Bash, AskUserQuestion, TodoWrite
 함수 분석 시 다음 사항을 기준으로 점검 로직을 도출한다:
 
 - **manager에서 복사하는 함수** (예: `copyWebpackHelpers`, `copyPostcssConfig`, `copyTailwindConfig`, `updateWebpackConfig`): 대상 파일이 존재하고 manager 원본과 바이트 단위로 동일한지 확인. 다르면 manager 내용으로 덮어쓰기.
-- **manager에서 복사 + 치환**하는 함수 (예: `updateModuleFederationConfig`의 `name` 치환, `copyQuerySelectorsTemplate`의 `APP_ID` 치환, `copyRoutesTemplate`의 `homePath` 치환·주석 제거): 함수 본문의 치환 규칙을 그대로 적용한 결과와 대상 파일을 비교.
+- **manager에서 복사 + 치환**하는 함수 (예: `updateModuleFederationConfig`의 `name` 치환, `copyQuerySelectorsTemplate`의 `APP_ID` 치환, `copyRoutesTemplate`의 주석 제거): 함수 본문의 치환 규칙을 그대로 적용한 결과와 대상 파일을 비교.
 - **JSON 구조를 수정**하는 함수 (예: `createPackageJson`, `updateProjectJson`): 함수가 작성·수정하는 필드만 확인 (사용자가 추가한 다른 필드는 건드리지 않는다).
 - **host 파일에 라인 추가**하는 함수 (예: `addReactLazyToApp`, `addRoutePattern`, `updateRouteLoaders`, `updateVariantLoaders`, `updateQuerySelectorLoaders`, `updateWebpackConfigProd`, `updateBuildSelective`, `updateServeHost`): 해당 라인이 이미 host 파일에 존재하는지 grep으로 확인. 없으면 함수와 동일한 패턴으로 삽입.
 - **파일 삭제** 함수 (예: `removeNxWelcome`, `removeAppSpec`): 파일이 남아있으면 삭제.
@@ -46,7 +46,7 @@ allowed-tools: Read, Write, Edit, Glob, Grep, Bash, AskUserQuestion, TodoWrite
 
 ### 주의 — 파일이 이미 존재할 때
 
-- `routes.tsx`, `pageVariantManifest.ts`, `querySelectors.ts`, `app.tsx`, `Main.tsx`는 **운영 중에 사용자가 직접 작성한 코드가 들어있을 가능성이 높다**. 파일이 존재한다면 단순 덮어쓰지 말고:
+- `routes.tsx`, `pageVariantManifest.ts`, `querySelectors.ts`, `app.tsx`는 **운영 중에 사용자가 직접 작성한 코드가 들어있을 가능성이 높다**. 파일이 존재한다면 단순 덮어쓰지 말고:
   - 파일이 **비어있거나 sample 그대로**면 덮어쓴다.
   - 의미 있는 사용자 코드가 들어있으면 그대로 두고 "사용자 코드 있음 — 스킵" 으로 보고만 한다.
 - `module-federation.config.ts`의 `exposes` / `additionalShared`는 remote가 자체적으로 추가했을 수 있으므로, `name` 필드만 비교/치환한다.
@@ -101,7 +101,23 @@ allowed-tools: Read, Write, Edit, Glob, Grep, Bash, AskUserQuestion, TodoWrite
 
 > PageHeader 잔재는 코드만 정리한다. README 등 문서에 언급이 남아있어도 **실제 코드만 마이그레이션하고 문서 수정은 이 커맨드의 범위가 아니다**.
 
-### 3-3. remote 앱 뱃지 아이콘 등록 점검
+### 3-3. 구버전 Main 페이지·main 라우트·remote homePath 잔재 제거
+
+`create-remote.js`가 더 이상 remote에 main 페이지를 만들지 않는 정책으로 변경됐다. 메인 페이지는 host의 `/`가 단독으로 제공하며, 모든 remote의 루트(`/<APP_NAME>`) 진입과 404 fallback은 host `/`로 redirect된다. 기존 remote에 남아있는 다음 잔재를 정리한다.
+
+| 점검 대상 | 처리 |
+|----------|------|
+| `apps/<APP_NAME>/src/app/pages/main/Main.tsx` 파일 존재 | 파일 삭제. `pages/main/` 폴더가 비면 폴더도 제거 |
+| `apps/<APP_NAME>/src/app/routes.tsx`의 `Main` lazy import (`const Main = React.lazy(() => import('./pages/main/Main'));` 패턴) | 라인 제거 |
+| `apps/<APP_NAME>/src/app/routes.tsx`의 index redirect 대상 (`<Navigate to="main" replace />` 또는 `<Navigate to="/main" replace />` 등 host 루트가 아닌 값) | `<Navigate to="/" replace />`로 변경 |
+| `apps/<APP_NAME>/src/app/routes.tsx`의 main 라우트 항목 (`{ path: 'main', element: <Main /> }` 형태) | 해당 라우트 객체 제거 |
+| `apps/<APP_NAME>/src/app/routes.tsx`의 `NotFound homePath` (`homePath="/<APP_NAME>"` 등 host 루트가 아닌 값) | `homePath="/"`로 변경 |
+
+routes.tsx는 §2의 "사용자 코드 있음 — 스킵" 정책으로 자동 덮어쓰기 대상에서 빠지므로 위 패턴들은 §3에서 명시적으로 검사·치환한다. 변경 후 해당 파일에 `npx eslint --fix` 실행(마무리 섹션의 일괄 처리에 포함).
+
+> 정책 배경: host의 `/`에 공통 메인 페이지([apps/host/src/app/pages/Main.tsx](../../apps/host/src/app/pages/Main.tsx))를 두고, 모든 remote가 자체 main 페이지를 가지지 않도록 단일화했다. 변경 사유에 대한 자세한 맥락은 [CLAUDE.md "페이지 Lazy Loading 패턴"](../../CLAUDE.md) 참조.
+
+### 3-4. remote 앱 뱃지 아이콘 등록 점검
 
 사이드바 좌측 60px 컬럼([PanelAppBadgeStrip.tsx](../../apps/host/src/app/features/layout/panel/PanelAppBadgeStrip.tsx))의 remote 뱃지 아이콘은 `create-remote.js`가 자동 처리하지 않는다. 미등록 상태면 lucide `SquareDashed` placeholder가 fallback으로 표시되므로, 신규 remote가 정식 출시되기 전 다음 3개 항목이 모두 갖춰져야 한다(상세 절차: [CLAUDE.md "생성 후 수동 단계 — remote 앱 뱃지 아이콘"](../../CLAUDE.md), [DEVELOPER_GUIDE.md "수동 단계 — remote 앱 뱃지 아이콘 추가"](../../doc/DEVELOPER_GUIDE.md)).
 
