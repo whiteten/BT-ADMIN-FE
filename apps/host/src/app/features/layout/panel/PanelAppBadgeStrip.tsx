@@ -113,8 +113,8 @@ const PanelAppBadgeStrip = () => {
       {/* 즐겨찾기와 스크롤 영역 사이 구분선 — 스크롤 영역 안에 두면 함께 스크롤되므로 형제로 분리 */}
       {(otherRemotes.length > 0 || managerRemote) && divider}
 
-      {/* 스크롤 영역 — remote 뱃지들만. 즐겨찾기·핀 토글은 스크롤에서 제외 */}
-      <div className="flex-1 min-h-0 w-full overflow-y-auto flex flex-col items-center gap-2.5 [scrollbar-width:thin]">
+      {/* 스크롤 영역 — remote 뱃지들만. 즐겨찾기·핀 토글은 스크롤에서 제외. py-1.5는 뱃지 우상단 빨간 점(노치)이 스크롤 박스 모서리에 잘리지 않도록 한 여유. */}
+      <div className="flex-1 min-h-0 w-full overflow-y-auto flex flex-col items-center gap-2.5 py-1.5 [scrollbar-width:thin]">
         {otherRemotes.map((remote, index) => renderBadge(remote, index))}
 
         {/* manager — 맨 하단(핀 위). 위에 다른 remote가 있을 때만 구분선 추가 (없으면 즐겨찾기 구분선 하나로 충분) */}
