@@ -78,6 +78,50 @@ git log --oneline -10   # 최근 커밋 스타일 참고
 - 본문: 변경 사항의 상세 내용. 무엇을/왜 바꿨는지를 기술. 제목만으로 커밋하지 않는다.
 - 이모지와 타입 사이에 공백 없음 (`✨feat`), 타입과 scope 사이 공백 없음 (`feat(fca)`).
 
+#### 본문 문체 — 업무 보고서식
+
+본문은 간결하고 공식적인 업무 보고서 톤으로 작성한다.
+
+- **종결 어미**: `~했다`, `~했습니다`, `~합니다` 금지. 대신 명사형·개조식 종결을 사용 — `~함`, `~됨`, `~필요`, `~예정`, `~검토 중`, `~확인`, `~조치` 등.
+- **어조**: 사실 중심·객관 서술. 감정·수사·존댓말 제거.
+- **구조**: bullet(`-`) 또는 `[증상] / [원인] / [조치]` 같은 보고서 섹션 헤더를 적극 활용. 한 항목 = 한 사실.
+- **길이**: 한 줄 100자 이내(commitlint `body-max-line-length: 100` 룰이 강제, 초과 시 commit-msg hook 실패). 한국어·이모지·유니코드 화살표(→) 등은 character count 기준이라 visual 폭보다 길게 잡힐 수 있으므로 80자 이내로 wrap하는 것을 권장. 여러 사실을 한 문장에 욱여넣지 않는다.
+- **줄 시작 `#` 금지**: 본문의 어떤 줄도 `#`으로 시작하면 안 됨. `git commit -m` heredoc 경로에서는 보존되지만, `pnpm commit`(commitizen) 등 에디터 경로에서는 `commit.cleanup=strip` 기본 동작에 따라 주석으로 처리되어 잘려나감. 섹션 헤더는 `[증상]`/`[원인]`/`[조치]` 같은 대괄호 표기 사용.
+- **줄 중간 `#<숫자/영숫자>` 토큰 금지**: 본문 중간에 hex 색상값(`#475569`), 이슈 번호 모양(`#123`), 또는 임의의 `#` + 영숫자 토큰을 그대로 쓰지 말 것. conventional-commits-parser의 기본 `issuePrefixes: ['#']` 동작에 따라 해당 줄부터 footer paragraph로 자동 분류되며, 그 앞에 빈 줄이 없으면 `footer-leading-blank` 룰 위반으로 commit-msg hook이 실패. 또한 빈 줄을 둬도 본문 의도가 분리되어 보고서식 흐름이 깨짐. 대안: 자연어로 풀어 쓰기(예: `bg-[#475569]` → `진회색 채움`), 백틱으로 감싸기(`` `#475569` ``), 또는 hex 값 자체를 메시지에서 제거.
+
+예시 — 버그 수정:
+
+```
+🐛fix(host): pinned strip 첫 클릭 시 잘못된 앱 메뉴 노출 수정
+
+[증상]
+pinned 상태의 strip에서 다른 앱 뱃지 첫 클릭 시 현재 URL의 앱 메뉴가
+표시되고, 두 번째 클릭에야 정상 동작.
+
+[원인]
+handleAppClick의 setOpen(true)·setDisplayedAppId(clicked) batch 직후
+open-transition effect가 displayedAppId를 selectedRemote.appId로 무조건
+덮어씀.
+
+[조치]
+effect에서 store의 displayedAppId 우선 조회, 기설정값이 있으면 그대로
+유지하도록 가드 추가. 일반 open 경로는 기존과 동일하게 selectedRemote
+기준으로 초기화.
+```
+
+예시 — 기능 추가/리팩터:
+
+```
+🔨refactor(host): useRemoteSelector → useCurrentRemote 단순화
+
+- 파일명 변경 및 단일 책임으로 축소(MenuConfig | null 반환).
+- dead code(setSelectedRemote/useNavigate) 제거.
+- useState + useEffect 패턴 제거, 매 렌더 직접 계산으로 교체. React
+  Compiler 메모이제이션 의존이라 useMemo도 미사용.
+- 첫 remote fallback 제거 → 매칭 실패 시 null 반환 필요.
+- 호출처 3곳 정비 완료.
+```
+
 ### 5. 제시 및 대기
 
 작성한 메시지를 코드 블록으로 출력하고 사용자 확인을 기다린다. 사용자가 수정을 요청하면 반영 후 다시 제시.
@@ -107,3 +151,7 @@ EOF
 - [ ] scope가 remote 명칭인가? (feature명 아님)
 - [ ] 여러 remote 걸친 변경이면 scope를 뺐는가?
 - [ ] 제목 + 본문을 모두 포함했는가?
+- [ ] 본문이 명사형·개조식(`~함`, `~됨`, `~필요` 등) 보고서 문체인가? `~했다`, `~합니다` 같은 평서·존댓말이 섞이지 않았는가?
+- [ ] 본문의 어떤 줄도 `#`으로 시작하지 않는가? (에디터 경로에서 잘림)
+- [ ] 본문 중간에 `#<숫자/영숫자>` 토큰(hex 색상, 이슈 번호 모양)이 없는가? 있다면 자연어로 풀거나 백틱으로 감쌌는가? (commitlint footer 오인식)
+- [ ] 본문 어떤 줄도 100자를 넘지 않는가? (commitlint `body-max-line-length: 100`)

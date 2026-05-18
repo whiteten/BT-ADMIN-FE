@@ -39,7 +39,7 @@ TypeScript 또는 JavaScript 파일을 수정한 후에는 반드시 `npx eslint
 - **Shared UI** (`libs/shared-ui`): 재사용 가능한 React 컴포넌트
   - shadcn/ui 컴포넌트 (Badge, Button, Card, Dialog, Table 등)
   - 커스텀 컴포넌트 (AggridNoRowsOverlay, AggridRowDataSidebar, FallbackSpinner, Icons, NoData, NotFound, PageTabs 등)
-- **Shared API** (`libs/shared-api`): 여러 앱에서 공통으로 사용하는 API 및 타입 (역할, 네비게이션, 북마크 등)
+- **Shared API** (`libs/shared-api`): 여러 앱에서 공통으로 사용하는 API 및 타입 (역할, 네비게이션, 즐겨찾기 등)
 - **Shared Store** (`libs/shared-store`): Zustand를 사용한 상태 관리
 - **Shared Util** (`libs/shared-util`): 유틸리티 함수 및 헬퍼
 
@@ -360,8 +360,8 @@ features/<feature>/types/
 ├── index.ts          # barrel export (export * from './bot'; ...)
 ├── bot.ts            # 봇 관련 타입
 ├── model.ts          # 모델 관련 타입
-├── intent.ts         # 인텐트 관련 타입
-└── entity.ts         # 엔티티 관련 타입
+├── intent.ts         # 의도 관련 타입
+└── entity.ts         # 개체 관련 타입
 ```
 
 #### DTO 서픽스 규칙
@@ -534,7 +534,7 @@ export const routes = [
     path: '/',
     element: <RootLayout />,
     children: [
-      { index: true, element: <Navigate to="main" replace /> },
+      { index: true, element: <Navigate to="/" replace /> },
       {
         path: 'bot-config/bot',
         children: [
@@ -545,7 +545,7 @@ export const routes = [
       },
     ],
   },
-  { path: '*', element: <NotFound homePath="/fca" /> },
+  { path: '*', element: <NotFound homePath="/" /> },
 ];
 ```
 

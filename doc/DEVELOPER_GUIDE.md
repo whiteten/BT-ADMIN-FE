@@ -273,7 +273,7 @@ features/bot-config/types/
 ├── index.ts          # export * from './bot'; export * from './model'; ...
 ├── bot.ts            # 봇 관련 타입
 ├── model.ts          # 모델 관련 타입
-└── entity.ts         # 엔티티 관련 타입
+└── entity.ts         # 개체 관련 타입
 ```
 
 ### 왜 파일을 분리하나요?

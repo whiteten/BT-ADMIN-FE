@@ -57,7 +57,7 @@ export type ModelBasicInfoUpdateDatas = Pick<Model, 'modelName' | 'expansion1'>;
 export type GenerateExcelDatas = { fileName: string; sheetName: string; keys: string[]; values: string[][] };
 
 /**
- * 모델 엑셀 업로드 결과 (인텐트 + 엔티티 통합)
+ * 모델 엑셀 업로드 결과 (의도 + 개체 통합)
  */
 export interface ModelImportResult {
   model: { modelId: string; modelName: string; modelType: number };

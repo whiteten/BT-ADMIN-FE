@@ -1,38 +1,40 @@
 import { useNavigate } from 'react-router-dom';
 import { Dropdown, type MenuProps } from 'antd';
-import { ChevronDown, SquareDashed } from 'lucide-react';
+import { ChevronDown } from 'lucide-react';
 import { useMenuStore } from '@/shared-store';
 import { findMenuInfo } from '../utils/findMenuInfo';
-import type { Bookmark } from '@/libs/shared-api/src/lib/types/navi.types';
+import { IconStar } from '@/components/custom/Icons';
+import type { Favorite } from '@/libs/shared-api/src/lib/types/navi.types';
 
-interface BookmarkOverflowMenuProps {
-  bookmarks: Bookmark[];
+interface FavoriteOverflowMenuProps {
+  favorites: Favorite[];
 }
 
-export default function BookmarkOverflowMenu({ bookmarks }: BookmarkOverflowMenuProps) {
+export default function FavoriteOverflowMenu({ favorites }: FavoriteOverflowMenuProps) {
   const navigate = useNavigate();
   const { menuConfigs } = useMenuStore();
 
-  const items: MenuProps['items'] = bookmarks.map((bookmark) => {
-    const { icon: Icon, path, appName, ancestors } = findMenuInfo(menuConfigs, bookmark);
+  const items: MenuProps['items'] = favorites.map((favorite) => {
+    const { path, appName, ancestors } = findMenuInfo(menuConfigs, favorite);
     const subLabel = [appName, ...ancestors.slice(0, -1)].filter(Boolean).join(' › ');
     return {
-      key: bookmark.menuKey,
+      key: favorite.menuKey,
       label: subLabel ? (
         <div className="flex flex-col leading-tight py-0.5">
-          <span>{bookmark.label}</span>
+          <span>{favorite.label}</span>
           <span className="text-xs text-[#adb5bd]">{subLabel}</span>
         </div>
       ) : (
-        bookmark.label
+        favorite.label
       ),
-      icon: Icon ? <Icon className="size-4" /> : <SquareDashed className="size-4" />,
+      // 모든 항목이 즐겨찾기이므로 메뉴별 아이콘 대신 별 아이콘으로 통일
+      icon: <IconStar className="size-4 text-[var(--color-bt-primary)]" />,
       disabled: !path,
-      onClick: () => path && navigate(`/${bookmark.appId}/${path}`),
+      onClick: () => path && navigate(`/${favorite.appId}/${path}`),
     };
   });
 
-  if (bookmarks.length === 0) return null;
+  if (favorites.length === 0) return null;
 
   return (
     <Dropdown menu={{ items }} trigger={['click']} placement="bottomRight">
@@ -41,7 +43,7 @@ export default function BookmarkOverflowMenu({ bookmarks }: BookmarkOverflowMenu
         className="shrink-0 inline-flex items-center h-7 px-2 rounded text-xs text-white/85 hover:bg-white/15 hover:text-white transition-colors cursor-pointer"
         aria-label="더보기"
       >
-        <span className="mr-1">+{bookmarks.length}</span>
+        <span className="mr-1">+{favorites.length}</span>
         <ChevronDown className="size-3" />
       </button>
     </Dropdown>

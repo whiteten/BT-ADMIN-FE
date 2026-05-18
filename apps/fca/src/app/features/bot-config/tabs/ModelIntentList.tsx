@@ -247,13 +247,13 @@ export default function ModelIntentList() {
       {
         label: (
           <Tooltip
-            title={<span style={{ whiteSpace: 'pre-line' }}>{`인텐트와 엔티티를 하나의 엑셀 파일(시트 2개)로\n통합 다운로드합니다.`}</span>}
+            title={<span style={{ whiteSpace: 'pre-line' }}>{`의도와 개체를 하나의 엑셀 파일(시트 2개)로\n통합 다운로드합니다.`}</span>}
             placement="left"
             overlayStyle={{ maxWidth: '300px' }}
           >
             <span className="flex items-center gap-2">
               <FileSpreadsheet className="size-4" />
-              인텐트&엔티티 통합 다운로드
+              의도&개체 통합 다운로드
             </span>
           </Tooltip>
         ),
@@ -285,8 +285,9 @@ export default function ModelIntentList() {
             Import
           </Button>
           <Dropdown menu={exportMenu} trigger={['click']} placement="bottomRight">
-            <Button variant="solid" loading={isExporting || isExportingAll} icon={<ChevronDown className="size-4" />} iconPlacement="end">
+            <Button color="cyan" variant="solid" loading={isExporting || isExportingAll} icon={<Download className="size-4" />}>
               Export
+              <ChevronDown className="size-4" />
             </Button>
           </Dropdown>
 

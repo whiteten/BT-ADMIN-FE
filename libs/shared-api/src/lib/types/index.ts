@@ -1,4 +1,4 @@
 export * from './iam.types';
 export * from './navi.types';
-export * from './bookmark.type';
+export * from './favorite.type';
 export * from './pageVariant.types';

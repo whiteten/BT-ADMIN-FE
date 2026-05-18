@@ -2,7 +2,6 @@ import React from 'react';
 import { Navigate, Outlet } from 'react-router-dom';
 import { NotFound } from '@/components/custom/NotFound';
 
-const Main = React.lazy(() => import('./pages/main/Main'));
 const UserList = React.lazy(() => import('./pages/user/UserList'));
 const UserCreate = React.lazy(() => import('./pages/user/UserCreate'));
 const UserDetail = React.lazy(() => import('./pages/user/UserDetail'));
@@ -42,11 +41,7 @@ export const routes = [
     children: [
       {
         index: true,
-        element: <Navigate to="main" replace />,
-      },
-      {
-        path: 'main',
-        element: <Main />,
+        element: <Navigate to="/" replace />,
       },
       // 자원 관리 (resource)
       {
@@ -163,6 +158,6 @@ export const routes = [
   },
   {
     path: '*',
-    element: <NotFound homePath="/manager" />,
+    element: <NotFound homePath="/" />,
   },
 ];
