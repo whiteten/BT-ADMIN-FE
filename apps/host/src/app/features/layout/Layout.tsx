@@ -2,7 +2,7 @@ import { Outlet } from 'react-router-dom';
 import { App, ConfigProvider } from 'antd';
 import koKR from 'antd/locale/ko_KR';
 import 'dayjs/locale/ko';
-import { ChevronDown } from 'lucide-react';
+import { Minimize2 } from 'lucide-react';
 import SubHeader, { SUB_HEADER_HEIGHT } from './SubHeader';
 import TopHeader, { TOP_HEADER_HEIGHT } from './TopHeader';
 import { antdTheme } from './config/antdTheme';
@@ -39,7 +39,7 @@ export function Layout() {
           aria-label="헤더 펼치기"
           title="헤더 펼치기"
         >
-          <ChevronDown className="size-4" />
+          <Minimize2 className="size-4" />
         </button>
       )}
     </ConfigProvider>

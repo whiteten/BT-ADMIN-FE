@@ -4,6 +4,7 @@ import type { ColDef, ICellRendererParams, RowDoubleClickedEvent, SideBarDef } f
 import { AgGridReact } from 'ag-grid-react';
 import { type BreadcrumbProps, Button, Dropdown, Input, Select, Tooltip } from 'antd';
 import { ChevronDown, CloudDownload, Download } from 'lucide-react';
+import { useBreadcrumbStore } from '@/shared-store';
 import { toast } from '@/shared-util';
 import ExcelImportResultModal, { type ExcelImportResultModalRef } from '../../features/bot-config/components/ExcelImportResultModal';
 import type { ExcelImportResult } from '../../features/bot-config/types/intent';
@@ -13,11 +14,23 @@ import { globalEnvQueryKeys, useDeleteGlobalEnv, useExportGlobalEnv, useGetGloba
 import type { GlobalEnvListItem } from '../../features/global/types/globalEnv.types';
 import FileImportModal, { type FileImportModalRef } from '@/components/custom/FileImportModal';
 import { IconAlertTriangle, IconTrash } from '@/components/custom/Icons';
-import PageHeader from '@/components/custom/PageHeader';
 import useAggridOptions from '@/libs/shared-ui/src/hooks/useAggridOptions';
 import { useModal } from '@/libs/shared-ui/src/hooks/useModal';
 
+const breadcrumb: BreadcrumbProps['items'] = [
+  { title: '공용', path: '/fca/global' },
+  { title: '공용 환경변수', path: '/fca/global/env' },
+];
+
 export default function GlobalEnvList() {
+  const setBreadcrumb = useBreadcrumbStore((s) => s.setBreadcrumb);
+  const clearBreadcrumb = useBreadcrumbStore((s) => s.clearBreadcrumb);
+
+  useEffect(() => {
+    setBreadcrumb(breadcrumb);
+    return () => clearBreadcrumb();
+  }, [setBreadcrumb, clearBreadcrumb]);
+
   const modal = useModal();
   const queryClient = useQueryClient();
   const { gridOptions, sideBar } = useAggridOptions();
@@ -228,14 +241,8 @@ export default function GlobalEnvList() {
     envDrawerRef.current?.open({ envData: e.data });
   };
 
-  const breadcrumb: BreadcrumbProps['items'] = [
-    { title: '공용', path: '/fca/global' },
-    { title: '공용 환경변수', path: '/fca/global/env' },
-  ];
-
   return (
     <div className="flex flex-col gap-4 w-full h-full">
-      <PageHeader breadcrumb={breadcrumb} />
       <div className="flex flex-col gap-5 w-full h-full bg-white bt-shadow p-5">
         <header className="flex items-center justify-between w-full gap-2 lg:flex-nowrap flex-wrap">
           <div className="flex items-center w-full gap-3">
@@ -258,8 +265,9 @@ export default function GlobalEnvList() {
               Import
             </Button>
             <Dropdown menu={exportMenu} trigger={['click']} placement="bottomRight">
-              <Button color="cyan" variant="solid" loading={isExporting} icon={<ChevronDown className="size-4" />} iconPlacement="end">
+              <Button color="cyan" variant="solid" loading={isExporting} icon={<Download className="size-4" />}>
                 Export
+                <ChevronDown className="size-4" />
               </Button>
             </Dropdown>
             <Button variant="solid" color="primary" onClick={handleClickAddEnv}>

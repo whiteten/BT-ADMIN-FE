@@ -52,6 +52,10 @@ export interface SlotStatItem {
   serviceName: string; // 봇명
   dialogId: string; // 대화 ID
   dialogName: string; // 대화명
+  prevDialogId: number; // 이전 대화 ID
+  prevDialogName: string; // 이전 대화명
+  fnId: string; // IFE SubFlow ID
+  fnName: string; // IFE SubFlow명
   slotId: string; // 슬롯 ID
   slotName: string; // 슬롯명
   isCustomSlot: number; // 슬롯타입
@@ -167,3 +171,37 @@ export interface EntityOptionItem {
 }
 
 export type EntityOptionListItem = EntityOptionItem;
+
+export interface CategoryOptionItem {
+  categoryId: string;
+  categoryName: string;
+}
+
+export type CategoryOptionListItem = CategoryOptionItem;
+
+export interface UserDefColumnDef {
+  key: string;
+  headerName: string;
+  categoryId?: string;
+  categoryName?: string;
+  seq?: number;
+}
+
+export interface UserDefStatItem {
+  psrTimeKey: string;
+  serviceId?: string;
+  serviceName: string;
+  dialogId?: string;
+  dialogName: string;
+  categoryName?: string;
+  values?: Record<string, unknown>;
+  [key: string]: unknown;
+}
+
+export type UserDefStatListItem = UserDefStatItem;
+
+export interface UserDefStatList {
+  items: UserDefStatListItem[];
+  summary: UserDefStatListItem | null;
+  columnDef: UserDefColumnDef[];
+}

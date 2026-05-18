@@ -1,16 +1,16 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useQueryClient } from '@tanstack/react-query';
 import type { ColDef, ICellRendererParams } from 'ag-grid-community';
 import { AgGridReact } from 'ag-grid-react';
 import { Button, Input, Select } from 'antd';
 import dayjs from 'dayjs';
+import { useBreadcrumbStore } from '@/shared-store';
 import { toast } from '@/shared-util';
 import AccountStatusBadge from '../../features/user/components/AccountStatusBadge';
 import { useDeleteUser, useGetUsers, useUnlockUser, userQueryKeys } from '../../features/user/hooks/useUserQueries';
 import type { AccountStatus, User } from '../../features/user/types/user.types';
 import { IconTrash } from '@/components/custom/Icons';
-import PageHeader from '@/components/custom/PageHeader';
 import useAggridOptions from '@/libs/shared-ui/src/hooks/useAggridOptions';
 import { useModal } from '@/libs/shared-ui/src/hooks/useModal';
 
@@ -20,6 +20,14 @@ const breadcrumb = [
 ];
 
 export default function UserList() {
+  const setBreadcrumb = useBreadcrumbStore((s) => s.setBreadcrumb);
+  const clearBreadcrumb = useBreadcrumbStore((s) => s.clearBreadcrumb);
+
+  useEffect(() => {
+    setBreadcrumb(breadcrumb);
+    return () => clearBreadcrumb();
+  }, [setBreadcrumb, clearBreadcrumb]);
+
   const { gridOptions } = useAggridOptions();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
@@ -173,7 +181,6 @@ export default function UserList() {
 
   return (
     <div className="flex flex-col gap-4 w-full h-full">
-      <PageHeader breadcrumb={breadcrumb} />
       <div className="flex flex-col gap-5 w-full h-full bg-white bt-shadow p-5">
         <header className="flex items-center justify-between w-full gap-2 lg:flex-nowrap flex-wrap">
           <div className="flex items-center w-full gap-3">

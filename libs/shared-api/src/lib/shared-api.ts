@@ -1,6 +1,6 @@
 import { createQueryKeys } from '@lukemorales/query-key-factory';
 import ApiClient, { type DetailResponse, type ListResponse, extractDetail, extractList } from '@/shared-util';
-import type { BookmarkCreateDatas, BookmarkUpdateDatas } from './types/bookmark.type';
+import type { FavoriteCreateDatas, FavoriteUpdateDatas } from './types/favorite.type';
 import type { Role } from './types/iam.types';
 import type { NavigationData } from './types/navi.types';
 import type { PageVariant, PageVariantUpsertRequest } from './types/pageVariant.types';
@@ -73,16 +73,16 @@ export const sharedApi = {
       await bffClient.delete('/page-variant-delete', { params: { appId, path } });
     },
   },
-  bookmark: {
-    createBookmark: async ({ params, data }: { params: Record<string, unknown>; data: BookmarkCreateDatas }) => {
+  favorite: {
+    createFavorite: async ({ params, data }: { params: Record<string, unknown>; data: FavoriteCreateDatas }) => {
       const response = await bffClient.post<DetailResponse<void>>('/favorites-create', data, { params });
       return response;
     },
-    updateBookmark: async ({ params, data }: { params: Record<string, unknown>; data: BookmarkUpdateDatas }) => {
+    updateFavorite: async ({ params, data }: { params: Record<string, unknown>; data: FavoriteUpdateDatas }) => {
       const response = await bffClient.put<DetailResponse<void>>('/favorites-update', data, { params });
       return response;
     },
-    deleteBookmark: async (params: Record<string, unknown>) => {
+    deleteFavorite: async (params: Record<string, unknown>) => {
       const response = await bffClient.delete<DetailResponse<void>>('/favorites-delete', { params });
       return response;
     },

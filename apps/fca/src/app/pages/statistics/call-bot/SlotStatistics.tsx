@@ -1,11 +1,12 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import type { ColDef, ColGroupDef } from 'ag-grid-community';
+import type { ColDef, ColGroupDef, ICellRendererParams } from 'ag-grid-community';
 import { AgGridReact } from 'ag-grid-react';
 import { type BreadcrumbProps, Button, Checkbox, DatePicker, Divider, Input, Select, TimePicker } from 'antd';
 import dayjs, { type Dayjs } from 'dayjs';
-import { ChevronDown, Download } from 'lucide-react';
-import { useNavigationStore } from '@/shared-store';
+import { ChevronDown, Download, Search } from 'lucide-react';
+import { useBreadcrumbStore, useNavigationStore } from '@/shared-store';
 import { downloadBlob, extractFileName, toast } from '@/shared-util';
+import { ReactComponent as IconLinkIfe } from '../../../../assets/images/icon/icon-link-ife.svg';
 import { useGetBots } from '../../../features/bot-config/hooks/useBotQueries';
 import { statisticsApi } from '../../../features/statistics/api/statisticsApi';
 import {
@@ -20,7 +21,7 @@ import {
 import { useStatisticsFilterStore } from '../../../features/statistics/hooks/useStatisticsFilterStore';
 import { useGetDialogOptionList, useGetSlotStatList } from '../../../features/statistics/hooks/useStatisticsQueries';
 import type { SlotStatListItem } from '../../../features/statistics/types/statistics.types';
-import PageHeader from '@/components/custom/PageHeader';
+import { botDialogHistoryApi } from '../../../features/tracking/api/botDialogHistoryApi';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/libs/shared-ui/src/components/shadcn/collapsible';
 import useAggridOptions from '@/libs/shared-ui/src/hooks/useAggridOptions';
 import { cn } from '@/libs/shared-ui/src/lib/utils';
@@ -32,6 +33,14 @@ const breadcrumb: BreadcrumbProps['items'] = [
 ];
 
 export default function SlotStatistics() {
+  const setBreadcrumb = useBreadcrumbStore((s) => s.setBreadcrumb);
+  const clearBreadcrumb = useBreadcrumbStore((s) => s.clearBreadcrumb);
+
+  useEffect(() => {
+    setBreadcrumb(breadcrumb);
+    return () => clearBreadcrumb();
+  }, [setBreadcrumb, clearBreadcrumb]);
+
   const { serviceIds, setServiceIds } = useStatisticsFilterStore();
   // UI 상태 (사용자가 입력하는 값들)
   const [dialogIds, setDialogIds] = useState<string[]>([]);
@@ -78,6 +87,23 @@ export default function SlotStatistics() {
     params: { serviceIds: serviceIdParams },
     queryOptions: { enabled: serviceIdParams.length > 0 },
   });
+
+  // IFE 시나리오 열기
+  const handleIfeLink = async (row: SlotStatListItem) => {
+    if (!row.serviceId || !row.slotName) return;
+    try {
+      const redirectUrl = await statisticsApi.getIfeRedirectUrl({
+        serviceId: Number(row.serviceId),
+        subFlowId: row.fnId,
+        nodeName: row.slotName,
+      });
+      if (redirectUrl) {
+        window.open(redirectUrl, '_blank');
+      }
+    } catch {
+      toast.error('IFE 시나리오 열기에 실패했습니다.');
+    }
+  };
 
   const dialogSelectOptions = useMemo(
     () => (dialogOptionList ?? []).filter((d) => Boolean(d?.dialogId && d?.dialogName)).map((d) => ({ label: String(d.dialogName), value: String(d.dialogId) })),
@@ -130,8 +156,8 @@ export default function SlotStatistics() {
       entityTag,
       excludeLunch: timeUnit === 'MI' || timeUnit === 'HH' ? excludeLunch : false,
       useInterval: timeUnit === 'MI' || timeUnit === 'HH' ? useInterval : false,
-      hourFrom: timeUnit === 'MI' || timeUnit === 'HH' ? (useInterval && intervalStartTime ? intervalStartTime.format('HH00') : '') : '',
-      hourTo: timeUnit === 'MI' || timeUnit === 'HH' ? (useInterval && intervalEndTime ? intervalEndTime.format('HH00') : '') : '',
+      hourFrom: timeUnit === 'MI' || timeUnit === 'HH' ? (useInterval && intervalStartTime ? intervalStartTime.format(timeUnit === 'MI' ? 'HHmm' : 'HH00') : '') : '',
+      hourTo: timeUnit === 'MI' || timeUnit === 'HH' ? (useInterval && intervalEndTime ? intervalEndTime.format(timeUnit === 'MI' ? 'HHmm' : 'HH50') : '') : '',
       excludeDays: timeUnit !== 'MM' && timeUnit !== 'YY' ? excludeDays : [],
       excludeBusinessHoliday: timeUnit !== 'MM' && timeUnit !== 'YY' ? excludeBusinessHoliday : false,
       excludeStatHoliday: timeUnit !== 'MM' && timeUnit !== 'YY' ? excludeStatHoliday : false,
@@ -237,39 +263,57 @@ export default function SlotStatistics() {
       headerName: '진입수',
       field: 'inCount',
       flex: 1,
-      cellStyle: (params) => (params.node?.rowPinned === 'bottom' ? { fontWeight: 'bold', alignItems: 'center' } : { fontWeight: 'normal', alignItems: 'center' }),
+      cellStyle: (params) =>
+        params.node?.rowPinned === 'bottom'
+          ? { display: 'flex', fontWeight: 'bold', alignItems: 'center', justifyContent: 'flex-end', textAlign: 'right' }
+          : { display: 'flex', fontWeight: 'normal', alignItems: 'center', justifyContent: 'flex-end', textAlign: 'right' },
     },
     {
       headerName: '완료건',
       field: 'successCount',
       flex: 1,
-      cellStyle: (params) => (params.node?.rowPinned === 'bottom' ? { fontWeight: 'bold', alignItems: 'center' } : { fontWeight: 'normal', alignItems: 'center' }),
+      cellStyle: (params) =>
+        params.node?.rowPinned === 'bottom'
+          ? { display: 'flex', fontWeight: 'bold', alignItems: 'center', justifyContent: 'flex-end', textAlign: 'right' }
+          : { display: 'flex', fontWeight: 'normal', alignItems: 'center', justifyContent: 'flex-end', textAlign: 'right' },
     },
     {
       headerName: '미완료건',
       field: 'failCount',
       flex: 1,
-      cellStyle: (params) => (params.node?.rowPinned === 'bottom' ? { fontWeight: 'bold', alignItems: 'center' } : { fontWeight: 'normal', alignItems: 'center' }),
+      cellStyle: (params) =>
+        params.node?.rowPinned === 'bottom'
+          ? { display: 'flex', fontWeight: 'bold', alignItems: 'center', justifyContent: 'flex-end', textAlign: 'right' }
+          : { display: 'flex', fontWeight: 'normal', alignItems: 'center', justifyContent: 'flex-end', textAlign: 'right' },
     },
     {
       headerName: '완료율',
       field: 'successPercent',
       flex: 1,
-      cellStyle: (params) => (params.node?.rowPinned === 'bottom' ? { fontWeight: 'bold', alignItems: 'center' } : { fontWeight: 'normal', alignItems: 'center' }),
-      valueFormatter: ({ value }: { value?: number }) => (value ? `${value}%` : '0%'),
+      cellStyle: (params) =>
+        params.node?.rowPinned === 'bottom'
+          ? { display: 'flex', fontWeight: 'bold', alignItems: 'center', justifyContent: 'flex-end', textAlign: 'right' }
+          : { display: 'flex', fontWeight: 'normal', alignItems: 'center', justifyContent: 'flex-end', textAlign: 'right' },
+      cellRenderer: 'percentBarRenderer',
     },
     {
       headerName: '미완료율',
       field: 'failPercent',
       flex: 1,
-      cellStyle: (params) => (params.node?.rowPinned === 'bottom' ? { fontWeight: 'bold', alignItems: 'center' } : { fontWeight: 'normal', alignItems: 'center' }),
-      valueFormatter: ({ value }: { value?: number }) => (value != null ? `${value}%` : '0%'),
+      cellStyle: (params) =>
+        params.node?.rowPinned === 'bottom'
+          ? { display: 'flex', fontWeight: 'bold', alignItems: 'center', justifyContent: 'flex-end', textAlign: 'right' }
+          : { display: 'flex', fontWeight: 'normal', alignItems: 'center', justifyContent: 'flex-end', textAlign: 'right' },
+      cellRenderer: 'percentBarRenderer',
     },
     {
       headerName: '재시도 횟수',
       field: 'retryCount',
       flex: 1,
-      cellStyle: (params) => (params.node?.rowPinned === 'bottom' ? { fontWeight: 'bold', alignItems: 'center' } : { fontWeight: 'normal', alignItems: 'center' }),
+      cellStyle: (params) =>
+        params.node?.rowPinned === 'bottom'
+          ? { display: 'flex', fontWeight: 'bold', alignItems: 'center', justifyContent: 'flex-end', textAlign: 'right' }
+          : { display: 'flex', fontWeight: 'normal', alignItems: 'center', justifyContent: 'flex-end', textAlign: 'right' },
     },
     {
       headerName: '재시도',
@@ -278,21 +322,57 @@ export default function SlotStatistics() {
           headerName: '1회',
           field: 'oneTimeOrLess',
           flex: 1,
-          cellStyle: (params) => (params.node?.rowPinned === 'bottom' ? { fontWeight: 'bold', alignItems: 'center' } : { fontWeight: 'normal', alignItems: 'center' }),
+          cellStyle: (params) =>
+            params.node?.rowPinned === 'bottom'
+              ? { display: 'flex', fontWeight: 'bold', alignItems: 'center', justifyContent: 'flex-end', textAlign: 'right' }
+              : { display: 'flex', fontWeight: 'normal', alignItems: 'center', justifyContent: 'flex-end', textAlign: 'right' },
         },
         {
           headerName: '2회',
           field: 'twoTimes',
           flex: 1,
-          cellStyle: (params) => (params.node?.rowPinned === 'bottom' ? { fontWeight: 'bold', alignItems: 'center' } : { fontWeight: 'normal', alignItems: 'center' }),
+          cellStyle: (params) =>
+            params.node?.rowPinned === 'bottom'
+              ? { display: 'flex', fontWeight: 'bold', alignItems: 'center', justifyContent: 'flex-end', textAlign: 'right' }
+              : { display: 'flex', fontWeight: 'normal', alignItems: 'center', justifyContent: 'flex-end', textAlign: 'right' },
         },
         {
           headerName: '3회이상',
           field: 'threeTimesOrMore',
           flex: 1,
-          cellStyle: (params) => (params.node?.rowPinned === 'bottom' ? { fontWeight: 'bold', alignItems: 'center' } : { fontWeight: 'normal', alignItems: 'center' }),
+          cellStyle: (params) =>
+            params.node?.rowPinned === 'bottom'
+              ? { display: 'flex', fontWeight: 'bold', alignItems: 'center', justifyContent: 'flex-end', textAlign: 'right' }
+              : { display: 'flex', fontWeight: 'normal', alignItems: 'center', justifyContent: 'flex-end', textAlign: 'right' },
         },
       ],
+    },
+    {
+      headerName: '',
+      width: 44,
+      maxWidth: 44,
+      suppressSizeToFit: true,
+      resizable: false,
+      sortable: false,
+      filter: false,
+      suppressHeaderMenuButton: true,
+      cellRenderer: (params: ICellRendererParams<SlotStatListItem>) => {
+        const row = params.data;
+        if (!row || params.node?.rowPinned) return null;
+        const isDisabled = !row.serviceId || !row.fnId || !row.slotName;
+        const handleClick = () => {
+          if (isDisabled) {
+            toast.warning('IFE 시나리오 이동에 필요한 정보가 없습니다.');
+            return;
+          }
+          handleIfeLink(row);
+        };
+        return (
+          <div className="flex items-center h-full">
+            <IconLinkIfe className={isDisabled ? 'opacity-30 cursor-not-allowed' : 'hover:cursor-pointer'} onClick={handleClick} />
+          </div>
+        );
+      },
     },
   ];
 
@@ -320,8 +400,14 @@ export default function SlotStatistics() {
         entityTag,
         excludeLunch: displayTimeUnit === 'MI' || displayTimeUnit === 'HH' ? excludeLunch : false,
         useInterval: displayTimeUnit === 'MI' || displayTimeUnit === 'HH' ? useInterval : false,
-        hourFrom: displayTimeUnit === 'MI' || displayTimeUnit === 'HH' ? (useInterval && intervalStartTime ? intervalStartTime.format('HH00') : '') : '',
-        hourTo: displayTimeUnit === 'MI' || displayTimeUnit === 'HH' ? (useInterval && intervalEndTime ? intervalEndTime.format('HH00') : '') : '',
+        hourFrom:
+          displayTimeUnit === 'MI' || displayTimeUnit === 'HH'
+            ? useInterval && intervalStartTime
+              ? intervalStartTime.format(displayTimeUnit === 'MI' ? 'HHmm' : 'HH00')
+              : ''
+            : '',
+        hourTo:
+          displayTimeUnit === 'MI' || displayTimeUnit === 'HH' ? (useInterval && intervalEndTime ? intervalEndTime.format(displayTimeUnit === 'MI' ? 'HHmm' : 'HH50') : '') : '',
         excludeDays: displayTimeUnit !== 'MM' && displayTimeUnit !== 'YY' ? excludeDays : [],
         excludeBusinessHoliday: displayTimeUnit !== 'MM' && displayTimeUnit !== 'YY' ? excludeBusinessHoliday : false,
         excludeStatHoliday: displayTimeUnit !== 'MM' && displayTimeUnit !== 'YY' ? excludeStatHoliday : false,
@@ -337,7 +423,6 @@ export default function SlotStatistics() {
 
   return (
     <div className="flex flex-col gap-4 w-full h-full">
-      <PageHeader breadcrumb={breadcrumb} />
       <div className="flex flex-col gap-5 w-full h-full bg-white bt-shadow p-5">
         <Collapsible open={isFilterOpen} onOpenChange={setIsFilterOpen}>
           <header className="flex flex-col gap-3">
@@ -374,6 +459,7 @@ export default function SlotStatistics() {
                       onChange={(date) => setStartTime(date)}
                       inputReadOnly
                       allowClear={false}
+                      needConfirm={false}
                       format={timeUnit === 'MI' ? 'HH:mm' : 'HH:00'}
                       minuteStep={10}
                       style={{ width: '100px' }}
@@ -395,6 +481,7 @@ export default function SlotStatistics() {
                       onChange={(date) => setEndTime(date)}
                       inputReadOnly
                       allowClear={false}
+                      needConfirm={false}
                       format={timeUnit === 'MI' ? 'HH:mm' : 'HH:50'}
                       minuteStep={10}
                       style={{ width: '100px' }}
@@ -448,7 +535,7 @@ export default function SlotStatistics() {
                 </div>
               </div>
               <div className="flex items-center gap-3 shrink-0">
-                <Button type="primary" onClick={handleSearch}>
+                <Button type="primary" icon={<Search className="size-4" />} onClick={handleSearch} loading={isLoadingSlotStatList}>
                   조회
                 </Button>
                 {hasExcelPermission && (
@@ -584,7 +671,9 @@ export default function SlotStatistics() {
                                 onChange={(date) => setIntervalStartTime(date)}
                                 inputReadOnly
                                 allowClear={false}
-                                format="HH:00"
+                                needConfirm={false}
+                                format={timeUnit === 'MI' ? 'HH:mm' : 'HH:00'}
+                                minuteStep={10}
                                 style={{ width: '100px' }}
                               />
                               <span className="text-sm font-medium text-[#495057] shrink-0">~</span>
@@ -593,7 +682,9 @@ export default function SlotStatistics() {
                                 onChange={(date) => setIntervalEndTime(date)}
                                 inputReadOnly
                                 allowClear={false}
-                                format="HH:00"
+                                needConfirm={false}
+                                format={timeUnit === 'MI' ? 'HH:mm' : 'HH:50'}
+                                minuteStep={10}
                                 style={{ width: '100px' }}
                               />
                             </>

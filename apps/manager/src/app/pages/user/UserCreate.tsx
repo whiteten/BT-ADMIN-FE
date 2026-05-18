@@ -12,7 +12,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { type BreadcrumbProps, Button, Col, Divider, Form, type FormProps, Input, Row, Select, Steps, Switch, Tag } from 'antd';
 import { Check, Plus, X } from 'lucide-react';
-import { useAuthStore } from '@/shared-store';
+import { useAuthStore, useBreadcrumbStore } from '@/shared-store';
 import { emailRule, phoneRule, toast } from '@/shared-util';
 import { useGetRoles } from '../../features/iam/hooks/useRoleQueries';
 import { useCreateUser } from '../../features/user/hooks/useUserQueries';
@@ -21,7 +21,6 @@ import ResourceSection from '../../features/user-resource/components/ResourceSec
 import { useGetBots, useGetModels, useSyncUserResources } from '../../features/user-resource/hooks/useUserResourceQueries';
 import type { AssignedResource, AvailableResource } from '../../features/user-resource/types/userResource.types';
 import { FallbackSpinner } from '@/components/custom/FallbackSpinner';
-import PageHeader from '@/components/custom/PageHeader';
 
 const breadcrumb: BreadcrumbProps['items'] = [
   { title: '사용자', path: '/manager/resource/user/list' },
@@ -55,6 +54,14 @@ interface UserFormValues {
 }
 
 export default function UserCreate() {
+  const setBreadcrumb = useBreadcrumbStore((s) => s.setBreadcrumb);
+  const clearBreadcrumb = useBreadcrumbStore((s) => s.clearBreadcrumb);
+
+  useEffect(() => {
+    setBreadcrumb(breadcrumb);
+    return () => clearBreadcrumb();
+  }, [setBreadcrumb, clearBreadcrumb]);
+
   const navigate = useNavigate();
   const [currentStep, setCurrentStep] = useState(0);
   const [fieldErrors, setFieldErrors] = useState<Record<string, string[]>>({});
@@ -595,7 +602,6 @@ export default function UserCreate() {
 
   return (
     <div className="flex flex-col gap-4 w-full h-full">
-      <PageHeader breadcrumb={breadcrumb} />
       <div className="flex items-center justify-center w-full h-[58px] min-h-[58px] bg-white bt-shadow px-7 py-2">
         <Steps
           current={currentStep}

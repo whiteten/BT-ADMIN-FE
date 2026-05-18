@@ -5,9 +5,10 @@
  * - 생성 성공 시 ClientSecretDialog 표시 (1회만)
  */
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Button, Form, Input, Switch, Transfer, type TransferProps } from 'antd';
+import { useBreadcrumbStore } from '@/shared-store';
 import { toast } from '@/shared-util';
 import ClientSecretDialog from '../../features/client/components/ClientSecretDialog';
 import { useCreateClient } from '../../features/client/hooks/useClientQueries';
@@ -15,7 +16,6 @@ import { type Client, type ClientCreateRequest, transformToBackendFormat } from 
 import { useGetAuthList } from '../../features/iam/hooks/usePermissionQueries';
 import type { PermissionFlat } from '../../features/iam/types/iam.types';
 import { FallbackSpinner } from '@/components/custom/FallbackSpinner';
-import PageHeader from '@/components/custom/PageHeader';
 
 const breadcrumb = [
   { title: '시스템', path: '/manager/resource/menu' },
@@ -32,6 +32,14 @@ interface ClientCreateFormValues {
 }
 
 export default function ClientCreate() {
+  const setBreadcrumb = useBreadcrumbStore((s) => s.setBreadcrumb);
+  const clearBreadcrumb = useBreadcrumbStore((s) => s.clearBreadcrumb);
+
+  useEffect(() => {
+    setBreadcrumb(breadcrumb);
+    return () => clearBreadcrumb();
+  }, [setBreadcrumb, clearBreadcrumb]);
+
   const navigate = useNavigate();
   const [form] = Form.useForm<ClientCreateFormValues>();
 
@@ -101,8 +109,6 @@ export default function ClientCreate() {
 
   return (
     <div className="flex flex-col gap-4 w-full h-full">
-      <PageHeader breadcrumb={breadcrumb} />
-
       <div className="w-full h-full overflow-y-auto bg-white bt-shadow p-6">
         <Form form={form} layout="vertical" onFinish={handleSubmit} initialValues={{ isActive: true }}>
           {/* 기본정보 섹션 */}

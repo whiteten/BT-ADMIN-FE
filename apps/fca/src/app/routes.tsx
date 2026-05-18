@@ -3,7 +3,6 @@ import { Navigate, Outlet } from 'react-router-dom';
 import FcaWsSessionEventHandler from './features/router/FcaWsSessionEventHandler';
 import { NotFound } from '@/components/custom/NotFound';
 
-const Main = React.lazy(() => import('./pages/main/Main'));
 const BotList = React.lazy(() => import('./pages/bot-config/BotList'));
 const BotCreate = React.lazy(() => import('./pages/bot-config/BotCreate'));
 const BotDetail = React.lazy(() => import('./pages/bot-config/BotDetail'));
@@ -20,6 +19,7 @@ const GlobalEnvList = React.lazy(() => import('./pages/global/GlobalEnvList'));
 const ServiceStatistics = React.lazy(() => import('./pages/statistics/call-bot/ServiceStatistics'));
 const DialogStatistics = React.lazy(() => import('./pages/statistics/call-bot/DialogStatistics'));
 const SlotStatistics = React.lazy(() => import('./pages/statistics/call-bot/SlotStatistics'));
+const UserDefStatistics = React.lazy(() => import('./pages/statistics/call-bot/UserDefStatistics'));
 const IntentStatistics = React.lazy(() => import('./pages/statistics/nlu/IntentStatistics'));
 const EntityStatistics = React.lazy(() => import('./pages/statistics/nlu/EntityStatistics'));
 const KeywordStatistics = React.lazy(() => import('./pages/statistics/nlu/KeywordStatistics'));
@@ -67,8 +67,7 @@ export const routes = [
     path: '/',
     element: <FcaWsSessionEventHandler />,
     children: [
-      { index: true, element: <Navigate to="main" replace /> },
-      { path: 'main', element: <Main /> },
+      { index: true, element: <Navigate to="/" replace /> },
       {
         path: 'bot-config',
         element: <Outlet />,
@@ -148,6 +147,7 @@ export const routes = [
               { path: 'service', element: <ServiceStatistics /> },
               { path: 'dialog', element: <DialogStatistics /> },
               { path: 'slot', element: <SlotStatistics /> },
+              { path: 'user-def', element: <UserDefStatistics /> },
             ],
           },
           {
@@ -164,5 +164,5 @@ export const routes = [
       },
     ],
   },
-  { path: '*', element: <NotFound homePath="/fca" /> },
+  { path: '*', element: <NotFound homePath="/" /> },
 ];

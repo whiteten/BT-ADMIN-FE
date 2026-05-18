@@ -9,8 +9,13 @@ export interface BotDialogHistorySearchRequest {
   ucid?: string;
   ani?: string;
   hasIntent?: boolean;
+  /** 재학습 상태 필터. APPLIED=수정-반영, NOT_APPLIED=수정-미반영, UNMODIFIED=미수정 */
   retrainFilter?: string;
+  /** 작업자 필터. ME=내가 수정 */
+  workerFilter?: string;
   slotEntityTag?: string;
+  /** 슬롯 인식 실패 최소 건수 (BOT_SLOT_FAIL_COUNT >= N). */
+  slotFailCountMin?: number;
   page?: number;
   size?: number;
   [key: string]: any; // Record<string, unknown> 호환을 위한 인덱스 시그니처
@@ -41,6 +46,8 @@ export interface BotDialogHistoryListItem {
   serviceCompleteYn: number;
   reqAgentYn: number;
   botSlotInCount: number;
+  /** 슬롯 인식 실패 수 (STT 결과를 BOT이 인지하지 못한 건수) */
+  botSlotFailCount: number | null;
   avgConfidence: number | null;
   /** 재학습 수정 여부 */
   retrainYn: boolean | null;

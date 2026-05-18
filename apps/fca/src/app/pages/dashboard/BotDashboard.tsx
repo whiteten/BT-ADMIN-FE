@@ -3,6 +3,7 @@ import { GridLayout, type Layout, useContainerWidth } from 'react-grid-layout';
 import 'react-grid-layout/css/styles.css';
 import type { Option } from 'react-multi-select-component';
 import { type BreadcrumbProps } from 'antd';
+import { useBreadcrumbStore } from '@/shared-store';
 import styles from './BotDashboard.module.scss';
 import { useGetBots } from '../../features/bot-config/hooks/useBotQueries';
 import BotDashboardToolbar from '../../features/dashboard/components/BotDashboardToolbar';
@@ -13,7 +14,6 @@ import { DEFAULT_LAYOUT, useBotDashboardStore } from '../../features/dashboard/h
 import { useDashboardSocket } from '../../features/dashboard/hooks/useDashboardSocket';
 import type { DashboardLayoutItem, DashboardWidgetType } from '../../features/dashboard/types/dashboard.types';
 import { generateWidgetId, syncLayoutWithFilter } from '../../features/dashboard/utils/dashboardUtils';
-import PageHeader from '@/components/custom/PageHeader';
 import { cn } from '@/lib/utils';
 import { useModal } from '@/libs/shared-ui/src/hooks/useModal';
 
@@ -23,6 +23,14 @@ const breadcrumb: BreadcrumbProps['items'] = [
 ];
 
 export default function BotDashboard() {
+  const setBreadcrumb = useBreadcrumbStore((s) => s.setBreadcrumb);
+  const clearBreadcrumb = useBreadcrumbStore((s) => s.clearBreadcrumb);
+
+  useEffect(() => {
+    setBreadcrumb(breadcrumb);
+    return () => clearBreadcrumb();
+  }, [setBreadcrumb, clearBreadcrumb]);
+
   const { data: botList } = useGetBots();
   const serviceOptions: Option[] = (botList ?? []).map((b) => ({
     label: b.serviceName ? String(b.serviceName) : String(b.serviceId),
@@ -121,7 +129,6 @@ export default function BotDashboard() {
 
   return (
     <div className="flex flex-col gap-2 w-full h-full">
-      <PageHeader breadcrumb={breadcrumb} />
       <BotDashboardToolbar
         isEditMode={isEditMode}
         layoutFilterOptions={layoutFilterOptions}

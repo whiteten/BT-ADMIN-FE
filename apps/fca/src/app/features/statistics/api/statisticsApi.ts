@@ -1,5 +1,6 @@
 import ApiClient, { type ListResponse, type StatListResponse, extractList, extractStatList } from '@/shared-util';
 import type {
+  CategoryOptionListItem,
   DialogOptionListItem,
   DialogStatList,
   DialogStatListItem,
@@ -16,6 +17,9 @@ import type {
   SlotOptionListItem,
   SlotStatList,
   SlotStatListItem,
+  UserDefColumnDef,
+  UserDefStatList,
+  UserDefStatListItem,
 } from '../types/statistics.types';
 
 const apiClient = new ApiClient({ serviceURL: '/bff' });
@@ -60,6 +64,19 @@ export const statisticsApi = {
     return extractStatList(response);
   },
 
+  // 사용자 정의 통계 목록 조회
+  getUserDefStatList: async (params?: Record<string, unknown>): Promise<UserDefStatList> => {
+    const response = await apiClient.post<{ data: { items: UserDefStatListItem[]; summary: UserDefStatListItem | null; columnDef: UserDefColumnDef[] } }>(
+      '/stat-bot-user-def',
+      params,
+    );
+    return {
+      items: response?.data?.data?.items ?? [],
+      summary: response?.data?.data?.summary ?? null,
+      columnDef: response?.data?.data?.columnDef ?? [],
+    };
+  },
+
   // 대화 옵션 목록 조회
   getDialogOptionList: async (params?: Record<string, unknown>): Promise<DialogOptionListItem[]> => {
     const response = await apiClient.post<ListResponse<DialogOptionListItem>>('/stat-dialog-options', params);
@@ -81,6 +98,12 @@ export const statisticsApi = {
   // 개체 옵션 목록 조회
   getEntityOptionList: async (params?: Record<string, unknown>): Promise<EntityOptionListItem[]> => {
     const response = await apiClient.post<ListResponse<EntityOptionListItem>>('/stat-entity-options', params);
+    return extractList(response);
+  },
+
+  // 카테고리 옵션 목록 조회
+  getCategoryOptionList: async (params?: Record<string, unknown>): Promise<CategoryOptionListItem[]> => {
+    const response = await apiClient.post<ListResponse<CategoryOptionListItem>>('/stat-category-options', params);
     return extractList(response);
   },
 
@@ -112,5 +135,16 @@ export const statisticsApi = {
   // 키워드 통계 엑셀 내보내기
   exportKeywordStatExcel: async (params?: Record<string, unknown>) => {
     return await apiClient.post<Blob>('/stat-nlu-keyword-export', params, { responseType: 'blob' });
+  },
+
+  // 사용자 정의 통계 엑셀 내보내기
+  exportUserDefStatExcel: async (params?: Record<string, unknown>) => {
+    return await apiClient.post<Blob>('/stat-bot-user-def-export', params, { responseType: 'blob' });
+  },
+
+  // IFE 리다이렉트
+  getIfeRedirectUrl: async (params: { serviceId: number; subFlowId: string; nodeName: string }): Promise<string | null> => {
+    const response = await apiClient.get<{ data: { redirectUrl: string } }>('/stat-bot-slot-ife-redirect', { params });
+    return response.data?.data?.redirectUrl ?? '';
   },
 };

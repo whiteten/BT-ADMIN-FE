@@ -1,5 +1,5 @@
 ---
-description: 기존 remote 앱을 점검해 create-remote.js 기준으로 누락된 파일·구문을 보강하고 menu-config 잔재를 제거
+description: 기존 remote 앱을 점검해 create-remote.js 기준으로 누락된 파일·구문을 보강하고 menu-config 잔재 제거 및 뱃지 아이콘 등록 누락을 점검
 argument-hint: [remote-name]
 allowed-tools: Read, Write, Edit, Glob, Grep, Bash, AskUserQuestion, TodoWrite
 ---
@@ -36,7 +36,7 @@ allowed-tools: Read, Write, Edit, Glob, Grep, Bash, AskUserQuestion, TodoWrite
 함수 분석 시 다음 사항을 기준으로 점검 로직을 도출한다:
 
 - **manager에서 복사하는 함수** (예: `copyWebpackHelpers`, `copyPostcssConfig`, `copyTailwindConfig`, `updateWebpackConfig`): 대상 파일이 존재하고 manager 원본과 바이트 단위로 동일한지 확인. 다르면 manager 내용으로 덮어쓰기.
-- **manager에서 복사 + 치환**하는 함수 (예: `updateModuleFederationConfig`의 `name` 치환, `copyQuerySelectorsTemplate`의 `APP_ID` 치환, `copyRoutesTemplate`의 `homePath` 치환·주석 제거): 함수 본문의 치환 규칙을 그대로 적용한 결과와 대상 파일을 비교.
+- **manager에서 복사 + 치환**하는 함수 (예: `updateModuleFederationConfig`의 `name` 치환, `copyQuerySelectorsTemplate`의 `APP_ID` 치환, `copyRoutesTemplate`의 주석 제거): 함수 본문의 치환 규칙을 그대로 적용한 결과와 대상 파일을 비교.
 - **JSON 구조를 수정**하는 함수 (예: `createPackageJson`, `updateProjectJson`): 함수가 작성·수정하는 필드만 확인 (사용자가 추가한 다른 필드는 건드리지 않는다).
 - **host 파일에 라인 추가**하는 함수 (예: `addReactLazyToApp`, `addRoutePattern`, `updateRouteLoaders`, `updateVariantLoaders`, `updateQuerySelectorLoaders`, `updateWebpackConfigProd`, `updateBuildSelective`, `updateServeHost`): 해당 라인이 이미 host 파일에 존재하는지 grep으로 확인. 없으면 함수와 동일한 패턴으로 삽입.
 - **파일 삭제** 함수 (예: `removeNxWelcome`, `removeAppSpec`): 파일이 남아있으면 삭제.
@@ -46,14 +46,16 @@ allowed-tools: Read, Write, Edit, Glob, Grep, Bash, AskUserQuestion, TodoWrite
 
 ### 주의 — 파일이 이미 존재할 때
 
-- `routes.tsx`, `pageVariantManifest.ts`, `querySelectors.ts`, `app.tsx`, `Main.tsx`는 **운영 중에 사용자가 직접 작성한 코드가 들어있을 가능성이 높다**. 파일이 존재한다면 단순 덮어쓰지 말고:
+- `routes.tsx`, `pageVariantManifest.ts`, `querySelectors.ts`, `app.tsx`는 **운영 중에 사용자가 직접 작성한 코드가 들어있을 가능성이 높다**. 파일이 존재한다면 단순 덮어쓰지 말고:
   - 파일이 **비어있거나 sample 그대로**면 덮어쓴다.
   - 의미 있는 사용자 코드가 들어있으면 그대로 두고 "사용자 코드 있음 — 스킵" 으로 보고만 한다.
 - `module-federation.config.ts`의 `exposes` / `additionalShared`는 remote가 자체적으로 추가했을 수 있으므로, `name` 필드만 비교/치환한다.
 
-## 3. create-remote.js에 없는 정리 작업 — menu-config 잔재 제거
+## 3. create-remote.js에 없는 정리 작업 — 구식 패턴 잔재 제거
 
-`create-remote.js`는 신규 생성용 스크립트라 과거 잔재 제거 로직이 없다. 이 항목은 이 커맨드가 별도로 처리한다.
+`create-remote.js`는 신규 생성용 스크립트라 과거 잔재 제거 로직이 없다. 이 항목은 이 커맨드가 별도로 처리한다. 각 잔재마다 TodoWrite 항목을 따로 등록한다.
+
+### 3-1. menu-config 잔재 제거
 
 | 파일 경로 | 비고 |
 |----------|------|
@@ -61,6 +63,84 @@ allowed-tools: Read, Write, Edit, Glob, Grep, Bash, AskUserQuestion, TodoWrite
 | `apps/<APP_NAME>/**/menu-config*` | 위 위치 외에 남아있는 잔재가 있는지 `Glob`로 검색해 추가 삭제 |
 
 > menu-config 파일은 옛 `'./MenuConfig'` expose 시절의 유물이며 현재 아키텍처(`pageVariantManifest` + `querySelectors`)에서는 더 이상 사용하지 않는다. README 등 문서에 언급이 남아있어도 **실제 파일만 삭제하고 문서 수정은 이 커맨드의 범위가 아니다**.
+
+### 3-2. PageHeader → useBreadcrumbStore 패턴 마이그레이션
+
+페이지의 breadcrumb은 host SubHeader가 그리도록 표준이 바뀌었다. 페이지에서는 `useBreadcrumbStore`에 push/clear만 한다(상세 규칙: [CLAUDE.md "페이지 Breadcrumb 패턴"](../../CLAUDE.md), [DEVELOPER_GUIDE.md "페이지 레이아웃 가이드 → Breadcrumb 표준 절차"](../../doc/DEVELOPER_GUIDE.md)). 이전 표준이었던 `PageHeader` 컴포넌트는 `libs/shared-ui`에서 제거됐으므로, 페이지 파일에 import가 남아있으면 빌드가 실패한다.
+
+검사 대상은 `apps/<APP_NAME>/**/*.tsx`. 다음 두 패턴을 `Grep`으로 검색한다:
+
+| 패턴 | 처리 |
+|------|------|
+| `import PageHeader from '@/components/custom/PageHeader';` | 발견된 모든 파일에서 import 라인 제거 |
+| `<PageHeader ... />` (JSX 호출, loading early-return 분기 포함 다중 호출 가능) | JSX에서 해당 라인 모두 제거 |
+
+검출된 각 페이지마다 다음 단계를 적용한다:
+
+1. `useEffect`가 import되어 있지 않으면 react import에 추가
+2. `useBreadcrumbStore` 를 `@/shared-store` 에서 import
+3. 컴포넌트 본문 시작부에 push/clear 패턴 삽입 — 본문 시작부 위치는 hook 순서가 깨지지 않도록 가장 위에 둔다:
+   ```ts
+   const setBreadcrumb = useBreadcrumbStore((s) => s.setBreadcrumb);
+   const clearBreadcrumb = useBreadcrumbStore((s) => s.clearBreadcrumb);
+   useEffect(() => {
+     setBreadcrumb(breadcrumb /*, params */);
+     return () => clearBreadcrumb();
+   }, [/* 동적 deps */, setBreadcrumb, clearBreadcrumb]);
+   ```
+4. `breadcrumb` 상수가 컴포넌트 내부에 정의되어 있다면 모듈 레벨로 끌어올린다(useEffect deps 안정화)
+5. 동적 라벨(`:botName` 등)이 있으면 `setBreadcrumb`의 두 번째 인자에 `params` 전달 + deps에 fetch 결과 포함
+6. `isPublic` 등 분기 케이스는 useEffect 내부에서 조건 분기로 items 선택 + deps에 분기 키 포함
+
+자동 변환 범위:
+
+- **자동 진행**: 정적 const breadcrumb + 단일 `<PageHeader />` 호출 (BotList 등 패턴) — 위 6단계를 그대로 적용
+- **확인 후 진행**: 동적 `params` 호출 / `isPublic` 분기 / loading early-return 다중 `<PageHeader />` 호출 — 변환 계획을 표로 보여주고 사용자에게 일괄 확인을 받는다
+
+변환 후 해당 파일에 `npx eslint --fix` 실행 (마무리 섹션의 일괄 처리에 포함).
+
+> PageHeader 잔재는 코드만 정리한다. README 등 문서에 언급이 남아있어도 **실제 코드만 마이그레이션하고 문서 수정은 이 커맨드의 범위가 아니다**.
+
+### 3-3. 구버전 Main 페이지·main 라우트·remote homePath 잔재 제거
+
+`create-remote.js`가 더 이상 remote에 main 페이지를 만들지 않는 정책으로 변경됐다. 메인 페이지는 host의 `/`가 단독으로 제공하며, 모든 remote의 루트(`/<APP_NAME>`) 진입과 404 fallback은 host `/`로 redirect된다. 기존 remote에 남아있는 다음 잔재를 정리한다.
+
+| 점검 대상 | 처리 |
+|----------|------|
+| `apps/<APP_NAME>/src/app/pages/main/Main.tsx` 파일 존재 | 파일 삭제. `pages/main/` 폴더가 비면 폴더도 제거 |
+| `apps/<APP_NAME>/src/app/routes.tsx`의 `Main` lazy import (`const Main = React.lazy(() => import('./pages/main/Main'));` 패턴) | 라인 제거 |
+| `apps/<APP_NAME>/src/app/routes.tsx`의 index redirect 대상 (`<Navigate to="main" replace />` 또는 `<Navigate to="/main" replace />` 등 host 루트가 아닌 값) | `<Navigate to="/" replace />`로 변경 |
+| `apps/<APP_NAME>/src/app/routes.tsx`의 main 라우트 항목 (`{ path: 'main', element: <Main /> }` 형태) | 해당 라우트 객체 제거 |
+| `apps/<APP_NAME>/src/app/routes.tsx`의 `NotFound homePath` (`homePath="/<APP_NAME>"` 등 host 루트가 아닌 값) | `homePath="/"`로 변경 |
+
+routes.tsx는 §2의 "사용자 코드 있음 — 스킵" 정책으로 자동 덮어쓰기 대상에서 빠지므로 위 패턴들은 §3에서 명시적으로 검사·치환한다. 변경 후 해당 파일에 `npx eslint --fix` 실행(마무리 섹션의 일괄 처리에 포함).
+
+> 정책 배경: host의 `/`에 공통 메인 페이지([apps/host/src/app/pages/Main.tsx](../../apps/host/src/app/pages/Main.tsx))를 두고, 모든 remote가 자체 main 페이지를 가지지 않도록 단일화했다. 변경 사유에 대한 자세한 맥락은 [CLAUDE.md "페이지 Lazy Loading 패턴"](../../CLAUDE.md) 참조.
+
+### 3-4. remote 앱 뱃지 아이콘 등록 점검
+
+사이드바 좌측 60px 컬럼([PanelAppBadgeStrip.tsx](../../apps/host/src/app/features/layout/panel/PanelAppBadgeStrip.tsx))의 remote 뱃지 아이콘은 `create-remote.js`가 자동 처리하지 않는다. 미등록 상태면 lucide `SquareDashed` placeholder가 fallback으로 표시되므로, 신규 remote가 정식 출시되기 전 다음 3개 항목이 모두 갖춰져야 한다(상세 절차: [CLAUDE.md "생성 후 수동 단계 — remote 앱 뱃지 아이콘"](../../CLAUDE.md), [DEVELOPER_GUIDE.md "수동 단계 — remote 앱 뱃지 아이콘 추가"](../../doc/DEVELOPER_GUIDE.md)).
+
+세 항목을 차례대로 점검한다:
+
+| # | 점검 대상 | 점검 방법 |
+|---|----------|----------|
+| ① | SVG 자산 | `libs/shared-ui/src/assets/images/icon/icon-remote-<APP_NAME>.svg` 파일 존재 여부 |
+| ② | Icons.tsx export | `libs/shared-ui/src/components/custom/Icons.tsx`에 `IconRemote<COMPONENT_NAME>` export 라인 존재 여부 (`Grep`으로 확인) |
+| ③ | PanelAppBadgeStrip 매핑 | `apps/host/src/app/features/layout/panel/PanelAppBadgeStrip.tsx`의 `APP_BADGE_ICONS` 객체에 `<APP_NAME>:` 키 존재 여부 |
+
+상태별 처리:
+
+- **① 누락** — SVG는 디자인팀에 의뢰해야 하므로 커맨드가 자동 처리할 수 없다. 보고 표에 "디자인팀 의뢰 필요"로 남기고 ②·③은 **자동 처리하지 않는다**(SVG 없이 export·매핑만 추가하면 빌드 실패). 사용자에게 다음 안내문구를 출력한다:
+  > ⚠️ `<APP_NAME>` remote의 뱃지 아이콘 SVG가 없습니다. 디자인팀에 제품 컨셉에 맞는 아이콘을 의뢰하세요. 기존 자산(`icon-remote-fca.svg`, `icon-remote-ipron.svg`)과 동일한 스펙(단색·여백·viewBox)을 가이드로 첨부할 것. 받은 파일을 `libs/shared-ui/src/assets/images/icon/icon-remote-<APP_NAME>.svg`로 저장한 뒤 `/update-remote <APP_NAME>`을 다시 실행하면 export·매핑은 자동으로 추가됩니다.
+- **① 존재, ② 누락** — Icons.tsx 하단 `IconRemoteFca`/`IconRemoteIpron` export 옆에 동일 패턴으로 한 줄 추가:
+  ```ts
+  export { ReactComponent as IconRemote<COMPONENT_NAME> } from '../../assets/images/icon/icon-remote-<APP_NAME>.svg';
+  ```
+- **①·② 존재, ③ 누락** — PanelAppBadgeStrip.tsx의 import에 `IconRemote<COMPONENT_NAME>` 추가하고, `APP_BADGE_ICONS` 객체에 `<APP_NAME>: IconRemote<COMPONENT_NAME>,` 항목 추가.
+- **세 항목 모두 존재** — 스킵.
+
+> menu-config 잔재나 PageHeader 마이그레이션과 달리 이 항목은 디자인 자산 의존성이 있어 자동 완료가 보장되지 않는다. 보고 시 ① 누락 케이스는 **반드시 별도 경고 블록으로 강조**해 사용자가 디자인 의뢰 단계를 놓치지 않게 한다.
 
 ## 4. tsconfig.base.json 정리
 
@@ -74,6 +154,7 @@ allowed-tools: Read, Write, Edit, Glob, Grep, Bash, AskUserQuestion, TodoWrite
   - 수정된 파일 (어떤 라인이 추가/치환됐는지 한 줄 요약)
   - 삭제된 파일
   - 스킵된 항목 (사용자 코드 보존)
+  - **디자인 자산 의뢰 필요** (3-3에서 뱃지 아이콘 SVG가 누락된 경우 — 별도 경고 블록으로 강조)
 
 ## 안전 장치
 

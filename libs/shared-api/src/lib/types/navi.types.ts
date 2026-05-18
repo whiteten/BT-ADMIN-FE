@@ -25,8 +25,8 @@ export interface NaviApp {
   menus: NaviMenuItem[];
 }
 
-/** 북마크 정보 */
-export interface Bookmark {
+/** 즐겨찾기 정보 */
+export interface Favorite {
   appId: string;
   label: string;
   menuKey: string;
@@ -37,5 +37,5 @@ export interface Bookmark {
 export interface NavigationData {
   apps: NaviApp[];
   permissions: string[];
-  favorites: Bookmark[];
+  favorites: Favorite[];
 }
