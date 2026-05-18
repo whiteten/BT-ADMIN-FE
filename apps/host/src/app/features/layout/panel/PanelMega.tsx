@@ -5,7 +5,7 @@ import { Search, SquareDashed } from 'lucide-react';
 import { useMenuStore } from '@/shared-store';
 import PanelControls from './PanelControls';
 import { Highlight, hasMatch, isMenuActive } from './PanelMenuPrimitives';
-import useRemoteSelector from '../../../hooks/useRemoteSelector';
+import useCurrentRemote from '../../../hooks/useCurrentRemote';
 import { MenuActionButtons } from '../components/MenuActionButtons';
 import type { MenuConfig, MenuItem } from '@/libs/shared-store/src/types/menu.types';
 import { cn } from '@/libs/shared-ui/src/lib/utils';
@@ -178,7 +178,7 @@ interface PanelMegaProps {
 
 const PanelMega = ({ onNavigate }: PanelMegaProps) => {
   const { menuConfigs } = useMenuStore();
-  const { selectedRemote } = useRemoteSelector();
+  const selectedRemote = useCurrentRemote();
   const [search, setSearch] = useState('');
 
   // 현재 보고 있는 앱이 가장 위로 오도록 정렬
