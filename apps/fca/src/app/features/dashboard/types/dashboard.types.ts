@@ -362,6 +362,37 @@ export interface OccupancyItem {
 }
 
 /**
+ * 캠페인 통계 현황 묶음 위젯(`campaignStatsOverview`) WebSocket 구독 페이로드
+ *
+ * BE가 `widgetType: 'campaignStatsOverview'` DATA를 푸시할 때의 스키마입니다.
+ *
+ * - totalTargetCnt: 총 대상 건수
+ * - outboundAttemptCnt: 총 발신 시도 건수
+ * - outboundProgressCnt: 발신 진행 건수
+ * - progressRatePct: 진행률 (%)
+ * - selfVerificationCnt: 본인 확인 건수
+ * - selfCallCompleteCnt: 본인 통화 완료 건수
+ * - selfCallCompleteRatePct: 본인 통화 완료율 (%)
+ * - retryOutboundCnt: 재시도 발신 건수
+ * - failCnt: 실패 건수
+ * - absentCnt: 부재 건수
+ * - smsSendCnt: 문자 발송 건수
+ */
+export interface CampaignStatsOverview {
+  totalTargetCnt: number;
+  outboundAttemptCnt: number;
+  outboundProgressCnt: number;
+  progressRatePct: number;
+  selfVerificationCnt: number;
+  selfCallCompleteCnt: number;
+  selfCallCompleteRatePct: number;
+  retryOutboundCnt: number;
+  failCnt: number;
+  absentCnt: number;
+  smsSendCnt: number;
+}
+
+/**
  * 봇 대시보드 API 응답
  *
  * - scenarioSummary: 봇 현황
@@ -379,6 +410,7 @@ export interface OccupancyItem {
  * - serviceOccupancy: 봇 점유 현황
  * - dialogOccupancy: 대화 점유 현황
  * - slotOccupancy: 슬롯 점유 현황
+ * - campaignStatsOverview: 캠페인 통계 현황(복수 지표)
  */
 export interface BotDashboardResponse {
   scenarioSummary: ScenarioSummary;
@@ -397,6 +429,7 @@ export interface BotDashboardResponse {
   serviceOccupancy: OccupancyItem[];
   dialogOccupancy: OccupancyItem[];
   slotOccupancy: OccupancyItem[];
+  campaignStatsOverview: CampaignStatsOverview;
 }
 
 /** 위젯 타입 정보를 포함하는 확장 레이아웃 아이템 */
