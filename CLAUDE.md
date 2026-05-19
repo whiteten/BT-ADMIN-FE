@@ -401,11 +401,54 @@ export type BotCreateDatas = Omit<Bot, 'serviceId' | 'workTime'> & BotVoice;
 
 // 수정용
 export type BotBasicInfoUpdateDatas = Omit<Bot, 'workTime'>;
+```
 
-// 상태 Union 타입
+#### 상태값·매핑 타입 — 상수 객체 + 파생 타입 패턴
+
+여러 모듈에서 비교·매핑·순회되는 도메인 상태값(API enum, 처리 상태, 카테고리 등)은 **인라인 union 리터럴로 박지 말고, `as const` 상수 객체를 SoT(Single Source of Truth)로 두고 거기서 타입을 파생**합니다.
+
+```typescript
+// ❌ 인라인 union 리터럴 — SoT가 흩어지고, 문자열을 직접 비교해야 함
 export type TrainStatus = 0 | 1 | 2 | 3;
 export type TrainDiffStatus = 'ADDED' | 'MODIFIED' | 'DELETED';
+
+if (status === 'ADDED') { ... } // 오타 시 컴파일러가 잡지만, 사용처마다 매번 문자열
+
+// ✅ 상수 객체를 SoT로 + typeof로 타입 파생
+export const TRAIN_STATUS = {
+  WAITING: 0,
+  RUNNING: 1,
+  SUCCESS: 2,
+  FAILED: 3,
+} as const;
+export type TrainStatus = (typeof TRAIN_STATUS)[keyof typeof TRAIN_STATUS];
+
+export const TRAIN_DIFF_STATUS = {
+  ADDED: 'ADDED',
+  MODIFIED: 'MODIFIED',
+  DELETED: 'DELETED',
+} as const;
+export type TrainDiffStatus = (typeof TRAIN_DIFF_STATUS)[keyof typeof TRAIN_DIFF_STATUS];
+
+// 사용처 — 상수 참조로 오타 방지, Go to Definition으로 SoT 추적 가능
+if (status === TRAIN_DIFF_STATUS.ADDED) { ... }
+
+// 부가 매핑(라벨·색상)을 같은 모듈에 묶어 일관 관리
+export const TRAIN_DIFF_STATUS_LABELS: Record<TrainDiffStatus, string> = {
+  ADDED: '추가',
+  MODIFIED: '수정',
+  DELETED: '삭제',
+};
 ```
+
+핵심 규칙 (요약):
+
+- **상수 객체 권장**: 도메인 상태값(API enum 매핑), 여러 모듈에서 비교·매핑·순회되는 값, 라벨/색상/아이콘 등 부가 메타데이터가 따라붙는 값, Select·Radio 옵션을 동적으로 생성해야 하는 값
+- **인라인 union 허용**: 한 모듈/한 컴포넌트에서만 쓰이는 ad-hoc 타입, 컴포넌트 prop의 좁은 variant union(`size?: 'sm' | 'md' | 'lg'`), 외부 라이브러리 타입을 그대로 받는 자리
+- **`enum` 사용 금지**: TS `enum`은 트리쉐이킹·`erasableSyntaxOnly` 호환성·번들 사이즈 등 이슈가 있어 사용하지 않음. 위 `as const` 패턴이 표준 대안
+- **네이밍**: 상수 객체는 `UPPER_SNAKE_CASE`, 타입은 `PascalCase`. 부가 매핑은 `<도메인>_LABELS`, `<도메인>_COLORS` 등 일관된 접미사 사용
+
+상세 장단점, 선택 기준, 흔한 실수는 [DEVELOPER_GUIDE.md](doc/DEVELOPER_GUIDE.md)의 "4. 타입 정의 가이드 → 상태값·매핑 타입" 섹션 참조.
 
 ### 이벤트 핸들러 패턴
 

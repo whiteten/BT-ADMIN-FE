@@ -354,6 +354,136 @@ export type BotBasicInfoUpdateDatas = Omit<Bot, 'workTime'>;
 | `Required<T>`  | T의 모든 필드를 필수로     | `Required<Bot>` → 모든 `?`가 사라짐                    |
 | `Record<K, V>` | 키-값 매핑 타입            | `Record<string, number>` → `{ [key: string]: number }` |
 
+### 상태값·매핑 타입 — 상수 객체 + 파생 타입 패턴
+
+여러 모듈에서 비교·매핑·순회되는 **도메인 상태값**(API enum, 처리 상태, 카테고리, 등급 등)은 인라인 union 리터럴(`type Status = 'success' | 'failed'`)로 박지 않고, `as const` 상수 객체를 SoT로 두고 거기서 타입을 파생합니다.
+
+#### 기본 형태
+
+```typescript
+// features/training/types/training.ts
+
+export const TRAIN_DIFF_STATUS = {
+  ADDED: 'ADDED',
+  MODIFIED: 'MODIFIED',
+  DELETED: 'DELETED',
+} as const;
+
+// typeof + keyof typeof로 타입 추출
+export type TrainDiffStatus = (typeof TRAIN_DIFF_STATUS)[keyof typeof TRAIN_DIFF_STATUS];
+// → 'ADDED' | 'MODIFIED' | 'DELETED'
+```
+
+핵심은 `as const` — 이게 없으면 객체 값이 `string`으로 넓어져서 타입 추출이 의미 없어집니다.
+
+#### 부가 매핑 결합
+
+상태값에 라벨·색상·아이콘 같은 부가 메타데이터가 따라붙을 때 같은 모듈에 묶어 일관 관리합니다.
+
+```typescript
+// features/training/constants/trainingConstants.ts
+import type { TrainDiffStatus } from '../types/training';
+import { TRAIN_DIFF_STATUS } from '../types/training';
+
+export const TRAIN_DIFF_STATUS_LABELS: Record<TrainDiffStatus, string> = {
+  [TRAIN_DIFF_STATUS.ADDED]: '추가',
+  [TRAIN_DIFF_STATUS.MODIFIED]: '수정',
+  [TRAIN_DIFF_STATUS.DELETED]: '삭제',
+};
+
+export const TRAIN_DIFF_STATUS_COLORS: Record<TrainDiffStatus, string> = {
+  [TRAIN_DIFF_STATUS.ADDED]: 'green',
+  [TRAIN_DIFF_STATUS.MODIFIED]: 'blue',
+  [TRAIN_DIFF_STATUS.DELETED]: 'red',
+};
+```
+
+`Record<TrainDiffStatus, string>` 덕분에 상태값을 하나 추가하면 라벨·색상 매핑 누락을 TS 컴파일러가 즉시 잡습니다.
+
+#### 런타임 활용
+
+상수 객체는 런타임에 살아 있으므로 Select 옵션·검증·순회에 그대로 씁니다.
+
+```typescript
+// Select 옵션 자동 생성 — 상태값이 늘어나도 옵션이 자동 따라옴
+const options = Object.values(TRAIN_DIFF_STATUS).map((status) => ({
+  value: status,
+  label: TRAIN_DIFF_STATUS_LABELS[status],
+}));
+
+// 값 검증
+const isValidStatus = (value: string): value is TrainDiffStatus =>
+  Object.values(TRAIN_DIFF_STATUS).includes(value as TrainDiffStatus);
+```
+
+#### 비교 시 사용
+
+```typescript
+// ❌ 문자열 직접 비교 — 오타 시 컴파일러가 잡지만, 사용처마다 매번 문자열을 적게 됨
+if (diff.status === 'ADDED') { ... }
+
+// ✅ 상수 참조 — Go to Definition으로 SoT 추적 가능, 리팩터링 안전
+if (diff.status === TRAIN_DIFF_STATUS.ADDED) { ... }
+```
+
+#### 인라인 union을 써도 되는 경우
+
+모든 상태값을 상수 객체로 뽑는 게 정답은 아닙니다. 다음과 같은 경우엔 인라인 union이 더 적절합니다.
+
+```typescript
+// ✅ 컴포넌트 prop의 좁은 variant union — 부가 매핑·런타임 활용 없음
+type ButtonProps = {
+  size?: 'sm' | 'md' | 'lg';
+  variant?: 'primary' | 'secondary' | 'ghost';
+};
+
+// ✅ 한 파일 내부 helper의 ad-hoc 시그니처
+function format(mode: 'short' | 'long'): string { ... }
+```
+
+#### 선택 기준
+
+| 상황 | 패턴 |
+| --- | --- |
+| 도메인 상태값(API enum 매핑) | **상수 객체** |
+| 여러 모듈에서 비교·매핑·순회되는 값 | **상수 객체** |
+| 라벨·색상·아이콘 등 부가 매핑이 따라붙는 값 | **상수 객체** |
+| Select·Radio 옵션을 동적으로 생성해야 하는 값 | **상수 객체** |
+| 컴포넌트 prop의 좁은 variant union(`size`, `variant`) | 인라인 union |
+| 한 파일 내부 helper의 ad-hoc 타입 | 인라인 union |
+| 외부 라이브러리 타입을 그대로 받는 자리 | 인라인 union 또는 import |
+
+#### 트레이드오프 정리
+
+**상수 객체 + 파생 타입**
+
+- 장점: 값과 타입이 한 모듈에 묶인 SoT, 런타임 활용 가능(`Object.values`로 순회), 부가 매핑 결합 용이, IDE의 Go to Definition·리팩터링 안전, 오타 방지
+- 단점: 코드 3~4줄로 늘어남, import 필요, 비교 시 표현이 약간 장황, 객체·타입 두 이름 작명 부담, 객체가 번들에 포함(보통 무시 가능)
+
+**인라인 union 리터럴**
+
+- 장점: 짧고 직관적, import 불필요, 번들에 0바이트(타입이라 런타임 소거)
+- 단점: 여러 파일에 흩어지면 중복 정의 → 추가/변경 시 누락 위험, 런타임 사용 불가(부가 매핑이 필요해지면 결국 별도 상수 객체를 또 만들어야 함), SoT 추적 어려움
+
+#### `enum`을 쓰지 않는 이유
+
+TypeScript `enum`은 위 패턴의 또 다른 대안처럼 보이지만 이 프로젝트에서는 사용하지 않습니다.
+
+- 일반 `enum`은 런타임에 객체 코드를 생성해 번들에 포함되며, 트리쉐이킹이 잘 안 됨
+- `const enum`은 트리쉐이킹은 되지만 `isolatedModules`·`erasableSyntaxOnly` 환경에서 호환성 문제가 있음
+- `as const` 객체 + `typeof` 패턴이 위 둘의 단점을 모두 피하면서 동일한 효과를 냄
+- 공식 TypeScript 팀도 새 코드에는 `as const` 객체를 권장
+
+#### 네이밍 규칙
+
+| 대상 | 케이스 | 예시 |
+| --- | --- | --- |
+| 상수 객체 | `UPPER_SNAKE_CASE` | `TRAIN_DIFF_STATUS`, `BOT_DEPLOY_STATE` |
+| 파생 타입 | `PascalCase` | `TrainDiffStatus`, `BotDeployState` |
+| 라벨 매핑 | `<도메인>_LABELS` | `TRAIN_DIFF_STATUS_LABELS` |
+| 색상 매핑 | `<도메인>_COLORS` | `TRAIN_DIFF_STATUS_COLORS` |
+| 아이콘 매핑 | `<도메인>_ICONS` | `TRAIN_DIFF_STATUS_ICONS` |
+
 ---
 
 ## 5. API 연동 가이드
@@ -1553,6 +1683,27 @@ const [nameError, setNameError] = useState('');
 ```
 
 **원칙**: 라이브러리에 해당 기능이 있는지 먼저 확인할 것. 없거나 요구사항에 맞지 않으면 임의로 직접 구현하지 말고, 사용자에게 직접 구현 진행 여부를 확인한 뒤 진행할 것.
+
+### 11. 도메인 상태값을 인라인 union 리터럴로 정의
+
+```typescript
+// ❌ 인라인 union — 사용처마다 문자열 직접 비교, 부가 매핑 시 SoT 이중화
+export type TrainDiffStatus = 'ADDED' | 'MODIFIED' | 'DELETED';
+
+if (diff.status === 'ADDED') { ... } // 오타 위험, Go to Definition 추적 불가
+
+// ✅ 상수 객체 + 파생 타입 — 값과 타입이 한 SoT, 런타임 활용 가능
+export const TRAIN_DIFF_STATUS = {
+  ADDED: 'ADDED',
+  MODIFIED: 'MODIFIED',
+  DELETED: 'DELETED',
+} as const;
+export type TrainDiffStatus = (typeof TRAIN_DIFF_STATUS)[keyof typeof TRAIN_DIFF_STATUS];
+
+if (diff.status === TRAIN_DIFF_STATUS.ADDED) { ... }
+```
+
+여러 모듈에서 비교·매핑·순회되는 도메인 상태값은 반드시 상수 객체 패턴을 사용. 단, 컴포넌트 prop의 좁은 variant(`size?: 'sm' | 'md' | 'lg'`)나 한 파일 내부 helper의 ad-hoc 타입은 인라인 union이 더 적절. 상세 기준은 4장 "상태값·매핑 타입 — 상수 객체 + 파생 타입 패턴" 참조.
 
 ---
 
