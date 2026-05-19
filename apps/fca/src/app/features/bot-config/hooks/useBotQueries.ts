@@ -8,6 +8,7 @@ import type {
   BotDeployConfigItem,
   BotItem,
   BotListItem,
+  BotVersionCreateDatas,
   BotVersionItem,
   BotVersionListItem,
   CheckDeployable,
@@ -107,7 +108,7 @@ export const useCreateBotVersion = ({ mutationOptions }: MutationHookOptions = {
   });
 };
 
-export const useCreateBotVersionCopy = ({ mutationOptions }: MutationHookOptions = {}) => {
+export const useCreateBotVersionCopy = ({ mutationOptions }: MutationHookOptions<BotVersionItem, { params: Record<string, unknown>; data: BotVersionCreateDatas }> = {}) => {
   return useMutation({
     mutationFn: botApi.createBotVersionCopy,
     ...mutationOptions,

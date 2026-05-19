@@ -173,7 +173,7 @@ const ActionCellRenderer = (params: ActionCellRendererParams) => {
       {data.status !== 2 && (
         <>
           <Divider orientation="vertical" />
-          <Tooltip title="반영하기">
+          <Tooltip title="수정하기">
             <button
               type="button"
               onClick={(e) => {
@@ -255,7 +255,7 @@ export default function ModelRetrainList() {
   const { mutate: applyRetrain } = useApplyRetrain({
     mutationOptions: {
       onSuccess: () => {
-        toast.success('반영이 완료되었습니다.');
+        toast.success('수정이 완료되었습니다.');
         queryClient.invalidateQueries({ queryKey: modelQueryKeys.getRetrains({ modelId }).queryKey });
       },
     },
@@ -339,7 +339,7 @@ export default function ModelRetrainList() {
       (successFilter === 'CHECK' && node.data.isCheck === 1) ||
       (successFilter === 'FAILED' && node.data.isFailed === 1);
 
-    // 반영여부 필터
+    // 수정여부 필터
     const isStatusMatch = statusFilter === -1 || node.data.status === statusFilter;
 
     // 콜타입 필터
@@ -534,7 +534,7 @@ export default function ModelRetrainList() {
       },
     },
     {
-      headerName: '반영여부',
+      headerName: '수정여부',
       field: 'status',
       maxWidth: 80,
       cellStyle: { display: 'flex', alignItems: 'center', justifyContent: 'center' },
@@ -612,14 +612,14 @@ export default function ModelRetrainList() {
                 <Divider orientation="vertical" className="!h-5 !m-0" />
               </div>
               <div className="flex items-center gap-3">
-                <span className="text-base font-medium text-[#495057] shrink-0">반영여부</span>
+                <span className="text-base font-medium text-[#495057] shrink-0">수정여부</span>
                 <Radio.Group
                   value={statusFilter}
                   onChange={(e) => setStatusFilter(e.target.value)}
                   options={[
                     { label: '전체', value: -1 },
-                    { label: '반영', value: 2 },
-                    { label: '미반영', value: 1 },
+                    { label: '수정', value: 2 },
+                    { label: '미수정', value: 1 },
                   ]}
                 />
                 <Divider orientation="vertical" className="!h-5 !m-0" />
