@@ -41,12 +41,13 @@ export default function FcaWsSessionEventHandler() {
             status: 'success' | 'failed';
             error?: string;
           };
+
           if (status === 'success') {
             toast.success(`버전 ${serviceVer} 복사가 완료되었습니다.`);
           } else {
-            toast.dismiss(`bot-version-copy-${serviceVer}`);
             toast.error(`버전 ${serviceVer} 복사에 실패했습니다.${error ? ` (${error})` : ''}`);
           }
+
           queryClient.invalidateQueries({ queryKey: botQueryKeys.getBotVersions._def });
           break;
         }

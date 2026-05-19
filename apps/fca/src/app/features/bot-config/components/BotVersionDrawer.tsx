@@ -76,7 +76,7 @@ const BotVersionDrawer = forwardRef<BotVersionDrawerRef>((_, ref) => {
   const { mutate: copyBotVersion, isPending: isCopying } = useCreateBotVersionCopy({
     mutationOptions: {
       onSuccess: (_data, variables) => {
-        toast.info('버전 복사생성이 시작되었습니다. 완료되면 알림이 표시됩니다.', { toastId: `bot-version-copy-${variables.data.serviceVer}` });
+        toast.info('버전 복사생성이 시작되었습니다. 완료되면 알림이 표시됩니다');
         queryClient.invalidateQueries({ queryKey: botQueryKeys.getBotVersions({ serviceId }).queryKey });
         handleClose();
       },
