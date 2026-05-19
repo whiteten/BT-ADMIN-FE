@@ -263,8 +263,9 @@ export default function AoeFaqList() {
             Import
           </Button>
           <Dropdown menu={exportMenu} trigger={['click']} placement="bottomRight">
-            <Button variant="solid" color="cyan" loading={isExporting} icon={<ChevronDown className="size-4" />} iconPlacement="end">
+            <Button variant="solid" color="cyan" loading={isExporting} icon={<Download className="size-4" />}>
               Export
+              <ChevronDown className="size-4" />
             </Button>
           </Dropdown>
           <Button variant="solid" color="primary" onClick={() => faqDrawerRef.current?.open({ aoeAgentId: agentId ?? '' })}>

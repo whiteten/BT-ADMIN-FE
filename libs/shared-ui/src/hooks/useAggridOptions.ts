@@ -3,6 +3,7 @@ import { type GridOptions, type SideBarDef, type StatusPanelDef, themeQuartz } f
 import { localeKr } from '../assets/json/aggrid_kr';
 import AggridNoRowsOverlay from '../components/custom/AggridNoRowsOverlay';
 import AggridPagination from '../components/custom/AggridPagination';
+import AggridPercentBarRenderer from '../components/custom/AggridPercentBarRenderer';
 import AggridRowDataSidebar from '../components/custom/AggridRowDataSidebar';
 import { FallbackSpinner } from '../components/custom/FallbackSpinner';
 
@@ -60,12 +61,20 @@ export default function useAggridOptions() {
     }),
     [],
   );
+  const components = useMemo(
+    () => ({
+      // 공용 셀 렌더러는 여기서 문자열 키로 등록하고, 각 그리드에서 cellRenderer: '키' 로 참조.
+      percentBarRenderer: AggridPercentBarRenderer,
+    }),
+    [],
+  );
   const gridOptions = useMemo<GridOptions>(
     () => ({
       defaultColDef,
       theme,
       sideBar,
       statusBar,
+      components,
       reactiveCustomComponents: true,
       columnHoverHighlight: true,
       animateRows: true,
@@ -84,7 +93,7 @@ export default function useAggridOptions() {
       tooltipShowDelay: 0,
       tooltipHideDelay: 10000,
     }),
-    [defaultColDef, theme, sideBar, statusBar],
+    [defaultColDef, theme, sideBar, statusBar, components],
   );
   return { gridOptions, defaultColDef, theme, sideBar, statusBar };
 }

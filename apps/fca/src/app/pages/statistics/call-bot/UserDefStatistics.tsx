@@ -3,7 +3,7 @@ import type { ColDef } from 'ag-grid-community';
 import { AgGridReact } from 'ag-grid-react';
 import { type BreadcrumbProps, Button, Checkbox, DatePicker, Divider, Select, TimePicker } from 'antd';
 import dayjs, { type Dayjs } from 'dayjs';
-import { ChevronDown, Download } from 'lucide-react';
+import { ChevronDown, Download, Search } from 'lucide-react';
 import { useBreadcrumbStore, useNavigationStore } from '@/shared-store';
 import { downloadBlob, extractFileName, toast } from '@/shared-util';
 import { useGetBots } from '../../../features/bot-config/hooks/useBotQueries';
@@ -27,7 +27,7 @@ import { cn } from '@/libs/shared-ui/src/lib/utils';
 const breadcrumb: BreadcrumbProps['items'] = [
   { title: '통계', path: '/fca/statistics' },
   { title: '콜봇 통계', path: '/fca/statistics/call-bot' },
-  { title: '사용자 정의 통계', path: '/fca/statistics/call-bot/user-def' },
+  { title: '대화별 사용자 정의 통계', path: '/fca/statistics/call-bot/user-def' },
 ];
 
 export default function UserDefStatistics() {
@@ -222,6 +222,7 @@ export default function UserDefStatistics() {
       return {
         headerName: col.headerName,
         field: 'psrTimeKey',
+        minWidth: displayTimeUnit === 'MI' ? 200 : displayTimeUnit === 'HH' ? 160 : displayTimeUnit === 'DD' ? 120 : displayTimeUnit === 'MM' ? 100 : 80,
         flex: displayTimeUnit === 'MI' || displayTimeUnit === 'HH' ? 2 : 1,
         colSpan: (params) => (params.node?.rowPinned === 'bottom' ? 2 : 1),
         valueFormatter: ({ value, node }) => {
@@ -414,7 +415,7 @@ export default function UserDefStatistics() {
                 </div>
               </div>
               <div className="flex items-center gap-3 shrink-0">
-                <Button type="primary" onClick={handleSearch}>
+                <Button type="primary" icon={<Search className="size-4" />} onClick={handleSearch} loading={isLoadingUserDefStatList}>
                   조회
                 </Button>
                 {hasExcelPermission && (
@@ -584,12 +585,12 @@ export default function UserDefStatistics() {
             </CollapsibleContent>
           </header>
         </Collapsible>
-        <div className="w-full h-full">
+        <div className="flex-1 min-h-0 w-full">
           <AgGridReact<UserDefStatListItem>
             ref={gridRef}
             rowModelType="clientSide"
             rowData={rowData}
-            getRowId={(params) => `${params.data.psrTimeKey}_${params.data.serviceId}_${params.data.dialogId}`}
+            getRowId={(params) => `${params.data.psrTimeKey}_${params.data.serviceId}_${params.data.categoryId}_${params.data.dialogId}`}
             columnDefs={columnDefs}
             gridOptions={{ ...gridOptions, statusBar: undefined }}
             loading={isLoadingUserDefStatList}

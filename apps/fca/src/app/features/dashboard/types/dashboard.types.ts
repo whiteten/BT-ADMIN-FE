@@ -239,7 +239,7 @@ export interface KeywordTopItem {
  * 개체 순위
  *
  * - rank: 순위
- * - entityTag: 엔티티 태그
+ * - entityTag: 개체 태그
  * - detectCnt: 검출 횟수
  */
 export interface EntityTopItem {
@@ -252,7 +252,7 @@ export interface EntityTopItem {
  * 의도 순위
  *
  * - rank: 순위
- * - intent: 인텐트명
+ * - intent: 의도명
  * - detectCnt: 검출 횟수
  */
 export interface IntentTopItem {
@@ -269,7 +269,7 @@ export interface IntentTopItem {
  * - serviceName: 시나리오명
  * - modelId: 모델 ID
  * - modelName: 모델명
- * - intent: 인텐트명
+ * - intent: 의도명
  * - detectCnt: 인식수
  * - passCnt: Pass 건수
  * - passRate: Pass 비율 (%)
@@ -302,7 +302,7 @@ export interface IntentCheckFailTopItem {
  * - serviceName: 시나리오명
  * - modelId: 모델 ID
  * - modelName: 모델명
- * - intent: 인텐트명
+ * - intent: 의도명
  * - detectCnt: 인식수
  * - failCnt: Fail 수
  * - failRate: 실패율 (%)
