@@ -9,6 +9,7 @@ TypeScript 또는 JavaScript 파일을 수정한 후에는 반드시 `npx eslint
 `pnpm-lock.yaml`에는 `ag-grid-enterprise` 패치 정보(`patchedDependencies`, `patch_hash`)가 포함되어 있으므로, lock 파일 수정·충돌 해결 시 해당 내용이 제거되지 않도록 주의할 것. 패치가 누락되면 AG-Grid Enterprise 라이선스 관련 동작에 영향을 줄 수 있음. 또한 pnpm 메이저 버전이 다르면 lock 파일 포맷과 패치 해시가 달라질 수 있으므로, 필수 환경 요구사항에 명시된 pnpm 버전을 준수할 것.
 커밋 메시지 작성 시 타이틀은 간결하게 작성하고, 반드시 본문(body)에 변경 사항의 상세 내용을 포함할 것. 타이틀만으로 커밋을 생성하지 말 것.
 커밋 메시지를 작성할 때는 반드시 [.claude/skills/commit/SKILL.md](.claude/skills/commit/SKILL.md) 스킬을 먼저 확인하고, 해당 스킬의 카테고리(이모지)·scope 판정 규칙·절차를 따를 것.
+이미 사용 중인 라이브러리(Ant Design, shadcn/ui, AG-Grid, TanStack Query, React Hook Form, date-fns, dayjs, lodash 등)로 구현 가능한 기능은 직접 코드를 작성하기 전에 **반드시 해당 라이브러리가 그 기능을 제공하는지 먼저 확인**할 것. 라이브러리가 제공하지 않거나 요구사항에 부합하지 않는 경우에는 임의로 직접 구현하지 말고, 먼저 사용자에게 "라이브러리가 해당 기능을 제공하지 않는데 직접 구현해도 되는지" 확인한 뒤 승인을 받고 진행할 것.
 
 ## 필수 환경 요구사항
 

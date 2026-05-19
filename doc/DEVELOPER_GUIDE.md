@@ -163,6 +163,12 @@ apps/fca/src/app/
 
 새로운 기능을 개발할 때 아래 순서를 따르면 실수를 줄일 수 있습니다.
 
+### Step 0: 라이브러리 기능 확인
+
+코드를 작성하기 전에 **이미 사용 중인 라이브러리가 해당 기능을 제공하는지 먼저 확인**합니다. 디바운스·날짜 포맷팅·폼 유효성 검사·테이블 페이징·모달·드로어 등 일반적인 기능은 대부분 lodash·dayjs·date-fns·Ant Design·shadcn/ui·AG-Grid·TanStack Query·React Hook Form이 이미 제공합니다.
+
+라이브러리가 제공하지 않거나 요구사항에 맞지 않을 때는 임의로 직접 구현하지 말고, 먼저 사용자에게 "라이브러리에 없는데 직접 구현해도 되는지" 확인한 뒤 승인을 받고 진행하세요. (자세한 안티패턴은 13장 "10. 라이브러리 기능 확인 없이 직접 구현" 참조)
+
 ### Step 1: 타입 정의
 
 가장 먼저 데이터의 형태를 정의합니다. API 응답, 요청 데이터의 타입을 명확히 합니다.
@@ -1512,6 +1518,41 @@ const { selectedBotId } = useBotStore();
 // ✅ 필요한 값만 구독 — selectedBotId가 바뀔 때만 리렌더링
 const selectedBotId = useBotStore((state) => state.selectedBotId);
 ```
+
+### 10. 라이브러리 기능 확인 없이 직접 구현
+
+이미 사용 중인 라이브러리(Ant Design, shadcn/ui, AG-Grid, TanStack Query, React Hook Form, date-fns, dayjs, lodash 등)가 제공하는 기능을 알아보지 않고 직접 만들면, 라이브러리가 이미 처리하는 엣지 케이스(접근성, 키보드 네비게이션, 타임존, locale 등)를 빠뜨리기 쉽고 유지보수 부담만 늘어납니다.
+
+```typescript
+// ❌ 디바운스를 직접 구현
+const [debouncedValue, setDebouncedValue] = useState(value);
+useEffect(() => {
+  const t = setTimeout(() => setDebouncedValue(value), 300);
+  return () => clearTimeout(t);
+}, [value]);
+
+// ✅ lodash가 제공
+import { debounce } from 'lodash';
+
+// ❌ 날짜 포맷팅을 수동으로
+const formatted = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-...`;
+
+// ✅ dayjs가 제공
+import dayjs from 'dayjs';
+const formatted = dayjs(date).format('YYYY-MM-DD HH:mm');
+
+// ❌ 폼 유효성·에러 메시지를 useState로 직접 관리
+const [name, setName] = useState('');
+const [nameError, setNameError] = useState('');
+// ...
+
+// ✅ Ant Design Form의 rules 사용
+<Form.Item name="name" rules={[{ required: true, message: '이름을 입력해 주세요' }]}>
+  <Input />
+</Form.Item>
+```
+
+**원칙**: 라이브러리에 해당 기능이 있는지 먼저 확인할 것. 없거나 요구사항에 맞지 않으면 임의로 직접 구현하지 말고, 사용자에게 직접 구현 진행 여부를 확인한 뒤 진행할 것.
 
 ---
 
