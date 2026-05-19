@@ -7,10 +7,12 @@ import dayjs from 'dayjs';
 import { Trash2 } from 'lucide-react';
 import { useBreadcrumbStore } from '@/shared-store';
 import { toast } from '@/shared-util';
+import ExcelImportResultModal, { type ExcelImportResultModalRef } from '../../features/stt-config/components/ExcelImportResultModal';
 import PaGroupTree from '../../features/stt-config/components/PaGroupTree';
 import SttDnDrawer, { type SttDnDrawerRef } from '../../features/stt-config/components/SttDnDrawer';
-import { dnQueryKeys, useDeleteSttDn, useGetSttDnList } from '../../features/stt-config/hooks/useDnQueries';
+import { dnQueryKeys, useDeleteSttDn, useGetSttDnList, useImportSttDn } from '../../features/stt-config/hooks/useDnQueries';
 import type { CodeItem, SttDictionaryItem, SttDnItem, SttDnSearchParams } from '../../features/stt-config/types';
+import FileImportModal, { type FileImportModalRef } from '@/components/custom/FileImportModal';
 import NoData from '@/components/custom/NoData';
 import { Badge } from '@/components/ui/badge';
 import useAggridOptions from '@/libs/shared-ui/src/hooks/useAggridOptions';
@@ -67,11 +69,26 @@ export default function DnList() {
   const queryClient = useQueryClient();
   const modal = useModal();
   const drawerRef = useRef<SttDnDrawerRef>(null);
+  const importModalRef = useRef<FileImportModalRef>(null);
+  const importResultModalRef = useRef<ExcelImportResultModalRef>(null);
 
   const [selectedGroupId, setSelectedGroupId] = useState<string | null>(null);
   const [searchParams, setSearchParams] = useState<SttDnSearchParams | null>(null);
 
   const { data: rowData = [], isLoading } = useGetSttDnList({ params: searchParams });
+
+  const { mutate: importDn, isPending: isImporting } = useImportSttDn({
+    mutationOptions: {
+      onSuccess: (data) => {
+        queryClient.invalidateQueries({ queryKey: dnQueryKeys.getSttDnList._def });
+        importModalRef.current?.close();
+        importResultModalRef.current?.open(data);
+      },
+      onError: () => {
+        toast.error('Import에 실패했습니다.');
+      },
+    },
+  });
 
   const { mutate: deleteDn } = useDeleteSttDn({
     mutationOptions: {
@@ -92,6 +109,20 @@ export default function DnList() {
 
   const handleDelete = (data: SttDnItem) => {
     modal.confirm.delete({ onOk: () => deleteDn({ tenantId: data.tenantId, dnNo: data.dnNo }) });
+  };
+
+  const handleClickImport = () => {
+    if (!selectedGroupId) {
+      toast.warning('좌측 트리에서 그룹을 선택해주세요.');
+      return;
+    }
+    importModalRef.current?.open();
+  };
+
+  const handleImportDn = (files: File[]) => {
+    if (files.length > 0 && selectedGroupId) {
+      importDn({ hostName: selectedGroupId, data: files[0] });
+    }
   };
 
   const handleGroupSelect = (hostName: string | null, _group: CodeItem | null) => {
@@ -160,7 +191,9 @@ export default function DnList() {
               >
                 추가
               </Button>
-              <Button onClick={() => toast.warning('엑셀 일괄추가 기능은 준비 중입니다.')}>Import</Button>
+              <Button variant="solid" onClick={handleClickImport}>
+                Import
+              </Button>
             </div>
           </div>
 
@@ -193,6 +226,8 @@ export default function DnList() {
       </div>
 
       <SttDnDrawer ref={drawerRef} />
+      <FileImportModal ref={importModalRef} title="Import" accept=".xlsx,.xls" onConfirm={handleImportDn} confirmLoading={isImporting} />
+      <ExcelImportResultModal ref={importResultModalRef} nameColumnTitle="내선번호" />
     </div>
   );
 }

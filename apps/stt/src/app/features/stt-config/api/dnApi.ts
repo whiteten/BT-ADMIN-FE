@@ -1,5 +1,5 @@
-import ApiClient, { type ListResponse, extractList } from '@/shared-util';
-import type { SttDnCreateData, SttDnDeleteParams, SttDnItem, SttDnSearchParams, SttDnUpdateData } from '../types';
+import ApiClient, { type DetailResponse, type ListResponse, extractDetail, extractList } from '@/shared-util';
+import type { ExcelImportResult, SttDnCreateData, SttDnDeleteParams, SttDnItem, SttDnSearchParams, SttDnUpdateData } from '../types';
 
 const apiClient = new ApiClient({ serviceURL: '/bff' });
 
@@ -16,5 +16,11 @@ export const dnApi = {
   },
   deleteSttDn: async (params: SttDnDeleteParams) => {
     return apiClient.delete('/stt-dn-delete', { params });
+  },
+  importSttDn: async ({ hostName, data }: { hostName: string; data: File }): Promise<ExcelImportResult> => {
+    const formData = new FormData();
+    formData.append('uploadFile', data);
+    const response = await apiClient.post<DetailResponse<ExcelImportResult>>('/stt-dn-excel-import', formData, { params: { hostName } });
+    return extractDetail(response);
   },
 };

@@ -3,6 +3,7 @@ import { createQueryKeys } from '@lukemorales/query-key-factory';
 import type { MutationHookOptions, QueryHookWithParamsOptions } from '@/shared-util';
 import { dictionaryApi } from '../api/dictionaryApi';
 import type {
+  ExcelImportResult,
   KeywordBoostingCreateData,
   KeywordBoostingItem,
   KeywordBoostingSearchParams,
@@ -64,6 +65,20 @@ export const useUpdateSttDictionary = ({ mutationOptions }: MutationHookOptions<
 export const useDeleteSttDictionary = ({ mutationOptions }: MutationHookOptions<unknown, { beforeWord: string }> = {}) => {
   return useMutation({
     mutationFn: dictionaryApi.deleteSttDictionary,
+    ...mutationOptions,
+  });
+};
+
+export const useImportSttDictionary = ({ mutationOptions }: MutationHookOptions<ExcelImportResult, File> = {}) => {
+  return useMutation({
+    mutationFn: dictionaryApi.importSttDictionary,
+    ...mutationOptions,
+  });
+};
+
+export const useImportKeywordBoosting = ({ mutationOptions }: MutationHookOptions<ExcelImportResult, { engineCode: string; data: File }> = {}) => {
+  return useMutation({
+    mutationFn: dictionaryApi.importKeywordBoosting,
     ...mutationOptions,
   });
 };

@@ -41,3 +41,17 @@ export interface SttDictionaryUpdateData {
   afterWord: string;
   useYn: string;
 }
+
+export interface ExcelImportResultRow {
+  rowNumber: number;
+  name: string;
+  status: 'SUCCESS' | 'FAIL';
+  reason: string | null;
+}
+
+export interface ExcelImportResult {
+  totalCount: number;
+  successCount: number;
+  failCount: number;
+  rows: ExcelImportResultRow[];
+}

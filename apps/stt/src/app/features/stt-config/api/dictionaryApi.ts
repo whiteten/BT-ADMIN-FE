@@ -1,5 +1,6 @@
-import ApiClient, { type ListResponse, extractList } from '@/shared-util';
+import ApiClient, { type DetailResponse, type ListResponse, extractDetail, extractList } from '@/shared-util';
 import type {
+  ExcelImportResult,
   KeywordBoostingCreateData,
   KeywordBoostingItem,
   KeywordBoostingSearchParams,
@@ -34,5 +35,17 @@ export const dictionaryApi = {
   },
   deleteSttDictionary: async (params: { beforeWord: string }) => {
     await apiClient.delete('/stt-dictionary-delete', { params });
+  },
+  importSttDictionary: async (data: File): Promise<ExcelImportResult> => {
+    const formData = new FormData();
+    formData.append('uploadFile', data);
+    const response = await apiClient.post<DetailResponse<ExcelImportResult>>('/stt-dictionary-excel-import', formData);
+    return extractDetail(response);
+  },
+  importKeywordBoosting: async ({ engineCode, data }: { engineCode: string; data: File }): Promise<ExcelImportResult> => {
+    const formData = new FormData();
+    formData.append('uploadFile', data);
+    const response = await apiClient.post<DetailResponse<ExcelImportResult>>('/keyword-boosting-excel-import', formData, { params: { engineCode } });
+    return extractDetail(response);
   },
 };

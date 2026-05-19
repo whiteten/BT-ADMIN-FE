@@ -2,7 +2,7 @@ import { type UseQueryOptions, useMutation, useQuery } from '@tanstack/react-que
 import { createQueryKeys } from '@lukemorales/query-key-factory';
 import type { MutationHookOptions } from '@/shared-util';
 import { dnApi } from '../api/dnApi';
-import type { SttDnCreateData, SttDnDeleteParams, SttDnItem, SttDnSearchParams, SttDnUpdateData } from '../types';
+import type { ExcelImportResult, SttDnCreateData, SttDnDeleteParams, SttDnItem, SttDnSearchParams, SttDnUpdateData } from '../types';
 
 export const dnQueryKeys = createQueryKeys('dn', {
   getSttDnList: (params?: Record<string, unknown>) => [params],
@@ -34,6 +34,13 @@ export const useUpdateSttDn = ({ mutationOptions }: MutationHookOptions<unknown,
 export const useDeleteSttDn = ({ mutationOptions }: MutationHookOptions<unknown, SttDnDeleteParams> = {}) => {
   return useMutation({
     mutationFn: dnApi.deleteSttDn,
+    ...mutationOptions,
+  });
+};
+
+export const useImportSttDn = ({ mutationOptions }: MutationHookOptions<ExcelImportResult, { hostName: string; data: File }> = {}) => {
+  return useMutation({
+    mutationFn: dnApi.importSttDn,
     ...mutationOptions,
   });
 };

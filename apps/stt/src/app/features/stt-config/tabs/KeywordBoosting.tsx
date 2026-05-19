@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import type { ColDef } from 'ag-grid-community';
 import { AgGridReact } from 'ag-grid-react';
@@ -6,9 +6,11 @@ import { Button, Input, Select } from 'antd';
 import dayjs from 'dayjs';
 import { Trash2 } from 'lucide-react';
 import { toast } from '@/shared-util';
+import ExcelImportResultModal, { type ExcelImportResultModalRef } from '../components/ExcelImportResultModal';
 import { useGetCodes } from '../hooks/useCommonQueries';
-import { dictionaryQueryKeys, useCreateKeywordBoosting, useDeleteKeywordBoosting, useGetKeywordBoostingList } from '../hooks/useDictionaryQueries';
+import { dictionaryQueryKeys, useCreateKeywordBoosting, useDeleteKeywordBoosting, useGetKeywordBoostingList, useImportKeywordBoosting } from '../hooks/useDictionaryQueries';
 import type { KeywordBoostingItem } from '../types';
+import FileImportModal, { type FileImportModalRef } from '@/components/custom/FileImportModal';
 import useAggridOptions from '@/libs/shared-ui/src/hooks/useAggridOptions';
 import { useModal } from '@/libs/shared-ui/src/hooks/useModal';
 
@@ -32,6 +34,8 @@ export default function KeywordBoosting() {
   const { gridOptions } = useAggridOptions();
   const modal = useModal();
   const queryClient = useQueryClient();
+  const importModalRef = useRef<FileImportModalRef>(null);
+  const importResultModalRef = useRef<ExcelImportResultModalRef>(null);
 
   const [engineCode, setEngineCode] = useState('');
   const [newKeyword, setNewKeyword] = useState('');
@@ -59,6 +63,19 @@ export default function KeywordBoosting() {
       },
       onError: () => {
         toast.error('등록에 실패했습니다.');
+      },
+    },
+  });
+
+  const { mutate: importKeywordBoosting, isPending: isImporting } = useImportKeywordBoosting({
+    mutationOptions: {
+      onSuccess: (data) => {
+        queryClient.invalidateQueries({ queryKey: dictionaryQueryKeys.getKeywordBoostingList({ engineCode }).queryKey });
+        importModalRef.current?.close();
+        importResultModalRef.current?.open(data);
+      },
+      onError: () => {
+        toast.error('Import에 실패했습니다.');
       },
     },
   });
@@ -99,6 +116,16 @@ export default function KeywordBoosting() {
 
   const handleDelete = (data: KeywordBoostingItem) => {
     modal.confirm.delete({ onOk: () => deleteKeyword({ engineCode: data.engineCode ?? '', keyword: data.keyword }) });
+  };
+
+  const handleClickImport = () => {
+    importModalRef.current?.open();
+  };
+
+  const handleImportKeywordBoosting = (files: File[]) => {
+    if (files.length > 0) {
+      importKeywordBoosting({ engineCode, data: files[0] });
+    }
   };
 
   const columnDefs: ColDef<KeywordBoostingItem>[] = [
@@ -152,7 +179,9 @@ export default function KeywordBoosting() {
           <Button type="primary" onClick={handleAdd}>
             추가
           </Button>
-          <Button onClick={() => toast.warning('Import 기능은 준비 중입니다.')}>Import</Button>
+          <Button variant="solid" onClick={handleClickImport}>
+            Import
+          </Button>
         </div>
       </div>
 
@@ -169,6 +198,8 @@ export default function KeywordBoosting() {
           sideBar={false}
         />
       </div>
+      <FileImportModal ref={importModalRef} title="Import" accept=".xlsx,.xls" onConfirm={handleImportKeywordBoosting} confirmLoading={isImporting} />
+      <ExcelImportResultModal ref={importResultModalRef} nameColumnTitle="키워드" />
     </div>
   );
 }

@@ -6,9 +6,11 @@ import { Button } from 'antd';
 import dayjs from 'dayjs';
 import { Trash2 } from 'lucide-react';
 import { toast } from '@/shared-util';
+import ExcelImportResultModal, { type ExcelImportResultModalRef } from '../components/ExcelImportResultModal';
 import SttDictionaryDrawer, { type SttDictionaryDrawerRef } from '../components/SttDictionaryDrawer';
-import { dictionaryQueryKeys, useDeleteSttDictionary, useGetSttDictionaryList } from '../hooks/useDictionaryQueries';
+import { dictionaryQueryKeys, useDeleteSttDictionary, useGetSttDictionaryList, useImportSttDictionary } from '../hooks/useDictionaryQueries';
 import type { SttDictionaryItem } from '../types';
+import FileImportModal, { type FileImportModalRef } from '@/components/custom/FileImportModal';
 import { Badge } from '@/components/ui/badge';
 import useAggridOptions from '@/libs/shared-ui/src/hooks/useAggridOptions';
 import { useModal } from '@/libs/shared-ui/src/hooks/useModal';
@@ -43,8 +45,23 @@ export default function SttDictionary() {
   const modal = useModal();
   const queryClient = useQueryClient();
   const drawerRef = useRef<SttDictionaryDrawerRef>(null);
+  const importModalRef = useRef<FileImportModalRef>(null);
+  const importResultModalRef = useRef<ExcelImportResultModalRef>(null);
 
   const { data: allData = [], isLoading } = useGetSttDictionaryList({});
+
+  const { mutate: importDictionary, isPending: isImporting } = useImportSttDictionary({
+    mutationOptions: {
+      onSuccess: (data) => {
+        queryClient.invalidateQueries({ queryKey: dictionaryQueryKeys.getSttDictionaryList(undefined).queryKey });
+        importModalRef.current?.close();
+        importResultModalRef.current?.open(data);
+      },
+      onError: () => {
+        toast.error('Import에 실패했습니다.');
+      },
+    },
+  });
 
   const { mutate: deleteDictionary } = useDeleteSttDictionary({
     mutationOptions: {
@@ -60,6 +77,16 @@ export default function SttDictionary() {
 
   const handleAdd = () => {
     drawerRef.current?.open();
+  };
+
+  const handleClickImport = () => {
+    importModalRef.current?.open();
+  };
+
+  const handleImportDictionary = (files: File[]) => {
+    if (files.length > 0) {
+      importDictionary(files[0]);
+    }
   };
 
   const handleRowDoubleClicked = (event: RowDoubleClickedEvent<SttDictionaryItem>) => {
@@ -121,7 +148,9 @@ export default function SttDictionary() {
           <Button type="primary" onClick={handleAdd}>
             추가
           </Button>
-          <Button onClick={() => toast.warning('Import 기능은 준비 중입니다.')}>Import</Button>
+          <Button variant="solid" onClick={handleClickImport}>
+            Import
+          </Button>
         </div>
       </div>
 
@@ -142,6 +171,8 @@ export default function SttDictionary() {
       </div>
 
       <SttDictionaryDrawer ref={drawerRef} />
+      <FileImportModal ref={importModalRef} title="Import" accept=".xlsx,.xls" onConfirm={handleImportDictionary} confirmLoading={isImporting} />
+      <ExcelImportResultModal ref={importResultModalRef} nameColumnTitle="단어" />
     </div>
   );
 }
