@@ -11,9 +11,14 @@ export const fileUploadApi = {
   deleteFileUpload: async (ucidGkey: string) => {
     return apiClient.delete('/stt-file-upload-delete', { params: { ucidGkey } });
   },
-  requestStt: async (files: File[]) => {
+  uploadSttFile: async (file: File, menuId: string) => {
     const formData = new FormData();
-    files.forEach((file) => formData.append('files', file));
-    return apiClient.post('/stt-file-request', formData);
+    formData.append('uploadFile', file);
+    formData.append('menuId', menuId);
+    const response = await apiClient.post<{ uploadedFilename: string }>('/stt-file-upload', formData);
+    return response.data.uploadedFilename;
+  },
+  requestStt: async (fileNames: string[]) => {
+    return apiClient.post('/stt-file-request', { fileNames });
   },
 };

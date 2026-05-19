@@ -24,7 +24,14 @@ export const useDeleteFileUpload = ({ mutationOptions }: MutationHookOptions<unk
   });
 };
 
-export const useRequestStt = ({ mutationOptions }: MutationHookOptions<unknown, File[]> = {}) => {
+export const useUploadSttFile = ({ menuId, mutationOptions }: { menuId: string } & MutationHookOptions<string, File> = { menuId: '' }) => {
+  return useMutation({
+    mutationFn: (file: File) => fileUploadApi.uploadSttFile(file, menuId),
+    ...mutationOptions,
+  });
+};
+
+export const useRequestStt = ({ mutationOptions }: MutationHookOptions<unknown, string[]> = {}) => {
   return useMutation({
     mutationFn: fileUploadApi.requestStt,
     ...mutationOptions,

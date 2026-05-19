@@ -65,7 +65,7 @@ export default function FileUploadList() {
   const [fromDate, setFromDate] = useState<Dayjs | null>(dayjs().subtract(7, 'day'));
   const [toDate, setToDate] = useState<Dayjs | null>(dayjs());
   const [searchParams, setSearchParams] = useState<FileUploadSearchParams | null>({
-    fromDate: dayjs().subtract(30, 'day').format('YYYYMMDD'),
+    fromDate: dayjs().subtract(7, 'day').format('YYYYMMDD'),
     toDate: dayjs().format('YYYYMMDD'),
   });
 
@@ -182,7 +182,7 @@ export default function FileUploadList() {
         </div>
       </div>
 
-      <FileUploadDrawer ref={drawerRef} />
+      <FileUploadDrawer ref={drawerRef} menuId="sttFileUpload" />
       <SttSearchDetailDrawer ref={detailDrawerRef} />
     </div>
   );

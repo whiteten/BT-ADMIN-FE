@@ -1,18 +1,31 @@
 import { forwardRef, useImperativeHandle, useState } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { Button, Drawer, Upload } from 'antd';
-import { Trash2 } from 'lucide-react';
+import { Loader2, Trash2 } from 'lucide-react';
 import { toast } from '@/shared-util';
-import { fileUploadQueryKeys, useRequestStt } from '../hooks/useFileUploadQueries';
+import { fileUploadQueryKeys, useRequestStt, useUploadSttFile } from '../hooks/useFileUploadQueries';
 
 export interface FileUploadDrawerRef {
   open: () => void;
   close: () => void;
 }
 
-const FileUploadDrawer = forwardRef<FileUploadDrawerRef>((_, ref) => {
+interface FileUploadDrawerProps {
+  menuId: string;
+}
+
+interface UploadedFile {
+  id: number;
+  originalName: string;
+  uploadedFilename?: string;
+  status: 'uploading' | 'done' | 'error';
+}
+
+let idCounter = 0;
+
+const FileUploadDrawer = forwardRef<FileUploadDrawerRef, FileUploadDrawerProps>(({ menuId }, ref) => {
   const [open, setOpen] = useState(false);
-  const [files, setFiles] = useState<File[]>([]);
+  const [uploadedFiles, setUploadedFiles] = useState<UploadedFile[]>([]);
   const queryClient = useQueryClient();
 
   useImperativeHandle(ref, () => ({
@@ -22,8 +35,10 @@ const FileUploadDrawer = forwardRef<FileUploadDrawerRef>((_, ref) => {
 
   const handleClose = () => {
     setOpen(false);
-    setFiles([]);
+    setUploadedFiles([]);
   };
+
+  const { mutateAsync: uploadSttFile } = useUploadSttFile({ menuId });
 
   const { mutate: requestStt, isPending } = useRequestStt({
     mutationOptions: {
@@ -38,16 +53,43 @@ const FileUploadDrawer = forwardRef<FileUploadDrawerRef>((_, ref) => {
     },
   });
 
+  const handleAddFile = async (file: File) => {
+    if (uploadedFiles.some((f) => f.originalName === file.name)) {
+      toast.warning(`이미 추가된 파일입니다: ${file.name}`);
+      return;
+    }
+
+    const id = ++idCounter;
+    setUploadedFiles((prev) => [...prev, { id, originalName: file.name, status: 'uploading' }]);
+
+    try {
+      const uploadedFilename = await uploadSttFile(file);
+      setUploadedFiles((prev) => prev.map((f) => (f.id === id ? { ...f, uploadedFilename, status: 'done' } : f)));
+    } catch {
+      setUploadedFiles((prev) => prev.map((f) => (f.id === id ? { ...f, status: 'error' } : f)));
+      toast.error(`파일 업로드 실패: ${file.name}`);
+    }
+  };
+
   const handleRequest = () => {
-    if (files.length === 0) {
+    const isUploading = uploadedFiles.some((f) => f.status === 'uploading');
+    if (isUploading) {
+      toast.warning('파일 업로드가 진행 중입니다. 잠시 후 다시 시도해주세요.');
+      return;
+    }
+    const fileNames = uploadedFiles.reduce<string[]>((acc, f) => {
+      if (f.status === 'done' && f.uploadedFilename) acc.push(f.uploadedFilename);
+      return acc;
+    }, []);
+    if (fileNames.length === 0) {
       toast.warning('STT 요청할 파일을 선택해주세요.');
       return;
     }
-    requestStt(files);
+    requestStt(fileNames);
   };
 
-  const handleRemoveFile = (index: number) => {
-    setFiles((prev) => prev.filter((_, i) => i !== index));
+  const handleRemoveFile = (id: number) => {
+    setUploadedFiles((prev) => prev.filter((f) => f.id !== id));
   };
 
   const footer = (
@@ -64,7 +106,6 @@ const FileUploadDrawer = forwardRef<FileUploadDrawerRef>((_, ref) => {
   return (
     <Drawer open={open} onClose={handleClose} title="STT 파일업로드" closable={{ placement: 'end' }} styles={{ wrapper: { width: '600px' } }} footer={footer} destroyOnHidden>
       <div className="flex flex-col gap-6 h-full">
-        {/* 파일 업로드 영역 */}
         <div className="flex flex-col gap-3">
           <span className="text-sm font-semibold text-[#495057]">파일업로드</span>
           <Upload.Dragger
@@ -72,13 +113,7 @@ const FileUploadDrawer = forwardRef<FileUploadDrawerRef>((_, ref) => {
             accept=".wav,.pcm,.mp3,.m4a"
             showUploadList={false}
             beforeUpload={(file) => {
-              setFiles((prev) => {
-                if (prev.some((f) => f.name === file.name)) {
-                  toast.warning(`이미 추가된 파일입니다: ${file.name}`);
-                  return prev;
-                }
-                return [...prev, file];
-              });
+              handleAddFile(file);
               return false;
             }}
           >
@@ -89,22 +124,25 @@ const FileUploadDrawer = forwardRef<FileUploadDrawerRef>((_, ref) => {
           </Upload.Dragger>
         </div>
 
-        {/* STT 대상 파일 리스트 */}
         <div className="flex flex-col gap-2 flex-1 min-h-0">
           <span className="text-sm font-semibold text-[#495057]">STT 대상 파일 리스트</span>
           <div className="border border-[#e9ebec] rounded overflow-hidden flex flex-col min-h-0 flex-1">
             <div className="bg-[#f8f9fa] px-4 py-2 text-sm font-medium text-[#495057] text-center border-b border-[#e9ebec] shrink-0">STT 대상 파일명</div>
-            {files.length === 0 ? (
+            {uploadedFiles.length === 0 ? (
               <div className="px-4 py-6 text-center text-sm text-[#adb5bd]">선택된 파일이 없습니다.</div>
             ) : (
               <ul className="overflow-y-auto flex-1">
-                {files.map((file, index) => (
-                  <li key={file.name} className="flex items-center gap-3 px-4 py-2.5 border-b border-[#e9ebec] last:border-b-0 hover:bg-[#f8f9fa]">
+                {uploadedFiles.map((item, index) => (
+                  <li key={item.id} className="flex items-center gap-3 px-4 py-2.5 border-b border-[#e9ebec] last:border-b-0 hover:bg-[#f8f9fa]">
                     <span className="text-sm text-[#6c757d] w-5 shrink-0 text-right">{index + 1}</span>
-                    <span className="flex-1 text-sm text-[#495057] truncate">{file.name}</span>
-                    <button onClick={() => handleRemoveFile(index)} className="shrink-0 text-red-400 hover:text-red-600 transition-colors">
-                      <Trash2 size={15} />
-                    </button>
+                    <span className={`flex-1 text-sm truncate ${item.status === 'error' ? 'text-red-400' : 'text-[#495057]'}`}>{item.originalName}</span>
+                    {item.status === 'uploading' && <Loader2 size={15} className="shrink-0 animate-spin text-blue-400" />}
+                    {item.status === 'error' && <span className="text-xs text-red-400 shrink-0">오류</span>}
+                    {item.status !== 'uploading' && (
+                      <button onClick={() => handleRemoveFile(item.id)} className="shrink-0 text-red-400 hover:text-red-600 transition-colors">
+                        <Trash2 size={15} />
+                      </button>
+                    )}
                   </li>
                 ))}
               </ul>
