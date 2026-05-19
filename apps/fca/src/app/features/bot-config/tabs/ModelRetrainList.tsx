@@ -501,7 +501,7 @@ export default function ModelRetrainList() {
       suppressKeyboardEvent: (params) => params.editing && params.event.key === 'Enter',
     },
     {
-      headerName: '처리일시',
+      headerName: '발화일시',
       field: 'dbInsertTime',
       maxWidth: 180,
       cellStyle: { display: 'flex', alignItems: 'center' },
