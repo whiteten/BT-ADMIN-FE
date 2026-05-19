@@ -7,7 +7,7 @@ const columnDefs: ColDef<IntentFailRateTopItem>[] = [
   { headerName: '순위', field: 'rank', maxWidth: 80 },
   { headerName: '시나리오명', field: 'serviceName' },
   { headerName: '모델명', field: 'modelName' },
-  { headerName: '인텐트명', field: 'intent' },
+  { headerName: '의도명', field: 'intent' },
   { headerName: '인식수', field: 'detectCnt', valueFormatter: (p) => (p.value != null ? `${p.value}건` : '') },
   { headerName: '실패 수', field: 'failCnt', valueFormatter: (p) => (p.value != null ? `${p.value}건` : '') },
   { headerName: '신뢰도 실패율', field: 'failRate', valueFormatter: (p) => (p.value != null ? `${p.value}%` : '') },

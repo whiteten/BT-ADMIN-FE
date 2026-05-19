@@ -1,13 +1,8 @@
-import { useLocation } from 'react-router-dom';
-import { useAuthStore, useMenuStore } from '@/shared-store';
+import { useAuthStore } from '@/shared-store';
 
 export default function Main() {
-  const location = useLocation();
   const { userInfo, getCurrentRoleName } = useAuthStore();
-  const { menuConfigs } = useMenuStore();
 
-  const appId = location.pathname.split('/')[1];
-  const appName = menuConfigs.find((config) => config.appId === appId)?.appName ?? appId;
   const displayName = userInfo?.username ?? userInfo?.userAccount ?? '사용자';
   const roleName = getCurrentRoleName();
 
@@ -17,7 +12,7 @@ export default function Main() {
         {/* Hero Typography */}
         <div className="text-center">
           <p className="text-xs font-semibold uppercase tracking-[0.3em] text-gray-400">Welcome to</p>
-          <h1 className="mt-3 text-5xl font-bold tracking-tight text-gray-900">{appName}</h1>
+          <h1 className="mt-3 text-5xl font-bold tracking-tight text-gray-900">BT-Admin</h1>
         </div>
 
         {/* Divider */}

@@ -153,36 +153,21 @@ function RetrainLogPopover({ ucidGkey, questionSeq, hop }: { ucidGkey: string; q
   );
 }
 
-/** NLU 고객발화 마스킹 적용 (*=마스킹, #=원문) */
-function applyNluMasking(text: string, format?: string | null): string {
-  if (format && format.length > 0) {
-    return Array.from(text)
-      .map((ch, i) => (i < format.length ? (format[i] === '*' ? '*' : ch) : ch))
-      .join('');
-  }
-  // 포맷 없으면 범용 마스킹
-  if (text.length <= 2) return '*'.repeat(text.length);
-  const show = Math.max(1, Math.floor(text.length / 4));
-  return text.slice(0, show) + '*'.repeat(text.length - show * 2) + text.slice(-show);
-}
-
 interface NluCardProps {
   seq: number;
   nluResults: NluAnalysisItem[];
   onRetrainSuccess?: () => void | Promise<void>;
   /** 해당 seq 버블의 암호화 여부 (DIALOG_DATA Val4 기준) */
   bubbleEncrypted?: boolean;
-  /** 해당 seq 버블의 마스킹 여부 (DIALOG_DATA Val4 기준) */
+  /** 해당 seq 버블의 마스킹 여부 (DIALOG_DATA Val4 기준). UI 인디케이터 용도 — 마스킹은 서버에서 적용됨. */
   bubbleMasked?: boolean;
-  /** 해당 seq 버블의 마스킹 포맷 (*=마스킹, #=원문) */
-  bubbleMaskingFormat?: string | null;
   /** 해당 seq 버블의 Entity Tag (암호화 시 대체 표시) */
   bubbleEntityTag?: string | null;
   /** 복호화된 발화 텍스트 (버블 복호화 시 연동) */
   revealedQuestionText?: string | null;
 }
 
-function NluCard({ seq, nluResults, onRetrainSuccess, bubbleEncrypted, bubbleMasked, bubbleMaskingFormat, bubbleEntityTag, revealedQuestionText }: NluCardProps) {
+function NluCard({ seq, nluResults, onRetrainSuccess, bubbleEncrypted, bubbleMasked, bubbleEntityTag, revealedQuestionText }: NluCardProps) {
   const [editingHop, setEditingHop] = useState<number | null>(null);
   const [editQuestion, setEditQuestion] = useState('');
   const [editAnswer, setEditAnswer] = useState('');
@@ -346,7 +331,7 @@ function NluCard({ seq, nluResults, onRetrainSuccess, bubbleEncrypted, bubbleMas
             ) : bubbleEncrypted && !revealedQuestionText ? (
               <p className="flex-1 text-xs text-amber-600 leading-5 italic">{bubbleEntityTag ? `🏷️ ${bubbleEntityTag}` : '🔒 암호화된 발화'}</p>
             ) : bubbleMasked ? (
-              <p className="flex-1 text-xs text-gray-700 leading-5 break-all">{applyNluMasking(revealedQuestionText ?? nlu.questionText ?? '', bubbleMaskingFormat)}</p>
+              <p className="flex-1 text-xs text-gray-700 leading-5 break-all">{revealedQuestionText ?? nlu.questionText ?? ''}</p>
             ) : (
               <p className="flex-1 text-xs text-gray-700 leading-5 break-all">{revealedQuestionText ?? nlu.modifiedQuestion ?? nlu.questionText}</p>
             )}
@@ -1024,7 +1009,6 @@ const BotDialogHistoryDrawer = forwardRef<BotDialogHistoryDrawerRef>((_, ref) =>
                       onRetrainSuccess={handleRetrainSuccess}
                       bubbleEncrypted={items.find((b) => b.seq === item.seq && b.dialogRole === 'CUSTOMER')?.encrypted}
                       bubbleMasked={items.find((b) => b.seq === item.seq && b.dialogRole === 'CUSTOMER')?.masked}
-                      bubbleMaskingFormat={items.find((b) => b.seq === item.seq && b.dialogRole === 'CUSTOMER')?.maskingFormat}
                       bubbleEntityTag={items.find((b) => b.seq === item.seq && b.dialogRole === 'CUSTOMER')?.entityTag}
                       revealedQuestionText={Object.entries(revealedBubbles).find(([key]) => key.startsWith(`${item.seq}:`))?.[1] ?? null}
                     />

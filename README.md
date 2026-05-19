@@ -16,7 +16,7 @@ bt-admin-fe/
 │   └── fca/          # Remote - ForCus AI (봇·대시보드)    :4202
 ├── libs/
 │   ├── shared-ui/    # 공통 UI 컴포넌트 (shadcn/ui, 커스텀)
-│   ├── shared-api/   # 공통 API (역할, 네비게이션, 북마크)
+│   ├── shared-api/   # 공통 API (역할, 네비게이션, 즐겨찾기)
 │   ├── shared-store/ # 전역 상태 관리 (Zustand)
 │   └── shared-util/  # 유틸리티 (API 클라이언트, 로깅, 토스트)
 └── scripts/          # 빌드·서빙·Remote 생성 스크립트

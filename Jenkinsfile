@@ -162,10 +162,17 @@ pipeline {
         // =====================================================================
         // 4. 아티팩트 저장
         // =====================================================================
-        stage('Archive Artifacts') {
+        stage('Publish to Shared') {
             agent any
             steps {
-                archiveArtifacts artifacts: env.PKG_NAME, fingerprint: true
+                // 브랜치별 latest 사본을 공유 디렉토리에 덮어쓰기 (BE가 cp로 fetch)
+                sh """
+                    sudo mkdir -p /var/lib/jenkins/fe-artifacts
+                    sudo cp ${env.PKG_NAME} /var/lib/jenkins/fe-artifacts/btadmin-fe-${env.TAG}-latest.tgz
+                    sudo chown jenkins:jenkins /var/lib/jenkins/fe-artifacts/btadmin-fe-${env.TAG}-latest.tgz
+                    sudo chmod 644 /var/lib/jenkins/fe-artifacts/btadmin-fe-${env.TAG}-latest.tgz
+                    ls -la /var/lib/jenkins/fe-artifacts/
+                """
             }
         }
     }

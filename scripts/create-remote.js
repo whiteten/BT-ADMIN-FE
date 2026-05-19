@@ -115,9 +115,6 @@ function createRemote() {
       // 신규앱의 tailwind.config.js 파일을 manager와 동일하게 복사
       copyTailwindConfig(trimmedAppName);
 
-      // 신규앱의 Main.tsx 파일을 manager의 sample에서 복사
-      copyMainTemplate(trimmedAppName);
-
       // 신규앱의 routes.tsx 파일을 manager의 sample에서 복사
       copyRoutesTemplate(trimmedAppName);
 
@@ -745,36 +742,6 @@ function copyAppTemplate(appName) {
   }
 }
 
-function copyMainTemplate(appName) {
-  const timer = createTimer();
-  logStart(appName, 'Main.tsx 파일 복사');
-  try {
-    const samplePath = path.join(process.cwd(), 'apps/manager/src/app/features/sample/Main.tsx');
-    const targetDir = path.join(process.cwd(), `apps/${appName}/src/app/pages/main`);
-    const targetPath = path.join(targetDir, 'Main.tsx');
-
-    // sample Main.tsx 파일 읽기
-    if (!fs.existsSync(samplePath)) {
-      logError('manager', 'src/app/features/sample/Main.tsx 파일을 찾을 수 없음');
-      return;
-    }
-
-    const mainContent = fs.readFileSync(samplePath, 'utf8');
-
-    // 디렉토리가 없으면 생성
-    if (!fs.existsSync(targetDir)) {
-      fs.mkdirSync(targetDir, { recursive: true });
-      logProgress(`${appName}/src/app/pages/main 디렉토리 생성`);
-    }
-
-    // Main.tsx 파일 생성
-    fs.writeFileSync(targetPath, mainContent);
-    logSuccess(appName, 'Main.tsx 파일 복사', timer);
-  } catch (error) {
-    logError(appName, 'Main.tsx 복사', error);
-  }
-}
-
 function copyRoutesTemplate(appName) {
   const timer = createTimer();
   logStart(appName, 'routes.tsx 파일 복사 및 주석 제거');
@@ -798,10 +765,6 @@ function copyRoutesTemplate(appName) {
       .trim();
 
     logProgress('주석 및 빈 줄 제거 완료');
-
-    // NotFound 컴포넌트의 homePath를 새 앱 이름으로 변경
-    routesContent = routesContent.replace(/homePath="\/[^"]*"/g, `homePath="/${appName}"`);
-    logProgress(`homePath를 "/${appName}"으로 변경`);
 
     // routes.tsx 파일 생성
     fs.writeFileSync(targetPath, routesContent);

@@ -1,6 +1,6 @@
 import { useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Dot, KeyRound, LogOut, Repeat, User } from 'lucide-react';
+import { ChevronDown, Dot, KeyRound, LogOut, Repeat } from 'lucide-react';
 import { type TenantSummary, useAuthStore } from '@/shared-store';
 import { toast } from '@/shared-util';
 import { type ChangePasswordData, ChangePasswordDialog, type ChangePasswordDialogRef } from './ChangePasswordDialog';
@@ -113,24 +113,25 @@ export default function UserMenuSelector() {
     }
   };
 
+  const initials = (username || '?').trim().charAt(0).toUpperCase();
+
   const TriggerBtn = (
     <Button
       variant="ghost"
       className={cn(
-        'flex justify-start h-auto p-1.5 gap-2 rounded-md text-white hover:bg-white/15 hover:text-white focus-visible:bg-white/15 focus-visible:text-white hover:cursor-pointer',
+        'group flex items-center h-10 pl-1 pr-2.5 gap-2 rounded-full',
+        'text-white hover:bg-white/15 hover:text-white focus-visible:bg-white/15 focus-visible:text-white',
+        'transition-colors hover:cursor-pointer',
       )}
     >
-      <Avatar className="h-8 w-8 rounded-full ring-1 ring-white/40 bg-white/15 flex items-center justify-center">
-        <AvatarFallback className="rounded-full bg-transparent text-white">
-          <User className="h-4 w-4" />
-        </AvatarFallback>
+      <Avatar className="h-8 w-8 rounded-full ring-1 ring-white/40 bg-gradient-to-br from-white/35 to-white/5 shadow-sm">
+        <AvatarFallback className="rounded-full bg-transparent text-white text-sm font-semibold">{initials}</AvatarFallback>
       </Avatar>
-      <div className="flex flex-col gap-0.5 text-left text-sm leading-tight">
-        <span className="truncate font-semibold max-w-48 text-white">{username}</span>
-        <Badge variant="outline" className="max-w-48 truncate w-fit h-5 text-[11px] leading-none px-2 bg-white/20 text-white border-white/30">
-          {tenantName}
-        </Badge>
+      <div className="flex flex-col items-start text-left leading-tight">
+        <span className="truncate text-sm font-semibold text-white max-w-40 leading-tight">{username}</span>
+        <span className="truncate text-[11px] text-white/70 max-w-40 leading-none mt-0.5">{tenantName}</span>
       </div>
+      <ChevronDown className="size-3.5 text-white/60 group-hover:text-white/90 transition-colors ml-0.5" />
     </Button>
   );
 

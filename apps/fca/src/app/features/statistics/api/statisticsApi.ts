@@ -141,4 +141,10 @@ export const statisticsApi = {
   exportUserDefStatExcel: async (params?: Record<string, unknown>) => {
     return await apiClient.post<Blob>('/stat-bot-user-def-export', params, { responseType: 'blob' });
   },
+
+  // IFE 리다이렉트
+  getIfeRedirectUrl: async (params: { serviceId: number; subFlowId: string; nodeName: string }): Promise<string | null> => {
+    const response = await apiClient.get<{ data: { redirectUrl: string } }>('/stat-bot-slot-ife-redirect', { params });
+    return response.data?.data?.redirectUrl ?? '';
+  },
 };

@@ -1,13 +1,17 @@
 import React, { useEffect, useMemo, useRef } from 'react';
-import type { ColDef, GridApi, GridOptions, GridReadyEvent, IServerSideDatasource } from 'ag-grid-community';
+import type { ColDef, FirstDataRenderedEvent, GridApi, GridOptions, GridReadyEvent, IServerSideDatasource, StatusPanelDef } from 'ag-grid-community';
 import { AgGridReact } from 'ag-grid-react';
 import dayjs from 'dayjs';
+import { Copy } from 'lucide-react';
+import { copyToClipboard, toast } from '@/shared-util';
+import BotDialogHistoryPageSizeSelector, { DEFAULT_PAGE_SIZE, getSavedPageSize } from './BotDialogHistoryPageSizeSelector';
 import { botDialogHistoryApi } from '../api/botDialogHistoryApi';
 import type { BotDialogHistoryListItem, BotDialogHistorySearchRequest } from '../types/botDialogHistory.types';
+import AggridPagination from '@/components/custom/AggridPagination';
 import { Badge } from '@/components/ui/badge';
 import useAggridOptions from '@/libs/shared-ui/src/hooks/useAggridOptions';
 
-const PAGE_SIZE = 50;
+const AUTO_SIZE_COLUMNS = ['ucid', 'serviceName'];
 
 interface BotDialogHistoryTableProps {
   searchParams: BotDialogHistorySearchRequest;
@@ -31,6 +35,7 @@ const BotDialogHistoryTable: React.FC<BotDialogHistoryTableProps> = ({
   const { gridOptions } = useAggridOptions();
   const gridApiRef = useRef<GridApi<BotDialogHistoryListItem> | null>(null);
   const searchParamsRef = useRef(searchParams);
+  const initialPageSize = useMemo(() => getSavedPageSize(), []);
 
   useEffect(() => {
     searchParamsRef.current = searchParams;
@@ -40,7 +45,7 @@ const BotDialogHistoryTable: React.FC<BotDialogHistoryTableProps> = ({
     () => ({
       getRows: async (params) => {
         const startRow = params.request.startRow ?? 0;
-        const endRow = params.request.endRow ?? startRow + PAGE_SIZE;
+        const endRow = params.request.endRow ?? startRow + DEFAULT_PAGE_SIZE;
         const size = endRow - startRow;
         const page = Math.floor(startRow / size);
         try {
@@ -176,6 +181,33 @@ const BotDialogHistoryTable: React.FC<BotDialogHistoryTableProps> = ({
         headerName: 'UCID',
         field: 'ucid',
         flex: 2,
+        cellStyle: { display: 'flex', alignItems: 'center' },
+        cellRenderer: (params: any) => {
+          const value: string | undefined = params.value;
+          if (!value) return '-';
+          const handleCopy = async (e: React.MouseEvent) => {
+            e.stopPropagation();
+            try {
+              await copyToClipboard(value);
+              toast.success('UCID가 복사되었습니다.');
+            } catch {
+              toast.error('복사에 실패했습니다.');
+            }
+          };
+          return (
+            <div className="flex items-center gap-1.5 w-full min-w-0">
+              <span className="truncate">{value}</span>
+              <button
+                type="button"
+                onClick={handleCopy}
+                aria-label="UCID 복사"
+                className="shrink-0 inline-flex items-center justify-center size-6 rounded hover:bg-gray-100 text-gray-500 hover:text-gray-700"
+              >
+                <Copy className="size-3.5" />
+              </button>
+            </div>
+          );
+        },
       },
       {
         headerName: '신뢰도',
@@ -220,7 +252,21 @@ const BotDialogHistoryTable: React.FC<BotDialogHistoryTableProps> = ({
         cellClass: 'text-right',
         valueFormatter: (params) => params.value?.toLocaleString() ?? '0',
       },
+      {
+        headerName: '슬롯실패건수',
+        field: 'botSlotFailCount',
+        width: 110,
+        cellClass: 'text-right',
+        valueFormatter: (params) => params.value?.toLocaleString() ?? '0',
+      },
     ],
+    [],
+  );
+
+  const statusBar = useMemo(
+    () => ({
+      statusPanels: [{ statusPanel: AggridPagination, align: 'left' } as StatusPanelDef, { statusPanel: BotDialogHistoryPageSizeSelector, align: 'left' } as StatusPanelDef],
+    }),
     [],
   );
 
@@ -228,12 +274,16 @@ const BotDialogHistoryTable: React.FC<BotDialogHistoryTableProps> = ({
     () => ({
       ...gridOptions,
       rowModelType: 'serverSide',
-      paginationPageSize: PAGE_SIZE,
-      cacheBlockSize: PAGE_SIZE,
+      paginationPageSize: initialPageSize,
+      cacheBlockSize: initialPageSize,
+      statusBar,
       localeText: { ...gridOptions.localeText, loadingOoo: ' ' },
       defaultColDef: { ...gridOptions.defaultColDef, sortable: false } as ColDef<BotDialogHistoryListItem>,
       getRowId: (p) => `${p.data.ucid}_${p.data.nextHop}_${p.data.cdrPkey}`,
       rowStyle: { cursor: 'pointer' },
+      onFirstDataRendered: (event: FirstDataRenderedEvent<BotDialogHistoryListItem>) => {
+        event.api.autoSizeColumns(AUTO_SIZE_COLUMNS);
+      },
       onRowDoubleClicked: (event) => event.data && onRowDoubleClick(event.data),
       rowClassRules: {
         'bg-blue-50': (params) => {
@@ -242,7 +292,7 @@ const BotDialogHistoryTable: React.FC<BotDialogHistoryTableProps> = ({
         },
       },
     }),
-    [gridOptions, selectedRowId, onRowDoubleClick],
+    [gridOptions, selectedRowId, onRowDoubleClick, statusBar, initialPageSize],
   );
 
   return (

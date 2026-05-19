@@ -5,7 +5,7 @@ import useAggridOptions from '@/libs/shared-ui/src/hooks/useAggridOptions';
 
 const columnDefs: ColDef<IntentTopItem>[] = [
   { headerName: '순위', field: 'rank', maxWidth: 80 },
-  { headerName: '인텐트명', field: 'intent' },
+  { headerName: '의도명', field: 'intent' },
   { headerName: '검출 횟수', field: 'detectCnt', valueFormatter: (p) => (p.value != null ? `${p.value}건` : '') },
 ];
 

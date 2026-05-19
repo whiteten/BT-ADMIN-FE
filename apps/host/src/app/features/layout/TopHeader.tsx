@@ -1,5 +1,5 @@
 import { useNavigate } from 'react-router-dom';
-import { ChevronUp } from 'lucide-react';
+import { Maximize2 } from 'lucide-react';
 import { useLayoutStore } from './hooks/useLayoutStore';
 import UserMenuSelector from '../../components/UserMenuSelector';
 import GlobalSearch from '../search/components/GlobalSearch';
@@ -14,11 +14,11 @@ export default function TopHeader() {
     <div style={{ height: TOP_HEADER_HEIGHT }} className="relative shrink-0 bg-[var(--color-bt-primary)] text-white border-b border-white/10">
       {/* 좌측: 로고 */}
       <div className="absolute left-4 top-1/2 -translate-y-1/2 flex items-center">
-        <img src="/assets/images/ci-white-en.svg" alt="CI" className="h-8 w-auto object-contain cursor-pointer" onClick={() => navigate('/')} />
+        <img src="/assets/images/ci-white.svg" alt="CI" className="h-8 w-auto object-contain cursor-pointer" onClick={() => navigate('/')} />
       </div>
 
-      {/* 정중앙: 통합 검색 */}
-      <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-[min(480px,calc(100%-440px))]">
+      {/* 정중앙: 통합 검색 — 640px 미만(sm 이하)에서는 좁아 충돌하므로 숨김 */}
+      <div className="hidden sm:block absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-[min(400px,calc(100%-440px))]">
         <GlobalSearch />
       </div>
 
@@ -33,7 +33,7 @@ export default function TopHeader() {
           aria-label="헤더 접기"
           title="헤더 접기"
         >
-          <ChevronUp className="size-4" />
+          <Maximize2 className="size-4" />
         </button>
       </div>
     </div>

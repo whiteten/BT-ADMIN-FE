@@ -1,7 +1,9 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
-import { Drawer, Modal } from 'antd';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { Tooltip as AntdTooltip, Drawer, Tag } from 'antd';
+import dayjs from 'dayjs';
 import type { EChartsOption } from 'echarts';
 import ReactECharts from 'echarts-for-react';
+import { AlertCircle, BarChart3, Maximize2, Minus, Plus, X } from 'lucide-react';
 import { botDialogHistoryApi } from '../api/botDialogHistoryApi';
 import type { BotDialogHistorySearchRequest, SlotSankeyItem } from '../types/botDialogHistory.types';
 import { FallbackSpinner } from '@/components/custom/FallbackSpinner';
@@ -14,14 +16,84 @@ interface SlotSankeyDrawerProps {
   onEntityFilter?: (entityTag: string) => void;
 }
 
-function buildSankeyOption(items: SlotSankeyItem[]): EChartsOption {
+// ──────────── 상수 ────────────
+
+const TERMINAL_KEY = '__END__';
+const TERMINAL_LABEL = '종료';
+const SENSITIVE_PATTERNS = [/비밀번호/i, /password/i, /주민번호/i, /카드번호/i, /pwd/i];
+const ZOOM_MIN = 0.5;
+const ZOOM_MAX = 2.0;
+const ZOOM_STEP = 0.25;
+
+const COLOR = {
+  default: '#3b82f6', // blue-500
+  sensitive: '#f59e0b', // amber-500
+  selected: '#06b6d4', // cyan-500
+  terminal: '#94a3b8', // slate-400
+};
+
+// ──────────── 헬퍼 ────────────
+
+function getLabel(key: string): string {
+  const raw = key.substring(0, key.lastIndexOf('_'));
+  return raw === TERMINAL_KEY ? TERMINAL_LABEL : raw;
+}
+
+function isSensitiveEntity(label: string): boolean {
+  return SENSITIVE_PATTERNS.some((p) => p.test(label));
+}
+
+function getNodeColor(rawLabel: string, isSelected: boolean): string {
+  if (rawLabel === TERMINAL_KEY) return COLOR.terminal;
+  if (isSelected) return COLOR.selected;
+  if (isSensitiveEntity(rawLabel)) return COLOR.sensitive;
+  return COLOR.default;
+}
+
+// ──────────── 노드별 흐름 사전계산 (툴팁 강화용) ────────────
+
+interface NodeFlow {
+  inflow: Map<string, number>; // prevEntityTag → value
+  outflow: Map<string, number>; // entityTag → value
+}
+
+function buildNodeFlows(items: SlotSankeyItem[]): Map<string, NodeFlow> {
+  const flows = new Map<string, NodeFlow>();
+  const ensure = (key: string): NodeFlow => {
+    let f = flows.get(key);
+    if (!f) {
+      f = { inflow: new Map(), outflow: new Map() };
+      flows.set(key, f);
+    }
+    return f;
+  };
+  for (const item of items) {
+    const nodeKey = `${item.entityTag}_${item.seq}`;
+    const node = ensure(nodeKey);
+    if (item.prevEntityTag) {
+      node.inflow.set(item.prevEntityTag, (node.inflow.get(item.prevEntityTag) ?? 0) + item.value);
+      const prevKey = `${item.prevEntityTag}_${item.seq - 1}`;
+      const prev = ensure(prevKey);
+      prev.outflow.set(item.entityTag, (prev.outflow.get(item.entityTag) ?? 0) + item.value);
+    }
+  }
+  return flows;
+}
+
+// ──────────── Sankey 옵션 빌더 ────────────
+
+function buildSankeyOption(items: SlotSankeyItem[], selectedEntity: string | null, flows: Map<string, NodeFlow>): EChartsOption {
   const nodeSet = new Set<string>();
   const links: { source: string; target: string; value: number }[] = [];
+  // 노드 라벨에 표기할 통과 건수 / 단계 점유율 산출용
+  const nodeValues = new Map<string, number>();
+  const seqTotals = new Map<number, number>();
 
   for (const item of items) {
     const targetKey = `${item.entityTag}_${item.seq}`;
     nodeSet.add(targetKey);
-
+    nodeValues.set(targetKey, (nodeValues.get(targetKey) ?? 0) + item.value);
+    seqTotals.set(item.seq, (seqTotals.get(item.seq) ?? 0) + item.value);
     if (item.prevEntityTag) {
       const sourceKey = `${item.prevEntityTag}_${item.seq - 1}`;
       nodeSet.add(sourceKey);
@@ -29,11 +101,28 @@ function buildSankeyOption(items: SlotSankeyItem[]): EChartsOption {
     }
   }
 
+  // 링크 0개 fallback — 가상 종료 노드 연결
+  if (links.length === 0 && nodeSet.size > 0) {
+    for (const item of items) {
+      const sourceKey = `${item.entityTag}_${item.seq}`;
+      const targetKey = `${TERMINAL_KEY}_${item.seq + 1}`;
+      nodeSet.add(targetKey);
+      nodeValues.set(targetKey, (nodeValues.get(targetKey) ?? 0) + item.value);
+      seqTotals.set(item.seq + 1, (seqTotals.get(item.seq + 1) ?? 0) + item.value);
+      links.push({ source: sourceKey, target: targetKey, value: item.value });
+    }
+  }
+
   const nodes = Array.from(nodeSet).map((key) => {
     const lastUnderscore = key.lastIndexOf('_');
-    const label = key.substring(0, lastUnderscore);
     const depth = parseInt(key.substring(lastUnderscore + 1), 10);
-    return { name: key, depth, label: { formatter: () => label } };
+    const rawLabel = key.substring(0, lastUnderscore);
+    const isSelected = selectedEntity != null && rawLabel === selectedEntity;
+    return {
+      name: key,
+      depth,
+      itemStyle: { color: getNodeColor(rawLabel, isSelected) },
+    };
   });
 
   return {
@@ -42,13 +131,35 @@ function buildSankeyOption(items: SlotSankeyItem[]): EChartsOption {
       triggerOn: 'mousemove',
       formatter: (params: any) => {
         if (params.dataType === 'node') {
-          const label = params.name.substring(0, params.name.lastIndexOf('_'));
-          return `${label}<br/>통과 건수: ${params.value}`;
+          const flow = flows.get(params.name);
+          const label = getLabel(params.name);
+          const lines: string[] = [
+            `<div style="font-weight:600;margin-bottom:4px">${label}</div>`,
+            `<div style="font-size:12px">통과 <b>${Number(params.value).toLocaleString()}</b>건</div>`,
+          ];
+          if (flow && flow.inflow.size > 0) {
+            const tops = Array.from(flow.inflow.entries())
+              .sort((a, b) => b[1] - a[1])
+              .slice(0, 3);
+            lines.push(`<div style="color:#94a3b8;margin-top:6px;font-size:11px">이전</div>`);
+            for (const [k, v] of tops) {
+              lines.push(`<div style="font-size:11px">${k} <b>${v.toLocaleString()}</b></div>`);
+            }
+          }
+          if (flow && flow.outflow.size > 0) {
+            const tops = Array.from(flow.outflow.entries())
+              .sort((a, b) => b[1] - a[1])
+              .slice(0, 3);
+            lines.push(`<div style="color:#94a3b8;margin-top:6px;font-size:11px">다음</div>`);
+            for (const [k, v] of tops) {
+              const lbl = k === TERMINAL_KEY ? TERMINAL_LABEL : k;
+              lines.push(`<div style="font-size:11px">${lbl} <b>${v.toLocaleString()}</b></div>`);
+            }
+          }
+          return lines.join('');
         }
         if (params.dataType === 'edge') {
-          const sourceLabel = params.data.source.substring(0, params.data.source.lastIndexOf('_'));
-          const targetLabel = params.data.target.substring(0, params.data.target.lastIndexOf('_'));
-          return `${sourceLabel} → ${targetLabel}<br/>건수: ${params.value}`;
+          return `${getLabel(params.data.source)} → ${getLabel(params.data.target)}<br/>건수: ${Number(params.value).toLocaleString()}`;
         }
         return '';
       },
@@ -61,79 +172,561 @@ function buildSankeyOption(items: SlotSankeyItem[]): EChartsOption {
         links,
         emphasis: { focus: 'adjacency' },
         lineStyle: { color: 'gradient', curveness: 0.5 },
-        label: { fontSize: 12 },
+        label: {
+          formatter: (params: any) => {
+            const label = getLabel(params.name);
+            const depth = parseInt(params.name.substring(params.name.lastIndexOf('_') + 1), 10);
+            const value = nodeValues.get(params.name) ?? 0;
+            const total = seqTotals.get(depth) ?? 1;
+            const share = total > 0 ? Math.round((value / total) * 100) : 0;
+            return `{name|${label}}\n{stat|${value.toLocaleString()}건 · ${share}%}`;
+          },
+          rich: {
+            name: { fontSize: 12, fontWeight: 'bold', color: '#1e293b', lineHeight: 14 },
+            stat: { fontSize: 10, color: '#94a3b8', lineHeight: 12 },
+          },
+        },
         nodeWidth: 20,
-        nodeGap: 12,
+        nodeGap: 16,
       },
     ],
   };
 }
 
+// ──────────── 검색조건 칩 ────────────
+
+interface FilterChip {
+  key: string;
+  label: string;
+  color?: string;
+}
+
+function buildFilterChips(params: BotDialogHistorySearchRequest): FilterChip[] {
+  const chips: FilterChip[] = [];
+  chips.push({
+    key: 'period',
+    label: `📅 ${dayjs(params.fromDate).format('MM-DD HH:mm')} ~ ${dayjs(params.toDate).format('MM-DD HH:mm')}`,
+  });
+  if (params.serviceIds?.length) chips.push({ key: 'bot', label: `🤖 봇 ${params.serviceIds.length}개` });
+  if (params.completeYn != null) chips.push({ key: 'complete', label: params.completeYn === 1 ? '✓ 완료' : '✗ 미완료' });
+  if (params.confidenceMin != null || params.confidenceMax != null) {
+    chips.push({ key: 'conf', label: `🎯 신뢰도 ${params.confidenceMin ?? 0}~${params.confidenceMax ?? 100}%` });
+  }
+  if (params.slotFailCountMin && params.slotFailCountMin > 0) {
+    chips.push({ key: 'slot', label: `⚠️ 슬롯실패 ≥ ${params.slotFailCountMin}`, color: 'orange' });
+  }
+  if (params.ucid) {
+    const short = params.ucid.length > 16 ? `${params.ucid.slice(0, 16)}…` : params.ucid;
+    chips.push({ key: 'ucid', label: `🔑 ${short}` });
+  }
+  if (params.ani) chips.push({ key: 'ani', label: `📞 ${params.ani}` });
+  if (params.intentNames?.length) chips.push({ key: 'intent', label: `💡 의도 ${params.intentNames.length}개` });
+  if (params.retrainFilter) {
+    const labelMap: Record<string, string> = { APPLIED: '수정-반영', NOT_APPLIED: '수정-미반영', UNMODIFIED: '미수정' };
+    chips.push({ key: 'retrain', label: `🔁 ${labelMap[params.retrainFilter] ?? params.retrainFilter}` });
+  }
+  if (params.workerFilter === 'ME') chips.push({ key: 'worker', label: '👤 내가 수정' });
+  if (params.slotEntityTag) chips.push({ key: 'entity', label: `🏷️ ${params.slotEntityTag}`, color: 'blue' });
+  return chips;
+}
+
+// ──────────── 메트릭 ────────────
+
+interface SankeyMetrics {
+  totalCalls: number;
+  maxDepth: number;
+  uniqueEntities: number;
+}
+
+function computeMetrics(items: SlotSankeyItem[]): SankeyMetrics | null {
+  if (items.length === 0) return null;
+  let totalCalls = 0;
+  let maxDepth = 0;
+  const entitySet = new Set<string>();
+  for (const item of items) {
+    if (item.seq === 1 && item.prevEntityTag == null) totalCalls += item.value;
+    if (item.seq > maxDepth) maxDepth = item.seq;
+    if (item.entityTag) entitySet.add(item.entityTag);
+    if (item.prevEntityTag) entitySet.add(item.prevEntityTag);
+  }
+  return { totalCalls, maxDepth, uniqueEntities: entitySet.size };
+}
+
+// ──────────── 인사이트 패널 데이터 ────────────
+
+interface EntityCount {
+  tag: string;
+  count: number;
+}
+interface PanelData {
+  topEntries: EntityCount[];
+  topTerminals: EntityCount[];
+}
+
+function computePanelData(items: SlotSankeyItem[]): PanelData {
+  if (items.length === 0) return { topEntries: [], topTerminals: [] };
+
+  const entryMap = new Map<string, number>();
+  for (const item of items) {
+    if (item.seq === 1 && item.prevEntityTag == null) {
+      entryMap.set(item.entityTag, (entryMap.get(item.entityTag) ?? 0) + item.value);
+    }
+  }
+  const topEntries = Array.from(entryMap.entries())
+    .map(([tag, count]) => ({ tag, count }))
+    .sort((a, b) => b.count - a.count)
+    .slice(0, 5);
+
+  const maxSeq = items.reduce((m, i) => Math.max(m, i.seq), 0);
+  const terminalMap = new Map<string, number>();
+  for (const item of items) {
+    if (item.seq === maxSeq) terminalMap.set(item.entityTag, (terminalMap.get(item.entityTag) ?? 0) + item.value);
+  }
+  const topTerminals = Array.from(terminalMap.entries())
+    .map(([tag, count]) => ({ tag, count }))
+    .sort((a, b) => b.count - a.count)
+    .slice(0, 5);
+
+  return { topEntries, topTerminals };
+}
+
+interface SelectedEntityInfo {
+  total: number;
+  inflow: EntityCount[];
+  outflow: EntityCount[];
+}
+
+function computeSelectedEntityInfo(items: SlotSankeyItem[], entity: string): SelectedEntityInfo {
+  const inflow = new Map<string, number>();
+  const outflow = new Map<string, number>();
+  let total = 0;
+  for (const item of items) {
+    if (item.entityTag === entity) {
+      total += item.value;
+      if (item.prevEntityTag) inflow.set(item.prevEntityTag, (inflow.get(item.prevEntityTag) ?? 0) + item.value);
+    }
+    if (item.prevEntityTag === entity) {
+      outflow.set(item.entityTag, (outflow.get(item.entityTag) ?? 0) + item.value);
+    }
+  }
+  return {
+    total,
+    inflow: Array.from(inflow.entries())
+      .map(([tag, count]) => ({ tag, count }))
+      .sort((a, b) => b.count - a.count),
+    outflow: Array.from(outflow.entries())
+      .map(([tag, count]) => ({ tag, count }))
+      .sort((a, b) => b.count - a.count),
+  };
+}
+
+// ──────────── 서브 컴포넌트 ────────────
+
+function Metric({ label, value }: { label: string; value: string }) {
+  return (
+    <span className="inline-flex items-baseline gap-1">
+      <span className="text-slate-500">{label}</span>
+      <span className="font-semibold text-slate-800 tabular-nums">{value}</span>
+    </span>
+  );
+}
+
+interface StateMessageProps {
+  icon: React.ReactNode;
+  title: string;
+  hint?: string;
+  primary?: { label: string; onClick: () => void };
+  secondary?: { label: string; onClick: () => void };
+}
+
+function StateMessage({ icon, title, hint, primary, secondary }: StateMessageProps) {
+  return (
+    <div className="h-full flex flex-col items-center justify-center gap-3 py-16">
+      {icon}
+      <p className="text-sm text-slate-700 font-medium">{title}</p>
+      {hint && <p className="text-xs text-slate-400">{hint}</p>}
+      {(primary ?? secondary) && (
+        <div className="flex gap-2 mt-2">
+          {primary && (
+            <button type="button" onClick={primary.onClick} className="px-3 py-1.5 text-xs font-medium rounded bg-slate-900 text-white hover:bg-slate-800 transition-colors">
+              {primary.label}
+            </button>
+          )}
+          {secondary && (
+            <button
+              type="button"
+              onClick={secondary.onClick}
+              className="px-3 py-1.5 text-xs font-medium rounded border border-slate-200 text-slate-700 hover:bg-slate-50 transition-colors"
+            >
+              {secondary.label}
+            </button>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function SelectedEntityCard({ entity, info, onFilter, onClear }: { entity: string; info: SelectedEntityInfo; onFilter: () => void; onClear: () => void }) {
+  const sensitive = isSensitiveEntity(entity);
+  return (
+    <div className={`border rounded-lg p-3 ${sensitive ? 'border-amber-200 bg-amber-50/40' : 'border-cyan-200 bg-cyan-50/40'}`}>
+      <div className="flex items-start justify-between gap-2 mb-2">
+        <div className="min-w-0">
+          <div className={`text-[10px] uppercase font-semibold ${sensitive ? 'text-amber-700' : 'text-cyan-700'}`}>{sensitive ? '🔒 민감 개체' : '선택된 개체'}</div>
+          <div className="text-sm font-semibold text-slate-800 mt-0.5 truncate">{entity}</div>
+        </div>
+        <button type="button" onClick={onClear} className="shrink-0 text-slate-400 hover:text-slate-600">
+          <X size={14} />
+        </button>
+      </div>
+      <div className="text-[11px] text-slate-600 mb-2">
+        통과 <span className="font-semibold tabular-nums">{info.total.toLocaleString()}</span>건
+      </div>
+      {info.inflow.length > 0 && (
+        <div className="mb-2">
+          <div className="text-[10px] uppercase font-semibold text-slate-500 mb-1">이전</div>
+          <ul className="space-y-0.5">
+            {info.inflow.slice(0, 5).map((e) => (
+              <li key={`in-${e.tag}`} className="flex justify-between text-[11px]">
+                <span className="text-slate-700 truncate">{e.tag}</span>
+                <span className="text-slate-500 tabular-nums shrink-0 ml-2">{e.count.toLocaleString()}</span>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+      {info.outflow.length > 0 && (
+        <div className="mb-3">
+          <div className="text-[10px] uppercase font-semibold text-slate-500 mb-1">다음</div>
+          <ul className="space-y-0.5">
+            {info.outflow.slice(0, 5).map((e) => (
+              <li key={`out-${e.tag}`} className="flex justify-between text-[11px]">
+                <span className="text-slate-700 truncate">{e.tag === TERMINAL_KEY ? TERMINAL_LABEL : e.tag}</span>
+                <span className="text-slate-500 tabular-nums shrink-0 ml-2">{e.count.toLocaleString()}</span>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+      <button type="button" onClick={onFilter} className="w-full px-2.5 py-1.5 text-xs font-medium rounded bg-slate-900 text-white hover:bg-slate-800 transition-colors">
+        이 개체 거친 콜 보기
+      </button>
+    </div>
+  );
+}
+
+const TOP_SLOT_COUNT = 5;
+
+function TopList({ title, items, barClass }: { title: string; items: EntityCount[]; barClass: string }) {
+  const max = items[0]?.count ?? 1;
+  const slots = Array.from({ length: TOP_SLOT_COUNT }, (_, i) => items[i] ?? null);
+  return (
+    <div>
+      <div className="text-[11px] font-semibold text-slate-700 mb-1.5 px-1">{title}</div>
+      <ul className="space-y-1">
+        {slots.map((e, i) => (
+          <li key={i} className="flex items-center gap-2 text-[11px]">
+            <span className="text-slate-400 tabular-nums w-3 text-right">{i + 1}</span>
+            <div className="flex-1 min-w-0">
+              <div className="flex justify-between mb-0.5">
+                <span className={`truncate ${e ? 'text-slate-700' : 'text-slate-300'}`}>{e?.tag ?? '—'}</span>
+                <span className="text-slate-500 tabular-nums shrink-0 ml-2">{e ? e.count.toLocaleString() : ''}</span>
+              </div>
+              <div className="h-1 bg-slate-100 rounded overflow-hidden">{e && <div className={`h-full ${barClass}`} style={{ width: `${(e.count / max) * 100}%` }} />}</div>
+            </div>
+          </li>
+        ))}
+      </ul>
+    </div>
+  );
+}
+
+function EntityFilterList({
+  allEntities,
+  hiddenEntities,
+  onToggle,
+  onShowAll,
+}: {
+  allEntities: string[];
+  hiddenEntities: Set<string>;
+  onToggle: (entity: string) => void;
+  onShowAll: () => void;
+}) {
+  if (allEntities.length === 0) return null;
+  return (
+    <div className="flex flex-col min-h-0 flex-1">
+      <div className="flex items-center justify-between mb-1.5 px-1 shrink-0">
+        <div className="text-[11px] font-semibold text-slate-700">개체 표시 ({allEntities.length})</div>
+        {hiddenEntities.size > 0 && (
+          <button type="button" onClick={onShowAll} className="text-[10px] text-blue-600 hover:underline">
+            전체 표시
+          </button>
+        )}
+      </div>
+      <ul className="space-y-0.5 overflow-y-auto pr-1 border border-slate-200 rounded bg-white py-1">
+        {allEntities.map((e) => {
+          const checked = !hiddenEntities.has(e);
+          return (
+            <li key={e}>
+              <label className="flex items-center gap-1.5 text-[11px] cursor-pointer py-0.5 px-2 hover:bg-slate-50">
+                <input type="checkbox" checked={checked} onChange={() => onToggle(e)} className="w-3 h-3 accent-blue-500" />
+                <span className={`truncate ${checked ? 'text-slate-700' : 'text-slate-400 line-through'}`}>{e}</span>
+              </label>
+            </li>
+          );
+        })}
+      </ul>
+    </div>
+  );
+}
+
+function ZoomControls({ zoom, onZoom }: { zoom: number; onZoom: (v: number) => void }) {
+  return (
+    <div className="flex items-center gap-0.5 bg-white border border-slate-200 rounded shadow-sm p-0.5">
+      <AntdTooltip title="축소">
+        <button
+          type="button"
+          onClick={() => onZoom(Math.max(ZOOM_MIN, Math.round((zoom - ZOOM_STEP) * 100) / 100))}
+          disabled={zoom <= ZOOM_MIN}
+          className="w-7 h-7 inline-flex items-center justify-center rounded hover:bg-slate-100 disabled:opacity-30"
+        >
+          <Minus size={12} />
+        </button>
+      </AntdTooltip>
+      <span className="text-[10px] text-slate-600 tabular-nums w-9 text-center">{Math.round(zoom * 100)}%</span>
+      <AntdTooltip title="확대">
+        <button
+          type="button"
+          onClick={() => onZoom(Math.min(ZOOM_MAX, Math.round((zoom + ZOOM_STEP) * 100) / 100))}
+          disabled={zoom >= ZOOM_MAX}
+          className="w-7 h-7 inline-flex items-center justify-center rounded hover:bg-slate-100 disabled:opacity-30"
+        >
+          <Plus size={12} />
+        </button>
+      </AntdTooltip>
+      <AntdTooltip title="원래 크기">
+        <button
+          type="button"
+          onClick={() => onZoom(1)}
+          disabled={zoom === 1}
+          className="w-7 h-7 inline-flex items-center justify-center rounded hover:bg-slate-100 disabled:opacity-30"
+        >
+          <Maximize2 size={12} />
+        </button>
+      </AntdTooltip>
+    </div>
+  );
+}
+
+// ──────────── 메인 ────────────
+
 export default function SlotSankeyDrawer({ open, onClose, searchParams, onEntityFilter }: SlotSankeyDrawerProps) {
   const [loading, setLoading] = useState(false);
   const [data, setData] = useState<SlotSankeyItem[]>([]);
+  const [error, setError] = useState(false);
+  const [selectedEntity, setSelectedEntity] = useState<string | null>(null);
+  const [hiddenEntities, setHiddenEntities] = useState<Set<string>>(new Set());
+  const [zoom, setZoom] = useState(1);
   const chartRef = useRef<ReactECharts>(null);
 
-  useEffect(() => {
-    if (!open) return;
+  const fetchData = useCallback(() => {
     setLoading(true);
+    setError(false);
     botDialogHistoryApi
       .getSlotSankey(searchParams)
       .then(setData)
-      .catch(() => setData([]))
+      .catch(() => {
+        setData([]);
+        setError(true);
+      })
       .finally(() => setLoading(false));
-  }, [open, searchParams]);
+  }, [searchParams]);
 
-  // 노드/링크(면) 클릭 이벤트 — Entity 기준 필터
+  useEffect(() => {
+    if (!open) return;
+    // drawer 열 때마다 UI 상태 초기화 (닫힌 상태로 두면 다음 진입 시 직전 상태 유지)
+    setSelectedEntity(null);
+    setHiddenEntities(new Set());
+    setZoom(1);
+    fetchData();
+  }, [open, fetchData]);
+
+  // 숨긴 개체가 선택돼있으면 선택 해제
+  useEffect(() => {
+    if (selectedEntity && hiddenEntities.has(selectedEntity)) setSelectedEntity(null);
+  }, [selectedEntity, hiddenEntities]);
+
+  // 숨겨진 개체 적용된 items
+  const filteredItems = useMemo(() => {
+    if (hiddenEntities.size === 0) return data;
+    return data.filter((item) => !hiddenEntities.has(item.entityTag) && (item.prevEntityTag == null || !hiddenEntities.has(item.prevEntityTag)));
+  }, [data, hiddenEntities]);
+
+  const flows = useMemo(() => buildNodeFlows(filteredItems), [filteredItems]);
+  const option = useMemo(() => (filteredItems.length > 0 ? buildSankeyOption(filteredItems, selectedEntity, flows) : null), [filteredItems, selectedEntity, flows]);
+  const metrics = useMemo(() => computeMetrics(filteredItems), [filteredItems]);
+  const chips = useMemo(() => buildFilterChips(searchParams), [searchParams]);
+  // Top 5 진입/종착은 원본 data 기준 — 개체 표시 토글 시 순위/위치가 흔들리지 않도록
+  const panelData = useMemo(() => computePanelData(data), [data]);
+  // 전체 개체 목록은 원본 data 기준 — 체크 해제해도 목록에 남아 다시 켤 수 있음
+  const allEntities = useMemo(() => {
+    const set = new Set<string>();
+    for (const item of data) {
+      if (item.entityTag) set.add(item.entityTag);
+      if (item.prevEntityTag) set.add(item.prevEntityTag);
+    }
+    return Array.from(set).sort();
+  }, [data]);
+  const selectedInfo = useMemo(() => (selectedEntity ? computeSelectedEntityInfo(filteredItems, selectedEntity) : null), [selectedEntity, filteredItems]);
+
   const handleChartReady = (instance: any) => {
     instance.on('click', (params: any) => {
-      if (!onEntityFilter) return;
-
       let entityTag: string | null = null;
       if (params.dataType === 'node') {
         entityTag = params.name.substring(0, params.name.lastIndexOf('_'));
       } else if (params.dataType === 'edge') {
         entityTag = params.data.source.substring(0, params.data.source.lastIndexOf('_'));
       }
-      if (!entityTag) return;
-
-      Modal.confirm({
-        title: '콜 목록 조회',
-        content: `"${entityTag}" 엔티티를 거친 콜 목록을 조회하시겠습니까?`,
-        okText: '조회',
-        cancelText: '취소',
-        centered: true,
-        onOk: () => {
-          onEntityFilter(entityTag!);
-          onClose();
-        },
-      });
+      if (!entityTag || entityTag === TERMINAL_KEY) return;
+      setSelectedEntity(entityTag);
     });
   };
 
-  const option = useMemo(() => (data.length > 0 ? buildSankeyOption(data) : null), [data]);
+  const handleToggleEntity = (entity: string) => {
+    setHiddenEntities((prev) => {
+      const next = new Set(prev);
+      if (next.has(entity)) next.delete(entity);
+      else next.add(entity);
+      return next;
+    });
+  };
+  const handleShowAllEntities = () => setHiddenEntities(new Set());
+  const handleClearSelection = () => setSelectedEntity(null);
+  const handleFilterByEntity = (entity: string) => {
+    if (onEntityFilter) {
+      onEntityFilter(entity);
+      onClose();
+    }
+  };
 
-  const maxDepth = data.length > 0 ? Math.max(...data.map((d) => d.seq)) : 0;
-  const chartWidth = Math.max(800, maxDepth * 150);
+  const maxDepth = metrics?.maxDepth ?? 0;
+  const chartWidth = Math.max(800, maxDepth * 150) * zoom;
 
   return (
     <Drawer
       open={open}
       onClose={onClose}
       title="슬롯차트"
-      width={1200}
+      width={1280}
       destroyOnHidden
-      styles={{ body: { padding: '24px', overflow: 'hidden', display: 'flex', flexDirection: 'column' } }}
+      styles={{ body: { padding: 0, overflow: 'hidden', display: 'flex', flexDirection: 'column' } }}
     >
-      {loading ? (
-        <FallbackSpinner />
-      ) : !option ? (
-        <p className="text-center text-sm text-gray-400 py-10">표시할 슬롯 데이터가 없습니다.</p>
-      ) : (
-        <div className="flex-1 min-h-0 overflow-x-auto overflow-y-hidden">
-          <ReactECharts ref={chartRef} option={option} style={{ height: '100%', width: chartWidth, minHeight: 500 }} notMerge onChartReady={handleChartReady} />
+      {/* 헤더: 검색조건 칩 + 메트릭 */}
+      <div className="border-b border-slate-200 bg-slate-50/60 px-6 py-3 flex items-start justify-between gap-4 flex-wrap">
+        <div className="flex flex-wrap gap-1.5">
+          {chips.map((c) => (
+            <Tag key={c.key} color={c.color} className="!m-0 text-[12px] !py-0.5">
+              {c.label}
+            </Tag>
+          ))}
         </div>
-      )}
+        {metrics && (
+          <div className="flex items-center gap-2.5 text-[12px] text-slate-600 shrink-0">
+            <Metric label="콜" value={metrics.totalCalls.toLocaleString()} />
+            <span className="text-slate-300">•</span>
+            <Metric label="최장 흐름" value={String(metrics.maxDepth)} />
+            <span className="text-slate-300">•</span>
+            <Metric label="개체" value={String(metrics.uniqueEntities)} />
+          </div>
+        )}
+      </div>
+
+      {/* 색상 안내 (legend) */}
+      <div className="border-b border-slate-200 bg-white px-6 py-1.5 flex items-center gap-4 text-[10px] text-slate-500">
+        <span className="font-semibold text-slate-600">색상</span>
+        <LegendItem color={COLOR.default} label="일반 개체" />
+        <LegendItem color={COLOR.sensitive} label="민감 개체 (비밀번호 등)" />
+        <LegendItem color={COLOR.selected} label="선택된 개체" />
+        <LegendItem color={COLOR.terminal} label="종료" />
+      </div>
+
+      {/* 본문: 좌측 차트 + 우측 인사이트 패널 */}
+      <div className="flex-1 min-h-0 flex">
+        {/* 차트 영역 */}
+        <div className="flex-1 min-w-0 relative bg-white">
+          {loading ? (
+            <div className="h-full p-6">
+              <FallbackSpinner />
+            </div>
+          ) : error ? (
+            <div className="h-full p-6">
+              <StateMessage
+                icon={<AlertCircle size={48} className="text-red-300" />}
+                title="데이터를 불러오지 못했습니다"
+                hint="잠시 후 다시 시도해주세요."
+                primary={{ label: '다시 시도', onClick: fetchData }}
+                secondary={{ label: '닫기', onClick: onClose }}
+              />
+            </div>
+          ) : !option ? (
+            <div className="h-full p-6">
+              {data.length > 0 ? (
+                <StateMessage
+                  icon={<BarChart3 size={48} className="text-slate-300" />}
+                  title="표시할 개체가 없습니다"
+                  hint="우측 “개체 표시” 목록에서 보고 싶은 개체를 다시 체크해주세요."
+                  primary={{ label: '전체 표시', onClick: handleShowAllEntities }}
+                />
+              ) : (
+                <StateMessage
+                  icon={<BarChart3 size={48} className="text-slate-300" />}
+                  title="선택된 조건에 슬롯 데이터가 없습니다"
+                  hint="기간을 늘리거나 봇 선택을 확인해보세요."
+                  primary={{ label: '검색조건 수정', onClick: onClose }}
+                />
+              )}
+            </div>
+          ) : (
+            <>
+              <div className="w-full h-full overflow-x-auto overflow-y-hidden p-4">
+                <ReactECharts ref={chartRef} option={option} style={{ height: '100%', width: chartWidth, minHeight: 500 }} notMerge onChartReady={handleChartReady} />
+              </div>
+              <div className="absolute bottom-3 right-3 z-10">
+                <ZoomControls zoom={zoom} onZoom={setZoom} />
+              </div>
+            </>
+          )}
+        </div>
+
+        {/* 인사이트 패널 */}
+        <aside className="w-80 shrink-0 border-l border-slate-200 bg-slate-50/30 p-4 flex flex-col gap-4 overflow-hidden">
+          <div className="shrink-0">
+            {selectedEntity && selectedInfo ? (
+              <SelectedEntityCard entity={selectedEntity} info={selectedInfo} onClear={handleClearSelection} onFilter={() => handleFilterByEntity(selectedEntity)} />
+            ) : (
+              <div className="text-[11px] text-slate-400 text-center py-3 border border-dashed border-slate-200 rounded">차트의 개체를 클릭하면 상세 정보가 표시됩니다</div>
+            )}
+          </div>
+          <div className="shrink-0">
+            <TopList title="Top 5 진입 개체" items={panelData.topEntries} barClass="bg-blue-400" />
+          </div>
+          <div className="shrink-0">
+            <TopList title="Top 5 종착 개체" items={panelData.topTerminals} barClass="bg-amber-400" />
+          </div>
+          <div className="h-px bg-slate-200 shrink-0" />
+          <EntityFilterList allEntities={allEntities} hiddenEntities={hiddenEntities} onToggle={handleToggleEntity} onShowAll={handleShowAllEntities} />
+        </aside>
+      </div>
     </Drawer>
+  );
+}
+
+function LegendItem({ color, label }: { color: string; label: string }) {
+  return (
+    <span className="inline-flex items-center gap-1.5">
+      <span className="w-2.5 h-2.5 rounded" style={{ backgroundColor: color }} />
+      <span>{label}</span>
+    </span>
   );
 }

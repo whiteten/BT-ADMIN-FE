@@ -1,5 +1,5 @@
 import React from 'react';
-import { BookmarkButton } from './BookmarkButton';
+import { FavoriteButton } from './FavoriteButton';
 import { NewWindowButton } from './NewWindowButton';
 import { Separator } from '@/components/ui/separator';
 
@@ -15,7 +15,7 @@ export const MenuActionButtons = React.memo(({ menuKey, label, path, appId }: Me
     <div className="flex items-center gap-1">
       <NewWindowButton path={path} appId={appId} />
       <Separator orientation="vertical" className="data-[orientation=vertical]:h-4" />
-      <BookmarkButton menuKey={menuKey} label={label} path={path} appId={appId} />
+      <FavoriteButton menuKey={menuKey} label={label} path={path} appId={appId} />
     </div>
   );
 });
