@@ -230,6 +230,8 @@ function CustomerBubble({
   const isDtmf = item.inputMethod === 'DTMF';
   const isLocked = item.encrypted === true && revealed == null;
   const wasDecrypted = item.encrypted === true && revealed != null;
+  // 마스킹은 서버에서 처리되어 description/revealed에 이미 적용된 상태로 내려옴.
+  // 아래 플래그는 UI 인디케이터(EyeOff 아이콘 등) 용도로만 사용.
   const isMaskedOnly = item.masked === true && !item.encrypted;
   const isMaskedAfterDecrypt = item.masked === true && wasDecrypted;
 
@@ -272,25 +274,8 @@ function CustomerBubble({
     onEncryptedClick?.(item);
   };
 
-  /**
-   * 마스킹 적용.
-   * maskingFormat이 있으면 포맷 기반 (*=마스킹, #=원문),
-   * 없으면 범용 가운데 마스킹.
-   */
-  const applyMasking = (value: string, format?: string | null): string => {
-    if (format && format.length > 0) {
-      // 포맷 기반 마스킹: *=마스킹, #=원문 (포맷 길이와 값 길이가 다르면 포맷 기준)
-      return Array.from(value)
-        .map((ch, i) => (i < format.length ? (format[i] === '*' ? '*' : ch) : ch))
-        .join('');
-    }
-    // 범용 fallback
-    if (value.length <= 2) return '*'.repeat(value.length);
-    const show = Math.max(1, Math.floor(value.length / 4));
-    return value.slice(0, show) + '*'.repeat(value.length - show * 2) + value.slice(-show);
-  };
-
-  const displayText = isMaskedOnly || isMaskedAfterDecrypt ? applyMasking(text, item.maskingFormat) : text;
+  // 마스킹은 서버에서 description/revealed에 이미 적용됨 — 클라이언트는 그대로 표시.
+  const displayText = text;
 
   return (
     <div

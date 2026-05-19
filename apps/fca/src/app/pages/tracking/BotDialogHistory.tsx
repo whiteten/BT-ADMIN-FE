@@ -110,7 +110,9 @@ const BotDialogHistoryPage: React.FC = () => {
         onClose={() => setSlotChartOpen(false)}
         searchParams={slotChartParams ?? searchParams}
         onEntityFilter={(entityTag) => {
-          setSearchParams((prev) => ({ ...prev, slotEntityTag: entityTag }));
+          // 그리드 재조회 시 차트가 보고 있던 조건을 그대로 반영 — 폼 미저장 변경 포함
+          const baseParams = slotChartParams ?? searchParams;
+          setSearchParams({ ...baseParams, slotEntityTag: entityTag });
           setSearchVersion((v) => v + 1);
         }}
       />
