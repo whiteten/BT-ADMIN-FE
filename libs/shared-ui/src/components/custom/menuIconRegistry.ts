@@ -179,7 +179,6 @@ import {
 } from 'lucide-react';
 import {
   IconAlertTriangle,
-  IconAoe,
   IconBookmark,
   IconBot,
   IconBubble,
@@ -203,6 +202,7 @@ import {
   IconMenuStatistics,
   IconMoreVertical,
   IconPlayCircle,
+  IconRemoteAoe,
   IconRetrain,
   IconRollback,
   IconSearch,
@@ -219,7 +219,8 @@ type IconComponent = ComponentType<SVGProps<SVGSVGElement>>;
 
 const customIcons: Record<string, IconComponent> = {
   IconAlertTriangle,
-  IconAoe,
+  // icon-aoe.svg 제거 후 icon-remote-aoe.svg(sparkles)로 통합. DB 메뉴 데이터 호환을 위해 레지스트리 키(custom:IconAoe)는 유지.
+  IconAoe: IconRemoteAoe,
   IconBookmark,
   IconBot,
   IconBubble,

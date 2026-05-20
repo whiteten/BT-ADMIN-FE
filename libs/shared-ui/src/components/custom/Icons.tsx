@@ -28,7 +28,6 @@ export { ReactComponent as IconSynonyms } from '../../assets/images/icon/icon-sy
 export { ReactComponent as IconBubble } from '../../assets/images/icon/icon-bubble.svg';
 export { ReactComponent as IconSearch } from '../../assets/images/icon/icon-search.svg';
 export { ReactComponent as IconBookmark } from '../../assets/images/icon/icon-bookmark.svg';
-export { ReactComponent as IconAoe } from '../../assets/images/icon/icon-aoe.svg';
 export { ReactComponent as IconRollback } from '../../assets/images/icon/icon-rollback.svg';
 export { ReactComponent as IconBot } from '../../assets/images/icon/icon-bot.svg';
 export { ReactComponent as IconAlertTriangle } from '../../assets/images/icon/icon-alert-triangle.svg';
@@ -36,4 +35,6 @@ export { ReactComponent as IconChartLine } from '../../assets/images/icon/icon-c
 export { ReactComponent as IconGrid } from '../../assets/images/icon/icon-grid.svg';
 export { ReactComponent as IconRemoteFca } from '../../assets/images/icon/icon-remote-fca.svg';
 export { ReactComponent as IconRemoteIpron } from '../../assets/images/icon/icon-remote-ipron.svg';
+export { ReactComponent as IconRemoteStt } from '../../assets/images/icon/icon-remote-stt.svg';
+export { ReactComponent as IconRemoteAoe } from '../../assets/images/icon/icon-remote-aoe.svg';
 export { ReactComponent as IconStar } from '../../assets/images/icon/icon-star.svg';

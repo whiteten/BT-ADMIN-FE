@@ -139,9 +139,27 @@ pipeline {
 
                     // 패키징: dist/apps/host/ → btadmin-fe-static.tgz
                     // BE에서 압축 해제 후 BT-ADMIN-BFF/src/main/resources/static/ 에 배치
-                    if (!fileExists('dist/apps/host')) {
-                        error("dist/apps/host 빌드 결과물이 없습니다!")
+
+                    // 빌드 산출물 정합성 검증 (Module Federation 핵심 파일 존재 확인)
+                    // 캐시 hit으로 dist가 빈 채 통과되는 사고 차단 — latest 갱신 전 마지막 게이트
+                    ['dist/apps/host/index.html', 'dist/apps/host/mf-manifest.json'].each { f ->
+                        if (!fileExists(f)) {
+                            error("[빌드 실패] ${f} 없음 — 빌드 비정상, latest 갱신 차단")
+                        }
                     }
+                    ['main.*.js', 'runtime.*.js'].each { glob ->
+                        def found = sh(script: "ls dist/apps/host/${glob} 2>/dev/null | head -1", returnStdout: true).trim()
+                        if (!found) {
+                            error("[빌드 실패] dist/apps/host/${glob} 없음 — 빌드 비정상, latest 갱신 차단")
+                        }
+                    }
+                    targets.findAll { it != 'host' }.each { remote ->
+                        def remoteEntry = "dist/apps/host/remotes/${remote}/remoteEntry.js"
+                        if (!fileExists(remoteEntry)) {
+                            error("[빌드 실패] ${remoteEntry} 없음 — ${remote} remote 빌드 비정상")
+                        }
+                    }
+                    echo "[OK] 빌드 산출물 정합성 검증 통과"
 
                     sh """
                         cd dist/apps/host
@@ -200,7 +218,7 @@ pipeline {
             cleanWs(patterns: [
                 [pattern: 'node_modules/**', type: 'EXCLUDE'],
                 [pattern: '.git/**', type: 'EXCLUDE'],
-                [pattern: '.nx/**', type: 'EXCLUDE']
+                [pattern: '.nx/cache/**', type: 'EXCLUDE']
             ])
         }
     }

@@ -60,6 +60,7 @@ export default function UserDefStatistics() {
   const gridRef = useRef<AgGridReact<UserDefStatListItem>>(null);
   const { data: botList } = useGetBots();
   const [rowData, setRowData] = useState<UserDefStatListItem[]>([]);
+  const [summaryRow, setSummaryRow] = useState<UserDefStatListItem[]>([]);
   const [columnDef, setColumnDef] = useState<UserDefColumnDef[]>([]);
   const [displayTimeUnit, setDisplayTimeUnit] = useState<string>('DD');
 
@@ -151,10 +152,9 @@ export default function UserDefStatistics() {
     if (userDefStatData !== undefined) {
       setRowData(userDefStatData.items);
       setColumnDef(userDefStatData.columnDef);
+      setSummaryRow(userDefStatData.summary ? [{ ...userDefStatData.summary, psrTimeKey: '전체합계' }] : []);
     }
   }, [userDefStatData]);
-
-  const summaryRow: UserDefStatListItem[] = userDefStatData?.summary ? [{ ...userDefStatData.summary, psrTimeKey: '전체합계' }] : [];
 
   useEffect(() => {
     if (startDate && endDate) {

@@ -1,0 +1,92 @@
+import { useEffect, useMemo, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { useQueryClient } from '@tanstack/react-query';
+import { type BreadcrumbProps, Button, Input } from 'antd';
+import { Log } from '@/log';
+import { useBreadcrumbStore } from '@/shared-store';
+import { toast } from '@/shared-util';
+import ModelCard from '../../features/agent-config/components/ModelCard';
+import { modelQueryKeys, useDeleteModel, useGetModels } from '../../features/agent-config/hooks/useModelQueries';
+import { FallbackSpinner } from '@/components/custom/FallbackSpinner';
+import NoData from '@/components/custom/NoData';
+import { useModal } from '@/libs/shared-ui/src/hooks/useModal';
+
+const breadcrumb: BreadcrumbProps['items'] = [
+  { title: '관리', path: '/aoe/agent-config' },
+  { title: 'AI 모델', path: '/aoe/agent-config/model' },
+  { title: 'AI 모델 목록', path: '/aoe/agent-config/model/list' },
+];
+
+export default function ModelList() {
+  const navigate = useNavigate();
+  const queryClient = useQueryClient();
+  const modal = useModal();
+  const setBreadcrumb = useBreadcrumbStore((s) => s.setBreadcrumb);
+  const clearBreadcrumb = useBreadcrumbStore((s) => s.clearBreadcrumb);
+  const [searchValue, setSearchValue] = useState('');
+
+  useEffect(() => {
+    setBreadcrumb(breadcrumb);
+    return () => clearBreadcrumb();
+  }, [setBreadcrumb, clearBreadcrumb]);
+
+  const { data: models, isLoading } = useGetModels({});
+
+  const { mutate: deleteModel } = useDeleteModel({
+    mutationOptions: {
+      onSuccess: () => {
+        toast.success('모델이 삭제되었습니다.');
+        queryClient.invalidateQueries({ queryKey: modelQueryKeys.getModels().queryKey });
+      },
+      onError: (error) => Log.warn('deleteModel failed', error),
+    },
+  });
+
+  const filteredList = useMemo(() => {
+    if (!models) return [];
+    if (!searchValue.trim()) return models;
+
+    const keyword = searchValue.toLowerCase();
+    return models.filter((model) => model.modelName.toLowerCase().includes(keyword));
+  }, [models, searchValue]);
+
+  const handleClickCreateBtn = () => {
+    navigate('../create');
+  };
+
+  const handleDetail = (modelId: string) => {
+    navigate(`../${modelId}`);
+  };
+
+  const handleDelete = (modelId: string) => {
+    modal.confirm.delete({
+      onOk: () => deleteModel({ modelId }),
+    });
+  };
+
+  return (
+    <div className="flex flex-col gap-4 w-full h-full">
+      <div className="flex items-center justify-between gap-2 w-full h-[76px] bg-white bt-shadow px-7 py-5">
+        <Input value={searchValue} onChange={(e) => setSearchValue(e.target.value)} className="w-full max-w-[400px]" placeholder="모델명을 입력하세요." />
+        <Button type="primary" onClick={handleClickCreateBtn}>
+          추가
+        </Button>
+      </div>
+      {isLoading ? (
+        <div className="flex items-center justify-center w-full h-full bg-white bt-shadow">
+          <FallbackSpinner />
+        </div>
+      ) : filteredList.length ? (
+        <div className="grid grid-cols-[repeat(auto-fill,minmax(350px,1fr))] gap-4 w-full overflow-y-auto">
+          {filteredList.map((model) => (
+            <ModelCard key={model.modelId} {...model} onDetail={handleDetail} onDelete={handleDelete} />
+          ))}
+        </div>
+      ) : (
+        <div className="flex items-center justify-center w-full h-full bg-white bt-shadow">
+          <NoData message="조회된 데이터가 없습니다." iconSize={50} fontSize="text-lg" gap={2} />
+        </div>
+      )}
+    </div>
+  );
+}

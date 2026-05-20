@@ -15,11 +15,11 @@ import { type RoleBasicFormValues, RoleDetailProvider } from './context/RoleDeta
 import { useGetGroupedPermissions } from '../../features/iam/hooks/usePermissionQueries';
 import { useGetRole } from '../../features/iam/hooks/useRoleQueries';
 import type { MenuWithPermissions } from '../../features/iam/types/iam.types';
-
-type PermEntry = { authKey: string; action: string };
 import { FallbackSpinner } from '@/components/custom/FallbackSpinner';
 import { IconDocument, IconSlidersHorizontal } from '@/components/custom/Icons';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/libs/shared-ui/src/components/shadcn/tabs';
+
+type PermEntry = { authKey: string; action: string };
 
 /**
  * 메뉴와 모든 하위 메뉴의 권한을 재귀적으로 수집

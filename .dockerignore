@@ -1,0 +1,14 @@
+node_modules
+dist
+.git
+.gitignore
+.nx
+.husky
+.vscode
+*.md
+*.log
+.env.local
+.env.*.local
+e2e
+coverage
+.claude

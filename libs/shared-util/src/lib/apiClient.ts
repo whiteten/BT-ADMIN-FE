@@ -14,6 +14,11 @@ export type ApiErrorEvent = CustomEvent<AxiosError>;
 interface ExtendedAxiosRequestConfig extends InternalAxiosRequestConfig {
   key?: string;
   _retry?: boolean;
+  silent?: boolean;
+}
+
+export interface ApiRequestConfig extends AxiosRequestConfig {
+  silent?: boolean;
 }
 
 export interface ApiClientOptions {
@@ -78,7 +83,9 @@ export default class ApiClient {
         return Promise.reject(error);
       }
     }
-    this.#responseErrorHandler(error);
+    if (!originalRequest?.silent) {
+      this.#responseErrorHandler(error);
+    }
     return Promise.reject(error);
   };
 
@@ -103,32 +110,32 @@ export default class ApiClient {
    * 우회하여, 호출한 컴포넌트의 onError가 직접 처리할 수 있도록 한다.
    */
   #responseErrorHandler(error: AxiosError): void {
-    // 요청 config에서 skipGlobalHandler 플래그 확인 (blob 응답 등 data 파싱 불가 시)
+    // 요청 config 의 skipGlobalHandler 플래그 (blob 응답 등 data 파싱 불가 시)
     const config = error.config as Record<string, unknown> | undefined;
     if (config?.['skipGlobalHandler'] === true) return;
-    // 응답 본문에서 skipGlobalHandler 플래그 확인
+    // 응답 본문의 skipGlobalHandler 플래그
     const data = error.response?.data as { skipGlobalHandler?: boolean } | undefined;
     if (data?.skipGlobalHandler === true) return;
     window.dispatchEvent(new CustomEvent(API_ERROR_EVENT, { detail: error }));
   }
 
-  get<T = unknown, R = AxiosResponse<T>, D = unknown>(url: string, config?: AxiosRequestConfig<D> | undefined): Promise<R> {
+  get<T = unknown, R = AxiosResponse<T>, D = unknown>(url: string, config?: ApiRequestConfig): Promise<R> {
     return this.#instance.get<T, R, D>(url, config);
   }
 
-  post<T = unknown, R = AxiosResponse<T>, D = unknown>(url: string, data?: D | undefined, config?: AxiosRequestConfig<D> | undefined): Promise<R> {
+  post<T = unknown, R = AxiosResponse<T>, D = unknown>(url: string, data?: D | undefined, config?: ApiRequestConfig): Promise<R> {
     return this.#instance.post<T, R, D>(url, data, config);
   }
 
-  put<T = unknown, R = AxiosResponse<T>, D = unknown>(url: string, data?: D | undefined, config?: AxiosRequestConfig<D> | undefined): Promise<R> {
+  put<T = unknown, R = AxiosResponse<T>, D = unknown>(url: string, data?: D | undefined, config?: ApiRequestConfig): Promise<R> {
     return this.#instance.put<T, R, D>(url, data, config);
   }
 
-  delete<T = unknown, R = AxiosResponse<T>, D = unknown>(url: string, config?: AxiosRequestConfig<D> | undefined): Promise<R> {
+  delete<T = unknown, R = AxiosResponse<T>, D = unknown>(url: string, config?: ApiRequestConfig): Promise<R> {
     return this.#instance.delete<T, R, D>(url, config);
   }
 
-  patch<T = unknown, R = AxiosResponse<T>, D = unknown>(url: string, data?: D | undefined, config?: AxiosRequestConfig<D> | undefined): Promise<R> {
+  patch<T = unknown, R = AxiosResponse<T>, D = unknown>(url: string, data?: D | undefined, config?: ApiRequestConfig): Promise<R> {
     return this.#instance.patch<T, R, D>(url, data, config);
   }
 }

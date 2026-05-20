@@ -1,0 +1,123 @@
+/* ReactFlow 기본 selection outline 제거 — 노드 컴포넌트가 자체 선택 스타일을 그린다 */
+.react-flow__node {
+  outline: none !important;
+  box-shadow: none !important;
+}
+
+.react-flow__node.selected,
+.react-flow__node:focus,
+.react-flow__node:focus-visible {
+  outline: none !important;
+  box-shadow: none !important;
+}
+
+/* 기본 노드 background/border 제거 (커스텀 노드만 사용) */
+.react-flow__node-default {
+  background: transparent;
+  border: none;
+  padding: 0;
+}
+
+/* 핸들 위치 강제. transform 을 쓰지 않고 left/right/top 좌표로만 위치 결정.
+   이유: ReactFlow 는 edge 시작점 계산 시 핸들 div 의 offsetLeft/Top + width/height 만 보고 transform 은 무시한다.
+   transform 으로 핸들을 외부로 밀면 시각적 위치와 edge 시작점이 어긋난다. 좌표 자체로 외부에 두면 일치.
+   top:18px = 헤더(h-12, 48px) 의 중앙 24px - 핸들 반지름 6px. 헤더 라인에서 edge 가 나오게 정렬한다. */
+.react-flow .react-flow__handle[data-handlepos='left'] {
+  left: -6px !important;
+  right: auto !important;
+  top: 18px !important;
+  transform: none !important;
+}
+
+/* properties 패널의 Collapse 섹션 구분선 */
+.aoe-properties-collapse.ant-collapse.ant-collapse-ghost > .ant-collapse-item {
+  border-bottom: 1px solid #f1f5f9;
+}
+.aoe-properties-collapse.ant-collapse.ant-collapse-ghost > .ant-collapse-item:last-child {
+  border-bottom: none;
+}
+.aoe-properties-collapse .ant-collapse-header {
+  padding-left: 0 !important;
+  padding-right: 0 !important;
+}
+.aoe-properties-collapse .ant-collapse-content-box {
+  padding-left: 0 !important;
+  padding-right: 0 !important;
+}
+
+.react-flow .react-flow__handle[data-handlepos='right'] {
+  right: -6px !important;
+  left: auto !important;
+  top: 18px !important;
+  transform: none !important;
+}
+
+/* Edge 선택 시 굵고 진한 파란색으로 강조 + hover 도 동일 색 (default 가 회색이라 클릭해도 거의 안 보임) */
+.react-flow__edge .react-flow__edge-path {
+  transition: stroke 120ms ease, stroke-width 120ms ease;
+}
+.react-flow__edge:hover .react-flow__edge-path {
+  stroke: #60a5fa !important;
+  stroke-width: 2 !important;
+}
+.react-flow__edge.selected .react-flow__edge-path,
+.react-flow__edge:focus .react-flow__edge-path,
+.react-flow__edge:focus-visible .react-flow__edge-path {
+  stroke: #2563eb !important;
+  stroke-width: 2.5 !important;
+}
+
+/* MiniMap & Controls: 좌측 하단 부드러운 카드 스타일 */
+.react-flow__minimap {
+  background: #ffffff !important;
+  border: 1px solid #e5e7eb;
+  border-radius: 12px;
+  box-shadow: 0 2px 8px rgba(15, 23, 42, 0.06);
+  overflow: hidden;
+}
+
+.react-flow__controls {
+  background: #ffffff;
+  border: 1px solid #e5e7eb;
+  border-radius: 12px;
+  box-shadow: 0 2px 8px rgba(15, 23, 42, 0.06);
+  overflow: hidden;
+  display: flex;
+}
+
+.react-flow__controls-button {
+  background: #ffffff !important;
+  border: none !important;
+  border-right: 1px solid #e5e7eb !important;
+  width: 32px !important;
+  height: 32px !important;
+  color: #475569;
+}
+
+.react-flow__controls-button:last-child {
+  border-right: none !important;
+}
+
+.react-flow__controls-button:hover {
+  background: #f1f5f9 !important;
+  color: #1e293b;
+}
+
+.react-flow__controls-button.aoe-flow-control-active {
+  background: #dbeafe !important;
+  color: #2563eb;
+}
+
+.react-flow__controls-button svg {
+  fill: currentColor;
+  width: 14px;
+  height: 14px;
+}
+
+/* React Flow 우측 하단 attribution(워터마크) 위치는 그대로 두되 살짝 흐리게 */
+.react-flow__attribution {
+  background: rgba(255, 255, 255, 0.8) !important;
+  font-size: 10px;
+  padding: 2px 6px;
+  border-radius: 4px;
+}

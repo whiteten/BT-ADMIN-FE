@@ -21,7 +21,6 @@ import {
 import { useStatisticsFilterStore } from '../../../features/statistics/hooks/useStatisticsFilterStore';
 import { useGetDialogOptionList, useGetSlotStatList } from '../../../features/statistics/hooks/useStatisticsQueries';
 import type { SlotStatListItem } from '../../../features/statistics/types/statistics.types';
-import { botDialogHistoryApi } from '../../../features/tracking/api/botDialogHistoryApi';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/libs/shared-ui/src/components/shadcn/collapsible';
 import useAggridOptions from '@/libs/shared-ui/src/hooks/useAggridOptions';
 import { cn } from '@/libs/shared-ui/src/lib/utils';
@@ -68,6 +67,7 @@ export default function SlotStatistics() {
   const gridRef = useRef<AgGridReact<SlotStatListItem>>(null);
   const { data: botList } = useGetBots();
   const [rowData, setRowData] = useState<SlotStatListItem[]>([]);
+  const [summaryRow, setSummaryRow] = useState<SlotStatListItem[]>([]);
   // 조회 시점의 timeUnit (그리드 날짜 포맷팅에 사용)
   const [displayTimeUnit, setDisplayTimeUnit] = useState<string>('DD');
 
@@ -166,11 +166,11 @@ export default function SlotStatistics() {
   });
 
   useEffect(() => {
-    if (slotStatData !== undefined) setRowData(slotStatData.items);
+    if (slotStatData !== undefined) {
+      setRowData(slotStatData.items);
+      setSummaryRow(slotStatData.summary ? [{ ...slotStatData.summary, psrTimeKey: '전체합계' }] : []);
+    }
   }, [slotStatData]);
-
-  // BE에서 받은 summary에 '전체합계' 라벨 주입
-  const summaryRow: SlotStatListItem[] = slotStatData?.summary ? [{ ...slotStatData.summary, psrTimeKey: '전체합계' }] : [];
 
   // startDate 또는 timeUnit 변경 시 endDate 자동 조정
   useEffect(() => {
