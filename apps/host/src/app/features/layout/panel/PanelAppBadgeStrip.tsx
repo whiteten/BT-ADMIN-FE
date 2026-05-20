@@ -4,7 +4,7 @@ import { Pin, PinOff, Settings, SquareDashed } from 'lucide-react';
 import { useMenuStore } from '@/shared-store';
 import useCurrentRemote from '../../../hooks/useCurrentRemote';
 import { useMenuPanelStore } from '../hooks/useMenuPanelStore';
-import { IconRemoteFca, IconRemoteIpron, IconStar } from '@/components/custom/Icons';
+import { IconRemoteAoe, IconRemoteFca, IconRemoteIpron, IconRemoteStt, IconStar } from '@/components/custom/Icons';
 import { cn } from '@/libs/shared-ui/src/lib/utils';
 
 const APP_BADGE_COLORS = [
@@ -25,6 +25,8 @@ const APP_BADGE_ICONS: Record<string, ComponentType<SVGProps<SVGSVGElement>>> = 
   manager: Settings,
   fca: IconRemoteFca,
   ipron: IconRemoteIpron,
+  stt: IconRemoteStt,
+  aoe: IconRemoteAoe,
 };
 
 /**

@@ -6,6 +6,7 @@
  */
 
 import { type ReactNode, createContext, useContext } from 'react';
+import { useBreadcrumbStore } from '@/shared-store';
 import type { User } from '../../../features/user/types/user.types';
 
 /**

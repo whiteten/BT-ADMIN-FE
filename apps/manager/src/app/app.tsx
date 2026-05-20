@@ -1,5 +1,6 @@
 import * as React from 'react';
 import { useRoutes } from 'react-router-dom';
+import { useBreadcrumbStore } from '@/shared-store';
 import { routes } from './routes';
 import '../styles.css';
 import { FallbackSpinner } from '@/components/custom/FallbackSpinner';

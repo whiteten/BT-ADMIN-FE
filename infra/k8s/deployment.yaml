@@ -1,0 +1,45 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: bt-admin-fe
+  namespace: forcus-ai
+  labels:
+    app: bt-admin-fe
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: bt-admin-fe
+  template:
+    metadata:
+      labels:
+        app: bt-admin-fe
+    spec:
+      containers:
+        - name: bt-admin-fe
+          image: 100.100.103.167/bt-admin/bt-admin-fe:latest
+          imagePullPolicy: Always
+          ports:
+            - containerPort: 80
+              name: http
+          resources:
+            requests:
+              memory: "128Mi"
+              cpu: "100m"
+            limits:
+              memory: "256Mi"
+              cpu: "500m"
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: 80
+            initialDelaySeconds: 10
+            periodSeconds: 10
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: 80
+            initialDelaySeconds: 5
+            periodSeconds: 5
+      imagePullSecrets:
+        - name: harbor-registry-secret

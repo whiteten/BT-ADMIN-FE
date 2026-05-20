@@ -1,0 +1,90 @@
+{
+  "name": "aoe",
+  "$schema": "../../node_modules/nx/schemas/project-schema.json",
+  "sourceRoot": "apps/aoe/src",
+  "projectType": "application",
+  "tags": [],
+  "targets": {
+    "build": {
+      "executor": "@nx/webpack:webpack",
+      "outputs": ["{options.outputPath}"],
+      "defaultConfiguration": "production",
+      "options": {
+        "compiler": "babel",
+        "outputPath": "dist/apps/aoe",
+        "index": "apps/aoe/src/index.html",
+        "baseHref": "/",
+        "main": "apps/aoe/src/main.ts",
+        "tsConfig": "apps/aoe/tsconfig.app.json",
+        "assets": ["apps/aoe/src/favicon.ico", "apps/aoe/src/assets"],
+        "styles": [],
+        "scripts": [],
+        "webpackConfig": "apps/aoe/webpack.config.ts",
+        "postcssConfig": "apps/aoe/postcss.config.js"
+      },
+      "configurations": {
+        "development": {
+          "extractLicenses": false,
+          "optimization": false,
+          "sourceMap": true,
+          "vendorChunk": true
+        },
+        "production": {
+          "fileReplacements": [
+            {
+              "replace": "apps/aoe/src/environments/environment.ts",
+              "with": "apps/aoe/src/environments/environment.prod.ts"
+            }
+          ],
+          "optimization": true,
+          "outputHashing": "all",
+          "sourceMap": false,
+          "namedChunks": false,
+          "extractLicenses": false,
+          "vendorChunk": false,
+          "webpackConfig": "apps/aoe/webpack.config.prod.ts"
+        }
+      }
+    },
+    "serve": {
+      "executor": "@nx/react:module-federation-dev-server",
+      "defaultConfiguration": "development",
+      "options": {
+        "buildTarget": "aoe:build",
+        "hmr": true,
+        "port": 4205
+      },
+      "configurations": {
+        "development": {
+          "buildTarget": "aoe:build:development"
+        },
+        "production": {
+          "buildTarget": "aoe:build:production",
+          "hmr": false
+        }
+      }
+    },
+    "test": {
+      "executor": "@nx/jest:jest",
+      "outputs": ["{workspaceRoot}/coverage/{projectRoot}"],
+      "options": {
+        "jestConfig": "apps/aoe/jest.config.ts"
+      }
+    },
+    "serve-static": {
+      "executor": "@nx/react:module-federation-static-server",
+      "defaultConfiguration": "production",
+      "options": {
+        "serveTarget": "aoe:serve"
+      },
+      "configurations": {
+        "development": {
+          "serveTarget": "aoe:serve:development"
+        },
+        "production": {
+          "serveTarget": "aoe:serve:production"
+        }
+      }
+    }
+  }
+}

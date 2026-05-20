@@ -191,7 +191,7 @@ export default function AoeFaqList() {
         const isActive = params.data.faqEnable === 1;
         return (
           <Badge variant="secondary" className={cn('text-[13px] font-medium !h-6', isActive ? 'text-[#10B981] bg-[#10B9811A]' : 'text-[#6B7280] bg-[#6B72801A]')}>
-            {isActive ? '활성' : '비활성'}
+            {isActive ? '활성' : '비활성'}ㅋ
           </Badge>
         );
       },

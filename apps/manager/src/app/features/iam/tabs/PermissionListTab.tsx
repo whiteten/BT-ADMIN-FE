@@ -9,6 +9,7 @@ import type { ColDef } from 'ag-grid-community';
 import { AgGridReact } from 'ag-grid-react';
 import { Button, Input, Select, Tag, Tooltip } from 'antd';
 import { Copy, Search, Shield, User } from 'lucide-react';
+import { useBreadcrumbStore } from '@/shared-store';
 import { copyToClipboard, toast } from '@/shared-util';
 import { useGetApps } from '../hooks/useAppQueries';
 import { useGetAuthList } from '../hooks/usePermissionQueries';

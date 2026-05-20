@@ -5,6 +5,7 @@
 import { useEffect, useState } from 'react';
 import { Button, Drawer, Form, Input, Select, Switch, Tag } from 'antd';
 import { ChevronDown } from 'lucide-react';
+import { useBreadcrumbStore } from '@/shared-store';
 import KeyValueEditor from './KeyValueEditor';
 import { useGetApps } from '../../iam/hooks/useAppQueries';
 import type { FlowStep } from '../types/bffFlow.types';

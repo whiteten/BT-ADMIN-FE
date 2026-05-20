@@ -1,0 +1,9 @@
+{
+  "name": "@bridgetec/ui-remote-aoe",
+  "version": "0.0.1",
+  "private": true,
+  "dependencies": {
+    "@lexical/react": "^0.44.0",
+    "lexical": "^0.44.0"
+  }
+}

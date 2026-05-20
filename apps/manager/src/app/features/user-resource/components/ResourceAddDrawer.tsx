@@ -9,6 +9,7 @@
 import { forwardRef, useImperativeHandle, useMemo, useState } from 'react';
 import { Button, Drawer, Input, Tag, Tree, type TreeDataNode } from 'antd';
 import { Search } from 'lucide-react';
+import { useBreadcrumbStore } from '@/shared-store';
 import type { AvailableResource } from '../types/userResource.types';
 
 /** Drawer에 전달되는 그룹 정의 */

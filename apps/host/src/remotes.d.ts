@@ -3,6 +3,11 @@ declare module '*/Module' {
   export default Module;
 }
 
+declare module '*/WorkflowApp' {
+  const WorkflowApp: React.ComponentType;
+  export default WorkflowApp;
+}
+
 declare module '*/Routes' {
   import type { RouteObject } from 'react-router-dom';
   export const routes: RouteObject[];

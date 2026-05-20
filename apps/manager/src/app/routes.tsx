@@ -1,5 +1,6 @@
 import React from 'react';
 import { Navigate, Outlet } from 'react-router-dom';
+import { useBreadcrumbStore } from '@/shared-store';
 import { NotFound } from '@/components/custom/NotFound';
 
 const UserList = React.lazy(() => import('./pages/user/UserList'));
@@ -29,10 +30,30 @@ const WorkHistoryList = React.lazy(() => import('./pages/work-history/WorkHistor
 // 데이터 보관주기 관리 페이지
 const DataRetentionPage = React.lazy(() => import('./pages/data-retention/DataRetentionPage'));
 
+// 마스킹 정책/해지 요청 페이지
+const MaskPolicyPage = React.lazy(() => import('./pages/mask-policy/MaskPolicyPage'));
+const MaskUnmaskPage = React.lazy(() => import('./pages/mask-unmask/MaskUnmaskPage'));
+
 // 클라이언트 관리 페이지
 const ClientList = React.lazy(() => import('./pages/client/ClientList'));
 const ClientCreate = React.lazy(() => import('./pages/client/ClientCreate'));
 const ClientDetail = React.lazy(() => import('./pages/client/ClientDetail'));
+
+// 라이선스 관리 페이지
+const LicenseList = React.lazy(() => import('./pages/license/LicenseList'));
+
+// 테넌트 관리 페이지
+const TenantList = React.lazy(() => import('./features/tenant-management/pages/TenantList'));
+const TenantCreate = React.lazy(() => import('./features/tenant-management/pages/TenantCreate'));
+const TenantDetail = React.lazy(() => import('./features/tenant-management/pages/TenantDetail'));
+
+// 노드/클러스터 관리 페이지
+const NodeListPage = React.lazy(() => import('./features/node-management/pages/NodeListPage'));
+const NodeCreatePage = React.lazy(() => import('./features/node-management/pages/NodeCreatePage'));
+const NodeDetailPage = React.lazy(() => import('./features/node-management/pages/NodeDetailPage'));
+const NodeSettingPage = React.lazy(() => import('./features/node-management/pages/NodeSettingPage'));
+const ClusterConfigPage = React.lazy(() => import('./features/node-management/pages/ClusterConfigPage'));
+const TenantAllocWizardPage = React.lazy(() => import('./features/node-management/pages/TenantAllocWizardPage'));
 
 export const routes = [
   {
@@ -131,6 +152,14 @@ export const routes = [
             element: <DataRetentionPage />,
           },
           {
+            path: 'mask-policy',
+            element: <MaskPolicyPage />,
+          },
+          {
+            path: 'mask-unmask',
+            element: <MaskUnmaskPage />,
+          },
+          {
             path: 'client',
             element: <Outlet />,
             children: [
@@ -149,6 +178,76 @@ export const routes = [
               {
                 path: ':clientId',
                 element: <ClientDetail />,
+              },
+            ],
+          },
+          {
+            path: 'license',
+            element: <Outlet />,
+            children: [
+              {
+                index: true,
+                element: <Navigate to="list" replace />,
+              },
+              {
+                path: 'list',
+                element: <LicenseList />,
+              },
+            ],
+          },
+          {
+            path: 'tenant-management',
+            element: <Outlet />,
+            children: [
+              {
+                index: true,
+                element: <Navigate to="list" replace />,
+              },
+              {
+                path: 'list',
+                element: <TenantList />,
+              },
+              {
+                path: 'create',
+                element: <TenantCreate />,
+              },
+              {
+                path: ':tenantId',
+                element: <TenantDetail />,
+              },
+            ],
+          },
+          {
+            path: 'node-management',
+            element: <Outlet />,
+            children: [
+              {
+                index: true,
+                element: <Navigate to="list" replace />,
+              },
+              {
+                path: 'list',
+                element: <NodeListPage />,
+              },
+              {
+                path: 'create',
+                element: <NodeCreatePage />,
+              },
+              {
+                path: ':nodeId',
+                element: <NodeDetailPage />,
+              },
+              {
+                path: ':nodeId/settings',
+                element: <NodeSettingPage />,
+              },
+              {
+                path: ':nodeId/cluster-config',
+                element: <ClusterConfigPage />,
+              },
+              {
+                path: ':nodeId/alloc/:tenantId',
+                element: <TenantAllocWizardPage />,
               },
             ],
           },
