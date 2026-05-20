@@ -2,7 +2,6 @@ import React from 'react';
 import { Navigate, Outlet } from 'react-router-dom';
 import { NotFound } from '@/components/custom/NotFound';
 
-const Main = React.lazy(() => import('./pages/main/Main'));
 const AgentList = React.lazy(() => import('./pages/agent-config/AgentList'));
 const AgentCreate = React.lazy(() => import('./pages/agent-config/AgentCreate'));
 const AgentDetail = React.lazy(() => import('./pages/agent-config/AgentDetail'));
@@ -30,11 +29,7 @@ export const routes = [
     children: [
       {
         index: true,
-        element: <Navigate to="main" replace />,
-      },
-      {
-        path: 'main',
-        element: <Main />,
+        element: <Navigate to="/" replace />,
       },
       {
         path: 'agent-config',
@@ -102,6 +97,6 @@ export const routes = [
   },
   {
     path: '*',
-    element: <NotFound homePath="/aoe" />,
+    element: <NotFound homePath="/" />,
   },
 ];
