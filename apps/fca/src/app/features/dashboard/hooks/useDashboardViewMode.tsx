@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { DASHBOARD_VIEW, type DashboardViewMode } from '../types/dashboard.types';
+import { DASHBOARD_VIEW, type DashboardViewMode } from '../types';
 import { IconChartLine, IconGrid } from '@/libs/shared-ui/src/components/custom/Icons';
 
 const useDashboardViewMode = (supportedModes: DashboardViewMode[]) => {

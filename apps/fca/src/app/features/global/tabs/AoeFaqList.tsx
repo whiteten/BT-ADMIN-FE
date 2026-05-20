@@ -12,7 +12,7 @@ import ExcelImportResultModal, { type ExcelImportResultModalRef } from '../../bo
 import type { ExcelImportResult } from '../../bot-config/types/intent';
 import AoeFaqDrawer, { type AoeFaqDrawerRef } from '../components/AoeFaqDrawer';
 import { aoeQueryKeys, useApplyFaq, useDeleteFaq, useExportFaq, useGetFaqList, useImportFaq } from '../hooks/useAoeQueries';
-import type { FaqListItem } from '../types/aoe.types';
+import type { FaqListItem } from '../types';
 import FileImportModal, { type FileImportModalRef } from '@/components/custom/FileImportModal';
 import { IconTrash } from '@/components/custom/Icons';
 import { Badge } from '@/components/ui/badge';

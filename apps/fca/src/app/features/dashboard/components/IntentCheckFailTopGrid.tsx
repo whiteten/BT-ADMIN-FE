@@ -1,6 +1,6 @@
 import type { ColDef } from 'ag-grid-community';
 import { AgGridReact } from 'ag-grid-react';
-import type { IntentCheckFailTopItem } from '../types/dashboard.types';
+import type { IntentCheckFailTopItem } from '../types';
 import useAggridOptions from '@/libs/shared-ui/src/hooks/useAggridOptions';
 
 const columnDefs: ColDef<IntentCheckFailTopItem>[] = [

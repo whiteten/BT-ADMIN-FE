@@ -5,7 +5,7 @@ import { useBreadcrumbStore } from '@/shared-store';
 import DecryptLogDetailDrawer from '../../features/decrypt-log/components/DecryptLogDetailDrawer';
 import DecryptLogListGrid from '../../features/decrypt-log/components/DecryptLogListGrid';
 import DecryptLogSearchBar from '../../features/decrypt-log/components/DecryptLogSearchBar';
-import type { DecryptLogItem, DecryptLogSearchRequest } from '../../features/decrypt-log/types/decryptLog.types';
+import type { DecryptLogItem, DecryptLogSearchRequest } from '../../features/decrypt-log/types';
 
 const breadcrumb: BreadcrumbProps['items'] = [
   { title: '트래킹', path: '/fca/tracking' },

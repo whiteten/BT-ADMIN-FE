@@ -1,6 +1,6 @@
 import ApiClient, { type DetailResponse, type ListResponse, extractDetail, extractList } from '@/shared-util';
 import type { ExcelImportResult } from '../../bot-config/types/intent';
-import type { GlobalEnvCreateDatas, GlobalEnvDetailItem, GlobalEnvHistoryItem, GlobalEnvListItem, GlobalEnvUpdateDatas } from '../types/globalEnv.types';
+import type { GlobalEnvCreateDatas, GlobalEnvDetailItem, GlobalEnvHistoryItem, GlobalEnvListItem, GlobalEnvUpdateDatas } from '../types';
 
 const apiClient = new ApiClient({ serviceURL: '/bff' });
 

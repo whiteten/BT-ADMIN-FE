@@ -1,6 +1,6 @@
 import type { ColDef } from 'ag-grid-community';
 import { AgGridReact } from 'ag-grid-react';
-import type { SlotIncompleteTopItem } from '../types/dashboard.types';
+import type { SlotIncompleteTopItem } from '../types';
 import useAggridOptions from '@/libs/shared-ui/src/hooks/useAggridOptions';
 
 const columnDefs: ColDef<SlotIncompleteTopItem>[] = [

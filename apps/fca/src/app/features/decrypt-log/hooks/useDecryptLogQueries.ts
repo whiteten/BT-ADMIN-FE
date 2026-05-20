@@ -2,7 +2,7 @@ import { useQuery } from '@tanstack/react-query';
 import { createQueryKeys } from '@lukemorales/query-key-factory';
 import type { QueryHookWithParamsOptions } from '@/shared-util';
 import { decryptLogApi } from '../api/decryptLogApi';
-import type { DecryptLogStat, PagedDecryptLog } from '../types/decryptLog.types';
+import type { DecryptLogStat, PagedDecryptLog } from '../types';
 
 export const decryptLogQueryKeys = createQueryKeys('decryptLog', {
   list: (params?: Record<string, unknown>) => [params],

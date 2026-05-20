@@ -2,8 +2,7 @@ import { useMutation, useQuery } from '@tanstack/react-query';
 import { createQueryKeys } from '@lukemorales/query-key-factory';
 import type { MutationHookOptions, QueryHookWithParamsOptions } from '@/shared-util';
 import { type DecryptBubblesArgs, type DecryptedBubbleDto, type DialogHistoryConfig, botDialogHistoryApi } from '../api/botDialogHistoryApi';
-import type { BotServiceDto, IntentDto } from '../types/botDialogHistory.types';
-import type { NluAnalysisItem, RetrainLogItem, TrackingFlowItem } from '../types/tracking.types';
+import type { BotServiceDto, IntentDto, NluAnalysisItem, RetrainLogItem, TrackingFlowItem } from '../types';
 
 export const botDialogHistoryQueryKeys = createQueryKeys('history', {
   getConfig: null,

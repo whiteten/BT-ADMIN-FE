@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { ArrowRightLeft, Bot, ExternalLink, EyeOff, Lock, LockOpen, Monitor, PhoneOff, User } from 'lucide-react';
 import { getTrackingItemConfig } from '../config/trackingItemConfig';
-import type { TrackingFlowItem } from '../types/tracking.types';
+import type { TrackingFlowItem } from '../types';
 import { cn } from '@/lib/utils';
 
 /** 이퀄라이저 애니메이션 — "Now Playing" 인디케이터 */

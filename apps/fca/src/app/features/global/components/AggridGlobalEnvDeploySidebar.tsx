@@ -6,7 +6,7 @@ import dayjs from 'dayjs';
 import { Clock, OctagonAlert, RotateCcw, Server, ServerOff, User } from 'lucide-react';
 import { toast } from '@/shared-util';
 import { globalEnvQueryKeys, useGetGlobalEnvHistoryList, useReapplyGlobalEnv } from '../hooks/useGlobalEnvQueries';
-import type { GlobalEnvHistoryItem, GlobalEnvListItem } from '../types/globalEnv.types';
+import type { GlobalEnvHistoryItem, GlobalEnvListItem } from '../types';
 import { FallbackSpinner } from '@/components/custom/FallbackSpinner';
 import { Badge } from '@/components/ui/badge';
 

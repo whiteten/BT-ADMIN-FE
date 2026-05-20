@@ -1,5 +1,5 @@
 import ApiClient, { type DetailResponse, extractDetail } from '@/shared-util';
-import type { TrackingCommandRequest, TrackingCommandResult, TrackingSessionDetail } from '../types/tracking.types';
+import type { TrackingCommandRequest, TrackingCommandResult, TrackingSessionDetail } from '../types';
 
 const apiClient = new ApiClient({ serviceURL: '/bff' });
 

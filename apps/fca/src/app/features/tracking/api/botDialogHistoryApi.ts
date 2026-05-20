@@ -1,7 +1,6 @@
 import type { AxiosRequestConfig } from 'axios';
 import ApiClient, { type ListResponse, extractList } from '@/shared-util';
-import type { BotServiceDto, IntentDto, PagedBotDialogHistory, SlotSankeyItem } from '../types/botDialogHistory.types';
-import type { NluAnalysisItem, RetrainLogItem, TrackingFlowItem } from '../types/tracking.types';
+import type { BotServiceDto, IntentDto, NluAnalysisItem, PagedBotDialogHistory, RetrainLogItem, SlotSankeyItem, TrackingFlowItem } from '../types';
 
 const apiClient = new ApiClient({ serviceURL: '/bff' });
 

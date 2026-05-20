@@ -1,5 +1,5 @@
 import ApiClient from '@/shared-util';
-import type { DecryptLogStat, PagedDecryptLog } from '../types/decryptLog.types';
+import type { DecryptLogStat, PagedDecryptLog } from '../types';
 
 const apiClient = new ApiClient({ serviceURL: '/bff' });
 

@@ -36,7 +36,7 @@ import SlotRetryDistTopConfigDrawer from '../components/SlotRetryDistTopConfigDr
 import SlotRetryDistTopGrid from '../components/SlotRetryDistTopGrid';
 import SlotSummaryGrid from '../components/SlotSummaryGrid';
 import SlotSummaryPieChart from '../components/SlotSummaryPieChart';
-import { type BotDashboardResponse, DASHBOARD_VIEW, type DashboardViewMode } from '../types/dashboard.types';
+import { type BotDashboardResponse, DASHBOARD_VIEW, type DashboardViewMode } from '../types';
 
 /** 위젯 메뉴 액션에 전달되는 컨텍스트 */
 export interface WidgetActionContext {

@@ -2,7 +2,7 @@ import { useEffect, useRef } from 'react';
 import { LOG } from '@/log';
 import { WebSocketClient } from '@/shared-util';
 import { useDashboardSocketStore } from './useDashboardSocketStore';
-import { DASHBOARD_MSG_TYPE, type DashboardWsServerMessage } from '../types/dashboard.types';
+import { DASHBOARD_MSG_TYPE, type DashboardWsServerMessage } from '../types';
 
 const Log = new LOG('useDashboardSocket');
 

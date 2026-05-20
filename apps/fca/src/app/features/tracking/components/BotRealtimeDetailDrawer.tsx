@@ -5,7 +5,7 @@ import { toast } from '@/shared-util';
 import TrackingDialogView from './TrackingDialogView';
 import { useSendTrackingCommand } from '../hooks/useBotRealtimeQueries';
 import type { TrackingWsMessage } from '../hooks/useBotRealtimeSocket';
-import type { TrackingCommandRequest, TrackingSessionDetail } from '../types/tracking.types';
+import type { TrackingCommandRequest, TrackingSessionDetail } from '../types';
 import { FallbackSpinner } from '@/components/custom/FallbackSpinner';
 
 /** HTTP/HTTPS 환경 모두에서 동작하는 클립보드 복사 */

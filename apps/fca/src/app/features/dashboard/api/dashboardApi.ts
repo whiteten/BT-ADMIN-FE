@@ -1,5 +1,5 @@
 import ApiClient, { type DetailResponse, extractDetail } from '@/shared-util';
-import type { BotDashboardResponse } from '../types/dashboard.types';
+import type { BotDashboardResponse } from '../types';
 
 const apiClient = new ApiClient({ serviceURL: '/bff' });
 

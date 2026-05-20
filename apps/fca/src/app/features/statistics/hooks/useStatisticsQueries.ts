@@ -15,7 +15,7 @@ import type {
   SlotOptionListItem,
   SlotStatList,
   UserDefStatList,
-} from '../types/statistics.types';
+} from '../types';
 
 export const statisticsQueryKeys = createQueryKeys('statistics', {
   getServiceStatList: (params?: Record<string, unknown>) => [params],

@@ -3,7 +3,7 @@ import { createQueryKeys } from '@lukemorales/query-key-factory';
 import dayjs from 'dayjs';
 import { type MutationHookOptions, type QueryHookWithParamsOptions, downloadBlob, extractFileName } from '@/shared-util';
 import { aoeApi } from '../api/aoeApi';
-import type { AoeBasicDetailItem, FaqAgentListItem, FaqDetailItem, FaqListItem } from '../types/aoe.types';
+import type { AoeBasicDetailItem, FaqAgentListItem, FaqDetailItem, FaqListItem } from '../types';
 
 /**
  * AOE 확장 Query Keys

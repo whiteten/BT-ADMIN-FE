@@ -1,6 +1,6 @@
 import type { ColDef } from 'ag-grid-community';
 import { AgGridReact } from 'ag-grid-react';
-import type { HourlyEntryItem } from '../types/dashboard.types';
+import type { HourlyEntryItem } from '../types';
 import useAggridOptions from '@/libs/shared-ui/src/hooks/useAggridOptions';
 
 interface PivotedRow {

@@ -1,6 +1,6 @@
 import type { EChartsOption } from 'echarts';
 import ReactECharts from 'echarts-for-react';
-import type { HourlyEntryItem } from '../types/dashboard.types';
+import type { HourlyEntryItem } from '../types';
 import NoData from '@/components/custom/NoData';
 
 const createChartOption = (data: HourlyEntryItem[]): EChartsOption => ({

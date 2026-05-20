@@ -19,7 +19,7 @@ import {
 } from '../../../features/statistics/hooks/useDateRangeLimit';
 import { useStatisticsFilterStore } from '../../../features/statistics/hooks/useStatisticsFilterStore';
 import { useGetDialogOptionList, useGetDialogStatList } from '../../../features/statistics/hooks/useStatisticsQueries';
-import type { DialogStatListItem } from '../../../features/statistics/types/statistics.types';
+import type { DialogStatListItem } from '../../../features/statistics/types';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/libs/shared-ui/src/components/shadcn/collapsible';
 import useAggridOptions from '@/libs/shared-ui/src/hooks/useAggridOptions';
 import { cn } from '@/libs/shared-ui/src/lib/utils';

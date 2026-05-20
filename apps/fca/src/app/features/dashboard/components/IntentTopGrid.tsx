@@ -1,6 +1,6 @@
 import type { ColDef } from 'ag-grid-community';
 import { AgGridReact } from 'ag-grid-react';
-import type { IntentTopItem } from '../types/dashboard.types';
+import type { IntentTopItem } from '../types';
 import useAggridOptions from '@/libs/shared-ui/src/hooks/useAggridOptions';
 
 const columnDefs: ColDef<IntentTopItem>[] = [

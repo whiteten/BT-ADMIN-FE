@@ -3,7 +3,7 @@ import { createQueryKeys } from '@lukemorales/query-key-factory';
 import dayjs from 'dayjs';
 import { type MutationHookOptions, type QueryHookWithParamsOptions, downloadBlob, extractFileName } from '@/shared-util';
 import { globalEnvApi } from '../api/globalEnvApi';
-import type { GlobalEnvDetailItem, GlobalEnvHistoryItem, GlobalEnvListItem } from '../types/globalEnv.types';
+import type { GlobalEnvDetailItem, GlobalEnvHistoryItem, GlobalEnvListItem } from '../types';
 
 export const globalEnvQueryKeys = createQueryKeys('globalEnv', {
   getGlobalEnvList: (params?: Record<string, unknown>) => [params],

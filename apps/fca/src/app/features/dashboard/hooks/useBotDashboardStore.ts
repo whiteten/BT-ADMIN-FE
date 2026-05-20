@@ -2,7 +2,7 @@ import type { LayoutItem } from 'react-grid-layout';
 import { create } from 'zustand';
 import { createJSONStorage, devtools, persist } from 'zustand/middleware';
 import { botDashboardLayoutRenderMapper } from '../constants/BotDashboardLayoutRenderMapper';
-import type { DashboardLayoutItem, DashboardWidgetType } from '../types/dashboard.types';
+import type { DashboardLayoutItem, DashboardWidgetType } from '../types';
 import { generateWidgetId } from '../utils/dashboardUtils';
 
 export const DEFAULT_LAYOUT: DashboardLayoutItem[] = [

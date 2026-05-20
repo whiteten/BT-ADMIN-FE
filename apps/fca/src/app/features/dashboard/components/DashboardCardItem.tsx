@@ -5,7 +5,7 @@ import useDashboardViewMode from '../hooks/useDashboardViewMode';
 import useWidgetOptions from '../hooks/useWidgetOptions';
 
 import { useWidgetSubscription } from '../hooks/useWidgetSubscription';
-import { type BotDashboardResponse, DASHBOARD_VIEW, type DashboardWidgetType } from '../types/dashboard.types';
+import { type BotDashboardResponse, DASHBOARD_VIEW, type DashboardWidgetType } from '../types';
 import { FallbackSpinner } from '@/libs/shared-ui/src/components/custom/FallbackSpinner';
 
 interface DashboardCardItemProps {

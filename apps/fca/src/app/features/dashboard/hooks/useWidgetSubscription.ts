@@ -1,7 +1,7 @@
 import { useEffect, useRef } from 'react';
 import { createShortId } from '@/shared-util';
 import { useDashboardSocketStore } from './useDashboardSocketStore';
-import { DASHBOARD_MSG_TYPE, type DashboardSubscribeOptions, type DashboardWidgetType } from '../types/dashboard.types';
+import { DASHBOARD_MSG_TYPE, type DashboardSubscribeOptions, type DashboardWidgetType } from '../types';
 
 interface UseWidgetSubscriptionOptions {
   widgetType: DashboardWidgetType;
