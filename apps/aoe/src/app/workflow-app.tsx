@@ -1,6 +1,6 @@
 import * as React from 'react';
 import { App as AntdApp } from 'antd';
-import WorkflowEditorPage from './pages/workflow/WorkflowEditorPage';
+import WorkflowEdit from './pages/workflow/WorkflowEdit';
 import '../styles.css';
 import { FallbackSpinner } from '@/components/custom/FallbackSpinner';
 
@@ -10,7 +10,7 @@ export default function WorkflowApp() {
   return (
     <AntdApp className="h-full">
       <React.Suspense fallback={<FallbackSpinner useFullScreen />}>
-        <WorkflowEditorPage />
+        <WorkflowEdit />
       </React.Suspense>
     </AntdApp>
   );

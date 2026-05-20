@@ -5,7 +5,7 @@ import { useGetWorkflowGraph } from '../../features/workflow/hooks/useWorkflowQu
 import { FallbackSpinner } from '@/components/custom/FallbackSpinner';
 import { NotFound } from '@/components/custom/NotFound';
 
-export default function WorkflowEditorPage() {
+export default function WorkflowEdit() {
   const { agentId } = useParams<{ agentId: string }>();
 
   const { data: agent } = useGetAgent({ params: { agentId }, queryOptions: { enabled: !!agentId } });
