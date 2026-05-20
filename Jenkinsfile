@@ -197,7 +197,10 @@ pipeline {
         }
         always {
             sh 'sudo chown -R jenkins:jenkins ${JENKINS_WORK_PATH} || true'
-            cleanWs(patterns: [[pattern: 'node_modules/**', type: 'EXCLUDE']])
+            cleanWs(patterns: [
+                [pattern: 'node_modules/**', type: 'EXCLUDE'],
+                [pattern: '.git/**', type: 'EXCLUDE']
+            ])
         }
     }
 }
