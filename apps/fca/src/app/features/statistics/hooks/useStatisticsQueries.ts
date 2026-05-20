@@ -3,8 +3,8 @@ import { createQueryKeys } from '@lukemorales/query-key-factory';
 import type { QueryHookWithParamsOptions } from '@/shared-util';
 import { statisticsApi } from '../api/statisticsApi';
 import type {
-  CallResultStatList,
   CampaignOptionListItem,
+  CampaignResultStatList,
   CategoryOptionListItem,
   DialogOptionListItem,
   DialogStatList,
@@ -28,7 +28,7 @@ export const statisticsQueryKeys = createQueryKeys('statistics', {
   getEntityStatList: (params?: Record<string, unknown>) => [params],
   getKeywordStatList: (params?: Record<string, unknown>) => [params],
   getUserDefStatList: (params?: Record<string, unknown>) => [params],
-  getCallResultStatList: (params?: Record<string, unknown>) => [params],
+  getCampaignResultStatList: (params?: Record<string, unknown>) => [params],
   getDialogOptionList: (params?: Record<string, unknown>) => [params],
   getSlotOptionList: (params?: Record<string, unknown>) => [params],
   getIntentOptionList: (params?: Record<string, unknown>) => [params],
@@ -126,18 +126,18 @@ export const useGetUserDefStatList = ({ params, queryOptions }: QueryHookWithPar
   });
 };
 
-export const useGetCategoryOptionList = ({ params, queryOptions }: QueryHookWithParamsOptions<CategoryOptionListItem[]> = {}) => {
+export const useGetCampaignResultStatList = ({ params, queryOptions }: QueryHookWithParamsOptions<CampaignResultStatList> = {}) => {
   return useQuery({
-    queryKey: statisticsQueryKeys.getCategoryOptionList(params).queryKey,
-    queryFn: () => statisticsApi.getCategoryOptionList(params),
+    queryKey: statisticsQueryKeys.getCampaignResultStatList(params).queryKey,
+    queryFn: () => statisticsApi.getCampaignResultStatList(params),
     ...queryOptions,
   });
 };
 
-export const useGetCallResultStatList = ({ params, queryOptions }: QueryHookWithParamsOptions<CallResultStatList> = {}) => {
+export const useGetCategoryOptionList = ({ params, queryOptions }: QueryHookWithParamsOptions<CategoryOptionListItem[]> = {}) => {
   return useQuery({
-    queryKey: statisticsQueryKeys.getCallResultStatList(params).queryKey,
-    queryFn: () => statisticsApi.getCallResultStatList(params),
+    queryKey: statisticsQueryKeys.getCategoryOptionList(params).queryKey,
+    queryFn: () => statisticsApi.getCategoryOptionList(params),
     ...queryOptions,
   });
 };

@@ -1,8 +1,8 @@
 import ApiClient, { type ListResponse, type StatListResponse, extractList, extractStatList } from '@/shared-util';
 import type {
-  CallResultStatList,
-  CallResultStatListItem,
   CampaignOptionListItem,
+  CampaignResultStatList,
+  CampaignResultStatListItem,
   CategoryOptionListItem,
   DialogOptionListItem,
   DialogStatList,
@@ -146,11 +146,11 @@ export const statisticsApi = {
     return await apiClient.post<Blob>('/stat-bot-user-def-export', params, { responseType: 'blob' });
   },
 
-  // 캠페인 발신결과 통계 목록 조회 (BFF: stat-campaign-call-result)
-  getCallResultStatList: async (params?: Record<string, unknown>): Promise<CallResultStatList> => {
+  // 캠페인 통계(캠페인 결과) 목록 조회 (BFF: stat-campaign-result)
+  getCampaignResultStatList: async (params?: Record<string, unknown>): Promise<CampaignResultStatList> => {
     const response = await apiClient.post<{
-      data: { items: CallResultStatListItem[]; summary: CallResultStatListItem | null; columnDef?: UserDefColumnDef[] };
-    }>('/stat-campaign-call-result', params);
+      data: { items: CampaignResultStatListItem[]; summary: CampaignResultStatListItem | null; columnDef?: UserDefColumnDef[] };
+    }>('/stat-campaign-result', params);
     return {
       items: response?.data?.data?.items ?? [],
       summary: response?.data?.data?.summary ?? null,
@@ -158,9 +158,9 @@ export const statisticsApi = {
     };
   },
 
-  // 캠페인 발신결과 통계 엑셀보내기 (BFF: stat-campaign-call-result-export)
-  exportCallResultStatExcel: async (params?: Record<string, unknown>) => {
-    return await apiClient.post<Blob>('/stat-campaign-call-result-export', params, { responseType: 'blob' });
+  // 캠페인 통계(캠페인 결과) 엑셀보내기 (BFF: stat-campaign-result-export)
+  exportCampaignResultStatExcel: async (params?: Record<string, unknown>) => {
+    return await apiClient.post<Blob>('/stat-campaign-result-export', params, { responseType: 'blob' });
   },
 
   // 테넌트 옵션 목록 조회 (BFF: stat-tenant-options)

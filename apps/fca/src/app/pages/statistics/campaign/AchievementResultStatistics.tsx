@@ -5,9 +5,8 @@ import { type BreadcrumbProps, Button, Checkbox, DatePicker, Divider, Select } f
 import dayjs, { type Dayjs } from 'dayjs';
 import { Download } from 'lucide-react';
 import { useBreadcrumbStore, useNavigationStore } from '@/shared-store';
-import { downloadBlob, extractFileName, toast } from '@/shared-util';
-import { statisticsApi } from '../../../features/statistics/api/statisticsApi';
-import { useGetCallResultStatList, useGetCampaignOptionList, useGetTenantOptionList } from '../../../features/statistics/hooks/useStatisticsQueries';
+import { toast } from '@/shared-util';
+import { useGetCampaignOptionList, useGetTenantOptionList } from '../../../features/statistics/hooks/useStatisticsQueries';
 import type { AchievementResultStatListItem } from '../../../features/statistics/types/statistics.types';
 import useAggridOptions from '@/libs/shared-ui/src/hooks/useAggridOptions';
 
@@ -46,22 +45,6 @@ const validateDateRange = (start: Dayjs, end: Dayjs, unit: string): boolean => {
   if (end.isBefore(start, 'day')) return false;
   return end.diff(start, 'day') <= getMaxDays(unit);
 };
-
-/** 캠페인 콤보 선택값 → BE campaignListIds / campaignIds (레거시 campaignListIdArr 우선) */
-function parseCampaignSelections(selections: string[]): { campaignListIds: number[]; campaignIds: string[] } {
-  const campaignListIds: number[] = [];
-  const campaignIds: string[] = [];
-  for (const v of selections) {
-    if (v.startsWith('L:')) {
-      const parts = v.split(':');
-      if (parts.length >= 3) campaignListIds.push(Number(parts[2]));
-    } else if (v.startsWith('C:')) {
-      const parts = v.split(':');
-      if (parts.length >= 3) campaignIds.push(parts.slice(2).join(':'));
-    }
-  }
-  return { campaignListIds, campaignIds };
-}
 
 // 시작일 비활성화 함수 (미래 날짜)
 const createDisabledDate = () => (current: Dayjs) => {
@@ -127,7 +110,6 @@ export default function AchievementResultStatistics() {
   const { gridOptions } = useAggridOptions();
   const gridRef = useRef<AgGridReact<AchievementResultStatListItem>>(null);
   const [rowData, setRowData] = useState<AchievementResultStatListItem[]>([]);
-  const [displayTimeUnit, setDisplayTimeUnit] = useState<string>('DD');
 
   // disabledDate 함수
   const disabledDate = useMemo(() => createDisabledDate(), []);
@@ -178,37 +160,11 @@ export default function AchievementResultStatistics() {
     return endDate.format('YYYY');
   })();
 
-  const campaignStatParams = useMemo(() => {
-    const { campaignListIds, campaignIds: cidArr } = parseCampaignSelections(campaignSelections);
-    const base: Record<string, unknown> = {
-      timeUnit,
-      fromTime,
-      toTime,
-      tenantIds: tenantIdNums,
-    };
-    if (campaignListIds.length > 0) {
-      base.campaignListIds = campaignListIds;
-    } else if (cidArr.length > 0) {
-      base.campaignIds = cidArr;
-    }
-    return base;
-  }, [timeUnit, fromTime, toTime, tenantIdNums, campaignSelections]);
-
-  // 캠페인 발신결과 통계 조회
-  const {
-    data: callResultStatData,
-    isLoading: isLoadingCallResultStatList,
-    refetch,
-  } = useGetCallResultStatList({
-    params: campaignStatParams,
-    queryOptions: { enabled: false },
-  });
-
-  useEffect(() => {
-    if (callResultStatData !== undefined) setRowData(callResultStatData.items as AchievementResultStatListItem[]);
-  }, [callResultStatData]);
-
-  const summaryRow: AchievementResultStatListItem[] = callResultStatData?.summary ? [callResultStatData.summary as AchievementResultStatListItem] : [];
+  // NOTE: 기존 구현은 캠페인 발신결과 통계 API(stat-campaign-call-result)에 의존했지만,
+  // 해당 API는 제거되어 현재 화면은 조회/엑셀을 비활성화한다.
+  const isLoading = false;
+  const isExporting = false;
+  const summaryRow: AchievementResultStatListItem[] = [];
 
   // startDate 또는 timeUnit 변경 시 endDate 자동 조정
   useEffect(() => {
@@ -249,8 +205,8 @@ export default function AchievementResultStatistics() {
       return;
     }
 
-    setDisplayTimeUnit(timeUnit);
-    refetch();
+    setRowData([]);
+    toast.warning('발신결과 통계(stat-campaign-call-result)가 제거되어 조회할 수 없습니다.');
   };
 
   const columnDefs: ColDef<AchievementResultStatListItem>[] = [
@@ -263,27 +219,13 @@ export default function AchievementResultStatistics() {
   const { permissions } = useNavigationStore();
   const hasExcelPermission = permissions.includes('fca:stats-call-result:excel');
 
-  const [isExporting, setIsExporting] = useState(false);
-
   const handleExcelDownload = async () => {
     if (!rowData?.length) {
       toast.warning('다운로드할 데이터가 없습니다.');
       return;
     }
 
-    setIsExporting(true);
-    try {
-      const response = await statisticsApi.exportCallResultStatExcel({
-        ...campaignStatParams,
-        timeUnit: displayTimeUnit,
-      });
-      const fileName = extractFileName(response.headers['content-disposition'], `CAMPAIGN_CALL_RESULT_${dayjs().format('YYYYMMDD_HHmmss')}.xlsx`);
-      downloadBlob(response.data, fileName);
-    } catch {
-      toast.error('엑셀 다운로드에 실패했습니다.');
-    } finally {
-      setIsExporting(false);
-    }
+    toast.warning('발신결과 통계(stat-campaign-call-result)가 제거되어 엑셀 다운로드를 할 수 없습니다.');
   };
 
   return (
@@ -427,7 +369,7 @@ export default function AchievementResultStatistics() {
             }
             columnDefs={columnDefs}
             gridOptions={{ ...gridOptions, statusBar: undefined }}
-            loading={isLoadingCallResultStatList}
+            loading={isLoading}
             pagination={false}
             rowNumbers={false}
             sideBar={false}

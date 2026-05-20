@@ -7,14 +7,14 @@ import { Download } from 'lucide-react';
 import { useBreadcrumbStore, useNavigationStore } from '@/shared-store';
 import { downloadBlob, extractFileName, toast } from '@/shared-util';
 import { statisticsApi } from '../../../features/statistics/api/statisticsApi';
-import { useGetCallResultStatList } from '../../../features/statistics/hooks/useStatisticsQueries';
+import { useGetCampaignResultStatList } from '../../../features/statistics/hooks/useStatisticsQueries';
 import type { CampaignResultStatListItem } from '../../../features/statistics/types/statistics.types';
 import useAggridOptions from '@/libs/shared-ui/src/hooks/useAggridOptions';
 
 const breadcrumb: BreadcrumbProps['items'] = [
   { title: '통계', path: '/fca/statistics' },
   { title: '캠페인 통계', path: '/fca/statistics/campaign' },
-  { title: '캠페인 발신결과 통계', path: '/fca/statistics/campaign/call-result' },
+  { title: '캠페인 통계', path: '/fca/statistics/campaign/campaign-result' },
 ];
 
 // timeUnit별 최대 검색 기간 (일 단위) — 레거시 IPR94S1310 기준
@@ -130,22 +130,22 @@ export default function CampaignResultStatistics() {
     [timeUnit, fromTime, toTime],
   );
 
-  // 캠페인 발신결과 통계 조회
+  // 캠페인 통계 조회 (BFF: stat-campaign-result)
   const {
-    data: callResultStatData,
-    isLoading: isLoadingCallResultStatList,
+    data: campaignResultStatData,
+    isLoading: isLoadingCampaignResultStatList,
     refetch,
-  } = useGetCallResultStatList({
+  } = useGetCampaignResultStatList({
     params: campaignStatParams,
     queryOptions: { enabled: false },
   });
 
   useEffect(() => {
-    if (callResultStatData !== undefined) setRowData(callResultStatData.items as CampaignResultStatListItem[]);
-  }, [callResultStatData]);
+    if (campaignResultStatData !== undefined) setRowData(campaignResultStatData.items);
+  }, [campaignResultStatData]);
 
   // BE에서 받은 summary에 '전체합계' 라벨 주입
-  const summaryRow: CampaignResultStatListItem[] = callResultStatData?.summary ? [{ ...(callResultStatData.summary as CampaignResultStatListItem), tenantName: '전체합계' }] : [];
+  const summaryRow: CampaignResultStatListItem[] = campaignResultStatData?.summary ? [{ ...campaignResultStatData.summary, tenantName: '전체합계' }] : [];
 
   // startDate 또는 timeUnit 변경 시 endDate 자동 조정
   useEffect(() => {
@@ -214,11 +214,11 @@ export default function CampaignResultStatistics() {
 
     setIsExporting(true);
     try {
-      const response = await statisticsApi.exportCallResultStatExcel({
+      const response = await statisticsApi.exportCampaignResultStatExcel({
         ...campaignStatParams,
         timeUnit: displayTimeUnit,
       });
-      const fileName = extractFileName(response.headers['content-disposition'], `CAMPAIGN_CALL_RESULT_${dayjs().format('YYYYMMDD_HHmmss')}.xlsx`);
+      const fileName = extractFileName(response.headers['content-disposition'], `CAMPAIGN_RESULT_${dayjs().format('YYYYMMDD_HHmmss')}.xlsx`);
       downloadBlob(response.data, fileName);
     } catch {
       toast.error('엑셀 다운로드에 실패했습니다.');
@@ -286,7 +286,7 @@ export default function CampaignResultStatistics() {
             getRowId={(params) => `${params.data.tenantId ?? ''}_${params.data.campaignId ?? ''}_${params.data.campaignListId ?? ''}_${params.data.psrTimeKey}_${params.data.seq}`}
             columnDefs={columnDefs}
             gridOptions={{ ...gridOptions, statusBar: undefined }}
-            loading={isLoadingCallResultStatList}
+            loading={isLoadingCampaignResultStatList}
             pagination={false}
             rowNumbers={false}
             sideBar={false}
