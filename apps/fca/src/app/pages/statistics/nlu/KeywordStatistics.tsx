@@ -60,6 +60,7 @@ export default function KeywordStatistics() {
   const gridRef = useRef<AgGridReact<KeywordStatListItem>>(null);
   const { data: modelList } = useGetModels();
   const [rowData, setRowData] = useState<KeywordStatListItem[]>([]);
+  const [summaryRow, setSummaryRow] = useState<KeywordStatListItem[]>([]);
   // 조회 시점의 timeUnit (그리드 날짜 포맷팅에 사용)
   const [displayTimeUnit, setDisplayTimeUnit] = useState<string>('DD');
 
@@ -116,11 +117,11 @@ export default function KeywordStatistics() {
   });
 
   useEffect(() => {
-    if (keywordStatData !== undefined) setRowData(keywordStatData.items);
+    if (keywordStatData !== undefined) {
+      setRowData(keywordStatData.items);
+      setSummaryRow(keywordStatData.summary ? [{ ...keywordStatData.summary, psrTimeKey: '전체합계' }] : []);
+    }
   }, [keywordStatData]);
-
-  // BE에서 받은 summary에 '전체합계' 라벨 주입
-  const summaryRow: KeywordStatListItem[] = keywordStatData?.summary ? [{ ...keywordStatData.summary, psrTimeKey: '전체합계' }] : [];
 
   // startDate 또는 timeUnit 변경 시 endDate 자동 조정
   useEffect(() => {

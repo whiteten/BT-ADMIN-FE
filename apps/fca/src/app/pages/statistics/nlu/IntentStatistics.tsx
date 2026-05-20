@@ -60,6 +60,7 @@ export default function IntentStatistics() {
   const gridRef = useRef<AgGridReact<IntentStatListItem>>(null);
   const { data: modelList } = useGetModels();
   const [rowData, setRowData] = useState<IntentStatListItem[]>([]);
+  const [summaryRow, setSummaryRow] = useState<IntentStatListItem[]>([]);
   // 조회 시점의 timeUnit (그리드 날짜 포맷팅에 사용)
   const [displayTimeUnit, setDisplayTimeUnit] = useState<string>('DD');
 
@@ -138,11 +139,11 @@ export default function IntentStatistics() {
   });
 
   useEffect(() => {
-    if (intentStatData !== undefined) setRowData(intentStatData.items);
+    if (intentStatData !== undefined) {
+      setRowData(intentStatData.items);
+      setSummaryRow(intentStatData.summary ? [{ ...intentStatData.summary, psrTimeKey: '전체합계' }] : []);
+    }
   }, [intentStatData]);
-
-  // BE에서 받은 summary에 '전체합계' 라벨 주입
-  const summaryRow: IntentStatListItem[] = intentStatData?.summary ? [{ ...intentStatData.summary, psrTimeKey: '전체합계' }] : [];
 
   // startDate 또는 timeUnit 변경 시 endDate 자동 조정
   useEffect(() => {
