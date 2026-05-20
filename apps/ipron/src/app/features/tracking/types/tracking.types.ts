@@ -21,15 +21,26 @@ export type CallResult =
   | 'NO_ANSWER'; // 응답 없음
 
 /** IVR step NodeType (TB_DM_IR_TRACKINGDATA.TYPE) — AS-IS IPR30S1021 매핑 */
+// AS-IS TrackingDataUtil.getIvrTrackingTypeName() 기준 13 타입
 export type IvrNodeType =
-  | 'START' // 시작
-  | 'MENU' // 메뉴 (TYPE=0)
-  | 'GETDIGIT' // DTMF 입력 (TYPE=1)
-  | 'MENT' // 멘트 재생 (TYPE=2)
-  | 'CTI' // CTI 호전환 (TYPE=4)
-  | 'QUERY' // 외부 조회
-  | 'VOICE_RECOGNINE' // STT (TYPE=18~22)
-  | 'DISCONNECT' // 종료
+  | 'Menu' // 0 메뉴
+  | 'GetDigit' // 1 DTMF 입력
+  | 'Play' // 2 멘트 재생
+  | 'Packet' // 3 전문 패킷
+  | 'Cti' // 4 CTI 호전환
+  | 'Query' // 5 외부 조회
+  | 'Tracking' // 6 트래킹 마커
+  | 'UserDef' // 7 메뉴통계
+  | 'HA' // 8 HA (시간만)
+  | 'EndInfo' // 9 메뉴 종료 정보
+  | 'PacketJson' // 23 JSON 패킷
+  | 'RequestVARS' // 24 VARS 요청
+  | 'CollectDigit' // 25 Collect Digit
+  | 'RequestHTTP' // 30 HTTP 요청
+  | 'Pause' // 31 일시정지 (v6.2)
+  | 'Resume' // 32 재개 (v6.2)
+  | 'ShowChat' // 40 IVR Chat 출력 (v6.0)
+  | 'GetChat' // 41 고객 Chat 입력 (v6.0)
   | 'OTHER';
 
 /** Agent 이벤트 종류 */
@@ -52,6 +63,14 @@ export type RecordingType = 'VOICE' | 'SCREEN' | 'STT';
  * 백엔드 TrackingSearchRequest 와 1:1 대응.
  * `searchSyntax.ts`가 cmdk 입력을 이 객체로 변환.
  */
+/** 콜 여정 Sankey — 검색 결과 콜 집합의 거시 단계 흐름 집계 */
+export interface JourneyFlow {
+  nodes: { name: string }[];
+  links: { source: string; target: string; value: number }[];
+  callCount: number;
+  truncated: boolean;
+}
+
 export interface TrackingSearchCriteria {
   /** 트래킹 모드 (default PBX) */
   mode: TrackingMode;
@@ -222,7 +241,7 @@ export interface CallDetailHeader {
 export interface CallSegment {
   segmentId: string;
   /** segment 종류 (inbound / ivr / cti / agent / disconnect) */
-  kind: 'INBOUND' | 'IVR' | 'CTI' | 'AGENT' | 'DISCONNECT' | 'OTHER';
+  kind: 'INBOUND' | 'OUTBOUND' | 'QUEUE_IN' | 'IVR' | 'CTI' | 'AGENT' | 'DISCONNECT' | 'OTHER';
   startTime: string;
   endTime: string | null;
   durationSec: number | null;
@@ -321,6 +340,22 @@ export interface AgentEvent {
   responseSec: number | null;
   /** 메모/사유 */
   description: string | null;
+}
+
+// ─── IVR 대화 (Dialog CDR) ─────────────────────────────────────────────────
+
+/** TB_DM_IR_DIALOG_CDR 한 turn (FORCUS_CDR_규격_v6.2 ForCus Dialog CDR 상세) */
+export interface DialogTurn {
+  seq: number | null; // 대화 순번
+  type: number | null; // 0 IVR / 10 음성STT / 11 음성DTMF / 20 멀티모달
+  speaker: 'BOT' | 'CUSTOMER';
+  text: string | null; // 발화/입력 내용
+  mentId: string | null; // Val3
+  startMs: number | null; // 절대시각
+  durationMs: number | null;
+  result: string | null; // S/F
+  subFlow: string | null; // Val7
+  scenarioName: string | null; // Val8
 }
 
 // ─── 녹취 ──────────────────────────────────────────────────────────────────

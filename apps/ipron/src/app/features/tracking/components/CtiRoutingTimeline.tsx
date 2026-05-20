@@ -24,6 +24,8 @@ const STATUS_STYLE: Record<CtiRoutingHop['status'], { bullet: string; text: stri
   FAILED: { bullet: 'bg-red-100 text-red-700', text: 'text-red-700' },
 };
 
+const FALLBACK_STYLE = { bullet: 'bg-gray-100 text-gray-500', text: 'text-gray-700' };
+
 const fmtTime = (iso: string | null): string => {
   if (!iso) return '';
   const d = new Date(iso);
@@ -47,7 +49,7 @@ export default function CtiRoutingTimeline({ hops, loading }: Props) {
     <ol className="space-y-3 px-4 py-3">
       {hops.map((hop, idx) => {
         const isLast = idx === hops.length - 1;
-        const style = STATUS_STYLE[hop.status];
+        const style = STATUS_STYLE[hop.status] ?? FALLBACK_STYLE;
         return (
           <li key={hop.hopNumber} className="flex gap-3">
             <div className="flex flex-col items-center">

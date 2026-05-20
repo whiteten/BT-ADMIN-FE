@@ -16,10 +16,12 @@ import dayjs, { type Dayjs } from 'dayjs';
 import { ChevronDown, ChevronUp, Download, Search, Star } from 'lucide-react';
 import { useBreadcrumbStore } from '@/shared-store';
 import { toast } from '@/shared-util';
+import CallJourneySankey from './CallJourneySankey';
 import CommandPalette from './CommandPalette';
 import PbxCallDetailDrawer from './PbxCallDetailDrawer';
 import SearchResultGrid from './SearchResultGrid';
-import { useSearchTracking } from '../hooks/useTrackingQueries';
+import { useGetJourney, useSearchTracking } from '../hooks/useTrackingQueries';
+import { useTrackingSearchStore } from '../store/useTrackingSearchStore';
 import type { CallSearchResult, DateRangePreset, RecentSearch, TrackingMode, TrackingSearchCriteria } from '../types/tracking.types';
 import { criteriaToString, parseSearchSyntax, presetToRange, validateCriteria } from '../utils/searchSyntax';
 
@@ -56,10 +58,14 @@ export default function TrackingSearchPage() {
   const navigate = useNavigate();
 
   // ─── State ────────────────────────────────────────────────────────────────
+  // 상세화면→목록 복귀 시 이전 검색 상태/결과를 복원하기 위해 store에서 lazy init
+  const snapshot = useTrackingSearchStore.getState();
+  const saveSnapshot = useTrackingSearchStore((s) => s.saveSnapshot);
+
   const [paletteOpen, setPaletteOpen] = useState(false);
-  const [rawQuery, setRawQuery] = useState('');
-  const [activePreset, setActivePreset] = useState<DateRangePreset>('LAST_1H');
-  const [customRange, setCustomRange] = useState<[Dayjs, Dayjs] | null>(null);
+  const [rawQuery, setRawQuery] = useState(snapshot.rawQuery);
+  const [activePreset, setActivePreset] = useState<DateRangePreset>(snapshot.activePreset);
+  const [customRange, setCustomRange] = useState<[Dayjs, Dayjs] | null>(snapshot.customRange ? [dayjs(snapshot.customRange.start), dayjs(snapshot.customRange.end)] : null);
 
   // Custom range 분리 입력 헬퍼 (fca 대화이력 검색 UX 와 통일 — DatePicker + TimePicker 4개)
   const updateCustomStart = useCallback(
@@ -114,10 +120,10 @@ export default function TrackingSearchPage() {
       if (cleaned !== rawQuery) setRawQuery(cleaned);
     }
   }, [rawQuery]);
-  const [mode, setMode] = useState<TrackingMode>('PBX');
+  const [mode, setMode] = useState<TrackingMode>(snapshot.mode);
   const [pbxCdrRow, setPbxCdrRow] = useState<CallSearchResult | null>(null);
   const [recentSearches, setRecentSearches] = useState<RecentSearch[]>([]);
-  const [hasSearched, setHasSearched] = useState(false);
+  const [hasSearched, setHasSearched] = useState(snapshot.hasSnapshot);
   const [quickOpen, setQuickOpen] = useState(true); // 빠른조회 펼침/접힘
   // 빠른 조회 - 3그룹 복합 필터
   const [quickResult, setQuickResult] = useState<'' | 'ABANDONED' | 'IVR_SELF'>('');
@@ -171,8 +177,13 @@ export default function TrackingSearchPage() {
 
   // ─── Search (ag-Grid clientSide row model + 한 번에 최대 10,000건) ────────
   const search = useSearchTracking();
-  const rows: CallSearchResult[] = search.data?.items ?? [];
-  const totalCount = search.data?.total ?? 0;
+  // 콜 여정 Sankey — 검색 결과 박스 탭 (목록 / 여정)
+  const journey = useGetJourney();
+  const [resultTab, setResultTab] = useState<'list' | 'journey'>('list');
+  const [lastCriteria, setLastCriteria] = useState<TrackingSearchCriteria | null>(null);
+  // 신규 검색 결과 우선, 없으면 store snapshot의 결과 사용 (목록 복귀 시 즉시 표시)
+  const rows: CallSearchResult[] = search.data?.items ?? (snapshot.hasSnapshot ? snapshot.items : []);
+  const totalCount = search.data?.total ?? (snapshot.hasSnapshot ? snapshot.total : 0);
 
   const buildCriteria = useCallback(
     (rawInput: string, presetOverride?: DateRangePreset, customOverride?: [Dayjs, Dayjs] | null): TrackingSearchCriteria | { error: string } => {
@@ -259,6 +270,19 @@ export default function TrackingSearchPage() {
             toast.warning('결과가 1만건을 초과합니다. 기간을 줄여 다시 검색하세요. (현재 1만건만 표시)');
           }
           persistRecent(rawInput || criteriaToString(built, presetOverride ?? activePreset), built, data.total);
+          // 상세화면 → 목록 복귀 시 복원하기 위해 검색 상태 + 결과 스냅샷 저장
+          saveSnapshot({
+            rawQuery: rawInput,
+            activePreset: presetOverride ?? activePreset,
+            customRange: customRange ? { start: customRange[0].toISOString(), end: customRange[1].toISOString() } : null,
+            mode,
+            criteria: built,
+            items: data.items,
+            total: data.total,
+          });
+          // 여정 탭 — 새 검색마다 재집계 대상 갱신
+          setLastCriteria(built);
+          journey.reset();
         },
         onError: (err: unknown) => {
           const m = err instanceof Error ? err.message : '검색 중 오류가 발생했습니다';
@@ -266,8 +290,16 @@ export default function TrackingSearchPage() {
         },
       });
     },
-    [activePreset, buildCriteria, persistRecent, search],
+    [activePreset, buildCriteria, customRange, mode, persistRecent, saveSnapshot, search, journey],
   );
+
+  // 여정 탭 진입 시 (집계 데이터 없으면) 마지막 검색조건으로 Sankey 집계
+  useEffect(() => {
+    if (resultTab !== 'journey') return;
+    if (!lastCriteria) return;
+    if (journey.data || journey.isPending) return;
+    journey.mutate(lastCriteria);
+  }, [resultTab, lastCriteria, journey]);
 
   // ─── Handlers ──────────────────────────────────────────────────────────────
   const handlePresetClick = useCallback((preset: DateRangePreset) => {
@@ -691,20 +723,40 @@ export default function TrackingSearchPage() {
                 </span>
               </div>
               <div className="flex items-center gap-2">
+                <div className="inline-flex rounded-md border border-gray-200 overflow-hidden text-[12px]">
+                  <button
+                    type="button"
+                    onClick={() => setResultTab('list')}
+                    className={`px-3 py-1 transition-colors ${resultTab === 'list' ? 'bg-[#405189] text-white font-medium' : 'bg-white text-gray-600 hover:bg-gray-50'}`}
+                  >
+                    목록
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setResultTab('journey')}
+                    className={`px-3 py-1 border-l border-gray-200 transition-colors ${resultTab === 'journey' ? 'bg-[#405189] text-white font-medium' : 'bg-white text-gray-600 hover:bg-gray-50'}`}
+                  >
+                    콜 여정
+                  </button>
+                </div>
                 <Button size="small" icon={<Download className="size-3" />} disabled title="Phase 2에서 활성화">
                   엑셀
                 </Button>
               </div>
             </div>
-            <SearchResultGrid
-              rows={rows}
-              loading={search.isPending}
-              mode={mode}
-              onRowDoubleClick={handleRowDoubleClick}
-              onIvrDrilldown={handleIvrDrilldown}
-              onCtiDrilldown={handleCtiDrilldown}
-              onPbxCdrInspect={(r) => setPbxCdrRow(r)}
-            />
+            {resultTab === 'list' ? (
+              <SearchResultGrid
+                rows={rows}
+                loading={search.isPending}
+                mode={mode}
+                onRowDoubleClick={handleRowDoubleClick}
+                onIvrDrilldown={handleIvrDrilldown}
+                onCtiDrilldown={handleCtiDrilldown}
+                onPbxCdrInspect={(r) => setPbxCdrRow(r)}
+              />
+            ) : (
+              <CallJourneySankey data={journey.data} loading={journey.isPending} />
+            )}
           </div>
         )}
       </div>

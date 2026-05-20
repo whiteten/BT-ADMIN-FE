@@ -10,19 +10,23 @@
  * inline flex 행 배치 — 부모 height 와 무관하게 안정적으로 렌더링.
  */
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { ArrowRight, Map as MapIcon, Minus, Plus } from 'lucide-react';
+import { ArrowRight, Maximize2, Minimize2, Minus, Plus } from 'lucide-react';
 import type { CallSegment } from '../types/tracking.types';
 
 interface Props {
   segments: CallSegment[];
   selectedSegmentId: string | null;
   onSelect: (segmentId: string) => void;
+  expanded?: boolean;
+  onToggleExpand?: () => void;
 }
 
 type ZoomLevel = 85 | 100 | 115;
 
 const KIND_STYLE: Record<CallSegment['kind'], { gradient: string; ring: string; emoji: string; label: string; minimapDot: string }> = {
   INBOUND: { gradient: 'linear-gradient(135deg, #a78bfa 0%, #8b5cf6 100%)', ring: 'rgba(139, 92, 246, 0.35)', emoji: '📥', label: '인입', minimapDot: '#8b5cf6' },
+  OUTBOUND: { gradient: 'linear-gradient(135deg, #22d3ee 0%, #06b6d4 100%)', ring: 'rgba(6, 182, 212, 0.35)', emoji: '📞', label: '발신', minimapDot: '#06b6d4' },
+  QUEUE_IN: { gradient: 'linear-gradient(135deg, #38bdf8 0%, #0ea5e9 100%)', ring: 'rgba(14, 165, 233, 0.35)', emoji: '📨', label: '큐 인입', minimapDot: '#0ea5e9' },
   IVR: { gradient: 'linear-gradient(135deg, #a78bfa 0%, #7c3aed 100%)', ring: 'rgba(124, 58, 237, 0.35)', emoji: '🤖', label: 'IVR', minimapDot: '#7c3aed' },
   CTI: { gradient: 'linear-gradient(135deg, #fbbf24 0%, #f59e0b 100%)', ring: 'rgba(245, 158, 11, 0.35)', emoji: '🔀', label: 'CTI', minimapDot: '#f59e0b' },
   AGENT: { gradient: 'linear-gradient(135deg, #34d399 0%, #10b981 100%)', ring: 'rgba(16, 185, 129, 0.35)', emoji: '🎧', label: '상담', minimapDot: '#10b981' },
@@ -53,13 +57,80 @@ const subLabel = (seg: CallSegment): string => {
   return 'segment';
 };
 
-export default function CallFlowDiagram({ segments, selectedSegmentId, onSelect }: Props) {
+export default function CallFlowDiagram({ segments, selectedSegmentId, onSelect, expanded = false, onToggleExpand }: Props) {
   const [zoom, setZoom] = useState<ZoomLevel>(100);
-  const [showMinimap, setShowMinimap] = useState(true);
   const scrollRef = useRef<HTMLDivElement>(null);
   const [scrollPos, setScrollPos] = useState({ left: 0, width: 0, viewport: 0 });
+  // 드래그 패닝 상태 — 카드/미니맵 공통
+  const dragRef = useRef<{ active: boolean; startX: number; startScroll: number; moved: boolean }>({ active: false, startX: 0, startScroll: 0, moved: false });
+  const [isDragging, setIsDragging] = useState(false);
 
   const scale = zoom / 100;
+
+  // 메인 카드 영역 드래그 패닝 (mousedown → 5px 이상 이동 시 panning, click과 분리)
+  const onCardMouseDown = (e: React.MouseEvent<HTMLDivElement>) => {
+    if (e.button !== 0) return;
+    const el = scrollRef.current;
+    if (!el) return;
+    dragRef.current = { active: true, startX: e.pageX, startScroll: el.scrollLeft, moved: false };
+  };
+  useEffect(() => {
+    const onMove = (e: MouseEvent) => {
+      if (!dragRef.current.active) return;
+      const dx = e.pageX - dragRef.current.startX;
+      if (!dragRef.current.moved && Math.abs(dx) > 5) {
+        dragRef.current.moved = true;
+        setIsDragging(true);
+      }
+      if (dragRef.current.moved && scrollRef.current) {
+        scrollRef.current.scrollLeft = dragRef.current.startScroll - dx;
+      }
+    };
+    const onUp = () => {
+      if (dragRef.current.moved) {
+        // 드래그 후 클릭 차단을 위해 다음 click 이벤트 캡처 단계에서 정지
+        const blocker = (ev: MouseEvent) => {
+          ev.stopPropagation();
+          ev.preventDefault();
+          window.removeEventListener('click', blocker, true);
+        };
+        window.addEventListener('click', blocker, true);
+      }
+      dragRef.current.active = false;
+      dragRef.current.moved = false;
+      setIsDragging(false);
+    };
+    window.addEventListener('mousemove', onMove);
+    window.addEventListener('mouseup', onUp);
+    return () => {
+      window.removeEventListener('mousemove', onMove);
+      window.removeEventListener('mouseup', onUp);
+    };
+  }, []);
+
+  // 미니맵 뷰포트 드래그 — 박스 위치를 마우스로 끌어서 메인 영역 scrollLeft 비례 변경
+  const onMinimapMouseDown = (e: React.MouseEvent<HTMLDivElement>) => {
+    if (e.button !== 0) return;
+    const minimapTrackEl = e.currentTarget.parentElement; // 152px 너비 트랙
+    const scrollEl = scrollRef.current;
+    if (!minimapTrackEl || !scrollEl) return;
+    const trackRect = minimapTrackEl.getBoundingClientRect();
+    const startX = e.clientX;
+    const startScrollLeft = scrollEl.scrollLeft;
+    const scrollableWidth = scrollEl.scrollWidth - scrollEl.clientWidth;
+    e.stopPropagation();
+    e.preventDefault();
+    const onMove = (ev: MouseEvent) => {
+      const dxRatio = (ev.clientX - startX) / (trackRect.width - 16); // 좌우 8px padding
+      scrollEl.scrollLeft = Math.max(0, Math.min(scrollableWidth, startScrollLeft + dxRatio * scrollableWidth));
+    };
+    const onUp = () => {
+      window.removeEventListener('mousemove', onMove);
+      window.removeEventListener('mouseup', onUp);
+    };
+    window.addEventListener('mousemove', onMove);
+    window.addEventListener('mouseup', onUp);
+  };
 
   // 미니맵 동기화
   useEffect(() => {
@@ -87,10 +158,12 @@ export default function CallFlowDiagram({ segments, selectedSegmentId, onSelect 
     );
   }
 
-  const showMinimapInline = segments.length >= 4;
-
   return (
-    <div className="bg-white rounded-md border border-gray-200 flex flex-col flex-shrink-0 overflow-hidden h-[230px] shadow-[0_1px_2px_0_rgba(56,65,74,0.15)]">
+    <div
+      className={`bg-white rounded-md border border-gray-200 flex flex-col overflow-hidden shadow-[0_1px_2px_0_rgba(56,65,74,0.15)] ${
+        expanded ? 'flex-1 min-h-0' : 'flex-shrink-0 h-[230px]'
+      }`}
+    >
       {/* 헤더 */}
       <div className="h-[48px] px-5 flex items-center justify-between border-b border-gray-100 flex-shrink-0">
         <div className="flex items-center gap-3 min-w-0">
@@ -127,19 +200,19 @@ export default function CallFlowDiagram({ segments, selectedSegmentId, onSelect 
           >
             <Plus className="size-3.5" />
           </button>
-          <span className="w-px h-3.5 bg-gray-200 mx-1" />
-          <button
-            type="button"
-            onClick={() => setShowMinimap((v) => !v)}
-            className={`text-[10.5px] px-2 py-1 rounded inline-flex items-center gap-1 transition-colors ${
-              showMinimap && showMinimapInline ? 'text-[#405189] bg-blue-50' : 'text-gray-500 hover:bg-gray-100'
-            }`}
-            title="미니맵 토글"
-            disabled={!showMinimapInline}
-          >
-            <MapIcon className="size-3" />
-            미니맵
-          </button>
+          {onToggleExpand && (
+            <>
+              <span className="w-px h-3.5 bg-gray-200 mx-1" />
+              <button
+                type="button"
+                onClick={onToggleExpand}
+                className={`size-7 rounded inline-flex items-center justify-center transition-colors ${expanded ? 'text-[#405189] bg-blue-50' : 'text-gray-500 hover:bg-gray-100'}`}
+                title={expanded ? '확장 해제' : '확장 (주요 정보만 위로)'}
+              >
+                {expanded ? <Minimize2 className="size-3.5" /> : <Maximize2 className="size-3.5" />}
+              </button>
+            </>
+          )}
         </div>
       </div>
 
@@ -154,7 +227,12 @@ export default function CallFlowDiagram({ segments, selectedSegmentId, onSelect 
           }}
         />
 
-        <div ref={scrollRef} className="relative h-full overflow-x-auto overflow-y-hidden flex items-center px-6" style={{ gap: 0 }}>
+        <div
+          ref={scrollRef}
+          onMouseDown={onCardMouseDown}
+          className={`relative h-full overflow-x-auto overflow-y-hidden flex items-center px-6 ${isDragging ? 'cursor-grabbing select-none' : 'cursor-grab'}`}
+          style={{ gap: 0 }}
+        >
           {segments.map((seg, i) => {
             const style = KIND_STYLE[seg.kind];
             const isActive = selectedSegmentId === seg.segmentId;
@@ -162,7 +240,12 @@ export default function CallFlowDiagram({ segments, selectedSegmentId, onSelect 
             const sub = subLabel(seg);
             const dur = fmtDuration(seg.durationSec);
             return (
-              <div key={seg.segmentId} className="flex items-center flex-shrink-0" style={{ transform: `scale(${scale})`, transformOrigin: 'center' }}>
+              <div
+                key={seg.segmentId}
+                data-segment-id={seg.segmentId}
+                className="flex items-center flex-shrink-0"
+                style={{ transform: `scale(${scale})`, transformOrigin: 'center' }}
+              >
                 <button
                   type="button"
                   onClick={() => onSelect(seg.segmentId)}
@@ -226,10 +309,10 @@ export default function CallFlowDiagram({ segments, selectedSegmentId, onSelect 
           })}
         </div>
 
-        {/* 미니맵 */}
-        {showMinimap && showMinimapInline && (
+        {/* 미니맵 — 항상 표시 */}
+        {
           <div
-            className="absolute bottom-3 right-3 bg-white border border-gray-200 rounded-md overflow-hidden pointer-events-none select-none"
+            className="absolute bottom-3 right-3 bg-white border border-gray-200 rounded-md overflow-hidden select-none"
             style={{ width: 168, boxShadow: '0 4px 12px rgba(0,0,0,0.08)' }}
           >
             <div className="px-2 py-1 border-b border-gray-100 flex items-center justify-between bg-gradient-to-b from-gray-50 to-white">
@@ -241,10 +324,19 @@ export default function CallFlowDiagram({ segments, selectedSegmentId, onSelect 
               {segments.map((seg, i) => {
                 const isActive = selectedSegmentId === seg.segmentId;
                 const left = 8 + (i / Math.max(segments.length - 1, 1)) * 152;
+                const sub = subLabel(seg);
                 return (
-                  <div
+                  <button
                     key={`mm-${seg.segmentId}`}
-                    className="absolute rounded-full"
+                    type="button"
+                    title={`${KIND_STYLE[seg.kind].label} · ${sub}`}
+                    onClick={() => {
+                      onSelect(seg.segmentId);
+                      // 메인 카드 영역 자동 스크롤 (해당 segment 가운데로)
+                      const node = scrollRef.current?.querySelector<HTMLElement>(`[data-segment-id="${seg.segmentId}"]`);
+                      node?.scrollIntoView({ behavior: 'smooth', inline: 'center', block: 'nearest' });
+                    }}
+                    className="absolute rounded-full cursor-pointer hover:scale-150 transition-transform"
                     style={{
                       width: isActive ? 8 : 6,
                       height: isActive ? 8 : 6,
@@ -253,13 +345,16 @@ export default function CallFlowDiagram({ segments, selectedSegmentId, onSelect 
                       background: seg.isError ? '#ef4444' : KIND_STYLE[seg.kind].minimapDot,
                       opacity: seg.isError ? 0.7 : 1,
                       boxShadow: isActive ? '0 0 0 2px white, 0 0 0 3px #405189' : 'none',
+                      padding: 0,
+                      border: 'none',
                     }}
                   />
                 );
               })}
               {scrollPos.width > scrollPos.viewport && (
                 <div
-                  className="absolute border-2 border-[#405189] rounded-sm"
+                  onMouseDown={onMinimapMouseDown}
+                  className="absolute border-2 border-[#405189] rounded-sm cursor-grab active:cursor-grabbing hover:bg-[#405189]/15"
                   style={{
                     top: 8,
                     height: 28,
@@ -267,11 +362,12 @@ export default function CallFlowDiagram({ segments, selectedSegmentId, onSelect 
                     width: Math.max(12, (scrollPos.viewport / scrollPos.width) * 152),
                     background: 'rgba(64,81,137,0.06)',
                   }}
+                  title="드래그로 위치 이동"
                 />
               )}
             </div>
           </div>
-        )}
+        }
       </div>
     </div>
   );

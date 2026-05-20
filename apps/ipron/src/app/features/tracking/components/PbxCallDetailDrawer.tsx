@@ -12,10 +12,10 @@
  *  │                                    │   ── raw 컬럼 (collapsible)          │
  *  └────────────────────────────────────┴────────────────────────────────────────┘
  */
-import { useState, useMemo, useEffect } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Drawer, Empty, Spin, Tag } from 'antd';
 import { ChevronDown, ChevronRight, Maximize2, Minimize2, Phone, X } from 'lucide-react';
-import { useGetTrackingDetail, useGetIeCdrDetail } from '../hooks/useTrackingQueries';
+import { useGetIeCdrDetail, useGetTrackingDetail } from '../hooks/useTrackingQueries';
 import type { CallSearchResult, CallSegment } from '../types/tracking.types';
 
 interface Props {
@@ -27,6 +27,8 @@ interface Props {
 // ── 라벨 ───────────────────────────────────────────────────────────────
 const SEGMENT_KIND_LABEL: Record<CallSegment['kind'], { label: string; color: string }> = {
   INBOUND: { label: '인입', color: 'blue' },
+  OUTBOUND: { label: '발신', color: 'cyan' },
+  QUEUE_IN: { label: '큐 인입', color: 'geekblue' },
   IVR: { label: 'IVR', color: 'purple' },
   CTI: { label: 'CTI 큐', color: 'cyan' },
   AGENT: { label: '상담사', color: 'green' },
@@ -104,15 +106,14 @@ function rFactorGrade(r: number | null): { bar: string; ring: string; text: stri
 export default function PbxCallDetailDrawer({ open, row, onClose }: Props) {
   const detailQ = useGetTrackingDetail(row?.ucid ?? '', { queryOptions: { enabled: open && !!row?.ucid } });
   const segments = useMemo<CallSegment[]>(() => detailQ.data?.segments ?? [], [detailQ.data]);
-  const ieSegments = useMemo(
-    () => segments.filter((s) => (s as unknown as { segmentType?: string }).segmentType === 'IE'),
-    [segments],
-  );
+  const ieSegments = useMemo(() => segments.filter((s) => (s as unknown as { segmentType?: string }).segmentType === 'IE'), [segments]);
   const [selectedHop, setSelectedHop] = useState<number | null>(null);
   const [fullscreen, setFullscreen] = useState(false);
 
   // Drawer 가 닫힐 때 fullscreen 상태도 초기화
-  useEffect(() => { if (!open) setFullscreen(false); }, [open]);
+  useEffect(() => {
+    if (!open) setFullscreen(false);
+  }, [open]);
 
   // segment 로딩 후 첫 IE hop 자동 선택
   useEffect(() => {
@@ -139,11 +140,7 @@ export default function PbxCallDetailDrawer({ open, row, onClose }: Props) {
       title={
         <div className="flex items-center gap-3">
           <span className="font-medium">교환기 CDR 상세</span>
-          {row?.ucid && (
-            <span className="font-mono text-[11px] text-gray-700 bg-gray-100 border border-gray-200 px-2 py-0.5 rounded truncate max-w-[480px]">
-              {row.ucid}
-            </span>
-          )}
+          {row?.ucid && <span className="font-mono text-[11px] text-gray-700 bg-gray-100 border border-gray-200 px-2 py-0.5 rounded truncate max-w-[480px]">{row.ucid}</span>}
         </div>
       }
       width={fullscreen ? '100vw' : 1000}
@@ -174,15 +171,12 @@ export default function PbxCallDetailDrawer({ open, row, onClose }: Props) {
 
           {/* 본문 2-pane */}
           <div className="flex flex-1 min-h-0">
-            <HopList
-              segments={ieSegments}
-              selectedHop={selectedHop}
-              onSelect={(h) => setSelectedHop(h)}
-              loading={detailQ.isLoading}
-            />
+            <HopList segments={ieSegments} selectedHop={selectedHop} onSelect={(h) => setSelectedHop(h)} loading={detailQ.isLoading} />
             <div className="flex-1 min-w-0 overflow-auto">
               {ieCdrQ.isLoading ? (
-                <div className="py-20 text-center"><Spin /></div>
+                <div className="py-20 text-center">
+                  <Spin />
+                </div>
               ) : Object.keys(ieRow).length === 0 ? (
                 <Empty description="hop 정보 없음" className="mt-20" />
               ) : (
@@ -212,7 +206,11 @@ function CallSummaryHeader({ row }: { row: CallSearchResult }) {
         <span className="text-gray-300">→</span>
         <KV label="수신" value={row.dnis ?? '-'} mono />
         <div className="ml-auto flex items-center gap-1.5">
-          {row.ivrEntered && <Tag color="purple" className="!text-[10px] !mr-0">IVR</Tag>}
+          {row.ivrEntered && (
+            <Tag color="purple" className="!text-[10px] !mr-0">
+              IVR
+            </Tag>
+          )}
           {ctiState !== 'none' && (
             <Tag color={ctiState === 'success' ? 'blue' : ctiState === 'partial' ? 'orange' : 'default'} className="!text-[10px] !mr-0">
               CTI {ctiState === 'success' ? '성공' : ctiState === 'partial' ? '부분실패' : '실패'}
@@ -232,17 +230,15 @@ function CallSummaryHeader({ row }: { row: CallSearchResult }) {
 // ════════════════════════════════════════════════════════════════════
 //  좌측 hop 리스트
 // ════════════════════════════════════════════════════════════════════
-function HopList({
-  segments, selectedHop, onSelect, loading,
-}: { segments: CallSegment[]; selectedHop: number | null; onSelect: (hop: number) => void; loading: boolean }) {
+function HopList({ segments, selectedHop, onSelect, loading }: { segments: CallSegment[]; selectedHop: number | null; onSelect: (hop: number) => void; loading: boolean }) {
   return (
     <aside className="w-[280px] border-r border-gray-200 bg-white flex flex-col flex-shrink-0">
-      <div className="px-4 py-2.5 border-b border-gray-100 text-[11px] text-gray-500 font-medium uppercase tracking-wider">
-        교환기 hop
-      </div>
+      <div className="px-4 py-2.5 border-b border-gray-100 text-[11px] text-gray-500 font-medium uppercase tracking-wider">교환기 hop</div>
       <div className="flex-1 overflow-auto">
         {loading ? (
-          <div className="py-10 text-center"><Spin size="small" /></div>
+          <div className="py-10 text-center">
+            <Spin size="small" />
+          </div>
         ) : segments.length === 0 ? (
           <div className="px-4 py-8 text-[11px] text-gray-400 text-center">hop 없음</div>
         ) : (
@@ -256,17 +252,13 @@ function HopList({
                   <button
                     type="button"
                     onClick={() => hop != null && onSelect(hop)}
-                    className={`w-full px-4 py-2.5 text-left transition-colors border-l-[3px] ${
-                      isActive
-                        ? 'bg-blue-50 border-blue-500'
-                        : 'border-transparent hover:bg-gray-50'
-                    }`}
+                    className={`w-full px-4 py-2.5 text-left transition-colors border-l-[3px] ${isActive ? 'bg-blue-50 border-blue-500' : 'border-transparent hover:bg-gray-50'}`}
                   >
                     <div className="flex items-center gap-2 mb-0.5">
-                      <span className={`text-[11px] font-mono ${isActive ? 'text-blue-700 font-semibold' : 'text-gray-500'}`}>
-                        HOP {hop ?? '-'}
-                      </span>
-                      <Tag color={meta.color} className="!text-[10px] !mr-0 !leading-[16px]">{meta.label}</Tag>
+                      <span className={`text-[11px] font-mono ${isActive ? 'text-blue-700 font-semibold' : 'text-gray-500'}`}>HOP {hop ?? '-'}</span>
+                      <Tag color={meta.color} className="!text-[10px] !mr-0 !leading-[16px]">
+                        {meta.label}
+                      </Tag>
                     </div>
                     <EndpointLine seg={seg} />
                     <div className="text-[10px] text-gray-400 mt-0.5">
@@ -285,7 +277,14 @@ function HopList({
 
 // segment 한 줄 — 발신 → 착신 (IE 일 때만 oName/tName 사용, 외엔 seg.label fallback)
 function EndpointLine({ seg }: { seg: CallSegment }) {
-  const raw = seg as unknown as { oName?: string | null; tName?: string | null; serviceName?: string | null; queueName?: string | null; agentName?: string | null; segmentType?: string };
+  const raw = seg as unknown as {
+    oName?: string | null;
+    tName?: string | null;
+    serviceName?: string | null;
+    queueName?: string | null;
+    agentName?: string | null;
+    segmentType?: string;
+  };
   const o = raw.oName ?? '';
   const t = raw.tName ?? '';
   if (o || t) {
@@ -324,34 +323,30 @@ function IeCdrPanel({ ieRow }: { ieRow: Record<string, unknown> }) {
     <div className="p-5 space-y-4">
       {/* 1. 헤더 카드 — hop / 결과 / 시각 */}
       <div className="rounded-lg border border-gray-200 bg-white p-4 flex items-center gap-5">
-        <div className="flex items-center justify-center w-14 h-14 rounded-lg bg-blue-50 text-blue-700 font-mono text-xl font-bold">
-          {hop ?? '-'}
-        </div>
+        <div className="flex items-center justify-center w-14 h-14 rounded-lg bg-blue-50 text-blue-700 font-mono text-xl font-bold">{hop ?? '-'}</div>
         <div className="flex-1">
           <div className="flex items-center gap-2 mb-1">
             <span className="text-[12px] text-gray-500">HOP</span>
-            <span className={`px-2 py-0.5 rounded-full text-[11px] font-medium ${ccTypeMeta.bg} ${ccTypeMeta.color}`}>
-              {ccTypeMeta.label}
-            </span>
-            {ccPart != null && (
-              <span className="text-[10px] text-gray-500">{CC_PART[ccPart] ?? ccPart}</span>
-            )}
-            {callKind != null && (
-              <span className="text-[10px] text-gray-500">· {CALL_KIND_LABEL[callKind] ?? callKind}</span>
-            )}
+            <span className={`px-2 py-0.5 rounded-full text-[11px] font-medium ${ccTypeMeta.bg} ${ccTypeMeta.color}`}>{ccTypeMeta.label}</span>
+            {ccPart != null && <span className="text-[10px] text-gray-500">{CC_PART[ccPart] ?? ccPart}</span>}
+            {callKind != null && <span className="text-[10px] text-gray-500">· {CALL_KIND_LABEL[callKind] ?? callKind}</span>}
           </div>
           <div className="flex items-center gap-6 text-[11px] text-gray-600">
-            <div>시작 <span className="font-mono text-gray-800">{fmtCdrTime(ieRow.CREATE_TIME)}</span></div>
-            <div>응답 <span className="font-mono text-gray-800">{fmtCdrTime(ieRow.ANSWER_TIME)}</span></div>
-            <div>종료 <span className="font-mono text-gray-800">{fmtCdrTime(ieRow.END_TIME)}</span></div>
+            <div>
+              시작 <span className="font-mono text-gray-800">{fmtCdrTime(ieRow.CREATE_TIME)}</span>
+            </div>
+            <div>
+              응답 <span className="font-mono text-gray-800">{fmtCdrTime(ieRow.ANSWER_TIME)}</span>
+            </div>
+            <div>
+              종료 <span className="font-mono text-gray-800">{fmtCdrTime(ieRow.END_TIME)}</span>
+            </div>
           </div>
         </div>
         <div className="text-right">
           <div className="text-[10px] text-gray-400 uppercase tracking-wider">통화시간</div>
           <div className="text-[20px] font-mono font-semibold text-gray-800">{fmtDuration(talkSec)}</div>
-          {answerSec != null && answerSec > 0 && (
-            <div className="text-[10px] text-gray-400">응답까지 {answerSec}s</div>
-          )}
+          {answerSec != null && answerSec > 0 && <div className="text-[10px] text-gray-400">응답까지 {answerSec}s</div>}
         </div>
       </div>
 
@@ -426,11 +421,27 @@ function IeCdrPanel({ ieRow }: { ieRow: Record<string, unknown> }) {
 
 // ── 발/착신 카드 ────────────────────────────────────────────────────
 function EndpointCard({
-  title, accent, lineType, name, lrdn, rn, ac, route, holdCnt, holdSec,
+  title,
+  accent,
+  lineType,
+  name,
+  lrdn,
+  rn,
+  ac,
+  route,
+  holdCnt,
+  holdSec,
 }: {
-  title: string; accent: 'rose' | 'sky';
-  lineType: number | null; name: string; lrdn: string; rn: string; ac: string; route: string;
-  holdCnt: number | null; holdSec: number | null;
+  title: string;
+  accent: 'rose' | 'sky';
+  lineType: number | null;
+  name: string;
+  lrdn: string;
+  rn: string;
+  ac: string;
+  route: string;
+  holdCnt: number | null;
+  holdSec: number | null;
 }) {
   const accentMap = {
     rose: 'border-rose-200 bg-rose-50/40',
@@ -441,11 +452,7 @@ function EndpointCard({
     <div className={`rounded-lg border ${accentMap[accent]} p-3.5`}>
       <div className="flex items-center justify-between mb-2">
         <span className={`text-[11px] font-semibold ${titleColor} uppercase tracking-wider`}>{title}</span>
-        {lineType != null && (
-          <span className="text-[10px] px-1.5 py-0.5 rounded bg-white border border-gray-200 text-gray-600">
-            {LINE_TYPE[lineType] ?? lineType}
-          </span>
-        )}
+        {lineType != null && <span className="text-[10px] px-1.5 py-0.5 rounded bg-white border border-gray-200 text-gray-600">{LINE_TYPE[lineType] ?? lineType}</span>}
       </div>
       <div className="text-[13px] font-medium text-gray-800 mb-1 truncate">{name}</div>
       <div className="grid grid-cols-2 gap-x-2 gap-y-1 text-[11px] text-gray-600">
@@ -453,9 +460,7 @@ function EndpointCard({
         <Mini label="실번호" v={rn} mono />
         <Mini label="AC" v={ac} mono />
         <Mini label="라우트" v={route} />
-        {holdCnt != null && holdCnt > 0 && (
-          <Mini label="홀드" v={`${holdCnt}회 / ${fmtDuration(holdSec)}`} />
-        )}
+        {holdCnt != null && holdCnt > 0 && <Mini label="홀드" v={`${holdCnt}회 / ${fmtDuration(holdSec)}`} />}
       </div>
     </div>
   );
@@ -463,22 +468,29 @@ function EndpointCard({
 
 // ── 통화 품질 섹션 — R-Factor 메인 + 보조 지표 ───────────────────────
 function QualitySection(p: {
-  oRFactor: number | null; tRFactor: number | null;
-  oMos: number | null; tMos: number | null;
-  oJitterAvg: number | null; tJitterAvg: number | null;
-  oJitterMax: number | null; tJitterMax: number | null;
-  oPacketLoss: number | null; tPacketLoss: number | null;
-  oRtt: number | null; tRtt: number | null;
-  oRemote: string; tRemote: string;
-  oCodec: string; tCodec: string;
-  oRtpRx: string; oRtpTx: string;
-  tRtpRx: string; tRtpTx: string;
+  oRFactor: number | null;
+  tRFactor: number | null;
+  oMos: number | null;
+  tMos: number | null;
+  oJitterAvg: number | null;
+  tJitterAvg: number | null;
+  oJitterMax: number | null;
+  tJitterMax: number | null;
+  oPacketLoss: number | null;
+  tPacketLoss: number | null;
+  oRtt: number | null;
+  tRtt: number | null;
+  oRemote: string;
+  tRemote: string;
+  oCodec: string;
+  tCodec: string;
+  oRtpRx: string;
+  oRtpTx: string;
+  tRtpRx: string;
+  tRtpTx: string;
 }) {
   // 어떤 지표도 없으면 카드 숨김 (메인+보조 지표 모두 확인)
-  const anyData = [
-    p.oRFactor, p.tRFactor, p.oMos, p.tMos,
-    p.oJitterAvg, p.tJitterAvg, p.oPacketLoss, p.tPacketLoss, p.oRtt, p.tRtt,
-  ].some((v) => v != null);
+  const anyData = [p.oRFactor, p.tRFactor, p.oMos, p.tMos, p.oJitterAvg, p.tJitterAvg, p.oPacketLoss, p.tPacketLoss, p.oRtt, p.tRtt].some((v) => v != null);
   if (!anyData) return null;
 
   return (
@@ -609,7 +621,9 @@ function Mini({ label, v, mono = false }: { label: string; v: string; mono?: boo
   return (
     <div className="flex flex-col gap-0.5 min-w-0">
       <span className="text-[10px] text-gray-400 uppercase tracking-wider">{label}</span>
-      <span className={`text-[12px] text-gray-800 truncate ${mono ? 'font-mono' : ''}`} title={v}>{v}</span>
+      <span className={`text-[12px] text-gray-800 truncate ${mono ? 'font-mono' : ''}`} title={v}>
+        {v}
+      </span>
     </div>
   );
 }
@@ -749,32 +763,66 @@ const IE_COL_LABEL: Record<string, string> = {
 // ── raw 컬럼 collapsible ────────────────────────────────────────────
 const HIDDEN_KEYS = new Set([
   // 시각화에서 이미 사용한 컬럼들 — raw 에서는 숨김
-  'HOP', 'CC_TYPE', 'CC_PART', 'CALL_KIND', 'CREATE_TIME', 'ANSWER_TIME', 'END_TIME',
-  'TALK_SEC', 'ANSWER_SEC',
-  'O_TYPE', 'O_NAME', 'O_LRDN', 'O_RN', 'O_AC', 'O_ROUTE_NAME', 'O_HOLDCNT', 'O_HOLDSEC',
-  'T_TYPE', 'T_NAME', 'T_LRDN', 'T_RN', 'T_AC', 'T_ROUTE_NAME', 'T_HOLDCNT', 'T_HOLDSEC',
-  'O_MOS', 'T_MOS', 'O_JITTER_AVG', 'T_JITTER_AVG', 'O_JITTER_MAX', 'T_JITTER_MAX',
-  'O_R_FACTOR', 'T_R_FACTOR', 'O_RTP_MS_LOST', 'T_RTP_MS_LOST', 'O_ICMP_RTT', 'T_ICMP_RTT',
-  'O_REMOTE_ADDR', 'T_REMOTE_ADDR',
-  'O_NEGO_CODEC', 'T_NEGO_CODEC', 'O_RTP_RX', 'O_RTP_TX', 'T_RTP_RX', 'T_RTP_TX',
-  'SYSTEM_ID', 'NODE_ID', 'TENANT_ID', 'TENANT_NAME', 'CSTA_ID',
+  'HOP',
+  'CC_TYPE',
+  'CC_PART',
+  'CALL_KIND',
+  'CREATE_TIME',
+  'ANSWER_TIME',
+  'END_TIME',
+  'TALK_SEC',
+  'ANSWER_SEC',
+  'O_TYPE',
+  'O_NAME',
+  'O_LRDN',
+  'O_RN',
+  'O_AC',
+  'O_ROUTE_NAME',
+  'O_HOLDCNT',
+  'O_HOLDSEC',
+  'T_TYPE',
+  'T_NAME',
+  'T_LRDN',
+  'T_RN',
+  'T_AC',
+  'T_ROUTE_NAME',
+  'T_HOLDCNT',
+  'T_HOLDSEC',
+  'O_MOS',
+  'T_MOS',
+  'O_JITTER_AVG',
+  'T_JITTER_AVG',
+  'O_JITTER_MAX',
+  'T_JITTER_MAX',
+  'O_R_FACTOR',
+  'T_R_FACTOR',
+  'O_RTP_MS_LOST',
+  'T_RTP_MS_LOST',
+  'O_ICMP_RTT',
+  'T_ICMP_RTT',
+  'O_REMOTE_ADDR',
+  'T_REMOTE_ADDR',
+  'O_NEGO_CODEC',
+  'T_NEGO_CODEC',
+  'O_RTP_RX',
+  'O_RTP_TX',
+  'T_RTP_RX',
+  'T_RTP_TX',
+  'SYSTEM_ID',
+  'NODE_ID',
+  'TENANT_ID',
+  'TENANT_NAME',
+  'CSTA_ID',
   'UCID',
 ]);
 
 function RawAccordion({ ieRow }: { ieRow: Record<string, unknown> }) {
   const [open, setOpen] = useState(false);
-  const entries = useMemo(
-    () => Object.entries(ieRow).filter(([k, v]) => !HIDDEN_KEYS.has(k) && v != null && v !== ''),
-    [ieRow],
-  );
+  const entries = useMemo(() => Object.entries(ieRow).filter(([k, v]) => !HIDDEN_KEYS.has(k) && v != null && v !== ''), [ieRow]);
   if (entries.length === 0) return null;
   return (
     <div className="rounded-lg border border-gray-200 bg-white">
-      <button
-        type="button"
-        onClick={() => setOpen(!open)}
-        className="w-full px-4 py-2.5 flex items-center justify-between hover:bg-gray-50 transition-colors"
-      >
+      <button type="button" onClick={() => setOpen(!open)} className="w-full px-4 py-2.5 flex items-center justify-between hover:bg-gray-50 transition-colors">
         <span className="text-[12px] font-medium text-gray-700">전체 raw 컬럼 ({entries.length})</span>
         {open ? <ChevronDown className="size-3.5 text-gray-400" /> : <ChevronRight className="size-3.5 text-gray-400" />}
       </button>
@@ -786,9 +834,7 @@ function RawAccordion({ ieRow }: { ieRow: Record<string, unknown> }) {
                 <tr key={k} className="border-b border-gray-100 last:border-b-0">
                   <td className="py-1 pr-3 align-top w-[220px]">
                     <div className="text-gray-700">{IE_COL_LABEL[k] ?? k}</div>
-                    {IE_COL_LABEL[k] && (
-                      <div className="text-[9px] text-gray-400 font-mono mt-0.5">{k}</div>
-                    )}
+                    {IE_COL_LABEL[k] && <div className="text-[9px] text-gray-400 font-mono mt-0.5">{k}</div>}
                   </td>
                   <td className="py-1 font-mono break-all">{String(v)}</td>
                 </tr>

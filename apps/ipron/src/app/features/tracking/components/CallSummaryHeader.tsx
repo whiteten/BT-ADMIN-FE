@@ -9,7 +9,7 @@
  */
 import { useState } from 'react';
 import { Button, Tooltip } from 'antd';
-import { Copy, Download, Lock, Unlock } from 'lucide-react';
+import { ArrowLeft, Copy, Download, Lock, Unlock } from 'lucide-react';
 import type { CallDetailHeader, CallResult } from '../types/tracking.types';
 
 interface Props {
@@ -17,6 +17,7 @@ interface Props {
   canRequestUnmask?: boolean;
   onRequestUnmask?: () => void;
   onExport?: () => void;
+  onBackToList?: () => void;
 }
 
 const RESULT_BADGE: Record<CallResult, { bg: string; text: string; ring: string; label: string; emoji: string }> = {
@@ -52,7 +53,7 @@ function MetaCell({ label, children, mono = false }: { label: string; children: 
   );
 }
 
-export default function CallSummaryHeader({ header, canRequestUnmask = false, onRequestUnmask, onExport }: Props) {
+export default function CallSummaryHeader({ header, canRequestUnmask = false, onRequestUnmask, onExport, onBackToList }: Props) {
   const badge = header.result ? RESULT_BADGE[header.result] : null;
   const [copied, setCopied] = useState(false);
 
@@ -149,6 +150,11 @@ export default function CallSummaryHeader({ header, canRequestUnmask = false, on
           {onExport && (
             <Button size="small" type="default" icon={<Download className="size-3.5" />} onClick={onExport}>
               엑셀
+            </Button>
+          )}
+          {onBackToList && (
+            <Button size="small" type="default" icon={<ArrowLeft className="size-3.5" />} onClick={onBackToList}>
+              목록으로
             </Button>
           )}
         </div>

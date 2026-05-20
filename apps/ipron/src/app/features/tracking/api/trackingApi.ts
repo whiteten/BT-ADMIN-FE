@@ -22,7 +22,9 @@ import type {
   CallSearchResult,
   CallSegment,
   CtiRoutingHop,
+  DialogTurn,
   IvrScenarioGroup,
+  JourneyFlow,
   RecordingRedirectResponse,
   RecordingType,
   TrackingSearchCriteria,
@@ -57,6 +59,10 @@ interface BackendCallFlowSegment {
   oType: number | null;
   tType: number | null;
   ccEnd: number | null;
+  // 콜 방향 — IE: CALL_KIND(0=내선/1=인바운드/2=아웃바운드), IR: CALL_DIRECTION(1=인바운드/2=아웃바운드/5=데몬콜)
+  callKind: number | null;
+  ani: string | null;
+  dnis: string | null;
 }
 
 interface BackendCallDetail {
@@ -70,6 +76,129 @@ interface BackendCallDetail {
   tenantId: number | null;
   tenantName: string | null;
   segments: BackendCallFlowSegment[];
+}
+
+// ─── Backend IvrStepNode 응답 매핑 ─────────────────────────────────────────
+// BE 가 IvrStepNode 구조로 내려오므로(startMs/durationMs/serviceName/hasDialog),
+// FE 가 기대하는 IvrScenarioGroup 구조(startTime ISO/durationSec/scenarioName/hasVoiceRecognition)로 변환.
+interface BackendIvrStep {
+  menuId: string | null;
+  subSeq: number | null;
+  type: string | null;
+  typeCode: number | null;
+  seq: number | null;
+  block: string | null;
+  sp: string | null;
+  val1: string | null;
+  val2: string | null;
+  val3: string | null;
+  val4: string | null;
+  val5: string | null;
+  val6: string | null;
+  val7: string | null;
+  startMs: number | null;
+  durationMs: number | null;
+  dtmfInput: string | null;
+  mentName: string | null;
+  endReason: string | null;
+  depth: number | null;
+  parentId: string | null;
+}
+
+interface BackendIvrStepNode {
+  cdrPkey: number | null;
+  serviceName: string | null;
+  scenarioVersion: string | null;
+  startMs: number | null;
+  durationMs: number | null;
+  hasDialog: boolean | null;
+  steps: BackendIvrStep[] | null;
+}
+
+// BE typeLabel(AS-IS getIvrTrackingTypeName) 그대로 매핑
+function mapIvrNodeType(typeLabel: string | null): IvrScenarioGroup['steps'][number]['type'] {
+  switch (typeLabel) {
+    case 'Menu':
+      return 'Menu';
+    case 'GetDigit':
+      return 'GetDigit';
+    case 'Play':
+      return 'Play';
+    case 'Packet':
+      return 'Packet';
+    case 'Cti':
+      return 'Cti';
+    case 'Query':
+      return 'Query';
+    case 'Tracking':
+      return 'Tracking';
+    case 'UserDef':
+      return 'UserDef';
+    case 'HA':
+      return 'HA';
+    case 'EndInfo':
+      return 'EndInfo';
+    case 'PacketJson':
+      return 'PacketJson';
+    case 'RequestVARS':
+      return 'RequestVARS';
+    case 'CollectDigit':
+      return 'CollectDigit';
+    case 'RequestHTTP':
+      return 'RequestHTTP';
+    case 'Pause':
+      return 'Pause';
+    case 'Resume':
+      return 'Resume';
+    case 'ShowChat':
+      return 'ShowChat';
+    case 'GetChat':
+      return 'GetChat';
+    default:
+      return 'OTHER';
+  }
+}
+
+function msToIso(ms: number | null): string {
+  if (ms == null || !Number.isFinite(ms)) return '';
+  try {
+    return new Date(ms).toISOString();
+  } catch {
+    return '';
+  }
+}
+
+function mapIvrScenarioGroup(node: BackendIvrStepNode): IvrScenarioGroup {
+  const startMs = node.startMs;
+  const durationMs = node.durationMs;
+  const durationSec = durationMs != null ? Math.round(durationMs / 1000) : null;
+  const endMs = startMs != null && durationMs != null ? startMs + durationMs : null;
+  const steps = (node.steps ?? []).map((s, idx) => ({
+    stepId: `${node.cdrPkey ?? 0}#${s.menuId ?? 'HA'}#${s.subSeq ?? idx}`,
+    type: mapIvrNodeType(s.type),
+    rawType: s.typeCode ?? 0,
+    menuId: s.menuId,
+    depth: s.depth ?? 0,
+    enterTime: msToIso(s.startMs),
+    durationSec: s.durationMs != null ? Math.round(s.durationMs / 1000) : null,
+    mentName: s.mentName,
+    dtmfInput: s.dtmfInput,
+    sttResult: null,
+    queryResult: null,
+    endReason: s.endReason,
+    branchLabel: null,
+  }));
+  return {
+    cdrPkey: node.cdrPkey ?? 0,
+    scenarioName: node.serviceName ?? '(시나리오)',
+    scenarioId: 0,
+    scenarioVersion: node.scenarioVersion,
+    startTime: msToIso(startMs),
+    endTime: endMs != null ? msToIso(endMs) : null,
+    durationSec,
+    hasVoiceRecognition: !!node.hasDialog,
+    steps,
+  };
 }
 
 function emptyHeader(ucid: string): CallDetailHeader {
@@ -143,6 +272,76 @@ function segmentLabel(seg: BackendCallFlowSegment, kind: CallSegment['kind']): s
   return seg.tName ?? seg.oName ?? `hop ${seg.hop ?? '?'}`;
 }
 
+/**
+ * 백엔드 CtiRouteHop (raw) — AS-IS IPR30S1060Service.selScenarioTrackingCdr 포팅 구조.
+ * actionLabel, hop, processDn, startTime(절대 HH:mm:ss), endReasonLabel, hunted*, status, rules, details.
+ */
+interface BackendCtiRouteHop {
+  actionCode: number | null;
+  actionLabel: string | null;
+  hop: number | null;
+  processDn: string | null;
+  startTime: string | null;
+  endTime: string | null;
+  endReasonCode: string | null;
+  endReasonLabel: string | null;
+  huntedAgentId: number | null;
+  huntedAgentName: string | null;
+  huntedAgentLoginId: string | null;
+  status: string | null;
+  rules: Array<{
+    optionNo: number;
+    typeLabel: string | null;
+    skillName: string | null;
+    skillLevel: string | null;
+    groupName: string | null;
+    used: boolean;
+  }> | null;
+  details: Array<{ label: string; value: string }> | null;
+}
+
+const CTI_STATUS_SET = new Set(['SUCCESS', 'PENDING', 'BUSY', 'NO_ANSWER', 'SKIP', 'FAILED']);
+
+/**
+ * 백엔드 CtiRouteHop → FE CtiRoutingHop 변환.
+ * <p>AS-IS dept3 트리(details) + Option(rules) 를 meta 로, 헤더는 처리DN/종료사유/헌팅상담원으로 구성.</p>
+ */
+function mapCtiRouteHop(r: BackendCtiRouteHop, idx: number): CtiRoutingHop {
+  const descParts: string[] = [];
+  if (r.processDn) descParts.push(`처리 ${r.processDn}`);
+  if (r.endReasonLabel) descParts.push(r.endReasonLabel);
+  if (r.huntedAgentName) {
+    descParts.push(`매칭 ${r.huntedAgentName}${r.huntedAgentLoginId ? ` (${r.huntedAgentLoginId})` : ''}`);
+  }
+
+  const meta: Record<string, string | number | null> = {};
+  (r.details ?? []).forEach((d) => {
+    if (d.label && d.value) meta[d.label] = d.value;
+  });
+  (r.rules ?? []).forEach((rl) => {
+    const parts = [rl.typeLabel];
+    if (rl.skillName) parts.push(`Skill ${rl.skillName}`);
+    if (rl.skillLevel) parts.push(`Lvl ${rl.skillLevel}`);
+    if (rl.groupName) parts.push(`Group ${rl.groupName}`);
+    meta[`Option${rl.optionNo}${rl.used ? ' (*)' : ''}`] = parts.filter(Boolean).join(', ');
+  });
+
+  const status = r.status && CTI_STATUS_SET.has(r.status) ? r.status : 'PENDING';
+
+  return {
+    hopNumber: r.hop ?? idx + 1,
+    title: r.actionLabel ?? 'CTI 라우팅',
+    description: descParts.join(' · '),
+    enterTime: r.startTime ?? null,
+    actionCode: r.actionCode ?? null,
+    endReason: r.endReasonLabel ?? null,
+    agentId: r.huntedAgentId != null ? String(r.huntedAgentId) : null,
+    agentName: r.huntedAgentName ?? null,
+    status: status as CtiRoutingHop['status'],
+    meta,
+  };
+}
+
 function mapCallDetail(raw: BackendCallDetail): { header: CallDetailHeader; segments: CallSegment[] } {
   const aniMasked = /\*/.test(raw.ani ?? '');
   const total = raw.segments?.length ?? 0;
@@ -164,6 +363,17 @@ function mapCallDetail(raw: BackendCallDetail): { header: CallDetailHeader; segm
         nodeName: s.nodeName,
         serviceName: s.serviceName,
         endReason: s.endReason,
+        oName: s.oName,
+        tName: s.tName,
+        ani: s.ani,
+        dnis: s.dnis,
+        // HOP 그룹핑/단계판정 키 (CallDetailPage hopNodes 파생용)
+        _hop: s.hop,
+        _segType: s.segmentType,
+        _tType: s.tType ?? null,
+        _ccEnd: s.ccEnd ?? null,
+        _cdrPkey: s.cdrPkey ?? null,
+        _callKind: s.callKind ?? null,
       },
       isError: false,
     };
@@ -250,6 +460,16 @@ export const trackingApi = {
     return data ?? { items: [], page: 0, size: 0, total: 0 };
   },
 
+  /**
+   * 콜 여정 Sankey — 현재 검색 조건 콜 집합(최대 1만)의 단계 흐름 집계.
+   * Backend: ApiResponse<JourneyFlow> -> BFF: data:{nodes,links,callCount,truncated}
+   * @flow ipron-tracking-journey
+   */
+  getJourney: async (criteria: TrackingSearchCriteria): Promise<JourneyFlow> => {
+    const response = await apiClient.post<DetailResponse<JourneyFlow>>('/ipron-tracking-journey', toSearchRequest({ ...criteria, page: 0, size: 10000 }));
+    return extractDetail(response) ?? { nodes: [], links: [], callCount: 0, truncated: false };
+  },
+
   // ─── Detail (헤더 + segment) ──────────────────────────────────────────────
 
   /**
@@ -287,10 +507,11 @@ export const trackingApi = {
    * @flow ipron-tracking-ivr-step
    */
   getIvrSteps: async (ucid: string): Promise<IvrScenarioGroup[]> => {
-    const response = await apiClient.get<DetailResponse<{ value: IvrScenarioGroup[] }>>('/ipron-tracking-ivr-step', {
+    const response = await apiClient.get<DetailResponse<{ value: BackendIvrStepNode[] }>>('/ipron-tracking-ivr-step', {
       params: { ucid },
     });
-    return extractDetail(response)?.value ?? [];
+    const nodes = extractDetail(response)?.value ?? [];
+    return nodes.map(mapIvrScenarioGroup);
   },
 
   // ─── CTI Routing ──────────────────────────────────────────────────────────
@@ -303,10 +524,11 @@ export const trackingApi = {
    * @param nexthop 동일 UCID 내 CTI segment 식별자 (segmentId / hopIndex). 미지정 시 첫 CTI segment.
    */
   getCtiRouting: async (ucid: string, nexthop?: string | null): Promise<CtiRoutingHop[]> => {
-    const response = await apiClient.get<DetailResponse<{ value: CtiRoutingHop[] }>>('/ipron-tracking-cti-route', {
+    const response = await apiClient.get<DetailResponse<{ value: BackendCtiRouteHop[] }>>('/ipron-tracking-cti-route', {
       params: { ucid, nexthop: nexthop ?? undefined },
     });
-    return extractDetail(response)?.value ?? [];
+    const raw = extractDetail(response)?.value ?? [];
+    return raw.map(mapCtiRouteHop);
   },
 
   // ─── Agent Events ─────────────────────────────────────────────────────────
@@ -318,6 +540,18 @@ export const trackingApi = {
    */
   getAgentEvents: async (ucid: string): Promise<AgentEvent[]> => {
     const response = await apiClient.get<DetailResponse<{ value: AgentEvent[] }>>('/ipron-tracking-agent-event', {
+      params: { ucid },
+    });
+    return extractDetail(response)?.value ?? [];
+  },
+
+  /**
+   * IVR 대화(Dialog) — TB_DM_IR_DIALOG_CDR 파싱 결과.
+   * Backend: ApiResponse<List<DialogTurn>> -> BFF: data.value[]
+   * @flow ipron-tracking-dialog
+   */
+  getDialogs: async (ucid: string): Promise<DialogTurn[]> => {
+    const response = await apiClient.get<DetailResponse<{ value: DialogTurn[] }>>('/ipron-tracking-dialog', {
       params: { ucid },
     });
     return extractDetail(response)?.value ?? [];

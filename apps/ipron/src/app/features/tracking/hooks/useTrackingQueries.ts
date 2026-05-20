@@ -12,7 +12,9 @@ import type {
   CallSearchResult,
   CallSegment,
   CtiRoutingHop,
+  DialogTurn,
   IvrScenarioGroup,
+  JourneyFlow,
   RecordingRedirectResponse,
   RecordingType,
   TrackingSearchCriteria,
@@ -23,6 +25,7 @@ export const trackingQueryKeys = createQueryKeys('tracking', {
   ivrStep: (ucid?: string) => [ucid],
   ctiRoute: (ucid?: string, nexthop?: string) => [ucid, nexthop],
   agentEvent: (ucid?: string) => [ucid],
+  dialog: (ucid?: string) => [ucid],
 });
 
 // ─── Search (mutation 형태로 운영 — criteria 변경에 즉시 반응) ──────────────
@@ -38,6 +41,13 @@ export interface TrackingSearchResult {
 export const useSearchTracking = ({ mutationOptions }: MutationHookOptions<TrackingSearchResult, TrackingSearchCriteria> = {}) => {
   return useMutation({
     mutationFn: (criteria: TrackingSearchCriteria) => trackingApi.search(criteria),
+    ...mutationOptions,
+  });
+};
+
+export const useGetJourney = ({ mutationOptions }: MutationHookOptions<JourneyFlow, TrackingSearchCriteria> = {}) => {
+  return useMutation({
+    mutationFn: (criteria: TrackingSearchCriteria) => trackingApi.getJourney(criteria),
     ...mutationOptions,
   });
 };
@@ -84,6 +94,15 @@ export const useGetAgentEvents = (ucid: string | null | undefined, { queryOption
   return useQuery({
     queryKey: trackingQueryKeys.agentEvent(ucid ?? undefined).queryKey,
     queryFn: () => trackingApi.getAgentEvents(ucid!),
+    enabled: !!ucid,
+    ...queryOptions,
+  });
+};
+
+export const useGetDialogs = (ucid: string | null | undefined, { queryOptions }: QueryHookOptions<DialogTurn[]> = {}) => {
+  return useQuery({
+    queryKey: trackingQueryKeys.dialog(ucid ?? undefined).queryKey,
+    queryFn: () => trackingApi.getDialogs(ucid!),
     enabled: !!ucid,
     ...queryOptions,
   });
