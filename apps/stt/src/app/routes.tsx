@@ -9,6 +9,10 @@ const RecogList = React.lazy(() => import('./pages/stt-config/RecogList'));
 const ModelList = React.lazy(() => import('./pages/stt-config/ModelList'));
 const DnList = React.lazy(() => import('./pages/stt-config/DnList'));
 const FileUploadList = React.lazy(() => import('./pages/stt-config/FileUploadList'));
+const ChannelStatusList = React.lazy(() => import('./pages/monitoring/ChannelStatusList'));
+const DnStatusList = React.lazy(() => import('./pages/monitoring/DnStatusList'));
+const CallStatusList = React.lazy(() => import('./pages/monitoring/CallStatusList'));
+const SttDashboard = React.lazy(() => import('./pages/monitoring/SttDashboard'));
 
 export const routes = [
   {
@@ -71,6 +75,41 @@ export const routes = [
             children: [
               { index: true, element: <Navigate to="list" replace /> },
               { path: 'list', element: <FileUploadList /> },
+            ],
+          },
+        ],
+      },
+      {
+        path: 'monitoring',
+        element: <Outlet />,
+        children: [
+          { index: true, element: <Navigate to="stt" replace /> },
+          {
+            path: 'channel',
+            children: [
+              { index: true, element: <Navigate to="list" replace /> },
+              { path: 'list', element: <ChannelStatusList /> },
+            ],
+          },
+          {
+            path: 'dn',
+            children: [
+              { index: true, element: <Navigate to="list" replace /> },
+              { path: 'list', element: <DnStatusList /> },
+            ],
+          },
+          {
+            path: 'call',
+            children: [
+              { index: true, element: <Navigate to="list" replace /> },
+              { path: 'list', element: <CallStatusList /> },
+            ],
+          },
+          {
+            path: 'dashboard',
+            children: [
+              { index: true, element: <Navigate to="list" replace /> },
+              { path: 'list', element: <SttDashboard /> },
             ],
           },
         ],
