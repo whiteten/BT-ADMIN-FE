@@ -148,6 +148,9 @@ function createRemote() {
       // host의 webpack.config.prod.ts 파일 업데이트
       updateWebpackConfigProd(trimmedAppName);
 
+      // Jenkinsfile의 extendedChoice BUILD_TARGETS에 신규 remote 추가
+      updateJenkinsfile(trimmedAppName);
+
       // 신규앱의 .babelrc 파일을 host와 동일하게 복사
       copyBabelrc(trimmedAppName);
 
@@ -716,6 +719,64 @@ function updateWebpackConfigProd(appName) {
     }
   } catch (error) {
     logError('host', `webpack.config.prod.ts 업데이트`, error);
+  }
+}
+
+function updateJenkinsfile(appName) {
+  const timer = createTimer();
+  logStart('Jenkinsfile', `extendedChoice BUILD_TARGETS에 ${appName} 추가`);
+  try {
+    const jenkinsfilePath = path.join(process.cwd(), 'Jenkinsfile');
+
+    if (!fs.existsSync(jenkinsfilePath)) {
+      logInfo('Jenkinsfile', '파일이 존재하지 않음 (스킵)');
+      return;
+    }
+
+    let content = fs.readFileSync(jenkinsfilePath, 'utf8');
+
+    // extendedChoice 블록 추출
+    const blockRegex = /extendedChoice\(([\s\S]*?)\)/;
+    const blockMatch = content.match(blockRegex);
+
+    if (!blockMatch) {
+      logError('Jenkinsfile', 'extendedChoice 블록을 찾을 수 없음');
+      return;
+    }
+
+    let block = blockMatch[0];
+
+    // value 속성에서 현재 빌드 대상 목록 추출
+    const valueMatch = block.match(/value:\s*'([^']*)'/);
+    if (!valueMatch) {
+      logError('Jenkinsfile', 'extendedChoice의 value 속성을 찾을 수 없음');
+      return;
+    }
+
+    const currentTargets = valueMatch[1]
+      .split(',')
+      .map((s) => s.trim())
+      .filter(Boolean);
+
+    // 이미 존재하는지 확인
+    if (currentTargets.includes(appName)) {
+      logInfo('Jenkinsfile', `${appName}이 이미 BUILD_TARGETS에 존재함 (스킵)`);
+      return;
+    }
+
+    const updatedTargets = [...currentTargets, appName];
+    const targetsStr = updatedTargets.join(',');
+
+    // value / defaultValue / visibleItemCount 갱신
+    block = block.replace(/value:\s*'[^']*'/, `value: '${targetsStr}'`);
+    block = block.replace(/defaultValue:\s*'[^']*'/, `defaultValue: '${targetsStr}'`);
+    block = block.replace(/visibleItemCount:\s*\d+/, `visibleItemCount: ${updatedTargets.length}`);
+
+    content = content.replace(blockRegex, block);
+    fs.writeFileSync(jenkinsfilePath, content);
+    logSuccess('Jenkinsfile', `extendedChoice BUILD_TARGETS에 ${appName} 추가`, timer);
+  } catch (error) {
+    logError('Jenkinsfile', 'BUILD_TARGETS 업데이트', error);
   }
 }
 
