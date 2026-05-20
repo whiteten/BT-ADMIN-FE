@@ -52,7 +52,7 @@
       "options": {
         "buildTarget": "aoe:build",
         "hmr": true,
-        "port": 4205
+        "port": 4204
       },
       "configurations": {
         "development": {

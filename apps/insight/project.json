@@ -59,7 +59,7 @@
       "options": {
         "buildTarget": "insight:build",
         "hmr": true,
-        "port": 4203
+        "port": 4207
       },
       "configurations": {
         "development": {
