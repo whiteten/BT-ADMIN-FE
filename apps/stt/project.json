@@ -57,7 +57,7 @@
       "options": {
         "buildTarget": "stt:build",
         "hmr": true,
-        "port": 4204
+        "port": 4205
       },
       "configurations": {
         "development": {

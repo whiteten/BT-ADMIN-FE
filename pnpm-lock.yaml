@@ -475,7 +475,11 @@ importers:
 
   apps/host: {}
 
+  apps/insight: {}
+
   apps/ipron: {}
+
+  apps/ivr: {}
 
   apps/manager: {}
 

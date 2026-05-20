@@ -106,7 +106,16 @@ function rFactorGrade(r: number | null): { bar: string; ring: string; text: stri
 export default function PbxCallDetailDrawer({ open, row, onClose }: Props) {
   const detailQ = useGetTrackingDetail(row?.ucid ?? '', { queryOptions: { enabled: open && !!row?.ucid } });
   const segments = useMemo<CallSegment[]>(() => detailQ.data?.segments ?? [], [detailQ.data]);
-  const ieSegments = useMemo(() => segments.filter((s) => (s as unknown as { segmentType?: string }).segmentType === 'IE'), [segments]);
+  // mapCallDetail이 segmentType/hop을 meta로 이동시키므로 meta._segType/_hop 기준으로 필터/식별
+  const segHop = (s: CallSegment): number | null => {
+    const m = (s as unknown as { meta?: { _hop?: number | null } }).meta;
+    return m?._hop ?? null;
+  };
+  const segType = (s: CallSegment): string | undefined => {
+    const m = (s as unknown as { meta?: { _segType?: string } }).meta;
+    return m?._segType;
+  };
+  const ieSegments = useMemo(() => segments.filter((s) => segType(s) === 'IE'), [segments]);
   const [selectedHop, setSelectedHop] = useState<number | null>(null);
   const [fullscreen, setFullscreen] = useState(false);
 
@@ -121,10 +130,10 @@ export default function PbxCallDetailDrawer({ open, row, onClose }: Props) {
       setSelectedHop(null);
       return;
     }
-    const stillExists = selectedHop != null && ieSegments.some((s) => (s as unknown as { hop?: number }).hop === selectedHop);
+    const stillExists = selectedHop != null && ieSegments.some((s) => segHop(s) === selectedHop);
     if (!stillExists) {
-      const firstHop = (ieSegments[0] as unknown as { hop?: number }).hop;
-      setSelectedHop(firstHop ?? null);
+      const firstHop = segHop(ieSegments[0]);
+      setSelectedHop(firstHop);
     }
   }, [ieSegments, selectedHop]);
 
@@ -243,12 +252,13 @@ function HopList({ segments, selectedHop, onSelect, loading }: { segments: CallS
           <div className="px-4 py-8 text-[11px] text-gray-400 text-center">hop 없음</div>
         ) : (
           <ul>
-            {segments.map((seg) => {
+            {segments.map((seg, idx) => {
               const meta = SEGMENT_KIND_LABEL[seg.kind] ?? { label: seg.kind, color: 'default' };
-              const hop = (seg as unknown as { hop?: number }).hop;
-              const isActive = hop === selectedHop;
+              const segMeta = (seg as unknown as { meta?: { _hop?: number | null; _segType?: string } }).meta;
+              const hop = segMeta?._hop ?? null;
+              const isActive = hop != null && hop === selectedHop;
               return (
-                <li key={seg.segmentId}>
+                <li key={seg.segmentId ?? `${segMeta?._segType ?? 'seg'}-${hop ?? idx}`}>
                   <button
                     type="button"
                     onClick={() => hop != null && onSelect(hop)}
