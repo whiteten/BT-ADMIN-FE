@@ -28,6 +28,11 @@ pipeline {
             description: '빌드할 앱 선택 (host 포함 시 remote 앱들이 host/remotes/로 자동 복사됨)',
             multiSelectDelimiter: ','
         )
+        booleanParam(
+            name: 'SKIP_CACHE',
+            defaultValue: false,
+            description: 'Nx 캐시 무시하고 강제 재빌드 (캐시 결과가 의심스러울 때만 체크)'
+        )
     }
 
     environment {
@@ -89,9 +94,17 @@ pipeline {
                     // pnpm 설치
                     sh 'corepack enable && corepack prepare pnpm@10.29.2 --activate'
 
-                    // Nx 빌드 캐시 + Webpack 캐시 초기화 (node_modules는 유지하여 설치 속도 확보)
-                    sh 'rm -rf .nx/cache'
+                    // dist 누적 방지 (이전 빌드 잔여물이 다음 tgz에 섞이는 문제 차단)
+                    sh 'rm -rf dist'
+
+                    // Webpack 캐시만 정리 (Nx 캐시는 유지 → 변경 없는 모듈은 캐시 hit으로 빠른 빌드)
                     sh 'rm -rf node_modules/.cache'
+
+                    // SKIP_CACHE 옵션 선택 시 Nx 캐시도 함께 정리
+                    if (params.SKIP_CACHE) {
+                        echo "[INFO] SKIP_CACHE=true → Nx 캐시 전체 무효화"
+                        sh 'rm -rf .nx node_modules/.nx'
+                    }
 
                     // 의존성 설치 (node_modules 있으면 빠르게 통과)
                     sh 'pnpm install --frozen-lockfile'
@@ -105,7 +118,8 @@ pipeline {
                     echo "=========================================="
 
                     // Nx 빌드 (순차 빌드로 메모리 이슈 방지)
-                    sh "npx nx run-many --target=build --projects=${projects} --parallel=1"
+                    def cacheFlag = params.SKIP_CACHE ? '--skip-nx-cache' : ''
+                    sh "npx nx run-many --target=build --projects=${projects} ${cacheFlag}"
 
                     // host 포함 시: remote 앱들을 host/remotes/로 복사
                     if (targets.contains('host')) {
@@ -183,7 +197,11 @@ pipeline {
         }
         always {
             sh 'sudo chown -R jenkins:jenkins ${JENKINS_WORK_PATH} || true'
-            cleanWs(patterns: [[pattern: 'node_modules/**', type: 'EXCLUDE']])
+            cleanWs(patterns: [
+                [pattern: 'node_modules/**', type: 'EXCLUDE'],
+                [pattern: '.git/**', type: 'EXCLUDE'],
+                [pattern: '.nx/**', type: 'EXCLUDE']
+            ])
         }
     }
 }
