@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { toast } from '@/shared-util';
-import { useReportEditorStore } from '../../../stores/useReportEditorStore';
+import { useReportEditorStore } from '../../report/hooks/useReportEditorStore';
 import { useCreatePanel, useUpdatePanel } from '../../report/hooks/useReportQueries';
 import type { PanelDetail, PanelFieldMap, PanelLayout, PanelType } from '../../report/types';
 import { Button } from '@/components/ui/button';

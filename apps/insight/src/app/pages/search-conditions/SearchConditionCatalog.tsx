@@ -4,7 +4,7 @@ import { useBreadcrumbStore } from '@/shared-store';
 import SearchConditionEditor from '../../features/search-condition/components/SearchConditionEditor';
 import SearchConditionGrid from '../../features/search-condition/components/SearchConditionGrid';
 import { useGetSearchConditions } from '../../features/search-condition/hooks/useSearchConditionQueries';
-import { useSearchConditionStore } from '../../stores/useSearchConditionStore';
+import { useSearchConditionStore } from '../../features/search-condition/hooks/useSearchConditionStore';
 import { FallbackSpinner } from '@/components/custom/FallbackSpinner';
 
 type FilterColumn = 'title' | 'nodeCode';
@@ -14,7 +14,7 @@ const FILTER_OPTIONS = [
   { label: '키', value: 'nodeCode' as FilterColumn },
 ];
 
-export default function SearchConditionCatalogPage() {
+export default function SearchConditionCatalog() {
   const setBreadcrumb = useBreadcrumbStore((s) => s.setBreadcrumb);
   const clearBreadcrumb = useBreadcrumbStore((s) => s.clearBreadcrumb);
   const { isEditorOpen, openEditor } = useSearchConditionStore();

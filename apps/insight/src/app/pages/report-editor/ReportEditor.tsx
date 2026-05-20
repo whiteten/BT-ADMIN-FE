@@ -1,14 +1,15 @@
 import { useEffect } from 'react';
-import { useParams } from 'react-router-dom';
+import { useNavigate, useParams } from 'react-router-dom';
 import { useBreadcrumbStore } from '@/shared-store';
-import ReportViewCanvas from '../../features/canvas/components/ReportViewCanvas';
+import ReportEditorCanvas from '../../features/canvas/components/ReportEditorCanvas';
+import { useReportEditorStore } from '../../features/report/hooks/useReportEditorStore';
 import { useGetReport } from '../../features/report/hooks/useReportQueries';
-import { useReportEditorStore } from '../../stores/useReportEditorStore';
 import { FallbackSpinner } from '@/components/custom/FallbackSpinner';
 
-export default function ReportViewPage() {
+export default function ReportEditor() {
   const { reportId: reportIdParam } = useParams<{ reportId: string }>();
   const reportId = Number(reportIdParam);
+  const navigate = useNavigate();
   const setBreadcrumb = useBreadcrumbStore((s) => s.setBreadcrumb);
   const clearBreadcrumb = useBreadcrumbStore((s) => s.clearBreadcrumb);
   const { setReport, setPanels, setCalcFields, setSearchBindings, setFieldDisplays, reset } = useReportEditorStore();
@@ -34,7 +35,10 @@ export default function ReportViewPage() {
 
   useEffect(() => {
     if (reportFull) {
-      setBreadcrumb([{ title: '인사이트' }, { title: '보고서', path: '/insight/statistics/reports' }, { title: ':reportTitle' }], { reportTitle: reportFull.title });
+      setBreadcrumb(
+        [{ title: '인사이트' }, { title: '보고서', path: '/insight/statistics/reports' }, { title: ':reportTitle', path: `/insight/statistics/reports/${reportId}/edit` }],
+        { reportTitle: reportFull.title },
+      );
     }
     return () => clearBreadcrumb();
   }, [reportFull, reportId, setBreadcrumb, clearBreadcrumb]);
@@ -43,7 +47,7 @@ export default function ReportViewPage() {
 
   return (
     <div className="flex flex-col w-full h-full bg-bt-bg-canvas">
-      <ReportViewCanvas reportId={reportId} report={reportFull} />
+      <ReportEditorCanvas reportId={reportId} onNavigateList={() => navigate('/insight/statistics/reports')} />
     </div>
   );
 }

@@ -1,7 +1,7 @@
 import { format, subDays } from 'date-fns';
 import { create } from 'zustand';
 import { devtools } from 'zustand/middleware';
-import { COMPARISON_AVAILABILITY, type ComparisonType, type GlobalFilter, type TimeUnit } from '../features/global-filter/types';
+import { COMPARISON_AVAILABILITY, type ComparisonType, type GlobalFilter, type TimeUnit } from '../../global-filter/types';
 
 const defaultFilter: GlobalFilter = {
   period: {

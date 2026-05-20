@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import { devtools } from 'zustand/middleware';
-import type { SearchConditionDetail } from '../features/search-condition/types';
+import type { SearchConditionDetail } from '../types';
 
 interface SearchConditionStoreState {
   selectedId: number | null;

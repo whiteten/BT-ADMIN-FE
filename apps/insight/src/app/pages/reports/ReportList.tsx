@@ -13,7 +13,7 @@ type OwnershipFilter = 'ALL' | 'MINE' | 'PUBLISHED';
 
 const breadcrumb: BreadcrumbProps['items'] = [{ title: '인사이트' }, { title: '보고서', path: '/insight/statistics/reports' }];
 
-export default function ReportListPage() {
+export default function ReportList() {
   const navigate = useNavigate();
   const setBreadcrumb = useBreadcrumbStore((s) => s.setBreadcrumb);
   const clearBreadcrumb = useBreadcrumbStore((s) => s.clearBreadcrumb);

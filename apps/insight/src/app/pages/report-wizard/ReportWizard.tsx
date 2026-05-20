@@ -14,7 +14,7 @@ type WizardStep = 'A' | 'B' | 'C';
 
 const STEP_ITEMS = [{ title: '이름' }, { title: '카테고리' }, { title: '데이터 뷰' }, { title: '데이터셋 편집' }];
 
-export default function ReportWizardPage() {
+export default function ReportWizard() {
   const navigate = useNavigate();
   const setBreadcrumb = useBreadcrumbStore((s) => s.setBreadcrumb);
   const clearBreadcrumb = useBreadcrumbStore((s) => s.clearBreadcrumb);

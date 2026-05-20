@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import { devtools } from 'zustand/middleware';
-import type { CalcField, FieldDisplay, PanelDetail, ReportDetail, SearchBinding } from '../features/report/types';
+import type { CalcField, FieldDisplay, PanelDetail, ReportDetail, SearchBinding } from '../types';
 
 interface ReportEditorState {
   report: ReportDetail | null;

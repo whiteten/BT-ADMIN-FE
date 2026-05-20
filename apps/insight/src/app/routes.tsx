@@ -2,18 +2,18 @@ import React from 'react';
 import { Navigate, Outlet } from 'react-router-dom';
 import { NotFound } from '@/components/custom/NotFound';
 
-const SearchConditionCatalogPage = React.lazy(() => import('./pages/search-conditions/SearchConditionCatalogPage'));
-const ReportListPage = React.lazy(() => import('./pages/reports/ReportListPage'));
-const ReportWizardPage = React.lazy(() => import('./pages/report-wizard/ReportWizardPage'));
-const ReportEditorPage = React.lazy(() => import('./pages/report-editor/ReportEditorPage'));
-const ReportViewPage = React.lazy(() => import('./pages/report-view/ReportViewPage'));
+const SearchConditionCatalog = React.lazy(() => import('./pages/search-conditions/SearchConditionCatalog'));
+const ReportList = React.lazy(() => import('./pages/reports/ReportList'));
+const ReportWizard = React.lazy(() => import('./pages/report-wizard/ReportWizard'));
+const ReportEditor = React.lazy(() => import('./pages/report-editor/ReportEditor'));
+const ReportView = React.lazy(() => import('./pages/report-view/ReportView'));
 
 export const routes = [
   {
     path: '/',
     element: <Outlet />,
     children: [
-      { index: true, element: <Navigate to="statistics/reports" replace /> },
+      { index: true, element: <Navigate to="/" replace /> },
       {
         path: 'statistics',
         element: <Outlet />,
@@ -21,24 +21,25 @@ export const routes = [
           { index: true, element: <Navigate to="reports" replace /> },
           {
             path: 'search-conditions',
-            element: <SearchConditionCatalogPage />,
+            element: <SearchConditionCatalog />,
             handle: {
               breadcrumb: [{ title: '인사이트' }, { title: '검색조건 정의', path: '/insight/statistics/search-conditions' }],
             },
           },
           {
             path: 'reports',
+            element: <Outlet />,
             children: [
               {
                 index: true,
-                element: <ReportListPage />,
+                element: <ReportList />,
                 handle: {
                   breadcrumb: [{ title: '인사이트' }, { title: '보고서', path: '/insight/statistics/reports' }],
                 },
               },
               {
                 path: 'new',
-                element: <ReportWizardPage />,
+                element: <ReportWizard />,
                 handle: {
                   breadcrumb: [
                     { title: '인사이트' },
@@ -49,14 +50,14 @@ export const routes = [
               },
               {
                 path: ':reportId/edit',
-                element: <ReportEditorPage />,
+                element: <ReportEditor />,
                 handle: {
                   breadcrumb: [{ title: '인사이트' }, { title: '보고서', path: '/insight/statistics/reports' }, { title: ':reportTitle' }],
                 },
               },
               {
                 path: ':reportId/view',
-                element: <ReportViewPage />,
+                element: <ReportView />,
                 handle: {
                   breadcrumb: [{ title: '인사이트' }, { title: '보고서', path: '/insight/statistics/reports' }, { title: ':reportTitle' }],
                 },
@@ -67,5 +68,5 @@ export const routes = [
       },
     ],
   },
-  { path: '*', element: <NotFound homePath="/insight" /> },
+  { path: '*', element: <NotFound homePath="/" /> },
 ];

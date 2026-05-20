@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { toast } from '@/shared-util';
-import { useSearchConditionStore } from '../../../stores/useSearchConditionStore';
 import { useCreateSearchCondition, usePreviewSql, useUpdateSearchCondition } from '../hooks/useSearchConditionQueries';
+import { useSearchConditionStore } from '../hooks/useSearchConditionStore';
 import type { InputType, SearchConditionNode } from '../types';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';

@@ -1,8 +1,8 @@
 import { useState } from 'react';
 import { Plus } from 'lucide-react';
 import PanelWrapper from './PanelWrapper';
-import { useReportEditorStore } from '../../../stores/useReportEditorStore';
 import PanelEditorSheet from '../../panel/components/PanelEditorSheet';
+import { useReportEditorStore } from '../../report/hooks/useReportEditorStore';
 import type { PanelType } from '../../report/types';
 import { Button } from '@/components/ui/button';
 
