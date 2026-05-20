@@ -13,7 +13,7 @@ import { AgGridReact } from 'ag-grid-react';
 import { Star } from 'lucide-react';
 import { toast } from '@/shared-util';
 import { ivrMediaQueryKeys, useDeleteTts, useGetTtsMasters } from '../hooks/useIvrMediaQueries';
-import { type IrTtsMaster, TTS_TEXT_FORMAT_LABELS, TTS_VENDOR_LABELS, TTS_VOICE_FORMAT_LABELS } from '../types/ivrMedia.types';
+import { type IrTtsMaster, TTS_TEXT_FORMAT_LABELS, TTS_VENDOR_LABELS, TTS_VOICE_FORMAT_LABELS } from '../types';
 import { IconTrash } from '@/components/custom/Icons';
 import useAggridOptions from '@/libs/shared-ui/src/hooks/useAggridOptions';
 import { useModal } from '@/libs/shared-ui/src/hooks/useModal';

@@ -11,7 +11,7 @@ import { AgGridReact } from 'ag-grid-react';
 import { Star } from 'lucide-react';
 import { toast } from '@/shared-util';
 import { ivrMediaQueryKeys, useDeleteStt, useGetSttMasters } from '../hooks/useIvrMediaQueries';
-import type { IrSttMaster } from '../types/ivrMedia.types';
+import type { IrSttMaster } from '../types';
 import { IconTrash } from '@/components/custom/Icons';
 import useAggridOptions from '@/libs/shared-ui/src/hooks/useAggridOptions';
 import { useModal } from '@/libs/shared-ui/src/hooks/useModal';

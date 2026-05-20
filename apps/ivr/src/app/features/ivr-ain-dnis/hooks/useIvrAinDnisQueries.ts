@@ -6,7 +6,7 @@ import { createQueryKeys } from '@lukemorales/query-key-factory';
 import dayjs from 'dayjs';
 import { type MutationHookOptions, type QueryHookOptions, type QueryHookWithParamsOptions, downloadBlob, extractFileName } from '@/shared-util';
 import { ivrAinDnisApi } from '../api/ivrAinDnisApi';
-import type { IrAinMaster, TenantSimpleResponse } from '../types/ivrAinDnis.types';
+import type { IrAinMaster, TenantSimpleResponse } from '../types';
 
 export const ivrAinDnisQueryKeys = createQueryKeys('ivrAinDnis', {
   getList: (params?: Record<string, unknown>) => [params],

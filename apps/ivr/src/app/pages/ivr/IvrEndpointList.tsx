@@ -20,17 +20,17 @@ import { type BreadcrumbProps, Button, Dropdown, Empty, Input } from 'antd';
 import { ChevronLeft, ChevronRight, Layers, MoreVertical, Network, Plus, Search, Trash2 } from 'lucide-react';
 import { useBreadcrumbStore } from '@/shared-store';
 import { toast } from '@/shared-util';
-import IvrEndpointMasterSheet, { type IvrEndpointMasterSheetRef } from '../components/IvrEndpointMasterSheet';
-import IvrEndpointMemberSheet, { type IvrEndpointMemberSheetRef } from '../components/IvrEndpointMemberSheet';
-import { ivrEndpointQueryKeys, useDeleteMaster, useDeleteMember, useGetMasters, useGetMembers, useGetNodes } from '../hooks/useIvrEndpointQueries';
-import { ALLOC_METHOD_LABELS, CONN_TYPE_LABELS, type IvrEndpointMaster, type IvrEndpointMember, LINE_TYPE_LABELS, getMasterTagList } from '../types/ivrEndpoint.types';
+import IvrEndpointMasterSheet, { type IvrEndpointMasterSheetRef } from '../../features/ivr-endpoint/components/IvrEndpointMasterSheet';
+import IvrEndpointMemberSheet, { type IvrEndpointMemberSheetRef } from '../../features/ivr-endpoint/components/IvrEndpointMemberSheet';
+import { ivrEndpointQueryKeys, useDeleteMaster, useDeleteMember, useGetMasters, useGetMembers, useGetNodes } from '../../features/ivr-endpoint/hooks/useIvrEndpointQueries';
+import { ALLOC_METHOD_LABELS, CONN_TYPE_LABELS, type IvrEndpointMaster, type IvrEndpointMember, LINE_TYPE_LABELS, getMasterTagList } from '../../features/ivr-endpoint/types';
 import { IconTrash } from '@/components/custom/Icons';
 import useAggridOptions from '@/libs/shared-ui/src/hooks/useAggridOptions';
 import { useModal } from '@/libs/shared-ui/src/hooks/useModal';
 
 const breadcrumb: BreadcrumbProps['items'] = [{ title: 'ForCus', path: '/ivr' }, { title: '회선관리' }, { title: '국선관리' }];
 
-export default function IvrEndpointListPage() {
+export default function IvrEndpointList() {
   const [searchParams] = useSearchParams();
   const queryClient = useQueryClient();
   const modal = useModal();

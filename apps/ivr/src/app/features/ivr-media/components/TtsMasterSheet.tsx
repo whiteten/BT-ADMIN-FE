@@ -23,14 +23,7 @@ import { Alert, Button, Checkbox, Col, Drawer, Form, Input, InputNumber, Row, Se
 import { Info } from 'lucide-react';
 import { toast } from '@/shared-util';
 import { useCreateTts, useGetTtsMasters, useUpdateTts } from '../hooks/useIvrMediaQueries';
-import {
-  type IrTtsMaster,
-  type IrTtsMasterCreateRequest,
-  type IrTtsMasterUpdateRequest,
-  TTS_TEXT_FORMAT_OPTIONS,
-  TTS_VENDOR_OPTIONS,
-  TTS_VOICE_FORMAT_OPTIONS,
-} from '../types/ivrMedia.types';
+import { type IrTtsMaster, type IrTtsMasterCreateRequest, type IrTtsMasterUpdateRequest, TTS_TEXT_FORMAT_OPTIONS, TTS_VENDOR_OPTIONS, TTS_VOICE_FORMAT_OPTIONS } from '../types';
 
 export interface TtsMasterSheetRef {
   open: (data?: IrTtsMaster) => void;

@@ -2,11 +2,11 @@ import React from 'react';
 import { Navigate, Outlet } from 'react-router-dom';
 import { NotFound } from '@/components/custom/NotFound';
 
-const IvrEndpointListPage = React.lazy(() => import('./features/ivr-endpoint/pages/IvrEndpointListPage'));
-const IvrDnGroupListPage = React.lazy(() => import('./features/ivr-dn-group/pages/IvrDnGroupListPage'));
-const IvrMediaPage = React.lazy(() => import('./features/ivr-media/components/IvrMediaPage'));
-const IvrAinDnisPage = React.lazy(() => import('./features/ivr-ain-dnis/components/IvrAinDnisPage'));
-const ScenarioListPage = React.lazy(() => import('./features/scenario/pages/ScenarioListPage'));
+const IvrEndpointList = React.lazy(() => import('./pages/ivr/IvrEndpointList'));
+const IvrDnGroupList = React.lazy(() => import('./pages/ivr/IvrDnGroupList'));
+const IvrMedia = React.lazy(() => import('./pages/ivr/IvrMedia'));
+const IvrAinDnis = React.lazy(() => import('./pages/ivr/IvrAinDnis'));
+const ScenarioList = React.lazy(() => import('./pages/ivr/ScenarioList'));
 
 export const routes = [
   {
@@ -18,24 +18,16 @@ export const routes = [
         element: <Navigate to="/" replace />,
       },
       {
-        path: 'ivr/endpoint',
-        element: <IvrEndpointListPage />,
-      },
-      {
-        path: 'ivr/dn-group',
-        element: <IvrDnGroupListPage />,
-      },
-      {
-        path: 'ivr/media',
-        element: <IvrMediaPage />,
-      },
-      {
-        path: 'ivr/ain-dnis',
-        element: <IvrAinDnisPage />,
-      },
-      {
-        path: 'ivr/scenario',
-        element: <ScenarioListPage />,
+        path: 'ivr',
+        element: <Outlet />,
+        children: [
+          { index: true, element: <Navigate to="endpoint" replace /> },
+          { path: 'endpoint', element: <IvrEndpointList /> },
+          { path: 'dn-group', element: <IvrDnGroupList /> },
+          { path: 'media', element: <IvrMedia /> },
+          { path: 'ain-dnis', element: <IvrAinDnis /> },
+          { path: 'scenario', element: <ScenarioList /> },
+        ],
       },
     ],
   },

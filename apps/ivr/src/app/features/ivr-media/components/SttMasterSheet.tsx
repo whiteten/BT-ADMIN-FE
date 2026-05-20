@@ -18,7 +18,7 @@ import { Alert, Button, Checkbox, Col, Drawer, Form, Input, InputNumber, Row } f
 import { Info } from 'lucide-react';
 import { toast } from '@/shared-util';
 import { useCreateStt, useGetSttMasters, useUpdateStt } from '../hooks/useIvrMediaQueries';
-import { type IrSttMaster, type IrSttMasterCreateRequest } from '../types/ivrMedia.types';
+import { type IrSttMaster, type IrSttMasterCreateRequest } from '../types';
 
 export interface SttMasterSheetRef {
   open: (data?: IrSttMaster) => void;

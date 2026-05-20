@@ -10,7 +10,7 @@ import { forwardRef, useCallback, useEffect, useImperativeHandle, useState } fro
 import { Button, Col, Drawer, Form, Input, InputNumber, Row } from 'antd';
 import { toast } from '@/shared-util';
 import { useDeleteMediaServer, useUpsertMediaServer } from '../hooks/useIvrMediaQueries';
-import type { IrMediaServer, IrMediaServerUpsertRequest } from '../types/ivrMedia.types';
+import type { IrMediaServer, IrMediaServerUpsertRequest } from '../types';
 
 export interface MediaServerSheetRef {
   open: (systemId: number, systemName: string, data?: IrMediaServer | null) => void;

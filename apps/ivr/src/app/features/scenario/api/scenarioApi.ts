@@ -29,7 +29,7 @@ import type {
   ScenarioUpdateRequest,
   ScenarioVersion,
   ScenarioVersionCreateRequest,
-} from '../types/scenario.types';
+} from '../types';
 
 const apiClient = new ApiClient({ serviceURL: '/bff' });
 

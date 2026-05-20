@@ -2,7 +2,7 @@ import { forwardRef, useImperativeHandle, useState } from 'react';
 import { Collapse, Modal, Table, Tag } from 'antd';
 import type { ColumnsType } from 'antd/es/table';
 import { CheckCircle, CircleAlert, XCircle } from 'lucide-react';
-import type { ExcelImportResult } from '../types/ivrAinDnis.types';
+import type { ExcelImportResult } from '../types';
 
 interface ModalState {
   open: boolean;

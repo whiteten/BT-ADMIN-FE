@@ -17,10 +17,10 @@ import { type BreadcrumbProps, Button, Empty, Input } from 'antd';
 import { Building2, ChevronLeft, ChevronRight, Download, Layers, Plus, Search, Upload } from 'lucide-react';
 import { useBreadcrumbStore } from '@/shared-store';
 import { toast } from '@/shared-util';
-import IvrAinDnisImportResultModal, { type IvrAinDnisImportResultModalRef } from './IvrAinDnisImportResultModal';
-import IvrAinDnisSheet, { type IvrAinDnisSheetRef } from './IvrAinDnisSheet';
-import { ivrAinDnisQueryKeys, useDeleteAin, useExportAinDnis, useGetAinList, useGetTenants, useImportAinDnis } from '../hooks/useIvrAinDnisQueries';
-import { type ExcelImportResult, type IrAinMaster, TELCO_KIND_BADGE, TELCO_KIND_LABELS, type TelcoKindCode } from '../types/ivrAinDnis.types';
+import IvrAinDnisImportResultModal, { type IvrAinDnisImportResultModalRef } from '../../features/ivr-ain-dnis/components/IvrAinDnisImportResultModal';
+import IvrAinDnisSheet, { type IvrAinDnisSheetRef } from '../../features/ivr-ain-dnis/components/IvrAinDnisSheet';
+import { ivrAinDnisQueryKeys, useDeleteAin, useExportAinDnis, useGetAinList, useGetTenants, useImportAinDnis } from '../../features/ivr-ain-dnis/hooks/useIvrAinDnisQueries';
+import { type ExcelImportResult, type IrAinMaster, TELCO_KIND_BADGE, TELCO_KIND_LABELS, type TelcoKindCode } from '../../features/ivr-ain-dnis/types';
 import FileImportModal, { type FileImportModalRef } from '@/components/custom/FileImportModal';
 import { IconTrash } from '@/components/custom/Icons';
 import useAggridOptions from '@/libs/shared-ui/src/hooks/useAggridOptions';
@@ -28,7 +28,7 @@ import { useModal } from '@/libs/shared-ui/src/hooks/useModal';
 
 const breadcrumb: BreadcrumbProps['items'] = [{ title: 'ForCus', path: '/ivr' }, { title: '회선관리' }, { title: '대표번호별 DNIS관리' }];
 
-export default function IvrAinDnisPage() {
+export default function IvrAinDnis() {
   const [searchParams] = useSearchParams();
   const queryClient = useQueryClient();
   const modal = useModal();

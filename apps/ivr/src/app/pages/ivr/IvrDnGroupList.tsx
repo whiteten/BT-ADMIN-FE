@@ -19,17 +19,25 @@ import { type BreadcrumbProps, Button, Dropdown, Empty, Input } from 'antd';
 import { ChevronLeft, ChevronRight, Layers, MoreVertical, Network, Phone, Plug, Plus, Search, Trash2 } from 'lucide-react';
 import { useBreadcrumbStore } from '@/shared-store';
 import { toast } from '@/shared-util';
-import IvrDnGroupSheet, { type IvrDnGroupSheetRef } from '../components/IvrDnGroupSheet';
-import IvrSubDnGroupSheet, { type IvrSubDnGroupSheetRef } from '../components/IvrSubDnGroupSheet';
-import { ivrDnGroupQueryKeys, useDeleteDnGroup, useDeleteSubDnGroup, useGetDnGroups, useGetNodes, useGetSubDnGroups, useGetSubDnQuota } from '../hooks/useIvrDnGroupQueries';
-import { type IrDnGroup, type IrSubDnGroup, SUB_DN_KIND_LABELS, getDnGroupTagList, isSubDnEligible } from '../types/ivrDnGroup.types';
+import IvrDnGroupSheet, { type IvrDnGroupSheetRef } from '../../features/ivr-dn-group/components/IvrDnGroupSheet';
+import IvrSubDnGroupSheet, { type IvrSubDnGroupSheetRef } from '../../features/ivr-dn-group/components/IvrSubDnGroupSheet';
+import {
+  ivrDnGroupQueryKeys,
+  useDeleteDnGroup,
+  useDeleteSubDnGroup,
+  useGetDnGroups,
+  useGetNodes,
+  useGetSubDnGroups,
+  useGetSubDnQuota,
+} from '../../features/ivr-dn-group/hooks/useIvrDnGroupQueries';
+import { type IrDnGroup, type IrSubDnGroup, SUB_DN_KIND_LABELS, getDnGroupTagList, isSubDnEligible } from '../../features/ivr-dn-group/types';
 import { IconTrash } from '@/components/custom/Icons';
 import useAggridOptions from '@/libs/shared-ui/src/hooks/useAggridOptions';
 import { useModal } from '@/libs/shared-ui/src/hooks/useModal';
 
 const breadcrumb: BreadcrumbProps['items'] = [{ title: 'ForCus', path: '/ivr' }, { title: '회선관리' }, { title: 'IVR DN 그룹관리' }];
 
-export default function IvrDnGroupListPage() {
+export default function IvrDnGroupList() {
   const [searchParams] = useSearchParams();
   const queryClient = useQueryClient();
   const modal = useModal();

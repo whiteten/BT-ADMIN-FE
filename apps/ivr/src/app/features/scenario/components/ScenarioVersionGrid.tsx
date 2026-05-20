@@ -20,10 +20,10 @@ import {
   /* useGetIfeInfo, // [DEACTIVATED] IFE 비활성 */
   useGetVersions,
 } from '../hooks/useScenarioQueries';
-import type { ScenarioVersion } from '../types/scenario.types';
+import type { ScenarioVersion } from '../types';
 import useAggridOptions from '@/libs/shared-ui/src/hooks/useAggridOptions';
 import { useModal } from '@/libs/shared-ui/src/hooks/useModal';
-// import type { IfeTokenInfo } from '../types/scenario.types'; // [DEACTIVATED]
+// import type { IfeTokenInfo } from '../types'; // [DEACTIVATED]
 
 interface ScenarioVersionGridProps {
   serviceId: number;

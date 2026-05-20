@@ -7,14 +7,7 @@ import { forwardRef, useCallback, useEffect, useImperativeHandle, useState } fro
 import { Button, Col, Drawer, Form, Input, InputNumber, Row, Select, Switch } from 'antd';
 import { toast } from '@/shared-util';
 import { useCreateMaster, useUpdateMaster } from '../hooks/useIvrEndpointQueries';
-import {
-  ALLOC_METHOD_OPTIONS,
-  CONN_TYPE_OPTIONS,
-  ENDPT_TYPE_OPTIONS,
-  type IvrEndpointMaster,
-  type IvrEndpointMasterCreateRequest,
-  LINE_TYPE_OPTIONS,
-} from '../types/ivrEndpoint.types';
+import { ALLOC_METHOD_OPTIONS, CONN_TYPE_OPTIONS, ENDPT_TYPE_OPTIONS, type IvrEndpointMaster, type IvrEndpointMasterCreateRequest, LINE_TYPE_OPTIONS } from '../types';
 
 export interface IvrEndpointMasterSheetRef {
   open: (data?: IvrEndpointMaster, defaultNodeId?: number) => void;

@@ -24,7 +24,7 @@ import type {
   IvrEndpointMember,
   IvrEndpointMemberCreateRequest,
   IvrEndpointMemberUpdateRequest,
-} from '../types/ivrEndpoint.types';
+} from '../types';
 
 interface NodeSimpleResponse {
   nodeId: number;

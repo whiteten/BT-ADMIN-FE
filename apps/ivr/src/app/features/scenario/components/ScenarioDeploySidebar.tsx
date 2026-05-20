@@ -9,7 +9,7 @@ import dayjs, { type Dayjs } from 'dayjs';
 import { Server, ServerOff } from 'lucide-react';
 import { toast } from '@/shared-util';
 import { scenarioQueryKeys, useGetDeployedSystems, usePublishScenario } from '../hooks/useScenarioQueries';
-import { APPLY_RESULT_LABELS, APPLY_STATUS_LABELS, type DeployedSystem, type ScenarioVersion } from '../types/scenario.types';
+import { APPLY_RESULT_LABELS, APPLY_STATUS_LABELS, type DeployedSystem, type ScenarioVersion } from '../types';
 
 interface ScenarioDeploySidebarProps {
   serviceId: number;

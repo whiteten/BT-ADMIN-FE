@@ -7,7 +7,7 @@
 import { Button, Empty } from 'antd';
 import { Pencil, Trash2 } from 'lucide-react';
 import { useGetMediaServer } from '../hooks/useIvrMediaQueries';
-import type { IrMediaServer } from '../types/ivrMedia.types';
+import type { IrMediaServer } from '../types';
 
 interface Props {
   systemId: number | null;

@@ -3,7 +3,7 @@
  * BOT(90)은 IVR 화면에서 옵션 자체를 노출하지 않음 — FCA 봇운영 관리에서 처리.
  */
 import { Select } from 'antd';
-import { SCENARIO_TYPE_OPTIONS, type ScenarioType } from '../types/scenario.types';
+import { SCENARIO_TYPE_OPTIONS, type ScenarioType } from '../types';
 
 interface ScenarioTypeMultiSelectProps {
   value: ScenarioType[];

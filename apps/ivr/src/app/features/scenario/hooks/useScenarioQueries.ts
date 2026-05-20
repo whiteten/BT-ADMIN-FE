@@ -5,7 +5,7 @@ import { useMutation, useQuery } from '@tanstack/react-query';
 import { createQueryKeys } from '@lukemorales/query-key-factory';
 import type { MutationHookOptions, QueryHookWithParamsOptions } from '@/shared-util';
 import { scenarioApi } from '../api/scenarioApi';
-import type { DeployedSystem, Scenario, ScenarioVersion } from '../types/scenario.types';
+import type { DeployedSystem, Scenario, ScenarioVersion } from '../types';
 
 export const scenarioQueryKeys = createQueryKeys('ivrScenarios', {
   getScenarios: (params?: Record<string, unknown>) => [params],

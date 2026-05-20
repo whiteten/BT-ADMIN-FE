@@ -13,7 +13,7 @@ import { Alert, Button, Col, Drawer, Form, Input, InputNumber, Row, Select } fro
 import { Info } from 'lucide-react';
 import { toast } from '@/shared-util';
 import { useCreateSubDnGroup, useGetSubDnQuota, useUpdateSubDnGroup } from '../hooks/useIvrDnGroupQueries';
-import { type IrSubDnGroup, type IrSubDnGroupCreateRequest, SUB_DN_KIND_OPTIONS } from '../types/ivrDnGroup.types';
+import { type IrSubDnGroup, type IrSubDnGroupCreateRequest, SUB_DN_KIND_OPTIONS } from '../types';
 
 export interface IvrSubDnGroupSheetRef {
   open: (data?: IrSubDnGroup) => void;

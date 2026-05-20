@@ -30,7 +30,7 @@ import type {
   IrTtsMaster,
   IrTtsMasterCreateRequest,
   IrTtsMasterUpdateRequest,
-} from '../types/ivrMedia.types';
+} from '../types';
 
 interface NodeSimpleResponse {
   nodeId: number;

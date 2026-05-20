@@ -7,7 +7,7 @@ import { Button, Col, Drawer, Form, Input, InputNumber, Radio, Row, Select, Swit
 import { User, Users } from 'lucide-react';
 import { toast } from '@/shared-util';
 import { useCreateMember, useUpdateMember } from '../hooks/useIvrEndpointQueries';
-import { type IvrEndpointMember, type IvrEndpointMemberCreateRequest, REG_METHOD_OPTIONS } from '../types/ivrEndpoint.types';
+import { type IvrEndpointMember, type IvrEndpointMemberCreateRequest, REG_METHOD_OPTIONS } from '../types';
 
 export interface IvrEndpointMemberSheetRef {
   open: (data?: IvrEndpointMember) => void;

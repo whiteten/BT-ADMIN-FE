@@ -9,7 +9,7 @@ import { forwardRef, useCallback, useEffect, useImperativeHandle, useState } fro
 import { Button, Drawer, Form, Input, Select } from 'antd';
 import { toast } from '@/shared-util';
 import { useCreateAin, useUpdateAin } from '../hooks/useIvrAinDnisQueries';
-import { type IrAinMaster, type IrAinMasterCreateRequest, type IrAinMasterUpdateRequest, TELCO_KIND_OPTIONS } from '../types/ivrAinDnis.types';
+import { type IrAinMaster, type IrAinMasterCreateRequest, type IrAinMasterUpdateRequest, TELCO_KIND_OPTIONS } from '../types';
 
 export interface IvrAinDnisSheetRef {
   /** data가 있으면 수정, 없으면 등록. tenantId/tenantName은 등록 시 자동 주입. */

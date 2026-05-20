@@ -15,7 +15,7 @@ import { Alert, Button, Col, Drawer, Form, Input, InputNumber, Modal, Row, Selec
 import { Info } from 'lucide-react';
 import { toast } from '@/shared-util';
 import { useCreateDnGroup, useGetSubDnQuota, useGetSystemUsage, useUpdateDnGroup } from '../hooks/useIvrDnGroupQueries';
-import { DIRECTION_OPTIONS, type IrDnGroup, type IrDnGroupCreateRequest, OUTCH_OPTIONS, PROTOCOL_OPTIONS, REG_KIND_OPTIONS } from '../types/ivrDnGroup.types';
+import { DIRECTION_OPTIONS, type IrDnGroup, type IrDnGroupCreateRequest, OUTCH_OPTIONS, PROTOCOL_OPTIONS, REG_KIND_OPTIONS } from '../types';
 
 export interface IvrDnGroupSheetRef {
   open: (data?: IrDnGroup, defaultNodeId?: number, defaultEndptId?: number) => void;

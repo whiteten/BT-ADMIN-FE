@@ -21,21 +21,21 @@ import { type BreadcrumbProps, Button, Empty, Input } from 'antd';
 import { ChevronLeft, ChevronRight, Layers, Network, Plus, Radio, Search, Server, Volume2, Zap } from 'lucide-react';
 import { useBreadcrumbStore } from '@/shared-store';
 import { toast } from '@/shared-util';
-import MediaServerPanel from './MediaServerPanel';
-import MediaServerSheet, { type MediaServerSheetRef } from './MediaServerSheet';
-import SttMasterSheet, { type SttMasterSheetRef } from './SttMasterSheet';
-import SttMasterTab from './SttMasterTab';
-import TtsMasterSheet, { type TtsMasterSheetRef } from './TtsMasterSheet';
-import TtsMasterTab from './TtsMasterTab';
-import { ivrMediaQueryKeys, useDeleteMediaServer, useGetForcusSystems, useGetNodes, useGetSttMasters, useGetTtsMasters } from '../hooks/useIvrMediaQueries';
-import type { IrMediaServer, IrSttMaster, IrSystemUsage, IrTtsMaster } from '../types/ivrMedia.types';
+import MediaServerPanel from '../../features/ivr-media/components/MediaServerPanel';
+import MediaServerSheet, { type MediaServerSheetRef } from '../../features/ivr-media/components/MediaServerSheet';
+import SttMasterSheet, { type SttMasterSheetRef } from '../../features/ivr-media/components/SttMasterSheet';
+import TtsMasterSheet, { type TtsMasterSheetRef } from '../../features/ivr-media/components/TtsMasterSheet';
+import { ivrMediaQueryKeys, useDeleteMediaServer, useGetForcusSystems, useGetNodes, useGetSttMasters, useGetTtsMasters } from '../../features/ivr-media/hooks/useIvrMediaQueries';
+import SttMasterTab from '../../features/ivr-media/tabs/SttMasterTab';
+import TtsMasterTab from '../../features/ivr-media/tabs/TtsMasterTab';
+import type { IrMediaServer, IrSttMaster, IrSystemUsage, IrTtsMaster } from '../../features/ivr-media/types';
 import { useModal } from '@/libs/shared-ui/src/hooks/useModal';
 
 type TabKey = 'media' | 'tts' | 'stt';
 
 const breadcrumb: BreadcrumbProps['items'] = [{ title: 'ForCus', path: '/ivr' }, { title: '회선관리' }, { title: '미디어 관리' }];
 
-export default function IvrMediaPage() {
+export default function IvrMedia() {
   const [searchParams] = useSearchParams();
   const queryClient = useQueryClient();
   const modal = useModal();

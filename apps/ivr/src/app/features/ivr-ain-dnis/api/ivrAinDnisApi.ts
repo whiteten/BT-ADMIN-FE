@@ -13,7 +13,7 @@
  * - manager-tenant-list:    GET    테넌트 목록 (cross-service)
  */
 import ApiClient, { type DetailResponse, type ListResponse, extractDetail, extractList } from '@/shared-util';
-import type { ExcelImportResult, IrAinMaster, IrAinMasterCreateRequest, IrAinMasterUpdateRequest, TenantSimpleResponse } from '../types/ivrAinDnis.types';
+import type { ExcelImportResult, IrAinMaster, IrAinMasterCreateRequest, IrAinMasterUpdateRequest, TenantSimpleResponse } from '../types';
 
 const apiClient = new ApiClient({ serviceURL: '/bff' });
 

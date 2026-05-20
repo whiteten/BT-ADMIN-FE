@@ -1,7 +1,7 @@
 /**
  * IVR 시나리오/버전 관리 페이지 (AS-IS IPR20S6020).
  *
- * <p>레이아웃: IVR 국선관리(IvrEndpointListPage) 패턴 복사 + 시나리오 특화 변경.</p>
+ * <p>레이아웃: IVR 국선관리(IvrEndpointList) 패턴 복사 + 시나리오 특화 변경.</p>
  * <ul>
  *   <li>상단 헤더: 시나리오 타입 멀티 선택 + 시나리오명 검색 + 시나리오 추가 버튼 (테넌트는 로그인 정보로 자동)</li>
  *   <li>중단: 시나리오 마스터 카드 슬라이더 (L 220×130, '전체' 카드 + 종류별 시나리오 카드)</li>
@@ -14,17 +14,17 @@ import { type BreadcrumbProps, Button, Dropdown, Empty, Input } from 'antd';
 import { ChevronLeft, ChevronRight, Layers, MoreVertical, Plus, Search, Trash2 } from 'lucide-react';
 import { useBreadcrumbStore } from '@/shared-store';
 import { toast } from '@/shared-util';
-import ScenarioDeploySidebar from '../components/ScenarioDeploySidebar';
-import ScenarioMasterSheet, { type ScenarioMasterSheetRef } from '../components/ScenarioMasterSheet';
-import ScenarioTypeMultiSelect from '../components/ScenarioTypeMultiSelect';
-import ScenarioVersionGrid from '../components/ScenarioVersionGrid';
-import { scenarioQueryKeys, useDeleteScenario, useGetScenarios } from '../hooks/useScenarioQueries';
-import { SCENARIO_TYPE_COLORS, SCENARIO_TYPE_LABELS, type Scenario, type ScenarioType, type ScenarioVersion } from '../types/scenario.types';
+import ScenarioDeploySidebar from '../../features/scenario/components/ScenarioDeploySidebar';
+import ScenarioMasterSheet, { type ScenarioMasterSheetRef } from '../../features/scenario/components/ScenarioMasterSheet';
+import ScenarioTypeMultiSelect from '../../features/scenario/components/ScenarioTypeMultiSelect';
+import ScenarioVersionGrid from '../../features/scenario/components/ScenarioVersionGrid';
+import { scenarioQueryKeys, useDeleteScenario, useGetScenarios } from '../../features/scenario/hooks/useScenarioQueries';
+import { SCENARIO_TYPE_COLORS, SCENARIO_TYPE_LABELS, type Scenario, type ScenarioType, type ScenarioVersion } from '../../features/scenario/types';
 import { useModal } from '@/libs/shared-ui/src/hooks/useModal';
 
 const breadcrumb: BreadcrumbProps['items'] = [{ title: 'ForCus', path: '/ivr' }, { title: '시나리오 관리' }, { title: '시나리오/버전 관리' }];
 
-export default function ScenarioListPage() {
+export default function ScenarioList() {
   const queryClient = useQueryClient();
   const modal = useModal();
   const setBreadcrumb = useBreadcrumbStore((s) => s.setBreadcrumb);

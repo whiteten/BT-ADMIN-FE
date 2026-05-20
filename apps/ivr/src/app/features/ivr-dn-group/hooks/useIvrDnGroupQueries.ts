@@ -5,7 +5,7 @@ import { useMutation, useQuery } from '@tanstack/react-query';
 import { createQueryKeys } from '@lukemorales/query-key-factory';
 import type { MutationHookOptions, QueryHookOptions, QueryHookWithParamsOptions } from '@/shared-util';
 import { ivrDnGroupApi } from '../api/ivrDnGroupApi';
-import type { IrDnGroup, IrSubDnGroup, IrSubDnQuota, IrSystemUsage } from '../types/ivrDnGroup.types';
+import type { IrDnGroup, IrSubDnGroup, IrSubDnQuota, IrSystemUsage } from '../types';
 
 export const ivrDnGroupQueryKeys = createQueryKeys('ivrDnGroups', {
   getDnGroups: (params?: Record<string, unknown>) => [params],

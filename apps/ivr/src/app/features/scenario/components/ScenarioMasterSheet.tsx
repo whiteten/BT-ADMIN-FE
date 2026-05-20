@@ -7,7 +7,7 @@ import { useQueryClient } from '@tanstack/react-query';
 import { Button, Drawer, Form, Input, InputNumber, Select } from 'antd';
 import { toast } from '@/shared-util';
 import { scenarioQueryKeys, useCreateScenario, useUpdateScenario } from '../hooks/useScenarioQueries';
-import { SCENARIO_TYPE_OPTIONS, type Scenario, type ScenarioType } from '../types/scenario.types';
+import { SCENARIO_TYPE_OPTIONS, type Scenario, type ScenarioType } from '../types';
 
 interface ScenarioMasterSheetProps {
   onSuccess?: () => void;

@@ -5,7 +5,7 @@ import { useMutation, useQuery } from '@tanstack/react-query';
 import { createQueryKeys } from '@lukemorales/query-key-factory';
 import type { MutationHookOptions, QueryHookOptions, QueryHookWithParamsOptions } from '@/shared-util';
 import { ivrMediaApi } from '../api/ivrMediaApi';
-import type { IrMediaServer, IrSttMaster, IrSystemUsage, IrTtsMaster } from '../types/ivrMedia.types';
+import type { IrMediaServer, IrSttMaster, IrSystemUsage, IrTtsMaster } from '../types';
 
 export const ivrMediaQueryKeys = createQueryKeys('ivrMedia', {
   getMediaServer: (params?: Record<string, unknown>) => [params],

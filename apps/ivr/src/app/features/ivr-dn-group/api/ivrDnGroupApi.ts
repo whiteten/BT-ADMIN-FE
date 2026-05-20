@@ -26,7 +26,7 @@ import type {
   IrSubDnGroupUpdateRequest,
   IrSubDnQuota,
   IrSystemUsage,
-} from '../types/ivrDnGroup.types';
+} from '../types';
 
 interface NodeSimpleResponse {
   nodeId: number;
