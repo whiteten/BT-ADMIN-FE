@@ -246,6 +246,47 @@ export interface CallResultStatList {
   columnDef: UserDefColumnDef[];
 }
 
+/** 캠페인 결과 통계 — 그리드 행 (BFF 연동 전 필드명은 대시보드 campaignStatsOverview 기준) */
+export interface CampaignResultStatItem {
+  psrTimeKey: string;
+  tenantId?: string;
+  tenantName: string;
+  campaignId?: string;
+  campaignName: string;
+  campaignListId?: string;
+  campaignListName: string;
+  seq: number;
+  totalTargetCnt?: number;
+  outboundProgressCnt?: number;
+  outboundAttemptCnt?: number;
+  progressRatePct?: number;
+  retryOutboundCnt?: number;
+  selfCallCnt?: number;
+  selfCallCompleteRatePct?: number;
+  failCnt?: number;
+  avgDialogTurnCnt?: number;
+  absentCnt?: number;
+  outboundAttemptSelfCallSuccessRatePct?: number;
+  verifyFailRatePct?: number;
+}
+
+export type CampaignResultStatListItem = CampaignResultStatItem;
+
+/** 캠페인 성과(설문) 결과 통계 — 그리드 행 */
+export interface AchievementResultStatItem {
+  psrTimeKey?: string;
+  tenantId?: string;
+  campaignId?: string;
+  campaignListId?: string;
+  seq?: number;
+  surveyCompleteCnt?: number;
+  negativeAnswerCnt?: number;
+  successRatePct?: number;
+  avgCallDurationSec?: number;
+}
+
+export type AchievementResultStatListItem = AchievementResultStatItem;
+
 /** 활성 테넌트 옵션 — BFF `stat-tenant-options` (V69) */
 export interface TenantOptionItem {
   tenantId: string;

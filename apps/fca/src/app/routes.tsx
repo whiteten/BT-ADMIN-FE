@@ -24,6 +24,9 @@ const IntentStatistics = React.lazy(() => import('./pages/statistics/nlu/IntentS
 const EntityStatistics = React.lazy(() => import('./pages/statistics/nlu/EntityStatistics'));
 const KeywordStatistics = React.lazy(() => import('./pages/statistics/nlu/KeywordStatistics'));
 const CallResultStatistics = React.lazy(() => import('./pages/statistics/campaign/CallResultStatistics'));
+const AchievementResultStatistics = React.lazy(() => import('./pages/statistics/campaign/AchievementResultStatistics'));
+const CampaignResultStatistics = React.lazy(() => import('./pages/statistics/campaign/CampaignResultStatistics'));
+const CampaignIndividualResultStatistics = React.lazy(() => import('./pages/statistics/campaign/CampaignIndividualResultStatistics'));
 const BotDashboard = React.lazy(() => import('./pages/dashboard/BotDashboard'));
 const BotDialogHistory = React.lazy(() => import('./pages/tracking/BotDialogHistory'));
 const BotRealtime = React.lazy(() => import('./pages/tracking/BotRealtime'));
@@ -166,6 +169,9 @@ export const routes = [
             element: <Outlet />,
             children: [
               { index: true, element: <Navigate to="call-result" replace /> },
+              { path: 'campaign-result', element: <CampaignResultStatistics /> },
+              { path: 'campaign-individual-result', element: <CampaignIndividualResultStatistics /> },
+              { path: 'achievement-result', element: <AchievementResultStatistics /> },
               { path: 'call-result', element: <CallResultStatistics /> },
             ],
           },
