@@ -37,7 +37,8 @@ export function useApiErrorHandler() {
       }
       // 사용자 친화적 에러 메시지 추출
       const responseData = error.response?.data as Record<string, unknown> | undefined;
-      const msg = (responseData?.message as string) ?? (responseData?.error_description as string) ?? error.response?.statusText ?? '요청 처리 중 오류가 발생했습니다.';
+      const rawMessage = responseData?.message ?? responseData?.error_description ?? error.response?.statusText;
+      const msg = typeof rawMessage === 'string' ? rawMessage : rawMessage ? JSON.stringify(rawMessage) : '요청 처리 중 오류가 발생했습니다.';
       toast.error(msg);
     };
     window.addEventListener(API_ERROR_EVENT, handler);

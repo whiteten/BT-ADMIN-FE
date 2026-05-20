@@ -8,6 +8,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { Button, Col, Row } from 'antd';
+import { useBreadcrumbStore } from '@/shared-store';
 import { toast } from '@/shared-util';
 import ResourceSection from '../../../features/user-resource/components/ResourceSection';
 import { useGetBots, useGetModels, useGetUserResourceMaps, useSyncUserResources } from '../../../features/user-resource/hooks/useUserResourceQueries';

@@ -1,6 +1,8 @@
 import { Suspense } from 'react';
+
 import { Form } from 'antd';
-import { type QueryParamSpec, useQuerySelectorsStore } from '@/shared-store';
+import { type QueryParamSpec, useBreadcrumbStore, useQuerySelectorsStore } from '@/shared-store';
+
 import { FallbackSpinner } from '@/components/custom/FallbackSpinner';
 
 interface Props {

@@ -223,3 +223,37 @@
     display: none;
   }
 }
+
+/* ag-Grid 헤더: 필터 아이콘 영역 확보 + 텍스트 ellipsis */
+.ag-header-cell-label {
+  overflow: hidden;
+}
+.ag-header-cell-text {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  min-width: 0;
+}
+.ag-header-cell .ag-header-icon,
+.ag-header-cell .ag-header-cell-menu-button,
+.ag-header-cell .ag-header-cell-filter-button {
+  flex-shrink: 0;
+}
+
+/*
+ * ag-Grid: 필터/메뉴 버튼을 hover 시에만 표시.
+ * 평소엔 헤더 텍스트가 컬럼 폭을 풀로 사용해서 ellipsis 발생을 줄임.
+ * 정렬 인디케이터(asc/desc)와 활성 필터(filter-active)는 항상 표시.
+ */
+.ag-header-cell .ag-header-cell-filter-button,
+.ag-header-cell .ag-header-cell-menu-button,
+.ag-header-cell .ag-header-icon-menu {
+  opacity: 0;
+  transition: opacity 0.15s ease;
+}
+.ag-header-cell:hover .ag-header-cell-filter-button,
+.ag-header-cell:hover .ag-header-cell-menu-button,
+.ag-header-cell:hover .ag-header-icon-menu,
+.ag-header-cell.ag-header-cell-filtered .ag-header-cell-filter-button {
+  opacity: 1;
+}

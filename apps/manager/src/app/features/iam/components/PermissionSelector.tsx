@@ -9,6 +9,7 @@
 import { useMemo, useState } from 'react';
 import { Checkbox, Input } from 'antd';
 import { ChevronDown, ChevronRight, Folder, Search } from 'lucide-react';
+import { useBreadcrumbStore } from '@/shared-store';
 import { useGetGroupedPermissions } from '../hooks/usePermissionQueries';
 import type { ActionAuthKeys, MenuWithPermissions, PermissionGroup } from '../types/iam.types';
 import { FallbackSpinner } from '@/components/custom/FallbackSpinner';

@@ -8,6 +8,7 @@
 import { forwardRef, useEffect, useImperativeHandle, useState } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { Button, Col, Drawer, Form, Input, Row, Select } from 'antd';
+import { useBreadcrumbStore } from '@/shared-store';
 import { toast } from '@/shared-util';
 import { useGetApps } from '../hooks/useAppQueries';
 import { permissionQueryKeys, useCreatePermission } from '../hooks/usePermissionQueries';

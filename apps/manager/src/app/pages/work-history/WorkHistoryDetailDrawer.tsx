@@ -3,6 +3,7 @@ import ReactDiffViewer, { DiffMethod } from 'react-diff-viewer-continued';
 import { Button, Drawer, Tabs } from 'antd';
 import dayjs from 'dayjs';
 import { AlertCircle, CheckCircle, ChevronDown, ChevronUp, Clock, Database, FileEdit, Globe, User, XCircle, Zap } from 'lucide-react';
+import { useBreadcrumbStore } from '@/shared-store';
 import { useWorkHistoryDetail } from '../../features/workHistory/hooks/useWorkHistoryQueries';
 import type { ApiCallDetail, DataChangeLog, IdsSyncLog, WorkHistoryDetail } from '../../features/workHistory/types/workHistory.types';
 import { FallbackSpinner } from '@/components/custom/FallbackSpinner';
