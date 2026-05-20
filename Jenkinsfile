@@ -131,7 +131,7 @@ pipeline {
 
                     sh """
                         cd dist/apps/host
-                        tar cvfz ${JENKINS_WORK_PATH}/${env.PKG_NAME} .
+                        tar cvfz ${WORKSPACE}/${env.PKG_NAME} .
                     """
 
                     echo "=========================================="
@@ -149,11 +149,8 @@ pipeline {
             steps {
                 script {
                     sh """
-                        sudo chown -R jenkins:jenkins ${JENKINS_WORK_PATH}
-                        if [ -f ${JENKINS_WORK_PATH}/${env.PKG_NAME} ]; then
-                            sudo mv ${JENKINS_WORK_PATH}/${env.PKG_NAME} .
-                        fi
-                        ls -al *.tgz
+                        sudo chown -R jenkins:jenkins ${WORKSPACE}
+                        ls -al ${WORKSPACE}/${env.PKG_NAME}
                     """
                 }
             }

@@ -3,6 +3,7 @@ import type { TrainDiffStatus, TrainStatus } from './model';
 export interface Keyword {
   keywordId: string;
   keyword: string;
+  keywordValues: string;
   trainStatus: TrainStatus;
   trainDiffStatus: TrainDiffStatus;
   changedYn: boolean;
@@ -10,5 +11,5 @@ export interface Keyword {
 }
 
 export type KeywordListItem = Keyword;
-export type KeywordCreateDatas = Pick<Keyword, 'keyword'>;
-export type KeywordUpdateDatas = Pick<Keyword, 'keyword'>;
+export type KeywordCreateDatas = Pick<Keyword, 'keyword' | 'keywordValues'>;
+export type KeywordUpdateDatas = Pick<Keyword, 'keyword' | 'keywordValues'>;

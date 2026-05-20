@@ -89,17 +89,25 @@ const getDiffStats = (items: SnapshotDiffItem[] | undefined) => {
 };
 
 /**
- * Keyword Diff 통계 계산
+ * Keyword Diff 통계 계산 (키워드/유사어)
  */
 const getKeywordDiffStats = (items: SnapshotDiffItem[] | undefined) => {
   const empty = { total: 0, added: 0, deleted: 0, modified: 0, unchanged: 0 };
-  if (!items) return empty;
+  if (!items) return { keyword: empty, values: empty };
+
+  const flatItems = flattenDiffItems(items);
+
+  const countByStatus = (arr: FlatDiffItem[]) => ({
+    total: arr.length,
+    added: arr.filter((i) => i.changeStatus === '추가').length,
+    deleted: arr.filter((i) => i.changeStatus === '삭제').length,
+    modified: arr.filter((i) => i.changeStatus === '수정').length,
+    unchanged: arr.filter((i) => i.changeStatus === '변경없음').length,
+  });
+
   return {
-    total: items.length,
-    added: items.filter((i) => i.changeStatus === '추가').length,
-    deleted: items.filter((i) => i.changeStatus === '삭제').length,
-    modified: items.filter((i) => i.changeStatus === '수정').length,
-    unchanged: items.filter((i) => i.changeStatus === '변경없음').length,
+    keyword: countByStatus(flatItems.filter((i) => i.type === 'KEYWORD')),
+    values: countByStatus(flatItems.filter((i) => i.type === 'KEYWORD_VALUES')),
   };
 };
 
@@ -245,10 +253,11 @@ const SnapshotCompareDrawer = forwardRef<SnapshotCompareDrawerRef>((_, ref) => {
               ENTITY_TYPEVALUES: { color: 'volcano', text: '유사어' },
               VALUE: { color: 'geekblue', text: '값' },
               KEYWORD: { color: 'gold', text: '키워드' },
+              KEYWORD_VALUES: { color: 'volcano', text: '유사어' },
             };
 
             const config = typeConfig[type ?? ''] || { color: 'default', text: type };
-            const isParent = type === 'INTENT' || type === 'ENTITY';
+            const isParent = type === 'INTENT' || type === 'ENTITY' || type === 'KEYWORD';
 
             return (
               <span className="flex items-center gap-2">
@@ -420,11 +429,22 @@ const SnapshotCompareDrawer = forwardRef<SnapshotCompareDrawerRef>((_, ref) => {
               {openSections.has('keyword') ? <ChevronDown className="size-4 text-gray-400" /> : <ChevronRight className="size-4 text-gray-400" />}
               키워드 변경사항
             </span>
-            <div className="flex items-center gap-1 text-xs">
-              <span className="text-green-600">추가 {keywordStats.added}</span>
-              <span className="text-orange-500">수정 {keywordStats.modified}</span>
-              <span className="text-red-600">삭제 {keywordStats.deleted}</span>
-              <span className="text-gray-400">변경없음 {keywordStats.unchanged}</span>
+            <div className="flex items-center text-xs">
+              <span className="flex items-center gap-1">
+                <span className="text-gray-900">키워드:</span>
+                <span className="text-green-600">추가 {keywordStats.keyword.added}</span>
+                <span className="text-orange-500">수정 {keywordStats.keyword.modified}</span>
+                <span className="text-red-600">삭제 {keywordStats.keyword.deleted}</span>
+                <span className="text-gray-400">변경없음 {keywordStats.keyword.unchanged}</span>
+              </span>
+              <Divider orientation="vertical" className="!h-4" />
+              <span className="flex items-center gap-1">
+                <span className="text-gray-900">유사어:</span>
+                <span className="text-green-600">추가 {keywordStats.values.added}</span>
+                <span className="text-orange-500">수정 {keywordStats.values.modified}</span>
+                <span className="text-red-600">삭제 {keywordStats.values.deleted}</span>
+                <span className="text-gray-400">변경없음 {keywordStats.values.unchanged}</span>
+              </span>
             </div>
           </button>
           {openSections.has('keyword') && (
