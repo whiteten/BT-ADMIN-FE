@@ -6,7 +6,7 @@
  */
 import { forwardRef, useImperativeHandle, useState } from 'react';
 import { Button, Drawer, Form, Input, InputNumber } from 'antd';
-import type { CodeCreateData, CodeUpdateData, DevfuncCode } from '../types/devfuncProfile.types';
+import type { CodeCreateData, CodeUpdateData, DevfuncCode } from '../types';
 
 export interface DevfuncCodeDrawerRef {
   open: (code?: DevfuncCode | null) => void;

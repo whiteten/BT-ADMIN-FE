@@ -13,9 +13,9 @@ import { Alert, Button, Checkbox, Drawer, Empty, Input, Space, Spin } from 'antd
 import { Search } from 'lucide-react';
 import { toast } from '@/shared-util';
 import { useAssignDnToProfile, useGetDns } from '../../dn/hooks/useDnQueries';
-import type { DnResponse } from '../../dn/types/dn.types';
+import type { DnResponse } from '../../dn/types';
 import { DN_STATUS_LABELS, DN_TYPE_SHORT_LABELS } from '../../dn/utils/dnEnums';
-import type { DnProfile } from '../types/dnProfile.types';
+import type { DnProfile } from '../types';
 
 interface DnAssignDialogProps {
   open: boolean;

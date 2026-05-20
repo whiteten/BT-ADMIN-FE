@@ -6,7 +6,7 @@
  * - rtpOption (TRUNK용): 0=사용안함, 1=전송모드, 2=수신모드, 3=모두사용
  * - natOption: 0=미지정, 1=미사용, 2=rport(rfc3581), 3=route, 4=rport+route
  */
-import type { DnProfileType, NatOption } from '../types/dnProfile.types';
+import type { DnProfileType, NatOption } from '../types';
 
 // ─── DN 프로파일 유형 ────────────────────────────────────────────────────────
 export const DN_PROFILE_TYPE_LABELS: Record<DnProfileType, string> = {

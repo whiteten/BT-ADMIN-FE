@@ -6,7 +6,7 @@ import { useMutation, useQuery } from '@tanstack/react-query';
 import { createQueryKeys } from '@lukemorales/query-key-factory';
 import type { MutationHookOptions, QueryHookOptions, QueryHookWithParamsOptions } from '@/shared-util';
 import { dnProfileApi } from '../api/dnProfileApi';
-import type { DnProfile, DnProfileOptionsResponse, NodeSimpleResponse, NodeTenantItem, TenantSimpleResponse } from '../types/dnProfile.types';
+import type { DnProfile, DnProfileOptionsResponse, NodeSimpleResponse, NodeTenantItem, TenantSimpleResponse } from '../types';
 
 export const dnProfileQueryKeys = createQueryKeys('dnProfiles', {
   getList: (params?: Record<string, unknown>) => [params],

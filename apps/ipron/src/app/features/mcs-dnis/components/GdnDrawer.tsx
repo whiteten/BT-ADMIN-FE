@@ -11,7 +11,7 @@ import { forwardRef, useCallback, useEffect, useImperativeHandle, useState } fro
 import { Button, Drawer, Form, Input, Select } from 'antd';
 import { toast } from '@/shared-util';
 import { useCreateMcsGdn, useUpdateMcsGdn } from '../hooks/useMcsDnisQueries';
-import { type McsdGdn, NETWORK_OPERATOR_OPTIONS, type NetworkOperator } from '../types/mcsDnis.types';
+import { type McsdGdn, NETWORK_OPERATOR_OPTIONS, type NetworkOperator } from '../types';
 
 export interface GdnDrawerRef {
   open: (data?: McsdGdn) => void;

@@ -5,7 +5,7 @@
 import { useMemo } from 'react';
 import type { CellStyle, ColDef, ICellRendererParams } from 'ag-grid-community';
 import { AgGridReact } from 'ag-grid-react';
-import type { AdnResponse } from '../types/adn.types';
+import type { AdnResponse } from '../types';
 import { getAdnDftStateName } from '../utils/adnEnums';
 import { IconTrash } from '@/components/custom/Icons';
 import useAggridOptions from '@/libs/shared-ui/src/hooks/useAggridOptions';

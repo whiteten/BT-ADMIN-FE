@@ -6,7 +6,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { Form, Modal, Select } from 'antd';
 import { toast } from '@/shared-util';
 import { useGetNodeMsSetting, useUpdateNodeMsSetting } from '../hooks/useMsGroupQueries';
-import { type MsGroup, NAT_OPTION_OPTIONS } from '../types/msGroup.types';
+import { type MsGroup, NAT_OPTION_OPTIONS } from '../types';
 
 interface Props {
   nodeId: number | null;

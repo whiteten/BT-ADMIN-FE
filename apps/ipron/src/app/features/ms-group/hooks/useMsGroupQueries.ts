@@ -6,7 +6,7 @@ import { useMutation, useQuery } from '@tanstack/react-query';
 import { createQueryKeys } from '@lukemorales/query-key-factory';
 import type { MutationHookOptions, QueryHookOptions, QueryHookWithParamsOptions } from '@/shared-util';
 import { msGroupApi } from '../api/msGroupApi';
-import type { MediaServer, MsGroup, MsGroupMember, NodeMsSettingResponse } from '../types/msGroup.types';
+import type { MediaServer, MsGroup, MsGroupMember, NodeMsSettingResponse } from '../types';
 
 export const msGroupQueryKeys = createQueryKeys('msGroups', {
   getMsGroups: (params?: Record<string, unknown>) => [params],

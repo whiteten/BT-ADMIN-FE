@@ -7,7 +7,7 @@ import { Button, Drawer, Form, Select } from 'antd';
 import { toast } from '@/shared-util';
 import { msGroupApi } from '../api/msGroupApi';
 import { useUpdateNodeMsSetting } from '../hooks/useMsGroupQueries';
-import { type MsGroup, NAT_OPTION_OPTIONS, type NodeMsSettingResponse } from '../types/msGroup.types';
+import { type MsGroup, NAT_OPTION_OPTIONS, type NodeMsSettingResponse } from '../types';
 
 export interface NodeMsSettingDrawerRef {
   open: (nodeId: number, nodeName: string, msGroups: MsGroup[]) => void;

@@ -11,7 +11,7 @@ import { List } from 'lucide-react';
 import { toast } from '@/shared-util';
 import NumPatternDrawer, { type NumPatternDrawerRef } from '../../did-trans/components/NumPatternDrawer';
 import { useCreatePreNumTrans, useDeletePreNumTrans, useGetRoutes, useUpdatePreNumTrans } from '../hooks/usePreNumTransQueries';
-import { EDIT_OPT_OPTIONS, type PreNumTrans, type PreNumTransCreateRequest, TRANS_ACTION_OPTIONS } from '../types/preNumTrans.types';
+import { EDIT_OPT_OPTIONS, type PreNumTrans, type PreNumTransCreateRequest, TRANS_ACTION_OPTIONS } from '../types';
 import { useModal } from '@/libs/shared-ui/src/hooks/useModal';
 
 interface NodeOption {

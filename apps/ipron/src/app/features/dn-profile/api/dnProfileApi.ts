@@ -23,7 +23,7 @@ import type {
   NodeSimpleResponse,
   NodeTenantItem,
   TenantSimpleResponse,
-} from '../types/dnProfile.types';
+} from '../types';
 
 const apiClient = new ApiClient({ serviceURL: '/bff' });
 

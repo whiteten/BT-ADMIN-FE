@@ -7,7 +7,7 @@
 import { forwardRef, useImperativeHandle, useMemo, useState } from 'react';
 import { Form, Input, Modal, Select } from 'antd';
 import type { NodeTenantItem } from '../api/accessProfileApi';
-import type { AccessProfile, NodeSimpleResponse, ProfileCopyData, TenantSimpleResponse } from '../types/accessProfile.types';
+import type { AccessProfile, NodeSimpleResponse, ProfileCopyData, TenantSimpleResponse } from '../types';
 
 export interface AccessProfileCopyDialogRef {
   open: (profile: AccessProfile) => void;

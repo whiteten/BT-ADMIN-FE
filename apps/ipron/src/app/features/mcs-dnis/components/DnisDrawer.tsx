@@ -12,7 +12,7 @@ import { forwardRef, useCallback, useEffect, useImperativeHandle, useState } fro
 import { Button, Drawer, Form, Input, InputNumber, Select } from 'antd';
 import { toast } from '@/shared-util';
 import { useCreateMcsDnis, useUpdateMcsDnis } from '../hooks/useMcsDnisQueries';
-import type { McsdDnis } from '../types/mcsDnis.types';
+import type { McsdDnis } from '../types';
 
 interface NodeOption {
   nodeId: number;

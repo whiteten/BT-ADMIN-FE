@@ -5,7 +5,7 @@ import { useMutation, useQuery } from '@tanstack/react-query';
 import { createQueryKeys } from '@lukemorales/query-key-factory';
 import type { MutationHookOptions, QueryHookOptions, QueryHookWithParamsOptions } from '@/shared-util';
 import { aclApi } from '../api/aclApi';
-import type { Acl } from '../types/acl.types';
+import type { Acl } from '../types';
 
 interface NodeSimpleResponse {
   nodeId: number;

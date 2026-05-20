@@ -6,7 +6,7 @@ import { useMutation, useQuery } from '@tanstack/react-query';
 import { createQueryKeys } from '@lukemorales/query-key-factory';
 import type { MutationHookOptions, QueryHookOptions, QueryHookWithParamsOptions } from '@/shared-util';
 import { sipProfileApi } from '../api/sipProfileApi';
-import type { SipHeaderGroup, SipHeaderRelay, SipProfile } from '../types/sipProfile.types';
+import type { SipHeaderGroup, SipHeaderRelay, SipProfile } from '../types';
 
 export const sipProfileQueryKeys = createQueryKeys('sipProfiles', {
   getProfiles: (params?: Record<string, unknown>) => [params],

@@ -9,7 +9,7 @@
  */
 import { useEffect } from 'react';
 import { Alert, Button, Drawer, Form, Input } from 'antd';
-import type { AdnResponse } from '../types/adn.types';
+import type { AdnResponse } from '../types';
 import { getAdnDftStateName } from '../utils/adnEnums';
 
 interface AdnCopyDrawerProps {

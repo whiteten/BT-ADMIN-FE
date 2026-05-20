@@ -5,7 +5,7 @@ import { useMutation, useQuery } from '@tanstack/react-query';
 import { createQueryKeys } from '@lukemorales/query-key-factory';
 import type { MutationHookOptions, QueryHookOptions, QueryHookWithParamsOptions } from '@/shared-util';
 import { mcsDnisApi } from '../api/mcsDnisApi';
-import type { McsdDnis, McsdGdn } from '../types/mcsDnis.types';
+import type { McsdDnis, McsdGdn } from '../types';
 
 interface NodeSimpleResponse {
   nodeId: number;

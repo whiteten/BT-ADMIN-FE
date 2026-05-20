@@ -13,7 +13,7 @@ import { useState } from 'react';
 import { Button, Dropdown, type MenuProps, message } from 'antd';
 import { Headphones, Lock } from 'lucide-react';
 import { useGetRecordingRedirect } from '../hooks/useTrackingQueries';
-import type { RecordingType } from '../types/tracking.types';
+import type { RecordingType } from '../types';
 
 interface Props {
   ucid: string;

@@ -11,7 +11,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { Alert, Button, Col, Drawer, Form, Input, Progress, Row, Select } from 'antd';
 import { toast } from '@/shared-util';
 import { dnApi } from '../api/dnApi';
-import { DN_BATCH_INITIAL_VALUES, type DnBatchCreateRequest, type DnOptionItem, type DnResponse } from '../types/dn.types';
+import { DN_BATCH_INITIAL_VALUES, type DnBatchCreateRequest, type DnOptionItem, type DnResponse } from '../types';
 
 /** 한 요청당 최대 DN 건수 — IDS TCP frame ~1MB 이하로 유지 (4MB 제한) */
 const CHUNK_SIZE = 500;

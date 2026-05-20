@@ -5,7 +5,7 @@
  */
 import { forwardRef, useImperativeHandle, useState } from 'react';
 import { Form, Input, Modal, Select } from 'antd';
-import type { EmergProfile, NodeSimpleResponse, ProfileCopyData } from '../types/emergProfile.types';
+import type { EmergProfile, NodeSimpleResponse, ProfileCopyData } from '../types';
 
 export interface EmergProfileCopyDialogRef {
   open: (profile: EmergProfile) => void;

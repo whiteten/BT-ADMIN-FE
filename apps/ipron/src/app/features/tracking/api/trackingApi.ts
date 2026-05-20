@@ -28,7 +28,7 @@ import type {
   RecordingRedirectResponse,
   RecordingType,
   TrackingSearchCriteria,
-} from '../types/tracking.types';
+} from '../types';
 
 const apiClient = new ApiClient({ serviceURL: '/bff' });
 

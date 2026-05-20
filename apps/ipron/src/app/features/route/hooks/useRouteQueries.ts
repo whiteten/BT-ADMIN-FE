@@ -6,7 +6,7 @@ import { useMutation, useQuery } from '@tanstack/react-query';
 import { createQueryKeys } from '@lukemorales/query-key-factory';
 import type { MutationHookOptions, QueryHookOptions, QueryHookWithParamsOptions } from '@/shared-util';
 import { routeApi } from '../api/routeApi';
-import type { Route, RoutePoint } from '../types/route.types';
+import type { Route, RoutePoint } from '../types';
 
 export const routeQueryKeys = createQueryKeys('routes', {
   getRoutes: (params?: Record<string, unknown>) => [params],

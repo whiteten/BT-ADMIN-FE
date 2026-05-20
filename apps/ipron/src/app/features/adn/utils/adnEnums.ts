@@ -1,7 +1,7 @@
 /**
  * ADN 도메인 enum / 옵션 — BE 직렬화 코드(string) 기준.
  */
-import type { AdnDefaultStateCode, DnStatusCode } from '../types/adn.types';
+import type { AdnDefaultStateCode, DnStatusCode } from '../types';
 
 export const DN_STATUS_OPTIONS: ReadonlyArray<{ value: DnStatusCode; label: string }> = [
   { value: '1', label: '로그인' },

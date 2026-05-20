@@ -5,7 +5,7 @@ import { useMutation, useQuery } from '@tanstack/react-query';
 import { createQueryKeys } from '@lukemorales/query-key-factory';
 import type { MutationHookOptions, QueryHookOptions, QueryHookWithParamsOptions } from '@/shared-util';
 import { type NodeTenantItem, dodTransApi } from '../api/dodTransApi';
-import type { DodTransItem, DodTransMaster } from '../types/dodTrans.types';
+import type { DodTransItem, DodTransMaster } from '../types';
 
 interface NodeSimpleResponse {
   nodeId: number;

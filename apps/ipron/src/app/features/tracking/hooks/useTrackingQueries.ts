@@ -18,7 +18,7 @@ import type {
   RecordingRedirectResponse,
   RecordingType,
   TrackingSearchCriteria,
-} from '../types/tracking.types';
+} from '../types';
 
 export const trackingQueryKeys = createQueryKeys('tracking', {
   detail: (ucid?: string) => [ucid],

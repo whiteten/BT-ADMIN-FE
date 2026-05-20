@@ -13,7 +13,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Input, Modal } from 'antd';
 import { Calendar, Clock, Search, Star, Trash2 } from 'lucide-react';
-import type { DateRangePreset, RecentSearch } from '../types/tracking.types';
+import type { DateRangePreset, RecentSearch } from '../types';
 
 interface CommandPaletteProps {
   open: boolean;

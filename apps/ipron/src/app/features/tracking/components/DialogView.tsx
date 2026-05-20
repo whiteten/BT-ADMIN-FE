@@ -7,7 +7,7 @@
  *  - text = 멘트 내용 또는 고객 입력값, mentId = IVR 멘트 ID
  */
 import { Empty } from 'antd';
-import type { DialogTurn } from '../types/tracking.types';
+import type { DialogTurn } from '../types';
 
 interface Props {
   turns: DialogTurn[];

@@ -9,7 +9,7 @@
  */
 import { useEffect, useRef, useState } from 'react';
 import { Empty } from 'antd';
-import type { IvrNodeType, IvrScenarioGroup, IvrStep } from '../types/tracking.types';
+import type { IvrNodeType, IvrScenarioGroup, IvrStep } from '../types';
 
 interface Props {
   groups: IvrScenarioGroup[];

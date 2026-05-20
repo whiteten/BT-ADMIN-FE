@@ -5,7 +5,7 @@
  * Step 1 기본/IP, Step 2 인증/단말기, Step 3 부가설정/IPT 그룹핑.
  */
 import { Divider } from 'antd';
-import type { DnOptionItem } from '../types/dn.types';
+import type { DnOptionItem } from '../types';
 import {
   ADN_DEFAULT_STATE_LABELS,
   BOOL_ON_OFF_LABEL,

@@ -6,7 +6,7 @@
  */
 import { forwardRef, useImperativeHandle, useState } from 'react';
 import { Button, Drawer, Form, Input, Select } from 'antd';
-import type { DevfuncProfile, ProfileCreateData, ProfileUpdateData, TenantSimpleResponse } from '../types/devfuncProfile.types';
+import type { DevfuncProfile, ProfileCreateData, ProfileUpdateData, TenantSimpleResponse } from '../types';
 
 export interface DevfuncProfileDrawerRef {
   open: (profile?: DevfuncProfile | null, tenantId?: number) => void;

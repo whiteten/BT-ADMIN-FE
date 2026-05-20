@@ -17,7 +17,7 @@ import { Button, Drawer, Form, Input } from 'antd';
 import { Pencil, Plus, Trash2 } from 'lucide-react';
 import { toast } from '@/shared-util';
 import { useCreateDnShortDial, useDeleteDnShortDial, useGetDnShortDialList, useUpdateDnShortDial } from '../hooks/useDnQueries';
-import type { DnShortDialRequest, DnShortDialResponse } from '../types/dn.types';
+import type { DnShortDialRequest, DnShortDialResponse } from '../types';
 import useAggridOptions from '@/libs/shared-ui/src/hooks/useAggridOptions';
 
 interface DnShortDialDrawerProps {

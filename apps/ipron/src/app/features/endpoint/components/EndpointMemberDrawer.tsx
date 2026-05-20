@@ -6,7 +6,7 @@ import { forwardRef, useCallback, useEffect, useImperativeHandle, useState } fro
 import { Button, Col, Drawer, Form, Input, InputNumber, Row, Select, Switch } from 'antd';
 import { toast } from '@/shared-util';
 import { useCreateMember, useUpdateMember } from '../hooks/useEndpointQueries';
-import { type EndpointMember, type EndpointMemberCreateRequest, TRANSPORT_OPTIONS } from '../types/endpoint.types';
+import { type EndpointMember, type EndpointMemberCreateRequest, TRANSPORT_OPTIONS } from '../types';
 
 export interface EndpointMemberDrawerRef {
   open: (data?: EndpointMember) => void;

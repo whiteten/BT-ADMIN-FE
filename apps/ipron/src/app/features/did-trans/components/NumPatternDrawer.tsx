@@ -10,7 +10,7 @@ import { Button, Drawer, Empty, Form, Input, List, Popconfirm, Space, Tooltip, T
 import { Check, Pencil, Plus, Search, Trash2, X } from 'lucide-react';
 import { toast } from '@/shared-util';
 import { useCreateNumPattern, useDeleteNumPattern, useGetNumPatterns, useUpdateNumPattern } from '../hooks/useDidTransQueries';
-import type { NumPattern, NumPatternCreateRequest } from '../types/didTrans.types';
+import type { NumPattern, NumPatternCreateRequest } from '../types';
 
 export interface NumPatternDrawerRef {
   open: () => void;

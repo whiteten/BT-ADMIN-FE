@@ -10,7 +10,7 @@
 import { useState } from 'react';
 import { Button, Tooltip } from 'antd';
 import { ArrowLeft, Copy, Download, Lock, Unlock } from 'lucide-react';
-import type { CallDetailHeader, CallResult } from '../types/tracking.types';
+import type { CallDetailHeader, CallResult } from '../types';
 
 interface Props {
   header: CallDetailHeader;

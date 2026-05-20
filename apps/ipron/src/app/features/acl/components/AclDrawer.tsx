@@ -9,7 +9,7 @@ import { forwardRef, useCallback, useEffect, useImperativeHandle, useState } fro
 import { Button, Drawer, Form, Input, Select } from 'antd';
 import { toast } from '@/shared-util';
 import { useCreateAcl, useCreateCtiAcl, useDeleteAcl, useDeleteCtiAcl, useUpdateAcl, useUpdateCtiAcl } from '../hooks/useAclQueries';
-import { type Acl, type AclCreateRequest, USE_YN_OPTIONS } from '../types/acl.types';
+import { type Acl, type AclCreateRequest, USE_YN_OPTIONS } from '../types';
 import { useModal } from '@/libs/shared-ui/src/hooks/useModal';
 
 type AclCategory = 'pbx' | 'cti';

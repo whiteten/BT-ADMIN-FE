@@ -6,7 +6,7 @@ import { forwardRef, useCallback, useEffect, useImperativeHandle, useState } fro
 import { Button, Drawer, Form, Input, Select } from 'antd';
 import { toast } from '@/shared-util';
 import { useCreateMdGrp, useDeleteMdGrp, useUpdateMdGrp } from '../hooks/useMediaDeliveryQueries';
-import type { MdGrp } from '../types/mediaDelivery.types';
+import type { MdGrp } from '../types';
 import { useModal } from '@/libs/shared-ui/src/hooks/useModal';
 
 interface NodeOption {

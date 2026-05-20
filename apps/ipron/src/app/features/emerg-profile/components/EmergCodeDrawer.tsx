@@ -6,7 +6,7 @@
  */
 import { forwardRef, useImperativeHandle, useState } from 'react';
 import { Button, Drawer, Form, Input, Select } from 'antd';
-import type { CodeCreateData, CodeUpdateData, EmergCode } from '../types/emergProfile.types';
+import type { CodeCreateData, CodeUpdateData, EmergCode } from '../types';
 
 export interface EmergCodeDrawerRef {
   open: (code?: EmergCode | null) => void;

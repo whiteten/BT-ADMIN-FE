@@ -15,7 +15,7 @@
  * - ipron-endpoint-list:        GET    국선 목록 조회 (국선배정용)
  */
 import ApiClient, { type DetailResponse, type ListResponse, extractDetail, extractList } from '@/shared-util';
-import type { Route, RouteCreateRequest, RoutePoint, RoutePointBatchRequest, RouteUpdateRequest } from '../types/route.types';
+import type { Route, RouteCreateRequest, RoutePoint, RoutePointBatchRequest, RouteUpdateRequest } from '../types';
 
 interface NodeSimpleResponse {
   nodeId: number;

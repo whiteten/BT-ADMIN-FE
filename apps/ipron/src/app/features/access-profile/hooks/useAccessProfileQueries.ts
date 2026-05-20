@@ -6,7 +6,7 @@ import { useMutation, useQuery } from '@tanstack/react-query';
 import { createQueryKeys } from '@lukemorales/query-key-factory';
 import type { MutationHookOptions, QueryHookOptions, QueryHookWithParamsOptions } from '@/shared-util';
 import { type NodeTenantItem, accessProfileApi } from '../api/accessProfileApi';
-import type { AccessCode, AccessProfile, NodeSimpleResponse, ProfileTreeNodeResponse, RouteSimpleResponse, TenantSimpleResponse } from '../types/accessProfile.types';
+import type { AccessCode, AccessProfile, NodeSimpleResponse, ProfileTreeNodeResponse, RouteSimpleResponse, TenantSimpleResponse } from '../types';
 
 export const accessProfileQueryKeys = createQueryKeys('accessProfiles', {
   getProfiles: (params?: Record<string, unknown>) => [params],

@@ -12,7 +12,7 @@
  * - ipron-route-list:             GET    라우트 목록 조회 (라우트 선택용)
  */
 import ApiClient, { type DetailResponse, type ListResponse, extractDetail, extractList } from '@/shared-util';
-import type { PreNumTrans, PreNumTransCreateRequest, PreNumTransUpdateRequest } from '../types/preNumTrans.types';
+import type { PreNumTrans, PreNumTransCreateRequest, PreNumTransUpdateRequest } from '../types';
 
 interface NodeSimpleResponse {
   nodeId: number;

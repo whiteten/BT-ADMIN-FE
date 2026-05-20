@@ -7,7 +7,7 @@ import { Button, Checkbox, Col, Drawer, Form, Input, InputNumber, Row, Select, S
 import { X } from 'lucide-react';
 import { toast } from '@/shared-util';
 import { useCreateRegnum, useUpdateRegnum } from '../hooks/useEndpointQueries';
-import type { EndpointRegnum, EndpointRegnumCreateRequest } from '../types/endpoint.types';
+import type { EndpointRegnum, EndpointRegnumCreateRequest } from '../types';
 
 export interface EndpointRegnumDrawerRef {
   open: (data?: EndpointRegnum) => void;

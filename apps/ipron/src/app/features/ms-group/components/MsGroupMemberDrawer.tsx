@@ -14,7 +14,7 @@ import { toast } from '@/shared-util';
 import MediaServerDrawer, { type MediaServerDrawerRef } from './MediaServerDrawer';
 import { msGroupApi } from '../api/msGroupApi';
 import { useDeleteMediaServer, useUpdateMsGroupMembers } from '../hooks/useMsGroupQueries';
-import type { MediaServer, MsGroup, MsGroupMember } from '../types/msGroup.types';
+import type { MediaServer, MsGroup, MsGroupMember } from '../types';
 
 export interface MsGroupMemberDrawerRef {
   open: (msGroup: MsGroup) => void;

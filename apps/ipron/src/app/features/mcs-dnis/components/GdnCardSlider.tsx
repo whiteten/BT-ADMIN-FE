@@ -6,7 +6,7 @@
 import { useRef } from 'react';
 import { Button, Dropdown, Empty, type MenuProps } from 'antd';
 import { ChevronLeft, ChevronRight, MoreVertical } from 'lucide-react';
-import { type McsdGdn, NETWORK_OPERATOR_LABELS, type NetworkOperator } from '../types/mcsDnis.types';
+import { type McsdGdn, NETWORK_OPERATOR_LABELS, type NetworkOperator } from '../types';
 
 interface Props {
   gdnList: McsdGdn[];

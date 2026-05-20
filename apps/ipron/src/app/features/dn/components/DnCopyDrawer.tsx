@@ -13,7 +13,7 @@ import { useEffect, useRef, useState } from 'react';
 import { Alert, Button, Drawer, Form, Input, Progress } from 'antd';
 import { toast } from '@/shared-util';
 import { dnApi } from '../api/dnApi';
-import type { DnResponse } from '../types/dn.types';
+import type { DnResponse } from '../types';
 
 /** 한 요청당 최대 DN 건수 — IDS TCP frame ~1MB 이하 유지 + 15s readTimeout 내 처리 보장 */
 const CHUNK_SIZE = 500;

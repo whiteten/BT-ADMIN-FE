@@ -28,7 +28,7 @@ import type {
   ProfileTreeNodeResponse,
   ProfileUpdateData,
   TenantSimpleResponse,
-} from '../types/devfuncProfile.types';
+} from '../types';
 
 const apiClient = new ApiClient({ serviceURL: '/bff' });
 

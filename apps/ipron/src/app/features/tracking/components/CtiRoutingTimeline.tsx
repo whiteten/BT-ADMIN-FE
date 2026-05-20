@@ -8,7 +8,7 @@
  *   0=라우팅 시도, 1=상담원 착신, 2=Host 조회, 3=BSR 대표큐, 4=BSR 수신대기
  */
 import { Empty } from 'antd';
-import type { CtiRoutingHop } from '../types/tracking.types';
+import type { CtiRoutingHop } from '../types';
 
 interface Props {
   hops: CtiRoutingHop[];

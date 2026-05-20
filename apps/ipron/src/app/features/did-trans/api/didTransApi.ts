@@ -16,7 +16,7 @@
  * - manager-node-list:         GET    노드 목록 조회 (cross-service)
  */
 import ApiClient, { type DetailResponse, type ListResponse, extractDetail, extractList } from '@/shared-util';
-import type { DidTrans, DidTransCreateRequest, DidTransUpdateRequest, NumPattern, NumPatternCreateRequest, NumPatternUpdateRequest } from '../types/didTrans.types';
+import type { DidTrans, DidTransCreateRequest, DidTransUpdateRequest, NumPattern, NumPatternCreateRequest, NumPatternUpdateRequest } from '../types';
 
 interface NodeSimpleResponse {
   nodeId: number;

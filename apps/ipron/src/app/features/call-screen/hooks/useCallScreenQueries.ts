@@ -5,7 +5,7 @@ import { useMutation, useQuery } from '@tanstack/react-query';
 import { createQueryKeys } from '@lukemorales/query-key-factory';
 import type { MutationHookOptions, QueryHookOptions, QueryHookWithParamsOptions } from '@/shared-util';
 import { type NodeTenantItem, callScreenApi } from '../api/callScreenApi';
-import type { CallScreen } from '../types/callScreen.types';
+import type { CallScreen } from '../types';
 
 export const callScreenQueryKeys = createQueryKeys('callScreen', {
   getList: (params?: Record<string, unknown>) => [params],

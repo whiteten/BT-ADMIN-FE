@@ -11,7 +11,7 @@ import { Empty } from 'antd';
 // eslint-disable-next-line @typescript-eslint/ban-ts-comment
 // @ts-ignore
 import { sankeyCircular, sankeyLeft } from 'd3-sankey-circular';
-import type { JourneyFlow } from '../types/tracking.types';
+import type { JourneyFlow } from '../types';
 
 interface Props {
   data: JourneyFlow | null | undefined;

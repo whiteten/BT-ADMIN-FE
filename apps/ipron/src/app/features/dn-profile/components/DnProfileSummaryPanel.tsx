@@ -3,7 +3,7 @@
  * Form.useWatch 값 또는 상위에서 전달된 formValues 를 구독하여 실시간 표시
  */
 import { Divider } from 'antd';
-import type { ProfileOptionItem } from '../types/dnProfile.types';
+import type { ProfileOptionItem } from '../types';
 import { DN_PROFILE_TYPE_LABELS, NAT_OPTION_LABELS, ON_OFF_LABEL, YES_NO_LABEL, getRtpLabel } from '../utils/dnProfileEnums';
 
 interface DnProfileSummaryPanelProps {

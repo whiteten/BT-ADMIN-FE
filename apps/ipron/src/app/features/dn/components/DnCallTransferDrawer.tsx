@@ -20,7 +20,7 @@ import dayjs, { type Dayjs } from 'dayjs';
 import { List, Pencil, Plus, Trash2 } from 'lucide-react';
 import { toast } from '@/shared-util';
 import NumPatternDrawer, { type NumPatternDrawerRef } from '../../did-trans/components/NumPatternDrawer';
-import type { NumPattern } from '../../did-trans/types/didTrans.types';
+import type { NumPattern } from '../../did-trans/types';
 import { useCreateDnCallTransfer, useDeleteDnCallTransfer, useGetDnCallTransferList, useUpdateDnCallTransfer } from '../hooks/useDnQueries';
 import {
   CALL_TRANS_KIND_LABELS,
@@ -35,7 +35,7 @@ import {
   TRANS_REASON_GROUPS,
   type TransReasonCodeCode,
   type TransferDenyType,
-} from '../types/dn.types';
+} from '../types';
 import useAggridOptions from '@/libs/shared-ui/src/hooks/useAggridOptions';
 
 interface DnCallTransferDrawerProps {

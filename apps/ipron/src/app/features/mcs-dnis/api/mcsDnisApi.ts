@@ -14,7 +14,7 @@
  * - manager-node-list:      GET    노드 목록 조회 (cross-service)
  */
 import ApiClient, { type DetailResponse, type ListResponse, extractDetail, extractList } from '@/shared-util';
-import type { McsdDnis, McsdDnisCreateRequest, McsdDnisUpdateRequest, McsdGdn, McsdGdnCreateRequest, McsdGdnUpdateRequest } from '../types/mcsDnis.types';
+import type { McsdDnis, McsdDnisCreateRequest, McsdDnisUpdateRequest, McsdGdn, McsdGdnCreateRequest, McsdGdnUpdateRequest } from '../types';
 
 interface NodeSimpleResponse {
   nodeId: number;

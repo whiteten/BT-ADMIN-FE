@@ -5,7 +5,7 @@ import { useMutation, useQuery } from '@tanstack/react-query';
 import { createQueryKeys } from '@lukemorales/query-key-factory';
 import type { MutationHookOptions, QueryHookOptions, QueryHookWithParamsOptions } from '@/shared-util';
 import { didRouteApi } from '../api/didRouteApi';
-import type { DidRoute } from '../types/didRoute.types';
+import type { DidRoute } from '../types';
 
 export const didRouteQueryKeys = createQueryKeys('didRoutes', {
   getList: (params?: Record<string, unknown>) => [params],

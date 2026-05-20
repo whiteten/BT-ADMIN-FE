@@ -14,14 +14,7 @@
  * - manager-node-list:              GET    노드 목록 조회 (cross-service)
  */
 import ApiClient, { type DetailResponse, type ListResponse, extractDetail, extractList } from '@/shared-util';
-import type {
-  DodTransItem,
-  DodTransItemCreateRequest,
-  DodTransItemUpdateRequest,
-  DodTransMaster,
-  DodTransMasterCreateRequest,
-  DodTransMasterUpdateRequest,
-} from '../types/dodTrans.types';
+import type { DodTransItem, DodTransItemCreateRequest, DodTransItemUpdateRequest, DodTransMaster, DodTransMasterCreateRequest, DodTransMasterUpdateRequest } from '../types';
 
 export interface NodeTenantItem {
   nodeId: number;

@@ -31,7 +31,7 @@ import type {
   ProfileDetailBackendResponse,
   ProfileUpdateData,
   RouteSimpleResponse,
-} from '../types/emergProfile.types';
+} from '../types';
 
 const apiClient = new ApiClient({ serviceURL: '/bff' });
 

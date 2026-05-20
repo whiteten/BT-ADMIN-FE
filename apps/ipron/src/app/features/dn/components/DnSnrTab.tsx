@@ -18,7 +18,7 @@ import dayjs, { type Dayjs } from 'dayjs';
 import { CalendarClock, List, Pencil, Plus, Trash2 } from 'lucide-react';
 import { toast } from '@/shared-util';
 import NumPatternDrawer, { type NumPatternDrawerRef } from '../../did-trans/components/NumPatternDrawer';
-import type { NumPattern } from '../../did-trans/types/didTrans.types';
+import type { NumPattern } from '../../did-trans/types';
 import {
   useCreateDnSnr,
   useCreateDnSnrTod,
@@ -29,7 +29,7 @@ import {
   useUpdateDnSnr,
   useUpdateDnSnrTod,
 } from '../hooks/useDnQueries';
-import { DN_SNR_INITIAL_VALUES, type DnSnrRequest, type DnSnrResponse, type DnSnrTodRequest, type DnSnrTodResponse } from '../types/dn.types';
+import { DN_SNR_INITIAL_VALUES, type DnSnrRequest, type DnSnrResponse, type DnSnrTodRequest, type DnSnrTodResponse } from '../types';
 import useAggridOptions from '@/libs/shared-ui/src/hooks/useAggridOptions';
 
 const MAX_SNR = 4;

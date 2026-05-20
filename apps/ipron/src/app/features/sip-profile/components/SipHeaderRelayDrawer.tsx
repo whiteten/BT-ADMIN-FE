@@ -5,7 +5,7 @@
  */
 import { forwardRef, useImperativeHandle, useState } from 'react';
 import { Button, Drawer, Form, Input } from 'antd';
-import type { SipHeaderRelayCreateRequest } from '../types/sipProfile.types';
+import type { SipHeaderRelayCreateRequest } from '../types';
 
 export interface SipHeaderRelayDrawerRef {
   open: () => void;

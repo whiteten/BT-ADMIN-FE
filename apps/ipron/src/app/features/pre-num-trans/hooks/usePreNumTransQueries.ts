@@ -5,7 +5,7 @@ import { useMutation, useQuery } from '@tanstack/react-query';
 import { createQueryKeys } from '@lukemorales/query-key-factory';
 import type { MutationHookOptions, QueryHookOptions, QueryHookWithParamsOptions } from '@/shared-util';
 import { preNumTransApi } from '../api/preNumTransApi';
-import type { PreNumTrans } from '../types/preNumTrans.types';
+import type { PreNumTrans } from '../types';
 
 interface NodeSimpleResponse {
   nodeId: number;

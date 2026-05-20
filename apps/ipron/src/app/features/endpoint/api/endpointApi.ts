@@ -29,7 +29,7 @@ import type {
   EndpointRegnumCreateRequest,
   EndpointRegnumUpdateRequest,
   EndpointUpdateRequest,
-} from '../types/endpoint.types';
+} from '../types';
 
 interface NodeSimpleResponse {
   nodeId: number;

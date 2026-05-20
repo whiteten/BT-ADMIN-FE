@@ -8,7 +8,7 @@
  * - extAuthtype:  1=고정IP, 2=동적IP
  * - adnDftState:  1=대기, 2=휴식, 3=후처리, 4=이석, 9=기타
  */
-import type { AdnDefaultState, DnStatus, DnType, ExtAuthType, IpVersion, TransportType } from '../types/dn.types';
+import type { AdnDefaultState, DnStatus, DnType, ExtAuthType, IpVersion, TransportType } from '../types';
 
 // ─── DN 유형 ────────────────────────────────────────────────────────────────
 
