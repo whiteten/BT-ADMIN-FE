@@ -119,7 +119,7 @@ pipeline {
 
                     // Nx 빌드 (순차 빌드로 메모리 이슈 방지)
                     def cacheFlag = params.SKIP_CACHE ? '--skip-nx-cache' : ''
-                    sh "npx nx run-many --target=build --projects=${projects} --parallel=1 ${cacheFlag}"
+                    sh "npx nx run-many --target=build --projects=${projects} ${cacheFlag}"
 
                     // host 포함 시: remote 앱들을 host/remotes/로 복사
                     if (targets.contains('host')) {
@@ -199,7 +199,8 @@ pipeline {
             sh 'sudo chown -R jenkins:jenkins ${JENKINS_WORK_PATH} || true'
             cleanWs(patterns: [
                 [pattern: 'node_modules/**', type: 'EXCLUDE'],
-                [pattern: '.git/**', type: 'EXCLUDE']
+                [pattern: '.git/**', type: 'EXCLUDE'],
+                [pattern: '.nx/**', type: 'EXCLUDE']
             ])
         }
     }
