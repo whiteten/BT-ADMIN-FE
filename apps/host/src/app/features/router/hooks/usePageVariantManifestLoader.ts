@@ -12,6 +12,7 @@ const VARIANT_LOADERS: Record<string, () => Promise<PageVariantManifestModule>> 
   fca: () => import('fca/PageVariantManifest').catch(() => ({ pageVariantManifest: {} })) as Promise<PageVariantManifestModule>,
   ipron: () => import('ipron/PageVariantManifest').catch(() => ({ pageVariantManifest: {} })) as Promise<PageVariantManifestModule>,
   aoe: () => import('aoe/PageVariantManifest').catch(() => ({ pageVariantManifest: {} })) as Promise<PageVariantManifestModule>,
+  stt: () => import('stt/PageVariantManifest').catch(() => ({ pageVariantManifest: {} })) as Promise<PageVariantManifestModule>,
 };
 
 /**

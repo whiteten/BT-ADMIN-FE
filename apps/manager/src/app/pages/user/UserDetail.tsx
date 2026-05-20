@@ -150,13 +150,6 @@ export default function UserDetail() {
     resetToServerData();
   }, [resetToServerData]);
 
-  // 활성 탭이 탭 목록에 없을 경우 첫 번째 탭으로 리셋
-  useEffect(() => {
-    if (!tabs.some((t) => t.id === activeTab)) {
-      setActiveTab(tabs[0]?.id ?? '');
-    }
-  }, [tabs, activeTab]);
-
   /**
    * 탭 전환 핸들러
    * - forceMount 미사용으로 탭 전환 시 컴포넌트가 언마운트/리마운트됨

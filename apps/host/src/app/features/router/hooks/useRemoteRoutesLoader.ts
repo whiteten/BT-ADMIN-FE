@@ -12,6 +12,7 @@ const ROUTE_LOADERS: Record<string, () => Promise<RoutesModule>> = {
   fca: () => import('fca/Routes').catch(() => ({ routes: [] })) as Promise<RoutesModule>,
   ipron: () => import('ipron/Routes').catch(() => ({ routes: [] })) as Promise<RoutesModule>,
   aoe: () => import('aoe/Routes').catch(() => ({ routes: [] })) as Promise<RoutesModule>,
+  stt: () => import('stt/Routes').catch(() => ({ routes: [] })) as Promise<RoutesModule>,
 };
 
 const PARAM_KEY_PATTERN = /:([A-Za-z_][A-Za-z0-9_]*)/g;
