@@ -11,6 +11,7 @@ import { recogQueryKeys, useGetRecogGroupList } from '../hooks/useRecogQueries';
 import type { RecogResultItem, SttModelItem } from '../types';
 import NoData from '@/components/custom/NoData';
 import useAggridOptions from '@/libs/shared-ui/src/hooks/useAggridOptions';
+import { useModal } from '@/libs/shared-ui/src/hooks/useModal';
 
 export interface SttModelRecogDrawerRef {
   open: (model: SttModelItem, engineCode: string) => void;
@@ -91,6 +92,7 @@ const SttModelRecogDrawer = forwardRef<SttModelRecogDrawerRef>((_, ref) => {
   const [selectedRow, setSelectedRow] = useState<RecogResultItem | null>(null);
   const { gridOptions } = useAggridOptions();
   const queryClient = useQueryClient();
+  const modal = useModal();
 
   useImperativeHandle(ref, () => ({
     open: (m: SttModelItem, ec: string) => {
@@ -141,7 +143,16 @@ const SttModelRecogDrawer = forwardRef<SttModelRecogDrawerRef>((_, ref) => {
       toast.warning('해당 그룹에 인식률 측정 데이터가 없습니다. 정답지를 등록해주세요.');
       return;
     }
-    requestResult({ modelVerId: model.modelVerId, groupCode, engineCode });
+    const groupName = groupOptions.find((g) => g.value === groupCode)?.label ?? groupCode;
+    modal.confirm.execute({
+      options: {
+        title: '인식률 측정',
+        content: `"${model.modelVerName}" 모델의 "${groupName}"에 대한 인식률 측정을 시작하시겠습니까?`,
+        okText: '측정',
+        cancelText: '취소',
+      },
+      onOk: () => requestResult({ modelVerId: model.modelVerId, groupCode, engineCode }),
+    });
   };
 
   const handleGroupChange = (value: string) => {
