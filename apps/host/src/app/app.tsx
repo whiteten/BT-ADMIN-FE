@@ -23,6 +23,8 @@ import '@/libs/shared-ui/src/lib/aggridSetup';
 const Manager = React.lazy(() => import('manager/Module').catch(() => ({ default: () => <NotFound /> })));
 const Fca = React.lazy(() => import('fca/Module').catch(() => ({ default: () => <NotFound /> })));
 const Ipron = React.lazy(() => import('ipron/Module').catch(() => ({ default: () => <NotFound /> })));
+const Aoe = React.lazy(() => import('aoe/Module').catch(() => ({ default: () => <NotFound /> })));
+const AoeWorkflow = React.lazy(() => import('aoe/WorkflowApp').catch(() => ({ default: () => <NotFound /> })));
 
 const AppRoutes = () => {
   useApiErrorHandler();
@@ -53,6 +55,10 @@ const AppRoutes = () => {
           <Route path="/ipron" element={<Layout />}>
             <Route index path="*" element={<Ipron />} />
           </Route>
+          <Route path="/aoe" element={<Layout />}>
+            <Route index path="*" element={<Aoe />} />
+          </Route>
+          <Route path="/aoe-workflow/:agentId" element={<AoeWorkflow />} />
         </Route>
         <Route path="/login" element={<Login />} />
         <Route path="/forbidden" element={<Forbidden useFullScreen />} />

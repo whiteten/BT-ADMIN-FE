@@ -14,6 +14,7 @@ const SELECTOR_LOADERS: Record<string, () => Promise<SelectorsModule>> = {
   manager: () => import('manager/QuerySelectors').catch(() => ({ querySelectors: {} })) as Promise<SelectorsModule>,
   fca: () => import('fca/QuerySelectors').catch(() => ({ querySelectors: {} })) as Promise<SelectorsModule>,
   ipron: () => import('ipron/QuerySelectors').catch(() => ({ querySelectors: {} })) as Promise<SelectorsModule>,
+  aoe: () => import('aoe/QuerySelectors').catch(() => ({ querySelectors: {} })) as Promise<SelectorsModule>,
 };
 
 /**
