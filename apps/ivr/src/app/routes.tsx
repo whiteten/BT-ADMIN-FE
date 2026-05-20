@@ -2,7 +2,6 @@ import React from 'react';
 import { Navigate, Outlet } from 'react-router-dom';
 import { NotFound } from '@/components/custom/NotFound';
 
-const Main = React.lazy(() => import('./pages/main/Main'));
 const IvrEndpointListPage = React.lazy(() => import('./features/ivr-endpoint/pages/IvrEndpointListPage'));
 const IvrDnGroupListPage = React.lazy(() => import('./features/ivr-dn-group/pages/IvrDnGroupListPage'));
 const IvrMediaPage = React.lazy(() => import('./features/ivr-media/components/IvrMediaPage'));
@@ -16,11 +15,7 @@ export const routes = [
     children: [
       {
         index: true,
-        element: <Navigate to="main" replace />,
-      },
-      {
-        path: 'main',
-        element: <Main />,
+        element: <Navigate to="/" replace />,
       },
       {
         path: 'ivr/endpoint',
@@ -46,6 +41,6 @@ export const routes = [
   },
   {
     path: '*',
-    element: <NotFound homePath="/ivr" />,
+    element: <NotFound homePath="/" />,
   },
 ];
