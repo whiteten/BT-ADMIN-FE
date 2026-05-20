@@ -1,0 +1,97 @@
+{
+  "name": "ivr",
+  "$schema": "../../node_modules/nx/schemas/project-schema.json",
+  "sourceRoot": "apps/ivr/src",
+  "projectType": "application",
+  "tags": [],
+  "targets": {
+    "build": {
+      "executor": "@nx/webpack:webpack",
+      "outputs": [
+        "{options.outputPath}"
+      ],
+      "defaultConfiguration": "production",
+      "options": {
+        "compiler": "babel",
+        "outputPath": "dist/apps/ivr",
+        "index": "apps/ivr/src/index.html",
+        "baseHref": "/",
+        "main": "apps/ivr/src/main.ts",
+        "tsConfig": "apps/ivr/tsconfig.app.json",
+        "assets": [
+          "apps/ivr/src/favicon.ico",
+          "apps/ivr/src/assets"
+        ],
+        "styles": [],
+        "scripts": [],
+        "webpackConfig": "apps/ivr/webpack.config.ts",
+        "postcssConfig": "apps/ivr/postcss.config.js"
+      },
+      "configurations": {
+        "development": {
+          "extractLicenses": false,
+          "optimization": false,
+          "sourceMap": true,
+          "vendorChunk": true
+        },
+        "production": {
+          "fileReplacements": [
+            {
+              "replace": "apps/ivr/src/environments/environment.ts",
+              "with": "apps/ivr/src/environments/environment.prod.ts"
+            }
+          ],
+          "optimization": true,
+          "outputHashing": "all",
+          "sourceMap": false,
+          "namedChunks": false,
+          "extractLicenses": false,
+          "vendorChunk": false,
+          "webpackConfig": "apps/ivr/webpack.config.prod.ts"
+        }
+      }
+    },
+    "serve": {
+      "executor": "@nx/react:module-federation-dev-server",
+      "defaultConfiguration": "development",
+      "options": {
+        "buildTarget": "ivr:build",
+        "hmr": true,
+        "port": 4204
+      },
+      "configurations": {
+        "development": {
+          "buildTarget": "ivr:build:development"
+        },
+        "production": {
+          "buildTarget": "ivr:build:production",
+          "hmr": false
+        }
+      }
+    },
+    "test": {
+      "executor": "@nx/jest:jest",
+      "outputs": [
+        "{workspaceRoot}/coverage/{projectRoot}"
+      ],
+      "options": {
+        "jestConfig": "apps/ivr/jest.config.ts"
+      }
+    },
+    "serve-static": {
+      "executor": "@nx/react:module-federation-static-server",
+      "defaultConfiguration": "production",
+      "options": {
+        "serveTarget": "ivr:serve"
+      },
+      "configurations": {
+        "development": {
+          "serveTarget": "ivr:serve:development"
+        },
+        "production": {
+          "serveTarget": "ivr:serve:production"
+        }
+      }
+    }
+  }
+}

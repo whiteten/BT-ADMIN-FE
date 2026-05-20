@@ -29,6 +29,7 @@ const prodConfig: ModuleFederationConfig = {
     ['manager', '/remotes/manager/remoteEntry.js'],
     ['fca', '/remotes/fca/remoteEntry.js'],
     ['ipron', '/remotes/ipron/remoteEntry.js'],
+    ['ivr', '/remotes/ivr/remoteEntry.js'],
   ],
 };
 

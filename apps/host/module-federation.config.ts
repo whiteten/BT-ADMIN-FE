@@ -20,9 +20,11 @@ const config: ModuleFederationConfig = {
     // ['manager', 'http://192.168.115.27:4201'],
     // ['fca', 'http://192.168.115.27:4202'],
     // ['ipron', 'http://192.168.115.27:4203'],
+    // ['ivr', 'http://192.168.115.27:4204'],
     ['manager', 'http://localhost:4201'],
     ['fca', 'http://localhost:4202'],
     ['ipron', 'http://localhost:4203'],
+    ['ivr', 'http://localhost:4204'],
   ],
   shared: createSharedConfig(),
   additionalShared: [

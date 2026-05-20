@@ -11,6 +11,7 @@ const VARIANT_LOADERS: Record<string, () => Promise<PageVariantManifestModule>> 
   manager: () => import('manager/PageVariantManifest').catch(() => ({ pageVariantManifest: {} })) as Promise<PageVariantManifestModule>,
   fca: () => import('fca/PageVariantManifest').catch(() => ({ pageVariantManifest: {} })) as Promise<PageVariantManifestModule>,
   ipron: () => import('ipron/PageVariantManifest').catch(() => ({ pageVariantManifest: {} })) as Promise<PageVariantManifestModule>,
+  ivr: () => import('ivr/PageVariantManifest').catch(() => ({ pageVariantManifest: {} })) as Promise<PageVariantManifestModule>,
 };
 
 /**

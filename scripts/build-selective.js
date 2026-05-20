@@ -6,7 +6,7 @@ const readline = require('readline');
 const fs = require('fs-extra');
 
 // 사용 가능한 앱 목록
-const APPS = ['host', 'manager', 'fca', 'ipron'];
+const APPS = ['host', 'manager', 'fca', 'ipron', 'ivr'];
 
 const rl = readline.createInterface({
   input: process.stdin,
