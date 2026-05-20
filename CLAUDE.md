@@ -199,12 +199,35 @@ API 통합 시 반드시 **TanStack Query**와 커스텀 훅을 사용합니다.
 
 ### 애플리케이션
 
-- `apps/*/src/app/` - 메인 애플리케이션 컴포넌트
-- `apps/*/src/app/pages/` - 페이지 컴포넌트
-- `apps/*/src/app/features/` - 기능별 로직 및 타입
-- `apps/*/src/remote-entry.ts` - Module Federation 진입점
-- `apps/*/module-federation.config.ts` - Module Federation 설정
-- `apps/*/webpack.config.ts` - Webpack 설정
+각 remote 앱(`apps/<remote>/`)은 아래 구조를 **표준**으로 합니다. **`apps/fca`가 레퍼런스 구현**이며, 신규 remote 생성 및 기존 remote 점검(`/update-remote`) 시 이 구조를 기준으로 정규화합니다.
+
+```
+apps/<remote>/
+├── src/
+│   ├── app/
+│   │   ├── app.tsx                # 앱 루트 컴포넌트
+│   │   ├── routes.tsx             # 라우팅 정의 (아래 "라우팅(routes.tsx) 컨벤션" 참조)
+│   │   ├── pages/                 # 라우트에 1:1 매핑되는 페이지 컴포넌트
+│   │   │   └── <route-group>/     # 라우트 그룹 단위 폴더 (kebab-case)
+│   │   │       ├── <Page>.tsx
+│   │   │       └── variants/      # 화면 커스터마이징 변형 (필요 시)
+│   │   └── features/              # 기능별 로직 (아래 "Feature 디렉토리 구조" 참조)
+│   │       └── router/            # 라우팅 보조 모듈 (feature 아님)
+│   ├── remote-entry.ts            # Module Federation 진입점
+│   ├── bootstrap.tsx
+│   ├── main.ts
+│   ├── index.html
+│   ├── styles.css
+│   └── assets/
+├── module-federation.config.ts    # Module Federation 설정
+└── webpack.config.ts              # Webpack 설정
+```
+
+규칙:
+
+- **`pages/` 하위**: 라우트 그룹(`bot-config`, `dashboard` 등 kebab-case) 폴더로 1단계 분류. 페이지 파일은 `PascalCase.tsx`. 상세 페이지의 탭 컴포넌트는 페이지가 아니므로 `pages/`가 아니라 `features/<feature>/tabs/`에 둠
+- **`features/router/`**: `features/` 하위에 있지만 도메인 feature가 아니라 **라우팅 보조 모듈** 전용 폴더. 세션 이벤트 핸들러, `DynamicElement`, variant manifest, query selector aggregator 등이 위치. routes.tsx는 이들을 import만 함
+- **`pages/<route-group>/variants/`**: 화면 커스터마이징 변형 컴포넌트는 페이지 옆 `variants/`에 co-location (상세는 "화면 커스터마이징(Variants) 패턴" 참조)
 
 ### 라이브러리
 
@@ -559,39 +582,64 @@ modal.confirm.execute({
 });
 ```
 
-### 페이지 Lazy Loading 패턴
+### 라우팅(routes.tsx) 컨벤션
 
-모든 페이지 컴포넌트는 `React.lazy`로 지연 로드합니다. 라우트 파일(`routes.tsx`)에서 import합니다:
+각 remote의 라우팅은 `apps/<remote>/src/app/routes.tsx` 한 파일에 정의하며, **`apps/fca/src/app/routes.tsx`를 레퍼런스**로 삼습니다.
+
+#### 핵심 규칙 (요약)
+
+1. **페이지는 `React.lazy`로 지연 로드**: 모든 페이지 컴포넌트는 파일 상단에서 `const Xxx = React.lazy(() => import('./pages/...'))`로 선언. 라우트 그룹 순서대로 묶어 선언하고, 페이지는 `./pages/...` 상대 경로로 import. (직접 import하면 모든 페이지가 한꺼번에 로드되어 초기 로딩이 느려짐)
+2. **`routes` named export**: 라우트 트리는 `export const routes = [...]` 배열로 내보냄
+3. **단일 루트 + Outlet 그룹**: 최상위는 `{ path: '/', element: <세션핸들러 또는 Outlet>, children: [...] }` 하나. 2-depth 이상 라우트 그룹은 `{ path: '<group>', element: <Outlet />, children: [...] }`로 표현
+4. **index redirect**: 루트·각 그룹의 children 첫 항목은 기본 하위로 보내는 `{ index: true, element: <Navigate to="<default>" replace /> }`. 동적 세그먼트 하위 그룹의 index는 `<Navigate to=".." replace />`로 부모 복귀
+5. **동적 세그먼트**: `:paramId` 형태(camelCase). 탭 레이아웃이 필요한 상세 페이지는 `element`에 `<Feature>DetailLayout`, `children`에 탭·하위 라우트를 둠
+6. **공통 라우트 추출**: 여러 path에서 동일하게 재사용되는 라우트 묶음은 모듈 스코프 배열 상수(예: `sharedModelRoutes`)로 추출 후 `children: [...sharedXxxRoutes]`로 spread
+7. **catch-all은 항상 마지막**: `routes` 배열 마지막 항목은 `{ path: '*', element: <NotFound homePath="/" /> }`
+8. **path는 kebab-case**: `bot-config`, `bot-dialog-history`, `call-bot` 등
+9. **라우팅 보조 모듈은 `features/router/`**: 세션 이벤트 핸들러·`DynamicElement`·variant manifest·query selector 등은 `features/router/`에 두고 routes.tsx는 import만 함
+10. **변형·분기**: variant 지원 path는 `<DynamicElement>`로 감싸고("화면 커스터마이징(Variants) 패턴" 참조), queryString 분기 path는 `handle.queryParams`를 선언("queryString 기반 메뉴 분기 패턴" 참조)
+11. **페이지 컴포넌트 네이밍은 기능명만**: 페이지 `.tsx` 파일명과 lazy 변수명은 `<기능명>` 또는 `<기능명><역할>`(역할 = `List`·`Create`·`Detail` 등) 형태로 **기능명만** 사용하고, `Page`처럼 "페이지임"을 나타내는 군더더기 접미사를 붙이지 않음. fca를 기준으로 통일 — ❌ `RoleCreatePage`, `NodeListPage`, `AccountPolicyPage` → ✅ `RoleCreate`, `NodeList`, `AccountPolicy`
 
 ```typescript
-// apps/fca/src/app/routes.tsx
-import { lazy } from 'react';
+// apps/<remote>/src/app/routes.tsx
+import React from 'react';
+import { Navigate, Outlet } from 'react-router-dom';
+import { NotFound } from '@/components/custom/NotFound';
 
-const BotList = lazy(() => import('./pages/bot-config/BotList'));
-const BotCreate = lazy(() => import('./pages/bot-config/BotCreate'));
-const BotDetail = lazy(() => import('./pages/bot-config/BotDetail'));
-const ModelList = lazy(() => import('./pages/bot-config/ModelList'));
-const BotDashboard = lazy(() => import('./pages/dashboard/BotDashboard'));
+// 페이지 — 라우트 그룹 순서대로 묶어 lazy 선언
+const BotList = React.lazy(() => import('./pages/bot-config/BotList'));
+const BotCreate = React.lazy(() => import('./pages/bot-config/BotCreate'));
+const BotDetail = React.lazy(() => import('./pages/bot-config/BotDetail'));
 
 export const routes = [
   {
     path: '/',
-    element: <RootLayout />,
+    element: <Outlet />, // 또는 remote별 세션 핸들러 (예: <FcaWsSessionEventHandler />)
     children: [
       { index: true, element: <Navigate to="/" replace /> },
       {
-        path: 'bot-config/bot',
+        path: 'bot-config', // 라우트 그룹 — kebab-case
+        element: <Outlet />,
         children: [
-          { path: 'list', element: <BotList /> },
-          { path: 'create', element: <BotCreate /> },
-          { path: ':serviceId', element: <BotDetail /> },
+          { index: true, element: <Navigate to="bot" replace /> },
+          {
+            path: 'bot',
+            children: [
+              { index: true, element: <Navigate to="list" replace /> },
+              { path: 'list', element: <BotList /> },
+              { path: 'create', element: <BotCreate /> },
+              { path: ':serviceId', element: <BotDetail /> }, // 동적 세그먼트
+            ],
+          },
         ],
       },
     ],
   },
-  { path: '*', element: <NotFound homePath="/" /> },
+  { path: '*', element: <NotFound homePath="/" /> }, // 항상 마지막
 ];
 ```
+
+상세 골격·중첩 상세 페이지·공통 라우트 추출 예시는 [DEVELOPER_GUIDE.md](doc/DEVELOPER_GUIDE.md)의 "라우팅(routes.tsx) 가이드" 섹션 참조.
 
 ### 페이지 Breadcrumb 패턴
 
