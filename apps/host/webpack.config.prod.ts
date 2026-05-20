@@ -31,6 +31,7 @@ const prodConfig: ModuleFederationConfig = {
     ['ipron', '/remotes/ipron/remoteEntry.js'],
     ['aoe', '/remotes/aoe/remoteEntry.js'],
     ['stt', '/remotes/stt/remoteEntry.js'],
+    ['ivr', '/remotes/ivr/remoteEntry.js'],
   ],
 };
 
