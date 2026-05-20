@@ -14,6 +14,7 @@ const ROUTE_LOADERS: Record<string, () => Promise<RoutesModule>> = {
   aoe: () => import('aoe/Routes').catch(() => ({ routes: [] })) as Promise<RoutesModule>,
   stt: () => import('stt/Routes').catch(() => ({ routes: [] })) as Promise<RoutesModule>,
   ivr: () => import('ivr/Routes').catch(() => ({ routes: [] })) as Promise<RoutesModule>,
+  insight: () => import('insight/Routes').catch(() => ({ routes: [] })) as Promise<RoutesModule>,
 };
 
 const PARAM_KEY_PATTERN = /:([A-Za-z_][A-Za-z0-9_]*)/g;

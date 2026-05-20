@@ -475,6 +475,8 @@ importers:
 
   apps/host: {}
 
+  apps/insight: {}
+
   apps/ipron: {}
 
   apps/manager: {}

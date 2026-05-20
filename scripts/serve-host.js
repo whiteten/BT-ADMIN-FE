@@ -3,7 +3,7 @@
 const { spawn } = require('child_process');
 const readline = require('readline');
 
-const REMOTE_APPS = ['fca', 'ipron', 'aoe', 'stt', 'ivr'];
+const REMOTE_APPS = ['fca', 'ipron', 'aoe', 'stt', 'ivr', 'insight'];
 
 const rl = readline.createInterface({
   input: process.stdin,
