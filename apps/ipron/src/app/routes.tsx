@@ -1,7 +1,6 @@
 import React from 'react';
 import { Navigate, Outlet } from 'react-router-dom';
 import { NotFound } from '@/components/custom/NotFound';
-const Main = React.lazy(() => import('./pages/main/Main'));
 const EmergProfilePage = React.lazy(() => import('./features/emerg-profile/pages/EmergProfilePage'));
 const SipProfileListPage = React.lazy(() => import('./features/sip-profile/pages/SipProfileListPage'));
 const SipProfileFormPage = React.lazy(() => import('./features/sip-profile/pages/SipProfileFormPage'));
@@ -41,11 +40,7 @@ export const routes = [
     children: [
       {
         index: true,
-        element: <Navigate to="main" replace />,
-      },
-      {
-        path: 'main',
-        element: <Main />,
+        element: <Navigate to="/" replace />,
       },
       {
         path: 'profile/emerg-profile',
@@ -211,6 +206,6 @@ export const routes = [
   },
   {
     path: '*',
-    element: <NotFound homePath="/ipron" />,
+    element: <NotFound homePath="/" />,
   },
 ];
