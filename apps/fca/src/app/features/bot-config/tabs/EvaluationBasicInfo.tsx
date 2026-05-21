@@ -34,7 +34,7 @@ export default function EvaluationBasicInfo() {
     mutationOptions: {
       onSuccess: () => {
         toast.success('평가가 삭제되었습니다.');
-        navigate('../..?tab=tab4');
+        navigate('../..?tab=tab5');
       },
     },
   });
@@ -77,7 +77,7 @@ export default function EvaluationBasicInfo() {
           </Row>
           <Row gutter={20} justify="center" className="sticky bottom-0 bg-white/90 z-10 pb-7">
             <Col>
-              <Button variant="solid" onClick={() => navigate('../..?tab=tab4')}>
+              <Button variant="solid" onClick={() => navigate('../..?tab=tab5')}>
                 취소
               </Button>
             </Col>

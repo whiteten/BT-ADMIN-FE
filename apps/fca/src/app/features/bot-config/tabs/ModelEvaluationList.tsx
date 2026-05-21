@@ -3,16 +3,36 @@ import { useNavigate, useParams } from 'react-router-dom';
 import { useQueryClient } from '@tanstack/react-query';
 import type { ColDef, ICellRendererParams, RowDoubleClickedEvent } from 'ag-grid-community';
 import { AgGridReact } from 'ag-grid-react';
-import { Button, Input, Select } from 'antd';
+import { Button, Input, Select, Slider } from 'antd';
 import dayjs from 'dayjs';
 import { toast } from '@/shared-util';
 import EvalStatusBadge from '../components/EvalStatusBadge';
 import EvaluationDrawer, { type EvaluationDrawerRef } from '../components/EvaluationDrawer';
-import { modelQueryKeys, useDeleteEvaluation, useGetEvaluations } from '../hooks/useModelQueries';
+import { modelQueryKeys, useDeleteEvaluation, useExecuteEvaluation, useGetEvaluations, useGetModel } from '../hooks/useModelQueries';
 import type { EvalStatus, EvaluationListItem } from '../types/evaluation';
 import { IconPlayCircle, IconTrash } from '@/components/custom/Icons';
 import useAggridOptions from '@/libs/shared-ui/src/hooks/useAggridOptions';
 import { useModal } from '@/libs/shared-ui/src/hooks/useModal';
+
+const DEFAULT_THRESHOLD = 80;
+
+function ThresholdSliderContent({ defaultValue, onChange }: { defaultValue: number; onChange: (value: number) => void }) {
+  const [value, setValue] = useState(defaultValue);
+  const handleChange = (next: number) => {
+    setValue(next);
+    onChange(next);
+  };
+  return (
+    <div className="flex flex-col gap-3 pt-2">
+      <div>신뢰도 기준으로 평가를 실행하시겠습니까?</div>
+      <div className="flex items-center gap-3">
+        <span className="text-sm text-[#495057] whitespace-nowrap">신뢰도(평가용)</span>
+        <Slider min={0} max={100} step={1} value={value} onChange={handleChange} tooltip={{ formatter: (v) => `${v}%` }} className="!w-[200px]" />
+        <span className="text-sm text-[#405189] font-medium min-w-[40px]">{value}%</span>
+      </div>
+    </div>
+  );
+}
 
 export default function ModelEvaluation() {
   const { modelId = '' } = useParams();
@@ -27,6 +47,11 @@ export default function ModelEvaluation() {
 
   const { data: evaluationList, isFetching } = useGetEvaluations({ params: { modelId } });
 
+  const { data: model, isLoading: isModelLoading } = useGetModel({
+    params: { modelId },
+    queryOptions: { enabled: !!modelId },
+  });
+
   const { mutate: deleteEvaluation } = useDeleteEvaluation({
     mutationOptions: {
       onSuccess: () => {
@@ -36,13 +61,44 @@ export default function ModelEvaluation() {
     },
   });
 
-  const handleExecuteEvaluation = (evalId: string) => {
-    modal.confirm.execute({
-      onOk: () => {
-        alert(`Execute Evaluation.\nmodelId: ${modelId}\nevalId: ${evalId}`);
+  const { mutateAsync: executeEvaluation, isPending: isExecuting } = useExecuteEvaluation({
+    mutationOptions: {
+      onSuccess: () => {
+        toast.success('평가가 실행되었습니다.');
+        queryClient.invalidateQueries({ queryKey: modelQueryKeys.getEvaluations({ modelId }).queryKey });
       },
+    },
+  });
+
+  const handleExecuteEvaluation = (evalId: string) => {
+    if (isModelLoading) return;
+    const trainId = model?.trainId;
+    if (!trainId) {
+      toast.warning('학습 정보를 찾을 수 없습니다.\n모델 학습을 먼저 진행한 후, 평가를 실행해주세요.');
+      return;
+    }
+    const trainStatus = model?.trainStatus;
+    if (trainStatus !== 2) {
+      toast.warning('학습이 완료되지 않았습니다.\n학습이 완료된 후, 평가를 실행해주세요.');
+      return;
+    }
+    const tenantId = model?.tenantId;
+    let threshold = DEFAULT_THRESHOLD;
+    modal.confirm.execute({
+      onOk: () =>
+        executeEvaluation({
+          params: { modelId, evalId, tenantId },
+          data: { threshold },
+        }),
       options: {
-        content: '평가를 진행하시겠습니까?',
+        content: (
+          <ThresholdSliderContent
+            defaultValue={DEFAULT_THRESHOLD}
+            onChange={(v) => {
+              threshold = v;
+            }}
+          />
+        ),
       },
     });
   };
@@ -70,8 +126,8 @@ export default function ModelEvaluation() {
       valueFormatter: (params: { value: string }) => (params.value ? dayjs(params.value).format('YYYY-MM-DD HH:mm:ss') : '-'),
     },
     {
-      headerName: '',
-      maxWidth: 60,
+      headerName: '실행',
+      maxWidth: 80,
       sortable: false,
       filter: false,
       suppressHeaderMenuButton: true,
@@ -86,6 +142,7 @@ export default function ModelEvaluation() {
               e.stopPropagation();
               handleExecuteEvaluation(data.evalId);
             }}
+            disabled={isExecuting || isModelLoading}
           >
             <IconPlayCircle className="size-5 text-[#405189] hover:cursor-pointer" />
           </button>
