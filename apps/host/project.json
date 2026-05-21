@@ -61,7 +61,7 @@
         "buildTarget": "host:build",
         "hmr": true,
         "port": 4200,
-        "proxyConfig": "apps/host/proxy.config.json"
+        "proxyConfig": "apps/host/proxy.config.js"
       },
       "configurations": {
         "development": {

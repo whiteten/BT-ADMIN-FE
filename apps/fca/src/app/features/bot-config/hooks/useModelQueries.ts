@@ -290,6 +290,13 @@ export const useCreateEvaluation = ({ mutationOptions }: MutationHookOptions = {
   });
 };
 
+export const useCopyEvaluation = ({ mutationOptions }: MutationHookOptions = {}) => {
+  return useMutation({
+    mutationFn: modelApi.copyEvaluation,
+    ...mutationOptions,
+  });
+};
+
 export const useUpdateEvaluation = ({ mutationOptions }: MutationHookOptions = {}) => {
   return useMutation({
     mutationFn: modelApi.updateEvaluation,

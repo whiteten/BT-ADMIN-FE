@@ -37,7 +37,7 @@ src/app/
   name: 'host',
   remotes: ['manager', 'fca'],
   shared: createSharedConfig(),
-  additionalShared: ['@/components/ui/sidebar', '@/shared-store']
+  additionalShared: ['@/shared-store']
 }
 ```
 

@@ -13,6 +13,9 @@ export type EvaluationListItem = Evaluation & { questionCount: number };
 export type EvaluationItem = Evaluation;
 export type EvaluationCreateDatas = Pick<Evaluation, 'evalName'>;
 export type EvaluationUpdateDatas = Pick<Evaluation, 'evalName'>;
+export type EvaluationCopyDatas = {
+  evalName?: string;
+};
 
 export interface EvaluationQuestion {
   evalId: string;

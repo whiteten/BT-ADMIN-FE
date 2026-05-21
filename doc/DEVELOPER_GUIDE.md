@@ -64,6 +64,19 @@ pnpm run serve
 
 실행 후 브라우저에서 `http://localhost:4200`으로 접속할 수 있습니다.
 
+### 개발 서버 proxy 설정
+
+API·WebSocket 요청은 host 개발 서버의 proxy를 거쳐 백엔드로 전달됩니다. 설정은 `apps/host/proxy.config.js`에 있습니다.
+
+- **공유본 `proxy.config.js`를 직접 수정하지 마세요.** 커밋되면 다른 사람의 개발 환경이 깨집니다.
+- 개인 PC에서 다른 서버를 바라보려면 `apps/host/proxy.config.local.json`을 만들어 본인 서버 주소만 적습니다. 이 파일은 `.gitignore` 처리되어 커밋되지 않습니다:
+
+  ```json
+  { "target": "http://192.168.0.x:8501" }
+  ```
+
+  이 파일이 있으면 모든 proxy 항목의 `target`이 해당 값으로 교체됩니다. `/api`·`/ws` 같은 proxy 대상 경로(context) 구조 변경만 공유본 `proxy.config.js`에서 합니다.
+
 ### 주의사항
 
 - **절대 `npm install`이나 `yarn`을 사용하지 마세요.** 이 프로젝트는 pnpm 전용입니다. 다른 패키지 매니저를 사용하면 lock 파일이 꼬입니다.
