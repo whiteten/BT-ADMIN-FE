@@ -248,15 +248,15 @@ export const botDashboardLayoutRenderMapper: Record<string, LayoutRenderEntry> =
     renderChart: (d) => <IntentFailRateTopBarChart data={d?.intentFailRateTop} />,
     renderTable: (d) => <IntentFailRateTopGrid data={d?.intentFailRateTop} />,
   },
-  campaignStatsOverview: {
-    filterLabel: '캠페인 통계 현황',
-    title: '캠페인 통계',
-    renderChart: (d) => <CampaignStatsOverviewPanel data={d?.campaignStatsOverview} />,
-  },
   hourlyEntry: {
     title: '시간대별 봇 진입 현황',
     supportedModes: [DASHBOARD_VIEW.CHART, DASHBOARD_VIEW.TABLE],
     renderChart: (d) => <HourlyEntryLineChart data={d?.hourlyEntry} />,
     renderTable: (d) => <HourlyEntryGrid data={d?.hourlyEntry} />,
   },
+  // campaignStatsOverview: {
+  //   filterLabel: '캠페인 통계 현황',
+  //   title: '캠페인 통계',
+  //   renderChart: (d) => <CampaignStatsOverviewPanel data={d?.campaignStatsOverview} />,
+  // },
 };

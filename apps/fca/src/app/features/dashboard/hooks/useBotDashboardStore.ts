@@ -22,7 +22,7 @@ export const DEFAULT_LAYOUT: DashboardLayoutItem[] = [
   { i: generateWidgetId(), widgetType: 'intentCheckFailTop', x: 0, y: 21, w: 7, h: 5 },
   { i: generateWidgetId(), widgetType: 'intentFailRateTop', x: 7, y: 21, w: 5, h: 5 },
   { i: generateWidgetId(), widgetType: 'hourlyEntry', x: 0, y: 26, w: 12, h: 5 },
-  { i: generateWidgetId(), widgetType: 'campaignStatsOverview', x: 0, y: 31, w: 12, h: 10 },
+  //{ i: generateWidgetId(), widgetType: 'campaignStatsOverview', x: 0, y: 31, w: 12, h: 10 },
 ];
 
 type WidgetOptionsMap = Record<string, Record<string, unknown>>;

@@ -91,18 +91,6 @@ const numberCellStyle = (params: { node?: { rowPinned?: string | null } }): Cell
     ? { display: 'flex', fontWeight: 'bold', alignItems: 'center', justifyContent: 'flex-end', textAlign: 'right' }
     : { display: 'flex', fontWeight: 'normal', alignItems: 'center', justifyContent: 'flex-end', textAlign: 'right' };
 
-// 성공률/실패율 강조 스타일 (레거시 clsTransRateCol)
-const accentCellStyle = (params: { node?: { rowPinned?: string | null } }): CellStyle => ({
-  ...numberCellStyle(params),
-  backgroundColor: '#ffe8e8',
-});
-
-// 퍼센트 포맷터 (null/0이면 빈값)
-const percentFormatter = ({ value }: { value: unknown }) => {
-  if (value === null || value === undefined || value === '') return '';
-  return `${value}%`;
-};
-
 // 평균통화시간 포맷터 (초 단위 가정)
 const durationFormatter = ({ value }: { value: unknown }) => {
   if (value === null || value === undefined || value === '') return '';
@@ -117,7 +105,7 @@ const ACHIEVEMENT_COLUMN_DEFS: Record<AchievementStatCategory, ColDef<Achievemen
   [ACHIEVEMENT_STAT_CATEGORY.HAPPY_CALL]: [
     { headerName: '설문완료 건수', field: 'surveyCompleteCnt', width: 120, cellStyle: numberCellStyle },
     { headerName: '부정답변 건수', field: 'negativeAnswerCnt', width: 120, cellStyle: numberCellStyle },
-    { headerName: '성공률', field: 'successRatePct', width: 100, valueFormatter: percentFormatter, cellStyle: accentCellStyle },
+    { headerName: '성공률', field: 'successRatePct', width: 100, cellStyle: numberCellStyle, cellRenderer: 'percentBarRenderer' },
     { headerName: '평균통화시간', field: 'avgCallDurationSec', width: 120, valueFormatter: durationFormatter, cellStyle: numberCellStyle },
   ],
   [ACHIEVEMENT_STAT_CATEGORY.PHYSICAL_TRANSFER]: [
@@ -131,14 +119,14 @@ const ACHIEVEMENT_COLUMN_DEFS: Record<AchievementStatCategory, ColDef<Achievemen
   [ACHIEVEMENT_STAT_CATEGORY.MATURITY_NOTICE]: [
     { headerName: '완결 건수', field: 'noticeCompleteCnt', width: 120, cellStyle: numberCellStyle },
     { headerName: '미완료 건수', field: 'noticeIncompleteCnt', width: 120, cellStyle: numberCellStyle },
-    { headerName: '성공률', field: 'noticeSuccessRatePct', width: 100, valueFormatter: percentFormatter, cellStyle: accentCellStyle },
+    { headerName: '성공률', field: 'noticeSuccessRatePct', width: 100, cellStyle: numberCellStyle, cellRenderer: 'percentBarRenderer' },
     { headerName: '무자발송건수', field: 'noticeNoSendCnt', width: 120, cellStyle: numberCellStyle },
     { headerName: '평균통화시간', field: 'noticeAvgCallDurationSec', width: 120, valueFormatter: durationFormatter, cellStyle: numberCellStyle },
   ],
   [ACHIEVEMENT_STAT_CATEGORY.SHORT_TERM_OVERDUE]: [
     { headerName: '완결 건수', field: 'overdueCompleteCnt', width: 120, cellStyle: numberCellStyle },
     { headerName: '미완료 건수', field: 'overdueIncompleteCnt', width: 120, cellStyle: numberCellStyle },
-    { headerName: '성공률', field: 'overdueSuccessRatePct', width: 100, valueFormatter: percentFormatter, cellStyle: accentCellStyle },
+    { headerName: '성공률', field: 'overdueSuccessRatePct', width: 100, cellStyle: numberCellStyle, cellRenderer: 'percentBarRenderer' },
     { headerName: '무자발송건수', field: 'overdueNoSendCnt', width: 120, cellStyle: numberCellStyle },
     { headerName: '평균통화시간', field: 'overdueAvgCallDurationSec', width: 120, valueFormatter: durationFormatter, cellStyle: numberCellStyle },
   ],

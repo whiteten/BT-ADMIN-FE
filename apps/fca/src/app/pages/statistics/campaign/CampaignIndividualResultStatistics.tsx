@@ -86,20 +86,8 @@ const numberCellStyle = (params: { node?: { rowPinned?: string | null } }): Cell
     ? { display: 'flex', fontWeight: 'bold', alignItems: 'center', justifyContent: 'flex-end', textAlign: 'right' }
     : { display: 'flex', fontWeight: 'normal', alignItems: 'center', justifyContent: 'flex-end', textAlign: 'right' };
 
-// 성공률/실패율 강조 스타일 (레거시 clsTransRateCol)
-const accentCellStyle = (params: { node?: { rowPinned?: string | null } }): CellStyle => ({
-  ...numberCellStyle(params),
-  backgroundColor: '#ffe8e8',
-});
-
 const textCellStyle = (params: { node?: { rowPinned?: string | null } }): CellStyle =>
   params.node?.rowPinned === 'bottom' ? { fontWeight: 'bold', alignItems: 'center' } : { fontWeight: 'normal', alignItems: 'center' };
-
-// 퍼센트 포맷터 (null/0이면 빈값)
-const percentFormatter = ({ value }: { value: unknown }) => {
-  if (value === null || value === undefined || value === '') return '';
-  return `${value}%`;
-};
 
 export default function CampaignIndividualResultStatistics() {
   const setBreadcrumb = useBreadcrumbStore((s) => s.setBreadcrumb);
@@ -268,10 +256,10 @@ export default function CampaignIndividualResultStatistics() {
     { headerName: '대상건수', field: 'totalTargetCnt', width: 100, cellStyle: numberCellStyle },
     { headerName: '발신진행건수 (실시간)', field: 'outboundProgressCnt', width: 250, cellStyle: numberCellStyle },
     { headerName: '총발신시도건수(누적)', field: 'outboundAttemptCnt', width: 250, cellStyle: numberCellStyle },
-    { headerName: '진행율', field: 'progressRatePct', width: 90, valueFormatter: percentFormatter, cellStyle: accentCellStyle },
+    { headerName: '진행율', field: 'progressRatePct', width: 90, cellStyle: numberCellStyle, cellRenderer: 'percentBarRenderer' },
     { headerName: '재시도발신건수', field: 'retryOutboundCnt', width: 120, cellStyle: numberCellStyle },
     { headerName: '본인통화건수', field: 'selfCallCnt', width: 110, cellStyle: numberCellStyle },
-    { headerName: '본인통화완료율', field: 'selfCallCompleteRatePct', width: 120, valueFormatter: percentFormatter, cellStyle: accentCellStyle },
+    { headerName: '본인통화완료율', field: 'selfCallCompleteRatePct', width: 120, cellStyle: numberCellStyle, cellRenderer: 'percentBarRenderer' },
     { headerName: '실패건수', field: 'failCnt', width: 100, cellStyle: numberCellStyle },
     { headerName: '평균대화턴수', field: 'avgDialogTurnCnt', width: 110, cellStyle: numberCellStyle },
     { headerName: '부재건수', field: 'absentCnt', width: 100, cellStyle: numberCellStyle },
@@ -279,10 +267,10 @@ export default function CampaignIndividualResultStatistics() {
       headerName: '발신시도별 본인통화 성공율',
       field: 'outboundAttemptSelfCallSuccessRatePct',
       width: 300,
-      valueFormatter: percentFormatter,
-      cellStyle: accentCellStyle,
+      cellStyle: numberCellStyle,
+      cellRenderer: 'percentBarRenderer',
     },
-    { headerName: '검증실패율', field: 'verifyFailRatePct', width: 100, valueFormatter: percentFormatter, cellStyle: accentCellStyle },
+    { headerName: '검증실패율', field: 'verifyFailRatePct', width: 100, cellStyle: numberCellStyle, cellRenderer: 'percentBarRenderer' },
   ];
 
   const { permissions } = useNavigationStore();
