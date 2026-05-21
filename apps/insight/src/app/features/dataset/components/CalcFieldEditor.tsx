@@ -6,9 +6,10 @@ import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 
 interface CalcFieldEditorProps {
-  reportId: number;
-  calcField?: CalcField;
+  reportId?: number;
+  calcField?: CalcField | (CalcFieldCreateDatas & { _localId?: string });
   onClose(): void;
+  onSave?: (data: CalcFieldCreateDatas) => void;
 }
 
 const FORMAT_OPTIONS: { value: ColumnFormat; label: string }[] = [
@@ -26,7 +27,7 @@ const KPI_DIRECTION_OPTIONS: { value: KpiDirection; label: string }[] = [
   { value: 'NEUTRAL', label: '중립' },
 ];
 
-export default function CalcFieldEditor({ reportId, calcField, onClose }: CalcFieldEditorProps) {
+export default function CalcFieldEditor({ reportId, calcField, onClose, onSave }: CalcFieldEditorProps) {
   const isEdit = !!calcField;
   const [form] = Form.useForm<CalcFieldCreateDatas>();
 
@@ -51,8 +52,14 @@ export default function CalcFieldEditor({ reportId, calcField, onClose }: CalcFi
   });
 
   const handleFinish: FormProps<CalcFieldCreateDatas>['onFinish'] = (values) => {
+    if (onSave) {
+      onSave(values);
+      onClose();
+      return;
+    }
+    if (!reportId) return;
     if (isEdit) {
-      updateCalcField({ reportId, calcFieldId: calcField.calcFieldId, data: values });
+      updateCalcField({ reportId, calcFieldId: (calcField as CalcField).calcFieldId, data: values });
     } else {
       createCalcField({ reportId, data: values });
     }

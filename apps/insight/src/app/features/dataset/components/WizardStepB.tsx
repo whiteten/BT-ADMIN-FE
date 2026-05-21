@@ -1,255 +1,443 @@
-import { useState } from 'react';
-import { Button, Input } from 'antd';
+import { useCallback, useEffect, useRef, useState } from 'react';
+import { DndContext, type DragEndEvent, PointerSensor, closestCenter, useSensor, useSensors } from '@dnd-kit/core';
+import { restrictToVerticalAxis } from '@dnd-kit/modifiers';
+import { SortableContext, arrayMove, useSortable, verticalListSortingStrategy } from '@dnd-kit/sortable';
+import { CSS } from '@dnd-kit/utilities';
+import { Button, Input, Select } from 'antd';
 import { Plus, X } from 'lucide-react';
-import { toast } from '@/shared-util';
 import CalcFieldEditor from './CalcFieldEditor';
-import { useDeleteSearchBinding, useGetCalcFields, useGetFieldDisplays, useGetReport, useGetSearchBindings } from '../../report/hooks/useReportQueries';
-import type { CalcField } from '../../report/types';
+import type { CalcFieldCreateDatas, ColumnFormat, DomainCode, FieldType } from '../../report/types';
 import { useGetDataSourceFields } from '../hooks/useDatasetQueries';
+import type { LocalCalcFieldDraft, LocalFieldDisplay } from '../types';
 import { FallbackSpinner } from '@/components/custom/FallbackSpinner';
 
-interface WizardStepBProps {
-  reportId: number;
+const FORMAT_OPTIONS: { value: ColumnFormat; label: string }[] = [
+  { value: 'Number', label: 'Number (정수)' },
+  { value: 'Decimal', label: 'Decimal (소수)' },
+  { value: 'Rate', label: 'Rate (%)' },
+  { value: 'String', label: 'String (문자)' },
+  { value: 'Date', label: 'Date (날짜)' },
+  { value: 'Time', label: 'Time (시간)' },
+];
+
+const AGG_OPTIONS: { value: string; label: string }[] = [
+  { value: 'SUM', label: 'SUM' },
+  { value: 'AVG', label: 'AVG' },
+  { value: 'MIN', label: 'MIN' },
+  { value: 'MAX', label: 'MAX' },
+  { value: 'COUNT', label: 'COUNT' },
+];
+
+const TYPE_OPTIONS: { value: FieldType; label: string }[] = [
+  { value: 'DIM', label: 'DIM' },
+  { value: 'MSR', label: 'MSR' },
+];
+
+function deriveColumnFormat(fieldType: string, fieldRole: string): ColumnFormat {
+  if (fieldRole === 'TIMESTAMP') return 'Date';
+  if (fieldType === 'NUMBER') return 'Number';
+  return 'String';
 }
 
-export default function WizardStepB({ reportId }: WizardStepBProps) {
-  const [isCalcFieldEditorOpen, setIsCalcFieldEditorOpen] = useState(false);
-  const [editingCalcField, setEditingCalcField] = useState<CalcField | undefined>(undefined);
+// ─── Sortable palette item ────────────────────────────────────────────────────
+function SortableItem({ id, children }: { id: string; children: (dragProps: ReturnType<typeof useSortable>) => React.ReactNode }) {
+  const sortable = useSortable({ id });
+  return <>{children(sortable)}</>;
+}
+
+interface WizardStepBProps {
+  datasourceKey: string;
+  domain: DomainCode;
+  fieldDisplays: LocalFieldDisplay[];
+  onFieldDisplaysChange: (displays: LocalFieldDisplay[]) => void;
+  calcFields: LocalCalcFieldDraft[];
+  onCalcFieldsChange: (fields: LocalCalcFieldDraft[]) => void;
+}
+
+export default function WizardStepB({ datasourceKey, domain, fieldDisplays, onFieldDisplaysChange, calcFields, onCalcFieldsChange }: WizardStepBProps) {
+  const [isCalcEditorOpen, setIsCalcEditorOpen] = useState(false);
+  const [editingCalcField, setEditingCalcField] = useState<LocalCalcFieldDraft | undefined>(undefined);
   const [paletteSearch, setPaletteSearch] = useState('');
+  const allCheckRef = useRef<HTMLInputElement>(null);
 
-  const { data: report } = useGetReport({ params: { reportId } });
-  const { data: fieldDisplays = [], isLoading: loadingFields } = useGetFieldDisplays({ params: { reportId } });
-  const { data: calcFields = [], isLoading: loadingCalcFields } = useGetCalcFields({ params: { reportId } });
-  const { data: searchBindings = [] } = useGetSearchBindings({ params: { reportId } });
-  const { data: sourceFields = [] } = useGetDataSourceFields({
-    params: { datasourceKey: report?.datasourceKey ?? '' },
-    queryOptions: { enabled: !!report?.datasourceKey },
+  const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 5 } }));
+
+  const { data: sourceFields = [], isLoading } = useGetDataSourceFields({
+    params: { datasourceKey },
   });
 
-  const { mutate: deleteBinding } = useDeleteSearchBinding({
-    mutationOptions: {
-      onSuccess: () => toast.success('검색조건 바인딩이 제거되었습니다.'),
+  // 초기화: 기본값 isVisible = false
+  useEffect(() => {
+    if (sourceFields.length > 0 && fieldDisplays.length === 0) {
+      const initial: LocalFieldDisplay[] = sourceFields.map((f, i) => ({
+        fieldName: f.fieldName,
+        displayName: f.displayName,
+        fieldType: f.fieldRole === 'MEASURE' ? 'MSR' : 'DIM',
+        columnFormat: deriveColumnFormat(f.fieldType, f.fieldRole),
+        isVisible: false,
+        sortOrder: i,
+      }));
+      onFieldDisplaysChange(initial);
+    }
+  }, [sourceFields, fieldDisplays.length, onFieldDisplaysChange]);
+
+  // 전체 체크박스 indeterminate 상태
+  const visibleCount = fieldDisplays.filter((f) => f.isVisible).length;
+  const allVisible = visibleCount === fieldDisplays.length && fieldDisplays.length > 0;
+  const someVisible = visibleCount > 0 && !allVisible;
+  useEffect(() => {
+    if (allCheckRef.current) allCheckRef.current.indeterminate = someVisible;
+  }, [someVisible]);
+
+  const updateField = useCallback(
+    (fieldName: string, patch: Partial<LocalFieldDisplay>) => {
+      onFieldDisplaysChange(fieldDisplays.map((f) => (f.fieldName === fieldName ? { ...f, ...patch } : f)));
     },
-  });
-
-  const dimFields = fieldDisplays.filter((f) => f.fieldType === 'DIM' && f.isVisible);
-  const msrFields = fieldDisplays.filter((f) => f.fieldType === 'MSR' && f.isVisible);
-
-  const filteredSourceFields = sourceFields.filter(
-    (f) => !paletteSearch || f.fieldName.toLowerCase().includes(paletteSearch.toLowerCase()) || f.displayName.toLowerCase().includes(paletteSearch.toLowerCase()),
+    [fieldDisplays, onFieldDisplaysChange],
   );
 
-  if (loadingFields || loadingCalcFields) return <FallbackSpinner />;
+  const toggleAll = (checked: boolean) => {
+    onFieldDisplaysChange(fieldDisplays.map((f) => ({ ...f, isVisible: checked })));
+  };
+
+  // ─── 팔레트 드래그 재정렬 ─────────────────────────────────────────────────
+  const handleDimDragEnd = (event: DragEndEvent) => {
+    const { active, over } = event;
+    if (!over || active.id === over.id) return;
+    const dims = [...fieldDisplays.filter((f) => f.fieldType === 'DIM')].sort((a, b) => a.sortOrder - b.sortOrder);
+    const oldIdx = dims.findIndex((f) => f.fieldName === active.id);
+    const newIdx = dims.findIndex((f) => f.fieldName === over.id);
+    const reordered = arrayMove(dims, oldIdx, newIdx);
+    const dimMin = Math.min(...fieldDisplays.filter((f) => f.fieldType === 'DIM').map((f) => f.sortOrder));
+    onFieldDisplaysChange(
+      fieldDisplays.map((f) => {
+        if (f.fieldType !== 'DIM') return f;
+        const pos = reordered.findIndex((r) => r.fieldName === f.fieldName);
+        return { ...f, sortOrder: dimMin + pos };
+      }),
+    );
+  };
+
+  const handleMsrDragEnd = (event: DragEndEvent) => {
+    const { active, over } = event;
+    if (!over || active.id === over.id) return;
+    const msrs = [...fieldDisplays.filter((f) => f.fieldType === 'MSR')].sort((a, b) => a.sortOrder - b.sortOrder);
+    const oldIdx = msrs.findIndex((f) => f.fieldName === active.id);
+    const newIdx = msrs.findIndex((f) => f.fieldName === over.id);
+    const reordered = arrayMove(msrs, oldIdx, newIdx);
+    const msrMin = Math.min(...fieldDisplays.filter((f) => f.fieldType === 'MSR').map((f) => f.sortOrder));
+    onFieldDisplaysChange(
+      fieldDisplays.map((f) => {
+        if (f.fieldType !== 'MSR') return f;
+        const pos = reordered.findIndex((r) => r.fieldName === f.fieldName);
+        return { ...f, sortOrder: msrMin + pos };
+      }),
+    );
+  };
+
+  const handleCalcDragEnd = (event: DragEndEvent) => {
+    const { active, over } = event;
+    if (!over || active.id === over.id) return;
+    const oldIdx = calcFields.findIndex((c) => c._localId === active.id);
+    const newIdx = calcFields.findIndex((c) => c._localId === over.id);
+    onCalcFieldsChange(arrayMove(calcFields, oldIdx, newIdx));
+  };
+
+  const handleCalcSave = (data: CalcFieldCreateDatas) => {
+    if (editingCalcField) {
+      onCalcFieldsChange(calcFields.map((c) => (c._localId === editingCalcField._localId ? { ...data, _localId: c._localId } : c)));
+    } else {
+      onCalcFieldsChange([...calcFields, { ...data, _localId: crypto.randomUUID() }]);
+    }
+  };
+
+  const dimFields = [...fieldDisplays.filter((f) => f.fieldType === 'DIM')].sort((a, b) => a.sortOrder - b.sortOrder);
+  const msrFields = [...fieldDisplays.filter((f) => f.fieldType === 'MSR')].sort((a, b) => a.sortOrder - b.sortOrder);
+
+  const filteredDim = dimFields.filter(
+    (f) => f.isVisible && (!paletteSearch || f.fieldName.toLowerCase().includes(paletteSearch.toLowerCase()) || f.displayName.toLowerCase().includes(paletteSearch.toLowerCase())),
+  );
+  const filteredMsr = msrFields.filter(
+    (f) => f.isVisible && (!paletteSearch || f.fieldName.toLowerCase().includes(paletteSearch.toLowerCase()) || f.displayName.toLowerCase().includes(paletteSearch.toLowerCase())),
+  );
+
+  if (isLoading) return <FallbackSpinner />;
 
   return (
     <div className="flex" style={{ minHeight: 560 }}>
-      {/* 좌측: 원천 뷰 필드 팔레트 */}
+      {/* ── 좌측: 원천 뷰 필드 팔레트 ── */}
       <aside className="w-64 shrink-0 border-r border-bt-border bg-bt-bg-muted/30 p-4 overflow-y-auto">
         <div className="mb-3">
-          <div className="text-xs font-semibold text-bt-fg-muted mb-1">원천 뷰</div>
-          <div className="flex items-center gap-1.5">
-            <span className="rounded bg-bt-primary px-1.5 py-0.5 text-xs font-semibold text-white">{report?.domain}</span>
-            <span className="font-mono text-sm font-semibold">{report?.datasourceKey}</span>
+          <div className="text-[10px] font-semibold uppercase tracking-wider text-bt-fg-muted">원천 뷰</div>
+          <div className="mt-1 flex items-center gap-1.5">
+            <span className="rounded bg-bt-primary px-1.5 py-0.5 text-[10px] font-semibold text-white">{domain}</span>
+            <span className="font-mono text-xs font-semibold truncate">{datasourceKey}</span>
           </div>
-          <div className="mt-0.5 text-xs text-bt-fg-muted">{sourceFields.length}개 컬럼</div>
+          <div className="mt-0.5 text-[11px] text-bt-fg-muted">{sourceFields.length}개 컬럼</div>
         </div>
 
         <Input size="small" placeholder="필드 검색…" value={paletteSearch} onChange={(e) => setPaletteSearch(e.target.value)} className="mb-3" />
 
-        {/* DIM 그룹 */}
+        {/* DIM 그룹 — 드래그 재정렬 */}
         <div className="mb-4">
-          <div className="mb-1.5 flex items-center gap-1.5 text-xs font-semibold text-bt-fg-muted">
+          <div className="mb-1.5 flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-wider text-bt-fg-muted">
             <span className="rounded bg-bt-bg-muted px-1 py-0.5 font-mono">DIM</span>
             <span>디멘션</span>
-            <span className="ml-auto font-mono">{filteredSourceFields.filter((f) => f.columnFormat === 'String' || f.columnFormat === 'Date').length}</span>
+            <span className="ml-auto font-mono">{filteredDim.length}</span>
           </div>
-          <div className="space-y-1">
-            {filteredSourceFields
-              .filter((f) => f.columnFormat === 'String' || f.columnFormat === 'Date')
-              .map((f) => (
-                <div key={f.fieldName} className="flex cursor-grab items-center gap-2 rounded border border-bt-border bg-white px-2 py-1.5 text-xs hover:border-bt-primary">
-                  <span className="font-mono text-bt-fg-muted">⋮⋮</span>
-                  <span className="font-mono font-medium">{f.fieldName}</span>
-                  <span className="ml-auto text-bt-fg-muted">{f.columnFormat}</span>
-                </div>
-              ))}
-          </div>
+          <DndContext sensors={sensors} collisionDetection={closestCenter} modifiers={[restrictToVerticalAxis]} onDragEnd={handleDimDragEnd}>
+            <SortableContext items={filteredDim.map((f) => f.fieldName)} strategy={verticalListSortingStrategy}>
+              <div className="space-y-1">
+                {filteredDim.map((f) => (
+                  <SortableItem key={f.fieldName} id={f.fieldName}>
+                    {({ attributes, listeners, setNodeRef, transform, transition, isDragging }) => (
+                      <div
+                        ref={setNodeRef}
+                        style={{ transform: CSS.Transform.toString(transform), transition, opacity: isDragging ? 0.5 : 1 }}
+                        className="flex items-center gap-2 rounded border border-bt-border bg-white px-2 py-1.5 text-[11.5px] hover:border-bt-primary"
+                      >
+                        <span {...attributes} {...listeners} className="cursor-grab text-bt-fg-muted select-none touch-none font-mono text-xs" title="드래그하여 순서 변경">
+                          ⋮⋮
+                        </span>
+                        <span className="font-mono font-medium flex-1 truncate">{f.fieldName}</span>
+                        <span className="text-[10px] text-bt-fg-muted shrink-0">{f.columnFormat === 'Date' ? 'DATE' : 'VARCHAR2'}</span>
+                      </div>
+                    )}
+                  </SortableItem>
+                ))}
+              </div>
+            </SortableContext>
+          </DndContext>
         </div>
 
-        {/* MSR 그룹 */}
+        {/* MSR 그룹 — 드래그 재정렬 */}
         <div className="mb-4">
-          <div className="mb-1.5 flex items-center gap-1.5 text-xs font-semibold text-bt-fg-muted">
+          <div className="mb-1.5 flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-wider text-bt-fg-muted">
             <span className="rounded bg-bt-primary px-1 py-0.5 font-mono text-white">MSR</span>
             <span>메저(밸류)</span>
-            <span className="ml-auto font-mono">
-              {filteredSourceFields.filter((f) => f.columnFormat === 'Number' || f.columnFormat === 'Decimal' || f.columnFormat === 'Rate').length}
-            </span>
+            <span className="ml-auto font-mono">{filteredMsr.length}</span>
           </div>
-          <div className="space-y-1">
-            {filteredSourceFields
-              .filter((f) => f.columnFormat === 'Number' || f.columnFormat === 'Decimal' || f.columnFormat === 'Rate')
-              .map((f) => (
-                <div
-                  key={f.fieldName}
-                  className="flex cursor-grab items-center gap-2 rounded border border-bt-border bg-bt-primary-soft/40 px-2 py-1.5 text-xs hover:border-bt-primary"
-                >
-                  <span className="font-mono text-bt-fg-muted">⋮⋮</span>
-                  <span className="font-mono font-semibold">{f.fieldName}</span>
-                  <span className="ml-auto text-bt-fg-muted">{f.columnFormat}</span>
-                </div>
-              ))}
-          </div>
+          <DndContext sensors={sensors} collisionDetection={closestCenter} modifiers={[restrictToVerticalAxis]} onDragEnd={handleMsrDragEnd}>
+            <SortableContext items={filteredMsr.map((f) => f.fieldName)} strategy={verticalListSortingStrategy}>
+              <div className="space-y-1">
+                {filteredMsr.map((f) => (
+                  <SortableItem key={f.fieldName} id={f.fieldName}>
+                    {({ attributes, listeners, setNodeRef, transform, transition, isDragging }) => (
+                      <div
+                        ref={setNodeRef}
+                        style={{ transform: CSS.Transform.toString(transform), transition, opacity: isDragging ? 0.5 : 1 }}
+                        className="flex items-center gap-2 rounded border border-bt-border bg-bt-primary-soft/40 px-2 py-1.5 text-[11.5px] hover:border-bt-primary"
+                      >
+                        <span {...attributes} {...listeners} className="cursor-grab text-bt-fg-muted select-none touch-none font-mono text-xs">
+                          ⋮⋮
+                        </span>
+                        <span className="font-mono font-semibold flex-1 truncate">{f.fieldName}</span>
+                        <span className="text-[10px] text-bt-fg-muted shrink-0">NUMBER</span>
+                      </div>
+                    )}
+                  </SortableItem>
+                ))}
+              </div>
+            </SortableContext>
+          </DndContext>
         </div>
 
-        {/* 계산필드 그룹 */}
+        {/* 계산필드 그룹 — 드래그 재정렬 */}
         {calcFields.length > 0 && (
           <div>
-            <div className="mb-1.5 flex items-center gap-1.5 text-xs font-semibold text-bt-fg-muted">
-              <span className="inline-flex h-4 w-4 items-center justify-center rounded bg-bt-success font-mono text-xs font-bold text-white">ƒ</span>
+            <div className="mb-1.5 flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-wider text-bt-fg-muted">
+              <span className="inline-flex h-4 w-4 items-center justify-center rounded bg-bt-success font-mono text-[10px] font-bold text-white">ƒ</span>
               <span>계산필드</span>
               <span className="ml-auto font-mono">{calcFields.length}</span>
             </div>
-            <div className="space-y-1">
-              {calcFields.map((cf) => (
-                <div
-                  key={cf.calcFieldId}
-                  className="flex cursor-grab items-center gap-2 rounded border border-bt-success/30 bg-bt-success-soft/50 px-2 py-1.5 text-xs hover:border-bt-success"
-                >
-                  <span className="font-mono text-bt-fg-muted">⋮⋮</span>
-                  <span className="font-mono font-semibold text-bt-success">ƒ {cf.fieldCode}</span>
-                  <span className="ml-auto text-bt-fg-muted">{cf.columnFormat}</span>
+            <DndContext sensors={sensors} collisionDetection={closestCenter} modifiers={[restrictToVerticalAxis]} onDragEnd={handleCalcDragEnd}>
+              <SortableContext items={calcFields.map((c) => c._localId)} strategy={verticalListSortingStrategy}>
+                <div className="space-y-1">
+                  {calcFields.map((cf) => (
+                    <SortableItem key={cf._localId} id={cf._localId}>
+                      {({ attributes, listeners, setNodeRef, transform, transition, isDragging }) => (
+                        <div
+                          ref={setNodeRef}
+                          style={{ transform: CSS.Transform.toString(transform), transition, opacity: isDragging ? 0.5 : 1 }}
+                          className="flex items-center gap-2 rounded border border-bt-success/30 bg-bt-success-soft/50 px-2 py-1.5 text-[11.5px] hover:border-bt-success"
+                        >
+                          <span {...attributes} {...listeners} className="cursor-grab text-bt-fg-muted select-none touch-none font-mono text-xs">
+                            ⋮⋮
+                          </span>
+                          <span className="font-mono font-semibold text-bt-success flex-1 truncate">ƒ {cf.fieldCode}</span>
+                          <span className="text-[10px] text-bt-fg-muted shrink-0">{cf.columnFormat}</span>
+                        </div>
+                      )}
+                    </SortableItem>
+                  ))}
                 </div>
-              ))}
-            </div>
+              </SortableContext>
+            </DndContext>
           </div>
         )}
       </aside>
 
-      {/* 우측: 데이터셋 구성 */}
-      <div className="flex-1 bg-white p-6 overflow-y-auto">
-        {/* 데이터셋 정보 */}
-        <div className="mb-5 flex items-center gap-3 rounded border border-bt-border bg-bt-bg-muted/30 px-4 py-2.5">
-          <span className="text-xs font-semibold text-bt-fg-muted">데이터셋</span>
-          <span className="text-sm font-semibold">{report?.title}</span>
-          <span className="rounded bg-bt-bg-muted px-1.5 py-0.5 text-xs text-bt-fg-muted">보고서명 자동 반영</span>
-          <span className="ml-auto text-xs text-bt-fg-muted">이 보고서의 모든 패널이 공유합니다</span>
-        </div>
-
-        {/* 디멘션 영역 */}
-        <div className="mb-4 rounded border border-bt-border bg-bt-bg-muted/30 p-4">
-          <div className="mb-3 flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <span className="rounded bg-bt-bg-muted px-1.5 py-0.5 font-mono text-xs font-bold text-bt-fg-muted">DIM</span>
-              <span className="text-sm font-semibold">디멘션</span>
-              <span className="text-xs text-bt-fg-muted">— 그룹핑 / 분해 축</span>
-            </div>
-            <span className="text-xs text-bt-fg-muted">← 팔레트에서 드래그</span>
+      {/* ── 우측: 필드 구성 ── */}
+      <div className="flex-1 bg-white overflow-y-auto">
+        <div className="p-5">
+          {/* 테이블 헤더 */}
+          <div className="mb-2 flex items-center gap-2">
+            <span className="text-sm font-semibold">필드 구성</span>
+            <span className="text-xs text-bt-fg-muted">— 노출할 필드를 선택하고 분류·서식·표시명을 지정하세요</span>
+            <span className="ml-auto text-xs text-bt-fg-muted">
+              노출 {visibleCount} / {fieldDisplays.length}
+            </span>
           </div>
 
-          <div>
-            <div className="mb-2 flex items-center gap-2">
-              <span className="text-xs font-semibold text-bt-fg-muted">행 (Group by)</span>
-              <span className="rounded bg-bt-bg-muted px-1.5 py-0.5 text-xs font-mono text-bt-fg-muted">{dimFields.length}</span>
-            </div>
-            <div className="flex flex-wrap items-center gap-2">
-              {dimFields.map((f) => (
-                <div key={f.fieldName} className="inline-flex items-center gap-1.5 rounded border border-bt-border bg-white px-2 py-1 text-xs">
-                  <span className="font-mono font-semibold">{f.fieldName}</span>
-                  <span className="text-bt-fg-muted">· {f.displayName}</span>
-                  <button type="button" className="ml-0.5 text-bt-fg-muted hover:text-bt-danger">
-                    ×
-                  </button>
-                </div>
-              ))}
-              <Button size="small" type="dashed" icon={<Plus className="w-3 h-3" />}>
-                행 디멘션 추가
+          <div className="rounded border border-bt-border overflow-hidden">
+            <table className="w-full text-xs table-fixed">
+              <colgroup>
+                <col style={{ width: '52px' }} />
+                <col style={{ width: '150px' }} />
+                <col style={{ width: '76px' }} />
+                <col style={{ width: '120px' }} />
+                <col style={{ width: '100px' }} />
+                <col />
+              </colgroup>
+              <thead className="bg-bt-bg-muted/60 border-b border-bt-border">
+                <tr>
+                  <th className="px-2 py-1.5 text-center font-medium text-bt-fg-muted whitespace-nowrap">
+                    <div className="flex flex-col items-center gap-0.5">
+                      <input
+                        ref={allCheckRef}
+                        type="checkbox"
+                        checked={allVisible}
+                        onChange={(e) => toggleAll(e.target.checked)}
+                        className="accent-bt-primary"
+                        title="전체 선택/해제"
+                      />
+                      <span className="text-[10px]">노출</span>
+                    </div>
+                  </th>
+                  <th className="px-2 py-1.5 text-left font-medium text-bt-fg-muted">컬럼</th>
+                  <th className="px-2 py-1.5 text-left font-medium text-bt-fg-muted">종류</th>
+                  <th className="px-2 py-1.5 text-left font-medium text-bt-fg-muted">서식</th>
+                  <th className="px-2 py-1.5 text-left font-medium text-bt-fg-muted">어그리게이션</th>
+                  <th className="px-2 py-1.5 text-left font-medium text-bt-fg-muted">표시명</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-bt-border">
+                {fieldDisplays.map((f) => (
+                  <tr key={f.fieldName} className={`transition-colors ${f.isVisible ? 'bg-white' : 'bg-bt-bg-muted/20'}`}>
+                    <td className="px-2 py-1 text-center">
+                      <input type="checkbox" checked={f.isVisible} onChange={(e) => updateField(f.fieldName, { isVisible: e.target.checked })} className="accent-bt-primary" />
+                    </td>
+                    <td className="px-2 py-1">
+                      <span className={`font-mono font-semibold truncate block ${!f.isVisible ? 'text-bt-fg-muted' : ''}`}>{f.fieldName}</span>
+                    </td>
+                    <td className="px-2 py-1">
+                      <Select
+                        size="small"
+                        value={f.fieldType}
+                        options={TYPE_OPTIONS}
+                        onChange={(v) => updateField(f.fieldName, { fieldType: v })}
+                        disabled={!f.isVisible}
+                        style={{ width: '100%' }}
+                      />
+                    </td>
+                    <td className="px-2 py-1">
+                      <Select
+                        size="small"
+                        value={f.columnFormat as ColumnFormat}
+                        options={FORMAT_OPTIONS}
+                        onChange={(v) => updateField(f.fieldName, { columnFormat: v })}
+                        disabled={!f.isVisible}
+                        style={{ width: '100%' }}
+                      />
+                    </td>
+                    <td className="px-2 py-1">
+                      {f.fieldType === 'MSR' ? (
+                        <Select
+                          size="small"
+                          value={f.aggFunc ?? undefined}
+                          options={AGG_OPTIONS}
+                          onChange={(v) => updateField(f.fieldName, { aggFunc: v })}
+                          disabled={!f.isVisible}
+                          placeholder="선택"
+                          style={{ width: '100%' }}
+                        />
+                      ) : (
+                        <span className="text-xs text-bt-fg-muted">—</span>
+                      )}
+                    </td>
+                    <td className="px-2 py-1">
+                      <Input size="small" value={f.displayName} onChange={(e) => updateField(f.fieldName, { displayName: e.target.value })} disabled={!f.isVisible} />
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        {/* 계산필드 섹션 */}
+        <div className="px-5 pb-5">
+          <div className="rounded border border-bt-border bg-bt-primary-soft/15 p-4">
+            <div className="mb-3 flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <span className="inline-flex h-4 w-4 items-center justify-center rounded bg-bt-success font-mono text-[10px] font-bold text-white">ƒ</span>
+                <span className="text-sm font-semibold">계산필드</span>
+                <span className="text-xs text-bt-fg-muted">— Row-level 수식 또는 윈도우 함수</span>
+              </div>
+              <Button
+                size="small"
+                icon={<Plus className="w-3 h-3" />}
+                onClick={() => {
+                  setEditingCalcField(undefined);
+                  setIsCalcEditorOpen(true);
+                }}
+              >
+                추가
               </Button>
             </div>
-          </div>
-        </div>
 
-        {/* 측정값 영역 */}
-        <div className="mb-4 rounded border border-bt-border bg-bt-primary-soft/15 p-4">
-          <div className="mb-3 flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <span className="rounded bg-bt-primary px-1.5 py-0.5 font-mono text-xs font-bold text-white">MSR</span>
-              <span className="inline-flex h-4 w-4 items-center justify-center rounded bg-bt-success font-mono text-xs font-bold text-white">ƒ</span>
-              <span className="text-sm font-semibold">측정값</span>
-              <span className="text-xs text-bt-fg-muted">— 집계 수치</span>
-            </div>
-            <span className="text-xs text-bt-fg-muted">← 팔레트에서 드래그</span>
-          </div>
-          <div className="flex flex-wrap items-center gap-2">
-            {msrFields.map((f) => (
-              <div key={f.fieldName} className="inline-flex items-center gap-1.5 rounded border border-bt-primary/30 bg-bt-primary-soft px-2 py-1 text-xs">
-                <span className="font-mono font-semibold text-bt-primary">{f.fieldName}</span>
-                <span className="text-bt-fg-muted">· {f.displayName}</span>
-                <button type="button" className="ml-0.5 text-bt-fg-muted hover:text-bt-danger">
-                  ×
-                </button>
+            {calcFields.length === 0 ? (
+              <div className="py-2 text-xs text-bt-fg-muted">계산필드 없음 — 응답률, 점유율 등 수식 필드를 추가하세요.</div>
+            ) : (
+              <div className="space-y-2">
+                {calcFields.map((cf) => (
+                  <div key={cf._localId} className="flex items-start gap-3 rounded border border-bt-success/30 bg-bt-success-soft/50 px-3 py-2">
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2 mb-0.5">
+                        <span className="font-mono text-xs font-bold text-bt-success">ƒ {cf.fieldCode}</span>
+                        <span className="text-xs text-bt-fg-muted">· {cf.displayName}</span>
+                        <span className="rounded bg-bt-bg-muted px-1 text-[10px] font-mono text-bt-fg-muted">{cf.columnFormat}</span>
+                      </div>
+                      <div className="font-mono text-[11px] text-bt-fg-muted truncate">{cf.rowExpression}</div>
+                    </div>
+                    <div className="flex items-center gap-1 shrink-0">
+                      <button
+                        type="button"
+                        className="text-xs text-bt-fg-muted hover:text-bt-primary px-1"
+                        onClick={() => {
+                          setEditingCalcField(cf);
+                          setIsCalcEditorOpen(true);
+                        }}
+                      >
+                        편집
+                      </button>
+                      <button
+                        type="button"
+                        className="text-bt-fg-muted hover:text-bt-danger"
+                        onClick={() => onCalcFieldsChange(calcFields.filter((c) => c._localId !== cf._localId))}
+                      >
+                        <X className="w-3 h-3" />
+                      </button>
+                    </div>
+                  </div>
+                ))}
               </div>
-            ))}
-            {calcFields.map((cf) => (
-              <div key={cf.calcFieldId} className="inline-flex items-center gap-1.5 rounded border border-bt-success/30 bg-bt-success-soft px-2 py-1 text-xs">
-                <span className="font-mono font-semibold text-bt-success">ƒ {cf.fieldCode}</span>
-                <span className="text-bt-fg-muted">· {cf.displayName}</span>
-                <button
-                  type="button"
-                  className="ml-0.5 text-bt-fg-muted hover:text-bt-success"
-                  onClick={() => {
-                    setEditingCalcField(cf);
-                    setIsCalcFieldEditorOpen(true);
-                  }}
-                >
-                  ✎
-                </button>
-              </div>
-            ))}
-            <Button
-              size="small"
-              type="dashed"
-              icon={<Plus className="w-3 h-3" />}
-              onClick={() => {
-                setEditingCalcField(undefined);
-                setIsCalcFieldEditorOpen(true);
-              }}
-            >
-              계산필드 추가
-            </Button>
+            )}
           </div>
-        </div>
-
-        {/* 검색조건 바인딩 */}
-        <div className="rounded border border-bt-border bg-bt-bg-muted/20 p-4">
-          <div className="mb-3 flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <span className="text-sm font-semibold">검색조건 바인딩</span>
-              <span className="rounded bg-bt-bg-muted px-1.5 py-0.5 text-xs font-mono text-bt-fg-muted">{searchBindings.length}</span>
-            </div>
-            <Button size="small" icon={<Plus className="w-3 h-3" />}>
-              카탈로그에서 추가
-            </Button>
-          </div>
-          {searchBindings.length === 0 ? (
-            <div className="py-2 text-sm text-bt-fg-muted">바인딩된 검색조건 없음 — 패널에서 사용할 필터 조건을 카탈로그에서 선택하세요.</div>
-          ) : (
-            <div className="flex flex-wrap gap-2">
-              {searchBindings.map((b) => (
-                <div key={b.bindId} className="inline-flex items-center gap-1.5 rounded border border-bt-border bg-white px-2 py-1 text-xs">
-                  <span className="font-medium">{b.title}</span>
-                  {b.requiredYn && <span className="rounded bg-bt-danger-soft px-1 text-xs text-bt-danger">필수</span>}
-                  <button type="button" className="ml-0.5 text-bt-fg-muted hover:text-bt-danger" onClick={() => deleteBinding({ reportId, bindId: b.bindId })}>
-                    <X className="w-3 h-3" />
-                  </button>
-                </div>
-              ))}
-            </div>
-          )}
         </div>
       </div>
 
-      {/* 계산필드 편집 모달 */}
-      {isCalcFieldEditorOpen && <CalcFieldEditor reportId={reportId} calcField={editingCalcField} onClose={() => setIsCalcFieldEditorOpen(false)} />}
+      {isCalcEditorOpen && <CalcFieldEditor calcField={editingCalcField as CalcFieldCreateDatas | undefined} onClose={() => setIsCalcEditorOpen(false)} onSave={handleCalcSave} />}
     </div>
   );
 }
