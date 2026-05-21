@@ -11,6 +11,7 @@ import type {
   EntityValueUpdateDatas,
 } from '../types/entity';
 import type {
+  EvaluationCopyDatas,
   EvaluationCreateDatas,
   EvaluationItem,
   EvaluationListItem,
@@ -234,6 +235,10 @@ export const modelApi = {
   },
   createEvaluation: async ({ params, data }: { params: Record<string, unknown>; data: EvaluationCreateDatas }) => {
     const response = await apiClient.post('/evaluation-create', data, { params });
+    return response;
+  },
+  copyEvaluation: async ({ params, data }: { params: Record<string, unknown>; data: EvaluationCopyDatas }) => {
+    const response = await apiClient.post('/evaluation-copy', data, { params });
     return response;
   },
   updateEvaluation: async ({ params, data }: { params: Record<string, unknown>; data: EvaluationUpdateDatas }) => {
