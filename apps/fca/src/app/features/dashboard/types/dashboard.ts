@@ -361,35 +361,29 @@ export interface OccupancyItem {
   callCount: number;
 }
 
-/**
- * 캠페인 통계 현황 묶음 위젯(`campaignStatsOverview`) WebSocket 구독 페이로드
- *
- * BE가 `widgetType: 'campaignStatsOverview'` DATA를 푸시할 때의 스키마입니다.
- *
- * - totalTargetCnt: 총 대상 건수
- * - outboundAttemptCnt: 총 발신 시도 건수
- * - outboundProgressCnt: 발신 진행 건수
- * - progressRatePct: 진행률 (%)
- * - selfVerificationCnt: 본인 확인 건수
- * - selfCallCompleteCnt: 본인 통화 완료 건수
- * - selfCallCompleteRatePct: 본인 통화 완료율 (%)
- * - retryOutboundCnt: 재시도 발신 건수
- * - failCnt: 실패 건수
- * - absentCnt: 부재 건수
- * - smsSendCnt: 문자 발송 건수
- */
-export interface CampaignStatsOverview {
-  totalTargetCnt: number;
-  outboundAttemptCnt: number;
-  outboundProgressCnt: number;
+/** 캠페인 대시보드 — 진행률 게이지 */
+export interface CampaignProgressRateData {
   progressRatePct: number;
-  selfVerificationCnt: number;
-  selfCallCompleteCnt: number;
-  selfCallCompleteRatePct: number;
-  retryOutboundCnt: number;
-  failCnt: number;
-  absentCnt: number;
-  smsSendCnt: number;
+  totalTargetCnt: number;
+}
+
+/**
+ * 캠페인 대시보드 위젯별 WebSocket DATA 스키마
+ *
+ * BE는 `widgetType` 키와 동일한 이름으로 구독·푸시합니다.
+ */
+export interface CampaignDashboardResponse {
+  campaignProgressRate: CampaignProgressRateData;
+  campaignOutboundAttempt: { outboundAttemptCnt: number };
+  /** API 연동 시 순위형 bar chart용 (mock: `CampaignDashboardLayoutRenderMapper`) */
+  campaignOutboundAttemptTop?: DialogIncompleteTopItem[];
+}
+
+export type CampaignDashboardWidgetType = keyof CampaignDashboardResponse;
+
+/** 캠페인 대시보드 전용 레이아웃 아이템 */
+export interface CampaignDashboardLayoutItem extends LayoutItem {
+  widgetType: CampaignDashboardWidgetType;
 }
 
 /**
@@ -410,7 +404,6 @@ export interface CampaignStatsOverview {
  * - serviceOccupancy: 봇 점유 현황
  * - dialogOccupancy: 대화 점유 현황
  * - slotOccupancy: 슬롯 점유 현황
- * - campaignStatsOverview: 캠페인 통계 현황(복수 지표)
  */
 export interface BotDashboardResponse {
   scenarioSummary: ScenarioSummary;
@@ -429,7 +422,6 @@ export interface BotDashboardResponse {
   serviceOccupancy: OccupancyItem[];
   dialogOccupancy: OccupancyItem[];
   slotOccupancy: OccupancyItem[];
-  campaignStatsOverview: CampaignStatsOverview;
 }
 
 /** 위젯 타입 정보를 포함하는 확장 레이아웃 아이템 */
@@ -450,7 +442,8 @@ export type DashboardSubscribeOptions = Record<string, unknown>;
 
 // --- WebSocket 메시지 프로토콜 타입 ---
 
-export type DashboardWidgetType = keyof BotDashboardResponse;
+export type BotDashboardWidgetType = keyof BotDashboardResponse;
+export type DashboardWidgetType = BotDashboardWidgetType | CampaignDashboardWidgetType;
 
 export const DASHBOARD_MSG_TYPE = {
   SUBSCRIBE: 'SUBSCRIBE',

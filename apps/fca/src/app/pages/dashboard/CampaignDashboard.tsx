@@ -5,15 +5,16 @@ import type { Option } from 'react-multi-select-component';
 import { type BreadcrumbProps } from 'antd';
 import { useBreadcrumbStore } from '@/shared-store';
 import styles from './BotDashboard.module.scss';
-import { useGetBots } from '../../features/bot-config/hooks/useBotQueries';
-import BotDashboardToolbar from '../../features/dashboard/components/BotDashboardToolbar';
-import DashboardCardItem from '../../features/dashboard/components/DashboardCardItem';
-import { botDashboardLayoutRenderMapper } from '../../features/dashboard/constants/BotDashboardLayoutRenderMapper';
+import CampaignDashboardCardItem from '../../features/dashboard/components/CampaignDashboardCardItem';
+import CampaignDashboardToolbar from '../../features/dashboard/components/CampaignDashboardToolbar';
+import { campaignDashboardLayoutRenderMapper } from '../../features/dashboard/constants/CampaignDashboardLayoutRenderMapper';
 import { GRID_COLS } from '../../features/dashboard/constants/dashboardConstants';
-import { DEFAULT_LAYOUT, useBotDashboardStore } from '../../features/dashboard/hooks/useBotDashboardStore';
+import { CAMPAIGN_DEFAULT_LAYOUT, useCampaignDashboardStore } from '../../features/dashboard/hooks/useCampaignDashboardStore';
 import { useDashboardSocket } from '../../features/dashboard/hooks/useDashboardSocket';
-import type { DashboardLayoutItem, DashboardWidgetType } from '../../features/dashboard/types';
-import { generateWidgetId, syncLayoutWithFilter } from '../../features/dashboard/utils/dashboardUtils';
+import type { CampaignDashboardLayoutItem, CampaignDashboardWidgetType } from '../../features/dashboard/types';
+import { syncCampaignLayoutWithFilter } from '../../features/dashboard/utils/campaignDashboardUtils';
+import { generateWidgetId } from '../../features/dashboard/utils/dashboardUtils';
+import { useGetCampaignOptionList } from '../../features/statistics/hooks/useStatisticsQueries';
 import { cn } from '@/lib/utils';
 import { useModal } from '@/libs/shared-ui/src/hooks/useModal';
 
@@ -31,32 +32,32 @@ export default function CampaignDashboard() {
     return () => clearBreadcrumb();
   }, [setBreadcrumb, clearBreadcrumb]);
 
-  const { data: botList } = useGetBots();
-  const serviceOptions: Option[] = (botList ?? []).map((b) => ({
-    label: b.serviceName ? String(b.serviceName) : String(b.serviceId),
-    value: String(b.serviceId),
+  const { data: campaignList, isLoading: isCampaignLoading } = useGetCampaignOptionList();
+  const campaignOptions: Option[] = (campaignList ?? []).map((c) => ({
+    label: c.campaignName ? String(c.campaignName) : String(c.campaignId),
+    value: String(c.campaignId),
   }));
 
-  const [selectedService, setSelectedService] = useState<Option[]>([]);
+  const [selectedCampaign, setSelectedCampaign] = useState<Option[]>([]);
 
   useEffect(() => {
-    if (serviceOptions.length > 0) {
-      setSelectedService(serviceOptions);
+    if (campaignOptions.length > 0) {
+      setSelectedCampaign(campaignOptions);
     }
-  }, [serviceOptions]);
+  }, [campaignOptions]);
 
   useDashboardSocket();
   const globalOptions = {
-    serviceIds: selectedService.map((item) => item.value as string),
+    campaignIds: selectedCampaign.map((item) => item.value as string),
   };
 
   const modal = useModal();
-  const { layout: storedLayout, setLayout, setWidgetOptions } = useBotDashboardStore();
+  const { layout: storedLayout, setLayout, setWidgetOptions } = useCampaignDashboardStore();
   const { width, containerRef, mounted } = useContainerWidth();
 
   const [isEditMode, setIsEditMode] = useState(false);
-  const layoutFilterOptions = DEFAULT_LAYOUT.filter((item) => item.widgetType in botDashboardLayoutRenderMapper).map((item) => {
-    const entry = botDashboardLayoutRenderMapper[item.widgetType];
+  const layoutFilterOptions = CAMPAIGN_DEFAULT_LAYOUT.filter((item) => item.widgetType in campaignDashboardLayoutRenderMapper).map((item) => {
+    const entry = campaignDashboardLayoutRenderMapper[item.widgetType];
     return {
       label: entry?.filterLabel ?? entry?.title ?? item.widgetType,
       value: item.widgetType,
@@ -64,7 +65,7 @@ export default function CampaignDashboard() {
   });
   const storedLayoutTypes = new Set(storedLayout.map((item) => item.widgetType));
   const [selectedLayoutFilterItems, setSelectedLayoutFilterItems] = useState<Option[]>(() => layoutFilterOptions.filter((opt) => storedLayoutTypes.has(opt.value)));
-  const [draftLayout, setDraftLayout] = useState<DashboardLayoutItem[]>(() => [...storedLayout]);
+  const [draftLayout, setDraftLayout] = useState<CampaignDashboardLayoutItem[]>(() => [...storedLayout]);
 
   const handleStartEdit = () => {
     setIsEditMode(true);
@@ -78,9 +79,8 @@ export default function CampaignDashboard() {
 
   const handleSaveEdit = () => {
     setLayout(draftLayout);
-    // draftLayout에 존재하는 위젯 ID만 남기고 고아 옵션 정리
     const activeIds = new Set(draftLayout.map((item) => item.i));
-    const currentOptions = useBotDashboardStore.getState().widgetOptions;
+    const currentOptions = useCampaignDashboardStore.getState().widgetOptions;
     const cleanedOptions: Record<string, Record<string, unknown>> = {};
     for (const id of activeIds) {
       if (currentOptions[id]) cleanedOptions[id] = currentOptions[id];
@@ -105,7 +105,7 @@ export default function CampaignDashboard() {
         okType: 'danger',
       },
       onOk: () => {
-        setDraftLayout(DEFAULT_LAYOUT.map((item) => ({ ...item, i: generateWidgetId() })));
+        setDraftLayout(CAMPAIGN_DEFAULT_LAYOUT.map((item) => ({ ...item, i: generateWidgetId() })));
         setSelectedLayoutFilterItems(layoutFilterOptions);
       },
     });
@@ -116,39 +116,38 @@ export default function CampaignDashboard() {
       const widgetTypeMap = new Map(prev.map((item) => [item.i, item.widgetType]));
       return newLayout.map((item) => ({
         ...item,
-        widgetType: widgetTypeMap.get(item.i) ?? (item.i as DashboardWidgetType),
+        widgetType: widgetTypeMap.get(item.i) ?? (item.i as CampaignDashboardWidgetType),
       }));
     });
   };
 
-  // 필터와 레이아웃을 한번에 업데이트 처리
   const handleLayoutFilterChange = (newFilterItems: Option[]) => {
     setSelectedLayoutFilterItems(newFilterItems);
-    setDraftLayout((prev) => syncLayoutWithFilter(prev, newFilterItems, DEFAULT_LAYOUT, GRID_COLS));
+    setDraftLayout((prev) => syncCampaignLayoutWithFilter(prev, newFilterItems, CAMPAIGN_DEFAULT_LAYOUT, GRID_COLS));
   };
 
-  // 편집 중에는 임시(draft) 레이아웃을, 아닐 때는 저장된 레이아웃을 표시한다
   const displayLayout = isEditMode ? draftLayout : storedLayout;
 
   return (
-    <div className="flex flex-col gap-2 w-full h-full">
-      <BotDashboardToolbar
+    <div className="flex h-full w-full flex-col gap-2">
+      <CampaignDashboardToolbar
         isEditMode={isEditMode}
         layoutFilterOptions={layoutFilterOptions}
         selectedLayoutFilterItems={selectedLayoutFilterItems}
-        serviceOptions={serviceOptions}
-        selectedService={selectedService}
+        campaignOptions={campaignOptions}
+        selectedCampaign={selectedCampaign}
+        isCampaignLoading={isCampaignLoading}
         onLayoutFilterChange={handleLayoutFilterChange}
         onStartEdit={handleStartEdit}
         onCancelEdit={handleCancelEdit}
         onSaveEdit={handleSaveEdit}
         onResetLayouts={handleResetLayouts}
-        onServiceChange={setSelectedService}
+        onCampaignChange={setSelectedCampaign}
       />
       <div
         ref={containerRef}
         className={cn(
-          `${styles['grid-container']} flex-1 min-h-0 overflow-hidden overflow-y-auto pr-2 rounded-lg transition-colors`,
+          `${styles['grid-container']} min-h-0 flex-1 overflow-hidden overflow-y-auto rounded-lg pr-2 transition-colors`,
           isEditMode && 'bg-[radial-gradient(circle,#cbd5e1_1px,transparent_1px)] bg-[length:16px_16px]',
         )}
       >
@@ -166,11 +165,11 @@ export default function CampaignDashboard() {
             onLayoutChange={handleLayoutChange}
           >
             {displayLayout.map((item) => {
-              const mapEntry = botDashboardLayoutRenderMapper[item.widgetType];
+              const mapEntry = campaignDashboardLayoutRenderMapper[item.widgetType];
               if (!mapEntry) return null;
               return (
-                <div key={item.i} className="w-full h-full">
-                  <DashboardCardItem widgetId={item.i} widgetType={item.widgetType} mapEntry={mapEntry} globalOptions={globalOptions} />
+                <div key={item.i} className="h-full w-full">
+                  <CampaignDashboardCardItem widgetType={item.widgetType} mapEntry={mapEntry} globalOptions={globalOptions} />
                 </div>
               );
             })}

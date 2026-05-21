@@ -180,7 +180,7 @@ export default function CampaignResultStatistics() {
     { headerName: '평균대화턴수', field: 'avgDialogTurnCnt', width: 110, cellStyle: numberCellStyle },
     { headerName: '부재건수', field: 'absentCnt', width: 100, cellStyle: numberCellStyle },
     {
-      headerName: '발신시도별 동인통화 성공율',
+      headerName: '발신시도별 본인통화 성공율',
       field: 'outboundAttemptSelfCallSuccessRatePct',
       width: 300,
       cellStyle: numberCellStyle,

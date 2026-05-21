@@ -55,13 +55,10 @@ export default function BotDashboard() {
   const { width, containerRef, mounted } = useContainerWidth();
 
   const [isEditMode, setIsEditMode] = useState(false);
-  const layoutFilterOptions = DEFAULT_LAYOUT.filter((item) => item.widgetType in botDashboardLayoutRenderMapper).map((item) => {
-    const entry = botDashboardLayoutRenderMapper[item.widgetType];
-    return {
-      label: entry?.filterLabel ?? entry?.title ?? item.widgetType,
-      value: item.widgetType,
-    };
-  });
+  const layoutFilterOptions = DEFAULT_LAYOUT.filter((item) => item.widgetType in botDashboardLayoutRenderMapper).map((item) => ({
+    label: botDashboardLayoutRenderMapper[item.widgetType]?.title ?? item.widgetType,
+    value: item.widgetType,
+  }));
   const storedLayoutTypes = new Set(storedLayout.map((item) => item.widgetType));
   const [selectedLayoutFilterItems, setSelectedLayoutFilterItems] = useState<Option[]>(() => layoutFilterOptions.filter((opt) => storedLayoutTypes.has(opt.value)));
   const [draftLayout, setDraftLayout] = useState<DashboardLayoutItem[]>(() => [...storedLayout]);

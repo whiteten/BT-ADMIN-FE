@@ -1,5 +1,4 @@
 import { DEFAULT_ROW_CNT, ROW_CNT_MAX } from './dashboardConstants';
-import CampaignStatsOverviewPanel from '../components/CampaignStatsOverviewPanel';
 import DialogIncompleteTopBarChart from '../components/DialogIncompleteTopBarChart';
 import DialogIncompleteTopConfigDrawer from '../components/DialogIncompleteTopConfigDrawer';
 import DialogIncompleteTopGrid from '../components/DialogIncompleteTopGrid';
@@ -58,8 +57,6 @@ export interface WidgetMenuAction {
 export interface LayoutRenderEntry {
   /** 카드 헤더 등에 쓰는 제목 */
   title: string;
-  /** 현황판 선택(필터) 전용 라벨. 없으면 `title` 사용 */
-  filterLabel?: string;
   supportedModes?: DashboardViewMode[];
   menuActions?: WidgetMenuAction[];
   defaultOptions?: Record<string, unknown>;
@@ -254,9 +251,4 @@ export const botDashboardLayoutRenderMapper: Record<string, LayoutRenderEntry> =
     renderChart: (d) => <HourlyEntryLineChart data={d?.hourlyEntry} />,
     renderTable: (d) => <HourlyEntryGrid data={d?.hourlyEntry} />,
   },
-  // campaignStatsOverview: {
-  //   filterLabel: '캠페인 통계 현황',
-  //   title: '캠페인 통계',
-  //   renderChart: (d) => <CampaignStatsOverviewPanel data={d?.campaignStatsOverview} />,
-  // },
 };
