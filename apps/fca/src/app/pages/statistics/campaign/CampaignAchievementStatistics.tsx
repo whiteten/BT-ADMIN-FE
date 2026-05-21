@@ -239,7 +239,7 @@ export default function CampaignAchievementStatistics() {
   const columnDefs = useMemo(() => CAMPAIGN_ACHIEVEMENT_COLUMN_DEFS[displayStatCategory], [displayStatCategory]);
 
   const { permissions } = useNavigationStore();
-  const hasExcelPermission = permissions.includes('fca:stats-call-result:excel');
+  const hasExcelPermission = permissions.includes('fca:stats-campaign:excel');
 
   const [isExporting, setIsExporting] = useState(false);
 

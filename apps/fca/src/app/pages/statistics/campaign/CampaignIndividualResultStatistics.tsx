@@ -175,7 +175,7 @@ export default function CampaignIndividualResultStatistics() {
     return base;
   }, [timeUnit, fromTime, toTime, tenantIdNums, campaignSelections]);
 
-  // 캠페인 통계(캠페인 결과) 조회 (BFF: stat-campaign-result) — “캠페인별 결과 통계” 화면도 동일 데이터 소스를 사용
+  // 캠페인별 통계 — 캠페인 통계와 동일 데이터·API (BFF: stat-campaign-result)
   const {
     data: campaignResultStatData,
     isLoading: isLoadingCampaignResultStatList,
@@ -274,7 +274,7 @@ export default function CampaignIndividualResultStatistics() {
   ];
 
   const { permissions } = useNavigationStore();
-  const hasExcelPermission = permissions.includes('fca:stats-call-result:excel');
+  const hasExcelPermission = permissions.includes('fca:stats-campaign:excel');
 
   const [isExporting, setIsExporting] = useState(false);
 

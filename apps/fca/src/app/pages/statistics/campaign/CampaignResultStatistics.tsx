@@ -190,7 +190,7 @@ export default function CampaignResultStatistics() {
   ];
 
   const { permissions } = useNavigationStore();
-  const hasExcelPermission = permissions.includes('fca:stats-call-result:excel');
+  const hasExcelPermission = permissions.includes('fca:stats-campaign:excel');
 
   const [isExporting, setIsExporting] = useState(false);
 
