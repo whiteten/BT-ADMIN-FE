@@ -14,7 +14,7 @@ import MenuCreateDrawer, { type MenuCreateDrawerRef } from '../../features/menu/
 import MenuDetailForm from '../../features/menu/components/MenuDetailForm';
 import MenuTree from '../../features/menu/components/MenuTree';
 import { menuQueryKeys, useCreateMenu, useDeleteMenu, useGetMenus, useUpdateMenu } from '../../features/menu/hooks/useMenuQueries';
-import type { Menu, MenuUpsertRequest } from '../../features/menu/types/menu.types';
+import type { Menu, MenuUpsertRequest } from '../../features/menu/types';
 import { FallbackSpinner } from '@/components/custom/FallbackSpinner';
 import NoData from '@/components/custom/NoData';
 

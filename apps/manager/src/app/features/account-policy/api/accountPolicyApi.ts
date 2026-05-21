@@ -1,5 +1,5 @@
 import ApiClient, { type DetailResponse, extractDetail } from '@/shared-util';
-import type { AccountPolicy, AccountPolicyUpdateData } from '../types/accountPolicy.types';
+import type { AccountPolicy, AccountPolicyUpdateData } from '../types';
 
 /**
  * 계정 보안 정책 API 클라이언트

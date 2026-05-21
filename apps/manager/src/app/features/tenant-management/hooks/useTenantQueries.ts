@@ -6,7 +6,7 @@ import { useMutation, useQuery } from '@tanstack/react-query';
 import { createQueryKeys } from '@lukemorales/query-key-factory';
 import type { MutationHookOptions, QueryHookWithParamsOptions } from '@/shared-util';
 import { tenantApi } from '../api/tenantApi';
-import type { CallGroupItem, TenantDetail, TenantListItem } from '../types/tenant.types';
+import type { CallGroupItem, TenantDetail, TenantListItem } from '../types';
 
 export const tenantQueryKeys = createQueryKeys('tenants', {
   getTenants: (params?: Record<string, unknown>) => [params],

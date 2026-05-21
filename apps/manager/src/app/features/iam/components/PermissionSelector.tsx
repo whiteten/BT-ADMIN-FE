@@ -11,7 +11,7 @@ import { Checkbox, Input } from 'antd';
 import { ChevronDown, ChevronRight, Folder, Search } from 'lucide-react';
 import { useBreadcrumbStore } from '@/shared-store';
 import { useGetGroupedPermissions } from '../hooks/usePermissionQueries';
-import type { ActionAuthKeys, MenuWithPermissions, PermissionGroup } from '../types/iam.types';
+import type { ActionAuthKeys, MenuWithPermissions, PermissionGroup } from '../types';
 import { FallbackSpinner } from '@/components/custom/FallbackSpinner';
 import NoData from '@/components/custom/NoData';
 import { cn } from '@/libs/shared-ui/src/lib/utils';

@@ -7,7 +7,7 @@
 import { Card, Tag } from 'antd';
 import { Edit, MoreVertical, Shield, Trash2, Users } from 'lucide-react';
 
-import type { Role } from '../types/iam.types';
+import type { Role } from '../types';
 import { Button } from '@/components/ui/button';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 

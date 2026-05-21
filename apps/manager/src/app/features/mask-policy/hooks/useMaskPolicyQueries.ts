@@ -2,14 +2,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { createQueryKeys } from '@lukemorales/query-key-factory';
 import type { MutationHookOptions } from '@/shared-util';
 import { maskPolicyApi } from '../api/maskPolicyApi';
-import type {
-  MaskCategoryConfig,
-  MaskCategoryConfigCreateRequest,
-  MaskCategoryConfigUpdateRequest,
-  MaskPolicy,
-  MaskPolicyCreateRequest,
-  MaskPolicyUpdateRequest,
-} from '../types/maskPolicy.types';
+import type { MaskCategoryConfig, MaskCategoryConfigCreateRequest, MaskCategoryConfigUpdateRequest, MaskPolicy, MaskPolicyCreateRequest, MaskPolicyUpdateRequest } from '../types';
 
 export const maskPolicyQueryKeys = createQueryKeys('maskPolicy', {
   categories: (tenantId?: number | null) => [{ tenantId: tenantId ?? null }],

@@ -5,7 +5,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { createQueryKeys } from '@lukemorales/query-key-factory';
 import type { MutationHookOptions, QueryHookOptions } from '@/shared-util';
 import { bffFlowApi } from '../api/bffFlowApi';
-import type { BffFlow, FlowSpec } from '../types/bffFlow.types';
+import type { BffFlow, FlowSpec } from '../types';
 
 export const bffFlowQueryKeys = createQueryKeys('bffFlows', {
   getFlows: null,

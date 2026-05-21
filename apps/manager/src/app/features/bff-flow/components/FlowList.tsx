@@ -8,7 +8,7 @@ import { useMemo, useState } from 'react';
 import { Button, Input } from 'antd';
 import { Search } from 'lucide-react';
 import { useBreadcrumbStore } from '@/shared-store';
-import type { BffFlow } from '../types/bffFlow.types';
+import type { BffFlow } from '../types';
 
 interface FlowListProps {
   flows: BffFlow[];

@@ -27,7 +27,7 @@ import {
   type LicenseUsageResponse,
   type ServerGroupUsage,
   type UpdateClusterRequest,
-} from '../types/license.types';
+} from '../types';
 
 const apiClient = new ApiClient({ serviceURL: '/bff' });
 

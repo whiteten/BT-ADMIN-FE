@@ -23,7 +23,7 @@ import type {
   TenantAllocItem,
   TenantAllocLicenseItem,
   TenantAllocUpdateData,
-} from '../types/node.types';
+} from '../types';
 
 const apiClient = new ApiClient({ serviceURL: '/bff' });
 

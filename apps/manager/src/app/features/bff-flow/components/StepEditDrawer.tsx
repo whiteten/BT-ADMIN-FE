@@ -8,7 +8,7 @@ import { ChevronDown } from 'lucide-react';
 import { useBreadcrumbStore } from '@/shared-store';
 import KeyValueEditor from './KeyValueEditor';
 import { useGetApps } from '../../iam/hooks/useAppQueries';
-import type { FlowStep } from '../types/bffFlow.types';
+import type { FlowStep } from '../types';
 
 interface StepEditDrawerProps {
   open: boolean;

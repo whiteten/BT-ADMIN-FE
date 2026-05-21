@@ -1,7 +1,7 @@
 import { Button } from 'antd';
 import { X } from 'lucide-react';
 import LicenseStatusBadge, { FunctionBadge } from './LicenseStatusBadge';
-import { LICENSE_GROUP_LABELS, LICENSE_GROUP_ORDER, type LicenseDetailAggregated, type ServerGroupUsage } from '../types/license.types';
+import { LICENSE_GROUP_LABELS, LICENSE_GROUP_ORDER, type LicenseDetailAggregated, type ServerGroupUsage } from '../types';
 import { FallbackSpinner } from '@/components/custom/FallbackSpinner';
 import { cn } from '@/lib/utils';
 

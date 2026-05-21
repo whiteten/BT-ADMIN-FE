@@ -6,7 +6,7 @@ import { useMutation, useQuery } from '@tanstack/react-query';
 import { createQueryKeys } from '@lukemorales/query-key-factory';
 import type { MutationHookOptions, QueryHookWithParamsOptions } from '@/shared-util';
 import { licenseApi } from '../api/licenseApi';
-import type { ClusterAllocation, License, LicenseDetailAggregated, LicenseUsageResponse } from '../types/license.types';
+import type { ClusterAllocation, License, LicenseDetailAggregated, LicenseUsageResponse } from '../types';
 
 export const licenseQueryKeys = createQueryKeys('licenses', {
   getLicenses: (params?: Record<string, unknown>) => [params],

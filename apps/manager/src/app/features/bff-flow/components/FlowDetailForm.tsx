@@ -19,7 +19,7 @@ import { useBreadcrumbStore } from '@/shared-store';
 import { toast } from '@/shared-util';
 import StepEditDrawer from './StepEditDrawer';
 import { useSaveFlow } from '../hooks/useBffFlowQueries';
-import type { BffFlow, FlowSpec, FlowStep } from '../types/bffFlow.types';
+import type { BffFlow, FlowSpec, FlowStep } from '../types';
 import { IconDocument, IconLayer, IconTrash } from '@/components/custom/Icons';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/libs/shared-ui/src/components/shadcn/tabs';
 import useAggridOptions from '@/libs/shared-ui/src/hooks/useAggridOptions';

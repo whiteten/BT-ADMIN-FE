@@ -3,7 +3,7 @@
  * BFF Flow: user-resource-map-list, user-resource-map-sync, bot-list, model-list
  */
 import ApiClient, { type DetailResponse, type ListResponse, extractDetail, extractList } from '@/shared-util';
-import type { BotService, NluModel, UserResourceMap, UserResourceSyncRequest, UserResourceSyncResponse } from '../types/userResource.types';
+import type { BotService, NluModel, UserResourceMap, UserResourceSyncRequest, UserResourceSyncResponse } from '../types';
 
 const apiClient = new ApiClient({ serviceURL: '/bff' });
 

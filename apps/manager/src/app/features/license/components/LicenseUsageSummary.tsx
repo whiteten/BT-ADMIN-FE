@@ -1,4 +1,4 @@
-import type { ServerGroupUsage } from '../types/license.types';
+import type { ServerGroupUsage } from '../types';
 import { calcTotalUsageStats, getUsageBarColor, getUsageColorClass } from '../utils/licenseUtils';
 import { cn } from '@/lib/utils';
 

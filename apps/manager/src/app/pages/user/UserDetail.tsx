@@ -12,19 +12,25 @@ import { useParams, useSearchParams } from 'react-router-dom';
 import { type BreadcrumbProps, Button, Divider, Tag } from 'antd';
 import { Check, ChevronLeft, ChevronRight, History, Layers, Shield } from 'lucide-react';
 import { useAuthStore, useBreadcrumbStore } from '@/shared-store';
-import { type PermissionStats, type ResourceStats, type UserAdditionalFormValues, type UserBasicFormValues, UserDetailProvider } from './context/UserDetailContext';
 import { useGetRoles } from '../../features/iam/hooks/useRoleQueries';
 import AccountStatusBadge from '../../features/user/components/AccountStatusBadge';
+import {
+  type PermissionStats,
+  type ResourceStats,
+  type UserAdditionalFormValues,
+  type UserBasicFormValues,
+  UserDetailProvider,
+} from '../../features/user/context/UserDetailContext';
 import { useGetUser } from '../../features/user/hooks/useUserQueries';
 import { FallbackSpinner } from '@/components/custom/FallbackSpinner';
 import { IconDocument, IconSlidersHorizontal } from '@/components/custom/Icons';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/libs/shared-ui/src/components/shadcn/tabs';
 
-const UserBasicInfoTab = React.lazy(() => import('./tabs/UserBasicInfoTab'));
-const UserAdditionalInfoTab = React.lazy(() => import('./tabs/UserAdditionalInfoTab'));
-const UserPermissionTab = React.lazy(() => import('./tabs/UserPermissionTab'));
-const UserLoginHistoryTab = React.lazy(() => import('./tabs/UserLoginHistoryTab'));
-const UserResourceAccessTab = React.lazy(() => import('./tabs/UserResourceAccessTab'));
+const UserBasicInfoTab = React.lazy(() => import('../../features/user/tabs/UserBasicInfoTab'));
+const UserAdditionalInfoTab = React.lazy(() => import('../../features/user/tabs/UserAdditionalInfoTab'));
+const UserPermissionTab = React.lazy(() => import('../../features/user/tabs/UserPermissionTab'));
+const UserLoginHistoryTab = React.lazy(() => import('../../features/user/tabs/UserLoginHistoryTab'));
+const UserResourceAccessTab = React.lazy(() => import('../../features/user/tabs/UserResourceAccessTab'));
 
 interface PageTab {
   id: string;

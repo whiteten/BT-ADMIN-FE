@@ -1,5 +1,5 @@
 import ApiClient from '@/shared-util';
-import type { RetentionLogListResponse, RetentionPoliciesUpdateRequest, RetentionPolicyListResponse, RetentionTargetsResponse } from '../types/dataRetention.types';
+import type { RetentionLogListResponse, RetentionPoliciesUpdateRequest, RetentionPolicyListResponse, RetentionTargetsResponse } from '../types';
 
 interface ApiResponse<T> {
   ok: boolean;

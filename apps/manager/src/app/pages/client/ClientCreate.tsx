@@ -12,9 +12,9 @@ import { useBreadcrumbStore } from '@/shared-store';
 import { toast } from '@/shared-util';
 import ClientSecretDialog from '../../features/client/components/ClientSecretDialog';
 import { useCreateClient } from '../../features/client/hooks/useClientQueries';
-import { type Client, type ClientCreateRequest, transformToBackendFormat } from '../../features/client/types/client.types';
+import { type Client, type ClientCreateRequest, transformToBackendFormat } from '../../features/client/types';
 import { useGetAuthList } from '../../features/iam/hooks/usePermissionQueries';
-import type { PermissionFlat } from '../../features/iam/types/iam.types';
+import type { PermissionFlat } from '../../features/iam/types';
 import { FallbackSpinner } from '@/components/custom/FallbackSpinner';
 
 const breadcrumb = [

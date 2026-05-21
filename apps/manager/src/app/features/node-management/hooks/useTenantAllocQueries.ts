@@ -6,7 +6,7 @@ import { useMutation, useQuery } from '@tanstack/react-query';
 import { createQueryKeys } from '@lukemorales/query-key-factory';
 import type { MutationHookOptions, QueryHookWithParamsOptions } from '@/shared-util';
 import { tenantAllocApi } from '../api/tenantAllocApi';
-import type { ClusterConfig, TenantAllocDetail, TenantAllocItem } from '../types/node.types';
+import type { ClusterConfig, TenantAllocDetail, TenantAllocItem } from '../types';
 
 export const tenantAllocQueryKeys = createQueryKeys('tenantAllocs', {
   getTenantAllocs: (params?: Record<string, unknown>) => [params],

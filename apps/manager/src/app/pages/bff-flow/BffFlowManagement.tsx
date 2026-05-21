@@ -11,7 +11,7 @@ import { toast } from '@/shared-util';
 import FlowDetailForm from '../../features/bff-flow/components/FlowDetailForm';
 import FlowList from '../../features/bff-flow/components/FlowList';
 import { useDeleteFlow, useGetFlows, useSaveFlow } from '../../features/bff-flow/hooks/useBffFlowQueries';
-import type { BffFlow, FlowSpec } from '../../features/bff-flow/types/bffFlow.types';
+import type { BffFlow, FlowSpec } from '../../features/bff-flow/types';
 import { FallbackSpinner } from '@/components/custom/FallbackSpinner';
 import NoData from '@/components/custom/NoData';
 

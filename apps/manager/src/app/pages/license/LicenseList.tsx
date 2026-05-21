@@ -18,7 +18,7 @@ import {
   useGetTotalUsage,
   useUpdateClusterAllocations,
 } from '../../features/license/hooks/useLicenseQueries';
-import { LICENSE_GROUP_ORDER, type ServerGroupUsage, type UpdateClusterRequest } from '../../features/license/types/license.types';
+import { LICENSE_GROUP_ORDER, type ServerGroupUsage, type UpdateClusterRequest } from '../../features/license/types';
 import { FallbackSpinner } from '@/components/custom/FallbackSpinner';
 import NoData from '@/components/custom/NoData';
 import { useModal } from '@/libs/shared-ui/src/hooks/useModal';

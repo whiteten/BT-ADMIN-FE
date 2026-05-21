@@ -1,5 +1,5 @@
 import ApiClient, { type DetailResponse, type ListResponse, extractDetail, extractList } from '@/shared-util';
-import type { UserSession } from '../types/userSession.types';
+import type { UserSession } from '../types';
 
 /**
  * 페이징 응답 타입 (백엔드 PagedResponse와 일치)

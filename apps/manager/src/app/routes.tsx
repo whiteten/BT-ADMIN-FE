@@ -9,11 +9,11 @@ const UserDetail = React.lazy(() => import('./pages/user/UserDetail'));
 
 // IAM 페이지
 const AuthGroupManagement = React.lazy(() => import('./pages/iam/AuthGroupManagement'));
-const RoleCreatePage = React.lazy(() => import('./pages/iam/RoleCreatePage'));
-const RoleDetailPage = React.lazy(() => import('./pages/iam/RoleDetailPage'));
+const RoleCreate = React.lazy(() => import('./pages/iam/RoleCreate'));
+const RoleDetail = React.lazy(() => import('./pages/iam/RoleDetail'));
 
 // 계정 정책 페이지
-const AccountPolicyPage = React.lazy(() => import('./pages/account-policy/AccountPolicyPage'));
+const AccountPolicy = React.lazy(() => import('./pages/account-policy/AccountPolicy'));
 
 // 메뉴 관리 페이지
 const MenuManagement = React.lazy(() => import('./pages/menu/MenuManagement'));
@@ -28,11 +28,11 @@ const BffFlowManagement = React.lazy(() => import('./pages/bff-flow/BffFlowManag
 const WorkHistoryList = React.lazy(() => import('./pages/work-history/WorkHistoryList'));
 
 // 데이터 보관주기 관리 페이지
-const DataRetentionPage = React.lazy(() => import('./pages/data-retention/DataRetentionPage'));
+const DataRetention = React.lazy(() => import('./pages/data-retention/DataRetention'));
 
 // 마스킹 정책/해지 요청 페이지
-const MaskPolicyPage = React.lazy(() => import('./pages/mask-policy/MaskPolicyPage'));
-const MaskUnmaskPage = React.lazy(() => import('./pages/mask-unmask/MaskUnmaskPage'));
+const MaskPolicyManagement = React.lazy(() => import('./pages/mask-policy/MaskPolicyManagement'));
+const MaskUnmask = React.lazy(() => import('./pages/mask-unmask/MaskUnmask'));
 
 // 클라이언트 관리 페이지
 const ClientList = React.lazy(() => import('./pages/client/ClientList'));
@@ -43,17 +43,17 @@ const ClientDetail = React.lazy(() => import('./pages/client/ClientDetail'));
 const LicenseList = React.lazy(() => import('./pages/license/LicenseList'));
 
 // 테넌트 관리 페이지
-const TenantList = React.lazy(() => import('./features/tenant-management/pages/TenantList'));
-const TenantCreate = React.lazy(() => import('./features/tenant-management/pages/TenantCreate'));
-const TenantDetail = React.lazy(() => import('./features/tenant-management/pages/TenantDetail'));
+const TenantList = React.lazy(() => import('./pages/tenant-management/TenantList'));
+const TenantCreate = React.lazy(() => import('./pages/tenant-management/TenantCreate'));
+const TenantDetail = React.lazy(() => import('./pages/tenant-management/TenantDetail'));
 
 // 노드/클러스터 관리 페이지
-const NodeListPage = React.lazy(() => import('./features/node-management/pages/NodeListPage'));
-const NodeCreatePage = React.lazy(() => import('./features/node-management/pages/NodeCreatePage'));
-const NodeDetailPage = React.lazy(() => import('./features/node-management/pages/NodeDetailPage'));
-const NodeSettingPage = React.lazy(() => import('./features/node-management/pages/NodeSettingPage'));
-const ClusterConfigPage = React.lazy(() => import('./features/node-management/pages/ClusterConfigPage'));
-const TenantAllocWizardPage = React.lazy(() => import('./features/node-management/pages/TenantAllocWizardPage'));
+const NodeList = React.lazy(() => import('./pages/node-management/NodeList'));
+const NodeCreate = React.lazy(() => import('./pages/node-management/NodeCreate'));
+const NodeDetail = React.lazy(() => import('./pages/node-management/NodeDetail'));
+const NodeSetting = React.lazy(() => import('./pages/node-management/NodeSetting'));
+const ClusterConfig = React.lazy(() => import('./pages/node-management/ClusterConfig'));
+const TenantAllocWizard = React.lazy(() => import('./pages/node-management/TenantAllocWizard'));
 
 export const routes = [
   {
@@ -119,11 +119,11 @@ export const routes = [
               },
               {
                 path: 'create',
-                element: <RoleCreatePage />,
+                element: <RoleCreate />,
               },
               {
                 path: ':roleId',
-                element: <RoleDetailPage />,
+                element: <RoleDetail />,
               },
             ],
           },
@@ -141,7 +141,7 @@ export const routes = [
           },
           {
             path: 'account-policy',
-            element: <AccountPolicyPage />,
+            element: <AccountPolicy />,
           },
           {
             path: 'work-history',
@@ -149,15 +149,15 @@ export const routes = [
           },
           {
             path: 'data-retention',
-            element: <DataRetentionPage />,
+            element: <DataRetention />,
           },
           {
             path: 'mask-policy',
-            element: <MaskPolicyPage />,
+            element: <MaskPolicyManagement />,
           },
           {
             path: 'mask-unmask',
-            element: <MaskUnmaskPage />,
+            element: <MaskUnmask />,
           },
           {
             path: 'client',
@@ -227,27 +227,27 @@ export const routes = [
               },
               {
                 path: 'list',
-                element: <NodeListPage />,
+                element: <NodeList />,
               },
               {
                 path: 'create',
-                element: <NodeCreatePage />,
+                element: <NodeCreate />,
               },
               {
                 path: ':nodeId',
-                element: <NodeDetailPage />,
+                element: <NodeDetail />,
               },
               {
                 path: ':nodeId/settings',
-                element: <NodeSettingPage />,
+                element: <NodeSetting />,
               },
               {
                 path: ':nodeId/cluster-config',
-                element: <ClusterConfigPage />,
+                element: <ClusterConfig />,
               },
               {
                 path: ':nodeId/alloc/:tenantId',
-                element: <TenantAllocWizardPage />,
+                element: <TenantAllocWizard />,
               },
             ],
           },

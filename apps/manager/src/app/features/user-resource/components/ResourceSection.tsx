@@ -12,7 +12,7 @@ import { Button, Card, Tag } from 'antd';
 import { Plus } from 'lucide-react';
 import { useBreadcrumbStore } from '@/shared-store';
 import ResourceAddDrawer, { type ResourceAddDrawerRef } from './ResourceAddDrawer';
-import type { AssignedResource, AvailableResource } from '../types/userResource.types';
+import type { AssignedResource, AvailableResource } from '../types';
 import { IconTrash } from '@/components/custom/Icons';
 import useAggridOptions from '@/libs/shared-ui/src/hooks/useAggridOptions';
 

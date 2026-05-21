@@ -1,4 +1,4 @@
-import type { ServerGroupUsage } from '../types/license.types';
+import type { ServerGroupUsage } from '../types';
 
 /**
  * 사용률 퍼센트 계산

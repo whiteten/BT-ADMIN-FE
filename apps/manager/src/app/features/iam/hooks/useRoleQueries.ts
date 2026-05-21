@@ -5,7 +5,7 @@ import { useMutation, useQuery } from '@tanstack/react-query';
 import { sharedApi } from '@/shared-api';
 import type { MutationHookOptions, QueryHookWithParamsOptions } from '@/shared-util';
 import { roleApi } from '../api/roleApi';
-import type { Role } from '../types/iam.types';
+import type { Role } from '../types';
 
 /**
  * 역할 목록 조회 훅

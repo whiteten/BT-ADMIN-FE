@@ -12,7 +12,7 @@ import { useBreadcrumbStore } from '@/shared-store';
 import { toast } from '@/shared-util';
 import { RoleCard } from '../components/RoleCard';
 import { useDeleteRole, useGetRoles } from '../hooks/useRoleQueries';
-import type { Role } from '../types/iam.types';
+import type { Role } from '../types';
 import { FallbackSpinner } from '@/components/custom/FallbackSpinner';
 import NoData from '@/components/custom/NoData';
 import { useModal } from '@/libs/shared-ui/src/hooks/useModal';

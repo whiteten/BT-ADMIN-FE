@@ -5,7 +5,7 @@ import { useMutation, useQuery } from '@tanstack/react-query';
 import { createQueryKeys } from '@lukemorales/query-key-factory';
 import type { MutationHookOptions, QueryHookOptions } from '@/shared-util';
 import { menuApi } from '../api/menuApi';
-import type { Menu, MenuUpsertRequest } from '../types/menu.types';
+import type { Menu, MenuUpsertRequest } from '../types';
 
 export const menuQueryKeys = createQueryKeys('menus', {
   getMenus: null,

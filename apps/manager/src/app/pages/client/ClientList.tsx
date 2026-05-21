@@ -9,7 +9,7 @@ import { useBreadcrumbStore } from '@/shared-store';
 import { toast } from '@/shared-util';
 import ClientStatusBadge from '../../features/client/components/ClientStatusBadge';
 import { clientQueryKeys, useDeleteClient, useGetClients } from '../../features/client/hooks/useClientQueries';
-import type { Client } from '../../features/client/types/client.types';
+import type { Client } from '../../features/client/types';
 import { IconTrash } from '@/components/custom/Icons';
 import useAggridOptions from '@/libs/shared-ui/src/hooks/useAggridOptions';
 import { useModal } from '@/libs/shared-ui/src/hooks/useModal';

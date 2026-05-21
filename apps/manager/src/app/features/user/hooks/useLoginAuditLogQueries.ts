@@ -2,7 +2,7 @@ import { useQuery } from '@tanstack/react-query';
 import { createQueryKeys } from '@lukemorales/query-key-factory';
 import type { QueryHookWithParamsOptions } from '@/shared-util';
 import { loginAuditLogApi } from '../api/loginAuditLogApi';
-import type { LoginAuditLog, LoginAuditLogSearchParams } from '../types/loginAuditLog.types';
+import type { LoginAuditLog, LoginAuditLogSearchParams } from '../types';
 
 /**
  * 페이징 응답 타입

@@ -5,7 +5,7 @@ import { useMutation, useQuery } from '@tanstack/react-query';
 import { createQueryKeys } from '@lukemorales/query-key-factory';
 import type { MutationHookOptions, QueryHookWithParamsOptions } from '@/shared-util';
 import { clientApi } from '../api/clientApi';
-import type { Client } from '../types/client.types';
+import type { Client } from '../types';
 
 export const clientQueryKeys = createQueryKeys('oauth-clients', {
   getClients: (params?: Record<string, unknown>) => [params],

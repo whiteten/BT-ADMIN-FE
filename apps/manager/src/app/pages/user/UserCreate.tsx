@@ -16,10 +16,10 @@ import { useAuthStore, useBreadcrumbStore } from '@/shared-store';
 import { emailRule, phoneRule, toast } from '@/shared-util';
 import { useGetRoles } from '../../features/iam/hooks/useRoleQueries';
 import { useCreateUser } from '../../features/user/hooks/useUserQueries';
-import type { AccountStatus, UserCreateDatas } from '../../features/user/types/user.types';
+import type { AccountStatus, UserCreateDatas } from '../../features/user/types';
 import ResourceSection from '../../features/user-resource/components/ResourceSection';
 import { useGetBots, useGetModels, useSyncUserResources } from '../../features/user-resource/hooks/useUserResourceQueries';
-import type { AssignedResource, AvailableResource } from '../../features/user-resource/types/userResource.types';
+import type { AssignedResource, AvailableResource } from '../../features/user-resource/types';
 import { FallbackSpinner } from '@/components/custom/FallbackSpinner';
 
 const breadcrumb: BreadcrumbProps['items'] = [

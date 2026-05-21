@@ -9,7 +9,7 @@ import { useBreadcrumbStore } from '@/shared-store';
 import { toast } from '@/shared-util';
 import AccountStatusBadge from '../../features/user/components/AccountStatusBadge';
 import { useDeleteUser, useGetUsers, useUnlockUser, userQueryKeys } from '../../features/user/hooks/useUserQueries';
-import type { AccountStatus, User } from '../../features/user/types/user.types';
+import type { AccountStatus, User } from '../../features/user/types';
 import { IconTrash } from '@/components/custom/Icons';
 import useAggridOptions from '@/libs/shared-ui/src/hooks/useAggridOptions';
 import { useModal } from '@/libs/shared-ui/src/hooks/useModal';

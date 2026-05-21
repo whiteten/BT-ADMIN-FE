@@ -26,7 +26,7 @@ import type {
   TenantDetailBackendResponse,
   TenantListItem,
   TenantUpdateData,
-} from '../types/tenant.types';
+} from '../types';
 
 const apiClient = new ApiClient({ serviceURL: '/bff' });
 

@@ -5,7 +5,7 @@ import { useMutation, useQuery } from '@tanstack/react-query';
 import { createQueryKeys } from '@lukemorales/query-key-factory';
 import type { MutationHookOptions, QueryHookWithParamsOptions } from '@/shared-util';
 import { userAuthApi } from '../api/userAuthApi';
-import type { UserAuthMap, UserPermissionSyncRequest, UserPermissionSyncResponse } from '../types/iam.types';
+import type { UserAuthMap, UserPermissionSyncRequest, UserPermissionSyncResponse } from '../types';
 
 export const userAuthQueryKeys = createQueryKeys('userAuthMaps', {
   getList: (params?: Record<string, unknown>) => [params],

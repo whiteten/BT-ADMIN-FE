@@ -1,5 +1,5 @@
 import ApiClient, { type DetailResponse, type ListResponse, extractDetail, extractList } from '@/shared-util';
-import { type Client, type ClientBackendResponse, type ClientCreateRequest, type ClientUpdateRequest, transformClientResponse } from '../types/client.types';
+import { type Client, type ClientBackendResponse, type ClientCreateRequest, type ClientUpdateRequest, transformClientResponse } from '../types';
 
 /**
  * BFF Aggregation Flow를 통한 OAuth2 클라이언트 API 클라이언트

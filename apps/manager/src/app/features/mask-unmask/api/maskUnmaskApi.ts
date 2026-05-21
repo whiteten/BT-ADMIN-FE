@@ -10,7 +10,7 @@ import type {
   UnmaskCreateRequest,
   UnmaskListParams,
   UnmaskRejectRequest,
-} from '../types/maskUnmask.types';
+} from '../types';
 
 const apiClient = new ApiClient({ serviceURL: '/bff' });
 

@@ -3,7 +3,7 @@ import { Button, InputNumber } from 'antd';
 import { Check, X } from 'lucide-react';
 import { useBreadcrumbStore } from '@/shared-store';
 import { toast } from '@/shared-util';
-import type { ClusterAllocation, UpdateClusterRequest } from '../types/license.types';
+import type { ClusterAllocation, UpdateClusterRequest } from '../types';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 
 export interface ClusterAllocModalRef {
