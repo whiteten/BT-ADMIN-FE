@@ -30,6 +30,7 @@ export default function ReportWizard() {
 
   const [localFieldDisplays, setLocalFieldDisplays] = useState<LocalFieldDisplay[]>([]);
   const [localCalcFields, setLocalCalcFields] = useState<LocalCalcFieldDraft[]>([]);
+  const [isEditingCalcField, setIsEditingCalcField] = useState(false);
 
   useEffect(() => {
     setBreadcrumb([{ title: '인사이트' }, { title: '보고서', path: '/insight/statistics/reports' }, { title: '새 보고서 생성', path: '/insight/statistics/reports/new' }]);
@@ -136,23 +137,26 @@ export default function ReportWizard() {
                     onFieldDisplaysChange={setLocalFieldDisplays}
                     calcFields={localCalcFields}
                     onCalcFieldsChange={setLocalCalcFields}
+                    onEditingChange={setIsEditingCalcField}
                   />
                 )}
               </>
             )}
           </div>
 
-          <div className="border-t border-bt-border bg-bt-bg-muted px-7 py-4">
-            <div className="flex items-center justify-between">
-              <Button onClick={handleCancel}>취소</Button>
-              <div className="flex items-center gap-2">
-                {step !== 'A' && <Button onClick={handlePrev}>이전</Button>}
-                <Button type="primary" onClick={handleNext} loading={isSubmitting}>
-                  {step === 'A' ? '다음 → 데이터셋 편집' : '완료 → 캔버스'}
-                </Button>
+          {!isEditingCalcField && (
+            <div className="border-t border-bt-border bg-bt-bg-muted px-7 py-4">
+              <div className="flex items-center justify-between">
+                <Button onClick={handleCancel}>취소</Button>
+                <div className="flex items-center gap-2">
+                  {step !== 'A' && <Button onClick={handlePrev}>이전</Button>}
+                  <Button type="primary" onClick={handleNext} loading={isSubmitting}>
+                    {step === 'A' ? '다음 → 데이터셋 편집' : '완료 → 캔버스'}
+                  </Button>
+                </div>
               </div>
             </div>
-          </div>
+          )}
         </div>
       </div>
     </div>
