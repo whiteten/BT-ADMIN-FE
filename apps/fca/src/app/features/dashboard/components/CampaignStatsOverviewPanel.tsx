@@ -1,5 +1,5 @@
 import DashboardCampaignStatCard from './DashboardCampaignStatCard';
-import type { CampaignStatsOverview } from '../types/dashboard.types';
+import type { CampaignStatsOverview } from '../types';
 import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
 

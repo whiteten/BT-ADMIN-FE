@@ -8,7 +8,7 @@ import { useBreadcrumbStore, useNavigationStore } from '@/shared-store';
 import { downloadBlob, extractFileName, toast } from '@/shared-util';
 import { statisticsApi } from '../../../features/statistics/api/statisticsApi';
 import { useGetCampaignOptionList, useGetTenantOptionList } from '../../../features/statistics/hooks/useStatisticsQueries';
-import type { AchievementResultStatListItem } from '../../../features/statistics/types/statistics.types';
+import type { AchievementResultStatListItem } from '../../../features/statistics/types';
 import useAggridOptions from '@/libs/shared-ui/src/hooks/useAggridOptions';
 
 const ACHIEVEMENT_STAT_CATEGORY = {
