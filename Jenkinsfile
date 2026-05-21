@@ -49,6 +49,7 @@ pipeline {
 
     options {
         skipDefaultCheckout()  // 자동 Checkout SCM 비활성화 (스테이지 진입 시 master 암묵 체크아웃 방지)
+        disableConcurrentBuilds(abortPrevious: true)  // 새 빌드 트리거 시 진행 중 빌드 즉시 중단 (워크스페이스 공유 충돌·산출물 경합 방지)
     }
 
     stages {
