@@ -32,7 +32,7 @@ const config: ModuleFederationConfig = {
    *
    * 작업이 끝나면 다시 문자열 형태로 되돌립니다.
    */
-  remotes: ['manager', 'fca', 'ipron', 'aoe', 'stt'],
+  remotes: ['manager', 'fca', 'ipron', 'aoe', 'stt', 'ivr', 'insight'],
   shared: createSharedConfig(),
   additionalShared: [
     ['@/components/ui/sidebar', { singleton: true, strictVersion: true, requiredVersion: false }],

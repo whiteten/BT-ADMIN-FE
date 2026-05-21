@@ -7,7 +7,7 @@ import { Download } from 'lucide-react';
 import { useBreadcrumbStore, useNavigationStore } from '@/shared-store';
 import { downloadBlob, extractFileName, toast } from '@/shared-util';
 import { statisticsApi } from '../../../features/statistics/api/statisticsApi';
-import { useGetCallResultStatList } from '../../../features/statistics/hooks/useStatisticsQueries';
+import { useGetCampaignOptionList, useGetTenantOptionList } from '../../../features/statistics/hooks/useStatisticsQueries';
 import type { AchievementResultStatListItem } from '../../../features/statistics/types/statistics.types';
 import useAggridOptions from '@/libs/shared-ui/src/hooks/useAggridOptions';
 
@@ -194,21 +194,11 @@ export default function AchievementResultStatistics() {
     [timeUnit, fromTime, toTime, statCategory],
   );
 
-  // 캠페인 목적달성률 통계 조회 (BE API 연동 전 임시: 발신결과 API 사용)
-  const {
-    data: callResultStatData,
-    isLoading: isLoadingCallResultStatList,
-    refetch,
-  } = useGetCallResultStatList({
-    params: campaignStatParams,
-    queryOptions: { enabled: false },
-  });
-
-  useEffect(() => {
-    if (callResultStatData !== undefined) setRowData(callResultStatData.items as AchievementResultStatListItem[]);
-  }, [callResultStatData]);
-
-  const summaryRow: AchievementResultStatListItem[] = callResultStatData?.summary ? [callResultStatData.summary as AchievementResultStatListItem] : [];
+  // NOTE: 기존 구현은 캠페인 발신결과 통계 API(stat-campaign-call-result)에 의존했지만,
+  // 해당 API는 제거되어 현재 화면은 조회/엑셀을 비활성화한다.
+  const isLoading = false;
+  const isExporting = false;
+  const summaryRow: AchievementResultStatListItem[] = [];
 
   // startDate 또는 timeUnit 변경 시 endDate 자동 조정
   useEffect(() => {
@@ -244,9 +234,10 @@ export default function AchievementResultStatistics() {
       return;
     }
 
+    setRowData([]);
+    toast.warning('발신결과 통계(stat-campaign-call-result)가 제거되어 조회할 수 없습니다.');
     setDisplayTimeUnit(timeUnit);
     setDisplayStatCategory(statCategory);
-    refetch();
   };
 
   const columnDefs = useMemo(() => ACHIEVEMENT_COLUMN_DEFS[statCategory], [statCategory]);
@@ -254,28 +245,13 @@ export default function AchievementResultStatistics() {
   const { permissions } = useNavigationStore();
   const hasExcelPermission = permissions.includes('fca:stats-call-result:excel');
 
-  const [isExporting, setIsExporting] = useState(false);
-
   const handleExcelDownload = async () => {
     if (!rowData?.length) {
       toast.warning('다운로드할 데이터가 없습니다.');
       return;
     }
 
-    setIsExporting(true);
-    try {
-      const response = await statisticsApi.exportCallResultStatExcel({
-        ...campaignStatParams,
-        timeUnit: displayTimeUnit,
-        statCategory: displayStatCategory,
-      });
-      const fileName = extractFileName(response.headers['content-disposition'], `CAMPAIGN_ACHIEVEMENT_RESULT_${dayjs().format('YYYYMMDD_HHmmss')}.xlsx`);
-      downloadBlob(response.data, fileName);
-    } catch {
-      toast.error('엑셀 다운로드에 실패했습니다.');
-    } finally {
-      setIsExporting(false);
-    }
+    toast.warning('발신결과 통계(stat-campaign-call-result)가 제거되어 엑셀 다운로드를 할 수 없습니다.');
   };
 
   return (
@@ -348,7 +324,7 @@ export default function AchievementResultStatistics() {
             }
             columnDefs={columnDefs}
             gridOptions={{ ...gridOptions, statusBar: undefined }}
-            loading={isLoadingCallResultStatList}
+            loading={isLoading}
             pagination={false}
             rowNumbers={false}
             sideBar={false}

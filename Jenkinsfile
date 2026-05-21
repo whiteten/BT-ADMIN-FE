@@ -22,9 +22,9 @@ pipeline {
         extendedChoice(
             name: 'BUILD_TARGETS',
             type: 'PT_CHECKBOX',
-            value: 'host,manager,fca',
-            defaultValue: 'host,manager,fca',
-            visibleItemCount: 3,
+            value: 'host,manager,fca,aoe,ipron,ivr,stt,insight',
+            defaultValue: 'host,manager,fca,aoe,ipron,ivr,stt,insight',
+            visibleItemCount: 8,
             description: '빌드할 앱 선택 (host 포함 시 remote 앱들이 host/remotes/로 자동 복사됨)',
             multiSelectDelimiter: ','
         )

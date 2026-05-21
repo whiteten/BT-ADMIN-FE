@@ -26,6 +26,8 @@ const Ipron = React.lazy(() => import('ipron/Module').catch(() => ({ default: ()
 const Aoe = React.lazy(() => import('aoe/Module').catch(() => ({ default: () => <NotFound /> })));
 const AoeWorkflow = React.lazy(() => import('aoe/WorkflowApp').catch(() => ({ default: () => <NotFound /> })));
 const Stt = React.lazy(() => import('stt/Module').catch(() => ({ default: () => <NotFound /> })));
+const Ivr = React.lazy(() => import('ivr/Module').catch(() => ({ default: () => <NotFound /> })));
+const Insight = React.lazy(() => import('insight/Module').catch(() => ({ default: () => <NotFound /> })));
 
 const AppRoutes = () => {
   useApiErrorHandler();
@@ -62,6 +64,12 @@ const AppRoutes = () => {
           <Route path="/aoe-workflow/:agentId" element={<AoeWorkflow />} />
           <Route path="/stt" element={<Layout />}>
             <Route index path="*" element={<Stt />} />
+          </Route>
+          <Route path="/ivr" element={<Layout />}>
+            <Route index path="*" element={<Ivr />} />
+          </Route>
+          <Route path="/insight" element={<Layout />}>
+            <Route index path="*" element={<Insight />} />
           </Route>
         </Route>
         <Route path="/login" element={<Login />} />
