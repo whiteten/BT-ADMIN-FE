@@ -34,6 +34,7 @@ export interface LocalFieldDisplay {
   isVisible: boolean;
   sortOrder: number;
   aggFunc?: 'SUM' | 'AVG' | 'MIN' | 'MAX' | 'COUNT' | null;
+  isCalcField?: boolean; // calc field synced from LocalCalcFieldDraft
 }
 
 export interface LocalCalcFieldDraft {
