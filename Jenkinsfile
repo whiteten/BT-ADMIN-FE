@@ -47,6 +47,10 @@ pipeline {
         TODAY_STRING = sh(script: 'date "+%Y%m%d%H%M"', returnStdout: true).trim()
     }
 
+    options {
+        skipDefaultCheckout()  // 자동 Checkout SCM 비활성화 (스테이지 진입 시 master 암묵 체크아웃 방지)
+    }
+
     stages {
 
         // =====================================================================
@@ -87,6 +91,7 @@ pipeline {
                 docker {
                     image 'node:22-slim'
                     args '-v ${JENKINS_WORK_PATH}:${JENKINS_WORK_PATH} -u root'
+                    reuseNode true  // 부모 노드 워크스페이스 재사용 (@2 분리 방지 → Checkout 결과 그대로 사용)
                 }
             }
             steps {
