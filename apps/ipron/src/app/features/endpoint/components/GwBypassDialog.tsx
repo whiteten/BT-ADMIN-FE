@@ -8,7 +8,7 @@ import { Button, Drawer, Select, Table } from 'antd';
 import type { ColumnsType } from 'antd/es/table';
 import { X } from 'lucide-react';
 import { toast } from '@/shared-util';
-import type { Endpoint } from '../types/endpoint.types';
+import type { Endpoint } from '../types';
 
 interface NodeOption {
   label: string;

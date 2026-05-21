@@ -1,4 +1,4 @@
-import type { LicenseStatus } from '../types/license.types';
+import type { LicenseStatus } from '../types';
 import { cn } from '@/lib/utils';
 
 const STATUS_META: Record<LicenseStatus, { label: string; bgClass: string; textClass: string; dotClass: string }> = {

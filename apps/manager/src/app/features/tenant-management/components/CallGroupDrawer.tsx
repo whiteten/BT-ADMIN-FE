@@ -5,7 +5,7 @@ import { Log } from '@/log';
 import { useBreadcrumbStore } from '@/shared-store';
 import { toast } from '@/shared-util';
 import { tenantQueryKeys, useCreateCallGroup, useGetTenants, useUpdateCallGroup } from '../hooks/useTenantQueries';
-import type { CallGroupCreateData, CallGroupItem } from '../types/tenant.types';
+import type { CallGroupCreateData, CallGroupItem } from '../types';
 
 /**
  * CallGroupDrawer ref 타입

@@ -7,7 +7,7 @@ import { useMemo } from 'react';
 import { Button, Select, Tree, type TreeProps } from 'antd';
 import { AppWindow, File, Folder } from 'lucide-react';
 import { useBreadcrumbStore } from '@/shared-store';
-import type { Menu, MenuTreeNode } from '../types/menu.types';
+import type { Menu, MenuTreeNode } from '../types';
 
 interface MenuTreeProps {
   menus: Menu[];

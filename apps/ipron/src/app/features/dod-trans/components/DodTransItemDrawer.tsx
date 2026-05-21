@@ -10,7 +10,7 @@ import { List } from 'lucide-react';
 import { toast } from '@/shared-util';
 import NumPatternDrawer, { type NumPatternDrawerRef } from '../../did-trans/components/NumPatternDrawer';
 import { useCreateItem, useDeleteItem, useUpdateItem } from '../hooks/useDodTransQueries';
-import { type DodTransItem, EDIT_OPT_OPTIONS, TRANS_YN_OPTIONS } from '../types/dodTrans.types';
+import { type DodTransItem, EDIT_OPT_OPTIONS, TRANS_YN_OPTIONS } from '../types';
 import { useModal } from '@/libs/shared-ui/src/hooks/useModal';
 
 export interface DodTransItemDrawerRef {

@@ -19,7 +19,7 @@ import {
 } from '../../../features/statistics/hooks/useDateRangeLimit';
 import { useStatisticsFilterStore } from '../../../features/statistics/hooks/useStatisticsFilterStore';
 import { useGetIntentOptionList, useGetIntentStatList } from '../../../features/statistics/hooks/useStatisticsQueries';
-import type { IntentStatListItem } from '../../../features/statistics/types/statistics.types';
+import type { IntentStatListItem } from '../../../features/statistics/types';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { cn } from '@/lib/utils';
 import useAggridOptions from '@/libs/shared-ui/src/hooks/useAggridOptions';

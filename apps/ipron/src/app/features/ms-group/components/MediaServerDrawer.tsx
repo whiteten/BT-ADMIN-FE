@@ -11,7 +11,7 @@ import { forwardRef, useCallback, useEffect, useImperativeHandle, useState } fro
 import { Button, Col, Drawer, Form, Input, InputNumber, Modal, Row, Select, Switch } from 'antd';
 import { toast } from '@/shared-util';
 import { useCreateMediaServer, useDeleteMediaServer, useUpdateMediaServer } from '../hooks/useMsGroupQueries';
-import { IP_VERSION_OPTIONS, type MediaServer, type MediaServerCreateRequest } from '../types/msGroup.types';
+import { IP_VERSION_OPTIONS, type MediaServer, type MediaServerCreateRequest } from '../types';
 
 export interface MediaServerDrawerRef {
   open: (data?: MediaServer, nodeId?: number) => void;

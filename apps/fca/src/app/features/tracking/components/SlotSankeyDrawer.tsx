@@ -5,7 +5,7 @@ import type { EChartsOption } from 'echarts';
 import ReactECharts from 'echarts-for-react';
 import { AlertCircle, BarChart3, Maximize2, Minus, Plus, X } from 'lucide-react';
 import { botDialogHistoryApi } from '../api/botDialogHistoryApi';
-import type { BotDialogHistorySearchRequest, SlotSankeyItem } from '../types/botDialogHistory.types';
+import type { BotDialogHistorySearchRequest, SlotSankeyItem } from '../types';
 import { FallbackSpinner } from '@/components/custom/FallbackSpinner';
 
 interface SlotSankeyDrawerProps {

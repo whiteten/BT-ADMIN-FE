@@ -2,7 +2,7 @@
  * 역할 관리 API
  */
 import ApiClient from '@/shared-util';
-import type { RoleCreateDatas, RoleUpdateDatas } from '../types/iam.types';
+import type { RoleCreateDatas, RoleUpdateDatas } from '../types';
 
 const apiClient = new ApiClient({ serviceURL: '/bff' });
 

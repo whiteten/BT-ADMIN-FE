@@ -1,7 +1,7 @@
 import React from 'react';
 import { Descriptions, Drawer, Tag } from 'antd';
 import dayjs from 'dayjs';
-import { type DecryptLogItem, REASON_CODE_LABELS, RESULT_LABELS } from '../types/decryptLog.types';
+import { type DecryptLogItem, REASON_CODE_LABELS, RESULT_LABELS } from '../types';
 
 interface DecryptLogDetailDrawerProps {
   open: boolean;

@@ -5,7 +5,7 @@ import { useMutation, useQuery } from '@tanstack/react-query';
 import { createQueryKeys } from '@lukemorales/query-key-factory';
 import type { MutationHookOptions, QueryHookOptions } from '@/shared-util';
 import { permissionApi } from '../api/permissionApi';
-import type { Permission, PermissionCreateRequest, PermissionFlat, PermissionGroup } from '../types/iam.types';
+import type { Permission, PermissionCreateRequest, PermissionFlat, PermissionGroup } from '../types';
 
 export const permissionQueryKeys = createQueryKeys('permissions', {
   getGroupedPermissions: null,

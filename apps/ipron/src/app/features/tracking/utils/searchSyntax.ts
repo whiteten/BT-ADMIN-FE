@@ -7,7 +7,7 @@
  *
  * 자연어 X — 정해진 prefix만 인식. prefix 없는 토큰은 ANI(숫자) 또는 UCID(영숫자)로 추론.
  */
-import type { CallResult, DateRangePreset, TrackingMode, TrackingSearchCriteria } from '../types/tracking.types';
+import type { CallResult, DateRangePreset, TrackingMode, TrackingSearchCriteria } from '../types';
 
 // ─── 프리셋 (한글 + 영문 alias) ────────────────────────────────────────────
 

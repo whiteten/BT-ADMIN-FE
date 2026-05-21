@@ -24,7 +24,7 @@ import type {
   UserDefColumnDef,
   UserDefStatList,
   UserDefStatListItem,
-} from '../types/statistics.types';
+} from '../types';
 
 const apiClient = new ApiClient({ serviceURL: '/bff' });
 

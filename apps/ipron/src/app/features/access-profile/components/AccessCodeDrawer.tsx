@@ -6,7 +6,7 @@
  */
 import { forwardRef, useImperativeHandle, useState } from 'react';
 import { Button, Drawer, Form, Input, InputNumber, Select } from 'antd';
-import type { AccessCode, CodeCreateData, CodeUpdateData } from '../types/accessProfile.types';
+import type { AccessCode, CodeCreateData, CodeUpdateData } from '../types';
 
 export interface AccessCodeDrawerRef {
   open: (code?: AccessCode | null) => void;

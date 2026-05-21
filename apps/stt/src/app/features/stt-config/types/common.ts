@@ -15,4 +15,5 @@ export interface SttSystemItem {
   systemAlias: string;
   sysClassCdNm: string;
   hostName: string;
+  ipv4Address: string;
 }

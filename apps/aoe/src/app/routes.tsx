@@ -38,6 +38,7 @@ export const routes = [
           { index: true, element: <Navigate to="agent" replace /> },
           {
             path: 'agent',
+            element: <Outlet />,
             children: [
               { index: true, element: <Navigate to="list" replace /> },
               { path: 'list', element: <AgentList /> },
@@ -47,6 +48,7 @@ export const routes = [
           },
           {
             path: 'model',
+            element: <Outlet />,
             children: [
               { index: true, element: <Navigate to="list" replace /> },
               { path: 'list', element: <ModelList /> },
@@ -56,6 +58,7 @@ export const routes = [
           },
           {
             path: 'knowledge',
+            element: <Outlet />,
             children: [
               { index: true, element: <Navigate to="list" replace /> },
               { path: 'list', element: <KnowledgeList /> },
@@ -67,6 +70,7 @@ export const routes = [
           },
           {
             path: 'tool',
+            element: <Outlet />,
             children: [
               { index: true, element: <Navigate to="list" replace /> },
               { path: 'list', element: <ToolList /> },
@@ -75,6 +79,7 @@ export const routes = [
           },
           {
             path: 'a2a',
+            element: <Outlet />,
             children: [
               { index: true, element: <Navigate to="list" replace /> },
               { path: 'list', element: <A2AList /> },
@@ -84,6 +89,7 @@ export const routes = [
           },
           {
             path: 'mcp',
+            element: <Outlet />,
             children: [
               { index: true, element: <Navigate to="list" replace /> },
               { path: 'list', element: <McpList /> },

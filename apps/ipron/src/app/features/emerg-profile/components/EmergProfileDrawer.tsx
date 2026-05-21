@@ -6,7 +6,7 @@
  */
 import { forwardRef, useImperativeHandle, useState } from 'react';
 import { Button, Drawer, Form, Input, Select } from 'antd';
-import type { EmergProfile, NodeSimpleResponse, ProfileCreateData, ProfileUpdateData } from '../types/emergProfile.types';
+import type { EmergProfile, NodeSimpleResponse, ProfileCreateData, ProfileUpdateData } from '../types';
 
 export interface EmergProfileDrawerRef {
   open: (profile?: EmergProfile | null) => void;

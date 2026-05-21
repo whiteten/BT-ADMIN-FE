@@ -6,7 +6,7 @@ import { useMutation, useQuery } from '@tanstack/react-query';
 import { createQueryKeys } from '@lukemorales/query-key-factory';
 import type { MutationHookOptions, QueryHookOptions, QueryHookWithParamsOptions } from '@/shared-util';
 import { emergProfileApi } from '../api/emergProfileApi';
-import type { EmergCode, EmergProfile, EmergProfileDetail, NodeSimpleResponse, RouteSimpleResponse } from '../types/emergProfile.types';
+import type { EmergCode, EmergProfile, EmergProfileDetail, NodeSimpleResponse, RouteSimpleResponse } from '../types';
 
 export const emergProfileQueryKeys = createQueryKeys('emergProfiles', {
   getProfiles: (params?: Record<string, unknown>) => [params],

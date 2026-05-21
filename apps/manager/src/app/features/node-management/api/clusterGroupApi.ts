@@ -9,7 +9,7 @@
  * - manager-cluster-group-delete:   DELETE 클러스터 그룹 삭제
  */
 import ApiClient, { type DetailResponse, type ListResponse, extractDetail, extractList } from '@/shared-util';
-import type { ClusterGroup, ClusterGroupBackendResponse, ClusterGroupCreateData, ClusterGroupUpdateData } from '../types/node.types';
+import type { ClusterGroup, ClusterGroupBackendResponse, ClusterGroupCreateData, ClusterGroupUpdateData } from '../types';
 
 const apiClient = new ApiClient({ serviceURL: '/bff' });
 

@@ -8,7 +8,7 @@ import { forwardRef, useCallback, useEffect, useImperativeHandle, useState } fro
 import { Button, Drawer, Form, Input, Select } from 'antd';
 import { toast } from '@/shared-util';
 import { useCreateMsGroup, useUpdateMsGroup } from '../hooks/useMsGroupQueries';
-import { type MsGroup, type MsGroupCreateRequest, ROUTE_TYPE_OPTIONS } from '../types/msGroup.types';
+import { type MsGroup, type MsGroupCreateRequest, ROUTE_TYPE_OPTIONS } from '../types';
 
 export interface MsGroupDrawerRef {
   open: (data?: MsGroup, nodeId?: number) => void;

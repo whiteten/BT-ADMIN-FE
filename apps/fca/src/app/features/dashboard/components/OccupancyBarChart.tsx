@@ -1,7 +1,7 @@
 import rank1 from '../../../../assets/images/icon/rank1.png';
 import rank2 from '../../../../assets/images/icon/rank2.png';
 import rank3 from '../../../../assets/images/icon/rank3.png';
-import type { OccupancyItem } from '../types/dashboard.types';
+import type { OccupancyItem } from '../types';
 // import NoData from '@/components/custom/NoData';
 
 interface OccupancyBarChartProps {

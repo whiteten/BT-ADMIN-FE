@@ -1,7 +1,7 @@
 import type { LayoutItem } from 'react-grid-layout';
 import type { Option } from 'react-multi-select-component';
 import { createShortId } from '@/shared-util';
-import type { DashboardLayoutItem, DashboardWidgetType } from '../types/dashboard.types';
+import type { DashboardLayoutItem, DashboardWidgetType } from '../types';
 
 /** 위젯 인스턴스를 식별하는 고유 ID를 생성한다. */
 export function generateWidgetId(): string {

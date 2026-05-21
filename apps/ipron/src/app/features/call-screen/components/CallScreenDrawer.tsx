@@ -10,9 +10,9 @@ import { Button, Drawer, Form, Input, Select } from 'antd';
 import { List } from 'lucide-react';
 import { toast } from '@/shared-util';
 import NumPatternDrawer, { type NumPatternDrawerRef } from '../../did-trans/components/NumPatternDrawer';
-import type { NumPattern } from '../../did-trans/types/didTrans.types';
+import type { NumPattern } from '../../did-trans/types';
 import { useCreateCallScreen, useDeleteCallScreen, useUpdateCallScreen } from '../hooks/useCallScreenQueries';
-import type { CallScreen, CallScreenCreateRequest, CallScreenUpdateRequest } from '../types/callScreen.types';
+import type { CallScreen, CallScreenCreateRequest, CallScreenUpdateRequest } from '../types';
 import { useModal } from '@/libs/shared-ui/src/hooks/useModal';
 
 export interface CallScreenDrawerRef {

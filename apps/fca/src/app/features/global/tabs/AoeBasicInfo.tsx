@@ -4,7 +4,7 @@ import { Button, Col, Form, type FormProps, Input, Row } from 'antd';
 import { Log } from '@/log';
 import { toast } from '@/shared-util';
 import { aoeQueryKeys, useCreateAoeBasic, useGetAoeBasicDetail } from '../hooks/useAoeQueries';
-import type { AoeBasicFormDatas } from '../types/aoe.types';
+import type { AoeBasicFormDatas } from '../types';
 import { FallbackSpinner } from '@/components/custom/FallbackSpinner';
 
 export default function AoeBasicInfo() {

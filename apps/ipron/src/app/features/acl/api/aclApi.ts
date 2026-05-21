@@ -11,7 +11,7 @@
  * - manager-node-list:  GET    노드 목록 조회 (cross-service)
  */
 import ApiClient, { type DetailResponse, type ListResponse, extractDetail, extractList } from '@/shared-util';
-import type { Acl, AclCreateRequest, AclUpdateRequest } from '../types/acl.types';
+import type { Acl, AclCreateRequest, AclUpdateRequest } from '../types';
 
 interface NodeSimpleResponse {
   nodeId: number;

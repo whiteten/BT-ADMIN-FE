@@ -1,12 +1,12 @@
 import { Search, Settings, X } from 'lucide-react';
 import { toast } from '@/shared-util';
-import { useReportEditorStore } from '../../../stores/useReportEditorStore';
 import PanelBarChart from '../../panel/components/chart/PanelBarChart';
 import PanelLineChart from '../../panel/components/chart/PanelLineChart';
 import PanelPieChart from '../../panel/components/chart/PanelPieChart';
 import PanelRadarChart from '../../panel/components/chart/PanelRadarChart';
 import PanelGrid from '../../panel/components/grid/PanelGrid';
 import PanelKpiCard from '../../panel/components/kpi/PanelKpiCard';
+import { useReportEditorStore } from '../../report/hooks/useReportEditorStore';
 import { useDeletePanel } from '../../report/hooks/useReportQueries';
 import type { PanelDetail } from '../../report/types';
 import { useModal } from '@/libs/shared-ui/src/hooks/useModal';

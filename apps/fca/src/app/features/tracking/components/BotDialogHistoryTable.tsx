@@ -6,7 +6,7 @@ import { Copy } from 'lucide-react';
 import { copyToClipboard, toast } from '@/shared-util';
 import BotDialogHistoryPageSizeSelector, { DEFAULT_PAGE_SIZE, getSavedPageSize } from './BotDialogHistoryPageSizeSelector';
 import { botDialogHistoryApi } from '../api/botDialogHistoryApi';
-import type { BotDialogHistoryListItem, BotDialogHistorySearchRequest } from '../types/botDialogHistory.types';
+import type { BotDialogHistoryListItem, BotDialogHistorySearchRequest } from '../types';
 import AggridPagination from '@/components/custom/AggridPagination';
 import { Badge } from '@/components/ui/badge';
 import useAggridOptions from '@/libs/shared-ui/src/hooks/useAggridOptions';

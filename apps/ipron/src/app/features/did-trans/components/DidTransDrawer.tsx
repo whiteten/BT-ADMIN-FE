@@ -11,7 +11,7 @@ import { List } from 'lucide-react';
 import { toast } from '@/shared-util';
 import NumPatternDrawer, { type NumPatternDrawerRef } from './NumPatternDrawer';
 import { useCreateAniTrans, useCreateDnisTrans, useDeleteAniTrans, useDeleteDnisTrans, useUpdateAniTrans, useUpdateDnisTrans } from '../hooks/useDidTransQueries';
-import { type DidTrans, type DidTransCategory, type DidTransCreateRequest, EDIT_OPT_OPTIONS } from '../types/didTrans.types';
+import { type DidTrans, type DidTransCategory, type DidTransCreateRequest, EDIT_OPT_OPTIONS } from '../types';
 import { useModal } from '@/libs/shared-ui/src/hooks/useModal';
 
 interface NodeOption {

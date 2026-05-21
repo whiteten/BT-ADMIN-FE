@@ -12,7 +12,7 @@ import { botDashboardLayoutRenderMapper } from '../../features/dashboard/constan
 import { GRID_COLS } from '../../features/dashboard/constants/dashboardConstants';
 import { DEFAULT_LAYOUT, useBotDashboardStore } from '../../features/dashboard/hooks/useBotDashboardStore';
 import { useDashboardSocket } from '../../features/dashboard/hooks/useDashboardSocket';
-import type { DashboardLayoutItem, DashboardWidgetType } from '../../features/dashboard/types/dashboard.types';
+import type { DashboardLayoutItem, DashboardWidgetType } from '../../features/dashboard/types';
 import { generateWidgetId, syncLayoutWithFilter } from '../../features/dashboard/utils/dashboardUtils';
 import { cn } from '@/lib/utils';
 import { useModal } from '@/libs/shared-ui/src/hooks/useModal';

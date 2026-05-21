@@ -6,7 +6,7 @@ import { useMutation, useQuery } from '@tanstack/react-query';
 import { createQueryKeys } from '@lukemorales/query-key-factory';
 import type { MutationHookOptions, QueryHookWithParamsOptions } from '@/shared-util';
 import { clusterGroupApi } from '../api/clusterGroupApi';
-import type { ClusterGroup } from '../types/node.types';
+import type { ClusterGroup } from '../types';
 
 export const clusterGroupQueryKeys = createQueryKeys('clusterGroups', {
   getClusterGroups: (params?: Record<string, unknown>) => [params],

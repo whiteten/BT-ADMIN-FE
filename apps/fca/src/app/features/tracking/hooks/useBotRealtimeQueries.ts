@@ -2,7 +2,7 @@ import { useMutation, useQuery } from '@tanstack/react-query';
 import { createQueryKeys } from '@lukemorales/query-key-factory';
 import type { MutationHookOptions, QueryHookOptions } from '@/shared-util';
 import { botRealtimeApi } from '../api/botRealtimeApi';
-import type { TrackingCommandRequest, TrackingCommandResult, TrackingSessionDetail } from '../types/tracking.types';
+import type { TrackingCommandRequest, TrackingCommandResult, TrackingSessionDetail } from '../types';
 
 export const botRealtimeQueryKeys = createQueryKeys('tracking', {
   getSessionDetail: (ucid: string, nexthop: number) => [ucid, nexthop],

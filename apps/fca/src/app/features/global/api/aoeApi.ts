@@ -1,6 +1,6 @@
 import ApiClient, { type DetailResponse, type ListResponse, extractDetail, extractList } from '@/shared-util';
 import type { ExcelImportResult } from '../../bot-config/types/intent';
-import type { AoeBasicCreateDatas, AoeBasicDetailItem, FaqAgentListItem, FaqCreateDatas, FaqDetailItem, FaqListItem, FaqUpdateDatas } from '../types/aoe.types';
+import type { AoeBasicCreateDatas, AoeBasicDetailItem, FaqAgentListItem, FaqCreateDatas, FaqDetailItem, FaqListItem, FaqUpdateDatas } from '../types';
 
 const apiClient = new ApiClient({ serviceURL: '/bff' });
 

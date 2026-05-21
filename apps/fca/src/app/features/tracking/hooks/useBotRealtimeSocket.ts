@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { WebSocketClient } from '@/shared-util';
-import type { TrackingPushData, TrackingSession, TrackingSessionDetail } from '../types/tracking.types';
+import type { TrackingPushData, TrackingSession, TrackingSessionDetail } from '../types';
 
 const WS_PATH = '/ws/proxy/fca/tracking';
 

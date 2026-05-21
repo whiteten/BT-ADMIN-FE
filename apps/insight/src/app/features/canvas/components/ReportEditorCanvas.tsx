@@ -1,9 +1,9 @@
 import { useState } from 'react';
 import { Eye, Globe } from 'lucide-react';
 import CanvasLayout from './CanvasLayout';
-import { useReportEditorStore } from '../../../stores/useReportEditorStore';
 import GlobalFilter from '../../global-filter/components/GlobalFilter';
 import PublishDialog from '../../report/components/PublishDialog';
+import { useReportEditorStore } from '../../report/hooks/useReportEditorStore';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 

@@ -1,5 +1,5 @@
 import ApiClient, { type DetailResponse, type ListResponse, extractDetail, extractList } from '@/shared-util';
-import type { PasswordChangeDatas, User, UserCreateDatas, UserUpdateDatas } from '../types/user.types';
+import type { PasswordChangeDatas, User, UserCreateDatas, UserUpdateDatas } from '../types';
 
 /**
  * 페이징 응답 타입 (백엔드 PagedResponse와 일치)

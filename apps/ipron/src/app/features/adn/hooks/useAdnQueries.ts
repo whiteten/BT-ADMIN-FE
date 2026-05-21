@@ -5,7 +5,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { createQueryKeys } from '@lukemorales/query-key-factory';
 import type { MutationHookOptions, QueryHookOptions, QueryHookWithParamsOptions } from '@/shared-util';
 import { adnApi } from '../api/adnApi';
-import type { AdnCopyRequest, AdnCreateRequest, AdnExcelImportResult, AdnResponse, AdnTenantStat, AdnUpdateRequest } from '../types/adn.types';
+import type { AdnCopyRequest, AdnCreateRequest, AdnExcelImportResult, AdnResponse, AdnTenantStat, AdnUpdateRequest } from '../types';
 
 export const adnQueryKeys = createQueryKeys('adns', {
   getList: (params?: Record<string, unknown>) => [params],

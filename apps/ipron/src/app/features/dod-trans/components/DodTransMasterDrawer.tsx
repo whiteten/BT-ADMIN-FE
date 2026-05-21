@@ -12,7 +12,7 @@ import { Button, Drawer, Form, Input, Select } from 'antd';
 import { toast } from '@/shared-util';
 import type { NodeTenantItem } from '../api/dodTransApi';
 import { useCreateMaster, useDeleteMaster, useUpdateMaster } from '../hooks/useDodTransQueries';
-import type { DodTransMaster } from '../types/dodTrans.types';
+import type { DodTransMaster } from '../types';
 import { useModal } from '@/libs/shared-ui/src/hooks/useModal';
 
 interface NodeOption {

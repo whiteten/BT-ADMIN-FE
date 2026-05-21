@@ -4,7 +4,7 @@ import dayjs from 'dayjs';
 import { useBreadcrumbStore } from '@/shared-store';
 import { toast } from '@/shared-util';
 import { useGetRetentionTargets, useUpdateRetentionPolicies } from '../hooks/useDataRetentionQueries';
-import { RETENTION_CATEGORY_LABELS, RETENTION_PRODUCT_CODE_LABELS, type RetentionPolicyListItem } from '../types/dataRetention.types';
+import { RETENTION_CATEGORY_LABELS, RETENTION_PRODUCT_CODE_LABELS, type RetentionPolicyListItem } from '../types';
 import { FallbackSpinner } from '@/components/custom/FallbackSpinner';
 
 export interface RetentionEditDrawerRef {

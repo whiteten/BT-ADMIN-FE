@@ -22,9 +22,7 @@
           "apps/insight/src/favicon.ico",
           "apps/insight/src/assets"
         ],
-        "styles": [
-          "libs/shared-ui/src/styles/global.css"
-        ],
+        "styles": [],
         "scripts": [],
         "webpackConfig": "apps/insight/webpack.config.ts",
         "postcssConfig": "apps/insight/postcss.config.js"

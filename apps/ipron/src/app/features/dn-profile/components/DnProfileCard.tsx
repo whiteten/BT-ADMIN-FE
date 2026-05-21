@@ -15,7 +15,7 @@
  */
 import { Dropdown } from 'antd';
 import { Copy, Edit3, ListPlus, MoreVertical, Trash2 } from 'lucide-react';
-import type { DnProfile } from '../types/dnProfile.types';
+import type { DnProfile } from '../types';
 
 interface DnProfileCardProps {
   profile: DnProfile;

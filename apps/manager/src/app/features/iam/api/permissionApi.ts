@@ -2,7 +2,7 @@
  * 권한 관리 API
  */
 import ApiClient, { type ListResponse, extractList } from '@/shared-util';
-import type { Permission, PermissionCreateRequest, PermissionFlat, PermissionGroup } from '../types/iam.types';
+import type { Permission, PermissionCreateRequest, PermissionFlat, PermissionGroup } from '../types';
 
 const apiClient = new ApiClient({ serviceURL: '/bff' });
 

@@ -1,6 +1,6 @@
 import type { ColDef } from 'ag-grid-community';
 import { AgGridReact } from 'ag-grid-react';
-import type { SlotRetryDistTopItem } from '../types/dashboard.types';
+import type { SlotRetryDistTopItem } from '../types';
 import useAggridOptions from '@/libs/shared-ui/src/hooks/useAggridOptions';
 
 const columnDefs: ColDef<SlotRetryDistTopItem>[] = [

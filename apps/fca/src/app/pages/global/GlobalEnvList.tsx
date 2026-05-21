@@ -11,7 +11,7 @@ import type { ExcelImportResult } from '../../features/bot-config/types/intent';
 import AggridGlobalEnvDeploySidebar from '../../features/global/components/AggridGlobalEnvDeploySidebar';
 import GlobalEnvDrawer, { type GlobalEnvDrawerRef } from '../../features/global/components/GlobalEnvDrawer';
 import { globalEnvQueryKeys, useDeleteGlobalEnv, useExportGlobalEnv, useGetGlobalEnvList, useImportGlobalEnv } from '../../features/global/hooks/useGlobalEnvQueries';
-import type { GlobalEnvListItem } from '../../features/global/types/globalEnv.types';
+import type { GlobalEnvListItem } from '../../features/global/types';
 import FileImportModal, { type FileImportModalRef } from '@/components/custom/FileImportModal';
 import { IconAlertTriangle, IconTrash } from '@/components/custom/Icons';
 import useAggridOptions from '@/libs/shared-ui/src/hooks/useAggridOptions';

@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { Form, type FormProps, Input } from 'antd';
 import { AlertTriangle } from 'lucide-react';
 import { toast } from '@/shared-util';
-import { useReportEditorStore } from '../../../stores/useReportEditorStore';
+import { useReportEditorStore } from '../hooks/useReportEditorStore';
 import { usePublishReport, useUnpublishReport } from '../hooks/useReportQueries';
 import type { PublishDatas } from '../types';
 import { Button } from '@/components/ui/button';

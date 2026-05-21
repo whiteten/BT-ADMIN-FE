@@ -3,7 +3,7 @@ import type { ColDef, FirstDataRenderedEvent, GridApi, GridOptions, GridReadyEve
 import { AgGridReact } from 'ag-grid-react';
 import dayjs from 'dayjs';
 import { decryptLogApi } from '../api/decryptLogApi';
-import { type DecryptLogItem, type DecryptLogSearchRequest, REASON_CODE_LABELS, RESULT_LABELS } from '../types/decryptLog.types';
+import { type DecryptLogItem, type DecryptLogSearchRequest, REASON_CODE_LABELS, RESULT_LABELS } from '../types';
 import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
 import useAggridOptions from '@/libs/shared-ui/src/hooks/useAggridOptions';

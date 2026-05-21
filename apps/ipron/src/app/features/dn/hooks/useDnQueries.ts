@@ -18,7 +18,7 @@ import type {
   DnSnrResponse,
   DnSnrTodResponse,
   NodeTenantItem,
-} from '../types/dn.types';
+} from '../types';
 
 export const dnQueryKeys = createQueryKeys('dns', {
   getList: (params?: Record<string, unknown>) => [params],

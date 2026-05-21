@@ -5,7 +5,7 @@ import { useMutation, useQuery } from '@tanstack/react-query';
 import { createQueryKeys } from '@lukemorales/query-key-factory';
 import type { MutationHookOptions, QueryHookOptions, QueryHookWithParamsOptions } from '@/shared-util';
 import { devfuncProfileApi } from '../api/devfuncProfileApi';
-import type { DevfuncCode, DevfuncProfile, ProfileTreeNodeResponse, TenantSimpleResponse } from '../types/devfuncProfile.types';
+import type { DevfuncCode, DevfuncProfile, ProfileTreeNodeResponse, TenantSimpleResponse } from '../types';
 
 export const devfuncProfileQueryKeys = createQueryKeys('devfuncProfiles', {
   getProfiles: (params?: Record<string, unknown>) => [params],

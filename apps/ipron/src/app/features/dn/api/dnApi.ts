@@ -47,7 +47,7 @@ import type {
   DnSnrTodResponse,
   DnUpdateRequest,
   NodeTenantItem,
-} from '../types/dn.types';
+} from '../types';
 
 const apiClient = new ApiClient({ serviceURL: '/bff' });
 

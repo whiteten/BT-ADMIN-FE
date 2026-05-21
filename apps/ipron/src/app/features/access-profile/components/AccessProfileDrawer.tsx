@@ -7,7 +7,7 @@
 import { forwardRef, useImperativeHandle, useMemo, useState } from 'react';
 import { Button, Drawer, Form, Input, Select } from 'antd';
 import type { NodeTenantItem } from '../api/accessProfileApi';
-import type { AccessProfile, NodeSimpleResponse, ProfileCreateData, ProfileUpdateData, TenantSimpleResponse } from '../types/accessProfile.types';
+import type { AccessProfile, NodeSimpleResponse, ProfileCreateData, ProfileUpdateData, TenantSimpleResponse } from '../types';
 
 export interface AccessProfileDrawerRef {
   open: (profile?: AccessProfile | null, tenantId?: number, nodeId?: number) => void;

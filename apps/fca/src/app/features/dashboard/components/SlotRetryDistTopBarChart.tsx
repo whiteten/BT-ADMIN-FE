@@ -2,7 +2,7 @@ import type { EChartsOption } from 'echarts';
 import type { CallbackDataParams } from 'echarts/types/dist/shared';
 import ReactECharts from 'echarts-for-react';
 import { CHART_COLORS } from '../constants/dashboardConstants';
-import type { SlotRetryDistTopItem } from '../types/dashboard.types';
+import type { SlotRetryDistTopItem } from '../types';
 import NoData from '@/components/custom/NoData';
 
 const createChartOption = (data: SlotRetryDistTopItem[]): EChartsOption => {

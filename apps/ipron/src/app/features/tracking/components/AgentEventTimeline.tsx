@@ -3,7 +3,7 @@
  * 후처리/워크코드/응대메모/평가는 본 화면 노출 제외 (상담 어플리케이션 영역).
  */
 import { Empty } from 'antd';
-import type { AgentEvent, AgentEventType } from '../types/tracking.types';
+import type { AgentEvent, AgentEventType } from '../types';
 
 interface Props {
   events: AgentEvent[];

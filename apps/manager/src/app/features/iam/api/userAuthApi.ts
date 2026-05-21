@@ -3,7 +3,7 @@
  * BFF Flow: user-auth-map-list, user-auth-map-create
  */
 import ApiClient, { type DetailResponse, type ListResponse, extractDetail, extractList } from '@/shared-util';
-import type { UserAuthMap, UserPermissionSyncRequest, UserPermissionSyncResponse } from '../types/iam.types';
+import type { UserAuthMap, UserPermissionSyncRequest, UserPermissionSyncResponse } from '../types';
 
 const apiClient = new ApiClient({ serviceURL: '/bff' });
 

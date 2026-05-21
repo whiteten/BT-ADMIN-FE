@@ -2,7 +2,7 @@
  * 메뉴 관리 API
  */
 import ApiClient, { type ListResponse, extractList } from '@/shared-util';
-import type { Menu, MenuUpsertRequest } from '../types/menu.types';
+import type { Menu, MenuUpsertRequest } from '../types';
 
 const apiClient = new ApiClient({ serviceURL: '/bff' });
 

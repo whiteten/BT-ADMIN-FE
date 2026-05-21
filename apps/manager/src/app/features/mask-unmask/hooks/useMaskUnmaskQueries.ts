@@ -2,15 +2,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { createQueryKeys } from '@lukemorales/query-key-factory';
 import type { MutationHookOptions } from '@/shared-util';
 import { maskUnmaskApi } from '../api/maskUnmaskApi';
-import type {
-  AuditByTargetParams,
-  AuditByUserParams,
-  AuditListParams,
-  UnmaskApproveRequest,
-  UnmaskCreateRequest,
-  UnmaskListParams,
-  UnmaskRejectRequest,
-} from '../types/maskUnmask.types';
+import type { AuditByTargetParams, AuditByUserParams, AuditListParams, UnmaskApproveRequest, UnmaskCreateRequest, UnmaskListParams, UnmaskRejectRequest } from '../types';
 
 export const maskUnmaskQueryKeys = createQueryKeys('maskUnmask', {
   pending: (params: UnmaskListParams) => [params],

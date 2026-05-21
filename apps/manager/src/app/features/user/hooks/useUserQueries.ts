@@ -2,7 +2,7 @@ import { useMutation, useQuery } from '@tanstack/react-query';
 import { createQueryKeys } from '@lukemorales/query-key-factory';
 import type { MutationHookOptions, QueryHookWithParamsOptions } from '@/shared-util';
 import { userApi } from '../api/userApi';
-import type { User, UserCreateDatas } from '../types/user.types';
+import type { User, UserCreateDatas } from '../types';
 
 /**
  * 페이징 응답 타입

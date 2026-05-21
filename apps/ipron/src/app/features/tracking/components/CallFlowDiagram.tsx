@@ -11,7 +11,7 @@
  */
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { ArrowRight, Maximize2, Minimize2, Minus, Plus } from 'lucide-react';
-import type { CallSegment } from '../types/tracking.types';
+import type { CallSegment } from '../types';
 
 interface Props {
   segments: CallSegment[];

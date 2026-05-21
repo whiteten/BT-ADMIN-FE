@@ -5,7 +5,7 @@ import { useMutation, useQuery } from '@tanstack/react-query';
 import { createQueryKeys } from '@lukemorales/query-key-factory';
 import type { MutationHookOptions, QueryHookOptions, QueryHookWithParamsOptions } from '@/shared-util';
 import { mediaDeliveryApi } from '../api/mediaDeliveryApi';
-import type { MdGrp, MdItem } from '../types/mediaDelivery.types';
+import type { MdGrp, MdItem } from '../types';
 
 export const mediaDeliveryQueryKeys = createQueryKeys('mediaDelivery', {
   getMdGrps: (params?: Record<string, unknown>) => [params],

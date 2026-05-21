@@ -3,7 +3,7 @@ import { Button } from 'antd';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { useBreadcrumbStore } from '@/shared-store';
 import PolicyCard from './PolicyCard';
-import type { RetentionPolicyListItem } from '../types/dataRetention.types';
+import type { RetentionPolicyListItem } from '../types';
 
 interface PolicyCardSliderProps {
   policies: RetentionPolicyListItem[];

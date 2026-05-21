@@ -10,7 +10,7 @@ import { useBreadcrumbStore, useRemoteRoutesStore } from '@/shared-store';
 
 import type { App } from '../../iam/api/appApi';
 import QuerySelectorRenderer from '../selectors/QuerySelectorRenderer';
-import type { Menu, MenuUpsertRequest } from '../types/menu.types';
+import type { Menu, MenuUpsertRequest } from '../types';
 import { buildPathOptions, joinPathQuery, splitPathQuery } from '../utils/menuFormOptions';
 import { IconDocument } from '@/components/custom/Icons';
 import MenuIconPicker from '@/components/custom/MenuIconPicker';

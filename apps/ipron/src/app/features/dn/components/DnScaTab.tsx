@@ -14,7 +14,7 @@ import { Button, Drawer, Form, Input, InputNumber, Modal, Radio, Select, Switch,
 import { Pencil, Plus, Trash2 } from 'lucide-react';
 import { toast } from '@/shared-util';
 import { useCreateDnSca, useDeleteDnSca, useGetDnOptions, useGetDnScaList, useUpdateDnSca } from '../hooks/useDnQueries';
-import { DN_SCA_INITIAL_VALUES, type DnScaRequest, type DnScaResponse } from '../types/dn.types';
+import { DN_SCA_INITIAL_VALUES, type DnScaRequest, type DnScaResponse } from '../types';
 import { TRANSPORT_TYPE_OPTIONS } from '../utils/dnEnums';
 
 const IP_VERSION_OPTIONS = [

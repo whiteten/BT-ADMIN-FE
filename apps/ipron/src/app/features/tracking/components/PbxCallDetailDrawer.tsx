@@ -16,7 +16,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { Drawer, Empty, Spin, Tag } from 'antd';
 import { ChevronDown, ChevronRight, Maximize2, Minimize2, Phone, X } from 'lucide-react';
 import { useGetIeCdrDetail, useGetTrackingDetail } from '../hooks/useTrackingQueries';
-import type { CallSearchResult, CallSegment } from '../types/tracking.types';
+import type { CallSearchResult, CallSegment } from '../types';
 
 interface Props {
   open: boolean;

@@ -5,7 +5,7 @@
  * Refresh: BFF management 엔드포인트 직접 호출
  */
 import ApiClient, { type ListResponse, extractList } from '@/shared-util';
-import type { BffFlow, FlowSpec } from '../types/bffFlow.types';
+import type { BffFlow, FlowSpec } from '../types';
 
 /** CRUD → aggregation flow → MANAGER */
 const apiClient = new ApiClient({ serviceURL: '/bff' });

@@ -1,5 +1,5 @@
 import ApiClient from '@/shared-util';
-import type { LoginAuditLog, LoginAuditLogSearchParams } from '../types/loginAuditLog.types';
+import type { LoginAuditLog, LoginAuditLogSearchParams } from '../types';
 
 /**
  * 페이징 응답 타입 (백엔드 PagedResponse와 일치)

@@ -33,7 +33,7 @@ import type {
   ProfileUpdateData,
   RouteSimpleResponse,
   TenantSimpleResponse,
-} from '../types/accessProfile.types';
+} from '../types';
 
 const apiClient = new ApiClient({ serviceURL: '/bff' });
 

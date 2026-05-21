@@ -12,7 +12,7 @@
  * - ipron-route-list:        GET    발신라우트 목록 조회 (라우트 select용)
  */
 import ApiClient, { type DetailResponse, type ListResponse, extractDetail, extractList } from '@/shared-util';
-import type { DidRoute, DidRouteCreateRequest, DidRouteUpdateRequest } from '../types/didRoute.types';
+import type { DidRoute, DidRouteCreateRequest, DidRouteUpdateRequest } from '../types';
 
 interface NodeSimpleResponse {
   nodeId: number;

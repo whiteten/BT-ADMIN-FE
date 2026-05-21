@@ -15,7 +15,7 @@
  *  - ipron-dn-adn-excel-export     GET    엑셀 내보내기 (binary)
  */
 import ApiClient, { type DetailResponse, type ListResponse, extractDetail, extractList } from '@/shared-util';
-import type { AdnCopyRequest, AdnCreateRequest, AdnExcelImportResult, AdnResponse, AdnTenantStat, AdnUpdateRequest } from '../types/adn.types';
+import type { AdnCopyRequest, AdnCreateRequest, AdnExcelImportResult, AdnResponse, AdnTenantStat, AdnUpdateRequest } from '../types';
 
 const apiClient = new ApiClient({ serviceURL: '/bff' });
 

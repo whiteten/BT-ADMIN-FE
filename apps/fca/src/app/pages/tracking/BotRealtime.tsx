@@ -6,7 +6,7 @@ import { Play, Search, Square } from 'lucide-react';
 import { useBreadcrumbStore } from '@/shared-store';
 import BotRealtimeDetailDrawer, { type BotRealtimeDetailDrawerRef } from '../../features/tracking/components/BotRealtimeDetailDrawer';
 import { useBotRealtimeSocket } from '../../features/tracking/hooks/useBotRealtimeSocket';
-import type { TrackingSession } from '../../features/tracking/types/tracking.types';
+import type { TrackingSession } from '../../features/tracking/types';
 import useAggridOptions from '@/libs/shared-ui/src/hooks/useAggridOptions';
 
 const breadcrumb: BreadcrumbProps['items'] = [

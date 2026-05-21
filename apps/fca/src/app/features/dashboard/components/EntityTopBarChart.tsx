@@ -1,6 +1,6 @@
 import type { EChartsOption } from 'echarts';
 import ReactECharts from 'echarts-for-react';
-import type { EntityTopItem } from '../types/dashboard.types';
+import type { EntityTopItem } from '../types';
 import { getGradientColor } from '../utils/dashboardUtils';
 import NoData from '@/components/custom/NoData';
 

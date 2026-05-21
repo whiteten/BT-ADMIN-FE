@@ -1,6 +1,6 @@
 import { Server } from 'lucide-react';
 import { FunctionBadge } from './LicenseStatusBadge';
-import type { LicenseUsageItem } from '../types/license.types';
+import type { LicenseUsageItem } from '../types';
 import { getUsageBarColor, getUsageColorClass } from '../utils/licenseUtils';
 import { cn } from '@/lib/utils';
 

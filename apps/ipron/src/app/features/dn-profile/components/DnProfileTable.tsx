@@ -10,7 +10,7 @@ import { useMemo } from 'react';
 import type { CellStyle, ColDef, ICellRendererParams } from 'ag-grid-community';
 import { AgGridReact } from 'ag-grid-react';
 import { ListPlus } from 'lucide-react';
-import type { DnProfile } from '../types/dnProfile.types';
+import type { DnProfile } from '../types';
 import { DN_PROFILE_TYPE_LABELS, NAT_OPTION_LABELS, getRtpLabel } from '../utils/dnProfileEnums';
 import { IconTrash } from '@/components/custom/Icons';
 import useAggridOptions from '@/libs/shared-ui/src/hooks/useAggridOptions';

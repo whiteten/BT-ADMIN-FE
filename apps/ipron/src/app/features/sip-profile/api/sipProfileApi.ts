@@ -28,7 +28,7 @@ import type {
   SipProfile,
   SipProfileCreateRequest,
   SipProfileUpdateRequest,
-} from '../types/sipProfile.types';
+} from '../types';
 
 const apiClient = new ApiClient({ serviceURL: '/bff' });
 

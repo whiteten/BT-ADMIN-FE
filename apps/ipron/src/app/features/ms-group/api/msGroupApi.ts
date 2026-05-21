@@ -29,7 +29,7 @@ import type {
   MsGrpMemberRequest,
   NodeMsSettingRequest,
   NodeMsSettingResponse,
-} from '../types/msGroup.types';
+} from '../types';
 
 interface NodeSimpleResponse {
   nodeId: number;

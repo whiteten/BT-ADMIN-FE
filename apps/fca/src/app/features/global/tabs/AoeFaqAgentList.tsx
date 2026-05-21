@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { Input, Select } from 'antd';
 import FaqAgentCard from '../components/FaqAgentCard';
 import { useGetFaqAgentList } from '../hooks/useAoeQueries';
-import type { FaqAgentListItem } from '../types/aoe.types';
+import type { FaqAgentListItem } from '../types';
 import { FallbackSpinner } from '@/components/custom/FallbackSpinner';
 import NoData from '@/components/custom/NoData';
 

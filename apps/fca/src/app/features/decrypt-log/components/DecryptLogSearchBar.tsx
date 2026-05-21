@@ -4,8 +4,8 @@ import dayjs, { type Dayjs } from 'dayjs';
 import { Search } from 'lucide-react';
 import { toast } from '@/shared-util';
 import { useGetBotServices } from '../../tracking/hooks/useBotDialogHistoryQueries';
-import type { BotServiceDto } from '../../tracking/types/botDialogHistory.types';
-import { type DecryptLogSearchRequest, REASON_CODE_LABELS, RESULT_LABELS } from '../types/decryptLog.types';
+import type { BotServiceDto } from '../../tracking/types';
+import { type DecryptLogSearchRequest, REASON_CODE_LABELS, RESULT_LABELS } from '../types';
 
 const MAX_DAYS = 31;
 

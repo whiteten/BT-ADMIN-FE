@@ -2,7 +2,7 @@ import { useRef } from 'react';
 import 'echarts-wordcloud';
 import ReactECharts from 'echarts-for-react';
 import { WORD_CLOUD_COLORS } from '../constants/dashboardConstants';
-import type { KeywordTopItem } from '../types/dashboard.types';
+import type { KeywordTopItem } from '../types';
 import NoData from '@/components/custom/NoData';
 
 const createChartOption = (data: KeywordTopItem[]) => {

@@ -5,7 +5,7 @@
  */
 import { forwardRef, useImperativeHandle, useState } from 'react';
 import { Form, Input, Modal, Select } from 'antd';
-import type { DevfuncProfile, ProfileCopyData, TenantSimpleResponse } from '../types/devfuncProfile.types';
+import type { DevfuncProfile, ProfileCopyData, TenantSimpleResponse } from '../types';
 
 export interface DevfuncProfileCopyDialogRef {
   open: (profile: DevfuncProfile) => void;

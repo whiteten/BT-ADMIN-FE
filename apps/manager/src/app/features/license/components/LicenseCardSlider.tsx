@@ -3,7 +3,7 @@ import { Button } from 'antd';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { useBreadcrumbStore } from '@/shared-store';
 import LicenseCard from './LicenseCard';
-import type { License } from '../types/license.types';
+import type { License } from '../types';
 
 interface LicenseCardSliderProps {
   licenses: License[];

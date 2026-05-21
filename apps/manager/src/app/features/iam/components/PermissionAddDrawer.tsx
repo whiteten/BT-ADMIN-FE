@@ -12,7 +12,7 @@ import { useBreadcrumbStore } from '@/shared-store';
 import { toast } from '@/shared-util';
 import { useGetApps } from '../hooks/useAppQueries';
 import { permissionQueryKeys, useCreatePermission } from '../hooks/usePermissionQueries';
-import type { PermissionCreateRequest } from '../types/iam.types';
+import type { PermissionCreateRequest } from '../types';
 
 export interface PermissionAddDrawerRef {
   open: () => void;

@@ -1,7 +1,7 @@
 import { Button, Dropdown, type MenuProps } from 'antd';
 import { MoreVertical } from 'lucide-react';
 import LicenseStatusBadge from './LicenseStatusBadge';
-import { LICENSE_TYPE_LABELS, type License } from '../types/license.types';
+import { LICENSE_TYPE_LABELS, type License } from '../types';
 import { cn } from '@/lib/utils';
 
 interface LicenseCardProps {

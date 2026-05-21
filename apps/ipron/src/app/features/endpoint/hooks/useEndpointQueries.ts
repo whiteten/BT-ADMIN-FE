@@ -6,7 +6,7 @@ import { useMutation, useQuery } from '@tanstack/react-query';
 import { createQueryKeys } from '@lukemorales/query-key-factory';
 import type { MutationHookOptions, QueryHookOptions, QueryHookWithParamsOptions } from '@/shared-util';
 import { endpointApi } from '../api/endpointApi';
-import type { Endpoint, EndpointMember, EndpointRegnum } from '../types/endpoint.types';
+import type { Endpoint, EndpointMember, EndpointRegnum } from '../types';
 
 export const endpointQueryKeys = createQueryKeys('endpoints', {
   getEndpoints: (params?: Record<string, unknown>) => [params],

@@ -13,7 +13,7 @@
  * - manager-node-cluster-move:      PUT    노드 클러스터 이동
  */
 import ApiClient, { type DetailResponse, type ListResponse, extractDetail, extractList } from '@/shared-util';
-import type { NodeBackendResponse, NodeClusterMoveData, NodeCreateData, NodeDetail, NodeListItem, NodeUpdateData } from '../types/node.types';
+import type { NodeBackendResponse, NodeClusterMoveData, NodeCreateData, NodeDetail, NodeListItem, NodeUpdateData } from '../types';
 
 const apiClient = new ApiClient({ serviceURL: '/bff' });
 

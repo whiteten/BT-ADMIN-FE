@@ -1,7 +1,7 @@
 import ComparisonToggle from './ComparisonToggle';
 import TimeUnitToggle from './TimeUnitToggle';
-import { useReportViewStore } from '../../../stores/useReportViewStore';
 import { useGetSearchBindings } from '../../report/hooks/useReportQueries';
+import { useReportViewStore } from '../../report/hooks/useReportViewStore';
 import type { ComparisonType, TimeUnit } from '../types';
 import { Button } from '@/components/ui/button';
 

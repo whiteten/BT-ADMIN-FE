@@ -9,7 +9,7 @@ const COMPLETE_ALL = 'all' as const;
 const MINUTE_STEP = 10;
 
 import { useGetBotServices, useGetIntents } from '../hooks/useBotDialogHistoryQueries';
-import type { BotDialogHistorySearchRequest, BotServiceDto, IntentDto } from '../types/botDialogHistory.types';
+import type { BotDialogHistorySearchRequest, BotServiceDto, IntentDto } from '../types';
 
 interface BotDialogHistorySearchFormProps {
   onSearch: (values: BotDialogHistorySearchRequest) => void;

@@ -4,7 +4,7 @@ import { Button, Col, Drawer, Form, type FormProps, Input, Row } from 'antd';
 import { Log } from '@/log';
 import { toast } from '@/shared-util';
 import { globalEnvQueryKeys, useCreateGlobalEnv, useDeleteGlobalEnv, useUpdateGlobalEnv } from '../hooks/useGlobalEnvQueries';
-import type { GlobalEnvListItem } from '../types/globalEnv.types';
+import type { GlobalEnvListItem } from '../types';
 import { useModal } from '@/libs/shared-ui/src/hooks/useModal';
 
 export interface GlobalEnvDrawerRef {

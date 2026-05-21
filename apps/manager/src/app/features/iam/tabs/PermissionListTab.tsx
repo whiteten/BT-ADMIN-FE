@@ -13,7 +13,7 @@ import { useBreadcrumbStore } from '@/shared-store';
 import { copyToClipboard, toast } from '@/shared-util';
 import { useGetApps } from '../hooks/useAppQueries';
 import { useGetAuthList } from '../hooks/usePermissionQueries';
-import type { PermissionFlat } from '../types/iam.types';
+import type { PermissionFlat } from '../types';
 import useAggridOptions from '@/libs/shared-ui/src/hooks/useAggridOptions';
 
 const actionColorMap: Record<string, string> = {

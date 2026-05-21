@@ -12,7 +12,7 @@
  * - ipron-dod-trans-node-tenants: GET 노드-테넌트 매핑 (재사용)
  */
 import ApiClient, { type DetailResponse, extractDetail } from '@/shared-util';
-import type { Cos, CosCreateRequest, CosUpdateRequest } from '../types/cos.types';
+import type { Cos, CosCreateRequest, CosUpdateRequest } from '../types';
 
 export interface NodeTenantItem {
   nodeId: number;

@@ -11,7 +11,7 @@ import type { ColDef, RowDoubleClickedEvent } from 'ag-grid-community';
 import { AgGridReact } from 'ag-grid-react';
 import { AlertTriangle, Copy, Phone, Search, UserX, Users } from 'lucide-react';
 import { toast } from '@/shared-util';
-import type { CallSearchResult, TrackingMode } from '../types/tracking.types';
+import type { CallSearchResult, TrackingMode } from '../types';
 import useAggridOptions from '@/libs/shared-ui/src/hooks/useAggridOptions';
 
 const DEFAULT_PAGE_SIZE = 100;

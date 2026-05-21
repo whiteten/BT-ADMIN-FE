@@ -12,10 +12,10 @@ import { AgGridReact } from 'ag-grid-react';
 import { Button, Drawer, InputNumber } from 'antd';
 import { X } from 'lucide-react';
 import { toast } from '@/shared-util';
-import { ENDPOINT_TYPE_LABELS } from '../../endpoint/types/endpoint.types';
+import { ENDPOINT_TYPE_LABELS } from '../../endpoint/types';
 import { routeApi } from '../api/routeApi';
 import { routeQueryKeys } from '../hooks/useRouteQueries';
-import type { EndpointForAssign, RoutePoint, RoutePointItem } from '../types/route.types';
+import type { EndpointForAssign, RoutePoint, RoutePointItem } from '../types';
 import useAggridOptions from '@/libs/shared-ui/src/hooks/useAggridOptions';
 
 export interface RoutePointDialogRef {

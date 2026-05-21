@@ -1,6 +1,6 @@
 import type { EChartsOption } from 'echarts';
 import ReactECharts from 'echarts-for-react';
-import type { SlotRetryAvgTopItem } from '../types/dashboard.types';
+import type { SlotRetryAvgTopItem } from '../types';
 import { getGradientColor } from '../utils/dashboardUtils';
 import NoData from '@/components/custom/NoData';
 

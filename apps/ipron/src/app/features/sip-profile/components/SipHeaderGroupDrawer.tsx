@@ -6,7 +6,7 @@
  */
 import { forwardRef, useImperativeHandle, useState } from 'react';
 import { Button, Drawer, Form, Input } from 'antd';
-import type { SipHeaderGroup, SipHeaderGroupCreateRequest, SipHeaderGroupUpdateRequest } from '../types/sipProfile.types';
+import type { SipHeaderGroup, SipHeaderGroupCreateRequest, SipHeaderGroupUpdateRequest } from '../types';
 
 export interface SipHeaderGroupDrawerRef {
   open: (group?: SipHeaderGroup | null) => void;

@@ -8,7 +8,7 @@ import BotDialogHistoryDrawer, { type BotDialogHistoryDrawerRef } from '../../fe
 import BotDialogHistorySearchForm from '../../features/tracking/components/BotDialogHistorySearchForm';
 import BotDialogHistoryTable from '../../features/tracking/components/BotDialogHistoryTable';
 import SlotSankeyDrawer from '../../features/tracking/components/SlotSankeyDrawer';
-import type { BotDialogHistoryListItem, BotDialogHistorySearchRequest } from '../../features/tracking/types/botDialogHistory.types';
+import type { BotDialogHistoryListItem, BotDialogHistorySearchRequest } from '../../features/tracking/types';
 
 const DATETIME_FORMAT = 'YYYY-MM-DDTHH:mm:ss';
 

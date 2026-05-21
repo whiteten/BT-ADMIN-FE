@@ -8,7 +8,7 @@ import type {
   MaskPolicyUpdateRequest,
   MaskTestRequest,
   MaskTestResponse,
-} from '../types/maskPolicy.types';
+} from '../types';
 
 const apiClient = new ApiClient({ serviceURL: '/bff' });
 

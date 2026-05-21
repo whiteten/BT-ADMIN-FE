@@ -1,7 +1,7 @@
 import type { EChartsOption } from 'echarts';
 import ReactECharts from 'echarts-for-react';
 import { CHART_COLORS } from '../constants/dashboardConstants';
-import type { DialogSummary } from '../types/dashboard.types';
+import type { DialogSummary } from '../types';
 import NoData from '@/components/custom/NoData';
 
 const formatDiff = (diff: number, unit: string) => {

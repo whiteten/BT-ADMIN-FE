@@ -7,7 +7,7 @@
 import { useEffect, useState } from 'react';
 import { Button, Input, Select } from 'antd';
 import { RotateCcw, Search } from 'lucide-react';
-import type { DnOptionItem, DnStatus } from '../types/dn.types';
+import type { DnOptionItem, DnStatus } from '../types';
 import { DN_STATUS_OPTIONS } from '../utils/dnEnums';
 
 export interface DnSearchFormValues {

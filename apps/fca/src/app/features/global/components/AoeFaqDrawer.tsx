@@ -5,7 +5,7 @@ import { MinusCircle, Plus } from 'lucide-react';
 import { Log } from '@/log';
 import { toast } from '@/shared-util';
 import { aoeQueryKeys, useCreateFaq, useDeleteFaq, useGetFaqDetail, useUpdateFaq } from '../hooks/useAoeQueries';
-import type { FaqFormData, FaqListItem } from '../types/aoe.types';
+import type { FaqFormData, FaqListItem } from '../types';
 import { FallbackSpinner } from '@/components/custom/FallbackSpinner';
 import { useModal } from '@/libs/shared-ui/src/hooks/useModal';
 

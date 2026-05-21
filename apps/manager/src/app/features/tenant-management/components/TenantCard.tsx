@@ -1,5 +1,5 @@
 import { Badge, Card, Tag } from 'antd';
-import { CONTRACT_STATUS_COLORS, type TenantListItem } from '../types/tenant.types';
+import { CONTRACT_STATUS_COLORS, type TenantListItem } from '../types';
 import { IconMoreVertical } from '@/components/custom/Icons';
 import { Button } from '@/components/ui/button';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';

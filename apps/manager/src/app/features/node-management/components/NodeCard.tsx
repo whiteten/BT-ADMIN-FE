@@ -2,7 +2,7 @@ import { useDraggable } from '@dnd-kit/core';
 import { CSS } from '@dnd-kit/utilities';
 import { Badge, Tag } from 'antd';
 import { GripVertical } from 'lucide-react';
-import { type ClusterGroup, NAT_OPTION_COLORS, NAT_OPTION_LABELS, type NodeListItem } from '../types/node.types';
+import { type ClusterGroup, NAT_OPTION_COLORS, NAT_OPTION_LABELS, type NodeListItem } from '../types';
 import { IconMoreVertical } from '@/components/custom/Icons';
 import { Button } from '@/components/ui/button';
 import {

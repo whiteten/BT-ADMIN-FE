@@ -5,7 +5,7 @@ import { useMutation, useQuery } from '@tanstack/react-query';
 import { createQueryKeys } from '@lukemorales/query-key-factory';
 import type { MutationHookOptions, QueryHookOptions, QueryHookWithParamsOptions } from '@/shared-util';
 import { type NodeTenantItem, cosApi } from '../api/cosApi';
-import type { Cos } from '../types/cos.types';
+import type { Cos } from '../types';
 
 export const cosQueryKeys = createQueryKeys('cos', {
   getList: (params?: Record<string, unknown>) => [params],

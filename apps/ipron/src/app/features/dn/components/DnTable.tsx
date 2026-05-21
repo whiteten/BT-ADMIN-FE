@@ -9,7 +9,7 @@
 import { useMemo } from 'react';
 import type { CellStyle, ColDef, ICellRendererParams } from 'ag-grid-community';
 import { AgGridReact } from 'ag-grid-react';
-import type { DnResponse } from '../types/dn.types';
+import type { DnResponse } from '../types';
 import { BOOL_OX_LABEL, DN_STATUS_LABELS, TRANSPORT_TYPE_LABELS } from '../utils/dnEnums';
 import { IconTrash } from '@/components/custom/Icons';
 import useAggridOptions from '@/libs/shared-ui/src/hooks/useAggridOptions';
