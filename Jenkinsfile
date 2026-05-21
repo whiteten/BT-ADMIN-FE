@@ -182,8 +182,10 @@ pipeline {
         // =====================================================================
         // 3. 소유권 변경
         // =====================================================================
+        // pipeline-level agent(BT_BOT_FE_PKG) 를 그대로 상속받아야 Node Build 가
+        // 만든 tgz 와 같은 워크스페이스를 보게 됨. stage-level `agent any` 명시
+        // 시 Jenkins 가 새 노드(@2) 를 할당해 워크스페이스 불일치로 tgz 미발견.
         stage('Change Ownership') {
-            agent any
             steps {
                 script {
                     sh """
@@ -198,7 +200,6 @@ pipeline {
         // 4. 아티팩트 저장
         // =====================================================================
         stage('Publish to Shared') {
-            agent any
             steps {
                 // 브랜치별 latest 사본을 공유 디렉토리에 덮어쓰기 (BE가 cp로 fetch)
                 sh """
