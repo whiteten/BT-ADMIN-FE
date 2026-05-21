@@ -220,11 +220,14 @@ pipeline {
             echo "BT-ADMIN FE 빌드 실패"
         }
         always {
-            sh 'sudo chown -R jenkins:jenkins ${JENKINS_WORK_PATH} || true'
+            // 빌드 실패 시 Change Ownership 스테이지가 스킵되므로 여기서도 한 번 더 복원.
+            // docker -u root 로 생성된 파일이 워크스페이스에 남아 cleanWs 권한 에러 나는 문제 방지.
+            // 실제 워크스페이스 경로(${WORKSPACE})를 사용 — JENKINS_WORK_PATH 는 실제 워크스페이스와 무관한 잔여 변수.
+            sh 'sudo chown -R jenkins:jenkins ${WORKSPACE} || true'
             cleanWs(patterns: [
                 [pattern: 'node_modules/**', type: 'EXCLUDE'],
                 [pattern: '.git/**', type: 'EXCLUDE'],
-                [pattern: '.nx/cache/**', type: 'EXCLUDE']
+                [pattern: '.nx/**', type: 'EXCLUDE']
             ])
         }
     }
