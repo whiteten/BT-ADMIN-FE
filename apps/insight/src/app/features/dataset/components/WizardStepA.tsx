@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { Divider, Form, Input } from 'antd';
 import { DOMAIN_DESCRIPTIONS, DOMAIN_LABELS, REPORT_ICON_LABELS, REPORT_ICON_SVG } from '../../report/constants/reportIconConstants';
 import type { DomainCode, ReportIconType } from '../../report/types';
-import { useGetDataSources } from '../hooks/useDatasetQueries';
+import { useGetDataSourceFields, useGetDataSources } from '../hooks/useDatasetQueries';
 
 const ICON_TYPES: ReportIconType[] = ['agent', 'cti', 'ivr', 'channel', 'system'];
 const DOMAINS: DomainCode[] = ['IE', 'IC', 'IR'];
@@ -37,11 +37,14 @@ export default function WizardStepA({
     queryOptions: { enabled: !!selectedDomain },
   });
 
+  const { data: fieldMetas = [], isLoading: isLoadingFields } = useGetDataSourceFields({
+    params: { datasourceKey: selectedView },
+    queryOptions: { enabled: !!selectedView },
+  });
+
   const filteredSources = dataSources.filter(
     (ds) => !viewSearch || ds.datasourceKey.toLowerCase().includes(viewSearch.toLowerCase()) || (ds.displayName ?? '').includes(viewSearch),
   );
-
-  const selectedDs = dataSources.find((ds) => ds.datasourceKey === selectedView);
 
   return (
     <div className="p-7 pb-4">
@@ -168,48 +171,51 @@ export default function WizardStepA({
         </div>
 
         {/* 선택된 뷰 필드 미리보기 */}
-        {selectedDs && (
+        {selectedView && (
           <div className="rounded border border-bt-border bg-bt-bg-muted/40 p-3">
             <div className="mb-2 flex items-center gap-2">
               <span className="text-xs font-semibold text-bt-fg-muted">필드 미리보기</span>
-              <span className="font-mono text-xs text-bt-fg-muted">{selectedDs.datasourceKey}</span>
+              <span className="font-mono text-xs text-bt-fg-muted">{selectedView}</span>
+              {!isLoadingFields && <span className="text-xs text-bt-fg-muted">({fieldMetas.length}개 컬럼)</span>}
             </div>
-            <table className="w-full text-xs">
-              <thead>
-                <tr className="border-b border-bt-border text-left text-bt-fg-muted">
-                  <th className="px-2 py-1.5 font-medium w-[140px]">필드</th>
-                  <th className="px-2 py-1.5 font-medium">표시명</th>
-                  <th className="px-2 py-1.5 font-medium w-[80px]">타입</th>
-                  <th className="px-2 py-1.5 font-medium w-[60px]">구분</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-bt-border">
-                {(
-                  selectedDs as {
-                    datasourceKey: string;
-                    displayName: string;
-                    fields?: { fieldName: string; displayName: string; columnFormat: string; fieldType?: string }[];
-                  }
-                ).fields
-                  ?.slice(0, 8)
-                  .map((f) => (
-                    <tr key={f.fieldName}>
-                      <td className={`px-2 py-1.5 font-mono ${f.fieldType === 'MSR' ? 'font-semibold' : ''}`}>{f.fieldName}</td>
-                      <td className="px-2 py-1.5">{f.displayName}</td>
-                      <td className="px-2 py-1.5 font-mono text-bt-fg-muted">{f.columnFormat}</td>
-                      <td className="px-2 py-1.5">
-                        {f.fieldType === 'MSR' ? (
-                          <span className="rounded px-1 text-[10px] font-mono font-semibold text-white" style={{ backgroundColor: '#085fb5' }}>
-                            MSR
-                          </span>
-                        ) : (
-                          <span className="rounded bg-bt-bg-muted px-1 text-[10px] font-mono text-bt-fg-muted">DIM</span>
-                        )}
-                      </td>
-                    </tr>
-                  ))}
-              </tbody>
-            </table>
+            {isLoadingFields ? (
+              <div className="py-3 text-center text-xs text-bt-fg-muted">필드 불러오는 중…</div>
+            ) : fieldMetas.length === 0 ? (
+              <div className="py-3 text-center text-xs text-bt-fg-muted">필드 정보 없음</div>
+            ) : (
+              <table className="w-full text-xs">
+                <thead>
+                  <tr className="border-b border-bt-border text-left text-bt-fg-muted">
+                    <th className="px-2 py-1.5 font-medium w-[140px]">필드</th>
+                    <th className="px-2 py-1.5 font-medium">표시명</th>
+                    <th className="px-2 py-1.5 font-medium w-[80px]">타입</th>
+                    <th className="px-2 py-1.5 font-medium w-[60px]">구분</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-bt-border">
+                  {fieldMetas.slice(0, 8).map((f) => {
+                    const isMsr = f.fieldRole === 'MEASURE';
+                    const formatLabel = f.fieldRole === 'TIMESTAMP' ? 'Date' : f.fieldType === 'NUMBER' ? 'Number' : 'String';
+                    return (
+                      <tr key={f.fieldName}>
+                        <td className={`px-2 py-1.5 font-mono ${isMsr ? 'font-semibold' : ''}`}>{f.fieldName}</td>
+                        <td className="px-2 py-1.5">{f.displayName}</td>
+                        <td className="px-2 py-1.5 font-mono text-bt-fg-muted">{formatLabel}</td>
+                        <td className="px-2 py-1.5">
+                          {isMsr ? (
+                            <span className="rounded px-1 text-[10px] font-mono font-semibold text-white" style={{ backgroundColor: '#085fb5' }}>
+                              MSR
+                            </span>
+                          ) : (
+                            <span className="rounded bg-bt-bg-muted px-1 text-[10px] font-mono text-bt-fg-muted">DIM</span>
+                          )}
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            )}
           </div>
         )}
       </Form>
