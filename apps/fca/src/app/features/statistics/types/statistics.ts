@@ -238,11 +238,13 @@ export interface CampaignResultStatList {
   columnDef: UserDefColumnDef[];
 }
 
-/** 캠페인 성과(설문) 결과 통계 — 그리드 행 */
-export interface AchievementResultStatItem {
+/** 캠페인 목적 달성률 통계 — 그리드 행 */
+export interface CampaignAchievementStatItem {
   psrTimeKey?: string;
   tenantId?: string;
+  tenantName?: string;
   campaignId?: string;
+  campaignName?: string;
   campaignListId?: string;
   seq?: number;
   /** 해피콜 */
@@ -271,7 +273,13 @@ export interface AchievementResultStatItem {
   overdueAvgCallDurationSec?: number;
 }
 
-export type AchievementResultStatListItem = AchievementResultStatItem;
+export type CampaignAchievementStatListItem = CampaignAchievementStatItem;
+
+export interface CampaignAchievementStatList {
+  items: CampaignAchievementStatListItem[];
+  summary: CampaignAchievementStatListItem | null;
+  columnDef: UserDefColumnDef[];
+}
 
 /** 활성 테넌트 옵션 — BFF `stat-tenant-options` (V69) */
 export interface TenantOptionItem {

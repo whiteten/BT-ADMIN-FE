@@ -7,35 +7,35 @@ import { Download } from 'lucide-react';
 import { useBreadcrumbStore, useNavigationStore } from '@/shared-store';
 import { downloadBlob, extractFileName, toast } from '@/shared-util';
 import { statisticsApi } from '../../../features/statistics/api/statisticsApi';
-import { useGetCampaignOptionList, useGetTenantOptionList } from '../../../features/statistics/hooks/useStatisticsQueries';
-import type { AchievementResultStatListItem } from '../../../features/statistics/types';
+import { useGetCampaignAchievementStatList } from '../../../features/statistics/hooks/useStatisticsQueries';
+import type { CampaignAchievementStatListItem } from '../../../features/statistics/types';
 import useAggridOptions from '@/libs/shared-ui/src/hooks/useAggridOptions';
 
-const ACHIEVEMENT_STAT_CATEGORY = {
+const CAMPAIGN_ACHIEVEMENT_STAT_CATEGORY = {
   HAPPY_CALL: 'HAPPY_CALL',
   PHYSICAL_TRANSFER: 'PHYSICAL_TRANSFER',
   MATURITY_NOTICE: 'MATURITY_NOTICE',
   SHORT_TERM_OVERDUE: 'SHORT_TERM_OVERDUE',
 } as const;
 
-type AchievementStatCategory = (typeof ACHIEVEMENT_STAT_CATEGORY)[keyof typeof ACHIEVEMENT_STAT_CATEGORY];
+type CampaignAchievementStatCategory = (typeof CAMPAIGN_ACHIEVEMENT_STAT_CATEGORY)[keyof typeof CAMPAIGN_ACHIEVEMENT_STAT_CATEGORY];
 
-const ACHIEVEMENT_STAT_CATEGORY_LABELS: Record<AchievementStatCategory, string> = {
+const CAMPAIGN_ACHIEVEMENT_STAT_CATEGORY_LABELS: Record<CampaignAchievementStatCategory, string> = {
   HAPPY_CALL: '해피콜',
   PHYSICAL_TRANSFER: '실물이전',
   MATURITY_NOTICE: '만기안내',
   SHORT_TERM_OVERDUE: '단기연체',
 };
 
-const ACHIEVEMENT_STAT_CATEGORY_OPTIONS = (Object.keys(ACHIEVEMENT_STAT_CATEGORY) as AchievementStatCategory[]).map((value) => ({
-  label: ACHIEVEMENT_STAT_CATEGORY_LABELS[value],
+const CAMPAIGN_ACHIEVEMENT_STAT_CATEGORY_OPTIONS = (Object.keys(CAMPAIGN_ACHIEVEMENT_STAT_CATEGORY) as CampaignAchievementStatCategory[]).map((value) => ({
+  label: CAMPAIGN_ACHIEVEMENT_STAT_CATEGORY_LABELS[value],
   value,
 }));
 
 const breadcrumb: BreadcrumbProps['items'] = [
   { title: '통계', path: '/fca/statistics' },
   { title: '캠페인 통계', path: '/fca/statistics/campaign' },
-  { title: '캠페인 목적달성률 통계', path: '/fca/statistics/campaign/achievement-result' },
+  { title: '캠페인 목적 달성률 통계', path: '/fca/statistics/campaign/achievement-result' },
 ];
 
 // timeUnit별 최대 검색 기간 (일 단위) — 레거시 IPR94S1310 기준
@@ -113,14 +113,14 @@ const durationFormatter = ({ value }: { value: unknown }) => {
   return `${minutes}:${String(seconds).padStart(2, '0')}`;
 };
 
-const ACHIEVEMENT_COLUMN_DEFS: Record<AchievementStatCategory, ColDef<AchievementResultStatListItem>[]> = {
-  [ACHIEVEMENT_STAT_CATEGORY.HAPPY_CALL]: [
+const CAMPAIGN_ACHIEVEMENT_COLUMN_DEFS: Record<CampaignAchievementStatCategory, ColDef<CampaignAchievementStatListItem>[]> = {
+  [CAMPAIGN_ACHIEVEMENT_STAT_CATEGORY.HAPPY_CALL]: [
     { headerName: '설문완료 건수', field: 'surveyCompleteCnt', width: 120, cellStyle: numberCellStyle },
     { headerName: '부정답변 건수', field: 'negativeAnswerCnt', width: 120, cellStyle: numberCellStyle },
     { headerName: '성공률', field: 'successRatePct', width: 100, valueFormatter: percentFormatter, cellStyle: accentCellStyle },
     { headerName: '평균통화시간', field: 'avgCallDurationSec', width: 120, valueFormatter: durationFormatter, cellStyle: numberCellStyle },
   ],
-  [ACHIEVEMENT_STAT_CATEGORY.PHYSICAL_TRANSFER]: [
+  [CAMPAIGN_ACHIEVEMENT_STAT_CATEGORY.PHYSICAL_TRANSFER]: [
     { headerName: '접수건수', field: 'transferReceiptCnt', width: 120, cellStyle: numberCellStyle },
     { headerName: '접수거절건수', field: 'transferRejectCnt', width: 120, cellStyle: numberCellStyle },
     { headerName: '중간안내', field: 'transferMidGuideCnt', width: 120, cellStyle: numberCellStyle },
@@ -128,14 +128,14 @@ const ACHIEVEMENT_COLUMN_DEFS: Record<AchievementStatCategory, ColDef<Achievemen
     { headerName: '인증실패건수', field: 'transferAuthFailCnt', width: 130, cellStyle: numberCellStyle },
     { headerName: '평균통화시간', field: 'transferAvgCallDurationSec', width: 120, valueFormatter: durationFormatter, cellStyle: numberCellStyle },
   ],
-  [ACHIEVEMENT_STAT_CATEGORY.MATURITY_NOTICE]: [
+  [CAMPAIGN_ACHIEVEMENT_STAT_CATEGORY.MATURITY_NOTICE]: [
     { headerName: '완결 건수', field: 'noticeCompleteCnt', width: 120, cellStyle: numberCellStyle },
     { headerName: '미완료 건수', field: 'noticeIncompleteCnt', width: 120, cellStyle: numberCellStyle },
     { headerName: '성공률', field: 'noticeSuccessRatePct', width: 100, valueFormatter: percentFormatter, cellStyle: accentCellStyle },
     { headerName: '무자발송건수', field: 'noticeNoSendCnt', width: 120, cellStyle: numberCellStyle },
     { headerName: '평균통화시간', field: 'noticeAvgCallDurationSec', width: 120, valueFormatter: durationFormatter, cellStyle: numberCellStyle },
   ],
-  [ACHIEVEMENT_STAT_CATEGORY.SHORT_TERM_OVERDUE]: [
+  [CAMPAIGN_ACHIEVEMENT_STAT_CATEGORY.SHORT_TERM_OVERDUE]: [
     { headerName: '완결 건수', field: 'overdueCompleteCnt', width: 120, cellStyle: numberCellStyle },
     { headerName: '미완료 건수', field: 'overdueIncompleteCnt', width: 120, cellStyle: numberCellStyle },
     { headerName: '성공률', field: 'overdueSuccessRatePct', width: 100, valueFormatter: percentFormatter, cellStyle: accentCellStyle },
@@ -144,7 +144,7 @@ const ACHIEVEMENT_COLUMN_DEFS: Record<AchievementStatCategory, ColDef<Achievemen
   ],
 };
 
-export default function AchievementResultStatistics() {
+export default function CampaignAchievementStatistics() {
   const setBreadcrumb = useBreadcrumbStore((s) => s.setBreadcrumb);
   const clearBreadcrumb = useBreadcrumbStore((s) => s.clearBreadcrumb);
 
@@ -154,16 +154,16 @@ export default function AchievementResultStatistics() {
   }, [setBreadcrumb, clearBreadcrumb]);
 
   // 검색 조건 상태
-  const [statCategory, setStatCategory] = useState<AchievementStatCategory>(ACHIEVEMENT_STAT_CATEGORY.HAPPY_CALL);
+  const [statCategory, setStatCategory] = useState<CampaignAchievementStatCategory>(CAMPAIGN_ACHIEVEMENT_STAT_CATEGORY.HAPPY_CALL);
   const [timeUnit, setTimeUnit] = useState<string>('DD');
   const [startDate, setStartDate] = useState<Dayjs | null>(dayjs().subtract(7, 'day').startOf('day'));
   const [endDate, setEndDate] = useState<Dayjs | null>(dayjs().endOf('day'));
 
   const { gridOptions } = useAggridOptions();
-  const gridRef = useRef<AgGridReact<AchievementResultStatListItem>>(null);
-  const [rowData, setRowData] = useState<AchievementResultStatListItem[]>([]);
+  const gridRef = useRef<AgGridReact<CampaignAchievementStatListItem>>(null);
+  const [rowData, setRowData] = useState<CampaignAchievementStatListItem[]>([]);
   const [displayTimeUnit, setDisplayTimeUnit] = useState<string>('DD');
-  const [displayStatCategory, setDisplayStatCategory] = useState<AchievementStatCategory>(ACHIEVEMENT_STAT_CATEGORY.HAPPY_CALL);
+  const [displayStatCategory, setDisplayStatCategory] = useState<CampaignAchievementStatCategory>(CAMPAIGN_ACHIEVEMENT_STAT_CATEGORY.HAPPY_CALL);
 
   // disabledDate 함수
   const disabledDate = useMemo(() => createDisabledDate(), []);
@@ -194,11 +194,20 @@ export default function AchievementResultStatistics() {
     [timeUnit, fromTime, toTime, statCategory],
   );
 
-  // NOTE: 기존 구현은 캠페인 발신결과 통계 API(stat-campaign-call-result)에 의존했지만,
-  // 해당 API는 제거되어 현재 화면은 조회/엑셀을 비활성화한다.
-  const isLoading = false;
-  const isExporting = false;
-  const summaryRow: AchievementResultStatListItem[] = [];
+  const {
+    data: campaignAchievementStatData,
+    isLoading: isLoadingCampaignAchievementStatList,
+    refetch,
+  } = useGetCampaignAchievementStatList({
+    params: campaignStatParams,
+    queryOptions: { enabled: false },
+  });
+
+  useEffect(() => {
+    if (campaignAchievementStatData !== undefined) setRowData(campaignAchievementStatData.items);
+  }, [campaignAchievementStatData]);
+
+  const summaryRow: CampaignAchievementStatListItem[] = campaignAchievementStatData?.summary ? [{ ...campaignAchievementStatData.summary, tenantName: '전체합계' }] : [];
 
   // startDate 또는 timeUnit 변경 시 endDate 자동 조정
   useEffect(() => {
@@ -213,7 +222,7 @@ export default function AchievementResultStatistics() {
     }
   }, [endDate, startDate, timeUnit]);
 
-  const handleStatCategoryChange = (value: AchievementStatCategory) => {
+  const handleStatCategoryChange = (value: CampaignAchievementStatCategory) => {
     setStatCategory(value);
     setRowData([]);
   };
@@ -234,16 +243,17 @@ export default function AchievementResultStatistics() {
       return;
     }
 
-    setRowData([]);
-    toast.warning('발신결과 통계(stat-campaign-call-result)가 제거되어 조회할 수 없습니다.');
     setDisplayTimeUnit(timeUnit);
     setDisplayStatCategory(statCategory);
+    refetch();
   };
 
-  const columnDefs = useMemo(() => ACHIEVEMENT_COLUMN_DEFS[statCategory], [statCategory]);
+  const columnDefs = useMemo(() => CAMPAIGN_ACHIEVEMENT_COLUMN_DEFS[displayStatCategory], [displayStatCategory]);
 
   const { permissions } = useNavigationStore();
   const hasExcelPermission = permissions.includes('fca:stats-call-result:excel');
+
+  const [isExporting, setIsExporting] = useState(false);
 
   const handleExcelDownload = async () => {
     if (!rowData?.length) {
@@ -251,7 +261,20 @@ export default function AchievementResultStatistics() {
       return;
     }
 
-    toast.warning('발신결과 통계(stat-campaign-call-result)가 제거되어 엑셀 다운로드를 할 수 없습니다.');
+    setIsExporting(true);
+    try {
+      const response = await statisticsApi.exportCampaignAchievementStatExcel({
+        ...campaignStatParams,
+        timeUnit: displayTimeUnit,
+        statCategory: displayStatCategory,
+      });
+      const fileName = extractFileName(response.headers['content-disposition'], `CAMPAIGN_ACHIEVEMENT_RESULT_${dayjs().format('YYYYMMDD_HHmmss')}.xlsx`);
+      downloadBlob(response.data, fileName);
+    } catch {
+      toast.error('엑셀 다운로드에 실패했습니다.');
+    } finally {
+      setIsExporting(false);
+    }
   };
 
   return (
@@ -264,7 +287,7 @@ export default function AchievementResultStatistics() {
               <Select
                 value={statCategory}
                 onChange={handleStatCategoryChange}
-                options={ACHIEVEMENT_STAT_CATEGORY_OPTIONS}
+                options={CAMPAIGN_ACHIEVEMENT_STAT_CATEGORY_OPTIONS}
                 className="!min-w-[120px]"
                 popupMatchSelectWidth={false}
               />
@@ -314,17 +337,17 @@ export default function AchievementResultStatistics() {
           </div>
         </header>
         <div className="w-full h-full">
-          <AgGridReact<AchievementResultStatListItem>
-            key={statCategory}
+          <AgGridReact<CampaignAchievementStatListItem>
+            key={displayStatCategory}
             ref={gridRef}
             rowModelType="clientSide"
             rowData={rowData}
             getRowId={(params) =>
-              `${statCategory}_${params.data.tenantId ?? ''}_${params.data.campaignId ?? ''}_${params.data.campaignListId ?? ''}_${params.data.psrTimeKey ?? ''}_${params.data.seq ?? ''}`
+              `${displayStatCategory}_${params.data.tenantId ?? ''}_${params.data.campaignId ?? ''}_${params.data.campaignListId ?? ''}_${params.data.psrTimeKey ?? ''}_${params.data.seq ?? ''}`
             }
             columnDefs={columnDefs}
             gridOptions={{ ...gridOptions, statusBar: undefined }}
-            loading={isLoading}
+            loading={isLoadingCampaignAchievementStatList}
             pagination={false}
             rowNumbers={false}
             sideBar={false}

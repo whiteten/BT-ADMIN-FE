@@ -23,7 +23,7 @@ const UserDefStatistics = React.lazy(() => import('./pages/statistics/call-bot/U
 const IntentStatistics = React.lazy(() => import('./pages/statistics/nlu/IntentStatistics'));
 const EntityStatistics = React.lazy(() => import('./pages/statistics/nlu/EntityStatistics'));
 const KeywordStatistics = React.lazy(() => import('./pages/statistics/nlu/KeywordStatistics'));
-const AchievementResultStatistics = React.lazy(() => import('./pages/statistics/campaign/AchievementResultStatistics'));
+const CampaignAchievementStatistics = React.lazy(() => import('./pages/statistics/campaign/CampaignAchievementStatistics'));
 const CampaignResultStatistics = React.lazy(() => import('./pages/statistics/campaign/CampaignResultStatistics'));
 const CampaignIndividualResultStatistics = React.lazy(() => import('./pages/statistics/campaign/CampaignIndividualResultStatistics'));
 const BotDashboard = React.lazy(() => import('./pages/dashboard/BotDashboard'));
@@ -172,7 +172,7 @@ export const routes = [
               { index: true, element: <Navigate to="campaign-result" replace /> },
               { path: 'campaign-result', element: <CampaignResultStatistics /> },
               { path: 'campaign-individual-result', element: <CampaignIndividualResultStatistics /> },
-              { path: 'achievement-result', element: <AchievementResultStatistics /> },
+              { path: 'achievement-result', element: <CampaignAchievementStatistics /> },
             ],
           },
         ],

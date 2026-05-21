@@ -1,5 +1,7 @@
 import ApiClient, { type ListResponse, type StatListResponse, extractList, extractStatList } from '@/shared-util';
 import type {
+  CampaignAchievementStatList,
+  CampaignAchievementStatListItem,
   CampaignOptionListItem,
   CampaignResultStatList,
   CampaignResultStatListItem,
@@ -161,6 +163,23 @@ export const statisticsApi = {
   // 캠페인 통계(캠페인 결과) 엑셀보내기 (BFF: stat-campaign-result-export)
   exportCampaignResultStatExcel: async (params?: Record<string, unknown>) => {
     return await apiClient.post<Blob>('/stat-campaign-result-export', params, { responseType: 'blob' });
+  },
+
+  // 캠페인 목적 달성률 통계 목록 조회 (BFF: stat-campaign-achievement-result)
+  getCampaignAchievementStatList: async (params?: Record<string, unknown>): Promise<CampaignAchievementStatList> => {
+    const response = await apiClient.post<{
+      data: { items: CampaignAchievementStatListItem[]; summary: CampaignAchievementStatListItem | null; columnDef?: UserDefColumnDef[] };
+    }>('/stat-campaign-achievement-result', params);
+    return {
+      items: response?.data?.data?.items ?? [],
+      summary: response?.data?.data?.summary ?? null,
+      columnDef: response?.data?.data?.columnDef ?? [],
+    };
+  },
+
+  // 캠페인 목적 달성률 통계 엑셀보내기 (BFF: stat-campaign-achievement-result-export)
+  exportCampaignAchievementStatExcel: async (params?: Record<string, unknown>) => {
+    return await apiClient.post<Blob>('/stat-campaign-achievement-result-export', params, { responseType: 'blob' });
   },
 
   // 테넌트 옵션 목록 조회 (BFF: stat-tenant-options)

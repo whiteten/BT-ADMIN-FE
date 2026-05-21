@@ -3,6 +3,7 @@ import { createQueryKeys } from '@lukemorales/query-key-factory';
 import type { QueryHookWithParamsOptions } from '@/shared-util';
 import { statisticsApi } from '../api/statisticsApi';
 import type {
+  CampaignAchievementStatList,
   CampaignOptionListItem,
   CampaignResultStatList,
   CategoryOptionListItem,
@@ -29,6 +30,7 @@ export const statisticsQueryKeys = createQueryKeys('statistics', {
   getKeywordStatList: (params?: Record<string, unknown>) => [params],
   getUserDefStatList: (params?: Record<string, unknown>) => [params],
   getCampaignResultStatList: (params?: Record<string, unknown>) => [params],
+  getCampaignAchievementStatList: (params?: Record<string, unknown>) => [params],
   getDialogOptionList: (params?: Record<string, unknown>) => [params],
   getSlotOptionList: (params?: Record<string, unknown>) => [params],
   getIntentOptionList: (params?: Record<string, unknown>) => [params],
@@ -130,6 +132,14 @@ export const useGetCampaignResultStatList = ({ params, queryOptions }: QueryHook
   return useQuery({
     queryKey: statisticsQueryKeys.getCampaignResultStatList(params).queryKey,
     queryFn: () => statisticsApi.getCampaignResultStatList(params),
+    ...queryOptions,
+  });
+};
+
+export const useGetCampaignAchievementStatList = ({ params, queryOptions }: QueryHookWithParamsOptions<CampaignAchievementStatList> = {}) => {
+  return useQuery({
+    queryKey: statisticsQueryKeys.getCampaignAchievementStatList(params).queryKey,
+    queryFn: () => statisticsApi.getCampaignAchievementStatList(params),
     ...queryOptions,
   });
 };
