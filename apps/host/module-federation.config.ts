@@ -19,10 +19,7 @@ const config: ModuleFederationConfig = {
    */
   remotes: ['manager', 'fca', 'ipron', 'aoe', 'stt', 'ivr', 'insight'],
   shared: createSharedConfig(),
-  additionalShared: [
-    ['@/components/ui/sidebar', { singleton: true, strictVersion: true, requiredVersion: false }],
-    ['@/shared-store', { singleton: true, strictVersion: true, requiredVersion: false }],
-  ],
+  additionalShared: [['@/shared-store', { singleton: true, strictVersion: true, requiredVersion: false }]],
 };
 
 /**

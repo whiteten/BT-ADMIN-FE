@@ -9,10 +9,7 @@ const config: ModuleFederationConfig = {
     './QuerySelectors': './src/app/features/router/querySelectors.ts',
     './WorkflowApp': './src/remote-entry-workflow.ts',
   },
-  additionalShared: [
-    ['@/components/ui/sidebar', { singleton: true, strictVersion: true, requiredVersion: false }],
-    ['@/shared-store', { singleton: true, strictVersion: true, requiredVersion: false }],
-  ],
+  additionalShared: [['@/shared-store', { singleton: true, strictVersion: true, requiredVersion: false }]],
 };
 
 /**

@@ -8,10 +8,7 @@ const config: ModuleFederationConfig = {
     './PageVariantManifest': './src/app/features/router/pageVariantManifest.ts',
     './QuerySelectors': './src/app/features/router/querySelectors.ts',
   },
-  additionalShared: [
-    ['@/components/ui/sidebar', { singleton: true, strictVersion: true, requiredVersion: false }],
-    ['@/shared-store', { singleton: true, strictVersion: true, requiredVersion: false }],
-  ],
+  additionalShared: [['@/shared-store', { singleton: true, strictVersion: true, requiredVersion: false }]],
 };
 
 /**
