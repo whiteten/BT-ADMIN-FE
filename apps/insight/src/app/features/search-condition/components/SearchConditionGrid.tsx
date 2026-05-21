@@ -1,6 +1,5 @@
 import type { ColDef } from 'ag-grid-community';
 import { AgGridReact } from 'ag-grid-react';
-import { useGetSearchCondition } from '../hooks/useSearchConditionQueries';
 import { useSearchConditionStore } from '../hooks/useSearchConditionStore';
 import type { SearchConditionListItem } from '../types';
 import useAggridOptions from '@/libs/shared-ui/src/hooks/useAggridOptions';
@@ -18,7 +17,7 @@ const INPUT_TYPE_COLORS: Record<string, string> = {
 
 export default function SearchConditionGrid({ conditions }: SearchConditionGridProps) {
   const { gridOptions } = useAggridOptions();
-  const { openEditor } = useSearchConditionStore();
+  const { openEditorById } = useSearchConditionStore();
 
   const columnDefs: ColDef<SearchConditionListItem>[] = [
     {
@@ -62,9 +61,9 @@ export default function SearchConditionGrid({ conditions }: SearchConditionGridP
       cellRenderer: (params: { value: boolean }) => (params.value ? `<span class="text-[10px] text-bt-success">묶음</span>` : ''),
     },
     {
-      field: 'usedPanelCount',
-      headerName: '사용 패널',
-      width: 90,
+      field: 'usedReportCount',
+      headerName: '사용 보고서',
+      width: 100,
       type: 'numericColumn',
       cellRenderer: (params: { value: number }) => `<span class="font-mono">${params.value}</span>`,
     },
@@ -78,7 +77,7 @@ export default function SearchConditionGrid({ conditions }: SearchConditionGridP
 
   const handleRowDoubleClick = (event: { data?: SearchConditionListItem }) => {
     if (event.data) {
-      openEditor();
+      openEditorById(event.data.searchCondId);
     }
   };
 

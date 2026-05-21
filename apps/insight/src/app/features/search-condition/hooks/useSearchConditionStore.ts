@@ -9,6 +9,7 @@ interface SearchConditionStoreState {
 
   setSelectedId(id: number | null): void;
   openEditor(condition?: SearchConditionDetail): void;
+  openEditorById(id: number): void;
   closeEditor(): void;
   setEditingCondition(condition: SearchConditionDetail | null): void;
 }
@@ -22,9 +23,12 @@ export const useSearchConditionStore = create<SearchConditionStoreState>()(
 
       setSelectedId: (selectedId) => set({ selectedId }, false, 'setSelectedId'),
 
-      openEditor: (condition) => set({ isEditorOpen: true, editingCondition: condition ?? null }, false, 'openEditor'),
+      openEditor: (condition) => set({ isEditorOpen: true, editingCondition: condition ?? null, selectedId: condition?.searchCondId ?? null }, false, 'openEditor'),
 
-      closeEditor: () => set({ isEditorOpen: false, editingCondition: null }, false, 'closeEditor'),
+      /** detail을 모를 때 id만 넘기면 에디터가 내부 fetch. */
+      openEditorById: (id) => set({ isEditorOpen: true, selectedId: id, editingCondition: null }, false, 'openEditorById'),
+
+      closeEditor: () => set({ isEditorOpen: false, editingCondition: null, selectedId: null }, false, 'closeEditor'),
 
       setEditingCondition: (editingCondition) => set({ editingCondition }, false, 'setEditingCondition'),
     }),
