@@ -14,7 +14,7 @@ import useAggridOptions from '@/libs/shared-ui/src/hooks/useAggridOptions';
 const breadcrumb: BreadcrumbProps['items'] = [
   { title: '통계', path: '/fca/statistics' },
   { title: '캠페인 통계', path: '/fca/statistics/campaign' },
-  { title: '캠페인 발신결과 통계', path: '/fca/statistics/campaign/call-result' },
+  { title: '캠페인 통계', path: '/fca/statistics/campaign/campaign-result' },
 ];
 
 // timeUnit별 최대 검색 기간 (일 단위) — 레거시 IPR94S1310 기준

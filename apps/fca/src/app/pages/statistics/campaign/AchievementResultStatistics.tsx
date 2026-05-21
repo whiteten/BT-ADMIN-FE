@@ -1,20 +1,41 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import type { CellStyle, ColDef } from 'ag-grid-community';
 import { AgGridReact } from 'ag-grid-react';
-import { type BreadcrumbProps, Button, Checkbox, DatePicker, Divider, Select } from 'antd';
+import { type BreadcrumbProps, Button, DatePicker, Select } from 'antd';
 import dayjs, { type Dayjs } from 'dayjs';
 import { Download } from 'lucide-react';
 import { useBreadcrumbStore, useNavigationStore } from '@/shared-store';
 import { downloadBlob, extractFileName, toast } from '@/shared-util';
 import { statisticsApi } from '../../../features/statistics/api/statisticsApi';
-import { useGetCallResultStatList, useGetCampaignOptionList, useGetTenantOptionList } from '../../../features/statistics/hooks/useStatisticsQueries';
+import { useGetCallResultStatList } from '../../../features/statistics/hooks/useStatisticsQueries';
 import type { AchievementResultStatListItem } from '../../../features/statistics/types/statistics.types';
 import useAggridOptions from '@/libs/shared-ui/src/hooks/useAggridOptions';
+
+const ACHIEVEMENT_STAT_CATEGORY = {
+  HAPPY_CALL: 'HAPPY_CALL',
+  PHYSICAL_TRANSFER: 'PHYSICAL_TRANSFER',
+  MATURITY_NOTICE: 'MATURITY_NOTICE',
+  SHORT_TERM_OVERDUE: 'SHORT_TERM_OVERDUE',
+} as const;
+
+type AchievementStatCategory = (typeof ACHIEVEMENT_STAT_CATEGORY)[keyof typeof ACHIEVEMENT_STAT_CATEGORY];
+
+const ACHIEVEMENT_STAT_CATEGORY_LABELS: Record<AchievementStatCategory, string> = {
+  HAPPY_CALL: '해피콜',
+  PHYSICAL_TRANSFER: '실물이전',
+  MATURITY_NOTICE: '만기안내',
+  SHORT_TERM_OVERDUE: '단기연체',
+};
+
+const ACHIEVEMENT_STAT_CATEGORY_OPTIONS = (Object.keys(ACHIEVEMENT_STAT_CATEGORY) as AchievementStatCategory[]).map((value) => ({
+  label: ACHIEVEMENT_STAT_CATEGORY_LABELS[value],
+  value,
+}));
 
 const breadcrumb: BreadcrumbProps['items'] = [
   { title: '통계', path: '/fca/statistics' },
   { title: '캠페인 통계', path: '/fca/statistics/campaign' },
-  { title: '캠페인 성과결과 통계', path: '/fca/statistics/campaign/achievement-result' },
+  { title: '캠페인 목적달성률 통계', path: '/fca/statistics/campaign/achievement-result' },
 ];
 
 // timeUnit별 최대 검색 기간 (일 단위) — 레거시 IPR94S1310 기준
@@ -46,22 +67,6 @@ const validateDateRange = (start: Dayjs, end: Dayjs, unit: string): boolean => {
   if (end.isBefore(start, 'day')) return false;
   return end.diff(start, 'day') <= getMaxDays(unit);
 };
-
-/** 캠페인 콤보 선택값 → BE campaignListIds / campaignIds (레거시 campaignListIdArr 우선) */
-function parseCampaignSelections(selections: string[]): { campaignListIds: number[]; campaignIds: string[] } {
-  const campaignListIds: number[] = [];
-  const campaignIds: string[] = [];
-  for (const v of selections) {
-    if (v.startsWith('L:')) {
-      const parts = v.split(':');
-      if (parts.length >= 3) campaignListIds.push(Number(parts[2]));
-    } else if (v.startsWith('C:')) {
-      const parts = v.split(':');
-      if (parts.length >= 3) campaignIds.push(parts.slice(2).join(':'));
-    }
-  }
-  return { campaignListIds, campaignIds };
-}
 
 // 시작일 비활성화 함수 (미래 날짜)
 const createDisabledDate = () => (current: Dayjs) => {
@@ -108,6 +113,37 @@ const durationFormatter = ({ value }: { value: unknown }) => {
   return `${minutes}:${String(seconds).padStart(2, '0')}`;
 };
 
+const ACHIEVEMENT_COLUMN_DEFS: Record<AchievementStatCategory, ColDef<AchievementResultStatListItem>[]> = {
+  [ACHIEVEMENT_STAT_CATEGORY.HAPPY_CALL]: [
+    { headerName: '설문완료 건수', field: 'surveyCompleteCnt', width: 120, cellStyle: numberCellStyle },
+    { headerName: '부정답변 건수', field: 'negativeAnswerCnt', width: 120, cellStyle: numberCellStyle },
+    { headerName: '성공률', field: 'successRatePct', width: 100, valueFormatter: percentFormatter, cellStyle: accentCellStyle },
+    { headerName: '평균통화시간', field: 'avgCallDurationSec', width: 120, valueFormatter: durationFormatter, cellStyle: numberCellStyle },
+  ],
+  [ACHIEVEMENT_STAT_CATEGORY.PHYSICAL_TRANSFER]: [
+    { headerName: '접수건수', field: 'transferReceiptCnt', width: 120, cellStyle: numberCellStyle },
+    { headerName: '접수거절건수', field: 'transferRejectCnt', width: 120, cellStyle: numberCellStyle },
+    { headerName: '중간안내', field: 'transferMidGuideCnt', width: 120, cellStyle: numberCellStyle },
+    { headerName: '취소안내', field: 'transferCancelGuideCnt', width: 120, cellStyle: numberCellStyle },
+    { headerName: '인증실패건수', field: 'transferAuthFailCnt', width: 130, cellStyle: numberCellStyle },
+    { headerName: '평균통화시간', field: 'transferAvgCallDurationSec', width: 120, valueFormatter: durationFormatter, cellStyle: numberCellStyle },
+  ],
+  [ACHIEVEMENT_STAT_CATEGORY.MATURITY_NOTICE]: [
+    { headerName: '완결 건수', field: 'noticeCompleteCnt', width: 120, cellStyle: numberCellStyle },
+    { headerName: '미완료 건수', field: 'noticeIncompleteCnt', width: 120, cellStyle: numberCellStyle },
+    { headerName: '성공률', field: 'noticeSuccessRatePct', width: 100, valueFormatter: percentFormatter, cellStyle: accentCellStyle },
+    { headerName: '무자발송건수', field: 'noticeNoSendCnt', width: 120, cellStyle: numberCellStyle },
+    { headerName: '평균통화시간', field: 'noticeAvgCallDurationSec', width: 120, valueFormatter: durationFormatter, cellStyle: numberCellStyle },
+  ],
+  [ACHIEVEMENT_STAT_CATEGORY.SHORT_TERM_OVERDUE]: [
+    { headerName: '완결 건수', field: 'overdueCompleteCnt', width: 120, cellStyle: numberCellStyle },
+    { headerName: '미완료 건수', field: 'overdueIncompleteCnt', width: 120, cellStyle: numberCellStyle },
+    { headerName: '성공률', field: 'overdueSuccessRatePct', width: 100, valueFormatter: percentFormatter, cellStyle: accentCellStyle },
+    { headerName: '무자발송건수', field: 'overdueNoSendCnt', width: 120, cellStyle: numberCellStyle },
+    { headerName: '평균통화시간', field: 'overdueAvgCallDurationSec', width: 120, valueFormatter: durationFormatter, cellStyle: numberCellStyle },
+  ],
+};
+
 export default function AchievementResultStatistics() {
   const setBreadcrumb = useBreadcrumbStore((s) => s.setBreadcrumb);
   const clearBreadcrumb = useBreadcrumbStore((s) => s.clearBreadcrumb);
@@ -118,50 +154,20 @@ export default function AchievementResultStatistics() {
   }, [setBreadcrumb, clearBreadcrumb]);
 
   // 검색 조건 상태
+  const [statCategory, setStatCategory] = useState<AchievementStatCategory>(ACHIEVEMENT_STAT_CATEGORY.HAPPY_CALL);
   const [timeUnit, setTimeUnit] = useState<string>('DD');
   const [startDate, setStartDate] = useState<Dayjs | null>(dayjs().subtract(7, 'day').startOf('day'));
   const [endDate, setEndDate] = useState<Dayjs | null>(dayjs().endOf('day'));
-  const [tenantIds, setTenantIds] = useState<string[]>([]);
-  const [campaignSelections, setCampaignSelections] = useState<string[]>([]);
 
   const { gridOptions } = useAggridOptions();
   const gridRef = useRef<AgGridReact<AchievementResultStatListItem>>(null);
   const [rowData, setRowData] = useState<AchievementResultStatListItem[]>([]);
   const [displayTimeUnit, setDisplayTimeUnit] = useState<string>('DD');
+  const [displayStatCategory, setDisplayStatCategory] = useState<AchievementStatCategory>(ACHIEVEMENT_STAT_CATEGORY.HAPPY_CALL);
 
   // disabledDate 함수
   const disabledDate = useMemo(() => createDisabledDate(), []);
   const disabledEndDate = useMemo(() => createEndDisabledDate(startDate, timeUnit), [startDate, timeUnit]);
-
-  // 테넌트 옵션
-  const { data: tenantOptionList } = useGetTenantOptionList();
-  const tenantSelectOptions = useMemo(
-    () => (tenantOptionList ?? []).filter((t) => Boolean(t?.tenantId && t?.tenantName)).map((t) => ({ label: String(t.tenantName), value: String(t.tenantId) })),
-    [tenantOptionList],
-  );
-
-  // 캠페인 옵션 (선택된 테넌트 기준)
-  const tenantIdNums = useMemo(() => tenantIds.map((id) => Number(id)).filter((n) => !Number.isNaN(n)), [tenantIds]);
-  const { data: campaignOptionList } = useGetCampaignOptionList({
-    params: { tenantIds: tenantIdNums },
-    queryOptions: { enabled: tenantIdNums.length > 0 },
-  });
-  const campaignSelectOptions = useMemo(
-    () =>
-      (campaignOptionList ?? []).map((c) => {
-        const tid = String(c.tenantId ?? '');
-        const hasList = c.campaignListId != null && String(c.campaignListId).length > 0;
-        const value = hasList ? `L:${tid}:${c.campaignListId}` : `C:${tid}:${c.campaignId}`;
-        const label = hasList ? `${c.campaignName} / ${c.campaignListName ?? ''}` : c.campaignName;
-        return { label, value };
-      }),
-    [campaignOptionList],
-  );
-
-  // 테넌트 변경 시 캠페인 선택 초기화
-  useEffect(() => {
-    setCampaignSelections([]);
-  }, [tenantIds]);
 
   // fromTime / toTime 계산 (UI state에서 직접 도출)
   const fromTime = (() => {
@@ -178,23 +184,17 @@ export default function AchievementResultStatistics() {
     return endDate.format('YYYY');
   })();
 
-  const campaignStatParams = useMemo(() => {
-    const { campaignListIds, campaignIds: cidArr } = parseCampaignSelections(campaignSelections);
-    const base: Record<string, unknown> = {
+  const campaignStatParams = useMemo(
+    () => ({
       timeUnit,
       fromTime,
       toTime,
-      tenantIds: tenantIdNums,
-    };
-    if (campaignListIds.length > 0) {
-      base.campaignListIds = campaignListIds;
-    } else if (cidArr.length > 0) {
-      base.campaignIds = cidArr;
-    }
-    return base;
-  }, [timeUnit, fromTime, toTime, tenantIdNums, campaignSelections]);
+      statCategory,
+    }),
+    [timeUnit, fromTime, toTime, statCategory],
+  );
 
-  // 캠페인 발신결과 통계 조회
+  // 캠페인 목적달성률 통계 조회 (BE API 연동 전 임시: 발신결과 API 사용)
   const {
     data: callResultStatData,
     isLoading: isLoadingCallResultStatList,
@@ -223,17 +223,12 @@ export default function AchievementResultStatistics() {
     }
   }, [endDate, startDate, timeUnit]);
 
+  const handleStatCategoryChange = (value: AchievementStatCategory) => {
+    setStatCategory(value);
+    setRowData([]);
+  };
+
   const handleSearch = () => {
-    if (tenantIds.length === 0) {
-      toast.warning('테넌트를 선택해주세요.');
-      return;
-    }
-
-    if (campaignSelections.length === 0) {
-      toast.warning('캠페인을 선택해주세요.');
-      return;
-    }
-
     if (!startDate || !endDate) {
       toast.warning('검색일자를 선택해주세요.');
       return;
@@ -250,15 +245,11 @@ export default function AchievementResultStatistics() {
     }
 
     setDisplayTimeUnit(timeUnit);
+    setDisplayStatCategory(statCategory);
     refetch();
   };
 
-  const columnDefs: ColDef<AchievementResultStatListItem>[] = [
-    { headerName: '설문완료 건수', field: 'surveyCompleteCnt', width: 120, cellStyle: numberCellStyle },
-    { headerName: '부정답변 건수', field: 'negativeAnswerCnt', width: 120, cellStyle: numberCellStyle },
-    { headerName: '성공률', field: 'successRatePct', width: 100, valueFormatter: percentFormatter, cellStyle: accentCellStyle },
-    { headerName: '평균통화시간', field: 'avgCallDurationSec', width: 120, valueFormatter: durationFormatter, cellStyle: numberCellStyle },
-  ];
+  const columnDefs = useMemo(() => ACHIEVEMENT_COLUMN_DEFS[statCategory], [statCategory]);
 
   const { permissions } = useNavigationStore();
   const hasExcelPermission = permissions.includes('fca:stats-call-result:excel');
@@ -276,8 +267,9 @@ export default function AchievementResultStatistics() {
       const response = await statisticsApi.exportCallResultStatExcel({
         ...campaignStatParams,
         timeUnit: displayTimeUnit,
+        statCategory: displayStatCategory,
       });
-      const fileName = extractFileName(response.headers['content-disposition'], `CAMPAIGN_CALL_RESULT_${dayjs().format('YYYYMMDD_HHmmss')}.xlsx`);
+      const fileName = extractFileName(response.headers['content-disposition'], `CAMPAIGN_ACHIEVEMENT_RESULT_${dayjs().format('YYYYMMDD_HHmmss')}.xlsx`);
       downloadBlob(response.data, fileName);
     } catch {
       toast.error('엑셀 다운로드에 실패했습니다.');
@@ -293,6 +285,14 @@ export default function AchievementResultStatistics() {
           <div className="flex flex-wrap items-center gap-3 flex-1 min-w-0">
             <div className="flex items-center gap-3">
               <span className="text-sm font-medium text-[#495057] shrink-0">구분</span>
+              <Select
+                value={statCategory}
+                onChange={handleStatCategoryChange}
+                options={ACHIEVEMENT_STAT_CATEGORY_OPTIONS}
+                className="!min-w-[120px]"
+                popupMatchSelectWidth={false}
+              />
+              <span className="text-sm font-medium text-[#495057] shrink-0">기간구분</span>
               <Select
                 value={timeUnit}
                 onChange={(v) => setTimeUnit(v)}
@@ -325,86 +325,6 @@ export default function AchievementResultStatistics() {
                 allowClear={false}
               />
             </div>
-            <Divider orientation="vertical" className="!h-5 !m-0" />
-            <div className="flex items-center gap-3">
-              <span className="text-sm font-medium text-[#495057] shrink-0">테넌트</span>
-              <Select
-                mode="multiple"
-                value={tenantIds}
-                onChange={(value) => setTenantIds(value ?? [])}
-                allowClear
-                showSearch
-                maxTagCount="responsive"
-                options={tenantSelectOptions}
-                placeholder="테넌트를 선택하세요."
-                optionFilterProp="label"
-                style={{ width: '15rem' }}
-                popupMatchSelectWidth={false}
-                dropdownRender={(menu) => (
-                  <>
-                    <div
-                      className="flex items-center gap-2 px-3 py-2 cursor-pointer hover:bg-gray-50"
-                      onMouseDown={(e) => e.preventDefault()}
-                      onClick={() => {
-                        if (tenantIds.length === tenantSelectOptions.length) {
-                          setTenantIds([]);
-                        } else {
-                          setTenantIds(tenantSelectOptions.map((o) => o.value));
-                        }
-                      }}
-                    >
-                      <Checkbox
-                        checked={tenantIds.length === tenantSelectOptions.length && tenantSelectOptions.length > 0}
-                        indeterminate={tenantIds.length > 0 && tenantIds.length < tenantSelectOptions.length}
-                      />
-                      <span className="text-sm">전체 선택</span>
-                    </div>
-                    <Divider style={{ margin: '4px 0' }} />
-                    {menu}
-                  </>
-                )}
-              />
-            </div>
-            <div className="flex items-center gap-3">
-              <span className="text-sm font-medium text-[#495057] shrink-0">캠페인</span>
-              <Select
-                mode="multiple"
-                value={campaignSelections}
-                onChange={(value) => setCampaignSelections(value ?? [])}
-                allowClear
-                showSearch
-                maxTagCount="responsive"
-                options={campaignSelectOptions}
-                placeholder="캠페인·시나리오를 선택하세요."
-                optionFilterProp="label"
-                style={{ width: '20rem' }}
-                popupMatchSelectWidth={false}
-                disabled={tenantIds.length === 0}
-                dropdownRender={(menu) => (
-                  <>
-                    <div
-                      className="flex items-center gap-2 px-3 py-2 cursor-pointer hover:bg-gray-50"
-                      onMouseDown={(e) => e.preventDefault()}
-                      onClick={() => {
-                        if (campaignSelections.length === campaignSelectOptions.length) {
-                          setCampaignSelections([]);
-                        } else {
-                          setCampaignSelections(campaignSelectOptions.map((o) => o.value));
-                        }
-                      }}
-                    >
-                      <Checkbox
-                        checked={campaignSelections.length === campaignSelectOptions.length && campaignSelectOptions.length > 0}
-                        indeterminate={campaignSelections.length > 0 && campaignSelections.length < campaignSelectOptions.length}
-                      />
-                      <span className="text-sm">전체 선택</span>
-                    </div>
-                    <Divider style={{ margin: '4px 0' }} />
-                    {menu}
-                  </>
-                )}
-              />
-            </div>
           </div>
           <div className="flex items-center gap-3 shrink-0">
             <Button type="primary" onClick={handleSearch}>
@@ -419,11 +339,12 @@ export default function AchievementResultStatistics() {
         </header>
         <div className="w-full h-full">
           <AgGridReact<AchievementResultStatListItem>
+            key={statCategory}
             ref={gridRef}
             rowModelType="clientSide"
             rowData={rowData}
             getRowId={(params) =>
-              `${params.data.tenantId ?? ''}_${params.data.campaignId ?? ''}_${params.data.campaignListId ?? ''}_${params.data.psrTimeKey ?? ''}_${params.data.seq ?? ''}`
+              `${statCategory}_${params.data.tenantId ?? ''}_${params.data.campaignId ?? ''}_${params.data.campaignListId ?? ''}_${params.data.psrTimeKey ?? ''}_${params.data.seq ?? ''}`
             }
             columnDefs={columnDefs}
             gridOptions={{ ...gridOptions, statusBar: undefined }}

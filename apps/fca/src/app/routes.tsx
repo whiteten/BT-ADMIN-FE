@@ -28,6 +28,7 @@ const AchievementResultStatistics = React.lazy(() => import('./pages/statistics/
 const CampaignResultStatistics = React.lazy(() => import('./pages/statistics/campaign/CampaignResultStatistics'));
 const CampaignIndividualResultStatistics = React.lazy(() => import('./pages/statistics/campaign/CampaignIndividualResultStatistics'));
 const BotDashboard = React.lazy(() => import('./pages/dashboard/BotDashboard'));
+const CampaignDashboard = React.lazy(() => import('./pages/dashboard/CampaignDashboard'));
 const BotDialogHistory = React.lazy(() => import('./pages/tracking/BotDialogHistory'));
 const BotRealtime = React.lazy(() => import('./pages/tracking/BotRealtime'));
 const DecryptLog = React.lazy(() => import('./pages/tracking/DecryptLog'));
@@ -136,6 +137,7 @@ export const routes = [
         children: [
           { index: true, element: <Navigate to="call-bot" replace /> },
           { path: 'call-bot', element: <BotDashboard /> },
+          { path: 'call-campaign', element: <CampaignDashboard /> },
         ],
       },
       {

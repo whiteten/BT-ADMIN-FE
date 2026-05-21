@@ -272,17 +272,37 @@ export interface CampaignResultStatItem {
 
 export type CampaignResultStatListItem = CampaignResultStatItem;
 
-/** 캠페인 성과(설문) 결과 통계 — 그리드 행 */
+/** 캠페인 목적달성률 통계 — 그리드 행 (구분별 필드는 BE 연동 시 확장) */
 export interface AchievementResultStatItem {
   psrTimeKey?: string;
   tenantId?: string;
   campaignId?: string;
   campaignListId?: string;
   seq?: number;
+  /** 해피콜 */
   surveyCompleteCnt?: number;
   negativeAnswerCnt?: number;
   successRatePct?: number;
   avgCallDurationSec?: number;
+  /** 실물이전 */
+  transferReceiptCnt?: number;
+  transferRejectCnt?: number;
+  transferMidGuideCnt?: number;
+  transferCancelGuideCnt?: number;
+  transferAuthFailCnt?: number;
+  transferAvgCallDurationSec?: number;
+  /** 만기안내 */
+  noticeCompleteCnt?: number;
+  noticeIncompleteCnt?: number;
+  noticeSuccessRatePct?: number;
+  noticeNoSendCnt?: number;
+  noticeAvgCallDurationSec?: number;
+  /** 단기연체 */
+  overdueCompleteCnt?: number;
+  overdueIncompleteCnt?: number;
+  overdueSuccessRatePct?: number;
+  overdueNoSendCnt?: number;
+  overdueAvgCallDurationSec?: number;
 }
 
 export type AchievementResultStatListItem = AchievementResultStatItem;
