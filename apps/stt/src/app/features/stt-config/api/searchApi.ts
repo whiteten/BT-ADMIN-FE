@@ -74,15 +74,15 @@ function parseMultipartMixed(buffer: ArrayBuffer, contentType: string): SttSearc
 
 export const searchApi = {
   getSttSearch: async (params?: SttSearchParams) => {
-    const response = await apiClient.post<ApiResponse<{ items: SttSearchItem[] }>>('/stt-search-list', params);
+    const response = await apiClient.get<ApiResponse<{ items: SttSearchItem[] }>>('/stt-search-list', { params });
     return response.data?.data?.items ?? [];
   },
   getSttSearchCallbot: async (params?: SttSearchCallbotParams) => {
-    const response = await apiClient.post<ApiResponse<{ items: SttSearchCallbotItem[] }>>('/stt-search-callbot-list', params);
+    const response = await apiClient.get<ApiResponse<{ items: SttSearchCallbotItem[] }>>('/stt-search-callbot-list', { params });
     return response.data?.data?.items ?? [];
   },
   getSttSearchCallbotDetail: async (params?: SttSearchCallbotDetailParams) => {
-    const response = await apiClient.post<ApiResponse<{ items: SttSearchCallbotDetailItem[] }>>('/stt-search-callbot-detail', params);
+    const response = await apiClient.get<ApiResponse<{ items: SttSearchCallbotDetailItem[] }>>('/stt-search-callbot-detail', { params });
     return response.data?.data?.items ?? [];
   },
   getSttResultSentence: async (params?: SttResultSentenceParams) => {
