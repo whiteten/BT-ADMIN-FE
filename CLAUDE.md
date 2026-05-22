@@ -190,6 +190,7 @@ API 통합 시 반드시 **TanStack Query**와 커스텀 훅을 사용합니다.
 3. **훅 파라미터**: 쿼리 훅은 `{ params, queryOptions }`, 뮤테이션 훅은 `{ mutationOptions }` 사용
 4. **훅 네이밍**: `useGet<Feature>s` (목록), `useGet<Feature>` (단건), `useCreate<Feature>`, `useUpdate<Feature>`, `useDelete<Feature>`
 5. **캐시 무효화**: 컴포넌트에서 `mutationOptions.onSuccess`를 통해 처리
+6. **응답 타입**: 모든 응답은 단일 엔벨로프 타입 `ApiResponse<T>`(`@/shared-util`)로 감싸고, api 함수 return부에서 `data`(목록은 `items`)를 직접 추출. 별도 응답 타입·추출 유틸을 만들지 말 것
 
 ## 커밋 가이드라인
 

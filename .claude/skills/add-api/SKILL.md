@@ -32,20 +32,39 @@ features/<feature>/
 `apps/<remote>/src/app/features/<feature>/api/<feature>Api.ts`:
 
 ```typescript
-import { apiClient } from '@/shared-util';
-import type { User, CreateUserDto } from '../types/user.types';
+import ApiClient, { type ApiResponse } from '@/shared-util';
+import type { User, UserListItem, CreateUserDto } from '../types/user.types';
+
+const apiClient = new ApiClient({ serviceURL: '/bff' });
 
 export const userApi = {
-  getUsers: () => apiClient.get<User[]>('/users'),
-  getUser: (id: string) => apiClient.get<User>(`/users/${id}`),
-  createUser: (data: CreateUserDto) => apiClient.post<User>('/users', data),
-  updateUser: (id: string, data: Partial<User>) => apiClient.patch<User>(`/users/${id}`, data),
+  // 목록 조회 — ApiResponse<{ items: T[] }>로 감싸고 return부에서 items 추출
+  getUsers: async (params?: Record<string, unknown>) => {
+    const response = await apiClient.get<ApiResponse<{ items: UserListItem[] }>>('/users', { params });
+    return response.data?.data?.items ?? [];
+  },
+  // 단건 조회 — ApiResponse<T>로 감싸고 return부에서 data 추출
+  getUser: async (id: string) => {
+    const response = await apiClient.get<ApiResponse<User>>(`/users/${id}`);
+    return response.data?.data;
+  },
+  // 생성/수정/삭제 — 반환 본문을 쓰지 않으면 엔벨로프 제네릭 생략 가능
+  createUser: (data: CreateUserDto) => apiClient.post('/users', data),
+  updateUser: (id: string, data: Partial<User>) => apiClient.patch(`/users/${id}`, data),
   deleteUser: (id: string) => apiClient.delete(`/users/${id}`),
 };
 ```
 
 - 객체로 묶어 **named export** (`export const userApi = { ... }`).
 - 함수명은 `getXxx`, `createXxx`, `updateXxx`, `deleteXxx`.
+
+### 응답 타입 — 단일 엔벨로프 `ApiResponse<T>`
+
+- 모든 BFF 응답은 HTTP 본문이 `{ data: T }` 한 겹으로 감싸여 온다. `@/shared-util`의 **단일 엔벨로프 타입 `ApiResponse<T>`** 로 받는다. axios 응답까지 합치면 실제 접근 경로는 `response.data.data`.
+- `ApiResponse<T>`는 바깥 엔벨로프 한 겹만 보장한다. 안쪽 `T`의 형태는 엔드포인트마다 다르므로 **각 api 함수가 직접 명시**한다 — 목록은 `ApiResponse<{ items: T[] }>`, 단건은 `ApiResponse<T>`.
+- 데이터 추출은 **api 함수의 return부에서 직접** 한다 — 목록 `return response.data?.data?.items ?? [];`, 단건 `return response.data?.data;`.
+- `ListResponse`/`DetailResponse`/`StatListResponse` 같은 별도 응답 타입이나 `extractList`/`extractDetail` 같은 추출 유틸을 **새로 만들지 않는다**. 응답 규격은 `ApiResponse<T>` 하나로 통일한다.
+- `Blob`/`ArrayBuffer` 등 엔벨로프로 감싸이지 않는 비-JSON 응답은 제네릭에 해당 타입을 그대로 지정한다.
 
 ## 2. TanStack Query 훅 정의
 
@@ -141,6 +160,7 @@ useEffect(() => {
 ## 체크리스트
 
 - [ ] `api/<feature>Api.ts`에 함수들을 객체로 묶어 named export 했는가?
+- [ ] 응답을 `ApiResponse<T>`로 감싸고 return부에서 `data`(목록은 `items`)를 추출했는가?
 - [ ] `hooks/use<Feature>Queries.ts`에 `createQueryKeys`로 queryKeys 정의했는가?
 - [ ] 쿼리 훅은 `{ params, queryOptions }`, 뮤테이션 훅은 `{ mutationOptions }` 시그니처인가?
 - [ ] 훅 네이밍이 `useGet<Feature>s` / `useGet<Feature>` / `useCreate/Update/Delete<Feature>` 규약을 따르는가?
