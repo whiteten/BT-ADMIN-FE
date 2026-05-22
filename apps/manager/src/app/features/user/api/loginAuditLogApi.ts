@@ -1,4 +1,4 @@
-import ApiClient from '@/shared-util';
+import ApiClient, { type ApiResponse } from '@/shared-util';
 import type { LoginAuditLog, LoginAuditLogSearchParams } from '../types';
 
 /**
@@ -9,16 +9,6 @@ interface PagedResponse<T> {
   page: number;
   size: number;
   total: number;
-}
-
-/**
- * API 응답 구조 (BFF ApiResponse)
- */
-interface ApiResponse<T> {
-  ok: boolean;
-  code: string;
-  message: string;
-  data: T;
 }
 
 /**

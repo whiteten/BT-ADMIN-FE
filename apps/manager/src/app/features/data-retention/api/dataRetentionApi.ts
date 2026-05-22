@@ -1,12 +1,5 @@
-import ApiClient from '@/shared-util';
+import ApiClient, { type ApiResponse } from '@/shared-util';
 import type { RetentionLogListResponse, RetentionPoliciesUpdateRequest, RetentionPolicyListResponse, RetentionTargetsResponse } from '../types';
-
-interface ApiResponse<T> {
-  ok: boolean;
-  code: string;
-  message?: string;
-  data: T;
-}
 
 const apiClient = new ApiClient({ serviceURL: '/bff' });
 

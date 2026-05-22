@@ -1,4 +1,4 @@
-import ApiClient, { type DetailResponse, type ListResponse, extractDetail, extractList } from '@/shared-util';
+import ApiClient, { type ApiResponse } from '@/shared-util';
 import type {
   BotAoeDetailItem,
   BotAoeUpdateDatas,
@@ -31,12 +31,12 @@ const apiClient = new ApiClient({ serviceURL: '/bff' });
 
 export const botApi = {
   getBots: async (params?: Record<string, unknown>): Promise<BotListItem[]> => {
-    const response = await apiClient.get<ListResponse<BotListItem>>('/bot-list', { params });
-    return extractList(response);
+    const response = await apiClient.get<ApiResponse<{ items: BotListItem[] }>>('/bot-list', { params });
+    return response.data?.data?.items ?? [];
   },
   getBot: async (params?: Record<string, unknown>): Promise<BotItem> => {
-    const response = await apiClient.get<DetailResponse<BotItem>>('/bot-detail', { params });
-    return extractDetail(response);
+    const response = await apiClient.get<ApiResponse<BotItem>>('/bot-detail', { params });
+    return response.data?.data;
   },
   createBot: async (data: BotCreateDatas) => {
     const response = await apiClient.post('/bot-create', data);
@@ -59,20 +59,20 @@ export const botApi = {
     return response;
   },
   getBotVersions: async (params?: Record<string, unknown>): Promise<BotVersionListItem[]> => {
-    const response = await apiClient.get<ListResponse<BotVersionListItem>>('/bot-version-list', { params });
-    return extractList(response);
+    const response = await apiClient.get<ApiResponse<{ items: BotVersionListItem[] }>>('/bot-version-list', { params });
+    return response.data?.data?.items ?? [];
   },
   getBotVersion: async (params?: Record<string, unknown>): Promise<BotVersionItem> => {
-    const response = await apiClient.get<DetailResponse<BotVersionItem>>('/bot-version-detail', { params });
-    return extractDetail(response);
+    const response = await apiClient.get<ApiResponse<BotVersionItem>>('/bot-version-detail', { params });
+    return response.data?.data;
   },
   createBotVersion: async ({ params, data }: { params: Record<string, unknown>; data: BotVersionCreateDatas }) => {
     const response = await apiClient.post('/bot-version-create', data, { params });
     return response;
   },
   createBotVersionCopy: async ({ params, data }: { params: Record<string, unknown>; data: BotVersionCreateDatas }): Promise<BotVersionItem> => {
-    const response = await apiClient.post<DetailResponse<BotVersionItem>>('/bot-version-copy', data, { params });
-    return extractDetail(response);
+    const response = await apiClient.post<ApiResponse<BotVersionItem>>('/bot-version-copy', data, { params });
+    return response.data?.data;
   },
   updateBotVersion: async ({ params, data }: { params: Record<string, unknown>; data: BotVersionUpdateDatas }) => {
     const response = await apiClient.put('/bot-version-update', data, { params });
@@ -83,32 +83,32 @@ export const botApi = {
     return response;
   },
   publishBotVersion: async ({ params, data }: { params: Record<string, unknown>; data: Record<string, unknown> }): Promise<PublishBotVersionResult> => {
-    const response = await apiClient.post<DetailResponse<PublishBotVersionResult>>('/bot-version-publish', data, { params });
-    return extractDetail(response);
+    const response = await apiClient.post<ApiResponse<PublishBotVersionResult>>('/bot-version-publish', data, { params });
+    return response.data?.data;
   },
   getIfeInfo: async ({ params, data }: { params: Record<string, unknown>; data: Record<string, unknown> }): Promise<IfeInfo> => {
-    const response = await apiClient.post<DetailResponse<IfeInfo>>('/bot-version-webfloweditor', data, { params });
-    return extractDetail(response);
+    const response = await apiClient.post<ApiResponse<IfeInfo>>('/bot-version-webfloweditor', data, { params });
+    return response.data?.data;
   },
   getSttList: async (params?: Record<string, unknown>): Promise<SttListItem[]> => {
-    const response = await apiClient.get<ListResponse<SttListItem>>('/stt-list', { params });
-    return extractList(response);
+    const response = await apiClient.get<ApiResponse<{ items: SttListItem[] }>>('/stt-list', { params });
+    return response.data?.data?.items ?? [];
   },
   getTtsList: async (params?: Record<string, unknown>): Promise<TtsListItem[]> => {
-    const response = await apiClient.get<ListResponse<TtsListItem>>('/tts-list', { params });
-    return extractList(response);
+    const response = await apiClient.get<ApiResponse<{ items: TtsListItem[] }>>('/tts-list', { params });
+    return response.data?.data?.items ?? [];
   },
   getWorkTimeList: async (params?: Record<string, unknown>): Promise<WorkTime[]> => {
-    const response = await apiClient.get<ListResponse<WorkTime>>('/worktime-list', { params });
-    return extractList(response);
+    const response = await apiClient.get<ApiResponse<{ items: WorkTime[] }>>('/worktime-list', { params });
+    return response.data?.data?.items ?? [];
   },
   getBotDeployConfig: async (params?: Record<string, unknown>): Promise<BotDeployConfigItem[]> => {
-    const response = await apiClient.get<ListResponse<BotDeployConfigItem>>('/bot-deploy-config', { params });
-    return extractList(response);
+    const response = await apiClient.get<ApiResponse<{ items: BotDeployConfigItem[] }>>('/bot-deploy-config', { params });
+    return response.data?.data?.items ?? [];
   },
   checkDeployable: async (params?: Record<string, unknown>): Promise<CheckDeployable> => {
-    const response = await apiClient.get<DetailResponse<CheckDeployable>>('/check-deployable', { params });
-    return extractDetail(response);
+    const response = await apiClient.get<ApiResponse<CheckDeployable>>('/check-deployable', { params });
+    return response.data?.data;
   },
   // delete -> insert
   saveBotDeployConfig: async ({ params, data }: { params: Record<string, unknown>; data: BotDeployConfigCreateDatas }) => {
@@ -116,16 +116,16 @@ export const botApi = {
     return response;
   },
   getBotAoeDetail: async (params?: Record<string, unknown>): Promise<BotAoeDetailItem> => {
-    const response = await apiClient.get<DetailResponse<BotAoeDetailItem>>('/bot-aoe-detail', { params });
-    return extractDetail(response);
+    const response = await apiClient.get<ApiResponse<BotAoeDetailItem>>('/bot-aoe-detail', { params });
+    return response.data?.data;
   },
   updateBotAoe: async ({ params, data }: { params: Record<string, unknown>; data: BotAoeUpdateDatas }) => {
     const response = await apiClient.put('/bot-aoe-update', data, { params });
     return response;
   },
   getEnvList: async (params?: Record<string, unknown>): Promise<EnvListItem[]> => {
-    const response = await apiClient.get<ListResponse<EnvListItem>>('/bot-slee-config-list', { params });
-    return extractList(response);
+    const response = await apiClient.get<ApiResponse<{ items: EnvListItem[] }>>('/bot-slee-config-list', { params });
+    return response.data?.data?.items ?? [];
   },
   createEnv: async ({ params, data }: { params: Record<string, unknown>; data: EnvCreateDatas }) => {
     const response = await apiClient.post('/bot-slee-config-create', data, { params });
@@ -140,8 +140,8 @@ export const botApi = {
     return response;
   },
   getEnvNodeList: async (params?: Record<string, unknown>): Promise<EnvNodeItem[]> => {
-    const response = await apiClient.get<ListResponse<EnvNodeItem>>('bot-slee-config-histroy-list', { params });
-    return extractList(response);
+    const response = await apiClient.get<ApiResponse<{ items: EnvNodeItem[] }>>('bot-slee-config-histroy-list', { params });
+    return response.data?.data?.items ?? [];
   },
   applyEnv: async ({ params, data }: { params: Record<string, unknown>; data: Record<string, unknown> }) => {
     const response = await apiClient.post('/bot-slee-config-apply', data, { params });
@@ -154,8 +154,8 @@ export const botApi = {
   importEnv: async ({ params, data }: { params: Record<string, unknown>; data: File }): Promise<ExcelImportResult> => {
     const formData = new FormData();
     formData.append('uploadFile', data);
-    const response = await apiClient.post<DetailResponse<ExcelImportResult>>('/bot-slee-config-excel-import', formData, { params });
-    return extractDetail(response);
+    const response = await apiClient.post<ApiResponse<ExcelImportResult>>('/bot-slee-config-excel-import', formData, { params });
+    return response.data?.data;
   },
   downloadScenario: async (params: Record<string, unknown>) => {
     const response = await apiClient.get<Blob>('/bot-scenario-download', { params, responseType: 'blob' });

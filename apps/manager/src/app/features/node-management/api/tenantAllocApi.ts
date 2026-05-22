@@ -11,7 +11,7 @@
  * - manager-node-cluster-config:          GET    클러스터 설정 조회
  * - manager-node-cluster-config-update:   PUT    클러스터 설정 수정
  */
-import ApiClient, { type DetailResponse, type ListResponse, extractDetail, extractList } from '@/shared-util';
+import ApiClient, { type ApiResponse } from '@/shared-util';
 import type {
   ClusterConfig,
   ClusterConfigBackendResponse,
@@ -87,8 +87,8 @@ export const tenantAllocApi = {
    * @flow manager-node-alloc-list
    */
   getTenantAllocs: async (params: Record<string, unknown>): Promise<TenantAllocItem[]> => {
-    const response = await apiClient.get<DetailResponse<{ value: TenantAllocBackendResponse[] }>>('/manager-node-alloc-list', { params });
-    const rawList = extractDetail(response)?.value ?? [];
+    const response = await apiClient.get<ApiResponse<{ value: TenantAllocBackendResponse[] }>>('/manager-node-alloc-list', { params });
+    const rawList = response.data?.data?.value ?? [];
     return rawList.map(transformTenantAlloc);
   },
 
@@ -97,8 +97,8 @@ export const tenantAllocApi = {
    * @flow manager-node-alloc-detail
    */
   getTenantAllocDetail: async (params: Record<string, unknown>): Promise<TenantAllocDetail> => {
-    const response = await apiClient.get<DetailResponse<TenantAllocDetailBackendResponse>>('/manager-node-alloc-detail', { params });
-    return extractDetail(response);
+    const response = await apiClient.get<ApiResponse<TenantAllocDetailBackendResponse>>('/manager-node-alloc-detail', { params });
+    return response.data?.data;
   },
 
   /**
@@ -133,8 +133,8 @@ export const tenantAllocApi = {
    * @flow manager-node-cluster-config
    */
   getClusterConfig: async (params: Record<string, unknown>): Promise<ClusterConfig> => {
-    const response = await apiClient.get<DetailResponse<ClusterConfigBackendResponse>>('/manager-node-cluster-config', { params });
-    const raw = extractDetail(response);
+    const response = await apiClient.get<ApiResponse<ClusterConfigBackendResponse>>('/manager-node-cluster-config', { params });
+    const raw = response.data?.data;
     return transformClusterConfig(raw);
   },
 

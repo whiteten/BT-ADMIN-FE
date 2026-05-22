@@ -1,4 +1,4 @@
-import ApiClient, { type DetailResponse, extractDetail } from '@/shared-util';
+import ApiClient, { type ApiResponse } from '@/shared-util';
 import type {
   ChangePasswordRequest,
   LoginRequestDatas,
@@ -19,7 +19,7 @@ export const authApi = {
     return response.data;
   },
   login: async (data: LoginRequestDatas): Promise<LoginResponse> => {
-    const response = await authClient.post<{ data: LoginResponse }>('/login', data);
+    const response = await authClient.post<ApiResponse<LoginResponse>>('/login', data);
     return response.data.data;
   },
   logout: async () => {
@@ -27,12 +27,12 @@ export const authApi = {
     return response.data;
   },
   getUserInfo: async (params?: Record<string, unknown>): Promise<UserInfoResponse> => {
-    const response = await authClient.get<DetailResponse<UserInfoResponse>>('/me', { params });
-    return extractDetail(response);
+    const response = await authClient.get<ApiResponse<UserInfoResponse>>('/me', { params });
+    return response.data?.data;
   },
   getWsTicket: async (params?: Record<string, unknown>): Promise<WsTicketResponse> => {
-    const response = await authClient.get<DetailResponse<WsTicketResponse>>('/ws-ticket', { params });
-    return extractDetail(response);
+    const response = await authClient.get<ApiResponse<WsTicketResponse>>('/ws-ticket', { params });
+    return response.data?.data;
   },
   /**
    * 비밀번호 변경
@@ -49,10 +49,10 @@ export const authApi = {
    * @param tenantId 테넌트 ID (로그인 응답에서 받은 값)
    */
   getAccountPolicy: async (tenantId: number): Promise<PasswordPolicy> => {
-    const response = await authClient.get<DetailResponse<PasswordPolicy>>('/account-policy', {
+    const response = await authClient.get<ApiResponse<PasswordPolicy>>('/account-policy', {
       params: { tenantId },
     });
-    return extractDetail(response);
+    return response.data?.data;
   },
   /**
    * 비밀번호 강제 변경 (Reset Token 기반)
@@ -60,8 +60,8 @@ export const authApi = {
    * - 최초 로그인, 비밀번호 만료 시 사용
    */
   resetPassword: async (data: ResetPasswordRequest): Promise<ResetPasswordResponse> => {
-    const response = await authClient.post<DetailResponse<ResetPasswordResponse>>('/reset-password', data);
-    return extractDetail(response);
+    const response = await authClient.post<ApiResponse<ResetPasswordResponse>>('/reset-password', data);
+    return response.data?.data;
   },
   /**
    * 활성 테넌트 전환.

@@ -13,7 +13,7 @@
  * - ipron-mcs-dnis-delete:  DELETE MCS DNIS 삭제
  * - manager-node-list:      GET    노드 목록 조회 (cross-service)
  */
-import ApiClient, { type DetailResponse, type ListResponse, extractDetail, extractList } from '@/shared-util';
+import ApiClient, { type ApiResponse } from '@/shared-util';
 import type { McsdDnis, McsdDnisCreateRequest, McsdDnisUpdateRequest, McsdGdn, McsdGdnCreateRequest, McsdGdnUpdateRequest } from '../types';
 
 interface NodeSimpleResponse {
@@ -32,8 +32,8 @@ export const mcsDnisApi = {
    * Backend: ApiResponse<PagedResponse<McsdGdnResponse>> -> BFF: data.items[]
    */
   getGdnList: async (params?: Record<string, unknown>): Promise<McsdGdn[]> => {
-    const response = await apiClient.get<ListResponse<McsdGdn>>('/ipron-mcs-gdn-list', { params });
-    return extractList(response);
+    const response = await apiClient.get<ApiResponse<{ items: McsdGdn[] }>>('/ipron-mcs-gdn-list', { params });
+    return response.data?.data?.items ?? [];
   },
 
   /**
@@ -41,8 +41,8 @@ export const mcsDnisApi = {
    * @flow ipron-mcs-gdn-create
    */
   createGdn: async (data: McsdGdnCreateRequest): Promise<McsdGdn> => {
-    const response = await apiClient.post<DetailResponse<McsdGdn>>('/ipron-mcs-gdn-create', data);
-    return extractDetail(response);
+    const response = await apiClient.post<ApiResponse<McsdGdn>>('/ipron-mcs-gdn-create', data);
+    return response.data?.data;
   },
 
   /**
@@ -50,10 +50,10 @@ export const mcsDnisApi = {
    * @flow ipron-mcs-gdn-update
    */
   updateGdn: async ({ gdnNo, data }: { gdnNo: string; data: McsdGdnUpdateRequest }): Promise<McsdGdn> => {
-    const response = await apiClient.put<DetailResponse<McsdGdn>>('/ipron-mcs-gdn-update', data, {
+    const response = await apiClient.put<ApiResponse<McsdGdn>>('/ipron-mcs-gdn-update', data, {
       params: { gdnNo },
     });
-    return extractDetail(response);
+    return response.data?.data;
   },
 
   /**
@@ -72,8 +72,8 @@ export const mcsDnisApi = {
    * Backend: ApiResponse<List<McsdDnisResponse>> -> BFF: data.value[]
    */
   getDnisList: async (params: { gdnNo: string } & Record<string, unknown>): Promise<McsdDnis[]> => {
-    const response = await apiClient.get<DetailResponse<{ value: McsdDnis[] }>>('/ipron-mcs-dnis-list', { params });
-    return extractDetail(response)?.value ?? [];
+    const response = await apiClient.get<ApiResponse<{ value: McsdDnis[] }>>('/ipron-mcs-dnis-list', { params });
+    return response.data?.data?.value ?? [];
   },
 
   /**
@@ -81,8 +81,8 @@ export const mcsDnisApi = {
    * @flow ipron-mcs-dnis-create
    */
   createDnis: async (data: McsdDnisCreateRequest): Promise<McsdDnis> => {
-    const response = await apiClient.post<DetailResponse<McsdDnis>>('/ipron-mcs-dnis-create', data);
-    return extractDetail(response);
+    const response = await apiClient.post<ApiResponse<McsdDnis>>('/ipron-mcs-dnis-create', data);
+    return response.data?.data;
   },
 
   /**
@@ -90,10 +90,10 @@ export const mcsDnisApi = {
    * @flow ipron-mcs-dnis-update
    */
   updateDnis: async ({ gdnNo, seq, nodeId, data }: { gdnNo: string; seq: number; nodeId: number; data: McsdDnisUpdateRequest }): Promise<McsdDnis> => {
-    const response = await apiClient.put<DetailResponse<McsdDnis>>('/ipron-mcs-dnis-update', data, {
+    const response = await apiClient.put<ApiResponse<McsdDnis>>('/ipron-mcs-dnis-update', data, {
       params: { gdnNo, seq, nodeId },
     });
-    return extractDetail(response);
+    return response.data?.data;
   },
 
   /**
@@ -111,7 +111,7 @@ export const mcsDnisApi = {
    * @flow manager-node-list
    */
   getNodes: async (): Promise<NodeSimpleResponse[]> => {
-    const response = await apiClient.get<ListResponse<NodeSimpleResponse>>('/manager-node-list');
-    return extractList(response);
+    const response = await apiClient.get<ApiResponse<{ items: NodeSimpleResponse[] }>>('/manager-node-list');
+    return response.data?.data?.items ?? [];
   },
 };

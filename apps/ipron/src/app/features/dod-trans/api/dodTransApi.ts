@@ -13,7 +13,7 @@
  * - ipron-dod-trans-item-delete:    DELETE DOD DNIS 변환 아이템 삭제
  * - manager-node-list:              GET    노드 목록 조회 (cross-service)
  */
-import ApiClient, { type DetailResponse, type ListResponse, extractDetail, extractList } from '@/shared-util';
+import ApiClient, { type ApiResponse } from '@/shared-util';
 import type { DodTransItem, DodTransItemCreateRequest, DodTransItemUpdateRequest, DodTransMaster, DodTransMasterCreateRequest, DodTransMasterUpdateRequest } from '../types';
 
 export interface NodeTenantItem {
@@ -39,8 +39,8 @@ export const dodTransApi = {
    * Backend: ApiResponse<List<DodTransMasterResponse>> -> BFF: data.value[]
    */
   getMasterList: async (params?: Record<string, unknown>): Promise<DodTransMaster[]> => {
-    const response = await apiClient.get<DetailResponse<{ value: DodTransMaster[] }>>('/ipron-dod-trans-master-list', { params });
-    return extractDetail(response)?.value ?? [];
+    const response = await apiClient.get<ApiResponse<{ value: DodTransMaster[] }>>('/ipron-dod-trans-master-list', { params });
+    return response.data?.data?.value ?? [];
   },
 
   /**
@@ -48,8 +48,8 @@ export const dodTransApi = {
    * @flow ipron-dod-trans-master-create
    */
   createMaster: async (data: DodTransMasterCreateRequest): Promise<DodTransMaster> => {
-    const response = await apiClient.post<DetailResponse<DodTransMaster>>('/ipron-dod-trans-master-create', data);
-    return extractDetail(response);
+    const response = await apiClient.post<ApiResponse<DodTransMaster>>('/ipron-dod-trans-master-create', data);
+    return response.data?.data;
   },
 
   /**
@@ -57,10 +57,10 @@ export const dodTransApi = {
    * @flow ipron-dod-trans-master-update
    */
   updateMaster: async ({ id, data }: { id: number; data: DodTransMasterUpdateRequest }): Promise<DodTransMaster> => {
-    const response = await apiClient.put<DetailResponse<DodTransMaster>>('/ipron-dod-trans-master-update', data, {
+    const response = await apiClient.put<ApiResponse<DodTransMaster>>('/ipron-dod-trans-master-update', data, {
       params: { id },
     });
-    return extractDetail(response);
+    return response.data?.data;
   },
 
   /**
@@ -79,8 +79,8 @@ export const dodTransApi = {
    * Backend: ApiResponse<List<DodTransItemResponse>> -> BFF: data.value[]
    */
   getItemList: async (params?: Record<string, unknown>): Promise<DodTransItem[]> => {
-    const response = await apiClient.get<DetailResponse<{ value: DodTransItem[] }>>('/ipron-dod-trans-item-list', { params });
-    return extractDetail(response)?.value ?? [];
+    const response = await apiClient.get<ApiResponse<{ value: DodTransItem[] }>>('/ipron-dod-trans-item-list', { params });
+    return response.data?.data?.value ?? [];
   },
 
   /**
@@ -88,8 +88,8 @@ export const dodTransApi = {
    * @flow ipron-dod-trans-item-create
    */
   createItem: async (data: DodTransItemCreateRequest): Promise<DodTransItem> => {
-    const response = await apiClient.post<DetailResponse<DodTransItem>>('/ipron-dod-trans-item-create', data);
-    return extractDetail(response);
+    const response = await apiClient.post<ApiResponse<DodTransItem>>('/ipron-dod-trans-item-create', data);
+    return response.data?.data;
   },
 
   /**
@@ -97,10 +97,10 @@ export const dodTransApi = {
    * @flow ipron-dod-trans-item-update
    */
   updateItem: async ({ dodTransId, listSeq, data }: { dodTransId: number; listSeq: number; data: DodTransItemUpdateRequest }): Promise<DodTransItem> => {
-    const response = await apiClient.put<DetailResponse<DodTransItem>>('/ipron-dod-trans-item-update', data, {
+    const response = await apiClient.put<ApiResponse<DodTransItem>>('/ipron-dod-trans-item-update', data, {
       params: { dodTransId, listSeq },
     });
-    return extractDetail(response);
+    return response.data?.data;
   },
 
   /**
@@ -118,8 +118,8 @@ export const dodTransApi = {
    * @flow manager-node-list
    */
   getNodes: async (): Promise<NodeSimpleResponse[]> => {
-    const response = await apiClient.get<ListResponse<NodeSimpleResponse>>('/manager-node-list');
-    return extractList(response);
+    const response = await apiClient.get<ApiResponse<{ items: NodeSimpleResponse[] }>>('/manager-node-list');
+    return response.data?.data?.items ?? [];
   },
 
   /**
@@ -127,7 +127,7 @@ export const dodTransApi = {
    * @flow ipron-dod-trans-node-tenants
    */
   getNodeTenants: async (): Promise<NodeTenantItem[]> => {
-    const response = await apiClient.get<DetailResponse<{ value: NodeTenantItem[] }>>('/ipron-dod-trans-node-tenants');
-    return extractDetail(response)?.value ?? [];
+    const response = await apiClient.get<ApiResponse<{ value: NodeTenantItem[] }>>('/ipron-dod-trans-node-tenants');
+    return response.data?.data?.value ?? [];
   },
 };

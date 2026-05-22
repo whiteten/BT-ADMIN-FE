@@ -1,7 +1,7 @@
 /**
  * 앱 관리 API
  */
-import ApiClient, { type ListResponse, extractList } from '@/shared-util';
+import ApiClient, { type ApiResponse } from '@/shared-util';
 
 export interface App {
   appId: string;
@@ -15,7 +15,7 @@ export const appApi = {
    * 앱 목록 조회
    */
   getApps: async (): Promise<App[]> => {
-    const response = await apiClient.get<ListResponse<App>>('/app-list');
-    return extractList(response);
+    const response = await apiClient.get<ApiResponse<{ items: App[] }>>('/app-list');
+    return response.data?.data?.items ?? [];
   },
 };

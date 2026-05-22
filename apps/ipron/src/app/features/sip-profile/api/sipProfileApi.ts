@@ -17,7 +17,7 @@
  * - ipron-sip-header-relay-delete:    DELETE 헤더 릴레이 삭제
  * - ipron-sip-header-grp-mem-update:  PUT    그룹 멤버 일괄 업데이트
  */
-import ApiClient, { type DetailResponse, extractDetail } from '@/shared-util';
+import ApiClient, { type ApiResponse } from '@/shared-util';
 import type {
   SipHeaderGroup,
   SipHeaderGroupCreateRequest,
@@ -36,25 +36,25 @@ export const sipProfileApi = {
   // ─── Profile ────────────────────────────────────────────────────────────────
 
   getProfiles: async (params?: Record<string, unknown>): Promise<SipProfile[]> => {
-    const response = await apiClient.get<DetailResponse<{ value: SipProfile[] }>>('/ipron-sip-profile-list', { params });
-    return extractDetail(response)?.value ?? [];
+    const response = await apiClient.get<ApiResponse<{ value: SipProfile[] }>>('/ipron-sip-profile-list', { params });
+    return response.data?.data?.value ?? [];
   },
 
   getProfileDetail: async (params: Record<string, unknown>): Promise<SipProfile> => {
-    const response = await apiClient.get<DetailResponse<SipProfile>>('/ipron-sip-profile-detail', { params });
-    return extractDetail(response);
+    const response = await apiClient.get<ApiResponse<SipProfile>>('/ipron-sip-profile-detail', { params });
+    return response.data?.data;
   },
 
   createProfile: async (data: SipProfileCreateRequest): Promise<SipProfile> => {
-    const response = await apiClient.post<DetailResponse<SipProfile>>('/ipron-sip-profile-create', data);
-    return extractDetail(response);
+    const response = await apiClient.post<ApiResponse<SipProfile>>('/ipron-sip-profile-create', data);
+    return response.data?.data;
   },
 
   updateProfile: async ({ id, data }: { id: number; data: SipProfileUpdateRequest }): Promise<SipProfile> => {
-    const response = await apiClient.put<DetailResponse<SipProfile>>('/ipron-sip-profile-update', data, {
+    const response = await apiClient.put<ApiResponse<SipProfile>>('/ipron-sip-profile-update', data, {
       params: { id },
     });
-    return extractDetail(response);
+    return response.data?.data;
   },
 
   deleteProfile: async (params: Record<string, unknown>) => {
@@ -64,20 +64,20 @@ export const sipProfileApi = {
   // ─── Header Group ──────────────────────────────────────────────────────────
 
   getHeaderGroups: async (): Promise<SipHeaderGroup[]> => {
-    const response = await apiClient.get<DetailResponse<{ value: SipHeaderGroup[] }>>('/ipron-sip-header-group-list');
-    return extractDetail(response)?.value ?? [];
+    const response = await apiClient.get<ApiResponse<{ value: SipHeaderGroup[] }>>('/ipron-sip-header-group-list');
+    return response.data?.data?.value ?? [];
   },
 
   createHeaderGroup: async (data: SipHeaderGroupCreateRequest): Promise<SipHeaderGroup> => {
-    const response = await apiClient.post<DetailResponse<SipHeaderGroup>>('/ipron-sip-header-group-create', data);
-    return extractDetail(response);
+    const response = await apiClient.post<ApiResponse<SipHeaderGroup>>('/ipron-sip-header-group-create', data);
+    return response.data?.data;
   },
 
   updateHeaderGroup: async ({ id, data }: { id: number; data: SipHeaderGroupUpdateRequest }): Promise<SipHeaderGroup> => {
-    const response = await apiClient.put<DetailResponse<SipHeaderGroup>>('/ipron-sip-header-group-update', data, {
+    const response = await apiClient.put<ApiResponse<SipHeaderGroup>>('/ipron-sip-header-group-update', data, {
       params: { id },
     });
-    return extractDetail(response);
+    return response.data?.data;
   },
 
   deleteHeaderGroup: async (params: Record<string, unknown>) => {
@@ -87,13 +87,13 @@ export const sipProfileApi = {
   // ─── Header Relay ──────────────────────────────────────────────────────────
 
   getHeaderRelays: async (params?: Record<string, unknown>): Promise<SipHeaderRelay[]> => {
-    const response = await apiClient.get<DetailResponse<{ value: SipHeaderRelay[] }>>('/ipron-sip-header-relay-list', { params });
-    return extractDetail(response)?.value ?? [];
+    const response = await apiClient.get<ApiResponse<{ value: SipHeaderRelay[] }>>('/ipron-sip-header-relay-list', { params });
+    return response.data?.data?.value ?? [];
   },
 
   createHeaderRelay: async (data: SipHeaderRelayCreateRequest): Promise<SipHeaderRelay> => {
-    const response = await apiClient.post<DetailResponse<SipHeaderRelay>>('/ipron-sip-header-relay-create', data);
-    return extractDetail(response);
+    const response = await apiClient.post<ApiResponse<SipHeaderRelay>>('/ipron-sip-header-relay-create', data);
+    return response.data?.data;
   },
 
   deleteHeaderRelay: async (params: Record<string, unknown>) => {

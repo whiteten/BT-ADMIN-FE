@@ -1,4 +1,4 @@
-import ApiClient, { type DetailResponse, extractDetail } from '@/shared-util';
+import ApiClient, { type ApiResponse } from '@/shared-util';
 import type { ComparisonType, TimeUnit } from '../../report/types';
 
 const apiClient = new ApiClient({ serviceURL: '/bff' });
@@ -18,7 +18,7 @@ export interface QueryResult {
 
 export const panelApi = {
   executeQuery: async (request: QueryRequest): Promise<QueryResult> => {
-    const response = await apiClient.post<DetailResponse<QueryResult>>('/insight-statistics-query-execute', request);
-    return extractDetail(response);
+    const response = await apiClient.post<ApiResponse<QueryResult>>('/insight-statistics-query-execute', request);
+    return response.data?.data;
   },
 };

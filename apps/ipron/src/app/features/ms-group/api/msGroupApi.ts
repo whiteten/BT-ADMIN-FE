@@ -17,7 +17,7 @@
  * - ipron-media-server-delete:     DELETE 미디어서버 삭제
  * - manager-node-list:             GET    노드 목록 조회 (cross-service)
  */
-import ApiClient, { type DetailResponse, type ListResponse, extractDetail, extractList } from '@/shared-util';
+import ApiClient, { type ApiResponse } from '@/shared-util';
 import type {
   MediaServer,
   MediaServerCreateRequest,
@@ -48,8 +48,8 @@ export const msGroupApi = {
    * Backend: ApiResponse<List<MsGroupResponse>> -> BFF: data.value[]
    */
   getMsGroups: async (params?: Record<string, unknown>): Promise<MsGroup[]> => {
-    const response = await apiClient.get<DetailResponse<{ value: MsGroup[] }>>('/ipron-ms-group-list', { params });
-    return extractDetail(response)?.value ?? [];
+    const response = await apiClient.get<ApiResponse<{ value: MsGroup[] }>>('/ipron-ms-group-list', { params });
+    return response.data?.data?.value ?? [];
   },
 
   /**
@@ -58,8 +58,8 @@ export const msGroupApi = {
    * Backend: ApiResponse<MsGroupResponse> -> BFF: data:{...}
    */
   getMsGroupDetail: async (params: Record<string, unknown>): Promise<MsGroup> => {
-    const response = await apiClient.get<DetailResponse<MsGroup>>('/ipron-ms-group-detail', { params });
-    return extractDetail(response);
+    const response = await apiClient.get<ApiResponse<MsGroup>>('/ipron-ms-group-detail', { params });
+    return response.data?.data;
   },
 
   /**
@@ -67,8 +67,8 @@ export const msGroupApi = {
    * @flow ipron-ms-group-create
    */
   createMsGroup: async (data: MsGroupCreateRequest): Promise<MsGroup> => {
-    const response = await apiClient.post<DetailResponse<MsGroup>>('/ipron-ms-group-create', data);
-    return extractDetail(response);
+    const response = await apiClient.post<ApiResponse<MsGroup>>('/ipron-ms-group-create', data);
+    return response.data?.data;
   },
 
   /**
@@ -76,10 +76,10 @@ export const msGroupApi = {
    * @flow ipron-ms-group-update
    */
   updateMsGroup: async ({ id, data }: { id: number; data: MsGroupUpdateRequest }): Promise<MsGroup> => {
-    const response = await apiClient.put<DetailResponse<MsGroup>>('/ipron-ms-group-update', data, {
+    const response = await apiClient.put<ApiResponse<MsGroup>>('/ipron-ms-group-update', data, {
       params: { id },
     });
-    return extractDetail(response);
+    return response.data?.data;
   },
 
   /**
@@ -96,8 +96,8 @@ export const msGroupApi = {
    * Backend: ApiResponse<List<MsGrpMemberResponse>> -> BFF: data.value[]
    */
   getMsGroupMembers: async (params: Record<string, unknown>): Promise<MsGroupMember[]> => {
-    const response = await apiClient.get<DetailResponse<{ value: MsGroupMember[] }>>('/ipron-ms-group-members', { params });
-    return extractDetail(response)?.value ?? [];
+    const response = await apiClient.get<ApiResponse<{ value: MsGroupMember[] }>>('/ipron-ms-group-members', { params });
+    return response.data?.data?.value ?? [];
   },
 
   /**
@@ -118,8 +118,8 @@ export const msGroupApi = {
    * Backend: ApiResponse<List<MediaServerResponse>> -> BFF: data.value[]
    */
   getMediaServers: async (params?: Record<string, unknown>): Promise<MediaServer[]> => {
-    const response = await apiClient.get<DetailResponse<{ value: MediaServer[] }>>('/ipron-media-server-list', { params });
-    return extractDetail(response)?.value ?? [];
+    const response = await apiClient.get<ApiResponse<{ value: MediaServer[] }>>('/ipron-media-server-list', { params });
+    return response.data?.data?.value ?? [];
   },
 
   /**
@@ -128,8 +128,8 @@ export const msGroupApi = {
    * Backend: ApiResponse<MediaServerResponse> -> BFF: data:{...}
    */
   getMediaServerDetail: async (params: Record<string, unknown>): Promise<MediaServer> => {
-    const response = await apiClient.get<DetailResponse<MediaServer>>('/ipron-media-server-detail', { params });
-    return extractDetail(response);
+    const response = await apiClient.get<ApiResponse<MediaServer>>('/ipron-media-server-detail', { params });
+    return response.data?.data;
   },
 
   /**
@@ -137,8 +137,8 @@ export const msGroupApi = {
    * @flow ipron-media-server-create
    */
   createMediaServer: async (data: MediaServerCreateRequest): Promise<MediaServer> => {
-    const response = await apiClient.post<DetailResponse<MediaServer>>('/ipron-media-server-create', data);
-    return extractDetail(response);
+    const response = await apiClient.post<ApiResponse<MediaServer>>('/ipron-media-server-create', data);
+    return response.data?.data;
   },
 
   /**
@@ -146,10 +146,10 @@ export const msGroupApi = {
    * @flow ipron-media-server-update
    */
   updateMediaServer: async ({ id, data }: { id: number; data: MediaServerUpdateRequest }): Promise<MediaServer> => {
-    const response = await apiClient.put<DetailResponse<MediaServer>>('/ipron-media-server-update', data, {
+    const response = await apiClient.put<ApiResponse<MediaServer>>('/ipron-media-server-update', data, {
       params: { id },
     });
-    return extractDetail(response);
+    return response.data?.data;
   },
 
   /**
@@ -167,8 +167,8 @@ export const msGroupApi = {
    * @flow manager-node-list
    */
   getNodes: async (): Promise<NodeSimpleResponse[]> => {
-    const response = await apiClient.get<ListResponse<NodeSimpleResponse>>('/manager-node-list');
-    return extractList(response);
+    const response = await apiClient.get<ApiResponse<{ items: NodeSimpleResponse[] }>>('/manager-node-list');
+    return response.data?.data?.items ?? [];
   },
 
   // ─── Node MS Setting ────────────────────────────────────────────────────────
@@ -178,8 +178,8 @@ export const msGroupApi = {
    * @flow ipron-node-ms-setting
    */
   getNodeMsSetting: async (params: Record<string, unknown>): Promise<NodeMsSettingResponse> => {
-    const response = await apiClient.get<DetailResponse<NodeMsSettingResponse>>('/ipron-node-ms-setting', { params });
-    return extractDetail(response);
+    const response = await apiClient.get<ApiResponse<NodeMsSettingResponse>>('/ipron-node-ms-setting', { params });
+    return response.data?.data;
   },
 
   /**

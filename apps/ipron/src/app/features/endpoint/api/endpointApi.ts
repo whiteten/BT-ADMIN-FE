@@ -18,7 +18,7 @@
  * - ipron-endpt-regnum-delete:     DELETE 인증번호 삭제
  * - manager-node-list:             GET    노드 목록 조회 (cross-service)
  */
-import ApiClient, { type DetailResponse, type ListResponse, extractDetail, extractList } from '@/shared-util';
+import ApiClient, { type ApiResponse } from '@/shared-util';
 import type {
   Endpoint,
   EndpointCreateRequest,
@@ -47,8 +47,8 @@ export const endpointApi = {
    * Backend: ApiResponse<List<EndpointResponse>> -> BFF: data.value[]
    */
   getEndpoints: async (params?: Record<string, unknown>): Promise<Endpoint[]> => {
-    const response = await apiClient.get<DetailResponse<{ value: Endpoint[] }>>('/ipron-endpoint-list', { params });
-    return extractDetail(response)?.value ?? [];
+    const response = await apiClient.get<ApiResponse<{ value: Endpoint[] }>>('/ipron-endpoint-list', { params });
+    return response.data?.data?.value ?? [];
   },
 
   /**
@@ -57,8 +57,8 @@ export const endpointApi = {
    * Backend: ApiResponse<EndpointDetailResponse> -> BFF: data:{...}
    */
   getEndpointDetail: async (params: Record<string, unknown>): Promise<Endpoint> => {
-    const response = await apiClient.get<DetailResponse<Endpoint>>('/ipron-endpoint-detail', { params });
-    return extractDetail(response);
+    const response = await apiClient.get<ApiResponse<Endpoint>>('/ipron-endpoint-detail', { params });
+    return response.data?.data;
   },
 
   /**
@@ -66,8 +66,8 @@ export const endpointApi = {
    * @flow ipron-endpoint-create
    */
   createEndpoint: async (data: EndpointCreateRequest): Promise<Endpoint> => {
-    const response = await apiClient.post<DetailResponse<Endpoint>>('/ipron-endpoint-create', data);
-    return extractDetail(response);
+    const response = await apiClient.post<ApiResponse<Endpoint>>('/ipron-endpoint-create', data);
+    return response.data?.data;
   },
 
   /**
@@ -75,10 +75,10 @@ export const endpointApi = {
    * @flow ipron-endpoint-update
    */
   updateEndpoint: async ({ id, data }: { id: number; data: EndpointUpdateRequest }): Promise<Endpoint> => {
-    const response = await apiClient.put<DetailResponse<Endpoint>>('/ipron-endpoint-update', data, {
+    const response = await apiClient.put<ApiResponse<Endpoint>>('/ipron-endpoint-update', data, {
       params: { id },
     });
-    return extractDetail(response);
+    return response.data?.data;
   },
 
   /**
@@ -94,8 +94,8 @@ export const endpointApi = {
    * @flow ipron-endpoint-dr-nodes
    */
   getDrNodes: async (params: Record<string, unknown>): Promise<Array<{ nodeId: number; nodeName: string }>> => {
-    const response = await apiClient.get<DetailResponse<{ value: Array<{ nodeId: number; nodeName: string }> }>>('/ipron-endpoint-dr-nodes', { params });
-    return extractDetail(response)?.value ?? [];
+    const response = await apiClient.get<ApiResponse<{ value: Array<{ nodeId: number; nodeName: string }> }>>('/ipron-endpoint-dr-nodes', { params });
+    return response.data?.data?.value ?? [];
   },
 
   /**
@@ -103,8 +103,8 @@ export const endpointApi = {
    * @flow ipron-endpoint-node-tenants
    */
   getNodeTenants: async (params: Record<string, unknown>): Promise<Array<{ tenantId: number; tenantName: string }>> => {
-    const response = await apiClient.get<DetailResponse<{ value: Array<{ tenantId: number; tenantName: string }> }>>('/ipron-endpoint-node-tenants', { params });
-    return extractDetail(response)?.value ?? [];
+    const response = await apiClient.get<ApiResponse<{ value: Array<{ tenantId: number; tenantName: string }> }>>('/ipron-endpoint-node-tenants', { params });
+    return response.data?.data?.value ?? [];
   },
 
   /**
@@ -131,8 +131,8 @@ export const endpointApi = {
    * Backend: ApiResponse<List<MemberResponse>> -> BFF: data.value[]
    */
   getMembers: async (params: Record<string, unknown>): Promise<EndpointMember[]> => {
-    const response = await apiClient.get<DetailResponse<{ value: EndpointMember[] }>>('/ipron-endpt-member-list', { params });
-    return extractDetail(response)?.value ?? [];
+    const response = await apiClient.get<ApiResponse<{ value: EndpointMember[] }>>('/ipron-endpt-member-list', { params });
+    return response.data?.data?.value ?? [];
   },
 
   /**
@@ -140,10 +140,10 @@ export const endpointApi = {
    * @flow ipron-endpt-member-create
    */
   createMember: async ({ id, data }: { id: number; data: EndpointMemberCreateRequest }): Promise<EndpointMember> => {
-    const response = await apiClient.post<DetailResponse<EndpointMember>>('/ipron-endpt-member-create', data, {
+    const response = await apiClient.post<ApiResponse<EndpointMember>>('/ipron-endpt-member-create', data, {
       params: { id },
     });
-    return extractDetail(response);
+    return response.data?.data;
   },
 
   /**
@@ -151,10 +151,10 @@ export const endpointApi = {
    * @flow ipron-endpt-member-update
    */
   updateMember: async ({ id, memId, data }: { id: number; memId: number; data: EndpointMemberUpdateRequest }): Promise<EndpointMember> => {
-    const response = await apiClient.put<DetailResponse<EndpointMember>>('/ipron-endpt-member-update', data, {
+    const response = await apiClient.put<ApiResponse<EndpointMember>>('/ipron-endpt-member-update', data, {
       params: { id, memId },
     });
-    return extractDetail(response);
+    return response.data?.data;
   },
 
   /**
@@ -173,8 +173,8 @@ export const endpointApi = {
    * Backend: ApiResponse<List<RegnumResponse>> -> BFF: data.value[]
    */
   getRegnums: async (params: Record<string, unknown>): Promise<EndpointRegnum[]> => {
-    const response = await apiClient.get<DetailResponse<{ value: EndpointRegnum[] }>>('/ipron-endpt-regnum-list', { params });
-    return extractDetail(response)?.value ?? [];
+    const response = await apiClient.get<ApiResponse<{ value: EndpointRegnum[] }>>('/ipron-endpt-regnum-list', { params });
+    return response.data?.data?.value ?? [];
   },
 
   /**
@@ -182,10 +182,10 @@ export const endpointApi = {
    * @flow ipron-endpt-regnum-create
    */
   createRegnum: async ({ id, data }: { id: number; data: EndpointRegnumCreateRequest }): Promise<EndpointRegnum> => {
-    const response = await apiClient.post<DetailResponse<EndpointRegnum>>('/ipron-endpt-regnum-create', data, {
+    const response = await apiClient.post<ApiResponse<EndpointRegnum>>('/ipron-endpt-regnum-create', data, {
       params: { id },
     });
-    return extractDetail(response);
+    return response.data?.data;
   },
 
   /**
@@ -193,10 +193,10 @@ export const endpointApi = {
    * @flow ipron-endpt-regnum-update
    */
   updateRegnum: async ({ id, regId, data }: { id: number; regId: number; data: EndpointRegnumUpdateRequest }): Promise<EndpointRegnum> => {
-    const response = await apiClient.put<DetailResponse<EndpointRegnum>>('/ipron-endpt-regnum-update', data, {
+    const response = await apiClient.put<ApiResponse<EndpointRegnum>>('/ipron-endpt-regnum-update', data, {
       params: { id, regId },
     });
-    return extractDetail(response);
+    return response.data?.data;
   },
 
   /**
@@ -214,7 +214,7 @@ export const endpointApi = {
    * @flow manager-node-list
    */
   getNodes: async (): Promise<NodeSimpleResponse[]> => {
-    const response = await apiClient.get<ListResponse<NodeSimpleResponse>>('/manager-node-list');
-    return extractList(response);
+    const response = await apiClient.get<ApiResponse<{ items: NodeSimpleResponse[] }>>('/manager-node-list');
+    return response.data?.data?.items ?? [];
   },
 };

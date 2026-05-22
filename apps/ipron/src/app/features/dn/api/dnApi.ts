@@ -24,7 +24,7 @@
  * - ipron-dn-call-transfer-delete:    DELETE 조건부 착신 전환 삭제
  * - ipron-dn-short-dial-list/create/update/delete: 단축다이얼 CRUD
  */
-import ApiClient, { type DetailResponse, type ListResponse, extractDetail, extractList } from '@/shared-util';
+import ApiClient, { type ApiResponse } from '@/shared-util';
 import type {
   CosEffectResponse,
   DnBatchCreateRequest,
@@ -56,24 +56,24 @@ export const dnApi = {
 
   /**
    * DN 목록 조회 (페이징)
-   * Backend: ApiResponse<PagedResponse<DnResponse>> -> BFF: data.items[] -> extractList
+   * Backend: ApiResponse<PagedResponse<DnResponse>> -> BFF: data.items[] -> response.data?.data?.items
    * @flow ipron-dn-list
    */
   getList: async (params?: DnFilterQuery & Record<string, unknown>): Promise<DnResponse[]> => {
-    const response = await apiClient.get<ListResponse<DnResponse>>('/ipron-dn-list', { params });
-    return extractList(response);
+    const response = await apiClient.get<ApiResponse<{ items: DnResponse[] }>>('/ipron-dn-list', { params });
+    return response.data?.data?.items ?? [];
   },
 
   /**
    * DN 단건 조회
-   * Backend: ApiResponse<DnResponse> -> BFF: data:{...} -> extractDetail
+   * Backend: ApiResponse<DnResponse> -> BFF: data:{...} -> response.data?.data
    * @flow ipron-dn-detail
    */
   getDetail: async (id: number): Promise<DnResponse> => {
-    const response = await apiClient.get<DetailResponse<DnResponse>>('/ipron-dn-detail', {
+    const response = await apiClient.get<ApiResponse<DnResponse>>('/ipron-dn-detail', {
       params: { id },
     });
-    return extractDetail(response);
+    return response.data?.data;
   },
 
   // ─── Mutations ────────────────────────────────────────────────────────────
@@ -83,8 +83,8 @@ export const dnApi = {
    * @flow ipron-dn-create
    */
   create: async (data: DnCreateRequest): Promise<DnResponse> => {
-    const response = await apiClient.post<DetailResponse<DnResponse>>('/ipron-dn-create', data);
-    return extractDetail(response);
+    const response = await apiClient.post<ApiResponse<DnResponse>>('/ipron-dn-create', data);
+    return response.data?.data;
   },
 
   /**
@@ -92,10 +92,10 @@ export const dnApi = {
    * @flow ipron-dn-update
    */
   update: async ({ id, data }: { id: number; data: DnUpdateRequest }): Promise<DnResponse> => {
-    const response = await apiClient.put<DetailResponse<DnResponse>>('/ipron-dn-update', data, {
+    const response = await apiClient.put<ApiResponse<DnResponse>>('/ipron-dn-update', data, {
       params: { id },
     });
-    return extractDetail(response);
+    return response.data?.data;
   },
 
   /**
@@ -114,8 +114,8 @@ export const dnApi = {
    * @flow ipron-dn-copy
    */
   copy: async ({ id, data }: { id: number; data: { startNo: string; endNo: string } }): Promise<DnResponse[]> => {
-    const response = await apiClient.post<DetailResponse<{ value: DnResponse[] }>>('/ipron-dn-copy', data, { params: { id } });
-    return extractDetail(response)?.value ?? [];
+    const response = await apiClient.post<ApiResponse<{ value: DnResponse[] }>>('/ipron-dn-copy', data, { params: { id } });
+    return response.data?.data?.value ?? [];
   },
 
   /**
@@ -143,8 +143,8 @@ export const dnApi = {
         dnStatus: data.dnStatus ?? '0',
       });
     }
-    const response = await apiClient.post<DetailResponse<{ value: DnResponse[] }>>('/ipron-dn-batch-create', { items });
-    return extractDetail(response)?.value ?? [];
+    const response = await apiClient.post<ApiResponse<{ value: DnResponse[] }>>('/ipron-dn-batch-create', { items });
+    return response.data?.data?.value ?? [];
   },
 
   // ─── Aux (노드/테넌트/옵션) ────────────────────────────────────────────────
@@ -155,8 +155,8 @@ export const dnApi = {
    * @flow ipron-dn-node-tenants
    */
   getNodeTenants: async (): Promise<NodeTenantItem[]> => {
-    const response = await apiClient.get<DetailResponse<{ value: NodeTenantItem[] }>>('/ipron-dn-node-tenants');
-    return extractDetail(response)?.value ?? [];
+    const response = await apiClient.get<ApiResponse<{ value: NodeTenantItem[] }>>('/ipron-dn-node-tenants');
+    return response.data?.data?.value ?? [];
   },
 
   /**
@@ -164,8 +164,8 @@ export const dnApi = {
    * @flow ipron-dn-count
    */
   getCount: async (params: { tenantId: number }): Promise<DnCountResponse> => {
-    const response = await apiClient.get<DetailResponse<DnCountResponse>>('/ipron-dn-count', { params });
-    return extractDetail(response);
+    const response = await apiClient.get<ApiResponse<DnCountResponse>>('/ipron-dn-count', { params });
+    return response.data?.data;
   },
 
   /**
@@ -173,10 +173,10 @@ export const dnApi = {
    * @flow ipron-dn-options
    */
   getOptions: async (params: { nodeId: number; tenantId: number; dnType?: string | null }): Promise<DnOptionsResponse> => {
-    const response = await apiClient.get<DetailResponse<DnOptionsResponse>>('/ipron-dn-options', {
+    const response = await apiClient.get<ApiResponse<DnOptionsResponse>>('/ipron-dn-options', {
       params,
     });
-    return extractDetail(response);
+    return response.data?.data;
   },
 
   /**
@@ -184,8 +184,8 @@ export const dnApi = {
    * @flow ipron-dn-cos-effect
    */
   getCosEffect: async (cosId: number): Promise<CosEffectResponse> => {
-    const response = await apiClient.get<DetailResponse<CosEffectResponse>>('/ipron-dn-cos-effect', { params: { cosId } });
-    return extractDetail(response);
+    const response = await apiClient.get<ApiResponse<CosEffectResponse>>('/ipron-dn-cos-effect', { params: { cosId } });
+    return response.data?.data;
   },
 
   /**
@@ -194,8 +194,8 @@ export const dnApi = {
    * Backend: ApiResponse<Boolean> -> BFF: data.value:boolean
    */
   duplicateCheck: async (params: { nodeId: number; tenantId: number; dnNo: string; excludeDnId?: number | null }): Promise<boolean> => {
-    const response = await apiClient.get<DetailResponse<{ value: boolean }>>('/ipron-dn-duplicate-check', { params });
-    return extractDetail(response)?.value ?? false;
+    const response = await apiClient.get<ApiResponse<{ value: boolean }>>('/ipron-dn-duplicate-check', { params });
+    return response.data?.data?.value ?? false;
   },
 
   /**
@@ -203,10 +203,10 @@ export const dnApi = {
    * @flow ipron-dn-range
    */
   getRange: async (params: { nodeId: number; tenantId: number; dnType: string }): Promise<DnRangeItem[]> => {
-    const response = await apiClient.get<DetailResponse<{ value: DnRangeItem[] }>>('/ipron-dn-range', {
+    const response = await apiClient.get<ApiResponse<{ value: DnRangeItem[] }>>('/ipron-dn-range', {
       params,
     });
-    return extractDetail(response)?.value ?? [];
+    return response.data?.data?.value ?? [];
   },
 
   // ─── Profile 연동 (DN 일괄 배정) ──────────────────────────────────────────
@@ -236,7 +236,7 @@ export const dnApi = {
 
   /**
    * DN 목록 엑셀 가져오기 시작 — 비동기. 즉시 taskId 반환 후 status polling 으로 진행률 확인.
-   * Backend: ApiResponse<{ taskId }> — BFF: data:{...} -> extractDetail
+   * Backend: ApiResponse<{ taskId }> — BFF: data:{...} -> response.data?.data
    * @flow ipron-dn-excel-import
    */
   startImport: async (params: { nodeId: number; tenantId: number; file: File }): Promise<{ taskId: string }> => {
@@ -244,8 +244,8 @@ export const dnApi = {
     formData.append('file', params.file);
     // ⚠ Content-Type 헤더는 명시하지 않는다. axios가 FormData를 감지하면
     //    'multipart/form-data; boundary=...' 를 자동 설정한다.
-    const response = await apiClient.post<DetailResponse<{ taskId: string }>>('/ipron-dn-excel-import', formData, { params: { nodeId: params.nodeId, tenantId: params.tenantId } });
-    return extractDetail(response);
+    const response = await apiClient.post<ApiResponse<{ taskId: string }>>('/ipron-dn-excel-import', formData, { params: { nodeId: params.nodeId, tenantId: params.tenantId } });
+    return response.data?.data;
   },
 
   /**
@@ -265,7 +265,7 @@ export const dnApi = {
     errorMessage: string | null;
   }> => {
     const response = await apiClient.get<
-      DetailResponse<{
+      ApiResponse<{
         taskId: string;
         total: number;
         processed: number;
@@ -276,7 +276,7 @@ export const dnApi = {
         errorMessage: string | null;
       }>
     >('/ipron-dn-excel-import-status', { params: { taskId } });
-    return extractDetail(response);
+    return response.data?.data;
   },
 
   // ─── DN SNR (순차 호출) ───────────────────────────────────────────────────
@@ -287,20 +287,20 @@ export const dnApi = {
    * @flow ipron-dn-snr-list
    */
   getSnrList: async (dnId: number): Promise<DnSnrResponse[]> => {
-    const response = await apiClient.get<DetailResponse<{ value: DnSnrResponse[] }>>('/ipron-dn-snr-list', { params: { dnId } });
-    return extractDetail(response)?.value ?? [];
+    const response = await apiClient.get<ApiResponse<{ value: DnSnrResponse[] }>>('/ipron-dn-snr-list', { params: { dnId } });
+    return response.data?.data?.value ?? [];
   },
 
   /** @flow ipron-dn-snr-create */
   createSnr: async ({ dnId, data }: { dnId: number; data: DnSnrRequest }): Promise<DnSnrResponse> => {
-    const response = await apiClient.post<DetailResponse<DnSnrResponse>>('/ipron-dn-snr-create', data, { params: { dnId } });
-    return extractDetail(response);
+    const response = await apiClient.post<ApiResponse<DnSnrResponse>>('/ipron-dn-snr-create', data, { params: { dnId } });
+    return response.data?.data;
   },
 
   /** @flow ipron-dn-snr-update */
   updateSnr: async ({ dnId, snrId, data }: { dnId: number; snrId: number; data: DnSnrRequest }): Promise<DnSnrResponse> => {
-    const response = await apiClient.put<DetailResponse<DnSnrResponse>>('/ipron-dn-snr-update', data, { params: { dnId, snrId } });
-    return extractDetail(response);
+    const response = await apiClient.put<ApiResponse<DnSnrResponse>>('/ipron-dn-snr-update', data, { params: { dnId, snrId } });
+    return response.data?.data;
   },
 
   /** @flow ipron-dn-snr-delete */
@@ -312,20 +312,20 @@ export const dnApi = {
 
   /** @flow ipron-dn-snr-tod-list */
   getSnrTodList: async (dnId: number, snrId: number): Promise<DnSnrTodResponse[]> => {
-    const response = await apiClient.get<DetailResponse<{ value: DnSnrTodResponse[] }>>('/ipron-dn-snr-tod-list', { params: { dnId, snrId } });
-    return extractDetail(response)?.value ?? [];
+    const response = await apiClient.get<ApiResponse<{ value: DnSnrTodResponse[] }>>('/ipron-dn-snr-tod-list', { params: { dnId, snrId } });
+    return response.data?.data?.value ?? [];
   },
 
   /** @flow ipron-dn-snr-tod-create */
   createSnrTod: async ({ dnId, snrId, data }: { dnId: number; snrId: number; data: DnSnrTodRequest }): Promise<DnSnrTodResponse> => {
-    const response = await apiClient.post<DetailResponse<DnSnrTodResponse>>('/ipron-dn-snr-tod-create', data, { params: { dnId, snrId } });
-    return extractDetail(response);
+    const response = await apiClient.post<ApiResponse<DnSnrTodResponse>>('/ipron-dn-snr-tod-create', data, { params: { dnId, snrId } });
+    return response.data?.data;
   },
 
   /** @flow ipron-dn-snr-tod-update */
   updateSnrTod: async ({ dnId, snrId, todId, data }: { dnId: number; snrId: number; todId: number; data: DnSnrTodRequest }): Promise<DnSnrTodResponse> => {
-    const response = await apiClient.put<DetailResponse<DnSnrTodResponse>>('/ipron-dn-snr-tod-update', data, { params: { dnId, snrId, todId } });
-    return extractDetail(response);
+    const response = await apiClient.put<ApiResponse<DnSnrTodResponse>>('/ipron-dn-snr-tod-update', data, { params: { dnId, snrId, todId } });
+    return response.data?.data;
   },
 
   /** @flow ipron-dn-snr-tod-delete */
@@ -341,20 +341,20 @@ export const dnApi = {
    * @flow ipron-dn-sca-list
    */
   getScaList: async (dnId: number): Promise<DnScaResponse[]> => {
-    const response = await apiClient.get<DetailResponse<{ value: DnScaResponse[] }>>('/ipron-dn-sca-list', { params: { dnId } });
-    return extractDetail(response)?.value ?? [];
+    const response = await apiClient.get<ApiResponse<{ value: DnScaResponse[] }>>('/ipron-dn-sca-list', { params: { dnId } });
+    return response.data?.data?.value ?? [];
   },
 
   /** @flow ipron-dn-sca-create */
   createSca: async ({ dnId, data }: { dnId: number; data: DnScaRequest }): Promise<DnScaResponse> => {
-    const response = await apiClient.post<DetailResponse<DnScaResponse>>('/ipron-dn-sca-create', data, { params: { dnId } });
-    return extractDetail(response);
+    const response = await apiClient.post<ApiResponse<DnScaResponse>>('/ipron-dn-sca-create', data, { params: { dnId } });
+    return response.data?.data;
   },
 
   /** @flow ipron-dn-sca-update */
   updateSca: async ({ dnId, scaId, data }: { dnId: number; scaId: number; data: DnScaRequest }): Promise<DnScaResponse> => {
-    const response = await apiClient.put<DetailResponse<DnScaResponse>>('/ipron-dn-sca-update', data, { params: { dnId, scaId } });
-    return extractDetail(response);
+    const response = await apiClient.put<ApiResponse<DnScaResponse>>('/ipron-dn-sca-update', data, { params: { dnId, scaId } });
+    return response.data?.data;
   },
 
   /** @flow ipron-dn-sca-delete */
@@ -366,26 +366,26 @@ export const dnApi = {
 
   /** @flow ipron-dn-call-transfer-list */
   getCallTransferList: async (dnId: number): Promise<DnCallTransferResponse[]> => {
-    const response = await apiClient.get<DetailResponse<{ value: DnCallTransferResponse[] }>>('/ipron-dn-call-transfer-list', {
+    const response = await apiClient.get<ApiResponse<{ value: DnCallTransferResponse[] }>>('/ipron-dn-call-transfer-list', {
       params: { dnId },
     });
-    return extractDetail(response)?.value ?? [];
+    return response.data?.data?.value ?? [];
   },
 
   /** @flow ipron-dn-call-transfer-create */
   createCallTransfer: async ({ dnId, data }: { dnId: number; data: DnCallTransferRequest }): Promise<DnCallTransferResponse> => {
-    const response = await apiClient.post<DetailResponse<DnCallTransferResponse>>('/ipron-dn-call-transfer-create', data, {
+    const response = await apiClient.post<ApiResponse<DnCallTransferResponse>>('/ipron-dn-call-transfer-create', data, {
       params: { dnId },
     });
-    return extractDetail(response);
+    return response.data?.data;
   },
 
   /** @flow ipron-dn-call-transfer-update */
   updateCallTransfer: async ({ dnId, caseTransId, data }: { dnId: number; caseTransId: number; data: DnCallTransferRequest }): Promise<DnCallTransferResponse> => {
-    const response = await apiClient.put<DetailResponse<DnCallTransferResponse>>('/ipron-dn-call-transfer-update', data, {
+    const response = await apiClient.put<ApiResponse<DnCallTransferResponse>>('/ipron-dn-call-transfer-update', data, {
       params: { dnId, caseTransId },
     });
-    return extractDetail(response);
+    return response.data?.data;
   },
 
   /** @flow ipron-dn-call-transfer-delete */
@@ -397,20 +397,20 @@ export const dnApi = {
 
   /** @flow ipron-dn-short-dial-list */
   getShortDialList: async (dnId: number): Promise<DnShortDialResponse[]> => {
-    const response = await apiClient.get<DetailResponse<{ value: DnShortDialResponse[] }>>('/ipron-dn-short-dial-list', { params: { dnId } });
-    return extractDetail(response)?.value ?? [];
+    const response = await apiClient.get<ApiResponse<{ value: DnShortDialResponse[] }>>('/ipron-dn-short-dial-list', { params: { dnId } });
+    return response.data?.data?.value ?? [];
   },
 
   /** @flow ipron-dn-short-dial-create */
   createShortDial: async ({ dnId, data }: { dnId: number; data: DnShortDialRequest }): Promise<DnShortDialResponse> => {
-    const response = await apiClient.post<DetailResponse<DnShortDialResponse>>('/ipron-dn-short-dial-create', data, { params: { dnId } });
-    return extractDetail(response);
+    const response = await apiClient.post<ApiResponse<DnShortDialResponse>>('/ipron-dn-short-dial-create', data, { params: { dnId } });
+    return response.data?.data;
   },
 
   /** @flow ipron-dn-short-dial-update */
   updateShortDial: async ({ dnId, shortDial, data }: { dnId: number; shortDial: string; data: DnShortDialRequest }): Promise<DnShortDialResponse> => {
-    const response = await apiClient.put<DetailResponse<DnShortDialResponse>>('/ipron-dn-short-dial-update', data, { params: { dnId, shortDial } });
-    return extractDetail(response);
+    const response = await apiClient.put<ApiResponse<DnShortDialResponse>>('/ipron-dn-short-dial-update', data, { params: { dnId, shortDial } });
+    return response.data?.data;
   },
 
   /** @flow ipron-dn-short-dial-delete */

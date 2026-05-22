@@ -11,7 +11,7 @@
  * - manager-node-list:       GET    노드 목록 조회 (cross-service)
  * - ipron-route-list:        GET    발신라우트 목록 조회 (라우트 select용)
  */
-import ApiClient, { type DetailResponse, type ListResponse, extractDetail, extractList } from '@/shared-util';
+import ApiClient, { type ApiResponse } from '@/shared-util';
 import type { DidRoute, DidRouteCreateRequest, DidRouteUpdateRequest } from '../types';
 
 interface NodeSimpleResponse {
@@ -36,8 +36,8 @@ export const didRouteApi = {
    * Backend: ApiResponse<List<DidRouteResponse>> -> BFF: data.value[]
    */
   getList: async (params?: Record<string, unknown>): Promise<DidRoute[]> => {
-    const response = await apiClient.get<DetailResponse<{ value: DidRoute[] }>>('/ipron-did-route-list', { params });
-    return extractDetail(response)?.value ?? [];
+    const response = await apiClient.get<ApiResponse<{ value: DidRoute[] }>>('/ipron-did-route-list', { params });
+    return response.data?.data?.value ?? [];
   },
 
   /**
@@ -46,8 +46,8 @@ export const didRouteApi = {
    * Backend: ApiResponse<DidRouteResponse> -> BFF: data:{...}
    */
   getDetail: async (params: Record<string, unknown>): Promise<DidRoute> => {
-    const response = await apiClient.get<DetailResponse<DidRoute>>('/ipron-did-route-detail', { params });
-    return extractDetail(response);
+    const response = await apiClient.get<ApiResponse<DidRoute>>('/ipron-did-route-detail', { params });
+    return response.data?.data;
   },
 
   /**
@@ -55,8 +55,8 @@ export const didRouteApi = {
    * @flow ipron-did-route-create
    */
   create: async (data: DidRouteCreateRequest): Promise<DidRoute> => {
-    const response = await apiClient.post<DetailResponse<DidRoute>>('/ipron-did-route-create', data);
-    return extractDetail(response);
+    const response = await apiClient.post<ApiResponse<DidRoute>>('/ipron-did-route-create', data);
+    return response.data?.data;
   },
 
   /**
@@ -64,10 +64,10 @@ export const didRouteApi = {
    * @flow ipron-did-route-update
    */
   update: async ({ id, data }: { id: number; data: DidRouteUpdateRequest }): Promise<DidRoute> => {
-    const response = await apiClient.put<DetailResponse<DidRoute>>('/ipron-did-route-update', data, {
+    const response = await apiClient.put<ApiResponse<DidRoute>>('/ipron-did-route-update', data, {
       params: { id },
     });
-    return extractDetail(response);
+    return response.data?.data;
   },
 
   /**
@@ -85,8 +85,8 @@ export const didRouteApi = {
    * @flow manager-node-list
    */
   getNodes: async (): Promise<NodeSimpleResponse[]> => {
-    const response = await apiClient.get<ListResponse<NodeSimpleResponse>>('/manager-node-list');
-    return extractList(response);
+    const response = await apiClient.get<ApiResponse<{ items: NodeSimpleResponse[] }>>('/manager-node-list');
+    return response.data?.data?.items ?? [];
   },
 
   // ─── Route (라우트 select용) ────────────────────────────────────────────────
@@ -96,9 +96,9 @@ export const didRouteApi = {
    * @flow ipron-route-list
    */
   getRoutesByNode: async (nodeId: number): Promise<RouteSimpleResponse[]> => {
-    const response = await apiClient.get<DetailResponse<{ value: RouteSimpleResponse[] }>>('/ipron-route-list', {
+    const response = await apiClient.get<ApiResponse<{ value: RouteSimpleResponse[] }>>('/ipron-route-list', {
       params: { nodeId },
     });
-    return extractDetail(response)?.value ?? [];
+    return response.data?.data?.value ?? [];
   },
 };

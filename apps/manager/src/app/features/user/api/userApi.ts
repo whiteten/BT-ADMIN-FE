@@ -1,4 +1,4 @@
-import ApiClient, { type DetailResponse, type ListResponse, extractDetail, extractList } from '@/shared-util';
+import ApiClient, { type ApiResponse } from '@/shared-util';
 import type { PasswordChangeDatas, User, UserCreateDatas, UserUpdateDatas } from '../types';
 
 /**
@@ -35,8 +35,8 @@ export const userApi = {
    * @flow user-list
    */
   getUsers: async (params?: Record<string, unknown>): Promise<User[]> => {
-    const response = await apiClient.get<ListResponse<User>>('/user-list', { params });
-    return extractList(response);
+    const response = await apiClient.get<ApiResponse<{ items: User[] }>>('/user-list', { params });
+    return response.data?.data?.items ?? [];
   },
 
   /**
@@ -44,8 +44,8 @@ export const userApi = {
    * @flow user-search
    */
   searchUsers: async (params?: Record<string, unknown>): Promise<PagedResponse<User>> => {
-    const response = await apiClient.get<ListResponse<PagedResponse<User>>>('/user-search', { params });
-    return extractList(response) as unknown as PagedResponse<User>;
+    const response = await apiClient.get<ApiResponse<{ items: PagedResponse<User>[] }>>('/user-search', { params });
+    return (response.data?.data?.items ?? []) as unknown as PagedResponse<User>;
   },
 
   /**
@@ -53,8 +53,8 @@ export const userApi = {
    * @flow user-detail
    */
   getUser: async (params?: Record<string, unknown>): Promise<User> => {
-    const response = await apiClient.get<DetailResponse<User>>('/user-detail', { params });
-    return extractDetail(response);
+    const response = await apiClient.get<ApiResponse<User>>('/user-detail', { params });
+    return response.data?.data;
   },
 
   /**
@@ -62,8 +62,8 @@ export const userApi = {
    * @flow user-by-sabun
    */
   getUserBySabun: async (params?: Record<string, unknown>): Promise<User> => {
-    const response = await apiClient.get<DetailResponse<User>>('/user-by-sabun', { params });
-    return extractDetail(response);
+    const response = await apiClient.get<ApiResponse<User>>('/user-by-sabun', { params });
+    return response.data?.data;
   },
 
   /**
@@ -71,8 +71,8 @@ export const userApi = {
    * @flow user-create
    */
   createUser: async (data: UserCreateDatas): Promise<User> => {
-    const response = await apiClient.post<DetailResponse<User>>('/user-create', data);
-    return extractDetail(response);
+    const response = await apiClient.post<ApiResponse<User>>('/user-create', data);
+    return response.data?.data;
   },
 
   /**

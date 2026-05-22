@@ -16,7 +16,7 @@
  * - ivr-endpoint-member-check-ipport: GET    IP/PORT 중복 체크
  * - manager-node-list:                   GET    노드 목록 (cross-service)
  */
-import ApiClient, { type DetailResponse, type ListResponse, extractDetail, extractList } from '@/shared-util';
+import ApiClient, { type ApiResponse } from '@/shared-util';
 import type {
   IvrEndpointMaster,
   IvrEndpointMasterCreateRequest,
@@ -37,25 +37,25 @@ export const ivrEndpointApi = {
   // ─── Master ─────────────────────────────────────────────────────────────
 
   getMasters: async (params?: Record<string, unknown>): Promise<IvrEndpointMaster[]> => {
-    const response = await apiClient.get<DetailResponse<{ value: IvrEndpointMaster[] }>>('/ivr-endpoint-list', { params });
-    return extractDetail(response)?.value ?? [];
+    const response = await apiClient.get<ApiResponse<{ value: IvrEndpointMaster[] }>>('/ivr-endpoint-list', { params });
+    return response.data?.data?.value ?? [];
   },
 
   getMasterDetail: async (params: Record<string, unknown>): Promise<IvrEndpointMaster> => {
-    const response = await apiClient.get<DetailResponse<IvrEndpointMaster>>('/ivr-endpoint-detail', { params });
-    return extractDetail(response);
+    const response = await apiClient.get<ApiResponse<IvrEndpointMaster>>('/ivr-endpoint-detail', { params });
+    return response.data?.data;
   },
 
   createMaster: async (data: IvrEndpointMasterCreateRequest): Promise<IvrEndpointMaster> => {
-    const response = await apiClient.post<DetailResponse<IvrEndpointMaster>>('/ivr-endpoint-create', data);
-    return extractDetail(response);
+    const response = await apiClient.post<ApiResponse<IvrEndpointMaster>>('/ivr-endpoint-create', data);
+    return response.data?.data;
   },
 
   updateMaster: async ({ id, data }: { id: number; data: IvrEndpointMasterUpdateRequest }): Promise<IvrEndpointMaster> => {
-    const response = await apiClient.put<DetailResponse<IvrEndpointMaster>>('/ivr-endpoint-update', data, {
+    const response = await apiClient.put<ApiResponse<IvrEndpointMaster>>('/ivr-endpoint-update', data, {
       params: { id },
     });
-    return extractDetail(response);
+    return response.data?.data;
   },
 
   deleteMaster: async (params: Record<string, unknown>) => {
@@ -63,29 +63,29 @@ export const ivrEndpointApi = {
   },
 
   checkAssigned: async (params: Record<string, unknown>): Promise<{ count: number }> => {
-    const response = await apiClient.get<DetailResponse<{ count: number }>>('/ivr-endpoint-check-assigned', { params });
-    return extractDetail(response);
+    const response = await apiClient.get<ApiResponse<{ count: number }>>('/ivr-endpoint-check-assigned', { params });
+    return response.data?.data;
   },
 
   // ─── Member ─────────────────────────────────────────────────────────────
 
   getMembers: async (params: Record<string, unknown>): Promise<IvrEndpointMember[]> => {
-    const response = await apiClient.get<DetailResponse<{ value: IvrEndpointMember[] }>>('/ivr-endpoint-member-list', { params });
-    return extractDetail(response)?.value ?? [];
+    const response = await apiClient.get<ApiResponse<{ value: IvrEndpointMember[] }>>('/ivr-endpoint-member-list', { params });
+    return response.data?.data?.value ?? [];
   },
 
   createMember: async ({ id, data }: { id: number; data: IvrEndpointMemberCreateRequest }): Promise<IvrEndpointMember> => {
-    const response = await apiClient.post<DetailResponse<IvrEndpointMember>>('/ivr-endpoint-member-create', data, {
+    const response = await apiClient.post<ApiResponse<IvrEndpointMember>>('/ivr-endpoint-member-create', data, {
       params: { id },
     });
-    return extractDetail(response);
+    return response.data?.data;
   },
 
   updateMember: async ({ memberId, data }: { memberId: number; data: IvrEndpointMemberUpdateRequest }): Promise<IvrEndpointMember> => {
-    const response = await apiClient.put<DetailResponse<IvrEndpointMember>>('/ivr-endpoint-member-update', data, {
+    const response = await apiClient.put<ApiResponse<IvrEndpointMember>>('/ivr-endpoint-member-update', data, {
       params: { memberId },
     });
-    return extractDetail(response);
+    return response.data?.data;
   },
 
   deleteMember: async (params: Record<string, unknown>) => {
@@ -93,14 +93,14 @@ export const ivrEndpointApi = {
   },
 
   checkIpPort: async (params: Record<string, unknown>): Promise<{ duplicate: boolean }> => {
-    const response = await apiClient.get<DetailResponse<{ duplicate: boolean }>>('/ivr-endpoint-member-check-ipport', { params });
-    return extractDetail(response);
+    const response = await apiClient.get<ApiResponse<{ duplicate: boolean }>>('/ivr-endpoint-member-check-ipport', { params });
+    return response.data?.data;
   },
 
   // ─── Node (cross-service) ───────────────────────────────────────────────
 
   getNodes: async (): Promise<NodeSimpleResponse[]> => {
-    const response = await apiClient.get<ListResponse<NodeSimpleResponse>>('/manager-node-list');
-    return extractList(response);
+    const response = await apiClient.get<ApiResponse<{ items: NodeSimpleResponse[] }>>('/manager-node-list');
+    return response.data?.data?.items ?? [];
   },
 };

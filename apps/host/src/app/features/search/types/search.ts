@@ -25,9 +25,3 @@ export interface SearchData {
   menus: MenuSearchResult[];
   docs: DocSearchResult[];
 }
-
-export interface SearchResponse {
-  ok: boolean;
-  code: string;
-  data: SearchData;
-}

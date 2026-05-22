@@ -1,16 +1,16 @@
-import ApiClient, { type ListResponse, extractList } from '@/shared-util';
+import ApiClient, { type ApiResponse } from '@/shared-util';
 import type { ToolCreateDatas, ToolGroup, ToolGroupCreateDatas, ToolItem } from '../types';
 
 const apiClient = new ApiClient({ serviceURL: '/bff' });
 
 export const toolApi = {
   getToolGroups: async () => {
-    const response = await apiClient.get<ListResponse<ToolGroup>>('/aoe-tool-group-list');
-    return extractList(response);
+    const response = await apiClient.get<ApiResponse<{ items: ToolGroup[] }>>('/aoe-tool-group-list');
+    return response.data?.data?.items ?? [];
   },
   getTools: async (params: { groupId: string }) => {
-    const response = await apiClient.get<ListResponse<ToolItem>>('/aoe-tool-list', { params });
-    return extractList(response);
+    const response = await apiClient.get<ApiResponse<{ items: ToolItem[] }>>('/aoe-tool-list', { params });
+    return response.data?.data?.items ?? [];
   },
   createToolGroup: async (data: ToolGroupCreateDatas) => {
     await apiClient.post('/aoe-tool-group-create', data);

@@ -1,27 +1,27 @@
-import ApiClient, { type DetailResponse, type ListResponse, extractDetail, extractList } from '@/shared-util';
+import ApiClient, { type ApiResponse } from '@/shared-util';
 import type { SearchConditionCreateDatas, SearchConditionDetail, SearchConditionListItem, SqlPreviewRequest, SqlPreviewResult } from '../types';
 
 const apiClient = new ApiClient({ serviceURL: '/bff' });
 
 export const searchConditionApi = {
   getSearchConditions: async (params?: Record<string, unknown>): Promise<SearchConditionListItem[]> => {
-    const response = await apiClient.get<ListResponse<SearchConditionListItem>>('/insight-statistics-search-condition-list', { params });
-    return extractList(response);
+    const response = await apiClient.get<ApiResponse<{ items: SearchConditionListItem[] }>>('/insight-statistics-search-condition-list', { params });
+    return response.data?.data?.items ?? [];
   },
 
   getSearchCondition: async (searchCondId: number): Promise<SearchConditionDetail> => {
-    const response = await apiClient.get<DetailResponse<SearchConditionDetail>>('/insight-statistics-search-condition-detail', { params: { searchCondId } });
-    return extractDetail(response);
+    const response = await apiClient.get<ApiResponse<SearchConditionDetail>>('/insight-statistics-search-condition-detail', { params: { searchCondId } });
+    return response.data?.data;
   },
 
   createSearchCondition: async (data: SearchConditionCreateDatas): Promise<SearchConditionDetail> => {
-    const response = await apiClient.post<DetailResponse<SearchConditionDetail>>('/insight-statistics-search-condition-create', data);
-    return extractDetail(response);
+    const response = await apiClient.post<ApiResponse<SearchConditionDetail>>('/insight-statistics-search-condition-create', data);
+    return response.data?.data;
   },
 
   updateSearchCondition: async (searchCondId: number, data: SearchConditionCreateDatas): Promise<SearchConditionDetail> => {
-    const response = await apiClient.put<DetailResponse<SearchConditionDetail>>('/insight-statistics-search-condition-update', data, { params: { searchCondId } });
-    return extractDetail(response);
+    const response = await apiClient.put<ApiResponse<SearchConditionDetail>>('/insight-statistics-search-condition-update', data, { params: { searchCondId } });
+    return response.data?.data;
   },
 
   deleteSearchCondition: async (searchCondId: number): Promise<void> => {
@@ -31,7 +31,7 @@ export const searchConditionApi = {
   /**
    * SQL 미리보기.
    * 백엔드는 ApiResponse<List<T>>를 반환 — BFF 단일 스텝 통과 후 data가 배열 직접 노출.
-   * extractDetail 로 data 추출 후 배열로 캐스팅.
+   * BFF step_id에 따라 data 키가 달라질 수 있어 response.data.data를 수동 추출·캐스팅한다.
    */
   previewSql: async (data: SqlPreviewRequest): Promise<SqlPreviewResult[]> => {
     const response = await apiClient.post<Record<string, unknown>>('/insight-statistics-search-condition-preview', data);

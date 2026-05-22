@@ -8,7 +8,7 @@
  * - manager-cluster-group-update:   PUT    클러스터 그룹 수정
  * - manager-cluster-group-delete:   DELETE 클러스터 그룹 삭제
  */
-import ApiClient, { type DetailResponse, type ListResponse, extractDetail, extractList } from '@/shared-util';
+import ApiClient, { type ApiResponse } from '@/shared-util';
 import type { ClusterGroup, ClusterGroupBackendResponse, ClusterGroupCreateData, ClusterGroupUpdateData } from '../types';
 
 const apiClient = new ApiClient({ serviceURL: '/bff' });
@@ -30,8 +30,8 @@ export const clusterGroupApi = {
    * @flow manager-cluster-group-list
    */
   getClusterGroups: async (params?: Record<string, unknown>): Promise<ClusterGroup[]> => {
-    const response = await apiClient.get<DetailResponse<{ value: ClusterGroupBackendResponse[] }>>('/manager-cluster-group-list', { params });
-    const rawList = extractDetail(response)?.value ?? [];
+    const response = await apiClient.get<ApiResponse<{ value: ClusterGroupBackendResponse[] }>>('/manager-cluster-group-list', { params });
+    const rawList = response.data?.data?.value ?? [];
     return rawList.map(transformClusterGroup);
   },
 
@@ -40,8 +40,8 @@ export const clusterGroupApi = {
    * @flow manager-cluster-group-create
    */
   createClusterGroup: async (data: ClusterGroupCreateData): Promise<ClusterGroup> => {
-    const response = await apiClient.post<DetailResponse<ClusterGroupBackendResponse>>('/manager-cluster-group-create', data);
-    return transformClusterGroup(extractDetail(response));
+    const response = await apiClient.post<ApiResponse<ClusterGroupBackendResponse>>('/manager-cluster-group-create', data);
+    return transformClusterGroup(response.data?.data);
   },
 
   /**
@@ -49,8 +49,8 @@ export const clusterGroupApi = {
    * @flow manager-cluster-group-update
    */
   updateClusterGroup: async ({ id, data }: { id: number; data: ClusterGroupUpdateData }): Promise<ClusterGroup> => {
-    const response = await apiClient.put<DetailResponse<ClusterGroupBackendResponse>>('/manager-cluster-group-update', data, { params: { id } });
-    return transformClusterGroup(extractDetail(response));
+    const response = await apiClient.put<ApiResponse<ClusterGroupBackendResponse>>('/manager-cluster-group-update', data, { params: { id } });
+    return transformClusterGroup(response.data?.data);
   },
 
   /**

@@ -1,23 +1,23 @@
-import ApiClient, { type DetailResponse, type ListResponse, extractDetail, extractList } from '@/shared-util';
+import ApiClient, { type ApiResponse } from '@/shared-util';
 import type { DataSourceListItem, FieldMetaItem } from '../types';
 
 const apiClient = new ApiClient({ serviceURL: '/bff' });
 
 export const datasetApi = {
   getDataSources: async (params?: Record<string, unknown>): Promise<DataSourceListItem[]> => {
-    const response = await apiClient.get<ListResponse<DataSourceListItem>>('/insight-statistics-datasource-list', { params });
-    return extractList(response);
+    const response = await apiClient.get<ApiResponse<{ items: DataSourceListItem[] }>>('/insight-statistics-datasource-list', { params });
+    return response.data?.data?.items ?? [];
   },
 
   getDataSourceFields: async (datasourceKey: string): Promise<FieldMetaItem[]> => {
-    const response = await apiClient.get<ListResponse<FieldMetaItem>>('/insight-statistics-datasource-fields', {
+    const response = await apiClient.get<ApiResponse<{ items: FieldMetaItem[] }>>('/insight-statistics-datasource-fields', {
       params: { datasourceKey },
     });
-    return extractList(response);
+    return response.data?.data?.items ?? [];
   },
 
   getStatConfig: async (): Promise<Record<string, unknown>> => {
-    const response = await apiClient.get<DetailResponse<Record<string, unknown>>>('/insight-statistics-stat-config-get');
-    return extractDetail(response);
+    const response = await apiClient.get<ApiResponse<Record<string, unknown>>>('/insight-statistics-stat-config-get');
+    return response.data?.data;
   },
 };

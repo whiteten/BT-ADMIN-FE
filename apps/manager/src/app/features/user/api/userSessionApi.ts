@@ -1,4 +1,4 @@
-import ApiClient, { type DetailResponse, type ListResponse, extractDetail, extractList } from '@/shared-util';
+import ApiClient, { type ApiResponse } from '@/shared-util';
 import type { UserSession } from '../types';
 
 /**
@@ -32,8 +32,8 @@ export const userSessionApi = {
    * @flow user-session-active
    */
   getActiveSessions: async (params?: Record<string, unknown>): Promise<UserSession[]> => {
-    const response = await apiClient.get<DetailResponse<UserSession[]>>('/user-session-active', { params });
-    return extractDetail(response) ?? [];
+    const response = await apiClient.get<ApiResponse<UserSession[]>>('/user-session-active', { params });
+    return response.data?.data ?? [];
   },
 
   /**
@@ -41,8 +41,8 @@ export const userSessionApi = {
    * @flow user-session-count
    */
   countActiveSessions: async (params?: Record<string, unknown>): Promise<number> => {
-    const response = await apiClient.get<DetailResponse<number>>('/user-session-count', { params });
-    return extractDetail(response);
+    const response = await apiClient.get<ApiResponse<number>>('/user-session-count', { params });
+    return response.data?.data;
   },
 
   /**
@@ -50,8 +50,8 @@ export const userSessionApi = {
    * @flow user-session-history
    */
   getSessionHistory: async (params?: Record<string, unknown>): Promise<PagedResponse<UserSession>> => {
-    const response = await apiClient.get<ListResponse<PagedResponse<UserSession>>>('/user-session-history', { params });
-    return extractList(response) as unknown as PagedResponse<UserSession>;
+    const response = await apiClient.get<ApiResponse<{ items: PagedResponse<UserSession>[] }>>('/user-session-history', { params });
+    return (response.data?.data?.items ?? []) as unknown as PagedResponse<UserSession>;
   },
 
   /**
@@ -59,8 +59,8 @@ export const userSessionApi = {
    * @flow user-session-detail
    */
   getSession: async (params?: Record<string, unknown>): Promise<UserSession> => {
-    const response = await apiClient.get<DetailResponse<UserSession>>('/user-session-detail', { params });
-    return extractDetail(response);
+    const response = await apiClient.get<ApiResponse<UserSession>>('/user-session-detail', { params });
+    return response.data?.data;
   },
 
   /**
@@ -77,8 +77,8 @@ export const userSessionApi = {
    * @flow user-session-terminate-all
    */
   terminateAllSessions: async (params: Record<string, unknown>) => {
-    const response = await apiClient.delete<DetailResponse<number>>('/user-session-terminate-all', { params });
-    return extractDetail(response);
+    const response = await apiClient.delete<ApiResponse<number>>('/user-session-terminate-all', { params });
+    return response.data?.data;
   },
 
   /**
@@ -86,7 +86,7 @@ export const userSessionApi = {
    * @flow user-session-search
    */
   search: async (params?: Record<string, unknown>): Promise<PagedResponse<UserSession>> => {
-    const response = await apiClient.get<ListResponse<PagedResponse<UserSession>>>('/user-session-search', { params });
-    return extractList(response) as unknown as PagedResponse<UserSession>;
+    const response = await apiClient.get<ApiResponse<{ items: PagedResponse<UserSession>[] }>>('/user-session-search', { params });
+    return (response.data?.data?.items ?? []) as unknown as PagedResponse<UserSession>;
   },
 };

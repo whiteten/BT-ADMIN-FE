@@ -1,5 +1,5 @@
 import type { AxiosRequestConfig } from 'axios';
-import ApiClient, { type ListResponse, extractList } from '@/shared-util';
+import ApiClient, { type ApiResponse } from '@/shared-util';
 import type { BotServiceDto, IntentDto, NluAnalysisItem, PagedBotDialogHistory, RetrainLogItem, SlotSankeyItem, TrackingFlowItem } from '../types';
 
 const apiClient = new ApiClient({ serviceURL: '/bff' });
@@ -32,40 +32,40 @@ export interface DialogHistoryConfig {
 export const botDialogHistoryApi = {
   /** 대화이력 기능 설정 조회 */
   getConfig: async (): Promise<DialogHistoryConfig> => {
-    const response = await apiClient.get<{ data: DialogHistoryConfig }>('/bot-dialog-history-config');
+    const response = await apiClient.get<ApiResponse<DialogHistoryConfig>>('/bot-dialog-history-config');
     return response.data?.data ?? { mediaPlayerEnabled: false };
   },
   getBotServices: async (params?: Record<string, unknown>): Promise<BotServiceDto[]> => {
-    const response = await apiClient.get<ListResponse<BotServiceDto>>('/bot-services', { params });
-    return extractList(response);
+    const response = await apiClient.get<ApiResponse<{ items: BotServiceDto[] }>>('/bot-services', { params });
+    return response.data?.data?.items ?? [];
   },
   getBotDialogHistory: async (params?: Record<string, unknown>): Promise<PagedBotDialogHistory> => {
     const { _t, ...body } = params ?? {};
-    const response = await apiClient.post<{ data: PagedBotDialogHistory }>('/bot-dialog-history-list', body);
+    const response = await apiClient.post<ApiResponse<PagedBotDialogHistory>>('/bot-dialog-history-list', body);
     return response.data?.data ?? { items: [], page: 0, size: 0, total: 0 };
   },
   getIntents: async (params?: Record<string, unknown>): Promise<IntentDto[]> => {
-    const response = await apiClient.get<ListResponse<IntentDto>>('/bot-dialog-history-intents', { params });
-    return extractList(response);
+    const response = await apiClient.get<ApiResponse<{ items: IntentDto[] }>>('/bot-dialog-history-intents', { params });
+    return response.data?.data?.items ?? [];
   },
   getBubbles: async (params?: Record<string, unknown>): Promise<TrackingFlowItem[]> => {
-    const response = await apiClient.get<ListResponse<TrackingFlowItem>>('/bot-dialog-history-bubbles', { params });
-    return extractList(response);
+    const response = await apiClient.get<ApiResponse<{ items: TrackingFlowItem[] }>>('/bot-dialog-history-bubbles', { params });
+    return response.data?.data?.items ?? [];
   },
   getNluAnalysis: async (params?: Record<string, unknown>): Promise<NluAnalysisItem[]> => {
-    const response = await apiClient.get<ListResponse<NluAnalysisItem>>('/bot-dialog-history-nlu-analysis', { params });
-    return extractList(response);
+    const response = await apiClient.get<ApiResponse<{ items: NluAnalysisItem[] }>>('/bot-dialog-history-nlu-analysis', { params });
+    return response.data?.data?.items ?? [];
   },
   /**
    * 암호화 버블 on-demand 복호화.
    * 사용자가 🔒 버블을 클릭할 때 사유를 받아 호출하며, 서버 측에서 매 요청이 감사 로그로 기록됩니다.
    */
   decryptBubbles: async ({ params, data }: DecryptBubblesArgs): Promise<DecryptedBubbleDto[]> => {
-    const response = await apiClient.post<ListResponse<DecryptedBubbleDto>>('/bot-dialog-history-bubble-decrypt', data, { params });
-    return extractList(response);
+    const response = await apiClient.post<ApiResponse<{ items: DecryptedBubbleDto[] }>>('/bot-dialog-history-bubble-decrypt', data, { params });
+    return response.data?.data?.items ?? [];
   },
   getIfeRedirectUrl: async (params: { serviceId: number; serviceVer: string; subFlowId: string; nodeName: string }): Promise<string | null> => {
-    const response = await apiClient.get<{ data: { redirectUrl: string } }>('/bot-dialog-history-ife-redirect', { params });
+    const response = await apiClient.get<ApiResponse<{ redirectUrl: string }>>('/bot-dialog-history-ife-redirect', { params });
     return response.data?.data?.redirectUrl ?? '';
   },
   /** 녹취 오디오 Blob 조회. 녹취 파일이 없으면(404 등) null 반환 (에러 토스트 미표시). */
@@ -86,12 +86,12 @@ export const botDialogHistoryApi = {
   },
   /** 슬롯 Sankey 차트 데이터 조회 */
   getSlotSankey: async (data: Record<string, unknown>): Promise<SlotSankeyItem[]> => {
-    const response = await apiClient.post<ListResponse<SlotSankeyItem>>('/bot-dialog-history-slot-sankey', data);
-    return extractList(response);
+    const response = await apiClient.post<ApiResponse<{ items: SlotSankeyItem[] }>>('/bot-dialog-history-slot-sankey', data);
+    return response.data?.data?.items ?? [];
   },
   /** 재학습 변경 이력 조회 */
   getRetrainLogs: async (params: { ucidGkey: string; questionSeq: number; hop: number }): Promise<RetrainLogItem[]> => {
-    const response = await apiClient.get<ListResponse<RetrainLogItem>>('/bot-dialog-history-retrain-logs', { params });
-    return extractList(response);
+    const response = await apiClient.get<ApiResponse<{ items: RetrainLogItem[] }>>('/bot-dialog-history-retrain-logs', { params });
+    return response.data?.data?.items ?? [];
   },
 };

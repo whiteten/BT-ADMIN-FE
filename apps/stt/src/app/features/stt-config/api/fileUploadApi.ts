@@ -1,12 +1,12 @@
-import ApiClient, { type ListResponse, extractList } from '@/shared-util';
+import ApiClient, { type ApiResponse } from '@/shared-util';
 import type { FileUploadItem, FileUploadSearchParams } from '../types';
 
 const apiClient = new ApiClient({ serviceURL: '/bff' });
 
 export const fileUploadApi = {
   getFileUploadList: async (params?: FileUploadSearchParams) => {
-    const response = await apiClient.get<ListResponse<FileUploadItem>>('/stt-file-upload-list', { params });
-    return extractList(response);
+    const response = await apiClient.get<ApiResponse<{ items: FileUploadItem[] }>>('/stt-file-upload-list', { params });
+    return response.data?.data?.items ?? [];
   },
   deleteFileUpload: async (ucidGkey: string) => {
     return apiClient.delete('/stt-file-upload-delete', { params: { ucidGkey } });

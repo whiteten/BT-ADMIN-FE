@@ -14,7 +14,7 @@
  * - manager-node-list:          GET    노드 목록 조회 (cross-service)
  * - ipron-endpoint-list:        GET    국선 목록 조회 (국선배정용)
  */
-import ApiClient, { type DetailResponse, type ListResponse, extractDetail, extractList } from '@/shared-util';
+import ApiClient, { type ApiResponse } from '@/shared-util';
 import type { Route, RouteCreateRequest, RoutePoint, RoutePointBatchRequest, RouteUpdateRequest } from '../types';
 
 interface NodeSimpleResponse {
@@ -33,8 +33,8 @@ export const routeApi = {
    * Backend: ApiResponse<List<RouteResponse>> -> BFF: data.value[]
    */
   getRoutes: async (params?: Record<string, unknown>): Promise<Route[]> => {
-    const response = await apiClient.get<DetailResponse<{ value: Route[] }>>('/ipron-route-list', { params });
-    return extractDetail(response)?.value ?? [];
+    const response = await apiClient.get<ApiResponse<{ value: Route[] }>>('/ipron-route-list', { params });
+    return response.data?.data?.value ?? [];
   },
 
   /**
@@ -43,8 +43,8 @@ export const routeApi = {
    * Backend: ApiResponse<RouteDetailResponse> -> BFF: data:{...}
    */
   getRouteDetail: async (params: Record<string, unknown>): Promise<Route> => {
-    const response = await apiClient.get<DetailResponse<Route>>('/ipron-route-detail', { params });
-    return extractDetail(response);
+    const response = await apiClient.get<ApiResponse<Route>>('/ipron-route-detail', { params });
+    return response.data?.data;
   },
 
   /**
@@ -52,8 +52,8 @@ export const routeApi = {
    * @flow ipron-route-create
    */
   createRoute: async (data: RouteCreateRequest): Promise<Route> => {
-    const response = await apiClient.post<DetailResponse<Route>>('/ipron-route-create', data);
-    return extractDetail(response);
+    const response = await apiClient.post<ApiResponse<Route>>('/ipron-route-create', data);
+    return response.data?.data;
   },
 
   /**
@@ -61,10 +61,10 @@ export const routeApi = {
    * @flow ipron-route-update
    */
   updateRoute: async ({ id, data }: { id: number; data: RouteUpdateRequest }): Promise<Route> => {
-    const response = await apiClient.put<DetailResponse<Route>>('/ipron-route-update', data, {
+    const response = await apiClient.put<ApiResponse<Route>>('/ipron-route-update', data, {
       params: { id },
     });
-    return extractDetail(response);
+    return response.data?.data;
   },
 
   /**
@@ -83,8 +83,8 @@ export const routeApi = {
    * Backend: ApiResponse<List<RoutePointResponse>> -> BFF: data.value[]
    */
   getRoutePoints: async (params: Record<string, unknown>): Promise<RoutePoint[]> => {
-    const response = await apiClient.get<DetailResponse<{ value: RoutePoint[] }>>('/ipron-routepoint-list', { params });
-    return extractDetail(response)?.value ?? [];
+    const response = await apiClient.get<ApiResponse<{ value: RoutePoint[] }>>('/ipron-routepoint-list', { params });
+    return response.data?.data?.value ?? [];
   },
 
   /**
@@ -112,8 +112,8 @@ export const routeApi = {
    * @flow manager-node-list
    */
   getNodes: async (): Promise<NodeSimpleResponse[]> => {
-    const response = await apiClient.get<ListResponse<NodeSimpleResponse>>('/manager-node-list');
-    return extractList(response);
+    const response = await apiClient.get<ApiResponse<{ items: NodeSimpleResponse[] }>>('/manager-node-list');
+    return response.data?.data?.items ?? [];
   },
 
   // ─── Endpoint (국선배정용, cross-feature) ──────────────────────────────────
@@ -123,11 +123,11 @@ export const routeApi = {
    * @flow ipron-endpoint-list
    */
   getEndpoints: async (params?: Record<string, unknown>) => {
-    const response = await apiClient.get<DetailResponse<{ value: { endptId: number; endptName: string; endptType: number; nodeId: number; nodeName: string | null }[] }>>(
+    const response = await apiClient.get<ApiResponse<{ value: { endptId: number; endptName: string; endptType: number; nodeId: number; nodeName: string | null }[] }>>(
       '/ipron-endpoint-list',
       { params },
     );
-    return extractDetail(response)?.value ?? [];
+    return response.data?.data?.value ?? [];
   },
 
   /**
@@ -135,8 +135,8 @@ export const routeApi = {
    * @flow ipron-route-assignable-endpoints
    */
   getAssignableEndpoints: async (routeId: number): Promise<RoutePoint[]> => {
-    const response = await apiClient.get<DetailResponse<{ value: RoutePoint[] }>>('/ipron-route-assignable-endpoints', { params: { id: routeId } });
-    return extractDetail(response)?.value ?? [];
+    const response = await apiClient.get<ApiResponse<{ value: RoutePoint[] }>>('/ipron-route-assignable-endpoints', { params: { id: routeId } });
+    return response.data?.data?.value ?? [];
   },
 
   // ─── 같은 노드 라우트 목록 (Self-ref FK select용) ────────────────────────────
@@ -146,9 +146,9 @@ export const routeApi = {
    * route-list에 nodeId 파라미터를 넘겨서 재사용
    */
   getRoutesByNode: async (nodeId: number): Promise<Route[]> => {
-    const response = await apiClient.get<DetailResponse<{ value: Route[] }>>('/ipron-route-list', {
+    const response = await apiClient.get<ApiResponse<{ value: Route[] }>>('/ipron-route-list', {
       params: { nodeId },
     });
-    return extractDetail(response)?.value ?? [];
+    return response.data?.data?.value ?? [];
   },
 };

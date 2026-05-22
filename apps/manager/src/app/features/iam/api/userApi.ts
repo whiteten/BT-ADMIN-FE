@@ -2,7 +2,7 @@
  * 사용자 관리 API (IAM용)
  * TODO: User, UserListParams 타입을 types/iam.types.ts로 이동 필요
  */
-import ApiClient, { type ListResponse, extractList } from '@/shared-util';
+import ApiClient, { type ApiResponse } from '@/shared-util';
 
 const apiClient = new ApiClient({ serviceURL: '/bff' });
 
@@ -53,15 +53,15 @@ export const userApi = {
    * 사용자 목록 조회
    */
   getList: async (params?: Record<string, unknown>): Promise<User[]> => {
-    const response = await apiClient.get<ListResponse<User>>('/user-list', { params });
-    return extractList(response);
+    const response = await apiClient.get<ApiResponse<{ items: User[] }>>('/user-list', { params });
+    return response.data?.data?.items ?? [];
   },
 
   /**
    * 사용자 검색
    */
   search: async (params?: Record<string, unknown>): Promise<User[]> => {
-    const response = await apiClient.get<ListResponse<User>>('/user-search', { params });
-    return extractList(response);
+    const response = await apiClient.get<ApiResponse<{ items: User[] }>>('/user-search', { params });
+    return response.data?.data?.items ?? [];
   },
 };
