@@ -12,7 +12,7 @@ const apiClient = new ApiClient({ serviceURL: '/bff' });
 
 export const trainingApi = {
   getTrainingList: async (params?: ConfidenceTrainingSearchParams) => {
-    const response = await apiClient.post<ListResponse<ConfidenceTrainingItem>>('/confidence-training-list', params);
+    const response = await apiClient.get<ListResponse<ConfidenceTrainingItem>>('/confidence-training-list', { params });
     return extractList(response);
   },
   createTuningSentence: async (data: TuningSentenceCreateDatas) => {

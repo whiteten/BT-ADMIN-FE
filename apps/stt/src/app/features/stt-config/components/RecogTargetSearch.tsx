@@ -213,6 +213,11 @@ export default function RecogTargetSearch({ groupCode, engineCode }: RecogTarget
       }
     });
 
+    if (/[^가-힣ㄱ-ㅎㅏ-ㅣ\s]/.test(sentence)) {
+      toast.warning('대화내용에 숫자, 영문자, 특수문자는 사용할 수 없습니다.');
+      return;
+    }
+
     gridRef.current?.api?.stopEditing();
 
     createTarget({

@@ -31,7 +31,7 @@ export const recogApi = {
     return apiClient.post<RecogGroupDetail>('/recog-group-detail', { groupCode });
   },
   getRecogTargetSearch: async (params?: RecogTargetSearchParams) => {
-    const response = await apiClient.post<ListResponse<RecogTargetSearchItem>>('/recog-target-search', params);
+    const response = await apiClient.get<ListResponse<RecogTargetSearchItem>>('/recog-target-search', { params });
     return extractList(response);
   },
   createRecogTarget: async (data: RecogTargetCreateData) => {
