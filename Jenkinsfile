@@ -47,6 +47,11 @@ pipeline {
         TODAY_STRING = sh(script: 'date "+%Y%m%d%H%M"', returnStdout: true).trim()
     }
 
+    options {
+        skipDefaultCheckout()  // 자동 Checkout SCM 비활성화 (스테이지 진입 시 master 암묵 체크아웃 방지)
+        disableConcurrentBuilds(abortPrevious: true)  // 새 빌드 트리거 시 진행 중 빌드 즉시 중단 (워크스페이스 공유 충돌·산출물 경합 방지)
+    }
+
     stages {
 
         // =====================================================================
@@ -87,6 +92,7 @@ pipeline {
                 docker {
                     image 'node:22-slim'
                     args '-v ${JENKINS_WORK_PATH}:${JENKINS_WORK_PATH} -u root'
+                    reuseNode true  // 부모 노드 워크스페이스 재사용 (@2 분리 방지 → Checkout 결과 그대로 사용)
                 }
             }
             steps {
@@ -176,8 +182,10 @@ pipeline {
         // =====================================================================
         // 3. 소유권 변경
         // =====================================================================
+        // pipeline-level agent(BT_BOT_FE_PKG) 를 그대로 상속받아야 Node Build 가
+        // 만든 tgz 와 같은 워크스페이스를 보게 됨. stage-level `agent any` 명시
+        // 시 Jenkins 가 새 노드(@2) 를 할당해 워크스페이스 불일치로 tgz 미발견.
         stage('Change Ownership') {
-            agent any
             steps {
                 script {
                     sh """
@@ -192,7 +200,6 @@ pipeline {
         // 4. 아티팩트 저장
         // =====================================================================
         stage('Publish to Shared') {
-            agent any
             steps {
                 // 브랜치별 latest 사본을 공유 디렉토리에 덮어쓰기 (BE가 cp로 fetch)
                 sh """
@@ -214,11 +221,14 @@ pipeline {
             echo "BT-ADMIN FE 빌드 실패"
         }
         always {
-            sh 'sudo chown -R jenkins:jenkins ${JENKINS_WORK_PATH} || true'
+            // 빌드 실패 시 Change Ownership 스테이지가 스킵되므로 여기서도 한 번 더 복원.
+            // docker -u root 로 생성된 파일이 워크스페이스에 남아 cleanWs 권한 에러 나는 문제 방지.
+            // 실제 워크스페이스 경로(${WORKSPACE})를 사용 — JENKINS_WORK_PATH 는 실제 워크스페이스와 무관한 잔여 변수.
+            sh 'sudo chown -R jenkins:jenkins ${WORKSPACE} || true'
             cleanWs(patterns: [
                 [pattern: 'node_modules/**', type: 'EXCLUDE'],
                 [pattern: '.git/**', type: 'EXCLUDE'],
-                [pattern: '.nx/cache/**', type: 'EXCLUDE']
+                [pattern: '.nx/**', type: 'EXCLUDE']
             ])
         }
     }

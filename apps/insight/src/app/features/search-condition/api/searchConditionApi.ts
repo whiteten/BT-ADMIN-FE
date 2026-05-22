@@ -28,8 +28,21 @@ export const searchConditionApi = {
     await apiClient.delete('/insight-statistics-search-condition-delete', { params: { searchCondId } });
   },
 
+  /**
+   * SQL 미리보기.
+   * 백엔드는 ApiResponse<List<T>>를 반환 — BFF 단일 스텝 통과 후 data가 배열 직접 노출.
+   * extractDetail 로 data 추출 후 배열로 캐스팅.
+   */
   previewSql: async (data: SqlPreviewRequest): Promise<SqlPreviewResult[]> => {
-    const response = await apiClient.post<ListResponse<SqlPreviewResult>>('/insight-statistics-search-condition-preview', data);
-    return extractList(response);
+    const response = await apiClient.post<Record<string, unknown>>('/insight-statistics-search-condition-preview', data);
+    // BFF step_id에 따라 data 키가 다를 수 있음 (value / items / 배열 직접)
+    const raw = (response as unknown as { data: { data: unknown } })?.data?.data;
+    if (Array.isArray(raw)) return raw as SqlPreviewResult[];
+    if (raw && typeof raw === 'object') {
+      // step_id = "value" 또는 "items"
+      const arr = (raw as Record<string, unknown>).value ?? (raw as Record<string, unknown>).items;
+      if (Array.isArray(arr)) return arr as SqlPreviewResult[];
+    }
+    return [];
   },
 };

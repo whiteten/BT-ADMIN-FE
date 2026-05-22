@@ -1,0 +1,19 @@
+@theme {
+  /* BT 디자인 시스템 색상 — insight 앱 전용 (03-full-flow.html 기준) */
+  --color-bt-primary:       #085fb5;
+  --color-bt-primary-hover: #0756a3;
+  --color-bt-primary-soft:  #e7f0fa;
+  --color-bt-fg:            #0a0a0b;
+  --color-bt-fg-muted:      #6a6f78;
+  --color-bt-border:        #e4e7ec;
+  --color-bt-border-strong: #cdd2d9;
+  --color-bt-bg:            #ffffff;
+  --color-bt-bg-muted:      #f6f7f9;
+  --color-bt-bg-canvas:     #f1f3f6;
+  --color-bt-success:       #0a8a4a;
+  --color-bt-success-soft:  #e6f4ec;
+  --color-bt-warn:          #b76e00;
+  --color-bt-warn-soft:     #fdf3e1;
+  --color-bt-danger:        #c92a2a;
+  --color-bt-danger-soft:   #fbeaea;
+}
