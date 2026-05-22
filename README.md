@@ -1,26 +1,19 @@
 # BT Admin FE
 
-> 작성일: 2025-02-25
-
 Bridgetec 관리자 프론트엔드 — Nx 모노레포 기반의 마이크로 프론트엔드 애플리케이션입니다.
+Module Federation으로 Host 셸 위에 여러 Remote 앱을 통합합니다.
 
-## 아키텍처
+## 빠른 시작
 
-[Module Federation](https://module-federation.io/)을 사용하여 Host-Remote 구조로 구성되어 있습니다.
-
+```bash
+pnpm install      # 의존성 설치 (npm·yarn 사용 금지, pnpm 전용)
+pnpm run serve    # 개발 서버 시작 (대화형 앱 선택)
+pnpm run build    # 프로덕션 빌드
 ```
-bt-admin-fe/
-├── apps/
-│   ├── host/         # Host 앱 (셸, 인증, 레이아웃)     :4200
-│   ├── manager/      # Remote - 매니저 (사용자·권한 관리)  :4201
-│   └── fca/          # Remote - ForCus AI (봇·대시보드)    :4202
-├── libs/
-│   ├── shared-ui/    # 공통 UI 컴포넌트 (shadcn/ui, 커스텀)
-│   ├── shared-api/   # 공통 API (역할, 네비게이션, 즐겨찾기)
-│   ├── shared-store/ # 전역 상태 관리 (Zustand)
-│   └── shared-util/  # 유틸리티 (API 클라이언트, 로깅, 토스트)
-└── scripts/          # 빌드·서빙·Remote 생성 스크립트
-```
+
+> 처음이라면 [doc/DEVELOPER_GUIDE.md](doc/DEVELOPER_GUIDE.md)의 "환경 설정"부터 읽으세요.
+>
+> 백엔드 proxy는 `apps/host/proxy.config.local.json`을 만들어 개인 서버를 지정합니다 (커밋 금지 — 상세는 가이드 참조).
 
 ## 필수 환경
 
@@ -29,74 +22,68 @@ bt-admin-fe/
 | **Node.js** | v22.17.0 |
 | **pnpm**    | 10.29.2  |
 
-## 시작하기
+> 나머지 도구(Nx, TypeScript, Webpack 등)는 `package.json`에 버전이 명시되어 있으며 `pnpm install` 시 자동 설치됩니다.
 
-```bash
-# 의존성 설치
-pnpm install
+## 프로젝트 구조
 
-# 개발 서버 시작 (Host + 모든 Remote)
-pnpm run serve
-
-# 프로덕션 빌드
-pnpm run build
 ```
+bt-admin-fe/
+├── apps/
+│   ├── host/         # Host 앱 (셸·인증·레이아웃)  port:4200
+│   ├── manager/      # Remote  port:4201
+│   ├── fca/          # Remote  port:4202
+│   ├── ipron/        # Remote  port:4203
+│   ├── aoe/          # Remote  port:4204
+│   ├── stt/          # Remote  port:4205
+│   ├── ivr/          # Remote  port:4206
+│   └── insight/      # Remote  port:4207
+├── libs/
+│   ├── shared-ui/    # 공통 UI 컴포넌트 (shadcn/ui, 커스텀)
+│   ├── shared-api/   # 공통 API (역할, 네비게이션, 즐겨찾기)
+│   ├── shared-store/ # 전역 상태 관리 (Zustand)
+│   └── shared-util/  # 유틸리티 (API 클라이언트, 로깅, 토스트)
+└── scripts/          # 빌드·서빙·Remote 생성 스크립트
+```
+
+> `apps/fca`가 폴더 구조의 **레퍼런스 구현**입니다. 신규 Remote는 반드시 `pnpm run create-remote`로 생성하세요.
 
 ## 주요 명령어
 
-| 명령어                  | 설명                                  |
-| ----------------------- | ------------------------------------- |
-| `pnpm run serve`        | 개발 서버 시작 (대화형 앱 선택)       |
-| `pnpm run build`        | 프로덕션 빌드 (대화형 앱 선택)        |
-| `pnpm run serve:prod`   | 프로덕션 빌드 결과물 서빙 (:4200)     |
-| `pnpm run create-remote`| 새 Remote 앱 생성 (MF 설정 자동 구성) |
-| `pnpm run shadcn:add`   | shared-ui에 shadcn/ui 컴포넌트 추가   |
-| `pnpm commit`           | Commitizen 대화형 커밋                |
-| `pnpm run graph`        | Nx 의존성 그래프 시각화               |
+| 명령어                   | 설명                                  |
+| ------------------------ | ------------------------------------- |
+| `pnpm run serve`         | 개발 서버 시작 (대화형 앱 선택)        |
+| `pnpm run build`         | 프로덕션 빌드 (대화형 앱 선택)         |
+| `pnpm run serve:prod`    | 프로덕션 빌드 결과물 서빙 (:4200)      |
+| `pnpm run create-remote` | 새 Remote 앱 생성 (MF 설정 자동 구성)  |
+| `pnpm run shadcn:add`    | shared-ui에 shadcn/ui 컴포넌트 추가    |
+| `pnpm run graph`         | Nx 의존성 그래프 시각화                |
+| `pnpm commit`            | Commitizen 대화형 커밋                 |
 
-### Nx 직접 명령
-
-```bash
-# 특정 앱 서빙
-npx nx serve <app-name>
-
-# 린트
-npx nx run-many --target=lint --all
-
-# 타입 검사
-npx nx run-many --target=typecheck --all
-
-# 테스트
-npx nx run-many --target=test --all
-```
+린트·타입 검사·테스트 등 Nx 직접 명령은 `npx nx run-many --target=<lint|typecheck|test> --all` 형태로 실행합니다.
 
 ## 기술 스택
 
-| 영역           | 기술                                          |
-| -------------- | --------------------------------------------- |
-| 프레임워크     | React 19, TypeScript 5.8                      |
-| 빌드           | Webpack 5, @module-federation/enhanced        |
-| 모노레포       | Nx 21                                         |
-| 스타일링       | Tailwind CSS v4, shadcn/ui, Ant Design v6     |
-| 데이터 테이블  | AG-Grid Enterprise                            |
-| 서버 상태      | TanStack Query                                |
-| 클라이언트 상태| Zustand                                       |
-| 폼             | React Hook Form + Zod                         |
-| 라우팅         | React Router DOM 6                            |
-| 코드 품질      | ESLint 9, Prettier, Husky, lint-staged        |
-| 커밋 관리      | Commitizen + cz-git, commitlint               |
-| E2E 테스트     | Playwright                                    |
+React 19 · TypeScript 5.8 · Nx 21 · Webpack 5 (Module Federation) ·
+Tailwind CSS v4 · shadcn/ui · Ant Design v6 · AG-Grid Enterprise ·
+TanStack Query · Zustand · React Hook Form + Zod · React Router DOM 6
 
-## 경로 별칭
+## Claude Code 기반 개발
 
-`tsconfig.base.json`에 정의된 주요 별칭입니다.
+이 프로젝트는 [Claude Code](https://claude.com/claude-code)를 활용한 AI 협업 개발을 전제로 구성되어 있습니다.
+저장소 안에 에이전트가 따라야 할 규약과 반복 작업 자동화가 함께 들어 있습니다.
 
-| 별칭                      | 실제 경로                                  |
-| ------------------------- | ------------------------------------------ |
-| `@/components/ui/*`       | `libs/shared-ui/src/components/shadcn/*`   |
-| `@/components/custom/*`   | `libs/shared-ui/src/components/custom/*`   |
-| `@/lib/utils`             | `libs/shared-ui/src/lib/utils`             |
-| `@/shared-util`           | `libs/shared-util/src/index.ts`            |
-| `@/shared-api`            | `libs/shared-api/src/index.ts`             |
-| `@/shared-store`          | `libs/shared-store/src/index.ts`           |
-| `@/log`                   | `libs/shared-util/src/lib/log.ts`          |
+| 위치                  | 역할                                                              |
+| --------------------- | ----------------------------------------------------------------- |
+| `CLAUDE.md`           | 에이전트가 따라야 할 프로젝트 규약·아키텍처·코딩 컨벤션 지침       |
+| `.claude/skills/`     | 반복 작업용 스킬 — `add-api`, `add-drawer`, `add-form`, `add-grid`, `add-store`, `commit` |
+| `.claude/commands/`   | 슬래시 커맨드 — `/update-remote` (remote 앱 구조 점검·정규화)      |
+
+> 새 API 계층, Drawer, 폼, 그리드, 스토어를 추가하거나 커밋 메시지를 작성할 때는 해당 스킬의 패턴을 따릅니다.
+> 코딩 규약 자체는 `CLAUDE.md`와 [doc/DEVELOPER_GUIDE.md](doc/DEVELOPER_GUIDE.md)가 단일 출처입니다.
+
+## 문서 안내
+
+이 README는 프로젝트 개요와 실행 방법만 담습니다. 깊은 내용은 아래 문서를 참조하세요.
+
+- **[doc/DEVELOPER_GUIDE.md](doc/DEVELOPER_GUIDE.md)** — 개발자 온보딩. 코딩 규약·패턴·아키텍처 상세 가이드
+- **[CLAUDE.md](CLAUDE.md)** — Claude Code 작업 지침 (위 "Claude Code 기반 개발" 참조)
