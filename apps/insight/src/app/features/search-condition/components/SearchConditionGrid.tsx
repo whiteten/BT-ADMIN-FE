@@ -1,4 +1,4 @@
-import type { ColDef } from 'ag-grid-community';
+import type { ColDef, ICellRendererParams } from 'ag-grid-community';
 import { AgGridReact } from 'ag-grid-react';
 import { useSearchConditionStore } from '../hooks/useSearchConditionStore';
 import type { SearchConditionListItem } from '../types';
@@ -21,57 +21,63 @@ export default function SearchConditionGrid({ conditions }: SearchConditionGridP
 
   const columnDefs: ColDef<SearchConditionListItem>[] = [
     {
-      field: 'nodes',
       headerName: 'KEY',
-      width: 160,
-      cellRenderer: (params: { data: SearchConditionListItem }) => {
-        const firstNode = params.data.nodes[0];
-        return `<span class="font-mono text-[11px] font-semibold">${firstNode?.nodeCode ?? '-'}</span>`;
-      },
-    },
-    {
-      field: 'title',
-      headerName: '표시명',
-      flex: 1,
-      cellRenderer: (params: { value: string }) => `<span class="font-medium">${params.value}</span>`,
-    },
-    {
-      field: 'categoryCode',
-      headerName: 'GROUP',
-      width: 100,
-      cellRenderer: (params: { value?: string }) => (params.value ? `<span class="rounded bg-bt-bg-muted px-1.5 py-0.5 text-[10px]">${params.value}</span>` : '-'),
-    },
-    {
       field: 'nodes',
-      headerName: 'INPUT_TYPE',
-      width: 180,
-      cellRenderer: (params: { data: SearchConditionListItem }) => {
-        return params.data.nodes
-          .map((n) => {
-            const color = INPUT_TYPE_COLORS[n.inputType] ?? 'text-bt-fg-muted bg-bt-bg-muted';
-            return `<span class="rounded ${color} px-1.5 py-0.5 text-[10px] font-semibold mr-1">${n.inputType}</span>`;
-          })
-          .join('');
+      colId: 'nodeCode',
+      width: 160,
+      cellRenderer: (params: ICellRendererParams<SearchConditionListItem>) => {
+        const firstNode = params.data?.nodes[0];
+        return <span className="font-mono">{firstNode?.nodeCode ?? '-'}</span>;
       },
     },
     {
-      field: 'isBundle',
-      headerName: '번들',
-      width: 70,
-      cellRenderer: (params: { value: boolean }) => (params.value ? `<span class="text-[10px] text-bt-success">묶음</span>` : ''),
+      headerName: '표시명',
+      field: 'title',
+      flex: 1,
     },
     {
-      field: 'usedReportCount',
-      headerName: '사용 보고서',
+      headerName: 'GROUP',
+      field: 'categoryCode',
       width: 100,
+      cellRenderer: (params: ICellRendererParams<SearchConditionListItem>) => (params.value ? <span className="rounded bg-bt-bg-muted px-1.5 py-0.5">{params.value}</span> : '-'),
+    },
+    {
+      headerName: 'INPUT_TYPE',
+      field: 'nodes',
+      colId: 'inputType',
+      width: 180,
+      cellRenderer: (params: ICellRendererParams<SearchConditionListItem>) => (
+        <div className="flex flex-wrap gap-1 items-center h-full">
+          {params.data?.nodes.map((n) => {
+            const color = INPUT_TYPE_COLORS[n.inputType] ?? 'text-bt-fg-muted bg-bt-bg-muted';
+            return (
+              <span key={n.nodeCode} className={`rounded ${color} px-1.5 py-0.5`}>
+                {n.inputType}
+              </span>
+            );
+          })}
+        </div>
+      ),
+    },
+    {
+      headerName: '번들',
+      field: 'isBundle',
+      width: 70,
+      cellRenderer: (params: ICellRendererParams<SearchConditionListItem>) => (params.value ? <span className="text-bt-success">묶음</span> : null),
+    },
+    {
+      headerName: '사용 보고서',
+      field: 'usedReportCount',
+      width: 110,
       type: 'numericColumn',
-      cellRenderer: (params: { value: number }) => `<span class="font-mono">${params.value}</span>`,
     },
     {
       headerName: '',
+      colId: 'action',
       width: 40,
-      cellRenderer: () => `<span class="text-bt-fg-muted cursor-pointer">⋯</span>`,
       sortable: false,
+      suppressHeaderMenuButton: true,
+      cellRenderer: () => <span className="text-bt-fg-muted cursor-pointer">⋯</span>,
     },
   ];
 

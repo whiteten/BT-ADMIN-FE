@@ -76,15 +76,3 @@ export interface SqlPreviewResult {
   parent?: string | null;
   level?: number | null;
 }
-
-/** 카탈로그 테이블 — 노드 단위 플랫 행 */
-export interface CatalogRow {
-  searchCondId: number;
-  title: string;
-  categoryCode?: string;
-  usedReportCount: number;
-  nodeCode: string;
-  inputType: InputType;
-  parentNodeCode?: string | null;
-  optionSqlPreview?: string | null;
-}

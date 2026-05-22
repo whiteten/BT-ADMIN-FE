@@ -46,7 +46,7 @@ function AggridRowDataSidebar<TData = Record<string, unknown>>(props: CustomTool
       return (
         <div key={field} className="pb-3">
           <p className="font-bold pb-1 break-all">{displayName}</p>
-          <p className="text-sm text-gray-500 break-all">{value}</p>
+          <p className="text-sm text-gray-500 break-all">{value === null || value === undefined ? '-' : typeof value === 'object' ? JSON.stringify(value) : String(value)}</p>
         </div>
       );
     });
