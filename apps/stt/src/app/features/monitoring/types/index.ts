@@ -5,26 +5,34 @@ export interface ChannelStatusItem {
   progressRate: string;
   chrPer: string;
   ucidGkey?: string;
+  dnNo?: string;
+  agentName?: string;
+  inoutKind?: string;
+  callDatetime?: string;
 }
 
 export interface SttChatSentence {
-  speaker: 'TX' | 'RX';
+  speaker: number; // 0: 왼쪽(고객), 1: 오른쪽(상담사)
   text: string;
-  time: string;
-  offset: number;
+  stime: string;
 }
 
-export interface SttRealSentenceDrawerInfo {
+export interface RealtimeSentenceDrawerInfo {
   ucidGkey: string;
   channelId?: number;
   channelStatusNm?: string;
   dnNo?: string;
   agentName?: string;
-  progressRate?: string;
+  inoutKind?: string;
+  callDatetime?: string;
 }
 
 export interface ChannelStatusSearchParams {
   ipv4: string;
+}
+
+export interface DnStatusSearchParams {
+  dnNo?: string;
 }
 
 export interface DnStatusItem {
@@ -32,4 +40,9 @@ export interface DnStatusItem {
   ucidGkey: string;
   agentName: string;
   progressRate: string;
+  ty?: string;
+  channelId?: number;
+  channelStatusNm?: string;
+  inoutKind?: string;
+  callDatetime?: string;
 }

@@ -2,15 +2,15 @@ import { useEffect, useRef, useState } from 'react';
 import { type BreadcrumbProps, Select } from 'antd';
 import { Monitor } from 'lucide-react';
 import { useBreadcrumbStore } from '@/shared-store';
-import SttRealSentenceDrawer, { type SttRealSentenceDrawerRef } from '../../features/monitoring/components/SttRealSentenceDrawer';
-import { useGetChannelStatusList } from '../../features/monitoring/hooks/useChannelStatusQueries';
+import RealtimeSentenceDrawer, { type RealtimeSentenceDrawerRef } from '../../features/monitoring/components/RealtimeSentenceDrawer';
+import { useGetChannelStatusList } from '../../features/monitoring/hooks/useMonitoringQueries';
 import type { ChannelStatusItem } from '../../features/monitoring/types';
 import { useGetSttSystemList } from '../../features/stt-config/hooks/useCommonQueries';
 import NoData from '@/components/custom/NoData';
 
 const breadcrumb: BreadcrumbProps['items'] = [
   { title: 'STT 모니터링', path: '/stt/stt-monitoring' },
-  { title: '채널 현황', path: '/stt/stt-monitoring/channel/list' },
+  { title: 'STT 채널현황', path: '/stt/stt-monitoring/channel/list' },
 ];
 
 function ChannelCard({ item, onClick }: { item: ChannelStatusItem; onClick: (item: ChannelStatusItem) => void }) {
@@ -27,7 +27,7 @@ function ChannelCard({ item, onClick }: { item: ChannelStatusItem; onClick: (ite
 export default function ChannelStatusList() {
   const setBreadcrumb = useBreadcrumbStore((s) => s.setBreadcrumb);
   const clearBreadcrumb = useBreadcrumbStore((s) => s.clearBreadcrumb);
-  const drawerRef = useRef<SttRealSentenceDrawerRef>(null);
+  const drawerRef = useRef<RealtimeSentenceDrawerRef>(null);
 
   useEffect(() => {
     setBreadcrumb(breadcrumb);
@@ -63,7 +63,10 @@ export default function ChannelStatusList() {
       ucidGkey: item.ucidGkey,
       channelId: item.channelId,
       channelStatusNm: item.channelStatusNm,
-      progressRate: item.progressRate,
+      dnNo: item.dnNo,
+      agentName: item.agentName,
+      inoutKind: item.inoutKind,
+      callDatetime: item.callDatetime,
     });
   };
 
@@ -106,7 +109,7 @@ export default function ChannelStatusList() {
           )}
         </div>
       </div>
-      <SttRealSentenceDrawer ref={drawerRef} />
+      <RealtimeSentenceDrawer ref={drawerRef} />
     </div>
   );
 }

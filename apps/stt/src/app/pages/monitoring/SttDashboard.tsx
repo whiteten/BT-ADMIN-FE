@@ -4,7 +4,7 @@ import { useBreadcrumbStore } from '@/shared-store';
 
 const breadcrumb: BreadcrumbProps['items'] = [
   { title: 'STT 모니터링', path: '/stt/stt-monitoring' },
-  { title: '대시보드', path: '/stt/stt-monitoring/dashboard/list' },
+  { title: 'STT 대시보드', path: '/stt/stt-monitoring/dashboard/list' },
 ];
 
 export default function SttDashboard() {
