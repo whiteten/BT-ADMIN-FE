@@ -47,6 +47,9 @@ const AgentMasterList = React.lazy(() => import('./pages/agent-master/AgentMaste
 const AgentMasterForm = React.lazy(() => import('./pages/agent-master/AgentMasterForm'));
 const AgentGroupForm = React.lazy(() => import('./pages/agent-master/AgentGroupForm'));
 
+// cti-code-mgmt (휴식/ACW 사유 + 미디어타입 통합)
+const CtiCodeList = React.lazy(() => import('./pages/cti-code/CtiCodeList'));
+
 // tracking
 const TrackingSearch = React.lazy(() => import('./pages/tracking/TrackingSearch'));
 const CallDetail = React.lazy(() => import('./pages/tracking/CallDetail'));
@@ -179,6 +182,10 @@ export const routes = [
           { path: 'groups/create', element: <AgentGroupForm /> },
           { path: 'groups/:id/edit', element: <AgentGroupForm /> },
         ],
+      },
+      {
+        path: 'cti-code-mgmt',
+        element: <CtiCodeList />,
       },
       {
         path: 'tracking',
