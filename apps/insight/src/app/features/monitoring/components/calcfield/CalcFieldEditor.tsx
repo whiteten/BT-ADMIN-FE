@@ -295,9 +295,6 @@ export default function CalcFieldEditor({ baseFields, existingCalcFields, initia
         {/* 함수 — 모니터링은 집계 함수 금지(M3) — 수학/조건만 노출 */}
         <div className="mb-5">
           <p className="mb-2 text-xs font-semibold text-muted-foreground uppercase tracking-wide">함수</p>
-          <div className="mb-2 rounded border border-amber-200 bg-amber-50 px-2 py-1.5 text-[10.5px] text-amber-700">
-            ⚠ M3: 집계 함수(SUM/AVG/COUNT/MIN/MAX)는 row 식 모니터링에서 불가
-          </div>
           <p className="mb-1 text-xs text-muted-foreground">수학</p>
           <div className="mb-2 flex flex-wrap gap-1">
             {MATH_FUNCS.map((f) => (
@@ -520,8 +517,8 @@ export default function CalcFieldEditor({ baseFields, existingCalcFields, initia
           )}
         </div>
 
-        {/* Footer */}
-        <div className="mt-auto flex items-center justify-between border-t border-border pt-4">
+        {/* Footer — 미리보기 바로 아래(빌더 자연 흐름)에 배치. 큰 화면에서 mt-auto로 빌더 하단에 떨어지면 사용자가 한참 스크롤해야 했음 */}
+        <div className="mt-2 flex items-center justify-between border-t border-border pt-4">
           <div>
             {isValid ? (
               <span className="inline-flex items-center gap-1.5 rounded-full bg-green-100 px-3 py-1 text-xs font-semibold text-green-700">✓ VALID</span>

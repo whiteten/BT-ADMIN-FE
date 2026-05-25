@@ -1,24 +1,34 @@
 import WidgetCardHeader from './WidgetCardHeader';
 import type { CustomWidget } from '../../types';
+import { getCustomWidgetComponent } from '../../widgets/registry';
 
 interface CustomWidgetCardProps {
   widget: CustomWidget;
   editMode: boolean;
+  /** WebSocket DATA 프레임의 `data` (BE 위젯 `computeFromRawData` 반환값). */
+  data?: unknown;
   onSettings?: () => void;
   onDelete?: () => void;
   draggableClass?: string;
 }
 
 /**
- * 커스텀 위젯 카드 — placeholder 렌더
- * 실 환경: widgetTypeId로 BE/FE 매칭된 전용 컴포넌트 lazy 로드
+ * 커스텀 위젯 카드.
+ *
+ * - 우선순위 1: `widgets/registry.ts` 에 등록된 컴포넌트 (BE 와 1:1 매칭되는 실 위젯)
+ * - 우선순위 2: 본 파일 내 데모 placeholder (시안 §6 ExtensionStatusGrid / SLA 게이지)
+ * - 우선순위 3: GenericCustomPlaceholder (FE 컴포넌트 미구현 widgetType)
  */
-export default function CustomWidgetCard({ widget, editMode, onSettings, onDelete, draggableClass }: CustomWidgetCardProps) {
+export default function CustomWidgetCard({ widget, editMode, data, onSettings, onDelete, draggableClass }: CustomWidgetCardProps) {
+  const Registered = getCustomWidgetComponent(widget.widgetTypeId);
+
   return (
     <div className="flex flex-col h-full bg-white rounded shadow-sm border border-[var(--color-bt-border)] overflow-hidden">
       <WidgetCardHeader widget={widget} editMode={editMode} onSettings={onSettings} onDelete={onDelete} draggableClass={draggableClass} />
       <div className="flex-1 overflow-hidden">
-        {widget.widgetTypeId === 'extension-status-grid' ? (
+        {Registered ? (
+          <Registered data={data} options={widget.options} />
+        ) : widget.widgetTypeId === 'extension-status-grid' ? (
           <ExtensionStatusGridDemo />
         ) : widget.widgetTypeId === 'service-level-gauge' ? (
           <ServiceLevelGaugeDemo />

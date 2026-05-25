@@ -150,7 +150,7 @@ export default function TemplateWidgetWizard() {
   return (
     <div className="flex flex-col w-full h-full bg-[var(--color-bt-bg-canvas)]">
       {/* Stepper */}
-      <div className="flex items-center justify-center bg-white border-b border-[var(--color-bt-border)] px-7 py-4">
+      <div className="flex items-center justify-center bg-white bt-shadow px-7 py-4">
         <Steps
           current={currentStep}
           size="small"
@@ -197,7 +197,7 @@ export default function TemplateWidgetWizard() {
       </div>
 
       {/* Footer */}
-      <div className="flex items-center justify-between bg-white border-t border-[var(--color-bt-border)] px-7 py-3">
+      <div className="flex items-center justify-between bg-white bt-shadow px-7 py-3">
         <Button onClick={handleCancel}>취소</Button>
         <div className="flex items-center gap-2">
           <Button icon={<ChevronLeft className="w-3.5 h-3.5" />} onClick={handleBack}>

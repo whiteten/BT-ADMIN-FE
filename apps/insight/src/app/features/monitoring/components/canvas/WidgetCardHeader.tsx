@@ -31,7 +31,7 @@ export default function WidgetCardHeader({
   const isTemplate = widget.kind === 'TEMPLATE';
 
   return (
-    <div className={`flex items-center justify-between gap-2 border-b border-[var(--color-bt-border)] bg-white px-3 py-2 ${editMode ? `cursor-move ${draggableClass}` : ''}`}>
+    <div className={`flex items-center justify-between gap-2 bg-white px-3 py-2 ${editMode ? `cursor-move ${draggableClass}` : ''}`}>
       {/* 좌측: 이름 + 종류 칩 + 현재 시각화 */}
       <div className="flex items-center gap-1.5 min-w-0">
         <span className="text-[12.5px] font-semibold truncate">{widget.widgetName}</span>

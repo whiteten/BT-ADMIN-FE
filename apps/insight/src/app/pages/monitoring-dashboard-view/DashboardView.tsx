@@ -5,8 +5,6 @@ import DashboardViewHeader from '../../features/monitoring/components/DashboardV
 import DashboardCanvas from '../../features/monitoring/components/canvas/DashboardCanvas';
 import { useGetDashboard } from '../../features/monitoring/hooks/useDashboardQueries';
 import { useDashboardSocket } from '../../features/monitoring/hooks/useDashboardSocket';
-import { getMockDashboardDetail } from '../../features/monitoring/mocks/mockDashboards';
-import { getMockWidgets } from '../../features/monitoring/mocks/mockWidgets';
 import type { Widget } from '../../features/monitoring/types';
 import { FallbackSpinner } from '@/components/custom/FallbackSpinner';
 import NoData from '@/components/custom/NoData';
@@ -18,23 +16,18 @@ export default function DashboardView() {
   const setBreadcrumb = useBreadcrumbStore((s) => s.setBreadcrumb);
   const clearBreadcrumb = useBreadcrumbStore((s) => s.clearBreadcrumb);
 
-  const { data: fetched, isLoading } = useGetDashboard({
+  const { data: dashboard, isLoading } = useGetDashboard({
     params: { dashboardId },
     queryOptions: { enabled: !!dashboardId, retry: false },
   });
-  const dashboard = useMemo(() => fetched ?? getMockDashboardDetail(dashboardId), [fetched, dashboardId]);
 
-  // 위젯 — mock fallback
-  const initialWidgets = useMemo<Widget[]>(() => {
-    if (fetched?.widgets && fetched.widgets.length > 0) return fetched.widgets;
-    return getMockWidgets(dashboardId);
-  }, [fetched, dashboardId]);
+  const initialWidgets = useMemo<Widget[]>(() => (dashboard?.widgets ?? []) as Widget[], [dashboard]);
 
   // 글로벌 옵션
   const [refreshThrottle, setRefreshThrottle] = useState<1 | 3 | 5 | 10 | 'PAUSED'>(3);
 
   // 실시간 WebSocket 연결 (useDashboardSocket — M17)
-  const { connectionState } = useDashboardSocket({
+  const { connectionState, widgetData } = useDashboardSocket({
     dashboardId,
     widgets: initialWidgets,
     refreshThrottle,
@@ -94,7 +87,7 @@ export default function DashboardView() {
           )}
         </div>
       ) : (
-        <DashboardCanvas dashboardId={dashboardId} widgets={initialWidgets} editMode={false} />
+        <DashboardCanvas dashboardId={dashboardId} widgets={initialWidgets} editMode={false} widgetData={widgetData} />
       )}
     </div>
   );

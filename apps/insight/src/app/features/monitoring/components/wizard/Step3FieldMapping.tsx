@@ -29,7 +29,7 @@ export default function Step3FieldMapping({ datasetId, fieldOverrides, visualiza
   return (
     <div className="flex flex-col flex-1 overflow-hidden bg-white">
       {/* 헤더 */}
-      <div className="px-7 py-3 border-b border-[var(--color-bt-border)]">
+      <div className="px-7 py-3">
         <div className="text-[13px] font-semibold">필드 매핑 — 시각화 슬롯에 필드 배치</div>
         <div className="text-[10.5px] text-[var(--color-bt-fg-muted)] mt-0.5">좌측 팔레트에서 필드 클릭 → 우측 슬롯에 자동 추가. 시각화별로 슬롯 제약이 다릅니다.</div>
       </div>

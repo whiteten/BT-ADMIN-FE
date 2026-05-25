@@ -13,13 +13,13 @@ const ReportView = React.lazy(() => import('./pages/report-view/ReportView'));
 
 // ─── 모니터링 ────────────────────────────────────────────────────────
 const DashboardList = React.lazy(() => import('./pages/monitoring-dashboards/DashboardList'));
+const DashboardCreateWizard = React.lazy(() => import('./pages/monitoring-dashboard-wizard/DashboardCreateWizard'));
 const DashboardEditor = React.lazy(() => import('./pages/monitoring-dashboard-editor/DashboardEditor'));
 const TemplateWidgetWizard = React.lazy(() => import('./pages/monitoring-template-widget-wizard/TemplateWidgetWizard'));
 const CustomWidgetCatalogPage = React.lazy(() => import('./pages/monitoring-custom-widget-catalog/CustomWidgetCatalogPage'));
 const DashboardView = React.lazy(() => import('./pages/monitoring-dashboard-view/DashboardView'));
 const DatasetCatalog = React.lazy(() => import('./pages/monitoring-datasets/DatasetCatalog'));
 const DatasetWizard = React.lazy(() => import('./pages/monitoring-dataset-wizard/DatasetWizard'));
-const DatasetLookups = React.lazy(() => import('./pages/monitoring-dataset-lookups/DatasetLookups'));
 const LookupCatalogList = React.lazy(() => import('./pages/monitoring-lookups/LookupCatalogList'));
 
 export const routes = [
@@ -67,6 +67,7 @@ export const routes = [
             element: <Outlet />,
             children: [
               { index: true, element: <DashboardList /> },
+              { path: 'create', element: <DashboardCreateWizard /> },
               { path: ':dashboardId/edit', element: <DashboardEditor /> },
               { path: ':dashboardId/edit/widget/create/template', element: <TemplateWidgetWizard /> },
               { path: ':dashboardId/edit/widget/create/custom', element: <CustomWidgetCatalogPage /> },
@@ -80,7 +81,6 @@ export const routes = [
               { index: true, element: <DatasetCatalog /> },
               { path: 'create', element: <DatasetWizard /> },
               { path: ':datasetId/edit', element: <DatasetWizard /> },
-              { path: ':datasetId/lookups', element: <DatasetLookups /> },
             ],
           },
           {

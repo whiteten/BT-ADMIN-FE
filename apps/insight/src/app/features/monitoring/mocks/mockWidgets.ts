@@ -87,5 +87,22 @@ export function getMockWidgets(dashboardId: number): Widget[] {
       },
     ];
   }
+
+  // 대시보드 2 (IC 상담그룹 관제) — 상담사 상태 모니터링 E2E 시연용
+  if (dashboardId === 2) {
+    return [
+      {
+        widgetId: 201,
+        dashboardId: 2,
+        widgetName: '상담사 상태 모니터',
+        kind: 'CUSTOM',
+        widgetTypeId: 'agent-status-matrix',
+        widgetTypeName: '상담사 상태 매트릭스',
+        options: {},
+        position: { row: 0, col: 0, w: 12, h: 12 },
+      },
+    ];
+  }
+
   return [];
 }

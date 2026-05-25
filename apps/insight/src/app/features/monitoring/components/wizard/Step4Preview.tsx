@@ -53,7 +53,7 @@ export default function Step4Preview({ datasetId, fieldOverrides, visualizations
       <div className="flex-1 flex flex-col overflow-hidden p-7">
         <div className="rounded border border-[var(--color-bt-border)] bg-white shadow-sm flex flex-col overflow-hidden" style={{ minHeight: 420 }}>
           {/* 위젯 헤더 */}
-          <div className="flex items-center justify-between border-b border-[var(--color-bt-border)] px-4 py-2.5">
+          <div className="flex items-center justify-between px-4 py-2.5">
             <div className="flex items-center gap-2 min-w-0">
               <span className="text-[13px] font-semibold truncate">{displayName}</span>
               <span className={`shrink-0 rounded px-1.5 py-0.5 mono text-[9.5px] font-bold ${DOMAIN_COLOR_CLASS[detail.domainCode]}`}>{detail.domainCode}</span>
@@ -144,8 +144,6 @@ export default function Step4Preview({ datasetId, fieldOverrides, visualizations
             />
             <p className="mt-1 text-[10px] text-[var(--color-bt-fg-muted)] leading-snug">글로벌 옵션이 더 짧으면 글로벌이 우선 (M7). 일시정지는 사용자 뷰 모드에서.</p>
           </div>
-
-          <div className="border-t border-[var(--color-bt-border)]" />
 
           {/* 위젯 요약 */}
           <div>

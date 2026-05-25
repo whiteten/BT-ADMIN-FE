@@ -27,7 +27,7 @@ export default function DashboardEditorHeader({ dashboard, onPreview, onSave, on
   };
 
   return (
-    <div className="flex items-center justify-between bg-white border-b border-[var(--color-bt-border)] px-7 py-3">
+    <div className="flex items-center justify-between gap-2 w-full h-[76px] bg-white bt-shadow px-7 py-5">
       {/* 좌측: 이름 inline edit + 뱃지들 */}
       <div className="flex items-center gap-2 min-w-0">
         <input
@@ -42,7 +42,7 @@ export default function DashboardEditorHeader({ dashboard, onPreview, onSave, on
               e.currentTarget.blur();
             }
           }}
-          className="border-b border-transparent bg-transparent text-[15px] font-semibold hover:border-[var(--color-bt-border)] focus:border-[var(--color-bt-primary)] focus:outline-none px-1 py-0.5 min-w-[200px] max-w-[400px]"
+          className="bg-transparent text-[15px] font-semibold focus:outline-none px-1 py-0.5 min-w-[200px] max-w-[400px] rounded hover:bg-[var(--color-bt-bg-muted)]/50 focus:bg-[var(--color-bt-bg-muted)]/50"
         />
         <span className={`shrink-0 rounded px-1.5 py-0.5 mono text-[9.5px] font-bold ${DOMAIN_COLOR_CLASS[dashboard.domainCode]}`}>{dashboard.domainCode}</span>
 
