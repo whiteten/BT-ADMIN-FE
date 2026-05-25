@@ -32,7 +32,7 @@ export const withDefinePlugin = <T extends { plugins?: unknown[] }>(config: T): 
  *  - sql-formatter@15.x: dist에 .ts 원본 없이 sourcemap만 포함 → source-map-loader가 원본을 못 찾고 ENOENT 경고
  *  - @uiw/react-codemirror: esm/package.json에 version 필드 없음 → MF shared가 version 자동감지 실패 (shared config 쪽도 보강)
  */
-export const withIgnoreWarnings = <T extends { ignoreWarnings?: (RegExp | ((warning: Error) => boolean))[] }>(config: T): T => {
+export const withIgnoreWarnings = (config: Configuration): Configuration => {
   (config.ignoreWarnings ??= []).push(/Failed to parse source map.*sql-formatter/, /No version specified.*@uiw[\\/]react-codemirror/);
   return config;
 };
