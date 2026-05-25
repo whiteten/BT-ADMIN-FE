@@ -1,18 +1,21 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import type { Widget, WsConnectionState, WsDataMessage, WsSubscribeMessage } from '../types';
+import type { Widget, WsConnectionState, WsServerMessage, WsSubscribeMessage } from '../types';
 
 /**
  * useDashboardSocket — WebSocket 인프라 (M17)
  *
- * BE 미구현 상태에서는 mock 동작:
- * - WebSocket 연결 시도 → 실패해도 connectionState='connected' 시뮬레이션
- * - 위젯 구독 후 refreshThrottle 주기로 mock DATA 메시지 디스패치
+ * BE INSIGHT `MonitoringWebSocketHandler` 와 BFF WebSocket 프록시(/ws/proxy/insight/monitoring)
+ * 를 통해 양방향 통신한다.
  *
- * BE 구현 후: 실제 WebSocket 연결 + 메시지 송수신
+ * Envelope 은 BE 와 1:1 일치 — CONNECTED · SUBSCRIBE · SUBSCRIBED · DATA ·
+ * UNSUBSCRIBE · UNSUBSCRIBED · ERROR. v0.1 에서는 CUSTOM 위젯만 지원
+ * (`widget.kind === 'CUSTOM'` 만 SUBSCRIBE 송신, TEMPLATE 은 skip).
+ *
+ * MOCK_MODE — BE 미가동 / 로컬 시연 용도. 기본 false. true 로 두면 위젯별 빈 데이터 tick 만 발생.
  */
 
-const WS_ENDPOINT = '/ws/insight/monitoring';
-const MOCK_MODE = true; // BE 미구현 — true. BE 구현 후 false 또는 자동 분기
+const WS_ENDPOINT = '/ws/proxy/insight/monitoring';
+const MOCK_MODE = false;
 
 interface UseDashboardSocketOptions {
   dashboardId: number;
@@ -63,15 +66,14 @@ export function useDashboardSocket({ dashboardId, widgets, refreshThrottle, glob
       ws.onopen = () => {
         setConnectionState('connected');
         reconnectAttemptRef.current = 0;
-        // 모든 위젯 SUBSCRIBE
+        // CUSTOM 위젯만 SUBSCRIBE — TEMPLATE 위젯은 v0.1 OUT
         widgets.forEach((w) => {
+          if (w.kind !== 'CUSTOM') return;
           const msg: WsSubscribeMessage = {
             type: 'SUBSCRIBE',
             widgetId: String(w.widgetId),
-            kind: w.kind,
-            datasetId: w.kind === 'TEMPLATE' ? w.datasetId : undefined,
-            widgetTypeId: w.kind === 'CUSTOM' ? w.widgetTypeId : undefined,
-            options: globalOptions,
+            widgetType: w.widgetTypeId,
+            options: { ...(w.options ?? {}), ...globalOptions },
           };
           ws.send(JSON.stringify(msg));
         });
@@ -79,16 +81,16 @@ export function useDashboardSocket({ dashboardId, widgets, refreshThrottle, glob
 
       ws.onmessage = (event) => {
         try {
-          const msg = JSON.parse(event.data);
+          const msg = JSON.parse(event.data) as WsServerMessage;
           if (msg.type === 'DATA') {
-            const dataMsg = msg as WsDataMessage;
             setWidgetData((prev) => ({
               ...prev,
-              [dataMsg.widgetId]: { rows: dataMsg.data as Record<string, unknown>[], serverTs: dataMsg.serverTs },
+              [msg.widgetId]: { rows: msg.data as Record<string, unknown>[] | Record<string, unknown>, serverTs: Date.now() },
             }));
           }
-        } catch (e) {
-          // ignore parse errors
+          // CONNECTED / SUBSCRIBED / UNSUBSCRIBED / ERROR 는 디버그 외 별도 처리 불필요
+        } catch {
+          // ignore parse errors (텍스트가 JSON 아닌 경우)
         }
       };
 
@@ -164,14 +166,13 @@ export function useDashboardSocket({ dashboardId, widgets, refreshThrottle, glob
   const resubscribe = useCallback(() => {
     if (MOCK_MODE || !socketRef.current || socketRef.current.readyState !== WebSocket.OPEN) return;
     widgets.forEach((w) => {
+      if (w.kind !== 'CUSTOM') return;
       socketRef.current!.send(JSON.stringify({ type: 'UNSUBSCRIBE', widgetId: String(w.widgetId) }));
       const msg: WsSubscribeMessage = {
         type: 'SUBSCRIBE',
         widgetId: String(w.widgetId),
-        kind: w.kind,
-        datasetId: w.kind === 'TEMPLATE' ? w.datasetId : undefined,
-        widgetTypeId: w.kind === 'CUSTOM' ? w.widgetTypeId : undefined,
-        options: globalOptions,
+        widgetType: w.widgetTypeId,
+        options: { ...(w.options ?? {}), ...globalOptions },
       };
       socketRef.current!.send(JSON.stringify(msg));
     });

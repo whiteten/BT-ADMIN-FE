@@ -1,9 +1,11 @@
-import { type ComponentType, useMemo, useState } from 'react';
-// react-grid-layout v2.x — types 정의가 named export를 충분히 노출하지 않아 any cast로 우회
-import * as RGL from 'react-grid-layout';
+import { useMemo, useState } from 'react';
+// react-grid-layout v2.x — main entry 에서 WidthProvider HOC 가 제거되어 legacy 서브패스 사용.
+// (main 은 useContainerWidth hook 패턴으로 전환됨)
+// @ts-expect-error tsconfig.moduleResolution=node 에서 sub-path types 미인식 (런타임은 정상)
 import { useNavigate } from 'react-router-dom';
 import { Button, Modal } from 'antd';
 import { Plus } from 'lucide-react';
+import { Responsive, WidthProvider } from 'react-grid-layout/legacy';
 import 'react-grid-layout/css/styles.css';
 import 'react-resizable/css/styles.css';
 import { toast } from '@/shared-util';
@@ -11,9 +13,7 @@ import CustomWidgetCard from './CustomWidgetCard';
 import TemplateWidgetCard from './TemplateWidgetCard';
 import type { CustomWidget, TemplateWidget, Widget } from '../../types';
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-const RGLAny = RGL as any;
-const ResponsiveGridLayout: ComponentType<Record<string, unknown>> = RGLAny.WidthProvider(RGLAny.Responsive);
+const ResponsiveGridLayout = WidthProvider(Responsive);
 const DRAG_HANDLE_CLASS = 'widget-drag-handle';
 
 interface GridLayoutItem {
@@ -26,16 +26,23 @@ interface GridLayoutItem {
   minH?: number;
 }
 
+interface WidgetDataEntry {
+  rows: Record<string, unknown>[] | Record<string, unknown> | unknown;
+  serverTs: number;
+}
+
 interface DashboardCanvasProps {
   dashboardId: number;
   widgets: Widget[];
   /** 편집 모드 — drag·resize 활성, 헤더 ⚙·× 노출 */
   editMode: boolean;
+  /** WebSocket DATA 프레임 누적 결과 (widgetId 문자열 → 마지막 데이터). */
+  widgetData?: Record<string, WidgetDataEntry>;
   onWidgetsChange?: (next: Widget[]) => void;
   onLayoutChange?: (items: Array<{ widgetId: number; row: number; col: number; w: number; h: number }>) => void;
 }
 
-export default function DashboardCanvas({ dashboardId, widgets, editMode, onWidgetsChange, onLayoutChange }: DashboardCanvasProps) {
+export default function DashboardCanvas({ dashboardId, widgets, editMode, widgetData, onWidgetsChange, onLayoutChange }: DashboardCanvasProps) {
   const navigate = useNavigate();
   const [deleteTarget, setDeleteTarget] = useState<Widget | null>(null);
 
@@ -123,6 +130,7 @@ export default function DashboardCanvas({ dashboardId, widgets, editMode, onWidg
               <CustomWidgetCard
                 widget={widget as CustomWidget}
                 editMode={editMode}
+                data={widgetData?.[String(widget.widgetId)]?.rows}
                 onSettings={() => handleSettings(widget)}
                 onDelete={() => setDeleteTarget(widget)}
                 draggableClass={DRAG_HANDLE_CLASS}

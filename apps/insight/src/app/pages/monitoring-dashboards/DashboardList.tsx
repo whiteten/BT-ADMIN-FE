@@ -1,13 +1,12 @@
 import { useEffect, useMemo, useState } from 'react';
-import { type BreadcrumbProps, Button, Input, Segmented } from 'antd';
+import { useNavigate } from 'react-router-dom';
+import { type BreadcrumbProps, Button, Input, Segmented, Tag } from 'antd';
 import { Plus } from 'lucide-react';
 import { useBreadcrumbStore } from '@/shared-store';
 import DashboardCard from '../../features/monitoring/components/DashboardCard';
-import DashboardCreateModal from '../../features/monitoring/components/DashboardCreateModal';
 import { DOMAIN_LABELS } from '../../features/monitoring/constants/monitoringConstants';
 import { useGetDashboards } from '../../features/monitoring/hooks/useDashboardQueries';
-import { MOCK_DASHBOARDS } from '../../features/monitoring/mocks/mockDashboards';
-import type { DomainCode } from '../../features/monitoring/types';
+import type { DashboardListItem, DomainCode } from '../../features/monitoring/types';
 import { FallbackSpinner } from '@/components/custom/FallbackSpinner';
 import NoData from '@/components/custom/NoData';
 
@@ -15,50 +14,47 @@ const breadcrumb: BreadcrumbProps['items'] = [{ title: '인사이트' }, { title
 
 type StatusFilter = 'ALL' | 'PUBLISHED' | 'DRAFT';
 
+/** 도메인별 섹션 표시 순서. */
+const DOMAIN_SECTIONS: DomainCode[] = ['IE', 'IC', 'IR'];
+
 export default function DashboardList() {
+  const navigate = useNavigate();
   const setBreadcrumb = useBreadcrumbStore((s) => s.setBreadcrumb);
   const clearBreadcrumb = useBreadcrumbStore((s) => s.clearBreadcrumb);
 
   const [status, setStatus] = useState<StatusFilter>('ALL');
-  const [domain, setDomain] = useState<DomainCode | ''>('');
   const [searchValue, setSearchValue] = useState('');
-  const [createOpen, setCreateOpen] = useState(false);
 
   useEffect(() => {
     setBreadcrumb(breadcrumb);
     return () => clearBreadcrumb();
   }, [setBreadcrumb, clearBreadcrumb]);
 
-  const { data: rawDashboards = [], isFetching } = useGetDashboards({
-    params: {
-      status: status !== 'ALL' ? status : undefined,
-      domain: domain || undefined,
-    },
-  });
+  const { data: dashboards = [], isLoading } = useGetDashboards();
 
-  // BE 미구현 상태 — mock data fallback (BE 구현 후 제거)
-  const dashboards = rawDashboards.length > 0 ? rawDashboards : MOCK_DASHBOARDS;
+  // 상태·검색 필터 후 도메인별 그룹화
+  const byDomain = useMemo<Record<DomainCode, DashboardListItem[]>>(() => {
+    const kw = searchValue.trim().toLowerCase();
+    const grouped: Record<DomainCode, DashboardListItem[]> = { IE: [], IC: [], IR: [] };
+    dashboards
+      .filter((d) => {
+        if (status !== 'ALL' && d.status !== status) return false;
+        if (!kw) return true;
+        return d.dashboardName.toLowerCase().includes(kw) || d.dashboardCode.toLowerCase().includes(kw);
+      })
+      .forEach((d) => {
+        if (grouped[d.domainCode]) grouped[d.domainCode].push(d);
+      });
+    return grouped;
+  }, [dashboards, status, searchValue]);
 
-  const filtered = useMemo(() => {
-    let result = dashboards;
-    if (status !== 'ALL') {
-      result = result.filter((d) => d.status === status);
-    }
-    if (domain) {
-      result = result.filter((d) => d.domainCode === domain);
-    }
-    if (searchValue.trim()) {
-      const kw = searchValue.toLowerCase();
-      result = result.filter((d) => d.dashboardName.toLowerCase().includes(kw) || d.dashboardCode.toLowerCase().includes(kw));
-    }
-    return result;
-  }, [dashboards, status, domain, searchValue]);
+  const hasAnyMatch = byDomain.IE.length + byDomain.IC.length + byDomain.IR.length > 0;
 
   return (
     <div className="flex flex-col gap-4 w-full h-full">
-      {/* 필터 바 */}
-      <div className="flex items-center justify-between gap-4 w-full bg-white bt-shadow px-7 py-5">
-        <div className="flex items-center gap-3">
+      {/* 필터바 — 다른 모듈(AgentList 등) 동일 컨벤션: 좌측 필터 + 우측 추가 버튼 */}
+      <div className="flex items-center justify-between gap-2 w-full h-[76px] bg-white bt-shadow px-7 py-5">
+        <div className="flex gap-2 w-full items-center">
           <Segmented
             value={status}
             onChange={(v) => setStatus(v as StatusFilter)}
@@ -68,56 +64,62 @@ export default function DashboardList() {
               { value: 'DRAFT', label: '초안' },
             ]}
           />
-          <Segmented
-            value={domain || 'ALL'}
-            onChange={(v) => setDomain((v === 'ALL' ? '' : v) as DomainCode | '')}
-            options={[
-              { value: 'ALL', label: '전체 도메인' },
-              { value: 'IE', label: `IE · ${DOMAIN_LABELS.IE}` },
-              { value: 'IC', label: `IC · ${DOMAIN_LABELS.IC}` },
-              { value: 'IR', label: `IR · ${DOMAIN_LABELS.IR}` },
-            ]}
-          />
-          <Input value={searchValue} onChange={(e) => setSearchValue(e.target.value)} placeholder="대시보드 이름·코드 검색…" className="w-full max-w-[300px]" allowClear />
+          <Input value={searchValue} onChange={(e) => setSearchValue(e.target.value)} placeholder="대시보드 이름·코드 검색" className="w-full max-w-[400px]" allowClear />
         </div>
-        <Button type="primary" icon={<Plus className="w-3.5 h-3.5" />} onClick={() => setCreateOpen(true)}>
-          새 대시보드
+        <Button type="primary" icon={<Plus className="w-3.5 h-3.5" />} onClick={() => navigate('/insight/monitoring/dashboards/create')}>
+          추가
         </Button>
       </div>
 
-      {/* 카드 그리드 */}
-      {isFetching && rawDashboards.length === 0 ? (
+      {/* 본문 — 도메인별 3섹션 */}
+      {isLoading ? (
         <div className="flex items-center justify-center w-full h-full bg-white bt-shadow">
           <FallbackSpinner />
         </div>
-      ) : filtered.length > 0 ? (
-        <div className="grid grid-cols-[repeat(auto-fill,minmax(320px,1fr))] gap-4 w-full overflow-y-auto">
-          {filtered.map((dashboard) => (
-            <DashboardCard key={dashboard.dashboardId} dashboard={dashboard} />
-          ))}
-          {/* 신규 카드 placeholder — 시안 §2 그리드 끝 위치 */}
-          <button
-            type="button"
-            onClick={() => setCreateOpen(true)}
-            className="flex flex-col items-center justify-center min-h-[180px] rounded border-2 border-dashed border-[var(--color-bt-border)] bg-white/40 hover:border-[var(--color-bt-primary)] hover:bg-[var(--color-bt-primary-soft)]/30 transition-colors gap-2"
-          >
-            <Plus className="w-5 h-5 text-[var(--color-bt-fg-muted)] group-hover:text-[var(--color-bt-primary)]" />
-            <span className="text-[12px] font-medium text-[var(--color-bt-fg-muted)] hover:text-[var(--color-bt-primary)]">새 대시보드</span>
-          </button>
+      ) : !hasAnyMatch && (searchValue || status !== 'ALL') ? (
+        <div className="flex items-center justify-center w-full h-full bg-white bt-shadow">
+          <NoData message="조회된 데이터가 없습니다." iconSize={50} fontSize="text-lg" gap={2} />
         </div>
       ) : (
-        <div className="flex flex-col items-center justify-center w-full h-full bg-white bt-shadow gap-4">
-          <NoData message={searchValue ? `"${searchValue}" 검색 결과 없음` : '대시보드가 없습니다.'} iconSize={50} fontSize="text-lg" gap={2} />
-          {!searchValue && (
-            <Button type="primary" icon={<Plus className="w-3.5 h-3.5" />} onClick={() => setCreateOpen(true)}>
-              새 대시보드 만들기
-            </Button>
-          )}
+        <div className="flex flex-col gap-4 w-full overflow-y-auto pb-4">
+          {DOMAIN_SECTIONS.map((domain) => (
+            <DomainSection key={domain} domain={domain} items={byDomain[domain]} />
+          ))}
         </div>
       )}
-
-      {/* 새 대시보드 모달 (§2-A) */}
-      <DashboardCreateModal open={createOpen} onClose={() => setCreateOpen(false)} />
     </div>
+  );
+}
+
+interface DomainSectionProps {
+  domain: DomainCode;
+  items: DashboardListItem[];
+}
+
+function DomainSection({ domain, items }: DomainSectionProps) {
+  const label = DOMAIN_LABELS[domain];
+
+  return (
+    <section className="bg-white bt-shadow">
+      <div className="flex items-center gap-2 px-7 pt-5 pb-3">
+        <Tag color="blue" className="font-mono">
+          {domain}
+        </Tag>
+        <span className="text-[15px] font-semibold">{label}</span>
+        <span className="text-[12px] text-[var(--color-bt-fg-muted)]">· {items.length}개</span>
+      </div>
+
+      <div className="px-7 pb-5">
+        {items.length > 0 ? (
+          <div className="grid grid-cols-[repeat(auto-fill,minmax(350px,1fr))] gap-4">
+            {items.map((dashboard) => (
+              <DashboardCard key={dashboard.dashboardId} dashboard={dashboard} />
+            ))}
+          </div>
+        ) : (
+          <div className="py-6 text-center text-[12.5px] text-[var(--color-bt-fg-muted)]">{label} 도메인에 등록된 대시보드가 없습니다.</div>
+        )}
+      </div>
+    </section>
   );
 }

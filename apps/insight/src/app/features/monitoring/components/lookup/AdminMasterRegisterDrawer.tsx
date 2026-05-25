@@ -107,7 +107,7 @@ export default function AdminMasterRegisterDrawer({ open, onClose, onRegistered 
       width={520}
       open={open}
       onClose={handleClose}
-      destroyOnClose
+      destroyOnHidden
     >
       <div className="space-y-4">
         {/* Step 1 */}
@@ -214,7 +214,7 @@ export default function AdminMasterRegisterDrawer({ open, onClose, onRegistered 
         )}
 
         {/* 풋터 */}
-        <div className="flex items-center justify-between pt-2 border-t border-[var(--color-bt-border)]">
+        <div className="flex items-center justify-between pt-2">
           <Button onClick={handleClose}>취소</Button>
           <Button type="primary" danger disabled={!canSave} onClick={handleSave}>
             카탈로그에 추가 + 선택

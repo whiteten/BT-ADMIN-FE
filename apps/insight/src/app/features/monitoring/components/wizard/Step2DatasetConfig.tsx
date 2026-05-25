@@ -111,7 +111,7 @@ export default function Step2DatasetConfig({ datasetId, fieldOverrides, onChange
   return (
     <div className="flex flex-col flex-1 overflow-hidden bg-white">
       {/* 헤더 */}
-      <div className="flex items-center justify-between px-7 py-3 border-b border-[var(--color-bt-border)]">
+      <div className="flex items-center justify-between px-7 py-3">
         <div>
           <div className="text-[13px] font-semibold">필드 구성 — 위젯 단 표시</div>
           <div className="text-[10.5px] text-[var(--color-bt-fg-muted)] mt-0.5">

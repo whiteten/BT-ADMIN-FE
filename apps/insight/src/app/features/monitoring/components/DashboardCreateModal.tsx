@@ -1,14 +1,16 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useQueryClient } from '@tanstack/react-query';
 import { Form, Input, Modal } from 'antd';
 import { toast } from '@/shared-util';
-import { DOMAIN_LABELS } from '../constants/monitoringConstants';
-import { useCreateDashboard } from '../hooks/useDashboardQueries';
+import { dashboardKeys, useCreateDashboard } from '../hooks/useDashboardQueries';
 import type { DomainCode } from '../types';
 
 interface DashboardCreateModalProps {
   open: boolean;
   onClose: () => void;
+  /** 도메인 사전 선택 (DashboardList 의 섹션별 "+ 새 대시보드" 진입). 사용자가 모달에서 변경 가능. */
+  initialDomain?: DomainCode;
 }
 
 const DOMAIN_CHOICES: Array<{ value: DomainCode; label: string }> = [
@@ -17,14 +19,21 @@ const DOMAIN_CHOICES: Array<{ value: DomainCode; label: string }> = [
   { value: 'IR', label: 'IVR' },
 ];
 
-export default function DashboardCreateModal({ open, onClose }: DashboardCreateModalProps) {
+export default function DashboardCreateModal({ open, onClose, initialDomain = 'IE' }: DashboardCreateModalProps) {
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
   const [form] = Form.useForm<{ dashboardName: string; domainCode: DomainCode }>();
-  const [selectedDomain, setSelectedDomain] = useState<DomainCode>('IE');
+  const [selectedDomain, setSelectedDomain] = useState<DomainCode>(initialDomain);
+
+  // 모달이 열릴 때마다 초기 도메인 반영
+  useEffect(() => {
+    if (open) setSelectedDomain(initialDomain);
+  }, [open, initialDomain]);
 
   const { mutate: createDashboard, isPending } = useCreateDashboard({
     mutationOptions: {
       onSuccess: (dashboard) => {
+        queryClient.invalidateQueries({ queryKey: dashboardKeys.list._def });
         toast.success('새 대시보드가 생성되었습니다.');
         onClose();
         navigate(`/insight/monitoring/dashboards/${dashboard.dashboardId}/edit`);
@@ -47,7 +56,7 @@ export default function DashboardCreateModal({ open, onClose }: DashboardCreateM
 
   const handleCancel = () => {
     form.resetFields();
-    setSelectedDomain('IE');
+    setSelectedDomain(initialDomain);
     onClose();
   };
 
@@ -61,7 +70,7 @@ export default function DashboardCreateModal({ open, onClose }: DashboardCreateM
       cancelText="취소"
       confirmLoading={isPending}
       width={520}
-      destroyOnClose
+      destroyOnHidden
     >
       <div className="space-y-5 py-2">
         {/* 도메인 선택 */}

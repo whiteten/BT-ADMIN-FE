@@ -4,7 +4,6 @@ import { Plus, X } from 'lucide-react';
 import { toast } from '@/shared-util';
 import { DOMAIN_COLOR_CLASS, DOMAIN_LABELS } from '../constants/monitoringConstants';
 import { useGetCustomWidgetCatalog } from '../hooks/useDashboardQueries';
-import { MOCK_CUSTOM_WIDGETS } from '../mocks/mockCustomWidgetCatalog';
 import type { CustomWidgetCatalogItem, DomainCode } from '../types';
 
 interface CustomWidgetCatalogPanelProps {
@@ -124,8 +123,7 @@ export default function CustomWidgetCatalogPanel({ domainCode, onAdd, onClose }:
   const [filterDomain, setFilterDomain] = useState<DomainCode | 'ALL'>(domainCode);
   const [searchValue, setSearchValue] = useState('');
 
-  const { data: fetched = [] } = useGetCustomWidgetCatalog();
-  const allWidgets = fetched.length > 0 ? fetched : MOCK_CUSTOM_WIDGETS;
+  const { data: allWidgets = [] } = useGetCustomWidgetCatalog();
 
   const filtered = useMemo(() => {
     let result: CustomWidgetCatalogItem[] = allWidgets;
@@ -147,7 +145,7 @@ export default function CustomWidgetCatalogPanel({ domainCode, onAdd, onClose }:
   return (
     <aside className="w-[480px] shrink-0 border-l border-[var(--color-bt-border)] bg-white flex flex-col overflow-hidden">
       {/* 헤더 */}
-      <div className="flex items-center justify-between px-5 py-3 border-b border-[var(--color-bt-border)]">
+      <div className="flex items-center justify-between px-5 py-3">
         <div className="min-w-0">
           <div className="text-[13px] font-semibold">커스텀 위젯 카탈로그</div>
           <div className="text-[10.5px] text-[var(--color-bt-fg-muted)] mt-0.5">
@@ -166,7 +164,7 @@ export default function CustomWidgetCatalogPanel({ domainCode, onAdd, onClose }:
       </div>
 
       {/* 필터 */}
-      <div className="flex flex-col gap-2 px-5 py-3 border-b border-[var(--color-bt-border)]">
+      <div className="flex flex-col gap-2 px-5 py-3">
         <Segmented
           value={filterDomain}
           onChange={(v) => setFilterDomain(v as DomainCode | 'ALL')}
@@ -230,7 +228,7 @@ export default function CustomWidgetCatalogPanel({ domainCode, onAdd, onClose }:
       </div>
 
       {/* 권한 안내 */}
-      <div className="border-t border-[var(--color-bt-border)] bg-[var(--color-bt-bg-canvas)] px-5 py-3">
+      <div className="bg-[var(--color-bt-bg-canvas)] px-5 py-3">
         <p className="text-[10px] text-[var(--color-bt-fg-muted)] leading-relaxed">
           <strong>새 커스텀 위젯 추가는 개발자 작업 필요</strong> — BE 위젯 구현체(<span className="mono">MonitoringWidget</span> Bean) + FE 컴포넌트 + 카탈로그 등록. 데이터셋 매핑
           없이 자체 메트릭 조회 (M8).

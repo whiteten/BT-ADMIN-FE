@@ -49,7 +49,8 @@ export default function LookupCatalogList() {
   const { mutate: deleteCatalog } = useDeleteMonitoringLookupCatalog({
     mutationOptions: {
       onSuccess: () => {
-        queryClient.invalidateQueries({ queryKey: monitoringLookupCatalogKeys.list().queryKey });
+        // params 변형 전부 invalidate — list._def가 prefix 매칭이라 categoryFilter 별 쿼리도 같이 갱신됨
+        queryClient.invalidateQueries({ queryKey: monitoringLookupCatalogKeys.list._def });
         toast.success('코드 룩업이 삭제되었습니다.');
       },
       onError: () => toast.error('삭제 실패'),
@@ -173,7 +174,8 @@ export default function LookupCatalogList() {
   };
 
   const handleSaved = () => {
-    queryClient.invalidateQueries({ queryKey: monitoringLookupCatalogKeys.list().queryKey });
+    // 등록/수정 후 — params 무관 전체 list 캐시 무효화 → 목록 자동 재조회
+    queryClient.invalidateQueries({ queryKey: monitoringLookupCatalogKeys.list._def });
   };
 
   return (

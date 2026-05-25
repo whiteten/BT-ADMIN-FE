@@ -101,7 +101,7 @@ export default function FieldPalette({ detail, fieldOverrides, filterFn, usedFie
   return (
     <aside className="w-[280px] shrink-0 border-r border-[var(--color-bt-border)] bg-[var(--color-bt-bg-canvas)] flex flex-col overflow-hidden">
       {/* 검색 */}
-      <div className="p-3 border-b border-[var(--color-bt-border)]">
+      <div className="p-3">
         <Input size="small" value={search} onChange={(e) => setSearch(e.target.value)} placeholder="필드 검색…" allowClear />
       </div>
 
@@ -143,7 +143,7 @@ export default function FieldPalette({ detail, fieldOverrides, filterFn, usedFie
         {filtered.length === 0 && <p className="text-[11px] text-center text-[var(--color-bt-fg-muted)] py-4">필드 없음</p>}
       </div>
 
-      <div className="p-3 border-t border-[var(--color-bt-border)] text-[10px] text-[var(--color-bt-fg-muted)] leading-relaxed">
+      <div className="p-3 text-[10px] text-[var(--color-bt-fg-muted)] leading-relaxed">
         <strong>클릭하여 슬롯에 추가</strong>. 노출 OFF 필드는 표시되지 않습니다. 회색 항목은 이미 사용 중이거나 슬롯 제약을 충족하지 못합니다.
       </div>
     </aside>

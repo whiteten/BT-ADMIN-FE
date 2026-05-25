@@ -113,7 +113,7 @@ export default function Step1DatasetVisualization({ domainCode, value, onChange 
       {/* 좌측: 데이터셋 카탈로그 카드 그리드 */}
       <div className="flex-1 flex flex-col overflow-hidden bg-white">
         {/* 필터 바 */}
-        <div className="flex items-center gap-3 px-6 py-3 border-b border-[var(--color-bt-border)]">
+        <div className="flex items-center gap-3 px-6 py-3">
           <Segmented
             value={filterDomain}
             onChange={(v) => setFilterDomain(v as DomainCode | 'ALL')}

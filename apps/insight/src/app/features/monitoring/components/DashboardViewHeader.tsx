@@ -42,7 +42,7 @@ export default function DashboardViewHeader({
   }, [refreshThrottle, connectionState]);
 
   return (
-    <div className="flex flex-col bg-white border-b border-[var(--color-bt-border)]">
+    <div className="flex flex-col bg-white bt-shadow">
       {/* 상단 — 대시보드 이름 + 도메인 + 연결 상태 + 편집 */}
       <div className="flex items-center justify-between px-7 py-3">
         <div className="flex items-center gap-2 min-w-0">
@@ -64,7 +64,7 @@ export default function DashboardViewHeader({
       </div>
 
       {/* 글로벌 옵션 — 갱신 간격 + 구독 정보 (§8의 일부) */}
-      <div className="flex flex-wrap items-end gap-3 bg-[var(--color-bt-bg-muted)]/40 border-t border-[var(--color-bt-border)] px-7 py-2.5">
+      <div className="flex flex-wrap items-end gap-3 bg-[var(--color-bt-bg-muted)]/40 px-7 py-2.5">
         <div className="flex flex-col gap-0.5">
           <label className="text-[9.5px] uppercase tracking-wider text-[var(--color-bt-fg-muted)]">갱신 간격</label>
           <Segmented value={refreshThrottle} onChange={(v) => onChangeRefreshThrottle(v as 1 | 3 | 5 | 10 | 'PAUSED')} options={REFRESH_THROTTLE_OPTIONS} size="small" />
