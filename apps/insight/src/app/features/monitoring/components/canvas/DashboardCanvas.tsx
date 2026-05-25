@@ -1,10 +1,10 @@
 import { useMemo, useState } from 'react';
-// react-grid-layout v2.x — main entry 에서 WidthProvider HOC 가 제거되어 legacy 서브패스 사용.
-// (main 은 useContainerWidth hook 패턴으로 전환됨)
-// @ts-expect-error tsconfig.moduleResolution=node 에서 sub-path types 미인식 (런타임은 정상)
 import { useNavigate } from 'react-router-dom';
 import { Button, Modal } from 'antd';
 import { Plus } from 'lucide-react';
+// react-grid-layout v2.x — main entry 에서 WidthProvider HOC 가 제거되어 legacy 서브패스 사용.
+// (main 은 useContainerWidth hook 패턴으로 전환됨)
+// @ts-expect-error tsconfig.moduleResolution=node 에서 sub-path types 미인식 (런타임은 정상)
 import { Responsive, WidthProvider } from 'react-grid-layout/legacy';
 import 'react-grid-layout/css/styles.css';
 import 'react-resizable/css/styles.css';
