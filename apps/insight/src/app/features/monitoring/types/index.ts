@@ -175,6 +175,8 @@ export interface CalcField {
   columnFormat: ColumnFormat;
   classification: 'DIM' | 'MSR';
   dataType: FieldDataType;
+  /** 위젯에서 노출 여부. 기본 true. BE Entity는 IS_VISIBLE 컬럼과 매핑. (optional — 구버전 BE 응답 호환) */
+  isVisible?: boolean;
 }
 
 export interface DatasetDetail {
@@ -188,6 +190,7 @@ export interface DatasetDetail {
   schemaSnapshot: string; // baseType=XML이면 XML 원본, SQL이면 SELECT 문
   fields: DatasetField[];
   calcFields: CalcField[];
+  lookups: DatasetLookup[];
   createdAt: string;
   updatedAt: string;
 }
@@ -201,12 +204,27 @@ export interface DatasetCreateDatas {
   schemaSnapshot: string;
   fields: DatasetField[];
   calcFields: CalcField[];
+  /** 코드 룩업 정의 (N개). 데이터셋과 한 트랜잭션에 저장. */
+  lookups: DatasetLookup[];
 }
 
 // ─── 코드 룩업 (§1-B) ───────────────────────────────────────────────────────
 
 export type LookupJoinType = 'LEFT' | 'INNER';
 export type LookupMissPolicy = 'PASSTHROUGH' | 'EMPTY' | 'UNKNOWN';
+
+/**
+ * 룩업 런타임 WHERE 조건 — 마스터 테이블 조회 시 추가 필터.
+ * <br/>예: `{ column: 'STATUS', operator: '=', values: ['A'] }`
+ * <br/>NULL 계열 연산자는 values 무시. IN/NOT IN은 values 전체 사용.
+ */
+export type LookupWhereOperator = '=' | '!=' | '>' | '<' | '>=' | '<=' | 'LIKE' | 'IN' | 'NOT IN' | 'IS NULL' | 'IS NOT NULL';
+
+export interface LookupWhereCondition {
+  column: string;
+  operator: LookupWhereOperator;
+  values?: string[];
+}
 
 export interface LookupCatalogItem {
   lookupCatalogId: number;
@@ -216,6 +234,7 @@ export interface LookupCatalogItem {
   description?: string;
   recommendedKey: string;
   recommendedValues: string[];
+  whereConditions?: LookupWhereCondition[];
   registeredBy?: string; // ADMIN 즉석 등록자
   usageCount: number;
 }
@@ -225,6 +244,8 @@ export interface SchemaColumn {
   type: FieldDataType;
   nullable: boolean;
   isPrimaryKey?: boolean;
+  /** USER_COL_COMMENTS의 한글 코멘트 — 없으면 null */
+  comment?: string | null;
 }
 
 export interface SchemaPreview {
@@ -241,6 +262,7 @@ export interface LookupCatalogCreateDatas {
   description?: string;
   recommendedKey: string;
   recommendedValues: string[];
+  whereConditions?: LookupWhereCondition[];
 }
 
 export interface DatasetLookupField {
@@ -274,32 +296,65 @@ export interface GlobalOptions {
 }
 
 // ─── WebSocket 메시지 (§8, §9) ──────────────────────────────────────────────
+//
+// BE INSIGHT MonitoringWebSocketHandler 와 envelope 통일.
+// 메시지 키 규약 — `widgetType` 단일 키 (FCA 모니터링 패턴). TEMPLATE/CUSTOM 분기는
+// v0.1 범위에서 CUSTOM 만 지원하므로 `kind`·`datasetId`·`widgetTypeId` 등 분기 키 제거.
+// TEMPLATE 위젯 활성화 시 BE 에서 `widgetType = "template-{datasetId}-{viz}"` 같은
+// 정규화된 키로 매핑하여 호환.
 
 export type WsConnectionState = 'connecting' | 'connected' | 'reconnecting' | 'disconnected';
 
+/** 클라이언트 → 서버: 위젯 구독 등록. */
 export interface WsSubscribeMessage {
   type: 'SUBSCRIBE';
   widgetId: string;
-  kind: WidgetKind;
-  datasetId?: number;
-  widgetTypeId?: string;
-  options: Record<string, unknown>;
+  widgetType: string;
+  options?: Record<string, unknown>;
 }
 
-export interface WsDataMessage {
-  type: 'DATA';
-  widgetId: string;
-  serverTs: number;
-  data: unknown;
-}
-
-export interface WsConnectedMessage {
-  type: 'CONNECTED';
-  sessionId: string;
-  tenantId: number;
-}
-
+/** 클라이언트 → 서버: 위젯 구독 해제. */
 export interface WsUnsubscribeMessage {
   type: 'UNSUBSCRIBE';
   widgetId: string;
 }
+
+/** 서버 → 클라이언트: 연결 수립 시 wsId 발급. */
+export interface WsConnectedMessage {
+  type: 'CONNECTED';
+  wsId: string;
+}
+
+/** 서버 → 클라이언트: 구독 수락 응답. */
+export interface WsSubscribedMessage {
+  type: 'SUBSCRIBED';
+  wsId: string;
+  widgetId: string;
+  widgetType: string;
+}
+
+/** 서버 → 클라이언트: 구독 해제 응답. */
+export interface WsUnsubscribedMessage {
+  type: 'UNSUBSCRIBED';
+  wsId: string;
+  widgetId: string;
+}
+
+/** 서버 → 클라이언트: 위젯 데이터 프레임 (구독 직후 + 주기 푸시). */
+export interface WsDataMessage {
+  type: 'DATA';
+  wsId: string;
+  widgetId: string;
+  widgetType: string;
+  data: unknown;
+}
+
+/** 서버 → 클라이언트: 에러. */
+export interface WsErrorMessage {
+  type: 'ERROR';
+  wsId?: string;
+  widgetId?: string;
+  message: string;
+}
+
+export type WsServerMessage = WsConnectedMessage | WsSubscribedMessage | WsUnsubscribedMessage | WsDataMessage | WsErrorMessage;

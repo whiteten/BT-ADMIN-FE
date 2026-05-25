@@ -1,13 +1,12 @@
 import { type UseMutationOptions, type UseQueryOptions, useMutation, useQuery } from '@tanstack/react-query';
 import { createQueryKeys } from '@lukemorales/query-key-factory';
 import { lookupApi } from '../api/lookupApi';
-import type { DatasetLookup, LookupCatalogCreateDatas, LookupCatalogItem, SchemaPreview } from '../types';
+import type { LookupCatalogCreateDatas, LookupCatalogItem, SchemaPreview } from '../types';
 
 export const lookupKeys = createQueryKeys('lookup', {
   catalog: (params?: Record<string, unknown>) => [params],
   catalogItem: (id: number) => [id],
   schemaPreview: (tableName: string) => [tableName],
-  datasetLookups: (datasetId: number) => [datasetId],
 });
 
 export const useGetLookupCatalog = ({
@@ -21,11 +20,3 @@ export const useCreateLookupCatalogItem = ({ mutationOptions }: { mutationOption
 
 export const useSchemaPreview = ({ mutationOptions }: { mutationOptions?: UseMutationOptions<SchemaPreview, Error, string> } = {}) =>
   useMutation({ mutationFn: (tableName: string) => lookupApi.schemaPreview(tableName), ...mutationOptions });
-
-export const useGetDatasetLookups = ({
-  params: { datasetId },
-  queryOptions,
-}: {
-  params: { datasetId: number };
-  queryOptions?: Omit<UseQueryOptions<DatasetLookup[]>, 'queryKey' | 'queryFn'>;
-}) => useQuery({ ...lookupKeys.datasetLookups(datasetId), queryFn: () => lookupApi.getDatasetLookups(datasetId), ...queryOptions });

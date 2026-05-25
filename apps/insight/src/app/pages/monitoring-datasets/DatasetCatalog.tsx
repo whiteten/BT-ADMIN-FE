@@ -77,41 +77,28 @@ export default function DatasetCatalog() {
     },
     {
       headerName: '',
-      maxWidth: 110,
+      maxWidth: 80,
       sortable: false,
       filter: false,
       suppressHeaderMenuButton: true,
-      cellStyle: { display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 12 },
+      cellStyle: { display: 'flex', alignItems: 'center', justifyContent: 'center' },
       cellRenderer: (params: ICellRendererParams<DatasetListItem>) => {
         const { data } = params;
         if (!data) return null;
         const blockDelete = data.usageWidgetCount > 0;
         return (
-          <>
-            <button
-              type="button"
-              onClick={(e) => {
-                e.stopPropagation();
-                handleNavigateLookups(data.datasetId);
-              }}
-              className="text-xs text-[var(--color-bt-fg-muted)] hover:text-[var(--color-bt-primary)] hover:cursor-pointer"
-              title="코드 룩업 설정"
-            >
-              룩업
-            </button>
-            <button
-              type="button"
-              disabled={blockDelete}
-              onClick={(e) => {
-                e.stopPropagation();
-                handleDelete(data);
-              }}
-              title={blockDelete ? '사용 위젯이 있어 삭제 불가' : '삭제'}
-              className="disabled:cursor-not-allowed disabled:opacity-30"
-            >
-              <IconTrash className="size-5 text-red-500 hover:cursor-pointer" />
-            </button>
-          </>
+          <button
+            type="button"
+            disabled={blockDelete}
+            onClick={(e) => {
+              e.stopPropagation();
+              handleDelete(data);
+            }}
+            title={blockDelete ? '사용 위젯이 있어 삭제 불가' : '삭제'}
+            className="disabled:cursor-not-allowed disabled:opacity-30"
+          >
+            <IconTrash className="size-5 text-red-500 hover:cursor-pointer" />
+          </button>
         );
       },
     },
@@ -140,10 +127,6 @@ export default function DatasetCatalog() {
 
   const handleEdit = (datasetId?: number) => {
     if (datasetId) navigate(`${datasetId}/edit`);
-  };
-
-  const handleNavigateLookups = (datasetId: number) => {
-    navigate(`${datasetId}/lookups`);
   };
 
   const handleDelete = (data: DatasetListItem) => {
