@@ -8,10 +8,10 @@ export const CATEGORY_OPTIONS = [
 ];
 
 export const INPUT_TYPE_OPTIONS: { value: InputType; label: string }[] = [
-  { value: 'SELECT', label: 'SELECT — 단일 선택' },
-  { value: 'MULTI_SELECT', label: 'MULTI_SELECT — 복수 선택' },
-  { value: 'TREE_MULTI_SELECT', label: 'TREE_MULTI_SELECT — 계층 복수 선택' },
-  { value: 'RADIO', label: 'RADIO — 라디오' },
+  { value: 'SELECT', label: '단일 선택' },
+  { value: 'MULTI_SELECT', label: '복수 선택' },
+  { value: 'TREE_MULTI_SELECT', label: '계층 복수 선택' },
+  { value: 'RADIO', label: '라디오' },
 ];
 
 export interface SearchConditionNodeSummary {
@@ -57,6 +57,7 @@ export interface SearchConditionDetail {
 export type SearchConditionCreateDatas = {
   title: string;
   categoryCode?: string;
+  isBundle?: boolean;
   description?: string;
   nodes: Omit<SearchConditionNode, 'nodeId'>[];
 };
