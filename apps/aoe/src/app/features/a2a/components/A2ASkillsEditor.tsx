@@ -1,59 +1,44 @@
 import { useRef } from 'react';
-import { useParams } from 'react-router-dom';
-import { useQueryClient } from '@tanstack/react-query';
 import type { ColDef, ICellRendererParams } from 'ag-grid-community';
 import { AgGridReact } from 'ag-grid-react';
 import { Button } from 'antd';
-import { Log } from '@/log';
-import { toast } from '@/shared-util';
-import A2ASkillDrawer, { type A2ASkillDrawerRef } from '../components/A2ASkillDrawer';
-import { a2aQueryKeys, useGetA2A, useUpdateA2A } from '../hooks/useA2aQueries';
+import A2ASkillDrawer, { type A2ASkillDrawerRef } from './A2ASkillDrawer';
 import type { A2ASkill } from '../types';
 import { IconTrash } from '@/components/custom/Icons';
 import useAggridOptions from '@/libs/shared-ui/src/hooks/useAggridOptions';
 import { useModal } from '@/libs/shared-ui/src/hooks/useModal';
 
-export default function A2ASkillList() {
-  const { a2aId } = useParams();
-  const queryClient = useQueryClient();
+/**
+ * A2A Skills 편집기 — controlled 컴포넌트.
+ *
+ * - skills 와 onChange 만 받음. BE 호출은 부모 책임 (생성 시 local state, 수정 시 즉시 update API).
+ * - AG-Grid 로 목록 표시 + 더블클릭/추가 버튼으로 A2ASkillDrawer 편집.
+ * - 생성·수정 두 흐름에서 동일하게 사용해 UX 일관.
+ */
+interface Props {
+  skills: A2ASkill[];
+  onChange: (next: A2ASkill[]) => void;
+  loading?: boolean;
+}
+
+export default function A2ASkillsEditor({ skills, onChange, loading }: Props) {
   const modal = useModal();
   const skillDrawerRef = useRef<A2ASkillDrawerRef>(null);
   const { gridOptions } = useAggridOptions();
 
-  const { data: a2a, isFetching } = useGetA2A({ params: { a2aId }, queryOptions: { enabled: !!a2aId } });
-  const skills = a2a?.skills ?? [];
-
-  const { mutate: updateA2A } = useUpdateA2A({
-    mutationOptions: {
-      onSuccess: () => {
-        toast.success('저장되었습니다.');
-        queryClient.invalidateQueries({ queryKey: a2aQueryKeys.getA2AList().queryKey });
-        queryClient.invalidateQueries({ queryKey: a2aQueryKeys.getA2A({ a2aId: a2aId ?? '' }).queryKey });
-      },
-      onError: (error) => Log.warn('updateA2A failed', error),
-    },
-  });
-
-  const applySkills = (newSkills: A2ASkill[]) => {
-    updateA2A({
-      params: { a2aId: a2aId ?? '' },
-      data: {
-        a2aId: a2aId ?? '',
-        agentName: a2a?.agentName ?? '',
-        agentDescription: a2a?.agentDescription,
-        skills: newSkills,
-      },
-    });
-  };
-
   const handleSave = (skill: A2ASkill, isEdit: boolean) => {
-    const newSkills = isEdit ? skills.map((s) => (s.skillId === skill.skillId ? skill : s)) : [...skills, skill];
-    applySkills(newSkills);
+    if (isEdit) {
+      onChange(skills.map((s) => (s.skillId === skill.skillId ? skill : s)));
+      return;
+    }
+    // 신규 — skillId 가 없는 경우 부모(수정 페이지의 BE 응답) 또는 createA2A 가 부여하기 전까지 임시 id 부여하여 row key 충돌 방지
+    const next: A2ASkill = skill.skillId ? skill : { ...skill, skillId: `tmp-${Date.now()}` };
+    onChange([...skills, next]);
   };
 
   const handleDelete = (skill: A2ASkill) => {
     modal.confirm.delete({
-      onOk: () => applySkills(skills.filter((s) => s.skillId !== skill.skillId)),
+      onOk: () => onChange(skills.filter((s) => s.skillId !== skill.skillId)),
     });
   };
 
@@ -106,19 +91,22 @@ export default function A2ASkillList() {
 
   return (
     <>
-      <div className="flex flex-col gap-4 w-full h-full">
-        <header className="flex items-center justify-end w-full">
+      <div className="flex flex-col w-full h-full">
+        {/* Ant Form label(vertical layout) 의 line-height + padding-bottom(약 8px) 과 동일한 hieght 로 좌측 첫 라벨과 baseline 정렬 */}
+        <header className="flex items-center justify-between w-full pb-2" style={{ height: 32 }}>
+          <label className="text-sm text-gray-800">Skills</label>
           <Button type="primary" onClick={() => skillDrawerRef.current?.open()}>
             추가
           </Button>
         </header>
-        <div className="w-full h-full">
+        <div className="w-full flex-1 min-h-0">
           <AgGridReact<A2ASkill>
             rowData={skills}
             columnDefs={columnDefs}
-            gridOptions={gridOptions}
+            // Skills 는 보통 소량(수 ~ 수십 건) 이라 페이지네이션·하단 status bar 제거.
+            gridOptions={{ ...gridOptions, statusBar: undefined, pagination: false }}
             getRowId={(params) => params.data.skillId ?? params.data.skillName}
-            loading={isFetching}
+            loading={loading}
             onRowDoubleClicked={(e) => {
               if (e.data) skillDrawerRef.current?.open(e.data);
             }}

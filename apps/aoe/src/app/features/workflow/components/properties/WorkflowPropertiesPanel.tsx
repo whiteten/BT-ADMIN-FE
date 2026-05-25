@@ -309,9 +309,14 @@ export default function WorkflowPropertiesPanel({ agentId, node, graph, onClose 
           graph.edges,
         ),
       };
+      // form.setFieldValue + form.submit() 경로(모델·MCP·도구 변경 등)는 onValuesChange 가 호출되지 않아
+      // optimistic 캐시 업데이트가 일어나지 않음. handleSubmit 에서 한 번 더 캐시를 머지해 캔버스 즉시 반영.
+      queryClient.setQueryData<WorkflowGraph>(workflowQueryKeys.graph(agentId).queryKey, (old) =>
+        old ? { ...old, nodes: (old.nodes ?? []).map((n) => (n.nodeId === merged.nodeId ? merged : n)) } : old,
+      );
       updateNode({ params: { agentId, nodeId: node.nodeId }, data: merged });
     },
-    [agentId, node, updateNode, graph.nodes, graph.edges],
+    [agentId, node, updateNode, graph.nodes, graph.edges, queryClient],
   );
 
   // 폼 변경 시: (1) 캐시 즉시 머지로 입력값 보존, (2) debounce 후 BE 저장
@@ -397,6 +402,9 @@ export default function WorkflowPropertiesPanel({ agentId, node, graph, onClose 
               form={form}
               layout="vertical"
               onFinish={handleSubmit}
+              // validation 실패해도 저장 — 모델/MCP/도구 등 다른 필드 변경이 User 프롬프트 같은 required 미입력에 의해 차단되면 안 됨.
+              // 최종 검증은 deploy 단에서 별도 처리.
+              onFinishFailed={({ values }) => handleSubmit(values)}
               onValuesChange={handleValuesChange}
               initialValues={{ ...node, data: nodeDataToFormData(node.nodeKind, node.data) }}
             >

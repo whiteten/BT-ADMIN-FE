@@ -26,19 +26,29 @@ import { Hand, MousePointer2 } from 'lucide-react';
 import { Log } from '@/log';
 import { toast } from '@/shared-util';
 import HelperLines from './HelperLines';
+import { useGetToolGroups } from '../../tool/hooks/useToolQueries';
 import { NODE_DRAG_MIME, NODE_KIND_MAP } from '../constants/nodeKinds';
-import { useCreateEdge, useCreateNode, useDeleteEdge, useDeleteNodes, useUpdateNodePosition, workflowQueryKeys } from '../hooks/useWorkflowQueries';
+import { useCreateEdge, useCreateNode, useDeleteEdge, useDeleteNodes, useUpdateNode, useUpdateNodePosition, workflowQueryKeys } from '../hooks/useWorkflowQueries';
 import type { FlowEdge, FlowNode, NodeDeleteRequest, WorkflowGraph } from '../types';
 import { getEdgeBranchAttrs } from '../utils/edgeAttrs';
 import { getHelperLines } from '../utils/getHelperLines';
 import { getUniqueNodeLabel } from '../utils/getUniqueNodeLabel';
+import { buildLlmToolDecorations, isToolEdgeId, isToolNodeId } from '../utils/llmToolDecorations';
+import { suppressResizeObserverError } from '../utils/suppressResizeObserverError';
 import { buildNodeName, buildOutputVariableFromName } from '../utils/variableTokens';
+
+// NodeResizer 관련 무해한 경고 swallow — install 한 번만.
+suppressResizeObserverError();
 import GenericKindNode from './nodes/GenericKindNode';
+import MemoNode, { MEMO_DEFAULT_HEIGHT, MEMO_DEFAULT_WIDTH, type MemoColor } from './nodes/MemoNode';
+import ToolNode from './nodes/ToolNode';
 
 const NODES_WITHOUT_OUTPUT = new Set(['start', 'answer', 'error']);
 
 const nodeTypes: NodeTypes = {
   default: GenericKindNode,
+  tool: ToolNode,
+  memo: MemoNode,
 };
 
 const defaultEdgeOptions = {
@@ -72,24 +82,40 @@ interface NodeActionHandlers {
   onCopy?: (nodeId: string) => void;
   onCut?: (nodeId: string) => void;
   onDelete?: (nodeId: string) => void;
+  onMemoChange?: (nodeId: string, patch: { text?: string; color?: MemoColor; width?: number; height?: number }) => void;
 }
 
 const toReactFlowNodes = (nodes: FlowNode[] = [], handlers?: NodeActionHandlers): Node[] =>
-  nodes.map((n) => ({
-    id: n.nodeId,
-    type: 'default',
-    position: { x: n.positionX, y: n.positionY },
-    deletable: !PROTECTED_NODE_KINDS.has(n.nodeKind),
-    data: {
-      kind: n.nodeKind,
-      label: n.nodeLabel ?? NODE_KIND_MAP[n.nodeKind]?.label ?? n.nodeKind,
-      description: n.description,
-      ...(n.data ?? {}),
-      onCopy: handlers?.onCopy,
-      onCut: handlers?.onCut,
-      onDelete: handlers?.onDelete,
-    },
-  }));
+  nodes.map((n) => {
+    const isMemo = n.nodeKind === 'memo';
+    // memo 노드 사이즈는 ReactFlow 컨테이너 (style.width/height) 에서 관리 — NodeResizer 가 직접 갱신.
+    // MemoNode 외곽 div 는 100% fill 로 따라감. 이 경계가 흐릴 경우 ResizeObserver loop 발생.
+    const memoData = isMemo ? ((n.data ?? {}) as { width?: number; height?: number }) : undefined;
+    return {
+      id: n.nodeId,
+      type: isMemo ? 'memo' : 'default',
+      position: { x: n.positionX, y: n.positionY },
+      deletable: !PROTECTED_NODE_KINDS.has(n.nodeKind),
+      ...(isMemo
+        ? {
+            style: {
+              width: memoData?.width ?? MEMO_DEFAULT_WIDTH,
+              height: memoData?.height ?? MEMO_DEFAULT_HEIGHT,
+            },
+          }
+        : {}),
+      data: {
+        kind: n.nodeKind,
+        label: n.nodeLabel ?? NODE_KIND_MAP[n.nodeKind]?.label ?? n.nodeKind,
+        description: n.description,
+        ...(n.data ?? {}),
+        onCopy: handlers?.onCopy,
+        onCut: handlers?.onCut,
+        onDelete: handlers?.onDelete,
+        onMemoChange: handlers?.onMemoChange,
+      },
+    };
+  });
 
 const toReactFlowEdges = (edges: FlowEdge[] = []): Edge[] =>
   edges.map((e) => ({
@@ -103,7 +129,11 @@ const toReactFlowEdges = (edges: FlowEdge[] = []): Edge[] =>
 
 function WorkflowCanvasInner({ agentId, graph, onSelectNode }: WorkflowCanvasInnerProps) {
   const queryClient = useQueryClient();
-  const { screenToFlowPosition } = useReactFlow();
+  const { screenToFlowPosition, getNode } = useReactFlow();
+
+  // 도구 그룹 라벨 매핑 — LLM 노드의 default 도구 자식 노드 라벨용 (groupId → groupName).
+  // 주의: default `= []` 같은 인라인 fallback 은 매 렌더 새 reference 라 useEffect deps 무한 루프 유발. fallback 은 effect 내부에서.
+  const { data: toolGroups } = useGetToolGroups();
 
   const [nodes, setNodes] = useState<Node[]>(() => toReactFlowNodes(graph.nodes));
   const [edges, setEdges] = useState<Edge[]>(() => toReactFlowEdges(graph.edges));
@@ -119,13 +149,18 @@ function WorkflowCanvasInner({ agentId, graph, onSelectNode }: WorkflowCanvasInn
   /** 노드 삭제 cascade 가 처리 중인 엣지 ID 집합. onEdgesChange 의 ReactFlow auto-cascade 이중 호출 방지용. */
   const pendingEdgeDeletesRef = useRef<Set<string>>(new Set());
 
-  // 서버 그래프 edges 동기화 (selection 보존). nodes 는 handlers 가 정의된 후 별도 effect 에서 처리
+  // 서버 그래프 edges 동기화 (selection 보존) + LLM 도구 가상 엣지 합성.
+  // nodes 는 handlers 가 정의된 후 별도 effect 에서 처리
   useEffect(() => {
+    const toolGroupsMap: Record<string, string> = {};
+    for (const g of toolGroups ?? []) toolGroupsMap[g.groupId] = g.groupName;
     setEdges((prev) => {
       const prevSelected = new Map(prev.map((p) => [p.id, p.selected]));
-      return toReactFlowEdges(graph.edges).map((e) => ({ ...e, selected: prevSelected.get(e.id) ?? false }));
+      const real = toReactFlowEdges(graph.edges);
+      const { toolEdges } = buildLlmToolDecorations(graph.nodes ?? [], toolGroupsMap);
+      return [...real, ...toolEdges].map((e) => ({ ...e, selected: prevSelected.get(e.id) ?? false }));
     });
-  }, [graph.edges]);
+  }, [graph.edges, graph.nodes, toolGroups]);
 
   const setGraph = useCallback(
     (updater: (old: WorkflowGraph) => WorkflowGraph) => {
@@ -228,6 +263,16 @@ function WorkflowCanvasInner({ agentId, graph, onSelectNode }: WorkflowCanvasInn
     },
   });
 
+  // 메모 노드 인라인 편집(text/color) → BE 저장. optimistic 으로 graph cache 즉시 머지하고 BE 호출.
+  const { mutate: updateNode } = useUpdateNode({
+    mutationOptions: {
+      onError: (error) => {
+        Log.warn('updateNode (memo) failed', error);
+        toast.error('메모 저장에 실패했습니다.');
+      },
+    },
+  });
+
   // ReactFlow remove change 발생 시 (Delete 키) 삭제할 노드 + 관련 edges 를 캡쳐. history push 용
   const captureNodesForHistory = useCallback(
     (nodeIds: string[]) => {
@@ -263,7 +308,11 @@ function WorkflowCanvasInner({ agentId, graph, onSelectNode }: WorkflowCanvasInn
       }
 
       setNodes((prev) => applyNodeChanges(safeChanges, prev));
-      const removed = safeChanges.filter((c): c is NodeChange & { type: 'remove'; id: string } => c.type === 'remove').map((c) => c.id);
+      // 가상 도구 노드(tool- prefix)는 BE 그래프에 없으므로 삭제 BE 호출에서 제외
+      const removed = safeChanges
+        .filter((c): c is NodeChange & { type: 'remove'; id: string } => c.type === 'remove')
+        .map((c) => c.id)
+        .filter((id) => !isToolNodeId(id));
       if (removed.length > 0) {
         const snapshot = captureNodesForHistory(removed);
         deleteNodesWithEdges(removed).then(() => pushHistory({ type: 'deleteNodes', nodes: snapshot.nodes, edges: snapshot.edges }));
@@ -275,7 +324,11 @@ function WorkflowCanvasInner({ agentId, graph, onSelectNode }: WorkflowCanvasInn
   const onEdgesChange = useCallback(
     (changes: EdgeChange[]) => {
       setEdges((prev) => applyEdgeChanges(changes, prev));
-      const removedIds = changes.filter((c): c is EdgeChange & { type: 'remove'; id: string } => c.type === 'remove').map((c) => c.id);
+      // 가상 도구 엣지(tool-edge- prefix)는 BE 그래프에 없으므로 삭제 BE 호출에서 제외
+      const removedIds = changes
+        .filter((c): c is EdgeChange & { type: 'remove'; id: string } => c.type === 'remove')
+        .map((c) => c.id)
+        .filter((id) => !isToolEdgeId(id));
       if (removedIds.length > 0) {
         // graph 캐시 즉시 optimistic 제거 — BE 응답 전 useEffect re-sync 가 엣지를 되살리는 깜빡임 방지
         const removedIdSet = new Set(removedIds);
@@ -321,6 +374,10 @@ function WorkflowCanvasInner({ agentId, graph, onSelectNode }: WorkflowCanvasInn
 
   const onNodeClick = useCallback(
     (_event: React.MouseEvent, node: Node) => {
+      // 가상 도구 노드 클릭은 무시 — 속성 패널이 열리지 않도록
+      if (isToolNodeId(node.id)) return;
+      // 메모 노드는 인라인 편집이라 속성 패널 안 띄움
+      if (node.type === 'memo') return;
       onSelectNode(node.id);
     },
     [onSelectNode],
@@ -334,6 +391,8 @@ function WorkflowCanvasInner({ agentId, graph, onSelectNode }: WorkflowCanvasInn
     (_event: React.MouseEvent, node: Node) => {
       setHelperLineH(undefined);
       setHelperLineV(undefined);
+      // 가상 도구 노드는 BE 그래프에 없으므로 위치 저장 호출 차단
+      if (isToolNodeId(node.id)) return;
       const positionX = Math.round(node.position.x);
       const positionY = Math.round(node.position.y);
       setGraph((old) => ({
@@ -423,23 +482,65 @@ function WorkflowCanvasInner({ agentId, graph, onSelectNode }: WorkflowCanvasInn
     [graph.nodes, deleteNodesWithEdges, captureNodesForHistory, pushHistory],
   );
 
+  // 메모 노드 인라인 편집 콜백 — graph cache optimistic 머지 후 BE 저장.
+  // - width/height 만 변경된 경우(=resize 종료): NodeResizer 가 이미 시각 반영했으므로 optimistic 스킵.
+  //   useEffect [graph.nodes] 발화 → setNodes 통째 재생성 → 같은 frame reflow → 깜빡임 회피.
+  //   BE 응답 후 onSuccess 의 setQueryData 에서 한 번만 동기화 → dimension 일치 → 시각 변화 없음.
+  // - text·color 변경: optimistic 적용. 단 graph.nodes 의 data 에는 NodeResizer 가 적용한 최신 width/height 가 없으므로
+  //   ReactFlow 의 현재 노드(getNode) 에서 회수해 합성. 안 그러면 옛 dimension 으로 BE 가 덮여 사이즈 원복됨.
+  const handleMemoChange = useCallback(
+    (nodeId: string, patch: { text?: string; color?: MemoColor; width?: number; height?: number }) => {
+      const target = (graph.nodes ?? []).find((n) => n.nodeId === nodeId);
+      if (!target) return;
+
+      const isDimensionOnly = Object.keys(patch).length > 0 && Object.keys(patch).every((k) => k === 'width' || k === 'height');
+
+      // NodeResizer 가 적용한 최신 dimension 회수 — text/color 변경 시 옛 사이즈로 덮어쓰지 않도록.
+      // NodeResizer 는 node.width / node.height / node.measured 만 갱신하고 node.style 은 손대지 않으므로,
+      // style 이 아니라 width / height / measured 에서 읽어야 함 (xyflow 12 applyChanges 동작).
+      const rfNode = getNode(nodeId);
+      const liveW = rfNode?.width ?? rfNode?.measured?.width;
+      const liveH = rfNode?.height ?? rfNode?.measured?.height;
+      const liveDimensions: { width?: number; height?: number } = {};
+      if (typeof liveW === 'number') liveDimensions.width = liveW;
+      if (typeof liveH === 'number') liveDimensions.height = liveH;
+
+      const nextData = { ...(target.data ?? {}), ...liveDimensions, ...patch };
+      const merged: FlowNode = { ...target, data: nextData };
+
+      if (!isDimensionOnly) {
+        setGraph((old) => ({
+          ...old,
+          nodes: (old.nodes ?? []).map((n) => (n.nodeId === nodeId ? merged : n)),
+        }));
+      }
+      updateNode({ params: { agentId, nodeId }, data: merged });
+    },
+    [agentId, graph.nodes, getNode, setGraph, updateNode],
+  );
+
   // NodeToolbar 액션 — 각 노드의 data 에 inject. 단일 nodeId 받음
   const nodeHandlers = useMemo<NodeActionHandlers>(
     () => ({
       onCopy: (id) => copyNodes([id]),
       onCut: (id) => cutNodes([id]),
       onDelete: (id) => deleteSingleNode(id),
+      onMemoChange: handleMemoChange,
     }),
-    [copyNodes, cutNodes, deleteSingleNode],
+    [copyNodes, cutNodes, deleteSingleNode, handleMemoChange],
   );
 
-  // 그래프 변경 또는 handlers 갱신 시 캔버스 노드 동기화 (selection 보존)
+  // 그래프 변경 또는 handlers 갱신 시 캔버스 노드 동기화 (selection 보존) + LLM 도구 가상 노드 합성
   useEffect(() => {
+    const toolGroupsMap: Record<string, string> = {};
+    for (const g of toolGroups ?? []) toolGroupsMap[g.groupId] = g.groupName;
     setNodes((prev) => {
       const prevSelected = new Map(prev.map((p) => [p.id, p.selected]));
-      return toReactFlowNodes(graph.nodes, nodeHandlers).map((n) => ({ ...n, selected: prevSelected.get(n.id) ?? false }));
+      const real = toReactFlowNodes(graph.nodes, nodeHandlers);
+      const { toolNodes } = buildLlmToolDecorations(graph.nodes ?? [], toolGroupsMap);
+      return [...real, ...toolNodes].map((n) => ({ ...n, selected: prevSelected.get(n.id) ?? false }));
     });
-  }, [graph.nodes, nodeHandlers]);
+  }, [graph.nodes, nodeHandlers, toolGroups]);
 
   // 되돌리기 — 마지막 history entry 의 inverse 작업을 raw mutation 으로 호출 (history push X)
   const undo = useCallback(() => {
