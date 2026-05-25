@@ -7,7 +7,7 @@ import { Button, Checkbox, Input, Select } from 'antd';
 import { Edit2, Plus, X } from 'lucide-react';
 import CalcFieldEditor from './CalcFieldEditor';
 import type { CalcFieldCreateDatas, ColumnFormat, DomainCode } from '../../report/types';
-import { useGetDataSourceFields } from '../hooks/useDatasetQueries';
+import { useGetDataSourceFields, useGetSchemaPreview } from '../hooks/useDatasetQueries';
 import type { LocalCalcFieldDraft, LocalFieldDisplay } from '../types';
 import { FallbackSpinner } from '@/components/custom/FallbackSpinner';
 
@@ -44,7 +44,8 @@ function SortableItem({ id, children }: { id: string; children: (dragProps: Retu
 type EditingState = { mode: 'idle' } | { mode: 'add' } | { mode: 'edit'; localId: string };
 
 interface WizardStepBProps {
-  datasourceKey: string;
+  datasourceKey?: string;
+  dbViewPrefix?: string;
   domain: DomainCode;
   fieldDisplays: LocalFieldDisplay[];
   onFieldDisplaysChange: (displays: LocalFieldDisplay[]) => void;
@@ -53,7 +54,16 @@ interface WizardStepBProps {
   onEditingChange?: (isEditing: boolean) => void;
 }
 
-export default function WizardStepB({ datasourceKey, domain, fieldDisplays, onFieldDisplaysChange, calcFields, onCalcFieldsChange, onEditingChange }: WizardStepBProps) {
+export default function WizardStepB({
+  datasourceKey = '',
+  dbViewPrefix,
+  domain,
+  fieldDisplays,
+  onFieldDisplaysChange,
+  calcFields,
+  onCalcFieldsChange,
+  onEditingChange,
+}: WizardStepBProps) {
   const [editing, setEditing] = useState<EditingState>({ mode: 'idle' });
 
   useEffect(() => {
@@ -63,9 +73,16 @@ export default function WizardStepB({ datasourceKey, domain, fieldDisplays, onFi
 
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 5 } }));
 
-  const { data: sourceFields = [], isLoading } = useGetDataSourceFields({
-    params: { datasourceKey },
+  const { data: previewFields = [], isLoading: isLoadingPreview } = useGetSchemaPreview({
+    params: { dbViewPrefix: dbViewPrefix ?? '' },
+    queryOptions: { enabled: !!dbViewPrefix },
   });
+  const { data: existingFields = [], isLoading: isLoadingExisting } = useGetDataSourceFields({
+    params: { datasourceKey },
+    queryOptions: { enabled: !!datasourceKey && !dbViewPrefix },
+  });
+  const sourceFields = dbViewPrefix ? previewFields : existingFields;
+  const isLoading = dbViewPrefix ? isLoadingPreview : isLoadingExisting;
 
   // 초기화: 기본값 isVisible = false
   useEffect(() => {

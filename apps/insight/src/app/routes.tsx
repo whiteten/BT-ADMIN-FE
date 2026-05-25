@@ -4,6 +4,8 @@ import { NotFound } from '@/components/custom/NotFound';
 
 // ─── 통계 ─────────────────────────────────────────────────────────────
 const SearchConditionCatalog = React.lazy(() => import('./pages/search-conditions/SearchConditionCatalog'));
+const StatDatasetList = React.lazy(() => import('./pages/stat-datasets/StatDatasetList'));
+const StatDatasetWizard = React.lazy(() => import('./pages/stat-dataset-wizard/StatDatasetWizard'));
 const ReportList = React.lazy(() => import('./pages/reports/ReportList'));
 const ReportWizard = React.lazy(() => import('./pages/report-wizard/ReportWizard'));
 const ReportEditor = React.lazy(() => import('./pages/report-editor/ReportEditor'));
@@ -30,10 +32,18 @@ export const routes = [
         path: 'statistics',
         element: <Outlet />,
         children: [
-          { index: true, element: <Navigate to="reports" replace /> },
+          { index: true, element: <Navigate to="datasets" replace /> },
           {
             path: 'search-conditions',
             element: <SearchConditionCatalog />,
+          },
+          {
+            path: 'datasets',
+            element: <Outlet />,
+            children: [
+              { index: true, element: <StatDatasetList /> },
+              { path: 'new', element: <StatDatasetWizard /> },
+            ],
           },
           {
             path: 'reports',
