@@ -50,20 +50,22 @@ export default function DashboardView() {
     setWidgets(initialWidgets);
   }, [initialWidgets]);
 
+  // 모드에 따라 breadcrumb 마지막 segment 가 달라진다.
+  //   view: … / 대시보드 / :dashboardName / 보기
+  //   edit: … / 대시보드 / :dashboardName(→ /edit)
   useEffect(() => {
-    if (dashboard) {
-      setBreadcrumb(
-        [
-          { title: '모니터링', path: '/insight/monitoring' },
-          { title: '대시보드', path: '/insight/monitoring/dashboards' },
-          { title: ':dashboardName' },
-          { title: '보기', path: `/insight/monitoring/dashboards/${dashboardId}/view` },
-        ],
-        { dashboardName: dashboard.dashboardName },
-      );
-    }
+    if (!dashboard) return;
+    const base = [
+      { title: '모니터링', path: '/insight/monitoring' },
+      { title: '대시보드', path: '/insight/monitoring/dashboards' },
+    ];
+    const trail =
+      mode === 'edit'
+        ? [{ title: ':dashboardName', path: `/insight/monitoring/dashboards/${dashboardId}/edit` }]
+        : [{ title: ':dashboardName' }, { title: '보기', path: `/insight/monitoring/dashboards/${dashboardId}/view` }];
+    setBreadcrumb([...base, ...trail], { dashboardName: dashboard.dashboardName });
     return () => clearBreadcrumb();
-  }, [dashboard, dashboardId, setBreadcrumb, clearBreadcrumb]);
+  }, [dashboard, dashboardId, mode, setBreadcrumb, clearBreadcrumb]);
 
   // ── View 모드 — 모니터링 시작 여부 + 갱신 간격 ────────────────────
   const [monitoringStarted, setMonitoringStarted] = useState(false);
