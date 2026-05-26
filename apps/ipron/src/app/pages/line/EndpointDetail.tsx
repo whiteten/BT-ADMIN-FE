@@ -24,7 +24,7 @@ import { IconTrash } from '@/components/custom/Icons';
 import useAggridOptions from '@/libs/shared-ui/src/hooks/useAggridOptions';
 import { useModal } from '@/libs/shared-ui/src/hooks/useModal';
 
-const breadcrumb = [{ title: 'IPRON' }, { title: '회선관리' }, { title: '국선관리', href: '/ipron/line/endpoint' }, { title: '상세' }];
+const breadcrumb = [{ title: '회선관리' }, { title: '국선관리', href: '/ipron/line/endpoint' }, { title: '상세' }];
 
 export default function EndpointDetail() {
   const setBreadcrumb = useBreadcrumbStore((s) => s.setBreadcrumb);

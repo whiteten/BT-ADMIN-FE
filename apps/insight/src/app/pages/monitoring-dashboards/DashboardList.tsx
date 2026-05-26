@@ -10,7 +10,10 @@ import type { DashboardListItem, DomainCode } from '../../features/monitoring/ty
 import { FallbackSpinner } from '@/components/custom/FallbackSpinner';
 import NoData from '@/components/custom/NoData';
 
-const breadcrumb: BreadcrumbProps['items'] = [{ title: '인사이트' }, { title: '모니터링' }, { title: '대시보드', path: '/insight/monitoring/dashboards' }];
+const breadcrumb: BreadcrumbProps['items'] = [
+  { title: '모니터링', path: '/insight/monitoring' },
+  { title: '대시보드', path: '/insight/monitoring/dashboards' },
+];
 
 type StatusFilter = 'ALL' | 'PUBLISHED' | 'DRAFT';
 

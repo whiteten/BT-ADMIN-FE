@@ -27,7 +27,6 @@ import { useCreateAgent, useGetAgentDetail, useGetAgentGroupTree, useGetAgentTen
 import type { AgentCreateRequest, AgentGroupNode, AgentUpdateRequest, AgentMediaMatrix as Matrix } from '../../features/agent-master/types';
 
 const breadcrumb = [
-  { title: 'IPRON', path: '/ipron' },
   { title: '상담사 관리', path: '/ipron/agent-master' },
   { title: '상담사 관리', path: '/ipron/agent-master' },
 ];
@@ -89,9 +88,15 @@ export default function AgentMasterForm() {
   const setBreadcrumb = useBreadcrumbStore((s) => s.setBreadcrumb);
   const clearBreadcrumb = useBreadcrumbStore((s) => s.clearBreadcrumb);
   useEffect(() => {
-    setBreadcrumb([...breadcrumb, { title: isEdit ? '수정' : '등록', path: '' }]);
+    setBreadcrumb([
+      ...breadcrumb,
+      {
+        title: isEdit ? '수정' : '등록',
+        path: isEdit && id ? `/ipron/agent-master/${id}/edit` : '/ipron/agent-master/create',
+      },
+    ]);
     return () => clearBreadcrumb();
-  }, [isEdit, setBreadcrumb, clearBreadcrumb]);
+  }, [isEdit, id, setBreadcrumb, clearBreadcrumb]);
 
   const [form] = Form.useForm<FormValues>();
   const [matrix, setMatrix] = useState<Matrix | null>(null);

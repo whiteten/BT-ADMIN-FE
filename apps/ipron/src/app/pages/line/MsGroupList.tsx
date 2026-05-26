@@ -30,7 +30,6 @@ import useAggridOptions from '@/libs/shared-ui/src/hooks/useAggridOptions';
 import { useModal } from '@/libs/shared-ui/src/hooks/useModal';
 
 const breadcrumb = [
-  { title: 'IPRON', path: '/ipron' },
   { title: '회선관리', path: '/ipron/line/ms-group' },
   { title: 'MS관리', path: '/ipron/line/ms-group' },
 ];

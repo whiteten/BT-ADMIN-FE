@@ -8,8 +8,8 @@ import type { DnStatusItem } from '../../features/monitoring/types';
 import NoData from '@/components/custom/NoData';
 
 const breadcrumb: BreadcrumbProps['items'] = [
-  { title: 'STT 모니터링', path: '/stt/stt-monitoring' },
-  { title: 'STT 내선별 진행현황', path: '/stt/stt-monitoring/dn/list' },
+  { title: 'STT 모니터링', path: '/stt/monitoring' },
+  { title: 'STT 내선별 진행현황', path: '/stt/monitoring/dn/list' },
 ];
 
 const TY_COLORS: Record<string, string> = {

@@ -310,9 +310,16 @@ export default function EndpointForm() {
   const clearBreadcrumb = useBreadcrumbStore((s) => s.clearBreadcrumb);
 
   useEffect(() => {
-    setBreadcrumb([{ title: 'IPRON' }, { title: '회선관리' }, { title: '국선관리', href: '/ipron/line/endpoint' }, { title: isEditMode ? '수정' : '등록' }]);
+    setBreadcrumb([
+      { title: '회선관리', path: '/ipron/line' },
+      { title: '국선관리', path: '/ipron/line/endpoint' },
+      {
+        title: isEditMode ? '수정' : '등록',
+        path: isEditMode && id ? `/ipron/line/endpoint/${id}` : '/ipron/line/endpoint/create',
+      },
+    ]);
     return () => clearBreadcrumb();
-  }, [isEditMode, setBreadcrumb, clearBreadcrumb]);
+  }, [isEditMode, id, setBreadcrumb, clearBreadcrumb]);
 
   // ─── Utils ──────────────────────────────────────────────────────────────────
   const displayValue = (v: unknown) => (v !== null && v !== undefined && v !== '' ? String(v) : <span className="text-gray-300">-</span>);

@@ -107,7 +107,6 @@ export default function CallDetail() {
 
   const breadcrumb = useMemo(
     () => [
-      { title: 'IPRON', path: '/ipron' },
       { title: '콜 분석', path: '/ipron/tracking' },
       { title: '통합 콜트래킹', path: '/ipron/tracking' },
       { title: ucid ? `UCID ${ucid.slice(0, 8)}...` : '콜 상세', path: '#' },

@@ -632,14 +632,16 @@ export default function DatasetWizard() {
   const datasetNameWatch = Form.useWatch('datasetName', form);
   useEffect(() => {
     const items: BreadcrumbProps['items'] = [
-      { title: '인사이트' },
-      { title: '모니터링' },
+      { title: '모니터링', path: '/insight/monitoring' },
       { title: '데이터셋', path: '/insight/monitoring/datasets' },
-      { title: isEdit ? `${datasetNameWatch ?? '편집'}` : '새 데이터셋' },
+      {
+        title: isEdit ? `${datasetNameWatch ?? '편집'}` : '새 데이터셋',
+        path: isEdit ? `/insight/monitoring/datasets/${param}/edit` : '/insight/monitoring/datasets/create',
+      },
     ];
     setBreadcrumb(items);
     return () => clearBreadcrumb();
-  }, [setBreadcrumb, clearBreadcrumb, isEdit, datasetNameWatch]);
+  }, [setBreadcrumb, clearBreadcrumb, isEdit, param, datasetNameWatch]);
 
   // Mutations
   const { mutate: createDataset, isPending: isCreating } = useCreateMonitoringDataset({

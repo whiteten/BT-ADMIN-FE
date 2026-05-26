@@ -16,7 +16,11 @@ interface FormValues {
 
 const URL_PATTERN = /^https?:\/\/.+/i;
 
-const breadcrumb: BreadcrumbProps['items'] = [{ title: '관리', path: '/aoe/agent-config' }, { title: 'MCP', path: '/aoe/agent-config/mcp/list' }, { title: '추가' }];
+const breadcrumb: BreadcrumbProps['items'] = [
+  { title: '관리', path: '/aoe/agent-config' },
+  { title: 'MCP', path: '/aoe/agent-config/mcp/list' },
+  { title: '추가', path: '/aoe/agent-config/mcp/create' },
+];
 
 export default function McpCreate() {
   const navigate = useNavigate();

@@ -16,8 +16,6 @@ interface FormValues {
   agentDescription?: string;
 }
 
-const breadcrumb: BreadcrumbProps['items'] = [{ title: '관리', path: '/aoe/agent-config' }, { title: 'A2A', path: '/aoe/agent-config/a2a/list' }, { title: ':agentName' }];
-
 export default function A2ADetail() {
   const { a2aId } = useParams();
   const navigate = useNavigate();
@@ -31,9 +29,14 @@ export default function A2ADetail() {
   const skills = a2a?.skills ?? [];
 
   useEffect(() => {
+    const breadcrumb: BreadcrumbProps['items'] = [
+      { title: '관리', path: '/aoe/agent-config' },
+      { title: 'A2A', path: '/aoe/agent-config/a2a/list' },
+      { title: ':agentName', path: `/aoe/agent-config/a2a/${a2aId}` },
+    ];
     setBreadcrumb(breadcrumb, { agentName: a2a?.agentName ?? '-' });
     return () => clearBreadcrumb();
-  }, [a2a?.agentName, setBreadcrumb, clearBreadcrumb]);
+  }, [a2aId, a2a?.agentName, setBreadcrumb, clearBreadcrumb]);
 
   useEffect(() => {
     if (!a2a) return;

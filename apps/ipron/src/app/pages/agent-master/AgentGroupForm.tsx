@@ -26,10 +26,7 @@ import {
 import type { AgentGroupCreateRequest, AgentGroupNode, AgentGroupUpdateRequest, AgentMediaMatrix as Matrix } from '../../features/agent-master/types';
 import { useModal } from '@/libs/shared-ui/src/hooks/useModal';
 
-const breadcrumb = [
-  { title: 'IPRON', path: '/ipron' },
-  { title: '상담사 관리', path: '/ipron/agent-master' },
-];
+const breadcrumb = [{ title: '상담사 관리', path: '/ipron/agent-master' }];
 
 interface FormValues {
   tenantId?: number;
@@ -74,9 +71,15 @@ export default function AgentGroupForm() {
   const setBreadcrumb = useBreadcrumbStore((s) => s.setBreadcrumb);
   const clearBreadcrumb = useBreadcrumbStore((s) => s.clearBreadcrumb);
   useEffect(() => {
-    setBreadcrumb([...breadcrumb, { title: isEdit ? '상담그룹 수정' : '상담그룹 등록', path: '' }]);
+    setBreadcrumb([
+      ...breadcrumb,
+      {
+        title: isEdit ? '상담그룹 수정' : '상담그룹 등록',
+        path: isEdit && id ? `/ipron/agent-master/groups/${id}/edit` : '/ipron/agent-master/groups/create',
+      },
+    ]);
     return () => clearBreadcrumb();
-  }, [isEdit, setBreadcrumb, clearBreadcrumb]);
+  }, [isEdit, id, setBreadcrumb, clearBreadcrumb]);
 
   const [form] = Form.useForm<FormValues>();
   const [matrix, setMatrix] = useState<Matrix | null>(null);

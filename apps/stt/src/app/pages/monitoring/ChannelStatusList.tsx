@@ -9,8 +9,8 @@ import { useGetSttSystemList } from '../../features/stt-config/hooks/useCommonQu
 import NoData from '@/components/custom/NoData';
 
 const breadcrumb: BreadcrumbProps['items'] = [
-  { title: 'STT 모니터링', path: '/stt/stt-monitoring' },
-  { title: 'STT 채널현황', path: '/stt/stt-monitoring/channel/list' },
+  { title: 'STT 모니터링', path: '/stt/monitoring' },
+  { title: 'STT 채널현황', path: '/stt/monitoring/channel/list' },
 ];
 
 function ChannelCard({ item, onClick }: { item: ChannelStatusItem; onClick: (item: ChannelStatusItem) => void }) {

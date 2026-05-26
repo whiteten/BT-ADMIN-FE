@@ -130,10 +130,10 @@ export default function NodeSetting() {
 
   const breadcrumb: BreadcrumbProps['items'] = [
     { title: '시스템' },
-    { title: '자원관리' },
-    { title: '클러스터 관리', href: '../list' },
-    { title: node?.nodeName ?? '-', href: `../${nodeId}` },
-    { title: '노드 설정' },
+    { title: '자원관리', path: '/manager/resource' },
+    { title: '클러스터 관리', path: '/manager/resource/node-management/list' },
+    { title: node?.nodeName ?? '-', path: `/manager/resource/node-management/${nodeId}` },
+    { title: '노드 설정', path: `/manager/resource/node-management/${nodeId}/settings` },
   ];
 
   // ─── Step 1: 기본정보 ─────────────────────────────

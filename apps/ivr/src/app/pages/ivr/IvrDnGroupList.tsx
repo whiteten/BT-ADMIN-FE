@@ -35,7 +35,7 @@ import { IconTrash } from '@/components/custom/Icons';
 import useAggridOptions from '@/libs/shared-ui/src/hooks/useAggridOptions';
 import { useModal } from '@/libs/shared-ui/src/hooks/useModal';
 
-const breadcrumb: BreadcrumbProps['items'] = [{ title: 'ForCus', path: '/ivr' }, { title: '회선관리' }, { title: 'IVR DN 그룹관리' }];
+const breadcrumb: BreadcrumbProps['items'] = [{ title: '회선관리' }, { title: 'IVR DN 그룹관리', path: '/ivr/dn-group' }];
 
 export default function IvrDnGroupList() {
   const [searchParams] = useSearchParams();

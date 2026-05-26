@@ -19,7 +19,11 @@ interface FormValues {
   agentDescription?: string;
 }
 
-const breadcrumb: BreadcrumbProps['items'] = [{ title: '관리', path: '/aoe/agent-config' }, { title: 'A2A', path: '/aoe/agent-config/a2a/list' }, { title: '추가' }];
+const breadcrumb: BreadcrumbProps['items'] = [
+  { title: '관리', path: '/aoe/agent-config' },
+  { title: 'A2A', path: '/aoe/agent-config/a2a/list' },
+  { title: '추가', path: '/aoe/agent-config/a2a/create' },
+];
 
 export default function A2ACreate() {
   const navigate = useNavigate();

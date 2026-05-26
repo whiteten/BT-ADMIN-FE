@@ -33,12 +33,17 @@ export default function DashboardEditor() {
 
   useEffect(() => {
     if (dashboard) {
-      setBreadcrumb([{ title: '인사이트' }, { title: '모니터링' }, { title: '대시보드', path: '/insight/monitoring/dashboards' }, { title: ':dashboardName' }], {
-        dashboardName: dashboard.dashboardName,
-      });
+      setBreadcrumb(
+        [
+          { title: '모니터링', path: '/insight/monitoring' },
+          { title: '대시보드', path: '/insight/monitoring/dashboards' },
+          { title: ':dashboardName', path: `/insight/monitoring/dashboards/${dashboardId}/edit` },
+        ],
+        { dashboardName: dashboard.dashboardName },
+      );
     }
     return () => clearBreadcrumb();
-  }, [dashboard, setBreadcrumb, clearBreadcrumb]);
+  }, [dashboard, dashboardId, setBreadcrumb, clearBreadcrumb]);
 
   const invalidateDetail = () => {
     queryClient.invalidateQueries({ queryKey: dashboardKeys.detail(dashboardId).queryKey });

@@ -315,9 +315,16 @@ export default function DnProfileForm() {
   const clearBreadcrumb = useBreadcrumbStore((s) => s.clearBreadcrumb);
 
   useEffect(() => {
-    setBreadcrumb([{ title: 'IPRON' }, { title: '프로파일 관리' }, { title: '내선 프로파일', href: '../dn-profile' }, { title: isEditMode ? '수정' : '등록' }]);
+    setBreadcrumb([
+      { title: '프로파일 관리', path: '/ipron/profile' },
+      { title: '내선 프로파일', path: '/ipron/profile/dn-profile' },
+      {
+        title: isEditMode ? '수정' : '등록',
+        path: isEditMode && id ? `/ipron/profile/dn-profile/${id}/edit` : '/ipron/profile/dn-profile/create',
+      },
+    ]);
     return () => clearBreadcrumb();
-  }, [isEditMode, setBreadcrumb, clearBreadcrumb]);
+  }, [isEditMode, id, setBreadcrumb, clearBreadcrumb]);
 
   // ─── Footer ────────────────────────────────────────────────────────────────
   function renderFooter() {

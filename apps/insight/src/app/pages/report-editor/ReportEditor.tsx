@@ -36,7 +36,10 @@ export default function ReportEditor() {
   useEffect(() => {
     if (reportFull) {
       setBreadcrumb(
-        [{ title: '인사이트' }, { title: '보고서', path: '/insight/statistics/reports' }, { title: ':reportTitle', path: `/insight/statistics/reports/${reportId}/edit` }],
+        [
+          { title: '보고서', path: '/insight/statistics/reports' },
+          { title: ':reportTitle', path: `/insight/statistics/reports/${reportId}/edit` },
+        ],
         { reportTitle: reportFull.title },
       );
     }

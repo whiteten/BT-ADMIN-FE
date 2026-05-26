@@ -3,8 +3,8 @@ import { type BreadcrumbProps } from 'antd';
 import { useBreadcrumbStore } from '@/shared-store';
 
 const breadcrumb: BreadcrumbProps['items'] = [
-  { title: 'STT 모니터링', path: '/stt/stt-monitoring' },
-  { title: 'STT 콜별 진행현황', path: '/stt/stt-monitoring/call/list' },
+  { title: 'STT 모니터링', path: '/stt/monitoring' },
+  { title: 'STT 콜별 진행현황', path: '/stt/monitoring/call/list' },
 ];
 
 export default function CallStatusList() {

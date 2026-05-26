@@ -10,7 +10,7 @@ import type { DomainCode } from '../../features/report/types';
 import { FallbackSpinner } from '@/components/custom/FallbackSpinner';
 import NoData from '@/components/custom/NoData';
 
-const breadcrumb: BreadcrumbProps['items'] = [{ title: '인사이트' }, { title: '데이터셋', path: '/insight/statistics/datasets' }];
+const breadcrumb: BreadcrumbProps['items'] = [{ title: '데이터셋', path: '/insight/statistics/datasets' }];
 
 export default function StatDatasetList() {
   const navigate = useNavigate();

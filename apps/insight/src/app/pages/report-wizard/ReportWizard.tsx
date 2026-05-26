@@ -40,7 +40,10 @@ export default function ReportWizard() {
   });
 
   useEffect(() => {
-    setBreadcrumb([{ title: '인사이트' }, { title: '보고서', path: '/insight/statistics/reports' }, { title: '새 보고서 생성', path: '/insight/statistics/reports/new' }]);
+    setBreadcrumb([
+      { title: '보고서', path: '/insight/statistics/reports' },
+      { title: '새 보고서 생성', path: '/insight/statistics/reports/new' },
+    ]);
     return () => clearBreadcrumb();
   }, [setBreadcrumb, clearBreadcrumb]);
 

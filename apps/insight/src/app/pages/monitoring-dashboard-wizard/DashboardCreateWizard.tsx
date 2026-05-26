@@ -17,8 +17,7 @@ import { dashboardKeys, useCreateDashboard } from '../../features/monitoring/hoo
 import type { DomainCode } from '../../features/monitoring/types';
 
 const breadcrumb: BreadcrumbProps['items'] = [
-  { title: '인사이트' },
-  { title: '모니터링' },
+  { title: '모니터링', path: '/insight/monitoring' },
   { title: '대시보드', path: '/insight/monitoring/dashboards' },
   { title: '등록', path: '/insight/monitoring/dashboards/create' },
 ];

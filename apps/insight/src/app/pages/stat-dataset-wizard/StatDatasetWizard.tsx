@@ -30,7 +30,10 @@ export default function StatDatasetWizard() {
   const { mutateAsync: createDataset, isPending } = useCreateDataset();
 
   useEffect(() => {
-    setBreadcrumb([{ title: '인사이트' }, { title: '데이터셋', path: '/insight/statistics/datasets' }, { title: '새 데이터셋 생성', path: '/insight/statistics/datasets/new' }]);
+    setBreadcrumb([
+      { title: '데이터셋', path: '/insight/statistics/datasets' },
+      { title: '새 데이터셋 생성', path: '/insight/statistics/datasets/new' },
+    ]);
     return () => clearBreadcrumb();
   }, [setBreadcrumb, clearBreadcrumb]);
 

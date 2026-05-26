@@ -35,12 +35,18 @@ export default function DashboardView() {
 
   useEffect(() => {
     if (dashboard) {
-      setBreadcrumb([{ title: '인사이트' }, { title: '모니터링' }, { title: '대시보드', path: '/insight/monitoring/dashboards' }, { title: ':dashboardName' }, { title: '보기' }], {
-        dashboardName: dashboard.dashboardName,
-      });
+      setBreadcrumb(
+        [
+          { title: '모니터링', path: '/insight/monitoring' },
+          { title: '대시보드', path: '/insight/monitoring/dashboards' },
+          { title: ':dashboardName' },
+          { title: '보기', path: `/insight/monitoring/dashboards/${dashboardId}/view` },
+        ],
+        { dashboardName: dashboard.dashboardName },
+      );
     }
     return () => clearBreadcrumb();
-  }, [dashboard, setBreadcrumb, clearBreadcrumb]);
+  }, [dashboard, dashboardId, setBreadcrumb, clearBreadcrumb]);
 
   if (isLoading && !dashboard) return <FallbackSpinner />;
   if (!dashboard) {

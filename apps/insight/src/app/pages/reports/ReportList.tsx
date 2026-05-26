@@ -11,7 +11,7 @@ import NoData from '@/components/custom/NoData';
 
 type OwnershipFilter = 'ALL' | 'MINE' | 'PUBLISHED';
 
-const breadcrumb: BreadcrumbProps['items'] = [{ title: '인사이트' }, { title: '보고서', path: '/insight/statistics/reports' }];
+const breadcrumb: BreadcrumbProps['items'] = [{ title: '보고서', path: '/insight/statistics/reports' }];
 
 export default function ReportList() {
   const navigate = useNavigate();

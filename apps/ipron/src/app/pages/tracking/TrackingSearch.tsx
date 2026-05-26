@@ -28,7 +28,6 @@ import { criteriaToString, parseSearchSyntax, presetToRange, validateCriteria } 
 const MINUTE_STEP = 1;
 
 const breadcrumb = [
-  { title: 'IPRON', path: '/ipron' },
   { title: '콜 분석', path: '/ipron/tracking' },
   { title: '통합 콜트래킹', path: '/ipron/tracking' },
 ];
