@@ -78,55 +78,43 @@ export default function McpBasicInfo() {
   };
 
   return (
-    <Form form={form} layout="vertical" onFinish={onFinish}>
+    <Form form={form} layout="vertical" onFinish={onFinish} className="max-w-2xl">
       {isLoading ? (
         <div className="flex items-center justify-center w-full h-full">
           <FallbackSpinner />
         </div>
       ) : (
         <>
-          <Row gutter={20}>
-            <Col span={12}>
-              <Form.Item
-                name="serverName"
-                label="서버명"
-                required
-                rules={[
-                  { required: true, message: '서버명을 입력해 주세요.' },
-                  { max: 255, message: '서버명은 255자 이내여야 합니다.' },
-                ]}
-              >
-                <Input placeholder="MCP 서버 이름을 입력하세요." disabled />
-              </Form.Item>
-            </Col>
-            <Col span={12}>
-              <Form.Item
-                name="url"
-                label="URL"
-                required
-                rules={[
-                  { required: true, message: 'URL을 입력해 주세요.' },
-                  { max: 256, message: 'URL은 256자 이내여야 합니다.' },
-                  { pattern: URL_PATTERN, message: 'http:// 또는 https:// 로 시작하는 URL을 입력하세요.' },
-                ]}
-              >
-                <Input placeholder="https://example.com" className="font-mono" />
-              </Form.Item>
-            </Col>
-          </Row>
-          <Row gutter={20}>
-            <Col span={12}>
-              <Form.Item name="description" label="설명" rules={[{ max: 256, message: '설명은 256자 이내여야 합니다.' }]}>
-                <Input.TextArea placeholder="설명을 입력하세요." autoSize={{ minRows: 3, maxRows: 6 }} />
-              </Form.Item>
-            </Col>
-            <Col span={12}>
-              <Form.Item name="active" label="상태" valuePropName="checked" extra="비활성 상태의 서버는 연결되지 않습니다.">
-                <Switch checkedChildren="활성" unCheckedChildren="비활성" />
-              </Form.Item>
-            </Col>
-          </Row>
-          <Row gutter={20} justify="center" className="sticky bottom-0 bg-white/90 z-10 pb-7 pt-2">
+          <Form.Item
+            name="serverName"
+            label="서버명"
+            required
+            rules={[
+              { required: true, message: '서버명을 입력해 주세요.' },
+              { max: 255, message: '서버명은 255자 이내여야 합니다.' },
+            ]}
+          >
+            <Input placeholder="MCP 서버 이름을 입력하세요." disabled />
+          </Form.Item>
+          <Form.Item
+            name="url"
+            label="URL"
+            required
+            rules={[
+              { required: true, message: 'URL을 입력해 주세요.' },
+              { max: 256, message: 'URL은 256자 이내여야 합니다.' },
+              { pattern: URL_PATTERN, message: 'http:// 또는 https:// 로 시작하는 URL을 입력하세요.' },
+            ]}
+          >
+            <Input placeholder="https://example.com" className="font-mono" />
+          </Form.Item>
+          <Form.Item name="description" label="설명" rules={[{ max: 256, message: '설명은 256자 이내여야 합니다.' }]}>
+            <Input.TextArea placeholder="설명을 입력하세요." autoSize={{ minRows: 3, maxRows: 6 }} />
+          </Form.Item>
+          <Form.Item name="active" label="상태" valuePropName="checked" extra="비활성 상태의 서버는 연결되지 않습니다.">
+            <Switch checkedChildren="활성" unCheckedChildren="비활성" />
+          </Form.Item>
+          <Row gutter={20} justify="center">
             <Col>
               <Button variant="solid" onClick={() => navigate('../list')}>
                 취소
