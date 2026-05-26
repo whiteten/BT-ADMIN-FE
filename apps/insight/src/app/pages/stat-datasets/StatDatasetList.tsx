@@ -86,7 +86,12 @@ export default function StatDatasetList() {
             </thead>
             <tbody className="divide-y divide-bt-border">
               {filtered.map((dataset) => (
-                <DatasetRow key={dataset.datasourceKey} dataset={dataset} onDelete={() => deleteDataset(dataset.datasourceKey)} />
+                <DatasetRow
+                  key={dataset.datasourceKey}
+                  dataset={dataset}
+                  onDelete={() => deleteDataset(dataset.datasourceKey)}
+                  onDoubleClick={() => navigate(`/insight/statistics/datasets/${dataset.datasourceKey}/edit`)}
+                />
               ))}
             </tbody>
           </table>
@@ -105,11 +110,11 @@ export default function StatDatasetList() {
   );
 }
 
-function DatasetRow({ dataset, onDelete }: { dataset: DatasetListItem; onDelete(): void }) {
+function DatasetRow({ dataset, onDelete, onDoubleClick }: { dataset: DatasetListItem; onDelete(): void; onDoubleClick(): void }) {
   const units: string[] = Array.isArray(dataset.availableUnits) ? dataset.availableUnits : [];
 
   return (
-    <tr className="hover:bg-bt-bg-muted/20 transition-colors">
+    <tr className="hover:bg-bt-bg-muted/20 transition-colors cursor-pointer" onDoubleClick={onDoubleClick}>
       <td className="px-6 py-4">
         <span className="inline-flex h-6 items-center justify-center rounded px-2 text-xs font-bold text-white" style={{ backgroundColor: '#085fb5' }}>
           {dataset.productCode}

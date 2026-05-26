@@ -55,6 +55,7 @@ export interface DatasetCreateRequest {
   availableUnits?: string;
   tenantColumn?: string;
   description?: string;
+  fields?: DataSourceFieldRequest[];
 }
 
 export interface DatasetUpdateRequest {
@@ -63,6 +64,7 @@ export interface DatasetUpdateRequest {
   availableUnits?: string;
   tenantColumn?: string;
   description?: string;
+  fields?: DataSourceFieldRequest[];
 }
 
 export interface PrefixCandidate {
@@ -74,6 +76,18 @@ export interface PrefixCandidate {
 
 export type ColumnFormatValue = 'Number' | 'Decimal' | 'Rate' | 'String' | 'Date' | 'Time';
 
+export interface DataSourceFieldRequest {
+  fieldName: string;
+  displayName: string;
+  fieldType: string;
+  fieldRole: string;
+  formatterType?: string | null;
+  formatterOptions?: string | null;
+  isVisible: boolean;
+  sortOrder: number;
+  description?: string | null;
+}
+
 export interface LocalFieldDisplay {
   fieldName: string;
   displayName: string;
@@ -82,7 +96,9 @@ export interface LocalFieldDisplay {
   isVisible: boolean;
   sortOrder: number;
   aggFunc?: 'SUM' | 'AVG' | 'MIN' | 'MAX' | 'COUNT' | null;
-  isCalcField?: boolean; // calc field synced from LocalCalcFieldDraft
+  isCalcField?: boolean;
+  rawFieldType?: string;
+  rawFieldRole?: string;
 }
 
 export interface LocalCalcFieldDraft {
