@@ -10,14 +10,15 @@
  *  - MEDIA_TYPE: 등록/수정 (EDIT_YN=0 잠금은 BE 가드 + FE 시각)
  *  - 일괄 복사 / 사용 통계 / 인라인 편집 등은 후속 PR
  */
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { Button, Card, Empty, List, Space, Spin, Table, Tag } from 'antd';
 import type { ColumnsType } from 'antd/es/table';
-import { Lock, Plus, RefreshCw, Trash2 } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Lock, Plus, RefreshCw, Trash2 } from 'lucide-react';
 import { useBreadcrumbStore } from '@/shared-store';
 import { toast } from '@/shared-util';
 import CtiCodeFormDrawer, { type CtiCodeDrawerState } from '../../features/cti-code/components/CtiCodeFormDrawer';
-import { useDeleteReasonCode, useGetCtiCodeCategories, useGetMediaTypes, useGetReasonCodes } from '../../features/cti-code/hooks/useCtiCodeQueries';
+import CtiCodeTenantCard from '../../features/cti-code/components/CtiCodeTenantCard';
+import { useDeleteReasonCode, useGetCtiCodeCategories, useGetCtiCodeTenantStats, useGetMediaTypes, useGetReasonCodes } from '../../features/cti-code/hooks/useCtiCodeQueries';
 import type { CtiCodeCategory, MediaTypeResponse, ReasonCodeResponse } from '../../features/cti-code/types';
 
 const breadcrumb = [
@@ -33,11 +34,27 @@ export default function CtiCodeList() {
     return () => clearBreadcrumb();
   }, [setBreadcrumb, clearBreadcrumb]);
 
+  const [selectedTenantId, setSelectedTenantId] = useState<number | null>(null);
   const [selectedCategoryId, setSelectedCategoryId] = useState<string | null>(null);
   const [drawer, setDrawer] = useState<CtiCodeDrawerState>({ open: false });
+  const cardScrollRef = useRef<HTMLDivElement>(null);
 
-  // 5 카테고리 메타
-  const { data: categories = [], isLoading: catLoading, refetch: refetchCategories } = useGetCtiCodeCategories();
+  // 테넌트별 통계 (상단 카드 슬라이더 — ADN 패턴)
+  const { data: tenantStats = [], refetch: refetchTenants } = useGetCtiCodeTenantStats();
+  const totalStats = useMemo(() => {
+    const restCnt = tenantStats.reduce((s, t) => s + (t.restCnt ?? 0), 0);
+    const acwCnt = tenantStats.reduce((s, t) => s + (t.acwCnt ?? 0), 0);
+    return { restCnt, acwCnt, totalCnt: restCnt + acwCnt };
+  }, [tenantStats]);
+
+  // 5 카테고리 메타 (선택 테넌트별 itemCount 반영)
+  const {
+    data: categories = [],
+    isLoading: catLoading,
+    refetch: refetchCategories,
+  } = useGetCtiCodeCategories({
+    params: selectedTenantId !== null ? { tenantId: selectedTenantId } : undefined,
+  });
 
   // 첫 카테고리 자동 선택
   useEffect(() => {
@@ -57,7 +74,12 @@ export default function CtiCodeList() {
     isLoading: reasonLoading,
     refetch: refetchReasons,
   } = useGetReasonCodes({
-    params: isReason ? { codeType: selectedCategory!.codeType ?? undefined } : undefined,
+    params: isReason
+      ? {
+          codeType: selectedCategory!.codeType ?? undefined,
+          tenantId: selectedTenantId ?? undefined,
+        }
+      : undefined,
     queryOptions: { enabled: !!isReason },
   });
 
@@ -159,19 +181,43 @@ export default function CtiCodeList() {
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 16, padding: 16 }}>
-      <Card size="small" title="CTI 코드 관리 — 휴식/ACW 사유 + 미디어타입 통합">
-        <Space>
-          <Button
-            icon={<RefreshCw size={14} />}
-            onClick={() => {
-              refetchCategories();
-              refetchReasons();
-              refetchMedia();
-            }}
-          >
-            새로고침
-          </Button>
-        </Space>
+      {/* 상단 테넌트 카드 슬라이더 — ADN 패턴 (selectedTenantId selector) */}
+      <Card
+        size="small"
+        title="테넌트별 CTI 코드 현황"
+        extra={
+          <Space>
+            <Button size="small" icon={<ChevronLeft size={14} />} onClick={() => cardScrollRef.current?.scrollBy({ left: -260, behavior: 'smooth' })} />
+            <Button size="small" icon={<ChevronRight size={14} />} onClick={() => cardScrollRef.current?.scrollBy({ left: 260, behavior: 'smooth' })} />
+            <Button
+              size="small"
+              icon={<RefreshCw size={14} />}
+              onClick={() => {
+                refetchTenants();
+                refetchCategories();
+                refetchReasons();
+                refetchMedia();
+              }}
+            >
+              새로고침
+            </Button>
+          </Space>
+        }
+        styles={{ body: { padding: '12px 16px' } }}
+      >
+        <div ref={cardScrollRef} style={{ display: 'flex', gap: 12, overflowX: 'auto', padding: '4px 0' }}>
+          <CtiCodeTenantCard tenantId={null} tenantName="전체" stats={totalStats} selected={selectedTenantId === null} onClick={() => setSelectedTenantId(null)} />
+          {tenantStats.map((t) => (
+            <CtiCodeTenantCard
+              key={t.tenantId}
+              tenantId={t.tenantId}
+              tenantName={t.tenantName}
+              stats={{ totalCnt: t.totalCnt, restCnt: t.restCnt, acwCnt: t.acwCnt }}
+              selected={selectedTenantId === t.tenantId}
+              onClick={() => setSelectedTenantId(t.tenantId)}
+            />
+          ))}
+        </div>
       </Card>
 
       <div style={{ display: 'flex', gap: 16, alignItems: 'stretch' }}>

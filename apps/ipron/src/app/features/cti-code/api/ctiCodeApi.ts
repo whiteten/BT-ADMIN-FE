@@ -25,6 +25,7 @@
 import ApiClient, { type ApiResponse } from '@/shared-util';
 import type {
   CtiCodeCategory,
+  CtiCodeTenantStat,
   MediaTypeListParams,
   MediaTypeResponse,
   MediaTypeUpsertRequest,
@@ -49,7 +50,15 @@ interface MediaTypePathParams {
   codeCd: string;
 }
 
+// 별도 import 없음 — ctiCodeApi 객체 내부에서 사용
+
 export const ctiCodeApi = {
+  // ─── Tenant Stats (상단 카드 슬라이더 — ADN 패턴) ─────────────────────
+  getTenantStats: async (): Promise<CtiCodeTenantStat[]> => {
+    const res = await apiClient.get<ApiResponse<{ value: CtiCodeTenantStat[] }>>('/ipron-cti-code-tenant-stats');
+    return res.data?.data?.value ?? [];
+  },
+
   // ─── Category ─────────────────────────────────────────────────────────
   getCategories: async (params?: { tenantId?: number }): Promise<CtiCodeCategory[]> => {
     const res = await apiClient.get<ApiResponse<{ value: CtiCodeCategory[] }>>('/ipron-cti-code-categories', { params });

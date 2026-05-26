@@ -11,6 +11,7 @@ import type { MutationHookOptions, QueryHookOptions, QueryHookWithParamsOptions 
 import { ctiCodeApi } from '../api/ctiCodeApi';
 import type {
   CtiCodeCategory,
+  CtiCodeTenantStat,
   MediaTypeListParams,
   MediaTypeResponse,
   MediaTypeUpsertRequest,
@@ -23,6 +24,7 @@ import type {
 } from '../types';
 
 export const ctiCodeQueryKeys = createQueryKeys('cti-code', {
+  tenantStats: null,
   categories: (params?: Record<string, unknown>) => [params],
   reasonList: (params?: Record<string, unknown>) => [params],
   reasonDetail: (path?: Record<string, unknown>) => [path],
@@ -31,6 +33,15 @@ export const ctiCodeQueryKeys = createQueryKeys('cti-code', {
   mediaDetail: (path?: Record<string, unknown>) => [path],
   mediaUsage: (classCd?: string) => [classCd],
 });
+
+// ─── Tenant Stats (상단 카드 슬라이더 — ADN 패턴) ──────────────────────────
+
+export const useGetCtiCodeTenantStats = ({ queryOptions }: QueryHookOptions<CtiCodeTenantStat[]> = {}) =>
+  useQuery({
+    queryKey: ctiCodeQueryKeys.tenantStats.queryKey,
+    queryFn: () => ctiCodeApi.getTenantStats(),
+    ...queryOptions,
+  });
 
 // ─── Categories ────────────────────────────────────────────────────────────
 
