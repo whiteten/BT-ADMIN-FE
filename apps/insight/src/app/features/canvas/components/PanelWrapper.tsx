@@ -1,3 +1,4 @@
+import { Button, Tag } from 'antd';
 import { Search, Settings, X } from 'lucide-react';
 import { toast } from '@/shared-util';
 import PanelBarChart from '../../panel/components/chart/PanelBarChart';
@@ -41,35 +42,25 @@ export default function PanelWrapper({ panel, reportId, mode, onEdit }: PanelWra
   const minHeight = panel.layout.h * 60;
 
   return (
-    <div className="flex flex-col rounded border border-bt-border bg-white overflow-hidden" style={{ minHeight }}>
+    <div className="flex flex-col rounded border border-[var(--color-bt-border)] bg-white overflow-hidden" style={{ minHeight }}>
       {/* 패널 헤더 */}
-      <div className="flex items-center justify-between px-3 py-2 border-b border-bt-border bg-bt-bg-muted/30">
+      <div className="flex items-center justify-between px-3 py-2 border-b border-[var(--color-bt-border)] bg-[var(--color-bt-bg-muted)]/30">
         <div className="flex items-center gap-2">
-          <span className="text-[12px] font-semibold">{panel.title}</span>
-          <span className="text-[10px] rounded bg-bt-primary-soft text-bt-primary px-1.5 py-0.5 font-medium">{panel.panelType}</span>
+          <span className="text-xs font-semibold text-[var(--color-bt-fg)]">{panel.title}</span>
+          <Tag color="processing" className="!mb-0">
+            {panel.panelType}
+          </Tag>
           {isEdit && (
-            <span className="text-[10px] text-bt-fg-muted">
+            <span className="text-xs text-[var(--color-bt-fg-muted)]">
               {panel.layout.w}W × {panel.layout.h}H
             </span>
           )}
         </div>
         {isEdit && (
-          <div className="flex items-center gap-1">
-            <button
-              onClick={() => {
-                /* TODO: search binding */
-              }}
-              className="p-1 rounded hover:bg-bt-bg-muted"
-              title="검색조건 바인딩"
-            >
-              <Search className="w-3.5 h-3.5 text-bt-fg-muted" />
-            </button>
-            <button onClick={onEdit} className="p-1 rounded hover:bg-bt-bg-muted" title="편집">
-              <Settings className="w-3.5 h-3.5 text-bt-fg-muted" />
-            </button>
-            <button onClick={handleDelete} className="p-1 rounded hover:bg-bt-bg-muted" title="삭제">
-              <X className="w-3.5 h-3.5 text-bt-danger" />
-            </button>
+          <div className="flex items-center gap-0.5">
+            <Button type="text" size="small" icon={<Search className="w-3.5 h-3.5" />} title="검색조건 바인딩" />
+            <Button type="text" size="small" icon={<Settings className="w-3.5 h-3.5" />} onClick={onEdit} title="편집" />
+            <Button type="text" size="small" danger icon={<X className="w-3.5 h-3.5" />} onClick={handleDelete} title="삭제" />
           </div>
         )}
       </div>

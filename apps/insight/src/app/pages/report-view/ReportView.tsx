@@ -42,7 +42,7 @@ export default function ReportView() {
   if (isLoading || !reportFull) return <FallbackSpinner />;
 
   return (
-    <div className="flex flex-col w-full h-full bg-bt-bg-canvas">
+    <div className="flex flex-col w-full h-full bg-[var(--color-bt-bg-canvas)]">
       <ReportViewCanvas reportId={reportId} report={reportFull} />
     </div>
   );

@@ -18,6 +18,15 @@ import type {
 
 const apiClient = new ApiClient({ serviceURL: '/bff' });
 
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function mapPanel(raw: any): PanelDetail {
+  return {
+    ...raw,
+    layout: { x: raw.layoutX, y: raw.layoutY, w: raw.layoutW, h: raw.layoutH },
+    chartOptions: raw.chartOptions ? JSON.parse(raw.chartOptions) : undefined,
+  };
+}
+
 export const reportApi = {
   getReports: async (params?: Record<string, unknown>): Promise<ReportListItem[]> => {
     const response = await apiClient.get<ApiResponse<{ items: ReportListItem[] }>>('/insight-statistics-report-list', { params });
@@ -33,7 +42,9 @@ export const reportApi = {
     const response = await apiClient.get<ApiResponse<ReportFullDetail>>('/insight-statistics-report-detail', {
       params: { reportId },
     });
-    return response.data?.data;
+    const raw = response.data?.data;
+    if (!raw) return raw;
+    return { ...raw, panels: (raw.panels ?? []).map(mapPanel) };
   },
 
   updateReport: async (reportId: number, data: ReportUpdateDatas): Promise<ReportDetail> => {
@@ -103,21 +114,39 @@ export const reportApi = {
     const response = await apiClient.get<ApiResponse<{ items: PanelDetail[] }>>('/insight-statistics-panel-list', {
       params: { reportId },
     });
-    return response.data?.data?.items ?? [];
+    return (response.data?.data?.items ?? []).map(mapPanel);
   },
 
   createPanel: async (reportId: number, data: PanelCreateDatas): Promise<PanelDetail> => {
-    const response = await apiClient.post<ApiResponse<PanelDetail>>('/insight-statistics-panel-create', data, {
+    const { layout, chartOptions, ...rest } = data;
+    const body = {
+      ...rest,
+      layoutX: layout.x,
+      layoutY: layout.y,
+      layoutW: layout.w,
+      layoutH: layout.h,
+      chartOptions: chartOptions ? JSON.stringify(chartOptions) : undefined,
+    };
+    const response = await apiClient.post<ApiResponse<PanelDetail>>('/insight-statistics-panel-create', body, {
       params: { reportId },
     });
-    return response.data?.data;
+    return mapPanel(response.data?.data);
   },
 
   updatePanel: async (reportId: number, panelId: number, data: PanelCreateDatas): Promise<PanelDetail> => {
-    const response = await apiClient.put<ApiResponse<PanelDetail>>('/insight-statistics-panel-update', data, {
+    const { layout, chartOptions, ...rest } = data;
+    const body = {
+      ...rest,
+      layoutX: layout.x,
+      layoutY: layout.y,
+      layoutW: layout.w,
+      layoutH: layout.h,
+      chartOptions: chartOptions ? JSON.stringify(chartOptions) : undefined,
+    };
+    const response = await apiClient.put<ApiResponse<PanelDetail>>('/insight-statistics-panel-update', body, {
       params: { reportId, panelId },
     });
-    return response.data?.data;
+    return mapPanel(response.data?.data);
   },
 
   deletePanel: async (reportId: number, panelId: number): Promise<void> => {

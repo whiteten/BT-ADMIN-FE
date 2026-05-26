@@ -1,9 +1,8 @@
 import { useState } from 'react';
-import { Button as AntButton, Form, Input, Select } from 'antd';
+import { Button, Form, Input, Select } from 'antd';
 import { RotateCcw, RotateCw, Trash2 } from 'lucide-react';
 import type { CalcFieldCreateDatas, ColumnFormat, KpiDirection } from '../../report/types';
 import type { LocalFieldDisplay } from '../types';
-import { Button } from '@/components/ui/button';
 
 // ─── Token system ─────────────────────────────────────────────────────────────
 
@@ -142,7 +141,7 @@ function TokenChip({ token, onDelete }: { token: FormulaToken; onDelete: () => v
   if (token.kind === 'slot')
     return (
       <span className="group inline-flex items-center gap-1 rounded border-2 border-dashed border-primary/60 bg-primary/5 px-2 py-0.5 font-mono text-sm font-semibold text-primary">
-        <span className="text-[10px] font-bold uppercase tracking-wider text-primary/70">슬롯</span>
+        <span className="text-xs font-bold uppercase tracking-wider text-primary/70">슬롯</span>
         {token.value}
         {del}
       </span>
@@ -150,7 +149,7 @@ function TokenChip({ token, onDelete }: { token: FormulaToken; onDelete: () => v
   if (token.kind === 'field_msr')
     return (
       <span className="group inline-flex items-center gap-1 rounded border border-primary/40 bg-primary/10 px-2 py-0.5 font-mono text-sm font-semibold text-primary hover:border-primary">
-        <span className="text-[10px] font-bold uppercase tracking-wider text-primary/70">MSR</span>
+        <span className="text-xs font-bold uppercase tracking-wider text-primary/70">MSR</span>
         {token.value}
         {del}
       </span>
@@ -158,7 +157,7 @@ function TokenChip({ token, onDelete }: { token: FormulaToken; onDelete: () => v
   if (token.kind === 'field_dim')
     return (
       <span className="group inline-flex items-center gap-1 rounded border border-border bg-muted px-2 py-0.5 font-mono text-sm font-semibold text-foreground hover:border-gray-400">
-        <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">DIM</span>
+        <span className="text-xs font-bold uppercase tracking-wider text-muted-foreground">DIM</span>
         {token.value}
         {del}
       </span>
@@ -166,7 +165,7 @@ function TokenChip({ token, onDelete }: { token: FormulaToken; onDelete: () => v
   if (token.kind === 'field_calc')
     return (
       <span className="group inline-flex items-center gap-1 rounded border border-green-400/50 bg-green-50 px-2 py-0.5 font-mono text-sm font-semibold text-green-700 hover:border-green-500">
-        <span className="text-[10px] font-bold uppercase tracking-wider text-green-500">ƒ</span>
+        <span className="text-xs font-bold uppercase tracking-wider text-green-500">ƒ</span>
         {token.value}
         {del}
       </span>
@@ -181,7 +180,7 @@ function TokenChip({ token, onDelete }: { token: FormulaToken; onDelete: () => v
   if (token.kind === 'num')
     return (
       <span className="group inline-flex items-center gap-1 rounded border border-amber-300/60 bg-amber-50 px-2 py-0.5 font-mono text-sm font-semibold text-amber-700">
-        <span className="text-[10px] font-bold uppercase tracking-wider text-amber-500">NUM</span>
+        <span className="text-xs font-bold uppercase tracking-wider text-amber-500">NUM</span>
         {token.value}
         {del}
       </span>
@@ -282,7 +281,7 @@ export default function CalcFieldEditor({ sourceFields, existingCalcFields = [],
               >
                 <span className="flex items-center gap-1.5 text-sm font-medium text-foreground">
                   {t.name}
-                  {t.badge && <span className="rounded bg-amber-100 px-1 py-0 text-[10px] font-semibold uppercase text-amber-600">{t.badge}</span>}
+                  {t.badge && <span className="rounded bg-amber-100 px-1 py-0 text-xs font-semibold uppercase text-amber-600">{t.badge}</span>}
                 </span>
                 <span className="font-mono text-xs text-muted-foreground">{t.formula}</span>
               </button>
@@ -369,7 +368,7 @@ export default function CalcFieldEditor({ sourceFields, existingCalcFields = [],
                     className="flex w-full items-center gap-2 rounded-lg border border-border bg-card px-2 py-1.5 text-sm transition-all hover:border-primary hover:bg-primary/5 active:scale-[0.98]"
                     onClick={() => addField(f.fieldName, 'MSR')}
                   >
-                    <span className="rounded bg-primary px-1 font-mono text-[10px] font-bold text-white">MSR</span>
+                    <span className="rounded bg-primary px-1 font-mono text-xs font-bold text-white">MSR</span>
                     <span className="font-mono font-medium text-foreground">{f.fieldName}</span>
                   </button>
                 ))}
@@ -386,7 +385,7 @@ export default function CalcFieldEditor({ sourceFields, existingCalcFields = [],
                     className="flex w-full items-center gap-2 rounded-lg border border-border bg-card px-2 py-1.5 text-sm transition-all hover:border-gray-400 active:scale-[0.98]"
                     onClick={() => addField(f.fieldName, 'DIM')}
                   >
-                    <span className="rounded bg-muted px-1 font-mono text-[10px] font-bold text-muted-foreground">DIM</span>
+                    <span className="rounded bg-muted px-1 font-mono text-xs font-bold text-muted-foreground">DIM</span>
                     <span className="font-mono text-muted-foreground">{f.fieldName}</span>
                   </button>
                 ))}
@@ -447,9 +446,9 @@ export default function CalcFieldEditor({ sourceFields, existingCalcFields = [],
               Row-level 수식 <span className="text-red-500">*</span>
             </span>
             <div className="flex items-center gap-0.5">
-              <AntButton size="small" type="text" icon={<RotateCcw size={13} />} disabled={!history.length} onClick={undo} title="실행취소" />
-              <AntButton size="small" type="text" icon={<RotateCw size={13} />} disabled={!future.length} onClick={redo} title="다시실행" />
-              <AntButton size="small" type="text" danger icon={<Trash2 size={13} />} disabled={!tokens.length} onClick={() => commit([])} title="모두지우기" />
+              <Button size="small" type="text" icon={<RotateCcw size={13} />} disabled={!history.length} onClick={undo} title="실행취소" />
+              <Button size="small" type="text" icon={<RotateCw size={13} />} disabled={!future.length} onClick={redo} title="다시실행" />
+              <Button size="small" type="text" danger icon={<Trash2 size={13} />} disabled={!tokens.length} onClick={() => commit([])} title="모두지우기" />
             </div>
           </div>
 
@@ -533,10 +532,8 @@ export default function CalcFieldEditor({ sourceFields, existingCalcFields = [],
             )}
           </div>
           <div className="flex items-center gap-2">
-            <Button variant="outline" onClick={onCancel}>
-              취소
-            </Button>
-            <Button disabled={!isValid} onClick={handleSave}>
+            <Button onClick={onCancel}>취소</Button>
+            <Button type="primary" disabled={!isValid} onClick={handleSave}>
               저장
             </Button>
           </div>

@@ -1,13 +1,11 @@
 import { useNavigate } from 'react-router-dom';
-import { Card, Tag } from 'antd';
+import { Button, Card, Dropdown, type MenuProps, Tag } from 'antd';
 import dayjs from 'dayjs';
 import { toast } from '@/shared-util';
 import { DOMAIN_LABELS, DOMAIN_TAG_COLOR, REPORT_ICON_SVG } from '../constants/reportIconConstants';
 import { useDeleteReport } from '../hooks/useReportQueries';
 import type { ReportIconType, ReportListItem } from '../types';
 import { IconMoreVertical } from '@/components/custom/Icons';
-import { Button } from '@/components/ui/button';
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { useModal } from '@/libs/shared-ui/src/hooks/useModal';
 
 interface ReportCardProps {
@@ -30,6 +28,13 @@ export default function ReportCard({ report }: ReportCardProps) {
   const handleEdit = () => navigate(`/insight/statistics/reports/${report.reportId}/edit`);
   const handleDelete = () => modal.confirm.delete({ onOk: () => deleteReport(report.reportId) });
 
+  const menuItems: MenuProps['items'] = [
+    { key: 'view', label: '보기', onClick: handleView },
+    { key: 'edit', label: '편집', onClick: handleEdit },
+    { type: 'divider' },
+    { key: 'delete', label: '삭제', danger: true, onClick: handleDelete },
+  ];
+
   const cardTitle = (
     <div className="flex items-center gap-2">
       <span className="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded bg-[var(--color-bt-primary-soft)] text-[var(--color-bt-primary)]">
@@ -42,26 +47,9 @@ export default function ReportCard({ report }: ReportCardProps) {
   );
 
   const cardExtra = (
-    <DropdownMenu>
-      <DropdownMenuTrigger asChild>
-        <Button variant="ghost" className="w-6 h-6 flex items-center justify-center">
-          <IconMoreVertical />
-          <span className="sr-only">더보기</span>
-        </Button>
-      </DropdownMenuTrigger>
-      <DropdownMenuContent align="end">
-        <DropdownMenuItem className="cursor-pointer" onClick={handleView}>
-          보기
-        </DropdownMenuItem>
-        <DropdownMenuItem className="cursor-pointer" onClick={handleEdit}>
-          편집
-        </DropdownMenuItem>
-        <DropdownMenuSeparator />
-        <DropdownMenuItem className="cursor-pointer text-red-600" onClick={handleDelete}>
-          삭제
-        </DropdownMenuItem>
-      </DropdownMenuContent>
-    </DropdownMenu>
+    <Dropdown menu={{ items: menuItems }} trigger={['click']} placement="bottomRight">
+      <Button type="text" size="small" icon={<IconMoreVertical />} onClick={(e) => e.stopPropagation()} />
+    </Dropdown>
   );
 
   return (

@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { Button } from 'antd';
 import { Activity, BarChart2, Hexagon, LayoutGrid, LineChart, type LucideIcon, PieChart, Plus } from 'lucide-react';
 import PanelWrapper from './PanelWrapper';
 import PanelEditorSheet from '../../panel/components/PanelEditorSheet';
@@ -9,6 +10,7 @@ interface CanvasLayoutProps {
   reportId: number;
   mode: 'edit' | 'view';
   isDraft?: boolean;
+  datasourceKey?: string;
 }
 
 const PANEL_TYPE_OPTIONS: { type: PanelType; label: string; Icon: LucideIcon; description: string }[] = [
@@ -22,7 +24,7 @@ const PANEL_TYPE_OPTIONS: { type: PanelType; label: string; Icon: LucideIcon; de
 
 type AddPhase = 'idle' | 'selecting' | 'editing';
 
-export default function CanvasLayout({ reportId, mode, isDraft }: CanvasLayoutProps) {
+export default function CanvasLayout({ reportId, mode, isDraft, datasourceKey = '' }: CanvasLayoutProps) {
   const { panels } = useReportEditorStore();
   const [addPhase, setAddPhase] = useState<AddPhase>('idle');
   const [selectedType, setSelectedType] = useState<PanelType | null>(null);
@@ -87,15 +89,15 @@ export default function CanvasLayout({ reportId, mode, isDraft }: CanvasLayoutPr
                 <button
                   type="button"
                   onClick={handleStartAdding}
-                  className="w-full flex flex-col items-center justify-center gap-4 rounded-lg border-2 border-dashed border-bt-primary/40 bg-bt-primary-soft/15 px-8 py-16 transition-all hover:border-bt-primary hover:bg-bt-primary-soft/30"
+                  className="w-full flex flex-col items-center justify-center gap-4 rounded-lg border-2 border-dashed border-[var(--color-bt-primary)]/40 bg-[var(--color-bt-primary-soft)]/15 px-8 py-16 transition-all hover:border-[var(--color-bt-primary)] hover:bg-[var(--color-bt-primary-soft)]/30"
                 >
-                  <div className="flex h-14 w-14 items-center justify-center rounded-full bg-bt-primary text-white shadow-md">
+                  <div className="flex h-14 w-14 items-center justify-center rounded-full bg-[var(--color-bt-primary)] text-white shadow-md">
                     <Plus className="h-7 w-7" strokeWidth={2.5} />
                   </div>
                   <div className="text-center">
-                    <div className="text-[16px] font-bold text-bt-fg">첫 패널 추가하기</div>
-                    <p className="mt-1.5 text-[12px] text-bt-fg-muted">
-                      한 보고서엔 <strong className="text-bt-fg">그리드 1개</strong>가 필수 — 먼저 그리드부터 추가하세요
+                    <div className="text-base font-bold text-[var(--color-bt-fg)]">첫 패널 추가하기</div>
+                    <p className="mt-1.5 text-xs text-[var(--color-bt-fg-muted)]">
+                      한 보고서엔 <strong className="text-[var(--color-bt-fg)]">그리드 1개</strong>가 필수 — 먼저 그리드부터 추가하세요
                     </p>
                   </div>
                 </button>
@@ -105,29 +107,22 @@ export default function CanvasLayout({ reportId, mode, isDraft }: CanvasLayoutPr
             {/* 패널 있을 때 "+ 패널" 플레이스홀더 */}
             {!isEmpty && addPhase === 'idle' && (
               <div className="col-span-12 flex justify-end pt-2">
-                <button
-                  type="button"
-                  onClick={handleStartAdding}
-                  className="flex items-center gap-1.5 rounded border border-dashed border-bt-border bg-white/70 px-4 py-2.5 text-[11px] font-medium text-bt-fg-muted transition-colors hover:border-bt-primary hover:text-bt-primary"
-                >
-                  <Plus className="h-3.5 w-3.5" />
+                <Button icon={<Plus className="h-3.5 w-3.5" />} onClick={handleStartAdding}>
                   패널 추가
-                </button>
+                </Button>
               </div>
             )}
 
             {/* in-place 패널 종류 선택 */}
             {addPhase === 'selecting' && (
               <div className="col-span-12">
-                <div className="rounded-lg border-2 border-bt-primary bg-white p-6 shadow-md">
+                <div className="rounded-lg border-2 border-[var(--color-bt-primary)] bg-white p-6 shadow-md">
                   <div className="mb-5 flex items-center justify-between">
                     <div>
-                      <span className="text-[14px] font-bold text-bt-fg">패널 종류 선택</span>
-                      <p className="mt-0.5 text-[11px] text-bt-fg-muted">추가할 패널의 종류를 선택하세요</p>
+                      <span className="text-sm font-bold text-[var(--color-bt-fg)]">패널 종류 선택</span>
+                      <p className="mt-0.5 text-xs text-[var(--color-bt-fg-muted)]">추가할 패널의 종류를 선택하세요</p>
                     </div>
-                    <button type="button" onClick={handleCancelAdding} className="rounded px-2 py-1 text-[11px] text-bt-fg-muted hover:bg-bt-bg-muted hover:text-bt-fg">
-                      취소
-                    </button>
+                    <Button onClick={handleCancelAdding}>취소</Button>
                   </div>
 
                   <div className="grid grid-cols-3 gap-3">
@@ -145,25 +140,21 @@ export default function CanvasLayout({ reportId, mode, isDraft }: CanvasLayoutPr
                           }`}
                         >
                           <Icon className={`h-5 w-5 ${isSelected ? 'text-[var(--color-bt-primary)]' : 'text-[var(--color-bt-fg-muted)]'}`} strokeWidth={1.5} />
-                          <span className={`text-[13px] font-semibold ${isSelected ? 'text-[var(--color-bt-primary)]' : 'text-[var(--color-bt-fg)]'}`}>{label}</span>
-                          <span className="text-[11px] text-[var(--color-bt-fg-muted)]">{description}</span>
+                          <span className={`text-sm font-semibold ${isSelected ? 'text-[var(--color-bt-primary)]' : 'text-[var(--color-bt-fg)]'}`}>{label}</span>
+                          <span className="text-xs text-[var(--color-bt-fg-muted)]">{description}</span>
                         </button>
                       );
                     })}
                   </div>
 
                   {selectedOption && (
-                    <div className="mt-5 flex items-center justify-end gap-3 border-t border-bt-border pt-4">
-                      <span className="text-[11px] text-bt-fg-muted">
-                        <strong className="text-bt-primary">{selectedOption.label}</strong> 패널을 추가합니다
+                    <div className="mt-5 flex items-center justify-end gap-3 border-t border-[var(--color-bt-border)] pt-4">
+                      <span className="text-xs text-[var(--color-bt-fg-muted)]">
+                        <strong className="text-[var(--color-bt-primary)]">{selectedOption.label}</strong> 패널을 추가합니다
                       </span>
-                      <button
-                        type="button"
-                        onClick={handleStartPanelEdit}
-                        className="rounded bg-bt-primary px-4 py-2 text-[12px] font-semibold text-white transition-colors hover:bg-bt-primary-hover"
-                      >
+                      <Button type="primary" onClick={handleStartPanelEdit}>
                         {selectedOption.label} 패널 편집 시작 →
-                      </button>
+                      </Button>
                     </div>
                   )}
                 </div>
@@ -175,7 +166,14 @@ export default function CanvasLayout({ reportId, mode, isDraft }: CanvasLayoutPr
 
       {/* 패널 편집 사이드 시트 */}
       {addPhase === 'editing' && (
-        <PanelEditorSheet reportId={reportId} panelType={selectedType ?? undefined} panelId={editingPanelId ?? undefined} onClose={handleCloseEditor} isDraft={isDraft} />
+        <PanelEditorSheet
+          reportId={reportId}
+          panelType={selectedType ?? undefined}
+          panelId={editingPanelId ?? undefined}
+          datasourceKey={datasourceKey}
+          onClose={handleCloseEditor}
+          isDraft={isDraft}
+        />
       )}
     </div>
   );

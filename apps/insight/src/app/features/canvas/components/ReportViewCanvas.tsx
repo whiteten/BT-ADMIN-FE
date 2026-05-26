@@ -1,7 +1,7 @@
+import { Tag } from 'antd';
 import CanvasLayout from './CanvasLayout';
 import GlobalFilter from '../../global-filter/components/GlobalFilter';
 import type { ReportFullDetail } from '../../report/types';
-import { Badge } from '@/components/ui/badge';
 
 interface ReportViewCanvasProps {
   reportId: number;
@@ -12,15 +12,13 @@ export default function ReportViewCanvas({ reportId, report }: ReportViewCanvasP
   return (
     <div className="flex flex-col h-full">
       {/* 뷰 모드 헤더 */}
-      <div className="flex items-center justify-between px-5 py-3 bg-white border-b border-bt-border">
-        <div className="flex items-center gap-3">
-          <span className="text-[14px] font-semibold">{report.title}</span>
-          <Badge variant="outline" className="text-[10px] text-bt-primary border-bt-primary">
-            {report.domain}
-          </Badge>
-          {report.isPublished && <Badge className="text-[10px] bg-bt-success-soft text-bt-success border-0">메뉴 등록됨</Badge>}
+      <div className="flex items-center justify-between w-full bg-white bt-shadow px-7 py-4">
+        <div className="flex items-center gap-2">
+          <span className="text-sm font-semibold text-[var(--color-bt-fg)]">{report.title}</span>
+          <Tag color="blue">{report.domain}</Tag>
+          {report.isPublished && <Tag color="success">메뉴 등록됨</Tag>}
         </div>
-        <div className="text-[11px] text-bt-fg-muted">
+        <div className="text-xs text-[var(--color-bt-fg-muted)]">
           데이터셋: <span className="font-mono">{report.datasourceKey}</span>
         </div>
       </div>

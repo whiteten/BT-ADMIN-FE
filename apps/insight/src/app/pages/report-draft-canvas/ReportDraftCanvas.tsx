@@ -74,14 +74,16 @@ export default function ReportDraftCanvas() {
   };
 
   return (
-    <div className="flex flex-col w-full h-full bg-bt-bg-canvas">
+    <div className="flex flex-col w-full h-full bg-[var(--color-bt-bg-canvas)]">
       <div className="flex items-center justify-between gap-2 w-full h-[76px] bg-white bt-shadow px-7 py-5">
         <div className="flex items-center gap-2 min-w-0">
-          <span className="text-[15px] font-semibold truncate">{state.title}</span>
+          <span className="text-base font-semibold truncate">{state.title}</span>
           <Tag color={DOMAIN_TAG_COLOR[state.domain]} className="!mb-0 shrink-0">
             {state.domain} · {DOMAIN_LABELS[state.domain] ?? state.domain}
           </Tag>
-          <span className="shrink-0 rounded bg-[var(--color-bt-warn-soft)] px-1.5 py-0.5 text-[10px] font-semibold text-[var(--color-bt-warn)]">초안</span>
+          <Tag color="warning" className="!mb-0 shrink-0">
+            초안
+          </Tag>
         </div>
         <div className="flex items-center gap-2 shrink-0">
           <Button onClick={handleCancel} disabled={isSaving}>
@@ -94,7 +96,7 @@ export default function ReportDraftCanvas() {
       </div>
 
       <div className="flex-1 overflow-auto">
-        <CanvasLayout reportId={0} mode="edit" isDraft />
+        <CanvasLayout reportId={0} mode="edit" isDraft datasourceKey={state.datasourceKey} />
       </div>
     </div>
   );

@@ -49,7 +49,7 @@ export default function ReportEditor() {
   if (isLoading || !reportFull) return <FallbackSpinner />;
 
   return (
-    <div className="flex flex-col w-full h-full bg-bt-bg-canvas">
+    <div className="flex flex-col w-full h-full bg-[var(--color-bt-bg-canvas)]">
       <ReportEditorCanvas reportId={reportId} onNavigateList={() => navigate('/insight/statistics/reports')} />
     </div>
   );

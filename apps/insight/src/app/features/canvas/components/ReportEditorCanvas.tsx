@@ -12,7 +12,7 @@ interface ReportEditorCanvasProps {
   onNavigateList(): void;
 }
 
-export default function ReportEditorCanvas({ reportId, onNavigateList }: ReportEditorCanvasProps) {
+export default function ReportEditorCanvas({ reportId, onNavigateList: _onNavigateList }: ReportEditorCanvasProps) {
   const { report, isDirty } = useReportEditorStore();
   const [isPublishDialogOpen, setIsPublishDialogOpen] = useState(false);
 
@@ -22,11 +22,15 @@ export default function ReportEditorCanvas({ reportId, onNavigateList }: ReportE
     <div className="flex flex-col h-full">
       <div className="flex items-center justify-between gap-2 w-full h-[76px] bg-white bt-shadow px-7 py-5">
         <div className="flex items-center gap-2 min-w-0">
-          <span className="text-[15px] font-semibold truncate">{report.title}</span>
+          <span className="text-base font-semibold truncate">{report.title}</span>
           <Tag color={DOMAIN_TAG_COLOR[report.domain]} className="!mb-0 shrink-0">
             {report.domain} · {DOMAIN_LABELS[report.domain] ?? report.domain}
           </Tag>
-          {isDirty && <span className="shrink-0 rounded bg-[var(--color-bt-warn-soft)] px-1.5 py-0.5 text-[10px] font-semibold text-[var(--color-bt-warn)]">미저장</span>}
+          {isDirty && (
+            <Tag color="warning" className="!mb-0 shrink-0">
+              미저장
+            </Tag>
+          )}
         </div>
         <div className="flex items-center gap-2 shrink-0">
           <Button icon={<Eye className="w-3.5 h-3.5" />}>미리보기</Button>
@@ -39,7 +43,7 @@ export default function ReportEditorCanvas({ reportId, onNavigateList }: ReportE
       <GlobalFilter reportId={reportId} mode="editor" />
 
       <div className="flex-1 overflow-auto">
-        <CanvasLayout reportId={reportId} mode="edit" />
+        <CanvasLayout reportId={reportId} mode="edit" datasourceKey={report.datasourceKey} />
       </div>
 
       {isPublishDialogOpen && <PublishDialog reportId={reportId} onClose={() => setIsPublishDialogOpen(false)} />}
