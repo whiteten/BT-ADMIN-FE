@@ -1,13 +1,15 @@
-import { useEffect } from 'react';
+import { useEffect, useMemo } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { useQueryClient } from '@tanstack/react-query';
-import { type BreadcrumbProps } from 'antd';
+import { type BreadcrumbProps, Button } from 'antd';
+import { ChevronLeft } from 'lucide-react';
 import { useBreadcrumbStore } from '@/shared-store';
 import { toast } from '@/shared-util';
 import CustomWidgetCatalogPanel from '../../features/monitoring/components/CustomWidgetCatalogPanel';
-import DashboardEditorHeader from '../../features/monitoring/components/DashboardEditorHeader';
+import DashboardCanvas from '../../features/monitoring/components/canvas/DashboardCanvas';
+import EmptyCanvas from '../../features/monitoring/components/canvas/EmptyCanvas';
 import { dashboardKeys, useCreateWidget, useGetDashboard } from '../../features/monitoring/hooks/useDashboardQueries';
-import type { CustomWidgetCatalogItem } from '../../features/monitoring/types';
+import type { CustomWidgetCatalogItem, Widget } from '../../features/monitoring/types';
 import { FallbackSpinner } from '@/components/custom/FallbackSpinner';
 
 export default function CustomWidgetCatalogPage() {
@@ -22,6 +24,8 @@ export default function CustomWidgetCatalogPage() {
     params: { dashboardId },
     queryOptions: { enabled: !!dashboardId, retry: false },
   });
+
+  const existingWidgets = useMemo<Widget[]>(() => (dashboard?.widgets ?? []) as Widget[], [dashboard]);
 
   const { mutate: createWidget, isPending: isCreating } = useCreateWidget({
     mutationOptions: {
@@ -90,25 +94,27 @@ export default function CustomWidgetCatalogPage() {
 
   const handleClose = () => navigate(`/insight/monitoring/dashboards/${dashboardId}/edit`);
 
+  const isEmpty = existingWidgets.length === 0;
+
   return (
     <div className="flex flex-col w-full h-full bg-[var(--color-bt-bg-canvas)]">
-      <DashboardEditorHeader dashboard={dashboard} onPreview={() => navigate(`/insight/monitoring/dashboards/${dashboardId}/view`)} />
-
-      {/* 본문 — 좌: 안내 / 우: 카탈로그 패널 */}
-      <div className="flex flex-1 overflow-hidden">
-        <div className="flex-1 grid-pattern overflow-auto p-6">
-          <div className="flex flex-col items-center justify-center h-full text-center px-8">
-            <svg viewBox="0 0 48 48" className="mb-3 h-12 w-12 fill-none stroke-current text-[var(--color-bt-fg-muted)]" strokeWidth="1.5">
-              <rect x="6" y="6" width="16" height="16" rx="2" />
-              <rect x="26" y="6" width="16" height="10" rx="2" />
-              <rect x="26" y="20" width="16" height="16" rx="2" />
-              <rect x="6" y="26" width="16" height="10" rx="2" />
-            </svg>
-            <p className="text-[13px] text-[var(--color-bt-fg-muted)]">
-              <strong>우측 카탈로그</strong>에서 위젯을 골라 [추가] 버튼을 누르세요.
-            </p>
-            <p className="mt-1 text-[11px] text-[var(--color-bt-fg-muted)]">추가하면 편집 화면으로 돌아가 캔버스에 즉시 표시됩니다.</p>
+      {/* 헤더 — FCA 스타일 */}
+      <div className="flex gap-2 w-full h-[58px] min-h-[58px] items-center shrink-0 bg-white bt-shadow px-5">
+        <div className="w-full flex items-center justify-between gap-2">
+          <div className="flex items-center gap-2 min-w-0">
+            <Button icon={<ChevronLeft className="w-3.5 h-3.5" />} onClick={handleClose}>
+              편집으로
+            </Button>
+            <span className="ml-1 text-sm font-medium text-[#495057]">{dashboard.dashboardName}</span>
+            <span className="text-xs text-[#868e96]">· 커스텀 위젯 추가</span>
           </div>
+        </div>
+      </div>
+
+      {/* 본문 — 좌: 현재 대시보드 위젯들(읽기 전용) / 우: 카탈로그 패널 */}
+      <div className="flex flex-1 overflow-hidden">
+        <div className="flex-1 overflow-hidden">
+          {isEmpty ? <EmptyCanvas dashboardId={dashboardId} /> : <DashboardCanvas dashboardId={dashboardId} widgets={existingWidgets} editMode={false} />}
         </div>
 
         <CustomWidgetCatalogPanel domainCode={dashboard.domainCode} onAdd={handleAdd} onClose={handleClose} />

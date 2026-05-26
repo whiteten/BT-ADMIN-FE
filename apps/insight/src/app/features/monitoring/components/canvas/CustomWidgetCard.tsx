@@ -9,6 +9,8 @@ interface CustomWidgetCardProps {
   data?: unknown;
   onSettings?: () => void;
   onDelete?: () => void;
+  /** 위젯이 SUBSCRIBE 옵션을 바꾸기 위해 모니터링 일시정지를 요청할 때 호출. */
+  onRequestPause?: () => void;
   draggableClass?: string;
 }
 
@@ -19,15 +21,15 @@ interface CustomWidgetCardProps {
  * - 우선순위 2: 본 파일 내 데모 placeholder (시안 §6 ExtensionStatusGrid / SLA 게이지)
  * - 우선순위 3: GenericCustomPlaceholder (FE 컴포넌트 미구현 widgetType)
  */
-export default function CustomWidgetCard({ widget, editMode, data, onSettings, onDelete, draggableClass }: CustomWidgetCardProps) {
+export default function CustomWidgetCard({ widget, editMode, data, onSettings, onDelete, onRequestPause, draggableClass }: CustomWidgetCardProps) {
   const Registered = getCustomWidgetComponent(widget.widgetTypeId);
 
   return (
-    <div className="flex flex-col h-full bg-white rounded shadow-sm border border-[var(--color-bt-border)] overflow-hidden">
+    <div className="flex flex-col h-full bg-white bt-shadow overflow-hidden">
       <WidgetCardHeader widget={widget} editMode={editMode} onSettings={onSettings} onDelete={onDelete} draggableClass={draggableClass} />
       <div className="flex-1 overflow-hidden">
         {Registered ? (
-          <Registered data={data} options={widget.options} />
+          <Registered data={data} options={widget.options} widgetId={widget.widgetId} onRequestPause={onRequestPause} />
         ) : widget.widgetTypeId === 'extension-status-grid' ? (
           <ExtensionStatusGridDemo />
         ) : widget.widgetTypeId === 'service-level-gauge' ? (

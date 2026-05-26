@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import type { Widget, WsConnectionState, WsServerMessage, WsSubscribeMessage } from '../types';
+import { getCustomWidgetFields } from '../widgets/registry';
 
 /**
  * useDashboardSocket — WebSocket 인프라 (M17)
@@ -24,6 +25,8 @@ interface UseDashboardSocketOptions {
   refreshThrottle: 1 | 3 | 5 | 10 | 'PAUSED';
   /** 글로벌 옵션 (검색조건 등) */
   globalOptions?: Record<string, unknown>;
+  /** false 면 WebSocket 연결을 시도하지 않고 idle 상태 유지 (사용자가 ▶ 누르기 전). */
+  enabled?: boolean;
 }
 
 interface WidgetData {
@@ -38,8 +41,8 @@ export interface UseDashboardSocketResult {
   resubscribe: () => void;
 }
 
-export function useDashboardSocket({ dashboardId, widgets, refreshThrottle, globalOptions = {} }: UseDashboardSocketOptions): UseDashboardSocketResult {
-  const [connectionState, setConnectionState] = useState<WsConnectionState>('connecting');
+export function useDashboardSocket({ dashboardId, widgets, refreshThrottle, globalOptions = {}, enabled = true }: UseDashboardSocketOptions): UseDashboardSocketResult {
+  const [connectionState, setConnectionState] = useState<WsConnectionState>(enabled ? 'connecting' : 'idle');
   const [widgetData, setWidgetData] = useState<Record<string, WidgetData>>({});
   const socketRef = useRef<WebSocket | null>(null);
   const reconnectAttemptRef = useRef(0);
@@ -69,11 +72,16 @@ export function useDashboardSocket({ dashboardId, widgets, refreshThrottle, glob
         // CUSTOM 위젯만 SUBSCRIBE — TEMPLATE 위젯은 v0.1 OUT
         widgets.forEach((w) => {
           if (w.kind !== 'CUSTOM') return;
+          const fields = getCustomWidgetFields(w.widgetTypeId);
           const msg: WsSubscribeMessage = {
             type: 'SUBSCRIBE',
             widgetId: String(w.widgetId),
             widgetType: w.widgetTypeId,
-            options: { ...(w.options ?? {}), ...globalOptions },
+            options: {
+              ...(w.options ?? {}),
+              ...globalOptions,
+              ...(fields && fields.length > 0 ? { fields } : {}),
+            },
           };
           ws.send(JSON.stringify(msg));
         });
@@ -143,6 +151,10 @@ export function useDashboardSocket({ dashboardId, widgets, refreshThrottle, glob
   // ─── 연결 시작 / 정리 ────────────────────────────────────────────────
 
   useEffect(() => {
+    if (!enabled) {
+      setConnectionState('idle');
+      return;
+    }
     const cleanup = connect();
     return () => {
       cleanup?.();
@@ -159,7 +171,7 @@ export function useDashboardSocket({ dashboardId, widgets, refreshThrottle, glob
         mockIntervalRef.current = null;
       }
     };
-  }, [dashboardId]);
+  }, [dashboardId, enabled]);
 
   // ─── 재구독 (글로벌 옵션 변경 시) ────────────────────────────────────
 
@@ -168,11 +180,16 @@ export function useDashboardSocket({ dashboardId, widgets, refreshThrottle, glob
     widgets.forEach((w) => {
       if (w.kind !== 'CUSTOM') return;
       socketRef.current!.send(JSON.stringify({ type: 'UNSUBSCRIBE', widgetId: String(w.widgetId) }));
+      const fields = getCustomWidgetFields(w.widgetTypeId);
       const msg: WsSubscribeMessage = {
         type: 'SUBSCRIBE',
         widgetId: String(w.widgetId),
         widgetType: w.widgetTypeId,
-        options: { ...(w.options ?? {}), ...globalOptions },
+        options: {
+          ...(w.options ?? {}),
+          ...globalOptions,
+          ...(fields && fields.length > 0 ? { fields } : {}),
+        },
       };
       socketRef.current!.send(JSON.stringify(msg));
     });

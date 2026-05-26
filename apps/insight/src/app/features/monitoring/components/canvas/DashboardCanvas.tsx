@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Button, Modal } from 'antd';
-import { Plus } from 'lucide-react';
+import { Button, Modal, Tooltip } from 'antd';
+import { Boxes, HelpCircle, LayoutTemplate } from 'lucide-react';
 // react-grid-layout v2.x — main entry 에서 WidthProvider HOC 가 제거되어 legacy 서브패스 사용.
 // (main 은 useContainerWidth hook 패턴으로 전환됨)
 // @ts-expect-error tsconfig.moduleResolution=node 에서 sub-path types 미인식 (런타임은 정상)
@@ -40,9 +40,11 @@ interface DashboardCanvasProps {
   widgetData?: Record<string, WidgetDataEntry>;
   onWidgetsChange?: (next: Widget[]) => void;
   onLayoutChange?: (items: Array<{ widgetId: number; row: number; col: number; w: number; h: number }>) => void;
+  /** 커스텀 위젯이 설정 변경 등으로 모니터링 일시정지를 요청할 때 호출. */
+  onRequestPause?: () => void;
 }
 
-export default function DashboardCanvas({ dashboardId, widgets, editMode, widgetData, onWidgetsChange, onLayoutChange }: DashboardCanvasProps) {
+export default function DashboardCanvas({ dashboardId, widgets, editMode, widgetData, onWidgetsChange, onLayoutChange, onRequestPause }: DashboardCanvasProps) {
   const navigate = useNavigate();
   const [deleteTarget, setDeleteTarget] = useState<Widget | null>(null);
 
@@ -89,16 +91,32 @@ export default function DashboardCanvas({ dashboardId, widgets, editMode, widget
 
   return (
     <div className={`flex-1 overflow-auto ${editMode ? 'grid-pattern' : 'bg-[var(--color-bt-bg-canvas)]'} px-5 py-5`}>
-      {/* 편집 모드 — 진입점 버튼 */}
+      {/* 편집 모드 — 위젯 추가 툴바 */}
       {editMode && (
-        <div className="mb-3 flex items-center gap-2">
-          <Button type="primary" icon={<Plus className="w-3.5 h-3.5" />} onClick={() => navigate(`/insight/monitoring/dashboards/${dashboardId}/edit/widget/create/template`)}>
-            + 템플릿 위젯
+        <div className="mb-4 flex items-center gap-2 rounded-md border border-dashed border-[var(--color-bt-border-strong)] bg-white/70 backdrop-blur-sm px-3 py-2">
+          <span className="text-[10.5px] uppercase tracking-wider text-[var(--color-bt-fg-muted)] font-semibold mr-1">위젯 추가</span>
+          <Button
+            type="primary"
+            icon={<LayoutTemplate className="w-3.5 h-3.5" />}
+            onClick={() => navigate(`/insight/monitoring/dashboards/${dashboardId}/edit/widget/create/template`)}
+          >
+            템플릿 위젯
           </Button>
-          <Button icon={<Plus className="w-3.5 h-3.5" />} onClick={() => navigate(`/insight/monitoring/dashboards/${dashboardId}/edit/widget/create/custom`)}>
-            + 커스텀 위젯
+          <Button icon={<Boxes className="w-3.5 h-3.5" />} onClick={() => navigate(`/insight/monitoring/dashboards/${dashboardId}/edit/widget/create/custom`)}>
+            커스텀 위젯
           </Button>
-          <span className="ml-auto text-[10.5px] text-[var(--color-bt-fg-muted)]">드래그 핸들(헤더) · 우하단 모서리로 리사이즈 · 12-col grid</span>
+          <Tooltip
+            title={
+              <div className="text-[11px] leading-relaxed">
+                <div>• 헤더를 드래그해서 위치 변경</div>
+                <div>• 우하단 모서리를 끌어 크기 조절</div>
+                <div>• 12-column 그리드에 스냅됩니다</div>
+              </div>
+            }
+            placement="bottomRight"
+          >
+            <Button type="text" size="small" icon={<HelpCircle className="w-3.5 h-3.5 text-[var(--color-bt-fg-muted)]" />} className="ml-auto" />
+          </Tooltip>
         </div>
       )}
 
@@ -133,6 +151,7 @@ export default function DashboardCanvas({ dashboardId, widgets, editMode, widget
                 data={widgetData?.[String(widget.widgetId)]?.rows}
                 onSettings={() => handleSettings(widget)}
                 onDelete={() => setDeleteTarget(widget)}
+                onRequestPause={onRequestPause}
                 draggableClass={DRAG_HANDLE_CLASS}
               />
             )}

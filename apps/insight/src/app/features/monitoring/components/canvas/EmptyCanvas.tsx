@@ -1,4 +1,5 @@
 import { useNavigate } from 'react-router-dom';
+import { ArrowRight, Boxes, LayoutTemplate } from 'lucide-react';
 
 interface EmptyCanvasProps {
   dashboardId: number;
@@ -12,66 +13,64 @@ export default function EmptyCanvas({ dashboardId }: EmptyCanvasProps) {
 
   return (
     <div className="flex-1 grid-pattern overflow-auto">
-      <div className="flex flex-col items-center justify-center min-h-[460px] py-12 px-8">
-        {/* 위젯 일러스트 — 4-cell 그리드 아이콘 */}
-        <svg viewBox="0 0 48 48" className="mb-3 h-12 w-12 fill-none stroke-current text-[var(--color-bt-fg-muted)]" strokeWidth="1.5">
-          <rect x="6" y="6" width="16" height="16" rx="2" />
-          <rect x="26" y="6" width="16" height="10" rx="2" />
-          <rect x="26" y="20" width="16" height="16" rx="2" />
-          <rect x="6" y="26" width="16" height="10" rx="2" />
-        </svg>
+      <div className="flex flex-col items-center justify-center min-h-[460px] py-16 px-8">
+        {/* 일러스트 */}
+        <div className="mb-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-[var(--color-bt-primary-soft)]">
+          <svg viewBox="0 0 32 32" className="h-7 w-7 fill-none stroke-current text-[var(--color-bt-primary)]" strokeWidth="1.5">
+            <rect x="4" y="4" width="11" height="11" rx="1.5" />
+            <rect x="17" y="4" width="11" height="6.5" rx="1.5" />
+            <rect x="17" y="13" width="11" height="15" rx="1.5" />
+            <rect x="4" y="17" width="11" height="11" rx="1.5" />
+          </svg>
+        </div>
 
         {/* 타이틀 + 설명 */}
-        <div className="mb-1 text-[14px] font-semibold text-[var(--color-bt-fg)]">위젯을 추가해보세요</div>
-        <p className="mb-5 max-w-md text-center text-[11.5px] text-[var(--color-bt-fg-muted)] leading-relaxed">
-          위젯은 2종입니다 — 데이터셋을 직접 매핑하는 <strong>템플릿 위젯</strong> 또는 미리 제공된 <strong>커스텀 위젯</strong>.
+        <h2 className="text-[15px] font-semibold text-[var(--color-bt-fg)]">위젯을 추가해보세요</h2>
+        <p className="mt-1.5 mb-6 max-w-md text-center text-[12px] text-[var(--color-bt-fg-muted)] leading-relaxed">
+          데이터셋을 매핑하는 <strong className="text-[var(--color-bt-fg)]">템플릿 위젯</strong>과<br />
+          미리 만들어진 <strong className="text-[var(--color-bt-fg)]">커스텀 위젯</strong> 중에서 선택하세요.
         </p>
 
-        {/* 진입점 2종 카드 */}
-        <div className="grid grid-cols-2 gap-3 w-full max-w-2xl">
-          {/* 템플릿 위젯 — 강조 */}
+        {/* 위젯 타입 카드 */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 w-full max-w-2xl">
+          {/* 템플릿 위젯 — primary */}
           <button
             type="button"
             onClick={handleTemplate}
-            className="group rounded border-2 border-[var(--color-bt-primary)] bg-white p-4 text-left transition-colors hover:bg-[var(--color-bt-primary-soft)]/30"
+            className="group flex flex-col rounded-lg border border-[var(--color-bt-primary)] bg-white p-5 text-left shadow-sm transition-all hover:shadow-md hover:-translate-y-0.5"
           >
-            <div className="mb-2 flex items-center gap-2">
-              <span className="inline-flex h-7 w-7 items-center justify-center rounded bg-[var(--color-bt-primary-soft)]">
-                <svg viewBox="0 0 16 16" className="h-4 w-4 fill-current text-[var(--color-bt-primary)]">
-                  <rect x="2" y="3" width="12" height="3" />
-                  <rect x="2" y="8" width="12" height="2" />
-                  <rect x="2" y="11" width="8" height="2" />
-                </svg>
+            <div className="mb-3 flex items-center gap-2.5">
+              <span className="inline-flex h-9 w-9 items-center justify-center rounded-lg bg-[var(--color-bt-primary)] text-white">
+                <LayoutTemplate className="h-[18px] w-[18px]" />
               </span>
-              <span className="text-[13px] font-semibold text-[var(--color-bt-primary)]">+ 템플릿 위젯</span>
+              <span className="text-[13.5px] font-semibold text-[var(--color-bt-primary)]">템플릿 위젯</span>
             </div>
-            <p className="text-[10.5px] text-[var(--color-bt-fg-muted)] leading-snug">
-              데이터셋을 선택해서 <strong>그리드 / BAR / LINE / CARD</strong> 중 골라 만듭니다. 패널 아이콘으로 시각화 전환 가능.
+            <p className="text-[11.5px] text-[var(--color-bt-fg-muted)] leading-relaxed mb-3">
+              데이터셋을 골라 <strong className="text-[var(--color-bt-fg)]">그리드 · 막대 · 선 · 카드</strong> 중에서 시각화를 선택합니다.
             </p>
-            <div className="mt-2 inline-flex items-center gap-1 text-[10px] text-[var(--color-bt-primary)]">→ 데이터셋 마법사로 진입</div>
+            <span className="mt-auto inline-flex items-center gap-1 text-[11px] font-medium text-[var(--color-bt-primary)] group-hover:gap-1.5 transition-all">
+              데이터셋 마법사 시작 <ArrowRight className="h-3 w-3" />
+            </span>
           </button>
 
-          {/* 커스텀 위젯 — 보조 */}
+          {/* 커스텀 위젯 — secondary */}
           <button
             type="button"
             onClick={handleCustom}
-            className="group rounded border border-[var(--color-bt-border)] bg-white p-4 text-left transition-colors hover:border-[var(--color-bt-primary)] hover:bg-[var(--color-bt-bg-muted)]/30"
+            className="group flex flex-col rounded-lg border border-[var(--color-bt-border)] bg-white p-5 text-left shadow-sm transition-all hover:border-[var(--color-bt-fg-muted)] hover:shadow-md hover:-translate-y-0.5"
           >
-            <div className="mb-2 flex items-center gap-2">
-              <span className="inline-flex h-7 w-7 items-center justify-center rounded bg-[var(--color-bt-bg-muted)]">
-                <svg viewBox="0 0 16 16" className="h-4 w-4 fill-current text-[var(--color-bt-fg)]">
-                  <rect x="2" y="2" width="5" height="5" />
-                  <rect x="9" y="2" width="5" height="5" />
-                  <rect x="2" y="9" width="5" height="5" />
-                  <rect x="9" y="9" width="5" height="5" />
-                </svg>
+            <div className="mb-3 flex items-center gap-2.5">
+              <span className="inline-flex h-9 w-9 items-center justify-center rounded-lg bg-[var(--color-bt-bg-muted)] text-[var(--color-bt-fg)]">
+                <Boxes className="h-[18px] w-[18px]" />
               </span>
-              <span className="text-[13px] font-semibold">+ 커스텀 위젯</span>
+              <span className="text-[13.5px] font-semibold text-[var(--color-bt-fg)]">커스텀 위젯</span>
             </div>
-            <p className="text-[10.5px] text-[var(--color-bt-fg-muted)] leading-snug">
-              <strong>상태 격자 · 게이지 · 콜 플로우</strong> 등 미리 만들어진 위젯에서 골라 추가. 데이터셋 매핑 불필요.
+            <p className="text-[11.5px] text-[var(--color-bt-fg-muted)] leading-relaxed mb-3">
+              <strong className="text-[var(--color-bt-fg)]">상태 격자 · 게이지 · 콜 플로우</strong> 등 미리 만든 위젯을 그대로 배치합니다.
             </p>
-            <div className="mt-2 inline-flex items-center gap-1 text-[10px] text-[var(--color-bt-fg-muted)]">→ 카탈로그에서 선택</div>
+            <span className="mt-auto inline-flex items-center gap-1 text-[11px] font-medium text-[var(--color-bt-fg-muted)] group-hover:gap-1.5 group-hover:text-[var(--color-bt-fg)] transition-all">
+              카탈로그 열기 <ArrowRight className="h-3 w-3" />
+            </span>
           </button>
         </div>
       </div>

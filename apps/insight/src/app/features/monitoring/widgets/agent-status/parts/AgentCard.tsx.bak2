@@ -1,0 +1,166 @@
+import { memo } from 'react';
+import { Tag, Tooltip } from 'antd';
+import type { AgentRow, Threshold } from '../types';
+import { DEFAULT_THRESHOLDS, alarmLevel, statusKey, statusMeta } from '../statusMap';
+import {
+  answerRatePct,
+  formatDuration,
+  liveDurationSec,
+  toNum,
+  toStr,
+  totalHandled,
+} from '../helpers';
+
+/**
+ * 상담사 카드 — Antd Tag 기반, insight 앱 디자인 컨벤션 준수.
+ *
+ * 구조 (4영역):
+ *  ┌──────────────────────────────┐
+ *  │ 김민서             [통화 IB]  │  ① 이름 + 상태 Tag
+ *  │ 5:23                          │  ② 큰 시간 (font-mono text-xl)
+ *  │ 010-3412-5510 · VIP 상담      │  ③ 컨텍스트 (통화 중일 때만)
+ *  │ ─────────────────────────────  │
+ *  │ 응대 31              96%      │  ④ 누적 KPI
+ *  └──────────────────────────────┘
+ *
+ * 임계 초과: 보더 빨간색 + bg-red-50/30 + Tag color="red"
+ * 주의: 보더 호박색
+ * 멀티콜: 우상단 작은 ×N 배지
+ */
+export interface AgentCardProps {
+  row: AgentRow;
+  nowMs: number;
+  thresholds?: Record<string, Threshold>;
+  onActivate?: (row: AgentRow) => void;
+}
+
+/** 상태 그룹 → Antd Tag color */
+const TAG_COLOR_BY_GROUP: Record<string, string> = {
+  available: 'green',
+  talking: 'blue',
+  ringing: 'orange',
+  wrapup: 'purple',
+  offline: 'default',
+};
+
+/** 시간/응대율 강조 색 (Tailwind 기본 토큰만) */
+const TIME_COLOR_BY_GROUP: Record<string, string> = {
+  available: 'text-green-600',
+  talking: 'text-blue-600',
+  ringing: 'text-orange-600',
+  wrapup: 'text-purple-600',
+  offline: 'text-gray-400',
+};
+
+function AgentCardImpl({ row, nowMs, thresholds, onActivate }: AgentCardProps) {
+  const meta = statusMeta(row.AGENT_STATUS, row.REASON_CODE);
+  const dur = liveDurationSec(row, nowMs);
+  const alarm = alarmLevel(row.AGENT_STATUS, row.REASON_CODE, dur, thresholds);
+  const isAlert = alarm === 2;
+  const isWarn = alarm === 1;
+
+  const sKey = statusKey(row.AGENT_STATUS, row.REASON_CODE);
+  const th = thresholds?.[sKey] ?? DEFAULT_THRESHOLDS[sKey];
+
+  const tagColor = isAlert ? 'red' : isWarn ? 'orange' : TAG_COLOR_BY_GROUP[meta.group];
+  const timeClass = isAlert ? 'text-red-600' : isWarn ? 'text-orange-600' : TIME_COLOR_BY_GROUP[meta.group];
+
+  const name = toStr(row.AGENT_NAME) || toStr(row.AGENT_LOGIN_ID) || `#${row.AGENT_ID ?? '-'}`;
+  const dn = toStr(row.LOGIN_DN_NO);
+  const ani = toStr(row.FINAL_TALK_ANI).trim();
+  const queue = toStr(row.LAST_ICQ_NAME).trim();
+  const isInCall = meta.group === 'talking' || meta.group === 'ringing';
+  const handled = totalHandled(row);
+  const rate = answerRatePct(row);
+  const currCalls = toNum(row.CURR_MEDIA_CALL_CNT) ?? 0;
+
+  const statusLabel = meta.label
+    + (isAlert ? ' · 초과' : isWarn && th ? ` · ${formatThresholdMinutes(th.notice)}↑` : '');
+
+  const cardCls = [
+    'group relative flex h-full min-h-[120px] flex-col rounded-lg border bg-white p-3 text-left outline-none transition-colors',
+    'hover:shadow-[0_2px_8px_rgba(0,0,0,0.06)] focus-visible:ring-2 focus-visible:ring-blue-500',
+    isAlert ? 'border-red-500 bg-red-50/30' : isWarn ? 'border-orange-400' : 'border-gray-200 hover:border-gray-300',
+  ].join(' ');
+
+  const rateColor = rate == null
+    ? 'text-gray-400'
+    : rate >= 95 ? 'text-green-600'
+    : rate < 75 ? 'text-red-600'
+    : 'text-gray-900';
+
+  const tipTitle = (
+    <div className="space-y-0.5">
+      <div className="font-semibold">{name}</div>
+      <div className="opacity-80">ID {row.AGENT_ID ?? '-'} · DN {dn || '-'}</div>
+      <div className="opacity-80">{meta.label} · {formatDuration(dur)}</div>
+      {ani && <div className="font-mono opacity-80">ANI {formatAni(ani)}</div>}
+      {queue && <div className="opacity-80">큐 {queue}</div>}
+    </div>
+  );
+
+  return (
+    <Tooltip title={tipTitle} placement="top" mouseEnterDelay={0.4} mouseLeaveDelay={0.05}>
+      <button type="button" onClick={() => onActivate?.(row)} className={cardCls}>
+        {/* ① 이름 + 상태 Tag */}
+        <div className="flex items-start justify-between gap-2 mb-1">
+          <div className="min-w-0 flex-1">
+            <div className="truncate text-sm font-semibold text-gray-900">{name}</div>
+            {dn && <div className="font-mono text-xs text-gray-400 truncate">{dn}</div>}
+          </div>
+          <Tag color={tagColor} className="!mr-0 shrink-0">
+            {statusLabel}
+          </Tag>
+        </div>
+
+        {/* ② 큰 시간 (focal point) */}
+        <div className={`font-mono text-xl font-bold tabular-nums ${timeClass}`}>
+          {formatDuration(dur)}
+        </div>
+
+        {/* ③ 컨텍스트 (통화/벨/다이얼 시에만) */}
+        {isInCall && (ani || queue) ? (
+          <div className="mt-1 truncate text-xs text-gray-500">
+            {ani && <span className="font-mono tabular-nums">{formatAni(ani)}</span>}
+            {ani && queue && <span className="mx-1">·</span>}
+            {queue && <span>{queue}</span>}
+          </div>
+        ) : (
+          <div className="h-4" aria-hidden />
+        )}
+
+        {/* ④ 누적 KPI */}
+        <div className="mt-auto flex items-center justify-between border-t border-gray-100 pt-2 text-xs">
+          <span className="text-gray-500">
+            응대 <span className="font-mono font-semibold text-gray-900 tabular-nums">{handled || '—'}</span>
+          </span>
+          <span className={`font-mono font-semibold tabular-nums ${rateColor}`}>
+            {rate != null ? `${rate}%` : '—'}
+          </span>
+        </div>
+
+        {/* 멀티콜 — 우상단 작은 배지 (상태 Tag 아래) */}
+        {currCalls > 1 && (
+          <span className="absolute right-3 top-9 inline-flex h-4 min-w-[16px] items-center justify-center rounded-full bg-blue-100 px-1 font-mono text-[10px] font-bold text-blue-700 tabular-nums">
+            ×{currCalls}
+          </span>
+        )}
+      </button>
+    </Tooltip>
+  );
+}
+
+function formatAni(ani: string): string {
+  const digits = ani.replace(/[^\d]/g, '');
+  if (digits.length === 11 && digits.startsWith('01')) return `${digits.slice(0, 3)}-${digits.slice(3, 7)}-${digits.slice(7)}`;
+  if (digits.length === 10 && digits.startsWith('02')) return `${digits.slice(0, 2)}-${digits.slice(2, 6)}-${digits.slice(6)}`;
+  if (digits.length === 10) return `${digits.slice(0, 3)}-${digits.slice(3, 6)}-${digits.slice(6)}`;
+  return ani;
+}
+
+function formatThresholdMinutes(m: number): string {
+  if (m >= 1) return `${m}분`;
+  return `${Math.round(m * 60)}초`;
+}
+
+export default memo(AgentCardImpl);

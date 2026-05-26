@@ -303,7 +303,7 @@ export interface GlobalOptions {
 // TEMPLATE 위젯 활성화 시 BE 에서 `widgetType = "template-{datasetId}-{viz}"` 같은
 // 정규화된 키로 매핑하여 호환.
 
-export type WsConnectionState = 'connecting' | 'connected' | 'reconnecting' | 'disconnected';
+export type WsConnectionState = 'idle' | 'connecting' | 'connected' | 'reconnecting' | 'disconnected';
 
 /** 클라이언트 → 서버: 위젯 구독 등록. */
 export interface WsSubscribeMessage {

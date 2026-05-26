@@ -44,8 +44,8 @@ export const MOCK_CUSTOM_WIDGETS: CustomWidgetCatalogItem[] = [
     domainCode: 'IC',
     description: '상담그룹별 상담사 상태(대기/통화/후처리/이석)를 색상 매트릭스로 표시.',
     defaultOptions: { groupBy: 'queue' },
-    minW: 6,
-    minH: 4,
+    minW: 8,
+    minH: 10,
   },
   {
     widgetTypeId: 'waiting-queue-list',

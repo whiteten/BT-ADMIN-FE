@@ -18,6 +18,13 @@ export const DOMAIN_COLOR_CLASS: Record<DomainCode, string> = {
   IR: 'bg-[var(--color-bt-warn)] text-white',
 };
 
+// 도메인 색상만 (배경 점, 좌측 액센트 바 등에 사용)
+export const DOMAIN_DOT_CLASS: Record<DomainCode, string> = {
+  IE: 'bg-[var(--color-bt-primary)]',
+  IC: 'bg-[var(--color-bt-success)]',
+  IR: 'bg-[var(--color-bt-warn)]',
+};
+
 export const DOMAIN_OPTIONS: Array<{ value: DomainCode; label: string }> = [
   { value: 'IE', label: 'IE · 교환기' },
   { value: 'IC', label: 'IC · CTI' },

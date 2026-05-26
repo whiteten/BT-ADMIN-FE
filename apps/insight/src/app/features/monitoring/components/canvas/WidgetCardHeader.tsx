@@ -18,6 +18,11 @@ interface WidgetCardHeaderProps {
   draggableClass?: string;
 }
 
+/** 위젯 컴포넌트가 자체 툴바(검색·필터·뷰토글 등) 를 헤더 가운데 영역에 portal 로 주입하기 위한 슬롯 id. */
+export function widgetToolbarSlotId(widgetId: number | string): string {
+  return `widget-toolbar-slot-${widgetId}`;
+}
+
 export default function WidgetCardHeader({
   widget,
   currentViz,
@@ -31,20 +36,24 @@ export default function WidgetCardHeader({
   const isTemplate = widget.kind === 'TEMPLATE';
 
   return (
-    <div className={`flex items-center justify-between gap-2 bg-white px-3 py-2 ${editMode ? `cursor-move ${draggableClass}` : ''}`}>
-      {/* 좌측: 이름 + 종류 칩 + 현재 시각화 */}
-      <div className="flex items-center gap-1.5 min-w-0">
-        <span className="text-[12.5px] font-semibold truncate">{widget.widgetName}</span>
-        {isTemplate ? (
+    <div className={`flex items-center justify-between gap-3 bg-white px-4 h-[45px] min-h-[45px] ${editMode ? `cursor-move ${draggableClass}` : ''}`}>
+      {/* 좌측: 위젯 타이틀 (FCA BotDashboard 카드와 동일 스타일) */}
+      <div className="flex items-center gap-2 min-w-0 shrink-0">
+        <span className="text-base font-semibold text-[#495057] truncate">{widget.widgetName}</span>
+        {isTemplate && (
           <span className="shrink-0 rounded bg-[var(--color-bt-primary-soft)] px-1.5 py-0.5 mono text-[9.5px] font-bold text-[var(--color-bt-primary)]" title="템플릿 위젯">
             템플릿 · {currentViz ?? widget.defaultViz}
           </span>
-        ) : (
-          <span className="shrink-0 rounded bg-[var(--color-bt-bg-muted)] px-1.5 py-0.5 mono text-[9.5px] font-bold text-[var(--color-bt-fg-muted)]" title="커스텀 위젯 — BE 1:1">
-            CUSTOM
-          </span>
         )}
       </div>
+
+      {/* 가운데: 위젯이 portal 로 검색/필터/뷰토글 등을 주입하는 슬롯 */}
+      <div
+        id={widgetToolbarSlotId(widget.widgetId)}
+        className="flex flex-1 items-center justify-end min-w-0"
+        onMouseDown={(e) => e.stopPropagation()}
+        onClick={(e) => e.stopPropagation()}
+      />
 
       {/* 우측: 시각화 토글 + 설정/삭제 + 연결 상태 */}
       <div className="flex items-center gap-0.5 shrink-0" onMouseDown={(e) => e.stopPropagation()} onClick={(e) => e.stopPropagation()}>
