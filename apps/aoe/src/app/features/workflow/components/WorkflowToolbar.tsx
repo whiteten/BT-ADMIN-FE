@@ -1,6 +1,6 @@
 import { useQueryClient } from '@tanstack/react-query';
 import { Button, Tooltip } from 'antd';
-import { Download, PlayCircle, RefreshCw, Rocket, Workflow, X } from 'lucide-react';
+import { Download, PlayCircle, Rocket, Workflow, X } from 'lucide-react';
 import { Log } from '@/log';
 import { toast } from '@/shared-util';
 import { agentQueryKeys } from '../../agent-config/hooks/useAgentQueries';
@@ -55,10 +55,6 @@ export default function WorkflowToolbar({ agentId, agentName, aoeDeployFlag, onO
     },
   });
 
-  const handleRefresh = () => {
-    queryClient.invalidateQueries({ queryKey: workflowQueryKeys.graph(agentId).queryKey });
-  };
-
   const handleDeploy = () => {
     const graph = queryClient.getQueryData<WorkflowGraph>(workflowQueryKeys.graph(agentId).queryKey);
     if (graph) {
@@ -93,11 +89,6 @@ export default function WorkflowToolbar({ agentId, agentName, aoeDeployFlag, onO
       </div>
 
       <div className="flex items-center gap-2">
-        <Tooltip title="그래프 새로고침">
-          <Button icon={<RefreshCw size={14} />} onClick={handleRefresh}>
-            새로고침
-          </Button>
-        </Tooltip>
         <Tooltip title="현재 그래프를 JSON 파일로 저장합니다.">
           <Button icon={<Download size={14} />} loading={isExporting} onClick={handleDownload}>
             다운로드

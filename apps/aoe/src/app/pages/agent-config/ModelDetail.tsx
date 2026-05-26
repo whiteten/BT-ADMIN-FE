@@ -27,6 +27,8 @@ const PROVIDERS: ProviderConfig[] = [
   { key: 'ollama', label: 'Ollama', icon: Cpu, bg: 'bg-orange-500' },
 ];
 
+const NO_API_KEY_PROVIDERS = ['vllm', 'ollama'];
+
 const getProvider = (modelType?: string): ProviderConfig => {
   if (!modelType) return { key: '', label: '-', icon: Zap, bg: 'bg-gray-400' };
   return PROVIDERS.find((p) => modelType.toLowerCase().includes(p.key)) ?? { key: '', label: modelType, icon: Zap, bg: 'bg-gray-400' };
@@ -44,7 +46,7 @@ export default function ModelDetail() {
   const modal = useModal();
   const setBreadcrumb = useBreadcrumbStore((s) => s.setBreadcrumb);
   const clearBreadcrumb = useBreadcrumbStore((s) => s.clearBreadcrumb);
-  const [form] = Form.useForm<{ modelName: string; useYn: 0 | 1 }>();
+  const [form] = Form.useForm<{ modelName: string; apiKey?: string; useYn: 0 | 1 }>();
   const [currentStep, setCurrentStep] = useState(0);
   const [detailChanges, setDetailChanges] = useState<Record<string, ModelDetailUpdateDatas>>({});
 
@@ -75,7 +77,7 @@ export default function ModelDetail() {
 
   useEffect(() => {
     if (!model) return;
-    form.setFieldsValue({ modelName: model.modelName, useYn: model.useYn ?? 0 });
+    form.setFieldsValue({ modelName: model.modelName, apiKey: model.apiKey ?? '', useYn: model.useYn ?? 0 });
   }, [model, form]);
 
   // step2 진입 시 변경 초기화
@@ -126,7 +128,9 @@ export default function ModelDetail() {
 
   const handleNext = async () => {
     try {
-      await form.validateFields(['modelName']);
+      const requiredFields: string[] = ['modelName'];
+      if (!NO_API_KEY_PROVIDERS.includes(provider.key)) requiredFields.push('apiKey');
+      await form.validateFields(requiredFields);
       setCurrentStep(1);
     } catch (error) {
       Log.warn('step1 validation failed', error);
@@ -144,7 +148,15 @@ export default function ModelDetail() {
           costPerInputToken: detailChanges[d.detailId]?.costPerInputToken ?? d.costPerInputToken,
           costPerOutputToken: detailChanges[d.detailId]?.costPerOutputToken ?? d.costPerOutputToken,
         }));
-        if (modelId) updateModel({ modelId, modelName: values.modelName, useYn: values.useYn, modelVersions });
+        if (modelId) {
+          updateModel({
+            modelId,
+            modelName: values.modelName,
+            ...(!NO_API_KEY_PROVIDERS.includes(provider.key) && { apiKey: values.apiKey }),
+            useYn: values.useYn,
+            modelVersions,
+          });
+        }
       })
       .catch(Log.warn);
   };
@@ -169,6 +181,13 @@ export default function ModelDetail() {
           <span className="text-gray-800 flex-1 truncate">{displayValue(values.modelName)}</span>
           {renderIcon(!!values.modelName)}
         </div>
+        {!NO_API_KEY_PROVIDERS.includes(provider.key) && (
+          <div className="flex items-center gap-1">
+            <span className="text-gray-500 w-24 shrink-0">API Key</span>
+            <span className="text-gray-800 flex-1">{values.apiKey ? '••••••••' : <span className="text-gray-300">-</span>}</span>
+            {renderIcon(!!values.apiKey)}
+          </div>
+        )}
         {currentStep === 1 && (
           <div className="flex items-center gap-1">
             <span className="text-gray-500 w-24 shrink-0">활성 모델</span>
@@ -194,11 +213,11 @@ export default function ModelDetail() {
         <Row gutter={20}>
           <Col>
             <Form.Item label="서비스 프로바이더">
-              <div className="flex items-center gap-3 px-4 py-3 rounded-lg border border-[var(--color-bt-primary)] bg-[var(--color-bt-primary)]/5 w-fit">
-                <div className={`w-9 h-9 rounded-md ${provider.bg} flex items-center justify-center`}>
+              <div className="flex flex-col items-center gap-2 p-4 rounded-lg border-2 border-[var(--color-bt-primary)] bg-[var(--color-bt-primary)]/5 w-[200px]">
+                <div className={`w-10 h-10 rounded-lg ${provider.bg} flex items-center justify-center`}>
                   <provider.icon className="size-5 text-white" />
                 </div>
-                <span className="text-sm font-medium text-gray-800">{provider.label}</span>
+                <span className="text-sm font-medium text-gray-700">{provider.label}</span>
               </div>
             </Form.Item>
           </Col>
@@ -210,6 +229,15 @@ export default function ModelDetail() {
             </Form.Item>
           </Col>
         </Row>
+        {!NO_API_KEY_PROVIDERS.includes(provider.key) && (
+          <Row gutter={20}>
+            <Col span={8}>
+              <Form.Item name="apiKey" label="API Key" required rules={[{ required: true, message: 'API Key를 입력해 주세요.' }]}>
+                <Input.Password placeholder="API Key를 입력하세요." />
+              </Form.Item>
+            </Col>
+          </Row>
+        )}
         <Row gutter={20}>
           <Col span={8}>
             <Form.Item name="useYn" label="활성화 여부" valuePropName="checked" getValueProps={(value) => ({ checked: value === 1 })} normalize={(value) => (value ? 1 : 0)}>

@@ -772,6 +772,7 @@ function WorkflowCanvasInner({ agentId, graph, onSelectNode }: WorkflowCanvasInn
         deleteKeyCode={['Backspace', 'Delete']}
         panOnDrag={interactionMode === 'hand'}
         selectionOnDrag={interactionMode === 'select'}
+        proOptions={{ hideAttribution: true }}
       >
         <Background variant={BackgroundVariant.Dots} gap={12} size={1} color="#cbd5e1" />
         <HelperLines horizontal={helperLineH} vertical={helperLineV} />

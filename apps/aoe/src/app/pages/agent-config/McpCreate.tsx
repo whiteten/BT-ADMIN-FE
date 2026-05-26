@@ -59,33 +59,45 @@ export default function McpCreate() {
     <div className="flex flex-col gap-4 w-full h-full">
       <div className="w-full flex-1 min-h-0 bg-white bt-shadow flex flex-col">
         <div className="flex-1 min-h-0 overflow-y-auto p-7 pb-0">
-          <Form form={form} layout="vertical" onFinish={handleSubmit} className="max-w-2xl">
-            <Form.Item
-              name="serverName"
-              label="서버명"
-              required
-              rules={[
-                { required: true, message: '서버명을 입력해 주세요.' },
-                { max: 255, message: '서버명은 255자 이내여야 합니다.' },
-              ]}
-            >
-              <Input placeholder="MCP 서버 이름을 입력하세요." />
-            </Form.Item>
-            <Form.Item
-              name="url"
-              label="URL"
-              required
-              rules={[
-                { required: true, message: 'URL을 입력해 주세요.' },
-                { max: 256, message: 'URL은 256자 이내여야 합니다.' },
-                { pattern: URL_PATTERN, message: 'http:// 또는 https:// 로 시작하는 URL을 입력하세요.' },
-              ]}
-            >
-              <Input placeholder="https://example.com" className="font-mono" />
-            </Form.Item>
-            <Form.Item name="description" label="설명" rules={[{ max: 256, message: '설명은 256자 이내여야 합니다.' }]}>
-              <Input.TextArea placeholder="MCP 서버에 대한 설명을 입력하세요." autoSize={{ minRows: 3, maxRows: 6 }} />
-            </Form.Item>
+          <Form form={form} layout="vertical" onFinish={handleSubmit}>
+            <Row gutter={20}>
+              <Col span={12}>
+                <Form.Item
+                  name="serverName"
+                  label="서버명"
+                  required
+                  rules={[
+                    { required: true, message: '서버명을 입력해 주세요.' },
+                    { max: 255, message: '서버명은 255자 이내여야 합니다.' },
+                  ]}
+                >
+                  <Input placeholder="MCP 서버 이름을 입력하세요." />
+                </Form.Item>
+              </Col>
+            </Row>
+            <Row gutter={20}>
+              <Col span={12}>
+                <Form.Item
+                  name="url"
+                  label="URL"
+                  required
+                  rules={[
+                    { required: true, message: 'URL을 입력해 주세요.' },
+                    { max: 256, message: 'URL은 256자 이내여야 합니다.' },
+                    { pattern: URL_PATTERN, message: 'http:// 또는 https:// 로 시작하는 URL을 입력하세요.' },
+                  ]}
+                >
+                  <Input placeholder="https://example.com" className="font-mono" />
+                </Form.Item>
+              </Col>
+            </Row>
+            <Row gutter={20}>
+              <Col span={24}>
+                <Form.Item name="description" label="설명" rules={[{ max: 256, message: '설명은 256자 이내여야 합니다.' }]}>
+                  <Input.TextArea placeholder="MCP 서버에 대한 설명을 입력하세요." autoSize={{ minRows: 3, maxRows: 6 }} />
+                </Form.Item>
+              </Col>
+            </Row>
           </Form>
         </div>
         <div className="w-full px-7 pb-7 pt-4">
