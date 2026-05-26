@@ -83,16 +83,6 @@ export default function DashboardView() {
     enabled: mode === 'view' && monitoringStarted,
   });
 
-  // ── Breadcrumb ────────────────────────────────────────────────
-  useEffect(() => {
-    if (!dashboard) return;
-    const tail = mode === 'edit' ? [] : [{ title: '보기' }];
-    setBreadcrumb([{ title: '인사이트' }, { title: '모니터링' }, { title: '대시보드', path: '/insight/monitoring/dashboards' }, { title: ':dashboardName' }, ...tail], {
-      dashboardName: dashboard.dashboardName,
-    });
-    return () => clearBreadcrumb();
-  }, [dashboard, mode, setBreadcrumb, clearBreadcrumb]);
-
   // ── Mutations (Edit 모드용) ──────────────────────────────────
   const invalidateDetail = () => {
     queryClient.invalidateQueries({ queryKey: dashboardKeys.detail(dashboardId).queryKey });
