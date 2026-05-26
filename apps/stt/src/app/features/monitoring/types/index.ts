@@ -71,3 +71,38 @@ export interface CallStatusItem {
 export interface CallStatusSearchParams {
   callDate: string;
 }
+
+export interface DashboardItem {
+  callDate: string;
+  completeCnt: number;
+  real: number;
+  batch: number;
+}
+
+export interface DashboardSummaryItem {
+  kind: string;
+  cnt: number;
+  finalTime: string;
+  rcnt: number;
+  bcnt: number;
+}
+
+export interface DashboardChannelItem {
+  systemId: number;
+  systemName: string;
+  systemAlias: string;
+  systemIp: string;
+  totCnt: number;
+  runCnt: number;
+  per: number;
+}
+
+export interface DashboardData {
+  items: DashboardItem[];
+  summary: DashboardSummaryItem[];
+  channels: DashboardChannelItem[];
+}
+
+export interface DashboardSearchParams {
+  callDate: string;
+}

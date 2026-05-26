@@ -5,6 +5,8 @@ import type {
   CallStatusSummaryItem,
   ChannelStatusItem,
   ChannelStatusSearchParams,
+  DashboardData,
+  DashboardSearchParams,
   DnStatusItem,
   DnStatusSearchParams,
   SttChatSentence,
@@ -32,5 +34,9 @@ export const monitoringApi = {
       summary: [...(data?.summary ?? [])].sort((a, b) => a.sort - b.sort),
       items: data?.items ?? [],
     };
+  },
+  getDashboard: async (params: DashboardSearchParams) => {
+    const response = await apiClient.get<ApiResponse<DashboardData>>('/moni-stt-dashboard', { params });
+    return response.data?.data ?? { items: [], summary: [], channels: [] };
   },
 };
