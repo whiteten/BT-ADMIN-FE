@@ -42,13 +42,22 @@ const DnForm = React.lazy(() => import('./pages/dn/DnForm'));
 const AdnList = React.lazy(() => import('./pages/adn/AdnList'));
 const AdnForm = React.lazy(() => import('./pages/adn/AdnForm'));
 
+// acd-gdn (ACD 그룹DN — SWAT IPR20S3010)
+const AcdGdnList = React.lazy(() => import('./pages/acd-gdn/AcdGdnList'));
+
 // agent-master
 const AgentMasterList = React.lazy(() => import('./pages/agent-master/AgentMasterList'));
 const AgentMasterForm = React.lazy(() => import('./pages/agent-master/AgentMasterForm'));
 const AgentGroupForm = React.lazy(() => import('./pages/agent-master/AgentGroupForm'));
 
+// cti-queue
+const CtiQueueList = React.lazy(() => import('./pages/cti-queue/CtiQueueList'));
+
 // cti-code-mgmt (휴식/ACW 사유 + 미디어타입 통합)
 const CtiCodeList = React.lazy(() => import('./pages/cti-code/CtiCodeList'));
+
+// skill-assign (스킬배정)
+const SkillAssignList = React.lazy(() => import('./pages/skill-assign/SkillAssignList'));
 
 // tracking
 const TrackingSearch = React.lazy(() => import('./pages/tracking/TrackingSearch'));
@@ -173,6 +182,10 @@ export const routes = [
         ],
       },
       {
+        path: 'acd-gdn',
+        element: <AcdGdnList />,
+      },
+      {
         path: 'agent-master',
         element: <Outlet />,
         children: [
@@ -184,8 +197,16 @@ export const routes = [
         ],
       },
       {
+        path: 'cti-queue',
+        element: <CtiQueueList />,
+      },
+      {
         path: 'cti-code-mgmt',
         element: <CtiCodeList />,
+      },
+      {
+        path: 'skill-assign',
+        element: <SkillAssignList />,
       },
       {
         path: 'tracking',
