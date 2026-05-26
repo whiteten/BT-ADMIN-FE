@@ -81,10 +81,6 @@ const FileUploadDrawer = forwardRef<FileUploadDrawerRef, FileUploadDrawerProps>(
       if (f.status === 'done' && f.uploadedFilename) acc.push(f.uploadedFilename);
       return acc;
     }, []);
-    if (fileNames.length === 0) {
-      toast.warning('STT 요청할 파일을 선택해주세요.');
-      return;
-    }
     requestStt(fileNames);
   };
 

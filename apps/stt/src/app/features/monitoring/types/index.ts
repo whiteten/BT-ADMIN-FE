@@ -1,14 +1,17 @@
 export interface ChannelStatusItem {
   channelId: number;
-  channelStatus: string;
-  channelStatusNm: string;
-  progressRate: string;
-  chrPer: string;
-  ucidGkey?: string;
-  dnNo?: string;
-  agentName?: string;
-  inoutKind?: string;
-  callDatetime?: string;
+  prtYn: 'Y' | 'N';
+  channelStatus: string | null;
+  channelStatusNm: string | null;
+  progressRate: string | null;
+  ucidGkey: string | null;
+  analKind: string | null;
+  ty: string | null;
+  dnNo?: string | null;
+  agentName?: string | null;
+  inoutKind?: string | null;
+  callDatetime?: string | null;
+  mstartTime?: string | null;
 }
 
 export interface SttChatSentence {
@@ -45,4 +48,26 @@ export interface DnStatusItem {
   channelStatusNm?: string;
   inoutKind?: string;
   callDatetime?: string;
+}
+
+export interface CallStatusSummaryItem {
+  workKindName: string;
+  cnt: number;
+  sort: number;
+}
+
+export interface CallStatusItem {
+  ucidGkey: string;
+  filename: string;
+  callDate: string;
+  callTime: string;
+  workKind: number;
+  workKindName: string;
+  dnNo: string;
+  dbInsertTime: string;
+  saRuntime: string | null;
+}
+
+export interface CallStatusSearchParams {
+  callDate: string;
 }
