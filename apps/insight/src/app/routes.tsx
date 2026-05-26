@@ -6,8 +6,10 @@ import { NotFound } from '@/components/custom/NotFound';
 const SearchConditionCatalog = React.lazy(() => import('./pages/search-conditions/SearchConditionCatalog'));
 const StatDatasetList = React.lazy(() => import('./pages/stat-datasets/StatDatasetList'));
 const StatDatasetWizard = React.lazy(() => import('./pages/stat-dataset-wizard/StatDatasetWizard'));
+const StatDatasetEdit = React.lazy(() => import('./pages/stat-datasets/StatDatasetEdit'));
 const ReportList = React.lazy(() => import('./pages/reports/ReportList'));
 const ReportWizard = React.lazy(() => import('./pages/report-wizard/ReportWizard'));
+const ReportDraftCanvas = React.lazy(() => import('./pages/report-draft-canvas/ReportDraftCanvas'));
 const ReportEditor = React.lazy(() => import('./pages/report-editor/ReportEditor'));
 const ReportView = React.lazy(() => import('./pages/report-view/ReportView'));
 
@@ -43,6 +45,7 @@ export const routes = [
             children: [
               { index: true, element: <StatDatasetList /> },
               { path: 'new', element: <StatDatasetWizard /> },
+              { path: ':datasourceKey/edit', element: <StatDatasetEdit /> },
             ],
           },
           {
@@ -50,7 +53,14 @@ export const routes = [
             element: <Outlet />,
             children: [
               { index: true, element: <ReportList /> },
-              { path: 'new', element: <ReportWizard /> },
+              {
+                path: 'new',
+                element: <Outlet />,
+                children: [
+                  { index: true, element: <ReportWizard /> },
+                  { path: 'canvas', element: <ReportDraftCanvas /> },
+                ],
+              },
               { path: ':reportId/edit', element: <ReportEditor /> },
               { path: ':reportId/view', element: <ReportView /> },
             ],

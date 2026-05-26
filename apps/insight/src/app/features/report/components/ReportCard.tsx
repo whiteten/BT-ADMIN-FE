@@ -2,9 +2,9 @@ import { useNavigate } from 'react-router-dom';
 import { Card, Tag } from 'antd';
 import dayjs from 'dayjs';
 import { toast } from '@/shared-util';
-import { DOMAIN_LABELS, REPORT_ICON_SVG } from '../constants/reportIconConstants';
+import { DOMAIN_LABELS, DOMAIN_TAG_COLOR, REPORT_ICON_SVG } from '../constants/reportIconConstants';
 import { useDeleteReport } from '../hooks/useReportQueries';
-import type { DomainCode, ReportIconType, ReportListItem } from '../types';
+import type { ReportIconType, ReportListItem } from '../types';
 import { IconMoreVertical } from '@/components/custom/Icons';
 import { Button } from '@/components/ui/button';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
@@ -13,12 +13,6 @@ import { useModal } from '@/libs/shared-ui/src/hooks/useModal';
 interface ReportCardProps {
   report: ReportListItem;
 }
-
-const DOMAIN_TAG_COLOR: Record<DomainCode, string> = {
-  IE: 'blue',
-  IC: 'green',
-  IR: 'orange',
-};
 
 export default function ReportCard({ report }: ReportCardProps) {
   const navigate = useNavigate();

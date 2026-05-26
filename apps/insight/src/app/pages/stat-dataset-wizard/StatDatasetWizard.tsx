@@ -6,7 +6,7 @@ import { toast } from '@/shared-util';
 import WizardStepA from '../../features/dataset/components/WizardStepA';
 import WizardStepB from '../../features/dataset/components/WizardStepB';
 import { useCreateDataset } from '../../features/dataset/hooks/useDatasetQueries';
-import type { LocalCalcFieldDraft, LocalFieldDisplay } from '../../features/dataset/types';
+import type { DataSourceFieldRequest, LocalCalcFieldDraft, LocalFieldDisplay } from '../../features/dataset/types';
 import type { DomainCode } from '../../features/report/types';
 import { FallbackSpinner } from '@/components/custom/FallbackSpinner';
 
@@ -26,6 +26,7 @@ export default function StatDatasetWizard() {
 
   const [fieldDisplays, setFieldDisplays] = useState<LocalFieldDisplay[]>([]);
   const [calcFields, setCalcFields] = useState<LocalCalcFieldDraft[]>([]);
+  const [isCalcEditing, setIsCalcEditing] = useState(false);
 
   const { mutateAsync: createDataset, isPending } = useCreateDataset();
 
@@ -49,12 +50,50 @@ export default function StatDatasetWizard() {
     setWizardStep(1);
   };
 
+  const COLUMN_FORMAT_TO_FORMATTER: Record<string, string> = {
+    Number: 'NUMBER',
+    Decimal: 'NUMBER',
+    Rate: 'PERCENT',
+    String: 'NONE',
+    Date: 'DATETIME',
+    Time: 'DURATION',
+  };
+
+  const buildFieldRequests = (displays: LocalFieldDisplay[], calcs: LocalCalcFieldDraft[]): DataSourceFieldRequest[] => {
+    const regular = displays
+      .filter((f) => !f.isCalcField)
+      .map((f) => ({
+        fieldName: f.fieldName,
+        displayName: f.displayName,
+        fieldType: f.rawFieldType ?? 'STRING',
+        fieldRole: f.rawFieldRole ?? (f.fieldType === 'MSR' ? 'MEASURE' : 'DIMENSION'),
+        formatterType: COLUMN_FORMAT_TO_FORMATTER[f.columnFormat] ?? 'NONE',
+        isVisible: f.isVisible,
+        sortOrder: f.sortOrder,
+      }));
+    const calcRows = calcs.map((c, i) => {
+      const display = displays.find((f) => f.fieldName === c.fieldCode && f.isCalcField);
+      return {
+        fieldName: c.fieldCode,
+        displayName: c.displayName,
+        fieldType: 'NUMBER',
+        fieldRole: 'CALC',
+        formatterType: COLUMN_FORMAT_TO_FORMATTER[c.columnFormat] ?? 'NUMBER',
+        formatterOptions: JSON.stringify({ rowExpression: c.rowExpression, aggExpression: c.aggExpression ?? null, kpiDirection: c.kpiDirection }),
+        isVisible: true,
+        sortOrder: display?.sortOrder ?? regular.length + i,
+      };
+    });
+    return [...regular, ...calcRows];
+  };
+
   const handleSubmit = async () => {
     try {
       await createDataset({
         datasourceName: datasetName.trim(),
         productCode: selectedDomain ?? undefined,
         dbViewPrefix: selectedPrefix,
+        fields: fieldDisplays.length > 0 ? buildFieldRequests(fieldDisplays, calcFields) : undefined,
       });
       toast.success('데이터셋이 생성되었습니다.');
       navigate('/insight/statistics/datasets');
@@ -106,24 +145,27 @@ export default function StatDatasetWizard() {
                 onFieldDisplaysChange={setFieldDisplays}
                 calcFields={calcFields}
                 onCalcFieldsChange={setCalcFields}
+                onEditingChange={setIsCalcEditing}
               />
             )}
           </div>
 
-          <div className="border-t border-bt-border bg-bt-bg-muted px-7 py-4">
-            <div className="flex items-center justify-between">
-              <Button onClick={wizardStep === 0 ? handleCancel : () => setWizardStep(0)}>{wizardStep === 0 ? '취소' : '이전'}</Button>
-              {wizardStep === 0 ? (
-                <Button type="primary" onClick={handleNext}>
-                  다음
-                </Button>
-              ) : (
-                <Button type="primary" onClick={handleSubmit} loading={isPending}>
-                  완료
-                </Button>
-              )}
+          {!isCalcEditing && (
+            <div className="border-t border-bt-border bg-bt-bg-muted px-7 py-4">
+              <div className="flex items-center justify-between">
+                <Button onClick={wizardStep === 0 ? handleCancel : () => setWizardStep(0)}>{wizardStep === 0 ? '취소' : '이전'}</Button>
+                {wizardStep === 0 ? (
+                  <Button type="primary" onClick={handleNext}>
+                    다음
+                  </Button>
+                ) : (
+                  <Button type="primary" onClick={handleSubmit} loading={isPending}>
+                    완료
+                  </Button>
+                )}
+              </div>
             </div>
-          </div>
+          )}
         </div>
       </div>
     </div>

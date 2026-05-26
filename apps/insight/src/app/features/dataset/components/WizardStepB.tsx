@@ -3,8 +3,8 @@ import { DndContext, type DragEndEvent, PointerSensor, closestCenter, useSensor,
 import { restrictToVerticalAxis } from '@dnd-kit/modifiers';
 import { SortableContext, arrayMove, useSortable, verticalListSortingStrategy } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
-import { Button, Checkbox, Input, Select } from 'antd';
-import { Edit2, Plus, X } from 'lucide-react';
+import { Button, Checkbox, Input, Modal, Select } from 'antd';
+import { Download, Edit2, Plus, X } from 'lucide-react';
 import CalcFieldEditor from './CalcFieldEditor';
 import type { CalcFieldCreateDatas, ColumnFormat, DomainCode } from '../../report/types';
 import { useGetDataSourceFields, useGetSchemaPreview } from '../hooks/useDatasetQueries';
@@ -94,6 +94,8 @@ export default function WizardStepB({
         columnFormat: deriveColumnFormat(f.fieldType, f.fieldRole),
         isVisible: false,
         sortOrder: i,
+        rawFieldType: f.fieldType,
+        rawFieldRole: f.fieldRole,
       }));
       onFieldDisplaysChange(initial);
     }
@@ -114,6 +116,25 @@ export default function WizardStepB({
 
   const toggleAll = (checked: boolean) => {
     onFieldDisplaysChange(fieldDisplays.map((f) => (f.isCalcField ? f : { ...f, isVisible: checked })));
+  };
+
+  // ─── 컬럼 가져오기 (초기화) ───────────────────────────────────────────────
+  const handleImportColumns = () => {
+    const doReset = () => {
+      onCalcFieldsChange([]);
+      onFieldDisplaysChange([]);
+    };
+    if (fieldDisplays.length > 0) {
+      Modal.confirm({
+        title: '컬럼 가져오기',
+        content: '이미 조회한 컬럼정보가 존재합니다. 계속 진행하시겠습니까?',
+        okText: '확인',
+        cancelText: '취소',
+        onOk: doReset,
+      });
+    } else {
+      doReset();
+    }
   };
 
   // ─── 팔레트 드래그 재정렬 ──────────────────────────────────────────────────
@@ -379,6 +400,12 @@ export default function WizardStepB({
             <span className="ml-auto text-xs text-bt-fg-muted">
               노출 {visibleCount} / {fieldDisplays.length}
             </span>
+            <Button size="small" icon={<Download className="w-3 h-3" />} onClick={handleImportColumns}>
+              컬럼 가져오기
+            </Button>
+            <Button size="small" type="primary" icon={<Plus className="w-3 h-3" />} onClick={() => setEditing({ mode: 'add' })}>
+              계산필드 추가
+            </Button>
           </div>
 
           <div className="rounded border border-bt-border overflow-hidden">
@@ -402,51 +429,53 @@ export default function WizardStepB({
                 </tr>
               </thead>
               <tbody className="divide-y divide-bt-border">
-                {fieldDisplays.map((f) => (
-                  <tr key={f.fieldName} className={`transition-colors ${f.isCalcField ? 'bg-green-50/30' : f.isVisible ? 'bg-white' : 'bg-gray-50/60'} hover:bg-blue-50/20`}>
-                    <td className="px-3 py-2 text-center border-b border-gray-100">
-                      <Checkbox checked={f.isVisible} onChange={(e) => updateField(f.fieldName, { isVisible: e.target.checked })} />
-                    </td>
-                    <td className="px-3 py-2 border-b border-gray-100">
-                      <div className="flex items-center gap-1">
-                        {f.isCalcField && (
-                          <span className="inline-flex h-3.5 w-3.5 shrink-0 items-center justify-center rounded bg-bt-success font-mono text-[9px] font-bold text-white">ƒ</span>
-                        )}
-                        <span className={`font-mono font-semibold truncate ${!f.isVisible ? 'text-bt-fg-muted' : f.isCalcField ? 'text-bt-success' : ''}`}>{f.fieldName}</span>
-                      </div>
-                    </td>
-                    <td className="px-3 py-2 border-b border-gray-100">
-                      <Select
-                        size="small"
-                        value={f.columnFormat as ColumnFormat}
-                        options={FORMAT_OPTIONS}
-                        onChange={(v) => updateField(f.fieldName, { columnFormat: v })}
-                        disabled={!f.isVisible}
-                        style={{ width: '100%' }}
-                      />
-                    </td>
-                    <td className="px-3 py-2 border-b border-gray-100">
-                      {f.isCalcField ? (
-                        <span className="text-xs text-bt-fg-muted">수식 기반</span>
-                      ) : f.fieldType === 'MSR' ? (
+                {[...fieldDisplays]
+                  .sort((a, b) => a.sortOrder - b.sortOrder)
+                  .map((f) => (
+                    <tr key={f.fieldName} className={`transition-colors ${f.isCalcField ? 'bg-green-50/30' : f.isVisible ? 'bg-white' : 'bg-gray-50/60'} hover:bg-blue-50/20`}>
+                      <td className="px-3 py-2 text-center border-b border-gray-100">
+                        <Checkbox checked={f.isVisible} onChange={(e) => updateField(f.fieldName, { isVisible: e.target.checked })} />
+                      </td>
+                      <td className="px-3 py-2 border-b border-gray-100">
+                        <div className="flex items-center gap-1">
+                          {f.isCalcField && (
+                            <span className="inline-flex h-3.5 w-3.5 shrink-0 items-center justify-center rounded bg-bt-success font-mono text-[9px] font-bold text-white">ƒ</span>
+                          )}
+                          <span className={`font-mono font-semibold truncate ${!f.isVisible ? 'text-bt-fg-muted' : f.isCalcField ? 'text-bt-success' : ''}`}>{f.fieldName}</span>
+                        </div>
+                      </td>
+                      <td className="px-3 py-2 border-b border-gray-100">
                         <Select
                           size="small"
-                          value={f.aggFunc ?? undefined}
-                          options={AGG_OPTIONS}
-                          onChange={(v) => updateField(f.fieldName, { aggFunc: v })}
+                          value={f.columnFormat as ColumnFormat}
+                          options={FORMAT_OPTIONS}
+                          onChange={(v) => updateField(f.fieldName, { columnFormat: v })}
                           disabled={!f.isVisible}
-                          placeholder="선택"
                           style={{ width: '100%' }}
                         />
-                      ) : (
-                        <span className="text-xs text-bt-fg-muted">—</span>
-                      )}
-                    </td>
-                    <td className="px-3 py-2 border-b border-gray-100">
-                      <Input size="small" value={f.displayName} onChange={(e) => updateField(f.fieldName, { displayName: e.target.value })} disabled={!f.isVisible} />
-                    </td>
-                  </tr>
-                ))}
+                      </td>
+                      <td className="px-3 py-2 border-b border-gray-100">
+                        {f.isCalcField ? (
+                          <span className="text-xs text-bt-fg-muted">수식 기반</span>
+                        ) : f.fieldType === 'MSR' ? (
+                          <Select
+                            size="small"
+                            value={f.aggFunc ?? undefined}
+                            options={AGG_OPTIONS}
+                            onChange={(v) => updateField(f.fieldName, { aggFunc: v })}
+                            disabled={!f.isVisible}
+                            placeholder="선택"
+                            style={{ width: '100%' }}
+                          />
+                        ) : (
+                          <span className="text-xs text-bt-fg-muted">—</span>
+                        )}
+                      </td>
+                      <td className="px-3 py-2 border-b border-gray-100">
+                        <Input size="small" value={f.displayName} onChange={(e) => updateField(f.fieldName, { displayName: e.target.value })} disabled={!f.isVisible} />
+                      </td>
+                    </tr>
+                  ))}
               </tbody>
             </table>
           </div>
@@ -455,15 +484,10 @@ export default function WizardStepB({
         {/* 계산필드 섹션 */}
         <div className="px-5 pb-5">
           <div className="rounded border border-bt-border bg-bt-primary-soft/15 p-4">
-            <div className="mb-3 flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <span className="inline-flex h-4 w-4 items-center justify-center rounded bg-bt-success font-mono text-[10px] font-bold text-white">ƒ</span>
-                <span className="text-sm font-semibold">계산필드</span>
-                <span className="text-xs text-bt-fg-muted">— Row-level 수식 또는 윈도우 함수</span>
-              </div>
-              <Button size="small" type="primary" icon={<Plus className="w-3 h-3" />} onClick={() => setEditing({ mode: 'add' })}>
-                추가
-              </Button>
+            <div className="mb-3 flex items-center gap-2">
+              <span className="inline-flex h-4 w-4 items-center justify-center rounded bg-bt-success font-mono text-[10px] font-bold text-white">ƒ</span>
+              <span className="text-sm font-semibold">계산필드</span>
+              <span className="text-xs text-bt-fg-muted">— Row-level 수식 또는 윈도우 함수</span>
             </div>
 
             {calcFields.length === 0 ? (

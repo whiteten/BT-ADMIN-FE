@@ -40,6 +40,20 @@ export const useGetDatasets = ({
     ...queryOptions,
   });
 
+export const useGetDataset = ({
+  params: { datasourceKey },
+  queryOptions,
+}: {
+  params: { datasourceKey: string };
+  queryOptions?: Omit<UseQueryOptions<DatasetDetail>, 'queryKey' | 'queryFn'>;
+}) =>
+  useQuery({
+    ...datasetKeys.detail(datasourceKey),
+    queryFn: () => datasetApi.getDataset(datasourceKey),
+    staleTime: 5 * 60 * 1000,
+    ...queryOptions,
+  });
+
 export const useGetDataSourceFields = ({
   params: { datasourceKey },
   queryOptions,
@@ -97,12 +111,13 @@ export const useGetStatConfig = ({
 export const useCreateDataset = ({ mutationOptions }: { mutationOptions?: UseMutationOptions<DatasetDetail, Error, DatasetCreateRequest> } = {}) => {
   const queryClient = useQueryClient();
   return useMutation({
+    ...mutationOptions,
     mutationFn: (data: DatasetCreateRequest) => datasetApi.createDataset(data),
-    onSuccess: () => {
+    onSuccess: (...args) => {
       queryClient.invalidateQueries({ queryKey: datasetKeys.list._def });
       queryClient.invalidateQueries({ queryKey: datasetKeys.candidates.queryKey });
+      mutationOptions?.onSuccess?.(...args);
     },
-    ...mutationOptions,
   });
 };
 
@@ -111,22 +126,25 @@ export const useUpdateDataset = ({
 }: { mutationOptions?: UseMutationOptions<DatasetDetail, Error, { datasourceKey: string; data: DatasetUpdateRequest }> } = {}) => {
   const queryClient = useQueryClient();
   return useMutation({
+    ...mutationOptions,
     mutationFn: ({ datasourceKey, data }) => datasetApi.updateDataset(datasourceKey, data),
-    onSuccess: (_result, { datasourceKey }) => {
+    onSuccess: (...args) => {
+      const [, { datasourceKey }] = args;
       queryClient.invalidateQueries({ queryKey: datasetKeys.list._def });
       queryClient.invalidateQueries({ queryKey: datasetKeys.detail(datasourceKey).queryKey });
+      mutationOptions?.onSuccess?.(...args);
     },
-    ...mutationOptions,
   });
 };
 
 export const useDeleteDataset = ({ mutationOptions }: { mutationOptions?: UseMutationOptions<void, Error, string> } = {}) => {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: (datasourceKey: string) => datasetApi.deleteDataset(datasourceKey),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: datasetKeys.list._def });
-    },
     ...mutationOptions,
+    mutationFn: (datasourceKey: string) => datasetApi.deleteDataset(datasourceKey),
+    onSuccess: (...args) => {
+      queryClient.invalidateQueries({ queryKey: datasetKeys.list._def });
+      mutationOptions?.onSuccess?.(...args);
+    },
   });
 };
