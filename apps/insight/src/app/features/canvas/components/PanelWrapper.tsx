@@ -56,13 +56,11 @@ export default function PanelWrapper({ panel, reportId, mode, onEdit }: PanelWra
             </span>
           )}
         </div>
-        {isEdit && (
-          <div className="flex items-center gap-0.5">
-            <Button type="text" size="small" icon={<Search className="w-3.5 h-3.5" />} title="검색조건 바인딩" />
-            <Button type="text" size="small" icon={<Settings className="w-3.5 h-3.5" />} onClick={onEdit} title="편집" />
-            <Button type="text" size="small" danger icon={<X className="w-3.5 h-3.5" />} onClick={handleDelete} title="삭제" />
-          </div>
-        )}
+        <div className="flex items-center gap-0.5">
+          <Button type="text" size="small" icon={<Search className="w-3.5 h-3.5" />} title="검색조건 바인딩" />
+          <Button type="text" size="small" icon={<Settings className="w-3.5 h-3.5" />} onClick={onEdit} title="패널 편집" />
+          <Button type="text" size="small" danger icon={<X className="w-3.5 h-3.5" />} onClick={handleDelete} title="삭제" />
+        </div>
       </div>
 
       {/* 패널 콘텐츠 */}

@@ -164,8 +164,8 @@ export default function CanvasLayout({ reportId, mode, isDraft, datasourceKey = 
         )}
       </div>
 
-      {/* 패널 편집 사이드 시트 */}
-      {addPhase === 'editing' && (
+      {/* 패널 편집 사이드 시트 — edit/view 모두 허용 */}
+      {(addPhase === 'editing' || editingPanelId !== null) && (
         <PanelEditorSheet
           reportId={reportId}
           panelType={selectedType ?? undefined}

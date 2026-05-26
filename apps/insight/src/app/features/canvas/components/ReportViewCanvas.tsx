@@ -1,4 +1,6 @@
-import { Tag } from 'antd';
+import { useNavigate } from 'react-router-dom';
+import { Button, Tag } from 'antd';
+import { Pencil } from 'lucide-react';
 import CanvasLayout from './CanvasLayout';
 import GlobalFilter from '../../global-filter/components/GlobalFilter';
 import type { ReportFullDetail } from '../../report/types';
@@ -9,6 +11,8 @@ interface ReportViewCanvasProps {
 }
 
 export default function ReportViewCanvas({ reportId, report }: ReportViewCanvasProps) {
+  const navigate = useNavigate();
+
   return (
     <div className="flex flex-col h-full">
       {/* 뷰 모드 헤더 */}
@@ -18,8 +22,13 @@ export default function ReportViewCanvas({ reportId, report }: ReportViewCanvasP
           <Tag color="blue">{report.domain}</Tag>
           {report.isPublished && <Tag color="success">메뉴 등록됨</Tag>}
         </div>
-        <div className="text-xs text-[var(--color-bt-fg-muted)]">
-          데이터셋: <span className="font-mono">{report.datasourceKey}</span>
+        <div className="flex items-center gap-3">
+          <span className="text-xs text-[var(--color-bt-fg-muted)]">
+            데이터셋: <span className="font-mono">{report.datasourceKey}</span>
+          </span>
+          <Button icon={<Pencil className="w-3.5 h-3.5" />} onClick={() => navigate(`/insight/statistics/reports/${reportId}/edit`)}>
+            보고서 편집
+          </Button>
         </div>
       </div>
 
@@ -28,7 +37,7 @@ export default function ReportViewCanvas({ reportId, report }: ReportViewCanvasP
 
       {/* 캔버스 */}
       <div className="flex-1 overflow-auto">
-        <CanvasLayout reportId={reportId} mode="view" />
+        <CanvasLayout reportId={reportId} mode="view" datasourceKey={report.datasourceKey} />
       </div>
     </div>
   );

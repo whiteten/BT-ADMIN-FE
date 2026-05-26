@@ -3,13 +3,16 @@ import { DndContext, type DragEndEvent, PointerSensor, closestCenter, useSensor,
 import { restrictToVerticalAxis } from '@dnd-kit/modifiers';
 import { SortableContext, arrayMove, useSortable, verticalListSortingStrategy } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
-import { Button, Checkbox, Input, Modal, Select } from 'antd';
+import type { ColDef, IHeaderParams } from 'ag-grid-community';
+import { AgGridReact } from 'ag-grid-react';
+import { Button, Checkbox, Input, Modal, Select, Tooltip } from 'antd';
 import { Download, Edit2, Plus, X } from 'lucide-react';
 import CalcFieldEditor from './CalcFieldEditor';
 import type { CalcFieldCreateDatas, ColumnFormat, DomainCode } from '../../report/types';
 import { useGetDataSourceFields, useGetSchemaPreview } from '../hooks/useDatasetQueries';
 import type { LocalCalcFieldDraft, LocalFieldDisplay } from '../types';
 import { FallbackSpinner } from '@/components/custom/FallbackSpinner';
+import useAggridOptions from '@/libs/shared-ui/src/hooks/useAggridOptions';
 
 const FORMAT_OPTIONS: { value: ColumnFormat; label: string }[] = [
   { value: 'Number', label: 'Number (정수)' },
@@ -24,6 +27,19 @@ function deriveColumnFormat(fieldType: string, fieldRole: string): ColumnFormat 
   if (fieldRole === 'TIMESTAMP') return 'Date';
   if (fieldType === 'NUMBER') return 'Number';
   return 'String';
+}
+
+interface CheckboxHeaderParams extends IHeaderParams {
+  allVisible: boolean;
+  someVisible: boolean;
+  toggleAll: (checked: boolean) => void;
+}
+function CheckboxHeader({ allVisible, someVisible, toggleAll }: CheckboxHeaderParams) {
+  return (
+    <div className="flex items-center justify-center w-full h-full">
+      <Checkbox checked={allVisible} indeterminate={someVisible} onChange={(e) => toggleAll(e.target.checked)} />
+    </div>
+  );
 }
 
 // ─── Sortable palette item ─────────────────────────────────────────────────────
@@ -57,6 +73,7 @@ export default function WizardStepB({
   onEditingChange,
 }: WizardStepBProps) {
   const [editing, setEditing] = useState<EditingState>({ mode: 'idle' });
+  const { gridOptions } = useAggridOptions();
 
   useEffect(() => {
     onEditingChange?.(editing.mode !== 'idle');
@@ -232,7 +249,7 @@ export default function WizardStepB({
         : calcFields.map((c) => ({ fieldCode: c.fieldCode, _localId: c._localId }));
 
     return (
-      <div className="flex" style={{ minHeight: 560 }}>
+      <div className="flex h-full">
         {/* Left: source palette (unchanged) */}
         <aside className="w-64 shrink-0 border-r border-border bg-muted/20 p-4 overflow-y-auto">
           <div className="mb-3">
@@ -305,7 +322,7 @@ export default function WizardStepB({
 
   // ─── List mode: original split panel ──────────────────────────────────────
   return (
-    <div className="flex" style={{ minHeight: 560 }}>
+    <div className="flex h-full">
       {/* ── 좌측: 원천 뷰 필드 팔레트 ── */}
       <aside className="w-64 shrink-0 border-r border-border bg-muted/20 p-4 overflow-y-auto">
         <div className="mb-3">
@@ -384,121 +401,140 @@ export default function WizardStepB({
       </aside>
 
       {/* ── 우측: 필드 구성 ── */}
-      <div className="flex-1 bg-white overflow-y-auto">
-        <div className="p-5">
-          <div className="mb-2 flex items-center gap-2">
-            <span className="text-sm font-semibold">필드 구성</span>
-            <span className="text-xs text-[var(--color-bt-fg-muted)]">— 노출할 필드를 선택하고 분류·서식·표시명을 지정하세요</span>
-            <span className="ml-auto text-xs text-[var(--color-bt-fg-muted)]">
-              노출 {visibleCount} / {fieldDisplays.length}
-            </span>
-            <Button size="small" icon={<Download className="w-3 h-3" />} onClick={handleImportColumns}>
-              컬럼 가져오기
-            </Button>
-            <Button size="small" type="primary" icon={<Plus className="w-3 h-3" />} onClick={() => setEditing({ mode: 'add' })}>
-              계산필드 추가
-            </Button>
-          </div>
-
-          <div className="rounded border border-[var(--color-bt-border)] overflow-hidden">
-            <table className="w-full text-xs table-fixed">
-              <colgroup>
-                <col style={{ width: '44px' }} />
-                <col style={{ width: '160px' }} />
-                <col style={{ width: '120px' }} />
-                <col />
-              </colgroup>
-              <thead className="bg-[var(--color-bt-bg-muted)]/60 border-b border-[var(--color-bt-border)]">
-                <tr>
-                  <th className="px-3 py-2.5 text-center font-medium text-gray-500 border-b border-gray-100">
-                    <Checkbox checked={allVisible} indeterminate={someVisible} onChange={(e) => toggleAll(e.target.checked)} title="전체 선택/해제" />
-                  </th>
-                  <th className="px-3 py-2.5 text-left text-xs font-semibold text-gray-500 border-b border-gray-100">컬럼</th>
-                  <th className="px-3 py-2.5 text-left text-xs font-semibold text-gray-500 border-b border-gray-100">서식</th>
-                  <th className="px-3 py-2.5 text-left text-xs font-semibold text-gray-500 border-b border-gray-100">표시명</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-[var(--color-bt-border)]">
-                {[...fieldDisplays]
-                  .sort((a, b) => a.sortOrder - b.sortOrder)
-                  .map((f) => (
-                    <tr key={f.fieldName} className={`transition-colors ${f.isCalcField ? 'bg-green-50/30' : f.isVisible ? 'bg-white' : 'bg-gray-50/60'} hover:bg-blue-50/20`}>
-                      <td className="px-3 py-2 text-center border-b border-gray-100">
-                        <Checkbox checked={f.isVisible} onChange={(e) => updateField(f.fieldName, { isVisible: e.target.checked })} />
-                      </td>
-                      <td className="px-3 py-2 border-b border-gray-100">
-                        <div className="flex items-center gap-1">
-                          {f.isCalcField && (
-                            <span className="inline-flex h-3.5 w-3.5 shrink-0 items-center justify-center rounded bg-[var(--color-bt-success)] font-mono text-xs font-bold text-white">
-                              ƒ
-                            </span>
-                          )}
-                          <span
-                            className={`font-mono font-semibold truncate ${!f.isVisible ? 'text-[var(--color-bt-fg-muted)]' : f.isCalcField ? 'text-[var(--color-bt-success)]' : ''}`}
-                          >
-                            {f.fieldName}
-                          </span>
-                        </div>
-                      </td>
-                      <td className="px-3 py-2 border-b border-gray-100">
-                        <Select
-                          size="small"
-                          value={f.columnFormat as ColumnFormat}
-                          options={FORMAT_OPTIONS}
-                          onChange={(v) => updateField(f.fieldName, { columnFormat: v })}
-                          disabled={!f.isVisible}
-                          style={{ width: '100%' }}
-                        />
-                      </td>
-                      <td className="px-3 py-2 border-b border-gray-100">
-                        <Input size="small" value={f.displayName} onChange={(e) => updateField(f.fieldName, { displayName: e.target.value })} disabled={!f.isVisible} />
-                      </td>
-                    </tr>
-                  ))}
-              </tbody>
-            </table>
-          </div>
+      <div className="flex-1 flex flex-col min-h-0 bg-white">
+        {/* 고정 헤더 */}
+        <div className="shrink-0 flex items-center gap-2 px-5 py-3">
+          <span className="text-sm font-semibold">필드 구성</span>
+          <span className="text-xs text-[var(--color-bt-fg-muted)]">— 노출할 필드를 선택하고 분류·서식·표시명을 지정하세요</span>
+          <span className="ml-auto text-xs text-[var(--color-bt-fg-muted)]">
+            노출 {visibleCount} / {fieldDisplays.length}
+          </span>
+          <Button size="small" icon={<Download className="w-3 h-3" />} onClick={handleImportColumns}>
+            컬럼 가져오기
+          </Button>
+          <Button size="small" type="primary" icon={<Plus className="w-3 h-3" />} onClick={() => setEditing({ mode: 'add' })}>
+            계산필드 추가
+          </Button>
         </div>
 
-        {/* 계산필드 섹션 */}
-        <div className="px-5 pb-5">
-          <div className="rounded border border-[var(--color-bt-border)] bg-[var(--color-bt-primary-soft)]/15 p-4">
-            <div className="mb-3 flex items-center gap-2">
-              <span className="inline-flex h-4 w-4 items-center justify-center rounded bg-[var(--color-bt-success)] font-mono text-xs font-bold text-white">ƒ</span>
-              <span className="text-sm font-semibold">계산필드</span>
-              <span className="text-xs text-[var(--color-bt-fg-muted)]">— Row-level 수식 또는 윈도우 함수</span>
-            </div>
-
-            {calcFields.length === 0 ? (
-              <div
-                className="cursor-pointer rounded border border-dashed border-[var(--color-bt-border)] py-4 text-center text-xs text-[var(--color-bt-fg-muted)] hover:border-[var(--color-bt-primary)] hover:text-[var(--color-bt-primary)]"
-                onClick={() => setEditing({ mode: 'add' })}
-              >
-                계산필드 없음 — 응답률, 점유율 등 수식 필드를 추가하세요.
-              </div>
-            ) : (
-              <div className="space-y-2">
-                {calcFields.map((cf) => (
-                  <div key={cf._localId} className="flex items-start gap-3 rounded border border-[var(--color-bt-success)]/30 bg-[var(--color-bt-success-soft)]/50 px-3 py-2">
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-2 mb-0.5">
-                        <span className="font-mono text-xs font-bold text-[var(--color-bt-success)]">ƒ {cf.fieldCode}</span>
-                        <span className="text-xs text-[var(--color-bt-fg-muted)]">· {cf.displayName}</span>
-                        <span className="rounded bg-[var(--color-bt-bg-muted)] px-1 text-xs font-mono text-[var(--color-bt-fg-muted)]">{cf.columnFormat}</span>
-                      </div>
-                      <div className="font-mono text-xs text-[var(--color-bt-fg-muted)] truncate">{cf.rowExpression}</div>
+        {/* ag-Grid: flex-1로 공간 채우고 내부 스크롤 — 컬럼 헤더 항상 고정 */}
+        <div className="flex-1 min-h-0 px-5 pt-3 pb-0">
+          {(() => {
+            const columnDefs: ColDef<LocalFieldDisplay>[] = [
+              {
+                headerComponent: CheckboxHeader,
+                headerComponentParams: { allVisible, someVisible, toggleAll },
+                maxWidth: 52,
+                sortable: false,
+                suppressHeaderMenuButton: true,
+                cellRenderer: ({ data }: { data?: LocalFieldDisplay }) =>
+                  data ? (
+                    <div className="flex items-center justify-center h-full">
+                      <Checkbox checked={data.isVisible} onChange={(e) => updateField(data.fieldName, { isVisible: e.target.checked })} />
                     </div>
-                    <div className="flex items-center gap-1 shrink-0">
-                      <Button size="small" type="text" icon={<Edit2 className="w-3 h-3" />} onClick={() => setEditing({ mode: 'edit', localId: cf._localId })}>
-                        편집
-                      </Button>
+                  ) : null,
+              },
+              {
+                headerName: '컬럼',
+                field: 'fieldName',
+                flex: 2,
+                cellRenderer: ({ data }: { data?: LocalFieldDisplay }) => {
+                  if (!data) return null;
+                  const cf = data.isCalcField ? calcFields.find((c) => c.fieldCode === data.fieldName) : undefined;
+                  return (
+                    <div className="flex items-center gap-1.5 h-full">
+                      {data.isCalcField && (
+                        <Tooltip
+                          title={
+                            cf ? (
+                              <div className="text-xs">
+                                <div className="font-semibold mb-1">계산식</div>
+                                <div className="font-mono">{cf.rowExpression}</div>
+                                {cf.aggExpression && <div className="font-mono mt-1 opacity-80">집계: {cf.aggExpression}</div>}
+                              </div>
+                            ) : (
+                              '계산필드'
+                            )
+                          }
+                        >
+                          <span className="inline-flex h-4 w-4 shrink-0 items-center justify-center rounded bg-green-600 font-mono text-xs font-bold text-white cursor-help">
+                            ƒ
+                          </span>
+                        </Tooltip>
+                      )}
+                      <span className={`font-mono font-semibold truncate ${!data.isVisible ? 'opacity-40' : data.isCalcField ? 'text-green-700' : ''}`}>{data.fieldName}</span>
+                    </div>
+                  );
+                },
+              },
+              {
+                headerName: '서식',
+                field: 'columnFormat',
+                width: 160,
+                cellRenderer: ({ data }: { data?: LocalFieldDisplay }) =>
+                  data ? (
+                    <div className="flex items-center h-full w-full">
+                      <Select
+                        size="small"
+                        value={data.columnFormat as ColumnFormat}
+                        options={FORMAT_OPTIONS}
+                        onChange={(v) => updateField(data.fieldName, { columnFormat: v })}
+                        disabled={!data.isVisible}
+                        style={{ width: '100%' }}
+                      />
+                    </div>
+                  ) : null,
+              },
+              {
+                headerName: '표시명',
+                field: 'displayName',
+                flex: 3,
+                cellRenderer: ({ data }: { data?: LocalFieldDisplay }) =>
+                  data ? (
+                    <div className="flex items-center h-full w-full">
+                      <Input size="small" value={data.displayName} onChange={(e) => updateField(data.fieldName, { displayName: e.target.value })} disabled={!data.isVisible} />
+                    </div>
+                  ) : null,
+              },
+              {
+                headerName: '',
+                maxWidth: 72,
+                sortable: false,
+                suppressHeaderMenuButton: true,
+                cellStyle: { display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '2px' },
+                cellRenderer: ({ data }: { data?: LocalFieldDisplay }) => {
+                  if (!data?.isCalcField) return null;
+                  const cf = calcFields.find((c) => c.fieldCode === data.fieldName);
+                  if (!cf) return null;
+                  return (
+                    <>
+                      <Button size="small" type="text" icon={<Edit2 className="w-3 h-3" />} onClick={() => setEditing({ mode: 'edit', localId: cf._localId })} />
                       <Button size="small" type="text" danger icon={<X className="w-3 h-3" />} onClick={() => deleteCalcField(cf._localId)} />
-                    </div>
-                  </div>
-                ))}
+                    </>
+                  );
+                },
+              },
+            ];
+
+            const sortedRows = [...fieldDisplays].sort((a, b) => a.sortOrder - b.sortOrder);
+
+            return (
+              <div className="h-full">
+                <AgGridReact<LocalFieldDisplay>
+                  rowData={sortedRows}
+                  columnDefs={columnDefs}
+                  gridOptions={{ ...gridOptions, rowNumbers: false, pagination: false, statusBar: undefined }}
+                  rowHeight={40}
+                  getRowId={({ data }) => data.fieldName}
+                  getRowClass={({ data }) => {
+                    if (data?.isCalcField) return 'ag-row-calc';
+                    if (!data?.isVisible) return 'ag-row-hidden';
+                    return '';
+                  }}
+                />
               </div>
-            )}
-          </div>
+            );
+          })()}
         </div>
       </div>
     </div>

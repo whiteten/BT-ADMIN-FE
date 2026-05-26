@@ -189,7 +189,7 @@ export default function StatDatasetEdit() {
 
       <div className="flex w-full flex-1 min-h-0">
         <div className="w-full h-full min-h-0 bg-white bt-shadow flex flex-col">
-          <div className="flex-1 min-h-0 overflow-y-auto">
+          <div className="flex-1 min-h-0">
             <WizardStepB
               datasourceKey={datasourceKey}
               domain={dataset!.productCode as DomainCode}
