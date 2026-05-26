@@ -14,7 +14,10 @@ import { IconTrash } from '@/components/custom/Icons';
 import useAggridOptions from '@/libs/shared-ui/src/hooks/useAggridOptions';
 import { useModal } from '@/libs/shared-ui/src/hooks/useModal';
 
-const breadcrumb: BreadcrumbProps['items'] = [{ title: '인사이트' }, { title: '모니터링' }, { title: '데이터셋', path: '/insight/monitoring/datasets' }];
+const breadcrumb: BreadcrumbProps['items'] = [
+  { title: '모니터링', path: '/insight/monitoring' },
+  { title: '데이터셋', path: '/insight/monitoring/datasets' },
+];
 
 export default function DatasetCatalog() {
   const navigate = useNavigate();

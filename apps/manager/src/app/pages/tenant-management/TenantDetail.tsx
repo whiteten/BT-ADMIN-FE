@@ -25,9 +25,11 @@ export default function TenantDetail() {
   const clearBreadcrumb = useBreadcrumbStore((s) => s.clearBreadcrumb);
 
   useEffect(() => {
-    setBreadcrumb([{ title: '시스템' }, { title: '자원관리' }, { title: ':tenantName' }], { tenantName: tenant?.tenantName ?? '-' });
+    setBreadcrumb([{ title: '시스템' }, { title: '자원관리', path: '/manager/resource' }, { title: ':tenantName', path: `/manager/resource/tenant-management/${tenantId}` }], {
+      tenantName: tenant?.tenantName ?? '-',
+    });
     return () => clearBreadcrumb();
-  }, [tenant?.tenantName, setBreadcrumb, clearBreadcrumb]);
+  }, [tenantId, tenant?.tenantName, setBreadcrumb, clearBreadcrumb]);
 
   return (
     <div className="flex flex-col gap-4 w-full h-full">

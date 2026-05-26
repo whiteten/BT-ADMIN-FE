@@ -18,7 +18,6 @@ import type { AdnResponse } from '../../features/adn/types';
 import { useModal } from '@/libs/shared-ui/src/hooks/useModal';
 
 const breadcrumb = [
-  { title: 'IPRON', path: '/ipron' },
   { title: '번호자원관리', path: '/ipron/adn' },
   { title: 'DN관리', path: '/ipron/adn' },
   { title: 'ADN 설정', path: '/ipron/adn' },

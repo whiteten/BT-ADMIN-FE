@@ -58,11 +58,10 @@ export default function TemplateWidgetWizard() {
     if (dashboard) {
       setBreadcrumb(
         [
-          { title: '인사이트' },
-          { title: '모니터링' },
+          { title: '모니터링', path: '/insight/monitoring' },
           { title: '대시보드', path: '/insight/monitoring/dashboards' },
           { title: ':dashboardName', path: `/insight/monitoring/dashboards/${dashboardId}/edit` },
-          { title: '새 템플릿 위젯' },
+          { title: '새 템플릿 위젯', path: `/insight/monitoring/dashboards/${dashboardId}/edit/widget/create/template` },
         ],
         { dashboardName: dashboard.dashboardName },
       );

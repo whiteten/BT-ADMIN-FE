@@ -594,7 +594,7 @@ modal.confirm.execute({
 3. **단일 루트 + Outlet 그룹**: 최상위는 `{ path: '/', element: <세션핸들러 또는 Outlet>, children: [...] }` 하나. 2-depth 이상 라우트 그룹은 `{ path: '<group>', element: <Outlet />, children: [...] }`로 표현
 4. **index redirect**: 루트·각 그룹의 children 첫 항목은 기본 하위로 보내는 `{ index: true, element: <Navigate to="<default>" replace /> }`. 동적 세그먼트 하위 그룹의 index는 `<Navigate to=".." replace />`로 부모 복귀
 5. **동적 세그먼트**: `:paramId` 형태(camelCase). 탭 레이아웃이 필요한 상세 페이지는 `element`에 `<Feature>DetailLayout`, `children`에 탭·하위 라우트를 둠
-6. **공통 라우트 추출**: 여러 path에서 동일하게 재사용되는 라우트 묶음은 모듈 스코프 배열 상수(예: `sharedModelRoutes`)로 추출 후 `children: [...sharedXxxRoutes]`로 spread
+6. **공통 라우트는 복사 작성**: 여러 path에서 동일 라우트 묶음을 재사용하더라도 각 path에 그대로 복사. spread 패턴(`children: [...sharedXxxRoutes]`)은 정적 분석·도구 정합성에 한계가 있어 표준에서 제외 (상세 이유는 DEVELOPER_GUIDE 참조)
 7. **catch-all은 항상 마지막**: `routes` 배열 마지막 항목은 `{ path: '*', element: <NotFound homePath="/" /> }`
 8. **path는 kebab-case**: `bot-config`, `bot-dialog-history`, `call-bot` 등
 9. **라우팅 보조 모듈은 `features/router/`**: 세션 이벤트 핸들러·`DynamicElement`·variant manifest·query selector 등은 `features/router/`에 두고 routes.tsx는 import만 함
@@ -653,6 +653,7 @@ export const routes = [
 3. **deps 규칙**: 정적 breadcrumb이면 `[setBreadcrumb, clearBreadcrumb]`만, 분기/동적 라벨이 있으면 그 deps도 포함 (`isPublic`, `params`, fetch 결과 등)
 4. **동적 라벨**: breadcrumb item title을 `:paramName` 형태로 적고 `setBreadcrumb`의 두 번째 인자로 `{ paramName: value }` 전달 → BreadcrumbSlot이 치환
 5. **path 없는 항목**: 부모(redirect-only 그룹 등)는 `path` 없이 두면 BreadcrumbSlot이 비링크 텍스트로 렌더해 클릭이 자연스럽게 비활성
+6. **remote 이름 라벨은 페이지에서 작성하지 않음**: host BreadcrumbSlot이 `useCurrentRemote().appName`을 자동 prepend(비링크). 페이지는 카테고리부터 시작. 결과 합성: `🏠 > [appName] > 페이지 items`. 상세는 DEVELOPER_GUIDE 참조
 
 #### 예시
 

@@ -26,14 +26,14 @@ export default function EvalDetail() {
       { title: '관리', path: '/aoe/agent-config' },
       { title: '지식', path: '/aoe/agent-config/knowledge/list' },
       { title: ':documentName', path: `/aoe/agent-config/knowledge/${documentId}` },
-      { title: ':evalName' },
+      { title: ':evalName', path: `/aoe/agent-config/knowledge/${documentId}/eval/${evalId}` },
     ];
     setBreadcrumb(breadcrumb, {
       documentName: knowledge?.documentName ?? '-',
       evalName: evalData?.evalName ?? '-',
     });
     return () => clearBreadcrumb();
-  }, [documentId, knowledge?.documentName, evalData?.evalName, setBreadcrumb, clearBreadcrumb]);
+  }, [documentId, evalId, knowledge?.documentName, evalData?.evalName, setBreadcrumb, clearBreadcrumb]);
 
   return (
     <div className="flex flex-col gap-4 w-full h-full">

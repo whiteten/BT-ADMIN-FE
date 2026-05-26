@@ -8,7 +8,12 @@ import { useGetClusterGroups } from '../../features/node-management/hooks/useClu
 import { useCreateNode } from '../../features/node-management/hooks/useNodeQueries';
 import type { NodeCreateData } from '../../features/node-management/types';
 
-const breadcrumb: BreadcrumbProps['items'] = [{ title: '시스템' }, { title: '자원관리' }, { title: '클러스터 관리', href: '../list' }, { title: '노드 등록' }];
+const breadcrumb: BreadcrumbProps['items'] = [
+  { title: '시스템' },
+  { title: '자원관리', path: '/manager/resource' },
+  { title: '클러스터 관리', path: '/manager/resource/node-management/list' },
+  { title: '노드 등록', path: '/manager/resource/node-management/create' },
+];
 
 const NUMBER_PATTERN = /^[0-9]*$/;
 

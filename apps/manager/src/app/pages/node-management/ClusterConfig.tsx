@@ -78,10 +78,10 @@ export default function ClusterConfig() {
 
   const breadcrumb: BreadcrumbProps['items'] = [
     { title: '시스템' },
-    { title: '자원관리' },
-    { title: '클러스터 관리', href: '../list' },
-    { title: node?.nodeName ?? '-' },
-    { title: '클러스터 설정' },
+    { title: '자원관리', path: '/manager/resource' },
+    { title: '클러스터 관리', path: '/manager/resource/node-management/list' },
+    { title: node?.nodeName ?? '-', path: `/manager/resource/node-management/${nodeId}` },
+    { title: '클러스터 설정', path: `/manager/resource/node-management/${nodeId}/cluster-config` },
   ];
 
   return (

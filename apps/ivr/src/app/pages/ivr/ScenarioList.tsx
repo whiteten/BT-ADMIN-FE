@@ -22,7 +22,7 @@ import { scenarioQueryKeys, useDeleteScenario, useGetScenarios } from '../../fea
 import { SCENARIO_TYPE_COLORS, SCENARIO_TYPE_LABELS, type Scenario, type ScenarioType, type ScenarioVersion } from '../../features/scenario/types';
 import { useModal } from '@/libs/shared-ui/src/hooks/useModal';
 
-const breadcrumb: BreadcrumbProps['items'] = [{ title: 'ForCus', path: '/ivr' }, { title: '시나리오 관리' }, { title: '시나리오/버전 관리' }];
+const breadcrumb: BreadcrumbProps['items'] = [{ title: '시나리오 관리' }, { title: '시나리오/버전 관리', path: '/ivr/scenario' }];
 
 export default function ScenarioList() {
   const queryClient = useQueryClient();

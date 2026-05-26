@@ -64,6 +64,12 @@ export const DOMAIN_LABELS: Record<string, string> = {
   IR: 'IVR',
 };
 
+export const DOMAIN_TAG_COLOR: Record<string, string> = {
+  IE: 'blue',
+  IC: 'green',
+  IR: 'orange',
+};
+
 export const DOMAIN_DESCRIPTIONS: Record<string, string> = {
   IE: '내선·트렁크·호 라우팅',
   IC: '상담사·큐·통화 품질',

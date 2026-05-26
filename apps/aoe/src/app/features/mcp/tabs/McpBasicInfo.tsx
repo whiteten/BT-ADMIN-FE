@@ -99,6 +99,8 @@ export default function McpBasicInfo() {
                 <Input placeholder="MCP 서버 이름을 입력하세요." disabled />
               </Form.Item>
             </Col>
+          </Row>
+          <Row gutter={20}>
             <Col span={12}>
               <Form.Item
                 name="url"
@@ -115,18 +117,20 @@ export default function McpBasicInfo() {
             </Col>
           </Row>
           <Row gutter={20}>
-            <Col span={12}>
+            <Col span={24}>
               <Form.Item name="description" label="설명" rules={[{ max: 256, message: '설명은 256자 이내여야 합니다.' }]}>
                 <Input.TextArea placeholder="설명을 입력하세요." autoSize={{ minRows: 3, maxRows: 6 }} />
               </Form.Item>
             </Col>
+          </Row>
+          <Row gutter={20}>
             <Col span={12}>
               <Form.Item name="active" label="상태" valuePropName="checked" extra="비활성 상태의 서버는 연결되지 않습니다.">
                 <Switch checkedChildren="활성" unCheckedChildren="비활성" />
               </Form.Item>
             </Col>
           </Row>
-          <Row gutter={20} justify="center" className="sticky bottom-0 bg-white/90 z-10 pb-7 pt-2">
+          <Row gutter={20} justify="center">
             <Col>
               <Button variant="solid" onClick={() => navigate('../list')}>
                 취소

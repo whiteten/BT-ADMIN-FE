@@ -1,19 +1,25 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { type BreadcrumbProps, Button, Input, Popconfirm, Select, Tag } from 'antd';
+import { useQueryClient } from '@tanstack/react-query';
+import type { ColDef, ICellRendererParams } from 'ag-grid-community';
+import { AgGridReact } from 'ag-grid-react';
+import { type BreadcrumbProps, Button, Input, Select, Tag } from 'antd';
+import { Trash2 } from 'lucide-react';
 import { useBreadcrumbStore } from '@/shared-store';
 import { toast } from '@/shared-util';
-import { useDeleteDataset, useGetDatasets } from '../../features/dataset/hooks/useDatasetQueries';
+import { datasetKeys, useDeleteDataset, useGetDatasets } from '../../features/dataset/hooks/useDatasetQueries';
 import type { DatasetListItem } from '../../features/dataset/types';
 import { DOMAIN_LABELS } from '../../features/report/constants/reportIconConstants';
 import type { DomainCode } from '../../features/report/types';
-import { FallbackSpinner } from '@/components/custom/FallbackSpinner';
-import NoData from '@/components/custom/NoData';
+import useAggridOptions from '@/libs/shared-ui/src/hooks/useAggridOptions';
+import { useModal } from '@/libs/shared-ui/src/hooks/useModal';
 
-const breadcrumb: BreadcrumbProps['items'] = [{ title: '인사이트' }, { title: '데이터셋', path: '/insight/statistics/datasets' }];
+const breadcrumb: BreadcrumbProps['items'] = [{ title: '데이터셋', path: '/insight/statistics/datasets' }];
 
 export default function StatDatasetList() {
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
+  const modal = useModal();
   const setBreadcrumb = useBreadcrumbStore((s) => s.setBreadcrumb);
   const clearBreadcrumb = useBreadcrumbStore((s) => s.clearBreadcrumb);
 
@@ -25,16 +31,27 @@ export default function StatDatasetList() {
     return () => clearBreadcrumb();
   }, [setBreadcrumb, clearBreadcrumb]);
 
-  const { data: datasets = [], isFetching } = useGetDatasets({
+  const { gridOptions } = useAggridOptions();
+
+  const { data: datasets = [], isLoading } = useGetDatasets({
     params: { domain: domain || undefined },
   });
 
   const { mutate: deleteDataset } = useDeleteDataset({
     mutationOptions: {
-      onSuccess: () => toast.success('데이터셋이 삭제되었습니다.'),
+      onSuccess: () => {
+        queryClient.invalidateQueries({ queryKey: datasetKeys.list._def });
+        toast.success('데이터셋이 삭제되었습니다.');
+      },
       onError: () => toast.error('삭제 중 오류가 발생했습니다.'),
     },
   });
+
+  const handleDelete = (data: DatasetListItem) => {
+    modal.confirm.delete({
+      onOk: () => deleteDataset(data.datasourceKey),
+    });
+  };
 
   const filtered = useMemo(() => {
     if (!searchValue.trim()) return datasets;
@@ -42,9 +59,99 @@ export default function StatDatasetList() {
     return datasets.filter((d) => d.datasourceKey.toLowerCase().includes(kw) || d.datasourceName.toLowerCase().includes(kw) || (d.dbViewPrefix ?? '').toLowerCase().includes(kw));
   }, [datasets, searchValue]);
 
+  const columnDefs: ColDef<DatasetListItem>[] = [
+    {
+      headerName: '이름',
+      field: 'datasourceName',
+      flex: 3,
+      cellRenderer: ({ data }: ICellRendererParams<DatasetListItem>) =>
+        data ? (
+          <div className="flex flex-col justify-center h-full gap-0.5">
+            <span className="font-semibold text-[var(--color-bt-fg)]">{data.datasourceName}</span>
+            <span className="font-mono text-xs text-[var(--color-bt-fg-muted)]">{data.datasourceKey}</span>
+            {data.description && <span className="text-xs text-[var(--color-bt-fg-muted)] truncate">{data.description}</span>}
+          </div>
+        ) : null,
+    },
+    {
+      headerName: '카테고리',
+      field: 'productCode',
+      flex: 1,
+      cellRenderer: ({ value }: ICellRendererParams<DatasetListItem>) =>
+        value ? (
+          <div className="flex items-center h-full">
+            <span className="inline-flex items-center rounded bg-[var(--color-bt-primary)] px-2 py-0.5 text-xs font-bold text-white">{value}</span>
+          </div>
+        ) : null,
+    },
+    {
+      headerName: '기반 뷰',
+      field: 'dbViewPrefix',
+      flex: 2,
+      cellRenderer: ({ value }: ICellRendererParams<DatasetListItem>) => (
+        <div className="flex items-center gap-2 h-full">
+          <span className="rounded bg-[var(--color-bt-bg-muted)] px-1.5 py-0.5 text-xs font-semibold uppercase tracking-wide text-[var(--color-bt-fg-muted)]">뷰</span>
+          <span className="font-mono text-sm">{value || '-'}</span>
+        </div>
+      ),
+    },
+    {
+      headerName: '가용 단위',
+      field: 'availableUnits',
+      flex: 2,
+      cellRenderer: ({ value }: ICellRendererParams<DatasetListItem>) => {
+        const units: string[] = Array.isArray(value) ? value : [];
+        return (
+          <div className="flex flex-wrap gap-1 items-center h-full">
+            {units.map((u) => (
+              <Tag key={u} className="!mb-0">
+                {u}
+              </Tag>
+            ))}
+          </div>
+        );
+      },
+    },
+    {
+      headerName: '상태',
+      flex: 1,
+      cellRenderer: ({ data }: ICellRendererParams<DatasetListItem>) => {
+        if (!data) return null;
+        return (
+          <div className="flex items-center h-full">
+            {data.isSystem ? <Tag color="blue">시스템</Tag> : data.isActive ? <Tag color="green">활성</Tag> : <Tag color="default">비활성</Tag>}
+          </div>
+        );
+      },
+    },
+    {
+      headerName: '',
+      maxWidth: 60,
+      sortable: false,
+      filter: false,
+      suppressHeaderMenuButton: true,
+      cellStyle: { display: 'flex', alignItems: 'center', justifyContent: 'center' },
+      cellRenderer: ({ data }: ICellRendererParams<DatasetListItem>) => {
+        if (!data || data.isSystem) return null;
+        return (
+          <button
+            type="button"
+            onClick={(e) => {
+              e.stopPropagation();
+              handleDelete(data);
+            }}
+            title="삭제"
+            className="text-red-500 hover:text-red-600 transition-colors"
+          >
+            <Trash2 className="size-4" />
+          </button>
+        );
+      },
+    },
+  ];
+
   return (
     <div className="flex flex-col gap-4 w-full h-full">
-      {/* 필터 바 */}
       <div className="flex items-center justify-between gap-4 w-full bg-white bt-shadow px-7 py-5">
         <div className="flex items-center gap-3">
           <Select
@@ -66,86 +173,18 @@ export default function StatDatasetList() {
         </Button>
       </div>
 
-      {/* 목록 */}
-      {isFetching ? (
-        <div className="flex items-center justify-center w-full h-full bg-white bt-shadow">
-          <FallbackSpinner />
-        </div>
-      ) : filtered.length > 0 ? (
-        <div className="w-full bg-white bt-shadow overflow-y-auto">
-          <table className="w-full text-sm">
-            <thead className="bg-bt-bg-muted/60 border-b border-bt-border">
-              <tr>
-                <th className="px-6 py-3 text-left font-semibold text-bt-fg-muted w-[180px]">도메인</th>
-                <th className="px-6 py-3 text-left font-semibold text-bt-fg-muted">데이터셋 이름</th>
-                <th className="px-6 py-3 text-left font-semibold text-bt-fg-muted w-[220px]">뷰 Prefix</th>
-                <th className="px-6 py-3 text-left font-semibold text-bt-fg-muted w-[160px]">가용 단위</th>
-                <th className="px-6 py-3 text-left font-semibold text-bt-fg-muted w-[100px]">상태</th>
-                <th className="px-6 py-3 text-right font-semibold text-bt-fg-muted w-[120px]">작업</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-bt-border">
-              {filtered.map((dataset) => (
-                <DatasetRow key={dataset.datasourceKey} dataset={dataset} onDelete={() => deleteDataset(dataset.datasourceKey)} />
-              ))}
-            </tbody>
-          </table>
-        </div>
-      ) : (
-        <div className="flex flex-col items-center justify-center w-full h-full bg-white bt-shadow gap-4">
-          <NoData message={searchValue ? `"${searchValue}" 검색 결과 없음` : '등록된 데이터셋이 없습니다.'} iconSize={50} fontSize="text-lg" gap={2} />
-          {!searchValue && (
-            <Button type="primary" onClick={() => navigate('/insight/statistics/datasets/new')}>
-              + 새 데이터셋 만들기
-            </Button>
-          )}
-        </div>
-      )}
+      <div className="flex-1 bg-white bt-shadow p-5">
+        <AgGridReact<DatasetListItem>
+          rowData={filtered}
+          columnDefs={columnDefs}
+          gridOptions={{ ...gridOptions, rowNumbers: false }}
+          loading={isLoading}
+          rowHeight={60}
+          onRowDoubleClicked={(e) => {
+            if (e.data) navigate(`/insight/statistics/datasets/${e.data.datasourceKey}/edit`);
+          }}
+        />
+      </div>
     </div>
-  );
-}
-
-function DatasetRow({ dataset, onDelete }: { dataset: DatasetListItem; onDelete(): void }) {
-  const units: string[] = Array.isArray(dataset.availableUnits) ? dataset.availableUnits : [];
-
-  return (
-    <tr className="hover:bg-bt-bg-muted/20 transition-colors">
-      <td className="px-6 py-4">
-        <span className="inline-flex h-6 items-center justify-center rounded px-2 text-xs font-bold text-white" style={{ backgroundColor: '#085fb5' }}>
-          {dataset.productCode}
-        </span>
-      </td>
-      <td className="px-6 py-4">
-        <div className="font-medium">{dataset.datasourceName}</div>
-        <div className="mt-0.5 font-mono text-xs text-bt-fg-muted">{dataset.datasourceKey}</div>
-      </td>
-      <td className="px-6 py-4 font-mono text-xs text-bt-fg-muted">{dataset.dbViewPrefix}</td>
-      <td className="px-6 py-4">
-        <div className="flex flex-wrap gap-1">
-          {units.map((u) => (
-            <Tag key={u} className="!text-[10px] !font-mono">
-              {u}
-            </Tag>
-          ))}
-        </div>
-      </td>
-      <td className="px-6 py-4">{dataset.isSystem ? <Tag color="blue">시스템</Tag> : dataset.isActive ? <Tag color="green">활성</Tag> : <Tag color="default">비활성</Tag>}</td>
-      <td className="px-6 py-4 text-right">
-        {!dataset.isSystem && (
-          <Popconfirm
-            title="데이터셋 삭제"
-            description="이 데이터셋을 삭제하면 연결된 보고서에 영향을 줄 수 있습니다. 계속하시겠습니까?"
-            onConfirm={onDelete}
-            okText="삭제"
-            okButtonProps={{ danger: true }}
-            cancelText="취소"
-          >
-            <Button size="small" danger>
-              삭제
-            </Button>
-          </Popconfirm>
-        )}
-      </td>
-    </tr>
   );
 }

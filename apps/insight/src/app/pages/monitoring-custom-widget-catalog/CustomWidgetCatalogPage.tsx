@@ -42,11 +42,10 @@ export default function CustomWidgetCatalogPage() {
   useEffect(() => {
     if (dashboard) {
       const items: BreadcrumbProps['items'] = [
-        { title: '인사이트' },
-        { title: '모니터링' },
+        { title: '모니터링', path: '/insight/monitoring' },
         { title: '대시보드', path: '/insight/monitoring/dashboards' },
         { title: dashboard.dashboardName, path: `/insight/monitoring/dashboards/${dashboardId}/edit` },
-        { title: '+ 커스텀 위젯' },
+        { title: '+ 커스텀 위젯', path: `/insight/monitoring/dashboards/${dashboardId}/edit/widget/create/custom` },
       ];
       setBreadcrumb(items);
     }

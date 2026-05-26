@@ -1,8 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useQueryClient } from '@tanstack/react-query';
-import { type BreadcrumbProps, Button, Input } from 'antd';
-import { Search } from 'lucide-react';
+import { type BreadcrumbProps, Button, Input, Select } from 'antd';
 import { useBreadcrumbStore } from '@/shared-store';
 import { toast } from '@/shared-util';
 import A2ACard from '../../features/a2a/components/A2ACard';
@@ -17,12 +16,15 @@ const breadcrumb: BreadcrumbProps['items'] = [
   { title: 'A2A', path: '/aoe/agent-config/a2a/list' },
 ];
 
+const FILTER_OPTIONS = [{ label: 'Agent명', value: 'agentName' }];
+
 export default function A2AList() {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const modal = useModal();
   const setBreadcrumb = useBreadcrumbStore((s) => s.setBreadcrumb);
   const clearBreadcrumb = useBreadcrumbStore((s) => s.clearBreadcrumb);
+  const [filterColumn, setFilterColumn] = useState('agentName');
   const [searchValue, setSearchValue] = useState('');
 
   useEffect(() => {
@@ -50,20 +52,25 @@ export default function A2AList() {
   const filteredList = useMemo(() => {
     if (!searchValue.trim()) return agents;
     const keyword = searchValue.toLowerCase();
-    return agents.filter((a) => a.agentName.toLowerCase().includes(keyword) || (a.agentDescription ?? '').toLowerCase().includes(keyword));
-  }, [agents, searchValue]);
+    return agents.filter((a) => {
+      const value = a[filterColumn as keyof typeof a];
+      if (value == null) return false;
+      return String(value).toLowerCase().includes(keyword);
+    });
+  }, [agents, filterColumn, searchValue]);
+
+  const handleColumnChange = (value: string) => {
+    setFilterColumn(value);
+    setSearchValue('');
+  };
 
   return (
     <div className="flex flex-col gap-4 w-full h-full">
       <div className="flex items-center justify-between gap-2 w-full h-[76px] bg-white bt-shadow px-7 py-5">
-        <Input
-          prefix={<Search className="size-3.5 text-gray-400" />}
-          value={searchValue}
-          onChange={(e) => setSearchValue(e.target.value)}
-          className="w-full max-w-[400px]"
-          placeholder="Agent명으로 검색"
-          allowClear
-        />
+        <div className="flex gap-2 w-full items-center">
+          <Select value={filterColumn} onChange={handleColumnChange} options={FILTER_OPTIONS} className="!max-w-[150px] !min-w-[120px]" popupMatchSelectWidth={false} />
+          <Input value={searchValue} onChange={(e) => setSearchValue(e.target.value)} className="w-full max-w-[400px]" placeholder="검색어를 입력하세요." />
+        </div>
         <Button type="primary" onClick={() => navigate('../create')}>
           추가
         </Button>

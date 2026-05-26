@@ -68,15 +68,16 @@ const RealtimeSentenceDrawer = forwardRef<RealtimeSentenceDrawerRef>((_, ref) =>
     }
   }, [sentences, autoScroll]);
 
+  const contentStyle = { width: 180 };
   const descItems = info
     ? [
         { key: 'ucidGkey', label: '고유번호(UCID)', children: info.ucidGkey, span: 2 },
-        ...(info.dnNo ? [{ key: 'dnNo', label: '내선번호', children: info.dnNo, span: 1 }] : []),
-        ...(info.agentName ? [{ key: 'agentName', label: '상담사', children: info.agentName, span: 1 }] : []),
-        ...(info.inoutKind ? [{ key: 'inoutKind', label: '발수신구분', children: info.inoutKind, span: 1 }] : []),
-        ...(info.callDatetime ? [{ key: 'callDatetime', label: '통화일시', children: info.callDatetime, span: 1 }] : []),
-        ...(info.channelId != null ? [{ key: 'channelId', label: '채널번호', children: info.channelId, span: 1 }] : []),
-        ...(info.channelStatusNm ? [{ key: 'channelStatusNm', label: '채널상태', children: info.channelStatusNm, span: 1 }] : []),
+        ...(info.callDatetime ? [{ key: 'callDatetime', label: '통화일시', children: info.callDatetime, span: 1, contentStyle }] : []),
+        ...(info.dnNo ? [{ key: 'dnNo', label: '내선번호', children: info.dnNo, span: 1, contentStyle }] : []),
+        ...(info.inoutKind ? [{ key: 'inoutKind', label: 'I/O 구분', children: info.inoutKind, span: 1, contentStyle }] : []),
+        ...(info.agentName ? [{ key: 'agentName', label: '상담사', children: info.agentName, span: 1, contentStyle }] : []),
+        ...(info.channelId != null ? [{ key: 'channelId', label: '채널번호', children: info.channelId, span: 1, contentStyle }] : []),
+        ...(info.channelStatusNm ? [{ key: 'channelStatusNm', label: '채널상태', children: info.channelStatusNm, span: 1, contentStyle }] : []),
       ]
     : [];
 
@@ -92,8 +93,8 @@ const RealtimeSentenceDrawer = forwardRef<RealtimeSentenceDrawerRef>((_, ref) =>
       <div className="flex flex-col flex-1 min-h-0 gap-4">
         {/* 녹취 정보 */}
         {descItems.length > 0 && (
-          <div className="shrink-0">
-            <Descriptions title="녹취정보" items={descItems} column={2} size="small" bordered />
+          <div className="shrink-0 [&_table]:table-fixed">
+            <Descriptions title="녹취정보" items={descItems} column={2} size="small" bordered labelStyle={{ width: 100, whiteSpace: 'nowrap' }} />
           </div>
         )}
 

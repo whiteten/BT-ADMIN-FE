@@ -12,7 +12,10 @@ import { IconTrash } from '@/components/custom/Icons';
 import useAggridOptions from '@/libs/shared-ui/src/hooks/useAggridOptions';
 import { useModal } from '@/libs/shared-ui/src/hooks/useModal';
 
-const breadcrumb: BreadcrumbProps['items'] = [{ title: '인사이트' }, { title: '모니터링' }, { title: '코드 룩업', path: '/insight/monitoring/lookups' }];
+const breadcrumb: BreadcrumbProps['items'] = [
+  { title: '모니터링', path: '/insight/monitoring' },
+  { title: '코드 룩업', path: '/insight/monitoring/lookups' },
+];
 
 const CATEGORY_FILTER_OPTIONS = [
   { value: '', label: '전체' },

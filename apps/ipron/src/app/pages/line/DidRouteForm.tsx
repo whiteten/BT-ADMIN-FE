@@ -204,9 +204,16 @@ export default function DidRouteForm() {
   const clearBreadcrumb = useBreadcrumbStore((s) => s.clearBreadcrumb);
 
   useEffect(() => {
-    setBreadcrumb([{ title: 'IPRON' }, { title: '회선관리' }, { title: 'DID라우트관리', href: '../did-route' }, { title: isEditMode ? '수정' : '등록' }]);
+    setBreadcrumb([
+      { title: '회선관리', path: '/ipron/line' },
+      { title: 'DID라우트관리', path: '/ipron/line/did-route' },
+      {
+        title: isEditMode ? '수정' : '등록',
+        path: isEditMode && id ? `/ipron/line/did-route/form/${id}` : '/ipron/line/did-route/form',
+      },
+    ]);
     return () => clearBreadcrumb();
-  }, [isEditMode, setBreadcrumb, clearBreadcrumb]);
+  }, [isEditMode, id, setBreadcrumb, clearBreadcrumb]);
 
   // ─── 유틸 ───────────────────────────────────────────────────────────────────
   const displayValue = (v: unknown) => (v !== null && v !== undefined && v !== '' ? String(v) : <span className="text-gray-300">-</span>);

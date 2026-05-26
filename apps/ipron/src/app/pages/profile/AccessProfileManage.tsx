@@ -44,7 +44,6 @@ import useAggridOptions from '@/libs/shared-ui/src/hooks/useAggridOptions';
 import { useModal } from '@/libs/shared-ui/src/hooks/useModal';
 
 const breadcrumb = [
-  { title: 'IPRON', path: '/ipron' },
   { title: '프로파일 관리', path: '/ipron/profile/access-profile' },
   { title: '접근코드 프로파일', path: '/ipron/profile/access-profile' },
 ];

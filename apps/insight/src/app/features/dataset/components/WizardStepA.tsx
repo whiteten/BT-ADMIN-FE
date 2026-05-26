@@ -119,13 +119,13 @@ export default function WizardStepA({
           </div>
         </div>
         {showErrors && !selectedView && <p className="mb-1 text-xs text-red-500">데이터 뷰를 선택하세요.</p>}
-        <div className={`mb-6 rounded border bg-bt-bg-muted/30 ${showErrors && !selectedView ? 'border-red-500' : 'border-bt-border'}`}>
+        <div className={`mb-6 rounded border bg-[var(--color-bt-bg-muted)]/30 ${showErrors && !selectedView ? 'border-red-500' : 'border-[var(--color-bt-border)]'}`}>
           {!useCandidates && !selectedDomain ? (
-            <div className="px-4 py-5 text-center text-sm text-bt-fg-muted">카테고리를 먼저 선택하세요.</div>
+            <div className="px-4 py-5 text-center text-sm text-[var(--color-bt-fg-muted)]">카테고리를 먼저 선택하세요.</div>
           ) : isLoading ? (
-            <div className="px-4 py-5 text-center text-sm text-bt-fg-muted">불러오는 중…</div>
+            <div className="px-4 py-5 text-center text-sm text-[var(--color-bt-fg-muted)]">불러오는 중…</div>
           ) : filteredSources.length === 0 ? (
-            <div className="px-4 py-5 text-center text-sm text-bt-fg-muted">
+            <div className="px-4 py-5 text-center text-sm text-[var(--color-bt-fg-muted)]">
               {useCandidates ? '등록 가능한 뷰가 없습니다.' : dataSources.length === 0 ? '등록된 뷰가 없습니다.' : '검색 결과 없음'}
             </div>
           ) : useCandidates ? (
@@ -133,7 +133,7 @@ export default function WizardStepA({
               <label
                 key={c.dbViewPrefix}
                 className={`flex cursor-pointer items-center gap-3 px-4 py-3 transition hover:bg-white/60 ${
-                  i < filteredSources.length - 1 ? 'border-b border-bt-border' : ''
+                  i < filteredSources.length - 1 ? 'border-b border-[var(--color-bt-border)]' : ''
                 } ${selectedView === c.dbViewPrefix ? 'bg-white' : ''}`}
               >
                 <input
@@ -142,10 +142,10 @@ export default function WizardStepA({
                   value={c.dbViewPrefix}
                   checked={selectedView === c.dbViewPrefix}
                   onChange={() => onViewChange(c.dbViewPrefix)}
-                  className="accent-bt-primary"
+                  className="accent-[var(--color-bt-primary)]"
                 />
                 <span className="font-mono text-sm font-semibold">{c.dbViewPrefix}</span>
-                <span className="text-xs text-bt-fg-muted">{c.availableUnits?.join(' · ')}</span>
+                <span className="text-xs text-[var(--color-bt-fg-muted)]">{c.availableUnits?.join(' · ')}</span>
               </label>
             ))
           ) : (
@@ -153,7 +153,7 @@ export default function WizardStepA({
               <label
                 key={ds.datasourceKey}
                 className={`flex cursor-pointer items-center gap-3 px-4 py-3 transition hover:bg-white/60 ${
-                  i < filteredSources.length - 1 ? 'border-b border-bt-border' : ''
+                  i < filteredSources.length - 1 ? 'border-b border-[var(--color-bt-border)]' : ''
                 } ${selectedView === ds.datasourceKey ? 'bg-white' : ''}`}
               >
                 <input
@@ -162,13 +162,13 @@ export default function WizardStepA({
                   value={ds.datasourceKey}
                   checked={selectedView === ds.datasourceKey}
                   onChange={() => onViewChange(ds.datasourceKey)}
-                  className="accent-bt-primary"
+                  className="accent-[var(--color-bt-primary)]"
                 />
-                <span className="inline-flex h-5 items-center justify-center rounded px-1.5 text-[10px] font-bold text-white" style={{ backgroundColor: '#085fb5' }}>
+                <span className="inline-flex h-5 items-center justify-center rounded px-1.5 text-xs font-bold text-white" style={{ backgroundColor: '#085fb5' }}>
                   {selectedDomain}
                 </span>
                 <span className="font-mono text-sm font-semibold">{ds.datasourceKey}</span>
-                <span className={`text-sm ${selectedView === ds.datasourceKey ? 'text-bt-fg' : 'text-bt-fg-muted'}`}>{ds.displayName}</span>
+                <span className={`text-sm ${selectedView === ds.datasourceKey ? 'text-[var(--color-bt-fg)]' : 'text-[var(--color-bt-fg-muted)]'}`}>{ds.displayName}</span>
               </label>
             ))
           )}
@@ -176,27 +176,27 @@ export default function WizardStepA({
 
         {/* 선택된 뷰 필드 미리보기 — 기등록 모드에서만 */}
         {!useCandidates && selectedView && (
-          <div className="rounded border border-bt-border bg-bt-bg-muted/40 p-3">
+          <div className="rounded border border-[var(--color-bt-border)] bg-[var(--color-bt-bg-muted)]/40 p-3">
             <div className="mb-2 flex items-center gap-2">
-              <span className="text-xs font-semibold text-bt-fg-muted">필드 미리보기</span>
-              <span className="font-mono text-xs text-bt-fg-muted">{selectedView}</span>
-              {!isLoadingFields && <span className="text-xs text-bt-fg-muted">({fieldMetas.length}개 컬럼)</span>}
+              <span className="text-xs font-semibold text-[var(--color-bt-fg-muted)]">필드 미리보기</span>
+              <span className="font-mono text-xs text-[var(--color-bt-fg-muted)]">{selectedView}</span>
+              {!isLoadingFields && <span className="text-xs text-[var(--color-bt-fg-muted)]">({fieldMetas.length}개 컬럼)</span>}
             </div>
             {isLoadingFields ? (
-              <div className="py-3 text-center text-xs text-bt-fg-muted">필드 불러오는 중…</div>
+              <div className="py-3 text-center text-xs text-[var(--color-bt-fg-muted)]">필드 불러오는 중…</div>
             ) : fieldMetas.length === 0 ? (
-              <div className="py-3 text-center text-xs text-bt-fg-muted">필드 정보 없음</div>
+              <div className="py-3 text-center text-xs text-[var(--color-bt-fg-muted)]">필드 정보 없음</div>
             ) : (
               <table className="w-full text-xs">
                 <thead>
-                  <tr className="border-b border-bt-border text-left text-bt-fg-muted">
+                  <tr className="border-b border-[var(--color-bt-border)] text-left text-[var(--color-bt-fg-muted)]">
                     <th className="px-2 py-1.5 font-medium w-[140px]">필드</th>
                     <th className="px-2 py-1.5 font-medium">표시명</th>
                     <th className="px-2 py-1.5 font-medium w-[80px]">타입</th>
                     <th className="px-2 py-1.5 font-medium w-[60px]">구분</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-bt-border">
+                <tbody className="divide-y divide-[var(--color-bt-border)]">
                   {fieldMetas.slice(0, 8).map((f) => {
                     const isMsr = f.fieldRole === 'MEASURE';
                     const formatLabel = f.fieldRole === 'TIMESTAMP' ? 'Date' : f.fieldType === 'NUMBER' ? 'Number' : 'String';
@@ -204,14 +204,14 @@ export default function WizardStepA({
                       <tr key={f.fieldName}>
                         <td className={`px-2 py-1.5 font-mono ${isMsr ? 'font-semibold' : ''}`}>{f.fieldName}</td>
                         <td className="px-2 py-1.5">{f.displayName}</td>
-                        <td className="px-2 py-1.5 font-mono text-bt-fg-muted">{formatLabel}</td>
+                        <td className="px-2 py-1.5 font-mono text-[var(--color-bt-fg-muted)]">{formatLabel}</td>
                         <td className="px-2 py-1.5">
                           {isMsr ? (
-                            <span className="rounded px-1 text-[10px] font-mono font-semibold text-white" style={{ backgroundColor: '#085fb5' }}>
+                            <span className="rounded px-1 text-xs font-mono font-semibold text-white" style={{ backgroundColor: '#085fb5' }}>
                               MSR
                             </span>
                           ) : (
-                            <span className="rounded bg-bt-bg-muted px-1 text-[10px] font-mono text-bt-fg-muted">DIM</span>
+                            <span className="rounded bg-[var(--color-bt-bg-muted)] px-1 text-xs font-mono text-[var(--color-bt-fg-muted)]">DIM</span>
                           )}
                         </td>
                       </tr>
@@ -225,12 +225,12 @@ export default function WizardStepA({
 
         {/* 후보 선택 시 스키마 자동 탐지 안내 */}
         {useCandidates && selectedView && (
-          <div className="rounded border border-bt-border bg-bt-bg-muted/40 p-3">
+          <div className="rounded border border-[var(--color-bt-border)] bg-[var(--color-bt-bg-muted)]/40 p-3">
             <div className="flex items-center gap-2">
-              <span className="text-xs font-semibold text-bt-fg-muted">선택된 뷰 Prefix</span>
-              <span className="font-mono text-xs font-semibold text-bt-primary">{selectedView}</span>
+              <span className="text-xs font-semibold text-[var(--color-bt-fg-muted)]">선택된 뷰 Prefix</span>
+              <span className="font-mono text-xs font-semibold text-[var(--color-bt-primary)]">{selectedView}</span>
             </div>
-            <p className="mt-1 text-xs text-bt-fg-muted">데이터셋 생성 후 Oracle 뷰에서 컬럼 스키마가 자동 탐지됩니다.</p>
+            <p className="mt-1 text-xs text-[var(--color-bt-fg-muted)]">데이터셋 생성 후 Oracle 뷰에서 컬럼 스키마가 자동 탐지됩니다.</p>
           </div>
         )}
       </Form>

@@ -699,10 +699,13 @@ export default function TenantAllocWizard() {
 
   const breadcrumb: BreadcrumbProps['items'] = [
     { title: '시스템' },
-    { title: '자원관리' },
-    { title: '클러스터 관리', href: '../list' },
-    { title: node?.nodeName ?? '-' },
-    { title: isEditMode ? '테넌트 할당 수정' : '테넌트 할당' },
+    { title: '자원관리', path: '/manager/resource' },
+    { title: '클러스터 관리', path: '/manager/resource/node-management/list' },
+    { title: node?.nodeName ?? '-', path: `/manager/resource/node-management/${nodeId}` },
+    {
+      title: isEditMode ? '테넌트 할당 수정' : '테넌트 할당',
+      path: `/manager/resource/node-management/${nodeId}/alloc/${tenantId}`,
+    },
   ];
 
   return (

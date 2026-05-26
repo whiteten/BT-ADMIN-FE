@@ -1,8 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useQueryClient } from '@tanstack/react-query';
-import { type BreadcrumbProps, Button, Input } from 'antd';
-import { Search } from 'lucide-react';
+import { type BreadcrumbProps, Button, Input, Select } from 'antd';
 import { useBreadcrumbStore } from '@/shared-store';
 import { toast } from '@/shared-util';
 import ToolGroupCard from '../../features/tool/components/ToolGroupCard';
@@ -18,6 +17,8 @@ const breadcrumb: NonNullable<BreadcrumbProps['items']> = [
   { title: '도구', path: '/aoe/agent-config/tool/list' },
 ];
 
+const FILTER_OPTIONS = [{ label: '그룹명', value: 'groupName' }];
+
 export default function ToolList() {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
@@ -25,6 +26,7 @@ export default function ToolList() {
   const setBreadcrumb = useBreadcrumbStore((s) => s.setBreadcrumb);
   const clearBreadcrumb = useBreadcrumbStore((s) => s.clearBreadcrumb);
   const groupDrawerRef = useRef<ToolGroupDrawerRef>(null);
+  const [filterColumn, setFilterColumn] = useState('groupName');
   const [searchValue, setSearchValue] = useState('');
 
   useEffect(() => {
@@ -49,8 +51,17 @@ export default function ToolList() {
   const filteredGroups = useMemo(() => {
     if (!searchValue.trim()) return groups;
     const keyword = searchValue.toLowerCase();
-    return groups.filter((g) => g.groupName.toLowerCase().includes(keyword) || (g.description ?? '').toLowerCase().includes(keyword));
-  }, [groups, searchValue]);
+    return groups.filter((g) => {
+      const value = g[filterColumn as keyof typeof g];
+      if (value == null) return false;
+      return String(value).toLowerCase().includes(keyword);
+    });
+  }, [groups, filterColumn, searchValue]);
+
+  const handleColumnChange = (value: string) => {
+    setFilterColumn(value);
+    setSearchValue('');
+  };
 
   const handleOpenGroup = (group: ToolGroup) => {
     navigate(`../${group.groupId}`);
@@ -64,14 +75,10 @@ export default function ToolList() {
     <>
       <div className="flex flex-col gap-4 w-full h-full">
         <div className="flex items-center justify-between gap-2 w-full h-[76px] bg-white bt-shadow px-7 py-5">
-          <Input
-            prefix={<Search className="size-3.5 text-gray-400" />}
-            value={searchValue}
-            onChange={(e) => setSearchValue(e.target.value)}
-            className="w-full max-w-[400px]"
-            placeholder="그룹명으로 검색"
-            allowClear
-          />
+          <div className="flex gap-2 w-full items-center">
+            <Select value={filterColumn} onChange={handleColumnChange} options={FILTER_OPTIONS} className="!max-w-[150px] !min-w-[120px]" popupMatchSelectWidth={false} />
+            <Input value={searchValue} onChange={(e) => setSearchValue(e.target.value)} className="w-full max-w-[400px]" placeholder="검색어를 입력하세요." />
+          </div>
           <Button type="primary" onClick={() => groupDrawerRef.current?.open()}>
             추가
           </Button>

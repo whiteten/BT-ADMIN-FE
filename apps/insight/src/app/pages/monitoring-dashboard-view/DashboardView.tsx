@@ -50,6 +50,21 @@ export default function DashboardView() {
     setWidgets(initialWidgets);
   }, [initialWidgets]);
 
+  useEffect(() => {
+    if (dashboard) {
+      setBreadcrumb(
+        [
+          { title: '모니터링', path: '/insight/monitoring' },
+          { title: '대시보드', path: '/insight/monitoring/dashboards' },
+          { title: ':dashboardName' },
+          { title: '보기', path: `/insight/monitoring/dashboards/${dashboardId}/view` },
+        ],
+        { dashboardName: dashboard.dashboardName },
+      );
+    }
+    return () => clearBreadcrumb();
+  }, [dashboard, dashboardId, setBreadcrumb, clearBreadcrumb]);
+
   // ── View 모드 — 모니터링 시작 여부 + 갱신 간격 ────────────────────
   const [monitoringStarted, setMonitoringStarted] = useState(false);
   const [refreshThrottle, setRefreshThrottle] = useState<1 | 3 | 5 | 10 | 'PAUSED'>(3);

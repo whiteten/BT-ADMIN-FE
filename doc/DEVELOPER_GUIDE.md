@@ -2098,6 +2098,27 @@ const SomeListPage: React.FC = () => {
 
 페이지의 breadcrumb은 **페이지 본문에 그리지 않습니다**. host 레이아웃의 `BreadcrumbSlot`이 SubHeader 우측에 그리고 있으므로, 각 페이지는 mount 시 `useBreadcrumbStore`에 push하고 unmount 시 clear하는 책임만 갖습니다.
 
+##### path 컨벤션
+
+표준 remote인 fca를 레퍼런스로 삼아 다음 세 가지를 지킵니다.
+
+1. **모든 leaf에 자기 자신을 가리키는 path를 부여**합니다. leaf까지 path가 있어야 (가) 사용자가 다른 곳으로 이동했다가 돌아올 때 breadcrumb 클릭으로 복귀할 수 있고, (나) 탭 형제 이동(아래 "동적 라벨" 항 참조)을 자연스럽게 지원할 수 있습니다. 액션 leaf(`'추가'`, `'등록'`, `'수정'` 등)도 자기 path를 부여해야 합니다.
+2. **자체 페이지가 없는 카테고리/그룹 항목(비-leaf)에도 그 그룹의 라우트 path를 그대로 부여**합니다(예: `{ title: '관리', path: '/fca/bot-config' }`, `{ title: '봇', path: '/fca/bot-config/bot' }`). `path` 키 자체를 생략해 비링크 텍스트로 렌더하는 것은 fca의 표준이 아닙니다. **이 컨벤션은 routes의 "index redirect" 규칙(라우팅 가이드 → "3. index redirect")과 짝을 이뤄 작동합니다** — 사용자가 카테고리 라벨을 클릭하면 그 그룹의 `{ index: true, element: <Navigate to="<default>" replace /> }`가 자동으로 기본 하위 페이지로 안내합니다. 즉 카테고리에 path를 부여할 수 있는 전제는 "그 카테고리의 라우트 그룹이 index redirect를 갖는다"는 점이며, 라우트 측에서 index redirect를 빠뜨리면 카테고리 클릭이 빈 화면/NotFound로 떨어지므로 항상 짝으로 점검하세요. `path` 생략은 라우트가 아예 정의되지 않은 임의 가상 라벨처럼 진입할 path가 실제로 없는 예외 케이스 한정입니다.
+3. **`path`는 절대 경로(`/<remote>/...`)만 사용**합니다. `../` 같은 상대 경로는 사용하지 마세요. breadcrumb은 라우트 깊이가 다른 페이지들 사이에서도 동일 항목을 가리킬 수 있어야 하는데, 상대 경로는 현재 path 기준으로 해석되어 같은 라벨이라도 페이지마다 다른 곳으로 가게 됩니다(예: `'../list'`가 깊은 라우트에서는 의도와 다르게 동작).
+4. **remote 이름 라벨은 페이지에서 작성하지 않습니다.** host의 `BreadcrumbSlot`이 `useCurrentRemote().appName`을 읽어 Home 아이콘 다음·페이지 카테고리 앞에 **자동 prepend**합니다(비링크 텍스트). 페이지는 자기 도메인 카테고리부터 시작하세요. 이 prepend 항목은 `MenuConfig.appName`이 single source of truth이므로 사이드바 뱃지 툴팁(`PanelAppBadgeStrip`)·패널 헤더(`PanelAppSection`/`PanelMega`)와 자동 일치합니다.
+
+   ```ts
+   // ❌ 페이지에서 remote 이름 라벨을 직접 작성 (중복 — host가 또 prepend함)
+   [{ title: 'IPRON' }, { title: '회선관리' }, { title: '국선관리', path: '/ipron/line/endpoint' }]
+
+   // ✅ 카테고리부터 시작 — host가 [🏠] > [appName] > 페이지 items 순으로 합성
+   [{ title: '회선관리' }, { title: '국선관리', path: '/ipron/line/endpoint' }]
+   ```
+
+   호스트 합성 결과 예시: `🏠 > IPRON > 회선관리 > 국선관리`
+
+   > 주의: 카테고리 라벨에 우연히 remote 이름과 유사한 단어가 들어가는 경우(예: manager의 `'시스템'`, fca의 `'관리'`)는 그대로 둡니다. appName은 remote 식별을 담당하고, 그 다음 카테고리 라벨은 도메인 분류이므로 의미가 다릅니다.
+
 ##### 정적 breadcrumb
 
 페이지 파일 상단에 `breadcrumb` 상수를 모듈 레벨로 두고, 컴포넌트 본문 시작부에서 push/clear합니다.
@@ -2151,9 +2172,43 @@ export default function BotDetail() {
 }
 ```
 
+> **형제 탭 이동 — query path 합성**: 상세 페이지가 query string으로 탭을 구분하는 구조(`?tab=tab2`)라면, 형제 탭을 가리키는 breadcrumb 항목의 `path`에 query를 직접 합성합니다. 사용자가 한 탭에서 다른 탭으로 breadcrumb 클릭만으로 이동할 수 있습니다.
+>
+> ```typescript
+> const items: BreadcrumbProps['items'] = [
+>   { title: '관리', path: '/fca/bot-config' },
+>   { title: '모델', path: '/fca/bot-config/model' },
+>   { title: ':modelName', path: `/fca/bot-config/model/${modelId}` },
+>   { title: '의도', path: `/fca/bot-config/model/${modelId}?tab=tab2` },     // ← 형제 탭으로 이동
+>   { title: ':intentName', path: `/fca/bot-config/model/${modelId}/intent/${intentId}` },
+> ];
+> ```
+
 ##### 분기 케이스 (isPublic 등)
 
-같은 페이지 컴포넌트가 분기에 따라 다른 breadcrumb을 가져야 할 때, useEffect 내부에서 조건 분기로 items를 선택하고 분기 키를 deps에 포함합니다.
+같은 페이지 컴포넌트가 분기에 따라 다른 breadcrumb을 가져야 할 때, **분기 결과의 성질에 따라 두 가지 갈래** 중 하나를 선택합니다.
+
+**갈래 A — 분기 결과가 모두 정적인 경우: 모듈 스코프 두 변수 + useEffect에서 삼항 선택.** 분기마다 변하는 동적 값(`useParams` 등)이 없으면 두 breadcrumb을 미리 모듈 상수로 정의하고 useEffect는 선택만 합니다. 가장 가벼운 패턴이며, fca의 `ModelList`·`ModelCreate`가 이 구조를 따릅니다.
+
+```typescript
+const privateBreadcrumb: BreadcrumbProps['items'] = [
+  { title: '관리', path: '/fca/bot-config' },
+  { title: '모델', path: '/fca/bot-config/model' },
+  { title: '모델 목록', path: '/fca/bot-config/model/list' },
+];
+const publicBreadcrumb: BreadcrumbProps['items'] = [
+  { title: '공용', path: '/fca/global' },
+  { title: '공용 모델', path: '/fca/global/model' },
+  { title: '공용 모델 목록', path: '/fca/global/model' },
+];
+
+useEffect(() => {
+  setBreadcrumb(isPublic ? publicBreadcrumb : privateBreadcrumb);
+  return () => clearBreadcrumb();
+}, [isPublic, setBreadcrumb, clearBreadcrumb]);
+```
+
+**갈래 B — 분기 결과가 동적 값(`:modelName`, `${modelId}` 등)을 포함하는 경우: useEffect 내부에서 삼항으로 items를 합성.** 동적 값을 모듈 스코프에서 참조할 수 없으므로 useEffect 안에서 구성하고, 분기 키와 동적 값 모두를 deps에 포함합니다. fca의 `ModelDetail`·`IntentDetail`·`EntityDetail`·`EvaluationDetail`이 이 구조입니다.
 
 ```typescript
 useEffect(() => {
@@ -2161,14 +2216,16 @@ useEffect(() => {
     ? [
         { title: '공용', path: '/fca/global' },
         { title: '공용 모델', path: '/fca/global/model' },
+        { title: ':modelName', path: `/fca/global/model/${modelId}` },
       ]
     : [
         { title: '관리', path: '/fca/bot-config' },
         { title: '모델', path: '/fca/bot-config/model' },
+        { title: ':modelName', path: `/fca/bot-config/model/${modelId}` },
       ];
-  setBreadcrumb(items);
+  setBreadcrumb(items, { modelName: model?.modelName ?? '-' });
   return () => clearBreadcrumb();
-}, [isPublic, setBreadcrumb, clearBreadcrumb]);
+}, [isPublic, modelId, model?.modelName, setBreadcrumb, clearBreadcrumb]);
 ```
 
 ##### 핵심 규칙
@@ -2851,6 +2908,8 @@ const AccountPolicy = React.lazy(() => import('./pages/account-policy/AccountPol
 - 항상 `replace`를 붙여 히스토리에 빈 그룹 경로가 남지 않게 합니다.
 - 동적 세그먼트 하위 그룹의 index는 부모로 복귀시킵니다: `{ index: true, element: <Navigate to=".." replace /> }`.
 
+> **이 규칙은 breadcrumb의 비-leaf 클릭성과 짝을 이룹니다.** "Breadcrumb 표준 절차 → path 컨벤션"에 따라 fca는 자체 페이지가 없는 카테고리/그룹 항목에도 그 그룹의 path를 그대로 부여합니다(예: `{ title: '관리', path: '/fca/bot-config' }`). 사용자가 그 카테고리 라벨을 클릭했을 때 빈 화면으로 떨어지지 않는 것은, 여기서 정의한 index redirect가 자동으로 기본 하위 페이지로 안내해 주기 때문입니다. **그룹마다 index redirect를 빠뜨리지 마세요** — 빠뜨리면 같은 그룹 path를 가리키는 모든 페이지의 breadcrumb 카테고리 클릭이 일제히 빈 화면 또는 NotFound로 떨어집니다. 라우트 그룹을 신설/이동/리네임할 때는 항상 (a) index redirect 존재 여부, (b) redirect 타깃이 실재하는지, (c) 그 path를 쓰는 breadcrumb 항목들이 함께 업데이트됐는지 세 가지를 같이 점검하세요.
+
 ### 4. 동적 세그먼트와 상세 페이지
 
 - 동적 파라미터는 `:paramId` 형태(**camelCase**)로 작성합니다: `:serviceId`, `:modelId`, `:intentId`.
@@ -2873,22 +2932,38 @@ const AccountPolicy = React.lazy(() => import('./pages/account-policy/AccountPol
 }
 ```
 
-### 5. 공통 라우트 추출
+### 5. 공통 라우트는 복사 작성
 
-여러 path가 **동일한 라우트 묶음**을 공유하면 모듈 스코프 배열 상수로 추출한 뒤 spread로 재사용합니다.
+여러 path가 동일한 라우트 묶음을 공유하더라도 **각 path에 그대로 복사**합니다. 모듈 스코프 const + spread(`[...sharedXxxRoutes]`) 패턴은 사용하지 않습니다.
 
 ```typescript
-const sharedModelRoutes = [
-  { index: true, element: <Navigate to="list" replace /> },
-  { path: 'list', element: <ModelList /> },
-  { path: 'create', element: <ModelCreate /> },
-  // ...
-];
+// ✅ 권장 — 각 그룹에 명시적으로 복사
+{
+  path: 'model',  // bot-config/model
+  children: [
+    { index: true, element: <Navigate to="list" replace /> },
+    { path: 'list', element: <ModelList /> },
+    { path: 'create', element: <ModelCreate /> },
+    // ...
+  ],
+},
+{
+  path: 'model',  // global/model
+  children: [
+    { index: true, element: <Navigate to="list" replace /> },
+    { path: 'list', element: <ModelList /> },
+    { path: 'create', element: <ModelCreate /> },
+    // ...
+  ],
+},
 
-// 두 그룹에서 동일하게 재사용
-{ path: 'model', children: [...sharedModelRoutes] }, // bot-config/model
-{ path: 'model', children: [...sharedModelRoutes] }, // global/model
+// ❌ 비권장 — spread 패턴
+const sharedModelRoutes = [ /* ... */ ];
+{ path: 'model', children: [...sharedModelRoutes] },
+{ path: 'model', children: [...sharedModelRoutes] },
 ```
+
+**왜 비권장인가**: spread는 코드 중복을 줄여주지만, 정적 분석 도구가 모듈 스코프 const 정의를 인라인 본문으로 따라가기 어렵습니다. routes.tsx를 입력으로 삼는 검증 스크립트(예: breadcrumb path가 실재 라우트에 매칭되는지 점검, group index redirect 누락 검출)가 부정확해지면 진짜 누락 케이스가 false positive에 묻혀 놓치기 쉽습니다. 또 routes.tsx는 한 파일에 정의되어 있고 페이지 추가·삭제 빈도가 높지 않아 복사 비용이 크지 않습니다. **두 그룹 모두 같은 패턴이면 둘 다 직접 작성**해 한눈에 비교 가능한 구조로 두세요. 향후 한쪽만 달라지는 변경이 생겨도 자연스럽게 분기됩니다.
 
 ### 6. path 네이밍
 

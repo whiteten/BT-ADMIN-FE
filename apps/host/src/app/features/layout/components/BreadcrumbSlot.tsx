@@ -2,18 +2,22 @@ import { Link, useLocation } from 'react-router-dom';
 import { Breadcrumb, type BreadcrumbProps } from 'antd';
 import { Home } from 'lucide-react';
 import { useBreadcrumbStore } from '@/shared-store';
+import useCurrentRemote from '../../../hooks/useCurrentRemote';
 import { cn } from '@/lib/utils';
 
 export default function BreadcrumbSlot() {
   const { pathname } = useLocation();
   const items = useBreadcrumbStore((s) => s.items);
   const params = useBreadcrumbStore((s) => s.params);
+  const remote = useCurrentRemote();
 
   if (!items || items.length === 0) return null;
 
   const firstSegment = pathname.split('/').filter(Boolean)[0];
   const homePath = firstSegment ? `/${firstSegment}` : '/';
-  const itemsWithHome: BreadcrumbProps['items'] = [{ path: homePath }, ...items];
+  // Home 아이콘 + remote appName(비링크) + 페이지 카테고리/leaf 순으로 합성.
+  // appName은 useCurrentRemote().appName에서 자동 prepend되므로 페이지에서 직접 적지 않는다.
+  const itemsWithHome: BreadcrumbProps['items'] = [{ path: homePath }, ...(remote ? [{ title: remote.appName }] : []), ...items];
 
   const itemRender: BreadcrumbProps['itemRender'] = (item, _params, list) => {
     if (item === list[0]) {

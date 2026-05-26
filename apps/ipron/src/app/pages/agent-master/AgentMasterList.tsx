@@ -32,7 +32,6 @@ import type { AgentGroupNode, AgentGroupReorderPosition, AgentResponse } from '.
 import { useModal } from '@/libs/shared-ui/src/hooks/useModal';
 
 const breadcrumb = [
-  { title: 'IPRON', path: '/ipron' },
   { title: '상담사 관리', path: '/ipron/agent-master' },
   { title: '상담사 관리', path: '/ipron/agent-master' },
 ];

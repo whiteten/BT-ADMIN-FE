@@ -6,7 +6,7 @@ export interface UpstreamVariable {
   id: string;
   /** dropdown 표시용 라벨. nodeLabel 또는 변수명 */
   label: string;
-  /** 보조 표시 (출처 노드 이름 또는 'sys') */
+  /** 보조 표시 — 변수명(`id` 와 동일). sys 변수는 'sys' 등 별도 출처 식별자 사용. */
   source?: string;
   /** "String" | "Array[File]" 등 */
   type: string;
@@ -34,36 +34,34 @@ export const parseVariableTokens = (text: string): string[] => {
 };
 
 /** 시작 노드가 항상 제공하는 빌트인 출력 변수 — BE 런타임이 사용자 발화를 주입 */
-const START_BUILTIN_VARIABLES: ReadonlyArray<{ name: string; type: string }> = [{ name: 'userInput', type: 'String' }];
+export const START_BUILTIN_VARIABLES: ReadonlyArray<{ name: string; type: string }> = [{ name: 'userInput', type: 'String' }];
+
+/** 변수명 형식 검사 — 영문/_ 로 시작, 영문·숫자·_ 만. StartVariablesEditor UI 검증과 deploy validator 가 공유. */
+export const isValidVariableName = (name: string): boolean => /^[a-zA-Z_][a-zA-Z0-9_]*$/.test(name);
 
 /**
  * 시작 노드의 빌트인 + 사용자 정의 변수를 UpstreamVariable[] 로 변환.
  * 다른 노드의 output_variable 과 형식 통일 — id 에 `_result` suffix 부여.
- * 라벨은 사용자 친화 이름(`userInput`, `testtest`) 그대로 보여주되, 텍스트 토큰/input_variables 에는 `<name>_result` 형식이 들어간다.
+ * 라벨은 nodeLabel(예: '시작'), source 는 텍스트에 삽입되는 변수명(`<name>_result`) 그대로 — id 와 동일.
  */
 export const getStartNodeVariables = (startNode: FlowNode): UpstreamVariable[] => {
   const data = asRecord(startNode.data);
   const userVars = (data.variables as StartVariable[] | undefined) ?? [];
-  // 다른 노드와 동일한 표기 규칙 — label 은 nodeLabel(예: '시작'), source 는 sub-identifier(변수명)
   const nodeLabel = startNode.nodeLabel ?? '시작';
 
-  const builtIn: UpstreamVariable[] = START_BUILTIN_VARIABLES.map((v) => ({
-    id: `${v.name}_result`,
-    label: nodeLabel,
-    source: v.name,
-    type: v.type,
-  }));
+  const builtIn: UpstreamVariable[] = START_BUILTIN_VARIABLES.map((v) => {
+    const id = `${v.name}_result`;
+    return { id, label: nodeLabel, source: id, type: v.type };
+  });
 
   // 사용자가 같은 이름으로 정의해 둔 경우 빌트인이 가려지지 않게 dedupe (이름 기준)
   const builtInNames = new Set(START_BUILTIN_VARIABLES.map((v) => v.name));
   const userDefined = userVars
     .filter((v) => v?.name && !builtInNames.has(v.name))
-    .map((v) => ({
-      id: `${v.name}_result`,
-      label: nodeLabel,
-      source: v.name,
-      type: v.type ?? 'String',
-    }));
+    .map((v) => {
+      const id = `${v.name}_result`;
+      return { id, label: nodeLabel, source: id, type: v.type ?? 'String' };
+    });
 
   return [...builtIn, ...userDefined];
 };
@@ -102,7 +100,7 @@ export const getUpstreamVariables = (targetNodeId: string, graph: WorkflowGraph)
       result.push({
         id: varId,
         label: src.nodeLabel ?? src.nodeKind,
-        source: src.nodeKind,
+        source: varId,
         type: 'String',
       });
       traverse(srcId);

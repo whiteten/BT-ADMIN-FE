@@ -2,12 +2,25 @@ import { useQuery } from '@tanstack/react-query';
 import { createQueryKeys } from '@lukemorales/query-key-factory';
 import type { QueryHookWithParamsOptions } from '@/shared-util';
 import { monitoringApi } from '../api/monitoringApi';
-import type { ChannelStatusItem, ChannelStatusSearchParams, DnStatusItem, DnStatusSearchParams, SttChatSentence } from '../types';
+import type {
+  CallStatusItem,
+  CallStatusSearchParams,
+  CallStatusSummaryItem,
+  ChannelStatusItem,
+  ChannelStatusSearchParams,
+  DashboardData,
+  DashboardSearchParams,
+  DnStatusItem,
+  DnStatusSearchParams,
+  SttChatSentence,
+} from '../types';
 
 export const monitoringQueryKeys = createQueryKeys('monitoring', {
   getChannelStatusList: (params?: Record<string, unknown>) => [params],
   getDnStatusList: (params?: Record<string, unknown>) => [params],
   getRealtimeSentence: (params?: Record<string, unknown>) => [params],
+  getCallStatusList: (params?: Record<string, unknown>) => [params],
+  getDashboard: (params?: Record<string, unknown>) => [params],
 });
 
 export const useGetChannelStatusList = ({ params, queryOptions }: QueryHookWithParamsOptions<ChannelStatusItem[]> = {}) => {
@@ -35,6 +48,26 @@ export const useGetRealtimeSentence = ({ params, queryOptions }: QueryHookWithPa
     queryFn: () => monitoringApi.getRealtimeSentence(params as { ucidGkey: string }),
     enabled: !!(params as { ucidGkey?: string })?.ucidGkey,
     refetchInterval: 500,
+    ...queryOptions,
+  });
+};
+
+export const useGetCallStatusList = ({ params, queryOptions }: QueryHookWithParamsOptions<{ summary: CallStatusSummaryItem[]; items: CallStatusItem[] }> = {}) => {
+  return useQuery({
+    queryKey: monitoringQueryKeys.getCallStatusList(params).queryKey,
+    queryFn: () => monitoringApi.getCallStatusList(params as unknown as CallStatusSearchParams),
+    enabled: !!(params as unknown as CallStatusSearchParams)?.callDate,
+    refetchInterval: 2000,
+    ...queryOptions,
+  });
+};
+
+export const useGetDashboard = ({ params, queryOptions }: QueryHookWithParamsOptions<DashboardData> = {}) => {
+  return useQuery({
+    queryKey: monitoringQueryKeys.getDashboard(params).queryKey,
+    queryFn: () => monitoringApi.getDashboard(params as unknown as DashboardSearchParams),
+    enabled: !!(params as unknown as DashboardSearchParams)?.callDate,
+    refetchInterval: 3000,
     ...queryOptions,
   });
 };

@@ -377,7 +377,7 @@ export default function KnowledgeCreate() {
         {currentStep === steps.length - 1 && (
           <Col>
             <Button color="primary" variant="solid" onClick={handleSubmit} loading={isProcessing}>
-              실행
+              저장
             </Button>
           </Col>
         )}
