@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { Button, Checkbox, Drawer, Input, Select, Tag } from 'antd';
 import { BarChart2, LineChart, PieChart, X } from 'lucide-react';
 import { toast } from '@/shared-util';
@@ -70,12 +70,13 @@ const TOP_N_PRESETS = [5, 10, 20, 50];
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
 function makeFieldMapEntry(field: FieldMetaItem, slotType: SlotType, slotOrder: number): PanelFieldMap {
-  const isMsr = field.fieldRole === 'MEASURE';
+  const isMsr = field.fieldRole === 'MEASURE' || field.fieldRole === 'CALC';
+  const isCalc = field.fieldRole === 'CALC';
   return {
     slotType,
     slotOrder,
     fieldName: field.fieldName,
-    isCalcField: false,
+    isCalcField: isCalc,
     aggFunc: isMsr ? 'SUM' : undefined,
     columnFormat: isMsr ? 'Number' : undefined,
   };
@@ -155,8 +156,10 @@ export default function PanelEditorSheet({ reportId, panelType, panelId, datasou
     queryOptions: { enabled: !!selectedDatasourceKey },
   });
 
-  const dimFields = fields.filter((f) => f.fieldRole === 'DIMENSION' || f.fieldRole === 'TIMESTAMP');
-  const msrFields = fields.filter((f) => f.fieldRole === 'MEASURE');
+  const calcDatasetFields = fields.filter((f) => f.fieldRole === 'CALC');
+  const visibleFields = fields.filter((f) => f.isVisible && f.fieldRole !== 'CALC');
+  const dimFields = visibleFields.filter((f) => f.fieldRole === 'DIMENSION' || f.fieldRole === 'TIMESTAMP');
+  const msrFields = visibleFields.filter((f) => f.fieldRole === 'MEASURE');
 
   // ─── Slot map: slotType → { fields, setter, maxItems } ───────────────────
   const slotMap: Record<string, { fields: PanelFieldMap[]; setter: React.Dispatch<React.SetStateAction<PanelFieldMap[]>>; maxItems?: number }> = {
@@ -263,7 +266,7 @@ export default function PanelEditorSheet({ reportId, panelType, panelId, datasou
       }
     }
     // fallback: auto-route by role
-    const isMsr = field.fieldRole === 'MEASURE';
+    const isMsr = field.fieldRole === 'MEASURE' || field.fieldRole === 'CALC';
     if (isGrid) {
       if (isMsr) addToSlot(field, setValueFields, 'VALUE');
       else addToSlot(field, setGroupByFields, 'ROW');
@@ -276,6 +279,12 @@ export default function PanelEditorSheet({ reportId, panelType, panelId, datasou
     }
   };
 
+  // ─── Hidden fields toggle ─────────────────────────────────────────────────
+  const [showHiddenFields, setShowHiddenFields] = useState(false);
+
+  // ─── Display name lookup ──────────────────────────────────────────────────
+  const fieldDisplayMap = useMemo(() => new Map(fields.map((f) => [f.fieldName, f.displayName])), [fields]);
+
   // ─── Active slot label (for palette hint) ─────────────────────────────────
   const activeSlotDef = activeSlot ? [...GRID_SLOTS, ...getChartSlots(chartSubType)].find((s) => s.slotType === activeSlot) : null;
 
@@ -286,6 +295,59 @@ export default function PanelEditorSheet({ reportId, panelType, panelId, datasou
   // ─── Field palette ─────────────────────────────────────────────────────────
   const renderFieldPalette = () => {
     const allSlotFields = Object.values(slotMap).flatMap((s) => s.fields.map((f) => f.fieldName));
+    const hiddenFields = fields.filter((f) => !f.isVisible && f.fieldRole !== 'CALC');
+
+    const renderFieldBtn = (f: FieldMetaItem, isHidden = false) => {
+      const alreadyInActiveSlot = activeSlot ? slotMap[activeSlot]?.fields.some((sf) => sf.fieldName === f.fieldName) : false;
+      const alreadyMapped = allSlotFields.includes(f.fieldName);
+      const isCalc = f.fieldRole === 'CALC';
+      const isMsrLike = f.fieldRole === 'MEASURE' || isCalc;
+
+      let cls = '';
+      if (isHidden) {
+        cls = alreadyInActiveSlot
+          ? 'border-[var(--color-bt-primary)] bg-[var(--color-bt-primary)] text-white'
+          : 'border-dashed border-[var(--color-bt-border)] bg-white text-[var(--color-bt-fg-muted)] hover:border-[var(--color-bt-primary)] hover:text-[var(--color-bt-primary)]';
+      } else if (isCalc) {
+        cls = alreadyInActiveSlot
+          ? 'border-green-600 bg-green-600 text-white'
+          : alreadyMapped
+            ? 'border-green-200 bg-green-50 text-green-400 opacity-60'
+            : activeSlot
+              ? 'border-green-500 bg-green-50 text-green-700 hover:bg-green-600 hover:text-white'
+              : 'border-green-300 bg-green-50 text-green-700 hover:border-green-500';
+      } else if (isMsrLike) {
+        cls = alreadyInActiveSlot
+          ? 'border-[var(--color-bt-primary)] bg-[var(--color-bt-primary)] text-white'
+          : alreadyMapped
+            ? 'border-[var(--color-bt-primary)]/20 bg-[var(--color-bt-primary-soft)]/30 text-[var(--color-bt-primary)] opacity-60'
+            : activeSlot
+              ? 'border-[var(--color-bt-primary)] bg-[var(--color-bt-primary-soft)] text-[var(--color-bt-primary)] hover:bg-[var(--color-bt-primary)] hover:text-white'
+              : 'border-[var(--color-bt-primary)]/40 bg-[var(--color-bt-primary-soft)] text-[var(--color-bt-primary)] hover:border-[var(--color-bt-primary)]';
+      } else {
+        cls = alreadyInActiveSlot
+          ? 'border-[var(--color-bt-primary)] bg-[var(--color-bt-primary)] text-white'
+          : alreadyMapped
+            ? 'border-[var(--color-bt-border)] bg-[var(--color-bt-bg-muted)]/60 text-[var(--color-bt-fg-muted)] opacity-60'
+            : activeSlot
+              ? 'border-[var(--color-bt-primary)]/60 bg-white font-semibold text-[var(--color-bt-primary)] hover:border-[var(--color-bt-primary)] hover:bg-[var(--color-bt-primary-soft)]'
+              : 'border-[var(--color-bt-border)] bg-white hover:border-[var(--color-bt-primary)] hover:text-[var(--color-bt-primary)]';
+      }
+
+      return (
+        <button
+          key={f.fieldName}
+          type="button"
+          onClick={() => handlePaletteClick(f)}
+          title={`${f.displayName}${isHidden ? ' (비활성)' : ''}`}
+          disabled={activeSlotFull ? true : undefined}
+          className={`flex items-center gap-0.5 rounded border px-1.5 py-0.5 font-mono text-xs transition-all ${isMsrLike ? 'font-semibold' : ''} ${cls}`}
+        >
+          {isCalc && <span className="text-[11px] font-bold italic leading-none">f</span>}
+          {f.displayName}
+        </button>
+      );
+    };
 
     return (
       <div>
@@ -304,37 +366,14 @@ export default function PanelEditorSheet({ reportId, panelType, panelId, datasou
 
         {fieldsLoading ? (
           <div className="rounded border border-[var(--color-bt-border)] p-3 text-center text-xs text-[var(--color-bt-fg-muted)]">필드 로딩 중…</div>
-        ) : fields.length === 0 ? (
+        ) : visibleFields.length === 0 && calcDatasetFields.length === 0 ? (
           <div className="rounded border border-[var(--color-bt-border)] p-3 text-center text-xs text-[var(--color-bt-fg-muted)]">데이터셋을 먼저 선택하세요</div>
         ) : (
           <div className="space-y-1.5 rounded border border-[var(--color-bt-border)] bg-[var(--color-bt-bg-muted)]/30 p-2">
             {dimFields.length > 0 && (
               <div className="flex flex-wrap items-center gap-1">
                 <Tag className="!mb-0 font-mono text-[10px]">DIM</Tag>
-                {dimFields.map((f) => {
-                  const alreadyInActiveSlot = activeSlot ? slotMap[activeSlot]?.fields.some((sf) => sf.fieldName === f.fieldName) : false;
-                  const alreadyMapped = allSlotFields.includes(f.fieldName);
-                  return (
-                    <button
-                      key={f.fieldName}
-                      type="button"
-                      onClick={() => handlePaletteClick(f)}
-                      title={f.displayName}
-                      disabled={activeSlotFull ? true : undefined}
-                      className={`rounded border px-1.5 py-0.5 font-mono text-xs transition-all ${
-                        alreadyInActiveSlot
-                          ? 'border-[var(--color-bt-primary)] bg-[var(--color-bt-primary)] text-white'
-                          : alreadyMapped
-                            ? 'border-[var(--color-bt-border)] bg-[var(--color-bt-bg-muted)]/60 text-[var(--color-bt-fg-muted)] opacity-60'
-                            : activeSlot
-                              ? 'border-[var(--color-bt-primary)]/60 bg-white font-semibold text-[var(--color-bt-primary)] hover:border-[var(--color-bt-primary)] hover:bg-[var(--color-bt-primary-soft)]'
-                              : 'border-[var(--color-bt-border)] bg-white hover:border-[var(--color-bt-primary)] hover:text-[var(--color-bt-primary)]'
-                      }`}
-                    >
-                      {f.fieldName}
-                    </button>
-                  );
-                })}
+                {dimFields.map((f) => renderFieldBtn(f))}
               </div>
             )}
             {msrFields.length > 0 && (
@@ -342,30 +381,28 @@ export default function PanelEditorSheet({ reportId, panelType, panelId, datasou
                 <Tag color="processing" className="!mb-0 font-mono text-[10px]">
                   MSR
                 </Tag>
-                {msrFields.map((f) => {
-                  const alreadyInActiveSlot = activeSlot ? slotMap[activeSlot]?.fields.some((sf) => sf.fieldName === f.fieldName) : false;
-                  const alreadyMapped = allSlotFields.includes(f.fieldName);
-                  return (
-                    <button
-                      key={f.fieldName}
-                      type="button"
-                      onClick={() => handlePaletteClick(f)}
-                      title={f.displayName}
-                      disabled={activeSlotFull ? true : undefined}
-                      className={`rounded border px-1.5 py-0.5 font-mono text-xs font-semibold transition-all ${
-                        alreadyInActiveSlot
-                          ? 'border-[var(--color-bt-primary)] bg-[var(--color-bt-primary)] text-white'
-                          : alreadyMapped
-                            ? 'border-[var(--color-bt-primary)]/20 bg-[var(--color-bt-primary-soft)]/30 text-[var(--color-bt-primary)] opacity-60'
-                            : activeSlot
-                              ? 'border-[var(--color-bt-primary)] bg-[var(--color-bt-primary-soft)] text-[var(--color-bt-primary)] hover:bg-[var(--color-bt-primary)] hover:text-white'
-                              : 'border-[var(--color-bt-primary)]/40 bg-[var(--color-bt-primary-soft)] text-[var(--color-bt-primary)] hover:border-[var(--color-bt-primary)]'
-                      }`}
-                    >
-                      {f.fieldName}
-                    </button>
-                  );
-                })}
+                {msrFields.map((f) => renderFieldBtn(f))}
+              </div>
+            )}
+            {calcDatasetFields.length > 0 && (
+              <div className="flex flex-wrap items-center gap-1">
+                <Tag color="success" className="!mb-0 font-mono text-[10px]">
+                  CALC
+                </Tag>
+                {calcDatasetFields.map((f) => renderFieldBtn(f))}
+              </div>
+            )}
+            {hiddenFields.length > 0 && (
+              <div className="border-t border-dashed border-[var(--color-bt-border)] pt-1.5">
+                <button
+                  type="button"
+                  onClick={() => setShowHiddenFields((v) => !v)}
+                  className="mb-1 flex items-center gap-1 text-[11px] text-[var(--color-bt-fg-muted)] hover:text-[var(--color-bt-fg)] transition-colors"
+                >
+                  <span>{showHiddenFields ? '▲' : '▼'}</span>
+                  <span>비활성 필드 {hiddenFields.length}개</span>
+                </button>
+                {showHiddenFields && <div className="flex flex-wrap items-center gap-1">{hiddenFields.map((f) => renderFieldBtn(f, true))}</div>}
               </div>
             )}
           </div>
@@ -426,7 +463,9 @@ export default function PanelEditorSheet({ reportId, panelType, panelId, datasou
         <div className="space-y-1" onClick={(e) => e.stopPropagation()}>
           {slotFields.map((f) => (
             <div key={f.fieldName} className="flex items-center gap-1.5 rounded border border-[var(--color-bt-border)] bg-white px-2 py-1 text-xs">
-              <span className="font-mono font-semibold">{f.fieldName}</span>
+              <span className="font-mono font-semibold" title={f.fieldName}>
+                {fieldDisplayMap.get(f.fieldName) ?? f.fieldName}
+              </span>
               {slotType === 'VALUE' && (
                 <>
                   <Select
@@ -555,9 +594,10 @@ export default function PanelEditorSheet({ reportId, panelType, panelId, datasou
             showSearch
             optionFilterProp="label"
           />
-          {selectedDatasourceKey && !fieldsLoading && fields.length > 0 && (
+          {selectedDatasourceKey && !fieldsLoading && (visibleFields.length > 0 || calcDatasetFields.length > 0) && (
             <p className="text-xs text-[var(--color-bt-fg-muted)]">
-              총 <strong className="text-[var(--color-bt-fg)]">{fields.length}</strong>개 — DIM {dimFields.length} · MSR {msrFields.length}
+              DIM {dimFields.length} · MSR {msrFields.length}
+              {calcDatasetFields.length > 0 && <span className="text-green-600"> · CALC {calcDatasetFields.length}</span>}
             </p>
           )}
           <p className="text-xs text-[var(--color-bt-fg-muted)]">패널마다 다른 데이터셋 선택 가능</p>

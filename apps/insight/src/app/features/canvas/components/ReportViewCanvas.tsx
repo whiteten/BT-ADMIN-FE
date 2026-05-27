@@ -3,6 +3,7 @@ import { Button, Tag } from 'antd';
 import { Pencil } from 'lucide-react';
 import CanvasLayout from './CanvasLayout';
 import GlobalFilter from '../../global-filter/components/GlobalFilter';
+import { DOMAIN_TAG_COLOR } from '../../report/constants/reportIconConstants';
 import type { ReportFullDetail } from '../../report/types';
 
 interface ReportViewCanvasProps {
@@ -19,7 +20,7 @@ export default function ReportViewCanvas({ reportId, report }: ReportViewCanvasP
       <div className="flex items-center justify-between w-full bg-white bt-shadow px-7 py-4">
         <div className="flex items-center gap-2">
           <span className="text-sm font-semibold text-[var(--color-bt-fg)]">{report.title}</span>
-          <Tag color="blue">{report.domain}</Tag>
+          <Tag color={DOMAIN_TAG_COLOR[report.domain] ?? 'blue'}>{report.domain}</Tag>
           {report.isPublished && <Tag color="success">메뉴 등록됨</Tag>}
         </div>
         <div className="flex items-center gap-3">

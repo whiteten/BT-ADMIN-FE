@@ -119,7 +119,7 @@ function DomainSection({ domain, items, onNew }: DomainSectionProps) {
   return (
     <section className="bg-white bt-shadow">
       <div className="flex items-center gap-2 px-7 pt-5 pb-3">
-        <Tag color={DOMAIN_TAG_COLOR[domain]} className="font-mono">
+        <Tag color={DOMAIN_TAG_COLOR[domain]} className="font-mono !text-sm !font-bold !px-2 !py-0.5">
           {domain}
         </Tag>
         <span className="text-[15px] font-semibold">{label}</span>
