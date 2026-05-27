@@ -96,7 +96,7 @@ function SortableItem({ id, children }: { id: string; children: (dragProps: Retu
 type EditingState = { mode: 'idle' } | { mode: 'add' } | { mode: 'edit'; localId: string };
 
 interface WizardStepBProps {
-  datasourceKey?: string;
+  datasetId?: number;
   dbViewPrefix?: string;
   domain: DomainCode;
   fieldDisplays: LocalFieldDisplay[];
@@ -108,7 +108,7 @@ interface WizardStepBProps {
 }
 
 export default function WizardStepB({
-  datasourceKey = '',
+  datasetId,
   dbViewPrefix,
   domain,
   fieldDisplays,
@@ -163,8 +163,8 @@ export default function WizardStepB({
       const stripBraces = (expr: string) => expr.replace(/\{([A-Za-z0-9_]+)\}/g, '$1');
       const calcExpressions = calcFields.map((c) => ({ alias: c.fieldCode, expression: stripBraces(c.rowExpression) }));
       const result = await datasetApi.validateFields({
-        // 신규: dbViewPrefix 사용, 편집: datasourceKey 로 서버에서 prefix 조회
-        ...(dbViewPrefix ? { dbViewPrefix } : { datasourceKey }),
+        // 신규: dbViewPrefix 사용, 편집: datasetId 로 서버에서 prefix 조회
+        ...(dbViewPrefix ? { dbViewPrefix } : { datasetId }),
         fields: visibleRegularFields,
         calcExpressions,
       });
@@ -201,8 +201,8 @@ export default function WizardStepB({
     queryOptions: { enabled: !!dbViewPrefix },
   });
   const { data: existingFields = [], isLoading: isLoadingExisting } = useGetDataSourceFields({
-    params: { datasourceKey },
-    queryOptions: { enabled: !!datasourceKey && !dbViewPrefix },
+    params: { datasetId: datasetId ?? 0 },
+    queryOptions: { enabled: !!datasetId && !dbViewPrefix },
   });
   const sourceFields = dbViewPrefix ? previewFields : existingFields;
   const isLoading = dbViewPrefix ? isLoadingPreview : isLoadingExisting;
@@ -366,7 +366,7 @@ export default function WizardStepB({
             <div className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">원천 뷰</div>
             <div className="mt-1 flex items-center gap-1.5">
               <span className="rounded bg-primary px-1.5 py-0.5 text-xs font-semibold text-white">{domain}</span>
-              <span className="font-mono text-sm font-semibold truncate">{datasourceKey}</span>
+              <span className="font-mono text-sm font-semibold truncate">{datasetId}</span>
             </div>
             <div className="mt-0.5 text-xs text-muted-foreground">{sourceFields.length}개 컬럼</div>
           </div>
@@ -438,7 +438,7 @@ export default function WizardStepB({
           <div className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">원천 뷰</div>
           <div className="mt-1 flex items-center gap-1.5">
             <span className="rounded bg-primary px-1.5 py-0.5 text-xs font-semibold text-white">{domain}</span>
-            <span className="font-mono text-sm font-semibold truncate">{datasourceKey}</span>
+            <span className="font-mono text-sm font-semibold truncate">{datasetId}</span>
           </div>
           <div className="mt-0.5 text-xs text-muted-foreground">{sourceFields.length}개 컬럼</div>
         </div>

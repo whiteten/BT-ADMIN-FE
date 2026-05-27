@@ -42,7 +42,7 @@ export default function ReportList() {
     reports
       .filter((r) => {
         if (!kw) return true;
-        return r.title.toLowerCase().includes(kw) || r.datasourceKey.toLowerCase().includes(kw);
+        return r.title.toLowerCase().includes(kw) || String(r.datasetId).includes(kw);
       })
       .forEach((r) => {
         if (grouped[r.domain]) grouped[r.domain].push(r);

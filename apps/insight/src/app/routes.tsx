@@ -45,7 +45,7 @@ export const routes = [
             children: [
               { index: true, element: <StatDatasetList /> },
               { path: 'new', element: <StatDatasetWizard /> },
-              { path: ':datasourceKey/edit', element: <StatDatasetEdit /> },
+              { path: ':datasetId/edit', element: <StatDatasetEdit /> },
             ],
           },
           {

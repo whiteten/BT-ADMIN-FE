@@ -43,7 +43,7 @@ export default function ReportEditorCanvas({ reportId, onNavigateList: _onNaviga
       <GlobalFilter reportId={reportId} mode="editor" />
 
       <div className="flex-1 overflow-auto">
-        <CanvasLayout reportId={reportId} mode="edit" datasourceKey={report.datasourceKey} />
+        <CanvasLayout reportId={reportId} mode="edit" datasetId={report.datasetId} />
       </div>
 
       {isPublishDialogOpen && <PublishDialog reportId={reportId} onClose={() => setIsPublishDialogOpen(false)} />}

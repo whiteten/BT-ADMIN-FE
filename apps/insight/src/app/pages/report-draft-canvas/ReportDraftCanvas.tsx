@@ -12,7 +12,7 @@ import type { DomainCode, ReportIconType } from '../../features/report/types';
 interface WizardState {
   title: string;
   domain: DomainCode;
-  datasourceKey: string;
+  datasetId: number;
   iconType?: ReportIconType;
 }
 
@@ -40,7 +40,7 @@ export default function ReportDraftCanvas() {
     };
   }, [reset, setBreadcrumb, clearBreadcrumb]);
 
-  if (!state?.title || !state?.domain || !state?.datasourceKey) {
+  if (!state?.title || !state?.domain || !state?.datasetId) {
     return <Navigate to="/insight/statistics/reports/new" replace />;
   }
 
@@ -52,7 +52,7 @@ export default function ReportDraftCanvas() {
       const newReport = await reportApi.createReport({
         title: state.title,
         domain: state.domain,
-        datasourceKey: state.datasourceKey,
+        datasetId: state.datasetId,
         iconType: state.iconType,
       });
       for (const panel of panels) {
@@ -96,7 +96,7 @@ export default function ReportDraftCanvas() {
       </div>
 
       <div className="flex-1 overflow-auto">
-        <CanvasLayout reportId={0} mode="edit" isDraft datasourceKey={state.datasourceKey} />
+        <CanvasLayout reportId={0} mode="edit" isDraft datasetId={state.datasetId} />
       </div>
     </div>
   );

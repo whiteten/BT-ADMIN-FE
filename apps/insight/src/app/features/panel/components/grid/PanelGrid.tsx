@@ -42,8 +42,8 @@ export default function PanelGrid({ panel, reportId }: PanelGridProps) {
   const { globalFilter } = useReportViewStore();
   const { report } = useReportEditorStore();
   const { data: fields = [] } = useGetDataSourceFields({
-    params: { datasourceKey: report?.datasourceKey ?? '' },
-    queryOptions: { enabled: !!report?.datasourceKey },
+    params: { datasetId: report?.datasetId ?? 0 },
+    queryOptions: { enabled: !!report?.datasetId },
   });
   const displayNameMap = useMemo(() => new Map(fields.map((f) => [f.fieldName, f.displayName])), [fields]);
 
