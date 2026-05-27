@@ -422,9 +422,6 @@ export default function CalcFieldEditor({ sourceFields, existingCalcFields = [],
             <Form.Item label="컬럼 서식">
               <Select value={meta.columnFormat} onChange={(v) => setMeta((m) => ({ ...m, columnFormat: v }))} options={FORMAT_OPTIONS} className="w-full" />
             </Form.Item>
-            <Form.Item label="KPI 방향">
-              <Select value={meta.kpiDirection} onChange={(v) => setMeta((m) => ({ ...m, kpiDirection: v }))} options={KPI_OPTIONS} className="w-full" />
-            </Form.Item>
           </div>
         </Form>
 

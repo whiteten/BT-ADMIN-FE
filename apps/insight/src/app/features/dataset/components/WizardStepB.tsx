@@ -6,7 +6,7 @@ import { CSS } from '@dnd-kit/utilities';
 import type { ColDef, IHeaderParams } from 'ag-grid-community';
 import { AgGridReact } from 'ag-grid-react';
 import { Button, Checkbox, Divider, Input, Modal, Select, Tag, Tooltip } from 'antd';
-import { Download, Edit2, Play, Plus, X } from 'lucide-react';
+import { Download, Edit2, Play, Plus, Trash2 } from 'lucide-react';
 import { toast } from '@/shared-util';
 import CalcFieldEditor from './CalcFieldEditor';
 import type { CalcFieldCreateDatas, ColumnFormat, DomainCode } from '../../report/types';
@@ -636,7 +636,7 @@ export default function WizardStepB({
                   return (
                     <>
                       <Button size="small" type="text" icon={<Edit2 className="w-3 h-3" />} onClick={() => setEditing({ mode: 'edit', localId: cf._localId })} />
-                      <Button size="small" type="text" danger icon={<X className="w-3 h-3" />} onClick={() => deleteCalcField(cf._localId)} />
+                      <Button size="small" type="text" danger icon={<Trash2 className="w-3 h-3" />} onClick={() => deleteCalcField(cf._localId)} />
                     </>
                   );
                 },
