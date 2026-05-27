@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import type { CellStyle, ColDef } from 'ag-grid-community';
 import { AgGridReact } from 'ag-grid-react';
-import { type BreadcrumbProps, Button, Checkbox, DatePicker, Divider, Select } from 'antd';
+import { type BreadcrumbProps, Button, Checkbox, DatePicker, Divider, Select, TimePicker } from 'antd';
 import dayjs, { type Dayjs } from 'dayjs';
 import { Download } from 'lucide-react';
 import { useBreadcrumbStore, useNavigationStore } from '@/shared-store';
@@ -17,15 +17,22 @@ const breadcrumb: BreadcrumbProps['items'] = [
   { title: '캠페인별 통계', path: '/fca/statistics/campaign/campaign-individual-result' },
 ];
 
+const CAMPAIGN_INDIVIDUAL_TENANT_STORAGE_KEY = 'campaign-individual-result:tenant-ids';
+const CAMPAIGN_INDIVIDUAL_CAMPAIGN_STORAGE_KEY = 'campaign-individual-result:campaign-selections';
+
 // timeUnit별 최대 검색 기간 (일 단위) — 레거시 IPR94S1310 기준
 // 일별: 3개월, 월별: 6개월, 년별: 2년
 const MAX_DATE_RANGE: Record<string, number> = {
+  MI: 2,
+  HH: 7,
   DD: 92,
   MM: 186,
   YY: 730,
 };
 
 const DATE_RANGE_LABEL: Record<string, string> = {
+  MI: '2일',
+  HH: '7일',
   DD: '3개월',
   MM: '6개월',
   YY: '2년',
@@ -102,11 +109,32 @@ export default function CampaignIndividualResultStatistics() {
   const [timeUnit, setTimeUnit] = useState<string>('DD');
   const [startDate, setStartDate] = useState<Dayjs | null>(dayjs().subtract(7, 'day').startOf('day'));
   const [endDate, setEndDate] = useState<Dayjs | null>(dayjs().endOf('day'));
-  const [tenantIds, setTenantIds] = useState<string[]>([]);
-  const [campaignSelections, setCampaignSelections] = useState<string[]>([]);
+  const [startTime, setStartTime] = useState<Dayjs | null>(dayjs().hour(0).minute(0));
+  const [endTime, setEndTime] = useState<Dayjs | null>(dayjs().hour(23).minute(59));
+  const [tenantIds, setTenantIds] = useState<string[]>(() => {
+    try {
+      const saved = localStorage.getItem(CAMPAIGN_INDIVIDUAL_TENANT_STORAGE_KEY);
+      if (!saved) return [];
+      const parsed = JSON.parse(saved);
+      return Array.isArray(parsed) ? parsed.filter((v): v is string => typeof v === 'string') : [];
+    } catch {
+      return [];
+    }
+  });
+  const [campaignSelections, setCampaignSelections] = useState<string[]>(() => {
+    try {
+      const saved = localStorage.getItem(CAMPAIGN_INDIVIDUAL_CAMPAIGN_STORAGE_KEY);
+      if (!saved) return [];
+      const parsed = JSON.parse(saved);
+      return Array.isArray(parsed) ? parsed.filter((v): v is string => typeof v === 'string') : [];
+    } catch {
+      return [];
+    }
+  });
 
   const { gridOptions } = useAggridOptions();
   const gridRef = useRef<AgGridReact<CampaignResultStatListItem>>(null);
+  const isInitialTenantHydrationDone = useRef(false);
   const [rowData, setRowData] = useState<CampaignResultStatListItem[]>([]);
   const [displayTimeUnit, setDisplayTimeUnit] = useState<string>('DD');
 
@@ -141,12 +169,26 @@ export default function CampaignIndividualResultStatistics() {
 
   // 테넌트 변경 시 캠페인 선택 초기화
   useEffect(() => {
+    if (!isInitialTenantHydrationDone.current) {
+      isInitialTenantHydrationDone.current = true;
+      return;
+    }
     setCampaignSelections([]);
   }, [tenantIds]);
+
+  useEffect(() => {
+    localStorage.setItem(CAMPAIGN_INDIVIDUAL_TENANT_STORAGE_KEY, JSON.stringify(tenantIds));
+  }, [tenantIds]);
+
+  useEffect(() => {
+    localStorage.setItem(CAMPAIGN_INDIVIDUAL_CAMPAIGN_STORAGE_KEY, JSON.stringify(campaignSelections));
+  }, [campaignSelections]);
 
   // fromTime / toTime 계산 (UI state에서 직접 도출)
   const fromTime = (() => {
     if (!startDate) return '';
+    if (timeUnit === 'MI') return startDate.format('YYYYMMDD') + (startTime?.format('HHmm') ?? '0000');
+    if (timeUnit === 'HH') return startDate.format('YYYYMMDD') + (startTime?.format('HH') ?? '00');
     if (timeUnit === 'DD') return startDate.format('YYYYMMDD');
     if (timeUnit === 'MM') return startDate.format('YYYYMM');
     return startDate.format('YYYY');
@@ -154,6 +196,8 @@ export default function CampaignIndividualResultStatistics() {
 
   const toTime = (() => {
     if (!endDate) return '';
+    if (timeUnit === 'MI') return endDate.format('YYYYMMDD') + (endTime?.format('HHmm') ?? '2359');
+    if (timeUnit === 'HH') return endDate.format('YYYYMMDD') + (endTime?.format('HH') ?? '23');
     if (timeUnit === 'DD') return endDate.format('YYYYMMDD');
     if (timeUnit === 'MM') return endDate.format('YYYYMM');
     return endDate.format('YYYY');
@@ -207,6 +251,13 @@ export default function CampaignIndividualResultStatistics() {
     }
   }, [endDate, startDate, timeUnit]);
 
+  useEffect(() => {
+    if (timeUnit === 'HH') {
+      setStartTime((prev) => (prev ? prev.minute(0) : prev));
+      setEndTime((prev) => (prev ? prev.minute(50) : prev));
+    }
+  }, [timeUnit]);
+
   const handleSearch = () => {
     if (tenantIds.length === 0) {
       toast.warning('테넌트를 선택해주세요.');
@@ -220,6 +271,11 @@ export default function CampaignIndividualResultStatistics() {
 
     if (!startDate || !endDate) {
       toast.warning('검색일자를 선택해주세요.');
+      return;
+    }
+
+    if ((timeUnit === 'MI' || timeUnit === 'HH') && (!startTime || !endTime)) {
+      toast.warning('검색시간을 선택해주세요.');
       return;
     }
 
@@ -316,12 +372,15 @@ export default function CampaignIndividualResultStatistics() {
                 value={timeUnit}
                 onChange={(v) => setTimeUnit(v)}
                 options={[
-                  { label: '일별', value: 'DD' },
-                  { label: '월별', value: 'MM' },
-                  { label: '년별', value: 'YY' },
+                  { label: '10분단위', value: 'MI' },
+                  { label: '시간별', value: 'HH' },
+                  { label: '일간', value: 'DD' },
+                  { label: '월간', value: 'MM' },
+                  { label: '년간', value: 'YY' },
                 ]}
                 className="!max-w-[110px] !min-w-[90px]"
                 popupMatchSelectWidth={false}
+                defaultValue="DD"
               />
               <span className="text-sm font-medium text-[#495057] shrink-0">조회기간</span>
               <DatePicker
@@ -333,6 +392,18 @@ export default function CampaignIndividualResultStatistics() {
                 inputReadOnly
                 allowClear={false}
               />
+              {timeUnit === 'MI' || timeUnit === 'HH' ? (
+                <TimePicker
+                  value={startTime}
+                  onChange={(date) => setStartTime(date)}
+                  inputReadOnly
+                  allowClear={false}
+                  needConfirm={false}
+                  format={timeUnit === 'MI' ? 'HH:mm' : 'HH:00'}
+                  minuteStep={10}
+                  style={{ width: '100px' }}
+                />
+              ) : null}
               <span className="text-sm font-medium text-[#495057] shrink-0">~</span>
               <DatePicker
                 value={endDate}
@@ -343,6 +414,18 @@ export default function CampaignIndividualResultStatistics() {
                 inputReadOnly
                 allowClear={false}
               />
+              {timeUnit === 'MI' || timeUnit === 'HH' ? (
+                <TimePicker
+                  value={endTime}
+                  onChange={(date) => setEndTime(date)}
+                  inputReadOnly
+                  allowClear={false}
+                  needConfirm={false}
+                  format={timeUnit === 'MI' ? 'HH:mm' : 'HH:50'}
+                  minuteStep={10}
+                  style={{ width: '100px' }}
+                />
+              ) : null}
             </div>
             <Divider orientation="vertical" className="!h-5 !m-0" />
             <div className="flex items-center gap-3">

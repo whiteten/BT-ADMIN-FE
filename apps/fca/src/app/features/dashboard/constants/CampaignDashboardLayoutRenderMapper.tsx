@@ -1,13 +1,13 @@
 import CampaignProgressRateGaugeChart from '../components/CampaignProgressRateGaugeChart';
-import DialogIncompleteTopBarChart from '../components/DialogIncompleteTopBarChart';
-import { type CampaignDashboardResponse, type DialogIncompleteTopItem } from '../types';
+import IntentTopBarChart from '../components/IntentTopBarChart';
+import { type CampaignDashboardResponse, type IntentTopItem } from '../types';
 
 /** API 연동 전 차트 UI 확인용. BE 연동 시 `false`로 전환 */
 export const CAMPAIGN_DASHBOARD_USE_MOCK = true;
 
 export const CAMPAIGN_DASHBOARD_MOCK_RESPONSE: CampaignDashboardResponse = {
   campaignProgressRate: {
-    progressRatePct: 99.9,
+    progressRatePct: 90.9,
     totalTargetCnt: 99999,
   },
   campaignOutboundAttempt: {
@@ -15,59 +15,16 @@ export const CAMPAIGN_DASHBOARD_MOCK_RESPONSE: CampaignDashboardResponse = {
   },
 };
 
-/** `DialogIncompleteTopBarChart` 확인용 */
-export const CAMPAIGN_MOCK_OUTBOUND_ATTEMPT_TOP: DialogIncompleteTopItem[] = [
-  {
-    rank: 1,
-    serviceName: '본인확인 캠페인',
-    dialogName: '1차 발신',
-    entryCnt: 10000,
-    completeCnt: 8500,
-    completeRate: 85,
-    incompleteCnt: 1500,
-    incompleteRate: 15,
-  },
-  {
-    rank: 2,
-    serviceName: '본인확인 캠페인',
-    dialogName: '2차 발신',
-    entryCnt: 7500,
-    completeCnt: 6000,
-    completeRate: 80,
-    incompleteCnt: 1500,
-    incompleteRate: 20,
-  },
-  {
-    rank: 3,
-    serviceName: '안내 캠페인',
-    dialogName: '1차 발신',
-    entryCnt: 5200,
-    completeCnt: 4680,
-    completeRate: 90,
-    incompleteCnt: 520,
-    incompleteRate: 10,
-  },
-  {
-    rank: 4,
-    serviceName: '안내 캠페인',
-    dialogName: '2차 발신',
-    entryCnt: 3100,
-    completeCnt: 2480,
-    completeRate: 80,
-    incompleteCnt: 620,
-    incompleteRate: 20,
-  },
-  {
-    rank: 5,
-    serviceName: '리마인드 캠페인',
-    dialogName: '1차 발신',
-    entryCnt: 1800,
-    completeCnt: 1620,
-    completeRate: 90,
-    incompleteCnt: 180,
-    incompleteRate: 10,
-  },
-];
+/** `IntentTopBarChart` 확인용 — 캠페인 발신 지표 6종 */
+const CAMPAIGN_OUTBOUND_ATTEMPT_MOCK_LABELS = ['본인확인건수', '본인 통화 완료 건수', '재시도 발신 건수', '실패 건수', '부재 건수', '문자 발송 건수'] as const;
+
+const CAMPAIGN_OUTBOUND_ATTEMPT_MOCK_COUNT = 10000;
+
+export const CAMPAIGN_MOCK_OUTBOUND_ATTEMPT_TOP: IntentTopItem[] = CAMPAIGN_OUTBOUND_ATTEMPT_MOCK_LABELS.map((intent, index) => ({
+  rank: index + 1,
+  intent,
+  detectCnt: CAMPAIGN_OUTBOUND_ATTEMPT_MOCK_COUNT,
+}));
 
 /** 레이아웃 렌더 매퍼 항목 */
 export interface CampaignLayoutRenderEntry {
@@ -76,21 +33,10 @@ export interface CampaignLayoutRenderEntry {
   renderContent?: (data?: CampaignDashboardResponse) => React.ReactNode;
 }
 
-const toDialogIncompleteTopForAttempt = (items?: DialogIncompleteTopItem[], cnt?: number): DialogIncompleteTopItem[] => {
+const toIntentTopForAttempt = (items?: IntentTopItem[], cnt?: number): IntentTopItem[] => {
   if (items?.length) return items;
   if (cnt == null || Number.isNaN(cnt)) return [];
-  return [
-    {
-      rank: 1,
-      serviceName: '캠페인',
-      dialogName: '총 발신 시도',
-      entryCnt: cnt,
-      completeCnt: 0,
-      completeRate: 0,
-      incompleteCnt: cnt,
-      incompleteRate: 100,
-    },
-  ];
+  return [{ rank: 1, intent: '총 발신 시도', detectCnt: cnt }];
 };
 
 export const campaignDashboardLayoutRenderMapper: Record<string, CampaignLayoutRenderEntry> = {
@@ -99,13 +45,11 @@ export const campaignDashboardLayoutRenderMapper: Record<string, CampaignLayoutR
     renderContent: (d) => <CampaignProgressRateGaugeChart data={CAMPAIGN_DASHBOARD_USE_MOCK ? CAMPAIGN_DASHBOARD_MOCK_RESPONSE.campaignProgressRate : d?.campaignProgressRate} />,
   },
   campaignOutboundAttempt: {
-    title: '총 발신 시도 건수 (누적)',
+    title: '현황',
     renderContent: (d) => (
-      <DialogIncompleteTopBarChart
+      <IntentTopBarChart
         data={
-          CAMPAIGN_DASHBOARD_USE_MOCK
-            ? CAMPAIGN_MOCK_OUTBOUND_ATTEMPT_TOP
-            : toDialogIncompleteTopForAttempt(d?.campaignOutboundAttemptTop, d?.campaignOutboundAttempt?.outboundAttemptCnt)
+          CAMPAIGN_DASHBOARD_USE_MOCK ? CAMPAIGN_MOCK_OUTBOUND_ATTEMPT_TOP : toIntentTopForAttempt(d?.campaignOutboundAttemptTop, d?.campaignOutboundAttempt?.outboundAttemptCnt)
         }
       />
     ),
