@@ -184,14 +184,14 @@ export const statisticsApi = {
 
   // 테넌트 옵션 목록 조회 (BFF: stat-tenant-options)
   getTenantOptionList: async (params?: Record<string, unknown>): Promise<TenantOptionListItem[]> => {
-    const response = await apiClient.post<ListResponse<TenantOptionListItem>>('/stat-tenant-options', params ?? {});
-    return extractList(response);
+    const response = await apiClient.post<ApiResponse<{ items: TenantOptionListItem[] }>>('/stat-tenant-options', params ?? {});
+    return response.data?.data?.items ?? [];
   },
 
   // 캠페인 옵션 목록 조회 (BFF: stat-campaign-options)
   getCampaignOptionList: async (params?: Record<string, unknown>): Promise<CampaignOptionListItem[]> => {
-    const response = await apiClient.post<ListResponse<CampaignOptionListItem>>('/stat-campaign-options', params ?? {});
-    return extractList(response);
+    const response = await apiClient.post<ApiResponse<{ items: CampaignOptionListItem[] }>>('/stat-campaign-options', params ?? {});
+    return response.data?.data?.items ?? [];
   },
 
   // IFE 리다이렉트
