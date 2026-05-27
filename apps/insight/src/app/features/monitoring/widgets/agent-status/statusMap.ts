@@ -103,18 +103,6 @@ export const COLOR_SOFT_VAR: Record<StatusColor, string> = {
   alert: 'var(--color-bt-danger-soft)',
 };
 
-/** StatusColor → 펄스 애니메이션 utility class (실시간 활동성 표현). */
-export const PULSE_CLASS: Record<StatusColor, string> = {
-  idle: 'bt-pulse-idle',
-  talk: 'bt-pulse-talk',
-  ring: 'bt-pulse-ring',
-  hold: 'bt-pulse-wrap',
-  wrap: 'bt-pulse-wrap',
-  aux: '',
-  offline: '',
-  alert: 'bt-pulse-alert',
-};
-
 /**
  * 임계 기본값 (분). 키는 statusKey() 출력과 동일.
  * 사용자 위젯 옵션에서 `options.thresholds` 로 오버라이드 가능.
