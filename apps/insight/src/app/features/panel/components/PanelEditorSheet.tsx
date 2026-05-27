@@ -559,7 +559,7 @@ export default function PanelEditorSheet({ reportId, panelType, panelId, datasou
   );
 
   return (
-    <Drawer open onClose={onClose} title={drawerTitle} width={440} placement="right" footer={drawerFooter} styles={{ body: { padding: '16px' } }}>
+    <Drawer open onClose={onClose} title={drawerTitle} width={680} placement="right" footer={drawerFooter} maskClosable={false} styles={{ body: { padding: '16px' } }}>
       <div className="flex flex-col gap-4">
         {/* 패널 제목 */}
         <div className="flex flex-col gap-1.5">

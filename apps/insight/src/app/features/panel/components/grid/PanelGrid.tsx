@@ -72,7 +72,7 @@ export default function PanelGrid({ panel, reportId }: PanelGridProps) {
     }));
     const msrCols: ColDef[] = valueFields.map((f) => ({
       field: f.fieldName,
-      headerName: f.aggFunc ? `${displayNameMap.get(f.fieldName) ?? f.fieldName} (${f.aggFunc})` : (displayNameMap.get(f.fieldName) ?? f.fieldName),
+      headerName: displayNameMap.get(f.fieldName) ?? f.fieldName,
       sortable: true,
       type: 'numericColumn',
       minWidth: 100,

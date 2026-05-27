@@ -41,22 +41,14 @@ interface Template {
 
 const QUICK_TEMPLATES: Template[] = [
   { name: '비율', formula: 'A ÷ B × 100', build: () => [mkSlot('A'), mkOp('÷'), mkSlot('B'), mkOp('×'), mkNum('100')] },
-  {
-    name: '점유율',
-    formula: 'A ÷ SUM(A) × 100',
-    badge: 'WINDOW',
-    build: () => [mkSlot('A'), mkOp('÷'), mkFunc('SUM'), mkParen('('), mkSlot('A'), mkParen(')'), mkOp('×'), mkNum('100')],
-  },
   { name: '차이', formula: 'A − B', build: () => [mkSlot('A'), mkOp('−'), mkSlot('B')] },
   {
     name: '변화율',
     formula: '(A − B) ÷ B × 100',
     build: () => [mkParen('('), mkSlot('A'), mkOp('−'), mkSlot('B'), mkParen(')'), mkOp('÷'), mkSlot('B'), mkOp('×'), mkNum('100')],
   },
-  { name: '평균', formula: 'AVG(A)', build: () => [mkFunc('AVG'), mkParen('('), mkSlot('A'), mkParen(')')] },
 ];
 
-const AGG_FUNCS = ['SUM', 'AVG', 'COUNT', 'COUNT_DISTINCT', 'MIN', 'MAX'];
 const MATH_FUNCS = ['ROUND', 'ABS', 'FLOOR', 'CEIL'];
 const COND_FUNCS = ['IF', 'CASE WHEN'];
 const OPERATORS = ['+', '−', '×', '÷'];
@@ -104,7 +96,7 @@ function fillNextSlot(tokens: FormulaToken[], ft: FormulaToken): FormulaToken[] 
 
 function parseExpression(expr: string, msrNames: Set<string>, dimNames: Set<string>): FormulaToken[] {
   if (!expr) return [];
-  const funcNames = new Set([...AGG_FUNCS, ...MATH_FUNCS, ...COND_FUNCS, 'CASE', 'WHEN']);
+  const funcNames = new Set([...MATH_FUNCS, ...COND_FUNCS, 'CASE', 'WHEN']);
   const regex = /\{([^}]+)\}|([A-Z][A-Z0-9_]*)|([\d]+\.?[\d]*)|([+\-*/()])/g;
   const result: FormulaToken[] = [];
   let m: RegExpExecArray | null;
@@ -198,7 +190,7 @@ function TokenChip({ token, onDelete }: { token: FormulaToken; onDelete: () => v
 
 interface CalcFieldEditorProps {
   sourceFields: LocalFieldDisplay[];
-  existingCalcFields?: Array<{ fieldCode: string; _localId: string }>;
+  existingCalcFields?: Array<{ fieldCode: string; _localId: string; displayName?: string }>;
   initialValue?: Partial<CalcFieldCreateDatas>;
   onSave: (data: CalcFieldCreateDatas) => void;
   onCancel: () => void;
@@ -266,7 +258,7 @@ export default function CalcFieldEditor({ sourceFields, existingCalcFields = [],
   const handleSave = () => onSave({ ...meta, rowExpression });
 
   return (
-    <div className="flex min-h-[520px] overflow-hidden rounded-lg border border-border bg-card">
+    <div className="flex h-[640px] overflow-hidden rounded-lg border border-border bg-card">
       {/* ── Left palette ─────────────────────────────────────────── */}
       <aside className="w-56 shrink-0 overflow-y-auto border-r border-border bg-muted/30 p-3">
         {/* Quick templates */}
@@ -292,18 +284,6 @@ export default function CalcFieldEditor({ sourceFields, existingCalcFields = [],
         {/* Functions */}
         <div className="mb-5">
           <p className="mb-2 text-xs font-semibold text-muted-foreground uppercase tracking-wide">함수</p>
-          <p className="mb-1 text-xs text-muted-foreground">집계</p>
-          <div className="mb-2 flex flex-wrap gap-1">
-            {AGG_FUNCS.map((f) => (
-              <button
-                key={f}
-                className="rounded border border-border bg-card px-1.5 py-0.5 font-mono text-xs font-semibold text-green-700 transition-all hover:border-green-500 hover:bg-green-50 active:scale-95"
-                onClick={() => addFunc(f)}
-              >
-                {f}
-              </button>
-            ))}
-          </div>
           <p className="mb-1 text-xs text-muted-foreground">수학</p>
           <div className="mb-2 flex flex-wrap gap-1">
             {MATH_FUNCS.map((f) => (
@@ -368,8 +348,11 @@ export default function CalcFieldEditor({ sourceFields, existingCalcFields = [],
                     className="flex w-full items-center gap-2 rounded-lg border border-border bg-card px-2 py-1.5 text-sm transition-all hover:border-primary hover:bg-primary/5 active:scale-[0.98]"
                     onClick={() => addField(f.fieldName, 'MSR')}
                   >
-                    <span className="rounded bg-primary px-1 font-mono text-xs font-bold text-white">MSR</span>
-                    <span className="font-mono font-medium text-foreground">{f.fieldName}</span>
+                    <span className="rounded bg-primary px-1 font-mono text-xs font-bold text-white shrink-0">MSR</span>
+                    <span className="flex min-w-0 flex-col">
+                      <span className="font-mono text-sm font-medium text-foreground truncate">{f.fieldName}</span>
+                      <span className="text-xs text-muted-foreground truncate">{f.displayName}</span>
+                    </span>
                   </button>
                 ))}
               </div>
@@ -385,8 +368,11 @@ export default function CalcFieldEditor({ sourceFields, existingCalcFields = [],
                     className="flex w-full items-center gap-2 rounded-lg border border-border bg-card px-2 py-1.5 text-sm transition-all hover:border-gray-400 active:scale-[0.98]"
                     onClick={() => addField(f.fieldName, 'DIM')}
                   >
-                    <span className="rounded bg-muted px-1 font-mono text-xs font-bold text-muted-foreground">DIM</span>
-                    <span className="font-mono text-muted-foreground">{f.fieldName}</span>
+                    <span className="rounded bg-muted px-1 font-mono text-xs font-bold text-muted-foreground shrink-0">DIM</span>
+                    <span className="flex min-w-0 flex-col">
+                      <span className="font-mono text-sm text-muted-foreground truncate">{f.fieldName}</span>
+                      <span className="text-xs text-muted-foreground/70 truncate">{f.displayName}</span>
+                    </span>
                   </button>
                 ))}
               </div>
@@ -402,8 +388,11 @@ export default function CalcFieldEditor({ sourceFields, existingCalcFields = [],
                     className="flex w-full items-center gap-2 rounded-lg border border-green-200 bg-green-50 px-2 py-1.5 text-sm transition-all hover:border-green-400 active:scale-[0.98]"
                     onClick={() => addField(c.fieldCode, 'CALC')}
                   >
-                    <span className="font-mono font-bold text-green-600">ƒ</span>
-                    <span className="font-mono font-medium text-green-700">{c.fieldCode}</span>
+                    <span className="font-mono font-bold text-green-600 shrink-0">ƒ</span>
+                    <span className="flex min-w-0 flex-col">
+                      <span className="font-mono text-sm font-medium text-green-700 truncate">{c.fieldCode}</span>
+                      {c.displayName && <span className="text-xs text-green-600/70 truncate">{c.displayName}</span>}
+                    </span>
                   </button>
                 ))}
               </div>
@@ -432,9 +421,6 @@ export default function CalcFieldEditor({ sourceFields, existingCalcFields = [],
             </Form.Item>
             <Form.Item label="컬럼 서식">
               <Select value={meta.columnFormat} onChange={(v) => setMeta((m) => ({ ...m, columnFormat: v }))} options={FORMAT_OPTIONS} className="w-full" />
-            </Form.Item>
-            <Form.Item label="KPI 방향">
-              <Select value={meta.kpiDirection} onChange={(v) => setMeta((m) => ({ ...m, kpiDirection: v }))} options={KPI_OPTIONS} className="w-full" />
             </Form.Item>
           </div>
         </Form>

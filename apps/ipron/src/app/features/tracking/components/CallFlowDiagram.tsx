@@ -1,159 +1,193 @@
 /**
- * 콜 흐름 시각화 — segment kind 별 노드 카드를 가로 화살표로 연결.
+ * 콜 흐름 시각화 — v3 디자인 (가로축 = 시간, 세로축 = HOP 동적).
  *
- * 디자인 토큰:
- *  - brand #405189, error #ef4444
- *  - 노드 색상 — INBOUND/IVR #8b5cf6, CTI #f59e0b, AGENT #10b981, DISCONNECT #94a3b8
- *  - hover lift, selected ring 2px
- *  - 우상단 미니맵 + 줌 컨트롤 (85% / 100% / 115%)
+ * 도메인 모델: PBX = 콜의 주인(owner)으로 콜 라이프사이클 전 구간 보유.
+ * 자원(IVR/CTI/AGENT)은 각 HOP에서 활성. row 가 HOP 이라 자원 시간 겹침 시각 회피.
  *
- * inline flex 행 배치 — 부모 height 와 무관하게 안정적으로 렌더링.
+ * 시각 구성 (위 → 아래):
+ *  1. 시간축 — 적응형 단위 (5s / 10s / 30s / 2m / 5m)
+ *  2. OWNER 띠 — 콜 전 구간 + HOP 마커 (각 hop startTime 의 진짜 시간 위치)
+ *  3. HOP rows — 각 hop 의 자원 bar (시간 정확 척도, 자기 row 안에서)
+ *
+ * 디자인 토큰 (BT-ADMIN 라이트):
+ *  brand #405189 · IVR 보라 · CTI 주황 · AGENT 초록 · INBOUND/OUTBOUND 네이비톤
+ *  bt-shadow + rounded-md + border-gray-200
  */
-import { useEffect, useMemo, useRef, useState } from 'react';
-import { ArrowRight, Maximize2, Minimize2, Minus, Plus } from 'lucide-react';
+import { useMemo, useRef, useState } from 'react';
+import { ChevronDown, Maximize2, Minimize2 } from 'lucide-react';
 import type { CallSegment } from '../types';
 
 interface Props {
-  segments: CallSegment[];
+  segments: CallSegment[]; // hopNodes (각 hop이 통합된 1 segment)
+  /** 현재 단일 선택 (강조용 — 좌측 라벨 active) — 호환 유지 */
   selectedSegmentId: string | null;
-  onSelect: (segmentId: string) => void;
+  /** segment 선택 — null 전달 시 deselect (토글) */
+  onSelect: (segmentId: string | null) => void;
+  /** 열려있는 hop expand 들 (다중 가능). 없으면 selectedSegmentId 하나로 폴백. */
+  openHopIds?: Set<string>;
+  /** hop expand 열기 (이미 열렸으면 no-op) */
+  onOpen?: (segmentId: string) => void;
+  /** hop expand 닫기 (X 버튼 전용) */
+  onClose?: (segmentId: string) => void;
   expanded?: boolean;
   onToggleExpand?: () => void;
+  /** hop bar 클릭 시 그 row 아래에 inline expand 될 자원 상세 (hop kind 별 컴포넌트). null 이면 expand 없음. */
+  renderHopDetail?: (hop: CallSegment) => React.ReactNode;
 }
 
-type ZoomLevel = 85 | 100 | 115;
-
-const KIND_STYLE: Record<CallSegment['kind'], { gradient: string; ring: string; emoji: string; label: string; minimapDot: string }> = {
-  INBOUND: { gradient: 'linear-gradient(135deg, #a78bfa 0%, #8b5cf6 100%)', ring: 'rgba(139, 92, 246, 0.35)', emoji: '📥', label: '인입', minimapDot: '#8b5cf6' },
-  OUTBOUND: { gradient: 'linear-gradient(135deg, #22d3ee 0%, #06b6d4 100%)', ring: 'rgba(6, 182, 212, 0.35)', emoji: '📞', label: '발신', minimapDot: '#06b6d4' },
-  QUEUE_IN: { gradient: 'linear-gradient(135deg, #38bdf8 0%, #0ea5e9 100%)', ring: 'rgba(14, 165, 233, 0.35)', emoji: '📨', label: '큐 인입', minimapDot: '#0ea5e9' },
-  IVR: { gradient: 'linear-gradient(135deg, #a78bfa 0%, #7c3aed 100%)', ring: 'rgba(124, 58, 237, 0.35)', emoji: '🤖', label: 'IVR', minimapDot: '#7c3aed' },
-  CTI: { gradient: 'linear-gradient(135deg, #fbbf24 0%, #f59e0b 100%)', ring: 'rgba(245, 158, 11, 0.35)', emoji: '🔀', label: 'CTI', minimapDot: '#f59e0b' },
-  AGENT: { gradient: 'linear-gradient(135deg, #34d399 0%, #10b981 100%)', ring: 'rgba(16, 185, 129, 0.35)', emoji: '🎧', label: '상담', minimapDot: '#10b981' },
-  DISCONNECT: { gradient: 'linear-gradient(135deg, #cbd5e1 0%, #94a3b8 100%)', ring: 'rgba(148, 163, 184, 0.35)', emoji: '📤', label: '종료', minimapDot: '#94a3b8' },
-  OTHER: { gradient: 'linear-gradient(135deg, #d1d5db 0%, #9ca3af 100%)', ring: 'rgba(156, 163, 175, 0.35)', emoji: '•', label: '기타', minimapDot: '#9ca3af' },
+// hop kind 별 컬러 (자원 bar 색)
+const KIND_STYLE: Record<CallSegment['kind'], { bg: string; text: string; border: string; label: string }> = {
+  INBOUND: { bg: '#DCE7F5', text: '#1d3a6b', border: '#B6CCE7', label: '인입' },
+  OUTBOUND: { bg: '#DCE7F5', text: '#1d3a6b', border: '#B6CCE7', label: '발신' },
+  QUEUE_IN: { bg: '#FFEDD5', text: '#9a3412', border: '#FDD9B0', label: '큐인입' },
+  IVR: { bg: '#EDE9FE', text: '#5b21b6', border: '#DDD3FB', label: 'IVR' },
+  CTI: { bg: '#FFEDD5', text: '#9a3412', border: '#FDD9B0', label: 'CTI' },
+  AGENT: { bg: '#D1FAE5', text: '#065f46', border: '#A7F0CC', label: '내선' },
+  DISCONNECT: { bg: '#F3F4F6', text: '#4B5563', border: '#D1D5DB', label: '종료' },
+  OTHER: { bg: '#F3F4F6', text: '#4B5563', border: '#D1D5DB', label: '-' },
 };
 
-const fmtDuration = (sec: number | null | undefined): string => {
-  if (sec == null || sec === 0) return '';
-  if (sec < 60) return `${sec}초`;
-  const m = Math.floor(sec / 60);
-  const s = sec % 60;
-  return s === 0 ? `${m}분` : `${m}분 ${s}초`;
-};
+function hopContent(hop: CallSegment): string {
+  const q = hop.meta?.queueName as string | undefined;
+  const a = hop.meta?.agentName as string | undefined;
+  const s = hop.meta?.serviceName as string | undefined;
+  const t = hop.meta?.tName as string | undefined;
+  if (hop.kind === 'AGENT') return a ?? t ?? '상담사';
+  if (hop.kind === 'CTI' || hop.kind === 'QUEUE_IN') return q ? `Queue ${q}` : (s ?? t ?? '큐');
+  if (hop.kind === 'IVR') return s ?? t ?? 'IVR';
+  if (hop.kind === 'INBOUND') return t ? `→ ${t}` : '인입';
+  if (hop.kind === 'OUTBOUND') return t ? `→ ${t}` : '발신';
+  return hop.label ?? '-';
+}
 
-const subLabel = (seg: CallSegment): string => {
-  const queue = seg.meta?.queueName as string | undefined;
-  const agent = seg.meta?.agentName as string | undefined;
-  const service = seg.meta?.serviceName as string | undefined;
-  if (seg.kind === 'CTI' && queue) return queue;
-  if (seg.kind === 'AGENT' && agent) return agent;
-  if (seg.kind === 'IVR' && service) return service;
-  if (seg.label) {
-    const stripped = seg.label.replace(/^.+ · /, '');
-    if (stripped !== seg.label && stripped.length > 0) return stripped;
-    if (seg.label.length <= 22) return seg.label;
+function formatDur(sec: number): string {
+  if (sec < 60) return `${sec}s`;
+  const m = Math.floor(sec / 60),
+    s = sec % 60;
+  return s === 0 ? `${m}m` : `${m}m ${s}s`;
+}
+function formatDurShort(sec: number): string {
+  if (sec < 60) {
+    // 0.30000000000004 → 0.3, 7 → 7 (정수는 소수점 X)
+    const rounded = Math.round(sec * 10) / 10;
+    return Number.isInteger(rounded) ? `${rounded}s` : `${rounded.toFixed(1)}s`;
   }
-  return 'segment';
-};
+  const total = Math.round(sec); // 분:초 표기는 초 단위로 반올림
+  const m = Math.floor(total / 60);
+  const s = total % 60;
+  return s === 0 ? `${m}m` : `${m}:${String(s).padStart(2, '0')}`;
+}
+function formatAxisLabel(sec: number): string {
+  if (sec === 0) return '0';
+  if (sec < 60) return `+${sec}s`;
+  const m = Math.floor(sec / 60),
+    ss = sec % 60;
+  return ss === 0 ? `+${m}m` : `+${m}:${String(ss).padStart(2, '0')}`;
+}
 
-export default function CallFlowDiagram({ segments, selectedSegmentId, onSelect, expanded = false, onToggleExpand }: Props) {
-  const [zoom, setZoom] = useState<ZoomLevel>(100);
-  const scrollRef = useRef<HTMLDivElement>(null);
-  const [scrollPos, setScrollPos] = useState({ left: 0, width: 0, viewport: 0 });
-  // 드래그 패닝 상태 — 카드/미니맵 공통
-  const dragRef = useRef<{ active: boolean; startX: number; startScroll: number; moved: boolean }>({ active: false, startX: 0, startScroll: 0, moved: false });
-  const [isDragging, setIsDragging] = useState(false);
-
-  const scale = zoom / 100;
-
-  // 메인 카드 영역 드래그 패닝 (mousedown → 5px 이상 이동 시 panning, click과 분리)
-  const onCardMouseDown = (e: React.MouseEvent<HTMLDivElement>) => {
-    if (e.button !== 0) return;
-    const el = scrollRef.current;
-    if (!el) return;
-    dragRef.current = { active: true, startX: e.pageX, startScroll: el.scrollLeft, moved: false };
+export default function CallFlowDiagram({ segments, selectedSegmentId, onSelect, openHopIds, onOpen, onClose, expanded = false, onToggleExpand, renderHopDetail }: Props) {
+  // 다중 expand 헬퍼 — openHopIds 가 있으면 그걸 사용, 없으면 selectedSegmentId 단일 폴백
+  const isExpanded = (id: string) => (openHopIds ? openHopIds.has(id) : selectedSegmentId === id);
+  const openHop = (id: string) => {
+    if (onOpen) onOpen(id);
+    else onSelect(id); // 폴백
   };
-  useEffect(() => {
-    const onMove = (e: MouseEvent) => {
-      if (!dragRef.current.active) return;
-      const dx = e.pageX - dragRef.current.startX;
-      if (!dragRef.current.moved && Math.abs(dx) > 5) {
-        dragRef.current.moved = true;
-        setIsDragging(true);
-      }
-      if (dragRef.current.moved && scrollRef.current) {
-        scrollRef.current.scrollLeft = dragRef.current.startScroll - dx;
-      }
-    };
-    const onUp = () => {
-      if (dragRef.current.moved) {
-        // 드래그 후 클릭 차단을 위해 다음 click 이벤트 캡처 단계에서 정지
-        const blocker = (ev: MouseEvent) => {
-          ev.stopPropagation();
-          ev.preventDefault();
-          window.removeEventListener('click', blocker, true);
-        };
-        window.addEventListener('click', blocker, true);
-      }
-      dragRef.current.active = false;
-      dragRef.current.moved = false;
-      setIsDragging(false);
-    };
-    window.addEventListener('mousemove', onMove);
-    window.addEventListener('mouseup', onUp);
-    return () => {
-      window.removeEventListener('mousemove', onMove);
-      window.removeEventListener('mouseup', onUp);
-    };
-  }, []);
-
-  // 미니맵 뷰포트 드래그 — 박스 위치를 마우스로 끌어서 메인 영역 scrollLeft 비례 변경
-  const onMinimapMouseDown = (e: React.MouseEvent<HTMLDivElement>) => {
-    if (e.button !== 0) return;
-    const minimapTrackEl = e.currentTarget.parentElement; // 152px 너비 트랙
-    const scrollEl = scrollRef.current;
-    if (!minimapTrackEl || !scrollEl) return;
-    const trackRect = minimapTrackEl.getBoundingClientRect();
-    const startX = e.clientX;
-    const startScrollLeft = scrollEl.scrollLeft;
-    const scrollableWidth = scrollEl.scrollWidth - scrollEl.clientWidth;
-    e.stopPropagation();
-    e.preventDefault();
-    const onMove = (ev: MouseEvent) => {
-      const dxRatio = (ev.clientX - startX) / (trackRect.width - 16); // 좌우 8px padding
-      scrollEl.scrollLeft = Math.max(0, Math.min(scrollableWidth, startScrollLeft + dxRatio * scrollableWidth));
-    };
-    const onUp = () => {
-      window.removeEventListener('mousemove', onMove);
-      window.removeEventListener('mouseup', onUp);
-    };
-    window.addEventListener('mousemove', onMove);
-    window.addEventListener('mouseup', onUp);
+  const closeHop = (id: string) => {
+    if (onClose) onClose(id);
+    else if (selectedSegmentId === id) onSelect(null); // 폴백
   };
+  // 시간 척도
+  const { totalSec, startMs } = useMemo(() => {
+    if (segments.length === 0) return { totalSec: 0, startMs: 0 };
+    const starts = segments.map((s) => new Date(s.startTime).getTime()).filter((n) => !Number.isNaN(n));
+    if (starts.length === 0) return { totalSec: 0, startMs: 0 };
+    const startMs = Math.min(...starts);
+    const ends = segments.map((s) => {
+      const t = new Date(s.startTime).getTime();
+      const d = (s.durationSec ?? 0) * 1000;
+      return Number.isFinite(t) ? t + d : 0;
+    });
+    const endMs = Math.max(...ends, startMs + 1000);
+    const totalSec = Math.max(1, Math.ceil((endMs - startMs) / 1000));
+    return { totalSec, startMs };
+  }, [segments]);
 
-  // 미니맵 동기화
-  useEffect(() => {
-    const el = scrollRef.current;
+  // 적응형 시간 단위
+  const axisTicks = useMemo(() => {
+    if (totalSec === 0) return [];
+    let interval: number;
+    if (totalSec <= 30) interval = 5;
+    else if (totalSec <= 60) interval = 10;
+    else if (totalSec <= 300) interval = 30;
+    else if (totalSec <= 1800) interval = 120;
+    else interval = 300;
+    const ticks: { pct: number; label: string }[] = [];
+    for (let s = 0; s <= totalSec; s += interval) {
+      const pct = (s / totalSec) * 100;
+      ticks.push({ pct, label: formatAxisLabel(s) });
+    }
+    return ticks;
+  }, [totalSec]);
+
+  // 콜의 owner — 첫 hop kind 로 판정 (일반 PBX, IVR-front IVR, 디지털 CTI)
+  const owner = useMemo<{ label: string; full: string }>(() => {
+    const firstKind = segments[0]?.kind;
+    if (firstKind === 'IVR') return { label: 'IVR', full: 'IVR (전단)' };
+    if (firstKind === 'QUEUE_IN') return { label: 'CTI', full: 'CTI (디지털)' };
+    return { label: 'PBX', full: 'PBX (교환기)' };
+  }, [segments]);
+
+  // 콜방향 — 첫 hop 의 _callDir (INBOUND/OUTBOUND/QUEUE_IN). 콜 채널 띠에 표기
+  const callDirLabel = useMemo<string>(() => {
+    const d = segments[0]?.meta?._callDir as string | undefined;
+    if (d === 'OUTBOUND') return '발신';
+    if (d === 'QUEUE_IN') return '큐인입';
+    if (d === 'INBOUND') return '인입';
+    // 폴백 — _callDir 없으면 첫 hop kind 로 추정
+    const k = segments[0]?.kind;
+    if (k === 'OUTBOUND') return '발신';
+    if (k === 'QUEUE_IN') return '큐인입';
+    return '인입';
+  }, [segments]);
+
+  // 콜 흐름에 표시할 hop — 인입/발신/큐인입 모두 hop 0 부터 동일하게 표시.
+  const displaySegments = useMemo(() => segments, [segments]);
+
+  // 각 hop 의 시간 위치 (시간축 기준)
+  // bar 너비 = "다음 hop 시작 시각 - 이 hop 시작 시각" (= 이 hop 의 PBX 점유 시간)
+  // raw duration (IR 17s 등) 은 hop 내부 자원의 활성 시간일 뿐, PBX 관점 hop 점유는 next-hop 까지.
+  // 이렇게 해야 IVR(raw 17s) 과 CTI(hop 2 +6.7s 시작) 가 시간축 상 겹쳐 보이지 않음.
+  const hopPositions = useMemo(() => {
+    const callEndMs = startMs + totalSec * 1000;
+    return displaySegments.map((hop, idx) => {
+      const t = new Date(hop.startTime).getTime();
+      const nextT = displaySegments[idx + 1] ? new Date(displaySegments[idx + 1].startTime).getTime() : callEndMs;
+      const startSec = Number.isFinite(t) ? (t - startMs) / 1000 : 0;
+      const occupiedSec = Math.max(0.3, (nextT - t) / 1000); // 최소 0.3s 점유 보장
+      const rawDur = Math.max(hop.durationSec ?? 0, 0); // 자원의 실제 활성 시간 (라벨용)
+      const leftPct = totalSec > 0 ? (startSec / totalSec) * 100 : 0;
+      const widthPct = totalSec > 0 ? Math.min(100 - leftPct, (occupiedSec / totalSec) * 100) : 0;
+      const hopNo = Number(hop.meta?._hopNo ?? idx + 1);
+      return { hop, hopNo, leftPct, widthPct, startSec, durSec: rawDur, occupiedSec };
+    });
+  }, [displaySegments, startMs, totalSec]);
+
+  // 호버 가이드
+  const canvasRef = useRef<HTMLDivElement>(null);
+  const [guidePct, setGuidePct] = useState<number | null>(null);
+  const handleMove = (e: React.MouseEvent) => {
+    const el = canvasRef.current;
     if (!el) return;
-    const update = () => setScrollPos({ left: el.scrollLeft, width: el.scrollWidth, viewport: el.clientWidth });
-    update();
-    el.addEventListener('scroll', update);
-    const ro = new ResizeObserver(update);
-    ro.observe(el);
-    return () => {
-      el.removeEventListener('scroll', update);
-      ro.disconnect();
-    };
-  }, [segments.length, zoom]);
+    const r = el.getBoundingClientRect();
+    const pct = Math.max(0, Math.min(100, ((e.clientX - r.left) / r.width) * 100));
+    setGuidePct(pct);
+  };
+  const guideSec = guidePct != null ? (guidePct / 100) * totalSec : null;
 
   if (segments.length === 0) {
     return (
-      <div className="bg-white rounded-md border border-gray-200 flex flex-col flex-shrink-0 overflow-hidden h-[230px] shadow-[0_1px_2px_0_rgba(56,65,74,0.15)]">
-        <div className="h-[48px] px-5 flex items-center border-b border-gray-100">
-          <span className="text-[13px] font-semibold tracking-tight text-gray-800">CallFlow</span>
-        </div>
-        <div className="flex-1 flex items-center justify-center text-[12px] text-gray-400 bg-gradient-to-b from-gray-50/40 to-gray-50/80">segment 없음</div>
+      <div className="bg-white rounded-md border border-gray-200 p-6 text-center shadow-[0_1px_2px_0_rgba(56,65,74,0.15)]">
+        <div className="text-[13px] text-gray-400">콜 흐름 없음</div>
       </div>
     );
   }
@@ -161,213 +195,305 @@ export default function CallFlowDiagram({ segments, selectedSegmentId, onSelect,
   return (
     <div
       className={`bg-white rounded-md border border-gray-200 flex flex-col overflow-hidden shadow-[0_1px_2px_0_rgba(56,65,74,0.15)] ${
-        expanded ? 'flex-1 min-h-0' : 'flex-shrink-0 h-[230px]'
+        expanded ? 'flex-1' : 'flex-1 min-h-[420px]'
       }`}
     >
       {/* 헤더 */}
-      <div className="h-[48px] px-5 flex items-center justify-between border-b border-gray-100 flex-shrink-0">
-        <div className="flex items-center gap-3 min-w-0">
-          <span className="text-[13px] font-semibold tracking-tight text-gray-800 flex-shrink-0">CallFlow</span>
-          <span className="text-[10.5px] text-gray-500 hidden sm:inline truncate">노드 클릭 시 좌측 타임라인 / 하단 상세 동기화</span>
-        </div>
-        <div className="flex items-center gap-1 flex-shrink-0">
-          <span className="text-[11px] text-gray-500 mr-2">
-            <span className="font-semibold text-gray-700 tabular-nums">{segments.length}</span> 단계
+      <div className="h-[50px] px-4 flex items-center justify-between border-b border-gray-100 bg-gradient-to-b from-white to-gray-50/60 flex-shrink-0">
+        <div className="flex items-center gap-2">
+          <span className="text-[13px] font-semibold tracking-tight text-gray-800">콜 흐름</span>
+          <span className="text-[10px] text-gray-400 font-mono px-2 py-0.5 bg-gray-100 rounded">
+            시간 정확 척도 · 0 → {formatDur(totalSec)} · {segments.length} HOP
           </span>
-          <button
-            type="button"
-            onClick={() => setZoom((z) => (z === 115 ? 100 : 85))}
-            disabled={zoom === 85}
-            className="size-7 rounded hover:bg-gray-100 disabled:opacity-40 disabled:hover:bg-transparent text-gray-500 inline-flex items-center justify-center transition-colors"
-            title="줌 아웃"
-          >
-            <Minus className="size-3.5" />
-          </button>
-          <button
-            type="button"
-            onClick={() => setZoom(100)}
-            className={`text-[11px] px-2 py-0.5 rounded font-mono tabular-nums transition-colors ${zoom === 100 ? 'text-gray-700' : 'text-gray-400 hover:bg-gray-100'}`}
-            title="100% 리셋"
-          >
-            {zoom}%
-          </button>
-          <button
-            type="button"
-            onClick={() => setZoom((z) => (z === 85 ? 100 : 115))}
-            disabled={zoom === 115}
-            className="size-7 rounded hover:bg-gray-100 disabled:opacity-40 disabled:hover:bg-transparent text-gray-500 inline-flex items-center justify-center transition-colors"
-            title="줌 인"
-          >
-            <Plus className="size-3.5" />
-          </button>
+        </div>
+        <div className="flex items-center gap-3 text-[10.5px] text-gray-500">
+          <span className="inline-flex items-center gap-1.5">
+            <span className="inline-block w-3 h-3 rounded" style={{ background: '#405189' }} />콜 채널 ({owner.full})
+          </span>
           {onToggleExpand && (
-            <>
-              <span className="w-px h-3.5 bg-gray-200 mx-1" />
-              <button
-                type="button"
-                onClick={onToggleExpand}
-                className={`size-7 rounded inline-flex items-center justify-center transition-colors ${expanded ? 'text-[#405189] bg-blue-50' : 'text-gray-500 hover:bg-gray-100'}`}
-                title={expanded ? '확장 해제' : '확장 (주요 정보만 위로)'}
-              >
-                {expanded ? <Minimize2 className="size-3.5" /> : <Maximize2 className="size-3.5" />}
-              </button>
-            </>
+            <button
+              onClick={onToggleExpand}
+              className="ml-2 text-gray-400 hover:text-gray-700 hover:bg-gray-100 p-1.5 rounded transition-colors"
+              title={expanded ? '기본 크기로' : '전체 화면'}
+            >
+              {expanded ? <Minimize2 className="size-4" /> : <Maximize2 className="size-4" />}
+            </button>
           )}
         </div>
       </div>
 
-      {/* 흐름 영역 — flex inline 행 */}
-      <div className="relative flex-1 min-h-0" style={{ background: 'linear-gradient(180deg, #fafbfc 0%, #f4f5f7 100%)' }}>
-        {/* dot grid */}
-        <div
-          className="absolute inset-0 pointer-events-none opacity-[0.28]"
-          style={{
-            backgroundImage: 'radial-gradient(circle, #c5cbd0 1px, transparent 1px)',
-            backgroundSize: '20px 20px',
-          }}
-        />
-
-        <div
-          ref={scrollRef}
-          onMouseDown={onCardMouseDown}
-          className={`relative h-full overflow-x-auto overflow-y-hidden flex items-center px-6 ${isDragging ? 'cursor-grabbing select-none' : 'cursor-grab'}`}
-          style={{ gap: 0 }}
-        >
-          {segments.map((seg, i) => {
-            const style = KIND_STYLE[seg.kind];
-            const isActive = selectedSegmentId === seg.segmentId;
-            const isError = !!seg.isError;
-            const sub = subLabel(seg);
-            const dur = fmtDuration(seg.durationSec);
+      {/* 캔버스 — column-major (복원). hop 라벨 / hop row 정렬은 hop 단위(34px 고정)로만 일치, expand 펼쳤을 때 좌측 라벨은 그 자리에 머무름 */}
+      <div className="grid flex-1 overflow-y-auto min-h-0" style={{ gridTemplateColumns: '220px 1fr', scrollbarGutter: 'stable' }}>
+        {/* 좌측 라벨 컬럼 */}
+        <div className="bg-gray-50/50 border-r border-gray-100">
+          <div className="h-[28px] sticky top-0 z-30 bg-gray-50" />
+          <div className="h-[36px] sticky top-[28px] z-20 bg-gray-50 flex items-center justify-end pr-3">
+            <span className="font-mono text-[10px] font-semibold text-[#405189] tracking-wide">
+              콜 채널 · {owner.label} · {callDirLabel}
+            </span>
+          </div>
+          {/* hop별 좌측 라벨 — "IVR 1HOP" 식. single focus: 마지막 클릭한 hop 만 노란색 (이전 라벨 active 해제).
+              막대 multi-expand 와는 독립 — 라벨 클릭은 선택+스크롤만, expand 변경 X.
+              첫 hop(0HOP) 은 INBOUND/OUTBOUND/QUEUE_IN 의 라벨('인입'/'발신'/'큐인입') 대신
+              meta._firstHopType(IVR/CTI/내선/외선) 을 표기 — 콜방향은 위쪽 콜채널 띠로 분리 */}
+          {hopPositions.map(({ hop, hopNo, occupiedSec }) => {
+            // _firstHopType = 첫 hop 라벨용, _hopType = 모든 hop 의 AS-IS 분류 (IE/IR/IC/AGENT)
+            const firstHopType = hop.meta?._firstHopType as string | undefined;
+            const hopType = hop.meta?._hopType as string | undefined;
+            const typeLabel = firstHopType ?? hopType;
+            // 색상도 typeLabel 기준 (IR→IVR, IC→CTI, AGENT→AGENT, IE→fallback)
+            const effKind: CallSegment['kind'] =
+              typeLabel === 'IVR' || typeLabel === 'IR'
+                ? 'IVR'
+                : typeLabel === 'CTI' || typeLabel === 'IC'
+                  ? 'CTI'
+                  : typeLabel === 'AGENT' || typeLabel === '내선'
+                    ? 'AGENT'
+                    : hop.kind;
+            const ks = KIND_STYLE[effKind];
+            const isActive = selectedSegmentId === hop.segmentId;
+            const t = hop.startTime ? new Date(hop.startTime).toLocaleTimeString('ko-KR', { hour12: false }) : '';
+            const labelText = typeLabel ?? ks.label;
             return (
-              <div
-                key={seg.segmentId}
-                data-segment-id={seg.segmentId}
-                className="flex items-center flex-shrink-0"
-                style={{ transform: `scale(${scale})`, transformOrigin: 'center' }}
+              <button
+                key={hop.segmentId}
+                type="button"
+                onClick={() => {
+                  onSelect(hop.segmentId);
+                  // 해당 hop 막대로 스크롤 — 화면 중앙으로 강하게 focus
+                  requestAnimationFrame(() => {
+                    const bar = document.querySelector(`button[data-segment-id="${hop.segmentId}"]`);
+                    if (bar) (bar as HTMLElement).scrollIntoView({ behavior: 'smooth', block: 'center', inline: 'center' });
+                  });
+                }}
+                style={{
+                  // 우측 row가 expand로 늘어나도 좌측 라벨이 시간축(28)+OWNER(36)=64 아래에 sticky로 머묾
+                  position: 'sticky',
+                  top: 64,
+                  zIndex: isActive ? 15 : 5,
+                }}
+                className={`h-[40px] w-full px-3 flex items-center gap-2 transition-colors text-left border-b border-gray-100 ${
+                  isActive ? 'bg-amber-50 ring-1 ring-amber-300 shadow-md' : 'bg-gray-50/95 hover:bg-gray-100'
+                }`}
               >
-                <button
-                  type="button"
-                  onClick={() => onSelect(seg.segmentId)}
-                  title={`${style.label} · ${sub}${dur ? ` · ${dur}` : ''}`}
-                  className="rounded-lg text-white text-[11px] font-medium flex flex-col items-stretch justify-center outline-none focus-visible:ring-2 focus-visible:ring-[#405189] focus-visible:ring-offset-2 cursor-pointer"
-                  style={{
-                    width: 156,
-                    height: 84,
-                    background: isError ? 'linear-gradient(135deg, #f87171 0%, #ef4444 100%)' : style.gradient,
-                    boxShadow: isActive ? `0 0 0 2px #405189, 0 8px 24px -6px ${style.ring}, 0 2px 6px rgba(0,0,0,0.12)` : '0 1px 3px rgba(0,0,0,0.10), 0 1px 2px rgba(0,0,0,0.04)',
-                    opacity: isError && !isActive ? 0.72 : 1,
-                    transform: isActive ? 'translateY(-2px)' : 'translateY(0)',
-                    transition: 'transform .18s ease, box-shadow .18s ease, opacity .15s ease',
-                  }}
-                  onMouseEnter={(e) => {
-                    if (!isActive) e.currentTarget.style.transform = 'translateY(-1px)';
-                    e.currentTarget.style.boxShadow = isActive
-                      ? `0 0 0 2px #405189, 0 12px 28px -6px ${style.ring}, 0 4px 8px rgba(0,0,0,0.15)`
-                      : `0 6px 16px -4px ${style.ring}, 0 2px 4px rgba(0,0,0,0.08)`;
-                  }}
-                  onMouseLeave={(e) => {
-                    e.currentTarget.style.transform = isActive ? 'translateY(-2px)' : 'translateY(0)';
-                    e.currentTarget.style.boxShadow = isActive
-                      ? `0 0 0 2px #405189, 0 8px 24px -6px ${style.ring}, 0 2px 6px rgba(0,0,0,0.12)`
-                      : '0 1px 3px rgba(0,0,0,0.10), 0 1px 2px rgba(0,0,0,0.04)';
-                  }}
+                <span
+                  className="font-mono text-[12px] font-semibold px-2 py-[3px] rounded border flex-shrink-0"
+                  style={{ background: ks.bg, color: ks.text, borderColor: ks.border }}
                 >
-                  <div className="flex items-center justify-between px-3 pt-2.5 pb-1.5">
-                    <span className="text-[12px] font-semibold leading-none tracking-tight inline-flex items-center gap-1.5">
-                      <span aria-hidden style={{ fontSize: 13 }}>
-                        {style.emoji}
-                      </span>
-                      <span>{style.label}</span>
-                    </span>
-                    <span className="text-[9px] font-mono opacity-65 tabular-nums">
-                      {i + 1}/{segments.length}
-                    </span>
-                  </div>
-                  <div className="mx-3 h-px bg-white/25" />
-                  <div className="px-3 pt-1.5 pb-2 flex flex-col gap-0.5">
-                    <div className="text-[10.5px] leading-tight truncate font-medium" title={sub}>
-                      {sub}
-                    </div>
-                    {dur && <div className="text-[9.5px] opacity-80 font-mono tabular-nums">{dur}</div>}
-                  </div>
+                  {labelText} {hopNo}HOP
+                </span>
+                <span className="font-mono text-[11.5px] text-gray-600 tabular-nums truncate min-w-0 flex-1 text-right">{t}</span>
+                {occupiedSec > 0 && <span className="font-mono text-[11px] text-gray-500 flex-shrink-0">{formatDurShort(occupiedSec)}</span>}
+              </button>
+            );
+          })}
+        </div>
+        {/* (row-major 재편은 우측 캔버스 ref 분리 필요 — 추후 별도 작업) */}
+
+        {/* 우측 시간 캔버스 — 좌측 라벨 컬럼과 행 높이 1:1 정렬 (px-3 만, py 없음) */}
+        <div
+          ref={canvasRef}
+          className="relative px-3"
+          onMouseMove={handleMove}
+          onMouseLeave={() => setGuidePct(null)}
+          style={{
+            backgroundImage: 'repeating-linear-gradient(to right, transparent 0, transparent calc(10% - 1px), #f3f4f7 calc(10% - 1px), #f3f4f7 10%)',
+          }}
+        >
+          {/* 시간축 + HOP 마커 — sticky 위 고정 (z-30: OWNER 띠 위로, 튀어나온 마커 보임) */}
+          <div className="relative h-[28px] sticky top-0 z-30 bg-white">
+            {axisTicks.map((t, i) => (
+              <div key={i} className="absolute top-0 bottom-0 w-px bg-gray-300" style={{ left: `${t.pct}%` }}>
+                <span className="absolute top-1 left-1 text-[10px] text-gray-600 font-mono whitespace-nowrap">{t.label}</span>
+              </div>
+            ))}
+            {/* HOP 마커 — 시간축 하단에 표기 (OWNER 띠 위). active 시 위로 들어 올림 (겹친 마커 가림 해소)
+                좌측 라벨 클릭(selectedSegmentId)도 강조 — multi-expand 와 single focus 둘 다 노란색 */}
+            {hopPositions.map(({ hop, hopNo, leftPct }) => {
+              const isActive = isExpanded(hop.segmentId) || selectedSegmentId === hop.segmentId;
+              return (
+                <button
+                  key={`mark-${hop.segmentId}`}
+                  type="button"
+                  data-segment-id={hop.segmentId}
+                  onClick={() => openHop(hop.segmentId)}
+                  className={`absolute bottom-0 -translate-x-1/2 translate-y-1/2 transition-transform ${isActive ? 'z-40 scale-125' : 'z-10 hover:scale-110 hover:z-30'}`}
+                  style={{ left: `${leftPct}%` }}
+                  title={`HOP ${hopNo} · ${hop.label}`}
+                >
+                  <span
+                    className={`inline-flex items-center justify-center size-[20px] rounded-full font-mono text-[10px] font-bold border-2 transition-all ${
+                      isActive
+                        ? 'bg-amber-500 text-white border-white ring-2 ring-amber-500/50 shadow-lg shadow-amber-500/30'
+                        : 'bg-white text-gray-800 border-gray-700 shadow-sm hover:ring-2 hover:ring-amber-500/30 hover:text-amber-700 hover:border-amber-600'
+                    }`}
+                  >
+                    {hopNo}
+                  </span>
                 </button>
-                {i < segments.length - 1 && (
-                  <div className="flex items-center mx-1 px-2" style={{ width: 56 }}>
-                    <div
-                      className="flex-1 h-px"
-                      style={{
-                        background: isError ? '#ef4444' : 'transparent',
-                        backgroundImage: isError ? undefined : 'repeating-linear-gradient(to right, #cbd5e1 0, #cbd5e1 4px, transparent 4px, transparent 8px)',
-                      }}
-                    />
-                    <ArrowRight className="size-3.5 flex-shrink-0" style={{ color: isError ? '#ef4444' : '#94a3b8' }} />
+              );
+            })}
+          </div>
+
+          {/* OWNER 띠 — sticky 위 고정 (z-20: 시간축 마커보다 아래) */}
+          <div className="relative h-[36px] sticky top-[28px] z-20 bg-white flex items-center">
+            <div
+              className="absolute inset-y-1 left-0 right-0 rounded-full"
+              style={{
+                background: 'linear-gradient(90deg, #405189 0%, #5471A8 50%, #405189 100%)',
+                boxShadow: 'inset 0 1px 0 rgba(255,255,255,.2)',
+              }}
+            />
+            {/* 좌측: 콜 시작 시각 (첫 hop CREATE_TIME) */}
+            {(() => {
+              const firstHop = segments[0];
+              const lastHop = segments[segments.length - 1];
+              const startStr = firstHop?.startTime ? new Date(firstHop.startTime).toLocaleTimeString('ko-KR', { hour12: false }) : '-';
+              const endMs = lastHop?.startTime ? new Date(lastHop.startTime).getTime() + (lastHop.durationSec ?? 0) * 1000 : null;
+              const endStr = endMs ? new Date(endMs).toLocaleTimeString('ko-KR', { hour12: false }) : '-';
+              return (
+                <>
+                  <div className="absolute inset-y-0 left-3 flex items-center gap-1.5 text-white text-[10px] font-mono opacity-95 pointer-events-none">
+                    <span className="inline-block size-1.5 rounded-full bg-white" />
+                    <span className="opacity-70">시작</span>
+                    <span className="font-semibold">{startStr}</span>
+                  </div>
+                  <div className="absolute inset-0 flex items-center justify-center text-white text-[10.5px] font-mono font-semibold tracking-wider opacity-85 pointer-events-none">
+                    총 통화시간 · {formatDur(totalSec)}
+                  </div>
+                  <div className="absolute inset-y-0 right-3 flex items-center gap-1.5 text-white text-[10px] font-mono opacity-95 pointer-events-none">
+                    <span className="opacity-70">종료</span>
+                    <span className="font-semibold">{endStr}</span>
+                    <span className="inline-block size-1.5 rounded-full bg-white" />
+                  </div>
+                </>
+              );
+            })()}
+            {/* HOP 마커는 위 시간축 영역으로 이동됨 (OWNER 띠 시작/종료/총통화시간 글씨 가림 해결) */}
+          </div>
+
+          {/* HOP rows — 각 hop 의 자원 bar + 클릭 시 그 row 아래 inline expand (다중 가능)
+              열려있거나 좌측 라벨로 focus 된 경우 모두 노란 outline 강조.
+              0HOP 은 _firstHopType 기준 색상 (우측 메트릭 박스 색상과 일치) */}
+          {hopPositions.map(({ hop, hopNo, leftPct, widthPct, durSec, occupiedSec }) => {
+            const ft = hop.meta?._firstHopType as string | undefined;
+            const ht = hop.meta?._hopType as string | undefined;
+            const tlabel = ft ?? ht;
+            const effKind: CallSegment['kind'] =
+              tlabel === 'IVR' || tlabel === 'IR' ? 'IVR' : tlabel === 'CTI' || tlabel === 'IC' ? 'CTI' : tlabel === 'AGENT' || tlabel === '내선' ? 'AGENT' : hop.kind;
+            const ks = KIND_STYLE[effKind];
+            const isActive = isExpanded(hop.segmentId) || selectedSegmentId === hop.segmentId;
+            const isFail = !!hop.isError;
+            const detail = isActive && renderHopDetail ? renderHopDetail(hop) : null;
+            return (
+              <div key={hop.segmentId}>
+                {/* hop row (시간축 바) */}
+                <div className="relative h-[40px]">
+                  <div
+                    className="absolute inset-y-0 pointer-events-none"
+                    style={{
+                      left: `${leftPct}%`,
+                      width: `${widthPct}%`,
+                      background: 'rgba(64,81,137,0.04)',
+                      borderLeft: '1px dashed rgba(64,81,137,0.18)',
+                      borderRight: '1px dashed rgba(64,81,137,0.18)',
+                    }}
+                  />
+                  <button
+                    type="button"
+                    data-segment-id={hop.segmentId}
+                    onClick={() => openHop(hop.segmentId)}
+                    className="absolute top-1/2 -translate-y-1/2 h-[28px] rounded transition-all flex items-center px-2.5 gap-1.5 text-[12px] font-medium hover:brightness-95"
+                    style={{
+                      left: `${leftPct}%`,
+                      width: `${widthPct}%`,
+                      minWidth: '28px',
+                      background: isFail ? '#FEE2E2' : ks.bg,
+                      color: isFail ? '#991B1B' : ks.text,
+                      border: `1px solid ${isFail ? '#FBBABA' : ks.border}`,
+                      outline: isActive ? '2px solid #f59e0b' : 'none',
+                      outlineOffset: '1px',
+                      boxShadow: '0 1px 2px rgba(0,0,0,.06)',
+                      backgroundImage: isFail ? 'repeating-linear-gradient(45deg, transparent 0, transparent 6px, rgba(220,38,38,0.14) 6px, rgba(220,38,38,0.14) 8px)' : undefined,
+                    }}
+                    title={`HOP ${hopNo} · ${hop.label}${durSec !== occupiedSec ? ` · 자원 raw ${formatDurShort(durSec)}` : ''}`}
+                  >
+                    <span className="font-mono text-[10.5px] font-bold opacity-70 flex-shrink-0">H{hopNo}</span>
+                    <span className="truncate min-w-0 flex-1 text-left">{hopContent(hop)}</span>
+                    {occupiedSec > 0 && <span className="font-mono text-[10.5px] opacity-80 flex-shrink-0">{formatDurShort(occupiedSec)}</span>}
+                    {isFail && <span className="text-red-600 font-bold flex-shrink-0">✕</span>}
+                    {renderHopDetail && (
+                      <span
+                        role="button"
+                        tabIndex={0}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          if (isActive) closeHop(hop.segmentId);
+                          else openHop(hop.segmentId);
+                        }}
+                        className="flex-shrink-0 hover:bg-black/10 rounded p-0.5 -my-0.5 cursor-pointer"
+                        title={isActive ? '닫기' : '열기'}
+                      >
+                        <ChevronDown className={`size-3.5 opacity-70 transition-transform ${isActive ? 'rotate-180' : ''}`} />
+                      </span>
+                    )}
+                  </button>
+                </div>
+
+                {/* inline expand — kind 별 컬러 사용 */}
+                {detail && (
+                  <div className="my-2 border rounded-md overflow-hidden animate-[fadeIn_0.18s_ease-out]" style={{ borderColor: ks.border, background: `${ks.bg}40` }}>
+                    <div className="h-[40px] px-3 flex items-center justify-between border-b" style={{ borderBottomColor: ks.border, background: ks.bg }}>
+                      <div className="flex items-center gap-2.5" style={{ color: ks.text }}>
+                        <span
+                          className="inline-flex items-center justify-center size-[24px] rounded-full font-mono text-[11px] font-bold text-white"
+                          style={{ background: ks.text }}
+                        >
+                          {hopNo}
+                        </span>
+                        <span className="text-[13px] font-semibold">
+                          {hop.kind === 'IVR'
+                            ? 'IVR 시나리오'
+                            : hop.kind === 'CTI' || hop.kind === 'QUEUE_IN'
+                              ? 'CTI 라우팅'
+                              : hop.kind === 'AGENT'
+                                ? '상담사 이벤트'
+                                : '자원 상세'}
+                        </span>
+                        <span className="text-[12px] font-mono opacity-75">· {hopContent(hop)}</span>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => closeHop(hop.segmentId)}
+                        className="hover:bg-black/5 p-1 rounded transition-colors"
+                        style={{ color: ks.text }}
+                        title="닫기"
+                      >
+                        <svg className="size-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                          <path d="M18 6L6 18M6 6l12 12" />
+                        </svg>
+                      </button>
+                    </div>
+                    <div className="bg-white">{detail}</div>
                   </div>
                 )}
               </div>
             );
           })}
-        </div>
 
-        {/* 미니맵 — 항상 표시 */}
-        {
-          <div
-            className="absolute bottom-3 right-3 bg-white border border-gray-200 rounded-md overflow-hidden select-none"
-            style={{ width: 168, boxShadow: '0 4px 12px rgba(0,0,0,0.08)' }}
-          >
-            <div className="px-2 py-1 border-b border-gray-100 flex items-center justify-between bg-gradient-to-b from-gray-50 to-white">
-              <span className="text-[9.5px] font-semibold tracking-wide text-gray-500 uppercase">Minimap</span>
-              <span className="text-[9px] text-gray-400 font-mono">{segments.length} steps</span>
-            </div>
-            <div className="relative h-[44px] bg-gray-50/70">
-              <div className="absolute h-px bg-gray-300/80" style={{ top: 21, left: 8, right: 8 }} />
-              {segments.map((seg, i) => {
-                const isActive = selectedSegmentId === seg.segmentId;
-                const left = 8 + (i / Math.max(segments.length - 1, 1)) * 152;
-                const sub = subLabel(seg);
-                return (
-                  <button
-                    key={`mm-${seg.segmentId}`}
-                    type="button"
-                    title={`${KIND_STYLE[seg.kind].label} · ${sub}`}
-                    onClick={() => {
-                      onSelect(seg.segmentId);
-                      // 메인 카드 영역 자동 스크롤 (해당 segment 가운데로)
-                      const node = scrollRef.current?.querySelector<HTMLElement>(`[data-segment-id="${seg.segmentId}"]`);
-                      node?.scrollIntoView({ behavior: 'smooth', inline: 'center', block: 'nearest' });
-                    }}
-                    className="absolute rounded-full cursor-pointer hover:scale-150 transition-transform"
-                    style={{
-                      width: isActive ? 8 : 6,
-                      height: isActive ? 8 : 6,
-                      top: isActive ? 17 : 18,
-                      left: left - (isActive ? 4 : 3),
-                      background: seg.isError ? '#ef4444' : KIND_STYLE[seg.kind].minimapDot,
-                      opacity: seg.isError ? 0.7 : 1,
-                      boxShadow: isActive ? '0 0 0 2px white, 0 0 0 3px #405189' : 'none',
-                      padding: 0,
-                      border: 'none',
-                    }}
-                  />
-                );
-              })}
-              {scrollPos.width > scrollPos.viewport && (
-                <div
-                  onMouseDown={onMinimapMouseDown}
-                  className="absolute border-2 border-[#405189] rounded-sm cursor-grab active:cursor-grabbing hover:bg-[#405189]/15"
-                  style={{
-                    top: 8,
-                    height: 28,
-                    left: 8 + (scrollPos.left / scrollPos.width) * 152,
-                    width: Math.max(12, (scrollPos.viewport / scrollPos.width) * 152),
-                    background: 'rgba(64,81,137,0.06)',
-                  }}
-                  title="드래그로 위치 이동"
-                />
-              )}
-            </div>
-          </div>
-        }
+          {/* 호버 가이드 */}
+          {guidePct != null && guideSec != null && (
+            <>
+              <div className="absolute top-0 bottom-0 w-px bg-[#405189]/40 pointer-events-none" style={{ left: `${guidePct}%` }} />
+              <div
+                className="absolute top-1 px-1.5 py-0.5 rounded text-white text-[10px] font-mono pointer-events-none whitespace-nowrap z-20"
+                style={{ left: `calc(${guidePct}% + 4px)`, background: '#405189' }}
+              >
+                {formatAxisLabel(Math.floor(guideSec))}
+              </div>
+            </>
+          )}
+        </div>
       </div>
     </div>
   );

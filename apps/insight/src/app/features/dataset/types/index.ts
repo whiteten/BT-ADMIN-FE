@@ -76,6 +76,21 @@ export interface PrefixCandidate {
 
 export type ColumnFormatValue = 'Number' | 'Decimal' | 'Rate' | 'String' | 'Date' | 'Time';
 
+export type ValidationStatus = 'unchecked' | 'checking' | 'valid' | 'invalid' | 'stale';
+
+export interface ValidateFieldsRequest {
+  dbViewPrefix?: string; // 신규 생성 모드
+  datasourceKey?: string; // 편집 모드 (서버에서 prefix 조회)
+  fields: string[];
+  calcExpressions: { alias: string; expression: string }[];
+}
+
+export interface ValidateFieldsResult {
+  valid: boolean;
+  executionMs: number;
+  errors: string[];
+}
+
 export interface DataSourceFieldRequest {
   fieldName: string;
   displayName: string;

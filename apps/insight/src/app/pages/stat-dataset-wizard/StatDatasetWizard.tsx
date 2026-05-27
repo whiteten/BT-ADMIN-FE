@@ -1,12 +1,12 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Button, Steps } from 'antd';
+import { Button, Modal, Steps } from 'antd';
 import { useBreadcrumbStore } from '@/shared-store';
 import { toast } from '@/shared-util';
 import WizardStepA from '../../features/dataset/components/WizardStepA';
 import WizardStepB from '../../features/dataset/components/WizardStepB';
 import { useCreateDataset } from '../../features/dataset/hooks/useDatasetQueries';
-import type { DataSourceFieldRequest, LocalCalcFieldDraft, LocalFieldDisplay } from '../../features/dataset/types';
+import type { DataSourceFieldRequest, LocalCalcFieldDraft, LocalFieldDisplay, ValidationStatus } from '../../features/dataset/types';
 import type { DomainCode } from '../../features/report/types';
 import { FallbackSpinner } from '@/components/custom/FallbackSpinner';
 
@@ -27,6 +27,7 @@ export default function StatDatasetWizard() {
   const [fieldDisplays, setFieldDisplays] = useState<LocalFieldDisplay[]>([]);
   const [calcFields, setCalcFields] = useState<LocalCalcFieldDraft[]>([]);
   const [isCalcEditing, setIsCalcEditing] = useState(false);
+  const [validationStatus, setValidationStatus] = useState<ValidationStatus>('unchecked');
 
   const { mutateAsync: createDataset, isPending } = useCreateDataset();
 
@@ -87,7 +88,7 @@ export default function StatDatasetWizard() {
     return [...regular, ...calcRows];
   };
 
-  const handleSubmit = async () => {
+  const doSubmit = async () => {
     try {
       await createDataset({
         datasourceName: datasetName.trim(),
@@ -100,6 +101,20 @@ export default function StatDatasetWizard() {
     } catch {
       toast.error('데이터셋 생성 중 오류가 발생했습니다.');
     }
+  };
+
+  const handleSubmit = () => {
+    if (validationStatus !== 'valid') {
+      Modal.confirm({
+        title: '검증 미완료',
+        content: '검증 실행이 완료되지 않았습니다. 그래도 저장하시겠습니까?',
+        okText: '저장',
+        cancelText: '취소',
+        onOk: doSubmit,
+      });
+      return;
+    }
+    doSubmit();
   };
 
   const handleCancel = () => navigate('/insight/statistics/datasets');
@@ -146,6 +161,7 @@ export default function StatDatasetWizard() {
                 calcFields={calcFields}
                 onCalcFieldsChange={setCalcFields}
                 onEditingChange={setIsCalcEditing}
+                onValidationStatusChange={setValidationStatus}
               />
             )}
           </div>

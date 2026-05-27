@@ -1,16 +1,18 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { DndContext, type DragEndEvent, PointerSensor, closestCenter, useSensor, useSensors } from '@dnd-kit/core';
 import { restrictToVerticalAxis } from '@dnd-kit/modifiers';
 import { SortableContext, arrayMove, useSortable, verticalListSortingStrategy } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import type { ColDef, IHeaderParams } from 'ag-grid-community';
 import { AgGridReact } from 'ag-grid-react';
-import { Button, Checkbox, Input, Modal, Select, Tooltip } from 'antd';
-import { Download, Edit2, Plus, X } from 'lucide-react';
+import { Button, Checkbox, Divider, Input, Modal, Select, Tag, Tooltip } from 'antd';
+import { Download, Edit2, Play, Plus, Trash2 } from 'lucide-react';
+import { toast } from '@/shared-util';
 import CalcFieldEditor from './CalcFieldEditor';
 import type { CalcFieldCreateDatas, ColumnFormat, DomainCode } from '../../report/types';
+import { datasetApi } from '../api/datasetApi';
 import { useGetDataSourceFields, useGetSchemaPreview } from '../hooks/useDatasetQueries';
-import type { LocalCalcFieldDraft, LocalFieldDisplay } from '../types';
+import type { LocalCalcFieldDraft, LocalFieldDisplay, ValidationStatus } from '../types';
 import { FallbackSpinner } from '@/components/custom/FallbackSpinner';
 import useAggridOptions from '@/libs/shared-ui/src/hooks/useAggridOptions';
 
@@ -27,6 +29,48 @@ function deriveColumnFormat(fieldType: string, fieldRole: string): ColumnFormat 
   if (fieldRole === 'TIMESTAMP') return 'Date';
   if (fieldType === 'NUMBER') return 'Number';
   return 'String';
+}
+
+function formatTimeAgo(date: Date): string {
+  const diffMin = Math.floor((Date.now() - date.getTime()) / 60000);
+  if (diffMin < 1) return '방금 전 검증';
+  if (diffMin < 60) return `${diffMin}분 전 검증`;
+  return `${Math.floor(diffMin / 60)}시간 전 검증`;
+}
+
+function ValidationChip({ status, checkedAt, errors }: { status: ValidationStatus; checkedAt?: Date; errors?: string[] }) {
+  if (status === 'unchecked') return <Tag className="select-none">미검증</Tag>;
+  if (status === 'checking')
+    return (
+      <Tag color="processing" className="select-none">
+        검증 중…
+      </Tag>
+    );
+  if (status === 'valid') {
+    return (
+      <Tooltip title={checkedAt ? formatTimeAgo(checkedAt) : undefined}>
+        <Tag color="success" className="select-none cursor-default">
+          유효 ✓
+        </Tag>
+      </Tooltip>
+    );
+  }
+  if (status === 'stale') {
+    return (
+      <Tooltip title="필드가 변경되어 재검증이 필요합니다">
+        <Tag color="warning" className="select-none cursor-default">
+          재검증 필요
+        </Tag>
+      </Tooltip>
+    );
+  }
+  return (
+    <Tooltip title={errors?.length ? errors.join(' / ') : '검증 실패'}>
+      <Tag color="error" className="select-none cursor-default">
+        무효 ✕
+      </Tag>
+    </Tooltip>
+  );
 }
 
 interface CheckboxHeaderParams extends IHeaderParams {
@@ -60,6 +104,7 @@ interface WizardStepBProps {
   calcFields: LocalCalcFieldDraft[];
   onCalcFieldsChange: (fields: LocalCalcFieldDraft[]) => void;
   onEditingChange?: (isEditing: boolean) => void;
+  onValidationStatusChange?: (status: ValidationStatus) => void;
 }
 
 export default function WizardStepB({
@@ -71,9 +116,78 @@ export default function WizardStepB({
   calcFields,
   onCalcFieldsChange,
   onEditingChange,
+  onValidationStatusChange,
 }: WizardStepBProps) {
   const [editing, setEditing] = useState<EditingState>({ mode: 'idle' });
   const { gridOptions } = useAggridOptions();
+
+  // ─── Validation state ──────────────────────────────────────────────────────
+  const [validationStatus, setValidationStatus] = useState<ValidationStatus>('unchecked');
+  const [validationCheckedAt, setValidationCheckedAt] = useState<Date | undefined>();
+  const [validationErrors, setValidationErrors] = useState<string[]>([]);
+  const [isChecking, setIsChecking] = useState(false);
+
+  const validationStatusRef = useRef<ValidationStatus>('unchecked');
+  useEffect(() => {
+    validationStatusRef.current = validationStatus;
+    onValidationStatusChange?.(validationStatus);
+  }, [validationStatus, onValidationStatusChange]);
+
+  // fingerprint: 검증 후 필드 변경 감지 → stale
+  const fieldFingerprint = useMemo(() => {
+    const fStr = fieldDisplays
+      .filter((f) => !f.isCalcField)
+      .map((f) => `${f.fieldName}:${f.displayName}:${f.fieldType}:${f.columnFormat}`)
+      .join('|');
+    const cStr = calcFields.map((c) => `${c.fieldCode}:${c.rowExpression}:${c.displayName}:${c.columnFormat}`).join('|');
+    return `${fStr}__${cStr}`;
+  }, [fieldDisplays, calcFields]);
+
+  const prevFingerprintRef = useRef<string | null>(null);
+  useEffect(() => {
+    const prev = prevFingerprintRef.current;
+    prevFingerprintRef.current = fieldFingerprint;
+    if (prev === null || prev === fieldFingerprint) return;
+    const s = validationStatusRef.current;
+    if (s === 'valid' || s === 'invalid') {
+      setValidationStatus('stale');
+    }
+  }, [fieldFingerprint]);
+
+  const handleValidate = async () => {
+    setIsChecking(true);
+    setValidationStatus('checking');
+    try {
+      const visibleRegularFields = fieldDisplays.filter((f) => f.isVisible && !f.isCalcField).map((f) => f.fieldName);
+      // {FIELD_CODE} placeholder → 실제 컬럼명으로 치환 후 전송
+      const stripBraces = (expr: string) => expr.replace(/\{([A-Za-z0-9_]+)\}/g, '$1');
+      const calcExpressions = calcFields.map((c) => ({ alias: c.fieldCode, expression: stripBraces(c.rowExpression) }));
+      const result = await datasetApi.validateFields({
+        // 신규: dbViewPrefix 사용, 편집: datasourceKey 로 서버에서 prefix 조회
+        ...(dbViewPrefix ? { dbViewPrefix } : { datasourceKey }),
+        fields: visibleRegularFields,
+        calcExpressions,
+      });
+      if (result.valid) {
+        setValidationErrors([]);
+        setValidationCheckedAt(new Date());
+        setValidationStatus('valid');
+        toast.success(`모든 필드가 유효합니다. (${result.executionMs}ms)`);
+      } else {
+        const errors = result.errors ?? ['검증 실패'];
+        setValidationErrors(errors);
+        setValidationStatus('invalid');
+        errors.forEach((e) => toast.error(e));
+      }
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : '검증 실행 중 오류가 발생했습니다.';
+      setValidationErrors([msg]);
+      setValidationStatus('invalid');
+      toast.error(msg);
+    } finally {
+      setIsChecking(false);
+    }
+  };
 
   useEffect(() => {
     onEditingChange?.(editing.mode !== 'idle');
@@ -194,7 +308,6 @@ export default function WizardStepB({
     if (editing.mode === 'add') {
       const newId = crypto.randomUUID();
       onCalcFieldsChange([...calcFields, { ...data, _localId: newId }]);
-      // Sync to fieldDisplays so calc field appears in 필드 구성 table
       onFieldDisplaysChange([
         ...fieldDisplays,
         {
@@ -209,7 +322,6 @@ export default function WizardStepB({
       ]);
     } else if (editing.mode === 'edit') {
       onCalcFieldsChange(calcFields.map((c) => (c._localId === editing.localId ? { ...c, ...data } : c)));
-      // Update corresponding fieldDisplays row
       onFieldDisplaysChange(
         fieldDisplays.map((f) => (f.fieldName === data.fieldCode && f.isCalcField ? { ...f, displayName: data.displayName, columnFormat: data.columnFormat } : f)),
       );
@@ -235,7 +347,6 @@ export default function WizardStepB({
     (f) => f.isVisible && (!paletteSearch || f.fieldName.toLowerCase().includes(paletteSearch.toLowerCase()) || f.displayName.toLowerCase().includes(paletteSearch.toLowerCase())),
   );
 
-  // Source fields for the CalcFieldEditor palette (visible non-calc fields)
   const editorSourceFields = fieldDisplays.filter((f) => f.isVisible && !f.isCalcField);
 
   if (isLoading) return <FallbackSpinner />;
@@ -245,12 +356,11 @@ export default function WizardStepB({
     const editingDraft = editing.mode === 'edit' ? calcFields.find((c) => c._localId === editing.localId) : undefined;
     const otherCalcFields =
       editing.mode === 'edit'
-        ? calcFields.filter((c) => c._localId !== editing.localId).map((c) => ({ fieldCode: c.fieldCode, _localId: c._localId }))
-        : calcFields.map((c) => ({ fieldCode: c.fieldCode, _localId: c._localId }));
+        ? calcFields.filter((c) => c._localId !== editing.localId).map((c) => ({ fieldCode: c.fieldCode, _localId: c._localId, displayName: c.displayName }))
+        : calcFields.map((c) => ({ fieldCode: c.fieldCode, _localId: c._localId, displayName: c.displayName }));
 
     return (
       <div className="flex h-full">
-        {/* Left: source palette (unchanged) */}
         <aside className="w-64 shrink-0 border-r border-border bg-muted/20 p-4 overflow-y-auto">
           <div className="mb-3">
             <div className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">원천 뷰</div>
@@ -299,7 +409,6 @@ export default function WizardStepB({
           )}
         </aside>
 
-        {/* Right: CalcFieldEditor */}
         <div className="flex-1 overflow-y-auto p-4">
           <div className="mb-3 flex items-center gap-2 text-sm text-muted-foreground">
             <button className="text-primary hover:underline" onClick={() => setEditing({ mode: 'idle' })}>
@@ -338,7 +447,7 @@ export default function WizardStepB({
 
         {/* DIM 그룹 */}
         <div className="mb-4">
-          <div className="mb-1 flex items-center gap-2 px-3 py-1 text-xs font-semibold text-gray-400 uppercase tracking-wider">
+          <div className="mb-1 flex items-center gap-2 px-3 py-1 text-xs font-semibold text-muted-foreground uppercase tracking-wider">
             <span>디멘션</span>
             <span className="ml-auto">{filteredDim.length}</span>
           </div>
@@ -351,9 +460,9 @@ export default function WizardStepB({
                       <div
                         ref={setNodeRef}
                         style={{ transform: CSS.Transform.toString(transform), transition, opacity: isDragging ? 0.5 : 1 }}
-                        className="flex items-center gap-2 px-3 py-2 text-sm hover:bg-gray-50 cursor-default"
+                        className="flex items-center gap-2 px-3 py-2 text-sm hover:bg-muted/50 cursor-default"
                       >
-                        <span {...attributes} {...listeners} className="cursor-grab text-[var(--color-bt-fg-muted)] select-none touch-none font-mono text-xs">
+                        <span {...attributes} {...listeners} className="cursor-grab text-muted-foreground select-none touch-none font-mono text-xs">
                           ⋮⋮
                         </span>
                         <span className="font-mono font-medium flex-1 truncate">{f.fieldName}</span>
@@ -368,7 +477,7 @@ export default function WizardStepB({
 
         {/* MSR 그룹 */}
         <div className="mb-4">
-          <div className="mb-1 flex items-center gap-2 px-3 py-1 text-xs font-semibold text-gray-400 uppercase tracking-wider">
+          <div className="mb-1 flex items-center gap-2 px-3 py-1 text-xs font-semibold text-muted-foreground uppercase tracking-wider">
             <span>측정값</span>
             <span className="ml-auto">{filteredMsr.length}</span>
           </div>
@@ -409,6 +518,11 @@ export default function WizardStepB({
           <span className="ml-auto text-xs text-[var(--color-bt-fg-muted)]">
             노출 {visibleCount} / {fieldDisplays.length}
           </span>
+          <ValidationChip status={validationStatus} checkedAt={validationCheckedAt} errors={validationErrors} />
+          <Button size="small" icon={<Play className="w-3 h-3" />} loading={isChecking} onClick={handleValidate} disabled={visibleCount === 0}>
+            검증 실행
+          </Button>
+          <Divider type="vertical" className="mx-0" />
           <Button size="small" icon={<Download className="w-3 h-3" />} onClick={handleImportColumns}>
             컬럼 가져오기
           </Button>
@@ -417,6 +531,19 @@ export default function WizardStepB({
           </Button>
         </div>
 
+        {/* 검증 결과 인라인 에러 */}
+        {validationStatus === 'invalid' && validationErrors.length > 0 && (
+          <div className="shrink-0 mx-5 mb-2 rounded border border-red-200 bg-red-50 px-3 py-2">
+            <div className="text-xs font-semibold text-red-600 mb-1">검증 실패 — DB에서 반환된 오류</div>
+            <div className="space-y-0.5">
+              {validationErrors.map((e, i) => (
+                <div key={i} className="font-mono text-xs text-red-700 break-all">
+                  {e}
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
         {/* ag-Grid: flex-1로 공간 채우고 내부 스크롤 — 컬럼 헤더 항상 고정 */}
         <div className="flex-1 min-h-0 px-5 pt-3 pb-0">
           {(() => {
@@ -509,7 +636,7 @@ export default function WizardStepB({
                   return (
                     <>
                       <Button size="small" type="text" icon={<Edit2 className="w-3 h-3" />} onClick={() => setEditing({ mode: 'edit', localId: cf._localId })} />
-                      <Button size="small" type="text" danger icon={<X className="w-3 h-3" />} onClick={() => deleteCalcField(cf._localId)} />
+                      <Button size="small" type="text" danger icon={<Trash2 className="w-3 h-3" />} onClick={() => deleteCalcField(cf._localId)} />
                     </>
                   );
                 },

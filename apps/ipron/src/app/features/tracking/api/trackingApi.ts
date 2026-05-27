@@ -298,6 +298,7 @@ interface BackendCtiRouteHop {
     used: boolean;
   }> | null;
   details: Array<{ label: string; value: string }> | null;
+  parentHop: number | null; // IE.HOP 체계 — FE 가 hop 별 필터에 사용
 }
 
 const CTI_STATUS_SET = new Set(['SUCCESS', 'PENDING', 'BUSY', 'NO_ANSWER', 'SKIP', 'FAILED']);
@@ -327,6 +328,9 @@ function mapCtiRouteHop(r: BackendCtiRouteHop, idx: number): CtiRoutingHop {
   });
 
   const status = r.status && CTI_STATUS_SET.has(r.status) ? r.status : 'PENDING';
+
+  // parentHop(IE.HOP 체계) 을 meta 에 보관 → CallDetailPage 가 hop 별 필터에 사용
+  if (r.parentHop != null) meta['_parentHop'] = r.parentHop;
 
   return {
     hopNumber: r.hop ?? idx + 1,
@@ -361,6 +365,8 @@ function mapCallDetail(raw: BackendCallDetail): { header: CallDetailHeader; segm
         agentName: s.agentName,
         nodeId: s.nodeId,
         nodeName: s.nodeName,
+        systemId: s.systemId,
+        systemName: s.systemName,
         serviceName: s.serviceName,
         endReason: s.endReason,
         oName: s.oName,
@@ -372,6 +378,8 @@ function mapCallDetail(raw: BackendCallDetail): { header: CallDetailHeader; segm
         _segType: s.segmentType,
         _tType: s.tType ?? null,
         _ccEnd: s.ccEnd ?? null,
+        _ccType: (s as { ccType?: number | null }).ccType ?? null,
+        _ccPart: (s as { ccPart?: number | null }).ccPart ?? null,
         _cdrPkey: s.cdrPkey ?? null,
         _callKind: s.callKind ?? null,
       },
