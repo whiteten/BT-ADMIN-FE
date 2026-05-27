@@ -17,7 +17,7 @@ interface PanelEditorSheetProps {
   reportId: number;
   panelType?: PanelType;
   panelId?: number;
-  datasourceKey: string;
+  datasetId: number;
   onClose(): void;
   isDraft?: boolean;
 }
@@ -102,7 +102,7 @@ function updateInSlot<K extends keyof PanelFieldMap>(fieldName: string, key: K, 
 
 // ─── Main component ───────────────────────────────────────────────────────────
 
-export default function PanelEditorSheet({ reportId, panelType, panelId, datasourceKey: defaultDatasourceKey, onClose, isDraft }: PanelEditorSheetProps) {
+export default function PanelEditorSheet({ reportId, panelType, panelId, datasetId: defaultDatasetId, onClose, isDraft }: PanelEditorSheetProps) {
   const { panels, addPanel, updatePanel: storeUpdatePanel } = useReportEditorStore();
   const existingPanel = panelId ? panels.find((p) => p.panelId === panelId) : undefined;
   const isEdit = !!existingPanel;
@@ -116,7 +116,7 @@ export default function PanelEditorSheet({ reportId, panelType, panelId, datasou
   // ─── Common state ──────────────────────────────────────────────────────────
   const [title, setTitle] = useState(existingPanel?.title ?? '');
   const [layout] = useState<PanelLayout>(existingPanel?.layout ?? { x: 0, y: 0, w: 12, h: 6 });
-  const [selectedDatasourceKey, setSelectedDatasourceKey] = useState(defaultDatasourceKey);
+  const [selectedDatasetId, setSelectedDatasetId] = useState(defaultDatasetId);
 
   // ─── GRID slot state ───────────────────────────────────────────────────────
   const existingFieldMap = existingPanel?.fieldMap ?? [];
@@ -151,8 +151,8 @@ export default function PanelEditorSheet({ reportId, panelType, panelId, datasou
   // ─── Data fetching ─────────────────────────────────────────────────────────
   const { data: datasets = [], isLoading: datasetsLoading } = useGetDatasets();
   const { data: fields = [], isLoading: fieldsLoading } = useGetDataSourceFields({
-    params: { datasourceKey: selectedDatasourceKey },
-    queryOptions: { enabled: !!selectedDatasourceKey },
+    params: { datasetId: selectedDatasetId },
+    queryOptions: { enabled: !!selectedDatasetId },
   });
 
   const calcDatasetFields = fields.filter((f) => f.fieldRole === 'CALC');
@@ -572,11 +572,11 @@ export default function PanelEditorSheet({ reportId, panelType, panelId, datasou
           <label className="text-xs font-medium">데이터셋 *</label>
           <Select
             className="w-full"
-            value={selectedDatasourceKey || undefined}
+            value={selectedDatasetId || undefined}
             placeholder="데이터셋 선택"
             loading={datasetsLoading}
             onChange={(val) => {
-              setSelectedDatasourceKey(val);
+              setSelectedDatasetId(val);
               setGroupByFields([]);
               setValueFields([]);
               setSortFields([]);
@@ -587,13 +587,13 @@ export default function PanelEditorSheet({ reportId, panelType, panelId, datasou
               setPieValueFields([]);
             }}
             options={datasets.map((d) => ({
-              value: d.datasourceKey,
-              label: `${d.datasourceName || d.datasourceKey}${d.productCode ? ` (${d.productCode})` : ''}`,
+              value: d.datasetId,
+              label: `${d.datasourceName || d.datasetId}${d.productCode ? ` (${d.productCode})` : ''}`,
             }))}
             showSearch
             optionFilterProp="label"
           />
-          {selectedDatasourceKey && !fieldsLoading && (visibleFields.length > 0 || calcDatasetFields.length > 0) && (
+          {selectedDatasetId && !fieldsLoading && (visibleFields.length > 0 || calcDatasetFields.length > 0) && (
             <p className="text-xs text-[var(--color-bt-fg-muted)]">
               DIM {dimFields.length} · MSR {msrFields.length}
               {calcDatasetFields.length > 0 && <span className="text-green-600"> · CALC {calcDatasetFields.length}</span>}

@@ -10,7 +10,7 @@ interface CanvasLayoutProps {
   reportId: number;
   mode: 'edit' | 'view';
   isDraft?: boolean;
-  datasourceKey?: string;
+  datasetId?: number;
 }
 
 const PANEL_TYPE_OPTIONS: { type: PanelType; label: string; Icon: LucideIcon; description: string }[] = [
@@ -24,7 +24,7 @@ const PANEL_TYPE_OPTIONS: { type: PanelType; label: string; Icon: LucideIcon; de
 
 type AddPhase = 'idle' | 'selecting' | 'editing';
 
-export default function CanvasLayout({ reportId, mode, isDraft, datasourceKey = '' }: CanvasLayoutProps) {
+export default function CanvasLayout({ reportId, mode, isDraft, datasetId = 0 }: CanvasLayoutProps) {
   const { panels } = useReportEditorStore();
   const [addPhase, setAddPhase] = useState<AddPhase>('idle');
   const [selectedType, setSelectedType] = useState<PanelType | null>(null);
@@ -170,7 +170,7 @@ export default function CanvasLayout({ reportId, mode, isDraft, datasourceKey = 
           reportId={reportId}
           panelType={selectedType ?? undefined}
           panelId={editingPanelId ?? undefined}
-          datasourceKey={datasourceKey}
+          datasetId={datasetId}
           onClose={handleCloseEditor}
           isDraft={isDraft}
         />

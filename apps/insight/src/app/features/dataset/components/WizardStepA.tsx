@@ -42,15 +42,15 @@ export default function WizardStepA({
   });
 
   const { data: fieldMetas = [], isLoading: isLoadingFields } = useGetDataSourceFields({
-    params: { datasourceKey: selectedView },
-    queryOptions: { enabled: !useCandidates && !!selectedView },
+    params: { datasetId: Number(selectedView) },
+    queryOptions: { enabled: !useCandidates && !!selectedView && !isNaN(Number(selectedView)) },
   });
 
   const isLoading = useCandidates ? isLoadingCandidates : isLoadingDs;
 
   const filteredSources = useCandidates
     ? candidates.filter((c) => (!selectedDomain || c.suggestedProductCode === selectedDomain) && (!viewSearch || c.dbViewPrefix.toLowerCase().includes(viewSearch.toLowerCase())))
-    : dataSources.filter((ds) => !viewSearch || ds.datasourceKey.toLowerCase().includes(viewSearch.toLowerCase()) || (ds.displayName ?? '').includes(viewSearch));
+    : dataSources.filter((ds) => !viewSearch || String(ds.datasetId).includes(viewSearch.toLowerCase()) || (ds.displayName ?? '').includes(viewSearch));
 
   return (
     <div className="p-7 pb-4">
@@ -138,7 +138,7 @@ export default function WizardStepA({
               >
                 <input
                   type="radio"
-                  name="datasourceKey"
+                  name="datasetId"
                   value={c.dbViewPrefix}
                   checked={selectedView === c.dbViewPrefix}
                   onChange={() => onViewChange(c.dbViewPrefix)}
@@ -149,28 +149,31 @@ export default function WizardStepA({
               </label>
             ))
           ) : (
-            (filteredSources as typeof dataSources).map((ds, i) => (
-              <label
-                key={ds.datasourceKey}
-                className={`flex cursor-pointer items-center gap-3 px-4 py-3 transition hover:bg-white/60 ${
-                  i < filteredSources.length - 1 ? 'border-b border-[var(--color-bt-border)]' : ''
-                } ${selectedView === ds.datasourceKey ? 'bg-white' : ''}`}
-              >
-                <input
-                  type="radio"
-                  name="datasourceKey"
-                  value={ds.datasourceKey}
-                  checked={selectedView === ds.datasourceKey}
-                  onChange={() => onViewChange(ds.datasourceKey)}
-                  className="accent-[var(--color-bt-primary)]"
-                />
-                <span className="inline-flex h-5 items-center justify-center rounded px-1.5 text-xs font-bold text-white" style={{ backgroundColor: '#085fb5' }}>
-                  {selectedDomain}
-                </span>
-                <span className="font-mono text-sm font-semibold">{ds.datasourceKey}</span>
-                <span className={`text-sm ${selectedView === ds.datasourceKey ? 'text-[var(--color-bt-fg)]' : 'text-[var(--color-bt-fg-muted)]'}`}>{ds.displayName}</span>
-              </label>
-            ))
+            (filteredSources as typeof dataSources).map((ds, i) => {
+              const idStr = String(ds.datasetId);
+              return (
+                <label
+                  key={ds.datasetId}
+                  className={`flex cursor-pointer items-center gap-3 px-4 py-3 transition hover:bg-white/60 ${
+                    i < filteredSources.length - 1 ? 'border-b border-[var(--color-bt-border)]' : ''
+                  } ${selectedView === idStr ? 'bg-white' : ''}`}
+                >
+                  <input
+                    type="radio"
+                    name="datasetId"
+                    value={idStr}
+                    checked={selectedView === idStr}
+                    onChange={() => onViewChange(idStr)}
+                    className="accent-[var(--color-bt-primary)]"
+                  />
+                  <span className="inline-flex h-5 items-center justify-center rounded px-1.5 text-xs font-bold text-white" style={{ backgroundColor: '#085fb5' }}>
+                    {selectedDomain}
+                  </span>
+                  <span className="font-mono text-sm font-semibold">{ds.datasetId}</span>
+                  <span className={`text-sm ${selectedView === idStr ? 'text-[var(--color-bt-fg)]' : 'text-[var(--color-bt-fg-muted)]'}`}>{ds.displayName}</span>
+                </label>
+              );
+            })
           )}
         </div>
 

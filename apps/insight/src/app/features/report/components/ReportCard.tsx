@@ -90,7 +90,7 @@ export default function ReportCard({ report }: ReportCardProps) {
         </div>
         <div className="flex items-center">
           <span className="w-[80px] shrink-0 text-sm">데이터뷰</span>
-          <span className="font-mono text-sm truncate">{report.datasourceKey}</span>
+          <span className="font-mono text-sm truncate">{report.datasetId}</span>
         </div>
         {report.description && (
           <div className="flex items-center">

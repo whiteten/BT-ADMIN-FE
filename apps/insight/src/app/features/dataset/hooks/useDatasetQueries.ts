@@ -5,8 +5,8 @@ import type { DataSourceListItem, DatasetCreateRequest, DatasetDetail, DatasetLi
 
 export const datasetKeys = createQueryKeys('statistics-datasources', {
   list: (params?: Record<string, unknown>) => [params],
-  detail: (datasourceKey: string) => [datasourceKey],
-  fields: (datasourceKey: string) => [datasourceKey],
+  detail: (datasetId: number) => [datasetId],
+  fields: (datasetId: number) => [datasetId],
   schemaPreview: (dbViewPrefix: string) => [dbViewPrefix],
   candidates: null,
   config: null,
@@ -41,30 +41,30 @@ export const useGetDatasets = ({
   });
 
 export const useGetDataset = ({
-  params: { datasourceKey },
+  params: { datasetId },
   queryOptions,
 }: {
-  params: { datasourceKey: string };
+  params: { datasetId: number };
   queryOptions?: Omit<UseQueryOptions<DatasetDetail>, 'queryKey' | 'queryFn'>;
 }) =>
   useQuery({
-    ...datasetKeys.detail(datasourceKey),
-    queryFn: () => datasetApi.getDataset(datasourceKey),
+    ...datasetKeys.detail(datasetId),
+    queryFn: () => datasetApi.getDataset(datasetId),
     staleTime: 5 * 60 * 1000,
     ...queryOptions,
   });
 
 export const useGetDataSourceFields = ({
-  params: { datasourceKey },
+  params: { datasetId },
   queryOptions,
 }: {
-  params: { datasourceKey: string };
+  params: { datasetId: number };
   queryOptions?: Omit<UseQueryOptions<FieldMetaItem[]>, 'queryKey' | 'queryFn'>;
 }) =>
   useQuery({
-    ...datasetKeys.fields(datasourceKey),
-    queryFn: () => datasetApi.getDataSourceFields(datasourceKey),
-    enabled: !!datasourceKey,
+    ...datasetKeys.fields(datasetId),
+    queryFn: () => datasetApi.getDataSourceFields(datasetId),
+    enabled: !!datasetId,
     staleTime: 5 * 60 * 1000,
     ...queryOptions,
   });
@@ -121,27 +121,25 @@ export const useCreateDataset = ({ mutationOptions }: { mutationOptions?: UseMut
   });
 };
 
-export const useUpdateDataset = ({
-  mutationOptions,
-}: { mutationOptions?: UseMutationOptions<DatasetDetail, Error, { datasourceKey: string; data: DatasetUpdateRequest }> } = {}) => {
+export const useUpdateDataset = ({ mutationOptions }: { mutationOptions?: UseMutationOptions<DatasetDetail, Error, { datasetId: number; data: DatasetUpdateRequest }> } = {}) => {
   const queryClient = useQueryClient();
   return useMutation({
     ...mutationOptions,
-    mutationFn: ({ datasourceKey, data }) => datasetApi.updateDataset(datasourceKey, data),
+    mutationFn: ({ datasetId, data }) => datasetApi.updateDataset(datasetId, data),
     onSuccess: (...args) => {
-      const [, { datasourceKey }] = args;
+      const [, { datasetId }] = args;
       queryClient.invalidateQueries({ queryKey: datasetKeys.list._def });
-      queryClient.invalidateQueries({ queryKey: datasetKeys.detail(datasourceKey).queryKey });
+      queryClient.invalidateQueries({ queryKey: datasetKeys.detail(datasetId).queryKey });
       mutationOptions?.onSuccess?.(...args);
     },
   });
 };
 
-export const useDeleteDataset = ({ mutationOptions }: { mutationOptions?: UseMutationOptions<void, Error, string> } = {}) => {
+export const useDeleteDataset = ({ mutationOptions }: { mutationOptions?: UseMutationOptions<void, Error, number> } = {}) => {
   const queryClient = useQueryClient();
   return useMutation({
     ...mutationOptions,
-    mutationFn: (datasourceKey: string) => datasetApi.deleteDataset(datasourceKey),
+    mutationFn: (datasetId: number) => datasetApi.deleteDataset(datasetId),
     onSuccess: (...args) => {
       queryClient.invalidateQueries({ queryKey: datasetKeys.list._def });
       mutationOptions?.onSuccess?.(...args);

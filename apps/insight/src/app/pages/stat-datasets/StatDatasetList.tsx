@@ -49,14 +49,14 @@ export default function StatDatasetList() {
 
   const handleDelete = (data: DatasetListItem) => {
     modal.confirm.delete({
-      onOk: () => deleteDataset(data.datasourceKey),
+      onOk: () => deleteDataset(data.datasetId),
     });
   };
 
   const filtered = useMemo(() => {
     if (!searchValue.trim()) return datasets;
     const kw = searchValue.toLowerCase();
-    return datasets.filter((d) => d.datasourceKey.toLowerCase().includes(kw) || d.datasourceName.toLowerCase().includes(kw) || (d.dbViewPrefix ?? '').toLowerCase().includes(kw));
+    return datasets.filter((d) => String(d.datasetId).includes(kw) || d.datasourceName.toLowerCase().includes(kw) || (d.dbViewPrefix ?? '').toLowerCase().includes(kw));
   }, [datasets, searchValue]);
 
   const columnDefs: ColDef<DatasetListItem>[] = [
@@ -68,7 +68,7 @@ export default function StatDatasetList() {
         data ? (
           <div className="flex flex-col justify-center h-full gap-0.5">
             <span className="font-semibold text-[var(--color-bt-fg)]">{data.datasourceName}</span>
-            <span className="font-mono text-xs text-[var(--color-bt-fg-muted)]">{data.datasourceKey}</span>
+            <span className="font-mono text-xs text-[var(--color-bt-fg-muted)]">{data.datasetId}</span>
             {data.description && <span className="text-xs text-[var(--color-bt-fg-muted)] truncate">{data.description}</span>}
           </div>
         ) : null,
@@ -181,7 +181,7 @@ export default function StatDatasetList() {
           loading={isLoading}
           rowHeight={60}
           onRowDoubleClicked={(e) => {
-            if (e.data) navigate(`/insight/statistics/datasets/${e.data.datasourceKey}/edit`);
+            if (e.data) navigate(`/insight/statistics/datasets/${e.data.datasetId}/edit`);
           }}
         />
       </div>
