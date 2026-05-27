@@ -59,7 +59,7 @@
       "options": {
         "buildTarget": "taskboard:build",
         "hmr": true,
-        "port": 4203,
+        "port": 4208
       },
       "configurations": {
         "development": {

@@ -1,60 +1,33 @@
 import React from 'react';
 import { Navigate, Outlet } from 'react-router-dom';
 import { NotFound } from '@/components/custom/NotFound';
-const Main = React.lazy(() => import('./pages/main/Main'));
-const List = React.lazy(() => import('./pages/board/task-list'));
-const BgManage = React.lazy(() => import('./pages/board/task-bg'));
-const Mgmt = React.lazy(() => import('./pages/board/task-mgmt'));
-const Create = React.lazy(() => import('./pages/board/task-create'));
-const View = React.lazy(() => import('./pages/board/task-view'));
-const Notice = React.lazy(() => import('./pages/board/task-notice'));
+
+const TaskBg = React.lazy(() => import('./pages/board/TaskBg'));
+const TaskList = React.lazy(() => import('./pages/board/TaskList'));
+const TaskMgmt = React.lazy(() => import('./pages/board/TaskMgmt'));
+const TaskCreate = React.lazy(() => import('./pages/board/TaskCreate'));
+const TaskView = React.lazy(() => import('./pages/board/TaskView'));
+const TaskNotice = React.lazy(() => import('./pages/board/TaskNotice'));
+
 export const routes = [
   {
     path: '/',
     element: <Outlet />,
     children: [
-      {
-        index: true,
-        element: <Navigate to="main" replace />,
-      },
-      {
-        path: 'main',
-        element: <Main />,
-      },
+      { index: true, element: <Navigate to="/" replace /> },
       {
         path: 'board',
         element: <Outlet />,
         children: [
-          {
-            path: 'task-bg',
-            element: <BgManage />,
-          },
-          {
-            path: 'task-list',
-            element: <List />,
-          },
-          {
-            path: 'task-mgmt',
-            element: <Mgmt />,
-          },
-          {
-            path: 'task-create',
-            element: <Create />,
-          },
-          {
-            path: 'task-view',
-            element: <View />,
-          },
-          {
-            path: 'task-notice',
-            element: <Notice />,
-          },
+          { path: 'task-bg', element: <TaskBg /> },
+          { path: 'task-list', element: <TaskList /> },
+          { path: 'task-mgmt', element: <TaskMgmt /> },
+          { path: 'task-create', element: <TaskCreate /> },
+          { path: 'task-view', element: <TaskView /> },
+          { path: 'task-notice', element: <TaskNotice /> },
         ],
       },
     ],
   },
-  {
-    path: '*',
-    element: <NotFound homePath="/taskboard" />,
-  },
+  { path: '*', element: <NotFound homePath="/" /> },
 ];
