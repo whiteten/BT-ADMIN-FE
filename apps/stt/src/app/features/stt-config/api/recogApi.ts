@@ -1,4 +1,4 @@
-import ApiClient, { type ListResponse, extractList } from '@/shared-util';
+import ApiClient, { type ApiResponse } from '@/shared-util';
 import type {
   RecogAccuracyResult,
   RecogGroupCreateData,
@@ -15,8 +15,8 @@ const apiClient = new ApiClient({ serviceURL: '/bff' });
 
 export const recogApi = {
   getRecogGroupList: async (params?: { engineCode?: string }) => {
-    const response = await apiClient.get<ListResponse<RecogGroupItem>>('/recog-group-list', { params });
-    return extractList(response);
+    const response = await apiClient.get<ApiResponse<{ items: RecogGroupItem[] }>>('/recog-group-list', { params });
+    return response.data?.data?.items ?? [];
   },
   createRecogGroup: async (data: RecogGroupCreateData) => {
     return apiClient.post('/recog-group-create', data);
@@ -31,15 +31,15 @@ export const recogApi = {
     return apiClient.post<RecogGroupDetail>('/recog-group-detail', { groupCode });
   },
   getRecogTargetSearch: async (params?: RecogTargetSearchParams) => {
-    const response = await apiClient.post<ListResponse<RecogTargetSearchItem>>('/recog-target-search', params);
-    return extractList(response);
+    const response = await apiClient.get<ApiResponse<{ items: RecogTargetSearchItem[] }>>('/recog-target-search', { params });
+    return response.data?.data?.items ?? [];
   },
   createRecogTarget: async (data: RecogTargetCreateData) => {
     return apiClient.post('/recog-target-create', data);
   },
   getRecogTargetList: async (params: { groupCode: string; engineCode?: string }) => {
-    const response = await apiClient.get<ListResponse<RecogTargetListItem>>('/recog-target-list', { params });
-    return extractList(response);
+    const response = await apiClient.get<ApiResponse<{ items: RecogTargetListItem[] }>>('/recog-target-list', { params });
+    return response.data?.data?.items ?? [];
   },
   deleteRecogTarget: async (params: { ucidGkey: string; armsoffset: number; rxtxKind: string }) => {
     await apiClient.delete('/recog-target-delete', { params });

@@ -1,4 +1,4 @@
-import ApiClient, { type DetailResponse, type ListResponse, extractDetail, extractList } from '@/shared-util';
+import ApiClient, { type ApiResponse } from '@/shared-util';
 import { type Client, type ClientBackendResponse, type ClientCreateRequest, type ClientUpdateRequest, transformClientResponse } from '../types';
 
 /**
@@ -21,8 +21,8 @@ export const clientApi = {
    * @flow client-list
    */
   getClients: async (params?: Record<string, unknown>): Promise<Client[]> => {
-    const response = await apiClient.get<ListResponse<ClientBackendResponse>>('/client-list', { params });
-    const backendClients = extractList(response);
+    const response = await apiClient.get<ApiResponse<{ items: ClientBackendResponse[] }>>('/client-list', { params });
+    const backendClients = response.data?.data?.items ?? [];
     return backendClients.map(transformClientResponse);
   },
 
@@ -31,8 +31,8 @@ export const clientApi = {
    * @flow client-detail
    */
   getClient: async (params: Record<string, unknown>): Promise<Client> => {
-    const response = await apiClient.get<DetailResponse<ClientBackendResponse>>('/client-detail', { params });
-    const backendClient = extractDetail(response);
+    const response = await apiClient.get<ApiResponse<ClientBackendResponse>>('/client-detail', { params });
+    const backendClient = response.data?.data;
     return transformClientResponse(backendClient);
   },
 
@@ -41,8 +41,8 @@ export const clientApi = {
    * @flow client-create
    */
   createClient: async (data: ClientCreateRequest): Promise<Client> => {
-    const response = await apiClient.post<DetailResponse<ClientBackendResponse>>('/client-create', data);
-    const backendClient = extractDetail(response);
+    const response = await apiClient.post<ApiResponse<ClientBackendResponse>>('/client-create', data);
+    const backendClient = response.data?.data;
     return transformClientResponse(backendClient);
   },
 

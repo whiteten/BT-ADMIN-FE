@@ -24,7 +24,69 @@ export interface FieldMetaItem {
   description: string | null;
 }
 
+// ─── Dataset v5.0 ─────────────────────────────────────────────────────────────
+
+export interface DatasetListItem {
+  datasourceKey: string;
+  datasourceName: string;
+  productCode: string;
+  sourceType: string;
+  dbViewPrefix: string;
+  availableUnits: string[];
+  tenantColumn: string;
+  description?: string;
+  isSystem: boolean;
+  isActive: boolean;
+}
+
+export interface DatasetDetail extends DatasetListItem {
+  tenantId: string;
+  createdBy?: string;
+  createdAt: string;
+  updatedBy?: string;
+  updatedAt?: string;
+  fields: FieldMetaItem[];
+}
+
+export interface DatasetCreateRequest {
+  datasourceName: string;
+  productCode?: string;
+  dbViewPrefix: string;
+  availableUnits?: string;
+  tenantColumn?: string;
+  description?: string;
+  fields?: DataSourceFieldRequest[];
+}
+
+export interface DatasetUpdateRequest {
+  datasourceName: string;
+  dbViewPrefix?: string;
+  availableUnits?: string;
+  tenantColumn?: string;
+  description?: string;
+  fields?: DataSourceFieldRequest[];
+}
+
+export interface PrefixCandidate {
+  dbViewPrefix: string;
+  availableUnits: string[];
+  suggestedKey: string;
+  suggestedProductCode: string;
+}
+
 export type ColumnFormatValue = 'Number' | 'Decimal' | 'Rate' | 'String' | 'Date' | 'Time';
+
+export interface DataSourceFieldRequest {
+  fieldName: string;
+  displayName: string;
+  fieldType: string;
+  fieldRole: string;
+  formatterType?: string | null;
+  formatterOptions?: string | null;
+  isVisible: boolean;
+  sortOrder: number;
+  description?: string | null;
+}
 
 export interface LocalFieldDisplay {
   fieldName: string;
@@ -34,7 +96,9 @@ export interface LocalFieldDisplay {
   isVisible: boolean;
   sortOrder: number;
   aggFunc?: 'SUM' | 'AVG' | 'MIN' | 'MAX' | 'COUNT' | null;
-  isCalcField?: boolean; // calc field synced from LocalCalcFieldDraft
+  isCalcField?: boolean;
+  rawFieldType?: string;
+  rawFieldRole?: string;
 }
 
 export interface LocalCalcFieldDraft {

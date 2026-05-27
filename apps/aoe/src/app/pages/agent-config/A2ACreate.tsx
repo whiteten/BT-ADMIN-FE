@@ -1,44 +1,40 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useQueryClient } from '@tanstack/react-query';
-import { type BreadcrumbProps, Button, Col, Form, Input, Row, Select, Steps } from 'antd';
-import { Minus, Plus } from 'lucide-react';
+import { type BreadcrumbProps, Button, Form, Input, Select } from 'antd';
 import { Log } from '@/log';
 import { useBreadcrumbStore } from '@/shared-store';
 import { toast } from '@/shared-util';
+import A2ASkillsEditor from '../../features/a2a/components/A2ASkillsEditor';
 import { a2aQueryKeys, useCreateA2A } from '../../features/a2a/hooks/useA2aQueries';
-import type { A2ACreateDatas } from '../../features/a2a/types';
+import type { A2ACreateDatas, A2ASkill } from '../../features/a2a/types';
+import { extractSkillsFromGraph } from '../../features/a2a/utils/extractSkillsFromGraph';
 import { useGetAgents } from '../../features/agent-config/hooks/useAgentQueries';
+import { useGetAllTools } from '../../features/tool/hooks/useToolQueries';
+import { useGetWorkflowGraph } from '../../features/workflow/hooks/useWorkflowQueries';
 
-interface Step1FormValues {
+interface FormValues {
   agentId: string;
   agentName: string;
   agentDescription?: string;
 }
 
-interface SkillFormRow {
-  skillName: string;
-  description?: string;
-  tags?: string;
-  examples?: string;
-}
-
-interface Step2FormValues {
-  skills?: SkillFormRow[];
-}
-
-const breadcrumb: BreadcrumbProps['items'] = [{ title: '관리', path: '/aoe/agent-config' }, { title: 'A2A', path: '/aoe/agent-config/a2a/list' }, { title: '추가' }];
-
-const steps = [{ title: '기본 정보' }, { title: 'Skills 설정' }];
+const breadcrumb: BreadcrumbProps['items'] = [
+  { title: '관리', path: '/aoe/agent-config' },
+  { title: 'A2A', path: '/aoe/agent-config/a2a/list' },
+  { title: '추가', path: '/aoe/agent-config/a2a/create' },
+];
 
 export default function A2ACreate() {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const setBreadcrumb = useBreadcrumbStore((s) => s.setBreadcrumb);
   const clearBreadcrumb = useBreadcrumbStore((s) => s.clearBreadcrumb);
-  const [currentStep, setCurrentStep] = useState(0);
-  const [step1Form] = Form.useForm<Step1FormValues>();
-  const [step2Form] = Form.useForm<Step2FormValues>();
+  const [form] = Form.useForm<FormValues>();
+
+  // 생성 모드 — skills 는 local state 로 관리, 최종 저장 시 한 번에 createA2A.
+  const [skills, setSkills] = useState<A2ASkill[]>([]);
+  const [selectedAgentId, setSelectedAgentId] = useState<string | undefined>(undefined);
 
   useEffect(() => {
     setBreadcrumb(breadcrumb);
@@ -47,6 +43,24 @@ export default function A2ACreate() {
 
   const { data: agents = [] } = useGetAgents();
   const deployedAgents = agents.filter((a) => a.aoeDeployFlag === 1);
+
+  // 배포 Agent 의 workflow graph + 전체 도구 그룹/도구 — 선택된 Agent 의 LLM 노드 tool_list 에서 사용된 도구를
+  // 자동으로 Skills 그리드에 채우기 위한 데이터.
+  const { data: agentGraph } = useGetWorkflowGraph({
+    params: { agentId: selectedAgentId ?? '' },
+    queryOptions: { enabled: !!selectedAgentId },
+  });
+  // 주의: useGetAllTools 의 toolsByGroup 은 매 렌더 새 object reference 라 useEffect deps 에 직접 넣으면 무한 루프.
+  // ref 로 최신값 추적 + useEffect 는 isLoadingAllTools 가 false 가 된 시점에만 트리거.
+  const { toolsByGroup, isLoading: isLoadingAllTools } = useGetAllTools();
+  const toolsByGroupRef = useRef(toolsByGroup);
+  toolsByGroupRef.current = toolsByGroup;
+
+  // agentGraph + toolsByGroup → skills 변환. Agent 변경 / graph 로딩 완료 / tool 메타 로딩 완료 시점에 재계산.
+  useEffect(() => {
+    if (!selectedAgentId || !agentGraph || isLoadingAllTools) return;
+    setSkills(extractSkillsFromGraph(agentGraph.nodes ?? [], toolsByGroupRef.current));
+  }, [agentGraph, selectedAgentId, isLoadingAllTools]);
 
   const { mutate: createA2A, isPending } = useCreateA2A({
     mutationOptions: {
@@ -61,178 +75,71 @@ export default function A2ACreate() {
 
   const handleAgentChange = (agentId: string) => {
     const agent = deployedAgents.find((a) => a.agentId === agentId);
-    if (agent) step1Form.setFieldValue('agentName', agent.agentName);
+    if (agent) form.setFieldValue('agentName', agent.agentName);
+    // selectedAgentId 변경으로 useGetWorkflowGraph 활성화 → 위 useEffect 가 skills 자동 채움.
+    setSelectedAgentId(agentId);
   };
 
-  const handleNext = async () => {
+  const handleSubmit = async () => {
     try {
-      await step1Form.validateFields();
-      setCurrentStep(1);
+      const values = await form.validateFields();
+      const selectedAgent = deployedAgents.find((a) => a.agentId === values.agentId);
+      const data: A2ACreateDatas = {
+        agentId: values.agentId,
+        agentName: values.agentName,
+        agentDescription: values.agentDescription,
+        aoeApiKey: selectedAgent?.aoeApiKey,
+        // 신규 생성 시 임시 skillId(`tmp-*`) 는 BE 에 보낼 필요 없음 — 제거하고 seq 부여
+        skills: skills.map((s, i) => ({
+          skillName: s.skillName,
+          description: s.description,
+          tags: s.tags ?? [],
+          examples: s.examples ?? [],
+          seq: i + 1,
+        })),
+      };
+      createA2A(data);
     } catch (error) {
-      Log.warn('step1 validation failed', error);
+      Log.warn('A2ACreate validation failed', error);
     }
   };
 
-  const handleSubmit = () => {
-    const step1 = step1Form.getFieldsValue();
-    const step2 = step2Form.getFieldsValue();
-    const selectedAgent = deployedAgents.find((a) => a.agentId === step1.agentId);
-
-    const data: A2ACreateDatas = {
-      agentId: step1.agentId,
-      agentName: step1.agentName,
-      agentDescription: step1.agentDescription,
-      aoeApiKey: selectedAgent?.aoeApiKey,
-      skills: (step2.skills ?? []).map((s, i) => ({
-        skillName: s.skillName,
-        description: s.description,
-        tags: s.tags
-          ? s.tags
-              .split(',')
-              .map((t) => t.trim())
-              .filter(Boolean)
-          : [],
-        examples: s.examples
-          ? s.examples
-              .split('\n')
-              .map((e) => e.trim())
-              .filter(Boolean)
-          : [],
-        seq: i + 1,
-      })),
-    };
-    createA2A(data);
-  };
-
-  function renderStep1() {
-    return (
-      <Form form={step1Form} layout="vertical" className="max-w-2xl">
-        <Form.Item name="agentId" label="배포 Agent" required rules={[{ required: true, message: 'Agent를 선택해 주세요.' }]}>
-          <Select
-            showSearch
-            placeholder="배포된 Agent를 선택하세요."
-            options={deployedAgents.map((a) => ({ label: a.agentName, value: a.agentId }))}
-            onChange={handleAgentChange}
-            filterOption={(input, option) => (option?.label ?? '').toLowerCase().includes(input.toLowerCase())}
-          />
-        </Form.Item>
-        <Form.Item name="agentName" label="Agent 명" required rules={[{ required: true, message: 'Agent 명을 입력해 주세요.' }]}>
-          <Input placeholder="Agent 명을 입력하세요." />
-        </Form.Item>
-        <Form.Item name="agentDescription" label="설명">
-          <Input.TextArea placeholder="설명을 입력하세요." autoSize={{ minRows: 3, maxRows: 6 }} />
-        </Form.Item>
-      </Form>
-    );
-  }
-
-  function renderStep2() {
-    return (
-      <Form form={step2Form} layout="vertical" className="max-w-2xl">
-        <Form.List name="skills">
-          {(fields, { add, remove }) => (
-            <div className="flex flex-col gap-3">
-              <div className="flex items-center justify-between">
-                <span className="text-sm font-medium text-gray-700">Skills</span>
-                <Button size="small" icon={<Plus className="size-3" />} onClick={() => add()}>
-                  추가
-                </Button>
-              </div>
-              {fields.length === 0 && (
-                <p className="text-xs text-gray-400 text-center py-2 border border-dashed border-gray-200 rounded-lg">Skill이 없습니다. Skills가 없어도 저장 가능합니다.</p>
-              )}
-              {fields.map(({ key, name, ...restField }) => (
-                <div key={key} className="border border-gray-200 rounded-lg overflow-hidden">
-                  <div className="flex items-center justify-between px-3 bg-gray-100 border-b border-gray-200" style={{ height: 36 }}>
-                    <Form.Item noStyle shouldUpdate>
-                      {() => {
-                        const skillName = step2Form.getFieldValue(['skills', name, 'skillName']) as string | undefined;
-                        return <span className="text-sm font-medium text-gray-700">{skillName ?? `Skill ${name + 1}`}</span>;
-                      }}
-                    </Form.Item>
-                    <Button size="small" variant="text" color="danger" icon={<Minus className="size-3" />} onClick={() => remove(name)} />
-                  </div>
-                  <div className="px-3 pt-2 pb-1 bg-gray-50">
-                    <Row gutter={[12, 0]}>
-                      <Col span={12}>
-                        <Form.Item {...restField} name={[name, 'skillName']} label="Skill 명" className="mb-2" rules={[{ required: true, message: 'Skill 명을 입력하세요.' }]}>
-                          <Input placeholder="Skill 명" size="small" />
-                        </Form.Item>
-                      </Col>
-                      <Col span={12}>
-                        <Form.Item {...restField} name={[name, 'tags']} label="Tags" className="mb-2">
-                          <Input placeholder="예: 검색, 조회 (쉼표로 구분)" size="small" />
-                        </Form.Item>
-                      </Col>
-                      <Col span={12}>
-                        <Form.Item {...restField} name={[name, 'description']} label="설명" className="mb-1">
-                          <Input placeholder="Skill 설명" size="small" />
-                        </Form.Item>
-                      </Col>
-                      <Col span={12}>
-                        <Form.Item {...restField} name={[name, 'examples']} label="Examples" className="mb-1">
-                          <Input.TextArea placeholder={'예시 1\n예시 2'} size="small" autoSize={{ minRows: 1, maxRows: 5 }} />
-                        </Form.Item>
-                      </Col>
-                    </Row>
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
-        </Form.List>
-      </Form>
-    );
-  }
-
-  function renderFooter() {
-    return (
-      <Row gutter={20} justify="center">
-        <Col>
-          <Button variant="solid" onClick={() => navigate('../list')}>
-            취소
-          </Button>
-        </Col>
-        {currentStep > 0 && (
-          <Col>
-            <Button variant="solid" onClick={() => setCurrentStep((prev) => prev - 1)}>
-              이전
-            </Button>
-          </Col>
-        )}
-        {currentStep < steps.length - 1 && (
-          <Col>
-            <Button color="primary" variant="solid" onClick={handleNext}>
-              다음
-            </Button>
-          </Col>
-        )}
-        {currentStep === steps.length - 1 && (
-          <Col>
-            <Button color="primary" variant="solid" onClick={handleSubmit} loading={isPending}>
-              저장
-            </Button>
-          </Col>
-        )}
-      </Row>
-    );
-  }
-
   return (
     <div className="flex flex-col gap-4 w-full h-full">
-      <div className="flex items-center justify-center w-full h-[58px] min-h-[58px] bg-white bt-shadow px-7 py-2">
-        <Steps current={currentStep} items={steps.map((s) => ({ title: s.title }))} size="small" style={{ width: `${steps.length * 250}px` }} responsive={false} />
-      </div>
-      <div className="w-full flex-1 min-h-0 bg-white bt-shadow flex flex-col">
-        <div className="flex-1 min-h-0 flex flex-col p-7 pb-0">
-          <div style={{ display: currentStep === 0 ? 'block' : 'none' }} className="overflow-y-auto h-full">
-            {renderStep1()}
-          </div>
-          <div style={{ display: currentStep === 1 ? 'block' : 'none' }} className="overflow-y-auto h-full">
-            {renderStep2()}
-          </div>
+      <div className="flex flex-row gap-5 w-full flex-1 min-h-0 bg-white bt-shadow p-5">
+        {/* 좌측 — 기본정보 폼 */}
+        <div className="w-[420px] shrink-0 overflow-y-auto overflow-x-hidden">
+          <Form form={form} layout="vertical">
+            <Form.Item name="agentId" label="배포 Agent" required rules={[{ required: true, message: 'Agent를 선택해 주세요.' }]}>
+              <Select
+                showSearch
+                placeholder="배포된 Agent를 선택하세요."
+                options={deployedAgents.map((a) => ({ label: a.agentName, value: a.agentId }))}
+                onChange={handleAgentChange}
+                filterOption={(input, option) => (option?.label ?? '').toLowerCase().includes(input.toLowerCase())}
+              />
+            </Form.Item>
+            <Form.Item name="agentName" label="Agent 명" required rules={[{ required: true, message: 'Agent 명을 입력해 주세요.' }]}>
+              <Input placeholder="Agent 명을 입력하세요." />
+            </Form.Item>
+            <Form.Item name="agentDescription" label="설명">
+              <Input.TextArea placeholder="설명을 입력하세요." autoSize={{ minRows: 3, maxRows: 6 }} />
+            </Form.Item>
+          </Form>
         </div>
-        <div className="w-full px-7 pb-7 pt-4">{renderFooter()}</div>
+        {/* 우측 — Skills 그리드 (controlled) */}
+        <div className="flex-1 min-w-0">
+          <A2ASkillsEditor skills={skills} onChange={setSkills} />
+        </div>
+      </div>
+      {/* 페이지 하단 — 저장/취소 */}
+      <div className="flex items-center justify-center gap-3 w-full">
+        <Button variant="solid" onClick={() => navigate('../list')}>
+          취소
+        </Button>
+        <Button color="primary" variant="solid" loading={isPending} onClick={handleSubmit}>
+          저장
+        </Button>
       </div>
     </div>
   );

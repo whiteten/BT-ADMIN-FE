@@ -1,4 +1,4 @@
-import ApiClient, { type DetailResponse, type ListResponse, extractDetail, extractList } from '@/shared-util';
+import ApiClient, { type ApiResponse } from '@/shared-util';
 import type {
   CalcField,
   CalcFieldCreateDatas,
@@ -18,29 +18,40 @@ import type {
 
 const apiClient = new ApiClient({ serviceURL: '/bff' });
 
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function mapPanel(raw: any): PanelDetail {
+  return {
+    ...raw,
+    layout: { x: raw.layoutX, y: raw.layoutY, w: raw.layoutW, h: raw.layoutH },
+    chartOptions: raw.chartOptions ? JSON.parse(raw.chartOptions) : undefined,
+  };
+}
+
 export const reportApi = {
   getReports: async (params?: Record<string, unknown>): Promise<ReportListItem[]> => {
-    const response = await apiClient.get<ListResponse<ReportListItem>>('/insight-statistics-report-list', { params });
-    return extractList(response);
+    const response = await apiClient.get<ApiResponse<{ items: ReportListItem[] }>>('/insight-statistics-report-list', { params });
+    return response.data?.data?.items ?? [];
   },
 
   createReport: async (data: ReportCreateDatas): Promise<ReportDetail> => {
-    const response = await apiClient.post<DetailResponse<ReportDetail>>('/insight-statistics-report-create', data);
-    return extractDetail(response);
+    const response = await apiClient.post<ApiResponse<ReportDetail>>('/insight-statistics-report-create', data);
+    return response.data?.data;
   },
 
   getReport: async (reportId: number): Promise<ReportFullDetail> => {
-    const response = await apiClient.get<DetailResponse<ReportFullDetail>>('/insight-statistics-report-detail', {
+    const response = await apiClient.get<ApiResponse<ReportFullDetail>>('/insight-statistics-report-detail', {
       params: { reportId },
     });
-    return extractDetail(response);
+    const raw = response.data?.data;
+    if (!raw) return raw;
+    return { ...raw, panels: (raw.panels ?? []).map(mapPanel) };
   },
 
   updateReport: async (reportId: number, data: ReportUpdateDatas): Promise<ReportDetail> => {
-    const response = await apiClient.put<DetailResponse<ReportDetail>>('/insight-statistics-report-update', data, {
+    const response = await apiClient.put<ApiResponse<ReportDetail>>('/insight-statistics-report-update', data, {
       params: { reportId },
     });
-    return extractDetail(response);
+    return response.data?.data;
   },
 
   deleteReport: async (reportId: number): Promise<void> => {
@@ -48,10 +59,10 @@ export const reportApi = {
   },
 
   getFieldDisplays: async (reportId: number): Promise<FieldDisplay[]> => {
-    const response = await apiClient.get<ListResponse<FieldDisplay>>('/insight-statistics-field-display-list', {
+    const response = await apiClient.get<ApiResponse<{ items: FieldDisplay[] }>>('/insight-statistics-field-display-list', {
       params: { reportId },
     });
-    return extractList(response);
+    return response.data?.data?.items ?? [];
   },
 
   updateFieldDisplays: async (reportId: number, data: FieldDisplay[]): Promise<void> => {
@@ -59,24 +70,24 @@ export const reportApi = {
   },
 
   getCalcFields: async (reportId: number): Promise<CalcField[]> => {
-    const response = await apiClient.get<ListResponse<CalcField>>('/insight-statistics-calc-field-list', {
+    const response = await apiClient.get<ApiResponse<{ items: CalcField[] }>>('/insight-statistics-calc-field-list', {
       params: { reportId },
     });
-    return extractList(response);
+    return response.data?.data?.items ?? [];
   },
 
   createCalcField: async (reportId: number, data: CalcFieldCreateDatas): Promise<CalcField> => {
-    const response = await apiClient.post<DetailResponse<CalcField>>('/insight-statistics-calc-field-create', data, {
+    const response = await apiClient.post<ApiResponse<CalcField>>('/insight-statistics-calc-field-create', data, {
       params: { reportId },
     });
-    return extractDetail(response);
+    return response.data?.data;
   },
 
   updateCalcField: async (reportId: number, calcFieldId: number, data: CalcFieldCreateDatas): Promise<CalcField> => {
-    const response = await apiClient.put<DetailResponse<CalcField>>('/insight-statistics-calc-field-update', data, {
+    const response = await apiClient.put<ApiResponse<CalcField>>('/insight-statistics-calc-field-update', data, {
       params: { reportId, calcFieldId },
     });
-    return extractDetail(response);
+    return response.data?.data;
   },
 
   deleteCalcField: async (reportId: number, calcFieldId: number): Promise<void> => {
@@ -84,15 +95,15 @@ export const reportApi = {
   },
 
   getSearchBindings: async (reportId: number): Promise<SearchBinding[]> => {
-    const response = await apiClient.get<ListResponse<SearchBinding>>('/insight-statistics-search-binding-list', {
+    const response = await apiClient.get<ApiResponse<{ items: SearchBinding[] }>>('/insight-statistics-search-binding-list', {
       params: { reportId },
     });
-    return extractList(response);
+    return response.data?.data?.items ?? [];
   },
 
   createSearchBinding: async (reportId: number, data: SearchBindingCreateDatas): Promise<SearchBinding> => {
-    const response = await apiClient.post<DetailResponse<SearchBinding>>('/insight-statistics-search-binding-create', data, { params: { reportId } });
-    return extractDetail(response);
+    const response = await apiClient.post<ApiResponse<SearchBinding>>('/insight-statistics-search-binding-create', data, { params: { reportId } });
+    return response.data?.data;
   },
 
   deleteSearchBinding: async (reportId: number, bindId: number): Promise<void> => {
@@ -100,24 +111,42 @@ export const reportApi = {
   },
 
   getPanels: async (reportId: number): Promise<PanelDetail[]> => {
-    const response = await apiClient.get<ListResponse<PanelDetail>>('/insight-statistics-panel-list', {
+    const response = await apiClient.get<ApiResponse<{ items: PanelDetail[] }>>('/insight-statistics-panel-list', {
       params: { reportId },
     });
-    return extractList(response);
+    return (response.data?.data?.items ?? []).map(mapPanel);
   },
 
   createPanel: async (reportId: number, data: PanelCreateDatas): Promise<PanelDetail> => {
-    const response = await apiClient.post<DetailResponse<PanelDetail>>('/insight-statistics-panel-create', data, {
+    const { layout, chartOptions, ...rest } = data;
+    const body = {
+      ...rest,
+      layoutX: layout.x,
+      layoutY: layout.y,
+      layoutW: layout.w,
+      layoutH: layout.h,
+      chartOptions: chartOptions ? JSON.stringify(chartOptions) : undefined,
+    };
+    const response = await apiClient.post<ApiResponse<PanelDetail>>('/insight-statistics-panel-create', body, {
       params: { reportId },
     });
-    return extractDetail(response);
+    return mapPanel(response.data?.data);
   },
 
   updatePanel: async (reportId: number, panelId: number, data: PanelCreateDatas): Promise<PanelDetail> => {
-    const response = await apiClient.put<DetailResponse<PanelDetail>>('/insight-statistics-panel-update', data, {
+    const { layout, chartOptions, ...rest } = data;
+    const body = {
+      ...rest,
+      layoutX: layout.x,
+      layoutY: layout.y,
+      layoutW: layout.w,
+      layoutH: layout.h,
+      chartOptions: chartOptions ? JSON.stringify(chartOptions) : undefined,
+    };
+    const response = await apiClient.put<ApiResponse<PanelDetail>>('/insight-statistics-panel-update', body, {
       params: { reportId, panelId },
     });
-    return extractDetail(response);
+    return mapPanel(response.data?.data);
   },
 
   deletePanel: async (reportId: number, panelId: number): Promise<void> => {
@@ -129,8 +158,8 @@ export const reportApi = {
   },
 
   publishReport: async (reportId: number, data: PublishDatas): Promise<{ menuId: number }> => {
-    const response = await apiClient.post<DetailResponse<{ menuId: number }>>('/insight-statistics-publish-on', data, { params: { reportId } });
-    return extractDetail(response);
+    const response = await apiClient.post<ApiResponse<{ menuId: number }>>('/insight-statistics-publish-on', data, { params: { reportId } });
+    return response.data?.data;
   },
 
   unpublishReport: async (reportId: number): Promise<void> => {
@@ -138,8 +167,8 @@ export const reportApi = {
   },
 
   getUserFilter: async (reportId: number): Promise<Record<string, unknown>> => {
-    const response = await apiClient.get<DetailResponse<Record<string, unknown>>>('/insight-statistics-user-filter-get', { params: { reportId } });
-    return extractDetail(response);
+    const response = await apiClient.get<ApiResponse<Record<string, unknown>>>('/insight-statistics-user-filter-get', { params: { reportId } });
+    return response.data?.data;
   },
 
   saveUserFilter: async (reportId: number, data: Record<string, unknown>): Promise<void> => {
@@ -147,8 +176,8 @@ export const reportApi = {
   },
 
   getUserLayout: async (reportId: number): Promise<PanelLayoutUpdateItem[]> => {
-    const response = await apiClient.get<ListResponse<PanelLayoutUpdateItem>>('/insight-statistics-user-layout-get', { params: { reportId } });
-    return extractList(response);
+    const response = await apiClient.get<ApiResponse<{ items: PanelLayoutUpdateItem[] }>>('/insight-statistics-user-layout-get', { params: { reportId } });
+    return response.data?.data?.items ?? [];
   },
 
   saveUserLayout: async (reportId: number, layouts: PanelLayoutUpdateItem[]): Promise<void> => {

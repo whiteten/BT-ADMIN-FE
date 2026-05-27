@@ -18,7 +18,7 @@
  * - manager-node-list:             GET    노드 목록 조회 (cross-service)
  * - ipron-route-list:              GET    발신라우트 목록 조회 (노드별 필터)
  */
-import ApiClient, { type DetailResponse, type ListResponse, extractDetail, extractList } from '@/shared-util';
+import ApiClient, { type ApiResponse } from '@/shared-util';
 import type {
   AccessCode,
   AccessCodeResponse,
@@ -65,12 +65,12 @@ function transformCode(raw: AccessCodeResponse): AccessCode {
 export const accessProfileApi = {
   /**
    * 프로파일 목록 조회
-   * Backend: ApiResponse<List<AccessProfileResponse>> -> BFF: data.value[] -> extractDetail().value
+   * Backend: ApiResponse<List<AccessProfileResponse>> -> BFF: data.value[]
    * @flow ipron-access-profile-list
    */
   getProfiles: async (params?: Record<string, unknown>): Promise<AccessProfile[]> => {
-    const response = await apiClient.get<DetailResponse<{ value: AccessProfileResponse[] }>>('/ipron-access-profile-list', { params });
-    const rawList = extractDetail(response)?.value ?? [];
+    const response = await apiClient.get<ApiResponse<{ value: AccessProfileResponse[] }>>('/ipron-access-profile-list', { params });
+    const rawList = response.data?.data?.value ?? [];
     return rawList.map(transformProfile);
   },
 
@@ -79,8 +79,8 @@ export const accessProfileApi = {
    * @flow ipron-access-profile-tree
    */
   getProfileTree: async (): Promise<ProfileTreeNodeResponse[]> => {
-    const response = await apiClient.get<DetailResponse<{ value: ProfileTreeNodeResponse[] }>>('/ipron-access-profile-tree');
-    return extractDetail(response)?.value ?? [];
+    const response = await apiClient.get<ApiResponse<{ value: ProfileTreeNodeResponse[] }>>('/ipron-access-profile-tree');
+    return response.data?.data?.value ?? [];
   },
 
   /**
@@ -88,8 +88,8 @@ export const accessProfileApi = {
    * @flow ipron-access-profile-detail
    */
   getProfileDetail: async (params: Record<string, unknown>): Promise<AccessProfile> => {
-    const response = await apiClient.get<DetailResponse<AccessProfileResponse>>('/ipron-access-profile-detail', { params });
-    return transformProfile(extractDetail(response));
+    const response = await apiClient.get<ApiResponse<AccessProfileResponse>>('/ipron-access-profile-detail', { params });
+    return transformProfile(response.data?.data);
   },
 
   /**
@@ -97,8 +97,8 @@ export const accessProfileApi = {
    * @flow ipron-access-profile-create
    */
   createProfile: async (data: ProfileCreateData): Promise<AccessProfile> => {
-    const response = await apiClient.post<DetailResponse<AccessProfileResponse>>('/ipron-access-profile-create', data);
-    return transformProfile(extractDetail(response));
+    const response = await apiClient.post<ApiResponse<AccessProfileResponse>>('/ipron-access-profile-create', data);
+    return transformProfile(response.data?.data);
   },
 
   /**
@@ -106,10 +106,10 @@ export const accessProfileApi = {
    * @flow ipron-access-profile-update
    */
   updateProfile: async ({ id, data }: { id: number; data: ProfileUpdateData }): Promise<AccessProfile> => {
-    const response = await apiClient.put<DetailResponse<AccessProfileResponse>>('/ipron-access-profile-update', data, {
+    const response = await apiClient.put<ApiResponse<AccessProfileResponse>>('/ipron-access-profile-update', data, {
       params: { id },
     });
-    return transformProfile(extractDetail(response));
+    return transformProfile(response.data?.data);
   },
 
   /**
@@ -125,20 +125,20 @@ export const accessProfileApi = {
    * @flow ipron-access-profile-copy
    */
   copyProfile: async ({ id, data }: { id: number; data: ProfileCopyData }): Promise<AccessProfile> => {
-    const response = await apiClient.post<DetailResponse<AccessProfileResponse>>('/ipron-access-profile-copy', data, {
+    const response = await apiClient.post<ApiResponse<AccessProfileResponse>>('/ipron-access-profile-copy', data, {
       params: { id },
     });
-    return transformProfile(extractDetail(response));
+    return transformProfile(response.data?.data);
   },
 
   /**
    * 접근코드 목록 조회
-   * Backend: ApiResponse<List<AccessCodeResponse>> -> BFF: data.value[] -> extractDetail().value
+   * Backend: ApiResponse<List<AccessCodeResponse>> -> BFF: data.value[]
    * @flow ipron-access-code-list
    */
   getCodes: async (params: Record<string, unknown>): Promise<AccessCode[]> => {
-    const response = await apiClient.get<DetailResponse<{ value: AccessCodeResponse[] }>>('/ipron-access-code-list', { params });
-    const rawList = extractDetail(response)?.value ?? [];
+    const response = await apiClient.get<ApiResponse<{ value: AccessCodeResponse[] }>>('/ipron-access-code-list', { params });
+    const rawList = response.data?.data?.value ?? [];
     return rawList.map(transformCode);
   },
 
@@ -147,10 +147,10 @@ export const accessProfileApi = {
    * @flow ipron-access-code-create
    */
   createCode: async ({ profileId, data }: { profileId: number; data: CodeCreateData }): Promise<AccessCode> => {
-    const response = await apiClient.post<DetailResponse<AccessCodeResponse>>('/ipron-access-code-create', data, {
+    const response = await apiClient.post<ApiResponse<AccessCodeResponse>>('/ipron-access-code-create', data, {
       params: { profileId },
     });
-    return transformCode(extractDetail(response));
+    return transformCode(response.data?.data);
   },
 
   /**
@@ -158,10 +158,10 @@ export const accessProfileApi = {
    * @flow ipron-access-code-update
    */
   updateCode: async ({ profileId, code, data }: { profileId: number; code: string; data: CodeUpdateData }): Promise<AccessCode> => {
-    const response = await apiClient.put<DetailResponse<AccessCodeResponse>>('/ipron-access-code-update', data, {
+    const response = await apiClient.put<ApiResponse<AccessCodeResponse>>('/ipron-access-code-update', data, {
       params: { profileId, code },
     });
-    return transformCode(extractDetail(response));
+    return transformCode(response.data?.data);
   },
 
   /**
@@ -177,8 +177,8 @@ export const accessProfileApi = {
    * @flow manager-tenant-list
    */
   getTenants: async (): Promise<TenantSimpleResponse[]> => {
-    const response = await apiClient.get<ListResponse<TenantSimpleResponse>>('/manager-tenant-list');
-    return extractList(response);
+    const response = await apiClient.get<ApiResponse<{ items: TenantSimpleResponse[] }>>('/manager-tenant-list');
+    return response.data?.data?.items ?? [];
   },
 
   /**
@@ -186,8 +186,8 @@ export const accessProfileApi = {
    * @flow manager-node-list
    */
   getNodes: async (): Promise<NodeSimpleResponse[]> => {
-    const response = await apiClient.get<ListResponse<NodeSimpleResponse>>('/manager-node-list');
-    return extractList(response);
+    const response = await apiClient.get<ApiResponse<{ items: NodeSimpleResponse[] }>>('/manager-node-list');
+    return response.data?.data?.items ?? [];
   },
 
   /**
@@ -195,10 +195,10 @@ export const accessProfileApi = {
    * @flow ipron-route-list
    */
   getRoutesByNode: async (nodeId: number): Promise<RouteSimpleResponse[]> => {
-    const response = await apiClient.get<DetailResponse<{ value: RouteSimpleResponse[] }>>('/ipron-route-list', {
+    const response = await apiClient.get<ApiResponse<{ value: RouteSimpleResponse[] }>>('/ipron-route-list', {
       params: { nodeId },
     });
-    return extractDetail(response)?.value ?? [];
+    return response.data?.data?.value ?? [];
   },
 
   /**
@@ -206,8 +206,8 @@ export const accessProfileApi = {
    * @flow ipron-dod-trans-node-tenants
    */
   getNodeTenants: async (): Promise<NodeTenantItem[]> => {
-    const response = await apiClient.get<DetailResponse<{ value: NodeTenantItem[] }>>('/ipron-dod-trans-node-tenants');
-    return extractDetail(response)?.value ?? [];
+    const response = await apiClient.get<ApiResponse<{ value: NodeTenantItem[] }>>('/ipron-dod-trans-node-tenants');
+    return response.data?.data?.value ?? [];
   },
 };
 

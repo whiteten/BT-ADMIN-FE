@@ -14,7 +14,7 @@
  * - ipron-md-item-delete:   DELETE 미디어전달 아이템 삭제
  * - manager-node-list:      GET    노드 목록 조회 (cross-service)
  */
-import ApiClient, { type DetailResponse, type ListResponse, extractDetail, extractList } from '@/shared-util';
+import ApiClient, { type ApiResponse } from '@/shared-util';
 import type { MdGrp, MdGrpCreateRequest, MdGrpUpdateRequest, MdItem, MdItemCreateRequest, MdItemUpdateRequest } from '../types';
 
 interface NodeSimpleResponse {
@@ -33,8 +33,8 @@ export const mediaDeliveryApi = {
    * Backend: ApiResponse<List<MdGrpResponse>> -> BFF: data.value[]
    */
   getMdGrps: async (params?: Record<string, unknown>): Promise<MdGrp[]> => {
-    const response = await apiClient.get<DetailResponse<{ value: MdGrp[] }>>('/ipron-md-grp-list', { params });
-    return extractDetail(response)?.value ?? [];
+    const response = await apiClient.get<ApiResponse<{ value: MdGrp[] }>>('/ipron-md-grp-list', { params });
+    return response.data?.data?.value ?? [];
   },
 
   /**
@@ -42,8 +42,8 @@ export const mediaDeliveryApi = {
    * @flow ipron-md-grp-create
    */
   createMdGrp: async (data: MdGrpCreateRequest): Promise<MdGrp> => {
-    const response = await apiClient.post<DetailResponse<MdGrp>>('/ipron-md-grp-create', data);
-    return extractDetail(response);
+    const response = await apiClient.post<ApiResponse<MdGrp>>('/ipron-md-grp-create', data);
+    return response.data?.data;
   },
 
   /**
@@ -51,10 +51,10 @@ export const mediaDeliveryApi = {
    * @flow ipron-md-grp-update
    */
   updateMdGrp: async ({ id, data }: { id: number; data: MdGrpUpdateRequest }): Promise<MdGrp> => {
-    const response = await apiClient.put<DetailResponse<MdGrp>>('/ipron-md-grp-update', data, {
+    const response = await apiClient.put<ApiResponse<MdGrp>>('/ipron-md-grp-update', data, {
       params: { id },
     });
-    return extractDetail(response);
+    return response.data?.data;
   },
 
   /**
@@ -73,8 +73,8 @@ export const mediaDeliveryApi = {
    * Backend: ApiResponse<List<MdItemResponse>> -> BFF: data.value[]
    */
   getMdItems: async (params?: Record<string, unknown>): Promise<MdItem[]> => {
-    const response = await apiClient.get<DetailResponse<{ value: MdItem[] }>>('/ipron-md-item-list', { params });
-    return extractDetail(response)?.value ?? [];
+    const response = await apiClient.get<ApiResponse<{ value: MdItem[] }>>('/ipron-md-item-list', { params });
+    return response.data?.data?.value ?? [];
   },
 
   /**
@@ -83,8 +83,8 @@ export const mediaDeliveryApi = {
    * Backend: ApiResponse<MdItemResponse> -> BFF: data:{...}
    */
   getMdItemDetail: async (params: Record<string, unknown>): Promise<MdItem> => {
-    const response = await apiClient.get<DetailResponse<MdItem>>('/ipron-md-item-detail', { params });
-    return extractDetail(response);
+    const response = await apiClient.get<ApiResponse<MdItem>>('/ipron-md-item-detail', { params });
+    return response.data?.data;
   },
 
   /**
@@ -92,8 +92,8 @@ export const mediaDeliveryApi = {
    * @flow ipron-md-item-create
    */
   createMdItem: async (data: MdItemCreateRequest): Promise<MdItem> => {
-    const response = await apiClient.post<DetailResponse<MdItem>>('/ipron-md-item-create', data);
-    return extractDetail(response);
+    const response = await apiClient.post<ApiResponse<MdItem>>('/ipron-md-item-create', data);
+    return response.data?.data;
   },
 
   /**
@@ -101,10 +101,10 @@ export const mediaDeliveryApi = {
    * @flow ipron-md-item-update
    */
   updateMdItem: async ({ id, data }: { id: number; data: MdItemUpdateRequest }): Promise<MdItem> => {
-    const response = await apiClient.put<DetailResponse<MdItem>>('/ipron-md-item-update', data, {
+    const response = await apiClient.put<ApiResponse<MdItem>>('/ipron-md-item-update', data, {
       params: { id },
     });
-    return extractDetail(response);
+    return response.data?.data;
   },
 
   /**
@@ -122,7 +122,7 @@ export const mediaDeliveryApi = {
    * @flow manager-node-list
    */
   getNodes: async (): Promise<NodeSimpleResponse[]> => {
-    const response = await apiClient.get<ListResponse<NodeSimpleResponse>>('/manager-node-list');
-    return extractList(response);
+    const response = await apiClient.get<ApiResponse<{ items: NodeSimpleResponse[] }>>('/manager-node-list');
+    return response.data?.data?.items ?? [];
   },
 };

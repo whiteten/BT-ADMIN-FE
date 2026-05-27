@@ -280,9 +280,16 @@ export default function CosForm() {
   const clearBreadcrumb = useBreadcrumbStore((s) => s.clearBreadcrumb);
 
   useEffect(() => {
-    setBreadcrumb([{ title: 'IPRON' }, { title: '번호자원관리' }, { title: 'COS 설정', href: '../cos' }, { title: isEditMode ? '수정' : '등록' }]);
+    setBreadcrumb([
+      { title: '번호자원관리' },
+      { title: 'COS 설정', path: '/ipron/cos' },
+      {
+        title: isEditMode ? '수정' : '등록',
+        path: isEditMode && cosIdParam ? `/ipron/cos/${cosIdParam}/edit` : '/ipron/cos/create',
+      },
+    ]);
     return () => clearBreadcrumb();
-  }, [isEditMode, setBreadcrumb, clearBreadcrumb]);
+  }, [isEditMode, cosIdParam, setBreadcrumb, clearBreadcrumb]);
 
   // ─── 유틸 ───────────────────────────────────────────────────────────────────
   const displayValue = (v: unknown) => (v !== null && v !== undefined && v !== '' ? String(v) : <span className="text-gray-300">-</span>);

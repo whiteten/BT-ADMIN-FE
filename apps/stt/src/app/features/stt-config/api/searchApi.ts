@@ -1,4 +1,4 @@
-import ApiClient, { type ListResponse, extractList } from '@/shared-util';
+import ApiClient, { type ApiResponse } from '@/shared-util';
 import type {
   SttResultSentenceItem,
   SttResultSentenceParams,
@@ -74,20 +74,20 @@ function parseMultipartMixed(buffer: ArrayBuffer, contentType: string): SttSearc
 
 export const searchApi = {
   getSttSearch: async (params?: SttSearchParams) => {
-    const response = await apiClient.post<ListResponse<SttSearchItem>>('/stt-search-list', params);
-    return extractList(response);
+    const response = await apiClient.get<ApiResponse<{ items: SttSearchItem[] }>>('/stt-search-list', { params });
+    return response.data?.data?.items ?? [];
   },
   getSttSearchCallbot: async (params?: SttSearchCallbotParams) => {
-    const response = await apiClient.post<ListResponse<SttSearchCallbotItem>>('/stt-search-callbot-list', params);
-    return extractList(response);
+    const response = await apiClient.get<ApiResponse<{ items: SttSearchCallbotItem[] }>>('/stt-search-callbot-list', { params });
+    return response.data?.data?.items ?? [];
   },
   getSttSearchCallbotDetail: async (params?: SttSearchCallbotDetailParams) => {
-    const response = await apiClient.post<ListResponse<SttSearchCallbotDetailItem>>('/stt-search-callbot-detail', params);
-    return extractList(response);
+    const response = await apiClient.get<ApiResponse<{ items: SttSearchCallbotDetailItem[] }>>('/stt-search-callbot-detail', { params });
+    return response.data?.data?.items ?? [];
   },
   getSttResultSentence: async (params?: SttResultSentenceParams) => {
-    const response = await apiClient.get<ListResponse<SttResultSentenceItem>>('/stt-search-result-sentence', { params });
-    return extractList(response);
+    const response = await apiClient.get<ApiResponse<{ items: SttResultSentenceItem[] }>>('/stt-search-result-sentence', { params });
+    return response.data?.data?.items ?? [];
   },
   getSttSearchListen: async (params?: SttSearchListenParams): Promise<SttSearchListenParsed> => {
     const response = await apiClient.post<ArrayBuffer>('/stt-search-listen', params, { responseType: 'arraybuffer', silent: true });

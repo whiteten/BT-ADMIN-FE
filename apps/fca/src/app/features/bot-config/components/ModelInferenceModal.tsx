@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react';
+import { type CSSProperties, useEffect, useRef } from 'react';
 import JsonView from '@uiw/react-json-view';
 import { vscodeTheme } from '@uiw/react-json-view/vscode';
 import { Button, FloatButton, Input, type InputRef, Space } from 'antd';
@@ -15,7 +15,7 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 
 const jsonViewOptions = {
-  style: vscodeTheme,
+  style: vscodeTheme as CSSProperties,
   collapsed: false,
   displayObjectSize: false,
   displayDataTypes: false,

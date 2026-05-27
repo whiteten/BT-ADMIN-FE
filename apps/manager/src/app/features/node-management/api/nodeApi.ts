@@ -12,7 +12,7 @@
  * - manager-node-name-check:        GET    노드명 중복체크
  * - manager-node-cluster-move:      PUT    노드 클러스터 이동
  */
-import ApiClient, { type DetailResponse, type ListResponse, extractDetail, extractList } from '@/shared-util';
+import ApiClient, { type ApiResponse } from '@/shared-util';
 import type { NodeBackendResponse, NodeClusterMoveData, NodeCreateData, NodeDetail, NodeListItem, NodeUpdateData } from '../types';
 
 const apiClient = new ApiClient({ serviceURL: '/bff' });
@@ -72,8 +72,8 @@ export const nodeApi = {
    * @flow manager-node-list
    */
   getNodes: async (params?: Record<string, unknown>): Promise<NodeListItem[]> => {
-    const response = await apiClient.get<ListResponse<NodeBackendResponse>>('/manager-node-list', { params });
-    const rawList = extractList(response);
+    const response = await apiClient.get<ApiResponse<{ items: NodeBackendResponse[] }>>('/manager-node-list', { params });
+    const rawList = response.data?.data?.items ?? [];
     return rawList.map(transformNodeListItem);
   },
 
@@ -82,8 +82,8 @@ export const nodeApi = {
    * @flow manager-node-detail
    */
   getNode: async (params: Record<string, unknown>): Promise<NodeDetail> => {
-    const response = await apiClient.get<DetailResponse<NodeBackendResponse>>('/manager-node-detail', { params });
-    const raw = extractDetail(response);
+    const response = await apiClient.get<ApiResponse<NodeBackendResponse>>('/manager-node-detail', { params });
+    const raw = response.data?.data;
     return transformNodeDetail(raw);
   },
 
@@ -92,8 +92,8 @@ export const nodeApi = {
    * @flow manager-node-create
    */
   createNode: async (data: NodeCreateData): Promise<NodeListItem> => {
-    const response = await apiClient.post<DetailResponse<NodeBackendResponse>>('/manager-node-create', data);
-    return transformNodeListItem(extractDetail(response));
+    const response = await apiClient.post<ApiResponse<NodeBackendResponse>>('/manager-node-create', data);
+    return transformNodeListItem(response.data?.data);
   },
 
   /**
@@ -101,8 +101,8 @@ export const nodeApi = {
    * @flow manager-node-update
    */
   updateNode: async ({ id, data }: { id: number; data: NodeUpdateData }): Promise<NodeListItem> => {
-    const response = await apiClient.put<DetailResponse<NodeBackendResponse>>('/manager-node-update', data, { params: { nodeId: id } });
-    return transformNodeListItem(extractDetail(response));
+    const response = await apiClient.put<ApiResponse<NodeBackendResponse>>('/manager-node-update', data, { params: { nodeId: id } });
+    return transformNodeListItem(response.data?.data);
   },
 
   /**
@@ -119,8 +119,8 @@ export const nodeApi = {
    * @flow manager-node-id-check
    */
   checkNodeId: async (params: Record<string, unknown>): Promise<boolean> => {
-    const response = await apiClient.get<DetailResponse<{ value: boolean }>>('/manager-node-id-check', { params });
-    return extractDetail(response)?.value ?? false;
+    const response = await apiClient.get<ApiResponse<{ value: boolean }>>('/manager-node-id-check', { params });
+    return response.data?.data?.value ?? false;
   },
 
   /**
@@ -128,8 +128,8 @@ export const nodeApi = {
    * @flow manager-node-name-check
    */
   checkNodeName: async (params: Record<string, unknown>): Promise<boolean> => {
-    const response = await apiClient.get<DetailResponse<{ value: boolean }>>('/manager-node-name-check', { params });
-    return extractDetail(response)?.value ?? false;
+    const response = await apiClient.get<ApiResponse<{ value: boolean }>>('/manager-node-name-check', { params });
+    return response.data?.data?.value ?? false;
   },
 
   /**

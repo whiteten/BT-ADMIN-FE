@@ -1,5 +1,5 @@
-import { useCallback, useRef, useState } from 'react';
-import type { CellValueChangedEvent, ColDef, GridReadyEvent } from 'ag-grid-community';
+import { useCallback, useState } from 'react';
+import type { CellValueChangedEvent, ColDef } from 'ag-grid-community';
 import { AgGridReact } from 'ag-grid-react';
 import { toast } from '@/shared-util';
 import { useUpdateFieldDisplays } from '../../report/hooks/useReportQueries';
@@ -51,7 +51,7 @@ export default function DatasetFieldTable({ reportId, fieldDisplays }: DatasetFi
       headerName: '컬럼',
       width: 160,
       editable: false,
-      cellClass: 'font-mono text-[11px]',
+      cellClass: 'font-mono text-xs',
     },
     {
       field: 'isVisible',
@@ -69,8 +69,11 @@ export default function DatasetFieldTable({ reportId, fieldDisplays }: DatasetFi
       cellEditor: 'agSelectCellEditor',
       cellEditorParams: { values: FIELD_TYPE_OPTIONS.map((o) => o.value) },
       cellRenderer: (params: { value: FieldType }) => {
-        const color = params.value === 'DIM' ? 'text-bt-primary bg-bt-primary-soft' : 'text-bt-fg-muted bg-bt-bg-muted';
-        return `<span class="rounded px-1.5 py-0.5 text-[10px] font-semibold ${color}">${params.value ?? ''}</span>`;
+        const style =
+          params.value === 'DIM'
+            ? 'color: var(--color-bt-primary); background: var(--color-bt-primary-soft);'
+            : 'color: var(--color-bt-fg-muted); background: var(--color-bt-bg-muted);';
+        return `<span style="border-radius: 4px; padding: 2px 6px; font-size: 11px; font-weight: 600; ${style}">${params.value ?? ''}</span>`;
       },
     },
     {

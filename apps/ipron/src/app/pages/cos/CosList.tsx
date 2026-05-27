@@ -29,7 +29,6 @@ import useAggridOptions from '@/libs/shared-ui/src/hooks/useAggridOptions';
 import { useModal } from '@/libs/shared-ui/src/hooks/useModal';
 
 const breadcrumb = [
-  { title: 'IPRON', path: '/ipron' },
   { title: '번호자원관리', path: '/ipron/cos' },
   { title: 'COS 설정', path: '/ipron/cos' },
 ];

@@ -10,7 +10,7 @@
  * - ipron-acl-delete:   DELETE ACL 삭제
  * - manager-node-list:  GET    노드 목록 조회 (cross-service)
  */
-import ApiClient, { type DetailResponse, type ListResponse, extractDetail, extractList } from '@/shared-util';
+import ApiClient, { type ApiResponse } from '@/shared-util';
 import type { Acl, AclCreateRequest, AclUpdateRequest } from '../types';
 
 interface NodeSimpleResponse {
@@ -27,8 +27,8 @@ export const aclApi = {
    * Backend: ApiResponse<List<AclResponse>> -> BFF: data.value[]
    */
   getAcls: async (params?: Record<string, unknown>): Promise<Acl[]> => {
-    const response = await apiClient.get<DetailResponse<{ value: Acl[] }>>('/ipron-acl-list', { params });
-    return extractDetail(response)?.value ?? [];
+    const response = await apiClient.get<ApiResponse<{ value: Acl[] }>>('/ipron-acl-list', { params });
+    return response.data?.data?.value ?? [];
   },
 
   /**
@@ -37,8 +37,8 @@ export const aclApi = {
    * Backend: ApiResponse<AclResponse> -> BFF: data:{...}
    */
   getAclDetail: async (params: Record<string, unknown>): Promise<Acl> => {
-    const response = await apiClient.get<DetailResponse<Acl>>('/ipron-acl-detail', { params });
-    return extractDetail(response);
+    const response = await apiClient.get<ApiResponse<Acl>>('/ipron-acl-detail', { params });
+    return response.data?.data;
   },
 
   /**
@@ -46,8 +46,8 @@ export const aclApi = {
    * @flow ipron-acl-create
    */
   createAcl: async (data: AclCreateRequest): Promise<Acl> => {
-    const response = await apiClient.post<DetailResponse<Acl>>('/ipron-acl-create', data);
-    return extractDetail(response);
+    const response = await apiClient.post<ApiResponse<Acl>>('/ipron-acl-create', data);
+    return response.data?.data;
   },
 
   /**
@@ -55,10 +55,10 @@ export const aclApi = {
    * @flow ipron-acl-update
    */
   updateAcl: async ({ id, data }: { id: number; data: AclUpdateRequest }): Promise<Acl> => {
-    const response = await apiClient.put<DetailResponse<Acl>>('/ipron-acl-update', data, {
+    const response = await apiClient.put<ApiResponse<Acl>>('/ipron-acl-update', data, {
       params: { id },
     });
-    return extractDetail(response);
+    return response.data?.data;
   },
 
   /**
@@ -74,27 +74,27 @@ export const aclApi = {
    * @flow manager-node-list
    */
   getNodes: async (): Promise<NodeSimpleResponse[]> => {
-    const response = await apiClient.get<ListResponse<NodeSimpleResponse>>('/manager-node-list');
-    return extractList(response);
+    const response = await apiClient.get<ApiResponse<{ items: NodeSimpleResponse[] }>>('/manager-node-list');
+    return response.data?.data?.items ?? [];
   },
 
   // ─── CTI ACL ──────────────────────────────────────────────────────────────
 
   getCtiAcls: async (params?: Record<string, unknown>): Promise<Acl[]> => {
-    const response = await apiClient.get<DetailResponse<{ value: Acl[] }>>('/ipron-cti-acl-list', { params });
-    return extractDetail(response)?.value ?? [];
+    const response = await apiClient.get<ApiResponse<{ value: Acl[] }>>('/ipron-cti-acl-list', { params });
+    return response.data?.data?.value ?? [];
   },
 
   createCtiAcl: async (data: AclCreateRequest): Promise<Acl> => {
-    const response = await apiClient.post<DetailResponse<Acl>>('/ipron-cti-acl-create', data);
-    return extractDetail(response);
+    const response = await apiClient.post<ApiResponse<Acl>>('/ipron-cti-acl-create', data);
+    return response.data?.data;
   },
 
   updateCtiAcl: async ({ id, data }: { id: number; data: AclUpdateRequest }): Promise<Acl> => {
-    const response = await apiClient.put<DetailResponse<Acl>>('/ipron-cti-acl-update', data, {
+    const response = await apiClient.put<ApiResponse<Acl>>('/ipron-cti-acl-update', data, {
       params: { id },
     });
-    return extractDetail(response);
+    return response.data?.data;
   },
 
   deleteCtiAcl: async (params: Record<string, unknown>) => {

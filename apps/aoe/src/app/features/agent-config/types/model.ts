@@ -77,6 +77,7 @@ export interface ModelUpdateVersionItem {
 
 export interface ModelUpdateRequest {
   modelName: string;
+  apiKey?: string;
   useYn?: 0 | 1;
   modelVersions?: ModelUpdateVersionItem[];
 }

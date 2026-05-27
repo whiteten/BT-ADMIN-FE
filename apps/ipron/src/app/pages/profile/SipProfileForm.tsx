@@ -134,9 +134,16 @@ export default function SipProfileForm() {
   const clearBreadcrumb = useBreadcrumbStore((s) => s.clearBreadcrumb);
 
   useEffect(() => {
-    setBreadcrumb([{ title: 'IPRON' }, { title: '프로파일 관리' }, { title: 'SIP 프로파일', href: '../sip-profile' }, { title: isEditMode ? '수정' : '등록' }]);
+    setBreadcrumb([
+      { title: '프로파일 관리', path: '/ipron/profile' },
+      { title: 'SIP 프로파일', path: '/ipron/profile/sip-profile' },
+      {
+        title: isEditMode ? '수정' : '등록',
+        path: isEditMode && id ? `/ipron/profile/sip-profile/${id}` : '/ipron/profile/sip-profile/create',
+      },
+    ]);
     return () => clearBreadcrumb();
-  }, [isEditMode, setBreadcrumb, clearBreadcrumb]);
+  }, [isEditMode, id, setBreadcrumb, clearBreadcrumb]);
 
   // ─── 유틸 ───────────────────────────────────────────────────────────────────
   const displayValue = (v: unknown) => (v !== null && v !== undefined && v !== '' ? String(v) : <span className="text-gray-300">-</span>);

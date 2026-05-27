@@ -723,9 +723,17 @@ export default function DnForm() {
   const clearBreadcrumb = useBreadcrumbStore((s) => s.clearBreadcrumb);
 
   useEffect(() => {
-    setBreadcrumb([{ title: 'IPRON' }, { title: '번호자원관리' }, { title: 'DN관리' }, { title: '내선관리', href: '../dn' }, { title: isEditMode ? '수정' : '등록' }]);
+    setBreadcrumb([
+      { title: '번호자원관리' },
+      { title: 'DN관리' },
+      { title: '내선관리', path: '/ipron/dn' },
+      {
+        title: isEditMode ? '수정' : '등록',
+        path: isEditMode && id ? `/ipron/dn/${id}/edit` : '/ipron/dn/create',
+      },
+    ]);
     return () => clearBreadcrumb();
-  }, [isEditMode, setBreadcrumb, clearBreadcrumb]);
+  }, [isEditMode, id, setBreadcrumb, clearBreadcrumb]);
 
   // 필수값 충족 여부 — 어느 스텝이든 충족되면 등록 버튼 활성
   const v = formValues ?? DN_INITIAL_VALUES;

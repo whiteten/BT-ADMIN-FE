@@ -1,4 +1,4 @@
-import ApiClient, { type DetailResponse, extractDetail } from '@/shared-util';
+import ApiClient, { type ApiResponse } from '@/shared-util';
 import type { AccountPolicy, AccountPolicyUpdateData } from '../types';
 
 /**
@@ -12,15 +12,15 @@ export const accountPolicyApi = {
    * 계정 보안 정책 조회 (없으면 기본값 반환)
    */
   getPolicy: async (params?: Record<string, unknown>): Promise<AccountPolicy> => {
-    const response = await apiClient.get<DetailResponse<AccountPolicy>>('/account-policy-detail', { params });
-    return extractDetail(response);
+    const response = await apiClient.get<ApiResponse<AccountPolicy>>('/account-policy-detail', { params });
+    return response.data?.data;
   },
 
   /**
    * 계정 보안 정책 수정 (없으면 생성)
    */
   updatePolicy: async (data: AccountPolicyUpdateData): Promise<AccountPolicy> => {
-    const response = await apiClient.put<DetailResponse<AccountPolicy>>('/account-policy-update', data);
-    return extractDetail(response);
+    const response = await apiClient.put<ApiResponse<AccountPolicy>>('/account-policy-update', data);
+    return response.data?.data;
   },
 };

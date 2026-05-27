@@ -14,7 +14,7 @@
  * - manager-tenant-callgroup-update: PUT    통화그룹 수정
  * - manager-tenant-callgroup-delete: DELETE 통화그룹 삭제
  */
-import ApiClient, { type DetailResponse, type ListResponse, extractDetail, extractList } from '@/shared-util';
+import ApiClient, { type ApiResponse } from '@/shared-util';
 import type {
   CallGroupBackendResponse,
   CallGroupCreateData,
@@ -113,8 +113,8 @@ export const tenantApi = {
    * @flow manager-tenant-list
    */
   getTenants: async (params?: Record<string, unknown>): Promise<TenantListItem[]> => {
-    const response = await apiClient.get<ListResponse<TenantBackendResponse>>('/manager-tenant-list', { params });
-    const rawList = extractList(response);
+    const response = await apiClient.get<ApiResponse<{ items: TenantBackendResponse[] }>>('/manager-tenant-list', { params });
+    const rawList = response.data?.data?.items ?? [];
     return rawList.map(transformTenantListItem);
   },
 
@@ -123,8 +123,8 @@ export const tenantApi = {
    * @flow manager-tenant-detail
    */
   getTenant: async (params: Record<string, unknown>): Promise<TenantDetail> => {
-    const response = await apiClient.get<DetailResponse<TenantDetailBackendResponse>>('/manager-tenant-detail', { params });
-    const raw = extractDetail(response);
+    const response = await apiClient.get<ApiResponse<TenantDetailBackendResponse>>('/manager-tenant-detail', { params });
+    const raw = response.data?.data;
     return transformTenantDetail(raw);
   },
 
@@ -133,8 +133,8 @@ export const tenantApi = {
    * @flow manager-tenant-create
    */
   createTenant: async (data: TenantCreateData): Promise<TenantListItem> => {
-    const response = await apiClient.post<DetailResponse<TenantBackendResponse>>('/manager-tenant-create', data);
-    return transformTenantListItem(extractDetail(response));
+    const response = await apiClient.post<ApiResponse<TenantBackendResponse>>('/manager-tenant-create', data);
+    return transformTenantListItem(response.data?.data);
   },
 
   /**
@@ -142,8 +142,8 @@ export const tenantApi = {
    * @flow manager-tenant-update
    */
   updateTenant: async ({ id, data }: { id: number; data: TenantUpdateData }): Promise<TenantListItem> => {
-    const response = await apiClient.put<DetailResponse<TenantBackendResponse>>('/manager-tenant-update', data, { params: { id } });
-    return transformTenantListItem(extractDetail(response));
+    const response = await apiClient.put<ApiResponse<TenantBackendResponse>>('/manager-tenant-update', data, { params: { id } });
+    return transformTenantListItem(response.data?.data);
   },
 
   /**
@@ -160,8 +160,8 @@ export const tenantApi = {
    * @flow manager-tenant-name-check
    */
   checkTenantName: async (params: Record<string, unknown>): Promise<boolean> => {
-    const response = await apiClient.get<DetailResponse<{ value: boolean }>>('/manager-tenant-name-check', { params });
-    return extractDetail(response)?.value ?? false;
+    const response = await apiClient.get<ApiResponse<{ value: boolean }>>('/manager-tenant-name-check', { params });
+    return response.data?.data?.value ?? false;
   },
 
   /**
@@ -169,8 +169,8 @@ export const tenantApi = {
    * @flow manager-tenant-callgroup-list
    */
   getCallGroups: async (params: Record<string, unknown>): Promise<CallGroupItem[]> => {
-    const response = await apiClient.get<DetailResponse<{ value: CallGroupBackendResponse[] }>>('/manager-tenant-callgroup-list', { params });
-    const rawList = extractDetail(response)?.value ?? [];
+    const response = await apiClient.get<ApiResponse<{ value: CallGroupBackendResponse[] }>>('/manager-tenant-callgroup-list', { params });
+    const rawList = response.data?.data?.value ?? [];
     return rawList.map(transformCallGroup);
   },
 

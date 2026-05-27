@@ -4,7 +4,7 @@ import { useQueryClient } from '@tanstack/react-query';
 import { Button, Checkbox, Col, Form, type FormProps, Input, Modal, Row, Select } from 'antd';
 import { Plus, Settings, X } from 'lucide-react';
 import { Log } from '@/log';
-import ApiClient, { type ListResponse, extractList, toast } from '@/shared-util';
+import ApiClient, { type ApiResponse, toast } from '@/shared-util';
 import {
   knowledgeQueryKeys,
   useDeleteKnowledgeEval,
@@ -228,8 +228,8 @@ export default function EvalBasicInfo() {
     Promise.all(
       selectedFileIds.map((fileId) =>
         apiClient
-          .get<ListResponse<KnowledgeChunkItem>>('/aoe-knowledge-chunks', { params: { fileId } })
-          .then((res) => extractList(res).map((chunk) => ({ ...chunk, fileId })))
+          .get<ApiResponse<{ items: KnowledgeChunkItem[] }>>('/aoe-knowledge-chunks', { params: { fileId } })
+          .then((res) => (res.data?.data?.items ?? []).map((chunk) => ({ ...chunk, fileId })))
           .catch(() => [] as KnowledgeChunkItem[]),
       ),
     )

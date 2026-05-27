@@ -1,7 +1,7 @@
 /**
  * 권한 관리 API
  */
-import ApiClient, { type ListResponse, extractList } from '@/shared-util';
+import ApiClient, { type ApiResponse } from '@/shared-util';
 import type { Permission, PermissionCreateRequest, PermissionFlat, PermissionGroup } from '../types';
 
 const apiClient = new ApiClient({ serviceURL: '/bff' });
@@ -12,8 +12,8 @@ export const permissionApi = {
    * 메뉴 트리 구조와 각 메뉴에 매핑된 권한 목록을 앱별로 그룹화하여 조회한다.
    */
   getGroupedPermissions: async (): Promise<PermissionGroup[]> => {
-    const response = await apiClient.get<ListResponse<PermissionGroup>>('/permission-list');
-    return extractList(response);
+    const response = await apiClient.get<ApiResponse<{ items: PermissionGroup[] }>>('/permission-list');
+    return response.data?.data?.items ?? [];
   },
 
   /**
@@ -21,15 +21,15 @@ export const permissionApi = {
    * 메뉴 정보를 포함한 Flat 형식의 권한 목록을 조회한다.
    */
   getAuthList: async (): Promise<PermissionFlat[]> => {
-    const response = await apiClient.get<ListResponse<PermissionFlat>>('/permission-auth-list');
-    return extractList(response);
+    const response = await apiClient.get<ApiResponse<{ items: PermissionFlat[] }>>('/permission-auth-list');
+    return response.data?.data?.items ?? [];
   },
 
   /**
    * 권한 생성
    */
   create: async (data: PermissionCreateRequest): Promise<Permission> => {
-    const response = await apiClient.post<{ data: Permission }>('/permission-create', data);
+    const response = await apiClient.post<ApiResponse<Permission>>('/permission-create', data);
     return response?.data?.data;
   },
 

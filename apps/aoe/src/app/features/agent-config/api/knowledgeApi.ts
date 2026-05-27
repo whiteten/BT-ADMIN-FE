@@ -1,4 +1,4 @@
-import ApiClient, { type DetailResponse, type ListResponse, extractDetail, extractList } from '@/shared-util';
+import ApiClient, { type ApiResponse } from '@/shared-util';
 import type {
   EvalGenerateRequest,
   KnowledgeChunkData,
@@ -22,28 +22,28 @@ const apiClient = new ApiClient({ serviceURL: '/bff' });
 
 export const knowledgeApi = {
   getKnowledges: async (params?: Record<string, unknown>) => {
-    const response = await apiClient.get<ListResponse<KnowledgeListItem>>('/aoe-knowledge-list', { params });
-    return extractList(response);
+    const response = await apiClient.get<ApiResponse<{ items: KnowledgeListItem[] }>>('/aoe-knowledge-list', { params });
+    return response.data?.data?.items ?? [];
   },
   getKnowledge: async (params: { documentId: string }) => {
-    const response = await apiClient.get<DetailResponse<KnowledgeItem>>('/aoe-knowledge-detail', { params });
-    return extractDetail(response);
+    const response = await apiClient.get<ApiResponse<KnowledgeItem>>('/aoe-knowledge-detail', { params });
+    return response.data?.data;
   },
   previewKnowledge: async (data: { chunkSize: number; chunkOverlap: number; file: File }) => {
     const formData = new FormData();
     formData.append('chunkSize', String(data.chunkSize));
     formData.append('chunkOverlap', String(data.chunkOverlap));
     formData.append('file', data.file);
-    const response = await apiClient.post<ListResponse<KnowledgeChunkData>>('/aoe-knowledge-preview', formData);
-    return extractList(response);
+    const response = await apiClient.post<ApiResponse<{ items: KnowledgeChunkData[] }>>('/aoe-knowledge-preview', formData);
+    return response.data?.data?.items ?? [];
   },
   updateKnowledge: async ({ params, data }: { params: { documentId: string }; data: KnowledgeUpdateDatas }) => {
-    const response = await apiClient.put<DetailResponse<KnowledgeItem>>('/aoe-knowledge-update', data, { params });
-    return extractDetail(response);
+    const response = await apiClient.put<ApiResponse<KnowledgeItem>>('/aoe-knowledge-update', data, { params });
+    return response.data?.data;
   },
   getKnowledgeFiles: async (params: { documentId: string }) => {
-    const response = await apiClient.get<ListResponse<KnowledgeFileItem>>('/aoe-knowledge-files', { params });
-    return extractList(response);
+    const response = await apiClient.get<ApiResponse<{ items: KnowledgeFileItem[] }>>('/aoe-knowledge-files', { params });
+    return response.data?.data?.items ?? [];
   },
   addKnowledgeFile: async ({ params, files }: { params: { documentId: string }; files: File[] }) => {
     const formData = new FormData();
@@ -57,8 +57,8 @@ export const knowledgeApi = {
     await apiClient.put('/aoe-knowledge-file-role', { roleCode: data.roleCode }, { params: { fileId: data.fileId } });
   },
   getKnowledgeMetadata: async (params: { documentId: string }) => {
-    const response = await apiClient.get<ListResponse<KnowledgeMetadataItem>>('/aoe-knowledge-metadata', { params });
-    return extractList(response);
+    const response = await apiClient.get<ApiResponse<{ items: KnowledgeMetadataItem[] }>>('/aoe-knowledge-metadata', { params });
+    return response.data?.data?.items ?? [];
   },
   addKnowledgeMetadata: async ({ params, data }: { params: { documentId: string }; data: { metaName: string; metaType: string } }) => {
     await apiClient.post('/aoe-knowledge-metadata-add', data, { params });
@@ -70,20 +70,20 @@ export const knowledgeApi = {
     await apiClient.delete('/aoe-knowledge-delete', { params: { documentId } });
   },
   searchKnowledge: async (data: { documentId: string; query: string }) => {
-    const response = await apiClient.post<ListResponse<KnowledgeSearchChunk>>('/aoe-knowledge-search', data);
-    return extractList(response);
+    const response = await apiClient.post<ApiResponse<{ items: KnowledgeSearchChunk[] }>>('/aoe-knowledge-search', data);
+    return response.data?.data?.items ?? [];
   },
   getKnowledgeSearchRecords: async (params: { documentId: string }) => {
-    const response = await apiClient.get<ListResponse<KnowledgeSearchRecord>>('/aoe-knowledge-search-records', { params });
-    return extractList(response);
+    const response = await apiClient.get<ApiResponse<{ items: KnowledgeSearchRecord[] }>>('/aoe-knowledge-search-records', { params });
+    return response.data?.data?.items ?? [];
   },
   getKnowledgeEvals: async (params: { documentId: string }) => {
-    const response = await apiClient.get<ListResponse<KnowledgeEvalItem>>('/aoe-knowledge-evals', { params });
-    return extractList(response);
+    const response = await apiClient.get<ApiResponse<{ items: KnowledgeEvalItem[] }>>('/aoe-knowledge-evals', { params });
+    return response.data?.data?.items ?? [];
   },
   getKnowledgeEval: async (params: { documentId: string; evalId: string }) => {
-    const response = await apiClient.get<DetailResponse<KnowledgeEvalItem>>('/aoe-knowledge-eval-detail', { params });
-    return extractDetail(response);
+    const response = await apiClient.get<ApiResponse<KnowledgeEvalItem>>('/aoe-knowledge-eval-detail', { params });
+    return response.data?.data;
   },
   updateKnowledgeEval: async ({ params, data }: { params: { documentId: string; evalId: string }; data: KnowledgeEvalUpdateDatas }) => {
     await apiClient.put('/aoe-knowledge-eval-update', data, { params });
@@ -98,23 +98,25 @@ export const knowledgeApi = {
     await apiClient.post('/aoe-knowledge-eval-run', data, { params });
   },
   getKnowledgeEvalHistory: async (params: { documentId: string; evalId: string }) => {
-    const response = await apiClient.get<ListResponse<KnowledgeEvalExecution>>('/aoe-knowledge-eval-history-list', { params });
-    return extractList(response);
+    const response = await apiClient.get<ApiResponse<{ items: KnowledgeEvalExecution[] }>>('/aoe-knowledge-eval-history-list', { params });
+    return response.data?.data?.items ?? [];
   },
   getKnowledgeEvalResult: async (params: { documentId: string; evalId: string; resultId: string }) => {
-    const response = await apiClient.get<DetailResponse<KnowledgeEvalResult>>('/aoe-knowledge-eval-result', { params });
-    return extractDetail(response);
+    const response = await apiClient.get<ApiResponse<KnowledgeEvalResult>>('/aoe-knowledge-eval-result', { params });
+    return response.data?.data;
   },
   getKnowledgeChunks: async (params: { fileId: string }) => {
-    const response = await apiClient.get<ListResponse<KnowledgeChunkItem>>('/aoe-knowledge-chunks', { params });
-    return extractList(response);
+    const response = await apiClient.get<ApiResponse<{ items: KnowledgeChunkItem[] }>>('/aoe-knowledge-chunks', { params });
+    return response.data?.data?.items ?? [];
   },
   createKnowledgeEval: async ({ params, data }: { params: { documentId: string }; data: KnowledgeEvalCreateDatas }) => {
     await apiClient.post('/aoe-knowledge-eval-create', data, { params });
   },
   generateKnowledgeEvalLLM: async ({ params, data }: EvalGenerateRequest) => {
-    const response = await apiClient.post<ListResponse<{ chunkId: string; index: number; question: string; answer: string }>>('/aoe-knowledge-eval-generate', data, { params });
-    const items = extractList(response);
+    const response = await apiClient.post<ApiResponse<{ items: { chunkId: string; index: number; question: string; answer: string }[] }>>('/aoe-knowledge-eval-generate', data, {
+      params,
+    });
+    const items = response.data?.data?.items ?? [];
     const grouped = new Map<string, { question: string; answer: string }[]>();
     for (const item of items.sort((a, b) => a.index - b.index)) {
       if (!grouped.has(item.chunkId)) grouped.set(item.chunkId, []);
@@ -144,7 +146,7 @@ export const knowledgeApi = {
     if (data.denseWeight !== undefined) formData.append('denseWeight', String(data.denseWeight));
     if (data.bm25Weight !== undefined) formData.append('bm25Weight', String(data.bm25Weight));
     data.files.forEach((file) => formData.append('files', file));
-    const response = await apiClient.post<DetailResponse<KnowledgeItem>>('/aoe-knowledge-process', formData);
-    return extractDetail(response);
+    const response = await apiClient.post<ApiResponse<KnowledgeItem>>('/aoe-knowledge-process', formData);
+    return response.data?.data;
   },
 };

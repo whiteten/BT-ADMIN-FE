@@ -1,4 +1,4 @@
-import ApiClient, { type ListResponse, type StatListResponse, extractList, extractStatList } from '@/shared-util';
+import ApiClient, { type ApiResponse } from '@/shared-util';
 import type {
   CampaignAchievementStatList,
   CampaignAchievementStatListItem,
@@ -36,43 +36,43 @@ const apiClient = new ApiClient({ serviceURL: '/bff' });
 export const statisticsApi = {
   // 서비스 통계 목록 조회
   getServiceStatList: async (params?: Record<string, unknown>): Promise<ServiceStatList> => {
-    const response = await apiClient.post<StatListResponse<ServiceStatListItem>>('/stat-bot-service', params);
-    return extractStatList(response);
+    const response = await apiClient.post<ApiResponse<{ items: ServiceStatListItem[]; summary: ServiceStatListItem | null }>>('/stat-bot-service', params);
+    return { items: response.data?.data?.items ?? [], summary: response.data?.data?.summary ?? null };
   },
 
   // 대화 통계 목록 조회
   getDialogStatList: async (params?: Record<string, unknown>): Promise<DialogStatList> => {
-    const response = await apiClient.post<StatListResponse<DialogStatListItem>>('/stat-bot-dialog', params);
-    return extractStatList(response);
+    const response = await apiClient.post<ApiResponse<{ items: DialogStatListItem[]; summary: DialogStatListItem | null }>>('/stat-bot-dialog', params);
+    return { items: response.data?.data?.items ?? [], summary: response.data?.data?.summary ?? null };
   },
 
   // 슬롯 통계 목록 조회
   getSlotStatList: async (params?: Record<string, unknown>): Promise<SlotStatList> => {
-    const response = await apiClient.post<StatListResponse<SlotStatListItem>>('/stat-bot-slot', params);
-    return extractStatList(response);
+    const response = await apiClient.post<ApiResponse<{ items: SlotStatListItem[]; summary: SlotStatListItem | null }>>('/stat-bot-slot', params);
+    return { items: response.data?.data?.items ?? [], summary: response.data?.data?.summary ?? null };
   },
 
   // 의도 통계 목록 조회
   getIntentStatList: async (params?: Record<string, unknown>): Promise<IntentStatList> => {
-    const response = await apiClient.post<StatListResponse<IntentStatListItem>>('/stat-nlu-intent', params);
-    return extractStatList(response);
+    const response = await apiClient.post<ApiResponse<{ items: IntentStatListItem[]; summary: IntentStatListItem | null }>>('/stat-nlu-intent', params);
+    return { items: response.data?.data?.items ?? [], summary: response.data?.data?.summary ?? null };
   },
 
   // 개체 통계 목록 조회
   getEntityStatList: async (params?: Record<string, unknown>): Promise<EntityStatList> => {
-    const response = await apiClient.post<StatListResponse<EntityStatListItem>>('/stat-nlu-entity', params);
-    return extractStatList(response);
+    const response = await apiClient.post<ApiResponse<{ items: EntityStatListItem[]; summary: EntityStatListItem | null }>>('/stat-nlu-entity', params);
+    return { items: response.data?.data?.items ?? [], summary: response.data?.data?.summary ?? null };
   },
 
   // 키워드 통계 목록 조회
   getKeywordStatList: async (params?: Record<string, unknown>): Promise<KeywordStatList> => {
-    const response = await apiClient.post<StatListResponse<KeywordStatListItem>>('/stat-nlu-keyword', params);
-    return extractStatList(response);
+    const response = await apiClient.post<ApiResponse<{ items: KeywordStatListItem[]; summary: KeywordStatListItem | null }>>('/stat-nlu-keyword', params);
+    return { items: response.data?.data?.items ?? [], summary: response.data?.data?.summary ?? null };
   },
 
   // 사용자 정의 통계 목록 조회
   getUserDefStatList: async (params?: Record<string, unknown>): Promise<UserDefStatList> => {
-    const response = await apiClient.post<{ data: { items: UserDefStatListItem[]; summary: UserDefStatListItem | null; columnDef: UserDefColumnDef[] } }>(
+    const response = await apiClient.post<ApiResponse<{ items: UserDefStatListItem[]; summary: UserDefStatListItem | null; columnDef: UserDefColumnDef[] }>>(
       '/stat-bot-user-def',
       params,
     );
@@ -85,32 +85,32 @@ export const statisticsApi = {
 
   // 대화 옵션 목록 조회
   getDialogOptionList: async (params?: Record<string, unknown>): Promise<DialogOptionListItem[]> => {
-    const response = await apiClient.post<ListResponse<DialogOptionListItem>>('/stat-dialog-options', params);
-    return extractList(response);
+    const response = await apiClient.post<ApiResponse<{ items: DialogOptionListItem[] }>>('/stat-dialog-options', params);
+    return response.data?.data?.items ?? [];
   },
 
   // 슬롯 옵션 목록 조회
   getSlotOptionList: async (params?: Record<string, unknown>): Promise<SlotOptionListItem[]> => {
-    const response = await apiClient.post<ListResponse<SlotOptionListItem>>('/stat-slot-options', params);
-    return extractList(response);
+    const response = await apiClient.post<ApiResponse<{ items: SlotOptionListItem[] }>>('/stat-slot-options', params);
+    return response.data?.data?.items ?? [];
   },
 
   // 의도 옵션 목록 조회
   getIntentOptionList: async (params?: Record<string, unknown>): Promise<IntentOptionListItem[]> => {
-    const response = await apiClient.post<ListResponse<IntentOptionListItem>>('/stat-intent-options', params);
-    return extractList(response);
+    const response = await apiClient.post<ApiResponse<{ items: IntentOptionListItem[] }>>('/stat-intent-options', params);
+    return response.data?.data?.items ?? [];
   },
 
   // 개체 옵션 목록 조회
   getEntityOptionList: async (params?: Record<string, unknown>): Promise<EntityOptionListItem[]> => {
-    const response = await apiClient.post<ListResponse<EntityOptionListItem>>('/stat-entity-options', params);
-    return extractList(response);
+    const response = await apiClient.post<ApiResponse<{ items: EntityOptionListItem[] }>>('/stat-entity-options', params);
+    return response.data?.data?.items ?? [];
   },
 
   // 카테고리 옵션 목록 조회
   getCategoryOptionList: async (params?: Record<string, unknown>): Promise<CategoryOptionListItem[]> => {
-    const response = await apiClient.post<ListResponse<CategoryOptionListItem>>('/stat-category-options', params);
-    return extractList(response);
+    const response = await apiClient.post<ApiResponse<{ items: CategoryOptionListItem[] }>>('/stat-category-options', params);
+    return response.data?.data?.items ?? [];
   },
 
   // 서비스 통계 엑셀 내보내기
@@ -196,7 +196,7 @@ export const statisticsApi = {
 
   // IFE 리다이렉트
   getIfeRedirectUrl: async (params: { serviceId: number; subFlowId: string; nodeName: string }): Promise<string | null> => {
-    const response = await apiClient.get<{ data: { redirectUrl: string } }>('/stat-bot-slot-ife-redirect', { params });
+    const response = await apiClient.get<ApiResponse<{ redirectUrl: string }>>('/stat-bot-slot-ife-redirect', { params });
     return response.data?.data?.redirectUrl ?? '';
   },
 };

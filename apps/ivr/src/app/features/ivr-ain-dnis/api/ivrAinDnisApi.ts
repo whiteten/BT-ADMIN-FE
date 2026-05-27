@@ -12,7 +12,7 @@
  * - ivr-ain-excel-import:   POST   AIN-DNIS 엑셀 가져오기 (multipart, tenantId 필수)
  * - manager-tenant-list:    GET    테넌트 목록 (cross-service)
  */
-import ApiClient, { type DetailResponse, type ListResponse, extractDetail, extractList } from '@/shared-util';
+import ApiClient, { type ApiResponse } from '@/shared-util';
 import type { ExcelImportResult, IrAinMaster, IrAinMasterCreateRequest, IrAinMasterUpdateRequest, TenantSimpleResponse } from '../types';
 
 const apiClient = new ApiClient({ serviceURL: '/bff' });
@@ -31,32 +31,32 @@ export const ivrAinDnisApi = {
    * 백엔드: ApiResponse<PagedResponse<IrAinMasterResponse>> → data.items[]
    */
   getList: async (params: Record<string, unknown>): Promise<IrAinMaster[]> => {
-    const response = await apiClient.get<ListResponse<IrAinMaster>>('/ivr-ain-list', { params });
-    return extractList(response);
+    const response = await apiClient.get<ApiResponse<{ items: IrAinMaster[] }>>('/ivr-ain-list', { params });
+    return response.data?.data?.items ?? [];
   },
 
   getDetail: async (params: AinKey): Promise<IrAinMaster> => {
-    const response = await apiClient.get<DetailResponse<IrAinMaster>>('/ivr-ain-detail', {
+    const response = await apiClient.get<ApiResponse<IrAinMaster>>('/ivr-ain-detail', {
       params: params as unknown as Record<string, unknown>,
     });
-    return extractDetail(response);
+    return response.data?.data;
   },
 
   // ─── CUD ─────────────────────────────────────────────────────────────────
 
   create: async (data: IrAinMasterCreateRequest): Promise<IrAinMaster> => {
-    const response = await apiClient.post<DetailResponse<IrAinMaster>>('/ivr-ain-create', data);
-    return extractDetail(response);
+    const response = await apiClient.post<ApiResponse<IrAinMaster>>('/ivr-ain-create', data);
+    return response.data?.data;
   },
 
   /**
    * 수정 — 복합 PK 3개는 query parameter, 변경 필드는 body.
    */
   update: async ({ key, data }: { key: AinKey; data: IrAinMasterUpdateRequest }): Promise<IrAinMaster> => {
-    const response = await apiClient.put<DetailResponse<IrAinMaster>>('/ivr-ain-update', data, {
+    const response = await apiClient.put<ApiResponse<IrAinMaster>>('/ivr-ain-update', data, {
       params: key as unknown as Record<string, unknown>,
     });
-    return extractDetail(response);
+    return response.data?.data;
   },
 
   remove: async (key: AinKey) => {
@@ -84,14 +84,14 @@ export const ivrAinDnisApi = {
   importExcel: async ({ params, data }: { params: Record<string, unknown>; data: File }): Promise<ExcelImportResult> => {
     const formData = new FormData();
     formData.append('uploadFile', data);
-    const response = await apiClient.post<DetailResponse<ExcelImportResult>>('/ivr-ain-excel-import', formData, { params });
-    return extractDetail(response);
+    const response = await apiClient.post<ApiResponse<ExcelImportResult>>('/ivr-ain-excel-import', formData, { params });
+    return response.data?.data;
   },
 
   // ─── 테넌트 목록 (cross-service) ─────────────────────────────────────────
 
   getTenants: async (): Promise<TenantSimpleResponse[]> => {
-    const response = await apiClient.get<ListResponse<TenantSimpleResponse>>('/manager-tenant-list');
-    return extractList(response);
+    const response = await apiClient.get<ApiResponse<{ items: TenantSimpleResponse[] }>>('/manager-tenant-list');
+    return response.data?.data?.items ?? [];
   },
 };

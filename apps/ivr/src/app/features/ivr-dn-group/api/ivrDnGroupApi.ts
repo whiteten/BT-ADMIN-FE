@@ -16,7 +16,7 @@
  * - ivr-subdngroup-delete:      DELETE Sub DN 그룹 삭제
  * - manager-node-list:          GET    노드 목록 (cross-service)
  */
-import ApiClient, { type DetailResponse, type ListResponse, extractDetail, extractList } from '@/shared-util';
+import ApiClient, { type ApiResponse } from '@/shared-util';
 import type {
   IrDnGroup,
   IrDnGroupCreateRequest,
@@ -39,30 +39,30 @@ export const ivrDnGroupApi = {
   // ─── DN Group (Master) ──────────────────────────────────────────────────
 
   getDnGroups: async (params?: Record<string, unknown>): Promise<IrDnGroup[]> => {
-    const response = await apiClient.get<DetailResponse<{ value: IrDnGroup[] }>>('/ivr-dngroup-list', { params });
-    return extractDetail(response)?.value ?? [];
+    const response = await apiClient.get<ApiResponse<{ value: IrDnGroup[] }>>('/ivr-dngroup-list', { params });
+    return response.data?.data?.value ?? [];
   },
 
   getSystemUsage: async (params: Record<string, unknown>): Promise<IrSystemUsage[]> => {
-    const response = await apiClient.get<DetailResponse<{ value: IrSystemUsage[] }>>('/ivr-dngroup-system-usage', { params });
-    return extractDetail(response)?.value ?? [];
+    const response = await apiClient.get<ApiResponse<{ value: IrSystemUsage[] }>>('/ivr-dngroup-system-usage', { params });
+    return response.data?.data?.value ?? [];
   },
 
   getDnGroupDetail: async (params: Record<string, unknown>): Promise<IrDnGroup> => {
-    const response = await apiClient.get<DetailResponse<IrDnGroup>>('/ivr-dngroup-detail', { params });
-    return extractDetail(response);
+    const response = await apiClient.get<ApiResponse<IrDnGroup>>('/ivr-dngroup-detail', { params });
+    return response.data?.data;
   },
 
   createDnGroup: async (data: IrDnGroupCreateRequest): Promise<IrDnGroup> => {
-    const response = await apiClient.post<DetailResponse<IrDnGroup>>('/ivr-dngroup-create', data);
-    return extractDetail(response);
+    const response = await apiClient.post<ApiResponse<IrDnGroup>>('/ivr-dngroup-create', data);
+    return response.data?.data;
   },
 
   updateDnGroup: async ({ id, data }: { id: number; data: IrDnGroupUpdateRequest }): Promise<IrDnGroup> => {
-    const response = await apiClient.put<DetailResponse<IrDnGroup>>('/ivr-dngroup-update', data, {
+    const response = await apiClient.put<ApiResponse<IrDnGroup>>('/ivr-dngroup-update', data, {
       params: { id },
     });
-    return extractDetail(response);
+    return response.data?.data;
   },
 
   deleteDnGroup: async (params: Record<string, unknown>) => {
@@ -72,27 +72,27 @@ export const ivrDnGroupApi = {
   // ─── Sub DN Group ───────────────────────────────────────────────────────
 
   getSubDnGroups: async (params: Record<string, unknown>): Promise<IrSubDnGroup[]> => {
-    const response = await apiClient.get<DetailResponse<{ value: IrSubDnGroup[] }>>('/ivr-subdngroup-list', { params });
-    return extractDetail(response)?.value ?? [];
+    const response = await apiClient.get<ApiResponse<{ value: IrSubDnGroup[] }>>('/ivr-subdngroup-list', { params });
+    return response.data?.data?.value ?? [];
   },
 
   getSubDnQuota: async (params: Record<string, unknown>): Promise<IrSubDnQuota> => {
-    const response = await apiClient.get<DetailResponse<IrSubDnQuota>>('/ivr-subdngroup-quota', { params });
-    return extractDetail(response);
+    const response = await apiClient.get<ApiResponse<IrSubDnQuota>>('/ivr-subdngroup-quota', { params });
+    return response.data?.data;
   },
 
   createSubDnGroup: async ({ id, data }: { id: number; data: IrSubDnGroupCreateRequest }): Promise<IrSubDnGroup> => {
-    const response = await apiClient.post<DetailResponse<IrSubDnGroup>>('/ivr-subdngroup-create', data, {
+    const response = await apiClient.post<ApiResponse<IrSubDnGroup>>('/ivr-subdngroup-create', data, {
       params: { id },
     });
-    return extractDetail(response);
+    return response.data?.data;
   },
 
   updateSubDnGroup: async ({ subId, data }: { subId: number; data: IrSubDnGroupUpdateRequest }): Promise<IrSubDnGroup> => {
-    const response = await apiClient.put<DetailResponse<IrSubDnGroup>>('/ivr-subdngroup-update', data, {
+    const response = await apiClient.put<ApiResponse<IrSubDnGroup>>('/ivr-subdngroup-update', data, {
       params: { subId },
     });
-    return extractDetail(response);
+    return response.data?.data;
   },
 
   deleteSubDnGroup: async (params: Record<string, unknown>) => {
@@ -102,7 +102,7 @@ export const ivrDnGroupApi = {
   // ─── Node (cross-service) ───────────────────────────────────────────────
 
   getNodes: async (): Promise<NodeSimpleResponse[]> => {
-    const response = await apiClient.get<ListResponse<NodeSimpleResponse>>('/manager-node-list');
-    return extractList(response);
+    const response = await apiClient.get<ApiResponse<{ items: NodeSimpleResponse[] }>>('/manager-node-list');
+    return response.data?.data?.items ?? [];
   },
 };

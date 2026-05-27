@@ -42,6 +42,11 @@ const DnForm = React.lazy(() => import('./pages/dn/DnForm'));
 const AdnList = React.lazy(() => import('./pages/adn/AdnList'));
 const AdnForm = React.lazy(() => import('./pages/adn/AdnForm'));
 
+// agent-master
+const AgentMasterList = React.lazy(() => import('./pages/agent-master/AgentMasterList'));
+const AgentMasterForm = React.lazy(() => import('./pages/agent-master/AgentMasterForm'));
+const AgentGroupForm = React.lazy(() => import('./pages/agent-master/AgentGroupForm'));
+
 // tracking
 const TrackingSearch = React.lazy(() => import('./pages/tracking/TrackingSearch'));
 const CallDetail = React.lazy(() => import('./pages/tracking/CallDetail'));
@@ -162,6 +167,17 @@ export const routes = [
           { index: true, element: <AdnList /> },
           { path: 'create', element: <AdnForm /> },
           { path: ':id/edit', element: <AdnForm /> },
+        ],
+      },
+      {
+        path: 'agent-master',
+        element: <Outlet />,
+        children: [
+          { index: true, element: <AgentMasterList /> },
+          { path: 'create', element: <AgentMasterForm /> },
+          { path: ':id/edit', element: <AgentMasterForm /> },
+          { path: 'groups/create', element: <AgentGroupForm /> },
+          { path: 'groups/:id/edit', element: <AgentGroupForm /> },
         ],
       },
       {

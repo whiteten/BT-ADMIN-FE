@@ -203,6 +203,9 @@ const GenericKindNode = ({ id, data, selected }: NodeProps) => {
       </div>
 
       {!isAnswer && <Handle type="source" position={Position.Right} id="out" className="!w-3 !h-3 !rounded-full !border-2 !border-white" style={{ background: meta.color }} />}
+
+      {/* LLM 전용 bottom handle — 도구 가상 노드 연결의 출발점. 사용자 직접 연결은 차단(isConnectable=false). */}
+      {meta.kind === 'llm' && <Handle type="source" position={Position.Bottom} id="tool" className="!w-0 !h-0 !min-w-0 !min-h-0 !border-0 !bg-transparent" isConnectable={false} />}
     </div>
   );
 };

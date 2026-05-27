@@ -1,11 +1,11 @@
-import ApiClient from '@/shared-util';
-import type { SearchData, SearchResponse } from '../types/search';
+import ApiClient, { type ApiResponse } from '@/shared-util';
+import type { SearchData } from '../types/search';
 
 const bffClient = new ApiClient();
 
 export const searchApi = {
   search: async (q: string, limit?: number): Promise<SearchData> => {
-    const response = await bffClient.get<SearchResponse>('/search', { params: { q, limit } });
-    return response.data.data;
+    const response = await bffClient.get<ApiResponse<SearchData>>('/search', { params: { q, limit } });
+    return response.data?.data;
   },
 };

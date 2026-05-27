@@ -86,10 +86,6 @@ const AgentPlaygroundDrawer = forwardRef<AgentPlaygroundDrawerRef>((_, ref) => {
 
   const { mutate: refreshAgent, isPending: isRefreshing } = useRefreshAgent({
     mutationOptions: {
-      onSuccess: () => {
-        setMessages([]);
-        inputRef.current?.focus();
-      },
       onError: (error) => {
         Log.warn('refreshAgent error', error);
       },
@@ -162,7 +158,12 @@ const AgentPlaygroundDrawer = forwardRef<AgentPlaygroundDrawerRef>((_, ref) => {
     const newThreadId = `${state.agentId}_${uuid}`;
     setServiceId(newServiceId);
     setThreadId(newThreadId);
-    refreshAgent({ agentId: state.agentId, body: { firstYn: 'Y', serviceId: newServiceId, threadId: newThreadId, userInput: '' } });
+    setMessages([]);
+    // AS-IS 와 동일한 시퀀스: refresh(세션 초기화) → test(firstYn='Y') 호출로 welcomeMessage 재수신
+    refreshAgent(
+      { agentId: state.agentId, body: { firstYn: 'Y', serviceId: newServiceId, threadId: newThreadId, userInput: '' } },
+      { onSuccess: () => testAgent({ agentId: state.agentId, body: { firstYn: 'Y', serviceId: newServiceId, threadId: newThreadId, userInput: '' } }) },
+    );
   };
 
   const handleClose = () => {
@@ -213,7 +214,7 @@ const AgentPlaygroundDrawer = forwardRef<AgentPlaygroundDrawerRef>((_, ref) => {
 
       {/* 메시지 영역 */}
       <div ref={scrollRef} className="flex-1 overflow-y-auto p-4 flex flex-col gap-3">
-        {messages.length === 0 && <div className="flex items-center justify-center h-full text-gray-400 text-sm">메시지를 입력해 대화를 시작하세요.</div>}
+        {messages.length === 0 && !isTesting && <div className="flex items-center justify-center h-full text-gray-400 text-sm">메시지를 입력해 대화를 시작하세요.</div>}
         {messages.map((msg) => {
           const isUser = msg.type === 'request';
           const text = isUser

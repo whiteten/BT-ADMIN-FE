@@ -181,9 +181,17 @@ export default function NodeDetail() {
   const clearBreadcrumb = useBreadcrumbStore((s) => s.clearBreadcrumb);
 
   useEffect(() => {
-    setBreadcrumb([{ title: '시스템' }, { title: '자원관리' }, { title: '클러스터 관리', href: '../list' }, { title: ':nodeName' }], { nodeName: node?.nodeName ?? '-' });
+    setBreadcrumb(
+      [
+        { title: '시스템' },
+        { title: '자원관리', path: '/manager/resource' },
+        { title: '클러스터 관리', path: '/manager/resource/node-management/list' },
+        { title: ':nodeName', path: `/manager/resource/node-management/${nodeId}` },
+      ],
+      { nodeName: node?.nodeName ?? '-' },
+    );
     return () => clearBreadcrumb();
-  }, [node?.nodeName, setBreadcrumb, clearBreadcrumb]);
+  }, [nodeId, node?.nodeName, setBreadcrumb, clearBreadcrumb]);
 
   const handleDeleteAlloc = (alloc: TenantAllocItem) => {
     modal.confirm.execute({

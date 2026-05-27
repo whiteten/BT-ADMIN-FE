@@ -1,4 +1,4 @@
-import ApiClient, { type DetailResponse, type ListResponse, extractDetail, extractList } from '@/shared-util';
+import ApiClient, { type ApiResponse } from '@/shared-util';
 import type {
   ExcelImportResult,
   KeywordBoostingCreateData,
@@ -14,8 +14,8 @@ const apiClient = new ApiClient({ serviceURL: '/bff' });
 
 export const dictionaryApi = {
   getKeywordBoostingList: async (params?: KeywordBoostingSearchParams) => {
-    const response = await apiClient.get<ListResponse<KeywordBoostingItem>>('/keyword-boosting-list', { params });
-    return extractList(response);
+    const response = await apiClient.get<ApiResponse<{ items: KeywordBoostingItem[] }>>('/keyword-boosting-list', { params });
+    return response.data?.data?.items ?? [];
   },
   createKeywordBoosting: async (data: KeywordBoostingCreateData) => {
     return apiClient.post('/keyword-boosting-create', data);
@@ -24,8 +24,8 @@ export const dictionaryApi = {
     await apiClient.delete(`/keyword-boosting-delete`, { params });
   },
   getSttDictionaryList: async (params?: SttDictionarySearchParams) => {
-    const response = await apiClient.get<ListResponse<SttDictionaryItem>>('/stt-dictionary-list', { params });
-    return extractList(response);
+    const response = await apiClient.get<ApiResponse<{ items: SttDictionaryItem[] }>>('/stt-dictionary-list', { params });
+    return response.data?.data?.items ?? [];
   },
   createSttDictionary: async (data: SttDictionaryCreateData) => {
     return apiClient.post('/stt-dictionary-create', data);
@@ -39,13 +39,13 @@ export const dictionaryApi = {
   importSttDictionary: async (data: File): Promise<ExcelImportResult> => {
     const formData = new FormData();
     formData.append('uploadFile', data);
-    const response = await apiClient.post<DetailResponse<ExcelImportResult>>('/stt-dictionary-excel-import', formData);
-    return extractDetail(response);
+    const response = await apiClient.post<ApiResponse<ExcelImportResult>>('/stt-dictionary-excel-import', formData);
+    return response.data?.data;
   },
   importKeywordBoosting: async ({ engineCode, data }: { engineCode: string; data: File }): Promise<ExcelImportResult> => {
     const formData = new FormData();
     formData.append('uploadFile', data);
-    const response = await apiClient.post<DetailResponse<ExcelImportResult>>('/keyword-boosting-excel-import', formData, { params: { engineCode } });
-    return extractDetail(response);
+    const response = await apiClient.post<ApiResponse<ExcelImportResult>>('/keyword-boosting-excel-import', formData, { params: { engineCode } });
+    return response.data?.data;
   },
 };

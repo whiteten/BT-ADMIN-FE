@@ -10,7 +10,7 @@
  * - ipron-call-screen-delete:  DELETE 수신번호 차단 삭제
  * - ipron-dod-trans-node-tenants: GET 노드-테넌트 매핑 (재사용)
  */
-import ApiClient, { type DetailResponse, extractDetail } from '@/shared-util';
+import ApiClient, { type ApiResponse } from '@/shared-util';
 import type { CallScreen, CallScreenCreateRequest, CallScreenUpdateRequest } from '../types';
 
 export interface NodeTenantItem {
@@ -29,8 +29,8 @@ export const callScreenApi = {
    * Backend: ApiResponse<List<CallScreenResponse>> -> BFF: data.value[]
    */
   getList: async (params?: Record<string, unknown>): Promise<CallScreen[]> => {
-    const response = await apiClient.get<DetailResponse<{ value: CallScreen[] }>>('/ipron-call-screen-list', { params });
-    return extractDetail(response)?.value ?? [];
+    const response = await apiClient.get<ApiResponse<{ value: CallScreen[] }>>('/ipron-call-screen-list', { params });
+    return response.data?.data?.value ?? [];
   },
 
   /**
@@ -38,8 +38,8 @@ export const callScreenApi = {
    * @flow ipron-call-screen-detail
    */
   getDetail: async (params: Record<string, unknown>): Promise<CallScreen> => {
-    const response = await apiClient.get<DetailResponse<CallScreen>>('/ipron-call-screen-detail', { params });
-    return extractDetail(response);
+    const response = await apiClient.get<ApiResponse<CallScreen>>('/ipron-call-screen-detail', { params });
+    return response.data?.data;
   },
 
   /**
@@ -47,8 +47,8 @@ export const callScreenApi = {
    * @flow ipron-call-screen-create
    */
   create: async (data: CallScreenCreateRequest): Promise<CallScreen> => {
-    const response = await apiClient.post<DetailResponse<CallScreen>>('/ipron-call-screen-create', data);
-    return extractDetail(response);
+    const response = await apiClient.post<ApiResponse<CallScreen>>('/ipron-call-screen-create', data);
+    return response.data?.data;
   },
 
   /**
@@ -56,10 +56,10 @@ export const callScreenApi = {
    * @flow ipron-call-screen-update
    */
   update: async ({ id, data }: { id: number; data: CallScreenUpdateRequest }): Promise<CallScreen> => {
-    const response = await apiClient.put<DetailResponse<CallScreen>>('/ipron-call-screen-update', data, {
+    const response = await apiClient.put<ApiResponse<CallScreen>>('/ipron-call-screen-update', data, {
       params: { id },
     });
-    return extractDetail(response);
+    return response.data?.data;
   },
 
   /**
@@ -75,7 +75,7 @@ export const callScreenApi = {
    * @flow ipron-dod-trans-node-tenants
    */
   getNodeTenants: async (): Promise<NodeTenantItem[]> => {
-    const response = await apiClient.get<DetailResponse<{ value: NodeTenantItem[] }>>('/ipron-dod-trans-node-tenants');
-    return extractDetail(response)?.value ?? [];
+    const response = await apiClient.get<ApiResponse<{ value: NodeTenantItem[] }>>('/ipron-dod-trans-node-tenants');
+    return response.data?.data?.value ?? [];
   },
 };

@@ -1,15 +1,5 @@
-import ApiClient from '@/shared-util';
+import ApiClient, { type ApiResponse } from '@/shared-util';
 import type { PagedResponse, WorkHistoryDetail, WorkHistoryListItem, WorkHistoryListParams } from '../types';
-
-/**
- * API 응답 래퍼
- */
-interface ApiResponse<T> {
-  ok: boolean;
-  code: string;
-  message?: string;
-  data: T;
-}
 
 /**
  * 작업이력 API 클라이언트

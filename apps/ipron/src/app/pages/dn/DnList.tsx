@@ -42,7 +42,6 @@ import { useGetDnProfileNodes, useGetDnProfileTenants } from '../../features/dn-
 import { useModal } from '@/libs/shared-ui/src/hooks/useModal';
 
 const breadcrumb = [
-  { title: 'IPRON', path: '/ipron' },
   { title: '번호자원관리', path: '/ipron/dn' },
   { title: 'DN관리', path: '/ipron/dn' },
   { title: '내선관리', path: '/ipron/dn' },

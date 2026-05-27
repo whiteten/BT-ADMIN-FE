@@ -1,18 +1,18 @@
 import { useState } from 'react';
+import { Button, Tag } from 'antd';
 import { Eye, Globe } from 'lucide-react';
 import CanvasLayout from './CanvasLayout';
 import GlobalFilter from '../../global-filter/components/GlobalFilter';
 import PublishDialog from '../../report/components/PublishDialog';
+import { DOMAIN_LABELS, DOMAIN_TAG_COLOR } from '../../report/constants/reportIconConstants';
 import { useReportEditorStore } from '../../report/hooks/useReportEditorStore';
-import { Badge } from '@/components/ui/badge';
-import { Button } from '@/components/ui/button';
 
 interface ReportEditorCanvasProps {
   reportId: number;
   onNavigateList(): void;
 }
 
-export default function ReportEditorCanvas({ reportId, onNavigateList }: ReportEditorCanvasProps) {
+export default function ReportEditorCanvas({ reportId, onNavigateList: _onNavigateList }: ReportEditorCanvasProps) {
   const { report, isDirty } = useReportEditorStore();
   const [isPublishDialogOpen, setIsPublishDialogOpen] = useState(false);
 
@@ -20,36 +20,32 @@ export default function ReportEditorCanvas({ reportId, onNavigateList }: ReportE
 
   return (
     <div className="flex flex-col h-full">
-      {/* 편집 모드 헤더 */}
-      <div className="flex items-center justify-between px-5 py-3 bg-white border-b border-bt-border">
-        <div className="flex items-center gap-3">
-          <span className="text-[14px] font-semibold">{report.title}</span>
-          <Badge variant="outline" className="text-[10px] text-bt-primary border-bt-primary">
-            {report.domain}
-          </Badge>
-          {isDirty && <span className="text-[10px] text-bt-warn">● 미저장 변경사항</span>}
+      <div className="flex items-center justify-between gap-2 w-full h-[76px] bg-white bt-shadow px-7 py-5">
+        <div className="flex items-center gap-2 min-w-0">
+          <span className="text-base font-semibold truncate">{report.title}</span>
+          <Tag color={DOMAIN_TAG_COLOR[report.domain]} className="!mb-0 shrink-0">
+            {report.domain} · {DOMAIN_LABELS[report.domain] ?? report.domain}
+          </Tag>
+          {isDirty && (
+            <Tag color="warning" className="!mb-0 shrink-0">
+              미저장
+            </Tag>
+          )}
         </div>
-        <div className="flex items-center gap-2">
-          <Button size="sm" variant="outline" className="text-[11px] h-7">
-            <Eye className="w-3 h-3 mr-1" />
-            미리보기
-          </Button>
-          <Button size="sm" className="bg-bt-primary hover:bg-bt-primary-hover text-white text-[11px] h-7" onClick={() => setIsPublishDialogOpen(true)}>
-            <Globe className="w-3 h-3 mr-1" />
+        <div className="flex items-center gap-2 shrink-0">
+          <Button icon={<Eye className="w-3.5 h-3.5" />}>미리보기</Button>
+          <Button type="primary" icon={<Globe className="w-3.5 h-3.5" />} onClick={() => setIsPublishDialogOpen(true)}>
             {report.isPublished ? '메뉴 등록됨 ✓' : '메뉴 등록'}
           </Button>
         </div>
       </div>
 
-      {/* 글로벌 필터 */}
       <GlobalFilter reportId={reportId} mode="editor" />
 
-      {/* 캔버스 */}
       <div className="flex-1 overflow-auto">
-        <CanvasLayout reportId={reportId} mode="edit" />
+        <CanvasLayout reportId={reportId} mode="edit" datasourceKey={report.datasourceKey} />
       </div>
 
-      {/* 발행 다이얼로그 */}
       {isPublishDialogOpen && <PublishDialog reportId={reportId} onClose={() => setIsPublishDialogOpen(false)} />}
     </div>
   );

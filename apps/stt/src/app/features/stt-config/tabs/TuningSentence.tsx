@@ -239,7 +239,7 @@ export default function TuningSentence() {
     },
   });
 
-  const handleToggleTunningKind = (data: TuningSentenceItem) => {
+  const handleUpdateTunningKind = (data: TuningSentenceItem) => {
     updateTunningKind({
       tunningKind: data.tunningKind === '0' ? '1' : '0',
       ucidGkey: data.ucidGkey,
@@ -277,6 +277,11 @@ export default function TuningSentence() {
         if (editor) trString = editor.getValue() as string;
       }
     });
+
+    if (/[^가-힣ㄱ-ㅎㅏ-ㅣ\s]/.test(trString)) {
+      toast.warning('문자수정 내용에 숫자, 영문자, 특수문자는 사용할 수 없습니다.');
+      return;
+    }
 
     gridRef.current?.api?.stopEditing();
 
@@ -332,7 +337,7 @@ export default function TuningSentence() {
       sortable: false,
       cellStyle: { display: 'flex', alignItems: 'center', justifyContent: 'center' },
       cellRenderer: TunningKindCellRenderer,
-      cellRendererParams: { onToggle: handleToggleTunningKind },
+      cellRendererParams: { onToggle: handleUpdateTunningKind },
     },
     {
       headerName: '고유번호(UCID)',

@@ -2,7 +2,7 @@
  * 사용자 권한 매핑 API
  * BFF Flow: user-auth-map-list, user-auth-map-create
  */
-import ApiClient, { type DetailResponse, type ListResponse, extractDetail, extractList } from '@/shared-util';
+import ApiClient, { type ApiResponse } from '@/shared-util';
 import type { UserAuthMap, UserPermissionSyncRequest, UserPermissionSyncResponse } from '../types';
 
 const apiClient = new ApiClient({ serviceURL: '/bff' });
@@ -14,8 +14,8 @@ export const userAuthApi = {
    * - BFF가 userId를 path variable로 변환
    */
   getList: async (params?: Record<string, unknown>): Promise<UserAuthMap[]> => {
-    const response = await apiClient.get<ListResponse<UserAuthMap>>('/user-auth-map-list', { params });
-    return extractList(response);
+    const response = await apiClient.get<ApiResponse<{ items: UserAuthMap[] }>>('/user-auth-map-list', { params });
+    return response.data?.data?.items ?? [];
   },
 
   /**
@@ -24,7 +24,7 @@ export const userAuthApi = {
    * - 역할 권한 매핑과 동일한 방식으로 동작
    */
   sync: async ({ userId, data }: { userId: number; data: UserPermissionSyncRequest }): Promise<UserPermissionSyncResponse> => {
-    const response = await apiClient.put<DetailResponse<UserPermissionSyncResponse>>('/user-auth-map-create', data, { params: { userId } });
-    return extractDetail(response) ?? { syncedCount: 0 };
+    const response = await apiClient.put<ApiResponse<UserPermissionSyncResponse>>('/user-auth-map-create', data, { params: { userId } });
+    return response.data?.data ?? { syncedCount: 0 };
   },
 };

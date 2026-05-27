@@ -1,10 +1,12 @@
 #!/usr/bin/env node
 
 const { spawn } = require('child_process');
+const fs = require('fs');
 const os = require('os');
+const path = require('path');
 const readline = require('readline');
 
-const REMOTE_APPS = ['fca', 'ipron', 'aoe', 'stt', 'ivr', 'insight'];
+const REMOTE_APPS = ['fca', 'ipron', 'aoe', 'stt', 'ivr', 'insight', 'taskboard'];
 
 /**
  * LAN IPv4 주소를 자동 감지합니다.
@@ -69,6 +71,43 @@ function buildCommand(selectedRemotes) {
   return command;
 }
 
+/**
+ * scripts/serve-host.local.json — 개인 PC 전용 serve 옵션 override.
+ * .gitignore 처리되어 커밋되지 않음.
+ *
+ * 포맷:
+ *   {
+ *     "env": {
+ *       "NODE_OPTIONS": "--max-old-space-size=8192",
+ *       "MF_REMOTE_HOST": "192.168.1.10"
+ *     }
+ *   }
+ *
+ * env 블록의 키는 자식 프로세스 환경변수에 머지됨. 셸에서 이미 export된
+ * 값이 항상 우선이므로, 이미 존재하는 키는 덮어쓰지 않음. env 외 키는
+ * 향후 스크립트 자체 옵션을 위해 예약(현재는 미사용).
+ */
+const LOCAL_CONFIG_PATH = path.join(__dirname, 'serve-host.local.json');
+function applyLocalConfigEnv() {
+  if (!fs.existsSync(LOCAL_CONFIG_PATH)) return [];
+  let parsed;
+  try {
+    parsed = JSON.parse(fs.readFileSync(LOCAL_CONFIG_PATH, 'utf-8'));
+  } catch (e) {
+    console.warn(`⚠️  serve-host.local.json 로드 실패 (${e.message}). 무시하고 진행합니다.`);
+    return [];
+  }
+  const env = parsed && typeof parsed === 'object' && parsed.env && typeof parsed.env === 'object' ? parsed.env : null;
+  if (!env) return [];
+  const applied = [];
+  for (const [k, v] of Object.entries(env)) {
+    if (process.env[k] !== undefined) continue;
+    process.env[k] = String(v);
+    applied.push(k);
+  }
+  return applied;
+}
+
 function runServe(answer) {
   try {
     const selectedRemotes = parseSelection(answer);
@@ -87,11 +126,13 @@ function runServe(answer) {
     console.log('\n⏳ Host 앱을 시작하고 있습니다...');
     rl.close();
 
+    const childEnv = remoteHost ? { ...process.env, MF_REMOTE_HOST: remoteHost } : { ...process.env };
+
     const child = spawn(command, [], {
       stdio: 'inherit',
       shell: true,
       windowsHide: true,
-      env: remoteHost ? { ...process.env, MF_REMOTE_HOST: remoteHost } : process.env,
+      env: childEnv,
     });
 
     process.on('SIGINT', () => {
@@ -116,6 +157,9 @@ function runServe(answer) {
 }
 
 function serveHost() {
+  const applied = applyLocalConfigEnv();
+  if (applied.length > 0) console.log(`📄 serve-host.local.json 적용: ${applied.join(', ')}`);
+
   const cliArg = process.argv[2];
 
   if (cliArg) {

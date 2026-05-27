@@ -5,7 +5,7 @@ import { type BreadcrumbProps, Button, Checkbox, Col, Form, Input, Modal, Row, S
 import { Plus, Settings, X } from 'lucide-react';
 import { Log } from '@/log';
 import { useBreadcrumbStore } from '@/shared-store';
-import ApiClient, { type ListResponse, extractList, toast } from '@/shared-util';
+import ApiClient, { type ApiResponse, toast } from '@/shared-util';
 import {
   knowledgeQueryKeys,
   useCreateKnowledgeEval,
@@ -199,8 +199,8 @@ export default function EvalCreate() {
     Promise.all(
       selectedFileIds.map((fileId) =>
         apiClient
-          .get<ListResponse<KnowledgeChunkItem>>('/aoe-knowledge-chunks', { params: { fileId } })
-          .then((res) => extractList(res).map((chunk) => ({ ...chunk, fileId })))
+          .get<ApiResponse<{ items: KnowledgeChunkItem[] }>>('/aoe-knowledge-chunks', { params: { fileId } })
+          .then((res) => (res.data?.data?.items ?? []).map((chunk) => ({ ...chunk, fileId })))
           .catch(() => [] as KnowledgeChunkItem[]),
       ),
     )

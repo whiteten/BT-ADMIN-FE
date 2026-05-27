@@ -9,7 +9,11 @@ import { toast } from '@/shared-util';
 import { useCreateTenant } from '../../features/tenant-management/hooks/useTenantQueries';
 import { STAT_TYPE_LABELS, type TenantCreateData } from '../../features/tenant-management/types';
 
-const breadcrumb: BreadcrumbProps['items'] = [{ title: '시스템' }, { title: '자원관리' }, { title: '테넌트 등록' }];
+const breadcrumb: BreadcrumbProps['items'] = [
+  { title: '시스템' },
+  { title: '자원관리', path: '/manager/resource' },
+  { title: '테넌트 등록', path: '/manager/resource/tenant-management/create' },
+];
 
 const contractStatusOptions = [
   { label: '요청', value: '1' },

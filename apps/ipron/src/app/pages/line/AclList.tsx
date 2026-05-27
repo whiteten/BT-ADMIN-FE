@@ -30,7 +30,6 @@ import { useModal } from '@/libs/shared-ui/src/hooks/useModal';
 type AclCategory = 'pbx' | 'cti';
 
 const breadcrumb = [
-  { title: 'IPRON', path: '/ipron' },
   { title: '회선관리', path: '/ipron/line/acl' },
   { title: 'IP 접근관리', path: '/ipron/line/acl' },
 ];

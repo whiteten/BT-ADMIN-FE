@@ -16,7 +16,7 @@
  * - manager-node-list:            GET    노드 목록 조회 (cross-service)
  * - ipron-route-list:             GET    발신라우트 목록 조회 (라우트 select용)
  */
-import ApiClient, { type DetailResponse, type ListResponse, extractDetail, extractList } from '@/shared-util';
+import ApiClient, { type ApiResponse } from '@/shared-util';
 import type {
   CodeBackendResponse,
   CodeCreateData,
@@ -80,11 +80,11 @@ export const emergProfileApi = {
   /**
    * 프로파일 목록 조회
    * @flow ipron-emerg-profile-list
-   * Backend: ApiResponse<List<ProfileResponse>> -> BFF: data.value[] -> extractDetail().value
+   * Backend: ApiResponse<List<ProfileResponse>> -> BFF: data.value[]
    */
   getProfiles: async (params?: Record<string, unknown>): Promise<EmergProfile[]> => {
-    const response = await apiClient.get<DetailResponse<{ value: ProfileBackendResponse[] }>>('/ipron-emerg-profile-list', { params });
-    const rawList = extractDetail(response)?.value ?? [];
+    const response = await apiClient.get<ApiResponse<{ value: ProfileBackendResponse[] }>>('/ipron-emerg-profile-list', { params });
+    const rawList = response.data?.data?.value ?? [];
     return rawList.map(transformProfile);
   },
 
@@ -93,8 +93,8 @@ export const emergProfileApi = {
    * @flow ipron-emerg-profile-detail
    */
   getProfileDetail: async (params: Record<string, unknown>): Promise<EmergProfileDetail> => {
-    const response = await apiClient.get<DetailResponse<ProfileDetailBackendResponse>>('/ipron-emerg-profile-detail', { params });
-    return transformProfileDetail(extractDetail(response));
+    const response = await apiClient.get<ApiResponse<ProfileDetailBackendResponse>>('/ipron-emerg-profile-detail', { params });
+    return transformProfileDetail(response.data?.data);
   },
 
   /**
@@ -102,8 +102,8 @@ export const emergProfileApi = {
    * @flow ipron-emerg-profile-create
    */
   createProfile: async (data: ProfileCreateData): Promise<EmergProfile> => {
-    const response = await apiClient.post<DetailResponse<ProfileBackendResponse>>('/ipron-emerg-profile-create', data);
-    return transformProfile(extractDetail(response));
+    const response = await apiClient.post<ApiResponse<ProfileBackendResponse>>('/ipron-emerg-profile-create', data);
+    return transformProfile(response.data?.data);
   },
 
   /**
@@ -111,10 +111,10 @@ export const emergProfileApi = {
    * @flow ipron-emerg-profile-update
    */
   updateProfile: async ({ id, data }: { id: number; data: ProfileUpdateData }): Promise<EmergProfile> => {
-    const response = await apiClient.put<DetailResponse<ProfileBackendResponse>>('/ipron-emerg-profile-update', data, {
+    const response = await apiClient.put<ApiResponse<ProfileBackendResponse>>('/ipron-emerg-profile-update', data, {
       params: { profileId: id },
     });
-    return transformProfile(extractDetail(response));
+    return transformProfile(response.data?.data);
   },
 
   /**
@@ -131,20 +131,20 @@ export const emergProfileApi = {
    * @flow ipron-emerg-profile-copy
    */
   copyProfile: async ({ id, data }: { id: number; data: ProfileCopyData }): Promise<EmergProfile> => {
-    const response = await apiClient.post<DetailResponse<ProfileBackendResponse>>('/ipron-emerg-profile-copy', data, {
+    const response = await apiClient.post<ApiResponse<ProfileBackendResponse>>('/ipron-emerg-profile-copy', data, {
       params: { profileId: id },
     });
-    return transformProfile(extractDetail(response));
+    return transformProfile(response.data?.data);
   },
 
   /**
    * 코드 목록 조회
    * @flow ipron-emerg-code-list
-   * Backend: ApiResponse<List<CodeResponse>> -> BFF: data.value[] -> extractDetail().value
+   * Backend: ApiResponse<List<CodeResponse>> -> BFF: data.value[]
    */
   getCodes: async (params: Record<string, unknown>): Promise<EmergCode[]> => {
-    const response = await apiClient.get<DetailResponse<{ value: CodeBackendResponse[] }>>('/ipron-emerg-code-list', { params });
-    const rawList = extractDetail(response)?.value ?? [];
+    const response = await apiClient.get<ApiResponse<{ value: CodeBackendResponse[] }>>('/ipron-emerg-code-list', { params });
+    const rawList = response.data?.data?.value ?? [];
     return rawList.map(transformCode);
   },
 
@@ -153,10 +153,10 @@ export const emergProfileApi = {
    * @flow ipron-emerg-code-create
    */
   createCode: async ({ profileId, data }: { profileId: number; data: CodeCreateData }): Promise<EmergCode> => {
-    const response = await apiClient.post<DetailResponse<CodeBackendResponse>>('/ipron-emerg-code-create', data, {
+    const response = await apiClient.post<ApiResponse<CodeBackendResponse>>('/ipron-emerg-code-create', data, {
       params: { profileId },
     });
-    return transformCode(extractDetail(response));
+    return transformCode(response.data?.data);
   },
 
   /**
@@ -164,10 +164,10 @@ export const emergProfileApi = {
    * @flow ipron-emerg-code-update
    */
   updateCode: async ({ profileId, code, data }: { profileId: number; code: string; data: CodeUpdateData }): Promise<EmergCode> => {
-    const response = await apiClient.put<DetailResponse<CodeBackendResponse>>('/ipron-emerg-code-update', data, {
+    const response = await apiClient.put<ApiResponse<CodeBackendResponse>>('/ipron-emerg-code-update', data, {
       params: { profileId, code },
     });
-    return transformCode(extractDetail(response));
+    return transformCode(response.data?.data);
   },
 
   /**
@@ -184,8 +184,8 @@ export const emergProfileApi = {
    * @flow manager-node-list
    */
   getNodes: async (): Promise<NodeSimpleResponse[]> => {
-    const response = await apiClient.get<ListResponse<NodeSimpleResponse>>('/manager-node-list');
-    return extractList(response);
+    const response = await apiClient.get<ApiResponse<{ items: NodeSimpleResponse[] }>>('/manager-node-list');
+    return response.data?.data?.items ?? [];
   },
 
   /**
@@ -193,9 +193,9 @@ export const emergProfileApi = {
    * @flow ipron-route-list
    */
   getRoutesByNode: async (nodeId: number): Promise<RouteSimpleResponse[]> => {
-    const response = await apiClient.get<DetailResponse<{ value: RouteSimpleResponse[] }>>('/ipron-route-list', {
+    const response = await apiClient.get<ApiResponse<{ value: RouteSimpleResponse[] }>>('/ipron-route-list', {
       params: { nodeId },
     });
-    return extractDetail(response)?.value ?? [];
+    return response.data?.data?.value ?? [];
   },
 };

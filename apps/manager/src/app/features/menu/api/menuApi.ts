@@ -1,7 +1,7 @@
 /**
  * 메뉴 관리 API
  */
-import ApiClient, { type ListResponse, extractList } from '@/shared-util';
+import ApiClient, { type ApiResponse } from '@/shared-util';
 import type { Menu, MenuUpsertRequest } from '../types';
 
 const apiClient = new ApiClient({ serviceURL: '/bff' });
@@ -11,15 +11,15 @@ export const menuApi = {
    * 전체 메뉴 목록 조회 (flat)
    */
   getMenus: async (): Promise<Menu[]> => {
-    const response = await apiClient.get<ListResponse<Menu>>('/menu-list');
-    return extractList(response);
+    const response = await apiClient.get<ApiResponse<{ items: Menu[] }>>('/menu-list');
+    return response.data?.data?.items ?? [];
   },
 
   /**
    * 메뉴 생성
    */
   create: async (data: MenuUpsertRequest): Promise<Menu> => {
-    const response = await apiClient.post<{ data: Menu }>('/menu-create', data);
+    const response = await apiClient.post<ApiResponse<Menu>>('/menu-create', data);
     return response?.data?.data;
   },
 
@@ -28,7 +28,7 @@ export const menuApi = {
    * BFF flow URI가 `/api/manager/menus/{id}` 이므로 query param 이름은 id로 유지.
    */
   update: async ({ menuKey, data }: { menuKey: string; data: MenuUpsertRequest }): Promise<Menu> => {
-    const response = await apiClient.put<{ data: Menu }>('/menu-update', data, { params: { id: menuKey } });
+    const response = await apiClient.put<ApiResponse<Menu>>('/menu-update', data, { params: { id: menuKey } });
     return response?.data?.data;
   },
 

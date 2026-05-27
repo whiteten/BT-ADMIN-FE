@@ -13,7 +13,7 @@
  * - manager-tenant-list:           GET    테넌트 목록 조회 (cross-service)
  * - manager-node-list:             GET    노드 목록 조회 (cross-service)
  */
-import ApiClient, { type DetailResponse, type ListResponse, extractDetail, extractList } from '@/shared-util';
+import ApiClient, { type ApiResponse } from '@/shared-util';
 import type {
   DnProfile,
   DnProfileCreateRequest,
@@ -34,12 +34,12 @@ function transformProfile(raw: DnProfileResponse): DnProfile {
 export const dnProfileApi = {
   /**
    * 프로파일 목록 조회
-   * Backend: ApiResponse<List<DnProfileResponse>> -> BFF: data.value[] -> extractDetail().value
+   * Backend: ApiResponse<List<DnProfileResponse>> -> BFF: data.value[] -> response.data?.data?.value
    * @flow ipron-dn-profile-list
    */
   getList: async (params?: Record<string, unknown>): Promise<DnProfile[]> => {
-    const response = await apiClient.get<DetailResponse<{ value: DnProfileResponse[] }>>('/ipron-dn-profile-list', { params });
-    const rawList = extractDetail(response)?.value ?? [];
+    const response = await apiClient.get<ApiResponse<{ value: DnProfileResponse[] }>>('/ipron-dn-profile-list', { params });
+    const rawList = response.data?.data?.value ?? [];
     return rawList.map(transformProfile);
   },
 
@@ -48,10 +48,10 @@ export const dnProfileApi = {
    * @flow ipron-dn-profile-detail
    */
   getDetail: async (id: number): Promise<DnProfile> => {
-    const response = await apiClient.get<DetailResponse<DnProfileResponse>>('/ipron-dn-profile-detail', {
+    const response = await apiClient.get<ApiResponse<DnProfileResponse>>('/ipron-dn-profile-detail', {
       params: { id },
     });
-    return transformProfile(extractDetail(response));
+    return transformProfile(response.data?.data);
   },
 
   /**
@@ -59,8 +59,8 @@ export const dnProfileApi = {
    * @flow ipron-dn-profile-create
    */
   create: async (data: DnProfileCreateRequest): Promise<DnProfile> => {
-    const response = await apiClient.post<DetailResponse<DnProfileResponse>>('/ipron-dn-profile-create', data);
-    return transformProfile(extractDetail(response));
+    const response = await apiClient.post<ApiResponse<DnProfileResponse>>('/ipron-dn-profile-create', data);
+    return transformProfile(response.data?.data);
   },
 
   /**
@@ -68,10 +68,10 @@ export const dnProfileApi = {
    * @flow ipron-dn-profile-update
    */
   update: async ({ id, data }: { id: number; data: DnProfileUpdateRequest }): Promise<DnProfile> => {
-    const response = await apiClient.put<DetailResponse<DnProfileResponse>>('/ipron-dn-profile-update', data, {
+    const response = await apiClient.put<ApiResponse<DnProfileResponse>>('/ipron-dn-profile-update', data, {
       params: { id },
     });
-    return transformProfile(extractDetail(response));
+    return transformProfile(response.data?.data);
   },
 
   /**
@@ -87,8 +87,8 @@ export const dnProfileApi = {
    * @flow ipron-dn-profile-node-tenants
    */
   getNodeTenants: async (): Promise<NodeTenantItem[]> => {
-    const response = await apiClient.get<DetailResponse<{ value: NodeTenantItem[] }>>('/ipron-dn-profile-node-tenants');
-    return extractDetail(response)?.value ?? [];
+    const response = await apiClient.get<ApiResponse<{ value: NodeTenantItem[] }>>('/ipron-dn-profile-node-tenants');
+    return response.data?.data?.value ?? [];
   },
 
   /**
@@ -103,8 +103,8 @@ export const dnProfileApi = {
     dnProfileType?: string | null;
     excludeProfileId?: number | null;
   }): Promise<DnProfileOptionsResponse> => {
-    const response = await apiClient.get<DetailResponse<DnProfileOptionsResponse>>('/ipron-dn-profile-options', { params });
-    return extractDetail(response);
+    const response = await apiClient.get<ApiResponse<DnProfileOptionsResponse>>('/ipron-dn-profile-options', { params });
+    return response.data?.data;
   },
 
   /**
@@ -112,8 +112,8 @@ export const dnProfileApi = {
    * @flow manager-tenant-list
    */
   getTenants: async (): Promise<TenantSimpleResponse[]> => {
-    const response = await apiClient.get<ListResponse<TenantSimpleResponse>>('/manager-tenant-list');
-    return extractList(response);
+    const response = await apiClient.get<ApiResponse<{ items: TenantSimpleResponse[] }>>('/manager-tenant-list');
+    return response.data?.data?.items ?? [];
   },
 
   /**
@@ -121,7 +121,7 @@ export const dnProfileApi = {
    * @flow manager-node-list
    */
   getNodes: async (): Promise<NodeSimpleResponse[]> => {
-    const response = await apiClient.get<ListResponse<NodeSimpleResponse>>('/manager-node-list');
-    return extractList(response);
+    const response = await apiClient.get<ApiResponse<{ items: NodeSimpleResponse[] }>>('/manager-node-list');
+    return response.data?.data?.items ?? [];
   },
 };

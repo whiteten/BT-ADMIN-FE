@@ -11,7 +11,7 @@
  * - ipron-cos-ref-count: GET    참조 DN 수 조회
  * - ipron-dod-trans-node-tenants: GET 노드-테넌트 매핑 (재사용)
  */
-import ApiClient, { type DetailResponse, extractDetail } from '@/shared-util';
+import ApiClient, { type ApiResponse } from '@/shared-util';
 import type { Cos, CosCreateRequest, CosUpdateRequest } from '../types';
 
 export interface NodeTenantItem {
@@ -30,8 +30,8 @@ export const cosApi = {
    * Backend: ApiResponse<List<CosResponse>> -> BFF: data.value[]
    */
   getList: async (params?: Record<string, unknown>): Promise<Cos[]> => {
-    const response = await apiClient.get<DetailResponse<{ value: Cos[] }>>('/ipron-cos-list', { params });
-    return extractDetail(response)?.value ?? [];
+    const response = await apiClient.get<ApiResponse<{ value: Cos[] }>>('/ipron-cos-list', { params });
+    return response.data?.data?.value ?? [];
   },
 
   /**
@@ -40,8 +40,8 @@ export const cosApi = {
    * Backend: ApiResponse<CosResponse> -> BFF: data:{...}
    */
   getDetail: async (cosId: number): Promise<Cos> => {
-    const response = await apiClient.get<DetailResponse<Cos>>('/ipron-cos-detail', { params: { id: cosId } });
-    return extractDetail(response);
+    const response = await apiClient.get<ApiResponse<Cos>>('/ipron-cos-detail', { params: { id: cosId } });
+    return response.data?.data;
   },
 
   /**
@@ -49,8 +49,8 @@ export const cosApi = {
    * @flow ipron-cos-create
    */
   create: async (data: CosCreateRequest): Promise<Cos> => {
-    const response = await apiClient.post<DetailResponse<Cos>>('/ipron-cos-create', data);
-    return extractDetail(response);
+    const response = await apiClient.post<ApiResponse<Cos>>('/ipron-cos-create', data);
+    return response.data?.data;
   },
 
   /**
@@ -58,10 +58,10 @@ export const cosApi = {
    * @flow ipron-cos-update
    */
   update: async ({ cosId, data }: { cosId: number; data: CosUpdateRequest }): Promise<Cos> => {
-    const response = await apiClient.put<DetailResponse<Cos>>('/ipron-cos-update', data, {
+    const response = await apiClient.put<ApiResponse<Cos>>('/ipron-cos-update', data, {
       params: { id: cosId },
     });
-    return extractDetail(response);
+    return response.data?.data;
   },
 
   /**
@@ -78,10 +78,10 @@ export const cosApi = {
    * Backend: ApiResponse<Long> -> BFF: data.value
    */
   getRefCount: async (cosId: number): Promise<number> => {
-    const response = await apiClient.get<DetailResponse<{ value: number }>>('/ipron-cos-ref-count', {
+    const response = await apiClient.get<ApiResponse<{ value: number }>>('/ipron-cos-ref-count', {
       params: { id: cosId },
     });
-    return extractDetail(response)?.value ?? 0;
+    return response.data?.data?.value ?? 0;
   },
 
   /**
@@ -89,7 +89,7 @@ export const cosApi = {
    * @flow ipron-dod-trans-node-tenants
    */
   getNodeTenants: async (): Promise<NodeTenantItem[]> => {
-    const response = await apiClient.get<DetailResponse<{ value: NodeTenantItem[] }>>('/ipron-dod-trans-node-tenants');
-    return extractDetail(response)?.value ?? [];
+    const response = await apiClient.get<ApiResponse<{ value: NodeTenantItem[] }>>('/ipron-dod-trans-node-tenants');
+    return response.data?.data?.value ?? [];
   },
 };

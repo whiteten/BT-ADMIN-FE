@@ -33,7 +33,6 @@ import {
 import { useModal } from '@/libs/shared-ui/src/hooks/useModal';
 
 const breadcrumb = [
-  { title: 'IPRON', path: '/ipron' },
   { title: '회선관리', path: '/ipron/line/media-delivery' },
   { title: '미디어전달관리', path: '/ipron/line/media-delivery' },
 ];

@@ -15,7 +15,7 @@
  * - ipron-ani-trans-delete:    DELETE ANI 번호변환 삭제
  * - manager-node-list:         GET    노드 목록 조회 (cross-service)
  */
-import ApiClient, { type DetailResponse, type ListResponse, extractDetail, extractList } from '@/shared-util';
+import ApiClient, { type ApiResponse } from '@/shared-util';
 import type { DidTrans, DidTransCreateRequest, DidTransUpdateRequest, NumPattern, NumPatternCreateRequest, NumPatternUpdateRequest } from '../types';
 
 interface NodeSimpleResponse {
@@ -34,8 +34,8 @@ export const didTransApi = {
    * Backend: ApiResponse<List<DidTransResponse>> -> BFF: data.value[]
    */
   getDnisTransList: async (params?: Record<string, unknown>): Promise<DidTrans[]> => {
-    const response = await apiClient.get<DetailResponse<{ value: DidTrans[] }>>('/ipron-dnis-trans-list', { params });
-    return extractDetail(response)?.value ?? [];
+    const response = await apiClient.get<ApiResponse<{ value: DidTrans[] }>>('/ipron-dnis-trans-list', { params });
+    return response.data?.data?.value ?? [];
   },
 
   /**
@@ -43,8 +43,8 @@ export const didTransApi = {
    * @flow ipron-dnis-trans-detail
    */
   getDnisTransDetail: async (params: Record<string, unknown>): Promise<DidTrans> => {
-    const response = await apiClient.get<DetailResponse<DidTrans>>('/ipron-dnis-trans-detail', { params });
-    return extractDetail(response);
+    const response = await apiClient.get<ApiResponse<DidTrans>>('/ipron-dnis-trans-detail', { params });
+    return response.data?.data;
   },
 
   /**
@@ -52,8 +52,8 @@ export const didTransApi = {
    * @flow ipron-dnis-trans-create
    */
   createDnisTrans: async (data: DidTransCreateRequest): Promise<DidTrans> => {
-    const response = await apiClient.post<DetailResponse<DidTrans>>('/ipron-dnis-trans-create', data);
-    return extractDetail(response);
+    const response = await apiClient.post<ApiResponse<DidTrans>>('/ipron-dnis-trans-create', data);
+    return response.data?.data;
   },
 
   /**
@@ -61,10 +61,10 @@ export const didTransApi = {
    * @flow ipron-dnis-trans-update
    */
   updateDnisTrans: async ({ id, data }: { id: number; data: DidTransUpdateRequest }): Promise<DidTrans> => {
-    const response = await apiClient.put<DetailResponse<DidTrans>>('/ipron-dnis-trans-update', data, {
+    const response = await apiClient.put<ApiResponse<DidTrans>>('/ipron-dnis-trans-update', data, {
       params: { id },
     });
-    return extractDetail(response);
+    return response.data?.data;
   },
 
   /**
@@ -82,8 +82,8 @@ export const didTransApi = {
    * @flow ipron-ani-trans-list
    */
   getAniTransList: async (params?: Record<string, unknown>): Promise<DidTrans[]> => {
-    const response = await apiClient.get<DetailResponse<{ value: DidTrans[] }>>('/ipron-ani-trans-list', { params });
-    return extractDetail(response)?.value ?? [];
+    const response = await apiClient.get<ApiResponse<{ value: DidTrans[] }>>('/ipron-ani-trans-list', { params });
+    return response.data?.data?.value ?? [];
   },
 
   /**
@@ -91,8 +91,8 @@ export const didTransApi = {
    * @flow ipron-ani-trans-detail
    */
   getAniTransDetail: async (params: Record<string, unknown>): Promise<DidTrans> => {
-    const response = await apiClient.get<DetailResponse<DidTrans>>('/ipron-ani-trans-detail', { params });
-    return extractDetail(response);
+    const response = await apiClient.get<ApiResponse<DidTrans>>('/ipron-ani-trans-detail', { params });
+    return response.data?.data;
   },
 
   /**
@@ -100,8 +100,8 @@ export const didTransApi = {
    * @flow ipron-ani-trans-create
    */
   createAniTrans: async (data: DidTransCreateRequest): Promise<DidTrans> => {
-    const response = await apiClient.post<DetailResponse<DidTrans>>('/ipron-ani-trans-create', data);
-    return extractDetail(response);
+    const response = await apiClient.post<ApiResponse<DidTrans>>('/ipron-ani-trans-create', data);
+    return response.data?.data;
   },
 
   /**
@@ -109,10 +109,10 @@ export const didTransApi = {
    * @flow ipron-ani-trans-update
    */
   updateAniTrans: async ({ id, data }: { id: number; data: DidTransUpdateRequest }): Promise<DidTrans> => {
-    const response = await apiClient.put<DetailResponse<DidTrans>>('/ipron-ani-trans-update', data, {
+    const response = await apiClient.put<ApiResponse<DidTrans>>('/ipron-ani-trans-update', data, {
       params: { id },
     });
-    return extractDetail(response);
+    return response.data?.data;
   },
 
   /**
@@ -126,13 +126,13 @@ export const didTransApi = {
   // ─── 노드간 복사 ──────────────────────────────────────────────────────────
 
   copyDnisTrans: async (data: { sourceNodeId: number; targetNodeId: number }): Promise<number> => {
-    const response = await apiClient.post<DetailResponse<{ value: number }>>('/ipron-dnis-trans-copy', data);
-    return extractDetail(response)?.value ?? 0;
+    const response = await apiClient.post<ApiResponse<{ value: number }>>('/ipron-dnis-trans-copy', data);
+    return response.data?.data?.value ?? 0;
   },
 
   copyAniTrans: async (data: { sourceNodeId: number; targetNodeId: number }): Promise<number> => {
-    const response = await apiClient.post<DetailResponse<{ value: number }>>('/ipron-ani-trans-copy', data);
-    return extractDetail(response)?.value ?? 0;
+    const response = await apiClient.post<ApiResponse<{ value: number }>>('/ipron-ani-trans-copy', data);
+    return response.data?.data?.value ?? 0;
   },
 
   // ─── 공통 ─────────────────────────────────────────────────────────────────
@@ -142,8 +142,8 @@ export const didTransApi = {
    * @flow manager-node-list
    */
   getNodes: async (): Promise<NodeSimpleResponse[]> => {
-    const response = await apiClient.get<ListResponse<NodeSimpleResponse>>('/manager-node-list');
-    return extractList(response);
+    const response = await apiClient.get<ApiResponse<{ items: NodeSimpleResponse[] }>>('/manager-node-list');
+    return response.data?.data?.items ?? [];
   },
 
   // ─── 번호 패턴 ────────────────────────────────────────────────────────────
@@ -154,8 +154,8 @@ export const didTransApi = {
    * Backend: ApiResponse<List<NumPatternResponse>> -> BFF: data.value[]
    */
   getNumPatterns: async (): Promise<NumPattern[]> => {
-    const response = await apiClient.get<DetailResponse<{ value: NumPattern[] }>>('/ipron-num-pattern-list');
-    return extractDetail(response)?.value ?? [];
+    const response = await apiClient.get<ApiResponse<{ value: NumPattern[] }>>('/ipron-num-pattern-list');
+    return response.data?.data?.value ?? [];
   },
 
   /**
@@ -163,8 +163,8 @@ export const didTransApi = {
    * @flow ipron-num-pattern-create
    */
   createNumPattern: async (data: NumPatternCreateRequest): Promise<NumPattern> => {
-    const response = await apiClient.post<DetailResponse<NumPattern>>('/ipron-num-pattern-create', data);
-    return extractDetail(response);
+    const response = await apiClient.post<ApiResponse<NumPattern>>('/ipron-num-pattern-create', data);
+    return response.data?.data;
   },
 
   /**
@@ -172,10 +172,10 @@ export const didTransApi = {
    * @flow ipron-num-pattern-update
    */
   updateNumPattern: async ({ id, data }: { id: number; data: NumPatternUpdateRequest }): Promise<NumPattern> => {
-    const response = await apiClient.put<DetailResponse<NumPattern>>('/ipron-num-pattern-update', data, {
+    const response = await apiClient.put<ApiResponse<NumPattern>>('/ipron-num-pattern-update', data, {
       params: { id },
     });
-    return extractDetail(response);
+    return response.data?.data;
   },
 
   /**

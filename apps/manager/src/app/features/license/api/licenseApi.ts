@@ -11,7 +11,7 @@
  * - license-clusters:        GET    클러스터별 할당 조회
  * - license-clusters-update: PUT    클러스터 할당 수정
  */
-import ApiClient, { type DetailResponse, type ListResponse, extractDetail, extractList } from '@/shared-util';
+import ApiClient, { type ApiResponse } from '@/shared-util';
 import {
   type ClusterAllocation,
   type KindSummaryBackend,
@@ -191,8 +191,8 @@ export const licenseApi = {
    * @returns License[] (백엔드 응답을 변환)
    */
   getLicenses: async (params?: Record<string, unknown>): Promise<License[]> => {
-    const response = await apiClient.get<ListResponse<LicenseBackendResponse>>('/license-list', { params });
-    const rawList = extractList(response);
+    const response = await apiClient.get<ApiResponse<{ items: LicenseBackendResponse[] }>>('/license-list', { params });
+    const rawList = response.data?.data?.items ?? [];
     return rawList.map(transformLicense);
   },
 
@@ -203,8 +203,8 @@ export const licenseApi = {
    * @returns 프론트엔드 LicenseDetailAggregated로 변환
    */
   getLicenseDetail: async (params: Record<string, unknown>): Promise<LicenseDetailAggregated> => {
-    const response = await apiClient.get<DetailResponse<LicenseDetailBackendResponse>>('/license-detail', { params });
-    const raw = extractDetail(response);
+    const response = await apiClient.get<ApiResponse<LicenseDetailBackendResponse>>('/license-detail', { params });
+    const raw = response.data?.data;
     return transformDetailResponse(raw);
   },
 
@@ -214,8 +214,8 @@ export const licenseApi = {
    * @param data licenseKey (암호화 키 텍스트)
    */
   createLicense: async (data: { licenseKey: string }): Promise<License> => {
-    const response = await apiClient.post<DetailResponse<LicenseBackendResponse>>('/license-create', data);
-    return transformLicense(extractDetail(response));
+    const response = await apiClient.post<ApiResponse<LicenseBackendResponse>>('/license-create', data);
+    return transformLicense(response.data?.data);
   },
 
   /**
@@ -233,8 +233,8 @@ export const licenseApi = {
    * @returns 백엔드 LicenseSummaryResponse → 프론트엔드 LicenseUsageResponse로 변환
    */
   getTotalUsage: async (): Promise<LicenseUsageResponse> => {
-    const response = await apiClient.get<DetailResponse<LicenseSummaryBackendResponse>>('/license-summary');
-    const summary = extractDetail(response);
+    const response = await apiClient.get<ApiResponse<LicenseSummaryBackendResponse>>('/license-summary');
+    const summary = response.data?.data;
     return transformSummaryToUsageResponse(summary);
   },
 
@@ -243,8 +243,8 @@ export const licenseApi = {
    * @flow license-clusters
    */
   getClusterAllocations: async (params: Record<string, unknown>): Promise<ClusterAllocation[]> => {
-    const response = await apiClient.get<DetailResponse<{ value: ClusterAllocation[] }>>('/license-clusters', { params });
-    return extractDetail(response)?.value ?? [];
+    const response = await apiClient.get<ApiResponse<{ value: ClusterAllocation[] }>>('/license-clusters', { params });
+    return response.data?.data?.value ?? [];
   },
 
   /**

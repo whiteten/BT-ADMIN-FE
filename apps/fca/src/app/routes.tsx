@@ -32,40 +32,6 @@ const BotDialogHistory = React.lazy(() => import('./pages/tracking/BotDialogHist
 const BotRealtime = React.lazy(() => import('./pages/tracking/BotRealtime'));
 const DecryptLog = React.lazy(() => import('./pages/tracking/DecryptLog'));
 
-const sharedModelRoutes = [
-  { index: true, element: <Navigate to="list" replace /> },
-  { path: 'list', element: <ModelList /> },
-  { path: 'create', element: <ModelCreate /> },
-  {
-    path: ':modelId',
-    element: <ModelDetailLayout />,
-    children: [
-      { index: true, element: <ModelDetail /> },
-      {
-        path: 'intent',
-        children: [
-          { index: true, element: <Navigate to=".." replace /> },
-          { path: ':intentId', element: <IntentDetail /> },
-        ],
-      },
-      {
-        path: 'entity',
-        children: [
-          { index: true, element: <Navigate to=".." replace /> },
-          { path: ':entityId', element: <EntityDetail /> },
-        ],
-      },
-      {
-        path: 'evaluation',
-        children: [
-          { index: true, element: <Navigate to=".." replace /> },
-          { path: ':evalId', element: <EvaluationDetail /> },
-        ],
-      },
-    ],
-  },
-];
-
 export const routes = [
   {
     path: '/',
@@ -88,7 +54,39 @@ export const routes = [
           },
           {
             path: 'model',
-            children: [...sharedModelRoutes],
+            children: [
+              { index: true, element: <Navigate to="list" replace /> },
+              { path: 'list', element: <ModelList /> },
+              { path: 'create', element: <ModelCreate /> },
+              {
+                path: ':modelId',
+                element: <ModelDetailLayout />,
+                children: [
+                  { index: true, element: <ModelDetail /> },
+                  {
+                    path: 'intent',
+                    children: [
+                      { index: true, element: <Navigate to=".." replace /> },
+                      { path: ':intentId', element: <IntentDetail /> },
+                    ],
+                  },
+                  {
+                    path: 'entity',
+                    children: [
+                      { index: true, element: <Navigate to=".." replace /> },
+                      { path: ':entityId', element: <EntityDetail /> },
+                    ],
+                  },
+                  {
+                    path: 'evaluation',
+                    children: [
+                      { index: true, element: <Navigate to=".." replace /> },
+                      { path: ':evalId', element: <EvaluationDetail /> },
+                    ],
+                  },
+                ],
+              },
+            ],
           },
         ],
       },
@@ -99,7 +97,39 @@ export const routes = [
           { index: true, element: <Navigate to="model" replace /> },
           {
             path: 'model',
-            children: [...sharedModelRoutes],
+            children: [
+              { index: true, element: <Navigate to="list" replace /> },
+              { path: 'list', element: <ModelList /> },
+              { path: 'create', element: <ModelCreate /> },
+              {
+                path: ':modelId',
+                element: <ModelDetailLayout />,
+                children: [
+                  { index: true, element: <ModelDetail /> },
+                  {
+                    path: 'intent',
+                    children: [
+                      { index: true, element: <Navigate to=".." replace /> },
+                      { path: ':intentId', element: <IntentDetail /> },
+                    ],
+                  },
+                  {
+                    path: 'entity',
+                    children: [
+                      { index: true, element: <Navigate to=".." replace /> },
+                      { path: ':entityId', element: <EntityDetail /> },
+                    ],
+                  },
+                  {
+                    path: 'evaluation',
+                    children: [
+                      { index: true, element: <Navigate to=".." replace /> },
+                      { path: ':evalId', element: <EvaluationDetail /> },
+                    ],
+                  },
+                ],
+              },
+            ],
           },
           {
             path: 'env',

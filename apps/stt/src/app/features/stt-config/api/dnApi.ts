@@ -1,12 +1,12 @@
-import ApiClient, { type DetailResponse, type ListResponse, extractDetail, extractList } from '@/shared-util';
+import ApiClient, { type ApiResponse } from '@/shared-util';
 import type { ExcelImportResult, SttDnCreateData, SttDnDeleteParams, SttDnItem, SttDnSearchParams, SttDnUpdateData } from '../types';
 
 const apiClient = new ApiClient({ serviceURL: '/bff' });
 
 export const dnApi = {
   getSttDnList: async (params?: SttDnSearchParams) => {
-    const response = await apiClient.get<ListResponse<SttDnItem>>('/stt-dn-list', { params });
-    return extractList(response);
+    const response = await apiClient.get<ApiResponse<{ items: SttDnItem[] }>>('/stt-dn-list', { params });
+    return response.data?.data?.items ?? [];
   },
   createSttDn: async (data: SttDnCreateData) => {
     return apiClient.post('/stt-dn-create', data);
@@ -20,7 +20,7 @@ export const dnApi = {
   importSttDn: async ({ hostName, data }: { hostName: string; data: File }): Promise<ExcelImportResult> => {
     const formData = new FormData();
     formData.append('uploadFile', data);
-    const response = await apiClient.post<DetailResponse<ExcelImportResult>>('/stt-dn-excel-import', formData, { params: { hostName } });
-    return extractDetail(response);
+    const response = await apiClient.post<ApiResponse<ExcelImportResult>>('/stt-dn-excel-import', formData, { params: { hostName } });
+    return response.data?.data;
   },
 };

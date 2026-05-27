@@ -10,12 +10,12 @@
  *  - ipron-tracking-agent-event:        GET    Agent 이벤트 타임라인
  *  - ipron-tracking-recording-redirect: GET    녹취 재생 redirect URL
  *
- * 응답 파싱 규칙(CLAUDE.md):
- *  - PagedResponse<T>  → BFF: data.items[]   → extractList
- *  - List<T>           → BFF: data.value[]   → extractDetail(...)?.value
- *  - 단건 T            → BFF: data:{...}    → extractDetail
+ * 응답 파싱 규칙:
+ *  - PagedResponse<T>  → BFF: data.items[]  → response.data?.data?.items ?? []
+ *  - List<T>           → BFF: data.value[]  → response.data?.data?.value ?? []
+ *  - 단건 T            → BFF: data:{...}    → response.data?.data
  */
-import ApiClient, { type DetailResponse, type ListResponse, extractDetail, extractList } from '@/shared-util';
+import ApiClient, { type ApiResponse } from '@/shared-util';
 import type {
   AgentEvent,
   CallDetailHeader,
@@ -452,11 +452,11 @@ export const trackingApi = {
    * @flow ipron-tracking-search
    */
   search: async (criteria: TrackingSearchCriteria): Promise<{ items: CallSearchResult[]; page: number; size: number; total: number }> => {
-    const response = await apiClient.post<DetailResponse<{ items: CallSearchResult[]; page: number; size: number; total: number }>>(
+    const response = await apiClient.post<ApiResponse<{ items: CallSearchResult[]; page: number; size: number; total: number }>>(
       '/ipron-tracking-search',
       toSearchRequest(criteria),
     );
-    const data = extractDetail(response);
+    const data = response.data?.data;
     return data ?? { items: [], page: 0, size: 0, total: 0 };
   },
 
@@ -466,8 +466,8 @@ export const trackingApi = {
    * @flow ipron-tracking-journey
    */
   getJourney: async (criteria: TrackingSearchCriteria): Promise<JourneyFlow> => {
-    const response = await apiClient.post<DetailResponse<JourneyFlow>>('/ipron-tracking-journey', toSearchRequest({ ...criteria, page: 0, size: 10000 }));
-    return extractDetail(response) ?? { nodes: [], links: [], callCount: 0, truncated: false };
+    const response = await apiClient.post<ApiResponse<JourneyFlow>>('/ipron-tracking-journey', toSearchRequest({ ...criteria, page: 0, size: 10000 }));
+    return response.data?.data ?? { nodes: [], links: [], callCount: 0, truncated: false };
   },
 
   // ─── Detail (헤더 + segment) ──────────────────────────────────────────────
@@ -479,24 +479,24 @@ export const trackingApi = {
    * @flow ipron-tracking-detail
    */
   getDetail: async (ucid: string): Promise<{ header: CallDetailHeader; segments: CallSegment[] }> => {
-    const response = await apiClient.get<DetailResponse<BackendCallDetail>>('/ipron-tracking-detail', {
+    const response = await apiClient.get<ApiResponse<BackendCallDetail>>('/ipron-tracking-detail', {
       params: { ucid },
     });
-    const raw = extractDetail(response);
+    const raw = response.data?.data;
     if (!raw) return { header: emptyHeader(ucid), segments: [] };
     return mapCallDetail(raw);
   },
 
   /**
    * IE_BASICCDR hop별 raw row (118 컬럼) — Drawer 시각화용.
-   * Backend: ApiResponse<Map<String, Object>> -> BFF: data:{...} -> extractDetail
+   * Backend: ApiResponse<Map<String, Object>> -> BFF: data:{...}
    * @flow ipron-tracking-ie-cdr
    */
   getIeCdrDetail: async (ucid: string, hop: number): Promise<Record<string, unknown>> => {
-    const response = await apiClient.get<DetailResponse<Record<string, unknown>>>('/ipron-tracking-ie-cdr', {
+    const response = await apiClient.get<ApiResponse<Record<string, unknown>>>('/ipron-tracking-ie-cdr', {
       params: { ucid, hop },
     });
-    return (extractDetail(response) ?? {}) as Record<string, unknown>;
+    return (response.data?.data ?? {}) as Record<string, unknown>;
   },
 
   // ─── IVR Step Tree ────────────────────────────────────────────────────────
@@ -507,10 +507,10 @@ export const trackingApi = {
    * @flow ipron-tracking-ivr-step
    */
   getIvrSteps: async (ucid: string): Promise<IvrScenarioGroup[]> => {
-    const response = await apiClient.get<DetailResponse<{ value: BackendIvrStepNode[] }>>('/ipron-tracking-ivr-step', {
+    const response = await apiClient.get<ApiResponse<{ value: BackendIvrStepNode[] }>>('/ipron-tracking-ivr-step', {
       params: { ucid },
     });
-    const nodes = extractDetail(response)?.value ?? [];
+    const nodes = response.data?.data?.value ?? [];
     return nodes.map(mapIvrScenarioGroup);
   },
 
@@ -524,10 +524,10 @@ export const trackingApi = {
    * @param nexthop 동일 UCID 내 CTI segment 식별자 (segmentId / hopIndex). 미지정 시 첫 CTI segment.
    */
   getCtiRouting: async (ucid: string, nexthop?: string | null): Promise<CtiRoutingHop[]> => {
-    const response = await apiClient.get<DetailResponse<{ value: BackendCtiRouteHop[] }>>('/ipron-tracking-cti-route', {
+    const response = await apiClient.get<ApiResponse<{ value: BackendCtiRouteHop[] }>>('/ipron-tracking-cti-route', {
       params: { ucid, nexthop: nexthop ?? undefined },
     });
-    const raw = extractDetail(response)?.value ?? [];
+    const raw = response.data?.data?.value ?? [];
     return raw.map(mapCtiRouteHop);
   },
 
@@ -539,10 +539,10 @@ export const trackingApi = {
    * @flow ipron-tracking-agent-event
    */
   getAgentEvents: async (ucid: string): Promise<AgentEvent[]> => {
-    const response = await apiClient.get<DetailResponse<{ value: AgentEvent[] }>>('/ipron-tracking-agent-event', {
+    const response = await apiClient.get<ApiResponse<{ value: AgentEvent[] }>>('/ipron-tracking-agent-event', {
       params: { ucid },
     });
-    return extractDetail(response)?.value ?? [];
+    return response.data?.data?.value ?? [];
   },
 
   /**
@@ -551,26 +551,26 @@ export const trackingApi = {
    * @flow ipron-tracking-dialog
    */
   getDialogs: async (ucid: string): Promise<DialogTurn[]> => {
-    const response = await apiClient.get<DetailResponse<{ value: DialogTurn[] }>>('/ipron-tracking-dialog', {
+    const response = await apiClient.get<ApiResponse<{ value: DialogTurn[] }>>('/ipron-tracking-dialog', {
       params: { ucid },
     });
-    return extractDetail(response)?.value ?? [];
+    return response.data?.data?.value ?? [];
   },
 
   // ─── Recording Redirect ───────────────────────────────────────────────────
 
   /**
    * 녹취 재생 URL — 외부 미디어 플레이어(Range 헤더 지원) redirect.
-   * Backend: ApiResponse<RecordingRedirectResponse> -> BFF: data:{...} -> extractDetail
+   * Backend: ApiResponse<RecordingRedirectResponse> -> BFF: data:{...}
    * @flow ipron-tracking-recording-redirect
    *
    * @param userid 상담사 ID (segment 매칭)
    * @param type   녹취 종류 (VOICE / SCREEN / STT)
    */
   getRecordingRedirect: async (params: { ucid: string; userid: string; type: RecordingType }): Promise<RecordingRedirectResponse> => {
-    const response = await apiClient.get<DetailResponse<RecordingRedirectResponse>>('/ipron-tracking-recording-redirect', {
+    const response = await apiClient.get<ApiResponse<RecordingRedirectResponse>>('/ipron-tracking-recording-redirect', {
       params,
     });
-    return extractDetail(response);
+    return response.data?.data;
   },
 };

@@ -16,4 +16,58 @@
   --color-bt-warn-soft:     #fdf3e1;
   --color-bt-danger:        #c92a2a;
   --color-bt-danger-soft:   #fbeaea;
+
+  /* 상담사 상태 시맨틱 토큰 (05-agent-monitor-widget.html §5) */
+  --color-bt-st-idle:       #0a8a4a;  /* 40·41·42 대기   */
+  --color-bt-st-talk:       #085fb5;  /* 5010·5020 통화  */
+  --color-bt-st-ring:       #b76e00;  /* 51·52 벨/다이얼 */
+  --color-bt-st-hold:       #7a4e9e;  /* 53 보류         */
+  --color-bt-st-wrap:       #9b7dff;  /* 60 후처리       */
+  --color-bt-st-wrap-soft:  #f5f0fa;
+  --color-bt-st-aux:        #85898f;  /* 30 이석         */
+  --color-bt-st-offline:    #cdd2d9;  /* 10 로그아웃     */
+  --color-bt-st-alert:      #c92a2a;  /* 임계 초과       */
 }
+
+/* ─── 상담사 모니터 위젯 전용 모션 ────────────────────────────────────
+ * 실시간 활동성을 시각화한다. 정적 점은 "지금 데이터가 흐르고 있다"는
+ * 신호를 못 주므로, 상태별 4단계 펄스를 가짐 (강도: alert > talk > ring > idle).
+ * Motion 라이브러리 없이 GPU 가속 가능한 transform/box-shadow 만 사용.
+ */
+@keyframes bt-pulse-idle   { 0%,100% { box-shadow: 0 0 0 0   color-mix(in oklab, var(--color-bt-st-idle) 35%, transparent); } 50% { box-shadow: 0 0 0 5px color-mix(in oklab, var(--color-bt-st-idle) 0%, transparent); } }
+@keyframes bt-pulse-talk   { 0%,100% { box-shadow: 0 0 0 0   color-mix(in oklab, var(--color-bt-st-talk) 35%, transparent); } 50% { box-shadow: 0 0 0 5px color-mix(in oklab, var(--color-bt-st-talk) 0%, transparent); } }
+@keyframes bt-pulse-ring   { 0%,100% { box-shadow: 0 0 0 0   color-mix(in oklab, var(--color-bt-st-ring) 40%, transparent); } 50% { box-shadow: 0 0 0 6px color-mix(in oklab, var(--color-bt-st-ring) 0%, transparent); } }
+@keyframes bt-pulse-wrap   { 0%,100% { box-shadow: 0 0 0 0   color-mix(in oklab, var(--color-bt-st-wrap) 35%, transparent); } 50% { box-shadow: 0 0 0 5px color-mix(in oklab, var(--color-bt-st-wrap) 0%, transparent); } }
+@keyframes bt-pulse-alert  { 0%,100% { box-shadow: 0 0 0 0   color-mix(in oklab, var(--color-bt-st-alert) 55%, transparent); } 50% { box-shadow: 0 0 0 7px color-mix(in oklab, var(--color-bt-st-alert) 0%, transparent); } }
+
+/* 임계 초과 카드: 보더가 호흡한다 — 슈퍼바이저 시선을 강제로 끈다 */
+@keyframes bt-alert-breath { 0%,100% { box-shadow: 0 0 0 1.5px var(--color-bt-st-alert), 0 4px 14px color-mix(in oklab, var(--color-bt-st-alert) 25%, transparent); } 50% { box-shadow: 0 0 0 2.5px var(--color-bt-st-alert), 0 6px 22px color-mix(in oklab, var(--color-bt-st-alert) 40%, transparent); } }
+
+/* 신규/상태전이 카드 입장 — FLIP 가 비싸므로 fade+rise 만 */
+@keyframes bt-card-enter   { 0% { opacity: 0; transform: translateY(4px) scale(0.98); } 100% { opacity: 1; transform: none; } }
+
+/* 실시간 인디케이터 점 (헤더 좌측) */
+@keyframes bt-live-blink   { 0%,100% { opacity: 1; } 50% { opacity: 0.35; } }
+
+.bt-pulse-idle   { animation: bt-pulse-idle  2.2s ease-in-out infinite; }
+.bt-pulse-talk   { animation: bt-pulse-talk  2.0s ease-in-out infinite; }
+.bt-pulse-ring   { animation: bt-pulse-ring  0.9s ease-in-out infinite; }
+.bt-pulse-wrap   { animation: bt-pulse-wrap  2.2s ease-in-out infinite; }
+.bt-pulse-alert  { animation: bt-pulse-alert 0.7s ease-in-out infinite; }
+.bt-alert-breath { animation: bt-alert-breath 1.4s ease-in-out infinite; }
+.bt-card-enter   { animation: bt-card-enter 0.18s ease-out both; }
+.bt-live-blink   { animation: bt-live-blink 1.4s ease-in-out infinite; }
+
+/* 모션 줄이기 사용자 보호 — 깜박임은 시야 피로 유발 */
+@media (prefers-reduced-motion: reduce) {
+  .bt-pulse-idle, .bt-pulse-talk, .bt-pulse-ring, .bt-pulse-wrap,
+  .bt-pulse-alert, .bt-alert-breath, .bt-card-enter, .bt-live-blink {
+    animation: none !important;
+  }
+}
+
+/* 숫자 칸 고정 (시간 카운터 들썩임 방지) */
+.bt-tnum { font-variant-numeric: tabular-nums; font-feature-settings: "tnum" 1, "zero" 1; }
+
+/* 듀레이션 바 — 좌측 3px 채움. 시간 증가 시 부드럽게 늘어남 */
+.bt-dur-bar { transition: opacity 0.4s ease, background-color 0.3s ease; }

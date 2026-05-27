@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import type { ColDef, RowDoubleClickedEvent } from 'ag-grid-community';
 import { AgGridReact } from 'ag-grid-react';
-import { type BreadcrumbProps, Input } from 'antd';
+import { type BreadcrumbProps, Button, Input } from 'antd';
 import { Play, Search, Square } from 'lucide-react';
 import { useBreadcrumbStore } from '@/shared-store';
 import BotRealtimeDetailDrawer, { type BotRealtimeDetailDrawerRef } from '../../features/tracking/components/BotRealtimeDetailDrawer';
@@ -94,25 +94,14 @@ export default function BotRealtime() {
           </div>
           <div className="flex items-center gap-3">
             {isPlaying && <span className={`inline-block w-2.5 h-2.5 rounded-full ${connected ? 'bg-green-500' : 'bg-red-500'}`} />}
-            <button
-              type="button"
+            <Button
+              color={isPlaying ? 'red' : 'green'}
+              variant="solid"
+              icon={isPlaying ? <Square className="w-3.5 h-3.5 fill-white" /> : <Play className="w-3.5 h-3.5 fill-white" />}
               onClick={isPlaying ? disconnect : connect}
-              className={`flex items-center gap-1.5 px-3 py-1.5 rounded text-sm font-medium transition-colors ${
-                isPlaying ? 'bg-red-500 hover:bg-red-600 text-white' : 'bg-green-500 hover:bg-green-600 text-white'
-              }`}
             >
-              {isPlaying ? (
-                <>
-                  <Square className="w-3.5 h-3.5 fill-white" />
-                  중지
-                </>
-              ) : (
-                <>
-                  <Play className="w-3.5 h-3.5 fill-white" />
-                  시작
-                </>
-              )}
-            </button>
+              {isPlaying ? '중지' : '시작'}
+            </Button>
           </div>
         </header>
         <div className="w-full h-full">

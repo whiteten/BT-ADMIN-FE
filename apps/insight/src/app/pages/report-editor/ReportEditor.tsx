@@ -36,7 +36,10 @@ export default function ReportEditor() {
   useEffect(() => {
     if (reportFull) {
       setBreadcrumb(
-        [{ title: '인사이트' }, { title: '보고서', path: '/insight/statistics/reports' }, { title: ':reportTitle', path: `/insight/statistics/reports/${reportId}/edit` }],
+        [
+          { title: '보고서', path: '/insight/statistics/reports' },
+          { title: ':reportTitle', path: `/insight/statistics/reports/${reportId}/edit` },
+        ],
         { reportTitle: reportFull.title },
       );
     }
@@ -46,7 +49,7 @@ export default function ReportEditor() {
   if (isLoading || !reportFull) return <FallbackSpinner />;
 
   return (
-    <div className="flex flex-col w-full h-full bg-bt-bg-canvas">
+    <div className="flex flex-col w-full h-full bg-[var(--color-bt-bg-canvas)]">
       <ReportEditorCanvas reportId={reportId} onNavigateList={() => navigate('/insight/statistics/reports')} />
     </div>
   );

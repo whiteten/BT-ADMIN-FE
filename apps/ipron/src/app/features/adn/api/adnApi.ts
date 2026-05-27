@@ -14,7 +14,7 @@
  *  - ipron-dn-adn-excel-import     POST   엑셀 가져오기 (multipart)
  *  - ipron-dn-adn-excel-export     GET    엑셀 내보내기 (binary)
  */
-import ApiClient, { type DetailResponse, type ListResponse, extractDetail, extractList } from '@/shared-util';
+import ApiClient, { type ApiResponse } from '@/shared-util';
 import type { AdnCopyRequest, AdnCreateRequest, AdnExcelImportResult, AdnResponse, AdnTenantStat, AdnUpdateRequest } from '../types';
 
 const apiClient = new ApiClient({ serviceURL: '/bff' });
@@ -23,47 +23,47 @@ export const adnApi = {
   // ─── List / Detail ────────────────────────────────────────────────────────
 
   getList: async (params?: { tenantId?: number; dnNo?: string }): Promise<AdnResponse[]> => {
-    const res = await apiClient.get<ListResponse<AdnResponse>>('/ipron-dn-adn-list', { params });
-    return extractList(res);
+    const res = await apiClient.get<ApiResponse<{ items: AdnResponse[] }>>('/ipron-dn-adn-list', { params });
+    return res.data?.data?.items ?? [];
   },
 
   getDetail: async (id: number): Promise<AdnResponse> => {
-    const res = await apiClient.get<DetailResponse<AdnResponse>>('/ipron-dn-adn-detail', {
+    const res = await apiClient.get<ApiResponse<AdnResponse>>('/ipron-dn-adn-detail', {
       params: { id },
     });
-    return extractDetail(res);
+    return res.data?.data;
   },
 
-  // BFF 가 ApiResponse<List<X>> 를 data.value 로 wrap — extractDetail 후 .value 풀기 (DN node-tenants 패턴과 동일)
+  // BFF 가 ApiResponse<List<X>> 를 data.value 로 wrap — response.data?.data?.value 풀기 (DN node-tenants 패턴과 동일)
   getTenants: async (): Promise<AdnTenantStat[]> => {
-    const res = await apiClient.get<DetailResponse<{ value: AdnTenantStat[] }>>('/ipron-dn-adn-tenants');
-    return extractDetail(res)?.value ?? [];
+    const res = await apiClient.get<ApiResponse<{ value: AdnTenantStat[] }>>('/ipron-dn-adn-tenants');
+    return res.data?.data?.value ?? [];
   },
 
   duplicateCheck: async (params: { tenantId: number; dnNo: string; excludeDnId?: number }): Promise<boolean> => {
-    const res = await apiClient.get<DetailResponse<boolean>>('/ipron-dn-adn-duplicate-check', { params });
-    return extractDetail(res);
+    const res = await apiClient.get<ApiResponse<boolean>>('/ipron-dn-adn-duplicate-check', { params });
+    return res.data?.data;
   },
 
   relationCount: async (id: number): Promise<number> => {
-    const res = await apiClient.get<DetailResponse<number>>('/ipron-dn-adn-relation-count', {
+    const res = await apiClient.get<ApiResponse<number>>('/ipron-dn-adn-relation-count', {
       params: { id },
     });
-    return extractDetail(res);
+    return res.data?.data;
   },
 
   // ─── Mutations ────────────────────────────────────────────────────────────
 
   create: async (body: AdnCreateRequest): Promise<AdnResponse> => {
-    const res = await apiClient.post<DetailResponse<AdnResponse>>('/ipron-dn-adn-create', body);
-    return extractDetail(res);
+    const res = await apiClient.post<ApiResponse<AdnResponse>>('/ipron-dn-adn-create', body);
+    return res.data?.data;
   },
 
   update: async (id: number, body: AdnUpdateRequest): Promise<AdnResponse> => {
-    const res = await apiClient.put<DetailResponse<AdnResponse>>('/ipron-dn-adn-update', body, {
+    const res = await apiClient.put<ApiResponse<AdnResponse>>('/ipron-dn-adn-update', body, {
       params: { id },
     });
-    return extractDetail(res);
+    return res.data?.data;
   },
 
   deleteBatch: async (adnIds: number[]): Promise<void> => {
@@ -71,8 +71,8 @@ export const adnApi = {
   },
 
   copy: async (body: AdnCopyRequest): Promise<AdnResponse[]> => {
-    const res = await apiClient.post<DetailResponse<{ value: AdnResponse[] }>>('/ipron-dn-adn-copy', body);
-    return extractDetail(res)?.value ?? [];
+    const res = await apiClient.post<ApiResponse<{ value: AdnResponse[] }>>('/ipron-dn-adn-copy', body);
+    return res.data?.data?.value ?? [];
   },
 
   // ─── Excel ────────────────────────────────────────────────────────────────
@@ -80,10 +80,10 @@ export const adnApi = {
   importExcel: async (file: File): Promise<AdnExcelImportResult> => {
     const fd = new FormData();
     fd.append('uploadFile', file);
-    const res = await apiClient.post<DetailResponse<AdnExcelImportResult>>('/ipron-dn-adn-excel-import', fd, {
+    const res = await apiClient.post<ApiResponse<AdnExcelImportResult>>('/ipron-dn-adn-excel-import', fd, {
       headers: { 'Content-Type': 'multipart/form-data' },
     });
-    return extractDetail(res);
+    return res.data?.data;
   },
 
   exportExcel: async (params?: { tenantId?: number; dnNo?: string }): Promise<Blob> => {

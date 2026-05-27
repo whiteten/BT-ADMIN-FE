@@ -19,7 +19,7 @@
  *
  * ※ upload는 IFE → BT-ADMIN 직접 콜백 (BFF 미경유)
  */
-import ApiClient, { type DetailResponse, extractDetail } from '@/shared-util';
+import ApiClient, { type ApiResponse } from '@/shared-util';
 import type {
   DeployedSystem,
   IfeTokenInfo,
@@ -37,23 +37,23 @@ export const scenarioApi = {
   // ─── 시나리오 마스터 CRUD ────────────────────────────────────────────────
 
   getScenarios: async (params?: Record<string, unknown>): Promise<Scenario[]> => {
-    const response = await apiClient.get<DetailResponse<{ value: Scenario[] }>>('/ivr-scenario-list', { params });
-    return extractDetail(response)?.value ?? [];
+    const response = await apiClient.get<ApiResponse<{ value: Scenario[] }>>('/ivr-scenario-list', { params });
+    return response.data?.data?.value ?? [];
   },
 
   getScenarioDetail: async (params: Record<string, unknown>): Promise<Scenario> => {
-    const response = await apiClient.get<DetailResponse<Scenario>>('/ivr-scenario-detail', { params });
-    return extractDetail(response);
+    const response = await apiClient.get<ApiResponse<Scenario>>('/ivr-scenario-detail', { params });
+    return response.data?.data;
   },
 
   createScenario: async (data: ScenarioCreateRequest): Promise<Scenario> => {
-    const response = await apiClient.post<DetailResponse<Scenario>>('/ivr-scenario-create', data);
-    return extractDetail(response);
+    const response = await apiClient.post<ApiResponse<Scenario>>('/ivr-scenario-create', data);
+    return response.data?.data;
   },
 
   updateScenario: async ({ params, data }: { params: Record<string, unknown>; data: ScenarioUpdateRequest }): Promise<Scenario> => {
-    const response = await apiClient.put<DetailResponse<Scenario>>('/ivr-scenario-update', data, { params });
-    return extractDetail(response);
+    const response = await apiClient.put<ApiResponse<Scenario>>('/ivr-scenario-update', data, { params });
+    return response.data?.data;
   },
 
   deleteScenario: async (params: Record<string, unknown>) => {
@@ -63,18 +63,18 @@ export const scenarioApi = {
   // ─── 시나리오 버전 CRUD ─────────────────────────────────────────────────
 
   getVersions: async (params: Record<string, unknown>): Promise<ScenarioVersion[]> => {
-    const response = await apiClient.get<DetailResponse<{ value: ScenarioVersion[] }>>('/ivr-scenario-version-list', { params });
-    return extractDetail(response)?.value ?? [];
+    const response = await apiClient.get<ApiResponse<{ value: ScenarioVersion[] }>>('/ivr-scenario-version-list', { params });
+    return response.data?.data?.value ?? [];
   },
 
   getVersionDetail: async (params: Record<string, unknown>): Promise<ScenarioVersion> => {
-    const response = await apiClient.get<DetailResponse<ScenarioVersion>>('/ivr-scenario-version-detail', { params });
-    return extractDetail(response);
+    const response = await apiClient.get<ApiResponse<ScenarioVersion>>('/ivr-scenario-version-detail', { params });
+    return response.data?.data;
   },
 
   createVersion: async ({ params, data }: { params: Record<string, unknown>; data: ScenarioVersionCreateRequest }): Promise<ScenarioVersion> => {
-    const response = await apiClient.post<DetailResponse<ScenarioVersion>>('/ivr-scenario-version-create', data, { params });
-    return extractDetail(response);
+    const response = await apiClient.post<ApiResponse<ScenarioVersion>>('/ivr-scenario-version-create', data, { params });
+    return response.data?.data;
   },
 
   deleteVersion: async (params: Record<string, unknown>) => {
@@ -88,8 +88,8 @@ export const scenarioApi = {
   },
 
   getDeployedSystems: async (params: Record<string, unknown>): Promise<DeployedSystem[]> => {
-    const response = await apiClient.get<DetailResponse<{ value: DeployedSystem[] }>>('/ivr-scenario-deployed-systems', { params });
-    return extractDetail(response)?.value ?? [];
+    const response = await apiClient.get<ApiResponse<{ value: DeployedSystem[] }>>('/ivr-scenario-deployed-systems', { params });
+    return response.data?.data?.value ?? [];
   },
 
   /**
@@ -97,8 +97,8 @@ export const scenarioApi = {
    * 응답의 redirectUrl을 window.open으로 열어 IFE 진입.
    */
   getIfeInfo: async ({ params, data }: { params: Record<string, unknown>; data: Record<string, unknown> }): Promise<IfeTokenInfo> => {
-    const response = await apiClient.post<DetailResponse<IfeTokenInfo>>('/ivr-scenario-webfloweditor', data, { params });
-    return extractDetail(response);
+    const response = await apiClient.post<ApiResponse<IfeTokenInfo>>('/ivr-scenario-webfloweditor', data, { params });
+    return response.data?.data;
   },
 
   /**
@@ -117,8 +117,8 @@ export const scenarioApi = {
   uploadScenarioFile: async ({ params, data }: { params: Record<string, unknown>; data: File }): Promise<ScenarioVersion> => {
     const formData = new FormData();
     formData.append('uploadFile', data);
-    const response = await apiClient.post<DetailResponse<ScenarioVersion>>('/ivr-scenario-upload', formData, { params });
-    return extractDetail(response);
+    const response = await apiClient.post<ApiResponse<ScenarioVersion>>('/ivr-scenario-upload', formData, { params });
+    return response.data?.data;
   },
 
   /**
@@ -133,7 +133,7 @@ export const scenarioApi = {
     if (data.versionName) formData.append('versionName', data.versionName);
     if (data.versionDesc) formData.append('versionDesc', data.versionDesc);
     if (file) formData.append('uploadFile', file);
-    const response = await apiClient.post<DetailResponse<ScenarioVersion>>('/ivr-scenario-version-create-with-file', formData, { params });
-    return extractDetail(response);
+    const response = await apiClient.post<ApiResponse<ScenarioVersion>>('/ivr-scenario-version-create-with-file', formData, { params });
+    return response.data?.data;
   },
 };

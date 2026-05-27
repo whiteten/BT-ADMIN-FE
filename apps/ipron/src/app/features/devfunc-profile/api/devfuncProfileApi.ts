@@ -15,7 +15,7 @@
  * - ipron-devfunc-code-delete:     DELETE 코드 삭제
  * - manager-tenant-list:           GET    테넌트 목록 조회 (cross-service)
  */
-import ApiClient, { type DetailResponse, type ListResponse, extractDetail, extractList } from '@/shared-util';
+import ApiClient, { type ApiResponse } from '@/shared-util';
 import type {
   CodeCreateData,
   CodeUpdateData,
@@ -59,8 +59,8 @@ export const devfuncProfileApi = {
    * @flow ipron-devfunc-profile-list
    */
   getProfiles: async (params?: Record<string, unknown>): Promise<DevfuncProfile[]> => {
-    const response = await apiClient.get<DetailResponse<{ value: DevfuncProfileResponse[] }>>('/ipron-devfunc-profile-list', { params });
-    const rawList = extractDetail(response)?.value ?? [];
+    const response = await apiClient.get<ApiResponse<{ value: DevfuncProfileResponse[] }>>('/ipron-devfunc-profile-list', { params });
+    const rawList = response.data?.data?.value ?? [];
     return rawList.map(transformProfile);
   },
 
@@ -69,8 +69,8 @@ export const devfuncProfileApi = {
    * @flow ipron-devfunc-profile-tree
    */
   getProfileTree: async (): Promise<ProfileTreeNodeResponse[]> => {
-    const response = await apiClient.get<DetailResponse<{ value: ProfileTreeNodeResponse[] }>>('/ipron-devfunc-profile-tree');
-    return extractDetail(response)?.value ?? [];
+    const response = await apiClient.get<ApiResponse<{ value: ProfileTreeNodeResponse[] }>>('/ipron-devfunc-profile-tree');
+    return response.data?.data?.value ?? [];
   },
 
   /**
@@ -78,8 +78,8 @@ export const devfuncProfileApi = {
    * @flow ipron-devfunc-profile-detail
    */
   getProfileDetail: async (params: Record<string, unknown>): Promise<DevfuncProfile> => {
-    const response = await apiClient.get<DetailResponse<DevfuncProfileResponse>>('/ipron-devfunc-profile-detail', { params });
-    return transformProfile(extractDetail(response));
+    const response = await apiClient.get<ApiResponse<DevfuncProfileResponse>>('/ipron-devfunc-profile-detail', { params });
+    return transformProfile(response.data?.data);
   },
 
   /**
@@ -87,8 +87,8 @@ export const devfuncProfileApi = {
    * @flow ipron-devfunc-profile-create
    */
   createProfile: async (data: ProfileCreateData): Promise<DevfuncProfile> => {
-    const response = await apiClient.post<DetailResponse<DevfuncProfileResponse>>('/ipron-devfunc-profile-create', data);
-    return transformProfile(extractDetail(response));
+    const response = await apiClient.post<ApiResponse<DevfuncProfileResponse>>('/ipron-devfunc-profile-create', data);
+    return transformProfile(response.data?.data);
   },
 
   /**
@@ -96,10 +96,10 @@ export const devfuncProfileApi = {
    * @flow ipron-devfunc-profile-update
    */
   updateProfile: async ({ id, data }: { id: number; data: ProfileUpdateData }): Promise<DevfuncProfile> => {
-    const response = await apiClient.put<DetailResponse<DevfuncProfileResponse>>('/ipron-devfunc-profile-update', data, {
+    const response = await apiClient.put<ApiResponse<DevfuncProfileResponse>>('/ipron-devfunc-profile-update', data, {
       params: { id },
     });
-    return transformProfile(extractDetail(response));
+    return transformProfile(response.data?.data);
   },
 
   /**
@@ -115,10 +115,10 @@ export const devfuncProfileApi = {
    * @flow ipron-devfunc-profile-copy
    */
   copyProfile: async ({ id, data }: { id: number; data: ProfileCopyData }): Promise<DevfuncProfile> => {
-    const response = await apiClient.post<DetailResponse<DevfuncProfileResponse>>('/ipron-devfunc-profile-copy', data, {
+    const response = await apiClient.post<ApiResponse<DevfuncProfileResponse>>('/ipron-devfunc-profile-copy', data, {
       params: { id },
     });
-    return transformProfile(extractDetail(response));
+    return transformProfile(response.data?.data);
   },
 
   /**
@@ -126,8 +126,8 @@ export const devfuncProfileApi = {
    * @flow ipron-devfunc-code-list
    */
   getCodes: async (params: Record<string, unknown>): Promise<DevfuncCode[]> => {
-    const response = await apiClient.get<DetailResponse<{ value: DevfuncCodeResponse[] }>>('/ipron-devfunc-code-list', { params });
-    const rawList = extractDetail(response)?.value ?? [];
+    const response = await apiClient.get<ApiResponse<{ value: DevfuncCodeResponse[] }>>('/ipron-devfunc-code-list', { params });
+    const rawList = response.data?.data?.value ?? [];
     return rawList.map(transformCode);
   },
 
@@ -136,10 +136,10 @@ export const devfuncProfileApi = {
    * @flow ipron-devfunc-code-create
    */
   createCode: async ({ profileId, data }: { profileId: number; data: CodeCreateData }): Promise<DevfuncCode> => {
-    const response = await apiClient.post<DetailResponse<DevfuncCodeResponse>>('/ipron-devfunc-code-create', data, {
+    const response = await apiClient.post<ApiResponse<DevfuncCodeResponse>>('/ipron-devfunc-code-create', data, {
       params: { profileId },
     });
-    return transformCode(extractDetail(response));
+    return transformCode(response.data?.data);
   },
 
   /**
@@ -147,10 +147,10 @@ export const devfuncProfileApi = {
    * @flow ipron-devfunc-code-update
    */
   updateCode: async ({ profileId, code, data }: { profileId: number; code: string; data: CodeUpdateData }): Promise<DevfuncCode> => {
-    const response = await apiClient.put<DetailResponse<DevfuncCodeResponse>>('/ipron-devfunc-code-update', data, {
+    const response = await apiClient.put<ApiResponse<DevfuncCodeResponse>>('/ipron-devfunc-code-update', data, {
       params: { profileId, code },
     });
-    return transformCode(extractDetail(response));
+    return transformCode(response.data?.data);
   },
 
   /**
@@ -166,7 +166,7 @@ export const devfuncProfileApi = {
    * @flow manager-tenant-list
    */
   getTenants: async (): Promise<TenantSimpleResponse[]> => {
-    const response = await apiClient.get<ListResponse<TenantSimpleResponse>>('/manager-tenant-list');
-    return extractList(response);
+    const response = await apiClient.get<ApiResponse<{ items: TenantSimpleResponse[] }>>('/manager-tenant-list');
+    return response.data?.data?.items ?? [];
   },
 };

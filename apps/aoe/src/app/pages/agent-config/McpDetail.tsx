@@ -14,8 +14,6 @@ const tabs: PageTab[] = [
   { id: 'tab2', label: '등록된 API', icon: IconDocument, component: McpApiList },
 ];
 
-const breadcrumb: BreadcrumbProps['items'] = [{ title: '관리', path: '/aoe/agent-config' }, { title: 'MCP', path: '/aoe/agent-config/mcp/list' }, { title: ':serverName' }];
-
 export default function McpDetail() {
   const { mcpId } = useParams();
   const setBreadcrumb = useBreadcrumbStore((s) => s.setBreadcrumb);
@@ -24,9 +22,14 @@ export default function McpDetail() {
   const mcp = mcpList.find((m) => m.mcpId === mcpId);
 
   useEffect(() => {
+    const breadcrumb: BreadcrumbProps['items'] = [
+      { title: '관리', path: '/aoe/agent-config' },
+      { title: 'MCP', path: '/aoe/agent-config/mcp/list' },
+      { title: ':serverName', path: `/aoe/agent-config/mcp/${mcpId}` },
+    ];
     setBreadcrumb(breadcrumb, { serverName: mcp?.serverName ?? '-' });
     return () => clearBreadcrumb();
-  }, [mcp?.serverName, setBreadcrumb, clearBreadcrumb]);
+  }, [mcpId, mcp?.serverName, setBreadcrumb, clearBreadcrumb]);
 
   return (
     <div className="flex flex-col gap-4 w-full h-full">

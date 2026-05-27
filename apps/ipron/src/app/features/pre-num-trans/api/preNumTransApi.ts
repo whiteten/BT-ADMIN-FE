@@ -11,7 +11,7 @@
  * - manager-node-list:            GET    노드 목록 조회 (cross-service)
  * - ipron-route-list:             GET    라우트 목록 조회 (라우트 선택용)
  */
-import ApiClient, { type DetailResponse, type ListResponse, extractDetail, extractList } from '@/shared-util';
+import ApiClient, { type ApiResponse } from '@/shared-util';
 import type { PreNumTrans, PreNumTransCreateRequest, PreNumTransUpdateRequest } from '../types';
 
 interface NodeSimpleResponse {
@@ -36,8 +36,8 @@ export const preNumTransApi = {
    * Backend: ApiResponse<List<PreNumTransResponse>> -> BFF: data.value[]
    */
   getList: async (params?: Record<string, unknown>): Promise<PreNumTrans[]> => {
-    const response = await apiClient.get<DetailResponse<{ value: PreNumTrans[] }>>('/ipron-pre-num-trans-list', { params });
-    return extractDetail(response)?.value ?? [];
+    const response = await apiClient.get<ApiResponse<{ value: PreNumTrans[] }>>('/ipron-pre-num-trans-list', { params });
+    return response.data?.data?.value ?? [];
   },
 
   /**
@@ -45,8 +45,8 @@ export const preNumTransApi = {
    * @flow ipron-pre-num-trans-detail
    */
   getDetail: async (params: Record<string, unknown>): Promise<PreNumTrans> => {
-    const response = await apiClient.get<DetailResponse<PreNumTrans>>('/ipron-pre-num-trans-detail', { params });
-    return extractDetail(response);
+    const response = await apiClient.get<ApiResponse<PreNumTrans>>('/ipron-pre-num-trans-detail', { params });
+    return response.data?.data;
   },
 
   /**
@@ -54,8 +54,8 @@ export const preNumTransApi = {
    * @flow ipron-pre-num-trans-create
    */
   create: async (data: PreNumTransCreateRequest): Promise<PreNumTrans> => {
-    const response = await apiClient.post<DetailResponse<PreNumTrans>>('/ipron-pre-num-trans-create', data);
-    return extractDetail(response);
+    const response = await apiClient.post<ApiResponse<PreNumTrans>>('/ipron-pre-num-trans-create', data);
+    return response.data?.data;
   },
 
   /**
@@ -63,10 +63,10 @@ export const preNumTransApi = {
    * @flow ipron-pre-num-trans-update
    */
   update: async ({ id, data }: { id: number; data: PreNumTransUpdateRequest }): Promise<PreNumTrans> => {
-    const response = await apiClient.put<DetailResponse<PreNumTrans>>('/ipron-pre-num-trans-update', data, {
+    const response = await apiClient.put<ApiResponse<PreNumTrans>>('/ipron-pre-num-trans-update', data, {
       params: { id },
     });
-    return extractDetail(response);
+    return response.data?.data;
   },
 
   /**
@@ -84,8 +84,8 @@ export const preNumTransApi = {
    * @flow manager-node-list
    */
   getNodes: async (): Promise<NodeSimpleResponse[]> => {
-    const response = await apiClient.get<ListResponse<NodeSimpleResponse>>('/manager-node-list');
-    return extractList(response);
+    const response = await apiClient.get<ApiResponse<{ items: NodeSimpleResponse[] }>>('/manager-node-list');
+    return response.data?.data?.items ?? [];
   },
 
   /**
@@ -93,7 +93,7 @@ export const preNumTransApi = {
    * @flow ipron-route-list
    */
   getRoutes: async (params?: Record<string, unknown>): Promise<RouteSimpleResponse[]> => {
-    const response = await apiClient.get<DetailResponse<{ value: RouteSimpleResponse[] }>>('/ipron-route-list', { params });
-    return extractDetail(response)?.value ?? [];
+    const response = await apiClient.get<ApiResponse<{ value: RouteSimpleResponse[] }>>('/ipron-route-list', { params });
+    return response.data?.data?.value ?? [];
   },
 };
