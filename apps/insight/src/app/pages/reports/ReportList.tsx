@@ -1,17 +1,19 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { type BreadcrumbProps, Button, Input, Segmented, Select } from 'antd';
+import { type BreadcrumbProps, Button, Input, Segmented, Select, Tag } from 'antd';
 import { useBreadcrumbStore } from '@/shared-store';
 import ReportCard from '../../features/report/components/ReportCard';
-import { DOMAIN_LABELS } from '../../features/report/constants/reportIconConstants';
+import { DOMAIN_LABELS, DOMAIN_TAG_COLOR } from '../../features/report/constants/reportIconConstants';
 import { useGetReports } from '../../features/report/hooks/useReportQueries';
-import type { DomainCode } from '../../features/report/types';
+import type { DomainCode, ReportListItem } from '../../features/report/types';
 import { FallbackSpinner } from '@/components/custom/FallbackSpinner';
 import NoData from '@/components/custom/NoData';
 
 type OwnershipFilter = 'ALL' | 'MINE' | 'PUBLISHED';
 
 const breadcrumb: BreadcrumbProps['items'] = [{ title: '보고서', path: '/insight/statistics/reports' }];
+
+const DOMAIN_SECTIONS: DomainCode[] = ['IE', 'IC', 'IR'];
 
 export default function ReportList() {
   const navigate = useNavigate();
@@ -34,11 +36,23 @@ export default function ReportList() {
     },
   });
 
-  const filtered = useMemo(() => {
-    if (!searchValue.trim()) return reports;
-    const kw = searchValue.toLowerCase();
-    return reports.filter((r) => r.title.toLowerCase().includes(kw) || r.datasourceKey.toLowerCase().includes(kw));
+  const byDomain = useMemo<Record<DomainCode, ReportListItem[]>>(() => {
+    const kw = searchValue.trim().toLowerCase();
+    const grouped: Record<DomainCode, ReportListItem[]> = { IE: [], IC: [], IR: [] };
+    reports
+      .filter((r) => {
+        if (!kw) return true;
+        return r.title.toLowerCase().includes(kw) || r.datasourceKey.toLowerCase().includes(kw);
+      })
+      .forEach((r) => {
+        if (grouped[r.domain]) grouped[r.domain].push(r);
+      });
+    return grouped;
   }, [reports, searchValue]);
+
+  const activeSections = domain ? [domain as DomainCode] : DOMAIN_SECTIONS;
+  const hasAnyMatch = activeSections.some((d) => byDomain[d].length > 0);
+  const isFiltered = !!searchValue || ownership !== 'ALL';
 
   return (
     <div className="flex flex-col gap-4 w-full h-full">
@@ -73,27 +87,61 @@ export default function ReportList() {
         </Button>
       </div>
 
-      {/* 카드 그리드 */}
+      {/* 도메인별 섹션 */}
       {isFetching ? (
         <div className="flex items-center justify-center w-full h-full bg-white bt-shadow">
           <FallbackSpinner />
         </div>
-      ) : filtered.length > 0 ? (
-        <div className="grid grid-cols-[repeat(auto-fill,minmax(320px,1fr))] gap-4 w-full overflow-y-auto">
-          {filtered.map((report) => (
-            <ReportCard key={report.reportId} report={report} />
-          ))}
+      ) : !hasAnyMatch && isFiltered ? (
+        <div className="flex items-center justify-center w-full h-full bg-white bt-shadow">
+          <NoData message={searchValue ? `"${searchValue}" 검색 결과 없음` : '조회된 데이터가 없습니다.'} iconSize={50} fontSize="text-lg" gap={2} />
         </div>
       ) : (
-        <div className="flex flex-col items-center justify-center w-full h-full bg-white bt-shadow gap-4">
-          <NoData message={searchValue ? `"${searchValue}" 검색 결과 없음` : '보고서가 없습니다.'} iconSize={50} fontSize="text-lg" gap={2} />
-          {!searchValue && (
-            <Button type="primary" onClick={() => navigate('/insight/statistics/reports/new')}>
-              + 새 보고서 만들기
-            </Button>
-          )}
+        <div className="flex flex-col gap-4 w-full overflow-y-auto pb-4">
+          {activeSections.map((d) => (
+            <DomainSection key={d} domain={d} items={byDomain[d]} onNew={() => navigate('/insight/statistics/reports/new')} />
+          ))}
         </div>
       )}
     </div>
+  );
+}
+
+interface DomainSectionProps {
+  domain: DomainCode;
+  items: ReportListItem[];
+  onNew: () => void;
+}
+
+function DomainSection({ domain, items, onNew }: DomainSectionProps) {
+  const label = DOMAIN_LABELS[domain];
+
+  return (
+    <section className="bg-white bt-shadow">
+      <div className="flex items-center gap-2 px-7 pt-5 pb-3">
+        <Tag color={DOMAIN_TAG_COLOR[domain]} className="font-mono">
+          {domain}
+        </Tag>
+        <span className="text-[15px] font-semibold">{label}</span>
+        <span className="text-[12px] text-[var(--color-bt-fg-muted)]">· {items.length}개</span>
+      </div>
+
+      <div className="px-7 pb-5">
+        {items.length > 0 ? (
+          <div className="grid grid-cols-[repeat(auto-fill,minmax(320px,1fr))] gap-4">
+            {items.map((report) => (
+              <ReportCard key={report.reportId} report={report} />
+            ))}
+          </div>
+        ) : (
+          <div className="flex flex-col items-center gap-3 py-8 text-center text-[12.5px] text-[var(--color-bt-fg-muted)]">
+            <span>{label} 도메인에 등록된 보고서가 없습니다.</span>
+            <Button size="small" onClick={onNew}>
+              + 새 보고서
+            </Button>
+          </div>
+        )}
+      </div>
+    </section>
   );
 }
