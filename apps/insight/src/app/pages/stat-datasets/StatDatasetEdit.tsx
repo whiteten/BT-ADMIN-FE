@@ -1,11 +1,11 @@
 import { useEffect, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { Button } from 'antd';
+import { Button, Tooltip } from 'antd';
 import { useBreadcrumbStore } from '@/shared-store';
 import { toast } from '@/shared-util';
 import WizardStepB from '../../features/dataset/components/WizardStepB';
 import { useGetDataset, useUpdateDataset } from '../../features/dataset/hooks/useDatasetQueries';
-import type { ColumnFormatValue, DataSourceFieldRequest, FieldMetaItem, LocalCalcFieldDraft, LocalFieldDisplay } from '../../features/dataset/types';
+import type { ColumnFormatValue, DataSourceFieldRequest, FieldMetaItem, LocalCalcFieldDraft, LocalFieldDisplay, ValidationStatus } from '../../features/dataset/types';
 import type { DomainCode } from '../../features/report/types';
 import { FallbackSpinner } from '@/components/custom/FallbackSpinner';
 
@@ -110,6 +110,7 @@ export default function StatDatasetEdit() {
   const [calcFields, setCalcFields] = useState<LocalCalcFieldDraft[]>([]);
   const [isCalcEditing, setIsCalcEditing] = useState(false);
   const [initialized, setInitialized] = useState(false);
+  const [validationStatus, setValidationStatus] = useState<ValidationStatus>('unchecked');
 
   const { data: dataset, isLoading } = useGetDataset({
     params: { datasourceKey: datasourceKey! },
@@ -198,15 +199,18 @@ export default function StatDatasetEdit() {
               calcFields={calcFields}
               onCalcFieldsChange={setCalcFields}
               onEditingChange={setIsCalcEditing}
+              onValidationStatusChange={setValidationStatus}
             />
           </div>
           {!isCalcEditing && (
             <div className="border-t border-bt-border bg-bt-bg-muted px-7 py-4">
               <div className="flex items-center justify-between">
                 <Button onClick={() => navigate('/insight/statistics/datasets')}>취소</Button>
-                <Button type="primary" onClick={handleSave} loading={isPending}>
-                  저장
-                </Button>
+                <Tooltip title={validationStatus === 'invalid' ? '검증 실행 후 저장하세요' : undefined}>
+                  <Button type="primary" onClick={handleSave} loading={isPending} disabled={validationStatus === 'invalid'}>
+                    저장
+                  </Button>
+                </Tooltip>
               </div>
             </div>
           )}

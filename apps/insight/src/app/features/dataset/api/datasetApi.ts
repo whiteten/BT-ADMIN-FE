@@ -1,5 +1,15 @@
 import ApiClient, { type ApiResponse } from '@/shared-util';
-import type { DataSourceListItem, DatasetCreateRequest, DatasetDetail, DatasetListItem, DatasetUpdateRequest, FieldMetaItem, PrefixCandidate } from '../types';
+import type {
+  DataSourceListItem,
+  DatasetCreateRequest,
+  DatasetDetail,
+  DatasetListItem,
+  DatasetUpdateRequest,
+  FieldMetaItem,
+  PrefixCandidate,
+  ValidateFieldsRequest,
+  ValidateFieldsResult,
+} from '../types';
 
 const apiClient = new ApiClient({ serviceURL: '/bff' });
 
@@ -63,5 +73,10 @@ export const datasetApi = {
   getCandidates: async (): Promise<PrefixCandidate[]> => {
     const response = await apiClient.get<ApiResponse<{ value: PrefixCandidate[] }>>('/insight-statistics-datasource-candidates');
     return response.data?.data?.value ?? [];
+  },
+
+  validateFields: async (data: ValidateFieldsRequest): Promise<ValidateFieldsResult> => {
+    const response = await apiClient.post<ApiResponse<ValidateFieldsResult>>('/insight-statistics-datasource-validate-fields', data);
+    return response.data?.data;
   },
 };
