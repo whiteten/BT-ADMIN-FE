@@ -3,17 +3,7 @@ import IntentTopBarChart from '../components/IntentTopBarChart';
 import { type CampaignDashboardResponse, type IntentTopItem } from '../types';
 
 /** API 연동 전 차트 UI 확인용. BE 연동 시 `false`로 전환 */
-export const CAMPAIGN_DASHBOARD_USE_MOCK = true;
-
-export const CAMPAIGN_DASHBOARD_MOCK_RESPONSE: CampaignDashboardResponse = {
-  campaignProgressRate: {
-    progressRatePct: 90.9,
-    totalTargetCnt: 99999,
-  },
-  campaignOutboundAttempt: {
-    outboundAttemptCnt: 10000,
-  },
-};
+export const CAMPAIGN_DASHBOARD_USE_MOCK = false;
 
 /** `IntentTopBarChart` 확인용 — 캠페인 발신 지표 6종 */
 const CAMPAIGN_OUTBOUND_ATTEMPT_MOCK_LABELS = ['본인확인건수', '본인 통화 완료 건수', '재시도 발신 건수', '실패 건수', '부재 건수', '문자 발송 건수'] as const;
@@ -25,6 +15,17 @@ export const CAMPAIGN_MOCK_OUTBOUND_ATTEMPT_TOP: IntentTopItem[] = CAMPAIGN_OUTB
   intent,
   detectCnt: CAMPAIGN_OUTBOUND_ATTEMPT_MOCK_COUNT,
 }));
+
+export const CAMPAIGN_DASHBOARD_MOCK_RESPONSE: CampaignDashboardResponse = {
+  campaignProgressRate: {
+    progressRatePct: 90.9,
+    totalTargetCnt: 99999,
+  },
+  campaignOutboundAttempt: {
+    outboundAttemptCnt: 10000,
+    outboundAttemptTop: CAMPAIGN_MOCK_OUTBOUND_ATTEMPT_TOP,
+  },
+};
 
 /** 레이아웃 렌더 매퍼 항목 */
 export interface CampaignLayoutRenderEntry {
@@ -49,7 +50,9 @@ export const campaignDashboardLayoutRenderMapper: Record<string, CampaignLayoutR
     renderContent: (d) => (
       <IntentTopBarChart
         data={
-          CAMPAIGN_DASHBOARD_USE_MOCK ? CAMPAIGN_MOCK_OUTBOUND_ATTEMPT_TOP : toIntentTopForAttempt(d?.campaignOutboundAttemptTop, d?.campaignOutboundAttempt?.outboundAttemptCnt)
+          CAMPAIGN_DASHBOARD_USE_MOCK
+            ? CAMPAIGN_MOCK_OUTBOUND_ATTEMPT_TOP
+            : toIntentTopForAttempt(d?.campaignOutboundAttempt?.outboundAttemptTop, d?.campaignOutboundAttempt?.outboundAttemptCnt)
         }
       />
     ),

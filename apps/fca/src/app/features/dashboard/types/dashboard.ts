@@ -374,9 +374,11 @@ export interface CampaignProgressRateData {
  */
 export interface CampaignDashboardResponse {
   campaignProgressRate: CampaignProgressRateData;
-  campaignOutboundAttempt: { outboundAttemptCnt: number };
-  /** API 연동 시 건수형 bar chart용 (`IntentTopBarChart`, mock: `CampaignDashboardLayoutRenderMapper`) */
-  campaignOutboundAttemptTop?: IntentTopItem[];
+  campaignOutboundAttempt: {
+    outboundAttemptCnt: number;
+    /** WS `campaignOutboundAttempt` 위젯 DATA에 포함 (6종 막대) */
+    outboundAttemptTop?: IntentTopItem[];
+  };
 }
 
 export type CampaignDashboardWidgetType = keyof CampaignDashboardResponse;
