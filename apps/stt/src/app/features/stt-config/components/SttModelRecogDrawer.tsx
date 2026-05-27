@@ -298,7 +298,7 @@ const SttModelRecogDrawer = forwardRef<SttModelRecogDrawerRef>((_, ref) => {
         destroyOnHidden
       >
         <div style={{ height: 400 }}>
-          <AgGridReact<RecogTargetListItem> rowData={targetPreview.targets} columnDefs={targetColumnDefs} gridOptions={gridOptions} pagination={false} statusBar={undefined} />
+          <AgGridReact<RecogTargetListItem> {...gridOptions} rowData={targetPreview.targets} columnDefs={targetColumnDefs} pagination={false} statusBar={undefined} />
         </div>
       </Modal>
     </>
