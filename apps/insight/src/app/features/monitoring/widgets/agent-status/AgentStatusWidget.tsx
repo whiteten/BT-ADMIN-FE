@@ -1,7 +1,9 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { Drawer, Input, Tooltip } from 'antd';
+import { useQueryClient } from '@tanstack/react-query';
+import { Button, Drawer, Input, Radio, Tooltip } from 'antd';
 import { AlertTriangle, CircleHelp, LayoutGrid, PanelTopClose, PanelTopOpen, Rows3, Search, Settings } from 'lucide-react';
+import { toast } from '@/shared-util';
 import { DEMO_AGENTS, isDemoMode } from './demoData';
 import { answerRatePct, groupAgents, liveDurationSec, matchSearch, toAgentRows, toNum, totalHandled } from './helpers';
 import AgentRadarModal from './parts/AgentRadarModal';
@@ -10,6 +12,7 @@ import MosLegend from './parts/MosLegend';
 import { alarmLevel, statusKey, statusMeta } from './statusMap';
 import type { AgentRow, Density, GroupBy, SortBy, StatusGroup, Threshold } from './types';
 import { widgetToolbarSlotId } from '../../components/canvas/WidgetCardHeader';
+import { useGetMediaTypes, useGetWidgetUserSetting, useUpdateWidgetUserSetting, widgetSettingKeys } from '../../hooks/useWidgetSettingQueries';
 import NoData from '@/components/custom/NoData';
 import { usePersistentState } from '@/libs/shared-ui/src/hooks/usePersistentState';
 
@@ -272,6 +275,46 @@ export default function AgentStatusWidget({ data, options, widgetId, onRequestPa
   }, [onRequestPause]);
   const handleCloseSettings = useCallback(() => setSettingsOpen(false), []);
 
+  // ─── 설정 폼: 미디어 타입 ────────────────────────────────────
+  // widgetId 없는 미리보기 컨텍스트는 query 비활성화.
+  const numericWidgetId = typeof widgetId === 'number' ? widgetId : Number(widgetId);
+  const hasWidgetId = Number.isFinite(numericWidgetId) && numericWidgetId > 0;
+  const queryClient = useQueryClient();
+  const { data: mediaTypes = [], isLoading: isMediaTypesLoading } = useGetMediaTypes();
+  const { data: userSetting } = useGetWidgetUserSetting({
+    params: { widgetId: hasWidgetId ? numericWidgetId : 0 },
+    queryOptions: { enabled: hasWidgetId && settingsOpen },
+  });
+  const { mutate: saveUserSetting, isPending: isSavingSetting } = useUpdateWidgetUserSetting({
+    mutationOptions: {
+      onSuccess: () => {
+        if (hasWidgetId) {
+          queryClient.invalidateQueries({ queryKey: widgetSettingKeys.userSetting(numericWidgetId).queryKey });
+        }
+        toast.success('설정이 저장되었습니다.');
+        setSettingsOpen(false);
+      },
+    },
+  });
+
+  /** 폼 로컬 상태 — drawer 가 열릴 때 저장값에서 초기화. */
+  const [formMediaType, setFormMediaType] = useState<number | null>(null);
+  useEffect(() => {
+    if (!settingsOpen) return;
+    const saved = userSetting?.settings?.mediaType;
+    setFormMediaType(typeof saved === 'number' ? saved : null);
+  }, [settingsOpen, userSetting]);
+
+  const handleSaveSettings = useCallback(() => {
+    if (!hasWidgetId) {
+      toast.error('위젯 식별자가 없어 저장할 수 없습니다.');
+      return;
+    }
+    const settings: Record<string, unknown> = {};
+    if (formMediaType != null) settings.mediaType = formMediaType;
+    saveUserSetting({ widgetId: numericWidgetId, settings });
+  }, [hasWidgetId, numericWidgetId, formMediaType, saveUserSetting]);
+
   // 위젯 검색 + 뷰토글 + 설정 (WidgetCardHeader 슬롯에 portal)
   const toolbar = (
     <div className="flex flex-nowrap items-center gap-2">
@@ -442,11 +485,62 @@ export default function AgentStatusWidget({ data, options, widgetId, onRequestPa
 
       <AgentRadarModal open={radarAgent != null} onClose={closeRadar} agent={radarAgent} allAgents={rows} />
 
-      {/* 설정 드로어 — SUBSCRIBE 페이로드용 검색 조건/필터 폼 자리 (모니터링 일시정지 상태). */}
-      <Drawer title="상담사 상태 모니터 설정" placement="right" width={420} open={settingsOpen} onClose={handleCloseSettings} destroyOnClose>
-        <div className="flex h-full flex-col">
-          <p className="text-xs text-gray-500">구독 페이로드에 들어갈 검색 조건과 필터를 설정합니다. 변경 후 모니터링을 다시 시작하면 새 옵션으로 구독됩니다.</p>
-          <div className="mt-4 flex-1 rounded border border-dashed border-gray-200 bg-gray-50/50 p-6 text-center text-xs text-gray-400">검색 조건 / 필터 폼은 추후 추가됩니다.</div>
+      {/*
+        설정 드로어 — WS SUBSCRIBE 페이로드에 머지될 사용자 설정.
+        본인 위젯 인스턴스 단위로 저장 (TB_BT_IS_MON_WIDGET_USER_SETTING).
+        저장 후 모니터링 재시작 시 새 옵션으로 SUBSCRIBE.
+      */}
+      <Drawer
+        title="상담사 상태 모니터 설정"
+        placement="right"
+        width={420}
+        open={settingsOpen}
+        onClose={handleCloseSettings}
+        destroyOnClose
+        footer={
+          <div className="flex justify-end gap-2">
+            <Button onClick={handleCloseSettings} disabled={isSavingSetting}>
+              취소
+            </Button>
+            <Button type="primary" onClick={handleSaveSettings} loading={isSavingSetting} disabled={!hasWidgetId}>
+              저장
+            </Button>
+          </div>
+        }
+      >
+        <div className="flex h-full flex-col gap-5">
+          <p className="text-xs text-gray-500">
+            구독 페이로드에 머지될 사용자 설정입니다. 같은 위젯 인스턴스에서 본인에게만 적용되며, 저장 후 모니터링을 다시 시작하면 새 옵션으로 구독됩니다.
+          </p>
+
+          {/* 미디어 타입 — Radio.Group (단일 선택) */}
+          <section className="flex flex-col gap-2">
+            <div className="flex items-center justify-between">
+              <span className="text-sm font-semibold text-gray-700">미디어 타입</span>
+              {formMediaType != null && (
+                <Button size="small" type="link" onClick={() => setFormMediaType(null)} disabled={isSavingSetting}>
+                  전체 보기로 초기화
+                </Button>
+              )}
+            </div>
+            <p className="text-[11px] text-gray-400">선택하지 않으면 모든 미디어 타입의 상담사를 표시합니다.</p>
+            {isMediaTypesLoading ? (
+              <div className="text-xs text-gray-400">로딩 중…</div>
+            ) : mediaTypes.length === 0 ? (
+              <div className="text-xs text-gray-400">표시할 미디어 타입이 없습니다.</div>
+            ) : (
+              <Radio.Group value={formMediaType} onChange={(e) => setFormMediaType(e.target.value)} disabled={isSavingSetting}>
+                <div className="flex flex-col gap-2">
+                  {mediaTypes.map((m) => (
+                    <Radio key={m.mediaType} value={m.mediaType}>
+                      <span className="font-mono text-xs text-gray-500 tabular-nums">{String(m.mediaType).padStart(2, '0')}</span>
+                      <span className="ml-2 text-sm text-gray-900">{m.mediaAlias}</span>
+                    </Radio>
+                  ))}
+                </div>
+              </Radio.Group>
+            )}
+          </section>
         </div>
       </Drawer>
     </div>

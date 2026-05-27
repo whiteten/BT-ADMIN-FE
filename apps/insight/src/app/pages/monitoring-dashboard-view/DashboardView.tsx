@@ -9,6 +9,7 @@ import DashboardCanvas from '../../features/monitoring/components/canvas/Dashboa
 import EmptyCanvas from '../../features/monitoring/components/canvas/EmptyCanvas';
 import { dashboardKeys, useDeleteWidget, useGetDashboard, useUpdateDashboard, useUpdateLayout } from '../../features/monitoring/hooks/useDashboardQueries';
 import { useDashboardSocket } from '../../features/monitoring/hooks/useDashboardSocket';
+import { useWidgetUserSettingsMap } from '../../features/monitoring/hooks/useWidgetSettingQueries';
 import type { Widget } from '../../features/monitoring/types';
 import { FallbackSpinner } from '@/components/custom/FallbackSpinner';
 
@@ -76,10 +77,15 @@ export default function DashboardView() {
     if (mode === 'edit') setMonitoringStarted(false);
   }, [mode]);
 
+  // CUSTOM 위젯들의 사용자 설정 — SUBSCRIBE 페이로드에 머지하기 위해 일괄 조회.
+  const customWidgetIds = useMemo(() => widgets.filter((w) => w.kind === 'CUSTOM').map((w) => w.widgetId), [widgets]);
+  const widgetUserSettings = useWidgetUserSettingsMap(customWidgetIds);
+
   const { connectionState, widgetData } = useDashboardSocket({
     dashboardId,
     widgets,
     refreshThrottle,
+    widgetUserSettings,
     enabled: mode === 'view' && monitoringStarted,
   });
 

@@ -25,6 +25,8 @@ interface UseDashboardSocketOptions {
   refreshThrottle: 1 | 3 | 5 | 10 | 'PAUSED';
   /** 글로벌 옵션 (검색조건 등) */
   globalOptions?: Record<string, unknown>;
+  /** 위젯 인스턴스별 사용자 설정 (TB_BT_IS_MON_WIDGET_USER_SETTING). SUBSCRIBE 시 widget.options 위에 머지. */
+  widgetUserSettings?: Record<string, Record<string, unknown>>;
   /** false 면 WebSocket 연결을 시도하지 않고 idle 상태 유지 (사용자가 ▶ 누르기 전). */
   enabled?: boolean;
 }
@@ -41,7 +43,14 @@ export interface UseDashboardSocketResult {
   resubscribe: () => void;
 }
 
-export function useDashboardSocket({ dashboardId, widgets, refreshThrottle, globalOptions = {}, enabled = true }: UseDashboardSocketOptions): UseDashboardSocketResult {
+export function useDashboardSocket({
+  dashboardId,
+  widgets,
+  refreshThrottle,
+  globalOptions = {},
+  widgetUserSettings = {},
+  enabled = true,
+}: UseDashboardSocketOptions): UseDashboardSocketResult {
   const [connectionState, setConnectionState] = useState<WsConnectionState>(enabled ? 'connecting' : 'idle');
   const [widgetData, setWidgetData] = useState<Record<string, WidgetData>>({});
   const socketRef = useRef<WebSocket | null>(null);
@@ -80,6 +89,7 @@ export function useDashboardSocket({ dashboardId, widgets, refreshThrottle, glob
             options: {
               ...(w.options ?? {}),
               ...globalOptions,
+              ...(widgetUserSettings[String(w.widgetId)] ?? {}),
               ...(fields && fields.length > 0 ? { fields } : {}),
             },
           };
@@ -188,12 +198,13 @@ export function useDashboardSocket({ dashboardId, widgets, refreshThrottle, glob
         options: {
           ...(w.options ?? {}),
           ...globalOptions,
+          ...(widgetUserSettings[String(w.widgetId)] ?? {}),
           ...(fields && fields.length > 0 ? { fields } : {}),
         },
       };
       socketRef.current!.send(JSON.stringify(msg));
     });
-  }, [widgets, globalOptions]);
+  }, [widgets, globalOptions, widgetUserSettings]);
 
   return { connectionState, widgetData, resubscribe };
 }
