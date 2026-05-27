@@ -224,9 +224,9 @@ export interface CampaignResultStatItem {
   selfCallCnt?: number;
   selfCallCompleteRatePct?: number;
   failCnt?: number;
-  avgDialogTurnCnt?: number;
   absentCnt?: number;
-  outboundAttemptSelfCallSuccessRatePct?: number;
+  firstAttemptSelfCallSuccessRatePct?: number;
+  secondAttemptSelfCallSuccessRatePct?: number;
   verifyFailRatePct?: number;
 }
 

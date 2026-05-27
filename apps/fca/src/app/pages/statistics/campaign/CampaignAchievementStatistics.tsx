@@ -120,14 +120,14 @@ const CAMPAIGN_ACHIEVEMENT_COLUMN_DEFS: Record<CampaignAchievementStatCategory, 
     { headerName: '완결 건수', field: 'noticeCompleteCnt', width: 120, cellStyle: numberCellStyle },
     { headerName: '미완료 건수', field: 'noticeIncompleteCnt', width: 120, cellStyle: numberCellStyle },
     { headerName: '성공률', field: 'noticeSuccessRatePct', width: 100, cellStyle: numberCellStyle, cellRenderer: 'percentBarRenderer' },
-    { headerName: '무자발송건수', field: 'noticeNoSendCnt', width: 120, cellStyle: numberCellStyle },
+    { headerName: '문자발송건수', field: 'noticeNoSendCnt', width: 120, cellStyle: numberCellStyle },
     { headerName: '평균통화시간', field: 'noticeAvgCallDurationSec', width: 120, valueFormatter: durationFormatter, cellStyle: numberCellStyle },
   ],
   [CAMPAIGN_ACHIEVEMENT_STAT_CATEGORY.SHORT_TERM_OVERDUE]: [
     { headerName: '완결 건수', field: 'overdueCompleteCnt', width: 120, cellStyle: numberCellStyle },
     { headerName: '미완료 건수', field: 'overdueIncompleteCnt', width: 120, cellStyle: numberCellStyle },
     { headerName: '성공률', field: 'overdueSuccessRatePct', width: 100, cellStyle: numberCellStyle, cellRenderer: 'percentBarRenderer' },
-    { headerName: '무자발송건수', field: 'overdueNoSendCnt', width: 120, cellStyle: numberCellStyle },
+    { headerName: '문자발송건수', field: 'overdueNoSendCnt', width: 120, cellStyle: numberCellStyle },
     { headerName: '평균통화시간', field: 'overdueAvgCallDurationSec', width: 120, valueFormatter: durationFormatter, cellStyle: numberCellStyle },
   ],
 };
@@ -239,7 +239,7 @@ export default function CampaignAchievementStatistics() {
   const columnDefs = useMemo(() => CAMPAIGN_ACHIEVEMENT_COLUMN_DEFS[displayStatCategory], [displayStatCategory]);
 
   const { permissions } = useNavigationStore();
-  const hasExcelPermission = permissions.includes('fca:stats-campaign:excel');
+  const hasExcelPermission = permissions.includes('fca:stats-campaign-achievement-result:export');
 
   const [isExporting, setIsExporting] = useState(false);
 
