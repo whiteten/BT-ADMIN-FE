@@ -18,6 +18,7 @@ const SELECTOR_LOADERS: Record<string, () => Promise<SelectorsModule>> = {
   stt: () => import('stt/QuerySelectors').catch(() => ({ querySelectors: {} })) as Promise<SelectorsModule>,
   ivr: () => import('ivr/QuerySelectors').catch(() => ({ querySelectors: {} })) as Promise<SelectorsModule>,
   insight: () => import('insight/QuerySelectors').catch(() => ({ querySelectors: {} })) as Promise<SelectorsModule>,
+  taskboard: () => import('taskboard/QuerySelectors').catch(() => ({ querySelectors: {} })) as Promise<SelectorsModule>,
 };
 
 /**

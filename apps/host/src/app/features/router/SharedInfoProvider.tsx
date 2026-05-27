@@ -1,5 +1,5 @@
 import React, { useEffect } from 'react';
-import { Outlet } from 'react-router-dom';
+import { Outlet, useLocation } from 'react-router-dom';
 import { LOG } from '@/log';
 
 import { useAuthStore, useNavigationStore } from '@/shared-store';
@@ -17,11 +17,14 @@ import { FallbackSpinner } from '@/components/custom/FallbackSpinner';
 const Log = new LOG('SharedInfoProvider');
 
 export default function SharedInfoProvider({ children }: { children?: React.ReactNode }) {
+  const location = useLocation();
+  const isPublicTokenRoute = new URLSearchParams(location.search).has('token') && (location.pathname.includes('task-mgmt') || location.pathname.includes('task-view'));
+
   const { setUserInfo, setIsLoading, passwordExpiringWarning, setPasswordExpiringWarning } = useAuthStore();
   const { setNavigation } = useNavigationStore();
-  const { data: userInfo, isLoading: isUserInfoLoading, error: userInfoError } = useGetUserInfo();
-  const { data: navigation, isLoading: isNavigationLoading, error: navigationError } = useGetNavigation();
-  const { data: ticketResponse, isLoading: isWsTicketLoading, error: wsTicketError, refetch: refetchWsTicket } = useGetWsTicket();
+  const { data: userInfo, isLoading: isUserInfoLoading, error: userInfoError } = useGetUserInfo({ queryOptions: { enabled: !isPublicTokenRoute } });
+  const { data: navigation, isLoading: isNavigationLoading, error: navigationError } = useGetNavigation({ queryOptions: { enabled: !isPublicTokenRoute } });
+  const { data: ticketResponse, isLoading: isWsTicketLoading, error: wsTicketError, refetch: refetchWsTicket } = useGetWsTicket({ queryOptions: { enabled: !isPublicTokenRoute } });
   const { load: loadMenuConfigs } = useMenuLoader();
   const { load: loadRemoteRoutes } = useRemoteRoutesLoader();
   const { load: loadPageVariantManifest } = usePageVariantManifestLoader();
@@ -103,7 +106,8 @@ export default function SharedInfoProvider({ children }: { children?: React.Reac
     }
   }, [passwordExpiringWarning, setPasswordExpiringWarning]);
 
-  if (isUserInfoLoading || isNavigationLoading || isWsTicketLoading) {
+  // 공개 토큰 경로에서는 인증 API 로딩 대기 없이 즉시 렌더링
+  if (!isPublicTokenRoute && (isUserInfoLoading || isNavigationLoading || isWsTicketLoading)) {
     return <FallbackSpinner useFullScreen />;
   }
 

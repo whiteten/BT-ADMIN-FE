@@ -1,0 +1,21 @@
+@import 'react-grid-layout/css/styles.css';
+@import 'react-resizable/css/styles.css';
+
+/* react-grid-layout 커스텀 오버라이드 */
+.react-grid-item.react-grid-placeholder {
+  background: rgba(15, 91, 158, 0.25);
+  border-radius: 8px;
+  border: 2px dashed rgba(15, 91, 158, 0.6);
+}
+.react-grid-item > .react-resizable-handle {
+  background: none;
+}
+.react-grid-item > .react-resizable-handle::after {
+  border-color: rgba(255, 255, 255, 0.7);
+  width: 8px;
+  height: 8px;
+}
+.react-grid-item.react-draggable-dragging {
+  z-index: 30 !important;
+  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.4);
+}

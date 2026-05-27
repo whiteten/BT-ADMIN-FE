@@ -15,6 +15,7 @@ const VARIANT_LOADERS: Record<string, () => Promise<PageVariantManifestModule>> 
   stt: () => import('stt/PageVariantManifest').catch(() => ({ pageVariantManifest: {} })) as Promise<PageVariantManifestModule>,
   ivr: () => import('ivr/PageVariantManifest').catch(() => ({ pageVariantManifest: {} })) as Promise<PageVariantManifestModule>,
   insight: () => import('insight/PageVariantManifest').catch(() => ({ pageVariantManifest: {} })) as Promise<PageVariantManifestModule>,
+  taskboard: () => import('taskboard/PageVariantManifest').catch(() => ({ pageVariantManifest: {} })) as Promise<PageVariantManifestModule>,
 };
 
 /**
