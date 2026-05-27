@@ -1,6 +1,8 @@
 import { useMemo } from 'react';
 import type { ColDef, ValueFormatterParams } from 'ag-grid-community';
 import { AgGridReact } from 'ag-grid-react';
+import { useGetDataSourceFields } from '../../../dataset/hooks/useDatasetQueries';
+import { useReportEditorStore } from '../../../report/hooks/useReportEditorStore';
 import { useReportViewStore } from '../../../report/hooks/useReportViewStore';
 import type { ColumnFormat, PanelDetail } from '../../../report/types';
 import { usePanelData } from '../../hooks/usePanelQueries';
@@ -38,6 +40,12 @@ function formatValue(value: unknown, format: ColumnFormat | undefined): string {
 export default function PanelGrid({ panel, reportId }: PanelGridProps) {
   const { gridOptions } = useAggridOptions();
   const { globalFilter } = useReportViewStore();
+  const { report } = useReportEditorStore();
+  const { data: fields = [] } = useGetDataSourceFields({
+    params: { datasourceKey: report?.datasourceKey ?? '' },
+    queryOptions: { enabled: !!report?.datasourceKey },
+  });
+  const displayNameMap = useMemo(() => new Map(fields.map((f) => [f.fieldName, f.displayName])), [fields]);
 
   const rowFields = panel.fieldMap.filter((f) => f.slotType === 'ROW');
   const valueFields = panel.fieldMap.filter((f) => f.slotType === 'VALUE');
@@ -58,20 +66,20 @@ export default function PanelGrid({ panel, reportId }: PanelGridProps) {
   const columnDefs: ColDef[] = useMemo(() => {
     const dimCols: ColDef[] = rowFields.map((f) => ({
       field: f.fieldName,
-      headerName: f.fieldName,
+      headerName: displayNameMap.get(f.fieldName) ?? f.fieldName,
       sortable: true,
       minWidth: 100,
     }));
     const msrCols: ColDef[] = valueFields.map((f) => ({
       field: f.fieldName,
-      headerName: `${f.fieldName} (${f.aggFunc ?? 'SUM'})`,
+      headerName: f.aggFunc ? `${displayNameMap.get(f.fieldName) ?? f.fieldName} (${f.aggFunc})` : (displayNameMap.get(f.fieldName) ?? f.fieldName),
       sortable: true,
       type: 'numericColumn',
       minWidth: 100,
       valueFormatter: (params: ValueFormatterParams) => formatValue(params.value, f.columnFormat),
     }));
     return [...dimCols, ...msrCols];
-  }, [rowFields, valueFields]);
+  }, [rowFields, valueFields, displayNameMap]);
 
   const rowData = queryResult?.current ?? [];
 

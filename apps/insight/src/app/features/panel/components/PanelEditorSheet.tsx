@@ -71,12 +71,11 @@ const TOP_N_PRESETS = [5, 10, 20, 50];
 
 function makeFieldMapEntry(field: FieldMetaItem, slotType: SlotType, slotOrder: number): PanelFieldMap {
   const isMsr = field.fieldRole === 'MEASURE' || field.fieldRole === 'CALC';
-  const isCalc = field.fieldRole === 'CALC';
   return {
     slotType,
     slotOrder,
     fieldName: field.fieldName,
-    isCalcField: isCalc,
+    isCalcField: false,
     aggFunc: isMsr ? 'SUM' : undefined,
     columnFormat: isMsr ? 'Number' : undefined,
   };
