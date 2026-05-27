@@ -263,14 +263,14 @@ export default function CampaignIndividualResultStatistics() {
     { headerName: '실패건수', field: 'failCnt', width: 100, cellStyle: numberCellStyle },
     { headerName: '부재건수', field: 'absentCnt', width: 100, cellStyle: numberCellStyle },
     {
-      headerName: '발신시도별 본인통화 성공율(1차)',
+      headerName: '발신시도별 본인통화 성공률(1차)',
       field: 'firstAttemptSelfCallSuccessRatePct',
       width: 180,
       cellStyle: numberCellStyle,
       cellRenderer: 'percentBarRenderer',
     },
     {
-      headerName: '발신시도별 본인통화 성공율(2차)',
+      headerName: '발신시도별 본인통화 성공률(2차)',
       field: 'secondAttemptSelfCallSuccessRatePct',
       width: 180,
       cellStyle: numberCellStyle,
