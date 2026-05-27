@@ -9,6 +9,14 @@ import { useGetCallStatusList } from '../../features/monitoring/hooks/useMonitor
 import type { CallStatusItem } from '../../features/monitoring/types';
 import useAggridOptions from '@/libs/shared-ui/src/hooks/useAggridOptions';
 
+const SUMMARY_CHIP_COLORS = [
+  { bg: 'bg-blue-50', label: 'text-blue-500', count: 'text-blue-700' },
+  { bg: 'bg-emerald-50', label: 'text-emerald-500', count: 'text-emerald-700' },
+  { bg: 'bg-amber-50', label: 'text-amber-500', count: 'text-amber-700' },
+  { bg: 'bg-violet-50', label: 'text-violet-500', count: 'text-violet-700' },
+  { bg: 'bg-rose-50', label: 'text-rose-500', count: 'text-rose-700' },
+] as const;
+
 const breadcrumb: BreadcrumbProps['items'] = [
   { title: 'STT 모니터링', path: '/stt/monitoring' },
   { title: 'STT 콜별 진행현황', path: '/stt/monitoring/call/list' },
@@ -76,15 +84,34 @@ export default function CallStatusList() {
         </header>
 
         {/* 요약 */}
-        <p className="text-base font-semibold text-[#212529]">수집 녹취 현황</p>
-        <div className="flex items-center gap-6 text-sm text-[#495057]">
-          {isLoading
-            ? null
-            : summary.map((s) => (
-                <span key={s.workKindName}>
-                  {s.workKindName} : <strong className="font-semibold">{s.cnt}</strong>
-                </span>
-              ))}
+        <div className="flex items-center gap-3">
+          <h2 className="text-base font-semibold text-[#212529]">수집 녹취 현황</h2>
+          <div className="flex items-center gap-2 flex-wrap">
+            {!isLoading &&
+              summary.map((s, idx) => {
+                const isTotal = s.workKindName === '전체콜';
+                const color = SUMMARY_CHIP_COLORS[idx % SUMMARY_CHIP_COLORS.length];
+                if (isTotal) {
+                  return (
+                    <>
+                      <div key={s.workKindName} className="flex items-center gap-2 rounded-lg border border-gray-300 bg-gray-100 px-4 py-1.5">
+                        <span className="text-xs text-gray-500">{s.workKindName}</span>
+                        <span className="text-base font-bold text-gray-800">{s.cnt.toLocaleString()}</span>
+                        <span className="text-xs text-gray-500">건</span>
+                      </div>
+                      <div className="h-5 w-px bg-gray-200" />
+                    </>
+                  );
+                }
+                return (
+                  <div key={s.workKindName} className={`flex items-center gap-1.5 rounded-full px-3 py-1 ${color.bg}`}>
+                    <span className={`text-xs ${color.label}`}>{s.workKindName}</span>
+                    <span className={`text-sm font-bold ${color.count}`}>{s.cnt.toLocaleString()}</span>
+                    <span className={`text-xs ${color.label}`}>건</span>
+                  </div>
+                );
+              })}
+          </div>
         </div>
 
         {/* 그리드 */}

@@ -139,7 +139,7 @@ export default function SttDashboard() {
         <header className="flex items-center justify-between gap-2">
           <h2 className="text-base font-semibold text-[#212529]">콜 인입/변환현황</h2>
           <div className="flex items-center gap-2 shrink-0">
-            <span className="text-sm font-medium text-[#495057]">조회기간</span>
+            <span className="text-sm font-medium text-[#495057]">조회일</span>
             <DatePicker value={callDate} onChange={handleDateChange} allowClear={false} style={{ width: 160 }} format="YYYY-MM-DD" />
             <button
               type="button"
@@ -158,7 +158,7 @@ export default function SttDashboard() {
               const meta = SUMMARY_META[s.kind] ?? { title: s.kind, timeLabel: '최종 시간' };
               return (
                 <div key={s.kind} className="flex flex-col gap-2 rounded-lg border border-gray-100 bg-gray-50 px-4 py-3 flex-1">
-                  <p className="text-xs font-medium text-gray-500">{meta.title}</p>
+                  <p className="text-sm font-medium text-gray-500">{meta.title}</p>
                   <p className="text-2xl font-bold leading-none text-gray-800">
                     {s.cnt}
                     <span className="ml-1 text-sm font-normal text-gray-500">건</span>

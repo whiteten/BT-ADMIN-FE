@@ -35,15 +35,15 @@ export interface RecogResultItem {
   rxtxKind: number;
   recogStatus: number;
   recogStatusName: string;
-  accuracyRate: number;
-  recogRate: number;
-  wordCnt: number;
-  hitCnt: number;
-  deletionCnt: number;
-  substitutionCnt: number;
-  insertionCnt: number;
+  accuracyRate: number | null;
+  recogRate: number | null;
+  wordCnt: number | null;
+  hitCnt: number | null;
+  deletionCnt: number | null;
+  substitutionCnt: number | null;
+  insertionCnt: number | null;
   orgResult: string;
-  sttResult: string;
+  sttResult: string | null;
 }
 
 export interface RecogResultSummary {
