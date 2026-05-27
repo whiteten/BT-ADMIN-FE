@@ -10,6 +10,7 @@ import DashboardCanvas from '../../features/monitoring/components/canvas/Dashboa
 import EmptyCanvas from '../../features/monitoring/components/canvas/EmptyCanvas';
 import { dashboardKeys, useCreateWidget, useGetDashboard } from '../../features/monitoring/hooks/useDashboardQueries';
 import type { CustomWidgetCatalogItem, Widget } from '../../features/monitoring/types';
+import { autoPackPosition } from '../../features/monitoring/utils/autoPackPosition';
 import { FallbackSpinner } from '@/components/custom/FallbackSpinner';
 
 export default function CustomWidgetCatalogPage() {
@@ -77,6 +78,7 @@ export default function CustomWidgetCatalogPage() {
 
   // 카탈로그에서 위젯 선택 → BE 생성 호출 → 성공 시 편집 화면으로 복귀.
   // 좌측 placeholder는 더 이상 사용 안 함 (실 DB 위젯은 편집 화면의 캔버스에서 렌더).
+  // position 은 autoPackPosition 으로 기존 위젯과 겹치지 않는 첫 빈 슬롯에 자동 배치 (사용자는 이후 드래그/리사이즈로 미세 조정).
   const handleAdd = (widget: CustomWidgetCatalogItem) => {
     if (isCreating) return;
     createWidget({
@@ -86,7 +88,7 @@ export default function CustomWidgetCatalogPage() {
         widgetName: widget.widgetName,
         widgetTypeId: widget.widgetTypeId,
         options: widget.defaultOptions ?? {},
-        position: { row: 0, col: 0, w: widget.minW ?? 4, h: widget.minH ?? 4 },
+        position: autoPackPosition(existingWidgets, widget),
       },
     });
   };

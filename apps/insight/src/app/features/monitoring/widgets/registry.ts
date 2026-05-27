@@ -10,6 +10,7 @@
 
 import type { ComponentType } from 'react';
 import AgentStatusWidget from './agent-status/AgentStatusWidget';
+import CtiqStatusWidget from './ctiq-status/CtiqStatusWidget';
 
 /** 모든 커스텀 위젯 컴포넌트의 공통 props. */
 export interface CustomWidgetComponentProps {
@@ -82,8 +83,44 @@ const AGENT_STATUS_CARD_FIELDS = [
   'SELF_HANDLE_RATE',
 ];
 
+/** 큐 위젯에서 사용하는 필드 — 카드(큰/작은) + KPI 스트립 + 임계 분류에 필요. */
+const CTIQ_STATUS_FIELDS = [
+  // 식별
+  'CTIQ_ID',
+  'CTIQ_NAME',
+  'GDN_NO',
+  'NODE_ID',
+  'CENTER_ID',
+  'TENANT_ID',
+  'TNT_ID',
+  'MEDIA_TYPE',
+  'SERVICE_MEDIA_TYPE',
+  // 압력
+  'RTS_WAIT_CNT',
+  'RTS_MAXWAIT_TIME',
+  'RTS_EXP_LOGIN_AGT',
+  'KPI_EWT_TIME',
+  // 처리
+  'SUM_CONN_CNT',
+  'SUM_ANSWER_CNT',
+  'SUM_ANSWER_CNT_TOT',
+  'SUM_ABDN_CNT',
+  // 시간
+  'AVG_ANSTALK_TIME',
+  'AVG_ANSWAIT_TIME',
+  // KPI (BE ÷100 정규화)
+  'KPI_ANSWER_RATE',
+  'KPI_SVCLEVEL',
+  'KPI_ABANDON_RATIO',
+  'KPI_WORKREADY_RATIO',
+  'KPI_OVERCALL_ANSWER_RATIO',
+  // 신선도
+  'DB_UPDATE_SEC',
+];
+
 const REGISTRY: Record<string, CustomWidgetEntry> = {
   'agent-status-matrix': { component: AgentStatusWidget, fields: AGENT_STATUS_CARD_FIELDS },
+  'ctiq-status-matrix': { component: CtiqStatusWidget, fields: CTIQ_STATUS_FIELDS },
 };
 
 export function getCustomWidgetComponent(widgetTypeId: string): ComponentType<CustomWidgetComponentProps> | null {
