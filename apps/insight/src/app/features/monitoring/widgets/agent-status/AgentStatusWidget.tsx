@@ -310,8 +310,10 @@ export default function AgentStatusWidget({ data, options, widgetId, onRequestPa
       toast.error('위젯 식별자가 없어 저장할 수 없습니다.');
       return;
     }
-    const settings: Record<string, unknown> = {};
-    if (formMediaType != null) settings.mediaType = formMediaType;
+    // 선택값이 없으면 0 (VOIP) 을 디폴트로 서버 전송.
+    const settings: Record<string, unknown> = {
+      mediaType: formMediaType ?? 0,
+    };
     saveUserSetting({ widgetId: numericWidgetId, settings });
   }, [hasWidgetId, numericWidgetId, formMediaType, saveUserSetting]);
 
@@ -509,21 +511,9 @@ export default function AgentStatusWidget({ data, options, widgetId, onRequestPa
         }
       >
         <div className="flex h-full flex-col gap-5">
-          <p className="text-xs text-gray-500">
-            구독 페이로드에 머지될 사용자 설정입니다. 같은 위젯 인스턴스에서 본인에게만 적용되며, 저장 후 모니터링을 다시 시작하면 새 옵션으로 구독됩니다.
-          </p>
-
-          {/* 미디어 타입 — Radio.Group (단일 선택) */}
+          {/* 미디어 타입 — Radio.Group (단일 선택). 미선택 저장 시 서버는 0 으로 받음. */}
           <section className="flex flex-col gap-2">
-            <div className="flex items-center justify-between">
-              <span className="text-sm font-semibold text-gray-700">미디어 타입</span>
-              {formMediaType != null && (
-                <Button size="small" type="link" onClick={() => setFormMediaType(null)} disabled={isSavingSetting}>
-                  전체 보기로 초기화
-                </Button>
-              )}
-            </div>
-            <p className="text-[11px] text-gray-400">선택하지 않으면 모든 미디어 타입의 상담사를 표시합니다.</p>
+            <span className="text-sm font-semibold text-gray-700">미디어 타입</span>
             {isMediaTypesLoading ? (
               <div className="text-xs text-gray-400">로딩 중…</div>
             ) : mediaTypes.length === 0 ? (
