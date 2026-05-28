@@ -194,3 +194,12 @@ export function getRoutingKindName(v: number | null | undefined): string {
       .replace(/\s\(.*\)$/, '') ?? String(v)
   );
 }
+
+// ──────────────────────────────────────────────────────────
+//  콤보 옵션 (BE: GdnOptionItem) — 멘트/스킬셋 공용
+// ──────────────────────────────────────────────────────────
+
+export interface GdnOptionItem {
+  id: number;
+  name: string;
+}

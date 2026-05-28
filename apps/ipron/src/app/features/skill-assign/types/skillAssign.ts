@@ -32,6 +32,44 @@ export interface AvailableSkillsetResponse {
   agentCount: number;
 }
 
+/** 선택된 상담사 N명 기준 스킬셋별 보유 인원 — 모드 ① 우측 보유율 시각화 */
+export interface SkillsetCoverageItem {
+  skillsetId: number;
+  holdingCount: number;
+}
+
+/** 선택된 스킬셋 M건 기준 상담사별 보유 수 — 모드 ② 우측 보유율 시각화 */
+export interface AgentCoverageItem {
+  agentId: number;
+  holdingCount: number;
+}
+
+/** N × M 일괄 부여 (Drawer 매트릭스) */
+export interface BulkGrantMappingItem {
+  agentId: number;
+  skillsetId: number;
+  priority: number;
+  skillLevel: number;
+}
+
+export interface BulkGrantRequest {
+  mappings: BulkGrantMappingItem[];
+}
+
+export interface BulkGrantResult {
+  added: number;
+  skipped: number;
+}
+
+export interface BulkRevokeRequest {
+  agentIds: number[];
+  skillsetIds: number[];
+}
+
+export interface BulkRevokeResult {
+  removed: number;
+}
+
 // ──────────────────────────────────────────────────────────
 //  상담사↔스킬셋 (SkillAgent)
 // ──────────────────────────────────────────────────────────

@@ -44,6 +44,9 @@ function filterTree(nodes: AgentGroupNode[], kw: string): AgentGroupNode[] {
 }
 
 export default function AgentGroupTree({ tree, selectedGroupId, onSelectGroup, onCreateChild, onEditGroup, onDeleteGroup, onAgentDrop, onGroupReorder }: AgentGroupTreeProps) {
+  // 액션 콜백을 하나도 전달받지 않으면 read-only — 하위그룹 추가/수정/삭제 아이콘 자체를 렌더하지 않음
+  // (예: 상담사 ADN 관리 화면이 그룹 트리를 필터 용도로만 재사용하는 경우)
+  const readOnly = !onCreateChild && !onEditGroup && !onDeleteGroup;
   const [searchText, setSearchText] = useState('');
   const [expanded, setExpanded] = useState<Set<number>>(() => new Set());
   const [dropTargetId, setDropTargetId] = useState<number | null>(null);
@@ -230,42 +233,44 @@ export default function AgentGroupTree({ tree, selectedGroupId, onSelectGroup, o
           {/* 카운트 — 선택/hover 시 액션 아이콘에 자리를 양보 */}
           <span className={`text-[11px] text-gray-400 flex-shrink-0 ${isSelected ? 'hidden' : 'group-hover:hidden'}`}>{node.agentCount.toLocaleString()}</span>
 
-          {/* 액션 — 선택된 그룹은 항상 표시, 외에는 hover 시 표시 */}
-          <div className={`flex items-center gap-0.5 flex-shrink-0 transition ${isSelected ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'}`}>
-            <button
-              type="button"
-              className="w-5 h-5 inline-flex items-center justify-center rounded text-gray-400 hover:bg-[#eef0f7] hover:text-[#405189]"
-              title="하위 그룹 추가"
-              onClick={(e) => {
-                e.stopPropagation();
-                onCreateChild?.(node);
-              }}
-            >
-              <Plus className="size-3.5" />
-            </button>
-            <button
-              type="button"
-              className="w-5 h-5 inline-flex items-center justify-center rounded text-gray-400 hover:bg-[#eef0f7] hover:text-[#405189]"
-              title="그룹 수정"
-              onClick={(e) => {
-                e.stopPropagation();
-                onEditGroup?.(node);
-              }}
-            >
-              <Pencil className="size-3.5" />
-            </button>
-            <button
-              type="button"
-              className="w-5 h-5 inline-flex items-center justify-center rounded text-gray-400 hover:bg-red-50 hover:text-red-500"
-              title="그룹 삭제"
-              onClick={(e) => {
-                e.stopPropagation();
-                onDeleteGroup?.(node);
-              }}
-            >
-              <Trash2 className="size-3.5" />
-            </button>
-          </div>
+          {/* 액션 — 선택된 그룹은 항상 표시, 외에는 hover 시 표시. read-only 모드에서는 통째 생략 */}
+          {!readOnly && (
+            <div className={`flex items-center gap-0.5 flex-shrink-0 transition ${isSelected ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'}`}>
+              <button
+                type="button"
+                className="w-5 h-5 inline-flex items-center justify-center rounded text-gray-400 hover:bg-[#eef0f7] hover:text-[#405189]"
+                title="하위 그룹 추가"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onCreateChild?.(node);
+                }}
+              >
+                <Plus className="size-3.5" />
+              </button>
+              <button
+                type="button"
+                className="w-5 h-5 inline-flex items-center justify-center rounded text-gray-400 hover:bg-[#eef0f7] hover:text-[#405189]"
+                title="그룹 수정"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onEditGroup?.(node);
+                }}
+              >
+                <Pencil className="size-3.5" />
+              </button>
+              <button
+                type="button"
+                className="w-5 h-5 inline-flex items-center justify-center rounded text-gray-400 hover:bg-red-50 hover:text-red-500"
+                title="그룹 삭제"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onDeleteGroup?.(node);
+                }}
+              >
+                <Trash2 className="size-3.5" />
+              </button>
+            </div>
+          )}
         </div>
 
         {hasChildren && isOpen && <div>{node.children!.map((child) => renderNode(child, depth + 1))}</div>}

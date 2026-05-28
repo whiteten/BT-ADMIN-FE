@@ -10,8 +10,13 @@ import { createQueryKeys } from '@lukemorales/query-key-factory';
 import type { MutationHookOptions, QueryHookOptions, QueryHookWithParamsOptions } from '@/shared-util';
 import { skillAssignApi } from '../api/skillAssignApi';
 import type {
+  AgentCoverageItem,
   AvailableSkillsetParams,
   AvailableSkillsetResponse,
+  BulkGrantRequest,
+  BulkGrantResult,
+  BulkRevokeRequest,
+  BulkRevokeResult,
   SkillAgentBulkAssignRequest,
   SkillAgentBulkAssignResult,
   SkillAgentResponse,
@@ -21,13 +26,17 @@ import type {
   SkillGroupListParams,
   SkillGroupResponse,
   SkillGroupUpdateRequest,
+  SkillsetCoverageItem,
 } from '../types';
 
 export const skillAssignQueryKeys = createQueryKeys('skill-assign', {
   tenantStats: null,
   availableSkillsets: (params?: Record<string, unknown>) => [params],
   skillsetsByAgent: (agentId?: number) => [agentId],
+  agentsBySkillset: (skillsetId?: number) => [skillsetId],
   skillGroups: (params?: Record<string, unknown>) => [params],
+  coverage: (agentIds?: number[]) => [agentIds],
+  agentCoverage: (skillsetIds?: number[]) => [skillsetIds],
 });
 
 // ─── Queries ───────────────────────────────────────────────────────────────
@@ -54,10 +63,37 @@ export const useGetSkillsetsByAgent = (agentId: number | null | undefined, { que
     ...queryOptions,
   });
 
+/** 한 스킬셋에 배정된 상담사 목록 (배정 현황 조회 탭 — 스킬셋 기준) */
+export const useGetAgentsBySkillset = (skillsetId: number | null | undefined, { queryOptions }: QueryHookOptions<SkillAgentResponse[]> = {}) =>
+  useQuery({
+    queryKey: skillAssignQueryKeys.agentsBySkillset(skillsetId ?? undefined).queryKey,
+    queryFn: () => skillAssignApi.getAgentsBySkillset(skillsetId as number),
+    enabled: !!skillsetId,
+    ...queryOptions,
+  });
+
 export const useGetSkillGroups = ({ params, queryOptions }: QueryHookWithParamsOptions<SkillGroupResponse[]> = {}) =>
   useQuery({
     queryKey: skillAssignQueryKeys.skillGroups(params).queryKey,
     queryFn: () => skillAssignApi.getSkillGroups(params as SkillGroupListParams),
+    ...queryOptions,
+  });
+
+/** 선택된 상담사 N명 기준 스킬셋별 보유 인원 (모드 ① 우측 보유율) */
+export const useGetSkillsetCoverage = (agentIds: number[], { queryOptions }: QueryHookOptions<SkillsetCoverageItem[]> = {}) =>
+  useQuery({
+    queryKey: skillAssignQueryKeys.coverage(agentIds).queryKey,
+    queryFn: () => skillAssignApi.getSkillsetCoverage(agentIds),
+    enabled: agentIds.length > 0,
+    ...queryOptions,
+  });
+
+/** 선택된 스킬셋 M건 기준 상담사별 보유 수 (모드 ② 우측 보유율) */
+export const useGetAgentCoverage = (skillsetIds: number[], { queryOptions }: QueryHookOptions<AgentCoverageItem[]> = {}) =>
+  useQuery({
+    queryKey: skillAssignQueryKeys.agentCoverage(skillsetIds).queryKey,
+    queryFn: () => skillAssignApi.getAgentCoverage(skillsetIds),
+    enabled: skillsetIds.length > 0,
     ...queryOptions,
   });
 
@@ -67,6 +103,8 @@ const invalidateAgentSkill = (qc: ReturnType<typeof useQueryClient>) => {
   qc.invalidateQueries({ queryKey: skillAssignQueryKeys.skillsetsByAgent._def });
   qc.invalidateQueries({ queryKey: skillAssignQueryKeys.availableSkillsets._def });
   qc.invalidateQueries({ queryKey: skillAssignQueryKeys.tenantStats.queryKey });
+  qc.invalidateQueries({ queryKey: skillAssignQueryKeys.coverage._def });
+  qc.invalidateQueries({ queryKey: skillAssignQueryKeys.agentCoverage._def });
 };
 
 export const useBulkAssignSkillsets = ({ mutationOptions }: MutationHookOptions<SkillAgentBulkAssignResult, { agentId: number; body: SkillAgentBulkAssignRequest }> = {}) => {
@@ -97,6 +135,32 @@ export const useUnassignSkillset = ({ mutationOptions }: MutationHookOptions<voi
   const qc = useQueryClient();
   return useMutation({
     mutationFn: ({ agentId, skillsetId }) => skillAssignApi.unassign(agentId, skillsetId),
+    ...mutationOptions,
+    onSuccess: (...args) => {
+      invalidateAgentSkill(qc);
+      mutationOptions?.onSuccess?.(...args);
+    },
+  });
+};
+
+/** N × M 일괄 부여 (모드 ① Drawer) */
+export const useBulkGrant = ({ mutationOptions }: MutationHookOptions<BulkGrantResult, BulkGrantRequest> = {}) => {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (body) => skillAssignApi.bulkGrant(body),
+    ...mutationOptions,
+    onSuccess: (...args) => {
+      invalidateAgentSkill(qc);
+      mutationOptions?.onSuccess?.(...args);
+    },
+  });
+};
+
+/** N × M 일괄 해제 (모드 ① Bulk Bar) */
+export const useBulkRevoke = ({ mutationOptions }: MutationHookOptions<BulkRevokeResult, BulkRevokeRequest> = {}) => {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (body) => skillAssignApi.bulkRevoke(body),
     ...mutationOptions,
     onSuccess: (...args) => {
       invalidateAgentSkill(qc);

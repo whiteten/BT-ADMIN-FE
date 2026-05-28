@@ -9,7 +9,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { createQueryKeys } from '@lukemorales/query-key-factory';
 import type { MutationHookOptions, QueryHookOptions, QueryHookWithParamsOptions } from '@/shared-util';
 import { acdGdnApi } from '../api/acdGdnApi';
-import type { GdnCreateRequest, GdnMemberResponse, GdnMemberSaveRequest, GdnResponse, GdnTenantStat, GdnUpdateRequest } from '../types';
+import type { GdnCreateRequest, GdnMemberResponse, GdnMemberSaveRequest, GdnOptionItem, GdnResponse, GdnTenantStat, GdnUpdateRequest } from '../types';
 
 export const acdGdnQueryKeys = createQueryKeys('acd-gdn', {
   list: (params?: Record<string, unknown>) => [params],
@@ -17,6 +17,8 @@ export const acdGdnQueryKeys = createQueryKeys('acd-gdn', {
   tenants: null,
   members: (id?: number) => [id],
   memberCandidates: (id?: number) => [id],
+  mentOptions: (tenantId?: number, nodeId?: number) => [tenantId, nodeId],
+  skillsetOptions: (tenantId?: number) => [tenantId],
 });
 
 // ─── Queries ────────────────────────────────────────────────────────
@@ -56,6 +58,29 @@ export const useGetAcdGdnMemberCandidates = (id: number | null | undefined, { qu
     queryKey: acdGdnQueryKeys.memberCandidates(id ?? undefined).queryKey,
     queryFn: () => acdGdnApi.getMemberCandidates(id as number),
     enabled: !!id,
+    ...queryOptions,
+  });
+
+/** 멘트 8개 공용 콤보 옵션 (IMPL-BE §③, TB_IE_ANNOUNCEBGM) */
+export const useGetAcdGdnMentOptions = (tenantId: number | null | undefined, nodeId: number | null | undefined, { queryOptions }: QueryHookOptions<GdnOptionItem[]> = {}) =>
+  useQuery({
+    queryKey: acdGdnQueryKeys.mentOptions(tenantId ?? undefined, nodeId ?? undefined).queryKey,
+    queryFn: () => {
+      const params: { tenantId?: number; nodeId?: number } = {};
+      if (tenantId != null) params.tenantId = tenantId;
+      if (nodeId != null) params.nodeId = nodeId;
+      return acdGdnApi.getMentOptions(Object.keys(params).length ? params : undefined);
+    },
+    enabled: tenantId != null,
+    ...queryOptions,
+  });
+
+/** 스킬셋 콤보 옵션 (ACD_TYPE=3 일 때 활성, IMPL-BE §③) */
+export const useGetAcdGdnSkillsetOptions = (tenantId: number | null | undefined, { queryOptions }: QueryHookOptions<GdnOptionItem[]> = {}) =>
+  useQuery({
+    queryKey: acdGdnQueryKeys.skillsetOptions(tenantId ?? undefined).queryKey,
+    queryFn: () => acdGdnApi.getSkillsetOptions(tenantId != null ? { tenantId } : undefined),
+    enabled: tenantId != null,
     ...queryOptions,
   });
 

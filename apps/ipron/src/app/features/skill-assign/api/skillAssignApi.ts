@@ -22,8 +22,13 @@
  */
 import ApiClient, { type ApiResponse } from '@/shared-util';
 import type {
+  AgentCoverageItem,
   AvailableSkillsetParams,
   AvailableSkillsetResponse,
+  BulkGrantRequest,
+  BulkGrantResult,
+  BulkRevokeRequest,
+  BulkRevokeResult,
   SkillAgentBulkAssignRequest,
   SkillAgentBulkAssignResult,
   SkillAgentResponse,
@@ -33,6 +38,7 @@ import type {
   SkillGroupListParams,
   SkillGroupResponse,
   SkillGroupUpdateRequest,
+  SkillsetCoverageItem,
 } from '../types';
 
 const apiClient = new ApiClient({ serviceURL: '/bff' });
@@ -50,10 +56,34 @@ export const skillAssignApi = {
     return res.data?.data?.value ?? [];
   },
 
+  /** 선택된 상담사 N명 기준 스킬셋별 보유 인원 (모드 ① 우측 보유율) */
+  getSkillsetCoverage: async (agentIds: number[]): Promise<SkillsetCoverageItem[]> => {
+    if (!agentIds.length) return [];
+    const res = await apiClient.get<ApiResponse<{ value: SkillsetCoverageItem[] }>>('/ipron-skill-assignments-coverage', {
+      params: { agentIds: agentIds.join(',') },
+    });
+    return res.data?.data?.value ?? [];
+  },
+
+  /** 선택된 스킬셋 M건 기준 상담사별 보유 수 (모드 ② 우측 보유율) */
+  getAgentCoverage: async (skillsetIds: number[]): Promise<AgentCoverageItem[]> => {
+    if (!skillsetIds.length) return [];
+    const res = await apiClient.get<ApiResponse<{ value: AgentCoverageItem[] }>>('/ipron-skill-assignments-agent-coverage', {
+      params: { skillsetIds: skillsetIds.join(',') },
+    });
+    return res.data?.data?.value ?? [];
+  },
+
   // ─── 상담사↔스킬셋 ────────────────────────────────────────────────────────
 
   getSkillsetsByAgent: async (agentId: number): Promise<SkillAgentResponse[]> => {
     const res = await apiClient.get<ApiResponse<{ value: SkillAgentResponse[] }>>('/ipron-skill-skillsets-by-agent', { params: { agentId } });
+    return res.data?.data?.value ?? [];
+  },
+
+  /** 한 스킬셋에 배정된 상담사 목록 (배정 현황 조회 탭 — 스킬셋 기준) */
+  getAgentsBySkillset: async (skillsetId: number): Promise<SkillAgentResponse[]> => {
+    const res = await apiClient.get<ApiResponse<{ value: SkillAgentResponse[] }>>('/ipron-skill-agents-by-skillset', { params: { skillsetId } });
     return res.data?.data?.value ?? [];
   },
 
@@ -69,6 +99,18 @@ export const skillAssignApi = {
 
   unassign: async (agentId: number, skillsetId: number): Promise<void> => {
     await apiClient.delete('/ipron-skill-unassign', { params: { agentId, skillsetId } });
+  },
+
+  /** N × M 일괄 부여 (Drawer 매트릭스). 이미 존재하는 매핑은 BE 가 skip. */
+  bulkGrant: async (body: BulkGrantRequest): Promise<BulkGrantResult> => {
+    const res = await apiClient.post<ApiResponse<BulkGrantResult>>('/ipron-skill-assignments-bulk-grant', body);
+    return res.data?.data;
+  },
+
+  /** N × M 일괄 해제. 존재하지 않는 매핑은 skip (실제 삭제 수만 반환). */
+  bulkRevoke: async (body: BulkRevokeRequest): Promise<BulkRevokeResult> => {
+    const res = await apiClient.post<ApiResponse<BulkRevokeResult>>('/ipron-skill-assignments-bulk-revoke', body);
+    return res.data?.data;
   },
 
   // ─── 스킬모음 ──────────────────────────────────────────────────────────────

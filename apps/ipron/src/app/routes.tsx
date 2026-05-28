@@ -42,22 +42,28 @@ const DnForm = React.lazy(() => import('./pages/dn/DnForm'));
 const AdnList = React.lazy(() => import('./pages/adn/AdnList'));
 const AdnForm = React.lazy(() => import('./pages/adn/AdnForm'));
 
-// acd-gdn (ACD 그룹DN — SWAT IPR20S3010)
-const AcdGdnList = React.lazy(() => import('./pages/acd-gdn/AcdGdnList'));
+// agent-adn (상담사 로그인번호 관리 — SWAT IPR20S3011)
+const AgentAdnList = React.lazy(() => import('./pages/agent-adn/AgentAdnList'));
+
+// gdn (그룹DN 통합 관리 — ACD + CTI Queue + SIP TRUNK 3 메뉴 통폐합)
+const GdnList = React.lazy(() => import('./pages/gdn/GdnList'));
 
 // agent-master
 const AgentMasterList = React.lazy(() => import('./pages/agent-master/AgentMasterList'));
 const AgentMasterForm = React.lazy(() => import('./pages/agent-master/AgentMasterForm'));
 const AgentGroupForm = React.lazy(() => import('./pages/agent-master/AgentGroupForm'));
 
-// cti-queue
-const CtiQueueList = React.lazy(() => import('./pages/cti-queue/CtiQueueList'));
-
-// cti-code-mgmt (휴식/ACW 사유 + 미디어타입 통합)
+// cti-code-mgmt (휴식/ACW 사유 — SWAT IPR20S4040 마이그레이션, 상담사 관리 폴더 하위)
 const CtiCodeList = React.lazy(() => import('./pages/cti-code/CtiCodeList'));
+
+// media-type (미디어타입 관리 — SWAT IPR10S6060, 상담사 관리 > 코드 관리 하위)
+const MediaTypeList = React.lazy(() => import('./pages/media-type/MediaTypeList'));
 
 // skill-assign (스킬배정)
 const SkillAssignList = React.lazy(() => import('./pages/skill-assign/SkillAssignList'));
+
+// skillset-master (스킬셋 관리 — SWAT IPR20S5010)
+const SkillsetMasterList = React.lazy(() => import('./pages/skillset-master/SkillsetMasterList'));
 
 // tracking
 const TrackingSearch = React.lazy(() => import('./pages/tracking/TrackingSearch'));
@@ -182,8 +188,8 @@ export const routes = [
         ],
       },
       {
-        path: 'acd-gdn',
-        element: <AcdGdnList />,
+        path: 'gdn',
+        element: <GdnList />,
       },
       {
         path: 'agent-master',
@@ -197,16 +203,24 @@ export const routes = [
         ],
       },
       {
-        path: 'cti-queue',
-        element: <CtiQueueList />,
-      },
-      {
         path: 'cti-code-mgmt',
         element: <CtiCodeList />,
       },
       {
+        path: 'media-type',
+        element: <MediaTypeList />,
+      },
+      {
         path: 'skill-assign',
         element: <SkillAssignList />,
+      },
+      {
+        path: 'agent-adn',
+        element: <AgentAdnList />,
+      },
+      {
+        path: 'skillset-master',
+        element: <SkillsetMasterList />,
       },
       {
         path: 'tracking',

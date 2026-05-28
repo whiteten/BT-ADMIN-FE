@@ -1,29 +1,27 @@
 /**
- * CTI 코드 관리 페이지.
+ * 휴식/ACW 사유 코드 관리 페이지.
  *
- * 좌측: 5 카테고리 리스트 (휴식/ACW/IC/IR/OWMS)
- * 우측: 선택 카테고리에 따라 ReasonCode 또는 MediaType 테이블
+ * 상단: 박스 1 헤더 + 박스 2 테넌트 카드 슬라이더 (상담사 관리/스킬셋 관리 패턴 일치)
+ * 하단: 코드 타입 토글(휴식/ACW) + 사유 코드 테이블
  *
- * BT-ADMIN 개선 (Phase 1 최소):
- *  - 카테고리 별 itemCount 표시 + locked 시각화
- *  - REASON_CODE: 등록/수정/삭제 (REASON_CODE=0 보호는 BE 가드)
- *  - MEDIA_TYPE: 등록/수정 (EDIT_YN=0 잠금은 BE 가드 + FE 시각)
- *  - 일괄 복사 / 사용 통계 / 인라인 편집 등은 후속 PR
+ * AS-IS SWAT IPR20S4040 마이그레이션 — 탭 2개를 Segmented 토글로 단순화.
  */
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { Button, Card, Empty, List, Space, Spin, Table, Tag } from 'antd';
-import type { ColumnsType } from 'antd/es/table';
-import { ChevronLeft, ChevronRight, Lock, Plus, RefreshCw, Trash2 } from 'lucide-react';
-import { useBreadcrumbStore } from '@/shared-store';
+import { Button, Empty, Segmented } from 'antd';
+import { ChevronLeft, ChevronRight, ChevronsDown, ChevronsUp, Plus, RefreshCw, Trash2 } from 'lucide-react';
+import { useAuthStore, useBreadcrumbStore } from '@/shared-store';
 import { toast } from '@/shared-util';
 import CtiCodeFormDrawer, { type CtiCodeDrawerState } from '../../features/cti-code/components/CtiCodeFormDrawer';
+import CtiCodeTable from '../../features/cti-code/components/CtiCodeTable';
 import CtiCodeTenantCard from '../../features/cti-code/components/CtiCodeTenantCard';
-import { useDeleteReasonCode, useGetCtiCodeCategories, useGetCtiCodeTenantStats, useGetMediaTypes, useGetReasonCodes } from '../../features/cti-code/hooks/useCtiCodeQueries';
-import type { CtiCodeCategory, MediaTypeResponse, ReasonCodeResponse } from '../../features/cti-code/types';
+import { useDeleteReasonCode, useDeleteReasonCodesBatch, useGetCtiCodeTenantStats, useGetReasonCodes } from '../../features/cti-code/hooks/useCtiCodeQueries';
+import { REASON_CODE_TYPE_ACW, REASON_CODE_TYPE_REST, type ReasonCodeResponse } from '../../features/cti-code/types';
 
 const breadcrumb = [
   { title: 'IPRON', path: '/ipron' },
-  { title: 'CTI 코드 관리', path: '/ipron/cti-code-mgmt' },
+  { title: '상담사 관리', path: '/ipron/agent-master' },
+  { title: '코드 관리', path: '/ipron/cti-code-mgmt' },
+  { title: '휴식/ACW 사유', path: '/ipron/cti-code-mgmt' },
 ];
 
 export default function CtiCodeList() {
@@ -34,12 +32,28 @@ export default function CtiCodeList() {
     return () => clearBreadcrumb();
   }, [setBreadcrumb, clearBreadcrumb]);
 
-  const [selectedTenantId, setSelectedTenantId] = useState<number | null>(null);
-  const [selectedCategoryId, setSelectedCategoryId] = useState<string | null>(null);
+  // ctx 테넌트 (JWT — 사용자 본인 테넌트) — 페이지 진입 시 자동 선택
+  const ctxTenantId = useAuthStore((s) => {
+    const t = s.userInfo?.tenant;
+    return t ? Number(t) : null;
+  });
+
+  const [selectedTenantId, setSelectedTenantId] = useState<number | null>(ctxTenantId);
+  const [codeType, setCodeType] = useState<number>(REASON_CODE_TYPE_REST);
   const [drawer, setDrawer] = useState<CtiCodeDrawerState>({ open: false });
+  const [cardExpanded, setCardExpanded] = useState(false);
+  const [selectedRows, setSelectedRows] = useState<ReasonCodeResponse[]>([]);
   const cardScrollRef = useRef<HTMLDivElement>(null);
 
-  // 테넌트별 통계 (상단 카드 슬라이더 — ADN 패턴)
+  // ctx 비동기 로드 시 동기화
+  useEffect(() => {
+    if (ctxTenantId != null && selectedTenantId === null) {
+      setSelectedTenantId(ctxTenantId);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [ctxTenantId]);
+
+  // 테넌트별 통계 (상단 카드 슬라이더)
   const { data: tenantStats = [], refetch: refetchTenants } = useGetCtiCodeTenantStats();
   const totalStats = useMemo(() => {
     const restCnt = tenantStats.reduce((s, t) => s + (t.restCnt ?? 0), 0);
@@ -47,270 +61,229 @@ export default function CtiCodeList() {
     return { restCnt, acwCnt, totalCnt: restCnt + acwCnt };
   }, [tenantStats]);
 
-  // 5 카테고리 메타 (선택 테넌트별 itemCount 반영)
-  const {
-    data: categories = [],
-    isLoading: catLoading,
-    refetch: refetchCategories,
-  } = useGetCtiCodeCategories({
-    params: selectedTenantId !== null ? { tenantId: selectedTenantId } : undefined,
-  });
-
-  // 첫 카테고리 자동 선택
-  useEffect(() => {
-    if (!selectedCategoryId && categories.length > 0) {
-      setSelectedCategoryId(categories[0].categoryId);
-    }
-  }, [categories, selectedCategoryId]);
-
-  const selectedCategory = useMemo<CtiCodeCategory | null>(() => categories.find((c) => c.categoryId === selectedCategoryId) ?? null, [categories, selectedCategoryId]);
-
-  // REASON_CODE 또는 MEDIA_TYPE 데이터 (enabled 분기)
-  const isReason = selectedCategory?.domain === 'REASON_CODE';
-  const isMedia = selectedCategory?.domain === 'MEDIA_TYPE';
-
+  // 사유 코드 목록
   const {
     data: reasonRows = [],
     isLoading: reasonLoading,
     refetch: refetchReasons,
   } = useGetReasonCodes({
-    params: isReason
-      ? {
-          codeType: selectedCategory!.codeType ?? undefined,
-          tenantId: selectedTenantId ?? undefined,
-        }
-      : undefined,
-    queryOptions: { enabled: !!isReason },
+    params: {
+      codeType,
+      tenantId: selectedTenantId ?? undefined,
+    },
   });
-
-  const {
-    data: mediaRows = [],
-    isLoading: mediaLoading,
-    refetch: refetchMedia,
-  } = useGetMediaTypes({
-    params: isMedia ? { classCd: selectedCategory!.classCd ?? undefined } : undefined,
-    queryOptions: { enabled: !!isMedia },
-  });
-
-  const tableLoading = reasonLoading || mediaLoading;
 
   const { mutate: deleteReason } = useDeleteReasonCode({
     mutationOptions: {
       onSuccess: () => {
         toast.success('사유 코드가 삭제되었습니다');
         refetchReasons();
-        refetchCategories();
+        refetchTenants();
       },
       onError: (err: unknown) => toast.error(extractMessage(err) ?? '삭제 실패'),
     },
   });
 
-  // ─── ReasonCode 컬럼 ─────────────────────────────────────────────────────
-  const reasonColumns: ColumnsType<ReasonCodeResponse> = [
-    { title: '테넌트', dataIndex: 'tenantName', key: 'tenantName', width: 130, ellipsis: true },
-    { title: '구분', dataIndex: 'codeTypeName', key: 'codeTypeName', width: 90 },
-    { title: '번호', dataIndex: 'reasonCode', key: 'reasonCode', width: 70, align: 'right' },
-    { title: '이름', dataIndex: 'reasonName', key: 'reasonName' },
-    { title: '설명', dataIndex: 'reasonDesc', key: 'reasonDesc', ellipsis: true },
-    {
-      title: '액션',
-      key: 'action',
-      width: 140,
-      render: (_, row) => {
-        const protected0 = row.reasonCode === 0;
-        const protectedRest1 = row.codeType === 30 && row.reasonCode === 1;
-        const disabledDelete = protected0 || protectedRest1;
-        return (
-          <Space size={4}>
-            <Button size="small" onClick={() => setDrawer({ open: true, mode: 'edit', category: selectedCategory!, reason: row })}>
-              수정
-            </Button>
-            <Button
-              size="small"
-              danger
-              icon={<Trash2 size={12} />}
-              disabled={disabledDelete}
-              onClick={() => {
-                if (window.confirm(`사유 코드 "${row.reasonName}" 를 삭제하시겠습니까?`)) {
-                  deleteReason({
-                    tenantId: row.tenantId,
-                    codeType: row.codeType,
-                    reasonCode: row.reasonCode,
-                  });
-                }
-              }}
-            >
-              삭제
-            </Button>
-          </Space>
-        );
+  const { mutate: deleteReasonsBatch, isPending: isDeleting } = useDeleteReasonCodesBatch({
+    mutationOptions: {
+      onSuccess: () => {
+        toast.success(`${selectedRows.length}건이 삭제되었습니다`);
+        setSelectedRows([]);
+        refetchReasons();
+        refetchTenants();
       },
+      onError: (err: unknown) => toast.error(extractMessage(err) ?? '일괄 삭제 실패'),
     },
-  ];
+  });
 
-  // ─── MediaType 컬럼 ──────────────────────────────────────────────────────
-  const mediaColumns: ColumnsType<MediaTypeResponse> = [
-    {
-      title: '',
-      key: 'lock',
-      width: 32,
-      render: (_, row) => (row.locked ? <Lock size={12} color="#dc2626" /> : null),
-    },
-    { title: 'CODE_CD', dataIndex: 'codeCd', key: 'codeCd', width: 80 },
-    { title: '코드명', dataIndex: 'codeName', key: 'codeName' },
-    { title: '정렬', dataIndex: 'sortSeq', key: 'sortSeq', width: 60, align: 'right' },
-    {
-      title: '숨김',
-      dataIndex: 'hideYn',
-      key: 'hideYn',
-      width: 70,
-      render: (v: number | null) => (v === 1 ? <Tag color="red">숨김</Tag> : <Tag color="green">표시</Tag>),
-    },
-    { title: '비고', dataIndex: 'bigo', key: 'bigo', ellipsis: true },
-    {
-      title: '액션',
-      key: 'action',
-      width: 100,
-      render: (_, row) => (
-        <Button size="small" disabled={row.locked} onClick={() => setDrawer({ open: true, mode: 'edit', category: selectedCategory!, media: row })}>
-          수정
-        </Button>
-      ),
-    },
-  ];
+  const handleCreate = () => {
+    if (selectedTenantId == null) {
+      toast.warning('테넌트를 먼저 선택하세요');
+      return;
+    }
+    setDrawer({ open: true, mode: 'create', codeType, tenantId: selectedTenantId });
+  };
+
+  const handleEdit = (row: ReasonCodeResponse) => {
+    setDrawer({ open: true, mode: 'edit', codeType: row.codeType, reason: row });
+  };
+
+  const handleDelete = (row: ReasonCodeResponse) => {
+    if (!window.confirm(`사유 코드 "${row.reasonName}" 를 삭제하시겠습니까?`)) return;
+    deleteReason({
+      tenantId: row.tenantId,
+      codeType: row.codeType,
+      reasonCode: row.reasonCode,
+    });
+  };
+
+  const handleBulkDelete = () => {
+    if (selectedRows.length === 0) return;
+    if (!window.confirm(`선택한 ${selectedRows.length}건의 사유 코드를 삭제하시겠습니까?`)) return;
+    deleteReasonsBatch(
+      selectedRows.map((r) => ({
+        tenantId: r.tenantId,
+        codeType: r.codeType,
+        reasonCode: r.reasonCode,
+      })),
+    );
+  };
+
+  const selectedTenantName = selectedTenantId == null ? null : (tenantStats.find((t) => t.tenantId === selectedTenantId)?.tenantName ?? `#${selectedTenantId}`);
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 16, padding: 16 }}>
-      {/* 상단 테넌트 카드 슬라이더 — ADN 패턴 (selectedTenantId selector) */}
-      <Card
-        size="small"
-        title="테넌트별 CTI 코드 현황"
-        extra={
-          <Space>
-            <Button size="small" icon={<ChevronLeft size={14} />} onClick={() => cardScrollRef.current?.scrollBy({ left: -260, behavior: 'smooth' })} />
-            <Button size="small" icon={<ChevronRight size={14} />} onClick={() => cardScrollRef.current?.scrollBy({ left: 260, behavior: 'smooth' })} />
+    <div className="flex flex-col gap-4 w-full h-full">
+      {/* ===== 박스 1: 헤더 (별도 박스) ===== */}
+      <div className="bg-white bt-shadow overflow-hidden flex-shrink-0">
+        <div className="flex items-center px-4 h-[56px]">
+          <span className="text-sm font-semibold text-gray-700">휴식/ACW 사유 현황</span>
+          {selectedTenantName && (
+            <span className="ml-3 text-xs text-gray-500">
+              테넌트: <span className="font-medium text-gray-700">{selectedTenantName}</span>
+            </span>
+          )}
+          <div className="ml-auto flex items-center gap-2">
             <Button
+              type="text"
               size="small"
-              icon={<RefreshCw size={14} />}
+              icon={<RefreshCw className="size-3.5" />}
               onClick={() => {
                 refetchTenants();
-                refetchCategories();
                 refetchReasons();
-                refetchMedia();
               }}
             >
               새로고침
             </Button>
-          </Space>
-        }
-        styles={{ body: { padding: '12px 16px' } }}
-      >
-        <div ref={cardScrollRef} style={{ display: 'flex', gap: 12, overflowX: 'auto', padding: '4px 0' }}>
-          <CtiCodeTenantCard tenantId={null} tenantName="전체" stats={totalStats} selected={selectedTenantId === null} onClick={() => setSelectedTenantId(null)} />
-          {tenantStats.map((t) => (
-            <CtiCodeTenantCard
-              key={t.tenantId}
-              tenantId={t.tenantId}
-              tenantName={t.tenantName}
-              stats={{ totalCnt: t.totalCnt, restCnt: t.restCnt, acwCnt: t.acwCnt }}
-              selected={selectedTenantId === t.tenantId}
-              onClick={() => setSelectedTenantId(t.tenantId)}
-            />
-          ))}
+          </div>
         </div>
-      </Card>
+      </div>
 
-      <div style={{ display: 'flex', gap: 16, alignItems: 'stretch' }}>
-        {/* 좌측 카테고리 */}
-        <Card size="small" title="카테고리" style={{ width: 280, flexShrink: 0 }} styles={{ body: { padding: 0 } }}>
-          {catLoading ? (
-            <div style={{ padding: 24, textAlign: 'center' }}>
-              <Spin />
+      {/* ===== 박스 2: 테넌트 카드 슬라이더 (별도 박스) ===== */}
+      <div className="bg-white bt-shadow overflow-hidden flex-shrink-0">
+        {cardExpanded ? (
+          <div className="flex items-center h-[140px] px-4 py-3">
+            <div className="relative flex items-center gap-2 w-full">
+              <Button
+                type="text"
+                icon={<ChevronLeft className="size-5" />}
+                onClick={() => cardScrollRef.current?.scrollBy({ left: -260, behavior: 'smooth' })}
+                className="!flex-shrink-0 !w-8 !h-8 !p-0"
+              />
+              <div ref={cardScrollRef} className="flex gap-3 overflow-x-auto py-2 px-1 flex-1" style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}>
+                <CtiCodeTenantCard tenantId={null} tenantName="전체" stats={totalStats} selected={selectedTenantId === null} onClick={() => setSelectedTenantId(null)} />
+                {tenantStats.length === 0 ? (
+                  <div className="flex flex-col items-center justify-center flex-1 text-gray-400 gap-2 min-h-[100px]">
+                    <Empty description={false} imageStyle={{ height: 40 }} />
+                    <span className="text-sm">등록된 사유 코드가 없습니다</span>
+                  </div>
+                ) : (
+                  tenantStats.map((t) => (
+                    <CtiCodeTenantCard
+                      key={t.tenantId}
+                      tenantId={t.tenantId}
+                      tenantName={t.tenantName ?? '-'}
+                      stats={{ totalCnt: t.totalCnt, restCnt: t.restCnt, acwCnt: t.acwCnt }}
+                      selected={selectedTenantId === t.tenantId}
+                      onClick={(e) => {
+                        setSelectedTenantId(t.tenantId);
+                        (e.currentTarget as HTMLElement).scrollIntoView({ behavior: 'smooth', inline: 'center', block: 'nearest' });
+                      }}
+                    />
+                  ))
+                )}
+              </div>
+              <Button
+                type="text"
+                icon={<ChevronRight className="size-5" />}
+                onClick={() => cardScrollRef.current?.scrollBy({ left: 260, behavior: 'smooth' })}
+                className="!flex-shrink-0 !w-8 !h-8 !p-0"
+              />
+              <Button
+                type="text"
+                icon={<ChevronsUp className="size-4" />}
+                onClick={() => setCardExpanded(false)}
+                title="카드 접기"
+                className="!flex-shrink-0 !w-8 !h-8 !p-0 !text-gray-400 hover:!text-[#405189]"
+              />
+            </div>
+          </div>
+        ) : (
+          <div className="flex items-center h-[44px] px-4">
+            <div className="relative flex items-center gap-2 w-full">
+              <div className="flex gap-2 overflow-x-auto flex-1 items-center" style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}>
+                <CompactTenantPill name="전체" count={totalStats.totalCnt} selected={selectedTenantId === null} onClick={() => setSelectedTenantId(null)} />
+                {tenantStats.map((t) => (
+                  <CompactTenantPill
+                    key={t.tenantId}
+                    name={t.tenantName ?? '-'}
+                    count={t.totalCnt}
+                    selected={selectedTenantId === t.tenantId}
+                    onClick={() => setSelectedTenantId(t.tenantId)}
+                  />
+                ))}
+              </div>
+              <Button
+                type="text"
+                icon={<ChevronsDown className="size-4" />}
+                onClick={() => setCardExpanded(true)}
+                title="카드 펼치기"
+                className="!flex-shrink-0 !w-8 !h-8 !p-0 !text-gray-400 hover:!text-[#405189]"
+              />
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* ===== 박스 3: 토글 + ag-Grid ===== */}
+      <div className="bg-white bt-shadow overflow-hidden flex-1 flex flex-col min-h-0">
+        <div className="flex items-center px-4 h-[56px] border-b border-gray-100">
+          <Segmented
+            value={codeType}
+            onChange={(v) => setCodeType(Number(v))}
+            options={[
+              { label: '휴식 사유', value: REASON_CODE_TYPE_REST },
+              { label: 'ACW 사유', value: REASON_CODE_TYPE_ACW },
+            ]}
+          />
+          {selectedRows.length > 0 && (
+            <span className="ml-3 text-xs text-gray-500">
+              {reasonRows.length.toLocaleString()}건 중 {selectedRows.length}건 선택
+            </span>
+          )}
+          <div className="ml-auto flex items-center gap-2">
+            <Button
+              danger
+              icon={<Trash2 className="size-3.5" />}
+              onClick={handleBulkDelete}
+              loading={isDeleting}
+              disabled={selectedRows.length === 0}
+              title={selectedRows.length === 0 ? '삭제할 사유 코드를 선택하세요' : '선택한 사유 코드 삭제'}
+            >
+              {selectedRows.length > 0 ? `삭제 (${selectedRows.length})` : '삭제'}
+            </Button>
+            <Button type="primary" icon={<Plus className="size-3.5" />} onClick={handleCreate}>
+              등록
+            </Button>
+          </div>
+        </div>
+        <div className="flex-1 min-h-0">
+          {reasonRows.length === 0 && !reasonLoading ? (
+            <div className="flex items-center justify-center h-full">
+              <Empty description={selectedTenantId == null ? '테넌트를 선택하면 사유 코드가 표시됩니다' : '등록된 사유 코드가 없습니다'} />
             </div>
           ) : (
-            <List
-              dataSource={categories}
-              renderItem={(c) => {
-                const selected = c.categoryId === selectedCategoryId;
-                return (
-                  <List.Item
-                    onClick={() => setSelectedCategoryId(c.categoryId)}
-                    style={{
-                      cursor: 'pointer',
-                      padding: '10px 14px',
-                      background: selected ? '#eef0f7' : undefined,
-                      borderLeft: selected ? '3px solid #405189' : '3px solid transparent',
-                    }}
-                  >
-                    <div style={{ flex: 1 }}>
-                      <div style={{ fontWeight: 600, color: selected ? '#405189' : '#374151' }}>
-                        {c.label} {c.locked && <Lock size={11} style={{ color: '#dc2626' }} />}
-                      </div>
-                      <div style={{ fontSize: 11, color: '#6b7280', marginTop: 3 }}>
-                        <Tag color={c.scope === 'SYSTEM' ? 'orange' : 'blue'} style={{ marginRight: 4 }}>
-                          {c.scope}
-                        </Tag>
-                        {c.itemCount}건
-                      </div>
-                    </div>
-                  </List.Item>
-                );
-              }}
+            <CtiCodeTable
+              rowData={reasonRows}
+              isLoading={reasonLoading}
+              onRowDoubleClicked={handleEdit}
+              onDelete={handleDelete}
+              onSelectionChanged={setSelectedRows}
+              onBulkDelete={handleBulkDelete}
+              selectedCount={selectedRows.length}
+              showTenantColumn={selectedTenantId === null}
             />
           )}
-        </Card>
-
-        {/* 우측 테이블 */}
-        <Card
-          size="small"
-          style={{ flex: 1, minWidth: 0 }}
-          title={
-            selectedCategory ? (
-              <Space>
-                {selectedCategory.label}
-                <Tag color="default">{selectedCategory.itemCount}건</Tag>
-                {selectedCategory.locked && <Tag color="red">🔒 시스템</Tag>}
-              </Space>
-            ) : (
-              '카테고리를 선택하세요'
-            )
-          }
-          extra={
-            selectedCategory && (
-              <Button
-                type="primary"
-                icon={<Plus size={14} />}
-                disabled={selectedCategory.locked && selectedCategory.domain === 'MEDIA_TYPE'}
-                onClick={() => setDrawer({ open: true, mode: 'create', category: selectedCategory })}
-              >
-                등록
-              </Button>
-            )
-          }
-        >
-          {!selectedCategory ? (
-            <Empty />
-          ) : isReason ? (
-            <Table<ReasonCodeResponse>
-              size="small"
-              rowKey={(r) => `${r.tenantId}-${r.codeType}-${r.reasonCode}`}
-              loading={tableLoading}
-              dataSource={reasonRows}
-              columns={reasonColumns}
-              pagination={{ pageSize: 20, showSizeChanger: false }}
-            />
-          ) : (
-            <Table<MediaTypeResponse>
-              size="small"
-              rowKey={(r) => `${r.classCd}-${r.codeCd}`}
-              loading={tableLoading}
-              dataSource={mediaRows}
-              columns={mediaColumns}
-              pagination={{ pageSize: 20, showSizeChanger: false }}
-              rowClassName={(row) => (row.locked ? 'cti-row-locked' : '')}
-            />
-          )}
-        </Card>
+        </div>
       </div>
 
       <CtiCodeFormDrawer state={drawer} onClose={() => setDrawer({ open: false })} />
@@ -321,4 +294,29 @@ export default function CtiCodeList() {
 function extractMessage(err: unknown): string | undefined {
   const e = err as { response?: { data?: { message?: string } } };
   return e?.response?.data?.message;
+}
+
+interface CompactTenantPillProps {
+  name: string;
+  count: number;
+  selected: boolean;
+  onClick: () => void;
+}
+
+function CompactTenantPill({ name, count, selected, onClick }: CompactTenantPillProps) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      title={`${name} · ${count.toLocaleString()}건`}
+      className={`flex-shrink-0 inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full border text-xs transition ${
+        selected
+          ? 'border-[#405189] bg-[#405189] text-white shadow-[0_0_0_2px_rgba(64,81,137,0.15)]'
+          : 'border-gray-200 bg-white text-gray-700 hover:border-[#c5cbe0] hover:text-[#405189]'
+      }`}
+    >
+      <span className="font-medium truncate max-w-[120px]">{name}</span>
+      <span className={`text-[11px] ${selected ? 'text-white/80' : 'text-gray-400'}`}>{count.toLocaleString()}</span>
+    </button>
+  );
 }

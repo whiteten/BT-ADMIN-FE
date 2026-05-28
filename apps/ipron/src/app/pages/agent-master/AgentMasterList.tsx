@@ -12,7 +12,7 @@ import { type ChangeEvent, useCallback, useEffect, useMemo, useRef, useState } f
 import { useNavigate } from 'react-router-dom';
 import { Button, Empty, Input } from 'antd';
 import { ChevronLeft, ChevronRight, ChevronsDown, ChevronsUp, Plus, Search, Trash2 } from 'lucide-react';
-import { useBreadcrumbStore } from '@/shared-store';
+import { useAuthStore, useBreadcrumbStore } from '@/shared-store';
 import { toast } from '@/shared-util';
 import AgentGroupFormDrawer from '../../features/agent-master/components/AgentGroupFormDrawer';
 import AgentGroupTree from '../../features/agent-master/components/AgentGroupTree';
@@ -33,7 +33,8 @@ import { useModal } from '@/libs/shared-ui/src/hooks/useModal';
 
 const breadcrumb = [
   { title: '상담사 관리', path: '/ipron/agent-master' },
-  { title: '상담사 관리', path: '/ipron/agent-master' },
+  { title: '상담사', path: '/ipron/agent-master' },
+  { title: '상담사 설정', path: '/ipron/agent-master' },
 ];
 
 export default function AgentMasterList() {
@@ -48,12 +49,27 @@ export default function AgentMasterList() {
   const modal = useModal();
   const cardScrollRef = useRef<HTMLDivElement>(null);
 
+  // ctx 테넌트 (JWT — 사용자 본인 테넌트) — 페이지 진입 시 자동 선택
+  const ctxTenantId = useAuthStore((s) => {
+    const t = s.userInfo?.tenant;
+    return t ? Number(t) : null;
+  });
+
   // ─── State ──────────────────────────────────────────────────────────────
-  const [selectedTenantId, setSelectedTenantId] = useState<number | null>(null);
+  const [selectedTenantId, setSelectedTenantId] = useState<number | null>(ctxTenantId);
   const [selectedGroupId, setSelectedGroupId] = useState<number | null>(null);
   const [searchText, setSearchText] = useState('');
   const [selectedRows, setSelectedRows] = useState<AgentResponse[]>([]);
-  const [cardExpanded, setCardExpanded] = useState(true);
+  // 카드 박스 default 접힘(compact pill). 권한 wrapping 일관성을 위해 hidden 토글 X.
+  const [cardExpanded, setCardExpanded] = useState(false);
+
+  // ctx 비동기 로드 시 동기화
+  useEffect(() => {
+    if (ctxTenantId != null && selectedTenantId === null) {
+      setSelectedTenantId(ctxTenantId);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [ctxTenantId]);
   const [treeWidth, setTreeWidth] = useState(260);
   const splitRef = useRef<HTMLDivElement>(null);
 
@@ -255,10 +271,15 @@ export default function AgentMasterList() {
   // ─── Render ─────────────────────────────────────────────────────────────
   return (
     <div className="flex flex-col gap-4 w-full h-full">
-      {/* ===== 헤더 박스 (DN/ADN 패턴: 타이틀 + 검색 + Import/Export 후속) ===== */}
+      {/* ===== 박스 1: 헤더 (별도 박스) ===== */}
       <div className="bg-white bt-shadow overflow-hidden flex-shrink-0">
         <div className="flex items-center px-4 h-[56px]">
-          <span className="text-sm font-semibold text-gray-700">테넌트별 상담사 현황</span>
+          <span className="text-sm font-semibold text-gray-700">상담사 현황</span>
+          {selectedTenantId !== null && (
+            <span className="ml-3 text-xs text-gray-500">
+              테넌트: <span className="font-medium text-gray-700">{tenantStats.find((t) => t.tenantId === selectedTenantId)?.tenantName ?? `#${selectedTenantId}`}</span>
+            </span>
+          )}
           <div className="ml-auto flex items-center gap-2">
             <Input
               allowClear
@@ -266,13 +287,13 @@ export default function AgentMasterList() {
               placeholder="상담사 검색 (로그인ID/이름/별명/직급)"
               value={searchText}
               onChange={(e: ChangeEvent<HTMLInputElement>) => setSearchText(e.target.value)}
-              style={{ width: 260 }}
+              style={{ width: 220 }}
             />
           </div>
         </div>
       </div>
 
-      {/* ===== 카드 슬라이더 박스 ===== */}
+      {/* ===== 박스 2: 테넌트 카드 슬라이더 (별도 박스) ===== */}
       <div className="bg-white bt-shadow overflow-hidden flex-shrink-0">
         {cardExpanded ? (
           <div className="flex items-center h-[140px] px-4 py-3">

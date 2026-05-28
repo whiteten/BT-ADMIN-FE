@@ -42,8 +42,10 @@ import useAggridOptions from '@/libs/shared-ui/src/hooks/useAggridOptions';
 import { useModal } from '@/libs/shared-ui/src/hooks/useModal';
 
 const breadcrumb = [
-  { title: '프로파일 관리', path: '/ipron/profile/emerg-profile' },
-  { title: '긴급코드 프로파일', path: '/ipron/profile/emerg-profile' },
+  { title: 'IPRON', path: '/ipron' },
+  { title: '번호자원관리', path: '/ipron/numbering' },
+  { title: '프로파일', path: '/ipron/numbering/profile' },
+  { title: '긴급코드 프로파일', path: '/ipron/emerg-profile' },
 ];
 
 export default function EmergProfileManage() {

@@ -1,20 +1,15 @@
 /**
- * CTI 코드 관리 React Query 훅.
+ * 휴식/ACW 사유 코드 관리 React Query 훅.
  *
  * invalidate 매트릭스:
- *  - ReasonCode 변경 (create/update/delete/copy) → reasonList + categories(itemCount)
- *  - MediaType 변경 (create/update) → mediaList(classCd) + categories(itemCount)
+ *  - ReasonCode 변경 (create/update/delete/copy) → reasonList + tenantStats
  */
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { createQueryKeys } from '@lukemorales/query-key-factory';
 import type { MutationHookOptions, QueryHookOptions, QueryHookWithParamsOptions } from '@/shared-util';
 import { ctiCodeApi } from '../api/ctiCodeApi';
 import type {
-  CtiCodeCategory,
   CtiCodeTenantStat,
-  MediaTypeListParams,
-  MediaTypeResponse,
-  MediaTypeUpsertRequest,
   ReasonCodeCopyRequest,
   ReasonCodeCopyResult,
   ReasonCodeCreateRequest,
@@ -25,13 +20,9 @@ import type {
 
 export const ctiCodeQueryKeys = createQueryKeys('cti-code', {
   tenantStats: null,
-  categories: (params?: Record<string, unknown>) => [params],
   reasonList: (params?: Record<string, unknown>) => [params],
   reasonDetail: (path?: Record<string, unknown>) => [path],
   reasonUsage: (params?: Record<string, unknown>) => [params],
-  mediaList: (params?: Record<string, unknown>) => [params],
-  mediaDetail: (path?: Record<string, unknown>) => [path],
-  mediaUsage: (classCd?: string) => [classCd],
 });
 
 // ─── Tenant Stats (상단 카드 슬라이더 — ADN 패턴) ──────────────────────────
@@ -40,15 +31,6 @@ export const useGetCtiCodeTenantStats = ({ queryOptions }: QueryHookOptions<CtiC
   useQuery({
     queryKey: ctiCodeQueryKeys.tenantStats.queryKey,
     queryFn: () => ctiCodeApi.getTenantStats(),
-    ...queryOptions,
-  });
-
-// ─── Categories ────────────────────────────────────────────────────────────
-
-export const useGetCtiCodeCategories = ({ params, queryOptions }: QueryHookWithParamsOptions<CtiCodeCategory[]> = {}) =>
-  useQuery({
-    queryKey: ctiCodeQueryKeys.categories(params).queryKey,
-    queryFn: () => ctiCodeApi.getCategories(params),
     ...queryOptions,
   });
 
@@ -81,7 +63,7 @@ export const useCreateReasonCode = ({ mutationOptions }: MutationHookOptions<Rea
     ...mutationOptions,
     onSuccess: (...args) => {
       qc.invalidateQueries({ queryKey: ctiCodeQueryKeys.reasonList._def });
-      qc.invalidateQueries({ queryKey: ctiCodeQueryKeys.categories._def });
+      qc.invalidateQueries({ queryKey: ctiCodeQueryKeys.tenantStats.queryKey });
       mutationOptions?.onSuccess?.(...args);
     },
   });
@@ -109,7 +91,20 @@ export const useDeleteReasonCode = ({ mutationOptions }: MutationHookOptions<voi
     ...mutationOptions,
     onSuccess: (...args) => {
       qc.invalidateQueries({ queryKey: ctiCodeQueryKeys.reasonList._def });
-      qc.invalidateQueries({ queryKey: ctiCodeQueryKeys.categories._def });
+      qc.invalidateQueries({ queryKey: ctiCodeQueryKeys.tenantStats.queryKey });
+      mutationOptions?.onSuccess?.(...args);
+    },
+  });
+};
+
+export const useDeleteReasonCodesBatch = ({ mutationOptions }: MutationHookOptions<void, { tenantId: number; codeType: number; reasonCode: number }[]> = {}) => {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (paths) => ctiCodeApi.deleteReasonCodesBatch(paths),
+    ...mutationOptions,
+    onSuccess: (...args) => {
+      qc.invalidateQueries({ queryKey: ctiCodeQueryKeys.reasonList._def });
+      qc.invalidateQueries({ queryKey: ctiCodeQueryKeys.tenantStats.queryKey });
       mutationOptions?.onSuccess?.(...args);
     },
   });
@@ -122,62 +117,7 @@ export const useCopyReasonCodes = ({ mutationOptions }: MutationHookOptions<Reas
     ...mutationOptions,
     onSuccess: (...args) => {
       qc.invalidateQueries({ queryKey: ctiCodeQueryKeys.reasonList._def });
-      qc.invalidateQueries({ queryKey: ctiCodeQueryKeys.categories._def });
-      mutationOptions?.onSuccess?.(...args);
-    },
-  });
-};
-
-// ─── MediaType Queries ─────────────────────────────────────────────────────
-
-export const useGetMediaTypes = ({ params, queryOptions }: QueryHookWithParamsOptions<MediaTypeResponse[]> = {}) =>
-  useQuery({
-    queryKey: ctiCodeQueryKeys.mediaList(params).queryKey,
-    queryFn: () => ctiCodeApi.getMediaTypes(params as MediaTypeListParams),
-    ...queryOptions,
-  });
-
-export const useGetMediaTypeDetail = (path: { classCd: string; codeCd: string } | null | undefined, { queryOptions }: QueryHookOptions<MediaTypeResponse> = {}) =>
-  useQuery({
-    queryKey: ctiCodeQueryKeys.mediaDetail(path ?? undefined).queryKey,
-    queryFn: () => ctiCodeApi.getMediaTypeDetail(path!),
-    enabled: !!path,
-    ...queryOptions,
-  });
-
-export const useGetMediaTypeUsage = (classCd: string | null | undefined, { queryOptions }: QueryHookOptions<string[]> = {}) =>
-  useQuery({
-    queryKey: ctiCodeQueryKeys.mediaUsage(classCd ?? undefined).queryKey,
-    queryFn: () => ctiCodeApi.getMediaTypeUsage(classCd as string),
-    enabled: !!classCd,
-    ...queryOptions,
-  });
-
-// ─── MediaType Mutations ───────────────────────────────────────────────────
-
-export const useCreateMediaType = ({ mutationOptions }: MutationHookOptions<MediaTypeResponse, MediaTypeUpsertRequest> = {}) => {
-  const qc = useQueryClient();
-  return useMutation({
-    mutationFn: (body) => ctiCodeApi.createMediaType(body),
-    ...mutationOptions,
-    onSuccess: (...args) => {
-      qc.invalidateQueries({ queryKey: ctiCodeQueryKeys.mediaList._def });
-      qc.invalidateQueries({ queryKey: ctiCodeQueryKeys.categories._def });
-      mutationOptions?.onSuccess?.(...args);
-    },
-  });
-};
-
-export const useUpdateMediaType = ({
-  mutationOptions,
-}: MutationHookOptions<MediaTypeResponse, { path: { classCd: string; codeCd: string }; body: MediaTypeUpsertRequest }> = {}) => {
-  const qc = useQueryClient();
-  return useMutation({
-    mutationFn: ({ path, body }) => ctiCodeApi.updateMediaType(path, body),
-    ...mutationOptions,
-    onSuccess: (...args) => {
-      qc.invalidateQueries({ queryKey: ctiCodeQueryKeys.mediaList._def });
-      qc.invalidateQueries({ queryKey: ctiCodeQueryKeys.mediaDetail._def });
+      qc.invalidateQueries({ queryKey: ctiCodeQueryKeys.tenantStats.queryKey });
       mutationOptions?.onSuccess?.(...args);
     },
   });

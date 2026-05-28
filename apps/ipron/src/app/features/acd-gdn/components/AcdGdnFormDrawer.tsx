@@ -11,7 +11,8 @@
 import { useEffect, useMemo } from 'react';
 import { Button, Drawer, Form, Input, InputNumber, Select, Tabs } from 'antd';
 import { toast } from '@/shared-util';
-import { useCreateAcdGdn, useUpdateAcdGdn } from '../hooks/useAcdGdnQueries';
+import { acdGdnApi } from '../api/acdGdnApi';
+import { useCreateAcdGdn, useGetAcdGdnMentOptions, useGetAcdGdnSkillsetOptions, useUpdateAcdGdn } from '../hooks/useAcdGdnQueries';
 import { ACD_TYPE_OPTIONS, type GdnCreateRequest, type GdnResponse, type GdnUpdateRequest, HUNTING_TYPE_OPTIONS, ROUTING_KIND_OPTIONS, YN_OPTIONS } from '../types';
 
 interface AcdGdnFormDrawerProps {
@@ -53,6 +54,16 @@ interface FormValues {
 
   aniNo?: string;
   channelLimitCount?: number | null;
+
+  // 멘트 8개 (INIT/WAIT/CLOSE/CONN/HOLD/CO_CONN/CO_HOLD/BLOCK)
+  initMent?: number | null;
+  waitMent?: number | null;
+  closeMent?: number | null;
+  connMent?: number | null;
+  holdMent?: number | null;
+  coConnMent?: number | null;
+  coHoldMent?: number | null;
+  blockMent?: number | null;
 }
 
 export default function AcdGdnFormDrawer({ open, mode, detail, defaultTenantId, defaultNodeId, tenantOptions = [], onClose, onSaved }: AcdGdnFormDrawerProps) {
@@ -84,6 +95,14 @@ export default function AcdGdnFormDrawer({ open, mode, detail, defaultTenantId, 
         busyRoutingDnis: detail.busyRoutingDnis ?? '',
         aniNo: detail.aniNo ?? '',
         channelLimitCount: detail.channelLimitCount,
+        initMent: detail.initMent,
+        waitMent: detail.waitMent,
+        closeMent: detail.closeMent,
+        connMent: detail.connMent,
+        holdMent: detail.holdMent,
+        coConnMent: detail.coConnMent,
+        coHoldMent: detail.coHoldMent,
+        blockMent: detail.blockMent,
       };
     }
     return {
@@ -111,7 +130,17 @@ export default function AcdGdnFormDrawer({ open, mode, detail, defaultTenantId, 
 
   const routingKind = Form.useWatch('routingKind', form);
   const acdType = Form.useWatch('acdType', form);
+  const tenantId = Form.useWatch('tenantId', form);
+  const nodeId = Form.useWatch('nodeId', form);
+  const backUpNodeId = Form.useWatch('backUpNodeId', form);
   const isDirectRouting = routingKind === 4;
+  const isSkillType = acdType === 3;
+
+  // 멘트/스킬셋 콤보 옵션 — 테넌트 변경 시 자동 재조회 (IMPL-BE §③)
+  const { data: mentOptions = [] } = useGetAcdGdnMentOptions(tenantId ?? null, nodeId ?? null);
+  const { data: skillsetOptions = [] } = useGetAcdGdnSkillsetOptions(tenantId ?? null);
+  const mentSelectOptions = useMemo(() => [{ value: 0, label: '(미사용)' }, ...mentOptions.map((m) => ({ value: m.id, label: m.name }))], [mentOptions]);
+  const skillsetSelectOptions = useMemo(() => [{ value: 0, label: '(미사용)' }, ...skillsetOptions.map((s) => ({ value: s.id, label: s.name }))], [skillsetOptions]);
 
   const { mutate: createGdn, isPending: isCreating } = useCreateAcdGdn({
     mutationOptions: {
@@ -142,6 +171,28 @@ export default function AcdGdnFormDrawer({ open, mode, detail, defaultTenantId, 
   const handleSubmit = async () => {
     try {
       const values = await form.validateFields();
+
+      // ─── 클라이언트 검증 (IMPL-BE §② — BE 도 400 으로 막지만 UX 즉시 피드백) ──
+      const effectiveNodeId = isEdit ? (detail?.nodeId ?? null) : (values.nodeId ?? null);
+      const buNode = values.backUpNodeId;
+      if (effectiveNodeId != null && buNode != null && buNode !== 0 && Number(buNode) === Number(effectiveNodeId)) {
+        toast.error('그룹DN 노드와 DR(백업) 노드를 동일한 노드로 설정할 수 없습니다.');
+        return;
+      }
+
+      // ─── 그룹DN 번호 중복 검증 (IMPL-BE §① — nodeId 단위 GDN+DN+SIP cross-check) ──
+      if (!isEdit && effectiveNodeId != null && values.gdnNo) {
+        try {
+          const dup = await acdGdnApi.duplicateCheck({ nodeId: Number(effectiveNodeId), gdnNo: values.gdnNo });
+          if (dup) {
+            toast.error('동일 노드에 이미 사용 중인 번호입니다 (DN/SIP 트렁크 포함)');
+            return;
+          }
+        } catch {
+          // duplicate-check 실패는 등록 진행 (BE 가 최종 차단)
+        }
+      }
+
       if (isEdit && detail) {
         const body: GdnUpdateRequest = {
           gdnName: values.gdnName!,
@@ -156,6 +207,14 @@ export default function AcdGdnFormDrawer({ open, mode, detail, defaultTenantId, 
           huntingYn: values.huntingYn ?? 0,
           huntingType: values.huntingType ?? null,
           huntWaitTime: values.huntWaitTime ?? null,
+          initMent: values.initMent ?? null,
+          waitMent: values.waitMent ?? null,
+          closeMent: values.closeMent ?? null,
+          connMent: values.connMent ?? null,
+          holdMent: values.holdMent ?? null,
+          coConnMent: values.coConnMent ?? null,
+          coHoldMent: values.coHoldMent ?? null,
+          blockMent: values.blockMent ?? null,
           blockYn: values.blockYn ?? 0,
           closeType: values.closeType ?? null,
           blockRoutingDnis: values.blockRoutingDnis ?? '',
@@ -182,6 +241,14 @@ export default function AcdGdnFormDrawer({ open, mode, detail, defaultTenantId, 
           huntingYn: values.huntingYn ?? 0,
           huntingType: values.huntingType ?? null,
           huntWaitTime: values.huntWaitTime ?? null,
+          initMent: values.initMent ?? null,
+          waitMent: values.waitMent ?? null,
+          closeMent: values.closeMent ?? null,
+          connMent: values.connMent ?? null,
+          holdMent: values.holdMent ?? null,
+          coConnMent: values.coConnMent ?? null,
+          coHoldMent: values.coHoldMent ?? null,
+          blockMent: values.blockMent ?? null,
           blockYn: values.blockYn ?? 0,
           closeType: values.closeType ?? null,
           blockRoutingDnis: values.blockRoutingDnis,
@@ -212,7 +279,26 @@ export default function AcdGdnFormDrawer({ open, mode, detail, defaultTenantId, 
               <Form.Item label="노드 ID" name="nodeId" rules={[{ required: true, message: '노드 필수' }]}>
                 <InputNumber style={{ width: '100%' }} min={0} disabled={isEdit} />
               </Form.Item>
-              <Form.Item label="DR 노드 ID" name="backUpNodeId">
+              <Form.Item
+                label="DR 노드 ID"
+                name="backUpNodeId"
+                validateStatus={
+                  backUpNodeId != null &&
+                  Number(backUpNodeId) !== 0 &&
+                  (isEdit ? detail?.nodeId : nodeId) != null &&
+                  Number(backUpNodeId) === Number(isEdit ? detail?.nodeId : nodeId)
+                    ? 'error'
+                    : undefined
+                }
+                help={
+                  backUpNodeId != null &&
+                  Number(backUpNodeId) !== 0 &&
+                  (isEdit ? detail?.nodeId : nodeId) != null &&
+                  Number(backUpNodeId) === Number(isEdit ? detail?.nodeId : nodeId)
+                    ? '그룹DN 노드와 DR 노드를 동일하게 설정할 수 없습니다'
+                    : undefined
+                }
+              >
                 <InputNumber style={{ width: '100%' }} min={0} placeholder="(없음)" />
               </Form.Item>
             </div>
@@ -249,7 +335,14 @@ export default function AcdGdnFormDrawer({ open, mode, detail, defaultTenantId, 
                 <Select options={ACD_TYPE_OPTIONS} />
               </Form.Item>
               <Form.Item label="라우팅 스킬셋" name="skillsetId" tooltip="ACD 타입 = Skill 일 때만 사용">
-                <InputNumber style={{ width: '100%' }} min={0} disabled={acdType !== 3} />
+                <Select
+                  options={skillsetSelectOptions}
+                  disabled={!isSkillType}
+                  placeholder={isSkillType ? '스킬셋 선택' : '(ACD 타입 = Skill 시 활성)'}
+                  showSearch
+                  optionFilterProp="label"
+                  allowClear
+                />
               </Form.Item>
               <Form.Item label="라우팅 기준" name="routingKind" rules={[{ required: true }]}>
                 <Select options={ROUTING_KIND_OPTIONS} />
@@ -284,8 +377,46 @@ export default function AcdGdnFormDrawer({ open, mode, detail, defaultTenantId, 
       ),
     },
     {
+      key: 'ments',
+      label: '② 멘트 (8단계)',
+      children: (
+        <div className="space-y-4">
+          <div className="bg-blue-50 border-l-[3px] border-blue-500 px-3 py-2 text-xs text-gray-700">
+            테넌트별 멘트 콤보 (BFF flow <code className="font-mono">ipron-acd-gdn-ment-options</code>). 멘트 자체 음성/파일 관리는 <strong>멘트 관리</strong> 화면에 위임됩니다.
+            {isDirectRouting && <div className="mt-1 text-amber-700">라우팅기준=직접 — 대기/종료 멘트는 자동 비활성됩니다.</div>}
+          </div>
+          <div className="grid grid-cols-2 gap-4">
+            <Form.Item label="① 초기 멘트" name="initMent" tooltip="접속 직후 1회 재생">
+              <Select options={mentSelectOptions} showSearch optionFilterProp="label" allowClear placeholder="(미사용)" />
+            </Form.Item>
+            <Form.Item label="② 대기 멘트" name="waitMent" tooltip="상담사 배정 대기 중 반복 — 라우팅=4 시 비활성">
+              <Select options={mentSelectOptions} disabled={isDirectRouting} showSearch optionFilterProp="label" allowClear placeholder="(미사용)" />
+            </Form.Item>
+            <Form.Item label="③ 종료 멘트" name="closeMent" tooltip="최대대기시간 초과 시 — 라우팅=4 시 비활성">
+              <Select options={mentSelectOptions} disabled={isDirectRouting} showSearch optionFilterProp="label" allowClear placeholder="(미사용)" />
+            </Form.Item>
+            <Form.Item label="④ 블럭 멘트" name="blockMent" tooltip="블록 여부=설정 + 종료 도달 시 재생">
+              <Select options={mentSelectOptions} showSearch optionFilterProp="label" allowClear placeholder="(미사용)" />
+            </Form.Item>
+            <Form.Item label="⑤ 기본 연결 멘트" name="connMent" tooltip="상담사 연결 직전 (녹취 안내 등)">
+              <Select options={mentSelectOptions} showSearch optionFilterProp="label" allowClear placeholder="(미사용)" />
+            </Form.Item>
+            <Form.Item label="⑥ 기본 보류 멘트" name="holdMent" tooltip="상담사 HOLD 시 재생">
+              <Select options={mentSelectOptions} showSearch optionFilterProp="label" allowClear placeholder="(미사용)" />
+            </Form.Item>
+            <Form.Item label="⑦ 국선 호 연결 멘트" name="coConnMent" tooltip="CO line 연결 직전">
+              <Select options={mentSelectOptions} showSearch optionFilterProp="label" allowClear placeholder="(미사용)" />
+            </Form.Item>
+            <Form.Item label="⑧ 국선 호 보류 멘트" name="coHoldMent" tooltip="CO line HOLD 시">
+              <Select options={mentSelectOptions} showSearch optionFilterProp="label" allowClear placeholder="(미사용)" />
+            </Form.Item>
+          </div>
+        </div>
+      ),
+    },
+    {
       key: 'routing',
-      label: '② 라우팅 정책',
+      label: '③ 라우팅 정책',
       children: (
         <div className="space-y-6">
           <section>
@@ -319,7 +450,7 @@ export default function AcdGdnFormDrawer({ open, mode, detail, defaultTenantId, 
     },
     {
       key: 'members',
-      label: '③ DN 멤버 / CTI큐',
+      label: '④ DN 멤버 / CTI큐',
       children: (
         <div className="space-y-4">
           <div className="bg-blue-50 border-l-[3px] border-blue-500 px-3 py-2 text-xs text-gray-700">
