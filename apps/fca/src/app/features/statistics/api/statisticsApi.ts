@@ -1,5 +1,10 @@
 import ApiClient, { type ApiResponse } from '@/shared-util';
 import type {
+  CampaignAchievementStatList,
+  CampaignAchievementStatListItem,
+  CampaignOptionListItem,
+  CampaignResultStatList,
+  CampaignResultStatListItem,
   CategoryOptionListItem,
   DialogOptionListItem,
   DialogStatList,
@@ -17,6 +22,7 @@ import type {
   SlotOptionListItem,
   SlotStatList,
   SlotStatListItem,
+  TenantOptionListItem,
   UserDefColumnDef,
   UserDefStatList,
   UserDefStatListItem,
@@ -140,6 +146,52 @@ export const statisticsApi = {
   // 사용자 정의 통계 엑셀 내보내기
   exportUserDefStatExcel: async (params?: Record<string, unknown>) => {
     return await apiClient.post<Blob>('/stat-bot-user-def-export', params, { responseType: 'blob' });
+  },
+
+  // 캠페인 통계(캠페인 결과) 목록 조회 (BFF: stat-campaign-result)
+  getCampaignResultStatList: async (params?: Record<string, unknown>): Promise<CampaignResultStatList> => {
+    const response = await apiClient.post<{
+      data: { items: CampaignResultStatListItem[]; summary: CampaignResultStatListItem | null; columnDef?: UserDefColumnDef[] };
+    }>('/stat-campaign-result', params);
+    return {
+      items: response?.data?.data?.items ?? [],
+      summary: response?.data?.data?.summary ?? null,
+      columnDef: response?.data?.data?.columnDef ?? [],
+    };
+  },
+
+  // 캠페인 통계(캠페인 결과) 엑셀보내기 (BFF: stat-campaign-result-export)
+  exportCampaignResultStatExcel: async (params?: Record<string, unknown>) => {
+    return await apiClient.post<Blob>('/stat-campaign-result-export', params, { responseType: 'blob' });
+  },
+
+  // 캠페인 목적 달성률 통계 목록 조회 (BFF: stat-campaign-achievement-result)
+  getCampaignAchievementStatList: async (params?: Record<string, unknown>): Promise<CampaignAchievementStatList> => {
+    const response = await apiClient.post<{
+      data: { items: CampaignAchievementStatListItem[]; summary: CampaignAchievementStatListItem | null; columnDef?: UserDefColumnDef[] };
+    }>('/stat-campaign-achievement-result', params);
+    return {
+      items: response?.data?.data?.items ?? [],
+      summary: response?.data?.data?.summary ?? null,
+      columnDef: response?.data?.data?.columnDef ?? [],
+    };
+  },
+
+  // 캠페인 목적 달성률 통계 엑셀보내기 (BFF: stat-campaign-achievement-result-export)
+  exportCampaignAchievementStatExcel: async (params?: Record<string, unknown>) => {
+    return await apiClient.post<Blob>('/stat-campaign-achievement-result-export', params, { responseType: 'blob' });
+  },
+
+  // 테넌트 옵션 목록 조회 (BFF: stat-tenant-options)
+  getTenantOptionList: async (params?: Record<string, unknown>): Promise<TenantOptionListItem[]> => {
+    const response = await apiClient.post<ApiResponse<{ items: TenantOptionListItem[] }>>('/stat-tenant-options', params ?? {});
+    return response.data?.data?.items ?? [];
+  },
+
+  // 캠페인 옵션 목록 조회 (BFF: stat-campaign-options)
+  getCampaignOptionList: async (params?: Record<string, unknown>): Promise<CampaignOptionListItem[]> => {
+    const response = await apiClient.post<ApiResponse<{ items: CampaignOptionListItem[] }>>('/stat-campaign-options', params ?? {});
+    return response.data?.data?.items ?? [];
   },
 
   // IFE 리다이렉트

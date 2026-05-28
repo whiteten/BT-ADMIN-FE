@@ -23,7 +23,11 @@ const UserDefStatistics = React.lazy(() => import('./pages/statistics/call-bot/U
 const IntentStatistics = React.lazy(() => import('./pages/statistics/nlu/IntentStatistics'));
 const EntityStatistics = React.lazy(() => import('./pages/statistics/nlu/EntityStatistics'));
 const KeywordStatistics = React.lazy(() => import('./pages/statistics/nlu/KeywordStatistics'));
+const CampaignAchievementStatistics = React.lazy(() => import('./pages/statistics/campaign/CampaignAchievementStatistics'));
+const CampaignResultStatistics = React.lazy(() => import('./pages/statistics/campaign/CampaignResultStatistics'));
+const CampaignIndividualResultStatistics = React.lazy(() => import('./pages/statistics/campaign/CampaignIndividualResultStatistics'));
 const BotDashboard = React.lazy(() => import('./pages/dashboard/BotDashboard'));
+const CampaignDashboard = React.lazy(() => import('./pages/dashboard/CampaignDashboard'));
 const BotDialogHistory = React.lazy(() => import('./pages/tracking/BotDialogHistory'));
 const BotRealtime = React.lazy(() => import('./pages/tracking/BotRealtime'));
 const DecryptLog = React.lazy(() => import('./pages/tracking/DecryptLog'));
@@ -162,6 +166,7 @@ export const routes = [
         children: [
           { index: true, element: <Navigate to="call-bot" replace /> },
           { path: 'call-bot', element: <BotDashboard /> },
+          { path: 'call-campaign', element: <CampaignDashboard /> },
         ],
       },
       {
@@ -188,6 +193,16 @@ export const routes = [
               { path: 'intent', element: <IntentStatistics /> },
               { path: 'entity', element: <EntityStatistics /> },
               { path: 'keyword', element: <KeywordStatistics /> },
+            ],
+          },
+          {
+            path: 'campaign',
+            element: <Outlet />,
+            children: [
+              { index: true, element: <Navigate to="campaign-result" replace /> },
+              { path: 'campaign-result', element: <CampaignResultStatistics /> },
+              { path: 'campaign-individual-result', element: <CampaignIndividualResultStatistics /> },
+              { path: 'achievement-result', element: <CampaignAchievementStatistics /> },
             ],
           },
         ],

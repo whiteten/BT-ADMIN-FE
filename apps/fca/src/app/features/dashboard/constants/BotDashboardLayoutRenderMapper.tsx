@@ -55,6 +55,7 @@ export interface WidgetMenuAction {
 
 /** 레이아웃 렌더 매퍼 항목 */
 export interface LayoutRenderEntry {
+  /** 카드 헤더 등에 쓰는 제목 */
   title: string;
   supportedModes?: DashboardViewMode[];
   menuActions?: WidgetMenuAction[];
