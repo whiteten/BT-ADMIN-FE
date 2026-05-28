@@ -129,6 +129,9 @@ export type WidgetCreateDatas = TemplateWidgetCreateDatas | CustomWidgetCreateDa
 
 // ─── 커스텀 위젯 카탈로그 (§4-B) ──────────────────────────────────────────────
 
+/** 자동 배치(auto-pack) 슬롯 룰 분류. 미지정 시 GENERIC 으로 취급. */
+export type WidgetCategory = 'KPI' | 'CHART' | 'TABLE' | 'STATUS' | 'GENERIC';
+
 export interface CustomWidgetCatalogItem {
   widgetTypeId: string;
   widgetName: string;
@@ -137,6 +140,12 @@ export interface CustomWidgetCatalogItem {
   defaultOptions?: Record<string, unknown>;
   minW: number;
   minH: number;
+  /** 위젯 추가 시 권장 폭(12-col 기준). null/undefined 면 카테고리/minW 기반 폴백. */
+  defaultW?: number;
+  /** 위젯 추가 시 권장 높이. null/undefined 면 카테고리/minH 기반 폴백. */
+  defaultH?: number;
+  /** 슬롯 룰 분류 — auto-pack 배치 힌트. */
+  widgetCategory?: WidgetCategory;
 }
 
 // ─── 데이터셋 (XML 기반) (§1, §1-A) ─────────────────────────────────────────

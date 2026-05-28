@@ -523,8 +523,7 @@ export default function AgentStatusWidget({ data, options, widgetId, onRequestPa
                 <div className="flex flex-col gap-2">
                   {mediaTypes.map((m) => (
                     <Radio key={m.mediaType} value={m.mediaType}>
-                      <span className="font-mono text-xs text-gray-500 tabular-nums">{String(m.mediaType).padStart(2, '0')}</span>
-                      <span className="ml-2 text-sm text-gray-900">{m.mediaAlias}</span>
+                      <span className="text-sm text-gray-900">{m.mediaAlias}</span>
                     </Radio>
                   ))}
                 </div>

@@ -25,7 +25,7 @@ export default function ReportWizard() {
   const [step, setStep] = useState<WizardStep>('DATASET');
   const [showErrors, setShowErrors] = useState(false);
 
-  const [selectedDatasetKey, setSelectedDatasetKey] = useState('');
+  const [selectedDatasetId, setSelectedDatasetId] = useState<number | null>(null);
   const [datasetSearch, setDatasetSearch] = useState('');
 
   const [title, setTitle] = useState('');
@@ -42,11 +42,11 @@ export default function ReportWizard() {
     return () => clearBreadcrumb();
   }, [setBreadcrumb, clearBreadcrumb]);
 
-  const selectedDataset = datasets.find((d) => d.datasourceKey === selectedDatasetKey);
+  const selectedDataset = datasets.find((d) => d.datasetId === selectedDatasetId);
 
   const handleNext = () => {
     if (step === 'DATASET') {
-      if (!selectedDatasetKey) {
+      if (!selectedDatasetId) {
         setShowErrors(true);
         toast.error('데이터셋을 선택하세요.');
         return;
@@ -73,7 +73,7 @@ export default function ReportWizard() {
         state: {
           title: title.trim(),
           domain: selectedDomain,
-          datasourceKey: selectedDatasetKey,
+          datasetId: selectedDatasetId,
           iconType: selectedIcon ?? undefined,
         },
       });
@@ -86,7 +86,7 @@ export default function ReportWizard() {
 
   const handleCancel = () => navigate('/insight/statistics/reports');
 
-  const stepsCurrent = step === 'DATASET' ? (selectedDatasetKey ? 1 : 0) : 1;
+  const stepsCurrent = step === 'DATASET' ? (selectedDatasetId ? 1 : 0) : 1;
 
   return (
     <div className="flex flex-col gap-4 w-full h-full">
@@ -101,8 +101,8 @@ export default function ReportWizard() {
               <StepDatasetPicker
                 datasets={datasets}
                 isFetching={isFetching}
-                selectedKey={selectedDatasetKey}
-                onSelect={setSelectedDatasetKey}
+                selectedId={selectedDatasetId}
+                onSelect={setSelectedDatasetId}
                 search={datasetSearch}
                 onSearchChange={setDatasetSearch}
                 showErrors={showErrors}
@@ -151,14 +151,14 @@ const PRODUCT_CODE_TAG_COLORS: Record<string, string> = {
 interface StepDatasetPickerProps {
   datasets: DatasetListItem[];
   isFetching: boolean;
-  selectedKey: string;
-  onSelect(key: string): void;
+  selectedId: number | null;
+  onSelect(id: number): void;
   search: string;
   onSearchChange(v: string): void;
   showErrors: boolean;
 }
 
-function StepDatasetPicker({ datasets, isFetching, selectedKey, onSelect, search, onSearchChange, showErrors }: StepDatasetPickerProps) {
+function StepDatasetPicker({ datasets, isFetching, selectedId, onSelect, search, onSearchChange, showErrors }: StepDatasetPickerProps) {
   const [activeTab, setActiveTab] = useState('ALL');
 
   const productCodes = Array.from(new Set(datasets.map((d) => d.productCode)));
@@ -166,7 +166,7 @@ function StepDatasetPicker({ datasets, isFetching, selectedKey, onSelect, search
   const searchFiltered = search.trim()
     ? datasets.filter((d) => {
         const kw = search.toLowerCase();
-        return d.datasourceKey.toLowerCase().includes(kw) || d.datasourceName.toLowerCase().includes(kw);
+        return String(d.datasetId).includes(kw) || d.datasourceName.toLowerCase().includes(kw);
       })
     : datasets;
 
@@ -190,12 +190,12 @@ function StepDatasetPicker({ datasets, isFetching, selectedKey, onSelect, search
         </div>
       </div>
 
-      {showErrors && !selectedKey && <p className="mb-3 text-xs text-red-500">데이터셋을 선택하세요.</p>}
+      {showErrors && !selectedId && <p className="mb-3 text-xs text-red-500">데이터셋을 선택하세요.</p>}
 
       {isFetching ? (
         <FallbackSpinner />
       ) : (
-        <div className={`overflow-hidden rounded-lg border ${showErrors && !selectedKey ? 'border-red-400' : 'border-bt-border'}`}>
+        <div className={`overflow-hidden rounded-lg border ${showErrors && !selectedId ? 'border-red-400' : 'border-bt-border'}`}>
           <div className="border-b border-bt-border px-4">
             <Tabs activeKey={activeTab} onChange={setActiveTab} items={tabItems} size="small" />
           </div>
@@ -206,18 +206,18 @@ function StepDatasetPicker({ datasets, isFetching, selectedKey, onSelect, search
               </div>
             ) : (
               tabFiltered.map((dataset) => {
-                const isSelected = selectedKey === dataset.datasourceKey;
+                const isSelected = selectedId === dataset.datasetId;
                 return (
                   <div
-                    key={dataset.datasourceKey}
+                    key={dataset.datasetId}
                     role="radio"
                     aria-checked={isSelected}
                     tabIndex={0}
                     className={`flex cursor-pointer items-center gap-3 border-b border-bt-border/60 px-5 py-3 last:border-0 transition-colors ${
                       isSelected ? 'bg-blue-50' : 'hover:bg-bt-bg-muted/50'
                     }`}
-                    onClick={() => onSelect(dataset.datasourceKey)}
-                    onKeyDown={(e) => e.key === 'Enter' && onSelect(dataset.datasourceKey)}
+                    onClick={() => onSelect(dataset.datasetId)}
+                    onKeyDown={(e) => e.key === 'Enter' && onSelect(dataset.datasetId)}
                   >
                     <div
                       className={`flex h-4 w-4 shrink-0 items-center justify-center rounded-full border-2 transition-colors ${
@@ -231,7 +231,7 @@ function StepDatasetPicker({ datasets, isFetching, selectedKey, onSelect, search
                     </Tag>
                     <div className="min-w-0 flex-1">
                       <span className="block truncate text-sm font-medium text-bt-fg">{dataset.datasourceName}</span>
-                      <span className="block truncate font-mono text-xs text-bt-fg-muted">{dataset.datasourceKey}</span>
+                      <span className="block truncate font-mono text-xs text-bt-fg-muted">{dataset.datasetId}</span>
                     </div>
                     {dataset.availableUnits?.length > 0 && (
                       <div className="flex shrink-0 flex-wrap gap-1">
@@ -283,7 +283,7 @@ function StepMeta({ title, onTitleChange, selectedDomain, onDomainChange, select
               {selectedDataset.productCode}
             </span>
             <span className="font-medium text-sm">{selectedDataset.datasourceName}</span>
-            <span className="font-mono text-xs text-bt-fg-muted">{selectedDataset.datasourceKey}</span>
+            <span className="font-mono text-xs text-bt-fg-muted">{selectedDataset.datasetId}</span>
           </div>
         </div>
       )}

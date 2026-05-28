@@ -101,7 +101,8 @@ function buildFieldRequests(displays: LocalFieldDisplay[], calcs: LocalCalcField
 }
 
 export default function StatDatasetEdit() {
-  const { datasourceKey } = useParams<{ datasourceKey: string }>();
+  const { datasetId: datasetIdParam } = useParams<{ datasetId: string }>();
+  const datasetId = datasetIdParam ? Number(datasetIdParam) : undefined;
   const navigate = useNavigate();
   const setBreadcrumb = useBreadcrumbStore((s) => s.setBreadcrumb);
   const clearBreadcrumb = useBreadcrumbStore((s) => s.clearBreadcrumb);
@@ -113,8 +114,8 @@ export default function StatDatasetEdit() {
   const [validationStatus, setValidationStatus] = useState<ValidationStatus>('unchecked');
 
   const { data: dataset, isLoading } = useGetDataset({
-    params: { datasourceKey: datasourceKey! },
-    queryOptions: { enabled: !!datasourceKey },
+    params: { datasetId: datasetId! },
+    queryOptions: { enabled: !!datasetId },
   });
 
   const { mutate: updateDataset, isPending } = useUpdateDataset({
@@ -157,9 +158,9 @@ export default function StatDatasetEdit() {
   }, [dataset, initialized]);
 
   const handleSave = () => {
-    if (!dataset || !datasourceKey) return;
+    if (!dataset || !datasetId) return;
     updateDataset({
-      datasourceKey,
+      datasetId,
       data: {
         datasourceName: dataset.datasourceName,
         dbViewPrefix: dataset.dbViewPrefix,
@@ -181,7 +182,7 @@ export default function StatDatasetEdit() {
       <div className="flex items-center gap-3 w-full bg-white bt-shadow px-7 py-4">
         <div>
           <div className="text-base font-semibold">{dataset!.datasourceName}</div>
-          <div className="text-xs text-bt-fg-muted font-mono">{dataset!.datasourceKey}</div>
+          <div className="text-xs text-bt-fg-muted font-mono">{dataset!.datasetId}</div>
         </div>
         <span className="ml-2 inline-flex h-5 items-center rounded bg-primary px-2 text-xs font-bold text-white">{dataset!.productCode}</span>
         <span className="text-xs text-bt-fg-muted">·</span>
@@ -192,7 +193,7 @@ export default function StatDatasetEdit() {
         <div className="w-full h-full min-h-0 bg-white bt-shadow flex flex-col">
           <div className="flex-1 min-h-0">
             <WizardStepB
-              datasourceKey={datasourceKey}
+              datasetId={datasetId}
               domain={dataset!.productCode as DomainCode}
               fieldDisplays={fieldDisplays}
               onFieldDisplaysChange={setFieldDisplays}

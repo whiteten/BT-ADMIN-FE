@@ -1,5 +1,5 @@
 export interface DataSourceListItem {
-  datasourceKey: string;
+  datasetId: number;
   domain: string;
   displayName: string;
   description?: string;
@@ -12,7 +12,7 @@ export interface DataSourceDetail extends DataSourceListItem {
 
 export interface FieldMetaItem {
   id: number;
-  datasourceKey: string;
+  datasetId: number;
   fieldName: string;
   displayName: string;
   fieldType: string; // "STRING" | "NUMBER"
@@ -27,10 +27,9 @@ export interface FieldMetaItem {
 // ─── Dataset v5.0 ─────────────────────────────────────────────────────────────
 
 export interface DatasetListItem {
-  datasourceKey: string;
+  datasetId: number;
   datasourceName: string;
   productCode: string;
-  sourceType: string;
   dbViewPrefix: string;
   availableUnits: string[];
   tenantColumn: string;
@@ -80,7 +79,7 @@ export type ValidationStatus = 'unchecked' | 'checking' | 'valid' | 'invalid' | 
 
 export interface ValidateFieldsRequest {
   dbViewPrefix?: string; // 신규 생성 모드
-  datasourceKey?: string; // 편집 모드 (서버에서 prefix 조회)
+  datasetId?: number; // 편집 모드 (서버에서 prefix 조회)
   fields: string[];
   calcExpressions: { alias: string; expression: string }[];
 }

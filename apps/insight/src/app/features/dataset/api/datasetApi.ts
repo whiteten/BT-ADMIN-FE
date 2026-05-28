@@ -21,9 +21,9 @@ export const datasetApi = {
     return response.data?.data?.items ?? [];
   },
 
-  getDataSourceFields: async (datasourceKey: string): Promise<FieldMetaItem[]> => {
+  getDataSourceFields: async (datasetId: number): Promise<FieldMetaItem[]> => {
     const response = await apiClient.get<ApiResponse<{ items: FieldMetaItem[] }>>('/insight-statistics-datasource-fields', {
-      params: { datasourceKey },
+      params: { datasetId },
     });
     return response.data?.data?.items ?? [];
   },
@@ -40,9 +40,9 @@ export const datasetApi = {
     return (response.data?.data?.items ?? []) as DatasetListItem[];
   },
 
-  getDataset: async (datasourceKey: string): Promise<DatasetDetail> => {
+  getDataset: async (datasetId: number): Promise<DatasetDetail> => {
     const response = await apiClient.get<ApiResponse<DatasetDetail>>('/insight-statistics-datasource-detail', {
-      params: { datasourceKey },
+      params: { datasetId },
     });
     return response.data?.data;
   },
@@ -52,15 +52,15 @@ export const datasetApi = {
     return response.data?.data;
   },
 
-  updateDataset: async (datasourceKey: string, data: DatasetUpdateRequest): Promise<DatasetDetail> => {
+  updateDataset: async (datasetId: number, data: DatasetUpdateRequest): Promise<DatasetDetail> => {
     const response = await apiClient.put<ApiResponse<DatasetDetail>>('/insight-statistics-datasource-update', data, {
-      params: { datasourceKey },
+      params: { datasetId },
     });
     return response.data?.data;
   },
 
-  deleteDataset: async (datasourceKey: string): Promise<void> => {
-    await apiClient.delete('/insight-statistics-datasource-delete', { params: { datasourceKey } });
+  deleteDataset: async (datasetId: number): Promise<void> => {
+    await apiClient.delete('/insight-statistics-datasource-delete', { params: { datasetId } });
   },
 
   getSchemaPreview: async (dbViewPrefix: string): Promise<FieldMetaItem[]> => {

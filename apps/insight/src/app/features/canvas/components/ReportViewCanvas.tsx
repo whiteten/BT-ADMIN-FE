@@ -25,7 +25,7 @@ export default function ReportViewCanvas({ reportId, report }: ReportViewCanvasP
         </div>
         <div className="flex items-center gap-3">
           <span className="text-xs text-[var(--color-bt-fg-muted)]">
-            데이터셋: <span className="font-mono">{report.datasourceKey}</span>
+            데이터셋: <span className="font-mono">{report.datasetId}</span>
           </span>
           <Button icon={<Pencil className="w-3.5 h-3.5" />} onClick={() => navigate(`/insight/statistics/reports/${reportId}/edit`)}>
             보고서 편집
@@ -38,7 +38,7 @@ export default function ReportViewCanvas({ reportId, report }: ReportViewCanvasP
 
       {/* 캔버스 */}
       <div className="flex-1 overflow-auto">
-        <CanvasLayout reportId={reportId} mode="view" datasourceKey={report.datasourceKey} />
+        <CanvasLayout reportId={reportId} mode="view" datasetId={report.datasetId} />
       </div>
     </div>
   );

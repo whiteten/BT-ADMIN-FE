@@ -18,6 +18,9 @@ export const MOCK_CUSTOM_WIDGETS: CustomWidgetCatalogItem[] = [
     defaultOptions: { columns: 16, pulseEnabled: true, showNumberOnHover: true },
     minW: 4,
     minH: 4,
+    defaultW: 6,
+    defaultH: 6,
+    widgetCategory: 'STATUS',
   },
   {
     widgetTypeId: 'call-flow-diagram',
@@ -27,6 +30,9 @@ export const MOCK_CUSTOM_WIDGETS: CustomWidgetCatalogItem[] = [
     defaultOptions: {},
     minW: 6,
     minH: 4,
+    defaultW: 8,
+    defaultH: 5,
+    widgetCategory: 'CHART',
   },
   {
     widgetTypeId: 'trunk-utilization-meter',
@@ -36,6 +42,9 @@ export const MOCK_CUSTOM_WIDGETS: CustomWidgetCatalogItem[] = [
     defaultOptions: { warnThreshold: 80, dangerThreshold: 95 },
     minW: 3,
     minH: 3,
+    defaultW: 3,
+    defaultH: 3,
+    widgetCategory: 'KPI',
   },
   // IC — CTI
   {
@@ -46,6 +55,21 @@ export const MOCK_CUSTOM_WIDGETS: CustomWidgetCatalogItem[] = [
     defaultOptions: { groupBy: 'queue' },
     minW: 8,
     minH: 10,
+    defaultW: 8,
+    defaultH: 10,
+    widgetCategory: 'STATUS',
+  },
+  {
+    widgetTypeId: 'ctiq-status-matrix',
+    widgetName: '큐(CTIQ) 상태 매트릭스',
+    domainCode: 'IC',
+    description: '큐별 압력(대기·최장대기·EWT) · 처리(인입·응대·포기·SLA) · 자원(로그인) 을 큰카드/작은카드로 표시. 미디어 타입별 검색 + 임계 초과 알람.',
+    defaultOptions: {},
+    minW: 8,
+    minH: 6,
+    defaultW: 12,
+    defaultH: 8,
+    widgetCategory: 'STATUS',
   },
   {
     widgetTypeId: 'waiting-queue-list',
@@ -55,6 +79,9 @@ export const MOCK_CUSTOM_WIDGETS: CustomWidgetCatalogItem[] = [
     defaultOptions: { maxRows: 10, sortBy: 'maxWait' },
     minW: 4,
     minH: 5,
+    defaultW: 6,
+    defaultH: 6,
+    widgetCategory: 'TABLE',
   },
   {
     widgetTypeId: 'service-level-gauge',
@@ -64,6 +91,9 @@ export const MOCK_CUSTOM_WIDGETS: CustomWidgetCatalogItem[] = [
     defaultOptions: { thresholdSec: 20, targetLevel: 80 },
     minW: 3,
     minH: 3,
+    defaultW: 3,
+    defaultH: 3,
+    widgetCategory: 'KPI',
   },
   // IR — IVR
   {
@@ -74,5 +104,8 @@ export const MOCK_CUSTOM_WIDGETS: CustomWidgetCatalogItem[] = [
     defaultOptions: {},
     minW: 6,
     minH: 5,
+    defaultW: 8,
+    defaultH: 6,
+    widgetCategory: 'CHART',
   },
 ];

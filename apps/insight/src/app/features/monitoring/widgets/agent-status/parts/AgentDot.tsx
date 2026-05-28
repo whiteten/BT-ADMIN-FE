@@ -50,7 +50,6 @@ function AgentDotImpl({ row, nowMs, thresholds, onActivate }: AgentDotProps) {
           'relative aspect-square w-full overflow-hidden rounded outline-none transition-transform duration-150',
           'hover:scale-125 hover:z-10 focus-visible:ring-2 focus-visible:ring-white',
           bg,
-          isAlert ? 'bt-alert-breath' : '',
         ].join(' ')}
       >
         <span
