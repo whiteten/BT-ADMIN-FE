@@ -22,7 +22,7 @@ export default function ScenarioTypeMultiSelect({ value, onChange, className }: 
       className={className}
       style={{ minWidth: 300 }}
       options={SCENARIO_TYPE_OPTIONS.map((o) => ({
-        label: `${o.label} (${o.code})`,
+        label: o.label,
         value: o.value,
       }))}
       allowClear
