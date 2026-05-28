@@ -11,7 +11,8 @@ import AggridPagination from '@/components/custom/AggridPagination';
 import { Badge } from '@/components/ui/badge';
 import useAggridOptions from '@/libs/shared-ui/src/hooks/useAggridOptions';
 
-const AUTO_SIZE_COLUMNS = ['ucid', 'serviceName'];
+// UCID는 너무 길어 truncate 처리하므로 auto-size 대상에서 제외
+const AUTO_SIZE_COLUMNS = ['serviceName'];
 
 interface BotDialogHistoryTableProps {
   searchParams: BotDialogHistorySearchRequest;
@@ -121,6 +122,14 @@ const BotDialogHistoryTable: React.FC<BotDialogHistoryTableProps> = ({
         },
       },
       {
+        // 콜방향 직후에 노출 — 슬롯 실패 지표를 빠르게 확인
+        headerName: '슬롯실패건수',
+        field: 'botSlotFailCount',
+        width: 120,
+        cellClass: 'text-right',
+        valueFormatter: (params) => params.value?.toLocaleString() ?? '0',
+      },
+      {
         headerName: '시작일시',
         field: 'svcStartTime',
         flex: 1.5,
@@ -180,8 +189,10 @@ const BotDialogHistoryTable: React.FC<BotDialogHistoryTableProps> = ({
       {
         headerName: 'UCID',
         field: 'ucid',
-        flex: 2,
+        width: 140,
         cellStyle: { display: 'flex', alignItems: 'center' },
+        // 네이티브 title 속성 — 셀 hover 시 브라우저 기본 tooltip으로 전체 UCID 노출
+        tooltipField: 'ucid',
         cellRenderer: (params: any) => {
           const value: string | undefined = params.value;
           if (!value) return '-';
@@ -196,7 +207,10 @@ const BotDialogHistoryTable: React.FC<BotDialogHistoryTableProps> = ({
           };
           return (
             <div className="flex items-center gap-1.5 w-full min-w-0">
-              <span className="truncate">{value}</span>
+              {/* truncate + title로 마우스오버 시 전체 UCID 표시 */}
+              <span className="truncate" title={value}>
+                {value}
+              </span>
               <button
                 type="button"
                 onClick={handleCopy}
@@ -252,13 +266,6 @@ const BotDialogHistoryTable: React.FC<BotDialogHistoryTableProps> = ({
         cellClass: 'text-right',
         valueFormatter: (params) => params.value?.toLocaleString() ?? '0',
       },
-      {
-        headerName: '슬롯실패건수',
-        field: 'botSlotFailCount',
-        width: 110,
-        cellClass: 'text-right',
-        valueFormatter: (params) => params.value?.toLocaleString() ?? '0',
-      },
     ],
     [],
   );
@@ -270,6 +277,8 @@ const BotDialogHistoryTable: React.FC<BotDialogHistoryTableProps> = ({
     [],
   );
 
+  // gridOptions 안의 콜백은 AG-Grid가 init 시점에만 캡처해서 stale closure 문제 발생.
+  // onRowDoubleClicked는 finalGridOptions에서 제외하고 AgGridReact의 직접 prop으로 전달(반응성 보장).
   const finalGridOptions = useMemo<GridOptions<BotDialogHistoryListItem>>(
     () => ({
       ...gridOptions,
@@ -284,7 +293,6 @@ const BotDialogHistoryTable: React.FC<BotDialogHistoryTableProps> = ({
       onFirstDataRendered: (event: FirstDataRenderedEvent<BotDialogHistoryListItem>) => {
         event.api.autoSizeColumns(AUTO_SIZE_COLUMNS);
       },
-      onRowDoubleClicked: (event) => event.data && onRowDoubleClick(event.data),
       rowClassRules: {
         'bg-blue-50': (params) => {
           if (!selectedRowId || !params.data) return false;
@@ -292,7 +300,7 @@ const BotDialogHistoryTable: React.FC<BotDialogHistoryTableProps> = ({
         },
       },
     }),
-    [gridOptions, selectedRowId, onRowDoubleClick, statusBar, initialPageSize],
+    [gridOptions, selectedRowId, statusBar, initialPageSize],
   );
 
   return (
@@ -301,6 +309,7 @@ const BotDialogHistoryTable: React.FC<BotDialogHistoryTableProps> = ({
         columnDefs={columnDefs}
         gridOptions={finalGridOptions}
         serverSideDatasource={serverSideDatasource}
+        onRowDoubleClicked={(event) => event.data && onRowDoubleClick(event.data)}
         onGridReady={handleGridReady}
         loading={isLoading}
       />
