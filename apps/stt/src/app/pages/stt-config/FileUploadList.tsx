@@ -123,13 +123,14 @@ export default function FileUploadList() {
       flex: 2,
       valueFormatter: ({ value }) => (value ? dayjs(value, 'HHmmss').format('HH:mm:ss') : ''),
     },
+    { headerName: '통화시간', field: 'talkTime', flex: 2 },
     { headerName: '고유번호(UCID)', field: 'ucidGkey', flex: 4, tooltipField: 'ucidGkey' },
     { headerName: '파일명', field: 'filename', flex: 4, tooltipField: 'filename' },
     {
       headerName: '상태',
       field: 'workKind',
       maxWidth: 100,
-      cellStyle: { display: 'flex', alignItems: 'center', justifyContent: 'center' },
+      cellStyle: { display: 'flex', alignItems: 'center' },
       cellRenderer: WorkKindCellRenderer,
     },
     { headerName: '등록자', field: 'agentName', flex: 2 },
@@ -182,7 +183,7 @@ export default function FileUploadList() {
         </div>
       </div>
 
-      <FileUploadDrawer ref={drawerRef} menuId="sttFileUpload" />
+      <FileUploadDrawer ref={drawerRef} menuId="sttfile" />
       <SttSearchDetailDrawer ref={detailDrawerRef} />
     </div>
   );

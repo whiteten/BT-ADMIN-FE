@@ -33,7 +33,7 @@ import { useModal } from '@/libs/shared-ui/src/hooks/useModal';
 
 type TabKey = 'media' | 'tts' | 'stt';
 
-const breadcrumb: BreadcrumbProps['items'] = [{ title: 'ForCus', path: '/ivr' }, { title: '회선관리' }, { title: '미디어 관리' }];
+const breadcrumb: BreadcrumbProps['items'] = [{ title: '회선관리' }, { title: '미디어 관리', path: '/ivr/ivr/media' }];
 
 export default function IvrMedia() {
   const [searchParams] = useSearchParams();

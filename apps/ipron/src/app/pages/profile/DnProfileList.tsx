@@ -26,7 +26,6 @@ import type { DnProfile } from '../../features/dn-profile/types';
 import { useModal } from '@/libs/shared-ui/src/hooks/useModal';
 
 const breadcrumb = [
-  { title: 'IPRON', path: '/ipron' },
   { title: '프로파일 관리', path: '/ipron/profile/dn-profile' },
   { title: '내선 프로파일', path: '/ipron/profile/dn-profile' },
 ];

@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useQueryClient } from '@tanstack/react-query';
-import { type BreadcrumbProps, Button, Input } from 'antd';
+import { type BreadcrumbProps, Button, Input, Select } from 'antd';
 import { Log } from '@/log';
 import { useBreadcrumbStore } from '@/shared-store';
 import { toast } from '@/shared-util';
@@ -17,12 +17,18 @@ const breadcrumb: BreadcrumbProps['items'] = [
   { title: 'AI 모델 목록', path: '/aoe/agent-config/model/list' },
 ];
 
+const FILTER_OPTIONS = [
+  { label: '모델명', value: 'modelName' },
+  { label: '모델 타입', value: 'modelTypeName' },
+];
+
 export default function ModelList() {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const modal = useModal();
   const setBreadcrumb = useBreadcrumbStore((s) => s.setBreadcrumb);
   const clearBreadcrumb = useBreadcrumbStore((s) => s.clearBreadcrumb);
+  const [filterColumn, setFilterColumn] = useState('modelName');
   const [searchValue, setSearchValue] = useState('');
 
   useEffect(() => {
@@ -47,8 +53,17 @@ export default function ModelList() {
     if (!searchValue.trim()) return models;
 
     const keyword = searchValue.toLowerCase();
-    return models.filter((model) => model.modelName.toLowerCase().includes(keyword));
-  }, [models, searchValue]);
+    return models.filter((model) => {
+      const value = model[filterColumn as keyof typeof model];
+      if (value == null) return false;
+      return String(value).toLowerCase().includes(keyword);
+    });
+  }, [models, filterColumn, searchValue]);
+
+  const handleColumnChange = (value: string) => {
+    setFilterColumn(value);
+    setSearchValue('');
+  };
 
   const handleClickCreateBtn = () => {
     navigate('../create');
@@ -67,7 +82,10 @@ export default function ModelList() {
   return (
     <div className="flex flex-col gap-4 w-full h-full">
       <div className="flex items-center justify-between gap-2 w-full h-[76px] bg-white bt-shadow px-7 py-5">
-        <Input value={searchValue} onChange={(e) => setSearchValue(e.target.value)} className="w-full max-w-[400px]" placeholder="모델명을 입력하세요." />
+        <div className="flex gap-2 w-full items-center">
+          <Select value={filterColumn} onChange={handleColumnChange} options={FILTER_OPTIONS} className="!max-w-[150px] !min-w-[120px]" popupMatchSelectWidth={false} />
+          <Input value={searchValue} onChange={(e) => setSearchValue(e.target.value)} className="w-full max-w-[400px]" placeholder="검색어를 입력하세요." />
+        </div>
         <Button type="primary" onClick={handleClickCreateBtn}>
           추가
         </Button>

@@ -1,40 +1,60 @@
 import { useNavigate } from 'react-router-dom';
-import { Card, Tag } from 'antd';
+import { useQueryClient } from '@tanstack/react-query';
+import { Button, Card, Dropdown, type MenuProps, Tag } from 'antd';
 import dayjs from 'dayjs';
 import { toast } from '@/shared-util';
-import { DOMAIN_LABELS, REPORT_ICON_SVG } from '../constants/reportIconConstants';
-import { useDeleteReport } from '../hooks/useReportQueries';
-import type { DomainCode, ReportIconType, ReportListItem } from '../types';
+import { DOMAIN_LABELS, DOMAIN_TAG_COLOR, REPORT_ICON_SVG } from '../constants/reportIconConstants';
+import { reportKeys, useDeleteReport } from '../hooks/useReportQueries';
+import type { ReportIconType, ReportListItem } from '../types';
 import { IconMoreVertical } from '@/components/custom/Icons';
-import { Button } from '@/components/ui/button';
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { useModal } from '@/libs/shared-ui/src/hooks/useModal';
 
 interface ReportCardProps {
   report: ReportListItem;
 }
 
-const DOMAIN_TAG_COLOR: Record<DomainCode, string> = {
-  IE: 'blue',
-  IC: 'green',
-  IR: 'orange',
-};
-
 export default function ReportCard({ report }: ReportCardProps) {
   const navigate = useNavigate();
   const modal = useModal();
+  const queryClient = useQueryClient();
   const iconType: ReportIconType = report.iconType ?? 'system';
 
   const { mutate: deleteReport } = useDeleteReport({
     mutationOptions: {
-      onSuccess: () => toast.success('보고서가 삭제되었습니다.'),
+      onSuccess: () => {
+        queryClient.invalidateQueries({ queryKey: reportKeys.list._def });
+        toast.success('보고서가 삭제되었습니다.');
+        navigate('/insight/statistics/reports');
+      },
       onError: () => toast.error('삭제 중 오류가 발생했습니다.'),
     },
   });
 
   const handleView = () => navigate(`/insight/statistics/reports/${report.reportId}/view`);
   const handleEdit = () => navigate(`/insight/statistics/reports/${report.reportId}/edit`);
-  const handleDelete = () => modal.confirm.delete({ onOk: () => deleteReport(report.reportId) });
+  const handleDelete = () => {
+    modal.confirm.delete({
+      onOk: () => deleteReport(report.reportId),
+      options: {
+        content: '보고서에 등록된 패널이 모두 함께 삭제됩니다. 그래도 삭제하시겠습니까?',
+      },
+    });
+  };
+
+  const menuItems: MenuProps['items'] = [
+    { key: 'view', label: '보기', onClick: handleView },
+    { key: 'edit', label: '편집', onClick: handleEdit },
+    { type: 'divider' },
+    {
+      key: 'delete',
+      label: '삭제',
+      danger: true,
+      onClick: ({ domEvent }) => {
+        domEvent.stopPropagation();
+        handleDelete();
+      },
+    },
+  ];
 
   const cardTitle = (
     <div className="flex items-center gap-2">
@@ -48,26 +68,9 @@ export default function ReportCard({ report }: ReportCardProps) {
   );
 
   const cardExtra = (
-    <DropdownMenu>
-      <DropdownMenuTrigger asChild>
-        <Button variant="ghost" className="w-6 h-6 flex items-center justify-center">
-          <IconMoreVertical />
-          <span className="sr-only">더보기</span>
-        </Button>
-      </DropdownMenuTrigger>
-      <DropdownMenuContent align="end">
-        <DropdownMenuItem className="cursor-pointer" onClick={handleView}>
-          보기
-        </DropdownMenuItem>
-        <DropdownMenuItem className="cursor-pointer" onClick={handleEdit}>
-          편집
-        </DropdownMenuItem>
-        <DropdownMenuSeparator />
-        <DropdownMenuItem className="cursor-pointer text-red-600" onClick={handleDelete}>
-          삭제
-        </DropdownMenuItem>
-      </DropdownMenuContent>
-    </DropdownMenu>
+    <Dropdown menu={{ items: menuItems }} trigger={['click']} placement="bottomRight">
+      <Button type="text" size="small" icon={<IconMoreVertical />} onClick={(e) => e.stopPropagation()} />
+    </Dropdown>
   );
 
   return (
@@ -87,7 +90,7 @@ export default function ReportCard({ report }: ReportCardProps) {
         </div>
         <div className="flex items-center">
           <span className="w-[80px] shrink-0 text-sm">데이터뷰</span>
-          <span className="font-mono text-sm truncate">{report.datasourceKey}</span>
+          <span className="font-mono text-sm truncate">{report.datasetId}</span>
         </div>
         {report.description && (
           <div className="flex items-center">

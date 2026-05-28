@@ -63,9 +63,9 @@ export const NODE_KINDS: NodeKindMeta[] = [
   { kind: 'docExtract', label: 'DOC 추출', group: 'transform', icon: FileCode, description: '문서 추출', color: '#F59E0B', enabled: false },
 
   { kind: 'databaseSearch', label: '데이터베이스', group: 'utility', icon: Database, description: '데이터베이스 검색', color: '#0EA5A2', enabled: true },
-  { kind: 'http', label: 'HTTP', group: 'utility', icon: Globe, description: 'HTTP 요청', color: '#8B5CF6', enabled: true },
+  { kind: 'http', label: 'API 호출', group: 'utility', icon: Globe, description: 'API 호출 (HTTP/HTTPS)', color: '#8B5CF6', enabled: true },
   { kind: 'subNode', label: 'Sub Node', group: 'utility', icon: ExternalLink, description: '서브 노드 실행', color: '#8B5CF6', enabled: false },
-  { kind: 'memo', label: 'Memo', group: 'utility', icon: MessageSquare, description: '메모', color: '#8B5CF6', enabled: false },
+  { kind: 'memo', label: '메모', group: 'utility', icon: MessageSquare, description: '메모', color: '#F59E0B', enabled: true },
 
   { kind: 'error', label: '오류', group: 'error', icon: AlertTriangle, description: '오류 처리', color: '#F06548', enabled: true },
 ];

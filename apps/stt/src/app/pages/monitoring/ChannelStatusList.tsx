@@ -2,24 +2,54 @@ import { useEffect, useRef, useState } from 'react';
 import { type BreadcrumbProps, Select } from 'antd';
 import { Monitor } from 'lucide-react';
 import { useBreadcrumbStore } from '@/shared-store';
-import SttRealSentenceDrawer, { type SttRealSentenceDrawerRef } from '../../features/monitoring/components/SttRealSentenceDrawer';
-import { useGetChannelStatusList } from '../../features/monitoring/hooks/useChannelStatusQueries';
+import RealtimeSentenceDrawer, { type RealtimeSentenceDrawerRef } from '../../features/monitoring/components/RealtimeSentenceDrawer';
+import { useGetChannelStatusList } from '../../features/monitoring/hooks/useMonitoringQueries';
 import type { ChannelStatusItem } from '../../features/monitoring/types';
 import { useGetSttSystemList } from '../../features/stt-config/hooks/useCommonQueries';
 import NoData from '@/components/custom/NoData';
 
 const breadcrumb: BreadcrumbProps['items'] = [
-  { title: 'STT 모니터링', path: '/stt/stt-monitoring' },
-  { title: '채널 현황', path: '/stt/stt-monitoring/channel/list' },
+  { title: 'STT 모니터링', path: '/stt/monitoring' },
+  { title: 'STT 채널현황', path: '/stt/monitoring/channel/list' },
 ];
 
+const TY_COLORS: Record<string, string> = {
+  '1': '#17aae7',
+  '2': '#fcc107',
+  '3': '#88bf47',
+  '4': '#f18b31',
+  '5': '#d54d8b',
+};
+
+function getTyColor(ty?: string | null): string {
+  if (!ty) return '#17aae7';
+  const key = ty.replace(/\D/g, '').replace(/^0+/, '') || '1';
+  return TY_COLORS[key] ?? '#17aae7';
+}
+
 function ChannelCard({ item, onClick }: { item: ChannelStatusItem; onClick: (item: ChannelStatusItem) => void }) {
+  if (item.prtYn !== 'Y') {
+    return (
+      <div className="rounded-lg border border-gray-100 bg-gray-50 p-3 min-h-[130px] flex flex-col">
+        <p className="text-2xl font-bold text-gray-300">{item.channelId}</p>
+      </div>
+    );
+  }
+
   return (
     <div
-      className="rounded-lg border border-gray-200 bg-white p-3 min-h-[80px] cursor-pointer hover:border-[var(--color-bt-primary)] hover:shadow-sm transition-all"
+      className="rounded-lg p-3 min-h-[130px] flex flex-col justify-between cursor-pointer hover:brightness-110 transition-all"
+      style={{ backgroundColor: getTyColor(item.ty) }}
       onClick={() => onClick(item)}
     >
-      <span className="text-sm font-medium text-[#212529]">#{item.channelId}</span>
+      <div className="flex items-center justify-between gap-1">
+        <p className="text-2xl font-bold text-white">{item.channelId}</p>
+        <p className="text-xl text-white/80 shrink-0">{item.progressRate}</p>
+      </div>
+      <div>
+        {item.ucidGkey && <p className="text-sm text-white/80 mt-0.5 truncate">{item.ucidGkey}</p>}
+        {item.agentName && <p className="text-sm text-white/80 mt-0.5 truncate">{item.agentName}</p>}
+      </div>
     </div>
   );
 }
@@ -27,7 +57,7 @@ function ChannelCard({ item, onClick }: { item: ChannelStatusItem; onClick: (ite
 export default function ChannelStatusList() {
   const setBreadcrumb = useBreadcrumbStore((s) => s.setBreadcrumb);
   const clearBreadcrumb = useBreadcrumbStore((s) => s.clearBreadcrumb);
-  const drawerRef = useRef<SttRealSentenceDrawerRef>(null);
+  const drawerRef = useRef<RealtimeSentenceDrawerRef>(null);
 
   useEffect(() => {
     setBreadcrumb(breadcrumb);
@@ -62,8 +92,11 @@ export default function ChannelStatusList() {
     drawerRef.current?.open({
       ucidGkey: item.ucidGkey,
       channelId: item.channelId,
-      channelStatusNm: item.channelStatusNm,
-      progressRate: item.progressRate,
+      channelStatusNm: item.channelStatusNm ?? undefined,
+      dnNo: item.dnNo ?? undefined,
+      agentName: item.agentName ?? undefined,
+      inoutKind: item.inoutKind ?? undefined,
+      callDatetime: item.callDatetime ?? undefined,
     });
   };
 
@@ -71,22 +104,40 @@ export default function ChannelStatusList() {
     <div className="flex flex-col gap-4 w-full h-full">
       <div className="flex flex-col gap-5 w-full h-full bg-white bt-shadow p-5">
         {/* 툴바 */}
-        <header className="flex items-center justify-end gap-2">
-          <span className="text-sm font-medium text-[#495057] shrink-0">시스템</span>
-          <Select
-            value={selectedIpv4}
-            onChange={handleSystemChange}
-            options={systemOptions}
-            placeholder="시스템을 선택하세요"
-            style={{ width: 200 }}
-            loading={systems.length === 0}
-          />
-          <button
-            type="button"
-            className="flex items-center justify-center w-8 h-8 rounded border border-[var(--color-bt-primary)] text-[var(--color-bt-primary)] hover:bg-[var(--color-bt-primary)]/5 transition-colors"
-          >
-            <Monitor className="size-4" />
-          </button>
+        <header className="flex items-center justify-between gap-2">
+          {/* 색상 범례 */}
+          <div className="flex items-center gap-3 flex-wrap">
+            {[
+              { color: '#fcc107', label: '1분 미만' },
+              { color: '#17aae7', label: '1~3분' },
+              { color: '#88bf47', label: '4~6분' },
+              { color: '#f18b31', label: '7~9분' },
+              { color: '#d54d8b', label: '10분+' },
+            ].map(({ color, label }) => (
+              <span key={label} className="flex items-center gap-1.5 text-xs text-gray-500">
+                <span className="w-3 h-3 rounded-sm shrink-0" style={{ backgroundColor: color }} />
+                {label}
+              </span>
+            ))}
+          </div>
+          {/* 검색 조건 */}
+          <div className="flex items-center gap-2 shrink-0">
+            <span className="text-sm font-medium text-[#495057] shrink-0">시스템</span>
+            <Select
+              value={selectedIpv4}
+              onChange={handleSystemChange}
+              options={systemOptions}
+              placeholder="시스템을 선택하세요"
+              style={{ width: 200 }}
+              loading={systems.length === 0}
+            />
+            <button
+              type="button"
+              className="flex items-center justify-center w-8 h-8 rounded border border-[var(--color-bt-primary)] text-[var(--color-bt-primary)] hover:bg-[var(--color-bt-primary)]/5 transition-colors"
+            >
+              <Monitor className="size-4" />
+            </button>
+          </div>
         </header>
 
         {/* 채널 카드 그리드 */}
@@ -106,7 +157,7 @@ export default function ChannelStatusList() {
           )}
         </div>
       </div>
-      <SttRealSentenceDrawer ref={drawerRef} />
+      <RealtimeSentenceDrawer ref={drawerRef} />
     </div>
   );
 }

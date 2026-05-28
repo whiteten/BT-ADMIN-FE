@@ -1,5 +1,5 @@
 import type { FlowEdge, FlowNode, WorkflowGraph } from '../types';
-import { getUpstreamVariables } from './variableTokens';
+import { START_BUILTIN_VARIABLES, getUpstreamVariables, isValidVariableName } from './variableTokens';
 
 export interface WorkflowValidationError {
   nodeId?: string;
@@ -82,7 +82,37 @@ const validateLlmNode = (node: FlowNode, graph: WorkflowGraph): WorkflowValidati
   return null;
 };
 
+interface StartVariableItem {
+  name?: string;
+}
+
+const validateStartNode = (node: FlowNode): WorkflowValidationError | null => {
+  const data = asRecord(node.data);
+  const vars = (data.variables as StartVariableItem[] | undefined) ?? [];
+  const label = node.nodeLabel ?? '시작';
+  const builtInNames = new Set(START_BUILTIN_VARIABLES.map((v) => v.name));
+  const seen = new Set<string>();
+  for (let i = 0; i < vars.length; i += 1) {
+    const name = (vars[i]?.name ?? '').trim();
+    if (name.length === 0) {
+      return { nodeId: node.nodeId, message: `시작 노드(${label}): 변수명을 입력해 주세요. (${i + 1}번째 변수)` };
+    }
+    if (!isValidVariableName(name)) {
+      return { nodeId: node.nodeId, message: `시작 노드(${label}): 변수명 "${name}" 형식이 올바르지 않습니다. 영문/숫자/_ 만, 첫 글자는 영문 또는 _.` };
+    }
+    if (builtInNames.has(name)) {
+      return { nodeId: node.nodeId, message: `시작 노드(${label}): 변수명 "${name}" 은 빌트인 변수와 충돌합니다.` };
+    }
+    if (seen.has(name)) {
+      return { nodeId: node.nodeId, message: `시작 노드(${label}): 변수명 "${name}" 이 중복됩니다.` };
+    }
+    seen.add(name);
+  }
+  return null;
+};
+
 const NODE_VALIDATORS: Record<string, (node: FlowNode, graph: WorkflowGraph) => WorkflowValidationError | null> = {
+  start: validateStartNode,
   llm: validateLlmNode,
   a2a_agent: validateA2ANode,
   knowledgeSearch: validateKnowledgeSearchNode,

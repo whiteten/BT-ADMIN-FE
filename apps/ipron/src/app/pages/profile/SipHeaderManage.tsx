@@ -31,12 +31,7 @@ import { IconTrash } from '@/components/custom/Icons';
 import useAggridOptions from '@/libs/shared-ui/src/hooks/useAggridOptions';
 import { useModal } from '@/libs/shared-ui/src/hooks/useModal';
 
-const breadcrumb = [
-  { title: 'IPRON', path: '/ipron' },
-  { title: '프로파일 관리', path: '/ipron/profile/sip-profile' },
-  { title: 'SIP 프로파일', path: '/ipron/profile/sip-profile' },
-  { title: '헤더 관리' },
-];
+const breadcrumb = [{ title: '프로파일 관리', path: '/ipron/profile/sip-profile' }, { title: 'SIP 프로파일', path: '/ipron/profile/sip-profile' }, { title: '헤더 관리' }];
 
 export default function SipHeaderManage() {
   const setBreadcrumb = useBreadcrumbStore((s) => s.setBreadcrumb);

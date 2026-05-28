@@ -1,30 +1,41 @@
 export interface ChannelStatusItem {
   channelId: number;
-  channelStatus: string;
-  channelStatusNm: string;
-  progressRate: string;
-  chrPer: string;
-  ucidGkey?: string;
+  prtYn: 'Y' | 'N';
+  channelStatus: string | null;
+  channelStatusNm: string | null;
+  progressRate: string | null;
+  ucidGkey: string | null;
+  analKind: string | null;
+  ty: string | null;
+  dnNo?: string | null;
+  agentName?: string | null;
+  inoutKind?: string | null;
+  callDatetime?: string | null;
+  mstartTime?: string | null;
 }
 
 export interface SttChatSentence {
-  speaker: 'TX' | 'RX';
+  speaker: number; // 0: 왼쪽(고객), 1: 오른쪽(상담사)
   text: string;
-  time: string;
-  offset: number;
+  stime: string;
 }
 
-export interface SttRealSentenceDrawerInfo {
+export interface RealtimeSentenceDrawerInfo {
   ucidGkey: string;
   channelId?: number;
   channelStatusNm?: string;
   dnNo?: string;
   agentName?: string;
-  progressRate?: string;
+  inoutKind?: string;
+  callDatetime?: string;
 }
 
 export interface ChannelStatusSearchParams {
   ipv4: string;
+}
+
+export interface DnStatusSearchParams {
+  dnNo?: string;
 }
 
 export interface DnStatusItem {
@@ -32,4 +43,66 @@ export interface DnStatusItem {
   ucidGkey: string;
   agentName: string;
   progressRate: string;
+  ty?: string;
+  channelId?: number;
+  channelStatusNm?: string;
+  inoutKind?: string;
+  callDatetime?: string;
+}
+
+export interface CallStatusSummaryItem {
+  workKindName: string;
+  cnt: number;
+  sort: number;
+}
+
+export interface CallStatusItem {
+  ucidGkey: string;
+  filename: string;
+  callDate: string;
+  callTime: string;
+  workKind: number;
+  workKindName: string;
+  dnNo: string;
+  dbInsertTime: string;
+  saRuntime: string | null;
+}
+
+export interface CallStatusSearchParams {
+  callDate: string;
+}
+
+export interface DashboardItem {
+  callDate: string;
+  completeCnt: number;
+  real: number;
+  batch: number;
+}
+
+export interface DashboardSummaryItem {
+  kind: string;
+  cnt: number;
+  finalTime: string;
+  rcnt: number;
+  bcnt: number;
+}
+
+export interface DashboardChannelItem {
+  systemId: number;
+  systemName: string;
+  systemAlias: string;
+  systemIp: string;
+  totCnt: number;
+  runCnt: number;
+  per: number;
+}
+
+export interface DashboardData {
+  items: DashboardItem[];
+  summary: DashboardSummaryItem[];
+  channels: DashboardChannelItem[];
+}
+
+export interface DashboardSearchParams {
+  callDate: string;
 }

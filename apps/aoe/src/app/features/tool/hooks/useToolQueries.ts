@@ -1,4 +1,4 @@
-import { useMutation, useQuery } from '@tanstack/react-query';
+import { useMutation, useQueries, useQuery } from '@tanstack/react-query';
 import { createQueryKeys } from '@lukemorales/query-key-factory';
 import type { MutationHookOptions, QueryHookWithParamsOptions } from '@/shared-util';
 import { toolApi } from '../api/toolApi';
@@ -66,4 +66,29 @@ export const useDeleteTool = ({ mutationOptions }: MutationHookOptions<void, { t
     mutationFn: (params) => toolApi.deleteTool(params),
     ...mutationOptions,
   });
+};
+
+/**
+ * 도구 그룹 목록 + 각 그룹별 도구 목록을 한꺼번에 fan-out fetch.
+ * LLM 노드의 도구 트리 선택 UI에서 전체 그룹·도구 트리를 한 번에 구성하기 위한 집계 훅.
+ */
+export const useGetAllTools = () => {
+  const { data: groups = [], isLoading: isLoadingGroups } = useGetToolGroups();
+
+  const toolQueries = useQueries({
+    queries: groups.map((group) => ({
+      queryKey: toolQueryKeys.getTools({ groupId: group.groupId }).queryKey,
+      queryFn: () => toolApi.getTools({ groupId: group.groupId }),
+      enabled: !!group.groupId,
+    })),
+  });
+
+  const toolsByGroup: Record<string, ToolItem[]> = {};
+  groups.forEach((group, idx) => {
+    toolsByGroup[group.groupId] = toolQueries[idx]?.data ?? [];
+  });
+
+  const isLoadingTools = toolQueries.some((q) => q.isLoading);
+
+  return { groups, toolsByGroup, isLoading: isLoadingGroups || isLoadingTools };
 };

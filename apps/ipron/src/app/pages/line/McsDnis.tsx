@@ -23,7 +23,6 @@ import useAggridOptions from '@/libs/shared-ui/src/hooks/useAggridOptions';
 import { useModal } from '@/libs/shared-ui/src/hooks/useModal';
 
 const breadcrumb = [
-  { title: 'IPRON', path: '/ipron' },
   { title: '회선관리', path: '/ipron/line/mcs-dnis' },
   { title: 'DNIS관리(MCS)', path: '/ipron/line/mcs-dnis' },
 ];

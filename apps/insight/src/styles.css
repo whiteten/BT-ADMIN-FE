@@ -16,4 +16,33 @@
   --color-bt-warn-soft:     #fdf3e1;
   --color-bt-danger:        #c92a2a;
   --color-bt-danger-soft:   #fbeaea;
+
+  /* 상담사 상태 시맨틱 토큰 (05-agent-monitor-widget.html §5) */
+  --color-bt-st-idle:       #0a8a4a;  /* 40·41·42 대기   */
+  --color-bt-st-talk:       #085fb5;  /* 5010·5020 통화  */
+  --color-bt-st-ring:       #b76e00;  /* 51·52 벨/다이얼 */
+  --color-bt-st-hold:       #7a4e9e;  /* 53 보류         */
+  --color-bt-st-wrap:       #9b7dff;  /* 60 후처리       */
+  --color-bt-st-wrap-soft:  #f5f0fa;
+  --color-bt-st-aux:        #85898f;  /* 30 이석         */
+  --color-bt-st-offline:    #cdd2d9;  /* 10 로그아웃     */
+  --color-bt-st-alert:      #c92a2a;  /* 임계 초과       */
 }
+
+/* ─── 상담사 모니터 위젯 전용 모션 (전체 제거)
+ * 정적 강조(border, bg) 만으로 상태를 표현한다 — 깜빡임 효과는 사용하지 않음.
+ * 입장 효과(bt-card-enter)는 1회성이라 보존.
+ */
+@keyframes bt-card-enter   { 0% { opacity: 0; transform: translateY(4px) scale(0.98); } 100% { opacity: 1; transform: none; } }
+.bt-card-enter             { animation: bt-card-enter 0.18s ease-out both; }
+
+/* 모션 줄이기 사용자 보호 — 카드 입장 효과까지 차단 */
+@media (prefers-reduced-motion: reduce) {
+  .bt-card-enter { animation: none !important; }
+}
+
+/* 숫자 칸 고정 (시간 카운터 들썩임 방지) */
+.bt-tnum { font-variant-numeric: tabular-nums; font-feature-settings: "tnum" 1, "zero" 1; }
+
+/* 듀레이션 바 — 좌측 3px 채움. 시간 증가 시 부드럽게 늘어남 */
+.bt-dur-bar { transition: opacity 0.4s ease, background-color 0.3s ease; }

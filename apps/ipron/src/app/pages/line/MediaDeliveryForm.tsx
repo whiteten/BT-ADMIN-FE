@@ -198,7 +198,11 @@ export default function MediaDeliveryForm() {
   const clearBreadcrumb = useBreadcrumbStore((s) => s.clearBreadcrumb);
 
   useEffect(() => {
-    setBreadcrumb([{ title: 'IPRON' }, { title: '회선관리' }, { title: '미디어전달관리', href: '../media-delivery' }, { title: isEditMode ? '수정' : '등록' }]);
+    setBreadcrumb([
+      { title: '회선관리', path: '/ipron/line' },
+      { title: '미디어전달관리', path: '/ipron/line/media-delivery' },
+      { title: isEditMode ? '수정' : '등록', path: '/ipron/line/media-delivery/form' },
+    ]);
     return () => clearBreadcrumb();
   }, [isEditMode, setBreadcrumb, clearBreadcrumb]);
 

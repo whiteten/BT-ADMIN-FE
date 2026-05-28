@@ -19,12 +19,7 @@ import type { AdnCreateRequest, AdnDefaultStateCode, AdnUpdateRequest } from '..
 import { ADN_DFT_STATE_OPTIONS, getAdnDftStateName, getDnStatusName } from '../../features/adn/utils/adnEnums';
 import { useGetDnProfileTenants } from '../../features/dn-profile/hooks/useDnProfileQueries';
 
-const breadcrumb = [
-  { title: 'IPRON', path: '/ipron' },
-  { title: '번호자원관리', path: '/ipron/adn' },
-  { title: 'DN관리', path: '/ipron/adn' },
-  { title: 'ADN 설정', path: '/ipron/adn' },
-];
+const breadcrumb = [{ title: '번호자원관리' }, { title: 'DN관리' }, { title: 'ADN 설정', path: '/ipron/adn' }];
 
 interface AdnFormValues {
   tenantId: number;
@@ -48,9 +43,9 @@ export default function AdnForm() {
   const setBreadcrumb = useBreadcrumbStore((s) => s.setBreadcrumb);
   const clearBreadcrumb = useBreadcrumbStore((s) => s.clearBreadcrumb);
   useEffect(() => {
-    setBreadcrumb([...breadcrumb, { title: isEditMode ? '수정' : '등록', path: '' }]);
+    setBreadcrumb([...breadcrumb, { title: isEditMode ? '수정' : '등록', path: isEditMode && id ? `/ipron/adn/${id}/edit` : '/ipron/adn/create' }]);
     return () => clearBreadcrumb();
-  }, [setBreadcrumb, clearBreadcrumb, isEditMode]);
+  }, [setBreadcrumb, clearBreadcrumb, isEditMode, id]);
 
   const [form] = Form.useForm<AdnFormValues>();
   const { data: detail } = useGetAdnDetail(dnId);

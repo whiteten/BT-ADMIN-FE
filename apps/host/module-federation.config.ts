@@ -17,7 +17,7 @@ const config: ModuleFederationConfig = {
    * 외부(사내망 등) IP 접속용 주소 변환은 아래 applyRemoteHostOverride()가
    * 후처리로 담당하므로, 이 배열에 IP/포트를 직접 적을 필요는 없습니다.
    */
-  remotes: ['manager', 'fca', 'ipron', 'aoe', 'stt', 'ivr', 'insight'],
+  remotes: ['manager', 'fca', 'ipron', 'aoe', 'stt', 'ivr', 'insight', 'taskboard'],
   shared: createSharedConfig(),
   additionalShared: [['@/shared-store', { singleton: true, strictVersion: true, requiredVersion: false }]],
 };

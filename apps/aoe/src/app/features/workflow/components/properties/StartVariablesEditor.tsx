@@ -1,5 +1,6 @@
 import { Button, Input, Select, Switch, Tooltip } from 'antd';
 import { Plus, Trash2 } from 'lucide-react';
+import { isValidVariableName } from '../../utils/variableTokens';
 
 export interface StartVariableItem {
   name: string;
@@ -18,8 +19,6 @@ const TYPE_OPTIONS = [
   { value: 'Boolean', label: 'Boolean' },
   { value: 'Array[File]', label: 'Array[File]' },
 ] as const;
-
-const isValidVarName = (name: string) => /^[a-zA-Z_][a-zA-Z0-9_]*$/.test(name);
 
 export default function StartVariablesEditor({ value = [], onChange }: StartVariablesEditorProps) {
   const update = (idx: number, patch: Partial<StartVariableItem>) => {
@@ -44,7 +43,7 @@ export default function StartVariablesEditor({ value = [], onChange }: StartVari
       {value.length === 0 && <div className="text-[11px] text-gray-400 py-2">사용자 입력 변수를 추가하세요. 다른 노드의 텍스트에서 `/` 입력 시 이 변수들이 노출됩니다.</div>}
 
       {value.map((v, idx) => {
-        const invalid = v.name.length > 0 && !isValidVarName(v.name);
+        const invalid = v.name.length > 0 && !isValidVariableName(v.name);
         return (
           <div key={idx} className="flex items-center gap-2 py-1">
             <Tooltip title={invalid ? '영문/숫자/_ 만, 첫 글자 영문' : ''} open={invalid ? undefined : false}>

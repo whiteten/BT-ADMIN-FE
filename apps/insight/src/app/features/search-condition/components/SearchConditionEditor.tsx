@@ -3,7 +3,7 @@ import { useQueryClient } from '@tanstack/react-query';
 import { sql } from '@codemirror/lang-sql';
 import { oneDark } from '@codemirror/theme-one-dark';
 import CodeMirror, { type Extension } from '@uiw/react-codemirror';
-import { Button, Drawer, Form, Input, Select, Tag } from 'antd';
+import { Button, Checkbox, Drawer, Form, Input, Radio, Select, Tag, Tree, type TreeDataNode } from 'antd';
 
 import { Log } from '@/log';
 import { toast } from '@/shared-util';
@@ -54,6 +54,76 @@ function fromDetailNode(n: SearchConditionNode): NodeState {
   };
 }
 
+/** SqlPreviewResult 배열을 antd Tree가 요구하는 계층 구조로 변환. parent 참조 깨진 항목은 루트로 폴백. */
+function buildTreeData(items: SqlPreviewResult[]): TreeDataNode[] {
+  const nodeMap = new Map<string, TreeDataNode & { children: TreeDataNode[] }>();
+
+  items.forEach((item) => {
+    if (item.value != null) {
+      nodeMap.set(item.value, { key: item.value, title: item.label ?? item.value, children: [] });
+    }
+  });
+
+  const roots: TreeDataNode[] = [];
+
+  items.forEach((item) => {
+    if (item.value == null) return;
+    const node = nodeMap.get(item.value);
+    if (!node) return;
+    const parentNode = item.parent != null ? nodeMap.get(item.parent) : undefined;
+    if (parentNode) {
+      parentNode.children.push(node);
+    } else {
+      roots.push(node);
+    }
+  });
+
+  return roots;
+}
+
+/** InputType별 실제 컨트롤 UI 렌더링. 사용자가 보게 될 화면을 미리 확인하기 위한 미리보기 전용. */
+function renderPreviewControl(node: NodeState): React.ReactNode {
+  const { inputType, previewItems } = node;
+  const options = previewItems.map((i) => ({ value: i.value ?? '', label: i.label ?? i.value ?? '' }));
+
+  if (inputType === 'SELECT') {
+    return <Select placeholder="선택하세요" options={options} style={{ minWidth: 200 }} popupMatchSelectWidth={false} className="pointer-events-none" />;
+  }
+
+  if (inputType === 'MULTI_SELECT') {
+    return (
+      <div className="flex flex-col gap-2 max-h-48 overflow-y-auto">
+        {options.map((o) => (
+          <Checkbox key={o.value} value={o.value} className="pointer-events-none">
+            {o.label}
+          </Checkbox>
+        ))}
+      </div>
+    );
+  }
+
+  if (inputType === 'RADIO') {
+    return (
+      <Radio.Group className="pointer-events-none">
+        <div className="flex flex-col gap-2">
+          {options.map((o) => (
+            <Radio key={o.value} value={o.value}>
+              {o.label}
+            </Radio>
+          ))}
+        </div>
+      </Radio.Group>
+    );
+  }
+
+  if (inputType === 'TREE_MULTI_SELECT') {
+    const treeData = buildTreeData(previewItems);
+    return <Tree checkable treeData={treeData} defaultExpandAll selectable={false} className="max-h-48 overflow-y-auto pointer-events-none" />;
+  }
+
+  return null;
+}
+
 const PREVIEW_STATUS_TAG: Record<NodeState['previewStatus'], { color: string; label: string }> = {
   idle: { color: 'default', label: '미실행' },
   running: { color: 'processing', label: '실행중' },
@@ -62,15 +132,16 @@ const PREVIEW_STATUS_TAG: Record<NodeState['previewStatus'], { color: string; la
 };
 
 const INPUT_TYPE_LABEL: Record<InputType, string> = {
-  SELECT: 'SELECT — 단일 선택',
-  MULTI_SELECT: 'MULTI_SELECT — 복수 선택',
-  TREE_MULTI_SELECT: 'TREE_MULTI_SELECT — 계층 복수 선택',
-  RADIO: 'RADIO — 라디오',
+  SELECT: '단일 선택',
+  MULTI_SELECT: '복수 선택',
+  TREE_MULTI_SELECT: '계층 복수 선택',
+  RADIO: '라디오',
 };
 
 interface HeaderForm {
   title: string;
   categoryCode?: string;
+  isBundle: boolean;
 }
 
 export default function SearchConditionEditor() {
@@ -79,11 +150,12 @@ export default function SearchConditionEditor() {
   const isEdit = !!editingCondition;
 
   const [headerForm] = Form.useForm<HeaderForm>();
+  const watchedTitle = Form.useWatch('title', headerForm);
   const [nodes, setNodes] = useState<NodeState[]>([emptyNode()]);
   const [activeIdx, setActiveIdx] = useState(0);
 
   const { data: fetchedDetail, isLoading: loadingDetail } = useGetSearchCondition({
-    params: { searchCondId: selectedId! },
+    params: { searchCondId: selectedId as number },
     queryOptions: { enabled: !!selectedId && !editingCondition },
   });
 
@@ -91,7 +163,7 @@ export default function SearchConditionEditor() {
     const src = editingCondition ?? fetchedDetail;
     if (!isEditorOpen) return;
     if (src) {
-      headerForm.setFieldsValue({ title: src.title, categoryCode: src.categoryCode });
+      headerForm.setFieldsValue({ title: src.title, categoryCode: src.categoryCode, isBundle: src.isBundle });
       setNodes(src.nodes.map(fromDetailNode));
       setActiveIdx(0);
       if (fetchedDetail && !editingCondition) setEditingCondition(fetchedDetail);
@@ -133,8 +205,8 @@ export default function SearchConditionEditor() {
           previewItems: items,
           previewError: '',
           detectedColumns: cols,
-          valueColumn: nodes[activeIdx].valueColumn || cols[0] || '',
-          labelColumn: nodes[activeIdx].labelColumn || cols[1] || '',
+          valueColumn: (nodes[activeIdx].valueColumn || cols[0]) ?? '',
+          labelColumn: (nodes[activeIdx].labelColumn || cols[1]) ?? '',
         });
         toast.success(`SQL 실행 성공 — ${items.length}건`);
       },
@@ -151,8 +223,8 @@ export default function SearchConditionEditor() {
       optionSql: cur.optionSql,
       valueColumn: cur.valueColumn || undefined,
       labelColumn: cur.labelColumn || undefined,
-      parentColumn: cur.parentColumn || undefined,
-      levelColumn: cur.levelColumn || undefined,
+      parentColumn: cur.parentColumn ?? undefined,
+      levelColumn: cur.levelColumn ?? undefined,
     });
   };
 
@@ -183,27 +255,17 @@ export default function SearchConditionEditor() {
   const allSuccess = nodes.every((n) => n.previewStatus === 'success');
   const allMapped = nodes.every((n) => n.valueColumn && n.labelColumn);
   const allNodesFilled = nodes.every((n) => n.nodeCode.trim() && n.nodeLabel.trim());
+  const canSave = !!watchedTitle?.trim() && allNodesFilled && allSuccess && allMapped;
 
   const handleSave = () => {
     headerForm
       .validateFields()
       .then((values) => {
-        if (!allNodesFilled) {
-          toast.warning('모든 조건의 코드와 이름을 입력하세요.');
-          return;
-        }
-        if (!allSuccess) {
-          toast.warning('모든 조건의 SQL 실행을 완료하세요.');
-          return;
-        }
-        if (!allMapped) {
-          toast.warning('모든 조건의 value·label 컬럼 매핑을 완료하세요.');
-          return;
-        }
         const payload = {
           title: values.title,
-          categoryCode: values.categoryCode || undefined,
-          nodes: nodes.map(({ previewStatus, previewItems, previewError, detectedColumns, ...n }) => n),
+          categoryCode: values.categoryCode ?? undefined,
+          isBundle: values.isBundle ?? false,
+          nodes: nodes.map(({ previewStatus: _ps, previewItems: _pi, previewError: _pe, detectedColumns: _dc, ...n }) => n),
         };
         if (isEdit && editingCondition) {
           update({ searchCondId: editingCondition.searchCondId, data: payload });
@@ -221,14 +283,14 @@ export default function SearchConditionEditor() {
   const footer = (
     <div className="flex items-center justify-between">
       <div className="flex items-center gap-2">
-        <Tag color={headerForm.getFieldValue('title')?.trim() ? 'success' : 'error'}>묶음명</Tag>
-        <Tag color={allNodesFilled ? 'success' : 'error'}>코드·이름</Tag>
+        <Tag color={watchedTitle?.trim() ? 'success' : 'error'}>묶음명</Tag>
+        <Tag color={allNodesFilled ? 'success' : 'error'}>조건 코드·이름</Tag>
         <Tag color={allSuccess ? 'success' : 'error'}>SQL 실행</Tag>
         <Tag color={allMapped ? 'success' : 'error'}>컬럼 매핑</Tag>
       </div>
       <div className="flex items-center gap-2">
         <Button onClick={closeEditor}>취소</Button>
-        <Button type="primary" onClick={handleSave} loading={creating || updating}>
+        <Button type="primary" onClick={handleSave} loading={creating || updating} disabled={!canSave}>
           {isEdit ? '수정' : '저장'}
         </Button>
       </div>
@@ -249,11 +311,14 @@ export default function SearchConditionEditor() {
       <div className="px-5 py-4 border-b border-gray-200 bg-gray-50">
         <Form form={headerForm} layout="vertical" className="mb-0">
           <div className="flex items-start gap-4">
-            <Form.Item name="title" label="검색조건 묶음명" rules={[{ required: true, message: '묶음명을 입력하세요.' }]} hasFeedback className="flex-[2] mb-0">
+            <Form.Item name="title" label="묶음명" rules={[{ required: true, message: '묶음명을 입력하세요.' }]} hasFeedback className="flex-[2] mb-0">
               <Input placeholder="예) 상담원, 교환기 구분, 통화 유형" />
             </Form.Item>
             <Form.Item name="categoryCode" label="카테고리" className="flex-1 mb-0">
               <Select placeholder="카테고리 선택" allowClear options={CATEGORY_OPTIONS} />
+            </Form.Item>
+            <Form.Item name="isBundle" valuePropName="checked" label="노드 묶음" className="flex-none mb-0">
+              <Checkbox />
             </Form.Item>
           </div>
         </Form>
@@ -420,11 +485,11 @@ export default function SearchConditionEditor() {
                   </div>
                 </div>
 
-                {/* SQL 실행 결과 — 에디터 바로 아래, 컬럼 매핑 전에 표시 */}
+                {/* SQL 실행 결과 — 원본 데이터 테이블 */}
                 {cur.previewStatus === 'success' && cur.previewItems.length > 0 && (
                   <div className="border border-gray-200 rounded-lg overflow-hidden">
                     <div className="flex items-center justify-between px-4 py-2.5 bg-gray-50 border-b border-gray-200">
-                      <span className="text-sm font-semibold text-gray-700">실행 결과 미리보기</span>
+                      <span className="text-sm font-semibold text-gray-700">실행 결과 — 원본 데이터</span>
                       <span className="text-xs text-gray-400 font-mono">{cur.previewItems.length}건 (최대 8건 표시)</span>
                     </div>
                     <table className="w-full text-sm border-collapse">
@@ -454,6 +519,17 @@ export default function SearchConditionEditor() {
                         )}
                       </tbody>
                     </table>
+                  </div>
+                )}
+
+                {/* UI 미리보기 — InputType별 실제 컨트롤 렌더링 */}
+                {cur.previewStatus === 'success' && cur.previewItems.length > 0 && (
+                  <div className="border border-gray-200 rounded-lg overflow-hidden">
+                    <div className="flex items-center gap-2 px-4 py-2.5 bg-gray-50 border-b border-gray-200">
+                      <span className="text-sm font-semibold text-gray-700">UI 미리보기</span>
+                      <span className="text-xs text-gray-400">사용자에게 보이는 실제 컨트롤 ({INPUT_TYPE_LABEL[cur.inputType]})</span>
+                    </div>
+                    <div className="p-4">{renderPreviewControl(cur)}</div>
                   </div>
                 )}
 
