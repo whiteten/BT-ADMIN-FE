@@ -19,6 +19,7 @@ const breadcrumb: BreadcrumbProps['items'] = [
 
 const CAMPAIGN_INDIVIDUAL_TENANT_STORAGE_KEY = 'campaign-individual-result:tenant-ids';
 const CAMPAIGN_INDIVIDUAL_CAMPAIGN_STORAGE_KEY = 'campaign-individual-result:campaign-selections';
+const CAMPAIGN_INDIVIDUAL_SCENARIO_STORAGE_KEY = 'campaign-individual-result:scenario-selections';
 
 // timeUnit별 최대 검색 기간 (일 단위) — 레거시 IPR94S1310 기준
 // 일별: 3개월, 월별: 6개월, 년별: 2년
@@ -54,20 +55,35 @@ const validateDateRange = (start: Dayjs, end: Dayjs, unit: string): boolean => {
   return end.diff(start, 'day') <= getMaxDays(unit);
 };
 
-/** 캠페인 콤보 선택값 → BE campaignListIds / campaignIds (레거시 campaignListIdArr 우선) */
-function parseCampaignSelections(selections: string[]): { campaignListIds: number[]; campaignIds: string[] } {
-  const campaignListIds: number[] = [];
+function parseCampaignIds(selections: string[]): string[] {
   const campaignIds: string[] = [];
   for (const v of selections) {
-    if (v.startsWith('L:')) {
-      const parts = v.split(':');
-      if (parts.length >= 3) campaignListIds.push(Number(parts[2]));
-    } else if (v.startsWith('C:')) {
-      const parts = v.split(':');
-      if (parts.length >= 3) campaignIds.push(parts.slice(2).join(':'));
-    }
+    if (!v.startsWith('C:')) continue;
+    const parts = v.split(':');
+    if (parts.length >= 3) campaignIds.push(parts.slice(2).join(':'));
   }
-  return { campaignListIds, campaignIds };
+  return campaignIds;
+}
+
+function parseScenarioListIds(selections: string[]): number[] {
+  const campaignListIds: number[] = [];
+  for (const v of selections) {
+    if (!v.startsWith('L:')) continue;
+    const parts = v.split(':');
+    if (parts.length >= 3) campaignListIds.push(Number(parts[2]));
+  }
+  return campaignListIds;
+}
+
+function loadStoredStringArray(key: string): string[] {
+  try {
+    const saved = localStorage.getItem(key);
+    if (!saved) return [];
+    const parsed = JSON.parse(saved);
+    return Array.isArray(parsed) ? parsed.filter((v): v is string => typeof v === 'string') : [];
+  } catch {
+    return [];
+  }
 }
 
 // 시작일 비활성화 함수 (미래 날짜)
@@ -111,25 +127,12 @@ export default function CampaignIndividualResultStatistics() {
   const [endDate, setEndDate] = useState<Dayjs | null>(dayjs().endOf('day'));
   const [startTime, setStartTime] = useState<Dayjs | null>(dayjs().hour(0).minute(0));
   const [endTime, setEndTime] = useState<Dayjs | null>(dayjs().hour(23).minute(59));
-  const [tenantIds, setTenantIds] = useState<string[]>(() => {
-    try {
-      const saved = localStorage.getItem(CAMPAIGN_INDIVIDUAL_TENANT_STORAGE_KEY);
-      if (!saved) return [];
-      const parsed = JSON.parse(saved);
-      return Array.isArray(parsed) ? parsed.filter((v): v is string => typeof v === 'string') : [];
-    } catch {
-      return [];
-    }
-  });
-  const [campaignSelections, setCampaignSelections] = useState<string[]>(() => {
-    try {
-      const saved = localStorage.getItem(CAMPAIGN_INDIVIDUAL_CAMPAIGN_STORAGE_KEY);
-      if (!saved) return [];
-      const parsed = JSON.parse(saved);
-      return Array.isArray(parsed) ? parsed.filter((v): v is string => typeof v === 'string') : [];
-    } catch {
-      return [];
-    }
+  const [tenantIds, setTenantIds] = useState<string[]>(() => loadStoredStringArray(CAMPAIGN_INDIVIDUAL_TENANT_STORAGE_KEY));
+  const [campaignSelections, setCampaignSelections] = useState<string[]>(() => loadStoredStringArray(CAMPAIGN_INDIVIDUAL_CAMPAIGN_STORAGE_KEY).filter((v) => v.startsWith('C:')));
+  const [scenarioSelections, setScenarioSelections] = useState<string[]>(() => {
+    const fromScenarioKey = loadStoredStringArray(CAMPAIGN_INDIVIDUAL_SCENARIO_STORAGE_KEY);
+    if (fromScenarioKey.length > 0) return fromScenarioKey;
+    return loadStoredStringArray(CAMPAIGN_INDIVIDUAL_CAMPAIGN_STORAGE_KEY).filter((v) => v.startsWith('L:'));
   });
 
   const { gridOptions } = useAggridOptions();
@@ -155,26 +158,49 @@ export default function CampaignIndividualResultStatistics() {
     params: { tenantIds: tenantIdNums },
     queryOptions: { enabled: tenantIdNums.length > 0 },
   });
-  const campaignSelectOptions = useMemo(
-    () =>
-      (campaignOptionList ?? []).map((c) => {
-        const tid = String(c.tenantId ?? '');
-        const hasList = c.campaignListId != null && String(c.campaignListId).length > 0;
-        const value = hasList ? `L:${tid}:${c.campaignListId}` : `C:${tid}:${c.campaignId}`;
-        const label = hasList ? `${c.campaignName} / ${c.campaignListName ?? ''}` : c.campaignName;
-        return { label, value };
-      }),
-    [campaignOptionList],
-  );
+  const campaignSelectOptions = useMemo(() => {
+    const seen = new Set<string>();
+    const options: { label: string; value: string }[] = [];
+    for (const c of campaignOptionList ?? []) {
+      const tid = String(c.tenantId ?? '');
+      const value = `C:${tid}:${c.campaignId}`;
+      if (seen.has(value)) continue;
+      seen.add(value);
+      options.push({ label: c.campaignName, value });
+    }
+    return options;
+  }, [campaignOptionList]);
 
-  // 테넌트 변경 시 캠페인 선택 초기화
+  const scenarioSelectOptions = useMemo(() => {
+    const selectedCampaigns = new Set(campaignSelections);
+    return (campaignOptionList ?? [])
+      .filter((c) => {
+        const hasList = c.campaignListId != null && String(c.campaignListId).length > 0;
+        if (!hasList) return false;
+        const campaignKey = `C:${String(c.tenantId ?? '')}:${c.campaignId}`;
+        return selectedCampaigns.has(campaignKey);
+      })
+      .map((c) => ({
+        label: c.campaignListName ?? '',
+        value: `L:${String(c.tenantId ?? '')}:${c.campaignListId}`,
+      }));
+  }, [campaignOptionList, campaignSelections]);
+
+  // 테넌트 변경 시 캠페인·시나리오 선택 초기화
   useEffect(() => {
     if (!isInitialTenantHydrationDone.current) {
       isInitialTenantHydrationDone.current = true;
       return;
     }
     setCampaignSelections([]);
+    setScenarioSelections([]);
   }, [tenantIds]);
+
+  // 캠페인 변경 시 유효하지 않은 시나리오 선택 제거
+  useEffect(() => {
+    const validValues = new Set(scenarioSelectOptions.map((o) => o.value));
+    setScenarioSelections((prev) => prev.filter((v) => validValues.has(v)));
+  }, [scenarioSelectOptions]);
 
   useEffect(() => {
     localStorage.setItem(CAMPAIGN_INDIVIDUAL_TENANT_STORAGE_KEY, JSON.stringify(tenantIds));
@@ -183,6 +209,10 @@ export default function CampaignIndividualResultStatistics() {
   useEffect(() => {
     localStorage.setItem(CAMPAIGN_INDIVIDUAL_CAMPAIGN_STORAGE_KEY, JSON.stringify(campaignSelections));
   }, [campaignSelections]);
+
+  useEffect(() => {
+    localStorage.setItem(CAMPAIGN_INDIVIDUAL_SCENARIO_STORAGE_KEY, JSON.stringify(scenarioSelections));
+  }, [scenarioSelections]);
 
   // fromTime / toTime 계산 (UI state에서 직접 도출)
   const fromTime = (() => {
@@ -204,7 +234,8 @@ export default function CampaignIndividualResultStatistics() {
   })();
 
   const campaignStatParams = useMemo(() => {
-    const { campaignListIds, campaignIds: cidArr } = parseCampaignSelections(campaignSelections);
+    const campaignListIds = parseScenarioListIds(scenarioSelections);
+    const campaignIds = parseCampaignIds(campaignSelections);
     const base: Record<string, unknown> = {
       timeUnit,
       fromTime,
@@ -213,11 +244,11 @@ export default function CampaignIndividualResultStatistics() {
     };
     if (campaignListIds.length > 0) {
       base.campaignListIds = campaignListIds;
-    } else if (cidArr.length > 0) {
-      base.campaignIds = cidArr;
+    } else if (campaignIds.length > 0) {
+      base.campaignIds = campaignIds;
     }
     return base;
-  }, [timeUnit, fromTime, toTime, tenantIdNums, campaignSelections]);
+  }, [timeUnit, fromTime, toTime, tenantIdNums, campaignSelections, scenarioSelections]);
 
   // 캠페인별 통계 — 캠페인 통계와 동일 데이터·API (BFF: stat-campaign-result)
   const {
@@ -233,10 +264,8 @@ export default function CampaignIndividualResultStatistics() {
     if (campaignResultStatData !== undefined) setRowData(campaignResultStatData.items);
   }, [campaignResultStatData]);
 
-  // BE에서 받은 summary에 '전체합계' 라벨 주입
-  const summaryRow: CampaignResultStatListItem[] = campaignResultStatData?.summary
-    ? [{ ...(campaignResultStatData.summary as CampaignResultStatListItem), campaignName: '전체합계' }]
-    : [];
+  // BE에서 받은 summary에 '전체합계' 라벨 주입 (날짜 컬럼 colSpan 3에 표시)
+  const summaryRow: CampaignResultStatListItem[] = campaignResultStatData?.summary ? [{ ...campaignResultStatData.summary, viewDate: '전체합계' }] : [];
 
   // startDate 또는 timeUnit 변경 시 endDate 자동 조정
   useEffect(() => {
@@ -295,16 +324,23 @@ export default function CampaignIndividualResultStatistics() {
 
   const columnDefs: ColDef<CampaignResultStatListItem>[] = [
     {
-      headerName: '캠페인ID',
-      field: 'campaignId',
+      headerName: '날짜',
+      field: 'viewDate',
       width: 120,
       pinned: 'left',
-      colSpan: (params) => (params.node?.rowPinned === 'bottom' ? 2 : 1),
+      colSpan: (params) => (params.node?.rowPinned === 'bottom' ? 3 : 1),
       cellStyle: textCellStyle,
     },
     {
-      headerName: '캠페인명',
+      headerName: '캠페인',
       field: 'campaignName',
+      width: 140,
+      pinned: 'left',
+      cellStyle: textCellStyle,
+    },
+    {
+      headerName: '시나리오',
+      field: 'campaignScenarioName',
       width: 160,
       pinned: 'left',
       cellStyle: textCellStyle,
@@ -477,9 +513,9 @@ export default function CampaignIndividualResultStatistics() {
                 showSearch
                 maxTagCount="responsive"
                 options={campaignSelectOptions}
-                placeholder="캠페인·시나리오를 선택하세요."
+                placeholder="캠페인을 선택하세요."
                 optionFilterProp="label"
-                style={{ width: '20rem' }}
+                style={{ width: '15rem' }}
                 popupMatchSelectWidth={false}
                 disabled={tenantIds.length === 0}
                 dropdownRender={(menu) => (
@@ -498,6 +534,46 @@ export default function CampaignIndividualResultStatistics() {
                       <Checkbox
                         checked={campaignSelections.length === campaignSelectOptions.length && campaignSelectOptions.length > 0}
                         indeterminate={campaignSelections.length > 0 && campaignSelections.length < campaignSelectOptions.length}
+                      />
+                      <span className="text-sm">전체 선택</span>
+                    </div>
+                    <Divider style={{ margin: '4px 0' }} />
+                    {menu}
+                  </>
+                )}
+              />
+            </div>
+            <div className="flex items-center gap-3">
+              <span className="text-sm font-medium text-[#495057] shrink-0">시나리오</span>
+              <Select
+                mode="multiple"
+                value={scenarioSelections}
+                onChange={(value) => setScenarioSelections(value ?? [])}
+                allowClear
+                showSearch
+                maxTagCount="responsive"
+                options={scenarioSelectOptions}
+                placeholder="시나리오를 선택하세요."
+                optionFilterProp="label"
+                style={{ width: '15rem' }}
+                popupMatchSelectWidth={false}
+                disabled={tenantIds.length === 0 || campaignSelections.length === 0}
+                dropdownRender={(menu) => (
+                  <>
+                    <div
+                      className="flex items-center gap-2 px-3 py-2 cursor-pointer hover:bg-gray-50"
+                      onMouseDown={(e) => e.preventDefault()}
+                      onClick={() => {
+                        if (scenarioSelections.length === scenarioSelectOptions.length) {
+                          setScenarioSelections([]);
+                        } else {
+                          setScenarioSelections(scenarioSelectOptions.map((o) => o.value));
+                        }
+                      }}
+                    >
+                      <Checkbox
+                        checked={scenarioSelections.length === scenarioSelectOptions.length && scenarioSelectOptions.length > 0}
+                        indeterminate={scenarioSelections.length > 0 && scenarioSelections.length < scenarioSelectOptions.length}
                       />
                       <span className="text-sm">전체 선택</span>
                     </div>

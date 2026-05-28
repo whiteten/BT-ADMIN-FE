@@ -95,6 +95,17 @@ const numberCellStyle = (params: { node?: { rowPinned?: string | null } }): Cell
     ? { display: 'flex', fontWeight: 'bold', alignItems: 'center', justifyContent: 'flex-end', textAlign: 'right' }
     : { display: 'flex', fontWeight: 'normal', alignItems: 'center', justifyContent: 'flex-end', textAlign: 'right' };
 
+const textCellStyle = (params: { node?: { rowPinned?: string | null } }): CellStyle =>
+  params.node?.rowPinned === 'bottom' ? { fontWeight: 'bold', alignItems: 'center' } : { fontWeight: 'normal', alignItems: 'center' };
+
+const DATE_COLUMN_DEF: ColDef<CampaignAchievementStatListItem> = {
+  headerName: '날짜',
+  field: 'viewDate',
+  width: 120,
+  pinned: 'left',
+  cellStyle: textCellStyle,
+};
+
 // 평균통화시간 포맷터 (초 단위 가정)
 const durationFormatter = ({ value }: { value: unknown }) => {
   if (value === null || value === undefined || value === '') return '';
@@ -205,7 +216,7 @@ export default function CampaignAchievementStatistics() {
     if (campaignAchievementStatData !== undefined) setRowData(campaignAchievementStatData.items);
   }, [campaignAchievementStatData]);
 
-  const summaryRow: CampaignAchievementStatListItem[] = campaignAchievementStatData?.summary ? [{ ...campaignAchievementStatData.summary, tenantName: '전체합계' }] : [];
+  const summaryRow: CampaignAchievementStatListItem[] = campaignAchievementStatData?.summary ? [{ ...campaignAchievementStatData.summary, viewDate: '전체합계' }] : [];
 
   // startDate 또는 timeUnit 변경 시 endDate 자동 조정
   useEffect(() => {
@@ -258,7 +269,7 @@ export default function CampaignAchievementStatistics() {
     refetch();
   };
 
-  const columnDefs = useMemo(() => CAMPAIGN_ACHIEVEMENT_COLUMN_DEFS[displayStatCategory], [displayStatCategory]);
+  const columnDefs = useMemo(() => [DATE_COLUMN_DEF, ...CAMPAIGN_ACHIEVEMENT_COLUMN_DEFS[displayStatCategory]], [displayStatCategory]);
 
   const { permissions } = useNavigationStore();
   const hasExcelPermission = permissions.includes('fca:stats-campaign-achievement-result:export');

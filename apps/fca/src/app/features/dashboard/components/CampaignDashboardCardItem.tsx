@@ -16,7 +16,7 @@ const CampaignDashboardCardItem = ({ widgetType, mapEntry, globalOptions }: Camp
   const { data, error } = useWidgetSubscription({
     widgetType,
     options: globalOptions,
-    enabled: !useMock && (globalOptions.campaignIds as string[])?.length > 0,
+    enabled: !useMock && (((globalOptions.campaignIds as string[])?.length ?? 0) > 0 || ((globalOptions.campaignListIds as number[])?.length ?? 0) > 0),
   });
 
   const liveData = data !== undefined ? ({ [widgetType]: data } as unknown as CampaignDashboardResponse) : undefined;

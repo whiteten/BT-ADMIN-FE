@@ -213,6 +213,8 @@ export interface CampaignResultStatItem {
   tenantName: string;
   campaignId?: string;
   campaignName: string;
+  viewDate: string;
+  campaignScenarioName: string;
   campaignListId?: string;
   campaignListName: string;
   seq: number;
@@ -241,6 +243,7 @@ export interface CampaignResultStatList {
 /** 캠페인 목적 달성률 통계 — 그리드 행 */
 export interface CampaignAchievementStatItem {
   psrTimeKey?: string;
+  viewDate?: string;
   tenantId?: string;
   tenantName?: string;
   campaignId?: string;

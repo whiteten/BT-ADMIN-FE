@@ -75,6 +75,9 @@ const numberCellStyle = (params: { node?: { rowPinned?: string | null } }): Cell
     ? { display: 'flex', fontWeight: 'bold', alignItems: 'center', justifyContent: 'flex-end', textAlign: 'right' }
     : { display: 'flex', fontWeight: 'normal', alignItems: 'center', justifyContent: 'flex-end', textAlign: 'right' };
 
+const textCellStyle = (params: { node?: { rowPinned?: string | null } }): CellStyle =>
+  params.node?.rowPinned === 'bottom' ? { fontWeight: 'bold', alignItems: 'center' } : { fontWeight: 'normal', alignItems: 'center' };
+
 export default function CampaignResultStatistics() {
   const setBreadcrumb = useBreadcrumbStore((s) => s.setBreadcrumb);
   const clearBreadcrumb = useBreadcrumbStore((s) => s.clearBreadcrumb);
@@ -143,7 +146,7 @@ export default function CampaignResultStatistics() {
   }, [campaignResultStatData]);
 
   // BE에서 받은 summary에 '전체합계' 라벨 주입
-  const summaryRow: CampaignResultStatListItem[] = campaignResultStatData?.summary ? [{ ...campaignResultStatData.summary, tenantName: '전체합계' }] : [];
+  const summaryRow: CampaignResultStatListItem[] = campaignResultStatData?.summary ? [{ ...campaignResultStatData.summary, viewDate: '전체합계' }] : [];
 
   // startDate 또는 timeUnit 변경 시 endDate 자동 조정
   useEffect(() => {
@@ -191,6 +194,13 @@ export default function CampaignResultStatistics() {
   };
 
   const columnDefs: ColDef<CampaignResultStatListItem>[] = [
+    {
+      headerName: '날짜',
+      field: 'viewDate',
+      width: 120,
+      pinned: 'left',
+      cellStyle: textCellStyle,
+    },
     { headerName: '대상건수', field: 'totalTargetCnt', width: 100, cellStyle: numberCellStyle },
     { headerName: '발신진행건수(실시간)', field: 'outboundProgressCnt', width: 250, cellStyle: numberCellStyle },
     { headerName: '총발신시도건수(누적)', field: 'outboundAttemptCnt', width: 250, cellStyle: numberCellStyle },

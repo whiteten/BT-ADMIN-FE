@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { GridLayout, type Layout, useContainerWidth } from 'react-grid-layout';
 import 'react-grid-layout/css/styles.css';
 import type { Option } from 'react-multi-select-component';
@@ -33,12 +33,39 @@ export default function CampaignDashboard() {
   }, [setBreadcrumb, clearBreadcrumb]);
 
   const { data: campaignList, isLoading: isCampaignLoading } = useGetCampaignOptionList();
-  const campaignOptions: Option[] = (campaignList ?? []).map((c) => ({
-    label: c.campaignName ? String(c.campaignName) : String(c.campaignId),
-    value: String(c.campaignId),
-  }));
+
+  const campaignOptions: Option[] = useMemo(() => {
+    const seen = new Set<string>();
+    const options: Option[] = [];
+    for (const c of campaignList ?? []) {
+      const value = `C:${c.tenantId}:${c.campaignId}`;
+      if (seen.has(value)) continue;
+      seen.add(value);
+      options.push({
+        label: c.campaignName ? String(c.campaignName) : String(c.campaignId),
+        value,
+      });
+    }
+    return options;
+  }, [campaignList]);
 
   const [selectedCampaign, setSelectedCampaign] = useState<Option[]>([]);
+  const [selectedScenario, setSelectedScenario] = useState<Option[]>([]);
+
+  const scenarioOptions: Option[] = useMemo(() => {
+    const selectedCampaignValues = new Set(selectedCampaign.map((item) => item.value));
+    return (campaignList ?? [])
+      .filter((c) => {
+        const hasList = c.campaignListId != null && String(c.campaignListId).length > 0;
+        if (!hasList) return false;
+        const campaignKey = `C:${c.tenantId}:${c.campaignId}`;
+        return selectedCampaignValues.has(campaignKey);
+      })
+      .map((c) => ({
+        label: c.campaignListName ? String(c.campaignListName) : String(c.campaignListId),
+        value: `L:${c.tenantId}:${c.campaignListId}`,
+      }));
+  }, [campaignList, selectedCampaign]);
 
   useEffect(() => {
     if (campaignOptions.length > 0) {
@@ -46,10 +73,27 @@ export default function CampaignDashboard() {
     }
   }, [campaignOptions]);
 
+  useEffect(() => {
+    const validValues = new Set(scenarioOptions.map((o) => o.value));
+    setSelectedScenario((prev) => prev.filter((item) => validValues.has(item.value)));
+  }, [scenarioOptions]);
+
   useDashboardSocket();
-  const globalOptions = {
-    campaignIds: selectedCampaign.map((item) => item.value as string),
-  };
+
+  const globalOptions = useMemo(() => {
+    const campaignListIds = selectedScenario
+      .filter((item) => String(item.value).startsWith('L:'))
+      .map((item) => Number(String(item.value).split(':')[2]))
+      .filter((n) => !Number.isNaN(n));
+
+    if (campaignListIds.length > 0) {
+      return { campaignListIds };
+    }
+
+    const campaignIds = selectedCampaign.filter((item) => String(item.value).startsWith('C:')).map((item) => String(item.value).split(':').slice(2).join(':'));
+
+    return { campaignIds };
+  }, [selectedCampaign, selectedScenario]);
 
   const modal = useModal();
   const { layout: storedLayout, setLayout, setWidgetOptions } = useCampaignDashboardStore();
@@ -136,6 +180,8 @@ export default function CampaignDashboard() {
         selectedLayoutFilterItems={selectedLayoutFilterItems}
         campaignOptions={campaignOptions}
         selectedCampaign={selectedCampaign}
+        scenarioOptions={scenarioOptions}
+        selectedScenario={selectedScenario}
         isCampaignLoading={isCampaignLoading}
         onLayoutFilterChange={handleLayoutFilterChange}
         onStartEdit={handleStartEdit}
@@ -143,6 +189,7 @@ export default function CampaignDashboard() {
         onSaveEdit={handleSaveEdit}
         onResetLayouts={handleResetLayouts}
         onCampaignChange={setSelectedCampaign}
+        onScenarioChange={setSelectedScenario}
       />
       <div
         ref={containerRef}

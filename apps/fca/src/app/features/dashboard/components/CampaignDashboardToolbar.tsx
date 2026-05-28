@@ -32,6 +32,9 @@ interface CampaignDashboardToolbarProps {
   campaignOptions: Option[];
   selectedCampaign: Option[];
   onCampaignChange: (value: Option[]) => void;
+  scenarioOptions: Option[];
+  selectedScenario: Option[];
+  onScenarioChange: (value: Option[]) => void;
   isCampaignLoading?: boolean;
 }
 
@@ -47,6 +50,9 @@ export default function CampaignDashboardToolbar({
   campaignOptions,
   selectedCampaign,
   onCampaignChange,
+  scenarioOptions,
+  selectedScenario,
+  onScenarioChange,
   isCampaignLoading = false,
 }: CampaignDashboardToolbarProps) {
   return (
@@ -63,7 +69,20 @@ export default function CampaignDashboardToolbar({
             overrideStrings={multiSelectStrings}
             valueRenderer={createValueRenderer('캠페인을 선택하세요.')}
             isLoading={isCampaignLoading}
-            className="w-[280px]"
+            className="w-[240px]"
+          />
+          <span className="shrink-0 text-sm font-medium text-[#495057]">시나리오 선택</span>
+          <MultiSelect
+            options={scenarioOptions}
+            value={selectedScenario}
+            onChange={onScenarioChange}
+            labelledBy="시나리오 선택"
+            hasSelectAll
+            overrideStrings={{ ...multiSelectStrings, selectSomeItems: '시나리오를 선택하세요.' }}
+            valueRenderer={createValueRenderer('시나리오를 선택하세요.')}
+            isLoading={isCampaignLoading}
+            disabled={selectedCampaign.length === 0}
+            className="w-[240px]"
           />
         </div>
         {isEditMode ? (
