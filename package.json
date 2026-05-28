@@ -175,7 +175,8 @@
   "lint-staged": {
     "*.{js,jsx,ts,tsx}": [
       "eslint --fix --ignore-pattern '**/webpack*.ts'",
-      "prettier --write"
+      "prettier --write",
+      "node scripts/typecheck-staged.js"
     ]
   },
   "config": {

@@ -56,7 +56,7 @@ export const useGetRecogResultList = ({
   queryOptions,
 }: {
   params?: RecogResultSearchParams | null;
-  queryOptions?: UseQueryOptions<RecogResultListData>;
+  queryOptions?: Omit<UseQueryOptions<RecogResultListData>, 'queryKey' | 'queryFn'>;
 } = {}) => {
   return useQuery({
     queryKey: modelQueryKeys.getRecogResultList((params as unknown as Record<string, unknown>) ?? undefined).queryKey,

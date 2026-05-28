@@ -102,13 +102,13 @@ export default function SttDictionary() {
     {
       headerName: '변경할 단어',
       field: 'beforeWord',
-      flex: 2,
+      flex: 3,
       filter: true,
     },
     {
       headerName: '수정 단어',
       field: 'afterWord',
-      flex: 2,
+      flex: 3,
     },
     {
       headerName: '사용여부',
@@ -119,7 +119,7 @@ export default function SttDictionary() {
     },
     {
       headerName: '등록자',
-      field: 'workUser',
+      field: 'workUserName',
       flex: 2,
     },
     {

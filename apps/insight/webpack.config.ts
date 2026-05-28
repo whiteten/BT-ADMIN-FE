@@ -3,8 +3,9 @@ import { withModuleFederation } from '@nx/module-federation/webpack.js';
 import { withReact } from '@nx/react';
 import { composePlugins, withNx } from '@nx/webpack';
 
+import { createSharedConfig } from '../../tools/webpack/webpack-shared-config';
 import baseConfig from './module-federation.config';
-import { createSharedConfig, withDefinePlugin, withHmrPath, withIgnoreWarnings } from './webpack-helpers';
+import { withDefinePlugin, withHmrPath, withIgnoreWarnings } from './webpack-helpers';
 
 const config: ModuleFederationConfig = {
   ...baseConfig,

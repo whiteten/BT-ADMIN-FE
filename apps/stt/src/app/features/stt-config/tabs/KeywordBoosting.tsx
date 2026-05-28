@@ -138,7 +138,7 @@ export default function KeywordBoosting() {
     },
     {
       headerName: '등록자',
-      field: 'workUser',
+      field: 'workUserName',
       flex: 2,
     },
     {
