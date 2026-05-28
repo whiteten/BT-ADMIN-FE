@@ -5,7 +5,7 @@ import { useMutation, useQuery } from '@tanstack/react-query';
 import { createQueryKeys } from '@lukemorales/query-key-factory';
 import type { MutationHookOptions, QueryHookWithParamsOptions } from '@/shared-util';
 import { scenarioApi } from '../api/scenarioApi';
-import type { DeployedSystem, Scenario, ScenarioVersion } from '../types';
+import type { DeployTargetSystem, DeployedSystem, Scenario, ScenarioVersion, SystemDeployItem } from '../types';
 
 export const scenarioQueryKeys = createQueryKeys('ivrScenarios', {
   getScenarios: (params?: Record<string, unknown>) => [params],
@@ -13,6 +13,8 @@ export const scenarioQueryKeys = createQueryKeys('ivrScenarios', {
   getVersions: (params?: Record<string, unknown>) => [params],
   getVersionDetail: (params?: Record<string, unknown>) => [params],
   getDeployedSystems: (params?: Record<string, unknown>) => [params],
+  getDeployTargets: (params?: Record<string, unknown>) => [params],
+  getDeployConfig: (params?: Record<string, unknown>) => [params],
 });
 
 // ─── 시나리오 마스터 ────────────────────────────────────────────────────────
@@ -103,6 +105,14 @@ export const useGetDeployedSystems = ({ params, queryOptions }: QueryHookWithPar
   });
 };
 
+export const useGetDeployTargets = ({ params, queryOptions }: QueryHookWithParamsOptions<DeployTargetSystem[]> = {}) => {
+  return useQuery({
+    queryKey: scenarioQueryKeys.getDeployTargets(params).queryKey,
+    queryFn: () => scenarioApi.getDeployTargets(params ?? {}),
+    ...queryOptions,
+  });
+};
+
 export const useGetIfeInfo = ({ mutationOptions }: MutationHookOptions = {}) => {
   return useMutation({
     mutationFn: scenarioApi.getIfeInfo,
@@ -129,6 +139,23 @@ export const useUploadScenarioFile = ({ mutationOptions }: MutationHookOptions =
 export const useCreateVersionWithFile = ({ mutationOptions }: MutationHookOptions = {}) => {
   return useMutation({
     mutationFn: scenarioApi.createVersionWithFile,
+    ...mutationOptions,
+  });
+};
+
+// ─── 배포 설정 (FCA 봇 useGetBotDeployConfig / useSaveBotDeployConfig 미러링) ───
+
+export const useGetDeployConfig = ({ params, queryOptions }: QueryHookWithParamsOptions<SystemDeployItem[]> = {}) => {
+  return useQuery({
+    queryKey: scenarioQueryKeys.getDeployConfig(params).queryKey,
+    queryFn: () => scenarioApi.getDeployConfig(params),
+    ...queryOptions,
+  });
+};
+
+export const useSaveDeployConfig = ({ mutationOptions }: MutationHookOptions = {}) => {
+  return useMutation({
+    mutationFn: scenarioApi.saveDeployConfig,
     ...mutationOptions,
   });
 };

@@ -21,6 +21,7 @@
  */
 import ApiClient, { type ApiResponse } from '@/shared-util';
 import type {
+  DeployTargetSystem,
   DeployedSystem,
   IfeTokenInfo,
   Scenario,
@@ -29,6 +30,8 @@ import type {
   ScenarioUpdateRequest,
   ScenarioVersion,
   ScenarioVersionCreateRequest,
+  SystemDeployConfigSaveRequest,
+  SystemDeployItem,
 } from '../types';
 
 const apiClient = new ApiClient({ serviceURL: '/bff' });
@@ -92,6 +95,12 @@ export const scenarioApi = {
     return response.data?.data?.value ?? [];
   },
 
+  /** 배포 대상 시스템 조회 — 할당 + HA 백업 포함 (사이드바용). */
+  getDeployTargets: async (params: Record<string, unknown>): Promise<DeployTargetSystem[]> => {
+    const response = await apiClient.get<ApiResponse<{ value: DeployTargetSystem[] }>>('/ivr-scenario-deploy-targets', { params });
+    return response.data?.data?.value ?? [];
+  },
+
   /**
    * IFE 토큰 발급 (대화편집 버튼 클릭 시 호출).
    * 응답의 redirectUrl을 window.open으로 열어 IFE 진입.
@@ -135,5 +144,26 @@ export const scenarioApi = {
     if (file) formData.append('uploadFile', file);
     const response = await apiClient.post<ApiResponse<ScenarioVersion>>('/ivr-scenario-version-create-with-file', formData, { params });
     return response.data?.data;
+  },
+
+  // ─── 배포 설정 (FCA 봇 'bot-deploy-config' / 'bot-deploy-config-save' 미러링) ───
+
+  /**
+   * 시나리오의 배포 후보 시스템 + 할당 여부 조회.
+   * 백엔드 응답: ApiResponse<PagedResponse<SystemDeployItem>> → data.items[].
+   * @flow ivr-scenario-deploy-config
+   */
+  getDeployConfig: async (params?: Record<string, unknown>): Promise<SystemDeployItem[]> => {
+    const response = await apiClient.get<ApiResponse<{ items: SystemDeployItem[] }>>('/ivr-scenario-deploy-config', { params });
+    return response.data?.data?.items ?? [];
+  },
+
+  /**
+   * 시나리오 배포 설정 저장 — systemIds 리스트 (delta apply).
+   * @flow ivr-scenario-deploy-config-save
+   */
+  saveDeployConfig: async ({ params, data }: { params: Record<string, unknown>; data: SystemDeployConfigSaveRequest }) => {
+    const response = await apiClient.post('/ivr-scenario-deploy-config-save', data, { params });
+    return response;
   },
 };

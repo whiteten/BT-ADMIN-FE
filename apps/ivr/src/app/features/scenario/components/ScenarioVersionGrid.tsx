@@ -10,8 +10,9 @@ import type { CellStyle, ColDef, ICellRendererParams } from 'ag-grid-community';
 import { AgGridReact } from 'ag-grid-react';
 import { Button, Input } from 'antd';
 import dayjs from 'dayjs';
-import { Download, Plus, Search, Trash2, Upload as UploadIcon } from 'lucide-react';
+import { Download, Plus, Search, Settings, Trash2, Upload as UploadIcon } from 'lucide-react';
 import { toast } from '@/shared-util';
+import ScenarioDeployConfigDrawer, { type ScenarioDeployConfigDrawerRef } from './ScenarioDeployConfigDrawer';
 import ScenarioVersionSheet, { type ScenarioVersionSheetRef } from './ScenarioVersionSheet';
 import {
   scenarioQueryKeys,
@@ -40,6 +41,7 @@ export default function ScenarioVersionGrid({ serviceId, serviceName, onSelectio
   const { gridOptions } = useAggridOptions();
   const [searchText, setSearchText] = useState('');
   const versionSheetRef = useRef<ScenarioVersionSheetRef>(null);
+  const deployConfigDrawerRef = useRef<ScenarioDeployConfigDrawerRef>(null);
   const [selectedVer, setSelectedVer] = useState<string | null>(null);
 
   const { data: versions = [], isLoading } = useGetVersions({
@@ -238,6 +240,9 @@ export default function ScenarioVersionGrid({ serviceId, serviceName, onSelectio
           <Button type="primary" icon={<UploadIcon className="size-3.5" />} disabled={!selectedVer} onClick={onOpenDeploySidebar}>
             배포
           </Button>
+          <Button icon={<Settings className="size-3.5" />} onClick={() => deployConfigDrawerRef.current?.open({ serviceId })}>
+            배포 설정
+          </Button>
         </div>
       </div>
 
@@ -256,6 +261,7 @@ export default function ScenarioVersionGrid({ serviceId, serviceName, onSelectio
       </div>
 
       <ScenarioVersionSheet ref={versionSheetRef} serviceId={serviceId} serviceName={serviceName} />
+      <ScenarioDeployConfigDrawer ref={deployConfigDrawerRef} />
     </div>
   );
 }
