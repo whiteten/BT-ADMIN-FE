@@ -1,12 +1,13 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import type { CellStyle, ColDef } from 'ag-grid-community';
 import { AgGridReact } from 'ag-grid-react';
-import { type BreadcrumbProps, Button, DatePicker, Select, TimePicker } from 'antd';
+import { type BreadcrumbProps, Button, DatePicker, Select } from 'antd';
 import dayjs, { type Dayjs } from 'dayjs';
 import { Download } from 'lucide-react';
 import { useBreadcrumbStore, useNavigationStore } from '@/shared-store';
 import { downloadBlob, extractFileName, toast } from '@/shared-util';
 import { statisticsApi } from '../../../features/statistics/api/statisticsApi';
+import { getTimeFormat } from '../../../features/statistics/hooks/useDateRangeLimit';
 import { useGetCampaignResultStatList } from '../../../features/statistics/hooks/useStatisticsQueries';
 import type { CampaignResultStatListItem } from '../../../features/statistics/types';
 import useAggridOptions from '@/libs/shared-ui/src/hooks/useAggridOptions';
@@ -17,19 +18,13 @@ const breadcrumb: BreadcrumbProps['items'] = [
   { title: '캠페인 통계', path: '/fca/statistics/campaign/campaign-result' },
 ];
 
-// timeUnit별 최대 검색 기간 (일 단위) — 레거시 IPR94S1310 기준
-// 일별: 3개월, 월별: 6개월, 년별: 2년
 const MAX_DATE_RANGE: Record<string, number> = {
-  MI: 2,
-  HH: 7,
   DD: 92,
   MM: 186,
   YY: 730,
 };
 
 const DATE_RANGE_LABEL: Record<string, string> = {
-  MI: '2일',
-  HH: '7일',
   DD: '3개월',
   MM: '6개월',
   YY: '2년',
@@ -47,18 +42,23 @@ const getDatePickerFormat = (unit: string): string => {
   return 'YYYY-MM-DD';
 };
 
+/** defaultColDef.flex 상속 방지 — 날짜 컬럼은 내용 길이만큼만 차지 */
+const dateColDef = (displayTimeUnit: string): Pick<ColDef, 'flex' | 'minWidth' | 'maxWidth'> => ({
+  flex: 0,
+  minWidth: displayTimeUnit === 'YY' ? 88 : displayTimeUnit === 'MM' ? 96 : 112,
+  maxWidth: displayTimeUnit === 'YY' ? 100 : displayTimeUnit === 'MM' ? 110 : 130,
+});
+
 const validateDateRange = (start: Dayjs, end: Dayjs, unit: string): boolean => {
   if (end.isBefore(start, 'day')) return false;
   return end.diff(start, 'day') <= getMaxDays(unit);
 };
 
-// 시작일 비활성화 함수 (미래 날짜)
 const createDisabledDate = () => (current: Dayjs) => {
   if (!current) return false;
   return current.isAfter(dayjs(), 'day');
 };
 
-// 종료일 비활성화 함수 (미래 + 시작일 이전 + 최대범위 초과)
 const createEndDisabledDate = (start: Dayjs | null, unit: string) => (current: Dayjs) => {
   if (!current) return false;
   if (current.isAfter(dayjs(), 'day')) return true;
@@ -69,7 +69,6 @@ const createEndDisabledDate = (start: Dayjs | null, unit: string) => (current: D
   return false;
 };
 
-// 셀 스타일 헬퍼
 const numberCellStyle = (params: { node?: { rowPinned?: string | null } }): CellStyle =>
   params.node?.rowPinned === 'bottom'
     ? { display: 'flex', fontWeight: 'bold', alignItems: 'center', justifyContent: 'flex-end', textAlign: 'right' }
@@ -87,27 +86,20 @@ export default function CampaignResultStatistics() {
     return () => clearBreadcrumb();
   }, [setBreadcrumb, clearBreadcrumb]);
 
-  // 검색 조건 상태
   const [timeUnit, setTimeUnit] = useState<string>('DD');
   const [startDate, setStartDate] = useState<Dayjs | null>(dayjs().subtract(7, 'day').startOf('day'));
   const [endDate, setEndDate] = useState<Dayjs | null>(dayjs().endOf('day'));
-  const [startTime, setStartTime] = useState<Dayjs | null>(dayjs().hour(0).minute(0));
-  const [endTime, setEndTime] = useState<Dayjs | null>(dayjs().hour(23).minute(59));
 
   const { gridOptions } = useAggridOptions();
   const gridRef = useRef<AgGridReact<CampaignResultStatListItem>>(null);
   const [rowData, setRowData] = useState<CampaignResultStatListItem[]>([]);
   const [displayTimeUnit, setDisplayTimeUnit] = useState<string>('DD');
 
-  // disabledDate 함수
   const disabledDate = useMemo(() => createDisabledDate(), []);
   const disabledEndDate = useMemo(() => createEndDisabledDate(startDate, timeUnit), [startDate, timeUnit]);
 
-  // fromTime / toTime 계산 (UI state에서 직접 도출)
   const fromTime = (() => {
     if (!startDate) return '';
-    if (timeUnit === 'MI') return startDate.format('YYYYMMDD') + (startTime?.format('HHmm') ?? '0000');
-    if (timeUnit === 'HH') return startDate.format('YYYYMMDD') + (startTime?.format('HH') ?? '00');
     if (timeUnit === 'DD') return startDate.format('YYYYMMDD');
     if (timeUnit === 'MM') return startDate.format('YYYYMM');
     return startDate.format('YYYY');
@@ -115,8 +107,6 @@ export default function CampaignResultStatistics() {
 
   const toTime = (() => {
     if (!endDate) return '';
-    if (timeUnit === 'MI') return endDate.format('YYYYMMDD') + (endTime?.format('HHmm') ?? '2359');
-    if (timeUnit === 'HH') return endDate.format('YYYYMMDD') + (endTime?.format('HH') ?? '23');
     if (timeUnit === 'DD') return endDate.format('YYYYMMDD');
     if (timeUnit === 'MM') return endDate.format('YYYYMM');
     return endDate.format('YYYY');
@@ -131,7 +121,6 @@ export default function CampaignResultStatistics() {
     [timeUnit, fromTime, toTime],
   );
 
-  // 캠페인 통계 조회 (BFF: stat-campaign-result)
   const {
     data: campaignResultStatData,
     isLoading: isLoadingCampaignResultStatList,
@@ -145,10 +134,8 @@ export default function CampaignResultStatistics() {
     if (campaignResultStatData !== undefined) setRowData(campaignResultStatData.items);
   }, [campaignResultStatData]);
 
-  // BE에서 받은 summary에 '전체합계' 라벨 주입
-  const summaryRow: CampaignResultStatListItem[] = campaignResultStatData?.summary ? [{ ...campaignResultStatData.summary, viewDate: '전체합계' }] : [];
+  const summaryRow: CampaignResultStatListItem[] = campaignResultStatData?.summary ? [{ ...campaignResultStatData.summary, psrTimeKey: '전체합계' }] : [];
 
-  // startDate 또는 timeUnit 변경 시 endDate 자동 조정
   useEffect(() => {
     if (startDate && endDate) {
       const maxDays = getMaxDays(timeUnit);
@@ -161,21 +148,9 @@ export default function CampaignResultStatistics() {
     }
   }, [endDate, startDate, timeUnit]);
 
-  useEffect(() => {
-    if (timeUnit === 'HH') {
-      setStartTime((prev) => (prev ? prev.minute(0) : prev));
-      setEndTime((prev) => (prev ? prev.minute(50) : prev));
-    }
-  }, [timeUnit]);
-
   const handleSearch = () => {
     if (!startDate || !endDate) {
       toast.warning('검색일자를 선택해주세요.');
-      return;
-    }
-
-    if ((timeUnit === 'MI' || timeUnit === 'HH') && (!startTime || !endTime)) {
-      toast.warning('검색시간을 선택해주세요.');
       return;
     }
 
@@ -196,9 +171,13 @@ export default function CampaignResultStatistics() {
   const columnDefs: ColDef<CampaignResultStatListItem>[] = [
     {
       headerName: '날짜',
-      field: 'viewDate',
-      width: 120,
+      field: 'psrTimeKey',
+      ...dateColDef(displayTimeUnit),
       pinned: 'left',
+      valueFormatter: ({ value, node }) => {
+        if (node?.rowPinned === 'bottom') return value ?? '';
+        return value ? dayjs(value).format(getTimeFormat(displayTimeUnit)) : '-';
+      },
       cellStyle: textCellStyle,
     },
     { headerName: '대상건수', field: 'totalTargetCnt', width: 100, cellStyle: numberCellStyle },
@@ -220,6 +199,13 @@ export default function CampaignResultStatistics() {
     {
       headerName: '발신시도별 본인통화 성공률(2차)',
       field: 'secondAttemptSelfCallSuccessRatePct',
+      width: 180,
+      cellStyle: numberCellStyle,
+      cellRenderer: 'percentBarRenderer',
+    },
+    {
+      headerName: '발신시도별 본인통화 성공률(3차)',
+      field: 'thirdAttemptSelfCallSuccessRatePct',
       width: 180,
       cellStyle: numberCellStyle,
       cellRenderer: 'percentBarRenderer',
@@ -264,8 +250,6 @@ export default function CampaignResultStatistics() {
                 value={timeUnit}
                 onChange={(v) => setTimeUnit(v)}
                 options={[
-                  { label: '10분단위', value: 'MI' },
-                  { label: '시간별', value: 'HH' },
                   { label: '일간', value: 'DD' },
                   { label: '월간', value: 'MM' },
                   { label: '년간', value: 'YY' },
@@ -284,18 +268,6 @@ export default function CampaignResultStatistics() {
                 inputReadOnly
                 allowClear={false}
               />
-              {timeUnit === 'MI' || timeUnit === 'HH' ? (
-                <TimePicker
-                  value={startTime}
-                  onChange={(date) => setStartTime(date)}
-                  inputReadOnly
-                  allowClear={false}
-                  needConfirm={false}
-                  format={timeUnit === 'MI' ? 'HH:mm' : 'HH:00'}
-                  minuteStep={10}
-                  style={{ width: '100px' }}
-                />
-              ) : null}
               <span className="text-sm font-medium text-[#495057] shrink-0">~</span>
               <DatePicker
                 value={endDate}
@@ -306,18 +278,6 @@ export default function CampaignResultStatistics() {
                 inputReadOnly
                 allowClear={false}
               />
-              {timeUnit === 'MI' || timeUnit === 'HH' ? (
-                <TimePicker
-                  value={endTime}
-                  onChange={(date) => setEndTime(date)}
-                  inputReadOnly
-                  allowClear={false}
-                  needConfirm={false}
-                  format={timeUnit === 'MI' ? 'HH:mm' : 'HH:50'}
-                  minuteStep={10}
-                  style={{ width: '100px' }}
-                />
-              ) : null}
             </div>
           </div>
           <div className="flex items-center gap-3 shrink-0">

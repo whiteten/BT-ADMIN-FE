@@ -1,12 +1,13 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import type { CellStyle, ColDef } from 'ag-grid-community';
 import { AgGridReact } from 'ag-grid-react';
-import { type BreadcrumbProps, Button, DatePicker, Select, TimePicker } from 'antd';
+import { type BreadcrumbProps, Button, DatePicker, Select } from 'antd';
 import dayjs, { type Dayjs } from 'dayjs';
 import { Download } from 'lucide-react';
 import { useBreadcrumbStore, useNavigationStore } from '@/shared-store';
 import { downloadBlob, extractFileName, toast } from '@/shared-util';
 import { statisticsApi } from '../../../features/statistics/api/statisticsApi';
+import { getTimeFormat } from '../../../features/statistics/hooks/useDateRangeLimit';
 import { useGetCampaignAchievementStatList } from '../../../features/statistics/hooks/useStatisticsQueries';
 import type { CampaignAchievementStatListItem } from '../../../features/statistics/types';
 import useAggridOptions from '@/libs/shared-ui/src/hooks/useAggridOptions';
@@ -41,16 +42,12 @@ const breadcrumb: BreadcrumbProps['items'] = [
 // timeUnit별 최대 검색 기간 (일 단위) — 레거시 IPR94S1310 기준
 // 일별: 3개월, 월별: 6개월, 년별: 2년
 const MAX_DATE_RANGE: Record<string, number> = {
-  MI: 2,
-  HH: 7,
   DD: 92,
   MM: 186,
   YY: 730,
 };
 
 const DATE_RANGE_LABEL: Record<string, string> = {
-  MI: '2일',
-  HH: '7일',
   DD: '3개월',
   MM: '6개월',
   YY: '2년',
@@ -98,13 +95,11 @@ const numberCellStyle = (params: { node?: { rowPinned?: string | null } }): Cell
 const textCellStyle = (params: { node?: { rowPinned?: string | null } }): CellStyle =>
   params.node?.rowPinned === 'bottom' ? { fontWeight: 'bold', alignItems: 'center' } : { fontWeight: 'normal', alignItems: 'center' };
 
-const DATE_COLUMN_DEF: ColDef<CampaignAchievementStatListItem> = {
-  headerName: '날짜',
-  field: 'viewDate',
-  width: 120,
-  pinned: 'left',
-  cellStyle: textCellStyle,
-};
+const dateColDef = (displayTimeUnit: string): Pick<ColDef, 'flex' | 'minWidth' | 'maxWidth'> => ({
+  flex: 0,
+  minWidth: displayTimeUnit === 'YY' ? 88 : displayTimeUnit === 'MM' ? 96 : 112,
+  maxWidth: displayTimeUnit === 'YY' ? 100 : displayTimeUnit === 'MM' ? 110 : 130,
+});
 
 // 평균통화시간 포맷터 (초 단위 가정)
 const durationFormatter = ({ value }: { value: unknown }) => {
@@ -161,8 +156,6 @@ export default function CampaignAchievementStatistics() {
   const [timeUnit, setTimeUnit] = useState<string>('DD');
   const [startDate, setStartDate] = useState<Dayjs | null>(dayjs().subtract(7, 'day').startOf('day'));
   const [endDate, setEndDate] = useState<Dayjs | null>(dayjs().endOf('day'));
-  const [startTime, setStartTime] = useState<Dayjs | null>(dayjs().hour(0).minute(0));
-  const [endTime, setEndTime] = useState<Dayjs | null>(dayjs().hour(23).minute(59));
 
   const { gridOptions } = useAggridOptions();
   const gridRef = useRef<AgGridReact<CampaignAchievementStatListItem>>(null);
@@ -177,8 +170,6 @@ export default function CampaignAchievementStatistics() {
   // fromTime / toTime 계산 (UI state에서 직접 도출)
   const fromTime = (() => {
     if (!startDate) return '';
-    if (timeUnit === 'MI') return startDate.format('YYYYMMDD') + (startTime?.format('HHmm') ?? '0000');
-    if (timeUnit === 'HH') return startDate.format('YYYYMMDD') + (startTime?.format('HH') ?? '00');
     if (timeUnit === 'DD') return startDate.format('YYYYMMDD');
     if (timeUnit === 'MM') return startDate.format('YYYYMM');
     return startDate.format('YYYY');
@@ -186,8 +177,6 @@ export default function CampaignAchievementStatistics() {
 
   const toTime = (() => {
     if (!endDate) return '';
-    if (timeUnit === 'MI') return endDate.format('YYYYMMDD') + (endTime?.format('HHmm') ?? '2359');
-    if (timeUnit === 'HH') return endDate.format('YYYYMMDD') + (endTime?.format('HH') ?? '23');
     if (timeUnit === 'DD') return endDate.format('YYYYMMDD');
     if (timeUnit === 'MM') return endDate.format('YYYYMM');
     return endDate.format('YYYY');
@@ -216,7 +205,7 @@ export default function CampaignAchievementStatistics() {
     if (campaignAchievementStatData !== undefined) setRowData(campaignAchievementStatData.items);
   }, [campaignAchievementStatData]);
 
-  const summaryRow: CampaignAchievementStatListItem[] = campaignAchievementStatData?.summary ? [{ ...campaignAchievementStatData.summary, viewDate: '전체합계' }] : [];
+  const summaryRow: CampaignAchievementStatListItem[] = campaignAchievementStatData?.summary ? [{ ...campaignAchievementStatData.summary, psrTimeKey: '전체합계' }] : [];
 
   // startDate 또는 timeUnit 변경 시 endDate 자동 조정
   useEffect(() => {
@@ -231,13 +220,6 @@ export default function CampaignAchievementStatistics() {
     }
   }, [endDate, startDate, timeUnit]);
 
-  useEffect(() => {
-    if (timeUnit === 'HH') {
-      setStartTime((prev) => (prev ? prev.minute(0) : prev));
-      setEndTime((prev) => (prev ? prev.minute(50) : prev));
-    }
-  }, [timeUnit]);
-
   const handleStatCategoryChange = (value: CampaignAchievementStatCategory) => {
     setStatCategory(value);
     setRowData([]);
@@ -246,11 +228,6 @@ export default function CampaignAchievementStatistics() {
   const handleSearch = () => {
     if (!startDate || !endDate) {
       toast.warning('검색일자를 선택해주세요.');
-      return;
-    }
-
-    if ((timeUnit === 'MI' || timeUnit === 'HH') && (!startTime || !endTime)) {
-      toast.warning('검색시간을 선택해주세요.');
       return;
     }
 
@@ -269,7 +246,20 @@ export default function CampaignAchievementStatistics() {
     refetch();
   };
 
-  const columnDefs = useMemo(() => [DATE_COLUMN_DEF, ...CAMPAIGN_ACHIEVEMENT_COLUMN_DEFS[displayStatCategory]], [displayStatCategory]);
+  const columnDefs = useMemo(() => {
+    const dateCol: ColDef<CampaignAchievementStatListItem> = {
+      headerName: '날짜',
+      field: 'psrTimeKey',
+      ...dateColDef(displayTimeUnit),
+      pinned: 'left',
+      valueFormatter: ({ value, node }) => {
+        if (node?.rowPinned === 'bottom') return value ?? '';
+        return value ? dayjs(value).format(getTimeFormat(displayTimeUnit)) : '-';
+      },
+      cellStyle: textCellStyle,
+    };
+    return [dateCol, ...CAMPAIGN_ACHIEVEMENT_COLUMN_DEFS[displayStatCategory]];
+  }, [displayStatCategory, displayTimeUnit]);
 
   const { permissions } = useNavigationStore();
   const hasExcelPermission = permissions.includes('fca:stats-campaign-achievement-result:export');
@@ -317,8 +307,6 @@ export default function CampaignAchievementStatistics() {
                 value={timeUnit}
                 onChange={(v) => setTimeUnit(v)}
                 options={[
-                  { label: '10분단위', value: 'MI' },
-                  { label: '시간별', value: 'HH' },
                   { label: '일간', value: 'DD' },
                   { label: '월간', value: 'MM' },
                   { label: '년간', value: 'YY' },
@@ -337,18 +325,6 @@ export default function CampaignAchievementStatistics() {
                 inputReadOnly
                 allowClear={false}
               />
-              {timeUnit === 'MI' || timeUnit === 'HH' ? (
-                <TimePicker
-                  value={startTime}
-                  onChange={(date) => setStartTime(date)}
-                  inputReadOnly
-                  allowClear={false}
-                  needConfirm={false}
-                  format={timeUnit === 'MI' ? 'HH:mm' : 'HH:00'}
-                  minuteStep={10}
-                  style={{ width: '100px' }}
-                />
-              ) : null}
               <span className="text-sm font-medium text-[#495057] shrink-0">~</span>
               <DatePicker
                 value={endDate}
@@ -359,18 +335,6 @@ export default function CampaignAchievementStatistics() {
                 inputReadOnly
                 allowClear={false}
               />
-              {timeUnit === 'MI' || timeUnit === 'HH' ? (
-                <TimePicker
-                  value={endTime}
-                  onChange={(date) => setEndTime(date)}
-                  inputReadOnly
-                  allowClear={false}
-                  needConfirm={false}
-                  format={timeUnit === 'MI' ? 'HH:mm' : 'HH:50'}
-                  minuteStep={10}
-                  style={{ width: '100px' }}
-                />
-              ) : null}
             </div>
           </div>
           <div className="flex items-center gap-3 shrink-0">

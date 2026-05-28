@@ -229,6 +229,7 @@ export interface CampaignResultStatItem {
   absentCnt?: number;
   firstAttemptSelfCallSuccessRatePct?: number;
   secondAttemptSelfCallSuccessRatePct?: number;
+  thirdAttemptSelfCallSuccessRatePct?: number;
   verifyFailRatePct?: number;
 }
 
