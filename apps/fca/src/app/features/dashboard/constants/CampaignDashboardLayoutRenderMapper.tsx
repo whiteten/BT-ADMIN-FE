@@ -3,7 +3,7 @@ import IntentTopBarChart from '../components/IntentTopBarChart';
 import { type CampaignDashboardResponse, type IntentTopItem } from '../types';
 
 /** API 연동 전 차트 UI 확인용. BE 연동 시 `false`로 전환 */
-export const CAMPAIGN_DASHBOARD_USE_MOCK = true;
+export const CAMPAIGN_DASHBOARD_USE_MOCK = false;
 
 /** `IntentTopBarChart` 확인용 — 캠페인 발신 지표 6종 */
 const CAMPAIGN_OUTBOUND_ATTEMPT_MOCK_LABELS = ['본인확인건수', '본인 통화 완료 건수', '재시도 발신 건수', '실패 건수', '부재 건수', '문자 발송 건수'] as const;

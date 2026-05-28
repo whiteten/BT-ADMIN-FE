@@ -123,7 +123,10 @@ export default function CampaignDashboard() {
 
     const campaignListIds = selectedScenario
       .filter((item) => String(item.value).startsWith('L:'))
-      .map((item) => Number(String(item.value).split(':')[2]))
+      .map((item) => {
+        const parts = String(item.value).split(':');
+        return Number(parts[parts.length - 1]);
+      })
       .filter((n) => !Number.isNaN(n));
 
     if (campaignListIds.length > 0) {
