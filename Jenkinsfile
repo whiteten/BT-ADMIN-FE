@@ -88,6 +88,11 @@ pipeline {
                         returnStdout: true
                     ).trim()
 
+                    env.GIT_SUBJECT = sh(
+                        script: "git log -1 --pretty=format:'%s'",
+                        returnStdout: true
+                    ).trim()
+
                     env.PKG_NAME = "btadmin-fe-${env.TAG}-${TODAY_STRING}.tgz"
                     echo "버전 정보: ${env.TAG}, 커밋: ${env.GIT_SHORT}, 패키지: ${env.PKG_NAME}"
                 }
@@ -234,7 +239,7 @@ pipeline {
             // 빌드 결과 메일 발송 (성공·실패 모두)
             emailext(
                 to: "${env.GIT_AUTHOR_EMAIL}, jryoo@bridgetec.co.kr, bingbang2@bridgetec.co.kr, hojaee@bridgetec.co.kr, akdrhtn@bridgetec.co.kr, sm.yang@bridgetec.co.kr, won5972@bridgetec.co.kr, yun99@bridgetec.co.kr",
-                subject: "[${currentBuild.currentResult}] BT-ADMIN FE 빌드 - ${env.TAG} (#${env.BUILD_NUMBER})",
+                subject: "[${currentBuild.currentResult}]BT-ADMIN-FE ${env.TAG} (#${env.BUILD_NUMBER})",
                 mimeType: 'text/plain',
                 attachLog: true,
                 body: """\
@@ -243,6 +248,7 @@ pipeline {
                     - 결과      : ${currentBuild.currentResult}
                     - 브랜치    : ${env.TAG}
                     - 커밋      : ${env.GIT_SHORT}
+                    - 커밋 메시지 : ${env.GIT_SUBJECT}
                     - 커밋자    : ${env.GIT_AUTHOR}
                     - 패키지    : ${env.PKG_NAME}
                     - 빌드 번호 : #${env.BUILD_NUMBER}
