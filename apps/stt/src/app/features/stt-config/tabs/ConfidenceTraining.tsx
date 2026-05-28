@@ -296,7 +296,6 @@ export default function ConfidenceTraining() {
       field: 'rxtxKind',
       maxWidth: 90,
       flex: 1,
-      filter: true,
       valueFormatter: (params) => ({ '1': '고객', '2': '상담원', '9': '통합' })[String(params.value)] ?? params.value,
     },
     {

@@ -28,7 +28,6 @@ export const useGetChannelStatusList = ({ params, queryOptions }: QueryHookWithP
     queryKey: monitoringQueryKeys.getChannelStatusList(params).queryKey,
     queryFn: () => monitoringApi.getChannelStatusList(params as unknown as ChannelStatusSearchParams),
     enabled: !!(params as unknown as ChannelStatusSearchParams)?.ipv4,
-    refetchInterval: 3000,
     ...queryOptions,
   });
 };
@@ -37,7 +36,6 @@ export const useGetDnStatusList = ({ params, queryOptions }: QueryHookWithParams
   return useQuery({
     queryKey: monitoringQueryKeys.getDnStatusList(params).queryKey,
     queryFn: () => monitoringApi.getDnStatusList(params as unknown as DnStatusSearchParams),
-    refetchInterval: 3000,
     ...queryOptions,
   });
 };
@@ -57,7 +55,6 @@ export const useGetCallStatusList = ({ params, queryOptions }: QueryHookWithPara
     queryKey: monitoringQueryKeys.getCallStatusList(params).queryKey,
     queryFn: () => monitoringApi.getCallStatusList(params as unknown as CallStatusSearchParams),
     enabled: !!(params as unknown as CallStatusSearchParams)?.callDate,
-    refetchInterval: 2000,
     ...queryOptions,
   });
 };
@@ -67,7 +64,6 @@ export const useGetDashboard = ({ params, queryOptions }: QueryHookWithParamsOpt
     queryKey: monitoringQueryKeys.getDashboard(params).queryKey,
     queryFn: () => monitoringApi.getDashboard(params as unknown as DashboardSearchParams),
     enabled: !!(params as unknown as DashboardSearchParams)?.callDate,
-    refetchInterval: 3000,
     ...queryOptions,
   });
 };

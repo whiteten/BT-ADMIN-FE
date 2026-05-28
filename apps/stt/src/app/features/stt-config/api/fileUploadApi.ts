@@ -15,10 +15,10 @@ export const fileUploadApi = {
     const formData = new FormData();
     formData.append('uploadFile', file);
     formData.append('menuId', menuId);
-    const response = await apiClient.post<{ uploadedFilename: string }>('/stt-file-upload', formData);
-    return response.data.uploadedFilename;
+    const response = await apiClient.post<ApiResponse<{ uploadedFilename: string; uploadPath: string }>>('/stt-file-upload', formData);
+    return response.data.data;
   },
-  requestStt: async (fileNames: string[]) => {
-    return apiClient.post('/stt-file-request', { fileNames });
+  requestStt: async (files: { fileName: string; filePath: string }[]) => {
+    return apiClient.post('/stt-file-request', { files });
   },
 };

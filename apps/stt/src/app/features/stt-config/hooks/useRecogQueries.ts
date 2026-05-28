@@ -15,6 +15,7 @@ export const useGetRecogGroupList = ({ params, queryOptions }: { params?: { engi
   return useQuery({
     queryKey: recogQueryKeys.getRecogGroupList((params as Record<string, unknown>) ?? undefined).queryKey,
     queryFn: () => recogApi.getRecogGroupList(params),
+    enabled: !params || !!params.engineCode,
     ...queryOptions,
   });
 };

@@ -2,8 +2,9 @@ import { forwardRef, useEffect, useImperativeHandle, useState } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import type { ColDef, RowClickedEvent } from 'ag-grid-community';
 import { AgGridReact } from 'ag-grid-react';
-import { Button, Drawer, Modal, Select } from 'antd';
+import { Button, Drawer, Modal, Select, Tooltip } from 'antd';
 import dayjs from 'dayjs';
+import { Pause, Play } from 'lucide-react';
 import { toast } from '@/shared-util';
 import { recogApi } from '../api/recogApi';
 import { modelQueryKeys, useExecuteRecogEvaluate, useGetRecogResultList } from '../hooks/useModelQueries';
@@ -74,7 +75,7 @@ const targetColumnDefs: ColDef<RecogTargetListItem>[] = [
   { headerName: '고유번호(UCID)', field: 'ucidGkey', flex: 3, minWidth: 160, tooltipField: 'ucidGkey' },
   { headerName: '정답지 내용', field: 'orgSentence', flex: 4, minWidth: 160, tooltipField: 'orgSentence' },
   { headerName: '화자', field: 'rxtxKind', flex: 1, minWidth: 70, valueFormatter: ({ value }) => ({ '1': '고객', '2': '상담원', '9': '통합' })[String(value)] ?? String(value) },
-  { headerName: '등록시간', field: 'loadTime', flex: 2, minWidth: 120 },
+  { headerName: '등록시간', field: 'loadTime', flex: 2, minWidth: 120, valueFormatter: ({ value }) => (value ? dayjs(value).format('YYYY-MM-DD HH:mm:ss') : '') },
 ];
 
 const columnDefs: ColDef<RecogResultItem>[] = [
@@ -98,6 +99,8 @@ const SttModelRecogDrawer = forwardRef<SttModelRecogDrawerRef>((_, ref) => {
   const [selectedRow, setSelectedRow] = useState<RecogResultItem | null>(null);
   const [targetPreview, setTargetPreview] = useState<{ open: boolean; targets: RecogTargetListItem[]; groupName: string }>({ open: false, targets: [], groupName: '' });
   const [isFetchingTargets, setIsFetchingTargets] = useState(false);
+  const [autoRefresh, setAutoRefresh] = useState(false);
+  const [refreshSeconds, setRefreshSeconds] = useState(3);
   const { gridOptions } = useAggridOptions();
   const queryClient = useQueryClient();
 
@@ -112,7 +115,10 @@ const SttModelRecogDrawer = forwardRef<SttModelRecogDrawerRef>((_, ref) => {
     close: () => setOpen(false),
   }));
 
-  const handleClose = () => setOpen(false);
+  const handleClose = () => {
+    setOpen(false);
+    setAutoRefresh(false);
+  };
 
   const { data: groups = [] } = useGetRecogGroupList({ params: { engineCode } });
   const groupOptions = groups.map((g) => ({ label: g.groupName, value: g.groupCode }));
@@ -125,7 +131,10 @@ const SttModelRecogDrawer = forwardRef<SttModelRecogDrawerRef>((_, ref) => {
 
   const searchParams = model && groupCode ? { modelVerId: model.modelVerId, groupCode } : null;
 
-  const { data, isFetching } = useGetRecogResultList({ params: searchParams });
+  const { data, isFetching } = useGetRecogResultList({
+    params: searchParams,
+    queryOptions: { refetchInterval: autoRefresh ? refreshSeconds * 1000 : false },
+  });
 
   const { mutate: requestResult, isPending } = useExecuteRecogEvaluate({
     mutationOptions: {
@@ -163,6 +172,7 @@ const SttModelRecogDrawer = forwardRef<SttModelRecogDrawerRef>((_, ref) => {
     if (!model) return;
     requestResult({ modelVerId: model.modelVerId, groupCode, engineCode });
     setTargetPreview((prev) => ({ ...prev, open: false }));
+    setAutoRefresh(true);
   };
 
   const handleGroupChange = (value: string) => {
@@ -183,7 +193,7 @@ const SttModelRecogDrawer = forwardRef<SttModelRecogDrawerRef>((_, ref) => {
         closable={{ placement: 'end' }}
         footer={null}
         destroyOnHidden
-        styles={{ body: { display: 'flex', flexDirection: 'column', overflow: 'hidden', padding: '0 24px' }, wrapper: { width: '60%' } }}
+        styles={{ body: { display: 'flex', flexDirection: 'column', overflow: 'hidden', padding: '0 24px' }, wrapper: { width: '65%' } }}
       >
         {/* 툴바 */}
         <div className="flex items-center gap-4 h-16 shrink-0">
@@ -206,7 +216,32 @@ const SttModelRecogDrawer = forwardRef<SttModelRecogDrawerRef>((_, ref) => {
             )}
           </div>
 
-          <div className="ml-auto">
+          <div className="ml-auto flex items-center gap-2">
+            <span className="text-sm font-medium text-[#495057] shrink-0">모니터링</span>
+            <Select
+              value={refreshSeconds}
+              onChange={setRefreshSeconds}
+              options={[
+                { label: '3초', value: 3 },
+                { label: '5초', value: 5 },
+                { label: '10초', value: 10 },
+                { label: '30초', value: 30 },
+              ]}
+              style={{ width: 72 }}
+            />
+            <Tooltip title={autoRefresh ? '측정 결과 모니터링 중지' : '측정 결과 모니터링 시작'}>
+              <button
+                type="button"
+                onClick={() => setAutoRefresh((v) => !v)}
+                className={`flex items-center justify-center w-8 h-8 rounded border transition-colors ${
+                  autoRefresh
+                    ? 'border-[var(--color-bt-primary)] bg-[var(--color-bt-primary)] text-white'
+                    : 'border-[var(--color-bt-primary)] text-[var(--color-bt-primary)] hover:bg-[var(--color-bt-primary)]/5'
+                }`}
+              >
+                {autoRefresh ? <Pause className="size-4" /> : <Play className="size-4" />}
+              </button>
+            </Tooltip>
             <Button type="primary" onClick={handleEvaluate} loading={isPending || isFetchingTargets}>
               인식률 측정
             </Button>
