@@ -121,6 +121,8 @@ export default function CampaignDashboard() {
       .map((item) => String(item.value).split(':').slice(2).join(':'))
       .filter((v) => v.length > 0);
 
+    const allScenarioValues = scenarioOptions.filter((item) => String(item.value).startsWith('L:')).map((item) => String(item.value));
+
     const campaignListIds = selectedScenario
       .filter((item) => String(item.value).startsWith('L:'))
       .map((item) => {
@@ -129,12 +131,16 @@ export default function CampaignDashboard() {
       })
       .filter((n) => !Number.isNaN(n));
 
-    if (campaignListIds.length > 0) {
+    // 시나리오 "전체 선택"은 필터를 걸지 않은 것과 동일하게 취급해야 캠페인 전체선택과 결과가 일치함.
+    // (레거시 데이터에서 campaignListId가 옵션/실데이터 간 불일치하는 케이스가 있어, 전체선택 시 필터를 걸면 0건이 될 수 있음)
+    const isAllScenariosSelected = allScenarioValues.length > 0 && selectedScenario.filter((s) => String(s.value).startsWith('L:')).length === allScenarioValues.length;
+
+    if (!isAllScenariosSelected && campaignListIds.length > 0) {
       return { campaignIds, campaignListIds };
     }
 
     return { campaignIds };
-  }, [selectedCampaign, selectedScenario]);
+  }, [selectedCampaign, selectedScenario, scenarioOptions]);
 
   const modal = useModal();
   const { layout: storedLayout, setLayout, setWidgetOptions } = useCampaignDashboardStore();
