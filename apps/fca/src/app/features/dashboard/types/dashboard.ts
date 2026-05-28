@@ -363,7 +363,7 @@ export interface OccupancyItem {
 
 /** 캠페인 대시보드 — 진행률 게이지 */
 export interface CampaignProgressRateData {
-  progressRatePct: number;
+  outboundAttemptCnt: number;
   totalTargetCnt: number;
 }
 
@@ -379,6 +379,10 @@ export interface CampaignDashboardResponse {
     /** WS `campaignOutboundAttempt` 위젯 DATA에 포함 (6종 막대) */
     outboundAttemptTop?: IntentTopItem[];
   };
+  campaignCompleteCallRate: { ratePct: number };
+  campaignOutboundProgressRealtime: { count: number };
+  campaignOutboundAttemptPerMinute: { count: number };
+  campaignVerificationFailRate: { ratePct: number };
 }
 
 export type CampaignDashboardWidgetType = keyof CampaignDashboardResponse;

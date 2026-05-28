@@ -3,7 +3,7 @@ import type { CellStyle, ColDef } from 'ag-grid-community';
 import { AgGridReact } from 'ag-grid-react';
 import { type BreadcrumbProps, Button, Checkbox, DatePicker, Divider, Select } from 'antd';
 import dayjs, { type Dayjs } from 'dayjs';
-import { Download } from 'lucide-react';
+import { Download, Search } from 'lucide-react';
 import { useBreadcrumbStore, useNavigationStore } from '@/shared-store';
 import { downloadBlob, extractFileName, toast } from '@/shared-util';
 import { type CampaignResultStatColDef, createAttemptSelfCallSuccessRateColumnGroup } from './campaignResultStatGridColumns';
@@ -219,6 +219,9 @@ export default function CampaignIndividualResultStatistics() {
 
   // 캠페인 변경 시 유효하지 않은 시나리오 선택 제거 (구형 L:tenant:listId → L:tenant:campaign:listId 보정)
   useEffect(() => {
+    // 옵션 로딩 전(초기 렌더)에는 로컬스토리지에서 복원한 시나리오를 지우지 않음
+    if (!campaignOptionList) return;
+
     const validValues = new Set(scenarioSelectOptions.map((o) => o.value));
     setScenarioSelections((prev) => {
       const next: string[] = [];
@@ -236,7 +239,7 @@ export default function CampaignIndividualResultStatistics() {
       }
       return [...new Set(next)];
     });
-  }, [scenarioSelectOptions]);
+  }, [campaignOptionList, scenarioSelectOptions]);
 
   useEffect(() => {
     localStorage.setItem(CAMPAIGN_INDIVIDUAL_TENANT_STORAGE_KEY, JSON.stringify(tenantIds));
@@ -322,6 +325,11 @@ export default function CampaignIndividualResultStatistics() {
 
     if (campaignSelections.length === 0) {
       toast.warning('캠페인을 선택해주세요.');
+      return;
+    }
+
+    if (scenarioSelections.length === 0) {
+      toast.warning('시나리오를 선택해주세요.');
       return;
     }
 
@@ -577,7 +585,7 @@ export default function CampaignIndividualResultStatistics() {
             </div>
           </div>
           <div className="flex items-center gap-3 shrink-0">
-            <Button type="primary" onClick={handleSearch}>
+            <Button type="primary" icon={<Search className="size-4" />} onClick={handleSearch}>
               조회
             </Button>
             {hasExcelPermission && (

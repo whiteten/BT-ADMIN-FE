@@ -3,7 +3,7 @@ import type { CellStyle, ColDef } from 'ag-grid-community';
 import { AgGridReact } from 'ag-grid-react';
 import { type BreadcrumbProps, Button, DatePicker, Select } from 'antd';
 import dayjs, { type Dayjs } from 'dayjs';
-import { Download } from 'lucide-react';
+import { Download, Search } from 'lucide-react';
 import { useBreadcrumbStore, useNavigationStore } from '@/shared-store';
 import { downloadBlob, extractFileName, toast } from '@/shared-util';
 import { statisticsApi } from '../../../features/statistics/api/statisticsApi';
@@ -338,7 +338,7 @@ export default function CampaignAchievementStatistics() {
             </div>
           </div>
           <div className="flex items-center gap-3 shrink-0">
-            <Button type="primary" onClick={handleSearch}>
+            <Button type="primary" icon={<Search className="size-4" />} onClick={handleSearch}>
               조회
             </Button>
             {hasExcelPermission && (

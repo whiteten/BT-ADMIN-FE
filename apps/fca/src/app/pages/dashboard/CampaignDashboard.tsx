@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { GridLayout, type Layout, useContainerWidth } from 'react-grid-layout';
 import 'react-grid-layout/css/styles.css';
 import type { Option } from 'react-multi-select-component';
@@ -49,8 +49,15 @@ export default function CampaignDashboard() {
     return options;
   }, [campaignList]);
 
-  const [selectedCampaign, setSelectedCampaign] = useState<Option[]>([]);
-  const [selectedScenario, setSelectedScenario] = useState<Option[]>([]);
+  const selectedCampaign = useCampaignDashboardStore((s) => s.selectedCampaign);
+  const selectedScenario = useCampaignDashboardStore((s) => s.selectedScenario);
+  const hasHydrated = useCampaignDashboardStore((s) => s.hasHydrated);
+  const hasSelectionInitialized = useCampaignDashboardStore((s) => s.hasSelectionInitialized);
+  const hasLayoutFilterInitialized = useCampaignDashboardStore((s) => s.hasLayoutFilterInitialized);
+  const setSelectedCampaign = useCampaignDashboardStore((s) => s.setSelectedCampaign);
+  const setSelectedScenario = useCampaignDashboardStore((s) => s.setSelectedScenario);
+  const setHasLayoutFilterInitialized = useCampaignDashboardStore((s) => s.setHasLayoutFilterInitialized);
+  const hasInitializedScenarioSelectionRef = useRef(false);
 
   const scenarioOptions: Option[] = useMemo(() => {
     const selectedCampaignValues = new Set(selectedCampaign.map((item) => item.value));
@@ -68,15 +75,41 @@ export default function CampaignDashboard() {
   }, [campaignList, selectedCampaign]);
 
   useEffect(() => {
-    if (campaignOptions.length > 0) {
+    if (!hasHydrated) return;
+    if (campaignOptions.length === 0) return;
+
+    const validValues = new Set(campaignOptions.map((option) => option.value));
+    const next = selectedCampaign.filter((item) => validValues.has(item.value));
+
+    if (!hasSelectionInitialized && selectedCampaign.length === 0) {
       setSelectedCampaign(campaignOptions);
+      return;
     }
-  }, [campaignOptions]);
+
+    if (next.length !== selectedCampaign.length) {
+      setSelectedCampaign(next);
+    }
+  }, [campaignOptions, hasHydrated, hasSelectionInitialized, selectedCampaign, setSelectedCampaign]);
 
   useEffect(() => {
+    if (!hasHydrated) return;
+    if (scenarioOptions.length === 0) return;
+
+    if (!hasInitializedScenarioSelectionRef.current && scenarioOptions.length > 0 && selectedScenario.length === 0 && !hasSelectionInitialized) {
+      setSelectedScenario(scenarioOptions);
+      hasInitializedScenarioSelectionRef.current = true;
+      return;
+    }
+    if (!hasInitializedScenarioSelectionRef.current && scenarioOptions.length > 0) {
+      hasInitializedScenarioSelectionRef.current = true;
+    }
+
     const validValues = new Set(scenarioOptions.map((o) => o.value));
-    setSelectedScenario((prev) => prev.filter((item) => validValues.has(item.value)));
-  }, [scenarioOptions]);
+    const nextScenario = selectedScenario.filter((item) => validValues.has(item.value));
+    if (nextScenario.length !== selectedScenario.length) {
+      setSelectedScenario(nextScenario);
+    }
+  }, [hasHydrated, hasSelectionInitialized, scenarioOptions, selectedScenario, setSelectedScenario]);
 
   useDashboardSocket();
 
@@ -111,6 +144,19 @@ export default function CampaignDashboard() {
   const [selectedLayoutFilterItems, setSelectedLayoutFilterItems] = useState<Option[]>(() => layoutFilterOptions.filter((opt) => storedLayoutTypes.has(opt.value)));
   const [draftLayout, setDraftLayout] = useState<CampaignDashboardLayoutItem[]>(() => [...storedLayout]);
 
+  useEffect(() => {
+    if (!hasHydrated) return;
+    if (hasLayoutFilterInitialized) return;
+    if (layoutFilterOptions.length === 0) return;
+
+    const initialFilterItems = layoutFilterOptions;
+    const initialLayout = CAMPAIGN_DEFAULT_LAYOUT.map((item) => ({ ...item, i: generateWidgetId() }));
+    setSelectedLayoutFilterItems(initialFilterItems);
+    setDraftLayout(initialLayout);
+    setLayout(initialLayout);
+    setHasLayoutFilterInitialized(true);
+  }, [hasHydrated, hasLayoutFilterInitialized, layoutFilterOptions, setHasLayoutFilterInitialized, setLayout]);
+
   const handleStartEdit = () => {
     setIsEditMode(true);
   };
@@ -123,6 +169,7 @@ export default function CampaignDashboard() {
 
   const handleSaveEdit = () => {
     setLayout(draftLayout);
+    setHasLayoutFilterInitialized(true);
     const activeIds = new Set(draftLayout.map((item) => item.i));
     const currentOptions = useCampaignDashboardStore.getState().widgetOptions;
     const cleanedOptions: Record<string, Record<string, unknown>> = {};
