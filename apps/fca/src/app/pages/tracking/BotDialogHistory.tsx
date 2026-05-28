@@ -76,7 +76,10 @@ const BotDialogHistoryPage: React.FC = () => {
 
   const handleRowClick = (data: BotDialogHistoryListItem) => {
     setSelectedRowId(`${data.ucid}_${data.nextHop}_${data.cdrPkey}`);
-    drawerRef.current?.open(data);
+    // 슬롯차트에서 (entityTag, SEQ)로 필터링된 상태라면 해당 슬롯 위치의 버블로 자동 스크롤
+    const highlightSlot =
+      searchParams.slotEntityTag && searchParams.slotEntitySeq != null ? { entityTag: searchParams.slotEntityTag, slotSeq: searchParams.slotEntitySeq } : undefined;
+    drawerRef.current?.open(data, highlightSlot);
   };
 
   return (
@@ -109,10 +112,11 @@ const BotDialogHistoryPage: React.FC = () => {
         open={slotChartOpen}
         onClose={() => setSlotChartOpen(false)}
         searchParams={slotChartParams ?? searchParams}
-        onEntityFilter={(entityTag) => {
+        onEntityFilter={(entityTag, entitySeq) => {
           // 그리드 재조회 시 차트가 보고 있던 조건을 그대로 반영 — 폼 미저장 변경 포함
+          // entitySeq까지 함께 넘겨 동일 SEQ 위치에서 entity를 거친 콜만 조회
           const baseParams = slotChartParams ?? searchParams;
-          setSearchParams({ ...baseParams, slotEntityTag: entityTag });
+          setSearchParams({ ...baseParams, slotEntityTag: entityTag, slotEntitySeq: entitySeq });
           setSearchVersion((v) => v + 1);
         }}
       />

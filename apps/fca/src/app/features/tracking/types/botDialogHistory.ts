@@ -14,6 +14,8 @@ export interface BotDialogHistorySearchRequest {
   /** 작업자 필터. ME=내가 수정 */
   workerFilter?: string;
   slotEntityTag?: string;
+  /** 슬롯 Sankey 노드의 SEQ. slotEntityTag와 함께 사용되어 해당 SEQ 위치에서 Entity를 거친 콜만 조회. */
+  slotEntitySeq?: number;
   /** 슬롯 인식 실패 최소 건수 (BOT_SLOT_FAIL_COUNT >= N). */
   slotFailCountMin?: number;
   page?: number;

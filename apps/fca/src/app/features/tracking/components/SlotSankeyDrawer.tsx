@@ -12,8 +12,14 @@ interface SlotSankeyDrawerProps {
   open: boolean;
   onClose: () => void;
   searchParams: BotDialogHistorySearchRequest;
-  /** 노드 클릭 → 해당 Entity 콜 리스트 조회 */
-  onEntityFilter?: (entityTag: string) => void;
+  /** 노드 클릭 → 해당 Entity·SEQ 콜 리스트 조회 */
+  onEntityFilter?: (entityTag: string, entitySeq: number) => void;
+}
+
+/** 차트에서 선택된 슬롯 노드 = (entity tag, seq) 페어. seq까지 함께 보관해 SEQ별 필터링을 지원. */
+interface SelectedNode {
+  tag: string;
+  seq: number;
 }
 
 // ──────────── 상수 ────────────
@@ -28,7 +34,8 @@ const ZOOM_STEP = 0.25;
 const COLOR = {
   default: '#3b82f6', // blue-500
   sensitive: '#f59e0b', // amber-500
-  selected: '#06b6d4', // cyan-500
+  selected: '#22c55e', // green-500 — 선택된 (tag, seq) 단일 노드 강조
+  selectedBorder: '#15803d', // green-700 — 선택 노드의 두꺼운 테두리
   terminal: '#94a3b8', // slate-400
 };
 
@@ -82,7 +89,7 @@ function buildNodeFlows(items: SlotSankeyItem[]): Map<string, NodeFlow> {
 
 // ──────────── Sankey 옵션 빌더 ────────────
 
-function buildSankeyOption(items: SlotSankeyItem[], selectedEntity: string | null, flows: Map<string, NodeFlow>): EChartsOption {
+function buildSankeyOption(items: SlotSankeyItem[], selectedNode: SelectedNode | null, flows: Map<string, NodeFlow>): EChartsOption {
   const nodeSet = new Set<string>();
   const links: { source: string; target: string; value: number }[] = [];
   // 노드 라벨에 표기할 통과 건수 / 단계 점유율 산출용
@@ -117,11 +124,13 @@ function buildSankeyOption(items: SlotSankeyItem[], selectedEntity: string | nul
     const lastUnderscore = key.lastIndexOf('_');
     const depth = parseInt(key.substring(lastUnderscore + 1), 10);
     const rawLabel = key.substring(0, lastUnderscore);
-    const isSelected = selectedEntity != null && rawLabel === selectedEntity;
+    // 선택 하이라이트는 동일 (tag, seq) 노드 한 개만 — 같은 tag라도 다른 SEQ는 별개 슬롯이므로 강조에서 제외
+    const isSelected = selectedNode != null && rawLabel === selectedNode.tag && depth === selectedNode.seq;
     return {
       name: key,
       depth,
-      itemStyle: { color: getNodeColor(rawLabel, isSelected) },
+      // 선택 노드는 녹색 + 두꺼운 어두운 녹색 테두리로 한눈에 구분 가능하게
+      itemStyle: isSelected ? { color: COLOR.selected, borderColor: COLOR.selectedBorder, borderWidth: 3 } : { color: getNodeColor(rawLabel, false) },
     };
   });
 
@@ -133,8 +142,9 @@ function buildSankeyOption(items: SlotSankeyItem[], selectedEntity: string | nul
         if (params.dataType === 'node') {
           const flow = flows.get(params.name);
           const label = getLabel(params.name);
+          const nodeDepth = parseInt(params.name.substring(params.name.lastIndexOf('_') + 1), 10);
           const lines: string[] = [
-            `<div style="font-weight:600;margin-bottom:4px">${label}</div>`,
+            `<div style="font-weight:600;margin-bottom:4px">${label} <span style="font-weight:500;color:#15803d;font-size:11px;background:#dcfce7;padding:1px 5px;border-radius:3px;margin-left:2px">SEQ ${nodeDepth}</span></div>`,
             `<div style="font-size:12px">통과 <b>${Number(params.value).toLocaleString()}</b>건</div>`,
           ];
           if (flow && flow.inflow.size > 0) {
@@ -175,14 +185,31 @@ function buildSankeyOption(items: SlotSankeyItem[], selectedEntity: string | nul
         label: {
           formatter: (params: any) => {
             const label = getLabel(params.name);
-            const depth = parseInt(params.name.substring(params.name.lastIndexOf('_') + 1), 10);
+            const lastUnderscore = params.name.lastIndexOf('_');
+            const depth = parseInt(params.name.substring(lastUnderscore + 1), 10);
+            const rawLabel = params.name.substring(0, lastUnderscore);
             const value = nodeValues.get(params.name) ?? 0;
             const total = seqTotals.get(depth) ?? 1;
             const share = total > 0 ? Math.round((value / total) * 100) : 0;
+            // 선택된 노드만 라벨에 'SEQ N' 뱃지를 추가하여 어느 SEQ가 선택됐는지 즉시 확인 가능
+            const isSelected = selectedNode != null && rawLabel === selectedNode.tag && depth === selectedNode.seq;
+            if (isSelected) {
+              return `{nameSel|${label}} {seqBadge|SEQ ${depth}}\n{stat|${value.toLocaleString()}건 · ${share}%}`;
+            }
             return `{name|${label}}\n{stat|${value.toLocaleString()}건 · ${share}%}`;
           },
           rich: {
             name: { fontSize: 12, fontWeight: 'bold', color: '#1e293b', lineHeight: 14 },
+            nameSel: { fontSize: 12, fontWeight: 'bold', color: '#15803d', lineHeight: 14 },
+            seqBadge: {
+              fontSize: 10,
+              fontWeight: 'bold',
+              color: '#ffffff',
+              backgroundColor: '#22c55e',
+              padding: [1, 5, 1, 5],
+              borderRadius: 3,
+              lineHeight: 14,
+            },
             stat: { fontSize: 10, color: '#94a3b8', lineHeight: 12 },
           },
         },
@@ -226,7 +253,10 @@ function buildFilterChips(params: BotDialogHistorySearchRequest): FilterChip[] {
     chips.push({ key: 'retrain', label: `🔁 ${labelMap[params.retrainFilter] ?? params.retrainFilter}` });
   }
   if (params.workerFilter === 'ME') chips.push({ key: 'worker', label: '👤 내가 수정' });
-  if (params.slotEntityTag) chips.push({ key: 'entity', label: `🏷️ ${params.slotEntityTag}`, color: 'blue' });
+  if (params.slotEntityTag) {
+    const seqSuffix = params.slotEntitySeq != null ? ` · SEQ ${params.slotEntitySeq}` : '';
+    chips.push({ key: 'entity', label: `🏷️ ${params.slotEntityTag}${seqSuffix}`, color: 'blue' });
+  }
   return chips;
 }
 
@@ -292,25 +322,35 @@ function computePanelData(items: SlotSankeyItem[]): PanelData {
 
 interface SelectedEntityInfo {
   total: number;
+  matchedItemCount: number;
   inflow: EntityCount[];
   outflow: EntityCount[];
 }
 
-function computeSelectedEntityInfo(items: SlotSankeyItem[], entity: string): SelectedEntityInfo {
+function computeSelectedEntityInfo(items: SlotSankeyItem[], entity: string, seq: number): SelectedEntityInfo {
   const inflow = new Map<string, number>();
   const outflow = new Map<string, number>();
   let total = 0;
+  let matchedItemCount = 0;
+  // 타입 방어 — JSON에서 string으로 내려오는 경우 대비
+  const seqNum = Number(seq);
   for (const item of items) {
-    if (item.entityTag === entity) {
-      total += item.value;
-      if (item.prevEntityTag) inflow.set(item.prevEntityTag, (inflow.get(item.prevEntityTag) ?? 0) + item.value);
+    const itemSeqNum = Number(item.seq);
+    const itemValueNum = Number(item.value);
+    // 통과 건수·이전 흐름: 선택된 (tag, seq) 노드로 들어오는 흐름
+    if (item.entityTag === entity && itemSeqNum === seqNum) {
+      total += itemValueNum;
+      matchedItemCount++;
+      if (item.prevEntityTag) inflow.set(item.prevEntityTag, (inflow.get(item.prevEntityTag) ?? 0) + itemValueNum);
     }
-    if (item.prevEntityTag === entity) {
-      outflow.set(item.entityTag, (outflow.get(item.entityTag) ?? 0) + item.value);
+    // 다음 흐름: 선택된 노드(seq)가 다음 노드(seq+1)로 빠져나가는 흐름
+    if (item.prevEntityTag === entity && itemSeqNum === seqNum + 1) {
+      outflow.set(item.entityTag, (outflow.get(item.entityTag) ?? 0) + itemValueNum);
     }
   }
   return {
     total,
+    matchedItemCount,
     inflow: Array.from(inflow.entries())
       .map(([tag, count]) => ({ tag, count }))
       .sort((a, b) => b.count - a.count),
@@ -367,21 +407,28 @@ function StateMessage({ icon, title, hint, primary, secondary }: StateMessagePro
   );
 }
 
-function SelectedEntityCard({ entity, info, onFilter, onClear }: { entity: string; info: SelectedEntityInfo; onFilter: () => void; onClear: () => void }) {
+function SelectedEntityCard({ entity, seq, info, onFilter, onClear }: { entity: string; seq: number; info: SelectedEntityInfo; onFilter: () => void; onClear: () => void }) {
   const sensitive = isSensitiveEntity(entity);
   return (
-    <div className={`border rounded-lg p-3 ${sensitive ? 'border-amber-200 bg-amber-50/40' : 'border-cyan-200 bg-cyan-50/40'}`}>
+    <div className={`border rounded-lg p-3 ${sensitive ? 'border-amber-200 bg-amber-50/40' : 'border-green-300 bg-green-50/40'}`}>
       <div className="flex items-start justify-between gap-2 mb-2">
         <div className="min-w-0">
-          <div className={`text-[10px] uppercase font-semibold ${sensitive ? 'text-amber-700' : 'text-cyan-700'}`}>{sensitive ? '🔒 민감 개체' : '선택된 개체'}</div>
-          <div className="text-sm font-semibold text-slate-800 mt-0.5 truncate">{entity}</div>
+          <div className={`text-[10px] uppercase font-semibold ${sensitive ? 'text-amber-700' : 'text-green-700'}`}>{sensitive ? '🔒 민감 슬롯' : '선택된 슬롯'}</div>
+          <div className="text-sm font-semibold text-slate-800 mt-0.5 truncate">
+            {entity}
+            <span className="ml-1.5 text-[11px] font-medium text-slate-500 tabular-nums">SEQ {seq}</span>
+          </div>
         </div>
         <button type="button" onClick={onClear} className="shrink-0 text-slate-400 hover:text-slate-600">
           <X size={14} />
         </button>
       </div>
       <div className="text-[11px] text-slate-600 mb-2">
-        통과 <span className="font-semibold tabular-nums">{info.total.toLocaleString()}</span>건
+        SEQ {seq} 통과 <span className="font-semibold tabular-nums">{info.total.toLocaleString()}</span>건
+      </div>
+      {/* 진단: 실제 필터된 (entity, seq)와 매칭된 SlotSankeyItem 수 — 클릭마다 값이 바뀌어야 정상 */}
+      <div className="text-[10px] text-slate-400 mb-2 font-mono">
+        filter[entity={entity}, seq={seq}] → 매칭 item {info.matchedItemCount}개
       </div>
       {info.inflow.length > 0 && (
         <div className="mb-2">
@@ -410,7 +457,7 @@ function SelectedEntityCard({ entity, info, onFilter, onClear }: { entity: strin
         </div>
       )}
       <button type="button" onClick={onFilter} className="w-full px-2.5 py-1.5 text-xs font-medium rounded bg-slate-900 text-white hover:bg-slate-800 transition-colors">
-        이 개체 거친 콜 보기
+        이 SEQ의 슬롯 거친 콜 보기
       </button>
     </div>
   );
@@ -525,7 +572,7 @@ export default function SlotSankeyDrawer({ open, onClose, searchParams, onEntity
   const [loading, setLoading] = useState(false);
   const [data, setData] = useState<SlotSankeyItem[]>([]);
   const [error, setError] = useState(false);
-  const [selectedEntity, setSelectedEntity] = useState<string | null>(null);
+  const [selectedNode, setSelectedNode] = useState<SelectedNode | null>(null);
   const [hiddenEntities, setHiddenEntities] = useState<Set<string>>(new Set());
   const [zoom, setZoom] = useState(1);
   const chartRef = useRef<ReactECharts>(null);
@@ -546,7 +593,7 @@ export default function SlotSankeyDrawer({ open, onClose, searchParams, onEntity
   useEffect(() => {
     if (!open) return;
     // drawer 열 때마다 UI 상태 초기화 (닫힌 상태로 두면 다음 진입 시 직전 상태 유지)
-    setSelectedEntity(null);
+    setSelectedNode(null);
     setHiddenEntities(new Set());
     setZoom(1);
     fetchData();
@@ -554,8 +601,8 @@ export default function SlotSankeyDrawer({ open, onClose, searchParams, onEntity
 
   // 숨긴 개체가 선택돼있으면 선택 해제
   useEffect(() => {
-    if (selectedEntity && hiddenEntities.has(selectedEntity)) setSelectedEntity(null);
-  }, [selectedEntity, hiddenEntities]);
+    if (selectedNode && hiddenEntities.has(selectedNode.tag)) setSelectedNode(null);
+  }, [selectedNode, hiddenEntities]);
 
   // 숨겨진 개체 적용된 items
   const filteredItems = useMemo(() => {
@@ -564,7 +611,7 @@ export default function SlotSankeyDrawer({ open, onClose, searchParams, onEntity
   }, [data, hiddenEntities]);
 
   const flows = useMemo(() => buildNodeFlows(filteredItems), [filteredItems]);
-  const option = useMemo(() => (filteredItems.length > 0 ? buildSankeyOption(filteredItems, selectedEntity, flows) : null), [filteredItems, selectedEntity, flows]);
+  const option = useMemo(() => (filteredItems.length > 0 ? buildSankeyOption(filteredItems, selectedNode, flows) : null), [filteredItems, selectedNode, flows]);
   const metrics = useMemo(() => computeMetrics(filteredItems), [filteredItems]);
   const chips = useMemo(() => buildFilterChips(searchParams), [searchParams]);
   // Top 5 진입/종착은 원본 data 기준 — 개체 표시 토글 시 순위/위치가 흔들리지 않도록
@@ -578,18 +625,20 @@ export default function SlotSankeyDrawer({ open, onClose, searchParams, onEntity
     }
     return Array.from(set).sort();
   }, [data]);
-  const selectedInfo = useMemo(() => (selectedEntity ? computeSelectedEntityInfo(filteredItems, selectedEntity) : null), [selectedEntity, filteredItems]);
+  const selectedInfo = useMemo(() => (selectedNode ? computeSelectedEntityInfo(filteredItems, selectedNode.tag, selectedNode.seq) : null), [selectedNode, filteredItems]);
 
   const handleChartReady = (instance: any) => {
     instance.on('click', (params: any) => {
-      let entityTag: string | null = null;
-      if (params.dataType === 'node') {
-        entityTag = params.name.substring(0, params.name.lastIndexOf('_'));
-      } else if (params.dataType === 'edge') {
-        entityTag = params.data.source.substring(0, params.data.source.lastIndexOf('_'));
-      }
-      if (!entityTag || entityTag === TERMINAL_KEY) return;
-      setSelectedEntity(entityTag);
+      // 노드 클릭: 노드 키 = `{entityTag}_{seq}` 그대로 파싱
+      // 엣지 클릭: source 노드(이전 슬롯) 기준 선택 — source 키 = `{prevEntityTag}_{seq-1}`
+      const key: string | undefined = params.dataType === 'node' ? params.name : params.dataType === 'edge' ? params.data?.source : undefined;
+      if (!key) return;
+      const lastUnderscore = key.lastIndexOf('_');
+      if (lastUnderscore < 0) return;
+      const tag = key.substring(0, lastUnderscore);
+      const seq = parseInt(key.substring(lastUnderscore + 1), 10);
+      if (!tag || tag === TERMINAL_KEY || Number.isNaN(seq)) return;
+      setSelectedNode({ tag, seq });
     });
   };
 
@@ -602,10 +651,10 @@ export default function SlotSankeyDrawer({ open, onClose, searchParams, onEntity
     });
   };
   const handleShowAllEntities = () => setHiddenEntities(new Set());
-  const handleClearSelection = () => setSelectedEntity(null);
-  const handleFilterByEntity = (entity: string) => {
+  const handleClearSelection = () => setSelectedNode(null);
+  const handleFilterByEntity = (entity: string, seq: number) => {
     if (onEntityFilter) {
-      onEntityFilter(entity);
+      onEntityFilter(entity, seq);
       onClose();
     }
   };
@@ -647,7 +696,7 @@ export default function SlotSankeyDrawer({ open, onClose, searchParams, onEntity
         <span className="font-semibold text-slate-600">색상</span>
         <LegendItem color={COLOR.default} label="일반 개체" />
         <LegendItem color={COLOR.sensitive} label="민감 개체 (비밀번호 등)" />
-        <LegendItem color={COLOR.selected} label="선택된 개체" />
+        <LegendItem color={COLOR.selected} label="선택된 슬롯 (SEQ별 단일)" />
         <LegendItem color={COLOR.terminal} label="종료" />
       </div>
 
@@ -702,8 +751,14 @@ export default function SlotSankeyDrawer({ open, onClose, searchParams, onEntity
         {/* 인사이트 패널 */}
         <aside className="w-80 shrink-0 border-l border-slate-200 bg-slate-50/30 p-4 flex flex-col gap-4 overflow-hidden">
           <div className="shrink-0">
-            {selectedEntity && selectedInfo ? (
-              <SelectedEntityCard entity={selectedEntity} info={selectedInfo} onClear={handleClearSelection} onFilter={() => handleFilterByEntity(selectedEntity)} />
+            {selectedNode && selectedInfo ? (
+              <SelectedEntityCard
+                entity={selectedNode.tag}
+                seq={selectedNode.seq}
+                info={selectedInfo}
+                onClear={handleClearSelection}
+                onFilter={() => handleFilterByEntity(selectedNode.tag, selectedNode.seq)}
+              />
             ) : (
               <div className="text-[11px] text-slate-400 text-center py-3 border border-dashed border-slate-200 rounded">차트의 개체를 클릭하면 상세 정보가 표시됩니다</div>
             )}

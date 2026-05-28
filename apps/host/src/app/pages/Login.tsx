@@ -228,7 +228,7 @@ export default function Login() {
       <div className="w-full h-full z-30 flex flex-col items-center justify-center relative">
         <Card className="w-full max-w-md">
           <CardHeader className="text-center">
-            <CardTitle className="text-xl">Welcome</CardTitle>
+            <CardTitle className="text-xl">BT-Admin</CardTitle>
           </CardHeader>
           <CardContent>
             <div className={styles['login-wrapper']}>
