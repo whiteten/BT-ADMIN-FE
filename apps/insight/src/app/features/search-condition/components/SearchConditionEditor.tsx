@@ -302,10 +302,9 @@ export default function SearchConditionEditor() {
       open={isEditorOpen}
       onClose={closeEditor}
       title={isEdit ? '검색조건 수정' : '새 검색조건 추가'}
-      width={960}
       footer={footer}
       destroyOnHidden
-      styles={{ body: { padding: 0, display: 'flex', flexDirection: 'column', overflow: 'hidden' } }}
+      styles={{ wrapper: { width: 960 }, body: { padding: 0, display: 'flex', flexDirection: 'column', overflow: 'hidden' } }}
     >
       {/* 기본 정보 */}
       <div className="px-5 py-4 border-b border-gray-200 bg-gray-50">

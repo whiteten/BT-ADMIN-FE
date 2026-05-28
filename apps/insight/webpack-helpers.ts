@@ -41,7 +41,10 @@ export const createSharedConfig = () => {
   // 명시적으로 eager 처리가 필요한 라이브러리들 (app 로딩 이전 시점에 필요한 라이브러리)
   const eagerLibraries = ['dayjs'];
   // shared에서 제외할 라이브러리들
-  const excludedLibraries = ['clsx', 'tailwind-merge'];
+  // @uiw/react-codemirror: esm/package.json에 version 필드 없어 MF가 provided version을 "0"으로 감지.
+  // requiredVersion만 설정해도 runtime에 "0 ≠ ^4.25.10" 충돌 발생 → singleton 로드 실패 → 페이지 freeze.
+  // insight에서만 사용하므로 shared 제외 후 self-bundle이 안전하고 확실한 해결책.
+  const excludedLibraries = ['clsx', 'tailwind-merge', '@uiw/react-codemirror'];
   const rootPackageJson = require('../../package.json');
   return (libraryName: string, sharedConfig: unknown): false | SharedLibraryConfig | undefined => {
     // 제외 목록의 문자열이 포함된 라이브러리는 공유하지 않음
