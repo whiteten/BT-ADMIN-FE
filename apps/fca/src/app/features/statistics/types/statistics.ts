@@ -214,9 +214,8 @@ export interface CampaignResultStatItem {
   campaignId?: string;
   campaignName: string;
   viewDate: string;
-  campaignScenarioName: string;
   campaignListId?: string;
-  campaignListName: string;
+  campaignListName?: string;
   seq: number;
   totalTargetCnt?: number;
   outboundProgressCnt?: number;

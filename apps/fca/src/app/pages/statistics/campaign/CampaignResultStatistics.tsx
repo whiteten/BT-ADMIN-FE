@@ -6,6 +6,7 @@ import dayjs, { type Dayjs } from 'dayjs';
 import { Download } from 'lucide-react';
 import { useBreadcrumbStore, useNavigationStore } from '@/shared-store';
 import { downloadBlob, extractFileName, toast } from '@/shared-util';
+import { type CampaignResultStatColDef, createAttemptSelfCallSuccessRateColumnGroup } from './campaignResultStatGridColumns';
 import { statisticsApi } from '../../../features/statistics/api/statisticsApi';
 import { getTimeFormat } from '../../../features/statistics/hooks/useDateRangeLimit';
 import { useGetCampaignResultStatList } from '../../../features/statistics/hooks/useStatisticsQueries';
@@ -168,7 +169,7 @@ export default function CampaignResultStatistics() {
     refetch();
   };
 
-  const columnDefs: ColDef<CampaignResultStatListItem>[] = [
+  const columnDefs: CampaignResultStatColDef[] = [
     {
       headerName: '날짜',
       field: 'psrTimeKey',
@@ -189,27 +190,7 @@ export default function CampaignResultStatistics() {
     { headerName: '본인통화완료율', field: 'selfCallCompleteRatePct', width: 120, cellStyle: numberCellStyle, cellRenderer: 'percentBarRenderer' },
     { headerName: '실패건수', field: 'failCnt', width: 100, cellStyle: numberCellStyle },
     { headerName: '부재건수', field: 'absentCnt', width: 100, cellStyle: numberCellStyle },
-    {
-      headerName: '발신시도별 본인통화 성공률(1차)',
-      field: 'firstAttemptSelfCallSuccessRatePct',
-      width: 180,
-      cellStyle: numberCellStyle,
-      cellRenderer: 'percentBarRenderer',
-    },
-    {
-      headerName: '발신시도별 본인통화 성공률(2차)',
-      field: 'secondAttemptSelfCallSuccessRatePct',
-      width: 180,
-      cellStyle: numberCellStyle,
-      cellRenderer: 'percentBarRenderer',
-    },
-    {
-      headerName: '발신시도별 본인통화 성공률(3차)',
-      field: 'thirdAttemptSelfCallSuccessRatePct',
-      width: 180,
-      cellStyle: numberCellStyle,
-      cellRenderer: 'percentBarRenderer',
-    },
+    createAttemptSelfCallSuccessRateColumnGroup(numberCellStyle),
     { headerName: '검증실패율', field: 'verifyFailRatePct', width: 100, cellStyle: numberCellStyle, cellRenderer: 'percentBarRenderer' },
   ];
 

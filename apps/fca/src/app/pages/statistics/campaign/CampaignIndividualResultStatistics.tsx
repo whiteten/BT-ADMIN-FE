@@ -6,6 +6,7 @@ import dayjs, { type Dayjs } from 'dayjs';
 import { Download } from 'lucide-react';
 import { useBreadcrumbStore, useNavigationStore } from '@/shared-store';
 import { downloadBlob, extractFileName, toast } from '@/shared-util';
+import { type CampaignResultStatColDef, createAttemptSelfCallSuccessRateColumnGroup } from './campaignResultStatGridColumns';
 import { statisticsApi } from '../../../features/statistics/api/statisticsApi';
 import { getTimeFormat } from '../../../features/statistics/hooks/useDateRangeLimit';
 import { useGetCampaignOptionList, useGetCampaignResultStatList, useGetTenantOptionList } from '../../../features/statistics/hooks/useStatisticsQueries';
@@ -68,14 +69,30 @@ function parseCampaignIds(selections: string[]): string[] {
   return campaignIds;
 }
 
+/** 시나리오 옵션 value — 캠페인·리스트 조합 유일 키 (listId만 쓰면 Select 중복 제거됨) */
+function toScenarioOptionValue(tenantId: string | number, campaignId: string, campaignListId: string | number) {
+  return `L:${tenantId}:${campaignId}:${campaignListId}`;
+}
+
 function parseScenarioListIds(selections: string[]): number[] {
   const campaignListIds: number[] = [];
+  const seen = new Set<number>();
   for (const v of selections) {
     if (!v.startsWith('L:')) continue;
     const parts = v.split(':');
-    if (parts.length >= 3) campaignListIds.push(Number(parts[2]));
+    if (parts.length < 3) continue;
+    const listId = Number(parts[parts.length - 1]);
+    if (Number.isNaN(listId) || seen.has(listId)) continue;
+    seen.add(listId);
+    campaignListIds.push(listId);
   }
   return campaignListIds;
+}
+
+function isAllOptionsSelected(selected: string[], options: { value: string }[]) {
+  if (options.length === 0) return false;
+  const selectedSet = new Set(selected);
+  return options.every((o) => selectedSet.has(o.value));
 }
 
 function loadStoredStringArray(key: string): string[] {
@@ -174,17 +191,20 @@ export default function CampaignIndividualResultStatistics() {
 
   const scenarioSelectOptions = useMemo(() => {
     const selectedCampaigns = new Set(campaignSelections);
-    return (campaignOptionList ?? [])
-      .filter((c) => {
-        const hasList = c.campaignListId != null && String(c.campaignListId).length > 0;
-        if (!hasList) return false;
-        const campaignKey = `C:${String(c.tenantId ?? '')}:${c.campaignId}`;
-        return selectedCampaigns.has(campaignKey);
-      })
-      .map((c) => ({
-        label: c.campaignListName ?? '',
-        value: `L:${String(c.tenantId ?? '')}:${c.campaignListId}`,
-      }));
+    const seen = new Set<string>();
+    const options: { label: string; value: string }[] = [];
+    for (const c of campaignOptionList ?? []) {
+      if (c.campaignListId == null || String(c.campaignListId).length === 0) continue;
+      const tenantId = String(c.tenantId ?? '');
+      const campaignKey = `C:${tenantId}:${c.campaignId}`;
+      if (!selectedCampaigns.has(campaignKey)) continue;
+      const value = toScenarioOptionValue(tenantId, c.campaignId, c.campaignListId);
+      if (seen.has(value)) continue;
+      seen.add(value);
+      const listLabel = c.campaignListName?.trim() ? c.campaignListName : String(c.campaignListId);
+      options.push({ label: listLabel, value });
+    }
+    return options;
   }, [campaignOptionList, campaignSelections]);
 
   // 테넌트 변경 시 캠페인·시나리오 선택 초기화
@@ -197,10 +217,25 @@ export default function CampaignIndividualResultStatistics() {
     setScenarioSelections([]);
   }, [tenantIds]);
 
-  // 캠페인 변경 시 유효하지 않은 시나리오 선택 제거
+  // 캠페인 변경 시 유효하지 않은 시나리오 선택 제거 (구형 L:tenant:listId → L:tenant:campaign:listId 보정)
   useEffect(() => {
     const validValues = new Set(scenarioSelectOptions.map((o) => o.value));
-    setScenarioSelections((prev) => prev.filter((v) => validValues.has(v)));
+    setScenarioSelections((prev) => {
+      const next: string[] = [];
+      for (const v of prev) {
+        if (validValues.has(v)) {
+          next.push(v);
+          continue;
+        }
+        if (!v.startsWith('L:')) continue;
+        const parts = v.split(':');
+        if (parts.length !== 3) continue;
+        const listId = parts[2];
+        const legacyMatch = scenarioSelectOptions.find((o) => o.value.endsWith(`:${listId}`));
+        if (legacyMatch) next.push(legacyMatch.value);
+      }
+      return [...new Set(next)];
+    });
   }, [scenarioSelectOptions]);
 
   useEffect(() => {
@@ -233,19 +268,21 @@ export default function CampaignIndividualResultStatistics() {
   const campaignStatParams = useMemo(() => {
     const campaignListIds = parseScenarioListIds(scenarioSelections);
     const campaignIds = parseCampaignIds(campaignSelections);
+    const allScenariosSelected = isAllOptionsSelected(scenarioSelections, scenarioSelectOptions);
     const base: Record<string, unknown> = {
       timeUnit,
       fromTime,
       toTime,
       tenantIds: tenantIdNums,
     };
-    if (campaignListIds.length > 0) {
+    // 시나리오 전체 선택 = 미선택과 동일하게 캠페인 기준 전체 조회 (행 수·집계 일치)
+    if (campaignListIds.length > 0 && !allScenariosSelected) {
       base.campaignListIds = campaignListIds;
     } else if (campaignIds.length > 0) {
       base.campaignIds = campaignIds;
     }
     return base;
-  }, [timeUnit, fromTime, toTime, tenantIdNums, campaignSelections, scenarioSelections]);
+  }, [timeUnit, fromTime, toTime, tenantIdNums, campaignSelections, scenarioSelections, scenarioSelectOptions]);
 
   // 캠페인별 통계 — 캠페인 통계와 동일 데이터·API (BFF: stat-campaign-result)
   const {
@@ -307,7 +344,7 @@ export default function CampaignIndividualResultStatistics() {
     refetch();
   };
 
-  const columnDefs: ColDef<CampaignResultStatListItem>[] = [
+  const columnDefs: CampaignResultStatColDef[] = [
     {
       headerName: '날짜',
       field: 'psrTimeKey',
@@ -329,9 +366,14 @@ export default function CampaignIndividualResultStatistics() {
     },
     {
       headerName: '시나리오',
-      field: 'campaignScenarioName',
+      field: 'campaignListName',
       width: 160,
       pinned: 'left',
+      valueGetter: ({ data }) => {
+        if (!data) return '-';
+        const name = String(data.campaignListName ?? '').trim();
+        return name || '-';
+      },
       cellStyle: textCellStyle,
     },
     { headerName: '대상건수', field: 'totalTargetCnt', width: 100, cellStyle: numberCellStyle },
@@ -343,27 +385,7 @@ export default function CampaignIndividualResultStatistics() {
     { headerName: '본인통화완료율', field: 'selfCallCompleteRatePct', width: 120, cellStyle: numberCellStyle, cellRenderer: 'percentBarRenderer' },
     { headerName: '실패건수', field: 'failCnt', width: 100, cellStyle: numberCellStyle },
     { headerName: '부재건수', field: 'absentCnt', width: 100, cellStyle: numberCellStyle },
-    {
-      headerName: '발신시도별 본인통화 성공률(1차)',
-      field: 'firstAttemptSelfCallSuccessRatePct',
-      width: 180,
-      cellStyle: numberCellStyle,
-      cellRenderer: 'percentBarRenderer',
-    },
-    {
-      headerName: '발신시도별 본인통화 성공률(2차)',
-      field: 'secondAttemptSelfCallSuccessRatePct',
-      width: 180,
-      cellStyle: numberCellStyle,
-      cellRenderer: 'percentBarRenderer',
-    },
-    {
-      headerName: '발신시도별 본인통화 성공률(3차)',
-      field: 'thirdAttemptSelfCallSuccessRatePct',
-      width: 180,
-      cellStyle: numberCellStyle,
-      cellRenderer: 'percentBarRenderer',
-    },
+    createAttemptSelfCallSuccessRateColumnGroup(numberCellStyle),
     { headerName: '검증실패율', field: 'verifyFailRatePct', width: 100, cellStyle: numberCellStyle, cellRenderer: 'percentBarRenderer' },
   ];
 
