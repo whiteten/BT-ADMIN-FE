@@ -1083,7 +1083,13 @@ const BotDialogHistoryDrawer = forwardRef<BotDialogHistoryDrawerRef>((_, ref) =>
                         'transition-all duration-300 rounded-lg hover:bg-slate-50',
                         highlightedNluSeq === item.seq && 'ring-2 ring-blue-400 ring-offset-2 bg-blue-50/50',
                       )}
-                      onClick={() => handleNluCardClick(item.seq)}
+                      onClick={(e) => {
+                        // 편집 모드 영역(Select/Input/Save/Cancel 등) 클릭은 버블 하이라이트 트리거 제외
+                        // NluCard가 편집 중인 hop div에 data-retrain-edit 속성을 부여하므로 그걸로 식별
+                        const target = e.target as HTMLElement;
+                        if (target.closest('[data-retrain-edit]')) return;
+                        handleNluCardClick(item.seq);
+                      }}
                     >
                       <NluCard
                         seq={item.seq}
