@@ -223,8 +223,11 @@ pipeline {
         always {
             // 빌드 결과 메일 발송 (성공·실패 모두)
             emailext(
-                to: 'hojaee@bridgetec.co.kr',
+                to: 'sm.yang@bridgetec.co.kr',
                 subject: "[${currentBuild.currentResult}] BT-ADMIN FE 빌드 - ${env.TAG} (#${env.BUILD_NUMBER})",
+                mimeType: 'text/plain',
+                attachLog: true,
+                recipientProviders: [developers(), requestor()],
                 body: """\
                     BT-ADMIN FE 빌드 결과 알림
 
