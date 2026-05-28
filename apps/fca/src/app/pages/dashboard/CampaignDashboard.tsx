@@ -114,16 +114,21 @@ export default function CampaignDashboard() {
   useDashboardSocket();
 
   const globalOptions = useMemo(() => {
+    // 대시보드 WS는 BE에서 campaignIds만 파싱한다.
+    // 시나리오(=campaignListIds) 선택이 있어도 campaignIds를 항상 동봉해야 데이터가 조회됨.
+    const campaignIds = selectedCampaign
+      .filter((item) => String(item.value).startsWith('C:'))
+      .map((item) => String(item.value).split(':').slice(2).join(':'))
+      .filter((v) => v.length > 0);
+
     const campaignListIds = selectedScenario
       .filter((item) => String(item.value).startsWith('L:'))
       .map((item) => Number(String(item.value).split(':')[2]))
       .filter((n) => !Number.isNaN(n));
 
     if (campaignListIds.length > 0) {
-      return { campaignListIds };
+      return { campaignIds, campaignListIds };
     }
-
-    const campaignIds = selectedCampaign.filter((item) => String(item.value).startsWith('C:')).map((item) => String(item.value).split(':').slice(2).join(':'));
 
     return { campaignIds };
   }, [selectedCampaign, selectedScenario]);
