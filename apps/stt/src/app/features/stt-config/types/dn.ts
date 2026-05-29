@@ -18,10 +18,6 @@ export interface SttDnItem {
 
 export interface SttDnSearchParams {
   hostName?: string;
-  dnStatus?: string;
-  useYn?: string;
-  dnNo?: string;
-  phoneIp?: string;
 }
 
 export interface SttDnDeleteParams {

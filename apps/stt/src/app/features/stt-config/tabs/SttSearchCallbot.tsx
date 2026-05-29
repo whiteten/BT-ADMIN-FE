@@ -20,14 +20,12 @@ export default function SttSearchCallbot() {
   const [listSearchParams, setListSearchParams] = useState<SttSearchCallbotParams>({
     fromDateTime: dayjs().format('YYYYMMDD') + '000000',
     toDateTime: dayjs().format('YYYYMMDD') + '235959',
-    analKind: 'C',
   });
   const [detailParams, setDetailParams] = useState<SttSearchCallbotDetailParams | undefined>();
 
   const buildListParams = (): SttSearchCallbotParams => ({
     fromDateTime: searchDate && startTime ? searchDate.format('YYYYMMDD') + startTime.format('HHmmss') : undefined,
     toDateTime: searchDate && endTime ? searchDate.format('YYYYMMDD') + endTime.format('HHmmss') : undefined,
-    analKind: 'C',
   });
 
   const { data: listData, isLoading: isListLoading } = useGetSttSearchCallbot({

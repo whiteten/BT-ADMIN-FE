@@ -21,7 +21,10 @@ export const modelQueryKeys = createQueryKeys('model', {
   getSttModelDeployList: (params?: Record<string, unknown>) => [params],
 });
 
-export const useGetSttModelList = ({ params, queryOptions }: { params?: SttModelSearchParams | null; queryOptions?: UseQueryOptions<SttModelItem[]> } = {}) => {
+export const useGetSttModelList = ({
+  params,
+  queryOptions,
+}: { params?: SttModelSearchParams | null; queryOptions?: Omit<UseQueryOptions<SttModelItem[]>, 'queryKey' | 'queryFn'> } = {}) => {
   return useQuery({
     queryKey: modelQueryKeys.getSttModelList((params as Record<string, unknown>) ?? undefined).queryKey,
     queryFn: () => modelApi.getSttModelList(params ?? undefined),

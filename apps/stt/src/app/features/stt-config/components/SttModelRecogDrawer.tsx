@@ -8,7 +8,7 @@ import { Pause, Play } from 'lucide-react';
 import { toast } from '@/shared-util';
 import { recogApi } from '../api/recogApi';
 import { modelQueryKeys, useExecuteRecogEvaluate, useGetRecogResultList } from '../hooks/useModelQueries';
-import { recogQueryKeys, useGetRecogGroupList } from '../hooks/useRecogQueries';
+import { recogQueryKeys, useGetLatestRecogGroup, useGetRecogGroupList } from '../hooks/useRecogQueries';
 import type { RecogResultItem, RecogTargetListItem, SttModelItem } from '../types';
 import NoData from '@/components/custom/NoData';
 import useAggridOptions from '@/libs/shared-ui/src/hooks/useAggridOptions';
@@ -123,11 +123,14 @@ const SttModelRecogDrawer = forwardRef<SttModelRecogDrawerRef>((_, ref) => {
   const { data: groups = [] } = useGetRecogGroupList({ params: { engineCode } });
   const groupOptions = groups.map((g) => ({ label: g.groupName, value: g.groupCode }));
 
+  const { data: latestGroup, status: latestGroupStatus } = useGetLatestRecogGroup({ params: model ? { modelVerId: model.modelVerId } : null });
+
   useEffect(() => {
-    if (groups.length > 0 && !groupCode) {
-      setGroupCode(groups[0].groupCode);
-    }
-  }, [groups, groupCode]);
+    if (groups.length === 0 || groupCode || latestGroupStatus === 'pending') return;
+    const latest = latestGroup?.groupCode;
+    const preferred = latest && groups.some((g) => g.groupCode === latest) ? latest : groups[0].groupCode;
+    setGroupCode(preferred);
+  }, [groups, groupCode, latestGroup, latestGroupStatus]);
 
   const searchParams = model && groupCode ? { modelVerId: model.modelVerId, groupCode } : null;
 
@@ -233,7 +236,7 @@ const SttModelRecogDrawer = forwardRef<SttModelRecogDrawerRef>((_, ref) => {
               <button
                 type="button"
                 onClick={() => setAutoRefresh((v) => !v)}
-                className={`flex items-center justify-center w-8 h-8 rounded border transition-colors ${
+                className={`flex items-center justify-center w-9 h-9 rounded border transition-colors ${
                   autoRefresh
                     ? 'border-[var(--color-bt-primary)] bg-[var(--color-bt-primary)] text-white'
                     : 'border-[var(--color-bt-primary)] text-[var(--color-bt-primary)] hover:bg-[var(--color-bt-primary)]/5'
@@ -242,7 +245,7 @@ const SttModelRecogDrawer = forwardRef<SttModelRecogDrawerRef>((_, ref) => {
                 {autoRefresh ? <Pause className="size-4" /> : <Play className="size-4" />}
               </button>
             </Tooltip>
-            <Button type="primary" onClick={handleEvaluate} loading={isPending || isFetchingTargets}>
+            <Button color="cyan" variant="solid" onClick={handleEvaluate} loading={isPending || isFetchingTargets}>
               인식률 측정
             </Button>
           </div>

@@ -39,7 +39,7 @@ const columnDefs: ColDef<CallStatusItem>[] = [
     headerClass: 'ag-center-aligned-header',
     valueFormatter: ({ value }) => (value?.length === 6 ? `${value.slice(0, 2)}:${value.slice(2, 4)}:${value.slice(4, 6)}` : (value ?? '')),
   },
-  { field: 'workKindName', headerName: '상태', width: 130, headerClass: 'ag-center-aligned-header' },
+  { field: 'workKindName', headerName: '상태', width: 130, headerClass: 'ag-center-aligned-header', filter: true },
   { field: 'dnNo', headerName: '내선', width: 80, headerClass: 'ag-center-aligned-header' },
   { field: 'dbInsertTime', headerName: '입력시간', width: 175, headerClass: 'ag-center-aligned-header' },
   { field: 'saRuntime', headerName: '수행시간', width: 110, headerClass: 'ag-center-aligned-header' },
@@ -94,7 +94,7 @@ export default function CallStatusList() {
             <button
               type="button"
               onClick={() => setAutoRefresh((v) => !v)}
-              className={`flex items-center justify-center w-8 h-8 rounded border transition-colors ${autoRefresh ? 'border-[var(--color-bt-primary)] bg-[var(--color-bt-primary)] text-white' : 'border-[var(--color-bt-primary)] text-[var(--color-bt-primary)] hover:bg-[var(--color-bt-primary)]/5'}`}
+              className={`flex items-center justify-center w-9 h-9 rounded border transition-colors ${autoRefresh ? 'border-[var(--color-bt-primary)] bg-[var(--color-bt-primary)] text-white' : 'border-[var(--color-bt-primary)] text-[var(--color-bt-primary)] hover:bg-[var(--color-bt-primary)]/5'}`}
             >
               {autoRefresh ? <Pause className="size-4" /> : <Play className="size-4" />}
             </button>

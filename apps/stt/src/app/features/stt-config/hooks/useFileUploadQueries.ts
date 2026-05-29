@@ -8,7 +8,10 @@ export const fileUploadQueryKeys = createQueryKeys('fileUpload', {
   getFileUploadList: (params?: Record<string, unknown>) => [params],
 });
 
-export const useGetFileUploadList = ({ params, queryOptions }: { params?: FileUploadSearchParams | null; queryOptions?: UseQueryOptions<FileUploadItem[]> } = {}) => {
+export const useGetFileUploadList = ({
+  params,
+  queryOptions,
+}: { params?: FileUploadSearchParams | null; queryOptions?: Omit<UseQueryOptions<FileUploadItem[]>, 'queryKey' | 'queryFn'> } = {}) => {
   return useQuery({
     queryKey: fileUploadQueryKeys.getFileUploadList((params as Record<string, unknown>) ?? undefined).queryKey,
     queryFn: () => fileUploadApi.getFileUploadList(params ?? undefined),

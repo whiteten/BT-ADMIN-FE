@@ -8,6 +8,7 @@ const DictionaryList = React.lazy(() => import('./pages/stt-config/DictionaryLis
 const RecogList = React.lazy(() => import('./pages/stt-config/RecogList'));
 const ModelList = React.lazy(() => import('./pages/stt-config/ModelList'));
 const DnList = React.lazy(() => import('./pages/stt-config/DnList'));
+const RetryReqList = React.lazy(() => import('./pages/stt-config/RetryReqList'));
 const FileUploadList = React.lazy(() => import('./pages/stt-config/FileUploadList'));
 const ChannelStatusList = React.lazy(() => import('./pages/monitoring/ChannelStatusList'));
 const DnStatusList = React.lazy(() => import('./pages/monitoring/DnStatusList'));
@@ -74,6 +75,14 @@ export const routes = [
             children: [
               { index: true, element: <Navigate to="list" replace /> },
               { path: 'list', element: <DnList /> },
+            ],
+          },
+          {
+            path: 'retry-req',
+            element: <Outlet />,
+            children: [
+              { index: true, element: <Navigate to="list" replace /> },
+              { path: 'list', element: <RetryReqList /> },
             ],
           },
           {

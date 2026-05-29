@@ -38,11 +38,7 @@ export interface RecogTargetSearchParams {
   engineCode?: string;
   fromDateTime?: string;
   toDateTime?: string;
-  keyword?: string;
-  inoutKind?: string;
-  ucidGkey?: string;
   dnNo?: string;
-  rxtxKind?: string;
 }
 
 export interface RecogTargetSearchItem {
@@ -72,6 +68,10 @@ export interface RecogTargetListItem {
   saLoadResult: number;
   loadUser: number;
   loadTime: string;
+}
+
+export interface LatestRecogGroup {
+  groupCode: string;
 }
 
 export interface RecogTargetCreateData {
