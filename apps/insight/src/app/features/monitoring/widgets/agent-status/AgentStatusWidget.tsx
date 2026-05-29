@@ -2,11 +2,12 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { useQueryClient } from '@tanstack/react-query';
 import { Button, Drawer, Input, Radio, Tooltip } from 'antd';
-import { AlertTriangle, CircleHelp, LayoutGrid, PanelTopClose, PanelTopOpen, Rows3, Search, Settings } from 'lucide-react';
+import { AlertTriangle, CircleHelp, LayoutGrid, PanelTopClose, PanelTopOpen, Rows3, Search, Settings, Table2 } from 'lucide-react';
 import { toast } from '@/shared-util';
 import { DEMO_AGENTS, isDemoMode } from './demoData';
 import { answerRatePct, groupAgents, liveDurationSec, matchSearch, toAgentRows, toNum, totalHandled } from './helpers';
 import AgentRadarModal from './parts/AgentRadarModal';
+import AgentStatusGrid from './parts/AgentStatusGrid';
 import GroupSection from './parts/GroupSection';
 import MosLegend from './parts/MosLegend';
 import { alarmLevel, statusKey, statusMeta } from './statusMap';
@@ -358,6 +359,20 @@ export default function AgentStatusWidget({ data, options, widgetId, onRequestPa
           <Rows3 size={16} strokeWidth={1.75} />
         </span>
       </Tooltip>
+      <Tooltip title="목록" placement="top">
+        <span
+          onClick={() => setDensity('grid')}
+          aria-label="목록"
+          aria-pressed={density === 'grid'}
+          role="button"
+          className={
+            'inline-flex w-8 h-8 cursor-pointer items-center justify-center rounded border transition-colors hover:bg-gray-100 ' +
+            (density === 'grid' ? 'text-[#405189] border-[#405189]' : 'text-gray-400 border-gray-300')
+          }
+        >
+          <Table2 size={16} strokeWidth={1.75} />
+        </span>
+      </Tooltip>
       <Tooltip title={summaryCollapsed ? '요약정보 펴기' : '요약정보 접기'} placement="top">
         <span
           onClick={toggleSummary}
@@ -462,8 +477,10 @@ export default function AgentStatusWidget({ data, options, widgetId, onRequestPa
       </div>
 
       {/* ═════ ④ 본문 ═════ */}
-      <div className="flex-1 overflow-auto p-4">
-        {visible.length === 0 ? (
+      <div className={density === 'grid' ? 'min-h-0 flex-1 p-3' : 'flex-1 overflow-auto p-4'}>
+        {density === 'grid' ? (
+          <AgentStatusGrid rows={visible} nowMs={nowMs} />
+        ) : visible.length === 0 ? (
           <div className="flex h-full items-center justify-center">
             <NoData message={emptyMessage(rows.length, search, alertOnly)} iconSize={40} fontSize="text-sm" gap={2} />
           </div>

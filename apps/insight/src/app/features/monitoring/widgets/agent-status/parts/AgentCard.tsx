@@ -13,7 +13,6 @@ import { MOS_META } from './MosLegend';
  *  │ 김민서  3001       [통화 IB]        │  ① 이름·DN·스킬 + 상태 Tag
  *  │ ─────────────────────────────────── │
  *  │ 5:23                                │  ② 큰 시간 (focal)
- *  │ 010-3412-5510  ·  VIP 상담         │  ③ 컨텍스트 (ANI · 큐)
  *  │ ─────────────────────────────────── │
  *  │ 응대 31    평균 2:48    점유 ████▎  │  ④ 누적 KPI 3개 (응대수·평균·점유율 bar)
  *  │ 응대율 96%   후처리 0:42   전환 2%  │  ⑤ 응대율·후처리·전환 추가 행
@@ -61,7 +60,6 @@ function AgentCardImpl({ row, nowMs, thresholds, onActivate, compact = false }: 
 
   const name = toStr(row.AGENT_NAME) || toStr(row.AGENT_LOGIN_ID) || `#${row.AGENT_ID ?? '-'}`;
   const dn = toStr(row.LOGIN_DN_NO);
-  const queue = toStr(row.LAST_ICQ_NAME).trim();
 
   // KPI 모음 — 응대, 자율처리율, 통화시간, 평균통화시간
   const ansCnt = toNum(row.SUM_ANSW_CNT) ?? 0;
@@ -75,7 +73,7 @@ function AgentCardImpl({ row, nowMs, thresholds, onActivate, compact = false }: 
   // 스크롤 진입 시 브라우저가 페인트/레이아웃 자동 실행. 천 단위 카드에서 초기 로드·스크롤 비용 큰폭 절감.
   const cardCls = [
     'group relative flex h-full flex-col rounded-lg border bg-white text-left outline-none transition-all',
-    compact ? 'min-h-[68px] [content-visibility:auto] [contain-intrinsic-size:68px]' : 'min-h-[170px] [content-visibility:auto] [contain-intrinsic-size:170px]',
+    compact ? 'min-h-[68px] [content-visibility:auto] [contain-intrinsic-size:68px]' : 'min-h-[150px] [content-visibility:auto] [contain-intrinsic-size:150px]',
     'hover:shadow-[0_4px_12px_rgba(0,0,0,0.08)] focus-visible:ring-2 focus-visible:ring-blue-500',
     isAlert ? 'border-red-500 bg-red-50/40' : isWarn ? 'border-orange-400' : 'border-gray-200 hover:border-gray-300',
   ].join(' ');
@@ -119,15 +117,6 @@ function AgentCardImpl({ row, nowMs, thresholds, onActivate, compact = false }: 
         ) : (
           <div className={`font-mono ${compact ? 'text-base' : 'text-2xl'} font-bold leading-none tabular-nums ${timeClass}`}>{formatDuration(dur)}</div>
         )}
-        {/* ─── ③ 큐 (통화중일 때만, compact 면 숨김) ─ */}
-        {!compact &&
-          (queue ? (
-            <div className="mt-1 truncate text-xs text-gray-500" title={queue}>
-              {queue}
-            </div>
-          ) : (
-            <div className="mt-1 h-4" aria-hidden />
-          ))}
       </div>
 
       {/* ─── ④ KPI 2×2 그리드 — compact 면 전체 섹션 숨김 ─ */}
