@@ -7,18 +7,20 @@ export default class WebSocketClient {
   #key: string;
   #Log: InstanceType<typeof LOG>;
   #messageLog: boolean;
+  #muteLog?: (data: string) => boolean;
 
   onopen?: () => void;
   onmessage?: (event: MessageEvent) => void;
   onerror?: (event: Event) => void;
   onclose?: (event: CloseEvent) => void;
 
-  constructor(url: string, options?: { messageLog?: boolean }) {
+  constructor(url: string, options?: { messageLog?: boolean; muteLog?: (data: string) => boolean }) {
     this.#url = url;
     this.#ws = null;
     this.#key = createShortId();
     this.#Log = new LOG(`WS-Client-${this.#key}`);
     this.#messageLog = options?.messageLog ?? true;
+    this.#muteLog = options?.muteLog;
   }
 
   setmessageLog(enabled: boolean): this {
@@ -43,7 +45,7 @@ export default class WebSocketClient {
         };
 
         this.#ws.onmessage = (event) => {
-          if (this.#messageLog) this.#Log.success('[onmessage]', event.data);
+          if (this.#messageLog && !this.#muteLog?.(event.data)) this.#Log.success('[onmessage]', event.data);
           this.onmessage?.(event);
         };
 
@@ -89,7 +91,7 @@ export default class WebSocketClient {
     try {
       const message = typeof data === 'string' ? data : JSON.stringify(data);
       this.#ws.send(message);
-      if (this.#messageLog) this.#Log.success('[send]', data);
+      if (this.#messageLog && !this.#muteLog?.(message)) this.#Log.success('[send]', data);
     } catch (error) {
       this.#Log.error('[send error]', error);
     }
