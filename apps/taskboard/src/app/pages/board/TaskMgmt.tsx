@@ -419,7 +419,7 @@ export default function TaskMgmt() {
   };
 
   const handleDelete = async (group: RollingGroup) => {
-    if (!confirm(`"${group.groupName}" 그룹을 삭제하시겠습니까?`)) return;
+    if (!window.confirm(`"${group.groupName}" 그룹을 삭제하시겠습니까?`)) return;
     try {
       await deleteGroup.mutateAsync(group.groupId);
       toast.success('그룹이 삭제되었습니다.');

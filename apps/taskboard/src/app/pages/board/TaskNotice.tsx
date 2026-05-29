@@ -255,7 +255,7 @@ export default function TaskNotice() {
   };
 
   const handleDelete = async (notice: TaskboardNotice) => {
-    if (!confirm(`"${notice.title || notice.noticeKey}" 공지사항을 삭제하시겠습니까?`)) return;
+    if (!window.confirm(`"${notice.title || notice.noticeKey}" 공지사항을 삭제하시겠습니까?`)) return;
     try {
       await deleteNotice.mutateAsync(notice.noticeId);
       toast.success('삭제되었습니다.');
