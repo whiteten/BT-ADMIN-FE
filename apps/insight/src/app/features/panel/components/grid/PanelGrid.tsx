@@ -1,5 +1,5 @@
-import { useMemo } from 'react';
-import type { ColDef, ValueFormatterParams } from 'ag-grid-community';
+import { useCallback, useMemo } from 'react';
+import type { ColDef, RowClassParams, ValueFormatterParams } from 'ag-grid-community';
 import { AgGridReact } from 'ag-grid-react';
 import { useGetDataSourceFields } from '../../../dataset/hooks/useDatasetQueries';
 import { useReportEditorStore } from '../../../report/hooks/useReportEditorStore';
@@ -82,7 +82,53 @@ export default function PanelGrid({ panel, reportId }: PanelGridProps) {
     return [...dimCols, ...msrCols];
   }, [rowFields, valueFields, displayNameMap]);
 
-  const rowData = queryResult?.current ?? [];
+  const rowData = useMemo(() => queryResult?.current ?? [], [queryResult]);
+  const showSumRow = (panel.chartOptions as { showSumRow?: boolean } | undefined)?.showSumRow ?? true;
+  const summaryRow = useMemo(() => {
+    // 비교 모드에선 합계 행 미표시 (CURRENT/PREVIOUS/DELTA 별도 뷰)
+    if (!showSumRow || committedFilter.comparison != null || rowData.length === 0) return null;
+    const row: Record<string, unknown> = {};
+    rowFields.forEach((f, i) => {
+      row[f.fieldName] = i === 0 ? '합계' : '';
+    });
+    valueFields.forEach((f) => {
+      // aggFunc 미지정(없음)인 컬럼은 합계 행에서 빈칸 처리
+      if (!f.aggFunc) {
+        row[f.fieldName] = null;
+        return;
+      }
+      const vals = rowData.map((r: Record<string, unknown>) => Number(r[f.fieldName])).filter((v: number) => !isNaN(v));
+      if (vals.length === 0) {
+        row[f.fieldName] = null;
+        return;
+      }
+      // 행 데이터는 백엔드에서 이미 그룹별 집계됨 → 컬럼 aggFunc로 그룹 간 롤업
+      switch (f.aggFunc) {
+        // SUM/COUNT: 그룹별 값(합/카운트)을 다시 합산 → 전체 합계/전체 카운트
+        case 'SUM':
+        case 'COUNT':
+          row[f.fieldName] = vals.reduce((a: number, b: number) => a + b, 0);
+          break;
+        // AVG: 그룹별 평균을 다시 평균
+        case 'AVG':
+          row[f.fieldName] = vals.reduce((a: number, b: number) => a + b, 0) / vals.length;
+          break;
+        case 'MAX':
+          row[f.fieldName] = Math.max(...vals);
+          break;
+        case 'MIN':
+          row[f.fieldName] = Math.min(...vals);
+          break;
+        default:
+          row[f.fieldName] = null;
+      }
+    });
+    return row;
+  }, [showSumRow, rowData, rowFields, valueFields, committedFilter.comparison]);
+
+  // 안정적인 ref 유지 — 매 렌더 새 배열/함수면 ag-grid가 갱신 루프에 빠짐
+  const pinnedBottomRowData = useMemo(() => (!isDraft && summaryRow ? [summaryRow] : undefined), [isDraft, summaryRow]);
+  const getRowStyle = useCallback((params: RowClassParams) => (params.node.rowPinned === 'bottom' ? { background: '#f6f7f9', fontWeight: '600' } : undefined), []);
 
   if (!hasMapping) {
     return (
@@ -92,5 +138,16 @@ export default function PanelGrid({ panel, reportId }: PanelGridProps) {
     );
   }
 
-  return <AgGridReact {...gridOptions} rowData={isDraft ? [] : rowData} columnDefs={columnDefs} loading={!isDraft && isFetching} pagination={false} domLayout="autoHeight" />;
+  return (
+    <AgGridReact
+      {...gridOptions}
+      rowData={isDraft ? [] : rowData}
+      columnDefs={columnDefs}
+      loading={!isDraft && isFetching}
+      pagination={false}
+      domLayout="autoHeight"
+      pinnedBottomRowData={pinnedBottomRowData}
+      getRowStyle={getRowStyle}
+    />
+  );
 }

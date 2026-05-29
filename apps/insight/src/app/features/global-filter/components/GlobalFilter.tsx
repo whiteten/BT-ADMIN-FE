@@ -31,6 +31,13 @@ function SearchCondSelect({ searchCondId, fieldName, value, onChange }: SearchCo
 
   const isMulti = inputType === 'MULTI_SELECT' || inputType === 'TREE_MULTI_SELECT';
 
+  // 멀티셀렉트: 최초 로드 시 전체 선택 기본값 (값 미설정 상태에서만 — 사용자가 비우면 유지)
+  useEffect(() => {
+    if (!isMulti || isLoading || value !== undefined || options.length === 0) return;
+    onChange(options.map((o) => String(o.value)));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isMulti, isLoading, value, data]);
+
   if (inputType === 'RADIO') {
     return (
       <div className="flex items-center gap-2">
@@ -58,11 +65,12 @@ function SearchCondSelect({ searchCondId, fieldName, value, onChange }: SearchCo
           }
         }}
         allowClear
-        style={{ minWidth: 150 }}
+        style={{ minWidth: 150, maxWidth: 320 }}
         popupMatchSelectWidth={false}
         showSearch
         optionFilterProp="label"
-        maxTagCount="responsive"
+        maxTagCount={2}
+        maxTagPlaceholder={(omitted) => `+${omitted.length}`}
       />
     </div>
   );

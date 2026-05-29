@@ -117,7 +117,11 @@ export interface RadarChartOptions {
   legend?: boolean;
 }
 
-export type ChartOptions = BarChartOptions | LineChartOptions | PieChartOptions | RadarChartOptions;
+export interface GridOptions {
+  showSumRow?: boolean;
+}
+
+export type ChartOptions = GridOptions | BarChartOptions | LineChartOptions | PieChartOptions | RadarChartOptions;
 
 export interface PanelDetail {
   panelId: number;

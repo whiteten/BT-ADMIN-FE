@@ -79,7 +79,7 @@ function makeFieldMapEntry(field: FieldMetaItem, slotType: SlotType, slotOrder: 
     slotOrder,
     fieldName: field.fieldName,
     isCalcField: false,
-    aggFunc: isMsr ? 'SUM' : undefined,
+    aggFunc: undefined,
     columnFormat: isMsr ? 'Number' : undefined,
   };
 }
@@ -138,7 +138,7 @@ export default function PanelEditorSheet({ reportId, panelType, panelId, dataset
   const [valueFields, setValueFields] = useState<PanelFieldMap[]>(existingFieldMap.filter((f) => f.slotType === 'VALUE'));
   const [sortFields, setSortFields] = useState<PanelFieldMap[]>(existingFieldMap.filter((f) => f.slotType === 'SORT'));
   const [filterFields, setFilterFields] = useState<PanelFieldMap[]>(existingFieldMap.filter((f) => f.slotType === 'FILTER'));
-  const [showSumRow, setShowSumRow] = useState(true);
+  const [showSumRow, setShowSumRow] = useState(() => (existingPanel?.chartOptions as { showSumRow?: boolean } | undefined)?.showSumRow ?? true);
 
   // ─── CHART slot state ──────────────────────────────────────────────────────
   const [chartSubType, setChartSubType] = useState<ChartSubType>((['BAR', 'LINE', 'PIE'].includes(currentPanelType) ? currentPanelType : 'BAR') as ChartSubType);
@@ -252,7 +252,7 @@ export default function PanelEditorSheet({ reportId, panelType, panelId, dataset
   };
 
   const buildChartOptions = () => {
-    if (isGrid) return undefined;
+    if (isGrid) return { showSumRow };
     return { direction: chartDirection, dataLabel: showDataLabel, legend: showLegend, goalLine: { enabled: goalLineEnabled, value: goalLineValue } };
   };
 
@@ -599,7 +599,7 @@ export default function PanelEditorSheet({ reportId, panelType, panelId, dataset
               {slotType === 'Y_AXIS' && (
                 <Select
                   size="small"
-                  value={f.aggFunc ?? 'SUM'}
+                  value={f.aggFunc ?? ''}
                   onChange={(v) => updateInSlot(f.fieldName, 'aggFunc', v as AggFunc, entry.setter)}
                   options={AGG_OPTIONS}
                   className="ml-auto w-20"
