@@ -76,10 +76,7 @@ const BotDialogHistoryPage: React.FC = () => {
 
   const handleRowClick = (data: BotDialogHistoryListItem) => {
     setSelectedRowId(`${data.ucid}_${data.nextHop}_${data.cdrPkey}`);
-    // 슬롯차트에서 (entityTag, SEQ)로 필터링된 상태라면 해당 슬롯 위치의 버블로 자동 스크롤
-    const highlightSlot =
-      searchParams.slotEntityTag && searchParams.slotEntitySeq != null ? { entityTag: searchParams.slotEntityTag, slotSeq: searchParams.slotEntitySeq } : undefined;
-    drawerRef.current?.open(data, highlightSlot);
+    drawerRef.current?.open(data);
   };
 
   return (

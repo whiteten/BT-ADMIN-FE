@@ -679,48 +679,9 @@ const AudioPlayer = forwardRef<AudioPlayerRef, AudioPlayerProps>(function AudioP
   );
 });
 
-/** 슬롯차트에서 (entityTag, slotSeq) 필터로 진입한 경우 해당 슬롯 위치의 버블을 자동 강조하기 위한 컨텍스트. */
-export interface SlotHighlightContext {
-  entityTag: string;
-  slotSeq: number;
-}
-
 export interface BotDialogHistoryDrawerRef {
-  open: (row: BotDialogHistoryListItem, highlightSlot?: SlotHighlightContext) => void;
+  open: (row: BotDialogHistoryListItem) => void;
   close: () => void;
-}
-
-/**
- * NLU 데이터 + 슬롯 컨텍스트 → 자동 강조할 버블의 questionSeq 산출.
- * 슬롯 인식이 있었던(entities[].length > 0) NLU 항목들을 questionSeq 기준으로 정렬해
- * slotSeq번째(1-indexed) 항목을 선택합니다. 그 항목의 entityTag가 다르면 entityTag로 첫 매칭을 fallback.
- */
-function findTargetBubbleSeq(nluData: NluAnalysisItem[] | undefined, ctx: SlotHighlightContext): number | null {
-  if (!nluData || nluData.length === 0) return null;
-
-  // questionSeq별로 슬롯 인식이 있었는지 + 해당 entityTag 보유 여부 집계 (HOP 다수 가능)
-  const seqInfo = new Map<number, { hasEntity: boolean; matchesTag: boolean }>();
-  for (const nlu of nluData) {
-    const cur = seqInfo.get(nlu.questionSeq) ?? { hasEntity: false, matchesTag: false };
-    if (nlu.entities && nlu.entities.length > 0) {
-      cur.hasEntity = true;
-      if (nlu.entities.some((e) => e.entityTag === ctx.entityTag)) cur.matchesTag = true;
-    }
-    seqInfo.set(nlu.questionSeq, cur);
-  }
-
-  // 슬롯 인식이 있었던 questionSeq 오름차순 — slotSeq번째가 1차 후보
-  const orderedSlotSeqs = Array.from(seqInfo.entries())
-    .filter(([, v]) => v.hasEntity)
-    .map(([qSeq]) => qSeq)
-    .sort((a, b) => a - b);
-
-  const byOrder = orderedSlotSeqs[ctx.slotSeq - 1];
-  if (byOrder != null && seqInfo.get(byOrder)?.matchesTag) return byOrder;
-
-  // Fallback: entityTag로 첫 매칭 (slotSeq 순서가 정확히 일치하지 않더라도 같은 entity를 거친 첫 버블)
-  const firstMatch = orderedSlotSeqs.find((qSeq) => seqInfo.get(qSeq)?.matchesTag);
-  return firstMatch ?? byOrder ?? null;
 }
 
 const BotDialogHistoryDrawer = forwardRef<BotDialogHistoryDrawerRef>((_, ref) => {
@@ -758,12 +719,8 @@ const BotDialogHistoryDrawer = forwardRef<BotDialogHistoryDrawerRef>((_, ref) =>
   const [targetBubbleKey, setTargetBubbleKey] = useState<string | null>(null);
   const [revealedBubbles, setRevealedBubbles] = useState<Record<string, string>>({});
 
-  // 슬롯차트 진입 자동 강조 — open() 시점에 받아 데이터 로드 완료 후 1회만 적용
-  const [highlightSlot, setHighlightSlot] = useState<SlotHighlightContext | null>(null);
-  const slotHighlightAppliedRef = useRef(false);
-
   useImperativeHandle(ref, () => ({
-    open: (row: BotDialogHistoryListItem, highlightSlotCtx?: SlotHighlightContext) => {
+    open: (row: BotDialogHistoryListItem) => {
       setSelectedRow(row);
       setHighlightedNluSeq(null);
       nluCardRefs.current.clear();
@@ -771,8 +728,6 @@ const BotDialogHistoryDrawer = forwardRef<BotDialogHistoryDrawerRef>((_, ref) =>
       setReasonModalOpen(false);
       setTargetBubbleKey(null);
       setAudioPlayingIdx(null);
-      setHighlightSlot(highlightSlotCtx ?? null);
-      slotHighlightAppliedRef.current = false;
       setIsOpen(true);
     },
     close: () => {
@@ -783,8 +738,6 @@ const BotDialogHistoryDrawer = forwardRef<BotDialogHistoryDrawerRef>((_, ref) =>
       setReasonModalOpen(false);
       setTargetBubbleKey(null);
       setAudioPlayingIdx(null);
-      setHighlightSlot(null);
-      slotHighlightAppliedRef.current = false;
     },
   }));
 
@@ -797,8 +750,6 @@ const BotDialogHistoryDrawer = forwardRef<BotDialogHistoryDrawerRef>((_, ref) =>
     setReasonModalOpen(false);
     setTargetBubbleKey(null);
     setAudioPlayingIdx(null);
-    setHighlightSlot(null);
-    slotHighlightAppliedRef.current = false;
   };
 
   const setNluCardRef = useCallback((seq: number, el: HTMLDivElement | null) => {
@@ -913,36 +864,6 @@ const BotDialogHistoryDrawer = forwardRef<BotDialogHistoryDrawerRef>((_, ref) =>
 
   const items: TrackingFlowItem[] = bubbleData ?? [];
   itemsRef.current = items;
-
-  // 슬롯차트 진입 시 자동 스크롤·강조 — bubble + NLU 데이터 모두 로드되면 1회 실행
-  useEffect(() => {
-    if (!isOpen || !highlightSlot || slotHighlightAppliedRef.current) return;
-    if (isBubbleLoading || items.length === 0 || !nluData) return;
-
-    const targetSeq = findTargetBubbleSeq(nluData, highlightSlot);
-    slotHighlightAppliedRef.current = true;
-    if (targetSeq == null) return;
-
-    // 버블 + NLU 카드 동시 강조 — 기존 클릭 강조와 동일한 1.2초 후 자동 해제
-    setSelectedBubbleSeq(targetSeq);
-    setHighlightedNluSeq(targetSeq);
-    if (bubbleHighlightTimer.current) clearTimeout(bubbleHighlightTimer.current);
-    bubbleHighlightTimer.current = setTimeout(() => setSelectedBubbleSeq(null), 1200);
-    if (highlightTimer.current) clearTimeout(highlightTimer.current);
-    highlightTimer.current = setTimeout(() => setHighlightedNluSeq(null), 1200);
-
-    // 이중 rAF로 ref attach + 첫 페인트 대기 후 좌·우 동시 스크롤
-    // (setTimeout 매직 넘버 대신 브라우저 렌더 사이클에 동기화)
-    requestAnimationFrame(() => {
-      requestAnimationFrame(() => {
-        const idx = itemsRef.current.findIndex((i) => i.seq === targetSeq);
-        if (idx >= 0) {
-          bubbleRefs.current.get(idx)?.scrollIntoView({ behavior: 'smooth', block: 'center' });
-        }
-        nluCardRefs.current.get(targetSeq)?.scrollIntoView({ behavior: 'smooth', block: 'center' });
-      });
-    });
-  }, [isOpen, highlightSlot, isBubbleLoading, items, nluData]);
 
   // NLU 데이터를 questionSeq 기준으로 그룹핑하여 고객 발화 버블과 매칭
   const nluBySeq = useMemo(() => {
