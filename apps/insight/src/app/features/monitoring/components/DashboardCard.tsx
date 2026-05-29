@@ -1,7 +1,6 @@
 import { useNavigate } from 'react-router-dom';
 import { useQueryClient } from '@tanstack/react-query';
 import { Card, Tag } from 'antd';
-import dayjs from 'dayjs';
 import { toast } from '@/shared-util';
 import { DOMAIN_LABELS } from '../constants/monitoringConstants';
 import { dashboardKeys, useDeleteDashboard } from '../hooks/useDashboardQueries';
@@ -43,7 +42,6 @@ export default function DashboardCard({ dashboard }: DashboardCardProps) {
       onOk: () => deleteDashboard(dashboard.dashboardId),
     });
 
-  const totalWidgets = dashboard.templateWidgetCount + dashboard.customWidgetCount;
   const domainLabel = DOMAIN_LABELS[dashboard.domainCode];
 
   const title = (
@@ -106,29 +104,6 @@ export default function DashboardCard({ dashboard }: DashboardCardProps) {
           <span className="flex-1 truncate text-gray-700" title={dashboard.description ?? undefined}>
             {dashboard.description || <span className="text-gray-300">-</span>}
           </span>
-        </div>
-        <div className="flex items-center">
-          <span className="w-[90px] text-gray-500">위젯</span>
-          <span className="text-gray-700">
-            {totalWidgets > 0 ? (
-              <>
-                템플릿 <span className="font-semibold">{dashboard.templateWidgetCount}</span> · 커스텀 <span className="font-semibold">{dashboard.customWidgetCount}</span>{' '}
-                <span className="text-gray-500">= {totalWidgets}개</span>
-              </>
-            ) : (
-              <span className="text-gray-300">없음 — 클릭해 추가</span>
-            )}
-          </span>
-        </div>
-        <div className="flex items-center">
-          <span className="w-[90px] text-gray-500">레이아웃</span>
-          <span className="font-mono text-gray-700">
-            {dashboard.layoutWidth}W × {dashboard.layoutHeight}H
-          </span>
-        </div>
-        <div className="flex items-center">
-          <span className="w-[90px] text-gray-500">수정일</span>
-          <span className="text-gray-700">{dashboard.updatedAt ? dayjs(dashboard.updatedAt).format('YYYY-MM-DD HH:mm') : '-'}</span>
         </div>
       </div>
     </Card>
