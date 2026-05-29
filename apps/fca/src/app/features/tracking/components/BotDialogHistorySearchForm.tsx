@@ -341,7 +341,7 @@ const BotDialogHistorySearchForm: React.FC<BotDialogHistorySearchFormProps> = ({
           </Button>
           {onSlotChart && (
             <Button type="primary" icon={<BarChart3 className="size-4" />} className="flex items-center gap-1 shrink-0" onClick={handleSlotChart}>
-              슬롯차트
+              대화여정
             </Button>
           )}
           {onExcelDownload && (
