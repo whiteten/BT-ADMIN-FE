@@ -115,7 +115,7 @@ const SttDnDrawer = forwardRef<SttDnDrawerRef>((_, ref) => {
   );
 
   return (
-    <Drawer open={open} onClose={handleClose} title={isEdit ? '내선정보 수정' : '내선정보 추가'} closable={{ placement: 'end' }} size={500} footer={footer} destroyOnHidden>
+    <Drawer open={open} onClose={handleClose} title={isEdit ? '내선정보 수정' : '내선정보 추가'} closable={{ placement: 'end' }} size={480} footer={footer} destroyOnHidden>
       <Form form={form} layout="vertical" initialValues={{ dnStatus: '1', useYn: '1' }} onFinish={onFinish} onFinishFailed={onFinishFailed}>
         <Row>
           <Col span={24}>

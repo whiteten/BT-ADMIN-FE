@@ -1,7 +1,8 @@
-import { type UseQueryOptions, useQuery } from '@tanstack/react-query';
+import { type UseQueryOptions, useMutation, useQuery } from '@tanstack/react-query';
 import { createQueryKeys } from '@lukemorales/query-key-factory';
+import type { MutationHookOptions } from '@/shared-util';
 import { retryReqApi } from '../api/retryReqApi';
-import type { RetryReqListItem, RetryReqSearchParams, RetryReqTreeItem } from '../types';
+import type { RetryReqCreateParams, RetryReqListItem, RetryReqSearchParams, RetryReqTreeItem } from '../types';
 
 export const retryReqQueryKeys = createQueryKeys('retryReq', {
   getRetryReqTree: null,
@@ -25,5 +26,19 @@ export const useGetRetryReqList = ({
     queryFn: () => retryReqApi.getRetryReqList(params!),
     enabled: !!params?.retryDate,
     ...queryOptions,
+  });
+};
+
+export const useCreateRetryReq = ({ mutationOptions }: MutationHookOptions<unknown, RetryReqCreateParams> = {}) => {
+  return useMutation({
+    mutationFn: retryReqApi.createRetryReq,
+    ...mutationOptions,
+  });
+};
+
+export const useDeleteRetryReq = ({ mutationOptions }: MutationHookOptions<unknown, string> = {}) => {
+  return useMutation({
+    mutationFn: retryReqApi.deleteRetryReq,
+    ...mutationOptions,
   });
 };

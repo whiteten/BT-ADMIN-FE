@@ -21,3 +21,9 @@ export interface RetryReqListItem {
 export interface RetryReqSearchParams {
   retryDate: string;
 }
+
+export interface RetryReqCreateParams {
+  retryDate: string;
+  retryType: 1 | 2;
+  retryTime: string;
+}
