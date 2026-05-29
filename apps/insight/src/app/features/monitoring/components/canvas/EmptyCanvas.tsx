@@ -1,16 +1,11 @@
-import { useNavigate } from 'react-router-dom';
 import { ArrowRight, Boxes, LayoutTemplate } from 'lucide-react';
 
 interface EmptyCanvasProps {
-  dashboardId: number;
+  onAddTemplate: () => void;
+  onAddCustom: () => void;
 }
 
-export default function EmptyCanvas({ dashboardId }: EmptyCanvasProps) {
-  const navigate = useNavigate();
-
-  const handleTemplate = () => navigate(`/insight/monitoring/dashboards/${dashboardId}/edit/widget/create/template`);
-  const handleCustom = () => navigate(`/insight/monitoring/dashboards/${dashboardId}/edit/widget/create/custom`);
-
+export default function EmptyCanvas({ onAddTemplate, onAddCustom }: EmptyCanvasProps) {
   return (
     <div className="flex-1 grid-pattern overflow-auto">
       <div className="flex flex-col items-center justify-center min-h-[460px] py-16 px-8">
@@ -36,7 +31,7 @@ export default function EmptyCanvas({ dashboardId }: EmptyCanvasProps) {
           {/* 템플릿 위젯 — primary */}
           <button
             type="button"
-            onClick={handleTemplate}
+            onClick={onAddTemplate}
             className="group flex flex-col rounded-lg border border-[var(--color-bt-primary)] bg-white p-5 text-left shadow-sm transition-all hover:shadow-md hover:-translate-y-0.5"
           >
             <div className="mb-3 flex items-center gap-2.5">
@@ -56,7 +51,7 @@ export default function EmptyCanvas({ dashboardId }: EmptyCanvasProps) {
           {/* 커스텀 위젯 — secondary */}
           <button
             type="button"
-            onClick={handleCustom}
+            onClick={onAddCustom}
             className="group flex flex-col rounded-lg border border-[var(--color-bt-border)] bg-white p-5 text-left shadow-sm transition-all hover:border-[var(--color-bt-fg-muted)] hover:shadow-md hover:-translate-y-0.5"
           >
             <div className="mb-3 flex items-center gap-2.5">

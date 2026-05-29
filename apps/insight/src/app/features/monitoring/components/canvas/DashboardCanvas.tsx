@@ -1,7 +1,6 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Button, Modal, Tooltip } from 'antd';
-import { Boxes, HelpCircle, LayoutTemplate } from 'lucide-react';
+import { Modal } from 'antd';
 // react-grid-layout v2.x — main entry 에서 WidthProvider HOC 가 제거되어 legacy 서브패스 사용.
 // (main 은 useContainerWidth hook 패턴으로 전환됨)
 // @ts-expect-error tsconfig.moduleResolution=node 에서 sub-path types 미인식 (런타임은 정상)
@@ -15,6 +14,8 @@ import type { CustomWidget, TemplateWidget, Widget } from '../../types';
 
 const ResponsiveGridLayout = WidthProvider(Responsive);
 const DRAG_HANDLE_CLASS = 'widget-drag-handle';
+const GRID_MARGIN = 12;
+const ROW_HEIGHT_DEFAULT = 40;
 
 interface GridLayoutItem {
   i: string;
@@ -42,11 +43,45 @@ interface DashboardCanvasProps {
   onLayoutChange?: (items: Array<{ widgetId: number; row: number; col: number; w: number; h: number }>) => void;
   /** 커스텀 위젯이 설정 변경 등으로 모니터링 일시정지를 요청할 때 호출. */
   onRequestPause?: () => void;
+  /** 화면 맞춤(월보드) 모드 — rowHeight 를 컨테이너 높이에 맞춰 동적 계산, 스크롤 없이 한 화면을 채움. */
+  fitToScreen?: boolean;
 }
 
-export default function DashboardCanvas({ dashboardId, widgets, editMode, widgetData, onWidgetsChange, onLayoutChange, onRequestPause }: DashboardCanvasProps) {
+export default function DashboardCanvas({
+  dashboardId,
+  widgets,
+  editMode,
+  widgetData,
+  onWidgetsChange,
+  onLayoutChange,
+  onRequestPause,
+  fitToScreen = false,
+}: DashboardCanvasProps) {
   const navigate = useNavigate();
   const [deleteTarget, setDeleteTarget] = useState<Widget | null>(null);
+
+  // 화면 맞춤 모드 — 컨테이너(내용 영역) 높이를 측정해 rowHeight 를 역산한다.
+  const containerRef = useRef<HTMLDivElement>(null);
+  const [containerHeight, setContainerHeight] = useState(0);
+  useEffect(() => {
+    const el = containerRef.current;
+    if (!el) return;
+    const ro = new ResizeObserver((entries) => {
+      for (const e of entries) setContainerHeight(e.contentRect.height);
+    });
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, []);
+
+  // 위젯들이 차지하는 총 행수 (최하단 row + h).
+  const totalRows = useMemo(() => Math.max(1, ...widgets.map((w) => w.position.row + w.position.h)), [widgets]);
+
+  // 화면 맞춤이면 H = rows·rh + (rows-1)·margin + 2·padding(=margin) 을 만족하도록 rh 역산.
+  const rowHeight = useMemo(() => {
+    if (!fitToScreen || containerHeight <= 0) return ROW_HEIGHT_DEFAULT;
+    const rh = (containerHeight - (totalRows + 1) * GRID_MARGIN) / totalRows;
+    return Math.max(20, Math.floor(rh));
+  }, [fitToScreen, containerHeight, totalRows]);
 
   // react-grid-layout 형식으로 변환
   const layouts = useMemo(() => {
@@ -90,44 +125,15 @@ export default function DashboardCanvas({ dashboardId, widgets, editMode, widget
   };
 
   return (
-    <div className={`flex-1 overflow-auto ${editMode ? 'grid-pattern' : 'bg-[var(--color-bt-bg-canvas)]'} px-5 py-5`}>
-      {/* 편집 모드 — 위젯 추가 툴바 */}
-      {editMode && (
-        <div className="mb-4 flex items-center gap-2 rounded-md border border-dashed border-[var(--color-bt-border-strong)] bg-white/70 backdrop-blur-sm px-3 py-2">
-          <span className="text-[10.5px] uppercase tracking-wider text-[var(--color-bt-fg-muted)] font-semibold mr-1">위젯 추가</span>
-          <Button
-            type="primary"
-            icon={<LayoutTemplate className="w-3.5 h-3.5" />}
-            onClick={() => navigate(`/insight/monitoring/dashboards/${dashboardId}/edit/widget/create/template`)}
-          >
-            템플릿 위젯
-          </Button>
-          <Button icon={<Boxes className="w-3.5 h-3.5" />} onClick={() => navigate(`/insight/monitoring/dashboards/${dashboardId}/edit/widget/create/custom`)}>
-            커스텀 위젯
-          </Button>
-          <Tooltip
-            title={
-              <div className="text-[11px] leading-relaxed">
-                <div>• 헤더를 드래그해서 위치 변경</div>
-                <div>• 우하단 모서리를 끌어 크기 조절</div>
-                <div>• 12-column 그리드에 스냅됩니다</div>
-              </div>
-            }
-            placement="bottomRight"
-          >
-            <Button type="text" size="small" icon={<HelpCircle className="w-3.5 h-3.5 text-[var(--color-bt-fg-muted)]" />} className="ml-auto" />
-          </Tooltip>
-        </div>
-      )}
-
+    <div ref={containerRef} className={`flex-1 ${fitToScreen ? 'overflow-hidden p-3' : 'overflow-auto px-5 py-5'} ${editMode ? 'grid-pattern' : 'bg-[var(--color-bt-bg-canvas)]'}`}>
       {/* Responsive Grid Layout — 12-col */}
       <ResponsiveGridLayout
         className="layout"
         layouts={layouts}
         breakpoints={{ lg: 1200, md: 996, sm: 768 }}
         cols={{ lg: 12, md: 12, sm: 12 }}
-        rowHeight={40}
-        margin={[12, 12]}
+        rowHeight={rowHeight}
+        margin={[GRID_MARGIN, GRID_MARGIN]}
         isDraggable={editMode}
         isResizable={editMode}
         draggableHandle={`.${DRAG_HANDLE_CLASS}`}

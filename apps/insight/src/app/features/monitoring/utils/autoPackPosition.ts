@@ -12,11 +12,11 @@
  */
 import type { CustomWidgetCatalogItem, Widget, WidgetCategory, WidgetPosition } from '../types';
 
-const GRID_COLS = 12;
+export const GRID_COLS = 12;
 const SCAN_MAX_ROW = 200;
 
 /** 카테고리별 권장 크기 — defaultW/H 미지정 시 폴백. */
-const CATEGORY_PRESET: Record<WidgetCategory, { w: number; h: number }> = {
+export const CATEGORY_PRESET: Record<WidgetCategory, { w: number; h: number }> = {
   KPI: { w: 3, h: 3 },
   CHART: { w: 6, h: 5 },
   TABLE: { w: 12, h: 6 },
@@ -24,7 +24,7 @@ const CATEGORY_PRESET: Record<WidgetCategory, { w: number; h: number }> = {
   GENERIC: { w: 4, h: 4 },
 };
 
-interface SizedItem {
+export interface SizedItem {
   minW: number;
   minH: number;
   defaultW?: number;
@@ -36,14 +36,18 @@ function clamp(v: number, lo: number, hi: number): number {
   return Math.min(Math.max(v, lo), hi);
 }
 
-/** 카탈로그 메타 + 카테고리 + min 조합으로 신규 위젯의 크기 결정. */
-function resolveSize(item: SizedItem): { w: number; h: number } {
+/** 폭/높이를 [minW, GRID_COLS] / [minH, ∞] 범위로 보정. */
+export function clampSize(item: SizedItem, w: number, h: number): { w: number; h: number } {
+  return {
+    w: clamp(Math.max(w, item.minW), item.minW, GRID_COLS),
+    h: Math.max(h, item.minH),
+  };
+}
+
+/** 카탈로그 메타 + 카테고리 + min 조합으로 신규 위젯의 권장 크기 결정. */
+export function resolveSize(item: SizedItem): { w: number; h: number } {
   const preset = CATEGORY_PRESET[item.widgetCategory ?? 'GENERIC'];
-  const rawW = item.defaultW ?? preset.w;
-  const rawH = item.defaultH ?? preset.h;
-  const w = clamp(Math.max(rawW, item.minW), item.minW, GRID_COLS);
-  const h = Math.max(rawH, item.minH);
-  return { w, h };
+  return clampSize(item, item.defaultW ?? preset.w, item.defaultH ?? preset.h);
 }
 
 /** (row, col, w, h) 영역이 기존 위젯 영역과 겹치는지 검사. */
@@ -56,8 +60,8 @@ function overlaps(a: WidgetPosition, b: { row: number; col: number; w: number; h
  * @param existingWidgets 현재 대시보드에 배치된 위젯들 (position 사용)
  * @param item            카탈로그 항목 (defaultW/H, minW/H, widgetCategory)
  */
-export function autoPackPosition(existingWidgets: ReadonlyArray<Widget>, item: SizedItem): WidgetPosition {
-  const { w, h } = resolveSize(item);
+export function autoPackPosition(existingWidgets: ReadonlyArray<Widget>, item: SizedItem, sizeOverride?: { w: number; h: number }): WidgetPosition {
+  const { w, h } = sizeOverride ? clampSize(item, sizeOverride.w, sizeOverride.h) : resolveSize(item);
   const placed = existingWidgets.map((wg) => wg.position);
 
   for (let row = 0; row <= SCAN_MAX_ROW; row++) {

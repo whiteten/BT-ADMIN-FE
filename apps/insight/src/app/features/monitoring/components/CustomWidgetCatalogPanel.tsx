@@ -1,16 +1,19 @@
 import { type ReactNode, useMemo, useState } from 'react';
 import { Input, Segmented } from 'antd';
-import { Plus, X } from 'lucide-react';
+import { X } from 'lucide-react';
 import { toast } from '@/shared-util';
+import WidgetSizePicker from './WidgetSizePicker';
 import { DOMAIN_COLOR_CLASS, DOMAIN_LABELS } from '../constants/monitoringConstants';
 import { useGetCustomWidgetCatalog } from '../hooks/useDashboardQueries';
 import type { CustomWidgetCatalogItem, DomainCode } from '../types';
+import { resolveSize } from '../utils/autoPackPosition';
+import { HoverCard, HoverCardContent, HoverCardTrigger } from '@/components/ui/hover-card';
 
 interface CustomWidgetCatalogPanelProps {
   /** 현재 대시보드의 도메인 (기본 필터) */
   domainCode: DomainCode;
-  /** 위젯 추가 핸들러 */
-  onAdd: (widget: CustomWidgetCatalogItem) => void;
+  /** 위젯 추가 핸들러 — size 미지정 시 추천 크기로 배치. */
+  onAdd: (widget: CustomWidgetCatalogItem, size?: { w: number; h: number }) => void;
   /** 닫기 (× 또는 ESC) */
   onClose: () => void;
 }
@@ -137,9 +140,9 @@ export default function CustomWidgetCatalogPanel({ domainCode, onAdd, onClose }:
     return result;
   }, [allWidgets, filterDomain, searchValue]);
 
-  const handleAdd = (widget: CustomWidgetCatalogItem) => {
-    onAdd(widget);
-    toast.success(`"${widget.widgetName}"이(가) 캔버스에 추가되었습니다.`);
+  const handleAdd = (widget: CustomWidgetCatalogItem, size: { w: number; h: number }) => {
+    onAdd(widget, size);
+    toast.success(`"${widget.widgetName}"이(가) ${size.w}×${size.h} 크기로 추가되었습니다.`);
   };
 
   return (
@@ -187,41 +190,50 @@ export default function CustomWidgetCatalogPanel({ domainCode, onAdd, onClose }:
         ) : (
           filtered.map((widget) => {
             const icon = WIDGET_ICON[widget.widgetTypeId] ?? DEFAULT_ICON;
+            const rec = resolveSize(widget);
             return (
-              <div
-                key={widget.widgetTypeId}
-                className="group flex items-start gap-3 rounded border border-[var(--color-bt-border)] bg-white p-3 hover:border-[var(--color-bt-primary)] hover:bg-[var(--color-bt-primary-soft)]/20 transition-colors"
-              >
-                {/* 아이콘 */}
-                <div className={`inline-flex h-10 w-10 shrink-0 items-center justify-center rounded ${icon.bg}`}>{icon.svg}</div>
+              <HoverCard key={widget.widgetTypeId} openDelay={120} closeDelay={120}>
+                <HoverCardTrigger asChild>
+                  <div className="group flex cursor-pointer items-start gap-3 rounded border border-[var(--color-bt-border)] bg-white p-3 hover:border-[var(--color-bt-primary)] hover:bg-[var(--color-bt-primary-soft)]/20 transition-colors">
+                    {/* 아이콘 */}
+                    <div className={`inline-flex h-10 w-10 shrink-0 items-center justify-center rounded ${icon.bg}`}>{icon.svg}</div>
 
-                {/* 본문 */}
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-1.5 mb-1">
-                    <span className="text-[12.5px] font-semibold truncate">{widget.widgetName}</span>
+                    {/* 본문 */}
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-1.5 mb-1">
+                        <span className="text-[12.5px] font-semibold truncate">{widget.widgetName}</span>
+                        <span className={`shrink-0 rounded px-1 py-0.5 mono text-[9px] font-bold ${DOMAIN_COLOR_CLASS[widget.domainCode]}`}>{widget.domainCode}</span>
+                      </div>
+                      <div className="mono text-[10px] text-[var(--color-bt-fg-muted)] mb-1 truncate" title={widget.widgetTypeId}>
+                        {widget.widgetTypeId}
+                      </div>
+                      <p className="text-[10.5px] text-[var(--color-bt-fg-muted)] leading-snug line-clamp-2">{widget.description}</p>
+                      <div className="mt-1.5 flex items-center gap-2 text-[9.5px] text-[var(--color-bt-fg-muted)]">
+                        <span className="rounded bg-[var(--color-bt-bg-muted)] px-1.5 py-0.5">
+                          최소 {widget.minW}×{widget.minH}
+                        </span>
+                        <span className="rounded bg-[var(--color-bt-primary-soft)] px-1.5 py-0.5 font-semibold text-[var(--color-bt-primary)]">
+                          추천 {rec.w}×{rec.h}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                </HoverCardTrigger>
+                <HoverCardContent side="left" align="start" sideOffset={8} className="w-auto rounded-md border-[var(--color-bt-border)] p-0">
+                  {/* 헤더 — 앱 패널 컨벤션 (타이틀 + uppercase 라벨 + 도메인 칩) */}
+                  <div className="flex items-center justify-between gap-3 border-b border-[var(--color-bt-border)] px-3.5 py-2.5">
+                    <div className="min-w-0">
+                      <div className="truncate text-[12.5px] font-semibold text-[var(--color-bt-fg)]">{widget.widgetName}</div>
+                      <div className="mt-0.5 text-[9.5px] font-semibold uppercase tracking-wider text-[var(--color-bt-fg-muted)]">크기 선택</div>
+                    </div>
                     <span className={`shrink-0 rounded px-1 py-0.5 mono text-[9px] font-bold ${DOMAIN_COLOR_CLASS[widget.domainCode]}`}>{widget.domainCode}</span>
                   </div>
-                  <div className="mono text-[10px] text-[var(--color-bt-fg-muted)] mb-1 truncate" title={widget.widgetTypeId}>
-                    {widget.widgetTypeId}
+                  {/* 본문 */}
+                  <div className="px-3.5 py-3">
+                    <WidgetSizePicker minW={widget.minW} minH={widget.minH} recommendedW={rec.w} recommendedH={rec.h} onPick={(w, h) => handleAdd(widget, { w, h })} />
                   </div>
-                  <p className="text-[10.5px] text-[var(--color-bt-fg-muted)] leading-snug line-clamp-2">{widget.description}</p>
-                  <div className="mt-1.5 flex items-center gap-2 text-[9.5px] text-[var(--color-bt-fg-muted)]">
-                    <span className="rounded bg-[var(--color-bt-bg-muted)] px-1.5 py-0.5">
-                      최소 {widget.minW}×{widget.minH}
-                    </span>
-                  </div>
-                </div>
-
-                {/* 추가 버튼 */}
-                <button
-                  type="button"
-                  onClick={() => handleAdd(widget)}
-                  className="shrink-0 inline-flex items-center gap-1 rounded bg-[var(--color-bt-primary)] hover:bg-[var(--color-bt-primary-hover)] px-2.5 py-1.5 text-[11px] font-semibold text-white"
-                >
-                  <Plus className="w-3 h-3" />
-                  추가
-                </button>
-              </div>
+                </HoverCardContent>
+              </HoverCard>
             );
           })
         )}
