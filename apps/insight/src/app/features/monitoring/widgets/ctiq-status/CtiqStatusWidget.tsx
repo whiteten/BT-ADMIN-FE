@@ -4,6 +4,7 @@ import { useQueryClient } from '@tanstack/react-query';
 import { Button, Drawer, Input, InputNumber, Radio, Tooltip } from 'antd';
 import { AlertTriangle, LayoutGrid, Rows3, Search, Settings } from 'lucide-react';
 import { toast } from '@/shared-util';
+import { DEMO_CTIQS, isDemoMode } from './demoData';
 import { fmtCount, fmtDuration, fmtPct, matchSearch, severityOf, severityWeight, toCtiqRows, toNum } from './helpers';
 import { type CtiqDensity, type CtiqRow, type CtiqSeverity, type CtiqSortBy, type CtiqThresholds, DEFAULT_CTIQ_THRESHOLDS } from './types';
 import { widgetToolbarSlotId } from '../../components/canvas/WidgetCardHeader';
@@ -78,7 +79,7 @@ const SEVERITY_META: Record<CtiqSeverity, { label: string; chipCls: string; dotC
 const ALL_SEVERITIES: CtiqSeverity[] = ['danger', 'alert', 'warn', 'ok', 'idle'];
 
 export default function CtiqStatusWidget({ data, options, widgetId, onRequestPause }: CtiqStatusWidgetProps) {
-  const rows = useMemo<CtiqRow[]>(() => toCtiqRows(data), [data]);
+  const rows = useMemo<CtiqRow[]>(() => (isDemoMode() ? DEMO_CTIQS : toCtiqRows(data)), [data]);
 
   // ─── 영속 UI 상태 ──────────────────────────────────────────────
   type UiState = {
