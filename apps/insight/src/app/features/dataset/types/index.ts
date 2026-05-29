@@ -88,6 +88,7 @@ export interface ValidateFieldsResult {
   valid: boolean;
   executionMs: number;
   errors: string[];
+  executedSql?: string;
 }
 
 export interface DataSourceFieldRequest {

@@ -1,7 +1,13 @@
 import ApiClient, { type ApiResponse } from '@/shared-util';
-import type { SearchConditionCreateDatas, SearchConditionDetail, SearchConditionListItem, SqlPreviewRequest, SqlPreviewResult } from '../types';
+import type { InputType, SearchConditionCreateDatas, SearchConditionDetail, SearchConditionListItem, SqlPreviewRequest, SqlPreviewResult } from '../types';
 
 const apiClient = new ApiClient({ serviceURL: '/bff' });
+
+export interface SearchCondOptions {
+  options: { value: string; label: string }[];
+  inputType: InputType;
+  title: string;
+}
 
 export const searchConditionApi = {
   getSearchConditions: async (params?: Record<string, unknown>): Promise<SearchConditionListItem[]> => {
@@ -28,18 +34,36 @@ export const searchConditionApi = {
     await apiClient.delete('/insight-statistics-search-condition-delete', { params: { searchCondId } });
   },
 
+  /** 검색조건 옵션 목록 + inputType + title 로드 (GlobalFilter 런타임). */
+  getOptions: async (searchCondId: number): Promise<SearchCondOptions> => {
+    const detail = await searchConditionApi.getSearchCondition(searchCondId);
+    const fallback: SearchCondOptions = { options: [], inputType: 'SELECT', title: detail?.title ?? '' };
+    if (!detail?.nodes?.length) return fallback;
+    const node = detail.nodes[0];
+    if (!node.optionSql) return { ...fallback, inputType: node.inputType };
+    const results = await searchConditionApi.previewSql({
+      optionSql: node.optionSql,
+      valueColumn: node.valueColumn,
+      labelColumn: node.labelColumn,
+      parentColumn: node.parentColumn ?? undefined,
+      levelColumn: node.levelColumn ?? undefined,
+    });
+    return {
+      options: results.map((r) => ({ value: String(r.value ?? ''), label: String(r.label ?? r.value ?? '') })),
+      inputType: node.inputType,
+      title: detail.title,
+    };
+  },
+
   /**
    * SQL 미리보기.
    * 백엔드는 ApiResponse<List<T>>를 반환 — BFF 단일 스텝 통과 후 data가 배열 직접 노출.
-   * BFF step_id에 따라 data 키가 달라질 수 있어 response.data.data를 수동 추출·캐스팅한다.
    */
   previewSql: async (data: SqlPreviewRequest): Promise<SqlPreviewResult[]> => {
     const response = await apiClient.post<Record<string, unknown>>('/insight-statistics-search-condition-preview', data);
-    // BFF step_id에 따라 data 키가 다를 수 있음 (value / items / 배열 직접)
     const raw = (response as unknown as { data: { data: unknown } })?.data?.data;
     if (Array.isArray(raw)) return raw as SqlPreviewResult[];
     if (raw && typeof raw === 'object') {
-      // step_id = "value" 또는 "items"
       const arr = (raw as Record<string, unknown>).value ?? (raw as Record<string, unknown>).items;
       if (Array.isArray(arr)) return arr as SqlPreviewResult[];
     }

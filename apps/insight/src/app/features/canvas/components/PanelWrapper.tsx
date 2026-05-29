@@ -42,9 +42,9 @@ export default function PanelWrapper({ panel, reportId, mode, onEdit }: PanelWra
   const minHeight = panel.layout.h * 60;
 
   return (
-    <div className="flex flex-col rounded border border-[var(--color-bt-border)] bg-white overflow-hidden" style={{ minHeight }}>
+    <div className="flex flex-col rounded-lg border border-[var(--color-bt-border)] bg-white shadow-sm overflow-hidden" style={{ minHeight }}>
       {/* 패널 헤더 */}
-      <div className="flex items-center justify-between px-3 py-2 border-b border-[var(--color-bt-border)] bg-[var(--color-bt-bg-muted)]/30">
+      <div className="flex items-center justify-between px-3 py-2 border-b border-[var(--color-bt-border)] bg-[var(--color-bt-bg-muted)]/60">
         <div className="flex items-center gap-2">
           <span className="text-xs font-semibold text-[var(--color-bt-fg)]">{panel.title}</span>
           <Tag color="processing" className="!mb-0">

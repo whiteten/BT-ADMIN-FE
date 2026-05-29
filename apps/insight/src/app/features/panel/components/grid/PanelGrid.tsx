@@ -39,7 +39,7 @@ function formatValue(value: unknown, format: ColumnFormat | undefined): string {
 
 export default function PanelGrid({ panel, reportId }: PanelGridProps) {
   const { gridOptions } = useAggridOptions();
-  const { globalFilter } = useReportViewStore();
+  const { committedFilter, queryTrigger } = useReportViewStore();
   const { report } = useReportEditorStore();
   const { data: fields = [] } = useGetDataSourceFields({
     params: { datasetId: report?.datasetId ?? 0 },
@@ -52,15 +52,16 @@ export default function PanelGrid({ panel, reportId }: PanelGridProps) {
   const isDraft = reportId === 0 || panel.panelId < 0;
   const hasMapping = rowFields.length > 0 || valueFields.length > 0;
 
-  const { data: queryResult, isPending } = usePanelData({
+  const { data: queryResult, isFetching } = usePanelData({
     params: {
       reportId,
       panelId: panel.panelId,
-      period: { from: globalFilter.period.from, to: globalFilter.period.to, unit: globalFilter.timeUnit },
-      searchValues: globalFilter.searchValues,
-      comparison: globalFilter.comparison,
+      period: { from: committedFilter.period.from, to: committedFilter.period.to, unit: committedFilter.timeUnit },
+      searchValues: committedFilter.searchValues,
+      comparison: committedFilter.comparison,
     },
-    queryOptions: { enabled: !isDraft && hasMapping },
+    queryTrigger,
+    queryOptions: { enabled: !isDraft && hasMapping && queryTrigger > 0 },
   });
 
   const columnDefs: ColDef[] = useMemo(() => {
@@ -91,5 +92,5 @@ export default function PanelGrid({ panel, reportId }: PanelGridProps) {
     );
   }
 
-  return <AgGridReact {...gridOptions} rowData={isDraft ? [] : rowData} columnDefs={columnDefs} loading={!isDraft && isPending} pagination={false} domLayout="autoHeight" />;
+  return <AgGridReact {...gridOptions} rowData={isDraft ? [] : rowData} columnDefs={columnDefs} loading={!isDraft && isFetching} pagination={false} domLayout="autoHeight" />;
 }

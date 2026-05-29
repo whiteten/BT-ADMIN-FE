@@ -7,6 +7,7 @@ import type { ColDef, IHeaderParams } from 'ag-grid-community';
 import { AgGridReact } from 'ag-grid-react';
 import { Button, Checkbox, Divider, Input, Modal, Select, Tag, Tooltip } from 'antd';
 import { Download, Edit2, Play, Plus, Trash2 } from 'lucide-react';
+import { format as formatSql } from 'sql-formatter';
 import { toast } from '@/shared-util';
 import CalcFieldEditor from './CalcFieldEditor';
 import type { CalcFieldCreateDatas, ColumnFormat, DomainCode } from '../../report/types';
@@ -125,6 +126,7 @@ export default function WizardStepB({
   const [validationStatus, setValidationStatus] = useState<ValidationStatus>('unchecked');
   const [validationCheckedAt, setValidationCheckedAt] = useState<Date | undefined>();
   const [validationErrors, setValidationErrors] = useState<string[]>([]);
+  const [validationSql, setValidationSql] = useState<string | undefined>();
   const [isChecking, setIsChecking] = useState(false);
 
   const validationStatusRef = useRef<ValidationStatus>('unchecked');
@@ -170,12 +172,14 @@ export default function WizardStepB({
       });
       if (result.valid) {
         setValidationErrors([]);
+        setValidationSql(undefined);
         setValidationCheckedAt(new Date());
         setValidationStatus('valid');
         toast.success(`모든 필드가 유효합니다. (${result.executionMs}ms)`);
       } else {
         const errors = result.errors ?? ['검증 실패'];
         setValidationErrors(errors);
+        setValidationSql(result.executedSql);
         setValidationStatus('invalid');
         errors.forEach((e) => toast.error(e));
       }
@@ -533,8 +537,8 @@ export default function WizardStepB({
 
         {/* 검증 결과 인라인 에러 */}
         {validationStatus === 'invalid' && validationErrors.length > 0 && (
-          <div className="shrink-0 mx-5 mb-2 rounded border border-red-200 bg-red-50 px-3 py-2">
-            <div className="text-xs font-semibold text-red-600 mb-1">검증 실패 — DB에서 반환된 오류</div>
+          <div className="shrink-0 mx-5 mb-2 rounded border border-red-200 bg-red-50 px-3 py-2 space-y-2">
+            <div className="text-xs font-semibold text-red-600">검증 실패 — DB에서 반환된 오류</div>
             <div className="space-y-0.5">
               {validationErrors.map((e, i) => (
                 <div key={i} className="font-mono text-xs text-red-700 break-all">
@@ -542,6 +546,20 @@ export default function WizardStepB({
                 </div>
               ))}
             </div>
+            {validationSql && (
+              <details className="mt-1">
+                <summary className="cursor-pointer text-[11px] text-red-500 hover:text-red-700 select-none">실행된 SQL 보기</summary>
+                <pre className="mt-1 overflow-x-auto rounded bg-red-100 px-2 py-1.5 font-mono text-[11px] text-red-800 whitespace-pre-wrap">
+                  {(() => {
+                    try {
+                      return formatSql(validationSql, { language: 'plsql', keywordCase: 'upper', tabWidth: 2 });
+                    } catch {
+                      return validationSql;
+                    }
+                  })()}
+                </pre>
+              </details>
+            )}
           </div>
         )}
         {/* ag-Grid: flex-1로 공간 채우고 내부 스크롤 — 컬럼 헤더 항상 고정 */}

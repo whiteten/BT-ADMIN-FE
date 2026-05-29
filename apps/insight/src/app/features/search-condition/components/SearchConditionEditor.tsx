@@ -1,8 +1,8 @@
-import { useEffect, useState } from 'react';
+import { type ComponentProps, useEffect, useRef, useState } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { sql } from '@codemirror/lang-sql';
 import { oneDark } from '@codemirror/theme-one-dark';
-import CodeMirror, { type Extension } from '@uiw/react-codemirror';
+import CodeMirror from '@uiw/react-codemirror';
 import { Button, Checkbox, Drawer, Form, Input, Radio, Select, Tag, Tree, type TreeDataNode } from 'antd';
 
 import { Log } from '@/log';
@@ -193,7 +193,22 @@ export default function SearchConditionEditor() {
     setActiveIdx(Math.max(0, idx - 1));
   };
 
-  const insertParam = (param: string) => upd(activeIdx, { optionSql: cur.optionSql + param, previewStatus: 'idle' });
+  type EditorViewInstance = Parameters<NonNullable<ComponentProps<typeof CodeMirror>['onCreateEditor']>>[0];
+  const editorViewRef = useRef<EditorViewInstance | null>(null);
+
+  const insertParam = (param: string) => {
+    const view = editorViewRef.current;
+    if (view) {
+      const { from, to } = view.state.selection.main;
+      view.dispatch({
+        changes: { from, to, insert: param },
+        selection: { anchor: from + param.length },
+      });
+      upd(activeIdx, { optionSql: view.state.doc.toString(), previewStatus: 'idle' });
+    } else {
+      upd(activeIdx, { optionSql: cur.optionSql + param, previewStatus: 'idle' });
+    }
+  };
 
   const { mutate: runPreview, isPending: running } = usePreviewSql({
     mutationOptions: {
@@ -475,7 +490,10 @@ export default function SearchConditionEditor() {
                     <CodeMirror
                       value={cur.optionSql}
                       onChange={(val) => upd(activeIdx, { optionSql: val, previewStatus: 'idle' })}
-                      extensions={[sql() as Extension]}
+                      onCreateEditor={(view) => {
+                        editorViewRef.current = view;
+                      }}
+                      extensions={[sql()]}
                       theme={oneDark}
                       height="180px"
                       placeholder={`SELECT col_code AS value, col_name AS label\nFROM TB_MASTER\nWHERE USE_YN = 'Y'\nORDER BY SORT_ORDER`}

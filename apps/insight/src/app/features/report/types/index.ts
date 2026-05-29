@@ -81,6 +81,7 @@ export interface PanelFieldMap {
   sortDirection?: 'ASC' | 'DESC';
   topN?: number;
   otherGrouping?: boolean;
+  searchCondId?: number;
 }
 
 export interface PanelLayout {

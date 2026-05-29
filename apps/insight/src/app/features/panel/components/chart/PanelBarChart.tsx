@@ -11,22 +11,23 @@ interface PanelBarChartProps {
 const CHART_COLORS = ['#085fb5', '#0a8a4a', '#b76e00', '#7a4e9e', '#c92a2a'];
 
 export default function PanelBarChart({ panel, reportId }: PanelBarChartProps) {
-  const { globalFilter } = useReportViewStore();
+  const { committedFilter, queryTrigger } = useReportViewStore();
 
   const xField = panel.fieldMap.find((f) => f.slotType === 'X_AXIS');
   const yFields = panel.fieldMap.filter((f) => f.slotType === 'Y_AXIS');
   const isDraft = reportId === 0 || panel.panelId < 0;
   const hasMapping = !!xField && yFields.length > 0;
 
-  const { data: queryResult, isPending } = usePanelData({
+  const { data: queryResult, isFetching } = usePanelData({
     params: {
       reportId,
       panelId: panel.panelId,
-      period: { from: globalFilter.period.from, to: globalFilter.period.to, unit: globalFilter.timeUnit },
-      searchValues: globalFilter.searchValues,
-      comparison: globalFilter.comparison,
+      period: { from: committedFilter.period.from, to: committedFilter.period.to, unit: committedFilter.timeUnit },
+      searchValues: committedFilter.searchValues,
+      comparison: committedFilter.comparison,
     },
-    queryOptions: { enabled: !isDraft && hasMapping },
+    queryTrigger,
+    queryOptions: { enabled: !isDraft && hasMapping && queryTrigger > 0 },
   });
 
   const options = (panel.chartOptions ?? {}) as BarChartOptions;
@@ -42,7 +43,7 @@ export default function PanelBarChart({ panel, reportId }: PanelBarChartProps) {
     );
   }
 
-  if (!isDraft && isPending) {
+  if (!isDraft && isFetching) {
     return (
       <div className="flex min-h-[160px] items-center justify-center">
         <p className="text-xs text-[var(--color-bt-fg-muted)]">데이터 조회 중…</p>
