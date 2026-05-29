@@ -123,6 +123,9 @@ module.exports = [
       import: require('eslint-plugin-import'),
     },
     rules: {
+      // Disallow alert/confirm/prompt — use useModal + toast instead
+      'no-alert': 'error',
+
       // Import rules
       'import/extensions': 'off',
       'import/no-unresolved': 'off', // TypeScript handles this
