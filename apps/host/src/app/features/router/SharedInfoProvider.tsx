@@ -28,9 +28,13 @@ export default function SharedInfoProvider({ children }: { children?: React.Reac
   const { load: loadQuerySelectors } = useQuerySelectorsLoader();
   usePageVariantsLoader();
 
-  const handleWsError = () => {
+  const handleWsClose = () => {
+    if (window.location.pathname === '/login') {
+      Log.warn('WS closed on login page. Skip ticket refetch.');
+      return;
+    }
     const RETRY_DELAY = 5000;
-    Log.error('Refetching WS ticket. retry delay: ', RETRY_DELAY);
+    Log.warn('WS closed. Refetching WS ticket. retry delay: ', RETRY_DELAY);
     setTimeout(() => {
       refetchWsTicket();
     }, RETRY_DELAY);
@@ -38,8 +42,8 @@ export default function SharedInfoProvider({ children }: { children?: React.Reac
 
   useSessionSocket({
     ticket: ticketResponse?.ticket ?? null,
-    onError: () => {
-      handleWsError();
+    onClose: () => {
+      handleWsClose();
     },
   });
 
