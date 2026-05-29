@@ -13,6 +13,7 @@ export interface FileUploadDrawerRef {
 
 interface FileUploadDrawerProps {
   menuId: string;
+  onRequestSuccess?: () => void;
 }
 
 type FileStatus = 'uploading' | 'done' | 'fts-sending' | 'fts-done' | 'fts-error' | 'error';
@@ -27,7 +28,7 @@ interface UploadedFile {
 
 let idCounter = 0;
 
-const FileUploadDrawer = forwardRef<FileUploadDrawerRef, FileUploadDrawerProps>(({ menuId }, ref) => {
+const FileUploadDrawer = forwardRef<FileUploadDrawerRef, FileUploadDrawerProps>(({ menuId, onRequestSuccess }, ref) => {
   const [open, setOpen] = useState(false);
   const [uploadedFiles, setUploadedFiles] = useState<UploadedFile[]>([]);
   const [isSending, setIsSending] = useState(false);
@@ -116,10 +117,12 @@ const FileUploadDrawer = forwardRef<FileUploadDrawerRef, FileUploadDrawerProps>(
           const { current: failCount } = ftsFailRef;
           if (failCount === 0) {
             toast.success('STT 요청이 완료되었습니다.');
+            onRequestSuccess?.();
           } else if (successCount === 0) {
             toast.error('STT 요청에 실패했습니다.');
           } else {
             toast.warning(`STT 요청 완료: 성공 ${successCount}건, 실패 ${failCount}건`);
+            onRequestSuccess?.();
           }
         }
       });

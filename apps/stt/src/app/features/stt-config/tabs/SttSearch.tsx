@@ -25,14 +25,12 @@ export default function SttSearch() {
   const [searchParams, setSearchParams] = useState<SttSearchParams>({
     fromDateTime: dayjs().format('YYYYMMDD') + '000000',
     toDateTime: dayjs().format('YYYYMMDD') + '235959',
-    analKindArr: ['R', 'B'],
   });
 
   const buildParams = (): SttSearchParams => ({
     fromDateTime: startDate && startTime ? startDate.format('YYYYMMDD') + startTime.format('HHmmss') : undefined,
     toDateTime: endDate && endTime ? endDate.format('YYYYMMDD') + endTime.format('HHmmss') : undefined,
     keyword: keyword || undefined,
-    analKindArr: ['R', 'B'],
   });
 
   const { data: rowData, isLoading } = useGetSttSearch({

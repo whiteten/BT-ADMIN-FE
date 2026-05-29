@@ -166,13 +166,19 @@ export const reportApi = {
     await apiClient.delete('/insight-statistics-publish-off', { params: { reportId } });
   },
 
-  getUserFilter: async (reportId: number): Promise<Record<string, unknown>> => {
-    const response = await apiClient.get<ApiResponse<Record<string, unknown>>>('/insight-statistics-user-filter-get', { params: { reportId } });
-    return response.data?.data;
+  getUserFilter: async (reportId: number): Promise<Record<string, unknown> | null> => {
+    const response = await apiClient.get<ApiResponse<{ filterValue?: string }>>('/insight-statistics-user-filter-get', { params: { reportId } });
+    const raw = response.data?.data?.filterValue;
+    if (!raw) return null;
+    try {
+      return JSON.parse(raw) as Record<string, unknown>;
+    } catch {
+      return null;
+    }
   },
 
   saveUserFilter: async (reportId: number, data: Record<string, unknown>): Promise<void> => {
-    await apiClient.put('/insight-statistics-user-filter-save', data, { params: { reportId } });
+    await apiClient.put('/insight-statistics-user-filter-save', { filterValue: JSON.stringify(data) }, { params: { reportId } });
   },
 
   getUserLayout: async (reportId: number): Promise<PanelLayoutUpdateItem[]> => {

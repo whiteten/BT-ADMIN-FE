@@ -36,12 +36,12 @@ import { getUniqueNodeLabel } from '../utils/getUniqueNodeLabel';
 import { buildLlmToolDecorations, isToolEdgeId, isToolNodeId } from '../utils/llmToolDecorations';
 import { suppressResizeObserverError } from '../utils/suppressResizeObserverError';
 import { buildNodeName, buildOutputVariableFromName } from '../utils/variableTokens';
-
-// NodeResizer 관련 무해한 경고 swallow — install 한 번만.
-suppressResizeObserverError();
 import GenericKindNode from './nodes/GenericKindNode';
 import MemoNode, { MEMO_DEFAULT_HEIGHT, MEMO_DEFAULT_WIDTH, type MemoColor } from './nodes/MemoNode';
 import ToolNode from './nodes/ToolNode';
+
+// NodeResizer 관련 무해한 경고 swallow — install 한 번만.
+suppressResizeObserverError();
 
 const NODES_WITHOUT_OUTPUT = new Set(['start', 'answer', 'error']);
 

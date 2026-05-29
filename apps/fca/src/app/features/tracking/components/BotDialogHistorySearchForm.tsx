@@ -4,12 +4,12 @@ import dayjs, { type Dayjs } from 'dayjs';
 import { BarChart3, CircleHelp, Download, Search } from 'lucide-react';
 import { toast } from '@/shared-util';
 
+import { useGetBotServices, useGetIntents } from '../hooks/useBotDialogHistoryQueries';
+import type { BotDialogHistorySearchRequest, BotServiceDto, IntentDto } from '../types';
+
 const MAX_DAYS = 30;
 const COMPLETE_ALL = 'all' as const;
 const MINUTE_STEP = 10;
-
-import { useGetBotServices, useGetIntents } from '../hooks/useBotDialogHistoryQueries';
-import type { BotDialogHistorySearchRequest, BotServiceDto, IntentDto } from '../types';
 
 interface BotDialogHistorySearchFormProps {
   onSearch: (values: BotDialogHistorySearchRequest) => void;

@@ -2,13 +2,14 @@ import { type UseQueryOptions, useMutation, useQuery } from '@tanstack/react-que
 import { createQueryKeys } from '@lukemorales/query-key-factory';
 import type { MutationHookOptions } from '@/shared-util';
 import { recogApi } from '../api/recogApi';
-import type { RecogGroupCreateData, RecogGroupItem, RecogGroupUpdateData, RecogTargetCreateData, RecogTargetSearchItem } from '../types';
+import type { LatestRecogGroup, RecogGroupCreateData, RecogGroupItem, RecogGroupUpdateData, RecogTargetCreateData, RecogTargetSearchItem } from '../types';
 
 export const recogQueryKeys = createQueryKeys('recog', {
   getRecogGroupList: (params?: Record<string, unknown>) => [params],
   getRecogGroupDetail: (groupCode?: string) => [{ groupCode }],
   searchRecogTarget: (params?: Record<string, unknown>) => [params],
   getRecogTargetList: (params?: { groupCode?: string; engineCode?: string }) => [params],
+  getLatestRecogGroup: (params?: { modelVerId?: string }) => [params],
 });
 
 export const useGetRecogGroupList = ({ params, queryOptions }: { params?: { engineCode?: string }; queryOptions?: UseQueryOptions<RecogGroupItem[]> } = {}) => {
@@ -76,5 +77,17 @@ export const useDeleteRecogTargets = ({ mutationOptions }: MutationHookOptions<u
   return useMutation({
     mutationFn: recogApi.deleteRecogTargets,
     ...mutationOptions,
+  });
+};
+
+export const useGetLatestRecogGroup = ({
+  params,
+  queryOptions,
+}: { params?: { modelVerId?: string } | null; queryOptions?: Omit<UseQueryOptions<LatestRecogGroup | null>, 'queryKey' | 'queryFn'> } = {}) => {
+  return useQuery({
+    queryKey: recogQueryKeys.getLatestRecogGroup((params as Record<string, unknown>) ?? undefined).queryKey,
+    queryFn: () => recogApi.getLatestRecogGroup(params as { modelVerId: string }),
+    enabled: !!params?.modelVerId,
+    ...queryOptions,
   });
 };

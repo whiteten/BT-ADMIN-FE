@@ -66,11 +66,11 @@ export default function CanvasLayout({ reportId, mode, isDraft, datasetId = 0 }:
       style={
         isEdit
           ? {
-              backgroundImage: 'linear-gradient(to right, #e4e7ec 1px, transparent 1px), linear-gradient(to bottom, #e4e7ec 1px, transparent 1px)',
+              backgroundImage: 'linear-gradient(to right, #d8dce3 1px, transparent 1px), linear-gradient(to bottom, #d8dce3 1px, transparent 1px)',
               backgroundSize: '24px 24px',
-              backgroundColor: '#f1f3f6',
+              backgroundColor: '#e8eaed',
             }
-          : { backgroundColor: '#f1f3f6' }
+          : { backgroundColor: '#e8eaed' }
       }
     >
       <div className="grid grid-cols-12 gap-4 auto-rows-min">

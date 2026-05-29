@@ -28,17 +28,11 @@
  *  - nodeId == backUpNodeId 금지
  */
 import { useEffect, useMemo, useState } from 'react';
-import { useBreadcrumbStore } from '@/shared-store';
-
-/**
- * MD5 인증 비밀번호 마스킹 더미 — 수정 화면 진입 시 비번 설정됨을 시각적으로 표시하기 위한 sentinel.
- * 8자라 길이 검증(8~16)을 통과한다. 저장 시 이 값 그대로면 변경 없음 → null 로 BE에 전달.
- */
-const MD5_PWD_MASK = '__MD5KEEP';
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { useQueryClient } from '@tanstack/react-query';
 import { Button, Col, Form, Input, InputNumber, Row, Select, Steps, Switch, Tooltip } from 'antd';
 import { Lock as LockOutlined } from 'lucide-react';
+import { useBreadcrumbStore } from '@/shared-store';
 import { toast } from '@/shared-util';
 import DnCallTransferDrawer from '../../features/dn/components/DnCallTransferDrawer';
 import DnScaTab from '../../features/dn/components/DnScaTab';
@@ -51,6 +45,12 @@ import { ADN_DEFAULT_STATE_OPTIONS, DN_STATUS_OPTIONS, DN_TYPE_OPTIONS_PRIMARY, 
 import { useGetDnProfileNodeTenants, useGetDnProfileNodes, useGetDnProfileTenants } from '../../features/dn-profile/hooks/useDnProfileQueries';
 import { FallbackSpinner } from '@/components/custom/FallbackSpinner';
 import { useModal } from '@/libs/shared-ui/src/hooks/useModal';
+
+/**
+ * MD5 인증 비밀번호 마스킹 더미 — 수정 화면 진입 시 비번 설정됨을 시각적으로 표시하기 위한 sentinel.
+ * 8자라 길이 검증(8~16)을 통과한다. 저장 시 이 값 그대로면 변경 없음 → null 로 BE에 전달.
+ */
+const MD5_PWD_MASK = '__MD5KEEP';
 
 /**
  * 공용 SwitchBox — CosForm 패턴 복제.

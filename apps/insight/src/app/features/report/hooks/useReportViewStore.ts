@@ -15,6 +15,8 @@ const defaultFilter: GlobalFilter = {
 
 interface ReportViewState {
   globalFilter: GlobalFilter;
+  committedFilter: GlobalFilter;
+  queryTrigger: number;
   isQuerying: boolean;
 
   setGlobalFilter(filter: Partial<GlobalFilter>): void;
@@ -23,6 +25,7 @@ interface ReportViewState {
   setSearchValue(key: string, value: unknown): void;
   setPeriod(from: string, to: string): void;
   setIsQuerying(querying: boolean): void;
+  commitFilter(): void;
   resetFilter(): void;
 }
 
@@ -30,6 +33,8 @@ export const useReportViewStore = create<ReportViewState>()(
   devtools(
     (set) => ({
       globalFilter: defaultFilter,
+      committedFilter: defaultFilter,
+      queryTrigger: 0,
       isQuerying: false,
 
       setGlobalFilter: (filter) => set((s) => ({ globalFilter: { ...s.globalFilter, ...filter } }), false, 'setGlobalFilter'),
@@ -69,7 +74,9 @@ export const useReportViewStore = create<ReportViewState>()(
 
       setIsQuerying: (isQuerying) => set({ isQuerying }, false, 'setIsQuerying'),
 
-      resetFilter: () => set({ globalFilter: defaultFilter }, false, 'resetFilter'),
+      commitFilter: () => set((s) => ({ committedFilter: { ...s.globalFilter }, queryTrigger: s.queryTrigger + 1 }), false, 'commitFilter'),
+
+      resetFilter: () => set({ globalFilter: defaultFilter, committedFilter: defaultFilter, queryTrigger: 0 }, false, 'resetFilter'),
     }),
     { name: 'ReportViewStore' },
   ),

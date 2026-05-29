@@ -1,8 +1,8 @@
 import { useEffect, useRef, useState } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
-import { Button, Dropdown, Input, type MenuProps, Select } from 'antd';
+import { Button, Dropdown, Input, type MenuProps, Select, Tooltip } from 'antd';
 import dayjs from 'dayjs';
-import { BarChart2, MoreVertical } from 'lucide-react';
+import { BarChart2, MoreVertical, Pause, Play } from 'lucide-react';
 import { toast } from '@/shared-util';
 import SttModelDrawer, { type SttModelDrawerRef } from '../components/SttModelDrawer';
 import SttModelRecogDrawer, { type SttModelRecogDrawerRef } from '../components/SttModelRecogDrawer';
@@ -107,6 +107,8 @@ export default function SttModel() {
   const [modelType, setModelType] = useState<ModelTunningType | ''>('');
   const [engineCode, setEngineCode] = useState('');
   const [searchParams, setSearchParams] = useState<{ engineCode: string } | null>(null);
+  const [autoRefresh, setAutoRefresh] = useState(false);
+  const [refreshSeconds, setRefreshSeconds] = useState(3);
 
   const { data: engines } = useGetCodes({ params: { classCd: 'ENGINE_KIND' } });
   const engineOptions = engines?.map((e) => ({ label: e.value, value: e.code })) ?? [];
@@ -121,7 +123,10 @@ export default function SttModel() {
     }
   }, [engines]);
 
-  const { data: rawData = [], isFetching } = useGetSttModelList({ params: searchParams });
+  const { data: rawData = [], isFetching } = useGetSttModelList({
+    params: searchParams,
+    queryOptions: { refetchInterval: autoRefresh ? refreshSeconds * 1000 : false },
+  });
 
   const { mutate: deleteModel } = useDeleteSttModel({
     mutationOptions: {
@@ -166,25 +171,44 @@ export default function SttModel() {
 
   return (
     <div className="flex flex-col gap-4 w-full h-full">
-      <SttModelDrawer ref={drawerRef} />
+      <SttModelDrawer ref={drawerRef} onCreateSuccess={() => setAutoRefresh(true)} />
       <SttModelRecogDrawer ref={recogDrawerRef} />
       {/* 검색 필터 */}
       <div className="flex items-center gap-4 flex-wrap">
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 shrink-0">
           <span className="text-sm font-medium text-[#495057] shrink-0">모델명</span>
           <Input value={modelName} onChange={(e) => setModelName(e.target.value)} placeholder="모델명을 입력하세요" style={{ width: 200 }} />
-        </div>
-        <div className="flex items-center gap-2">
           <span className="text-sm font-medium text-[#495057] shrink-0">모델 타입</span>
           <Select value={modelType} onChange={setModelType} options={MODEL_TYPE_OPTIONS} style={{ width: 120 }} />
         </div>
         <div className="flex items-center gap-2 ml-auto">
           <span className="text-sm font-medium text-[#495057] shrink-0">엔진</span>
           <Select value={engineCode || undefined} onChange={handleEngineChange} options={engineOptions} style={{ width: 140 }} />
+          <span className="text-sm font-medium text-[#495057] shrink-0">모니터링</span>
+          <Select
+            value={refreshSeconds}
+            onChange={setRefreshSeconds}
+            options={[
+              { label: '3초', value: 3 },
+              { label: '5초', value: 5 },
+              { label: '10초', value: 10 },
+              { label: '30초', value: 30 },
+            ]}
+            style={{ width: 72 }}
+          />
+          <Tooltip title={autoRefresh ? '모니터링 중지' : '모니터링 시작'}>
+            <button
+              type="button"
+              onClick={() => setAutoRefresh((v) => !v)}
+              className={`flex items-center justify-center w-9 h-9 rounded border transition-colors ${autoRefresh ? 'border-[var(--color-bt-primary)] bg-[var(--color-bt-primary)] text-white' : 'border-[var(--color-bt-primary)] text-[var(--color-bt-primary)] hover:bg-[var(--color-bt-primary)]/5'}`}
+            >
+              {autoRefresh ? <Pause className="size-4" /> : <Play className="size-4" />}
+            </button>
+          </Tooltip>
+          <Button type="primary" onClick={handleCreate} loading={isFetching}>
+            모델 생성
+          </Button>
         </div>
-        <Button type="primary" onClick={handleCreate} loading={isFetching}>
-          모델 생성
-        </Button>
       </div>
 
       {/* 카드 그리드 */}

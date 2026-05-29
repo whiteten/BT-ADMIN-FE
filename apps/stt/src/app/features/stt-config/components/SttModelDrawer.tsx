@@ -13,7 +13,11 @@ export interface SttModelDrawerRef {
   close: () => void;
 }
 
-const SttModelDrawer = forwardRef<SttModelDrawerRef>((_, ref) => {
+interface SttModelDrawerProps {
+  onCreateSuccess?: () => void;
+}
+
+const SttModelDrawer = forwardRef<SttModelDrawerRef, SttModelDrawerProps>(({ onCreateSuccess }, ref) => {
   const [open, setOpen] = useState(false);
   const [editItem, setEditItem] = useState<SttModelItem | null>(null);
   const isEdit = !!editItem;
@@ -48,6 +52,7 @@ const SttModelDrawer = forwardRef<SttModelDrawerRef>((_, ref) => {
         toast.success('모델이 생성되었습니다.');
         invalidate();
         handleClose();
+        onCreateSuccess?.();
       },
       onError: () => toast.error('모델 생성에 실패했습니다.'),
     },

@@ -1,5 +1,4 @@
 export interface KeywordBoostingSearchParams {
-  keyword?: string;
   engineCode?: string;
 }
 

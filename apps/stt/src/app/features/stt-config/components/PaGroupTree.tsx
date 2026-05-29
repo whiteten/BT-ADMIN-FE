@@ -1,3 +1,4 @@
+import { useEffect, useRef } from 'react';
 import { Tree, type TreeDataNode } from 'antd';
 import { useGetCodes } from '../hooks/useCommonQueries';
 import type { CodeItem } from '../types';
@@ -24,6 +25,14 @@ function buildTreeData(groups: CodeItem[]): TreeDataNode[] {
 
 export default function PaGroupTree({ selectedGroupId, onSelect }: PaGroupTreeProps) {
   const { data: groups = [], isLoading } = useGetCodes({ params: { classCd: 'PA_GROUP' } });
+  const initialized = useRef(false);
+
+  useEffect(() => {
+    if (groups.length > 0 && !initialized.current) {
+      initialized.current = true;
+      onSelect(groups[0].code, groups[0]);
+    }
+  }, [groups, onSelect]);
 
   const treeData = buildTreeData(groups);
 

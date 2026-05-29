@@ -7,20 +7,7 @@ import { FallbackSpinner } from '@/components/custom/FallbackSpinner';
 
 const Log = new LOG('CsrfGuard');
 
-function isPublicTokenRoute(pathname: string, search: string): boolean {
-  const params = new URLSearchParams(search);
-  return params.has('token') && (pathname.endsWith('task-mgmt') || pathname.endsWith('task-view'));
-}
-
 export default function CsrfGuard() {
-  const location = useLocation();
-  if (isPublicTokenRoute(location.pathname, location.search)) {
-    return <Outlet />;
-  }
-  return <CsrfGuardInner />;
-}
-
-function CsrfGuardInner() {
   const location = useLocation();
   const csrfToken = getCookie('XSRF-TOKEN');
   Log.debug('Find CSRF Token in cookie. token: ', csrfToken);

@@ -150,7 +150,7 @@ export default function ChannelStatusList() {
               <button
                 type="button"
                 onClick={() => setAutoRefresh((v) => !v)}
-                className={`flex items-center justify-center w-8 h-8 rounded border transition-colors ${autoRefresh ? 'border-[var(--color-bt-primary)] bg-[var(--color-bt-primary)] text-white' : 'border-[var(--color-bt-primary)] text-[var(--color-bt-primary)] hover:bg-[var(--color-bt-primary)]/5'}`}
+                className={`flex items-center justify-center w-9 h-9 rounded border transition-colors ${autoRefresh ? 'border-[var(--color-bt-primary)] bg-[var(--color-bt-primary)] text-white' : 'border-[var(--color-bt-primary)] text-[var(--color-bt-primary)] hover:bg-[var(--color-bt-primary)]/5'}`}
               >
                 {autoRefresh ? <Pause className="size-4" /> : <Play className="size-4" />}
               </button>
