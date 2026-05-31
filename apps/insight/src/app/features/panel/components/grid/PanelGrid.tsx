@@ -59,6 +59,7 @@ export default function PanelGrid({ panel, reportId }: PanelGridProps) {
       period: { from: committedFilter.period.from, to: committedFilter.period.to, unit: committedFilter.timeUnit },
       searchValues: committedFilter.searchValues,
       comparison: committedFilter.comparison,
+      conditions: committedFilter.conditions,
     },
     queryTrigger,
     queryOptions: { enabled: !isDraft && hasMapping && queryTrigger > 0 },
@@ -85,8 +86,7 @@ export default function PanelGrid({ panel, reportId }: PanelGridProps) {
   const rowData = useMemo(() => queryResult?.current ?? [], [queryResult]);
   const showSumRow = (panel.chartOptions as { showSumRow?: boolean } | undefined)?.showSumRow ?? true;
   const summaryRow = useMemo(() => {
-    // 비교 모드에선 합계 행 미표시 (CURRENT/PREVIOUS/DELTA 별도 뷰)
-    if (!showSumRow || committedFilter.comparison != null || rowData.length === 0) return null;
+    if (!showSumRow || rowData.length === 0) return null;
     const row: Record<string, unknown> = {};
     rowFields.forEach((f, i) => {
       row[f.fieldName] = i === 0 ? '합계' : '';
@@ -124,7 +124,7 @@ export default function PanelGrid({ panel, reportId }: PanelGridProps) {
       }
     });
     return row;
-  }, [showSumRow, rowData, rowFields, valueFields, committedFilter.comparison]);
+  }, [showSumRow, rowData, rowFields, valueFields]);
 
   // 안정적인 ref 유지 — 매 렌더 새 배열/함수면 ag-grid가 갱신 루프에 빠짐
   const pinnedBottomRowData = useMemo(() => (!isDraft && summaryRow ? [summaryRow] : undefined), [isDraft, summaryRow]);

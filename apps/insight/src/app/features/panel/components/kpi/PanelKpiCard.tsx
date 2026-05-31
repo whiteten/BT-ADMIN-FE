@@ -21,6 +21,7 @@ export default function PanelKpiCard({ panel, reportId }: PanelKpiCardProps) {
       period: { from: committedFilter.period.from, to: committedFilter.period.to, unit: committedFilter.timeUnit },
       searchValues: committedFilter.searchValues,
       comparison: committedFilter.comparison,
+      conditions: committedFilter.conditions,
     },
     queryTrigger,
     queryOptions: { enabled: !isDraft && hasMapping && queryTrigger > 0 },

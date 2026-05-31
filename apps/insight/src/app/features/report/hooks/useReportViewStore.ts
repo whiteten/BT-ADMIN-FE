@@ -1,7 +1,7 @@
 import { format, subDays } from 'date-fns';
 import { create } from 'zustand';
 import { devtools } from 'zustand/middleware';
-import { COMPARISON_AVAILABILITY, type ComparisonType, type GlobalFilter, type TimeUnit } from '../../global-filter/types';
+import { COMPARISON_AVAILABILITY, type ComparisonType, DEFAULT_GLOBAL_CONDITIONS, type GlobalConditions, type GlobalFilter, type TimeUnit } from '../../global-filter/types';
 
 const defaultFilter: GlobalFilter = {
   period: {
@@ -11,6 +11,7 @@ const defaultFilter: GlobalFilter = {
   timeUnit: 'DAILY',
   searchValues: {},
   comparison: null,
+  conditions: DEFAULT_GLOBAL_CONDITIONS,
 };
 
 interface ReportViewState {
@@ -23,6 +24,7 @@ interface ReportViewState {
   setTimeUnit(unit: TimeUnit): void;
   setComparison(comparison: ComparisonType | null): void;
   setSearchValue(key: string, value: unknown): void;
+  setConditions(conditions: GlobalConditions): void;
   setPeriod(from: string, to: string): void;
   setIsQuerying(querying: boolean): void;
   commitFilter(): void;
@@ -69,6 +71,8 @@ export const useReportViewStore = create<ReportViewState>()(
           false,
           'setSearchValue',
         ),
+
+      setConditions: (conditions) => set((s) => ({ globalFilter: { ...s.globalFilter, conditions } }), false, 'setConditions'),
 
       setPeriod: (from, to) => set((s) => ({ globalFilter: { ...s.globalFilter, period: { from, to } } }), false, 'setPeriod'),
 
