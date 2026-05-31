@@ -1,0 +1,6 @@
+[ "$1" = "rebase" ] || exit 0
+FILES=$(git diff --name-only --diff-filter=ACMR origin/master...HEAD -- '*.ts' '*.tsx')
+[ -z "$FILES" ] && exit 0
+echo "🔍 rebase 후 타입 검사 중... (경고용 — rebase/commit을 막지 않습니다)"
+node scripts/typecheck-staged.js $FILES || echo "⚠️  rebase로 인해 타입 에러가 감지되었습니다. push 전에 확인하세요."
+exit 0

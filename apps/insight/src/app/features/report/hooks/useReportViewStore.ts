@@ -1,7 +1,7 @@
 import { format, subDays } from 'date-fns';
 import { create } from 'zustand';
 import { devtools } from 'zustand/middleware';
-import { COMPARISON_AVAILABILITY, type ComparisonType, type GlobalFilter, type TimeUnit } from '../../global-filter/types';
+import { COMPARISON_AVAILABILITY, type ComparisonType, DEFAULT_GLOBAL_CONDITIONS, type GlobalConditions, type GlobalFilter, type TimeUnit } from '../../global-filter/types';
 
 const defaultFilter: GlobalFilter = {
   period: {
@@ -11,18 +11,23 @@ const defaultFilter: GlobalFilter = {
   timeUnit: 'DAILY',
   searchValues: {},
   comparison: null,
+  conditions: DEFAULT_GLOBAL_CONDITIONS,
 };
 
 interface ReportViewState {
   globalFilter: GlobalFilter;
+  committedFilter: GlobalFilter;
+  queryTrigger: number;
   isQuerying: boolean;
 
   setGlobalFilter(filter: Partial<GlobalFilter>): void;
   setTimeUnit(unit: TimeUnit): void;
   setComparison(comparison: ComparisonType | null): void;
   setSearchValue(key: string, value: unknown): void;
+  setConditions(conditions: GlobalConditions): void;
   setPeriod(from: string, to: string): void;
   setIsQuerying(querying: boolean): void;
+  commitFilter(): void;
   resetFilter(): void;
 }
 
@@ -30,6 +35,8 @@ export const useReportViewStore = create<ReportViewState>()(
   devtools(
     (set) => ({
       globalFilter: defaultFilter,
+      committedFilter: defaultFilter,
+      queryTrigger: 0,
       isQuerying: false,
 
       setGlobalFilter: (filter) => set((s) => ({ globalFilter: { ...s.globalFilter, ...filter } }), false, 'setGlobalFilter'),
@@ -65,11 +72,15 @@ export const useReportViewStore = create<ReportViewState>()(
           'setSearchValue',
         ),
 
+      setConditions: (conditions) => set((s) => ({ globalFilter: { ...s.globalFilter, conditions } }), false, 'setConditions'),
+
       setPeriod: (from, to) => set((s) => ({ globalFilter: { ...s.globalFilter, period: { from, to } } }), false, 'setPeriod'),
 
       setIsQuerying: (isQuerying) => set({ isQuerying }, false, 'setIsQuerying'),
 
-      resetFilter: () => set({ globalFilter: defaultFilter }, false, 'resetFilter'),
+      commitFilter: () => set((s) => ({ committedFilter: { ...s.globalFilter }, queryTrigger: s.queryTrigger + 1 }), false, 'commitFilter'),
+
+      resetFilter: () => set({ globalFilter: defaultFilter, committedFilter: defaultFilter, queryTrigger: 0 }, false, 'resetFilter'),
     }),
     { name: 'ReportViewStore' },
   ),

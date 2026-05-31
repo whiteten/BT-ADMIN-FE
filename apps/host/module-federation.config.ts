@@ -1,7 +1,7 @@
 import * as fs from 'fs';
 import * as path from 'path';
 import type { ModuleFederationConfig } from '@nx/module-federation';
-import { createSharedConfig } from './webpack-helpers';
+import { createSharedConfig } from '../../tools/webpack/webpack-shared-config';
 
 const config: ModuleFederationConfig = {
   name: 'host',

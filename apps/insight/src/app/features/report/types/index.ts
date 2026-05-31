@@ -81,6 +81,7 @@ export interface PanelFieldMap {
   sortDirection?: 'ASC' | 'DESC';
   topN?: number;
   otherGrouping?: boolean;
+  searchCondId?: number;
 }
 
 export interface PanelLayout {
@@ -116,7 +117,11 @@ export interface RadarChartOptions {
   legend?: boolean;
 }
 
-export type ChartOptions = BarChartOptions | LineChartOptions | PieChartOptions | RadarChartOptions;
+export interface GridOptions {
+  showSumRow?: boolean;
+}
+
+export type ChartOptions = GridOptions | BarChartOptions | LineChartOptions | PieChartOptions | RadarChartOptions;
 
 export interface PanelDetail {
   panelId: number;

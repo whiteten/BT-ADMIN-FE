@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Button, Tag } from 'antd';
-import { Eye, Globe } from 'lucide-react';
+import { Globe } from 'lucide-react';
 import CanvasLayout from './CanvasLayout';
 import GlobalFilter from '../../global-filter/components/GlobalFilter';
 import PublishDialog from '../../report/components/PublishDialog';
@@ -33,7 +33,6 @@ export default function ReportEditorCanvas({ reportId, onNavigateList: _onNaviga
           )}
         </div>
         <div className="flex items-center gap-2 shrink-0">
-          <Button icon={<Eye className="w-3.5 h-3.5" />}>미리보기</Button>
           <Button type="primary" icon={<Globe className="w-3.5 h-3.5" />} onClick={() => setIsPublishDialogOpen(true)}>
             {report.isPublished ? '메뉴 등록됨 ✓' : '메뉴 등록'}
           </Button>

@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
+import { Modal } from 'antd';
 import { toast } from '@/shared-util';
 import { useCreateNotice, useDeleteNotice, useGetNoticeList, useUpdateNotice } from '../../features/board/hooks/useTaskboardQueries';
 import type { TaskboardNotice } from '../../features/board/types/taskboard.types';
@@ -254,15 +255,23 @@ export default function TaskNotice() {
     refetch();
   };
 
-  const handleDelete = async (notice: TaskboardNotice) => {
-    if (!confirm(`"${notice.title || notice.noticeKey}" 공지사항을 삭제하시겠습니까?`)) return;
-    try {
-      await deleteNotice.mutateAsync(notice.noticeId);
-      toast.success('삭제되었습니다.');
-      refetch();
-    } catch {
-      toast.error('삭제에 실패했습니다.');
-    }
+  const handleDelete = (notice: TaskboardNotice) => {
+    Modal.confirm({
+      title: '공지사항 삭제',
+      content: `"${notice.title || notice.noticeKey}" 공지사항을 삭제하시겠습니까?`,
+      okType: 'danger',
+      okText: '삭제',
+      cancelText: '취소',
+      onOk: async () => {
+        try {
+          await deleteNotice.mutateAsync(notice.noticeId);
+          toast.success('삭제되었습니다.');
+          refetch();
+        } catch {
+          toast.error('삭제에 실패했습니다.');
+        }
+      },
+    });
   };
 
   const filtered = notices.filter(

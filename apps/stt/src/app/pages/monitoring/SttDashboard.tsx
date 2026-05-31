@@ -1,11 +1,11 @@
 import { useEffect, useState } from 'react';
 import type { ColDef } from 'ag-grid-community';
 import { AgGridReact } from 'ag-grid-react';
-import { type BreadcrumbProps, DatePicker } from 'antd';
+import { type BreadcrumbProps, DatePicker, Select, Tooltip } from 'antd';
 import dayjs, { type Dayjs } from 'dayjs';
 import type { EChartsOption } from 'echarts';
 import ReactECharts from 'echarts-for-react';
-import { Monitor } from 'lucide-react';
+import { Pause, Play } from 'lucide-react';
 import { useBreadcrumbStore } from '@/shared-store';
 import { useGetDashboard } from '../../features/monitoring/hooks/useMonitoringQueries';
 import type { DashboardChannelItem, DashboardItem } from '../../features/monitoring/types';
@@ -118,9 +118,12 @@ export default function SttDashboard() {
   }, [setBreadcrumb, clearBreadcrumb]);
 
   const [callDate, setCallDate] = useState<Dayjs>(dayjs());
+  const [autoRefresh, setAutoRefresh] = useState(true);
+  const [refreshSeconds, setRefreshSeconds] = useState(3);
 
   const { data } = useGetDashboard({
     params: { callDate: callDate.format('YYYYMMDD') },
+    queryOptions: { refetchInterval: autoRefresh ? refreshSeconds * 1000 : false },
   });
 
   const items = data?.items ?? [];
@@ -141,12 +144,27 @@ export default function SttDashboard() {
           <div className="flex items-center gap-2 shrink-0">
             <span className="text-sm font-medium text-[#495057]">조회일</span>
             <DatePicker value={callDate} onChange={handleDateChange} allowClear={false} style={{ width: 160 }} format="YYYY-MM-DD" />
-            <button
-              type="button"
-              className="flex items-center justify-center w-8 h-8 rounded border border-[var(--color-bt-primary)] text-[var(--color-bt-primary)] hover:bg-[var(--color-bt-primary)]/5 transition-colors"
-            >
-              <Monitor className="size-4" />
-            </button>
+            <span className="text-sm font-medium text-[#495057] shrink-0 pl-2">모니터링</span>
+            <Select
+              value={refreshSeconds}
+              onChange={setRefreshSeconds}
+              options={[
+                { label: '3초', value: 3 },
+                { label: '5초', value: 5 },
+                { label: '10초', value: 10 },
+                { label: '30초', value: 30 },
+              ]}
+              style={{ width: 72 }}
+            />
+            <Tooltip title={autoRefresh ? '모니터링 중지' : '모니터링 시작'}>
+              <button
+                type="button"
+                onClick={() => setAutoRefresh((v) => !v)}
+                className={`flex items-center justify-center w-9 h-9 rounded border transition-colors ${autoRefresh ? 'border-[var(--color-bt-primary)] bg-[var(--color-bt-primary)] text-white' : 'border-[var(--color-bt-primary)] text-[var(--color-bt-primary)] hover:bg-[var(--color-bt-primary)]/5'}`}
+              >
+                {autoRefresh ? <Pause className="size-4" /> : <Play className="size-4" />}
+              </button>
+            </Tooltip>
           </div>
         </header>
 

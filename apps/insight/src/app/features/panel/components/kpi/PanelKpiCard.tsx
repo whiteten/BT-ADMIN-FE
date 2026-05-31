@@ -8,21 +8,23 @@ interface PanelKpiCardProps {
 }
 
 export default function PanelKpiCard({ panel, reportId }: PanelKpiCardProps) {
-  const { globalFilter } = useReportViewStore();
+  const { committedFilter, queryTrigger } = useReportViewStore();
 
   const valueField = panel.fieldMap.find((f) => f.slotType === 'VALUE' || f.slotType === 'Y_AXIS');
   const isDraft = reportId === 0 || panel.panelId < 0;
   const hasMapping = !!valueField;
 
-  const { data: queryResult, isPending } = usePanelData({
+  const { data: queryResult, isFetching } = usePanelData({
     params: {
       reportId,
       panelId: panel.panelId,
-      period: { from: globalFilter.period.from, to: globalFilter.period.to, unit: globalFilter.timeUnit },
-      searchValues: globalFilter.searchValues,
-      comparison: globalFilter.comparison,
+      period: { from: committedFilter.period.from, to: committedFilter.period.to, unit: committedFilter.timeUnit },
+      searchValues: committedFilter.searchValues,
+      comparison: committedFilter.comparison,
+      conditions: committedFilter.conditions,
     },
-    queryOptions: { enabled: !isDraft && hasMapping },
+    queryTrigger,
+    queryOptions: { enabled: !isDraft && hasMapping && queryTrigger > 0 },
   });
 
   if (!hasMapping) {
@@ -43,7 +45,7 @@ export default function PanelKpiCard({ panel, reportId }: PanelKpiCardProps) {
       <p className="text-xs text-[var(--color-bt-fg-muted)]">
         {valueField.fieldName} · {valueField.aggFunc ?? 'SUM'}
       </p>
-      <p className="font-mono text-3xl font-bold text-[var(--color-bt-fg)]">{isDraft || isPending ? '—' : displayValue}</p>
+      <p className="font-mono text-3xl font-bold text-[var(--color-bt-fg)]">{isDraft || isFetching ? '—' : displayValue}</p>
       {queryResult?.compare?.[0] && (
         <p className="text-xs text-[var(--color-bt-fg-muted)]">비교: {Number(queryResult.compare[0][valueField.fieldName] ?? 0).toLocaleString('ko-KR')}</p>
       )}

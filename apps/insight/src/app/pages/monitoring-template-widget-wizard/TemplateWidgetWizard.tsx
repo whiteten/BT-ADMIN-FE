@@ -27,6 +27,9 @@ export interface TemplateWizardForm {
   widgetName: string;
   refreshInterval: number;
   cardKpiDirection?: KpiDirection;
+  // Step 4 — 캔버스 배치 크기(칸). 미지정 시 기본 시각화 기준 추천 크기로 배치.
+  layoutW?: number;
+  layoutH?: number;
 }
 
 const initialForm: TemplateWizardForm = {
@@ -94,7 +97,7 @@ export default function TemplateWidgetWizard() {
     setForm((f) => ({ ...f, mapping: next }));
   };
 
-  const updateStep4 = (patch: { widgetName?: string; refreshInterval?: number }) => {
+  const updateStep4 = (patch: { widgetName?: string; refreshInterval?: number; layoutW?: number; layoutH?: number }) => {
     setForm((f) => ({ ...f, ...patch }));
   };
 
@@ -190,6 +193,8 @@ export default function TemplateWidgetWizard() {
             mapping={form.mapping}
             widgetName={form.widgetName}
             refreshInterval={form.refreshInterval}
+            layoutW={form.layoutW}
+            layoutH={form.layoutH}
             onChange={updateStep4}
           />
         )}

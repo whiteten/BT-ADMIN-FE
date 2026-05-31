@@ -2,12 +2,37 @@ import type { ComparisonType, TimeUnit } from '../../report/types';
 
 export type { TimeUnit, ComparisonType };
 
+/**
+ * 글로벌 공통 검색조건 (봇 통계 공통 조회조건과 동일 — 기간/단위처럼 모든 패널에 적용).
+ * searchValues(컬럼키 전용)와 분리해서 별도 객체로 관리·전송한다.
+ * 시간 문자열은 모두 'HHmm' 4자리. excludeDays는 ['MON'..'SUN'].
+ * (점심/공휴일 제외는 소스 테이블 연동 전이라 이번 범위 제외)
+ */
+export interface GlobalConditions {
+  startTime: string | null;
+  endTime: string | null;
+  useInterval: boolean;
+  intervalFrom: string | null;
+  intervalTo: string | null;
+  excludeDays: string[];
+}
+
 export interface GlobalFilter {
   period: { from: string; to: string };
   timeUnit: TimeUnit;
   searchValues: Record<string, unknown>;
   comparison: ComparisonType | null;
+  conditions: GlobalConditions;
 }
+
+export const DEFAULT_GLOBAL_CONDITIONS: GlobalConditions = {
+  startTime: null,
+  endTime: null,
+  useInterval: false,
+  intervalFrom: null,
+  intervalTo: null,
+  excludeDays: [],
+};
 
 export const TIME_UNIT_LABELS: Record<TimeUnit, string> = {
   '10MIN': '10분',

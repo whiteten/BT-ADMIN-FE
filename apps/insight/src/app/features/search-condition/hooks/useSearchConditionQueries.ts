@@ -35,3 +35,17 @@ export const useDeleteSearchCondition = ({ mutationOptions }: { mutationOptions?
 
 export const usePreviewSql = ({ mutationOptions }: { mutationOptions?: UseMutationOptions<SqlPreviewResult[], Error, SqlPreviewRequest> } = {}) =>
   useMutation({ mutationFn: (data: SqlPreviewRequest) => searchConditionApi.previewSql(data), ...mutationOptions });
+
+export const useGetSearchConditionOptions = ({
+  searchCondId,
+  queryOptions,
+}: {
+  searchCondId: number;
+  queryOptions?: Omit<UseQueryOptions<import('../api/searchConditionApi').SearchCondOptions>, 'queryKey' | 'queryFn'>;
+}) =>
+  useQuery({
+    queryKey: ['search-cond-options', searchCondId],
+    queryFn: () => searchConditionApi.getOptions(searchCondId),
+    staleTime: 5 * 60 * 1000,
+    ...queryOptions,
+  });

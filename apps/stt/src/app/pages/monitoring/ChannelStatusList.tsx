@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
-import { type BreadcrumbProps, Select } from 'antd';
-import { Monitor } from 'lucide-react';
+import { type BreadcrumbProps, Select, Tooltip } from 'antd';
+import { Pause, Play } from 'lucide-react';
 import { useBreadcrumbStore } from '@/shared-store';
 import RealtimeSentenceDrawer, { type RealtimeSentenceDrawerRef } from '../../features/monitoring/components/RealtimeSentenceDrawer';
 import { useGetChannelStatusList } from '../../features/monitoring/hooks/useMonitoringQueries';
@@ -65,6 +65,8 @@ export default function ChannelStatusList() {
   }, [setBreadcrumb, clearBreadcrumb]);
 
   const [selectedIpv4, setSelectedIpv4] = useState<string | undefined>(undefined);
+  const [autoRefresh, setAutoRefresh] = useState(true);
+  const [refreshSeconds, setRefreshSeconds] = useState(3);
 
   const { data: systems = [] } = useGetSttSystemList();
 
@@ -81,6 +83,7 @@ export default function ChannelStatusList() {
 
   const { data: channels = [], isLoading } = useGetChannelStatusList({
     params: selectedIpv4 ? { ipv4: selectedIpv4 } : undefined,
+    queryOptions: { refetchInterval: autoRefresh ? refreshSeconds * 1000 : false },
   });
 
   const handleSystemChange = (value: string) => {
@@ -131,12 +134,27 @@ export default function ChannelStatusList() {
               style={{ width: 200 }}
               loading={systems.length === 0}
             />
-            <button
-              type="button"
-              className="flex items-center justify-center w-8 h-8 rounded border border-[var(--color-bt-primary)] text-[var(--color-bt-primary)] hover:bg-[var(--color-bt-primary)]/5 transition-colors"
-            >
-              <Monitor className="size-4" />
-            </button>
+            <span className="text-sm font-medium text-[#495057] shrink-0 pl-2">모니터링</span>
+            <Select
+              value={refreshSeconds}
+              onChange={setRefreshSeconds}
+              options={[
+                { label: '3초', value: 3 },
+                { label: '5초', value: 5 },
+                { label: '10초', value: 10 },
+                { label: '30초', value: 30 },
+              ]}
+              style={{ width: 72 }}
+            />
+            <Tooltip title={autoRefresh ? '모니터링 중지' : '모니터링 시작'}>
+              <button
+                type="button"
+                onClick={() => setAutoRefresh((v) => !v)}
+                className={`flex items-center justify-center w-9 h-9 rounded border transition-colors ${autoRefresh ? 'border-[var(--color-bt-primary)] bg-[var(--color-bt-primary)] text-white' : 'border-[var(--color-bt-primary)] text-[var(--color-bt-primary)] hover:bg-[var(--color-bt-primary)]/5'}`}
+              >
+                {autoRefresh ? <Pause className="size-4" /> : <Play className="size-4" />}
+              </button>
+            </Tooltip>
           </div>
         </header>
 

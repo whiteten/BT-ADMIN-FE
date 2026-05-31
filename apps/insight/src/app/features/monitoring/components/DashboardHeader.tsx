@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Button } from 'antd';
-import { Play, Square } from 'lucide-react';
+import { Maximize2, Minimize2, Play, Plus, Square } from 'lucide-react';
 import { DOMAIN_LABELS } from '../constants/monitoringConstants';
 import type { DashboardDetail, WsConnectionState } from '../types';
 
@@ -22,6 +22,9 @@ interface DashboardHeaderProps {
   onToggleMonitoring?: () => void;
   /** View 모드 — 편집 모드로 전환 */
   onEnterEdit?: () => void;
+  /** View 모드 — 화면 맞춤(월보드) 모드 on/off */
+  fitToScreen?: boolean;
+  onToggleFit?: () => void;
 
   /** Edit 모드 — 이름 변경 */
   onRename?: (next: string) => void;
@@ -30,6 +33,8 @@ interface DashboardHeaderProps {
   isSaving?: boolean;
   /** Edit 모드 — 취소 */
   onCancel?: () => void;
+  /** Edit 모드 — 영역(Slot) 추가 */
+  onAddSlot?: () => void;
 
   /** 편집 권한 보유 여부 */
   canEdit?: boolean;
@@ -52,10 +57,13 @@ export default function DashboardHeader({
   onChangeRefreshThrottle,
   onToggleMonitoring,
   onEnterEdit,
+  fitToScreen = false,
+  onToggleFit,
   onRename,
   onSave,
   isSaving,
   onCancel,
+  onAddSlot,
   canEdit = true,
 }: DashboardHeaderProps) {
   const [name, setName] = useState(dashboard.dashboardName);
@@ -118,11 +126,18 @@ export default function DashboardHeader({
               {monitoringStarted ? '중지' : '시작'}
             </Button>
 
+            <Button icon={fitToScreen ? <Minimize2 className="w-3.5 h-3.5" /> : <Maximize2 className="w-3.5 h-3.5" />} onClick={onToggleFit}>
+              {fitToScreen ? '맞춤 해제' : '화면맞춤'}
+            </Button>
+
             {canEdit && <Button onClick={onEnterEdit}>화면편집</Button>}
           </div>
         ) : (
           <div className="flex items-center gap-2">
             <Button onClick={onCancel}>취소</Button>
+            <Button icon={<Plus className="w-3.5 h-3.5" />} onClick={onAddSlot}>
+              영역 추가
+            </Button>
             <Button variant="solid" color="cyan" onClick={onSave} loading={isSaving}>
               저장
             </Button>

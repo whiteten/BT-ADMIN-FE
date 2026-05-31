@@ -205,3 +205,100 @@ export interface UserDefStatList {
   summary: UserDefStatListItem | null;
   columnDef: UserDefColumnDef[];
 }
+
+/** 캠페인 결과 통계 — 그리드 행 (BFF 연동 전 필드명은 대시보드 campaignStatsOverview 기준) */
+export interface CampaignResultStatItem {
+  psrTimeKey: string;
+  tenantId?: string;
+  tenantName: string;
+  campaignId?: string;
+  campaignName: string;
+  viewDate: string;
+  campaignListId?: string;
+  campaignListName?: string;
+  seq: number;
+  totalTargetCnt?: number;
+  outboundProgressCnt?: number;
+  outboundAttemptCnt?: number;
+  progressRatePct?: number;
+  retryOutboundCnt?: number;
+  selfCallCnt?: number;
+  selfCallCompleteRatePct?: number;
+  failCnt?: number;
+  absentCnt?: number;
+  firstAttemptSelfCallSuccessRatePct?: number;
+  secondAttemptSelfCallSuccessRatePct?: number;
+  thirdAttemptSelfCallSuccessRatePct?: number;
+  verifyFailRatePct?: number;
+}
+
+export type CampaignResultStatListItem = CampaignResultStatItem;
+
+export interface CampaignResultStatList {
+  items: CampaignResultStatListItem[];
+  summary: CampaignResultStatListItem | null;
+  columnDef: UserDefColumnDef[];
+}
+
+/** 캠페인 목적 달성률 통계 — 그리드 행 */
+export interface CampaignAchievementStatItem {
+  psrTimeKey?: string;
+  viewDate?: string;
+  tenantId?: string;
+  tenantName?: string;
+  campaignId?: string;
+  campaignName?: string;
+  campaignListId?: string;
+  seq?: number;
+  /** 해피콜 */
+  surveyCompleteCnt?: number;
+  negativeAnswerCnt?: number;
+  successRatePct?: number;
+  avgCallDurationSec?: number;
+  /** 실물이전 */
+  transferReceiptCnt?: number;
+  transferRejectCnt?: number;
+  transferMidGuideCnt?: number;
+  transferCancelGuideCnt?: number;
+  transferAuthFailCnt?: number;
+  transferAvgCallDurationSec?: number;
+  /** 만기안내 */
+  noticeCompleteCnt?: number;
+  noticeIncompleteCnt?: number;
+  noticeSuccessRatePct?: number;
+  noticeNoSendCnt?: number;
+  noticeAvgCallDurationSec?: number;
+  /** 단기연체 */
+  overdueCompleteCnt?: number;
+  overdueIncompleteCnt?: number;
+  overdueSuccessRatePct?: number;
+  overdueNoSendCnt?: number;
+  overdueAvgCallDurationSec?: number;
+}
+
+export type CampaignAchievementStatListItem = CampaignAchievementStatItem;
+
+export interface CampaignAchievementStatList {
+  items: CampaignAchievementStatListItem[];
+  summary: CampaignAchievementStatListItem | null;
+  columnDef: UserDefColumnDef[];
+}
+
+/** 활성 테넌트 옵션 — BFF `stat-tenant-options` (V69) */
+export interface TenantOptionItem {
+  tenantId: string;
+  tenantName: string;
+}
+
+export type TenantOptionListItem = TenantOptionItem;
+
+/** 캠페인·시나리오 옵션 — BFF `stat-campaign-options` (V69) */
+export interface CampaignOptionItem {
+  tenantId: string;
+  campaignId: string;
+  campaignName: string;
+  campaignListId?: string;
+  campaignListName?: string;
+}
+
+export type CampaignOptionListItem = CampaignOptionItem;

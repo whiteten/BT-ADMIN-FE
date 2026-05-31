@@ -1,5 +1,5 @@
 import React, { useEffect } from 'react';
-import { Outlet, useLocation } from 'react-router-dom';
+import { Outlet } from 'react-router-dom';
 import { LOG } from '@/log';
 
 import { useAuthStore, useNavigationStore } from '@/shared-store';
@@ -17,23 +17,24 @@ import { FallbackSpinner } from '@/components/custom/FallbackSpinner';
 const Log = new LOG('SharedInfoProvider');
 
 export default function SharedInfoProvider({ children }: { children?: React.ReactNode }) {
-  const location = useLocation();
-  const isPublicTokenRoute = new URLSearchParams(location.search).has('token') && (location.pathname.includes('task-mgmt') || location.pathname.includes('task-view'));
-
   const { setUserInfo, setIsLoading, passwordExpiringWarning, setPasswordExpiringWarning } = useAuthStore();
   const { setNavigation } = useNavigationStore();
-  const { data: userInfo, isLoading: isUserInfoLoading, error: userInfoError } = useGetUserInfo({ queryOptions: { enabled: !isPublicTokenRoute } });
-  const { data: navigation, isLoading: isNavigationLoading, error: navigationError } = useGetNavigation({ queryOptions: { enabled: !isPublicTokenRoute } });
-  const { data: ticketResponse, isLoading: isWsTicketLoading, error: wsTicketError, refetch: refetchWsTicket } = useGetWsTicket({ queryOptions: { enabled: !isPublicTokenRoute } });
+  const { data: userInfo, isLoading: isUserInfoLoading, error: userInfoError } = useGetUserInfo();
+  const { data: navigation, isLoading: isNavigationLoading, error: navigationError } = useGetNavigation();
+  const { data: ticketResponse, isLoading: isWsTicketLoading, error: wsTicketError, refetch: refetchWsTicket } = useGetWsTicket();
   const { load: loadMenuConfigs } = useMenuLoader();
   const { load: loadRemoteRoutes } = useRemoteRoutesLoader();
   const { load: loadPageVariantManifest } = usePageVariantManifestLoader();
   const { load: loadQuerySelectors } = useQuerySelectorsLoader();
   usePageVariantsLoader();
 
-  const handleWsError = () => {
+  const handleWsClose = () => {
+    if (window.location.pathname === '/login') {
+      Log.warn('WS closed on login page. Skip ticket refetch.');
+      return;
+    }
     const RETRY_DELAY = 5000;
-    Log.error('Refetching WS ticket. retry delay: ', RETRY_DELAY);
+    Log.warn('WS closed. Refetching WS ticket. retry delay: ', RETRY_DELAY);
     setTimeout(() => {
       refetchWsTicket();
     }, RETRY_DELAY);
@@ -41,8 +42,8 @@ export default function SharedInfoProvider({ children }: { children?: React.Reac
 
   useSessionSocket({
     ticket: ticketResponse?.ticket ?? null,
-    onError: () => {
-      handleWsError();
+    onClose: () => {
+      handleWsClose();
     },
   });
 
@@ -106,8 +107,7 @@ export default function SharedInfoProvider({ children }: { children?: React.Reac
     }
   }, [passwordExpiringWarning, setPasswordExpiringWarning]);
 
-  // 공개 토큰 경로에서는 인증 API 로딩 대기 없이 즉시 렌더링
-  if (!isPublicTokenRoute && (isUserInfoLoading || isNavigationLoading || isWsTicketLoading)) {
+  if (isUserInfoLoading || isNavigationLoading || isWsTicketLoading) {
     return <FallbackSpinner useFullScreen />;
   }
 

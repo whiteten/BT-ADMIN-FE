@@ -56,6 +56,7 @@ export default function TemplateWidgetCard({ widget, editMode, onSettings, onDel
     <div className="flex flex-col h-full bg-white rounded shadow-sm border border-[var(--color-bt-border)] overflow-hidden">
       <WidgetCardHeader
         widget={widget}
+        sourceName={detail.datasetName}
         currentViz={currentViz}
         onChangeViz={setCurrentViz}
         editMode={editMode}

@@ -1,5 +1,6 @@
 import ApiClient, { type ApiResponse } from '@/shared-util';
 import type {
+  LatestRecogGroup,
   RecogAccuracyResult,
   RecogGroupCreateData,
   RecogGroupDetail,
@@ -46,5 +47,9 @@ export const recogApi = {
   },
   deleteRecogTargets: async (ids: number[]) => {
     return apiClient.post('/recog-target-delete-bulk', { ids });
+  },
+  getLatestRecogGroup: async (params: { modelVerId: string }) => {
+    const response = await apiClient.get<ApiResponse<LatestRecogGroup>>('/recog-group-latest', { params });
+    return response.data?.data ?? null;
   },
 };

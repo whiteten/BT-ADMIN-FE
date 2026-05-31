@@ -361,6 +361,37 @@ export interface OccupancyItem {
   callCount: number;
 }
 
+/** 캠페인 대시보드 — 진행률 게이지 */
+export interface CampaignProgressRateData {
+  outboundAttemptCnt: number;
+  totalTargetCnt: number;
+}
+
+/**
+ * 캠페인 대시보드 위젯별 WebSocket DATA 스키마
+ *
+ * BE는 `widgetType` 키와 동일한 이름으로 구독·푸시합니다.
+ */
+export interface CampaignDashboardResponse {
+  campaignProgressRate: CampaignProgressRateData;
+  campaignOutboundAttempt: {
+    outboundAttemptCnt: number;
+    /** WS `campaignOutboundAttempt` 위젯 DATA에 포함 (6종 막대) */
+    outboundAttemptTop?: IntentTopItem[];
+  };
+  campaignCompleteCallRate: { ratePct: number };
+  campaignOutboundProgressRealtime: { count: number };
+  campaignOutboundAttemptPerMinute: { count: number };
+  campaignVerificationFailRate: { ratePct: number };
+}
+
+export type CampaignDashboardWidgetType = keyof CampaignDashboardResponse;
+
+/** 캠페인 대시보드 전용 레이아웃 아이템 */
+export interface CampaignDashboardLayoutItem extends LayoutItem {
+  widgetType: CampaignDashboardWidgetType;
+}
+
 /**
  * 봇 대시보드 API 응답
  *
@@ -417,7 +448,8 @@ export type DashboardSubscribeOptions = Record<string, unknown>;
 
 // --- WebSocket 메시지 프로토콜 타입 ---
 
-export type DashboardWidgetType = keyof BotDashboardResponse;
+export type BotDashboardWidgetType = keyof BotDashboardResponse;
+export type DashboardWidgetType = BotDashboardWidgetType | CampaignDashboardWidgetType;
 
 export const DASHBOARD_MSG_TYPE = {
   SUBSCRIBE: 'SUBSCRIBE',

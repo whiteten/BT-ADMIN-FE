@@ -1,27 +1,25 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useLocation, useNavigate, useParams } from 'react-router-dom';
 import { useQueryClient } from '@tanstack/react-query';
 import { Button } from 'antd';
+import { Plus } from 'lucide-react';
 import { useBreadcrumbStore } from '@/shared-store';
 import { toast } from '@/shared-util';
 import DashboardHeader from '../../features/monitoring/components/DashboardHeader';
 import DashboardCanvas from '../../features/monitoring/components/canvas/DashboardCanvas';
 import EmptyCanvas from '../../features/monitoring/components/canvas/EmptyCanvas';
-import { dashboardKeys, useDeleteWidget, useGetDashboard, useUpdateDashboard, useUpdateLayout } from '../../features/monitoring/hooks/useDashboardQueries';
+import LayoutPickerModal from '../../features/monitoring/components/canvas/LayoutPickerModal';
+import WidgetLibraryModal from '../../features/monitoring/components/canvas/WidgetLibraryModal';
+import { dashboardKeys, useCreateWidget, useDeleteWidget, useGetDashboard, useUpdateDashboard, useUpdateLayout } from '../../features/monitoring/hooks/useDashboardQueries';
 import { useDashboardSocket } from '../../features/monitoring/hooks/useDashboardSocket';
 import { useWidgetUserSettingsMap } from '../../features/monitoring/hooks/useWidgetSettingQueries';
-import type { Widget } from '../../features/monitoring/types';
+import type { CustomWidgetCatalogItem, Widget } from '../../features/monitoring/types';
 import { FallbackSpinner } from '@/components/custom/FallbackSpinner';
 
 type Mode = 'view' | 'edit';
 
 /**
  * 모니터링 대시보드 — View + Edit 통합 페이지.
- *
- * - View 모드(기본): ▶ 모니터링 시작 버튼이 캔버스 위에 오버레이로 노출되며, 누르면 WS 가 연결되어 실시간 데이터가 흐른다.
- *   다시 누르면 일시정지(WS 유지, 화면 갱신 정지)가 아닌 정지 → 카운트 초기화.
- * - Edit 모드: 헤더 [편집] 버튼으로 진입. WS 는 끊고 드래그/리사이즈/위젯 추가 활성. [저장]/[취소] 로 종료.
- * - `/edit` 라우트로 직접 진입한 경우(`location.state.initialMode === 'edit'`) 첫 마운트에서 바로 edit 모드.
  */
 export default function DashboardView() {
   const { dashboardId: param } = useParams<{ dashboardId: string }>();
@@ -32,12 +30,14 @@ export default function DashboardView() {
   const setBreadcrumb = useBreadcrumbStore((s) => s.setBreadcrumb);
   const clearBreadcrumb = useBreadcrumbStore((s) => s.clearBreadcrumb);
 
-  // URL 마지막 세그먼트(/view 또는 /edit) + location.state.initialMode 로 진입 모드 결정
-  // 위젯 위저드에서 돌아오는 경로(`/edit`)는 자연스럽게 edit 모드 유지
   const explicitInitialMode = (location.state as { initialMode?: Mode } | null)?.initialMode;
   const pathIsEdit = location.pathname.endsWith('/edit');
   const initialMode: Mode = explicitInitialMode ?? (pathIsEdit ? 'edit' : 'view');
   const [mode, setMode] = useState<Mode>(initialMode);
+
+  const [isLibraryOpen, setIsLibraryOpen] = useState(false);
+  const [isLayoutPickerOpen, setIsLayoutPickerOpen] = useState(false);
+  const [replacingWidgetId, setReplacingWidgetId] = useState<number | null>(null);
 
   const { data: dashboard, isLoading } = useGetDashboard({
     params: { dashboardId },
@@ -51,9 +51,6 @@ export default function DashboardView() {
     setWidgets(initialWidgets);
   }, [initialWidgets]);
 
-  // 모드에 따라 breadcrumb 마지막 segment 가 달라진다.
-  //   view: … / 대시보드 / :dashboardName / 보기
-  //   edit: … / 대시보드 / :dashboardName(→ /edit)
   useEffect(() => {
     if (!dashboard) return;
     const base = [
@@ -68,16 +65,41 @@ export default function DashboardView() {
     return () => clearBreadcrumb();
   }, [dashboard, dashboardId, mode, setBreadcrumb, clearBreadcrumb]);
 
-  // ── View 모드 — 모니터링 시작 여부 + 갱신 간격 ────────────────────
   const [monitoringStarted, setMonitoringStarted] = useState(false);
   const [refreshThrottle, setRefreshThrottle] = useState<1 | 3 | 5 | 10 | 'PAUSED'>(3);
 
-  // 편집 모드로 진입하면 모니터링 중단
+  const rootRef = useRef<HTMLDivElement>(null);
+  const [fitToScreen, setFitToScreen] = useState(false);
+
+  // 대시보드 데이터 로드 시 저장된 fitToScreen 값 적용
   useEffect(() => {
-    if (mode === 'edit') setMonitoringStarted(false);
+    if (dashboard) setFitToScreen(dashboard.fitToScreen);
+  }, [dashboard]);
+
+  /** 화면 맞춤(스케일링) 토글 — 브라우저 풀스크린과 별개로 UI 영역을 가득 채움 */
+  const handleToggleFit = () => setFitToScreen((v) => !v);
+
+  /** OS/브라우저 수준의 전체 화면 토글 (선택 사항) */
+  const handleToggleFullscreen = () => {
+    if (!document.fullscreenElement) {
+      rootRef.current?.requestFullscreen?.().catch((e) => console.warn('fullscreen request failed', e));
+    } else {
+      document.exitFullscreen?.().catch((e) => console.warn('exit fullscreen failed', e));
+    }
+  };
+
+  useEffect(() => {
+    if (mode === 'edit') {
+      setMonitoringStarted(false);
+      // 편집 모드 진입 시 OS 전체화면은 가급적 해제 (필요 시)
+      if (document.fullscreenElement) document.exitFullscreen?.().catch((e) => console.warn('exit fullscreen failed', e));
+    } else {
+      setIsLibraryOpen(false);
+      setIsLayoutPickerOpen(false);
+      setReplacingWidgetId(null);
+    }
   }, [mode]);
 
-  // CUSTOM 위젯들의 사용자 설정 — SUBSCRIBE 페이로드에 머지하기 위해 일괄 조회.
   const customWidgetIds = useMemo(() => widgets.filter((w) => w.kind === 'CUSTOM').map((w) => w.widgetId), [widgets]);
   const widgetUserSettings = useWidgetUserSettingsMap(customWidgetIds);
 
@@ -89,30 +111,29 @@ export default function DashboardView() {
     enabled: mode === 'view' && monitoringStarted,
   });
 
-  // ── Mutations (Edit 모드용) ──────────────────────────────────
   const invalidateDetail = () => {
     queryClient.invalidateQueries({ queryKey: dashboardKeys.detail(dashboardId).queryKey });
+    queryClient.invalidateQueries({ queryKey: dashboardKeys.widgets(dashboardId).queryKey });
   };
 
-  const { mutate: updateLayout, isPending: isSaving } = useUpdateLayout({
+  const { mutate: updateLayout, isPending: isSavingLayout } = useUpdateLayout({
     mutationOptions: {
       onSuccess: () => {
         invalidateDetail();
-        toast.success('대시보드가 저장되었습니다.');
-        setMode('view');
       },
     },
   });
 
-  const { mutate: updateDashboard } = useUpdateDashboard({
+  const { mutate: updateDashboard, isPending: isSavingDashboard } = useUpdateDashboard({
     mutationOptions: {
       onSuccess: () => {
         invalidateDetail();
         queryClient.invalidateQueries({ queryKey: dashboardKeys.list._def });
-        toast.success('이름이 변경되었습니다.');
       },
     },
   });
+
+  const isSaving = isSavingLayout || isSavingDashboard;
 
   const { mutate: deleteWidget } = useDeleteWidget({
     mutationOptions: {
@@ -123,7 +144,18 @@ export default function DashboardView() {
     },
   });
 
-  // ── 로딩 / 미존재 ─────────────────────────────────────────────
+  const { mutate: createWidget, isPending: isCreating } = useCreateWidget({
+    mutationOptions: {
+      onSuccess: () => {
+        invalidateDetail();
+        toast.success('위젯이 추가되었습니다.');
+        setIsLibraryOpen(false);
+        setReplacingWidgetId(null);
+      },
+      onError: () => toast.error('위젯 추가 중 오류가 발생했습니다.'),
+    },
+  });
+
   if (isLoading && !dashboard) return <FallbackSpinner />;
   if (!dashboard) {
     return (
@@ -138,9 +170,10 @@ export default function DashboardView() {
     );
   }
 
-  // ── 핸들러 ─────────────────────────────────────────────────────
   const handleSave = () => {
     if (isSaving) return;
+
+    // 1. 레이아웃(위젯 위치/크기) 저장
     updateLayout({
       dashboardId,
       items: widgets.map((w) => ({
@@ -151,62 +184,177 @@ export default function DashboardView() {
         h: w.position.h,
       })),
     });
-  };
 
-  const handleCancel = () => {
-    setWidgets(initialWidgets); // 미저장 변경 되돌리기
+    // 2. 대시보드 속성(fitToScreen 등) 저장
+    updateDashboard({
+      dashboardId,
+      data: { fitToScreen },
+    });
+
+    toast.success('대시보드가 저장되었습니다.');
     setMode('view');
   };
 
-  const handleRename = (next: string) => updateDashboard({ dashboardId, data: { dashboardName: next } });
+  const handleCancel = () => {
+    setWidgets(initialWidgets);
+    setMode('view');
+  };
+
+  const handleRename = (next: string) => {
+    updateDashboard({
+      dashboardId,
+      data: { dashboardName: next, fitToScreen },
+    });
+    toast.success('이름이 변경되었습니다.');
+  };
 
   const handleWidgetsChange = (next: Widget[]) => {
-    const removed = widgets.filter((prev) => !next.some((n) => n.widgetId === prev.widgetId));
+    const removed = widgets.filter((prev) => prev.widgetId > 0 && !next.some((n) => n.widgetId === prev.widgetId));
     removed.forEach((w) => deleteWidget(w.widgetId));
     setWidgets(next);
   };
 
-  const isEmpty = widgets.length === 0;
-  const canEdit = true; // Phase 1 — BE 권한 구현 후 dashboard:edit 체크
+  const handleAddTemplate = () => {
+    const target = replacingWidgetId ? widgets.find((w) => w.widgetId === replacingWidgetId) : null;
+    navigate(`/insight/monitoring/dashboards/${dashboardId}/edit/widget/create/template`, {
+      state: {
+        initialMode: 'edit',
+        position: target?.position,
+        replacingWidgetId: replacingWidgetId,
+      },
+    });
+  };
 
-  // ── 렌더 ──────────────────────────────────────────────────────
+  const handleAddCustom = (catalogItem: CustomWidgetCatalogItem) => {
+    if (isCreating) return;
+
+    const targetWidget = replacingWidgetId ? widgets.find((w) => w.widgetId === replacingWidgetId) : null;
+    const position = targetWidget ? targetWidget.position : { row: 0, col: 0, w: catalogItem.minW ?? 4, h: catalogItem.minH ?? 4 };
+
+    createWidget({
+      dashboardId,
+      data: {
+        kind: 'CUSTOM',
+        widgetName: catalogItem.widgetName,
+        widgetTypeId: catalogItem.widgetTypeId,
+        options: catalogItem.defaultOptions ?? {},
+        position,
+      },
+    });
+
+    if (replacingWidgetId) {
+      setWidgets((prev) => prev.filter((w) => w.widgetId !== replacingWidgetId));
+    }
+  };
+
+  const handleLayoutSelect = (rows: number, cols: number) => {
+    if (rows === 0 && cols === 0) {
+      setIsLayoutPickerOpen(true);
+      return;
+    }
+    const nextWidgets: Widget[] = [];
+    const itemW = 12 / cols;
+    const itemH = 12 / rows;
+
+    for (let r = 0; r < rows; r++) {
+      for (let c = 0; c < cols; c++) {
+        nextWidgets.push({
+          widgetId: -(Date.now() + r * 10 + c),
+          dashboardId,
+          widgetName: `영역 ${r * cols + c + 1}`,
+          kind: 'PLACEHOLDER',
+          position: {
+            row: r * itemH,
+            col: c * itemW,
+            w: itemW,
+            h: itemH,
+          },
+        });
+      }
+    }
+    setWidgets(nextWidgets);
+    setFitToScreen(true);
+  };
+
+  const handleAddSlotSelect = (w: number, h: number) => {
+    const lastRow = widgets.reduce((max, widget) => Math.max(max, widget.position.row + widget.position.h), 0);
+    const newId = -Date.now();
+    setWidgets((prev) => [
+      ...prev,
+      {
+        widgetId: newId,
+        dashboardId,
+        widgetName: '새 영역',
+        kind: 'PLACEHOLDER',
+        position: { row: lastRow, col: 0, w, h },
+      },
+    ]);
+    setFitToScreen(true);
+  };
+
+  const handleAddWidgetAt = (widgetId: number) => {
+    setReplacingWidgetId(widgetId);
+    setIsLibraryOpen(true);
+  };
+
+  const isEmpty = widgets.length === 0;
+  const canEdit = true;
+
   return (
-    <div className="flex flex-col w-full h-full bg-[var(--color-bt-bg-canvas)]">
+    <div ref={rootRef} className="flex flex-col w-full h-full bg-[var(--color-bt-bg-canvas)]">
       <DashboardHeader
         dashboard={dashboard}
         mode={mode}
         canEdit={canEdit}
-        // View 모드
         monitoringStarted={monitoringStarted}
         connectionState={connectionState}
         refreshThrottle={refreshThrottle}
         onChangeRefreshThrottle={setRefreshThrottle}
         onToggleMonitoring={() => setMonitoringStarted((v) => !v)}
         onEnterEdit={() => setMode('edit')}
-        // Edit 모드
+        fitToScreen={fitToScreen}
+        onToggleFit={handleToggleFit}
         onRename={handleRename}
         onSave={handleSave}
         isSaving={isSaving}
         onCancel={handleCancel}
+        onAddSlot={() => setIsLayoutPickerOpen(true)}
       />
 
-      {/* 본문 — 모드별 분기 */}
       {mode === 'edit' ? (
-        isEmpty ? (
-          <EmptyCanvas dashboardId={dashboardId} />
-        ) : (
-          <DashboardCanvas dashboardId={dashboardId} widgets={widgets} editMode={true} onWidgetsChange={handleWidgetsChange} />
-        )
+        <DashboardCanvas
+          dashboardId={dashboardId}
+          widgets={widgets}
+          editMode={true}
+          onWidgetsChange={handleWidgetsChange}
+          onAddWidgetAt={handleAddWidgetAt}
+          fitToScreen={fitToScreen}
+        >
+          {isEmpty && (
+            <div className="mt-4 flex flex-col gap-4">
+              <EmptyCanvas onLayoutSelect={handleLayoutSelect} />
+            </div>
+          )}
+        </DashboardCanvas>
       ) : isEmpty ? (
         <EmptyViewState canEdit={canEdit} onEnterEdit={() => setMode('edit')} />
       ) : (
-        <DashboardCanvas dashboardId={dashboardId} widgets={widgets} editMode={false} widgetData={widgetData} onRequestPause={() => setMonitoringStarted(false)} />
+        <DashboardCanvas
+          dashboardId={dashboardId}
+          widgets={widgets}
+          editMode={false}
+          widgetData={widgetData}
+          onRequestPause={() => setMonitoringStarted(false)}
+          fitToScreen={fitToScreen}
+        />
       )}
+
+      <WidgetLibraryModal open={isLibraryOpen} onClose={() => setIsLibraryOpen(false)} onAddTemplate={handleAddTemplate} onAddCustom={handleAddCustom} />
+      <LayoutPickerModal open={isLayoutPickerOpen} onClose={() => setIsLayoutPickerOpen(false)} onSelect={handleAddSlotSelect} />
     </div>
   );
 }
 
-// ─── View 모드 — 위젯 없을 때 안내 ────────────────────────────────
 function EmptyViewState({ canEdit, onEnterEdit }: { canEdit: boolean; onEnterEdit: () => void }) {
   return (
     <div className="flex-1 flex flex-col items-center justify-center gap-4 px-8">

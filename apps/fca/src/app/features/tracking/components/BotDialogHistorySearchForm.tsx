@@ -4,12 +4,12 @@ import dayjs, { type Dayjs } from 'dayjs';
 import { BarChart3, CircleHelp, Download, Search } from 'lucide-react';
 import { toast } from '@/shared-util';
 
+import { useGetBotServices, useGetIntents } from '../hooks/useBotDialogHistoryQueries';
+import type { BotDialogHistorySearchRequest, BotServiceDto, IntentDto } from '../types';
+
 const MAX_DAYS = 30;
 const COMPLETE_ALL = 'all' as const;
 const MINUTE_STEP = 10;
-
-import { useGetBotServices, useGetIntents } from '../hooks/useBotDialogHistoryQueries';
-import type { BotDialogHistorySearchRequest, BotServiceDto, IntentDto } from '../types';
 
 interface BotDialogHistorySearchFormProps {
   onSearch: (values: BotDialogHistorySearchRequest) => void;
@@ -341,7 +341,7 @@ const BotDialogHistorySearchForm: React.FC<BotDialogHistorySearchFormProps> = ({
           </Button>
           {onSlotChart && (
             <Button type="primary" icon={<BarChart3 className="size-4" />} className="flex items-center gap-1 shrink-0" onClick={handleSlotChart}>
-              슬롯차트
+              대화여정
             </Button>
           )}
           {onExcelDownload && (

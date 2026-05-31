@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { type ReactNode, useMemo, useState } from 'react';
 import { Button, Checkbox, Drawer, Input, Select, Tag } from 'antd';
 import { BarChart2, LineChart, PieChart, X } from 'lucide-react';
 import { toast } from '@/shared-util';
@@ -7,6 +7,7 @@ import type { FieldMetaItem } from '../../dataset/types';
 import { useReportEditorStore } from '../../report/hooks/useReportEditorStore';
 import { useCreatePanel, useUpdatePanel } from '../../report/hooks/useReportQueries';
 import type { AggFunc, ColumnFormat, PanelFieldMap, PanelLayout, PanelType, SlotType } from '../../report/types';
+import { useGetSearchConditions } from '../../search-condition/hooks/useSearchConditionQueries';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -67,6 +68,8 @@ const FORMAT_OPTIONS: { value: ColumnFormat; label: string }[] = [
 
 const TOP_N_PRESETS = [5, 10, 20, 50];
 
+const FILTER_SLOT_DEF: SlotDef = { slotType: 'FILTER', badge: 'F', title: '검색조건 바인딩', subtitle: '— 글로벌 필터 연결', acceptsRole: 'BOTH' };
+
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
 function makeFieldMapEntry(field: FieldMetaItem, slotType: SlotType, slotOrder: number): PanelFieldMap {
@@ -76,7 +79,7 @@ function makeFieldMapEntry(field: FieldMetaItem, slotType: SlotType, slotOrder: 
     slotOrder,
     fieldName: field.fieldName,
     isCalcField: false,
-    aggFunc: isMsr ? 'SUM' : undefined,
+    aggFunc: undefined,
     columnFormat: isMsr ? 'Number' : undefined,
   };
 }
@@ -115,7 +118,18 @@ export default function PanelEditorSheet({ reportId, panelType, panelId, dataset
 
   // ─── Common state ──────────────────────────────────────────────────────────
   const [title, setTitle] = useState(existingPanel?.title ?? '');
-  const [layout] = useState<PanelLayout>(existingPanel?.layout ?? { x: 0, y: 0, w: 12, h: 6 });
+  const [layout] = useState<PanelLayout>(() => {
+    if (existingPanel?.layout) return existingPanel.layout;
+    if (isGrid) return { x: 0, y: 0, w: 12, h: 6 };
+    // Chart: 6W, fill left→right then new row
+    if (panels.length === 0) return { x: 0, y: 0, w: 6, h: 6 };
+    const maxBottom = Math.max(...panels.map((p) => p.layout.y + p.layout.h));
+    const lastRowPanels = panels.filter((p) => p.layout.y + p.layout.h === maxBottom);
+    const leftPanel = lastRowPanels.find((p) => p.layout.x === 0 && p.layout.w === 6);
+    const rightOccupied = lastRowPanels.some((p) => p.layout.x >= 6);
+    if (leftPanel && !rightOccupied) return { x: 6, y: leftPanel.layout.y, w: 6, h: 6 };
+    return { x: 0, y: maxBottom, w: 6, h: 6 };
+  });
   const [selectedDatasetId, setSelectedDatasetId] = useState(defaultDatasetId);
 
   // ─── GRID slot state ───────────────────────────────────────────────────────
@@ -123,7 +137,8 @@ export default function PanelEditorSheet({ reportId, panelType, panelId, dataset
   const [groupByFields, setGroupByFields] = useState<PanelFieldMap[]>(existingFieldMap.filter((f) => f.slotType === 'ROW'));
   const [valueFields, setValueFields] = useState<PanelFieldMap[]>(existingFieldMap.filter((f) => f.slotType === 'VALUE'));
   const [sortFields, setSortFields] = useState<PanelFieldMap[]>(existingFieldMap.filter((f) => f.slotType === 'SORT'));
-  const [showSumRow, setShowSumRow] = useState(true);
+  const [filterFields, setFilterFields] = useState<PanelFieldMap[]>(existingFieldMap.filter((f) => f.slotType === 'FILTER'));
+  const [showSumRow, setShowSumRow] = useState(() => (existingPanel?.chartOptions as { showSumRow?: boolean } | undefined)?.showSumRow ?? true);
 
   // ─── CHART slot state ──────────────────────────────────────────────────────
   const [chartSubType, setChartSubType] = useState<ChartSubType>((['BAR', 'LINE', 'PIE'].includes(currentPanelType) ? currentPanelType : 'BAR') as ChartSubType);
@@ -149,6 +164,7 @@ export default function PanelEditorSheet({ reportId, panelType, panelId, dataset
   const [otherGroupingEnabled, setOtherGroupingEnabled] = useState<boolean>(limitEntry?.otherGrouping ?? false);
 
   // ─── Data fetching ─────────────────────────────────────────────────────────
+  const { data: searchConds = [], isLoading: searchCondsLoading } = useGetSearchConditions();
   const { data: datasets = [], isLoading: datasetsLoading } = useGetDatasets();
   const { data: fields = [], isLoading: fieldsLoading } = useGetDataSourceFields({
     params: { datasetId: selectedDatasetId },
@@ -204,6 +220,7 @@ export default function PanelEditorSheet({ reportId, panelType, panelId, dataset
         ...groupByFields.map((f, i) => normalizeField({ ...f, slotType: 'ROW' as SlotType, slotOrder: i })),
         ...valueFields.map((f, i) => normalizeField({ ...f, slotType: 'VALUE' as SlotType, slotOrder: i })),
         ...sortFields.map((f, i) => normalizeField({ ...f, slotType: 'SORT' as SlotType, slotOrder: i })),
+        ...filterFields.map((f, i) => normalizeField({ ...f, slotType: 'FILTER' as SlotType, slotOrder: i })),
       ];
     }
     let slotFields: PanelFieldMap[];
@@ -219,6 +236,7 @@ export default function PanelEditorSheet({ reportId, panelType, panelId, dataset
         ...seriesFields.map((f, i) => normalizeField({ ...f, slotType: 'SERIES' as SlotType, slotOrder: i })),
       ];
     }
+    slotFields.push(...filterFields.map((f, i) => normalizeField({ ...f, slotType: 'FILTER' as SlotType, slotOrder: i })));
     if (topNEnabled && topNSortField) {
       slotFields.push({
         slotType: 'LIMIT',
@@ -234,7 +252,7 @@ export default function PanelEditorSheet({ reportId, panelType, panelId, dataset
   };
 
   const buildChartOptions = () => {
-    if (isGrid) return undefined;
+    if (isGrid) return { showSumRow };
     return { direction: chartDirection, dataLabel: showDataLabel, legend: showLegend, goalLine: { enabled: goalLineEnabled, value: goalLineValue } };
   };
 
@@ -257,6 +275,12 @@ export default function PanelEditorSheet({ reportId, panelType, panelId, dataset
 
   // ─── Palette click → active slot ──────────────────────────────────────────
   const handlePaletteClick = (field: FieldMetaItem) => {
+    if (activeSlot === 'FILTER') {
+      if (!filterFields.some((f) => f.fieldName === field.fieldName)) {
+        setFilterFields((prev) => [...prev, { slotType: 'FILTER', slotOrder: prev.length, fieldName: field.fieldName, isCalcField: false }]);
+      }
+      return;
+    }
     if (activeSlot) {
       const entry = slotMap[activeSlot];
       if (entry) {
@@ -278,22 +302,58 @@ export default function PanelEditorSheet({ reportId, panelType, panelId, dataset
     }
   };
 
+  // ─── Select all / Deselect all ───────────────────────────────────────────
+  const handleSelectAll = () => {
+    if (isGrid) {
+      setGroupByFields(dimFields.map((f, i) => makeFieldMapEntry(f, 'ROW', i)));
+      setValueFields([...msrFields, ...calcDatasetFields].map((f, i) => makeFieldMapEntry(f, 'VALUE', i)));
+    } else if (chartSubType === 'PIE') {
+      setSliceFields(dimFields.slice(0, 1).map((f, i) => makeFieldMapEntry(f, 'SLICE', i)));
+      setPieValueFields(msrFields.slice(0, 1).map((f, i) => makeFieldMapEntry(f, 'VALUE', i)));
+    } else {
+      setXAxisFields(dimFields.slice(0, 1).map((f, i) => makeFieldMapEntry(f, 'X_AXIS', i)));
+      setYAxisFields(msrFields.map((f, i) => makeFieldMapEntry(f, 'Y_AXIS', i)));
+    }
+  };
+  const handleDeselectAll = () => {
+    setGroupByFields([]);
+    setValueFields([]);
+    setXAxisFields([]);
+    setYAxisFields([]);
+    setSliceFields([]);
+    setPieValueFields([]);
+    setFilterFields([]);
+  };
+
   // ─── Hidden fields toggle ─────────────────────────────────────────────────
   const [showHiddenFields, setShowHiddenFields] = useState(false);
+
+  // ─── Field group expand (더보기) ──────────────────────────────────────────
+  const FIELD_COLLAPSE_THRESHOLD = 8;
+  const [expandedGroups, setExpandedGroups] = useState<Set<string>>(new Set());
+  const toggleGroupExpand = (group: string) =>
+    setExpandedGroups((prev) => {
+      const next = new Set(prev);
+      if (next.has(group)) next.delete(group);
+      else next.add(group);
+      return next;
+    });
 
   // ─── Display name lookup ──────────────────────────────────────────────────
   const fieldDisplayMap = useMemo(() => new Map(fields.map((f) => [f.fieldName, f.displayName])), [fields]);
 
   // ─── Active slot label (for palette hint) ─────────────────────────────────
-  const activeSlotDef = activeSlot ? [...GRID_SLOTS, ...getChartSlots(chartSubType)].find((s) => s.slotType === activeSlot) : null;
+  const activeSlotDef = activeSlot ? [...GRID_SLOTS, ...getChartSlots(chartSubType), FILTER_SLOT_DEF].find((s) => s.slotType === activeSlot) : null;
 
-  // check if active slot is full
+  // check if active slot is full (FILTER has no limit)
   const activeSlotFull =
-    activeSlot && slotMap[activeSlot] ? slotMap[activeSlot].maxItems !== undefined && slotMap[activeSlot].fields.length >= (slotMap[activeSlot].maxItems ?? Infinity) : false;
+    activeSlot && activeSlot !== 'FILTER' && slotMap[activeSlot]
+      ? slotMap[activeSlot].maxItems !== undefined && slotMap[activeSlot].fields.length >= (slotMap[activeSlot].maxItems ?? Infinity)
+      : false;
 
   // ─── Field palette ─────────────────────────────────────────────────────────
   const renderFieldPalette = () => {
-    const allSlotFields = Object.values(slotMap).flatMap((s) => s.fields.map((f) => f.fieldName));
+    const allSlotFields = [...Object.values(slotMap).flatMap((s) => s.fields.map((f) => f.fieldName)), ...filterFields.map((f) => f.fieldName)];
     const hiddenFields = fields.filter((f) => !f.isVisible && f.fieldRole !== 'CALC');
 
     const renderFieldBtn = (f: FieldMetaItem, isHidden = false) => {
@@ -348,9 +408,41 @@ export default function PanelEditorSheet({ reportId, panelType, panelId, dataset
       );
     };
 
+    const hasFields = visibleFields.length > 0 || calcDatasetFields.length > 0;
+
+    const renderGroupRows = (groupKey: string, groupFields: FieldMetaItem[], renderFn: (f: FieldMetaItem) => ReactNode) => {
+      const isExpanded = expandedGroups.has(groupKey);
+      const collapsed = !isExpanded && groupFields.length > FIELD_COLLAPSE_THRESHOLD;
+      const displayed = collapsed ? groupFields.slice(0, FIELD_COLLAPSE_THRESHOLD) : groupFields;
+      const hiddenCount = groupFields.length - FIELD_COLLAPSE_THRESHOLD;
+      return (
+        <>
+          {displayed.map((f) => renderFn(f))}
+          {collapsed && (
+            <button
+              type="button"
+              onClick={() => toggleGroupExpand(groupKey)}
+              className="rounded border border-dashed border-[var(--color-bt-border)] px-1.5 py-0.5 text-[11px] text-[var(--color-bt-fg-muted)] hover:border-[var(--color-bt-primary)] hover:text-[var(--color-bt-primary)] transition-colors"
+            >
+              +{hiddenCount}개 더보기
+            </button>
+          )}
+          {isExpanded && groupFields.length > FIELD_COLLAPSE_THRESHOLD && (
+            <button
+              type="button"
+              onClick={() => toggleGroupExpand(groupKey)}
+              className="rounded border border-dashed border-[var(--color-bt-border)] px-1.5 py-0.5 text-[11px] text-[var(--color-bt-fg-muted)] hover:border-[var(--color-bt-primary)] hover:text-[var(--color-bt-primary)] transition-colors"
+            >
+              접기 ▲
+            </button>
+          )}
+        </>
+      );
+    };
+
     return (
       <div>
-        <div className="mb-1.5 flex items-center justify-between">
+        <div className="mb-1 flex items-center justify-between">
           <span className="text-xs font-semibold uppercase tracking-wider text-[var(--color-bt-fg-muted)]">데이터셋 필드</span>
           {activeSlotDef ? (
             <span
@@ -363,16 +455,35 @@ export default function PanelEditorSheet({ reportId, panelType, panelId, dataset
           )}
         </div>
 
+        {hasFields && (
+          <div className="mb-1.5 flex items-center gap-1.5">
+            <button
+              type="button"
+              onClick={handleSelectAll}
+              className="rounded border border-[var(--color-bt-border)] px-1.5 py-0.5 text-[11px] text-[var(--color-bt-fg-muted)] hover:border-[var(--color-bt-primary)] hover:text-[var(--color-bt-primary)] transition-colors"
+            >
+              전체선택
+            </button>
+            <button
+              type="button"
+              onClick={handleDeselectAll}
+              className="rounded border border-[var(--color-bt-border)] px-1.5 py-0.5 text-[11px] text-[var(--color-bt-fg-muted)] hover:border-red-400 hover:text-red-500 transition-colors"
+            >
+              전체해제
+            </button>
+          </div>
+        )}
+
         {fieldsLoading ? (
           <div className="rounded border border-[var(--color-bt-border)] p-3 text-center text-xs text-[var(--color-bt-fg-muted)]">필드 로딩 중…</div>
-        ) : visibleFields.length === 0 && calcDatasetFields.length === 0 ? (
+        ) : !hasFields ? (
           <div className="rounded border border-[var(--color-bt-border)] p-3 text-center text-xs text-[var(--color-bt-fg-muted)]">데이터셋을 먼저 선택하세요</div>
         ) : (
           <div className="space-y-1.5 rounded border border-[var(--color-bt-border)] bg-[var(--color-bt-bg-muted)]/30 p-2">
             {dimFields.length > 0 && (
               <div className="flex flex-wrap items-center gap-1">
                 <Tag className="!mb-0 font-mono text-[10px]">DIM</Tag>
-                {dimFields.map((f) => renderFieldBtn(f))}
+                {renderGroupRows('DIM', dimFields, (f) => renderFieldBtn(f))}
               </div>
             )}
             {msrFields.length > 0 && (
@@ -380,7 +491,7 @@ export default function PanelEditorSheet({ reportId, panelType, panelId, dataset
                 <Tag color="processing" className="!mb-0 font-mono text-[10px]">
                   MSR
                 </Tag>
-                {msrFields.map((f) => renderFieldBtn(f))}
+                {renderGroupRows('MSR', msrFields, (f) => renderFieldBtn(f))}
               </div>
             )}
             {calcDatasetFields.length > 0 && (
@@ -388,7 +499,7 @@ export default function PanelEditorSheet({ reportId, panelType, panelId, dataset
                 <Tag color="success" className="!mb-0 font-mono text-[10px]">
                   CALC
                 </Tag>
-                {calcDatasetFields.map((f) => renderFieldBtn(f))}
+                {renderGroupRows('CALC', calcDatasetFields, (f) => renderFieldBtn(f))}
               </div>
             )}
             {hiddenFields.length > 0 && (
@@ -488,7 +599,7 @@ export default function PanelEditorSheet({ reportId, panelType, panelId, dataset
               {slotType === 'Y_AXIS' && (
                 <Select
                   size="small"
-                  value={f.aggFunc ?? 'SUM'}
+                  value={f.aggFunc ?? ''}
                   onChange={(v) => updateInSlot(f.fieldName, 'aggFunc', v as AggFunc, entry.setter)}
                   options={AGG_OPTIONS}
                   className="ml-auto w-20"
@@ -530,6 +641,69 @@ export default function PanelEditorSheet({ reportId, panelType, panelId, dataset
               onClick={(e) => e.stopPropagation()}
             />
           )}
+        </div>
+      </div>
+    );
+  };
+
+  // ─── Filter slot renderer ─────────────────────────────────────────────────
+  const renderFilterSlot = () => {
+    const isActive = activeSlot === 'FILTER';
+    return (
+      <div
+        onClick={() => setActiveSlot(isActive ? null : 'FILTER')}
+        className={`cursor-pointer rounded p-2.5 transition-all ${
+          isActive
+            ? 'border-2 border-[var(--color-bt-primary)] bg-[var(--color-bt-primary-soft)]/10'
+            : 'border border-[var(--color-bt-border)] bg-white hover:border-[var(--color-bt-primary)]/50'
+        }`}
+      >
+        <div className="mb-1.5 flex items-center gap-1.5">
+          <Tag color={isActive ? 'processing' : undefined} className="!mb-0 font-mono text-[10px]">
+            F
+          </Tag>
+          <span className={`text-sm font-semibold ${isActive ? 'text-[var(--color-bt-primary)]' : ''}`}>검색조건 바인딩</span>
+          <span className="text-xs text-[var(--color-bt-fg-muted)]">— 글로벌 필터 연결</span>
+          <div className="ml-auto flex items-center gap-1">
+            {filterFields.length > 0 && <Tag className="!mb-0 font-mono text-[10px]">{filterFields.length}</Tag>}
+            {isActive && <span className="rounded bg-[var(--color-bt-primary)] px-1.5 py-0.5 text-[10px] font-semibold text-white">선택됨</span>}
+          </div>
+        </div>
+
+        {isActive && filterFields.length === 0 && (
+          <div className="mb-1.5 flex items-center gap-1 rounded border border-dashed border-[var(--color-bt-primary)]/40 bg-[var(--color-bt-primary-soft)]/20 px-2 py-1">
+            <span className="text-xs text-[var(--color-bt-primary)]">↑ 위 팔레트에서 필터할 컬럼을 클릭하세요</span>
+          </div>
+        )}
+
+        <div className="space-y-1" onClick={(e) => e.stopPropagation()}>
+          {filterFields.map((f) => (
+            <div key={f.fieldName} className="flex items-center gap-1.5 rounded border border-[var(--color-bt-border)] bg-white px-2 py-1 text-xs">
+              <span className="font-mono font-semibold" title={f.fieldName}>
+                {fieldDisplayMap.get(f.fieldName) ?? f.fieldName}
+              </span>
+              <span className="text-[var(--color-bt-fg-muted)]">→</span>
+              <Select
+                size="small"
+                className="flex-1"
+                placeholder="검색조건 선택"
+                value={f.searchCondId ?? undefined}
+                loading={searchCondsLoading}
+                onChange={(v: number) => setFilterFields((prev) => prev.map((ff) => (ff.fieldName === f.fieldName ? { ...ff, searchCondId: v } : ff)))}
+                options={searchConds.map((sc) => ({ value: sc.searchCondId, label: sc.title }))}
+                popupMatchSelectWidth={false}
+                showSearch
+                optionFilterProp="label"
+              />
+              <button
+                type="button"
+                onClick={() => setFilterFields((prev) => prev.filter((ff) => ff.fieldName !== f.fieldName))}
+                className="text-[var(--color-bt-fg-muted)] hover:text-[var(--color-bt-danger)]"
+              >
+                <X className="h-3 w-3" />
+              </button>
+            </div>
+          ))}
         </div>
       </div>
     );
@@ -585,6 +759,7 @@ export default function PanelEditorSheet({ reportId, panelType, panelId, dataset
               setSeriesFields([]);
               setSliceFields([]);
               setPieValueFields([]);
+              setFilterFields([]);
             }}
             options={datasets.map((d) => ({
               value: d.datasetId,
@@ -607,6 +782,7 @@ export default function PanelEditorSheet({ reportId, panelType, panelId, dataset
           <>
             {renderFieldPalette()}
             {GRID_SLOTS.map(renderSlot)}
+            {renderFilterSlot()}
             <div className="flex items-center gap-2 rounded border border-[var(--color-bt-border)] bg-white px-2.5 py-2">
               <span className="text-sm font-semibold">합계 행</span>
               <span className="text-xs text-[var(--color-bt-fg-muted)]">— 하단 고정</span>
@@ -654,6 +830,7 @@ export default function PanelEditorSheet({ reportId, panelType, panelId, dataset
 
             {/* Chart slots */}
             {getChartSlots(chartSubType).map(renderSlot)}
+            {renderFilterSlot()}
 
             {/* Top N */}
             <div className="rounded border border-[var(--color-bt-border)] bg-white p-2.5">

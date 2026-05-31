@@ -29,6 +29,23 @@ const hexToRgba = (hex: string, alpha: number) => {
   return `rgba(${r}, ${g}, ${b}, ${alpha})`;
 };
 
+/** 아이콘 칩 그라데이션용 — 채널을 검정 쪽으로 factor 만큼 당겨 한 톤 어둡게. */
+const darken = (hex: string, factor: number) => {
+  const m = hex.replace('#', '');
+  const value =
+    m.length === 3
+      ? m
+          .split('')
+          .map((c) => c + c)
+          .join('')
+      : m;
+  const num = parseInt(value, 16);
+  const r = Math.round(((num >> 16) & 255) * factor);
+  const g = Math.round(((num >> 8) & 255) * factor);
+  const b = Math.round((num & 255) * factor);
+  return `rgb(${r}, ${g}, ${b})`;
+};
+
 interface DetailLineProps {
   meta: NodeKindMeta;
   text: string;
@@ -36,7 +53,8 @@ interface DetailLineProps {
 }
 
 const DetailLine = ({ meta, text, badge }: DetailLineProps) => (
-  <div className="flex items-center gap-2 px-2 py-1 rounded-md mt-1.5" style={{ backgroundColor: hexToRgba(meta.color, 0.08) }}>
+  <div className="flex items-center gap-2 px-2 py-1 rounded-md mt-1.5" style={{ backgroundColor: hexToRgba(meta.color, 0.07) }}>
+    <span className="w-1.5 h-1.5 rounded-full shrink-0" style={{ backgroundColor: meta.color }} />
     <span className="text-[11px] text-gray-700 font-medium truncate flex-1">{text}</span>
     {badge && (
       <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded" style={{ backgroundColor: hexToRgba(meta.color, 0.18), color: meta.color }}>
@@ -130,11 +148,13 @@ const GenericKindNode = ({ id, data, selected }: NodeProps) => {
 
   return (
     <div
-      className="bg-white rounded-xl transition-all relative"
+      className="bg-white rounded-xl transition-[box-shadow,border-color] duration-150 relative"
       style={{
         width: 220,
-        border: `1.5px solid ${selected ? meta.color : hexToRgba(meta.color, 0.35)}`,
-        boxShadow: selected ? `0 0 0 3px ${hexToRgba(meta.color, 0.18)}, 0 6px 16px rgba(15, 23, 42, 0.08)` : '0 1px 2px rgba(15, 23, 42, 0.04), 0 2px 8px rgba(15, 23, 42, 0.05)',
+        border: `1.5px solid ${selected ? meta.color : hexToRgba(meta.color, 0.3)}`,
+        boxShadow: selected
+          ? `0 0 0 3px ${hexToRgba(meta.color, 0.16)}, 0 14px 30px -12px ${hexToRgba(meta.color, 0.45)}`
+          : '0 1px 2px rgba(15, 23, 42, 0.04), 0 8px 18px -10px rgba(15, 23, 42, 0.16)',
       }}
     >
       {/* 노드 우측 상단 위에 absolute 로 떠 있는 액션 툴바. 시작/답변 노드는 작업 대상이 아니라 숨김.
@@ -180,10 +200,30 @@ const GenericKindNode = ({ id, data, selected }: NodeProps) => {
         </div>
       )}
 
-      {!isStart && <Handle type="target" position={Position.Left} id="in" className="!w-3 !h-3 !rounded-full !border-2 !border-white" style={{ background: meta.color }} />}
+      {!isStart && (
+        <Handle
+          type="target"
+          position={Position.Left}
+          id="in"
+          className="!w-3 !h-3 !rounded-full !border-2 !border-white"
+          style={{ background: meta.color, boxShadow: '0 1px 3px rgba(15, 23, 42, 0.3)' }}
+        />
+      )}
 
-      <div className="flex items-center gap-2 px-3 h-12 rounded-t-xl" style={{ backgroundColor: hexToRgba(meta.color, 0.1) }}>
-        <span className="inline-flex items-center justify-center w-7 h-7 rounded-md text-white shrink-0" style={{ backgroundColor: meta.color }}>
+      <div
+        className="flex items-center gap-2 px-3 h-12 rounded-t-xl"
+        style={{
+          background: `linear-gradient(180deg, ${hexToRgba(meta.color, 0.14)} 0%, ${hexToRgba(meta.color, 0.05)} 100%)`,
+          borderBottom: `1px solid ${hexToRgba(meta.color, 0.12)}`,
+        }}
+      >
+        <span
+          className="inline-flex items-center justify-center w-7 h-7 rounded-lg text-white shrink-0"
+          style={{
+            background: `linear-gradient(135deg, ${meta.color} 0%, ${darken(meta.color, 0.8)} 100%)`,
+            boxShadow: `0 1px 2px ${hexToRgba(meta.color, 0.45)}, inset 0 1px 0 rgba(255, 255, 255, 0.25)`,
+          }}
+        >
           <Icon size={14} />
         </span>
         <span className="text-sm font-semibold text-gray-800 truncate flex-1">{label}</span>
@@ -202,7 +242,15 @@ const GenericKindNode = ({ id, data, selected }: NodeProps) => {
         {renderDetail(meta.kind, nodeData, meta)}
       </div>
 
-      {!isAnswer && <Handle type="source" position={Position.Right} id="out" className="!w-3 !h-3 !rounded-full !border-2 !border-white" style={{ background: meta.color }} />}
+      {!isAnswer && (
+        <Handle
+          type="source"
+          position={Position.Right}
+          id="out"
+          className="!w-3 !h-3 !rounded-full !border-2 !border-white"
+          style={{ background: meta.color, boxShadow: '0 1px 3px rgba(15, 23, 42, 0.3)' }}
+        />
+      )}
 
       {/* LLM 전용 bottom handle — 도구 가상 노드 연결의 출발점. 사용자 직접 연결은 차단(isConnectable=false). */}
       {meta.kind === 'llm' && <Handle type="source" position={Position.Bottom} id="tool" className="!w-0 !h-0 !min-w-0 !min-h-0 !border-0 !bg-transparent" isConnectable={false} />}

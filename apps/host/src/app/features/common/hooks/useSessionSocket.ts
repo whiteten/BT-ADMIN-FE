@@ -22,7 +22,9 @@ export function useSessionSocket({ ticket, onClose, onError }: UseSessionSocketO
     const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
     const wsUrl = `${protocol}//${window.location.host}/ws/session?ticket=${encodeURIComponent(ticket)}`;
 
-    const client = new WebSocketClient(wsUrl);
+    const client = new WebSocketClient(wsUrl, {
+      muteLog: (data) => data.includes('"PING"') || data.includes('"PONG"'),
+    });
     wsRef.current = client;
 
     client.onopen = () => {
@@ -32,6 +34,11 @@ export function useSessionSocket({ ticket, onClose, onError }: UseSessionSocketO
     client.onmessage = (event: MessageEvent) => {
       try {
         const wsEvent = JSON.parse(event.data);
+        // 서버 PING 수신 시 PONG 응답 (연결 유지용). 앱 이벤트로는 전파하지 않는다.
+        if (wsEvent?.type === 'PING') {
+          client.send({ type: 'PONG' });
+          return;
+        }
         window.dispatchEvent(new CustomEvent('WS_SESSION', { detail: wsEvent }));
       } catch (error) {
         Log.error('[onmessage error]', error);

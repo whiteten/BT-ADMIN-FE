@@ -3,6 +3,9 @@ import { createQueryKeys } from '@lukemorales/query-key-factory';
 import type { QueryHookWithParamsOptions } from '@/shared-util';
 import { statisticsApi } from '../api/statisticsApi';
 import type {
+  CampaignAchievementStatList,
+  CampaignOptionListItem,
+  CampaignResultStatList,
   CategoryOptionListItem,
   DialogOptionListItem,
   DialogStatList,
@@ -14,6 +17,7 @@ import type {
   ServiceStatList,
   SlotOptionListItem,
   SlotStatList,
+  TenantOptionListItem,
   UserDefStatList,
 } from '../types';
 
@@ -25,11 +29,15 @@ export const statisticsQueryKeys = createQueryKeys('statistics', {
   getEntityStatList: (params?: Record<string, unknown>) => [params],
   getKeywordStatList: (params?: Record<string, unknown>) => [params],
   getUserDefStatList: (params?: Record<string, unknown>) => [params],
+  getCampaignResultStatList: (params?: Record<string, unknown>) => [params],
+  getCampaignAchievementStatList: (params?: Record<string, unknown>) => [params],
   getDialogOptionList: (params?: Record<string, unknown>) => [params],
   getSlotOptionList: (params?: Record<string, unknown>) => [params],
   getIntentOptionList: (params?: Record<string, unknown>) => [params],
   getEntityOptionList: (params?: Record<string, unknown>) => [params],
   getCategoryOptionList: (params?: Record<string, unknown>) => [params],
+  getTenantOptionList: (params?: Record<string, unknown>) => [params],
+  getCampaignOptionList: (params?: Record<string, unknown>) => [params],
 });
 
 export const useGetServiceStatList = ({ params, queryOptions }: QueryHookWithParamsOptions<ServiceStatList> = {}) => {
@@ -120,10 +128,42 @@ export const useGetUserDefStatList = ({ params, queryOptions }: QueryHookWithPar
   });
 };
 
+export const useGetCampaignResultStatList = ({ params, queryOptions }: QueryHookWithParamsOptions<CampaignResultStatList> = {}) => {
+  return useQuery({
+    queryKey: statisticsQueryKeys.getCampaignResultStatList(params).queryKey,
+    queryFn: () => statisticsApi.getCampaignResultStatList(params),
+    ...queryOptions,
+  });
+};
+
+export const useGetCampaignAchievementStatList = ({ params, queryOptions }: QueryHookWithParamsOptions<CampaignAchievementStatList> = {}) => {
+  return useQuery({
+    queryKey: statisticsQueryKeys.getCampaignAchievementStatList(params).queryKey,
+    queryFn: () => statisticsApi.getCampaignAchievementStatList(params),
+    ...queryOptions,
+  });
+};
+
 export const useGetCategoryOptionList = ({ params, queryOptions }: QueryHookWithParamsOptions<CategoryOptionListItem[]> = {}) => {
   return useQuery({
     queryKey: statisticsQueryKeys.getCategoryOptionList(params).queryKey,
     queryFn: () => statisticsApi.getCategoryOptionList(params),
+    ...queryOptions,
+  });
+};
+
+export const useGetTenantOptionList = ({ params, queryOptions }: QueryHookWithParamsOptions<TenantOptionListItem[]> = {}) => {
+  return useQuery({
+    queryKey: statisticsQueryKeys.getTenantOptionList(params).queryKey,
+    queryFn: () => statisticsApi.getTenantOptionList(params),
+    ...queryOptions,
+  });
+};
+
+export const useGetCampaignOptionList = ({ params, queryOptions }: QueryHookWithParamsOptions<CampaignOptionListItem[]> = {}) => {
+  return useQuery({
+    queryKey: statisticsQueryKeys.getCampaignOptionList(params).queryKey,
+    queryFn: () => statisticsApi.getCampaignOptionList(params),
     ...queryOptions,
   });
 };

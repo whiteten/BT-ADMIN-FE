@@ -96,6 +96,7 @@ export function App() {
       autoClose: 5000,
       theme: 'colored' as Theme,
       pauseOnHover: true,
+      pauseOnFocusLoss: false,
     };
   }, []);
   return (

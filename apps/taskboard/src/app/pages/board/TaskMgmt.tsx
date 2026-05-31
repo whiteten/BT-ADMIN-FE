@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { Modal } from 'antd';
 import { toast } from '@/shared-util';
 import { type RollingLayout, RollingPlayer, TRANSITION_OPTIONS, TRANSITION_PREVIEW_ANIMATION, TRANSITION_PREVIEW_CSS } from '../../features/board/components/RollingDisplay';
 import {
@@ -418,15 +419,23 @@ export default function TaskMgmt() {
     setViewMode('rolling');
   };
 
-  const handleDelete = async (group: RollingGroup) => {
-    if (!confirm(`"${group.groupName}" 그룹을 삭제하시겠습니까?`)) return;
-    try {
-      await deleteGroup.mutateAsync(group.groupId);
-      toast.success('그룹이 삭제되었습니다.');
-      refetch();
-    } catch {
-      toast.error('삭제에 실패했습니다.');
-    }
+  const handleDelete = (group: RollingGroup) => {
+    Modal.confirm({
+      title: '그룹 삭제',
+      content: `"${group.groupName}" 그룹을 삭제하시겠습니까?`,
+      okType: 'danger',
+      okText: '삭제',
+      cancelText: '취소',
+      onOk: async () => {
+        try {
+          await deleteGroup.mutateAsync(group.groupId);
+          toast.success('그룹이 삭제되었습니다.');
+          refetch();
+        } catch {
+          toast.error('삭제에 실패했습니다.');
+        }
+      },
+    });
   };
 
   if (viewMode === 'rolling') {
