@@ -10,8 +10,13 @@ import { createQueryKeys } from '@lukemorales/query-key-factory';
 import type { MutationHookOptions, QueryHookOptions, QueryHookWithParamsOptions } from '@/shared-util';
 import { ctiQueueApi } from '../api/ctiQueueApi';
 import type {
+  AccessCodeProfileOption,
   CtiQueueCreateRequest,
+  CtiQueueGroupCreateRequest,
+  CtiQueueGroupResponse,
+  CtiQueueGroupUpdateRequest,
   CtiQueueMediaOption,
+  CtiQueueMemberReassignRequest,
   CtiQueueOptionItem,
   CtiQueueResponse,
   CtiQueueTenantStat,
@@ -28,9 +33,11 @@ export const ctiQueueQueryKeys = createQueryKeys('cti-queue', {
   groupOptions: (tenantId?: number) => [tenantId],
   skillsetOptions: (tenantId?: number) => [tenantId],
   bsrGroupOptions: (tenantId?: number) => [tenantId],
+  accessCodeProfileOptions: (tenantId?: number, nodeId?: number) => [tenantId, nodeId],
   mediaOptions: null,
   bsrSchedules: (ctiqId?: number) => [ctiqId],
   sltSchedules: (ctiqId?: number) => [ctiqId],
+  getGroups: (params?: Record<string, unknown>) => [params],
 });
 
 // ─── Queries ────────────────────────────────────────────────────────────────
@@ -78,6 +85,22 @@ export const useGetCtiQueueBsrGroupOptions = (tenantId: number | null | undefine
     queryKey: ctiQueueQueryKeys.bsrGroupOptions(tenantId ?? undefined).queryKey,
     queryFn: () => ctiQueueApi.getBsrGroupOptions(tenantId != null ? { tenantId } : undefined),
     enabled: tenantId != null,
+    ...queryOptions,
+  });
+
+/**
+ * 접근코드 프로파일 콤보 (노드/테넌트 단위) — access-profile-list flow 재사용.
+ * 노드가 없으면(미선택) 조회 비활성. DR 콤보는 backUpNodeId 를 nodeId 로 넘겨 재사용.
+ */
+export const useGetCtiQueueAccessCodeProfileOptions = (
+  tenantId: number | null | undefined,
+  nodeId: number | null | undefined,
+  { queryOptions }: QueryHookOptions<AccessCodeProfileOption[]> = {},
+) =>
+  useQuery({
+    queryKey: ctiQueueQueryKeys.accessCodeProfileOptions(tenantId ?? undefined, nodeId ?? undefined).queryKey,
+    queryFn: () => ctiQueueApi.getAccessCodeProfileOptions({ ...(tenantId != null ? { tenantId } : {}), ...(nodeId != null ? { nodeId } : {}) }),
+    enabled: tenantId != null && nodeId != null && nodeId !== 0,
     ...queryOptions,
   });
 
@@ -189,6 +212,80 @@ export const useUnassignSltSchedule = ({ mutationOptions }: MutationHookOptions<
     ...mutationOptions,
     onSuccess: (...args) => {
       qc.invalidateQueries({ queryKey: ctiQueueQueryKeys.sltSchedules._def });
+      mutationOptions?.onSuccess?.(...args);
+    },
+  });
+};
+
+// ─── 업무그룹 트리 (TB_TR_CTIQ_MASTER) ────────────────────────────────────────
+
+export const useGetCtiQueueGroups = ({ params, queryOptions }: QueryHookWithParamsOptions<CtiQueueGroupResponse[]> = {}) =>
+  useQuery({
+    queryKey: ctiQueueQueryKeys.getGroups(params).queryKey,
+    queryFn: () => ctiQueueApi.getGroups(params),
+    ...queryOptions,
+  });
+
+export const useCreateCtiQueueGroup = ({ mutationOptions }: MutationHookOptions<CtiQueueGroupResponse, CtiQueueGroupCreateRequest> = {}) => {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (body) => ctiQueueApi.createGroup(body),
+    ...mutationOptions,
+    onSuccess: (...args) => {
+      qc.invalidateQueries({ queryKey: ctiQueueQueryKeys.getGroups._def });
+      mutationOptions?.onSuccess?.(...args);
+    },
+  });
+};
+
+export const useUpdateCtiQueueGroup = ({ mutationOptions }: MutationHookOptions<CtiQueueGroupResponse, { id: number; body: CtiQueueGroupUpdateRequest }> = {}) => {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, body }) => ctiQueueApi.updateGroup(id, body),
+    ...mutationOptions,
+    onSuccess: (...args) => {
+      qc.invalidateQueries({ queryKey: ctiQueueQueryKeys.getGroups._def });
+      mutationOptions?.onSuccess?.(...args);
+    },
+  });
+};
+
+export const useDeleteCtiQueueGroup = ({ mutationOptions }: MutationHookOptions<void, number> = {}) => {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (id) => ctiQueueApi.removeGroup(id),
+    ...mutationOptions,
+    onSuccess: (...args) => {
+      qc.invalidateQueries({ queryKey: ctiQueueQueryKeys.getGroups._def });
+      qc.invalidateQueries({ queryKey: ctiQueueQueryKeys.getList._def });
+      mutationOptions?.onSuccess?.(...args);
+    },
+  });
+};
+
+// ─── 업무그룹 매핑 (TB_TR_CTIQ_MEMBER, 드래그앤드롭) ───────────────────────────
+
+export const useReassignCtiQueueMembers = ({ mutationOptions }: MutationHookOptions<number, CtiQueueMemberReassignRequest> = {}) => {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (body) => ctiQueueApi.reassignMembers(body),
+    ...mutationOptions,
+    onSuccess: (...args) => {
+      qc.invalidateQueries({ queryKey: ctiQueueQueryKeys.getList._def });
+      qc.invalidateQueries({ queryKey: ctiQueueQueryKeys.getGroups._def });
+      mutationOptions?.onSuccess?.(...args);
+    },
+  });
+};
+
+export const useUnassignCtiQueueMembers = ({ mutationOptions }: MutationHookOptions<number, number[]> = {}) => {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (ctiqIds) => ctiQueueApi.unassignMembers(ctiqIds),
+    ...mutationOptions,
+    onSuccess: (...args) => {
+      qc.invalidateQueries({ queryKey: ctiQueueQueryKeys.getList._def });
+      qc.invalidateQueries({ queryKey: ctiQueueQueryKeys.getGroups._def });
       mutationOptions?.onSuccess?.(...args);
     },
   });

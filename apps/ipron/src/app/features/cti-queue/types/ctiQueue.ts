@@ -87,6 +87,42 @@ export interface CtiQueueResponse {
   // 감사
   workUser: number | null;
   workTime: string | null;
+  // 업무그룹 (TB_TR_CTIQ_MEMBER → TB_TR_CTIQ_MASTER)
+  treeId: number | null;
+  treeName: string | null;
+}
+
+// ──────────────────────────────────────────────────────────
+//  업무그룹 트리 (TB_TR_CTIQ_MASTER) — 스킬셋 관리와 동형
+// ──────────────────────────────────────────────────────────
+
+export interface CtiQueueGroupResponse {
+  treeId: number;
+  tenantId: number;
+  tenantName: string | null;
+  treeName: string;
+  priorTreeId: number | null;
+  treeDepth: number | null;
+  sortSeq: number | null;
+  ctiqCount: number;
+  children: CtiQueueGroupResponse[];
+}
+
+export interface CtiQueueGroupCreateRequest {
+  tenantId: number;
+  priorTreeId?: number | null;
+  treeName: string;
+  sortSeq?: number | null;
+}
+
+export interface CtiQueueGroupUpdateRequest {
+  treeName: string;
+  sortSeq?: number | null;
+}
+
+export interface CtiQueueMemberReassignRequest {
+  ctiqIds: number[];
+  targetTreeId?: number | null;
 }
 
 // ──────────────────────────────────────────────────────────
@@ -189,6 +225,12 @@ export interface CtiQueueTenantStat {
 
 /** 라우팅그룹 / 스킬셋 / BSR 그룹 공용 옵션 (BE: CtiQueueOptionItem). */
 export interface CtiQueueOptionItem {
+  id: number;
+  name: string;
+}
+
+/** 접근코드 프로파일 콤보 옵션 (access-profile-list flow 재사용 — id=accessCodeProfileId). */
+export interface AccessCodeProfileOption {
   id: number;
   name: string;
 }

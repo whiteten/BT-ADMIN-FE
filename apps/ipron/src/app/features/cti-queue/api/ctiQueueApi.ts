@@ -25,8 +25,13 @@
  */
 import ApiClient, { type ApiResponse } from '@/shared-util';
 import type {
+  AccessCodeProfileOption,
   CtiQueueCreateRequest,
+  CtiQueueGroupCreateRequest,
+  CtiQueueGroupResponse,
+  CtiQueueGroupUpdateRequest,
   CtiQueueMediaOption,
+  CtiQueueMemberReassignRequest,
   CtiQueueOptionItem,
   CtiQueueResponse,
   CtiQueueTenantStat,
@@ -35,6 +40,14 @@ import type {
   ScheduleAssignRequest,
   SltScheduleResponse,
 } from '../types';
+
+/** 접근코드 프로파일 목록(노드/테넌트 필터) BFF 응답 raw 항목 (access-profile-list flow 재사용). */
+interface AccessProfileRaw {
+  accessCodeProfileId: number;
+  accessCodeProfileName: string | null;
+  nodeId: number | null;
+  tenantId: number | null;
+}
 
 const apiClient = new ApiClient({ serviceURL: '/bff' });
 
@@ -100,6 +113,16 @@ export const ctiQueueApi = {
     return res.data?.data?.value ?? [];
   },
 
+  /**
+   * 접근코드 프로파일 콤보 (노드/테넌트 단위) — 접근코드 프로파일 관리 화면의 목록 API 재사용.
+   * SWAT IPR20S3020: cbCreate("#poAccessCodeProfileId", "accessCodeProfile", "nodeId=..&tenantId=..").
+   * @flow ipron-access-profile-list (GET /api/ipron/access-profiles?tenantId&nodeId)
+   */
+  getAccessCodeProfileOptions: async (params?: { tenantId?: number; nodeId?: number }): Promise<AccessCodeProfileOption[]> => {
+    const res = await apiClient.get<ApiResponse<{ value: AccessProfileRaw[] }>>('/ipron-access-profile-list', { params });
+    return (res.data?.data?.value ?? []).map((p) => ({ id: p.accessCodeProfileId, name: p.accessCodeProfileName ?? `프로파일 ${p.accessCodeProfileId}` }));
+  },
+
   // ─── BSR 스케쥴 서브그리드 ──────────────────────────────────────────────────
 
   getBsrSchedules: async (ctiqId: number): Promise<QuebsrScheduleResponse[]> => {
@@ -128,5 +151,38 @@ export const ctiQueueApi = {
 
   unassignSltSchedule: async (ctiqId: number, scheduleId: number): Promise<void> => {
     await apiClient.delete('/ipron-cti-queue-slt-schedules-unassign', { params: { ctiqId, scheduleId } });
+  },
+
+  // ─── 업무그룹 트리 (TB_TR_CTIQ_MASTER) ───────────────────────────────────────
+
+  getGroups: async (params?: { tenantId?: number }): Promise<CtiQueueGroupResponse[]> => {
+    const res = await apiClient.get<ApiResponse<{ value: CtiQueueGroupResponse[] }>>('/ipron-cti-queue-groups-list', { params });
+    return res.data?.data?.value ?? [];
+  },
+
+  createGroup: async (body: CtiQueueGroupCreateRequest): Promise<CtiQueueGroupResponse> => {
+    const res = await apiClient.post<ApiResponse<CtiQueueGroupResponse>>('/ipron-cti-queue-groups-create', body);
+    return res.data?.data;
+  },
+
+  updateGroup: async (treeId: number, body: CtiQueueGroupUpdateRequest): Promise<CtiQueueGroupResponse> => {
+    const res = await apiClient.put<ApiResponse<CtiQueueGroupResponse>>('/ipron-cti-queue-groups-update', body, { params: { treeId } });
+    return res.data?.data;
+  },
+
+  removeGroup: async (treeId: number): Promise<void> => {
+    await apiClient.delete('/ipron-cti-queue-groups-delete', { params: { treeId } });
+  },
+
+  // ─── 업무그룹 매핑 (TB_TR_CTIQ_MEMBER, 드래그앤드롭) ──────────────────────────
+
+  reassignMembers: async (body: CtiQueueMemberReassignRequest): Promise<number> => {
+    const res = await apiClient.post<ApiResponse<{ processed: number }>>('/ipron-cti-queue-members-reassign', body);
+    return res.data?.data?.processed ?? 0;
+  },
+
+  unassignMembers: async (ctiqIds: number[]): Promise<number> => {
+    const res = await apiClient.post<ApiResponse<{ deleted: number }>>('/ipron-cti-queue-members-unassign', { ctiqIds });
+    return res.data?.data?.deleted ?? 0;
   },
 };

@@ -89,7 +89,7 @@ export default function CommonGdnFormDrawer({ open, mode, detail, nodeId, nodeNa
   const { mutate: createGdn, isPending: isCreating } = useCreateCommonGdn({
     mutationOptions: {
       onSuccess: () => {
-        toast.success('공용 그룹DN 이 등록되었습니다');
+        toast.success('그룹DN 이 등록되었습니다');
         onSaved();
       },
       onError: (err: unknown) => {
@@ -102,7 +102,7 @@ export default function CommonGdnFormDrawer({ open, mode, detail, nodeId, nodeNa
   const { mutate: updateGdn, isPending: isUpdating } = useUpdateCommonGdn({
     mutationOptions: {
       onSuccess: () => {
-        toast.success('공용 그룹DN 이 수정되었습니다');
+        toast.success('그룹DN 이 수정되었습니다');
         onSaved();
       },
       onError: (err: unknown) => {
@@ -168,7 +168,7 @@ export default function CommonGdnFormDrawer({ open, mode, detail, nodeId, nodeNa
 
   return (
     <Drawer
-      title={isEdit ? `공용 그룹DN 수정 — ${detail?.gdnNo ?? ''}` : '공용 그룹DN 등록'}
+      title={isEdit ? `그룹DN 수정 — ${detail?.gdnNo ?? ''}` : '그룹DN 등록'}
       width={520}
       open={open}
       onClose={onClose}

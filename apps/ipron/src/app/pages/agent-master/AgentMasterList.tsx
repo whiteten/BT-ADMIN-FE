@@ -19,6 +19,7 @@ import AgentGroupTree from '../../features/agent-master/components/AgentGroupTre
 import AgentMasterFormDrawer from '../../features/agent-master/components/AgentMasterFormDrawer';
 import AgentMasterTable from '../../features/agent-master/components/AgentMasterTable';
 import AgentMasterTenantCard from '../../features/agent-master/components/AgentMasterTenantCard';
+import AgentMediaStatusTable from '../../features/agent-master/components/AgentMediaStatusTable';
 import {
   useDeleteAgentGroup,
   useDeleteAgents,
@@ -62,6 +63,8 @@ export default function AgentMasterList() {
   const [selectedRows, setSelectedRows] = useState<AgentResponse[]>([]);
   // 카드 박스 default 접힘(compact pill). 권한 wrapping 일관성을 위해 hidden 토글 X.
   const [cardExpanded, setCardExpanded] = useState(false);
+  // 우측 그리드 박스 탭: 'agent'(상담사 목록) / 'media'(미디어 관리 현황 매트릭스)
+  const [gridTab, setGridTab] = useState<'agent' | 'media'>('agent');
 
   // ctx 비동기 로드 시 동기화
   useEffect(() => {
@@ -428,47 +431,55 @@ export default function AgentMasterList() {
           <div className="absolute left-1/2 -translate-x-1/2 top-1/2 -translate-y-1/2 w-px h-9 bg-gray-300 rounded group-hover:bg-[#405189] transition-colors" />
         </div>
 
-        {/* 우측 그리드 — DN/ADN 패턴 정합으로 별도 박스 */}
+        {/* 우측 그리드 — DN/ADN 패턴 정합으로 별도 박스 (탭: 상담사 / 미디어 관리) */}
         <div className="bg-white bt-shadow flex-1 min-w-0 min-h-0 flex flex-col overflow-hidden">
-          <div className="px-5 py-3 border-b border-gray-100 flex items-center gap-2 h-[44px] flex-shrink-0">
-            <span className="text-sm font-semibold text-gray-800">상담사 목록 ({filteredAgents.length.toLocaleString()}건)</span>
-            {selectedRows.length > 0 && (
-              <span className="text-xs text-gray-500">
-                {filteredAgents.length.toLocaleString()}건 중 {selectedRows.length}건 선택
-              </span>
-            )}
-            <div className="ml-auto flex items-center gap-2">
-              <Button
-                danger
-                icon={<Trash2 className="size-3.5" />}
-                onClick={handleBulkDelete}
-                loading={isDeleting}
-                disabled={selectedRows.length === 0}
-                title={selectedRows.length === 0 ? '삭제할 상담사를 선택하세요' : '선택한 상담사 삭제'}
-              >
-                {selectedRows.length > 0 ? `삭제 (${selectedRows.length})` : '삭제'}
-              </Button>
-              <Button type="primary" icon={<Plus className="size-3.5" />} onClick={handleCreate}>
-                등록
-              </Button>
+          {/* 탭 헤더 + 컨텍스트 툴바 */}
+          <div className="border-b border-gray-100 flex items-center gap-2 h-[44px] pr-5 flex-shrink-0">
+            <div className="flex items-stretch h-full">
+              <GridTab label="상담사" active={gridTab === 'agent'} onClick={() => setGridTab('agent')} />
+              <GridTab label="미디어 관리" active={gridTab === 'media'} onClick={() => setGridTab('media')} />
             </div>
+            <span className="text-xs text-gray-500">
+              {filteredAgents.length.toLocaleString()}건{gridTab === 'agent' && selectedRows.length > 0 && <span> 중 {selectedRows.length}건 선택</span>}
+            </span>
+            {gridTab === 'agent' && (
+              <div className="ml-auto flex items-center gap-2">
+                <Button
+                  danger
+                  icon={<Trash2 className="size-3.5" />}
+                  onClick={handleBulkDelete}
+                  loading={isDeleting}
+                  disabled={selectedRows.length === 0}
+                  title={selectedRows.length === 0 ? '삭제할 상담사를 선택하세요' : '선택한 상담사 삭제'}
+                >
+                  {selectedRows.length > 0 ? `삭제 (${selectedRows.length})` : '삭제'}
+                </Button>
+                <Button type="primary" icon={<Plus className="size-3.5" />} onClick={handleCreate}>
+                  등록
+                </Button>
+              </div>
+            )}
           </div>
           <div className="flex-1 min-h-0">
-            <AgentMasterTable
-              rowData={filteredAgents}
-              isLoading={isLoading}
-              onRowDoubleClicked={handleEdit}
-              onDelete={handleDelete}
-              onSelectionChanged={setSelectedRows}
-              onBulkDelete={handleBulkDelete}
-              selectedCount={selectedRows.length}
-              getDragAgentIds={(dragRow) => {
-                if (selectedRows.some((r) => r.agentId === dragRow.agentId)) {
-                  return selectedRows.map((r) => r.agentId);
-                }
-                return [dragRow.agentId];
-              }}
-            />
+            {gridTab === 'agent' ? (
+              <AgentMasterTable
+                rowData={filteredAgents}
+                isLoading={isLoading}
+                onRowDoubleClicked={handleEdit}
+                onDelete={handleDelete}
+                onSelectionChanged={setSelectedRows}
+                onBulkDelete={handleBulkDelete}
+                selectedCount={selectedRows.length}
+                getDragAgentIds={(dragRow) => {
+                  if (selectedRows.some((r) => r.agentId === dragRow.agentId)) {
+                    return selectedRows.map((r) => r.agentId);
+                  }
+                  return [dragRow.agentId];
+                }}
+              />
+            ) : (
+              <AgentMediaStatusTable rowData={filteredAgents} isLoading={isLoading} onRowDoubleClicked={handleEdit} />
+            )}
           </div>
         </div>
       </div>
@@ -503,6 +514,25 @@ function findGroup(tree: AgentGroupNode[], id: number): AgentGroupNode | null {
     }
   }
   return null;
+}
+
+interface GridTabProps {
+  label: string;
+  active: boolean;
+  onClick: () => void;
+}
+
+function GridTab({ label, active, onClick }: GridTabProps) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className={`relative px-5 h-full text-sm font-semibold transition-colors ${active ? 'text-[#405189]' : 'text-gray-400 hover:text-gray-600'}`}
+    >
+      {label}
+      {active && <span className="absolute left-0 bottom-0 w-full h-0.5 bg-[#405189]" />}
+    </button>
+  );
 }
 
 interface CompactTenantPillProps {

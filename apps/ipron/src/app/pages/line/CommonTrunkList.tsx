@@ -486,7 +486,7 @@ export default function CommonTrunkList() {
           <div className="bg-white bt-shadow flex flex-col overflow-hidden h-full">
             <div className="flex items-center px-3.5 h-[44px] border-b border-gray-100 gap-2 flex-shrink-0">
               <Network className="size-3.5 text-[#405189]" />
-              <span className="text-sm font-semibold text-gray-700">공용 그룹DN</span>
+              <span className="text-sm font-semibold text-gray-700">그룹DN</span>
               <span className="text-xs text-gray-500">
                 총 <strong>{gdns.length}건</strong> · <strong className="text-[#405189]">선택 {selectedGdn ? 1 : 0}건</strong>
               </span>
@@ -614,7 +614,7 @@ export default function CommonTrunkList() {
               ) : (
                 <div className="flex h-full flex-col items-center justify-center gap-2 text-gray-400">
                   <Network className="size-10 text-gray-200" />
-                  <span className="text-sm">좌측 공용 그룹DN을 선택하세요</span>
+                  <span className="text-sm">좌측 그룹DN을 선택하세요</span>
                   <span className="text-xs">선택한 그룹DN 기준으로 트렁크 배정 현황이 표시됩니다</span>
                 </div>
               )}

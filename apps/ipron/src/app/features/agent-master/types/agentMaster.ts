@@ -59,6 +59,7 @@ export interface AgentResponse {
   coachingSvc: number | null;
   mediaMatrix: AgentMediaMatrix | null;
   workUser: number | null;
+  workUserName: string | null;
   workTime: string | null;
 }
 

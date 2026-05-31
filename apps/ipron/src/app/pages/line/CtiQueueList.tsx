@@ -18,10 +18,22 @@ import { ArrowUpDown, Building2, ChevronLeft, ChevronRight, ChevronsDown, Chevro
 import { useBreadcrumbStore } from '@/shared-store';
 import { toast } from '@/shared-util';
 import CtiQueueFormDrawer, { type CtiQueueDrawerState } from '../../features/cti-queue/components/CtiQueueFormDrawer';
+import CtiQueueGroupDrawer from '../../features/cti-queue/components/CtiQueueGroupDrawer';
+import CtiQueueGroupTree from '../../features/cti-queue/components/CtiQueueGroupTree';
 import CtiQueueTable from '../../features/cti-queue/components/CtiQueueTable';
 import CtiQueueTenantCard from '../../features/cti-queue/components/CtiQueueTenantCard';
-import { useDeleteCtiQueue, useGetCtiQueueGroupOptions, useGetCtiQueues } from '../../features/cti-queue/hooks/useCtiQueueQueries';
-import type { CtiQueueResponse } from '../../features/cti-queue/types';
+import {
+  useCreateCtiQueueGroup,
+  useDeleteCtiQueue,
+  useDeleteCtiQueueGroup,
+  useGetCtiQueueGroupOptions,
+  useGetCtiQueueGroups,
+  useGetCtiQueues,
+  useReassignCtiQueueMembers,
+  useUnassignCtiQueueMembers,
+  useUpdateCtiQueueGroup,
+} from '../../features/cti-queue/hooks/useCtiQueueQueries';
+import type { CtiQueueGroupCreateRequest, CtiQueueGroupResponse, CtiQueueGroupUpdateRequest, CtiQueueResponse } from '../../features/cti-queue/types';
 import { useGetDnProfileNodes, useGetDnProfileTenants } from '../../features/dn-profile/hooks/useDnProfileQueries';
 import { useModal } from '@/libs/shared-ui/src/hooks/useModal';
 
@@ -47,10 +59,19 @@ export default function CtiQueueList() {
   const [selectedNodeId, setSelectedNodeId] = useState<number | null>(null);
   const [selectedTenantId, setSelectedTenantId] = useState<number | null>(null);
   const [searchText, setSearchText] = useState('');
-  const [showTenantColumn, setShowTenantColumn] = useState(false);
+  // "업무그룹 보기" — ON 시 좌측 업무그룹 트리(TB_TR_CTIQ_MASTER) + 큐 D&D 배정 노출 (SWAT IPR20S3020 업무그룹 트리).
+  const [groupView, setGroupView] = useState(false);
+  const [selectedTreeId, setSelectedTreeId] = useState<number | null>(null); // null=전체, 0=미배정, n=실제 트리
   const [selectedRows, setSelectedRows] = useState<CtiQueueResponse[]>([]);
   const [cardExpanded, setCardExpanded] = useState(true);
   const [drawer, setDrawer] = useState<CtiQueueDrawerState>({ open: false });
+
+  // 업무그룹 트리 Drawer (추가/수정)
+  const [groupDrawerOpen, setGroupDrawerOpen] = useState(false);
+  const [groupDrawerMode, setGroupDrawerMode] = useState<'create' | 'edit'>('create');
+  const [groupDrawerParent, setGroupDrawerParent] = useState<CtiQueueGroupResponse | null>(null);
+  const [groupDrawerTarget, setGroupDrawerTarget] = useState<CtiQueueGroupResponse | null>(null);
+  const [groupDrawerTenantHint, setGroupDrawerTenantHint] = useState<number | null>(null);
 
   const cardScrollRef = useRef<HTMLDivElement>(null);
   const tabScrollRef = useRef<HTMLDivElement>(null);
@@ -100,6 +121,14 @@ export default function CtiQueueList() {
     return selectedTenantId == null ? rows : rows.filter((r) => r.tenantId === selectedTenantId);
   }, [rows, viewMode, selectedNodeId, selectedTenantId]);
 
+  // ─── 기본 라우팅그룹 이름맵 (그리드 "기본 라우팅그룹" 컬럼 표시용) ──────────────────
+  // 업무그룹(treeName) 과는 별개 — 큐의 firstGroupId(TB_IC_GROUPMASTER) 라벨 표시에만 사용.
+  const groupNameById = useMemo(() => {
+    const m = new Map<number, string>();
+    for (const g of groupOptions) m.set(g.id, g.name);
+    return m;
+  }, [groupOptions]);
+
   // ─── 카드 통계 ──────────────────────────────────────────────────────────────
   const cardStats = useMemo(() => {
     const map = new Map<number, { id: number; name: string; totalCnt: number; activeCnt: number; blockedCnt: number }>();
@@ -144,18 +173,45 @@ export default function CtiQueueList() {
     if (selectedCardId != null) {
       list = list.filter((r) => (viewMode === 'byNode' ? r.tenantId === selectedCardId : r.nodeId === selectedCardId));
     }
+    // 업무그룹(treeName) 트리 필터 — "업무그룹 보기" ON + 트리 노드 선택 시 적용 (0=미배정, null=전체)
+    if (groupView && selectedTreeId != null) {
+      list = list.filter((r) => (selectedTreeId === 0 ? r.treeId == null : r.treeId === selectedTreeId));
+    }
     const kw = searchText.trim().toLowerCase();
     if (kw) {
-      list = list.filter((r) => [r.gdnNo, r.gdnName, r.ctiqName, r.tenantName].some((f) => f != null && String(f).toLowerCase().includes(kw)));
+      list = list.filter((r) => [r.gdnNo, r.gdnName, r.ctiqName, r.tenantName, r.treeName].some((f) => f != null && String(f).toLowerCase().includes(kw)));
     }
     return list;
-  }, [rowsInTab, selectedCardId, viewMode, searchText]);
+  }, [rowsInTab, selectedCardId, viewMode, searchText, groupView, selectedTreeId]);
 
-  // 등록 폼에 넘길 테넌트/노드 컨텍스트
+  // 등록 폼에 넘길 테넌트/노드 컨텍스트 (선택된 카드/탭 기준 — 카드=전체면 null → Drawer 에서 직접 선택)
   const ctxTenantId = viewMode === 'byNode' ? (selectedCardId ?? selectedTenantId) : selectedTenantId;
   const ctxNodeId = viewMode === 'byNode' ? selectedNodeId : (selectedCardId ?? selectedNodeId);
   const ctxTenantName = assignedTenants.find((t) => t.id === ctxTenantId)?.name ?? tenants.find((t) => t.tenantId === ctxTenantId)?.tenantName ?? null;
   const ctxNodeName = nodes.find((n) => n.nodeId === ctxNodeId)?.nodeName ?? null;
+
+  // 등록 Drawer 테넌트/노드 Select 옵션 (전체 마스터)
+  const tenantSelectOptions = useMemo(() => tenants.map((t) => ({ value: t.tenantId, label: t.tenantName ?? `테넌트 ${t.tenantId}` })), [tenants]);
+  const nodeSelectOptions = useMemo(() => nodes.map((n) => ({ value: n.nodeId, label: n.nodeName ?? `노드 ${n.nodeId}` })), [nodes]);
+
+  // ─── 업무그룹 트리 (TB_TR_CTIQ_MASTER) — "업무그룹 보기" ON 시에만 조회 ──────────
+  // 트리는 테넌트 단위. 현재 스코프 테넌트(카드/탭) 가 있으면 그 테넌트, 없으면 전체.
+  const treeTenantId = ctxTenantId;
+  const { data: groupTree = [] } = useGetCtiQueueGroups({
+    params: treeTenantId != null ? { tenantId: treeTenantId } : undefined,
+    queryOptions: { enabled: groupView },
+  });
+
+  // 트리 "전체/미배정" 카운트 — 현재 그리드 범위(rowsInTab) 기준
+  const treeDisplayCount = useMemo(() => {
+    let total = 0;
+    let unassigned = 0;
+    for (const r of rowsInTab) {
+      total += 1;
+      if (r.treeId == null) unassigned += 1;
+    }
+    return { total, unassigned };
+  }, [rowsInTab]);
 
   // ─── Auto-select 첫 탭 ──────────────────────────────────────────────────────
   useEffect(() => {
@@ -184,6 +240,7 @@ export default function CtiQueueList() {
         setSelectedNodeId(null);
       }
       setSearchText('');
+      setSelectedTreeId(null);
     },
     [viewMode],
   );
@@ -195,6 +252,7 @@ export default function CtiQueueList() {
     hasInitializedNodeRef.current = false;
     hasInitializedTenantRef.current = false;
     setSearchText('');
+    setSelectedTreeId(null);
   }, []);
 
   const { mutate: deleteQueue, isPending: isDeleting } = useDeleteCtiQueue({
@@ -246,6 +304,121 @@ export default function CtiQueueList() {
       },
     });
   };
+
+  // ─── 업무그룹 트리 mutations ────────────────────────────────────────────────
+  const { mutate: createGroup, isPending: isCreatingGroup } = useCreateCtiQueueGroup({
+    mutationOptions: {
+      onSuccess: () => {
+        toast.success('업무그룹이 추가되었습니다');
+        setGroupDrawerOpen(false);
+      },
+      onError: (err: unknown) => toast.error(extractMsg(err, '추가 실패')),
+    },
+  });
+  const { mutate: updateGroup, isPending: isUpdatingGroup } = useUpdateCtiQueueGroup({
+    mutationOptions: {
+      onSuccess: () => {
+        toast.success('업무그룹이 수정되었습니다');
+        setGroupDrawerOpen(false);
+      },
+      onError: (err: unknown) => toast.error(extractMsg(err, '수정 실패')),
+    },
+  });
+  const { mutate: deleteGroup } = useDeleteCtiQueueGroup({
+    mutationOptions: {
+      onSuccess: () => toast.success('업무그룹이 삭제되었습니다'),
+      onError: (err: unknown) => toast.error(extractMsg(err, '삭제 실패')),
+    },
+  });
+  const { mutate: reassignMembers } = useReassignCtiQueueMembers({
+    mutationOptions: {
+      onSuccess: (count) => toast.success(`${count}건의 CTI 큐가 업무그룹에 배정되었습니다`),
+      onError: (err: unknown) => toast.error(extractMsg(err, '배정 실패')),
+    },
+  });
+  const { mutate: unassignMembers } = useUnassignCtiQueueMembers({
+    mutationOptions: {
+      onSuccess: (count) => toast.success(`${count}건의 CTI 큐 배정이 해제되었습니다`),
+      onError: (err: unknown) => toast.error(extractMsg(err, '해제 실패')),
+    },
+  });
+
+  // ─── 업무그룹 트리 핸들러 ───────────────────────────────────────────────────
+  const handleCreateGroup = useCallback(
+    (parent: CtiQueueGroupResponse | null, tenantHint?: number | null) => {
+      const targetTenant = parent?.tenantId ?? tenantHint ?? treeTenantId;
+      if (targetTenant == null) {
+        toast.warning('루트 그룹을 추가할 테넌트를 먼저 선택하세요');
+        return;
+      }
+      setGroupDrawerMode('create');
+      setGroupDrawerParent(parent);
+      setGroupDrawerTarget(null);
+      setGroupDrawerTenantHint(targetTenant);
+      setGroupDrawerOpen(true);
+    },
+    [treeTenantId],
+  );
+
+  const handleEditGroup = useCallback((group: CtiQueueGroupResponse) => {
+    setGroupDrawerMode('edit');
+    setGroupDrawerParent(null);
+    setGroupDrawerTarget(group);
+    setGroupDrawerTenantHint(group.tenantId);
+    setGroupDrawerOpen(true);
+  }, []);
+
+  const handleDeleteGroup = useCallback(
+    (group: CtiQueueGroupResponse) => {
+      modal.confirm.execute({
+        onOk: () => deleteGroup(group.treeId),
+        options: { title: '업무그룹 삭제', content: `"${group.treeName}" 그룹과 하위 그룹/매핑이 모두 삭제됩니다. 진행하시겠습니까?` },
+      });
+    },
+    [modal, deleteGroup],
+  );
+
+  const handleGroupDrawerSubmit = useCallback(
+    (req: CtiQueueGroupCreateRequest | CtiQueueGroupUpdateRequest) => {
+      if (groupDrawerMode === 'create') createGroup(req as CtiQueueGroupCreateRequest);
+      else if (groupDrawerTarget) updateGroup({ id: groupDrawerTarget.treeId, body: req as CtiQueueGroupUpdateRequest });
+    },
+    [groupDrawerMode, groupDrawerTarget, createGroup, updateGroup],
+  );
+
+  // ─── D&D: 큐 → 업무그룹 노드 ────────────────────────────────────────────────
+  const handleCtiQueueDrop = useCallback(
+    (target: { treeId: number; tenantId: number | null }, ctiqIds: number[]) => {
+      // 미배정 (treeId=0) 은 테넌트 검증 불필요
+      if (target.treeId === 0) {
+        unassignMembers(ctiqIds);
+        return;
+      }
+      // 동일 테넌트 검증
+      const dragged = rows.filter((r) => ctiqIds.includes(r.ctiqId));
+      const mismatches = dragged.filter((r) => r.tenantId !== target.tenantId);
+      if (mismatches.length > 0) {
+        const names = mismatches
+          .map((r) => r.gdnName ?? r.ctiqName ?? String(r.ctiqId))
+          .slice(0, 3)
+          .join(', ');
+        const extra = mismatches.length > 3 ? ` 외 ${mismatches.length - 3}건` : '';
+        toast.error(`다른 테넌트의 CTI 큐는 이동할 수 없습니다: ${names}${extra}`);
+        return;
+      }
+      reassignMembers({ ctiqIds, targetTreeId: target.treeId });
+    },
+    [rows, reassignMembers, unassignMembers],
+  );
+
+  const getDragCtiqIds = useCallback(
+    (dragRow: CtiQueueResponse): number[] => {
+      const selectedIds = selectedRows.map((r) => r.ctiqId);
+      if (selectedIds.length > 0 && selectedIds.includes(dragRow.ctiqId)) return selectedIds;
+      return [dragRow.ctiqId];
+    },
+    [selectedRows],
+  );
 
   const gridHeaderText = useMemo(() => {
     const tabName =
@@ -335,7 +508,15 @@ export default function CtiQueueList() {
                 style={{ width: 220 }}
               />
               <label className="flex items-center gap-1.5 text-[12px] text-gray-600 cursor-pointer select-none">
-                <input type="checkbox" checked={showTenantColumn} onChange={(e) => setShowTenantColumn(e.target.checked)} className="accent-[#405189]" />
+                <input
+                  type="checkbox"
+                  checked={groupView}
+                  onChange={(e) => {
+                    setGroupView(e.target.checked);
+                    if (!e.target.checked) setSelectedTreeId(null);
+                  }}
+                  className="accent-[#405189]"
+                />
                 업무그룹 보기
               </label>
             </div>
@@ -433,49 +614,95 @@ export default function CtiQueueList() {
           )}
         </div>
 
-        {/* ===== 박스C: ag-Grid ===== */}
-        <div className="bg-white bt-shadow flex flex-col flex-1 min-h-0 overflow-hidden">
-          <div className="px-5 py-3 border-b border-gray-100 flex items-center gap-2 h-[44px] flex-shrink-0">
-            <span className="text-sm font-semibold text-gray-800">{gridHeaderText}</span>
-            {selectedRows.length > 0 && (
-              <span className="text-xs text-gray-500">
-                {rowsForGrid.length.toLocaleString()}건 중 {selectedRows.length}건 선택
-              </span>
-            )}
-            <div className="ml-auto flex items-center gap-2">
-              <Button
-                danger
-                icon={<Trash2 className="size-3.5" />}
-                onClick={handleDeleteSelected}
-                loading={isDeleting}
-                disabled={selectedRows.length === 0}
-                title={selectedRows.length === 0 ? '삭제할 큐를 선택하세요' : '선택한 큐 삭제'}
-              >
-                {selectedRows.length > 0 ? `삭제 (${selectedRows.length})` : '삭제'}
-              </Button>
-              <Button type="primary" icon={<Plus className="size-3.5" />} onClick={handleCreate}>
-                큐 등록
-              </Button>
+        {/* ===== 박스C: (업무그룹 보기 ON 시) 좌측 업무그룹 트리 + 우측 ag-Grid ===== */}
+        <div className="flex gap-4 flex-1 min-h-0">
+          {groupView && (
+            <div className="bg-white bt-shadow flex flex-col w-[280px] flex-shrink-0 overflow-hidden">
+              <div className="flex items-center px-4 h-[44px] border-b border-gray-100">
+                <span className="text-sm font-semibold text-gray-700">업무그룹</span>
+                <button
+                  type="button"
+                  onClick={() => handleCreateGroup(null, treeTenantId)}
+                  disabled={treeTenantId == null}
+                  className="ml-auto inline-flex items-center gap-1 px-2 py-0.5 rounded border border-[#405189] text-[#405189] text-xs hover:bg-[#405189]/5 disabled:opacity-40 disabled:cursor-not-allowed"
+                  title={treeTenantId == null ? '테넌트를 먼저 선택하세요' : '루트 그룹 추가'}
+                >
+                  <Plus className="size-3" /> 루트
+                </button>
+              </div>
+              <div className="flex-1 min-h-0">
+                <CtiQueueGroupTree
+                  groups={groupTree}
+                  totalCtiqCount={treeDisplayCount.total}
+                  totalUnassignedCount={treeDisplayCount.unassigned}
+                  selectedTreeId={selectedTreeId}
+                  selectedTenantId={treeTenantId}
+                  onSelect={setSelectedTreeId}
+                  onCreateChild={(parent) => handleCreateGroup(parent, treeTenantId)}
+                  onEdit={handleEditGroup}
+                  onDelete={handleDeleteGroup}
+                  onCtiQueueDrop={handleCtiQueueDrop}
+                />
+              </div>
             </div>
-          </div>
+          )}
 
-          <div className="flex-1 min-h-0">
-            <CtiQueueTable
-              rowData={rowsForGrid}
-              isLoading={isLoading}
-              groupOptions={groupOptions}
-              showTenantColumn={showTenantColumn}
-              onRowDoubleClicked={handleEdit}
-              onDelete={handleDelete}
-              onSelectionChanged={setSelectedRows}
-              onBulkDelete={handleDeleteSelected}
-              selectedCount={selectedRows.length}
-            />
+          <div className="bg-white bt-shadow flex flex-col flex-1 min-h-0 overflow-hidden">
+            <div className="px-5 py-3 border-b border-gray-100 flex items-center gap-2 h-[44px] flex-shrink-0">
+              <span className="text-sm font-semibold text-gray-800">{gridHeaderText}</span>
+              {selectedRows.length > 0 && (
+                <span className="text-xs text-gray-500">
+                  {rowsForGrid.length.toLocaleString()}건 중 {selectedRows.length}건 선택
+                </span>
+              )}
+              <div className="ml-auto flex items-center gap-2">
+                <Button
+                  danger
+                  icon={<Trash2 className="size-3.5" />}
+                  onClick={handleDeleteSelected}
+                  loading={isDeleting}
+                  disabled={selectedRows.length === 0}
+                  title={selectedRows.length === 0 ? '삭제할 큐를 선택하세요' : '선택한 큐 삭제'}
+                >
+                  {selectedRows.length > 0 ? `삭제 (${selectedRows.length})` : '삭제'}
+                </Button>
+                <Button type="primary" icon={<Plus className="size-3.5" />} onClick={handleCreate}>
+                  큐 등록
+                </Button>
+              </div>
+            </div>
+
+            <div className="flex-1 min-h-0">
+              <CtiQueueTable
+                rowData={rowsForGrid}
+                isLoading={isLoading}
+                groupOptions={groupOptions}
+                groupView={groupView}
+                onRowDoubleClicked={handleEdit}
+                onDelete={handleDelete}
+                onSelectionChanged={setSelectedRows}
+                onBulkDelete={handleDeleteSelected}
+                selectedCount={selectedRows.length}
+                getDragCtiqIds={getDragCtiqIds}
+              />
+            </div>
           </div>
         </div>
       </div>
 
-      <CtiQueueFormDrawer state={drawer} onClose={() => setDrawer({ open: false })} />
+      <CtiQueueFormDrawer state={drawer} onClose={() => setDrawer({ open: false })} tenantOptions={tenantSelectOptions} nodeOptions={nodeSelectOptions} />
+
+      {/* 업무그룹 추가/수정 Drawer */}
+      <CtiQueueGroupDrawer
+        open={groupDrawerOpen}
+        mode={groupDrawerMode}
+        tenantId={groupDrawerTenantHint}
+        parent={groupDrawerParent}
+        group={groupDrawerTarget}
+        onCancel={() => setGroupDrawerOpen(false)}
+        onSubmit={handleGroupDrawerSubmit}
+        loading={isCreatingGroup || isUpdatingGroup}
+      />
     </div>
   );
 }
@@ -504,4 +731,8 @@ function CompactPill({ name, count, selected, onClick }: CompactPillProps) {
       <span className={`text-[11px] ${selected ? 'text-white/80' : 'text-gray-400'}`}>{count.toLocaleString()}</span>
     </button>
   );
+}
+
+function extractMsg(err: unknown, fallback: string): string {
+  return (err as { response?: { data?: { message?: string } } })?.response?.data?.message ?? fallback;
 }

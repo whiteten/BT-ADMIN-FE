@@ -21,6 +21,7 @@ import { toast } from '@/shared-util';
 import { ctiQueueApi } from '../api/ctiQueueApi';
 import {
   useCreateCtiQueue,
+  useGetCtiQueueAccessCodeProfileOptions,
   useGetCtiQueueBsrGroupOptions,
   useGetCtiQueueBsrSchedules,
   useGetCtiQueueGroupOptions,
@@ -49,9 +50,14 @@ export type CtiQueueDrawerState =
 interface Props {
   state: CtiQueueDrawerState;
   onClose: () => void;
+  /** 등록 모드에서 테넌트/노드를 직접 선택할 수 있도록 전달하는 옵션 (선택된 카드/탭 컨텍스트가 기본값). */
+  tenantOptions?: { value: number; label: string }[];
+  nodeOptions?: { value: number; label: string }[];
 }
 
 interface FormValues {
+  tenantId?: number;
+  nodeId?: number;
   gdnNo?: string;
   gdnName?: string;
   ctiqName?: string;
@@ -107,18 +113,30 @@ interface FormValues {
 const skillIdKey = (mt: number) => `skill_${mt}`;
 const skillLevelKey = (mt: number) => `level_${mt}`;
 
-export default function CtiQueueFormDrawer({ state, onClose }: Props) {
+export default function CtiQueueFormDrawer({ state, onClose, tenantOptions = [], nodeOptions = [] }: Props) {
   const [form] = Form.useForm<FormValues>();
   const [activeTab, setActiveTab] = useState('basic');
 
   // async 옵션(그룹/BSR그룹/스킬셋) 기반 select 의 "실제 값" 보류 저장소 (BUG-2):
   // 옵션이 늦게 도착하면 그 전에 set 한 값이 매칭 옵션을 못 찾아 antd 가 raw ID 를 잠깐 노출.
   // → 초기에는 0(없음/미사용) 으로 두고, 옵션이 채워진 뒤 실제 값을 set 하여 라벨이 항상 정상 표시되게 함.
-  const pendingAsyncValues = useRef<{ firstGroupId: number; bsrGroupId: number; skills: Record<string, number> }>({ firstGroupId: 0, bsrGroupId: 0, skills: {} });
+  const pendingAsyncValues = useRef<{ firstGroupId: number; bsrGroupId: number; accessCodeProfileId: number; drAccessCodeProfileId: number; skills: Record<string, number> }>({
+    firstGroupId: 0,
+    bsrGroupId: 0,
+    accessCodeProfileId: 0,
+    drAccessCodeProfileId: 0,
+    skills: {},
+  });
 
   const isEdit = state.open && state.mode === 'edit';
   const ctiqId = state.open && state.row ? state.row.ctiqId : null;
-  const tenantId = state.open ? state.tenantId : null;
+
+  // 등록 모드에서는 폼에서 선택한 테넌트/노드를 우선 사용(미선택 시 카드/탭 컨텍스트 기본값).
+  // 수정 모드에서는 행의 테넌트/노드(불변)를 사용.
+  const wTenantId = Form.useWatch('tenantId', form);
+  const wNodeId = Form.useWatch('nodeId', form);
+  const tenantId = isEdit ? (state.open ? state.tenantId : null) : (wTenantId ?? (state.open ? state.tenantId : null));
+  const nodeId = isEdit ? (state.open ? state.nodeId : null) : (wNodeId ?? (state.open ? state.nodeId : null));
 
   // ─── 옵션 콤보 ──────────────────────────────────────────────────────────────
   const { data: groupOptions = [], isFetching: groupLoading } = useGetCtiQueueGroupOptions(tenantId);
@@ -150,6 +168,16 @@ export default function CtiQueueFormDrawer({ state, onClose }: Props) {
 
   const hasDrNode = wDrNode != null && Number(wDrNode) !== 0;
   const reconnOff = wReconn === 0;
+
+  // ─── 접근코드 프로파일 콤보 (노드/테넌트 단위, SWAT accessCodeProfile 콤보 재사용) ───
+  // 본 콤보: 큐 노드 기준. DR 콤보: DR(백업) 노드 기준 (DR노드 미지정 시 비활성).
+  const { data: accessProfileOptions = [], isFetching: accessProfileLoading } = useGetCtiQueueAccessCodeProfileOptions(tenantId, nodeId);
+  const { data: drAccessProfileOptions = [], isFetching: drAccessProfileLoading } = useGetCtiQueueAccessCodeProfileOptions(tenantId, hasDrNode ? Number(wDrNode) : null);
+  const accessProfileSelectOptions = useMemo(() => [{ value: 0, label: '미지정' }, ...accessProfileOptions.map((p) => ({ value: p.id, label: p.name }))], [accessProfileOptions]);
+  const drAccessProfileSelectOptions = useMemo(
+    () => [{ value: 0, label: '미지정' }, ...drAccessProfileOptions.map((p) => ({ value: p.id, label: p.name }))],
+    [drAccessProfileOptions],
+  );
   const maxWaitOff = wMaxWaitYn !== 1;
   const collectOff = wCollectYn !== 1;
   const skillRequired = wRoutingKind === 1 || wRoutingKind === 3;
@@ -204,8 +232,14 @@ export default function CtiQueueFormDrawer({ state, onClose }: Props) {
         mediaVals[skillIdKey(mediaType)] = 0;
         mediaVals[skillLevelKey(mediaType)] = (r[levelKey] as number | null) ?? 0;
       }
-      // 그룹/BSR그룹/스킬셋 실제 값은 옵션 도착 후 적용하도록 보류
-      pendingAsyncValues.current = { firstGroupId: r.firstGroupId ?? 0, bsrGroupId: r.bsrGroupId ?? 0, skills: pendingSkills };
+      // 그룹/BSR그룹/스킬셋/접근코드프로파일 실제 값은 옵션 도착 후 적용하도록 보류
+      pendingAsyncValues.current = {
+        firstGroupId: r.firstGroupId ?? 0,
+        bsrGroupId: r.bsrGroupId ?? 0,
+        accessCodeProfileId: r.accessCodeProfileId ?? 0,
+        drAccessCodeProfileId: r.drAccessCodeProfileId ?? 0,
+        skills: pendingSkills,
+      };
       form.setFieldsValue({
         gdnNo: r.gdnNo ?? '',
         gdnName: r.gdnName ?? '',
@@ -216,8 +250,8 @@ export default function CtiQueueFormDrawer({ state, onClose }: Props) {
         activateYn: r.activateYn ?? 1,
         globalDnYn: r.globalDnYn ?? 0,
         backUpNodeId: r.backUpNodeId ?? 0,
-        accessCodeProfileId: r.accessCodeProfileId ?? 0,
-        drAccessCodeProfileId: r.drAccessCodeProfileId ?? 0,
+        accessCodeProfileId: 0, // 옵션 로드 후 실제 값 적용 (deferred)
+        drAccessCodeProfileId: 0, // 옵션 로드 후 실제 값 적용 (deferred)
         initMent: r.initMent ?? 0,
         waitMent: r.waitMent ?? 0,
         closeMent: r.closeMent ?? 0,
@@ -254,13 +288,15 @@ export default function CtiQueueFormDrawer({ state, onClose }: Props) {
         ...mediaVals,
       });
     } else {
-      pendingAsyncValues.current = { firstGroupId: 0, bsrGroupId: 0, skills: {} };
+      pendingAsyncValues.current = { firstGroupId: 0, bsrGroupId: 0, accessCodeProfileId: 0, drAccessCodeProfileId: 0, skills: {} };
       const mediaVals: Record<string, unknown> = {};
       for (const { mediaType } of activeMedia) {
         mediaVals[skillIdKey(mediaType)] = 0;
         mediaVals[skillLevelKey(mediaType)] = 0;
       }
       form.setFieldsValue({
+        tenantId: state.tenantId ?? undefined,
+        nodeId: state.nodeId ?? undefined,
         gdnNo: '',
         gdnName: '',
         ctiqName: '',
@@ -335,6 +371,24 @@ export default function CtiQueueFormDrawer({ state, onClose }: Props) {
     }
     if (Object.keys(patch).length > 0) form.setFieldsValue(patch as Parameters<typeof form.setFieldsValue>[0]);
   }, [state.open, skillsetSelectOptions, form]);
+
+  // 접근코드 프로파일: 옵션에 해당 값이 존재할 때 실제 값 적용
+  useEffect(() => {
+    if (!state.open) return;
+    const v = pendingAsyncValues.current.accessCodeProfileId;
+    if (v && accessProfileSelectOptions.some((o) => o.value === v) && form.getFieldValue('accessCodeProfileId') !== v) {
+      form.setFieldsValue({ accessCodeProfileId: v });
+    }
+  }, [state.open, accessProfileSelectOptions, form]);
+
+  // 접근코드 프로파일(DR): 옵션에 해당 값이 존재할 때 실제 값 적용
+  useEffect(() => {
+    if (!state.open) return;
+    const v = pendingAsyncValues.current.drAccessCodeProfileId;
+    if (v && drAccessProfileSelectOptions.some((o) => o.value === v) && form.getFieldValue('drAccessCodeProfileId') !== v) {
+      form.setFieldsValue({ drAccessCodeProfileId: v });
+    }
+  }, [state.open, drAccessProfileSelectOptions, form]);
 
   const { mutate: create, isPending: isCreating } = useCreateCtiQueue({
     mutationOptions: {
@@ -443,13 +497,16 @@ export default function CtiQueueFormDrawer({ state, onClose }: Props) {
       };
 
       if (state.mode === 'create') {
-        if (state.tenantId == null || state.nodeId == null) {
+        const createTenantId = values.tenantId ?? state.tenantId;
+        const createNodeId = values.nodeId ?? state.nodeId;
+        if (createTenantId == null || createNodeId == null) {
           toast.warning('테넌트와 노드를 먼저 선택하세요');
+          setActiveTab('basic');
           return;
         }
         // 그룹DN 번호 중복 검증
         try {
-          const dup = await ctiQueueApi.duplicateCheck({ nodeId: state.nodeId, gdnNo: values.gdnNo! });
+          const dup = await ctiQueueApi.duplicateCheck({ nodeId: createNodeId, gdnNo: values.gdnNo! });
           if (dup) {
             toast.error('동일 노드에 이미 사용 중인 번호입니다 (DN/SIP 트렁크 포함)');
             setActiveTab('basic');
@@ -459,8 +516,8 @@ export default function CtiQueueFormDrawer({ state, onClose }: Props) {
           // duplicate-check 실패는 등록 진행 (BE 가 최종 차단)
         }
         const body: CtiQueueCreateRequest = {
-          tenantId: state.tenantId,
-          nodeId: state.nodeId,
+          tenantId: createTenantId,
+          nodeId: createNodeId,
           gdnNo: values.gdnNo!,
           gdnName: values.gdnName!,
           ...common,
@@ -494,12 +551,24 @@ export default function CtiQueueFormDrawer({ state, onClose }: Props) {
       forceRender: true,
       children: (
         <div className="grid grid-cols-2 gap-x-6 gap-y-1">
-          <Form.Item label="테넌트명">
-            <Input value={(state.open && state.tenantName) || '기본테넌트'} disabled />
-          </Form.Item>
-          <Form.Item label="노드">
-            <Input value={state.open ? (state.nodeName ?? (state.nodeId != null ? `노드 ${state.nodeId}` : '-')) : '-'} disabled />
-          </Form.Item>
+          {isEdit ? (
+            <Form.Item label="테넌트명">
+              <Input value={(state.open && state.tenantName) || (state.open && state.tenantId != null ? `테넌트 ${state.tenantId}` : '-')} disabled />
+            </Form.Item>
+          ) : (
+            <Form.Item label="테넌트" name="tenantId" rules={[{ required: true, message: '테넌트를 선택하세요' }]}>
+              <Select options={tenantOptions} showSearch optionFilterProp="label" placeholder="테넌트 선택" />
+            </Form.Item>
+          )}
+          {isEdit ? (
+            <Form.Item label="노드">
+              <Input value={state.open ? (state.nodeName ?? (state.nodeId != null ? `노드 ${state.nodeId}` : '-')) : '-'} disabled />
+            </Form.Item>
+          ) : (
+            <Form.Item label="노드" name="nodeId" rules={[{ required: true, message: '노드를 선택하세요' }]}>
+              <Select options={nodeOptions} showSearch optionFilterProp="label" placeholder="노드 선택" />
+            </Form.Item>
+          )}
           <Form.Item label="DR노드 ID (백업 노드)" name="backUpNodeId" tooltip="DR노드 지정 시 Global DN 사용이 강제됩니다">
             <InputNumber style={{ width: '100%' }} min={0} placeholder="없으면 0" />
           </Form.Item>
@@ -528,11 +597,18 @@ export default function CtiQueueFormDrawer({ state, onClose }: Props) {
           <Form.Item className="col-span-2" label="그룹DN이름" name="gdnName" rules={[{ required: true, max: 200, message: '1~200자 필수' }]}>
             <Input maxLength={200} placeholder="입력 시 큐설정 탭의 CTI큐이름에 자동복사" onChange={(e) => copyGdnNameToQueue(e.target.value)} />
           </Form.Item>
-          <Form.Item label="접근코드 프로파일 ID" name="accessCodeProfileId">
-            <InputNumber style={{ width: '100%' }} min={0} placeholder="미지정 0" />
+          <Form.Item label="접근코드 프로파일" name="accessCodeProfileId" tooltip="큐 노드 기준 접근코드 프로파일 (미지정=0)">
+            <Select options={accessProfileSelectOptions} loading={accessProfileLoading} showSearch optionFilterProp="label" placeholder="미지정" />
           </Form.Item>
-          <Form.Item label="접근코드 프로파일(DR) ID" name="drAccessCodeProfileId">
-            <InputNumber style={{ width: '100%' }} min={0} disabled={!hasDrNode} placeholder="DR노드 지정 시 활성" />
+          <Form.Item label="접근코드 프로파일(DR)" name="drAccessCodeProfileId" tooltip="DR노드 지정 시 활성 — DR노드 기준 접근코드 프로파일">
+            <Select
+              options={drAccessProfileSelectOptions}
+              loading={drAccessProfileLoading}
+              disabled={!hasDrNode}
+              showSearch
+              optionFilterProp="label"
+              placeholder={hasDrNode ? '미지정' : 'DR노드 지정 시 활성'}
+            />
           </Form.Item>
         </div>
       ),
