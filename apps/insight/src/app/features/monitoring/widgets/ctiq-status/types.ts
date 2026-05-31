@@ -131,8 +131,8 @@ export interface CtiqRow {
 /** 큐 상태 분류 (FE 임계값 평가 결과). */
 export type CtiqSeverity = 'ok' | 'warn' | 'alert' | 'danger' | 'idle';
 
-/** 위젯 표시 밀도 — 큰카드(상세) / 작은카드(컴팩트). */
-export type CtiqDensity = 'large' | 'small';
+/** 위젯 표시 밀도 — 큰카드(상세) / 작은카드(컴팩트) / 표(ag-Grid). */
+export type CtiqDensity = 'large' | 'small' | 'grid';
 
 /** 임계값 — 사용자가 설정 드로어에서 조정 가능. */
 export interface CtiqThresholds {
@@ -155,3 +155,16 @@ export const DEFAULT_CTIQ_THRESHOLDS: CtiqThresholds = {
 
 /** 정렬 기준. */
 export type CtiqSortBy = 'severity' | 'wait' | 'sla' | 'answerRate' | 'id';
+
+/**
+ * 영속화 UI 상태 — localStorage `bt-admin.insight.monitoring.widget.{widgetId}.ui` 에 저장.
+ * AgentStatusWidget 와 같은 키 패턴.
+ */
+export interface CtiqUiState {
+  density: CtiqDensity;
+  activeSeverities: CtiqSeverity[];
+  sortBy: CtiqSortBy;
+  alertOnly: boolean;
+  /** KPI Strip 접기 — 좌측 공간 확보용. */
+  summaryCollapsed: boolean;
+}
