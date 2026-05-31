@@ -11,12 +11,11 @@ import MiniLine from '../preview/MiniLine';
 interface TemplateWidgetCardProps {
   widget: TemplateWidget;
   editMode: boolean;
-  onSettings?: () => void;
   onDelete?: () => void;
   draggableClass?: string;
 }
 
-export default function TemplateWidgetCard({ widget, editMode, onSettings, onDelete, draggableClass }: TemplateWidgetCardProps) {
+export default function TemplateWidgetCard({ widget, editMode, onDelete, draggableClass }: TemplateWidgetCardProps) {
   const [currentViz, setCurrentViz] = useState<VizType>(widget.defaultViz);
   const [jitter, setJitter] = useState(0.5);
 
@@ -46,7 +45,7 @@ export default function TemplateWidgetCard({ widget, editMode, onSettings, onDel
   if (!detail) {
     return (
       <div className="flex flex-col h-full bg-white rounded shadow-sm border border-[var(--color-bt-border)]">
-        <WidgetCardHeader widget={widget} editMode={editMode} onSettings={onSettings} onDelete={onDelete} draggableClass={draggableClass} />
+        <WidgetCardHeader widget={widget} editMode={editMode} onDelete={onDelete} draggableClass={draggableClass} />
         <div className="flex-1 flex items-center justify-center text-[12px] text-[var(--color-bt-fg-muted)]">데이터셋 로딩 중…</div>
       </div>
     );
@@ -60,7 +59,6 @@ export default function TemplateWidgetCard({ widget, editMode, onSettings, onDel
         currentViz={currentViz}
         onChangeViz={setCurrentViz}
         editMode={editMode}
-        onSettings={onSettings}
         onDelete={onDelete}
         draggableClass={draggableClass}
       />

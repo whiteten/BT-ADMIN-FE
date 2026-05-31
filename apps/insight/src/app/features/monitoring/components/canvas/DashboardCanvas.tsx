@@ -1,5 +1,4 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
 import { Modal } from 'antd';
 // react-grid-layout v2.x — main entry 에서 WidthProvider HOC 가 제거되어 legacy 서브패스 사용.
 // (main 은 useContainerWidth hook 패턴으로 전환됨)
@@ -46,8 +45,6 @@ interface DashboardCanvasProps {
   onAddWidgetAt?: (widgetId: number) => void;
   /** 커스텀 위젯이 설정 변경 등으로 모니터링 일시정지를 요청할 때 호출. */
   onRequestPause?: () => void;
-  /** 화면 맞춤(월보드) 모드 — rowHeight 를 컨테이너 높이에 맞춰 동적 계산, 스크롤 없이 한 화면을 채움. */
-  fitToScreen?: boolean;
   children?: React.ReactNode;
 }
 
@@ -60,14 +57,13 @@ export default function DashboardCanvas({
   onLayoutChange,
   onAddWidgetAt,
   onRequestPause,
-  fitToScreen = false,
   children,
 }: DashboardCanvasProps) {
-  const navigate = useNavigate();
   const [deleteTarget, setDeleteTarget] = useState<Widget | null>(null);
 
   // ─── 레이아웃 계산 ────────────────────────────────────────────────────
-  // 화면 맞춤 모드 — 컨테이너(내용 영역) 높이를 측정해 rowHeight 를 역산한다.
+  // 정책: 12 row가 항상 컨테이너 높이 100%. 컨테이너(내용 영역) 높이를 측정해 rowHeight 를 역산.
+  // 별도 fitToScreen 플래그 없음 — 모든 대시보드가 항상 풀스크린 스케일링.
   const containerRef = useRef<HTMLDivElement>(null);
   const [containerHeight, setContainerHeight] = useState(0);
   useEffect(() => {
@@ -85,16 +81,16 @@ export default function DashboardCanvas({
     return () => ro.disconnect();
   }, []);
 
-  // 화면 맞춤(월보드) 기준: 전체 높이를 항상 12단위로 가정한다. (h: 12 가 100% 가 되도록)
+  // 12 row 가 항상 화면 100% 가 되도록 rowHeight 역산.
   const ROW_COUNT_FIXED = 12;
 
-  // 화면 맞춤이면 H = ROW_COUNT_FIXED·rh + (ROW_COUNT_FIXED+1)·margin 을 만족하도록 rh 역산.
+  // H = ROW_COUNT_FIXED·rh + (ROW_COUNT_FIXED+1)·margin 을 만족하도록 rh 역산.
   const rowHeight = useMemo(() => {
-    if (!fitToScreen || containerHeight <= 0) return ROW_HEIGHT_DEFAULT;
+    if (containerHeight <= 0) return ROW_HEIGHT_DEFAULT;
     // RGL 공식 정밀 역산: rh = (ContainerHeight - (RowCount + 1) * margin) / RowCount
     const rh = (containerHeight - (ROW_COUNT_FIXED + 1) * GRID_MARGIN) / ROW_COUNT_FIXED;
     return Math.max(10, rh);
-  }, [fitToScreen, containerHeight]);
+  }, [containerHeight]);
 
   // react-grid-layout 형식으로 변환
   const layouts = useMemo(() => {
@@ -121,14 +117,6 @@ export default function DashboardCanvas({
     onLayoutChange?.(updated.map((w) => ({ widgetId: w.widgetId, ...w.position })));
   };
 
-  const handleSettings = (w: Widget) => {
-    if (w.kind === 'TEMPLATE') {
-      navigate(`/insight/monitoring/dashboards/${dashboardId}/edit/widget/${w.widgetId}/template`);
-    } else if (w.kind === 'CUSTOM') {
-      toast.info(`위젯 옵션 사이드시트 (다음 단계 구현) — ${w.widgetTypeId}`);
-    }
-  };
-
   const handleConfirmDelete = () => {
     if (!deleteTarget) return;
     const next = widgets.filter((w) => w.widgetId !== deleteTarget.widgetId);
@@ -140,7 +128,7 @@ export default function DashboardCanvas({
   return (
     <div
       ref={containerRef}
-      className={`flex-1 h-full min-h-0 ${fitToScreen ? 'overflow-hidden p-0' : 'overflow-auto p-4'} ${editMode ? 'bg-[#e8eaed]' : 'bg-[var(--color-bt-bg-canvas)]'}`}
+      className={`flex-1 h-full min-h-0 overflow-y-auto p-0 ${editMode ? 'bg-[#e8eaed]' : 'bg-[var(--color-bt-bg-canvas)]'}`}
       style={
         editMode
           ? {
@@ -167,19 +155,12 @@ export default function DashboardCanvas({
         {widgets.map((widget) => (
           <div key={String(widget.widgetId)}>
             {widget.kind === 'TEMPLATE' ? (
-              <TemplateWidgetCard
-                widget={widget as TemplateWidget}
-                editMode={editMode}
-                onSettings={() => handleSettings(widget)}
-                onDelete={() => setDeleteTarget(widget)}
-                draggableClass={DRAG_HANDLE_CLASS}
-              />
+              <TemplateWidgetCard widget={widget as TemplateWidget} editMode={editMode} onDelete={() => setDeleteTarget(widget)} draggableClass={DRAG_HANDLE_CLASS} />
             ) : widget.kind === 'CUSTOM' ? (
               <CustomWidgetCard
                 widget={widget as CustomWidget}
                 editMode={editMode}
                 data={widgetData?.[String(widget.widgetId)]?.rows}
-                onSettings={() => handleSettings(widget)}
                 onDelete={() => setDeleteTarget(widget)}
                 onRequestPause={onRequestPause}
                 draggableClass={DRAG_HANDLE_CLASS}

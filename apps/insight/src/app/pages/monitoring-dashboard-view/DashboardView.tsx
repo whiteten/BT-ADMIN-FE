@@ -14,6 +14,7 @@ import { dashboardKeys, useCreateWidget, useDeleteWidget, useGetDashboard, useUp
 import { useDashboardSocket } from '../../features/monitoring/hooks/useDashboardSocket';
 import { useWidgetUserSettingsMap } from '../../features/monitoring/hooks/useWidgetSettingQueries';
 import type { CustomWidgetCatalogItem, Widget } from '../../features/monitoring/types';
+import { autoPackPosition } from '../../features/monitoring/utils/autoPackPosition';
 import { FallbackSpinner } from '@/components/custom/FallbackSpinner';
 
 type Mode = 'view' | 'edit';
@@ -69,15 +70,9 @@ export default function DashboardView() {
   const [refreshThrottle, setRefreshThrottle] = useState<1 | 3 | 5 | 10 | 'PAUSED'>(3);
 
   const rootRef = useRef<HTMLDivElement>(null);
-  const [fitToScreen, setFitToScreen] = useState(false);
 
-  // 대시보드 데이터 로드 시 저장된 fitToScreen 값 적용
-  useEffect(() => {
-    if (dashboard) setFitToScreen(dashboard.fitToScreen);
-  }, [dashboard]);
-
-  /** 화면 맞춤(스케일링) 토글 — 브라우저 풀스크린과 별개로 UI 영역을 가득 채움 */
-  const handleToggleFit = () => setFitToScreen((v) => !v);
+  // 화면 맞춤(fitToScreen) 토글은 제거됨 — 캔버스가 항상 12 row를 컨테이너 100%로 스케일링한다.
+  // 별도 플래그·DB 컬럼 없음. 자세한 정책은 DashboardCanvas + utils/autoPackPosition 참조.
 
   /** OS/브라우저 수준의 전체 화면 토글 (선택 사항) */
   const handleToggleFullscreen = () => {
@@ -173,7 +168,7 @@ export default function DashboardView() {
   const handleSave = () => {
     if (isSaving) return;
 
-    // 1. 레이아웃(위젯 위치/크기) 저장
+    // 레이아웃(위젯 위치/크기)만 저장. 대시보드 속성은 별도 액션(이름 변경 등) 시 저장.
     updateLayout({
       dashboardId,
       items: widgets.map((w) => ({
@@ -183,12 +178,6 @@ export default function DashboardView() {
         w: w.position.w,
         h: w.position.h,
       })),
-    });
-
-    // 2. 대시보드 속성(fitToScreen 등) 저장
-    updateDashboard({
-      dashboardId,
-      data: { fitToScreen },
     });
 
     toast.success('대시보드가 저장되었습니다.');
@@ -203,7 +192,7 @@ export default function DashboardView() {
   const handleRename = (next: string) => {
     updateDashboard({
       dashboardId,
-      data: { dashboardName: next, fitToScreen },
+      data: { dashboardName: next },
     });
     toast.success('이름이 변경되었습니다.');
   };
@@ -273,11 +262,11 @@ export default function DashboardView() {
       }
     }
     setWidgets(nextWidgets);
-    setFitToScreen(true);
   };
 
   const handleAddSlotSelect = (w: number, h: number) => {
-    const lastRow = widgets.reduce((max, widget) => Math.max(max, widget.position.row + widget.position.h), 0);
+    // 12 row 안에 빈 자리가 있으면 거기에, 없으면 row 12+ (화면 밖)로 누적 — 컨테이너 overflow-y-auto로 스크롤 가능.
+    const vacant = autoPackPosition(widgets, { minW: 1, minH: 1 }, { w, h });
     const newId = -Date.now();
     setWidgets((prev) => [
       ...prev,
@@ -286,10 +275,9 @@ export default function DashboardView() {
         dashboardId,
         widgetName: '새 영역',
         kind: 'PLACEHOLDER',
-        position: { row: lastRow, col: 0, w, h },
+        position: vacant,
       },
     ]);
-    setFitToScreen(true);
   };
 
   const handleAddWidgetAt = (widgetId: number) => {
@@ -312,8 +300,6 @@ export default function DashboardView() {
         onChangeRefreshThrottle={setRefreshThrottle}
         onToggleMonitoring={() => setMonitoringStarted((v) => !v)}
         onEnterEdit={() => setMode('edit')}
-        fitToScreen={fitToScreen}
-        onToggleFit={handleToggleFit}
         onRename={handleRename}
         onSave={handleSave}
         isSaving={isSaving}
@@ -322,14 +308,7 @@ export default function DashboardView() {
       />
 
       {mode === 'edit' ? (
-        <DashboardCanvas
-          dashboardId={dashboardId}
-          widgets={widgets}
-          editMode={true}
-          onWidgetsChange={handleWidgetsChange}
-          onAddWidgetAt={handleAddWidgetAt}
-          fitToScreen={fitToScreen}
-        >
+        <DashboardCanvas dashboardId={dashboardId} widgets={widgets} editMode={true} onWidgetsChange={handleWidgetsChange} onAddWidgetAt={handleAddWidgetAt}>
           {isEmpty && (
             <div className="mt-4 flex flex-col gap-4">
               <EmptyCanvas onLayoutSelect={handleLayoutSelect} />
@@ -339,14 +318,7 @@ export default function DashboardView() {
       ) : isEmpty ? (
         <EmptyViewState canEdit={canEdit} onEnterEdit={() => setMode('edit')} />
       ) : (
-        <DashboardCanvas
-          dashboardId={dashboardId}
-          widgets={widgets}
-          editMode={false}
-          widgetData={widgetData}
-          onRequestPause={() => setMonitoringStarted(false)}
-          fitToScreen={fitToScreen}
-        />
+        <DashboardCanvas dashboardId={dashboardId} widgets={widgets} editMode={false} widgetData={widgetData} onRequestPause={() => setMonitoringStarted(false)} />
       )}
 
       <WidgetLibraryModal open={isLibraryOpen} onClose={() => setIsLibraryOpen(false)} onAddTemplate={handleAddTemplate} onAddCustom={handleAddCustom} />
