@@ -9,7 +9,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { createQueryKeys } from '@lukemorales/query-key-factory';
 import type { MutationHookOptions, QueryHookOptions, QueryHookWithParamsOptions } from '@/shared-util';
 import { acdGdnApi } from '../api/acdGdnApi';
-import type { GdnCreateRequest, GdnMemberResponse, GdnMemberSaveRequest, GdnOptionItem, GdnResponse, GdnTenantStat, GdnUpdateRequest } from '../types';
+import type { GdnCreateRequest, GdnMemberPoolParams, GdnMemberResponse, GdnMemberSaveRequest, GdnOptionItem, GdnResponse, GdnTenantStat, GdnUpdateRequest } from '../types';
 
 export const acdGdnQueryKeys = createQueryKeys('acd-gdn', {
   list: (params?: Record<string, unknown>) => [params],
@@ -17,6 +17,7 @@ export const acdGdnQueryKeys = createQueryKeys('acd-gdn', {
   tenants: null,
   members: (id?: number) => [id],
   memberCandidates: (id?: number) => [id],
+  membersPool: (id?: number, params?: Record<string, unknown>) => [id, params],
   mentOptions: (tenantId?: number, nodeId?: number) => [tenantId, nodeId],
   skillsetOptions: (tenantId?: number) => [tenantId],
 });
@@ -57,6 +58,15 @@ export const useGetAcdGdnMemberCandidates = (id: number | null | undefined, { qu
   useQuery({
     queryKey: acdGdnQueryKeys.memberCandidates(id ?? undefined).queryKey,
     queryFn: () => acdGdnApi.getMemberCandidates(id as number),
+    enabled: !!id,
+    ...queryOptions,
+  });
+
+/** 멤버 통합 풀 (기배정+미배정) — v2 우측 패널 단일 그리드 */
+export const useGetAcdGdnMembersPool = (id: number | null | undefined, params?: GdnMemberPoolParams, { queryOptions }: QueryHookOptions<GdnMemberResponse[]> = {}) =>
+  useQuery({
+    queryKey: acdGdnQueryKeys.membersPool(id ?? undefined, params as Record<string, unknown> | undefined).queryKey,
+    queryFn: () => acdGdnApi.getMembersPool(id as number, params),
     enabled: !!id,
     ...queryOptions,
   });
@@ -133,6 +143,7 @@ export const useSaveAcdGdnMembers = ({ mutationOptions }: MutationHookOptions<vo
     onSuccess: (...args) => {
       qc.invalidateQueries({ queryKey: acdGdnQueryKeys.members._def });
       qc.invalidateQueries({ queryKey: acdGdnQueryKeys.memberCandidates._def });
+      qc.invalidateQueries({ queryKey: acdGdnQueryKeys.membersPool._def });
       qc.invalidateQueries({ queryKey: acdGdnQueryKeys.list._def });
       mutationOptions?.onSuccess?.(...args);
     },

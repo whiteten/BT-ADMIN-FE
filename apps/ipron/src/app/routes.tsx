@@ -29,6 +29,12 @@ const DidRouteForm = React.lazy(() => import('./pages/line/DidRouteForm'));
 const DodTransList = React.lazy(() => import('./pages/line/DodTransList'));
 const CallScreenList = React.lazy(() => import('./pages/line/CallScreenList'));
 const McsDnis = React.lazy(() => import('./pages/line/McsDnis'));
+const SipTrunkList = React.lazy(() => import('./pages/line/SipTrunkList'));
+const CommonTrunkList = React.lazy(() => import('./pages/line/CommonTrunkList'));
+const CtiQueueList = React.lazy(() => import('./pages/line/CtiQueueList'));
+
+// acd-gdn (ACD 그룹DN 관리 — SWAT IPR20S3010 + IPR20S3030, GDN_TYPE=16)
+const AcdGdnList = React.lazy(() => import('./pages/acd-gdn/AcdGdnList'));
 
 // cos
 const CosList = React.lazy(() => import('./pages/cos/CosList'));
@@ -190,6 +196,22 @@ export const routes = [
       {
         path: 'gdn',
         element: <GdnList />,
+      },
+      {
+        path: 'acd-gdn',
+        element: <AcdGdnList />,
+      },
+      {
+        path: 'sip-trunk',
+        element: <SipTrunkList />,
+      },
+      {
+        path: 'common-trunk',
+        element: <CommonTrunkList />,
+      },
+      {
+        path: 'cti-queue',
+        element: <CtiQueueList />,
       },
       {
         path: 'agent-master',

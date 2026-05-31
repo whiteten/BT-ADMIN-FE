@@ -16,7 +16,17 @@
  *  - ipron-acd-gdn-skillset-options  GET  스킬셋 콤보 옵션 (ACD_TYPE=3 활성, ?tenantId)
  */
 import ApiClient, { type ApiResponse } from '@/shared-util';
-import type { GdnCreateRequest, GdnDeleteRequest, GdnMemberResponse, GdnMemberSaveRequest, GdnOptionItem, GdnResponse, GdnTenantStat, GdnUpdateRequest } from '../types';
+import type {
+  GdnCreateRequest,
+  GdnDeleteRequest,
+  GdnMemberPoolParams,
+  GdnMemberResponse,
+  GdnMemberSaveRequest,
+  GdnOptionItem,
+  GdnResponse,
+  GdnTenantStat,
+  GdnUpdateRequest,
+} from '../types';
 
 const apiClient = new ApiClient({ serviceURL: '/bff' });
 
@@ -42,8 +52,8 @@ export const acdGdnApi = {
    * 시그니처 변경: tenantId → nodeId (2026-05-27).
    */
   duplicateCheck: async (params: { nodeId: number; gdnNo: string; excludeGdnId?: number }): Promise<boolean> => {
-    const res = await apiClient.get<ApiResponse<boolean>>('/ipron-acd-gdn-dn-dup-check', { params });
-    return res.data?.data;
+    const res = await apiClient.get<ApiResponse<{ value: boolean }>>('/ipron-acd-gdn-dn-dup-check', { params });
+    return res.data?.data?.value ?? false;
   },
 
   // ─── CRUD ─────────────────────────────────────────────────────────
@@ -74,6 +84,19 @@ export const acdGdnApi = {
 
   getMemberCandidates: async (id: number): Promise<GdnMemberResponse[]> => {
     const res = await apiClient.get<ApiResponse<{ value: GdnMemberResponse[] }>>('/ipron-acd-gdn-member-candidates', { params: { id } });
+    return res.data?.data?.value ?? [];
+  },
+
+  /**
+   * 멤버 통합 풀 (기배정 + 미배정) — v2 우측 패널 단일 그리드.
+   * assignFilter(all/assigned/unassigned) + dnType(11=EDN/12=ADN) + keyword(DN번호/ADN) 필터.
+   */
+  getMembersPool: async (id: number, params?: GdnMemberPoolParams): Promise<GdnMemberResponse[]> => {
+    const query: Record<string, unknown> = { id };
+    if (params?.assignFilter) query.assignFilter = params.assignFilter;
+    if (params?.dnType) query.dnType = params.dnType;
+    if (params?.keyword) query.keyword = params.keyword;
+    const res = await apiClient.get<ApiResponse<{ value: GdnMemberResponse[] }>>('/ipron-acd-gdn-members-pool', { params: query });
     return res.data?.data?.value ?? [];
   },
 

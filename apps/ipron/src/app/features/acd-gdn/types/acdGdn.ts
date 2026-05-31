@@ -139,6 +139,38 @@ export interface GdnMemberResponse {
   channelLimitCount: number | null;
   workUser?: number | null;
   workTime?: string | null;
+
+  // v2 멤버 패널 추가 컬럼 (BE GdnMemberResponse — members-pool)
+  dnType?: string | null; // 11=EDN, 12=ADN
+  loginAdn?: string | null; // ADN 로그인 ID
+  extBlockYn?: number | null; // 블록여부 (1=ON)
+  backUpNodeId?: number | null; // DR 노드
+  tenantId?: number | null;
+  tenantName?: string | null;
+  assigned?: boolean | null; // 해당 그룹DN 기배정 여부 (members-pool)
+}
+
+/** 멤버 통합 풀 조회 파라미터 (v2 우측 패널) */
+export interface GdnMemberPoolParams {
+  /** all(기본) / assigned(기배정) / unassigned(미배정) */
+  assignFilter?: 'all' | 'assigned' | 'unassigned';
+  /** 11=EDN / 12=ADN (미지정 = 전체) */
+  dnType?: '' | '11' | '12';
+  /** DN번호 / ADN 검색어 */
+  keyword?: string;
+}
+
+// ──────────────────────────────────────────────────────────
+//  DN 타입 Enum / Lookup (멤버 EDN/ADN)
+// ──────────────────────────────────────────────────────────
+
+export const DN_TYPE_EDN = '11';
+export const DN_TYPE_ADN = '12';
+
+export function getDnTypeName(v: string | null | undefined): string {
+  if (v === DN_TYPE_ADN) return '상담원(ADN)';
+  if (v === DN_TYPE_EDN) return '내선(EDN)';
+  return '-';
 }
 
 export interface GdnMemberItem {
