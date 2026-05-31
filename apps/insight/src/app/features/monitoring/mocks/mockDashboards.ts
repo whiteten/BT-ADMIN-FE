@@ -15,6 +15,8 @@ export const MOCK_DASHBOARDS: DashboardListItem[] = [
     menuRegistered: true,
     templateWidgetCount: 4,
     customWidgetCount: 5,
+    widgetNames: ['내선 상태 격자', '트렁크 점유율 게이지', '교환기 시스템 상태'],
+    fitToScreen: true,
     layoutWidth: 12,
     layoutHeight: 28,
     createdAt: '2026-04-20T09:00:00+09:00',
@@ -29,6 +31,8 @@ export const MOCK_DASHBOARDS: DashboardListItem[] = [
     menuRegistered: false,
     templateWidgetCount: 3,
     customWidgetCount: 4,
+    widgetNames: ['상담사 상태 매트릭스', '전사 SLA 대시보드', '실시간 대기호 목록', '상담사 성과 TOP 10'],
+    fitToScreen: false,
     layoutWidth: 12,
     layoutHeight: 22,
     createdAt: '2026-05-12T11:20:00+09:00',
@@ -43,24 +47,28 @@ export const MOCK_DASHBOARDS: DashboardListItem[] = [
     menuRegistered: true,
     templateWidgetCount: 2,
     customWidgetCount: 1,
+    widgetNames: ['IVR 시나리오 이탈 분석', 'IVR 서버군 상태'],
+    fitToScreen: true,
     layoutWidth: 12,
     layoutHeight: 14,
     createdAt: '2026-03-15T10:00:00+09:00',
     updatedAt: '2026-05-08T14:33:00+09:00',
   },
   {
-    dashboardId: 4,
-    dashboardCode: 'pbx-new',
-    dashboardName: '신규 교환기 대시보드',
-    domainCode: 'IE',
+    dashboardId: 8,
+    dashboardCode: 'test-8',
+    dashboardName: '디버깅용 대시보드',
+    domainCode: 'IC',
     status: 'DRAFT',
     menuRegistered: false,
     templateWidgetCount: 0,
     customWidgetCount: 0,
+    widgetNames: [],
+    fitToScreen: false,
     layoutWidth: 12,
     layoutHeight: 0,
-    createdAt: '2026-05-23T10:00:00+09:00',
-    updatedAt: '2026-05-23T10:00:00+09:00',
+    createdAt: '2026-05-30T10:00:00+09:00',
+    updatedAt: '2026-05-30T10:00:00+09:00',
   },
 ];
 
@@ -69,7 +77,7 @@ export function getMockDashboardDetail(dashboardId: number): DashboardDetail | u
   if (!list) return undefined;
   return {
     ...list,
-    description: dashboardId === 4 ? undefined : '운영팀이 사용하는 대시보드',
-    widgets: [], // Phase 1 — §3 빈 캔버스 검토용으로 항상 빈 배열. 위젯 mock은 다음 단계에서.
+    description: dashboardId === 8 ? undefined : '운영팀이 사용하는 대시보드',
+    widgets: [],
   };
 }

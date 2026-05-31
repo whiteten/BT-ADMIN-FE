@@ -13,6 +13,10 @@ import type { CustomWidgetCatalogItem, Widget } from '../../features/monitoring/
 import { autoPackPosition } from '../../features/monitoring/utils/autoPackPosition';
 import { FallbackSpinner } from '@/components/custom/FallbackSpinner';
 
+/**
+ * 커스텀 위젯 카탈로그 페이지.
+ * 왼쪽에는 현재 대시보드 현황(ReadOnly)을, 오른쪽에는 카탈로그 패널을 배치.
+ */
 export default function CustomWidgetCatalogPage() {
   const { dashboardId: param } = useParams<{ dashboardId: string }>();
   const dashboardId = Number(param);
@@ -76,9 +80,6 @@ export default function CustomWidgetCatalogPage() {
     );
   }
 
-  // 카탈로그에서 위젯 선택 → BE 생성 호출 → 성공 시 편집 화면으로 복귀.
-  // 좌측 placeholder는 더 이상 사용 안 함 (실 DB 위젯은 편집 화면의 캔버스에서 렌더).
-  // size 지정 시 그 크기로, 미지정 시 추천 크기로 — autoPackPosition 이 겹치지 않는 첫 빈 슬롯을 찾아 배치.
   const handleAdd = (widget: CustomWidgetCatalogItem, size?: { w: number; h: number }) => {
     if (isCreating) return;
     createWidget({
@@ -114,14 +115,9 @@ export default function CustomWidgetCatalogPage() {
 
       {/* 본문 — 좌: 현재 대시보드 위젯들(읽기 전용) / 우: 카탈로그 패널 */}
       <div className="flex flex-1 overflow-hidden">
-        <div className="flex-1 overflow-hidden">
+        <div className="flex-1 overflow-hidden p-4">
           {isEmpty ? (
-            <EmptyCanvas
-              onAddTemplate={() => navigate(`/insight/monitoring/dashboards/${dashboardId}/edit/widget/create/template`)}
-              onAddCustom={() => {
-                /* 이미 커스텀 카탈로그 화면이므로 동작 없음 */
-              }}
-            />
+            <EmptyCanvas onLayoutSelect={() => navigate(`/insight/monitoring/dashboards/${dashboardId}/edit`)} />
           ) : (
             <DashboardCanvas dashboardId={dashboardId} widgets={existingWidgets} editMode={false} />
           )}

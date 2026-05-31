@@ -33,8 +33,8 @@ interface DashboardHeaderProps {
   isSaving?: boolean;
   /** Edit 모드 — 취소 */
   onCancel?: () => void;
-  /** Edit 모드 — 위젯 카탈로그 열기 */
-  onOpenCatalog?: () => void;
+  /** Edit 모드 — 영역(Slot) 추가 */
+  onAddSlot?: () => void;
 
   /** 편집 권한 보유 여부 */
   canEdit?: boolean;
@@ -63,7 +63,7 @@ export default function DashboardHeader({
   onSave,
   isSaving,
   onCancel,
-  onOpenCatalog,
+  onAddSlot,
   canEdit = true,
 }: DashboardHeaderProps) {
   const [name, setName] = useState(dashboard.dashboardName);
@@ -135,8 +135,8 @@ export default function DashboardHeader({
         ) : (
           <div className="flex items-center gap-2">
             <Button onClick={onCancel}>취소</Button>
-            <Button icon={<Plus className="w-3.5 h-3.5" />} onClick={onOpenCatalog}>
-              위젯 추가
+            <Button icon={<Plus className="w-3.5 h-3.5" />} onClick={onAddSlot}>
+              영역 추가
             </Button>
             <Button variant="solid" color="cyan" onClick={onSave} loading={isSaving}>
               저장

@@ -24,13 +24,13 @@ export interface GroupSectionProps {
   showHeader: boolean;
 }
 
-/** 칩 필터의 소프트 팔레트와 동일 색계열 (mid-tone) */
+/** 필터 칩의 모던 팔레트와 동일 색계열 (Primary 색상) */
 const DIST_BG_BY_GROUP: Record<StatusGroup, string> = {
-  talking: 'bg-blue-400',
-  available: 'bg-emerald-400',
-  ringing: 'bg-amber-400',
-  wrapup: 'bg-violet-400',
-  offline: 'bg-slate-300',
+  talking: 'bg-blue-600',
+  available: 'bg-emerald-600',
+  ringing: 'bg-amber-500',
+  wrapup: 'bg-violet-600',
+  offline: 'bg-slate-400',
 };
 
 export default function GroupSection({ group, allRows, density, nowMs, thresholds, onActivate, showHeader }: GroupSectionProps) {

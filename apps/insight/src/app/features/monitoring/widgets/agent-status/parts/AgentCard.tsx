@@ -1,28 +1,14 @@
 import { memo } from 'react';
 import { Tag, Tooltip } from 'antd';
-import { Radar } from 'lucide-react';
+import { BarChart3 } from 'lucide-react';
 import { formatDuration, liveDurationSec, mosLevel, toNum, toStr, totalTalkSec } from '../helpers';
 import { DEFAULT_THRESHOLDS, alarmLevel, statusKey, statusMeta } from '../statusMap';
 import type { AgentRow, Threshold } from '../types';
 import { MOS_META } from './MosLegend';
 
 /**
- * 상담사 카드 v3 — 레거시 모니터링 페이지급 정보 밀도.
- *
- *  ┌─────────────────────────────────────┐
- *  │ 김민서  3001       [통화 IB]        │  ① 이름·DN·스킬 + 상태 Tag
- *  │ ─────────────────────────────────── │
- *  │ 5:23                                │  ② 큰 시간 (focal)
- *  │ ─────────────────────────────────── │
- *  │ 응대 31    평균 2:48    점유 ████▎  │  ④ 누적 KPI 3개 (응대수·평균·점유율 bar)
- *  │ 응대율 96%   후처리 0:42   전환 2%  │  ⑤ 응대율·후처리·전환 추가 행
- *  └─────────────────────────────────────┘
- *
- * 알람 상태:
- *   임계 초과 → 카드 보더 빨강 + 배경 red-50/40 + 시간 빨강 + Tag red
- *   주의      → 카드 보더 호박 + 시간 호박 + Tag orange
- *
- * 멀티콜: 상태 Tag 아래에 작은 ×N 배지.
+ * 상담사 카드 v3 — 레거시 모니터링 페이지급 정보 밀도 및 모던 UI 고도화.
+ * 성능 최적화: 1000개 이상의 카드 대응을 위해 커스텀 memo 비교 로직 적용.
  */
 export interface AgentCardProps {
   row: AgentRow;
@@ -34,16 +20,16 @@ export interface AgentCardProps {
 }
 
 const TAG_COLOR_BY_GROUP: Record<string, string> = {
-  available: 'green',
-  talking: 'blue',
-  ringing: 'orange',
-  wrapup: 'purple',
-  offline: 'default',
+  available: '#059669', // emerald-600
+  talking: '#2563eb', // blue-600
+  ringing: '#f59e0b', // amber-500
+  wrapup: '#7c3aed', // violet-600
+  offline: '#64748b', // slate-500
 };
 
 /** 시간은 단일색(중성 회색). 상태 강조는 Tag 와 카드 보더에서. */
-const TIME_COLOR = 'text-gray-900';
-const TIME_COLOR_OFFLINE = 'text-gray-400';
+const TIME_COLOR = 'text-slate-800';
+const TIME_COLOR_OFFLINE = 'text-slate-400';
 
 function AgentCardImpl({ row, nowMs, thresholds, onActivate, compact = false }: AgentCardProps) {
   const meta = statusMeta(row.AGENT_STATUS, row.REASON_CODE);
@@ -55,7 +41,7 @@ function AgentCardImpl({ row, nowMs, thresholds, onActivate, compact = false }: 
   const sKey = statusKey(row.AGENT_STATUS, row.REASON_CODE);
   const th = thresholds?.[sKey] ?? DEFAULT_THRESHOLDS[sKey];
 
-  const tagColor = isAlert ? 'red' : isWarn ? 'orange' : TAG_COLOR_BY_GROUP[meta.group];
+  const tagColor = isAlert ? '#dc2626' : isWarn ? '#f59e0b' : TAG_COLOR_BY_GROUP[meta.group];
   const timeClass = meta.group === 'offline' ? TIME_COLOR_OFFLINE : TIME_COLOR;
 
   const name = toStr(row.AGENT_NAME) || toStr(row.AGENT_LOGIN_ID) || `#${row.AGENT_ID ?? '-'}`;
@@ -70,18 +56,16 @@ function AgentCardImpl({ row, nowMs, thresholds, onActivate, compact = false }: 
   const statusLabel = meta.label + (isAlert ? ' · 초과' : isWarn && th ? ` · ${formatThresholdMinutes(th.notice)}↑` : '');
 
   // 비가시 영역 렌더 스킵 — content-visibility: auto + contain-intrinsic-size 로 placeholder 크기 확보.
-  // 스크롤 진입 시 브라우저가 페인트/레이아웃 자동 실행. 천 단위 카드에서 초기 로드·스크롤 비용 큰폭 절감.
+  // 가상 리스트 도입 시 보조적으로 작동.
   const cardCls = [
-    'group relative flex h-full flex-col rounded-lg border bg-white text-left outline-none transition-all',
-    compact ? 'min-h-[68px] [content-visibility:auto] [contain-intrinsic-size:68px]' : 'min-h-[150px] [content-visibility:auto] [contain-intrinsic-size:150px]',
-    'hover:shadow-[0_4px_12px_rgba(0,0,0,0.08)] focus-visible:ring-2 focus-visible:ring-blue-500',
-    isAlert ? 'border-red-500 bg-red-50/40' : isWarn ? 'border-orange-400' : 'border-gray-200 hover:border-gray-300',
+    'group relative flex h-full flex-col rounded-xl border bg-white text-left outline-none transition-all duration-200 w-full',
+    compact ? 'min-h-[72px] [content-visibility:auto] [contain-intrinsic-size:72px]' : 'min-h-[156px] [content-visibility:auto] [contain-intrinsic-size:156px]',
+    'hover:shadow-[0_8px_16px_rgba(0,0,0,0.06)] hover:-translate-y-0.5 focus-visible:ring-2 focus-visible:ring-blue-500',
+    isAlert ? 'border-red-500 bg-red-50/40 ring-1 ring-red-500' : isWarn ? 'border-amber-400 bg-amber-50/20' : 'border-slate-200 hover:border-slate-300',
   ].join(' ');
 
-  // 자율처리율 색상 — 임계 정책은 추후 설정으로 추가. 현재는 데이터 유무로만 회색/검정.
-  const selfRateColor = selfRate == null ? 'text-gray-400' : 'text-gray-900';
+  const selfRateColor = selfRate == null ? 'text-slate-400' : 'text-slate-800';
 
-  // MoS — null/음수면 표시 안 함 (mosLevel 이 null 반환)
   const mos = toNum(row.MOS);
   const mosLv = mosLevel(mos);
   const mosMeta = mosLv ? MOS_META[mosLv] : null;
@@ -90,46 +74,49 @@ function AgentCardImpl({ row, nowMs, thresholds, onActivate, compact = false }: 
   return (
     <button type="button" onClick={() => onActivate?.(row)} className={cardCls}>
       {/* ─── ① 이름·DN·MoS + 상태 Tag ───────────────────────── */}
-      <div className="flex items-start justify-between gap-2 px-3 pt-2.5">
+      <div className="flex items-start justify-between gap-2 px-4 pt-3.5">
         <div className="min-w-0 flex-1">
-          <div className="flex items-baseline gap-1.5">
-            <span className="truncate text-sm font-semibold text-gray-900">{name}</span>
-            {!compact && dn && <span className="font-mono text-xs text-gray-400 tabular-nums">{dn}</span>}
+          <div className="flex items-baseline gap-2">
+            <span className="truncate text-[14px] font-bold text-slate-900">{name}</span>
+            {!compact && dn && <span className="font-mono text-[11px] text-slate-400 tabular-nums">{dn}</span>}
             {!compact && mosMeta && mosDisplay && (
-              <span className="inline-flex shrink-0 items-center gap-1 rounded-full bg-gray-50 px-1.5 py-0.5" title={`MoS ${mosDisplay} · ${mosMeta.label}`}>
+              <span
+                className="inline-flex shrink-0 items-center gap-1 rounded-full bg-slate-50 px-1.5 py-0.5 border border-slate-100"
+                title={`MoS ${mosDisplay} · ${mosMeta.label}`}
+              >
                 <span className={`h-1.5 w-1.5 rounded-full ${mosMeta.dotBg}`} />
-                <span className={`font-mono text-[10px] font-semibold tabular-nums ${mosMeta.text}`}>{mosDisplay}</span>
+                <span className={`font-mono text-[9px] font-bold tabular-nums ${mosMeta.text}`}>{mosDisplay}</span>
               </span>
             )}
           </div>
         </div>
         <div className="flex flex-col items-end gap-0.5 shrink-0">
-          <Tag color={tagColor} className="!mr-0">
+          <Tag color={tagColor} className="!mr-0 font-bold border-none rounded-md px-2 py-0.5 text-[10px]">
             {statusLabel}
           </Tag>
         </div>
       </div>
 
       {/* ─── ② 시간 (compact 시 폰트 축소). 로그아웃은 시간 숨김. ─ */}
-      <div className={compact ? 'px-3 pb-1.5' : 'px-3 pt-1.5'}>
+      <div className={compact ? 'px-4 pb-2' : 'px-4 pt-2'}>
         {meta.group === 'offline' ? (
-          <div className={compact ? 'h-4' : 'h-7'} aria-hidden />
+          <div className={compact ? 'h-4' : 'h-8'} aria-hidden />
         ) : (
-          <div className={`font-mono ${compact ? 'text-base' : 'text-2xl'} font-bold leading-none tabular-nums ${timeClass}`}>{formatDuration(dur)}</div>
+          <div className={`font-mono ${compact ? 'text-lg' : 'text-[26px]'} font-extrabold leading-none tabular-nums ${timeClass} tracking-tighter`}>{formatDuration(dur)}</div>
         )}
       </div>
 
       {/* ─── ④ KPI 2×2 그리드 — compact 면 전체 섹션 숨김 ─ */}
       {!compact && (
-        <div className="mt-auto border-t border-gray-200 px-3 pb-2.5 pt-2">
-          <div className="-mt-4 mb-1 flex justify-end">
+        <div className="mt-auto border-t border-slate-100 px-4 pb-3.5 pt-3 bg-slate-50/50 rounded-b-xl">
+          <div className="-mt-6 mb-1.5 flex justify-end">
             <Tooltip title="비교 차트 보기" placement="top">
-              <span className="inline-flex h-5 w-5 items-center justify-center rounded-full bg-white text-gray-400 ring-1 ring-gray-200 transition-colors group-hover:bg-blue-50 group-hover:text-blue-600 group-hover:ring-blue-200">
-                <Radar className="h-3 w-3" />
+              <span className="inline-flex h-6 w-6 items-center justify-center rounded-full bg-white text-slate-400 shadow-sm border border-slate-200 transition-all group-hover:scale-110 group-hover:text-blue-600 group-hover:border-blue-200">
+                <BarChart3 className="h-3.5 w-3.5" />
               </span>
             </Tooltip>
           </div>
-          <div className="grid grid-cols-2 gap-x-3 gap-y-1.5 text-xs">
+          <div className="grid grid-cols-2 gap-x-4 gap-y-2 text-[11px]">
             <Stat label="응대" value={ansCnt > 0 ? String(ansCnt) : '—'} />
             <Stat label="자율처리율" value={selfRate != null ? `${Math.round(selfRate)}%` : '—'} valueColor={selfRateColor} align="right" />
             <Stat label="통화시간" value={talkSec > 0 ? formatDuration(talkSec) : '—'} />
@@ -141,8 +128,8 @@ function AgentCardImpl({ row, nowMs, thresholds, onActivate, compact = false }: 
       {/* compact 모드: 우하단에 절대 위치 비교 아이콘 (KPI 섹션이 없으므로 별도) */}
       {compact && (
         <Tooltip title="비교 차트 보기" placement="top">
-          <span className="absolute bottom-1.5 right-1.5 inline-flex h-4 w-4 items-center justify-center rounded-full bg-white text-gray-400 ring-1 ring-gray-200 transition-colors group-hover:bg-blue-50 group-hover:text-blue-600 group-hover:ring-blue-200">
-            <Radar className="h-2.5 w-2.5" />
+          <span className="absolute bottom-2 right-2 inline-flex h-5 w-5 items-center justify-center rounded-full bg-white text-slate-400 shadow-sm border border-slate-100 transition-all group-hover:text-blue-600 group-hover:border-blue-200">
+            <BarChart3 className="h-3 w-3" />
           </span>
         </Tooltip>
       )}
@@ -154,9 +141,9 @@ function AgentCardImpl({ row, nowMs, thresholds, onActivate, compact = false }: 
 
 function Stat({ label, value, valueColor, align }: { label: string; value: string; valueColor?: string; align?: 'left' | 'right' }) {
   return (
-    <div className={`flex items-baseline gap-1 min-w-0 ${align === 'right' ? 'justify-end' : ''}`}>
-      <span className="text-gray-500">{label}</span>
-      <span className={`font-mono font-semibold tabular-nums truncate ${valueColor ?? 'text-gray-900'}`}>{value}</span>
+    <div className={`flex items-center justify-between gap-1 min-w-0 ${align === 'right' ? 'flex-row-reverse' : ''}`}>
+      <span className="text-slate-500 font-medium shrink-0">{label}</span>
+      <span className={`font-mono font-bold tabular-nums truncate ${valueColor ?? 'text-slate-700'}`}>{value}</span>
     </div>
   );
 }
@@ -168,4 +155,19 @@ function formatThresholdMinutes(m: number): string {
   return `${Math.round(m * 60)}초`;
 }
 
-export default memo(AgentCardImpl);
+/**
+ * [성능 최적화] 커스텀 memo 비교 함수
+ * 매초 갱신되는 nowMs가 들어오더라도, 실제 표시되는 '초(Duration)'가 변하지 않았으면 리렌더링하지 않음.
+ */
+export default memo(AgentCardImpl, (prev, next) => {
+  // 데이터가 바뀌었거나 핵심 설정이 바뀌면 무조건 리렌더링
+  if (prev.row !== next.row) return false;
+  if (prev.compact !== next.compact) return false;
+  if (prev.thresholds !== next.thresholds) return false;
+
+  // 표시되는 '초' 단위 시간이 변했을 때만 렌더링 허용
+  const prevSec = liveDurationSec(prev.row, prev.nowMs);
+  const nextSec = liveDurationSec(next.row, next.nowMs);
+
+  return prevSec === nextSec;
+});

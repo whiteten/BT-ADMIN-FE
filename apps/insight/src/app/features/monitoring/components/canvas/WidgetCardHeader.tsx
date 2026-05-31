@@ -1,6 +1,6 @@
 import { Settings, X } from 'lucide-react';
 import { VIZ_ICON, VIZ_LABELS } from '../../constants/monitoringConstants';
-import type { VizType, Widget } from '../../types';
+import type { CustomWidget, TemplateWidget, VizType, Widget } from '../../types';
 
 interface WidgetCardHeaderProps {
   widget: Widget;
@@ -8,6 +8,8 @@ interface WidgetCardHeaderProps {
   currentViz?: VizType;
   /** 시각화 전환 (TEMPLATE 전용) */
   onChangeViz?: (viz: VizType) => void;
+  /** 데이터셋명 또는 커스텀 위젯 유형명 (widget 객체에 없을 때 fallback 으로 사용 가능) */
+  sourceName?: string;
   /** 편집 모드일 때만 노출 — 설정/삭제 버튼 */
   editMode?: boolean;
   onSettings?: () => void;
@@ -27,6 +29,7 @@ export default function WidgetCardHeader({
   widget,
   currentViz,
   onChangeViz,
+  sourceName,
   editMode = false,
   onSettings,
   onDelete,
@@ -35,16 +38,40 @@ export default function WidgetCardHeader({
 }: WidgetCardHeaderProps) {
   const isTemplate = widget.kind === 'TEMPLATE';
 
+  // 우선순위: prop 으로 받은 sourceName > widget 객체 내의 이름 > ID 값
+  const displaySourceName =
+    sourceName ||
+    (isTemplate ? (widget as TemplateWidget).datasetName : (widget as CustomWidget).widgetTypeName) ||
+    (isTemplate ? `DS#${(widget as TemplateWidget).datasetId}` : (widget as CustomWidget).widgetTypeId);
+
   return (
     <div className={`flex items-center justify-between gap-3 bg-white px-4 h-[45px] min-h-[45px] ${editMode ? `cursor-move ${draggableClass}` : ''}`}>
-      {/* 좌측: 위젯 타이틀 (FCA BotDashboard 카드와 동일 스타일) */}
+      {/* 좌측: 위젯 타이틀 + 유형 정보 */}
       <div className="flex items-center gap-2 min-w-0 shrink-0">
-        <span className="text-base font-semibold text-[#495057] truncate">{widget.widgetName}</span>
-        {isTemplate && (
-          <span className="shrink-0 rounded bg-[var(--color-bt-primary-soft)] px-1.5 py-0.5 mono text-[9.5px] font-bold text-[var(--color-bt-primary)]" title="템플릿 위젯">
-            템플릿 · {currentViz ?? widget.defaultViz}
-          </span>
-        )}
+        <span className="text-base font-semibold text-[#495057] truncate" title={widget.widgetName}>
+          {widget.widgetName}
+        </span>
+        <div className="flex items-center gap-1.5 overflow-hidden">
+          {isTemplate ? (
+            <>
+              <span className="shrink-0 rounded bg-[var(--color-bt-primary-soft)] px-1.5 py-0.5 mono text-[9.5px] font-bold text-[var(--color-bt-primary)]" title="템플릿 위젯">
+                템플릿 · {currentViz ?? widget.defaultViz}
+              </span>
+              <span className="shrink-0 text-[10.5px] text-[var(--color-bt-fg-muted)] truncate max-w-[120px]" title={`데이터셋: ${displaySourceName}`}>
+                {displaySourceName}
+              </span>
+            </>
+          ) : (
+            <>
+              <span className="shrink-0 rounded bg-[#f1f3f5] px-1.5 py-0.5 mono text-[9.5px] font-bold text-[#495057]" title="커스텀 위젯">
+                커스텀
+              </span>
+              <span className="shrink-0 text-[10.5px] text-[var(--color-bt-fg-muted)] truncate max-w-[120px]" title={`위젯 유형: ${displaySourceName}`}>
+                {displaySourceName}
+              </span>
+            </>
+          )}
+        </div>
       </div>
 
       {/* 가운데: 위젯이 portal 로 검색/필터/뷰토글 등을 주입하는 슬롯 */}

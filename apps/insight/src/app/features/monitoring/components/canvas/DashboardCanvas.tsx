@@ -9,12 +9,13 @@ import 'react-grid-layout/css/styles.css';
 import 'react-resizable/css/styles.css';
 import { toast } from '@/shared-util';
 import CustomWidgetCard from './CustomWidgetCard';
+import PlaceholderWidgetCard from './PlaceholderWidgetCard';
 import TemplateWidgetCard from './TemplateWidgetCard';
-import type { CustomWidget, TemplateWidget, Widget } from '../../types';
+import type { CustomWidget, PlaceholderWidget, TemplateWidget, Widget } from '../../types';
 
 const ResponsiveGridLayout = WidthProvider(Responsive);
 const DRAG_HANDLE_CLASS = 'widget-drag-handle';
-const GRID_MARGIN = 12;
+const GRID_MARGIN = 8; // 간격 최적화 (기존 12)
 const ROW_HEIGHT_DEFAULT = 40;
 
 interface GridLayoutItem {
@@ -41,10 +42,13 @@ interface DashboardCanvasProps {
   widgetData?: Record<string, WidgetDataEntry>;
   onWidgetsChange?: (next: Widget[]) => void;
   onLayoutChange?: (items: Array<{ widgetId: number; row: number; col: number; w: number; h: number }>) => void;
+  /** 슬롯(Placeholder)에서 위젯 추가 클릭 시 */
+  onAddWidgetAt?: (widgetId: number) => void;
   /** 커스텀 위젯이 설정 변경 등으로 모니터링 일시정지를 요청할 때 호출. */
   onRequestPause?: () => void;
   /** 화면 맞춤(월보드) 모드 — rowHeight 를 컨테이너 높이에 맞춰 동적 계산, 스크롤 없이 한 화면을 채움. */
   fitToScreen?: boolean;
+  children?: React.ReactNode;
 }
 
 export default function DashboardCanvas({
@@ -54,12 +58,15 @@ export default function DashboardCanvas({
   widgetData,
   onWidgetsChange,
   onLayoutChange,
+  onAddWidgetAt,
   onRequestPause,
   fitToScreen = false,
+  children,
 }: DashboardCanvasProps) {
   const navigate = useNavigate();
   const [deleteTarget, setDeleteTarget] = useState<Widget | null>(null);
 
+  // ─── 레이아웃 계산 ────────────────────────────────────────────────────
   // 화면 맞춤 모드 — 컨테이너(내용 영역) 높이를 측정해 rowHeight 를 역산한다.
   const containerRef = useRef<HTMLDivElement>(null);
   const [containerHeight, setContainerHeight] = useState(0);
@@ -67,21 +74,27 @@ export default function DashboardCanvas({
     const el = containerRef.current;
     if (!el) return;
     const ro = new ResizeObserver((entries) => {
-      for (const e of entries) setContainerHeight(e.contentRect.height);
+      for (const e of entries) {
+        // height 가 0 보다 클 때만 업데이트 (비정상 감지 방지)
+        if (e.contentRect.height > 0) {
+          setContainerHeight(e.contentRect.height);
+        }
+      }
     });
     ro.observe(el);
     return () => ro.disconnect();
   }, []);
 
-  // 위젯들이 차지하는 총 행수 (최하단 row + h).
-  const totalRows = useMemo(() => Math.max(1, ...widgets.map((w) => w.position.row + w.position.h)), [widgets]);
+  // 화면 맞춤(월보드) 기준: 전체 높이를 항상 12단위로 가정한다. (h: 12 가 100% 가 되도록)
+  const ROW_COUNT_FIXED = 12;
 
-  // 화면 맞춤이면 H = rows·rh + (rows-1)·margin + 2·padding(=margin) 을 만족하도록 rh 역산.
+  // 화면 맞춤이면 H = ROW_COUNT_FIXED·rh + (ROW_COUNT_FIXED+1)·margin 을 만족하도록 rh 역산.
   const rowHeight = useMemo(() => {
     if (!fitToScreen || containerHeight <= 0) return ROW_HEIGHT_DEFAULT;
-    const rh = (containerHeight - (totalRows + 1) * GRID_MARGIN) / totalRows;
-    return Math.max(20, Math.floor(rh));
-  }, [fitToScreen, containerHeight, totalRows]);
+    // RGL 공식 정밀 역산: rh = (ContainerHeight - (RowCount + 1) * margin) / RowCount
+    const rh = (containerHeight - (ROW_COUNT_FIXED + 1) * GRID_MARGIN) / ROW_COUNT_FIXED;
+    return Math.max(10, rh);
+  }, [fitToScreen, containerHeight]);
 
   // react-grid-layout 형식으로 변환
   const layouts = useMemo(() => {
@@ -111,8 +124,8 @@ export default function DashboardCanvas({
   const handleSettings = (w: Widget) => {
     if (w.kind === 'TEMPLATE') {
       navigate(`/insight/monitoring/dashboards/${dashboardId}/edit/widget/${w.widgetId}/template`);
-    } else {
-      toast.info(`커스텀 위젯 옵션 사이드시트 (다음 단계 구현) — ${w.widgetTypeId}`);
+    } else if (w.kind === 'CUSTOM') {
+      toast.info(`위젯 옵션 사이드시트 (다음 단계 구현) — ${w.widgetTypeId}`);
     }
   };
 
@@ -120,12 +133,23 @@ export default function DashboardCanvas({
     if (!deleteTarget) return;
     const next = widgets.filter((w) => w.widgetId !== deleteTarget.widgetId);
     onWidgetsChange?.(next);
-    toast.success(`"${deleteTarget.widgetName}"이(가) 삭제되었습니다.`);
+    toast.success(`위젯이 삭제되었습니다.`);
     setDeleteTarget(null);
   };
 
   return (
-    <div ref={containerRef} className={`flex-1 ${fitToScreen ? 'overflow-hidden p-3' : 'overflow-auto px-5 py-5'} ${editMode ? 'grid-pattern' : 'bg-[var(--color-bt-bg-canvas)]'}`}>
+    <div
+      ref={containerRef}
+      className={`flex-1 h-full min-h-0 ${fitToScreen ? 'overflow-hidden p-0' : 'overflow-auto p-4'} ${editMode ? 'bg-[#e8eaed]' : 'bg-[var(--color-bt-bg-canvas)]'}`}
+      style={
+        editMode
+          ? {
+              backgroundImage: 'linear-gradient(to right, #d8dce3 1px, transparent 1px), linear-gradient(to bottom, #d8dce3 1px, transparent 1px)',
+              backgroundSize: '24px 24px',
+            }
+          : {}
+      }
+    >
       {/* Responsive Grid Layout — 12-col */}
       <ResponsiveGridLayout
         className="layout"
@@ -150,7 +174,7 @@ export default function DashboardCanvas({
                 onDelete={() => setDeleteTarget(widget)}
                 draggableClass={DRAG_HANDLE_CLASS}
               />
-            ) : (
+            ) : widget.kind === 'CUSTOM' ? (
               <CustomWidgetCard
                 widget={widget as CustomWidget}
                 editMode={editMode}
@@ -160,10 +184,20 @@ export default function DashboardCanvas({
                 onRequestPause={onRequestPause}
                 draggableClass={DRAG_HANDLE_CLASS}
               />
+            ) : (
+              <PlaceholderWidgetCard
+                widget={widget as PlaceholderWidget}
+                onAdd={() => onAddWidgetAt?.(widget.widgetId)}
+                onDelete={() => setDeleteTarget(widget)}
+                draggableClass={DRAG_HANDLE_CLASS}
+              />
             )}
           </div>
         ))}
       </ResponsiveGridLayout>
+
+      {/* 푸터 영역 (패널 추가 등) */}
+      {children}
 
       {/* 삭제 확인 모달 */}
       <Modal

@@ -1,6 +1,6 @@
 import { useNavigate } from 'react-router-dom';
 import { useQueryClient } from '@tanstack/react-query';
-import { Card, Tag } from 'antd';
+import { Card, Tag, Tooltip } from 'antd';
 import { toast } from '@/shared-util';
 import { DOMAIN_LABELS } from '../constants/monitoringConstants';
 import { dashboardKeys, useDeleteDashboard } from '../hooks/useDashboardQueries';
@@ -90,18 +90,51 @@ export default function DashboardCard({ dashboard }: DashboardCardProps) {
     >
       <div className="flex flex-col text-[#495057] gap-2">
         <div className="flex items-center">
-          <span className="w-[90px] text-gray-500">도메인</span>
-          <Tag color="blue" className="font-mono text-xs">
+          <span className="w-[90px] text-gray-500 text-[13px]">도메인</span>
+          <Tag color="blue" className="font-mono text-[11px] !m-0">
             {dashboard.domainCode} · {domainLabel}
           </Tag>
         </div>
         <div className="flex items-center">
-          <span className="w-[90px] text-gray-500">상태</span>
-          {dashboard.menuRegistered ? <Tag color="green">메뉴 등록</Tag> : <Tag color="orange">초안</Tag>}
+          <span className="w-[90px] text-gray-500 text-[13px]">위젯</span>
+          {dashboard.widgetNames && dashboard.widgetNames.length > 0 ? (
+            <Tooltip
+              title={
+                <div className="flex flex-col gap-1 py-1">
+                  {dashboard.widgetNames.map((name, idx) => (
+                    <div key={idx} className="text-[12px] flex items-center gap-2">
+                      <span className="w-4 h-4 flex items-center justify-center rounded bg-white/20 text-[10px] font-bold">{idx + 1}</span>
+                      {name}
+                    </div>
+                  ))}
+                </div>
+              }
+              overlayInnerStyle={{ padding: '8px 12px' }}
+            >
+              <span className="text-[13px] font-medium text-[var(--color-bt-primary)] border-b border-dashed border-[var(--color-bt-primary)]/40 cursor-help">
+                {dashboard.widgetNames[0]}
+                {dashboard.widgetNames.length > 1 && <span className="ml-1 text-[11px] opacity-70">외 {dashboard.widgetNames.length - 1}개</span>}
+              </span>
+            </Tooltip>
+          ) : (
+            <span className="text-gray-300 text-[13px]">-</span>
+          )}
+        </div>
+        <div className="flex items-center">
+          <span className="w-[90px] text-gray-500 text-[13px]">상태</span>
+          {dashboard.menuRegistered ? (
+            <Tag color="green" className="!m-0 text-[11px]">
+              메뉴 등록
+            </Tag>
+          ) : (
+            <Tag color="orange" className="!m-0 text-[11px]">
+              초안
+            </Tag>
+          )}
         </div>
         <div className="flex">
-          <span className="w-[90px] text-gray-500 shrink-0">설명</span>
-          <span className="flex-1 truncate text-gray-700" title={dashboard.description ?? undefined}>
+          <span className="w-[90px] text-gray-500 shrink-0 text-[13px]">설명</span>
+          <span className="flex-1 truncate text-gray-700 text-[13px]" title={dashboard.description ?? undefined}>
             {dashboard.description || <span className="text-gray-300">-</span>}
           </span>
         </div>

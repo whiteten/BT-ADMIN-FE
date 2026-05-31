@@ -2,12 +2,14 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { useLocation, useNavigate, useParams } from 'react-router-dom';
 import { useQueryClient } from '@tanstack/react-query';
 import { Button } from 'antd';
+import { Plus } from 'lucide-react';
 import { useBreadcrumbStore } from '@/shared-store';
 import { toast } from '@/shared-util';
 import DashboardHeader from '../../features/monitoring/components/DashboardHeader';
 import DashboardCanvas from '../../features/monitoring/components/canvas/DashboardCanvas';
 import EmptyCanvas from '../../features/monitoring/components/canvas/EmptyCanvas';
-import WidgetCatalogDrawer from '../../features/monitoring/components/canvas/WidgetCatalogDrawer';
+import LayoutPickerModal from '../../features/monitoring/components/canvas/LayoutPickerModal';
+import WidgetLibraryModal from '../../features/monitoring/components/canvas/WidgetLibraryModal';
 import { dashboardKeys, useCreateWidget, useDeleteWidget, useGetDashboard, useUpdateDashboard, useUpdateLayout } from '../../features/monitoring/hooks/useDashboardQueries';
 import { useDashboardSocket } from '../../features/monitoring/hooks/useDashboardSocket';
 import { useWidgetUserSettingsMap } from '../../features/monitoring/hooks/useWidgetSettingQueries';
@@ -33,7 +35,9 @@ export default function DashboardView() {
   const initialMode: Mode = explicitInitialMode ?? (pathIsEdit ? 'edit' : 'view');
   const [mode, setMode] = useState<Mode>(initialMode);
 
-  const [isCatalogOpen, setIsCatalogOpen] = useState(false);
+  const [isLibraryOpen, setIsLibraryOpen] = useState(false);
+  const [isLayoutPickerOpen, setIsLayoutPickerOpen] = useState(false);
+  const [replacingWidgetId, setReplacingWidgetId] = useState<number | null>(null);
 
   const { data: dashboard, isLoading } = useGetDashboard({
     params: { dashboardId },
@@ -67,13 +71,16 @@ export default function DashboardView() {
   const rootRef = useRef<HTMLDivElement>(null);
   const [fitToScreen, setFitToScreen] = useState(false);
 
+  // 대시보드 데이터 로드 시 저장된 fitToScreen 값 적용
   useEffect(() => {
-    const onFsChange = () => setFitToScreen(!!document.fullscreenElement);
-    document.addEventListener('fullscreenchange', onFsChange);
-    return () => document.removeEventListener('fullscreenchange', onFsChange);
-  }, []);
+    if (dashboard) setFitToScreen(dashboard.fitToScreen);
+  }, [dashboard]);
 
-  const handleToggleFit = () => {
+  /** 화면 맞춤(스케일링) 토글 — 브라우저 풀스크린과 별개로 UI 영역을 가득 채움 */
+  const handleToggleFit = () => setFitToScreen((v) => !v);
+
+  /** OS/브라우저 수준의 전체 화면 토글 (선택 사항) */
+  const handleToggleFullscreen = () => {
     if (!document.fullscreenElement) {
       rootRef.current?.requestFullscreen?.().catch((e) => console.warn('fullscreen request failed', e));
     } else {
@@ -84,10 +91,12 @@ export default function DashboardView() {
   useEffect(() => {
     if (mode === 'edit') {
       setMonitoringStarted(false);
-      setIsCatalogOpen(true);
+      // 편집 모드 진입 시 OS 전체화면은 가급적 해제 (필요 시)
       if (document.fullscreenElement) document.exitFullscreen?.().catch((e) => console.warn('exit fullscreen failed', e));
     } else {
-      setIsCatalogOpen(false);
+      setIsLibraryOpen(false);
+      setIsLayoutPickerOpen(false);
+      setReplacingWidgetId(null);
     }
   }, [mode]);
 
@@ -107,25 +116,24 @@ export default function DashboardView() {
     queryClient.invalidateQueries({ queryKey: dashboardKeys.widgets(dashboardId).queryKey });
   };
 
-  const { mutate: updateLayout, isPending: isSaving } = useUpdateLayout({
+  const { mutate: updateLayout, isPending: isSavingLayout } = useUpdateLayout({
     mutationOptions: {
       onSuccess: () => {
         invalidateDetail();
-        toast.success('대시보드가 저장되었습니다.');
-        setMode('view');
       },
     },
   });
 
-  const { mutate: updateDashboard } = useUpdateDashboard({
+  const { mutate: updateDashboard, isPending: isSavingDashboard } = useUpdateDashboard({
     mutationOptions: {
       onSuccess: () => {
         invalidateDetail();
         queryClient.invalidateQueries({ queryKey: dashboardKeys.list._def });
-        toast.success('이름이 변경되었습니다.');
       },
     },
   });
+
+  const isSaving = isSavingLayout || isSavingDashboard;
 
   const { mutate: deleteWidget } = useDeleteWidget({
     mutationOptions: {
@@ -141,6 +149,8 @@ export default function DashboardView() {
       onSuccess: () => {
         invalidateDetail();
         toast.success('위젯이 추가되었습니다.');
+        setIsLibraryOpen(false);
+        setReplacingWidgetId(null);
       },
       onError: () => toast.error('위젯 추가 중 오류가 발생했습니다.'),
     },
@@ -162,6 +172,8 @@ export default function DashboardView() {
 
   const handleSave = () => {
     if (isSaving) return;
+
+    // 1. 레이아웃(위젯 위치/크기) 저장
     updateLayout({
       dashboardId,
       items: widgets.map((w) => ({
@@ -172,6 +184,15 @@ export default function DashboardView() {
         h: w.position.h,
       })),
     });
+
+    // 2. 대시보드 속성(fitToScreen 등) 저장
+    updateDashboard({
+      dashboardId,
+      data: { fitToScreen },
+    });
+
+    toast.success('대시보드가 저장되었습니다.');
+    setMode('view');
   };
 
   const handleCancel = () => {
@@ -179,20 +200,37 @@ export default function DashboardView() {
     setMode('view');
   };
 
-  const handleRename = (next: string) => updateDashboard({ dashboardId, data: { dashboardName: next } });
+  const handleRename = (next: string) => {
+    updateDashboard({
+      dashboardId,
+      data: { dashboardName: next, fitToScreen },
+    });
+    toast.success('이름이 변경되었습니다.');
+  };
 
   const handleWidgetsChange = (next: Widget[]) => {
-    const removed = widgets.filter((prev) => !next.some((n) => n.widgetId === prev.widgetId));
+    const removed = widgets.filter((prev) => prev.widgetId > 0 && !next.some((n) => n.widgetId === prev.widgetId));
     removed.forEach((w) => deleteWidget(w.widgetId));
     setWidgets(next);
   };
 
   const handleAddTemplate = () => {
-    navigate(`/insight/monitoring/dashboards/${dashboardId}/edit/widget/create/template`, { state: { initialMode: 'edit' } });
+    const target = replacingWidgetId ? widgets.find((w) => w.widgetId === replacingWidgetId) : null;
+    navigate(`/insight/monitoring/dashboards/${dashboardId}/edit/widget/create/template`, {
+      state: {
+        initialMode: 'edit',
+        position: target?.position,
+        replacingWidgetId: replacingWidgetId,
+      },
+    });
   };
 
   const handleAddCustom = (catalogItem: CustomWidgetCatalogItem) => {
     if (isCreating) return;
+
+    const targetWidget = replacingWidgetId ? widgets.find((w) => w.widgetId === replacingWidgetId) : null;
+    const position = targetWidget ? targetWidget.position : { row: 0, col: 0, w: catalogItem.minW ?? 4, h: catalogItem.minH ?? 4 };
+
     createWidget({
       dashboardId,
       data: {
@@ -200,9 +238,63 @@ export default function DashboardView() {
         widgetName: catalogItem.widgetName,
         widgetTypeId: catalogItem.widgetTypeId,
         options: catalogItem.defaultOptions ?? {},
-        position: { row: 0, col: 0, w: catalogItem.minW ?? 4, h: catalogItem.minH ?? 4 },
+        position,
       },
     });
+
+    if (replacingWidgetId) {
+      setWidgets((prev) => prev.filter((w) => w.widgetId !== replacingWidgetId));
+    }
+  };
+
+  const handleLayoutSelect = (rows: number, cols: number) => {
+    if (rows === 0 && cols === 0) {
+      setIsLayoutPickerOpen(true);
+      return;
+    }
+    const nextWidgets: Widget[] = [];
+    const itemW = 12 / cols;
+    const itemH = 12 / rows;
+
+    for (let r = 0; r < rows; r++) {
+      for (let c = 0; c < cols; c++) {
+        nextWidgets.push({
+          widgetId: -(Date.now() + r * 10 + c),
+          dashboardId,
+          widgetName: `영역 ${r * cols + c + 1}`,
+          kind: 'PLACEHOLDER',
+          position: {
+            row: r * itemH,
+            col: c * itemW,
+            w: itemW,
+            h: itemH,
+          },
+        });
+      }
+    }
+    setWidgets(nextWidgets);
+    setFitToScreen(true);
+  };
+
+  const handleAddSlotSelect = (w: number, h: number) => {
+    const lastRow = widgets.reduce((max, widget) => Math.max(max, widget.position.row + widget.position.h), 0);
+    const newId = -Date.now();
+    setWidgets((prev) => [
+      ...prev,
+      {
+        widgetId: newId,
+        dashboardId,
+        widgetName: '새 영역',
+        kind: 'PLACEHOLDER',
+        position: { row: lastRow, col: 0, w, h },
+      },
+    ]);
+    setFitToScreen(true);
+  };
+
+  const handleAddWidgetAt = (widgetId: number) => {
+    setReplacingWidgetId(widgetId);
+    setIsLibraryOpen(true);
   };
 
   const isEmpty = widgets.length === 0;
@@ -226,15 +318,24 @@ export default function DashboardView() {
         onSave={handleSave}
         isSaving={isSaving}
         onCancel={handleCancel}
-        onOpenCatalog={() => setIsCatalogOpen(true)}
+        onAddSlot={() => setIsLayoutPickerOpen(true)}
       />
 
       {mode === 'edit' ? (
-        isEmpty ? (
-          <EmptyCanvas onAddTemplate={handleAddTemplate} onAddCustom={() => setIsCatalogOpen(true)} />
-        ) : (
-          <DashboardCanvas dashboardId={dashboardId} widgets={widgets} editMode={true} onWidgetsChange={handleWidgetsChange} />
-        )
+        <DashboardCanvas
+          dashboardId={dashboardId}
+          widgets={widgets}
+          editMode={true}
+          onWidgetsChange={handleWidgetsChange}
+          onAddWidgetAt={handleAddWidgetAt}
+          fitToScreen={fitToScreen}
+        >
+          {isEmpty && (
+            <div className="mt-4 flex flex-col gap-4">
+              <EmptyCanvas onLayoutSelect={handleLayoutSelect} />
+            </div>
+          )}
+        </DashboardCanvas>
       ) : isEmpty ? (
         <EmptyViewState canEdit={canEdit} onEnterEdit={() => setMode('edit')} />
       ) : (
@@ -248,7 +349,8 @@ export default function DashboardView() {
         />
       )}
 
-      <WidgetCatalogDrawer open={isCatalogOpen} onClose={() => setIsCatalogOpen(false)} onAddTemplate={handleAddTemplate} onAddCustom={handleAddCustom} />
+      <WidgetLibraryModal open={isLibraryOpen} onClose={() => setIsLibraryOpen(false)} onAddTemplate={handleAddTemplate} onAddCustom={handleAddCustom} />
+      <LayoutPickerModal open={isLayoutPickerOpen} onClose={() => setIsLayoutPickerOpen(false)} onSelect={handleAddSlotSelect} />
     </div>
   );
 }
