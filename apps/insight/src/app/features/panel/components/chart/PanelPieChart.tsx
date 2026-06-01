@@ -58,7 +58,7 @@ export default function PanelPieChart({ panel, reportId }: PanelPieChartProps) {
   }));
 
   return (
-    <ResponsiveContainer width="100%" height={220}>
+    <ResponsiveContainer width="100%" height="100%" minHeight={160}>
       <PieChart>
         <Pie
           data={data}

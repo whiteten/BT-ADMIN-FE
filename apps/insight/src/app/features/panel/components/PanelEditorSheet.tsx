@@ -1,6 +1,6 @@
 import { type ReactNode, useMemo, useState } from 'react';
 import { Button, Checkbox, Drawer, Input, Select, Tag } from 'antd';
-import { BarChart2, LineChart, PieChart, X } from 'lucide-react';
+import { X } from 'lucide-react';
 import { toast } from '@/shared-util';
 import { useGetDataSourceFields, useGetDatasets } from '../../dataset/hooks/useDatasetQueries';
 import type { FieldMetaItem } from '../../dataset/types';
@@ -11,7 +11,7 @@ import { useGetSearchConditions } from '../../search-condition/hooks/useSearchCo
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
-type ChartSubType = 'BAR' | 'LINE' | 'PIE';
+type ChartType = 'BAR' | 'LINE' | 'PIE' | 'RADAR' | 'KPI';
 type ActiveSlot = SlotType | null;
 
 interface PanelEditorSheetProps {
@@ -21,6 +21,10 @@ interface PanelEditorSheetProps {
   datasetId: number;
   onClose(): void;
   isDraft?: boolean;
+  /** 신규 패널 생성 시 사용할 초기 레이아웃 (빈 영역에서 전달) */
+  initialLayout?: PanelLayout;
+  /** 신규 패널 생성 완료 콜백 (빈 영역 제거 등) */
+  onSaved?(): void;
 }
 
 interface SlotDef {
@@ -40,11 +44,20 @@ const GRID_SLOTS: SlotDef[] = [
   { slotType: 'SORT', badge: 'S', title: '정렬', subtitle: '— ORDER BY', acceptsRole: 'BOTH' },
 ];
 
-function getChartSlots(chartType: ChartSubType): SlotDef[] {
+function getChartSlots(chartType: ChartType): SlotDef[] {
   if (chartType === 'PIE') {
     return [
       { slotType: 'SLICE', badge: 'S', title: '슬라이스 (디멘션)', subtitle: '— 카테고리 1개', maxItems: 1, acceptsRole: 'DIM' },
       { slotType: 'VALUE', badge: 'V', title: '값 (측정값)', subtitle: '— 측정값 1개', maxItems: 1, acceptsRole: 'MSR' },
+    ];
+  }
+  if (chartType === 'KPI') {
+    return [{ slotType: 'Y_AXIS', badge: 'V', title: '지표 값', subtitle: '— 측정값 1개', maxItems: 1, acceptsRole: 'MSR' }];
+  }
+  if (chartType === 'RADAR') {
+    return [
+      { slotType: 'X_AXIS', badge: 'A', title: '축 (디멘션)', subtitle: '— 카테고리 1개', maxItems: 1, acceptsRole: 'DIM' },
+      { slotType: 'Y_AXIS', badge: 'V', title: '값 (측정값)', subtitle: '— 측정값 1개+', acceptsRole: 'MSR' },
     ];
   }
   return [
@@ -105,13 +118,15 @@ function updateInSlot<K extends keyof PanelFieldMap>(fieldName: string, key: K, 
 
 // ─── Main component ───────────────────────────────────────────────────────────
 
-export default function PanelEditorSheet({ reportId, panelType, panelId, datasetId: defaultDatasetId, onClose, isDraft }: PanelEditorSheetProps) {
+export default function PanelEditorSheet({ reportId, panelType, panelId, datasetId: defaultDatasetId, onClose, isDraft, initialLayout, onSaved }: PanelEditorSheetProps) {
   const { panels, addPanel, updatePanel: storeUpdatePanel } = useReportEditorStore();
   const existingPanel = panelId ? panels.find((p) => p.panelId === panelId) : undefined;
   const isEdit = !!existingPanel;
 
   const currentPanelType = panelType ?? existingPanel?.panelType ?? 'GRID';
   const isGrid = currentPanelType === 'GRID';
+  // 차트 종류는 진입 시점에 1회 확정 (모달에서 선택). 드로어 내 재선택 없음.
+  const chartType: ChartType = (isGrid ? 'BAR' : currentPanelType) as ChartType;
 
   // ─── Active slot state (which slot receives palette clicks) ───────────────
   const [activeSlot, setActiveSlot] = useState<ActiveSlot>(null);
@@ -120,6 +135,7 @@ export default function PanelEditorSheet({ reportId, panelType, panelId, dataset
   const [title, setTitle] = useState(existingPanel?.title ?? '');
   const [layout] = useState<PanelLayout>(() => {
     if (existingPanel?.layout) return existingPanel.layout;
+    if (initialLayout) return initialLayout;
     if (isGrid) return { x: 0, y: 0, w: 12, h: 6 };
     // Chart: 6W, fill left→right then new row
     if (panels.length === 0) return { x: 0, y: 0, w: 6, h: 6 };
@@ -130,7 +146,7 @@ export default function PanelEditorSheet({ reportId, panelType, panelId, dataset
     if (leftPanel && !rightOccupied) return { x: 6, y: leftPanel.layout.y, w: 6, h: 6 };
     return { x: 0, y: maxBottom, w: 6, h: 6 };
   });
-  const [selectedDatasetId, setSelectedDatasetId] = useState(defaultDatasetId);
+  const [selectedDatasetId, setSelectedDatasetId] = useState(existingPanel?.datasetId ?? defaultDatasetId);
 
   // ─── GRID slot state ───────────────────────────────────────────────────────
   const existingFieldMap = existingPanel?.fieldMap ?? [];
@@ -141,12 +157,11 @@ export default function PanelEditorSheet({ reportId, panelType, panelId, dataset
   const [showSumRow, setShowSumRow] = useState(() => (existingPanel?.chartOptions as { showSumRow?: boolean } | undefined)?.showSumRow ?? true);
 
   // ─── CHART slot state ──────────────────────────────────────────────────────
-  const [chartSubType, setChartSubType] = useState<ChartSubType>((['BAR', 'LINE', 'PIE'].includes(currentPanelType) ? currentPanelType : 'BAR') as ChartSubType);
-  const [xAxisFields, setXAxisFields] = useState<PanelFieldMap[]>(existingFieldMap.filter((f) => f.slotType === 'X_AXIS'));
-  const [yAxisFields, setYAxisFields] = useState<PanelFieldMap[]>(existingFieldMap.filter((f) => f.slotType === 'Y_AXIS'));
+  const [xAxisFields, setXAxisFields] = useState<PanelFieldMap[]>(existingFieldMap.filter((f) => f.slotType === 'X_AXIS' || f.slotType === 'AXIS'));
+  const [yAxisFields, setYAxisFields] = useState<PanelFieldMap[]>(existingFieldMap.filter((f) => f.slotType === 'Y_AXIS' || (f.slotType === 'VALUE' && chartType === 'KPI')));
   const [seriesFields, setSeriesFields] = useState<PanelFieldMap[]>(existingFieldMap.filter((f) => f.slotType === 'SERIES'));
   const [sliceFields, setSliceFields] = useState<PanelFieldMap[]>(existingFieldMap.filter((f) => f.slotType === 'SLICE'));
-  const [pieValueFields, setPieValueFields] = useState<PanelFieldMap[]>(existingFieldMap.filter((f) => f.slotType === 'VALUE' && chartSubType === 'PIE'));
+  const [pieValueFields, setPieValueFields] = useState<PanelFieldMap[]>(existingFieldMap.filter((f) => f.slotType === 'VALUE' && chartType === 'PIE'));
 
   // ─── Chart options state ───────────────────────────────────────────────────
   const [chartDirection, setChartDirection] = useState<'vertical' | 'horizontal'>('vertical');
@@ -182,7 +197,7 @@ export default function PanelEditorSheet({ reportId, panelType, panelId, dataset
     VALUE: { fields: isGrid ? valueFields : pieValueFields, setter: isGrid ? setValueFields : setPieValueFields, maxItems: isGrid ? undefined : 1 },
     SORT: { fields: sortFields, setter: setSortFields },
     X_AXIS: { fields: xAxisFields, setter: setXAxisFields, maxItems: 1 },
-    Y_AXIS: { fields: yAxisFields, setter: setYAxisFields },
+    Y_AXIS: { fields: yAxisFields, setter: setYAxisFields, maxItems: chartType === 'KPI' ? 1 : undefined },
     SERIES: { fields: seriesFields, setter: setSeriesFields },
     SLICE: { fields: sliceFields, setter: setSliceFields, maxItems: 1 },
   };
@@ -193,6 +208,7 @@ export default function PanelEditorSheet({ reportId, panelType, panelId, dataset
       onSuccess: (panel) => {
         addPanel(panel);
         toast.success('패널이 추가되었습니다.');
+        onSaved?.();
         onClose();
       },
     },
@@ -224,7 +240,7 @@ export default function PanelEditorSheet({ reportId, panelType, panelId, dataset
       ];
     }
     let slotFields: PanelFieldMap[];
-    if (chartSubType === 'PIE') {
+    if (chartType === 'PIE') {
       slotFields = [
         ...sliceFields.map((f, i) => normalizeField({ ...f, slotType: 'SLICE' as SlotType, slotOrder: i })),
         ...pieValueFields.map((f, i) => normalizeField({ ...f, slotType: 'VALUE' as SlotType, slotOrder: i })),
@@ -245,7 +261,7 @@ export default function PanelEditorSheet({ reportId, panelType, panelId, dataset
         isCalcField: false,
         topN: topNValue,
         sortDirection: topNSortDir,
-        otherGrouping: chartSubType === 'PIE' ? otherGroupingEnabled : false,
+        otherGrouping: chartType === 'PIE' ? otherGroupingEnabled : false,
       });
     }
     return slotFields;
@@ -259,10 +275,11 @@ export default function PanelEditorSheet({ reportId, panelType, panelId, dataset
   const handleSave = () => {
     const fieldMap = buildFieldMap();
     const chartOptions = buildChartOptions();
-    const data = { panelType: (isGrid ? 'GRID' : chartSubType) as PanelType, title, layout, fieldMap, chartOptions };
+    const data = { panelType: (isGrid ? 'GRID' : chartType) as PanelType, title, datasetId: selectedDatasetId, layout, fieldMap, chartOptions };
     if (isDraft) {
       addPanel({ panelId: -Date.now(), reportId: 0, ...data });
       toast.success('패널이 추가되었습니다.');
+      onSaved?.();
       onClose();
       return;
     }
@@ -293,7 +310,7 @@ export default function PanelEditorSheet({ reportId, panelType, panelId, dataset
     if (isGrid) {
       if (isMsr) addToSlot(field, setValueFields, 'VALUE');
       else addToSlot(field, setGroupByFields, 'ROW');
-    } else if (chartSubType === 'PIE') {
+    } else if (chartType === 'PIE') {
       if (!isMsr) addToSlot(field, setSliceFields, 'SLICE', 1);
       else addToSlot(field, setPieValueFields, 'VALUE', 1);
     } else {
@@ -307,7 +324,7 @@ export default function PanelEditorSheet({ reportId, panelType, panelId, dataset
     if (isGrid) {
       setGroupByFields(dimFields.map((f, i) => makeFieldMapEntry(f, 'ROW', i)));
       setValueFields([...msrFields, ...calcDatasetFields].map((f, i) => makeFieldMapEntry(f, 'VALUE', i)));
-    } else if (chartSubType === 'PIE') {
+    } else if (chartType === 'PIE') {
       setSliceFields(dimFields.slice(0, 1).map((f, i) => makeFieldMapEntry(f, 'SLICE', i)));
       setPieValueFields(msrFields.slice(0, 1).map((f, i) => makeFieldMapEntry(f, 'VALUE', i)));
     } else {
@@ -343,7 +360,7 @@ export default function PanelEditorSheet({ reportId, panelType, panelId, dataset
   const fieldDisplayMap = useMemo(() => new Map(fields.map((f) => [f.fieldName, f.displayName])), [fields]);
 
   // ─── Active slot label (for palette hint) ─────────────────────────────────
-  const activeSlotDef = activeSlot ? [...GRID_SLOTS, ...getChartSlots(chartSubType), FILTER_SLOT_DEF].find((s) => s.slotType === activeSlot) : null;
+  const activeSlotDef = activeSlot ? [...GRID_SLOTS, ...getChartSlots(chartType), FILTER_SLOT_DEF].find((s) => s.slotType === activeSlot) : null;
 
   // check if active slot is full (FILTER has no limit)
   const activeSlotFull =
@@ -710,14 +727,14 @@ export default function PanelEditorSheet({ reportId, panelType, panelId, dataset
   };
 
   // ─── Top N sort candidates ────────────────────────────────────────────────
-  const chartSortCandidates = [...(chartSubType === 'PIE' ? pieValueFields : yAxisFields), ...(chartSubType === 'PIE' ? sliceFields : xAxisFields)];
+  const chartSortCandidates = [...(chartType === 'PIE' ? pieValueFields : yAxisFields), ...(chartType === 'PIE' ? sliceFields : xAxisFields)];
 
   // ─── Drawer title ──────────────────────────────────────────────────────────
   const drawerTitle = (
     <span className="flex items-center gap-1.5 text-sm">
       패널 편집 —{' '}
       <Tag color="processing" className="!mb-0 font-mono">
-        {isGrid ? 'GRID' : chartSubType}
+        {isGrid ? 'GRID' : chartType}
       </Tag>
     </span>
   );
@@ -793,142 +810,118 @@ export default function PanelEditorSheet({ reportId, panelType, panelId, dataset
           </>
         )}
 
-        {/* CHART layout */}
+        {/* CHART layout — 종류는 진입 시점 확정(모달). 드로어 내 재선택 없음 */}
         {!isGrid && (
           <>
-            {/* Chart type selector */}
-            <div className="rounded border border-[var(--color-bt-border)] bg-white p-2.5">
-              <span className="mb-2 block text-xs font-semibold">차트 종류</span>
-              <div className="grid grid-cols-3 gap-1.5">
-                {[
-                  { type: 'BAR' as ChartSubType, Icon: BarChart2, label: 'BAR' },
-                  { type: 'LINE' as ChartSubType, Icon: LineChart, label: 'LINE' },
-                  { type: 'PIE' as ChartSubType, Icon: PieChart, label: 'PIE' },
-                ].map(({ type, Icon, label }) => (
-                  <button
-                    key={type}
-                    type="button"
-                    onClick={() => {
-                      setChartSubType(type);
-                      setActiveSlot(null);
-                    }}
-                    className={`flex flex-col items-center gap-1 rounded border py-2 font-mono text-xs font-bold transition-colors ${
-                      chartSubType === type
-                        ? 'border-[var(--color-bt-primary)] bg-[var(--color-bt-primary)] text-white'
-                        : 'border-[var(--color-bt-border)] bg-white text-[var(--color-bt-fg-muted)] hover:border-[var(--color-bt-primary)]'
-                    }`}
-                  >
-                    <Icon className="h-4 w-4" />
-                    {label}
-                  </button>
-                ))}
-              </div>
-            </div>
-
             {/* Field palette */}
             {renderFieldPalette()}
 
             {/* Chart slots */}
-            {getChartSlots(chartSubType).map(renderSlot)}
+            {getChartSlots(chartType).map(renderSlot)}
             {renderFilterSlot()}
 
-            {/* Top N */}
-            <div className="rounded border border-[var(--color-bt-border)] bg-white p-2.5">
-              <div className="mb-2 flex items-center gap-2">
-                <span className="text-sm font-semibold">Top N</span>
-                <Checkbox className="ml-auto" checked={topNEnabled} onChange={(e) => setTopNEnabled(e.target.checked)}>
-                  사용
-                </Checkbox>
-              </div>
-              {topNEnabled && (
-                <div className="space-y-2">
-                  <div className="flex items-center gap-2">
-                    <Select
-                      size="small"
-                      placeholder="정렬 기준 필드"
-                      className="flex-1"
-                      value={topNSortField || undefined}
-                      onChange={setTopNSortField}
-                      options={chartSortCandidates.map((f) => ({ value: f.fieldName, label: f.fieldName }))}
-                      popupMatchSelectWidth={false}
-                    />
-                    <Button size="small" type={topNSortDir === 'DESC' ? 'primary' : 'default'} onClick={() => setTopNSortDir((d) => (d === 'ASC' ? 'DESC' : 'ASC'))}>
-                      {topNSortDir === 'ASC' ? '↑ ASC' : '↓ DESC'}
-                    </Button>
-                  </div>
-                  <div className="flex items-center gap-1.5">
-                    {TOP_N_PRESETS.map((n) => (
-                      <Button key={n} size="small" type={topNValue === n ? 'primary' : 'default'} onClick={() => setTopNValue(n)}>
-                        {n}
-                      </Button>
-                    ))}
-                    <Input
-                      size="small"
-                      type="number"
-                      min={1}
-                      className="w-16"
-                      value={topNValue}
-                      onChange={(e) => {
-                        const v = parseInt(e.target.value, 10);
-                        if (!isNaN(v) && v > 0) setTopNValue(v);
-                      }}
-                    />
-                  </div>
-                  {chartSubType === 'PIE' && (
-                    <Checkbox checked={otherGroupingEnabled} onChange={(e) => setOtherGroupingEnabled(e.target.checked)}>
-                      기타 합산
-                    </Checkbox>
-                  )}
-                </div>
-              )}
-            </div>
-
-            {/* Chart options */}
-            <div className="space-y-3">
-              {chartSubType === 'BAR' && (
-                <div className="rounded border border-[var(--color-bt-border)] bg-white p-2.5">
-                  <span className="mb-2 block text-sm font-semibold">방향</span>
-                  <div className="flex gap-2">
-                    {(['vertical', 'horizontal'] as const).map((d) => (
-                      <Button key={d} size="small" type={chartDirection === d ? 'primary' : 'default'} onClick={() => setChartDirection(d)}>
-                        {d === 'vertical' ? '수직' : '수평'}
-                      </Button>
-                    ))}
-                  </div>
-                </div>
-              )}
-              <div className="flex items-center gap-2 rounded border border-[var(--color-bt-border)] bg-white px-2.5 py-2">
-                <span className="text-sm font-semibold">데이터 라벨</span>
-                <Checkbox className="ml-auto" checked={showDataLabel} onChange={(e) => setShowDataLabel(e.target.checked)}>
-                  표시
-                </Checkbox>
-              </div>
-              <div className="flex items-center gap-2 rounded border border-[var(--color-bt-border)] bg-white px-2.5 py-2">
-                <span className="text-sm font-semibold">범례</span>
-                <Checkbox className="ml-auto" checked={showLegend} onChange={(e) => setShowLegend(e.target.checked)}>
-                  표시
-                </Checkbox>
-              </div>
-              {chartSubType !== 'PIE' && (
+            {/* Top N — KPI 제외 */}
+            {chartType !== 'KPI' && (
+              <>
+                {/* Top N */}
                 <div className="rounded border border-[var(--color-bt-border)] bg-white p-2.5">
                   <div className="mb-2 flex items-center gap-2">
-                    <span className="text-sm font-semibold">목표선</span>
-                    <Checkbox className="ml-auto" checked={goalLineEnabled} onChange={(e) => setGoalLineEnabled(e.target.checked)}>
+                    <span className="text-sm font-semibold">Top N</span>
+                    <Checkbox className="ml-auto" checked={topNEnabled} onChange={(e) => setTopNEnabled(e.target.checked)}>
                       사용
                     </Checkbox>
                   </div>
-                  {goalLineEnabled && (
-                    <Input
-                      size="small"
-                      type="number"
-                      placeholder="목표값 입력"
-                      value={goalLineValue ?? ''}
-                      onChange={(e) => setGoalLineValue(e.target.value ? Number(e.target.value) : undefined)}
-                    />
+                  {topNEnabled && (
+                    <div className="space-y-2">
+                      <div className="flex items-center gap-2">
+                        <Select
+                          size="small"
+                          placeholder="정렬 기준 필드"
+                          className="flex-1"
+                          value={topNSortField || undefined}
+                          onChange={setTopNSortField}
+                          options={chartSortCandidates.map((f) => ({ value: f.fieldName, label: f.fieldName }))}
+                          popupMatchSelectWidth={false}
+                        />
+                        <Button size="small" type={topNSortDir === 'DESC' ? 'primary' : 'default'} onClick={() => setTopNSortDir((d) => (d === 'ASC' ? 'DESC' : 'ASC'))}>
+                          {topNSortDir === 'ASC' ? '↑ ASC' : '↓ DESC'}
+                        </Button>
+                      </div>
+                      <div className="flex items-center gap-1.5">
+                        {TOP_N_PRESETS.map((n) => (
+                          <Button key={n} size="small" type={topNValue === n ? 'primary' : 'default'} onClick={() => setTopNValue(n)}>
+                            {n}
+                          </Button>
+                        ))}
+                        <Input
+                          size="small"
+                          type="number"
+                          min={1}
+                          className="w-16"
+                          value={topNValue}
+                          onChange={(e) => {
+                            const v = parseInt(e.target.value, 10);
+                            if (!isNaN(v) && v > 0) setTopNValue(v);
+                          }}
+                        />
+                      </div>
+                      {chartType === 'PIE' && (
+                        <Checkbox checked={otherGroupingEnabled} onChange={(e) => setOtherGroupingEnabled(e.target.checked)}>
+                          기타 합산
+                        </Checkbox>
+                      )}
+                    </div>
                   )}
                 </div>
-              )}
-            </div>
+
+                {/* Chart options */}
+                <div className="space-y-3">
+                  {chartType === 'BAR' && (
+                    <div className="rounded border border-[var(--color-bt-border)] bg-white p-2.5">
+                      <span className="mb-2 block text-sm font-semibold">방향</span>
+                      <div className="flex gap-2">
+                        {(['vertical', 'horizontal'] as const).map((d) => (
+                          <Button key={d} size="small" type={chartDirection === d ? 'primary' : 'default'} onClick={() => setChartDirection(d)}>
+                            {d === 'vertical' ? '수직' : '수평'}
+                          </Button>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                  <div className="flex items-center gap-2 rounded border border-[var(--color-bt-border)] bg-white px-2.5 py-2">
+                    <span className="text-sm font-semibold">데이터 라벨</span>
+                    <Checkbox className="ml-auto" checked={showDataLabel} onChange={(e) => setShowDataLabel(e.target.checked)}>
+                      표시
+                    </Checkbox>
+                  </div>
+                  <div className="flex items-center gap-2 rounded border border-[var(--color-bt-border)] bg-white px-2.5 py-2">
+                    <span className="text-sm font-semibold">범례</span>
+                    <Checkbox className="ml-auto" checked={showLegend} onChange={(e) => setShowLegend(e.target.checked)}>
+                      표시
+                    </Checkbox>
+                  </div>
+                  {chartType !== 'PIE' && (
+                    <div className="rounded border border-[var(--color-bt-border)] bg-white p-2.5">
+                      <div className="mb-2 flex items-center gap-2">
+                        <span className="text-sm font-semibold">목표선</span>
+                        <Checkbox className="ml-auto" checked={goalLineEnabled} onChange={(e) => setGoalLineEnabled(e.target.checked)}>
+                          사용
+                        </Checkbox>
+                      </div>
+                      {goalLineEnabled && (
+                        <Input
+                          size="small"
+                          type="number"
+                          placeholder="목표값 입력"
+                          value={goalLineValue ?? ''}
+                          onChange={(e) => setGoalLineValue(e.target.value ? Number(e.target.value) : undefined)}
+                        />
+                      )}
+                    </div>
+                  )}
+                </div>
+              </>
+            )}
           </>
         )}
       </div>

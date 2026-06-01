@@ -154,7 +154,9 @@ export const reportApi = {
   },
 
   updatePanelLayouts: async (reportId: number, layouts: PanelLayoutUpdateItem[]): Promise<void> => {
-    await apiClient.put('/insight-statistics-panel-layout-update', layouts, { params: { reportId } });
+    // BE DTO(StatPanelLayoutRequest)는 layoutX/Y/W/H 필드 — createPanel 과 동일하게 매핑해서 전송
+    const body = layouts.map((l) => ({ panelId: l.panelId, layoutX: l.x, layoutY: l.y, layoutW: l.w, layoutH: l.h }));
+    await apiClient.put('/insight-statistics-panel-layout-update', body, { params: { reportId } });
   },
 
   publishReport: async (reportId: number, data: PublishDatas): Promise<{ menuId: number }> => {
@@ -182,11 +184,15 @@ export const reportApi = {
   },
 
   getUserLayout: async (reportId: number): Promise<PanelLayoutUpdateItem[]> => {
-    const response = await apiClient.get<ApiResponse<{ items: PanelLayoutUpdateItem[] }>>('/insight-statistics-user-layout-get', { params: { reportId } });
-    return response.data?.data?.items ?? [];
+    // BE 응답(StatUserLayoutResponse)은 layoutX/Y/W/H — x/y/w/h 로 매핑
+    type UserLayoutRow = { panelId: number; layoutX: number; layoutY: number; layoutW: number; layoutH: number };
+    const response = await apiClient.get<ApiResponse<{ items: UserLayoutRow[] }>>('/insight-statistics-user-layout-get', { params: { reportId } });
+    return (response.data?.data?.items ?? []).map((l) => ({ panelId: l.panelId, x: l.layoutX, y: l.layoutY, w: l.layoutW, h: l.layoutH }));
   },
 
   saveUserLayout: async (reportId: number, layouts: PanelLayoutUpdateItem[]): Promise<void> => {
-    await apiClient.put('/insight-statistics-user-layout-save', layouts, { params: { reportId } });
+    // BE DTO(StatUserLayoutUpsertRequest)는 layoutX/Y/W/H 필드 — 매핑해서 전송
+    const body = layouts.map((l) => ({ panelId: l.panelId, layoutX: l.x, layoutY: l.y, layoutW: l.w, layoutH: l.h }));
+    await apiClient.put('/insight-statistics-user-layout-save', body, { params: { reportId } });
   },
 };

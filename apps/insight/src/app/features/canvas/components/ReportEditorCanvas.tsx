@@ -1,7 +1,7 @@
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { Button, Tag } from 'antd';
-import { Globe } from 'lucide-react';
-import CanvasLayout from './CanvasLayout';
+import { Globe, Plus } from 'lucide-react';
+import CanvasLayout, { type CanvasLayoutRef } from './CanvasLayout';
 import GlobalFilter from '../../global-filter/components/GlobalFilter';
 import PublishDialog from '../../report/components/PublishDialog';
 import { DOMAIN_LABELS, DOMAIN_TAG_COLOR } from '../../report/constants/reportIconConstants';
@@ -15,6 +15,7 @@ interface ReportEditorCanvasProps {
 export default function ReportEditorCanvas({ reportId, onNavigateList: _onNavigateList }: ReportEditorCanvasProps) {
   const { report, isDirty } = useReportEditorStore();
   const [isPublishDialogOpen, setIsPublishDialogOpen] = useState(false);
+  const canvasRef = useRef<CanvasLayoutRef>(null);
 
   if (!report) return null;
 
@@ -33,6 +34,9 @@ export default function ReportEditorCanvas({ reportId, onNavigateList: _onNaviga
           )}
         </div>
         <div className="flex items-center gap-2 shrink-0">
+          <Button icon={<Plus className="w-3.5 h-3.5" />} onClick={() => canvasRef.current?.openAddArea()}>
+            영역 추가
+          </Button>
           <Button type="primary" icon={<Globe className="w-3.5 h-3.5" />} onClick={() => setIsPublishDialogOpen(true)}>
             {report.isPublished ? '메뉴 등록됨 ✓' : '메뉴 등록'}
           </Button>
@@ -42,7 +46,7 @@ export default function ReportEditorCanvas({ reportId, onNavigateList: _onNaviga
       <GlobalFilter reportId={reportId} mode="editor" />
 
       <div className="flex-1 overflow-auto">
-        <CanvasLayout reportId={reportId} mode="edit" datasetId={report.datasetId} />
+        <CanvasLayout ref={canvasRef} reportId={reportId} mode="edit" datasetId={report.datasetId} />
       </div>
 
       {isPublishDialogOpen && <PublishDialog reportId={reportId} onClose={() => setIsPublishDialogOpen(false)} />}

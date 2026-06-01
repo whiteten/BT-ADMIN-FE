@@ -1,4 +1,6 @@
+import { useMemo } from 'react';
 import { Bar, BarChart, CartesianGrid, Legend, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
+import { useGetDataSourceFields } from '../../../dataset/hooks/useDatasetQueries';
 import { useReportViewStore } from '../../../report/hooks/useReportViewStore';
 import type { BarChartOptions, PanelDetail } from '../../../report/types';
 import { usePanelData } from '../../hooks/usePanelQueries';
@@ -12,6 +14,14 @@ const CHART_COLORS = ['#085fb5', '#0a8a4a', '#b76e00', '#7a4e9e', '#c92a2a'];
 
 export default function PanelBarChart({ panel, reportId }: PanelBarChartProps) {
   const { committedFilter, queryTrigger } = useReportViewStore();
+
+  // 데이터셋 표시명 — 범례/툴팁 라벨을 fieldName 대신 displayName 으로 (패널별 데이터셋)
+  const { data: fields = [] } = useGetDataSourceFields({
+    params: { datasetId: panel.datasetId ?? 0 },
+    queryOptions: { enabled: !!panel.datasetId },
+  });
+  const displayNameMap = useMemo(() => new Map(fields.map((f) => [f.fieldName, f.displayName])), [fields]);
+  const dn = (name: string) => displayNameMap.get(name) ?? name;
 
   const xField = panel.fieldMap.find((f) => f.slotType === 'X_AXIS');
   const yFields = panel.fieldMap.filter((f) => f.slotType === 'Y_AXIS');
@@ -62,7 +72,7 @@ export default function PanelBarChart({ panel, reportId }: PanelBarChartProps) {
       <Tooltip contentStyle={{ fontSize: 12 }} />
       {showLegend && <Legend wrapperStyle={{ fontSize: 11 }} />}
       {yFields.map((f, i) => (
-        <Bar key={f.fieldName} dataKey={f.fieldName} fill={CHART_COLORS[i % CHART_COLORS.length]} label={showDataLabel ? { fontSize: 10 } : false} />
+        <Bar key={f.fieldName} dataKey={f.fieldName} name={dn(f.fieldName)} fill={CHART_COLORS[i % CHART_COLORS.length]} label={showDataLabel ? { fontSize: 10 } : false} />
       ))}
     </BarChart>
   ) : (
@@ -73,13 +83,19 @@ export default function PanelBarChart({ panel, reportId }: PanelBarChartProps) {
       <Tooltip contentStyle={{ fontSize: 12 }} />
       {showLegend && <Legend wrapperStyle={{ fontSize: 11 }} />}
       {yFields.map((f, i) => (
-        <Bar key={f.fieldName} dataKey={f.fieldName} fill={CHART_COLORS[i % CHART_COLORS.length]} label={showDataLabel ? { fontSize: 10, position: 'top' } : false} />
+        <Bar
+          key={f.fieldName}
+          dataKey={f.fieldName}
+          name={dn(f.fieldName)}
+          fill={CHART_COLORS[i % CHART_COLORS.length]}
+          label={showDataLabel ? { fontSize: 10, position: 'top' } : false}
+        />
       ))}
     </BarChart>
   );
 
   return (
-    <ResponsiveContainer width="100%" height={220}>
+    <ResponsiveContainer width="100%" height="100%" minHeight={160}>
       {ChartComponent}
     </ResponsiveContainer>
   );

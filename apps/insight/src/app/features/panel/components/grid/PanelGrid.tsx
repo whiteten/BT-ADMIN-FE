@@ -2,7 +2,6 @@ import { useCallback, useMemo } from 'react';
 import type { ColDef, RowClassParams, ValueFormatterParams } from 'ag-grid-community';
 import { AgGridReact } from 'ag-grid-react';
 import { useGetDataSourceFields } from '../../../dataset/hooks/useDatasetQueries';
-import { useReportEditorStore } from '../../../report/hooks/useReportEditorStore';
 import { useReportViewStore } from '../../../report/hooks/useReportViewStore';
 import type { ColumnFormat, PanelDetail } from '../../../report/types';
 import { usePanelData } from '../../hooks/usePanelQueries';
@@ -40,10 +39,10 @@ function formatValue(value: unknown, format: ColumnFormat | undefined): string {
 export default function PanelGrid({ panel, reportId }: PanelGridProps) {
   const { gridOptions } = useAggridOptions();
   const { committedFilter, queryTrigger } = useReportViewStore();
-  const { report } = useReportEditorStore();
+  // 데이터셋은 패널별(N:M) — 보고서 단위가 아니라 panel.datasetId 로 표시명 로드
   const { data: fields = [] } = useGetDataSourceFields({
-    params: { datasetId: report?.datasetId ?? 0 },
-    queryOptions: { enabled: !!report?.datasetId },
+    params: { datasetId: panel.datasetId ?? 0 },
+    queryOptions: { enabled: !!panel.datasetId },
   });
   const displayNameMap = useMemo(() => new Map(fields.map((f) => [f.fieldName, f.displayName])), [fields]);
 
