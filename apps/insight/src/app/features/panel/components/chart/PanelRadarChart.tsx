@@ -50,7 +50,7 @@ export default function PanelRadarChart({ panel, reportId }: PanelRadarChartProp
   const data = (isDraft ? [] : (queryResult?.current ?? [])) as Record<string, unknown>[];
 
   return (
-    <ResponsiveContainer width="100%" height={220}>
+    <ResponsiveContainer width="100%" height="100%" minHeight={160}>
       <RadarChart data={data}>
         <PolarGrid stroke="#e4e7ec" />
         <PolarAngleAxis dataKey={axisField.fieldName} tick={{ fontSize: 10 }} />
