@@ -27,6 +27,7 @@ export interface ReportDetail {
   description?: string;
   domain: DomainCode;
   datasetId: number;
+  iconType?: ReportIconType;
   isPublished: boolean;
   ownerUserId: number;
   createdAt: string;
@@ -145,7 +146,10 @@ export interface ReportCreateDatas {
 
 export interface ReportUpdateDatas {
   title: string;
+  domain: DomainCode;
+  datasetId: number;
   description?: string;
+  iconType?: ReportIconType;
 }
 
 export interface PanelCreateDatas {

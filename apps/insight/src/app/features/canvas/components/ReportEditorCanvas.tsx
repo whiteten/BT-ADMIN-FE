@@ -1,11 +1,13 @@
 import { useRef, useState } from 'react';
-import { Button, Tag } from 'antd';
+import { Button, Tag, Typography } from 'antd';
 import { Globe, Plus } from 'lucide-react';
+import { toast } from '@/shared-util';
 import CanvasLayout, { type CanvasLayoutRef } from './CanvasLayout';
 import GlobalFilter from '../../global-filter/components/GlobalFilter';
 import PublishDialog from '../../report/components/PublishDialog';
 import { DOMAIN_LABELS, DOMAIN_TAG_COLOR } from '../../report/constants/reportIconConstants';
 import { useReportEditorStore } from '../../report/hooks/useReportEditorStore';
+import { useUpdateReport } from '../../report/hooks/useReportQueries';
 
 interface ReportEditorCanvasProps {
   reportId: number;
@@ -13,9 +15,29 @@ interface ReportEditorCanvasProps {
 }
 
 export default function ReportEditorCanvas({ reportId, onNavigateList: _onNavigateList }: ReportEditorCanvasProps) {
-  const { report, isDirty } = useReportEditorStore();
+  const { report, isDirty, setReport } = useReportEditorStore();
   const [isPublishDialogOpen, setIsPublishDialogOpen] = useState(false);
   const canvasRef = useRef<CanvasLayoutRef>(null);
+
+  const { mutate: updateReport } = useUpdateReport({
+    mutationOptions: {
+      onSuccess: (updated) => {
+        setReport(updated);
+        toast.success('보고서명이 수정되었습니다.');
+      },
+      onError: () => toast.error('보고서명 수정에 실패했습니다.'),
+    },
+  });
+
+  const handleTitleChange = (value: string) => {
+    const next = value.trim();
+    if (!report || !next || next === report.title) return;
+    setReport({ ...report, title: next }); // 낙관적 반영
+    updateReport({
+      reportId,
+      data: { title: next, domain: report.domain, datasetId: report.datasetId, description: report.description ?? undefined, iconType: report.iconType },
+    });
+  };
 
   if (!report) return null;
 
@@ -23,7 +45,13 @@ export default function ReportEditorCanvas({ reportId, onNavigateList: _onNaviga
     <div className="flex flex-col h-full">
       <div className="flex items-center justify-between gap-2 w-full h-[76px] bg-white bt-shadow px-7 py-5">
         <div className="flex items-center gap-2 min-w-0">
-          <span className="text-base font-semibold truncate">{report.title}</span>
+          <Typography.Title
+            level={4}
+            className="!mb-0 min-w-0 truncate"
+            editable={{ onChange: handleTitleChange, triggerType: ['icon', 'text'], tooltip: '클릭하여 보고서명 수정', maxLength: 100 }}
+          >
+            {report.title}
+          </Typography.Title>
           <Tag color={DOMAIN_TAG_COLOR[report.domain]} className="!mb-0 shrink-0">
             {report.domain} · {DOMAIN_LABELS[report.domain] ?? report.domain}
           </Tag>

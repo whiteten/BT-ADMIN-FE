@@ -137,16 +137,27 @@ export default function PanelGrid({ panel, reportId }: PanelGridProps) {
     );
   }
 
+  // 편집 미리보기(draft) → 선택된 컬럼 구조만 깔끔히 표시 (데이터/합계/페이저/상태바 없음, autoHeight)
+  if (isDraft) {
+    return <AgGridReact {...gridOptions} rowData={[]} columnDefs={columnDefs} domLayout="autoHeight" pagination={false} statusBar={undefined} pinnedBottomRowData={undefined} />;
+  }
+
+  // 실제 뷰 → 패널 영역을 꽉 채우는 고정 높이(영역 내부 스크롤) + 페이징(50/page) + 합계 핀
+  // domLayout="normal" 이라 패널 높이를 키우면 보이는 행 수도 늘어남
   return (
-    <AgGridReact
-      {...gridOptions}
-      rowData={isDraft ? [] : rowData}
-      columnDefs={columnDefs}
-      loading={!isDraft && isFetching}
-      pagination={false}
-      domLayout="autoHeight"
-      pinnedBottomRowData={pinnedBottomRowData}
-      getRowStyle={getRowStyle}
-    />
+    <div className="h-full w-full" style={{ minHeight: 220 }}>
+      <AgGridReact
+        {...gridOptions}
+        rowData={rowData}
+        columnDefs={columnDefs}
+        loading={isFetching}
+        pagination
+        paginationPageSize={50}
+        paginationPageSizeSelector={[20, 50, 100, 200]}
+        domLayout="normal"
+        pinnedBottomRowData={pinnedBottomRowData}
+        getRowStyle={getRowStyle}
+      />
+    </div>
   );
 }

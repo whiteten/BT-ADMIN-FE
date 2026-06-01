@@ -1,5 +1,5 @@
 import { Button, Tag } from 'antd';
-import { Search, Settings, X } from 'lucide-react';
+import { Settings, X } from 'lucide-react';
 import { toast } from '@/shared-util';
 import PanelBarChart from '../../panel/components/chart/PanelBarChart';
 import PanelLineChart from '../../panel/components/chart/PanelLineChart';
@@ -49,7 +49,7 @@ export default function PanelWrapper({ panel, reportId, mode, onEdit, draggableC
         className={`flex items-center justify-between gap-3 px-4 h-[45px] min-h-[45px] border-b border-[var(--color-bt-border)] bg-[var(--color-bt-bg-muted)]/60 ${isEdit ? `${draggableClass} cursor-move` : ''}`}
       >
         <div className="flex items-center gap-2 min-w-0">
-          <span className="text-base font-semibold text-[var(--color-bt-fg)] truncate">{panel.title}</span>
+          <span className="text-sm font-semibold text-[var(--color-bt-fg)] truncate">{panel.title}</span>
           <Tag color="processing" className="!mb-0">
             {panel.panelType}
           </Tag>
@@ -60,7 +60,6 @@ export default function PanelWrapper({ panel, reportId, mode, onEdit, draggableC
           )}
         </div>
         <div className="panel-no-drag flex items-center gap-0.5" onMouseDown={(e) => e.stopPropagation()}>
-          <Button type="text" size="small" icon={<Search className="w-3.5 h-3.5" />} title="검색조건 바인딩" />
           <Button type="text" size="small" icon={<Settings className="w-3.5 h-3.5" />} onClick={onEdit} title="패널 편집" />
           <Button type="text" size="small" danger icon={<X className="w-3.5 h-3.5" />} onClick={handleDelete} title="삭제" />
         </div>
