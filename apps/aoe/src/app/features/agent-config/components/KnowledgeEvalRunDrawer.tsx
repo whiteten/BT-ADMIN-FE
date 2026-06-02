@@ -119,11 +119,11 @@ const KnowledgeEvalRunDrawer = forwardRef<KnowledgeEvalRunDrawerRef>((_, ref) =>
           {/* 평가 유형 */}
           <div className="flex flex-col gap-2">
             <span className="text-sm font-semibold text-gray-700">평가 유형</span>
-            <div className="flex items-start gap-2 p-3 bg-blue-50 border border-blue-200 rounded-lg">
-              <input type="radio" readOnly checked className="mt-0.5 accent-blue-600 shrink-0" />
+            <div className="flex items-start gap-2 p-3 bg-[#EAF2FB] border border-[var(--color-bt-primary)]/30 rounded-lg">
+              <input type="radio" readOnly checked className="mt-0.5 accent-[var(--color-bt-primary)] shrink-0" />
               <div>
-                <span className="text-sm font-medium text-blue-700">검색 평가</span>
-                <p className="text-xs text-blue-500 mt-0.5">문서 검색 성능만 평가합니다. 검색된 문서의 관련성과 순위를 측정합니다.</p>
+                <span className="text-sm font-medium text-[var(--color-bt-primary)]">검색 평가</span>
+                <p className="text-xs text-[var(--color-bt-primary)]/70 mt-0.5">문서 검색 성능만 평가합니다. 검색된 문서의 관련성과 순위를 측정합니다.</p>
               </div>
             </div>
           </div>
@@ -163,7 +163,7 @@ const KnowledgeEvalRunDrawer = forwardRef<KnowledgeEvalRunDrawerRef>((_, ref) =>
             ) : (
               <div className="flex flex-col gap-2">
                 {history.slice(0, 3).map((execution, idx) => (
-                  <div key={execution.resultId ?? idx} className="p-3 border border-gray-200 rounded-lg bg-white hover:border-blue-200 transition-colors">
+                  <div key={execution.resultId ?? idx} className="p-3 border border-gray-200 rounded-lg bg-white hover:border-[var(--color-bt-primary)]/30 transition-colors">
                     <div className="flex items-center justify-between mb-1.5">
                       <span className="text-sm font-semibold text-gray-800">
                         {execution.evalName} #{idx + 1}
@@ -174,7 +174,7 @@ const KnowledgeEvalRunDrawer = forwardRef<KnowledgeEvalRunDrawerRef>((_, ref) =>
                       <p className="text-xs text-gray-500">{formatMetrics(execution)}</p>
                       <button
                         type="button"
-                        className="flex items-center gap-1 text-xs text-blue-600 hover:underline shrink-0 ml-2"
+                        className="flex items-center gap-1 text-xs text-[var(--color-bt-primary)] hover:underline shrink-0 ml-2"
                         onClick={() => resultModalRef.current?.open({ documentId, evalId, resultId: execution.resultId, evalName: execution.evalName })}
                       >
                         <BarChart3 className="size-3" />

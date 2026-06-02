@@ -81,7 +81,7 @@ export default function A2AList() {
           <FallbackSpinner />
         </div>
       ) : filteredList.length ? (
-        <div className="grid grid-cols-[repeat(auto-fill,minmax(350px,1fr))] gap-4 w-full overflow-y-auto">
+        <div className="grid grid-cols-[repeat(auto-fill,minmax(350px,1fr))] gap-4 w-full overflow-y-auto pt-2 -mt-2">
           {filteredList.map((agent) => (
             <A2ACard key={agent.a2aId} {...agent} onDetail={handleDetail} onDelete={handleDelete} />
           ))}

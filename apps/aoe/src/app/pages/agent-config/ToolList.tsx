@@ -89,7 +89,7 @@ export default function ToolList() {
             <FallbackSpinner />
           </div>
         ) : filteredGroups.length ? (
-          <div className="grid grid-cols-[repeat(auto-fill,minmax(350px,1fr))] gap-4 w-full overflow-y-auto">
+          <div className="grid grid-cols-[repeat(auto-fill,minmax(350px,1fr))] gap-4 w-full overflow-y-auto pt-2 -mt-2">
             {filteredGroups.map((group) => (
               <ToolGroupCard key={group.groupId} {...group} onOpen={handleOpenGroup} onDelete={handleDeleteGroup} />
             ))}
