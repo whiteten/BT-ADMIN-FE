@@ -19,7 +19,7 @@ const breadcrumb: BreadcrumbProps['items'] = [
 const CHART_COLORS = {
   real: '#7DB8DA',
   batch: '#F5C542',
-  completeCnt: '#D9849E',
+  completeCnt: '#7BC9A5',
 } as const;
 
 const SUMMARY_META: Record<string, { title: string; timeLabel: string }> = {
@@ -95,8 +95,8 @@ function buildChartOption(items: DashboardItem[]): EChartsOption {
 const columnDefs: ColDef<DashboardChannelItem>[] = [
   { field: 'systemName', headerName: '시스템명', flex: 1 },
   { field: 'systemIp', headerName: '시스템 IP', flex: 1, headerClass: 'ag-center-aligned-header' },
-  { field: 'totCnt', headerName: '전체 채널', width: 120, headerClass: 'ag-center-aligned-header', type: 'numericColumn' },
-  { field: 'runCnt', headerName: '진행 채널', width: 120, headerClass: 'ag-center-aligned-header', type: 'numericColumn' },
+  { field: 'totCnt', headerName: '전체 채널', width: 120, headerClass: 'ag-center-aligned-header' },
+  { field: 'runCnt', headerName: '진행 채널', width: 120, headerClass: 'ag-center-aligned-header' },
   {
     field: 'per',
     headerName: '진행률',
@@ -129,6 +129,11 @@ export default function SttDashboard() {
   const items = data?.items ?? [];
   const summary = data?.summary ?? [];
   const channels = data?.channels ?? [];
+
+  // 변환률 계산
+  const totalIncoming = summary.find((s) => s.kind === '콜인입')?.cnt ?? 0;
+  const totalConverted = summary.find((s) => s.kind === 'STT변환')?.cnt ?? 0;
+  const conversionRate = totalIncoming > 0 ? ((totalConverted / totalIncoming) * 100).toFixed(1) : '0.0';
 
   const handleDateChange = (value: Dayjs | null) => {
     if (value) setCallDate(value);
@@ -176,11 +181,13 @@ export default function SttDashboard() {
               const meta = SUMMARY_META[s.kind] ?? { title: s.kind, timeLabel: '최종 시간' };
               return (
                 <div key={s.kind} className="flex flex-col gap-2 rounded-lg border border-gray-100 bg-gray-50 px-4 py-3 flex-1">
-                  <p className="text-sm font-medium text-gray-500">{meta.title}</p>
-                  <p className="text-2xl font-bold leading-none text-gray-800">
-                    {s.cnt}
-                    <span className="ml-1 text-sm font-normal text-gray-500">건</span>
-                  </p>
+                  <div className="flex items-baseline justify-between">
+                    <p className="text-sm font-medium text-gray-500">{meta.title}</p>
+                    <p className="text-2xl font-bold leading-none text-gray-800">
+                      {s.cnt}
+                      <span className="ml-1 text-sm font-normal text-gray-500">건</span>
+                    </p>
+                  </div>
                   <div className="flex gap-3 text-xs text-gray-600">
                     <span className="flex items-center gap-1">
                       <span className="inline-block h-2 w-2 rounded-full" style={{ backgroundColor: CHART_COLORS.real }} />
@@ -197,6 +204,12 @@ export default function SttDashboard() {
                 </div>
               );
             })}
+
+            {/* 변환률 카드 */}
+            <div className="flex items-baseline justify-between rounded-lg border border-gray-100 bg-gray-50 px-4 py-3">
+              <p className="text-sm font-medium text-gray-500">변환률</p>
+              <p className="text-2xl font-bold leading-none text-[#7BC9A5]">{conversionRate}%</p>
+            </div>
           </div>
 
           {/* 우: 차트 */}

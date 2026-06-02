@@ -1,4 +1,4 @@
-import { forwardRef, useEffect, useImperativeHandle, useRef, useState } from 'react';
+import { Fragment, forwardRef, useEffect, useImperativeHandle, useRef, useState } from 'react';
 import { Descriptions, Drawer, Empty, Select, Spin } from 'antd';
 import type { AxiosError } from 'axios';
 import dayjs from 'dayjs';
@@ -24,13 +24,33 @@ function getListenErrorMessage(error: Error): string {
 }
 
 export interface SttSearchDetailDrawerRef {
-  open: (row: SttSearchItem) => void;
+  open: (row: SttSearchItem, keyword?: string) => void;
   close: () => void;
 }
 
 interface DrawerState {
   open: boolean;
   row: SttSearchItem | null;
+  keyword: string;
+}
+
+function splitByKeyword(text: string, keyword: string): Array<{ text: string; match: boolean }> {
+  if (!keyword) return [{ text, match: false }];
+  const lower = text.toLowerCase();
+  const kw = keyword.toLowerCase();
+  const result: Array<{ text: string; match: boolean }> = [];
+  let i = 0;
+  while (i < text.length) {
+    const idx = lower.indexOf(kw, i);
+    if (idx === -1) {
+      result.push({ text: text.slice(i), match: false });
+      break;
+    }
+    if (idx > i) result.push({ text: text.slice(i, idx), match: false });
+    result.push({ text: text.slice(idx, idx + kw.length), match: true });
+    i = idx + kw.length;
+  }
+  return result;
 }
 
 const RXTX_LABEL: Record<string, string> = {
@@ -66,11 +86,13 @@ function formatArmsOffset(armsoffset: number): string {
 function SentenceBubble({
   item,
   isActive,
+  keyword,
   onClick,
   domRef,
 }: {
   item: SttResultSentenceItem;
   isActive: boolean;
+  keyword: string;
   onClick: () => void;
   domRef?: (el: HTMLDivElement | null) => void;
 }) {
@@ -98,7 +120,17 @@ function SentenceBubble({
               : cn('rounded-tr-md', isActive ? 'border-blue-400 bg-blue-100 shadow-md' : 'border-blue-100 bg-blue-50'),
           )}
         >
-          <p className="whitespace-pre-wrap break-all text-[13px] leading-relaxed text-slate-700">{item.sentence}</p>
+          <p className="whitespace-pre-wrap break-all text-[13px] leading-relaxed text-slate-700">
+            {splitByKeyword(item.sentence, keyword).map(({ text, match }, i) =>
+              match ? (
+                <mark key={i} className="bg-yellow-200 text-yellow-900 rounded-sm px-0.5 not-italic">
+                  {text}
+                </mark>
+              ) : (
+                <Fragment key={i}>{text}</Fragment>
+              ),
+            )}
+          </p>
         </div>
       </div>
     </div>
@@ -106,7 +138,7 @@ function SentenceBubble({
 }
 
 const SttSearchDetailDrawer = forwardRef<SttSearchDetailDrawerRef>((_, ref) => {
-  const [state, setState] = useState<DrawerState>({ open: false, row: null });
+  const [state, setState] = useState<DrawerState>({ open: false, row: null, keyword: '' });
   const audioPlayerRef = useRef<SttAudioPlayerRef>(null);
   const [currentTimeMs, setCurrentTimeMs] = useState(0);
   const [autoScroll, setAutoScroll] = useState(true);
@@ -114,7 +146,7 @@ const SttSearchDetailDrawer = forwardRef<SttSearchDetailDrawerRef>((_, ref) => {
   const bubbleRefs = useRef<Map<number, HTMLDivElement>>(new Map());
 
   useImperativeHandle(ref, () => ({
-    open: (row) => setState({ open: true, row }),
+    open: (row, keyword = '') => setState({ open: true, row, keyword }),
     close: () => setState((prev) => ({ ...prev, open: false })),
   }));
 
@@ -169,6 +201,9 @@ const SttSearchDetailDrawer = forwardRef<SttSearchDetailDrawerRef>((_, ref) => {
   // 현재 재생 중인 문장 인덱스 (armsoffset <= currentTimeMs 인 마지막 항목)
   const activeIdx = sentences && currentTimeMs > 0 ? sentences.reduce((acc, s, i) => (s.armsoffset <= currentTimeMs ? i : acc), -1) : -1;
 
+  // 키워드 매칭 문장의 armsoffset 목록
+  const keywordOffsets = state.keyword && sentences ? sentences.filter((s) => s.sentence.toLowerCase().includes(state.keyword.toLowerCase())).map((s) => s.armsoffset) : [];
+
   // 자동 스크롤
   useEffect(() => {
     if (!autoScroll || activeIdx < 0) return;
@@ -220,7 +255,7 @@ const SttSearchDetailDrawer = forwardRef<SttSearchDetailDrawerRef>((_, ref) => {
                 <Spin size="small" tip="음성을 불러오는 중..." />
               </div>
             ) : listenData?.audioBlob ? (
-              <SttAudioPlayer ref={audioPlayerRef} listenData={listenData} onTimeUpdate={handleTimeUpdate} autoPlay />
+              <SttAudioPlayer ref={audioPlayerRef} listenData={listenData} onTimeUpdate={handleTimeUpdate} autoPlay highlights={keywordOffsets} />
             ) : (
               <div className="flex h-12 items-center justify-center rounded-xl border border-slate-200 bg-slate-50">
                 <span className="text-[12px] text-slate-400">음성 파일을 불러올 수 없습니다.</span>
@@ -258,6 +293,7 @@ const SttSearchDetailDrawer = forwardRef<SttSearchDetailDrawerRef>((_, ref) => {
                   key={`${item.armsoffset}-${idx}`}
                   item={item}
                   isActive={idx === activeIdx}
+                  keyword={state.keyword}
                   onClick={() => handleBubbleClick(item.armsoffset)}
                   domRef={(el) => {
                     if (el) bubbleRefs.current.set(idx, el);

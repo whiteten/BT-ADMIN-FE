@@ -1,11 +1,10 @@
 import { useEffect, useRef, useState } from 'react';
 import { type BreadcrumbProps, Input, Select, Tooltip } from 'antd';
-import { Pause, Play } from 'lucide-react';
+import { Pause, Phone, Play } from 'lucide-react';
 import { useBreadcrumbStore } from '@/shared-store';
 import RealtimeSentenceDrawer, { type RealtimeSentenceDrawerRef } from '../../features/monitoring/components/RealtimeSentenceDrawer';
 import { useGetDnStatusList } from '../../features/monitoring/hooks/useMonitoringQueries';
 import type { DnStatusItem } from '../../features/monitoring/types';
-import NoData from '@/components/custom/NoData';
 
 const breadcrumb: BreadcrumbProps['items'] = [
   { title: 'STT 모니터링', path: '/stt/monitoring' },
@@ -130,8 +129,9 @@ export default function DnStatusList() {
           {isLoading ? (
             <div className="flex items-center justify-center h-32 text-sm text-gray-400">불러오는 중...</div>
           ) : dnList.length === 0 ? (
-            <div className="flex items-center justify-center h-32">
-              <NoData message="조회된 내선 정보가 없습니다." />
+            <div className="flex flex-col items-center justify-center h-full gap-3 text-gray-300">
+              <Phone className="size-16" />
+              <p className="text-sm text-gray-400">조회된 내선 정보가 없습니다.</p>
             </div>
           ) : (
             <div className="grid grid-cols-5 gap-3">

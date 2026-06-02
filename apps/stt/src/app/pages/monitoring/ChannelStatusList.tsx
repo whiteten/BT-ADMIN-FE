@@ -1,12 +1,11 @@
 import { useEffect, useRef, useState } from 'react';
 import { type BreadcrumbProps, Select, Tooltip } from 'antd';
-import { Pause, Play } from 'lucide-react';
+import { Pause, Phone, Play } from 'lucide-react';
 import { useBreadcrumbStore } from '@/shared-store';
 import RealtimeSentenceDrawer, { type RealtimeSentenceDrawerRef } from '../../features/monitoring/components/RealtimeSentenceDrawer';
 import { useGetChannelStatusList } from '../../features/monitoring/hooks/useMonitoringQueries';
 import type { ChannelStatusItem } from '../../features/monitoring/types';
 import { useGetSttSystemList } from '../../features/stt-config/hooks/useCommonQueries';
-import NoData from '@/components/custom/NoData';
 
 const breadcrumb: BreadcrumbProps['items'] = [
   { title: 'STT 모니터링', path: '/stt/monitoring' },
@@ -163,8 +162,9 @@ export default function ChannelStatusList() {
           {isLoading ? (
             <div className="flex items-center justify-center h-32 text-sm text-gray-400">불러오는 중...</div>
           ) : channels.length === 0 ? (
-            <div className="flex items-center justify-center h-32">
-              <NoData message="조회된 채널 정보가 없습니다." />
+            <div className="flex flex-col items-center justify-center h-full gap-3 text-gray-300">
+              <Phone className="size-16" />
+              <p className="text-sm text-gray-400">조회된 채널 정보가 없습니다.</p>
             </div>
           ) : (
             <div className="grid grid-cols-5 gap-3">
