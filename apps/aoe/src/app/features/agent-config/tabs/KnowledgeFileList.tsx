@@ -136,7 +136,7 @@ export default function KnowledgeFileList() {
       cellStyle: { display: 'flex', alignItems: 'center', gap: '8px' },
       cellRenderer: (params: ICellRendererParams<KnowledgeFileItem>) => (
         <span className="flex items-center gap-2">
-          <FileText className="size-4 text-blue-500 shrink-0" />
+          <FileText className="size-4 text-[var(--color-bt-primary)] shrink-0" />
           {params.value}
         </span>
       ),

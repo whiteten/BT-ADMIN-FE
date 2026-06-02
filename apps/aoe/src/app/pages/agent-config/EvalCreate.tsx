@@ -42,7 +42,7 @@ function ChunkCard({ chunk, selected, onToggle }: { chunk: KnowledgeChunkItem; s
     <div
       onClick={() => onToggle(chunk.chunkId)}
       className={`p-3 rounded-lg border cursor-pointer transition-all ${
-        selected ? 'bg-blue-50 border-blue-300' : 'bg-white border-gray-200 hover:border-gray-300 hover:bg-gray-50'
+        selected ? 'bg-[#EAF2FB] border-[var(--color-bt-primary)]' : 'bg-white border-gray-200 hover:border-gray-300 hover:bg-gray-50'
       }`}
     >
       <div className="flex items-start gap-2.5">
@@ -85,7 +85,7 @@ function QuestionPanel({
         {setting.questions.map((q, idx) => (
           <div key={q.id} className="p-3 bg-white rounded-lg border border-gray-200 space-y-2.5">
             <div className="flex items-center justify-between">
-              <span className="text-xs font-semibold text-blue-600">질문 {idx + 1}</span>
+              <span className="text-xs font-semibold text-[var(--color-bt-primary)]">질문 {idx + 1}</span>
               {setting.questions.length > 1 && (
                 <button type="button" onClick={() => onDeleteQuestion(chunk.chunkId, q.id)} className="text-gray-400 hover:text-red-500 transition-colors">
                   <X className="size-3.5" />
@@ -118,7 +118,7 @@ function QuestionPanel({
       <button
         type="button"
         onClick={() => onAddQuestion(chunk.chunkId)}
-        className="w-full py-2 border-2 border-dashed border-blue-300 rounded-lg text-xs text-blue-500 hover:bg-blue-50 flex items-center justify-center gap-1 transition-colors"
+        className="w-full py-2 border-2 border-dashed border-[var(--color-bt-primary)]/40 rounded-lg text-xs text-[var(--color-bt-primary)] hover:bg-[#EAF2FB] flex items-center justify-center gap-1 transition-colors"
       >
         <Plus className="size-3.5" />
         질문 추가

@@ -1,8 +1,10 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Button, DatePicker, Divider, Radio, Select, TimePicker, message } from 'antd';
+import { Button, DatePicker, Divider, Radio, Select, TimePicker, Tooltip, message } from 'antd';
 import dayjs, { type Dayjs } from 'dayjs';
 import { Download, Search } from 'lucide-react';
+import { toast } from '@/shared-util';
 import ComparisonToggle from './ComparisonToggle';
+import { useExportPanelExcel } from '../../panel/hooks/usePanelQueries';
 import { useReportEditorStore } from '../../report/hooks/useReportEditorStore';
 import { useReportViewStore } from '../../report/hooks/useReportViewStore';
 import { useGetSearchConditionOptions } from '../../search-condition/hooks/useSearchConditionQueries';
@@ -93,9 +95,26 @@ const ISO_DATE = 'YYYY-MM-DD';
 
 // ── 메인 컴포넌트 ─────────────────────────────────────────────────────────
 // 공통(검색일자 + 단위 + 비교)은 상단 고정 / 데이터셋 동적 검색조건은 그 아래 행.
-export default function GlobalFilter({ reportId, mode: _mode }: GlobalFilterProps) {
+export default function GlobalFilter({ reportId }: GlobalFilterProps) {
   const { panels } = useReportEditorStore();
-  const { globalFilter, setGlobalFilter, setTimeUnit, setComparison, setPeriod, setSearchValue, setConditions, commitFilter } = useReportViewStore();
+  const { globalFilter, committedFilter, setGlobalFilter, setTimeUnit, setComparison, setPeriod, setSearchValue, setConditions, commitFilter } = useReportViewStore();
+
+  // 그리드 패널만 서버 Excel Export (보고서당 그리드 1개 한정). 그리드 패널이 있으면 편집/뷰 모드 무관하게 활성화.
+  const gridPanel = panels.find((p) => p.panelType === 'GRID');
+  const { mutate: exportExcel, isPending: isExporting } = useExportPanelExcel({
+    mutationOptions: { onError: () => toast.error('내보내기에 실패했습니다.') },
+  });
+  const handleExport = () => {
+    if (!gridPanel) return;
+    exportExcel({
+      reportId,
+      panelId: gridPanel.panelId,
+      period: { from: committedFilter.period.from, to: committedFilter.period.to, unit: committedFilter.timeUnit },
+      searchValues: committedFilter.searchValues,
+      comparison: committedFilter.comparison,
+      conditions: committedFilter.conditions,
+    });
+  };
 
   const unit = globalFilter.timeUnit;
   const isMI = unit === '10MIN';
@@ -295,9 +314,11 @@ export default function GlobalFilter({ reportId, mode: _mode }: GlobalFilterProp
           <Button type="primary" icon={<Search className="size-4" />} onClick={handleQuery}>
             조회
           </Button>
-          <Button color="cyan" variant="solid" icon={<Download className="size-4" />}>
-            Export
-          </Button>
+          <Tooltip title={gridPanel ? undefined : '그리드 패널이 있는 보고서만 Export 가능합니다'}>
+            <Button color="cyan" variant="solid" icon={<Download className="size-4" />} disabled={!gridPanel} loading={isExporting} onClick={handleExport}>
+              Export
+            </Button>
+          </Tooltip>
         </div>
       </div>
 

@@ -54,24 +54,24 @@ export default function AgentCard({ agentId, agentName, agentTypeName, aoeDeploy
       title={title}
       styles={{ header: { padding: '0 20px' }, body: { padding: '20px', paddingTop: '16px', minHeight: '148px' } }}
       extra={extra}
-      className="hover:!border-[var(--color-bt-primary)] hover:cursor-pointer"
+      className="transition-all duration-200 hover:-translate-y-0.5 hover:!border-[var(--color-bt-primary)] hover:shadow-[0px_6px_16px_0px_#38414A1f] hover:cursor-pointer"
       onClick={() => onPlayground?.(agentId)}
     >
-      <div className="flex flex-col text-[#495057] gap-2">
+      <div className="flex flex-col text-[#495057] gap-2.5">
         <div className="flex">
-          <span className="w-[104px]">에이전트 타입</span>
+          <span className="w-[104px] text-[#888B9A]">에이전트 타입</span>
           <span className="mr-2">{agentTypeName ?? '-'}</span>
         </div>
         <div className="flex items-center">
-          <span className="w-[104px]">배포 여부</span>
+          <span className="w-[104px] text-[#888B9A]">배포 여부</span>
           <DeployFlagBadge flag={aoeDeployFlag as AoeDeployFlag} />
         </div>
         <div className="flex">
-          <span className="w-[104px]">배포 시간</span>
+          <span className="w-[104px] text-[#888B9A]">배포 시간</span>
           <span className="mr-2">{deployTime ? dayjs(deployTime).format('YYYY-MM-DD HH:mm:ss') : '-'}</span>
         </div>
         <div className="flex items-center">
-          <span className="w-[104px]">워크플로우</span>
+          <span className="w-[104px] text-[#888B9A]">워크플로우</span>
           <span
             className="inline-flex items-center justify-center w-7 h-7 rounded cursor-pointer transition-colors hover:bg-[var(--color-bt-primary)]/15 hover:text-[var(--color-bt-primary)]"
             onClick={(e) => {

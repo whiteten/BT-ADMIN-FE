@@ -22,7 +22,7 @@ function ChunkCard({ chunk }: { chunk: KnowledgeChunkData }) {
   return (
     <div className="border border-gray-200 rounded-md p-3 text-sm">
       <div className="flex items-center gap-2 mb-2">
-        <FileText className="size-4 text-blue-500 shrink-0" />
+        <FileText className="size-4 text-[var(--color-bt-primary)] shrink-0" />
         <span className="text-xs text-gray-500 font-medium">Chunk {chunk.id}</span>
         <span className="ml-auto text-xs text-gray-400">{chunk.characters}자</span>
       </div>

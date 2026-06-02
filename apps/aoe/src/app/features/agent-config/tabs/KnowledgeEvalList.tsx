@@ -109,7 +109,7 @@ export default function KnowledgeEvalList() {
               handleOpenRunDrawer(params.data!);
             }}
           >
-            <IconPlayCircle className="size-5 text-[#405189] hover:cursor-pointer" />
+            <IconPlayCircle className="size-5 text-[var(--color-bt-primary)] hover:cursor-pointer" />
           </button>
         );
       },
