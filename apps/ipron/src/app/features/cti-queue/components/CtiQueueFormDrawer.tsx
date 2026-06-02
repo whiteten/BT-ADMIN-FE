@@ -18,6 +18,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Button, Drawer, Form, Input, InputNumber, Radio, Select, Tabs } from 'antd';
 import { toast } from '@/shared-util';
+import { useGetMentOptions } from '../../ment-mgmt/hooks/useMentQueries';
 import { ctiQueueApi } from '../api/ctiQueueApi';
 import {
   useCreateCtiQueue,
@@ -120,12 +121,20 @@ export default function CtiQueueFormDrawer({ state, onClose, tenantOptions = [],
   // async 옵션(그룹/BSR그룹/스킬셋) 기반 select 의 "실제 값" 보류 저장소 (BUG-2):
   // 옵션이 늦게 도착하면 그 전에 set 한 값이 매칭 옵션을 못 찾아 antd 가 raw ID 를 잠깐 노출.
   // → 초기에는 0(없음/미사용) 으로 두고, 옵션이 채워진 뒤 실제 값을 set 하여 라벨이 항상 정상 표시되게 함.
-  const pendingAsyncValues = useRef<{ firstGroupId: number; bsrGroupId: number; accessCodeProfileId: number; drAccessCodeProfileId: number; skills: Record<string, number> }>({
+  const pendingAsyncValues = useRef<{
+    firstGroupId: number;
+    bsrGroupId: number;
+    accessCodeProfileId: number;
+    drAccessCodeProfileId: number;
+    skills: Record<string, number>;
+    ments: Record<string, number>;
+  }>({
     firstGroupId: 0,
     bsrGroupId: 0,
     accessCodeProfileId: 0,
     drAccessCodeProfileId: 0,
     skills: {},
+    ments: {},
   });
 
   const isEdit = state.open && state.mode === 'edit';
@@ -178,6 +187,14 @@ export default function CtiQueueFormDrawer({ state, onClose, tenantOptions = [],
     () => [{ value: 0, label: '미지정' }, ...drAccessProfileOptions.map((p) => ({ value: p.id, label: p.name }))],
     [drAccessProfileOptions],
   );
+  // ─── 멘트 콤보 (노드/테넌트 단위) — 교환기 멘트 관리(ment-mgmt) 옵션 재사용 ───────
+  // 초기구성 탭의 초기/대기/종료/블럭/연결/보류 멘트 ID 를 멘트 선택 콤보로 제공.
+  const { data: mentOptions = [], isFetching: mentLoading } = useGetMentOptions(nodeId, tenantId);
+  const mentSelectOptions = useMemo(
+    () => [{ value: 0, label: '없음' }, ...mentOptions.map((m) => ({ value: m.id, label: m.fileName ? `${m.name} (${m.fileName})` : m.name }))],
+    [mentOptions],
+  );
+
   const maxWaitOff = wMaxWaitYn !== 1;
   const collectOff = wCollectYn !== 1;
   const skillRequired = wRoutingKind === 1 || wRoutingKind === 3;
@@ -232,13 +249,23 @@ export default function CtiQueueFormDrawer({ state, onClose, tenantOptions = [],
         mediaVals[skillIdKey(mediaType)] = 0;
         mediaVals[skillLevelKey(mediaType)] = (r[levelKey] as number | null) ?? 0;
       }
-      // 그룹/BSR그룹/스킬셋/접근코드프로파일 실제 값은 옵션 도착 후 적용하도록 보류
+      // 그룹/BSR그룹/스킬셋/접근코드프로파일/멘트 실제 값은 옵션 도착 후 적용하도록 보류
       pendingAsyncValues.current = {
         firstGroupId: r.firstGroupId ?? 0,
         bsrGroupId: r.bsrGroupId ?? 0,
         accessCodeProfileId: r.accessCodeProfileId ?? 0,
         drAccessCodeProfileId: r.drAccessCodeProfileId ?? 0,
         skills: pendingSkills,
+        ments: {
+          initMent: r.initMent ?? 0,
+          waitMent: r.waitMent ?? 0,
+          closeMent: r.closeMent ?? 0,
+          blockMent: r.blockMent ?? 0,
+          connMent: r.connMent ?? 0,
+          holdMent: r.holdMent ?? 0,
+          coConnMent: r.coConnMent ?? 0,
+          coHoldMent: r.coHoldMent ?? 0,
+        },
       };
       form.setFieldsValue({
         gdnNo: r.gdnNo ?? '',
@@ -252,14 +279,14 @@ export default function CtiQueueFormDrawer({ state, onClose, tenantOptions = [],
         backUpNodeId: r.backUpNodeId ?? 0,
         accessCodeProfileId: 0, // 옵션 로드 후 실제 값 적용 (deferred)
         drAccessCodeProfileId: 0, // 옵션 로드 후 실제 값 적용 (deferred)
-        initMent: r.initMent ?? 0,
-        waitMent: r.waitMent ?? 0,
-        closeMent: r.closeMent ?? 0,
-        blockMent: r.blockMent ?? 0,
-        connMent: r.connMent ?? 0,
-        holdMent: r.holdMent ?? 0,
-        coConnMent: r.coConnMent ?? 0,
-        coHoldMent: r.coHoldMent ?? 0,
+        initMent: 0, // 멘트 옵션 로드 후 실제 값 적용 (deferred)
+        waitMent: 0,
+        closeMent: 0,
+        blockMent: 0,
+        connMent: 0,
+        holdMent: 0,
+        coConnMent: 0,
+        coHoldMent: 0,
         blockYn: r.blockYn ?? 0,
         closeType: r.closeType ?? 0,
         errorRoutingDnis: r.errorRoutingDnis ?? '',
@@ -288,7 +315,7 @@ export default function CtiQueueFormDrawer({ state, onClose, tenantOptions = [],
         ...mediaVals,
       });
     } else {
-      pendingAsyncValues.current = { firstGroupId: 0, bsrGroupId: 0, accessCodeProfileId: 0, drAccessCodeProfileId: 0, skills: {} };
+      pendingAsyncValues.current = { firstGroupId: 0, bsrGroupId: 0, accessCodeProfileId: 0, drAccessCodeProfileId: 0, skills: {}, ments: {} };
       const mediaVals: Record<string, unknown> = {};
       for (const { mediaType } of activeMedia) {
         mediaVals[skillIdKey(mediaType)] = 0;
@@ -389,6 +416,17 @@ export default function CtiQueueFormDrawer({ state, onClose, tenantOptions = [],
       form.setFieldsValue({ drAccessCodeProfileId: v });
     }
   }, [state.open, drAccessProfileSelectOptions, form]);
+
+  // 초기구성 멘트 콤보: 옵션에 해당 값이 존재할 때 실제 값 적용 (raw ID flash 방지)
+  useEffect(() => {
+    if (!state.open) return;
+    const ments = pendingAsyncValues.current.ments;
+    const patch: Record<string, number> = {};
+    for (const [key, v] of Object.entries(ments)) {
+      if (v && mentSelectOptions.some((o) => o.value === v) && form.getFieldValue(key) !== v) patch[key] = v;
+    }
+    if (Object.keys(patch).length > 0) form.setFieldsValue(patch as Parameters<typeof form.setFieldsValue>[0]);
+  }, [state.open, mentSelectOptions, form]);
 
   const { mutate: create, isPending: isCreating } = useCreateCtiQueue({
     mutationOptions: {
@@ -619,38 +657,38 @@ export default function CtiQueueFormDrawer({ state, onClose, tenantOptions = [],
       forceRender: true,
       children: (
         <div className="grid grid-cols-2 gap-x-6 gap-y-1">
-          <Form.Item label="초기멘트 ID" name="initMent">
-            <InputNumber style={{ width: '100%' }} min={0} placeholder="없음 0" />
+          <Form.Item label="초기멘트" name="initMent" tooltip="교환기 멘트 관리에 등록된 멘트(노드/테넌트 기준)">
+            <Select options={mentSelectOptions} loading={mentLoading} showSearch optionFilterProp="label" placeholder="없음" />
           </Form.Item>
           <Form.Item label="장애시라우팅 DN" name="errorRoutingDnis" rules={[{ max: 24 }]}>
             <Input maxLength={24} className="font-mono" placeholder="DN 숫자" />
           </Form.Item>
-          <Form.Item label="대기멘트 ID" name="waitMent">
-            <InputNumber style={{ width: '100%' }} min={0} placeholder="없음 0" />
+          <Form.Item label="대기멘트" name="waitMent">
+            <Select options={mentSelectOptions} loading={mentLoading} showSearch optionFilterProp="label" placeholder="없음" />
           </Form.Item>
           <Form.Item label="블럭시라우팅 DN" name="blockRoutingDnis" rules={[{ max: 24 }]}>
             <Input maxLength={24} className="font-mono" placeholder="DN 숫자" />
           </Form.Item>
-          <Form.Item label="종료멘트 ID" name="closeMent">
-            <InputNumber style={{ width: '100%' }} min={0} disabled={blockOff} placeholder="블럭=설정 시 활성" />
+          <Form.Item label="종료멘트" name="closeMent">
+            <Select options={mentSelectOptions} loading={mentLoading} disabled={blockOff} showSearch optionFilterProp="label" placeholder="블럭=설정 시 활성" />
           </Form.Item>
           <Form.Item label="Busy시라우팅 DN" name="busyRoutingDnis" rules={[{ max: 24 }]}>
             <Input maxLength={24} className="font-mono" disabled={blockOff} placeholder="DN 숫자" />
           </Form.Item>
-          <Form.Item label="블럭멘트 ID" name="blockMent">
-            <InputNumber style={{ width: '100%' }} min={0} placeholder="없음 0" />
+          <Form.Item label="블럭멘트" name="blockMent">
+            <Select options={mentSelectOptions} loading={mentLoading} showSearch optionFilterProp="label" placeholder="없음" />
           </Form.Item>
-          <Form.Item label="기본연결멘트 ID" name="connMent">
-            <InputNumber style={{ width: '100%' }} min={0} placeholder="없음 0" />
+          <Form.Item label="기본연결멘트" name="connMent">
+            <Select options={mentSelectOptions} loading={mentLoading} showSearch optionFilterProp="label" placeholder="없음" />
           </Form.Item>
-          <Form.Item label="기본보류멘트 ID" name="holdMent">
-            <InputNumber style={{ width: '100%' }} min={0} placeholder="없음 0" />
+          <Form.Item label="기본보류멘트" name="holdMent">
+            <Select options={mentSelectOptions} loading={mentLoading} showSearch optionFilterProp="label" placeholder="없음" />
           </Form.Item>
-          <Form.Item label="국선호연결멘트 ID" name="coConnMent">
-            <InputNumber style={{ width: '100%' }} min={0} placeholder="없음 0" />
+          <Form.Item label="국선호연결멘트" name="coConnMent">
+            <Select options={mentSelectOptions} loading={mentLoading} showSearch optionFilterProp="label" placeholder="없음" />
           </Form.Item>
-          <Form.Item label="국선호보류멘트 ID" name="coHoldMent">
-            <InputNumber style={{ width: '100%' }} min={0} placeholder="없음 0" />
+          <Form.Item label="국선호보류멘트" name="coHoldMent">
+            <Select options={mentSelectOptions} loading={mentLoading} showSearch optionFilterProp="label" placeholder="없음" />
           </Form.Item>
           <div className="col-span-2 my-2 border-t border-dashed border-gray-200" />
           <Form.Item label="블럭여부" name="blockYn">

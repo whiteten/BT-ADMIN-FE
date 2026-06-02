@@ -15,7 +15,7 @@
 import { type ChangeEvent, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Button, Empty, Input } from 'antd';
 import { ArrowUpDown, Building2, ChevronLeft, ChevronRight, ChevronsDown, ChevronsUp, Network, Plus, Search, Trash2 } from 'lucide-react';
-import { useBreadcrumbStore } from '@/shared-store';
+import { useAuthStore, useBreadcrumbStore } from '@/shared-store';
 import { toast } from '@/shared-util';
 import CtiQueueFormDrawer, { type CtiQueueDrawerState } from '../../features/cti-queue/components/CtiQueueFormDrawer';
 import CtiQueueGroupDrawer from '../../features/cti-queue/components/CtiQueueGroupDrawer';
@@ -54,13 +54,19 @@ export default function CtiQueueList() {
 
   const modal = useModal();
 
+  // 로그인 테넌트 ID (JWT — 사용자 본인 테넌트) — 페이지 진입 시 자동 선택
+  const loginTenantId = useAuthStore((s) => {
+    const t = s.userInfo?.tenant;
+    return t ? Number(t) : null;
+  });
+
   // ─── State ────────────────────────────────────────────────────────────────
   const [viewMode, setViewMode] = useState<'byNode' | 'byTenant'>('byNode');
   const [selectedNodeId, setSelectedNodeId] = useState<number | null>(null);
-  const [selectedTenantId, setSelectedTenantId] = useState<number | null>(null);
+  const [selectedTenantId, setSelectedTenantId] = useState<number | null>(loginTenantId);
   const [searchText, setSearchText] = useState('');
-  // "업무그룹 보기" — ON 시 좌측 업무그룹 트리(TB_TR_CTIQ_MASTER) + 큐 D&D 배정 노출 (SWAT IPR20S3020 업무그룹 트리).
-  const [groupView, setGroupView] = useState(false);
+  // 업무그룹 패널 항상 표시 — 좌측 업무그룹 트리(TB_TR_CTIQ_MASTER) + 큐 D&D 배정 상시 노출 (SWAT IPR20S3020 업무그룹 트리).
+  const groupView = true;
   const [selectedTreeId, setSelectedTreeId] = useState<number | null>(null); // null=전체, 0=미배정, n=실제 트리
   const [selectedRows, setSelectedRows] = useState<CtiQueueResponse[]>([]);
   const [cardExpanded, setCardExpanded] = useState(true);
@@ -72,6 +78,14 @@ export default function CtiQueueList() {
   const [groupDrawerParent, setGroupDrawerParent] = useState<CtiQueueGroupResponse | null>(null);
   const [groupDrawerTarget, setGroupDrawerTarget] = useState<CtiQueueGroupResponse | null>(null);
   const [groupDrawerTenantHint, setGroupDrawerTenantHint] = useState<number | null>(null);
+
+  // loginTenantId 가 늦게 로드되는 경우 (auth fetch 비동기) 동기화
+  useEffect(() => {
+    if (loginTenantId != null && selectedTenantId === null) {
+      setSelectedTenantId(loginTenantId);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [loginTenantId]);
 
   const cardScrollRef = useRef<HTMLDivElement>(null);
   const tabScrollRef = useRef<HTMLDivElement>(null);
@@ -173,8 +187,8 @@ export default function CtiQueueList() {
     if (selectedCardId != null) {
       list = list.filter((r) => (viewMode === 'byNode' ? r.tenantId === selectedCardId : r.nodeId === selectedCardId));
     }
-    // 업무그룹(treeName) 트리 필터 — "업무그룹 보기" ON + 트리 노드 선택 시 적용 (0=미배정, null=전체)
-    if (groupView && selectedTreeId != null) {
+    // 업무그룹(treeName) 트리 필터 — 트리 노드 선택 시 적용 (0=미배정, null=전체)
+    if (selectedTreeId != null) {
       list = list.filter((r) => (selectedTreeId === 0 ? r.treeId == null : r.treeId === selectedTreeId));
     }
     const kw = searchText.trim().toLowerCase();
@@ -182,7 +196,7 @@ export default function CtiQueueList() {
       list = list.filter((r) => [r.gdnNo, r.gdnName, r.ctiqName, r.tenantName, r.treeName].some((f) => f != null && String(f).toLowerCase().includes(kw)));
     }
     return list;
-  }, [rowsInTab, selectedCardId, viewMode, searchText, groupView, selectedTreeId]);
+  }, [rowsInTab, selectedCardId, viewMode, searchText, selectedTreeId]);
 
   // 등록 폼에 넘길 테넌트/노드 컨텍스트 (선택된 카드/탭 기준 — 카드=전체면 null → Drawer 에서 직접 선택)
   const ctxTenantId = viewMode === 'byNode' ? (selectedCardId ?? selectedTenantId) : selectedTenantId;
@@ -194,12 +208,12 @@ export default function CtiQueueList() {
   const tenantSelectOptions = useMemo(() => tenants.map((t) => ({ value: t.tenantId, label: t.tenantName ?? `테넌트 ${t.tenantId}` })), [tenants]);
   const nodeSelectOptions = useMemo(() => nodes.map((n) => ({ value: n.nodeId, label: n.nodeName ?? `노드 ${n.nodeId}` })), [nodes]);
 
-  // ─── 업무그룹 트리 (TB_TR_CTIQ_MASTER) — "업무그룹 보기" ON 시에만 조회 ──────────
+  // ─── 업무그룹 트리 (TB_TR_CTIQ_MASTER) — 항상 조회 ──────────────────────────
   // 트리는 테넌트 단위. 현재 스코프 테넌트(카드/탭) 가 있으면 그 테넌트, 없으면 전체.
   const treeTenantId = ctxTenantId;
   const { data: groupTree = [] } = useGetCtiQueueGroups({
     params: treeTenantId != null ? { tenantId: treeTenantId } : undefined,
-    queryOptions: { enabled: groupView },
+    queryOptions: { enabled: true },
   });
 
   // 트리 "전체/미배정" 카운트 — 현재 그리드 범위(rowsInTab) 기준
@@ -234,7 +248,8 @@ export default function CtiQueueList() {
     (id: number) => {
       if (viewMode === 'byNode') {
         setSelectedNodeId(id);
-        setSelectedTenantId(null);
+        // 노드 전환 시 테넌트 스코프는 로그인 테넌트로 유지 (null 리셋 → 누수 방지)
+        setSelectedTenantId((prev) => (prev === null ? null : (loginTenantId ?? prev)));
       } else {
         setSelectedTenantId(id);
         setSelectedNodeId(null);
@@ -242,18 +257,19 @@ export default function CtiQueueList() {
       setSearchText('');
       setSelectedTreeId(null);
     },
-    [viewMode],
+    [viewMode, loginTenantId],
   );
 
   const toggleViewMode = useCallback(() => {
     setViewMode((prev) => (prev === 'byNode' ? 'byTenant' : 'byNode'));
     setSelectedNodeId(null);
-    setSelectedTenantId(null);
+    // viewMode 전환 시에도 테넌트 스코프는 로그인 테넌트로 복원 (null 리셋 → 누수 방지)
+    setSelectedTenantId(loginTenantId);
     hasInitializedNodeRef.current = false;
     hasInitializedTenantRef.current = false;
     setSearchText('');
     setSelectedTreeId(null);
-  }, []);
+  }, [loginTenantId]);
 
   const { mutate: deleteQueue, isPending: isDeleting } = useDeleteCtiQueue({
     mutationOptions: {
@@ -507,18 +523,6 @@ export default function CtiQueueList() {
                 onChange={(e: ChangeEvent<HTMLInputElement>) => setSearchText(e.target.value)}
                 style={{ width: 220 }}
               />
-              <label className="flex items-center gap-1.5 text-[12px] text-gray-600 cursor-pointer select-none">
-                <input
-                  type="checkbox"
-                  checked={groupView}
-                  onChange={(e) => {
-                    setGroupView(e.target.checked);
-                    if (!e.target.checked) setSelectedTreeId(null);
-                  }}
-                  className="accent-[#405189]"
-                />
-                업무그룹 보기
-              </label>
             </div>
           </div>
         </div>
@@ -614,38 +618,36 @@ export default function CtiQueueList() {
           )}
         </div>
 
-        {/* ===== 박스C: (업무그룹 보기 ON 시) 좌측 업무그룹 트리 + 우측 ag-Grid ===== */}
+        {/* ===== 박스C: 좌측 업무그룹 트리 + 우측 ag-Grid (항상 표시) ===== */}
         <div className="flex gap-4 flex-1 min-h-0">
-          {groupView && (
-            <div className="bg-white bt-shadow flex flex-col w-[280px] flex-shrink-0 overflow-hidden">
-              <div className="flex items-center px-4 h-[44px] border-b border-gray-100">
-                <span className="text-sm font-semibold text-gray-700">업무그룹</span>
-                <button
-                  type="button"
-                  onClick={() => handleCreateGroup(null, treeTenantId)}
-                  disabled={treeTenantId == null}
-                  className="ml-auto inline-flex items-center gap-1 px-2 py-0.5 rounded border border-[#405189] text-[#405189] text-xs hover:bg-[#405189]/5 disabled:opacity-40 disabled:cursor-not-allowed"
-                  title={treeTenantId == null ? '테넌트를 먼저 선택하세요' : '루트 그룹 추가'}
-                >
-                  <Plus className="size-3" /> 루트
-                </button>
-              </div>
-              <div className="flex-1 min-h-0">
-                <CtiQueueGroupTree
-                  groups={groupTree}
-                  totalCtiqCount={treeDisplayCount.total}
-                  totalUnassignedCount={treeDisplayCount.unassigned}
-                  selectedTreeId={selectedTreeId}
-                  selectedTenantId={treeTenantId}
-                  onSelect={setSelectedTreeId}
-                  onCreateChild={(parent) => handleCreateGroup(parent, treeTenantId)}
-                  onEdit={handleEditGroup}
-                  onDelete={handleDeleteGroup}
-                  onCtiQueueDrop={handleCtiQueueDrop}
-                />
-              </div>
+          <div className="bg-white bt-shadow flex flex-col w-[280px] flex-shrink-0 overflow-hidden">
+            <div className="flex items-center px-4 h-[44px] border-b border-gray-100">
+              <span className="text-sm font-semibold text-gray-700">업무그룹</span>
+              <button
+                type="button"
+                onClick={() => handleCreateGroup(null, treeTenantId)}
+                disabled={treeTenantId == null}
+                className="ml-auto inline-flex items-center gap-1 px-2 py-0.5 rounded border border-[#405189] text-[#405189] text-xs hover:bg-[#405189]/5 disabled:opacity-40 disabled:cursor-not-allowed"
+                title={treeTenantId == null ? '테넌트를 먼저 선택하세요' : '루트 그룹 추가'}
+              >
+                <Plus className="size-3" /> 루트
+              </button>
             </div>
-          )}
+            <div className="flex-1 min-h-0">
+              <CtiQueueGroupTree
+                groups={groupTree}
+                totalCtiqCount={treeDisplayCount.total}
+                totalUnassignedCount={treeDisplayCount.unassigned}
+                selectedTreeId={selectedTreeId}
+                selectedTenantId={treeTenantId}
+                onSelect={setSelectedTreeId}
+                onCreateChild={(parent) => handleCreateGroup(parent, treeTenantId)}
+                onEdit={handleEditGroup}
+                onDelete={handleDeleteGroup}
+                onCtiQueueDrop={handleCtiQueueDrop}
+              />
+            </div>
+          </div>
 
           <div className="bg-white bt-shadow flex flex-col flex-1 min-h-0 overflow-hidden">
             <div className="px-5 py-3 border-b border-gray-100 flex items-center gap-2 h-[44px] flex-shrink-0">
@@ -677,7 +679,7 @@ export default function CtiQueueList() {
                 rowData={rowsForGrid}
                 isLoading={isLoading}
                 groupOptions={groupOptions}
-                groupView={groupView}
+                groupView={true}
                 onRowDoubleClicked={handleEdit}
                 onDelete={handleDelete}
                 onSelectionChanged={setSelectedRows}

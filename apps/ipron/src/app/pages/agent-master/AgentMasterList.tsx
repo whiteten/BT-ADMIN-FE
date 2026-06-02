@@ -28,8 +28,9 @@ import {
   useGetAgents,
   useMoveAgent,
   useReorderAgentGroup,
+  useUpdateAgent,
 } from '../../features/agent-master/hooks/useAgentMasterQueries';
-import type { AgentGroupNode, AgentGroupReorderPosition, AgentResponse } from '../../features/agent-master/types';
+import type { AgentGroupNode, AgentGroupReorderPosition, AgentResponse, AgentUpdateRequest } from '../../features/agent-master/types';
 import { useModal } from '@/libs/shared-ui/src/hooks/useModal';
 
 const breadcrumb = [
@@ -145,6 +146,26 @@ export default function AgentMasterList() {
       },
     },
   });
+
+  // 미디어 관리 탭 인라인 수정 — 행 단위 저장 (상세 Drawer 와 동일 update 엔드포인트)
+  const { mutate: updateAgent, isPending: isSavingMedia } = useUpdateAgent({
+    mutationOptions: {
+      onSuccess: () => {
+        toast.success('미디어 옵션이 저장되었습니다');
+      },
+      onError: (err: unknown) => {
+        const msg = (err as { response?: { data?: { message?: string } } })?.response?.data?.message ?? '미디어 옵션 저장 실패';
+        toast.error(msg);
+      },
+    },
+  });
+
+  const handleSaveMediaRow = useCallback(
+    (id: number, body: AgentUpdateRequest) => {
+      updateAgent({ id, body });
+    },
+    [updateAgent],
+  );
 
   // ─── Derived ────────────────────────────────────────────────────────────
   const filteredAgents = useMemo(() => {
@@ -478,7 +499,7 @@ export default function AgentMasterList() {
                 }}
               />
             ) : (
-              <AgentMediaStatusTable rowData={filteredAgents} isLoading={isLoading} onRowDoubleClicked={handleEdit} />
+              <AgentMediaStatusTable rowData={filteredAgents} isLoading={isLoading} onRowDoubleClicked={handleEdit} onSaveRow={handleSaveMediaRow} saving={isSavingMedia} />
             )}
           </div>
         </div>

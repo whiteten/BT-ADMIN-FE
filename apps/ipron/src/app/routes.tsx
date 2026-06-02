@@ -32,6 +32,7 @@ const McsDnis = React.lazy(() => import('./pages/line/McsDnis'));
 const SipTrunkList = React.lazy(() => import('./pages/line/SipTrunkList'));
 const CommonTrunkList = React.lazy(() => import('./pages/line/CommonTrunkList'));
 const CtiQueueList = React.lazy(() => import('./pages/line/CtiQueueList'));
+const MentMgmtList = React.lazy(() => import('./pages/line/MentMgmtList'));
 
 // acd-gdn (ACD 그룹DN 관리 — SWAT IPR20S3010 + IPR20S3030, GDN_TYPE=16)
 const AcdGdnList = React.lazy(() => import('./pages/acd-gdn/AcdGdnList'));
@@ -212,6 +213,10 @@ export const routes = [
       {
         path: 'cti-queue',
         element: <CtiQueueList />,
+      },
+      {
+        path: 'ment-mgmt',
+        element: <MentMgmtList />,
       },
       {
         path: 'agent-master',
