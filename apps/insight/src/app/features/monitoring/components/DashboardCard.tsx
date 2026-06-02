@@ -111,9 +111,13 @@ export default function DashboardCard({ dashboard }: DashboardCardProps) {
               }
               overlayInnerStyle={{ padding: '8px 12px' }}
             >
-              <span className="text-[13px] font-medium text-[var(--color-bt-primary)] border-b border-dashed border-[var(--color-bt-primary)]/40 cursor-help">
-                {dashboard.widgetNames[0]}
-                {dashboard.widgetNames.length > 1 && <span className="ml-1 text-[11px] opacity-70">외 {dashboard.widgetNames.length - 1}개</span>}
+              <span className="inline-flex items-center gap-1.5 cursor-help">
+                <span className="text-[13px] font-medium text-[#495057] truncate max-w-[200px]">{dashboard.widgetNames[0]}</span>
+                {dashboard.widgetNames.length > 1 && (
+                  <span className="inline-flex items-center justify-center rounded-full bg-[var(--color-bt-primary-soft)] text-[var(--color-bt-primary)] text-[10px] font-bold leading-none px-2 h-[18px] min-w-[24px] border border-[var(--color-bt-primary)]/20">
+                    +{dashboard.widgetNames.length - 1}
+                  </span>
+                )}
               </span>
             </Tooltip>
           ) : (

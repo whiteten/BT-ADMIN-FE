@@ -1,4 +1,6 @@
+import { useMemo } from 'react';
 import { CartesianGrid, Legend, Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
+import { useGetDataSourceFields } from '../../../dataset/hooks/useDatasetQueries';
 import { useReportViewStore } from '../../../report/hooks/useReportViewStore';
 import type { LineChartOptions, PanelDetail } from '../../../report/types';
 import { usePanelData } from '../../hooks/usePanelQueries';
@@ -12,6 +14,14 @@ const CHART_COLORS = ['#085fb5', '#0a8a4a', '#b76e00', '#7a4e9e', '#c92a2a'];
 
 export default function PanelLineChart({ panel, reportId }: PanelLineChartProps) {
   const { committedFilter, queryTrigger } = useReportViewStore();
+
+  // 데이터셋 표시명 — 범례/툴팁 라벨을 fieldName 대신 displayName 으로 (패널별 데이터셋)
+  const { data: fields = [] } = useGetDataSourceFields({
+    params: { datasetId: panel.datasetId ?? 0 },
+    queryOptions: { enabled: !!panel.datasetId },
+  });
+  const displayNameMap = useMemo(() => new Map(fields.map((f) => [f.fieldName, f.displayName])), [fields]);
+  const dn = (name: string) => displayNameMap.get(name) ?? name;
 
   const xField = panel.fieldMap.find((f) => f.slotType === 'X_AXIS');
   const yFields = panel.fieldMap.filter((f) => f.slotType === 'Y_AXIS');
@@ -54,7 +64,7 @@ export default function PanelLineChart({ panel, reportId }: PanelLineChartProps)
   const data = (isDraft ? [] : (queryResult?.current ?? [])) as Record<string, unknown>[];
 
   return (
-    <ResponsiveContainer width="100%" height={220}>
+    <ResponsiveContainer width="100%" height="100%" minHeight={160}>
       <LineChart data={data} margin={{ top: 4, right: 16, bottom: 4, left: 8 }}>
         <CartesianGrid strokeDasharray="3 3" stroke="#e4e7ec" />
         <XAxis dataKey={xField.fieldName} tick={{ fontSize: 10 }} />
@@ -66,6 +76,7 @@ export default function PanelLineChart({ panel, reportId }: PanelLineChartProps)
             key={f.fieldName}
             type="monotone"
             dataKey={f.fieldName}
+            name={dn(f.fieldName)}
             stroke={CHART_COLORS[i % CHART_COLORS.length]}
             dot={false}
             label={showDataLabel ? { fontSize: 9 } : false}

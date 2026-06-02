@@ -58,7 +58,7 @@ export default function PanelPieChart({ panel, reportId }: PanelPieChartProps) {
   }));
 
   return (
-    <ResponsiveContainer width="100%" height={220}>
+    <ResponsiveContainer width="100%" height="100%" minHeight={160}>
       <PieChart>
         <Pie
           data={data}
@@ -66,8 +66,8 @@ export default function PanelPieChart({ panel, reportId }: PanelPieChartProps) {
           nameKey="name"
           cx="50%"
           cy="50%"
-          outerRadius={80}
-          innerRadius={isDonut ? 40 : 0}
+          outerRadius="80%"
+          innerRadius={isDonut ? '50%' : 0}
           label={({ name, percent }) => `${name} ${(percent * 100).toFixed(1)}%`}
           labelLine={false}
         >

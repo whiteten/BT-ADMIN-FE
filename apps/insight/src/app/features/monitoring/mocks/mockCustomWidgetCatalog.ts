@@ -62,6 +62,19 @@ export const MOCK_CUSTOM_WIDGETS: CustomWidgetCatalogItem[] = [
 
   // ─── IC (CTI / 상담원 관리) ──────────────────────────────────────────
   {
+    widgetTypeId: 'health-board',
+    widgetName: '종합 헬스보드',
+    domainCode: 'IC',
+    description: '"지금 우리 센터, 정상인가?" — 응대율·SL·포기율 게이지, 현재 대기·알람, 시스템 노드 신호등, 큐/상담사/통화품질 요약을 한 화면에 모은 관제 허브 위젯입니다.',
+    defaultOptions: {},
+    minW: 8,
+    minH: 12,
+    defaultW: 12,
+    defaultH: 16,
+    widgetCategory: 'STATUS',
+    kind: 'CUSTOM',
+  },
+  {
     widgetTypeId: 'agent-status-matrix',
     widgetName: '상담사 상태 매트릭스',
     domainCode: 'IC',

@@ -2,7 +2,6 @@ import { useCallback, useMemo } from 'react';
 import type { ColDef, RowClassParams, ValueFormatterParams } from 'ag-grid-community';
 import { AgGridReact } from 'ag-grid-react';
 import { useGetDataSourceFields } from '../../../dataset/hooks/useDatasetQueries';
-import { useReportEditorStore } from '../../../report/hooks/useReportEditorStore';
 import { useReportViewStore } from '../../../report/hooks/useReportViewStore';
 import type { ColumnFormat, PanelDetail } from '../../../report/types';
 import { usePanelData } from '../../hooks/usePanelQueries';
@@ -40,10 +39,10 @@ function formatValue(value: unknown, format: ColumnFormat | undefined): string {
 export default function PanelGrid({ panel, reportId }: PanelGridProps) {
   const { gridOptions } = useAggridOptions();
   const { committedFilter, queryTrigger } = useReportViewStore();
-  const { report } = useReportEditorStore();
+  // 데이터셋은 패널별(N:M) — 보고서 단위가 아니라 panel.datasetId 로 표시명 로드
   const { data: fields = [] } = useGetDataSourceFields({
-    params: { datasetId: report?.datasetId ?? 0 },
-    queryOptions: { enabled: !!report?.datasetId },
+    params: { datasetId: panel.datasetId ?? 0 },
+    queryOptions: { enabled: !!panel.datasetId },
   });
   const displayNameMap = useMemo(() => new Map(fields.map((f) => [f.fieldName, f.displayName])), [fields]);
 
@@ -138,16 +137,27 @@ export default function PanelGrid({ panel, reportId }: PanelGridProps) {
     );
   }
 
+  // 편집 미리보기(draft) → 선택된 컬럼 구조만 깔끔히 표시 (데이터/합계/페이저/상태바 없음, autoHeight)
+  if (isDraft) {
+    return <AgGridReact {...gridOptions} rowData={[]} columnDefs={columnDefs} domLayout="autoHeight" pagination={false} statusBar={undefined} pinnedBottomRowData={undefined} />;
+  }
+
+  // 실제 뷰 → 패널 영역을 꽉 채우는 고정 높이(영역 내부 스크롤) + 페이징(50/page) + 합계 핀
+  // domLayout="normal" 이라 패널 높이를 키우면 보이는 행 수도 늘어남
   return (
-    <AgGridReact
-      {...gridOptions}
-      rowData={isDraft ? [] : rowData}
-      columnDefs={columnDefs}
-      loading={!isDraft && isFetching}
-      pagination={false}
-      domLayout="autoHeight"
-      pinnedBottomRowData={pinnedBottomRowData}
-      getRowStyle={getRowStyle}
-    />
+    <div className="h-full w-full" style={{ minHeight: 220 }}>
+      <AgGridReact
+        {...gridOptions}
+        rowData={rowData}
+        columnDefs={columnDefs}
+        loading={isFetching}
+        pagination
+        paginationPageSize={50}
+        paginationPageSizeSelector={[20, 50, 100, 200]}
+        domLayout="normal"
+        pinnedBottomRowData={pinnedBottomRowData}
+        getRowStyle={getRowStyle}
+      />
+    </div>
   );
 }

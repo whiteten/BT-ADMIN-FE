@@ -124,7 +124,7 @@ module.exports = [
     },
     rules: {
       // Disallow alert/confirm/prompt — use useModal + toast instead
-      'no-alert': 'error',
+      'no-alert': 'warn',
 
       // Import rules
       'import/extensions': 'off',

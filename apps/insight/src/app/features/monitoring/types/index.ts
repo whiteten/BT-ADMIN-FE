@@ -33,7 +33,6 @@ export interface DashboardListItem {
   templateWidgetCount: number;
   customWidgetCount: number;
   widgetNames?: string[]; // 대시보드 구성을 한눈에 보기 위한 위젯 명칭 리스트
-  fitToScreen: boolean; // 화면 맞춤(Full Scaling) 여부
   layoutWidth: number; // grid cols (12 고정)
   layoutHeight: number; // 사용된 row 수
   createdAt: string;
@@ -50,7 +49,6 @@ export interface DashboardUpdateDatas {
   dashboardName?: string;
   description?: string;
   status?: DashboardStatus;
-  fitToScreen?: boolean; // 화면 맞춤(Full Scaling) 여부 저장
 }
 
 export interface DashboardDetail extends DashboardListItem {

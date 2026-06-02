@@ -27,6 +27,7 @@ export interface ReportDetail {
   description?: string;
   domain: DomainCode;
   datasetId: number;
+  iconType?: ReportIconType;
   isPublished: boolean;
   ownerUserId: number;
   createdAt: string;
@@ -128,6 +129,8 @@ export interface PanelDetail {
   reportId: number;
   panelType: PanelType;
   title: string;
+  /** 패널 데이터셋 (패널마다 다른 데이터셋 가능) */
+  datasetId: number;
   layout: PanelLayout;
   chartOptions?: ChartOptions;
   fieldMap: PanelFieldMap[];
@@ -143,12 +146,16 @@ export interface ReportCreateDatas {
 
 export interface ReportUpdateDatas {
   title: string;
+  domain: DomainCode;
+  datasetId: number;
   description?: string;
+  iconType?: ReportIconType;
 }
 
 export interface PanelCreateDatas {
   panelType: PanelType;
   title: string;
+  datasetId: number;
   layout: PanelLayout;
   chartOptions?: ChartOptions;
   fieldMap: PanelFieldMap[];

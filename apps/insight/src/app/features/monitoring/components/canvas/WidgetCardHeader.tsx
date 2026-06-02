@@ -1,6 +1,6 @@
-import { Settings, X } from 'lucide-react';
 import { VIZ_ICON, VIZ_LABELS } from '../../constants/monitoringConstants';
 import type { CustomWidget, TemplateWidget, VizType, Widget } from '../../types';
+import { IconTrash } from '@/libs/shared-ui/src/components/custom/Icons';
 
 interface WidgetCardHeaderProps {
   widget: Widget;
@@ -10,9 +10,8 @@ interface WidgetCardHeaderProps {
   onChangeViz?: (viz: VizType) => void;
   /** 데이터셋명 또는 커스텀 위젯 유형명 (widget 객체에 없을 때 fallback 으로 사용 가능) */
   sourceName?: string;
-  /** 편집 모드일 때만 노출 — 설정/삭제 버튼 */
+  /** 편집 모드일 때만 노출 — 삭제 버튼 */
   editMode?: boolean;
-  onSettings?: () => void;
   onDelete?: () => void;
   /** 실시간 연결 상태 */
   connected?: boolean;
@@ -31,7 +30,6 @@ export default function WidgetCardHeader({
   onChangeViz,
   sourceName,
   editMode = false,
-  onSettings,
   onDelete,
   connected = true,
   draggableClass = '',
@@ -115,26 +113,13 @@ export default function WidgetCardHeader({
           </span>
         )}
 
-        {/* 설정/삭제 (편집 모드 전용) */}
+        {/* 삭제 (편집 모드 전용) — 그리드 표준 휴지통 (IconTrash + text-red-500) · 시각화 버튼 그룹과 동일한 div 패턴 */}
         {editMode && (
-          <>
-            <button
-              type="button"
-              onClick={onSettings}
-              title="설정"
-              className="inline-flex h-6 w-6 items-center justify-center rounded text-[var(--color-bt-fg-muted)] hover:bg-[var(--color-bt-bg-muted)] hover:text-[var(--color-bt-fg)]"
-            >
-              <Settings className="w-3.5 h-3.5" />
+          <div className="flex items-center gap-0.5">
+            <button type="button" onClick={onDelete} title="삭제" className="inline-flex h-6 w-6 items-center justify-center">
+              <IconTrash className="size-5 text-red-500 hover:cursor-pointer" />
             </button>
-            <button
-              type="button"
-              onClick={onDelete}
-              title="삭제"
-              className="inline-flex h-6 w-6 items-center justify-center rounded text-[var(--color-bt-fg-muted)] hover:bg-[var(--color-bt-danger-soft)] hover:text-[var(--color-bt-danger)]"
-            >
-              <X className="w-3.5 h-3.5" />
-            </button>
-          </>
+          </div>
         )}
       </div>
     </div>
