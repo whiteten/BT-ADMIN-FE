@@ -22,7 +22,7 @@
       "{workspaceRoot}/libs/**/*.{js,jsx,ts,tsx,html}",
       "{workspaceRoot}/libs/shared-ui/src/styles/global.css"
     ],
-    "sharedGlobals": []
+    "sharedGlobals": ["{workspaceRoot}/tools/webpack/**/*"]
   },
   "plugins": [
     {

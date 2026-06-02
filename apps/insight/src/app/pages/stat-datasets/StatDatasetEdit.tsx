@@ -8,7 +8,7 @@ import { toast } from '@/shared-util';
 import WizardStepB from '../../features/dataset/components/WizardStepB';
 import { useGetDataset, useUpdateDataset } from '../../features/dataset/hooks/useDatasetQueries';
 import type { ColumnFormatValue, DataSourceFieldRequest, FieldMetaItem, LocalCalcFieldDraft, LocalFieldDisplay, ValidationStatus } from '../../features/dataset/types';
-import { DOMAIN_LABELS } from '../../features/report/constants/reportIconConstants';
+import { DOMAIN_LABELS, DOMAIN_TAG_COLOR } from '../../features/report/constants/reportIconConstants';
 import type { DomainCode } from '../../features/report/types';
 import { FallbackSpinner } from '@/components/custom/FallbackSpinner';
 
@@ -112,6 +112,7 @@ export default function StatDatasetEdit() {
   const setBreadcrumb = useBreadcrumbStore((s) => s.setBreadcrumb);
   const clearBreadcrumb = useBreadcrumbStore((s) => s.clearBreadcrumb);
 
+  const [datasourceName, setDatasourceName] = useState('');
   const [fieldDisplays, setFieldDisplays] = useState<LocalFieldDisplay[]>([]);
   const [calcFields, setCalcFields] = useState<LocalCalcFieldDraft[]>([]);
   const [isCalcEditing, setIsCalcEditing] = useState(false);
@@ -133,18 +134,12 @@ export default function StatDatasetEdit() {
     },
   });
 
-  // 데이터셋 명만 변경 (필드 미전송 → 컬럼 메타 보존)
-  const { mutate: renameDataset } = useUpdateDataset({
-    mutationOptions: {
-      onSuccess: () => toast.success('데이터셋 명이 수정되었습니다.'),
-      onError: () => toast.error('데이터셋 명 수정에 실패했습니다.'),
-    },
-  });
-
+  // 데이터셋 명 인라인 편집 — 로컬 상태만 변경. 실제 저장은 [저장] 버튼에서 전체 payload로 전송.
+  // (백엔드 update DTO는 dbViewPrefix @NotBlank 필수 → 이름만 부분 전송 시 400)
   const handleRename = (value: string) => {
     const next = value.trim();
-    if (!dataset || !datasetId || !next || next === dataset.datasourceName) return;
-    renameDataset({ datasetId, data: { datasourceName: next } });
+    if (!next) return;
+    setDatasourceName(next);
   };
 
   useEffect(() => {
@@ -170,6 +165,7 @@ export default function StatDatasetEdit() {
           isCalcField: true,
         };
       });
+      setDatasourceName(dataset.datasourceName);
       setFieldDisplays([...regularDisplays, ...calcDisplays]);
       setCalcFields(calcDrafts);
       setInitialized(true);
@@ -189,7 +185,7 @@ export default function StatDatasetEdit() {
     updateDataset({
       datasetId,
       data: {
-        datasourceName: dataset.datasourceName,
+        datasourceName: datasourceName.trim() || dataset.datasourceName,
         dbViewPrefix: dataset.dbViewPrefix,
         fields: buildFieldRequests(fieldDisplays, calcFields),
       },
@@ -210,11 +206,13 @@ export default function StatDatasetEdit() {
         <Typography.Title
           level={4}
           className="!mb-0 !text-lg !font-semibold !leading-none"
-          editable={{ onChange: handleRename, triggerType: ['icon', 'text'], tooltip: '클릭하여 데이터셋 명 수정', maxLength: 100 }}
+          editable={{ onChange: handleRename, triggerType: ['icon', 'text'], tooltip: '클릭하여 데이터셋 명 수정 (저장 시 반영)', maxLength: 100 }}
         >
-          {dataset!.datasourceName}
+          {datasourceName}
         </Typography.Title>
-        <span className="inline-flex h-5 items-center rounded bg-primary px-2 text-xs font-bold text-white">{dataset!.productCode}</span>
+        <Tag color={DOMAIN_TAG_COLOR[dataset!.productCode]} className="!mb-0 !mr-0 font-bold">
+          {dataset!.productCode}
+        </Tag>
         <span className="inline-flex h-5 items-center gap-1.5 rounded bg-bt-bg-muted px-2">
           <span className="text-[10px] font-bold text-bt-fg-muted">VIEW</span>
           <span className="text-xs font-mono text-bt-fg-muted">{dataset!.dbViewPrefix}</span>

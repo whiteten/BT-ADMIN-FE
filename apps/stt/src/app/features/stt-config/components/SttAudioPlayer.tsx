@@ -18,7 +18,7 @@ const SVG_H = 52;
 const CENTER = SVG_H / 2;
 const MAX_HALF = CENTER - 2;
 
-function WaveformDisplay({ waveData, progress, onSeek }: { waveData: number[] | null; progress: number; onSeek: (ratio: number) => void }) {
+function WaveformDisplay({ waveData, progress, onSeek, highlights = [] }: { waveData: number[] | null; progress: number; onSeek: (ratio: number) => void; highlights?: number[] }) {
   const svgRef = useRef<SVGSVGElement>(null);
 
   const handleClick = (e: React.MouseEvent<SVGSVGElement>) => {
@@ -55,6 +55,10 @@ function WaveformDisplay({ waveData, progress, onSeek }: { waveData: number[] | 
         const isPast = i <= progressIdx;
         return <rect key={i} x={i + 0.1} y={CENTER - halfH} width={0.8} height={halfH * 2} rx={0.4} fill={isPast ? '#60a5fa' : '#e2e8f0'} />;
       })}
+      {highlights.map((ratio, i) => {
+        const x = Math.floor(ratio * BAR_COUNT) + 0.5;
+        return <line key={i} x1={x} y1={0} x2={x} y2={SVG_H} stroke="#f59e0b" strokeWidth={1.5} opacity={0.7} />;
+      })}
       {progress > 0 && progress < 1 && <line x1={progressIdx + 0.5} y1={0} x2={progressIdx + 0.5} y2={SVG_H} stroke="#2563eb" strokeWidth={0.8} />}
     </svg>
   );
@@ -65,9 +69,10 @@ interface SttAudioPlayerProps {
   onTimeUpdate?: (ms: number) => void;
   autoPlay?: boolean;
   className?: string;
+  highlights?: number[]; // ms 단위 armsoffset 목록
 }
 
-const SttAudioPlayer = forwardRef<SttAudioPlayerRef, SttAudioPlayerProps>(({ listenData, onTimeUpdate, autoPlay, className }, ref) => {
+const SttAudioPlayer = forwardRef<SttAudioPlayerRef, SttAudioPlayerProps>(({ listenData, onTimeUpdate, autoPlay, className, highlights }, ref) => {
   const audioRef = useRef<HTMLAudioElement>(null);
   const [playing, setPlaying] = useState(false);
   const [currentTime, setCurrentTime] = useState(0);
@@ -163,7 +168,12 @@ const SttAudioPlayer = forwardRef<SttAudioPlayerRef, SttAudioPlayerProps>(({ lis
         onLoadedMetadata={() => setDuration(audioRef.current?.duration ?? 0)}
       />
 
-      <WaveformDisplay waveData={listenData.waveData} progress={progress} onSeek={handleSeekByRatio} />
+      <WaveformDisplay
+        waveData={listenData.waveData}
+        progress={progress}
+        onSeek={handleSeekByRatio}
+        highlights={duration > 0 && highlights?.length ? highlights.map((ms) => ms / (duration * 1000)) : []}
+      />
 
       <div className="flex items-center gap-3">
         <button onClick={handlePlayPause} className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full bg-blue-500 transition-colors hover:bg-blue-600">

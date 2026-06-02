@@ -7,7 +7,7 @@ import { useBreadcrumbStore } from '@/shared-store';
 import { toast } from '@/shared-util';
 import { datasetKeys, useDeleteDataset, useGetDatasets } from '../../features/dataset/hooks/useDatasetQueries';
 import type { DatasetListItem } from '../../features/dataset/types';
-import { DOMAIN_DESCRIPTIONS, DOMAIN_LABELS } from '../../features/report/constants/reportIconConstants';
+import { DOMAIN_DESCRIPTIONS, DOMAIN_LABELS, DOMAIN_TAG_COLOR } from '../../features/report/constants/reportIconConstants';
 import { useModal } from '@/libs/shared-ui/src/hooks/useModal';
 
 // ─── 대분류 그룹 설정 ──────────────────────────────────────────────────────────
@@ -26,49 +26,14 @@ const PRODUCT_CODE_GROUP: Record<string, string> = {
   IR: 'IPRON',
 };
 
-// ─── 컬럼 색상 팔레트 (인덱스 순서 자동 할당) ────────────────────────────────
-const PALETTE = [
-  {
-    bg: 'bg-blue-50/60',
-    border: 'border-blue-100',
-    header: 'bg-blue-100/70 border-b border-blue-200',
-    text: 'text-blue-700',
-    badge: 'bg-blue-500/80',
-    count: 'bg-blue-100 text-blue-600',
-  },
-  {
-    bg: 'bg-emerald-50/60',
-    border: 'border-emerald-100',
-    header: 'bg-emerald-100/70 border-b border-emerald-200',
-    text: 'text-emerald-700',
-    badge: 'bg-emerald-500/80',
-    count: 'bg-emerald-100 text-emerald-600',
-  },
-  {
-    bg: 'bg-orange-50/60',
-    border: 'border-orange-100',
-    header: 'bg-orange-100/70 border-b border-orange-200',
-    text: 'text-orange-700',
-    badge: 'bg-orange-400/80',
-    count: 'bg-orange-100 text-orange-600',
-  },
-  {
-    bg: 'bg-purple-50/60',
-    border: 'border-purple-100',
-    header: 'bg-purple-100/70 border-b border-purple-200',
-    text: 'text-purple-700',
-    badge: 'bg-purple-500/80',
-    count: 'bg-purple-100 text-purple-600',
-  },
-  {
-    bg: 'bg-rose-50/60',
-    border: 'border-rose-100',
-    header: 'bg-rose-100/70 border-b border-rose-200',
-    text: 'text-rose-700',
-    badge: 'bg-rose-500/80',
-    count: 'bg-rose-100 text-rose-600',
-  },
-];
+// ─── 컬럼 상단 액센트 색상 (제품군 구분용 — 얇은 상단 보더에만 사용) ───────────
+// antd Tag(DOMAIN_TAG_COLOR)와 톤을 맞춘 hex. 미등록 코드는 primary로 폴백.
+const ACCENT_HEX: Record<string, string> = {
+  IE: '#1677ff',
+  IC: '#52c41a',
+  IR: '#fa8c16',
+};
+const DEFAULT_ACCENT = 'var(--color-bt-primary)';
 
 const UNIT_LABEL: Record<string, string> = { MI: '10분', HH: '시간', DD: '일', MM: '월', YY: '연' };
 
@@ -165,39 +130,41 @@ export default function StatDatasetList() {
 
       {/* 칸반 — 컬럼 수 동적 */}
       <div className="flex-1 grid gap-4 px-5 pb-5 min-h-0" style={{ gridTemplateColumns: `repeat(${Math.max(columns.length, 1)}, minmax(0, 1fr))` }}>
-        {columns.map((code, idx) => {
-          const accent = PALETTE[idx % PALETTE.length];
+        {columns.map((code) => {
+          const accent = ACCENT_HEX[code] ?? DEFAULT_ACCENT;
           const items = groupDatasets.filter((d) => d.productCode === code);
           const label = DOMAIN_LABELS[code] ?? code;
           const desc = DOMAIN_DESCRIPTIONS[code];
 
           return (
-            <div key={code} className={`flex flex-col rounded-xl border ${accent.border} overflow-hidden`}>
+            <div
+              key={code}
+              className="flex flex-col rounded-xl border border-black/[0.06] bg-white bt-shadow overflow-hidden"
+              style={{ borderTopWidth: 3, borderTopColor: accent }}
+            >
               {/* 컬럼 헤더 */}
-              <div className={`${accent.header} px-4 py-3 flex items-center justify-between`}>
+              <div className="px-4 py-3 flex items-center justify-between border-b border-black/[0.05]">
                 <div className="flex items-center gap-2 min-w-0">
-                  <span className={`text-sm font-bold ${accent.text}`}>{code}</span>
-                  <span className={`text-sm font-medium ${accent.text}`}>{label}</span>
+                  <Tag color={DOMAIN_TAG_COLOR[code]} className="!mb-0 !mr-0 font-bold">
+                    {code}
+                  </Tag>
+                  <span className="text-sm font-semibold text-[var(--color-bt-fg)]">{label}</span>
                   {desc && <span className="text-xs text-[var(--color-bt-fg-muted)] truncate hidden xl:block">{desc}</span>}
                 </div>
-                <span className={`rounded-full px-2 py-0.5 text-xs font-semibold shrink-0 ${accent.count}`}>{isLoading ? '…' : items.length}</span>
+                <span className="rounded-full px-2 py-0.5 text-xs font-semibold shrink-0 bg-[var(--color-bt-bg-muted)] text-[var(--color-bt-fg-muted)]">
+                  {isLoading ? '…' : items.length}
+                </span>
               </div>
 
               {/* 카드 목록 */}
-              <div className={`flex-1 overflow-y-auto ${accent.bg} p-3 flex flex-col gap-2`}>
+              <div className="flex-1 overflow-y-auto bg-[var(--color-bt-bg-muted)]/30 p-3 flex flex-col gap-2">
                 {isLoading ? (
                   <div className="flex items-center justify-center py-10 text-sm text-[var(--color-bt-fg-muted)]">불러오는 중…</div>
                 ) : items.length === 0 ? (
                   <div className="flex items-center justify-center py-10 text-sm text-[var(--color-bt-fg-muted)]">{search ? '검색 결과 없음' : '등록된 데이터셋이 없습니다.'}</div>
                 ) : (
                   items.map((ds) => (
-                    <DatasetCard
-                      key={ds.datasetId}
-                      ds={ds}
-                      accent={accent}
-                      onEdit={() => navigate(`/insight/statistics/datasets/${ds.datasetId}/edit`)}
-                      onDelete={() => handleDelete(ds)}
-                    />
+                    <DatasetCard key={ds.datasetId} ds={ds} onOpen={() => navigate(`/insight/statistics/datasets/${ds.datasetId}/edit`)} onDelete={() => handleDelete(ds)} />
                   ))
                 )}
               </div>
@@ -211,17 +178,32 @@ export default function StatDatasetList() {
 
 // ─── 카드 컴포넌트 ─────────────────────────────────────────────────────────────
 
-type Accent = (typeof PALETTE)[number];
-
-function DatasetCard({ ds, accent, onEdit, onDelete }: { ds: DatasetListItem; accent: Accent; onEdit: () => void; onDelete: () => void }) {
+function DatasetCard({ ds, onOpen, onDelete }: { ds: DatasetListItem; onOpen: () => void; onDelete: () => void }) {
   const units: string[] = Array.isArray(ds.availableUnits) ? ds.availableUnits : [];
 
+  // 액션 버튼은 카드 클릭(상세 이동)으로 전파되지 않도록 막는다.
+  const stop = (handler: () => void) => (e: React.MouseEvent) => {
+    e.stopPropagation();
+    handler();
+  };
+
   return (
-    <div className="group rounded-lg border border-[var(--color-bt-border)] bg-white px-4 py-3 shadow-sm hover:shadow-md transition-shadow cursor-pointer" onDoubleClick={onEdit}>
+    <div
+      role="button"
+      tabIndex={0}
+      onClick={onOpen}
+      onKeyDown={(e) => {
+        if (e.key === 'Enter' || e.key === ' ') {
+          e.preventDefault();
+          onOpen();
+        }
+      }}
+      className="group rounded-lg border border-black/[0.08] bg-white px-4 py-3 shadow-[0px_1px_2px_0px_#38414A1f] hover:border-[var(--color-bt-primary)] hover:shadow-[0px_2px_6px_0px_#38414A2e] transition-all cursor-pointer"
+    >
       <div className="flex items-start justify-between gap-2">
         <div className="min-w-0 flex-1">
           <div className="flex items-center gap-1.5 flex-wrap">
-            <span className="font-semibold text-sm text-[var(--color-bt-fg)] truncate">{ds.datasourceName}</span>
+            <span className="font-semibold text-sm text-[var(--color-bt-fg)] truncate group-hover:text-[var(--color-bt-primary)] transition-colors">{ds.datasourceName}</span>
             {ds.isSystem && (
               <Tag color="blue" className="!mb-0 !text-[10px] !px-1 !py-0 !leading-4">
                 시스템
@@ -238,14 +220,14 @@ function DatasetCard({ ds, accent, onEdit, onDelete }: { ds: DatasetListItem; ac
         <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity shrink-0">
           <button
             type="button"
-            onClick={onEdit}
+            onClick={stop(onOpen)}
             className="rounded p-1 text-[var(--color-bt-fg-muted)] hover:bg-[var(--color-bt-bg-muted)] hover:text-[var(--color-bt-primary)] transition-colors"
             title="편집"
           >
             <Edit2 className="size-3.5" />
           </button>
           {!ds.isSystem && (
-            <button type="button" onClick={onDelete} className="rounded p-1 text-red-400 hover:bg-red-50 hover:text-red-600 transition-colors" title="삭제">
+            <button type="button" onClick={stop(onDelete)} className="rounded p-1 text-red-400 hover:bg-red-50 hover:text-red-600 transition-colors" title="삭제">
               <Trash2 className="size-3.5" />
             </button>
           )}
@@ -253,7 +235,7 @@ function DatasetCard({ ds, accent, onEdit, onDelete }: { ds: DatasetListItem; ac
       </div>
 
       <div className="mt-2 flex items-center gap-1.5">
-        <span className={`rounded px-1.5 py-0.5 text-[10px] font-bold text-white ${accent.badge}`}>VIEW</span>
+        <span className="rounded bg-[var(--color-bt-bg-muted)] px-1.5 py-0.5 text-[10px] font-bold text-[var(--color-bt-fg-muted)]">VIEW</span>
         <span className="font-mono text-xs text-[var(--color-bt-fg-muted)] truncate">{ds.dbViewPrefix || '-'}</span>
       </div>
 
