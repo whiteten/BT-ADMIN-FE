@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { DatePicker, Select } from 'antd';
 import dayjs, { type Dayjs } from 'dayjs';
 import { useBreadcrumbStore } from '@/shared-store';
@@ -23,7 +23,7 @@ const breadcrumb = [
 function SectionLabel({ children, desc }: { children: React.ReactNode; desc?: string }) {
   return (
     <div className="mb-3 flex items-center gap-2.5">
-      <span className="h-4 w-1 rounded-full bg-[#085fb5]" />
+      <span className="h-4 w-1 rounded-full bg-[var(--color-bt-primary)]" />
       <h2 className="text-[15px] font-semibold text-slate-800">{children}</h2>
       {desc && <span className="hidden text-xs text-slate-400 sm:inline">{desc}</span>}
     </div>
@@ -42,7 +42,7 @@ export default function MonitoringDashboard() {
   const baseDate = date.format(DATE_FMT);
 
   const { data: agents } = useGetAgents();
-  const agentOptions = useMemo(() => [{ label: '전체', value: '' }, ...(agents ?? []).map((a) => ({ label: a.agentName, value: a.agentId }))], [agents]);
+  const agentOptions = [{ label: '전체', value: '' }, ...(agents ?? []).map((a) => ({ label: a.agentName, value: a.agentId }))];
 
   // 초기 로드/폴백 (WS 첫 tick 전 화면 공백 방지)
   const { data: initial } = useGetAoeDashboard({
@@ -67,7 +67,7 @@ export default function MonitoringDashboard() {
       <header className="flex flex-wrap items-center justify-between gap-4 rounded-lg bg-white bt-shadow px-5 py-4">
         <div className="min-w-0">
           <h1 className="text-[22px] font-bold leading-tight tracking-tight text-slate-900">
-            <span className="text-[#085fb5]">Agent</span> 모니터링 대시보드
+            <span className="text-[var(--color-bt-primary)]">Agent</span> 모니터링
           </h1>
           <p className="mt-1 text-[13px] text-slate-500">실시간 Agent 운영 현황, LLM 사용량, 시간대별 추이를 한 화면에서 확인</p>
         </div>

@@ -1,7 +1,8 @@
-import { Empty, Tooltip } from 'antd';
+import { Tooltip } from 'antd';
 import DashboardPanel from './DashboardPanel';
 import { LLM_VISIBLE_MODELS, MODEL_GRADIENTS, OTHERS_GRADIENT } from '../constants/dashboardConstants';
 import type { AoeLlmModel } from '../types';
+import NoData from '@/components/custom/NoData';
 
 interface Props {
   models?: AoeLlmModel[];
@@ -67,7 +68,7 @@ export default function LlmUsagePanel({ models }: Props) {
   return (
     <DashboardPanel title="LLM 사용 구성" subtitle="모델별 호출 비율 및 평균 사용 지표" className="h-full">
       {rows.length === 0 ? (
-        <Empty description="데이터가 없습니다" image={Empty.PRESENTED_IMAGE_SIMPLE} className="py-16" />
+        <NoData className="py-16" />
       ) : (
         <div className="flex h-full flex-col gap-5">
           {/* 모델별 그라데이션 진행바 */}
