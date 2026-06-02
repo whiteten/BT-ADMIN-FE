@@ -16,13 +16,16 @@ interface PanelTypePickerModalProps {
   onClose: () => void;
   /** 패널 종류 선택 → 다음 단계(데이터셋 선택)로 */
   onSelect: (type: PanelType) => void;
+  /** 숨길 패널 종류 (예: 그리드 1개 제한 — 이미 존재 시 GRID 숨김) */
+  hideTypes?: PanelType[];
 }
 
 /**
  * 패널 종류 선택 모달. (모니터링 위젯 라이브러리 위치에 대응)
  * 한 번만 선택 — 선택한 종류로 곧장 데이터셋 선택 → 패널 편집으로 매끄럽게 연결.
  */
-export default function PanelTypePickerModal({ open, onClose, onSelect }: PanelTypePickerModalProps) {
+export default function PanelTypePickerModal({ open, onClose, onSelect, hideTypes = [] }: PanelTypePickerModalProps) {
+  const options = PANEL_TYPE_OPTIONS.filter((o) => !hideTypes.includes(o.type));
   return (
     <Modal
       open={open}
@@ -52,7 +55,7 @@ export default function PanelTypePickerModal({ open, onClose, onSelect }: PanelT
         </p>
 
         <div className="grid grid-cols-3 gap-3">
-          {PANEL_TYPE_OPTIONS.map(({ type, label, Icon, description }) => (
+          {options.map(({ type, label, Icon, description }) => (
             <button
               key={type}
               type="button"

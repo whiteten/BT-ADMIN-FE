@@ -279,7 +279,7 @@ export default function PanelEditorSheet({ reportId, panelType, panelId, dataset
         ...seriesFields.map((f, i) => normalizeField({ ...f, slotType: 'SERIES' as SlotType, slotOrder: i })),
       ];
     }
-    slotFields.push(...filterFields.map((f, i) => normalizeField({ ...f, slotType: 'FILTER' as SlotType, slotOrder: i })));
+    // 검색조건(FILTER) 바인딩은 그리드 전용 — 차트류 패널은 fieldMap에 포함하지 않음
     if (topNEnabled && topNSortField) {
       slotFields.push({
         slotType: 'LIMIT',
@@ -977,7 +977,6 @@ export default function PanelEditorSheet({ reportId, panelType, panelId, dataset
               ) : (
                 <>
                   {getChartSlots(chartType).map(renderSlot)}
-                  {renderFilterSlot()}
 
                   {/* Top N — KPI 제외 */}
                   {chartType !== 'KPI' && (
