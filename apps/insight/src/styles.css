@@ -46,3 +46,24 @@
 
 /* 듀레이션 바 — 좌측 3px 채움. 시간 증가 시 부드럽게 늘어남 */
 .bt-dur-bar { transition: opacity 0.4s ease, background-color 0.3s ease; }
+
+/* ─── 종합 헬스보드(관제 월보드) 전용 상태 모션 ───────────────────────────
+ * 일반 모니터 위젯은 정적 강조만 쓰지만, 헬스보드는 관제실 월보드 용도라
+ * "위험" 상태에 한해 깜빡임·확산 링으로 시선을 끈다. (시안 01-healthboard.html)
+ * prefers-reduced-motion 사용자는 아래에서 모두 차단된다.
+ */
+@keyframes bt-pulse { 0%, 100% { opacity: 1; } 50% { opacity: .35; } }
+.bt-pulse { animation: bt-pulse 1.6s ease-in-out infinite; }
+
+@keyframes bt-pulse-ring { 0% { box-shadow: 0 0 0 0 rgba(201, 42, 42, .45); } 100% { box-shadow: 0 0 0 12px rgba(201, 42, 42, 0); } }
+.bt-pulse-ring { animation: bt-pulse-ring 1.8s ease-out infinite; }
+
+@keyframes bt-pulse-ring-warn { 0% { box-shadow: 0 0 0 0 rgba(183, 110, 0, .4); } 100% { box-shadow: 0 0 0 10px rgba(183, 110, 0, 0); } }
+.bt-pulse-ring-warn { animation: bt-pulse-ring-warn 1.8s ease-out infinite; }
+
+@keyframes bt-countup { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: none; } }
+.bt-countup { animation: bt-countup .5s ease-out; }
+
+@media (prefers-reduced-motion: reduce) {
+  .bt-pulse, .bt-pulse-ring, .bt-pulse-ring-warn, .bt-countup { animation: none !important; }
+}
