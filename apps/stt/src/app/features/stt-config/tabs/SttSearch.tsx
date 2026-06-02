@@ -27,13 +27,11 @@ export default function SttSearch() {
     toDateTime: dayjs().format('YYYYMMDD') + '235959',
   });
 
-  const buildParams = (): SttSearchParams => ({
-    fromDateTime: startDate && startTime ? startDate.format('YYYYMMDD') + startTime.format('HHmmss') : undefined,
-    toDateTime: endDate && endTime ? endDate.format('YYYYMMDD') + endTime.format('HHmmss') : undefined,
-    keyword: keyword || undefined,
-  });
-
-  const { data: rowData, isLoading } = useGetSttSearch({
+  const {
+    data: rowData,
+    isLoading,
+    refetch,
+  } = useGetSttSearch({
     params: searchParams as Record<string, unknown>,
   });
 
@@ -59,7 +57,14 @@ export default function SttSearch() {
       toast.warning('시작일시가 종료일시보다 늦을 수 없습니다.');
       return;
     }
-    setSearchParams(buildParams());
+    const newParams: SttSearchParams = {
+      fromDateTime: startDate.format('YYYYMMDD') + (startTime?.format('HHmmss') ?? '000000'),
+      toDateTime: endDate.format('YYYYMMDD') + (endTime?.format('HHmmss') ?? '235959'),
+      keyword: keyword || undefined,
+    };
+    const paramsChanged = JSON.stringify(newParams) !== JSON.stringify(searchParams);
+    setSearchParams(newParams);
+    if (!paramsChanged) void refetch();
   };
 
   const columnDefs: ColDef<SttSearchItem>[] = [
