@@ -1,0 +1,19 @@
+{
+  "schema": 1,
+  "generatedFrom": "manual-staleness.mjs",
+  "apps": {
+    "manager": {
+      "baseCommit": "0e361bd91c6e27df56ef5d0c696d21b98ebc8a98",
+      "baseCommitShort": "0e361bd9",
+      "generatedAt": "2026-06-02",
+      "routeCount": 27
+    },
+    "fca": {
+      "baseCommit": "0e361bd91c6e27df56ef5d0c696d21b98ebc8a98",
+      "baseCommitShort": "0e361bd9",
+      "generatedAt": "2026-06-02",
+      "routeCount": 33
+    }
+  },
+  "updatedAt": "2026-06-02"
+}
