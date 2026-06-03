@@ -85,13 +85,13 @@ export default function HealthBoardWidget({ data, options }: HealthBoardWidgetPr
             footer={<SevPill sev={abandonSev(d, t)} okText="목표 이내" warnText="목표 초과" />}
           />
           <WaitingCard count={d.waitingCnt} sev={waitingSev(d, t)} />
-          <AlarmCard danger={d.alarm.danger} warn={d.alarm.warn} />
+          <AlarmCard notice={d.alarm.notice} warning={d.alarm.warning} danger={d.alarm.danger} />
         </div>
       </section>
 
       {/* ═══ 시스템 신호등 (LED 칩) ═══ */}
       <section>
-        <SectionEyebrow sev={d.systems.some((s) => s.up < s.total) ? 'danger' : 'success'}>시스템 상태</SectionEyebrow>
+        <SectionEyebrow sev={worstSeverity(d.systems.map((s) => s.severity))}>시스템 상태</SectionEyebrow>
         <div className="flex flex-wrap items-center gap-3 rounded-xl border border-bt-border bg-bt-bg px-5 py-3.5 bt-shadow">
           {d.systems.map((s) => (
             <SystemChip key={s.code} system={s} />
@@ -104,12 +104,7 @@ export default function HealthBoardWidget({ data, options }: HealthBoardWidgetPr
       <section className="flex min-h-0 flex-1 flex-col">
         <SectionEyebrow sev={overall.sev}>상세 현황</SectionEyebrow>
         <div className="grid min-h-0 flex-1 grid-cols-1 gap-4 lg:grid-cols-3">
-          <SummaryCard
-            title="큐 현황"
-            titleSub="· 위험순"
-            link="큐 모니터"
-            sev={d.queues.some((q) => q.sev === 'danger') ? 'danger' : d.queues.some((q) => q.sev === 'warn') ? 'warn' : 'success'}
-          >
+          <SummaryCard title="큐 현황" titleSub="· 위험순" link="큐 모니터" sev={worstSeverity(d.queues.map((q) => q.sev))}>
             <QueueChart queues={d.queues} normalCnt={d.normalQueueCnt} />
           </SummaryCard>
 
@@ -117,7 +112,7 @@ export default function HealthBoardWidget({ data, options }: HealthBoardWidgetPr
             <AgentDonut data={d} />
           </SummaryCard>
 
-          <SummaryCard title="통화 품질" titleSub="· MoS" link="품질 위험판" sev={d.quality.bad > 0 ? 'danger' : d.quality.warn > 0 ? 'warn' : 'success'}>
+          <SummaryCard title="통화 품질" titleSub="· MoS" link="품질 위험판" sev={d.quality.bad > 0 ? 'danger' : d.quality.warn > 0 ? 'notice' : 'success'}>
             <QualityPanel quality={d.quality} />
           </SummaryCard>
         </div>
@@ -141,6 +136,12 @@ function fmtPct(v: number | null): string {
 function agentTotal(d: HealthBoardData): number {
   const a = d.agents;
   return a.available + a.talking + a.wrapup + a.aux + a.offline;
+}
+
+/** 심각도 목록 중 가장 위험한 값 (없으면 정상). */
+const SEV_RANK: Record<Severity, number> = { success: 0, notice: 1, warning: 2, danger: 3 };
+function worstSeverity(list: Severity[]): Severity {
+  return list.reduce<Severity>((acc, s) => (SEV_RANK[s] > SEV_RANK[acc] ? s : acc), 'success');
 }
 
 // ─── 섹션 구분 라벨 ────────────────────────────────────────────
@@ -278,7 +279,7 @@ function SevPill({ sev, okText, warnText }: { sev: Severity; okText: string; war
 // ─── 현재 대기 카드 ────────────────────────────────────────────
 
 function WaitingCard({ count, sev }: { count: number; sev: Severity }) {
-  const sevLabel: Record<Severity, string> = { success: '정상', warn: '주의', danger: '위험' };
+  const sevLabel: Record<Severity, string> = { success: '정상', notice: '주의', warning: '경고', danger: '위험' };
   return (
     <div className="relative flex flex-col items-center overflow-hidden rounded-xl border border-bt-border bg-bt-bg px-4 pt-4 pb-2.5 bt-shadow">
       <div className={`absolute inset-x-0 top-0 h-1 ${SEV_BG[sev]}`} />
@@ -296,31 +297,29 @@ function WaitingCard({ count, sev }: { count: number; sev: Severity }) {
 
 // ─── 알람 카드 ─────────────────────────────────────────────────
 
-function AlarmCard({ danger, warn }: { danger: number; warn: number }) {
+function AlarmCard({ notice, warning, danger }: { notice: number; warning: number; danger: number }) {
   const active = danger > 0;
+  // 위험 0 이면 가장 높은 단계 톤으로 카드 외곽을 칠하고, 전부 0 이면 정상(중립) 톤.
+  const topSev: Severity = danger > 0 ? 'danger' : warning > 0 ? 'warning' : notice > 0 ? 'notice' : 'success';
+  const frame: Record<Severity, string> = {
+    success: 'border-bt-border bg-bt-bg',
+    notice: 'border-bt-notice/25 bg-bt-notice-soft',
+    warning: 'border-bt-warning/25 bg-bt-warning-soft',
+    danger: 'border-bt-danger/25 bg-bt-danger-soft',
+  };
   return (
-    <div className={`relative flex flex-col overflow-hidden rounded-xl border border-bt-danger/25 bg-bt-danger-soft px-4 pt-4 pb-2.5 bt-shadow ${active ? 'bt-pulse-ring' : ''}`}>
-      <div className="absolute inset-x-0 top-0 h-1 bg-bt-danger" />
-      <div className="inline-flex items-center gap-1.5 text-[13px] font-bold uppercase tracking-wide text-bt-danger">
+    <div className={`relative flex flex-col overflow-hidden rounded-xl border px-4 pt-4 pb-2.5 bt-shadow ${frame[topSev]} ${active ? 'bt-pulse-ring' : ''}`}>
+      <div className={`absolute inset-x-0 top-0 h-1 ${SEV_BG[topSev]}`} />
+      <div className={`inline-flex items-center gap-1.5 text-[13px] font-bold uppercase tracking-wide ${SEV_TEXT[topSev]}`}>
         <AlertTriangle className="h-3.5 w-3.5" />
         알람
       </div>
-      <div className="flex flex-1 items-center justify-center gap-3.5 py-2.5">
-        <div className="flex flex-col items-center">
-          <span className="bt-countup tabular-nums text-[38px] font-extrabold leading-none tabular-nums text-bt-danger">{danger}</span>
-          <span className="mt-1 inline-flex items-center gap-1 text-[11px] font-bold text-bt-danger">
-            <span className={`h-1.5 w-1.5 rounded-full bg-bt-danger ${active ? 'bt-pulse' : ''}`} />
-            위험
-          </span>
-        </div>
-        <div className="h-10 w-px bg-bt-danger/20" />
-        <div className="flex flex-col items-center">
-          <span className="bt-countup tabular-nums text-[38px] font-extrabold leading-none tabular-nums text-bt-warn">{warn}</span>
-          <span className="mt-1 inline-flex items-center gap-1 text-[11px] font-bold text-bt-warn">
-            <span className="h-1.5 w-1.5 rounded-full bg-bt-warn" />
-            주의
-          </span>
-        </div>
+      <div className="flex flex-1 items-center justify-center gap-3 py-2.5">
+        <AlarmCount sev="notice" count={notice} label="주의" />
+        <div className="h-10 w-px bg-bt-border" />
+        <AlarmCount sev="warning" count={warning} label="경고" />
+        <div className="h-10 w-px bg-bt-border" />
+        <AlarmCount sev="danger" count={danger} label="위험" pulse={active} />
       </div>
       <div className="mt-auto flex min-h-[28px] w-full items-center justify-center pt-1">
         <CardLink>알람센터</CardLink>
@@ -329,20 +328,40 @@ function AlarmCard({ danger, warn }: { danger: number; warn: number }) {
   );
 }
 
+function AlarmCount({ sev, count, label, pulse = false }: { sev: Severity; count: number; label: string; pulse?: boolean }) {
+  return (
+    <div className="flex flex-col items-center">
+      <span className={`bt-countup tabular-nums text-[32px] font-extrabold leading-none tabular-nums ${SEV_TEXT[sev]}`}>{count}</span>
+      <span className={`mt-1 inline-flex items-center gap-1 text-[11px] font-bold ${SEV_TEXT[sev]}`}>
+        <span className={`h-1.5 w-1.5 rounded-full ${SEV_BG[sev]} ${pulse ? 'bt-pulse' : ''}`} />
+        {label}
+      </span>
+    </div>
+  );
+}
+
 // ─── 시스템 칩 ─────────────────────────────────────────────────
 
+// 시스템 칩 — system.severity 기반 (정상 green / 주의 amber / 경고 orange / 위험 red).
+const CHIP_FRAME: Record<Severity, string> = {
+  success: 'border-bt-success/25 bg-bt-success-soft',
+  notice: 'border-bt-notice/25 bg-bt-notice-soft',
+  warning: 'border-bt-warning/25 bg-bt-warning-soft',
+  danger: 'border-bt-danger/25 bg-bt-danger-soft bt-pulse-ring',
+};
+const CHIP_LABEL: Record<Severity, string> = { success: '정상', notice: '주의', warning: '경고', danger: '이상' };
+
 function SystemChip({ system }: { system: SystemHealth }) {
-  const down = system.up < system.total;
+  const sev = system.severity;
+  const ok = sev === 'success';
   return (
-    <div
-      className={`flex items-center gap-2.5 rounded-lg border px-4 py-2.5 ${down ? 'border-bt-danger/25 bg-bt-danger-soft bt-pulse-ring' : 'border-bt-success/25 bg-bt-success-soft'}`}
-    >
-      <span className={`h-3 w-3 rounded-full ${down ? 'bg-bt-danger bt-pulse' : 'bg-bt-success'}`} style={{ boxShadow: `0 0 8px ${down ? '#c92a2a' : '#0a8a4a'}` }} />
+    <div className={`flex items-center gap-2.5 rounded-lg border px-4 py-2.5 ${CHIP_FRAME[sev]}`}>
+      <span className={`h-3 w-3 rounded-full ${SEV_BG[sev]} ${sev === 'danger' ? 'bt-pulse' : ''}`} style={{ boxShadow: `0 0 8px ${SEV_HEX[sev]}` }} />
       <div className="leading-tight">
         <div className="text-[13px] font-bold">{system.name}</div>
-        <div className={`text-[11px] font-medium ${down ? 'font-bold text-bt-danger' : 'text-bt-success'}`}>
-          {down ? '이상' : '정상'} · 노드 {system.up}/{system.total}
-          {down ? ' ↓' : ''}
+        <div className={`text-[11px] font-medium ${ok ? 'text-bt-success' : `font-bold ${SEV_TEXT[sev]}`}`}>
+          {CHIP_LABEL[sev]} · 노드 {system.up}/{system.total}
+          {ok ? '' : ' ↓'}
         </div>
       </div>
     </div>

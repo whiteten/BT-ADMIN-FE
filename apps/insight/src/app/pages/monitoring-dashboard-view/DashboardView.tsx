@@ -10,7 +10,15 @@ import DashboardCanvas from '../../features/monitoring/components/canvas/Dashboa
 import EmptyCanvas from '../../features/monitoring/components/canvas/EmptyCanvas';
 import LayoutPickerModal from '../../features/monitoring/components/canvas/LayoutPickerModal';
 import WidgetLibraryModal from '../../features/monitoring/components/canvas/WidgetLibraryModal';
-import { dashboardKeys, useCreateWidget, useDeleteWidget, useGetDashboard, useUpdateDashboard, useUpdateLayout } from '../../features/monitoring/hooks/useDashboardQueries';
+import {
+  dashboardKeys,
+  useCreateWidget,
+  useDeleteWidget,
+  useGetCustomWidgetCatalog,
+  useGetDashboard,
+  useUpdateDashboard,
+  useUpdateLayout,
+} from '../../features/monitoring/hooks/useDashboardQueries';
 import { useDashboardSocket } from '../../features/monitoring/hooks/useDashboardSocket';
 import { useWidgetUserSettingsMap } from '../../features/monitoring/hooks/useWidgetSettingQueries';
 import type { CustomWidgetCatalogItem, Widget } from '../../features/monitoring/types';
@@ -47,6 +55,16 @@ export default function DashboardView() {
 
   const initialWidgets = useMemo<Widget[]>(() => (dashboard?.widgets ?? []) as Widget[], [dashboard]);
   const [widgets, setWidgets] = useState<Widget[]>(initialWidgets);
+
+  // 커스텀 위젯 카탈로그 → widgetTypeId별 최소 크기 맵 (그리드 리사이즈 최소값 가드용).
+  const { data: customCatalog } = useGetCustomWidgetCatalog();
+  const customMinSize = useMemo<Record<string, { minW: number; minH: number }>>(() => {
+    const map: Record<string, { minW: number; minH: number }> = {};
+    for (const c of customCatalog ?? []) {
+      map[c.widgetTypeId] = { minW: c.minW, minH: c.minH };
+    }
+    return map;
+  }, [customCatalog]);
 
   useEffect(() => {
     setWidgets(initialWidgets);
@@ -218,7 +236,13 @@ export default function DashboardView() {
     if (isCreating) return;
 
     const targetWidget = replacingWidgetId ? widgets.find((w) => w.widgetId === replacingWidgetId) : null;
-    const position = targetWidget ? targetWidget.position : { row: 0, col: 0, w: catalogItem.minW ?? 4, h: catalogItem.minH ?? 4 };
+    const basePosition = targetWidget ? targetWidget.position : { row: 0, col: 0, w: catalogItem.minW ?? 4, h: catalogItem.minH ?? 4 };
+    // 패널을 위젯 최소 크기(MIN_W/MIN_H)보다 작게 그린 경우 최소 크기로 자동 보정.
+    const position = {
+      ...basePosition,
+      w: Math.max(basePosition.w, catalogItem.minW ?? 1),
+      h: Math.max(basePosition.h, catalogItem.minH ?? 1),
+    };
 
     createWidget({
       dashboardId,
@@ -308,7 +332,14 @@ export default function DashboardView() {
       />
 
       {mode === 'edit' ? (
-        <DashboardCanvas dashboardId={dashboardId} widgets={widgets} editMode={true} onWidgetsChange={handleWidgetsChange} onAddWidgetAt={handleAddWidgetAt}>
+        <DashboardCanvas
+          dashboardId={dashboardId}
+          widgets={widgets}
+          editMode={true}
+          onWidgetsChange={handleWidgetsChange}
+          onAddWidgetAt={handleAddWidgetAt}
+          customMinSize={customMinSize}
+        >
           {isEmpty && (
             <div className="mt-4 flex flex-col gap-4">
               <EmptyCanvas onLayoutSelect={handleLayoutSelect} />
@@ -318,7 +349,14 @@ export default function DashboardView() {
       ) : isEmpty ? (
         <EmptyViewState canEdit={canEdit} onEnterEdit={() => setMode('edit')} />
       ) : (
-        <DashboardCanvas dashboardId={dashboardId} widgets={widgets} editMode={false} widgetData={widgetData} onRequestPause={() => setMonitoringStarted(false)} />
+        <DashboardCanvas
+          dashboardId={dashboardId}
+          widgets={widgets}
+          editMode={false}
+          widgetData={widgetData}
+          onRequestPause={() => setMonitoringStarted(false)}
+          customMinSize={customMinSize}
+        />
       )}
 
       <WidgetLibraryModal open={isLibraryOpen} onClose={() => setIsLibraryOpen(false)} onAddTemplate={handleAddTemplate} onAddCustom={handleAddCustom} />

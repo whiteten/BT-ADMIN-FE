@@ -6,8 +6,8 @@
  * 시안: docs/insight/monitoring/mvp-design/wireframes/01-healthboard.html
  */
 
-/** 임계 상태 — 정상 / 주의 / 위험. */
-export type Severity = 'success' | 'warn' | 'danger';
+/** 임계 상태 — 정상 / 주의 / 경고 / 위험. (success=정상, notice=주의, warning=경고, danger=위험) */
+export type Severity = 'success' | 'notice' | 'warning' | 'danger';
 
 /** 시스템(도메인)별 노드 헬스. */
 export interface SystemHealth {
@@ -15,6 +15,8 @@ export interface SystemHealth {
   name: string; // 표시명 (예: "IE 교환기")
   up: number; // 정상 노드 수
   total: number; // 전체 노드 수
+  /** 시스템 심각도 — BE 계약(normal|notice|warning|danger). 'normal'은 FE 에서 'success'로 취급. */
+  severity: Severity;
 }
 
 /** 큐 현황 항목 (위험순 Top-N). */
@@ -65,8 +67,8 @@ export interface HealthBoardData {
   answeredCnt: number;
   /** 현재 대기 호수 (전 큐 합계, 현재 스냅샷) */
   waitingCnt: number;
-  /** 알람 건수 */
-  alarm: { danger: number; warn: number };
+  /** 알람 건수 — ERR_LEVEL 1/2/3 (주의/경고/위험). */
+  alarm: { notice: number; warning: number; danger: number };
   systems: SystemHealth[];
   queues: QueueRow[];
   /** 정상(비위험) 큐 개수 — 접힘 토글 라벨용 */
