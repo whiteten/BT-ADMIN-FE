@@ -38,7 +38,7 @@ export default function SttSearchCallbot() {
 
   const handleRowDoubleClicked = (event: RowDoubleClickedEvent<SttSearchCallbotDetailItem>) => {
     if (!event.data) return;
-    drawerRef.current?.open(event.data as unknown as SttSearchItem);
+    drawerRef.current?.open(event.data as unknown as SttSearchItem, event.data.engineCode);
   };
 
   const handleSearch = () => {

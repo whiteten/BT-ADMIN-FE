@@ -16,6 +16,7 @@ export interface SttSearchItem {
   agentId: string;
   agentName: string;
   recSystemIp: string;
+  engineCode: string;
   saFilepath: string;
   saFilename: string;
   startSentence: string;
@@ -51,6 +52,7 @@ export interface SttSearchCallbotDetailItem {
   callDatetime: string;
   talkTime: string;
   recSystemIp: string;
+  engineCode: string;
   saFilepath: string;
   saFilename: string;
   startSentence: string;

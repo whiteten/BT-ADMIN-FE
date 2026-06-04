@@ -43,6 +43,7 @@ export interface DnStatusItem {
   ucidGkey: string;
   agentName: string;
   progressRate: string;
+  analKind?: string | null;
   ty?: string;
   channelId?: number;
   channelStatusNm?: string;
