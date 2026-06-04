@@ -2,12 +2,14 @@ import { useEffect, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { useQueryClient } from '@tanstack/react-query';
 import { type BreadcrumbProps, Button, Col, Form, Input, InputNumber, Row, Steps, Switch } from 'antd';
-import { Brain, Check, Cpu, type LucideIcon, Server, Sparkles, Wand2, X, Zap } from 'lucide-react';
+import { Brain, Cpu, type LucideIcon, Server, Sparkles, Wand2, Zap } from 'lucide-react';
 import { Log } from '@/log';
 import { useBreadcrumbStore } from '@/shared-store';
 import { toast } from '@/shared-util';
 import { modelQueryKeys, useDeleteModel, useGetModel, useUpdateModel } from '../../features/agent-config/hooks/useModelQueries';
 import type { ModelDetailItem, ModelDetailUpdateDatas } from '../../features/agent-config/types';
+import FormSummaryPanel from '../../features/shared/components/FormSummaryPanel';
+import FormSummaryValue from '../../features/shared/components/FormSummaryValue';
 import { FallbackSpinner } from '@/components/custom/FallbackSpinner';
 import NoData from '@/components/custom/NoData';
 import { useModal } from '@/libs/shared-ui/src/hooks/useModal';
@@ -32,11 +34,6 @@ const NO_API_KEY_PROVIDERS = ['vllm', 'ollama'];
 const getProvider = (modelType?: string): ProviderConfig => {
   if (!modelType) return { key: '', label: '-', icon: Zap, bg: 'bg-gray-400' };
   return PROVIDERS.find((p) => modelType.toLowerCase().includes(p.key)) ?? { key: '', label: modelType, icon: Zap, bg: 'bg-gray-400' };
-};
-
-const displayValue = (value: unknown): React.ReactNode => {
-  if (value === null || value === undefined || value === '') return <span className="text-gray-300">-</span>;
-  return value as React.ReactNode;
 };
 
 export default function ModelDetail() {
@@ -163,40 +160,40 @@ export default function ModelDetail() {
 
   const steps = [{ title: '기본 설정' }, { title: '모델 버전' }];
 
-  const renderIcon = (valid: boolean) => (valid ? <Check className="w-4 h-4 text-green-500 ml-2 shrink-0" /> : <X className="w-4 h-4 text-red-500 ml-2 shrink-0" />);
-
-  function renderSummary() {
+  function buildSummaryItems() {
     const values = form.getFieldsValue();
     const activeCount = details?.filter((d) => d.useYn === 1).length ?? 0;
 
-    return (
-      <div className="space-y-3 text-sm">
-        <div className="flex items-center gap-1">
-          <span className="text-gray-500 w-24 shrink-0">프로바이더</span>
-          <span className="text-gray-800 flex-1">{displayValue(provider.label !== '-' ? provider.label : undefined)}</span>
-          {renderIcon(provider.label !== '-')}
-        </div>
-        <div className="flex items-center gap-1">
-          <span className="text-gray-500 w-24 shrink-0">모델 그룹명</span>
-          <span className="text-gray-800 flex-1 truncate">{displayValue(values.modelName)}</span>
-          {renderIcon(!!values.modelName)}
-        </div>
-        {!NO_API_KEY_PROVIDERS.includes(provider.key) && (
-          <div className="flex items-center gap-1">
-            <span className="text-gray-500 w-24 shrink-0">API Key</span>
-            <span className="text-gray-800 flex-1">{values.apiKey ? '••••••••' : <span className="text-gray-300">-</span>}</span>
-            {renderIcon(!!values.apiKey)}
-          </div>
-        )}
-        {currentStep === 1 && (
-          <div className="flex items-center gap-1">
-            <span className="text-gray-500 w-24 shrink-0">활성 모델</span>
-            <span className="text-gray-800 flex-1">{activeCount > 0 ? `${activeCount}개` : <span className="text-gray-300">-</span>}</span>
-            {renderIcon(activeCount > 0)}
-          </div>
-        )}
-      </div>
-    );
+    const items = [
+      {
+        key: 'provider',
+        label: '프로바이더',
+        children: <FormSummaryValue value={provider.label !== '-' ? provider.label : undefined} valid={provider.label !== '-'} />,
+      },
+      {
+        key: 'modelName',
+        label: '모델 그룹명',
+        children: <FormSummaryValue value={values.modelName} valid={!!values.modelName} className="truncate" />,
+      },
+    ];
+
+    if (!NO_API_KEY_PROVIDERS.includes(provider.key)) {
+      items.push({
+        key: 'apiKey',
+        label: 'API Key',
+        children: <FormSummaryValue value={values.apiKey ? '••••••••' : undefined} valid={!!values.apiKey} />,
+      });
+    }
+
+    if (currentStep === 1) {
+      items.push({
+        key: 'activeModels',
+        label: '활성 모델',
+        children: <FormSummaryValue value={activeCount > 0 ? `${activeCount}개` : undefined} valid={activeCount > 0} />,
+      });
+    }
+
+    return items;
   }
 
   function renderStep1() {
@@ -381,10 +378,7 @@ export default function ModelDetail() {
           </div>
           <div className="w-full px-7 pb-7 pt-4">{renderFooter()}</div>
         </div>
-        <div className="!w-[400px] !min-w-[400px] h-full min-h-0 bg-white bt-shadow hidden xl:flex flex-col">
-          <div className="text-base font-semibold text-gray-800 mb-4 pb-3 border-b border-gray-200 px-5 pt-5">수정 정보 요약</div>
-          <div className="flex-1 min-h-0 overflow-y-auto px-5 pb-5">{renderSummary()}</div>
-        </div>
+        <FormSummaryPanel title="수정 정보 요약" items={buildSummaryItems()} />
       </div>
     </div>
   );

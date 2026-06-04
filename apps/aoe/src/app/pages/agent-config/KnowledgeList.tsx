@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useQueryClient } from '@tanstack/react-query';
 import { type BreadcrumbProps, Button, Input, Select } from 'antd';
@@ -48,16 +48,14 @@ export default function KnowledgeList() {
     },
   });
 
-  const filteredList = useMemo(() => {
-    if (!knowledges) return [];
-    if (!searchValue.trim()) return knowledges;
-    const keyword = searchValue.toLowerCase();
-    return knowledges.filter((k) => {
-      const value = k[filterColumn as keyof typeof k];
-      if (value == null) return false;
-      return String(value).toLowerCase().includes(keyword);
-    });
-  }, [knowledges, filterColumn, searchValue]);
+  const knowledgeList = knowledges ?? [];
+  const filteredList = searchValue.trim()
+    ? knowledgeList.filter((k) => {
+        const value = k[filterColumn as keyof typeof k];
+        if (value == null) return false;
+        return String(value).toLowerCase().includes(searchValue.toLowerCase());
+      })
+    : knowledgeList;
 
   const handleColumnChange = (value: string) => {
     setFilterColumn(value);

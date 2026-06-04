@@ -1,4 +1,4 @@
-import { forwardRef, useCallback, useImperativeHandle, useState } from 'react';
+import { forwardRef, useImperativeHandle, useState } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { Button, Drawer, Form, Input, Select } from 'antd';
 import { Minus, Plus } from 'lucide-react';
@@ -109,12 +109,12 @@ const ToolDrawer = forwardRef<ToolDrawerRef>((_, ref) => {
     close: handleClose,
   }));
 
-  const handleClose = useCallback(() => {
+  const handleClose = () => {
     setOpen(false);
     form.resetFields();
     setDrawerState({ groupId: '', tool: null });
     setDescExpanded(false);
-  }, [form]);
+  };
 
   const onValuesChange = (changedValues: Partial<FormValues>) => {
     if ('method' in changedValues && changedValues.method === 'POST') {
