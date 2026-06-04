@@ -1,27 +1,25 @@
 import type { ColDef, ICellRendererParams } from 'ag-grid-community';
 import { AgGridReact } from 'ag-grid-react';
 import { useSearchConditionStore } from '../hooks/useSearchConditionStore';
-import { CATEGORY_OPTIONS, type SearchConditionListItem } from '../types';
+import { CATEGORY_OPTIONS, type InputType, type SearchConditionListItem } from '../types';
+import { Badge } from '@/components/ui/badge';
+import { cn } from '@/lib/utils';
 import useAggridOptions from '@/libs/shared-ui/src/hooks/useAggridOptions';
 
 interface SearchConditionGridProps {
   conditions: SearchConditionListItem[];
 }
 
+// 공통 배지 스타일 (사용자 계정 화면 AccountStatusBadge와 동일 규격)
+const BADGE_BASE = 'text-[13px] leading-[13px] font-medium !h-6';
+
 const CATEGORY_LABEL: Record<string, string> = Object.fromEntries(CATEGORY_OPTIONS.map((o) => [o.value, o.label]));
 
-const INPUT_TYPE_COLORS: Record<string, string> = {
-  TREE_MULTI_SELECT: 'text-bt-warn bg-bt-warn-soft',
-  MULTI_SELECT: 'text-bt-primary bg-bt-primary-soft',
-  SELECT: 'text-bt-primary bg-bt-primary-soft',
-  RADIO: 'text-bt-primary bg-bt-primary-soft',
-};
-
-const INPUT_TYPE_SHORT_LABEL: Record<string, string> = {
-  SELECT: '단일 선택',
-  MULTI_SELECT: '복수 선택',
-  TREE_MULTI_SELECT: '계층 복수',
-  RADIO: '라디오',
+const INPUT_TYPE_META: Record<InputType, { label: string; className: string }> = {
+  SELECT: { label: '단일 선택', className: 'text-[#0AB39C] bg-[#0AB39C1A]' },
+  MULTI_SELECT: { label: '복수 선택', className: 'text-[#4B92F7] bg-[#4B92F71A]' },
+  TREE_MULTI_SELECT: { label: '계층 복수', className: 'text-[#F7B84B] bg-[#F7B84B1A]' },
+  RADIO: { label: '라디오', className: 'text-[#878A99] bg-[#878A991A]' },
 };
 
 export default function SearchConditionGrid({ conditions }: SearchConditionGridProps) {
@@ -49,31 +47,36 @@ export default function SearchConditionGrid({ conditions }: SearchConditionGridP
       field: 'categoryCode',
       width: 100,
       cellRenderer: (params: ICellRendererParams<SearchConditionListItem>) =>
-        params.value ? <span className="rounded bg-bt-bg-muted px-1.5 py-0.5">{CATEGORY_LABEL[params.value] ?? params.value}</span> : '-',
+        params.value ? (
+          <Badge variant="secondary" className={BADGE_BASE}>
+            {CATEGORY_LABEL[params.value] ?? params.value}
+          </Badge>
+        ) : (
+          '-'
+        ),
     },
     {
       headerName: '입력 유형',
       field: 'nodes',
       colId: 'inputType',
       width: 180,
-      cellRenderer: (params: ICellRendererParams<SearchConditionListItem>) => (
-        <div className="flex flex-wrap gap-1 items-center h-full">
-          {params.data?.nodes.map((n) => {
-            const color = INPUT_TYPE_COLORS[n.inputType] ?? 'text-bt-fg-muted bg-bt-bg-muted';
-            return (
-              <span key={n.nodeCode} className={`rounded ${color} px-1.5 py-0.5`}>
-                {INPUT_TYPE_SHORT_LABEL[n.inputType] ?? n.inputType}
-              </span>
-            );
-          })}
-        </div>
-      ),
-    },
-    {
-      headerName: '묶음',
-      field: 'isBundle',
-      width: 70,
-      cellRenderer: (params: ICellRendererParams<SearchConditionListItem>) => (params.value ? <span className="text-bt-success">묶음</span> : null),
+      cellRenderer: (params: ICellRendererParams<SearchConditionListItem>) => {
+        // 노드별 입력 유형 중복 제거 (동일 유형 노드 다수여도 배지 1개)
+        const uniqueTypes = [...new Set((params.data?.nodes ?? []).map((n) => n.inputType))];
+        if (uniqueTypes.length === 0) return '-';
+        return (
+          <div className="flex flex-wrap gap-1 items-center h-full">
+            {uniqueTypes.map((t) => {
+              const meta = INPUT_TYPE_META[t];
+              return (
+                <Badge key={t} variant="secondary" className={cn(BADGE_BASE, meta?.className)}>
+                  {meta?.label ?? t}
+                </Badge>
+              );
+            })}
+          </div>
+        );
+      },
     },
     {
       headerName: '노드 수',
