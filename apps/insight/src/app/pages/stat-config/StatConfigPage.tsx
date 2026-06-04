@@ -11,7 +11,7 @@
  */
 
 import React, { useEffect, useMemo, useState } from 'react';
-import { type BreadcrumbProps, Button, Form, InputNumber, Radio, Select, Spin, Switch } from 'antd';
+import { type BreadcrumbProps, Button, Form, InputNumber, Radio, Select, Switch } from 'antd';
 import { AlignLeft, Check, Clock, GitBranch, Globe, Hash } from 'lucide-react';
 import { useBreadcrumbStore } from '@/shared-store';
 import { toast } from '@/shared-util';
@@ -30,6 +30,7 @@ import {
   TIME_UNIT_METAS,
   type TimeUnitLimitForm,
 } from '../../features/stat-config/types';
+import { FallbackSpinner } from '@/components/custom/FallbackSpinner';
 import { cn } from '@/lib/utils';
 
 const breadcrumb: BreadcrumbProps['items'] = [
@@ -211,11 +212,7 @@ export default function StatConfigPage() {
   const current = watched ?? initialValues;
 
   if (isLoading) {
-    return (
-      <div className="flex items-center justify-center w-full h-full">
-        <Spin />
-      </div>
-    );
+    return <FallbackSpinner />;
   }
 
   return (
