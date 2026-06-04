@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { type BreadcrumbProps, Select, Tooltip } from 'antd';
 import { Pause, Phone, Play } from 'lucide-react';
 import { useBreadcrumbStore } from '@/shared-store';
@@ -63,7 +64,8 @@ export default function ChannelStatusList() {
     return () => clearBreadcrumb();
   }, [setBreadcrumb, clearBreadcrumb]);
 
-  const [selectedIpv4, setSelectedIpv4] = useState<string | undefined>(undefined);
+  const [searchParams] = useSearchParams();
+  const [selectedIpv4, setSelectedIpv4] = useState<string | undefined>(searchParams.get('ipv4') ?? undefined);
   const [autoRefresh, setAutoRefresh] = useState(true);
   const [refreshSeconds, setRefreshSeconds] = useState(3);
 
