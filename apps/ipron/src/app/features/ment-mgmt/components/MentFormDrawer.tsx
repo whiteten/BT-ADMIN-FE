@@ -11,9 +11,10 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Button, DatePicker, Drawer, Form, Input } from 'antd';
 import dayjs from 'dayjs';
-import { Download, Play, Trash2, Upload } from 'lucide-react';
+import { Download, Pause, Play, Trash2, Upload } from 'lucide-react';
 import { toast } from '@/shared-util';
-import { useCreateMent, useUpdateMent } from '../hooks/useMentQueries';
+import { mentApi } from '../api/mentApi';
+import { useCreateMent, useCreateMentBatch, useUpdateMent } from '../hooks/useMentQueries';
 import type { MentBatchItem, MentResponse } from '../types';
 
 type Mode = 'create' | 'edit';
@@ -85,9 +86,20 @@ export default function MentFormDrawer({ state, onClose }: Props) {
     }
   }, [state, form]);
 
+  // 메타 저장 성공 후 PCM 바이트를 별도 업로드(있을 때). 실패해도 메타는 유지됨.
+  const uploadBytesIfPresent = async (ieMentId: number, file: File | null) => {
+    if (!file) return;
+    try {
+      await mentApi.uploadFile(ieMentId, file);
+    } catch (err: unknown) {
+      toast.warning(`메타는 저장되었으나 파일 업로드에 실패했습니다: ${extractMessage(err) ?? ''}`);
+    }
+  };
+
   const { mutate: create, isPending: creating } = useCreateMent({
     mutationOptions: {
-      onSuccess: () => {
+      onSuccess: async (res) => {
+        await uploadBytesIfPresent(res.ieMentId, singleFile);
         toast.success('멘트가 등록되었습니다');
         onClose();
       },
@@ -96,14 +108,87 @@ export default function MentFormDrawer({ state, onClose }: Props) {
   });
   const { mutate: update, isPending: updating } = useUpdateMent({
     mutationOptions: {
-      onSuccess: () => {
+      onSuccess: async (res) => {
+        await uploadBytesIfPresent(res.ieMentId, singleFile);
         toast.success('멘트가 수정되었습니다');
         onClose();
       },
       onError: (err: unknown) => toast.error(extractMessage(err) ?? '수정 실패'),
     },
   });
-  const submitting = creating || updating;
+  const { mutate: createBatch, isPending: batchCreating } = useCreateMentBatch({
+    mutationOptions: {
+      onSuccess: (rows) => {
+        toast.success(`${rows.length}건의 멘트가 등록되었습니다`);
+        onClose();
+      },
+      onError: (err: unknown) => toast.error(extractMessage(err) ?? '다량 등록 실패'),
+    },
+  });
+  const submitting = creating || updating || batchCreating;
+
+  // ─── 현재 파일 미리듣기/다운로드 (수정 모드) ──────────────────────────────────
+  const [previewing, setPreviewing] = useState(false);
+  const editAudioRef = useRef<HTMLAudioElement | null>(null);
+  const editAudioUrlRef = useRef<string | null>(null);
+
+  const stopEditPreview = () => {
+    if (editAudioRef.current) {
+      editAudioRef.current.pause();
+      editAudioRef.current = null;
+    }
+    if (editAudioUrlRef.current) {
+      URL.revokeObjectURL(editAudioUrlRef.current);
+      editAudioUrlRef.current = null;
+    }
+    setPreviewing(false);
+  };
+
+  // 드로어 닫힘/언마운트 시 재생 정리
+  useEffect(() => {
+    if (!state.open) stopEditPreview();
+    return () => stopEditPreview();
+  }, [state.open]);
+
+  const onPreviewCurrent = async (mentId: number) => {
+    if (previewing) {
+      stopEditPreview();
+      return;
+    }
+    try {
+      const blob = await mentApi.preview(mentId);
+      const url = URL.createObjectURL(blob);
+      editAudioUrlRef.current = url;
+      const audio = new Audio(url);
+      editAudioRef.current = audio;
+      audio.onended = () => stopEditPreview();
+      audio.onerror = () => {
+        toast.error('재생에 실패했습니다');
+        stopEditPreview();
+      };
+      setPreviewing(true);
+      await audio.play();
+    } catch (err: unknown) {
+      const status = (err as { response?: { status?: number } })?.response?.status;
+      toast.error(status === 404 ? '멘트 파일 실체가 없습니다 (메타만 등록됨)' : (extractMessage(err) ?? '미리듣기 실패'));
+      stopEditPreview();
+    }
+  };
+
+  const onDownloadCurrent = async (mentId: number, fileName: string) => {
+    try {
+      const blob = await mentApi.download(mentId);
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = fileName;
+      a.click();
+      URL.revokeObjectURL(url);
+    } catch (err: unknown) {
+      const status = (err as { response?: { status?: number } })?.response?.status;
+      toast.error(status === 404 ? '멘트 파일 실체가 없습니다 (메타만 등록됨)' : (extractMessage(err) ?? '다운로드 실패'));
+    }
+  };
 
   // ─── 파일 선택 ───────────────────────────────────────────────────────────────
   const onPickSingle = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -134,9 +219,13 @@ export default function MentFormDrawer({ state, onClose }: Props) {
       return;
     }
 
-    // ─ 다량 등록 — 미시드(ipron-ment-create-batch), 추후 제공 ─
+    // ─ 다량 등록 — multipart files[] + mentDescs[] (파일명=멘트명) ─
     if (!isEdit && regMode === 'multi') {
-      toast.info('다량 등록은 추후 제공 예정입니다');
+      if (multiItems.length === 0) {
+        toast.warning('PCM 파일을 1개 이상 선택하세요');
+        return;
+      }
+      createBatch({ nodeId, tenantId, items: multiItems });
       return;
     }
 
@@ -229,7 +318,7 @@ export default function MentFormDrawer({ state, onClose }: Props) {
         </Form.Item>
 
         <Form.Item label="멘트 파일 (.pcm)" required={!isEdit}>
-          {/* 실제 음성파일 업로드는 추후(Phase 1 deferred — MS 동기화 미구현). 파일 선택 시 파일명만 filePath 로 캡처. */}
+          {/* 파일 선택 시 메타 저장 후 PCM 바이트를 로컬 스토리지에 업로드. MS 송신(동기화)은 별도 미연동. */}
           <input ref={singleInputRef} type="file" accept=".pcm" className="hidden" onChange={onPickSingle} />
           {/* 신규/교체 선택된 파일 */}
           {singleFile ? (
@@ -239,18 +328,25 @@ export default function MentFormDrawer({ state, onClose }: Props) {
               <Button size="small" type="text" icon={<Trash2 className="size-3.5 text-red-500" />} onClick={() => setSingleFile(null)} />
             </div>
           ) : isEdit && state.open && state.row ? (
-            /* 수정: 현재 파일 박스 — 미리듣기/다운로드는 추후(ipron-ment-preview/download 미시드) */
+            /* 수정: 현재 파일 박스 — 미리듣기(PCM→WAV) / 다운로드 / 교체 */
             <div className="flex items-center gap-2 px-3 py-2 bg-gray-50 border border-gray-200 rounded-lg">
               <button
                 type="button"
-                title="미리듣기 추후 제공"
-                onClick={() => toast.info('미리듣기는 추후 제공 예정입니다')}
-                className="inline-flex items-center justify-center w-[26px] h-[26px] rounded-full border border-gray-300 text-gray-400 cursor-not-allowed opacity-50"
+                title={previewing ? '정지' : '미리듣기 (PCM→WAV)'}
+                onClick={() => onPreviewCurrent(state.row!.ieMentId)}
+                className={`inline-flex items-center justify-center w-[26px] h-[26px] rounded-full border transition-colors ${
+                  previewing ? 'bg-[#405189] border-[#405189] text-white' : 'border-gray-300 text-[#405189] hover:border-[#405189] hover:bg-blue-50'
+                }`}
               >
-                <Play className="size-3 fill-current" />
+                {previewing ? <Pause className="size-3" /> : <Play className="size-3 fill-current" />}
               </button>
-              <span className="text-[12.5px] font-mono text-gray-700 flex-1 truncate">{state.row.fileName ?? '-'}</span>
-              <Button size="small" icon={<Download className="size-3.5" />} disabled title="다운로드 추후 제공">
+              <span className="text-[12.5px] font-mono text-gray-700 flex-1 truncate">{state.row.filePath ?? state.row.fileName ?? '-'}</span>
+              <Button
+                size="small"
+                icon={<Download className="size-3.5" />}
+                onClick={() => onDownloadCurrent(state.row!.ieMentId, state.row!.filePath ?? state.row!.fileName ?? 'ment.pcm')}
+                title="원본 PCM 다운로드"
+              >
                 다운로드
               </Button>
               <Button size="small" onClick={() => singleInputRef.current?.click()}>
@@ -266,7 +362,7 @@ export default function MentFormDrawer({ state, onClose }: Props) {
             >
               <Upload className="size-5 mx-auto mb-1.5 text-gray-400" />
               <div className="text-[12.5px] text-gray-600">PCM 파일을 클릭하여 선택 (필수)</div>
-              <div className="text-[11px] text-gray-400 mt-1">A-LAW 8kHz PCM · 파일명 영문/숫자/_/. 만, 64자 이내 · 실제 업로드는 추후</div>
+              <div className="text-[11px] text-gray-400 mt-1">A-LAW 8kHz PCM · 파일명 영문/숫자/_/. 만, 64자 이내</div>
             </button>
           )}
         </Form.Item>

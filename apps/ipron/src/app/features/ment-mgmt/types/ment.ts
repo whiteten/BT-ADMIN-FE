@@ -80,3 +80,22 @@ export interface MentTenantStat {
   tenantName: string | null;
   totalCnt: number;
 }
+
+// ──────────────────────────────────────────────────────────
+//  MS 동기화 결과
+// ──────────────────────────────────────────────────────────
+
+/**
+ * 멘트 MS(미디어서버) 동기화 결과.
+ *
+ * BE: MentSyncResult. configured=false → MS 송신부(iosvr-client-starter) 미연동.
+ * 이 경우 메타/로컬파일은 정상 저장되어 있으나 미디어서버 송신은 수행되지 않음.
+ */
+export interface MentSyncResult {
+  nodeId: number | null;
+  configured: boolean;
+  synced: boolean;
+  successCnt: number;
+  failCnt: number;
+  message: string | null;
+}

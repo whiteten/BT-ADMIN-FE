@@ -7,7 +7,6 @@ import { Empty } from 'antd';
 import { useBreadcrumbStore } from '@/shared-store';
 
 const breadcrumb = [
-  { title: 'IPRON', path: '/ipron' },
   { title: '번호자원관리', path: '/ipron/gdn' },
   { title: '그룹DN', path: '/ipron/gdn' },
 ];

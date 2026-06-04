@@ -8,7 +8,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { createQueryKeys } from '@lukemorales/query-key-factory';
 import type { MutationHookOptions, QueryHookOptions, QueryHookWithParamsOptions } from '@/shared-util';
 import { mentApi } from '../api/mentApi';
-import type { MentBatchCreateRequest, MentCreateRequest, MentOptionItem, MentResponse, MentUpdateRequest } from '../types';
+import type { MentBatchCreateRequest, MentCreateRequest, MentOptionItem, MentResponse, MentSyncResult, MentUpdateRequest } from '../types';
 
 export const mentQueryKeys = createQueryKeys('ment', {
   getList: (params?: Record<string, unknown>) => [params],
@@ -100,7 +100,7 @@ export const useCreateMentBatch = ({ mutationOptions }: MutationHookOptions<Ment
   });
 };
 
-export const useSyncMents = ({ mutationOptions }: MutationHookOptions<void, number> = {}) =>
+export const useSyncMents = ({ mutationOptions }: MutationHookOptions<MentSyncResult, number> = {}) =>
   useMutation({
     mutationFn: (nodeId) => mentApi.sync(nodeId),
     ...mutationOptions,

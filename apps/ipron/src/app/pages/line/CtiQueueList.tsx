@@ -143,34 +143,58 @@ export default function CtiQueueList() {
     return m;
   }, [groupOptions]);
 
+  // ─── 전체(무필터) 업무그룹 — 카드 "업무그룹수" 스탯 SoT. 스코프 무관 전 테넌트 그룹. ──
+  const { data: allGroups = [] } = useGetCtiQueueGroups({ queryOptions: { enabled: true } });
+
+  // 테넌트별 업무그룹(TB_TR_CTIQ_MASTER) 개수 — 트리 노드 재귀 카운트.
+  const groupCntByTenant = useMemo(() => {
+    const m = new Map<number, number>();
+    const walk = (list: CtiQueueGroupResponse[]) => {
+      for (const n of list) {
+        if (n.tenantId != null) m.set(n.tenantId, (m.get(n.tenantId) ?? 0) + 1);
+        if ((n.children ?? []).length) walk(n.children);
+      }
+    };
+    walk(allGroups);
+    return m;
+  }, [allGroups]);
+
   // ─── 카드 통계 ──────────────────────────────────────────────────────────────
+  // 업무그룹수(groupCnt): byNode 카드=테넌트 → 그 테넌트의 TB_TR_CTIQ_MASTER 그룹 수.
+  //   byTenant 카드=노드 → 모두 동일(선택) 테넌트 소속이므로 그 테넌트 그룹 수를 공통 표기.
   const cardStats = useMemo(() => {
-    const map = new Map<number, { id: number; name: string; totalCnt: number; activeCnt: number; blockedCnt: number }>();
+    const map = new Map<number, { id: number; name: string; totalCnt: number; activeCnt: number; groupCnt: number }>();
     for (const r of rowsInTab) {
       const key = viewMode === 'byNode' ? r.tenantId : r.nodeId;
       if (key == null) continue;
       const name =
         viewMode === 'byNode' ? (r.tenantName ?? tenants.find((t) => t.tenantId === key)?.tenantName ?? '-') : (nodes.find((n) => n.nodeId === key)?.nodeName ?? `노드 ${key}`);
-      if (!map.has(key)) map.set(key, { id: key, name, totalCnt: 0, activeCnt: 0, blockedCnt: 0 });
+      if (!map.has(key)) {
+        // byNode: key=tenantId; byTenant: 모든 노드 카드가 선택 테넌트 1개 소속.
+        const groupCnt = viewMode === 'byNode' ? (groupCntByTenant.get(key) ?? 0) : selectedTenantId != null ? (groupCntByTenant.get(selectedTenantId) ?? 0) : 0;
+        map.set(key, { id: key, name, totalCnt: 0, activeCnt: 0, groupCnt });
+      }
       const g = map.get(key)!;
       g.totalCnt += 1;
       if (r.activateYn === 1) g.activeCnt += 1;
-      if (r.blockYn === 1) g.blockedCnt += 1;
     }
     return Array.from(map.values()).sort((a, b) => a.name.localeCompare(b.name));
-  }, [rowsInTab, viewMode, tenants, nodes]);
+  }, [rowsInTab, viewMode, tenants, nodes, groupCntByTenant, selectedTenantId]);
 
   const totalStats = useMemo(() => {
     let totalCnt = 0;
     let activeCnt = 0;
-    let blockedCnt = 0;
     for (const r of rowsInTab) {
       totalCnt += 1;
       if (r.activateYn === 1) activeCnt += 1;
-      if (r.blockYn === 1) blockedCnt += 1;
     }
-    return { totalCnt, activeCnt, blockedCnt };
-  }, [rowsInTab]);
+    // "전체" 카드 업무그룹수: 현재 스코프(rowsInTab)에 등장하는 테넌트들의 그룹 수 합.
+    const scopeTenants = new Set<number>();
+    for (const r of rowsInTab) if (r.tenantId != null) scopeTenants.add(r.tenantId);
+    let groupCnt = 0;
+    for (const tid of scopeTenants) groupCnt += groupCntByTenant.get(tid) ?? 0;
+    return { totalCnt, activeCnt, groupCnt };
+  }, [rowsInTab, groupCntByTenant]);
 
   const selectedCardId = viewMode === 'byNode' ? selectedTenantId : selectedNodeId;
   const setSelectedCardId = useCallback(
@@ -199,7 +223,10 @@ export default function CtiQueueList() {
   }, [rowsInTab, selectedCardId, viewMode, searchText, selectedTreeId]);
 
   // 등록 폼에 넘길 테넌트/노드 컨텍스트 (선택된 카드/탭 기준 — 카드=전체면 null → Drawer 에서 직접 선택)
-  const ctxTenantId = viewMode === 'byNode' ? (selectedCardId ?? selectedTenantId) : selectedTenantId;
+  // byNode 모드: 카드=테넌트. 카드가 명시적으로 선택된 경우에만 해당 테넌트를 넘기고,
+  //             "전체" 카드(selectedCardId === null)면 null → Drawer 에서 테넌트 직접 선택.
+  //             (selectedTenantId 폴백 사용 금지 — 항상 loginTenantId 로 고정되어 버그 발생)
+  const ctxTenantId = viewMode === 'byNode' ? selectedCardId : selectedTenantId;
   const ctxNodeId = viewMode === 'byNode' ? selectedNodeId : (selectedCardId ?? selectedNodeId);
   const ctxTenantName = assignedTenants.find((t) => t.id === ctxTenantId)?.name ?? tenants.find((t) => t.tenantId === ctxTenantId)?.tenantName ?? null;
   const ctxNodeName = nodes.find((n) => n.nodeId === ctxNodeId)?.nodeName ?? null;
@@ -225,6 +252,31 @@ export default function CtiQueueList() {
       if (r.treeId == null) unassigned += 1;
     }
     return { total, unassigned };
+  }, [rowsInTab]);
+
+  // ─── 트리에 내려보낼 그룹 ─────────────────────────────────────────────────────
+  // byNode + 전체(admin, treeTenantId==null)에서 groupTree 는 전 테넌트 그룹을 담는다.
+  // 선택 노드에 큐가 0인 테넌트(빈 테스트 그룹 등)는 통째로 숨긴다 — "노드에 큐 있는 테넌트의 그룹만".
+  //  · 노드 presence 있는 테넌트는 그 테넌트 그룹 전부 표시(빈 그룹도 — 배정 대상).
+  //  · byTenant 모드/특정 테넌트 카드 선택(treeTenantId!=null) 시엔 이미 테넌트 단위라 그대로.
+  const treeGroups = useMemo(() => {
+    if (treeTenantId != null) return groupTree; // 단일 테넌트 스코프 — 그대로
+    if (viewMode !== 'byNode') return groupTree; // byTenant 전체는 기존 동작 유지
+    const presentTenants = new Set<number>();
+    for (const r of rowsInTab) if (r.tenantId != null) presentTenants.add(r.tenantId);
+    return groupTree.filter((n) => n.tenantId != null && presentTenants.has(n.tenantId));
+  }, [groupTree, treeTenantId, viewMode, rowsInTab]);
+
+  // 트리 노드별 배지 카운트 — 현재 그리드 범위(rowsInTab)에서 각 배정 그룹(treeId)에 속한 큐 수.
+  // BE getGroups 의 절대 멤버 수(node.ctiqCount, 전 스코프 고정값) 대신 사용해
+  // 전체 칩/그리드와 동일한 분모를 유지한다.
+  const treeScopedCount = useMemo(() => {
+    const m = new Map<number, number>();
+    for (const r of rowsInTab) {
+      if (r.treeId == null) continue;
+      m.set(r.treeId, (m.get(r.treeId) ?? 0) + 1);
+    }
+    return m;
   }, [rowsInTab]);
 
   // ─── Auto-select 첫 탭 ──────────────────────────────────────────────────────
@@ -436,19 +488,8 @@ export default function CtiQueueList() {
     [selectedRows],
   );
 
-  const gridHeaderText = useMemo(() => {
-    const tabName =
-      viewMode === 'byNode'
-        ? selectedNodeId
-          ? (assignedNodes.find((n) => n.id === selectedNodeId)?.name ?? '선택 노드')
-          : '전체'
-        : selectedTenantId
-          ? (assignedTenants.find((t) => t.id === selectedTenantId)?.name ?? '선택 테넌트')
-          : '전체';
-    const card = cardStats.find((g) => g.id === selectedCardId);
-    const scope = card ? `${tabName} / ${card.name}` : tabName;
-    return `${scope} CTI 큐 목록 (${rowsForGrid.length.toLocaleString()}건)`;
-  }, [viewMode, selectedNodeId, selectedTenantId, assignedNodes, assignedTenants, cardStats, selectedCardId, rowsForGrid.length]);
+  // 제목은 "CTI 큐 목록 (N건)" 만 — 노드/테넌트 스코프 접두 제거 (사용자 요청).
+  const gridHeaderText = useMemo(() => `CTI 큐 목록 (${rowsForGrid.length.toLocaleString()}건)`, [rowsForGrid.length]);
 
   // ─── Render ───────────────────────────────────────────────────────────────
   return (
@@ -551,7 +592,7 @@ export default function CtiQueueList() {
                         key={g.id}
                         cardId={g.id}
                         cardName={g.name}
-                        stats={{ totalCnt: g.totalCnt, activeCnt: g.activeCnt, blockedCnt: g.blockedCnt }}
+                        stats={{ totalCnt: g.totalCnt, activeCnt: g.activeCnt, groupCnt: g.groupCnt }}
                         selected={selectedCardId === g.id}
                         onClick={(e) => {
                           setSelectedCardId(g.id);
@@ -635,9 +676,10 @@ export default function CtiQueueList() {
             </div>
             <div className="flex-1 min-h-0">
               <CtiQueueGroupTree
-                groups={groupTree}
+                groups={treeGroups}
                 totalCtiqCount={treeDisplayCount.total}
                 totalUnassignedCount={treeDisplayCount.unassigned}
+                scopedCount={treeScopedCount}
                 selectedTreeId={selectedTreeId}
                 selectedTenantId={treeTenantId}
                 onSelect={setSelectedTreeId}

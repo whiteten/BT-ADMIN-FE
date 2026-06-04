@@ -67,19 +67,20 @@ export default function MediaTypeTable({ rowData, isLoading, onRowDoubleClicked,
       {
         headerName: '미디어 타입명',
         field: 'mediaTypeName',
+        flex: 1,
         minWidth: 180,
         valueFormatter: (p) => p.value ?? '-',
       },
       {
         headerName: '표시 이름',
         field: 'mediaAlias',
+        flex: 1.2,
         minWidth: 200,
-        flex: 1,
       },
       {
         headerName: '최종 수정',
         field: 'workTime',
-        width: 160,
+        width: 170,
         valueFormatter: (p) => (p.value ? String(p.value).replace('T', ' ').slice(0, 16) : '-'),
       },
       {

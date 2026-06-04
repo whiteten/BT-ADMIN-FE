@@ -35,8 +35,7 @@ import useAggridOptions from '@/libs/shared-ui/src/hooks/useAggridOptions';
 import { useModal } from '@/libs/shared-ui/src/hooks/useModal';
 
 const breadcrumb = [
-  { title: 'IPRON', path: '/ipron' },
-  { title: '회선관리', path: '/ipron/sip-trunk' },
+  { title: '번호자원관리', path: '/ipron/sip-trunk' },
   { title: '그룹DN', path: '/ipron/sip-trunk' },
   { title: 'SIP 트렁크 관리', path: '/ipron/sip-trunk' },
 ];
@@ -359,7 +358,7 @@ export default function SipTrunkList() {
       sideBar: false,
       pagination: false,
       rowNumbers: false,
-      defaultColDef: { sortable: true, filter: false, resizable: true, suppressHeaderMenuButton: true },
+      defaultColDef: { sortable: true, filter: true, resizable: true, suppressHeaderMenuButton: true },
       rowSelection: { mode: 'singleRow', checkboxes: false, enableClickSelection: true },
       getRowId: ({ data }) => String(data.gdnId),
       onRowClicked: (e) => {
@@ -494,7 +493,7 @@ export default function SipTrunkList() {
       sideBar: false,
       pagination: false,
       rowNumbers: false,
-      defaultColDef: { sortable: true, filter: false, resizable: true, suppressHeaderMenuButton: true },
+      defaultColDef: { sortable: true, filter: true, resizable: true, suppressHeaderMenuButton: true },
       rowSelection: { mode: 'multiRow', checkboxes: true, headerCheckbox: true, selectAll: 'filtered', enableClickSelection: false },
       getRowId: ({ data }) => String(data.sipTrunkId),
       isExternalFilterPresent: () => assignFilter !== 'all' || kindFilter !== '',

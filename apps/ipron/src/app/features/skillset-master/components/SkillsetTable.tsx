@@ -6,7 +6,7 @@
 import { useMemo } from 'react';
 import type { CellStyle, ColDef, ICellRendererParams } from 'ag-grid-community';
 import { AgGridReact } from 'ag-grid-react';
-import { GripVertical } from 'lucide-react';
+import { CalendarClock, GripVertical } from 'lucide-react';
 import { type SkillsetResponse, getMediaTypeName } from '../types';
 import { IconTrash } from '@/components/custom/Icons';
 import useAggridOptions from '@/libs/shared-ui/src/hooks/useAggridOptions';
@@ -19,6 +19,8 @@ interface Props {
   isLoading?: boolean;
   onRowDoubleClicked: (row: SkillsetResponse) => void;
   onDelete: (row: SkillsetResponse) => void;
+  /** 스케쥴 관리 drawer 열기 */
+  onManageSchedule?: (row: SkillsetResponse) => void;
   onSelectionChanged?: (selected: SkillsetResponse[]) => void;
   onBulkDelete?: () => void;
   selectedCount?: number;
@@ -64,6 +66,7 @@ export default function SkillsetTable({
   isLoading,
   onRowDoubleClicked,
   onDelete,
+  onManageSchedule,
   onSelectionChanged,
   onBulkDelete,
   selectedCount = 0,
@@ -115,19 +118,20 @@ export default function SkillsetTable({
           );
         },
       },
-      { headerName: '테넌트', field: 'tenantName', minWidth: 140, valueFormatter: (p) => p.value ?? '-', hide: !showTenantColumn },
+      { headerName: '테넌트', field: 'tenantName', flex: 1, minWidth: 140, valueFormatter: (p) => p.value ?? '-', hide: !showTenantColumn },
       {
         headerName: '업무그룹',
         field: 'treeName',
-        minWidth: 140,
+        flex: 1,
+        minWidth: 150,
         cellRenderer: (p: ICellRendererParams<SkillsetResponse>) => {
           const v = p.data?.treeName;
           if (!v) return <span className="text-red-500 text-xs">미배정</span>;
           return <span className="text-gray-800">{v}</span>;
         },
       },
-      { headerName: '스킬셋 ID', field: 'skillsetId', width: 130, maxWidth: 150, cellStyle: { textAlign: 'right' } as CellStyle },
-      { headerName: '스킬셋명', field: 'skillsetName', minWidth: 200, flex: 1 },
+      { headerName: '스킬셋 ID', field: 'skillsetId', width: 130, cellStyle: { textAlign: 'right' } as CellStyle },
+      { headerName: '스킬셋명', field: 'skillsetName', minWidth: 200, flex: 1.5 },
       {
         headerName: '미디어 타입',
         field: 'mediaType',
@@ -137,20 +141,46 @@ export default function SkillsetTable({
       {
         headerName: '상담사 수',
         field: 'agentCount',
-        width: 90,
-        maxWidth: 100,
+        width: 100,
         cellStyle: { textAlign: 'right' } as CellStyle,
         valueFormatter: (p) => (p.value == null ? '0' : Number(p.value).toLocaleString()),
       },
       {
         headerName: '활성',
         field: 'activateYn',
-        width: 70,
-        maxWidth: 80,
+        width: 72,
         cellStyle: { textAlign: 'center' } as CellStyle,
         cellRenderer: (p: ICellRendererParams<SkillsetResponse>) => <YnPill value={p.data?.activateYn ?? null} />,
       },
       { headerName: '설명', field: 'skillsetDesc', minWidth: 200, flex: 1, valueFormatter: (p) => p.value ?? '-' },
+      {
+        headerName: '스케쥴',
+        width: 70,
+        maxWidth: 80,
+        sortable: false,
+        filter: false,
+        suppressHeaderMenuButton: true,
+        pinned: 'right',
+        hide: !onManageSchedule,
+        cellStyle: { display: 'flex', alignItems: 'center', justifyContent: 'center' } as CellStyle,
+        cellRenderer: (params: ICellRendererParams<SkillsetResponse>) => {
+          const { data } = params;
+          if (!data) return null;
+          return (
+            <button
+              type="button"
+              title="스케쥴 관리"
+              className="text-gray-400 hover:text-[#405189]"
+              onClick={(e) => {
+                e.stopPropagation();
+                onManageSchedule?.(data);
+              }}
+            >
+              <CalendarClock className="size-4" />
+            </button>
+          );
+        },
+      },
       {
         headerName: '',
         maxWidth: 60,
@@ -177,7 +207,7 @@ export default function SkillsetTable({
         },
       },
     ],
-    [onDelete, onBulkDelete, selectedCount, getDragSkillsetIds, showTenantColumn],
+    [onDelete, onManageSchedule, onBulkDelete, selectedCount, getDragSkillsetIds, showTenantColumn],
   );
 
   return (

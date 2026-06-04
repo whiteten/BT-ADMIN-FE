@@ -1,22 +1,26 @@
 /**
- * 상담사 미디어 현황 매트릭스 (AS-IS SWAT IPR20S40xx 미디어 화면 흡수).
+ * 상담사 미디어 옵션 현황표 (AS-IS SWAT IPR20S4060 정합).
  *
- * 상담사 × 8 미디어 매트릭스를 ag-Grid 로 표시.
- * 각 셀(읽기): 해당 미디어의 사용 여부 뱃지 + (사용 시) MAX quick.
- * 각 셀(편집): 사용여부 토글 + MAX(동시 최대) InputNumber 인라인 편집.
+ * SWAT 원본 동작:
+ *   - 상단 [Media Type] 셀렉트로 미디어 1종(VOIP/Chat/VideoVoice/VideoChat/Email/Fax/MVOIP/SMS·WEB)을 선택.
+ *   - 그리드는 그 미디어의 값을 상담사 행마다 **평면 컬럼**으로 직접 표시·인라인 편집:
+ *       미디어옵션(개별/그룹) · 사용 · 가중치(util) · 동시최대(max) · 후처리(afctime) · 자동응답(mode) · 자동응답시간
+ *   - useGrpMdaOpt=1(그룹 상속) 행은 그룹 실효값을 회색/비활성으로 표시(편집 불가). BE fallback 으로 mediaMatrix 채워짐.
  *
- * 편집 방식: 행 단위. [편집] 액션 → 해당 행의 미디어 셀이 인라인 입력으로 전환되고
- *   미디어 옵션(개별/그룹) 토글도 인라인 가능. [저장] → 상담사 update 엔드포인트
- *   (ipron-agent-master-update) 로 미디어 매트릭스 포함 전체 페이로드 전송 (상세 Drawer 와 동일 결과).
- *   useGrpMdaOpt=1(그룹 상속) 이면 mediaMatrix=null 로 전송.
+ * 본 컴포넌트도 동일하게:
+ *   - 미디어 종류를 셀렉트로 고르면, 그 미디어 값이 **항상 그리드 셀에 보임**(배지 뒤에 숨기지 않음).
+ *   - [편집] 액션으로 해당 행의 평면 컬럼들이 인라인 입력으로 전환(행 높이 변화 없음).
+ *   - [저장] → 상담사 update 엔드포인트(ipron-agent-master-update) 로 전체 mediaMatrix 페이로드 전송.
+ *     선택 미디어의 변경만 draftMatrix 에 반영하고 나머지 7종은 원본 유지. useGrpMdaOpt=1 이면 mediaMatrix=null.
  *
- * 데이터 출처: 기존 getList(AgentResponse) — 별도 미디어 API 없음. agent.mediaMatrix 셀 파생.
+ * 데이터 출처: 기존 getList(AgentResponse) — agent.mediaMatrix[mediaKey] 셀 파생.
  */
-import { useCallback, useMemo, useRef, useState } from 'react';
-import type { CellStyle, ColDef, GridApi, ICellRendererParams } from 'ag-grid-community';
+import { useCallback, useMemo, useState } from 'react';
+import type { CellClassParams, CellStyle, ColDef, ICellRendererParams } from 'ag-grid-community';
 import { AgGridReact } from 'ag-grid-react';
 import { InputNumber, Select } from 'antd';
 import { Check, Pencil, X } from 'lucide-react';
+import { MEDIA_OPTION_BOUNDS } from '../constants/codes';
 import type { AgentMediaMatrix, AgentMediaOption, AgentResponse, AgentUpdateRequest } from '../types';
 import useAggridOptions from '@/libs/shared-ui/src/hooks/useAggridOptions';
 
@@ -33,6 +37,9 @@ const MEDIA_LABELS: Record<MediaKey, string> = {
   mvoip: 'MVOIP',
   sms: 'SMS / WEB',
 };
+
+/** 상단 Media Type 셀렉트 옵션 (SWAT combo type=mediaType 정합 순서). */
+const MEDIA_TYPE_OPTIONS = MEDIA_KEYS.map((k) => ({ value: k, label: MEDIA_LABELS[k] }));
 
 const DEFAULT_OPT: AgentMediaOption = {
   use: false,
@@ -79,150 +86,9 @@ function toUpdateBody(agent: AgentResponse, matrix: AgentMediaMatrix, useGrpMdaO
   };
 }
 
-/** 읽기 전용 미디어 셀 뱃지. */
-function MediaBadge({ opt, inherited }: { opt: AgentMediaOption | null | undefined; inherited: boolean }) {
-  const on = !!opt?.use;
-  if (inherited) {
-    return (
-      <span className="inline-flex items-center justify-center w-full h-[20px] leading-none px-1.5 rounded text-[11px] font-medium text-gray-500 bg-gray-50 border border-gray-200">
-        그룹
-      </span>
-    );
-  }
-  if (!on) {
-    return (
-      <span className="inline-flex items-center justify-center w-full h-[20px] leading-none px-1.5 rounded text-[11px] font-medium text-gray-400 bg-gray-50 border border-gray-200">
-        미사용
-      </span>
-    );
-  }
-  return (
-    <span
-      className="inline-flex items-center justify-center gap-1 w-full h-[20px] leading-none px-1.5 rounded text-[11px] font-medium text-green-700 bg-green-50 border border-green-200"
-      title={`UTIL ${opt?.util ?? 0} · MAX ${opt?.max ?? 0} · AFC ${opt?.afctime ?? 0}s · 자동응답 ${opt?.autoanswerMode === 1 ? `${opt?.autoanswerTime ?? 0}s` : '안함'}`}
-    >
-      <span>사용</span>
-      <span className="text-[10px] text-green-600/80">M{opt?.max ?? 0}</span>
-    </span>
-  );
-}
-
-/** 편집 중 미디어 셀 — 사용여부 + MAX/UTIL/AFC/자동응답 인라인 편집. */
-function MediaEditCell({ opt, inherited, onChange }: { opt: AgentMediaOption; inherited: boolean; onChange: (patch: Partial<AgentMediaOption>) => void }) {
-  if (inherited) {
-    return <span className="inline-flex items-center justify-center w-full h-[20px] text-[11px] text-gray-400">그룹 상속</span>;
-  }
-  const on = !!opt.use;
-  const autoOn = on && opt.autoanswerMode === 1;
-  return (
-    <div className="flex flex-col gap-0.5 w-full py-0.5">
-      {/* 사용 여부 */}
-      <Select
-        size="small"
-        style={{ width: '100%' }}
-        value={on ? 1 : 0}
-        onChange={(v) => onChange({ use: v === 1 })}
-        options={[
-          { value: 1, label: '사용' },
-          { value: 0, label: '미사용' },
-        ]}
-      />
-      {on && (
-        <>
-          {/* MAX */}
-          <InputNumber
-            size="small"
-            style={{ width: '100%' }}
-            min={0}
-            max={16}
-            value={opt.max ?? 1}
-            onChange={(v) => onChange({ max: typeof v === 'number' ? v : 0 })}
-            placeholder="MAX"
-            title="동시 최대 인입 수 (0~16)"
-          />
-          {/* UTIL */}
-          <InputNumber
-            size="small"
-            style={{ width: '100%' }}
-            min={0}
-            max={100}
-            value={opt.util ?? 1}
-            onChange={(v) => onChange({ util: typeof v === 'number' ? v : 0 })}
-            placeholder="UTIL%"
-            title="인입 가중치 % (0~100)"
-          />
-          {/* AFC 후처리 */}
-          <InputNumber
-            size="small"
-            style={{ width: '100%' }}
-            min={0}
-            max={999}
-            value={opt.afctime ?? 30}
-            onChange={(v) => onChange({ afctime: typeof v === 'number' ? v : 0 })}
-            placeholder="후처리"
-            title="후처리 보장 시간 초 (0~999)"
-          />
-          {/* 자동응답 여부 */}
-          <Select
-            size="small"
-            style={{ width: '100%' }}
-            value={opt.autoanswerMode === 1 ? 1 : 0}
-            onChange={(v) => onChange({ autoanswerMode: v })}
-            options={[
-              { value: 0, label: '자동응답 안함' },
-              { value: 1, label: '자동응답 사용' },
-            ]}
-          />
-          {/* 자동응답 시간 — autoanswerMode=1 일 때만 */}
-          {autoOn && (
-            <InputNumber
-              size="small"
-              style={{ width: '100%' }}
-              min={0}
-              max={999}
-              value={opt.autoanswerTime ?? 2}
-              onChange={(v) => onChange({ autoanswerTime: typeof v === 'number' ? v : 0 })}
-              placeholder="자동응답시간"
-              title="자동응답 시간 초 (0~999)"
-            />
-          )}
-        </>
-      )}
-    </div>
-  );
-}
-
-interface RowActionsParams extends ICellRendererParams<AgentResponse> {
-  editingAgentId: number | null;
-  saving: boolean;
-  onEdit: (agent: AgentResponse) => void;
-  onSave: (agent: AgentResponse) => void;
-  onCancel: () => void;
-}
-
-function RowActions(params: RowActionsParams) {
-  const { data, editingAgentId, saving, onEdit, onSave, onCancel } = params;
-  if (!data) return null;
-  const isEditing = editingAgentId === data.agentId;
-  if (isEditing) {
-    return (
-      <div className="flex items-center justify-center gap-2 w-full">
-        <button type="button" title="저장" disabled={saving} onClick={() => onSave(data)} className="disabled:opacity-40">
-          <Check className="size-4 text-green-600 hover:text-green-700" />
-        </button>
-        <button type="button" title="취소" disabled={saving} onClick={onCancel} className="disabled:opacity-40">
-          <X className="size-4 text-gray-500 hover:text-gray-700" />
-        </button>
-      </div>
-    );
-  }
-  return (
-    <div className="flex items-center justify-center w-full">
-      <button type="button" title="미디어 편집" disabled={editingAgentId !== null} onClick={() => onEdit(data)} className="disabled:opacity-30 disabled:cursor-not-allowed">
-        <Pencil className="size-3.5 text-gray-500 hover:text-[#405189]" />
-      </button>
-    </div>
-  );
+/** 행이 선택 미디어에 대해 그룹 상속인지. */
+function isInherited(agent: AgentResponse | undefined): boolean {
+  return agent?.useGrpMdaOpt === 1;
 }
 
 interface AgentMediaStatusTableProps {
@@ -237,13 +103,15 @@ interface AgentMediaStatusTableProps {
 
 export default function AgentMediaStatusTable({ rowData, isLoading, onRowDoubleClicked, onSaveRow, saving }: AgentMediaStatusTableProps) {
   const { gridOptions } = useAggridOptions();
-  const gridApiRef = useRef<GridApi<AgentResponse> | null>(null);
+
+  // 상단에서 선택한 미디어 종류 — 이 미디어의 값이 그리드 평면 컬럼으로 표시/편집됨.
+  const [mediaKey, setMediaKey] = useState<MediaKey>('voip');
 
   // 편집 중 상담사 + 편집 버퍼(매트릭스/그룹옵션). 단일 행 편집.
   const [editingAgentId, setEditingAgentId] = useState<number | null>(null);
   const [draftMatrix, setDraftMatrix] = useState<AgentMediaMatrix>(() => normalizeMatrix(null));
   const [draftUseGrp, setDraftUseGrp] = useState(0);
-  // 셀 렌더러 재호출 강제용 (버퍼 변경 시 refreshCells)
+  // 셀 렌더러 재호출 강제용 (버퍼 변경 시 셀 재렌더 트리거)
   const [draftRev, setDraftRev] = useState(0);
 
   const startEdit = useCallback((agent: AgentResponse) => {
@@ -251,30 +119,106 @@ export default function AgentMediaStatusTable({ rowData, isLoading, onRowDoubleC
     setDraftMatrix(normalizeMatrix(agent.mediaMatrix));
     setDraftUseGrp(agent.useGrpMdaOpt ?? 0);
     setDraftRev((r) => r + 1);
-    // 행 높이 재계산 — 편집 행은 더 높게
-    setTimeout(() => gridApiRef.current?.resetRowHeights(), 0);
   }, []);
 
   const cancelEdit = useCallback(() => {
     setEditingAgentId(null);
-    setTimeout(() => gridApiRef.current?.resetRowHeights(), 0);
   }, []);
 
   const saveEdit = useCallback(
     (agent: AgentResponse) => {
       onSaveRow(agent.agentId, toUpdateBody(agent, draftMatrix, draftUseGrp));
       setEditingAgentId(null);
-      setTimeout(() => gridApiRef.current?.resetRowHeights(), 0);
     },
     [onSaveRow, draftMatrix, draftUseGrp],
   );
 
-  const setCell = useCallback((key: MediaKey, patch: Partial<AgentMediaOption>) => {
-    setDraftMatrix((prev) => ({ ...prev, [key]: { ...prev[key]!, ...patch } }));
-    setDraftRev((r) => r + 1);
-  }, []);
+  // 선택 미디어의 옵션 셀만 patch (나머지 7종은 draftMatrix 에 그대로 유지).
+  const setOpt = useCallback(
+    (patch: Partial<AgentMediaOption>) => {
+      setDraftMatrix((prev) => ({ ...prev, [mediaKey]: { ...prev[mediaKey]!, ...patch } }));
+      setDraftRev((r) => r + 1);
+    },
+    [mediaKey],
+  );
 
   const defaultColDef: ColDef = useMemo(() => ({ sortable: true, filter: true, resizable: true, suppressHeaderMenuButton: true }), []);
+
+  // 편집 중인 행의 선택 미디어 옵션(편집 버퍼) 또는 원본 옵션을 반환.
+  const optOf = useCallback(
+    (agent: AgentResponse): AgentMediaOption => {
+      if (agent.agentId === editingAgentId) return draftMatrix[mediaKey]!;
+      return agent.mediaMatrix?.[mediaKey] ?? DEFAULT_OPT;
+    },
+    [editingAgentId, draftMatrix, mediaKey],
+  );
+
+  const isEditingRow = useCallback((agent: AgentResponse | undefined) => !!agent && agent.agentId === editingAgentId, [editingAgentId]);
+
+  // 그룹 상속(개별/그룹) 판정 — 편집 중이면 draft, 아니면 원본.
+  const inheritedOf = useCallback(
+    (agent: AgentResponse): boolean => {
+      if (agent.agentId === editingAgentId) return draftUseGrp === 1;
+      return isInherited(agent);
+    },
+    [editingAgentId, draftUseGrp],
+  );
+
+  /** 인라인 편집 가능 셀 공통 스타일 — 그룹 상속 행은 회색. */
+  const valueCellStyle = useCallback(
+    (params: CellClassParams<AgentResponse>): CellStyle => {
+      const inherited = params.data ? inheritedOf(params.data) : false;
+      return {
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        padding: '0 6px',
+        color: inherited ? '#9ca3af' : undefined,
+        backgroundColor: inherited ? '#f9fafb' : undefined,
+      } as CellStyle;
+    },
+    [inheritedOf],
+  );
+
+  /** 숫자 값 셀 렌더러 (UTIL/MAX/AFC/자동응답시간) — 보기: 숫자, 편집: InputNumber. */
+  const numberCell = useCallback(
+    (field: 'util' | 'max' | 'afctime' | 'autoanswerTime', bounds: { min: number; max: number }, opts?: { suffix?: string; onlyWhenAuto?: boolean }) =>
+      (params: ICellRendererParams<AgentResponse>) => {
+        const agent = params.data;
+        if (!agent) return null;
+        const inherited = inheritedOf(agent);
+        const editing = isEditingRow(agent);
+        const opt = optOf(agent);
+        const used = !!opt.use;
+        // 자동응답시간은 자동응답=사용일 때만 의미.
+        const autoGated = opts?.onlyWhenAuto && opt.autoanswerMode !== 1;
+        if (inherited) {
+          return <span className="text-[12px] text-gray-400">{used && !autoGated ? `${opt[field] ?? 0}${opts?.suffix ?? ''}` : '–'}</span>;
+        }
+        if (!used || autoGated) {
+          return <span className="text-[12px] text-gray-300">–</span>;
+        }
+        if (editing) {
+          return (
+            <InputNumber
+              size="small"
+              style={{ width: '100%' }}
+              min={bounds.min}
+              max={bounds.max}
+              value={opt[field] ?? bounds.min}
+              onChange={(v) => setOpt({ [field]: typeof v === 'number' ? v : 0 })}
+            />
+          );
+        }
+        return (
+          <span className="text-[12px] font-medium text-gray-800 tabular-nums">
+            {opt[field] ?? 0}
+            {opts?.suffix ?? ''}
+          </span>
+        );
+      },
+    [inheritedOf, isEditingRow, optOf, setOpt],
+  );
 
   const columnDefs: ColDef<AgentResponse>[] = useMemo(() => {
     const base: ColDef<AgentResponse>[] = [
@@ -299,23 +243,54 @@ export default function AgentMediaStatusTable({ rowData, isLoading, onRowDoubleC
         sortable: false,
         filter: false,
         cellStyle: { display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 0 } as CellStyle,
-        cellRendererParams: { editingAgentId, saving, onEdit: startEdit, onSave: saveEdit, onCancel: cancelEdit },
-        cellRenderer: RowActions,
+        cellRenderer: (params: ICellRendererParams<AgentResponse>) => {
+          const data = params.data;
+          if (!data) return null;
+          const editing = data.agentId === editingAgentId;
+          if (editing) {
+            return (
+              <div className="flex items-center justify-center gap-2 w-full">
+                <button type="button" title="저장" disabled={saving} onClick={() => saveEdit(data)} className="disabled:opacity-40">
+                  <Check className="size-4 text-green-600 hover:text-green-700" />
+                </button>
+                <button type="button" title="취소" disabled={saving} onClick={cancelEdit} className="disabled:opacity-40">
+                  <X className="size-4 text-gray-500 hover:text-gray-700" />
+                </button>
+              </div>
+            );
+          }
+          return (
+            <div className="flex items-center justify-center w-full">
+              <button
+                type="button"
+                title="미디어 편집"
+                disabled={editingAgentId !== null}
+                onClick={() => startEdit(data)}
+                className="disabled:opacity-30 disabled:cursor-not-allowed"
+              >
+                <Pencil className="size-3.5 text-gray-500 hover:text-[#405189]" />
+              </button>
+            </div>
+          );
+        },
       },
+      // ── 미디어옵션 기준 (개별/그룹) ──────────────────────────────────────
       {
-        headerName: '미디어 옵션',
-        field: 'useGrpMdaOpt',
+        headerName: '미디어옵션',
+        colId: 'useGrpMdaOpt',
         flex: 0.85,
-        minWidth: 110,
+        minWidth: 100,
         cellStyle: { display: 'flex', alignItems: 'center', justifyContent: 'center' } as CellStyle,
         cellRenderer: (params: ICellRendererParams<AgentResponse>) => {
-          const editing = params.data?.agentId === editingAgentId;
-          const group = editing ? draftUseGrp === 1 : params.data?.useGrpMdaOpt === 1;
+          const data = params.data;
+          if (!data) return null;
+          const editing = data.agentId === editingAgentId;
+          const group = editing ? draftUseGrp === 1 : data.useGrpMdaOpt === 1;
           if (editing) {
             return (
               <Select
                 size="small"
-                style={{ width: 88 }}
+                style={{ width: 84 }}
                 value={group ? 1 : 0}
                 onChange={(v) => {
                   setDraftUseGrp(v);
@@ -339,72 +314,164 @@ export default function AgentMediaStatusTable({ rowData, isLoading, onRowDoubleC
           );
         },
       },
+      // ── 사용 여부 ────────────────────────────────────────────────────────
+      {
+        headerName: '사용',
+        colId: 'mediaUse',
+        flex: 0.7,
+        minWidth: 80,
+        cellStyle: valueCellStyle,
+        cellRenderer: (params: ICellRendererParams<AgentResponse>) => {
+          const agent = params.data;
+          if (!agent) return null;
+          const inherited = inheritedOf(agent);
+          const editing = isEditingRow(agent);
+          const opt = optOf(agent);
+          const on = !!opt.use;
+          if (!inherited && editing) {
+            return (
+              <Select
+                size="small"
+                style={{ width: '100%' }}
+                value={on ? 1 : 0}
+                onChange={(v) => setOpt({ use: v === 1 })}
+                options={[
+                  { value: 1, label: '사용' },
+                  { value: 0, label: '미사용' },
+                ]}
+              />
+            );
+          }
+          return (
+            <span
+              className={`inline-flex items-center justify-center w-[44px] h-[20px] leading-none px-1.5 rounded text-[11px] font-medium ${
+                inherited
+                  ? 'text-gray-400 bg-gray-50 border border-gray-200'
+                  : on
+                    ? 'text-green-700 bg-green-50 border border-green-200'
+                    : 'text-gray-500 bg-gray-50 border border-gray-200'
+              }`}
+            >
+              {on ? '사용' : '미사용'}
+            </span>
+          );
+        },
+      },
+      // ── 가중치 (UTIL %) ──────────────────────────────────────────────────
+      {
+        headerName: '가중치(%)',
+        colId: 'mediaUtil',
+        flex: 0.8,
+        minWidth: 90,
+        cellStyle: valueCellStyle,
+        cellRenderer: numberCell('util', MEDIA_OPTION_BOUNDS.util),
+      },
+      // ── 동시 최대 (MAX) ──────────────────────────────────────────────────
+      {
+        headerName: '동시최대',
+        colId: 'mediaMax',
+        flex: 0.7,
+        minWidth: 84,
+        cellStyle: valueCellStyle,
+        cellRenderer: numberCell('max', MEDIA_OPTION_BOUNDS.max),
+      },
+      // ── 후처리 (AFC, 초) ─────────────────────────────────────────────────
+      {
+        headerName: '후처리(초)',
+        colId: 'mediaAfc',
+        flex: 0.8,
+        minWidth: 90,
+        cellStyle: valueCellStyle,
+        cellRenderer: numberCell('afctime', MEDIA_OPTION_BOUNDS.afctime),
+      },
+      // ── 자동응답 여부 ────────────────────────────────────────────────────
+      {
+        headerName: '자동응답',
+        colId: 'mediaAutoMode',
+        flex: 0.8,
+        minWidth: 96,
+        cellStyle: valueCellStyle,
+        cellRenderer: (params: ICellRendererParams<AgentResponse>) => {
+          const agent = params.data;
+          if (!agent) return null;
+          const inherited = inheritedOf(agent);
+          const editing = isEditingRow(agent);
+          const opt = optOf(agent);
+          const used = !!opt.use;
+          const auto = opt.autoanswerMode === 1;
+          if (!used) return <span className="text-[12px] text-gray-300">–</span>;
+          if (!inherited && editing) {
+            return (
+              <Select
+                size="small"
+                style={{ width: '100%' }}
+                value={auto ? 1 : 0}
+                onChange={(v) => setOpt({ autoanswerMode: v })}
+                options={[
+                  { value: 0, label: '안함' },
+                  { value: 1, label: '사용' },
+                ]}
+              />
+            );
+          }
+          return <span className={`text-[12px] font-medium ${inherited ? 'text-gray-400' : auto ? 'text-[#405189]' : 'text-gray-500'}`}>{auto ? '사용' : '안함'}</span>;
+        },
+      },
+      // ── 자동응답 시간 (초) — 자동응답=사용일 때만 ─────────────────────────
+      {
+        headerName: '자동응답(초)',
+        colId: 'mediaAutoTime',
+        flex: 0.85,
+        minWidth: 100,
+        cellStyle: valueCellStyle,
+        cellRenderer: numberCell('autoanswerTime', MEDIA_OPTION_BOUNDS.autoanswerTime, { suffix: 's', onlyWhenAuto: true }),
+      },
     ];
 
-    const mediaCols: ColDef<AgentResponse>[] = MEDIA_KEYS.map((key) => ({
-      headerName: MEDIA_LABELS[key],
-      colId: `media_${key}`,
-      flex: 0.9,
-      minWidth: 150,
-      sortable: false,
-      filter: false,
-      cellStyle: (params: import('ag-grid-community').CellClassParams<AgentResponse>) => {
-        const editing = params.data?.agentId === editingAgentId;
-        if (editing) {
-          return { display: 'flex', alignItems: 'flex-start', justifyContent: 'center', padding: '4px 6px', overflow: 'visible' } as CellStyle;
-        }
-        return { display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '0 6px' } as CellStyle;
-      },
-      cellRenderer: (params: ICellRendererParams<AgentResponse>) => {
-        const data = params.data;
-        if (!data) return null;
-        const editing = data.agentId === editingAgentId;
-        if (editing) {
-          return <MediaEditCell opt={draftMatrix[key]!} inherited={draftUseGrp === 1} onChange={(patch) => setCell(key, patch)} />;
-        }
-        return <MediaBadge opt={data.mediaMatrix?.[key]} inherited={data.useGrpMdaOpt === 1} />;
-      },
-    }));
-
-    return [...base, ...mediaCols];
-    // draftRev: 버퍼 변경 시 셀 재렌더 트리거
+    return base;
+    // draftRev/mediaKey: 버퍼·미디어 변경 시 셀 재렌더 트리거
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [editingAgentId, draftUseGrp, draftMatrix, draftRev, saving, startEdit, saveEdit, cancelEdit, setCell]);
-
-  const getRowHeight = useCallback(
-    (params: import('ag-grid-community').RowHeightParams<AgentResponse>) => {
-      if (params.data?.agentId === editingAgentId) {
-        // use=사용 시 필드 5~6개(자동응답 사용 여부 포함), 각 24px + 패딩
-        return 196;
-      }
-      return 36;
-    },
-    [editingAgentId],
-  );
+  }, [editingAgentId, draftUseGrp, draftMatrix, draftRev, mediaKey, saving, startEdit, saveEdit, cancelEdit, setOpt, valueCellStyle, numberCell, inheritedOf, isEditingRow, optOf]);
 
   return (
-    <AgGridReact<AgentResponse>
-      rowData={rowData}
-      columnDefs={columnDefs}
-      defaultColDef={defaultColDef}
-      getRowId={(p) => String(p.data.agentId)}
-      getRowHeight={getRowHeight}
-      onGridReady={(e) => {
-        gridApiRef.current = e.api;
-      }}
-      gridOptions={{
-        ...gridOptions,
-        statusBar: undefined,
-        pagination: false,
-        sideBar: false,
-        rowSelection: { mode: 'singleRow', checkboxes: false, enableClickSelection: true },
-      }}
-      loading={isLoading}
-      onRowDoubleClicked={(e) => {
-        // 편집 중에는 더블클릭으로 Drawer 진입 차단 (편집 충돌 방지)
-        if (editingAgentId !== null) return;
-        if (e.data) onRowDoubleClicked(e.data);
-      }}
-    />
+    <div className="flex flex-col h-full">
+      {/* 상단 Media Type 선택 툴바 (SWAT 검색바 Media Type 셀렉트 정합) */}
+      <div className="flex items-center gap-2 px-3 h-[40px] border-b border-gray-100 flex-shrink-0">
+        <span className="text-xs font-semibold text-gray-600">미디어 종류</span>
+        <Select
+          size="small"
+          style={{ width: 150 }}
+          value={mediaKey}
+          onChange={(v: MediaKey) => {
+            setMediaKey(v);
+            // 미디어 전환 시 진행 중 편집은 취소 (편집 버퍼는 미디어 전체를 유지하나, 혼동 방지)
+            setEditingAgentId(null);
+          }}
+          options={MEDIA_TYPE_OPTIONS}
+        />
+        <span className="text-[11px] text-gray-400">선택한 미디어의 옵션 값을 행마다 직접 보고 수정합니다 (그룹 상속 행은 회색·읽기전용)</span>
+      </div>
+      <div className="flex-1 min-h-0">
+        <AgGridReact<AgentResponse>
+          rowData={rowData}
+          columnDefs={columnDefs}
+          defaultColDef={defaultColDef}
+          getRowId={(p) => String(p.data.agentId)}
+          gridOptions={{
+            ...gridOptions,
+            statusBar: undefined,
+            pagination: false,
+            sideBar: false,
+            rowSelection: { mode: 'singleRow', checkboxes: false, enableClickSelection: true },
+          }}
+          loading={isLoading}
+          onRowDoubleClicked={(e) => {
+            // 편집 중에는 더블클릭으로 Drawer 진입 차단 (편집 충돌 방지)
+            if (editingAgentId !== null) return;
+            if (e.data) onRowDoubleClicked(e.data);
+          }}
+        />
+      </div>
+    </div>
   );
 }

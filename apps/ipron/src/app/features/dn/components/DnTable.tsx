@@ -114,14 +114,13 @@ export default function DnTable({ rowData, isLoading, onRowDoubleClicked, onDele
       {
         headerName: 'COS',
         field: 'cosName',
-        minWidth: 110,
+        minWidth: 130,
         valueFormatter: (params) => params.value ?? '-',
       },
       {
         headerName: 'DR노드',
         field: 'backUpNodeName',
-        minWidth: 90,
-        maxWidth: 110,
+        minWidth: 100,
         valueFormatter: (params) => params.value ?? '-',
       },
       {

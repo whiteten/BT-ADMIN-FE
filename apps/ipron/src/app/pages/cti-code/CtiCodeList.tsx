@@ -6,7 +6,7 @@
  *
  * AS-IS SWAT IPR20S4040 마이그레이션 — 탭 2개를 Segmented 토글로 단순화.
  */
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Button, Empty, Segmented } from 'antd';
 import { ChevronLeft, ChevronRight, ChevronsDown, ChevronsUp, Plus, RefreshCw, Trash2 } from 'lucide-react';
 import { useAuthStore, useBreadcrumbStore } from '@/shared-store';
@@ -55,11 +55,6 @@ export default function CtiCodeList() {
 
   // 테넌트별 통계 (상단 카드 슬라이더)
   const { data: tenantStats = [], refetch: refetchTenants } = useGetCtiCodeTenantStats();
-  const totalStats = useMemo(() => {
-    const restCnt = tenantStats.reduce((s, t) => s + (t.restCnt ?? 0), 0);
-    const acwCnt = tenantStats.reduce((s, t) => s + (t.acwCnt ?? 0), 0);
-    return { restCnt, acwCnt, totalCnt: restCnt + acwCnt };
-  }, [tenantStats]);
 
   // 사유 코드 목록
   const {
@@ -170,7 +165,6 @@ export default function CtiCodeList() {
                 className="!flex-shrink-0 !w-8 !h-8 !p-0"
               />
               <div ref={cardScrollRef} className="flex gap-3 overflow-x-auto py-2 px-1 flex-1" style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}>
-                <CtiCodeTenantCard tenantId={null} tenantName="전체" stats={totalStats} selected={selectedTenantId === null} onClick={() => setSelectedTenantId(null)} />
                 {tenantStats.length === 0 ? (
                   <div className="flex flex-col items-center justify-center flex-1 text-gray-400 gap-2 min-h-[100px]">
                     <Empty description={false} imageStyle={{ height: 40 }} />
@@ -211,7 +205,6 @@ export default function CtiCodeList() {
           <div className="flex items-center h-[44px] px-4">
             <div className="relative flex items-center gap-2 w-full">
               <div className="flex gap-2 overflow-x-auto flex-1 items-center" style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}>
-                <CompactTenantPill name="전체" count={totalStats.totalCnt} selected={selectedTenantId === null} onClick={() => setSelectedTenantId(null)} />
                 {tenantStats.map((t) => (
                   <CompactTenantPill
                     key={t.tenantId}
@@ -269,7 +262,7 @@ export default function CtiCodeList() {
         <div className="flex-1 min-h-0">
           {reasonRows.length === 0 && !reasonLoading ? (
             <div className="flex items-center justify-center h-full">
-              <Empty description={selectedTenantId == null ? '테넌트를 선택하면 사유 코드가 표시됩니다' : '등록된 사유 코드가 없습니다'} />
+              <Empty description="등록된 사유 코드가 없습니다" />
             </div>
           ) : (
             <CtiCodeTable

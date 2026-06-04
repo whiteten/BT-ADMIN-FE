@@ -86,7 +86,7 @@ export default function AcdGdnTable({ rowData, isLoading, onRowDoubleClicked, on
       {
         headerName: 'ACD',
         field: 'acdYn',
-        width: 70,
+        minWidth: 70,
         maxWidth: 80,
         cellStyle: { textAlign: 'center' } as CellStyle,
         cellRenderer: (p: ICellRendererParams<GdnResponse>) => <YnPill value={p.data?.acdYn ?? null} />,
@@ -122,7 +122,7 @@ export default function AcdGdnTable({ rowData, isLoading, onRowDoubleClicked, on
       {
         headerName: '헌팅',
         field: 'huntingYn',
-        width: 70,
+        minWidth: 70,
         maxWidth: 80,
         cellStyle: { textAlign: 'center' } as CellStyle,
         cellRenderer: (p: ICellRendererParams<GdnResponse>) => <YnPill value={p.data?.huntingYn ?? null} />,
@@ -130,7 +130,7 @@ export default function AcdGdnTable({ rowData, isLoading, onRowDoubleClicked, on
       {
         headerName: '블록',
         field: 'blockYn',
-        width: 70,
+        minWidth: 70,
         maxWidth: 80,
         cellStyle: { textAlign: 'center' } as CellStyle,
         cellRenderer: (p: ICellRendererParams<GdnResponse>) => {

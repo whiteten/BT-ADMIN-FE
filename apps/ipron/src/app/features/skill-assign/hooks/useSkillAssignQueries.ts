@@ -101,6 +101,7 @@ export const useGetAgentCoverage = (skillsetIds: number[], { queryOptions }: Que
 
 const invalidateAgentSkill = (qc: ReturnType<typeof useQueryClient>) => {
   qc.invalidateQueries({ queryKey: skillAssignQueryKeys.skillsetsByAgent._def });
+  qc.invalidateQueries({ queryKey: skillAssignQueryKeys.agentsBySkillset._def });
   qc.invalidateQueries({ queryKey: skillAssignQueryKeys.availableSkillsets._def });
   qc.invalidateQueries({ queryKey: skillAssignQueryKeys.tenantStats.queryKey });
   qc.invalidateQueries({ queryKey: skillAssignQueryKeys.coverage._def });

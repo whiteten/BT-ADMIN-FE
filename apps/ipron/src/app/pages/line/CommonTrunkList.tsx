@@ -42,10 +42,9 @@ import {
 import { useGetDnProfileNodes } from '../../features/dn-profile/hooks/useDnProfileQueries';
 
 const breadcrumb = [
-  { title: 'IPRON', path: '/ipron' },
-  { title: '회선관리', path: '/ipron/line' },
+  { title: '번호자원관리', path: '/ipron/line' },
   { title: '그룹DN', path: '/ipron/line' },
-  { title: '공용 트렁크 관리', path: '/ipron/line/common-trunk' },
+  { title: '공용 SIP TRUNK 관리', path: '/ipron/line/common-trunk' },
 ];
 
 // ─── 채널 게이지 렌더러 ──────────────────────────────────────────────

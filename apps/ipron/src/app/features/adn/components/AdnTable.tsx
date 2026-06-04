@@ -74,6 +74,7 @@ export default function AdnTable({ rowData, isLoading, onRowDoubleClicked, onDel
         minWidth: 130,
         maxWidth: 140,
         cellStyle: { textAlign: 'center' } as CellStyle,
+        filterValueGetter: (params) => (params.data?.dnStatus === '1' ? '로그인' : '로그아웃'),
         cellRenderer: (params: ICellRendererParams<AdnResponse>) => {
           const v = params.data?.dnStatus;
           if (v == null) return '-';
@@ -101,6 +102,7 @@ export default function AdnTable({ rowData, isLoading, onRowDoubleClicked, onDel
         minWidth: 110,
         maxWidth: 120,
         cellStyle: { textAlign: 'center' } as CellStyle,
+        filterValueGetter: (params) => (params.data?.md5Auth === 1 ? '설정' : '해제'),
         cellRenderer: (params: ICellRendererParams<AdnResponse>) => {
           const v = params.data?.md5Auth;
           return v === 1 ? (
@@ -119,6 +121,7 @@ export default function AdnTable({ rowData, isLoading, onRowDoubleClicked, onDel
         headerName: '상담원 기본상태',
         field: 'adnDftState',
         minWidth: 140,
+        filterValueGetter: (params) => getAdnDftStateName(params.data?.adnDftState),
         valueFormatter: (p) => getAdnDftStateName(p.value),
       },
       {

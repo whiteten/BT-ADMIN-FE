@@ -50,6 +50,7 @@ export default function AgentAdnTable({ rowData, isLoading, onSelectionChanged }
         minWidth: 110,
         maxWidth: 120,
         cellStyle: { textAlign: 'center' } as CellStyle,
+        filterValueGetter: (params) => (params.data?.mappingStatus === 'ASSIGNED' ? '할당' : '미할당'),
         cellRenderer: (params: ICellRendererParams<AgentAdnRowResponse>) => {
           const isAssigned = params.data?.mappingStatus === 'ASSIGNED';
           return (
@@ -80,6 +81,7 @@ export default function AgentAdnTable({ rowData, isLoading, onSelectionChanged }
         minWidth: 90,
         maxWidth: 100,
         cellStyle: { textAlign: 'center' } as CellStyle,
+        filterValueGetter: (params) => (params.data?.activateYn === 1 && (params.data?.retireYn ?? 0) === 0 ? '활성' : '비활성'),
         cellRenderer: (params: ICellRendererParams<AgentAdnRowResponse>) => {
           const isActive = params.data?.activateYn === 1 && (params.data?.retireYn ?? 0) === 0;
           if (!isActive) {

@@ -18,7 +18,7 @@
  *  ipron-ment-sync             POST   선택 노드의 MS그룹 멘트파일 동기화 (?nodeId)
  */
 import ApiClient, { type ApiResponse } from '@/shared-util';
-import type { MentBatchCreateRequest, MentCreateRequest, MentOptionItem, MentResponse, MentUpdateRequest } from '../types';
+import type { MentBatchCreateRequest, MentCreateRequest, MentOptionItem, MentResponse, MentSyncResult, MentUpdateRequest } from '../types';
 
 const apiClient = new ApiClient({ serviceURL: '/bff' });
 
@@ -74,6 +74,16 @@ export const mentApi = {
     await apiClient.post('/ipron-ment-delete-batch', { ieMentIds });
   },
 
+  /** 단건 파일 업로드/교체 — 기존 멘트 메타에 PCM 바이너리 저장(filePath 갱신). */
+  uploadFile: async (ieMentId: number, file: File): Promise<MentResponse> => {
+    const formData = new FormData();
+    formData.append('file', file);
+    const res = await apiClient.post<ApiResponse<MentResponse>>('/ipron-ment-file-upload', formData, {
+      params: { id: ieMentId },
+    });
+    return res.data?.data;
+  },
+
   /** 다량 등록 — 파일명=멘트명. 항목별 설명은 mentDescs 배열로 동순 매핑. */
   createBatch: async (data: MentBatchCreateRequest): Promise<MentResponse[]> => {
     const formData = new FormData();
@@ -87,9 +97,13 @@ export const mentApi = {
     return res.data?.data?.value ?? [];
   },
 
-  /** 선택 노드의 모든 MS그룹에 멘트파일 동기화 (SWAT 동기화). */
-  sync: async (nodeId: number): Promise<void> => {
-    await apiClient.post('/ipron-ment-sync', undefined, { params: { nodeId } });
+  /**
+   * 선택 노드의 모든 MS그룹에 멘트파일 동기화 (SWAT 동기화).
+   * MS 송신부 미연동 시 configured:false 로 응답(메타/로컬파일은 정상).
+   */
+  sync: async (nodeId: number): Promise<MentSyncResult> => {
+    const res = await apiClient.post<ApiResponse<MentSyncResult>>('/ipron-ment-sync', undefined, { params: { nodeId } });
+    return res.data?.data;
   },
 
   // ─── 콤보 옵션 (노드+테넌트 단위, CTI큐 멘트 콤보 등 재사용) ─────────────────────
@@ -102,13 +116,14 @@ export const mentApi = {
   // ─── 파일 다운로드 / 미리듣기 ──────────────────────────────────────────────────
 
   download: async (mentId: number): Promise<Blob> => {
-    const res = await apiClient.get<Blob>('/ipron-ment-download', { params: { mentId }, responseType: 'blob' });
+    // BFF flow URI `/api/ipron/ments/{id}/download` — path param 치환용 쿼리키는 `id`.
+    const res = await apiClient.get<Blob>('/ipron-ment-download', { params: { id: mentId }, responseType: 'blob' });
     return (res as unknown as { data: Blob }).data;
   },
 
   /** 미리듣기용 WAV (BE: IPR20S1070CVT PCM→WAV 변환 후 stream). */
   preview: async (mentId: number): Promise<Blob> => {
-    const res = await apiClient.get<Blob>('/ipron-ment-preview', { params: { mentId }, responseType: 'blob' });
+    const res = await apiClient.get<Blob>('/ipron-ment-preview', { params: { id: mentId }, responseType: 'blob' });
     return (res as unknown as { data: Blob }).data;
   },
 };

@@ -12,7 +12,7 @@
  */
 import { useMemo, useState } from 'react';
 import { Input } from 'antd';
-import { ChevronDown, ChevronRight, ChevronsDownUp, ChevronsUpDown, FolderClosed, FolderOpen, Pencil, Plus, Search, Trash2 } from 'lucide-react';
+import { ArrowDown, ArrowUp, ChevronDown, ChevronRight, ChevronsDownUp, ChevronsUpDown, FolderClosed, FolderOpen, Pencil, Plus, Search, Trash2 } from 'lucide-react';
 import type { SkillsetGroupResponse } from '../types';
 import { SKILLSET_DRAG_MIME } from './SkillsetTable';
 
@@ -26,6 +26,8 @@ interface Props {
   onCreateChild: (parent: SkillsetGroupResponse | null) => void;
   onEdit: (group: SkillsetGroupResponse) => void;
   onDelete: (group: SkillsetGroupResponse) => void;
+  /** 형제 노드 간 순서 이동 (up=위로). */
+  onMove?: (group: SkillsetGroupResponse, up: boolean) => void;
   /** D&D 드롭 핸들러 — node 객체 전달 (테넌트 검증용). targetTreeId=0 이면 미배정. */
   onSkillsetDrop: (target: { treeId: number; tenantId: number | null }, skillsetIds: number[]) => void;
 }
@@ -57,6 +59,7 @@ export default function SkillsetGroupTree({
   onCreateChild,
   onEdit,
   onDelete,
+  onMove,
   onSkillsetDrop,
 }: Props) {
   const [searchText, setSearchText] = useState('');
@@ -107,7 +110,7 @@ export default function SkillsetGroupTree({
     else setExpanded(new Set(allExpandableIds));
   };
 
-  const renderNode = (node: SkillsetGroupResponse, depth: number): React.ReactNode => {
+  const renderNode = (node: SkillsetGroupResponse, depth: number, isFirst: boolean, isLast: boolean): React.ReactNode => {
     const hasChildren = (node.children ?? []).length > 0;
     const isOpen = effectiveExpanded.has(node.treeId);
     const isSelected = selectedTreeId === node.treeId;
@@ -173,6 +176,10 @@ export default function SkillsetGroupTree({
             title={selectedTenantId === null && node.tenantName ? `${node.treeName} · 테넌트: ${node.tenantName}` : node.treeName}
           >
             {node.treeName}
+            {/* 전체(admin) 보기에서 동일이름 그룹 구분 — 테넌트명 항상 노출. 단일테넌트 선택 시엔 중복이라 생략. */}
+            {selectedTenantId === null && node.tenantName && (
+              <span className={`ml-1 text-[11px] font-normal ${isSelected ? 'text-[#405189]/70' : 'text-gray-400'}`}>· {node.tenantName}</span>
+            )}
           </span>
 
           {isDropTarget && <span className="text-[10px] text-emerald-600 font-medium">↓ 여기로 배정</span>}
@@ -180,6 +187,34 @@ export default function SkillsetGroupTree({
           <span className={`text-[11px] text-gray-400 flex-shrink-0 ${isSelected ? 'hidden' : 'group-hover:hidden'}`}>{node.skillsetCount.toLocaleString()}</span>
 
           <div className={`flex items-center gap-0.5 flex-shrink-0 transition ${isSelected ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'}`}>
+            {onMove && (
+              <>
+                <button
+                  type="button"
+                  disabled={isFirst}
+                  className="w-5 h-5 inline-flex items-center justify-center rounded text-gray-400 hover:bg-[#eef0f7] hover:text-[#405189] disabled:opacity-30 disabled:cursor-not-allowed disabled:hover:bg-transparent"
+                  title="위로 이동"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    if (!isFirst) onMove(node, true);
+                  }}
+                >
+                  <ArrowUp className="size-3.5" />
+                </button>
+                <button
+                  type="button"
+                  disabled={isLast}
+                  className="w-5 h-5 inline-flex items-center justify-center rounded text-gray-400 hover:bg-[#eef0f7] hover:text-[#405189] disabled:opacity-30 disabled:cursor-not-allowed disabled:hover:bg-transparent"
+                  title="아래로 이동"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    if (!isLast) onMove(node, false);
+                  }}
+                >
+                  <ArrowDown className="size-3.5" />
+                </button>
+              </>
+            )}
             <button
               type="button"
               className="w-5 h-5 inline-flex items-center justify-center rounded text-gray-400 hover:bg-[#eef0f7] hover:text-[#405189]"
@@ -215,7 +250,7 @@ export default function SkillsetGroupTree({
             </button>
           </div>
         </div>
-        {hasChildren && isOpen && <div>{node.children.map((c) => renderNode(c, depth + 1))}</div>}
+        {hasChildren && isOpen && <div>{node.children.map((c, i) => renderNode(c, depth + 1, i === 0, i === node.children.length - 1))}</div>}
       </div>
     );
   };
@@ -303,7 +338,7 @@ export default function SkillsetGroupTree({
         {filtered.length === 0 ? (
           <div className="px-3 py-6 text-center text-[11px] text-gray-400">{selectedTenantId === null ? '상단 카드에서 테넌트를 선택하세요' : '등록된 업무그룹이 없습니다'}</div>
         ) : (
-          filtered.map((node) => renderNode(node, 0))
+          filtered.map((node, i) => renderNode(node, 0, i === 0, i === filtered.length - 1))
         )}
       </div>
     </div>

@@ -20,6 +20,8 @@ interface Props {
   groups: CtiQueueGroupResponse[]; // BE getGroups (테넌트 필터 적용된 결과)
   totalCtiqCount: number;
   totalUnassignedCount: number;
+  /** 트리 노드별 배지 카운트 — 현재 그리드 범위(rowsInTab) 기준. BE node.ctiqCount(전 스코프 고정) 대신 사용. */
+  scopedCount: Map<number, number>;
   selectedTreeId: number | null; // null=전체, 0=미배정, n=실제 트리
   selectedTenantId: number | null; // null=전체 테넌트
   onSelect: (treeId: number | null) => void;
@@ -51,6 +53,7 @@ export default function CtiQueueGroupTree({
   groups,
   totalCtiqCount,
   totalUnassignedCount,
+  scopedCount,
   selectedTreeId,
   selectedTenantId,
   onSelect,
@@ -171,11 +174,15 @@ export default function CtiQueueGroupTree({
             title={selectedTenantId === null && node.tenantName ? `${node.treeName} · 테넌트: ${node.tenantName}` : node.treeName}
           >
             {node.treeName}
+            {/* 전체(admin) 보기에서 동일이름 그룹 구분 — 테넌트명 항상 노출. 단일테넌트 선택 시엔 중복이라 생략. */}
+            {selectedTenantId === null && node.tenantName && (
+              <span className={`ml-1 text-[11px] font-normal ${isSelected ? 'text-[#405189]/70' : 'text-gray-400'}`}>· {node.tenantName}</span>
+            )}
           </span>
 
           {isDropTarget && <span className="text-[10px] text-emerald-600 font-medium">↓ 여기로 배정</span>}
 
-          <span className={`text-[11px] text-gray-400 flex-shrink-0 ${isSelected ? 'hidden' : 'group-hover:hidden'}`}>{node.ctiqCount.toLocaleString()}</span>
+          <span className={`text-[11px] text-gray-400 flex-shrink-0 ${isSelected ? 'hidden' : 'group-hover:hidden'}`}>{(scopedCount.get(node.treeId) ?? 0).toLocaleString()}</span>
 
           <div className={`flex items-center gap-0.5 flex-shrink-0 transition ${isSelected ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'}`}>
             <button

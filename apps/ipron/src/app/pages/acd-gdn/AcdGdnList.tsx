@@ -34,7 +34,7 @@ import useAggridOptions from '@/libs/shared-ui/src/hooks/useAggridOptions';
 import { useModal } from '@/libs/shared-ui/src/hooks/useModal';
 
 const breadcrumb = [
-  { title: '구성관리', path: '/ipron/acd-gdn' },
+  { title: '번호자원관리', path: '/ipron/acd-gdn' },
   { title: '그룹DN', path: '/ipron/acd-gdn' },
   { title: 'ACD', path: '/ipron/acd-gdn' },
 ];
@@ -342,7 +342,7 @@ export default function AcdGdnList() {
         width: 120,
         cellRenderer: (p: ICellRendererParams<GdnResponse>) => <span className="font-mono font-semibold text-gray-800">{p.data?.gdnNo}</span>,
       },
-      { headerName: '그룹DN이름', field: 'gdnName', width: 140 },
+      { headerName: '그룹DN이름', field: 'gdnName', flex: 1, minWidth: 140 },
       {
         headerName: 'DR노드',
         field: 'backUpNodeId',

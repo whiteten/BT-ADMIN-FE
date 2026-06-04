@@ -16,6 +16,7 @@ import { toast } from '@/shared-util';
 import SkillsetFormDrawer from '../../features/skillset-master/components/SkillsetFormDrawer';
 import SkillsetGroupDrawer from '../../features/skillset-master/components/SkillsetGroupDrawer';
 import SkillsetGroupTree from '../../features/skillset-master/components/SkillsetGroupTree';
+import SkillsetScheduleDrawer from '../../features/skillset-master/components/SkillsetScheduleDrawer';
 import SkillsetTable from '../../features/skillset-master/components/SkillsetTable';
 import SkillsetTenantCard from '../../features/skillset-master/components/SkillsetTenantCard';
 import {
@@ -26,6 +27,7 @@ import {
   useGetSkillsetGroups,
   useGetSkillsetTenants,
   useGetSkillsets,
+  useMoveSkillsetGroup,
   useReassignSkillsetMembers,
   useUnassignSkillsetMembers,
   useUpdateSkillset,
@@ -125,6 +127,9 @@ export default function SkillsetMasterList() {
   const [groupDrawerTarget, setGroupDrawerTarget] = useState<SkillsetGroupResponse | null>(null);
   const [groupDrawerTenantHint, setGroupDrawerTenantHint] = useState<number | null>(null);
 
+  const [scheduleDrawerOpen, setScheduleDrawerOpen] = useState(false);
+  const [scheduleSkillset, setScheduleSkillset] = useState<SkillsetResponse | null>(null);
+
   // ─── Queries ────────────────────────────────────────────────────────────
   const { data: skillsets = [], isLoading } = useGetSkillsets({
     params: selectedTenantId !== null ? { tenantId: selectedTenantId } : undefined,
@@ -196,6 +201,11 @@ export default function SkillsetMasterList() {
     mutationOptions: {
       onSuccess: (count) => toast.success(`${count}건의 스킬셋 배정이 해제되었습니다`),
       onError: (err: unknown) => toast.error(extractMsg(err, '해제 실패')),
+    },
+  });
+  const { mutate: moveGroup } = useMoveSkillsetGroup({
+    mutationOptions: {
+      onError: (err: unknown) => toast.error(extractMsg(err, '순서 변경 실패')),
     },
   });
 
@@ -312,6 +322,18 @@ export default function SkillsetMasterList() {
     },
     [modal, deleteGroup],
   );
+
+  const handleMoveGroup = useCallback(
+    (group: SkillsetGroupResponse, up: boolean) => {
+      moveGroup({ treeId: group.treeId, up });
+    },
+    [moveGroup],
+  );
+
+  const handleManageSchedule = useCallback((row: SkillsetResponse) => {
+    setScheduleSkillset(row);
+    setScheduleDrawerOpen(true);
+  }, []);
 
   const handleGroupDrawerSubmit = useCallback(
     (req: SkillsetGroupCreateRequest | SkillsetGroupUpdateRequest) => {
@@ -504,6 +526,7 @@ export default function SkillsetMasterList() {
               onCreateChild={(parent) => handleCreateGroup(parent, selectedTenantId)}
               onEdit={handleEditGroup}
               onDelete={handleDeleteGroup}
+              onMove={handleMoveGroup}
               onSkillsetDrop={handleSkillsetDrop}
             />
           </div>
@@ -540,6 +563,7 @@ export default function SkillsetMasterList() {
               isLoading={isLoading}
               onRowDoubleClicked={handleEdit}
               onDelete={handleDelete}
+              onManageSchedule={handleManageSchedule}
               onSelectionChanged={setSelectedRows}
               onBulkDelete={handleBulkDelete}
               selectedCount={selectedRows.length}
@@ -575,6 +599,9 @@ export default function SkillsetMasterList() {
         onSubmit={handleGroupDrawerSubmit}
         loading={isCreatingGroup || isUpdatingGroup}
       />
+
+      {/* 스킬셋별 스케쥴 관리 Drawer */}
+      <SkillsetScheduleDrawer open={scheduleDrawerOpen} skillset={scheduleSkillset} onClose={() => setScheduleDrawerOpen(false)} />
     </div>
   );
 }

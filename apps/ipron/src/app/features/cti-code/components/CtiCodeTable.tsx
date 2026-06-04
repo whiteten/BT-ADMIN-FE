@@ -24,13 +24,16 @@ export default function CtiCodeTable({ rowData, isLoading, onRowDoubleClicked, o
   const gridRef = useRef(null);
 
   const colDefs: ColDef<ReasonCodeResponse>[] = [
-    { headerCheckboxSelection: true, checkboxSelection: true, width: 40, pinned: 'left', resizable: false },
-    ...(showTenantColumn ? [{ field: 'tenantName' as const, headerName: '테넌트', width: 120 }] : []),
-    { field: 'reasonName' as const, headerName: '사유명', flex: 1 },
-    { field: 'reasonCode' as const, headerName: '코드', width: 100 },
+    { headerCheckboxSelection: true, checkboxSelection: true, width: 40, pinned: 'left', resizable: false, sortable: false, filter: false, suppressHeaderMenuButton: true },
+    ...(showTenantColumn ? [{ field: 'tenantName' as const, headerName: '테넌트', minWidth: 140, flex: 1 }] : []),
+    { field: 'reasonName' as const, headerName: '사유명', flex: 2, minWidth: 160 },
+    { field: 'reasonCode' as const, headerName: '코드', width: 110, maxWidth: 130 },
     {
       headerName: '삭제',
       width: 70,
+      sortable: false,
+      filter: false,
+      suppressHeaderMenuButton: true,
       cellRenderer: (params: { data?: ReasonCodeResponse }) =>
         params.data ? (
           <Popconfirm title="삭제하시겠습니까?" onConfirm={() => onDelete(params.data!)} okText="삭제" cancelText="취소">
@@ -41,6 +44,7 @@ export default function CtiCodeTable({ rowData, isLoading, onRowDoubleClicked, o
   ];
 
   const gridOptions: GridOptions<ReasonCodeResponse> = {
+    defaultColDef: { sortable: true, filter: true, resizable: true, suppressHeaderMenuButton: true },
     rowSelection: { mode: 'multiRow', checkboxes: true, headerCheckbox: true },
     onSelectionChanged: (e) => onSelectionChanged(e.api.getSelectedRows()),
     onRowDoubleClicked: (e) => e.data && onRowDoubleClicked(e.data),

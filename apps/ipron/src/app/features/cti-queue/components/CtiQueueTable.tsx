@@ -140,7 +140,7 @@ export default function CtiQueueTable({
       {
         headerName: 'CTIQ ID',
         field: 'ctiqId',
-        minWidth: 110,
+        minWidth: 90,
         cellRenderer: (p: ICellRendererParams<CtiQueueResponse>) => <span className="font-mono text-[12px] text-gray-700">{p.value ?? ''}</span>,
       },
       {
@@ -158,10 +158,11 @@ export default function CtiQueueTable({
       {
         headerName: '그룹DN번호',
         field: 'gdnNo',
+        flex: 1,
         minWidth: 110,
         cellRenderer: (p: ICellRendererParams<CtiQueueResponse>) => <span className="font-mono font-semibold text-gray-800">{p.value ?? '-'}</span>,
       },
-      { headerName: '그룹DN이름', field: 'gdnName', flex: 1, minWidth: 140, valueFormatter: (p) => p.value ?? '-' },
+      { headerName: '그룹DN이름', field: 'gdnName', flex: 2, minWidth: 140, valueFormatter: (p) => p.value ?? '-' },
       {
         headerName: 'DR노드',
         field: 'backUpNodeId',
@@ -173,8 +174,8 @@ export default function CtiQueueTable({
       {
         headerName: '글로벌여부',
         field: 'globalDnYn',
-        minWidth: 90,
-        maxWidth: 100,
+        minWidth: 110,
+        maxWidth: 120,
         cellStyle: { textAlign: 'center' } as CellStyle,
         cellRenderer: (p: ICellRendererParams<CtiQueueResponse>) =>
           p.value === 1 ? (
@@ -190,6 +191,7 @@ export default function CtiQueueTable({
       {
         headerName: '기본 라우팅그룹',
         field: 'firstGroupId',
+        flex: 1,
         minWidth: 130,
         valueFormatter: (p) => (p.value == null || p.value === 0 ? '없음' : (groupNameById.get(Number(p.value)) ?? String(p.value))),
       },
@@ -212,16 +214,15 @@ export default function CtiQueueTable({
       {
         headerName: '최대대기 사용',
         field: 'maxWaittimeYn',
-        minWidth: 100,
-        maxWidth: 110,
+        minWidth: 116,
         cellStyle: { textAlign: 'center' } as CellStyle,
         cellRenderer: (p: ICellRendererParams<CtiQueueResponse>) => <StatePill value={p.data?.maxWaittimeYn ?? null} onText="Y" offText="N" tone="blue" />,
       },
-      { headerName: '최대대기(초)', field: 'maxWaittime', minWidth: 100, maxWidth: 110, cellStyle: { textAlign: 'right' } as CellStyle, valueFormatter: (p) => num(p.value) },
-      { headerName: '호회수T/O(초)', field: 'collectTimeout', minWidth: 110, maxWidth: 120, cellStyle: { textAlign: 'right' } as CellStyle, valueFormatter: (p) => num(p.value) },
-      { headerName: 'SL(초)', field: 'serviceLevelTime', minWidth: 70, maxWidth: 90, cellStyle: { textAlign: 'right' } as CellStyle, valueFormatter: (p) => num(p.value) },
-      { headerName: '큐포기(초)', field: 'abandonAcktime', minWidth: 90, maxWidth: 100, cellStyle: { textAlign: 'right' } as CellStyle, valueFormatter: (p) => num(p.value) },
-      { headerName: '정렬순서', field: 'sortSeq', minWidth: 80, maxWidth: 90, cellStyle: { textAlign: 'right' } as CellStyle, valueFormatter: (p) => num(p.value) },
+      { headerName: '최대대기(초)', field: 'maxWaittime', minWidth: 110, cellStyle: { textAlign: 'right' } as CellStyle, valueFormatter: (p) => num(p.value) },
+      { headerName: '호회수T/O(초)', field: 'collectTimeout', minWidth: 124, cellStyle: { textAlign: 'right' } as CellStyle, valueFormatter: (p) => num(p.value) },
+      { headerName: 'SL(초)', field: 'serviceLevelTime', minWidth: 84, cellStyle: { textAlign: 'right' } as CellStyle, valueFormatter: (p) => num(p.value) },
+      { headerName: '큐포기(초)', field: 'abandonAcktime', minWidth: 100, cellStyle: { textAlign: 'right' } as CellStyle, valueFormatter: (p) => num(p.value) },
+      { headerName: '정렬순서', field: 'sortSeq', minWidth: 90, cellStyle: { textAlign: 'right' } as CellStyle, valueFormatter: (p) => num(p.value) },
       {
         headerName: '',
         maxWidth: 60,

@@ -14,6 +14,8 @@
  */
 import ApiClient, { type ApiResponse } from '@/shared-util';
 import type {
+  ScheduleInfoRequest,
+  ScheduleInfoResponse,
   SkillsetCreateRequest,
   SkillsetGroupCreateRequest,
   SkillsetGroupResponse,
@@ -80,6 +82,54 @@ export const skillsetApi = {
 
   removeGroup: async (treeId: number): Promise<void> => {
     await apiClient.delete('/ipron-skillset-groups-delete', { params: { treeId } });
+  },
+
+  moveGroupUp: async (treeId: number): Promise<void> => {
+    await apiClient.post('/ipron-skillset-groups-move-up', undefined, { params: { treeId } });
+  },
+
+  moveGroupDown: async (treeId: number): Promise<void> => {
+    await apiClient.post('/ipron-skillset-groups-move-down', undefined, { params: { treeId } });
+  },
+
+  // ─── 스케쥴 관리 ──────────────────────────────────────────────
+  getSchedules: async (params?: { tenantId?: number }): Promise<ScheduleInfoResponse[]> => {
+    const res = await apiClient.get<ApiResponse<{ value: ScheduleInfoResponse[] }>>('/ipron-skillset-schedule-list', { params });
+    return res.data?.data?.value ?? [];
+  },
+
+  createSchedule: async (body: ScheduleInfoRequest): Promise<ScheduleInfoResponse> => {
+    const res = await apiClient.post<ApiResponse<ScheduleInfoResponse>>('/ipron-skillset-schedule-create', body);
+    return res.data?.data;
+  },
+
+  updateSchedule: async (scheduleId: number, body: ScheduleInfoRequest): Promise<ScheduleInfoResponse> => {
+    const res = await apiClient.put<ApiResponse<ScheduleInfoResponse>>('/ipron-skillset-schedule-update', body, { params: { scheduleId } });
+    return res.data?.data;
+  },
+
+  removeSchedule: async (scheduleId: number): Promise<void> => {
+    await apiClient.delete('/ipron-skillset-schedule-delete', { params: { scheduleId } });
+  },
+
+  getAssignedSchedules: async (skillsetId: number): Promise<ScheduleInfoResponse[]> => {
+    const res = await apiClient.get<ApiResponse<{ value: ScheduleInfoResponse[] }>>('/ipron-skillset-schedule-assigned', { params: { skillsetId } });
+    return res.data?.data?.value ?? [];
+  },
+
+  getAssignableSchedules: async (skillsetId: number): Promise<ScheduleInfoResponse[]> => {
+    const res = await apiClient.get<ApiResponse<{ value: ScheduleInfoResponse[] }>>('/ipron-skillset-schedule-assignable', { params: { skillsetId } });
+    return res.data?.data?.value ?? [];
+  },
+
+  assignSchedules: async (skillsetId: number, scheduleIds: number[]): Promise<number> => {
+    const res = await apiClient.post<ApiResponse<{ assigned: number }>>('/ipron-skillset-schedule-assign', { scheduleIds }, { params: { skillsetId } });
+    return res.data?.data?.assigned ?? 0;
+  },
+
+  unassignSchedule: async (skillsetId: number, scheduleId: number): Promise<number> => {
+    const res = await apiClient.delete<ApiResponse<{ deleted: number }>>('/ipron-skillset-schedule-unassign', { params: { skillsetId, scheduleId } });
+    return res.data?.data?.deleted ?? 0;
   },
 
   // ─── 매핑 ────────────────────────────────────────────────────

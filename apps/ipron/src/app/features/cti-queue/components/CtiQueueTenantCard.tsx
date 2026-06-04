@@ -1,14 +1,15 @@
 /**
  * CTI 큐 테넌트/노드 카드 (240×100) — DnTenantCard / AcdGdnTenantCard 패턴.
  *
- * 표시: 이름 / 큐 총수 / 활성 / 블록.
+ * 표시: 이름 / CTI큐(큐 총수) / 활성 / 업무그룹수(그 테넌트의 TB_TR_CTIQ_MASTER 그룹 수).
  */
 import { Building2 } from 'lucide-react';
 
 export interface CtiQueueCardStats {
   totalCnt: number;
   activeCnt: number;
-  blockedCnt: number;
+  /** 그 테넌트의 업무그룹(TB_TR_CTIQ_MASTER) 개수. 블록 카운트 아님. */
+  groupCnt: number;
 }
 
 interface CtiQueueTenantCardProps {
@@ -21,7 +22,7 @@ interface CtiQueueTenantCardProps {
 
 export default function CtiQueueTenantCard({ cardId, cardName, stats, selected, onClick }: CtiQueueTenantCardProps) {
   const isAll = cardId === null;
-  const { totalCnt, activeCnt, blockedCnt } = stats;
+  const { totalCnt, activeCnt, groupCnt } = stats;
 
   return (
     <div
@@ -45,7 +46,7 @@ export default function CtiQueueTenantCard({ cardId, cardName, stats, selected, 
 
       <div className="flex-1 flex flex-col gap-0.5 text-xs text-gray-600">
         <div className="flex items-center justify-between">
-          <span className="text-gray-500">큐 총수</span>
+          <span className="text-gray-500">CTI큐</span>
           <span className="font-semibold text-gray-800">{totalCnt.toLocaleString()}건</span>
         </div>
         <div className="flex items-center justify-between">
@@ -53,8 +54,8 @@ export default function CtiQueueTenantCard({ cardId, cardName, stats, selected, 
           <span className="font-medium text-green-600">{activeCnt.toLocaleString()}</span>
         </div>
         <div className="flex items-center justify-between">
-          <span className="text-gray-500">블록</span>
-          <span className="font-medium text-red-500">{blockedCnt.toLocaleString()}</span>
+          <span className="text-gray-500">업무그룹수</span>
+          <span className="font-medium text-[#405189]">{groupCnt.toLocaleString()}</span>
         </div>
       </div>
     </div>

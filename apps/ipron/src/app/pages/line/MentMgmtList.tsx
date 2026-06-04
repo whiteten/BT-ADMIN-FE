@@ -17,10 +17,11 @@ import { ChevronLeft, ChevronRight, Download, Network, Plus, RefreshCw, Search, 
 import { useBreadcrumbStore } from '@/shared-store';
 import { toast } from '@/shared-util';
 import { useGetDnProfileNodes } from '../../features/dn-profile/hooks/useDnProfileQueries';
+import { mentApi } from '../../features/ment-mgmt/api/mentApi';
 import MentFormDrawer, { type MentDrawerState } from '../../features/ment-mgmt/components/MentFormDrawer';
 import MentTable from '../../features/ment-mgmt/components/MentTable';
 import MentTenantCard from '../../features/ment-mgmt/components/MentTenantCard';
-import { useDeleteMents, useGetMents } from '../../features/ment-mgmt/hooks/useMentQueries';
+import { useDeleteMents, useGetMents, useSyncMents } from '../../features/ment-mgmt/hooks/useMentQueries';
 import type { MentResponse } from '../../features/ment-mgmt/types';
 import { useModal } from '@/libs/shared-ui/src/hooks/useModal';
 
@@ -47,10 +48,13 @@ export default function MentMgmtList() {
   const [searchText, setSearchText] = useState('');
   const [selectedRows, setSelectedRows] = useState<MentResponse[]>([]);
   const [drawer, setDrawer] = useState<MentDrawerState>({ open: false });
+  const [playingMentId, setPlayingMentId] = useState<number | null>(null);
 
   const tabScrollRef = useRef<HTMLDivElement>(null);
   const cardScrollRef = useRef<HTMLDivElement>(null);
   const hasInitializedNodeRef = useRef(false);
+  const audioRef = useRef<HTMLAudioElement | null>(null);
+  const audioUrlRef = useRef<string | null>(null);
 
   // ─── Queries ────────────────────────────────────────────────────────────────
   const { data: nodes = [] } = useGetDnProfileNodes();
@@ -114,8 +118,19 @@ export default function MentMgmtList() {
     },
   });
 
-  // ipron-ment-sync 미시드 — 추후 제공
-  const isSyncing = false;
+  const { mutate: syncMents, isPending: isSyncing } = useSyncMents({
+    mutationOptions: {
+      onSuccess: (res) => {
+        // MS 송신부 미연동 시 configured:false — 안내 메시지 노출(메타/로컬파일은 정상).
+        if (res && res.configured === false) {
+          toast.info(res.message ?? '멘트파일 동기화(MS 송신)는 아직 연동되지 않았습니다');
+        } else {
+          toast.success(res?.message ?? '멘트파일 동기화가 완료되었습니다');
+        }
+      },
+      onError: (err: unknown) => toast.error(extractMsg(err, '동기화 실패')),
+    },
+  });
 
   const handleCreate = () => {
     if (selectedNodeId == null) {
@@ -156,14 +171,62 @@ export default function MentMgmtList() {
   };
 
   const handleSync = () => {
-    // ipron-ment-sync 미시드 — 추후 제공
-    toast.info('멘트파일 동기화는 추후 제공 예정입니다');
+    if (selectedNodeId == null) {
+      toast.warning('노드를 먼저 선택하세요');
+      return;
+    }
+    modal.confirm.execute({
+      onOk: () => syncMents(selectedNodeId),
+      options: { title: '멘트파일 동기화', content: '선택한 노드의 모든 MS그룹에 멘트파일을 동기화하시겠습니까?' },
+    });
   };
 
-  // ─── 재생 — ipron-ment-preview 미시드, 추후 제공 ─────────────────────────────
-  const handleTogglePlay = useCallback((_row: MentResponse) => {
-    toast.info('미리듣기는 추후 제공 예정입니다');
+  // ─── 재생/정지 (미리듣기 — BE preview: PCM A-LAW→WAV) ─────────────────────────
+  const stopPlayback = useCallback(() => {
+    if (audioRef.current) {
+      audioRef.current.pause();
+      audioRef.current = null;
+    }
+    if (audioUrlRef.current) {
+      URL.revokeObjectURL(audioUrlRef.current);
+      audioUrlRef.current = null;
+    }
+    setPlayingMentId(null);
   }, []);
+
+  const handleTogglePlay = useCallback(
+    async (row: MentResponse) => {
+      // 같은 행 토글 → 정지
+      if (playingMentId === row.ieMentId) {
+        stopPlayback();
+        return;
+      }
+      stopPlayback();
+      try {
+        const blob = await mentApi.preview(row.ieMentId);
+        const url = URL.createObjectURL(blob);
+        audioUrlRef.current = url;
+        const audio = new Audio(url);
+        audioRef.current = audio;
+        audio.onended = () => stopPlayback();
+        audio.onerror = () => {
+          toast.error('재생에 실패했습니다');
+          stopPlayback();
+        };
+        setPlayingMentId(row.ieMentId);
+        await audio.play();
+      } catch (err: unknown) {
+        // 파일 실체 없음(메타만 등록) → 404
+        const status = (err as { response?: { status?: number } })?.response?.status;
+        toast.error(status === 404 ? '멘트 파일 실체가 없습니다 (메타만 등록됨)' : extractMsg(err, '미리듣기 실패'));
+        stopPlayback();
+      }
+    },
+    [playingMentId, stopPlayback],
+  );
+
+  // 언마운트 시 재생 정리
+  useEffect(() => stopPlayback, [stopPlayback]);
 
   const handleExport = async () => {
     // 엑셀 내보내기 — BE flow 미반영 시 안내. (시드 후 ipron-ment-excel-export 연결)
@@ -322,7 +385,7 @@ export default function MentMgmtList() {
             <MentTable
               rowData={rowsForGrid}
               isLoading={isLoading}
-              playingMentId={null}
+              playingMentId={playingMentId}
               onRowDoubleClicked={handleEdit}
               onDelete={handleDelete}
               onTogglePlay={handleTogglePlay}

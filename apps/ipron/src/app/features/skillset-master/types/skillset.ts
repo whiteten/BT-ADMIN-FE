@@ -80,6 +80,52 @@ export interface SkillsetMemberReassignRequest {
   targetTreeId?: number | null;
 }
 
+// ─── 스케쥴 관리 (TB_IC_SCHEDULEINFO + TB_IC_SKILLSCHEDULE) ───────────────────
+
+export interface ScheduleInfoResponse {
+  scheduleId: number;
+  scheduleName: string;
+  tenantId: number | null;
+  tenantName: string | null;
+  startDate: string | null; // ISO yyyy-MM-dd
+  startTime: string | null; // "HHMM"
+  finshTime: string | null; // "HHMM"
+  mon: number;
+  tue: number;
+  wed: number;
+  thu: number;
+  fri: number;
+  sat: number;
+  sun: number;
+  workTime: string | null;
+}
+
+export interface ScheduleInfoRequest {
+  tenantId?: number | null;
+  scheduleName: string;
+  startDate?: string | null; // ISO yyyy-MM-dd
+  startTime?: string | null; // "HHMM"
+  finshTime?: string | null; // "HHMM"
+  mon?: number;
+  tue?: number;
+  wed?: number;
+  thu?: number;
+  fri?: number;
+  sat?: number;
+  sun?: number;
+}
+
+/** 요일 컬럼 정의 (월~일 순) */
+export const SCHEDULE_DAY_FIELDS: { key: keyof Pick<ScheduleInfoResponse, 'mon' | 'tue' | 'wed' | 'thu' | 'fri' | 'sat' | 'sun'>; label: string }[] = [
+  { key: 'mon', label: '월' },
+  { key: 'tue', label: '화' },
+  { key: 'wed', label: '수' },
+  { key: 'thu', label: '목' },
+  { key: 'fri', label: '금' },
+  { key: 'sat', label: '토' },
+  { key: 'sun', label: '일' },
+];
+
 /** 미디어 타입 공통코드 (IC_MEDIA_TYPE) — DB 조회 결과 (2026-05-25) */
 export const MEDIA_TYPE_OPTIONS: { value: number; label: string }[] = [
   { value: 0, label: 'Voice Over IP' },
