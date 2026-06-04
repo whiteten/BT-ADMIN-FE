@@ -184,9 +184,3 @@ export interface SearchBindingCreateDatas {
   requiredYn: boolean;
   defaultValue?: unknown;
 }
-
-export interface PublishDatas {
-  menuPath: string;
-  menuName: string;
-  permissionGroups: string[];
-}
