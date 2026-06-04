@@ -1,9 +1,9 @@
 import { type ReactNode, useMemo } from 'react';
 import ReactECharts from 'echarts-for-react';
-import { AlertTriangle, ChevronRight } from 'lucide-react';
-import { DEMO_HEALTH, isHealthDemoMode } from './demoData';
+import { AlertTriangle, ChevronRight, Server } from 'lucide-react';
 import { SEV_BG, SEV_BG_SOFT, SEV_HEX, SEV_TEXT, abandonSev, agentDonutSegments, answerRateSev, overallStatus, serviceLevelSev, toHealthData, waitingSev } from './helpers';
-import type { HealthBoardData, HealthBoardThresholds, QualityInfo, QueueRow, Severity, SystemHealth } from './types';
+import type { HealthBoardData, HealthBoardThresholds, QualityInfo, QueueRow, Severity, SystemHealth, SystemProcess, TrunkBoard } from './types';
+import { HoverCard, HoverCardContent, HoverCardTrigger } from '@/libs/shared-ui/src/components/shadcn/hover-card';
 
 /**
  * 종합 헬스보드 위젯 — "지금 우리 센터, 정상인가?"
@@ -31,15 +31,17 @@ export interface HealthBoardWidgetProps {
 export default function HealthBoardWidget({ data, options }: HealthBoardWidgetProps) {
   const t = options?.thresholds;
 
-  // BE 집계 위젯(healthBoardWidget)이 아직 없어, 라이브 데이터가 비어 있으면 목(데모) 데이터로 렌더링한다.
-  // BE 가 붙으면 라이브 데이터가 우선되고, ?healthDemo=1 로 강제 데모도 가능. (목 우선은 임시 — BE 연동 후 제거)
-  const d = useMemo<HealthBoardData>(() => {
-    if (isHealthDemoMode()) return DEMO_HEALTH;
-    const live = toHealthData(data);
-    return hasLiveData(live) ? live : DEMO_HEALTH;
-  }, [data]);
+  // 라이브 데이터(WS DATA 프레임)를 그대로 정규화해 렌더한다. 데이터가 아직 없으면 빈/0 값으로 표시된다.
+  const d = useMemo<HealthBoardData>(() => toHealthData(data), [data]);
 
   const overall = overallStatus(d);
+
+  // 시스템 칩 정렬 — ① 심각도 위험순(danger→warning→notice→success),
+  // ② 동률이면 프로세스 다운 비율((total-up)/total)이 높은 쪽을 더 왼쪽으로.
+  const sortedSystems = useMemo(() => {
+    const downRatio = (s: SystemHealth) => (s.total > 0 ? (s.total - s.up) / s.total : 0);
+    return [...d.systems].sort((a, b) => SEV_RANK[b.severity] - SEV_RANK[a.severity] || downRatio(b) - downRatio(a));
+  }, [d.systems]);
 
   return (
     <div className="flex h-full flex-col gap-5 overflow-y-auto bg-bt-bg-canvas p-5">
@@ -91,9 +93,9 @@ export default function HealthBoardWidget({ data, options }: HealthBoardWidgetPr
 
       {/* ═══ 시스템 신호등 (LED 칩) ═══ */}
       <section>
-        <SectionEyebrow sev={worstSeverity(d.systems.map((s) => s.severity))}>시스템 상태</SectionEyebrow>
+        <SectionEyebrow sev={worstSeverity(d.systems.map((s) => s.severity))}>프로세스 상태</SectionEyebrow>
         <div className="flex flex-wrap items-center gap-3 rounded-xl border border-bt-border bg-bt-bg px-5 py-3.5 bt-shadow">
-          {d.systems.map((s) => (
+          {sortedSystems.map((s) => (
             <SystemChip key={s.code} system={s} />
           ))}
           <CardLink className="ml-auto">노드 상세</CardLink>
@@ -103,9 +105,18 @@ export default function HealthBoardWidget({ data, options }: HealthBoardWidgetPr
       {/* ═══ 요약 3카드 ═══ */}
       <section className="flex min-h-0 flex-1 flex-col">
         <SectionEyebrow sev={overall.sev}>상세 현황</SectionEyebrow>
-        <div className="grid min-h-0 flex-1 grid-cols-1 gap-4 lg:grid-cols-3">
+        <div className="grid min-h-0 flex-1 grid-cols-1 gap-4 lg:grid-cols-4">
+          <SummaryCard
+            title="회선 포화"
+            titleSub="· 사용률순"
+            link="회선 현황"
+            sev={d.trunks.summary.blockCnt > 0 || d.trunks.summary.errorCnt > 0 || d.trunks.summary.saturatedCnt > 0 ? 'danger' : 'success'}
+          >
+            <TrunkPanel trunks={d.trunks} />
+          </SummaryCard>
+
           <SummaryCard title="큐 현황" titleSub="· 위험순" link="큐 모니터" sev={worstSeverity(d.queues.map((q) => q.sev))}>
-            <QueueChart queues={d.queues} normalCnt={d.normalQueueCnt} />
+            <QueueChart queues={d.queues} />
           </SummaryCard>
 
           <SummaryCard title="상담사 상태" titleSub={`· ${agentTotal(d)}명`} link="상담사 현황" sev="success">
@@ -123,11 +134,6 @@ export default function HealthBoardWidget({ data, options }: HealthBoardWidgetPr
 
 // ─── 포맷 ──────────────────────────────────────────────────────
 
-/** 라이브 DATA 프레임에 의미 있는 값이 들어왔는지 판정 (없으면 목 데이터로 폴백). */
-function hasLiveData(d: HealthBoardData): boolean {
-  return d.answerRate != null || d.waitingCnt > 0 || d.systems.length > 0 || d.agents.available + d.agents.talking > 0;
-}
-
 function fmtPct(v: number | null): string {
   if (v == null) return '—';
   return Number.isInteger(v) ? String(v) : v.toFixed(1);
@@ -142,6 +148,34 @@ function agentTotal(d: HealthBoardData): number {
 const SEV_RANK: Record<Severity, number> = { success: 0, notice: 1, warning: 2, danger: 3 };
 function worstSeverity(list: Severity[]): Severity {
   return list.reduce<Severity>((acc, s) => (SEV_RANK[s] > SEV_RANK[acc] ? s : acc), 'success');
+}
+
+/** 칩 호버 패널용 — 프로세스를 소속 시스템(SYSTEM_NAME)별로 묶는다. */
+interface ProcessGroup {
+  system: string;
+  processes: SystemProcess[];
+}
+
+/**
+ * 프로세스 목록을 소속 시스템별로 그룹화.
+ * - 그룹 안: 위험한 프로세스가 위로 (심각도 내림차순)
+ * - 그룹 간: 그룹 내 최악 심각도가 높은 시스템이 위로, 동률이면 이름순
+ */
+function groupProcessesBySystem(processes: SystemProcess[]): ProcessGroup[] {
+  const map = new Map<string, SystemProcess[]>();
+  for (const p of processes) {
+    const key = p.system?.trim() || '기타';
+    const arr = map.get(key);
+    if (arr) arr.push(p);
+    else map.set(key, [p]);
+  }
+  const groups: ProcessGroup[] = [];
+  for (const [system, list] of map) {
+    groups.push({ system, processes: [...list].sort((a, b) => SEV_RANK[b.severity] - SEV_RANK[a.severity]) });
+  }
+  const worst = (g: ProcessGroup) => g.processes.reduce((m, p) => Math.max(m, SEV_RANK[p.severity]), 0);
+  groups.sort((a, b) => worst(b) - worst(a) || a.system.localeCompare(b.system));
+  return groups;
 }
 
 // ─── 섹션 구분 라벨 ────────────────────────────────────────────
@@ -350,20 +384,77 @@ const CHIP_FRAME: Record<Severity, string> = {
   danger: 'border-bt-danger/25 bg-bt-danger-soft bt-pulse-ring',
 };
 const CHIP_LABEL: Record<Severity, string> = { success: '정상', notice: '주의', warning: '경고', danger: '이상' };
+const PROC_LABEL: Record<Severity, string> = { success: '정상', notice: '주의', warning: '경고', danger: '위험' };
 
 function SystemChip({ system }: { system: SystemHealth }) {
   const sev = system.severity;
   const ok = sev === 'success';
   return (
-    <div className={`flex items-center gap-2.5 rounded-lg border px-4 py-2.5 ${CHIP_FRAME[sev]}`}>
-      <span className={`h-3 w-3 rounded-full ${SEV_BG[sev]} ${sev === 'danger' ? 'bt-pulse' : ''}`} style={{ boxShadow: `0 0 8px ${SEV_HEX[sev]}` }} />
-      <div className="leading-tight">
-        <div className="text-[13px] font-bold">{system.name}</div>
-        <div className={`text-[11px] font-medium ${ok ? 'text-bt-success' : `font-bold ${SEV_TEXT[sev]}`}`}>
-          {CHIP_LABEL[sev]} · 노드 {system.up}/{system.total}
-          {ok ? '' : ' ↓'}
+    <HoverCard openDelay={80} closeDelay={80}>
+      <HoverCardTrigger asChild>
+        <div className={`flex cursor-default items-center gap-2.5 rounded-lg border px-4 py-2.5 transition-shadow hover:bt-shadow ${CHIP_FRAME[sev]}`}>
+          <span className={`h-3 w-3 rounded-full ${SEV_BG[sev]} ${sev === 'danger' ? 'bt-pulse' : ''}`} style={{ boxShadow: `0 0 8px ${SEV_HEX[sev]}` }} />
+          <div className="leading-tight">
+            <div className="text-[13px] font-bold">{system.name}</div>
+            <div className={`text-[11px] font-medium ${ok ? 'text-bt-success' : `font-bold ${SEV_TEXT[sev]}`}`}>
+              {CHIP_LABEL[sev]} · 프로세스 {system.up}/{system.total}
+              {ok ? '' : ' ↓'}
+            </div>
+          </div>
         </div>
+      </HoverCardTrigger>
+      <HoverCardContent align="start" sideOffset={8} className="w-72 overflow-hidden border-bt-border bg-bt-bg p-0 text-bt-fg shadow-lg">
+        <SystemProcessPanel system={system} />
+      </HoverCardContent>
+    </HoverCard>
+  );
+}
+
+/** 칩 호버 팝오버 — 해당 도메인의 프로세스를 소속 시스템별로 묶어 표시 (그룹 내 위험순). */
+function SystemProcessPanel({ system }: { system: SystemHealth }) {
+  const sev = system.severity;
+  const groups = useMemo(() => groupProcessesBySystem(system.processes), [system.processes]);
+  return (
+    <div className="flex flex-col">
+      <div className="flex items-center justify-between gap-2 border-b border-bt-border px-3.5 py-2.5">
+        <div className="flex items-center gap-2">
+          <span className={`h-2.5 w-2.5 rounded-full ${SEV_BG[sev]}`} style={{ boxShadow: `0 0 6px ${SEV_HEX[sev]}` }} />
+          <span className="text-[13px] font-bold">{system.name}</span>
+        </div>
+        <span className="text-[11px] font-medium text-bt-fg-muted">
+          정상 <b className="tabular-nums text-bt-success">{system.up}</b>
+          <span className="tabular-nums">/{system.total}</span>
+        </span>
       </div>
+      {groups.length > 0 ? (
+        <div className="max-h-64 overflow-y-auto py-1">
+          {groups.map((g) => (
+            <div key={g.system}>
+              {/* 시스템(SYSTEM_NAME) 그룹 헤더 — 서버 아이콘으로 시스템임을 표시 */}
+              <div className="flex items-center gap-1.5 px-3.5 pt-2 pb-1">
+                <Server className="h-3 w-3 shrink-0 text-bt-fg-muted" strokeWidth={2} />
+                <span className="truncate text-[10.5px] font-bold uppercase tracking-wide text-bt-fg-muted">{g.system}</span>
+                <span className="ml-auto text-[10px] tabular-nums text-bt-fg-muted">{g.processes.length}</span>
+              </div>
+              <ul>
+                {g.processes.map((p, i) => (
+                  <li key={`${p.name}-${i}`} className="flex items-center justify-between gap-2 py-1.5 pl-7 pr-3.5 transition-colors hover:bg-bt-bg-muted">
+                    <span className="flex min-w-0 items-center gap-2">
+                      <span className={`h-2 w-2 shrink-0 rounded-full ${SEV_BG[p.severity]} ${p.severity === 'danger' ? 'bt-pulse' : ''}`} />
+                      <span className="truncate text-[12px] text-bt-fg">{p.name}</span>
+                    </span>
+                    <span className={`shrink-0 rounded-full px-1.5 py-0.5 text-[10.5px] font-semibold ${SEV_BG_SOFT[p.severity]} ${SEV_TEXT[p.severity]}`}>
+                      {PROC_LABEL[p.severity]}
+                    </span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          ))}
+        </div>
+      ) : (
+        <div className="px-3.5 py-4 text-center text-[12px] text-bt-fg-muted">프로세스 정보 없음</div>
+      )}
     </div>
   );
 }
@@ -386,9 +477,72 @@ function SummaryCard({ title, titleSub, link, sev, children }: { title: string; 
   );
 }
 
+// ─── 회선 포화 (SIP 트렁크 점유율 막대 · 사용율순 Top-N) ─────────
+
+function TrunkPanel({ trunks }: { trunks: TrunkBoard }) {
+  const s = trunks.summary;
+  const alert = s.saturatedCnt > 0 || s.blockCnt > 0 || s.errorCnt > 0;
+  return (
+    <div className="flex h-full min-h-0 flex-col gap-2">
+      {/* 요약 — 전체 점유율 + 포화/블록/이상 배지 */}
+      <div className="flex shrink-0 items-center justify-between rounded-lg bg-bt-bg-muted px-3 py-2">
+        <span className="text-[12px] text-bt-fg-muted">
+          전체 <b className="tabular-nums text-bt-fg">{fmtPct(s.rate)}%</b>{' '}
+          <span className="tabular-nums text-[11px]">
+            {s.busyLine}/{s.totalLine}
+          </span>
+        </span>
+        <span
+          className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-semibold ${
+            alert ? 'bg-bt-danger-soft text-bt-danger' : 'bg-bt-success-soft text-bt-success'
+          }`}
+        >
+          {alert && <span className="h-1.5 w-1.5 rounded-full bg-bt-danger bt-pulse" />}
+          {s.saturatedCnt > 0 ? `포화 ${s.saturatedCnt}` : s.blockCnt > 0 ? `블록 ${s.blockCnt}` : s.errorCnt > 0 ? `이상 ${s.errorCnt}` : '여유'}
+        </span>
+      </div>
+
+      {/* Top-N 점유율 막대 · 임계 83 마커 — 카드 높이 초과 시 목록만 스크롤 */}
+      <div className="min-h-0 flex-1 overflow-y-auto">
+        {trunks.items.length > 0 ? (
+          <div className="flex flex-col gap-2.5">
+            {trunks.items.map((t, i) => (
+              <div key={`${t.name}-${i}`}>
+                <div className="mb-1 flex items-center justify-between gap-2 text-[12px]">
+                  <span className="inline-flex min-w-0 items-center gap-1.5 font-semibold">
+                    <span className={`h-2 w-2 shrink-0 rounded-full ${SEV_BG[t.severity]} ${t.severity === 'danger' ? 'bt-pulse' : ''}`} />
+                    <span className="truncate" title={t.name}>
+                      {t.name}
+                    </span>
+                    {t.block === 1 && <span className="shrink-0 text-[10px] font-bold text-bt-danger">BLOCK</span>}
+                    {t.registered === 0 && <span className="shrink-0 text-[10px] font-bold text-bt-danger">미등록</span>}
+                  </span>
+                  <span className={`shrink-0 tabular-nums font-bold ${SEV_TEXT[t.severity]}`}>{fmtPct(t.rate)}%</span>
+                </div>
+                <div className="relative h-2.5 overflow-hidden rounded-full bg-bt-bg-muted">
+                  <div className={`h-full rounded-full ${SEV_BG[t.severity]}`} style={{ width: `${Math.max(2, Math.min(100, t.rate))}%` }} />
+                  {/* 포화 임계 마커 83% (AS-IS trunkStatus.jsp) */}
+                  <span className="absolute inset-y-0 w-0.5 bg-[#3a3f47]" style={{ left: '83%' }} />
+                </div>
+              </div>
+            ))}
+          </div>
+        ) : (
+          <div className="py-6 text-center text-[12px] text-bt-fg-muted">트렁크 데이터 없음</div>
+        )}
+      </div>
+
+      {/* 푸터 — 상태 카운트 (정상/미등록·이상/블록) */}
+      <div className="shrink-0 border-t border-bt-border pt-1.5 text-[11px] text-bt-fg-muted">
+        정상 <b className="tabular-nums text-bt-fg">{s.normalCnt}</b> · 미등록·이상 <b className="tabular-nums">{s.errorCnt}</b> · 블록 <b className="tabular-nums">{s.blockCnt}</b>
+      </div>
+    </div>
+  );
+}
+
 // ─── 큐 현황 (ECharts 가로 바) ─────────────────────────────────
 
-function QueueChart({ queues, normalCnt }: { queues: QueueRow[]; normalCnt: number }) {
+function QueueChart({ queues }: { queues: QueueRow[] }) {
   // ECharts yAxis 는 아래→위 순이라, 위험순(barPct 큰 것)이 위로 가도록 역순으로 넣는다.
   const ordered = useMemo(() => [...queues].reverse(), [queues]);
 
@@ -416,7 +570,7 @@ function QueueChart({ queues, normalCnt }: { queues: QueueRow[]; normalCnt: numb
               show: true,
               position: 'right',
               distance: 8,
-              formatter: q.waitCnt != null ? `${q.waitCnt} 대기` : q.serviceLevel != null ? `SL ${q.serviceLevel}%` : '',
+              formatter: q.waitCnt != null ? String(q.waitCnt) : q.serviceLevel != null ? `SL ${q.serviceLevel}%` : '',
               color: SEV_HEX[q.sev],
               fontFamily: 'Poppins, "Noto Sans KR", sans-serif',
               fontSize: 11.5,
@@ -435,11 +589,6 @@ function QueueChart({ queues, normalCnt }: { queues: QueueRow[]; normalCnt: numb
         <ReactECharts option={option} style={{ height: queues.length * 34, width: '100%' }} notMerge lazyUpdate />
       ) : (
         <div className="py-6 text-center text-[12px] text-bt-fg-muted">위험 큐 없음</div>
-      )}
-      {normalCnt > 0 && (
-        <button type="button" className="self-start rounded text-[11.5px] text-bt-fg-muted transition-colors hover:text-bt-fg">
-          ·· 정상 큐 {normalCnt}개
-        </button>
       )}
     </div>
   );

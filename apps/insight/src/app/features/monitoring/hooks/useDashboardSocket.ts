@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { Widget, WsConnectionState, WsServerMessage, WsSubscribeMessage } from '../types';
 import { getCustomWidgetFields } from '../widgets/registry';
 
@@ -160,6 +160,18 @@ export function useDashboardSocket({
 
   // ─── 연결 시작 / 정리 ────────────────────────────────────────────────
 
+  // 구독 대상(CUSTOM 위젯)의 시그니처. 대시보드가 비동기로 로드되어 위젯이
+  // [] → [populated] 로 바뀌면 이 값이 변해 소켓을 재연결 → onopen 에서 최신 위젯으로 SUBSCRIBE.
+  // (자동 시작 시 마운트 시점엔 위젯이 아직 로드 전이라 빈 구독이 되는 레이스 방지)
+  const subscriptionKey = useMemo(
+    () =>
+      widgets
+        .filter((w) => w.kind === 'CUSTOM')
+        .map((w) => `${w.widgetId}:${w.widgetTypeId}`)
+        .join(','),
+    [widgets],
+  );
+
   useEffect(() => {
     if (!enabled) {
       setConnectionState('idle');
@@ -181,7 +193,7 @@ export function useDashboardSocket({
         mockIntervalRef.current = null;
       }
     };
-  }, [dashboardId, enabled]);
+  }, [dashboardId, enabled, subscriptionKey]);
 
   // ─── 재구독 (글로벌 옵션 변경 시) ────────────────────────────────────
 

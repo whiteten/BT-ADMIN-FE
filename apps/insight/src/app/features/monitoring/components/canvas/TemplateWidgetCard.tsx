@@ -53,15 +53,7 @@ export default function TemplateWidgetCard({ widget, editMode, onDelete, draggab
 
   return (
     <div className="flex flex-col h-full bg-white rounded shadow-sm border border-[var(--color-bt-border)] overflow-hidden">
-      <WidgetCardHeader
-        widget={widget}
-        sourceName={detail.datasetName}
-        currentViz={currentViz}
-        onChangeViz={setCurrentViz}
-        editMode={editMode}
-        onDelete={onDelete}
-        draggableClass={draggableClass}
-      />
+      <WidgetCardHeader widget={widget} currentViz={currentViz} onChangeViz={setCurrentViz} editMode={editMode} onDelete={onDelete} draggableClass={draggableClass} />
       <div className="flex-1 overflow-hidden">
         {currentViz === 'GRID' && <MiniGrid detail={detail} fieldOverrides={fieldOverrides} columns={widget.mapping.GRID?.columns ?? []} rows={rows} />}
         {currentViz === 'BAR' && <MiniBar detail={detail} x={widget.mapping.BAR?.x ?? ''} y={widget.mapping.BAR?.y ?? []} rows={rows} />}

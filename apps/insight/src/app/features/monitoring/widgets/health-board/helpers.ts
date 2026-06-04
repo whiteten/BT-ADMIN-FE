@@ -1,4 +1,4 @@
-import type { AgentDistribution, HealthBoardData, HealthBoardThresholds, Severity } from './types';
+import type { AgentDistribution, HealthBoardData, HealthBoardThresholds, Severity, TrunkBoard } from './types';
 
 /**
  * 순수 헬퍼 — 컴포넌트 의존 없음.
@@ -64,18 +64,20 @@ function normalizeSeverity(v: unknown): Severity {
 /** 원본 DATA → 헬스보드 정규화 모델. */
 export function toHealthData(data: unknown): HealthBoardData {
   const o = unwrap(data);
+  // 상단 요약 카드(응대율·인입·응대)는 BE 가 summary 키로 묶어 내려준다.
+  const summaryRaw = (o.summary ?? {}) as Record<string, unknown>;
   const agentsRaw = (o.agents ?? {}) as Record<string, unknown>;
-  const alarmRaw = (o.alarm ?? {}) as Record<string, unknown>;
+  const alarmRaw = (summaryRaw.alarm ?? {}) as Record<string, unknown>;
   const qualityRaw = (o.quality ?? {}) as Record<string, unknown>;
   const distRaw = (qualityRaw.dist ?? {}) as Record<string, unknown>;
 
   return {
-    answerRate: toPct(o.answerRate),
-    serviceLevel: toPct(o.serviceLevel),
-    abandonRate: toPct(o.abandonRate),
-    inboundCnt: num0(o.inboundCnt),
-    answeredCnt: num0(o.answeredCnt),
-    waitingCnt: num0(o.waitingCnt),
+    answerRate: toPct(summaryRaw.answerRate),
+    serviceLevel: toPct(summaryRaw.serviceLevel),
+    abandonRate: toPct(summaryRaw.abandonRate),
+    inboundCnt: num0(summaryRaw.inboundCnt),
+    answeredCnt: num0(summaryRaw.answeredCnt),
+    waitingCnt: num0(summaryRaw.waitingCnt),
     alarm: { notice: num0(alarmRaw.notice), warning: num0(alarmRaw.warning), danger: num0(alarmRaw.danger) },
     systems: Array.isArray(o.systems)
       ? (o.systems as Record<string, unknown>[]).map((s) => ({
@@ -84,6 +86,15 @@ export function toHealthData(data: unknown): HealthBoardData {
           up: num0(s.up),
           total: num0(s.total),
           severity: normalizeSeverity(s.severity),
+          processes: Array.isArray(s.processes)
+            ? (s.processes as Record<string, unknown>[]).map((p) => ({
+                name: String(p.name ?? ''),
+                system: p.system != null ? String(p.system) : undefined,
+                status: num0(p.status),
+                severity: normalizeSeverity(p.severity),
+                active: p.active != null ? num0(p.active) : undefined,
+              }))
+            : [],
         }))
       : [],
     queues: Array.isArray(o.queues)
@@ -96,7 +107,6 @@ export function toHealthData(data: unknown): HealthBoardData {
           sev: normalizeSeverity(q.sev),
         }))
       : [],
-    normalQueueCnt: num0(o.normalQueueCnt),
     agents: {
       available: num0(agentsRaw.available),
       talking: num0(agentsRaw.talking),
@@ -118,7 +128,40 @@ export function toHealthData(data: unknown): HealthBoardData {
       lowestAgentName: qualityRaw.lowestAgentName ? String(qualityRaw.lowestAgentName) : undefined,
       lowestAgentDn: qualityRaw.lowestAgentDn ? String(qualityRaw.lowestAgentDn) : undefined,
     },
+    trunks: toTrunkBoard(o.trunks),
     serverTs: toNum(o.serverTs) ?? undefined,
+  };
+}
+
+/** 원본 trunks(요약+목록) → 정규화 TrunkBoard. */
+function toTrunkBoard(raw: unknown): TrunkBoard {
+  const t = (raw ?? {}) as Record<string, unknown>;
+  const s = (t.summary ?? {}) as Record<string, unknown>;
+  const items = Array.isArray(t.items)
+    ? (t.items as Record<string, unknown>[]).map((it) => ({
+        name: String(it.name ?? ''),
+        rate: num0(it.rate),
+        busyLine: num0(it.busyLine),
+        totalLine: num0(it.totalLine),
+        inBusy: num0(it.inBusy),
+        outBusy: num0(it.outBusy),
+        block: num0(it.block),
+        registered: it.registered != null ? num0(it.registered) : 1,
+        severity: normalizeSeverity(it.severity),
+      }))
+    : [];
+  return {
+    summary: {
+      rate: num0(s.rate),
+      busyLine: num0(s.busyLine),
+      totalLine: num0(s.totalLine),
+      totalCnt: num0(s.totalCnt),
+      blockCnt: num0(s.blockCnt),
+      errorCnt: num0(s.errorCnt),
+      normalCnt: num0(s.normalCnt),
+      saturatedCnt: num0(s.saturatedCnt),
+    },
+    items,
   };
 }
 
