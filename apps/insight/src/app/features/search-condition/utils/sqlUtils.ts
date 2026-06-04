@@ -13,7 +13,9 @@ export function extractSqlColumnAliases(sql: string): string[] {
 
   const upper = cleaned.toUpperCase();
 
-  // depth=0 에서 마지막 SELECT 위치 탐색 (WITH 내 SELECT 제외하기 위해 마지막 것 사용)
+  // depth=0 에서 첫 SELECT 위치 탐색.
+  // - WITH CTE 의 SELECT 는 괄호 안(depth>0)이라 자동 제외되므로, depth=0 첫 SELECT = 메인 쿼리.
+  // - UNION/UNION ALL 은 결과 컬럼명이 첫 SELECT 로 결정되므로 반드시 "첫" SELECT 를 써야 한다.
   let selectStart = -1;
   let depth = 0;
   for (let i = 0; i < cleaned.length; i++) {
@@ -28,7 +30,10 @@ export function extractSqlColumnAliases(sql: string): string[] {
     if (depth === 0 && upper.startsWith('SELECT', i)) {
       const before = i === 0 || /[\s(]/.test(cleaned[i - 1]);
       const after = i + 6 >= cleaned.length || /[\s(]/.test(cleaned[i + 6]);
-      if (before && after) selectStart = i;
+      if (before && after) {
+        selectStart = i;
+        break;
+      }
     }
   }
 
