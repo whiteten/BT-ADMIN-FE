@@ -42,8 +42,22 @@ export default function ReportCard({ report }: ReportCardProps) {
   };
 
   const menuItems: MenuProps['items'] = [
-    { key: 'view', label: '보기', onClick: handleView },
-    { key: 'edit', label: '편집', onClick: handleEdit },
+    {
+      key: 'view',
+      label: '보기',
+      onClick: ({ domEvent }) => {
+        domEvent.stopPropagation();
+        handleView();
+      },
+    },
+    {
+      key: 'edit',
+      label: '편집',
+      onClick: ({ domEvent }) => {
+        domEvent.stopPropagation();
+        handleEdit();
+      },
+    },
     { type: 'divider' },
     {
       key: 'delete',

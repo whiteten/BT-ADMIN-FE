@@ -1,6 +1,7 @@
 import { useRef } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Button, Tag, Typography } from 'antd';
-import { Plus } from 'lucide-react';
+import { Check, Plus } from 'lucide-react';
 import { toast } from '@/shared-util';
 import CanvasLayout, { type CanvasLayoutRef } from './CanvasLayout';
 import GlobalFilter from '../../global-filter/components/GlobalFilter';
@@ -14,6 +15,7 @@ interface ReportEditorCanvasProps {
 }
 
 export default function ReportEditorCanvas({ reportId, onNavigateList: _onNavigateList }: ReportEditorCanvasProps) {
+  const navigate = useNavigate();
   const { report, isDirty, setReport } = useReportEditorStore();
   const canvasRef = useRef<CanvasLayoutRef>(null);
 
@@ -62,6 +64,9 @@ export default function ReportEditorCanvas({ reportId, onNavigateList: _onNaviga
         <div className="flex items-center gap-2 shrink-0">
           <Button icon={<Plus className="w-3.5 h-3.5" />} onClick={() => canvasRef.current?.openAddArea()}>
             영역 추가
+          </Button>
+          <Button type="primary" icon={<Check className="w-3.5 h-3.5" />} onClick={() => navigate(`/insight/statistics/reports/view?reportId=${reportId}`)}>
+            적용
           </Button>
         </div>
       </div>
