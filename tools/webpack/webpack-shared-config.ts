@@ -12,7 +12,23 @@ import type { SharedLibraryConfig } from '@nx/module-federation';
  *  - excludedLibraries:  shared에서 제외하고 각 앱이 self-bundle하는 라이브러리
  */
 const eagerLibraries = ['dayjs'];
-const excludedLibraries = ['clsx', 'tailwind-merge'];
+/**
+ * shared에서 제외하고 각 앱이 self-bundle하는 라이브러리 (substring 매칭).
+ *
+ * [원칙] 특별한 사유가 없으면 기본값인 shared를 유지할 것. excluded(self-bundle)는
+ *  - 전역 상태·context·레지스트리를 가진 라이브러리의 단일 인스턴스 보장이 깨지고,
+ *  - remote마다 중복 번들되어 전체 로드량이 늘어남.
+ *  → stateless·초경량(clsx·tailwind-merge)이거나, echarts처럼 shared로는 정합을 맞출 수 없는
+ *    특수한 경우에만 예외로 추가함.
+ *
+ * [echarts 추가] echarts·echarts-for-react·echarts-wordcloud 3종을 self-bundle 처리함.
+ * - 사유: echarts-wordcloud가 deep import로 등록하는 wordCloud 시리즈는, echarts를 shared로 두면
+ *   다른 remote(stt 등)가 먼저 제공한 echarts 인스턴스로 렌더되어 등록처와 어긋남 → 에러 없이
+ *   워드클라우드만 빈 화면이 됨. 3종을 self-bundle하면 등록처·렌더처가 같은 인스턴스가 되어 해결됨.
+ * - 트레이드오프: echarts를 쓰는 remote마다 echarts가 중복 번들됨(용량 증가). 그럼에도 remote마다
+ *   개별 설정을 챙길 필요 없이 이 한 곳에서 관리되는 편의를 우선함.
+ */
+const excludedLibraries = ['clsx', 'tailwind-merge', 'echarts'];
 
 /**
  * 패키지의 실제 설치 버전을 읽는다.

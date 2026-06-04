@@ -84,6 +84,10 @@ export default function FileUploadList() {
 
   const handleRowDoubleClicked = (event: RowDoubleClickedEvent<FileUploadItem>) => {
     if (!event.data) return;
+    if (event.data.workKind !== '종료') {
+      toast.warning('STT가 완료된 후 청취가 가능합니다.');
+      return;
+    }
     detailDrawerRef.current?.open(event.data as unknown as SttSearchItem);
   };
 

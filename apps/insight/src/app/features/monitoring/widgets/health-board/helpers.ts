@@ -39,6 +39,28 @@ function toPct(v: unknown): number | null {
   return n > 0 && n <= 1 ? Math.round(n * 1000) / 10 : Math.round(n * 10) / 10;
 }
 
+/**
+ * BE 계약 severity 문자열 → FE Severity.
+ * 'normal'은 'success'로 취급. 미지정/미상값은 'notice'(주의)로 폴백.
+ */
+function normalizeSeverity(v: unknown): Severity {
+  const s = String(v ?? '').toLowerCase();
+  switch (s) {
+    case 'normal':
+    case 'success':
+      return 'success';
+    case 'warning':
+      return 'warning';
+    case 'danger':
+      return 'danger';
+    case 'notice':
+    case 'warn': // 구 계약 호환
+      return 'notice';
+    default:
+      return 'notice';
+  }
+}
+
 /** 원본 DATA → 헬스보드 정규화 모델. */
 export function toHealthData(data: unknown): HealthBoardData {
   const o = unwrap(data);
@@ -54,13 +76,14 @@ export function toHealthData(data: unknown): HealthBoardData {
     inboundCnt: num0(o.inboundCnt),
     answeredCnt: num0(o.answeredCnt),
     waitingCnt: num0(o.waitingCnt),
-    alarm: { danger: num0(alarmRaw.danger), warn: num0(alarmRaw.warn) },
+    alarm: { notice: num0(alarmRaw.notice), warning: num0(alarmRaw.warning), danger: num0(alarmRaw.danger) },
     systems: Array.isArray(o.systems)
       ? (o.systems as Record<string, unknown>[]).map((s) => ({
           code: String(s.code ?? ''),
           name: String(s.name ?? s.code ?? ''),
           up: num0(s.up),
           total: num0(s.total),
+          severity: normalizeSeverity(s.severity),
         }))
       : [],
     queues: Array.isArray(o.queues)
@@ -70,7 +93,7 @@ export function toHealthData(data: unknown): HealthBoardData {
           waitCnt: toNum(q.waitCnt) ?? undefined,
           serviceLevel: toNum(q.serviceLevel) ?? undefined,
           barPct: num0(q.barPct),
-          sev: (q.sev as Severity) ?? 'warn',
+          sev: normalizeSeverity(q.sev),
         }))
       : [],
     normalQueueCnt: num0(o.normalQueueCnt),
@@ -108,19 +131,19 @@ const DEFAULTS: Required<HealthBoardThresholds> = {
   waiting: { good: 9, warn: 29 },
 };
 
-/** 높을수록 좋음: good 이상 정상 / warn 이상 주의 / 미만 위험. */
+/** 높을수록 좋음: good 이상 정상 / warn 이상 주의 / 미만 위험. (KPI 게이지는 notice/danger 2밴드) */
 export function higherBetter(value: number | null, t: { good: number; warn: number }): Severity {
-  if (value == null) return 'warn';
+  if (value == null) return 'notice';
   if (value >= t.good) return 'success';
-  if (value >= t.warn) return 'warn';
+  if (value >= t.warn) return 'notice';
   return 'danger';
 }
 
-/** 낮을수록 좋음: good 이하 정상 / warn 이하 주의 / 초과 위험. */
+/** 낮을수록 좋음: good 이하 정상 / warn 이하 주의 / 초과 위험. (KPI 게이지는 notice/danger 2밴드) */
 export function lowerBetter(value: number | null, t: { good: number; warn: number }): Severity {
-  if (value == null) return 'warn';
+  if (value == null) return 'notice';
   if (value <= t.good) return 'success';
-  if (value <= t.warn) return 'warn';
+  if (value <= t.warn) return 'notice';
   return 'danger';
 }
 
@@ -137,39 +160,50 @@ export function waitingSev(d: HealthBoardData, t?: HealthBoardThresholds): Sever
   return lowerBetter(d.waitingCnt, t?.waiting ?? DEFAULTS.waiting);
 }
 
-/** 종합 상태 — 위험 요소(알람/노드다운)가 있으면 danger, 주의면 warn, 아니면 success. */
-export function overallStatus(d: HealthBoardData): { sev: Severity; dangerCnt: number; warnCnt: number } {
-  const nodeDown = d.systems.some((s) => s.up < s.total);
+/** 종합 상태 — 위험(danger) > 경고(warning) > 주의(notice) > 정상(success). */
+export function overallStatus(d: HealthBoardData): { sev: Severity; dangerCnt: number; warningCnt: number; noticeCnt: number } {
   const dangerCnt = d.alarm.danger;
-  const warnCnt = d.alarm.warn;
+  const warningCnt = d.alarm.warning;
+  const noticeCnt = d.alarm.notice;
+  const worst = (a: Severity, b: Severity): Severity => (SEV_RANK[a] >= SEV_RANK[b] ? a : b);
   let sev: Severity = 'success';
-  if (dangerCnt > 0 || nodeDown) sev = 'danger';
-  else if (warnCnt > 0) sev = 'warn';
-  return { sev, dangerCnt, warnCnt };
+  if (dangerCnt > 0) sev = 'danger';
+  else if (warningCnt > 0) sev = 'warning';
+  else if (noticeCnt > 0) sev = 'notice';
+  // 시스템 심각도도 반영 (노드 severity 중 최악)
+  for (const s of d.systems) sev = worst(sev, s.severity);
+  return { sev, dangerCnt, warningCnt, noticeCnt };
 }
 
 // ─── 색상 토큰 매핑 ────────────────────────────────────────────
 
+/** 심각도 정렬 순위 (높을수록 위험). */
+const SEV_RANK: Record<Severity, number> = { success: 0, notice: 1, warning: 2, danger: 3 };
+
 /** Severity → Tailwind/CSS 토큰. (insight @theme 의 --color-bt-* 사용) */
 export const SEV_TEXT: Record<Severity, string> = {
   success: 'text-bt-success',
-  warn: 'text-bt-warn',
+  notice: 'text-bt-notice',
+  warning: 'text-bt-warning',
   danger: 'text-bt-danger',
 };
 export const SEV_BG: Record<Severity, string> = {
   success: 'bg-bt-success',
-  warn: 'bg-bt-warn',
+  notice: 'bg-bt-notice',
+  warning: 'bg-bt-warning',
   danger: 'bg-bt-danger',
 };
 export const SEV_BG_SOFT: Record<Severity, string> = {
   success: 'bg-bt-success-soft',
-  warn: 'bg-bt-warn-soft',
+  notice: 'bg-bt-notice-soft',
+  warning: 'bg-bt-warning-soft',
   danger: 'bg-bt-danger-soft',
 };
 /** SVG stroke/fill 용 hex (presentation attribute 는 var() 미지원). insight @theme 토큰과 동일 값. */
 export const SEV_HEX: Record<Severity, string> = {
   success: '#0a8a4a',
-  warn: '#b76e00',
+  notice: '#b7791f',
+  warning: '#d9480f',
   danger: '#c92a2a',
 };
 

@@ -1,12 +1,14 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Button, DatePicker, Divider, Radio, Select, TimePicker, message } from 'antd';
+import { Button, Checkbox, DatePicker, Divider, Radio, Select, TimePicker, Tooltip, message } from 'antd';
 import dayjs, { type Dayjs } from 'dayjs';
 import { Download, Search } from 'lucide-react';
+import { toast } from '@/shared-util';
 import ComparisonToggle from './ComparisonToggle';
+import { useExportPanelExcel } from '../../panel/hooks/usePanelQueries';
 import { useReportEditorStore } from '../../report/hooks/useReportEditorStore';
 import { useReportViewStore } from '../../report/hooks/useReportViewStore';
 import { useGetSearchConditionOptions } from '../../search-condition/hooks/useSearchConditionQueries';
-import type { ComparisonType, GlobalConditions, GlobalFilter, TimeUnit } from '../types';
+import { type GlobalConditions, type GlobalFilter, type QuickPreset, type TimeUnit, WEEKDAY_OPTIONS } from '../types';
 import { DATE_RANGE_LABEL, createDisabledDate, createEndDisabledDate, getMaxDays, validateDateRange } from '../utils/dateRangeLimit';
 
 interface GlobalFilterProps {
@@ -93,9 +95,26 @@ const ISO_DATE = 'YYYY-MM-DD';
 
 // ── 메인 컴포넌트 ─────────────────────────────────────────────────────────
 // 공통(검색일자 + 단위 + 비교)은 상단 고정 / 데이터셋 동적 검색조건은 그 아래 행.
-export default function GlobalFilter({ reportId, mode: _mode }: GlobalFilterProps) {
+export default function GlobalFilter({ reportId }: GlobalFilterProps) {
   const { panels } = useReportEditorStore();
-  const { globalFilter, setGlobalFilter, setTimeUnit, setComparison, setPeriod, setSearchValue, setConditions, commitFilter } = useReportViewStore();
+  const { globalFilter, committedFilter, setGlobalFilter, setTimeUnit, setComparison, setPeriod, setSearchValue, setConditions, commitFilter } = useReportViewStore();
+
+  // 그리드 패널만 서버 Excel Export (보고서당 그리드 1개 한정). 그리드 패널이 있으면 편집/뷰 모드 무관하게 활성화.
+  const gridPanel = panels.find((p) => p.panelType === 'GRID');
+  const { mutate: exportExcel, isPending: isExporting } = useExportPanelExcel({
+    mutationOptions: { onError: () => toast.error('내보내기에 실패했습니다.') },
+  });
+  const handleExport = () => {
+    if (!gridPanel) return;
+    exportExcel({
+      reportId,
+      panelId: gridPanel.panelId,
+      period: { from: committedFilter.period.from, to: committedFilter.period.to, unit: committedFilter.timeUnit },
+      searchValues: committedFilter.searchValues,
+      comparison: committedFilter.comparison,
+      conditions: committedFilter.conditions,
+    });
+  };
 
   const unit = globalFilter.timeUnit;
   const isMI = unit === '10MIN';
@@ -110,8 +129,15 @@ export default function GlobalFilter({ reportId, mode: _mode }: GlobalFilterProp
       .minute(isMI ? 59 : 50),
   );
 
-  // 빠른검색 프리셋(전일/전주/전월/전년/OFF) — 백엔드 비교 아님, 검색일자를 오늘 기준으로 빠르게 세팅
-  const [quickPreset, setQuickPreset] = useState<ComparisonType | null>(null);
+  // 시간 단위(10분/시간) 전용 추가 검색조건 — 점심시간 제외 · 제외요일 · 구간검색
+  const [excludeLunch, setExcludeLunch] = useState(false);
+  const [excludeDays, setExcludeDays] = useState<string[]>([]);
+  const [useInterval, setUseInterval] = useState(false);
+  const [intervalStart, setIntervalStart] = useState<Dayjs | null>(dayjs().hour(0).minute(0));
+  const [intervalEnd, setIntervalEnd] = useState<Dayjs | null>(dayjs().hour(23).minute(0));
+
+  // 빠른검색 프리셋 — 단위별로 목록이 달라짐(레거시 동일). 백엔드 비교 아님, 검색일자(기간)를 빠르게 세팅.
+  const [quickPreset, setQuickPreset] = useState<QuickPreset | null>(null);
 
   // 보고서 진입 시 localStorage에서 필터 복원 (기간/단위/비교)
   useEffect(() => {
@@ -189,22 +215,46 @@ export default function GlobalFilter({ reportId, mode: _mode }: GlobalFilterProp
     if (date) setPeriod(globalFilter.period.from, date.format(ISO_DATE));
   };
 
-  // 빠른검색: 오늘 기준 상대기간으로 검색일자 세팅 (OFF=오늘). 조회 시 이 기간으로 질의됨.
-  const handleQuick = (preset: ComparisonType | null) => {
+  // 빠른검색 프리셋 → 검색일자(기간) 범위 산출 (레거시 SWAT UnitTypeControlV2.dateCalculation 동일).
+  const computeQuickRange = (preset: QuickPreset): { from: string; to: string } => {
+    const today = dayjs();
+    switch (preset) {
+      case 'TODAY':
+        return { from: today.format(ISO_DATE), to: today.format(ISO_DATE) };
+      case 'PREV_DAY': {
+        const d = today.subtract(1, 'day');
+        return { from: d.format(ISO_DATE), to: d.format(ISO_DATE) };
+      }
+      case 'LAST_WEEK':
+        return { from: today.subtract(6, 'day').format(ISO_DATE), to: today.format(ISO_DATE) };
+      case 'CUR_MONTH':
+        return { from: today.startOf('month').format(ISO_DATE), to: today.format(ISO_DATE) };
+      case 'PREV_MONTH': {
+        const prev = today.subtract(1, 'month');
+        return { from: prev.startOf('month').format(ISO_DATE), to: prev.endOf('month').format(ISO_DATE) };
+      }
+      case 'LAST_3MONTH':
+        return { from: today.subtract(2, 'month').startOf('month').format(ISO_DATE), to: today.format(ISO_DATE) };
+      case 'CUR_YEAR':
+        return { from: today.startOf('year').format(ISO_DATE), to: today.format(ISO_DATE) };
+      case 'PREV_YEAR': {
+        const prev = today.subtract(1, 'year');
+        return { from: prev.startOf('year').format(ISO_DATE), to: prev.endOf('year').format(ISO_DATE) };
+      }
+      case 'LAST_3YEAR':
+        return { from: today.subtract(2, 'year').startOf('year').format(ISO_DATE), to: today.format(ISO_DATE) };
+      default:
+        return { from: today.format(ISO_DATE), to: today.format(ISO_DATE) };
+    }
+  };
+
+  // 빠른검색: 단위별 프리셋으로 검색일자 세팅 (OFF=수동 기간 유지). 조회 시 이 기간으로 질의됨.
+  const handleQuick = (preset: QuickPreset | null) => {
     setQuickPreset(preset);
     setComparison(null); // 백엔드 비교는 사용 안 함
-    const base = dayjs();
-    const target =
-      preset === 'PREV_DAY'
-        ? base.subtract(1, 'day')
-        : preset === 'PREV_WEEK'
-          ? base.subtract(1, 'week')
-          : preset === 'PREV_MONTH'
-            ? base.subtract(1, 'month')
-            : preset === 'PREV_YEAR'
-              ? base.subtract(1, 'year')
-              : base; // OFF → 오늘
-    setPeriod(target.format(ISO_DATE), target.format(ISO_DATE));
+    if (!preset) return; // OFF → 현재 기간 유지
+    const range = computeQuickRange(preset);
+    setPeriod(range.from, range.to);
   };
 
   const handleQuery = () => {
@@ -215,15 +265,23 @@ export default function GlobalFilter({ reportId, mode: _mode }: GlobalFilterProp
       return;
     }
 
-    // 검색일자 시작/종료 시각만 백엔드로 전달 (제외요일/공휴일/점심/구간 미사용)
+    // 구간검색 시작 > 종료 검증
+    if (hasTime && useInterval && intervalStart && intervalEnd && intervalStart.isAfter(intervalEnd)) {
+      message.warning('구간검색 시작시간이 종료시간보다 늦을 수 없습니다.');
+      return;
+    }
+
+    // 검색일자 시작/종료 시각 + 시간단위 전용 조건(점심/제외요일/구간) 백엔드 전달
     const toHHmm = (t: Dayjs | null) => (t ? t.format('HHmm') : null);
     const conditions: GlobalConditions = {
-      startTime: hasTime ? toHHmm(startTime) : null,
-      endTime: hasTime ? toHHmm(endTime) : null,
-      useInterval: false,
-      intervalFrom: null,
-      intervalTo: null,
-      excludeDays: [],
+      // 구간검색 시 검색일자는 날짜만 → 시각은 intervalFrom/To로 전달 (startTime/endTime 비움)
+      startTime: hasTime && !useInterval ? toHHmm(startTime) : null,
+      endTime: hasTime && !useInterval ? toHHmm(endTime) : null,
+      excludeLunch: hasTime ? excludeLunch : false,
+      useInterval: hasTime ? useInterval : false,
+      intervalFrom: hasTime && useInterval ? toHHmm(intervalStart) : null,
+      intervalTo: hasTime && useInterval ? toHHmm(intervalEnd) : null,
+      excludeDays: hasTime ? excludeDays : [],
     };
     setConditions(conditions);
 
@@ -243,10 +301,14 @@ export default function GlobalFilter({ reportId, mode: _mode }: GlobalFilterProp
       {/* 1행: 공통 조회조건 (상단 고정) — 좌: 검색일자/단위 · 우: 비교/조회/Export */}
       <div className="flex items-start gap-3">
         <div className="flex flex-wrap items-center gap-3 flex-1 min-w-0">
-          <span className="text-sm font-medium text-[#495057] shrink-0">검색일자</span>
+          {/* 단위 */}
+          <span className="text-sm font-medium text-[#495057] shrink-0">단위</span>
           <Select
             value={unit}
-            onChange={(u: TimeUnit) => setTimeUnit(u)}
+            onChange={(u: TimeUnit) => {
+              setTimeUnit(u);
+              setQuickPreset(null); // 단위별 프리셋 목록이 달라지므로 초기화
+            }}
             options={[
               { label: '10분단위', value: '10MIN' },
               { label: '시간별', value: 'HOURLY' },
@@ -257,8 +319,26 @@ export default function GlobalFilter({ reportId, mode: _mode }: GlobalFilterProp
             className="!max-w-[110px] !min-w-[90px]"
             popupMatchSelectWidth={false}
           />
-          <DatePicker value={startDate} onChange={handleSetStart} picker={getPickerMode(unit)} format={fmt} allowClear={false} inputReadOnly disabledDate={disabledStartDate} />
+
+          {/* 빠른검색 */}
+          <Divider type="vertical" className="!h-5 !m-0" />
+          <ComparisonToggle value={quickPreset} timeUnit={unit} onChange={handleQuick} />
+
+          {/* 구간검색 (시간/10분 단위 전용) — 체크 시 기간은 날짜만, 시간은 여기서 단일 범위 입력 */}
           {hasTime && (
+            <>
+              <Divider type="vertical" className="!h-5 !m-0" />
+              <span className="text-sm font-medium text-[#495057] shrink-0">구간검색</span>
+              <Checkbox checked={useInterval} onChange={(e) => setUseInterval(e.target.checked)} />
+            </>
+          )}
+
+          {/* 기간 */}
+          <Divider type="vertical" className="!h-5 !m-0" />
+          <span className="text-sm font-medium text-[#495057] shrink-0">기간</span>
+          <DatePicker value={startDate} onChange={handleSetStart} picker={getPickerMode(unit)} format={fmt} allowClear={false} inputReadOnly disabledDate={disabledStartDate} />
+          {/* 구간검색 시: 날짜만 표시(시간 숨김) → 시간 범위는 구간검색 쪽에서 단일 입력 */}
+          {hasTime && !useInterval && (
             <TimePicker
               value={startTime}
               onChange={setStartTime}
@@ -272,7 +352,7 @@ export default function GlobalFilter({ reportId, mode: _mode }: GlobalFilterProp
           )}
           <span className="text-sm font-medium text-[#495057] shrink-0">~</span>
           <DatePicker value={endDate} onChange={handleSetEnd} picker={getPickerMode(unit)} format={fmt} allowClear={false} inputReadOnly disabledDate={disabledEndDate} />
-          {hasTime && (
+          {hasTime && !useInterval && (
             <TimePicker
               value={endTime}
               onChange={setEndTime}
@@ -284,20 +364,66 @@ export default function GlobalFilter({ reportId, mode: _mode }: GlobalFilterProp
               style={{ width: 100 }}
             />
           )}
+          {/* 구간검색 시간 — 기간(날짜) 뒤에 단일 시각 범위 표시 */}
+          {hasTime && useInterval && (
+            <>
+              <span className="text-sm font-medium text-[#495057] shrink-0">시간</span>
+              <TimePicker
+                value={intervalStart}
+                onChange={setIntervalStart}
+                format={isMI ? 'HH:mm' : 'HH:00'}
+                minuteStep={10}
+                allowClear={false}
+                needConfirm={false}
+                inputReadOnly
+                style={{ width: 100 }}
+              />
+              <span className="text-sm font-medium text-[#495057] shrink-0">~</span>
+              <TimePicker
+                value={intervalEnd}
+                onChange={setIntervalEnd}
+                format={isMI ? 'HH:mm' : 'HH:50'}
+                minuteStep={10}
+                allowClear={false}
+                needConfirm={false}
+                inputReadOnly
+                style={{ width: 100 }}
+              />
+            </>
+          )}
 
-          {/* 비교분석 — 검색조건이므로 검색일자 바로 옆에 붙임 */}
-          <Divider type="vertical" className="!h-5 !m-0" />
-          <span className="text-sm font-medium text-[#495057] shrink-0">비교</span>
-          <ComparisonToggle value={quickPreset} timeUnit={unit} onChange={handleQuick} />
+          {/* 점심시간 제외 · 요일구분 (시간/10분 단위 전용) — 한 줄에 안 들어가면 자연 줄바꿈(가로 divider 없음) */}
+          {hasTime && (
+            <>
+              <Divider type="vertical" className="!h-5 !m-0" />
+              <span className="text-sm font-medium text-[#495057] shrink-0">점심시간 제외</span>
+              <Checkbox checked={excludeLunch} onChange={(e) => setExcludeLunch(e.target.checked)} />
+              <Divider type="vertical" className="!h-5 !m-0" />
+              <span className="text-sm font-medium text-[#495057] shrink-0">요일구분</span>
+              <Select
+                mode="multiple"
+                value={excludeDays}
+                onChange={(v) => setExcludeDays(v ?? [])}
+                allowClear
+                maxTagCount="responsive"
+                options={WEEKDAY_OPTIONS}
+                placeholder="제외할 요일 선택"
+                className="!min-w-[150px] !max-w-[300px]"
+                popupMatchSelectWidth={false}
+              />
+            </>
+          )}
         </div>
 
         <div className="flex items-center gap-3 shrink-0">
           <Button type="primary" icon={<Search className="size-4" />} onClick={handleQuery}>
             조회
           </Button>
-          <Button color="cyan" variant="solid" icon={<Download className="size-4" />}>
-            Export
-          </Button>
+          <Tooltip title={gridPanel ? undefined : '그리드 패널이 있는 보고서만 Export 가능합니다'}>
+            <Button color="cyan" variant="solid" icon={<Download className="size-4" />} disabled={!gridPanel} loading={isExporting} onClick={handleExport}>
+              Export
+            </Button>
+          </Tooltip>
         </div>
       </div>
 

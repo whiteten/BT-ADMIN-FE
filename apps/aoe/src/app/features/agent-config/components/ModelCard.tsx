@@ -17,15 +17,15 @@ interface ModelTypeStyle {
 }
 
 const MODEL_TYPE_STYLES: Record<string, ModelTypeStyle> = {
-  anthropic: { icon: Brain, bg: 'bg-purple-500' },
-  openai: { icon: Sparkles, bg: 'bg-emerald-500' },
-  vllm: { icon: Server, bg: 'bg-blue-500' },
-  google: { icon: Wand2, bg: 'bg-red-500' },
-  huggingface: { icon: FlaskConical, bg: 'bg-yellow-500' },
-  ollama: { icon: Cpu, bg: 'bg-orange-500' },
+  anthropic: { icon: Brain, bg: 'bg-purple-50 text-purple-600' },
+  openai: { icon: Sparkles, bg: 'bg-emerald-50 text-emerald-600' },
+  vllm: { icon: Server, bg: 'bg-blue-50 text-blue-600' },
+  google: { icon: Wand2, bg: 'bg-red-50 text-red-600' },
+  huggingface: { icon: FlaskConical, bg: 'bg-yellow-50 text-yellow-600' },
+  ollama: { icon: Cpu, bg: 'bg-orange-50 text-orange-600' },
 };
 
-const DEFAULT_STYLE: ModelTypeStyle = { icon: Zap, bg: 'bg-gray-500' };
+const DEFAULT_STYLE: ModelTypeStyle = { icon: Zap, bg: 'bg-gray-100 text-gray-600' };
 
 const getModelTypeStyle = (modelTypeName?: string): ModelTypeStyle => {
   if (!modelTypeName) return DEFAULT_STYLE;
@@ -38,12 +38,12 @@ export default function ModelCard({ modelId, modelName, modelTypeName, activeDet
   const Icon = typeStyle.icon;
 
   const title = (
-    <div className="flex items-center gap-2">
-      <div className={`w-7 h-7 rounded-md ${typeStyle.bg} flex items-center justify-center shrink-0`}>
-        <Icon className="size-4 text-white" />
+    <div className="flex items-center gap-2.5">
+      <div className={`w-8 h-8 rounded-lg ${typeStyle.bg} flex items-center justify-center shrink-0`}>
+        <Icon className="size-[18px]" />
       </div>
       <span
-        className="hover:cursor-pointer hover:!text-[var(--color-bt-primary)]"
+        className="truncate hover:cursor-pointer hover:!text-[var(--color-bt-primary)]"
         onClick={(e) => {
           e.stopPropagation();
           onDetail?.(modelId);
@@ -78,26 +78,26 @@ export default function ModelCard({ modelId, modelName, modelTypeName, activeDet
       title={title}
       extra={extra}
       styles={{ header: { padding: '0 20px' }, body: { padding: '20px', paddingTop: '16px', minHeight: '148px' } }}
-      className="hover:!border-[var(--color-bt-primary)] hover:cursor-pointer"
+      className="transition-all duration-200 hover:-translate-y-0.5 hover:!border-[var(--color-bt-primary)] hover:shadow-[0px_6px_16px_0px_#38414A1f] hover:cursor-pointer"
       onClick={() => onDetail?.(modelId)}
     >
-      <div className="flex flex-col text-[#495057] gap-2">
+      <div className="flex flex-col text-[#495057] gap-2.5">
         <div className="flex">
-          <span className="w-[104px]">모델 타입</span>
+          <span className="w-[104px] text-[#888B9A]">모델 타입</span>
           <span>{modelTypeName ?? '-'}</span>
         </div>
         <div className="flex items-center">
-          <span className="w-[104px]">활성화 여부</span>
+          <span className="w-[104px] text-[#888B9A]">활성화 여부</span>
           <Badge variant="secondary" className={`text-[13px] leading-[13px] font-medium !h-6 ${useYn === 1 ? 'text-[#0AB39C] bg-[#0AB39C1A]' : 'text-[#495057] bg-[#E9EBEC]'}`}>
             {useYn === 1 ? '활성화' : '비활성화'}
           </Badge>
         </div>
         <div className="flex">
-          <span className="w-[104px]">활성화 모델</span>
+          <span className="w-[104px] text-[#888B9A]">활성화 모델</span>
           <span>{activeDetailCount ?? 0}</span>
         </div>
         <div className="flex">
-          <span className="w-[104px]">비활성화 모델</span>
+          <span className="w-[104px] text-[#888B9A]">비활성화 모델</span>
           <span>{(totalDetailCount ?? 0) - (activeDetailCount ?? 0)}</span>
         </div>
       </div>

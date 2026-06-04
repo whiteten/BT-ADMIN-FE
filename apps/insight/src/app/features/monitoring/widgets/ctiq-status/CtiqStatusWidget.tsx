@@ -367,7 +367,7 @@ export default function CtiqStatusWidget({ data, options, widgetId, onRequestPau
             <NoData message="데이터가 없습니다." />
           </div>
         ) : density === 'large' ? (
-          <div className="grid grid-cols-1 gap-3 p-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+          <div className="grid grid-cols-1 gap-2 p-3 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6">
             {visible.map(({ row, sev }) => (
               <CtiqLargeCard key={String(row.CTIQ_ID ?? row.GDN_NO ?? `${row.MEDIA_TYPE}_${row.CTIQ_NAME}`)} row={row} sev={sev} />
             ))}

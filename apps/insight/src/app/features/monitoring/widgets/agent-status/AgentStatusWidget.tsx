@@ -3,7 +3,7 @@ import { createPortal } from 'react-dom';
 import { useQueryClient } from '@tanstack/react-query';
 import { Button, Drawer, Input, Radio, Tooltip } from 'antd';
 import { AlertTriangle, ChevronDown, CircleHelp, Grid2X2, LayoutList, List as ListIcon, PanelTopClose, PanelTopOpen, Search, Settings } from 'lucide-react';
-import List from 'rc-virtual-list';
+import List, { type ListRef } from 'rc-virtual-list';
 import { toast } from '@/shared-util';
 import { DEMO_AGENTS, isDemoMode } from './demoData';
 import { answerRatePct, formatDuration, groupAgents, liveDurationSec, matchSearch, toAgentRows, toNum, totalHandled } from './helpers';
@@ -90,6 +90,7 @@ export default function AgentStatusWidget({ data, options, widgetId, onRequestPa
   const rows = useMemo<AgentRow[]>(() => (isDemoMode() ? DEMO_AGENTS : toAgentRows(data)), [data]);
   const [toolbarSlot, setToolbarSlot] = useState<HTMLElement | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
+  const listRef = useRef<ListRef>(null);
   const [containerSize, setContainerSize] = useState({ width: 0, height: 0 });
   const [collapsedGroups, setCollapsedGroups] = useState<Set<string>>(new Set());
 
@@ -248,6 +249,17 @@ export default function AgentStatusWidget({ data, options, widgetId, onRequestPa
     });
     return items;
   }, [grouped, columnCount, density, nowMs, options?.thresholds, groupBy, allRowsByGroup, collapsedGroups, toggleGroup]);
+
+  // 그룹 접기/펴기로 data 길이가 바뀌면 rc-virtual-list 의 높이 캐시·scrollTop 이 stale 상태가 되어
+  // 맨 아래 그룹 카드가 스크롤 전까지 렌더되지 않는다. 토글 후 현재 위치로 재스크롤해 강제 재계산한다.
+  useEffect(() => {
+    const list = listRef.current;
+    if (!list) return;
+    const raf = requestAnimationFrame(() => {
+      listRef.current?.scrollTo({ top: listRef.current.getScrollInfo().y });
+    });
+    return () => cancelAnimationFrame(raf);
+  }, [collapsedGroups]);
 
   const [radarAgent, setRadarAgent] = useState<AgentRow | null>(null);
   const [settingsOpen, setSettingsOpen] = useState(false);
@@ -412,17 +424,27 @@ export default function AgentStatusWidget({ data, options, widgetId, onRequestPa
           </div>
         ) : (
           <List
+            ref={listRef}
             data={virtualItems}
             height={containerSize.height - (summaryCollapsed ? (toolbarSlot ? 56 : 100) : toolbarSlot ? 136 : 180)}
-            itemHeight={density === 'card' ? 164 : density === 'row' ? 84 : 50}
+            // itemHeight 는 "아직 측정 안 된 아이템"의 추정 높이로만 쓰인다(렌더 후 실제 offsetHeight 로 교체).
+            // 간격은 margin 이 아닌 padding 으로 준다(아래 렌더 함수 참고) — margin 은 offsetHeight 에
+            // 포함되지 않아 가상 스크롤 높이가 어긋나고, 전체 접기 시 하단 그룹이 스크롤로도 도달 불가해진다.
+            // 추정값은 "가장 작은 실제 아이템(그룹 헤더 ~80px, dot 행 ~50px)" 이하로 잡아, 측정 전에도
+            // 과소추정 → over-render(안전 방향)가 되게 한다. 과대추정하면 tail 아이템이 스크롤 전까지 잘린다.
+            itemHeight={groupBy === 'none' ? (density === 'card' ? 164 : density === 'row' ? 84 : 50) : density === 'dot' ? 40 : 48}
             itemKey="id"
             className="virtual-agent-list"
           >
             {(item: VirtualItem) =>
               item.type === 'header' ? (
-                <GroupHeader item={item} allRows={item.allRows} />
+                // 간격을 wrapper 의 padding 으로 준다(GroupHeader 의 mt-6/mb-4 를 옮김).
+                // margin 은 rc-virtual-list 의 offsetHeight 측정에서 제외되어 가상 스크롤 높이를 어긋나게 한다.
+                <div className="pt-6 pb-4">
+                  <GroupHeader item={item} allRows={item.allRows} />
+                </div>
               ) : (
-                <div className={`grid px-4 mb-3 ${density === 'dot' ? 'gap-1' : 'gap-2'}`} style={{ gridTemplateColumns: `repeat(${columnCount}, minmax(0, 1fr))` }}>
+                <div className={`grid px-4 pb-3 ${density === 'dot' ? 'gap-1' : 'gap-2'}`} style={{ gridTemplateColumns: `repeat(${columnCount}, minmax(0, 1fr))` }}>
                   {item.rows.map((r: AgentRow, i: number) =>
                     density === 'dot' ? (
                       <AgentDot key={i} row={r} nowMs={nowMs} thresholds={item.thresholds} onActivate={item.onActivate} />
@@ -518,7 +540,7 @@ function GroupHeader({ item, allRows }: { item: VirtualItem & { type: 'header' }
   }, [allRows]);
 
   return (
-    <header className="flex flex-wrap items-center gap-3 border-b border-gray-200 pb-2 mb-4 mt-6 mx-4">
+    <header className="flex flex-wrap items-center gap-3 border-b border-gray-200 pb-2 mx-4">
       <button type="button" onClick={item.onToggle} className="flex items-center gap-1.5 text-sm font-semibold text-gray-900 hover:text-blue-600 transition-colors">
         <ChevronDown className={`h-3.5 w-3.5 transition-transform ${item.isCollapsed ? '-rotate-90' : ''}`} />
         <span>{item.label}</span>

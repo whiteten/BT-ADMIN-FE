@@ -1,6 +1,7 @@
 import { type UseQueryOptions, useMutation, useQuery } from '@tanstack/react-query';
 import { createQueryKeys } from '@lukemorales/query-key-factory';
-import type { MutationHookOptions } from '@/shared-util';
+import dayjs from 'dayjs';
+import { type MutationHookOptions, downloadBlob, extractFileName } from '@/shared-util';
 import { dnApi } from '../api/dnApi';
 import type { ExcelImportResult, SttDnCreateData, SttDnDeleteParams, SttDnItem, SttDnSearchParams, SttDnUpdateData } from '../types';
 
@@ -41,6 +42,17 @@ export const useDeleteSttDn = ({ mutationOptions }: MutationHookOptions<unknown,
 export const useImportSttDn = ({ mutationOptions }: MutationHookOptions<ExcelImportResult, { hostName: string; data: File }> = {}) => {
   return useMutation({
     mutationFn: dnApi.importSttDn,
+    ...mutationOptions,
+  });
+};
+
+export const useExportSttDn = ({ mutationOptions }: MutationHookOptions = {}) => {
+  return useMutation({
+    mutationFn: async () => {
+      const response = await dnApi.exportSttDn();
+      const fileName = extractFileName(response.headers['content-disposition'], `STT_내선관리_가져오기_템플릿_${dayjs().format('YYYYMMDD')}.xlsx`);
+      downloadBlob(response.data, fileName);
+    },
     ...mutationOptions,
   });
 };

@@ -10,6 +10,7 @@ import { Download, Edit2, Play, Plus, Trash2 } from 'lucide-react';
 import { format as formatSql } from 'sql-formatter';
 import { toast } from '@/shared-util';
 import CalcFieldEditor from './CalcFieldEditor';
+import { DOMAIN_TAG_COLOR } from '../../report/constants/reportIconConstants';
 import type { CalcFieldCreateDatas, ColumnFormat, DomainCode } from '../../report/types';
 import { datasetApi } from '../api/datasetApi';
 import { useGetDataSourceFields, useGetSchemaPreview } from '../hooks/useDatasetQueries';
@@ -211,10 +212,13 @@ export default function WizardStepB({
   const sourceFields = dbViewPrefix ? previewFields : existingFields;
   const isLoading = dbViewPrefix ? isLoadingPreview : isLoadingExisting;
 
-  // 초기화: 기본값 isVisible = false
+  // 초기화/재가져오기: 기본값 isVisible = false.
+  // CALC(계산필드)는 원천 테이블 컬럼이 아니므로 재로딩 대상에서 제외 — "컬럼 가져오기"로
+  // 비운 뒤 다시 채울 때 저장돼 있던 계산필드가 일반 필드로 되살아나지 않도록 한다.
   useEffect(() => {
-    if (sourceFields.length > 0 && fieldDisplays.length === 0) {
-      const initial: LocalFieldDisplay[] = sourceFields.map((f, i) => ({
+    const tableFields = sourceFields.filter((f) => f.fieldRole !== 'CALC');
+    if (tableFields.length > 0 && fieldDisplays.length === 0) {
+      const initial: LocalFieldDisplay[] = tableFields.map((f, i) => ({
         fieldName: f.fieldName,
         displayName: f.displayName,
         fieldType: f.fieldRole === 'MEASURE' ? 'MSR' : 'DIM',
@@ -369,7 +373,9 @@ export default function WizardStepB({
           <div className="mb-3">
             <div className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">원천 뷰</div>
             <div className="mt-1 flex items-center gap-1.5">
-              <span className="rounded bg-primary px-1.5 py-0.5 text-xs font-semibold text-white">{domain}</span>
+              <Tag color={DOMAIN_TAG_COLOR[domain]} className="!mb-0 !mr-0 font-bold">
+                {domain}
+              </Tag>
               <span className="font-mono text-sm font-semibold truncate">{datasetId}</span>
             </div>
             <div className="mt-0.5 text-xs text-muted-foreground">{sourceFields.length}개 컬럼</div>
@@ -441,7 +447,9 @@ export default function WizardStepB({
         <div className="mb-3">
           <div className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">원천 뷰</div>
           <div className="mt-1 flex items-center gap-1.5">
-            <span className="rounded bg-primary px-1.5 py-0.5 text-xs font-semibold text-white">{domain}</span>
+            <Tag color={DOMAIN_TAG_COLOR[domain]} className="!mb-0 !mr-0 font-bold">
+              {domain}
+            </Tag>
             <span className="font-mono text-sm font-semibold truncate">{datasetId}</span>
           </div>
           <div className="mt-0.5 text-xs text-muted-foreground">{sourceFields.length}개 컬럼</div>

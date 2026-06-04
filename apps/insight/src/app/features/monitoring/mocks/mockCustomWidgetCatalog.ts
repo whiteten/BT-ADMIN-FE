@@ -59,6 +59,20 @@ export const MOCK_CUSTOM_WIDGETS: CustomWidgetCatalogItem[] = [
     widgetCategory: 'STATUS',
     kind: 'CUSTOM',
   },
+  {
+    widgetTypeId: 'node-detail',
+    widgetName: '노드 상세 (시스템 자원)',
+    domainCode: 'IE',
+    description:
+      '헬스보드 시스템 신호등의 드릴다운 상세입니다. 시스템(노드)별 CPU·메모리·디스크 사용율과 상태, 프로세스 현황, 적재 모듈(CLASS_ITEMS) 상태, Active/Standby 이중화를 카드로 모니터링합니다.',
+    defaultOptions: {},
+    minW: 6,
+    minH: 8,
+    defaultW: 12,
+    defaultH: 10,
+    widgetCategory: 'STATUS',
+    kind: 'CUSTOM',
+  },
 
   // ─── IC (CTI / 상담원 관리) ──────────────────────────────────────────
   {
@@ -72,6 +86,20 @@ export const MOCK_CUSTOM_WIDGETS: CustomWidgetCatalogItem[] = [
     defaultW: 12,
     defaultH: 16,
     widgetCategory: 'STATUS',
+    kind: 'CUSTOM',
+  },
+  {
+    widgetTypeId: 'alarm-center',
+    widgetName: '알람센터 (장애 이력)',
+    domainCode: 'IC',
+    description:
+      '"지금 살아있는 장애는?" — TB_CC_ERRHISTORY 장애 발생 이력을 발생시각·시스템·등급·메시지·복구여부로 리스트업합니다. 미복구만 보기, 등급 필터, 검색, 신규 장애 알림(토스트·알람음)을 지원하며 헬스보드 알람 카드의 드릴다운으로 사용합니다.',
+    defaultOptions: { unresolvedOnly: true, errKind: 2 },
+    minW: 6,
+    minH: 8,
+    defaultW: 12,
+    defaultH: 10,
+    widgetCategory: 'TABLE',
     kind: 'CUSTOM',
   },
   {

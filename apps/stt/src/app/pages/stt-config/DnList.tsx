@@ -2,15 +2,15 @@ import { useEffect, useRef, useState } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import type { ColDef, ICellRendererParams, RowDoubleClickedEvent } from 'ag-grid-community';
 import { AgGridReact } from 'ag-grid-react';
-import { type BreadcrumbProps, Button } from 'antd';
+import { type BreadcrumbProps, Button, Dropdown } from 'antd';
 import dayjs from 'dayjs';
-import { Trash2 } from 'lucide-react';
+import { ChevronDown, Download, Trash2, Upload } from 'lucide-react';
 import { useBreadcrumbStore } from '@/shared-store';
 import { toast } from '@/shared-util';
 import ExcelImportResultModal, { type ExcelImportResultModalRef } from '../../features/stt-config/components/ExcelImportResultModal';
 import PaGroupTree from '../../features/stt-config/components/PaGroupTree';
 import SttDnDrawer, { type SttDnDrawerRef } from '../../features/stt-config/components/SttDnDrawer';
-import { dnQueryKeys, useDeleteSttDn, useGetSttDnList, useImportSttDn } from '../../features/stt-config/hooks/useDnQueries';
+import { dnQueryKeys, useDeleteSttDn, useExportSttDn, useGetSttDnList, useImportSttDn } from '../../features/stt-config/hooks/useDnQueries';
 import type { CodeItem, SttDictionaryItem, SttDnItem, SttDnSearchParams } from '../../features/stt-config/types';
 import FileImportModal, { type FileImportModalRef } from '@/components/custom/FileImportModal';
 import NoData from '@/components/custom/NoData';
@@ -76,6 +76,8 @@ export default function DnList() {
   const [searchParams, setSearchParams] = useState<SttDnSearchParams | null>(null);
 
   const { data: rowData = [], isLoading } = useGetSttDnList({ params: searchParams });
+
+  const { mutate: exportDn, isPending: isExporting } = useExportSttDn();
 
   const { mutate: importDn, isPending: isImporting } = useImportSttDn({
     mutationOptions: {
@@ -191,9 +193,39 @@ export default function DnList() {
               >
                 추가
               </Button>
-              <Button variant="solid" onClick={handleClickImport}>
-                Import
-              </Button>
+              <Dropdown
+                trigger={['click']}
+                placement="bottomRight"
+                menu={{
+                  items: [
+                    {
+                      key: 'import-excel',
+                      label: (
+                        <span className="flex items-center gap-2">
+                          <Upload className="size-4" />
+                          엑셀로 일괄추가
+                        </span>
+                      ),
+                      onClick: handleClickImport,
+                    },
+                    {
+                      key: 'template-download',
+                      label: (
+                        <span className="flex items-center gap-2">
+                          <Download className="size-4" />
+                          템플릿 다운로드
+                        </span>
+                      ),
+                      onClick: () => exportDn(undefined),
+                    },
+                  ],
+                }}
+              >
+                <Button variant="solid" loading={isExporting}>
+                  Import
+                  <ChevronDown className="size-3.5" />
+                </Button>
+              </Dropdown>
             </div>
           </div>
 

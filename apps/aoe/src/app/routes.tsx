@@ -21,6 +21,7 @@ const A2ADetail = React.lazy(() => import('./pages/agent-config/A2ADetail'));
 const McpList = React.lazy(() => import('./pages/agent-config/McpList'));
 const McpCreate = React.lazy(() => import('./pages/agent-config/McpCreate'));
 const McpDetail = React.lazy(() => import('./pages/agent-config/McpDetail'));
+const MonitoringDashboard = React.lazy(() => import('./pages/monitoring/MonitoringDashboard'));
 
 export const routes = [
   {
@@ -97,6 +98,14 @@ export const routes = [
               { path: ':mcpId', element: <McpDetail /> },
             ],
           },
+        ],
+      },
+      {
+        path: 'monitoring',
+        element: <Outlet />,
+        children: [
+          { index: true, element: <Navigate to="agent" replace /> },
+          { path: 'agent', element: <MonitoringDashboard /> },
         ],
       },
     ],

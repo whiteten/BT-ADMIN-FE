@@ -43,6 +43,8 @@ interface DashboardCanvasProps {
   onLayoutChange?: (items: Array<{ widgetId: number; row: number; col: number; w: number; h: number }>) => void;
   /** 슬롯(Placeholder)에서 위젯 추가 클릭 시 */
   onAddWidgetAt?: (widgetId: number) => void;
+  /** 커스텀 위젯 타입별 최소 크기 (카탈로그 MIN_W/MIN_H). 리사이즈 최소값 가드에 사용. */
+  customMinSize?: Record<string, { minW: number; minH: number }>;
   /** 커스텀 위젯이 설정 변경 등으로 모니터링 일시정지를 요청할 때 호출. */
   onRequestPause?: () => void;
   children?: React.ReactNode;
@@ -57,6 +59,7 @@ export default function DashboardCanvas({
   onLayoutChange,
   onAddWidgetAt,
   onRequestPause,
+  customMinSize,
   children,
 }: DashboardCanvasProps) {
   const [deleteTarget, setDeleteTarget] = useState<Widget | null>(null);
@@ -94,17 +97,21 @@ export default function DashboardCanvas({
 
   // react-grid-layout 형식으로 변환
   const layouts = useMemo(() => {
-    const items: GridLayoutItem[] = widgets.map((w) => ({
-      i: String(w.widgetId),
-      x: w.position.col,
-      y: w.position.row,
-      w: w.position.w,
-      h: w.position.h,
-      minW: w.kind === 'CUSTOM' ? 3 : 2,
-      minH: w.kind === 'CUSTOM' ? 3 : 2,
-    }));
+    const items: GridLayoutItem[] = widgets.map((w) => {
+      // 커스텀 위젯은 카탈로그의 MIN_W/MIN_H(있으면)로 리사이즈 최소값을 가드. 없으면 기존 기본값(3/2).
+      const cm = w.kind === 'CUSTOM' ? customMinSize?.[w.widgetTypeId] : undefined;
+      return {
+        i: String(w.widgetId),
+        x: w.position.col,
+        y: w.position.row,
+        w: w.position.w,
+        h: w.position.h,
+        minW: cm?.minW ?? (w.kind === 'CUSTOM' ? 3 : 2),
+        minH: cm?.minH ?? (w.kind === 'CUSTOM' ? 3 : 2),
+      };
+    });
     return { lg: items, md: items, sm: items };
-  }, [widgets]);
+  }, [widgets, customMinSize]);
 
   const handleLayoutChange = (layout: GridLayoutItem[]) => {
     if (!editMode) return;

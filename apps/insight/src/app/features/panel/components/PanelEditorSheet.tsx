@@ -118,6 +118,14 @@ function SortableFieldRow({
   return <>{children({ setNodeRef, style, isDragging, handleProps: { ...attributes, ...listeners } })}</>;
 }
 
+// 값 슬롯(집계가 의미 있는 슬롯)에서만 기본 집계를 채운다.
+// 차원 슬롯(ROW·X_AXIS 등)에 aggFunc를 넣으면 백엔드가 측정값으로 오판해 GROUP BY가 깨진다.
+function defaultAggFunc(field: FieldMetaItem, slotType: SlotType): AggFunc | undefined {
+  if (slotType !== 'VALUE' && slotType !== 'Y_AXIS') return undefined;
+  // 컬럼 타입 기준 기본 집계: 숫자(NUMBER)→SUM, 그 외(STRING 등)→MAX
+  return field.fieldType === 'NUMBER' ? 'SUM' : 'MAX';
+}
+
 function makeFieldMapEntry(field: FieldMetaItem, slotType: SlotType, slotOrder: number): PanelFieldMap {
   const isMsr = field.fieldRole === 'MEASURE' || field.fieldRole === 'CALC';
   return {
@@ -125,7 +133,7 @@ function makeFieldMapEntry(field: FieldMetaItem, slotType: SlotType, slotOrder: 
     slotOrder,
     fieldName: field.fieldName,
     isCalcField: false,
-    aggFunc: undefined,
+    aggFunc: defaultAggFunc(field, slotType),
     columnFormat: isMsr ? 'Number' : undefined,
   };
 }
@@ -279,7 +287,7 @@ export default function PanelEditorSheet({ reportId, panelType, panelId, dataset
         ...seriesFields.map((f, i) => normalizeField({ ...f, slotType: 'SERIES' as SlotType, slotOrder: i })),
       ];
     }
-    slotFields.push(...filterFields.map((f, i) => normalizeField({ ...f, slotType: 'FILTER' as SlotType, slotOrder: i })));
+    // 검색조건(FILTER) 바인딩은 그리드 전용 — 차트류 패널은 fieldMap에 포함하지 않음
     if (topNEnabled && topNSortField) {
       slotFields.push({
         slotType: 'LIMIT',
@@ -977,7 +985,6 @@ export default function PanelEditorSheet({ reportId, panelType, panelId, dataset
               ) : (
                 <>
                   {getChartSlots(chartType).map(renderSlot)}
-                  {renderFilterSlot()}
 
                   {/* Top N — KPI 제외 */}
                   {chartType !== 'KPI' && (

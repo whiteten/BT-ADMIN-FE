@@ -124,6 +124,9 @@ interface RecogTargetSearchProps {
   engineCode?: string;
 }
 
+const DEFAULT_START_TIME = dayjs().subtract(2, 'hour').startOf('hour');
+const DEFAULT_END_TIME = dayjs().add(1, 'hour').startOf('hour');
+
 export default function RecogTargetSearch({ groupCode, engineCode }: RecogTargetSearchProps) {
   const queryClient = useQueryClient();
   const { gridOptions } = useAggridOptions();
@@ -131,12 +134,12 @@ export default function RecogTargetSearch({ groupCode, engineCode }: RecogTarget
 
   const [startDate, setStartDate] = useState<Dayjs | null>(dayjs());
   const [endDate, setEndDate] = useState<Dayjs | null>(dayjs());
-  const [startTime, setStartTime] = useState<Dayjs | null>(dayjs().subtract(3, 'hour').startOf('hour'));
-  const [endTime, setEndTime] = useState<Dayjs | null>(dayjs().startOf('hour'));
+  const [startTime, setStartTime] = useState<Dayjs | null>(DEFAULT_START_TIME);
+  const [endTime, setEndTime] = useState<Dayjs | null>(DEFAULT_END_TIME);
   const [dnNo, setDnNo] = useState('');
   const [searchParams, setSearchParams] = useState<RecogTargetSearchParams>({
-    fromDateTime: dayjs().subtract(3, 'hour').startOf('hour').format('YYYYMMDDHHmmss'),
-    toDateTime: dayjs().startOf('hour').format('YYYYMMDDHHmmss'),
+    fromDateTime: dayjs().format('YYYYMMDD') + DEFAULT_START_TIME.format('HHmmss'),
+    toDateTime: dayjs().format('YYYYMMDD') + DEFAULT_END_TIME.format('HHmmss'),
     groupCode,
     engineCode,
   });
@@ -145,7 +148,7 @@ export default function RecogTargetSearch({ groupCode, engineCode }: RecogTarget
     setSearchParams((prev) => ({ ...prev, groupCode, engineCode }));
   }, [groupCode, engineCode]);
 
-  const { data: rowData, isLoading } = useGetRecogTargetSearch({ params: searchParams as Record<string, unknown> });
+  const { data: rowData, isLoading, refetch } = useGetRecogTargetSearch({ params: searchParams as Record<string, unknown> });
 
   const { mutate: createTarget } = useCreateRecogTarget({
     mutationOptions: {
@@ -192,13 +195,16 @@ export default function RecogTargetSearch({ groupCode, engineCode }: RecogTarget
       return;
     }
 
-    setSearchParams({
+    const newParams: RecogTargetSearchParams = {
       groupCode,
       engineCode,
       fromDateTime: startDate.format('YYYYMMDD') + (startTime?.format('HHmmss') ?? '000000'),
       toDateTime: endDate.format('YYYYMMDD') + (endTime?.format('HHmmss') ?? '235959'),
       dnNo: dnNo || undefined,
-    });
+    };
+    const paramsChanged = JSON.stringify(newParams) !== JSON.stringify(searchParams);
+    setSearchParams(newParams);
+    if (!paramsChanged) void refetch();
   };
 
   const handleAdd = (originData: RecogTargetSearchItem) => {
@@ -255,7 +261,7 @@ export default function RecogTargetSearch({ groupCode, engineCode }: RecogTarget
     },
     { headerName: '고유번호(UCID)', field: 'ucidGkey', flex: 3, filter: true, tooltipField: 'ucidGkey' },
     { headerName: '내선번호', field: 'dnNo', maxWidth: 110, flex: 1, filter: true },
-    { headerName: '통화일시', field: 'callDatetime', flex: 2 },
+    { headerName: '통화일시', field: 'callDatetime', flex: 2, valueFormatter: ({ value }) => (value ? dayjs(value, 'YYYYMMDDHHmmss').format('YYYY-MM-DD HH:mm:ss') : '') },
     { headerName: '발화시간', field: 'talkTime', maxWidth: 100, flex: 1, valueFormatter: (params) => (params.value != null ? `${params.value}초` : '') },
     {
       headerName: '화자',

@@ -2,13 +2,26 @@ import { useRef } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import type { ColDef, ICellRendererParams } from 'ag-grid-community';
 import { AgGridReact } from 'ag-grid-react';
+import { Button } from 'antd';
 import dayjs from 'dayjs';
 import { Trash2 } from 'lucide-react';
 import { toast } from '@/shared-util';
 import { recogQueryKeys, useDeleteRecogTarget, useGetRecogTargetList } from '../hooks/useRecogQueries';
-import type { RecogTargetListItem } from '../types';
+import type { RecogTargetListItem, SttModelItem } from '../types';
+import SttRecogDrawer, { type SttRecogDrawerRef } from './SttRecogDrawer';
 import useAggridOptions from '@/libs/shared-ui/src/hooks/useAggridOptions';
 import { useModal } from '@/libs/shared-ui/src/hooks/useModal';
+
+const FIXED_MODEL: SttModelItem = {
+  modelVerId: '20250101_000000',
+  modelVerName: '',
+  modelDesc: '',
+  recogRate: null,
+  tunningKind: 0,
+  tunningResult: 10,
+  tunningType: 0,
+  workTime: '',
+};
 
 const PAGE_SIZE = 20;
 
@@ -27,13 +40,15 @@ function DeleteCellRenderer({ data, onDelete }: DeleteCellRendererParams) {
 
 interface RecogTargetListProps {
   groupCode: string;
+  groupName?: string;
   engineCode?: string;
 }
 
-export default function RecogTargetList({ groupCode, engineCode }: RecogTargetListProps) {
+export default function RecogTargetList({ groupCode, groupName = '', engineCode }: RecogTargetListProps) {
   const queryClient = useQueryClient();
   const modal = useModal();
   const gridRef = useRef<AgGridReact<RecogTargetListItem>>(null);
+  const recogDrawerRef = useRef<SttRecogDrawerRef>(null);
   const { gridOptions } = useAggridOptions();
 
   const { data: targetList = [], isLoading } = useGetRecogTargetList({ groupCode, engineCode });
@@ -79,6 +94,21 @@ export default function RecogTargetList({ groupCode, engineCode }: RecogTargetLi
 
   return (
     <div className="flex flex-col gap-3 h-full">
+      <div className="flex justify-end">
+        <Button
+          color="cyan"
+          variant="solid"
+          onClick={() => {
+            if (targetList.length === 0) {
+              toast.warning('인식률 측정 데이터가 없습니다. 정답지를 등록해주세요.');
+              return;
+            }
+            recogDrawerRef.current?.open(FIXED_MODEL, engineCode ?? '', groupCode, groupName);
+          }}
+        >
+          인식률 측정
+        </Button>
+      </div>
       <div className="flex-1 min-h-[200px]">
         <AgGridReact<RecogTargetListItem>
           ref={gridRef}
@@ -92,6 +122,7 @@ export default function RecogTargetList({ groupCode, engineCode }: RecogTargetLi
           sideBar={false}
         />
       </div>
+      <SttRecogDrawer ref={recogDrawerRef} />
     </div>
   );
 }

@@ -26,7 +26,7 @@ function SearchResultCard({ result }: { result: KnowledgeSearchChunk }) {
   const displayedChunk = !expanded && isLong ? lines.slice(0, COLLAPSED_LINES).join('\n') : result.chunk;
 
   return (
-    <div className="border border-gray-200 rounded-lg bg-white overflow-hidden hover:border-blue-200 hover:shadow-sm transition-all shrink-0">
+    <div className="border border-gray-200 rounded-lg bg-white overflow-hidden hover:border-[var(--color-bt-primary)]/30 hover:shadow-sm transition-all shrink-0">
       <div className="flex items-center justify-between px-4 py-2.5 bg-gray-50 border-b border-gray-100">
         <div className="flex items-center gap-2.5">
           <span className="text-xs font-bold text-gray-500 bg-white border border-gray-200 rounded px-1.5 py-0.5">#{result.chunkIndex}</span>
@@ -47,13 +47,13 @@ function SearchResultCard({ result }: { result: KnowledgeSearchChunk }) {
       <div className="p-4">
         <p className="text-sm text-gray-800 leading-relaxed whitespace-pre-wrap mb-2">{displayedChunk}</p>
         {isLong && (
-          <button type="button" onClick={() => setExpanded((prev) => !prev)} className="flex items-center gap-1 text-xs text-blue-500 hover:text-blue-700 mb-3">
+          <button type="button" onClick={() => setExpanded((prev) => !prev)} className="flex items-center gap-1 text-xs text-[var(--color-bt-primary)] hover:underline mb-3">
             {expanded ? <ChevronUp className="size-3.5" /> : <ChevronDown className="size-3.5" />}
             {expanded ? '접기' : '더 보기'}
           </button>
         )}
         <div className="flex items-center gap-2 pt-3 border-t border-gray-100">
-          <FileText className="size-3.5 text-red-400 shrink-0" />
+          <FileText className="size-3.5 text-[var(--color-bt-primary)] shrink-0" />
           <span className="text-xs text-gray-500 truncate">{result.filename}</span>
         </div>
       </div>

@@ -20,17 +20,19 @@ const MenuPanel = ({ topOffset }: MenuPanelProps) => {
   const location = useLocation();
   const selectedRemote = useCurrentRemote();
   const { menuConfigs } = useMenuStore();
-  const { open, mode, view, displayedAppId, activeMenuKey, setOpen, setView, setDisplayedAppId, setActiveMenuKey } = useMenuPanelStore();
+  const { open, mode, view, displayedAppId, activeMenuKey, setOpen, setMode, setView, setDisplayedAppId, setActiveMenuKey } = useMenuPanelStore();
   const panelRef = useRef<HTMLDivElement>(null);
 
-  // 패널이 닫힐 때 displayedAppId·activeMenuKey·view를 모두 default로 리셋.
+  // 패널이 닫힐 때 mode·displayedAppId·activeMenuKey·view를 모두 default로 리셋.
   // 배경 클릭 / Esc / MenuButton 토글 / 라우트 이동 등 모든 close 경로가 setOpen(false)로 수렴하므로 이 한 곳에서 잔여 상태 정리.
+  // mode를 'compact'로 되돌려 크게보기 후 닫았다 다시 열어도 항상 작게보기로 시작하게 한다.
   useEffect(() => {
     if (open) return;
+    setMode('compact');
     setDisplayedAppId(null);
     setActiveMenuKey(null);
     setView('menu');
-  }, [open, setDisplayedAppId, setActiveMenuKey, setView]);
+  }, [open, setMode, setDisplayedAppId, setActiveMenuKey, setView]);
 
   // 라우트 이동 시 패널 자동 close (위 close-reset useEffect가 나머지 상태 정리)
   useEffect(() => {

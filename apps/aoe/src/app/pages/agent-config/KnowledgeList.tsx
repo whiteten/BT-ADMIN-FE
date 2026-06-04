@@ -92,7 +92,7 @@ export default function KnowledgeList() {
           <FallbackSpinner />
         </div>
       ) : filteredList.length ? (
-        <div className="grid grid-cols-[repeat(auto-fill,minmax(350px,1fr))] gap-4 w-full overflow-y-auto">
+        <div className="grid grid-cols-[repeat(auto-fill,minmax(350px,1fr))] gap-4 w-full overflow-y-auto pt-2 -mt-2">
           {filteredList.map((knowledge) => (
             <KnowledgeCard key={knowledge.documentId} {...knowledge} onDetail={handleDetail} onDelete={handleDelete} />
           ))}

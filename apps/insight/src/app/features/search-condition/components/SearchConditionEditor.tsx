@@ -279,7 +279,8 @@ export default function SearchConditionEditor() {
         const payload = {
           title: values.title,
           categoryCode: values.categoryCode ?? undefined,
-          isBundle: values.isBundle ?? false,
+          // 노드 묶음 토글은 UI에서 제거 — 편집 시 기존값 보존, 신규는 false.
+          isBundle: (editingCondition ?? fetchedDetail)?.isBundle ?? false,
           nodes: nodes.map(({ previewStatus: _ps, previewItems: _pi, previewError: _pe, detectedColumns: _dc, ...n }) => n),
         };
         if (isEdit && editingCondition) {
@@ -330,9 +331,6 @@ export default function SearchConditionEditor() {
             </Form.Item>
             <Form.Item name="categoryCode" label="카테고리" className="flex-1 mb-0">
               <Select placeholder="카테고리 선택" allowClear options={CATEGORY_OPTIONS} />
-            </Form.Item>
-            <Form.Item name="isBundle" valuePropName="checked" label="노드 묶음" className="flex-none mb-0">
-              <Checkbox />
             </Form.Item>
           </div>
         </Form>

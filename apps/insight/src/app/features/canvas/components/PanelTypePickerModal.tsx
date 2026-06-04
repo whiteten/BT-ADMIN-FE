@@ -1,3 +1,4 @@
+import { useEffect, useRef } from 'react';
 import { Modal } from 'antd';
 import { Activity, BarChart2, Hexagon, LayoutGrid, LineChart, type LucideIcon, PieChart, X } from 'lucide-react';
 import type { PanelType } from '../../report/types';
@@ -16,18 +17,34 @@ interface PanelTypePickerModalProps {
   onClose: () => void;
   /** 패널 종류 선택 → 다음 단계(데이터셋 선택)로 */
   onSelect: (type: PanelType) => void;
+  /** 숨길 패널 종류 (예: 그리드 1개 제한 — 이미 존재 시 GRID 숨김) */
+  hideTypes?: PanelType[];
 }
 
 /**
  * 패널 종류 선택 모달. (모니터링 위젯 라이브러리 위치에 대응)
  * 한 번만 선택 — 선택한 종류로 곧장 데이터셋 선택 → 패널 편집으로 매끄럽게 연결.
  */
-export default function PanelTypePickerModal({ open, onClose, onSelect }: PanelTypePickerModalProps) {
+export default function PanelTypePickerModal({ open, onClose, onSelect, hideTypes = [] }: PanelTypePickerModalProps) {
+  const options = PANEL_TYPE_OPTIONS.filter((o) => !hideTypes.includes(o.type));
+
+  // 모달 1회 오픈당 선택 1회만 처리 — 더블클릭/닫힘 애니메이션 중 중복 클릭 무시
+  const selectedRef = useRef(false);
+  useEffect(() => {
+    if (open) selectedRef.current = false;
+  }, [open]);
+  const handleSelect = (type: PanelType) => {
+    if (selectedRef.current) return;
+    selectedRef.current = true;
+    onSelect(type);
+  };
+
   return (
     <Modal
       open={open}
       onCancel={onClose}
       footer={null}
+      maskClosable={false}
       title={
         <div className="flex items-center gap-2">
           <span className="text-[16px] font-bold text-[#495057]">패널 종류 선택</span>
@@ -52,11 +69,11 @@ export default function PanelTypePickerModal({ open, onClose, onSelect }: PanelT
         </p>
 
         <div className="grid grid-cols-3 gap-3">
-          {PANEL_TYPE_OPTIONS.map(({ type, label, Icon, description }) => (
+          {options.map(({ type, label, Icon, description }) => (
             <button
               key={type}
               type="button"
-              onClick={() => onSelect(type)}
+              onClick={() => handleSelect(type)}
               className="group flex flex-col items-start gap-2 rounded-xl border border-[#dee2e6] bg-white p-4 text-left transition-all hover:border-[var(--color-bt-primary)] hover:bg-[var(--color-bt-primary-soft)]/10 hover:shadow-sm"
             >
               <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-[#f8f9fa] text-[#adb5bd] border border-[#f1f3f5] transition-colors group-hover:bg-white group-hover:text-[var(--color-bt-primary)] shadow-sm">

@@ -252,7 +252,12 @@ const CanvasLayout = forwardRef<CanvasLayoutRef, CanvasLayoutProps>(function Can
       <LayoutPickerModal open={layoutPickerOpen} onClose={() => setLayoutPickerOpen(false)} onSelect={handleAddArea} />
 
       {/* 2) 패널 종류 모달 */}
-      <PanelTypePickerModal open={typePickerOpen} onClose={resetBuildContext} onSelect={handleTypeSelected} />
+      <PanelTypePickerModal
+        open={typePickerOpen}
+        onClose={resetBuildContext}
+        onSelect={handleTypeSelected}
+        hideTypes={panels.some((p) => p.panelType === 'GRID') ? ['GRID'] : []}
+      />
 
       {/* 3) 데이터셋 모달 */}
       <DatasetPickerModal open={datasetPickerOpen} onClose={resetBuildContext} defaultDatasetId={datasetId || undefined} onSelect={handleDatasetSelected} />

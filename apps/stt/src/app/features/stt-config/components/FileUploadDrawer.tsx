@@ -111,6 +111,7 @@ const FileUploadDrawer = forwardRef<FileUploadDrawerRef, FileUploadDrawerProps>(
           disconnect();
           setIsSending(false);
           setFtsProgress(null);
+          setOpen(false);
           queryClient.invalidateQueries({ queryKey: fileUploadQueryKeys.getFileUploadList._def });
 
           const { current: successCount } = ftsSuccessRef;

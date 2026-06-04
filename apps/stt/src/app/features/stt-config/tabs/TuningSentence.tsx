@@ -257,13 +257,14 @@ export default function TuningSentence() {
       toast.warning('시작일이 종료일보다 늦을 수 없습니다.');
       return;
     }
-    const next = {
+    const newParams: TuningSentenceSearchParams = {
       fromDate: fromDate.format('YYYYMMDD'),
       toDate: toDate.format('YYYYMMDD'),
       engineCode: engineCode || undefined,
     };
-    setSearchParams(next);
-    setTimeout(() => refetch(), 0);
+    const paramsChanged = JSON.stringify(newParams) !== JSON.stringify(searchParams);
+    setSearchParams(newParams);
+    if (!paramsChanged) void refetch();
   };
 
   const handleSave = (originData: TuningSentenceItem) => {

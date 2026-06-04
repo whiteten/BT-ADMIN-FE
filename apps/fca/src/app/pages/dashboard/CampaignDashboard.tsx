@@ -61,17 +61,22 @@ export default function CampaignDashboard() {
 
   const scenarioOptions: Option[] = useMemo(() => {
     const selectedCampaignValues = new Set(selectedCampaign.map((item) => item.value));
-    return (campaignList ?? [])
-      .filter((c) => {
-        const hasList = c.campaignListId != null && String(c.campaignListId).length > 0;
-        if (!hasList) return false;
-        const campaignKey = `C:${c.tenantId}:${c.campaignId}`;
-        return selectedCampaignValues.has(campaignKey);
-      })
-      .map((c) => ({
+    const seenScenarioKeys = new Set<string>();
+    const options: Option[] = [];
+    for (const c of campaignList ?? []) {
+      const hasList = c.campaignListId != null && String(c.campaignListId).length > 0;
+      if (!hasList) continue;
+      const campaignKey = `C:${c.tenantId}:${c.campaignId}`;
+      if (!selectedCampaignValues.has(campaignKey)) continue;
+      const scenarioKey = `L:${c.tenantId}:${c.campaignListId}`;
+      if (seenScenarioKeys.has(scenarioKey)) continue;
+      seenScenarioKeys.add(scenarioKey);
+      options.push({
         label: c.campaignListName ? String(c.campaignListName) : String(c.campaignListId),
-        value: `L:${c.tenantId}:${c.campaignListId}`,
-      }));
+        value: scenarioKey,
+      });
+    }
+    return options;
   }, [campaignList, selectedCampaign]);
 
   useEffect(() => {
@@ -123,13 +128,17 @@ export default function CampaignDashboard() {
 
     const allScenarioValues = scenarioOptions.filter((item) => String(item.value).startsWith('L:')).map((item) => String(item.value));
 
-    const campaignListIds = selectedScenario
-      .filter((item) => String(item.value).startsWith('L:'))
-      .map((item) => {
-        const parts = String(item.value).split(':');
-        return Number(parts[parts.length - 1]);
-      })
-      .filter((n) => !Number.isNaN(n));
+    const campaignListIds = [
+      ...new Set(
+        selectedScenario
+          .filter((item) => String(item.value).startsWith('L:'))
+          .map((item) => {
+            const parts = String(item.value).split(':');
+            return Number(parts[parts.length - 1]);
+          })
+          .filter((n) => !Number.isNaN(n)),
+      ),
+    ];
 
     // 시나리오 "전체 선택"은 필터를 걸지 않은 것과 동일하게 취급해야 캠페인 전체선택과 결과가 일치함.
     // (레거시 데이터에서 campaignListId가 옵션/실데이터 간 불일치하는 케이스가 있어, 전체선택 시 필터를 걸면 0건이 될 수 있음)

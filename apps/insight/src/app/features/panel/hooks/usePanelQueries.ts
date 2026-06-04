@@ -26,3 +26,13 @@ export const useExecuteQuery = ({
     mutationFn: (request: QueryRequest) => panelApi.executeQuery(request),
     ...mutationOptions,
   });
+
+export const useExportPanelExcel = ({
+  mutationOptions,
+}: {
+  mutationOptions?: UseMutationOptions<void, Error, QueryRequest>;
+} = {}) =>
+  useMutation({
+    mutationFn: (request: QueryRequest) => panelApi.exportExcel(request),
+    ...mutationOptions,
+  });

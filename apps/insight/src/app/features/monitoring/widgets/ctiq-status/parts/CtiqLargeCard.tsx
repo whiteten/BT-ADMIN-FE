@@ -4,14 +4,14 @@ import { SEVERITY_META } from '../statusMap';
 import type { CtiqRow, CtiqSeverity } from '../types';
 
 /**
- * 큐 큰카드 — 한 큐의 압력·KPI·처리·자원 전체 노출.
+ * 큐 큰카드 — 상담사 카드(AgentCard, card density)와 동일한 크기(~156px)·골격으로 통일.
  *
- * 4 섹션 구조 (AgentCard 패턴 차용):
- *   ① 헤더 — #ID + severity Tag + 큐명
- *   ② 압력 3컬럼 — 대기 / 최장 / EWT
- *   ③ KPI 진행바 2개 — 응대율 / SLA
- *   ④ 처리 2×3 그리드 + 자원 푸터
+ * 3 섹션 구조 (AgentCard 패턴 차용):
+ *   ① 헤더 — dot + #ID + severity chip / 큐명
+ *   ② 헤드라인 — 대기 콜수(큰 숫자) + 최장대기(보조)
+ *   ③ KPI 2×2 — 응대율 / SLA / 포기율 / 로그인
  *
+ * 정보 우선순위상 진행바·누적 처리량·평균값·자원 푸터는 제외(작은카드/표 뷰에서 확인).
  * 성능: memo(row+sev 비교) + content-visibility 로 비가시 카드 렌더 스킵.
  */
 export interface CtiqLargeCardProps {
@@ -24,90 +24,64 @@ function CtiqLargeCardImpl({ row, sev }: CtiqLargeCardProps) {
   const pulse = sev === 'danger' ? 'animate-pulse' : '';
   const wait = toNum(row.RTS_WAIT_CNT) ?? 0;
   const login = toNum(row.RTS_EXP_LOGIN_AGT) ?? 0;
-  const conn = toNum(row.SUM_CONN_CNT) ?? 0;
-  const answered = toNum(row.SUM_ANSWER_CNT_TOT) ?? toNum(row.SUM_ANSWER_CNT) ?? 0;
+
+  const emphasizeWait = sev === 'danger' || sev === 'alert' || sev === 'warn';
+  const waitColor = emphasizeWait ? meta.textCls : 'text-slate-800';
+
+  // 상담사 카드와 동일한 높이·외곽선·배경 톤(severity 강조).
+  const cardCls = [
+    'group relative flex h-full min-h-[156px] flex-col rounded-xl border bg-white text-left transition-all duration-200 w-full',
+    '[content-visibility:auto] [contain-intrinsic-size:156px]',
+    'hover:shadow-[0_8px_16px_rgba(0,0,0,0.06)] hover:-translate-y-0.5',
+    sev === 'danger'
+      ? 'border-red-500 bg-red-50/40 ring-1 ring-red-500'
+      : sev === 'alert'
+        ? 'border-orange-400 bg-orange-50/30'
+        : sev === 'warn'
+          ? 'border-amber-400 bg-amber-50/20'
+          : 'border-slate-200 hover:border-slate-300',
+  ].join(' ');
 
   return (
-    <div className={`relative bg-white border ${meta.cardBorder} rounded-sm p-3 transition-shadow hover:shadow-md [content-visibility:auto] [contain-intrinsic-size:240px]`}>
-      <div className={`absolute left-0 top-0 bottom-0 w-[3px] ${meta.barCls}`} />
+    <div className={cardCls}>
+      {/* ① 헤더 — #ID + severity chip / 큐명 */}
+      <div className="px-4 pt-3.5">
+        <div className="flex items-center gap-1.5">
+          <span className={`h-2 w-2 rounded-full ${meta.dotCls} ${pulse}`} />
+          <span className="font-mono text-[11px] text-slate-400">#{String(row.CTIQ_ID ?? row.GDN_NO ?? '—')}</span>
+          <span className={`ml-auto inline-flex items-center rounded border px-1.5 py-0 text-[10.5px] font-semibold ${meta.chipCls}`}>{meta.label}</span>
+        </div>
+        <div className="mt-0.5 truncate text-[14px] font-bold text-slate-900">{row.CTIQ_NAME ? String(row.CTIQ_NAME) : '(이름 없음)'}</div>
+      </div>
 
-      {/* ① 헤더 */}
-      <div className="flex items-start justify-between gap-2 mb-2">
-        <div className="min-w-0 flex-1">
-          <div className="flex items-center gap-1.5">
-            <span className={`w-2 h-2 rounded-full ${meta.dotCls} ${pulse}`} />
-            <span className="font-mono text-[11px] text-gray-500">#{String(row.CTIQ_ID ?? row.GDN_NO ?? '—')}</span>
-            <span className={`inline-flex items-center px-1.5 py-0 text-[10.5px] font-semibold rounded ${meta.chipCls} border`}>{meta.label}</span>
-          </div>
-          <div className="mt-0.5 truncate text-[13.5px] font-semibold text-gray-900">{row.CTIQ_NAME || '(이름 없음)'}</div>
+      {/* ② 헤드라인 — 대기(큰 숫자) + 최장(보조) */}
+      <div className="flex items-baseline gap-2 px-4 pt-2">
+        <span className={`font-mono text-[26px] font-extrabold leading-none tabular-nums tracking-tighter ${waitColor}`}>{fmtCount(wait)}</span>
+        <span className="text-[11px] text-slate-400">대기</span>
+        <span className="ml-auto text-[11px] text-slate-500">
+          최장 <span className="font-mono tabular-nums text-slate-700">{fmtDuration(row.RTS_MAXWAIT_TIME)}</span>
+        </span>
+      </div>
+
+      {/* ③ KPI 2×2 — 응대율 / SLA / 포기율 / 로그인 */}
+      <div className="mt-auto rounded-b-xl border-t border-slate-100 bg-slate-50/50 px-4 pb-3.5 pt-3">
+        <div className="grid grid-cols-2 gap-x-4 gap-y-2 text-[11px]">
+          <Stat label="응대율" value={fmtPct(row.KPI_ANSWER_RATE)} />
+          <Stat label="SLA" value={fmtPct(row.KPI_SVCLEVEL)} align="right" />
+          <Stat label="포기율" value={fmtPct(row.KPI_ABANDON_RATIO)} danger={sev === 'danger'} />
+          <Stat label="로그인" value={String(login)} align="right" />
         </div>
       </div>
-
-      {/* ② 압력 3컬럼 */}
-      <div className="grid grid-cols-3 gap-1.5 mb-2">
-        <Cell label="대기" value={fmtCount(wait)} emphasis={sev === 'danger' || sev === 'warn' || sev === 'alert'} severity={sev} big />
-        <Cell label="최장" value={fmtDuration(row.RTS_MAXWAIT_TIME)} emphasis={sev === 'alert' || sev === 'danger'} severity={sev} />
-        <Cell label="EWT" value={fmtDuration(row.KPI_EWT_TIME)} severity={sev} />
-      </div>
-
-      {/* ③ KPI 진행바 */}
-      <ProgressRow label="응대율" value={toNum(row.KPI_ANSWER_RATE)} />
-      <ProgressRow label="SLA" value={toNum(row.KPI_SVCLEVEL)} severity={sev} />
-
-      {/* ④ 처리 2×3 그리드 */}
-      <div className="mt-2 grid grid-cols-2 gap-x-2 gap-y-0.5 text-[11px]">
-        <KV label="인입" value={fmtCount(conn)} />
-        <KV label="응대" value={fmtCount(answered)} />
-        <KV label="포기" value={fmtCount(row.SUM_ABDN_CNT)} danger={(toNum(row.SUM_ABDN_CNT) ?? 0) > 0 && sev === 'danger'} />
-        <KV label="포기율" value={fmtPct(row.KPI_ABANDON_RATIO)} danger={sev === 'danger'} />
-        <KV label="평균통화" value={fmtDuration(row.AVG_ANSTALK_TIME)} />
-        <KV label="평균대기" value={fmtDuration(row.AVG_ANSWAIT_TIME)} />
-      </div>
-
-      {/* 자원 푸터 */}
-      <div className="mt-2 pt-1.5 border-t border-gray-200 text-[11px] text-gray-600 flex items-center justify-between">
-        <span>
-          로그인 <span className="font-mono text-gray-900">{login}</span>
-        </span>
-        <span className="text-gray-400">대기율 {fmtPct(row.KPI_WORKREADY_RATIO)}</span>
-      </div>
     </div>
   );
 }
 
-// ─── 서브 컴포넌트 (큰카드 전용) ────────────────────────────────
-
-function Cell({ label, value, severity, big, emphasis }: { label: string; value: string; severity: CtiqSeverity; big?: boolean; emphasis?: boolean }) {
-  const color = emphasis ? SEVERITY_META[severity].textCls : 'text-gray-900';
+// ─── 서브요소 (AgentCard 의 Stat 와 동일 패턴) ──────────────────
+function Stat({ label, value, danger, align }: { label: string; value: string; danger?: boolean; align?: 'left' | 'right' }) {
   return (
-    <div>
-      <div className="text-[9.5px] uppercase tracking-wide text-gray-500">{label}</div>
-      <div className={`font-mono font-bold leading-tight ${color} ${big ? 'text-[20px]' : 'text-[15px] pt-0.5'}`}>{value}</div>
-    </div>
-  );
-}
-
-function KV({ label, value, danger }: { label: string; value: string; danger?: boolean }) {
-  return (
-    <div className="flex justify-between">
-      <span className="text-gray-500">{label}</span>
-      <span className={`font-mono ${danger ? 'text-red-600 font-semibold' : 'text-gray-900'}`}>{value}</span>
-    </div>
-  );
-}
-
-function ProgressRow({ label, value, severity }: { label: string; value: number | null; severity?: CtiqSeverity }) {
-  const pct = value == null ? 0 : Math.max(0, Math.min(100, value * 100));
-  const barCls = severity === 'danger' ? 'bg-red-600' : severity === 'alert' ? 'bg-orange-500' : 'bg-emerald-600';
-  return (
-    <div className="mt-1.5">
-      <div className="flex justify-between text-[10.5px] mb-0.5">
-        <span className="text-gray-500">{label}</span>
-        <span className="font-mono text-gray-900">{value == null ? '—' : `${pct.toFixed(1)}%`}</span>
-      </div>
-      <div className="h-[5px] bg-gray-100 rounded overflow-hidden">
-        <div className={`h-full ${barCls} transition-all`} style={{ width: `${pct}%` }} />
-      </div>
+    <div className={`flex min-w-0 items-center justify-between gap-1 ${align === 'right' ? 'flex-row-reverse' : ''}`}>
+      <span className="shrink-0 font-medium text-slate-500">{label}</span>
+      <span className={`truncate font-mono font-bold tabular-nums ${danger ? 'text-red-600' : 'text-slate-700'}`}>{value}</span>
     </div>
   );
 }

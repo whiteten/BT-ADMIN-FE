@@ -84,7 +84,7 @@ export default function McpList() {
           <FallbackSpinner />
         </div>
       ) : filteredList.length ? (
-        <div className="grid grid-cols-[repeat(auto-fill,minmax(350px,1fr))] gap-4 w-full overflow-y-auto">
+        <div className="grid grid-cols-[repeat(auto-fill,minmax(350px,1fr))] gap-4 w-full overflow-y-auto pt-2 -mt-2">
           {filteredList.map((mcp) => (
             <McpCard key={mcp.mcpId} mcp={mcp} onClick={handleClickCard} onDetail={handleClickCard} onDelete={handleDelete} />
           ))}
