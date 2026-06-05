@@ -67,13 +67,14 @@ export default function ScenarioDeploySidebar({ open, serviceId, selectedVersion
       params: { serviceId, serviceVer: selectedVersion.serviceVer },
       data: {
         rtResvKind: values.rtResvKind,
-        applyDatetime: values.applyDatetime?.toISOString(),
+        // REALTIME 인 경우 사용자가 DatePicker 잔존 값 가지고 있어도 무시 (disabled 라 변경 못함 + 백엔드도 REALTIME 시 무시)
+        applyDatetime: values.rtResvKind === 'RESERVED' ? values.applyDatetime?.toISOString() : undefined,
       },
     });
   };
 
   return (
-    <Drawer title="배포" placement="right" width={380} open={open} onClose={onClose}>
+    <Drawer title="배포" placement="right" width={480} open={open} onClose={onClose}>
       {!selectedVersion ? (
         <div className="flex flex-col items-center justify-center gap-3 text-gray-400" style={{ minHeight: 300 }}>
           <ServerOff className="size-12" />
@@ -129,7 +130,7 @@ export default function ScenarioDeploySidebar({ open, serviceId, selectedVersion
                               : 'default'
                       }
                     >
-                      {APPLY_STATUS_LABELS[s.applyStatus] ?? s.applyStatus}
+                      {(s.applyStatus && APPLY_STATUS_LABELS[s.applyStatus]) ?? s.applyStatus ?? '-'}
                     </Tag>
                   </div>
                 ))}
@@ -147,31 +148,40 @@ export default function ScenarioDeploySidebar({ open, serviceId, selectedVersion
               <Alert type="warning" showIcon message="시나리오 파일 미업로드" description="버전 추가 시 파일을 업로드해주세요." className="!mb-3" />
             )}
 
-            <Form.Item name="rtResvKind" label="배포 방식" rules={[{ required: true }]}>
-              <Radio.Group onChange={(e) => setRtResvKind(e.target.value)}>
-                <Radio value="REALTIME">즉시</Radio>
-                <Radio value="RESERVED">예약</Radio>
-              </Radio.Group>
-            </Form.Item>
-
-            {rtResvKind === 'RESERVED' && (
-              <Form.Item
-                name="applyDatetime"
-                label="예약 일시"
-                rules={[
-                  { required: true, message: '예약 일시는 필수입니다' },
-                  {
-                    validator: async (_r, value: Dayjs | undefined) => {
-                      if (value && !value.isAfter(dayjs())) {
-                        throw new Error('예약 일시는 현재 시각 이후여야 합니다');
-                      }
+            {/* 배포 방식 + 예약 시각 인라인. DatePicker 는 REALTIME 모드에서도 자리 점유 (disabled).
+                AS-IS SleeConfigList 패턴과 동일 — layout shift 방지. */}
+            <Form.Item label="배포 방식" required className="!mb-4">
+              <div className="flex items-center gap-3 flex-wrap">
+                <Form.Item name="rtResvKind" noStyle rules={[{ required: true }]}>
+                  <Radio.Group onChange={(e) => setRtResvKind(e.target.value)}>
+                    <Radio value="REALTIME">즉시</Radio>
+                    <Radio value="RESERVED">예약</Radio>
+                  </Radio.Group>
+                </Form.Item>
+                <Form.Item
+                  name="applyDatetime"
+                  noStyle
+                  rules={[
+                    {
+                      validator: async (_r, value: Dayjs | undefined) => {
+                        if (rtResvKind !== 'RESERVED') return;
+                        if (!value) throw new Error('예약 일시는 필수입니다');
+                        if (!value.isAfter(dayjs())) throw new Error('예약 일시는 현재 시각 이후여야 합니다');
+                      },
                     },
-                  },
-                ]}
-              >
-                <DatePicker showTime style={{ width: '100%' }} format="YYYY-MM-DD HH:mm" />
-              </Form.Item>
-            )}
+                  ]}
+                >
+                  <DatePicker
+                    showTime={{ format: 'HH:mm', minuteStep: 5 }}
+                    format="YYYY-MM-DD HH:mm"
+                    disabled={rtResvKind !== 'RESERVED'}
+                    disabledDate={(d) => d && d.isBefore(dayjs().startOf('day'))}
+                    placeholder="예약 시각"
+                    style={{ width: 200 }}
+                  />
+                </Form.Item>
+              </div>
+            </Form.Item>
 
             {/* 대상 시스템 — 읽기 전용 목록 (할당 + HA 백업) */}
             <div className="mb-4">

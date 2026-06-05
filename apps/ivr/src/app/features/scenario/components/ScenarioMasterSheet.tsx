@@ -118,13 +118,14 @@ const ScenarioMasterSheet = forwardRef<ScenarioMasterSheetRef, ScenarioMasterShe
             { pattern: /^[a-zA-Z0-9가-힣_ ]+$/, message: '영문, 숫자, 한글, 밑줄, 공백만 가능합니다' },
           ]}
         >
-          <Input placeholder="예: 신용카드_본인확인" maxLength={33} />
+          <Input placeholder="예: 신용카드_본인확인" maxLength={33} style={{ width: '100%' }} />
         </Form.Item>
 
         <Form.Item name="serviceType" label="시나리오 종류" initialValue="10" rules={[{ required: true, message: '시나리오 종류는 필수입니다' }]}>
           <Select
             placeholder="선택"
             disabled={isAcsType}
+            style={{ width: '100%' }}
             options={SCENARIO_TYPE_OPTIONS.filter((o) => !isEdit || !['20', '70'].includes(o.value)).map((o) => ({ label: o.label, value: o.value }))}
           />
         </Form.Item>
@@ -139,7 +140,7 @@ const ScenarioMasterSheet = forwardRef<ScenarioMasterSheetRef, ScenarioMasterShe
           ]}
           extra="SXML 파일명 prefix (예: creditcard → creditcard_v1.0.sxml)"
         >
-          <Input placeholder="예: creditcard" maxLength={100} disabled={isEdit} />
+          <Input placeholder="예: creditcard" maxLength={100} disabled={isEdit} style={{ width: '100%' }} />
         </Form.Item>
 
         <Form.Item
@@ -151,7 +152,7 @@ const ScenarioMasterSheet = forwardRef<ScenarioMasterSheetRef, ScenarioMasterShe
             { max: 256, message: '256자 이내여야 합니다' },
           ]}
         >
-          <Input placeholder="IPRON/ment/" maxLength={256} />
+          <Input placeholder="IPRON/ment/" maxLength={256} style={{ width: '100%' }} />
         </Form.Item>
 
         <Form.Item
@@ -168,7 +169,7 @@ const ScenarioMasterSheet = forwardRef<ScenarioMasterSheetRef, ScenarioMasterShe
         </Form.Item>
 
         <Form.Item name="serviceDesc" label="설명" rules={[{ max: 256, message: '256자 이내여야 합니다' }]}>
-          <Input.TextArea rows={3} maxLength={256} />
+          <Input.TextArea rows={3} maxLength={256} style={{ width: '100%' }} />
         </Form.Item>
       </Form>
     </Drawer>

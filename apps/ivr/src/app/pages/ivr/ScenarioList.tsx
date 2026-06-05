@@ -62,13 +62,9 @@ export default function ScenarioList() {
     [navigate],
   );
 
-  const handleEdit = useCallback((s: Scenario) => {
-    masterSheetRef.current?.open(s);
-  }, []);
-
   const handleDelete = useCallback(
     (s: Scenario) => {
-      modal.confirm.execute({
+      modal.confirm.delete({
         onOk: () => deleteMutate({ serviceId: s.serviceId }),
         options: {
           title: '시나리오 삭제',
@@ -79,8 +75,9 @@ export default function ScenarioList() {
     [modal, deleteMutate],
   );
 
+  // 수정은 상세 페이지의 기본정보 탭에서 inline edit 으로 처리 (BotList 패턴 동일).
   const getCardMenuItems = (s: Scenario) => [
-    { key: 'edit', label: '수정', onClick: () => handleEdit(s) },
+    { key: 'detail', label: '상세보기', onClick: () => handleDetail(s) },
     { key: 'delete', label: '삭제', icon: <Trash2 className="size-4" />, danger: true, onClick: () => handleDelete(s) },
   ];
 
@@ -126,9 +123,7 @@ export default function ScenarioList() {
             return (
               <div
                 key={s.serviceId}
-                className="bg-white border border-gray-200 rounded-lg p-4 cursor-pointer transition-all hover:border-[#c5cbe0] hover:shadow-[0_2px_8px_rgba(0,0,0,0.06)] flex flex-col h-[150px]"
-                onClick={() => handleDetail(s)}
-                onDoubleClick={() => handleEdit(s)}
+                className="bg-white border border-gray-200 rounded-lg p-4 transition-all hover:border-[#c5cbe0] hover:shadow-[0_2px_8px_rgba(0,0,0,0.06)] flex flex-col h-[150px]"
               >
                 <div className="flex items-start justify-between mb-2">
                   <span className={`px-1.5 py-0.5 text-[10px] font-medium ${tc.bg} ${tc.text} rounded`}>{SCENARIO_TYPE_LABELS[s.serviceType] ?? s.serviceType}</span>

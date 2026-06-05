@@ -124,21 +124,38 @@ export interface ScenarioVersion {
   serviceVer: string;
   versionName?: string | null;
   scenarioFile?: string | null;
+  scenarioDocument?: string | null;
+  scenarioDocumentId?: number | null;
   irFilePath?: string | null;
   emsFilePath?: string | null;
   versionDesc?: string | null;
   statVisible?: number | null;
+  charsetType?: string | null;
   flowEditorId?: number | null;
   workUser?: number | null;
   workUserName?: string | null;
   workTime?: string | null;
 }
 
+export type ScenarioCharsetType = 'euc-kr' | 'utf-8';
+
 export interface ScenarioVersionCreateRequest {
   serviceVer: string;
   versionName?: string;
   versionDesc?: string;
   sourcever?: string; // 복사 시 원본 버전
+  statVisible?: number; // 1=사용(기본), 0=사용안함 (AS-IS IPR20S6020 statVisible)
+  charsetType?: ScenarioCharsetType; // 기본 'euc-kr' (AS-IS IPR20S6020 charsetType)
+  doScenarioAnal?: boolean; // 등록 후 분석 실행 여부 (기본 true)
+}
+
+export interface ScenarioVersionUpdateRequest {
+  versionName?: string;
+  versionDesc?: string;
+  statVisible?: number;
+  charsetType?: ScenarioCharsetType;
+  /** SXML 재업로드 후 자동 분석 실행 여부. multipart with-file 흐름에서만 의미 있음. 기본 true. */
+  doScenarioAnal?: boolean;
 }
 
 // ─── 시나리오 배포 ──────────────────────────────────────────────────────────
@@ -151,14 +168,21 @@ export interface ScenarioPublishRequest {
 export interface DeployedSystem {
   systemId: number;
   systemName?: string | null;
-  systemRole?: string | null; // Master / Slave / Standby
+  systemRole?: string | null; // HA 그룹명 또는 Role
   ipAddress?: string | null;
-  serviceVer: string;
-  applyStatus: ApplyStatus;
-  applyResult: ApplyResult;
+  nodeId?: number | null;
+  haGroupId?: number | null;
+  serviceVer?: string | null; // 현재 적용 버전
+  priorVer?: string | null; // 이전 적용 버전
+  applyVer?: string | null; // 예약 대기 버전
+  applyStatus?: ApplyStatus | null;
+  applyResult?: ApplyResult | null;
   applyDatetime?: string | null;
   rtResvKind?: ApplyTimingKind | null;
   svcResvId?: string | null;
+  workUser?: number | null;
+  workUserName?: string | null;
+  workTime?: string | null;
 }
 
 /** 배포 대상 시스템 — 사이드바 표시용. 할당(assignSystem=1) + HA 백업(assignSystem=0). */
