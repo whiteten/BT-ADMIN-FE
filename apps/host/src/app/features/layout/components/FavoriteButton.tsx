@@ -13,9 +13,11 @@ interface FavoriteButtonProps {
   path: string;
   appId: string;
   disabled?: boolean;
+  /** true면 아이콘 + "즐겨찾기"/"즐겨찾기 해제" 텍스트의 큰 버튼으로 렌더(스플릿 프리뷰 패널용). 기본 false는 아이콘 버튼. */
+  labeled?: boolean;
 }
 
-export const FavoriteButton = React.memo(({ menuKey, label, path, appId, disabled = false }: FavoriteButtonProps) => {
+export const FavoriteButton = React.memo(({ menuKey, label, path, appId, disabled = false, labeled = false }: FavoriteButtonProps) => {
   const queryClient = useQueryClient();
   const { favorites } = useNavigationStore();
   const { mutate: createFavorite, isPending: isCreating } = useCreateFavorite({
@@ -41,6 +43,24 @@ export const FavoriteButton = React.memo(({ menuKey, label, path, appId, disable
       createFavorite({ params: {}, data: { menuKey } });
     }
   }, [createFavorite, deleteFavorite, isFavorited, menuKey]);
+
+  if (labeled) {
+    return (
+      <Button
+        type="button"
+        variant="outline"
+        className={cn(
+          'h-9 cursor-pointer gap-1.5 px-3.5 text-[13px] hover:bg-white',
+          isFavorited ? 'border-[#FFA700] text-[#FFA700] hover:text-[#FFA700]' : 'text-[#495057] hover:border-[#FFA700] hover:text-[#FFA700]',
+        )}
+        onClick={handleToggleFavorite}
+        disabled={isCreating || isDeleting || disabled}
+      >
+        <IconStar className="size-4" fill={isFavorited ? '#FFA700' : 'none'} />
+        {isFavorited ? '즐겨찾기 해제' : '즐겨찾기'}
+      </Button>
+    );
+  }
 
   return (
     <Button
