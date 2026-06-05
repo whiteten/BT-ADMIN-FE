@@ -76,7 +76,7 @@ const PanelDetail = ({ onNavigate }: PanelDetailProps) => {
       </header>
       <div className="mx-6 border-t border-[#e9ecef]" />
 
-      <PanelDetailSplit menu={active} appId={config.appId} onNavigate={onNavigate} />
+      <PanelDetailSplit menu={active} appId={config.appId} appName={config.appName} onNavigate={onNavigate} />
     </div>
   );
 };

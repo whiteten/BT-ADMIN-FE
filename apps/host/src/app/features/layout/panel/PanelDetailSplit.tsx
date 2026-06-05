@@ -62,6 +62,7 @@ function buildEntries(menu: MenuItem): { entries: ListEntry[]; leaves: FlatLeaf[
 interface PanelDetailSplitProps {
   menu: MenuItem;
   appId: string;
+  appName: string;
   onNavigate: (path: string) => void;
 }
 
@@ -71,7 +72,7 @@ interface PanelDetailSplitProps {
  * - 우측: hover 중인 leaf의 경로/제목/전체 설명/큰 액션 버튼
  * - 행 hover로 우측 미리보기 갱신, 행 클릭으로 해당 페이지 이동
  */
-const PanelDetailSplit = ({ menu, appId, onNavigate }: PanelDetailSplitProps) => {
+const PanelDetailSplit = ({ menu, appId, appName, onNavigate }: PanelDetailSplitProps) => {
   const location = useLocation();
   const [previewKey, setPreviewKey] = useState<string | null>(null);
 
@@ -122,10 +123,7 @@ const PanelDetailSplit = ({ menu, appId, onNavigate }: PanelDetailSplitProps) =>
       <div className="flex-1 min-w-0 overflow-y-auto bg-[#fcfdfe] px-7 py-6">
         {current ? (
           <>
-            <p className="mb-2 text-xs text-[#868e96]">
-              {current.crumb ? `${current.crumb} › ` : ''}
-              {current.label}
-            </p>
+            <p className="mb-2 text-xs text-[#868e96]">{[appName, menu.label, current.crumb].filter(Boolean).join(' › ')}</p>
             <h2 className="mb-3 text-xl font-bold text-[#212529]">{current.label}</h2>
             <p className="max-w-[460px] whitespace-pre-wrap text-sm leading-7 text-[#495057]">{current.desc?.trim() ? current.desc : '(설명 없음)'}</p>
             <div className="my-5 border-t border-[#e9ecef]" />
