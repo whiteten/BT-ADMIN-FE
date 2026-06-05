@@ -125,7 +125,7 @@ const PanelDetailSplit = ({ menu, appId, appName, onNavigate }: PanelDetailSplit
           <>
             <p className="mb-2 text-xs text-[#868e96]">{[appName, menu.label, current.crumb].filter(Boolean).join(' › ')}</p>
             <h2 className="mb-3 text-xl font-bold text-[#212529]">{current.label}</h2>
-            <p className="max-w-[460px] whitespace-pre-wrap text-sm leading-7 text-[#495057]">{current.desc?.trim() ? current.desc : '(설명 없음)'}</p>
+            {current.desc?.trim() && <p className="max-w-[460px] whitespace-pre-wrap text-sm leading-7 text-[#495057]">{current.desc}</p>}
             <div className="my-5 border-t border-[#e9ecef]" />
             <div className="flex flex-wrap gap-2.5">
               <NewWindowButton path={current.path} appId={appId} labeled />
