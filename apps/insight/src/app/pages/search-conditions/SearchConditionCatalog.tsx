@@ -44,7 +44,7 @@ export default function SearchConditionCatalog() {
             <Input
               value={searchText}
               onChange={(e) => setSearchText(e.target.value)}
-              placeholder="묶음명 · 조건 코드 검색…"
+              placeholder="검색조건명 · 조건 코드 검색…"
               prefix={<Search className="size-4 text-gray-400" />}
               className="w-full max-w-[300px]"
               allowClear

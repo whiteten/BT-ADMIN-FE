@@ -29,7 +29,6 @@ export default function SearchConditionGrid({ conditions }: SearchConditionGridP
   const columnDefs: ColDef<SearchConditionListItem>[] = [
     {
       headerName: '조건 코드',
-      field: 'nodes',
       colId: 'nodeCode',
       width: 160,
       cellRenderer: (params: ICellRendererParams<SearchConditionListItem>) => {
@@ -38,7 +37,7 @@ export default function SearchConditionGrid({ conditions }: SearchConditionGridP
       },
     },
     {
-      headerName: '묶음명',
+      headerName: '검색조건명',
       field: 'title',
       flex: 1,
     },
@@ -57,7 +56,6 @@ export default function SearchConditionGrid({ conditions }: SearchConditionGridP
     },
     {
       headerName: '입력 유형',
-      field: 'nodes',
       colId: 'inputType',
       width: 180,
       cellRenderer: (params: ICellRendererParams<SearchConditionListItem>) => {
@@ -80,7 +78,6 @@ export default function SearchConditionGrid({ conditions }: SearchConditionGridP
     },
     {
       headerName: '노드 수',
-      field: 'nodes',
       colId: 'nodeCount',
       width: 80,
       type: 'numericColumn',

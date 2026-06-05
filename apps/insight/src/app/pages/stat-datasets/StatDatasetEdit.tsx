@@ -235,7 +235,7 @@ export default function StatDatasetEdit() {
           </div>
           {!isCalcEditing && (
             <div className="border-t border-bt-border bg-bt-bg-muted px-7 py-4">
-              <div className="flex items-center justify-between">
+              <div className="flex items-center justify-center gap-5">
                 <Button onClick={() => navigate('/insight/statistics/datasets')}>취소</Button>
                 <Tooltip title={validationStatus === 'invalid' ? '검증 실행 후 저장하세요' : undefined}>
                   <Button type="primary" onClick={handleSave} loading={isPending} disabled={validationStatus === 'invalid'}>
