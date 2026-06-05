@@ -111,7 +111,7 @@ function renderPreviewControl(node: NodeState): React.ReactNode {
     return (
       <div className="flex flex-col gap-2 max-h-48 overflow-y-auto">
         {options.map((o) => (
-          <Checkbox key={o.value} value={o.value} className="pointer-events-none">
+          <Checkbox key={o.value} className="pointer-events-none">
             {o.label}
           </Checkbox>
         ))}

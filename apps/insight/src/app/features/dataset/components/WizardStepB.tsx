@@ -5,7 +5,7 @@ import { SortableContext, arrayMove, useSortable, verticalListSortingStrategy } 
 import { CSS } from '@dnd-kit/utilities';
 import type { ColDef, IHeaderParams } from 'ag-grid-community';
 import { AgGridReact } from 'ag-grid-react';
-import { Button, Checkbox, Divider, Input, Modal, Select, Tag, Tooltip } from 'antd';
+import { App, Button, Checkbox, Divider, Input, Select, Tag, Tooltip } from 'antd';
 import { Download, Edit2, Play, Plus, Trash2 } from 'lucide-react';
 import { format as formatSql } from 'sql-formatter';
 import { toast } from '@/shared-util';
@@ -122,6 +122,7 @@ export default function WizardStepB({
 }: WizardStepBProps) {
   const [editing, setEditing] = useState<EditingState>({ mode: 'idle' });
   const { gridOptions } = useAggridOptions();
+  const { modal } = App.useApp();
 
   // ─── Validation state ──────────────────────────────────────────────────────
   const [validationStatus, setValidationStatus] = useState<ValidationStatus>('unchecked');
@@ -256,7 +257,7 @@ export default function WizardStepB({
       onFieldDisplaysChange([]);
     };
     if (fieldDisplays.length > 0) {
-      Modal.confirm({
+      modal.confirm({
         title: '컬럼 가져오기',
         content: '이미 조회한 컬럼정보가 존재합니다. 계속 진행하시겠습니까?',
         okText: '확인',
@@ -537,7 +538,7 @@ export default function WizardStepB({
           <Button size="small" icon={<Play className="w-3 h-3" />} loading={isChecking} onClick={handleValidate} disabled={visibleCount === 0}>
             검증 실행
           </Button>
-          <Divider type="vertical" className="mx-0" />
+          <Divider orientation="vertical" className="mx-0" />
           <Button size="small" icon={<Download className="w-3 h-3" />} onClick={handleImportColumns}>
             컬럼 가져오기
           </Button>
@@ -679,7 +680,7 @@ export default function WizardStepB({
                 <AgGridReact<LocalFieldDisplay>
                   rowData={sortedRows}
                   columnDefs={columnDefs}
-                  gridOptions={{ ...gridOptions, rowNumbers: false, pagination: false, statusBar: undefined }}
+                  gridOptions={{ ...gridOptions, rowNumbers: false, pagination: false, statusBar: undefined, sideBar: false }}
                   rowHeight={40}
                   getRowId={({ data }) => data.fieldName}
                   getRowClass={({ data }) => {

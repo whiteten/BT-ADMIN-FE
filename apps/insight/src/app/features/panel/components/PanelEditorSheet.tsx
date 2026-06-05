@@ -906,7 +906,7 @@ export default function PanelEditorSheet({ reportId, panelType, panelId, dataset
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex flex-col bg-white">
+    <div className="absolute inset-0 z-50 flex flex-col bg-white">
       {/* 헤더 */}
       <div className="flex h-14 shrink-0 items-center justify-between border-b border-border px-5">
         <div className="flex items-center gap-3">

@@ -1,4 +1,4 @@
-import { forwardRef, useImperativeHandle, useMemo, useState } from 'react';
+import { forwardRef, useEffect, useImperativeHandle, useMemo, useState } from 'react';
 // react-grid-layout v2.x — legacy 서브패스(WidthProvider HOC). 모니터링 DashboardCanvas 와 동일 패턴.
 // @ts-expect-error tsconfig.moduleResolution=node 에서 sub-path types 미인식 (런타임 정상)
 import { Responsive, WidthProvider } from 'react-grid-layout/legacy';
@@ -26,6 +26,8 @@ interface CanvasLayoutProps {
   mode: 'edit' | 'view';
   isDraft?: boolean;
   datasetId?: number;
+  /** 패널 편집 오버레이 열림/닫힘 알림 — 부모가 보고서 헤더·검색바를 숨기는 데 사용 */
+  onEditorOpenChange?: (open: boolean) => void;
 }
 
 /** 부모 헤더에서 "영역 추가"를 명령형으로 트리거하기 위한 ref 핸들 (모니터링 DashboardHeader 와 동일 배치). */
@@ -66,7 +68,7 @@ function packPosition(items: { x: number; y: number; w: number; h: number }[], w
  * 구성 시작하기 → 영역분할 모달 → 빈 영역(placeholder) → 추가하기 →
  * 패널 종류 모달 → 데이터셋 모달 → 패널 편집 드로어.
  */
-const CanvasLayout = forwardRef<CanvasLayoutRef, CanvasLayoutProps>(function CanvasLayout({ reportId, mode, isDraft, datasetId = 0 }, ref) {
+const CanvasLayout = forwardRef<CanvasLayoutRef, CanvasLayoutProps>(function CanvasLayout({ reportId, mode, isDraft, datasetId = 0, onEditorOpenChange }, ref) {
   const { panels } = useReportEditorStore();
   const isEdit = mode === 'edit';
 
@@ -91,6 +93,11 @@ const CanvasLayout = forwardRef<CanvasLayoutRef, CanvasLayoutProps>(function Can
   const { mutate: updateLayouts } = useUpdatePanelLayouts();
 
   const isEmpty = panels.length === 0 && placeholders.length === 0;
+
+  // 패널 편집 오버레이 열림 상태를 부모에 통지 (보고서 헤더·검색바 숨김용)
+  useEffect(() => {
+    onEditorOpenChange?.(editorOpen);
+  }, [editorOpen, onEditorOpenChange]);
 
   // 헤더(부모)의 "영역 추가" 버튼이 호출 — 모니터링과 동일하게 영역추가 트리거를 헤더로 올림
   useImperativeHandle(ref, () => ({ openAddArea: () => setLayoutPickerOpen(true) }), []);
@@ -213,40 +220,41 @@ const CanvasLayout = forwardRef<CanvasLayoutRef, CanvasLayoutProps>(function Can
           : { backgroundColor: '#e8eaed' }
       }
     >
-      {/* 빈 캔버스 — 구성 시작하기 히어로 */}
-      {isEdit && isEmpty ? (
-        <EmptyReportCanvas onStart={() => setLayoutPickerOpen(true)} />
-      ) : (
-        <>
-          {/* 영역 추가 버튼은 부모 헤더로 이동 (모니터링 DashboardHeader 와 동일). 캔버스는 패널만 차지. */}
-          <ResponsiveGridLayout
-            className="layout"
-            layouts={{ lg: layout, md: layout, sm: layout }}
-            breakpoints={{ lg: 1200, md: 996, sm: 768 }}
-            cols={{ lg: COLS, md: COLS, sm: COLS }}
-            rowHeight={ROW_HEIGHT}
-            margin={[GRID_MARGIN, GRID_MARGIN]}
-            isDraggable={isEdit}
-            isResizable={isEdit}
-            draggableHandle={`.${DRAG_HANDLE_CLASS}`}
-            draggableCancel=".panel-no-drag"
-            onDragStop={handleDragResizeStop}
-            onResizeStop={handleDragResizeStop}
-            useCSSTransforms
-          >
-            {panels.map((panel) => (
-              <div key={`panel-${panel.panelId}`}>
-                <PanelWrapper panel={panel} reportId={reportId} mode={mode} onEdit={() => handleEditPanel(panel.panelId)} draggableClass={DRAG_HANDLE_CLASS} />
-              </div>
-            ))}
-            {placeholders.map((ph) => (
-              <div key={`ph-${ph.id}`}>
-                <PlaceholderPanelCard onAdd={() => handleStartAddPanel(ph.id, ph.layout)} onDelete={() => handleDeletePlaceholder(ph.id)} draggableClass={DRAG_HANDLE_CLASS} />
-              </div>
-            ))}
-          </ResponsiveGridLayout>
-        </>
-      )}
+      {/* 빈 캔버스 — 구성 시작하기 히어로. 패널 편집 오버레이가 열리면 본문 숨김(공통 바·필터 유지) */}
+      {!editorOpen &&
+        (isEdit && isEmpty ? (
+          <EmptyReportCanvas onStart={() => setLayoutPickerOpen(true)} />
+        ) : (
+          <>
+            {/* 영역 추가 버튼은 부모 헤더로 이동 (모니터링 DashboardHeader 와 동일). 캔버스는 패널만 차지. */}
+            <ResponsiveGridLayout
+              className="layout"
+              layouts={{ lg: layout, md: layout, sm: layout }}
+              breakpoints={{ lg: 1200, md: 996, sm: 768 }}
+              cols={{ lg: COLS, md: COLS, sm: COLS }}
+              rowHeight={ROW_HEIGHT}
+              margin={[GRID_MARGIN, GRID_MARGIN]}
+              isDraggable={isEdit}
+              isResizable={isEdit}
+              draggableHandle={`.${DRAG_HANDLE_CLASS}`}
+              draggableCancel=".panel-no-drag"
+              onDragStop={handleDragResizeStop}
+              onResizeStop={handleDragResizeStop}
+              useCSSTransforms
+            >
+              {panels.map((panel) => (
+                <div key={`panel-${panel.panelId}`}>
+                  <PanelWrapper panel={panel} reportId={reportId} mode={mode} onEdit={() => handleEditPanel(panel.panelId)} draggableClass={DRAG_HANDLE_CLASS} />
+                </div>
+              ))}
+              {placeholders.map((ph) => (
+                <div key={`ph-${ph.id}`}>
+                  <PlaceholderPanelCard onAdd={() => handleStartAddPanel(ph.id, ph.layout)} onDelete={() => handleDeletePlaceholder(ph.id)} draggableClass={DRAG_HANDLE_CLASS} />
+                </div>
+              ))}
+            </ResponsiveGridLayout>
+          </>
+        ))}
 
       {/* 1) 영역분할 모달 */}
       <LayoutPickerModal open={layoutPickerOpen} onClose={() => setLayoutPickerOpen(false)} onSelect={handleAddArea} />
