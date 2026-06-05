@@ -36,7 +36,7 @@ function SystemRenderer(props: { data?: SystemNode }) {
       <span className="truncate font-bold" title={d.systemName}>
         {d.systemName}
       </span>
-      {danger && <span className="shrink-0 text-[10px] font-semibold text-bt-danger">{d.status === 3 ? 'Crit' : 'Major'}</span>}
+      {danger && <span className="shrink-0 text-[10px] font-semibold text-bt-danger">{d.status === 3 ? '위험' : '경고'}</span>}
     </span>
   );
 }
@@ -132,7 +132,7 @@ function getRowStyle(p: { data?: SystemNode }): RowStyle | undefined {
   const d = p.data;
   if (!d) return undefined;
   if (!d.isAlive) return { borderLeft: `4px solid ${DANGER}`, background: 'rgba(201,42,42,0.06)' };
-  if (d.status >= 2) return { borderLeft: `4px solid ${DANGER}`, background: 'rgba(201,42,42,0.04)' };
+  if (d.status >= 2) return { borderLeft: `4px solid ${STATUS_META[d.status].hex}`, background: 'rgba(201,42,42,0.04)' };
   if (d.status === 1) return { borderLeft: '4px solid #b76e00' };
   return { borderLeft: '4px solid #0a8a4a' };
 }

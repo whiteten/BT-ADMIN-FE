@@ -1,8 +1,9 @@
-import { type ReactNode, useMemo } from 'react';
+import { type ComponentProps, type HTMLAttributes, type ReactNode, forwardRef, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import ReactECharts from 'echarts-for-react';
-import { AlertTriangle, ChevronRight, Server } from 'lucide-react';
+import { Activity, AlertTriangle, Cable, ChevronRight, Headset, Hourglass, ListOrdered, PhoneIncoming, PhoneMissed, Radio, Server, Timer } from 'lucide-react';
 import { SEV_BG, SEV_BG_SOFT, SEV_HEX, SEV_TEXT, abandonSev, agentDonutSegments, answerRateSev, overallStatus, serviceLevelSev, toHealthData, waitingSev } from './helpers';
-import type { HealthBoardData, HealthBoardThresholds, QualityInfo, QueueRow, Severity, SystemHealth, SystemProcess, TrunkBoard } from './types';
+import type { ChannelBoard, HealthBoardData, HealthBoardThresholds, QualityInfo, QueueRow, Severity, SystemHealth, SystemProcess, TrunkBoard } from './types';
+import { useDrilldown } from '../../components/drilldown/DrilldownProvider';
 import { HoverCard, HoverCardContent, HoverCardTrigger } from '@/libs/shared-ui/src/components/shadcn/hover-card';
 
 /**
@@ -30,6 +31,9 @@ export interface HealthBoardWidgetProps {
 
 export default function HealthBoardWidget({ data, options }: HealthBoardWidgetProps) {
   const t = options?.thresholds;
+  const { open } = useDrilldown();
+  // 드릴다운 구독에 헬스보드 컨텍스트(mediaType 등)를 상속시킨다.
+  const drillOptions = options as Record<string, unknown> | undefined;
 
   // 라이브 데이터(WS DATA 프레임)를 그대로 정규화해 렌더한다. 데이터가 아직 없으면 빈/0 값으로 표시된다.
   const d = useMemo<HealthBoardData>(() => toHealthData(data), [data]);
@@ -51,6 +55,7 @@ export default function HealthBoardWidget({ data, options }: HealthBoardWidgetPr
         <div className="grid grid-cols-2 gap-4 lg:grid-cols-5">
           <GaugeCard
             label="응대율"
+            icon={<PhoneIncoming className="h-3.5 w-3.5" />}
             value={d.answerRate}
             max={100}
             target={t?.answerRate?.good ?? 90}
@@ -70,6 +75,7 @@ export default function HealthBoardWidget({ data, options }: HealthBoardWidgetPr
           />
           <GaugeCard
             label="SL"
+            icon={<Timer className="h-3.5 w-3.5" />}
             value={d.serviceLevel}
             max={100}
             target={t?.serviceLevel?.good ?? 90}
@@ -79,51 +85,76 @@ export default function HealthBoardWidget({ data, options }: HealthBoardWidgetPr
           />
           <GaugeCard
             label="포기율"
+            icon={<PhoneMissed className="h-3.5 w-3.5" />}
             value={d.abandonRate}
-            max={10}
+            max={100}
             target={t?.abandonRate?.good ?? 3}
             display={fmtPct(d.abandonRate)}
             sev={abandonSev(d, t)}
             footer={<SevPill sev={abandonSev(d, t)} okText="목표 이내" warnText="목표 초과" />}
           />
           <WaitingCard count={d.waitingCnt} sev={waitingSev(d, t)} />
-          <AlarmCard notice={d.alarm.notice} warning={d.alarm.warning} danger={d.alarm.danger} />
+          <AlarmCard
+            minor={d.alarm.minor}
+            major={d.alarm.major}
+            critical={d.alarm.critical}
+            onLink={() => open({ title: '알람센터 (장애 이력)', sub: '알람 카드 드릴다운 · TB_CC_ERRHISTORY', widgetType: 'alarm-center' })}
+          />
         </div>
       </section>
 
       {/* ═══ 시스템 신호등 (LED 칩) ═══ */}
       <section>
         <SectionEyebrow sev={worstSeverity(d.systems.map((s) => s.severity))}>프로세스 상태</SectionEyebrow>
-        <div className="flex flex-wrap items-center gap-3 rounded-xl border border-bt-border bg-bt-bg px-5 py-3.5 bt-shadow">
-          {sortedSystems.map((s) => (
-            <SystemChip key={s.code} system={s} />
-          ))}
-          <CardLink className="ml-auto">노드 상세</CardLink>
-        </div>
+        <SystemChipRow
+          systems={sortedSystems}
+          onLink={() => open({ title: '노드 상세 (시스템 자원)', sub: '시스템 신호등 드릴다운 · SYSTEM:STAT', widgetType: 'node-detail', options: drillOptions })}
+        />
       </section>
 
       {/* ═══ 요약 3카드 ═══ */}
       <section className="flex min-h-0 flex-1 flex-col">
         <SectionEyebrow sev={overall.sev}>상세 현황</SectionEyebrow>
-        <div className="grid min-h-0 flex-1 grid-cols-1 gap-4 lg:grid-cols-4">
+        <div className="grid min-h-0 flex-1 grid-cols-1 gap-4 lg:grid-cols-[1.2fr_1.2fr_1.2fr_1fr_1fr]">
           <SummaryCard
             title="회선 포화"
-            titleSub="· 사용률순"
+            icon={<Cable className="h-4 w-4 text-bt-fg-muted" />}
             link="회선 현황"
             sev={d.trunks.summary.blockCnt > 0 || d.trunks.summary.errorCnt > 0 || d.trunks.summary.saturatedCnt > 0 ? 'danger' : 'success'}
           >
             <TrunkPanel trunks={d.trunks} />
           </SummaryCard>
 
-          <SummaryCard title="큐 현황" titleSub="· 위험순" link="큐 모니터" sev={worstSeverity(d.queues.map((q) => q.sev))}>
+          <SummaryCard
+            title="큐 현황"
+            icon={<ListOrdered className="h-4 w-4 text-bt-fg-muted" />}
+            link="큐 모니터"
+            sev={worstSeverity(d.queues.map((q) => q.sev))}
+            onLink={() => open({ title: '큐(CTIQ) 상태 매트릭스', sub: '큐 현황 드릴다운 · IC:CTIQ', widgetType: 'ctiq-status-matrix', options: drillOptions })}
+          >
             <QueueChart queues={d.queues} />
           </SummaryCard>
 
-          <SummaryCard title="상담사 상태" titleSub={`· ${agentTotal(d)}명`} link="상담사 현황" sev="success">
+          <SummaryCard title="채널 현황" icon={<Radio className="h-4 w-4 text-bt-fg-muted" />} link="채널 상세" sev={worstSeverity(d.channels.items.map((c) => c.severity))}>
+            <ChannelPanel channels={d.channels} />
+          </SummaryCard>
+
+          <SummaryCard
+            title="상담사 상태"
+            icon={<Headset className="h-4 w-4 text-bt-fg-muted" />}
+            link="상담사 현황"
+            sev="info"
+            onLink={() => open({ title: '상담사 상태 매트릭스', sub: '상담사 카드 드릴다운 · IC:AGENT', widgetType: 'agent-status-matrix', options: drillOptions })}
+          >
             <AgentDonut data={d} />
           </SummaryCard>
 
-          <SummaryCard title="통화 품질" titleSub="· MoS" link="품질 위험판" sev={d.quality.bad > 0 ? 'danger' : d.quality.warn > 0 ? 'notice' : 'success'}>
+          <SummaryCard
+            title="통화 품질"
+            icon={<Activity className="h-4 w-4 text-bt-fg-muted" />}
+            link="품질 위험판"
+            sev={d.quality.bad > 0 ? 'danger' : d.quality.warn > 0 ? 'notice' : 'success'}
+          >
             <QualityPanel quality={d.quality} />
           </SummaryCard>
         </div>
@@ -137,11 +168,6 @@ export default function HealthBoardWidget({ data, options }: HealthBoardWidgetPr
 function fmtPct(v: number | null): string {
   if (v == null) return '—';
   return Number.isInteger(v) ? String(v) : v.toFixed(1);
-}
-
-function agentTotal(d: HealthBoardData): number {
-  const a = d.agents;
-  return a.available + a.talking + a.wrapup + a.aux + a.offline;
 }
 
 /** 심각도 목록 중 가장 위험한 값 (없으면 정상). */
@@ -192,10 +218,11 @@ function SectionEyebrow({ sev, children }: { sev: Severity; children: ReactNode 
 
 // ─── 링크 (명확한 클릭 affordance) ─────────────────────────────
 
-function CardLink({ children, className = '' }: { children: ReactNode; className?: string }) {
+function CardLink({ children, className = '', onClick }: { children: ReactNode; className?: string; onClick?: () => void }) {
   return (
     <button
       type="button"
+      onClick={onClick}
       className={`group inline-flex items-center gap-0.5 rounded-md px-1.5 py-0.5 text-[12px] font-semibold text-bt-primary transition-colors hover:bg-bt-primary-soft hover:text-bt-primary-hover ${className}`}
     >
       <span className="underline decoration-bt-primary/40 underline-offset-2 group-hover:decoration-bt-primary-hover">{children}</span>
@@ -204,10 +231,37 @@ function CardLink({ children, className = '' }: { children: ReactNode; className
   );
 }
 
+// ─── ECharts 컨테이너 자동 리사이즈 래퍼 ───────────────────────
+
+/**
+ * echarts-for-react 는 window resize 만 감지하고 컨테이너(부모) 폭 변화는 못 잡는다.
+ * 그리드 캔버스에서 위젯이 최종 폭으로 자리잡기 전에 차트가 초기화되면 SVG 가 좁은 폭에
+ * 고정돼 좌측으로 치우친다. ResizeObserver 로 컨테이너 변화 시 resize() 를 호출해 보정한다.
+ */
+function AutoResizeECharts(props: ComponentProps<typeof ReactECharts>) {
+  const chartRef = useRef<InstanceType<typeof ReactECharts>>(null);
+  const boxRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    const el = boxRef.current;
+    if (!el) return;
+    const ro = new ResizeObserver(() => chartRef.current?.getEchartsInstance()?.resize());
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, []);
+  // echarts 루트에 flex justify-center 를 줘, 내부 렌더 블록이 컨테이너보다 좁아도(리사이즈 지연 등)
+  // 항상 가운데 정렬되게 한다(좌측 치우침 방지). 폭이 맞으면 no-op.
+  return (
+    <div ref={boxRef} className="w-full">
+      <ReactECharts ref={chartRef} {...props} className={`flex justify-center ${props.className ?? ''}`} />
+    </div>
+  );
+}
+
 // ─── 게이지 카드 (ECharts 반원 게이지) ──────────────────────────
 
 interface GaugeCardProps {
   label: string;
+  icon?: ReactNode;
   value: number | null;
   max: number;
   display: string;
@@ -220,7 +274,7 @@ interface GaugeCardProps {
 // 게이지 공통 형상 (메인 호 / 목표 틱 두 시리즈가 동일 좌표를 공유)
 const GAUGE_GEOM = { startAngle: 200, endAngle: -20, min: 0, radius: '116%', center: ['50%', '82%'] as [string, string] };
 
-function GaugeCard({ label, value, max, display, sev, target, footer }: GaugeCardProps) {
+function GaugeCard({ label, icon, value, max, display, sev, target, footer }: GaugeCardProps) {
   const color = SEV_HEX[sev];
   const option = useMemo(
     () => ({
@@ -286,7 +340,10 @@ function GaugeCard({ label, value, max, display, sev, target, footer }: GaugeCar
     <div className="relative flex flex-col items-center overflow-hidden rounded-xl border border-bt-border bg-bt-bg px-4 pt-4 pb-2.5 bt-shadow">
       <div className={`absolute inset-x-0 top-0 h-1 ${SEV_BG[sev]}`} />
       <div className="flex w-full items-center justify-between">
-        <span className="text-[13px] font-bold uppercase tracking-wide text-bt-fg-muted">{label}</span>
+        <span className="inline-flex items-center gap-1.5 text-[13px] font-bold uppercase tracking-wide text-bt-fg-muted">
+          {icon}
+          {label}
+        </span>
         {target != null && (
           <span className="inline-flex items-center gap-1 text-[11px] font-medium text-bt-fg-muted">
             <span className="h-2.5 w-0.5 rounded-full bg-[#3a3f47]" />
@@ -294,7 +351,7 @@ function GaugeCard({ label, value, max, display, sev, target, footer }: GaugeCar
           </span>
         )}
       </div>
-      <ReactECharts option={option} style={{ height: 104, width: '100%' }} notMerge lazyUpdate opts={{ renderer: 'svg' }} />
+      <AutoResizeECharts option={option} style={{ height: 104, width: '100%' }} notMerge lazyUpdate opts={{ renderer: 'svg' }} />
       <div className="mt-auto flex min-h-[28px] w-full items-center justify-center pt-1">{footer}</div>
     </div>
   );
@@ -317,9 +374,12 @@ function WaitingCard({ count, sev }: { count: number; sev: Severity }) {
   return (
     <div className="relative flex flex-col items-center overflow-hidden rounded-xl border border-bt-border bg-bt-bg px-4 pt-4 pb-2.5 bt-shadow">
       <div className={`absolute inset-x-0 top-0 h-1 ${SEV_BG[sev]}`} />
-      <div className="self-start text-[13px] font-bold uppercase tracking-wide text-bt-fg-muted">현재 대기</div>
+      <div className="inline-flex items-center gap-1.5 self-start text-[13px] font-bold uppercase tracking-wide text-bt-fg-muted">
+        <Hourglass className="h-3.5 w-3.5" />
+        현재 대기
+      </div>
       <div className="flex flex-1 items-baseline justify-center gap-1.5 py-3">
-        <span className={`bt-countup tabular-nums text-[60px] font-extrabold leading-none tabular-nums ${SEV_TEXT[sev]}`}>{count}</span>
+        <span className={`bt-countup tabular-nums text-[60px] font-extrabold leading-none ${SEV_TEXT[sev]}`}>{count}</span>
         <span className="text-[14px] font-medium text-bt-fg-muted">콜</span>
       </div>
       <div className="mt-auto flex min-h-[28px] w-full items-center justify-center pt-1">
@@ -331,10 +391,10 @@ function WaitingCard({ count, sev }: { count: number; sev: Severity }) {
 
 // ─── 알람 카드 ─────────────────────────────────────────────────
 
-function AlarmCard({ notice, warning, danger }: { notice: number; warning: number; danger: number }) {
-  const active = danger > 0;
-  // 위험 0 이면 가장 높은 단계 톤으로 카드 외곽을 칠하고, 전부 0 이면 정상(중립) 톤.
-  const topSev: Severity = danger > 0 ? 'danger' : warning > 0 ? 'warning' : notice > 0 ? 'notice' : 'success';
+function AlarmCard({ minor, major, critical, onLink }: { minor: number; major: number; critical: number; onLink: () => void }) {
+  const active = critical > 0;
+  // 위험(critical) 0 이면 가장 높은 단계 톤으로 카드 외곽을 칠하고, 전부 0 이면 정상(중립) 톤.
+  const topSev: Severity = critical > 0 ? 'danger' : major > 0 ? 'warning' : minor > 0 ? 'notice' : 'success';
   const frame: Record<Severity, string> = {
     success: 'border-bt-border bg-bt-bg',
     notice: 'border-bt-notice/25 bg-bt-notice-soft',
@@ -344,19 +404,22 @@ function AlarmCard({ notice, warning, danger }: { notice: number; warning: numbe
   return (
     <div className={`relative flex flex-col overflow-hidden rounded-xl border px-4 pt-4 pb-2.5 bt-shadow ${frame[topSev]} ${active ? 'bt-pulse-ring' : ''}`}>
       <div className={`absolute inset-x-0 top-0 h-1 ${SEV_BG[topSev]}`} />
-      <div className={`inline-flex items-center gap-1.5 text-[13px] font-bold uppercase tracking-wide ${SEV_TEXT[topSev]}`}>
-        <AlertTriangle className="h-3.5 w-3.5" />
-        알람
+      <div className="flex items-center justify-between gap-2">
+        <div className={`inline-flex items-center gap-1.5 text-[13px] font-bold uppercase tracking-wide ${SEV_TEXT[topSev]}`}>
+          <AlertTriangle className="h-3.5 w-3.5" />
+          알람
+        </div>
+        <CardLink onClick={onLink}>알람센터</CardLink>
       </div>
       <div className="flex flex-1 items-center justify-center gap-3 py-2.5">
-        <AlarmCount sev="notice" count={notice} label="주의" />
+        <AlarmCount sev="notice" count={minor} label="주의" />
         <div className="h-10 w-px bg-bt-border" />
-        <AlarmCount sev="warning" count={warning} label="경고" />
+        <AlarmCount sev="warning" count={major} label="경고" />
         <div className="h-10 w-px bg-bt-border" />
-        <AlarmCount sev="danger" count={danger} label="위험" pulse={active} />
+        <AlarmCount sev="danger" count={critical} label="위험" pulse={active} />
       </div>
       <div className="mt-auto flex min-h-[28px] w-full items-center justify-center pt-1">
-        <CardLink>알람센터</CardLink>
+        <SevPill sev={topSev} okText="정상" warnText={topSev === 'danger' ? '위험 발생' : topSev === 'warning' ? '경고 발생' : '주의 발생'} />
       </div>
     </div>
   );
@@ -365,7 +428,7 @@ function AlarmCard({ notice, warning, danger }: { notice: number; warning: numbe
 function AlarmCount({ sev, count, label, pulse = false }: { sev: Severity; count: number; label: string; pulse?: boolean }) {
   return (
     <div className="flex flex-col items-center">
-      <span className={`bt-countup tabular-nums text-[32px] font-extrabold leading-none tabular-nums ${SEV_TEXT[sev]}`}>{count}</span>
+      <span className={`bt-countup tabular-nums text-[36px] font-extrabold leading-none ${SEV_TEXT[sev]}`}>{count}</span>
       <span className={`mt-1 inline-flex items-center gap-1 text-[11px] font-bold ${SEV_TEXT[sev]}`}>
         <span className={`h-1.5 w-1.5 rounded-full ${SEV_BG[sev]} ${pulse ? 'bt-pulse' : ''}`} />
         {label}
@@ -386,25 +449,132 @@ const CHIP_FRAME: Record<Severity, string> = {
 const CHIP_LABEL: Record<Severity, string> = { success: '정상', notice: '주의', warning: '경고', danger: '이상' };
 const PROC_LABEL: Record<Severity, string> = { success: '정상', notice: '주의', warning: '경고', danger: '위험' };
 
-function SystemChip({ system }: { system: SystemHealth }) {
+/** 칩 본문(시각). 실제 칩(HoverCard 트리거)과 폭 측정용 미러가 공유한다. asChild 위해 ref 포워딩. */
+const SystemChipBody = forwardRef<HTMLDivElement, { system: SystemHealth } & HTMLAttributes<HTMLDivElement>>(({ system, className = '', ...rest }, ref) => {
   const sev = system.severity;
   const ok = sev === 'success';
   return (
+    <div
+      ref={ref}
+      {...rest}
+      className={`flex shrink-0 cursor-default items-center gap-2.5 rounded-lg border px-4 py-2.5 transition-shadow hover:bt-shadow ${CHIP_FRAME[sev]} ${className}`}
+    >
+      <span className={`h-3 w-3 rounded-full ${SEV_BG[sev]} ${sev === 'danger' ? 'bt-pulse' : ''}`} style={{ boxShadow: `0 0 8px ${SEV_HEX[sev]}` }} />
+      <div className="leading-tight">
+        <div className="text-[13px] font-bold">{system.name}</div>
+        <div className={`text-[11px] font-medium ${ok ? 'text-bt-success' : `font-bold ${SEV_TEXT[sev]}`}`}>
+          {CHIP_LABEL[sev]} · 프로세스 {system.up}/{system.total}
+          {ok ? '' : ' ↓'}
+        </div>
+      </div>
+    </div>
+  );
+});
+SystemChipBody.displayName = 'SystemChipBody';
+
+function SystemChip({ system }: { system: SystemHealth }) {
+  return (
     <HoverCard openDelay={80} closeDelay={80}>
       <HoverCardTrigger asChild>
-        <div className={`flex cursor-default items-center gap-2.5 rounded-lg border px-4 py-2.5 transition-shadow hover:bt-shadow ${CHIP_FRAME[sev]}`}>
-          <span className={`h-3 w-3 rounded-full ${SEV_BG[sev]} ${sev === 'danger' ? 'bt-pulse' : ''}`} style={{ boxShadow: `0 0 8px ${SEV_HEX[sev]}` }} />
-          <div className="leading-tight">
-            <div className="text-[13px] font-bold">{system.name}</div>
-            <div className={`text-[11px] font-medium ${ok ? 'text-bt-success' : `font-bold ${SEV_TEXT[sev]}`}`}>
-              {CHIP_LABEL[sev]} · 프로세스 {system.up}/{system.total}
-              {ok ? '' : ' ↓'}
-            </div>
-          </div>
-        </div>
+        <SystemChipBody system={system} />
       </HoverCardTrigger>
       <HoverCardContent align="start" sideOffset={8} className="w-72 overflow-hidden border-bt-border bg-bt-bg p-0 text-bt-fg shadow-lg">
         <SystemProcessPanel system={system} />
+      </HoverCardContent>
+    </HoverCard>
+  );
+}
+
+/**
+ * 시스템 칩 행 — 단일 행에 들어가는 만큼만 칩을 그리고, 넘치면 "+N" 배지로 접는다.
+ * 측정용 숨김 미러(SystemChipBody 전체)로 각 칩 실제 폭을 구해, 컨테이너 폭에 맞춰 표시 개수를 계산한다.
+ */
+function SystemChipRow({ systems, onLink }: { systems: SystemHealth[]; onLink: () => void }) {
+  const wrapRef = useRef<HTMLDivElement>(null);
+  const measureRef = useRef<HTMLDivElement>(null);
+  const [visible, setVisible] = useState(systems.length);
+
+  useLayoutEffect(() => {
+    const wrap = wrapRef.current;
+    const mirror = measureRef.current;
+    if (!wrap || !mirror) return;
+    const GAP = 12; // gap-3
+    const LINK_RESERVE = 92; // '노드 상세' 링크 폭
+    const BADGE_RESERVE = 52; // '+N' 배지 폭
+    const fit = (avail: number) => {
+      let used = 0;
+      let count = 0;
+      for (const chip of Array.from(mirror.children) as HTMLElement[]) {
+        const w = chip.offsetWidth + (count > 0 ? GAP : 0);
+        if (used + w > avail) break;
+        used += w;
+        count++;
+      }
+      return count;
+    };
+    const recompute = () => {
+      const content = wrap.clientWidth - 40; // px-5 좌우 패딩
+      // 링크 자리만 빼고 전부 들어가면 배지 없이 전부 표시
+      if (fit(content - LINK_RESERVE) >= systems.length) {
+        setVisible(systems.length);
+        return;
+      }
+      setVisible(Math.max(1, fit(content - LINK_RESERVE - BADGE_RESERVE)));
+    };
+    const ro = new ResizeObserver(recompute);
+    ro.observe(wrap);
+    recompute();
+    return () => ro.disconnect();
+  }, [systems]);
+
+  const hidden = systems.slice(visible);
+  return (
+    <div ref={wrapRef} className="relative flex items-center gap-3 overflow-hidden rounded-xl border border-bt-border bg-bt-bg px-5 py-3.5 bt-shadow">
+      {/* 측정용 숨김 미러 — 모든 칩 본문의 실제 폭 산출 (레이아웃 비영향) */}
+      <div ref={measureRef} aria-hidden className="pointer-events-none absolute -left-[9999px] top-0 flex gap-3 opacity-0">
+        {systems.map((s) => (
+          <SystemChipBody key={s.code} system={s} />
+        ))}
+      </div>
+      {systems.slice(0, visible).map((s) => (
+        <SystemChip key={s.code} system={s} />
+      ))}
+      {hidden.length > 0 && <SystemOverflowBadge hidden={hidden} />}
+      <CardLink className="ml-auto shrink-0" onClick={onLink}>
+        노드 상세
+      </CardLink>
+    </div>
+  );
+}
+
+/** "+N" 배지 — 접힌 시스템 개수. 호버 시 접힌 시스템 목록(이름·상태)을 팝오버로 보여준다. */
+function SystemOverflowBadge({ hidden }: { hidden: SystemHealth[] }) {
+  const worst = worstSeverity(hidden.map((s) => s.severity));
+  return (
+    <HoverCard openDelay={80} closeDelay={80}>
+      <HoverCardTrigger asChild>
+        <button
+          type="button"
+          className="flex shrink-0 cursor-default items-center gap-1.5 rounded-lg border border-bt-border bg-bt-bg-muted px-3 py-2.5 text-[13px] font-bold text-bt-fg-muted transition-shadow hover:bt-shadow"
+        >
+          <span className={`h-2 w-2 rounded-full ${SEV_BG[worst]} ${worst === 'danger' ? 'bt-pulse' : ''}`} />+{hidden.length}
+        </button>
+      </HoverCardTrigger>
+      <HoverCardContent align="end" sideOffset={8} className="w-64 overflow-hidden border-bt-border bg-bt-bg p-0 text-bt-fg shadow-lg">
+        <div className="border-b border-bt-border px-3.5 py-2.5 text-[12px] font-bold">그 외 시스템 {hidden.length}</div>
+        <ul className="max-h-64 overflow-y-auto py-1">
+          {hidden.map((s) => (
+            <li key={s.code} className="flex items-center justify-between gap-2 px-3.5 py-1.5 transition-colors hover:bg-bt-bg-muted">
+              <span className="flex min-w-0 items-center gap-2">
+                <span className={`h-2 w-2 shrink-0 rounded-full ${SEV_BG[s.severity]} ${s.severity === 'danger' ? 'bt-pulse' : ''}`} />
+                <span className="truncate text-[12px] font-semibold">{s.name}</span>
+              </span>
+              <span className="shrink-0 text-[11px] text-bt-fg-muted">
+                {CHIP_LABEL[s.severity]} · {s.up}/{s.total}
+              </span>
+            </li>
+          ))}
+        </ul>
       </HoverCardContent>
     </HoverCard>
   );
@@ -461,18 +631,98 @@ function SystemProcessPanel({ system }: { system: SystemHealth }) {
 
 // ─── 요약 카드 셸 ──────────────────────────────────────────────
 
-function SummaryCard({ title, titleSub, link, sev, children }: { title: string; titleSub?: string; link: string; sev: Severity; children: ReactNode }) {
+function SummaryCard({
+  title,
+  icon,
+  link,
+  sev,
+  onLink,
+  children,
+}: {
+  title: string;
+  icon?: ReactNode;
+  link: string;
+  sev: Severity | 'info';
+  /** 링크 클릭 핸들러 — 전용 위젯(드릴다운)이 있는 카드에만 전달. 없으면 링크는 비활성. */
+  onLink?: () => void;
+  children: ReactNode;
+}) {
+  // 'info' = 상태(좋고나쁨)가 없는 정보 카드 — 회색(비활성 느낌) 대신 파랑(정보) 액센트.
+  const accent = sev === 'info' ? 'bg-bt-primary' : SEV_BG[sev];
   return (
     <div className="relative flex h-full min-h-[230px] flex-col overflow-hidden rounded-xl border border-bt-border bg-bt-bg bt-shadow">
-      <div className={`absolute inset-x-0 top-0 h-1 ${SEV_BG[sev]}`} />
+      <div className={`absolute inset-x-0 top-0 h-1 ${accent}`} />
       <div className="flex items-center justify-between border-b border-bt-border px-5 py-3.5">
-        <h2 className="text-[14px] font-bold">
+        <h2 className="flex items-center gap-1.5 text-[14px] font-bold">
+          {icon}
           {title}
-          {titleSub && <span className="text-[12px] font-normal text-bt-fg-muted"> {titleSub}</span>}
         </h2>
-        <CardLink>{link}</CardLink>
+        <CardLink onClick={onLink}>{link}</CardLink>
       </div>
       <div className="flex flex-1 flex-col justify-center px-5 py-4">{children}</div>
+    </div>
+  );
+}
+
+// ─── 채널 현황 (IVR/SLEE 채널 점유율 막대 · 점유율순 Top-N) ────────
+
+function ChannelPanel({ channels }: { channels: ChannelBoard }) {
+  const s = channels.summary;
+  const worst = worstSeverity(channels.items.map((c) => c.severity));
+  return (
+    <div className="flex h-full min-h-0 flex-col gap-2">
+      {/* 요약 — 전체 점유율 + 시스템 수 */}
+      <div className="flex shrink-0 items-center justify-between rounded-lg bg-bt-bg-muted px-3 py-2">
+        <span className="text-[12px] text-bt-fg-muted">
+          전체 <b className="tabular-nums text-bt-fg">{fmtPct(s.rate)}%</b>{' '}
+          <span className="tabular-nums text-[11px]">
+            {s.busy}/{s.total}
+          </span>
+        </span>
+        <span
+          className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-semibold ${
+            worst === 'success' ? 'bg-bt-success-soft text-bt-success' : `${SEV_BG_SOFT[worst]} ${SEV_TEXT[worst]}`
+          }`}
+        >
+          {worst !== 'success' && <span className={`h-1.5 w-1.5 rounded-full ${SEV_BG[worst]} ${worst === 'danger' ? 'bt-pulse' : ''}`} />}
+          {worst === 'danger' ? '포화' : worst === 'notice' ? '주의' : '여유'} · {s.systemCnt}
+        </span>
+      </div>
+
+      {/* 시스템별 점유율 막대 (점유율순) — 인바운드(진)+아웃바운드(연) 분리 */}
+      <div className="min-h-0 flex-1 overflow-y-auto">
+        {channels.items.length > 0 ? (
+          <div className="flex flex-col gap-1.5">
+            {channels.items.map((c, i) => {
+              const inPct = c.total > 0 ? (c.inBusy / c.total) * 100 : 0;
+              return (
+                <div key={`${c.systemId}-${i}`} className="flex items-center gap-2 text-[12px]">
+                  <span className="flex w-[112px] min-w-0 shrink-0 items-center gap-1.5 font-semibold">
+                    <span className={`h-2 w-2 shrink-0 rounded-full ${SEV_BG[c.severity]} ${c.severity === 'danger' ? 'bt-pulse' : ''}`} />
+                    <span className="truncate" title={c.name}>
+                      {c.name}
+                    </span>
+                  </span>
+                  <div className="relative h-1.5 flex-1 overflow-hidden rounded-full bg-bt-bg-muted">
+                    {/* 총점유(연한색) */}
+                    <div className={`absolute inset-y-0 left-0 opacity-40 ${SEV_BG[c.severity]}`} style={{ width: `${Math.min(100, c.rate)}%` }} />
+                    {/* 인바운드 점유(진한색) */}
+                    <div className={`absolute inset-y-0 left-0 ${SEV_BG[c.severity]}`} style={{ width: `${Math.min(100, inPct)}%` }} />
+                  </div>
+                  <span className={`w-9 shrink-0 text-right tabular-nums font-bold ${SEV_TEXT[c.severity]}`}>{fmtPct(c.rate)}%</span>
+                </div>
+              );
+            })}
+          </div>
+        ) : (
+          <div className="py-6 text-center text-[12px] text-bt-fg-muted">채널 데이터 없음</div>
+        )}
+      </div>
+
+      {/* 푸터 — 인바운드/아웃바운드 점유 채널 */}
+      <div className="shrink-0 border-t border-bt-border pt-1.5 text-[11px] text-bt-fg-muted">
+        인바운드 <b className="tabular-nums text-bt-fg">{s.inBusy}</b> · 아웃바운드 <b className="tabular-nums">{s.outBusy}</b> 점유
+      </div>
     </div>
   );
 }
@@ -505,27 +755,32 @@ function TrunkPanel({ trunks }: { trunks: TrunkBoard }) {
       {/* Top-N 점유율 막대 · 임계 83 마커 — 카드 높이 초과 시 목록만 스크롤 */}
       <div className="min-h-0 flex-1 overflow-y-auto">
         {trunks.items.length > 0 ? (
-          <div className="flex flex-col gap-2.5">
-            {trunks.items.map((t, i) => (
-              <div key={`${t.name}-${i}`}>
-                <div className="mb-1 flex items-center justify-between gap-2 text-[12px]">
-                  <span className="inline-flex min-w-0 items-center gap-1.5 font-semibold">
+          <div className="flex flex-col gap-1.5">
+            {trunks.items.map((t, i) => {
+              // 인라인 한 줄: 이름 + 미니 점유율 막대(수신 진·총점유 연·83 마커) + %
+              const inPct = t.totalLine > 0 ? (t.inBusy / t.totalLine) * 100 : 0;
+              return (
+                <div key={`${t.name}-${i}`} className="flex items-center gap-2 text-[12px]">
+                  <span className="flex w-[112px] min-w-0 shrink-0 items-center gap-1.5 font-semibold">
                     <span className={`h-2 w-2 shrink-0 rounded-full ${SEV_BG[t.severity]} ${t.severity === 'danger' ? 'bt-pulse' : ''}`} />
                     <span className="truncate" title={t.name}>
                       {t.name}
                     </span>
-                    {t.block === 1 && <span className="shrink-0 text-[10px] font-bold text-bt-danger">BLOCK</span>}
-                    {t.registered === 0 && <span className="shrink-0 text-[10px] font-bold text-bt-danger">미등록</span>}
+                    {t.block === 1 && <span className="shrink-0 text-[9px] font-bold text-bt-danger">BLOCK</span>}
+                    {t.registered === 0 && <span className="shrink-0 text-[9px] font-bold text-bt-danger">미등록</span>}
                   </span>
-                  <span className={`shrink-0 tabular-nums font-bold ${SEV_TEXT[t.severity]}`}>{fmtPct(t.rate)}%</span>
+                  <div className="relative h-1.5 flex-1 overflow-hidden rounded-full bg-bt-bg-muted">
+                    {/* 총점유(수신+발신) — 연한색 */}
+                    <div className={`absolute inset-y-0 left-0 opacity-40 ${SEV_BG[t.severity]}`} style={{ width: `${Math.min(100, t.rate)}%` }} />
+                    {/* 수신 점유 — 진한색 */}
+                    <div className={`absolute inset-y-0 left-0 ${SEV_BG[t.severity]}`} style={{ width: `${Math.min(100, inPct)}%` }} />
+                    {/* 포화 임계 83 마커 */}
+                    <span className="absolute inset-y-0 w-px bg-[#3a3f47]" style={{ left: '83%' }} />
+                  </div>
+                  <span className={`w-9 shrink-0 text-right tabular-nums font-bold ${SEV_TEXT[t.severity]}`}>{fmtPct(t.rate)}%</span>
                 </div>
-                <div className="relative h-2.5 overflow-hidden rounded-full bg-bt-bg-muted">
-                  <div className={`h-full rounded-full ${SEV_BG[t.severity]}`} style={{ width: `${Math.max(2, Math.min(100, t.rate))}%` }} />
-                  {/* 포화 임계 마커 83% (AS-IS trunkStatus.jsp) */}
-                  <span className="absolute inset-y-0 w-0.5 bg-[#3a3f47]" style={{ left: '83%' }} />
-                </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         ) : (
           <div className="py-6 text-center text-[12px] text-bt-fg-muted">트렁크 데이터 없음</div>
@@ -586,7 +841,7 @@ function QueueChart({ queues }: { queues: QueueRow[] }) {
   return (
     <div className="flex flex-col gap-2.5">
       {queues.length > 0 ? (
-        <ReactECharts option={option} style={{ height: queues.length * 34, width: '100%' }} notMerge lazyUpdate />
+        <AutoResizeECharts option={option} style={{ height: queues.length * 34, width: '100%' }} notMerge lazyUpdate />
       ) : (
         <div className="py-6 text-center text-[12px] text-bt-fg-muted">위험 큐 없음</div>
       )}
@@ -621,7 +876,7 @@ function AgentDonut({ data }: { data: HealthBoardData }) {
   return (
     <div className="flex items-center gap-5">
       <div className="relative shrink-0" style={{ width: 116, height: 116 }}>
-        <ReactECharts option={option} style={{ height: 116, width: 116 }} notMerge lazyUpdate />
+        <AutoResizeECharts option={option} style={{ height: 116, width: 116 }} notMerge lazyUpdate />
         <div className="pointer-events-none absolute inset-0 flex flex-col items-center justify-center">
           <span className="text-xl font-extrabold leading-none tabular-nums text-bt-success">{data.agents.available}</span>
           <span className="text-[11px] text-bt-fg-muted">가용</span>
@@ -693,7 +948,7 @@ function QualityPanel({ quality }: { quality: QualityInfo }) {
 
       <div>
         <div className="mb-1.5 text-[11px] text-bt-fg-muted">MoS 등급 분포</div>
-        <ReactECharts option={option} style={{ height: 14, width: '100%' }} notMerge lazyUpdate />
+        <AutoResizeECharts option={option} style={{ height: 14, width: '100%' }} notMerge lazyUpdate />
       </div>
 
       {quality.lowestMos != null && (

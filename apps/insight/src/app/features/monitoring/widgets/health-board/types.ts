@@ -114,6 +114,41 @@ export interface TrunkBoard {
   items: TrunkInfo[];
 }
 
+/** 채널 현황 — IVR/SLEE 시스템 1건 (점유율 높은 순 Top-N). */
+export interface ChannelInfo {
+  /** 시스템 표시명 (SLEE {SYSTEM_ID}) */
+  name: string;
+  systemId: number;
+  /** 점유율 % = 점유 / 전체 × 100 */
+  rate: number;
+  /** 점유 채널 (CHNL_STATUS != IDLE) */
+  busy: number;
+  /** 전체 채널 */
+  total: number;
+  /** 인바운드 점유 채널 */
+  inBusy: number;
+  /** 아웃바운드 점유 채널 */
+  outBusy: number;
+  severity: Severity;
+}
+
+/** 채널 현황 전체 요약. */
+export interface ChannelSummary {
+  rate: number;
+  busy: number;
+  total: number;
+  inBusy: number;
+  outBusy: number;
+  /** 시스템(SLEE) 수 */
+  systemCnt: number;
+}
+
+/** 채널 현황 보드 (요약 + Top-N 목록). */
+export interface ChannelBoard {
+  summary: ChannelSummary;
+  items: ChannelInfo[];
+}
+
 /** 헬스보드 전체 정규화 데이터. */
 export interface HealthBoardData {
   /** 응대율 % (0~100) */
@@ -128,13 +163,14 @@ export interface HealthBoardData {
   answeredCnt: number;
   /** 현재 대기 호수 (전 큐 합계, 현재 스냅샷) */
   waitingCnt: number;
-  /** 알람 건수 — ERR_LEVEL 1/2/3 (주의/경고/위험). */
-  alarm: { notice: number; warning: number; danger: number };
+  /** 알람 건수 — ERR_LEVEL 1/2/3 = minor(주의)/major(경고)/critical(위험). DB·BE·FE 용어 일치. */
+  alarm: { minor: number; major: number; critical: number };
   systems: SystemHealth[];
   queues: QueueRow[];
   agents: AgentDistribution;
   quality: QualityInfo;
   trunks: TrunkBoard;
+  channels: ChannelBoard;
   /** 최종 갱신 시각 (ms) */
   serverTs?: number;
 }

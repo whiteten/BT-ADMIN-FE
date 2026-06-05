@@ -25,32 +25,32 @@ export interface NodeDetailWidgetProps {
   onRequestPause?: () => void;
 }
 
-/** 가동 시스템 STATUS 분류 버킷 — 표 행 필터·정렬용. */
-type SysBucket = 'normal' | 'minor' | 'danger';
+/** 가동 시스템 STATUS 분류 버킷 — 표 행 필터·정렬용 (0:정상 / 1:minor / 2:major / 3:critical). */
+type SysBucket = 'normal' | 'minor' | 'major' | 'critical';
 
 function sysBucket(n: SystemNode): SysBucket {
-  if (n.status >= 2) return 'danger';
+  if (n.status >= 3) return 'critical';
+  if (n.status === 2) return 'major';
   if (n.status === 1) return 'minor';
   return 'normal';
 }
 
-/** 상태 필터칩 정의 (가동 시스템 기준 — 다운은 항상 노출이라 별도 카운트 칩). */
-const BUCKET_FILTERS: { key: SysBucket; label: string; sev: Severity }[] = [
-  { key: 'danger', label: '위험', sev: 'danger' },
-  { key: 'minor', label: 'Minor', sev: 'warn' },
-  { key: 'normal', label: '정상', sev: 'success' },
+/** 상태 필터칩 정의 (가동 시스템 기준 — 다운은 항상 노출이라 별도 카운트 칩). 라벨은 정상/주의/경고/위험. */
+const BUCKET_FILTERS: { key: SysBucket; label: string; sev: Severity; hex: string }[] = [
+  { key: 'critical', label: '위험', sev: 'danger', hex: '#991b1b' },
+  { key: 'major', label: '경고', sev: 'danger', hex: '#c92a2a' },
+  { key: 'minor', label: '주의', sev: 'warn', hex: '#b76e00' },
+  { key: 'normal', label: '정상', sev: 'success', hex: '#0a8a4a' },
 ];
-
-const SEV_HEX: Record<Severity, string> = { success: '#0a8a4a', warn: '#b76e00', danger: '#c92a2a' };
 
 export default function NodeDetailWidget({ data }: NodeDetailWidgetProps) {
   const nodes = isNodeDemoMode() ? DEMO_NODES : fallbackNodes(toSystemNodes(data));
 
   const [alertOnly, setAlertOnly] = useState(false);
-  const [activeBuckets, setActiveBuckets] = useState<Set<SysBucket>>(() => new Set<SysBucket>(['normal', 'minor', 'danger']));
+  const [activeBuckets, setActiveBuckets] = useState<Set<SysBucket>>(() => new Set<SysBucket>(['normal', 'minor', 'major', 'critical']));
 
   const sys = countSystems(nodes);
-  const bucketCount: Record<SysBucket, number> = { normal: sys.normal, minor: sys.minor, danger: sys.danger };
+  const bucketCount: Record<SysBucket, number> = { normal: sys.normal, minor: sys.minor, major: sys.major, critical: sys.critical };
 
   // 표 행(시스템). 다운은 항상 노출(최상위 위험)·필터 무시. 가동 시스템만 버킷·위험만 필터.
   // 초기 정렬: 다운 우선 → STATUS 내림차순 → 이름 (이후 컬럼 헤더로 재정렬 가능).
@@ -58,7 +58,7 @@ export default function NodeDetailWidget({ data }: NodeDetailWidgetProps) {
     .filter((n) => {
       if (!n.isAlive) return true;
       const b = sysBucket(n);
-      if (alertOnly && b !== 'danger') return false;
+      if (alertOnly && b !== 'major' && b !== 'critical') return false;
       return activeBuckets.has(b);
     })
     .sort((a, b) => (a.isAlive === b.isAlive ? 0 : a.isAlive ? 1 : -1) || b.status - a.status || a.systemName.localeCompare(b.systemName));
@@ -75,13 +75,14 @@ export default function NodeDetailWidget({ data }: NodeDetailWidgetProps) {
 
   return (
     <div className="flex h-full flex-col gap-4 overflow-hidden bg-bt-bg-canvas p-5">
-      {/* ═══ KPI 스트립 (시스템 기준) ═══ */}
-      <section className="grid grid-cols-2 gap-3 lg:grid-cols-5">
+      {/* ═══ KPI 스트립 (시스템 기준) — 정상/주의(Minor)/경고(Major)/위험(Critical) + 다운 ═══ */}
+      <section className="grid grid-cols-2 gap-3 lg:grid-cols-6">
         <StatTile label="전체 시스템" value={sys.total} icon={<Activity className="h-3.5 w-3.5" />} />
         <StatTile label="다운" sub="시스템" value={sys.down} sev="danger" icon={<PowerOff className="h-3.5 w-3.5" />} pulse={sys.down > 0} />
-        <StatTile label="위험" sub="Major·Crit" value={sys.danger} sev="danger" pulse={sys.danger > 0} />
-        <StatTile label="Minor" value={sys.minor} sev="warn" />
-        <StatTile label="정상" value={sys.normal} sev="success" />
+        <StatTile label="위험" sub="Critical" value={sys.critical} hex="#991b1b" pulse={sys.critical > 0} />
+        <StatTile label="경고" sub="Major" value={sys.major} hex="#c92a2a" pulse={sys.major > 0} />
+        <StatTile label="주의" sub="Minor" value={sys.minor} hex="#b76e00" />
+        <StatTile label="정상" value={sys.normal} hex="#0a8a4a" />
       </section>
 
       {/* ═══ 필터·정렬 바 ═══ */}
@@ -102,7 +103,7 @@ export default function NodeDetailWidget({ data }: NodeDetailWidgetProps) {
                 active ? `${SEV_BG_SOFT[f.sev]} ${SEV_TEXT[f.sev]} ${SEV_BORDER_SOFT[f.sev]}` : 'border-bt-border bg-bt-bg text-bt-fg-muted hover:bg-bt-bg-muted'
               }`}
             >
-              <span className="h-1.5 w-1.5 rounded-full" style={{ background: SEV_HEX[f.sev] }} />
+              <span className="h-1.5 w-1.5 rounded-full" style={{ background: f.hex }} />
               {f.label} <span className="tabular-nums">{bucketCount[f.key]}</span>
             </button>
           );
@@ -149,18 +150,22 @@ function fallbackNodes(live: SystemNode[]): SystemNode[] {
 
 // ─── KPI 타일 ──────────────────────────────────────────────────
 
-function StatTile({ label, sub, value, sev, icon, pulse }: { label: string; sub?: string; value: number; sev?: Severity; icon?: ReactNode; pulse?: boolean }) {
-  const accent = sev ? SEV_BG[sev] : 'bg-bt-border-strong';
-  const text = sev ? SEV_TEXT[sev] : 'text-bt-fg';
+function StatTile({ label, sub, value, sev, hex, icon, pulse }: { label: string; sub?: string; value: number; sev?: Severity; hex?: string; icon?: ReactNode; pulse?: boolean }) {
+  const accent = hex ? '' : sev ? SEV_BG[sev] : 'bg-bt-border-strong';
+  const text = hex ? '' : sev ? SEV_TEXT[sev] : 'text-bt-fg';
   return (
-    <div className={`relative flex flex-col overflow-hidden rounded-xl border border-bt-border bg-bt-bg px-4 pt-3.5 pb-3 bt-shadow ${pulse ? 'bt-pulse-ring' : ''}`}>
-      <div className={`absolute inset-x-0 top-0 h-1 ${accent}`} />
-      <div className="flex items-center gap-1 text-[12px] font-bold uppercase tracking-wide text-bt-fg-muted">
+    <div
+      className={`relative flex flex-col items-center overflow-hidden rounded-xl border border-bt-border bg-bt-bg px-4 pt-3.5 pb-3 text-center bt-shadow ${pulse ? 'bt-pulse-ring' : ''}`}
+    >
+      <div className={`absolute inset-x-0 top-0 h-1 ${accent}`} style={hex ? { background: hex } : undefined} />
+      <div className="flex items-center justify-center gap-1 text-[12px] font-bold uppercase tracking-wide text-bt-fg-muted">
         {icon}
         {label}
       </div>
-      <div className="mt-1 flex items-baseline gap-1.5">
-        <span className={`text-[28px] font-extrabold leading-none tabular-nums ${text}`}>{value}</span>
+      <div className="mt-1 flex items-baseline justify-center gap-1.5">
+        <span className={`text-[28px] font-extrabold leading-none tabular-nums ${text}`} style={hex ? { color: hex } : undefined}>
+          {value}
+        </span>
         {sub && <span className="text-[11px] text-bt-fg-muted">{sub}</span>}
       </div>
     </div>

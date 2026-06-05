@@ -32,8 +32,14 @@ export interface AlarmRow {
   systemId: string;
   /** 조인으로 채워질 수 있는 시스템 표시명 (없으면 systemId 표시) */
   systemName?: string;
+  /** NODE_ID — 시스템 마스터(TB_CC_SYSTEMMASTER)에서 enrich된 노드 번호 */
+  nodeId?: string;
+  /** NODE_NAME — 노드 마스터(TB_CC_NODEMASTER)에서 enrich된 노드 표시명 */
+  nodeName?: string;
   /** ERR_PROCESS_ID */
   processId?: string;
+  /** PROCESS_NAME — 시스템 프로세스(TB_CC_SYSTEMPROCESS)에서 enrich된 프로세스 표시명 */
+  processName?: string;
   /** ERR_CODE */
   code: string;
   /** ERR_KIND (장애종류) */

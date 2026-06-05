@@ -10,6 +10,7 @@ import DashboardCanvas from '../../features/monitoring/components/canvas/Dashboa
 import EmptyCanvas from '../../features/monitoring/components/canvas/EmptyCanvas';
 import LayoutPickerModal from '../../features/monitoring/components/canvas/LayoutPickerModal';
 import WidgetLibraryModal from '../../features/monitoring/components/canvas/WidgetLibraryModal';
+import { DrilldownProvider } from '../../features/monitoring/components/drilldown/DrilldownProvider';
 import {
   dashboardKeys,
   useCreateWidget,
@@ -118,7 +119,7 @@ export default function DashboardView() {
   const customWidgetIds = useMemo(() => widgets.filter((w) => w.kind === 'CUSTOM').map((w) => w.widgetId), [widgets]);
   const widgetUserSettings = useWidgetUserSettingsMap(customWidgetIds);
 
-  const { connectionState, widgetData } = useDashboardSocket({
+  const { connectionState, widgetData, subscribeAdhoc, unsubscribeAdhoc } = useDashboardSocket({
     dashboardId,
     widgets,
     refreshThrottle,
@@ -315,55 +316,57 @@ export default function DashboardView() {
   const canEdit = true;
 
   return (
-    <div ref={rootRef} className="flex flex-col w-full h-full bg-[var(--color-bt-bg-canvas)]">
-      <DashboardHeader
-        dashboard={dashboard}
-        mode={mode}
-        canEdit={canEdit}
-        monitoringStarted={monitoringStarted}
-        connectionState={connectionState}
-        refreshThrottle={refreshThrottle}
-        onChangeRefreshThrottle={setRefreshThrottle}
-        onToggleMonitoring={() => setMonitoringStarted((v) => !v)}
-        onEnterEdit={() => setMode('edit')}
-        onRename={handleRename}
-        onSave={handleSave}
-        isSaving={isSaving}
-        onCancel={handleCancel}
-        onAddSlot={() => setIsLayoutPickerOpen(true)}
-      />
-
-      {mode === 'edit' ? (
-        <DashboardCanvas
-          dashboardId={dashboardId}
-          widgets={widgets}
-          editMode={true}
-          onWidgetsChange={handleWidgetsChange}
-          onAddWidgetAt={handleAddWidgetAt}
-          customMinSize={customMinSize}
-        >
-          {isEmpty && (
-            <div className="mt-4 flex flex-col gap-4">
-              <EmptyCanvas onLayoutSelect={handleLayoutSelect} />
-            </div>
-          )}
-        </DashboardCanvas>
-      ) : isEmpty ? (
-        <EmptyViewState canEdit={canEdit} onEnterEdit={() => setMode('edit')} />
-      ) : (
-        <DashboardCanvas
-          dashboardId={dashboardId}
-          widgets={widgets}
-          editMode={false}
-          widgetData={widgetData}
-          onRequestPause={() => setMonitoringStarted(false)}
-          customMinSize={customMinSize}
+    <DrilldownProvider subscribeAdhoc={subscribeAdhoc} unsubscribeAdhoc={unsubscribeAdhoc} widgetData={widgetData}>
+      <div ref={rootRef} className="flex flex-col w-full h-full bg-[var(--color-bt-bg-canvas)]">
+        <DashboardHeader
+          dashboard={dashboard}
+          mode={mode}
+          canEdit={canEdit}
+          monitoringStarted={monitoringStarted}
+          connectionState={connectionState}
+          refreshThrottle={refreshThrottle}
+          onChangeRefreshThrottle={setRefreshThrottle}
+          onToggleMonitoring={() => setMonitoringStarted((v) => !v)}
+          onEnterEdit={() => setMode('edit')}
+          onRename={handleRename}
+          onSave={handleSave}
+          isSaving={isSaving}
+          onCancel={handleCancel}
+          onAddSlot={() => setIsLayoutPickerOpen(true)}
         />
-      )}
 
-      <WidgetLibraryModal open={isLibraryOpen} onClose={() => setIsLibraryOpen(false)} onAddTemplate={handleAddTemplate} onAddCustom={handleAddCustom} />
-      <LayoutPickerModal open={isLayoutPickerOpen} onClose={() => setIsLayoutPickerOpen(false)} onSelect={handleAddSlotSelect} />
-    </div>
+        {mode === 'edit' ? (
+          <DashboardCanvas
+            dashboardId={dashboardId}
+            widgets={widgets}
+            editMode={true}
+            onWidgetsChange={handleWidgetsChange}
+            onAddWidgetAt={handleAddWidgetAt}
+            customMinSize={customMinSize}
+          >
+            {isEmpty && (
+              <div className="mt-4 flex flex-col gap-4">
+                <EmptyCanvas onLayoutSelect={handleLayoutSelect} />
+              </div>
+            )}
+          </DashboardCanvas>
+        ) : isEmpty ? (
+          <EmptyViewState canEdit={canEdit} onEnterEdit={() => setMode('edit')} />
+        ) : (
+          <DashboardCanvas
+            dashboardId={dashboardId}
+            widgets={widgets}
+            editMode={false}
+            widgetData={widgetData}
+            onRequestPause={() => setMonitoringStarted(false)}
+            customMinSize={customMinSize}
+          />
+        )}
+
+        <WidgetLibraryModal open={isLibraryOpen} onClose={() => setIsLibraryOpen(false)} onAddTemplate={handleAddTemplate} onAddCustom={handleAddCustom} />
+        <LayoutPickerModal open={isLayoutPickerOpen} onClose={() => setIsLayoutPickerOpen(false)} onSelect={handleAddSlotSelect} />
+      </div>
+    </DrilldownProvider>
   );
 }
 

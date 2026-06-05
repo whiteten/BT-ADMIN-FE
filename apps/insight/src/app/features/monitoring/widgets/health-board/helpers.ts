@@ -1,4 +1,4 @@
-import type { AgentDistribution, HealthBoardData, HealthBoardThresholds, Severity, TrunkBoard } from './types';
+import type { AgentDistribution, ChannelBoard, HealthBoardData, HealthBoardThresholds, Severity, TrunkBoard } from './types';
 
 /**
  * 순수 헬퍼 — 컴포넌트 의존 없음.
@@ -78,7 +78,7 @@ export function toHealthData(data: unknown): HealthBoardData {
     inboundCnt: num0(summaryRaw.inboundCnt),
     answeredCnt: num0(summaryRaw.answeredCnt),
     waitingCnt: num0(summaryRaw.waitingCnt),
-    alarm: { notice: num0(alarmRaw.notice), warning: num0(alarmRaw.warning), danger: num0(alarmRaw.danger) },
+    alarm: { minor: num0(alarmRaw.minor), major: num0(alarmRaw.major), critical: num0(alarmRaw.critical) },
     systems: Array.isArray(o.systems)
       ? (o.systems as Record<string, unknown>[]).map((s) => ({
           code: String(s.code ?? ''),
@@ -129,7 +129,37 @@ export function toHealthData(data: unknown): HealthBoardData {
       lowestAgentDn: qualityRaw.lowestAgentDn ? String(qualityRaw.lowestAgentDn) : undefined,
     },
     trunks: toTrunkBoard(o.trunks),
+    channels: toChannelBoard(o.channels),
     serverTs: toNum(o.serverTs) ?? undefined,
+  };
+}
+
+/** 원본 channels(요약+목록) → 정규화 ChannelBoard. */
+function toChannelBoard(raw: unknown): ChannelBoard {
+  const t = (raw ?? {}) as Record<string, unknown>;
+  const s = (t.summary ?? {}) as Record<string, unknown>;
+  const items = Array.isArray(t.items)
+    ? (t.items as Record<string, unknown>[]).map((it) => ({
+        name: String(it.name ?? ''),
+        systemId: num0(it.systemId),
+        rate: num0(it.rate),
+        busy: num0(it.busy),
+        total: num0(it.total),
+        inBusy: num0(it.inBusy),
+        outBusy: num0(it.outBusy),
+        severity: normalizeSeverity(it.severity),
+      }))
+    : [];
+  return {
+    summary: {
+      rate: num0(s.rate),
+      busy: num0(s.busy),
+      total: num0(s.total),
+      inBusy: num0(s.inBusy),
+      outBusy: num0(s.outBusy),
+      systemCnt: num0(s.systemCnt),
+    },
+    items,
   };
 }
 
@@ -205,9 +235,9 @@ export function waitingSev(d: HealthBoardData, t?: HealthBoardThresholds): Sever
 
 /** 종합 상태 — 위험(danger) > 경고(warning) > 주의(notice) > 정상(success). */
 export function overallStatus(d: HealthBoardData): { sev: Severity; dangerCnt: number; warningCnt: number; noticeCnt: number } {
-  const dangerCnt = d.alarm.danger;
-  const warningCnt = d.alarm.warning;
-  const noticeCnt = d.alarm.notice;
+  const dangerCnt = d.alarm.critical;
+  const warningCnt = d.alarm.major;
+  const noticeCnt = d.alarm.minor;
   const worst = (a: Severity, b: Severity): Severity => (SEV_RANK[a] >= SEV_RANK[b] ? a : b);
   let sev: Severity = 'success';
   if (dangerCnt > 0) sev = 'danger';

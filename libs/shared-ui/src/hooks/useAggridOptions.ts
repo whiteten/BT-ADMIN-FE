@@ -1,6 +1,10 @@
 import { useMemo } from 'react';
 import { type GridOptions, type SideBarDef, type StatusPanelDef, themeQuartz } from 'ag-grid-community';
 import { localeKr } from '../assets/json/aggrid_kr';
+import AggridAlarmLevelRenderer from '../components/custom/AggridAlarmLevelRenderer';
+import AggridAlarmStatusRenderer from '../components/custom/AggridAlarmStatusRenderer';
+import AggridAlarmSystemRenderer from '../components/custom/AggridAlarmSystemRenderer';
+import AggridAlarmTimeRenderer from '../components/custom/AggridAlarmTimeRenderer';
 import AggridNoRowsOverlay from '../components/custom/AggridNoRowsOverlay';
 import AggridPagination from '../components/custom/AggridPagination';
 import AggridPercentBarRenderer from '../components/custom/AggridPercentBarRenderer';
@@ -65,6 +69,11 @@ export default function useAggridOptions() {
     () => ({
       // 공용 셀 렌더러는 여기서 문자열 키로 등록하고, 각 그리드에서 cellRenderer: '키' 로 참조.
       percentBarRenderer: AggridPercentBarRenderer,
+      // 장애 이력(알람센터 등) 공용 셀 렌더러 — ERR_* 컬럼을 색상 배지·2줄 시각으로 표시.
+      alarmTimeRenderer: AggridAlarmTimeRenderer,
+      alarmSystemRenderer: AggridAlarmSystemRenderer,
+      alarmLevelRenderer: AggridAlarmLevelRenderer,
+      alarmStatusRenderer: AggridAlarmStatusRenderer,
     }),
     [],
   );

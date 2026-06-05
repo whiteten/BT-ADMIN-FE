@@ -1,8 +1,22 @@
 import { type ReactNode, useEffect, useRef, useState } from 'react';
-import { AlertTriangle, Bell, BellOff, CheckCircle2, Search } from 'lucide-react';
+import { CheckCircle2, Search } from 'lucide-react';
 import { toast } from '@/shared-util';
 import { DEMO_ALARMS, isAlarmDemoMode } from './demoData';
-import { SEV_BG, SEV_BG_SOFT, SEV_BORDER_SOFT, SEV_TEXT, type Severity, alarmEpoch, countAlarms, fmtAlarmTime, fmtRelative, isResolved, levelMeta, toAlarmRows } from './helpers';
+import {
+  SEV_BG,
+  SEV_BG_SOFT,
+  SEV_BORDER_SOFT,
+  SEV_TEXT,
+  type Severity,
+  alarmEpoch,
+  countAlarms,
+  isResolved,
+  levelMeta,
+  readAlarmCounts,
+  repairEpoch,
+  toAlarmRows,
+} from './helpers';
+import AlarmCenterGrid from './parts/AlarmCenterGrid';
 import type { AlarmRow } from './types';
 
 /**
@@ -23,51 +37,97 @@ export interface AlarmCenterWidgetProps {
 }
 
 export default function AlarmCenterWidget({ data }: AlarmCenterWidgetProps) {
-  const rows = isAlarmDemoMode() ? DEMO_ALARMS : fallbackAlarms(toAlarmRows(data));
+  // BE 가 미복구 + 최근 복구된 시스템 장애를 함께 내린다(items). 복구행은 ERR_REPAIR_TIME 포함.
+  // (명시적 데모는 URL ?alarmDemo=1 일 때만.)
+  const rows = isAlarmDemoMode() ? DEMO_ALARMS : toAlarmRows(data);
 
   const [search, setSearch] = useState('');
-  const [unresolvedOnly, setUnresolvedOnly] = useState(true); // 시안 alertOnly 기본 ON
   const [activeLevels, setActiveLevels] = useState<Set<number>>(() => new Set([0, 1, 2, 3]));
-  const [soundOn, setSoundOn] = useState(false); // 알람음 — 기본 OFF (관제 보드 다중 위젯 배려, 사용자 opt-in)
 
-  const counts = countAlarms(rows);
-  const nowMs = Date.now();
+  // KPI 는 BE 집계(counts)를 우선 사용. 데모/집계 부재 시에만 리스트 기반 countAlarms 로 폴백.
+  const counts = readAlarmCounts(data) ?? countAlarms(rows);
 
-  // 신규 미복구 장애 도착 감지 → 토스트(+옵션 알람음). AS-IS errorStatus 의 "장애 발생" 알림 차용.
-  // 최신 rows·soundOn 을 ref 로 흘려, data 프레임이 바뀔 때만 1회 평가 (초기 수신은 토스트 없이 seen 처리).
+  // 신규 발생 / 복구 전환 감지 → 토스트. 복구행도 함께 내려오므로, "복구"는 직전에 미복구로 관측했던 행이
+  // 이번 프레임에 복구(ERR_REPAIR_TIME 채워짐)된 것으로 판정한다(행은 삭제되지 않고 상태만 바뀜).
+  // 최신 rows 를 ref 로 흘려, data 프레임이 바뀔 때만 1회 평가 (초기 수신은 토스트 없이 seen 처리).
   const rowsRef = useRef(rows);
   rowsRef.current = rows;
-  const soundRef = useRef(soundOn);
-  soundRef.current = soundOn;
-  const seenIdsRef = useRef<Set<string>>(new Set());
+  const seenIdsRef = useRef<Set<string>>(new Set()); // 한 번이라도 본 id (발생 중복 방지)
+  const seenUnresolvedRef = useRef<Set<string>>(new Set()); // 미복구로 관측한 적 있는 id (복구 전환 판정 기준)
+  const announcedRepairRef = useRef<Set<string>>(new Set()); // 이미 복구 알림한 id (재알림 방지)
   const initializedRef = useRef(false);
   useEffect(() => {
     const current = rowsRef.current;
     if (!initializedRef.current) {
-      for (const r of current) seenIdsRef.current.add(r.id);
+      // 페이지 접근 시점의 이력은 알림 없이 기록만. 이미 복구된 행은 전환이 아니므로 복구알림 대상에서 제외.
+      for (const r of current) {
+        seenIdsRef.current.add(r.id);
+        if (isResolved(r)) announcedRepairRef.current.add(r.id);
+        else seenUnresolvedRef.current.add(r.id);
+      }
       initializedRef.current = true;
       return;
     }
+    // 발생: 처음 보는 미복구 행
     const fresh = current.filter((r) => !isResolved(r) && !seenIdsRef.current.has(r.id));
-    for (const r of current) seenIdsRef.current.add(r.id);
-    if (fresh.length === 0) return;
-    const top = [...fresh].sort((a, b) => b.level - a.level || alarmEpoch(b) - alarmEpoch(a))[0];
-    const sys = top.systemName ?? `SYS ${top.systemId}`;
-    const extra = fresh.length > 1 ? ` 외 ${fresh.length - 1}건` : '';
-    toast.error(`[${sys}] ${top.code || '장애'} 발생${extra}`);
-    if (soundRef.current && fresh.some((r) => r.level >= 2)) playAlarmBeep();
+    // 복구 전환: 미복구로 관측했던 행이 이번 프레임에 복구됨(아직 알리지 않은 것만)
+    const repaired = current.filter((r) => isResolved(r) && seenUnresolvedRef.current.has(r.id) && !announcedRepairRef.current.has(r.id));
+    // 관측 상태 갱신
+    for (const r of current) {
+      seenIdsRef.current.add(r.id);
+      if (!isResolved(r)) seenUnresolvedRef.current.add(r.id);
+    }
+    for (const r of repaired) announcedRepairRef.current.add(r.id);
+
+    if (fresh.length > 0) {
+      const top = [...fresh].sort((a, b) => b.level - a.level || alarmEpoch(b) - alarmEpoch(a))[0];
+      const extra = fresh.length > 1 ? ` 외 ${fresh.length - 1}건` : '';
+      toast.error(
+        <div className="flex flex-col gap-0.5">
+          <span className="font-semibold">
+            {levelMeta(top.level).label} 장애 발생 · {sysLabel(top)}
+            {extra}
+          </span>
+          <span className="text-[12px] opacity-90">
+            {top.processName ? `[${top.processName}] ` : ''}
+            {top.message || `장애코드 ${top.code}` || '상세 메시지 없음'}
+          </span>
+        </div>,
+      );
+    }
+    if (repaired.length > 0) {
+      const top = [...repaired].sort((a, b) => b.level - a.level || alarmEpoch(b) - alarmEpoch(a))[0];
+      const extra = repaired.length > 1 ? ` 외 ${repaired.length - 1}건` : '';
+      toast.success(
+        <div className="flex flex-col gap-0.5">
+          <span className="font-semibold">
+            장애 복구 완료 · {sysLabel(top)}
+            {extra}
+          </span>
+          <span className="text-[12px] opacity-90">
+            {top.processName ? `[${top.processName}] ` : ''}
+            {top.message || `장애코드 ${top.code}`}
+          </span>
+        </div>,
+      );
+    }
   }, [data]);
 
-  // 데이터에 실재하는 등급만 칩으로 노출 (위험순 desc)
-  const presentLevels = Array.from(new Set(rows.map((r) => r.level))).sort((a, b) => b - a);
+  // 상태 퀵버튼은 위험(3)·경고(2)·주의(1) 3개 고정 노출(데이터 유무와 무관). 0=정상은 알람 아님.
+  const QUICK_LEVELS = [3, 2, 1];
 
   const needle = search.trim().toLowerCase();
+  // 미복구를 상단(발생 최신순), 복구를 하단(복구 최신순)으로 정렬해 해소/미해소를 시각적으로 분리한다.
   const visible = rows
     .filter((r) => activeLevels.has(r.level))
-    .filter((r) => !unresolvedOnly || !isResolved(r))
     .filter((r) => (needle ? matchSearch(r, needle) : true))
     .slice()
-    .sort((a, b) => alarmEpoch(b) - alarmEpoch(a));
+    .sort((a, b) => {
+      const ra = isResolved(a) ? 1 : 0;
+      const rb = isResolved(b) ? 1 : 0;
+      if (ra !== rb) return ra - rb; // 미복구(0) 위, 복구(1) 아래
+      return ra === 1 ? repairEpoch(b) - repairEpoch(a) : alarmEpoch(b) - alarmEpoch(a);
+    });
 
   const toggleLevel = (lv: number) =>
     setActiveLevels((prev) => {
@@ -78,19 +138,34 @@ export default function AlarmCenterWidget({ data }: AlarmCenterWidgetProps) {
     });
 
   return (
-    <div className="flex h-full flex-col gap-4 overflow-y-auto bg-bt-bg-canvas p-5">
-      {/* ═══ KPI 스트립 ═══ */}
-      <section className="grid grid-cols-2 gap-3 lg:grid-cols-5">
-        <StatTile label="전체 장애" value={counts.total} />
+    <div className="flex h-full flex-col gap-4 overflow-hidden bg-bt-bg-canvas p-5">
+      {/* ═══ KPI 스트립 ═══ 전체 장애(최근 7일)에 등급별 총 발생 건수를 함께 표기. 위험·경고·주의 카드는 "지금 발생 중(미복구)" 기준. */}
+      <section className="grid grid-cols-2 gap-3 lg:grid-cols-7">
+        <StatTile
+          className="col-span-2"
+          label="전체 장애"
+          period="최근 7일"
+          value={counts.total}
+          hex="#1F79D4"
+          blackValue
+          right={
+            <div className="flex flex-col gap-0.5 text-[11px] leading-tight text-bt-fg-muted">
+              <LevelMini label="위험" value={counts.totalCritical} hex={levelMeta(3).hex} />
+              <LevelMini label="경고" value={counts.totalMajor} hex={levelMeta(2).hex} />
+              <LevelMini label="주의" value={counts.totalMinor} hex={levelMeta(1).hex} />
+            </div>
+          }
+        />
         <StatTile label="미복구" value={counts.unresolved} sev="danger" pulse={counts.unresolved > 0} />
-        <StatTile label="위험" sub="Lv≥2" value={counts.danger} sev="danger" />
-        <StatTile label="주의" sub="Lv1" value={counts.warn} sev="warn" />
-        <StatTile label="복구완료" value={counts.resolved} sev="success" icon={<CheckCircle2 className="h-3.5 w-3.5" />} />
+        <StatTile label="위험" sub="발생 중" value={counts.critical} hex={levelMeta(3).hex} pulse={counts.critical > 0} />
+        <StatTile label="경고" sub="발생 중" value={counts.major} hex={levelMeta(2).hex} />
+        <StatTile label="주의" sub="발생 중" value={counts.minor} hex={levelMeta(1).hex} />
+        <StatTile label="복구완료" period="최근 7일" value={counts.resolved} sev="success" icon={<CheckCircle2 className="h-3.5 w-3.5" />} />
       </section>
 
       {/* ═══ 필터 바 ═══ */}
       <div className="flex flex-wrap items-center gap-2 rounded-xl border border-bt-border bg-bt-bg px-4 py-2.5 bt-shadow">
-        {presentLevels.map((lv) => {
+        {QUICK_LEVELS.map((lv) => {
           const active = activeLevels.has(lv);
           const m = levelMeta(lv);
           return (
@@ -118,168 +193,92 @@ export default function AlarmCenterWidget({ data }: AlarmCenterWidgetProps) {
           />
         </div>
 
-        <span className="text-[11px] text-bt-fg-muted">
+        <span className="ml-auto text-[11px] text-bt-fg-muted">
           표시 {visible.length} / 전체 {rows.length}
         </span>
-
-        <button
-          type="button"
-          onClick={() => setSoundOn((b) => !b)}
-          title="신규 위험 장애 도착 시 알람음"
-          className={`ml-auto inline-flex items-center gap-1.5 rounded-lg px-3 py-1 text-[12px] font-semibold transition-colors ${
-            soundOn ? 'bg-bt-primary-soft text-bt-primary' : 'bg-bt-bg-muted text-bt-fg-muted hover:text-bt-fg'
-          }`}
-        >
-          {soundOn ? <Bell className="h-3.5 w-3.5" /> : <BellOff className="h-3.5 w-3.5" />}
-          알람음 {soundOn ? '●ON' : '○OFF'}
-        </button>
-
-        <button
-          type="button"
-          onClick={() => setUnresolvedOnly((b) => !b)}
-          className={`inline-flex items-center gap-1.5 rounded-lg px-3 py-1 text-[12px] font-semibold transition-colors ${
-            unresolvedOnly ? 'bg-bt-danger-soft text-bt-danger' : 'bg-bt-bg-muted text-bt-fg-muted hover:text-bt-fg'
-          }`}
-        >
-          <AlertTriangle className="h-3.5 w-3.5" />
-          미복구만 {unresolvedOnly ? '●ON' : '○OFF'}
-        </button>
       </div>
 
-      {/* ═══ 장애 이력 리스트 ═══ */}
-      <div className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-xl border border-bt-border bg-bt-bg bt-shadow">
-        {/* 헤더 */}
-        <div className="grid grid-cols-[150px_140px_72px_96px_1fr_120px] gap-2 border-b border-bt-border bg-bt-bg-muted/60 px-4 py-2 text-[11px] font-bold uppercase tracking-wide text-bt-fg-muted">
-          <span>발생시각</span>
-          <span>시스템</span>
-          <span className="text-center">등급</span>
-          <span>코드</span>
-          <span>메시지</span>
-          <span className="text-center">상태</span>
-        </div>
-        {/* 본문 */}
-        {visible.length === 0 ? (
-          <div className="flex flex-1 items-center justify-center py-16 text-[13px] text-bt-fg-muted">표시할 장애가 없습니다.</div>
-        ) : (
-          <div className="flex flex-col divide-y divide-bt-border overflow-y-auto">
-            {visible.map((r) => (
-              <AlarmRowItem key={r.id} row={r} nowMs={nowMs} />
-            ))}
-          </div>
-        )}
+      {/* ═══ 장애 이력 표 (ag-Grid) ═══ */}
+      <div className="min-h-0 flex-1 overflow-hidden rounded-xl border border-bt-border bg-bt-bg bt-shadow">
+        <AlarmCenterGrid rows={visible} />
       </div>
     </div>
   );
 }
 
-/** 라이브 데이터가 비면 데모로 폴백 (BE 연동 전 임시 — 헬스보드와 동일 정책). */
-function fallbackAlarms(live: AlarmRow[]): AlarmRow[] {
-  return live.length > 0 ? live : DEMO_ALARMS;
-}
-
 function matchSearch(r: AlarmRow, needle: string): boolean {
-  return [r.systemName, r.systemId, r.code, r.message, r.kind].some((v) => (v ?? '').toLowerCase().includes(needle));
+  return [r.systemName, r.systemId, r.nodeName, r.processName, r.code, r.message, r.kind].some((v) => (v ?? '').toLowerCase().includes(needle));
 }
 
-// ─── 알람음 (Web Audio — 외부 음원 파일 의존 없이 짧은 2-tone 비프) ─────
-let sharedAudioCtx: AudioContext | null = null;
-
-/** 신규 위험 장애 알림음. 사용자 토글(opt-in)로만 호출되어 자동재생 정책에 안전. 실패 시 무음. */
-function playAlarmBeep() {
-  try {
-    const Ctx = window.AudioContext ?? (window as unknown as { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
-    if (!Ctx) return;
-    sharedAudioCtx ??= new Ctx();
-    const ctx = sharedAudioCtx;
-    if (ctx.state === 'suspended') void ctx.resume();
-    const now = ctx.currentTime;
-    // 880Hz → 660Hz 2-tone, 총 ~0.3s, 페이드아웃으로 클릭음 제거
-    [880, 660].forEach((freq, i) => {
-      const osc = ctx.createOscillator();
-      const gain = ctx.createGain();
-      const start = now + i * 0.15;
-      osc.type = 'sine';
-      osc.frequency.setValueAtTime(freq, start);
-      gain.gain.setValueAtTime(0.0001, start);
-      gain.gain.exponentialRampToValueAtTime(0.18, start + 0.02);
-      gain.gain.exponentialRampToValueAtTime(0.0001, start + 0.14);
-      osc.connect(gain).connect(ctx.destination);
-      osc.start(start);
-      osc.stop(start + 0.15);
-    });
-  } catch {
-    // 자동재생 차단·미지원 환경 — 무음 폴백
-  }
+/** 토스트용 시스템 라벨 — `노드명 · 시스템명` (노드/시스템명 없으면 가능한 값으로 폴백). */
+function sysLabel(r: AlarmRow): string {
+  const name = r.systemName ?? `SYS ${r.systemId}`;
+  const node = r.nodeName ?? (r.nodeId ? `노드 ${r.nodeId}` : '');
+  return node ? `${node} · ${name}` : name;
 }
 
 // ─── KPI 타일 ──────────────────────────────────────────────────
 
-function StatTile({ label, sub, value, sev, icon, pulse }: { label: string; sub?: string; value: number; sev?: Severity; icon?: ReactNode; pulse?: boolean }) {
-  const accent = sev ? SEV_BG[sev] : 'bg-bt-border-strong';
-  const text = sev ? SEV_TEXT[sev] : 'text-bt-fg';
+function StatTile({
+  label,
+  sub,
+  period,
+  value,
+  sev,
+  hex,
+  icon,
+  pulse,
+  right,
+  className,
+  blackValue,
+}: {
+  label: string;
+  sub?: string;
+  period?: string;
+  value: number;
+  sev?: Severity;
+  hex?: string;
+  icon?: ReactNode;
+  pulse?: boolean;
+  right?: ReactNode;
+  className?: string;
+  blackValue?: boolean;
+}) {
+  // hex 지정 시 등급색(주의/경고/위험) 또는 임의색(전체=파랑)을 인라인으로 적용 — SEV(success/warn/danger)로 뭉뚱그리지 않고 구분.
+  // blackValue 면 상태 바 색은 hex 로 두되 숫자는 기본 검정(text-bt-fg)으로 표기.
+  const accent = hex ? '' : sev ? SEV_BG[sev] : 'bg-bt-border-strong';
+  const text = blackValue ? 'text-bt-fg' : hex ? '' : sev ? SEV_TEXT[sev] : 'text-bt-fg';
+  const valueStyle = !blackValue && hex ? { color: hex } : undefined;
   return (
-    <div className={`relative flex flex-col overflow-hidden rounded-xl border border-bt-border bg-bt-bg px-4 pt-3.5 pb-3 bt-shadow ${pulse ? 'bt-pulse-ring' : ''}`}>
-      <div className={`absolute inset-x-0 top-0 h-1 ${accent}`} />
+    <div
+      className={`relative flex flex-col overflow-hidden rounded-xl border border-bt-border bg-bt-bg px-4 pt-3.5 pb-3 bt-shadow ${pulse ? 'bt-pulse-ring' : ''} ${className ?? ''}`}
+    >
+      <div className={`absolute inset-x-0 top-0 h-1 ${accent}`} style={hex ? { background: hex } : undefined} />
       <div className="flex items-center gap-1 text-[12px] font-bold uppercase tracking-wide text-bt-fg-muted">
         {icon}
         {label}
+        {period && <span className="text-[10px] font-medium normal-case tracking-normal text-bt-fg-muted">· {period}</span>}
       </div>
-      <div className="mt-1 flex items-baseline gap-1.5">
-        <span className={`text-[28px] font-extrabold leading-none tabular-nums ${text}`}>{value}</span>
-        {sub && <span className="text-[11px] text-bt-fg-muted">{sub}</span>}
+      <div className="mt-1 flex items-end justify-between gap-2">
+        <div className="flex items-baseline gap-1.5">
+          <span className={`text-[28px] font-extrabold leading-none tabular-nums ${text}`} style={valueStyle}>
+            {value.toLocaleString()}
+          </span>
+          {sub && <span className="text-[11px] text-bt-fg-muted">{sub}</span>}
+        </div>
+        {right}
       </div>
     </div>
   );
 }
 
-// ─── 장애 행 ───────────────────────────────────────────────────
-
-function AlarmRowItem({ row, nowMs }: { row: AlarmRow; nowMs: number }) {
-  const m = levelMeta(row.level);
-  const resolved = isResolved(row);
-  const danger = !resolved && row.level >= 2;
+/** 전체 장애 카드 우측의 등급별 발생 중(미복구) 미니 표기 — 컬러 점 + 라벨 + 건수. */
+function LevelMini({ label, value, hex }: { label: string; value: number; hex: string }) {
   return (
-    <div
-      className={`grid grid-cols-[150px_140px_72px_96px_1fr_120px] items-center gap-2 border-l-[4px] px-4 py-2.5 text-[12.5px] transition-colors hover:bg-bt-bg-muted/40 ${
-        resolved ? 'border-l-bt-border-strong opacity-70' : m.sev === 'danger' ? 'border-l-bt-danger' : m.sev === 'warn' ? 'border-l-bt-warn' : 'border-l-bt-success'
-      }`}
-    >
-      {/* 발생시각 */}
-      <div className="leading-tight">
-        <div className="tabular-nums font-semibold">{fmtAlarmTime(row)}</div>
-        <div className="text-[10.5px] text-bt-fg-muted">{fmtRelative(alarmEpoch(row), nowMs)}</div>
-      </div>
-      {/* 시스템 */}
-      <div className="truncate">
-        <span className="font-semibold">{row.systemName ?? `SYS ${row.systemId}`}</span>
-        {row.systemName && <span className="ml-1 tabular-nums text-[10.5px] text-bt-fg-muted">({row.systemId})</span>}
-      </div>
-      {/* 등급 */}
-      <div className="text-center">
-        <span className="inline-flex items-center justify-center rounded-full px-2 py-0.5 text-[11px] font-bold text-white" style={{ background: m.hex }}>
-          {m.label}
-        </span>
-      </div>
-      {/* 코드 */}
-      <span className="tabular-nums font-mono text-[11.5px] text-bt-fg-muted">{row.code || '—'}</span>
-      {/* 메시지 */}
-      <span className={`truncate ${danger ? 'font-semibold' : ''}`} title={row.message}>
-        {row.message || '—'}
-      </span>
-      {/* 상태 */}
-      <div className="text-center">
-        {resolved ? (
-          <span className="inline-flex items-center gap-1 rounded-full bg-bt-success-soft px-2 py-0.5 text-[11px] font-semibold text-bt-success">
-            <CheckCircle2 className="h-3 w-3" />
-            복구
-          </span>
-        ) : (
-          <span className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-semibold ${SEV_BG_SOFT[m.sev]} ${SEV_TEXT[m.sev]}`}>
-            <span className={`h-1.5 w-1.5 rounded-full ${SEV_BG[m.sev]} ${danger ? 'bt-pulse' : ''}`} />
-            미복구
-          </span>
-        )}
-      </div>
-    </div>
+    <span className="inline-flex items-center gap-1 whitespace-nowrap">
+      <span className="h-1.5 w-1.5 rounded-full" style={{ background: hex }} />
+      {label}
+      <b className="font-bold tabular-nums text-bt-fg">{value.toLocaleString()}</b>
+    </span>
   );
 }

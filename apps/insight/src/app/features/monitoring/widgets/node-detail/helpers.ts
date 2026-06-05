@@ -88,12 +88,12 @@ export interface StatusMeta {
   hex: string;
 }
 
-/** SYSTEM:STAT STATUS(0~3) → 표시 메타. Critical 은 danger 이면서 pulse 강조 대상. */
+/** SYSTEM:STAT STATUS(0~3) → 표시 메타. 위험(3)은 danger 이면서 pulse 강조 대상. */
 export const STATUS_META: Record<NodeStatus, StatusMeta> = {
   0: { sev: 'success', label: '정상', hex: '#0a8a4a' },
-  1: { sev: 'warn', label: 'Minor', hex: '#b76e00' },
-  2: { sev: 'danger', label: 'Major', hex: '#c92a2a' },
-  3: { sev: 'danger', label: 'Critical', hex: '#991b1b' },
+  1: { sev: 'warn', label: '주의', hex: '#b76e00' },
+  2: { sev: 'danger', label: '경고', hex: '#c92a2a' },
+  3: { sev: 'danger', label: '위험', hex: '#991b1b' },
 };
 
 export type Severity = 'success' | 'warn' | 'danger';
@@ -127,17 +127,19 @@ export interface SystemCounts {
   alive: number;
   /** 다운(죽음) 시스템 수 — IS_ACTIVE=0. 최상위 위험. */
   down: number;
-  /** 가동 시스템 중 STATUS=0 */
+  /** 가동 시스템 중 STATUS=0 (정상) */
   normal: number;
-  /** 가동 시스템 중 STATUS=1 */
+  /** 가동 시스템 중 STATUS=1 (Minor / 주의) */
   minor: number;
-  /** 가동 시스템 중 STATUS≥2 (Major+Critical) */
-  danger: number;
+  /** 가동 시스템 중 STATUS=2 (Major / 경고) */
+  major: number;
+  /** 가동 시스템 중 STATUS=3 (Critical / 위험) */
+  critical: number;
 }
 
-/** 시스템(행) 기준 집계 — 다운은 별도 버킷, 나머지는 가동 시스템의 STATUS 분류. */
+/** 시스템(행) 기준 집계 — 다운은 별도 버킷, 나머지는 가동 시스템의 STATUS(정상/주의/경고/위험) 분류. */
 export function countSystems(nodes: SystemNode[]): SystemCounts {
-  const c: SystemCounts = { total: nodes.length, alive: 0, down: 0, normal: 0, minor: 0, danger: 0 };
+  const c: SystemCounts = { total: nodes.length, alive: 0, down: 0, normal: 0, minor: 0, major: 0, critical: 0 };
   for (const n of nodes) {
     if (!n.isAlive) {
       c.down++;
@@ -146,7 +148,8 @@ export function countSystems(nodes: SystemNode[]): SystemCounts {
     c.alive++;
     if (n.status === 0) c.normal++;
     else if (n.status === 1) c.minor++;
-    else c.danger++;
+    else if (n.status === 2) c.major++;
+    else c.critical++;
   }
   return c;
 }

@@ -41,6 +41,13 @@ export interface UseDashboardSocketResult {
   widgetData: Record<string, WidgetData>;
   /** 강제 재구독 (옵션 변경 시 호출) */
   resubscribe: () => void;
+  /**
+   * 드릴다운 — 대시보드에 없는 위젯 타입을 임시 widgetId(`drill:<type>:<ts>`)로 즉석 구독.
+   * 헬스보드 링크 모달 등에서 사용. 데이터는 동일 widgetData[widgetId] 로 수신된다.
+   */
+  subscribeAdhoc: (widgetId: string, widgetType: string, options?: Record<string, unknown>) => void;
+  /** 드릴다운 — 즉석 구독 해제 + 누적 데이터 정리. */
+  unsubscribeAdhoc: (widgetId: string) => void;
 }
 
 export function useDashboardSocket({
@@ -218,5 +225,41 @@ export function useDashboardSocket({
     });
   }, [widgets, globalOptions, widgetUserSettings]);
 
-  return { connectionState, widgetData, resubscribe };
+  // ─── 드릴다운 즉석 구독/해제 ─────────────────────────────────────────
+
+  const subscribeAdhoc = useCallback(
+    (widgetId: string, widgetType: string, options?: Record<string, unknown>) => {
+      const ws = socketRef.current;
+      if (MOCK_MODE || !ws || ws.readyState !== WebSocket.OPEN) return;
+      const fields = getCustomWidgetFields(widgetType);
+      const msg: WsSubscribeMessage = {
+        type: 'SUBSCRIBE',
+        widgetId,
+        widgetType,
+        options: {
+          ...(options ?? {}),
+          ...globalOptions,
+          ...(fields && fields.length > 0 ? { fields } : {}),
+        },
+      };
+      ws.send(JSON.stringify(msg));
+    },
+    [globalOptions],
+  );
+
+  const unsubscribeAdhoc = useCallback((widgetId: string) => {
+    const ws = socketRef.current;
+    if (!MOCK_MODE && ws && ws.readyState === WebSocket.OPEN) {
+      ws.send(JSON.stringify({ type: 'UNSUBSCRIBE', widgetId }));
+    }
+    // 모달이 닫혀도 직전 프레임이 잔존하지 않도록 누적 데이터에서 제거.
+    setWidgetData((prev) => {
+      if (!(widgetId in prev)) return prev;
+      const next = { ...prev };
+      delete next[widgetId];
+      return next;
+    });
+  }, []);
+
+  return { connectionState, widgetData, resubscribe, subscribeAdhoc, unsubscribeAdhoc };
 }
