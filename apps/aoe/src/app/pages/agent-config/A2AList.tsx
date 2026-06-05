@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useQueryClient } from '@tanstack/react-query';
 import { type BreadcrumbProps, Button, Input, Select } from 'antd';
@@ -49,15 +49,13 @@ export default function A2AList() {
     });
   };
 
-  const filteredList = useMemo(() => {
-    if (!searchValue.trim()) return agents;
-    const keyword = searchValue.toLowerCase();
-    return agents.filter((a) => {
-      const value = a[filterColumn as keyof typeof a];
-      if (value == null) return false;
-      return String(value).toLowerCase().includes(keyword);
-    });
-  }, [agents, filterColumn, searchValue]);
+  const filteredList = searchValue.trim()
+    ? agents.filter((a) => {
+        const value = a[filterColumn as keyof typeof a];
+        if (value == null) return false;
+        return String(value).toLowerCase().includes(searchValue.toLowerCase());
+      })
+    : agents;
 
   const handleColumnChange = (value: string) => {
     setFilterColumn(value);

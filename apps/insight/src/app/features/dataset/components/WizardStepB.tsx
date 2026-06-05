@@ -314,7 +314,10 @@ export default function WizardStepB({
   // ─── Calc field CRUD + fieldDisplays sync ─────────────────────────────────
   const handleCalcSave = (data: CalcFieldCreateDatas) => {
     if (editing.mode === 'add') {
-      const newId = crypto.randomUUID();
+      const newId =
+        typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function'
+          ? crypto.randomUUID()
+          : `local-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 10)}`;
       onCalcFieldsChange([...calcFields, { ...data, _localId: newId }]);
       onFieldDisplaysChange([
         ...fieldDisplays,

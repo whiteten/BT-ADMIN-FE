@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { type BreadcrumbProps, Select, Tooltip } from 'antd';
 import { Pause, Phone, Play } from 'lucide-react';
 import { useBreadcrumbStore } from '@/shared-store';
@@ -38,12 +39,12 @@ function ChannelCard({ item, onClick }: { item: ChannelStatusItem; onClick: (ite
   return (
     <div
       className="rounded-lg p-3 min-h-[130px] flex flex-col justify-between cursor-pointer hover:brightness-110 transition-all"
-      style={{ backgroundColor: getTyColor(item.ty) }}
+      style={{ backgroundColor: item.analKind === 'B' ? '#6c757d' : getTyColor(item.ty) }}
       onClick={() => onClick(item)}
     >
       <div className="flex items-center justify-between gap-1">
         <p className="text-2xl font-bold text-white">{item.channelId}</p>
-        <p className="text-xl text-white/80 shrink-0">{item.progressRate}</p>
+        <p className="text-xl text-white/80 shrink-0">{item.analKind === 'B' ? `${item.progressRate}%` : item.progressRate}</p>
       </div>
       <div>
         {item.ucidGkey && <p className="text-sm text-white/80 mt-0.5 truncate">{item.ucidGkey}</p>}
@@ -63,7 +64,8 @@ export default function ChannelStatusList() {
     return () => clearBreadcrumb();
   }, [setBreadcrumb, clearBreadcrumb]);
 
-  const [selectedIpv4, setSelectedIpv4] = useState<string | undefined>(undefined);
+  const [searchParams] = useSearchParams();
+  const [selectedIpv4, setSelectedIpv4] = useState<string | undefined>(searchParams.get('ipv4') ?? undefined);
   const [autoRefresh, setAutoRefresh] = useState(true);
   const [refreshSeconds, setRefreshSeconds] = useState(3);
 
@@ -121,6 +123,11 @@ export default function ChannelStatusList() {
                 {label}
               </span>
             ))}
+            <span className="text-gray-300">|</span>
+            <span className="flex items-center gap-1.5 text-xs text-gray-500">
+              <span className="w-3 h-3 rounded-sm shrink-0" style={{ backgroundColor: '#6c757d' }} />
+              배치
+            </span>
           </div>
           {/* 검색 조건 */}
           <div className="flex items-center gap-2 shrink-0">
@@ -162,12 +169,12 @@ export default function ChannelStatusList() {
           {isLoading ? (
             <div className="flex items-center justify-center h-32 text-sm text-gray-400">불러오는 중...</div>
           ) : channels.length === 0 ? (
-            <div className="flex flex-col items-center justify-center h-full gap-3 text-gray-300">
+            <div key="empty" className="flex flex-col items-center justify-center h-full gap-3 text-gray-300">
               <Phone className="size-16" />
               <p className="text-sm text-gray-400">조회된 채널 정보가 없습니다.</p>
             </div>
           ) : (
-            <div className="grid grid-cols-5 gap-3">
+            <div key="grid" className="grid grid-cols-5 gap-3">
               {channels.map((item) => (
                 <ChannelCard key={item.channelId} item={item} onClick={handleCardClick} />
               ))}

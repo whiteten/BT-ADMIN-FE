@@ -84,7 +84,7 @@ export default function DashboardView() {
     return () => clearBreadcrumb();
   }, [dashboard, dashboardId, mode, setBreadcrumb, clearBreadcrumb]);
 
-  const [monitoringStarted, setMonitoringStarted] = useState(false);
+  const [monitoringStarted, setMonitoringStarted] = useState(initialMode === 'view');
   const [refreshThrottle, setRefreshThrottle] = useState<1 | 3 | 5 | 10 | 'PAUSED'>(3);
 
   const rootRef = useRef<HTMLDivElement>(null);
@@ -107,6 +107,8 @@ export default function DashboardView() {
       // 편집 모드 진입 시 OS 전체화면은 가급적 해제 (필요 시)
       if (document.fullscreenElement) document.exitFullscreen?.().catch((e) => console.warn('exit fullscreen failed', e));
     } else {
+      // 뷰 모드 진입 시 모니터링을 즉시 시작 (페이지 접근 즉시 폴링).
+      setMonitoringStarted(true);
       setIsLibraryOpen(false);
       setIsLayoutPickerOpen(false);
       setReplacingWidgetId(null);

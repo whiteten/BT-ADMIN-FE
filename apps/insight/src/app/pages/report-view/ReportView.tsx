@@ -1,5 +1,5 @@
 import { useEffect, useRef } from 'react';
-import { useParams } from 'react-router-dom';
+import { useSearchParams } from 'react-router-dom';
 import { useBreadcrumbStore } from '@/shared-store';
 import ReportViewCanvas from '../../features/canvas/components/ReportViewCanvas';
 import { useReportEditorStore } from '../../features/report/hooks/useReportEditorStore';
@@ -7,9 +7,21 @@ import { useGetReport } from '../../features/report/hooks/useReportQueries';
 import { useReportViewStore } from '../../features/report/hooks/useReportViewStore';
 import { FallbackSpinner } from '@/components/custom/FallbackSpinner';
 
+/**
+ * 통합 통계 보고서 보기.
+ *
+ * reportId 는 path 파라미터가 아닌 `?reportId=` 쿼리스트링으로 받는다(queryString 메뉴 분기 패턴).
+ * 같은 path(`/insight/statistics/reports/view`)를 여러 메뉴가 reportId 만 바꿔 공유하므로,
+ * 메뉴 전환 시 queryString 만 변하고 컴포넌트는 unmount 되지 않는다. → reportId 를 key 로 박아
+ * ReportViewBody 를 강제 remount 해 editor/view 스토어가 깨끗이 재초기화되도록 한다.
+ */
 export default function ReportView() {
-  const { reportId: reportIdParam } = useParams<{ reportId: string }>();
-  const reportId = Number(reportIdParam);
+  const [searchParams] = useSearchParams();
+  const reportId = searchParams.get('reportId') ?? '';
+  return <ReportViewBody key={reportId} reportId={Number(reportId)} />;
+}
+
+function ReportViewBody({ reportId }: { reportId: number }) {
   const setBreadcrumb = useBreadcrumbStore((s) => s.setBreadcrumb);
   const clearBreadcrumb = useBreadcrumbStore((s) => s.clearBreadcrumb);
   const { setReport, setPanels, setCalcFields, setSearchBindings, setFieldDisplays, reset } = useReportEditorStore();
@@ -50,10 +62,26 @@ export default function ReportView() {
 
   useEffect(() => {
     if (reportFull) {
-      setBreadcrumb([{ title: '보고서', path: '/insight/statistics/reports' }, { title: ':reportTitle' }], { reportTitle: reportFull.title });
+      setBreadcrumb(
+        [
+          { title: '보고서', path: '/insight/statistics/reports' },
+          { title: ':reportTitle', path: `/insight/statistics/reports/view?reportId=${reportId}` },
+        ],
+        {
+          reportTitle: reportFull.title,
+        },
+      );
     }
     return () => clearBreadcrumb();
   }, [reportFull, reportId, setBreadcrumb, clearBreadcrumb]);
+
+  if (!reportId) {
+    return (
+      <div className="flex w-full h-full items-center justify-center">
+        <p className="text-sm text-[var(--color-bt-fg-muted)]">보고서가 지정되지 않았습니다. (reportId 쿼리 누락)</p>
+      </div>
+    );
+  }
 
   if (isLoading || !reportFull) return <FallbackSpinner />;
 

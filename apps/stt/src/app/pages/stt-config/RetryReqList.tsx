@@ -11,6 +11,7 @@ import RetryReqDrawer, { type RetryReqDrawerRef } from '../../features/stt-confi
 import RetryReqTree from '../../features/stt-config/components/RetryReqTree';
 import { retryReqQueryKeys, useDeleteRetryReq, useGetRetryReqList } from '../../features/stt-config/hooks/useRetryReqQueries';
 import type { RetryReqListItem } from '../../features/stt-config/types';
+import { Badge } from '@/components/ui/badge';
 import useAggridOptions from '@/libs/shared-ui/src/hooks/useAggridOptions';
 import { useModal } from '@/libs/shared-ui/src/hooks/useModal';
 
@@ -18,6 +19,16 @@ const breadcrumb: BreadcrumbProps['items'] = [
   { title: 'STT 관리', path: '/stt/stt-config' },
   { title: 'STT 재처리현황', path: '/stt/stt-config/retry-req/list' },
 ];
+
+const RETRY_STATUS_CONFIG: Record<number, string> = {
+  1: 'text-gray-500 bg-gray-100',
+  2: 'text-blue-600 bg-blue-50',
+};
+
+function RetryStatusCellRenderer({ value, data }: ICellRendererParams<RetryReqListItem>) {
+  const cls = RETRY_STATUS_CONFIG[data?.retryStatus ?? -1] ?? 'text-emerald-600 bg-emerald-50';
+  return <Badge className={`text-[13px] leading-[13px] font-medium !h-6 ${cls}`}>{value ?? '-'}</Badge>;
+}
 
 interface ActionCellParams extends ICellRendererParams<RetryReqListItem> {
   onDelete: (data: RetryReqListItem) => void;
@@ -93,7 +104,7 @@ export default function RetryReqList() {
       valueFormatter: ({ value }) => (value ? dayjs(value, 'YYYYMMDDHHmm').format('YYYY-MM-DD HH:mm') : ''),
     },
     { headerName: '재처리건수', field: 'retryCnt', flex: 1.5 },
-    { headerName: '요청상태', field: 'retryStatusNm', flex: 1.5 },
+    { headerName: '요청상태', field: 'retryStatusNm', flex: 1.5, cellRenderer: RetryStatusCellRenderer, cellStyle: { display: 'flex', alignItems: 'center' } },
     { headerName: '대상수', field: 'totalSa', flex: 1 },
     { headerName: '완료건', field: 'sumSaComplete', flex: 1 },
     { headerName: '등록자', field: 'workUser', flex: 1.5 },

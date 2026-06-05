@@ -37,7 +37,7 @@ export default function SttSearch() {
 
   const handleRowDoubleClicked = (event: RowDoubleClickedEvent<SttSearchItem>) => {
     if (!event.data) return;
-    drawerRef.current?.open(event.data, keyword.trim());
+    drawerRef.current?.open(event.data, event.data.engineCode, keyword.trim());
   };
 
   const handleSearch = () => {

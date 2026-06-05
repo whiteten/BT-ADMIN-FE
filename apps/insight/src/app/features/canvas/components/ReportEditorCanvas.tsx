@@ -1,10 +1,10 @@
-import { useRef, useState } from 'react';
+import { useRef } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Button, Tag, Typography } from 'antd';
-import { Globe, Plus } from 'lucide-react';
+import { Check, Plus } from 'lucide-react';
 import { toast } from '@/shared-util';
 import CanvasLayout, { type CanvasLayoutRef } from './CanvasLayout';
 import GlobalFilter from '../../global-filter/components/GlobalFilter';
-import PublishDialog from '../../report/components/PublishDialog';
 import { DOMAIN_LABELS, DOMAIN_TAG_COLOR } from '../../report/constants/reportIconConstants';
 import { useReportEditorStore } from '../../report/hooks/useReportEditorStore';
 import { useUpdateReport } from '../../report/hooks/useReportQueries';
@@ -15,8 +15,8 @@ interface ReportEditorCanvasProps {
 }
 
 export default function ReportEditorCanvas({ reportId, onNavigateList: _onNavigateList }: ReportEditorCanvasProps) {
+  const navigate = useNavigate();
   const { report, isDirty, setReport } = useReportEditorStore();
-  const [isPublishDialogOpen, setIsPublishDialogOpen] = useState(false);
   const canvasRef = useRef<CanvasLayoutRef>(null);
 
   const { mutate: updateReport } = useUpdateReport({
@@ -65,8 +65,8 @@ export default function ReportEditorCanvas({ reportId, onNavigateList: _onNaviga
           <Button icon={<Plus className="w-3.5 h-3.5" />} onClick={() => canvasRef.current?.openAddArea()}>
             영역 추가
           </Button>
-          <Button type="primary" icon={<Globe className="w-3.5 h-3.5" />} onClick={() => setIsPublishDialogOpen(true)}>
-            {report.isPublished ? '메뉴 등록됨 ✓' : '메뉴 등록'}
+          <Button type="primary" icon={<Check className="w-3.5 h-3.5" />} onClick={() => navigate(`/insight/statistics/reports/view?reportId=${reportId}`)}>
+            적용
           </Button>
         </div>
       </div>
@@ -76,8 +76,6 @@ export default function ReportEditorCanvas({ reportId, onNavigateList: _onNaviga
       <div className="flex-1 overflow-auto">
         <CanvasLayout ref={canvasRef} reportId={reportId} mode="edit" datasetId={report.datasetId} />
       </div>
-
-      {isPublishDialogOpen && <PublishDialog reportId={reportId} onClose={() => setIsPublishDialogOpen(false)} />}
     </div>
   );
 }

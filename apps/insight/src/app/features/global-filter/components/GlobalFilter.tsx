@@ -8,8 +8,9 @@ import { useExportPanelExcel } from '../../panel/hooks/usePanelQueries';
 import { useReportEditorStore } from '../../report/hooks/useReportEditorStore';
 import { useReportViewStore } from '../../report/hooks/useReportViewStore';
 import { useGetSearchConditionOptions } from '../../search-condition/hooks/useSearchConditionQueries';
+import { useTimeUnitLimits } from '../hooks/useTimeUnitLimits';
 import { type GlobalConditions, type GlobalFilter, type QuickPreset, type TimeUnit, WEEKDAY_OPTIONS } from '../types';
-import { DATE_RANGE_LABEL, createDisabledDate, createEndDisabledDate, getMaxDays, validateDateRange } from '../utils/dateRangeLimit';
+import { createDisabledDate, createEndDisabledDate, getMaxDays, getRangeLabel, validateDateRange } from '../utils/dateRangeLimit';
 
 interface GlobalFilterProps {
   reportId: number;
@@ -116,6 +117,9 @@ export default function GlobalFilter({ reportId }: GlobalFilterProps) {
     });
   };
 
+  // 통계 설정(TIMEUNIT_LIMIT) 기반 단위별 최대 조회 기간 — 기간 조회조건 제한에 사용
+  const { limits } = useTimeUnitLimits();
+
   const unit = globalFilter.timeUnit;
   const isMI = unit === '10MIN';
   const isHH = unit === 'HOURLY';
@@ -183,21 +187,21 @@ export default function GlobalFilter({ reportId }: GlobalFilterProps) {
 
   // disabledDate (시작일: 미래 비활성화 / 종료일: 시작일 이전·maxDays 초과 비활성화)
   const disabledStartDate = useMemo(() => createDisabledDate(unit), [unit]);
-  const disabledEndDate = useMemo(() => createEndDisabledDate(startDate, unit), [globalFilter.period.from, unit]); // eslint-disable-line react-hooks/exhaustive-deps
+  const disabledEndDate = useMemo(() => createEndDisabledDate(startDate, unit, limits), [globalFilter.period.from, unit, limits]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // 시작일 또는 단위 변경 시 종료일이 범위를 벗어나면 자동 조정
+  // 시작일·단위 변경 또는 통계설정 로드 시 종료일이 범위를 벗어나면 자동 조정
   useEffect(() => {
     if (!startDate.isValid() || !endDate.isValid()) return;
-    const maxDays = getMaxDays(unit);
+    const maxDays = getMaxDays(unit, limits);
     if (endDate.isBefore(startDate, 'day')) {
       setPeriod(startDate.format(ISO_DATE), startDate.format(ISO_DATE));
-    } else if (endDate.diff(startDate, 'day') > maxDays) {
+    } else if (Number.isFinite(maxDays) && endDate.diff(startDate, 'day') > maxDays) {
       const maxEnd = startDate.add(maxDays, 'day');
       const clamped = maxEnd.isAfter(dayjs(), 'day') ? dayjs() : maxEnd;
       setPeriod(startDate.format(ISO_DATE), clamped.format(ISO_DATE));
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [globalFilter.period.from, unit]);
+  }, [globalFilter.period.from, unit, limits]);
 
   // 시간 단위로 변경 시 분 자동 조정 (시작 00분, 종료 50분)
   useEffect(() => {
@@ -260,8 +264,8 @@ export default function GlobalFilter({ reportId }: GlobalFilterProps) {
   const handleQuery = () => {
     const s = dayjs(globalFilter.period.from);
     const e = dayjs(globalFilter.period.to);
-    if (s.isValid() && e.isValid() && !validateDateRange(s, e, unit)) {
-      message.warning(`검색 기간은 ${DATE_RANGE_LABEL[unit]} 이내로 설정해주세요.`);
+    if (s.isValid() && e.isValid() && !validateDateRange(s, e, unit, limits)) {
+      message.warning(`검색 기간은 ${getRangeLabel(unit, limits)} 이내로 설정해주세요.`);
       return;
     }
 

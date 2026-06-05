@@ -30,7 +30,7 @@ export default function ReportCard({ report }: ReportCardProps) {
     },
   });
 
-  const handleView = () => navigate(`/insight/statistics/reports/${report.reportId}/view`);
+  const handleView = () => navigate(`/insight/statistics/reports/view?reportId=${report.reportId}`);
   const handleEdit = () => navigate(`/insight/statistics/reports/${report.reportId}/edit`);
   const handleDelete = () => {
     modal.confirm.delete({
@@ -42,8 +42,22 @@ export default function ReportCard({ report }: ReportCardProps) {
   };
 
   const menuItems: MenuProps['items'] = [
-    { key: 'view', label: '보기', onClick: handleView },
-    { key: 'edit', label: '편집', onClick: handleEdit },
+    {
+      key: 'view',
+      label: '보기',
+      onClick: ({ domEvent }) => {
+        domEvent.stopPropagation();
+        handleView();
+      },
+    },
+    {
+      key: 'edit',
+      label: '편집',
+      onClick: ({ domEvent }) => {
+        domEvent.stopPropagation();
+        handleEdit();
+      },
+    },
     { type: 'divider' },
     {
       key: 'delete',
@@ -98,8 +112,7 @@ export default function ReportCard({ report }: ReportCardProps) {
             <span className="text-sm line-clamp-1">{report.description}</span>
           </div>
         )}
-        <div className="flex items-center justify-between pt-1">
-          {report.isPublished ? <Tag color="success">메뉴 등록</Tag> : <Tag color="default">미등록</Tag>}
+        <div className="flex items-center justify-end pt-1">
           <span className="text-xs text-gray-400 tabular-nums">{report.updatedAt ? dayjs(report.updatedAt).format('YYYY.MM.DD') : '-'}</span>
         </div>
       </div>

@@ -63,13 +63,13 @@
 .bt-pulse { animation: bt-pulse 1.6s ease-in-out infinite; }
 
 @keyframes bt-pulse-ring { 0% { box-shadow: 0 0 0 0 rgba(201, 42, 42, .45); } 100% { box-shadow: 0 0 0 12px rgba(201, 42, 42, 0); } }
-.bt-pulse-ring { animation: bt-pulse-ring 1.8s ease-out infinite; }
+.bt-pulse-ring { animation: bt-pulse-ring 1.6s ease-out infinite; }
 
 @keyframes bt-pulse-ring-warn { 0% { box-shadow: 0 0 0 0 rgba(183, 110, 0, .4); } 100% { box-shadow: 0 0 0 10px rgba(183, 110, 0, 0); } }
-.bt-pulse-ring-warn { animation: bt-pulse-ring-warn 1.8s ease-out infinite; }
+.bt-pulse-ring-warn { animation: bt-pulse-ring-warn 1.6s ease-out infinite; }
 
 @keyframes bt-pulse-ring-warning { 0% { box-shadow: 0 0 0 0 rgba(217, 72, 15, .4); } 100% { box-shadow: 0 0 0 10px rgba(217, 72, 15, 0); } }
-.bt-pulse-ring-warning { animation: bt-pulse-ring-warning 1.8s ease-out infinite; }
+.bt-pulse-ring-warning { animation: bt-pulse-ring-warning 1.6s ease-out infinite; }
 
 @keyframes bt-countup { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: none; } }
 .bt-countup { animation: bt-countup .5s ease-out; }

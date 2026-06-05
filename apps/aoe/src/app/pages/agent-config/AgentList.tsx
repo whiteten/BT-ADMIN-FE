@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useQueryClient } from '@tanstack/react-query';
 import { type BreadcrumbProps, Button, Input, Select } from 'antd';
@@ -53,17 +53,14 @@ export default function AgentList() {
     },
   });
 
-  const filteredList = useMemo(() => {
-    if (!agents) return [];
-    if (!searchValue.trim()) return agents;
-
-    const keyword = searchValue.toLowerCase();
-    return agents.filter((agent) => {
-      const value = agent[filterColumn as keyof typeof agent];
-      if (value == null) return false;
-      return String(value).toLowerCase().includes(keyword);
-    });
-  }, [agents, filterColumn, searchValue]);
+  const agentList = agents ?? [];
+  const filteredList = searchValue.trim()
+    ? agentList.filter((agent) => {
+        const value = agent[filterColumn as keyof typeof agent];
+        if (value == null) return false;
+        return String(value).toLowerCase().includes(searchValue.toLowerCase());
+      })
+    : agentList;
 
   const handleColumnChange = (value: string) => {
     setFilterColumn(value);

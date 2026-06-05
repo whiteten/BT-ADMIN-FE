@@ -6,7 +6,6 @@ import type {
   PanelCreateDatas,
   PanelDetail,
   PanelLayoutUpdateItem,
-  PublishDatas,
   ReportCreateDatas,
   ReportDetail,
   ReportFullDetail,
@@ -157,15 +156,6 @@ export const reportApi = {
     // BE DTO(StatPanelLayoutRequest)는 layoutX/Y/W/H 필드 — createPanel 과 동일하게 매핑해서 전송
     const body = layouts.map((l) => ({ panelId: l.panelId, layoutX: l.x, layoutY: l.y, layoutW: l.w, layoutH: l.h }));
     await apiClient.put('/insight-statistics-panel-layout-update', body, { params: { reportId } });
-  },
-
-  publishReport: async (reportId: number, data: PublishDatas): Promise<{ menuId: number }> => {
-    const response = await apiClient.post<ApiResponse<{ menuId: number }>>('/insight-statistics-publish-on', data, { params: { reportId } });
-    return response.data?.data;
-  },
-
-  unpublishReport: async (reportId: number): Promise<void> => {
-    await apiClient.delete('/insight-statistics-publish-off', { params: { reportId } });
   },
 
   getUserFilter: async (reportId: number): Promise<Record<string, unknown> | null> => {

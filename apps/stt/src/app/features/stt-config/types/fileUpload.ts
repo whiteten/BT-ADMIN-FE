@@ -10,6 +10,7 @@ export interface FileUploadItem {
   agentId: string;
   agentName: string;
   workKind: string;
+  engineCode: string;
   recSystemIp: string;
   saFilepath: string;
   saFilename: string;

@@ -1,9 +1,11 @@
 import React from 'react';
 import { Navigate, Outlet } from 'react-router-dom';
+import { SelectorKeys } from './features/router/querySelectors';
 import { NotFound } from '@/components/custom/NotFound';
 
 // ─── 통계 ─────────────────────────────────────────────────────────────
 const SearchConditionCatalog = React.lazy(() => import('./pages/search-conditions/SearchConditionCatalog'));
+const StatConfigPage = React.lazy(() => import('./pages/stat-config/StatConfigPage'));
 const StatDatasetList = React.lazy(() => import('./pages/stat-datasets/StatDatasetList'));
 const StatDatasetWizard = React.lazy(() => import('./pages/stat-dataset-wizard/StatDatasetWizard'));
 const StatDatasetEdit = React.lazy(() => import('./pages/stat-datasets/StatDatasetEdit'));
@@ -40,6 +42,10 @@ export const routes = [
             element: <SearchConditionCatalog />,
           },
           {
+            path: 'stat-config',
+            element: <StatConfigPage />,
+          },
+          {
             path: 'datasets',
             element: <Outlet />,
             children: [
@@ -62,7 +68,15 @@ export const routes = [
                 ],
               },
               { path: ':reportId/edit', element: <ReportEditor /> },
-              { path: ':reportId/view', element: <ReportView /> },
+              // 통합 통계 보고서 보기 — reportId 를 path 파라미터가 아닌 쿼리스트링으로 받는다.
+              // 같은 path 를 여러 메뉴가 공유(메뉴마다 ?reportId 다름)하는 queryString 메뉴 분기 패턴.
+              {
+                path: 'view',
+                element: <ReportView />,
+                handle: {
+                  queryParams: [{ key: 'reportId', label: '보고서', selectorKey: SelectorKeys.ReportSelector }],
+                },
+              },
             ],
           },
         ],
