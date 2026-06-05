@@ -136,6 +136,16 @@ export const useCreateSipHeaderRelay = ({ mutationOptions }: MutationHookOptions
 };
 
 /**
+ * 헤더 릴레이 수정
+ */
+export const useUpdateSipHeaderRelay = ({ mutationOptions }: MutationHookOptions = {}) => {
+  return useMutation({
+    mutationFn: sipProfileApi.updateHeaderRelay,
+    ...mutationOptions,
+  });
+};
+
+/**
  * 헤더 릴레이 삭제
  */
 export const useDeleteSipHeaderRelay = ({ mutationOptions }: MutationHookOptions = {}) => {

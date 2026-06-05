@@ -69,7 +69,7 @@ export default function AdnImportDrawer({ open, onClose }: AdnImportDrawerProps)
       open={open}
       onClose={onClose}
       width={480}
-      destroyOnClose
+      destroyOnHidden
       extra={
         <div className="flex gap-2">
           <Button onClick={onClose}>취소</Button>

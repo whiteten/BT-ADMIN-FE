@@ -16,7 +16,9 @@ import { SS_REFRESH_TYPE_LABELS, type SipProfile, getActiveSipOptionTags } from 
 import { useModal } from '@/libs/shared-ui/src/hooks/useModal';
 
 const breadcrumb = [
-  { title: '프로파일 관리', path: '/ipron/profile/sip-profile' },
+  { title: 'IPRON', path: '/ipron' },
+  { title: '번호자원관리', path: '/ipron/numbering' },
+  { title: '프로파일', path: '/ipron/numbering/profile' },
   { title: 'SIP 프로파일', path: '/ipron/profile/sip-profile' },
 ];
 

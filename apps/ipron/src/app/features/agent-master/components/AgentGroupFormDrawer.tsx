@@ -150,7 +150,14 @@ export default function AgentGroupFormDrawer({ open, mode, groupId, initialTenan
           activateYn: values.activateYn,
           mediaMatrix: matrix,
         };
-        updateGroup({ id: groupId, body });
+        // 레거시 IPR20S4060 정합: 그룹 미디어옵션 수정 시 같은 그룹옵션을 쓰는 모든 상담사에 적용됨을 경고.
+        modal.confirm.execute({
+          onOk: () => updateGroup({ id: groupId, body }),
+          options: {
+            title: '상담그룹 미디어옵션 수정',
+            content: '상담그룹의 미디어옵션 수정 시 같은 그룹 미디어 옵션을 사용하는 모든 상담사에게 수정된 미디어옵션이 적용됩니다. 수정하시겠습니까?',
+          },
+        });
       } else {
         const body: AgentGroupCreateRequest = {
           tenantId: values.tenantId!,
@@ -284,7 +291,7 @@ export default function AgentGroupFormDrawer({ open, mode, groupId, initialTenan
                 children: (
                   <div>
                     <div className="text-[12px] text-gray-500 mb-3">상담사 등록 시 "그룹 미디어 옵션 사용" (USE_GRP_MDA_OPT=1) 선택 시 이 값이 상속됩니다.</div>
-                    <AgentMediaCards value={matrix} onChange={setMatrix} />
+                    <AgentMediaCards value={matrix} onChange={setMatrix} hideAutoAns />
                   </div>
                 ),
               },

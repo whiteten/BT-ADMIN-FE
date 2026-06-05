@@ -7,6 +7,7 @@
  * disabled prop 이 true (useGrpMdaOpt=1) 면 전체 셀 비활성화 → 그룹 기본값 상속 의미.
  */
 import { Checkbox, InputNumber, Select } from 'antd';
+import { MEDIA_OPTION_BOUNDS } from '../constants/codes';
 import type { AgentMediaOption, AgentMediaMatrix as Matrix } from '../types';
 
 const MEDIA_KEYS = ['chat', 'videoVoice', 'videoChat', 'email', 'fax', 'voip', 'mvoip', 'sms'] as const;
@@ -107,8 +108,8 @@ export default function AgentMediaMatrix({ value, onChange, disabled }: AgentMed
                   <InputNumber
                     size="small"
                     style={{ width: '100%' }}
-                    min={0}
-                    max={99}
+                    min={MEDIA_OPTION_BOUNDS.autoanswerTime.min}
+                    max={MEDIA_OPTION_BOUNDS.autoanswerTime.max}
                     value={cell.autoanswerTime ?? 2}
                     onChange={(v) => setCell(key, { autoanswerTime: typeof v === 'number' ? v : 2 })}
                     disabled={rowDisabled}
@@ -118,8 +119,8 @@ export default function AgentMediaMatrix({ value, onChange, disabled }: AgentMed
                   <InputNumber
                     size="small"
                     style={{ width: '100%' }}
-                    min={0}
-                    max={99}
+                    min={MEDIA_OPTION_BOUNDS.util.min}
+                    max={MEDIA_OPTION_BOUNDS.util.max}
                     value={cell.util ?? 1}
                     onChange={(v) => setCell(key, { util: typeof v === 'number' ? v : 1 })}
                     disabled={rowDisabled}
@@ -129,8 +130,8 @@ export default function AgentMediaMatrix({ value, onChange, disabled }: AgentMed
                   <InputNumber
                     size="small"
                     style={{ width: '100%' }}
-                    min={0}
-                    max={99}
+                    min={MEDIA_OPTION_BOUNDS.max.min}
+                    max={MEDIA_OPTION_BOUNDS.max.max}
                     value={cell.max ?? 1}
                     onChange={(v) => setCell(key, { max: typeof v === 'number' ? v : 1 })}
                     disabled={rowDisabled}

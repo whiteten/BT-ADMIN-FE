@@ -230,9 +230,9 @@ const CallScreenDrawer = forwardRef<CallScreenDrawerRef, Props>(({ onSuccess }, 
             <Input.TextArea placeholder="차단 설명을 입력하세요" maxLength={64} rows={3} />
           </Form.Item>
 
-          <Form.Item name="dnGroupId" label="DN 그룹">
+          <Form.Item name="dnGroupId" label="IPT 관리 조직">
             <Select placeholder="사용안함" allowClear>
-              {/* TODO: DN그룹 API 연동 */}
+              {/* TODO: DN그룹 목록 API 미구현 — 신규 BE 엔드포인트 필요 */}
             </Select>
           </Form.Item>
         </Form>

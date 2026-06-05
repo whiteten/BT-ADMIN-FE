@@ -5,10 +5,14 @@
  * 본문(펼침): 사용여부, 자동수락, 자동응답모드, 자동응답시간, util, max, afctime
  *
  * disabled (useGrpMdaOpt=1) — 카드 헤더 회색 처리, 펼침/입력 비활성.
+ * hideAutoAns (그룹 미디어 편집) — 자동수락(autoansUse) 입력/표시 제거.
+ *   레거시 IPR20S4060 그룹 팝업엔 autoansUse 가 없고, AgentGroup.*AutoansUse 는 @Transient 라
+ *   그룹 미디어 저장 시 소실되므로 그룹 편집 UI 에서는 노출하지 않는다. 개별 상담사 편집엔 유지.
  */
 import { useState } from 'react';
 import { InputNumber, Select } from 'antd';
 import { ChevronDown, ChevronRight } from 'lucide-react';
+import { MEDIA_OPTION_BOUNDS } from '../constants/codes';
 import type { AgentMediaOption, AgentMediaMatrix as Matrix } from '../types';
 
 const MEDIA_KEYS = ['chat', 'videoVoice', 'videoChat', 'email', 'fax', 'voip', 'mvoip', 'sms'] as const;
@@ -43,9 +47,11 @@ interface AgentMediaCardsProps {
   value: Matrix | null | undefined;
   onChange: (next: Matrix) => void;
   disabled?: boolean;
+  /** 자동수락(autoansUse) 입력/표시 제거 — 그룹 미디어 편집 시 사용 (레거시 그룹 팝업엔 없음). */
+  hideAutoAns?: boolean;
 }
 
-export default function AgentMediaCards({ value, onChange, disabled }: AgentMediaCardsProps) {
+export default function AgentMediaCards({ value, onChange, disabled, hideAutoAns }: AgentMediaCardsProps) {
   const matrix: Matrix = {
     chat: ensure(value?.chat),
     videoVoice: ensure(value?.videoVoice),
@@ -100,7 +106,7 @@ export default function AgentMediaCards({ value, onChange, disabled }: AgentMedi
               >
                 {isOn ? '사용' : '미사용'}
               </span>
-              <span className="text-[11px] text-gray-500">자동수락 {cell.autoansUse ? 'ON' : 'OFF'}</span>
+              {!hideAutoAns && <span className="text-[11px] text-gray-500">자동수락 {cell.autoansUse ? 'ON' : 'OFF'}</span>}
               <span className="ml-auto text-[11px] text-gray-500">
                 UTIL <b className="text-gray-800">{cell.util ?? 0}</b>
                 {'  '}·{'  '}
@@ -123,18 +129,20 @@ export default function AgentMediaCards({ value, onChange, disabled }: AgentMedi
                     ]}
                   />
                 </Field>
-                <Field label="자동 수락">
-                  <Select
-                    size="small"
-                    style={{ width: '100%' }}
-                    value={cell.autoansUse ? 1 : 0}
-                    onChange={(v) => setCell(key, { autoansUse: v === 1 })}
-                    options={[
-                      { value: 0, label: 'OFF' },
-                      { value: 1, label: 'ON' },
-                    ]}
-                  />
-                </Field>
+                {!hideAutoAns && (
+                  <Field label="자동 수락">
+                    <Select
+                      size="small"
+                      style={{ width: '100%' }}
+                      value={cell.autoansUse ? 1 : 0}
+                      onChange={(v) => setCell(key, { autoansUse: v === 1 })}
+                      options={[
+                        { value: 0, label: 'OFF' },
+                        { value: 1, label: 'ON' },
+                      ]}
+                    />
+                  </Field>
+                )}
                 <Field label="자동 응답 모드">
                   <Select
                     size="small"
@@ -151,8 +159,8 @@ export default function AgentMediaCards({ value, onChange, disabled }: AgentMedi
                   <InputNumber
                     size="small"
                     style={{ width: '100%' }}
-                    min={0}
-                    max={99}
+                    min={MEDIA_OPTION_BOUNDS.autoanswerTime.min}
+                    max={MEDIA_OPTION_BOUNDS.autoanswerTime.max}
                     value={cell.autoanswerTime ?? 2}
                     onChange={(v) => setCell(key, { autoanswerTime: typeof v === 'number' ? v : 2 })}
                   />
@@ -161,8 +169,8 @@ export default function AgentMediaCards({ value, onChange, disabled }: AgentMedi
                   <InputNumber
                     size="small"
                     style={{ width: '100%' }}
-                    min={0}
-                    max={99}
+                    min={MEDIA_OPTION_BOUNDS.util.min}
+                    max={MEDIA_OPTION_BOUNDS.util.max}
                     value={cell.util ?? 1}
                     onChange={(v) => setCell(key, { util: typeof v === 'number' ? v : 1 })}
                   />
@@ -171,8 +179,8 @@ export default function AgentMediaCards({ value, onChange, disabled }: AgentMedi
                   <InputNumber
                     size="small"
                     style={{ width: '100%' }}
-                    min={0}
-                    max={99}
+                    min={MEDIA_OPTION_BOUNDS.max.min}
+                    max={MEDIA_OPTION_BOUNDS.max.max}
                     value={cell.max ?? 1}
                     onChange={(v) => setCell(key, { max: typeof v === 'number' ? v : 1 })}
                   />

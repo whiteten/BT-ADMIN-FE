@@ -186,15 +186,21 @@ export default function MsGroupList() {
   };
 
   const handleCreateMsGroup = useCallback(() => {
-    const nodeId = selectedNodeId ?? nodes[0]?.nodeId;
-    if (nodeId) {
-      msGroupDrawerRef.current?.open(undefined, nodeId);
+    if (!selectedNodeId) {
+      toast.warning('노드를 먼저 선택하세요.');
+      return;
     }
-  }, [selectedNodeId, nodes]);
+    const name = nodeNameMap.get(selectedNodeId) ?? '';
+    msGroupDrawerRef.current?.open(undefined, selectedNodeId, name);
+  }, [selectedNodeId, nodeNameMap]);
 
-  const handleEditMsGroup = useCallback((grp: MsGroup) => {
-    msGroupDrawerRef.current?.open(grp);
-  }, []);
+  const handleEditMsGroup = useCallback(
+    (grp: MsGroup) => {
+      const name = nodeNameMap.get(grp.nodeId) ?? '';
+      msGroupDrawerRef.current?.open(grp, undefined, name);
+    },
+    [nodeNameMap],
+  );
 
   const handleDeleteMsGroup = useCallback(
     (grp: MsGroup) => {

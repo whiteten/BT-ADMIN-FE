@@ -55,34 +55,34 @@ export default function PreNumTransList() {
   // ─── Queries ────────────────────────────────────────────────────────────────
   const { data: nodes = [] } = useGetNodes();
 
-  // 노드별 카운트용으로 전체 목록을 한 번 가져와서 클라이언트에서 필터링
-  const listParams = useMemo(() => undefined, []);
+  // 서버사이드 검색 파라미터 — dnisPattern LIKE 검색은 BE로 위임 (SWAT IPR20S1045 기준)
+  // 검색어가 있으면 dnisPattern 파라미터를 전달, 노드 선택과 함께 전달 가능
+  const isSearching = searchText.trim().length > 0;
+  const listParams = useMemo(
+    () => ({
+      ...(selectedNodeId && !isSearching ? { nodeId: selectedNodeId } : {}),
+      ...(isSearching ? { dnisPattern: searchText.trim() } : {}),
+    }),
+    [selectedNodeId, isSearching, searchText],
+  );
   const { data: allTransList = [], isLoading } = useGetPreNumTransList({
     params: listParams,
   });
 
-  // 검색어로 필터링 (검색 필드: DNIS패턴, 추가Digit, 비고, 노드명)
-  const isSearching = searchText.trim().length > 0;
-  const searchFilteredTrans = useMemo(() => {
-    if (!isSearching) return allTransList;
-    const kw = searchText.trim().toLowerCase();
-    return allTransList.filter((t) => [t.dnisPattern, t.addDigit, t.transDesc, t.nodeName].some((v) => v?.toString().toLowerCase().includes(kw)));
-  }, [allTransList, isSearching, searchText]);
-
-  // 검색 중이면 노드 선택 무시 (전체 표시)
+  // 검색 중이거나 노드 미선택 시 전체 목록, 노드 선택 시 BE가 이미 필터링해서 반환
   const transList = useMemo(
-    () => (isSearching || !selectedNodeId ? searchFilteredTrans : searchFilteredTrans.filter((t) => t.nodeId === selectedNodeId)),
-    [searchFilteredTrans, selectedNodeId, isSearching],
+    () => (isSearching || !selectedNodeId ? allTransList : allTransList.filter((t) => t.nodeId === selectedNodeId)),
+    [allTransList, selectedNodeId, isSearching],
   );
 
-  // 노드별 사전변환 개수 (검색 결과 기준)
+  // 노드별 사전변환 개수 (현재 목록 기준)
   const transCountByNode = useMemo(() => {
     const map = new Map<number, number>();
-    for (const t of searchFilteredTrans) {
+    for (const t of allTransList) {
       map.set(t.nodeId, (map.get(t.nodeId) ?? 0) + 1);
     }
     return map;
-  }, [searchFilteredTrans]);
+  }, [allTransList]);
 
   const handleSearchChange = (e: ChangeEvent<HTMLInputElement>) => {
     setSearchText(e.target.value);
@@ -103,9 +103,10 @@ export default function PreNumTransList() {
   }, [selectedNodeName, transList.length]);
 
   // ─── Invalidation helpers ──────────────────────────────────────────────────
+  // 파라미터가 동적이므로 preNumTrans getList 전체를 무효화 (특정 params 키에 한정하지 않음)
   const invalidateList = useCallback(() => {
-    queryClient.invalidateQueries({ queryKey: preNumTransQueryKeys.getList(listParams).queryKey });
-  }, [queryClient, listParams]);
+    queryClient.invalidateQueries({ queryKey: preNumTransQueryKeys.getList._def });
+  }, [queryClient]);
 
   // ─── Handlers ─────────────────────────────────────────────────────────────
   const handleNodeSelect = (nodeId: number) => {

@@ -293,8 +293,15 @@ const DidTransDrawer = forwardRef<DidTransDrawerRef, Props>(({ onSuccess }, ref)
           <Input placeholder="추가 Digit을 입력하세요" maxLength={24} />
         </Form.Item>
 
-        <Form.Item name="transPriority" label="변환 우선순위" rules={[{ required: true, message: '변환 우선순위는 필수입니다' }]}>
-          <InputNumber min={0} max={9999} placeholder="1" className="w-full" />
+        <Form.Item
+          name="transPriority"
+          label="변환 우선순위"
+          rules={[
+            { required: true, message: '변환 우선순위는 필수입니다' },
+            { type: 'number', min: 1, max: 999, message: '변환 우선순위는 1~999 범위여야 합니다' },
+          ]}
+        >
+          <InputNumber min={1} max={999} placeholder="1" className="w-full" />
         </Form.Item>
 
         <Form.Item name="transDesc" label="비고" rules={[{ max: 256, message: '비고는 256자 이내여야 합니다' }]}>

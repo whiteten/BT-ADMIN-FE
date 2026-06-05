@@ -6,7 +6,7 @@ import { type ChangeEvent, useCallback, useEffect, useMemo, useRef, useState } f
 import { useNavigate } from 'react-router-dom';
 import { Button, Empty, Input } from 'antd';
 import { ChevronLeft, ChevronRight, ChevronsDown, ChevronsUp, Download, Plus, Search, Trash2, Upload } from 'lucide-react';
-import { useBreadcrumbStore } from '@/shared-store';
+import { useAuthStore, useBreadcrumbStore } from '@/shared-store';
 import { toast } from '@/shared-util';
 import { adnApi } from '../../features/adn/api/adnApi';
 import AdnCopyDrawer, { type AdnCopyFormValues } from '../../features/adn/components/AdnCopyDrawer';
@@ -35,13 +35,28 @@ export default function AdnList() {
   const modal = useModal();
   const cardScrollRef = useRef<HTMLDivElement>(null);
 
+  // ctx 테넌트 (JWT — 사용자 본인 테넌트) — 페이지 진입 시 자동 선택
+  const ctxTenantId = useAuthStore((s) => {
+    const t = s.userInfo?.tenant;
+    return t ? Number(t) : null;
+  });
+
   // ─── State ──────────────────────────────────────────────────────────────
-  const [selectedTenantId, setSelectedTenantId] = useState<number | null>(null);
+  const [selectedTenantId, setSelectedTenantId] = useState<number | null>(ctxTenantId);
   const [searchText, setSearchText] = useState('');
   const [selectedRows, setSelectedRows] = useState<AdnResponse[]>([]);
   const [copyOpen, setCopyOpen] = useState(false);
   const [importOpen, setImportOpen] = useState(false);
-  const [cardExpanded, setCardExpanded] = useState(true);
+  // 카드 박스 default 접힘(compact pill). 권한 wrapping 일관성을 위해 hidden 토글 X.
+  const [cardExpanded, setCardExpanded] = useState(false);
+
+  // ctx 비동기 로드 시 동기화
+  useEffect(() => {
+    if (ctxTenantId != null && selectedTenantId === null) {
+      setSelectedTenantId(ctxTenantId);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [ctxTenantId]);
 
   // ─── Queries ────────────────────────────────────────────────────────────
   const { data: adns = [], isLoading } = useGetAdns({});
@@ -173,10 +188,15 @@ export default function AdnList() {
   // ─── Render ─────────────────────────────────────────────────────────────
   return (
     <div className="flex flex-col gap-4 w-full h-full">
-      {/* ===== 카드 슬라이더 박스 ===== */}
+      {/* ===== 박스 1: 헤더 (별도 박스) ===== */}
       <div className="bg-white bt-shadow overflow-hidden flex-shrink-0">
-        <div className="flex items-center px-4 h-[44px] border-b border-gray-100">
-          <span className="text-sm font-semibold text-gray-700">테넌트별 ADN 현황</span>
+        <div className="flex items-center px-4 h-[56px]">
+          <span className="text-sm font-semibold text-gray-700">ADN 현황</span>
+          {selectedTenantId !== null && (
+            <span className="ml-3 text-xs text-gray-500">
+              테넌트: <span className="font-medium text-gray-700">{tenantStats.find((t) => t.tenantId === selectedTenantId)?.tenantName ?? `#${selectedTenantId}`}</span>
+            </span>
+          )}
           <div className="ml-auto flex items-center gap-2">
             <Input
               allowClear
@@ -194,7 +214,10 @@ export default function AdnList() {
             </Button>
           </div>
         </div>
+      </div>
 
+      {/* ===== 박스 2: 테넌트 카드 슬라이더 (별도 박스, gap-4 로 분리) ===== */}
+      <div className="bg-white bt-shadow overflow-hidden flex-shrink-0">
         {cardExpanded ? (
           <div className="flex items-center h-[140px] px-4 py-3">
             <div className="relative flex items-center gap-2 w-full">

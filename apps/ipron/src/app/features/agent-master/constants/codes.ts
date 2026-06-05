@@ -124,3 +124,18 @@ export const USE_GRP_SKILL_OPTIONS = [
   { value: 0, label: '개별 스킬 배정' },
   { value: 1, label: '그룹 스킬 배정' },
 ];
+
+/**
+ * 미디어 옵션 수치 입력 범위 (SWAT IPR20S4060 정합).
+ *
+ * - util(가중치) 0~100, max(동시 최대) 0~16,
+ *   afctime(후처리) 0~999, autoanswerTime(자동응답 시간) 0~999.
+ *
+ * 매트릭스/카드/현황표 세 컴포넌트가 동일 범위를 공유한다.
+ */
+export const MEDIA_OPTION_BOUNDS = {
+  util: { min: 0, max: 100 },
+  max: { min: 0, max: 16 },
+  afctime: { min: 0, max: 999 },
+  autoanswerTime: { min: 0, max: 999 },
+} as const;

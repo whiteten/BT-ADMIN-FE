@@ -6,28 +6,30 @@
 
 // ─── Enum 라벨 매핑 ─────────────────────────────────────────────────────────
 
-/** 벤더 (MEDIA_DELIVERY_VENDOR) */
+/** 벤더 (MEDIA_DELIVERY_VENDOR) — DB 공통코드 기준: 1=브리지텍/2=루키스/3=동방정보통신 */
 export const MD_VENDOR_OPTIONS = [
-  { label: 'IPRON', value: 0 },
-  { label: 'DIALOGIC', value: 1 },
-  { label: 'AudioCodes', value: 2 },
+  { label: '브리지텍', value: 1 },
+  { label: '루키스', value: 2 },
+  { label: '동방정보통신', value: 3 },
 ] as const;
 
 export const MD_VENDOR_LABELS: Record<number, string> = {
-  0: 'IPRON',
-  1: 'DIALOGIC',
-  2: 'AudioCodes',
+  1: '브리지텍',
+  2: '루키스',
+  3: '동방정보통신',
 };
 
-/** Transport 타입 */
+/** Transport 타입 — DB 공통코드 기준: 1=UDP/2=TCP/4=TLS (TRANSPORT_TYPE&systemKind=IE 앞3개) */
 export const TRANSPORT_TYPE_OPTIONS = [
-  { label: 'UDP', value: 0 },
-  { label: 'TCP', value: 1 },
+  { label: 'UDP', value: 1 },
+  { label: 'TCP', value: 2 },
+  { label: 'TLS', value: 4 },
 ] as const;
 
 export const TRANSPORT_TYPE_LABELS: Record<number, string> = {
-  0: 'UDP',
-  1: 'TCP',
+  1: 'UDP',
+  2: 'TCP',
+  4: 'TLS',
 };
 
 /** RTP 전송타입 */
@@ -211,8 +213,8 @@ export const MD_GRP_INITIAL_VALUES: Partial<MdGrpCreateRequest> = {
 
 export const MD_ITEM_INITIAL_VALUES: Partial<MdItemCreateRequest> = {
   mediaDeliveryName: '',
-  mediaDeliveryVendor: 0,
-  transportType: 0,
+  mediaDeliveryVendor: 1,
+  transportType: 1,
   rtpTransType: 0,
   haType: 0,
   srtpYn: 0,
@@ -222,12 +224,12 @@ export const MD_ITEM_INITIAL_VALUES: Partial<MdItemCreateRequest> = {
   ipAddr2: '',
   portNo2: 5060,
   checkType1: 0,
-  chkInterval1: 30,
+  chkInterval1: 60,
   failCnt1: 3,
   blockYn1: 0,
   extOptions1: '',
   checkType2: 0,
-  chkInterval2: 30,
+  chkInterval2: 60,
   failCnt2: 3,
   blockYn2: 0,
   extOptions2: '',

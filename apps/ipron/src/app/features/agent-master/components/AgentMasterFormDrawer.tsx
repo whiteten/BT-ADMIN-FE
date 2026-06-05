@@ -6,9 +6,10 @@
  *   - 그리드 행 더블클릭 / [수정] 아이콘 → mode='edit', agentId 전달
  */
 import { useEffect, useMemo, useState } from 'react';
-import { Button, Col, Drawer, Form, Input, InputNumber, Radio, Row, Select, Spin, Tabs } from 'antd';
+import { Button, Col, Drawer, Form, Input, Radio, Row, Select, Spin, Tabs } from 'antd';
 import { toast } from '@/shared-util';
 import AgentMediaCards from './AgentMediaCards';
+import { useGetAvailableSkillsets } from '../../skill-assign/hooks/useSkillAssignQueries';
 import { ACTIVATE_OPTIONS, AGENT_GRADE_OPTIONS, JIKGUP_OPTIONS, ON_OFF_OPTIONS, RETIRE_OPTIONS, USE_GRP_MDA_OPT_OPTIONS, USE_GRP_SKILL_OPTIONS } from '../constants/codes';
 import { useCreateAgent, useGetAgentDetail, useGetAgentGroupTree, useGetAgentTenants, useUpdateAgent } from '../hooks/useAgentMasterQueries';
 import type { AgentCreateRequest, AgentGroupNode, AgentUpdateRequest, AgentMediaMatrix as Matrix } from '../types';
@@ -107,7 +108,7 @@ export default function AgentMasterFormDrawer({ open, mode, agentId, initialTena
         retireYn: detail.retireYn ?? 0,
         useGrpMdaOpt: detail.useGrpMdaOpt ?? 0,
         useGrpSkill: detail.useGrpSkill ?? 0,
-        masterCtiqId: detail.masterCtiqId ?? undefined,
+        masterCtiqId: detail.masterCtiqId ?? 0,
         monitorSvc: detail.monitorSvc ?? 0,
         coachingSvc: detail.coachingSvc ?? 0,
       });
@@ -119,6 +120,7 @@ export default function AgentMasterFormDrawer({ open, mode, agentId, initialTena
         retireYn: 0,
         useGrpMdaOpt: 0,
         useGrpSkill: 0,
+        masterCtiqId: 0,
         monitorSvc: 0,
         coachingSvc: 0,
       };
@@ -142,6 +144,14 @@ export default function AgentMasterFormDrawer({ open, mode, agentId, initialTena
       label: `${'  '.repeat(Math.max(0, g.grpDepth - 1))}${g.groupName}`,
     }));
   }, [groupTree, selectedTenantId]);
+
+  // 주 업무 스킬(MASTER_CTIQ_ID) — 선택 테넌트의 스킬셋 풀을 재사용(skill-assign 종단)
+  const { data: skillsets = [] } = useGetAvailableSkillsets({
+    params: { tenantId: selectedTenantId },
+    queryOptions: { enabled: selectedTenantId != null },
+  });
+
+  const masterSkillOptions = useMemo(() => [{ value: 0, label: '없음' }, ...skillsets.map((s) => ({ value: s.skillsetId, label: s.skillsetName }))], [skillsets]);
 
   const handleSubmit = async () => {
     try {
@@ -252,11 +262,6 @@ export default function AgentMasterFormDrawer({ open, mode, agentId, initialTena
                           />
                         </Form.Item>
                       </Col>
-                      <Col span={12}>
-                        <Form.Item label="아웃소싱업체" name="oscomId">
-                          <InputNumber style={{ width: '100%' }} min={0} placeholder="0 = 없음" />
-                        </Form.Item>
-                      </Col>
                     </Row>
 
                     <SectionTitle>기본정보</SectionTitle>
@@ -284,6 +289,17 @@ export default function AgentMasterFormDrawer({ open, mode, agentId, initialTena
                       <Col span={12}>
                         <Form.Item label="직급" name="jikgup">
                           <Select options={JIKGUP_OPTIONS} placeholder="직급 선택" allowClear showSearch optionFilterProp="label" />
+                        </Form.Item>
+                      </Col>
+                      <Col span={12}>
+                        <Form.Item label="주 업무 스킬" name="masterCtiqId">
+                          <Select
+                            options={masterSkillOptions}
+                            placeholder={selectedTenantId ? '스킬셋 선택' : '테넌트를 먼저 선택하세요'}
+                            disabled={!selectedTenantId}
+                            showSearch
+                            optionFilterProp="label"
+                          />
                         </Form.Item>
                       </Col>
                     </Row>
@@ -331,7 +347,7 @@ export default function AgentMasterFormDrawer({ open, mode, agentId, initialTena
                           </Col>
                           <Col span={12}>
                             <Form.Item label="작업자">
-                              <ReadOnly text={detail?.workUser ? String(detail.workUser) : '-'} />
+                              <ReadOnly text={detail?.workUserName ?? '-'} />
                             </Form.Item>
                           </Col>
                         </Row>
@@ -369,20 +385,6 @@ export default function AgentMasterFormDrawer({ open, mode, agentId, initialTena
                     </Row>
 
                     <div className="flex items-center justify-between mb-3" style={{ marginTop: 8 }}>
-                      <h3 className="text-[13px] font-semibold text-gray-700 m-0">스킬 / 주 업무</h3>
-                      <Form.Item name="useGrpSkill" className="!mb-0">
-                        <Radio.Group options={USE_GRP_SKILL_OPTIONS} optionType="button" buttonStyle="solid" size="small" />
-                      </Form.Item>
-                    </div>
-                    <Row gutter={16}>
-                      <Col span={12}>
-                        <Form.Item label="주 업무 스킬 ID" name="masterCtiqId">
-                          <InputNumber style={{ width: '100%' }} min={0} placeholder="0 = 없음" />
-                        </Form.Item>
-                      </Col>
-                    </Row>
-
-                    <div className="flex items-center justify-between mb-3" style={{ marginTop: 12 }}>
                       <h3 className="text-[13px] font-semibold text-gray-700 m-0">미디어 / 통화 옵션</h3>
                       <Form.Item name="useGrpMdaOpt" className="!mb-0">
                         <Radio.Group options={USE_GRP_MDA_OPT_OPTIONS} optionType="button" buttonStyle="solid" size="small" />

@@ -22,7 +22,7 @@ import { ChevronLeft, ChevronRight, Layers, Network, Phone, Plus, Radio, Search 
 import { useBreadcrumbStore } from '@/shared-store';
 import AclDrawer, { type AclDrawerRef } from '../../features/acl/components/AclDrawer';
 import { aclQueryKeys, useDeleteAcl, useDeleteCtiAcl, useGetAcls, useGetCtiAcls, useGetNodes } from '../../features/acl/hooks/useAclQueries';
-import { type Acl, USE_YN_LABELS } from '../../features/acl/types';
+import { ACL_TYPE_LABELS, type Acl, USE_YN_LABELS } from '../../features/acl/types';
 import { IconTrash } from '@/components/custom/Icons';
 import useAggridOptions from '@/libs/shared-ui/src/hooks/useAggridOptions';
 import { useModal } from '@/libs/shared-ui/src/hooks/useModal';
@@ -175,6 +175,19 @@ export default function AclList() {
     () => [
       { headerName: '노드명', field: 'nodeName', flex: 1, minWidth: 100 },
       { headerName: '접근제어명', field: 'aclName', flex: 2, minWidth: 140 },
+      {
+        headerName: '허용/금지',
+        field: 'aclType',
+        flex: 1,
+        minWidth: 90,
+        cellRenderer: (params: ICellRendererParams<Acl>) => {
+          if (!params.data) return null;
+          const aclType = params.data.aclType;
+          const label = ACL_TYPE_LABELS[aclType] ?? String(aclType);
+          const color = aclType === 1 ? '#16a34a' : '#dc2626';
+          return <span style={{ color, fontWeight: 500 }}>{label}</span>;
+        },
+      },
       { headerName: 'IP NET', field: 'ipNet', flex: 2, minWidth: 130 },
       { headerName: 'IP MASK', field: 'ipMask', flex: 2, minWidth: 130 },
       {

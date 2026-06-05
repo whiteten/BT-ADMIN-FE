@@ -74,10 +74,12 @@ export default function AdnTable({ rowData, isLoading, onRowDoubleClicked, onDel
         minWidth: 130,
         maxWidth: 140,
         cellStyle: { textAlign: 'center' } as CellStyle,
+        // ADN DN_STATUS: '8'=로그인, '9'=로그아웃 (공유 DnStatus '1' 아님 — DB 실확인)
+        filterValueGetter: (params) => (params.data?.dnStatus === '8' ? '로그인' : '로그아웃'),
         cellRenderer: (params: ICellRendererParams<AdnResponse>) => {
           const v = params.data?.dnStatus;
           if (v == null) return '-';
-          const isActive = v === '1';
+          const isActive = v === '8';
           return (
             <span
               className={`inline-flex items-center justify-center w-[90px] h-[22px] leading-none px-1.5 rounded text-[11px] font-medium ${
@@ -101,6 +103,7 @@ export default function AdnTable({ rowData, isLoading, onRowDoubleClicked, onDel
         minWidth: 110,
         maxWidth: 120,
         cellStyle: { textAlign: 'center' } as CellStyle,
+        filterValueGetter: (params) => (params.data?.md5Auth === 1 ? '설정' : '해제'),
         cellRenderer: (params: ICellRendererParams<AdnResponse>) => {
           const v = params.data?.md5Auth;
           return v === 1 ? (
@@ -119,6 +122,7 @@ export default function AdnTable({ rowData, isLoading, onRowDoubleClicked, onDel
         headerName: '상담원 기본상태',
         field: 'adnDftState',
         minWidth: 140,
+        filterValueGetter: (params) => getAdnDftStateName(params.data?.adnDftState),
         valueFormatter: (p) => getAdnDftStateName(p.value),
       },
       {
