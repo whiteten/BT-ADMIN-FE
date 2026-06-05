@@ -29,7 +29,7 @@ export default function McpCard({ mcp, onClick, onDetail, onDelete }: McpCardPro
 
   const title = (
     <div className="flex items-center gap-2.5 w-full">
-      <div className="w-8 h-8 rounded-lg bg-[#EAF2FB] text-[var(--color-bt-primary)] flex items-center justify-center shrink-0">
+      <div className="w-8 h-8 rounded-lg bg-[var(--color-bt-primary-soft)] text-[var(--color-bt-primary)] flex items-center justify-center shrink-0">
         <Server className="size-[18px]" />
       </div>
       <span className="min-w-0 truncate hover:cursor-pointer hover:!text-[var(--color-bt-primary)]" onClick={handleClick}>

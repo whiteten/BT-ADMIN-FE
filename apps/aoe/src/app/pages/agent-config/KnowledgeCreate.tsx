@@ -1,13 +1,35 @@
-import { useEffect, useRef, useState } from 'react';
+import { type ReactNode, useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { type BreadcrumbProps, Button, Card, Col, Form, Input, InputNumber, Row, Select, Steps, Upload } from 'antd';
-import { ChevronDown, ChevronUp, CloudUpload, FileText } from 'lucide-react';
+import { Blocks, ChevronDown, ChevronUp, ClipboardCheck, CloudUpload, FileText, type LucideIcon, Search } from 'lucide-react';
 import { Log } from '@/log';
 import { useBreadcrumbStore } from '@/shared-store';
 import { toast } from '@/shared-util';
 import { usePreviewKnowledge, useProcessKnowledge } from '../../features/agent-config/hooks/useKnowledgeQueries';
 import type { KnowledgeChunkData } from '../../features/agent-config/types';
 import NoData from '@/components/custom/NoData';
+
+/** Step3 요약 그룹 — 그룹 라벨 + 항목 목록 */
+function ReviewGroup({ icon: Icon, title, children }: { icon: LucideIcon; title: string; children: ReactNode }) {
+  return (
+    <section className="px-5 py-4">
+      <div className="mb-3 flex items-center gap-1.5 text-xs font-semibold text-[#888B9A]">
+        <Icon className="size-3.5 text-[var(--color-bt-primary)]" />
+        {title}
+      </div>
+      <dl className="flex flex-col gap-2.5">{children}</dl>
+    </section>
+  );
+}
+
+function SummaryRow({ label, value, strong }: { label: string; value: ReactNode; strong?: boolean }) {
+  return (
+    <div className="flex items-start gap-3 text-sm">
+      <dt className="w-28 shrink-0 text-[#888B9A]">{label}</dt>
+      <dd className={`min-w-0 break-words text-[#495057] ${strong ? 'font-semibold' : ''}`}>{value}</dd>
+    </div>
+  );
+}
 
 function ChunkCard({ chunk }: { chunk: KnowledgeChunkData }) {
   const [isExpanded, setIsExpanded] = useState(false);
@@ -303,50 +325,37 @@ export default function KnowledgeCreate() {
     const fileList = step1Values.fileList ?? [];
     const searchLabel = SEARCH_TYPE_OPTIONS.find((o) => o.value === step2Values.enableHybridSearch)?.label ?? '-';
 
+    const isHybrid = step2Values.enableHybridSearch === '1';
+
     return (
-      <div className="max-w-2xl space-y-4">
-        <p className="text-sm text-gray-500">아래 설정을 확인하고 실행 버튼을 눌러 지식을 생성합니다.</p>
-        <div className="bg-gray-50 rounded-lg p-5 space-y-3 text-sm">
-          <div className="flex gap-2">
-            <span className="w-36 text-gray-500 shrink-0">문서 그룹명</span>
-            <span className="font-medium">{step1Values.documentName ?? '-'}</span>
+      <div className="max-w-xl">
+        <div className="overflow-hidden rounded-lg border border-gray-200 bg-white">
+          <header className="flex items-center gap-2.5 border-b border-[#F1F3F5] px-5 py-4">
+            <div className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-[var(--color-bt-primary-soft)]">
+              <ClipboardCheck className="size-[18px] text-[var(--color-bt-primary)]" />
+            </div>
+            <div className="min-w-0">
+              <h3 className="text-sm font-semibold text-[#495057]">생성 설정 확인</h3>
+              <p className="text-xs text-[#888B9A]">아래 설정으로 지식을 생성합니다.</p>
+            </div>
+          </header>
+          <div className="divide-y divide-[#F1F3F5]">
+            <ReviewGroup icon={FileText} title="문서 정보">
+              <SummaryRow label="문서 그룹명" value={step1Values.documentName ?? '-'} strong />
+              <SummaryRow label="설명" value={step1Values.description || '-'} />
+              <SummaryRow label="업로드 파일" value={fileList.length > 0 ? `${fileList.length}개` : '-'} />
+            </ReviewGroup>
+            <ReviewGroup icon={Blocks} title="청킹 설정">
+              <SummaryRow label="최대 청크 길이" value={step2Values.chunkSize} />
+              <SummaryRow label="청크 중첩" value={step2Values.chunkOverlap} />
+            </ReviewGroup>
+            <ReviewGroup icon={Search} title="검색 설정">
+              <SummaryRow label="검색 유형" value={searchLabel} strong />
+              <SummaryRow label="상위 K" value={step2Values.topK} />
+              {isHybrid && <SummaryRow label="Dense Weight" value={step2Values.denseWeight} />}
+              {isHybrid && <SummaryRow label="BM25 Weight" value={step2Values.bm25Weight} />}
+            </ReviewGroup>
           </div>
-          <div className="flex gap-2">
-            <span className="w-36 text-gray-500 shrink-0">설명</span>
-            <span>{step1Values.description || '-'}</span>
-          </div>
-          <div className="flex gap-2">
-            <span className="w-36 text-gray-500 shrink-0">업로드 파일</span>
-            <span>{fileList.length > 0 ? `${fileList.length}개` : '-'}</span>
-          </div>
-          <div className="flex gap-2">
-            <span className="w-36 text-gray-500 shrink-0">최대 청크 길이</span>
-            <span>{step2Values.chunkSize}</span>
-          </div>
-          <div className="flex gap-2">
-            <span className="w-36 text-gray-500 shrink-0">청크 중첩</span>
-            <span>{step2Values.chunkOverlap}</span>
-          </div>
-          <div className="flex gap-2">
-            <span className="w-36 text-gray-500 shrink-0">검색 유형</span>
-            <span>{searchLabel}</span>
-          </div>
-          <div className="flex gap-2">
-            <span className="w-36 text-gray-500 shrink-0">상위 K</span>
-            <span>{step2Values.topK}</span>
-          </div>
-          {step2Values.enableHybridSearch === '1' && (
-            <>
-              <div className="flex gap-2">
-                <span className="w-36 text-gray-500 shrink-0">Dense Weight</span>
-                <span>{step2Values.denseWeight}</span>
-              </div>
-              <div className="flex gap-2">
-                <span className="w-36 text-gray-500 shrink-0">BM25 Weight</span>
-                <span>{step2Values.bm25Weight}</span>
-              </div>
-            </>
-          )}
         </div>
       </div>
     );
