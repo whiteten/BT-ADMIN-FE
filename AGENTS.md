@@ -554,6 +554,20 @@ export const ENTITY_TYPE_COLORS: Record<EntityType, string> = {
 };
 ```
 
+### 아이콘 사용 패턴
+
+새 아이콘이 필요하면 **lucide 아이콘을 사용**하거나 **직접 SVG를 추가**하는 두 가지만 쓴다. 다른 아이콘 라이브러리를 새로 도입하거나, 컴포넌트에 인라인 `<svg>` 마크업을 직접 박지 말 것.
+
+- **lucide (`lucide-react`) — 1순위**: 범용 UI 아이콘(검색·추가·삭제·화살표 등)은 lucide를 우선 사용. `import { Search, Plus } from 'lucide-react'`로 가져와 그대로 사용하며 별도 등록이 필요 없다
+- **커스텀 SVG**: 디자인팀 제공 자산이나 lucide에 없는 브랜드·도메인 전용 아이콘만 해당. `libs/shared-ui/src/assets/images/icon/icon-<name>.svg`(kebab-case, `icon-` 접두사)로 저장하고 [Icons.tsx](libs/shared-ui/src/components/custom/Icons.tsx)에 `export { ReactComponent as Icon<Name> } from '../../assets/images/icon/icon-<name>.svg';` 한 줄을 추가한 뒤 import해서 사용 (svgr이 React 컴포넌트로 변환)
+
+> 위 규칙은 **일반 UI 아이콘** 기준이다. 다음 두 경우는 별도 메커니즘을 따르므로 혼동하지 말 것:
+>
+> - **메뉴 트리 아이콘**(사이드바 메뉴 항목): 운영자가 picker에서 선택. [menuIconRegistry.ts](libs/shared-ui/src/components/custom/menuIconRegistry.ts)에 `custom:`(커스텀 SVG)·`lucide:` 키로 등록된 아이콘만 노출되므로, 새 아이콘이 필요하면 레지스트리에 등록한다
+> - **remote 뱃지 아이콘**(사이드바 좌측 60px 컬럼의 remote 대표 아이콘): 위 "새 Remote 생성 후 수동 단계 — 뱃지 아이콘" 절차를 따른다
+
+상세 기준·절차는 [DEVELOPER_GUIDE.md](doc/DEVELOPER_GUIDE.md)의 "아이콘 사용 가이드" 섹션 참조.
+
 ### UI 레이아웃 규칙
 
 레이아웃 배경(회색 계열) 위에 버튼·입력 필드·테이블 등을 직접 배치하지 말 것. 배경과의 시각적 분리가 없으면 요소가 부유하는 느낌을 주어 완성도가 떨어진다. 반드시 `bg-white bt-shadow` 컨테이너 또는 `Card`로 감싸 콘텐츠 영역을 명확히 구분할 것.
