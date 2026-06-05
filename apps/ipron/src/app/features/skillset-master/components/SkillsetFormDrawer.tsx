@@ -147,8 +147,8 @@ export default function SkillsetFormDrawer({ open, mode, skillset, defaultTenant
           <Switch checkedChildren="ON" unCheckedChildren="OFF" />
         </Form.Item>
 
-        <Form.Item name="skillsetDesc" label="설명" rules={[{ max: 256, message: '256자까지 입력 가능합니다' }]}>
-          <Input.TextArea rows={3} placeholder="스킬셋 설명" />
+        <Form.Item name="skillsetDesc" label="설명" rules={[{ max: 127, message: '127자까지 입력 가능합니다' }]}>
+          <Input.TextArea rows={3} maxLength={127} placeholder="스킬셋 설명" />
         </Form.Item>
       </Form>
     </Drawer>

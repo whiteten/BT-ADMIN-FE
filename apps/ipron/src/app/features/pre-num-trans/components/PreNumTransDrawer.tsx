@@ -5,7 +5,7 @@
  * transAction에 따라 라우트 선택 활성/비활성 제어
  * NumPatternDrawer 재사용 (did-trans 공유)
  */
-import { forwardRef, useCallback, useEffect, useImperativeHandle, useMemo, useRef, useState } from 'react';
+import { type KeyboardEvent as ReactKeyboardEvent, forwardRef, useCallback, useEffect, useImperativeHandle, useMemo, useRef, useState } from 'react';
 import { Button, Col, Drawer, Form, Input, InputNumber, Row, Select } from 'antd';
 import { List } from 'lucide-react';
 import { toast } from '@/shared-util';
@@ -13,6 +13,62 @@ import NumPatternDrawer, { type NumPatternDrawerRef } from '../../did-trans/comp
 import { useCreatePreNumTrans, useDeletePreNumTrans, useGetRoutes, useUpdatePreNumTrans } from '../hooks/usePreNumTransQueries';
 import { EDIT_OPT_OPTIONS, type PreNumTrans, type PreNumTransCreateRequest, TRANS_ACTION_OPTIONS } from '../types';
 import { useModal } from '@/libs/shared-ui/src/hooks/useModal';
+
+// ─── SWAT IPR20S1045 번호패턴 허용 문자 집합 ───────────────────────────────
+// handlePattern21KeyPress: 숫자 + [ ] - X , x . ! Z z N n ( ) | #
+const DNIS_PATTERN_ALLOWED_CHARS = new Set(['[', ']', '-', 'X', ',', 'x', '.', '!', 'Z', 'z', 'N', 'n', '(', ')', '|', '#']);
+
+/**
+ * DNIS 패턴 키보드 필터 (SWAT handlePattern21KeyPress 동등)
+ * onKeyDown 기반 — 숫자 + [ ] - X , x . ! Z z N n ( ) | # 허용, 나머지 차단
+ */
+function handleDnisPatternKeyDown(e: ReactKeyboardEvent<HTMLInputElement>) {
+  const ch = e.key;
+  // 제어키(Backspace, Delete, ArrowLeft 등) 통과
+  if (ch.length !== 1) return;
+  // Ctrl/Alt 조합키(복사·붙여넣기 등) 통과
+  if (e.ctrlKey || e.altKey || e.metaKey) return;
+  if ((ch >= '0' && ch <= '9') || DNIS_PATTERN_ALLOWED_CHARS.has(ch)) return;
+  e.preventDefault();
+}
+
+/**
+ * addDigit 키보드 필터 — 숫자만 허용 (SWAT ourKeyPress('digit') 동등)
+ */
+function handleAddDigitKeyDown(e: ReactKeyboardEvent<HTMLInputElement>) {
+  const ch = e.key;
+  if (ch.length !== 1) return;
+  if (e.ctrlKey || e.altKey || e.metaKey) return;
+  if (ch >= '0' && ch <= '9') return;
+  e.preventDefault();
+}
+
+/**
+ * DNIS 패턴 형식 검증 (SWAT numberPattern() 동등)
+ *
+ * 입력을 "|"로 분리한 뒤 각 토큰이 아래 토큰 집합의 조합인지 검증.
+ * 토큰: \[\d+-\d\] | X | Z | N | ! | # | \. | \[\d+\](\d+)? | \[\d+(,\d+)*\](\d+)? | \d
+ */
+const DNIS_TOKEN_RE = /\[\d+-\d\]|X|Z|N|!|#|\.|\[\d+\](\d+)?|\[\d+(,\d+)*\](\d+)?|\d/gi;
+
+function isValidDnisPattern(patterns: string): boolean {
+  const patternList = patterns.toUpperCase().split('|');
+  for (const pattern of patternList) {
+    // 괄호 쌍 체크: 괄호가 있으면 반드시 ^( ... )$ 형태여야 함
+    if (/[()]/g.test(pattern) && !/^\(.*\)$/.test(pattern)) {
+      return false;
+    }
+    const trimmed = pattern.replace(/[()]/g, '');
+    if (trimmed === '') return false;
+    try {
+      const matches = trimmed.match(DNIS_TOKEN_RE);
+      if (!matches || matches.join('') !== trimmed) return false;
+    } catch {
+      return false;
+    }
+  }
+  return true;
+}
 
 interface NodeOption {
   nodeId: number;
@@ -255,9 +311,16 @@ const PreNumTransDrawer = forwardRef<PreNumTransDrawerRef, Props>(({ onSuccess }
           rules={[
             { required: true, message: 'DNIS 패턴은 필수입니다' },
             { max: 256, message: 'DNIS 패턴은 256자 이내여야 합니다' },
+            {
+              validator: (_, value) => {
+                if (!value) return Promise.resolve();
+                if (isValidDnisPattern(value)) return Promise.resolve();
+                return Promise.reject(new Error('번호패턴 형식이 올바르지 않습니다'));
+              },
+            },
           ]}
         >
-          <Input placeholder="DNIS 패턴을 입력하세요" maxLength={256} />
+          <Input placeholder="DNIS 패턴을 입력하세요" maxLength={256} onKeyDown={handleDnisPatternKeyDown} />
         </Form.Item>
 
         <Row gutter={12}>
@@ -276,7 +339,7 @@ const PreNumTransDrawer = forwardRef<PreNumTransDrawerRef, Props>(({ onSuccess }
         <Row gutter={12}>
           <Col span={12}>
             <Form.Item name="addDigit" label="추가 Digit" rules={[{ max: 24, message: '24자 이내' }]}>
-              <Input placeholder="추가 Digit" maxLength={24} />
+              <Input placeholder="추가 Digit" maxLength={24} onKeyDown={handleAddDigitKeyDown} />
             </Form.Item>
           </Col>
           <Col span={12}>

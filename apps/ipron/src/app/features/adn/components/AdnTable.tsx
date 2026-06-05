@@ -74,11 +74,12 @@ export default function AdnTable({ rowData, isLoading, onRowDoubleClicked, onDel
         minWidth: 130,
         maxWidth: 140,
         cellStyle: { textAlign: 'center' } as CellStyle,
-        filterValueGetter: (params) => (params.data?.dnStatus === '1' ? '로그인' : '로그아웃'),
+        // ADN DN_STATUS: '8'=로그인, '9'=로그아웃 (공유 DnStatus '1' 아님 — DB 실확인)
+        filterValueGetter: (params) => (params.data?.dnStatus === '8' ? '로그인' : '로그아웃'),
         cellRenderer: (params: ICellRendererParams<AdnResponse>) => {
           const v = params.data?.dnStatus;
           if (v == null) return '-';
-          const isActive = v === '1';
+          const isActive = v === '8';
           return (
             <span
               className={`inline-flex items-center justify-center w-[90px] h-[22px] leading-none px-1.5 rounded text-[11px] font-medium ${

@@ -125,8 +125,13 @@ export default function CtiCodeFormDrawer({ state, onClose }: Props) {
         >
           <InputNumber style={{ width: '100%' }} disabled={mode === 'edit'} placeholder="예: 2025001019" />
         </Form.Item>
-        <Form.Item label="사유 번호" name="reasonCode" tooltip="비워두면 서버에서 자동 채번 (max+1)">
-          <InputNumber style={{ width: '100%' }} disabled={mode === 'edit'} placeholder="자동 채번" min={0} />
+        <Form.Item
+          label="사유 번호"
+          name="reasonCode"
+          tooltip="0~29 범위. 비워두면 서버에서 자동 채번 (max+1)"
+          rules={[{ type: 'number', min: 0, max: 29, message: '0~29 범위만 입력 가능합니다' }]}
+        >
+          <InputNumber style={{ width: '100%' }} disabled={mode === 'edit'} placeholder="자동 채번 (0~29)" min={0} max={29} />
         </Form.Item>
         <Form.Item
           label="사유 이름"

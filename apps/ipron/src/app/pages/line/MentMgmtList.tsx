@@ -203,6 +203,12 @@ export default function MentMgmtList() {
       }
       stopPlayback();
       try {
+        // 파일 없음은 에러가 아닌 소프트조건 → 재생 전 사전체크.
+        const check = await mentApi.previewCheck(row.ieMentId);
+        if (!check.fileExists) {
+          toast.warning(check.message ?? '멘트 파일이 없습니다 (미업로드)');
+          return;
+        }
         const blob = await mentApi.preview(row.ieMentId);
         const url = URL.createObjectURL(blob);
         audioUrlRef.current = url;
@@ -216,9 +222,7 @@ export default function MentMgmtList() {
         setPlayingMentId(row.ieMentId);
         await audio.play();
       } catch (err: unknown) {
-        // 파일 실체 없음(메타만 등록) → 404
-        const status = (err as { response?: { status?: number } })?.response?.status;
-        toast.error(status === 404 ? '멘트 파일 실체가 없습니다 (메타만 등록됨)' : extractMsg(err, '미리듣기 실패'));
+        toast.error(extractMsg(err, '미리듣기 실패'));
         stopPlayback();
       }
     },

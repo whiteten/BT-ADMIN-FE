@@ -96,6 +96,10 @@ export default function CtiCodeList() {
       toast.warning('테넌트를 먼저 선택하세요');
       return;
     }
+    if (reasonRows.length >= 30) {
+      toast.warning('사유 코드를 30개 이상 등록할 수 없습니다');
+      return;
+    }
     setDrawer({ open: true, mode: 'create', codeType, tenantId: selectedTenantId });
   };
 

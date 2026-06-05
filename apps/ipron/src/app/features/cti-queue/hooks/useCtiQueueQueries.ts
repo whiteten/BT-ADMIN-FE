@@ -35,6 +35,8 @@ export const ctiQueueQueryKeys = createQueryKeys('cti-queue', {
   bsrGroupOptions: (tenantId?: number) => [tenantId],
   accessCodeProfileOptions: (tenantId?: number, nodeId?: number) => [tenantId, nodeId],
   mediaOptions: null,
+  bsrSchedulePool: (tenantId?: number) => [tenantId],
+  sltSchedulePool: (tenantId?: number) => [tenantId],
   bsrSchedules: (ctiqId?: number) => [ctiqId],
   sltSchedules: (ctiqId?: number) => [ctiqId],
   getGroups: (params?: Record<string, unknown>) => [params],
@@ -108,6 +110,29 @@ export const useGetCtiQueueMediaOptions = ({ queryOptions }: QueryHookOptions<Ct
   useQuery({
     queryKey: ctiQueueQueryKeys.mediaOptions.queryKey,
     queryFn: () => ctiQueueApi.getMediaOptions(),
+    ...queryOptions,
+  });
+
+/**
+ * BSR 스케쥴 풀 — 배정 후보 전체 목록 (피커 팝업용, SWAT IPR20S3020SIL.do 정합).
+ * tenantId 가 있을 때만 조회. open 조건은 호출부가 enabled 로 제어.
+ */
+export const useGetCtiQueueBsrSchedulePool = (tenantId: number | null | undefined, { queryOptions }: QueryHookOptions<QuebsrScheduleResponse[]> = {}) =>
+  useQuery({
+    queryKey: ctiQueueQueryKeys.bsrSchedulePool(tenantId ?? undefined).queryKey,
+    queryFn: () => ctiQueueApi.getBsrSchedulePool(tenantId != null ? { tenantId } : undefined),
+    enabled: tenantId != null,
+    ...queryOptions,
+  });
+
+/**
+ * SLT 스케쥴 풀 — 배정 후보 전체 목록 (피커 팝업용).
+ */
+export const useGetCtiQueueSltSchedulePool = (tenantId: number | null | undefined, { queryOptions }: QueryHookOptions<SltScheduleResponse[]> = {}) =>
+  useQuery({
+    queryKey: ctiQueueQueryKeys.sltSchedulePool(tenantId ?? undefined).queryKey,
+    queryFn: () => ctiQueueApi.getSltSchedulePool(tenantId != null ? { tenantId } : undefined),
+    enabled: tenantId != null,
     ...queryOptions,
   });
 

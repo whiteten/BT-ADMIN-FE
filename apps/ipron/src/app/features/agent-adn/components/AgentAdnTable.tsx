@@ -1,7 +1,8 @@
 /**
  * 상담사 ADN 매핑 ag-Grid — AdnTable 패턴.
- * 컬럼: ☐ | 테넌트 | 상담사명 | 로그인 ID | 할당 상태 | ADN | 소속 그룹 | 활성 | 수정일시
+ * 컬럼: ☐ | 테넌트 | 상담사명 | 로그인 ID | 노드명 | 할당 상태 | ADN | 소속 그룹 | 활성 | 수정일시
  *
+ * SWAT IPR20S3011 양쪽 그리드(미할당/할당) 모두 "노드명" 컬럼 표시 (#40).
  * 행 클릭으로 체크박스 토글. 우측 휴지통(삭제로 오해 소지) 컬럼은 제거 —
  * 할당 해제는 상단 일괄 버튼만 사용. 미할당 행은 주황 배경으로 식별.
  */
@@ -43,6 +44,12 @@ export default function AgentAdnTable({ rowData, isLoading, onSelectionChanged }
         field: 'agentLoginId',
         minWidth: 130,
         cellRenderer: (params: ICellRendererParams<AgentAdnRowResponse>) => <span className="font-mono text-gray-700">{params.value ?? '-'}</span>,
+      },
+      {
+        headerName: '노드명',
+        field: 'nodeName',
+        minWidth: 140,
+        valueFormatter: (p) => p.value ?? '-',
       },
       {
         headerName: '할당 상태',

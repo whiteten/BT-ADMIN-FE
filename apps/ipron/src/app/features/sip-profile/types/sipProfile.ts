@@ -301,6 +301,9 @@ export interface SipHeaderGroupUpdateRequest {
 export interface SipHeaderRelayCreateRequest {
   sipHeader: string;
 }
+export interface SipHeaderRelayUpdateRequest {
+  sipHeader: string;
+}
 export interface SipHeaderGrpMemUpdateRequest {
   sipHeaderIds: number[];
 }
@@ -310,15 +313,15 @@ export interface SipHeaderGrpMemUpdateRequest {
 export const SS_REFRESH_TYPE_OPTIONS = [
   { label: 'NONE', value: 0 },
   { label: 'UPDATE', value: 1 },
-  { label: 'REINVITE', value: 2 },
-  { label: 'OPTION', value: 3 },
+  { label: 'OPTION', value: 2 },
+  { label: 'REINVITE', value: 3 },
 ] as const;
 
 export const SS_REFRESH_TYPE_LABELS: Record<number, string> = {
   0: 'NONE',
   1: 'UPDATE',
-  2: 'REINVITE',
-  3: 'OPTION',
+  2: 'OPTION',
+  3: 'REINVITE',
 };
 
 // ─── 카드에 표시할 활성 옵션 태그 ────────────────────────────────────────────

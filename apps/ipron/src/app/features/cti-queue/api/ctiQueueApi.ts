@@ -12,10 +12,12 @@
  *  ipron-cti-queue-delete           DELETE 삭제 ({ctiqId})
  *  ipron-cti-queue-tenants          GET  테넌트 통계
  *  ipron-cti-queue-duplicate-check  GET  그룹DN(=큐) 번호 중복검증
- *  ipron-cti-queue-options-groups       GET  기본 라우팅그룹 콤보
- *  ipron-cti-queue-options-skillsets    GET  미디어별 스킬셋 콤보
- *  ipron-cti-queue-options-bsr-groups   GET  BSR 그룹 콤보
- *  ipron-cti-queue-options-media-types  GET  라이선스 미디어 목록
+ *  ipron-cti-queue-options-groups           GET  기본 라우팅그룹 콤보
+ *  ipron-cti-queue-options-skillsets        GET  미디어별 스킬셋 콤보
+ *  ipron-cti-queue-options-bsr-groups       GET  BSR 그룹 콤보
+ *  ipron-cti-queue-options-media-types      GET  라이선스 미디어 목록
+ *  ipron-cti-queue-options-bsr-schedule-pool  GET  BSR 스케쥴 풀 (배정 후보, SWAT IPR20S3020SIL.do)
+ *  ipron-cti-queue-options-slt-schedule-pool  GET  SLT 스케쥴 풀 (배정 후보)
  *  ipron-cti-queue-bsr-schedules            GET    BSR 스케쥴 목록 ({ctiqId})
  *  ipron-cti-queue-bsr-schedules-assign     POST   BSR 스케쥴 배정 ({ctiqId})
  *  ipron-cti-queue-bsr-schedules-unassign   DELETE BSR 스케쥴 해제 ({ctiqId},{scheduleId})
@@ -110,6 +112,23 @@ export const ctiQueueApi = {
 
   getMediaOptions: async (): Promise<CtiQueueMediaOption[]> => {
     const res = await apiClient.get<ApiResponse<{ value: CtiQueueMediaOption[] }>>('/ipron-cti-queue-options-media-types');
+    return res.data?.data?.value ?? [];
+  },
+
+  /**
+   * BSR 스케쥴 풀 — 배정 후보 전체 목록 (SWAT IPR20S3020SIL.do 정합).
+   * 이미 배정된 것도 포함해 반환하므로 FE 피커에서 이미 배정된 항목은 disabled 처리.
+   */
+  getBsrSchedulePool: async (params?: { tenantId?: number }): Promise<QuebsrScheduleResponse[]> => {
+    const res = await apiClient.get<ApiResponse<{ value: QuebsrScheduleResponse[] }>>('/ipron-cti-queue-options-bsr-schedule-pool', { params });
+    return res.data?.data?.value ?? [];
+  },
+
+  /**
+   * SLT 스케쥴 풀 — 배정 후보 전체 목록.
+   */
+  getSltSchedulePool: async (params?: { tenantId?: number }): Promise<SltScheduleResponse[]> => {
+    const res = await apiClient.get<ApiResponse<{ value: SltScheduleResponse[] }>>('/ipron-cti-queue-options-slt-schedule-pool', { params });
     return res.data?.data?.value ?? [];
   },
 

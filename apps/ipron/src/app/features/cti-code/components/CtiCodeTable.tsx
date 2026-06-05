@@ -26,8 +26,9 @@ export default function CtiCodeTable({ rowData, isLoading, onRowDoubleClicked, o
   const colDefs: ColDef<ReasonCodeResponse>[] = [
     { headerCheckboxSelection: true, checkboxSelection: true, width: 40, pinned: 'left', resizable: false, sortable: false, filter: false, suppressHeaderMenuButton: true },
     ...(showTenantColumn ? [{ field: 'tenantName' as const, headerName: '테넌트', minWidth: 140, flex: 1 }] : []),
-    { field: 'reasonName' as const, headerName: '사유명', flex: 2, minWidth: 160 },
-    { field: 'reasonCode' as const, headerName: '코드', width: 110, maxWidth: 130 },
+    { field: 'reasonCode' as const, headerName: '사유코드', width: 110, maxWidth: 130 },
+    { field: 'reasonName' as const, headerName: '사유코드명', flex: 2, minWidth: 160 },
+    { field: 'reasonDesc' as const, headerName: '사유코드설명', flex: 3, minWidth: 200 },
     {
       headerName: '삭제',
       width: 70,

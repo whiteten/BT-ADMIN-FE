@@ -17,6 +17,9 @@ export interface AgentAdnRowResponse {
   tenantName: string | null;
   groupId: number | null;
   groupName: string | null;
+  /** SWAT IPR20S3011 그리드 컬럼 "노드명" (#40). TB_CC_NODEMASTER.NODE_ID LEFT JOIN. */
+  nodeId: number | null;
+  nodeName: string | null;
   agentLoginId: string;
   agentName: string | null;
   agentAlias: string | null;

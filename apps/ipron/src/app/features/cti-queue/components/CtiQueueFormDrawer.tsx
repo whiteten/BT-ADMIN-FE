@@ -16,19 +16,26 @@
  *  - BSR 사용=설정 → 그룹/가중치 enable + 그룹 필수 (:1195)
  */
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { Button, Drawer, Form, Input, InputNumber, Radio, Select, Tabs } from 'antd';
+import { Button, Checkbox, Drawer, Form, Input, InputNumber, Modal, Radio, Select, Tabs } from 'antd';
+import { Plus, Trash2 } from 'lucide-react';
 import { toast } from '@/shared-util';
 import { useGetMentOptions } from '../../ment-mgmt/hooks/useMentQueries';
 import { ctiQueueApi } from '../api/ctiQueueApi';
 import {
+  useAssignBsrSchedules,
+  useAssignSltSchedules,
   useCreateCtiQueue,
   useGetCtiQueueAccessCodeProfileOptions,
   useGetCtiQueueBsrGroupOptions,
+  useGetCtiQueueBsrSchedulePool,
   useGetCtiQueueBsrSchedules,
   useGetCtiQueueGroupOptions,
   useGetCtiQueueMediaOptions,
   useGetCtiQueueSkillsetOptions,
+  useGetCtiQueueSltSchedulePool,
   useGetCtiQueueSltSchedules,
+  useUnassignBsrSchedule,
+  useUnassignSltSchedule,
   useUpdateCtiQueue,
 } from '../hooks/useCtiQueueQueries';
 import {
@@ -147,13 +154,71 @@ export default function CtiQueueFormDrawer({ state, onClose, tenantOptions = [],
   const tenantId = isEdit ? (state.open ? state.tenantId : null) : (wTenantId ?? (state.open ? state.tenantId : null));
   const nodeId = isEdit ? (state.open ? state.nodeId : null) : (wNodeId ?? (state.open ? state.nodeId : null));
 
+  // ─── 스케쥴 피커 모달 상태 ────────────────────────────────────────────────────
+  const [bsrPickerOpen, setBsrPickerOpen] = useState(false);
+  const [sltPickerOpen, setSltPickerOpen] = useState(false);
+  const [bsrPickerSelected, setBsrPickerSelected] = useState<number[]>([]);
+  const [sltPickerSelected, setSltPickerSelected] = useState<number[]>([]);
+
   // ─── 옵션 콤보 ──────────────────────────────────────────────────────────────
   const { data: groupOptions = [], isFetching: groupLoading } = useGetCtiQueueGroupOptions(tenantId);
   const { data: skillsetOptions = [], isFetching: skillsetLoading } = useGetCtiQueueSkillsetOptions(tenantId);
   const { data: bsrGroupOptions = [], isFetching: bsrGroupLoading } = useGetCtiQueueBsrGroupOptions(tenantId);
   const { data: mediaOptions = [] } = useGetCtiQueueMediaOptions();
-  const { data: bsrSchedules = [] } = useGetCtiQueueBsrSchedules(ctiqId);
-  const { data: sltSchedules = [] } = useGetCtiQueueSltSchedules(ctiqId);
+  const { data: bsrSchedules = [], refetch: refetchBsrSchedules } = useGetCtiQueueBsrSchedules(ctiqId);
+  const { data: sltSchedules = [], refetch: refetchSltSchedules } = useGetCtiQueueSltSchedules(ctiqId);
+  // 스케쥴 풀 — 피커 팝업이 열릴 때 tenantId 가 확정되어 있으므로 상시 조회
+  const { data: bsrSchedulePool = [], isFetching: bsrPoolLoading } = useGetCtiQueueBsrSchedulePool(tenantId);
+  const { data: sltSchedulePool = [], isFetching: sltPoolLoading } = useGetCtiQueueSltSchedulePool(tenantId);
+
+  // 이미 배정된 BSR/SLT 스케쥴 ID 집합 (피커에서 중복 배정 방지용 disabled 처리)
+  const assignedBsrIds = useMemo(() => new Set(bsrSchedules.map((s) => s.quebsrScheduleId)), [bsrSchedules]);
+  const assignedSltIds = useMemo(() => new Set(sltSchedules.map((s) => s.sltScheduleId)), [sltSchedules]);
+
+  // ─── 스케쥴 배정/해제 뮤테이션 ─────────────────────────────────────────────
+  const { mutate: assignBsr, isPending: bsrAssigning } = useAssignBsrSchedules({
+    mutationOptions: {
+      onSuccess: () => {
+        toast.success('BSR 스케쥴이 배정되었습니다');
+        setBsrPickerOpen(false);
+        setBsrPickerSelected([]);
+        void refetchBsrSchedules();
+      },
+      onError: (err: unknown) => toast.error(extractMessage(err) ?? 'BSR 스케쥴 배정 실패'),
+    },
+  });
+
+  const { mutate: unassignBsr, isPending: bsrUnassigning } = useUnassignBsrSchedule({
+    mutationOptions: {
+      onSuccess: () => {
+        toast.success('BSR 스케쥴 배정이 해제되었습니다');
+        void refetchBsrSchedules();
+      },
+      onError: (err: unknown) => toast.error(extractMessage(err) ?? 'BSR 스케쥴 해제 실패'),
+    },
+  });
+
+  const { mutate: assignSlt, isPending: sltAssigning } = useAssignSltSchedules({
+    mutationOptions: {
+      onSuccess: () => {
+        toast.success('SLT 스케쥴이 배정되었습니다');
+        setSltPickerOpen(false);
+        setSltPickerSelected([]);
+        void refetchSltSchedules();
+      },
+      onError: (err: unknown) => toast.error(extractMessage(err) ?? 'SLT 스케쥴 배정 실패'),
+    },
+  });
+
+  const { mutate: unassignSlt, isPending: sltUnassigning } = useUnassignSltSchedule({
+    mutationOptions: {
+      onSuccess: () => {
+        toast.success('SLT 스케쥴 배정이 해제되었습니다');
+        void refetchSltSchedules();
+      },
+      onError: (err: unknown) => toast.error(extractMessage(err) ?? 'SLT 스케쥴 해제 실패'),
+    },
+  });
 
   const groupSelectOptions = useMemo(() => [{ value: 0, label: '없음' }, ...groupOptions.map((g) => ({ value: g.id, label: g.name }))], [groupOptions]);
   const bsrGroupSelectOptions = useMemo(() => [{ value: 0, label: '없음' }, ...bsrGroupOptions.map((g) => ({ value: g.id, label: g.name }))], [bsrGroupOptions]);
@@ -626,11 +691,11 @@ export default function CtiQueueFormDrawer({ state, onClose, tenantOptions = [],
             name="gdnNo"
             rules={[
               { required: true, message: '그룹DN번호는 필수입니다' },
-              { pattern: /^\d{1,16}$/, message: '숫자만 입력 (1~16자리)' },
+              { pattern: /^\d{3,8}$/, message: '숫자 3~8자리만 입력 (SWAT 정합)' },
             ]}
-            extra="숫자만 입력 · 저장 시 중복체크"
+            extra="숫자만 입력 · 3~8자리 · 저장 시 중복체크"
           >
-            <Input maxLength={16} disabled={isEdit} placeholder="숫자 3~8자리" style={{ width: 240 }} />
+            <Input maxLength={8} disabled={isEdit} placeholder="숫자 3~8자리" style={{ width: 240 }} />
           </Form.Item>
           <Form.Item className="col-span-2" label="그룹DN이름" name="gdnName" rules={[{ required: true, max: 200, message: '1~200자 필수' }]}>
             <Input maxLength={200} placeholder="입력 시 큐설정 탭의 CTI큐이름에 자동복사" onChange={(e) => copyGdnNameToQueue(e.target.value)} />
@@ -830,9 +895,24 @@ export default function CtiQueueFormDrawer({ state, onClose, tenantOptions = [],
 
           {/* BSR Schedule 서브그리드 */}
           <section className="border-t border-dashed border-gray-200 pt-4">
-            <h4 className="text-xs font-semibold text-gray-500 mb-2">
-              BSR Schedule 설정 <span className="text-gray-400 font-normal">{isEdit ? '' : '(저장 후 활성)'}</span>
-            </h4>
+            <div className="flex items-center justify-between mb-2">
+              <h4 className="text-xs font-semibold text-gray-500">
+                BSR Schedule 설정 <span className="text-gray-400 font-normal">{isEdit ? '' : '(저장 후 활성)'}</span>
+              </h4>
+              {isEdit && (
+                <Button
+                  size="small"
+                  icon={<Plus className="size-3" />}
+                  onClick={() => {
+                    setBsrPickerSelected([]);
+                    setBsrPickerOpen(true);
+                  }}
+                  disabled={bsrAssigning || bsrUnassigning}
+                >
+                  추가
+                </Button>
+              )}
+            </div>
             {isEdit ? (
               <div className="border border-gray-200 rounded overflow-x-auto">
                 <table className="w-full border-collapse text-[11.5px] whitespace-nowrap">
@@ -846,12 +926,13 @@ export default function CtiQueueFormDrawer({ state, onClose, tenantOptions = [],
                       <th className="px-2 h-8 border-b text-center">요일</th>
                       <th className="px-2 h-8 border-b text-right">가중치</th>
                       <th className="px-2 h-8 border-b text-center">인입/전환</th>
+                      <th className="px-2 h-8 border-b text-center w-10"></th>
                     </tr>
                   </thead>
                   <tbody>
                     {bsrSchedules.length === 0 ? (
                       <tr>
-                        <td colSpan={8} className="px-2 h-10 text-center text-gray-400">
+                        <td colSpan={9} className="px-2 h-10 text-center text-gray-400">
                           배정된 BSR 스케쥴이 없습니다
                         </td>
                       </tr>
@@ -867,6 +948,17 @@ export default function CtiQueueFormDrawer({ state, onClose, tenantOptions = [],
                           <td className="px-2 h-8 border-b text-right">{s.bsrWeight ?? '-'}</td>
                           <td className="px-2 h-8 border-b text-center">
                             {ynChar(s.useBsrIncomYn)} / {ynChar(s.useBsrRdyrouteYn)}
+                          </td>
+                          <td className="px-2 h-8 border-b text-center">
+                            <button
+                              type="button"
+                              disabled={bsrUnassigning}
+                              onClick={() => ctiqId != null && unassignBsr({ ctiqId, scheduleId: s.quebsrScheduleId })}
+                              className="text-red-400 hover:text-red-600 disabled:opacity-40"
+                              title="배정 해제"
+                            >
+                              <Trash2 className="size-3.5" />
+                            </button>
                           </td>
                         </tr>
                       ))
@@ -888,7 +980,20 @@ export default function CtiQueueFormDrawer({ state, onClose, tenantOptions = [],
       forceRender: true,
       children: (
         <div>
-          <h4 className="text-[13px] font-semibold text-gray-700 mb-3">목표 서비스레벨 스케쥴</h4>
+          <div className="flex items-center justify-between mb-3">
+            <h4 className="text-[13px] font-semibold text-gray-700">목표 서비스레벨 스케쥴</h4>
+            <Button
+              size="small"
+              icon={<Plus className="size-3" />}
+              onClick={() => {
+                setSltPickerSelected([]);
+                setSltPickerOpen(true);
+              }}
+              disabled={sltAssigning || sltUnassigning}
+            >
+              추가
+            </Button>
+          </div>
           <div className="border border-gray-200 rounded overflow-x-auto">
             <table className="w-full border-collapse text-[12px] whitespace-nowrap">
               <thead className="bg-gray-50 text-gray-600">
@@ -898,12 +1003,13 @@ export default function CtiQueueFormDrawer({ state, onClose, tenantOptions = [],
                   <th className="px-2.5 h-8 border-b text-right">시작시간</th>
                   <th className="px-2.5 h-8 border-b text-right">종료시간</th>
                   <th className="px-2 h-8 border-b text-center">요일</th>
+                  <th className="px-2 h-8 border-b text-center w-10"></th>
                 </tr>
               </thead>
               <tbody>
                 {sltSchedules.length === 0 ? (
                   <tr>
-                    <td colSpan={5} className="px-2.5 h-10 text-center text-gray-400">
+                    <td colSpan={6} className="px-2.5 h-10 text-center text-gray-400">
                       배정된 목표 SLT 스케쥴이 없습니다
                     </td>
                   </tr>
@@ -915,6 +1021,17 @@ export default function CtiQueueFormDrawer({ state, onClose, tenantOptions = [],
                       <td className="px-2.5 h-9 border-b text-right">{s.startTime ?? '-'}</td>
                       <td className="px-2.5 h-9 border-b text-right">{s.finshTime ?? '-'}</td>
                       <td className="px-2 h-9 border-b text-center">{dayString(s)}</td>
+                      <td className="px-2 h-9 border-b text-center">
+                        <button
+                          type="button"
+                          disabled={sltUnassigning}
+                          onClick={() => ctiqId != null && unassignSlt({ ctiqId, scheduleId: s.sltScheduleId })}
+                          className="text-red-400 hover:text-red-600 disabled:opacity-40"
+                          title="배정 해제"
+                        >
+                          <Trash2 className="size-3.5" />
+                        </button>
+                      </td>
                     </tr>
                   ))
                 )}
@@ -927,25 +1044,205 @@ export default function CtiQueueFormDrawer({ state, onClose, tenantOptions = [],
   ];
 
   return (
-    <Drawer
-      title={isEdit ? 'CTI 큐 수정' : 'CTI 큐 등록'}
-      width={880}
-      open={state.open}
-      onClose={onClose}
-      destroyOnClose
-      extra={
-        <div className="flex gap-2">
-          <Button onClick={onClose}>취소</Button>
-          <Button type="primary" loading={submitting} onClick={onSubmit}>
-            저장
-          </Button>
+    <>
+      <Drawer
+        title={isEdit ? 'CTI 큐 수정' : 'CTI 큐 등록'}
+        width={880}
+        open={state.open}
+        onClose={onClose}
+        destroyOnClose
+        extra={
+          <div className="flex gap-2">
+            <Button onClick={onClose}>취소</Button>
+            <Button type="primary" loading={submitting} onClick={onSubmit}>
+              저장
+            </Button>
+          </div>
+        }
+      >
+        <Form form={form} layout="vertical">
+          <Tabs activeKey={activeTab} onChange={setActiveTab} items={tabItems} />
+        </Form>
+      </Drawer>
+
+      {/* BSR 스케쥴 배정 피커 (SWAT IPR20S3020SIL.do 정합) */}
+      <Modal
+        title="BSR 스케쥴 배정"
+        open={bsrPickerOpen}
+        onCancel={() => {
+          setBsrPickerOpen(false);
+          setBsrPickerSelected([]);
+        }}
+        onOk={() => {
+          if (bsrPickerSelected.length === 0) {
+            toast.warning('배정할 스케쥴을 1개 이상 선택하세요');
+            return;
+          }
+          if (ctiqId == null) return;
+          assignBsr({ ctiqId, body: { scheduleIds: bsrPickerSelected } });
+        }}
+        okText="배정"
+        cancelText="취소"
+        confirmLoading={bsrAssigning}
+        width={780}
+      >
+        <p className="text-[11.5px] text-gray-500 mb-2">이미 배정된 스케쥴은 비활성(선택 불가)입니다.</p>
+        <div className="border border-gray-200 rounded overflow-x-auto max-h-[360px] overflow-y-auto">
+          <table className="w-full border-collapse text-[11.5px] whitespace-nowrap">
+            <thead className="bg-gray-50 text-gray-600 sticky top-0">
+              <tr>
+                <th className="px-2 h-8 border-b text-center w-8"></th>
+                <th className="px-2 h-8 border-b text-left">스케쥴명</th>
+                <th className="px-2 h-8 border-b text-left">시작일자</th>
+                <th className="px-2 h-8 border-b text-left">종료일자</th>
+                <th className="px-2 h-8 border-b text-right">시작</th>
+                <th className="px-2 h-8 border-b text-right">종료</th>
+                <th className="px-2 h-8 border-b text-center">요일</th>
+                <th className="px-2 h-8 border-b text-right">가중치</th>
+                <th className="px-2 h-8 border-b text-center">인입/전환</th>
+              </tr>
+            </thead>
+            <tbody>
+              {bsrPoolLoading ? (
+                <tr>
+                  <td colSpan={9} className="px-2 h-10 text-center text-gray-400">
+                    로딩중…
+                  </td>
+                </tr>
+              ) : bsrSchedulePool.length === 0 ? (
+                <tr>
+                  <td colSpan={9} className="px-2 h-10 text-center text-gray-400">
+                    조회된 BSR 스케쥴이 없습니다
+                  </td>
+                </tr>
+              ) : (
+                bsrSchedulePool.map((s) => {
+                  const alreadyAssigned = assignedBsrIds.has(s.quebsrScheduleId);
+                  const checked = bsrPickerSelected.includes(s.quebsrScheduleId);
+                  return (
+                    <tr
+                      key={s.quebsrScheduleId}
+                      className={alreadyAssigned ? 'bg-gray-50 opacity-60' : 'hover:bg-blue-50 cursor-pointer'}
+                      onClick={() => {
+                        if (alreadyAssigned) return;
+                        setBsrPickerSelected((prev) => (checked ? prev.filter((id) => id !== s.quebsrScheduleId) : [...prev, s.quebsrScheduleId]));
+                      }}
+                    >
+                      <td className="px-2 h-8 border-b text-center">
+                        <Checkbox
+                          checked={checked || alreadyAssigned}
+                          disabled={alreadyAssigned}
+                          onChange={() => {
+                            if (alreadyAssigned) return;
+                            setBsrPickerSelected((prev) => (checked ? prev.filter((id) => id !== s.quebsrScheduleId) : [...prev, s.quebsrScheduleId]));
+                          }}
+                          onClick={(e) => e.stopPropagation()}
+                        />
+                      </td>
+                      <td className="px-2 h-8 border-b">{s.quebsrScheduleName ?? '-'}</td>
+                      <td className="px-2 h-8 border-b">{s.startDate ?? '-'}</td>
+                      <td className="px-2 h-8 border-b">{s.endDate ?? '-'}</td>
+                      <td className="px-2 h-8 border-b text-right">{s.startTime ?? '-'}</td>
+                      <td className="px-2 h-8 border-b text-right">{s.finishTime ?? '-'}</td>
+                      <td className="px-2 h-8 border-b text-center">{dayString(s)}</td>
+                      <td className="px-2 h-8 border-b text-right">{s.bsrWeight ?? '-'}</td>
+                      <td className="px-2 h-8 border-b text-center">
+                        {ynChar(s.useBsrIncomYn)} / {ynChar(s.useBsrRdyrouteYn)}
+                      </td>
+                    </tr>
+                  );
+                })
+              )}
+            </tbody>
+          </table>
         </div>
-      }
-    >
-      <Form form={form} layout="vertical">
-        <Tabs activeKey={activeTab} onChange={setActiveTab} items={tabItems} />
-      </Form>
-    </Drawer>
+      </Modal>
+
+      {/* SLT 스케쥴 배정 피커 */}
+      <Modal
+        title="SLT 스케쥴 배정"
+        open={sltPickerOpen}
+        onCancel={() => {
+          setSltPickerOpen(false);
+          setSltPickerSelected([]);
+        }}
+        onOk={() => {
+          if (sltPickerSelected.length === 0) {
+            toast.warning('배정할 스케쥴을 1개 이상 선택하세요');
+            return;
+          }
+          if (ctiqId == null) return;
+          assignSlt({ ctiqId, body: { scheduleIds: sltPickerSelected } });
+        }}
+        okText="배정"
+        cancelText="취소"
+        confirmLoading={sltAssigning}
+        width={680}
+      >
+        <p className="text-[11.5px] text-gray-500 mb-2">이미 배정된 스케쥴은 비활성(선택 불가)입니다.</p>
+        <div className="border border-gray-200 rounded overflow-x-auto max-h-[360px] overflow-y-auto">
+          <table className="w-full border-collapse text-[12px] whitespace-nowrap">
+            <thead className="bg-gray-50 text-gray-600 sticky top-0">
+              <tr>
+                <th className="px-2 h-8 border-b text-center w-8"></th>
+                <th className="px-2.5 h-8 border-b text-left">스케쥴명</th>
+                <th className="px-2.5 h-8 border-b text-left">시작일자</th>
+                <th className="px-2.5 h-8 border-b text-right">시작시간</th>
+                <th className="px-2.5 h-8 border-b text-right">종료시간</th>
+                <th className="px-2 h-8 border-b text-center">요일</th>
+              </tr>
+            </thead>
+            <tbody>
+              {sltPoolLoading ? (
+                <tr>
+                  <td colSpan={6} className="px-2.5 h-10 text-center text-gray-400">
+                    로딩중…
+                  </td>
+                </tr>
+              ) : sltSchedulePool.length === 0 ? (
+                <tr>
+                  <td colSpan={6} className="px-2.5 h-10 text-center text-gray-400">
+                    조회된 SLT 스케쥴이 없습니다
+                  </td>
+                </tr>
+              ) : (
+                sltSchedulePool.map((s) => {
+                  const alreadyAssigned = assignedSltIds.has(s.sltScheduleId);
+                  const checked = sltPickerSelected.includes(s.sltScheduleId);
+                  return (
+                    <tr
+                      key={s.sltScheduleId}
+                      className={alreadyAssigned ? 'bg-gray-50 opacity-60' : 'hover:bg-blue-50 cursor-pointer'}
+                      onClick={() => {
+                        if (alreadyAssigned) return;
+                        setSltPickerSelected((prev) => (checked ? prev.filter((id) => id !== s.sltScheduleId) : [...prev, s.sltScheduleId]));
+                      }}
+                    >
+                      <td className="px-2 h-8 border-b text-center">
+                        <Checkbox
+                          checked={checked || alreadyAssigned}
+                          disabled={alreadyAssigned}
+                          onChange={() => {
+                            if (alreadyAssigned) return;
+                            setSltPickerSelected((prev) => (checked ? prev.filter((id) => id !== s.sltScheduleId) : [...prev, s.sltScheduleId]));
+                          }}
+                          onClick={(e) => e.stopPropagation()}
+                        />
+                      </td>
+                      <td className="px-2.5 h-9 border-b">{s.sltScheduleName ?? '-'}</td>
+                      <td className="px-2.5 h-9 border-b">{s.startDate ?? '-'}</td>
+                      <td className="px-2.5 h-9 border-b text-right">{s.startTime ?? '-'}</td>
+                      <td className="px-2.5 h-9 border-b text-right">{s.finshTime ?? '-'}</td>
+                      <td className="px-2 h-9 border-b text-center">{dayString(s)}</td>
+                    </tr>
+                  );
+                })
+              )}
+            </tbody>
+          </table>
+        </div>
+      </Modal>
+    </>
   );
 }
 

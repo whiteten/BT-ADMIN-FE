@@ -98,10 +98,10 @@ export default function ScheduleInfoDrawer({ open, mode, schedule, tenantId, onC
           label="스케쥴명"
           rules={[
             { required: true, message: '스케쥴명을 입력하세요' },
-            { max: 256, message: '256자까지 입력 가능합니다' },
+            { max: 128, message: '128자까지 입력 가능합니다' },
           ]}
         >
-          <Input placeholder="예: 평일주간" />
+          <Input placeholder="예: 평일주간" maxLength={128} />
         </Form.Item>
 
         <Form.Item name="startDate" label="시작 일자">

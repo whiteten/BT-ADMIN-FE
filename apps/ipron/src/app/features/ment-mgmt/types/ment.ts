@@ -22,8 +22,6 @@ export interface MentResponse {
   mentDesc: string | null;
   createDate: string | null; // YYYYMMDD
   fileStatus: string | null;
-  workUser: number | null;
-  workTime: string | null;
 }
 
 // ──────────────────────────────────────────────────────────
@@ -97,5 +95,22 @@ export interface MentSyncResult {
   synced: boolean;
   successCnt: number;
   failCnt: number;
+  message: string | null;
+}
+
+// ──────────────────────────────────────────────────────────
+//  미리듣기 사전체크 (파일 실체 존재 여부)
+// ──────────────────────────────────────────────────────────
+
+/**
+ * 미리듣기 사전체크 결과.
+ *
+ * BE: MentPreviewStatus. 파일 없음을 에러(404/500)가 아닌 소프트조건으로 반환
+ * (MentSyncResult.configured=false 패턴과 동일 결). 항상 ok=true.
+ *  - fileExists=true  → 실제 PCM 파일 존재, 재생 가능.
+ *  - fileExists=false → 메타만 등록(파일 실체 없음). message 안내 후 재생 중단.
+ */
+export interface MentPreviewStatus {
+  fileExists: boolean;
   message: string | null;
 }

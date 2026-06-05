@@ -80,6 +80,15 @@ const AccessProfileCopyDialog = forwardRef<AccessProfileCopyDialogRef, AccessPro
           <Input disabled />
         </Form.Item>
 
+        <div className="grid grid-cols-2 gap-x-3">
+          <Form.Item label="현재 노드">
+            <Input disabled value={sourceProfile?.nodeName ?? ''} />
+          </Form.Item>
+          <Form.Item label="현재 테넌트">
+            <Input disabled value={sourceProfile?.tenantName ?? ''} />
+          </Form.Item>
+        </div>
+
         <Form.Item label="대상 노드" name="targetNodeId" rules={[{ required: true, message: '대상 노드를 선택해주세요' }]}>
           <Select placeholder="노드를 선택하세요" options={nodeOptions} showSearch optionFilterProp="label" onChange={() => form.setFieldValue('targetTenantId', undefined)} />
         </Form.Item>

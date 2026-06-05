@@ -205,23 +205,6 @@ export default function CtiQueueList() {
     [viewMode],
   );
 
-  // ─── 그리드 표시용 행 (카드 + 텍스트 검색) ───────────────────────────────────
-  const rowsForGrid = useMemo(() => {
-    let list = rowsInTab;
-    if (selectedCardId != null) {
-      list = list.filter((r) => (viewMode === 'byNode' ? r.tenantId === selectedCardId : r.nodeId === selectedCardId));
-    }
-    // 업무그룹(treeName) 트리 필터 — 트리 노드 선택 시 적용 (0=미배정, null=전체)
-    if (selectedTreeId != null) {
-      list = list.filter((r) => (selectedTreeId === 0 ? r.treeId == null : r.treeId === selectedTreeId));
-    }
-    const kw = searchText.trim().toLowerCase();
-    if (kw) {
-      list = list.filter((r) => [r.gdnNo, r.gdnName, r.ctiqName, r.tenantName, r.treeName].some((f) => f != null && String(f).toLowerCase().includes(kw)));
-    }
-    return list;
-  }, [rowsInTab, selectedCardId, viewMode, searchText, selectedTreeId]);
-
   // 등록 폼에 넘길 테넌트/노드 컨텍스트 (선택된 카드/탭 기준 — 카드=전체면 null → Drawer 에서 직접 선택)
   // byNode 모드: 카드=테넌트. 카드가 명시적으로 선택된 경우에만 해당 테넌트를 넘기고,
   //             "전체" 카드(selectedCardId === null)면 null → Drawer 에서 테넌트 직접 선택.
@@ -242,6 +225,51 @@ export default function CtiQueueList() {
     params: treeTenantId != null ? { tenantId: treeTenantId } : undefined,
     queryOptions: { enabled: true },
   });
+
+  // ─── 업무그룹 트리 ID 재귀 수집 (SWAT IPR20S3020 WITH RECURSIVE CTE 정합) ────────
+  // 선택된 treeId 의 모든 하위 그룹 ID 를 FE 메모리에서 재귀 수집.
+  // SWAT selCtiqList: treeId != 0 이면 SubTree CTE 로 하위 포함 — FE 는 groupTree 를 이용해 동등 구현.
+  const treeDescendantIds = useMemo((): Set<number> => {
+    if (selectedTreeId == null || selectedTreeId === 0) return new Set();
+    const result = new Set<number>();
+    const walk = (nodes: CtiQueueGroupResponse[]) => {
+      for (const n of nodes) {
+        if (n.treeId === selectedTreeId || result.has(n.treeId)) {
+          // 자기 자신 및 모든 하위 노드 수집
+          const collectAll = (sub: CtiQueueGroupResponse[]) => {
+            for (const s of sub) {
+              result.add(s.treeId);
+              if ((s.children ?? []).length) collectAll(s.children);
+            }
+          };
+          result.add(n.treeId);
+          collectAll(n.children ?? []);
+        } else if ((n.children ?? []).length) {
+          walk(n.children);
+        }
+      }
+    };
+    walk(groupTree);
+    return result;
+  }, [selectedTreeId, groupTree]);
+
+  // ─── 그리드 표시용 행 (카드 + 텍스트 검색) ───────────────────────────────────
+  const rowsForGrid = useMemo(() => {
+    let list = rowsInTab;
+    if (selectedCardId != null) {
+      list = list.filter((r) => (viewMode === 'byNode' ? r.tenantId === selectedCardId : r.nodeId === selectedCardId));
+    }
+    // 업무그룹(treeName) 트리 필터 — 트리 노드 선택 시 적용 (0=미배정, null=전체)
+    // SWAT CTE 재귀 정합: 선택 노드 하위 그룹(treeDescendantIds)도 포함
+    if (selectedTreeId != null) {
+      list = list.filter((r) => (selectedTreeId === 0 ? r.treeId == null : r.treeId != null && treeDescendantIds.has(r.treeId)));
+    }
+    const kw = searchText.trim().toLowerCase();
+    if (kw) {
+      list = list.filter((r) => [r.gdnNo, r.gdnName, r.ctiqName, r.tenantName, r.treeName].some((f) => f != null && String(f).toLowerCase().includes(kw)));
+    }
+    return list;
+  }, [rowsInTab, selectedCardId, viewMode, searchText, selectedTreeId, treeDescendantIds]);
 
   // 트리 "전체/미배정" 카운트 — 현재 그리드 범위(rowsInTab) 기준
   const treeDisplayCount = useMemo(() => {

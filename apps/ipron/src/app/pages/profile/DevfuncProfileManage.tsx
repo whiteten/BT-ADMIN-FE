@@ -63,6 +63,8 @@ export default function DevfuncProfileManage() {
   const [selectedTenantId, setSelectedTenantId] = useState<number | null>(null);
   const [selectedProfileId, setSelectedProfileId] = useState<number | null>(null);
   const [searchText, setSearchText] = useState('');
+  const [codeSearchCode, setCodeSearchCode] = useState('');
+  const [codeSearchName, setCodeSearchName] = useState('');
   const cardScrollRef = useRef<HTMLDivElement>(null);
   const tabScrollRef = useRef<HTMLDivElement>(null);
 
@@ -75,7 +77,13 @@ export default function DevfuncProfileManage() {
   const { data: profiles = [] } = useGetProfiles();
   const { data: tenants = [] } = useGetTenants();
   const { data: codes = [], isLoading: isCodesLoading } = useGetCodes({
-    params: selectedProfileId ? { profileId: selectedProfileId } : undefined,
+    params: selectedProfileId
+      ? {
+          profileId: selectedProfileId,
+          ...(codeSearchCode.trim() ? { devfuncCode: codeSearchCode.trim() } : {}),
+          ...(codeSearchName.trim() ? { devfuncCodeName: codeSearchName.trim() } : {}),
+        }
+      : undefined,
     queryOptions: { enabled: !!selectedProfileId },
   });
 
@@ -113,6 +121,8 @@ export default function DevfuncProfileManage() {
     setSelectedTenantId(tenantId);
     setSelectedProfileId(null);
     setSearchText('');
+    setCodeSearchCode('');
+    setCodeSearchName('');
   }, []);
 
   const handleSearchChange = useCallback((e: ChangeEvent<HTMLInputElement>) => {
@@ -126,6 +136,8 @@ export default function DevfuncProfileManage() {
   const handleCardSelect = useCallback(
     (profile: DevfuncProfile) => {
       setSelectedProfileId(profile.devfuncCodeProfileId);
+      setCodeSearchCode('');
+      setCodeSearchName('');
       if (!selectedTenantId || selectedTenantId !== profile.tenantId) {
         setSelectedTenantId(profile.tenantId);
       }
@@ -139,12 +151,11 @@ export default function DevfuncProfileManage() {
   }, [queryClient]);
 
   const invalidateCodes = useCallback(() => {
-    if (selectedProfileId) {
-      queryClient.invalidateQueries({
-        queryKey: devfuncProfileQueryKeys.getCodes({ profileId: selectedProfileId }).queryKey,
-      });
-    }
-  }, [queryClient, selectedProfileId]);
+    // 검색 파라미터 조합이 여러 cache entry를 만들 수 있으므로 getCodes 전체를 무효화
+    queryClient.invalidateQueries({
+      queryKey: devfuncProfileQueryKeys.getCodes().queryKey,
+    });
+  }, [queryClient]);
 
   const invalidateAll = useCallback(() => {
     invalidateProfiles();
@@ -503,6 +514,28 @@ export default function DevfuncProfileManage() {
                 <Button icon={<Plus className="size-3.5" />} onClick={handleCodeCreate}>
                   코드 추가
                 </Button>
+              </div>
+
+              {/* 코드 검색 바 (SWAT IPR20S2240.jsp 기능코드/코드명 LIKE 검색) */}
+              <div className="px-5 py-2 flex items-center gap-2 flex-shrink-0 border-b border-gray-100">
+                <Input
+                  allowClear
+                  prefix={<Search className="size-3.5 text-gray-400" />}
+                  placeholder="기능코드 검색"
+                  value={codeSearchCode}
+                  onChange={(e) => setCodeSearchCode(e.target.value)}
+                  style={{ width: 180 }}
+                  size="small"
+                />
+                <Input
+                  allowClear
+                  prefix={<Search className="size-3.5 text-gray-400" />}
+                  placeholder="코드명 검색"
+                  value={codeSearchName}
+                  onChange={(e) => setCodeSearchName(e.target.value)}
+                  style={{ width: 200 }}
+                  size="small"
+                />
               </div>
 
               {/* ag-Grid */}

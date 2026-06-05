@@ -14,6 +14,7 @@
  * - ipron-sip-header-group-delete:    DELETE 헤더 그룹 삭제
  * - ipron-sip-header-relay-list:      GET    헤더 릴레이 목록 조회
  * - ipron-sip-header-relay-create:    POST   헤더 릴레이 등록
+ * - ipron-sip-header-relay-update:    PUT    헤더 릴레이 수정
  * - ipron-sip-header-relay-delete:    DELETE 헤더 릴레이 삭제
  * - ipron-sip-header-grp-mem-update:  PUT    그룹 멤버 일괄 업데이트
  */
@@ -25,6 +26,7 @@ import type {
   SipHeaderGrpMemUpdateRequest,
   SipHeaderRelay,
   SipHeaderRelayCreateRequest,
+  SipHeaderRelayUpdateRequest,
   SipProfile,
   SipProfileCreateRequest,
   SipProfileUpdateRequest,
@@ -93,6 +95,13 @@ export const sipProfileApi = {
 
   createHeaderRelay: async (data: SipHeaderRelayCreateRequest): Promise<SipHeaderRelay> => {
     const response = await apiClient.post<ApiResponse<SipHeaderRelay>>('/ipron-sip-header-relay-create', data);
+    return response.data?.data;
+  },
+
+  updateHeaderRelay: async ({ id, data }: { id: number; data: SipHeaderRelayUpdateRequest }): Promise<SipHeaderRelay> => {
+    const response = await apiClient.put<ApiResponse<SipHeaderRelay>>('/ipron-sip-header-relay-update', data, {
+      params: { id },
+    });
     return response.data?.data;
   },
 

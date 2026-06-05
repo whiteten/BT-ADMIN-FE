@@ -97,11 +97,11 @@ const DevfuncCodeDrawer = forwardRef<DevfuncCodeDrawerRef, DevfuncCodeDrawerProp
           name="devfuncCode"
           rules={[
             { required: true, message: '기능코드는 필수입니다' },
-            { max: 20, message: '기능코드는 20자 이내여야 합니다' },
+            { max: 10, message: '기능코드는 10자 이내여야 합니다' },
           ]}
           extra="*, # 포함 가능"
         >
-          <Input placeholder="예: *14, **" maxLength={20} disabled={isEditMode} />
+          <Input placeholder="예: *14, **" maxLength={10} disabled={isEditMode} />
         </Form.Item>
 
         <Form.Item
@@ -109,10 +109,10 @@ const DevfuncCodeDrawer = forwardRef<DevfuncCodeDrawerRef, DevfuncCodeDrawerProp
           name="devfuncCodeName"
           rules={[
             { required: true, message: '코드명은 필수입니다' },
-            { max: 50, message: '코드명은 50자 이내여야 합니다' },
+            { max: 128, message: '코드명은 128자 이내여야 합니다' },
           ]}
         >
-          <Input placeholder="코드명을 입력하세요" maxLength={50} />
+          <Input placeholder="코드명을 입력하세요" maxLength={128} />
         </Form.Item>
 
         <div className="flex gap-4">
@@ -125,8 +125,8 @@ const DevfuncCodeDrawer = forwardRef<DevfuncCodeDrawerRef, DevfuncCodeDrawerProp
           </Form.Item>
         </div>
 
-        <Form.Item label="설명" name="devfuncCodeDesc" rules={[{ max: 200, message: '설명은 200자 이내여야 합니다' }]}>
-          <Input.TextArea placeholder="코드 설명을 입력하세요" rows={3} maxLength={200} />
+        <Form.Item label="설명" name="devfuncCodeDesc" rules={[{ max: 256, message: '설명은 256자 이내여야 합니다' }]}>
+          <Input.TextArea placeholder="코드 설명을 입력하세요" rows={3} maxLength={256} />
         </Form.Item>
       </Form>
     </Drawer>

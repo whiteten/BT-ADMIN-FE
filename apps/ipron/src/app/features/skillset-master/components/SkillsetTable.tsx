@@ -139,6 +139,13 @@ export default function SkillsetTable({
         valueFormatter: (p) => getMediaTypeName(p.value),
       },
       {
+        headerName: '정렬순서',
+        field: 'sortSeq',
+        width: 90,
+        cellStyle: { textAlign: 'right' } as CellStyle,
+        valueFormatter: (p) => (p.value == null ? '-' : String(p.value)),
+      },
+      {
         headerName: '상담사 수',
         field: 'agentCount',
         width: 100,

@@ -15,10 +15,11 @@
  *  ipron-ment-duplicate-check  GET    멘트명 중복검증 (?nodeId&tenantId&mentName&excludeMentId)
  *  ipron-ment-download         GET    멘트 파일 다운로드 ({mentId}, binary)
  *  ipron-ment-preview          GET    미리듣기용 WAV 변환 ({mentId}, binary — PCM→WAV)
+ *  ipron-ment-preview-check    GET    미리듣기 사전체크 ({id} — 파일 실체 존재 여부, 항상 ok=true)
  *  ipron-ment-sync             POST   선택 노드의 MS그룹 멘트파일 동기화 (?nodeId)
  */
 import ApiClient, { type ApiResponse } from '@/shared-util';
-import type { MentBatchCreateRequest, MentCreateRequest, MentOptionItem, MentResponse, MentSyncResult, MentUpdateRequest } from '../types';
+import type { MentBatchCreateRequest, MentCreateRequest, MentOptionItem, MentPreviewStatus, MentResponse, MentSyncResult, MentUpdateRequest } from '../types';
 
 const apiClient = new ApiClient({ serviceURL: '/bff' });
 
@@ -125,5 +126,15 @@ export const mentApi = {
   preview: async (mentId: number): Promise<Blob> => {
     const res = await apiClient.get<Blob>('/ipron-ment-preview', { params: { id: mentId }, responseType: 'blob' });
     return (res as unknown as { data: Blob }).data;
+  },
+
+  /**
+   * 미리듣기 사전체크 — 파일 실체 존재 여부(소프트조건, 항상 ok=true).
+   * 파일 없으면 fileExists=false + message('멘트 파일 실체가 없습니다(메타만 등록됨)').
+   * FE 는 이를 먼저 호출 → fileExists?재생:toast.warning 으로 분기(BFF 4xx→500 우회).
+   */
+  previewCheck: async (mentId: number): Promise<MentPreviewStatus> => {
+    const res = await apiClient.get<ApiResponse<MentPreviewStatus>>('/ipron-ment-preview-check', { params: { id: mentId } });
+    return res.data?.data ?? { fileExists: false, message: null };
   },
 };

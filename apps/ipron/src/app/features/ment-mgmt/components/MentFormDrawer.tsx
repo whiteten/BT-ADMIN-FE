@@ -34,8 +34,8 @@ interface SingleFormValues {
   createDate?: dayjs.Dayjs;
 }
 
-/** 멘트 파일명 규칙: 영문/숫자/_/. 만, 64자 이내 (SWAT). */
-const FILE_NAME_RE = /^[A-Za-z0-9_.]{1,64}$/;
+/** 멘트 파일명 규칙(BE 캐논 통일): 영숫자·_·.·- 만(64자 이내), .pcm 확장자 필수. 대소문자 무관. */
+const FILE_NAME_RE = /^[A-Za-z0-9_.-]{1,64}\.pcm$/i;
 
 /** 테넌트 기준 경로 산출 (공통=0000). */
 function mentPath(tenantId: number | null): string {
@@ -156,6 +156,12 @@ export default function MentFormDrawer({ state, onClose }: Props) {
       return;
     }
     try {
+      // 파일 없음은 에러가 아닌 소프트조건 → 재생 전 사전체크.
+      const check = await mentApi.previewCheck(mentId);
+      if (!check.fileExists) {
+        toast.warning(check.message ?? '멘트 파일이 없습니다 (미업로드)');
+        return;
+      }
       const blob = await mentApi.preview(mentId);
       const url = URL.createObjectURL(blob);
       editAudioUrlRef.current = url;
@@ -169,8 +175,7 @@ export default function MentFormDrawer({ state, onClose }: Props) {
       setPreviewing(true);
       await audio.play();
     } catch (err: unknown) {
-      const status = (err as { response?: { status?: number } })?.response?.status;
-      toast.error(status === 404 ? '멘트 파일 실체가 없습니다 (메타만 등록됨)' : (extractMessage(err) ?? '미리듣기 실패'));
+      toast.error(extractMessage(err) ?? '미리듣기 실패');
       stopEditPreview();
     }
   };
@@ -196,7 +201,7 @@ export default function MentFormDrawer({ state, onClose }: Props) {
     e.target.value = '';
     if (!file) return;
     if (!FILE_NAME_RE.test(file.name)) {
-      toast.error('파일명은 영문/숫자/_/. 만, 64자 이내여야 합니다');
+      toast.error('파일명은 영문/숫자/_/-/. 만 가능하며 .pcm 확장자여야 합니다(64자 이내)');
       return;
     }
     setSingleFile(file);
@@ -362,7 +367,7 @@ export default function MentFormDrawer({ state, onClose }: Props) {
             >
               <Upload className="size-5 mx-auto mb-1.5 text-gray-400" />
               <div className="text-[12.5px] text-gray-600">PCM 파일을 클릭하여 선택 (필수)</div>
-              <div className="text-[11px] text-gray-400 mt-1">A-LAW 8kHz PCM · 파일명 영문/숫자/_/. 만, 64자 이내</div>
+              <div className="text-[11px] text-gray-400 mt-1">A-LAW 8kHz PCM · 파일명 영문/숫자/_/-/. 만, 64자 이내 · .pcm 확장자 필수</div>
             </button>
           )}
         </Form.Item>
@@ -389,7 +394,7 @@ export default function MentFormDrawer({ state, onClose }: Props) {
             >
               <Upload className="size-5 mx-auto mb-1.5 text-gray-400" />
               <div className="text-[12.5px] text-gray-600">여러 PCM 파일을 선택 (멘트명 = 파일명 자동)</div>
-              <div className="text-[11px] text-gray-400 mt-1">잘못된 파일명(특수문자/64자 초과)은 자동 제외</div>
+              <div className="text-[11px] text-gray-400 mt-1">잘못된 파일명(특수문자/64자 초과/.pcm 아님)은 자동 제외</div>
             </button>
           </div>
 

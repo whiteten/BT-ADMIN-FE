@@ -10,7 +10,7 @@ import { useQueryClient } from '@tanstack/react-query';
 import type { ColDef, ICellRendererParams } from 'ag-grid-community';
 import { AgGridReact } from 'ag-grid-react';
 import { Button, Dropdown, Empty } from 'antd';
-import { ChevronLeft, ChevronRight, Edit3, MoreVertical, Plus, Trash2 } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Edit2, Edit3, MoreVertical, Plus, Trash2 } from 'lucide-react';
 import { useBreadcrumbStore } from '@/shared-store';
 import { toast } from '@/shared-util';
 import SipHeaderGroupDrawer, { type SipHeaderGroupDrawerRef } from '../../features/sip-profile/components/SipHeaderGroupDrawer';
@@ -25,6 +25,7 @@ import {
   useGetSipHeaderRelays,
   useUpdateSipGroupMembers,
   useUpdateSipHeaderGroup,
+  useUpdateSipHeaderRelay,
 } from '../../features/sip-profile/hooks/useSipProfileQueries';
 import type { SipHeaderGroup, SipHeaderRelay } from '../../features/sip-profile/types';
 import { IconTrash } from '@/components/custom/Icons';
@@ -130,6 +131,16 @@ export default function SipHeaderManage() {
     },
   });
 
+  const { mutate: updateRelay, isPending: isUpdatingRelay } = useUpdateSipHeaderRelay({
+    mutationOptions: {
+      onSuccess: () => {
+        toast.success('헤더 릴레이가 수정되었습니다.');
+        relayDrawerRef.current?.close();
+        invalidateRelays();
+      },
+    },
+  });
+
   const { mutate: deleteRelay } = useDeleteSipHeaderRelay({
     mutationOptions: {
       onSuccess: () => {
@@ -177,6 +188,10 @@ export default function SipHeaderManage() {
 
   const handleRelayCreate = () => {
     relayDrawerRef.current?.open();
+  };
+
+  const handleRelayEdit = (relay: SipHeaderRelay) => {
+    relayDrawerRef.current?.open(relay);
   };
 
   const handleRelayDelete = (relay: SipHeaderRelay) => {
@@ -267,24 +282,35 @@ export default function SipHeaderManage() {
     },
     {
       headerName: '',
-      maxWidth: 60,
+      maxWidth: 90,
       sortable: false,
       filter: false,
       suppressHeaderMenuButton: true,
-      cellStyle: { display: 'flex', alignItems: 'center', justifyContent: 'center' },
+      cellStyle: { display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '4px' },
       cellRenderer: (params: ICellRendererParams<SipHeaderRelay>) => {
         const { data } = params;
-        if (!data || data.headerType === 0) return null; // 기초데이터 삭제 불가
+        if (!data || data.headerType === 0) return null; // 기초데이터 수정/삭제 불가
         return (
-          <button
-            type="button"
-            onClick={(e) => {
-              e.stopPropagation();
-              handleRelayDelete(data);
-            }}
-          >
-            <IconTrash className="size-5 text-red-500 hover:cursor-pointer" />
-          </button>
+          <>
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation();
+                handleRelayEdit(data);
+              }}
+            >
+              <Edit2 className="size-4 text-blue-500 hover:cursor-pointer" />
+            </button>
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation();
+                handleRelayDelete(data);
+              }}
+            >
+              <IconTrash className="size-5 text-red-500 hover:cursor-pointer" />
+            </button>
+          </>
         );
       },
     },
@@ -409,7 +435,12 @@ export default function SipHeaderManage() {
         isLoading={isCreatingGroup || isUpdatingGroup}
       />
 
-      <SipHeaderRelayDrawer ref={relayDrawerRef} onCreate={(data) => createRelay(data)} isLoading={isCreatingRelay} />
+      <SipHeaderRelayDrawer
+        ref={relayDrawerRef}
+        onCreate={(data) => createRelay(data)}
+        onUpdate={(id, data) => updateRelay({ id, data })}
+        isLoading={isCreatingRelay || isUpdatingRelay}
+      />
     </div>
   );
 }

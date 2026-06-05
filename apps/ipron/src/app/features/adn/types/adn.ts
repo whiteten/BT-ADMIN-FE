@@ -4,12 +4,14 @@
  * AS-IS: SWAT IPR20S2023
  * BE: BT-ADMIN-SERVICE-IPRON `/api/ipron/adns`
  *
- * 주의: BE 의 enum 은 string code 로 직렬화됨.
- *  - DnStatus      : '0' = UNREGISTERED, '1' = NORMAL
+ * 주의: DN_STATUS 코드는 ADN 전용 값 사용 (공유 DnStatus enum 과 다름).
+ *  - DnStatus (ADN) : '8' = 로그인(Login), '9' = 로그아웃(Logout)
+ *    출처: TB_CC_COMMONCODE CLASS_CD='DN_STATUS' ADDCOND1_VALUE='ADN' — DB 실확인 2026-06-05
  *  - AdnDefaultState : '1' = READY, '2' = NOT_READY, '3' = WRAPUP
  */
 
-export type DnStatusCode = '0' | '1';
+/** ADN 전용 DN_STATUS 코드. '8'=로그인, '9'=로그아웃. */
+export type DnStatusCode = '8' | '9';
 export type AdnDefaultStateCode = '1' | '2' | '3';
 
 export interface AdnResponse {
