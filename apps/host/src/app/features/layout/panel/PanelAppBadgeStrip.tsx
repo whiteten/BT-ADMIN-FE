@@ -20,7 +20,7 @@ const APP_BADGE_COLORS = [
   '#B45309', // brown
 ];
 
-// 앱별 뱃지 아이콘.
+// 앱별 뱃지 아이콘. 미등록 앱은 SquareDashed placeholder로 fallback.
 const APP_BADGE_ICONS: Record<string, ComponentType<SVGProps<SVGSVGElement>>> = {
   manager: Settings,
   fca: IconRemoteFca,
@@ -28,6 +28,12 @@ const APP_BADGE_ICONS: Record<string, ComponentType<SVGProps<SVGSVGElement>>> = 
   stt: IconRemoteStt,
   aoe: IconRemoteAoe,
 };
+
+/**
+ * 앱 뱃지 아이콘 리졸버 — 맵 + fallback을 한곳에서 관리.
+ * strip 뱃지·사이드바 헤더 등 앱 아이콘이 필요한 모든 곳에서 이 함수를 사용한다.
+ */
+export const getAppBadgeIcon = (appId: string): ComponentType<SVGProps<SVGSVGElement>> => APP_BADGE_ICONS[appId] ?? SquareDashed;
 
 /**
  * 패널 가장 왼쪽 60px 컬럼. 최상단 즐겨찾기 버튼 + 구분선 + remote 앱 뱃지 + 최하단 핀 토글로 구성.
@@ -77,7 +83,7 @@ const PanelAppBadgeStrip = () => {
     // 빨간 점 인디케이터 — 현재 보고 있는 화면(URL)의 앱과 일치할 때 노출
     const isCurrentApp = remote.appId === selectedRemote?.appId;
     const badgeColor = APP_BADGE_COLORS[index % APP_BADGE_COLORS.length];
-    const Icon = APP_BADGE_ICONS[remote.appId] ?? SquareDashed;
+    const Icon = getAppBadgeIcon(remote.appId);
 
     return (
       <Tooltip key={remote.appId} title={remote.appName} placement="right">
