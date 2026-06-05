@@ -127,7 +127,7 @@ const KnowledgeEvalResultModal = forwardRef<KnowledgeEvalResultModalRef>((_, ref
                               className={`flex items-start gap-2.5 p-3 bg-white rounded-lg border-2 ${isCorrect ? 'border-red-400' : 'border-gray-100'}`}
                             >
                               <span
-                                className={`flex items-center justify-center w-5 h-5 rounded-full text-xs font-bold shrink-0 ${isCorrect ? 'bg-red-100 text-red-700' : 'bg-[#EAF2FB] text-[var(--color-bt-primary)]'}`}
+                                className={`flex items-center justify-center w-5 h-5 rounded-full text-xs font-bold shrink-0 ${isCorrect ? 'bg-red-100 text-red-700' : 'bg-[var(--color-bt-primary-soft)] text-[var(--color-bt-primary)]'}`}
                               >
                                 {doc.rank}
                               </span>

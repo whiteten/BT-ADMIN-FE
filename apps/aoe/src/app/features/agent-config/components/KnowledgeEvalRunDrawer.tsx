@@ -119,7 +119,7 @@ const KnowledgeEvalRunDrawer = forwardRef<KnowledgeEvalRunDrawerRef>((_, ref) =>
           {/* 평가 유형 */}
           <div className="flex flex-col gap-2">
             <span className="text-sm font-semibold text-gray-700">평가 유형</span>
-            <div className="flex items-start gap-2 p-3 bg-[#EAF2FB] border border-[var(--color-bt-primary)]/30 rounded-lg">
+            <div className="flex items-start gap-2 p-3 bg-[var(--color-bt-primary-soft)] border border-[var(--color-bt-primary)]/30 rounded-lg">
               <input type="radio" readOnly checked className="mt-0.5 accent-[var(--color-bt-primary)] shrink-0" />
               <div>
                 <span className="text-sm font-medium text-[var(--color-bt-primary)]">검색 평가</span>

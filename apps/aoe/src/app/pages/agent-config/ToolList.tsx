@@ -1,11 +1,10 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useQueryClient } from '@tanstack/react-query';
 import { type BreadcrumbProps, Button, Input, Select } from 'antd';
 import { useBreadcrumbStore } from '@/shared-store';
 import { toast } from '@/shared-util';
 import ToolGroupCard from '../../features/tool/components/ToolGroupCard';
-import ToolGroupDrawer, { type ToolGroupDrawerRef } from '../../features/tool/components/ToolGroupDrawer';
 import { toolQueryKeys, useDeleteToolGroup, useGetToolGroups } from '../../features/tool/hooks/useToolQueries';
 import type { ToolGroup } from '../../features/tool/types';
 import { FallbackSpinner } from '@/components/custom/FallbackSpinner';
@@ -25,7 +24,6 @@ export default function ToolList() {
   const modal = useModal();
   const setBreadcrumb = useBreadcrumbStore((s) => s.setBreadcrumb);
   const clearBreadcrumb = useBreadcrumbStore((s) => s.clearBreadcrumb);
-  const groupDrawerRef = useRef<ToolGroupDrawerRef>(null);
   const [filterColumn, setFilterColumn] = useState('groupName');
   const [searchValue, setSearchValue] = useState('');
 
@@ -70,36 +68,32 @@ export default function ToolList() {
   };
 
   return (
-    <>
-      <div className="flex flex-col gap-4 w-full h-full">
-        <div className="flex items-center justify-between gap-2 w-full h-[76px] bg-white bt-shadow px-7 py-5">
-          <div className="flex gap-2 w-full items-center">
-            <Select value={filterColumn} onChange={handleColumnChange} options={FILTER_OPTIONS} className="!max-w-[150px] !min-w-[120px]" popupMatchSelectWidth={false} />
-            <Input value={searchValue} onChange={(e) => setSearchValue(e.target.value)} className="w-full max-w-[400px]" placeholder="검색어를 입력하세요." />
-          </div>
-          <Button type="primary" onClick={() => groupDrawerRef.current?.open()}>
-            추가
-          </Button>
+    <div className="flex flex-col gap-4 w-full h-full">
+      <div className="flex items-center justify-between gap-2 w-full h-[76px] bg-white bt-shadow px-7 py-5">
+        <div className="flex gap-2 w-full items-center">
+          <Select value={filterColumn} onChange={handleColumnChange} options={FILTER_OPTIONS} className="!max-w-[150px] !min-w-[120px]" popupMatchSelectWidth={false} />
+          <Input value={searchValue} onChange={(e) => setSearchValue(e.target.value)} className="w-full max-w-[400px]" placeholder="검색어를 입력하세요." />
         </div>
-
-        {isFetching ? (
-          <div className="flex items-center justify-center w-full h-full bg-white bt-shadow">
-            <FallbackSpinner />
-          </div>
-        ) : filteredGroups.length ? (
-          <div className="grid grid-cols-[repeat(auto-fill,minmax(350px,1fr))] gap-4 w-full overflow-y-auto pt-2 -mt-2">
-            {filteredGroups.map((group) => (
-              <ToolGroupCard key={group.groupId} {...group} onOpen={handleOpenGroup} onDelete={handleDeleteGroup} />
-            ))}
-          </div>
-        ) : (
-          <div className="flex items-center justify-center w-full h-full bg-white bt-shadow">
-            <NoData message="등록된 도구 그룹이 없습니다." iconSize={50} fontSize="text-lg" gap={2} />
-          </div>
-        )}
+        <Button type="primary" onClick={() => navigate('../create')}>
+          추가
+        </Button>
       </div>
 
-      <ToolGroupDrawer ref={groupDrawerRef} />
-    </>
+      {isFetching ? (
+        <div className="flex items-center justify-center w-full h-full bg-white bt-shadow">
+          <FallbackSpinner />
+        </div>
+      ) : filteredGroups.length ? (
+        <div className="grid grid-cols-[repeat(auto-fill,minmax(350px,1fr))] gap-4 w-full overflow-y-auto pt-2 -mt-2">
+          {filteredGroups.map((group) => (
+            <ToolGroupCard key={group.groupId} {...group} onOpen={handleOpenGroup} onDelete={handleDeleteGroup} />
+          ))}
+        </div>
+      ) : (
+        <div className="flex items-center justify-center w-full h-full bg-white bt-shadow">
+          <NoData message="등록된 도구 그룹이 없습니다." iconSize={50} fontSize="text-lg" gap={2} />
+        </div>
+      )}
+    </div>
   );
 }

@@ -20,7 +20,7 @@ const APP_BADGE_COLORS = [
   '#B45309', // brown
 ];
 
-// 앱별 뱃지 아이콘.
+// 앱별 뱃지 아이콘. 미등록 앱은 SquareDashed placeholder로 fallback.
 const APP_BADGE_ICONS: Record<string, ComponentType<SVGProps<SVGSVGElement>>> = {
   manager: Settings,
   fca: IconRemoteFca,
@@ -28,6 +28,12 @@ const APP_BADGE_ICONS: Record<string, ComponentType<SVGProps<SVGSVGElement>>> = 
   stt: IconRemoteStt,
   aoe: IconRemoteAoe,
 };
+
+/**
+ * 앱 뱃지 아이콘 리졸버 — 맵 + fallback을 한곳에서 관리.
+ * strip 뱃지·사이드바 헤더 등 앱 아이콘이 필요한 모든 곳에서 이 함수를 사용한다.
+ */
+export const getAppBadgeIcon = (appId: string): ComponentType<SVGProps<SVGSVGElement>> => APP_BADGE_ICONS[appId] ?? SquareDashed;
 
 /**
  * 패널 가장 왼쪽 60px 컬럼. 최상단 즐겨찾기 버튼 + 구분선 + remote 앱 뱃지 + 최하단 핀 토글로 구성.
@@ -43,6 +49,8 @@ const PanelAppBadgeStrip = () => {
   const remotes = useMenuStore((s) => s.menuConfigs);
   const selectedRemote = useCurrentRemote();
   const pinned = useMenuPanelStore((s) => s.pinned);
+  const view = useMenuPanelStore((s) => s.view);
+  const displayedAppId = useMenuPanelStore((s) => s.displayedAppId);
   const setOpen = useMenuPanelStore((s) => s.setOpen);
   const setMode = useMenuPanelStore((s) => s.setMode);
   const setView = useMenuPanelStore((s) => s.setView);
@@ -76,8 +84,11 @@ const PanelAppBadgeStrip = () => {
   const renderBadge = (remote: (typeof remotes)[number], index: number) => {
     // 빨간 점 인디케이터 — 현재 보고 있는 화면(URL)의 앱과 일치할 때 노출
     const isCurrentApp = remote.appId === selectedRemote?.appId;
+    // 링(테두리) 강조 — 현재 메뉴 패널에 펼쳐진 앱(클릭한 뱃지)과 일치할 때 노출.
+    // view='favorite'일 땐 어떤 앱도 펼쳐진 게 아니므로 표기하지 않는다. isCurrentApp(빨간 점)과는 의미가 별개.
+    const isDisplayedApp = view === 'menu' && remote.appId === displayedAppId;
     const badgeColor = APP_BADGE_COLORS[index % APP_BADGE_COLORS.length];
-    const Icon = APP_BADGE_ICONS[remote.appId] ?? SquareDashed;
+    const Icon = getAppBadgeIcon(remote.appId);
 
     return (
       <Tooltip key={remote.appId} title={remote.appName} placement="right">
@@ -85,7 +96,11 @@ const PanelAppBadgeStrip = () => {
           type="button"
           onClick={() => handleAppClick(remote.appId)}
           aria-label={remote.appName}
-          className="relative flex items-center justify-center size-10 shrink-0 rounded-lg text-white cursor-pointer shadow-sm hover:shadow-md transition-shadow"
+          aria-current={isDisplayedApp ? 'true' : undefined}
+          className={cn(
+            'relative flex items-center justify-center size-10 shrink-0 rounded-lg text-white cursor-pointer shadow-sm hover:shadow-md transition-shadow',
+            isDisplayedApp && 'ring-2 ring-[var(--color-bt-primary)] ring-offset-2 ring-offset-[#f8f9fb]',
+          )}
           style={{ backgroundColor: badgeColor }}
         >
           <Icon className="size-5" />

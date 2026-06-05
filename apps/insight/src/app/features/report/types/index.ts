@@ -63,7 +63,6 @@ export interface SearchBinding {
   bindId: number;
   searchCondId: number;
   title: string;
-  isBundle: boolean;
   bindOrder: number;
   requiredYn: boolean;
   defaultValue?: unknown;
@@ -83,6 +82,8 @@ export interface PanelFieldMap {
   topN?: number;
   otherGrouping?: boolean;
   searchCondId?: number;
+  /** FILTER 슬롯 cascade: 이 컬럼이 검색조건의 어느 단계(node)에 매핑되는지 (G4-b). 단일 조건은 미지정. */
+  nodeCode?: string;
 }
 
 export interface PanelLayout {

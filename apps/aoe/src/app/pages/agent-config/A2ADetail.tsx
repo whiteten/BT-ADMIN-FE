@@ -2,6 +2,7 @@ import { useEffect } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { useQueryClient } from '@tanstack/react-query';
 import { type BreadcrumbProps, Button, Col, Form, type FormProps, Input, Row } from 'antd';
+import { Server } from 'lucide-react';
 import { Log } from '@/log';
 import { useBreadcrumbStore } from '@/shared-store';
 import { toast } from '@/shared-util';
@@ -111,54 +112,67 @@ export default function A2ADetail() {
 
   return (
     <div className="flex flex-col gap-4 w-full h-full">
-      <div className="flex flex-row gap-5 w-full flex-1 min-h-0 bg-white bt-shadow p-5">
-        {/* 좌측 — 기본정보 폼 */}
-        <div className="w-[420px] shrink-0 overflow-y-auto overflow-x-hidden">
-          <Form form={form} layout="vertical" onFinish={handleBasicInfoSubmit}>
-            <Row gutter={20}>
-              <Col span={24}>
-                <Form.Item name="agentName" label="Agent 명" required rules={[{ required: true, message: 'Agent 명을 입력해 주세요.' }]}>
-                  <Input placeholder="Agent 명을 입력하세요." />
-                </Form.Item>
-              </Col>
-            </Row>
-            <Row gutter={12}>
-              <Col span={12}>
-                <Form.Item label="배포 Agent">
-                  <Input value={a2a?.sourceAgentName ?? '-'} disabled />
-                </Form.Item>
-              </Col>
-              <Col span={12}>
-                <Form.Item label="배포 포트">
-                  <Input value={a2a?.deploymentId ?? '-'} disabled />
-                </Form.Item>
-              </Col>
-            </Row>
-            <Row gutter={20}>
-              <Col span={24}>
-                <Form.Item name="agentDescription" label="설명">
-                  <Input.TextArea placeholder="설명을 입력하세요." autoSize={{ minRows: 3, maxRows: 6 }} />
-                </Form.Item>
-              </Col>
-            </Row>
-          </Form>
+      <div className="flex flex-col gap-4 w-full flex-1 min-h-0 bg-white bt-shadow p-5">
+        <div className="flex flex-row gap-5 w-full flex-1 min-h-0">
+          {/* 좌측 — 기본정보 폼 (사이드 패널) */}
+          <div className="flex w-[380px] shrink-0 flex-col overflow-hidden rounded-lg border border-gray-200 bg-white">
+            <header className="flex items-center gap-2.5 border-b border-[#F1F3F5] px-4 py-3">
+              <div className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-[var(--color-bt-primary-soft)]">
+                <Server className="size-[18px] text-[var(--color-bt-primary)]" />
+              </div>
+              <div className="min-w-0">
+                <h3 className="text-sm font-semibold text-[#495057]">기본 정보</h3>
+                <p className="text-xs text-[#888B9A]">A2A 서버 기본 정보</p>
+              </div>
+            </header>
+            <div className="flex-1 overflow-y-auto p-4">
+              <Form form={form} layout="vertical" onFinish={handleBasicInfoSubmit}>
+                <Row gutter={20}>
+                  <Col span={24}>
+                    <Form.Item name="agentName" label="Agent 명" required rules={[{ required: true, message: 'Agent 명을 입력해 주세요.' }]}>
+                      <Input placeholder="Agent 명을 입력하세요." />
+                    </Form.Item>
+                  </Col>
+                </Row>
+                <Row gutter={12}>
+                  <Col span={12}>
+                    <Form.Item label="배포 Agent">
+                      <Input value={a2a?.sourceAgentName ?? '-'} disabled />
+                    </Form.Item>
+                  </Col>
+                  <Col span={12}>
+                    <Form.Item label="배포 포트">
+                      <Input value={a2a?.deploymentId ?? '-'} disabled />
+                    </Form.Item>
+                  </Col>
+                </Row>
+                <Row gutter={20}>
+                  <Col span={24}>
+                    <Form.Item name="agentDescription" label="설명">
+                      <Input.TextArea placeholder="설명을 입력하세요." autoSize={{ minRows: 3, maxRows: 6 }} />
+                    </Form.Item>
+                  </Col>
+                </Row>
+              </Form>
+            </div>
+          </div>
+          {/* 우측 — Skills 그리드 (변경 즉시 BE 저장, 카드) */}
+          <div className="flex flex-1 min-w-0 flex-col overflow-hidden rounded-lg border border-gray-200 bg-white p-4">
+            <A2ASkillsEditor skills={skills} onChange={handleSkillsChange} loading={isFetching} />
+          </div>
         </div>
-        {/* 우측 — Skills 그리드 (변경 즉시 BE 저장) */}
-        <div className="flex-1 min-w-0">
-          <A2ASkillsEditor skills={skills} onChange={handleSkillsChange} loading={isFetching} />
+        {/* 카드 하단 — 기본정보 저장/삭제/취소 */}
+        <div className="flex items-center justify-center gap-3 w-full">
+          <Button variant="solid" onClick={() => navigate('../list')}>
+            취소
+          </Button>
+          <Button color="red" variant="solid" loading={isDeleting} onClick={handleDelete}>
+            삭제
+          </Button>
+          <Button color="primary" variant="solid" loading={isUpdating} onClick={() => form.submit()}>
+            저장
+          </Button>
         </div>
-      </div>
-      {/* 페이지 하단 — 기본정보 저장/삭제/취소 */}
-      <div className="flex items-center justify-center gap-3 w-full">
-        <Button variant="solid" onClick={() => navigate('../list')}>
-          취소
-        </Button>
-        <Button color="red" variant="solid" loading={isDeleting} onClick={handleDelete}>
-          삭제
-        </Button>
-        <Button color="primary" variant="solid" loading={isUpdating} onClick={() => form.submit()}>
-          저장
-        </Button>
       </div>
     </div>
   );

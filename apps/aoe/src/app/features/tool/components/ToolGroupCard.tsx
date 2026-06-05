@@ -16,7 +16,7 @@ export default function ToolGroupCard({ groupId, groupName, description, toolCou
 
   const title = (
     <div className="flex items-center gap-2.5">
-      <div className="w-8 h-8 rounded-lg bg-[#EAF2FB] text-[var(--color-bt-primary)] flex items-center justify-center shrink-0">
+      <div className="w-8 h-8 rounded-lg bg-[var(--color-bt-primary-soft)] text-[var(--color-bt-primary)] flex items-center justify-center shrink-0">
         <FolderOpen className="size-[18px]" />
       </div>
       <span

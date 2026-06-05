@@ -1,7 +1,7 @@
 import { type UseMutationOptions, type UseQueryOptions, useMutation, useQuery } from '@tanstack/react-query';
 import { createQueryKeys } from '@lukemorales/query-key-factory';
 import { searchConditionApi } from '../api/searchConditionApi';
-import type { SearchConditionCreateDatas, SearchConditionDetail, SearchConditionListItem, SqlPreviewRequest, SqlPreviewResult } from '../types';
+import type { SearchCondMeta, SearchConditionCreateDatas, SearchConditionDetail, SearchConditionListItem, SqlPreviewRequest, SqlPreviewResult } from '../types';
 
 export const searchConditionKeys = createQueryKeys('statistics-search-conditions', {
   list: (params?: Record<string, unknown>) => [params],
@@ -36,16 +36,39 @@ export const useDeleteSearchCondition = ({ mutationOptions }: { mutationOptions?
 export const usePreviewSql = ({ mutationOptions }: { mutationOptions?: UseMutationOptions<SqlPreviewResult[], Error, SqlPreviewRequest> } = {}) =>
   useMutation({ mutationFn: (data: SqlPreviewRequest) => searchConditionApi.previewSql(data), ...mutationOptions });
 
-export const useGetSearchConditionOptions = ({
+/** 장표 런타임 — 검색조건 단계 메타(stages) 조회. */
+export const useGetSearchConditionStages = ({
   searchCondId,
   queryOptions,
 }: {
   searchCondId: number;
-  queryOptions?: Omit<UseQueryOptions<import('../api/searchConditionApi').SearchCondOptions>, 'queryKey' | 'queryFn'>;
+  queryOptions?: Omit<UseQueryOptions<SearchCondMeta>, 'queryKey' | 'queryFn'>;
 }) =>
   useQuery({
-    queryKey: ['search-cond-options', searchCondId],
-    queryFn: () => searchConditionApi.getOptions(searchCondId),
+    queryKey: ['search-cond-stages', searchCondId],
+    queryFn: () => searchConditionApi.getStages(searchCondId),
     staleTime: 5 * 60 * 1000,
+    ...queryOptions,
+  });
+
+/**
+ * 장표 런타임 cascade — 한 단계의 옵션을 부모 선택값 기준으로 조회.
+ * parentValue 가 바뀌면 자동 재조회. 루트 단계(nodeCode/parentValue 없음)도 동일 훅 사용.
+ */
+export const useResolveStageOptions = ({
+  searchCondId,
+  nodeCode,
+  parentValue,
+  queryOptions,
+}: {
+  searchCondId: number;
+  nodeCode: string | null;
+  parentValue?: string | string[] | null;
+  queryOptions?: Omit<UseQueryOptions<SqlPreviewResult[]>, 'queryKey' | 'queryFn'>;
+}) =>
+  useQuery({
+    queryKey: ['search-cond-resolve', searchCondId, nodeCode, parentValue],
+    queryFn: () => searchConditionApi.resolveStageOptions(searchCondId, nodeCode, parentValue),
+    staleTime: 60 * 1000,
     ...queryOptions,
   });

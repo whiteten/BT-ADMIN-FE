@@ -786,7 +786,7 @@ export default function PanelEditorSheet({ reportId, panelType, panelId, dataset
       if (!sc) return '';
       const it = sc.nodes?.[0]?.inputType;
       const base = it ? (SC_TYPE_LABEL[it] ?? it) : '';
-      return sc.isBundle ? `${base} · 묶음` : base;
+      return (sc.nodes?.length ?? 0) > 1 ? `${base} · cascade` : base;
     };
     return (
       <div
@@ -828,12 +828,24 @@ export default function PanelEditorSheet({ reportId, panelType, panelId, dataset
                 placeholder="검색조건 선택"
                 value={f.searchCondId ?? undefined}
                 loading={searchCondsLoading}
-                onChange={(v: number) => setFilterFields((prev) => prev.map((ff) => (ff.fieldName === f.fieldName ? { ...ff, searchCondId: v } : ff)))}
+                onChange={(v: number) => setFilterFields((prev) => prev.map((ff) => (ff.fieldName === f.fieldName ? { ...ff, searchCondId: v, nodeCode: undefined } : ff)))}
                 options={searchConds.map((sc) => ({ value: sc.searchCondId, label: sc.title }))}
                 popupMatchSelectWidth={false}
                 showSearch
                 optionFilterProp="label"
               />
+              {/* cascade 조건(단계 2개+): 이 컬럼이 매핑될 단계(node) 선택 — G4-b 각 단계 각자 컬럼 */}
+              {f.searchCondId != null && (scOf(f.searchCondId)?.nodes.length ?? 0) > 1 && (
+                <Select
+                  size="small"
+                  className="!w-28 shrink-0"
+                  placeholder="단계"
+                  value={f.nodeCode ?? undefined}
+                  onChange={(v: string) => setFilterFields((prev) => prev.map((ff) => (ff.fieldName === f.fieldName ? { ...ff, nodeCode: v } : ff)))}
+                  options={(scOf(f.searchCondId)?.nodes ?? []).map((n) => ({ value: n.nodeCode, label: n.nodeCode }))}
+                  popupMatchSelectWidth={false}
+                />
+              )}
               {f.searchCondId != null && (
                 <Tag color="processing" className="!mb-0 shrink-0 text-[10px]">
                   {scTypeLabel(scOf(f.searchCondId))}
