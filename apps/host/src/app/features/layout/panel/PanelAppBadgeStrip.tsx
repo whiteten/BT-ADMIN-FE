@@ -49,6 +49,8 @@ const PanelAppBadgeStrip = () => {
   const remotes = useMenuStore((s) => s.menuConfigs);
   const selectedRemote = useCurrentRemote();
   const pinned = useMenuPanelStore((s) => s.pinned);
+  const view = useMenuPanelStore((s) => s.view);
+  const displayedAppId = useMenuPanelStore((s) => s.displayedAppId);
   const setOpen = useMenuPanelStore((s) => s.setOpen);
   const setMode = useMenuPanelStore((s) => s.setMode);
   const setView = useMenuPanelStore((s) => s.setView);
@@ -82,6 +84,9 @@ const PanelAppBadgeStrip = () => {
   const renderBadge = (remote: (typeof remotes)[number], index: number) => {
     // 빨간 점 인디케이터 — 현재 보고 있는 화면(URL)의 앱과 일치할 때 노출
     const isCurrentApp = remote.appId === selectedRemote?.appId;
+    // 링(테두리) 강조 — 현재 메뉴 패널에 펼쳐진 앱(클릭한 뱃지)과 일치할 때 노출.
+    // view='favorite'일 땐 어떤 앱도 펼쳐진 게 아니므로 표기하지 않는다. isCurrentApp(빨간 점)과는 의미가 별개.
+    const isDisplayedApp = view === 'menu' && remote.appId === displayedAppId;
     const badgeColor = APP_BADGE_COLORS[index % APP_BADGE_COLORS.length];
     const Icon = getAppBadgeIcon(remote.appId);
 
@@ -91,7 +96,11 @@ const PanelAppBadgeStrip = () => {
           type="button"
           onClick={() => handleAppClick(remote.appId)}
           aria-label={remote.appName}
-          className="relative flex items-center justify-center size-10 shrink-0 rounded-lg text-white cursor-pointer shadow-sm hover:shadow-md transition-shadow"
+          aria-current={isDisplayedApp ? 'true' : undefined}
+          className={cn(
+            'relative flex items-center justify-center size-10 shrink-0 rounded-lg text-white cursor-pointer shadow-sm hover:shadow-md transition-shadow',
+            isDisplayedApp && 'ring-2 ring-[var(--color-bt-primary)] ring-offset-2 ring-offset-[#f8f9fb]',
+          )}
           style={{ backgroundColor: badgeColor }}
         >
           <Icon className="size-5" />
