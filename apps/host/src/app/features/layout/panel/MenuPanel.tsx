@@ -114,7 +114,7 @@ const MenuPanel = ({ topOffset }: MenuPanelProps) => {
     <>
       {/* Backdrop — 시각 dim 전용. 클릭은 document-level outside-click 리스너에서 처리 */}
       <div
-        className={cn('fixed inset-x-0 bottom-0 z-40 bg-black/30 transition-opacity duration-200', open ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none')}
+        className={cn('fixed inset-x-0 bottom-0 z-[900] bg-black/30 transition-opacity duration-200', open ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none')}
         style={{ top: topOffset }}
         aria-hidden
       />
@@ -122,7 +122,7 @@ const MenuPanel = ({ topOffset }: MenuPanelProps) => {
       {/* Panel */}
       <div
         ref={panelRef}
-        className={cn('fixed left-0 z-40 bg-white shadow-2xl flex transition-[transform,width] duration-200', panelWidth, open ? 'translate-x-0' : '-translate-x-full')}
+        className={cn('fixed left-0 z-[900] bg-white shadow-2xl flex transition-[transform,width] duration-200', panelWidth, open ? 'translate-x-0' : '-translate-x-full')}
         style={{ top: topOffset, height: `calc(100vh - ${topOffset}px)` }}
         role="dialog"
         aria-modal="true"
