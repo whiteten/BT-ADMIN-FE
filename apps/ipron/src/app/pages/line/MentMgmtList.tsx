@@ -26,8 +26,7 @@ import type { MentResponse } from '../../features/ment-mgmt/types';
 import { useModal } from '@/libs/shared-ui/src/hooks/useModal';
 
 const breadcrumb = [
-  { title: '회선관리', path: '/ipron/ment-mgmt' },
-  { title: '교환기', path: '/ipron/ment-mgmt' },
+  { title: '미디어 관리', path: '/ipron/ment-mgmt' },
   { title: '교환기 멘트 관리', path: '/ipron/ment-mgmt' },
 ];
 
@@ -232,10 +231,9 @@ export default function MentMgmtList() {
   // 언마운트 시 재생 정리
   useEffect(() => stopPlayback, [stopPlayback]);
 
-  const handleExport = async () => {
-    // 엑셀 내보내기 — BE flow 미반영 시 안내. (시드 후 ipron-ment-excel-export 연결)
-    toast.info('엑셀 내보내기는 준비 중입니다');
-  };
+  // 엑셀 내보내기 — SWAT IPR20S1070 미존재 기능(신규 계획). BE 엔드포인트 미구현으로 비활성화.
+  // 구현 완료 후 disabled 제거 + handleExport 연결.
+  // const handleExport = async () => { ... };
 
   // ─── Render ───────────────────────────────────────────────────────────────────
   return (
@@ -311,7 +309,8 @@ export default function MentMgmtList() {
               >
                 멘트파일 동기화
               </Button>
-              <Button icon={<Download className="size-3.5" />} onClick={handleExport}>
+              {/* 엑셀 내보내기: SWAT 미존재 신규 기능 — BE 엔드포인트 구현 후 활성화 예정 */}
+              <Button icon={<Download className="size-3.5" />} disabled title="준비 중 — SWAT 미존재 기능, BE 엔드포인트 구현 후 활성화">
                 엑셀
               </Button>
             </div>

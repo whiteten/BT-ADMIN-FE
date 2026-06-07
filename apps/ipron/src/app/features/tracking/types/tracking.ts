@@ -113,6 +113,13 @@ export interface TrackingSearchCriteria {
   /** IVR 모드 — IVR 자가해결 (ABANDON_YN=0 AND REQ_AGENT_YN=0) */
   ivrSelfServiced?: boolean | null;
 
+  // ─── 조회목적 (ENTRY_PURPOSE_INQUIRY 설정 활성화 + ANI/UCID 입력 시 팝업 입력값) ────
+  /**
+   * SWAT ENTRY_PURPOSE_INQUIRY 설정 연동: ANI/UCID 입력 시 조회목적 팝업에서 입력받은 값.
+   * 감사 로그 메타데이터로 서버에 전달됨.
+   */
+  purposeOfInquiry?: string | null;
+
   // ─── 페이징 ───────────────────────────────────────
   page?: number;
   size?: number;
@@ -356,6 +363,48 @@ export interface DialogTurn {
   result: string | null; // S/F
   subFlow: string | null; // Val7
   scenarioName: string | null; // Val8
+}
+
+// ─── 통화품질 (Quality 탭) ─────────────────────────────────────────────────
+
+/**
+ * Quality 탭 — UCID + HOP 기준 통화품질 데이터.
+ * SWAT IPR30S1060QT.do selQualityData / TB_DM_IE_BASICCDR 컬럼 대응.
+ * O_TYPE/T_TYPE: 회선유형 (0=None,1=국선,2=내선,3=트렁크,4=IVR큐,5=CTI큐,6=ACD큐)
+ */
+export interface CallQuality {
+  /** 발신측 회선유형 */
+  oType: number | null;
+  /** 착신측 회선유형 */
+  tType: number | null;
+  /** 발신측 IP 주소 */
+  oRemoteAddr: string | null;
+  /** 착신측 IP 주소 */
+  tRemoteAddr: string | null;
+  /** 발신측 협상 코덱 */
+  oNegoCodec: string | null;
+  /** 착신측 협상 코덱 */
+  tNegoCodec: string | null;
+  /** 발신측 MOS (0~5) */
+  oMos: number | null;
+  /** 착신측 MOS */
+  tMos: number | null;
+  /** 발신측 Jitter 평균 (ms) */
+  oJitterAvg: number | null;
+  /** 착신측 Jitter 평균 (ms) */
+  tJitterAvg: number | null;
+  /** 발신측 패킷 손실 (%) */
+  oRtpMsLost: number | null;
+  /** 착신측 패킷 손실 (%) */
+  tRtpMsLost: number | null;
+  /** 발신측 R-Factor (0~100) */
+  oRFactor: number | null;
+  /** 착신측 R-Factor */
+  tRFactor: number | null;
+  /** 발신측 ICMP RTT (ms) */
+  oIcmpRtt: number | null;
+  /** 착신측 ICMP RTT (ms) */
+  tIcmpRtt: number | null;
 }
 
 // ─── 녹취 ──────────────────────────────────────────────────────────────────

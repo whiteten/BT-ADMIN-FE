@@ -9,7 +9,17 @@ import { useQueryClient } from '@tanstack/react-query';
 import { Button, Col, Divider, Form, Input, InputNumber, Row, Select, Steps, Switch } from 'antd';
 import { useBreadcrumbStore } from '@/shared-store';
 import { toast } from '@/shared-util';
-import { routeQueryKeys, useCreateRoute, useGetNodes, useGetRouteDetail, useGetRoutesByNode, useUpdateRoute } from '../../features/route/hooks/useRouteQueries';
+import {
+  routeQueryKeys,
+  useCreateRoute,
+  useGetDodTransOptions,
+  useGetMentOptions,
+  useGetNodes,
+  useGetRouteDetail,
+  useGetRoutesByNode,
+  useGetWorktimeOptions,
+  useUpdateRoute,
+} from '../../features/route/hooks/useRouteQueries';
 import {
   ANI_TYPE_LABELS,
   ANI_TYPE_OPTIONS,
@@ -56,6 +66,12 @@ export default function RouteForm() {
   const effectiveNodeId = watchedNodeId ?? defaultNodeId ?? routeDetail?.nodeId;
   const { data: nodeRoutes = [] } = useGetRoutesByNode(effectiveNodeId);
 
+  // 동적 콤보 옵션 (노드 선택 시 갱신)
+  // SWAT: cbCreate('dodtrans', search1=nodeId) / cbCreate('worktime', nodeId) / cbCreate('ment', nodeId&tenantId=0)
+  const { data: dodTransOptions = [] } = useGetDodTransOptions(effectiveNodeId);
+  const { data: worktimeOptions = [] } = useGetWorktimeOptions(effectiveNodeId);
+  const { data: mentOptions = [] } = useGetMentOptions(effectiveNodeId);
+
   // Self-ref 라우트 옵션 (자기 자신 제외)
   const routeSelectOptions = nodeRoutes.filter((r) => r.routeId !== routeId).map((r) => ({ label: r.routeName, value: r.routeId }));
 
@@ -64,6 +80,18 @@ export default function RouteForm() {
   const isWorktimeSet = !!watchedIeWorktimeId;
   const showWorktimeMent = watchedWorktimeOpt === 2 || watchedWorktimeOpt === 4;
   const showWorktimeRoute = watchedWorktimeOpt === 3 || watchedWorktimeOpt === 4;
+
+  // ─── 업무시간 미지정 시 연관 필드 초기화 (SWAT setUseWorktime(false) 정합) ──
+  useEffect(() => {
+    if (!isWorktimeSet) {
+      form.setFieldsValue({
+        worktimeOpt: undefined,
+        worktimeMentId: undefined,
+        worktimeRouteId: undefined,
+        transNum: undefined,
+      });
+    }
+  }, [isWorktimeSet, form]);
 
   // ─── Populate form on edit ────────────────────────────────────────────────
   useEffect(() => {
@@ -139,7 +167,7 @@ export default function RouteForm() {
   const handleNext = async () => {
     try {
       // Tab 1 validation: 기본정보
-      const fieldsToValidate: string[] = ['routeName', 'nodeId', 'routeType', 'aniType', 'aniNo'];
+      const fieldsToValidate: string[] = ['routeName', 'nodeId', 'routeType', 'aniType', 'aniNo', 'portNo'];
       if (isLocalNumRequired) {
         fieldsToValidate.push('localNum');
       }
@@ -235,6 +263,7 @@ export default function RouteForm() {
           )}
           <SummaryRow label="과금 TYPE" value={displayValue(CHARGE_TYPE_LABELS[values.chrgType as string] ?? values.chrgType)} />
           <SummaryRow label="대표과금번호" value={displayValue(values.chrgNo)} />
+          <SummaryRow label="포트번호" value={displayValue(values.portNo ?? 5060)} />
           <SummaryRow label="통신사인증번호" value={displayValue(values.vendorAuthnumYn === 1 ? '설정' : '해제')} />
         </div>
 
@@ -317,11 +346,6 @@ export default function RouteForm() {
             <>
               <div className="w-full flex-1 min-h-0 overflow-y-auto p-7 pb-0">
                 <Form form={form} initialValues={ROUTE_INITIAL_VALUES} layout="vertical" onValuesChange={(_, allValues) => setFormValues(allValues)}>
-                  {/* Hidden field: portNo */}
-                  <Form.Item name="portNo" hidden>
-                    <InputNumber />
-                  </Form.Item>
-
                   {/* ── Tab 1: 기본정보 ── */}
                   <div style={{ display: currentStep === 0 ? 'block' : 'none' }}>
                     <h4 className="text-sm font-semibold text-gray-700 mb-4 pb-2 border-b border-gray-200">기본정보</h4>
@@ -365,7 +389,20 @@ export default function RouteForm() {
                       </Col>
                       <Col span={8}>
                         <Form.Item name="dodTransId" label="발신 번호변환">
-                          <Select allowClear placeholder="TODO: 번호변환 API 연동" options={[]} disabled />
+                          <Select allowClear placeholder="미지정" options={dodTransOptions.map((o) => ({ label: o.dodTransName, value: o.dodTransId }))} />
+                        </Form.Item>
+                      </Col>
+                      <Col span={8}>
+                        <Form.Item
+                          name="portNo"
+                          label="포트번호"
+                          required
+                          rules={[
+                            { required: true, message: '포트번호는 필수입니다' },
+                            { type: 'number', min: 1, max: 65535, message: '1~65535 범위' },
+                          ]}
+                        >
+                          <InputNumber min={1} max={65535} className="!w-full" placeholder="5060" />
                         </Form.Item>
                       </Col>
                     </Row>
@@ -544,7 +581,7 @@ export default function RouteForm() {
                     <Row gutter={20}>
                       <Col span={8}>
                         <Form.Item name="ieWorktimeId" label="업무시간 설정">
-                          <Select allowClear placeholder="TODO: 업무시간 API 연동" options={[]} disabled />
+                          <Select allowClear placeholder="미지정" options={worktimeOptions.map((o) => ({ label: o.worktimeName, value: o.worktimeId }))} />
                         </Form.Item>
                       </Col>
                       <Col span={8}>
@@ -561,14 +598,14 @@ export default function RouteForm() {
                     <Row gutter={20}>
                       {showWorktimeMent && (
                         <Col span={8}>
-                          <Form.Item name="worktimeMentId" label="업무시간 외 안내멘트">
-                            <Select allowClear placeholder="TODO: 멘트 API 연동" options={[]} disabled />
+                          <Form.Item name="worktimeMentId" label="업무시간 외 안내멘트" required rules={[{ required: true, message: '업무시간 외 안내멘트를 선택하십시오.' }]}>
+                            <Select allowClear placeholder="선택" options={mentOptions.map((o) => ({ label: o.name, value: o.id }))} />
                           </Form.Item>
                         </Col>
                       )}
                       {showWorktimeRoute && (
                         <Col span={8}>
-                          <Form.Item name="worktimeRouteId" label="업무시간 외 우회라우트">
+                          <Form.Item name="worktimeRouteId" label="업무시간 외 우회라우트" required rules={[{ required: true, message: '업무시간 외 우회라우트를 선택하십시오.' }]}>
                             <Select options={[{ label: '없음', value: 0 }, ...routeSelectOptions]} allowClear placeholder="선택" />
                           </Form.Item>
                         </Col>

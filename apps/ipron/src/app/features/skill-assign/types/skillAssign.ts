@@ -81,6 +81,10 @@ export interface SkillAgentResponse {
   agentAlias: string | null;
   tenantId: number;
   tenantName: string | null;
+  groupId: number | null;
+  groupName: string | null;
+  treeId: number | null;
+  treeName: string | null;
   skillsetId: number;
   skillsetName: string;
   skillsetDesc: string | null;

@@ -3,22 +3,25 @@
  *
  * 멤버 풀(기배정 + 미배정)을 단일 ag-Grid 로 노출. multiRow 체크박스 선택 → 부모에서 배정/해제 bulk-bar.
  * 컬럼: 상태(pinned:left) / DN번호 / DN타입(EDN·ADN) / ADN(로그인ID) / 노드 / DR노드 / 테넌트 / 블록.
+ * 갭1: memberPriority 인라인 편집 — 기배정 행만 editable, cellValueChanged → onPriorityChanged(updates).
  *
  * AcdGdnTable.tsx 동일 패턴: defaultColDef filter:true + suppressHeaderMenuButton:true, floatingFilter 없음.
  */
 import { useMemo } from 'react';
 import type { CellStyle, ColDef, ICellRendererParams } from 'ag-grid-community';
 import { AgGridReact } from 'ag-grid-react';
-import { type GdnMemberResponse, getDnTypeName } from '../types';
+import { type GdnMemberItem, type GdnMemberResponse, getDnTypeName } from '../types';
 import useAggridOptions from '@/libs/shared-ui/src/hooks/useAggridOptions';
 
 interface AcdGdnMemberGridProps {
   rowData: GdnMemberResponse[];
   isLoading?: boolean;
   onSelectionChanged?: (selected: GdnMemberResponse[]) => void;
+  /** 갭1: memberPriority 인라인 편집 완료 시 호출 */
+  onPriorityChanged?: (updates: GdnMemberItem[]) => void;
 }
 
-export default function AcdGdnMemberGrid({ rowData, isLoading, onSelectionChanged }: AcdGdnMemberGridProps) {
+export default function AcdGdnMemberGrid({ rowData, isLoading, onSelectionChanged, onPriorityChanged }: AcdGdnMemberGridProps) {
   const { gridOptions } = useAggridOptions();
 
   const defaultColDef: ColDef = useMemo(() => ({ sortable: true, filter: true, resizable: true, suppressHeaderMenuButton: true }), []);
@@ -58,6 +61,17 @@ export default function AcdGdnMemberGrid({ rowData, isLoading, onSelectionChange
         field: 'dnNo',
         width: 110,
         cellRenderer: (p: ICellRendererParams<GdnMemberResponse>) => <span className="font-mono font-semibold text-gray-800">{p.data?.dnNo ?? '-'}</span>,
+      },
+      {
+        // 갭1: 우선순위 인라인 편집 (기배정 행만 editable — SWAT IPR20S3030 정합)
+        headerName: '우선순위',
+        field: 'memberPriority',
+        width: 85,
+        type: 'numericColumn',
+        editable: (p) => p.data?.assigned === true,
+        cellStyle: (p) => (p.data?.assigned ? ({ background: '#f0f4ff', cursor: 'text', textAlign: 'right' } as CellStyle) : ({ color: '#ccc', textAlign: 'right' } as CellStyle)),
+        valueFormatter: (p) => (p.value == null ? '-' : String(p.value)),
+        headerTooltip: '기배정 행만 편집 가능 (더블클릭)',
       },
       {
         headerName: 'DN타입',
@@ -111,6 +125,13 @@ export default function AcdGdnMemberGrid({ rowData, isLoading, onSelectionChange
       loading={isLoading}
       getRowId={(p) => String(p.data.dnId ?? `${p.data.gdnId}-${p.data.dnNo}`)}
       onSelectionChanged={(e) => onSelectionChanged?.(e.api.getSelectedRows())}
+      onCellValueChanged={(e) => {
+        // 갭1: memberPriority 편집 완료 → updates 1건 즉시 전송
+        if (e.column.getColId() === 'memberPriority' && e.data?.dnId != null && onPriorityChanged) {
+          const val = e.newValue == null || e.newValue === '' ? null : Number(e.newValue);
+          onPriorityChanged([{ dnId: e.data.dnId as number, memberPriority: isNaN(val as number) ? null : val }]);
+        }
+      }}
     />
   );
 }

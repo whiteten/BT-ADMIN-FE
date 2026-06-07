@@ -127,6 +127,13 @@ export default function AgentMasterTable({
       },
       { headerName: '상담사명', field: 'agentName', flex: 1, minWidth: 100 },
       {
+        headerName: '아웃소싱업체',
+        field: 'oscomName',
+        flex: 1,
+        minWidth: 120,
+        valueFormatter: (p) => p.value ?? '-',
+      },
+      {
         headerName: '상담등급',
         field: 'agentGrade',
         flex: 0.9,

@@ -4,7 +4,7 @@
 import { useMutation, useQuery } from '@tanstack/react-query';
 import { createQueryKeys } from '@lukemorales/query-key-factory';
 import type { MutationHookOptions, QueryHookOptions, QueryHookWithParamsOptions } from '@/shared-util';
-import { type NodeTenantItem, cosApi } from '../api/cosApi';
+import { type DodLimitOption, type NodeTenantItem, cosApi } from '../api/cosApi';
 import type { Cos } from '../types';
 
 export const cosQueryKeys = createQueryKeys('cos', {
@@ -12,6 +12,7 @@ export const cosQueryKeys = createQueryKeys('cos', {
   getDetail: (cosId?: number) => [cosId],
   getRefCount: (cosId?: number) => [cosId],
   getNodeTenants: null,
+  getDodLimits: (tenantId?: number) => [tenantId],
 });
 
 // ─── 조회 훅 ──────────────────────────────────────────────────────────────
@@ -58,6 +59,19 @@ export const useGetNodeTenants = ({ queryOptions }: QueryHookOptions<NodeTenantI
   return useQuery({
     queryKey: cosQueryKeys.getNodeTenants.queryKey,
     queryFn: () => cosApi.getNodeTenants(),
+    ...queryOptions,
+  });
+};
+
+/**
+ * 발신제한/허용그룹 목록 (테넌트별 TB_IE_DOD_LIMIT)
+ * AS-IS: cbCreate('#poAddDodLimitSvc', 'dod_limit', 'tenantId='+tenantId)
+ */
+export const useGetDodLimits = (tenantId?: number, { queryOptions }: QueryHookOptions<DodLimitOption[]> = {}) => {
+  return useQuery({
+    queryKey: cosQueryKeys.getDodLimits(tenantId).queryKey,
+    queryFn: () => cosApi.getDodLimits(tenantId!),
+    enabled: !!tenantId,
     ...queryOptions,
   });
 };

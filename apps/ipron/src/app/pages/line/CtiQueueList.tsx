@@ -13,10 +13,11 @@
  * NOTE: routes.tsx / 메뉴 등록은 통합 워커 담당.
  */
 import { type ChangeEvent, useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Button, Empty, Input } from 'antd';
-import { ArrowUpDown, Building2, ChevronLeft, ChevronRight, ChevronsDown, ChevronsUp, Network, Plus, Search, Trash2 } from 'lucide-react';
+import { Button, Empty, Input, Modal, Table } from 'antd';
+import { ArrowUpDown, Building2, ChevronLeft, ChevronRight, ChevronsDown, ChevronsUp, Download, Network, Plus, Search, Trash2, Upload } from 'lucide-react';
 import { useAuthStore, useBreadcrumbStore } from '@/shared-store';
 import { toast } from '@/shared-util';
+import { ctiQueueApi } from '../../features/cti-queue/api/ctiQueueApi';
 import CtiQueueFormDrawer, { type CtiQueueDrawerState } from '../../features/cti-queue/components/CtiQueueFormDrawer';
 import CtiQueueGroupDrawer from '../../features/cti-queue/components/CtiQueueGroupDrawer';
 import CtiQueueGroupTree from '../../features/cti-queue/components/CtiQueueGroupTree';
@@ -40,7 +41,7 @@ import { useModal } from '@/libs/shared-ui/src/hooks/useModal';
 const breadcrumb = [
   { title: '번호자원관리', path: '/ipron/cti-queue' },
   { title: '그룹DN', path: '/ipron/cti-queue' },
-  { title: 'CTI 큐 관리', path: '/ipron/cti-queue' },
+  { title: 'CTI 큐', path: '/ipron/cti-queue' },
 ];
 
 export default function CtiQueueList() {
@@ -78,6 +79,16 @@ export default function CtiQueueList() {
   const [groupDrawerParent, setGroupDrawerParent] = useState<CtiQueueGroupResponse | null>(null);
   const [groupDrawerTarget, setGroupDrawerTarget] = useState<CtiQueueGroupResponse | null>(null);
   const [groupDrawerTenantHint, setGroupDrawerTenantHint] = useState<number | null>(null);
+
+  // ─── 내보내기/가져오기 상태 (GAP2/3) ─────────────────────────────────────────
+  const [isExporting, setIsExporting] = useState(false);
+  const [isImporting, setIsImporting] = useState(false);
+  const [importResultModal, setImportResultModal] = useState<{
+    open: boolean;
+    successCount: number;
+    errors: { rowNum: number; message: string }[];
+  }>({ open: false, successCount: 0, errors: [] });
+  const importFileInputRef = useRef<HTMLInputElement>(null);
 
   // loginTenantId 가 늦게 로드되는 경우 (auth fetch 비동기) 동기화
   useEffect(() => {
@@ -399,6 +410,49 @@ export default function CtiQueueList() {
         content: `선택한 ${selectedRows.length}건의 CTI 큐를 삭제하시겠습니까?\n각 그룹DN도 함께 삭제됩니다.`,
       },
     });
+  };
+
+  // ─── GAP2: Excel 내보내기 ────────────────────────────────────────────────────
+  const handleExport = async () => {
+    setIsExporting(true);
+    try {
+      const blob = await ctiQueueApi.exportExcel(selectedTenantId != null ? { tenantId: selectedTenantId } : undefined);
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      const today = new Date().toISOString().slice(0, 10).replace(/-/g, '');
+      a.href = url;
+      a.download = `CTI큐목록_${today}.xlsx`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(url);
+    } catch {
+      toast.error('Excel 내보내기에 실패했습니다');
+    } finally {
+      setIsExporting(false);
+    }
+  };
+
+  // ─── GAP3: Excel 가져오기 ────────────────────────────────────────────────────
+  const handleImportClick = () => {
+    importFileInputRef.current?.click();
+  };
+
+  const handleImportFileChange = async (e: ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    // 파일 선택 후 input 초기화 (동일 파일 재선택 허용)
+    e.target.value = '';
+    setIsImporting(true);
+    try {
+      const res = await ctiQueueApi.importExcel(file);
+      const data = res.data ?? { successCount: 0, errors: [] };
+      setImportResultModal({ open: true, successCount: data.successCount ?? 0, errors: data.errors ?? [] });
+    } catch {
+      toast.error('Excel 가져오기에 실패했습니다');
+    } finally {
+      setIsImporting(false);
+    }
   };
 
   // ─── 업무그룹 트리 mutations ────────────────────────────────────────────────
@@ -728,6 +782,15 @@ export default function CtiQueueList() {
                 </span>
               )}
               <div className="ml-auto flex items-center gap-2">
+                {/* GAP2: 내보내기 */}
+                <Button icon={<Download className="size-3.5" />} loading={isExporting} onClick={handleExport} title="CTI 큐 목록 Excel 내보내기">
+                  내보내기
+                </Button>
+                {/* GAP3: 가져오기 */}
+                <Button icon={<Upload className="size-3.5" />} loading={isImporting} onClick={handleImportClick} title="Excel 파일로 CTI 큐 일괄 등록">
+                  가져오기
+                </Button>
+                <input ref={importFileInputRef} type="file" accept=".xlsx,.xls" style={{ display: 'none' }} onChange={handleImportFileChange} />
                 <Button
                   danger
                   icon={<Trash2 className="size-3.5" />}
@@ -763,6 +826,42 @@ export default function CtiQueueList() {
       </div>
 
       <CtiQueueFormDrawer state={drawer} onClose={() => setDrawer({ open: false })} tenantOptions={tenantSelectOptions} nodeOptions={nodeSelectOptions} />
+
+      {/* GAP3: 가져오기 결과 모달 */}
+      <Modal
+        open={importResultModal.open}
+        title={`Excel 가져오기 결과 — 성공 ${importResultModal.successCount}건${importResultModal.errors.length > 0 ? ` / 오류 ${importResultModal.errors.length}건` : ''}`}
+        onCancel={() => setImportResultModal((s) => ({ ...s, open: false }))}
+        footer={
+          <Button type="primary" onClick={() => setImportResultModal((s) => ({ ...s, open: false }))}>
+            확인
+          </Button>
+        }
+        width={600}
+      >
+        {importResultModal.errors.length === 0 ? (
+          <p className="text-green-600 font-medium">모든 행이 성공적으로 등록되었습니다.</p>
+        ) : (
+          <>
+            {importResultModal.successCount > 0 && (
+              <p className="text-gray-600 mb-2">
+                {importResultModal.successCount}건 등록 성공 / {importResultModal.errors.length}건 오류
+              </p>
+            )}
+            {importResultModal.successCount === 0 && <p className="text-red-600 mb-2">모든 행에서 오류가 발생했습니다.</p>}
+            <Table
+              size="small"
+              dataSource={importResultModal.errors.map((e) => ({ ...e, key: e.rowNum }))}
+              columns={[
+                { title: '행 번호', dataIndex: 'rowNum', width: 80 },
+                { title: '오류 내용', dataIndex: 'message', ellipsis: true },
+              ]}
+              pagination={false}
+              scroll={{ y: 240 }}
+            />
+          </>
+        )}
+      </Modal>
 
       {/* 업무그룹 추가/수정 Drawer */}
       <CtiQueueGroupDrawer

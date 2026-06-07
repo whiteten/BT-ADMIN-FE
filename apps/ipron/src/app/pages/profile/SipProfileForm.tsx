@@ -30,7 +30,7 @@ import {
 import { FallbackSpinner } from '@/components/custom/FallbackSpinner';
 
 const initialValues = {
-  ssRefreshType: 0,
+  ssRefreshType: 1,
   ssRefreshInterval: 1800,
   sipOption: { ...DEFAULT_SIP_OPTION },
   sipHeaderOption: { ...DEFAULT_SIP_HEADER_OPTION },

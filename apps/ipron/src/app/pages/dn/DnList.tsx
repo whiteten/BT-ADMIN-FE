@@ -24,7 +24,7 @@
 import { type ChangeEvent, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useQueryClient } from '@tanstack/react-query';
-import { Button, Empty, Input } from 'antd';
+import { Button, Empty, Input, Modal, Table } from 'antd';
 import { ArrowUpDown, Building2, ChevronLeft, ChevronRight, ChevronsDown, ChevronsUp, Download, Network, Plus, Search, Trash2, Upload } from 'lucide-react';
 import { useBreadcrumbStore } from '@/shared-store';
 import { toast } from '@/shared-util';
@@ -77,6 +77,12 @@ export default function DnList() {
   const [copyOpen, setCopyOpen] = useState(false);
   const [bulkDeleteOpen, setBulkDeleteOpen] = useState(false);
   const [cardExpanded, setCardExpanded] = useState(true);
+  // 갭7: 여유번호 검색 다이얼로그
+  const [freeDnOpen, setFreeDnOpen] = useState(false);
+  const [freeDnStartNo, setFreeDnStartNo] = useState('');
+  const [freeDnEndNo, setFreeDnEndNo] = useState('');
+  const [freeDnResult, setFreeDnResult] = useState<string[] | null>(null);
+  const [freeDnLoading, setFreeDnLoading] = useState(false);
 
   const cardScrollRef = useRef<HTMLDivElement>(null);
   const tabScrollRef = useRef<HTMLDivElement>(null);
@@ -382,12 +388,27 @@ export default function DnList() {
     navigate(`/ipron/dn/${dn.dnId}/edit`);
   };
 
-  const handleDnDelete = (dn: DnResponse) => {
+  // 갭6: 삭제 전 SCA/SNR 연관 건수 확인 (SWAT IPR20S2020S_RelationCount 정합)
+  // SCA/SNR 존재 시 삭제 차단 후 안내 메시지 표시
+  const handleDnDelete = async (dn: DnResponse) => {
+    try {
+      const relationCount = await dnApi.getRelationCount(dn.dnId);
+      if (relationCount > 0) {
+        Modal.error({
+          title: '삭제 불가',
+          content: `"${dn.dnNo}" 내선은 SCA 또는 SNR 정보(${relationCount}건)를 포함하고 있어 삭제할 수 없습니다.\n내선 상세에서 해당 정보를 먼저 삭제 후 다시 시도해주세요.`,
+        });
+        return;
+      }
+    } catch {
+      // 관계 조회 실패 시 경고 후 진행 허용
+      toast.warning('연관 데이터 조회에 실패했습니다. 삭제 진행 시 주의하세요.');
+    }
     modal.confirm.execute({
       onOk: () => deleteDns([dn.dnId]),
       options: {
         title: '내선 삭제',
-        content: `"${dn.dnNo}" 내선을 삭제하시겠습니까?\n내선에 등록된 SCA/SNR 도 함께 삭제 됩니다.`,
+        content: `"${dn.dnNo}" 내선을 삭제하시겠습니까?\n내선에 등록된 IPT서비스 / 콜전환 / 단축다이얼 / 그룹DN 연관 데이터가 함께 삭제됩니다.`,
       },
     });
   };
@@ -396,6 +417,38 @@ export default function DnList() {
     if (selectedRows.length === 0) return;
     // 대량/소량 모두 Bulk Delete Modal 로 통일 — 진행률 + 청크 분할 호출 일관된 UX
     setBulkDeleteOpen(true);
+  };
+
+  // 갭7: 여유번호 검색 핸들러 (SWAT IPR20S2020_FreeDn.jsp doRemainNumSearch() 정합)
+  const handleFreeDnSearch = async () => {
+    if (!selectedNodeId) {
+      toast.warning('노드를 선택해주세요.');
+      return;
+    }
+    if (!freeDnStartNo) {
+      toast.warning('시작DN을 입력해주세요.');
+      return;
+    }
+    if (!freeDnEndNo) {
+      toast.warning('끝DN을 입력해주세요.');
+      return;
+    }
+    const start = Number(freeDnStartNo);
+    const end = Number(freeDnEndNo);
+    if (end - start + 1 > 1000) {
+      toast.warning(`시작DN과 끝DN의 범위가 너무 큽니다. (최대 1,000)`);
+      return;
+    }
+    setFreeDnLoading(true);
+    try {
+      const result = await dnApi.getFreeDnRange({ nodeId: selectedNodeId, startNo: freeDnStartNo, endNo: freeDnEndNo });
+      setFreeDnResult(result?.freeDnNumbers ?? []);
+    } catch {
+      toast.error('여유번호 조회에 실패했습니다.');
+      setFreeDnResult([]);
+    } finally {
+      setFreeDnLoading(false);
+    }
   };
 
   const handleBatchOpen = () => {
@@ -682,6 +735,19 @@ export default function DnList() {
               >
                 {selectedRows.length > 0 ? `삭제 (${selectedRows.length})` : '삭제'}
               </Button>
+              {/* 갭7: 여유번호 검색 버튼 */}
+              <Button
+                onClick={() => {
+                  setFreeDnResult(null);
+                  setFreeDnStartNo('');
+                  setFreeDnEndNo('');
+                  setFreeDnOpen(true);
+                }}
+                disabled={!selectedNodeId}
+                title={!selectedNodeId ? '노드를 선택하세요' : '사용 가능한 여유번호 검색'}
+              >
+                여유번호
+              </Button>
               <Button onClick={() => setCopyOpen(true)} disabled={selectedRows.length !== 1} title={selectedRows.length !== 1 ? 'DN 1건을 선택하세요' : '선택한 DN 복사 생성'}>
                 복사 생성
               </Button>
@@ -762,6 +828,53 @@ export default function DnList() {
           invalidateDns();
         }}
       />
+
+      {/* 갭7: 여유번호 검색 모달 (SWAT IPR20S2020_FreeDn.jsp 정합) */}
+      <Modal title="여유번호 검색" open={freeDnOpen} onCancel={() => setFreeDnOpen(false)} footer={null} width={600}>
+        <div className="flex gap-2 mb-4 items-end">
+          <div>
+            <div className="text-xs text-gray-500 mb-1">시작번호</div>
+            <Input
+              placeholder="예: 1000"
+              value={freeDnStartNo}
+              onChange={(e) => setFreeDnStartNo(e.target.value.replace(/\D/g, ''))}
+              style={{ width: 140 }}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') handleFreeDnSearch();
+              }}
+            />
+          </div>
+          <div>
+            <div className="text-xs text-gray-500 mb-1">끝번호</div>
+            <Input
+              placeholder="예: 1999"
+              value={freeDnEndNo}
+              onChange={(e) => setFreeDnEndNo(e.target.value.replace(/\D/g, ''))}
+              style={{ width: 140 }}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') handleFreeDnSearch();
+              }}
+            />
+          </div>
+          <Button type="primary" onClick={handleFreeDnSearch} loading={freeDnLoading}>
+            검색
+          </Button>
+        </div>
+        {freeDnResult !== null &&
+          (freeDnResult.length === 0 ? (
+            <Empty description="사용 가능한 여유번호가 없습니다." />
+          ) : (
+            <div>
+              <div className="text-sm text-gray-500 mb-2">사용 가능한 여유번호 {freeDnResult.length.toLocaleString()}건</div>
+              <Table
+                size="small"
+                pagination={{ pageSize: 20 }}
+                dataSource={freeDnResult.map((dn, i) => ({ key: i, dn }))}
+                columns={[{ title: 'DN 번호', dataIndex: 'dn', key: 'dn', align: 'center' as const }]}
+              />
+            </div>
+          ))}
+      </Modal>
     </div>
   );
 }

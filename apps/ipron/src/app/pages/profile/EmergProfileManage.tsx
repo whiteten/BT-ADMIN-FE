@@ -273,7 +273,17 @@ export default function EmergProfileManage() {
   // ─── Code actions ──────────────────────────────────────────────────────────
   const handleCodeCreate = () => codeDrawerRef.current?.open();
   const handleCodeEdit = (code: EmergCode) => codeDrawerRef.current?.open(code);
+
+  // SWAT: validateCode 배열로 기초데이터 여부 사전 체크 후 alert — 서버 요청 자체를 막음
+  // emergencyCodeProfileId === 2000000001 && emergencyCode in [110,112,113,117,119]
+  const BASE_PROFILE_ID = 2000000001;
+  const BASE_EMERGENCY_CODES = ['110', '112', '113', '117', '119'];
+
   const handleCodeDelete = (code: EmergCode) => {
+    if (code.emergencyCodeProfileId === BASE_PROFILE_ID && BASE_EMERGENCY_CODES.includes(code.emergencyCode)) {
+      modal.show.info('기초 데이터는 삭제할 수 없습니다.', '삭제 불가');
+      return;
+    }
     modal.confirm.execute({
       onOk: () =>
         deleteCode({

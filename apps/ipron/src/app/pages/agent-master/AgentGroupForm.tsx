@@ -14,7 +14,8 @@ import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { Button, Card, Col, Form, Input, InputNumber, Row, Select, Spin, Tabs } from 'antd';
 import { useBreadcrumbStore } from '@/shared-store';
 import { toast } from '@/shared-util';
-import AgentMediaCards from '../../features/agent-master/components/AgentMediaCards';
+import AgentMediaCards, { type MediaItem } from '../../features/agent-master/components/AgentMediaCards';
+import { MEDIA_KEY_LABELS, MEDIA_TYPE_CODE_TO_KEY } from '../../features/agent-master/constants/codes';
 import {
   useCreateAgentGroup,
   useDeleteAgentGroup,
@@ -24,6 +25,7 @@ import {
   useUpdateAgentGroup,
 } from '../../features/agent-master/hooks/useAgentMasterQueries';
 import type { AgentGroupCreateRequest, AgentGroupNode, AgentGroupUpdateRequest, AgentMediaMatrix as Matrix } from '../../features/agent-master/types';
+import { useGetMediaTypes } from '../../features/media-type/hooks/useMediaTypeQueries';
 import { useModal } from '@/libs/shared-ui/src/hooks/useModal';
 
 const breadcrumb = [{ title: '상담사 관리', path: '/ipron/agent-master' }];
@@ -88,6 +90,30 @@ export default function AgentGroupForm() {
   const { data: tenantStats = [] } = useGetAgentTenants();
   const { data: groupTree = [] } = useGetAgentGroupTree({});
   const { data: detail, isLoading: detailLoading } = useGetAgentGroupDetail(groupId);
+
+  // 등록·활성 미디어 목록 (동적 노출)
+  const { data: mediaTypeList = [] } = useGetMediaTypes();
+  const mediaItems = useMemo<MediaItem[] | undefined>(() => {
+    if (!mediaTypeList.length) return undefined;
+    const ORDER: Record<string, number> = {
+      voip: 0,
+      chat: 10,
+      videoVoice: 20,
+      videoChat: 30,
+      email: 40,
+      fax: 50,
+      mvoip: 61,
+      sms: 80,
+    };
+    return mediaTypeList
+      .map((mt) => {
+        const key = MEDIA_TYPE_CODE_TO_KEY[mt.mediaType];
+        if (!key) return null;
+        return { key, label: MEDIA_KEY_LABELS[key] ?? (mt.mediaAlias || key) } as MediaItem;
+      })
+      .filter((x): x is MediaItem => x !== null)
+      .sort((a, b) => (ORDER[a.key] ?? 999) - (ORDER[b.key] ?? 999));
+  }, [mediaTypeList]);
 
   const { mutate: createGroup, isPending: creating } = useCreateAgentGroup({
     mutationOptions: {
@@ -331,7 +357,7 @@ export default function AgentGroupForm() {
                     children: (
                       <div className="px-6 pb-6">
                         <div className="text-[12px] text-gray-500 mb-3">상담사 등록 시 "그룹 미디어 옵션 사용" (USE_GRP_MDA_OPT=1) 선택 시 이 값이 상속됩니다.</div>
-                        <AgentMediaCards value={matrix} onChange={setMatrix} />
+                        <AgentMediaCards value={matrix} onChange={setMatrix} mediaItems={mediaItems} />
                       </div>
                     ),
                   },

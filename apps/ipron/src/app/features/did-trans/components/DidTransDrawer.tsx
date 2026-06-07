@@ -14,6 +14,31 @@ import { useCreateAniTrans, useCreateDnisTrans, useDeleteAniTrans, useDeleteDnis
 import { type DidTrans, type DidTransCategory, type DidTransCreateRequest, EDIT_OPT_OPTIONS } from '../types';
 import { useModal } from '@/libs/shared-ui/src/hooks/useModal';
 
+/**
+ * SWAT SwatPattern.testPatternExtended 이식.
+ * 번호패턴 허용 문자: X/Z/N(대소문자), 숫자, !, ., @, +, |, [ ], -, ( )
+ * 동작: "|" 로 OR 분리 → 각 세그먼트가 허용 토큰의 연속인지 검사.
+ */
+function validateNumPatternExtended(patterns: string): boolean {
+  const TOKEN_RE = /\[\d+-\d\]|X|Z|N|!|\.|\[\d+\](\d+)?|\[\d+(,\d+)*\](\d+)?|\d|[@+]/g;
+  const patternList = patterns.toUpperCase().split('|');
+  for (const segment of patternList) {
+    // 괄호 검사: ( 또는 ) 가 있으면 ^( 로 시작하거나 )$ 로 끝나야 함
+    if (/[()]/g.test(segment) && !/^\(|\)$/.test(segment)) {
+      return false;
+    }
+    const trimmed = segment.replace(/[()]/g, '');
+    if (trimmed === '') return false;
+    try {
+      const matched = trimmed.match(TOKEN_RE);
+      if (!matched || matched.join('') !== trimmed) return false;
+    } catch {
+      return false;
+    }
+  }
+  return true;
+}
+
 interface NodeOption {
   nodeId: number;
   nodeName: string;
@@ -276,6 +301,13 @@ const DidTransDrawer = forwardRef<DidTransDrawerRef, Props>(({ onSuccess }, ref)
           rules={[
             { required: true, message: '원본패턴은 필수입니다' },
             { max: 256, message: '원본패턴은 256자 이내여야 합니다' },
+            {
+              validator: (_, value: string) => {
+                if (!value) return Promise.resolve();
+                const valid = validateNumPatternExtended(value);
+                return valid ? Promise.resolve() : Promise.reject(new Error('번호패턴 형식이 올바르지 않습니다'));
+              },
+            },
           ]}
         >
           <Input placeholder="원본패턴을 입력하세요" maxLength={256} />
@@ -285,8 +317,15 @@ const DidTransDrawer = forwardRef<DidTransDrawerRef, Props>(({ onSuccess }, ref)
           <Select options={[...EDIT_OPT_OPTIONS]} placeholder="편집옵션을 선택하세요" />
         </Form.Item>
 
-        <Form.Item name="delCount" label="편집 Digit 수" rules={[{ required: true, message: '편집 Digit 수는 필수입니다' }]}>
-          <InputNumber min={0} max={99} placeholder="0" className="w-full" />
+        <Form.Item
+          name="delCount"
+          label="편집 Digit 수"
+          rules={[
+            { required: true, message: '편집 Digit 수는 필수입니다' },
+            { type: 'number', min: -1, message: '-1 이상이어야 합니다' },
+          ]}
+        >
+          <InputNumber min={-1} max={99} placeholder="0" className="w-full" />
         </Form.Item>
 
         <Form.Item name="addDigit" label="추가 Digit" rules={[{ max: 24, message: '추가 Digit은 24자 이내여야 합니다' }]}>

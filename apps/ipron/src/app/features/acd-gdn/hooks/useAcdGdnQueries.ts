@@ -20,6 +20,7 @@ export const acdGdnQueryKeys = createQueryKeys('acd-gdn', {
   membersPool: (id?: number, params?: Record<string, unknown>) => [id, params],
   mentOptions: (tenantId?: number, nodeId?: number) => [tenantId, nodeId],
   skillsetOptions: (tenantId?: number) => [tenantId],
+  accessCodeProfileOptions: (nodeId?: number) => [nodeId],
 });
 
 // ─── Queries ────────────────────────────────────────────────────────
@@ -91,6 +92,15 @@ export const useGetAcdGdnSkillsetOptions = (tenantId: number | null | undefined,
     queryKey: acdGdnQueryKeys.skillsetOptions(tenantId ?? undefined).queryKey,
     queryFn: () => acdGdnApi.getSkillsetOptions(tenantId != null ? { tenantId } : undefined),
     enabled: tenantId != null,
+    ...queryOptions,
+  });
+
+/** 갭2: 접근코드 프로파일 콤보 옵션 (nodeId 기준, SWAT IPR20S3010.jsp:863-876 정합) */
+export const useGetAcdGdnAccessCodeProfileOptions = (nodeId: number | null | undefined, { queryOptions }: QueryHookOptions<GdnOptionItem[]> = {}) =>
+  useQuery({
+    queryKey: acdGdnQueryKeys.accessCodeProfileOptions(nodeId ?? undefined).queryKey,
+    queryFn: () => acdGdnApi.getAccessCodeProfileOptions(nodeId != null ? { nodeId } : undefined),
+    enabled: true,
     ...queryOptions,
   });
 

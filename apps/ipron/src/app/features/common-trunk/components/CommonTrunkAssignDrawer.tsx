@@ -1,14 +1,16 @@
 /**
  * 배정 드로어 — 선택 그룹DN ↔ 선택 트렁크들의 우선순위·배정채널수 입력 후 일괄 저장.
  *
- * N:N 배정 (GrantDrawer 패턴). SWAT chnlValidation 가드는 BE 가 최종 판정하되,
- * agreeChannelOverflow 동의 플래그를 함께 전송한다.
+ * N:N 배정 (GrantDrawer 패턴). SWAT chnlValidation/ourAgreeConfirm 정합:
+ *  - BE 에서 채널 초과 → IllegalStateException(CHANNEL_OVERFLOW) 던짐
+ *  - FE 에서 Modal.confirm 으로 사용자에게 동의 확인 (갭8)
+ *  - 동의 시 agreeChannelOverflow: true 로 재전송
  */
-import { useEffect, useState } from 'react';
-import { Button, Drawer, InputNumber } from 'antd';
+import { useEffect, useRef, useState } from 'react';
+import { Button, Drawer, InputNumber, Modal } from 'antd';
 import { toast } from '@/shared-util';
 import { useSaveCommonTrunkMembers } from '../hooks/useCommonTrunkQueries';
-import type { CommonGdnResponse, CommonTrunkMemberResponse, CommonTrunkMemberRow } from '../types';
+import type { CommonGdnResponse, CommonTrunkMemberResponse, CommonTrunkMemberRow, CommonTrunkMemberSaveRequest } from '../types';
 
 interface CommonTrunkAssignDrawerProps {
   open: boolean;
@@ -26,8 +28,20 @@ interface AssignRow {
   channelLimit: number;
 }
 
+/** 갭8: BE 채널 초과 에러 식별 키워드 */
+const CHANNEL_OVERFLOW_KEYWORDS = ['CHANNEL_OVERFLOW', '채널', 'channel', 'overflow'];
+
+function isChannelOverflowError(err: unknown): boolean {
+  const msg = (err as { response?: { data?: { message?: string; code?: string } } })?.response?.data;
+  if (!msg) return false;
+  const text = `${msg.code ?? ''} ${msg.message ?? ''}`.toLowerCase();
+  return CHANNEL_OVERFLOW_KEYWORDS.some((k) => text.includes(k.toLowerCase()));
+}
+
 export default function CommonTrunkAssignDrawer({ open, gdn, trunks, onClose, onSaved }: CommonTrunkAssignDrawerProps) {
   const [rows, setRows] = useState<AssignRow[]>([]);
+  /** 갭8: 이미 agree confirm 을 보여주는 중이면 중복 방지 */
+  const confirmingRef = useRef(false);
 
   useEffect(() => {
     if (open) {
@@ -46,10 +60,38 @@ export default function CommonTrunkAssignDrawer({ open, gdn, trunks, onClose, on
   const { mutate: saveMembers, isPending } = useSaveCommonTrunkMembers({
     mutationOptions: {
       onSuccess: () => {
+        confirmingRef.current = false;
         toast.success('배정이 저장되었습니다');
         onSaved();
       },
       onError: (err: unknown) => {
+        // 갭8: 채널 초과 에러 → Modal.confirm 으로 동의 확인
+        if (isChannelOverflowError(err) && !confirmingRef.current) {
+          confirmingRef.current = true;
+          Modal.confirm({
+            title: '채널 수 초과',
+            content: '배정 채널수가 총 채널수를 초과합니다. 채널수 제한 없이 배정하시겠습니까?',
+            okText: '동의 후 저장',
+            cancelText: '취소',
+            onOk: () => {
+              confirmingRef.current = false;
+              if (!gdn) return;
+              const payload: CommonTrunkMemberRow[] = rows.map((r) => ({
+                sipTrunkId: r.sipTrunkId,
+                assignYn: true,
+                memberPriority: r.priority,
+                channelLimitCount: r.channelLimit,
+              }));
+              // agreeChannelOverflow=true 로 재전송
+              saveMembers({ gdnId: gdn.gdnId, rows: payload, agreeChannelOverflow: true });
+            },
+            onCancel: () => {
+              confirmingRef.current = false;
+            },
+          });
+          return;
+        }
+        confirmingRef.current = false;
         const msg = (err as { response?: { data?: { message?: string } } })?.response?.data?.message ?? '배정 실패';
         toast.error(msg);
       },
@@ -60,22 +102,31 @@ export default function CommonTrunkAssignDrawer({ open, gdn, trunks, onClose, on
     setRows((prev) => prev.map((r) => (r.sipTrunkId === sipTrunkId ? { ...r, ...patch } : r)));
   };
 
-  const handleSubmit = () => {
+  const buildPayload = (): CommonTrunkMemberSaveRequest | null => {
     if (!gdn) {
       toast.error('그룹DN 을 먼저 선택하세요');
-      return;
+      return null;
     }
     if (rows.length === 0) {
       toast.warning('배정할 트렁크가 없습니다');
-      return;
+      return null;
     }
-    const payload: CommonTrunkMemberRow[] = rows.map((r) => ({
-      sipTrunkId: r.sipTrunkId,
-      assignYn: true,
-      memberPriority: r.priority,
-      channelLimitCount: r.channelLimit,
-    }));
-    saveMembers({ gdnId: gdn.gdnId, rows: payload, agreeChannelOverflow: false });
+    return {
+      gdnId: gdn.gdnId,
+      rows: rows.map((r) => ({
+        sipTrunkId: r.sipTrunkId,
+        assignYn: true,
+        memberPriority: r.priority,
+        channelLimitCount: r.channelLimit,
+      })),
+      agreeChannelOverflow: false,
+    };
+  };
+
+  const handleSubmit = () => {
+    const payload = buildPayload();
+    if (!payload) return;
+    saveMembers(payload);
   };
 
   return (

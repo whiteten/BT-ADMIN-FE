@@ -8,7 +8,7 @@
  *  메인 2-패널:
  *    좌(45%) ACD 그룹DN 목록 (단일선택 → 우 패널 갱신) + 등록/삭제
  *    리사이즈 핸들
- *    우(flex) 멤버 EDN/ADN 통합 풀 (multi-select) + 배정상태/DN타입 세그먼트 + 검색
+ *    우(flex) 멤버 EDN/ADN 통합 풀 (multi-select) + 배정상태 세그먼트 + 검색
  *  하단 floating bulk-bar: 선택 N건 → [배정] [해제]
  *  Drawer: 그룹DN 등록/수정
  *
@@ -28,7 +28,7 @@ import AcdGdnFormDrawer from '../../features/acd-gdn/components/AcdGdnFormDrawer
 import AcdGdnMemberGrid from '../../features/acd-gdn/components/AcdGdnMemberGrid';
 import AcdGdnTenantCard from '../../features/acd-gdn/components/AcdGdnTenantCard';
 import { useDeleteAcdGdns, useGetAcdGdnMembersPool, useGetAcdGdns, useSaveAcdGdnMembers } from '../../features/acd-gdn/hooks/useAcdGdnQueries';
-import { ACD_TYPE_OPTIONS, type GdnMemberPoolParams, type GdnMemberResponse, type GdnResponse, getAcdTypeName } from '../../features/acd-gdn/types';
+import { ACD_TYPE_OPTIONS, type GdnMemberItem, type GdnMemberPoolParams, type GdnMemberResponse, type GdnResponse, getAcdTypeName, getYnName } from '../../features/acd-gdn/types';
 import { useGetDnProfileNodeTenants, useGetDnProfileNodes, useGetDnProfileTenants } from '../../features/dn-profile/hooks/useDnProfileQueries';
 import useAggridOptions from '@/libs/shared-ui/src/hooks/useAggridOptions';
 import { useModal } from '@/libs/shared-ui/src/hooks/useModal';
@@ -40,7 +40,6 @@ const breadcrumb = [
 ];
 
 type AssignFilter = 'all' | 'assigned' | 'unassigned';
-type DnTypeFilter = '' | '11' | '12';
 
 export default function AcdGdnList() {
   const setBreadcrumb = useBreadcrumbStore((s) => s.setBreadcrumb);
@@ -66,7 +65,6 @@ export default function AcdGdnList() {
 
   // 우 멤버 패널 필터
   const [assignFilter, setAssignFilter] = useState<AssignFilter>('all');
-  const [dnTypeFilter, setDnTypeFilter] = useState<DnTypeFilter>('');
   const [memberSearch, setMemberSearch] = useState('');
   const [memberQuickFilter, setMemberQuickFilter] = useState('');
   const [selectedMembers, setSelectedMembers] = useState<GdnMemberResponse[]>([]);
@@ -88,8 +86,8 @@ export default function AcdGdnList() {
   const { data: nodeTenants = [] } = useGetDnProfileNodeTenants();
   const { data: gdns = [], isLoading: isGdnsLoading } = useGetAcdGdns();
 
-  // 멤버 풀 — 선택 그룹DN 기준. 필터는 서버 위임(assignFilter/dnType), keyword 는 클라이언트 quickFilter.
-  const memberPoolParams = useMemo<GdnMemberPoolParams>(() => ({ assignFilter, dnType: dnTypeFilter }), [assignFilter, dnTypeFilter]);
+  // 멤버 풀 — 선택 그룹DN 기준. 배정상태 필터는 서버 위임, keyword 는 클라이언트 quickFilter.
+  const memberPoolParams = useMemo<GdnMemberPoolParams>(() => ({ assignFilter }), [assignFilter]);
   const { data: memberPool = [], isLoading: isMembersLoading } = useGetAcdGdnMembersPool(selectedGdn?.gdnId ?? null, memberPoolParams);
 
   // ─── Mutations ──────────────────────────────────────────────────────────────
@@ -324,12 +322,17 @@ export default function AcdGdnList() {
     saveMembers({ id: selectedGdn.gdnId, body: { deletes } }, { onSuccess: () => toast.success(`${deletes.length}건 해제되었습니다.`) });
   };
 
+  // 갭1: memberPriority 인라인 편집 → updates 저장
+  const handlePriorityChanged = useCallback(
+    (updates: GdnMemberItem[]) => {
+      if (!selectedGdn) return;
+      saveMembers({ id: selectedGdn.gdnId, body: { updates } }, { onSuccess: () => toast.success('우선순위가 저장되었습니다.'), onError: () => toast.error('우선순위 저장 실패') });
+    },
+    [selectedGdn, saveMembers],
+  );
+
   const setAssignFilterAndReset = (f: AssignFilter) => {
     setAssignFilter(f);
-    setSelectedMembers([]);
-  };
-  const setDnTypeFilterAndReset = (t: DnTypeFilter) => {
-    setDnTypeFilter(t);
     setSelectedMembers([]);
   };
 
@@ -362,13 +365,59 @@ export default function AcdGdnList() {
             <span className="text-gray-400 text-[11px]">-</span>
           ),
       },
-      { headerName: 'ACD타입', field: 'acdType', flex: 1, minWidth: 120, valueFormatter: (p) => getAcdTypeName(p.value) },
+      { headerName: 'ACD타입', field: 'acdType', width: 140, valueFormatter: (p) => getAcdTypeName(p.value) },
+      {
+        headerName: '호분배여부',
+        field: 'acdYn',
+        width: 90,
+        valueFormatter: (p) => getYnName(p.value),
+      },
+      {
+        headerName: '스킬셋',
+        field: 'skillsetName',
+        flex: 1,
+        minWidth: 100,
+        valueFormatter: (p) => (p.value == null || p.value === '' ? '-' : p.value),
+      },
       {
         headerName: '대기호',
         field: 'maxWaitcnt',
-        width: 80,
+        width: 75,
         type: 'numericColumn',
         valueFormatter: (p) => (p.value == null ? '-' : String(p.value)),
+      },
+      {
+        headerName: '대기시간(s)',
+        field: 'maxWaittime',
+        width: 90,
+        type: 'numericColumn',
+        valueFormatter: (p) => (p.value == null ? '-' : String(p.value)),
+      },
+      {
+        headerName: '헌팅',
+        field: 'huntingYn',
+        width: 75,
+        filter: false,
+        suppressHeaderMenuButton: true,
+        valueFormatter: (p) => (p.value === 1 ? 'Y' : 'N'),
+      },
+      {
+        headerName: '블럭시라우팅',
+        field: 'blockRoutingDnis',
+        width: 110,
+        valueFormatter: (p) => (p.value == null || p.value === '' ? '-' : p.value),
+      },
+      {
+        headerName: '장애시라우팅',
+        field: 'errorRoutingDnis',
+        width: 110,
+        valueFormatter: (p) => (p.value == null || p.value === '' ? '-' : p.value),
+      },
+      {
+        headerName: 'Busy시라우팅',
+        field: 'busyRoutingDnis',
+        width: 110,
+        valueFormatter: (p) => (p.value == null || p.value === '' ? '-' : p.value),
       },
       {
         headerName: '블록',
@@ -646,18 +695,6 @@ export default function AcdGdnList() {
                   총<strong className="ml-1 text-[#405189]">{selectedGdn ? memberPool.length.toLocaleString() : '-'}</strong>건 · 선택
                   <strong className="ml-1 text-[#405189]">{selectedMembers.length}</strong>건
                 </span>
-                {/* DN타입 세그먼트 */}
-                <div className="flex gap-1">
-                  <SegBtn active={dnTypeFilter === ''} onClick={() => setDnTypeFilterAndReset('')}>
-                    전체
-                  </SegBtn>
-                  <SegBtn active={dnTypeFilter === '11'} onClick={() => setDnTypeFilterAndReset('11')}>
-                    EDN
-                  </SegBtn>
-                  <SegBtn active={dnTypeFilter === '12'} onClick={() => setDnTypeFilterAndReset('12')}>
-                    ADN
-                  </SegBtn>
-                </div>
                 <Input
                   size="small"
                   allowClear
@@ -681,7 +718,13 @@ export default function AcdGdnList() {
               </div>
             ) : (
               <div className="flex-1 min-h-0 ag-theme-quartz">
-                <MemberGridWithFilter rowData={memberPool} isLoading={isMembersLoading} quickFilter={memberQuickFilter} onSelectionChanged={setSelectedMembers} />
+                <MemberGridWithFilter
+                  rowData={memberPool}
+                  isLoading={isMembersLoading}
+                  quickFilter={memberQuickFilter}
+                  onSelectionChanged={setSelectedMembers}
+                  onPriorityChanged={handlePriorityChanged}
+                />
               </div>
             )}
           </div>
@@ -737,11 +780,13 @@ function MemberGridWithFilter({
   isLoading,
   quickFilter,
   onSelectionChanged,
+  onPriorityChanged,
 }: {
   rowData: GdnMemberResponse[];
   isLoading: boolean;
   quickFilter: string;
   onSelectionChanged: (rows: GdnMemberResponse[]) => void;
+  onPriorityChanged?: (updates: GdnMemberItem[]) => void;
 }) {
   // quickFilter 는 클라이언트 필터 — AcdGdnMemberGrid 가 자체 ag-Grid 라 prop 으로 전달 불가.
   // 간단히 keyword 로 rowData 사전 필터.
@@ -750,7 +795,7 @@ function MemberGridWithFilter({
     if (!kw) return rowData;
     return rowData.filter((m) => (m.dnNo ?? '').toLowerCase().includes(kw) || (m.loginAdn ?? '').toLowerCase().includes(kw));
   }, [rowData, quickFilter]);
-  return <AcdGdnMemberGrid rowData={filtered} isLoading={isLoading} onSelectionChanged={onSelectionChanged} />;
+  return <AcdGdnMemberGrid rowData={filtered} isLoading={isLoading} onSelectionChanged={onSelectionChanged} onPriorityChanged={onPriorityChanged} />;
 }
 
 // ─── 세그먼트 버튼 ────────────────────────────────────────────────────────────

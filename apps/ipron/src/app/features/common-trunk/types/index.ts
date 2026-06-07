@@ -45,6 +45,30 @@ export interface CommonGdnResponse {
   maxWaittime: number | null;
   blockYn: number | null;
 
+  // 초기구성 탭
+  closeType: number | null;
+  routingKind: number | null;
+  blockRoutingDnis: string | null;
+  errorRoutingDnis: string | null;
+  busyRoutingDnis: string | null;
+
+  // 갭1: 멘트 6종
+  initMent: number | null;
+  waitMent: number | null;
+  connMent: number | null;
+  coConnMent: number | null;
+  blockMent: number | null;
+  closeMent: number | null;
+
+  // 갭2: 접근코드 프로파일
+  accessCodeProfileId: number | null;
+  drAccessCodeProfileId: number | null;
+
+  // 갭4: 라우팅 이름 3종
+  blockRoutingName: string | null;
+  errorRoutingName: string | null;
+  busyRoutingName: string | null;
+
   assignedTrunkCount: number;
 
   createDate?: string | null;
@@ -66,6 +90,25 @@ export interface CommonGdnCreateRequest {
   maxWaitcnt?: number | null;
   maxWaittime?: number | null;
   blockYn?: number | null;
+
+  // 초기구성 탭
+  closeType?: number | null;
+  routingKind?: number | null;
+  blockRoutingDnis?: string | null;
+  errorRoutingDnis?: string | null;
+  busyRoutingDnis?: string | null;
+
+  // 갭1: 멘트 6종
+  initMent?: number | null;
+  waitMent?: number | null;
+  connMent?: number | null;
+  coConnMent?: number | null;
+  blockMent?: number | null;
+  closeMent?: number | null;
+
+  // 갭2: 접근코드 프로파일
+  accessCodeProfileId?: number | null;
+  drAccessCodeProfileId?: number | null;
 }
 
 export type CommonGdnUpdateRequest = Omit<CommonGdnCreateRequest, 'nodeId' | 'tenantId' | 'gdnNo'>;

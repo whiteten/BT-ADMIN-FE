@@ -72,6 +72,16 @@ const SkillAssignList = React.lazy(() => import('./pages/skill-assign/SkillAssig
 // skillset-master (스킬셋 관리 — SWAT IPR20S5010)
 const SkillsetMasterList = React.lazy(() => import('./pages/skillset-master/SkillsetMasterList'));
 
+// device (단말기관리 — SWAT IPR20S2110 + IPR20S2130)
+const DeviceList = React.lazy(() => import('./pages/device/DeviceList'));
+const DeviceHistoryList = React.lazy(() => import('./pages/device/DeviceHistoryList'));
+
+// bsr-group (BSR 그룹 관리 — SWAT IPR20S3040)
+const BsrGroupList = React.lazy(() => import('./pages/bsr-group/BsrGroupList'));
+
+// bsr-ctiq-mapping (BSR 그룹별 CTI큐 배정 — SWAT IPR20S3060)
+const BsrCtiqMappingList = React.lazy(() => import('./pages/bsr-ctiq-mapping/BsrCtiqMappingList'));
+
 // tracking
 const TrackingSearch = React.lazy(() => import('./pages/tracking/TrackingSearch'));
 const CallDetail = React.lazy(() => import('./pages/tracking/CallDetail'));
@@ -248,6 +258,23 @@ export const routes = [
       {
         path: 'skillset-master',
         element: <SkillsetMasterList />,
+      },
+      {
+        path: 'device',
+        element: <Outlet />,
+        children: [
+          { index: true, element: <DeviceList /> },
+          { path: 'list', element: <DeviceList /> },
+          { path: 'history', element: <DeviceHistoryList /> },
+        ],
+      },
+      {
+        path: 'bsr-group',
+        element: <BsrGroupList />,
+      },
+      {
+        path: 'bsr-ctiq-mapping',
+        element: <BsrCtiqMappingList />,
       },
       {
         path: 'tracking',

@@ -14,7 +14,7 @@ import { useCreateMediaServer, useDeleteMediaServer, useUpdateMediaServer } from
 import { IP_VERSION_OPTIONS, type MediaServer, type MediaServerCreateRequest } from '../types';
 
 export interface MediaServerDrawerRef {
-  open: (data?: MediaServer, nodeId?: number) => void;
+  open: (data?: MediaServer, nodeId?: number, nodeName?: string) => void;
   close: () => void;
 }
 
@@ -28,6 +28,7 @@ const MediaServerDrawer = forwardRef<MediaServerDrawerRef, Props>(({ onSuccess, 
   const [visible, setVisible] = useState(false);
   const [editData, setEditData] = useState<MediaServer | null>(null);
   const [nodeId, setNodeId] = useState<number | null>(null);
+  const [nodeName, setNodeName] = useState<string>('');
   const isEditMode = !!editData;
 
   const ipVersion = Form.useWatch('ipVersion', form) as string | undefined;
@@ -54,15 +55,17 @@ const MediaServerDrawer = forwardRef<MediaServerDrawerRef, Props>(({ onSuccess, 
   ];
 
   useImperativeHandle(ref, () => ({
-    open: (data?: MediaServer, initNodeId?: number) => {
+    open: (data?: MediaServer, initNodeId?: number, initNodeName?: string) => {
       setEditData(data ?? null);
       setNodeId(data?.nodeId ?? initNodeId ?? null);
+      setNodeName(initNodeName ?? '');
       setVisible(true);
     },
     close: () => {
       setVisible(false);
       setEditData(null);
       setNodeId(null);
+      setNodeName('');
       form.resetFields();
     },
   }));
@@ -121,6 +124,7 @@ const MediaServerDrawer = forwardRef<MediaServerDrawerRef, Props>(({ onSuccess, 
     setVisible(false);
     setEditData(null);
     setNodeId(null);
+    setNodeName('');
     form.resetFields();
     onCloseProp?.();
   }, [form, onCloseProp]);
@@ -206,7 +210,7 @@ const MediaServerDrawer = forwardRef<MediaServerDrawerRef, Props>(({ onSuccess, 
         <h4 className="text-sm font-semibold text-gray-700 mb-3 pb-2 border-b border-gray-200">기본정보</h4>
 
         <Form.Item label="노드">
-          <Input value={nodeId ? `Node ${nodeId}` : ''} disabled />
+          <Input value={nodeName} disabled />
         </Form.Item>
 
         <Row gutter={16}>

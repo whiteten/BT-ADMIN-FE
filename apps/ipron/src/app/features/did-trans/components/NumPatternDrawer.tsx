@@ -5,6 +5,25 @@
  * 번호 패턴 목록 + CRUD + 선택 기능
  * DID 번호변환 등록/수정 시 원본패턴 필드에서 패턴을 선택할 수 있도록 지원
  */
+// SWAT SwatPattern.testPatternExtended 이식
+function validateNumPatternExtended(patterns: string): boolean {
+  const TOKEN_RE = /\[\d+-\d\]|X|Z|N|!|\.|\[\d+\](\d+)?|\[\d+(,\d+)*\](\d+)?|\d|[@+]/g;
+  const patternList = patterns.toUpperCase().split('|');
+  for (const segment of patternList) {
+    if (/[()]/g.test(segment) && !/^\(|\)$/.test(segment)) {
+      return false;
+    }
+    const trimmed = segment.replace(/[()]/g, '');
+    if (trimmed === '') return false;
+    try {
+      const matched = trimmed.match(TOKEN_RE);
+      if (!matched || matched.join('') !== trimmed) return false;
+    } catch {
+      return false;
+    }
+  }
+  return true;
+}
 import { forwardRef, useCallback, useImperativeHandle, useMemo, useState } from 'react';
 import { Button, Drawer, Empty, Form, Input, List, Popconfirm, Space, Tooltip, Typography } from 'antd';
 import { Check, Pencil, Plus, Search, Trash2, X } from 'lucide-react';
@@ -222,6 +241,12 @@ const NumPatternDrawer = forwardRef<NumPatternDrawerRef, Props>(({ onSelect, onC
               rules={[
                 { required: true, message: '번호 패턴은 필수입니다' },
                 { max: 256, message: '번호 패턴은 256자 이내여야 합니다' },
+                {
+                  validator: (_, value: string) => {
+                    if (!value) return Promise.resolve();
+                    return validateNumPatternExtended(value) ? Promise.resolve() : Promise.reject(new Error('번호패턴 형식이 올바르지 않습니다'));
+                  },
+                },
               ]}
               className="mb-2"
             >

@@ -29,7 +29,7 @@ export default function MediaTypeFormDrawer({ state, onClose }: Props) {
   const { mutate: createMt, isPending: isCreating } = useCreateMediaType({
     mutationOptions: {
       onSuccess: () => {
-        toast.success('미디어타입이 등록되었습니다');
+        toast.success('미디어 코드가 등록되었습니다');
         onClose();
       },
       onError: (err: unknown) => toast.error(extractMessage(err) ?? '등록 실패'),
@@ -39,7 +39,7 @@ export default function MediaTypeFormDrawer({ state, onClose }: Props) {
   const { mutate: updateMt, isPending: isUpdating } = useUpdateMediaType({
     mutationOptions: {
       onSuccess: () => {
-        toast.success('미디어타입이 수정되었습니다');
+        toast.success('미디어 코드가 수정되었습니다');
         onClose();
       },
       onError: (err: unknown) => toast.error(extractMessage(err) ?? '수정 실패'),
@@ -92,7 +92,7 @@ export default function MediaTypeFormDrawer({ state, onClose }: Props) {
 
   return (
     <Drawer
-      title={mode === 'create' ? '미디어타입 등록' : '미디어타입 수정'}
+      title={mode === 'create' ? '미디어 코드 등록' : '미디어 코드 수정'}
       width={520}
       open={state.open}
       onClose={onClose}
@@ -108,7 +108,7 @@ export default function MediaTypeFormDrawer({ state, onClose }: Props) {
     >
       <Form form={form} layout="vertical">
         <Form.Item label="미디어 코드" name="mediaType" rules={[{ required: true, message: '필수' }]} tooltip="IC_MEDIA_TYPE 메타의 코드 — 등록 시 미배정 항목만 선택 가능">
-          <Select options={mode === 'create' ? createOptions : allOptions} disabled={mode === 'edit'} placeholder="미디어 타입 선택" showSearch optionFilterProp="label" />
+          <Select options={mode === 'create' ? createOptions : allOptions} disabled={mode === 'edit'} placeholder="미디어 코드 선택" showSearch optionFilterProp="label" />
         </Form.Item>
         <Form.Item
           label="표시 이름"

@@ -94,7 +94,6 @@ export const acdGdnApi = {
   getMembersPool: async (id: number, params?: GdnMemberPoolParams): Promise<GdnMemberResponse[]> => {
     const query: Record<string, unknown> = { id };
     if (params?.assignFilter) query.assignFilter = params.assignFilter;
-    if (params?.dnType) query.dnType = params.dnType;
     if (params?.keyword) query.keyword = params.keyword;
     const res = await apiClient.get<ApiResponse<{ value: GdnMemberResponse[] }>>('/ipron-acd-gdn-members-pool', { params: query });
     return res.data?.data?.value ?? [];
@@ -110,6 +109,15 @@ export const acdGdnApi = {
   /** 스킬셋 콤보 — ACD_TYPE=3 활성 시 사용 */
   getSkillsetOptions: async (params?: { tenantId?: number }): Promise<GdnOptionItem[]> => {
     const res = await apiClient.get<ApiResponse<{ value: GdnOptionItem[] }>>('/ipron-acd-gdn-skillset-options', { params });
+    return res.data?.data?.value ?? [];
+  },
+
+  /**
+   * 갭2: 접근코드 프로파일 콤보 — nodeId 기준 조회.
+   * SWAT IPR20S3010.jsp:863-876 cbCreate("accessCodeProfile", nodeId) 정합.
+   */
+  getAccessCodeProfileOptions: async (params?: { nodeId?: number }): Promise<GdnOptionItem[]> => {
+    const res = await apiClient.get<ApiResponse<{ value: GdnOptionItem[] }>>('/ipron-acd-gdn-access-code-profile-options', { params });
     return res.data?.data?.value ?? [];
   },
 };

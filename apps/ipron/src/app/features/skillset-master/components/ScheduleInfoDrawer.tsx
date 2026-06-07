@@ -5,7 +5,7 @@
  * AS-IS SWAT IPR20S5010 스케쥴 popup03.
  */
 import { useEffect } from 'react';
-import { Button, Checkbox, DatePicker, Drawer, Form, Input, Space, TimePicker } from 'antd';
+import { Button, Checkbox, DatePicker, Drawer, Form, Input, Space, TimePicker, message } from 'antd';
 import dayjs, { type Dayjs } from 'dayjs';
 import { SCHEDULE_DAY_FIELDS, type ScheduleInfoRequest, type ScheduleInfoResponse } from '../types';
 
@@ -58,6 +58,16 @@ export default function ScheduleInfoDrawer({ open, mode, schedule, tenantId, onC
   }, [open, mode, schedule, form]);
 
   const handleFinish = (values: FormValues) => {
+    // SWAT IPR20S5010.jsp L620-622: 시작시간 > 종료시간 교차 검증
+    if (values.startTime && values.finshTime) {
+      const sHm = Number(values.startTime.format('HHmm'));
+      const eHm = Number(values.finshTime.format('HHmm'));
+      if (sHm > eHm) {
+        void message.error('시작시간이 종료시간 보다 클 수 없습니다.');
+        return;
+      }
+    }
+
     const days = new Set(values.days ?? []);
     const req: ScheduleInfoRequest = {
       tenantId: mode === 'create' ? tenantId : (schedule?.tenantId ?? tenantId),
@@ -104,15 +114,15 @@ export default function ScheduleInfoDrawer({ open, mode, schedule, tenantId, onC
           <Input placeholder="예: 평일주간" maxLength={128} />
         </Form.Item>
 
-        <Form.Item name="startDate" label="시작 일자">
+        <Form.Item name="startDate" label="시작 일자" rules={[{ required: true, message: '시작 일자를 선택하세요' }]}>
           <DatePicker className="w-full" format="YYYY-MM-DD" />
         </Form.Item>
 
         <div className="grid grid-cols-2 gap-3">
-          <Form.Item name="startTime" label="시작 시간">
+          <Form.Item name="startTime" label="시작 시간" rules={[{ required: true, message: '시작 시간을 입력하세요' }]}>
             <TimePicker className="w-full" format="HH:mm" minuteStep={5} />
           </Form.Item>
-          <Form.Item name="finshTime" label="종료 시간">
+          <Form.Item name="finshTime" label="종료 시간" rules={[{ required: true, message: '종료 시간을 입력하세요' }]}>
             <TimePicker className="w-full" format="HH:mm" minuteStep={5} />
           </Form.Item>
         </div>

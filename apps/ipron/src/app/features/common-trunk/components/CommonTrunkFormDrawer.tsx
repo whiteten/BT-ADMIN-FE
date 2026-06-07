@@ -23,6 +23,19 @@ interface CommonTrunkFormDrawerProps {
   onSaved: () => void;
 }
 
+// 갭5: IP인증 타입 (trkAuthtype) — SWAT 코드테이블 정합
+const TRK_AUTHTYPE_OPTIONS = [
+  { value: 0, label: 'IP인증사용안함' },
+  { value: 1, label: 'IP/MAC인증' },
+  { value: 2, label: '아이디/패스워드 인증' },
+];
+
+// 갭5: IP업데이트 (trkIpUpdate) — SWAT 코드테이블 정합
+const TRK_IP_UPDATE_OPTIONS = [
+  { value: 0, label: '사용안함' },
+  { value: 1, label: '사용' },
+];
+
 interface FormValues {
   sipTrunkName?: string;
   sipTrunkNo?: string;
@@ -38,6 +51,9 @@ interface FormValues {
   allocDelayTime?: number;
   ctiUse?: number;
   blockYn?: number;
+  // 갭5: IP 인증 / IP 업데이트
+  trkAuthtype?: number;
+  trkIpUpdate?: number;
 }
 
 export default function CommonTrunkFormDrawer({ open, mode, detail, nodeId, onClose, onSaved }: CommonTrunkFormDrawerProps) {
@@ -61,6 +77,8 @@ export default function CommonTrunkFormDrawer({ open, mode, detail, nodeId, onCl
         allocDelayTime: detail.allocDelayTime ?? 0,
         ctiUse: detail.ctiUse ?? 0,
         blockYn: detail.blockYn ?? 0,
+        trkAuthtype: detail.trkAuthtype ?? 0,
+        trkIpUpdate: detail.trkIpUpdate ?? 0,
       };
     }
     return {
@@ -72,6 +90,8 @@ export default function CommonTrunkFormDrawer({ open, mode, detail, nodeId, onCl
       allocDelayTime: 0,
       ctiUse: 0,
       blockYn: 0,
+      trkAuthtype: 0,
+      trkIpUpdate: 0,
     };
   }, [isEdit, detail]);
 
@@ -150,8 +170,8 @@ export default function CommonTrunkFormDrawer({ open, mode, detail, nodeId, onCl
           allocDelayTime: values.allocDelayTime ?? detail.allocDelayTime ?? 0,
           ctiUse: values.ctiUse ?? detail.ctiUse ?? 0,
           blockYn: values.blockYn ?? detail.blockYn ?? 0,
-          trkAuthtype: detail.trkAuthtype ?? null,
-          trkIpUpdate: detail.trkIpUpdate ?? null,
+          trkAuthtype: values.trkAuthtype ?? detail.trkAuthtype ?? 0,
+          trkIpUpdate: values.trkIpUpdate ?? detail.trkIpUpdate ?? 0,
           ssRefreshType: detail.ssRefreshType ?? null,
           registYn: detail.registYn ?? null,
           registSeconds: detail.registSeconds ?? null,
@@ -188,8 +208,24 @@ export default function CommonTrunkFormDrawer({ open, mode, detail, nodeId, onCl
         <Select options={TRUNK_KIND_OPTIONS} disabled={isEdit} />
       </Form.Item>
 
-      <Form.Item label="SIP트렁크 번호" name="sipTrunkNo" rules={[{ required: true, max: 10, message: '최대 10자리' }]}>
-        <Input maxLength={10} placeholder="최대 10자리" disabled={isEdit} />
+      <Form.Item
+        label="SIP트렁크 번호"
+        name="sipTrunkNo"
+        rules={[
+          { required: true, message: '필수' },
+          { max: 10, message: '최대 10자리' },
+          {
+            validator: (_, v: string) => {
+              // 갭6: SWAT 정합 — 트렁크 번호는 0 불가 (숫자 전체가 0이면 거부)
+              if (v && /^\d+$/.test(v) && parseInt(v, 10) === 0) {
+                return Promise.reject(new Error('트렁크 번호는 0이 될 수 없습니다'));
+              }
+              return Promise.resolve();
+            },
+          },
+        ]}
+      >
+        <Input maxLength={10} placeholder="최대 10자리 (0 불가)" disabled={isEdit} />
       </Form.Item>
       <Form.Item label="시작DN" name="startDn" rules={[{ required: true, message: '필수' }]} extra="노드 내 중복 불가 · TDN 자동채번 (DN_TYPE=13)">
         <Input placeholder="예: 6500" disabled={isEdit} />
@@ -243,6 +279,14 @@ export default function CommonTrunkFormDrawer({ open, mode, detail, nodeId, onCl
           <Radio value={1}>설정</Radio>
           <Radio value={0}>해제</Radio>
         </Radio.Group>
+      </Form.Item>
+
+      {/* 갭5: IP유형(trkAuthtype) / IP업데이트(trkIpUpdate) — SWAT IPR20S3030 poPopup04 정합 */}
+      <Form.Item label="IP유형 (IP인증)" name="trkAuthtype" className="col-span-2">
+        <Radio.Group options={TRK_AUTHTYPE_OPTIONS} />
+      </Form.Item>
+      <Form.Item label="IP업데이트" name="trkIpUpdate" className="col-span-2" extra="등록 후 IP가 변경될 때 자동 갱신 여부">
+        <Radio.Group options={TRK_IP_UPDATE_OPTIONS} />
       </Form.Item>
     </div>
   );

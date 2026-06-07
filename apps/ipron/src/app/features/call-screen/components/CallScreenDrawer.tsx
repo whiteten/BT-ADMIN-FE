@@ -5,6 +5,32 @@
  * 차단번호 패턴 필드에서 NumPatternDrawer 연동
  * NumPatternDrawer 열릴 때 이 Drawer는 display:none 처리
  */
+
+/**
+ * SWAT SwatPattern.testPattern() 이식 (non-extended — @+ 토큰 제외)
+ * 번호 패턴 문법: X(0-9), Z(1-9), N(2-9), !(0개이상), .(1개이상),
+ *   [d-d](범위), [d](리터럴 1자리), [d,d,...](열거), |(OR 구분자)
+ * 괄호: ^( ... )$ 형태만 허용
+ */
+function validateNumPattern(patterns: string): boolean {
+  const TOKEN_RE = /\[\d+-\d\]|X|Z|N|!|\.|\[\d+\](\d+)?|\[\d+(,\d+)*\](\d+)?|\d/g;
+  const patternList = patterns.toUpperCase().split('|');
+  for (const segment of patternList) {
+    if (/[()]/g.test(segment) && !/^\(|\)$/.test(segment)) {
+      return false;
+    }
+    const trimmed = segment.replace(/[()]/g, '');
+    if (trimmed === '') return false;
+    try {
+      const matched = trimmed.match(TOKEN_RE);
+      if (!matched || matched.join('') !== trimmed) return false;
+    } catch {
+      return false;
+    }
+  }
+  return true;
+}
+
 import { forwardRef, useCallback, useEffect, useImperativeHandle, useRef, useState } from 'react';
 import { Button, Drawer, Form, Input, Select } from 'antd';
 import { List } from 'lucide-react';
@@ -220,10 +246,33 @@ const CallScreenDrawer = forwardRef<CallScreenDrawerRef, Props>(({ onSuccess }, 
             required
             rules={[
               { required: true, message: '차단번호 패턴은 필수입니다' },
-              { max: 256, message: '차단번호 패턴은 256자 이내여야 합니다' },
+              { max: 256, message: '차단번호 패턴은 256자까지 입력가능합니다' },
+              {
+                validator: (_, value: string) => {
+                  if (!value) return Promise.resolve();
+                  return validateNumPattern(value) ? Promise.resolve() : Promise.reject(new Error('번호변환패턴 형식이 올바르지 않습니다'));
+                },
+              },
             ]}
           >
-            <Input placeholder="차단번호 패턴을 입력하세요" maxLength={256} style={{ fontFamily: 'monospace' }} />
+            <Input
+              placeholder="차단번호 패턴을 입력하세요"
+              maxLength={256}
+              style={{ fontFamily: 'monospace' }}
+              onKeyUp={(e) => {
+                const input = e.currentTarget;
+                const caretPos = input.selectionStart ?? 0;
+                const cleaned = input.value.replace(/[가-힣ㄱ-ㅎㅏ-ㅣ]/g, '');
+                if (cleaned !== input.value) {
+                  input.value = cleaned;
+                  // form 값도 동기화
+                  form.setFieldValue('numPattern', cleaned);
+                  // 캐럿 위치 복원 (한글 제거 후 자리수 조정)
+                  const newPos = Math.min(caretPos, cleaned.length);
+                  input.setSelectionRange(newPos, newPos);
+                }
+              }}
+            />
           </Form.Item>
 
           <Form.Item name="screenDesc" label="차단 설명" rules={[{ max: 64, message: '차단 설명은 64자 이내여야 합니다' }]}>

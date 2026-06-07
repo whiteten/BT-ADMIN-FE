@@ -14,7 +14,7 @@ import { useCreateMcsGdn, useUpdateMcsGdn } from '../hooks/useMcsDnisQueries';
 import { type McsdGdn, NETWORK_OPERATOR_OPTIONS, type NetworkOperator } from '../types';
 
 export interface GdnDrawerRef {
-  open: (data?: McsdGdn) => void;
+  open: (data?: McsdGdn, initialOp?: NetworkOperator | null) => void;
   close: () => void;
 }
 
@@ -26,12 +26,14 @@ const GdnDrawer = forwardRef<GdnDrawerRef, Props>(({ onSuccess }, ref) => {
   const [form] = Form.useForm();
   const [visible, setVisible] = useState(false);
   const [editData, setEditData] = useState<McsdGdn | null>(null);
+  const [initialOp, setInitialOp] = useState<NetworkOperator | null>(null);
 
   const isEditMode = !!editData;
 
   useImperativeHandle(ref, () => ({
-    open: (data?: McsdGdn) => {
+    open: (data?: McsdGdn, op?: NetworkOperator | null) => {
       setEditData(data ?? null);
+      setInitialOp(op ?? null);
       setVisible(true);
     },
     close: () => handleClose(),
@@ -40,6 +42,7 @@ const GdnDrawer = forwardRef<GdnDrawerRef, Props>(({ onSuccess }, ref) => {
   const handleClose = useCallback(() => {
     setVisible(false);
     setEditData(null);
+    setInitialOp(null);
     form.resetFields();
   }, [form]);
 
@@ -52,9 +55,10 @@ const GdnDrawer = forwardRef<GdnDrawerRef, Props>(({ onSuccess }, ref) => {
       });
     } else if (visible) {
       form.resetFields();
-      form.setFieldsValue({ networkOp: '0' });
+      // 등록 모드: 현재 선택된 통신사가 있으면 고정, 없으면 공통(0) 기본
+      form.setFieldsValue({ networkOp: initialOp ?? '0' });
     }
-  }, [visible, editData, form]);
+  }, [visible, editData, initialOp, form]);
 
   // ─── Mutations ────────────────────────────────────────────────────────
   // 등록 직후 포커싱을 위해 입력값을 일시 보관
@@ -125,7 +129,7 @@ const GdnDrawer = forwardRef<GdnDrawerRef, Props>(({ onSuccess }, ref) => {
     >
       <Form form={form} layout="vertical" initialValues={{ networkOp: '0' }}>
         <Form.Item name="networkOp" label="통신사" rules={[{ required: true, message: '통신사를 선택하세요' }]}>
-          <Select options={[...NETWORK_OPERATOR_OPTIONS]} placeholder="통신사를 선택하세요" />
+          <Select options={[...NETWORK_OPERATOR_OPTIONS]} placeholder="통신사를 선택하세요" disabled={!isEditMode && initialOp !== null} />
         </Form.Item>
 
         <Form.Item

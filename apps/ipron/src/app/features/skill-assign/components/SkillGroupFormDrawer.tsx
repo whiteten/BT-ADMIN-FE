@@ -206,7 +206,24 @@ export default function SkillGroupFormDrawer({ state, tenantId, onClose }: Props
         >
           <Input maxLength={200} placeholder="예: 일반상담 풀세트" />
         </Form.Item>
-        <Form.Item label="설명" name="skillGroupDesc" rules={[{ max: 512 }]}>
+        <Form.Item
+          label="설명"
+          name="skillGroupDesc"
+          rules={[
+            { max: 512, message: '512자 이내로 입력하세요' },
+            {
+              validator: (_, value: string | undefined) => {
+                // SWAT IPR20S5080.jsp:220~222 정합: 공백 제거 후 10자 이하이면 차단
+                if (!value) return Promise.resolve(); // 빈 값은 허용 (필수 아님)
+                const trimmed = value.replace(/\s/g, '');
+                if (trimmed.length > 0 && trimmed.length <= 10) {
+                  return Promise.reject(new Error('설명은 공백 제외 11자 이상 입력해주세요'));
+                }
+                return Promise.resolve();
+              },
+            },
+          ]}
+        >
           <Input.TextArea rows={2} maxLength={512} showCount placeholder="용도 설명 (선택)" />
         </Form.Item>
       </Form>

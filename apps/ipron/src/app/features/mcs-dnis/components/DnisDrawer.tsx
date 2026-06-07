@@ -11,7 +11,7 @@
 import { forwardRef, useCallback, useEffect, useImperativeHandle, useState } from 'react';
 import { Button, Drawer, Form, Input, InputNumber, Select } from 'antd';
 import { toast } from '@/shared-util';
-import { useCreateMcsDnis, useUpdateMcsDnis } from '../hooks/useMcsDnisQueries';
+import { useCreateMcsDnis } from '../hooks/useMcsDnisQueries';
 import type { McsdDnis } from '../types';
 
 interface NodeOption {
@@ -31,16 +31,12 @@ interface Props {
 const DnisDrawer = forwardRef<DnisDrawerRef, Props>(({ onSuccess }, ref) => {
   const [form] = Form.useForm();
   const [visible, setVisible] = useState(false);
-  const [editData, setEditData] = useState<McsdDnis | null>(null);
   const [gdnNo, setGdnNo] = useState<string>('');
   const [nodeOptions, setNodeOptions] = useState<NodeOption[]>([]);
 
-  const isEditMode = !!editData;
-
   useImperativeHandle(ref, () => ({
-    open: (data?: McsdDnis, initGdnNo?: string, nodeList?: NodeOption[]) => {
-      setEditData(data ?? null);
-      setGdnNo(data?.mcsdGdnNo ?? initGdnNo ?? '');
+    open: (_data?: McsdDnis, initGdnNo?: string, nodeList?: NodeOption[]) => {
+      setGdnNo(initGdnNo ?? '');
       setNodeOptions(nodeList ?? []);
       setVisible(true);
     },
@@ -49,24 +45,17 @@ const DnisDrawer = forwardRef<DnisDrawerRef, Props>(({ onSuccess }, ref) => {
 
   const handleClose = useCallback(() => {
     setVisible(false);
-    setEditData(null);
     setGdnNo('');
     setNodeOptions([]);
     form.resetFields();
   }, [form]);
 
   useEffect(() => {
-    if (visible && editData) {
-      form.setFieldsValue({
-        nodeId: editData.nodeId,
-        startDnis: editData.startDnis,
-        count: editData.count,
-      });
-    } else if (visible) {
+    if (visible) {
       form.resetFields();
       form.setFieldsValue({ count: 1 });
     }
-  }, [visible, editData, form]);
+  }, [visible, form]);
 
   // ─── Mutations ────────────────────────────────────────────────────────
   const { mutate: createDnis, isPending: isCreating } = useCreateMcsDnis({
@@ -79,62 +68,40 @@ const DnisDrawer = forwardRef<DnisDrawerRef, Props>(({ onSuccess }, ref) => {
     },
   });
 
-  const { mutate: updateDnis, isPending: isUpdating } = useUpdateMcsDnis({
-    mutationOptions: {
-      onSuccess: () => {
-        toast.success('DNIS가 수정되었습니다.');
-        handleClose();
-        onSuccess();
-      },
-    },
-  });
-
   const handleSubmit = useCallback(async () => {
     try {
       const values = await form.validateFields();
 
-      if (isEditMode && editData) {
-        updateDnis({
-          gdnNo: editData.mcsdGdnNo,
-          seq: editData.seq,
-          nodeId: editData.nodeId,
-          data: {
-            startDnis: values.startDnis,
-            count: values.count,
-          },
-        });
-      } else {
-        if (!gdnNo) {
-          toast.error('대표번호가 지정되지 않았습니다.');
-          return;
-        }
-        if (!values.nodeId) {
-          toast.error('노드를 선택하세요.');
-          return;
-        }
-        createDnis({
-          mcsdGdnNo: gdnNo,
-          nodeId: values.nodeId,
-          startDnis: values.startDnis,
-          count: values.count,
-        });
+      if (!gdnNo) {
+        toast.error('대표번호가 지정되지 않았습니다.');
+        return;
       }
+      if (!values.nodeId) {
+        toast.error('노드를 선택하세요.');
+        return;
+      }
+      createDnis({
+        mcsdGdnNo: gdnNo,
+        nodeId: values.nodeId,
+        startDnis: values.startDnis,
+        count: values.count,
+      });
     } catch {
       /* validation failed */
     }
-  }, [form, isEditMode, editData, gdnNo, createDnis, updateDnis]);
+  }, [form, gdnNo, createDnis]);
 
   return (
     <Drawer
-      title={isEditMode ? 'DNIS 수정' : 'DNIS 등록'}
+      title="DNIS 등록"
       open={visible}
       onClose={handleClose}
       width={420}
       footer={
         <div className="flex justify-end gap-2">
           <Button onClick={handleClose}>취소</Button>
-          <Button type="primary" onClick={handleSubmit} loading={isCreating || isUpdating}>
-            {isEditMode ? '수정' : '등록'}
+          <Button type="primary" onClick={handleSubmit} loading={isCreating}>
+            등록
           </Button>
         </div>
       }
@@ -144,15 +111,9 @@ const DnisDrawer = forwardRef<DnisDrawerRef, Props>(({ onSuccess }, ref) => {
           <Input value={gdnNo} disabled />
         </Form.Item>
 
-        {isEditMode ? (
-          <Form.Item label="노드">
-            <Input value={editData?.nodeName ?? `Node ${editData?.nodeId ?? ''}`} disabled />
-          </Form.Item>
-        ) : (
-          <Form.Item name="nodeId" label="노드" rules={[{ required: true, message: '노드를 선택하세요' }]}>
-            <Select placeholder="노드를 선택하세요" options={nodeOptions.map((n) => ({ label: n.nodeName, value: n.nodeId }))} />
-          </Form.Item>
-        )}
+        <Form.Item name="nodeId" label="노드" rules={[{ required: true, message: '노드를 선택하세요' }]}>
+          <Select placeholder="노드를 선택하세요" options={nodeOptions.map((n) => ({ label: n.nodeName, value: n.nodeId }))} />
+        </Form.Item>
 
         <Form.Item
           name="startDnis"

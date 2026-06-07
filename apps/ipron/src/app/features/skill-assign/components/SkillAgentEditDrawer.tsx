@@ -54,7 +54,7 @@ export default function SkillAgentEditDrawer({ open, row, onClose }: Props) {
 
   return (
     <Drawer
-      title={`스킬 P/L 수정 — ${row.skillsetName}`}
+      title={`스킬 우선순위/스킬레벨 수정 — ${row.skillsetName}`}
       width={420}
       open={open}
       onClose={onClose}

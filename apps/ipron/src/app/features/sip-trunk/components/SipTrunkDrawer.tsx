@@ -52,6 +52,7 @@ interface FormValues {
   transportType: number;
   allocDelayTime: number;
   trkIpUpdate: number;
+  callTraceYn: number; // 호추적 여부 (SWAT CALL_TRACE_YN)
   blockYn: number;
 }
 
@@ -66,6 +67,7 @@ const DEFAULTS: Partial<FormValues> = {
   transportType: 1,
   allocDelayTime: 0,
   trkIpUpdate: 1,
+  callTraceYn: 1,
   blockYn: 0,
 };
 
@@ -139,6 +141,7 @@ const SipTrunkDrawer = forwardRef<SipTrunkDrawerRef, Props>(({ nodeId, tenantId,
         transportType: editData.transportType ?? 1,
         allocDelayTime: editData.allocDelayTime ?? 0,
         trkIpUpdate: editData.trkIpUpdate ?? 1,
+        callTraceYn: editData.callTraceYn ?? 1,
         blockYn: editData.blockYn ?? 0,
       });
     } else {
@@ -194,6 +197,7 @@ const SipTrunkDrawer = forwardRef<SipTrunkDrawerRef, Props>(({ nodeId, tenantId,
         blockYn: v.blockYn,
         trkAuthtype: v.trkAuthtype,
         trkIpUpdate: v.trkIpUpdate,
+        callTraceYn: v.callTraceYn,
         allocDelayTime: v.allocDelayTime,
         backUpNodeId: backUp,
         globalDnYn: v.globalDnYn,
@@ -362,7 +366,13 @@ const SipTrunkDrawer = forwardRef<SipTrunkDrawerRef, Props>(({ nodeId, tenantId,
       <Form.Item name="allocDelayTime" label="Alloc Delay Time">
         <InputNumber min={0} max={99999} className="w-full" />
       </Form.Item>
-      <Form.Item name="trkIpUpdate" label="호추적">
+      <Form.Item name="trkIpUpdate" label="IP업데이트">
+        <Radio.Group>
+          <Radio value={1}>설정</Radio>
+          <Radio value={0}>해제</Radio>
+        </Radio.Group>
+      </Form.Item>
+      <Form.Item name="callTraceYn" label="호추적">
         <Radio.Group>
           <Radio value={1}>설정</Radio>
           <Radio value={0}>해제</Radio>

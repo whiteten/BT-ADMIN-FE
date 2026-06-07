@@ -30,6 +30,13 @@ export interface SipGdnResponse {
   maxWaittime: number | null;
   blockYn: number | null;
 
+  // 초기구성 탭 (SWAT IPR20S3030 GDN_TYPE=18 정합)
+  closeType: number | null; // CALL_CLOSE_TYPE: 0=정상종료, 1=멘트후종료, 2=우회DN/GDN라우팅, 3=멘트후우회
+  routingKind: number | null; // ACD_ROUTING_KIND: 1=우선순위, 2=순차, 3=랜덤, 4=직접
+  blockRoutingDnis: string | null; // 차단 우회 DNIS (max 24)
+  errorRoutingDnis: string | null; // 오류 우회 DNIS (max 24)
+  busyRoutingDnis: string | null; // 만석 우회 DNIS (max 24)
+
   /** 이 그룹DN 에 배정된 SIP 트렁크 멤버 수 (mockup "배정 트렁크" 컬럼) */
   assignedTrunkCount: number;
 
@@ -48,6 +55,12 @@ export interface SipGdnCreateRequest {
   maxWaitcnt?: number | null;
   maxWaittime?: number | null;
   blockYn?: number | null;
+  // 초기구성 탭
+  closeType?: number | null;
+  routingKind?: number | null;
+  blockRoutingDnis?: string | null;
+  errorRoutingDnis?: string | null;
+  busyRoutingDnis?: string | null;
 }
 
 /** nodeId / tenantId / gdnNo 불변 */
@@ -88,6 +101,7 @@ export interface SipTrunkResponse {
   transportType: number | null; // 1=UDP, 2=TCP, 4=TLS
   trkAuthtype: number | null; // 1=고정IP, 2=동적IP
   trkIpUpdate: number | null;
+  callTraceYn: number | null; // 호추적 여부 (SWAT CALL_TRACE_YN)
   allocDelayTime: number | null;
   ssRefreshType: number | null;
   registYn: number | null;
@@ -130,6 +144,7 @@ export interface SipTrunkCreateRequest {
   blockYn?: number | null;
   trkAuthtype?: number | null;
   trkIpUpdate?: number | null;
+  callTraceYn?: number | null; // 호추적 여부 (SWAT CALL_TRACE_YN)
   allocDelayTime?: number | null;
   ssRefreshType?: number | null;
   registYn?: number | null;
@@ -251,6 +266,22 @@ export const IP_VERSION_OPTIONS: { value: number; label: string }[] = [
 export const IP_AUTH_TYPE_OPTIONS: { value: number; label: string }[] = [
   { value: 1, label: '고정IP' },
   { value: 2, label: '동적IP' },
+];
+
+/** CALL_CLOSE_TYPE (SWAT IPR20S3030 GDN_TYPE=18 초기구성 탭) */
+export const CLOSE_TYPE_OPTIONS: { value: number; label: string }[] = [
+  { value: 0, label: '정상 종료' },
+  { value: 1, label: '멘트 후 종료' },
+  { value: 2, label: '우회 DN/GDN 라우팅' },
+  { value: 3, label: '멘트 후 우회 DN/GDN 라우팅' },
+];
+
+/** ACD_ROUTING_KIND (SWAT 정합 — 읽기 전용 표시용) */
+export const ROUTING_KIND_OPTIONS: { value: number; label: string }[] = [
+  { value: 1, label: '우선순위' },
+  { value: 2, label: '순차' },
+  { value: 3, label: '랜덤' },
+  { value: 4, label: '직접' },
 ];
 
 export function getSipTrunkKindName(v: number | null | undefined): string {

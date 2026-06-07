@@ -139,7 +139,7 @@ const MsGroupDrawer = forwardRef<MsGroupDrawerRef, Props>(({ onSuccess }, ref) =
     >
       <Form form={form} layout="vertical" initialValues={{ routeType: '2' }}>
         <Form.Item label="노드">
-          <Input value={nodeName || (nodeId ? `Node ${nodeId}` : '')} disabled />
+          <Input value={nodeName} disabled />
         </Form.Item>
 
         <Form.Item

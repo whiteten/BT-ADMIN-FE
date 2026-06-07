@@ -10,8 +10,8 @@
  */
 import { type ChangeEvent, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Button, Empty, Input } from 'antd';
-import { ChevronLeft, ChevronRight, ChevronsDown, ChevronsUp, Plus, Search, Trash2 } from 'lucide-react';
+import { Button, Empty, Input, Select } from 'antd';
+import { ChevronLeft, ChevronRight, ChevronsDown, ChevronsUp, Plus, Save, Search, Trash2 } from 'lucide-react';
 import { useAuthStore, useBreadcrumbStore } from '@/shared-store';
 import { toast } from '@/shared-util';
 import AgentGroupFormDrawer from '../../features/agent-master/components/AgentGroupFormDrawer';
@@ -19,7 +19,8 @@ import AgentGroupTree from '../../features/agent-master/components/AgentGroupTre
 import AgentMasterFormDrawer from '../../features/agent-master/components/AgentMasterFormDrawer';
 import AgentMasterTable from '../../features/agent-master/components/AgentMasterTable';
 import AgentMasterTenantCard from '../../features/agent-master/components/AgentMasterTenantCard';
-import AgentMediaStatusTable from '../../features/agent-master/components/AgentMediaStatusTable';
+import AgentMediaStatusTable, { type AgentMediaStatusTableHandle, type MediaKey, type MediaOption } from '../../features/agent-master/components/AgentMediaStatusTable';
+import { MEDIA_KEY_LABELS, MEDIA_TYPE_CODE_TO_KEY } from '../../features/agent-master/constants/codes';
 import {
   useDeleteAgentGroup,
   useDeleteAgents,
@@ -30,13 +31,14 @@ import {
   useReorderAgentGroup,
   useUpdateAgent,
 } from '../../features/agent-master/hooks/useAgentMasterQueries';
-import type { AgentGroupNode, AgentGroupReorderPosition, AgentResponse, AgentUpdateRequest } from '../../features/agent-master/types';
+import type { AgentGroupNode, AgentResponse, AgentUpdateRequest } from '../../features/agent-master/types';
+import { useGetMediaTypes } from '../../features/media-type/hooks/useMediaTypeQueries';
 import { useModal } from '@/libs/shared-ui/src/hooks/useModal';
 
 const breadcrumb = [
   { title: '상담사 관리', path: '/ipron/agent-master' },
   { title: '상담사', path: '/ipron/agent-master' },
-  { title: '상담사 설정', path: '/ipron/agent-master' },
+  { title: '상담사 관리', path: '/ipron/agent-master' },
 ];
 
 export default function AgentMasterList() {
@@ -66,6 +68,11 @@ export default function AgentMasterList() {
   const [cardExpanded, setCardExpanded] = useState(false);
   // 우측 그리드 박스 탭: 'agent'(상담사 목록) / 'media'(미디어 관리 현황 매트릭스)
   const [gridTab, setGridTab] = useState<'agent' | 'media'>('agent');
+  // 미디어 탭 선택 미디어 종류 — 탭 헤더 인라인 Select 로 제어 (동적 첫 번째로 자동 초기화)
+  const [mediaKey, setMediaKey] = useState<MediaKey>('voip');
+  // 미디어 탭 — 상단 액션바에서 저장 버튼 트리거를 위한 ref + dirty 카운트
+  const mediaTableRef = useRef<AgentMediaStatusTableHandle>(null);
+  const [mediaDirtyCount, setMediaDirtyCount] = useState(0);
 
   // ctx 비동기 로드 시 동기화
   useEffect(() => {
@@ -74,6 +81,7 @@ export default function AgentMasterList() {
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [ctxTenantId]);
+
   const [treeWidth, setTreeWidth] = useState(260);
   const splitRef = useRef<HTMLDivElement>(null);
 
@@ -95,6 +103,43 @@ export default function AgentMasterList() {
   const { data: groupTree = [] } = useGetAgentGroupTree({
     params: { tenantId: selectedTenantId ?? undefined },
   });
+
+  // TB_IC_MEDIA_USAGE 등록·활성 미디어 목록 (동적 노출)
+  const { data: mediaTypeList = [] } = useGetMediaTypes();
+
+  /** 서버 미디어 목록 → FE MediaOption 배열 (SWAT 정합 순서 유지). */
+  const availableMediaOptions = useMemo<MediaOption[]>(() => {
+    if (!mediaTypeList.length) return [];
+    // 정렬 기준: MEDIA_TYPE_CODE_TO_KEY 키 순서(voip=0, chat=10 ...)
+    const ORDER: Record<string, number> = {
+      voip: 0,
+      chat: 10,
+      videoVoice: 20,
+      videoChat: 30,
+      email: 40,
+      fax: 50,
+      mvoip: 61,
+      sms: 80,
+    };
+    return mediaTypeList
+      .map((mt) => {
+        const key = MEDIA_TYPE_CODE_TO_KEY[mt.mediaType] as MediaKey | undefined;
+        if (!key) return null;
+        const label = MEDIA_KEY_LABELS[key] ?? (mt.mediaAlias || key);
+        return { key, label };
+      })
+      .filter((x): x is MediaOption => x !== null)
+      .sort((a, b) => (ORDER[a.key] ?? 999) - (ORDER[b.key] ?? 999));
+  }, [mediaTypeList]);
+
+  // availableMediaOptions 로드 시: 현재 mediaKey 가 목록에 없으면 첫 번째 키로 리셋
+  useEffect(() => {
+    if (!availableMediaOptions.length) return;
+    if (!availableMediaOptions.some((o) => o.key === mediaKey)) {
+      setMediaKey(availableMediaOptions[0].key);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [availableMediaOptions]);
 
   // ─── Mutations ──────────────────────────────────────────────────────────
   const { mutate: deleteAgents, isPending: isDeleting } = useDeleteAgents({
@@ -147,11 +192,11 @@ export default function AgentMasterList() {
     },
   });
 
-  // 미디어 관리 탭 인라인 수정 — 행 단위 저장 (상세 Drawer 와 동일 update 엔드포인트)
+  // 미디어 관리 탭 BSR 저장 — dirty 행 일괄 PUT (상세 Drawer 와 동일 update 엔드포인트)
   const { mutate: updateAgent, isPending: isSavingMedia } = useUpdateAgent({
     mutationOptions: {
       onSuccess: () => {
-        toast.success('미디어 옵션이 저장되었습니다');
+        /* 개별 성공은 조용히 — 전체 완료 후 handleSaveDirty 에서 토스트 */
       },
       onError: (err: unknown) => {
         const msg = (err as { response?: { data?: { message?: string } } })?.response?.data?.message ?? '미디어 옵션 저장 실패';
@@ -160,9 +205,35 @@ export default function AgentMasterList() {
     },
   });
 
-  const handleSaveMediaRow = useCallback(
-    (id: number, body: AgentUpdateRequest) => {
-      updateAgent({ id, body });
+  const handleSaveDirty = useCallback(
+    (entries: { agentId: number; body: AgentUpdateRequest }[], clearDirty: () => void) => {
+      let completed = 0;
+      let errored = 0;
+      const total = entries.length;
+      const finish = () => {
+        completed++;
+        if (completed + errored === total) {
+          if (errored === 0) {
+            toast.success(`미디어 옵션 ${total}행이 저장되었습니다`);
+            clearDirty();
+          } else {
+            toast.warning(`${total}행 중 ${errored}행 저장 실패 — 다시 시도하세요`);
+            // 실패행은 dirty 유지 (clearDirty 호출 안 함)
+          }
+        }
+      };
+      for (const { agentId, body } of entries) {
+        updateAgent(
+          { id: agentId, body },
+          {
+            onSuccess: finish,
+            onError: () => {
+              errored++;
+              finish();
+            },
+          },
+        );
+      }
     },
     [updateAgent],
   );
@@ -458,8 +529,29 @@ export default function AgentMasterList() {
           <div className="border-b border-gray-100 flex items-center gap-2 h-[44px] pr-5 flex-shrink-0">
             <div className="flex items-stretch h-full">
               <GridTab label="상담사" active={gridTab === 'agent'} onClick={() => setGridTab('agent')} />
-              <GridTab label="미디어 관리" active={gridTab === 'media'} onClick={() => setGridTab('media')} />
+              <GridTab
+                label="미디어 관리"
+                active={gridTab === 'media'}
+                onClick={() => {
+                  setGridTab('media');
+                  // 미디어 탭 활성 시 카드 compact 고정 — 세로 공간 확보
+                  setCardExpanded(false);
+                }}
+              />
             </div>
+            {/* 미디어 탭 활성 시: 미디어 종류 Select 탭 헤더 인라인 배치 (별도 40px 툴바 행 제거) */}
+            {gridTab === 'media' && (
+              <div className="flex items-center gap-1.5 pl-3 border-l border-gray-100">
+                <span className="text-[11px] font-semibold text-gray-500 whitespace-nowrap">미디어</span>
+                <Select
+                  size="small"
+                  style={{ width: 130 }}
+                  value={mediaKey}
+                  onChange={(v: MediaKey) => setMediaKey(v)}
+                  options={availableMediaOptions.map((o) => ({ value: o.key, label: o.label }))}
+                />
+              </div>
+            )}
             <span className="text-xs text-gray-500">
               {filteredAgents.length.toLocaleString()}건{gridTab === 'agent' && selectedRows.length > 0 && <span> 중 {selectedRows.length}건 선택</span>}
             </span>
@@ -477,6 +569,21 @@ export default function AgentMasterList() {
                 </Button>
                 <Button type="primary" icon={<Plus className="size-3.5" />} onClick={handleCreate}>
                   등록
+                </Button>
+              </div>
+            )}
+            {gridTab === 'media' && (
+              <div className="ml-auto flex items-center gap-2">
+                {mediaDirtyCount > 0 && <span className="text-[11px] text-[#405189] font-medium whitespace-nowrap">미저장 변경 {mediaDirtyCount}행</span>}
+                <Button
+                  type="primary"
+                  size="small"
+                  icon={<Save className="size-3.5" />}
+                  onClick={() => mediaTableRef.current?.save()}
+                  loading={isSavingMedia}
+                  disabled={mediaDirtyCount === 0 || isSavingMedia}
+                >
+                  저장{mediaDirtyCount > 0 ? ` (${mediaDirtyCount}행)` : ''}
                 </Button>
               </div>
             )}
@@ -499,7 +606,17 @@ export default function AgentMasterList() {
                 }}
               />
             ) : (
-              <AgentMediaStatusTable rowData={filteredAgents} isLoading={isLoading} onRowDoubleClicked={handleEdit} onSaveRow={handleSaveMediaRow} saving={isSavingMedia} />
+              <AgentMediaStatusTable
+                ref={mediaTableRef}
+                rowData={filteredAgents}
+                isLoading={isLoading}
+                onRowDoubleClicked={handleEdit}
+                onSaveDirty={handleSaveDirty}
+                saving={isSavingMedia}
+                mediaKey={mediaKey}
+                onDirtyChange={setMediaDirtyCount}
+                availableMediaOptions={availableMediaOptions}
+              />
             )}
           </div>
         </div>

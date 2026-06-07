@@ -20,6 +20,7 @@ import { AgGridReact } from 'ag-grid-react';
 import { Button, Empty, Input } from 'antd';
 import { ChevronLeft, ChevronRight, Layers, Network, Phone, Plus, Radio, Search } from 'lucide-react';
 import { useBreadcrumbStore } from '@/shared-store';
+import { toast } from '@/shared-util';
 import AclDrawer, { type AclDrawerRef } from '../../features/acl/components/AclDrawer';
 import { aclQueryKeys, useDeleteAcl, useDeleteCtiAcl, useGetAcls, useGetCtiAcls, useGetNodes } from '../../features/acl/hooks/useAclQueries';
 import { ACL_TYPE_LABELS, type Acl, USE_YN_LABELS } from '../../features/acl/types';
@@ -31,7 +32,7 @@ type AclCategory = 'pbx' | 'cti';
 
 const breadcrumb = [
   { title: '회선관리', path: '/ipron/line/acl' },
-  { title: 'IP 접근관리', path: '/ipron/line/acl' },
+  { title: 'IP접근관리', path: '/ipron/line/acl' },
 ];
 
 const CATEGORY_STYLES: Record<AclCategory, { label: string; icon: typeof Phone }> = {
@@ -103,7 +104,7 @@ export default function AclList() {
   const gridHeaderText = useMemo(() => {
     const prefix = CATEGORY_STYLES[category].label;
     const suffix = selectedNodeName ?? '전체';
-    return `${prefix} ${suffix} IP 접근관리 (${acls.length}건)`;
+    return `${prefix} ${suffix} IP접근관리 (${acls.length}건)`;
   }, [category, selectedNodeName, acls.length]);
 
   // ─── Invalidation helpers ──────────────────────────────────────────────────
@@ -132,6 +133,11 @@ export default function AclList() {
   };
 
   const handleCreate = useCallback(() => {
+    // SWAT IPR20S1073.jsp:52~56 — CTI는 노드 선택 필수, PBX는 전체 허용
+    if (category === 'cti' && !selectedNodeId) {
+      toast.warning('노드를 먼저 선택하세요.');
+      return;
+    }
     aclDrawerRef.current?.open(undefined, selectedNodeId ?? undefined, selectedNodeName ?? undefined, category, selectedNodeId ? undefined : nodes);
   }, [selectedNodeId, selectedNodeName, category, nodes]);
 
@@ -269,7 +275,7 @@ export default function AclList() {
               <Input
                 allowClear
                 prefix={<Search className="size-3.5 text-gray-400" />}
-                placeholder="IP 접근관리 검색"
+                placeholder="IP접근관리 검색"
                 value={searchText}
                 onChange={handleSearchChange}
                 style={{ width: 200 }}

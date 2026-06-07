@@ -151,8 +151,6 @@ export default function DnProfileTable({ rowData, isLoading, onRowDoubleClicked,
         cellRenderer: (params: ICellRendererParams<DnProfile>) => {
           const { data } = params;
           if (!data) return null;
-          // TRUNK 프로파일 배정은 SIP 트렁크 화면 마이그레이션 이후 지원 예정 (TODO)
-          if (data.dnProfileType === '1') return <span className="text-xs text-gray-300">-</span>;
           return (
             <button
               type="button"

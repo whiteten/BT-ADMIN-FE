@@ -110,7 +110,9 @@ export default function DidRouteList() {
   const { mutate: deleteDidRoute } = useDeleteDidRoute({
     mutationOptions: {
       onSuccess: () => {
+        // SWAT IPR20S1036Controller.java:138: 삭제 성공 후 특수코드 연계 안내
         toast.success('DID라우트가 삭제되었습니다.');
+        toast.info('삭제된 라우트정보를 가지고 있던 특수코드 정보가 수정되었습니다.');
         invalidateList();
       },
     },
@@ -177,6 +179,19 @@ export default function DidRouteList() {
         },
       },
       {
+        // SWAT 그리드 컬럼: routingPositionName
+        // 값: ROUTE_ID가 null/0이면 '내부착신', 그 외 '국선중계'
+        headerName: '라우팅위치(내)',
+        colId: 'routingPosition',
+        flex: 1,
+        minWidth: 110,
+        cellRenderer: (params: ICellRendererParams<DidRoute>) => {
+          if (!params.data) return null;
+          const routeId = params.data.routeId;
+          return !routeId || routeId === 0 ? '내부착신' : '국선중계';
+        },
+      },
+      {
         headerName: '업무시간 내',
         colId: 'routingIn',
         flex: 2,
@@ -184,6 +199,19 @@ export default function DidRouteList() {
         cellRenderer: (params: ICellRendererParams<DidRoute>) => {
           if (!params.data) return null;
           return getRoutingDisplayText(params.data.routeName, params.data.dnNo);
+        },
+      },
+      {
+        // SWAT 그리드 컬럼: afterRoutingPositionName
+        // 값: AFTER_ROUTE_ID가 null/0이면 '내부착신', 그 외 '국선중계'
+        headerName: '라우팅위치(외)',
+        colId: 'afterRoutingPosition',
+        flex: 1,
+        minWidth: 110,
+        cellRenderer: (params: ICellRendererParams<DidRoute>) => {
+          if (!params.data) return null;
+          const afterRouteId = params.data.afterRouteId;
+          return !afterRouteId || afterRouteId === 0 ? '내부착신' : '국선중계';
         },
       },
       {

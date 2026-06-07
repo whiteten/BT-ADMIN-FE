@@ -75,6 +75,14 @@ export const NAT_OPTION_OPTIONS = [
   { label: 'rport + route', value: '4' as NatOption },
 ];
 
+// ─── 녹취 시작 콜 유형 (AS-IS REC_START_CALL_TYPE 공통코드 대체) ────────────
+/** BE RecStartCallType enum code 값과 매핑 (1=모든 콜, 2=내선 통화, 3=국선 통화) */
+export const REC_START_CALL_TYPE_OPTIONS = [
+  { label: '모든 콜', value: '1' },
+  { label: '내선 통화', value: '2' },
+  { label: '국선 통화', value: '3' },
+];
+
 // ─── Boolean(YesNo) 라벨 ─────────────────────────────────────────────────────
 export const YES_NO_LABEL = (v: boolean | null | undefined): string => (v === true ? '사용' : v === false ? '사용안함' : '-');
 

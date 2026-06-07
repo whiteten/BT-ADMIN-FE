@@ -114,6 +114,11 @@ interface FormValues {
   bsrDistributeYn?: number;
   bsrGroupId?: number | null;
   bsrWeight?: number;
+  // 예약 적용 (SWAT IPR20S3020 applyType/applyDatetime 정합)
+  applyType?: number; // 0=즉시, 1=예약
+  applyDate?: string; // 'YYYYMMDD'
+  applyHour?: string; // '00'~'23'
+  applyMinute?: string; // '00'~'59'
   // 미디어 스킬 (동적: skill_<mediaType> / level_<mediaType>)
   [key: string]: unknown;
 }
@@ -239,6 +244,7 @@ export default function CtiQueueFormDrawer({ state, onClose, tenantOptions = [],
   const wRoutingKind = Form.useWatch('routingKind', form);
   const wBlockYn = Form.useWatch('blockYn', form);
   const wBsrYn = Form.useWatch('bsrYn', form);
+  const wApplyType = Form.useWatch('applyType', form);
 
   const hasDrNode = wDrNode != null && Number(wDrNode) !== 0;
   const reconnOff = wReconn === 0;
@@ -377,6 +383,11 @@ export default function CtiQueueFormDrawer({ state, onClose, tenantOptions = [],
         bsrDistributeYn: r.bsrDistributeYn ?? 1,
         bsrGroupId: 0, // 옵션 로드 후 실제 값 적용 (deferred)
         bsrWeight: r.bsrWeight ?? 100,
+        // 예약 적용 (SWAT applyType/applyDatetime 정합)
+        applyType: r.applyType ?? 0,
+        applyDate: r.applyDatetime ? r.applyDatetime.substring(0, 8) : '',
+        applyHour: r.applyDatetime ? r.applyDatetime.substring(8, 10) : '00',
+        applyMinute: r.applyDatetime ? r.applyDatetime.substring(10, 12) : '00',
         ...mediaVals,
       });
     } else {
@@ -428,6 +439,10 @@ export default function CtiQueueFormDrawer({ state, onClose, tenantOptions = [],
         bsrDistributeYn: 1,
         bsrGroupId: 0,
         bsrWeight: 100,
+        applyType: 0,
+        applyDate: '',
+        applyHour: '00',
+        applyMinute: '00',
         ...mediaVals,
       });
     }
@@ -503,6 +518,7 @@ export default function CtiQueueFormDrawer({ state, onClose, tenantOptions = [],
     },
   });
 
+  /** 저장 — 성공 시 Drawer 닫음 */
   const { mutate: update, isPending: isUpdating } = useUpdateCtiQueue({
     mutationOptions: {
       onSuccess: () => {
@@ -513,7 +529,16 @@ export default function CtiQueueFormDrawer({ state, onClose, tenantOptions = [],
     },
   });
 
-  const submitting = isCreating || isUpdating;
+  /** 적용 — 성공 시 Drawer 유지 (SWAT btApply 정합: 저장 후 팝업 open 유지) */
+  const { mutate: apply, isPending: isApplying } = useUpdateCtiQueue({
+    mutationOptions: {
+      onSuccess: () => {
+        toast.success('CTI 큐가 적용되었습니다');
+        // onClose() 미호출 — Drawer 유지. 그리드 invalidate 는 useUpdateCtiQueue 내부에서 처리됨.
+      },
+      onError: (err: unknown) => toast.error(extractMessage(err) ?? '적용 실패'),
+    },
+  });
 
   // 미디어 스킬 폼값 → Create/Update 필드로 변환
   const collectMediaSkills = (values: FormValues): Partial<CtiQueueCreateRequest> => {
@@ -528,8 +553,14 @@ export default function CtiQueueFormDrawer({ state, onClose, tenantOptions = [],
     return out as Partial<CtiQueueCreateRequest>;
   };
 
-  const onSubmit = async () => {
-    if (!state.open) return;
+  /**
+   * 폼 검증 + body 생성. 검증 실패 시 null 반환.
+   * mode 'create' → { type:'create', body }  / 'edit' → { type:'edit', ctiqId, body }.
+   */
+  type SubmitPayload = { type: 'create'; body: CtiQueueCreateRequest } | { type: 'edit'; ctiqId: number; body: CtiQueueUpdateRequest };
+
+  const buildPayload = async (): Promise<SubmitPayload | null> => {
+    if (!state.open) return null;
     try {
       const values = await form.validateFields();
 
@@ -537,7 +568,7 @@ export default function CtiQueueFormDrawer({ state, onClose, tenantOptions = [],
       if (values.bsrYn === 1 && (!values.bsrGroupId || values.bsrGroupId === 0)) {
         toast.error('BSR 사용 시 BSR 그룹을 선택해야 합니다');
         setActiveTab('routing');
-        return;
+        return null;
       }
       // Skill-Based 라우팅 → 미디어 스킬 1개 이상 필수 (SWAT :361-368)
       if (skillRequired) {
@@ -548,7 +579,7 @@ export default function CtiQueueFormDrawer({ state, onClose, tenantOptions = [],
         if (!anySkill) {
           toast.error('Skill-Based 라우팅은 미디어별 스킬셋을 1개 이상 지정해야 합니다');
           setActiveTab('routing');
-          return;
+          return null;
         }
       }
 
@@ -596,6 +627,13 @@ export default function CtiQueueFormDrawer({ state, onClose, tenantOptions = [],
         bsrDistributeYn: values.bsrDistributeYn,
         bsrGroupId: values.bsrGroupId ?? 0,
         bsrWeight: values.bsrWeight,
+        // 예약 적용 (SWAT applyType/applyDatetime 정합)
+        // FE: applyDate('YYYYMMDD') + applyHour('HH') + applyMinute('mm') → 'YYYYMMDDHHmm' 12자리
+        applyType: values.applyType ?? 0,
+        applyDatetime:
+          values.applyType === 1 && values.applyDate
+            ? `${values.applyDate}${String(values.applyHour ?? '00').padStart(2, '0')}${String(values.applyMinute ?? '00').padStart(2, '0')}`
+            : null,
         ...mediaSkills,
       };
 
@@ -605,7 +643,7 @@ export default function CtiQueueFormDrawer({ state, onClose, tenantOptions = [],
         if (createTenantId == null || createNodeId == null) {
           toast.warning('테넌트와 노드를 먼저 선택하세요');
           setActiveTab('basic');
-          return;
+          return null;
         }
         // 그룹DN 번호 중복 검증
         try {
@@ -613,7 +651,7 @@ export default function CtiQueueFormDrawer({ state, onClose, tenantOptions = [],
           if (dup) {
             toast.error('동일 노드에 이미 사용 중인 번호입니다 (DN/SIP 트렁크 포함)');
             setActiveTab('basic');
-            return;
+            return null;
           }
         } catch {
           // duplicate-check 실패는 등록 진행 (BE 가 최종 차단)
@@ -625,17 +663,37 @@ export default function CtiQueueFormDrawer({ state, onClose, tenantOptions = [],
           gdnName: values.gdnName!,
           ...common,
         };
-        create(body);
+        return { type: 'create', body } satisfies SubmitPayload;
       } else if (state.mode === 'edit' && state.row) {
         const body: CtiQueueUpdateRequest = {
           gdnName: values.gdnName,
           ...common,
         };
-        update({ ctiqId: state.row.ctiqId, body });
+        return { type: 'edit', ctiqId: state.row.ctiqId, body } satisfies SubmitPayload;
       }
+      return null;
     } catch {
       // antd validation — inline
+      return null;
     }
+  };
+
+  /** 저장 클릭 — Drawer 닫음 */
+  const onSave = async () => {
+    const payload = await buildPayload();
+    if (!payload) return;
+    if (payload.type === 'create') {
+      create(payload.body);
+    } else {
+      update({ ctiqId: payload.ctiqId, body: payload.body });
+    }
+  };
+
+  /** 적용 클릭 — Drawer 유지 (SWAT btApply 정합) */
+  const onApply = async () => {
+    const payload = await buildPayload();
+    if (!payload || payload.type !== 'edit') return;
+    apply({ ctiqId: payload.ctiqId, body: payload.body });
   };
 
   // ─── YN Radio ───────────────────────────────────────────────────────────────
@@ -813,6 +871,38 @@ export default function CtiQueueFormDrawer({ state, onClose, tenantOptions = [],
           <Form.Item className="col-span-2" label="CTI큐설명" name="ctiqDesc" rules={[{ max: 512 }]}>
             <Input maxLength={512} />
           </Form.Item>
+          {/* 예약 적용 (SWAT IPR20S3020 applyType/applyDatetime 정합) */}
+          <div className="col-span-2 border-t border-dashed border-gray-200 mt-1 pt-3">
+            <div className="flex items-center gap-4 flex-wrap">
+              <Form.Item label="적용방식" name="applyType" className="!mb-0">
+                <Radio.Group>
+                  <Radio value={0}>즉시 적용</Radio>
+                  <Radio value={1}>예약 적용</Radio>
+                </Radio.Group>
+              </Form.Item>
+              {wApplyType === 1 && (
+                <div className="flex items-center gap-2 flex-wrap">
+                  <Form.Item
+                    label="예약일자"
+                    name="applyDate"
+                    className="!mb-0"
+                    rules={[
+                      { required: wApplyType === 1, message: '날짜 필수 (YYYYMMDD)' },
+                      { pattern: /^\d{8}$/, message: 'YYYYMMDD 형식' },
+                    ]}
+                  >
+                    <Input maxLength={8} className="font-mono w-28" placeholder="YYYYMMDD" />
+                  </Form.Item>
+                  <Form.Item label="시" name="applyHour" className="!mb-0" rules={[{ pattern: /^\d{2}$/, message: 'HH' }]}>
+                    <Input maxLength={2} className="font-mono w-14" placeholder="HH" />
+                  </Form.Item>
+                  <Form.Item label="분" name="applyMinute" className="!mb-0" rules={[{ pattern: /^\d{2}$/, message: 'mm' }]}>
+                    <Input maxLength={2} className="font-mono w-14" placeholder="mm" />
+                  </Form.Item>
+                </div>
+              )}
+            </div>
+          </div>
         </div>
       ),
     },
@@ -1054,7 +1144,12 @@ export default function CtiQueueFormDrawer({ state, onClose, tenantOptions = [],
         extra={
           <div className="flex gap-2">
             <Button onClick={onClose}>취소</Button>
-            <Button type="primary" loading={submitting} onClick={onSubmit}>
+            {isEdit && (
+              <Button loading={isApplying} disabled={isCreating || isUpdating} onClick={onApply}>
+                적용
+              </Button>
+            )}
+            <Button type="primary" loading={isCreating || isUpdating} disabled={isApplying} onClick={onSave}>
               저장
             </Button>
           </div>

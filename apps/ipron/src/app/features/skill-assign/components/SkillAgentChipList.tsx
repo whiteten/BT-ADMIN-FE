@@ -38,7 +38,7 @@ export default function SkillAgentChipList({ rows, isLoading, onUnassign, onEdit
           <span className="font-semibold text-[#405189]">{agentLabel}</span>
           <span className="text-gray-400">·</span>
           <span>{rows.length}건</span>
-          <span className="ml-auto text-[11px] text-gray-400">P=우선순위 (0~9, 작을수록 1순위) · L=스킬레벨 (0~99)</span>
+          <span className="ml-auto text-[11px] text-gray-400">우선순위 (0~9, 작을수록 1순위) · 스킬레벨 (0~99)</span>
         </div>
       )}
       <div className="flex flex-wrap gap-1.5">
@@ -47,11 +47,11 @@ export default function SkillAgentChipList({ rows, isLoading, onUnassign, onEdit
             key={`${row.agentId}-${row.skillsetId}`}
             className="inline-flex items-center gap-1 bg-[#eef0f7] text-[#405189] border border-[#c5cbe0] rounded-full pl-2.5 pr-1 h-6 text-[11.5px] font-medium cursor-pointer hover:bg-[#405189] hover:text-white hover:border-[#405189] transition"
             onClick={() => onEdit(row)}
-            title="클릭하여 P/L 수정"
+            title="클릭하여 우선순위/스킬레벨 수정"
           >
             <span className="max-w-[180px] truncate">{row.skillsetName}</span>
             <span className="text-[10px] opacity-85 pl-1 pr-1 border-l border-current ml-0.5">
-              P{row.priority ?? 0}·L{row.skillLevel ?? 0}
+              우선순위{row.priority ?? 0}·스킬레벨{row.skillLevel ?? 0}
             </span>
             <button
               type="button"

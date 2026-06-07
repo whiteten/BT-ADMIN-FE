@@ -9,25 +9,31 @@
  *   레거시 IPR20S4060 그룹 팝업엔 autoansUse 가 없고, AgentGroup.*AutoansUse 는 @Transient 라
  *   그룹 미디어 저장 시 소실되므로 그룹 편집 UI 에서는 노출하지 않는다. 개별 상담사 편집엔 유지.
  */
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { InputNumber, Select } from 'antd';
 import { ChevronDown, ChevronRight } from 'lucide-react';
 import { MEDIA_OPTION_BOUNDS } from '../constants/codes';
 import type { AgentMediaOption, AgentMediaMatrix as Matrix } from '../types';
 
-const MEDIA_KEYS = ['chat', 'videoVoice', 'videoChat', 'email', 'fax', 'voip', 'mvoip', 'sms'] as const;
-type MediaKey = (typeof MEDIA_KEYS)[number];
+type MediaKey = 'chat' | 'videoVoice' | 'videoChat' | 'email' | 'fax' | 'voip' | 'mvoip' | 'sms';
 
-const MEDIA_LABELS: Record<MediaKey, string> = {
-  chat: 'Chat',
-  videoVoice: 'Video Voice',
-  videoChat: 'Video Chat',
-  email: 'Email',
-  fax: 'Fax',
-  voip: 'VOIP',
-  mvoip: 'MVOIP',
-  sms: 'SMS / WEB',
-};
+/** 동적 미디어 목록 한 항목. */
+export interface MediaItem {
+  key: MediaKey;
+  label: string;
+}
+
+/** 전체 8종 기본 목록 (mediaItems 미지정 시 폴백). */
+const ALL_MEDIA_ITEMS: MediaItem[] = [
+  { key: 'voip', label: 'VOIP' },
+  { key: 'chat', label: 'Chat' },
+  { key: 'videoVoice', label: 'Video Voice' },
+  { key: 'videoChat', label: 'Video Chat' },
+  { key: 'email', label: 'Email' },
+  { key: 'fax', label: 'Fax' },
+  { key: 'mvoip', label: 'MVOIP' },
+  { key: 'sms', label: 'SMS / WEB' },
+];
 
 const DEFAULT_OPT: AgentMediaOption = {
   use: false,
@@ -49,26 +55,40 @@ interface AgentMediaCardsProps {
   disabled?: boolean;
   /** 자동수락(autoansUse) 입력/표시 제거 — 그룹 미디어 편집 시 사용 (레거시 그룹 팝업엔 없음). */
   hideAutoAns?: boolean;
+  /**
+   * 등록·활성화된 미디어 목록 (서버 동적).
+   * 미지정 시 8종 전체 표시 (하위 호환).
+   */
+  mediaItems?: MediaItem[];
 }
 
-export default function AgentMediaCards({ value, onChange, disabled, hideAutoAns }: AgentMediaCardsProps) {
-  const matrix: Matrix = {
-    chat: ensure(value?.chat),
-    videoVoice: ensure(value?.videoVoice),
-    videoChat: ensure(value?.videoChat),
-    email: ensure(value?.email),
-    fax: ensure(value?.fax),
-    voip: ensure(value?.voip),
-    mvoip: ensure(value?.mvoip),
-    sms: ensure(value?.sms),
-  };
+export default function AgentMediaCards({ value, onChange, disabled, hideAutoAns, mediaItems }: AgentMediaCardsProps) {
+  const activeItems: MediaItem[] = mediaItems?.length ? mediaItems : ALL_MEDIA_ITEMS;
 
-  // 디폴트로 사용 중인 카드만 펼침 (Video Voice 등)
-  const [openKeys, setOpenKeys] = useState<Set<MediaKey>>(() => {
-    const init = new Set<MediaKey>();
-    for (const k of MEDIA_KEYS) if (matrix[k]?.use) init.add(k);
-    return init;
-  });
+  // 활성 미디어 키만 포함한 matrix 구성
+  const matrix: Matrix = {} as Matrix;
+  for (const { key } of activeItems) {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    (matrix as any)[key] = ensure(value?.[key]);
+  }
+
+  // 디폴트로 사용 중인 카드만 펼침
+  const [openKeys, setOpenKeys] = useState<Set<MediaKey>>(() => new Set<MediaKey>());
+
+  // value 또는 activeItems 변경 시 openKeys 동기화
+  // (비동기 로드: value=null→detail 로드→실제 값 순으로 들어옴)
+  useEffect(() => {
+    const next = new Set<MediaKey>();
+    for (const { key } of activeItems) {
+      if (value?.[key]?.use) next.add(key);
+    }
+    if (next.size > 0)
+      setOpenKeys((prev) => {
+        const merged = new Set(prev);
+        next.forEach((k) => merged.add(k));
+        return merged;
+      });
+  }, [value, activeItems]);
 
   const setCell = (key: MediaKey, patch: Partial<AgentMediaOption>) => {
     const next: Matrix = { ...matrix, [key]: { ...matrix[key], ...patch } };
@@ -90,7 +110,7 @@ export default function AgentMediaCards({ value, onChange, disabled, hideAutoAns
 
   return (
     <div className={`flex flex-col gap-2 ${disabled ? 'opacity-50 pointer-events-none' : ''}`}>
-      {MEDIA_KEYS.map((key) => {
+      {activeItems.map(({ key, label }) => {
         const cell = matrix[key]!;
         const isOpen = openKeys.has(key);
         const isOn = !!cell.use;
@@ -98,7 +118,7 @@ export default function AgentMediaCards({ value, onChange, disabled, hideAutoAns
           <div key={key} className={`border rounded ${isOpen ? 'border-[#c5cbe0]' : 'border-gray-200'} bg-white`}>
             <button type="button" onClick={() => toggle(key)} className="w-full flex items-center gap-3 px-3 py-2 text-left hover:bg-gray-50">
               {isOpen ? <ChevronDown className="size-3.5 text-gray-500 flex-shrink-0" /> : <ChevronRight className="size-3.5 text-gray-500 flex-shrink-0" />}
-              <span className="text-sm font-semibold text-gray-800 min-w-[100px]">{MEDIA_LABELS[key]}</span>
+              <span className="text-sm font-semibold text-gray-800 min-w-[100px]">{label}</span>
               <span
                 className={`inline-flex items-center px-2 h-[20px] rounded text-[11px] font-medium leading-none ${
                   isOn ? 'text-green-700 bg-green-50 border border-green-200' : 'text-gray-600 bg-gray-50 border border-gray-200'
@@ -148,7 +168,10 @@ export default function AgentMediaCards({ value, onChange, disabled, hideAutoAns
                     size="small"
                     style={{ width: '100%' }}
                     value={cell.autoanswerMode ?? 0}
-                    onChange={(v) => setCell(key, { autoanswerMode: v })}
+                    onChange={(v) => {
+                      // SWAT IPR20S4010 L577-581 정합: mode=0(수동)이면 time 비활성 + 0 리셋
+                      setCell(key, { autoanswerMode: v, ...(v === 0 ? { autoanswerTime: 0 } : {}) });
+                    }}
                     options={[
                       { value: 0, label: '수동' },
                       { value: 1, label: '자동' },
@@ -162,6 +185,7 @@ export default function AgentMediaCards({ value, onChange, disabled, hideAutoAns
                     min={MEDIA_OPTION_BOUNDS.autoanswerTime.min}
                     max={MEDIA_OPTION_BOUNDS.autoanswerTime.max}
                     value={cell.autoanswerTime ?? 2}
+                    disabled={cell.autoanswerMode === 0}
                     onChange={(v) => setCell(key, { autoanswerTime: typeof v === 'number' ? v : 2 })}
                   />
                 </Field>

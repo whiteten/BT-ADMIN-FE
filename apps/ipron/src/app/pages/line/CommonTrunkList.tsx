@@ -44,7 +44,7 @@ import { useGetDnProfileNodes } from '../../features/dn-profile/hooks/useDnProfi
 const breadcrumb = [
   { title: '번호자원관리', path: '/ipron/line' },
   { title: '그룹DN', path: '/ipron/line' },
-  { title: '공용 SIP TRUNK 관리', path: '/ipron/line/common-trunk' },
+  { title: '공용 SIP TRUNK', path: '/ipron/line/common-trunk' },
 ];
 
 // ─── 채널 게이지 렌더러 ──────────────────────────────────────────────
@@ -262,6 +262,28 @@ export default function CommonTrunkList() {
         width: 70,
         cellStyle: { textAlign: 'center' } as CellStyle,
         cellRenderer: (p: { value: number }) => (p.value === 1 ? <Tag color="red">ON</Tag> : <Tag>OFF</Tag>),
+      },
+      // 갭4: 라우팅 이름 3종 (SWAT 그리드 정합)
+      {
+        field: 'blockRoutingName',
+        headerName: '블럭라우팅',
+        width: 110,
+        cellStyle: { color: '#9ca3af', fontSize: '11px' } as CellStyle,
+        valueFormatter: (p) => p.value ?? '—',
+      },
+      {
+        field: 'errorRoutingName',
+        headerName: '장애라우팅',
+        width: 110,
+        cellStyle: { color: '#9ca3af', fontSize: '11px' } as CellStyle,
+        valueFormatter: (p) => p.value ?? '—',
+      },
+      {
+        field: 'busyRoutingName',
+        headerName: 'Busy라우팅',
+        width: 110,
+        cellStyle: { color: '#9ca3af', fontSize: '11px' } as CellStyle,
+        valueFormatter: (p) => p.value ?? '—',
       },
     ],
     [],

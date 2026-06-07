@@ -11,7 +11,7 @@ import { Button, Col, Divider, Form, Input, Modal, Row, Select, Steps, Switch } 
 import { useBreadcrumbStore } from '@/shared-store';
 import { toast } from '@/shared-util';
 import { cosApi } from '../../features/cos/api/cosApi';
-import { cosQueryKeys, useCreateCos, useDeleteCos, useGetCosDetail, useGetNodeTenants, useUpdateCos } from '../../features/cos/hooks/useCosQueries';
+import { cosQueryKeys, useCreateCos, useDeleteCos, useGetCosDetail, useGetDodLimits, useGetNodeTenants, useUpdateCos } from '../../features/cos/hooks/useCosQueries';
 import {
   COS_INITIAL_VALUES,
   type CosCreateRequest,
@@ -28,6 +28,30 @@ import { FallbackSpinner } from '@/components/custom/FallbackSpinner';
 import { useModal } from '@/libs/shared-ui/src/hooks/useModal';
 
 const COS_FORM_STEPS = [{ title: '기본 정보' }, { title: '그룹IPT 서비스' }, { title: '개인IPT 서비스' }];
+
+/**
+ * 번호패턴 형식 유효성 검증 (AS-IS: SwatPattern.testPattern)
+ * 허용 문자: 숫자(0-9), X, Z, N, !, ., [d-d], [d], [d,d,...], |, ()
+ * 패턴을 | 로 분리하여 각 파트 검증
+ */
+function testSwatPattern(patterns: string): boolean {
+  if (!patterns) return true;
+  const patternList = patterns.toUpperCase().split('|');
+  for (const pattern of patternList) {
+    // 괄호 쌍 검증: () 있으면 ^( ) 형태여야 함
+    if (/[()]/.test(pattern) && !/^\(.*\)$/.test(pattern)) {
+      return false;
+    }
+    const trimPattern = pattern.replace(/[()]/g, '');
+    try {
+      const matched = trimPattern.match(/\[\d+-\d\]|X|Z|N|!|\.|\[\d+\](\d+)?|\[\d+(,\d+)*\](\d+)?|\d/g);
+      if (!matched || matched.join('') !== trimPattern) return false;
+    } catch {
+      return false;
+    }
+  }
+  return true;
+}
 
 // SIP 프로파일 스타일 스위치 박스 (라벨 좌측 + Switch 우측, 회색 배경)
 function SwitchBox({ name, label }: { name: string; label: string }) {
@@ -69,9 +93,17 @@ export default function CosForm() {
   const { data: nodeTenants = [] } = useGetNodeTenants();
   const { data: cosDetail, isFetching } = useGetCosDetail(cosId);
 
-  // Watch fields for conditional rendering
+  // Watch fields for conditional rendering and dynamic queries
   const watchedDodNumAllow = Form.useWatch('dodNumAllow', form);
   const watchedCallScreenSvc = Form.useWatch('callScreenSvc', form);
+  const watchedTenantId = Form.useWatch('tenantId', form) as number | undefined;
+
+  // 발신제한/허용그룹 목록 (테넌트별 TB_IE_DOD_LIMIT)
+  // AS-IS: cbCreate('#poAddDodLimitSvc', 'dod_limit', 'tenantId='+tenantId)
+  const { data: dodLimitOptions = [] } = useGetDodLimits(watchedTenantId ?? (isEditMode ? cosDetail?.tenantId : undefined));
+
+  // dodLimitSvc 옵션: 미지정(0) + 테넌트별 목록
+  const dodLimitSelectOptions = useMemo(() => [{ label: '미지정', value: 0 }, ...dodLimitOptions.map((d) => ({ label: d.name, value: d.id }))], [dodLimitOptions]);
 
   // 테넌트 Select 옵션 (중복 제거)
   const tenantOptions = useMemo(() => {
@@ -316,7 +348,10 @@ export default function CosForm() {
           <SummaryRow label="테넌트" value={displayValue(tenantName)} required />
           {isEditMode && cosDetail && <SummaryRow label="COS ID" value={displayValue(cosDetail.cosId)} />}
           <SummaryRow label="COS 이름" value={displayValue(values.cosName)} required />
-          <SummaryRow label="발신제한/허용그룹" value={displayValue(values.dodLimitSvc === 0 ? '미지정' : values.dodLimitSvc)} />
+          <SummaryRow
+            label="발신제한/허용그룹"
+            value={displayValue(values.dodLimitSvc === 0 ? '미지정' : (dodLimitSelectOptions.find((o) => o.value === values.dodLimitSvc)?.label ?? values.dodLimitSvc))}
+          />
         </div>
 
         <Divider className="!my-3" />
@@ -453,12 +488,28 @@ export default function CosForm() {
                     </div>
                     <Row gutter={[20, 0]}>
                       <Col span={12}>
-                        <Form.Item className="!mb-3" name="dodLimitSvc" label="발신제한/허용그룹" tooltip="AS-IS: TB_IE_DOD_LIMIT에서 테넌트별 조회. TO-DO: BFF Flow 추가 필요">
-                          <Select options={[{ label: '미지정', value: 0 }]} placeholder="미지정 (공통코드 API 연동 예정)" />
+                        <Form.Item className="!mb-3" name="dodLimitSvc" label="발신제한/허용그룹">
+                          <Select options={dodLimitSelectOptions} placeholder="미지정" />
                         </Form.Item>
                       </Col>
                       <Col span={12}>
-                        <Form.Item className="!mb-3" name="dodNumPattern" label="특정번호 발신허용패턴" rules={[{ max: 256, message: '256자 이내여야 합니다' }]}>
+                        <Form.Item
+                          className="!mb-3"
+                          name="dodNumPattern"
+                          label="특정번호 발신허용패턴"
+                          rules={[
+                            { max: 256, message: '256자 이내여야 합니다' },
+                            {
+                              validator: (_, value) => {
+                                if (!value?.trim()) return Promise.resolve();
+                                if (!testSwatPattern(value.trim())) {
+                                  return Promise.reject(new Error('특정번호 발신패턴 형식이 올바르지 않습니다'));
+                                }
+                                return Promise.resolve();
+                              },
+                            },
+                          ]}
+                        >
                           <Input
                             placeholder="발신허용 패턴"
                             maxLength={256}
@@ -488,7 +539,23 @@ export default function CosForm() {
                     </div>
                     <Row gutter={[20, 0]}>
                       <Col span={12}>
-                        <Form.Item className="!mb-3" name="callScreenNum" label="특정번호 착신금지패턴" rules={[{ max: 24, message: '24자 이내여야 합니다' }]}>
+                        <Form.Item
+                          className="!mb-3"
+                          name="callScreenNum"
+                          label="특정번호 착신금지패턴"
+                          rules={[
+                            { max: 24, message: '24자 이내여야 합니다' },
+                            {
+                              validator: (_, value) => {
+                                if (!value?.trim()) return Promise.resolve();
+                                if (!testSwatPattern(value.trim())) {
+                                  return Promise.reject(new Error('특정번호 착신금지패턴 형식이 올바르지 않습니다'));
+                                }
+                                return Promise.resolve();
+                              },
+                            },
+                          ]}
+                        >
                           <Input
                             placeholder="착신금지 패턴"
                             maxLength={24}

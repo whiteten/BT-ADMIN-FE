@@ -37,7 +37,7 @@ import { useModal } from '@/libs/shared-ui/src/hooks/useModal';
 const breadcrumb = [
   { title: '번호자원관리', path: '/ipron/sip-trunk' },
   { title: '그룹DN', path: '/ipron/sip-trunk' },
-  { title: 'SIP 트렁크 관리', path: '/ipron/sip-trunk' },
+  { title: 'SIP TRUNK', path: '/ipron/sip-trunk' },
 ];
 
 type AssignFilter = 'all' | 'assigned' | 'unassigned';
@@ -324,6 +324,31 @@ export default function SipTrunkList() {
           ) : (
             <span className="inline-flex items-center rounded border border-slate-200 bg-slate-100 px-1.5 py-px text-[10px] font-semibold text-slate-600">OFF</span>
           ),
+      },
+      // F-2: 차단/오류/만석 우회 DNIS 컬럼 (SWAT IPR20S3030 GDN_TYPE=18 정합)
+      {
+        headerName: '차단우회DNIS',
+        field: 'blockRoutingDnis',
+        minWidth: 100,
+        maxWidth: 130,
+        cellStyle: { fontFamily: 'monospace', fontSize: '11px' } as CellStyle,
+        valueFormatter: (p) => p.value ?? '—',
+      },
+      {
+        headerName: '오류우회DNIS',
+        field: 'errorRoutingDnis',
+        minWidth: 100,
+        maxWidth: 130,
+        cellStyle: { fontFamily: 'monospace', fontSize: '11px' } as CellStyle,
+        valueFormatter: (p) => p.value ?? '—',
+      },
+      {
+        headerName: '만석우회DNIS',
+        field: 'busyRoutingDnis',
+        minWidth: 100,
+        maxWidth: 130,
+        cellStyle: { fontFamily: 'monospace', fontSize: '11px' } as CellStyle,
+        valueFormatter: (p) => p.value ?? '—',
       },
       {
         headerName: '',

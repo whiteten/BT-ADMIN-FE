@@ -19,9 +19,16 @@ interface Props {
 }
 
 function codeTypeLabel(codeType: number): string {
-  if (codeType === REASON_CODE_TYPE_REST) return '휴식 사유';
-  if (codeType === REASON_CODE_TYPE_ACW) return 'ACW 사유';
+  if (codeType === REASON_CODE_TYPE_REST) return '상담 휴식 사유';
+  if (codeType === REASON_CODE_TYPE_ACW) return 'ACW 업무';
   return '';
+}
+
+/** SWAT IPR20S4040.jsp:233 — 코드분류 콤보박스의 표시 텍스트 (코드값 포함) */
+function codeTypeLabelWithCode(codeType: number): string {
+  if (codeType === REASON_CODE_TYPE_REST) return `상담 휴식 사유 (${REASON_CODE_TYPE_REST})`;
+  if (codeType === REASON_CODE_TYPE_ACW) return `ACW 업무 (${REASON_CODE_TYPE_ACW})`;
+  return String(codeType);
 }
 
 export default function CtiCodeFormDrawer({ state, onClose }: Props) {
@@ -117,6 +124,10 @@ export default function CtiCodeFormDrawer({ state, onClose }: Props) {
       }
     >
       <Form form={form} layout="vertical">
+        {/* SWAT IPR20S4040.jsp:232-236 — 코드분류 콤보박스. 등록·수정 모두 disabled로 현재 분류 명시 표시 */}
+        <Form.Item label="코드분류">
+          <Input value={codeTypeLabelWithCode(codeType)} disabled style={{ color: 'rgba(0,0,0,0.65)', backgroundColor: '#f5f5f5', cursor: 'default' }} />
+        </Form.Item>
         <Form.Item
           label="테넌트 ID"
           name="tenantIdInput"

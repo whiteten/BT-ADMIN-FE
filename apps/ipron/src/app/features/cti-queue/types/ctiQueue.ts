@@ -90,6 +90,9 @@ export interface CtiQueueResponse {
   // 업무그룹 (TB_TR_CTIQ_MEMBER → TB_TR_CTIQ_MASTER)
   treeId: number | null;
   treeName: string | null;
+  // 예약 적용 (TB_IC_CTIQ_ROUTING — SWAT IC_CtiqRouting 정합)
+  applyType: number | null; // 0=즉시, 1=예약
+  applyDatetime: string | null; // 'YYYYMMDDHHmm' 14자리
 }
 
 // ──────────────────────────────────────────────────────────
@@ -200,6 +203,9 @@ export interface CtiQueueCreateRequest {
   mvoipSkillLevel?: number;
   smsSkillId?: number | null;
   smsSkillLevel?: number;
+  // 예약 적용 (TB_IC_CTIQ_ROUTING)
+  applyType?: number | null; // 0=즉시, 1=예약
+  applyDatetime?: string | null; // 'YYYYMMDDHHmm'
 }
 
 /** 수정: ctiqId/gdnId/gdnNo/노드/테넌트 불변 (gdnName 은 변경 가능). */

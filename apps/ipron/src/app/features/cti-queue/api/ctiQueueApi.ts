@@ -172,6 +172,36 @@ export const ctiQueueApi = {
     await apiClient.delete('/ipron-cti-queue-slt-schedules-unassign', { params: { ctiqId, scheduleId } });
   },
 
+  // ─── Excel 내보내기 / 가져오기 (SWAT IPR20S3020 doExcelExport/doExcelImport) ────
+
+  /**
+   * CTI 큐 목록 Excel 내보내기 (SWAT excelColumns 50여 컬럼 정합).
+   * BE: GET /api/ipron/cti-queues/export?tenantId=
+   * BFF: ipron-cti-queue-export flow 경유.
+   */
+  exportExcel: async (params?: { tenantId?: number }): Promise<Blob> => {
+    const res = await apiClient.get<Blob>('/ipron-cti-queue-export', {
+      params,
+      responseType: 'blob',
+    });
+    return res.data;
+  },
+
+  /**
+   * CTI 큐 Excel 가져오기 (SWAT doExcelImport_init 정합).
+   * BE: POST /api/ipron/cti-queues/import (multipart/form-data).
+   * BFF: ipron-cti-queue-import flow 경유.
+   * 오류 행 존재 시 207 응답 → errors 배열 포함.
+   */
+  importExcel: async (file: File): Promise<ApiResponse<{ successCount: number; errors: { rowNum: number; message: string }[] }>> => {
+    const formData = new FormData();
+    formData.append('file', file);
+    const res = await apiClient.post<ApiResponse<{ successCount: number; errors: { rowNum: number; message: string }[] }>>('/ipron-cti-queue-import', formData, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+    });
+    return res.data;
+  },
+
   // ─── 업무그룹 트리 (TB_TR_CTIQ_MASTER) ───────────────────────────────────────
 
   getGroups: async (params?: { tenantId?: number }): Promise<CtiQueueGroupResponse[]> => {

@@ -65,7 +65,7 @@ export default function MediaTypeTable({ rowData, isLoading, onRowDoubleClicked,
         cellStyle: { textAlign: 'right' } as CellStyle,
       },
       {
-        headerName: '미디어 타입명',
+        headerName: '미디어 코드명',
         field: 'mediaTypeName',
         flex: 1,
         minWidth: 180,

@@ -21,7 +21,7 @@ const breadcrumb = [
   { title: 'IPRON', path: '/ipron' },
   { title: '상담사 관리', path: '/ipron/agent-master' },
   { title: '코드 관리', path: '/ipron/cti-code-mgmt' },
-  { title: '휴식/ACW 사유', path: '/ipron/cti-code-mgmt' },
+  { title: '휴식/후처리 사유코드 관리', path: '/ipron/cti-code-mgmt' },
 ];
 
 export default function CtiCodeList() {

@@ -29,6 +29,7 @@ export interface GdnResponse {
   acdType: number | null;
   routingKind: number | null;
   skillsetId: number | null;
+  skillsetName: string | null;
   maxWaitcnt: number | null;
   maxWaittime: number | null;
 
@@ -154,8 +155,6 @@ export interface GdnMemberResponse {
 export interface GdnMemberPoolParams {
   /** all(기본) / assigned(기배정) / unassigned(미배정) */
   assignFilter?: 'all' | 'assigned' | 'unassigned';
-  /** 11=EDN / 12=ADN (미지정 = 전체) */
-  dnType?: '' | '11' | '12';
   /** DN번호 / ADN 검색어 */
   keyword?: string;
 }
@@ -212,6 +211,24 @@ export const YN_OPTIONS: { value: number; label: string }[] = [
   { value: 0, label: '사용안함' },
   { value: 1, label: '사용' },
 ];
+
+/** TB_CC_COMMONCODE CLASS_CD='CALL_CLOSE_TYPE' 실측 코드 (2026-06-07) */
+export const CALL_CLOSE_TYPE_OPTIONS: { value: number; label: string }[] = [
+  { value: 0, label: '정상 종료' },
+  { value: 1, label: '멘트 후 종료' },
+  { value: 2, label: '우회 DN/GDN 라우팅' },
+  { value: 3, label: '멘트 후 우회 DN/GDN 라우팅' },
+];
+
+export function getCloseTypeName(v: number | null | undefined): string {
+  if (v == null) return '-';
+  return CALL_CLOSE_TYPE_OPTIONS.find((o) => o.value === v)?.label ?? String(v);
+}
+
+export function getYnName(v: number | null | undefined): string {
+  if (v == null) return '-';
+  return v === 1 ? '사용' : '사용안함';
+}
 
 export function getAcdTypeName(v: number | null | undefined): string {
   if (v == null) return '-';

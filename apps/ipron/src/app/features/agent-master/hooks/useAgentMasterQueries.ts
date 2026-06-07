@@ -10,6 +10,7 @@ import { createQueryKeys } from '@lukemorales/query-key-factory';
 import type { MutationHookOptions, QueryHookOptions, QueryHookWithParamsOptions } from '@/shared-util';
 import { agentMasterApi } from '../api/agentMasterApi';
 import type {
+  AgentConfig,
   AgentCreateRequest,
   AgentGroupCreateRequest,
   AgentGroupNode,
@@ -23,6 +24,7 @@ import type {
 } from '../types';
 
 export const agentMasterQueryKeys = createQueryKeys('agent-master', {
+  getConfig: null,
   getList: (params?: Record<string, unknown>) => [params],
   getDetail: (id?: number) => [id],
   getTenants: null,
@@ -30,6 +32,18 @@ export const agentMasterQueryKeys = createQueryKeys('agent-master', {
   getGroupDetail: (id?: number) => [id],
   getGroupChildrenCount: (id?: number) => [id],
 });
+
+// ─── Queries — 상담사 설정 ────────────────────────────────────────────────
+
+/** 비밀번호 정책 설정. staleTime=Infinity — 서버 재시작 전까지 변경 없음. */
+export const useGetAgentConfig = ({ queryOptions }: QueryHookOptions<AgentConfig> = {}) => {
+  return useQuery({
+    queryKey: agentMasterQueryKeys.getConfig.queryKey,
+    queryFn: () => agentMasterApi.getConfig(),
+    staleTime: Infinity,
+    ...queryOptions,
+  });
+};
 
 // ─── Queries — 상담사 ──────────────────────────────────────────────────────
 

@@ -8,12 +8,21 @@
  * 멘트 wizard 제거 (사용자 결정 — ACD 본질 X).
  * 헌팅 다이어그램 / 라우팅 3카드 / CTI큐 미리보기 는 Phase 2.
  */
-import { useEffect, useMemo } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Button, Drawer, Form, Input, InputNumber, Select, Tabs } from 'antd';
 import { toast } from '@/shared-util';
 import { acdGdnApi } from '../api/acdGdnApi';
-import { useCreateAcdGdn, useGetAcdGdnMentOptions, useGetAcdGdnSkillsetOptions, useUpdateAcdGdn } from '../hooks/useAcdGdnQueries';
-import { ACD_TYPE_OPTIONS, type GdnCreateRequest, type GdnResponse, type GdnUpdateRequest, HUNTING_TYPE_OPTIONS, ROUTING_KIND_OPTIONS, YN_OPTIONS } from '../types';
+import { useCreateAcdGdn, useGetAcdGdnAccessCodeProfileOptions, useGetAcdGdnMentOptions, useGetAcdGdnSkillsetOptions, useUpdateAcdGdn } from '../hooks/useAcdGdnQueries';
+import {
+  ACD_TYPE_OPTIONS,
+  CALL_CLOSE_TYPE_OPTIONS,
+  type GdnCreateRequest,
+  type GdnResponse,
+  type GdnUpdateRequest,
+  HUNTING_TYPE_OPTIONS,
+  ROUTING_KIND_OPTIONS,
+  YN_OPTIONS,
+} from '../types';
 
 interface AcdGdnFormDrawerProps {
   open: boolean;
@@ -54,6 +63,9 @@ interface FormValues {
 
   aniNo?: string;
   channelLimitCount?: number | null;
+  // 갭2: 접근코드 프로파일
+  accessCodeProfileId?: number | null;
+  drAccessCodeProfileId?: number | null;
 
   // 멘트 8개 (INIT/WAIT/CLOSE/CONN/HOLD/CO_CONN/CO_HOLD/BLOCK)
   initMent?: number | null;
@@ -69,6 +81,8 @@ interface FormValues {
 export default function AcdGdnFormDrawer({ open, mode, detail, defaultTenantId, defaultNodeId, tenantOptions = [], onClose, onSaved }: AcdGdnFormDrawerProps) {
   const [form] = Form.useForm<FormValues>();
   const isEdit = mode === 'edit';
+  // 갭6: DR 노드 선택 시 globalDnYn 자동=1 + 비활성 (SWAT doDrNode_OnSelect 정합)
+  const [globalDnDisabled, setGlobalDnDisabled] = useState(false);
 
   const initial: FormValues = useMemo(() => {
     if (isEdit && detail) {
@@ -95,6 +109,8 @@ export default function AcdGdnFormDrawer({ open, mode, detail, defaultTenantId, 
         busyRoutingDnis: detail.busyRoutingDnis ?? '',
         aniNo: detail.aniNo ?? '',
         channelLimitCount: detail.channelLimitCount,
+        accessCodeProfileId: detail.accessCodeProfileId ?? null,
+        drAccessCodeProfileId: detail.drAccessCodeProfileId ?? null,
         initMent: detail.initMent,
         waitMent: detail.waitMent,
         closeMent: detail.closeMent,
@@ -125,6 +141,9 @@ export default function AcdGdnFormDrawer({ open, mode, detail, defaultTenantId, 
     if (open) {
       form.resetFields();
       form.setFieldsValue(initial);
+      // 갭6: 초기 backUpNodeId 가 있으면 globalDnYn 비활성화
+      const initBackUp = initial.backUpNodeId;
+      setGlobalDnDisabled(initBackUp != null && initBackUp !== 0);
     }
   }, [open, form, initial]);
 
@@ -141,6 +160,12 @@ export default function AcdGdnFormDrawer({ open, mode, detail, defaultTenantId, 
   const { data: skillsetOptions = [] } = useGetAcdGdnSkillsetOptions(tenantId ?? null);
   const mentSelectOptions = useMemo(() => [{ value: 0, label: '(미사용)' }, ...mentOptions.map((m) => ({ value: m.id, label: m.name }))], [mentOptions]);
   const skillsetSelectOptions = useMemo(() => [{ value: 0, label: '(미사용)' }, ...skillsetOptions.map((s) => ({ value: s.id, label: s.name }))], [skillsetOptions]);
+  // 갭2: 접근코드 프로파일 콤보 — nodeId 기준 (노드 변경 시 자동 재조회)
+  const { data: accessCodeProfileOptions = [] } = useGetAcdGdnAccessCodeProfileOptions(nodeId ?? null);
+  const accessCodeProfileSelectOptions = useMemo(
+    () => [{ value: 0, label: '(미사용)' }, ...accessCodeProfileOptions.map((p) => ({ value: p.id, label: p.name }))],
+    [accessCodeProfileOptions],
+  );
 
   const { mutate: createGdn, isPending: isCreating } = useCreateAcdGdn({
     mutationOptions: {
@@ -222,6 +247,8 @@ export default function AcdGdnFormDrawer({ open, mode, detail, defaultTenantId, 
           busyRoutingDnis: values.busyRoutingDnis ?? '',
           aniNo: values.aniNo ?? '',
           channelLimitCount: values.channelLimitCount ?? null,
+          accessCodeProfileId: values.accessCodeProfileId ?? null,
+          drAccessCodeProfileId: values.drAccessCodeProfileId ?? null,
         };
         updateGdn({ id: detail.gdnId, body });
       } else {
@@ -256,6 +283,8 @@ export default function AcdGdnFormDrawer({ open, mode, detail, defaultTenantId, 
           busyRoutingDnis: values.busyRoutingDnis,
           aniNo: values.aniNo,
           channelLimitCount: values.channelLimitCount,
+          accessCodeProfileId: values.accessCodeProfileId ?? null,
+          drAccessCodeProfileId: values.drAccessCodeProfileId ?? null,
         };
         createGdn(body);
       }
@@ -299,7 +328,27 @@ export default function AcdGdnFormDrawer({ open, mode, detail, defaultTenantId, 
                     : undefined
                 }
               >
-                <InputNumber style={{ width: '100%' }} min={0} placeholder="(없음)" />
+                {/* 갭6: DR 노드 선택 시 globalDnYn 자동=1 + 비활성 (SWAT doDrNode_OnSelect) */}
+                <InputNumber
+                  style={{ width: '100%' }}
+                  min={0}
+                  placeholder="(없음)"
+                  onChange={(val) => {
+                    if (val != null && val !== 0) {
+                      form.setFieldValue('globalDnYn', 1);
+                      setGlobalDnDisabled(true);
+                    } else {
+                      setGlobalDnDisabled(false);
+                    }
+                  }}
+                />
+              </Form.Item>
+              {/* 갭2: 접근코드 프로파일 콤보 (SWAT IPR20S3010.jsp:863-876, nodeId 기준) */}
+              <Form.Item label="접근코드 프로파일" name="accessCodeProfileId" tooltip="메인 노드 기준 접근코드 프로파일">
+                <Select options={accessCodeProfileSelectOptions} placeholder="(미사용)" showSearch optionFilterProp="label" allowClear />
+              </Form.Item>
+              <Form.Item label="DR 접근코드 프로파일" name="drAccessCodeProfileId" tooltip="DR 노드 기준 접근코드 프로파일">
+                <Select options={accessCodeProfileSelectOptions} placeholder="(미사용)" showSearch optionFilterProp="label" allowClear />
               </Form.Item>
             </div>
           </section>
@@ -307,17 +356,18 @@ export default function AcdGdnFormDrawer({ open, mode, detail, defaultTenantId, 
           <section>
             <h4 className="text-xs text-gray-500 font-semibold mb-3 pb-1 border-b border-dashed border-gray-200">그룹DN</h4>
             <div className="grid grid-cols-3 gap-4">
-              <Form.Item label="그룹DN 번호" name="gdnNo" rules={[{ required: true, max: 16, message: '1~16자 필수' }]}>
-                <Input disabled={isEdit} placeholder="3~8자 권장" maxLength={16} />
+              <Form.Item label="그룹DN 번호" name="gdnNo" rules={[{ required: true, min: 3, max: 16, message: '3~16자 필수 (SWAT 운영 표준 최소 3자)' }]}>
+                <Input disabled={isEdit} placeholder="3~16자" maxLength={16} />
               </Form.Item>
-              <Form.Item label="그룹DN 이름" name="gdnName" rules={[{ required: true, max: 200, message: '1~200자 필수' }]}>
-                <Input maxLength={200} />
+              <Form.Item label="그룹DN 이름" name="gdnName" rules={[{ required: true, max: 100, message: '1~100자 필수 (SWAT max=100)' }]}>
+                <Input maxLength={100} />
               </Form.Item>
               <Form.Item label="발신 대표번호" name="aniNo">
                 <Input maxLength={48} placeholder="ANI_NO" />
               </Form.Item>
+              {/* 갭6: DR 노드 있으면 비활성 (SWAT doDrNode_OnSelect 정합) */}
               <Form.Item label="Global DN" name="globalDnYn">
-                <Select options={YN_OPTIONS} />
+                <Select options={YN_OPTIONS} disabled={globalDnDisabled} />
               </Form.Item>
               <Form.Item label="채널 제한" name="channelLimitCount">
                 <InputNumber style={{ width: '100%' }} min={0} placeholder="(미지정)" />
@@ -332,7 +382,8 @@ export default function AcdGdnFormDrawer({ open, mode, detail, defaultTenantId, 
                 <Select options={YN_OPTIONS} />
               </Form.Item>
               <Form.Item label="ACD 타입" name="acdType" rules={[{ required: true }]}>
-                <Select options={ACD_TYPE_OPTIONS} />
+                {/* SWAT doUpdate 진입 전 ACD_TYPE 콤보 disabled 처리 정합 — 수정 모드에서 변경 불가 */}
+                <Select options={ACD_TYPE_OPTIONS} disabled={isEdit} />
               </Form.Item>
               <Form.Item label="라우팅 스킬셋" name="skillsetId" tooltip="ACD 타입 = Skill 일 때만 사용">
                 <Select
@@ -347,10 +398,39 @@ export default function AcdGdnFormDrawer({ open, mode, detail, defaultTenantId, 
               <Form.Item label="라우팅 기준" name="routingKind" rules={[{ required: true }]}>
                 <Select options={ROUTING_KIND_OPTIONS} />
               </Form.Item>
-              <Form.Item label="최대 대기호" name="maxWaitcnt" rules={[{ type: 'number', min: 0, max: 1000 }]}>
+              {/* 갭4: 라우팅기준≠직접(4)일 때 필수 (SWAT getJsValidation 정합), 기본값 50/60 */}
+              <Form.Item
+                label="최대 대기호"
+                name="maxWaitcnt"
+                rules={[
+                  { type: 'number', min: 0, max: 1000, message: '0~1000 범위 입력' },
+                  {
+                    validator: (_, value) => {
+                      if (!isDirectRouting && (value == null || value === '')) {
+                        return Promise.reject(new Error('라우팅기준≠직접 시 필수'));
+                      }
+                      return Promise.resolve();
+                    },
+                  },
+                ]}
+              >
                 <InputNumber style={{ width: '100%' }} min={0} max={1000} disabled={isDirectRouting} />
               </Form.Item>
-              <Form.Item label="최대 대기시간(s)" name="maxWaittime" rules={[{ type: 'number', min: 0, max: 3600 }]}>
+              <Form.Item
+                label="최대 대기시간(s)"
+                name="maxWaittime"
+                rules={[
+                  { type: 'number', min: 0, max: 3600, message: '0~3600 범위 입력' },
+                  {
+                    validator: (_, value) => {
+                      if (!isDirectRouting && (value == null || value === '')) {
+                        return Promise.reject(new Error('라우팅기준≠직접 시 필수'));
+                      }
+                      return Promise.resolve();
+                    },
+                  },
+                ]}
+              >
                 <InputNumber style={{ width: '100%' }} min={0} max={3600} disabled={isDirectRouting} />
               </Form.Item>
             </div>
@@ -440,8 +520,9 @@ export default function AcdGdnFormDrawer({ open, mode, detail, defaultTenantId, 
               <Form.Item label="블록 여부" name="blockYn">
                 <Select options={YN_OPTIONS} />
               </Form.Item>
+              {/* 갭5: CALL_CLOSE_TYPE 코드 콤보 (SWAT bTag:code classCd='CALL_CLOSE_TYPE' 정합) */}
               <Form.Item label="종료 방법" name="closeType">
-                <InputNumber style={{ width: '100%' }} min={0} placeholder="CLOSE_TYPE" />
+                <Select options={[{ value: null, label: '(미지정)' }, ...CALL_CLOSE_TYPE_OPTIONS]} allowClear placeholder="종료 방법 선택" />
               </Form.Item>
             </div>
           </section>

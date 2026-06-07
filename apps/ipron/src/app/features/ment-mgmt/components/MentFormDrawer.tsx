@@ -9,7 +9,7 @@
  * 노드/테넌트는 현재 컨텍스트(목록 선택) 고정(disabled). 경로는 테넌트 기준 자동 산출(공통=0000).
  */
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { Button, DatePicker, Drawer, Form, Input } from 'antd';
+import { Button, DatePicker, Drawer, Form, Input, Modal } from 'antd';
 import dayjs from 'dayjs';
 import { Download, Pause, Play, Trash2, Upload } from 'lucide-react';
 import { toast } from '@/shared-util';
@@ -127,6 +127,25 @@ export default function MentFormDrawer({ state, onClose }: Props) {
   });
   const submitting = creating || updating || batchCreating;
 
+  // ─── Template 다운로드 (다량 등록 — SWAT doTemplateDown 정합) ─────────────────
+  /**
+   * 멘트 목록 가져오기 템플릿 CSV 다운로드.
+   * SWAT: fileDown.do?requestedFile=IE_MentList_Import.xlsx (파일명/설명 컬럼).
+   * BT-ADMIN: FE에서 동일 컬럼 구조의 CSV 생성 후 다운로드 (SheetJS 미사용).
+   */
+  const onDownloadTemplate = () => {
+    const header = 'mentFile,mentDesc';
+    const sample = 'example_ment.pcm,설명 예시';
+    const csvContent = `${header}\n${sample}\n`;
+    const blob = new Blob(['﻿' + csvContent], { type: 'text/csv;charset=utf-8;' }); // BOM for Excel
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'IE_MentList_Import_Template.csv';
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
   // ─── 현재 파일 미리듣기/다운로드 (수정 모드) ──────────────────────────────────
   const [previewing, setPreviewing] = useState(false);
   const editAudioRef = useRef<HTMLAudioElement | null>(null);
@@ -191,7 +210,7 @@ export default function MentFormDrawer({ state, onClose }: Props) {
       URL.revokeObjectURL(url);
     } catch (err: unknown) {
       const status = (err as { response?: { status?: number } })?.response?.status;
-      toast.error(status === 404 ? '멘트 파일 실체가 없습니다 (메타만 등록됨)' : (extractMessage(err) ?? '다운로드 실패'));
+      toast.error(status === 404 ? '서버에 등록된 멘트 파일이 존재하지 않습니다.' : (extractMessage(err) ?? '다운로드 실패'));
     }
   };
 
@@ -241,6 +260,32 @@ export default function MentFormDrawer({ state, onClose }: Props) {
       const createDate = values.createDate ? values.createDate.format('YYYYMMDD') : undefined;
 
       if (isEdit && state.row) {
+        // 수정: 중복체크 사전 호출 (SWAT dupCallProcessForUpdate 정합)
+        const isDup = await mentApi.duplicateCheck({
+          nodeId,
+          tenantId,
+          mentName,
+          excludeMentId: state.row.ieMentId,
+        });
+        if (isDup) {
+          Modal.confirm({
+            title: '멘트명 중복',
+            content: `동일 노드·테넌트 내 "${mentName}" 멘트명이 이미 존재합니다. 계속 저장하시겠습니까?`,
+            okText: '저장',
+            cancelText: '취소',
+            onOk: () =>
+              update({
+                mentId: state.row!.ieMentId,
+                body: {
+                  mentName,
+                  filePath: singleFile ? singleFile.name : (state.row!.filePath ?? ''),
+                  mentDesc: values.mentDesc,
+                  createDate,
+                },
+              }),
+          });
+          return;
+        }
         update({
           mentId: state.row.ieMentId,
           body: {
@@ -254,6 +299,26 @@ export default function MentFormDrawer({ state, onClose }: Props) {
         // 등록: 파일 선택 필수 (BE filePath non-empty 검증)
         if (!singleFile) {
           toast.error('멘트 PCM 파일을 선택하세요');
+          return;
+        }
+        // 등록: 중복체크 사전 호출 (SWAT dupCallProcess 정합)
+        const isDup = await mentApi.duplicateCheck({ nodeId, tenantId, mentName });
+        if (isDup) {
+          Modal.confirm({
+            title: '멘트명 중복',
+            content: `동일 노드·테넌트 내 "${mentName}" 멘트명이 이미 존재합니다. 계속 저장하시겠습니까?`,
+            okText: '저장',
+            cancelText: '취소',
+            onOk: () =>
+              create({
+                nodeId,
+                tenantId,
+                mentName,
+                filePath: singleFile!.name,
+                mentDesc: values.mentDesc,
+                createDate,
+              }),
+          });
           return;
         }
         create({
@@ -385,7 +450,13 @@ export default function MentFormDrawer({ state, onClose }: Props) {
       {!isEdit && regMode === 'multi' && (
         <div className="space-y-4">
           <div>
-            <label className="block text-[12px] font-semibold text-gray-600 mb-1">멘트 파일 (.pcm 다중 선택)</label>
+            <div className="flex items-center justify-between mb-1">
+              <label className="block text-[12px] font-semibold text-gray-600">멘트 파일 (.pcm 다중 선택)</label>
+              {/* Template 다운로드 — SWAT doTemplateDown() 정합 (파일명/설명 컬럼 CSV) */}
+              <Button size="small" icon={<Download className="size-3" />} onClick={onDownloadTemplate} title="멘트 목록 가져오기 템플릿 다운로드 (SWAT IE_MentList_Import 정합)">
+                Template 다운로드
+              </Button>
+            </div>
             <input ref={multiInputRef} type="file" accept=".pcm" multiple className="hidden" onChange={onPickMulti} />
             <button
               type="button"

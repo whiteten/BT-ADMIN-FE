@@ -139,3 +139,35 @@ export const MEDIA_OPTION_BOUNDS = {
   afctime: { min: 0, max: 999 },
   autoanswerTime: { min: 0, max: 999 },
 } as const;
+
+// ── 서버 미디어 숫자코드 ↔ FE mediaKey 매핑 ─────────────────────────────────
+
+/**
+ * TB_IC_MEDIA_USAGE.MEDIA_TYPE(숫자) → FE mediaMatrix 키(camelCase).
+ *
+ * 코드값은 SWAT /combo.do?type=mediaType (TB_CC_COMMONCODE CLASS_CD='IC_MEDIA_TYPE') 정합.
+ *   0  = VOIP,  10 = Chat,   20 = Video Voice, 30 = Video Chat,
+ *   40 = Email, 50 = Fax,    61 = Mobile VOIP, 80 = SMS/WEB.
+ */
+export const MEDIA_TYPE_CODE_TO_KEY: Record<number, string> = {
+  0: 'voip',
+  10: 'chat',
+  20: 'videoVoice',
+  30: 'videoChat',
+  40: 'email',
+  50: 'fax',
+  61: 'mvoip',
+  80: 'sms',
+};
+
+/** FE mediaKey → 표시 레이블 (SWAT 정합 순서). */
+export const MEDIA_KEY_LABELS: Record<string, string> = {
+  voip: 'VOIP',
+  chat: 'Chat',
+  videoVoice: 'Video Voice',
+  videoChat: 'Video Chat',
+  email: 'Email',
+  fax: 'Fax',
+  mvoip: 'MVOIP',
+  sms: 'SMS / WEB',
+};

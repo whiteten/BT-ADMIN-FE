@@ -121,6 +121,10 @@ export interface DnProfileOptionsResponse {
   drProfiles: ProfileOptionItem[];
   // 같은 클러스터 그룹에 속한 다른 노드
   drNodes: ProfileOptionItem[];
+  // DR 노드 기준 미디어 전달 그룹 (AS-IS onChangedDrNode)
+  drMediaDeliveries: ProfileOptionItem[];
+  // DR 노드 기준 MS 그룹 (AS-IS onChangedDrNode)
+  drMsGroups: ProfileOptionItem[];
 }
 
 // ─── Frontend 도메인 타입 ────────────────────────────────────────────────────

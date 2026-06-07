@@ -106,6 +106,24 @@ export const commonTrunkApi = {
     return res.data?.data?.value ?? false;
   },
 
+  /** 갭7: GDN 이름 중복 검증 — SWAT GdnNameDup.do 정합 */
+  duplicateCheckGdnName: async (params: { nodeId: number; gdnName: string; excludeGdnId?: number }): Promise<boolean> => {
+    const res = await apiClient.get<ApiResponse<{ value: boolean }>>('/ipron-common-gdn-dup-name', { params });
+    return res.data?.data?.value ?? false;
+  },
+
+  /** 갭11: GDN 배정 트렁크 멤버 존재 여부 — DR노드 변경 전 체크 */
+  gdnMembersExist: async (gdnId: number): Promise<boolean> => {
+    const res = await apiClient.get<ApiResponse<{ value: boolean }>>('/ipron-common-gdn-members-exist', { params: { gdnId } });
+    return res.data?.data?.value ?? false;
+  },
+
+  /** 갭1: 멘트 콤보 옵션 — ACD GDN과 동일한 TB_IE_ANNOUNCEBGM 참조 */
+  getMentOptions: async (params?: { nodeId?: number }): Promise<{ id: number; name: string }[]> => {
+    const res = await apiClient.get<ApiResponse<{ value: { id: number; name: string }[] }>>('/ipron-acd-gdn-ment-options', { params });
+    return res.data?.data?.value ?? [];
+  },
+
   createGdn: async (body: CommonGdnCreateRequest): Promise<CommonGdnResponse> => {
     const res = await apiClient.post<ApiResponse<CommonGdnResponse>>('/ipron-common-gdn-create', {
       ...body,

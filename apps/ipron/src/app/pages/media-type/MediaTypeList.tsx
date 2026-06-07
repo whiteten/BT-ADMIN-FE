@@ -20,7 +20,7 @@ const breadcrumb = [
   { title: 'IPRON', path: '/ipron' },
   { title: '상담사 관리', path: '/ipron/agent-master' },
   { title: '코드 관리', path: '/ipron/media-type' },
-  { title: '미디어 관리', path: '/ipron/media-type' },
+  { title: '미디어 코드 관리', path: '/ipron/media-type' },
 ];
 
 export default function MediaTypeList() {
@@ -41,7 +41,7 @@ export default function MediaTypeList() {
   const { mutate: deleteMt, isPending: isDeleting } = useDeleteMediaType({
     mutationOptions: {
       onSuccess: () => {
-        toast.success('미디어타입이 삭제되었습니다');
+        toast.success('미디어 코드가 삭제되었습니다');
         setSelectedRows([]);
         refetch();
         refetchMeta();
@@ -66,8 +66,8 @@ export default function MediaTypeList() {
 
   const handleDelete = (row: MediaTypeResponse) => {
     Modal.confirm({
-      title: '미디어타입 삭제',
-      content: `미디어타입 "${row.mediaAlias}" (#${row.mediaType}) 를 삭제하시겠습니까?`,
+      title: '미디어 코드 삭제',
+      content: `미디어 코드 "${row.mediaAlias}" (#${row.mediaType}) 를 삭제하시겠습니까?`,
       okType: 'danger',
       onOk: () => deleteMt(row.mediaType),
     });
@@ -76,8 +76,8 @@ export default function MediaTypeList() {
   const handleBulkDelete = () => {
     if (selectedRows.length === 0) return;
     Modal.confirm({
-      title: '미디어타입 일괄 삭제',
-      content: `선택한 ${selectedRows.length}건의 미디어타입을 삭제하시겠습니까?`,
+      title: '미디어 코드 일괄 삭제',
+      content: `선택한 ${selectedRows.length}건의 미디어 코드를 삭제하시겠습니까?`,
       okType: 'danger',
       onOk: () => selectedRows.forEach((r) => deleteMt(r.mediaType)),
     });
@@ -88,7 +88,7 @@ export default function MediaTypeList() {
       {/* ===== 박스 1: 헤더 (IPRON 표준 — 56px 한 줄) ===== */}
       <div className="bg-white bt-shadow overflow-hidden flex-shrink-0">
         <div className="flex items-center px-4 h-[56px]">
-          <span className="text-sm font-semibold text-gray-700">미디어 현황</span>
+          <span className="text-sm font-semibold text-gray-700">미디어 코드 현황</span>
           <div className="ml-3 flex items-center gap-3 text-xs text-gray-500">
             <span>
               등록 <span className="font-medium text-blue-600">{stats.total.toLocaleString()}</span> / {stats.metaTotal.toLocaleString()}
@@ -121,7 +121,7 @@ export default function MediaTypeList() {
       {/* ===== 박스 2: 그리드 ===== */}
       <div className="bg-white bt-shadow overflow-hidden flex-1 flex flex-col min-h-0">
         <div className="flex items-center px-4 h-[56px] border-b border-gray-100">
-          <span className="text-sm font-semibold text-gray-800">미디어 목록 ({rows.length.toLocaleString()}건)</span>
+          <span className="text-sm font-semibold text-gray-800">미디어 코드 목록 ({rows.length.toLocaleString()}건)</span>
           {selectedRows.length > 0 && (
             <span className="ml-3 text-xs text-gray-500">
               {rows.length.toLocaleString()}건 중 {selectedRows.length}건 선택
@@ -134,7 +134,7 @@ export default function MediaTypeList() {
               onClick={handleBulkDelete}
               loading={isDeleting}
               disabled={selectedRows.length === 0}
-              title={selectedRows.length === 0 ? '삭제할 미디어를 선택하세요' : '선택한 미디어 삭제'}
+              title={selectedRows.length === 0 ? '삭제할 미디어 코드를 선택하세요' : '선택한 미디어 코드 삭제'}
             >
               {selectedRows.length > 0 ? `삭제 (${selectedRows.length})` : '삭제'}
             </Button>
@@ -146,7 +146,7 @@ export default function MediaTypeList() {
         <div className="flex-1 min-h-0">
           {rows.length === 0 && !isLoading ? (
             <div className="flex items-center justify-center h-full">
-              <Empty description="등록된 미디어가 없습니다" />
+              <Empty description="등록된 미디어 코드가 없습니다" />
             </div>
           ) : (
             <MediaTypeTable
