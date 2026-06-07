@@ -61,7 +61,7 @@ export default function HealthBoardWidget({ data, options }: HealthBoardWidgetPr
             target={t?.answerRate?.good ?? 90}
             display={fmtPct(d.answerRate)}
             sev={answerRateSev(d, t)}
-            footer={
+            caption={
               <div className="flex items-center justify-center gap-2.5 text-[11.5px]">
                 <span className="text-bt-fg-muted">
                   인입 <b className="tabular-nums text-bt-fg">{d.inboundCnt.toLocaleString()}</b>
@@ -72,6 +72,7 @@ export default function HealthBoardWidget({ data, options }: HealthBoardWidgetPr
                 </span>
               </div>
             }
+            footer={<SevPill sev={answerRateSev(d, t)} okText="목표 충족" warnText="목표 미달" />}
           />
           <GaugeCard
             label="SL"
@@ -268,13 +269,15 @@ interface GaugeCardProps {
   sev: Severity;
   /** 목표(임계)치 — 게이지 밴드 위에 틱 마커로 표기 (시안 01-healthboard.html). */
   target?: number;
+  /** 게이지 바로 아래 보조 캡션(예: 인입·응대 건수). 푸터(SevPill) 위에 표시. */
+  caption?: ReactNode;
   footer?: ReactNode;
 }
 
 // 게이지 공통 형상 (메인 호 / 목표 틱 두 시리즈가 동일 좌표를 공유)
 const GAUGE_GEOM = { startAngle: 200, endAngle: -20, min: 0, radius: '116%', center: ['50%', '82%'] as [string, string] };
 
-function GaugeCard({ label, icon, value, max, display, sev, target, footer }: GaugeCardProps) {
+function GaugeCard({ label, icon, value, max, display, sev, target, caption, footer }: GaugeCardProps) {
   const color = SEV_HEX[sev];
   const option = useMemo(
     () => ({
@@ -352,7 +355,10 @@ function GaugeCard({ label, icon, value, max, display, sev, target, footer }: Ga
         )}
       </div>
       <AutoResizeECharts option={option} style={{ height: 104, width: '100%' }} notMerge lazyUpdate opts={{ renderer: 'svg' }} />
-      <div className="mt-auto flex min-h-[28px] w-full items-center justify-center pt-1">{footer}</div>
+      <div className="mt-auto flex w-full flex-col items-center gap-1 pt-1">
+        {caption && <div className="w-full text-center">{caption}</div>}
+        <div className="flex min-h-[28px] w-full items-center justify-center">{footer}</div>
+      </div>
     </div>
   );
 }
@@ -378,9 +384,12 @@ function WaitingCard({ count, sev }: { count: number; sev: Severity }) {
         <Hourglass className="h-3.5 w-3.5" />
         현재 대기
       </div>
-      <div className="flex flex-1 items-baseline justify-center gap-1.5 py-3">
-        <span className={`bt-countup tabular-nums text-[60px] font-extrabold leading-none ${SEV_TEXT[sev]}`}>{count}</span>
-        <span className="text-[14px] font-medium text-bt-fg-muted">콜</span>
+      {/* 게이지 카드의 차트(104px)와 동일 높이 밴드 + 하단 정렬 → 게이지 readout 라인에 숫자를 맞춘다 */}
+      <div className="flex h-[104px] items-end justify-center">
+        <div className="flex items-baseline gap-1.5">
+          <span className={`bt-countup tabular-nums text-[60px] font-extrabold leading-none ${SEV_TEXT[sev]}`}>{count}</span>
+          <span className="text-[14px] font-medium text-bt-fg-muted">콜</span>
+        </div>
       </div>
       <div className="mt-auto flex min-h-[28px] w-full items-center justify-center pt-1">
         <SevPill sev={sev} okText={sevLabel.success} warnText={sevLabel[sev]} />
@@ -402,38 +411,54 @@ function AlarmCard({ minor, major, critical, onLink }: { minor: number; major: n
     danger: 'border-bt-danger/25 bg-bt-danger-soft',
   };
   return (
-    <div className={`relative flex flex-col overflow-hidden rounded-xl border px-4 pt-4 pb-2.5 bt-shadow ${frame[topSev]} ${active ? 'bt-pulse-ring' : ''}`}>
+    <div className={`relative flex flex-col items-center overflow-hidden rounded-xl border px-4 pt-4 pb-2.5 bt-shadow ${frame[topSev]} ${active ? 'bt-pulse-ring' : ''}`}>
       <div className={`absolute inset-x-0 top-0 h-1 ${SEV_BG[topSev]}`} />
-      <div className="flex items-center justify-between gap-2">
+      {/* 헤더 — '알람' 타이틀에 주의/경고/위험 인디케이터를 바싹 붙임. 알람센터 링크는 우측 상단 절대배치 */}
+      <div className="flex w-full items-center gap-2">
         <div className={`inline-flex items-center gap-1.5 text-[13px] font-bold uppercase tracking-wide ${SEV_TEXT[topSev]}`}>
           <AlertTriangle className="h-3.5 w-3.5" />
           알람
         </div>
-        <CardLink onClick={onLink}>알람센터</CardLink>
+        <div className="inline-flex items-center gap-1.5">
+          <AlarmStatusLabel sev="notice" label="주의" />
+          <AlarmStatusLabel sev="warning" label="경고" />
+          <AlarmStatusLabel sev="danger" label="위험" pulse={active} />
+        </div>
       </div>
-      <div className="flex flex-1 items-center justify-center gap-3 py-2.5">
-        <AlarmCount sev="notice" count={minor} label="주의" />
-        <div className="h-10 w-px bg-bt-border" />
-        <AlarmCount sev="warning" count={major} label="경고" />
-        <div className="h-10 w-px bg-bt-border" />
-        <AlarmCount sev="danger" count={critical} label="위험" pulse={active} />
+      <CardLink className="absolute right-2 top-3.5" onClick={onLink}>
+        알람센터
+      </CardLink>
+      {/* 숫자 — 위험→경고→주의 순, 현재대기와 동일 위치(104px 밴드 하단 정렬). 숫자 우측에 '건' 단위(현재대기 '콜'과 동일) */}
+      <div className="flex h-[104px] w-full items-end justify-center">
+        <div className="flex flex-1 items-baseline justify-center gap-1">
+          <span className={`bt-countup text-[48px] font-extrabold leading-none tabular-nums ${SEV_TEXT.danger}`}>{critical}</span>
+          <span className="text-[14px] font-medium text-bt-fg-muted">건</span>
+        </div>
+        <div className="h-12 w-px self-end bg-bt-border" />
+        <div className="flex flex-1 items-baseline justify-center gap-1">
+          <span className={`bt-countup text-[48px] font-extrabold leading-none tabular-nums ${SEV_TEXT.warning}`}>{major}</span>
+          <span className="text-[14px] font-medium text-bt-fg-muted">건</span>
+        </div>
+        <div className="h-12 w-px self-end bg-bt-border" />
+        <div className="flex flex-1 items-baseline justify-center gap-1">
+          <span className={`bt-countup text-[48px] font-extrabold leading-none tabular-nums ${SEV_TEXT.notice}`}>{minor}</span>
+          <span className="text-[14px] font-medium text-bt-fg-muted">건</span>
+        </div>
       </div>
+      {/* 하단 상태 — 3단계 중 최고 심각도. 현재대기와 동일하게 가운데 정렬 SevPill */}
       <div className="mt-auto flex min-h-[28px] w-full items-center justify-center pt-1">
-        <SevPill sev={topSev} okText="정상" warnText={topSev === 'danger' ? '위험 발생' : topSev === 'warning' ? '경고 발생' : '주의 발생'} />
+        <SevPill sev={topSev} okText="정상" warnText={topSev === 'danger' ? '위험' : topSev === 'warning' ? '경고' : '주의'} />
       </div>
     </div>
   );
 }
 
-function AlarmCount({ sev, count, label, pulse = false }: { sev: Severity; count: number; label: string; pulse?: boolean }) {
+function AlarmStatusLabel({ sev, label, pulse = false }: { sev: Severity; label: string; pulse?: boolean }) {
   return (
-    <div className="flex flex-col items-center">
-      <span className={`bt-countup tabular-nums text-[36px] font-extrabold leading-none ${SEV_TEXT[sev]}`}>{count}</span>
-      <span className={`mt-1 inline-flex items-center gap-1 text-[11px] font-bold ${SEV_TEXT[sev]}`}>
-        <span className={`h-1.5 w-1.5 rounded-full ${SEV_BG[sev]} ${pulse ? 'bt-pulse' : ''}`} />
-        {label}
-      </span>
-    </div>
+    <span className={`inline-flex items-center gap-1 text-[10px] font-bold ${SEV_TEXT[sev]}`}>
+      <span className={`h-1.5 w-1.5 rounded-full ${SEV_BG[sev]} ${pulse ? 'bt-pulse' : ''}`} />
+      {label}
+    </span>
   );
 }
 
