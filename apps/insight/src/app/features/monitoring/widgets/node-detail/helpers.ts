@@ -62,7 +62,6 @@ function normalizeNode(o: Record<string, unknown>): SystemNode {
   return {
     systemId: String(o.SYSTEM_ID ?? o.systemId ?? ''),
     systemName: String(o.SYSTEM_NAME ?? o.systemName ?? o.SYSTEM_ID ?? '시스템'),
-    type: String(o.TYPE ?? o.type ?? ''),
     status: toStatus(o.STATUS ?? o.status),
     isAlive: num0(o.IS_ACTIVE ?? o.isActive) === 1,
     cpu: { rate: num0(o.CPU_RATE ?? o.cpuRate), status: toStatus(o.CPU_STATUS ?? o.cpuStatus) },

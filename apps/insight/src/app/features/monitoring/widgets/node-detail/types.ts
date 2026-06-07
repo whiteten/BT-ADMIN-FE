@@ -44,8 +44,6 @@ export interface SystemNode {
   systemId: string;
   /** SYSTEM_NAME */
   systemName: string;
-  /** TYPE (IVR, NO7, FAX …) */
-  type: string;
   /** 시스템 종합 상태 — CPU/MEM/DISK/PCS 중 가장 나쁜 값 (spec STATUS 정의) */
   status: NodeStatus;
   /**

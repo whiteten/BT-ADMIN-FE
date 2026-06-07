@@ -44,7 +44,7 @@ const BUCKET_FILTERS: { key: SysBucket; label: string; sev: Severity; hex: strin
 ];
 
 export default function NodeDetailWidget({ data }: NodeDetailWidgetProps) {
-  const nodes = isNodeDemoMode() ? DEMO_NODES : fallbackNodes(toSystemNodes(data));
+  const nodes = isNodeDemoMode() ? DEMO_NODES : toSystemNodes(data);
 
   const [alertOnly, setAlertOnly] = useState(false);
   const [activeBuckets, setActiveBuckets] = useState<Set<SysBucket>>(() => new Set<SysBucket>(['normal', 'minor', 'major', 'critical']));
@@ -78,7 +78,7 @@ export default function NodeDetailWidget({ data }: NodeDetailWidgetProps) {
       {/* ═══ KPI 스트립 (시스템 기준) — 정상/주의(Minor)/경고(Major)/위험(Critical) + 다운 ═══ */}
       <section className="grid grid-cols-2 gap-3 lg:grid-cols-6">
         <StatTile label="전체 시스템" value={sys.total} icon={<Activity className="h-3.5 w-3.5" />} />
-        <StatTile label="다운" sub="시스템" value={sys.down} sev="danger" icon={<PowerOff className="h-3.5 w-3.5" />} pulse={sys.down > 0} />
+        <StatTile label="다운" sub="시스템" value={sys.down} hex="#94a3b8" icon={<PowerOff className="h-3.5 w-3.5" />} />
         <StatTile label="위험" sub="Critical" value={sys.critical} hex="#991b1b" pulse={sys.critical > 0} />
         <StatTile label="경고" sub="Major" value={sys.major} hex="#c92a2a" pulse={sys.major > 0} />
         <StatTile label="주의" sub="Minor" value={sys.minor} hex="#b76e00" />
@@ -87,9 +87,9 @@ export default function NodeDetailWidget({ data }: NodeDetailWidgetProps) {
 
       {/* ═══ 필터·정렬 바 ═══ */}
       <div className="flex flex-wrap items-center gap-2 rounded-xl border border-bt-border bg-bt-bg px-4 py-2.5 bt-shadow">
-        {/* 다운 — 항상 노출이라 토글 아님, 카운트만 */}
-        <span className="inline-flex items-center gap-1.5 rounded-full border border-bt-danger/25 bg-bt-danger-soft px-2.5 py-0.5 text-[11.5px] font-semibold text-bt-danger">
-          <span className="h-1.5 w-1.5 rounded-full bg-bt-danger" />
+        {/* 다운 — 항상 노출이라 토글 아님, 카운트만. 다운=회색(비활성) */}
+        <span className="inline-flex items-center gap-1.5 rounded-full border border-bt-border bg-bt-bg-muted px-2.5 py-0.5 text-[11.5px] font-semibold text-bt-fg-muted">
+          <span className="h-1.5 w-1.5 rounded-full bg-bt-fg-muted" />
           다운 <span className="tabular-nums">{sys.down}</span>
         </span>
         {BUCKET_FILTERS.map((f) => {
@@ -141,11 +141,6 @@ export default function NodeDetailWidget({ data }: NodeDetailWidgetProps) {
       </div>
     </div>
   );
-}
-
-/** 라이브 데이터가 비면 데모로 폴백 (BE 집계 위젯 연동 전 임시 — 헬스보드와 동일 정책). */
-function fallbackNodes(live: SystemNode[]): SystemNode[] {
-  return live.length > 0 ? live : DEMO_NODES;
 }
 
 // ─── KPI 타일 ──────────────────────────────────────────────────

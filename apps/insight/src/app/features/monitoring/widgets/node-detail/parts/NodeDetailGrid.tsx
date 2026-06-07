@@ -18,7 +18,8 @@ export interface NodeDetailGridProps {
   rows: SystemNode[];
 }
 
-const DANGER = '#c92a2a';
+/** 다운(시스템 IS_ACTIVE=0) 표기색 — 위험(빨강)이 아닌 회색(비활성·신호 없음). */
+const DOWN = '#94a3b8';
 
 // ─── 셀 렌더러 ─────────────────────────────────────────────────
 
@@ -29,11 +30,11 @@ function SystemRenderer(props: { data?: SystemNode }) {
   const down = !d.isAlive;
   const m = STATUS_META[d.status];
   const danger = !down && d.status >= 2;
-  const ledHex = down ? DANGER : m.hex;
+  const ledHex = down ? DOWN : m.hex;
   return (
     <span className="flex min-w-0 items-center gap-1.5">
-      <span className={`h-2 w-2 shrink-0 rounded-full ${down || danger ? 'bt-pulse' : ''}`} style={{ background: ledHex, boxShadow: `0 0 6px ${ledHex}` }} />
-      <span className="truncate font-bold" title={d.systemName}>
+      <span className={`h-2 w-2 shrink-0 rounded-full ${danger ? 'bt-pulse' : ''}`} style={{ background: ledHex, boxShadow: `0 0 6px ${ledHex}` }} />
+      <span className={`truncate font-bold ${down ? 'text-bt-fg-muted' : ''}`} title={d.systemName}>
         {d.systemName}
       </span>
       {danger && <span className="shrink-0 text-[10px] font-semibold text-bt-danger">{d.status === 3 ? '위험' : '경고'}</span>}
@@ -47,8 +48,8 @@ function AliveRenderer(props: { data?: SystemNode }) {
   if (!d) return null;
   const down = !d.isAlive;
   return (
-    <span className={`inline-flex items-center gap-1 text-[11px] font-semibold ${down ? 'text-bt-danger' : 'text-bt-success'}`}>
-      <span className={`h-1.5 w-1.5 rounded-full ${down ? 'bg-bt-danger bt-pulse' : 'bg-bt-success'}`} />
+    <span className={`inline-flex items-center gap-1 text-[11px] font-semibold ${down ? 'text-bt-fg-muted' : 'text-bt-success'}`}>
+      <span className={`h-1.5 w-1.5 rounded-full ${down ? 'bg-bt-fg-muted' : 'bg-bt-success'}`} />
       {down ? '다운' : '가동'}
     </span>
   );
@@ -131,7 +132,7 @@ const updateTimeFormatter = (p: ValueFormatterParams) => fmtUpdateTime(p.value);
 function getRowStyle(p: { data?: SystemNode }): RowStyle | undefined {
   const d = p.data;
   if (!d) return undefined;
-  if (!d.isAlive) return { borderLeft: `4px solid ${DANGER}`, background: 'rgba(201,42,42,0.06)' };
+  if (!d.isAlive) return { borderLeft: `4px solid ${DOWN}`, background: 'rgba(148,163,184,0.12)' };
   if (d.status >= 2) return { borderLeft: `4px solid ${STATUS_META[d.status].hex}`, background: 'rgba(201,42,42,0.04)' };
   if (d.status === 1) return { borderLeft: '4px solid #b76e00' };
   return { borderLeft: '4px solid #0a8a4a' };
@@ -143,7 +144,6 @@ export default function NodeDetailGrid({ rows }: NodeDetailGridProps) {
   const columnDefs = useMemo<ColDef<SystemNode>[]>(
     () => [
       { headerName: '시스템', minWidth: 150, flex: 1.3, valueGetter: (p) => p.data?.systemName, cellRenderer: SystemRenderer },
-      { headerName: '유형', field: 'type', width: 80, minWidth: 64, flex: 0, valueFormatter: (p) => (p.value?.length ? p.value : '—') },
       { headerName: '가동', width: 84, minWidth: 70, flex: 0, valueGetter: (p) => (p.data?.isAlive ? 0 : 1), cellRenderer: AliveRenderer },
       {
         headerName: 'CPU',

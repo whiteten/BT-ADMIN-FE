@@ -14,7 +14,6 @@ export const DEMO_NODES: SystemNode[] = [
   {
     systemId: '2010010',
     systemName: 'IE 교환기 #1',
-    type: 'NO7',
     status: 0,
     isAlive: true,
     cpu: { rate: 34, status: 0 },
@@ -32,7 +31,6 @@ export const DEMO_NODES: SystemNode[] = [
     // 다운 — IS_ACTIVE=0. 자원·모듈 값은 마지막 보고값(stale).
     systemId: '2010011',
     systemName: 'IE 교환기 #2',
-    type: 'NO7',
     status: 1,
     isAlive: false,
     cpu: { rate: 0, status: 0 },
@@ -49,7 +47,6 @@ export const DEMO_NODES: SystemNode[] = [
   {
     systemId: '2010030',
     systemName: 'IC CTI 서버',
-    type: 'CTI',
     status: 0,
     isAlive: true,
     cpu: { rate: 41, status: 0 },
@@ -65,7 +62,6 @@ export const DEMO_NODES: SystemNode[] = [
   {
     systemId: '2010050',
     systemName: 'IR IVR #1',
-    type: 'IVR',
     status: 0,
     isAlive: true,
     cpu: { rate: 38, status: 0 },
@@ -83,7 +79,6 @@ export const DEMO_NODES: SystemNode[] = [
     // 가동 중이나 자원·모듈 상태가 나쁨(Critical) — 이중화상 Standby 측.
     systemId: '2010051',
     systemName: 'IR IVR #2',
-    type: 'IVR',
     status: 3,
     isAlive: true,
     cpu: { rate: 92, status: 3 },
