@@ -8,7 +8,7 @@ import { AgGridReact } from 'ag-grid-react';
 import { App, Button, Checkbox, Divider, Input, Select, Tag, Tooltip } from 'antd';
 import { Download, Edit2, Play, Plus, Trash2 } from 'lucide-react';
 import { format as formatSql } from 'sql-formatter';
-import { toast } from '@/shared-util';
+import { createUUID, toast } from '@/shared-util';
 import CalcFieldEditor from './CalcFieldEditor';
 import { DOMAIN_TAG_COLOR } from '../../report/constants/reportIconConstants';
 import type { CalcFieldCreateDatas, ColumnFormat, DomainCode } from '../../report/types';
@@ -315,10 +315,7 @@ export default function WizardStepB({
   // ─── Calc field CRUD + fieldDisplays sync ─────────────────────────────────
   const handleCalcSave = (data: CalcFieldCreateDatas) => {
     if (editing.mode === 'add') {
-      const newId =
-        typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function'
-          ? crypto.randomUUID()
-          : `local-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 10)}`;
+      const newId = createUUID();
       onCalcFieldsChange([...calcFields, { ...data, _localId: newId }]);
       onFieldDisplaysChange([
         ...fieldDisplays,
