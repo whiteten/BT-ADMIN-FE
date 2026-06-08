@@ -693,8 +693,21 @@ export default function CallDetail() {
       );
     }
 
-    // IE 자원 hop (IR/IC 없음) — IE 메트릭 단독 표시
-    return buildIeMetric();
+    // IE 자원 hop (IR/IC/AGENT 없음 — 첫 INBOUND/OUTBOUND/QUEUE_IN 또는 순수 PBX hop)
+    // IR/IC/AGENT hop 과 동일한 Tabs 구조 — 본 카드(IE 자원 요약) + IE CDR(118 컬럼 패널)
+    return (
+      <Tabs
+        activeKey={hopSubTab === 'dialog' ? 'main' : hopSubTab}
+        onChange={(k) => setHopSubTab(k as 'main' | 'ie')}
+        size="small"
+        tabPosition="bottom"
+        tabBarStyle={{ marginTop: 0, paddingLeft: 12, paddingRight: 12, borderTop: 'none' }}
+        items={[
+          { key: 'main', label: '⚙ IE 자원', children: buildIeMetric() },
+          { key: 'ie', label: '📋 IE CDR', children: ucid ? <HopIeCdrTab ucid={ucid} hop={hopNo} /> : null },
+        ]}
+      />
+    );
   };
 
   // 선택 segment 변경 / 확장 모드 토글 시 — HOP 타임라인 + CallFlow 영역 자동 스크롤
