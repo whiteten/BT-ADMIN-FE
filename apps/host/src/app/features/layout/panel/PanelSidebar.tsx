@@ -12,7 +12,7 @@ const PanelSidebar = ({ onNavigate }: PanelSidebarProps) => {
   if (view === 'favorite') return null;
 
   return (
-    <aside className="w-[260px] shrink-0 h-full bg-white text-[#495057] border-r border-[#e9ecef] flex flex-col overflow-hidden">
+    <aside className="w-[300px] shrink-0 h-full bg-white text-[#495057] border-r border-[#e9ecef] flex flex-col overflow-hidden">
       <div className="flex-1 overflow-y-auto pb-4">
         <PanelAppSection onNavigate={onNavigate} />
       </div>

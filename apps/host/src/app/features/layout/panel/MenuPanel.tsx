@@ -107,8 +107,8 @@ const MenuPanel = ({ topOffset }: MenuPanelProps) => {
   const hasFolderDetail = !!activeMenu?.children?.length;
   const showDetailArea = isMega || isFavoriteView || hasFolderDetail;
 
-  // panel 폭: mega→viewport / favorite→560(strip+500) / 폴더 detail→1020(strip60+sidebar260+split700=list300+pane400) / 그 외→320(strip+sidebar)
-  const panelWidth = isMega ? 'w-screen' : isFavoriteView ? 'w-[560px]' : hasFolderDetail ? 'w-[1020px]' : 'w-[320px]';
+  // panel 폭: mega→viewport / favorite→560(strip+500) / 폴더 detail→1060(strip60+sidebar300+split700=list300+pane400) / 그 외→360(strip60+sidebar300)
+  const panelWidth = isMega ? 'w-screen' : isFavoriteView ? 'w-[560px]' : hasFolderDetail ? 'w-[1060px]' : 'w-[360px]';
 
   return (
     <>
