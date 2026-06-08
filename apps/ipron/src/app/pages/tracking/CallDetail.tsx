@@ -19,16 +19,8 @@ import IvrStepTree from '../../features/tracking/components/IvrStepTree';
 import PacketLogModal from '../../features/tracking/components/PacketLogModal';
 import { IeCdrPanel } from '../../features/tracking/components/PbxCallDetailDrawer';
 import RecordingButton from '../../features/tracking/components/RecordingButton';
-import {
-  useGetAgentEvents,
-  useGetCtiRouting,
-  useGetDialogs,
-  useGetIeCdrDetail,
-  useGetIvrSteps,
-  useGetQuality,
-  useGetTrackingDetail,
-} from '../../features/tracking/hooks/useTrackingQueries';
-import type { CallQuality, CallSegment } from '../../features/tracking/types';
+import { useGetAgentEvents, useGetCtiRouting, useGetDialogs, useGetIeCdrDetail, useGetIvrSteps, useGetTrackingDetail } from '../../features/tracking/hooks/useTrackingQueries';
+import type { CallSegment } from '../../features/tracking/types';
 import { fmtTalkTime, fmtTime } from '../../features/tracking/utils/timeFormat';
 import { FallbackSpinner } from '@/components/custom/FallbackSpinner';
 
@@ -154,7 +146,6 @@ export default function CallDetail() {
       return n;
     });
   };
-  const [activeTab, setActiveTab] = useState<'info' | 'ivr' | 'dialog' | 'cti' | 'agent' | 'quality'>('info');
   // hop 내부 Tabs — IR: main(IR CDR) / ie(IE CDR) / dialog(대화)
   //                  IC: main(CTI 큐) / ie(IE CDR)
   //                  AGENT: main(상담사) / ie(IE CDR)
@@ -176,8 +167,6 @@ export default function CallDetail() {
   const ctiQ = useGetCtiRouting(ucid, null);
   const agentQ = useGetAgentEvents(ucid);
   const dialogQ = useGetDialogs(ucid);
-  // Quality 탭 — HOP=0 기준으로 조회 (Quality 탭 클릭 시 eager 로드됨)
-  const qualityQ = useGetQuality(ucid, 0);
 
   const breadcrumb = useMemo(
     () => [
@@ -397,25 +386,6 @@ export default function CallDetail() {
 
   // React Compiler 가 자동 최적화 — useMemo 불필요
   const selectedSegment = hopNodes.find((s) => s.segmentId === selectedSegmentId) ?? null;
-
-  /**
-   * hopNodes 기반 탭 활성화 여부 판정.
-   * SWAT doDetailTabControl(gubun) 대응 — segment 종류가 존재하면 해당 탭 활성화.
-   * Quality 탭: IE hop (국선/내선/트렁크 O_TYPE or T_TYPE 1~3) 이 있으면 활성화.
-   */
-  const tabEnabled = useMemo(() => {
-    const hasIvr = hopNodes.some((h) => h.kind === 'IVR');
-    const hasCti = hopNodes.some((h) => h.kind === 'CTI' || h.kind === 'QUEUE_IN');
-    const hasAgent = hopNodes.some((h) => h.kind === 'AGENT');
-    // Dialog 탭: IVR step 중 STT/음성인식(hasVoiceRecognition) 있을 때 — IVR step이 있으면 활성화
-    const hasDialog = hasIvr || hasCti; // IVR/CTI hop 이 있으면 대화 기록 가능성 있음
-    // Quality 탭: IE hop이 있으면 O_R_FACTOR 등 통화품질 컬럼 존재. 데이터 없으면 탭에서 빈 화면 표시.
-    const hasQuality = hopNodes.some((h) => {
-      const ht = h.meta?._hopType as string | undefined;
-      return ht === 'IE' || h.kind === 'INBOUND' || h.kind === 'OUTBOUND';
-    });
-    return { ivr: hasIvr, cti: hasCti, agent: hasAgent, dialog: hasDialog, quality: hasQuality };
-  }, [hopNodes]);
 
   // CallFlow inline expand 의 hop 별 상세 — IVR/CTI/AGENT 모두 그 hop 데이터만 필터링해서 표시.
   // 일반/크게보기 두 모드에서 동일 함수 공유.
@@ -727,16 +697,6 @@ export default function CallDetail() {
     return buildIeMetric();
   };
 
-  // 진입 시엔 '콜 정보' 탭. 사용자가 CallFlow/HOP 에서 노드를 선택하면 그 종류의 탭으로 전환
-  // (IVR/INBOUND→ivr, CTI→cti, AGENT→agent). 자동 segment 선택은 하지 않음.
-  useEffect(() => {
-    if (!selectedSegment) return;
-    if (selectedSegment.kind === 'IVR' || selectedSegment.kind === 'INBOUND') setActiveTab('ivr');
-    else if (selectedSegment.kind === 'CTI') setActiveTab('cti');
-    else if (selectedSegment.kind === 'AGENT') setActiveTab('agent');
-    else setActiveTab('info');
-  }, [selectedSegment]);
-
   // 선택 segment 변경 / 확장 모드 토글 시 — HOP 타임라인 + CallFlow 영역 자동 스크롤
   useEffect(() => {
     if (!selectedSegmentId) return;
@@ -984,202 +944,6 @@ export default function CallDetail() {
                     );
                   })()}
                 </div>
-              </div>
-
-              {/* 아래 — 상세 탭 패널 (IVR / CTI / 상담사 / 대화 / Quality) */}
-              <div className="flex-1 min-h-0 bg-white rounded-md border border-gray-200 flex flex-col overflow-hidden shadow-[0_1px_2px_0_rgba(56,65,74,0.15)]">
-                <Tabs
-                  activeKey={activeTab}
-                  onChange={(k) => setActiveTab(k as typeof activeTab)}
-                  size="small"
-                  className="flex flex-col h-full [&>.ant-tabs-nav]:flex-shrink-0 [&>.ant-tabs-content-holder]:flex-1 [&>.ant-tabs-content-holder]:overflow-y-auto [&>.ant-tabs-nav]:px-3 [&>.ant-tabs-nav]:pt-1"
-                  items={[
-                    {
-                      key: 'info',
-                      label: '콜 정보',
-                      children: (
-                        <div className="px-3 pb-3 space-y-1 text-[12px]">
-                          {(
-                            [
-                              ['UCID', header.ucid],
-                              ['ANI', header.ani ?? '-'],
-                              ['DNIS', header.dnis ?? '-'],
-                              ['시작', header.startTime ? new Date(header.startTime).toLocaleString('ko-KR', { hour12: false }) : '-'],
-                              ['통화', header.durationSec != null ? `${Math.floor(header.durationSec / 60)}:${String(header.durationSec % 60).padStart(2, '0')}` : '-'],
-                              ['결과', header.result ?? '-'],
-                              ['테넌트', header.tenantName ?? '-'],
-                            ] as [string, string][]
-                          ).map(([k, v]) => (
-                            <div key={k} className="flex items-center justify-between py-0.5 border-b border-gray-50">
-                              <span className="text-gray-400 flex-shrink-0 w-[80px]">{k}</span>
-                              <span className="font-mono text-gray-800 text-right break-all">{v}</span>
-                            </div>
-                          ))}
-                          <div className="mt-2">
-                            <RecordingButton ucid={header.ucid} userid={null} canListen={canListen} />
-                          </div>
-                        </div>
-                      ),
-                    },
-                    {
-                      key: 'ivr',
-                      label: 'IVR',
-                      disabled: !tabEnabled.ivr,
-                      children: (
-                        <div className="px-1 pb-1">
-                          <IvrStepTree groups={ivrQ.data ?? []} loading={ivrQ.isLoading} selectedCdrPkey={null} />
-                        </div>
-                      ),
-                    },
-                    {
-                      key: 'cti',
-                      label: 'CTI',
-                      disabled: !tabEnabled.cti,
-                      children: (
-                        <div className="px-1 pb-1">
-                          <CtiRoutingTimeline hops={ctiQ.data ?? []} loading={ctiQ.isLoading} />
-                        </div>
-                      ),
-                    },
-                    {
-                      key: 'agent',
-                      label: '상담사',
-                      disabled: !tabEnabled.agent,
-                      children: (
-                        <div className="px-1 pb-1">
-                          <AgentEventTimeline events={agentQ.data ?? []} loading={agentQ.isLoading} />
-                        </div>
-                      ),
-                    },
-                    {
-                      key: 'dialog',
-                      label: '대화',
-                      disabled: !tabEnabled.dialog,
-                      children: (
-                        <div className="px-1 pb-1">
-                          <DialogView turns={dialogQ.data ?? []} loading={dialogQ.isLoading} />
-                        </div>
-                      ),
-                    },
-                    {
-                      key: 'quality',
-                      label: 'Quality',
-                      disabled: !tabEnabled.quality,
-                      children: (() => {
-                        // ─── Quality 탭 (SWAT IPR30S1060.jsp Quality 탭 대응) ───────────────
-                        // 발신측/착신측 2패널. 회선유형(O_TYPE/T_TYPE) 국선·내선·트렁크일 때만 IP/Codec 표시.
-                        // R-Factor: 90-100=탁월(녹) / 80-89=좋음(연두) / 70-79=보통(노랑) / 60-69=주의(주황) / <60=불량(빨강)
-                        // MOS: 1~5 실수 (4.3이상=매우좋음)
-                        const q = qualityQ.data as CallQuality | undefined;
-                        const LINE_TYPE: Record<number, string> = { 0: '내선', 1: '국선', 2: '내선', 3: '트렁크' };
-                        const isValidType = (t: number | null | undefined) => t === 1 || t === 2 || t === 3;
-                        const rfactorColor = (v: number | null | undefined): string => {
-                          if (v == null) return 'bg-gray-200 text-gray-500';
-                          if (v >= 90) return 'bg-emerald-500 text-white';
-                          if (v >= 80) return 'bg-lime-500 text-white';
-                          if (v >= 70) return 'bg-yellow-400 text-gray-900';
-                          if (v >= 60) return 'bg-orange-400 text-white';
-                          return 'bg-red-500 text-white';
-                        };
-                        const rfactorLabel = (v: number | null | undefined): string => {
-                          if (v == null) return '-';
-                          if (v >= 90) return '탁월';
-                          if (v >= 80) return '좋음';
-                          if (v >= 70) return '보통';
-                          if (v >= 60) return '주의';
-                          return '불량';
-                        };
-                        const QRow = ({ label, value }: { label: string; value: React.ReactNode }) => (
-                          <div className="flex items-center justify-between py-1 text-[11.5px] border-b border-gray-50">
-                            <span className="text-gray-400 w-[90px] flex-shrink-0">{label}</span>
-                            <span className="font-mono text-gray-800 text-right">{value}</span>
-                          </div>
-                        );
-                        const QPanel = ({
-                          side,
-                          lineType,
-                          ip,
-                          codec,
-                          rfactor,
-                          mos,
-                          jitter,
-                          packetLoss,
-                          icmp,
-                        }: {
-                          side: string;
-                          lineType: number | null | undefined;
-                          ip: string | null | undefined;
-                          codec: string | null | undefined;
-                          rfactor: number | null | undefined;
-                          mos: number | null | undefined;
-                          jitter: number | null | undefined;
-                          packetLoss: number | null | undefined;
-                          icmp: number | null | undefined;
-                        }) => {
-                          const valid = isValidType(lineType);
-                          return (
-                            <div className="flex-1 min-w-0 bg-gray-50/60 rounded border border-gray-100 p-2.5">
-                              <div className="text-[12px] font-semibold text-gray-700 mb-2 pb-1 border-b border-gray-200">{side}</div>
-                              <QRow label="회선유형" value={lineType != null ? (LINE_TYPE[lineType] ?? String(lineType)) : '-'} />
-                              <QRow label="IP" value={valid ? (ip ?? '-') : '-'} />
-                              <QRow label="Codec" value={valid ? (codec ?? '-') : '-'} />
-                              <div className="flex items-center justify-between py-1.5 text-[11.5px]">
-                                <span className="text-gray-400 w-[90px] flex-shrink-0">통화품질</span>
-                                {rfactor != null ? (
-                                  <span className={`px-2 py-0.5 rounded text-[11px] font-semibold ${rfactorColor(rfactor)}`}>
-                                    {rfactorLabel(rfactor)} ({rfactor.toFixed(1)})
-                                  </span>
-                                ) : (
-                                  <span className="font-mono text-gray-400">-</span>
-                                )}
-                              </div>
-                              <QRow label="MOS" value={mos != null ? mos.toFixed(2) : '-'} />
-                              <QRow label="Jitter (ms)" value={jitter != null ? String(jitter) : '-'} />
-                              <QRow label="Packet Loss" value={packetLoss != null ? `${packetLoss}` : '-'} />
-                              <QRow label="ICMP RTT" value={icmp != null ? `${icmp}ms` : '-'} />
-                            </div>
-                          );
-                        };
-                        if (qualityQ.isLoading) {
-                          return (
-                            <div className="flex items-center justify-center h-20 text-[12px] text-gray-400">
-                              <FallbackSpinner />
-                            </div>
-                          );
-                        }
-                        return (
-                          <div className="px-2 py-2 flex flex-col gap-2">
-                            <div className="flex gap-2">
-                              <QPanel
-                                side="발신측"
-                                lineType={q?.oType}
-                                ip={q?.oRemoteAddr}
-                                codec={q?.oNegoCodec}
-                                rfactor={q?.oRFactor}
-                                mos={q?.oMos}
-                                jitter={q?.oJitterAvg}
-                                packetLoss={q?.oRtpMsLost}
-                                icmp={q?.oIcmpRtt}
-                              />
-                              <QPanel
-                                side="착신측"
-                                lineType={q?.tType}
-                                ip={q?.tRemoteAddr}
-                                codec={q?.tNegoCodec}
-                                rfactor={q?.tRFactor}
-                                mos={q?.tMos}
-                                jitter={q?.tJitterAvg}
-                                packetLoss={q?.tRtpMsLost}
-                                icmp={q?.tIcmpRtt}
-                              />
-                            </div>
-                            {!q && <div className="text-[11px] text-gray-400 text-center py-2">통화품질 데이터 없음 — 해당 hop에 IE CDR 없거나 국선/트렁크 아님</div>}
-                          </div>
-                        );
-                      })(),
-                    },
-                  ]}
-                />
               </div>
             </div>
           </div>
