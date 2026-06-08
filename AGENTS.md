@@ -270,6 +270,16 @@ Log.debug('onFinish', values); // 디버그 로그
 Log.warn('onFinishFailed', errorInfo); // 경고 로그
 ```
 
+#### UUID 생성
+
+```typescript
+import { createUUID } from '@/shared-util';
+
+const id = createUUID(); // ✅ 비-secure context에서도 동작
+```
+
+`crypto.randomUUID()`는 **secure context(HTTPS·localhost) 전용 API**라 HTTP+IP로 접속하는 개발계에서는 `undefined`가 되어 `TypeError: crypto.randomUUID is not a function`이 발생한다. 반드시 `crypto.getRandomValues` 기반인 공용 유틸 `createUUID`(`@/shared-util`)를 사용할 것.
+
 #### 토스트 알림
 
 ```typescript
