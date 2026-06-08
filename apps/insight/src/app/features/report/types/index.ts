@@ -15,6 +15,8 @@ export interface ReportListItem {
   description?: string;
   domain: DomainCode;
   datasetId: number;
+  /** 보고서 패널들이 사용하는 데이터셋명 목록 (distinct, 이름순). v5.0 패널 단위 데이터셋. */
+  datasetNames?: string[];
   isPublished: boolean;
   ownerUserId: number;
   updatedAt: string;

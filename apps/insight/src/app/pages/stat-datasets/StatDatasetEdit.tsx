@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { Button, Divider, Tag, Tooltip, Typography } from 'antd';
+import { App, Button, Divider, Tag, Typography } from 'antd';
 import dayjs from 'dayjs';
 import { Calendar, Columns3, Database, Layers } from 'lucide-react';
 import { useBreadcrumbStore } from '@/shared-store';
@@ -109,6 +109,7 @@ export default function StatDatasetEdit() {
   const { datasetId: datasetIdParam } = useParams<{ datasetId: string }>();
   const datasetId = datasetIdParam ? Number(datasetIdParam) : undefined;
   const navigate = useNavigate();
+  const { modal } = App.useApp();
   const setBreadcrumb = useBreadcrumbStore((s) => s.setBreadcrumb);
   const clearBreadcrumb = useBreadcrumbStore((s) => s.clearBreadcrumb);
 
@@ -180,7 +181,7 @@ export default function StatDatasetEdit() {
     return { dim, msr, calc, total: dim + msr + calc };
   }, [fieldDisplays, calcFields]);
 
-  const handleSave = () => {
+  const doSave = () => {
     if (!dataset || !datasetId) return;
     updateDataset({
       datasetId,
@@ -190,6 +191,23 @@ export default function StatDatasetEdit() {
         fields: buildFieldRequests(fieldDisplays, calcFields),
       },
     });
+  };
+
+  // 검증은 필수 아님. 실패(invalid) 상태여도 확인 후 저장 허용
+  // (예: 계산컬럼 식이 ORA-01476 등 데이터 의존 오류여도 정의 자체는 저장 가능해야 함)
+  const handleSave = () => {
+    if (!dataset || !datasetId) return;
+    if (validationStatus === 'invalid') {
+      modal.confirm({
+        title: '검증 실패',
+        content: '필드 검증에 실패했습니다. 그래도 저장하시겠습니까?',
+        okText: '저장',
+        cancelText: '취소',
+        onOk: doSave,
+      });
+      return;
+    }
+    doSave();
   };
 
   if (isLoading || !initialized) {
@@ -237,11 +255,9 @@ export default function StatDatasetEdit() {
             <div className="border-t border-bt-border bg-bt-bg-muted px-7 py-4">
               <div className="flex items-center justify-center gap-5">
                 <Button onClick={() => navigate('/insight/statistics/datasets')}>취소</Button>
-                <Tooltip title={validationStatus === 'invalid' ? '검증 실행 후 저장하세요' : undefined}>
-                  <Button type="primary" onClick={handleSave} loading={isPending} disabled={validationStatus === 'invalid'}>
-                    저장
-                  </Button>
-                </Tooltip>
+                <Button type="primary" onClick={handleSave} loading={isPending}>
+                  저장
+                </Button>
               </div>
             </div>
           )}

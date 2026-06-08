@@ -2,6 +2,7 @@ import { useNavigate } from 'react-router-dom';
 import { useQueryClient } from '@tanstack/react-query';
 import { Button, Card, Dropdown, type MenuProps, Tag } from 'antd';
 import dayjs from 'dayjs';
+import { useAuthStore } from '@/shared-store';
 import { toast } from '@/shared-util';
 import { DOMAIN_LABELS, DOMAIN_TAG_COLOR, REPORT_ICON_SVG } from '../constants/reportIconConstants';
 import { reportKeys, useDeleteReport } from '../hooks/useReportQueries';
@@ -18,6 +19,10 @@ export default function ReportCard({ report }: ReportCardProps) {
   const modal = useModal();
   const queryClient = useQueryClient();
   const iconType: ReportIconType = report.iconType ?? 'system';
+
+  // 등록자(소유자) 본인만 편집/삭제 가능. 타인 등록 보고서는 보기만 허용.
+  const myUserId = useAuthStore((s) => s.userInfo?.userId);
+  const isOwner = myUserId != null && String(report.ownerUserId) === String(myUserId);
 
   const { mutate: deleteReport } = useDeleteReport({
     mutationOptions: {
@@ -50,24 +55,29 @@ export default function ReportCard({ report }: ReportCardProps) {
         handleView();
       },
     },
-    {
-      key: 'edit',
-      label: '편집',
-      onClick: ({ domEvent }) => {
-        domEvent.stopPropagation();
-        handleEdit();
-      },
-    },
-    { type: 'divider' },
-    {
-      key: 'delete',
-      label: '삭제',
-      danger: true,
-      onClick: ({ domEvent }) => {
-        domEvent.stopPropagation();
-        handleDelete();
-      },
-    },
+    // 편집/삭제는 등록자 본인에게만 노출
+    ...(isOwner
+      ? ([
+          {
+            key: 'edit',
+            label: '편집',
+            onClick: ({ domEvent }) => {
+              domEvent.stopPropagation();
+              handleEdit();
+            },
+          },
+          { type: 'divider' },
+          {
+            key: 'delete',
+            label: '삭제',
+            danger: true,
+            onClick: ({ domEvent }) => {
+              domEvent.stopPropagation();
+              handleDelete();
+            },
+          },
+        ] as NonNullable<MenuProps['items']>)
+      : []),
   ];
 
   const cardTitle = (
@@ -104,7 +114,13 @@ export default function ReportCard({ report }: ReportCardProps) {
         </div>
         <div className="flex items-center">
           <span className="w-[80px] shrink-0 text-sm">데이터뷰</span>
-          <span className="font-mono text-sm truncate">{report.datasetId}</span>
+          <span className="text-sm truncate" title={report.datasetNames?.join(', ')}>
+            {report.datasetNames && report.datasetNames.length > 0
+              ? report.datasetNames.length > 1
+                ? `${report.datasetNames[0]} 외 ${report.datasetNames.length - 1}개`
+                : report.datasetNames[0]
+              : '-'}
+          </span>
         </div>
         {report.description && (
           <div className="flex items-center">
