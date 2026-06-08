@@ -1,6 +1,6 @@
 import type { AxiosRequestConfig } from 'axios';
 import ApiClient, { type ApiResponse } from '@/shared-util';
-import type { AgentDeployResponse, FlowEdge, FlowNode, NodeDeleteRequest, NodePositionUpdateRequest, WorkflowGraph } from '../types';
+import type { AgentDeployResponse, AgentVersion, FlowEdge, FlowNode, NodeDeleteRequest, NodePositionUpdateRequest, WorkflowGraph } from '../types';
 
 const apiClient = new ApiClient({ serviceURL: '/bff' });
 
@@ -43,5 +43,21 @@ export const workflowApi = {
   exportWorkflow: async (params: { agentId: string }) => {
     const response = await apiClient.get<Blob>('/aoe-workflow-export', { params, responseType: 'blob' });
     return response;
+  },
+  getAgentVersions: async (params: { agentId: string }) => {
+    // 목록은 PagedResponse(items) 컨벤션 — getAgents 와 동일하게 items 추출
+    const response = await apiClient.get<ApiResponse<{ items: AgentVersion[] }>>('/aoe-agent-version-list', { params });
+    return response.data?.data?.items ?? [];
+  },
+  restoreAgentVersion: async (params: { agentId: string; versionNo: number }) => {
+    const response = await apiClient.post<ApiResponse<AgentVersion>>('/aoe-agent-version-restore', {}, { params });
+    return response.data?.data;
+  },
+  updateAgentVersion: async ({ params, data }: { params: { agentId: string; versionNo: number }; data: { memo: string } }) => {
+    const response = await apiClient.put<ApiResponse<AgentVersion>>('/aoe-agent-version-update', data, { params });
+    return response.data?.data;
+  },
+  deleteAgentVersion: async (params: { agentId: string; versionNo: number }) => {
+    await apiClient.delete('/aoe-agent-version-delete', { params });
   },
 };

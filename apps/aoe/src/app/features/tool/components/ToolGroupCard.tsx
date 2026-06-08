@@ -40,6 +40,9 @@ export default function ToolGroupCard({ groupId, groupName, description, toolCou
         </Button>
       </DropdownMenuTrigger>
       <DropdownMenuContent className="dark" align="end" onClick={(e) => e.stopPropagation()}>
+        <DropdownMenuItem onClick={() => onOpen?.(group)} className="hover:cursor-pointer">
+          상세보기
+        </DropdownMenuItem>
         <DropdownMenuItem onClick={() => onDelete?.(group)} className="hover:cursor-pointer">
           삭제
         </DropdownMenuItem>
