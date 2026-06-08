@@ -1,10 +1,21 @@
 import type { ComponentType, SVGProps } from 'react';
 import { Tooltip } from 'antd';
-import { Pin, PinOff, Settings, SquareDashed } from 'lucide-react';
+import { Pin, PinOff, SquareDashed } from 'lucide-react';
 import { useMenuStore } from '@/shared-store';
 import useCurrentRemote from '../../../hooks/useCurrentRemote';
 import { useMenuPanelStore } from '../hooks/useMenuPanelStore';
-import { IconRemoteAoe, IconRemoteFca, IconRemoteIpron, IconRemoteStt, IconStar } from '@/components/custom/Icons';
+import {
+  IconRemoteAoe,
+  IconRemoteFca,
+  IconRemoteInsight,
+  IconRemoteIpron,
+  IconRemoteIvr,
+  IconRemoteManager,
+  IconRemoteStt,
+  IconRemoteTaskboard,
+  IconRemoteVel,
+  IconStar,
+} from '@/components/custom/Icons';
 import { cn } from '@/libs/shared-ui/src/lib/utils';
 
 const APP_BADGE_COLORS = [
@@ -22,11 +33,15 @@ const APP_BADGE_COLORS = [
 
 // 앱별 뱃지 아이콘. 미등록 앱은 SquareDashed placeholder로 fallback.
 const APP_BADGE_ICONS: Record<string, ComponentType<SVGProps<SVGSVGElement>>> = {
-  manager: Settings,
+  manager: IconRemoteManager,
   fca: IconRemoteFca,
   ipron: IconRemoteIpron,
   stt: IconRemoteStt,
   aoe: IconRemoteAoe,
+  vel: IconRemoteVel,
+  insight: IconRemoteInsight,
+  ivr: IconRemoteIvr,
+  taskboard: IconRemoteTaskboard,
 };
 
 /**
@@ -103,7 +118,7 @@ const PanelAppBadgeStrip = () => {
           )}
           style={{ backgroundColor: badgeColor }}
         >
-          <Icon className="size-5" />
+          <Icon className="size-7" />
           {isCurrentApp && <span className="absolute -top-0.5 -right-0.5 size-2.5 rounded-full bg-red-500 ring-2 ring-[#f8f9fb]" />}
         </button>
       </Tooltip>
@@ -124,7 +139,7 @@ const PanelAppBadgeStrip = () => {
             className="relative flex items-center justify-center size-10 shrink-0 rounded-lg text-white cursor-pointer shadow-sm hover:shadow-md transition-shadow"
             style={{ backgroundColor: '#F59E0B' }}
           >
-            <IconStar className="size-5" />
+            <IconStar className="size-7" />
           </button>
         </Tooltip>
       </div>
