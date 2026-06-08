@@ -20,27 +20,56 @@ export type CallResult =
   | 'TRANSFERRED' // 호 전환 발생
   | 'NO_ANSWER'; // 응답 없음
 
-/** IVR step NodeType (TB_DM_IR_TRACKINGDATA.TYPE) — AS-IS IPR30S1021 매핑 */
-// AS-IS TrackingDataUtil.getIvrTrackingTypeName() 기준 13 타입
+/** IVR step NodeType (TB_DM_IR_TRACKINGDATA.TYPE) — AS-IS IR_TRACKING_ITEM_TYPE 공통코드 매핑 */
+// IvrStepBuilder.typeLabel(BE) 와 1:1 — 누락 시 'OTHER' 처리
 export type IvrNodeType =
-  | 'Menu' // 0 메뉴
-  | 'GetDigit' // 1 DTMF 입력
-  | 'Play' // 2 멘트 재생
-  | 'Packet' // 3 전문 패킷
-  | 'Cti' // 4 CTI 호전환
-  | 'Query' // 5 외부 조회
-  | 'Tracking' // 6 트래킹 마커
-  | 'UserDef' // 7 메뉴통계
-  | 'HA' // 8 HA (시간만)
-  | 'EndInfo' // 9 메뉴 종료 정보
-  | 'PacketJson' // 23 JSON 패킷
-  | 'RequestVARS' // 24 VARS 요청
-  | 'CollectDigit' // 25 Collect Digit
-  | 'RequestHTTP' // 30 HTTP 요청
-  | 'Pause' // 31 일시정지 (v6.2)
-  | 'Resume' // 32 재개 (v6.2)
-  | 'ShowChat' // 40 IVR Chat 출력 (v6.0)
-  | 'GetChat' // 41 고객 Chat 입력 (v6.0)
+  | 'Menu' // 0  서비스메뉴
+  | 'GetDigit' // 1  DTMF
+  | 'Play' // 2  멘트플레이
+  | 'Packet' // 3  패킷전송
+  | 'Cti' // 4  CTI Function
+  | 'Query' // 5  DB Query
+  | 'Tracking' // 6  사용자정의
+  | 'UserDef' // 7  메뉴통계
+  | 'HA' // 8  HA
+  | 'EndInfo' // 9  메뉴 종료
+  | 'Disconnect' // 10
+  | 'Record' // 11
+  | 'Abort' // 12
+  | 'Switch' // 13
+  | 'Transfer' // 14
+  | 'MakeCall' // 15
+  | 'DisSwitch' // 16
+  | 'GetChannel' // 17
+  | 'VoiceRecogine' // 18
+  | 'OpenVR' // 19
+  | 'CloseVR' // 20
+  | 'RequestVR' // 21
+  | 'ResponseVR' // 22
+  | 'PacketJson' // 23
+  | 'RequestVARS' // 24
+  | 'CollectDigit' // 25
+  | 'NLU' // 26
+  | 'NLURequest' // 27
+  | 'IntentCall' // 28
+  | 'EntityCall' // 29
+  | 'RequestHTTP' // 30
+  | 'Pause' // 31
+  | 'Resume' // 32
+  | 'ShowChat' // 40
+  | 'GetChat' // 41
+  | 'RequestPage' // 50
+  | 'GetPageData' // 51
+  | 'RequestPush' // 52
+  | 'RegistServer' // 53
+  | 'UnRegistServer' // 54
+  | 'MenuCall' // 60
+  | 'ChangeService' // 61
+  | 'MenuChange' // 62
+  | 'UserENV' // 63
+  | 'SetEvent' // 80
+  | 'WaitEvent' // 81
+  | 'UserCode' // 90
   | 'OTHER';
 
 /** Agent 이벤트 종류 */
@@ -112,6 +141,11 @@ export interface TrackingSearchCriteria {
   reqAgent?: boolean | null;
   /** IVR 모드 — IVR 자가해결 (ABANDON_YN=0 AND REQ_AGENT_YN=0) */
   ivrSelfServiced?: boolean | null;
+  /**
+   * IVR 모드 — 시나리오 유형 (IR_SERVICE_TYPE).
+   * 비우면 기본 화이트리스트 (10/30/40/60/80/90) 적용. 값 주면 그 값 우선.
+   */
+  serviceTypes?: number[] | null;
 
   // ─── 조회목적 (ENTRY_PURPOSE_INQUIRY 설정 활성화 + ANI/UCID 입력 시 팝업 입력값) ────
   /**
@@ -242,6 +276,10 @@ export interface CallDetailHeader {
   transferCount: number;
   /** 마스킹 해제 가능 여부 (사용자 권한 + 정책) */
   unmaskAvailable: boolean;
+  /** 미디어 타입 코드 (CTI 콜의 IC_TRACKING_CDR.MEDIA_TYPE) */
+  mediaType: number | null;
+  /** 사이트별 미디어 별칭 (TB_IC_MEDIA_USAGE.MEDIA_ALIAS) */
+  mediaAlias: string | null;
 }
 
 /** Call segment (CallFlow의 노드 1개) */
@@ -294,8 +332,10 @@ export interface IvrStep {
   enterTime: string;
   /** step 머무른 시간 (초) */
   durationSec: number | null;
-  /** 멘트 파일명 (MENT/MENU 노드) */
+  /** 사람이 읽을 수 있는 텍스트 (Menu→MENU_NAME, Play→ITEM_DESC, Packet→PACKET_NAME 등 enrich 결과) */
   mentName: string | null;
+  /** TB_IR_SVCTRACKINGITEM.ITEM_NAME — AS-IS "[ITEM_NAME] [ITEM_DESC]" 형식 지원 */
+  itemName: string | null;
   /** DTMF 입력값 (GETDIGIT 노드) */
   dtmfInput: string | null;
   /** STT 인식 결과 (VOICE_RECOGNINE 노드) */
@@ -306,6 +346,10 @@ export interface IvrStep {
   endReason: string | null;
   /** 분기 라벨 ("1=요금 / 2=가입") */
   branchLabel: string | null;
+  /** Packet step 의 PACKET_ID (TB_IR_PACKETMASTER 키) — Packet/PacketJson 클릭 시 사용 */
+  val3?: string | null;
+  /** Packet step 의 TRKEY (LogTracer 조회 키) — Packet/PacketJson 클릭 시 사용 */
+  val8?: string | null;
 }
 
 // ─── CTI Routing Timeline ──────────────────────────────────────────────────
@@ -347,6 +391,10 @@ export interface AgentEvent {
   responseSec: number | null;
   /** 메모/사유 */
   description: string | null;
+  /** STATE_CDR.MEDIA_TYPE (코드) */
+  mediaType?: number | null;
+  /** TB_IC_MEDIA_USAGE.MEDIA_ALIAS (운영자 별칭) */
+  mediaAlias?: string | null;
 }
 
 // ─── IVR 대화 (Dialog CDR) ─────────────────────────────────────────────────
