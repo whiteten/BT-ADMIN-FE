@@ -47,6 +47,13 @@ export const useDeleteAgent = ({ mutationOptions }: MutationHookOptions = {}) =>
   });
 };
 
+export const useDuplicateAgent = ({ mutationOptions }: MutationHookOptions = {}) => {
+  return useMutation({
+    mutationFn: agentApi.duplicateAgent,
+    ...mutationOptions,
+  });
+};
+
 export const useGetAgentTypes = ({ params, queryOptions }: QueryHookWithParamsOptions<AgentType[]> = {}) => {
   return useQuery({
     queryKey: agentQueryKeys.getAgentTypes(params).queryKey,

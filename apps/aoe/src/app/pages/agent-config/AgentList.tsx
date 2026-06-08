@@ -6,7 +6,7 @@ import { useBreadcrumbStore } from '@/shared-store';
 import { toast } from '@/shared-util';
 import AgentCard from '../../features/agent-config/components/AgentCard';
 import AgentPlaygroundDrawer, { type AgentPlaygroundDrawerRef } from '../../features/agent-config/components/AgentPlaygroundDrawer';
-import { agentQueryKeys, useDeleteAgent, useGetAgents } from '../../features/agent-config/hooks/useAgentQueries';
+import { agentQueryKeys, useDeleteAgent, useDuplicateAgent, useGetAgents } from '../../features/agent-config/hooks/useAgentQueries';
 import type { AgentDeleteDatas } from '../../features/agent-config/types';
 import { FallbackSpinner } from '@/components/custom/FallbackSpinner';
 import NoData from '@/components/custom/NoData';
@@ -53,6 +53,15 @@ export default function AgentList() {
     },
   });
 
+  const { mutate: duplicateAgent } = useDuplicateAgent({
+    mutationOptions: {
+      onSuccess: () => {
+        toast.success('에이전트가 복제되었습니다.');
+        queryClient.invalidateQueries({ queryKey: agentQueryKeys.getAgents().queryKey });
+      },
+    },
+  });
+
   const agentList = agents ?? [];
   const filteredList = searchValue.trim()
     ? agentList.filter((agent) => {
@@ -79,6 +88,10 @@ export default function AgentList() {
     modal.confirm.delete({
       onOk: () => deleteAgent(data),
     });
+  };
+
+  const handleDuplicate = (agentId: string) => {
+    duplicateAgent({ agentId });
   };
 
   const handlePlayground = (agentId: string) => {
@@ -110,7 +123,15 @@ export default function AgentList() {
       ) : filteredList.length ? (
         <div className="grid grid-cols-[repeat(auto-fill,minmax(350px,1fr))] gap-4 w-full overflow-y-auto pt-2 -mt-2">
           {filteredList.map((agent) => (
-            <AgentCard key={agent.agentId} {...agent} onDetail={handleDetail} onDelete={handleDelete} onOpenStudio={handleOpenStudio} onPlayground={handlePlayground} />
+            <AgentCard
+              key={agent.agentId}
+              {...agent}
+              onDetail={handleDetail}
+              onDelete={handleDelete}
+              onOpenStudio={handleOpenStudio}
+              onPlayground={handlePlayground}
+              onDuplicate={handleDuplicate}
+            />
           ))}
         </div>
       ) : (

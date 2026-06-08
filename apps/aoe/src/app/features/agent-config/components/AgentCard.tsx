@@ -12,9 +12,22 @@ type AgentCardProps = AgentListItem & {
   onOpenStudio?: (agentId: string) => void;
   onDelete?: (data: AgentDeleteDatas) => void;
   onPlayground?: (agentId: string) => void;
+  onDuplicate?: (agentId: string) => void;
 };
 
-export default function AgentCard({ agentId, agentName, agentTypeName, aoeDeployFlag, aoeApiKey, deployTime, onDetail, onOpenStudio, onDelete, onPlayground }: AgentCardProps) {
+export default function AgentCard({
+  agentId,
+  agentName,
+  agentTypeName,
+  aoeDeployFlag,
+  aoeApiKey,
+  deployTime,
+  onDetail,
+  onOpenStudio,
+  onDelete,
+  onPlayground,
+  onDuplicate,
+}: AgentCardProps) {
   const title = (
     <span
       className="hover:cursor-pointer hover:!text-[var(--color-bt-primary)]"
@@ -41,6 +54,9 @@ export default function AgentCard({ agentId, agentName, agentTypeName, aoeDeploy
         </DropdownMenuItem>
         <DropdownMenuItem onClick={() => onPlayground?.(agentId)} className="hover:cursor-pointer">
           Playground
+        </DropdownMenuItem>
+        <DropdownMenuItem onClick={() => onDuplicate?.(agentId)} className="hover:cursor-pointer">
+          복제
         </DropdownMenuItem>
         <DropdownMenuItem onClick={() => onDelete?.({ agentId, aoeDeployFlag, aoeApiKey })} className="hover:cursor-pointer">
           삭제
