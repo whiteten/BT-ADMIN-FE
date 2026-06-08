@@ -3,6 +3,7 @@ import { Drawer, Input, type InputRef } from 'antd';
 import dayjs from 'dayjs';
 import { Bot, RotateCcw, User } from 'lucide-react';
 import { Log } from '@/log';
+import { createUUID } from '@/shared-util';
 import { useRefreshAgent, useTestAgent } from '../hooks/useAgentQueries';
 import type { ChatMessage } from '../types';
 import { IconSend } from '@/components/custom/Icons';
@@ -94,7 +95,7 @@ const AgentPlaygroundDrawer = forwardRef<AgentPlaygroundDrawerRef>((_, ref) => {
 
   useImperativeHandle(ref, () => ({
     open: ({ agentId, agentName }) => {
-      const uuid = crypto.randomUUID();
+      const uuid = createUUID();
       const newServiceId = `test_${uuid}`;
       const newThreadId = `${agentId}_${uuid}`;
       setServiceId(newServiceId);
@@ -153,7 +154,7 @@ const AgentPlaygroundDrawer = forwardRef<AgentPlaygroundDrawerRef>((_, ref) => {
   };
 
   const handleRefresh = () => {
-    const uuid = crypto.randomUUID();
+    const uuid = createUUID();
     const newServiceId = `test_${uuid}`;
     const newThreadId = `${state.agentId}_${uuid}`;
     setServiceId(newServiceId);
