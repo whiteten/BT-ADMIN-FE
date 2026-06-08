@@ -118,3 +118,100 @@ export interface SleeConfigReservationResult {
   configSystemInserted: number;
   configSystemUpdated: number;
 }
+
+// === SLEE 환경변수 cfg 다중 Import (AS-IS IPR20S6060MFU) ===
+export interface SleeUserconfigImportFileResult {
+  configFile: string;
+  success: boolean;
+  parsedCategories: number;
+  parsedProperties: number;
+  upsertedRows: number;
+  detectedEncoding: string | null;
+  errorMessage: string | null;
+}
+
+export interface SleeUserconfigImportResponse {
+  totalFiles: number;
+  successCount: number;
+  failCount: number;
+  totalUpsertedRows: number;
+  fileResults: SleeUserconfigImportFileResult[];
+}
+
+// === 환경파일 삭제 (Phase 1) ===
+export interface SleeConfigDeleteFileResponse {
+  deletedRows: number;
+  /** USERCONFIG 잔여 0 → GRANT 도 삭제됐는지. 1차 범위에서 GRANT entity 미구현이라 항상 false. */
+  grantRemoved: boolean;
+}
+
+// === 적용 이력 (Phase 2 — 즉시/예약 통합) ===
+
+/** rtResvKind: 1=즉시, 2=예약. null=전체 필터. */
+export type RtResvKind = 1 | 2;
+
+export interface SleeConfigHistoryRow {
+  systemName: string;
+  configFile: string;
+  rtResvKind: number | null;
+  /** 1=파일단위, 9=항목단위 */
+  setStatus: number | null;
+  /** 10=대기, 50=성공, 55=실패 (HIST 의 APPLY_STATUS) */
+  applyStatus: number | null;
+  /** 1=성공, 2=실패, 9=미실행 (RESERVE 실시간 결과, 예약일 때만) */
+  applyResult: number | null;
+  applyDatetime: string | null;
+  cancelTime: string | null;
+  workTime: string | null;
+  svcResvId: string | null;
+  applyReason: string | null;
+  workUserName: string | null;
+}
+
+// === 백업 이력 (Phase 2) ===
+
+export interface SleeConfigBackupHeader {
+  backupListId: number;
+  workUserName: string | null;
+  workTime: string | null;
+}
+
+export interface SleeConfigBackupCompareRow {
+  category: string;
+  property: string;
+  /** 현재 USERCONFIG.VALUE — 없으면 null */
+  currentValue: string | null;
+  backupValue: string | null;
+  changed: boolean;
+}
+
+export interface SleeConfigBackupRestoreResponse {
+  /** 복구 전 USERCONFIG 삭제된 row 수 */
+  deletedRows: number;
+  /** BK_DATA → USERCONFIG 로 INSERT 된 row 수 */
+  restoredRows: number;
+}
+
+// === 라벨 매핑 (UI 표시용) ===
+
+export const RT_RESV_KIND_LABELS: Record<number, string> = {
+  1: '즉시',
+  2: '예약',
+};
+
+export const APPLY_STATUS_LABELS: Record<number, string> = {
+  10: '대기',
+  50: '성공',
+  55: '실패',
+};
+
+export const APPLY_RESULT_LABELS: Record<number, string> = {
+  1: '성공',
+  2: '실패',
+  9: '미실행',
+};
+
+export const SET_STATUS_LABELS: Record<number, string> = {
+  1: '파일단위',
+  9: '항목단위',
+};

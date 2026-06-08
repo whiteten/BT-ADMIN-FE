@@ -9,14 +9,17 @@ import type { ColDef, ICellRendererParams } from 'ag-grid-community';
 import { AgGridReact } from 'ag-grid-react';
 import { type BreadcrumbProps, Button, Checkbox, DatePicker, Drawer, Empty, Input, Radio, Tag, Tooltip } from 'antd';
 import dayjs, { type Dayjs } from 'dayjs';
-import { Building2, ChevronLeft, ChevronRight, FileCog, FileText, Info, Search, Server, Settings, Trash2 } from 'lucide-react';
+import { Building2, ChevronLeft, ChevronRight, FileCog, FileText, History, Info, Search, Server, Settings, Trash2, Upload as UploadIcon } from 'lucide-react';
 import { useBreadcrumbStore } from '@/shared-store';
 import { toast } from '@/shared-util';
 import PropertyEditDrawer, { type PropertyEditDrawerRef } from '../../features/slee-config/components/PropertyEditDrawer';
+import SleeConfigHistoryModal, { type SleeConfigHistoryModalRef } from '../../features/slee-config/components/SleeConfigHistoryModal';
+import SleeUserconfigImportModal, { type SleeUserconfigImportModalRef } from '../../features/slee-config/components/SleeUserconfigImportModal';
 import {
   sleeConfigQueryKeys,
   useApplyItemImmediate,
   useApplyReservation,
+  useDeleteConfigFile,
   useDeleteProperty,
   useGetSleeConfigCategories,
   useGetSleeConfigFiles,
@@ -61,6 +64,8 @@ export default function SleeConfigList() {
   const cardScrollRef = useRef<HTMLDivElement>(null);
   const tabScrollRef = useRef<HTMLDivElement>(null);
   const propertyEditDrawerRef = useRef<PropertyEditDrawerRef>(null);
+  const importModalRef = useRef<SleeUserconfigImportModalRef>(null);
+  const historyModalRef = useRef<SleeConfigHistoryModalRef>(null);
   // Drawer 열고 시스템 첫 로드 시점에만 자동 전체 체크. 이후 사용자 수동 해제 가능.
   const autoCheckDoneRef = useRef(false);
 
@@ -221,6 +226,48 @@ export default function SleeConfigList() {
       },
     },
   });
+
+  // ─── Phase 1: 환경파일 전체 삭제 ─────────────────────────────────────────
+  const { mutate: deleteConfigFile } = useDeleteConfigFile({
+    mutationOptions: {
+      onSuccess: (data) => {
+        toast.success(`환경파일이 삭제되었습니다. (USERCONFIG ${data.deletedRows}건 삭제${data.grantRemoved ? ' + GRANT 정리' : ''})`);
+        // 환경파일이 사라졌으니 선택 해제 + 전체 재조회
+        setSelectedConfigFile(null);
+        setSelectedCategory(null);
+        invalidateAllSleeConfig();
+      },
+      onError: (err: unknown) => {
+        const msg = (err as { message?: string })?.message ?? '환경파일 삭제에 실패했습니다.';
+        // 진행 예약 차단 메시지는 그대로 노출 (BE: "진행 중 예약이 있어 삭제할 수 없습니다. 예약 취소 후 삭제하세요.")
+        toast.error(msg);
+      },
+    },
+  });
+
+  const handleDeleteConfigFile = useCallback(() => {
+    if (!selectedTenantId || !selectedConfigFile) return;
+    modal.confirm.delete({
+      options: {
+        title: '환경파일 전체 삭제',
+        content: (
+          <div>
+            <p>
+              환경파일 <b>"{selectedConfigFile}"</b> 의 모든 속성을 삭제합니다.
+            </p>
+            <p className="text-[12px] text-slate-500 mt-2">※ 진행 중 예약이 있으면 차단됩니다. 적용 이력/예약 기록/백업은 보존됩니다.</p>
+          </div>
+        ),
+      },
+      onOk: () => deleteConfigFile({ tenantId: selectedTenantId, configFile: selectedConfigFile }),
+    });
+  }, [modal, selectedTenantId, selectedConfigFile, deleteConfigFile]);
+
+  // ─── 이력 모달 (Phase 6) ─────────────────────────────────────────────
+  const handleOpenHistory = useCallback(() => {
+    if (!selectedTenantId || !selectedConfigFile) return;
+    historyModalRef.current?.open({ tenantId: selectedTenantId, configFile: selectedConfigFile });
+  }, [selectedTenantId, selectedConfigFile]);
 
   /** 행별 휴지통 단건 삭제 — DNIS관리(MCS) 와 동일하게 useModal 사용 (centered 모달). */
   const handleDeleteSingleProperty = useCallback(
@@ -485,8 +532,17 @@ export default function SleeConfigList() {
                 onChange={handleSearchChange}
                 style={{ width: 200 }}
               />
+              <Button icon={<UploadIcon className="size-3.5" />} disabled={!selectedTenantId} onClick={() => selectedTenantId && importModalRef.current?.open(selectedTenantId)}>
+                Import
+              </Button>
               <Button icon={<FileCog className="size-3.5" />} disabled={!selectedConfigFile} onClick={handleOpenFileApply}>
                 파일단위 적용
+              </Button>
+              <Button icon={<History className="size-3.5" />} disabled={!selectedConfigFile} onClick={handleOpenHistory}>
+                이력
+              </Button>
+              <Button danger icon={<Trash2 className="size-3.5" />} disabled={!selectedConfigFile} onClick={handleDeleteConfigFile}>
+                파일삭제
               </Button>
             </div>
           </div>
@@ -783,6 +839,8 @@ export default function SleeConfigList() {
       </Drawer>
 
       <PropertyEditDrawer ref={propertyEditDrawerRef} onSuccess={invalidateAllSleeConfig} />
+      <SleeUserconfigImportModal ref={importModalRef} />
+      <SleeConfigHistoryModal ref={historyModalRef} />
     </div>
   );
 }

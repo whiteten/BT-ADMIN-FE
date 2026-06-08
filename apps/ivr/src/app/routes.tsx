@@ -10,6 +10,7 @@ const IvrAinDnis = React.lazy(() => import('./pages/ivr/IvrAinDnis'));
 const ScenarioList = React.lazy(() => import('./pages/ivr/ScenarioList'));
 const ScenarioDetail = React.lazy(() => import('./pages/ivr/ScenarioDetail'));
 const SleeConfigList = React.lazy(() => import('./pages/ivr/SleeConfigList'));
+const MentFileList = React.lazy(() => import('./pages/ivr/MentFileList'));
 
 export const routes = [
   {
@@ -32,6 +33,7 @@ export const routes = [
           { path: 'scenario', element: <ScenarioList /> },
           { path: 'scenario/:serviceId', element: <ScenarioDetail /> },
           { path: 'slee-config', element: <SleeConfigList /> },
+          { path: 'mentfile', element: <MentFileList /> },
         ],
       },
     ],
