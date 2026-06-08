@@ -52,13 +52,16 @@ export const useDeleteMcp = ({ mutationOptions }: MutationHookOptions<void, { mc
  * LLM 노드의 MCP 트리 선택 UI에서 전체 서버·도구 트리를 한 번에 구성하기 위한 집계 훅.
  */
 export const useGetAllMcpTools = () => {
-  const { data: servers = [], isLoading: isLoadingServers } = useGetMcpList();
+  // LLM 노드 속성 패널을 다시 열 때마다 재요청하지 않도록 캐싱(5분).
+  const cacheOptions = { staleTime: 5 * 60 * 1000, gcTime: 10 * 60 * 1000 };
+  const { data: servers = [], isLoading: isLoadingServers } = useGetMcpList({ queryOptions: cacheOptions });
 
   const toolQueries = useQueries({
     queries: servers.map((server) => ({
       queryKey: mcpQueryKeys.getMcpTools({ serverName: server.serverName }).queryKey,
       queryFn: () => mcpApi.getMcpTools({ serverName: server.serverName }),
       enabled: !!server.serverName,
+      ...cacheOptions,
     })),
   });
 

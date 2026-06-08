@@ -55,7 +55,10 @@ interface LlmPropertiesProps {
 
 export default function LlmProperties({ node, graph }: LlmPropertiesProps) {
   const form = Form.useFormInstance();
-  const { data: models = [], isLoading: isLoadingModels } = useGetModels();
+  // 패널을 다시 열 때마다 재요청하지 않도록 캐싱(5분). (모델 라벨 깜박임은 아래 fallback option 으로 별도 방지됨)
+  const { data: models = [], isLoading: isLoadingModels } = useGetModels({
+    queryOptions: { staleTime: 5 * 60 * 1000, gcTime: 10 * 60 * 1000 },
+  });
   const { servers: mcpServers, toolsByServer, isLoading: isLoadingMcp } = useGetAllMcpTools();
   const { groups: toolGroups, toolsByGroup, isLoading: isLoadingTools } = useGetAllTools();
   const variables = getUpstreamVariables(node.nodeId, graph);

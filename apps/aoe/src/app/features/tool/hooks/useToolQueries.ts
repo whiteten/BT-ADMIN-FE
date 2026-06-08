@@ -73,13 +73,16 @@ export const useDeleteTool = ({ mutationOptions }: MutationHookOptions<void, { t
  * LLM 노드의 도구 트리 선택 UI에서 전체 그룹·도구 트리를 한 번에 구성하기 위한 집계 훅.
  */
 export const useGetAllTools = () => {
-  const { data: groups = [], isLoading: isLoadingGroups } = useGetToolGroups();
+  // LLM 노드 속성 패널을 다시 열 때마다 재요청하지 않도록 캐싱(5분).
+  const cacheOptions = { staleTime: 5 * 60 * 1000, gcTime: 10 * 60 * 1000 };
+  const { data: groups = [], isLoading: isLoadingGroups } = useGetToolGroups({ queryOptions: cacheOptions });
 
   const toolQueries = useQueries({
     queries: groups.map((group) => ({
       queryKey: toolQueryKeys.getTools({ groupId: group.groupId }).queryKey,
       queryFn: () => toolApi.getTools({ groupId: group.groupId }),
       enabled: !!group.groupId,
+      ...cacheOptions,
     })),
   });
 
