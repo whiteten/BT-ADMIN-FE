@@ -357,10 +357,10 @@ export default function StatDatasetEdit() {
                 <span className="text-sm text-bt-fg-muted">수정일</span>
                 <span className="text-sm text-bt-fg">{dataset!.updatedAt ? dayjs(dataset!.updatedAt).format('YYYY-MM-DD HH:mm') : '-'}</span>
               </div>
-              {dataset!.createdBy && (
+              {(dataset!.createdByName || dataset!.createdBy) && (
                 <div className="flex items-center justify-between py-1.5">
                   <span className="text-sm text-bt-fg-muted">생성자</span>
-                  <span className="text-sm text-bt-fg truncate max-w-[170px]">{dataset!.createdBy}</span>
+                  <span className="text-sm text-bt-fg truncate max-w-[170px]">{dataset!.createdByName || dataset!.createdBy}</span>
                 </div>
               )}
             </div>

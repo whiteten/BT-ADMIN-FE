@@ -41,8 +41,10 @@ export interface DatasetListItem {
 export interface DatasetDetail extends DatasetListItem {
   tenantId: string;
   createdBy?: string;
+  createdByName?: string;
   createdAt: string;
   updatedBy?: string;
+  updatedByName?: string;
   updatedAt?: string;
   fields: FieldMetaItem[];
 }

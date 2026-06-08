@@ -680,7 +680,7 @@ export default function WizardStepB({
                 <AgGridReact<LocalFieldDisplay>
                   rowData={sortedRows}
                   columnDefs={columnDefs}
-                  gridOptions={{ ...gridOptions, rowNumbers: false, pagination: false, statusBar: undefined, sideBar: false }}
+                  gridOptions={{ ...gridOptions, rowNumbers: true, pagination: false, statusBar: undefined, sideBar: false }}
                   rowHeight={40}
                   getRowId={({ data }) => data.fieldName}
                   getRowClass={({ data }) => {
