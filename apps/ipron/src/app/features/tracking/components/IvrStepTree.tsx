@@ -16,28 +16,71 @@ interface Props {
   loading?: boolean;
   /** CallFlow 의 IVR segment 클릭 시 매칭되는 시나리오를 자동 펼침 + 강조 (segmentId='IR-{hop}-{cdrPkey}'). */
   selectedCdrPkey?: number | string | null;
+  /** 대화 탭 클릭 시 호출 — 메인 페이지의 '대화' 탭으로 점프 */
+  onOpenDialog?: () => void;
+  /** Packet/PacketJson/type33 step 클릭 시 호출 — PacketLogModal 열림 */
+  onPacketClick?: (step: IvrStep, scenarioCdrPkey: number | string | null) => void;
 }
 
-// AS-IS getIvrTrackingTypeName 13 타입
+// AS-IS IR_TRACKING_ITEM_TYPE 공통코드 전 type 매핑 (BE IvrStepBuilder.typeLabel 과 1:1)
 const NODE_STYLE: Record<IvrNodeType, { bg: string; fg: string; emoji: string; label: string }> = {
-  Menu: { bg: 'bg-violet-100', fg: 'text-violet-700', emoji: '📋', label: '메뉴' },
-  GetDigit: { bg: 'bg-blue-100', fg: 'text-blue-700', emoji: '⌨', label: 'DTMF 입력' },
-  Play: { bg: 'bg-emerald-100', fg: 'text-emerald-700', emoji: '🔊', label: '멘트 재생' },
-  Packet: { bg: 'bg-sky-100', fg: 'text-sky-700', emoji: '📡', label: '전문 패킷' },
-  Cti: { bg: 'bg-amber-100', fg: 'text-amber-700', emoji: '🔀', label: 'CTI 호전환' },
-  Query: { bg: 'bg-indigo-100', fg: 'text-indigo-700', emoji: '🔍', label: '외부 조회' },
-  Tracking: { bg: 'bg-zinc-100', fg: 'text-zinc-600', emoji: '📍', label: '트래킹' },
-  UserDef: { bg: 'bg-slate-100', fg: 'text-slate-600', emoji: '📊', label: '메뉴 통계' },
+  Menu: { bg: 'bg-violet-100', fg: 'text-violet-700', emoji: '📋', label: '서비스메뉴' },
+  GetDigit: { bg: 'bg-blue-100', fg: 'text-blue-700', emoji: '⌨', label: 'DTMF' },
+  Play: { bg: 'bg-emerald-100', fg: 'text-emerald-700', emoji: '🔊', label: '멘트플레이' },
+  Packet: { bg: 'bg-sky-100', fg: 'text-sky-700', emoji: '📡', label: '패킷전송' },
+  Cti: { bg: 'bg-amber-100', fg: 'text-amber-700', emoji: '🔀', label: 'CTI Function' },
+  Query: { bg: 'bg-indigo-100', fg: 'text-indigo-700', emoji: '🔍', label: 'DB Query' },
+  Tracking: { bg: 'bg-zinc-100', fg: 'text-zinc-600', emoji: '📍', label: '사용자정의' },
+  UserDef: { bg: 'bg-slate-100', fg: 'text-slate-600', emoji: '📊', label: '메뉴통계' },
   HA: { bg: 'bg-neutral-100', fg: 'text-neutral-500', emoji: '⏱', label: 'HA' },
   EndInfo: { bg: 'bg-red-100', fg: 'text-red-700', emoji: '🏁', label: '메뉴 종료' },
-  PacketJson: { bg: 'bg-cyan-100', fg: 'text-cyan-700', emoji: '🧩', label: 'JSON 패킷' },
-  RequestVARS: { bg: 'bg-teal-100', fg: 'text-teal-700', emoji: '📤', label: 'VARS 요청' },
+  // ── 호 제어 10~17 ──
+  Disconnect: { bg: 'bg-rose-100', fg: 'text-rose-700', emoji: '⛔', label: 'Disconnect' },
+  Record: { bg: 'bg-fuchsia-100', fg: 'text-fuchsia-700', emoji: '⏺', label: 'Record' },
+  Abort: { bg: 'bg-red-100', fg: 'text-red-700', emoji: '✖', label: 'Abort' },
+  Switch: { bg: 'bg-orange-100', fg: 'text-orange-700', emoji: '🔁', label: 'Switch' },
+  Transfer: { bg: 'bg-orange-100', fg: 'text-orange-700', emoji: '↪', label: 'Transfer' },
+  MakeCall: { bg: 'bg-amber-100', fg: 'text-amber-700', emoji: '📞', label: 'Make Call' },
+  DisSwitch: { bg: 'bg-rose-100', fg: 'text-rose-700', emoji: '↩', label: 'DisSwitch' },
+  GetChannel: { bg: 'bg-sky-100', fg: 'text-sky-700', emoji: '🔌', label: 'Get Channel' },
+  // ── 음성인식 18~22 ──
+  VoiceRecogine: { bg: 'bg-pink-100', fg: 'text-pink-700', emoji: '🎤', label: 'Voice Recogine' },
+  OpenVR: { bg: 'bg-pink-100', fg: 'text-pink-700', emoji: '🔓', label: 'Open VR' },
+  CloseVR: { bg: 'bg-pink-100', fg: 'text-pink-700', emoji: '🔒', label: 'Close VR' },
+  RequestVR: { bg: 'bg-pink-100', fg: 'text-pink-700', emoji: '📨', label: 'Request VR' },
+  ResponseVR: { bg: 'bg-pink-100', fg: 'text-pink-700', emoji: '📩', label: 'Response VR' },
+  // ── 패킷/입력 확장 23~25 ──
+  PacketJson: { bg: 'bg-cyan-100', fg: 'text-cyan-700', emoji: '🧩', label: 'PacketJson' },
+  RequestVARS: { bg: 'bg-teal-100', fg: 'text-teal-700', emoji: '📤', label: 'Request VARS' },
   CollectDigit: { bg: 'bg-blue-100', fg: 'text-blue-700', emoji: '⌨', label: 'Collect Digit' },
-  RequestHTTP: { bg: 'bg-sky-100', fg: 'text-sky-700', emoji: '🌐', label: 'HTTP 요청' },
+  // ── NLU 26~29 ──
+  NLU: { bg: 'bg-purple-100', fg: 'text-purple-700', emoji: '🧠', label: 'NLU' },
+  NLURequest: { bg: 'bg-purple-100', fg: 'text-purple-700', emoji: '📨', label: 'NLURequest' },
+  IntentCall: { bg: 'bg-purple-100', fg: 'text-purple-700', emoji: '🎯', label: 'IntentCall' },
+  EntityCall: { bg: 'bg-purple-100', fg: 'text-purple-700', emoji: '🏷', label: 'EntityCall' },
+  // ── v6.x 30~32 ──
+  RequestHTTP: { bg: 'bg-sky-100', fg: 'text-sky-700', emoji: '🌐', label: 'Request HTTP' },
   Pause: { bg: 'bg-neutral-100', fg: 'text-neutral-500', emoji: '⏸', label: '일시정지' },
-  Resume: { bg: 'bg-neutral-100', fg: 'text-neutral-600', emoji: '▶️', label: '재개' },
-  ShowChat: { bg: 'bg-emerald-100', fg: 'text-emerald-700', emoji: '💬', label: 'Chat 출력' },
-  GetChat: { bg: 'bg-blue-100', fg: 'text-blue-700', emoji: '💭', label: 'Chat 입력' },
+  Resume: { bg: 'bg-neutral-100', fg: 'text-neutral-600', emoji: '▶', label: '재개' },
+  // ── Chat 40/41 ──
+  ShowChat: { bg: 'bg-emerald-100', fg: 'text-emerald-700', emoji: '💬', label: 'ShowChat' },
+  GetChat: { bg: 'bg-blue-100', fg: 'text-blue-700', emoji: '💭', label: 'GetChat' },
+  // ── 페이지/푸시 50~54 ──
+  RequestPage: { bg: 'bg-sky-100', fg: 'text-sky-700', emoji: '📄', label: 'Request Page' },
+  GetPageData: { bg: 'bg-sky-100', fg: 'text-sky-700', emoji: '📑', label: 'Get Page Data' },
+  RequestPush: { bg: 'bg-teal-100', fg: 'text-teal-700', emoji: '📲', label: 'Request Push' },
+  RegistServer: { bg: 'bg-green-100', fg: 'text-green-700', emoji: '➕', label: 'Regist Server' },
+  UnRegistServer: { bg: 'bg-red-100', fg: 'text-red-700', emoji: '➖', label: 'UnRegist Server' },
+  // ── 메뉴 흐름 제어 60~63 ──
+  MenuCall: { bg: 'bg-violet-100', fg: 'text-violet-700', emoji: '📥', label: 'Menu Call' },
+  ChangeService: { bg: 'bg-violet-100', fg: 'text-violet-700', emoji: '🔄', label: 'Change Service' },
+  MenuChange: { bg: 'bg-violet-100', fg: 'text-violet-700', emoji: '🔃', label: 'Menu Change' },
+  UserENV: { bg: 'bg-slate-100', fg: 'text-slate-600', emoji: '⚙', label: 'User ENV' },
+  // ── 이벤트 80/81 ──
+  SetEvent: { bg: 'bg-yellow-100', fg: 'text-yellow-700', emoji: '🔔', label: 'Set Event' },
+  WaitEvent: { bg: 'bg-yellow-100', fg: 'text-yellow-700', emoji: '⏳', label: 'Wait Event' },
+  // ── 사용자 코드 90 ──
+  UserCode: { bg: 'bg-gray-100', fg: 'text-gray-600', emoji: '⚙', label: '사용자코드' },
   OTHER: { bg: 'bg-gray-100', fg: 'text-gray-600', emoji: '•', label: '기타' },
 };
 
@@ -48,10 +91,19 @@ const fmtTime = (iso: string): string => {
   return `${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`;
 };
 
-function StepRow({ step, isLast }: { step: IvrStep; isLast: boolean }) {
+function StepRow({ step, isLast, onPacketClick }: { step: IvrStep; isLast: boolean; onPacketClick?: () => void }) {
   const style = NODE_STYLE[step.type] ?? NODE_STYLE.OTHER;
+  // Packet/PacketJson/type33 step 은 항상 클릭 가능 — AS-IS 와 동일하게 빈 TRKEY 도 IVR 호출 시도
+  const isPacket = step.rawType === 3 || step.rawType === 23 || step.rawType === 33;
+  const canClick = isPacket && !!onPacketClick;
+  const packetNoKey = false;
   return (
-    <div className="flex items-start gap-3 py-1.5 relative">
+    <div
+      className={`flex items-start gap-3 py-1.5 relative ${canClick ? 'cursor-pointer hover:bg-blue-50/40 -mx-2 px-2 rounded' : ''}`}
+      onClick={canClick ? onPacketClick : undefined}
+      role={canClick ? 'button' : undefined}
+      title={canClick ? '패킷 전문 조회' : packetNoKey ? 'TRKEY 없음 (패킷 미전송)' : undefined}
+    >
       <div className={`size-7 rounded-md flex items-center justify-center flex-shrink-0 z-10 text-[13px] ${style.bg} ${style.fg}`}>{style.emoji}</div>
       {!isLast && <div className="absolute left-3.5 top-9 bottom-0 w-px bg-gray-200" />}
       <div className="flex-1 pb-1.5 min-w-0">
@@ -80,7 +132,17 @@ function StepRow({ step, isLast }: { step: IvrStep; isLast: boolean }) {
         )}
         {step.endReason && <div className="text-[12.5px] text-red-600 mt-0.5">종료 사유: {step.endReason}</div>}
         {step.branchLabel && !step.dtmfInput && <div className="text-[12.5px] text-gray-500 mt-0.5">분기: {step.branchLabel}</div>}
-        {step.mentName && <div className="mt-1 inline-flex items-center gap-1 text-[11.5px] bg-emerald-50 text-emerald-700 px-1.5 py-0.5 rounded">🔊 {step.mentName}</div>}
+        {(step.itemName || step.mentName) && (
+          <div className="mt-1 inline-flex items-center gap-1 text-[11.5px] bg-emerald-50 text-emerald-700 px-1.5 py-0.5 rounded max-w-full">
+            <span>🔊</span>
+            {step.itemName && <span className="font-semibold whitespace-nowrap">[{step.itemName}]</span>}
+            {step.mentName && (
+              <span className="truncate" title={step.mentName}>
+                {step.mentName}
+              </span>
+            )}
+          </div>
+        )}
       </div>
     </div>
   );
@@ -115,7 +177,7 @@ function groupByMenu(steps: IvrStep[]): MenuBlock[] {
   return blocks;
 }
 
-function MenuBlockCard({ block, isLast }: { block: MenuBlock; isLast: boolean }) {
+function MenuBlockCard({ block, isLast, onPacketClick }: { block: MenuBlock; isLast: boolean; onPacketClick?: (s: IvrStep) => void }) {
   const isStart = block.menuId === 'S';
   const enterT = block.enter ?? block.inner[0] ?? block.end;
   const dur = block.end?.durationSec ?? block.enter?.durationSec ?? null;
@@ -152,7 +214,7 @@ function MenuBlockCard({ block, isLast }: { block: MenuBlock; isLast: boolean })
       {block.inner.length > 0 ? (
         <div className="mt-1.5 ml-1 border-l-2 border-gray-100 pl-3 space-y-0.5">
           {block.inner.map((s) => (
-            <StepRow key={s.stepId} step={s} isLast />
+            <StepRow key={s.stepId} step={s} isLast onPacketClick={onPacketClick ? () => onPacketClick(s) : undefined} />
           ))}
         </div>
       ) : (
@@ -162,7 +224,19 @@ function MenuBlockCard({ block, isLast }: { block: MenuBlock; isLast: boolean })
   );
 }
 
-function ScenarioGroupCard({ group, defaultOpen, highlighted }: { group: IvrScenarioGroup; defaultOpen: boolean; highlighted?: boolean }) {
+function ScenarioGroupCard({
+  group,
+  defaultOpen,
+  highlighted,
+  onOpenDialog,
+  onPacketClick,
+}: {
+  group: IvrScenarioGroup;
+  defaultOpen: boolean;
+  highlighted?: boolean;
+  onOpenDialog?: () => void;
+  onPacketClick?: (s: IvrStep) => void;
+}) {
   const [activeTab, setActiveTab] = useState<'flow' | 'dialog'>('flow');
   const [collapsed, setCollapsed] = useState(!defaultOpen);
   const cardRef = useRef<HTMLDivElement>(null);
@@ -213,14 +287,16 @@ function ScenarioGroupCard({ group, defaultOpen, highlighted }: { group: IvrScen
             </button>
             <button
               type="button"
-              onClick={() => setActiveTab('dialog')}
-              disabled={!group.hasVoiceRecognition}
-              title={group.hasVoiceRecognition ? '대화 보기' : 'STT 시나리오에만 활성화됩니다'}
+              onClick={() => {
+                if (onOpenDialog) onOpenDialog();
+                else setActiveTab('dialog');
+              }}
+              title="대화 보기 (메인 대화 탭으로 이동)"
               className={`px-3 py-1.5 text-[12.5px] font-medium border-b-2 -mb-[1px] transition-colors ${
-                activeTab === 'dialog' && group.hasVoiceRecognition ? 'text-blue-700 border-blue-700' : 'text-gray-400 border-transparent disabled:cursor-not-allowed'
+                activeTab === 'dialog' ? 'text-blue-700 border-blue-700' : 'text-gray-500 border-transparent hover:text-blue-600'
               }`}
             >
-              💬 대화 {!group.hasVoiceRecognition && <span className="text-[9px] ml-1">(STT 시나리오만)</span>}
+              💬 대화
             </button>
           </div>
 
@@ -235,7 +311,7 @@ function ScenarioGroupCard({ group, defaultOpen, highlighted }: { group: IvrScen
                   return (
                     <div>
                       {blocks.map((b, i) => (
-                        <MenuBlockCard key={`${b.menuId}-${i}`} block={b} isLast={i === blocks.length - 1} />
+                        <MenuBlockCard key={`${b.menuId}-${i}`} block={b} isLast={i === blocks.length - 1} onPacketClick={onPacketClick} />
                       ))}
                     </div>
                   );
@@ -244,12 +320,6 @@ function ScenarioGroupCard({ group, defaultOpen, highlighted }: { group: IvrScen
             ) : (
               <div className="text-[12.5px] text-gray-500 py-4 text-center">대화 탭은 Phase 2에서 활성화됩니다.</div>
             )}
-
-            {!group.hasVoiceRecognition && activeTab === 'flow' && (
-              <div className="mt-3 pt-3 border-t border-gray-100 bg-gray-50 -mx-4 px-4 py-2 text-[11.5px] text-gray-500">
-                💡 이 시나리오에는 음성 인식(VoiceRecogine) 노드가 없으므로 <strong>대화 탭은 비활성</strong>입니다.
-              </div>
-            )}
           </div>
         </>
       )}
@@ -257,7 +327,7 @@ function ScenarioGroupCard({ group, defaultOpen, highlighted }: { group: IvrScen
   );
 }
 
-export default function IvrStepTree({ groups, loading, selectedCdrPkey }: Props) {
+export default function IvrStepTree({ groups, loading, selectedCdrPkey, onOpenDialog, onPacketClick }: Props) {
   if (loading) {
     return <div className="p-4 text-[12px] text-gray-500">불러오는 중...</div>;
   }
@@ -276,7 +346,16 @@ export default function IvrStepTree({ groups, loading, selectedCdrPkey }: Props)
       {groups.map((g, i) => {
         const isHighlighted = targetKey != null && String(g.cdrPkey) === targetKey;
         const defaultOpen = hasMatch ? isHighlighted : i === 0;
-        return <ScenarioGroupCard key={g.cdrPkey} group={g} defaultOpen={defaultOpen} highlighted={isHighlighted} />;
+        return (
+          <ScenarioGroupCard
+            key={g.cdrPkey}
+            group={g}
+            defaultOpen={defaultOpen}
+            highlighted={isHighlighted}
+            onOpenDialog={onOpenDialog}
+            onPacketClick={(s) => onPacketClick?.(s, g.cdrPkey)}
+          />
+        );
       })}
     </div>
   );

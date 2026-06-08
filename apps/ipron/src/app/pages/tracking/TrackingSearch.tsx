@@ -11,7 +11,7 @@
  */
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Button, DatePicker, Input, InputNumber, TimePicker } from 'antd';
+import { Button, DatePicker, Input, InputNumber, Select, TimePicker } from 'antd';
 import dayjs, { type Dayjs } from 'dayjs';
 import { ChevronDown, ChevronUp, Download, Search, Star } from 'lucide-react';
 import { useBreadcrumbStore } from '@/shared-store';
@@ -135,6 +135,9 @@ export default function TrackingSearch() {
   const [quickAbandoned, setQuickAbandoned] = useState(false);
   const [quickReqAgent, setQuickReqAgent] = useState(false);
   const [quickIvrSelf, setQuickIvrSelf] = useState(false);
+  // IVR 시나리오 유형 (IR_SERVICE_TYPE) — 비우면 기본 화이트리스트 (10/30/40/60/80/90).
+  // 값 주면 그 값 우선 — ACS(20)/정책(50)/ACS O/B(70) 등을 빠른 조회로 검색하고 싶을 때 사용.
+  const [quickServiceTypes, setQuickServiceTypes] = useState<number[]>([]);
 
   // ─── Mode 개인 기본값 (LocalStorage) ───────────────────────────────────────
   useEffect(() => {
@@ -227,6 +230,7 @@ export default function TrackingSearch() {
         abandoned: quickAbandoned || null,
         reqAgent: quickReqAgent || null,
         ivrSelfServiced: quickIvrSelf || null,
+        serviceTypes: quickServiceTypes.length > 0 ? quickServiceTypes : null,
         page: 0,
         size: 10000, // 한 번에 최대 1만건 받음 (그 이상은 기간을 좁혀야 함)
       };
@@ -235,7 +239,7 @@ export default function TrackingSearch() {
       if (err) return { error: err };
       return criteria;
     },
-    [activePreset, customRange, mode, quickAbandoned, quickReqAgent, quickIvrSelf],
+    [activePreset, customRange, mode, quickAbandoned, quickReqAgent, quickIvrSelf, quickServiceTypes],
   );
 
   const persistRecent = useCallback((rawInput: string, criteria: TrackingSearchCriteria, count: number) => {
@@ -354,6 +358,7 @@ export default function TrackingSearch() {
     setQuickAbandoned(false);
     setQuickReqAgent(false);
     setQuickIvrSelf(false);
+    setQuickServiceTypes([]);
     // 빠른조회 → rawQuery 동기화 useEffect 가 자동으로 모드 전용 토큰 제거함
     // 다음 tick 에서 cleaned rawQuery 로 자동 재검색 (이전 검색이 있을 때만)
     if (hasSearched) {
@@ -613,6 +618,27 @@ export default function TrackingSearch() {
                   >
                     IVR 셀프서비스
                   </button>
+                  <Select
+                    mode="multiple"
+                    size="small"
+                    allowClear
+                    placeholder="시나리오 유형 (기본: 기본/음성/콜백/영업점/AI/BOT)"
+                    value={quickServiceTypes}
+                    onChange={(v) => setQuickServiceTypes(v ?? [])}
+                    style={{ minWidth: 220, flex: 1 }}
+                    maxTagCount="responsive"
+                    options={[
+                      { value: 10, label: '기본 시나리오' },
+                      { value: 20, label: 'ACS 시나리오' },
+                      { value: 30, label: '음성 시나리오' },
+                      { value: 40, label: '콜백 시나리오' },
+                      { value: 50, label: '정책 시나리오' },
+                      { value: 60, label: '영업점 시나리오' },
+                      { value: 70, label: 'ACS O/B (2CH)' },
+                      { value: 80, label: 'AI 시나리오' },
+                      { value: 90, label: 'BOT 시나리오' },
+                    ]}
+                  />
                 </div>
               )}
               {/* 통화 구분 (다중) — IVR 모드는 내선 제외 */}

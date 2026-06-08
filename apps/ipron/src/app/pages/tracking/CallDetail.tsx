@@ -8,7 +8,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { Button, Tabs, message } from 'antd';
-import { ArrowLeft } from 'lucide-react';
+import { ArrowLeft, Copy } from 'lucide-react';
 import { useBreadcrumbStore } from '@/shared-store';
 import AgentEventTimeline from '../../features/tracking/components/AgentEventTimeline';
 import CallFlowDiagram from '../../features/tracking/components/CallFlowDiagram';
@@ -16,15 +16,43 @@ import CallSummaryHeader from '../../features/tracking/components/CallSummaryHea
 import CtiRoutingTimeline from '../../features/tracking/components/CtiRoutingTimeline';
 import DialogView from '../../features/tracking/components/DialogView';
 import IvrStepTree from '../../features/tracking/components/IvrStepTree';
+import PacketLogModal from '../../features/tracking/components/PacketLogModal';
+import { IeCdrPanel } from '../../features/tracking/components/PbxCallDetailDrawer';
 import RecordingButton from '../../features/tracking/components/RecordingButton';
-import { useGetAgentEvents, useGetCtiRouting, useGetDialogs, useGetIvrSteps, useGetQuality, useGetTrackingDetail } from '../../features/tracking/hooks/useTrackingQueries';
+import {
+  useGetAgentEvents,
+  useGetCtiRouting,
+  useGetDialogs,
+  useGetIeCdrDetail,
+  useGetIvrSteps,
+  useGetQuality,
+  useGetTrackingDetail,
+} from '../../features/tracking/hooks/useTrackingQueries';
 import type { CallQuality, CallSegment } from '../../features/tracking/types';
+import { fmtTalkTime, fmtTime } from '../../features/tracking/utils/timeFormat';
 import { FallbackSpinner } from '@/components/custom/FallbackSpinner';
 
 // TODO Phase 2: shared-store에서 권한 헬퍼가 추가되면 교체
 function useHasPermission(authKey: string): boolean {
   void authKey;
   return false;
+}
+
+/**
+ * hop 별 IE CDR 탭 — PbxCallDetailDrawer 의 IeCdrPanel 재사용.
+ * 각 hop 카드의 "⚙ IE CDR" 탭에 그 hop 의 TB_DM_IE_BASICCDR row 전체 시각화.
+ * (이전엔 hopNodes baseMeta 의 빈약한 정보만 보여 모든 hop 에서 0 홉처럼 보이는 문제 fix)
+ */
+function HopIeCdrTab({ ucid, hop }: { ucid: string; hop: number }) {
+  const ieCdrQ = useGetIeCdrDetail(ucid, hop);
+  if (ieCdrQ.isLoading) return <div className="p-6 text-[12px] text-gray-500">불러오는 중...</div>;
+  const ieRow = ieCdrQ.data;
+  if (!ieRow) return <div className="p-6 text-[12px] text-gray-400">HOP {hop} 의 IE CDR 데이터가 없습니다.</div>;
+  return (
+    <div className="p-3">
+      <IeCdrPanel ieRow={ieRow} />
+    </div>
+  );
 }
 
 const SEGMENT_META: Record<CallSegment['kind'], { emoji: string; label: string; dot: string; ring: string; accent: string }> = {
@@ -36,14 +64,6 @@ const SEGMENT_META: Record<CallSegment['kind'], { emoji: string; label: string; 
   AGENT: { emoji: '🎧', label: '상담', dot: 'bg-emerald-500', ring: 'ring-emerald-300', accent: '#10b981' },
   DISCONNECT: { emoji: '📤', label: '종료', dot: 'bg-slate-400', ring: 'ring-slate-300', accent: '#94a3b8' },
   OTHER: { emoji: '•', label: '기타', dot: 'bg-gray-400', ring: 'ring-gray-300', accent: '#9ca3af' },
-};
-
-const fmtTime = (iso: string | null): string => {
-  if (!iso) return '-';
-  const d = new Date(iso);
-  if (Number.isNaN(d.getTime())) return iso;
-  const pad = (n: number) => String(n).padStart(2, '0');
-  return `${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`;
 };
 
 const fmtDeltaSec = (totalStart: string, atIso: string | null): string => {
@@ -85,17 +105,27 @@ export default function CallDetail() {
   const navigate = useNavigate();
   const { ucid } = useParams<{ ucid: string }>();
   const [selectedSegmentId, setSelectedSegmentId] = useState<string | null>(null);
-  // 다중 expand 지원 — 다른 hop 누르면 그 hop 도 같이 열림, X 버튼으로만 개별 닫음
+  // 단일 expand + 핀 고정 — 다른 hop 누르면 unpinned 는 자동 닫음, 핀된 것은 유지
   const [openHopIds, setOpenHopIds] = useState<Set<string>>(new Set());
+  const [pinnedHopIds, setPinnedHopIds] = useState<Set<string>>(new Set());
   const openHop = (id: string) => {
     setSelectedSegmentId(id);
-    setOpenHopIds((prev) => (prev.has(id) ? prev : new Set(prev).add(id)));
+    // 새 hop 열 때마다 hop 내부 Tabs 는 첫 탭(main)으로 reset
+    setHopSubTab('main');
+    // pinned 만 남기고 새 id 추가 (unpinned 는 자동 닫힘)
+    setOpenHopIds((prev) => {
+      const next = new Set<string>();
+      prev.forEach((p) => {
+        if (pinnedHopIds.has(p)) next.add(p);
+      });
+      next.add(id);
+      return next;
+    });
     // 펼친 expand 가 화면에 보이도록 자동 스크롤 (다음 frame 에 expand 가 그려진 후)
     requestAnimationFrame(() => {
       requestAnimationFrame(() => {
         const bar = document.querySelector(`[data-segment-id="${id}"]`);
         if (bar) {
-          // hop bar 의 부모 row 다음 형제(expand div)까지 보이게 — block: 'start' 로 hop bar 가 상단 위치
           bar.scrollIntoView({ behavior: 'smooth', block: 'start', inline: 'nearest' });
         }
       });
@@ -107,9 +137,31 @@ export default function CallDetail() {
       n.delete(id);
       return n;
     });
+    // 닫을 때 핀도 같이 해제
+    setPinnedHopIds((prev) => {
+      if (!prev.has(id)) return prev;
+      const n = new Set(prev);
+      n.delete(id);
+      return n;
+    });
     if (selectedSegmentId === id) setSelectedSegmentId(null);
   };
+  const togglePinHop = (id: string) => {
+    setPinnedHopIds((prev) => {
+      const n = new Set(prev);
+      if (n.has(id)) n.delete(id);
+      else n.add(id);
+      return n;
+    });
+  };
   const [activeTab, setActiveTab] = useState<'info' | 'ivr' | 'dialog' | 'cti' | 'agent' | 'quality'>('info');
+  // hop 내부 Tabs — IR: main(IR CDR) / ie(IE CDR) / dialog(대화)
+  //                  IC: main(CTI 큐) / ie(IE CDR)
+  //                  AGENT: main(상담사) / ie(IE CDR)
+  // 다른 hop 으로 이동 시 자동 'main' 으로 reset.
+  const [hopSubTab, setHopSubTab] = useState<'main' | 'ie' | 'dialog'>('main');
+  // 패킷 전문 모달 — Packet/PacketJson step 클릭 시 열림
+  const [packetModalContext, setPacketModalContext] = useState<React.ComponentProps<typeof PacketLogModal>['context']>(null);
   const [flowExpanded, setFlowExpanded] = useState(false);
 
   // 권한
@@ -160,7 +212,7 @@ export default function CallDetail() {
       groups.get(h)!.push(s);
     }
     const sorted = [...groups.entries()].sort((a, b) => a[0] - b[0]);
-    return sorted.map(([hopNo, segs], idx) => {
+    return sorted.flatMap(([hopNo, segs], idx) => {
       // IE 가 여러 row 면 전환성 T_TYPE(3=IVR/4=IVR큐/5=CTI큐/6=ACD큐) 을 대표로 우선
       // 동일 T_TYPE 중에서는 startTime 채워진 row 를 우선 (백엔드가 일부 row startTime 누락하는 케이스 보호)
       const ieRows = segs.filter((s) => s.meta?._segType === 'IE');
@@ -205,11 +257,25 @@ export default function CallDetail() {
       //  segs.map(...).find(Boolean) 로 startTime 가진 첫 행만 잡음)
       const irSeg = segs.find((s) => String(s.meta?._segType ?? '').startsWith('IR'));
       const start = ie?.startTime || irSeg?.startTime || segs.map((s) => s.startTime).find(Boolean) || '';
+      // Packet 전문 조회용 — IR hop 의 BASICCDR 값 (systemId/serviceName/scenarioVersion)
+      const irSystemId = irSeg?.meta?.systemId ?? ie?.meta?.systemId ?? segs.map((s) => s.meta?.systemId).find((v) => v != null) ?? null;
+      const irNodeId = irSeg?.meta?.nodeId ?? null;
       // duration — hop 통합 길이는 sum 아닌 max (자원 동시 실행이라 가장 긴 것이 hop 점유 시간)
       const durMax = Math.max(0, ...segs.map((s) => s.durationSec ?? 0));
       const queueName = segs.map((s) => s.meta?.queueName).find(Boolean) ?? null;
+      const queueId = segs.map((s) => s.meta?.queueId).find((v) => v != null) ?? null;
       const agentName = segs.map((s) => s.meta?.agentName).find(Boolean) ?? null;
       const agentId = segs.map((s) => s.meta?.agentId).find((v) => v != null) ?? null;
+      // CTI hop(IC_QUEUE)의 분배 상담사 — 우선순위:
+      //   1) 같은 hop 의 IC_AGENT segment agentName (실제 응답한 상담사)
+      //   2) 같은 hop 의 IC_QUEUE/IC_ROUTING segment agentName (BE 가 Queue.DIST_AGENT_LOGIN_DN 매핑하여 채움)
+      const distAgentName =
+        segs.find((s) => s.meta?._segType === 'IC_AGENT')?.meta?.agentName ??
+        segs.find((s) => {
+          const t = String(s.meta?._segType ?? '');
+          return (t === 'IC_QUEUE' || t === 'IC_ROUTING') && Boolean(s.meta?.agentName);
+        })?.meta?.agentName ??
+        null;
       const serviceName = segs.map((s) => s.meta?.serviceName).find(Boolean) ?? null;
       // 그 hop 발신/착신 — IE segment(oName=발신, tName=착신) 우선
       const oName = segs.map((s) => s.meta?.oName).find(Boolean) ?? ie?.meta?.oName ?? null;
@@ -232,10 +298,20 @@ export default function CallDetail() {
       //   T_TYPE 0/1/4/6/7=IE, 2=AGENT, 3=IR(트렁크 TDN → 외부 IVR/ForCus), 5=IC(CTI큐)
       //   IR/IC raw 데이터가 있으면 그것이 우선
       const tt = ie ? Number(ie.meta?._tType) : null;
+      const ot = ie ? Number(ie.meta?._oType) : null;
+      // IC_AGENT (CTI 콜의 상담사 배정 hop) 는 AGENT 카드. IC_QUEUE/IC_ROUTING 만 IC 카드.
+      const hasIcAgent = segs.some((s) => s.meta?._segType === 'IC_AGENT');
+      const hasIcQueueOnly = segs.some((s) => {
+        const t = String(s.meta?._segType ?? '');
+        return t === 'IC_QUEUE' || t === 'IC_ROUTING';
+      });
       let hopType: string;
       if (hasIR || tt === 3) hopType = 'IR';
-      else if (hasIC || tt === 5) hopType = 'IC';
-      else if (tt === 2) hopType = 'AGENT';
+      else if (hasIcAgent)
+        hopType = 'AGENT'; // CTI 콜의 상담사 배정 hop
+      else if (hasIcQueueOnly || tt === 5) hopType = 'IC';
+      else if (tt === 2 || ot === 2)
+        hopType = 'AGENT'; // 상담사 착신(T_TYPE=2) 또는 상담사 발신(O_TYPE=2)
       else hopType = 'IE';
 
       // 첫 hop 전용 — 콜방향(_callDir) + 첫 hop 라벨용 _firstHopType (= hopType 과 동일)
@@ -246,38 +322,81 @@ export default function CallDetail() {
         firstHopType = hopType;
       }
 
-      return {
-        segmentId: `HOP-${hopNo}`,
-        kind,
-        startTime: start,
-        endTime: null,
-        durationSec: durMax || null,
-        label: `HOP ${hopNo} · ${compo}`,
-        meta: {
-          _hopNo: hopNo,
-          _compo: compo,
-          _hasIR: hasIR ? 1 : 0,
-          _hasIC: hasIC ? 1 : 0,
-          _firstHopType: firstHopType,
-          _hopType: hopType,
-          _callDir: callDir,
-          _irCdrPkeys: irCdrPkeys.join(','),
-          _icCdrPkeys: icCdrPkeys.join(','),
-          queueName,
-          agentName,
-          agentId,
-          serviceName,
-          oName,
-          tName,
-          ani,
-          dnis,
-        },
-        isError: segs.some((s) => s.isError),
-      } as CallSegment;
+      const baseMeta = {
+        _hopNo: hopNo,
+        _compo: compo,
+        _hasIR: hasIR ? 1 : 0,
+        _hasIC: hasIC ? 1 : 0,
+        _firstHopType: firstHopType,
+        _hopType: hopType,
+        _callDir: callDir,
+        _irCdrPkeys: irCdrPkeys.join(','),
+        _icCdrPkeys: icCdrPkeys.join(','),
+        queueName,
+        queueId,
+        agentName,
+        agentId,
+        distAgentName,
+        serviceName,
+        oName,
+        tName,
+        ani,
+        dnis,
+        // IR hop 의 Packet 전문 조회용 메타
+        systemId: irSystemId,
+        nodeId: irNodeId,
+      };
+
+      // AGENT hop 에 unique AGENT 가 2명 이상 → (hop, agentId) 별로 노드 분리.
+      // 좌측에서 'HOP 1 정영훈' / 'HOP 1 1' 따로 클릭 가능 → 우측 이벤트도 그 AGENT 것만 표시.
+      if (hopType === 'AGENT') {
+        const agentSegs = segs.filter((s) => s.meta?.agentId != null);
+        const byAgent = new Map<string, CallSegment[]>();
+        for (const as of agentSegs) {
+          const aid = String(as.meta!.agentId);
+          if (!byAgent.has(aid)) byAgent.set(aid, []);
+          byAgent.get(aid)!.push(as);
+        }
+        if (byAgent.size > 1) {
+          return [...byAgent.entries()].map(([aid, ass]) => {
+            const aname = ass.map((s) => s.meta?.agentName).find((v): v is string => typeof v === 'string') ?? null;
+            const aStart = ass.map((s) => s.startTime).find((v): v is string => typeof v === 'string') ?? start;
+            const aDur = Math.max(0, ...ass.map((s) => s.durationSec ?? 0));
+            return {
+              segmentId: `HOP-${hopNo}-A${aid}`,
+              kind,
+              startTime: aStart,
+              endTime: null,
+              durationSec: aDur || null,
+              label: `HOP ${hopNo} · ${aname ?? aid} (${compo})`,
+              meta: {
+                ...baseMeta,
+                agentId: Number(aid),
+                agentName: aname,
+              },
+              isError: ass.some((s) => s.isError),
+            } as CallSegment;
+          });
+        }
+      }
+
+      return [
+        {
+          segmentId: `HOP-${hopNo}`,
+          kind,
+          startTime: start,
+          endTime: null,
+          durationSec: durMax || null,
+          label: `HOP ${hopNo} · ${compo}`,
+          meta: baseMeta,
+          isError: segs.some((s) => s.isError),
+        } as CallSegment,
+      ];
     });
   }, [segments]);
 
-  const selectedSegment = useMemo(() => hopNodes.find((s) => s.segmentId === selectedSegmentId) ?? null, [hopNodes, selectedSegmentId]);
+  // React Compiler 가 자동 최적화 — useMemo 불필요
+  const selectedSegment = hopNodes.find((s) => s.segmentId === selectedSegmentId) ?? null;
 
   /**
    * hopNodes 기반 탭 활성화 여부 판정.
@@ -326,13 +445,15 @@ export default function CallDetail() {
         </aside>
       </div>
     );
-    const fmt = (s: string | null | undefined) => (s ? new Date(s).toLocaleTimeString('ko-KR', { hour12: false }) : '-');
+    const fmt = fmtTime;
     const hopNo = Number(hop.meta?._hopNo ?? 0);
     const fht = hop.meta?._firstHopType as string | undefined;
     // 모든 hop 의 AS-IS 분류 (첫 hop 외에도) — IR/IC/AGENT/IE 폴백 분기에 사용
     const ht = hop.meta?._hopType as string | undefined;
 
-    if (hop.kind === 'IVR' || fht === 'IVR' || fht === 'IR' || ht === 'IR') {
+    // 분기 우선순위 — _hopType(AS-IS SQL N_TYPE → SYSTEM_TYPE 매핑) 기준.
+    // hop.kind 는 시각화용 분류라 T_TYPE=4(IVR큐)도 'IVR' 로 잡혀 IR 데이터 없는 IE hop 까지 들어옴 → 제외
+    if (ht === 'IR' || fht === 'IR' || fht === 'IVR') {
       const dur = hop.durationSec ?? 0;
       const endIso = hop.startTime && dur > 0 ? new Date(new Date(hop.startTime).getTime() + dur * 1000).toISOString() : null;
       // 이 hop 의 cdrPkey 와 매칭되는 IVR group 만 필터. 키 정보가 없거나 매칭 없으면 전체 fallback (데이터 누락 방지)
@@ -345,15 +466,41 @@ export default function CallDetail() {
         : [];
       const all = ivrQ.data ?? [];
       const hopGroups = irKeys.length > 0 ? all.filter((g) => irKeys.includes(Number(g.cdrPkey))) : [];
-      const finalGroups = hopGroups.length > 0 ? hopGroups : all; // 빈 매칭이면 전체 fallback
+      // 그 hop 의 cdrPkey 와 매칭되는 IR group 만 (fallback 제거 — 다른 hop 데이터 섞임 방지)
+      const finalGroups = hopGroups;
       const matchedGroup = finalGroups[0];
-      const gAny = matchedGroup as { version?: string; cdrPkey?: number | string; serviceName?: string } | undefined;
+      const gAny = matchedGroup as { scenarioVersion?: string | null; scenarioId?: number; cdrPkey?: number | string; serviceName?: string } | undefined;
       const serviceName = (hop.meta?.serviceName as string) ?? gAny?.serviceName ?? '-';
-      const version = (hop.meta?.version as string) ?? (hop.meta?._version as string) ?? gAny?.version ?? '-';
+      const version = (hop.meta?.version as string) ?? (hop.meta?._version as string) ?? gAny?.scenarioVersion ?? '-';
       const cdrPkey = hop.meta?._cdrPkey != null ? String(hop.meta._cdrPkey) : gAny?.cdrPkey != null ? String(gAny.cdrPkey) : '-';
-      return renderSplit(
-        <IvrStepTree groups={finalGroups} loading={ivrQ.isLoading} selectedCdrPkey={null} />,
-        '🤖 IVR CDR 정보',
+      const irContent = renderSplit(
+        <IvrStepTree
+          groups={finalGroups}
+          loading={ivrQ.isLoading}
+          selectedCdrPkey={null}
+          onOpenDialog={() => setHopSubTab('dialog')}
+          onPacketClick={(step) => {
+            const startIso = detailQ.data?.header?.startTime ?? hop.startTime ?? '';
+            const yyyymmdd = startIso ? startIso.slice(0, 10).replace(/-/g, '') : '';
+            const systemIdRaw = hop.meta?.systemId ?? hop.meta?._systemId;
+            const systemId = systemIdRaw != null ? Number(systemIdRaw) : null;
+            // serviceId: matchedGroup.scenarioId(=BE BASICCDR.SERVICE_ID) 우선, fallback 으로 hop.meta
+            const serviceIdRaw = (matchedGroup as { scenarioId?: number })?.scenarioId ?? hop.meta?.serviceId ?? hop.meta?._serviceId;
+            const serviceId = serviceIdRaw != null && Number(serviceIdRaw) !== 0 ? Number(serviceIdRaw) : null;
+            setPacketModalContext({
+              systemId,
+              serviceId,
+              serviceVer: version !== '-' ? version : null,
+              packetId: step.val3 ?? step.menuId ?? null,
+              trKey: step.val8 ?? null,
+              date: yyyymmdd,
+              dataType: step.rawType,
+              menuName: step.mentName ?? step.menuId,
+              typeNm: step.type,
+            });
+          }}
+        />,
+        '🤖 IR CDR 정보',
         [
           { k: '서비스', v: serviceName },
           { k: '버전', v: version },
@@ -368,15 +515,40 @@ export default function CallDetail() {
         '#DDD3FB',
         '#5b21b6',
       );
+      // IR hop 은 IR CDR + IE CDR 두 탭 — 같은 hop 의 IE CDR 도 함께 표시.
+      // 다른 분기(CTI/AGENT/IE)와 이질감 없게 wrapper 없이 minimal Tabs (tab bar 만 얇게 위에)
+      const dialogCount = (dialogQ.data ?? []).length;
+      return (
+        <Tabs
+          activeKey={hopSubTab}
+          onChange={(k) => setHopSubTab(k as 'main' | 'ie' | 'dialog')}
+          size="small"
+          tabPosition="bottom"
+          tabBarStyle={{ marginTop: 0, paddingLeft: 12, paddingRight: 12, borderTop: 'none' }}
+          items={[
+            { key: 'main', label: '🤖 IR CDR', children: irContent },
+            { key: 'ie', label: '⚙ IE CDR', children: ucid ? <HopIeCdrTab ucid={ucid} hop={hopNo} /> : null },
+            {
+              key: 'dialog',
+              label: dialogCount > 0 ? `💬 대화 (${dialogCount})` : '💬 대화',
+              children: (
+                <div className="px-3 pt-2 pb-3">
+                  <DialogView turns={dialogQ.data ?? []} loading={dialogQ.isLoading} />
+                </div>
+              ),
+            },
+          ]}
+        />
+      );
     }
-    if (hop.kind === 'CTI' || hop.kind === 'QUEUE_IN' || fht === 'CTI' || fht === 'IC' || ht === 'IC') {
+    if (ht === 'IC' || fht === 'CTI' || fht === 'IC' || fht === 'QUEUE_IN') {
       const dur = hop.durationSec ?? 0;
       const endIso = hop.startTime && dur > 0 ? new Date(new Date(hop.startTime).getTime() + dur * 1000).toISOString() : null;
       // 백엔드 nexthop=null 호출로 모든 hop 라우팅이 한 응답에 옴 → parentHop(=IE.HOP) 으로 그 hop 만 필터.
       // 매칭 없으면 빈 표시 (다른 hop 데이터 섞임 방지)
       const allCti = ctiQ.data ?? [];
       const hopCti = allCti.filter((c) => Number(c.meta?._parentHop) === hopNo);
-      return renderSplit(
+      const ctiContent = renderSplit(
         <CtiRoutingTimeline hops={hopCti} loading={ctiQ.isLoading} />,
         '🔀 CTI 큐 정보',
         [
@@ -386,29 +558,48 @@ export default function CallDetail() {
           { k: '시작', v: fmt(hop.startTime) },
           { k: '종료', v: fmt(endIso) },
           { k: '대기시간', v: dur > 0 ? `${dur}s` : '-' },
-          {
-            k: 'End Reason',
-            v: (
-              <span className={hop.isError ? 'text-red-700 font-semibold' : ''}>
-                {(hop as { endReason?: string }).endReason ?? (hop.meta?.endReason as string | undefined) ?? '-'}
-              </span>
-            ),
-          },
-          { k: 'AGENT', v: (hop.meta?.agentName as string) ?? (hop.meta?.agentId ? `ID ${hop.meta.agentId}` : '— 미연결 —') },
+          { k: '분배 상담원', v: (hop.meta?.distAgentName as string) ?? (hop.meta?.agentName as string) ?? '— 미분배 —' },
         ],
         'rgba(255,237,213,0.4)',
         '#FDD9B0',
         '#9a3412',
       );
+      return (
+        <Tabs
+          activeKey={hopSubTab === 'dialog' ? 'main' : hopSubTab}
+          onChange={(k) => setHopSubTab(k as 'main' | 'ie')}
+          size="small"
+          tabPosition="bottom"
+          tabBarStyle={{ marginTop: 0, paddingLeft: 12, paddingRight: 12, borderTop: 'none' }}
+          items={[
+            { key: 'main', label: '🔀 CTI 큐', children: ctiContent },
+            { key: 'ie', label: '⚙ IE CDR', children: ucid ? <HopIeCdrTab ucid={ucid} hop={hopNo} /> : null },
+          ]}
+        />
+      );
     }
-    if (hop.kind === 'AGENT' || fht === 'AGENT' || fht === '내선' || ht === 'AGENT') {
+    if (ht === 'AGENT' || fht === 'AGENT' || fht === '내선') {
       const dur = hop.durationSec ?? 0;
       const endIso = hop.startTime && dur > 0 ? new Date(new Date(hop.startTime).getTime() + dur * 1000).toISOString() : null;
-      // 이 hop 의 AGENT 이벤트만 필터 — hop 번호 직접 매칭. 매칭 없으면 전체 fallback
+      // 이 hop 의 그 AGENT 이벤트만 필터 — (hop, agentId) 둘 다 매칭.
+      // 같은 hop 에 여러 상담사가 동시 배정되는 케이스(예: BC830FFE hop=1 DN 2484+2486)에서
+      // 좌측 hop AGENT 를 클릭하면 그 상담사의 이벤트만 우측에 표시되어야 함.
       const allAgent = agentQ.data ?? [];
-      const matchedAgent = allAgent.filter((e) => Number((e as { hop?: number | string | null }).hop) === hopNo);
-      const finalAgent = matchedAgent.length > 0 ? matchedAgent : allAgent;
-      return renderSplit(
+      const hopAgentId = hop.meta?.agentId != null ? Number(hop.meta.agentId) : null;
+      const matchedByHopAndAgent = allAgent.filter((e) => {
+        const eHop = Number((e as { hop?: number | string | null }).hop);
+        if (eHop !== hopNo) return false;
+        if (hopAgentId != null) {
+          const eAgentId = Number((e as { agentId?: number | string | null }).agentId);
+          if (eAgentId !== hopAgentId) return false;
+        }
+        return true;
+      });
+      // fallback 1: hop+agentId 매칭 0건 → hop 만으로 (BE hop 매핑 실패 케이스 보호)
+      const matchedByHop = matchedByHopAndAgent.length > 0 ? matchedByHopAndAgent : allAgent.filter((e) => Number((e as { hop?: number | string | null }).hop) === hopNo);
+      // fallback 2: hop 도 0건 → 전체 (디버깅 가시성)
+      const finalAgent = matchedByHop.length > 0 ? matchedByHop : allAgent;
+      const agentContent = renderSplit(
         <AgentEventTimeline events={finalAgent} loading={agentQ.isLoading} />,
         '🎧 상담사 정보',
         [
@@ -417,15 +608,27 @@ export default function CallDetail() {
           { k: '시작', v: fmt(hop.startTime) },
           { k: '종료', v: fmt(endIso) },
           { k: '통화', v: dur > 0 ? `${dur}s` : '-' },
-          { k: 'ANI → DNIS', v: `${(hop.meta?.ani as string) ?? '-'} → ${(hop.meta?.dnis as string) ?? '-'}` },
         ],
         'rgba(209,250,229,0.4)',
         '#A7F0CC',
         '#065f46',
       );
+      return (
+        <Tabs
+          activeKey={hopSubTab === 'dialog' ? 'main' : hopSubTab}
+          onChange={(k) => setHopSubTab(k as 'main' | 'ie')}
+          size="small"
+          tabPosition="bottom"
+          tabBarStyle={{ marginTop: 0, paddingLeft: 12, paddingRight: 12, borderTop: 'none' }}
+          items={[
+            { key: 'main', label: '🎧 상담사', children: agentContent },
+            { key: 'ie', label: '⚙ IE CDR', children: ucid ? <HopIeCdrTab ucid={ucid} hop={hopNo} /> : null },
+          ]}
+        />
+      );
     }
-    // 그 외 — IE 자원 hop (IR/IC 없음). PBX 자체 처리 (그룹DN/외선/내선 등) 메트릭 표시
-    {
+    // IE CDR 메트릭 빌더 — IE 자원 hop 또는 IR 탭의 두 번째 탭에서 재사용
+    function buildIeMetric(): React.ReactNode {
       // IE segments 중 대표 row (T_TYPE 우선)
       const ieSeg =
         segments.filter((s) => Number(s.meta?._hop) === hopNo && s.meta?._segType === 'IE').find((s) => !!s.startTime) ??
@@ -463,16 +666,8 @@ export default function CallDetail() {
       const ckRaw = Number(ieSeg?.meta?._callKind ?? hop.meta?._callKind);
       const callKindLabel = Number.isFinite(ckRaw) ? (CALL_KIND_LABEL[ckRaw] ?? String(ckRaw)) : '-';
 
-      // 통화시간 — durationSec (HH:MM:SS, 60s 미만은 초 단위)
-      const fmtTalk = (sec: number): string => {
-        if (!sec || sec < 0) return '0s';
-        if (sec < 60) return `${sec.toFixed(sec < 10 ? 1 : 0)}s`;
-        const total = Math.round(sec);
-        const h = Math.floor(total / 3600);
-        const m = Math.floor((total % 3600) / 60);
-        const s = total % 60;
-        return h > 0 ? `${h}:${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}` : `${m}:${String(s).padStart(2, '0')}`;
-      };
+      // 통화시간 포맷은 fmtTalkTime (공용 헬퍼) 사용
+      const fmtTalk = fmtTalkTime;
 
       // 시스템 — "이름 (ID)" 한 줄 합침. 이름 없으면 ID만
       const sysCombined = sysName && sysId != null ? `${sysName} (${sysId})` : (sysName ?? (sysId != null ? String(sysId) : '-'));
@@ -508,12 +703,6 @@ export default function CallDetail() {
               <span>{(hop.meta?.tName as string) ?? '-'}</span>
             </div>
           </div>
-          <div className="text-[11px] text-gray-400 pt-2 border-t border-gray-100">
-            IR/IC 라우팅 데이터 없음 — 교환기 자체에서 처리된 hop.{' '}
-            <button className="text-brand hover:underline" onClick={() => setActiveTab('dialog')}>
-              대화 보기
-            </button>
-          </div>
         </div>,
         '⚙ IE CDR 정보',
         [
@@ -523,7 +712,6 @@ export default function CallDetail() {
           ...(forcusLabel ? [{ k: '외부 연결', v: <span className="text-violet-700 font-semibold">ForCus · {forcusLabel}</span> }] : []),
           { k: '노드 ID', v: (ieSeg?.meta?.nodeId as number | null) != null ? String(ieSeg?.meta?.nodeId) : hop.meta?.nodeId != null ? String(hop.meta.nodeId) : '-' },
           { k: '인입시간', v: fmt(hop.startTime) },
-          { k: '라우팅시간', v: fmt(endIso) },
           { k: '통화시간', v: fmtTalk(dur) },
           { k: '종료구분', v: endTypeLabel },
           { k: '종료주체', v: endPartLabel },
@@ -534,6 +722,9 @@ export default function CallDetail() {
         '#1d3a6b',
       );
     }
+
+    // IE 자원 hop (IR/IC 없음) — IE 메트릭 단독 표시
+    return buildIeMetric();
   };
 
   // 진입 시엔 '콜 정보' 탭. 사용자가 CallFlow/HOP 에서 노드를 선택하면 그 종류의 탭으로 전환
@@ -610,9 +801,33 @@ export default function CallDetail() {
                         : '🔇 미응답'}
             </span>
           )}
-          <span className="text-[11.5px] text-gray-500 whitespace-nowrap">
-            <span className="text-gray-400">UCID</span> <span className="font-mono text-gray-800 truncate">{header.ucid}</span>
+          <span className="text-[11.5px] text-gray-500 whitespace-nowrap inline-flex items-center gap-1">
+            <span className="text-gray-400">UCID</span>
+            <span className="font-mono text-gray-800 truncate">{header.ucid}</span>
+            <button
+              type="button"
+              onClick={() => {
+                if (!header.ucid) return;
+                navigator.clipboard.writeText(header.ucid).then(
+                  () => message.success('UCID 복사됨'),
+                  () => message.error('복사 실패'),
+                );
+              }}
+              className="text-gray-400 hover:text-blue-600 transition-colors p-0.5 rounded hover:bg-blue-50"
+              title="UCID 복사"
+            >
+              <Copy className="size-3" />
+            </button>
           </span>
+          {(header.mediaAlias || header.mediaType != null) && (
+            <>
+              <span className="w-px h-4 bg-gray-200" />
+              <span className="text-[11.5px] text-gray-500 whitespace-nowrap inline-flex items-center gap-1">
+                <span className="text-gray-400">미디어</span>
+                <span className="text-gray-800">{header.mediaAlias ?? `Type ${header.mediaType}`}</span>
+              </span>
+            </>
+          )}
           <span className="w-px h-4 bg-gray-200" />
           <span className="text-[11.5px] text-gray-500 whitespace-nowrap">
             <span className="text-gray-400">ANI</span> <span className="font-mono text-gray-800">{header.ani ?? '-'}</span>
@@ -621,8 +836,7 @@ export default function CallDetail() {
           </span>
           <span className="w-px h-4 bg-gray-200" />
           <span className="text-[11.5px] text-gray-500 whitespace-nowrap">
-            <span className="text-gray-400">시작</span>{' '}
-            <span className="font-mono text-gray-800">{header.startTime ? new Date(header.startTime).toLocaleTimeString('ko-KR', { hour12: false }) : '-'}</span>
+            <span className="text-gray-400">시작</span> <span className="font-mono text-gray-800">{fmtTime(header.startTime)}</span>
           </span>
           <span className="text-[11.5px] text-gray-500 whitespace-nowrap">
             <span className="text-gray-400">통화</span>{' '}
@@ -642,8 +856,10 @@ export default function CallDetail() {
             selectedSegmentId={selectedSegmentId}
             onSelect={setSelectedSegmentId}
             openHopIds={openHopIds}
+            pinnedHopIds={pinnedHopIds}
             onOpen={openHop}
             onClose={closeHop}
+            onPinToggle={togglePinHop}
             expanded
             onToggleExpand={() => setFlowExpanded(false)}
             renderHopDetail={renderHopDetail}
@@ -659,8 +875,10 @@ export default function CallDetail() {
                 selectedSegmentId={selectedSegmentId}
                 onSelect={setSelectedSegmentId}
                 openHopIds={openHopIds}
+                pinnedHopIds={pinnedHopIds}
                 onOpen={openHop}
                 onClose={closeHop}
+                onPinToggle={togglePinHop}
                 expanded
                 onToggleExpand={() => setFlowExpanded(true)}
                 renderHopDetail={renderHopDetail}
@@ -669,8 +887,8 @@ export default function CallDetail() {
 
             {/* 우측 — 위: 핵심 메트릭 (콜 전체, 컴팩트) + 아래: 선택 HOP 동적 상세 */}
             <div className="w-[400px] flex-shrink-0 flex flex-col gap-4 min-h-0">
-              {/* 위 — 핵심 메트릭 */}
-              <div className="flex-shrink-0 max-h-[280px] bg-white rounded-md border border-gray-200 flex flex-col overflow-hidden shadow-[0_1px_2px_0_rgba(56,65,74,0.15)]">
+              {/* 위 — 핵심 메트릭 (콜유형 행 추가로 max-h 늘림, 스크롤 안 생기게) */}
+              <div className="flex-shrink-0 max-h-[420px] bg-white rounded-md border border-gray-200 flex flex-col overflow-hidden shadow-[0_1px_2px_0_rgba(56,65,74,0.15)]">
                 <div className="h-[44px] px-4 flex items-center justify-between border-b border-gray-100 flex-shrink-0 bg-gradient-to-b from-white to-gray-50/60">
                   <div className="text-[13px] font-semibold text-gray-800">📊 핵심 메트릭</div>
                   <div className="text-[10px] text-gray-400 font-mono">콜 전체</div>
@@ -700,9 +918,27 @@ export default function CallDetail() {
                         <span className={vCls}>{v}</span>
                       </div>
                     );
+                    // 콜 유형 — 첫 hop 의 IE.CALL_KIND 우선 (0=내선통화/1=국선수신/2=국선발신).
+                    // _callKind 없으면 _callDir 폴백. QUEUE_IN (CTI 디지털) 은 mediaAlias 표시.
+                    const firstMeta = hopNodes[0]?.meta ?? {};
+                    const ck = Number(firstMeta._callKind);
+                    // 디지털/CTI 콜 라벨 — alias > Type N > "큐 인입 (디지털)" 순 fallback
+                    const digitalLabel = header.mediaAlias ? `💬 ${header.mediaAlias}` : header.mediaType != null ? `💬 Type ${header.mediaType}` : '💬 큐 인입 (디지털)';
+                    const callTypeLabel = Number.isFinite(ck)
+                      ? ck === 0
+                        ? '📞 내선 통화'
+                        : ck === 2
+                          ? '📤 발신'
+                          : '📥 수신'
+                      : firstMeta._callDir === 'OUTBOUND'
+                        ? '📤 발신'
+                        : firstMeta._callDir === 'QUEUE_IN'
+                          ? digitalLabel
+                          : '📥 수신';
                     return (
                       <>
                         <div className="space-y-0.5">
+                          <Row k="콜 유형" v={<span className="font-semibold">{callTypeLabel}</span>} />
                           <Row
                             k="발신 → 착신"
                             v={
@@ -949,6 +1185,9 @@ export default function CallDetail() {
           </div>
         )}
       </div>
+
+      {/* 패킷 전문 모달 (시나리오 트리의 Packet step 클릭 시) */}
+      <PacketLogModal open={packetModalContext != null} onClose={() => setPacketModalContext(null)} context={packetModalContext} />
     </div>
   );
 }

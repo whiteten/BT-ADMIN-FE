@@ -314,7 +314,7 @@ function EndpointLine({ seg }: { seg: CallSegment }) {
 // ════════════════════════════════════════════════════════════════════
 //  우측 IE CDR 시각화 패널
 // ════════════════════════════════════════════════════════════════════
-function IeCdrPanel({ ieRow }: { ieRow: Record<string, unknown> }) {
+export function IeCdrPanel({ ieRow }: { ieRow: Record<string, unknown> }) {
   const hop = num(ieRow.HOP);
   const ccType = num(ieRow.CC_TYPE);
   const ccTypeMeta = ccTypeColor(ccType);

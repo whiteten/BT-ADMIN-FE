@@ -13,9 +13,10 @@
  *  brand #405189 · IVR 보라 · CTI 주황 · AGENT 초록 · INBOUND/OUTBOUND 네이비톤
  *  bt-shadow + rounded-md + border-gray-200
  */
-import { useMemo, useRef, useState } from 'react';
-import { ChevronDown, Maximize2, Minimize2 } from 'lucide-react';
+import { useMemo } from 'react';
+import { ChevronDown, Lock, LockOpen, Maximize2, Minimize2 } from 'lucide-react';
 import type { CallSegment } from '../types';
+import { fmtAxisLabel, fmtDurFull as formatDur, fmtDurShort as formatDurShort } from '../utils/timeFormat';
 
 interface Props {
   segments: CallSegment[]; // hopNodes (각 hop이 통합된 1 segment)
@@ -23,12 +24,16 @@ interface Props {
   selectedSegmentId: string | null;
   /** segment 선택 — null 전달 시 deselect (토글) */
   onSelect: (segmentId: string | null) => void;
-  /** 열려있는 hop expand 들 (다중 가능). 없으면 selectedSegmentId 하나로 폴백. */
+  /** 열려있는 hop expand 들 (단일 + 핀 고정 가능). 없으면 selectedSegmentId 하나로 폴백. */
   openHopIds?: Set<string>;
+  /** 핀 고정된 hop — 다른 hop 클릭 시에도 닫히지 않음 */
+  pinnedHopIds?: Set<string>;
   /** hop expand 열기 (이미 열렸으면 no-op) */
   onOpen?: (segmentId: string) => void;
   /** hop expand 닫기 (X 버튼 전용) */
   onClose?: (segmentId: string) => void;
+  /** 핀 토글 */
+  onPinToggle?: (segmentId: string) => void;
   expanded?: boolean;
   onToggleExpand?: () => void;
   /** hop bar 클릭 시 그 row 아래에 inline expand 될 자원 상세 (hop kind 별 컴포넌트). null 이면 expand 없음. */
@@ -60,32 +65,20 @@ function hopContent(hop: CallSegment): string {
   return hop.label ?? '-';
 }
 
-function formatDur(sec: number): string {
-  if (sec < 60) return `${sec}s`;
-  const m = Math.floor(sec / 60),
-    s = sec % 60;
-  return s === 0 ? `${m}m` : `${m}m ${s}s`;
-}
-function formatDurShort(sec: number): string {
-  if (sec < 60) {
-    // 0.30000000000004 → 0.3, 7 → 7 (정수는 소수점 X)
-    const rounded = Math.round(sec * 10) / 10;
-    return Number.isInteger(rounded) ? `${rounded}s` : `${rounded.toFixed(1)}s`;
-  }
-  const total = Math.round(sec); // 분:초 표기는 초 단위로 반올림
-  const m = Math.floor(total / 60);
-  const s = total % 60;
-  return s === 0 ? `${m}m` : `${m}:${String(s).padStart(2, '0')}`;
-}
-function formatAxisLabel(sec: number): string {
-  if (sec === 0) return '0';
-  if (sec < 60) return `+${sec}s`;
-  const m = Math.floor(sec / 60),
-    ss = sec % 60;
-  return ss === 0 ? `+${m}m` : `+${m}:${String(ss).padStart(2, '0')}`;
-}
-
-export default function CallFlowDiagram({ segments, selectedSegmentId, onSelect, openHopIds, onOpen, onClose, expanded = false, onToggleExpand, renderHopDetail }: Props) {
+export default function CallFlowDiagram({
+  segments,
+  selectedSegmentId,
+  onSelect,
+  openHopIds,
+  pinnedHopIds,
+  onOpen,
+  onClose,
+  onPinToggle,
+  expanded = false,
+  onToggleExpand,
+  renderHopDetail,
+}: Props) {
+  const isPinned = (id: string) => pinnedHopIds?.has(id) ?? false;
   // 다중 expand 헬퍼 — openHopIds 가 있으면 그걸 사용, 없으면 selectedSegmentId 단일 폴백
   const isExpanded = (id: string) => (openHopIds ? openHopIds.has(id) : selectedSegmentId === id);
   const openHop = (id: string) => {
@@ -124,34 +117,29 @@ export default function CallFlowDiagram({ segments, selectedSegmentId, onSelect,
     const ticks: { pct: number; label: string }[] = [];
     for (let s = 0; s <= totalSec; s += interval) {
       const pct = (s / totalSec) * 100;
-      ticks.push({ pct, label: formatAxisLabel(s) });
+      ticks.push({ pct, label: fmtAxisLabel(s) });
     }
     return ticks;
   }, [totalSec]);
 
-  // 콜의 owner — 첫 hop kind 로 판정 (일반 PBX, IVR-front IVR, 디지털 CTI)
-  const owner = useMemo<{ label: string; full: string }>(() => {
-    const firstKind = segments[0]?.kind;
-    if (firstKind === 'IVR') return { label: 'IVR', full: 'IVR (전단)' };
-    if (firstKind === 'QUEUE_IN') return { label: 'CTI', full: 'CTI (디지털)' };
-    return { label: 'PBX', full: 'PBX (교환기)' };
-  }, [segments]);
+  // 콜의 owner — 첫 hop 의 실제 자원 유형(_firstHopType: IR/IC/AGENT/IE) 으로 판정.
+  // mapSegmentKind 가 첫 segment 를 INBOUND/OUTBOUND/QUEUE_IN 으로 강제하므로 kind 만 보면 IVR-only/CTI-only 콜을 PBX 로 잘못 분류.
+  const firstKind = segments[0]?.kind;
+  const firstHopType = segments[0]?.meta?._firstHopType as string | undefined;
+  const owner: { label: string; full: string } =
+    firstHopType === 'IR' || firstKind === 'IVR'
+      ? { label: 'IVR', full: 'IVR (전단)' }
+      : firstHopType === 'IC' || firstKind === 'QUEUE_IN'
+        ? { label: 'CTI', full: 'CTI (디지털)' }
+        : { label: 'PBX', full: 'PBX (교환기)' };
 
-  // 콜방향 — 첫 hop 의 _callDir (INBOUND/OUTBOUND/QUEUE_IN). 콜 채널 띠에 표기
-  const callDirLabel = useMemo<string>(() => {
-    const d = segments[0]?.meta?._callDir as string | undefined;
-    if (d === 'OUTBOUND') return '발신';
-    if (d === 'QUEUE_IN') return '큐인입';
-    if (d === 'INBOUND') return '인입';
-    // 폴백 — _callDir 없으면 첫 hop kind 로 추정
-    const k = segments[0]?.kind;
-    if (k === 'OUTBOUND') return '발신';
-    if (k === 'QUEUE_IN') return '큐인입';
-    return '인입';
-  }, [segments]);
+  // 콜방향 — 첫 hop 의 _callDir (INBOUND/OUTBOUND/QUEUE_IN). 콜 채널 띠에 표기.
+  // _callDir 없으면 첫 hop kind 로 폴백.
+  const _callDir = segments[0]?.meta?._callDir as string | undefined;
+  const callDirLabel = _callDir === 'OUTBOUND' || firstKind === 'OUTBOUND' ? '발신' : _callDir === 'QUEUE_IN' || firstKind === 'QUEUE_IN' ? '큐인입' : '인입';
 
   // 콜 흐름에 표시할 hop — 인입/발신/큐인입 모두 hop 0 부터 동일하게 표시.
-  const displaySegments = useMemo(() => segments, [segments]);
+  const displaySegments = segments;
 
   // 각 hop 의 시간 위치 (시간축 기준)
   // bar 너비 = "다음 hop 시작 시각 - 이 hop 시작 시각" (= 이 hop 의 PBX 점유 시간)
@@ -172,17 +160,7 @@ export default function CallFlowDiagram({ segments, selectedSegmentId, onSelect,
     });
   }, [displaySegments, startMs, totalSec]);
 
-  // 호버 가이드
-  const canvasRef = useRef<HTMLDivElement>(null);
-  const [guidePct, setGuidePct] = useState<number | null>(null);
-  const handleMove = (e: React.MouseEvent) => {
-    const el = canvasRef.current;
-    if (!el) return;
-    const r = el.getBoundingClientRect();
-    const pct = Math.max(0, Math.min(100, ((e.clientX - r.left) / r.width) * 100));
-    setGuidePct(pct);
-  };
-  const guideSec = guidePct != null ? (guidePct / 100) * totalSec : null;
+  // (호버 가이드 제거됨 — 가치 낮음)
 
   if (segments.length === 0) {
     return (
@@ -249,7 +227,9 @@ export default function CallFlowDiagram({ segments, selectedSegmentId, onSelect,
                   ? 'CTI'
                   : typeLabel === 'AGENT' || typeLabel === '내선'
                     ? 'AGENT'
-                    : hop.kind;
+                    : typeLabel === 'IE'
+                      ? 'INBOUND' // IE → 네이비 (PBX 자체 처리, IR 보라와 구분)
+                      : hop.kind;
             const ks = KIND_STYLE[effKind];
             const isActive = selectedSegmentId === hop.segmentId;
             const t = hop.startTime ? new Date(hop.startTime).toLocaleTimeString('ko-KR', { hour12: false }) : '';
@@ -259,7 +239,9 @@ export default function CallFlowDiagram({ segments, selectedSegmentId, onSelect,
                 key={hop.segmentId}
                 type="button"
                 onClick={() => {
-                  onSelect(hop.segmentId);
+                  // 좌측 라벨 클릭도 막대 클릭과 동일 — openHop 호출로 단일 expand + 잠금 의미 살림
+                  if (onOpen) onOpen(hop.segmentId);
+                  else onSelect(hop.segmentId);
                   // 해당 hop 막대로 스크롤 — 화면 중앙으로 강하게 focus
                   requestAnimationFrame(() => {
                     const bar = document.querySelector(`button[data-segment-id="${hop.segmentId}"]`);
@@ -284,6 +266,22 @@ export default function CallFlowDiagram({ segments, selectedSegmentId, onSelect,
                 </span>
                 <span className="font-mono text-[11.5px] text-gray-600 tabular-nums truncate min-w-0 flex-1 text-right">{t}</span>
                 {occupiedSec > 0 && <span className="font-mono text-[11px] text-gray-500 flex-shrink-0">{formatDurShort(occupiedSec)}</span>}
+                {isPinned(hop.segmentId) && (
+                  <span
+                    role="button"
+                    tabIndex={0}
+                    onClick={(e) => {
+                      e.preventDefault();
+                      e.stopPropagation();
+                      onPinToggle?.(hop.segmentId);
+                    }}
+                    onMouseDown={(e) => e.stopPropagation()}
+                    className="flex-shrink-0 cursor-pointer hover:bg-amber-100 rounded p-0.5 -my-0.5"
+                    title="잠금 해제"
+                  >
+                    <Lock className="size-3 text-amber-600" />
+                  </span>
+                )}
               </button>
             );
           })}
@@ -292,10 +290,7 @@ export default function CallFlowDiagram({ segments, selectedSegmentId, onSelect,
 
         {/* 우측 시간 캔버스 — 좌측 라벨 컬럼과 행 높이 1:1 정렬 (px-3 만, py 없음) */}
         <div
-          ref={canvasRef}
           className="relative px-3"
-          onMouseMove={handleMove}
-          onMouseLeave={() => setGuidePct(null)}
           style={{
             backgroundImage: 'repeating-linear-gradient(to right, transparent 0, transparent calc(10% - 1px), #f3f4f7 calc(10% - 1px), #f3f4f7 10%)',
           }}
@@ -310,7 +305,8 @@ export default function CallFlowDiagram({ segments, selectedSegmentId, onSelect,
             {/* HOP 마커 — 시간축 하단에 표기 (OWNER 띠 위). active 시 위로 들어 올림 (겹친 마커 가림 해소)
                 좌측 라벨 클릭(selectedSegmentId)도 강조 — multi-expand 와 single focus 둘 다 노란색 */}
             {hopPositions.map(({ hop, hopNo, leftPct }) => {
-              const isActive = isExpanded(hop.segmentId) || selectedSegmentId === hop.segmentId;
+              // 시간축 마커는 selected 만 강조 — expand 깜빡임 회피 (hop 이동 시 마커가 켜졌다 꺼졌다 X)
+              const isActive = selectedSegmentId === hop.segmentId;
               return (
                 <button
                   key={`mark-${hop.segmentId}`}
@@ -380,7 +376,15 @@ export default function CallFlowDiagram({ segments, selectedSegmentId, onSelect,
             const ht = hop.meta?._hopType as string | undefined;
             const tlabel = ft ?? ht;
             const effKind: CallSegment['kind'] =
-              tlabel === 'IVR' || tlabel === 'IR' ? 'IVR' : tlabel === 'CTI' || tlabel === 'IC' ? 'CTI' : tlabel === 'AGENT' || tlabel === '내선' ? 'AGENT' : hop.kind;
+              tlabel === 'IVR' || tlabel === 'IR'
+                ? 'IVR'
+                : tlabel === 'CTI' || tlabel === 'IC'
+                  ? 'CTI'
+                  : tlabel === 'AGENT' || tlabel === '내선'
+                    ? 'AGENT'
+                    : tlabel === 'IE'
+                      ? 'INBOUND' // IE → 네이비 (PBX 자체 처리)
+                      : hop.kind;
             const ks = KIND_STYLE[effKind];
             const isActive = isExpanded(hop.segmentId) || selectedSegmentId === hop.segmentId;
             const isFail = !!hop.isError;
@@ -442,7 +446,18 @@ export default function CallFlowDiagram({ segments, selectedSegmentId, onSelect,
 
                 {/* inline expand — kind 별 컬러 사용 */}
                 {detail && (
-                  <div className="my-2 border rounded-md overflow-hidden animate-[fadeIn_0.18s_ease-out]" style={{ borderColor: ks.border, background: `${ks.bg}40` }}>
+                  <div
+                    className={`my-2 border rounded-md overflow-hidden animate-[fadeIn_0.18s_ease-out] ${isPinned(hop.segmentId) ? 'ring-2 ring-amber-300 shadow-md' : ''}`}
+                    style={{
+                      borderColor: isPinned(hop.segmentId) ? '#f59e0b' : ks.border,
+                      background: isPinned(hop.segmentId) ? '#fffbeb' : `${ks.bg}40`, // 잠금 시 흰 배경 (sticky 시 뒤 콘텐츠 안 비침)
+                      borderLeftWidth: isPinned(hop.segmentId) ? 4 : 1,
+                      // 잠긴 expand 는 스크롤해도 시간축(64) 바로 아래에 sticky 로 머묾
+                      position: isPinned(hop.segmentId) ? 'sticky' : 'static',
+                      top: isPinned(hop.segmentId) ? 64 : 'auto',
+                      zIndex: isPinned(hop.segmentId) ? 25 : 'auto',
+                    }}
+                  >
                     <div className="h-[40px] px-3 flex items-center justify-between border-b" style={{ borderBottomColor: ks.border, background: ks.bg }}>
                       <div className="flex items-center gap-2.5" style={{ color: ks.text }}>
                         <span
@@ -452,27 +467,60 @@ export default function CallFlowDiagram({ segments, selectedSegmentId, onSelect,
                           {hopNo}
                         </span>
                         <span className="text-[13px] font-semibold">
-                          {hop.kind === 'IVR'
-                            ? 'IVR 시나리오'
-                            : hop.kind === 'CTI' || hop.kind === 'QUEUE_IN'
-                              ? 'CTI 라우팅'
-                              : hop.kind === 'AGENT'
-                                ? '상담사 이벤트'
-                                : '자원 상세'}
+                          {(() => {
+                            // _hopType (AS-IS SQL N_TYPE → SYSTEM_TYPE) 기준 — hop.kind 는 시각용이라 T_TYPE=4 도 'IVR' 잡힘
+                            const ht = hop.meta?._hopType as string | undefined;
+                            const ft = hop.meta?._firstHopType as string | undefined;
+                            const t = ht ?? ft;
+                            if (t === 'IR' || t === 'IVR') return 'IR 시나리오';
+                            if (t === 'IC' || t === 'CTI' || t === 'QUEUE_IN') return 'CTI 라우팅';
+                            if (t === 'AGENT') return '상담사 이벤트';
+                            if (t === 'IE') return 'IE 자원 (PBX 처리)';
+                            return '자원 상세';
+                          })()}
                         </span>
                         <span className="text-[12px] font-mono opacity-75">· {hopContent(hop)}</span>
                       </div>
-                      <button
-                        type="button"
-                        onClick={() => closeHop(hop.segmentId)}
-                        className="hover:bg-black/5 p-1 rounded transition-colors"
-                        style={{ color: ks.text }}
-                        title="닫기"
-                      >
-                        <svg className="size-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
-                          <path d="M18 6L6 18M6 6l12 12" />
-                        </svg>
-                      </button>
+                      <div className="flex items-center gap-1">
+                        {onPinToggle && (
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.preventDefault();
+                              e.stopPropagation();
+                              onPinToggle(hop.segmentId);
+                            }}
+                            onMouseDown={(e) => e.stopPropagation()}
+                            className={`px-1.5 py-1 rounded transition-colors flex items-center gap-1 text-[11px] font-medium ${
+                              isPinned(hop.segmentId) ? 'bg-amber-100 hover:bg-amber-200 text-amber-800' : 'hover:bg-black/5 text-gray-500'
+                            }`}
+                            title={isPinned(hop.segmentId) ? '잠금 해제 — 다른 hop 누르면 자동으로 닫힘' : '잠금 — 다른 hop 눌러도 이 창은 안 닫힘'}
+                          >
+                            {isPinned(hop.segmentId) ? (
+                              <>
+                                <Lock className="size-3.5" />
+                                <span>잠금</span>
+                              </>
+                            ) : (
+                              <>
+                                <LockOpen className="size-3.5" />
+                                <span>잠금</span>
+                              </>
+                            )}
+                          </button>
+                        )}
+                        <button
+                          type="button"
+                          onClick={() => closeHop(hop.segmentId)}
+                          className="hover:bg-black/5 p-1 rounded transition-colors"
+                          style={{ color: ks.text }}
+                          title="닫기"
+                        >
+                          <svg className="size-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                            <path d="M18 6L6 18M6 6l12 12" />
+                          </svg>
+                        </button>
+                      </div>
                     </div>
                     <div className="bg-white">{detail}</div>
                   </div>
@@ -481,18 +529,7 @@ export default function CallFlowDiagram({ segments, selectedSegmentId, onSelect,
             );
           })}
 
-          {/* 호버 가이드 */}
-          {guidePct != null && guideSec != null && (
-            <>
-              <div className="absolute top-0 bottom-0 w-px bg-[#405189]/40 pointer-events-none" style={{ left: `${guidePct}%` }} />
-              <div
-                className="absolute top-1 px-1.5 py-0.5 rounded text-white text-[10px] font-mono pointer-events-none whitespace-nowrap z-20"
-                style={{ left: `calc(${guidePct}% + 4px)`, background: '#405189' }}
-              >
-                {formatAxisLabel(Math.floor(guideSec))}
-              </div>
-            </>
-          )}
+          {/* (호버 가이드 제거됨) */}
         </div>
       </div>
     </div>

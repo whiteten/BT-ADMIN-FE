@@ -52,6 +52,9 @@ export default function AgentEventTimeline({ events, loading }: Props) {
                   {evt.agentName ?? '-'}
                   <span className="text-gray-400 ml-1">({evt.agentId})</span>
                 </span>
+                {(evt.mediaAlias || evt.mediaType != null) && (
+                  <span className="text-[10px] text-gray-500 bg-gray-100 px-1.5 py-px rounded">{evt.mediaAlias ?? `Type ${evt.mediaType}`}</span>
+                )}
               </div>
               {evt.fromState && evt.toState && (
                 <div className="text-[11px] text-gray-600 mt-0.5">
