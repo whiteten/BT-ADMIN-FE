@@ -1,10 +1,12 @@
-import type { ColDef, ICellRendererParams } from 'ag-grid-community';
+import { useMemo } from 'react';
+import type { ColDef, ICellRendererParams, SideBarDef } from 'ag-grid-community';
 import { AgGridReact } from 'ag-grid-react';
 import { Popover } from 'antd';
 import { Eye } from 'lucide-react';
 import { format as formatSql } from 'sql-formatter';
 import { useSearchConditionStore } from '../hooks/useSearchConditionStore';
 import { CATEGORY_OPTIONS, type InputType, type SearchConditionListItem } from '../types';
+import SearchConditionDetailPanel from './SearchConditionDetailPanel';
 import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
 import useAggridOptions from '@/libs/shared-ui/src/hooks/useAggridOptions';
@@ -147,5 +149,22 @@ export default function SearchConditionGrid({ conditions }: SearchConditionGridP
     }
   };
 
-  return <AgGridReact<SearchConditionListItem> {...gridOptions} rowData={conditions} columnDefs={columnDefs} onRowDoubleClicked={handleRowDoubleClick} />;
+  // 공통 rowData 패널(검색조건명·카테고리만 노출) 대신 단계 구성까지 보여주는 전용 상세 패널 사용
+  const sideBar = useMemo<SideBarDef>(
+    () => ({
+      toolPanels: [
+        {
+          id: 'rowData',
+          labelDefault: '상세정보',
+          labelKey: 'rowData',
+          iconKey: 'columns',
+          toolPanel: SearchConditionDetailPanel,
+        },
+      ],
+      defaultToolPanel: '',
+    }),
+    [],
+  );
+
+  return <AgGridReact<SearchConditionListItem> {...gridOptions} sideBar={sideBar} rowData={conditions} columnDefs={columnDefs} onRowDoubleClicked={handleRowDoubleClick} />;
 }

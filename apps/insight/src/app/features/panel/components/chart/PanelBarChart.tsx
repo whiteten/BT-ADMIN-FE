@@ -1,6 +1,7 @@
 import { useMemo } from 'react';
 import ReactECharts from 'echarts-for-react';
 import { PANEL_PALETTE, axisLabelStyle, baseGrid, baseLegend, baseTooltip, goalMarkLine, koNum, paletteAt, splitLineStyle, verticalGradient } from './echartsPanelTheme';
+import { formatTimeKey } from '../../../../utils/timeKeyFormat';
 import { useGetDataSourceFields } from '../../../dataset/hooks/useDatasetQueries';
 import { useReportViewStore } from '../../../report/hooks/useReportViewStore';
 import type { BarChartOptions, PanelDetail } from '../../../report/types';
@@ -50,7 +51,7 @@ export default function PanelBarChart({ panel, reportId }: PanelBarChartProps) {
     if (!xField) return {};
     const dn = (name: string) => displayNameMap.get(name) ?? name;
     const data = (isDraft ? [] : (queryResult?.current ?? [])) as Record<string, unknown>[];
-    const categories = data.map((row) => String(row[xField.fieldName] ?? ''));
+    const categories = data.map((row) => formatTimeKey(row[xField.fieldName]));
     const single = yFields.length === 1;
 
     const series = yFields.map((f, i) => {
