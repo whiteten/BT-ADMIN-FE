@@ -106,9 +106,8 @@ export default function MenuTree({ menus, apps, selectedAppId, onAppChange, sele
       onTreeAppSelect?.(null);
       return;
     }
+    // 앱 루트(depth 0)는 선택 비활성 — 그룹 헤더 역할만. 펼침/접힘은 caret 으로 처리.
     if (node.key.startsWith('app:')) {
-      onSelect(null);
-      onTreeAppSelect?.(node.key.slice('app:'.length));
       return;
     }
     if (node.key.startsWith('menu:')) {
@@ -121,9 +120,10 @@ export default function MenuTree({ menus, apps, selectedAppId, onAppChange, sele
 
   const renderRow = (item: TreeViewItem<MenuTreeItem>) => {
     const node = item.node;
+    const isAppRoot = node.key.startsWith('app:');
     const isSelected = node.key === selectedKey;
     return (
-      <TreeRow key={item.id} item={item} selected={isSelected} onClick={() => handleSelectNode(node)}>
+      <TreeRow key={item.id} item={item} selected={isSelected} onClick={() => handleSelectNode(node)} className={isAppRoot ? 'cursor-default hover:bg-transparent' : undefined}>
         <TreeCaret item={item} />
         {node.icon}
         <TreeLabel selected={isSelected}>{node.label}</TreeLabel>
