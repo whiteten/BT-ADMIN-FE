@@ -40,7 +40,7 @@ import { useModal } from '@/libs/shared-ui/src/hooks/useModal';
 const breadcrumb = [
   { title: '상담사 관리', path: '/ipron/agent-master' },
   { title: '상담사', path: '/ipron/agent-master' },
-  { title: '상담사 관리', path: '/ipron/agent-master' },
+  { title: '상담사 현황', path: '/ipron/agent-master' },
 ];
 
 export default function AgentMasterList() {
