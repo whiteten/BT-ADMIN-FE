@@ -683,6 +683,8 @@ export default function EndpointForm() {
                               ? [
                                   { required: true, message: '등록 아이디는 필수입니다' },
                                   { max: 20, message: '20자 이내여야 합니다' },
+                                  // SWAT IPR20S1010.jsp iValidator line 1102: pattern ^[0-9a-zA-Z_]+$ 한글/특수문자 금지
+                                  { pattern: /^[0-9a-zA-Z_]+$/, message: '영문자·숫자·_만 입력 가능합니다' },
                                 ]
                               : []
                           }

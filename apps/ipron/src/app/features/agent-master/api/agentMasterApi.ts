@@ -22,6 +22,7 @@
  */
 import ApiClient, { type ApiResponse } from '@/shared-util';
 import type {
+  AgentConditionStat,
   AgentConfig,
   AgentCreateRequest,
   AgentDuplicateCheckParams,
@@ -62,6 +63,12 @@ export const agentMasterApi = {
 
   getTenants: async (): Promise<AgentTenantStat[]> => {
     const res = await apiClient.get<ApiResponse<{ value: AgentTenantStat[] }>>('/ipron-agent-master-tenants');
+    return res.data?.data?.value ?? [];
+  },
+
+  /** 상담사 현황 집계 — 테넌트×그룹별 등급별 인원 (SWAT doAgentCondition 팝업 대응). */
+  getConditionStats: async (): Promise<AgentConditionStat[]> => {
+    const res = await apiClient.get<ApiResponse<{ value: AgentConditionStat[] }>>('/ipron-agent-master-condition-stats');
     return res.data?.data?.value ?? [];
   },
 

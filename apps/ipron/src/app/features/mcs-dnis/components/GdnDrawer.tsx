@@ -4,8 +4,9 @@
  *
  * 필드:
  * - 통신사 (Select: 공통/KT/SKT/LGU+)
+ * - 분배방식 (Input, disabled — 코드테이블 미확정으로 표시 전용)
  * - 대표번호 (Input, 숫자만, max 24, 수정 시 disabled)
- * - 설명 (Input, max 256)
+ * - 설명 (Input, max 256, 필수)
  */
 import { forwardRef, useCallback, useEffect, useImperativeHandle, useState } from 'react';
 import { Button, Drawer, Form, Input, Select } from 'antd';
@@ -52,11 +53,12 @@ const GdnDrawer = forwardRef<GdnDrawerRef, Props>(({ onSuccess }, ref) => {
         mcsdGdnNo: editData.mcsdGdnNo,
         networkOp: editData.networkOp,
         description: editData.description ?? '',
+        distrMethod: editData.distrMethod ?? 0,
       });
     } else if (visible) {
       form.resetFields();
       // 등록 모드: 현재 선택된 통신사가 있으면 고정, 없으면 공통(0) 기본
-      form.setFieldsValue({ networkOp: initialOp ?? '0' });
+      form.setFieldsValue({ networkOp: initialOp ?? '0', distrMethod: 0 });
     }
   }, [visible, editData, initialOp, form]);
 
@@ -144,7 +146,19 @@ const GdnDrawer = forwardRef<GdnDrawerRef, Props>(({ onSuccess }, ref) => {
           <Input placeholder="대표번호를 입력하세요" maxLength={24} disabled={isEditMode} />
         </Form.Item>
 
-        <Form.Item name="description" label="설명" rules={[{ max: 256, message: '설명은 256자 이내여야 합니다' }]}>
+        {/* 분배방식: SWAT poDistrMethod disabled 콤보와 동일 — 코드테이블 미확정으로 숫자값 표시 전용 */}
+        <Form.Item name="distrMethod" label="분배방식">
+          <Input disabled />
+        </Form.Item>
+
+        <Form.Item
+          name="description"
+          label="설명"
+          rules={[
+            { required: true, message: '설명은 필수입니다' },
+            { max: 256, message: '설명은 256자 이내여야 합니다' },
+          ]}
+        >
           <Input.TextArea placeholder="설명을 입력하세요" maxLength={256} rows={3} />
         </Form.Item>
       </Form>

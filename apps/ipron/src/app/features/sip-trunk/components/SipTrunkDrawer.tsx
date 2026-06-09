@@ -12,7 +12,7 @@ import { forwardRef, useCallback, useEffect, useImperativeHandle, useMemo, useSt
 import { Button, Drawer, Form, Input, InputNumber, Radio, Select, Tabs } from 'antd';
 import { Cable } from 'lucide-react';
 import { toast } from '@/shared-util';
-import { useCreateSipTrunk, useUpdateSipTrunk } from '../hooks/useSipTrunkQueries';
+import { useCreateSipTrunk, useGetSipTrunkDnProfileOptions, useUpdateSipTrunk } from '../hooks/useSipTrunkQueries';
 import { IP_AUTH_TYPE_OPTIONS, SIP_TRUNK_KIND_OPTIONS, type SipTrunkResponse, TRANSPORT_TYPE_OPTIONS } from '../types';
 
 export interface SipTrunkDrawerRef {
@@ -48,12 +48,18 @@ interface FormValues {
   globalDnYn: number;
   trkAuthtype: number;
   sipTrunkDesc: string;
+  // 기본정보 — 내선프로파일 (SWAT :1755-1758, 필수)
+  dnProfileId: number | null;
   // 부가정보
   transportType: number;
   allocDelayTime: number;
   trkIpUpdate: number;
   callTraceYn: number; // 호추적 여부 (SWAT CALL_TRACE_YN)
   blockYn: number;
+  // 부가정보 — SWAT :1829-1832 (registSeconds 주석처리지만 ssRefreshType·registSeconds BE INSERT 유효)
+  ssRefreshType: number | null;
+  registYn: number | null;
+  registSeconds: number | null;
 }
 
 const DEFAULTS: Partial<FormValues> = {
@@ -64,11 +70,15 @@ const DEFAULTS: Partial<FormValues> = {
   globalDnYn: 0,
   trkAuthtype: 1,
   chnlCnt: 1,
+  dnProfileId: null,
   transportType: 1,
   allocDelayTime: 0,
   trkIpUpdate: 1,
   callTraceYn: 1,
   blockYn: 0,
+  ssRefreshType: 1,
+  registYn: null,
+  registSeconds: 3600,
 };
 
 /** TDN 자동채번 미리보기 (시작DN + 채널수 → 연속 DN, 자릿수 패딩) */
@@ -96,9 +106,15 @@ const SipTrunkDrawer = forwardRef<SipTrunkDrawerRef, Props>(({ nodeId, tenantId,
   const backUpNodeId = Form.useWatch('backUpNodeId', form);
   const startDn = Form.useWatch('startDn', form);
   const chnlCnt = Form.useWatch('chnlCnt', form);
+  const sipTrunkKind = Form.useWatch('sipTrunkKind', form);
   const globalForced = backUpNodeId != null && backUpNodeId !== 0;
+  // SWAT :258-274 (주석처리됐으나 3rd-party PBX 시 startDn/chnlCnt 불필요)
+  const is3rdParty = sipTrunkKind === 9;
 
   const preview = useMemo(() => tdnPreview(startDn, chnlCnt), [startDn, chnlCnt]);
+
+  // 내선프로파일 콤보 옵션 — 노드 선택 시 dnProfileType=1(TRUNK) 로 로드 (SWAT cbCreate p4DnProfileId, common-trunk 동일 패턴)
+  const { data: dnProfileOptions = [], isLoading: isDnProfileLoading } = useGetSipTrunkDnProfileOptions(nodeId);
 
   const handleClose = useCallback(() => {
     setVisible(false);
@@ -138,11 +154,15 @@ const SipTrunkDrawer = forwardRef<SipTrunkDrawerRef, Props>(({ nodeId, tenantId,
         globalDnYn: editData.globalDnYn ?? 0,
         trkAuthtype: editData.trkAuthtype ?? 1,
         sipTrunkDesc: editData.sipTrunkDesc ?? '',
+        dnProfileId: editData.dnProfileId ?? null,
         transportType: editData.transportType ?? 1,
         allocDelayTime: editData.allocDelayTime ?? 0,
         trkIpUpdate: editData.trkIpUpdate ?? 1,
         callTraceYn: editData.callTraceYn ?? 1,
         blockYn: editData.blockYn ?? 0,
+        ssRefreshType: editData.ssRefreshType ?? 1,
+        registYn: editData.registYn ?? null,
+        registSeconds: editData.registSeconds ?? 3600,
       });
     } else {
       form.resetFields();
@@ -192,8 +212,9 @@ const SipTrunkDrawer = forwardRef<SipTrunkDrawerRef, Props>(({ nodeId, tenantId,
         sipTrunkIpv6: v.ipVersion === 6 ? v.sipTrunkIpv6 : null,
         portNo: v.portNo,
         transportType: v.transportType,
-        startDn: v.startDn?.trim() || null,
-        chnlCnt: v.chnlCnt,
+        // 3rd-Party PBX 시 startDn/chnlCnt 미전송
+        startDn: is3rdParty ? null : v.startDn?.trim() || null,
+        chnlCnt: is3rdParty ? null : v.chnlCnt,
         blockYn: v.blockYn,
         trkAuthtype: v.trkAuthtype,
         trkIpUpdate: v.trkIpUpdate,
@@ -201,6 +222,12 @@ const SipTrunkDrawer = forwardRef<SipTrunkDrawerRef, Props>(({ nodeId, tenantId,
         allocDelayTime: v.allocDelayTime,
         backUpNodeId: backUp,
         globalDnYn: v.globalDnYn,
+        // 내선프로파일 (SWAT :889-894 필수) — FE에서 전송
+        dnProfileId: v.dnProfileId ?? null,
+        // 부가정보 추가 필드 (SWAT :1829-1832 정합)
+        ssRefreshType: v.ssRefreshType ?? null,
+        registYn: v.registYn ?? null,
+        registSeconds: v.registSeconds ?? null,
       };
       if (isEdit && editData) {
         updateTrunk({
@@ -209,15 +236,11 @@ const SipTrunkDrawer = forwardRef<SipTrunkDrawerRef, Props>(({ nodeId, tenantId,
             ...common,
             // Drawer 폼에 노출되지 않는 필드는 editData 원본값 유지
             // (IDS NOT NULL 제약 대상: ctiUse 등)
-            ssRefreshType: editData.ssRefreshType ?? null,
-            registYn: editData.registYn ?? null,
-            registSeconds: editData.registSeconds ?? null,
             msGroupId: editData.msGroupId ?? null,
             msDrgroupId: editData.msDrgroupId ?? null,
             natOption: editData.natOption ?? null,
             drnatOption: editData.drnatOption ?? null,
             enatOption: editData.enatOption ?? null,
-            dnProfileId: editData.dnProfileId ?? null,
             ctiUse: editData.ctiUse ?? null,
             sipOption: editData.sipOption ?? null,
           },
@@ -232,7 +255,7 @@ const SipTrunkDrawer = forwardRef<SipTrunkDrawerRef, Props>(({ nodeId, tenantId,
     } catch {
       setActiveTab('basic');
     }
-  }, [form, isEdit, editData, nodeId, tenantId, createTrunk, updateTrunk]);
+  }, [form, isEdit, editData, nodeId, tenantId, createTrunk, updateTrunk, is3rdParty]);
 
   const basicTab = (
     <div className="grid grid-cols-2 gap-x-4">
@@ -264,6 +287,25 @@ const SipTrunkDrawer = forwardRef<SipTrunkDrawerRef, Props>(({ nodeId, tenantId,
         <Input placeholder="최대 10자리 숫자" maxLength={10} disabled={isEdit} />
       </Form.Item>
 
+      {/* 내선프로파일 — SWAT :1755-1758, :889-894 필수 (dnProfileId) — common-trunk 동일 콤보 패턴 */}
+      <Form.Item
+        name="dnProfileId"
+        label="내선프로파일"
+        className="col-span-2"
+        rules={[{ required: true, message: '내선프로파일을 선택하세요' }]}
+        extra={nodeId == null ? '노드를 먼저 선택하세요' : undefined}
+      >
+        <Select
+          placeholder="내선프로파일 선택"
+          loading={isDnProfileLoading}
+          disabled={nodeId == null}
+          allowClear
+          showSearch
+          optionFilterProp="label"
+          options={dnProfileOptions.map((p) => ({ value: p.dnProfileId, label: p.dnProfileName }))}
+        />
+      </Form.Item>
+
       <Form.Item name="backUpNodeId" label="DR노드 (백업 노드)" extra="DR노드 지정 시 Global DN 자동 강제">
         <Select options={[{ value: 0, label: '없음' }, ...drNodeOptions.map((n) => ({ value: n.nodeId, label: n.nodeName }))]} />
       </Form.Item>
@@ -274,20 +316,21 @@ const SipTrunkDrawer = forwardRef<SipTrunkDrawerRef, Props>(({ nodeId, tenantId,
         </Radio.Group>
       </Form.Item>
 
+      {/* 시작DN / 채널수 — 3rd-Party PBX 선택 시 disabled (SWAT :258-274) */}
       <Form.Item
         name="startDn"
         label="시작DN"
-        extra={isEdit ? '수정 불가' : '3~8자리 / 노드 내 중복 불가'}
-        rules={isEdit ? [] : [{ pattern: /^[0-9]{3,8}$/, message: '3~8자리 숫자' }]}
+        extra={isEdit ? '수정 불가' : is3rdParty ? '3rd-Party PBX — 자동채번 불필요' : '3~8자리 / 노드 내 중복 불가'}
+        rules={isEdit || is3rdParty ? [] : [{ pattern: /^[0-9]{3,8}$/, message: '3~8자리 숫자' }]}
       >
-        <Input placeholder="예: 6500" maxLength={8} disabled={isEdit} />
+        <Input placeholder="예: 6500" maxLength={8} disabled={isEdit || is3rdParty} />
       </Form.Item>
-      <Form.Item name="chnlCnt" label="채널수" extra={isEdit ? '수정 불가' : '1~2039'}>
-        <InputNumber min={1} max={2039} className="w-full" disabled={isEdit} />
+      <Form.Item name="chnlCnt" label="채널수" extra={isEdit ? '수정 불가' : is3rdParty ? '3rd-Party PBX — 사용 안 함' : '1~2039'}>
+        <InputNumber min={1} max={2039} className="w-full" disabled={isEdit || is3rdParty} />
       </Form.Item>
 
-      {/* TDN 자동채번 미리보기 (등록 시) */}
-      {!isEdit && preview.total > 0 && (
+      {/* TDN 자동채번 미리보기 (등록 시, 3rd-Party PBX 아닐 때만) */}
+      {!isEdit && !is3rdParty && preview.total > 0 && (
         <div className="col-span-2 mb-3 rounded-md border border-sky-100 bg-sky-50 px-3 py-2">
           <div className="flex flex-wrap gap-1">
             {preview.list.map((dn) => (
@@ -379,6 +422,26 @@ const SipTrunkDrawer = forwardRef<SipTrunkDrawerRef, Props>(({ nodeId, tenantId,
         </Radio.Group>
       </Form.Item>
       <Form.Item name="blockYn" label="블록 여부">
+        <Radio.Group>
+          <Radio value={1}>설정</Radio>
+          <Radio value={0}>해제</Radio>
+        </Radio.Group>
+      </Form.Item>
+      {/* 부가정보 추가 필드 — SWAT :1829-1832 정합 */}
+      <Form.Item name="ssRefreshType" label="SS Refresh Type" extra="세션 갱신 방식 (기본값: 1)">
+        <Select
+          allowClear
+          placeholder="선택"
+          options={[
+            { value: 1, label: '1 (기본)' },
+            { value: 2, label: '2' },
+          ]}
+        />
+      </Form.Item>
+      <Form.Item name="registSeconds" label="레지스트 등록시간 (초)" extra="기본 3600">
+        <InputNumber min={0} max={99999} className="w-full" />
+      </Form.Item>
+      <Form.Item name="registYn" label="레지스트 등록 여부">
         <Radio.Group>
           <Radio value={1}>설정</Radio>
           <Radio value={0}>해제</Radio>

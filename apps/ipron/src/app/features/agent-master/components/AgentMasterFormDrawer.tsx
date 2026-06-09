@@ -6,12 +6,13 @@
  *   - 그리드 행 더블클릭 / [수정] 아이콘 → mode='edit', agentId 전달
  */
 import { useEffect, useMemo, useState } from 'react';
-import { Button, Col, Drawer, Form, Input, Row, Select, Spin, Tabs } from 'antd';
+import { Button, Col, Drawer, Form, Input, Radio, Row, Select, Spin, Tabs } from 'antd';
 import { toast } from '@/shared-util';
 import { useGetAvailableSkillsets } from '../../skill-assign/hooks/useSkillAssignQueries';
-import { ACTIVATE_OPTIONS, AGENT_GRADE_OPTIONS, JIKGUP_OPTIONS, ON_OFF_OPTIONS, RETIRE_OPTIONS, USE_GRP_SKILL_OPTIONS } from '../constants/codes';
+import { ACTIVATE_OPTIONS, AGENT_GRADE_OPTIONS, JIKGUP_OPTIONS, ON_OFF_OPTIONS, RETIRE_OPTIONS, USE_GRP_MDA_OPT_OPTIONS, USE_GRP_SKILL_OPTIONS } from '../constants/codes';
 import { useCreateAgent, useGetAgentConfig, useGetAgentDetail, useGetAgentGroupTree, useGetAgentTenants, useUpdateAgent } from '../hooks/useAgentMasterQueries';
-import type { AgentCreateRequest, AgentGroupNode, AgentUpdateRequest } from '../types';
+import type { AgentCreateRequest, AgentGroupNode, AgentMediaMatrix, AgentUpdateRequest } from '../types';
+import AgentMediaCards from './AgentMediaCards';
 
 interface FormValues {
   tenantId?: number;
@@ -29,6 +30,7 @@ interface FormValues {
   masterCtiqId?: number;
   monitorSvc?: number;
   coachingSvc?: number;
+  useGrpMdaOpt?: number;
 }
 
 interface AgentMasterFormDrawerProps {
@@ -57,6 +59,8 @@ export default function AgentMasterFormDrawer({ open, mode, agentId, initialTena
 
   const [form] = Form.useForm<FormValues>();
   const [selectedTenantId, setSelectedTenantId] = useState<number | undefined>();
+  // 미디어 매트릭스 — antd Form.Item 밖에서 별도 state 로 관리 (AgentMediaCards controlled)
+  const [mediaMatrix, setMediaMatrix] = useState<AgentMediaMatrix | null>(null);
 
   const { data: agentConfig } = useGetAgentConfig();
   // passwordValidationRequired 기본값 true — 설정 로드 전에도 필수로 동작
@@ -94,6 +98,7 @@ export default function AgentMasterFormDrawer({ open, mode, agentId, initialTena
   useEffect(() => {
     if (!open) return;
     form.resetFields();
+    setMediaMatrix(null);
     if (isEdit && detail) {
       form.setFieldsValue({
         tenantId: detail.tenantId,
@@ -106,16 +111,19 @@ export default function AgentMasterFormDrawer({ open, mode, agentId, initialTena
         oscomId: detail.oscomId ?? undefined,
         activateYn: detail.activateYn ?? 1,
         retireYn: detail.retireYn ?? 0,
+        useGrpMdaOpt: detail.useGrpMdaOpt ?? 0,
         useGrpSkill: detail.useGrpSkill ?? 0,
         masterCtiqId: detail.masterCtiqId ?? 0,
         monitorSvc: detail.monitorSvc ?? 0,
         coachingSvc: detail.coachingSvc ?? 0,
       });
       setSelectedTenantId(detail.tenantId);
+      setMediaMatrix(detail.mediaMatrix ?? null);
     } else if (!isEdit) {
       const init: FormValues = {
         activateYn: 1,
         retireYn: 0,
+        useGrpMdaOpt: 0,
         useGrpSkill: 0,
         masterCtiqId: 0,
         monitorSvc: 0,
@@ -164,6 +172,7 @@ export default function AgentMasterFormDrawer({ open, mode, agentId, initialTena
   const handleSubmit = async () => {
     try {
       const values = await form.validateFields();
+      const useGrpMdaOpt = values.useGrpMdaOpt ?? 0;
       if (isEdit && agentId) {
         const body: AgentUpdateRequest = {
           groupId: values.groupId!,
@@ -175,10 +184,12 @@ export default function AgentMasterFormDrawer({ open, mode, agentId, initialTena
           oscomId: values.oscomId,
           activateYn: values.activateYn,
           retireYn: values.retireYn,
+          useGrpMdaOpt,
           useGrpSkill: values.useGrpSkill,
           masterCtiqId: values.masterCtiqId,
           monitorSvc: values.monitorSvc,
           coachingSvc: values.coachingSvc,
+          mediaMatrix: useGrpMdaOpt === 0 ? mediaMatrix : null,
         };
         updateAgent({ id: agentId, body });
       } else {
@@ -195,10 +206,12 @@ export default function AgentMasterFormDrawer({ open, mode, agentId, initialTena
           oscomId: values.oscomId,
           activateYn: values.activateYn,
           retireYn: values.retireYn,
+          useGrpMdaOpt,
           useGrpSkill: values.useGrpSkill,
           masterCtiqId: values.masterCtiqId,
           monitorSvc: values.monitorSvc,
           coachingSvc: values.coachingSvc,
+          mediaMatrix: useGrpMdaOpt === 0 ? mediaMatrix : null,
         };
         createAgent(body);
       }
@@ -376,8 +389,36 @@ export default function AgentMasterFormDrawer({ open, mode, agentId, initialTena
                 ),
               },
               {
+                key: 'media',
+                label: '③ 미디어 옵션',
+                children: (
+                  <div>
+                    <SectionTitle>미디어 옵션 방식</SectionTitle>
+                    {/* SWAT IPR20S4010 L2922-2930 정합: 개별/그룹 라디오 */}
+                    <Form.Item name="useGrpMdaOpt">
+                      <Radio.Group options={USE_GRP_MDA_OPT_OPTIONS} />
+                    </Form.Item>
+                    <Form.Item noStyle dependencies={['useGrpMdaOpt']}>
+                      {({ getFieldValue }) => {
+                        const useGrp = getFieldValue('useGrpMdaOpt') === 1;
+                        return (
+                          <>
+                            {useGrp && (
+                              <div className="text-sm text-gray-500 mb-4 bg-gray-50 border border-gray-200 rounded px-3 py-2">
+                                그룹 미디어 옵션을 사용합니다. 소속 상담그룹의 미디어 설정이 적용됩니다.
+                              </div>
+                            )}
+                            <AgentMediaCards value={mediaMatrix} onChange={setMediaMatrix} disabled={useGrp} />
+                          </>
+                        );
+                      }}
+                    </Form.Item>
+                  </div>
+                ),
+              },
+              {
                 key: 'cti',
-                label: '② CTI 옵션',
+                label: '④ CTI 옵션',
                 // SWAT IPR20S4010 L769-775 정합: 신규 등록 모드에서는 최초 저장 전까지 CTI 탭 비활성
                 disabled: !isEdit,
                 children: (

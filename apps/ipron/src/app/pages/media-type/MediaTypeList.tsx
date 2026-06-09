@@ -38,6 +38,7 @@ export default function MediaTypeList() {
 
   const { data: meta = [], refetch: refetchMeta } = useGetMediaTypeMeta();
 
+  // 단건 삭제 — onSuccess 에서 toast·refetch 처리
   const { mutate: deleteMt, isPending: isDeleting } = useDeleteMediaType({
     mutationOptions: {
       onSuccess: () => {
@@ -49,6 +50,9 @@ export default function MediaTypeList() {
       onError: (err: unknown) => toast.error(extractMessage(err) ?? '삭제 실패'),
     },
   });
+
+  // 일괄 삭제 전용 — onSuccess 없음(handleBulkDelete 의 finally 에서 단일 처리)
+  const { mutateAsync: deleteMtAsync } = useDeleteMediaType();
 
   const stats = useMemo(() => {
     const total = rows.length;
@@ -79,7 +83,18 @@ export default function MediaTypeList() {
       title: '미디어 코드 일괄 삭제',
       content: `선택한 ${selectedRows.length}건의 미디어 코드를 삭제하시겠습니까?`,
       okType: 'danger',
-      onOk: () => selectedRows.forEach((r) => deleteMt(r.mediaType)),
+      onOk: async () => {
+        try {
+          await Promise.all(selectedRows.map((r) => deleteMtAsync(r.mediaType)));
+          toast.success(`${selectedRows.length}건의 미디어 코드가 삭제되었습니다`);
+        } catch (err: unknown) {
+          toast.error(extractMessage(err) ?? '일부 항목 삭제에 실패했습니다');
+        } finally {
+          setSelectedRows([]);
+          refetch();
+          refetchMeta();
+        }
+      },
     });
   };
 

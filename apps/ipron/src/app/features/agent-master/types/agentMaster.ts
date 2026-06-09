@@ -130,6 +130,22 @@ export interface AgentConfig {
   passwordPolicyUse: boolean;
 }
 
+/** 상담사 현황 집계 — 테넌트×그룹별 등급별 인원 (SWAT doAgentCondition 팝업 대응). */
+export interface AgentConditionStat {
+  tenantId: number;
+  tenantName: string;
+  groupId: number;
+  groupName: string;
+  adminCnt: number;
+  ptCnt: number;
+  traineeCnt: number;
+  juniorCnt: number;
+  seniorCnt: number;
+  viceCnt: number;
+  supervisorCnt: number;
+  agentCount: number;
+}
+
 // ─── 상담그룹 ─────────────────────────────────────────────────────────────
 
 export interface AgentGroupNode {

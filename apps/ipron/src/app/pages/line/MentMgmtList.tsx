@@ -13,7 +13,7 @@
  */
 import { type ChangeEvent, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Button, Empty, Input } from 'antd';
-import { ChevronLeft, ChevronRight, Download, Network, Plus, RefreshCw, Search, Trash2 } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Network, Plus, RefreshCw, Search, Trash2 } from 'lucide-react';
 import { useBreadcrumbStore } from '@/shared-store';
 import { toast } from '@/shared-util';
 import { useGetDnProfileNodes } from '../../features/dn-profile/hooks/useDnProfileQueries';
@@ -309,10 +309,8 @@ export default function MentMgmtList() {
               >
                 멘트파일 동기화
               </Button>
-              {/* 엑셀 내보내기: SWAT 미존재 신규 기능 — BE 엔드포인트 구현 후 활성화 예정 */}
-              <Button icon={<Download className="size-3.5" />} disabled title="준비 중 — SWAT 미존재 기능, BE 엔드포인트 구현 후 활성화">
-                엑셀
-              </Button>
+              {/* 엑셀 내보내기: SWAT 미존재 신규 기능 — BE 엔드포인트 구현 전까지 숨김(disabled 노출 시 혼선) */}
+              {/* <Button icon={<Download className="size-3.5" />} disabled title="준비 중">엑셀</Button> */}
             </div>
           </div>
         </div>

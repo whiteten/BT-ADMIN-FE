@@ -76,14 +76,14 @@ export const skillAssignApi = {
 
   // ─── 상담사↔스킬셋 ────────────────────────────────────────────────────────
 
-  getSkillsetsByAgent: async (agentId: number): Promise<SkillAgentResponse[]> => {
-    const res = await apiClient.get<ApiResponse<{ value: SkillAgentResponse[] }>>('/ipron-skill-skillsets-by-agent', { params: { agentId } });
+  getSkillsetsByAgent: async (agentId: number, signal?: AbortSignal): Promise<SkillAgentResponse[]> => {
+    const res = await apiClient.get<ApiResponse<{ value: SkillAgentResponse[] }>>('/ipron-skill-skillsets-by-agent', { params: { agentId }, signal });
     return res.data?.data?.value ?? [];
   },
 
   /** 한 스킬셋에 배정된 상담사 목록 (배정 현황 조회 탭 — 스킬셋 기준) */
-  getAgentsBySkillset: async (skillsetId: number): Promise<SkillAgentResponse[]> => {
-    const res = await apiClient.get<ApiResponse<{ value: SkillAgentResponse[] }>>('/ipron-skill-agents-by-skillset', { params: { skillsetId } });
+  getAgentsBySkillset: async (skillsetId: number, signal?: AbortSignal): Promise<SkillAgentResponse[]> => {
+    const res = await apiClient.get<ApiResponse<{ value: SkillAgentResponse[] }>>('/ipron-skill-agents-by-skillset', { params: { skillsetId }, signal });
     return res.data?.data?.value ?? [];
   },
 

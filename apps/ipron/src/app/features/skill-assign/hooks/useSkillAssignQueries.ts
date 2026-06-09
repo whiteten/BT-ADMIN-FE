@@ -58,8 +58,13 @@ export const useGetAvailableSkillsets = ({ params, queryOptions }: QueryHookWith
 export const useGetSkillsetsByAgent = (agentId: number | null | undefined, { queryOptions }: QueryHookOptions<SkillAgentResponse[]> = {}) =>
   useQuery({
     queryKey: skillAssignQueryKeys.skillsetsByAgent(agentId ?? undefined).queryKey,
-    queryFn: () => skillAssignApi.getSkillsetsByAgent(agentId as number),
+    // signal 전달 → react-query v5 자동취소(hover 폭주 시 직전 요청 abort)
+    queryFn: ({ signal }) => skillAssignApi.getSkillsetsByAgent(agentId as number, signal),
     enabled: !!agentId,
+    // hover 재진입 시 캐시 재사용 (SkillAssignStatusModal 과 동일)
+    staleTime: 30_000,
+    // observer 소멸 후에도 캐시 유지 → 재hover 시 staleTime 내 재요청 0
+    gcTime: 60_000,
     ...queryOptions,
   });
 
@@ -67,8 +72,13 @@ export const useGetSkillsetsByAgent = (agentId: number | null | undefined, { que
 export const useGetAgentsBySkillset = (skillsetId: number | null | undefined, { queryOptions }: QueryHookOptions<SkillAgentResponse[]> = {}) =>
   useQuery({
     queryKey: skillAssignQueryKeys.agentsBySkillset(skillsetId ?? undefined).queryKey,
-    queryFn: () => skillAssignApi.getAgentsBySkillset(skillsetId as number),
+    // signal 전달 → react-query v5 자동취소
+    queryFn: ({ signal }) => skillAssignApi.getAgentsBySkillset(skillsetId as number, signal),
     enabled: !!skillsetId,
+    // hover 재진입 시 캐시 재사용 (SkillAssignStatusModal 과 동일)
+    staleTime: 30_000,
+    // observer 소멸 후에도 캐시 유지 → 재hover 시 staleTime 내 재요청 0
+    gcTime: 60_000,
     ...queryOptions,
   });
 

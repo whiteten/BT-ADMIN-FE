@@ -7,7 +7,7 @@
  *   - 노드 [⋮] → 그룹 수정 → mode='edit', groupId=노드ID
  */
 import { useEffect, useMemo, useState } from 'react';
-import { Button, Col, Drawer, Form, Input, InputNumber, Row, Select, Spin, Tabs } from 'antd';
+import { Button, Col, Drawer, Form, Input, Row, Select, Spin, Tabs } from 'antd';
 import { Trash2 } from 'lucide-react';
 import { toast } from '@/shared-util';
 import { useCreateAgentGroup, useDeleteAgentGroup, useGetAgentGroupDetail, useGetAgentGroupTree, useGetAgentTenants, useUpdateAgentGroup } from '../hooks/useAgentMasterQueries';
@@ -137,6 +137,26 @@ export default function AgentGroupFormDrawer({ open, mode, groupId, initialTenan
       })),
     ];
   }, [groupTree, selectedTenantId, groupId]);
+
+  // 아웃소싱업체(oscom) 옵션. SWAT 정합: cbCreate("#poOscomId","oscom",...) — 업체 마스터 콤보.
+  // ⚠ IPRON FE 에 업체(oscom) 마스터 목록 API/훅이 없고, 그룹 트리 노드는 oscomId 만 보유(oscomName 없음).
+  //   따라서 현재는 앱 내에 이미 존재하는 distinct oscomId 만으로 옵션을 구성하며 라벨은 ID 폴백(`업체 {id}`).
+  //   업체명까지 표시하려면 BE 가 {oscomId, oscomName}[] 목록 엔드포인트를 제공해야 함(아래 PERMISSION_NEEDED 보고 참조).
+  const oscomOptions = useMemo(() => {
+    const ids = new Set<number>();
+    const walk = (nodes: AgentGroupNode[]) => {
+      for (const n of nodes) {
+        if (n.oscomId != null && n.oscomId > 0) ids.add(n.oscomId);
+        if (n.children?.length) walk(n.children);
+      }
+    };
+    walk(groupTree);
+    const editId = detail?.oscomId;
+    if (isEdit && editId != null && editId > 0) ids.add(editId);
+    return Array.from(ids)
+      .sort((a, b) => a - b)
+      .map((id) => ({ value: id, label: `업체 ${id}` }));
+  }, [groupTree, detail, isEdit]);
 
   const handleSubmit = async () => {
     try {
@@ -268,7 +288,7 @@ export default function AgentGroupFormDrawer({ open, mode, groupId, initialTenan
                       </Col>
                       <Col span={12}>
                         <Form.Item label="아웃소싱업체" name="oscomId">
-                          <InputNumber style={{ width: '100%' }} min={0} placeholder="0 = 없음" />
+                          <Select options={oscomOptions} placeholder="업체 선택 (없음=비워두기)" showSearch allowClear optionFilterProp="label" />
                         </Form.Item>
                       </Col>
                       <Col span={12}>

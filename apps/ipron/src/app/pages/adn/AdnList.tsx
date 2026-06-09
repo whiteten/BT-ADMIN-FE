@@ -65,7 +65,11 @@ export default function AdnList() {
   }, [ctxTenantId]);
 
   // ─── Queries ────────────────────────────────────────────────────────────
-  const { data: adns = [], isLoading } = useGetAdns({});
+  // dnStatus 는 BE 서버 필터로 전달 (AS-IS SWAT AND A.DN_STATUS=#dnStatus# 대응).
+  // dnStatusFilter 변경 시 쿼리 캐시 키가 달라져 자동 재요청된다.
+  const { data: adns = [], isLoading } = useGetAdns({
+    params: dnStatusFilter ? { dnStatus: dnStatusFilter } : undefined,
+  });
   const { data: tenantStats = [] } = useGetAdnTenants();
 
   // ─── Mutations ──────────────────────────────────────────────────────────
@@ -102,10 +106,7 @@ export default function AdnList() {
     if (selectedTenantId !== null) {
       rows = rows.filter((r) => r.tenantId === selectedTenantId);
     }
-    // AS-IS srchAdnStatus 콤보 필터: '8'=로그인, '9'=로그아웃 (TB_CC_COMMONCODE ADN 코드)
-    if (dnStatusFilter !== null) {
-      rows = rows.filter((r) => r.dnStatus === dnStatusFilter);
-    }
+    // dnStatus 필터는 BE 서버에서 처리 (useGetAdns params로 전달). 클라이언트 재필터 불필요.
     const kw = searchText.trim().toLowerCase();
     if (kw) {
       rows = rows.filter((r) => {
@@ -114,7 +115,7 @@ export default function AdnList() {
       });
     }
     return rows;
-  }, [adns, selectedTenantId, dnStatusFilter, searchText]);
+  }, [adns, selectedTenantId, searchText]);
 
   const totalStats = useMemo(() => {
     let totalCnt = 0;

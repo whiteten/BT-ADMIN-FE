@@ -13,6 +13,7 @@
  * 우측: ag-Grid (노드명, DNIS패턴, 편집옵션, Digit수, 추가Digit, 우선순위, 변환동작, 변환후라우트, 비고, 삭제)
  */
 import { type ChangeEvent, useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { Link } from 'react-router-dom';
 import { useQueryClient } from '@tanstack/react-query';
 import type { ColDef, ICellRendererParams } from 'ag-grid-community';
 import { AgGridReact } from 'ag-grid-react';
@@ -226,7 +227,14 @@ export default function PreNumTransList() {
         {/* ===== 상단 헤더 박스 (제목 + 검색 + 추가) ===== */}
         <div className="bg-white bt-shadow overflow-hidden flex-shrink-0">
           <div className="px-5 h-[56px] bg-white flex items-center justify-between flex-shrink-0">
-            <span className="text-sm font-semibold text-gray-800">발신 DNIS 사전변환 (총 {allTransList.length}건)</span>
+            <div className="flex items-center gap-3">
+              <span className="text-sm font-semibold text-gray-800">발신 DNIS 사전변환 (총 {allTransList.length}건)</span>
+              <Link to="/ipron/line/route">
+                <Button type="default" size="small">
+                  발신라우트 관리
+                </Button>
+              </Link>
+            </div>
             <div className="flex items-center gap-2">
               <Input
                 allowClear

@@ -10,7 +10,7 @@
 import { useEffect, useMemo } from 'react';
 import { Button, Drawer, Form, Input, InputNumber, Radio, Select, Tabs } from 'antd';
 import { toast } from '@/shared-util';
-import { useCreateCommonTrunk, useUpdateCommonTrunk } from '../hooks/useCommonTrunkQueries';
+import { useCreateCommonTrunk, useGetCommonTrunkDnProfileOptions, useUpdateCommonTrunk } from '../hooks/useCommonTrunkQueries';
 import { type CommonTrunkCreateRequest, type CommonTrunkResponse, type CommonTrunkUpdateRequest, TRANSPORT_TYPE_OPTIONS, TRUNK_KIND_OPTIONS } from '../types';
 
 interface CommonTrunkFormDrawerProps {
@@ -23,11 +23,10 @@ interface CommonTrunkFormDrawerProps {
   onSaved: () => void;
 }
 
-// 갭5: IP인증 타입 (trkAuthtype) — SWAT 코드테이블 정합
+// 갭2: IP인증 타입 (trkAuthtype) — SWAT IPR20S3030.jsp:1806~1808 정합 (value:1=고정IP/value:2=동적IP, 0 제거)
 const TRK_AUTHTYPE_OPTIONS = [
-  { value: 0, label: 'IP인증사용안함' },
-  { value: 1, label: 'IP/MAC인증' },
-  { value: 2, label: '아이디/패스워드 인증' },
+  { value: 1, label: '고정IP' },
+  { value: 2, label: '동적IP' },
 ];
 
 // 갭5: IP업데이트 (trkIpUpdate) — SWAT 코드테이블 정합
@@ -54,11 +53,16 @@ interface FormValues {
   // 갭5: IP 인증 / IP 업데이트
   trkAuthtype?: number;
   trkIpUpdate?: number;
+  // 갭1: 내선프로파일 (SWAT p4DnProfileId 필수 콤보)
+  dnProfileId?: number | null;
 }
 
 export default function CommonTrunkFormDrawer({ open, mode, detail, nodeId, onClose, onSaved }: CommonTrunkFormDrawerProps) {
   const [form] = Form.useForm<FormValues>();
   const isEdit = mode === 'edit';
+
+  // 갭1: 내선프로파일 콤보 옵션 — 노드 선택 시 dnProfileType=1(TRUNK) 로 로드 (SWAT cbCreate p4DnProfileId 정합)
+  const { data: dnProfileOptions = [], isLoading: isDnProfileLoading } = useGetCommonTrunkDnProfileOptions(nodeId);
 
   const initial: FormValues = useMemo(() => {
     if (isEdit && detail) {
@@ -77,8 +81,11 @@ export default function CommonTrunkFormDrawer({ open, mode, detail, nodeId, onCl
         allocDelayTime: detail.allocDelayTime ?? 0,
         ctiUse: detail.ctiUse ?? 0,
         blockYn: detail.blockYn ?? 0,
-        trkAuthtype: detail.trkAuthtype ?? 0,
+        // 갭2: trkAuthtype 기본값 1(고정IP) — SWAT 정합 (0 값은 없음)
+        trkAuthtype: detail.trkAuthtype && detail.trkAuthtype > 0 ? detail.trkAuthtype : 1,
         trkIpUpdate: detail.trkIpUpdate ?? 0,
+        // 갭1: 내선프로파일
+        dnProfileId: detail.dnProfileId && detail.dnProfileId > 0 ? detail.dnProfileId : null,
       };
     }
     return {
@@ -90,8 +97,11 @@ export default function CommonTrunkFormDrawer({ open, mode, detail, nodeId, onCl
       allocDelayTime: 0,
       ctiUse: 0,
       blockYn: 0,
-      trkAuthtype: 0,
+      // 갭2: 기본값 1(고정IP) — SWAT IPR20S3030.jsp:881 정합
+      trkAuthtype: 1,
       trkIpUpdate: 0,
+      // 갭1: 신규 등록 시 미선택(null)
+      dnProfileId: null,
     };
   }, [isEdit, detail]);
 
@@ -156,6 +166,8 @@ export default function CommonTrunkFormDrawer({ open, mode, detail, nodeId, onCl
         allocDelayTime: values.allocDelayTime ?? null,
         ctiUse: values.ctiUse ?? null,
         blockYn: values.blockYn ?? null,
+        // 갭1: 내선프로파일 (SWAT 필수 콤보 p4DnProfileId 정합)
+        dnProfileId: values.dnProfileId ?? null,
       };
 
       if (isEdit && detail) {
@@ -170,7 +182,8 @@ export default function CommonTrunkFormDrawer({ open, mode, detail, nodeId, onCl
           allocDelayTime: values.allocDelayTime ?? detail.allocDelayTime ?? 0,
           ctiUse: values.ctiUse ?? detail.ctiUse ?? 0,
           blockYn: values.blockYn ?? detail.blockYn ?? 0,
-          trkAuthtype: values.trkAuthtype ?? detail.trkAuthtype ?? 0,
+          // 갭2: trkAuthtype 기본값 1(고정IP) — 0 은 SWAT에 없는 값이므로 폴백
+          trkAuthtype: values.trkAuthtype ?? (detail.trkAuthtype && detail.trkAuthtype > 0 ? detail.trkAuthtype : 1),
           trkIpUpdate: values.trkIpUpdate ?? detail.trkIpUpdate ?? 0,
           ssRefreshType: detail.ssRefreshType ?? null,
           registYn: detail.registYn ?? null,
@@ -182,7 +195,8 @@ export default function CommonTrunkFormDrawer({ open, mode, detail, nodeId, onCl
           natOption: detail.natOption ?? null,
           drnatOption: detail.drnatOption ?? null,
           enatOption: detail.enatOption ?? null,
-          dnProfileId: detail.dnProfileId ?? null,
+          // 갭1: 폼 값 우선, 없으면 detail 원본값 유지
+          dnProfileId: values.dnProfileId ?? detail.dnProfileId ?? null,
           sipOption: detail.sipOption ?? null,
         };
         updateTrunk({ id: detail.sipTrunkId, body });
@@ -201,6 +215,25 @@ export default function CommonTrunkFormDrawer({ open, mode, detail, nodeId, onCl
 
   const basicTab = (
     <div className="grid grid-cols-2 gap-x-4">
+      {/* 갭1: 내선프로파일 필수 콤보 — SWAT IPR20S3030.jsp:1755~1758, 1890~1894 정합 */}
+      <Form.Item
+        label="내선프로파일"
+        name="dnProfileId"
+        rules={[{ required: true, message: '내선프로파일을 선택하세요' }]}
+        className="col-span-2"
+        extra={nodeId == null ? '노드를 먼저 선택하세요' : undefined}
+      >
+        <Select
+          placeholder="내선프로파일 선택"
+          loading={isDnProfileLoading}
+          disabled={nodeId == null}
+          allowClear
+          showSearch
+          optionFilterProp="label"
+          options={dnProfileOptions.map((p) => ({ value: p.dnProfileId, label: p.dnProfileName }))}
+        />
+      </Form.Item>
+
       <Form.Item label="SIP트렁크 이름" name="sipTrunkName" rules={[{ required: true, max: 100, message: '최대 100자' }]}>
         <Input maxLength={100} placeholder="최대 100자" />
       </Form.Item>

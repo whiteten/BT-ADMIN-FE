@@ -255,6 +255,7 @@ const AclDrawer = forwardRef<AclDrawerRef, Props>(({ onSuccess }, ref) => {
           rules={[
             { required: true, message: 'IP NET은 필수입니다' },
             { max: 100, message: 'IP NET은 100자 이내여야 합니다' },
+            { pattern: /^(\d{1,3}\.){3}\d{1,3}$/, message: 'IPv4 형식으로 입력하세요 (예: 192.168.0.0)' },
           ]}
         >
           <Input placeholder="예: 192.168.1.0" maxLength={100} />
@@ -267,6 +268,7 @@ const AclDrawer = forwardRef<AclDrawerRef, Props>(({ onSuccess }, ref) => {
           rules={[
             { required: true, message: 'IP MASK는 필수입니다' },
             { max: 100, message: 'IP MASK는 100자 이내여야 합니다' },
+            { pattern: /^(\d{1,3}\.){3}\d{1,3}$/, message: 'IPv4 형식으로 입력하세요 (예: 255.255.255.0)' },
           ]}
         >
           <Input placeholder="예: 255.255.255.0" maxLength={100} />
@@ -276,8 +278,8 @@ const AclDrawer = forwardRef<AclDrawerRef, Props>(({ onSuccess }, ref) => {
           <Select options={[...USE_YN_OPTIONS]} placeholder="활성화 여부를 선택하세요" />
         </Form.Item>
 
-        <Form.Item name="aclDesc" label="비고" rules={[{ max: 256, message: '비고는 256자 이내여야 합니다' }]}>
-          <Input.TextArea placeholder="비고를 입력하세요" maxLength={256} rows={3} />
+        <Form.Item name="aclDesc" label="비고" rules={[{ max: 512, message: '비고는 512자 이내여야 합니다' }]}>
+          <Input.TextArea placeholder="비고를 입력하세요" maxLength={512} rows={3} />
         </Form.Item>
       </Form>
     </Drawer>

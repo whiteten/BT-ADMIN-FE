@@ -118,6 +118,19 @@ export const commonTrunkApi = {
     return res.data?.data?.value ?? false;
   },
 
+  /**
+   * 내선프로파일 옵션 목록 (SWAT cbCreate p4DnProfileId 정합).
+   * dnProfileType=1(TRUNK) 고정, nodeId 필터.
+   * @flow ipron-dn-profile-list (기존 flow 재사용)
+   */
+  getDnProfileOptions: async (nodeId: number): Promise<{ dnProfileId: number; dnProfileName: string }[]> => {
+    const res = await apiClient.get<ApiResponse<{ value: { dnProfileId: number; dnProfileName: string }[] }>>('/ipron-dn-profile-list', {
+      params: { nodeId, dnProfileType: '1' },
+    });
+    const raw = res.data?.data?.value ?? [];
+    return raw.map((p) => ({ dnProfileId: p.dnProfileId, dnProfileName: p.dnProfileName }));
+  },
+
   /** 갭1: 멘트 콤보 옵션 — ACD GDN과 동일한 TB_IE_ANNOUNCEBGM 참조 */
   getMentOptions: async (params?: { nodeId?: number }): Promise<{ id: number; name: string }[]> => {
     const res = await apiClient.get<ApiResponse<{ value: { id: number; name: string }[] }>>('/ipron-acd-gdn-ment-options', { params });

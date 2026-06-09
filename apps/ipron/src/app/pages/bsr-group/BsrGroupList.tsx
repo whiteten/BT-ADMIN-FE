@@ -4,14 +4,17 @@
  * 레이아웃 (IPRON 표준 A타입 — 테넌트 카드, 노드 종속 없음):
  *  박스1: 헤더 (타이틀 + 선택 테넌트 라벨)
  *  박스2: 테넌트 카드 슬라이더 (compact pill ↔ expanded card h-[140px] 토글)
- *  박스3 상단: BSR 그룹 ag-Grid (행 클릭 → 하단 스케줄 갱신 / 더블클릭 → 수정 Drawer)
- *  박스3 하단: 스케줄 서브 ag-Grid + 추가/삭제 버튼 (30%)
+ *  박스3: 좌(BSR 그룹 ag-Grid 풀높이) + 우(인라인 드로어 w-[480px])
+ *    - 좌: BSR 그룹 목록 (행 클릭 → 우측 드로어 open / 더블클릭 → 수정 Drawer)
+ *    - 우: 그룹 선택 시 열리는 인라인 상세 드로어 (스케줄 탭)
+ *      · 스케줄 탭: 배정 스케줄 ag-Grid + 추가/배정해제 버튼 (CRUD 보존)
+ *      · 기본정보/지역번호 라우팅 편집은 "그룹 수정" 버튼 → BsrGroupFormDrawer(오버레이) 재사용
  */
 import { type ChangeEvent, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { ColDef, ICellRendererParams } from 'ag-grid-community';
 import { AgGridReact } from 'ag-grid-react';
 import { Button, Empty, Input } from 'antd';
-import { Building2, ChevronLeft, ChevronRight, ChevronsDown, ChevronsUp, Plus, Search, Trash2 } from 'lucide-react';
+import { Building2, ChevronLeft, ChevronRight, ChevronsDown, ChevronsUp, Pencil, Plus, Search, Trash2, X } from 'lucide-react';
 import { useAuthStore, useBreadcrumbStore } from '@/shared-store';
 import { toast } from '@/shared-util';
 import BsrGroupFormDrawer from '../../features/bsr-group/components/BsrGroupFormDrawer';
@@ -271,6 +274,12 @@ export default function BsrGroupList() {
     setGroupDrawerOpen(true);
   }, []);
 
+  // 인라인 드로어 닫기 (선택 해제)
+  const handleCloseDetail = useCallback(() => {
+    setSelectedGroup(null);
+    setSelectedScheduleIds([]);
+  }, []);
+
   const handleGroupCreate = useCallback(() => {
     if (!selectedTenantId) {
       toast.warning('테넌트를 먼저 선택하세요');
@@ -492,10 +501,10 @@ export default function BsrGroupList() {
         )}
       </div>
 
-      {/* 박스3: 상하 그리드 (70% + 30%) */}
-      <div className="flex flex-col gap-3 flex-1 min-h-0">
-        {/* 상단 그리드: BSR 그룹 */}
-        <div className="bg-white bt-shadow flex flex-col" style={{ flex: '0 0 65%' }}>
+      {/* 박스3: 좌(BSR 그룹 그리드 풀높이) + 우(인라인 상세 드로어) */}
+      <div className="flex gap-4 flex-1 min-h-0">
+        {/* 좌: BSR 그룹 목록 (풀높이) */}
+        <div className="bg-white bt-shadow flex flex-col flex-1 min-w-0">
           <div className="px-4 h-[44px] border-b border-gray-100 flex items-center flex-shrink-0 gap-2">
             <span className="text-sm font-semibold text-gray-700">BSR 그룹 목록 ({filteredGroups.length.toLocaleString()}건)</span>
             {selectedGroupIds.length > 0 && (
@@ -533,36 +542,53 @@ export default function BsrGroupList() {
               onSelectionChanged={(e) => setSelectedGroupIds(e.api.getSelectedRows().map((r) => r.bsrGroupId))}
             />
           </div>
+          <div className="px-4 py-1.5 text-[11px] text-gray-400 border-t border-gray-100 flex-shrink-0">
+            행을 클릭하면 우측에서 배정 스케줄을 관리하고, "그룹 수정"으로 기본정보·지역번호 라우팅을 편집합니다.
+          </div>
         </div>
 
-        {/* 하단 그리드: 스케줄 */}
-        <div className="bg-white bt-shadow flex flex-col flex-1 min-h-0">
-          <div className="px-4 h-[44px] border-b border-gray-100 flex items-center flex-shrink-0 gap-2">
-            <span className="text-sm font-semibold text-gray-700">
-              {selectedGroup ? `[${selectedGroup.bsrGroupName}] 배정 스케줄 (${schedules.length.toLocaleString()}건)` : '스케줄 (그룹 선택 필요)'}
-            </span>
-            <div className="ml-auto flex items-center gap-2">
-              <Button danger size="small" icon={<Trash2 className="size-3" />} onClick={handleScheduleDelete} disabled={selectedScheduleIds.length === 0}>
-                {selectedScheduleIds.length > 0 ? `배정 해제 (${selectedScheduleIds.length})` : '배정 해제'}
+        {/* 우: 인라인 상세 드로어 (그룹 선택 시 열림 — 스케줄 탭) */}
+        {selectedGroup && (
+          <div className="bg-white bt-shadow flex flex-col w-[480px] flex-shrink-0 min-h-0">
+            {/* 드로어 헤더 */}
+            <div className="px-4 h-[44px] border-b border-gray-100 flex items-center flex-shrink-0 gap-2">
+              <span className="text-sm font-semibold text-gray-800 truncate flex-1" title={selectedGroup.bsrGroupName ?? ''}>
+                {selectedGroup.bsrGroupName} 상세
+              </span>
+              <Button size="small" icon={<Pencil className="size-3" />} onClick={() => handleGroupDblClicked(selectedGroup)}>
+                그룹 수정
               </Button>
-              <Button type="primary" size="small" icon={<Plus className="size-3" />} onClick={handleScheduleCreate} disabled={!selectedGroup}>
-                스케줄 등록
-              </Button>
+              <Button type="text" size="small" icon={<X className="size-4" />} onClick={handleCloseDetail} title="닫기" className="!text-gray-400 hover:!text-[#405189]" />
+            </div>
+
+            {/* 스케줄 섹션 헤더 (탭 1개 — 스케줄) */}
+            <div className="px-4 h-[40px] border-b border-gray-100 flex items-center flex-shrink-0 gap-2">
+              <span className="text-xs font-semibold text-[#405189] border-b-2 border-[#405189] h-full flex items-center">스케줄 ({schedules.length.toLocaleString()})</span>
+              <div className="ml-auto flex items-center gap-2">
+                <Button danger size="small" icon={<Trash2 className="size-3" />} onClick={handleScheduleDelete} disabled={selectedScheduleIds.length === 0}>
+                  {selectedScheduleIds.length > 0 ? `배정 해제 (${selectedScheduleIds.length})` : '배정 해제'}
+                </Button>
+                <Button type="primary" size="small" icon={<Plus className="size-3" />} onClick={handleScheduleCreate}>
+                  스케줄 등록
+                </Button>
+              </div>
+            </div>
+
+            {/* 스케줄 그리드 */}
+            <div className="flex-1 min-h-0">
+              <AgGridReact<BsrScheduleInfoResponse>
+                {...gridOptions}
+                rowData={schedules}
+                columnDefs={scheduleColDefs}
+                loading={isSchedulesLoading}
+                rowSelection="multiple"
+                suppressRowClickSelection
+                onRowDoubleClicked={(e) => e.data && handleScheduleDblClicked(e.data)}
+                onSelectionChanged={(e) => setSelectedScheduleIds(e.api.getSelectedRows().map((r) => r.bsrScheduleId))}
+              />
             </div>
           </div>
-          <div className="flex-1 min-h-0">
-            <AgGridReact<BsrScheduleInfoResponse>
-              {...gridOptions}
-              rowData={schedules}
-              columnDefs={scheduleColDefs}
-              loading={isSchedulesLoading}
-              rowSelection="multiple"
-              suppressRowClickSelection
-              onRowDoubleClicked={(e) => e.data && handleScheduleDblClicked(e.data)}
-              onSelectionChanged={(e) => setSelectedScheduleIds(e.api.getSelectedRows().map((r) => r.bsrScheduleId))}
-            />
-          </div>
-        </div>
+        )}
       </div>
 
       {/* BSR 그룹 Drawer */}

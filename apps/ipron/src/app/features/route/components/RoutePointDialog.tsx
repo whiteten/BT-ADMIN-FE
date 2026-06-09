@@ -79,7 +79,7 @@ const RoutePointDialog = forwardRef<RoutePointDialogRef, RoutePointDialogProps>(
       const assignedCount = prev.filter((e) => e.assigned).length;
       return prev.map((e) => {
         if (e.endptId !== endptId) return e;
-        if (!e.assigned && assignedCount > 32) {
+        if (!e.assigned && assignedCount >= 32) {
           toast.warning('국선배정은 최대 32개까지 가능합니다.');
           return e;
         }

@@ -10,6 +10,7 @@ import { createQueryKeys } from '@lukemorales/query-key-factory';
 import type { MutationHookOptions, QueryHookOptions, QueryHookWithParamsOptions } from '@/shared-util';
 import { agentMasterApi } from '../api/agentMasterApi';
 import type {
+  AgentConditionStat,
   AgentConfig,
   AgentCreateRequest,
   AgentGroupCreateRequest,
@@ -28,6 +29,7 @@ export const agentMasterQueryKeys = createQueryKeys('agent-master', {
   getList: (params?: Record<string, unknown>) => [params],
   getDetail: (id?: number) => [id],
   getTenants: null,
+  getConditionStats: null,
   getGroupTree: (params?: Record<string, unknown>) => [params],
   getGroupDetail: (id?: number) => [id],
   getGroupChildrenCount: (id?: number) => [id],
@@ -68,6 +70,16 @@ export const useGetAgentTenants = ({ queryOptions }: QueryHookOptions<AgentTenan
   return useQuery({
     queryKey: agentMasterQueryKeys.getTenants.queryKey,
     queryFn: () => agentMasterApi.getTenants(),
+    ...queryOptions,
+  });
+};
+
+/** 상담사 현황 집계 — 클릭 시 활성화(enabled=false 기본). */
+export const useGetAgentConditionStats = ({ queryOptions }: QueryHookOptions<AgentConditionStat[]> = {}) => {
+  return useQuery({
+    queryKey: agentMasterQueryKeys.getConditionStats.queryKey,
+    queryFn: () => agentMasterApi.getConditionStats(),
+    enabled: false,
     ...queryOptions,
   });
 };

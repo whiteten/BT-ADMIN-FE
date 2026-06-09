@@ -56,14 +56,14 @@ const EmergCodeDrawer = forwardRef<EmergCodeDrawerRef, EmergCodeDrawerProps>(({ 
       if (isEditMode && editCode) {
         onUpdate(editCode.emergencyCode, {
           emergencyCodeName: values.emergencyCodeName,
-          routeId: values.routeId ?? null,
+          routeId: values.routeId,
           emergencyCodeDesc: values.emergencyCodeDesc ?? null,
         });
       } else {
         onCreate({
           emergencyCode: values.emergencyCode,
           emergencyCodeName: values.emergencyCodeName,
-          routeId: values.routeId ?? null,
+          routeId: values.routeId,
           emergencyCodeDesc: values.emergencyCodeDesc ?? null,
         });
       }
@@ -71,8 +71,6 @@ const EmergCodeDrawer = forwardRef<EmergCodeDrawerRef, EmergCodeDrawerProps>(({ 
       // validation error
     }
   };
-
-  const allRouteOptions = [{ label: '미지정', value: 0 }, ...routeOptions];
 
   const footer = (
     <div className="flex items-center justify-end gap-2">
@@ -138,8 +136,8 @@ const EmergCodeDrawer = forwardRef<EmergCodeDrawerRef, EmergCodeDrawerProps>(({ 
           <Input placeholder="코드명을 입력하세요" maxLength={128} />
         </Form.Item>
 
-        <Form.Item label="라우트" name="routeId">
-          <Select placeholder="라우트 선택" options={allRouteOptions} allowClear showSearch optionFilterProp="label" />
+        <Form.Item label="라우트" name="routeId" rules={[{ required: true, message: '라우트를 선택해주세요' }]}>
+          <Select placeholder="라우트 선택" options={routeOptions} showSearch optionFilterProp="label" />
         </Form.Item>
 
         <Form.Item label="설명" name="emergencyCodeDesc" rules={[{ max: 256, message: '설명은 256자 이내여야 합니다' }]}>

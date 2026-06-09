@@ -447,6 +447,11 @@ export default function SkillAssignList() {
   const setHoverAgentIdRef = useRef(setHoverAgentId);
   setHoverAgentIdRef.current = setHoverAgentId;
   const hoverLeaveTimerRefAgent = useRef<ReturnType<typeof setTimeout> | null>(null);
+  // hover-intent(진입) 타이머 — 셀 진입 즉시 set 하지 않고 250ms 후 set (요청폭주/레이스 방어)
+  const hoverIntentTimerRefAgent = useRef<ReturnType<typeof setTimeout> | null>(null);
+  // 현재 hover 값 추적 ref — 같은 행 셀 좌우이동 시 setState 스킵용
+  const hoverAgentIdValueRef = useRef<number | null>(null);
+  hoverAgentIdValueRef.current = hoverAgentId;
 
   const agentGridOptionsAg = useMemo<GridOptions<AgentResponse>>(
     () => ({
@@ -456,10 +461,23 @@ export default function SkillAssignList() {
         setSelectedAgentIds(e.api.getSelectedRows().map((r) => r.agentId));
       },
       onCellMouseOver: (e) => {
+        const nextId = e.data?.agentId ?? null;
+        // ① 같은 행 가드: 현재 hover 값과 같으면 무시 (같은 행 셀 좌우이동)
+        if (nextId === hoverAgentIdValueRef.current) {
+          if (hoverLeaveTimerRefAgent.current) clearTimeout(hoverLeaveTimerRefAgent.current);
+          return;
+        }
+        // 다른 행 진입 → leave 타이머와 직전 intent 타이머 정리
         if (hoverLeaveTimerRefAgent.current) clearTimeout(hoverLeaveTimerRefAgent.current);
-        setHoverAgentIdRef.current(e.data?.agentId ?? null);
+        if (hoverIntentTimerRefAgent.current) clearTimeout(hoverIntentTimerRefAgent.current);
+        // ② 디바운스(hover-intent ~250ms): 진입 즉시 set 하지 않고 타이머 후 set
+        hoverIntentTimerRefAgent.current = setTimeout(() => {
+          setHoverAgentIdRef.current(nextId);
+        }, 250);
       },
       onCellMouseOut: () => {
+        // 이탈 시 미발화 intent 타이머 취소 (스쳐 지나간 행은 요청 안 함)
+        if (hoverIntentTimerRefAgent.current) clearTimeout(hoverIntentTimerRefAgent.current);
         hoverLeaveTimerRefAgent.current = setTimeout(() => {
           setHoverAgentIdRef.current((prev) => prev);
         }, 200);
@@ -517,6 +535,11 @@ export default function SkillAssignList() {
   const setHoverSkillsetIdRef = useRef(setHoverSkillsetId);
   setHoverSkillsetIdRef.current = setHoverSkillsetId;
   const hoverLeaveTimerRefSkillset = useRef<ReturnType<typeof setTimeout> | null>(null);
+  // hover-intent(진입) 타이머 — 셀 진입 즉시 set 하지 않고 250ms 후 set
+  const hoverIntentTimerRefSkillset = useRef<ReturnType<typeof setTimeout> | null>(null);
+  // 현재 hover 값 추적 ref — 같은 행 셀 좌우이동 시 setState 스킵용
+  const hoverSkillsetIdValueRef = useRef<number | null>(null);
+  hoverSkillsetIdValueRef.current = hoverSkillsetId;
 
   const skillsetGridOptionsAg = useMemo<GridOptions<SkillsetResponse>>(
     () => ({
@@ -526,10 +549,23 @@ export default function SkillAssignList() {
         setSelectedSkillsetIds(e.api.getSelectedRows().map((r) => r.skillsetId));
       },
       onCellMouseOver: (e) => {
+        const nextId = e.data?.skillsetId ?? null;
+        // ① 같은 행 가드: 현재 hover 값과 같으면 무시 (같은 행 셀 좌우이동)
+        if (nextId === hoverSkillsetIdValueRef.current) {
+          if (hoverLeaveTimerRefSkillset.current) clearTimeout(hoverLeaveTimerRefSkillset.current);
+          return;
+        }
+        // 다른 행 진입 → leave 타이머와 직전 intent 타이머 정리
         if (hoverLeaveTimerRefSkillset.current) clearTimeout(hoverLeaveTimerRefSkillset.current);
-        setHoverSkillsetIdRef.current(e.data?.skillsetId ?? null);
+        if (hoverIntentTimerRefSkillset.current) clearTimeout(hoverIntentTimerRefSkillset.current);
+        // ② 디바운스(hover-intent ~250ms): 진입 즉시 set 하지 않고 타이머 후 set
+        hoverIntentTimerRefSkillset.current = setTimeout(() => {
+          setHoverSkillsetIdRef.current(nextId);
+        }, 250);
       },
       onCellMouseOut: () => {
+        // 이탈 시 미발화 intent 타이머 취소
+        if (hoverIntentTimerRefSkillset.current) clearTimeout(hoverIntentTimerRefSkillset.current);
         hoverLeaveTimerRefSkillset.current = setTimeout(() => {
           setHoverSkillsetIdRef.current((prev) => prev);
         }, 200);

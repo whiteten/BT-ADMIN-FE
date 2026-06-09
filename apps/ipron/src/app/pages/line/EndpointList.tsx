@@ -18,7 +18,7 @@ import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useQueryClient } from '@tanstack/react-query';
 import type { ColDef, ICellRendererParams } from 'ag-grid-community';
 import { AgGridReact } from 'ag-grid-react';
-import { Button, Dropdown, Empty, Input } from 'antd';
+import { Button, Dropdown, Empty, Input, Select } from 'antd';
 import { AlertTriangle, Ban, ChevronLeft, ChevronRight, Layers, MoreVertical, Network, Plus, Search, Trash2 } from 'lucide-react';
 import { useBreadcrumbStore } from '@/shared-store';
 import { toast } from '@/shared-util';
@@ -39,6 +39,7 @@ import {
 import {
   ALLOC_METHOD_LABELS,
   ENDPOINT_TYPE_LABELS,
+  ENDPOINT_TYPE_OPTIONS,
   type Endpoint,
   type EndpointMember,
   type EndpointRegnum,
@@ -85,6 +86,10 @@ export default function EndpointList() {
   const [selectedEndpointId, setSelectedEndpointId] = useState<number | null>(initEndptId);
   const [activeTab, setActiveTab] = useState<BottomTab>('member');
   const [searchText, setSearchText] = useState('');
+  // SWAT selEndPointList SQL: endptType 조건 필터 (클라이언트 사이드)
+  const [filterEndptType, setFilterEndptType] = useState<number | null>(null);
+  // SWAT selEndPointList SQL: locationNodeId 조건 필터 (클라이언트 사이드)
+  const [filterLocationNodeId, setFilterLocationNodeId] = useState<number | null>(null);
   const cardScrollRef = useRef<HTMLDivElement>(null);
   const tabScrollRef = useRef<HTMLDivElement>(null);
   const [tenantOptions, setTenantOptions] = useState<Array<{ label: string; value: number }>>([]);
@@ -172,15 +177,29 @@ export default function EndpointList() {
   // 검색어로 필터링 (검색 필드: endptName)
   const isSearching = searchText.trim().length > 0;
   const searchFilteredEndpoints = useMemo(() => {
-    if (!isSearching) return endpoints;
-    const kw = searchText.trim().toLowerCase();
-    return endpoints.filter((ep) => ep.endptName?.toLowerCase().includes(kw));
-  }, [endpoints, isSearching, searchText]);
+    let result = endpoints;
+    // endptName 텍스트 필터
+    if (isSearching) {
+      const kw = searchText.trim().toLowerCase();
+      result = result.filter((ep) => ep.endptName?.toLowerCase().includes(kw));
+    }
+    // SWAT selEndPointList SQL: endptType 조건 필터
+    if (filterEndptType !== null) {
+      result = result.filter((ep) => ep.endptType === filterEndptType);
+    }
+    // SWAT selEndPointList SQL: locationNodeId 조건 필터
+    if (filterLocationNodeId !== null) {
+      result = result.filter((ep) => ep.locationNodeId === filterLocationNodeId);
+    }
+    return result;
+  }, [endpoints, isSearching, searchText, filterEndptType, filterLocationNodeId]);
 
-  // 검색 중이면 노드 선택 무시 (전체 표시), 아니면 노드 선택 적용
+  const isFiltering = isSearching || filterEndptType !== null || filterLocationNodeId !== null;
+
+  // 검색/필터 중이면 노드 선택 무시 (전체 표시), 아니면 노드 선택 적용
   const filteredEndpoints = useMemo(
-    () => (isSearching || selectedNodeId === null ? searchFilteredEndpoints : searchFilteredEndpoints.filter((ep) => ep.nodeId === selectedNodeId)),
-    [searchFilteredEndpoints, selectedNodeId, isSearching],
+    () => (isFiltering || selectedNodeId === null ? searchFilteredEndpoints : searchFilteredEndpoints.filter((ep) => ep.nodeId === selectedNodeId)),
+    [searchFilteredEndpoints, selectedNodeId, isFiltering],
   );
 
   // 노드별 국선 개수 (검색 결과 기준)
@@ -223,6 +242,8 @@ export default function EndpointList() {
     setSelectedNodeId((prev) => (prev === nodeId ? null : nodeId));
     setSelectedEndpointId(null);
     setSearchText('');
+    setFilterEndptType(null);
+    setFilterLocationNodeId(null);
   };
 
   const handleSearchChange = (e: ChangeEvent<HTMLInputElement>) => {
@@ -231,6 +252,18 @@ export default function EndpointList() {
       // 검색 시작 시 노드 필터 자동 해제
       setSelectedNodeId(null);
     }
+  };
+
+  const handleEndptTypeFilter = (val: number | null) => {
+    setFilterEndptType(val);
+    setSelectedNodeId(null);
+    setSelectedEndpointId(null);
+  };
+
+  const handleLocationNodeFilter = (val: number | null) => {
+    setFilterLocationNodeId(val);
+    setSelectedNodeId(null);
+    setSelectedEndpointId(null);
   };
 
   const handleCardSelect = (ep: Endpoint) => {
@@ -617,6 +650,8 @@ export default function EndpointList() {
                   setSelectedNodeId(null);
                   setSearchText('');
                   setSelectedEndpointId(null);
+                  setFilterEndptType(null);
+                  setFilterLocationNodeId(null);
                 }}
               >
                 <Layers className="size-3.5" />
@@ -664,13 +699,24 @@ export default function EndpointList() {
 
             {/* 우측: 검색 + G/W 우회설정 + 추가 버튼 */}
             <div className="ml-auto flex items-center gap-2 flex-shrink-0 pl-3">
+              {/* SWAT selEndPointList SQL: 구분(endptType) 필터 콤보 */}
+              <Select allowClear placeholder="구분" value={filterEndptType} onChange={handleEndptTypeFilter} options={[...ENDPOINT_TYPE_OPTIONS]} style={{ width: 120 }} />
+              {/* SWAT selEndPointList SQL: 장비위치(locationNodeId) 필터 콤보 */}
+              <Select
+                allowClear
+                placeholder="장비위치"
+                value={filterLocationNodeId}
+                onChange={handleLocationNodeFilter}
+                options={nodes.map((n) => ({ label: n.nodeName, value: n.nodeId }))}
+                style={{ width: 130 }}
+              />
               <Input
                 allowClear
                 prefix={<Search className="size-3.5 text-gray-400" />}
                 placeholder="국선 검색"
                 value={searchText}
                 onChange={handleSearchChange}
-                style={{ width: 200 }}
+                style={{ width: 160 }}
               />
               <Button
                 onClick={() => gwBypassRef.current?.open(selectedNodeId ?? nodes[0]?.nodeId, nodes.find((n) => n.nodeId === (selectedNodeId ?? nodes[0]?.nodeId))?.nodeName ?? '')}

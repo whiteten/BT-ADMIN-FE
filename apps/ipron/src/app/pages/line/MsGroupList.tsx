@@ -126,7 +126,7 @@ export default function MsGroupList() {
   const searchFilteredMsGroups = useMemo(() => {
     if (!isSearching) return msGroups;
     const kw = searchText.trim().toLowerCase();
-    return msGroups.filter((g) => [g.msGroupName, nodeNameMap.get(g.nodeId)].some((v) => v?.toString().toLowerCase().includes(kw)));
+    return msGroups.filter((g) => [g.msGroupName, g.nodeName || nodeNameMap.get(g.nodeId)].some((v) => v?.toString().toLowerCase().includes(kw)));
   }, [msGroups, isSearching, searchText, nodeNameMap]);
 
   const filteredMsGroups = useMemo(
@@ -352,6 +352,10 @@ export default function MsGroupList() {
           return '-';
         },
       },
+      // SWAT IPR20S1092.jsp:39-41 — hidden 컬럼 (Drawer 참조용)
+      { headerName: '블록여부', field: 'blockYn', hide: true },
+      { headerName: '상태갱신시간', field: 'stateUpdateTime', hide: true },
+      { headerName: '확장옵션', field: 'extOptions', hide: true },
     ],
     [],
   );
@@ -523,7 +527,7 @@ export default function MsGroupList() {
                         <div className="text-xs text-gray-500 space-y-0.5">
                           <div className="flex items-center gap-1">
                             <Network className="size-3 text-gray-400" />
-                            <span className="truncate">{nodeNameMap.get(grp.nodeId) ?? `Node ${grp.nodeId}`}</span>
+                            <span className="truncate">{grp.nodeName || nodeNameMap.get(grp.nodeId) || `Node ${grp.nodeId}`}</span>
                           </div>
                           <div>분배방식: {ROUTE_TYPE_LABELS[grp.routeType] ?? grp.routeType}</div>
                           <div>할당 MS 수: {grp.routeCnt ?? 0}</div>

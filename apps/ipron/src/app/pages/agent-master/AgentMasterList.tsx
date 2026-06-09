@@ -10,8 +10,9 @@
  */
 import { type ChangeEvent, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Button, Empty, Input, Select } from 'antd';
-import { ChevronLeft, ChevronRight, ChevronsDown, ChevronsUp, Plus, Save, Search, Trash2 } from 'lucide-react';
+import { Button, Empty, Input, Modal, Select, Spin, Table } from 'antd';
+import type { ColumnsType } from 'antd/es/table';
+import { BarChart2, ChevronLeft, ChevronRight, ChevronsDown, ChevronsUp, Plus, Save, Search, Trash2, Users } from 'lucide-react';
 import { useAuthStore, useBreadcrumbStore } from '@/shared-store';
 import { toast } from '@/shared-util';
 import AgentGroupFormDrawer from '../../features/agent-master/components/AgentGroupFormDrawer';
@@ -24,6 +25,7 @@ import { MEDIA_KEY_LABELS, MEDIA_TYPE_CODE_TO_KEY } from '../../features/agent-m
 import {
   useDeleteAgentGroup,
   useDeleteAgents,
+  useGetAgentConditionStats,
   useGetAgentGroupTree,
   useGetAgentTenants,
   useGetAgents,
@@ -31,7 +33,7 @@ import {
   useReorderAgentGroup,
   useUpdateAgent,
 } from '../../features/agent-master/hooks/useAgentMasterQueries';
-import type { AgentGroupNode, AgentResponse, AgentUpdateRequest } from '../../features/agent-master/types';
+import type { AgentConditionStat, AgentGroupNode, AgentResponse, AgentUpdateRequest } from '../../features/agent-master/types';
 import { useGetMediaTypes } from '../../features/media-type/hooks/useMediaTypeQueries';
 import { useModal } from '@/libs/shared-ui/src/hooks/useModal';
 
@@ -74,6 +76,13 @@ export default function AgentMasterList() {
   const mediaTableRef = useRef<AgentMediaStatusTableHandle>(null);
   const [mediaDirtyCount, setMediaDirtyCount] = useState(0);
 
+  // 그룹배정 모달 — 선택 상담사를 다른 그룹으로 일괄 이동
+  const [groupDeployOpen, setGroupDeployOpen] = useState(false);
+  const [deployTargetGroupId, setDeployTargetGroupId] = useState<number | undefined>();
+
+  // 현황 집계 모달
+  const [conditionModalOpen, setConditionModalOpen] = useState(false);
+
   // ctx 비동기 로드 시 동기화
   useEffect(() => {
     if (ctxTenantId != null && selectedTenantId === null) {
@@ -106,6 +115,9 @@ export default function AgentMasterList() {
 
   // TB_IC_MEDIA_USAGE 등록·활성 미디어 목록 (동적 노출)
   const { data: mediaTypeList = [] } = useGetMediaTypes();
+
+  // 현황 집계 — 모달 열릴 때 fetch (enabled 토글)
+  const { data: conditionStats = [], isFetching: conditionStatsFetching, refetch: refetchConditionStats } = useGetAgentConditionStats();
 
   /** 서버 미디어 목록 → FE MediaOption 배열 (SWAT 정합 순서 유지). */
   const availableMediaOptions = useMemo<MediaOption[]>(() => {
@@ -292,6 +304,35 @@ export default function AgentMasterList() {
       },
     });
   }, [selectedRows, modal, deleteAgents]);
+
+  // 그룹배정 — 선택 상담사를 대상 그룹으로 일괄 이동
+  const handleGroupDeploy = useCallback(() => {
+    if (selectedRows.length === 0) {
+      toast.error('배정할 상담사를 선택하세요');
+      return;
+    }
+    setDeployTargetGroupId(undefined);
+    setGroupDeployOpen(true);
+  }, [selectedRows]);
+
+  const handleGroupDeployOk = useCallback(() => {
+    if (!deployTargetGroupId) {
+      toast.error('배정할 상담그룹을 선택하세요');
+      return;
+    }
+    for (const a of selectedRows) {
+      moveAgent({ id: a.agentId, body: { targetGroupId: deployTargetGroupId, allowTenantChange: true } });
+    }
+    setGroupDeployOpen(false);
+    setDeployTargetGroupId(undefined);
+    setSelectedRows([]);
+  }, [selectedRows, deployTargetGroupId, moveAgent]);
+
+  // 현황 집계 팝업
+  const handleOpenConditionModal = useCallback(() => {
+    setConditionModalOpen(true);
+    refetchConditionStats();
+  }, [refetchConditionStats]);
 
   const handleSelectTenant = useCallback((tenantId: number | null) => {
     setSelectedTenantId(tenantId);
@@ -557,6 +598,17 @@ export default function AgentMasterList() {
             </span>
             {gridTab === 'agent' && (
               <div className="ml-auto flex items-center gap-2">
+                <Button icon={<BarChart2 className="size-3.5" />} onClick={handleOpenConditionModal} title="상담사 현황 집계">
+                  현황 집계
+                </Button>
+                <Button
+                  icon={<Users className="size-3.5" />}
+                  onClick={handleGroupDeploy}
+                  disabled={selectedRows.length === 0}
+                  title={selectedRows.length === 0 ? '배정할 상담사를 선택하세요' : `${selectedRows.length}명 그룹배정`}
+                >
+                  {selectedRows.length > 0 ? `그룹배정 (${selectedRows.length})` : '그룹배정'}
+                </Button>
                 <Button
                   danger
                   icon={<Trash2 className="size-3.5" />}
@@ -639,9 +691,98 @@ export default function AgentMasterList() {
         initialGroupId={agentDrawer.open && agentDrawer.mode === 'create' ? agentDrawer.groupId : undefined}
         onClose={() => setAgentDrawer({ open: false })}
       />
+
+      {/* ===== 그룹배정 모달 (SWAT IPR20S4010 poAgentDeploy 대응) ===== */}
+      <Modal
+        title={`그룹배정 — ${selectedRows.length}명`}
+        open={groupDeployOpen}
+        onOk={handleGroupDeployOk}
+        onCancel={() => {
+          setGroupDeployOpen(false);
+          setDeployTargetGroupId(undefined);
+        }}
+        okText="배정"
+        cancelText="취소"
+        width={480}
+      >
+        <div className="mb-4 text-sm text-gray-600">선택한 상담사를 다른 상담그룹으로 일괄 이동합니다.</div>
+        <div className="mb-2">
+          <div className="max-h-48 overflow-y-auto border border-gray-100 rounded text-sm">
+            {selectedRows.map((r) => (
+              <div key={r.agentId} className="flex items-center gap-2 px-3 py-1.5 border-b border-gray-50 last:border-0">
+                <span className="font-medium text-gray-800">{r.agentName}</span>
+                <span className="text-gray-400 text-xs">({r.agentLoginId})</span>
+                <span className="ml-auto text-xs text-gray-500">{r.groupName ?? '-'}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+        <div className="mt-4">
+          <label className="text-sm font-medium text-gray-700 mb-1 block">
+            배정할 상담그룹 <span className="text-red-500">*</span>
+          </label>
+          <Select
+            style={{ width: '100%' }}
+            placeholder="상담그룹을 선택하세요"
+            value={deployTargetGroupId}
+            onChange={(v) => setDeployTargetGroupId(v)}
+            showSearch
+            optionFilterProp="label"
+            options={(() => {
+              const flat: { value: number; label: string }[] = [];
+              const walk = (nodes: AgentGroupNode[]) => {
+                for (const n of nodes) {
+                  flat.push({ value: n.groupId, label: `${'  '.repeat(Math.max(0, n.grpDepth - 1))}${n.groupName}` });
+                  if (n.children?.length) walk(n.children);
+                }
+              };
+              walk(groupTree);
+              return flat;
+            })()}
+          />
+        </div>
+      </Modal>
+
+      {/* ===== 현황 집계 모달 (SWAT IPR20S4010 doAgentCondition 팝업 대응) ===== */}
+      <Modal
+        title="상담사 현황 집계"
+        open={conditionModalOpen}
+        onCancel={() => setConditionModalOpen(false)}
+        footer={<Button onClick={() => setConditionModalOpen(false)}>닫기</Button>}
+        width={900}
+      >
+        {conditionStatsFetching ? (
+          <div className="flex justify-center py-12">
+            <Spin />
+          </div>
+        ) : (
+          <Table<AgentConditionStat>
+            dataSource={conditionStats}
+            rowKey={(r) => `${r.tenantId}-${r.groupId}`}
+            size="small"
+            scroll={{ y: 400 }}
+            pagination={false}
+            columns={conditionColumns}
+          />
+        )}
+      </Modal>
     </div>
   );
 }
+
+/** 상담사 현황 집계 테이블 컬럼 정의 (SWAT grAgentConditionList 정합). */
+const conditionColumns: ColumnsType<AgentConditionStat> = [
+  { title: '테넌트', dataIndex: 'tenantName', key: 'tenantName', width: 120 },
+  { title: '상담그룹', dataIndex: 'groupName', key: 'groupName', width: 140 },
+  { title: '관리자', dataIndex: 'adminCnt', key: 'adminCnt', align: 'center', width: 70 },
+  { title: 'P.T', dataIndex: 'ptCnt', key: 'ptCnt', align: 'center', width: 60 },
+  { title: 'Tr', dataIndex: 'traineeCnt', key: 'traineeCnt', align: 'center', width: 60 },
+  { title: 'Jr', dataIndex: 'juniorCnt', key: 'juniorCnt', align: 'center', width: 60 },
+  { title: 'Sr', dataIndex: 'seniorCnt', key: 'seniorCnt', align: 'center', width: 60 },
+  { title: 'VS', dataIndex: 'viceCnt', key: 'viceCnt', align: 'center', width: 60 },
+  { title: 'SV', dataIndex: 'supervisorCnt', key: 'supervisorCnt', align: 'center', width: 60 },
+  { title: '합계', dataIndex: 'agentCount', key: 'agentCount', align: 'center', width: 70, render: (v: number) => <b>{v}</b> },
+];
 
 function findGroup(tree: AgentGroupNode[], id: number): AgentGroupNode | null {
   for (const n of tree) {

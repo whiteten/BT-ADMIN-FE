@@ -31,7 +31,7 @@ import {
   useGetNodeTenants,
   useGetNodes,
 } from '../../features/dod-trans/hooks/useDodTransQueries';
-import { type DodTransItem, type DodTransMaster, EDIT_OPT_LABELS, TRANS_YN_LABELS } from '../../features/dod-trans/types';
+import { type DodTransItem, type DodTransMaster, TRANS_YN_LABELS } from '../../features/dod-trans/types';
 import { IconTrash } from '@/components/custom/Icons';
 import useAggridOptions from '@/libs/shared-ui/src/hooks/useAggridOptions';
 import { useModal } from '@/libs/shared-ui/src/hooks/useModal';
@@ -371,16 +371,6 @@ export default function DodTransList() {
         flex: 2,
         minWidth: 160,
         cellStyle: { fontFamily: 'monospace' },
-      },
-      {
-        headerName: '편집옵션',
-        field: 'editOpt',
-        flex: 1,
-        minWidth: 100,
-        cellRenderer: (params: ICellRendererParams<DodTransItem>) => {
-          if (!params.data) return null;
-          return <span>{EDIT_OPT_LABELS[params.data.editOpt] ?? String(params.data.editOpt)}</span>;
-        },
       },
       {
         headerName: 'Digit수',

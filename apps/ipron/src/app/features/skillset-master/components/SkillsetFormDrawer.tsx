@@ -48,7 +48,7 @@ export default function SkillsetFormDrawer({ open, mode, skillset, defaultTenant
         skillsetName: skillset.skillsetName,
         mediaType: skillset.mediaType ?? 0,
         activateYn: skillset.activateYn === 1,
-        sortSeq: skillset.sortSeq ?? 0,
+        sortSeq: skillset.sortSeq ?? 1,
         skillsetDesc: skillset.skillsetDesc ?? '',
       });
     } else {
@@ -58,7 +58,7 @@ export default function SkillsetFormDrawer({ open, mode, skillset, defaultTenant
         skillsetName: '',
         mediaType: 0,
         activateYn: true,
-        sortSeq: 0,
+        sortSeq: 1,
         skillsetDesc: '',
       });
     }
@@ -145,6 +145,10 @@ export default function SkillsetFormDrawer({ open, mode, skillset, defaultTenant
 
         <Form.Item name="activateYn" label="활성화" valuePropName="checked">
           <Switch checkedChildren="ON" unCheckedChildren="OFF" />
+        </Form.Item>
+
+        <Form.Item name="sortSeq" label="정렬순서" rules={[{ required: true, message: '정렬순서를 입력하세요' }]}>
+          <InputNumber min={1} max={999999} style={{ width: '100%' }} />
         </Form.Item>
 
         <Form.Item name="skillsetDesc" label="설명" rules={[{ max: 127, message: '127자까지 입력 가능합니다' }]}>
