@@ -246,8 +246,10 @@ export default function PanelEditorSheet({ reportId, panelType, panelId, dataset
     VALUE: { fields: isGrid ? valueFields : pieValueFields, setter: isGrid ? setValueFields : setPieValueFields, maxItems: isGrid ? undefined : 1 },
     SORT: { fields: sortFields, setter: setSortFields },
     X_AXIS: { fields: xAxisFields, setter: setXAxisFields, maxItems: 1 },
-    Y_AXIS: { fields: yAxisFields, setter: setYAxisFields, maxItems: chartType === 'KPI' ? 1 : undefined },
-    SERIES: { fields: seriesFields, setter: setSeriesFields, maxItems: 1 },
+    // 라인차트: 시리즈로 범례를 구현하면 Y축은 1개만(시리즈 미설정 시 Y 다중 → Y값으로 범례)
+    Y_AXIS: { fields: yAxisFields, setter: setYAxisFields, maxItems: chartType === 'KPI' || seriesFields.length > 0 ? 1 : undefined },
+    // Y축이 2개 이상이면 시리즈 사용 불가(상호 배타)
+    SERIES: { fields: seriesFields, setter: setSeriesFields, maxItems: yAxisFields.length > 1 ? 0 : 1 },
     SLICE: { fields: sliceFields, setter: setSliceFields, maxItems: 1 },
   };
 

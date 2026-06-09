@@ -18,7 +18,7 @@ import dayjs from 'dayjs';
 import { Undo2 } from 'lucide-react';
 import { toast } from '@/shared-util';
 import { useGetBackupCompare, useRestoreBackup } from '../hooks/useSleeConfigQueries';
-import type { SleeConfigBackupCompareRow } from '../types/sleeConfig.types';
+import type { SleeConfigBackupCompareRow } from '../types';
 import useAggridOptions from '@/libs/shared-ui/src/hooks/useAggridOptions';
 import { useModal } from '@/libs/shared-ui/src/hooks/useModal';
 
