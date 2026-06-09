@@ -29,6 +29,7 @@ const Stt = React.lazy(() => import('stt/Module').catch(() => ({ default: () => 
 const Ivr = React.lazy(() => import('ivr/Module').catch(() => ({ default: () => <NotFound /> })));
 const Insight = React.lazy(() => import('insight/Module').catch(() => ({ default: () => <NotFound /> })));
 const Taskboard = React.lazy(() => import('taskboard/Module').catch(() => ({ default: () => <NotFound /> })));
+const Campaign = React.lazy(() => import('campaign/Module').catch(() => ({ default: () => <NotFound /> })));
 
 const AppRoutes = () => {
   useApiErrorHandler();
@@ -74,6 +75,9 @@ const AppRoutes = () => {
           </Route>
           <Route path="/taskboard" element={<Layout />}>
             <Route index path="*" element={<Taskboard />} />
+          </Route>
+          <Route path="/campaign" element={<Layout />}>
+            <Route index path="*" element={<Campaign />} />
           </Route>
         </Route>
         <Route path="/login" element={<Login />} />
