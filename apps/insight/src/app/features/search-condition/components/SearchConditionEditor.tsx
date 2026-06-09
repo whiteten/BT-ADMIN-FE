@@ -104,7 +104,19 @@ function renderPreviewControl(node: NodeState): React.ReactNode {
   const options = previewItems.map((i) => ({ value: i.value ?? '', label: i.label ?? i.value ?? '' }));
 
   if (inputType === 'SELECT') {
-    return <Select placeholder="선택하세요" options={options} style={{ minWidth: 200 }} popupMatchSelectWidth={false} className="pointer-events-none" />;
+    // 단일 선택은 접힌 드롭다운이라 pointer-events-none 면 열 수도, 값을 볼 수도 없어 빈 박스로 보였다.
+    // 미리보기에서 실제로 열어 옵션을 확인할 수 있도록 인터랙션을 허용하고, 첫 옵션을 기본값으로 채워 표시한다.
+    return (
+      <Select
+        placeholder="선택하세요"
+        options={options}
+        defaultValue={options[0]?.value}
+        style={{ minWidth: 240 }}
+        popupMatchSelectWidth={false}
+        showSearch
+        optionFilterProp="label"
+      />
+    );
   }
 
   if (inputType === 'MULTI_SELECT') {
@@ -528,9 +540,6 @@ export default function SearchConditionEditor() {
                       title="상위 단계에서 선택한 값이 이 파라미터로 전달됩니다"
                     >
                       :parentValue
-                    </Button>
-                    <Button size="small" onClick={() => insertParam(':userId')} className="font-mono text-xs">
-                      :userId
                     </Button>
                     <Button size="small" onClick={() => insertParam(':tenantId')} className="font-mono text-xs">
                       :tenantId

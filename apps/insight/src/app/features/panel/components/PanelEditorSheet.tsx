@@ -44,6 +44,7 @@ interface SlotDef {
   subtitle: string;
   maxItems?: number;
   acceptsRole?: 'DIM' | 'MSR' | 'BOTH';
+  note?: string;
 }
 
 // ─── Slot definitions per panel type ─────────────────────────────────────────
@@ -73,7 +74,20 @@ function getChartSlots(chartType: ChartType): SlotDef[] {
   return [
     { slotType: 'X_AXIS', badge: 'X', title: 'X축 (카테고리)', subtitle: `— ${chartType === 'LINE' ? 'DATE 권장' : '디멘션 1개'}`, maxItems: 1, acceptsRole: 'DIM' },
     { slotType: 'Y_AXIS', badge: 'Y', title: 'Y축 (값)', subtitle: '— 측정값 1개+', acceptsRole: 'MSR' },
-    { slotType: 'SERIES', badge: 'SR', title: '시리즈', subtitle: '— 선택 (그룹 분리)', acceptsRole: 'DIM' },
+    // 시리즈(그룹 분리)는 라인차트에서만 의미 있음
+    ...(chartType === 'LINE'
+      ? [
+          {
+            slotType: 'SERIES' as SlotType,
+            badge: 'SR',
+            title: '시리즈',
+            subtitle: '— 선택 1개 (그룹 분리)',
+            maxItems: 1,
+            acceptsRole: 'DIM' as const,
+            note: '미설정 시 전체 합계를 단일 라인으로 표시합니다.',
+          },
+        ]
+      : []),
   ];
 }
 
@@ -233,7 +247,7 @@ export default function PanelEditorSheet({ reportId, panelType, panelId, dataset
     SORT: { fields: sortFields, setter: setSortFields },
     X_AXIS: { fields: xAxisFields, setter: setXAxisFields, maxItems: 1 },
     Y_AXIS: { fields: yAxisFields, setter: setYAxisFields, maxItems: chartType === 'KPI' ? 1 : undefined },
-    SERIES: { fields: seriesFields, setter: setSeriesFields },
+    SERIES: { fields: seriesFields, setter: setSeriesFields, maxItems: 1 },
     SLICE: { fields: sliceFields, setter: setSliceFields, maxItems: 1 },
   };
 
@@ -655,7 +669,7 @@ export default function PanelEditorSheet({ reportId, panelType, panelId, dataset
 
   // ─── Slot section renderer ─────────────────────────────────────────────────
   const renderSlot = (slotDef: SlotDef) => {
-    const { slotType, badge, title: slotTitle, subtitle, maxItems } = slotDef;
+    const { slotType, badge, title: slotTitle, subtitle, maxItems, note } = slotDef;
     const entry = slotMap[slotType];
     const slotFields = entry?.fields ?? [];
     const isActive = activeSlot === slotType;
@@ -693,6 +707,9 @@ export default function PanelEditorSheet({ reportId, panelType, panelId, dataset
             {isActive && !isFull && <span className="rounded bg-[var(--color-bt-primary)] px-1.5 py-0.5 text-[10px] font-semibold text-white">선택됨</span>}
           </div>
         </div>
+
+        {/* Slot note (e.g. 미설정 시 동작 안내) when empty */}
+        {note && slotFields.length === 0 && <div className="mb-1.5 text-xs leading-snug text-[var(--color-bt-fg-muted)]">{note}</div>}
 
         {/* Slot hint when active and empty */}
         {isActive && !isFull && slotFields.length === 0 && (
