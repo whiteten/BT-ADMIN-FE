@@ -498,7 +498,9 @@ export default function EndpointForm() {
           <SummaryRow label="중개 옵션" value={displayValue(getLabelByValue(NAT_OPTION_OPTIONS, values.natOption))} />
           <SummaryRow label="중개 옵션(DR)" value={displayValue(getLabelByValue(NAT_OPTION_OPTIONS, values.drnatOption))} />
           {values.natOption !== 0 && <SummaryRow label="MS그룹" value={displayValue(msGroupOptions.find((g) => g.value === values.msGroupId)?.label ?? values.msGroupId)} />}
-          {values.drnatOption !== 0 && <SummaryRow label="MS그룹(DR)" value={displayValue(values.msDrgroupId)} />}
+          {values.drnatOption !== 0 && (
+            <SummaryRow label="MS그룹(DR)" value={displayValue(drMsGroupOptions.find((g) => g.value === values.msDrgroupId)?.label ?? values.msDrgroupId)} />
+          )}
           <SummaryRow label="NAT 동작옵션" value={displayValue(getLabelByValue(ENAT_OPTION_OPTIONS, values.enatOption))} />
           <SummaryRow label="NAT IP 주소" value={displayValue(values.natIpAddress)} />
         </div>

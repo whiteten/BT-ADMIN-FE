@@ -243,9 +243,11 @@ export default function CallScreenList() {
   };
 
   const handleCreate = useCallback(() => {
-    if (selectedNodeId && selectedTenantId) {
-      drawerRef.current?.open(undefined, selectedNodeId, selectedNodeName, selectedTenantId, selectedTenantName);
+    if (!selectedNodeId || !selectedTenantId) {
+      toast.warning('노드와 테넌트를 먼저 선택하세요.');
+      return;
     }
+    drawerRef.current?.open(undefined, selectedNodeId, selectedNodeName, selectedTenantId, selectedTenantName);
   }, [selectedNodeId, selectedTenantId, selectedNodeName, selectedTenantName]);
 
   const handleEdit = useCallback((item: CallScreen) => {
@@ -415,7 +417,7 @@ export default function CallScreenList() {
                 onChange={handleCardSearchChange}
                 style={{ width: 140 }}
               />
-              <Button type="primary" icon={<Plus className="size-3.5" />} disabled={!selectedNodeId || !selectedTenantId} onClick={handleCreate}>
+              <Button type="primary" icon={<Plus className="size-3.5" />} onClick={handleCreate}>
                 추가
               </Button>
             </div>

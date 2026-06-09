@@ -132,7 +132,7 @@ const MsGroupDrawer = forwardRef<MsGroupDrawerRef, Props>(({ onSuccess }, ref) =
             취소
           </Button>
           <Button type="primary" onClick={handleSubmit} loading={isPending}>
-            {isEditMode ? '수정' : '등록'}
+            저장
           </Button>
         </div>
       }

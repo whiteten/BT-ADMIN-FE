@@ -421,7 +421,7 @@ export default function EndpointList() {
             );
           if (v === 2)
             return (
-              <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[11px] font-bold" style={{ background: '#f6ffed', color: '#52c41a' }}>
+              <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[11px] font-bold" style={{ background: '#fafafa', color: '#8c8c8c' }}>
                 미사용
               </span>
             );
@@ -448,7 +448,7 @@ export default function EndpointList() {
             );
           if (v === 2)
             return (
-              <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[11px] font-bold" style={{ background: '#f6ffed', color: '#52c41a' }}>
+              <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[11px] font-bold" style={{ background: '#fafafa', color: '#8c8c8c' }}>
                 미사용
               </span>
             );
@@ -582,7 +582,7 @@ export default function EndpointList() {
                 }
               }}
             >
-              REGISTER
+              인증요청
             </button>
           );
         },

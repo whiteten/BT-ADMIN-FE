@@ -187,7 +187,7 @@ const MediaServerDrawer = forwardRef<MediaServerDrawerRef, Props>(({ onSuccess, 
           <div className="flex gap-2">
             <Button onClick={closeDrawer}>취소</Button>
             <Button type="primary" onClick={handleSubmit} loading={isPending}>
-              {isEditMode ? '수정' : '등록'}
+              저장
             </Button>
           </div>
         </div>
@@ -273,9 +273,9 @@ const MediaServerDrawer = forwardRef<MediaServerDrawerRef, Props>(({ onSuccess, 
 
         <Form.Item
           name="natIpAddr"
-          label="외부 IP"
+          label="NAT IP"
           rules={[
-            { max: 128, message: '외부 IP는 128자 이내여야 합니다' },
+            { max: 128, message: 'NAT IP는 128자 이내여야 합니다' },
             { pattern: /^$|^((25[0-5]|2[0-4]\d|[01]?\d\d?)\.){3}(25[0-5]|2[0-4]\d|[01]?\d\d?)$/, message: 'NAT IP 주소 형식이 올바르지 않습니다' },
           ]}
         >

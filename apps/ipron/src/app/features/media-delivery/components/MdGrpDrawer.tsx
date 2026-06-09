@@ -158,7 +158,7 @@ const MdGrpDrawer = forwardRef<MdGrpDrawerRef, Props>(({ onSuccess }, ref) => {
           <div className="flex gap-2">
             <Button onClick={handleClose}>취소</Button>
             <Button type="primary" onClick={handleSubmit} loading={isPending}>
-              {isEditMode ? '수정' : '등록'}
+              저장
             </Button>
           </div>
         </div>

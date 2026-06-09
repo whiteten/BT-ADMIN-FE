@@ -199,7 +199,7 @@ export default function MediaDeliveryForm() {
 
   useEffect(() => {
     setBreadcrumb([
-      { title: '회선관리', path: '/ipron/line' },
+      { title: '미디어 관리', path: '/ipron/line/media-delivery' },
       { title: '미디어전달관리', path: '/ipron/line/media-delivery' },
       { title: isEditMode ? '수정' : '등록', path: '/ipron/line/media-delivery/form' },
     ]);
