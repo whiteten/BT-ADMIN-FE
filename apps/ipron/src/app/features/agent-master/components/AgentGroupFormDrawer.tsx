@@ -10,7 +10,15 @@ import { useEffect, useMemo, useState } from 'react';
 import { Button, Col, Drawer, Form, Input, Row, Select, Spin, Tabs } from 'antd';
 import { Trash2 } from 'lucide-react';
 import { toast } from '@/shared-util';
-import { useCreateAgentGroup, useDeleteAgentGroup, useGetAgentGroupDetail, useGetAgentGroupTree, useGetAgentTenants, useUpdateAgentGroup } from '../hooks/useAgentMasterQueries';
+import {
+  useCreateAgentGroup,
+  useDeleteAgentGroup,
+  useGetAgentGroupDetail,
+  useGetAgentGroupTree,
+  useGetAgentTenants,
+  useGetOscoms,
+  useUpdateAgentGroup,
+} from '../hooks/useAgentMasterQueries';
 import type { AgentGroupCreateRequest, AgentGroupNode, AgentGroupUpdateRequest, AgentMediaMatrix as Matrix } from '../types';
 import AgentMediaCards from './AgentMediaCards';
 import { ACTIVATE_OPTIONS, GRP_ANI_OPTIONS } from '../constants/codes';
@@ -58,6 +66,7 @@ export default function AgentGroupFormDrawer({ open, mode, groupId, initialTenan
 
   const { data: tenantStats = [] } = useGetAgentTenants();
   const { data: groupTree = [] } = useGetAgentGroupTree({});
+  const { data: oscoms = [] } = useGetOscoms();
   const { data: detail, isLoading: detailLoading } = useGetAgentGroupDetail(isEdit ? groupId : null);
 
   const { mutate: createGroup, isPending: creating } = useCreateAgentGroup({
@@ -139,24 +148,17 @@ export default function AgentGroupFormDrawer({ open, mode, groupId, initialTenan
   }, [groupTree, selectedTenantId, groupId]);
 
   // 아웃소싱업체(oscom) 옵션. SWAT 정합: cbCreate("#poOscomId","oscom",...) — 업체 마스터 콤보.
-  // ⚠ IPRON FE 에 업체(oscom) 마스터 목록 API/훅이 없고, 그룹 트리 노드는 oscomId 만 보유(oscomName 없음).
-  //   따라서 현재는 앱 내에 이미 존재하는 distinct oscomId 만으로 옵션을 구성하며 라벨은 ID 폴백(`업체 {id}`).
-  //   업체명까지 표시하려면 BE 가 {oscomId, oscomName}[] 목록 엔드포인트를 제공해야 함(아래 PERMISSION_NEEDED 보고 참조).
+  // 업체 마스터 엔드포인트(GET /api/ipron/oscoms, useGetOscoms) 결과를 소스로 사용. 라벨은 oscomName(폴백만 `업체 {id}`).
+  // 수정 모드에서 현재 바인딩된 oscomId 가 마스터 목록에 없으면(비활성/삭제 업체) 콤보가 빈칸이 되지 않도록 보강 추가.
   const oscomOptions = useMemo(() => {
-    const ids = new Set<number>();
-    const walk = (nodes: AgentGroupNode[]) => {
-      for (const n of nodes) {
-        if (n.oscomId != null && n.oscomId > 0) ids.add(n.oscomId);
-        if (n.children?.length) walk(n.children);
-      }
-    };
-    walk(groupTree);
+    const opts = oscoms.map((o) => ({ value: o.oscomId, label: o.oscomName || `업체 ${o.oscomId}` }));
     const editId = detail?.oscomId;
-    if (isEdit && editId != null && editId > 0) ids.add(editId);
-    return Array.from(ids)
-      .sort((a, b) => a - b)
-      .map((id) => ({ value: id, label: `업체 ${id}` }));
-  }, [groupTree, detail, isEdit]);
+    if (isEdit && editId != null && editId > 0 && !opts.some((o) => o.value === editId)) {
+      // detail 응답엔 oscomName 이 없으므로(마스터 목록이 이름 SoT) ID 폴백 라벨만 사용.
+      opts.push({ value: editId, label: `업체 ${editId}` });
+    }
+    return opts;
+  }, [oscoms, detail, isEdit]);
 
   const handleSubmit = async () => {
     try {
