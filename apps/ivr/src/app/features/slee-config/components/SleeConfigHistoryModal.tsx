@@ -19,14 +19,7 @@ import dayjs, { type Dayjs } from 'dayjs';
 import { Search } from 'lucide-react';
 import BackupCompareDrawer, { type BackupCompareDrawerRef } from './BackupCompareDrawer';
 import { sleeConfigQueryKeys, useGetBackups, useGetHistory } from '../hooks/useSleeConfigQueries';
-import {
-  APPLY_RESULT_LABELS,
-  APPLY_STATUS_LABELS,
-  RT_RESV_KIND_LABELS,
-  SET_STATUS_LABELS,
-  type SleeConfigBackupHeader,
-  type SleeConfigHistoryRow,
-} from '../types/sleeConfig.types';
+import { APPLY_RESULT_LABELS, APPLY_STATUS_LABELS, RT_RESV_KIND_LABELS, SET_STATUS_LABELS, type SleeConfigBackupHeader, type SleeConfigHistoryRow } from '../types';
 import useAggridOptions from '@/libs/shared-ui/src/hooks/useAggridOptions';
 
 const { RangePicker } = DatePicker;

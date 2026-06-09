@@ -27,7 +27,7 @@ import {
   useGetSleeConfigProperties,
   useGetSleeConfigTenants,
 } from '../../features/slee-config/hooks/useSleeConfigQueries';
-import type { SleeConfigCategory, SleeConfigFile, SleeConfigIrSystem, SleeConfigProperty } from '../../features/slee-config/types/sleeConfig.types';
+import type { SleeConfigCategory, SleeConfigFile, SleeConfigIrSystem, SleeConfigProperty } from '../../features/slee-config/types';
 import useAggridOptions from '@/libs/shared-ui/src/hooks/useAggridOptions';
 import { useModal } from '@/libs/shared-ui/src/hooks/useModal';
 
