@@ -136,7 +136,7 @@ export default function MenuDetailForm({ menu, apps, onSave, onDelete, saving }:
           <Row gutter={16}>
             <Col span={8}>
               <Form.Item label="앱" name="appId" rules={[{ required: true, message: '앱을 선택해주세요' }]}>
-                <Select placeholder="앱 선택" options={appOptions} />
+                <Select placeholder="앱 선택" options={appOptions} disabled />
               </Form.Item>
             </Col>
             <Col span={8}>
