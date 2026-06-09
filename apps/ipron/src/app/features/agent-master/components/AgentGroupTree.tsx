@@ -184,7 +184,7 @@ export default function AgentGroupTree({ tree, selectedGroupId, onSelectGroup, o
             <Tooltip title="하위 그룹 추가" {...TOOLTIP_PROPS}>
               <button
                 type="button"
-                className="w-5 h-5 inline-flex items-center justify-center rounded text-gray-400 hover:bg-[#eef0f7] hover:text-[#405189]"
+                className="w-5 h-5 inline-flex items-center justify-center rounded text-gray-400 hover:bg-[var(--color-bt-primary-soft)] hover:text-[var(--color-bt-primary)]"
                 onClick={(e) => {
                   e.stopPropagation();
                   onCreateChild?.(node);
@@ -196,7 +196,7 @@ export default function AgentGroupTree({ tree, selectedGroupId, onSelectGroup, o
             <Tooltip title="그룹 수정" {...TOOLTIP_PROPS}>
               <button
                 type="button"
-                className="w-5 h-5 inline-flex items-center justify-center rounded text-gray-400 hover:bg-[#eef0f7] hover:text-[#405189]"
+                className="w-5 h-5 inline-flex items-center justify-center rounded text-gray-400 hover:bg-[var(--color-bt-primary-soft)] hover:text-[var(--color-bt-primary)]"
                 onClick={(e) => {
                   e.stopPropagation();
                   onEditGroup?.(node);
@@ -240,14 +240,14 @@ export default function AgentGroupTree({ tree, selectedGroupId, onSelectGroup, o
             (grip 자리 size-3 + gap, folder, name, count, actions 폭 자리) */}
         <div
           className={`group flex items-center gap-1.5 px-3 py-1.5 cursor-pointer select-none border-l-[3px] transition ${
-            selectedGroupId === null ? 'bg-[#eef0f7] border-[#405189]' : 'border-transparent hover:bg-gray-50'
+            selectedGroupId === null ? 'bg-[var(--color-bt-primary-soft)] border-[var(--color-bt-primary)]' : 'border-transparent hover:bg-gray-50'
           }`}
           onClick={() => onSelectGroup(null)}
         >
           {/* grip 자리 placeholder — 그룹 노드와 좌측 정렬 맞춤 */}
           {onGroupReorder && <span className="size-3 flex-shrink-0" aria-hidden />}
-          <FolderClosed className={`size-3.5 flex-shrink-0 ${selectedGroupId === null ? 'text-[#405189]' : 'text-gray-500'}`} />
-          <span className={`flex-1 text-[12.5px] truncate ${selectedGroupId === null ? 'text-[#405189] font-semibold' : 'text-gray-700'}`}>전체</span>
+          <FolderClosed className={`size-3.5 flex-shrink-0 ${selectedGroupId === null ? 'text-[var(--color-bt-primary)]' : 'text-gray-500'}`} />
+          <span className={`flex-1 text-[12.5px] truncate ${selectedGroupId === null ? 'text-[var(--color-bt-primary)] font-semibold' : 'text-gray-700'}`}>전체</span>
           {/* 카운트 — 기본은 맨 우측에 표시, hover 시 숨겨 토글 버튼에 자리를 내준다.
               h-5 로 토글 버튼과 높이를 맞춰 hover 시 행 높이가 흔들리지 않게 한다. */}
           <span className="h-5 inline-flex items-center text-[11px] text-gray-400 flex-shrink-0 group-hover:hidden">{totalAgentCount.toLocaleString()}</span>
@@ -260,7 +260,7 @@ export default function AgentGroupTree({ tree, selectedGroupId, onSelectGroup, o
                   e.stopPropagation();
                   toggleAll();
                 }}
-                className="w-5 h-5 inline-flex items-center justify-center rounded text-gray-400 hover:bg-[#eef0f7] hover:text-[#405189] transition"
+                className="w-5 h-5 inline-flex items-center justify-center rounded text-gray-400 hover:bg-[var(--color-bt-primary-soft)] hover:text-[var(--color-bt-primary)] transition"
               >
                 {allExpanded ? <ChevronsDownUp className="size-3.5" /> : <ChevronsUpDown className="size-3.5" />}
               </button>
