@@ -8,8 +8,8 @@
  * 패널 헤더(제목·추가 버튼)는 부모(MenuManagement)가 담당한다.
  */
 import { type ReactNode, useState } from 'react';
-import { Input, Tooltip } from 'antd';
-import { AppWindow, ChevronsDownUp, ChevronsUpDown, File, Folder, Plus, Search } from 'lucide-react';
+import { Input, Popover, Tooltip } from 'antd';
+import { AppWindow, ChevronDown, ChevronsDownUp, ChevronsUpDown, File, Folder, Plus, Search } from 'lucide-react';
 import type { Menu } from '../types';
 import { Highlight } from '@/components/custom/Highlight';
 import { TreeCaret, TreeLabel, TreeRow } from '@/components/custom/TreeView';
@@ -104,7 +104,36 @@ function buildTree(menus: Menu[]): MenuTreeItem[] {
 
 export default function MenuTree({ menus, selectedMenuKey, onSelect, onAddMenu }: MenuTreeProps) {
   const [searchText, setSearchText] = useState('');
-  const treeData = buildTree(menus);
+  const [appFilter, setAppFilter] = useState<string | null>(null);
+  const [appPopOpen, setAppPopOpen] = useState(false);
+
+  // 앱 필터 칩 목록 — 메뉴가 존재하는 앱만, 등장 순서 유지
+  const appChips: { appId: string; appName: string }[] = [];
+  const seenApps = new Set<string>();
+  for (const m of menus) {
+    if (seenApps.has(m.appId)) continue;
+    seenApps.add(m.appId);
+    appChips.push({ appId: m.appId, appName: m.appName ?? m.appId });
+  }
+
+  // 칩으로 선택한 앱이 있으면 해당 앱 메뉴만 트리에 노출(기존 앱 Select 역할 대체).
+  // 앱 선택 시엔 앱 루트 래퍼 없이 그 앱의 메뉴부터 바로 노출(buildMenuTree), 전체일 땐 앱별 그룹(buildTree).
+  const filteredMenus = appFilter ? menus.filter((m) => m.appId === appFilter) : menus;
+  const treeData = appFilter ? buildMenuTree(filteredMenus) : buildTree(filteredMenus);
+
+  const selectedAppName = appFilter ? (appChips.find((a) => a.appId === appFilter)?.appName ?? '전체') : '전체';
+
+  const pickApp = (appId: string | null) => {
+    setAppFilter(appId);
+    setAppPopOpen(false);
+  };
+
+  const chipClass = (active: boolean) =>
+    `flex-shrink-0 inline-flex items-center px-2.5 py-0.5 rounded-full border text-[11px] transition ${
+      active
+        ? 'border-[var(--color-bt-primary)] bg-[var(--color-bt-primary)] text-white'
+        : 'border-gray-200 bg-white text-gray-600 hover:border-[var(--color-bt-primary)] hover:text-[var(--color-bt-primary)]'
+    }`;
 
   const { items, rootProps, allExpanded, toggleAll } = useTreeView<MenuTreeItem>({
     data: treeData,
@@ -178,18 +207,50 @@ export default function MenuTree({ menus, selectedMenuKey, onSelect, onAddMenu }
       {/* 검색 — 이전 셀렉트박스와 동일한 기본 크기 */}
       <Input allowClear prefix={<Search className="size-4 text-gray-400" />} placeholder="메뉴 검색" value={searchText} onChange={(e) => setSearchText(e.target.value)} />
 
+      {/* 앱 필터 — 트리거 칩 클릭 시 팝오버에서 전체/앱 선택. 기존 앱 Select 역할 대체 */}
+      <Popover
+        open={appPopOpen}
+        onOpenChange={setAppPopOpen}
+        trigger="click"
+        placement="bottomLeft"
+        content={
+          <div className="flex w-[240px] flex-wrap gap-1.5 max-h-[220px] overflow-auto">
+            <button type="button" onClick={() => pickApp(null)} className={chipClass(appFilter === null)}>
+              전체
+            </button>
+            {appChips.map((a) => (
+              <button key={a.appId} type="button" onClick={() => pickApp(a.appId)} className={chipClass(appFilter === a.appId)} title={a.appName}>
+                {a.appName}
+              </button>
+            ))}
+          </div>
+        }
+      >
+        <button
+          type="button"
+          className={`self-start inline-flex items-center gap-1.5 px-3 py-1 rounded-full border text-xs transition ${
+            appFilter !== null
+              ? 'border-[var(--color-bt-primary)] bg-[var(--color-bt-primary-soft)] text-[var(--color-bt-primary)]'
+              : 'border-gray-200 bg-white text-gray-600 hover:border-[var(--color-bt-primary)] hover:text-[var(--color-bt-primary)]'
+          }`}
+        >
+          <span>앱: {selectedAppName}</span>
+          <ChevronDown className="size-3.5" />
+        </button>
+      </Popover>
+
       <div className="flex-1 overflow-auto py-1">
         {/* 전체 — 0뎁스(앱 루트)처럼 선택 비활성(단 hover 배경은 적용). 우측 + 추가·펼치기/접기 토글 상시 노출. */}
         <div className="flex items-center gap-1.5 px-3 py-1.5 select-none border-l-[3px] border-transparent cursor-default hover:bg-gray-50 transition">
-          <span className="flex-1 text-[12.5px] truncate text-gray-700">전체</span>
+          <span className="flex-1 text-[12.5px] truncate text-gray-700">메뉴 목록</span>
           <div className="flex items-center gap-0.5 flex-shrink-0">
             <Tooltip title="메뉴 추가" {...TOOLTIP_PROPS}>
               <button
                 type="button"
                 onClick={(e) => {
                   e.stopPropagation();
-                  // 전체: 최상위 메뉴(부모·앱 프리셋 없음 → 드로어에서 앱 선택)
-                  onAddMenu(null);
+                  // 최상위 메뉴 추가(부모 없음). 앱이 선택돼 있으면 그 앱을 프리셋, 전체면 드로어에서 앱 선택.
+                  onAddMenu(null, appFilter ?? undefined);
                 }}
                 className="inline-flex w-5 h-5 items-center justify-center rounded text-gray-400 hover:bg-[var(--color-bt-primary-soft)] hover:text-[var(--color-bt-primary)]"
               >
