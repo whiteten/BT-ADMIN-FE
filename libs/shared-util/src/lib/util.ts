@@ -64,22 +64,41 @@ export function downloadBlob(blob: Blob, fileName: string): void {
  * 모달/다이얼로그 내부에서도 동작하도록 포커스 트랩을 고려한 구현
  */
 export async function copyToClipboard(text: string): Promise<void> {
-  const execCommandFallback = () => {
+  const execCommandFallback = (): boolean => {
     const el = document.createElement('textarea');
     el.value = text;
+    el.setAttribute('readonly', '');
+    el.style.position = 'fixed';
+    el.style.top = '-9999px';
+    el.style.opacity = '0';
     // 모달 내부에서 호출될 경우 포커스 트랩을 피하기 위해 다이얼로그 요소 안에 추가
     const dialogEl = document.querySelector('[role="alertdialog"], [role="dialog"]');
     const container = dialogEl ?? document.body;
     container.appendChild(el);
     el.focus();
     el.select();
-    document.execCommand('copy');
-    el.remove();
+    let ok = false;
+    try {
+      ok = document.execCommand('copy');
+    } finally {
+      el.remove();
+    }
+    return ok;
   };
 
-  if (navigator.clipboard) {
-    await navigator.clipboard.writeText(text).catch(execCommandFallback);
-  } else {
-    execCommandFallback();
+  // secure context(localhost·HTTPS)에서만 비동기 Clipboard API 사용.
+  // HTTP+IP(개발계)는 navigator.clipboard 가 없거나 writeText 가 reject 되며,
+  // 그 catch(폴백)는 await 이후 마이크로태스크라 execCommand 의 user-activation 을
+  // 잃어 조용히 실패함 → insecure 환경은 처음부터 동기 폴백을 사용한다.
+  if (window.isSecureContext && navigator.clipboard) {
+    try {
+      await navigator.clipboard.writeText(text);
+      return;
+    } catch {
+      // 폴백으로 진행
+    }
+  }
+  if (!execCommandFallback()) {
+    throw new Error('클립보드 복사에 실패했습니다.');
   }
 }
