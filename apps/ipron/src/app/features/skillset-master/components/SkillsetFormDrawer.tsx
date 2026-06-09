@@ -32,7 +32,7 @@ interface FormValues {
   skillsetName: string;
   mediaType: number;
   activateYn: boolean;
-  sortSeq?: number;
+  sortSeq?: number | null;
   skillsetDesc?: string;
 }
 
@@ -58,7 +58,7 @@ export default function SkillsetFormDrawer({ open, mode, skillset, defaultTenant
         skillsetName: '',
         mediaType: 0,
         activateYn: true,
-        sortSeq: 1,
+        sortSeq: undefined, // 미입력 시 BE 가 동일 테넌트 MAX(SORT_SEQ)+1 자동 채번
         skillsetDesc: '',
       });
     }
@@ -75,7 +75,8 @@ export default function SkillsetFormDrawer({ open, mode, skillset, defaultTenant
         skillsetDesc: values.skillsetDesc ?? null,
         mediaType: values.mediaType,
         activateYn: values.activateYn ? 1 : 0,
-        sortSeq: values.sortSeq ?? 0,
+        // 미입력(빈값) 시 null 전송 → BE 자동 채번(MAX(SORT_SEQ)+1). 값이 있으면 수동 지정값 그대로.
+        sortSeq: values.sortSeq == null ? null : values.sortSeq,
       };
       onSubmit(req);
     } else {
@@ -85,7 +86,8 @@ export default function SkillsetFormDrawer({ open, mode, skillset, defaultTenant
         skillsetDesc: values.skillsetDesc ?? null,
         mediaType: values.mediaType,
         activateYn: values.activateYn ? 1 : 0,
-        sortSeq: values.sortSeq ?? 0,
+        // 수정 시 기존 정렬순서 보존(프리필된 현재값 그대로 전송)
+        sortSeq: values.sortSeq ?? null,
       };
       onSubmit(req);
     }
@@ -147,8 +149,8 @@ export default function SkillsetFormDrawer({ open, mode, skillset, defaultTenant
           <Switch checkedChildren="ON" unCheckedChildren="OFF" />
         </Form.Item>
 
-        <Form.Item name="sortSeq" label="정렬순서" rules={[{ required: true, message: '정렬순서를 입력하세요' }]}>
-          <InputNumber min={1} max={999999} style={{ width: '100%' }} />
+        <Form.Item name="sortSeq" label="정렬순서" extra="미입력 시 자동으로 가장 큰 순서 다음 값으로 채번됩니다.">
+          <InputNumber min={1} max={999999} style={{ width: '100%' }} placeholder="자동 채번" />
         </Form.Item>
 
         <Form.Item name="skillsetDesc" label="설명" rules={[{ max: 127, message: '127자까지 입력 가능합니다' }]}>
