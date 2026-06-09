@@ -1,4 +1,6 @@
-import { Button, Collapse, Form, Input } from 'antd';
+import { python } from '@codemirror/lang-python';
+import CodeMirror from '@uiw/react-codemirror';
+import { Button, Collapse, Form } from 'antd';
 import { FileCode2 } from 'lucide-react';
 import OutputVariableNotice from './OutputVariableNotice';
 import type { FlowNode } from '../../types';
@@ -28,7 +30,7 @@ return obj.get('data', '')`;
  * Code 노드 properties.
  * AS-IS 데이터 구조: `{ code: string }` (Python).
  * BE 가 코드를 실행 — input 변수에 이전 노드 결과 주입, return 값이 output.
- * 신택스 하이라이트는 후속 단계 (현재는 monospace textarea 만)
+ * CodeMirror(Python) 밝은 테마로 라인넘버·신택스 하이라이트 제공 — 흰색 속성 패널 톤에 맞춤.
  */
 export default function CodeProperties({ node }: CodePropertiesProps) {
   const form = Form.useFormInstance();
@@ -80,7 +82,15 @@ export default function CodeProperties({ node }: CodePropertiesProps) {
                 extra="이전 노드 결과는 input 변수로 주입됩니다. return 값이 출력으로 사용됩니다."
                 rules={[{ required: true, message: '실행할 코드를 입력해 주세요.' }]}
               >
-                <Input.TextArea autoSize={{ minRows: 8, maxRows: 24 }} style={{ fontFamily: 'Consolas, Monaco, "Andale Mono", "Ubuntu Mono", monospace', fontSize: 13 }} />
+                <CodeMirror
+                  className="overflow-hidden rounded-lg border border-gray-300 bg-white transition-colors focus-within:border-[var(--color-bt-primary)] [&_.cm-editor]:bg-transparent [&_.cm-focused]:outline-none [&_.cm-gutters]:border-r [&_.cm-gutters]:border-gray-100 [&_.cm-gutters]:bg-gray-50"
+                  extensions={[python()]}
+                  theme="light"
+                  minHeight="200px"
+                  maxHeight="480px"
+                  placeholder="실행할 Python 코드를 입력하세요."
+                  basicSetup={{ lineNumbers: true, foldGutter: false, highlightActiveLine: true }}
+                />
               </Form.Item>
             </>
           ),

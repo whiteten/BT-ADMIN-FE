@@ -88,6 +88,7 @@
     "webpack-cli": "^5.1.4"
   },
   "dependencies": {
+    "@codemirror/lang-python": "^6.2.1",
     "@codemirror/lang-sql": "^6.10.0",
     "@codemirror/lang-xml": "^6.1.0",
     "@codemirror/theme-one-dark": "^6.1.3",
