@@ -239,6 +239,9 @@ export default function MenuTree({ menus, selectedMenuKey, onSelect, onAddMenu }
         </button>
       </Popover>
 
+      {/* 앱 필터(앱선택)와 메뉴 트리 사이 구분선 */}
+      <div className="border-t border-gray-200" />
+
       <div className="flex-1 overflow-auto py-1">
         {/* 전체 — 0뎁스(앱 루트)처럼 선택 비활성(단 hover 배경은 적용). 우측 + 추가·펼치기/접기 토글 상시 노출. */}
         <div className="flex items-center gap-1.5 px-3 py-1.5 select-none border-l-[3px] border-transparent cursor-default hover:bg-gray-50 transition">

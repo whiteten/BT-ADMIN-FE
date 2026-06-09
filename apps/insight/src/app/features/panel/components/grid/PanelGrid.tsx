@@ -142,8 +142,9 @@ export default function PanelGrid({ panel, reportId }: PanelGridProps) {
     return <AgGridReact {...gridOptions} rowData={[]} columnDefs={columnDefs} domLayout="autoHeight" pagination={false} statusBar={undefined} pinnedBottomRowData={undefined} />;
   }
 
-  // 실제 뷰 → 패널 영역을 꽉 채우는 고정 높이(영역 내부 스크롤) + 페이징(50/page) + 합계 핀
-  // domLayout="normal" 이라 패널 높이를 키우면 보이는 행 수도 늘어남
+  // 실제 뷰 → 패널 영역을 꽉 채우는 고정 높이 + 영역 내부 세로 스크롤. 페이징 없음.
+  // 통계는 그리드 값과 하단 푸터(합계)를 함께 검증하므로, 합계는 하단 고정(pinnedBottom)으로
+  // 항상 보이게 하고 데이터 행만 스크롤한다. domLayout="normal" 이라 패널 높이만큼 보인다.
   return (
     <div className="h-full w-full" style={{ minHeight: 220 }}>
       <AgGridReact
@@ -151,9 +152,7 @@ export default function PanelGrid({ panel, reportId }: PanelGridProps) {
         rowData={rowData}
         columnDefs={columnDefs}
         loading={isFetching}
-        pagination
-        paginationPageSize={50}
-        paginationPageSizeSelector={[20, 50, 100, 200]}
+        pagination={false}
         domLayout="normal"
         pinnedBottomRowData={pinnedBottomRowData}
         getRowStyle={getRowStyle}
