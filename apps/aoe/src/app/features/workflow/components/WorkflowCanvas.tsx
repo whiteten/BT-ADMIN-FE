@@ -474,15 +474,16 @@ function WorkflowCanvasInner({ agentId, graph, onSelectNode }: WorkflowCanvasInn
   }, [onSelectNode]);
 
   // 클릭이 미세 드래그로 인식되면 ReactFlow 는 노드를 선택(하이라이트/툴바)하지만 onNodeClick 은 발화하지 않아
-  // 속성 패널이 안 열리는 desync 가 생긴다. 드래그 시작 시에도 동일 규칙으로 선택을 동기화해 패널을 연다.
-  const onNodeDragStart = useCallback(
-    (_event: React.MouseEvent, node: Node) => {
-      if (isToolNodeId(node.id)) return;
-      if (node.type === 'memo') return;
-      onSelectNode(node.id);
-    },
-    [onSelectNode],
-  );
+  // 속성 패널이 안 열리는 desync 가 생긴다. 드래그 시작 위치를 기록해 두고, 드래그 종료 시 이동량이 임계값 미만이면
+  // "실제로는 클릭" 으로 간주해 패널을 연다. 반대로 진짜 노드 이동(임계값 이상)에는 패널을 열지 않는다.
+  const dragStartPosRef = useRef<{ x: number; y: number } | null>(null);
+
+  const onNodeDragStart = useCallback((_event: React.MouseEvent, node: Node) => {
+    dragStartPosRef.current = { x: node.position.x, y: node.position.y };
+  }, []);
+
+  // 이 거리(px) 미만으로 움직였으면 드래그가 아니라 클릭으로 본다
+  const DRAG_AS_CLICK_THRESHOLD = 4;
 
   const onNodeDragStop = useCallback(
     (_event: React.MouseEvent, node: Node) => {
@@ -490,6 +491,13 @@ function WorkflowCanvasInner({ agentId, graph, onSelectNode }: WorkflowCanvasInn
       setHelperLineV(undefined);
       // 가상 도구 노드는 BE 그래프에 없으므로 위치 저장 호출 차단
       if (isToolNodeId(node.id)) return;
+      // 거의 안 움직였으면 클릭으로 간주 → 속성 패널 열기 (메모 노드는 인라인 편집이라 제외)
+      const start = dragStartPosRef.current;
+      dragStartPosRef.current = null;
+      if (start && node.type !== 'memo') {
+        const moved = Math.hypot(node.position.x - start.x, node.position.y - start.y);
+        if (moved < DRAG_AS_CLICK_THRESHOLD) onSelectNode(node.id);
+      }
       const positionX = Math.round(node.position.x);
       const positionY = Math.round(node.position.y);
       setGraph((old) => ({
@@ -498,7 +506,7 @@ function WorkflowCanvasInner({ agentId, graph, onSelectNode }: WorkflowCanvasInn
       }));
       updateNodePosition({ params: { agentId, nodeId: node.id }, data: { positionX, positionY } });
     },
-    [agentId, setGraph, updateNodePosition],
+    [agentId, setGraph, updateNodePosition, onSelectNode],
   );
 
   const onDragOver = useCallback((event: React.DragEvent) => {
