@@ -58,9 +58,7 @@ export default function PanelLineChart({ panel, reportId }: PanelLineChartProps)
     // 데이터 distinct 키를 병합(안전망)한다. 비시간축은 등장 순서로 중복만 제거.
     const timeAxis = data.length > 0 && data.every((r) => isTimeKey(rawOf(r)));
     let catKeys: string[];
-    const enumerated = timeAxis
-      ? enumerateTimeKeys(committedFilter.period.from, committedFilter.period.to, committedFilter.timeUnit, committedFilter.conditions?.excludeDays ?? [])
-      : null;
+    const enumerated = timeAxis ? enumerateTimeKeys(committedFilter.period.from, committedFilter.period.to, committedFilter.timeUnit, committedFilter.conditions) : null;
     if (enumerated) {
       const set = new Set(enumerated);
       for (const r of data) {
