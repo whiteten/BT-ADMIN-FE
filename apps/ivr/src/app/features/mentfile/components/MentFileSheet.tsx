@@ -168,7 +168,7 @@ const MentFileSheet = forwardRef<MentFileSheetRef>((_, ref) => {
         </div>
       }
     >
-      <Form<FormValues> form={form} layout="vertical" onFinish={handleSubmit} requiredMark>
+      <Form<FormValues> form={form} layout="vertical" onFinish={handleSubmit} requiredMark initialValues={DEFAULT_VALUES}>
         <Form.Item label="멘트 파일" required={!isEditMode}>
           <Upload
             accept=".wav,.mp3,.pcm,.dat,.raw"

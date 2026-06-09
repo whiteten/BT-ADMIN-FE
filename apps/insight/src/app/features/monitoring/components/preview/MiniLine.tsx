@@ -1,4 +1,5 @@
 import { useMemo } from 'react';
+import { formatTimeKey } from '../../../../utils/timeKeyFormat';
 import type { DatasetDetail } from '../../types';
 
 interface MiniLineProps {
@@ -11,7 +12,7 @@ interface MiniLineProps {
 const PALETTE = ['#085fb5', '#0a8a4a', '#b76e00', '#c92a2a'];
 
 export default function MiniLine({ detail, x, y, rows }: MiniLineProps) {
-  const labels = useMemo(() => rows.map((r) => String(r[x] ?? '')), [rows, x]);
+  const labels = useMemo(() => rows.map((r) => formatTimeKey(r[x])), [rows, x]);
   const series = useMemo(() => y.map((field) => ({ field, values: rows.map((r) => Number(r[field] ?? 0)) })), [y, rows]);
   const allValues = series.flatMap((s) => s.values);
   const maxV = allValues.length > 0 ? Math.max(...allValues) : 100;
