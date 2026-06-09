@@ -25,7 +25,7 @@ import { IconTrash } from '@/components/custom/Icons';
 import useAggridOptions from '@/libs/shared-ui/src/hooks/useAggridOptions';
 import { useModal } from '@/libs/shared-ui/src/hooks/useModal';
 
-const breadcrumb: BreadcrumbProps['items'] = [{ title: '시나리오 관리' }, { title: '멘트파일', path: '/ivr/ivr/mentfile' }];
+const breadcrumb: BreadcrumbProps['items'] = [{ title: '시나리오 관리' }, { title: '멘트파일', path: '/ivr/scenario/mentfile' }];
 
 export default function MentFileList() {
   const queryClient = useQueryClient();

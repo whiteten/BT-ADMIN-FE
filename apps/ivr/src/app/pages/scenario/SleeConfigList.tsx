@@ -31,7 +31,7 @@ import type { SleeConfigCategory, SleeConfigFile, SleeConfigIrSystem, SleeConfig
 import useAggridOptions from '@/libs/shared-ui/src/hooks/useAggridOptions';
 import { useModal } from '@/libs/shared-ui/src/hooks/useModal';
 
-const breadcrumb: BreadcrumbProps['items'] = [{ title: '시나리오 관리' }, { title: '시나리오 환경변수', path: '/ivr/ivr/slee-config' }];
+const breadcrumb: BreadcrumbProps['items'] = [{ title: '시나리오 관리' }, { title: '시나리오 환경변수', path: '/ivr/scenario/slee-config' }];
 
 export default function SleeConfigList() {
   const setBreadcrumb = useBreadcrumbStore((s) => s.setBreadcrumb);
