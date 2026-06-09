@@ -1,5 +1,5 @@
 import { useMemo } from 'react';
-import ReactECharts from 'echarts-for-react';
+import PanelEChart from './PanelEChart';
 import { PANEL_PALETTE, areaGradient, axisLabelStyle, baseGrid, baseLegend, baseTooltip, goalMarkLine, koNum, paletteAt, splitLineStyle } from './echartsPanelTheme';
 import { formatTimeKey } from '../../../../utils/timeKeyFormat';
 import { useGetDataSourceFields } from '../../../dataset/hooks/useDatasetQueries';
@@ -107,5 +107,5 @@ export default function PanelLineChart({ panel, reportId }: PanelLineChartProps)
     );
   }
 
-  return <ReactECharts option={option} style={{ height: '100%', width: '100%', minHeight: 160 }} notMerge lazyUpdate />;
+  return <PanelEChart option={option} />;
 }

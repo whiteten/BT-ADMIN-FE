@@ -1,5 +1,5 @@
 import { useMemo } from 'react';
-import ReactECharts from 'echarts-for-react';
+import PanelEChart from './PanelEChart';
 import { FONT_FAMILY, PANEL_PALETTE, baseLegend, baseTooltip, koNum } from './echartsPanelTheme';
 import { useReportViewStore } from '../../../report/hooks/useReportViewStore';
 import type { PanelDetail, PieChartOptions } from '../../../report/types';
@@ -112,5 +112,5 @@ export default function PanelPieChart({ panel, reportId }: PanelPieChartProps) {
     );
   }
 
-  return <ReactECharts option={option} style={{ height: '100%', width: '100%', minHeight: 160 }} notMerge lazyUpdate />;
+  return <PanelEChart option={option} />;
 }

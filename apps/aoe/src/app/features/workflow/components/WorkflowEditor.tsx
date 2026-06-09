@@ -14,6 +14,7 @@ import { getEdgeBranchAttrs } from '../utils/edgeAttrs';
 import { buildNodeName, buildOutputVariableFromName } from '../utils/variableTokens';
 import WorkflowPropertiesPanel from './properties/WorkflowPropertiesPanel';
 import { FallbackSpinner } from '@/components/custom/FallbackSpinner';
+import { ResizableHandle, ResizablePanel, ResizablePanelGroup } from '@/components/ui/resizable';
 
 interface WorkflowEditorProps {
   agentId: string;
@@ -161,14 +162,20 @@ export default function WorkflowEditor({ agentId, agentName, aoeDeployFlag, grap
             <span className="text-xs font-medium">노드 목록</span>
           </button>
         )}
-        <div className={`flex-1 ${sidebarOpen ? 'ml-2' : ''} ${cardClass}`}>
-          <WorkflowCanvas agentId={agentId} graph={graph} onSelectNode={setSelectedNodeId} />
-        </div>
-        {selectedNode && (
-          <div className={`shrink-0 w-[320px] lg:w-[360px] xl:w-[400px] ml-2 ${cardClass}`}>
-            <WorkflowPropertiesPanel agentId={agentId} node={selectedNode} graph={graph} onClose={() => setSelectedNodeId(null)} />
-          </div>
-        )}
+        <ResizablePanelGroup direction="horizontal" autoSaveId="aoe-workflow-editor-panels" className={`flex-1 ${sidebarOpen ? 'ml-2' : ''}`}>
+          <ResizablePanel id="canvas" order={1} minSize={35} className={cardClass}>
+            <WorkflowCanvas agentId={agentId} graph={graph} onSelectNode={setSelectedNodeId} />
+          </ResizablePanel>
+          {selectedNode && (
+            <>
+              {/* 사이드바와 동일한 8px gap(w-2)을 핸들 자체로 차지 — hover 음영 + col-resize 커서로 드래그 표시 */}
+              <ResizableHandle className="w-2 bg-transparent transition-colors hover:bg-gray-200/70" />
+              <ResizablePanel id="properties" order={2} defaultSize={24} minSize={18} maxSize={50} className={cardClass}>
+                <WorkflowPropertiesPanel agentId={agentId} node={selectedNode} graph={graph} onClose={() => setSelectedNodeId(null)} />
+              </ResizablePanel>
+            </>
+          )}
+        </ResizablePanelGroup>
       </div>
     </div>
   );

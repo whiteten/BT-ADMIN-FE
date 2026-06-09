@@ -1,5 +1,5 @@
 import { useMemo } from 'react';
-import ReactECharts from 'echarts-for-react';
+import PanelEChart from './PanelEChart';
 import { FONT_FAMILY, PANEL_PALETTE, baseLegend, baseTooltip, koNum, paletteAt } from './echartsPanelTheme';
 import { useGetDataSourceFields } from '../../../dataset/hooks/useDatasetQueries';
 import { useReportViewStore } from '../../../report/hooks/useReportViewStore';
@@ -106,5 +106,5 @@ export default function PanelRadarChart({ panel, reportId }: PanelRadarChartProp
     );
   }
 
-  return <ReactECharts option={option} style={{ height: '100%', width: '100%', minHeight: 160 }} notMerge lazyUpdate />;
+  return <PanelEChart option={option} />;
 }

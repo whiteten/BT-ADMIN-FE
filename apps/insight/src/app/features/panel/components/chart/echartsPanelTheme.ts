@@ -56,17 +56,28 @@ export const baseTooltip = {
   extraCssText: 'box-shadow: 0 6px 20px rgba(16,24,40,0.12); border-radius: 8px;',
 };
 
-/** 공통 범례(하단). show=false 면 빈 객체. */
+/**
+ * 공통 범례(하단). show=false 면 빈 객체.
+ *
+ * type:'scroll' — 범례 항목이 패널 가로폭을 넘으면 줄바꿈해 x축 위로 쌓이지 않고
+ * `‹ 1/4 ›` 페이징(화살표)으로 처리한다. 좁은/균등분할 패널에서 범례가 차트 영역을
+ * 침범하는 현상을 막는다. (기존엔 파이 차트에만 적용돼 차트마다 동작이 달랐음 → 통일)
+ */
 export function baseLegend(show: boolean) {
   if (!show) return { show: false };
   return {
     show: true,
+    type: 'scroll' as const,
     bottom: 0,
     icon: 'roundRect',
     itemWidth: 10,
     itemHeight: 10,
     itemGap: 14,
     textStyle: { fontSize: 11, color: '#475467', fontFamily: FONT_FAMILY },
+    pageIconSize: 10,
+    pageIconColor: '#667085',
+    pageIconInactiveColor: '#cbd2dc',
+    pageTextStyle: { fontSize: 10, color: '#667085', fontFamily: FONT_FAMILY },
   };
 }
 
@@ -75,7 +86,7 @@ export function baseGrid(showLegend: boolean) {
   return { left: 8, right: 16, top: 16, bottom: showLegend ? 32 : 8, containLabel: true };
 }
 
-export const axisLabelStyle = { color: '#667085', fontSize: 10, fontFamily: FONT_FAMILY };
+export const axisLabelStyle = { color: '#667085', fontSize: 10, fontFamily: FONT_FAMILY, hideOverlap: true };
 export const splitLineStyle = { lineStyle: { color: '#eef1f6' } };
 
 /** 목표선(goalLine) markLine 조각 — 점선 + 우측 값 라벨. */
