@@ -1,7 +1,7 @@
 /**
  * TreeView — 공통 트리의 스타일 프리미티브 묶음.
  *
- * 디자인 토큰(네이비 #405189 선택바, 12.5px 라벨, caret·folder 아이콘)을 한 곳에 고정해
+ * 디자인 토큰(브랜드 블루 var(--color-bt-primary) 선택바, 12.5px 라벨, caret·folder 아이콘)을 한 곳에 고정해
  * 모든 트리의 톤앤매너를 일치시킨다. 톤 기준 SoT 는 상담사 설정(AgentGroupTree).
  * 로직은 useTreeView 훅이, 표현은 이 프리미티브가 담당한다.
  *
@@ -28,7 +28,7 @@ export function TreeRow<T>({ item, selected, className, style, children, ...rest
       aria-selected={!!selected}
       className={cn(
         'group relative flex items-center gap-1.5 px-3 py-1.5 cursor-pointer select-none border-l-[3px] outline-none transition',
-        selected ? 'bg-[#eef0f7] border-[#405189]' : 'border-transparent hover:bg-gray-50',
+        selected ? 'bg-[var(--color-bt-primary-soft)] border-[var(--color-bt-primary)]' : 'border-transparent hover:bg-gray-50',
         className,
       )}
       style={{ paddingLeft: 12 + item.depth * 16, ...style }}
@@ -68,7 +68,7 @@ interface TreeLabelProps {
 /** 노드 라벨 — 선택 시 네이비 + semibold. */
 export function TreeLabel({ children, selected, title }: TreeLabelProps) {
   return (
-    <span title={title} className={cn('flex-1 text-[12.5px] truncate', selected ? 'text-[#405189] font-semibold' : 'text-gray-700')}>
+    <span title={title} className={cn('flex-1 text-[12.5px] truncate', selected ? 'text-[var(--color-bt-primary)] font-semibold' : 'text-gray-700')}>
       {children}
     </span>
   );
@@ -82,5 +82,5 @@ interface TreeFolderIconProps<T> {
 /** 폴더 아이콘 — 펼침 상태에 따라 Open/Closed, 선택 시 네이비. (소비처가 자체 아이콘을 쓰면 미사용) */
 export function TreeFolderIcon<T>({ item, selected }: TreeFolderIconProps<T>) {
   const Icon = item.isFolder && item.isExpanded ? FolderOpen : FolderClosed;
-  return <Icon className={cn('size-3.5 flex-shrink-0', selected ? 'text-[#405189]' : 'text-gray-500')} />;
+  return <Icon className={cn('size-3.5 flex-shrink-0', selected ? 'text-[var(--color-bt-primary)]' : 'text-gray-500')} />;
 }
