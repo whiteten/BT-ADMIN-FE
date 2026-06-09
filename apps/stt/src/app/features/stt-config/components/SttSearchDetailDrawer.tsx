@@ -109,7 +109,7 @@ function RecogTargetRegisterModal({ open, sentence, engineCode, onClose, onSeek 
         </div>
 
         <div className="flex border border-gray-200">
-          <div className="w-28 shrink-0 bg-gray-50 border-r border-gray-200 p-3 flex items-start gap-1">
+          <div className="w-28 shrink-0 bg-gray-50 border-r border-gray-200 p-3 flex items-center gap-1">
             <span className="text-red-500 text-xs">*</span>
             <span className="text-sm text-[#495057]">원문</span>
           </div>
@@ -119,7 +119,7 @@ function RecogTargetRegisterModal({ open, sentence, engineCode, onClose, onSeek 
         </div>
 
         <div className="flex border border-t-0 border-gray-200">
-          <div className="w-28 shrink-0 bg-gray-50 border-r border-gray-200 p-3 flex items-start gap-1">
+          <div className="w-28 shrink-0 bg-gray-50 border-r border-gray-200 p-3 flex items-center gap-1">
             <span className="text-red-500 text-xs">*</span>
             <span className="text-sm text-[#495057]">정답지</span>
           </div>
