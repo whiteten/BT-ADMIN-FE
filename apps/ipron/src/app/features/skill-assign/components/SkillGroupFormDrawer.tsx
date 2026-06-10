@@ -182,17 +182,18 @@ export default function SkillGroupFormDrawer({ state, tenantId, onClose }: Props
           {isEdit && <Tag color="default">{state.row.skillGroupName}</Tag>}
         </Space>
       }
+      closable={{ placement: 'end' }}
       width={680}
       open={state.open}
       onClose={onClose}
       destroyOnClose
-      extra={
-        <Space>
+      footer={
+        <div className="flex items-center justify-end gap-2">
           <Button onClick={onClose}>취소</Button>
           <Button type="primary" loading={submitting} onClick={onSubmit}>
             저장
           </Button>
-        </Space>
+        </div>
       }
     >
       <Form form={form} layout="vertical">

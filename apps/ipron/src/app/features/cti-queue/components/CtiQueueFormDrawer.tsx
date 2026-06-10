@@ -1137,12 +1137,13 @@ export default function CtiQueueFormDrawer({ state, onClose, tenantOptions = [],
     <>
       <Drawer
         title={isEdit ? 'CTI 큐 수정' : 'CTI 큐 등록'}
+        closable={{ placement: 'end' }}
         width={880}
         open={state.open}
         onClose={onClose}
         destroyOnClose
-        extra={
-          <div className="flex gap-2">
+        footer={
+          <div className="flex items-center justify-end gap-2">
             <Button onClick={onClose}>취소</Button>
             {isEdit && (
               <Button loading={isApplying} disabled={isCreating || isUpdating} onClick={onApply}>

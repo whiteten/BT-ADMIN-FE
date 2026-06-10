@@ -73,12 +73,13 @@ export default function AdnAutoConfigDrawer({ open, initial, onCancel, onSubmit,
   return (
     <Drawer
       title="ADN 자동채번 설정"
+      closable={{ placement: 'end' }}
       open={open}
       onClose={onCancel}
       width={480}
       destroyOnHidden
-      extra={
-        <div className="flex gap-2">
+      footer={
+        <div className="flex items-center justify-end gap-2">
           <Button onClick={onCancel}>취소</Button>
           <Button type="primary" onClick={handleOk} loading={submitting}>
             저장

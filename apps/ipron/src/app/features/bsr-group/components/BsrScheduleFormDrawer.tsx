@@ -4,7 +4,7 @@
  * 필드: 스케줄명(필수/128), 시작일자(필수), 시작시간 HHMM(필수/4자), 종료시간 HHMM(필수/4자), 요일 체크박스(월~일)
  */
 import { useEffect } from 'react';
-import { Button, Checkbox, DatePicker, Drawer, Form, Input, Space } from 'antd';
+import { Button, Checkbox, DatePicker, Drawer, Form, Input } from 'antd';
 import dayjs from 'dayjs';
 import type { BsrScheduleInfoCreateRequest, BsrScheduleInfoResponse, BsrScheduleInfoUpdateRequest } from '../types';
 
@@ -87,16 +87,17 @@ export default function BsrScheduleFormDrawer({ open, mode, schedule, defaultTen
   return (
     <Drawer
       title={mode === 'create' ? '스케줄 등록' : '스케줄 수정'}
+      closable={{ placement: 'end' }}
       open={open}
       onClose={onCancel}
       width={480}
-      extra={
-        <Space>
+      footer={
+        <div className="flex items-center justify-end gap-2">
           <Button onClick={onCancel}>취소</Button>
           <Button type="primary" loading={loading} onClick={() => form.submit()}>
             저장
           </Button>
-        </Space>
+        </div>
       }
       destroyOnClose
     >

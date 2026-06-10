@@ -5,7 +5,7 @@
  * AS-IS SWAT IPR20S5010 스케쥴 popup03.
  */
 import { useEffect } from 'react';
-import { Button, Checkbox, DatePicker, Drawer, Form, Input, Space, TimePicker, message } from 'antd';
+import { Button, Checkbox, DatePicker, Drawer, Form, Input, TimePicker, message } from 'antd';
 import dayjs, { type Dayjs } from 'dayjs';
 import { SCHEDULE_DAY_FIELDS, type ScheduleInfoRequest, type ScheduleInfoResponse } from '../types';
 
@@ -89,17 +89,18 @@ export default function ScheduleInfoDrawer({ open, mode, schedule, tenantId, onC
   return (
     <Drawer
       title={mode === 'create' ? '스케쥴 등록' : '스케쥴 수정'}
+      closable={{ placement: 'end' }}
       open={open}
       onClose={onCancel}
       width={440}
       destroyOnClose
-      extra={
-        <Space>
+      footer={
+        <div className="flex items-center justify-end gap-2">
           <Button onClick={onCancel}>취소</Button>
           <Button type="primary" loading={loading} onClick={() => form.submit()}>
             {mode === 'create' ? '등록' : '저장'}
           </Button>
-        </Space>
+        </div>
       }
     >
       <Form form={form} layout="vertical" onFinish={handleFinish} requiredMark>

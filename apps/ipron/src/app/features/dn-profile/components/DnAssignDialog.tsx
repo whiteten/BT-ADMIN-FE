@@ -9,7 +9,7 @@
  * body: { dnIds: number[] }
  */
 import { useEffect, useMemo, useState } from 'react';
-import { Alert, Button, Checkbox, Drawer, Empty, Input, Space, Spin } from 'antd';
+import { Alert, Button, Checkbox, Drawer, Empty, Input, Spin } from 'antd';
 import { Search } from 'lucide-react';
 import { toast } from '@/shared-util';
 import { useAssignDnToProfile, useGetDns } from '../../dn/hooks/useDnQueries';
@@ -101,18 +101,19 @@ export default function DnAssignDialog({ open, profile, onCancel, onSuccess }: D
     <Drawer
       open={open}
       title={profile ? `"${profile.dnProfileName}" — ${titleSuffix}` : titleSuffix}
+      closable={{ placement: 'end' }}
       onClose={onCancel}
       width={760}
       placement="right"
       destroyOnClose
       styles={{ body: { padding: 16, display: 'flex', flexDirection: 'column', height: '100%' } }}
-      extra={
-        <Space>
+      footer={
+        <div className="flex items-center justify-end gap-2">
           <Button onClick={onCancel}>취소</Button>
           <Button type="primary" onClick={handleAssign} loading={isPending} disabled={selectedIds.size === 0}>
             배정 ({selectedIds.size})
           </Button>
-        </Space>
+        </div>
       }
     >
       <Alert

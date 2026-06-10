@@ -140,14 +140,17 @@ const BackupCompareDrawer = forwardRef<BackupCompareDrawerRef, Props>(({ onResto
       open={visible}
       onClose={() => setVisible(false)}
       title="백업 비교"
+      closable={{ placement: 'end' }}
       width={720}
       destroyOnClose
-      extra={
-        <Tooltip title="현재 USERCONFIG 를 이 백업으로 덮어씁니다">
-          <Button type="primary" danger icon={<Undo2 className="size-3.5" />} loading={isRestoring} disabled={!payload || isFetching} onClick={handleRestore}>
-            이 백업으로 복구
-          </Button>
-        </Tooltip>
+      footer={
+        <div className="flex items-center justify-end gap-2">
+          <Tooltip title="현재 USERCONFIG 를 이 백업으로 덮어씁니다">
+            <Button type="primary" danger icon={<Undo2 className="size-3.5" />} loading={isRestoring} disabled={!payload || isFetching} onClick={handleRestore}>
+              이 백업으로 복구
+            </Button>
+          </Tooltip>
+        </div>
       }
     >
       {/* 백업 정보 헤더 */}

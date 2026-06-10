@@ -338,12 +338,13 @@ export default function MentFormDrawer({ state, onClose }: Props) {
   return (
     <Drawer
       title={isEdit ? '교환기 멘트 수정' : '교환기 멘트 등록'}
+      closable={{ placement: 'end' }}
       width={560}
       open={state.open}
       onClose={onClose}
       forceRender
-      extra={
-        <div className="flex gap-2">
+      footer={
+        <div className="flex items-center justify-end gap-2">
           <Button onClick={onClose}>취소</Button>
           <Button type="primary" loading={submitting} onClick={onSubmit}>
             저장

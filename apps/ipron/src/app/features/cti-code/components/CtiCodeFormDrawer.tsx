@@ -4,7 +4,7 @@
  * - REASON_CODE: tenantId/codeType/reasonCode/reasonName/reasonDesc
  */
 import { useEffect } from 'react';
-import { Button, Drawer, Form, Input, InputNumber, Space, message } from 'antd';
+import { Button, Drawer, Form, Input, InputNumber, message } from 'antd';
 import { toast } from '@/shared-util';
 import { useCreateReasonCode, useUpdateReasonCode } from '../hooks/useCtiCodeQueries';
 import { REASON_CODE_TYPE_ACW, REASON_CODE_TYPE_REST, type ReasonCodeResponse } from '../types';
@@ -110,17 +110,18 @@ export default function CtiCodeFormDrawer({ state, onClose }: Props) {
   return (
     <Drawer
       title={`${mode === 'create' ? '등록' : '수정'} — ${codeTypeLabel(codeType)}`}
+      closable={{ placement: 'end' }}
       width={560}
       open={state.open}
       onClose={onClose}
       destroyOnClose
-      extra={
-        <Space>
+      footer={
+        <div className="flex items-center justify-end gap-2">
           <Button onClick={onClose}>취소</Button>
           <Button type="primary" loading={submitting} onClick={onSubmit}>
             저장
           </Button>
-        </Space>
+        </div>
       }
     >
       <Form form={form} layout="vertical">

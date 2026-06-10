@@ -2,7 +2,7 @@
  * 스킬 배정 P/L 수정 드로어 — 칩 클릭 시 열림.
  */
 import { useEffect } from 'react';
-import { Button, Drawer, Form, InputNumber, Space } from 'antd';
+import { Button, Drawer, Form, InputNumber } from 'antd';
 import { toast } from '@/shared-util';
 import { useUpdateSkillAgent } from '../hooks/useSkillAssignQueries';
 import type { SkillAgentResponse } from '../types';
@@ -55,17 +55,18 @@ export default function SkillAgentEditDrawer({ open, row, onClose }: Props) {
   return (
     <Drawer
       title={`스킬 우선순위/스킬레벨 수정 — ${row.skillsetName}`}
+      closable={{ placement: 'end' }}
       width={420}
       open={open}
       onClose={onClose}
       destroyOnClose
-      extra={
-        <Space>
+      footer={
+        <div className="flex items-center justify-end gap-2">
           <Button onClick={onClose}>취소</Button>
           <Button type="primary" loading={isPending} onClick={onSubmit}>
             저장
           </Button>
-        </Space>
+        </div>
       }
     >
       <div className="mb-3 text-xs text-gray-500">

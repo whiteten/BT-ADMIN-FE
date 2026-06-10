@@ -5,7 +5,7 @@
  *       미디어타입(필수) · 활성화(필수) · 정렬순서 · 설명(0~256)
  */
 import { useEffect } from 'react';
-import { Button, Drawer, Form, Input, InputNumber, Select, Space, Switch } from 'antd';
+import { Button, Drawer, Form, Input, InputNumber, Select, Switch } from 'antd';
 import { MEDIA_TYPE_OPTIONS, type SkillsetCreateRequest, type SkillsetGroupResponse, type SkillsetResponse, type SkillsetUpdateRequest } from '../types';
 
 interface TenantOption {
@@ -96,17 +96,18 @@ export default function SkillsetFormDrawer({ open, mode, skillset, defaultTenant
   return (
     <Drawer
       title={mode === 'create' ? '스킬셋 등록' : '스킬셋 수정'}
+      closable={{ placement: 'end' }}
       open={open}
       onClose={onCancel}
       width={480}
       destroyOnClose
-      extra={
-        <Space>
+      footer={
+        <div className="flex items-center justify-end gap-2">
           <Button onClick={onCancel}>취소</Button>
           <Button type="primary" loading={loading} onClick={() => form.submit()}>
             {mode === 'create' ? '등록' : '저장'}
           </Button>
-        </Space>
+        </div>
       }
     >
       <Form form={form} layout="vertical" onFinish={handleFinish} requiredMark>
