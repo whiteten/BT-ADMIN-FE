@@ -146,6 +146,9 @@ export default function SkillAssignList() {
   const [hoverSkillsetId, setHoverSkillsetId] = useState<number | null>(null);
   // 패널 내부 hover 여부 (마우스가 그리드→패널로 이동해도 닫히지 않게)
   const [panelHovered, setPanelHovered] = useState(false);
+  // panelHovered ref — gridOptions useMemo(빈 deps) 내 onCellMouseOut 에서 최신 값 참조용
+  const panelHoveredRef = useRef(false);
+  panelHoveredRef.current = panelHovered;
   const hoverLeaveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // 배정 현황 모달 (읽기 전용)
@@ -478,12 +481,15 @@ export default function SkillAssignList() {
       onCellMouseOut: () => {
         // 이탈 시 미발화 intent 타이머 취소 (스쳐 지나간 행은 요청 안 함)
         if (hoverIntentTimerRefAgent.current) clearTimeout(hoverIntentTimerRefAgent.current);
-        // grace delay 200ms — 행→패널로 이동 동선 허용. 패널 진입 시 panelHovered=true 가 되어 효과 없음.
+        // panelHovered 중이면 leave 타이머 설정 안 함 — 커서가 패널 위에 있으면 닫히지 않음
+        if (panelHoveredRef.current) return;
+        // grace delay 200ms — 행→패널로 이동 동선 허용
         hoverLeaveTimerRefAgent.current = setTimeout(() => {
-          setHoverAgentIdRef.current(null);
+          if (!panelHoveredRef.current) setHoverAgentIdRef.current(null);
         }, 200);
       },
     }),
+
     [],
   );
 
@@ -567,12 +573,15 @@ export default function SkillAssignList() {
       onCellMouseOut: () => {
         // 이탈 시 미발화 intent 타이머 취소
         if (hoverIntentTimerRefSkillset.current) clearTimeout(hoverIntentTimerRefSkillset.current);
+        // panelHovered 중이면 leave 타이머 설정 안 함
+        if (panelHoveredRef.current) return;
         // grace delay 200ms — 행→패널로 이동 동선 허용
         hoverLeaveTimerRefSkillset.current = setTimeout(() => {
-          setHoverSkillsetIdRef.current(null);
+          if (!panelHoveredRef.current) setHoverSkillsetIdRef.current(null);
         }, 200);
       },
     }),
+
     [],
   );
 
@@ -1521,32 +1530,31 @@ export default function SkillAssignList() {
         </PanelGroup>
       )}
 
-      {/* ===== Bulk Action Bar (floating bottom) — 양쪽 모드 공통, 항상 렌더 (승인 목업 skillgroup-v2) ===== */}
-      {/* 버튼 상시 노출 + 개별 disabled: 부여/해제/현황 = 상담사 AND 스킬셋, 스킬모음 적용 = 상담사만 ≥1 (SWAT 정합 — 스킬셋 선택 불필요) */}
+      {/* ===== Bulk Action Bar (floating bottom) — 양쪽 모드 공통, 항상 렌더 ===== */}
+      {/* 버튼 4개 상시 렌더 + 상태별 disabled 토글만. 안내 문구 없음. */}
       {(mode === 'agent' || mode === 'skillset') &&
         (() => {
           const agentCount = selectedAgentIds.length;
           const skillsetCount = selectedSkillsetIds.length;
           const bothSelected = agentCount > 0 && skillsetCount > 0;
+          // [스킬모음 적용]: 상담사≥1 이고 스킬셋=0 일 때만 활성
+          const applyEnabled = agentCount > 0 && skillsetCount === 0;
+          const applyTitle = agentCount > 0 && skillsetCount > 0 ? '스킬셋 선택을 해제하면 적용할 수 있습니다' : undefined;
           return (
             <div className="fixed bottom-5 left-1/2 -translate-x-1/2 z-50 bg-gray-800 text-white rounded-xl shadow-xl flex items-center gap-3 px-4 py-2.5 text-sm">
-              <span className="flex items-center gap-1.5">
+              <span className="flex items-center gap-1.5 whitespace-nowrap flex-shrink-0">
                 <Users className="size-3.5 text-white/60" />
                 <span className="text-white/60 text-xs">상담사</span>
                 <span className={`px-2 py-0.5 rounded-full font-bold min-w-[28px] text-center ${agentCount > 0 ? 'bg-[#405189]' : 'bg-gray-600'}`}>{agentCount}</span>
                 <span className="text-white/60 text-xs">명</span>
               </span>
-              <span className="text-white/30">×</span>
-              <span className="flex items-center gap-1.5">
+              <span className="text-white/30 flex-shrink-0">×</span>
+              <span className="flex items-center gap-1.5 whitespace-nowrap flex-shrink-0">
                 <Wrench className="size-3.5 text-white/60" />
                 <span className="text-white/60 text-xs">스킬셋</span>
                 <span className={`px-2 py-0.5 rounded-full font-bold min-w-[28px] text-center ${skillsetCount > 0 ? 'bg-[#405189]' : 'bg-gray-600'}`}>{skillsetCount}</span>
                 <span className="text-white/60 text-xs">건</span>
               </span>
-              {agentCount === 0 && (
-                <span className="text-white/50 text-[11px] italic ml-1 whitespace-nowrap">상담사를 체크하세요. 스킬모음 적용은 상담사만 선택해도 가능합니다</span>
-              )}
-              {agentCount > 0 && !bothSelected && <span className="text-white/50 text-[11px] italic ml-1 whitespace-nowrap">스킬셋까지 선택하면 부여/해제가 활성화됩니다</span>}
               <Button
                 icon={<Eye className="size-3.5" />}
                 disabled={!bothSelected}
@@ -1562,7 +1570,7 @@ export default function SkillAssignList() {
                 onClick={() => setGrantDrawerOpen(true)}
                 style={{ opacity: bothSelected ? 1 : 0.38 }}
               >
-                부여{bothSelected ? ` (${agentCount * skillsetCount}개)` : ''}
+                부여
               </Button>
               <Button
                 danger
@@ -1577,9 +1585,10 @@ export default function SkillAssignList() {
               <Button
                 type="primary"
                 icon={<Layers className="size-3.5" />}
-                disabled={agentCount === 0}
+                disabled={!applyEnabled}
+                title={applyTitle}
                 onClick={() => setApplyDrawerOpen(true)}
-                style={{ opacity: agentCount > 0 ? 1 : 0.38 }}
+                style={{ opacity: applyEnabled ? 1 : 0.38 }}
               >
                 스킬모음 적용
               </Button>
@@ -1588,7 +1597,6 @@ export default function SkillAssignList() {
                 onClick={() => {
                   setSelectedAgentIds([]);
                   setSelectedSkillsetIds([]);
-                  // ag-Grid 체크박스 UI 동기화: 상태만 리셋하면 그리드 체크박스는 안 풀림
                   agentGridRef1.current?.api?.deselectAll();
                   agentGridRef2.current?.api?.deselectAll();
                   skillsetGridRef1.current?.api?.deselectAll();
@@ -1915,7 +1923,7 @@ function ViewDetailCardEditable({ title, subtitle, priority, skillLevel, row, on
         type="button"
         title="드로어에서 우선순위/스킬레벨 수정"
         onClick={onEdit}
-        className="flex-shrink-0 w-6 h-6 flex items-center justify-center rounded-md text-gray-300 hover:text-[#405189] hover:bg-[#eef1fb] transition opacity-0 group-hover:opacity-100"
+        className="flex-shrink-0 w-6 h-6 flex items-center justify-center rounded-md text-gray-300 hover:text-[#405189] hover:bg-[#eef1fb] transition"
       >
         <Pencil className="size-3" />
       </button>
@@ -2262,7 +2270,7 @@ function SidePanelRow({ title, subtitle, priority, skillLevel, row, onEdit }: Si
         type="button"
         title="드로어에서 우선순위/스킬레벨 수정"
         onClick={onEdit}
-        className="flex-shrink-0 w-6 h-6 flex items-center justify-center rounded text-gray-300 hover:text-[#405189] hover:bg-[#eef1fb] transition opacity-0 group-hover:opacity-100"
+        className="flex-shrink-0 w-6 h-6 flex items-center justify-center rounded text-gray-300 hover:text-[#405189] hover:bg-[#eef1fb] transition"
       >
         <Pencil className="size-3" />
       </button>

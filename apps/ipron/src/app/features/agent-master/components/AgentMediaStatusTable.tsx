@@ -22,11 +22,10 @@
  *       맨 왼쪽 고정 단일 체크박스. colDef checkboxSelection 중복 금지.
  */
 import { createContext, forwardRef, useCallback, useContext, useEffect, useImperativeHandle, useMemo, useRef, useState } from 'react';
-import type { CellStyle, ColDef, ICellRendererParams, SelectionChangedEvent } from 'ag-grid-community';
+import type { CellStyle, ColDef, ICellRendererParams } from 'ag-grid-community';
 import { AgGridReact, type AgGridReact as AgGridReactType } from 'ag-grid-react';
-import { Button, InputNumber, Select } from 'antd';
+import { InputNumber, Select } from 'antd';
 import { Lock } from 'lucide-react';
-import { toast } from '@/shared-util';
 import { MEDIA_OPTION_BOUNDS } from '../constants/codes';
 import type { AgentMediaMatrix, AgentMediaOption, AgentResponse, AgentUpdateRequest } from '../types';
 import useAggridOptions from '@/libs/shared-ui/src/hooks/useAggridOptions';
@@ -114,15 +113,6 @@ interface DirtyEntry {
  * 선택된 행에 일괄 적용할 컬럼+값 페어.
  * - autoanswerTime 일괄적용 시 autoanswerMode !== 1 행은 skip (SWAT 정합).
  */
-export type BulkNumericField = 'util' | 'max' | 'afctime' | 'autoanswerTime';
-export type BulkSelectField = 'use' | 'autoanswerMode';
-export type BulkField = BulkNumericField | BulkSelectField;
-
-export interface BulkApplyTarget {
-  field: BulkField;
-  value: number;
-}
-
 export interface AgentMediaStatusTableHandle {
   /** dirty 행을 일괄 저장합니다. */
   save: () => void;
@@ -514,55 +504,6 @@ const STATIC_COL_DEFS: ColDef<AgentResponse>[] = [
   },
 ];
 
-/** 일괄적용 컬럼 옵션 */
-const BULK_FIELD_OPTIONS: { value: BulkField; label: string }[] = [
-  { value: 'use', label: '사용여부' },
-  { value: 'util', label: '가중치(%)' },
-  { value: 'max', label: '동시최대' },
-  { value: 'afctime', label: '후처리(초)' },
-  { value: 'autoanswerMode', label: '자동응답모드' },
-  { value: 'autoanswerTime', label: '자동응답(초)' },
-];
-
-const BULK_SELECT_YES_NO: { value: number; label: string }[] = [
-  { value: 1, label: '사용' },
-  { value: 0, label: '미사용' },
-];
-
-function isBulkSelectField(field: BulkField): field is BulkSelectField {
-  return field === 'use' || field === 'autoanswerMode';
-}
-
-function getBulkBounds(field: BulkField): { min: number; max: number } | null {
-  if (isBulkSelectField(field)) return null;
-  return MEDIA_OPTION_BOUNDS[field] ?? null;
-}
-
-/**
- * [Fix-3] ag-Grid 34 rowSelection 직접 prop.
- * checkboxes: true → selectionColumnDef 가 맨 왼쪽에 pinned 체크박스 1개 삽입.
- * colDef 에 checkboxSelection 추가 금지 (중복 → 2개 렌더 버그).
- */
-const MEDIA_ROW_SELECTION = {
-  mode: 'multiRow' as const,
-  checkboxes: true,
-  enableClickSelection: false,
-  headerCheckbox: true,
-};
-
-/**
- * [Fix-5] SelectionColumn 을 pinned:'left' 로 고정.
- * rowSelection.checkboxes=true 의 자동 SelectionColumn 은 기본 비고정이라
- * pinned 텍스트 컬럼(상담사명/로그인ID) 뒤로 밀림 → 명시적 pinned:'left' 부여.
- * IPRON 레이아웃 표준: 체크박스 첫 컬럼 width44 pinned:left.
- */
-const MEDIA_SELECTION_COL_DEF = {
-  pinned: 'left' as const,
-  width: 44,
-  minWidth: 44,
-  maxWidth: 44,
-};
-
 /**
  * dirty 행 배경색 (BSR 미저장 변경 행 패턴).
  * ag-Grid rowClassRules 로 적용.
@@ -606,10 +547,6 @@ const AgentMediaStatusTable = forwardRef<AgentMediaStatusTableHandle, AgentMedia
   );
 
   const gridRef = useRef<AgGridReactType<AgentResponse>>(null);
-
-  const [selectedAgents, setSelectedAgents] = useState<AgentResponse[]>([]);
-  const [bulkField, setBulkField] = useState<BulkField>('use');
-  const [bulkValue, setBulkValue] = useState<number>(1);
 
   // ─── BSR dirty 상태 ──────────────────────────────────────────────────────
   const [dirtyMap, setDirtyMap] = useState<Map<number, DirtyEntry>>(new Map());
@@ -698,61 +635,7 @@ const AgentMediaStatusTable = forwardRef<AgentMediaStatusTableHandle, AgentMedia
     [mediaKey, dirtyMap, setDirtyEntry, getAgentCurrentEntry],
   );
 
-  // ─── 일괄적용 ────────────────────────────────────────────────────────────
-  const handleBulkApply = useCallback(() => {
-    const eligible = selectedAgents.filter((a) => !isInheritedWithDirty(a, dirtyMap.get(a.agentId)));
-    if (eligible.length === 0) return;
-
-    let skippedAutoTime = 0;
-    eligible.forEach((agent) => {
-      if (bulkField === 'autoanswerTime') {
-        const currentMode = dirtyMap.get(agent.agentId)?.matrix?.[mediaKey]?.autoanswerMode ?? agent.mediaMatrix?.[mediaKey]?.autoanswerMode ?? 0;
-        if (currentMode !== 1) {
-          skippedAutoTime++;
-          return;
-        }
-      }
-
-      const currentEntry = dirtyMap.get(agent.agentId);
-      const matrix = currentEntry?.matrix ?? normalizeMatrix(agent.mediaMatrix);
-      const patchValue = bulkField === 'use' ? bulkValue === 1 : bulkValue;
-      const patched: AgentMediaMatrix = {
-        ...matrix,
-        [mediaKey]: { ...matrix[mediaKey]!, [bulkField]: patchValue },
-      };
-      const useGrpMdaOpt = currentEntry?.useGrpMdaOpt ?? agent.useGrpMdaOpt ?? 0;
-
-      // dirty 비교 (원본 대비)
-      const origMatrix = normalizeMatrix(agent.mediaMatrix);
-      const sameAsOrig = useGrpMdaOpt === (agent.useGrpMdaOpt ?? 0) && JSON.stringify(patched) === JSON.stringify(origMatrix);
-      setDirtyEntry(agent.agentId, sameAsOrig ? null : { matrix: patched, useGrpMdaOpt });
-    });
-
-    if (skippedAutoTime > 0) {
-      toast.warning(`자동응답모드 꺼진 ${skippedAutoTime}명은 자동응답(초) 적용에서 제외되었습니다.`);
-    }
-  }, [selectedAgents, mediaKey, bulkField, bulkValue, dirtyMap, setDirtyEntry]);
-
   const defaultColDef: ColDef = useMemo(() => ({ sortable: true, filter: true, resizable: true, suppressHeaderMenuButton: true }), []);
-
-  const handleSelectionChanged = useCallback((e: SelectionChangedEvent<AgentResponse>) => {
-    const nodes = e.api.getSelectedNodes();
-    setSelectedAgents(nodes.map((n) => n.data!).filter(Boolean));
-  }, []);
-
-  const bulkBoundsOrNull = getBulkBounds(bulkField);
-  const isSelectBulkField = isBulkSelectField(bulkField);
-  const canBulkApply = selectedAgents.length > 0;
-
-  const handleBulkFieldChange = useCallback((v: BulkField) => {
-    setBulkField(v);
-    if (v === 'use' || v === 'autoanswerMode') {
-      setBulkValue(1);
-    } else {
-      const bounds = MEDIA_OPTION_BOUNDS[v as BulkNumericField];
-      setBulkValue(bounds?.min ?? 0);
-    }
-  }, []);
 
   return (
     <MediaEditContext.Provider value={ctxValue}>
@@ -764,47 +647,8 @@ const AgentMediaStatusTable = forwardRef<AgentMediaStatusTableHandle, AgentMedia
           background-color: #e5ebff !important;
         }
       `}</style>
-      <div className="flex flex-col h-full gap-2">
-        {/* ── 툴바: 일괄적용(좌) + 저장 버튼(우) ── */}
-        <div className="flex items-center gap-2 px-1 py-1.5 bg-gray-50 border border-gray-200 rounded text-[12px]">
-          {/* 일괄적용 */}
-          <span className="text-gray-500 whitespace-nowrap">
-            {selectedAgents.length > 0 ? (
-              <>
-                <span className="font-semibold text-[#405189]">{selectedAgents.length}명</span> 선택됨
-              </>
-            ) : (
-              <span className="text-gray-400">행 체크 후 일괄적용</span>
-            )}
-          </span>
-          <Select size="small" style={{ width: 120 }} value={bulkField} onChange={handleBulkFieldChange} options={BULK_FIELD_OPTIONS} />
-          <span className="text-gray-400">=</span>
-          {isSelectBulkField ? (
-            <Select size="small" style={{ width: 90 }} value={bulkValue} onChange={(v) => setBulkValue(v)} options={BULK_SELECT_YES_NO} />
-          ) : (
-            <InputNumber
-              size="small"
-              style={{ width: 80 }}
-              min={bulkBoundsOrNull?.min ?? 0}
-              max={bulkBoundsOrNull?.max ?? 9999}
-              value={bulkValue}
-              onChange={(v) => setBulkValue(typeof v === 'number' ? v : 0)}
-            />
-          )}
-          {bulkField === 'autoanswerTime' && <span className="text-[10px] text-amber-600 whitespace-nowrap">자동응답모드 ON 행에만 적용</span>}
-          <button
-            className={`px-3 py-0.5 rounded text-[11px] font-medium border transition-colors ${
-              canBulkApply ? 'bg-[#405189] text-white border-[#405189] hover:bg-[#405189]/90 cursor-pointer' : 'bg-gray-100 text-gray-400 border-gray-200 cursor-not-allowed'
-            }`}
-            onClick={handleBulkApply}
-            disabled={!canBulkApply}
-            type="button"
-          >
-            선택 행에 적용
-          </button>
-        </div>
-
-        <div className="flex-1 min-h-0">
+      <div className="flex flex-col h-full">
+        <div className="flex-1 min-h-0 ag-theme-quartz h-full">
           <AgGridReact<AgentResponse>
             ref={gridRef}
             rowData={rowData}
@@ -812,12 +656,9 @@ const AgentMediaStatusTable = forwardRef<AgentMediaStatusTableHandle, AgentMedia
             defaultColDef={defaultColDef}
             getRowId={(p) => String(p.data.agentId)}
             gridOptions={stableGridOptions}
-            rowSelection={MEDIA_ROW_SELECTION}
-            selectionColumnDef={MEDIA_SELECTION_COL_DEF}
             rowClassRules={ROW_CLASS_RULES}
             context={gridContext}
             loading={isLoading}
-            onSelectionChanged={handleSelectionChanged}
             onRowDoubleClicked={(e) => {
               if (e.data) onRowDoubleClicked(e.data);
             }}
