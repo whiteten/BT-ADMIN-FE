@@ -11,7 +11,6 @@ const ScenarioList = React.lazy(() => import('./pages/scenario/ScenarioList'));
 const ScenarioDetail = React.lazy(() => import('./pages/scenario/ScenarioDetail'));
 const SleeConfigList = React.lazy(() => import('./pages/scenario/SleeConfigList'));
 const MentFileList = React.lazy(() => import('./pages/scenario/MentFileList'));
-const DnisList = React.lazy(() => import('./pages/ivr/DnisList'));
 
 export const routes = [
   {
@@ -42,7 +41,6 @@ export const routes = [
           { path: ':serviceId', element: <ScenarioDetail /> },
           { path: 'slee-config', element: <SleeConfigList /> },
           { path: 'mentfile', element: <MentFileList /> },
-          { path: 'dnis', element: <DnisList /> },
         ],
       },
     ],
