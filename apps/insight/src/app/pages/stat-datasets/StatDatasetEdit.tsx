@@ -114,6 +114,7 @@ export default function StatDatasetEdit() {
   const clearBreadcrumb = useBreadcrumbStore((s) => s.clearBreadcrumb);
 
   const [datasourceName, setDatasourceName] = useState('');
+  const [description, setDescription] = useState('');
   const [fieldDisplays, setFieldDisplays] = useState<LocalFieldDisplay[]>([]);
   const [calcFields, setCalcFields] = useState<LocalCalcFieldDraft[]>([]);
   const [isCalcEditing, setIsCalcEditing] = useState(false);
@@ -167,6 +168,7 @@ export default function StatDatasetEdit() {
         };
       });
       setDatasourceName(dataset.datasourceName);
+      setDescription(dataset.description ?? '');
       setFieldDisplays([...regularDisplays, ...calcDisplays]);
       setCalcFields(calcDrafts);
       setInitialized(true);
@@ -187,6 +189,7 @@ export default function StatDatasetEdit() {
       datasetId,
       data: {
         datasourceName: datasourceName.trim() || dataset.datasourceName,
+        description: description.trim(),
         dbViewPrefix: dataset.dbViewPrefix,
         fields: buildFieldRequests(fieldDisplays, calcFields),
       },
@@ -220,21 +223,37 @@ export default function StatDatasetEdit() {
 
   return (
     <div className="flex flex-col gap-4 w-full h-full">
-      <div className="flex items-center gap-2.5 w-full h-[58px] min-h-[58px] bg-white bt-shadow px-7">
-        <Typography.Title
-          level={4}
-          className="!mb-0 !text-lg !font-semibold !leading-none"
-          editable={{ onChange: handleRename, triggerType: ['icon', 'text'], tooltip: '클릭하여 데이터셋 명 수정 (저장 시 반영)', maxLength: 100 }}
+      <div className="flex flex-col justify-center gap-1 w-full min-h-[58px] bg-white bt-shadow px-7 py-2">
+        <div className="flex items-center gap-2.5">
+          <Typography.Title
+            level={4}
+            className="!mb-0 !text-lg !font-semibold !leading-none"
+            editable={{ onChange: handleRename, triggerType: ['icon', 'text'], tooltip: '클릭하여 데이터셋 명 수정 (저장 시 반영)', maxLength: 100 }}
+          >
+            {datasourceName}
+          </Typography.Title>
+          <Tag color={DOMAIN_TAG_COLOR[dataset!.productCode]} className="!mb-0 !mr-0 font-bold">
+            {dataset!.productCode}
+          </Tag>
+          <span className="inline-flex h-5 items-center gap-1.5 rounded bg-bt-bg-muted px-2">
+            <span className="text-[10px] font-bold text-bt-fg-muted">VIEW</span>
+            <span className="text-xs font-mono text-bt-fg-muted">{dataset!.dbViewPrefix}</span>
+          </span>
+        </div>
+        {/* 설명 인라인 편집 — 목록 카드에 노출되는 텍스트. 저장 버튼으로 함께 저장. */}
+        <Typography.Text
+          type="secondary"
+          className="!text-xs"
+          editable={{
+            text: description,
+            onChange: (v) => setDescription(v),
+            triggerType: ['icon', 'text'],
+            tooltip: '클릭하여 설명 수정 (저장 시 반영)',
+            maxLength: 500,
+          }}
         >
-          {datasourceName}
-        </Typography.Title>
-        <Tag color={DOMAIN_TAG_COLOR[dataset!.productCode]} className="!mb-0 !mr-0 font-bold">
-          {dataset!.productCode}
-        </Tag>
-        <span className="inline-flex h-5 items-center gap-1.5 rounded bg-bt-bg-muted px-2">
-          <span className="text-[10px] font-bold text-bt-fg-muted">VIEW</span>
-          <span className="text-xs font-mono text-bt-fg-muted">{dataset!.dbViewPrefix}</span>
-        </span>
+          {description || '설명 추가…'}
+        </Typography.Text>
       </div>
 
       <div className="flex w-full flex-1 min-h-0 gap-4">
