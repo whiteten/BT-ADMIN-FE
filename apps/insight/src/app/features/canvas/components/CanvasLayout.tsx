@@ -11,6 +11,7 @@ import PanelTypePickerModal from './PanelTypePickerModal';
 import PanelWrapper from './PanelWrapper';
 import PlaceholderPanelCard from './PlaceholderPanelCard';
 import PanelEditorSheet from '../../panel/components/PanelEditorSheet';
+import KpiStrip from '../../panel/components/kpi/KpiStrip';
 import { useReportEditorStore } from '../../report/hooks/useReportEditorStore';
 import { useUpdatePanelLayouts } from '../../report/hooks/useReportQueries';
 import type { PanelLayout, PanelType } from '../../report/types';
@@ -226,6 +227,8 @@ const CanvasLayout = forwardRef<CanvasLayoutRef, CanvasLayoutProps>(function Can
           <EmptyReportCanvas onStart={() => setLayoutPickerOpen(true)} />
         ) : (
           <>
+            {/* KPI 요약 스트립 — 패널 KPI 슬롯이 1개라도 있으면 상단 고정 (최대 5칸) */}
+            <KpiStrip reportId={reportId} />
             {/* 영역 추가 버튼은 부모 헤더로 이동 (모니터링 DashboardHeader 와 동일). 캔버스는 패널만 차지. */}
             <ResponsiveGridLayout
               className="layout"

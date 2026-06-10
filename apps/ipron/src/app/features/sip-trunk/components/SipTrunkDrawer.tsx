@@ -458,6 +458,7 @@ const SipTrunkDrawer = forwardRef<SipTrunkDrawerRef, Props>(({ nodeId, tenantId,
           {isEdit ? 'SIP 트렁크 수정' : 'SIP 트렁크 독립 등록'}
         </span>
       }
+      closable={{ placement: 'end' }}
       open={visible}
       onClose={handleClose}
       width={580}

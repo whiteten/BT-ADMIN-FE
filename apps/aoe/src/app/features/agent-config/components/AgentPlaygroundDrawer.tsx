@@ -206,7 +206,7 @@ const AgentPlaygroundDrawer = forwardRef<AgentPlaygroundDrawerRef>((_, ref) => {
         body: { display: 'flex', flexDirection: 'column', padding: 0, height: '100%', position: 'relative' },
         mask: { backgroundColor: 'rgba(0, 0, 0, 0.18)' },
       }}
-      closable
+      closable={{ placement: 'end' }}
     >
       {/* 리사이즈 핸들 */}
       <div className="absolute left-0 top-0 bottom-0 w-2 cursor-ew-resize z-10 group" onMouseDown={handleResizeStart}>

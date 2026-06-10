@@ -155,6 +155,7 @@ export default function SipTrunkAssignDrawer({ open, gdnId, gdnLabel, trunks, on
           </div>
         </div>
       }
+      closable={{ placement: 'end' }}
       open={open}
       onClose={onClose}
       width={560}

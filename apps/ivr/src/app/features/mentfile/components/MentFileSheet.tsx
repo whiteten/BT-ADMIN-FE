@@ -12,7 +12,7 @@ import { useQueryClient } from '@tanstack/react-query';
 import { Button, Drawer, Form, Input, Upload, type UploadFile } from 'antd';
 import { Upload as UploadIcon } from 'lucide-react';
 import { toast } from '@/shared-util';
-import { mentFileQueryKeys, useCreateMentFile, useUpdateMentFile, useUpdateMentFileWithFile } from '../hooks/useMentFileQueries';
+import { mentFileQueryKeys, useCreateMentFile, useDownloadMentFile, useUpdateMentFile, useUpdateMentFileWithFile } from '../hooks/useMentFileQueries';
 import type { MentFile } from '../types';
 
 const { TextArea } = Input;
@@ -36,14 +36,14 @@ function validateClientSide(file: File): string | null {
 
 interface FormValues {
   mentName: string;
-  mentDesc?: string;
+  mentDesc: string;
   irFilePath: string;
   emsFilePath: string;
 }
 
 const DEFAULT_VALUES: FormValues = {
   mentName: '',
-  mentDesc: undefined,
+  mentDesc: '',
   irFilePath: 'IPRON/ment/',
   emsFilePath: 'ment/',
 };
@@ -75,7 +75,7 @@ const MentFileSheet = forwardRef<MentFileSheetRef>((_, ref) => {
       form.resetFields();
       form.setFieldsValue({
         mentName: mentFile.mentName,
-        mentDesc: mentFile.mentDesc ?? undefined,
+        mentDesc: mentFile.mentDesc ?? '',
         irFilePath: mentFile.irFilePath,
         emsFilePath: mentFile.emsFilePath,
       });
@@ -89,6 +89,7 @@ const MentFileSheet = forwardRef<MentFileSheetRef>((_, ref) => {
   const { mutateAsync: createAsync, isPending: isCreating } = useCreateMentFile();
   const { mutateAsync: updateAsync, isPending: isUpdating } = useUpdateMentFile();
   const { mutateAsync: updateWithFileAsync, isPending: isUpdatingWithFile } = useUpdateMentFileWithFile();
+  const { mutate: downloadMutate } = useDownloadMentFile();
 
   const isPending = isCreating || isUpdating || isUpdatingWithFile;
 
@@ -172,7 +173,6 @@ const MentFileSheet = forwardRef<MentFileSheetRef>((_, ref) => {
       <Form<FormValues> form={form} layout="vertical" onFinish={handleSubmit} requiredMark initialValues={DEFAULT_VALUES}>
         <Form.Item label="멘트 파일" required={!isEditMode}>
           <Upload
-            accept=".wav,.mp3,.pcm,.dat,.raw"
             maxCount={1}
             beforeUpload={() => false}
             onChange={handleFileChange}
@@ -182,7 +182,15 @@ const MentFileSheet = forwardRef<MentFileSheetRef>((_, ref) => {
               setFile(null);
               return true;
             }}
-            showUploadList={{ showRemoveIcon: (f) => f.uid !== '-existing' }}
+            onDownload={(f) => {
+              if (f.uid === '-existing' && editing) {
+                downloadMutate({ mentfileId: editing.mentfileId }, { onError: (err) => toast.error(`다운로드 실패: ${(err as Error).message ?? '알 수 없는 오류'}`) });
+              }
+            }}
+            showUploadList={{
+              showDownloadIcon: (f) => f.uid === '-existing',
+              showRemoveIcon: (f) => f.uid !== '-existing',
+            }}
           >
             <Button icon={<UploadIcon className="size-3.5" />}>파일 선택</Button>
           </Upload>
@@ -224,7 +232,24 @@ const MentFileSheet = forwardRef<MentFileSheetRef>((_, ref) => {
           <Input placeholder="IPRON/ment/" maxLength={256} />
         </Form.Item>
 
-        <Form.Item name="mentDesc" label="설명" rules={[{ max: 1000, message: '1000자 이내' }]}>
+        <Form.Item
+          name="mentDesc"
+          label="설명"
+          required
+          rules={[
+            { required: true, message: '설명은 필수입니다' },
+            { max: 1000, message: '1000자 이내' },
+            {
+              validator: (_, value) => {
+                if (!value) return Promise.resolve();
+                if (value.replace(/\s+/g, '').length < 3) {
+                  return Promise.reject(new Error('설명은 공백 제외 3자 이상 입력하세요'));
+                }
+                return Promise.resolve();
+              },
+            },
+          ]}
+        >
           <TextArea rows={4} maxLength={1000} showCount placeholder="멘트 설명을 입력하세요." />
         </Form.Item>
       </Form>

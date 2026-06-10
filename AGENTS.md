@@ -222,6 +222,10 @@ export const TRAIN_DIFF_STATUS_LABELS: Record<TrainDiffStatus, string> = {
 
 모달과 드로어는 `forwardRef` + `useImperativeHandle`을 사용하여 부모에서 명령형으로 제어합니다. 상세 절차는 [.claude/skills/add-drawer/SKILL.md](.claude/skills/add-drawer/SKILL.md) 스킬 참조.
 
+### 트리 UI 패턴
+
+트리 UI는 antd `Tree` 신규 도입이나 재귀 렌더 직접 구현 대신 **공통 트리**(`useTreeView` 훅 + `TreeView` 프리미티브, headless-tree 기반)를 사용합니다. 작성 전 트리 적합성 판정(평탄 목록·이종 시각화·TreeSelect 케이스는 트리 아님), 기본 골격, 검색·hover 액션·카운트·툴팁 표준 규격, 외부 DnD 수신·reorder 등 상세 절차는 [.claude/skills/add-tree/SKILL.md](.claude/skills/add-tree/SKILL.md) 스킬 참조.
+
 ### AG-Grid 사용 패턴
 
 `useAggridOptions` 훅으로 공통 그리드 옵션을 적용하고, `ColDef<RowType>[]`로 컬럼을 정의합니다. 편집 가능 컬럼·커스텀 렌더러·액션 컬럼·커스텀 셀 에디터 구성 등 상세 절차는 [.claude/skills/add-grid/SKILL.md](.claude/skills/add-grid/SKILL.md) 스킬 참조.

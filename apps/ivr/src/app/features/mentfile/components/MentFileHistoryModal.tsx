@@ -10,7 +10,7 @@
  * <p>레거시는 예약(RT_SERV_KIND=2)만 조회했지만, 리뉴얼은 즉시+예약 통합 운영 이력.
  * 멘트파일은 환경변수처럼 DB 백업 이력/복구 탭이 없어 단일 탭으로 구성 (디스크 백업 자체는 적용 시점에 수행).</p>
  */
-import { forwardRef, useImperativeHandle, useMemo, useState } from 'react';
+import { forwardRef, useEffect, useImperativeHandle, useMemo, useState } from 'react';
 import type { ColDef, ICellRendererParams } from 'ag-grid-community';
 import { AgGridReact } from 'ag-grid-react';
 import { Button, DatePicker, Input, Modal, Select, Switch, Tag } from 'antd';
@@ -66,23 +66,39 @@ const MentFileHistoryModal = forwardRef<MentFileHistoryModalRef>((_, ref) => {
       setKeyword('');
       const hasChecked = payload.checkedMentfileIds.length > 0;
       setScopeToChecked(hasChecked);
-      // 자동 초기 조회 — 오늘 + 체크된 멘트만 (체크 있을 때)
+      // 자동 초기 조회 — 오늘 + 체크된 멘트만 (체크 있을 때). endOf('day') 로 마지막일 포함.
       setQueryParams({
         mentfileIds: hasChecked ? payload.checkedMentfileIds : undefined,
-        startDate: today[0].format('YYYY-MM-DDTHH:mm:ss'),
-        endDate: today[1].format('YYYY-MM-DDTHH:mm:ss'),
+        startDate: today[0].startOf('day').format('YYYY-MM-DDTHH:mm:ss'),
+        endDate: today[1].endOf('day').format('YYYY-MM-DDTHH:mm:ss'),
       });
       setVisible(true);
     },
     close: () => setVisible(false),
   }));
 
+  // 검색조건 변경 시 자동 재조회 — debounce 300ms (키워드 타이핑 시 호출 폭주 방지)
+  useEffect(() => {
+    if (!visible) return;
+    const timer = setTimeout(() => {
+      setQueryParams({
+        mentfileIds: scopeToChecked && checkedIds.length > 0 ? checkedIds : undefined,
+        rtServKind,
+        startDate: dateRange?.[0]?.startOf('day').format('YYYY-MM-DDTHH:mm:ss'),
+        endDate: dateRange?.[1]?.endOf('day').format('YYYY-MM-DDTHH:mm:ss'),
+        keyword: keyword.trim() || undefined,
+      });
+    }, 300);
+    return () => clearTimeout(timer);
+  }, [visible, dateRange, rtServKind, keyword, scopeToChecked, checkedIds]);
+
   const handleSearch = () => {
+    // 명시적 다시 조회 — useEffect 와 동일 로직. debounce 무시하고 즉시.
     setQueryParams({
       mentfileIds: scopeToChecked && checkedIds.length > 0 ? checkedIds : undefined,
       rtServKind,
-      startDate: dateRange?.[0]?.format('YYYY-MM-DDTHH:mm:ss'),
-      endDate: dateRange?.[1]?.format('YYYY-MM-DDTHH:mm:ss'),
+      startDate: dateRange?.[0]?.startOf('day').format('YYYY-MM-DDTHH:mm:ss'),
+      endDate: dateRange?.[1]?.endOf('day').format('YYYY-MM-DDTHH:mm:ss'),
       keyword: keyword.trim() || undefined,
     });
   };
