@@ -1,7 +1,8 @@
 /**
  * CTI 큐 좌측 업무그룹 트리 (스킬셋 관리 SkillsetGroupTree 와 동형).
  *
- * 구조: "전체" + "미배정" + 그룹 트리 (선택된 테넌트의 그룹만)
+ * - 공통 트리(useTreeView + TreeView 프리미티브) 기반: depth 들여쓰기, 토글/펼침, 선택, 검색, 키보드 a11y
+ * - 구조: "전체" + "미배정" 칩 + 그룹 트리 (선택된 테넌트의 그룹만)
  *  - 카드 슬라이더에서 테넌트 선택 시 그 테넌트의 그룹만 표시
  *  - "전체" 테넌트 선택 시 모든 테넌트의 그룹 표시
  *
@@ -10,11 +11,32 @@
  *  - ag-Grid 행 드래그 → 노드 드롭하면 onCtiQueueDrop(targetTreeId, ctiqIds)
  *  - 트리 검색
  */
-import { useMemo, useState } from 'react';
-import { Input } from 'antd';
-import { ChevronDown, ChevronRight, ChevronsDownUp, ChevronsUpDown, FolderClosed, FolderOpen, Pencil, Plus, Search, Trash2 } from 'lucide-react';
+import { useState } from 'react';
+import { Input, Tooltip } from 'antd';
+import { ChevronsDownUp, ChevronsUpDown, Pencil, Plus, Search, Trash2 } from 'lucide-react';
 import type { CtiQueueGroupResponse } from '../types';
 import { CTI_QUEUE_DRAG_MIME } from './CtiQueueTable';
+import { TreeCaret, TreeFolderIcon, TreeLabel, TreeRow } from '@/components/custom/TreeView';
+import useTreeView, { type TreeViewItem } from '@/libs/shared-ui/src/hooks/useTreeView';
+
+/**
+ * 트리 액션 버튼 공통 Tooltip 옵션 — AgentGroupTree 와 동일 컴팩트 규격.
+ * styles.container: antd v6 inner 키. minHeight:auto 로 기본 min-height(32px) 제거 + flex 중앙정렬.
+ */
+const TOOLTIP_PROPS = {
+  mouseEnterDelay: 0.5,
+  styles: {
+    container: {
+      minHeight: 'auto',
+      fontSize: 12,
+      lineHeight: '16px',
+      padding: '4px 8px',
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+  },
+} as const;
 
 interface Props {
   groups: CtiQueueGroupResponse[]; // BE getGroups (테넌트 필터 적용된 결과)
@@ -32,23 +54,6 @@ interface Props {
   onCtiQueueDrop: (target: { treeId: number; tenantId: number | null }, ctiqIds: number[]) => void;
 }
 
-function filterTree(nodes: CtiQueueGroupResponse[], kw: string): CtiQueueGroupResponse[] {
-  if (!kw) return nodes;
-  const lower = kw.toLowerCase();
-  const walk = (list: CtiQueueGroupResponse[]): CtiQueueGroupResponse[] => {
-    const out: CtiQueueGroupResponse[] = [];
-    for (const n of list) {
-      const matched = n.treeName.toLowerCase().includes(lower);
-      const childMatched = walk(n.children ?? []);
-      if (matched || childMatched.length > 0) {
-        out.push({ ...n, children: matched ? n.children : childMatched });
-      }
-    }
-    return out;
-  };
-  return walk(nodes);
-}
-
 export default function CtiQueueGroupTree({
   groups,
   totalCtiqCount,
@@ -63,132 +68,87 @@ export default function CtiQueueGroupTree({
   onCtiQueueDrop,
 }: Props) {
   const [searchText, setSearchText] = useState('');
-  const [expanded, setExpanded] = useState<Set<number>>(() => new Set());
   const [dropTargetId, setDropTargetId] = useState<number | null>(null);
   const [unassignedDropOver, setUnassignedDropOver] = useState(false);
 
-  const filtered = useMemo(() => filterTree(groups, searchText.trim()), [groups, searchText]);
+  const { items, rootProps, allExpanded, toggleAll } = useTreeView<CtiQueueGroupResponse>({
+    data: groups,
+    getId: (n) => String(n.treeId),
+    getChildren: (n) => n.children,
+    getName: (n) => n.treeName,
+    searchText,
+    ariaLabel: '업무그룹 트리',
+  });
 
-  const allExpandableIds = useMemo(() => {
-    const ids: number[] = [];
-    const walk = (list: CtiQueueGroupResponse[]) => {
-      for (const n of list) {
-        if ((n.children ?? []).length > 0) {
-          ids.push(n.treeId);
-          walk(n.children);
-        }
-      }
-    };
-    walk(groups);
-    return ids;
-  }, [groups]);
-  const allExpanded = allExpandableIds.length > 0 && allExpandableIds.every((id) => expanded.has(id));
+  const hasExpandable = groups.some((n) => (n.children ?? []).length > 0);
 
-  const effectiveExpanded = useMemo(() => {
-    if (!searchText.trim()) return expanded;
-    const all = new Set<number>();
-    const walk = (list: CtiQueueGroupResponse[]) => {
-      for (const n of list) {
-        all.add(n.treeId);
-        if ((n.children ?? []).length) walk(n.children);
-      }
-    };
-    walk(filtered);
-    return all;
-  }, [expanded, filtered, searchText]);
-
-  const toggle = (id: number) =>
-    setExpanded((prev) => {
-      const n = new Set(prev);
-      if (n.has(id)) n.delete(id);
-      else n.add(id);
-      return n;
-    });
-
-  const toggleAll = () => {
-    if (allExpanded) setExpanded(new Set());
-    else setExpanded(new Set(allExpandableIds));
-  };
-
-  const renderNode = (node: CtiQueueGroupResponse, depth: number): React.ReactNode => {
-    const hasChildren = (node.children ?? []).length > 0;
-    const isOpen = effectiveExpanded.has(node.treeId);
+  const renderRow = (item: TreeViewItem<CtiQueueGroupResponse>) => {
+    const node = item.node;
     const isSelected = selectedTreeId === node.treeId;
     const isDropTarget = dropTargetId === node.treeId;
 
     return (
-      <div key={node.treeId}>
-        <div
-          className={`group relative flex items-center gap-1.5 px-3 py-1.5 cursor-pointer select-none border-l-[3px] transition ${
-            isDropTarget
-              ? 'bg-emerald-50 border-emerald-500 outline outline-2 outline-dashed outline-emerald-500 -outline-offset-2'
-              : isSelected
-                ? 'bg-[#eef0f7] border-[#405189]'
-                : 'border-transparent hover:bg-gray-50'
-          }`}
-          style={{ paddingLeft: 12 + depth * 16 }}
-          onClick={() => onSelect(node.treeId)}
-          onDragOver={(e) => {
-            const types = e.dataTransfer.types;
-            if (!types.includes(CTI_QUEUE_DRAG_MIME)) return;
-            e.preventDefault();
-            e.dataTransfer.dropEffect = 'move';
-            setDropTargetId((prev) => (prev === node.treeId ? prev : node.treeId));
-          }}
-          onDragLeave={(e) => {
-            if (e.currentTarget.contains(e.relatedTarget as Node)) return;
-            setDropTargetId((id) => (id === node.treeId ? null : id));
-          }}
-          onDrop={(e) => {
-            const raw = e.dataTransfer.getData(CTI_QUEUE_DRAG_MIME);
-            if (!raw) return;
-            e.preventDefault();
-            setDropTargetId(null);
-            try {
-              const ids = JSON.parse(raw) as number[];
-              if (Array.isArray(ids) && ids.length > 0) onCtiQueueDrop({ treeId: node.treeId, tenantId: node.tenantId }, ids);
-            } catch {
-              /* ignore */
-            }
-          }}
-        >
-          <button
-            type="button"
-            className="w-4 h-4 flex items-center justify-center flex-shrink-0 text-gray-400 hover:text-gray-700"
-            onClick={(e) => {
-              e.stopPropagation();
-              if (hasChildren) toggle(node.treeId);
-            }}
-          >
-            {hasChildren ? isOpen ? <ChevronDown className="size-3.5" /> : <ChevronRight className="size-3.5" /> : null}
-          </button>
+      <TreeRow
+        key={item.id}
+        item={item}
+        selected={isSelected}
+        className={isDropTarget ? 'bg-emerald-50 border-emerald-500 outline outline-2 outline-dashed outline-emerald-500 -outline-offset-2' : undefined}
+        onClick={() => onSelect(node.treeId)}
+        onDragOver={(e) => {
+          const types = e.dataTransfer.types;
+          if (!types.includes(CTI_QUEUE_DRAG_MIME)) return;
+          e.preventDefault();
+          e.dataTransfer.dropEffect = 'move';
+          // 중복 setState 방지 (자식 위로 mouse 이동마다 onDragOver 빈번 발생 → 깜빡임 방지)
+          setDropTargetId((prev) => (prev === node.treeId ? prev : node.treeId));
+        }}
+        onDragLeave={(e) => {
+          // 자식 요소(아이콘/버튼)로 hover 이동 시는 leave 무시 (HTML5 D&D 표준 패턴)
+          if (e.currentTarget.contains(e.relatedTarget as Node)) return;
+          setDropTargetId((id) => (id === node.treeId ? null : id));
+        }}
+        onDrop={(e) => {
+          const raw = e.dataTransfer.getData(CTI_QUEUE_DRAG_MIME);
+          if (!raw) return;
+          e.preventDefault();
+          setDropTargetId(null);
+          try {
+            const ids = JSON.parse(raw) as number[];
+            if (Array.isArray(ids) && ids.length > 0) onCtiQueueDrop({ treeId: node.treeId, tenantId: node.tenantId }, ids);
+          } catch {
+            /* ignore */
+          }
+        }}
+      >
+        <TreeCaret item={item} />
 
-          {hasChildren && isOpen ? (
-            <FolderOpen className={`size-3.5 flex-shrink-0 ${isSelected ? 'text-[#405189]' : 'text-gray-500'}`} />
-          ) : (
-            <FolderClosed className={`size-3.5 flex-shrink-0 ${isSelected ? 'text-[#405189]' : 'text-gray-500'}`} />
-          )}
+        <TreeFolderIcon item={item} selected={isSelected} />
 
-          <span
-            className={`flex-1 text-[12.5px] truncate ${isSelected ? 'text-[#405189] font-semibold' : 'text-gray-700'}`}
-            title={selectedTenantId === null && node.tenantName ? `${node.treeName} · 테넌트: ${node.tenantName}` : node.treeName}
-          >
-            {node.treeName}
-            {/* 전체(admin) 보기에서 동일이름 그룹 구분 — 테넌트명 항상 노출. 단일테넌트 선택 시엔 중복이라 생략. */}
-            {selectedTenantId === null && node.tenantName && (
-              <span className={`ml-1 text-[11px] font-normal ${isSelected ? 'text-[#405189]/70' : 'text-gray-400'}`}>· {node.tenantName}</span>
-            )}
+        <TreeLabel selected={isSelected} title={selectedTenantId === null && node.tenantName ? `${node.treeName} · 테넌트: ${node.tenantName}` : node.treeName}>
+          {node.treeName}
+        </TreeLabel>
+
+        {isDropTarget && <span className="text-[10px] text-emerald-600 font-medium">↓ 여기로 배정</span>}
+
+        {/* 테넌트명 — 전체(admin) 보기에서 동일이름 그룹 구분용. 카운트 왼쪽에 칩(pill) 스타일로 표기해
+            숫자와 시각적으로 구분하고, hover 시 카운트와 함께 숨겨 액션 버튼에 자리를 내준다.
+            단일테넌트 선택 시엔 중복이라 생략. */}
+        {selectedTenantId === null && node.tenantName && (
+          <span className="h-5 inline-flex items-center flex-shrink-0 group-hover:hidden">
+            <span className="px-1.5 py-px rounded-full bg-gray-100 text-[10px] leading-4 text-gray-500 max-w-[120px] truncate">{node.tenantName}</span>
           </span>
+        )}
 
-          {isDropTarget && <span className="text-[10px] text-emerald-600 font-medium">↓ 여기로 배정</span>}
+        {/* 카운트 — 기본은 맨 우측에 표시, hover 시 숨겨 액션 버튼에 자리를 내준다.
+            h-5 로 액션 버튼과 높이를 맞춰 hover 시 행 높이가 흔들리지 않게 한다. */}
+        <span className="h-5 inline-flex items-center text-[11px] text-gray-400 flex-shrink-0 group-hover:hidden">{(scopedCount.get(node.treeId) ?? 0).toLocaleString()}</span>
 
-          <span className={`text-[11px] text-gray-400 flex-shrink-0 ${isSelected ? 'hidden' : 'group-hover:hidden'}`}>{(scopedCount.get(node.treeId) ?? 0).toLocaleString()}</span>
-
-          <div className={`flex items-center gap-0.5 flex-shrink-0 transition ${isSelected ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'}`}>
+        {/* 액션 — 기본은 숨김(자리 차지 안 함), hover 시에만 숫자 자리에 나타남 */}
+        <div className="hidden group-hover:flex items-center gap-0.5 flex-shrink-0">
+          <Tooltip title="하위 그룹 추가" {...TOOLTIP_PROPS}>
             <button
               type="button"
-              className="w-5 h-5 inline-flex items-center justify-center rounded text-gray-400 hover:bg-[#eef0f7] hover:text-[#405189]"
-              title="하위 그룹 추가"
+              className="w-5 h-5 inline-flex items-center justify-center rounded text-gray-400 hover:bg-[var(--color-bt-primary-soft)] hover:text-[var(--color-bt-primary)]"
               onClick={(e) => {
                 e.stopPropagation();
                 onCreateChild(node);
@@ -196,10 +156,11 @@ export default function CtiQueueGroupTree({
             >
               <Plus className="size-3.5" />
             </button>
+          </Tooltip>
+          <Tooltip title="그룹 수정" {...TOOLTIP_PROPS}>
             <button
               type="button"
-              className="w-5 h-5 inline-flex items-center justify-center rounded text-gray-400 hover:bg-[#eef0f7] hover:text-[#405189]"
-              title="그룹 수정"
+              className="w-5 h-5 inline-flex items-center justify-center rounded text-gray-400 hover:bg-[var(--color-bt-primary-soft)] hover:text-[var(--color-bt-primary)]"
               onClick={(e) => {
                 e.stopPropagation();
                 onEdit(node);
@@ -207,10 +168,11 @@ export default function CtiQueueGroupTree({
             >
               <Pencil className="size-3.5" />
             </button>
+          </Tooltip>
+          <Tooltip title="그룹 삭제" {...TOOLTIP_PROPS}>
             <button
               type="button"
               className="w-5 h-5 inline-flex items-center justify-center rounded text-gray-400 hover:bg-red-50 hover:text-red-500"
-              title="그룹 삭제"
               onClick={(e) => {
                 e.stopPropagation();
                 onDelete(node);
@@ -218,10 +180,9 @@ export default function CtiQueueGroupTree({
             >
               <Trash2 className="size-3.5" />
             </button>
-          </div>
+          </Tooltip>
         </div>
-        {hasChildren && isOpen && <div>{node.children.map((c) => renderNode(c, depth + 1))}</div>}
-      </div>
+      </TreeRow>
     );
   };
 
@@ -249,7 +210,9 @@ export default function CtiQueueGroupTree({
           onClick={() => onSelect(null)}
           title={`전체 ${totalCtiqCount.toLocaleString()}건`}
           className={`flex-shrink-0 inline-flex items-center gap-1 px-2 py-0.5 rounded-full border text-[11px] transition ${
-            isAllSelected ? 'border-[#405189] bg-[#405189] text-white' : 'border-gray-200 bg-white text-gray-700 hover:border-[#c5cbe0] hover:text-[#405189]'
+            isAllSelected
+              ? 'border-[var(--color-bt-primary)] bg-[var(--color-bt-primary)] text-white'
+              : 'border-gray-200 bg-white text-gray-700 hover:border-[var(--color-bt-primary)]/40 hover:text-[var(--color-bt-primary)]'
           }`}
         >
           <span className="font-medium">전체</span>
@@ -292,23 +255,24 @@ export default function CtiQueueGroupTree({
           <span className="font-medium">미배정</span>
           <span className={isUnassignedSelected ? 'text-white/80' : 'text-amber-500'}>{totalUnassignedCount.toLocaleString()}</span>
         </button>
-        <button
-          type="button"
-          onClick={toggleAll}
-          title={allExpanded ? '모두 접기' : '모두 펼치기'}
-          disabled={allExpandableIds.length === 0}
-          className="ml-auto w-6 h-6 inline-flex items-center justify-center rounded text-gray-400 hover:bg-white hover:text-[#405189] transition disabled:opacity-40 disabled:cursor-not-allowed"
-        >
-          {allExpanded ? <ChevronsDownUp className="size-3.5" /> : <ChevronsUpDown className="size-3.5" />}
-        </button>
+        <Tooltip title={allExpanded ? '모두 접기' : '모두 펼치기'} {...TOOLTIP_PROPS}>
+          <button
+            type="button"
+            onClick={toggleAll}
+            disabled={!hasExpandable}
+            className="ml-auto w-6 h-6 inline-flex items-center justify-center rounded text-gray-400 hover:bg-white hover:text-[var(--color-bt-primary)] transition disabled:opacity-40 disabled:cursor-not-allowed"
+          >
+            {allExpanded ? <ChevronsDownUp className="size-3.5" /> : <ChevronsUpDown className="size-3.5" />}
+          </button>
+        </Tooltip>
       </div>
 
       {/* 순수 그룹 트리 */}
       <div className="flex-1 overflow-auto py-1">
-        {filtered.length === 0 ? (
+        {items.length === 0 ? (
           <div className="px-3 py-6 text-center text-[11px] text-gray-400">{selectedTenantId === null ? '상단 카드에서 테넌트를 선택하세요' : '등록된 업무그룹이 없습니다'}</div>
         ) : (
-          filtered.map((node) => renderNode(node, 0))
+          <div {...rootProps}>{items.map(renderRow)}</div>
         )}
       </div>
     </div>
