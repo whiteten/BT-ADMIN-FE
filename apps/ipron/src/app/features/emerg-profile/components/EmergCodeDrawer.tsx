@@ -136,7 +136,7 @@ const EmergCodeDrawer = forwardRef<EmergCodeDrawerRef, EmergCodeDrawerProps>(({ 
           <Input placeholder="코드명을 입력하세요" maxLength={128} />
         </Form.Item>
 
-        <Form.Item label="라우트" name="routeId" rules={[{ required: true, message: '라우트를 선택해주세요' }]}>
+        <Form.Item label="라우트" name="routeId" rules={[{ required: true, message: '라우트는 필수입니다' }]}>
           <Select placeholder="라우트 선택" options={routeOptions} showSearch optionFilterProp="label" />
         </Form.Item>
 

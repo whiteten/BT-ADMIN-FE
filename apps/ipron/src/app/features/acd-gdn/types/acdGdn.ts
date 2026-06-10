@@ -4,7 +4,7 @@
  * AS-IS: SWAT IPR20S3010(마스터) + IPR20S3030(멤버)
  * BE: BT-ADMIN-SERVICE-IPRON `/api/ipron/acd-gdns`
  *
- * Phase 1 — 멘트 wizard 제거, 멘트 ID 컬럼은 등록 폼 콤보로만 유지.
+ * 멘트 wizard 제거, 멘트 ID 컬럼은 등록 폼 콤보로만 유지.
  */
 
 // ──────────────────────────────────────────────────────────
@@ -48,7 +48,7 @@ export interface GdnResponse {
   coHoldMent: number | null;
   blockMent: number | null;
 
-  // 블럭/종료/라우팅
+  // 블록/종료/라우팅
   blockYn: number | null;
   closeType: number | null;
   blockRoutingDnis: string | null;
@@ -189,9 +189,9 @@ export interface GdnMemberSaveRequest {
 // ──────────────────────────────────────────────────────────
 
 export const ACD_TYPE_OPTIONS: { value: number; label: string }[] = [
-  { value: 1, label: 'Login Agent' },
-  { value: 2, label: 'Phone Regi' },
-  { value: 3, label: 'Login Agent DN (Skill)' },
+  { value: 1, label: '로그인 상담사' },
+  { value: 2, label: '전화 등록' },
+  { value: 3, label: '로그인 상담사 DN (스킬)' },
 ];
 
 export const ROUTING_KIND_OPTIONS: { value: number; label: string }[] = [

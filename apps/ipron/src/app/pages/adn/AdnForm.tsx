@@ -330,7 +330,7 @@ export default function AdnForm() {
               </div>
               <div className="flex justify-between">
                 <dt className="text-gray-500">DN 유형</dt>
-                <dd>12 (ADN, 고정)</dd>
+                <dd>ADN (상담 내선)</dd>
               </div>
               <div className="flex justify-between">
                 <dt className="text-gray-500">초기 상태</dt>
@@ -345,9 +345,7 @@ export default function AdnForm() {
                 <dd className={md5Auth === 1 ? 'text-blue-600 font-semibold' : 'text-gray-500'}>{md5Auth === 1 ? '설정' : '해제'}</dd>
               </div>
             </dl>
-            <div className="mt-6 text-[12px] text-gray-400 leading-relaxed">
-              ADN 은 TB_IE_DN_MASTER 의 DN_TYPE=12 슬라이스입니다. 등록 시 nodeId/deviceType/dnProfileId 는 모두 0 으로 고정됩니다.
-            </div>
+            <div className="mt-6 text-[12px] text-gray-400 leading-relaxed">등록 시 노드/단말유형/내선프로파일은 기본값으로 설정됩니다.</div>
           </Card>
         </Col>
       </Row>

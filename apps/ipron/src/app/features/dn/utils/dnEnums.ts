@@ -2,11 +2,11 @@
  * DN 관리 Enum 라벨 매핑
  * SD-DN-MANAGEMENT.md 기준
  * - dnType:       11=EDN(내선), 12=AGT(상담), 13=TDN(트렁크)
- * - dnStatus:     0=미등록, 1=정상
+ * - dnStatus:     0=미등록, 1=등록
  * - ipVersion:    4=IPv4, 6=IPv6
  * - transportType: udp/tcp/tls/ws/wss
  * - extAuthtype:  1=고정IP, 2=동적IP
- * - adnDftState:  1=대기, 2=휴식, 3=후처리, 4=이석, 9=기타
+ * - adnDftState:  1=대기, 2=휴식, 3=후처리(ACW), 4=이석, 9=기타
  */
 import type { AdnDefaultState, DnStatus, DnType, ExtAuthType, IpVersion, TransportType } from '../types';
 
@@ -36,13 +36,13 @@ export const DN_TYPE_OPTIONS_PRIMARY = [{ label: 'EDN (내선)', value: '11' as 
 // ─── DN 상태 ────────────────────────────────────────────────────────────────
 
 export const DN_STATUS_LABELS: Record<DnStatus, string> = {
-  '0': 'UNREGISTERED',
-  '1': 'REGISTERED',
+  '0': '미등록',
+  '1': '등록',
 };
 
 export const DN_STATUS_OPTIONS = [
-  { label: '언레지', value: '0' as DnStatus },
-  { label: '레지', value: '1' as DnStatus },
+  { label: '미등록', value: '0' as DnStatus },
+  { label: '등록', value: '1' as DnStatus },
 ];
 
 // ─── IP 버전 ────────────────────────────────────────────────────────────────

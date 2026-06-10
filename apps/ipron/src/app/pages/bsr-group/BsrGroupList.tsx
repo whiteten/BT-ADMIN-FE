@@ -45,7 +45,7 @@ import { useModal } from '@/libs/shared-ui/src/hooks/useModal';
 
 const breadcrumb = [
   { title: '번호자원관리', path: '/ipron/bsr-group' },
-  { title: '그룹DN', path: '/ipron/bsr-group' },
+  { title: '라우팅 설정', path: '/ipron/bsr-group' },
   { title: 'BSR 그룹 관리', path: '/ipron/bsr-group' },
 ];
 

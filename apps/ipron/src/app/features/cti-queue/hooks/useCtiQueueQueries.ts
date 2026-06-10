@@ -3,7 +3,7 @@
  *
  * invalidate 매트릭스:
  *  - create/update/delete → getList + getTenants (+ getDetail on update)
- *  - bsr/slt 스케쥴 배정/해제 → 해당 큐 스케쥴 목록
+ *  - bsr/slt 스케줄 배정/해제 → 해당 큐 스케줄 목록
  */
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { createQueryKeys } from '@lukemorales/query-key-factory';
@@ -114,7 +114,7 @@ export const useGetCtiQueueMediaOptions = ({ queryOptions }: QueryHookOptions<Ct
   });
 
 /**
- * BSR 스케쥴 풀 — 배정 후보 전체 목록 (피커 팝업용, SWAT IPR20S3020SIL.do 정합).
+ * BSR 스케줄 풀 — 배정 후보 전체 목록 (피커 팝업용, SWAT IPR20S3020SIL.do 정합).
  * tenantId 가 있을 때만 조회. open 조건은 호출부가 enabled 로 제어.
  */
 export const useGetCtiQueueBsrSchedulePool = (tenantId: number | null | undefined, { queryOptions }: QueryHookOptions<QuebsrScheduleResponse[]> = {}) =>
@@ -126,7 +126,7 @@ export const useGetCtiQueueBsrSchedulePool = (tenantId: number | null | undefine
   });
 
 /**
- * SLT 스케쥴 풀 — 배정 후보 전체 목록 (피커 팝업용).
+ * SLT 스케줄 풀 — 배정 후보 전체 목록 (피커 팝업용).
  */
 export const useGetCtiQueueSltSchedulePool = (tenantId: number | null | undefined, { queryOptions }: QueryHookOptions<SltScheduleResponse[]> = {}) =>
   useQuery({

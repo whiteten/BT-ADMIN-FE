@@ -39,8 +39,8 @@ import { useGetDnProfileNodes, useGetDnProfileTenants } from '../../features/dn-
 import { useModal } from '@/libs/shared-ui/src/hooks/useModal';
 
 const breadcrumb = [
-  { title: '번호자원관리', path: '/ipron/cti-queue' },
-  { title: '그룹DN', path: '/ipron/cti-queue' },
+  { title: '번호자원관리', path: '/ipron/numbering' },
+  { title: '교환기 번호관리', path: '/ipron/numbering' },
   { title: 'CTI 큐', path: '/ipron/cti-queue' },
 ];
 
@@ -70,7 +70,7 @@ export default function CtiQueueList() {
   const groupView = true;
   const [selectedTreeId, setSelectedTreeId] = useState<number | null>(null); // null=전체, 0=미배정, n=실제 트리
   const [selectedRows, setSelectedRows] = useState<CtiQueueResponse[]>([]);
-  const [cardExpanded, setCardExpanded] = useState(true);
+  const [cardExpanded, setCardExpanded] = useState(false);
   const [drawer, setDrawer] = useState<CtiQueueDrawerState>({ open: false });
 
   // 업무그룹 트리 Drawer (추가/수정)
@@ -391,16 +391,6 @@ export default function CtiQueueList() {
     });
   };
 
-  const handleDelete = (row: CtiQueueResponse) => {
-    modal.confirm.execute({
-      onOk: () => deleteQueue(row.ctiqId),
-      options: {
-        title: 'CTI 큐 삭제',
-        content: `"${row.gdnName ?? row.ctiqName ?? row.ctiqId}" CTI 큐를 삭제하시겠습니까?\n그룹DN(번호 ${row.gdnNo ?? '-'})도 함께 삭제됩니다.`,
-      },
-    });
-  };
-
   const handleDeleteSelected = () => {
     if (selectedRows.length === 0) return;
     modal.confirm.execute({
@@ -614,7 +604,7 @@ export default function CtiQueueList() {
                     key={item.id}
                     type="button"
                     className={`flex items-center justify-center gap-2 px-3 py-2.5 text-[13px] font-medium cursor-pointer border-b-2 -mb-[1px] w-[140px] flex-shrink-0 transition-colors ${
-                      isActive ? 'bg-blue-50 text-blue-700 border-b-current' : 'text-gray-500 border-b-transparent hover:text-gray-700'
+                      isActive ? 'bg-blue-50 text-[var(--color-bt-primary)] border-b-[var(--color-bt-primary)]' : 'text-gray-500 border-b-transparent hover:text-gray-700'
                     }`}
                     onClick={(e) => {
                       handleTabSelect(item.id);
@@ -814,10 +804,7 @@ export default function CtiQueueList() {
                 groupOptions={groupOptions}
                 groupView={true}
                 onRowDoubleClicked={handleEdit}
-                onDelete={handleDelete}
                 onSelectionChanged={setSelectedRows}
-                onBulkDelete={handleDeleteSelected}
-                selectedCount={selectedRows.length}
                 getDragCtiqIds={getDragCtiqIds}
               />
             </div>

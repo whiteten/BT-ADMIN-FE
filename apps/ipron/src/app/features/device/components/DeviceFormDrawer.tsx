@@ -394,15 +394,13 @@ const DeviceFormDrawer = forwardRef<DeviceFormDrawerRef, Props>(({ deviceTypes, 
   }, [form, editId, nodeId, lines, buttons, createDevice, updateDevice]);
 
   const handleAssignDn = useCallback(
-    (seq: number) => {
+    (_seq: number) => {
       if (!editId) {
         toast.warning('단말기 저장 후 DN을 배정할 수 있습니다.');
         return;
       }
-      const dnNoStr = window.prompt('배정할 DN 번호를 입력하세요:');
-      if (!dnNoStr) return;
-      // 실제 운영에서는 DN 검색 팝업이 필요하나, 현재는 직접 입력 방식으로 구현
-      toast.info('DN 배정은 목록 화면에서 행을 선택 후 처리합니다. (직접 배정 팝업 미구현)');
+      // TODO: DN 검색 팝업 연동
+      toast.info('DN 배정은 목록 화면에서 행을 선택 후 처리합니다.');
     },
     [editId],
   );
@@ -535,7 +533,7 @@ const DeviceFormDrawer = forwardRef<DeviceFormDrawerRef, Props>(({ deviceTypes, 
       </div>
 
       {/* 펌웨어 구분선 */}
-      <div className="text-xs font-semibold text-gray-500 mb-2 mt-1 border-b pb-1">FIRMWARE 설정</div>
+      <div className="text-xs font-semibold text-gray-500 mb-2 mt-1 border-b pb-1">펌웨어 설정</div>
 
       <Form.Item name="firmUpdUseYn" label="펌웨어 UPDATE 사용여부">
         <Radio.Group>

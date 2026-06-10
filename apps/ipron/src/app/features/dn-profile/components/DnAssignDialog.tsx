@@ -121,7 +121,7 @@ export default function DnAssignDialog({ open, profile, onCancel, onSuccess }: D
         showIcon
         className="!mb-3 !flex-shrink-0"
         message={isTrunk ? '선택한 TDN의 TRUNK 프로파일이 현재 프로파일로 변경됩니다' : '선택한 DN의 내선 프로파일이 현재 프로파일로 변경됩니다'}
-        description="그룹 DN 소속 DN은 배정 불가 — 백엔드에서 차단. 이미 이 프로파일에 속한 DN도 표시되며 재선택은 무시됩니다."
+        description="그룹 DN 소속 DN은 배정할 수 없습니다. 이미 이 프로파일에 속한 DN은 회색으로 표시됩니다."
       />
 
       <div className="flex items-center gap-2 mb-3 flex-shrink-0">

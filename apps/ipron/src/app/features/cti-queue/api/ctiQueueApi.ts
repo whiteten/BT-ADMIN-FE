@@ -16,14 +16,14 @@
  *  ipron-cti-queue-options-skillsets        GET  미디어별 스킬셋 콤보
  *  ipron-cti-queue-options-bsr-groups       GET  BSR 그룹 콤보
  *  ipron-cti-queue-options-media-types      GET  라이선스 미디어 목록
- *  ipron-cti-queue-options-bsr-schedule-pool  GET  BSR 스케쥴 풀 (배정 후보, SWAT IPR20S3020SIL.do)
- *  ipron-cti-queue-options-slt-schedule-pool  GET  SLT 스케쥴 풀 (배정 후보)
- *  ipron-cti-queue-bsr-schedules            GET    BSR 스케쥴 목록 ({ctiqId})
- *  ipron-cti-queue-bsr-schedules-assign     POST   BSR 스케쥴 배정 ({ctiqId})
- *  ipron-cti-queue-bsr-schedules-unassign   DELETE BSR 스케쥴 해제 ({ctiqId},{scheduleId})
- *  ipron-cti-queue-slt-schedules            GET    SLT 스케쥴 목록 ({ctiqId})
- *  ipron-cti-queue-slt-schedules-assign     POST   SLT 스케쥴 배정 ({ctiqId})
- *  ipron-cti-queue-slt-schedules-unassign   DELETE SLT 스케쥴 해제 ({ctiqId},{scheduleId})
+ *  ipron-cti-queue-options-bsr-schedule-pool  GET  BSR 스케줄 풀 (배정 후보, SWAT IPR20S3020SIL.do)
+ *  ipron-cti-queue-options-slt-schedule-pool  GET  SLT 스케줄 풀 (배정 후보)
+ *  ipron-cti-queue-bsr-schedules            GET    BSR 스케줄 목록 ({ctiqId})
+ *  ipron-cti-queue-bsr-schedules-assign     POST   BSR 스케줄 배정 ({ctiqId})
+ *  ipron-cti-queue-bsr-schedules-unassign   DELETE BSR 스케줄 해제 ({ctiqId},{scheduleId})
+ *  ipron-cti-queue-slt-schedules            GET    SLT 스케줄 목록 ({ctiqId})
+ *  ipron-cti-queue-slt-schedules-assign     POST   SLT 스케줄 배정 ({ctiqId})
+ *  ipron-cti-queue-slt-schedules-unassign   DELETE SLT 스케줄 해제 ({ctiqId},{scheduleId})
  */
 import ApiClient, { type ApiResponse } from '@/shared-util';
 import type {
@@ -116,19 +116,19 @@ export const ctiQueueApi = {
   },
 
   /**
-   * BSR 스케쥴 풀 — 배정 후보 전체 목록 (SWAT IPR20S3020SIL.do 정합).
+   * BSR 스케줄 풀 — 배정 후보 전체 목록 (SWAT IPR20S3020SIL.do 정합).
    * 이미 배정된 것도 포함해 반환하므로 FE 피커에서 이미 배정된 항목은 disabled 처리.
    */
   getBsrSchedulePool: async (params?: { tenantId?: number }): Promise<QuebsrScheduleResponse[]> => {
-    const res = await apiClient.get<ApiResponse<{ value: QuebsrScheduleResponse[] }>>('/ipron-cti-queue-options-bsr-schedule-pool', { params });
+    const res = await apiClient.get<ApiResponse<{ value: QuebsrScheduleResponse[] }>>('/ipron-cti-queue-options-bsr-schedule-pool', { params, silent: true });
     return res.data?.data?.value ?? [];
   },
 
   /**
-   * SLT 스케쥴 풀 — 배정 후보 전체 목록.
+   * SLT 스케줄 풀 — 배정 후보 전체 목록.
    */
   getSltSchedulePool: async (params?: { tenantId?: number }): Promise<SltScheduleResponse[]> => {
-    const res = await apiClient.get<ApiResponse<{ value: SltScheduleResponse[] }>>('/ipron-cti-queue-options-slt-schedule-pool', { params });
+    const res = await apiClient.get<ApiResponse<{ value: SltScheduleResponse[] }>>('/ipron-cti-queue-options-slt-schedule-pool', { params, silent: true });
     return res.data?.data?.value ?? [];
   },
 
@@ -142,7 +142,7 @@ export const ctiQueueApi = {
     return (res.data?.data?.value ?? []).map((p) => ({ id: p.accessCodeProfileId, name: p.accessCodeProfileName ?? `프로파일 ${p.accessCodeProfileId}` }));
   },
 
-  // ─── BSR 스케쥴 서브그리드 ──────────────────────────────────────────────────
+  // ─── BSR 스케줄 서브그리드 ──────────────────────────────────────────────────
 
   getBsrSchedules: async (ctiqId: number): Promise<QuebsrScheduleResponse[]> => {
     const res = await apiClient.get<ApiResponse<{ value: QuebsrScheduleResponse[] }>>('/ipron-cti-queue-bsr-schedules', { params: { ctiqId } });
@@ -157,7 +157,7 @@ export const ctiQueueApi = {
     await apiClient.delete('/ipron-cti-queue-bsr-schedules-unassign', { params: { ctiqId, scheduleId } });
   },
 
-  // ─── SLT 스케쥴 서브그리드 (탭5) ────────────────────────────────────────────
+  // ─── SLT 스케줄 서브그리드 (탭5) ────────────────────────────────────────────
 
   getSltSchedules: async (ctiqId: number): Promise<SltScheduleResponse[]> => {
     const res = await apiClient.get<ApiResponse<{ value: SltScheduleResponse[] }>>('/ipron-cti-queue-slt-schedules', { params: { ctiqId } });

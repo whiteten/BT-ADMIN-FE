@@ -76,7 +76,7 @@ export default function DnList() {
   const [importOpen, setImportOpen] = useState(false);
   const [copyOpen, setCopyOpen] = useState(false);
   const [bulkDeleteOpen, setBulkDeleteOpen] = useState(false);
-  const [cardExpanded, setCardExpanded] = useState(true);
+  const [cardExpanded, setCardExpanded] = useState(false);
   // 갭7: 여유번호 검색 다이얼로그
   const [freeDnOpen, setFreeDnOpen] = useState(false);
   const [freeDnStartNo, setFreeDnStartNo] = useState('');

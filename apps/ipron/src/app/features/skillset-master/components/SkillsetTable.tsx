@@ -19,7 +19,7 @@ interface Props {
   isLoading?: boolean;
   onRowDoubleClicked: (row: SkillsetResponse) => void;
   onDelete: (row: SkillsetResponse) => void;
-  /** 스케쥴 관리 drawer 열기 */
+  /** 스케줄 관리 drawer 열기 */
   onManageSchedule?: (row: SkillsetResponse) => void;
   onSelectionChanged?: (selected: SkillsetResponse[]) => void;
   onBulkDelete?: () => void;
@@ -56,7 +56,7 @@ function YnPill({ value }: { value: number | null }) {
         active ? 'text-green-700 bg-green-50 border border-green-200' : 'text-gray-500 bg-gray-50 border border-gray-200'
       }`}
     >
-      {active ? 'ON' : 'OFF'}
+      {active ? '활성' : '비활성'}
     </span>
   );
 }
@@ -161,7 +161,7 @@ export default function SkillsetTable({
       },
       { headerName: '설명', field: 'skillsetDesc', minWidth: 200, flex: 1, valueFormatter: (p) => p.value ?? '-' },
       {
-        headerName: '스케쥴',
+        headerName: '스케줄',
         width: 70,
         maxWidth: 80,
         sortable: false,
@@ -176,7 +176,7 @@ export default function SkillsetTable({
           return (
             <button
               type="button"
-              title="스케쥴 관리"
+              title="스케줄 관리"
               className="text-gray-400 hover:text-[#405189]"
               onClick={(e) => {
                 e.stopPropagation();

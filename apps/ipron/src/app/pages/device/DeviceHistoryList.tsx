@@ -155,7 +155,18 @@ export default function DeviceHistoryList() {
   // ─── Column Defs ─────────────────────────────────────────────────────────────
   const columnDefs: ColDef<DevHistoryResponse>[] = useMemo(
     () => [
-      { field: 'mdfyTime', headerName: '변경일시', flex: 1.3, minWidth: 155 },
+      {
+        field: 'mdfyTime',
+        headerName: '변경일시',
+        flex: 1.3,
+        minWidth: 155,
+        valueFormatter: (p) =>
+          p.value
+            ? String(p.value)
+                .replace('T', ' ')
+                .replace(/\.\d+$/, '')
+            : '-',
+      },
       { field: 'macAddr', headerName: 'MAC 주소', flex: 1.2, minWidth: 140 },
       { field: 'dnNo', headerName: '대표DN', flex: 0.8, minWidth: 100 },
       { field: 'ieUsername', headerName: '사용자명', flex: 1, minWidth: 110 },
@@ -187,7 +198,7 @@ export default function DeviceHistoryList() {
                 <Form.Item name="startDn" noStyle>
                   <Input placeholder="시작" style={{ width: 90 }} />
                 </Form.Item>
-                <Input placeholder="~" disabled style={{ width: 36, textAlign: 'center', background: '#fafafa' }} />
+                <Input placeholder="-" disabled style={{ width: 36, textAlign: 'center', background: '#fafafa' }} />
                 <Form.Item name="endDn" noStyle>
                   <Input placeholder="종료" style={{ width: 90 }} />
                 </Form.Item>

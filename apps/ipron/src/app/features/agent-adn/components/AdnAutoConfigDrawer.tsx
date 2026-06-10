@@ -90,8 +90,8 @@ export default function AdnAutoConfigDrawer({ open, initial, onCancel, onSubmit,
       <Alert
         type="info"
         showIcon
-        message="Prefix + 자릿수로 ADN을 자동 채번해 미할당 상담사에게 일괄 매핑합니다."
-        description="전체 테넌트 공통 정책입니다. 비활성 시 [자동할당] 버튼이 비활성화됩니다."
+        message="Prefix + 자릿수로 ADN을 자동 채번해 미배정 상담사에게 일괄 매핑합니다."
+        description="전체 테넌트 공통 정책입니다. 비활성 시 [자동배정] 버튼이 비활성화됩니다."
         className="!mb-4"
       />
 
@@ -123,7 +123,7 @@ export default function AdnAutoConfigDrawer({ open, initial, onCancel, onSubmit,
         {/* 미리보기 */}
         {preview && (
           <div className="mb-4 rounded border border-blue-200 bg-blue-50 p-3">
-            <div className="text-[11px] font-semibold text-blue-900 mb-1.5">📐 생성 범위 미리보기</div>
+            <div className="text-[11px] font-semibold text-blue-900 mb-1.5">생성 범위 미리보기</div>
             <div className="font-mono text-sm text-blue-900">
               {preview.start} ~ {preview.end}
             </div>
@@ -142,13 +142,13 @@ export default function AdnAutoConfigDrawer({ open, initial, onCancel, onSubmit,
               <div className="text-[11px] text-amber-900 mt-1 space-y-1">
                 {conflict.usedAdns.length > 0 && (
                   <div>
-                    <span className="font-semibold">기존 ADN(자동할당 시 재사용):</span> <span className="font-mono">{conflict.usedAdns.slice(0, 6).join(', ')}</span>
+                    <span className="font-semibold">기존 ADN(자동배정 시 재사용):</span> <span className="font-mono">{conflict.usedAdns.slice(0, 6).join(', ')}</span>
                     {conflict.usedAdns.length > 6 && ` 외 ${conflict.usedAdns.length - 6}건`}
                   </div>
                 )}
                 {conflict.conflictingDns.length > 0 && (
                   <div>
-                    <span className="font-semibold">다른 유형 DN(자동할당 시 회피):</span> <span className="font-mono">{conflict.conflictingDns.slice(0, 6).join(', ')}</span>
+                    <span className="font-semibold">다른 유형 DN(자동배정 시 회피):</span> <span className="font-mono">{conflict.conflictingDns.slice(0, 6).join(', ')}</span>
                     {conflict.conflictingDns.length > 6 && ` 외 ${conflict.conflictingDns.length - 6}건`}
                   </div>
                 )}

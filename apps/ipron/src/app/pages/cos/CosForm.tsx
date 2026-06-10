@@ -384,41 +384,37 @@ export default function CosForm() {
   // ─── Footer ──────────────────────────────────────────────────────────────────
   function renderFooter() {
     return (
-      <Row gutter={20} justify="center">
-        <Col>
-          <Button variant="solid" onClick={() => navigate('/ipron/cos')}>
-            취소
-          </Button>
-        </Col>
-        {isEditMode && (
-          <Col>
+      <div className="flex items-center justify-between">
+        {/* 좌측: 위험 액션(삭제) 분리 */}
+        <div>
+          {isEditMode && (
             <Button variant="solid" color="danger" onClick={handleDeleteConfirm}>
               삭제
             </Button>
-          </Col>
-        )}
-        {currentStep > 0 && (
-          <Col>
+          )}
+        </div>
+        {/* 우측: 네비게이션 + 저장 */}
+        <div className="flex items-center gap-3">
+          <Button variant="solid" onClick={() => navigate('/ipron/cos')}>
+            취소
+          </Button>
+          {currentStep > 0 && (
             <Button variant="solid" onClick={() => setCurrentStep((prev) => prev - 1)}>
               이전
             </Button>
-          </Col>
-        )}
-        {!isLastStep && (
-          <Col>
+          )}
+          {!isLastStep && (
             <Button variant="solid" color="primary" onClick={handleNext}>
               다음
             </Button>
-          </Col>
-        )}
-        {isLastStep && (
-          <Col>
+          )}
+          {isLastStep && (
             <Button variant="solid" color="primary" onClick={handleSubmit} loading={isPending}>
               {isEditMode ? '수정' : '등록'}
             </Button>
-          </Col>
-        )}
-      </Row>
+          )}
+        </div>
+      </div>
     );
   }
 

@@ -205,7 +205,7 @@ const DodTransItemDrawer = forwardRef<DodTransItemDrawerRef, Props>(({ onSuccess
           <Select options={[...EDIT_OPT_OPTIONS]} placeholder="편집옵션을 선택하세요" />
         </Form.Item>
 
-        <Form.Item name="delCount" label="편집 Digit 수" rules={[{ required: true, message: '편집 Digit 수는 필수입니다' }]}>
+        <Form.Item name="delCount" label="Digit 수" rules={[{ required: true, message: 'Digit 수는 필수입니다' }]}>
           <InputNumber min={-1} max={99} placeholder="0" className="w-full" />
         </Form.Item>
 

@@ -108,15 +108,20 @@ export default function MediaTypeFormDrawer({ state, onClose }: Props) {
       }
     >
       <Form form={form} layout="vertical">
-        <Form.Item label="미디어 코드" name="mediaType" rules={[{ required: true, message: '필수' }]} tooltip="IC_MEDIA_TYPE 메타의 코드 — 등록 시 미배정 항목만 선택 가능">
+        <Form.Item
+          label="미디어 코드"
+          name="mediaType"
+          rules={[{ required: true, message: '미디어 코드는(는) 필수입니다' }]}
+          tooltip="등록 시 아직 배정되지 않은 항목만 선택 가능합니다"
+        >
           <Select options={mode === 'create' ? createOptions : allOptions} disabled={mode === 'edit'} placeholder="미디어 코드 선택" showSearch optionFilterProp="label" />
         </Form.Item>
         <Form.Item
           label="표시 이름"
           name="mediaAlias"
           rules={[
-            { required: true, message: '필수' },
-            { max: 32, message: '32자 이내' },
+            { required: true, message: '표시 이름은(는) 필수입니다' },
+            { max: 32, message: '32자 이내여야 합니다' },
           ]}
         >
           <Input maxLength={32} placeholder="예: 화상 상담" />

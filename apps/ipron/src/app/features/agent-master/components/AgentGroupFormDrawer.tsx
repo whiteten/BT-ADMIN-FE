@@ -1,5 +1,5 @@
 /**
- * 상담그룹 등록/수정 우측 슬라이드 Drawer (목업 정합 — agent-master.html "④ 상담그룹 추가/수정 drawer-2").
+ * 상담그룹 등록/수정 우측 슬라이드 Drawer.
  *
  * 트리 액션에서 호출:
  *   - 트리 하단 "+ 최상위 그룹 추가" → mode='create', priorGrpId 없음
@@ -244,7 +244,7 @@ export default function AgentGroupFormDrawer({ open, mode, groupId, initialTenan
             items={[
               {
                 key: 'basic',
-                label: '① 기본정보',
+                label: '기본정보',
                 children: (
                   <div>
                     <SectionTitle>소속</SectionTitle>
@@ -310,10 +310,10 @@ export default function AgentGroupFormDrawer({ open, mode, groupId, initialTenan
               },
               {
                 key: 'media',
-                label: '② 그룹 기본 미디어 옵션',
+                label: '미디어 옵션',
                 children: (
                   <div>
-                    <div className="text-[12px] text-gray-500 mb-3">상담사 등록 시 "그룹 미디어 옵션 사용" (USE_GRP_MDA_OPT=1) 선택 시 이 값이 상속됩니다.</div>
+                    <div className="text-[12px] text-gray-500 mb-3">상담사 등록 시 "그룹 미디어 옵션 사용"을 선택하면 이 그룹의 미디어 설정값이 상담사에게 상속됩니다.</div>
                     <AgentMediaCards value={matrix} onChange={setMatrix} hideAutoAns />
                   </div>
                 ),

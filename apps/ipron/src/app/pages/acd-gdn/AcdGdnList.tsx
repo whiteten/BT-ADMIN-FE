@@ -56,7 +56,7 @@ export default function AcdGdnList() {
   const [viewMode, setViewMode] = useState<'byNode' | 'byTenant'>('byNode');
   const [selectedNodeId, setSelectedNodeId] = useState<number | null>(null);
   const [selectedTenantId, setSelectedTenantId] = useState<number | null>(null);
-  const [cardExpanded, setCardExpanded] = useState(true);
+  const [cardExpanded, setCardExpanded] = useState(false);
 
   // 좌 그리드 검색/필터
   const [gdnSearch, setGdnSearch] = useState('');
@@ -399,22 +399,22 @@ export default function AcdGdnList() {
         width: 75,
         filter: false,
         suppressHeaderMenuButton: true,
-        valueFormatter: (p) => (p.value === 1 ? 'Y' : 'N'),
+        valueFormatter: (p) => (p.value === 1 ? '사용' : '미사용'),
       },
       {
-        headerName: '블럭시라우팅',
+        headerName: '블록 시 라우팅',
         field: 'blockRoutingDnis',
         width: 110,
         valueFormatter: (p) => (p.value == null || p.value === '' ? '-' : p.value),
       },
       {
-        headerName: '장애시라우팅',
+        headerName: '장애 시 라우팅',
         field: 'errorRoutingDnis',
         width: 110,
         valueFormatter: (p) => (p.value == null || p.value === '' ? '-' : p.value),
       },
       {
-        headerName: 'Busy시라우팅',
+        headerName: '통화량 초과 시 라우팅',
         field: 'busyRoutingDnis',
         width: 110,
         valueFormatter: (p) => (p.value == null || p.value === '' ? '-' : p.value),
@@ -427,7 +427,7 @@ export default function AcdGdnList() {
         suppressHeaderMenuButton: true,
         cellStyle: { textAlign: 'center' },
         cellRenderer: (p: ICellRendererParams<GdnResponse>) =>
-          p.data?.blockYn === 1 ? <span className="text-red-500 text-[11px] font-semibold">ON</span> : <span className="text-gray-400 text-[11px]">OFF</span>,
+          p.data?.blockYn === 1 ? <span className="text-red-500 text-[11px] font-semibold">설정</span> : <span className="text-gray-400 text-[11px]">해제</span>,
       },
     ],
     [],
@@ -464,6 +464,8 @@ export default function AcdGdnList() {
   const unassignedSelCount = selectedMembers.filter((m) => !m.assigned).length;
 
   const tenantOptions = useMemo(() => tenants.map((t) => ({ value: t.tenantId, label: t.tenantName })), [tenants]);
+  // NUM-001: 노드 옵션 — 할당된 노드만 (DnForm:nodeOptions 패턴 정합)
+  const nodeOptionsForDrawer = useMemo(() => assignedNodes.map((n) => ({ value: n.nodeId, label: n.nodeName })), [assignedNodes]);
 
   // ─── Render ───────────────────────────────────────────────────────────────
   return (
@@ -601,6 +603,7 @@ export default function AcdGdnList() {
           <div className="flex items-center h-[44px] px-4">
             <div className="relative flex items-center gap-2 w-full">
               <div className="flex gap-2 overflow-x-auto flex-1 items-center" style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}>
+                <CompactTenantPill name="전체" count={gdnsForGrid.length} selected={selectedCardId === null} onClick={() => setSelectedCardId(null)} />
                 {cardStats.map((g) => (
                   <CompactTenantPill
                     key={g.id}
@@ -746,7 +749,7 @@ export default function AcdGdnList() {
             onClick={handleAssign}
             loading={isSavingMembers}
             disabled={unassignedSelCount === 0}
-            style={{ backgroundColor: '#16a34a', borderColor: '#16a34a' }}
+            style={{ backgroundColor: 'var(--color-bt-primary)', borderColor: 'var(--color-bt-primary)' }}
           >
             배정 ({unassignedSelCount})
           </Button>
@@ -767,6 +770,7 @@ export default function AcdGdnList() {
         defaultTenantId={selectedTenantId}
         defaultNodeId={selectedNodeId}
         tenantOptions={tenantOptions}
+        nodeOptions={nodeOptionsForDrawer}
         onClose={() => setDrawerOpen(false)}
         onSaved={() => setDrawerOpen(false)}
       />

@@ -36,9 +36,10 @@ import { useGetMediaTypes } from '../../features/media-type/hooks/useMediaTypeQu
 import { useModal } from '@/libs/shared-ui/src/hooks/useModal';
 
 const breadcrumb = [
+  { title: 'IPRON', path: '/ipron' },
   { title: '상담사 관리', path: '/ipron/agent-master' },
   { title: '상담사', path: '/ipron/agent-master' },
-  { title: '상담사 현황', path: '/ipron/agent-master' },
+  { title: '상담사 설정', path: '/ipron/agent-master' },
 ];
 
 export default function AgentMasterList() {
@@ -396,7 +397,7 @@ export default function AgentMasterList() {
       {/* ===== 박스 1: 헤더 (별도 박스) ===== */}
       <div className="bg-white bt-shadow overflow-hidden flex-shrink-0">
         <div className="flex items-center px-4 h-[56px]">
-          <span className="text-sm font-semibold text-gray-700">상담사 현황</span>
+          <span className="text-sm font-semibold text-gray-700">상담사 설정</span>
           {selectedTenantId !== null && (
             <span className="ml-3 text-xs text-gray-500">
               테넌트: <span className="font-medium text-gray-700">{tenantStats.find((t) => t.tenantId === selectedTenantId)?.tenantName ?? `#${selectedTenantId}`}</span>
