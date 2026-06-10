@@ -1,21 +1,20 @@
 /**
- * 스킬모음 적용 드로어 (승인 목업: skillgroup-v2.html).
+ * 스킬모음 적용 드로어.
  *
  * 진입: 스킬 배정 화면 하단 플로팅 액션바 [스킬모음 적용] — 상담사 1명 이상 체크 시 활성.
  * 구성:
  *  - 적용 대상 상담사 칩 (배정 화면에서 체크한 상담사)
- *  - 스킬모음 검색 / 단일 선택 목록 — 모음 CRUD 내장 ([모음 등록] / 행 hover ✎·🗑, 별도 메뉴 없음)
- *  - 멤버 스킬셋 P/L 미리보기 (읽기전용 — 값 변경은 모음 수정에서)
+ *  - 스킬모음 검색 / 단일 선택 목록 (읽기전용 — 등록/수정/삭제는 스킬셋 관리에서)
+ *  - 멤버 스킬셋 P/L 미리보기 (읽기전용)
  *  - [적용] = 병합(upsert). 적용 후 드로어 유지 — 연속 적용 가능.
  */
 import { useEffect, useMemo, useState } from 'react';
-import { Button, Drawer, Input, Modal, Spin } from 'antd';
-import { Pencil, Plus, Search, Trash2 } from 'lucide-react';
+import { Button, Drawer, Input, Spin } from 'antd';
+import { Search } from 'lucide-react';
 import { toast } from '@/shared-util';
 import type { AgentResponse } from '../../agent-master/types';
-import { useApplySkillGroup, useDeleteSkillGroup, useGetSkillGroupMembers, useGetSkillGroups } from '../hooks/useSkillAssignQueries';
+import { useApplySkillGroup, useGetSkillGroupMembers, useGetSkillGroups } from '../hooks/useSkillAssignQueries';
 import type { SkillGroupResponse } from '../types';
-import SkillGroupFormDrawer, { type SkillGroupDrawerState } from './SkillGroupFormDrawer';
 
 interface Props {
   open: boolean;
@@ -31,15 +30,12 @@ const CHIP_MAX = 8;
 export default function SkillGroupApplyDrawer({ open, agents, tenantId, onClose }: Props) {
   const [groupSearch, setGroupSearch] = useState('');
   const [selectedGroupId, setSelectedGroupId] = useState<number | null>(null);
-  // 2차 드로어 (모음 등록/수정)
-  const [formState, setFormState] = useState<SkillGroupDrawerState>({ open: false });
 
   // 닫힐 때 선택/검색 초기화
   useEffect(() => {
     if (!open) {
       setGroupSearch('');
       setSelectedGroupId(null);
-      setFormState({ open: false });
     }
   }, [open]);
 
@@ -74,30 +70,6 @@ export default function SkillGroupApplyDrawer({ open, agents, tenantId, onClose 
     },
   });
 
-  const { mutate: deleteGroup } = useDeleteSkillGroup({
-    mutationOptions: {
-      onSuccess: () => toast.success('스킬모음이 삭제되었습니다'),
-      onError: (err: unknown) => {
-        const msg = (err as { response?: { data?: { message?: string } } })?.response?.data?.message ?? '삭제 실패';
-        toast.error(msg);
-      },
-    },
-  });
-
-  const handleDelete = (group: SkillGroupResponse) => {
-    Modal.confirm({
-      title: '스킬모음 삭제',
-      content: `'${group.skillGroupName}' 모음을 삭제하시겠습니까? 이미 적용된 상담사 스킬배정에는 영향이 없습니다.`,
-      okType: 'danger',
-      okText: '삭제',
-      cancelText: '취소',
-      onOk: () => {
-        if (selectedGroupId === group.skillGroupId) setSelectedGroupId(null);
-        deleteGroup(group.skillGroupId);
-      },
-    });
-  };
-
   const handleApply = () => {
     if (selectedGroupId == null || !agents.length) return;
     applyGroup({ skillGroupId: selectedGroupId, body: { agentIds: agents.map((a) => a.agentId) } });
@@ -114,9 +86,6 @@ export default function SkillGroupApplyDrawer({ open, agents, tenantId, onClose 
       onClose={onClose}
       footer={
         <div className="flex items-center gap-2">
-          <span className="mr-auto text-[11px] text-gray-400 leading-snug max-w-[330px]">
-            적용 후 드로어는 유지됩니다 — 상담사를 다시 체크해 다른 모음을 연속 적용할 수 있습니다.
-          </span>
           <Button onClick={onClose}>닫기</Button>
           <Button type="primary" disabled={!canApply} loading={applying} onClick={handleApply}>
             {canApply ? `적용 — 상담사 ${agents.length}명 × 스킬 ${members.length}건` : '적용'}
@@ -126,9 +95,7 @@ export default function SkillGroupApplyDrawer({ open, agents, tenantId, onClose 
     >
       {/* ── 적용 대상 상담사 ── */}
       <div className="mb-5">
-        <h5 className="flex items-center gap-2 text-xs font-bold text-gray-500 border-b border-dashed border-gray-200 pb-1.5 mb-2">
-          적용 대상 상담사 <span className="font-normal text-gray-400">— 배정 화면에서 체크한 상담사</span>
-        </h5>
+        <h5 className="flex items-center gap-2 text-xs font-bold text-gray-500 border-b border-dashed border-gray-200 pb-1.5 mb-2">적용 대상 상담사</h5>
         <div className="flex flex-wrap gap-1.5">
           {agents.slice(0, CHIP_MAX).map((a) => (
             <span key={a.agentId} className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-[#eef1fb] text-[#405189] text-xs font-semibold">
@@ -142,7 +109,7 @@ export default function SkillGroupApplyDrawer({ open, agents, tenantId, onClose 
         </div>
       </div>
 
-      {/* ── 스킬모음 선택 (목록 = 관리 겸용: 등록/수정/삭제) ── */}
+      {/* ── 스킬모음 선택 (단일 선택) ── */}
       <div className="mb-5">
         <h5 className="flex items-center gap-2 text-xs font-bold text-gray-500 border-b border-dashed border-gray-200 pb-1.5 mb-2">
           스킬모음 선택 <span className="font-normal text-gray-400">(단일 선택)</span>
@@ -156,9 +123,6 @@ export default function SkillGroupApplyDrawer({ open, agents, tenantId, onClose 
               onChange={(e) => setGroupSearch(e.target.value)}
               style={{ width: 160 }}
             />
-            <Button size="small" icon={<Plus className="size-3.5" />} onClick={() => setFormState({ open: true, mode: 'create' })}>
-              모음 등록
-            </Button>
           </span>
         </h5>
         <div className="border border-gray-200 rounded-md overflow-hidden">
@@ -168,7 +132,7 @@ export default function SkillGroupApplyDrawer({ open, agents, tenantId, onClose 
             </div>
           ) : filteredGroups.length === 0 ? (
             <div className="flex items-center justify-center py-6 text-xs text-gray-400">
-              {groupSearch.trim() ? `'${groupSearch}' 에 맞는 스킬모음이 없습니다` : '등록된 스킬모음이 없습니다 — [모음 등록]으로 추가하세요'}
+              {groupSearch.trim() ? `'${groupSearch}' 에 맞는 스킬모음이 없습니다` : '등록된 스킬모음이 없습니다'}
             </div>
           ) : (
             filteredGroups.map((g) => {
@@ -185,7 +149,7 @@ export default function SkillGroupApplyDrawer({ open, agents, tenantId, onClose 
                       setSelectedGroupId((prev) => (prev === g.skillGroupId ? null : g.skillGroupId));
                     }
                   }}
-                  className={`group flex items-center gap-2.5 px-3 py-2 border-b border-gray-100 last:border-b-0 cursor-pointer text-xs transition ${
+                  className={`flex items-center gap-2.5 px-3 py-2 border-b border-gray-100 last:border-b-0 cursor-pointer text-xs transition ${
                     sel ? 'bg-[#eef1fb] shadow-[inset_3px_0_0_#405189]' : 'hover:bg-[#fafbfd]'
                   }`}
                 >
@@ -199,31 +163,11 @@ export default function SkillGroupApplyDrawer({ open, agents, tenantId, onClose 
                   <span className="flex-shrink-0 text-[11px] text-gray-400 whitespace-nowrap">
                     스킬 {g.memberCount}건{g.updateDate ? ` · ${g.updateDate}` : ''}
                   </span>
-                  {/* agent-002: 수정/삭제 버튼 상시 노출 (hover 전용 숨김 제거) */}
-                  <span className="inline-flex gap-0.5 flex-shrink-0" onClick={(e) => e.stopPropagation()} onKeyDown={(e) => e.stopPropagation()} role="presentation">
-                    <button
-                      type="button"
-                      title="모음 수정"
-                      onClick={() => setFormState({ open: true, mode: 'edit', row: g })}
-                      className="w-[26px] h-[26px] flex items-center justify-center rounded text-gray-400 hover:text-[#405189] hover:bg-gray-100 transition"
-                    >
-                      <Pencil className="size-3.5" />
-                    </button>
-                    <button
-                      type="button"
-                      title="모음 삭제"
-                      onClick={() => handleDelete(g)}
-                      className="w-[26px] h-[26px] flex items-center justify-center rounded text-gray-400 hover:text-red-600 hover:bg-gray-100 transition"
-                    >
-                      <Trash2 className="size-3.5" />
-                    </button>
-                  </span>
                 </div>
               );
             })
           )}
         </div>
-        <div className="text-[11px] text-gray-400 mt-1.5">스킬모음 정의 관리는 별도 메뉴 없이 여기서 합니다.</div>
       </div>
 
       {/* ── 멤버 스킬셋 미리보기 (읽기전용) ── */}
@@ -238,9 +182,7 @@ export default function SkillGroupApplyDrawer({ open, agents, tenantId, onClose 
             <Spin size="small" />
           </div>
         ) : members.length === 0 ? (
-          <div className="text-center text-xs text-gray-400 py-5 border border-dashed border-gray-200 rounded-md">
-            이 모음에 등록된 멤버 스킬셋이 없습니다 — 모음 수정에서 추가하세요
-          </div>
+          <div className="text-center text-xs text-gray-400 py-5 border border-dashed border-gray-200 rounded-md">이 모음에 등록된 멤버 스킬셋이 없습니다</div>
         ) : (
           <table className="w-full border border-gray-200 border-collapse text-xs">
             <thead>
@@ -261,17 +203,7 @@ export default function SkillGroupApplyDrawer({ open, agents, tenantId, onClose 
             </tbody>
           </table>
         )}
-        <div className="text-[11px] text-gray-400 mt-1.5">우선순위/스킬레벨은 모음 정의값 그대로 적용됩니다(읽기전용). 값 변경은 모음 수정에서 하세요.</div>
       </div>
-
-      {/* ── 병합 안내 ── */}
-      <div className="text-xs leading-relaxed text-gray-700 bg-[#eff6ff] border border-[#bfdbfe] rounded-md px-3 py-2.5">
-        <strong className="text-[#1d4ed8]">병합(upsert) 방식</strong> — 선택 상담사가 이미 가진 <strong className="text-[#1d4ed8]">다른 스킬은 그대로 보존</strong>되고, 모음의
-        스킬셋이 추가됩니다. 이미 같은 스킬셋을 보유한 경우 모음의 우선순위/스킬레벨로 <strong className="text-[#1d4ed8]">갱신</strong>됩니다. 적용 출처는 보존되지 않습니다.
-      </div>
-
-      {/* ── 2차 드로어: 모음 등록/수정 ── */}
-      <SkillGroupFormDrawer state={formState} tenantId={tenantId} onClose={() => setFormState({ open: false })} />
     </Drawer>
   );
 }
