@@ -94,6 +94,7 @@ const DnisDrawer = forwardRef<DnisDrawerRef, Props>(({ onSuccess }, ref) => {
   return (
     <Drawer
       title="DNIS 등록"
+      closable={{ placement: 'end' }}
       open={visible}
       onClose={handleClose}
       width={420}

@@ -200,6 +200,7 @@ const CallScreenDrawer = forwardRef<CallScreenDrawerRef, Props>(({ onSuccess }, 
         title={isEditMode ? '수신번호 차단 수정' : '수신번호 차단 등록'}
         open={visible}
         onClose={handleClose}
+        closable={{ placement: 'end' }}
         styles={{ wrapper: { width: 420, display: patternDrawerOpen ? 'none' : undefined } }}
         footer={
           <div className="flex justify-between">

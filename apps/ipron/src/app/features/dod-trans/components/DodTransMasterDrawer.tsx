@@ -169,6 +169,7 @@ const DodTransMasterDrawer = forwardRef<DodTransMasterDrawerRef, Props>(({ onSuc
       title={isEditMode ? 'DOD DNIS 변환 수정' : 'DOD DNIS 변환 등록'}
       open={visible}
       onClose={handleClose}
+      closable={{ placement: 'end' }}
       styles={{ wrapper: { width: 420 } }}
       footer={
         <div className="flex justify-between">

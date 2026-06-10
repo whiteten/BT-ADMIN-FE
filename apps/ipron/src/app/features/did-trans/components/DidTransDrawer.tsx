@@ -230,6 +230,7 @@ const DidTransDrawer = forwardRef<DidTransDrawerRef, Props>(({ onSuccess }, ref)
       title={isEditMode ? `${categoryLabel} 번호변환 수정` : `${categoryLabel} 번호변환 등록`}
       open={visible}
       onClose={handleClose}
+      closable={{ placement: 'end' }}
       styles={{ wrapper: { width: 420, display: patternMode ? 'none' : undefined } }}
       mask={!patternMode}
       footer={

@@ -250,6 +250,7 @@ const PreNumTransDrawer = forwardRef<PreNumTransDrawerRef, Props>(({ onSuccess }
   return (
     <Drawer
       title={isEditMode ? '발신 DNIS 사전변환 수정' : '발신 DNIS 사전변환 등록'}
+      closable={{ placement: 'end' }}
       open={visible}
       onClose={handleClose}
       styles={{ wrapper: { width: 420, display: patternMode ? 'none' : undefined } }}

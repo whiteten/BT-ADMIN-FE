@@ -85,6 +85,7 @@ const GwBypassDrawer = forwardRef<GwBypassDialogRef, GwBypassDrawerProps>(({ end
   return (
     <Drawer
       title={`G/W 우회설정 — ${currentNodeName}`}
+      closable={{ placement: 'end' }}
       open={visible}
       onClose={() => setVisible(false)}
       width={520}

@@ -415,6 +415,7 @@ export default function CommonGdnFormDrawer({ open, mode, detail, nodeId, nodeNa
       width={560}
       open={open}
       onClose={onClose}
+      closable={{ placement: 'end' }}
       destroyOnClose
       footer={
         <div className="flex justify-end gap-2">

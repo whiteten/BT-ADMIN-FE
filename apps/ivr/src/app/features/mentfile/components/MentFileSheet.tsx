@@ -154,6 +154,7 @@ const MentFileSheet = forwardRef<MentFileSheetRef>((_, ref) => {
   return (
     <Drawer
       title={isEditMode ? '멘트파일 수정' : '멘트파일 추가'}
+      closable={{ placement: 'end' }}
       placement="right"
       styles={{ wrapper: { width: 480 } }}
       open={visible}

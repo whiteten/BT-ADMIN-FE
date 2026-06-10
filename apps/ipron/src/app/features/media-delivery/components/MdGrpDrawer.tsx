@@ -143,6 +143,7 @@ const MdGrpDrawer = forwardRef<MdGrpDrawerRef, Props>(({ onSuccess }, ref) => {
   return (
     <Drawer
       title={isEditMode ? '미디어전달그룹 수정' : '미디어전달그룹 등록'}
+      closable={{ placement: 'end' }}
       open={visible}
       onClose={handleClose}
       styles={{ wrapper: { width: 420 } }}

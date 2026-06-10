@@ -437,6 +437,7 @@ export default function DidTransList() {
       {/* ===== 노드간 복사 Drawer ===== */}
       <Drawer
         title={`${CATEGORY_STYLES[category].label} 번호변환 노드간 복사`}
+        closable={{ placement: 'end' }}
         open={copyModalOpen}
         onClose={() => {
           setCopyModalOpen(false);

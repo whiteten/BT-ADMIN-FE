@@ -677,6 +677,7 @@ export default function SleeConfigList() {
       {/* ===== 적용 Drawer (MS관리 멤버관리 패턴 동일 — 680px + footer) ===== */}
       <Drawer
         title={applyMode === 'ITEM' ? '항목단위 적용' : '파일단위 적용'}
+        closable={{ placement: 'end' }}
         placement="right"
         open={applyDrawerOpen}
         onClose={() => setApplyDrawerOpen(false)}

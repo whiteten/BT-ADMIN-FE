@@ -469,6 +469,7 @@ export default function DnSnrTab({ dnId }: DnSnrTabProps) {
         open={snrDrawerOpen}
         onClose={() => setSnrDrawerOpen(false)}
         placement="right"
+        closable={{ placement: 'end' }}
         styles={{ wrapper: { width: 560, display: patternDrawerOpen ? 'none' : undefined } }}
         footer={
           <div className="flex justify-end gap-2">
@@ -547,6 +548,7 @@ export default function DnSnrTab({ dnId }: DnSnrTabProps) {
         onClose={() => setTodDrawerOpen(false)}
         width={480}
         placement="right"
+        closable={{ placement: 'end' }}
         footer={
           <div className="flex justify-end gap-2">
             <Button onClick={() => setTodDrawerOpen(false)}>취소</Button>

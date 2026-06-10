@@ -157,7 +157,7 @@ export default function DnCopyDrawer({ open, source, onCancel, onSuccess }: DnCo
       width={520}
       placement="right"
       maskClosable={!pending}
-      closable={!pending}
+      closable={{ placement: 'end', disabled: pending }}
       footer={
         <div className="flex justify-end gap-2">
           <Button onClick={handleClose} disabled={pending && cancelRef.current}>

@@ -330,6 +330,7 @@ export default function CommonTrunkFormDrawer({ open, mode, detail, nodeId, onCl
       width={560}
       open={open}
       onClose={onClose}
+      closable={{ placement: 'end' }}
       destroyOnClose
       footer={
         <div className="flex justify-end gap-2">

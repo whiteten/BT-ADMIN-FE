@@ -466,6 +466,7 @@ export default function AgentStatusWidget({ data, options, widgetId, onRequestPa
 
       <Drawer
         title="상담사 상태 모니터 설정"
+        closable={{ placement: 'end' }}
         placement="right"
         width={420}
         open={settingsOpen}

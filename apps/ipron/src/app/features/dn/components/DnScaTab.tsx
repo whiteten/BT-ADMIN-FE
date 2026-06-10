@@ -294,6 +294,7 @@ export default function DnScaTab({ dnId, nodeId, tenantId }: DnScaTabProps) {
         onClose={() => setDrawerOpen(false)}
         width={560}
         placement="right"
+        closable={{ placement: 'end' }}
         footer={
           <div className="flex justify-end gap-2">
             <Button onClick={() => setDrawerOpen(false)}>취소</Button>

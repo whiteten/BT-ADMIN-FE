@@ -56,6 +56,7 @@ export default function SkillAssignGrantDrawer({ open, agents, skillsets, onClos
   return (
     <Drawer
       title={`스킬 일괄 부여 (${agents.length}명 × ${skillsets.length}건)`}
+      closable={{ placement: 'end' }}
       open={open}
       onClose={onClose}
       width={480}

@@ -138,6 +138,7 @@ const MentFileApplyModal = forwardRef<MentFileApplyModalRef>((_, ref) => {
   return (
     <Drawer
       title="멘트파일 적용"
+      closable={{ placement: 'end' }}
       placement="right"
       styles={{ wrapper: { width: 560 } }}
       open={visible}

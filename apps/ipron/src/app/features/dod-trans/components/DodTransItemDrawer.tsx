@@ -152,6 +152,7 @@ const DodTransItemDrawer = forwardRef<DodTransItemDrawerRef, Props>(({ onSuccess
       title={isEditMode ? '변환 패턴 수정' : '변환 패턴 등록'}
       open={visible}
       onClose={handleClose}
+      closable={{ placement: 'end' }}
       styles={{ wrapper: { width: 420, display: patternMode ? 'none' : undefined } }}
       mask={!patternMode}
       footer={

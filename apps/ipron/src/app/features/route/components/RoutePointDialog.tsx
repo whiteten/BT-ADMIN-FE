@@ -211,6 +211,7 @@ const RoutePointDialog = forwardRef<RoutePointDialogRef, RoutePointDialogProps>(
   return (
     <Drawer
       title={`국선 배정 (${assignedCount}/32)`}
+      closable={{ placement: 'end' }}
       open={open}
       onClose={() => setOpen(false)}
       width={780}

@@ -128,6 +128,7 @@ export default function BsrGroupFormDrawer({ open, mode, group, defaultTenantId,
       open={open}
       onClose={onCancel}
       width={700}
+      closable={{ placement: 'end' }}
       footer={
         <div className="flex justify-end gap-2">
           <Button onClick={onCancel}>취소</Button>

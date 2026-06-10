@@ -106,6 +106,7 @@ const EndpointRegnumDrawer = forwardRef<EndpointRegnumDrawerRef, Props>(({ endpt
   return (
     <Drawer
       title={isEditMode ? '인증번호 수정' : '인증번호 등록'}
+      closable={{ placement: 'end' }}
       open={visible}
       onClose={() => {
         setVisible(false);

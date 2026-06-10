@@ -554,6 +554,7 @@ export default function AcdGdnFormDrawer({ open, mode, detail, defaultTenantId, 
       width={880}
       open={open}
       onClose={onClose}
+      closable={{ placement: 'end' }}
       destroyOnClose
       footer={
         <div className="flex justify-end gap-2">

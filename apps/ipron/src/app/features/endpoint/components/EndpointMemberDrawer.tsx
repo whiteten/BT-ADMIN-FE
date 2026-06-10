@@ -102,6 +102,7 @@ const EndpointMemberDrawer = forwardRef<EndpointMemberDrawerRef, Props>(({ endpt
   return (
     <Drawer
       title={isEditMode ? '멤버 수정' : '멤버 등록'}
+      closable={{ placement: 'end' }}
       open={visible}
       onClose={() => {
         setVisible(false);

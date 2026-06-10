@@ -219,6 +219,7 @@ const MsGroupMemberDrawer = forwardRef<MsGroupMemberDrawerRef, Props>(({ onSucce
     <>
       <Drawer
         title={msGroup ? `MS그룹 멤버관리 - ${msGroup.msGroupName}` : 'MS그룹 멤버관리'}
+        closable={{ placement: 'end' }}
         open={visible && !editMode}
         onClose={() => {
           setVisible(false);

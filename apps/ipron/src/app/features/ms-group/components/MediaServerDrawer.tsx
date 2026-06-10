@@ -172,6 +172,7 @@ const MediaServerDrawer = forwardRef<MediaServerDrawerRef, Props>(({ onSuccess, 
   return (
     <Drawer
       title={isEditMode ? '미디어서버 수정' : '미디어서버 등록'}
+      closable={{ placement: 'end' }}
       open={visible}
       onClose={closeDrawer}
       styles={{ wrapper: { width: 420 } }}

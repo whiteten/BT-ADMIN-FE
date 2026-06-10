@@ -117,6 +117,7 @@ const GdnDrawer = forwardRef<GdnDrawerRef, Props>(({ onSuccess }, ref) => {
   return (
     <Drawer
       title={isEditMode ? '대표번호 수정' : '대표번호 등록'}
+      closable={{ placement: 'end' }}
       open={visible}
       onClose={handleClose}
       width={420}

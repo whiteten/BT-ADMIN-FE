@@ -85,6 +85,7 @@ const NodeMsSettingDrawer = forwardRef<NodeMsSettingDrawerRef, Props>(({ onSucce
   return (
     <Drawer
       title={`노드 기본 MS 설정 - ${nodeName}`}
+      closable={{ placement: 'end' }}
       open={visible}
       onClose={() => setVisible(false)}
       styles={{ wrapper: { width: 380 } }}

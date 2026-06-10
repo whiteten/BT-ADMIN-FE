@@ -228,6 +228,7 @@ export default function AgentMasterFormDrawer({ open, mode, agentId, initialTena
       open={open}
       onClose={onClose}
       width={840}
+      closable={{ placement: 'end' }}
       destroyOnClose
       footer={
         <div className="flex justify-end gap-2">

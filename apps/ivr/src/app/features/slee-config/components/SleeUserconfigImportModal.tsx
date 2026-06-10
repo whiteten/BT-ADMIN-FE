@@ -98,6 +98,7 @@ const SleeUserconfigImportModal = forwardRef<SleeUserconfigImportModalRef>((_, r
   return (
     <Drawer
       title="환경변수 cfg 파일 Import"
+      closable={{ placement: 'end' }}
       placement="right"
       width={480}
       open={visible}

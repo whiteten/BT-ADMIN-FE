@@ -200,6 +200,7 @@ const AclDrawer = forwardRef<AclDrawerRef, Props>(({ onSuccess }, ref) => {
       title={isEditMode ? `${categoryLabel} IP 접근제어 수정` : `${categoryLabel} IP 접근제어 등록`}
       open={visible}
       onClose={handleClose}
+      closable={{ placement: 'end' }}
       styles={{ wrapper: { width: 420 } }}
       footer={
         <div className="flex justify-between">

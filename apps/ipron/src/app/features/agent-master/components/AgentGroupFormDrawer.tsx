@@ -217,6 +217,7 @@ export default function AgentGroupFormDrawer({ open, mode, groupId, initialTenan
       open={open}
       onClose={onClose}
       width={720}
+      closable={{ placement: 'end' }}
       destroyOnClose
       footer={
         <div className="flex justify-end gap-2">

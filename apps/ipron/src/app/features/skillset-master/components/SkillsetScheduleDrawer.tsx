@@ -162,7 +162,7 @@ export default function SkillsetScheduleDrawer({ open, skillset, onClose }: Prop
   );
 
   return (
-    <Drawer title={skillset ? `스케쥴 관리 — ${skillset.skillsetName}` : '스케쥴 관리'} open={open} onClose={onClose} width={520} destroyOnClose>
+    <Drawer title={skillset ? `스케쥴 관리 — ${skillset.skillsetName}` : '스케쥴 관리'} closable={{ placement: 'end' }} open={open} onClose={onClose} width={520} destroyOnClose>
       {/* ── 배정된 스케쥴 ── */}
       <div className="flex items-center justify-between mb-2">
         <span className="text-sm font-semibold text-gray-700">배정된 스케쥴 ({assigned.length})</span>

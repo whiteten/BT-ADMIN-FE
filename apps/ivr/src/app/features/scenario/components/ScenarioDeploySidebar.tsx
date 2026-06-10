@@ -74,7 +74,7 @@ export default function ScenarioDeploySidebar({ open, serviceId, selectedVersion
   };
 
   return (
-    <Drawer title="배포" placement="right" width={480} open={open} onClose={onClose}>
+    <Drawer title="배포" closable={{ placement: 'end' }} placement="right" width={480} open={open} onClose={onClose}>
       {!selectedVersion ? (
         <div className="flex flex-col items-center justify-center gap-3 text-gray-400" style={{ minHeight: 300 }}>
           <ServerOff className="size-12" />

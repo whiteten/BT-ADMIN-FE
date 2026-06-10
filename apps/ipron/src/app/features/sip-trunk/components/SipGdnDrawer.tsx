@@ -202,6 +202,7 @@ const SipGdnDrawer = forwardRef<SipGdnDrawerRef, Props>(({ nodeId, tenantId, drN
   return (
     <Drawer
       title={isEdit ? '그룹DN 수정' : '그룹DN 등록'}
+      closable={{ placement: 'end' }}
       open={visible}
       onClose={handleClose}
       width={560}

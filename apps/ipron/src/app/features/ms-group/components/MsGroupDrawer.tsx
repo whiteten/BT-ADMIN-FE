@@ -109,6 +109,7 @@ const MsGroupDrawer = forwardRef<MsGroupDrawerRef, Props>(({ onSuccess }, ref) =
   return (
     <Drawer
       title={isEditMode ? 'MS그룹 수정' : 'MS그룹 등록'}
+      closable={{ placement: 'end' }}
       open={visible}
       onClose={() => {
         setVisible(false);

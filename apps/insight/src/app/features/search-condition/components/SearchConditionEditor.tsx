@@ -371,6 +371,7 @@ export default function SearchConditionEditor() {
       open={isEditorOpen}
       onClose={closeEditor}
       title={isEdit ? '검색조건 수정' : '새 검색조건 추가'}
+      closable={{ placement: 'end' }}
       footer={footer}
       destroyOnHidden
       styles={{ wrapper: { width: 960 }, body: { padding: 0, display: 'flex', flexDirection: 'column', overflow: 'hidden' } }}
