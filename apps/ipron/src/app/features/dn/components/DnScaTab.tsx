@@ -33,8 +33,8 @@ const LINE_TYPE_OPTIONS = [
 ];
 
 const REGI_STATUS_LABELS: Record<number, string> = {
-  0: '언레지',
-  1: '레지',
+  0: '미등록',
+  1: '등록',
 };
 
 interface DnScaTabProps {

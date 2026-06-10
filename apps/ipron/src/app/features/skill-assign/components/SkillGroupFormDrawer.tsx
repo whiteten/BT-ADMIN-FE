@@ -1,17 +1,16 @@
 /**
- * 스킬모음 등록/수정 드로어 (모드 ③).
+ * 스킬모음 등록/수정 드로어 — 스킬모음 적용 드로어(SkillGroupApplyDrawer)의 2차 드로어.
  *
- * Phase 1: 모음 이름/설명 + 멤버 다중 선택 (스킬셋 picker 일체).
- *
- * 주의: edit 모드에서 멤버 props 가 비어 있으면 멤버 변경 없음 (null) 으로 송신.
- * 멤버를 채워서 전달하면 "전체 교체" 방식으로 송신.
+ * 모음 이름/설명 + 멤버 다중 선택 (스킬셋 picker 일체).
+ * edit 모드: 기존 멤버를 조회해 prefill — 손대지 않으면 멤버 변경 없음(undefined) 으로 송신,
+ * 멤버를 손대면 현재 표 전체를 "전체 교체" 방식으로 송신.
  */
 import { useEffect, useMemo, useState } from 'react';
 import { Button, Drawer, Form, Input, InputNumber, Select, Space, Table, Tag } from 'antd';
 import type { ColumnsType } from 'antd/es/table';
 import { Trash2 } from 'lucide-react';
 import { toast } from '@/shared-util';
-import { useCreateSkillGroup, useGetAvailableSkillsets, useUpdateSkillGroup } from '../hooks/useSkillAssignQueries';
+import { useCreateSkillGroup, useGetAvailableSkillsets, useGetSkillGroupMembers, useUpdateSkillGroup } from '../hooks/useSkillAssignQueries';
 import type { SkillGroupMemberRequest, SkillGroupResponse } from '../types';
 
 export type SkillGroupDrawerState = { open: false } | { open: true; mode: 'create' } | { open: true; mode: 'edit'; row: SkillGroupResponse };
@@ -39,6 +38,17 @@ export default function SkillGroupFormDrawer({ state, tenantId, onClose }: Props
     params: { tenantId, activeYn: 1 },
     queryOptions: { enabled: state.open },
   });
+
+  // edit 모드: 기존 멤버 prefill (목업 정합 — 수정 드로어에 현재 멤버 P/L 표시)
+  const editGroupId = state.open && state.mode === 'edit' ? state.row.skillGroupId : null;
+  const { data: editMembers = [] } = useGetSkillGroupMembers(editGroupId);
+  // state.open 도 의존성에 포함: 같은 row 를 닫았다가 다시 열 때(캐시 히트)
+  // editGroupId 나 editMembers 참조가 바뀌지 않아 effect 가 재실행되지 않는 문제 방지.
+  useEffect(() => {
+    if (editGroupId == null) return;
+    setMemberRows(editMembers.map((m) => ({ skillsetId: m.skillsetId, skillsetName: m.skillsetName, priority: m.priority ?? 0, skillLevel: m.skillLevel ?? 0 })));
+    setMemberDirty(false);
+  }, [editGroupId, editMembers, state.open]);
 
   const { mutate: createGroup, isPending: isCreating } = useCreateSkillGroup({
     mutationOptions: {
@@ -79,7 +89,8 @@ export default function SkillGroupFormDrawer({ state, tenantId, onClose }: Props
         skillGroupName: state.row.skillGroupName,
         skillGroupDesc: state.row.skillGroupDesc,
       });
-      setMemberRows([]);
+      // edit 모드: 멤버 초기화는 editGroupId/editMembers effect 에서만 수행.
+      // 여기서 setMemberRows([]) 하면 캐시 히트 시 이미 로드된 멤버를 덮어씀.
       setMemberDirty(false);
     } else {
       setMemberRows([]);
@@ -116,14 +127,14 @@ export default function SkillGroupFormDrawer({ state, tenantId, onClose }: Props
   const memberColumns: ColumnsType<MemberRow> = [
     { title: '스킬셋', dataIndex: 'skillsetName', key: 'skillsetName' },
     {
-      title: 'P (0~9)',
+      title: '우선순위 (0~9)',
       dataIndex: 'priority',
       key: 'priority',
       width: 100,
       render: (v: number, row) => <InputNumber min={0} max={9} value={v} onChange={(nv) => handleUpdateMember(row.skillsetId, 'priority', nv)} style={{ width: '100%' }} />,
     },
     {
-      title: 'L (0~99)',
+      title: '스킬레벨 (0~99)',
       dataIndex: 'skillLevel',
       key: 'skillLevel',
       width: 110,
@@ -183,7 +194,8 @@ export default function SkillGroupFormDrawer({ state, tenantId, onClose }: Props
         </Space>
       }
       closable={{ placement: 'end' }}
-      width={680}
+      width={560}
+      zIndex={1010}
       open={state.open}
       onClose={onClose}
       destroyOnClose
@@ -259,7 +271,7 @@ export default function SkillGroupFormDrawer({ state, tenantId, onClose }: Props
           columns={memberColumns}
           pagination={false}
           scroll={{ y: 280 }}
-          locale={{ emptyText: isEdit ? '멤버 변경 없음 (기존 유지) — 추가하면 전체 교체 모드 진입' : '멤버 없음 — 위에서 추가하세요' }}
+          locale={{ emptyText: '멤버 없음 — 위에서 추가하세요' }}
         />
       </div>
     </Drawer>

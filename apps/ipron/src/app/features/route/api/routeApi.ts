@@ -179,12 +179,15 @@ export const routeApi = {
    * BE: GET /api/ipron/routes/worktime-options?nodeId=X
    */
   getWorktimeOptions: async (nodeId: number): Promise<WorktimeOption[]> => {
-    const response = await apiClient.get<ApiResponse<WorktimeOption[]>>('/ipron-route-worktime-options', {
+    // BE WorktimeOptionItem = { id, name } — BFF wrapping으로 { value: [{id,name},...] } 도착
+    const response = await apiClient.get<ApiResponse<{ value: Array<{ id: number; name: string }> }>>('/ipron-route-worktime-options', {
       params: { nodeId },
+      silent: true,
     });
     const raw = response.data?.data;
-    if (Array.isArray(raw)) return raw;
-    return (raw as { value?: WorktimeOption[] })?.value ?? [];
+    const items: Array<{ id: number; name: string }> = Array.isArray(raw) ? raw : ((raw as { value?: Array<{ id: number; name: string }> })?.value ?? []);
+    // 호출부(RouteForm.tsx, EndpointForm.tsx)가 worktimeId/worktimeName 사용하므로 여기서 변환
+    return items.map((item) => ({ worktimeId: item.id, worktimeName: item.name }));
   },
 
   /**

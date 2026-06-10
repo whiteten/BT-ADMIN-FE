@@ -53,12 +53,12 @@ const GdnDrawer = forwardRef<GdnDrawerRef, Props>(({ onSuccess }, ref) => {
         mcsdGdnNo: editData.mcsdGdnNo,
         networkOp: editData.networkOp,
         description: editData.description ?? '',
-        distrMethod: editData.distrMethod ?? 0,
+        distrMethod: editData.distrMethod != null ? editData.distrMethod : '',
       });
     } else if (visible) {
       form.resetFields();
       // 등록 모드: 현재 선택된 통신사가 있으면 고정, 없으면 공통(0) 기본
-      form.setFieldsValue({ networkOp: initialOp ?? '0', distrMethod: 0 });
+      form.setFieldsValue({ networkOp: initialOp ?? '0', distrMethod: '' });
     }
   }, [visible, editData, initialOp, form]);
 
@@ -130,7 +130,7 @@ const GdnDrawer = forwardRef<GdnDrawerRef, Props>(({ onSuccess }, ref) => {
         </div>
       }
     >
-      <Form form={form} layout="vertical" initialValues={{ networkOp: '0' }}>
+      <Form form={form} layout="vertical" initialValues={{ networkOp: '0', distrMethod: '' }}>
         <Form.Item name="networkOp" label="통신사" rules={[{ required: true, message: '통신사를 선택하세요' }]}>
           <Select options={[...NETWORK_OPERATOR_OPTIONS]} placeholder="통신사를 선택하세요" disabled={!isEditMode && initialOp !== null} />
         </Form.Item>
@@ -147,9 +147,10 @@ const GdnDrawer = forwardRef<GdnDrawerRef, Props>(({ onSuccess }, ref) => {
           <Input placeholder="대표번호를 입력하세요" maxLength={24} disabled={isEditMode} />
         </Form.Item>
 
-        {/* 분배방식: SWAT poDistrMethod disabled 콤보와 동일 — 코드테이블 미확정으로 숫자값 표시 전용 */}
-        <Form.Item name="distrMethod" label="분배방식">
-          <Input disabled />
+        {/* 분배방식: 코드테이블 미확정 — 참고용 표시만 */}
+        {/* TODO 코드테이블 확정 후 Select로 전환 */}
+        <Form.Item name="distrMethod" label="분배방식" getValueProps={(v) => ({ value: v === 0 || v === '' || v == null ? '-' : v })}>
+          <Input disabled placeholder="-" />
         </Form.Item>
 
         <Form.Item

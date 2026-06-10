@@ -6,7 +6,7 @@
  *
  * Layout:
  * +----------------------------------------------------------+
- * | 박스 1: 헤더 (검색 + 추가 버튼)                            |
+ * | 박스 1: 헤더 (검색 + 등록 버튼)                            |
  * +----------------------------------------------------------+
  * | 박스 2: 테넌트 카드슬라이더 (A타입, expanded/compact 토글) |
  * +----------------------------------------------------------+
@@ -19,13 +19,11 @@ import { useQueryClient } from '@tanstack/react-query';
 import type { ColDef, ICellRendererParams } from 'ag-grid-community';
 import { AgGridReact } from 'ag-grid-react';
 import { Button, Empty, Input, Modal } from 'antd';
-import { Building2, ChevronLeft, ChevronRight, ChevronsDown, ChevronsUp, Plus, Search } from 'lucide-react';
+import { Building2, ChevronLeft, ChevronRight, ChevronsDown, ChevronsUp, Plus, Search, Trash2 } from 'lucide-react';
 import { useAuthStore, useBreadcrumbStore } from '@/shared-store';
 import { toast } from '@/shared-util';
-import { cosApi } from '../../features/cos/api/cosApi';
 import { cosQueryKeys, useDeleteCos, useGetCosList, useGetNodeTenants } from '../../features/cos/hooks/useCosQueries';
 import type { Cos } from '../../features/cos/types';
-import { IconTrash } from '@/components/custom/Icons';
 import useAggridOptions from '@/libs/shared-ui/src/hooks/useAggridOptions';
 import { useModal } from '@/libs/shared-ui/src/hooks/useModal';
 
@@ -72,6 +70,8 @@ export default function CosList() {
   // ─── State ──────────────────────────────────────────────────────────────────
   const [selectedTenantId, setSelectedTenantId] = useState<number | null>(ctxTenantId);
   const [searchText, setSearchText] = useState('');
+  const [selectedRows, setSelectedRows] = useState<Cos[]>([]);
+  const [isDeleting, setIsDeleting] = useState(false);
   // 카드 박스 default 접힘(compact pill). ADnList.tsx 동일 패턴
   const [cardExpanded, setCardExpanded] = useState(false);
 
@@ -114,10 +114,9 @@ export default function CosList() {
   }, [cosList, searchText]);
 
   // ─── Mutations ──────────────────────────────────────────────────────────────
-  const { mutate: deleteCos } = useDeleteCos({
+  const { mutateAsync: deleteCosAsync } = useDeleteCos({
     mutationOptions: {
       onSuccess: () => {
-        toast.success('COS가 삭제되었습니다.');
         invalidateList();
       },
     },
@@ -143,6 +142,7 @@ export default function CosList() {
   const handleTenantSelect = useCallback((tenantId: number) => {
     setSelectedTenantId(tenantId);
     setSearchText('');
+    setSelectedRows([]);
   }, []);
 
   const handleCreate = useCallback(() => {
@@ -156,42 +156,38 @@ export default function CosList() {
     [navigate],
   );
 
-  const handleDelete = useCallback(
-    async (cos: Cos) => {
-      // 기본 COS 삭제 방지 (tenantId == cosId)
-      if (cos.tenantId === cos.cosId) {
-        Modal.warning({
-          title: '삭제 불가',
-          content: '기본 COS로 등록된 항목은 삭제할 수 없습니다.',
-        });
-        return;
-      }
+  const handleBulkDelete = useCallback(async () => {
+    if (selectedRows.length === 0) return;
 
-      // 참조 DN 수 확인
-      try {
-        const refCount = await cosApi.getRefCount(cos.cosId);
-        if (refCount > 0) {
-          Modal.warning({
-            title: '삭제 불가',
-            content: `선택한 COS 설정을 사용하는 DN이 ${refCount}개가 있습니다. 삭제할 수 없습니다.`,
-          });
-          return;
-        }
-      } catch {
-        toast.error('참조 DN 수 조회에 실패하였습니다.');
-        return;
-      }
-
-      modal.confirm.execute({
-        onOk: () => deleteCos({ cosId: cos.cosId }),
-        options: {
-          title: 'COS 삭제',
-          content: `"${cos.cosName}" COS를 삭제하시겠습니까?`,
-        },
+    // 기본 COS 삭제 방지 (tenantId == cosId)
+    const defaultCos = selectedRows.find((c) => c.tenantId === c.cosId);
+    if (defaultCos) {
+      Modal.warning({
+        title: '삭제 불가',
+        content: '기본 COS로 등록된 항목은 삭제할 수 없습니다.',
       });
-    },
-    [modal, deleteCos],
-  );
+      return;
+    }
+
+    modal.confirm.execute({
+      onOk: async () => {
+        setIsDeleting(true);
+        try {
+          await Promise.all(selectedRows.map((c) => deleteCosAsync({ cosId: c.cosId })));
+          toast.success(`${selectedRows.length}건이 삭제되었습니다`);
+          setSelectedRows([]);
+        } catch {
+          toast.error('일부 항목 삭제에 실패하였습니다');
+        } finally {
+          setIsDeleting(false);
+        }
+      },
+      options: {
+        title: 'COS 삭제',
+        content: `선택한 ${selectedRows.length}건의 COS를 삭제하시겠습니까?`,
+      },
+    });
+  }, [modal, deleteCosAsync, selectedRows]);
 
   // ─── ag-Grid Column Defs ──────────────────────────────────────────────────
   const columnDefs: ColDef<Cos>[] = useMemo(
@@ -205,39 +201,14 @@ export default function CosList() {
       { headerName: '피감청/피코칭', field: 'ignoreBugsCoaching', width: 120, cellRenderer: StatusBadgeRenderer },
       { headerName: '특정번호발신허용', field: 'dodNumAllow', width: 140, cellRenderer: StatusBadgeRenderer },
       { headerName: '특정번호착신금지', field: 'callScreenSvc', width: 140, cellRenderer: StatusBadgeRenderer },
-      {
-        headerName: '',
-        colId: 'actions',
-        width: 50,
-        maxWidth: 50,
-        sortable: false,
-        filter: false,
-        suppressHeaderMenuButton: true,
-        cellStyle: { display: 'flex', alignItems: 'center', justifyContent: 'center' },
-        cellRenderer: (params: ICellRendererParams<Cos>) => {
-          if (!params.data) return null;
-          return (
-            <button
-              type="button"
-              className="flex items-center justify-center w-full h-full"
-              onClick={(e) => {
-                e.stopPropagation();
-                handleDelete(params.data!);
-              }}
-            >
-              <IconTrash className="size-5 text-red-500 hover:cursor-pointer" />
-            </button>
-          );
-        },
-      },
     ],
-    [handleDelete],
+    [],
   );
 
   // ─── Render ───────────────────────────────────────────────────────────────
   return (
     <div className="flex flex-col gap-4 w-full h-full">
-      {/* ===== 박스 1: 헤더 (검색 + 추가 버튼) ===== */}
+      {/* ===== 박스 1: 헤더 (검색 + 등록 버튼) ===== */}
       <div className="bg-white bt-shadow overflow-hidden flex-shrink-0">
         <div className="flex items-center px-4 h-[56px]">
           <span className="text-sm font-semibold text-gray-700">COS 설정</span>
@@ -255,8 +226,18 @@ export default function CosList() {
               onChange={(e: ChangeEvent<HTMLInputElement>) => setSearchText(e.target.value)}
               style={{ width: 200 }}
             />
+            <Button
+              danger
+              icon={<Trash2 className="size-3.5" />}
+              onClick={handleBulkDelete}
+              loading={isDeleting}
+              disabled={selectedRows.length === 0}
+              title={selectedRows.length === 0 ? '삭제할 COS를 선택하세요' : '선택한 COS 삭제'}
+            >
+              {selectedRows.length > 0 ? `삭제 (${selectedRows.length})` : '삭제'}
+            </Button>
             <Button type="primary" icon={<Plus className="size-3.5" />} disabled={!selectedTenantId || selectedTenantId < 0} onClick={handleCreate}>
-              추가
+              등록
             </Button>
           </div>
         </div>
@@ -356,6 +337,7 @@ export default function CosList() {
                     statusBar: undefined,
                     pagination: false,
                     sideBar: false,
+                    rowSelection: { mode: 'multiRow', checkboxes: true, headerCheckbox: true },
                   }}
                   loading={isLoading}
                   getRowId={(params) => String(params.data.cosId)}
@@ -363,6 +345,7 @@ export default function CosList() {
                   onRowDoubleClicked={(e) => {
                     if (e.data) handleEdit(e.data);
                   }}
+                  onSelectionChanged={(e) => setSelectedRows(e.api.getSelectedRows())}
                 />
               )}
             </div>

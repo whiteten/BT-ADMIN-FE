@@ -15,7 +15,6 @@ const DnProfileForm = React.lazy(() => import('./pages/profile/DnProfileForm'));
 // line
 const EndpointList = React.lazy(() => import('./pages/line/EndpointList'));
 const EndpointForm = React.lazy(() => import('./pages/line/EndpointForm'));
-const EndpointDetail = React.lazy(() => import('./pages/line/EndpointDetail'));
 const RouteList = React.lazy(() => import('./pages/line/RouteList'));
 const RouteForm = React.lazy(() => import('./pages/line/RouteForm'));
 const MsGroupList = React.lazy(() => import('./pages/line/MsGroupList'));
@@ -57,8 +56,6 @@ const GdnList = React.lazy(() => import('./pages/gdn/GdnList'));
 
 // agent-master
 const AgentMasterList = React.lazy(() => import('./pages/agent-master/AgentMasterList'));
-const AgentMasterForm = React.lazy(() => import('./pages/agent-master/AgentMasterForm'));
-const AgentGroupForm = React.lazy(() => import('./pages/agent-master/AgentGroupForm'));
 
 // cti-code-mgmt (휴식/ACW 사유 — SWAT IPR20S4040 마이그레이션, 상담사 관리 폴더 하위)
 const CtiCodeList = React.lazy(() => import('./pages/cti-code/CtiCodeList'));
@@ -72,9 +69,10 @@ const SkillAssignList = React.lazy(() => import('./pages/skill-assign/SkillAssig
 // skillset-master (스킬셋 관리 — SWAT IPR20S5010)
 const SkillsetMasterList = React.lazy(() => import('./pages/skillset-master/SkillsetMasterList'));
 
-// device (단말기관리 — SWAT IPR20S2110 + IPR20S2130)
+// device (단말기관리 — SWAT IPR20S2110 + IPR20S2130, 단말모델관리 — IPR20S2120)
 const DeviceList = React.lazy(() => import('./pages/device/DeviceList'));
 const DeviceHistoryList = React.lazy(() => import('./pages/device/DeviceHistoryList'));
+const DeviceModelList = React.lazy(() => import('./pages/device/DeviceModelList'));
 
 // bsr-group (BSR 그룹 관리 — SWAT IPR20S3040)
 const BsrGroupList = React.lazy(() => import('./pages/bsr-group/BsrGroupList'));
@@ -132,7 +130,6 @@ export const routes = [
             children: [
               { index: true, element: <EndpointList /> },
               { path: 'create', element: <EndpointForm /> },
-              { path: ':id/detail', element: <EndpointDetail /> },
               { path: ':id', element: <EndpointForm /> },
             ],
           },
@@ -231,13 +228,7 @@ export const routes = [
       {
         path: 'agent-master',
         element: <Outlet />,
-        children: [
-          { index: true, element: <AgentMasterList /> },
-          { path: 'create', element: <AgentMasterForm /> },
-          { path: ':id/edit', element: <AgentMasterForm /> },
-          { path: 'groups/create', element: <AgentGroupForm /> },
-          { path: 'groups/:id/edit', element: <AgentGroupForm /> },
-        ],
+        children: [{ index: true, element: <AgentMasterList /> }],
       },
       {
         path: 'cti-code-mgmt',
@@ -266,6 +257,7 @@ export const routes = [
           { index: true, element: <DeviceList /> },
           { path: 'list', element: <DeviceList /> },
           { path: 'history', element: <DeviceHistoryList /> },
+          { path: 'model', element: <DeviceModelList /> },
         ],
       },
       {

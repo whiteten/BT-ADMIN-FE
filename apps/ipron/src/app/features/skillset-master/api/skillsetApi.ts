@@ -92,7 +92,7 @@ export const skillsetApi = {
     await apiClient.post('/ipron-skillset-groups-move-down', undefined, { params: { treeId } });
   },
 
-  // ─── 스케쥴 관리 ──────────────────────────────────────────────
+  // ─── 스케줄 관리 ──────────────────────────────────────────────
   getSchedules: async (params?: { tenantId?: number }): Promise<ScheduleInfoResponse[]> => {
     const res = await apiClient.get<ApiResponse<{ value: ScheduleInfoResponse[] }>>('/ipron-skillset-schedule-list', { params });
     return res.data?.data?.value ?? [];

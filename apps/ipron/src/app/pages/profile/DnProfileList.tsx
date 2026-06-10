@@ -15,7 +15,7 @@ import { type ChangeEvent, useCallback, useEffect, useMemo, useRef, useState } f
 import { useNavigate } from 'react-router-dom';
 import { useQueryClient } from '@tanstack/react-query';
 import { Button, Empty, Input } from 'antd';
-import { ArrowUpDown, Building2, ChevronLeft, ChevronRight, Network, Plus, Search } from 'lucide-react';
+import { ArrowUpDown, Building2, ChevronLeft, ChevronRight, ChevronsDown, ChevronsUp, Network, Plus, Search, Trash2 } from 'lucide-react';
 import { useBreadcrumbStore } from '@/shared-store';
 import { toast } from '@/shared-util';
 import { dnQueryKeys } from '../../features/dn/hooks/useDnQueries';
@@ -26,8 +26,8 @@ import type { DnProfile } from '../../features/dn-profile/types';
 import { useModal } from '@/libs/shared-ui/src/hooks/useModal';
 
 const breadcrumb = [
-  { title: '번호자원관리', path: '/ipron/profile/dn-profile' },
-  { title: '프로파일', path: '/ipron/profile/dn-profile' },
+  { title: '번호자원관리', path: '/ipron/numbering' },
+  { title: '프로파일', path: '/ipron/profile' },
   { title: '내선 프로파일', path: '/ipron/profile/dn-profile' },
 ];
 
@@ -49,6 +49,8 @@ export default function DnProfileList() {
   const [selectedNodeId, setSelectedNodeId] = useState<number | null>(null);
   const [selectedTenantId, setSelectedTenantId] = useState<number | null>(null);
   const [searchText, setSearchText] = useState('');
+  const [selectedProfiles, setSelectedProfiles] = useState<DnProfile[]>([]);
+  const [cardCollapsed, setCardCollapsed] = useState(true); // 기본 접힘
   // DN 배정 다이얼로그
   const [assignDialogProfile, setAssignDialogProfile] = useState<DnProfile | null>(null);
   const cardScrollRef = useRef<HTMLDivElement>(null);
@@ -237,6 +239,7 @@ export default function DnProfileList() {
     mutationOptions: {
       onSuccess: () => {
         toast.success('프로파일이 삭제되었습니다.');
+        setSelectedProfiles([]);
         invalidateProfiles();
       },
     },
@@ -251,14 +254,27 @@ export default function DnProfileList() {
     navigate(`/ipron/profile/dn-profile/${profile.dnProfileId}/edit`);
   };
 
-  const handleProfileDelete = (profile: DnProfile) => {
-    modal.confirm.execute({
-      onOk: () => deleteProfile(profile.dnProfileId),
-      options: {
-        title: '프로파일 삭제',
-        content: `"${profile.dnProfileName}" 프로파일을 삭제하시겠습니까?\n(DN / SIP Trunk / DR 에서 참조 중인 경우 삭제가 거부됩니다)`,
-      },
-    });
+  const handleProfileDeleteSelected = () => {
+    if (selectedProfiles.length === 0) return;
+    if (selectedProfiles.length === 1) {
+      modal.confirm.execute({
+        onOk: () => deleteProfile(selectedProfiles[0].dnProfileId),
+        options: {
+          title: '프로파일 삭제',
+          content: `"${selectedProfiles[0].dnProfileName}" 프로파일을 삭제하시겠습니까?\n(DN / SIP Trunk / DR 에서 참조 중인 경우 삭제가 거부됩니다)`,
+        },
+      });
+    } else {
+      modal.confirm.execute({
+        onOk: () => {
+          selectedProfiles.forEach((p) => deleteProfile(p.dnProfileId));
+        },
+        options: {
+          title: '프로파일 삭제',
+          content: `선택한 ${selectedProfiles.length}개 프로파일을 삭제하시겠습니까?\n(DN / SIP Trunk / DR 에서 참조 중인 경우 삭제가 거부됩니다)`,
+        },
+      });
+    }
   };
 
   const handleProfileAssignDns = (profile: DnProfile) => {
@@ -347,7 +363,7 @@ export default function DnProfileList() {
               <ChevronRight className="size-4 text-gray-500" />
             </button>
 
-            {/* 우측: 검색 + 등록 버튼 */}
+            {/* 우측: 검색 + 삭제 + 등록 버튼 */}
             <div className="ml-auto flex items-center gap-2 flex-shrink-0 pl-3">
               <Input
                 allowClear
@@ -357,6 +373,15 @@ export default function DnProfileList() {
                 onChange={handleSearchChange}
                 style={{ width: 200 }}
               />
+              <Button
+                danger
+                icon={<Trash2 className="size-3.5" />}
+                onClick={handleProfileDeleteSelected}
+                disabled={selectedProfiles.length === 0}
+                title={selectedProfiles.length === 0 ? '삭제할 프로파일을 선택하세요' : `선택한 ${selectedProfiles.length}개 프로파일 삭제`}
+              >
+                {selectedProfiles.length > 0 ? `삭제 (${selectedProfiles.length})` : '삭제'}
+              </Button>
               <Button type="primary" icon={<Plus className="size-3.5" />} onClick={handleProfileCreate}>
                 등록
               </Button>
@@ -366,80 +391,123 @@ export default function DnProfileList() {
 
         {/* ===== 카드 슬라이더 박스 ===== */}
         <div className="bg-white bt-shadow overflow-hidden flex-shrink-0">
-          {/* Card slider body — L 카드 (220×130) → h=170 */}
-          <div className="flex items-center h-[170px] px-4 py-3">
-            <div className="relative flex items-center gap-2 w-full">
-              <Button
-                type="text"
-                icon={<ChevronLeft className="size-5" />}
-                onClick={() => cardScrollRef.current?.scrollBy({ left: -260, behavior: 'smooth' })}
-                className="!flex-shrink-0 !w-8 !h-8 !p-0"
-              />
-              <div ref={cardScrollRef} className="flex gap-3 overflow-x-auto py-2 px-1 flex-1" style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}>
-                {cardGroups.length === 0 ? (
-                  <div className="flex flex-col items-center justify-center flex-1 text-gray-400 gap-2 min-h-[100px]">
-                    <Empty description={false} imageStyle={{ height: 40 }} />
-                    <span className="text-sm">
-                      {isSearching
-                        ? '검색 결과가 없습니다'
-                        : viewMode === 'byNode' && selectedNodeId
-                          ? '이 노드에 등록된 프로파일이 없습니다'
-                          : viewMode === 'byTenant' && selectedTenantId
-                            ? '이 테넌트에 등록된 프로파일이 없습니다'
-                            : '등록된 프로파일이 없습니다'}
-                    </span>
-                  </div>
-                ) : (
-                  cardGroups.map((group) => {
-                    const isActive = selectedCardId === group.groupId;
-                    const CardIcon = viewMode === 'byNode' ? Building2 : Network;
-                    return (
-                      <button
-                        key={group.groupId}
-                        type="button"
-                        className={`bg-white border rounded-lg p-3.5 cursor-pointer transition-all w-[220px] h-[130px] flex-shrink-0 flex flex-col text-left ${
-                          isActive ? 'border-[#405189] shadow-[0_0_0_2px_rgba(64,81,137,0.15)]' : 'border-gray-200 hover:border-[#c5cbe0] hover:shadow-[0_2px_8px_rgba(0,0,0,0.06)]'
-                        }`}
-                        onClick={(e) => {
-                          setSelectedCardId(group.groupId);
-                          (e.currentTarget as HTMLElement).scrollIntoView({
-                            behavior: 'smooth',
-                            inline: 'center',
-                            block: 'nearest',
-                          });
-                        }}
-                      >
-                        <div className="flex items-center gap-1.5 mb-2">
-                          <CardIcon className={`size-4 flex-shrink-0 ${isActive ? 'text-[#405189]' : 'text-gray-500'}`} />
-                          <span className={`text-[13px] font-semibold truncate ${isActive ? 'text-[#405189]' : 'text-gray-900'}`}>{group.groupName}</span>
-                        </div>
-                        <div className="flex-1 flex flex-col gap-1 text-xs text-gray-600">
-                          <div className="flex items-center justify-between">
-                            <span className="text-gray-500">전체 프로파일</span>
-                            <span className="font-semibold text-gray-800">{group.count}건</span>
-                          </div>
-                          <div className="flex items-center justify-between">
-                            <span className="text-gray-500">내선 (EXT, AGT)</span>
-                            <span className="font-medium text-blue-600">{group.dnCount}</span>
-                          </div>
-                          <div className="flex items-center justify-between">
-                            <span className="text-gray-500">TRUNK</span>
-                            <span className="font-medium text-orange-500">{group.trunkCount}</span>
-                          </div>
-                        </div>
-                      </button>
-                    );
-                  })
-                )}
+          {cardCollapsed ? (
+            /* 접힘 상태: 컴팩트 pill 줄 + 펼치기 버튼 */
+            <div className="flex items-center h-[44px] px-4">
+              <div className="flex gap-2 overflow-x-auto flex-1 items-center" style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}>
+                {cardGroups.map((group) => {
+                  const isActive = selectedCardId === group.groupId;
+                  return (
+                    <button
+                      key={group.groupId}
+                      type="button"
+                      onClick={() => setSelectedCardId(group.groupId)}
+                      title={`${group.groupName} · ${group.count}건`}
+                      className={`flex-shrink-0 inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full border text-xs transition ${
+                        isActive
+                          ? 'border-[#405189] bg-[#405189] text-white shadow-[0_0_0_2px_rgba(64,81,137,0.15)]'
+                          : 'border-gray-200 bg-white text-gray-700 hover:border-[#c5cbe0] hover:text-[#405189]'
+                      }`}
+                    >
+                      <span className="font-medium truncate max-w-[120px]">{group.groupName}</span>
+                      <span className={`text-[11px] ${isActive ? 'text-white/80' : 'text-gray-400'}`}>{group.count.toLocaleString()}</span>
+                    </button>
+                  );
+                })}
               </div>
               <Button
                 type="text"
-                icon={<ChevronRight className="size-5" />}
-                onClick={() => cardScrollRef.current?.scrollBy({ left: 260, behavior: 'smooth' })}
-                className="!flex-shrink-0 !w-8 !h-8 !p-0"
+                icon={<ChevronsDown className="size-4" />}
+                onClick={() => setCardCollapsed(false)}
+                title="카드 펼치기"
+                className="!flex-shrink-0 !w-8 !h-8 !p-0 !text-gray-400 hover:!text-[#405189]"
               />
             </div>
-          </div>
+          ) : (
+            /* 펼침 상태: 전체 카드 슬라이더 */
+            <div className="flex items-center h-[170px] px-4 py-3">
+              <div className="relative flex items-center gap-2 w-full">
+                <Button
+                  type="text"
+                  icon={<ChevronLeft className="size-5" />}
+                  onClick={() => cardScrollRef.current?.scrollBy({ left: -260, behavior: 'smooth' })}
+                  className="!flex-shrink-0 !w-8 !h-8 !p-0"
+                />
+                <div ref={cardScrollRef} className="flex gap-3 overflow-x-auto py-2 px-1 flex-1" style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}>
+                  {cardGroups.length === 0 ? (
+                    <div className="flex flex-col items-center justify-center flex-1 text-gray-400 gap-2 min-h-[100px]">
+                      <Empty description={false} imageStyle={{ height: 40 }} />
+                      <span className="text-sm">
+                        {isSearching
+                          ? '검색 결과가 없습니다'
+                          : viewMode === 'byNode' && selectedNodeId
+                            ? '이 노드에 등록된 프로파일이 없습니다'
+                            : viewMode === 'byTenant' && selectedTenantId
+                              ? '이 테넌트에 등록된 프로파일이 없습니다'
+                              : '등록된 프로파일이 없습니다'}
+                      </span>
+                    </div>
+                  ) : (
+                    cardGroups.map((group) => {
+                      const isActive = selectedCardId === group.groupId;
+                      const CardIcon = viewMode === 'byNode' ? Building2 : Network;
+                      return (
+                        <button
+                          key={group.groupId}
+                          type="button"
+                          className={`bg-white border rounded-lg p-3.5 cursor-pointer transition-all w-[220px] h-[130px] flex-shrink-0 flex flex-col text-left ${
+                            isActive
+                              ? 'border-[#405189] shadow-[0_0_0_2px_rgba(64,81,137,0.15)]'
+                              : 'border-gray-200 hover:border-[#c5cbe0] hover:shadow-[0_2px_8px_rgba(0,0,0,0.06)]'
+                          }`}
+                          onClick={(e) => {
+                            setSelectedCardId(group.groupId);
+                            (e.currentTarget as HTMLElement).scrollIntoView({
+                              behavior: 'smooth',
+                              inline: 'center',
+                              block: 'nearest',
+                            });
+                          }}
+                        >
+                          <div className="flex items-center gap-1.5 mb-2">
+                            <CardIcon className={`size-4 flex-shrink-0 ${isActive ? 'text-[#405189]' : 'text-gray-500'}`} />
+                            <span className={`text-[13px] font-semibold truncate ${isActive ? 'text-[#405189]' : 'text-gray-900'}`}>{group.groupName}</span>
+                          </div>
+                          <div className="flex-1 flex flex-col gap-1 text-xs text-gray-600">
+                            <div className="flex items-center justify-between">
+                              <span className="text-gray-500">전체 프로파일</span>
+                              <span className="font-semibold text-gray-800">{group.count}건</span>
+                            </div>
+                            <div className="flex items-center justify-between">
+                              <span className="text-gray-500">내선 (EXT, AGT)</span>
+                              <span className="font-medium text-blue-600">{group.dnCount}</span>
+                            </div>
+                            <div className="flex items-center justify-between">
+                              <span className="text-gray-500">TRUNK</span>
+                              <span className="font-medium text-orange-500">{group.trunkCount}</span>
+                            </div>
+                          </div>
+                        </button>
+                      );
+                    })
+                  )}
+                </div>
+                <Button
+                  type="text"
+                  icon={<ChevronRight className="size-5" />}
+                  onClick={() => cardScrollRef.current?.scrollBy({ left: 260, behavior: 'smooth' })}
+                  className="!flex-shrink-0 !w-8 !h-8 !p-0"
+                />
+                <Button
+                  type="text"
+                  icon={<ChevronsUp className="size-4" />}
+                  onClick={() => setCardCollapsed(true)}
+                  title="카드 접기"
+                  className="!flex-shrink-0 !w-8 !h-8 !p-0 !text-gray-400 hover:!text-[#405189]"
+                />
+              </div>
+            </div>
+          )}
         </div>
 
         {/* ===== 하단 박스: ag-Grid (선택 테넌트의 프로파일 목록) ===== */}
@@ -453,7 +521,7 @@ export default function DnProfileList() {
               rowData={profilesForGrid}
               isLoading={isProfilesLoading}
               onRowDoubleClicked={handleProfileEdit}
-              onDelete={handleProfileDelete}
+              onSelectionChanged={setSelectedProfiles}
               onAssignDns={handleProfileAssignDns}
             />
           </div>

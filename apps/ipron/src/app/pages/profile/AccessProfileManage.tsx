@@ -39,14 +39,12 @@ import {
   useUpdateProfile,
 } from '../../features/access-profile/hooks/useAccessProfileQueries';
 import type { AccessCode, AccessProfile } from '../../features/access-profile/types';
-import { IconTrash } from '@/components/custom/Icons';
 import useAggridOptions from '@/libs/shared-ui/src/hooks/useAggridOptions';
 import { useModal } from '@/libs/shared-ui/src/hooks/useModal';
 
 const breadcrumb = [
-  { title: 'IPRON', path: '/ipron' },
   { title: '번호자원관리', path: '/ipron/numbering' },
-  { title: '프로파일', path: '/ipron/numbering/profile' },
+  { title: '프로파일', path: '/ipron/profile' },
   { title: '접근코드 프로파일', path: '/ipron/profile/access-profile' },
 ];
 
@@ -70,6 +68,7 @@ export default function AccessProfileManage() {
   const [selectedTenantId, setSelectedTenantId] = useState<number | null>(null);
   const [selectedProfileId, setSelectedProfileId] = useState<number | null>(null);
   const [searchText, setSearchText] = useState('');
+  const [cardCollapsed, setCardCollapsed] = useState(true);
   // 하단 접근코드 그리드 서버사이드 검색 (SWAT IPR20S2250 sAccessCode / sAccessCodeName)
   const [codeSearchCode, setCodeSearchCode] = useState('');
   const [codeSearchName, setCodeSearchName] = useState('');
@@ -413,29 +412,6 @@ export default function AccessProfileManage() {
       flex: 1,
       valueFormatter: (params) => params.value ?? '-',
     },
-    {
-      headerName: '',
-      maxWidth: 60,
-      sortable: false,
-      filter: false,
-      suppressHeaderMenuButton: true,
-      cellStyle: { display: 'flex', alignItems: 'center', justifyContent: 'center' },
-      cellRenderer: (params: ICellRendererParams<AccessCode>) => {
-        const { data } = params;
-        if (!data) return null;
-        return (
-          <button
-            type="button"
-            onClick={(e) => {
-              e.stopPropagation();
-              handleCodeDelete(data);
-            }}
-          >
-            <IconTrash className="size-5 text-red-500 hover:cursor-pointer" />
-          </button>
-        );
-      },
-    },
   ];
 
   // ─── Render ─────────────────────────────────────────────────────────────────
@@ -522,7 +498,7 @@ export default function AccessProfileManage() {
                 style={{ width: 200 }}
               />
               <Button type="primary" icon={<Plus className="size-3.5" />} onClick={handleProfileCreate}>
-                추가
+                등록
               </Button>
             </div>
           </div>
@@ -530,111 +506,127 @@ export default function AccessProfileManage() {
 
         {/* ===== 카드 슬라이더 박스 ===== */}
         <div className="bg-white bt-shadow overflow-hidden flex-shrink-0">
+          {/* 접기/펼치기 헤더 */}
+          <button
+            type="button"
+            className="w-full flex items-center justify-between px-4 py-2 text-xs text-gray-500 hover:bg-gray-50 border-b border-gray-100 transition-colors"
+            onClick={() => setCardCollapsed((c) => !c)}
+          >
+            <span>프로파일 카드</span>
+            <span>{cardCollapsed ? '펼치기' : '접기'}</span>
+          </button>
           {/* Card slider body — 높이 고정 */}
-          <div className="flex items-center h-[170px] px-4 py-3">
-            <div className="relative flex items-center gap-2 w-full">
-              <Button
-                type="text"
-                icon={<ChevronLeft className="size-5" />}
-                onClick={() => cardScrollRef.current?.scrollBy({ left: -260, behavior: 'smooth' })}
-                className="!flex-shrink-0 !w-8 !h-8 !p-0"
-              />
-              <div ref={cardScrollRef} className="flex gap-3 overflow-x-auto py-2 px-1 flex-1" style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}>
-                {/* 프로파일 카드들 — viewMode에 따라 테넌트별 or 노드별 그룹화 */}
-                {profilesByGroup.length === 0 ? (
-                  <div className="flex flex-col items-center justify-center flex-1 text-gray-400 gap-2 min-h-[100px]">
-                    <Empty description={false} imageStyle={{ height: 40 }} />
-                    <span className="text-sm">
-                      {isSearching
-                        ? '검색 결과가 없습니다'
-                        : viewMode === 'byNode' && selectedNodeId
-                          ? '이 노드에 등록된 프로파일이 없습니다'
-                          : viewMode === 'byTenant' && selectedTenantId
-                            ? '이 테넌트에 등록된 프로파일이 없습니다'
-                            : '등록된 프로파일이 없습니다'}
-                    </span>
-                  </div>
-                ) : (
-                  profilesByGroup.map((group, groupIdx) => {
-                    // 선택된 프로파일이 이 그룹에 속하는지 (byNode: tenantId / byTenant: nodeId 기준)
-                    const selectedGroupKey = viewMode === 'byNode' ? selectedProfile?.tenantId : selectedProfile?.nodeId;
-                    const isGroupActive = selectedGroupKey === group.groupId;
-                    const GroupIcon = viewMode === 'byNode' ? Building2 : Network;
-                    return (
-                      <div key={group.groupId} className="flex items-stretch gap-3 flex-shrink-0">
-                        {/* 그룹 라벨 (byNode: 테넌트 / byTenant: 노드) — 선택된 프로파일의 그룹이면 강조 */}
-                        <div
-                          className={`flex flex-col items-center justify-center w-[100px] flex-shrink-0 px-2 rounded transition-all border-l-4 ${
-                            isGroupActive ? 'border-l-[#405189] bg-[#405189] text-white shadow-[0_2px_8px_rgba(64,81,137,0.25)]' : 'border-l-[#a3b1d6] bg-blue-50/50 text-[#405189]'
-                          }`}
-                        >
-                          <GroupIcon className={`size-4 flex-shrink-0 ${isGroupActive ? 'text-white' : 'text-[#405189]'}`} />
-                          <span className={`text-[11px] font-semibold mt-1 w-full text-center truncate ${isGroupActive ? 'text-white' : 'text-[#405189]'}`} title={group.groupName}>
-                            {group.groupName}
-                          </span>
-                          <span className={`text-[10px] ${isGroupActive ? 'text-white/80' : 'text-gray-500'}`}>{group.profiles.length}건</span>
-                        </div>
-
-                        {/* 그룹 내 프로파일 카드들 */}
-                        {group.profiles.map((profile) => {
-                          const isCardSelected = selectedProfileId === profile.accessCodeProfileId;
-                          const codeCount = profile.codeCount ?? 0;
-                          return (
-                            <div
-                              key={profile.accessCodeProfileId}
-                              id={`access-profile-card-${profile.accessCodeProfileId}`}
-                              className={`bg-white border rounded-lg p-3 cursor-pointer transition-all w-[160px] h-[130px] flex-shrink-0 flex flex-col ${
-                                isCardSelected
-                                  ? 'border-[#405189] shadow-[0_0_0_2px_rgba(64,81,137,0.15)]'
-                                  : 'border-gray-200 hover:border-[#c5cbe0] hover:shadow-[0_2px_8px_rgba(0,0,0,0.06)]'
-                              }`}
-                              onClick={(e) => {
-                                handleCardSelect(profile);
-                                (e.currentTarget as HTMLElement).scrollIntoView({ behavior: 'smooth', inline: 'center', block: 'nearest' });
-                              }}
-                              onDoubleClick={() => handleProfileEdit(profile)}
+          {!cardCollapsed && (
+            <div className="flex items-center h-[170px] px-4 py-3">
+              <div className="relative flex items-center gap-2 w-full">
+                <Button
+                  type="text"
+                  icon={<ChevronLeft className="size-5" />}
+                  onClick={() => cardScrollRef.current?.scrollBy({ left: -260, behavior: 'smooth' })}
+                  className="!flex-shrink-0 !w-8 !h-8 !p-0"
+                />
+                <div ref={cardScrollRef} className="flex gap-3 overflow-x-auto py-2 px-1 flex-1" style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}>
+                  {/* 프로파일 카드들 — viewMode에 따라 테넌트별 or 노드별 그룹화 */}
+                  {profilesByGroup.length === 0 ? (
+                    <div className="flex flex-col items-center justify-center flex-1 text-gray-400 gap-2 min-h-[100px]">
+                      <Empty description={false} imageStyle={{ height: 40 }} />
+                      <span className="text-sm">
+                        {isSearching
+                          ? '검색 결과가 없습니다'
+                          : viewMode === 'byNode' && selectedNodeId
+                            ? '이 노드에 등록된 프로파일이 없습니다'
+                            : viewMode === 'byTenant' && selectedTenantId
+                              ? '이 테넌트에 등록된 프로파일이 없습니다'
+                              : '등록된 프로파일이 없습니다'}
+                      </span>
+                    </div>
+                  ) : (
+                    profilesByGroup.map((group, groupIdx) => {
+                      // 선택된 프로파일이 이 그룹에 속하는지 (byNode: tenantId / byTenant: nodeId 기준)
+                      const selectedGroupKey = viewMode === 'byNode' ? selectedProfile?.tenantId : selectedProfile?.nodeId;
+                      const isGroupActive = selectedGroupKey === group.groupId;
+                      const GroupIcon = viewMode === 'byNode' ? Building2 : Network;
+                      return (
+                        <div key={group.groupId} className="flex items-stretch gap-3 flex-shrink-0">
+                          {/* 그룹 라벨 (byNode: 테넌트 / byTenant: 노드) — 선택된 프로파일의 그룹이면 강조 */}
+                          <div
+                            className={`flex flex-col items-center justify-center w-[100px] flex-shrink-0 px-2 rounded transition-all border-l-4 ${
+                              isGroupActive
+                                ? 'border-l-[#405189] bg-[#405189] text-white shadow-[0_2px_8px_rgba(64,81,137,0.25)]'
+                                : 'border-l-[#a3b1d6] bg-blue-50/50 text-[#405189]'
+                            }`}
+                          >
+                            <GroupIcon className={`size-4 flex-shrink-0 ${isGroupActive ? 'text-white' : 'text-[#405189]'}`} />
+                            <span
+                              className={`text-[11px] font-semibold mt-1 w-full text-center truncate ${isGroupActive ? 'text-white' : 'text-[#405189]'}`}
+                              title={group.groupName}
                             >
-                              {/* Card header */}
-                              <div className="flex items-center justify-between mb-1">
-                                <span className="text-sm font-semibold text-gray-800 truncate">{profile.accessCodeProfileName}</span>
-                                <div onClick={(e) => e.stopPropagation()}>
-                                  <Dropdown menu={{ items: getProfileMenuItems(profile) }} trigger={['click']} placement="bottomRight">
-                                    <button type="button" className="p-0.5 rounded hover:bg-gray-100 transition-colors flex-shrink-0">
-                                      <MoreVertical className="size-3.5 text-gray-400" />
-                                    </button>
-                                  </Dropdown>
+                              {group.groupName}
+                            </span>
+                            <span className={`text-[10px] ${isGroupActive ? 'text-white/80' : 'text-gray-500'}`}>{group.profiles.length}건</span>
+                          </div>
+
+                          {/* 그룹 내 프로파일 카드들 */}
+                          {group.profiles.map((profile) => {
+                            const isCardSelected = selectedProfileId === profile.accessCodeProfileId;
+                            const codeCount = profile.codeCount ?? 0;
+                            return (
+                              <div
+                                key={profile.accessCodeProfileId}
+                                id={`access-profile-card-${profile.accessCodeProfileId}`}
+                                className={`bg-white border rounded-lg p-3 cursor-pointer transition-all w-[160px] h-[130px] flex-shrink-0 flex flex-col ${
+                                  isCardSelected
+                                    ? 'border-[#405189] shadow-[0_0_0_2px_rgba(64,81,137,0.15)]'
+                                    : 'border-gray-200 hover:border-[#c5cbe0] hover:shadow-[0_2px_8px_rgba(0,0,0,0.06)]'
+                                }`}
+                                onClick={(e) => {
+                                  handleCardSelect(profile);
+                                  (e.currentTarget as HTMLElement).scrollIntoView({ behavior: 'smooth', inline: 'center', block: 'nearest' });
+                                }}
+                                onDoubleClick={() => handleProfileEdit(profile)}
+                              >
+                                {/* Card header */}
+                                <div className="flex items-center justify-between mb-1">
+                                  <span className="text-sm font-semibold text-gray-800 truncate">{profile.accessCodeProfileName}</span>
+                                  <div onClick={(e) => e.stopPropagation()}>
+                                    <Dropdown menu={{ items: getProfileMenuItems(profile) }} trigger={['click']} placement="bottomRight">
+                                      <button type="button" className="p-0.5 rounded hover:bg-gray-100 transition-colors flex-shrink-0">
+                                        <MoreVertical className="size-3.5 text-gray-400" />
+                                      </button>
+                                    </Dropdown>
+                                  </div>
+                                </div>
+
+                                {/* 하단 태그 — 접근코드 건수만 */}
+                                <div className="flex flex-wrap gap-1 mt-auto">
+                                  <span
+                                    className={`inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium border ${
+                                      codeCount > 0 ? 'text-green-700 bg-green-50 border-green-200' : 'text-gray-500 bg-gray-50 border-gray-200'
+                                    }`}
+                                  >
+                                    {codeCount > 0 ? `접근코드 ${codeCount}건` : '접근코드 미등록'}
+                                  </span>
                                 </div>
                               </div>
+                            );
+                          })}
 
-                              {/* 하단 태그 — 접근코드 건수만 */}
-                              <div className="flex flex-wrap gap-1 mt-auto">
-                                <span
-                                  className={`inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium border ${
-                                    codeCount > 0 ? 'text-green-700 bg-green-50 border-green-200' : 'text-gray-500 bg-gray-50 border-gray-200'
-                                  }`}
-                                >
-                                  {codeCount > 0 ? `접근코드 ${codeCount}건` : '접근코드 미등록'}
-                                </span>
-                              </div>
-                            </div>
-                          );
-                        })}
-
-                        {/* 그룹 사이 구분선 */}
-                        {groupIdx < profilesByGroup.length - 1 && <div className="border-l border-gray-200 mx-1" />}
-                      </div>
-                    );
-                  })
-                )}
+                          {/* 그룹 사이 구분선 */}
+                          {groupIdx < profilesByGroup.length - 1 && <div className="border-l border-gray-200 mx-1" />}
+                        </div>
+                      );
+                    })
+                  )}
+                </div>
+                <Button
+                  type="text"
+                  icon={<ChevronRight className="size-5" />}
+                  onClick={() => cardScrollRef.current?.scrollBy({ left: 260, behavior: 'smooth' })}
+                  className="!flex-shrink-0 !w-8 !h-8 !p-0"
+                />
               </div>
-              <Button
-                type="text"
-                icon={<ChevronRight className="size-5" />}
-                onClick={() => cardScrollRef.current?.scrollBy({ left: 260, behavior: 'smooth' })}
-                className="!flex-shrink-0 !w-8 !h-8 !p-0"
-              />
             </div>
-          </div>
+          )}
         </div>
 
         {/* ===== 하단: 접근코드 ag-Grid ===== */}
@@ -667,7 +659,7 @@ export default function AccessProfileManage() {
                     size="small"
                   />
                   <Button icon={<Plus className="size-3.5" />} onClick={handleCodeCreate}>
-                    코드 추가
+                    등록
                   </Button>
                 </div>
               </div>

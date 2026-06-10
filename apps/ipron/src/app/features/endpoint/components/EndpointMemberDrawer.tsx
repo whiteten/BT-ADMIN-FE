@@ -168,7 +168,7 @@ const EndpointMemberDrawer = forwardRef<EndpointMemberDrawerRef, Props>(({ endpt
             </Form.Item>
           </Col>
           <Col span={12}>
-            <Form.Item name="blockYn" label="블럭설정여부" valuePropName="checked">
+            <Form.Item name="blockYn" label="블록설정여부" valuePropName="checked">
               <Switch checkedChildren="설정" unCheckedChildren="해제" />
             </Form.Item>
           </Col>

@@ -45,7 +45,7 @@ import { useModal } from '@/libs/shared-ui/src/hooks/useModal';
 
 const breadcrumb = [
   { title: 'IPRON', path: '/ipron' },
-  { title: '상담사 관리', path: '/ipron/skillset-master' },
+  { title: '상담사 관리', path: '/ipron/agent-master' },
   { title: '스킬 관리', path: '/ipron/skillset-master' },
   { title: '스킬셋 관리', path: '/ipron/skillset-master' },
 ];
@@ -317,7 +317,7 @@ export default function SkillsetMasterList() {
     (group: SkillsetGroupResponse) => {
       modal.confirm.execute({
         onOk: () => deleteGroup(group.treeId),
-        options: { title: '업무그룹 삭제', content: `"${group.treeName}" 그룹과 하위 그룹/매핑이 모두 삭제됩니다. 진행하시겠습니까?` },
+        options: { title: '업무그룹 삭제', content: `"${group.treeName}" 그룹과 하위 그룹, 그룹-스킬셋 매핑이 삭제됩니다. 상담사의 스킬 배정은 유지됩니다. 진행하시겠습니까?` },
       });
     },
     [modal, deleteGroup],
@@ -600,7 +600,7 @@ export default function SkillsetMasterList() {
         loading={isCreatingGroup || isUpdatingGroup}
       />
 
-      {/* 스킬셋별 스케쥴 관리 Drawer */}
+      {/* 스킬셋별 스케줄 관리 Drawer */}
       <SkillsetScheduleDrawer open={scheduleDrawerOpen} skillset={scheduleSkillset} onClose={() => setScheduleDrawerOpen(false)} />
     </div>
   );

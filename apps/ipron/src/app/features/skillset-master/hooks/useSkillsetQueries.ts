@@ -189,7 +189,7 @@ export const useMoveSkillsetGroup = ({ mutationOptions }: MutationHookOptions<vo
   });
 };
 
-// ─── 스케쥴 관리 ──────────────────────────────────────────────────────────────
+// ─── 스케줄 관리 ──────────────────────────────────────────────────────────────
 
 export const useGetSchedules = ({ params, queryOptions }: QueryHookWithParamsOptions<ScheduleInfoResponse[]> = {}) =>
   useQuery({

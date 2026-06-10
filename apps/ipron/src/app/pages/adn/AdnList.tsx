@@ -351,7 +351,6 @@ export default function AdnList() {
             rowData={filteredAdns}
             isLoading={isLoading}
             onRowDoubleClicked={handleEdit}
-            onDelete={handleDelete}
             onSelectionChanged={setSelectedRows}
             onBulkDelete={handleBulkDelete}
             selectedCount={selectedRows.length}

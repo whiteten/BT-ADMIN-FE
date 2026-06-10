@@ -126,10 +126,12 @@ export const didRouteApi = {
    * @flow ipron-dn-group-options
    */
   getDnGroupOptions: async (tenantId: number): Promise<DnGroupOptionItem[]> => {
-    const response = await apiClient.get<ApiResponse<DnGroupOptionItem[]>>('/ipron-dn-group-options', {
+    const response = await apiClient.get<ApiResponse<{ value: DnGroupOptionItem[] }>>('/ipron-dn-group-options', {
       params: { tenantId },
     });
-    return response.data?.data ?? [];
+    const raw = response.data?.data;
+    if (Array.isArray(raw)) return raw;
+    return (raw as { value?: DnGroupOptionItem[] })?.value ?? [];
   },
 
   // ─── 업무시간 콤보 옵션 ──────────────────────────────────────────────────────
@@ -140,9 +142,11 @@ export const didRouteApi = {
    * @flow ipron-worktime-options
    */
   getWorktimeOptions: async (tenantId: number): Promise<WorktimeOptionItem[]> => {
-    const response = await apiClient.get<ApiResponse<WorktimeOptionItem[]>>('/ipron-worktime-options', {
+    const response = await apiClient.get<ApiResponse<{ value: WorktimeOptionItem[] }>>('/ipron-worktime-options', {
       params: { tenantId },
     });
-    return response.data?.data ?? [];
+    const raw = response.data?.data;
+    if (Array.isArray(raw)) return raw;
+    return (raw as { value?: WorktimeOptionItem[] })?.value ?? [];
   },
 };

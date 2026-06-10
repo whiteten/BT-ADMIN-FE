@@ -85,7 +85,17 @@ function toUpdateBody(agent: AgentResponse, matrix: AgentMediaMatrix, useGrpMdaO
   };
 }
 
-/** 행이 선택 미디어에 대해 그룹 상속인지. */
+/**
+ * 행이 그룹 상속인지 — dirty 반영 현재값 기준.
+ * dirtyEntry 가 있으면 pending 변경값을 우선, 없으면 rowData 원본 사용.
+ * SWAT IPR20S4060: 항상 select 렌더(전환 가능) 와 정합.
+ */
+function isInheritedWithDirty(agent: AgentResponse | undefined, dirtyEntry: DirtyEntry | undefined): boolean {
+  const val = dirtyEntry?.useGrpMdaOpt ?? agent?.useGrpMdaOpt ?? 0;
+  return val === 1;
+}
+
+/** rowData 원본 기준 그룹 상속 여부 (AgentNameCell 아이콘 표시용). */
 function isInherited(agent: AgentResponse | undefined): boolean {
   return agent?.useGrpMdaOpt === 1;
 }
@@ -183,7 +193,7 @@ function AgentLoginIdCell({ params }: { params: ICellRendererParams<AgentRespons
 
 /**
  * 미디어옵션(개별/그룹) 셀 — 상시 Select 렌더.
- * 그룹상속(inherited) 행은 뱃지만 표시(읽기전용).
+ * 그룹 상태여도 Select 를 렌더해 개별로 전환 가능하게 함 (SWAT IPR20S4060 정합).
  * onChange → dirty 에 기록(즉시 PUT 없음).
  */
 function UseGrpMdaOptCell({ params }: { params: ICellRendererParams<AgentResponse> }) {
@@ -201,18 +211,8 @@ function UseGrpMdaOptCell({ params }: { params: ICellRendererParams<AgentRespons
   }, [data?.useGrpMdaOpt, data?.agentId, activeMediaKey]);
 
   if (!data) return null;
-  const inherited = isInherited(data);
 
-  if (inherited) {
-    return (
-      <div className="w-full h-full flex items-center justify-center" style={{ cursor: 'default' }}>
-        <span className="inline-flex items-center justify-center gap-1 w-[48px] h-[20px] leading-none px-1.5 rounded text-[11px] font-medium text-amber-700 bg-amber-50 border border-amber-200">
-          그룹
-        </span>
-      </div>
-    );
-  }
-
+  // 항상 Select 렌더 — 그룹(1) 상태에서도 개별(0) 으로 전환 가능해야 함
   return (
     <div className="w-full h-full flex items-center justify-center">
       <Select
@@ -239,13 +239,14 @@ function UseGrpMdaOptCell({ params }: { params: ICellRendererParams<AgentRespons
 
 /**
  * 사용 여부 셀 — 상시 Select 렌더.
- * 그룹상속 행은 뱃지 표시만.
+ * dirty 반영 현재값이 그룹 상속이면 뱃지 표시(읽기전용). 개별이면 Select.
  */
 function MediaUseCell({ params }: { params: ICellRendererParams<AgentResponse> }) {
   const { activeMediaKey, dirtyMap, setDirtyEntry, getAgentCurrentEntry } = useMediaEdit();
   const agent = params.data;
   if (!agent) return null;
-  const inherited = isInherited(agent);
+  const dirtyEntryForInherit = dirtyMap.get(agent.agentId);
+  const inherited = isInheritedWithDirty(agent, dirtyEntryForInherit);
   const srcOpt = agent.mediaMatrix?.[activeMediaKey] ?? DEFAULT_OPT;
 
   const dirtyEntry = dirtyMap.get(agent.agentId);
@@ -324,7 +325,8 @@ function NumberEditCell({
   }, [currentVal]);
 
   if (!agent) return null;
-  const inherited = isInherited(agent);
+  // dirty 반영 현재값 기준으로 그룹 상속 여부 판정
+  const inherited = isInheritedWithDirty(agent, dirtyEntry);
   const srcOpt = agent.mediaMatrix?.[activeMediaKey] ?? DEFAULT_OPT;
 
   if (inherited) {
@@ -369,13 +371,14 @@ function NumberEditCell({
 
 /**
  * 자동응답 여부 셀 — 상시 Select 렌더.
- * inherited 행: span 읽기전용.
+ * dirty 반영 현재값이 그룹 상속이면 읽기전용 span. 개별이면 Select.
  */
 function AutoModeCell({ params }: { params: ICellRendererParams<AgentResponse> }) {
   const { activeMediaKey, dirtyMap, setDirtyEntry, getAgentCurrentEntry } = useMediaEdit();
   const agent = params.data;
   if (!agent) return null;
-  const inherited = isInherited(agent);
+  const dirtyEntryForInherit = dirtyMap.get(agent.agentId);
+  const inherited = isInheritedWithDirty(agent, dirtyEntryForInherit);
   const srcOpt = agent.mediaMatrix?.[activeMediaKey] ?? DEFAULT_OPT;
 
   const dirtyEntry = dirtyMap.get(agent.agentId);
@@ -697,7 +700,7 @@ const AgentMediaStatusTable = forwardRef<AgentMediaStatusTableHandle, AgentMedia
 
   // ─── 일괄적용 ────────────────────────────────────────────────────────────
   const handleBulkApply = useCallback(() => {
-    const eligible = selectedAgents.filter((a) => !isInherited(a));
+    const eligible = selectedAgents.filter((a) => !isInheritedWithDirty(a, dirtyMap.get(a.agentId)));
     if (eligible.length === 0) return;
 
     let skippedAutoTime = 0;

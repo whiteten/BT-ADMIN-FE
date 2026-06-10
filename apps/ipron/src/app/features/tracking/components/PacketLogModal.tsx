@@ -165,7 +165,7 @@ export default function PacketLogModal({ open, onClose, context }: Props) {
       width={900}
       title={
         <div className="flex items-center gap-2">
-          <span className="text-[14px] font-semibold">📡 패킷 전문</span>
+          <span className="text-[14px] font-semibold">패킷 전문</span>
           {context?.packetId && <span className="text-[12px] text-gray-500">/ {context.packetId}</span>}
           {context?.menuName && <span className="text-[12px] text-gray-400">— {context.menuName}</span>}
         </div>
@@ -208,12 +208,12 @@ export default function PacketLogModal({ open, onClose, context }: Props) {
           items={[
             {
               key: 'send',
-              label: '📤 요청 전문',
+              label: '요청 전문',
               children: <PacketBody data={state.send} error={state.sendErr} dataType={context?.dataType ?? 3} />,
             },
             {
               key: 'recv',
-              label: '📥 응답 전문',
+              label: '응답 전문',
               children: <PacketBody data={state.recv} error={state.recvErr} dataType={context?.dataType ?? 3} />,
             },
           ]}

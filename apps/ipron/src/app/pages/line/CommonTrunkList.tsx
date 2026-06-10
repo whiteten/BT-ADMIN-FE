@@ -16,7 +16,7 @@ import { Panel, PanelGroup, PanelResizeHandle } from 'react-resizable-panels';
 import type { CellStyle, ColDef, GridOptions } from 'ag-grid-community';
 import { AgGridReact, type AgGridReact as AgGridReactType } from 'ag-grid-react';
 import { Button, Input, Modal, Select, Tag } from 'antd';
-import { ChevronLeft, ChevronRight, Download, Network, Plus, Search, Trash2, Upload } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Network, Plus, Search, Trash2 } from 'lucide-react';
 import { useBreadcrumbStore } from '@/shared-store';
 import { toast } from '@/shared-util';
 import CommonGdnFormDrawer from '../../features/common-trunk/components/CommonGdnFormDrawer';
@@ -42,8 +42,8 @@ import {
 import { useGetDnProfileNodes } from '../../features/dn-profile/hooks/useDnProfileQueries';
 
 const breadcrumb = [
-  { title: '번호자원관리', path: '/ipron/line' },
-  { title: '그룹DN', path: '/ipron/line' },
+  { title: '번호자원관리', path: '/ipron/numbering' },
+  { title: '교환기 번호관리', path: '/ipron/numbering' },
   { title: '공용 SIP TRUNK', path: '/ipron/line/common-trunk' },
 ];
 
@@ -240,7 +240,7 @@ export default function CommonTrunkList() {
         headerName: '글로벌',
         width: 75,
         cellStyle: { textAlign: 'center' } as CellStyle,
-        valueFormatter: (p) => (p.value === 1 ? 'O' : 'X'),
+        cellRenderer: (p: { value: number }) => (p.value === 1 ? <Tag color="blue">글로벌</Tag> : <span className="text-gray-400 text-[11px]">—</span>),
       },
       {
         field: 'backUpNodeName',
@@ -258,15 +258,15 @@ export default function CommonTrunkList() {
       },
       {
         field: 'blockYn',
-        headerName: '블럭',
+        headerName: '블록',
         width: 70,
         cellStyle: { textAlign: 'center' } as CellStyle,
-        cellRenderer: (p: { value: number }) => (p.value === 1 ? <Tag color="red">ON</Tag> : <Tag>OFF</Tag>),
+        cellRenderer: (p: { value: number }) => (p.value === 1 ? <Tag color="red">사용</Tag> : <Tag>미사용</Tag>),
       },
       // 갭4: 라우팅 이름 3종 (SWAT 그리드 정합)
       {
         field: 'blockRoutingName',
-        headerName: '블럭라우팅',
+        headerName: '블록라우팅',
         width: 110,
         cellStyle: { color: '#9ca3af', fontSize: '11px' } as CellStyle,
         valueFormatter: (p) => p.value ?? '—',
@@ -293,17 +293,6 @@ export default function CommonTrunkList() {
   const trunkColumns = useMemo<ColDef<CommonTrunkMemberResponse>[]>(
     () => [
       {
-        headerCheckboxSelection: true,
-        checkboxSelection: true,
-        width: 44,
-        maxWidth: 44,
-        pinned: 'left',
-        resizable: false,
-        sortable: false,
-        filter: false,
-        suppressHeaderMenuButton: true,
-      },
-      {
         field: 'assignYn',
         headerName: '배정상태',
         width: 84,
@@ -324,7 +313,7 @@ export default function CommonTrunkList() {
         maxWidth: 140,
         valueGetter: (p) => (p.data ? (trunkKindMap.get(p.data.sipTrunkId) ?? null) : null),
         cellRenderer: (p: { value: number | null }) =>
-          p.value === 1 ? <Tag color="blue">IPRON-IE</Tag> : p.value === 9 ? <Tag color="purple">3rd party PBX</Tag> : <span>{getTrunkKindName(p.value)}</span>,
+          p.value === 1 ? <Tag color="blue">IPRON-IE</Tag> : p.value === 9 ? <Tag color="purple">외부 교환기(PBX)</Tag> : <span>{getTrunkKindName(p.value)}</span>,
       },
       { field: 'chnlCnt', headerName: '채널', width: 64, cellStyle: { textAlign: 'center', fontFamily: 'monospace', fontSize: '12px' } as CellStyle },
       {
@@ -459,7 +448,7 @@ export default function CommonTrunkList() {
                     type="button"
                     onClick={() => handleSelectNode(n.nodeId as number)}
                     className={`flex items-center justify-center gap-2 px-3 py-2.5 text-[13px] font-medium cursor-pointer border-b-2 -mb-px w-[120px] flex-shrink-0 transition ${
-                      active ? 'bg-[#eff6ff] text-[#1d4ed8] border-b-blue-600' : 'text-gray-500 border-b-transparent hover:text-gray-700'
+                      active ? 'bg-blue-50 text-[var(--color-bt-primary)] border-b-[var(--color-bt-primary)]' : 'text-gray-500 border-b-transparent hover:text-gray-700'
                     }`}
                   >
                     <Network className="size-3" />
@@ -485,17 +474,13 @@ export default function CommonTrunkList() {
               size="small"
               allowClear
               prefix={<Search className="size-3.5 text-gray-400" />}
-              placeholder="그룹DN / 트렁크 검색"
+              placeholder="트렁크 검색"
               value={trunkSearch}
               onChange={handleTrunkSearch}
               style={{ width: 200 }}
             />
-            <Button size="small" icon={<Download className="size-3.5" />} onClick={() => toast.info('엑셀 다운로드는 준비 중입니다')}>
-              엑셀
-            </Button>
-            <Button size="small" icon={<Upload className="size-3.5" />} onClick={() => toast.info('가져오기는 준비 중입니다')}>
-              가져오기
-            </Button>
+            {/* TODO: 엑셀 다운로드 구현 후 노출 */}
+            {/* TODO: 가져오기 구현 후 노출 */}
           </div>
         </div>
       </div>
@@ -537,7 +522,6 @@ export default function CommonTrunkList() {
             <div className="h-[34px] px-3 flex items-center gap-1.5 bg-gray-50 border-b border-gray-100 text-[11.5px] font-semibold text-gray-500 flex-shrink-0">
               <Network className="size-3" />
               <span>{selectedNodeName || '노드 선택'} 노드</span>
-              <span className="ml-auto font-normal text-gray-400 text-[11px]">GDN_TYPE=18</span>
             </div>
 
             <div className="flex-1 min-h-0 ag-theme-quartz">
@@ -549,7 +533,7 @@ export default function CommonTrunkList() {
               <Network className="size-3 text-[#405189]" />
               <span className="text-gray-500">선택:</span>
               <strong className="text-[#405189]">{selectedGdn ? `${selectedGdn.gdnNo}  ${selectedGdn.gdnName}` : '— 행 클릭으로 선택'}</strong>
-              <span className="text-gray-400">→ 우측에서 트렁크 배정/해제</span>
+              <span className="text-gray-400">우측에서 트렁크 배정/해제</span>
             </div>
           </div>
         </Panel>
@@ -588,7 +572,7 @@ export default function CommonTrunkList() {
                   options={[
                     { value: '', label: '전체 종류' },
                     { value: 1, label: 'IPRON-IE' },
-                    { value: 9, label: '3rd party PBX' },
+                    { value: 9, label: '외부 교환기(PBX)' },
                   ]}
                 />
                 <Button
@@ -606,20 +590,6 @@ export default function CommonTrunkList() {
 
             <div className="h-[34px] px-3 flex items-center gap-2 bg-gray-50 border-b border-gray-100 text-[11.5px] font-semibold text-gray-500 flex-shrink-0">
               <span>{selectedNodeName || '노드 선택'} 노드</span>
-              <span className="ml-auto flex items-center gap-2 font-normal text-[11px]">
-                <span className="flex items-center gap-1">
-                  <span className="inline-block w-2 h-2 rounded-sm" style={{ background: '#16a34a' }} />
-                  &lt;60%
-                </span>
-                <span className="flex items-center gap-1">
-                  <span className="inline-block w-2 h-2 rounded-sm" style={{ background: '#f59e0b' }} />
-                  60~85%
-                </span>
-                <span className="flex items-center gap-1">
-                  <span className="inline-block w-2 h-2 rounded-sm" style={{ background: '#dc2626' }} />
-                  &gt;85%
-                </span>
-              </span>
             </div>
 
             <div className="flex-1 min-h-0 ag-theme-quartz">
@@ -657,7 +627,7 @@ export default function CommonTrunkList() {
             <span className="text-white/60 text-xs">트렁크</span>
             <span className="bg-[#405189] px-2 py-0.5 rounded-full font-bold min-w-[22px] text-center">{selectedTrunks.length}건</span>
           </span>
-          <span className="text-white/40 mx-1">▶</span>
+          <span className="text-white/40 mx-1">·</span>
           <Button size="small" type="primary" icon={<Plus className="size-3" />} onClick={() => setAssignDrawerOpen(true)}>
             배정
           </Button>

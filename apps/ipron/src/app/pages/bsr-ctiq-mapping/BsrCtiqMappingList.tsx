@@ -32,7 +32,7 @@ import { useModal } from '@/libs/shared-ui/src/hooks/useModal';
 
 const breadcrumb = [
   { title: '번호자원관리', path: '/ipron/bsr-ctiq-mapping' },
-  { title: '그룹DN', path: '/ipron/bsr-ctiq-mapping' },
+  { title: '라우팅 설정', path: '/ipron/bsr-ctiq-mapping' },
   { title: 'BSR 그룹별 CTI큐 배정', path: '/ipron/bsr-ctiq-mapping' },
 ];
 

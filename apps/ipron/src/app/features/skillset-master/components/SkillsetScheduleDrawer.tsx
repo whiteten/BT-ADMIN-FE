@@ -1,12 +1,12 @@
 /**
- * 스킬셋별 스케쥴 관리 Drawer.
+ * 스킬셋별 스케줄 관리 Drawer.
  *
- * AS-IS SWAT IPR20S5010 스케쥴 popup02 (스킬셋에 배정된 스케쥴 목록 + 배정/해제).
+ * AS-IS SWAT IPR20S5010 스케줄 popup02 (스킬셋에 배정된 스케줄 목록 + 배정/해제).
  *
  * 구조:
- *  - 상단: 배정된 스케쥴 목록 (요일/시간 칩 + 해제 버튼)
- *  - 하단: 배정 가능한 스케쥴 (동일 테넌트 미배정분) — 체크 후 배정
- *  - 스케쥴 마스터 자체 CRUD 는 ScheduleInfoDrawer 로 (등록/수정/삭제)
+ *  - 상단: 배정된 스케줄 목록 (요일/시간 칩 + 해제 버튼)
+ *  - 하단: 배정 가능한 스케줄 (동일 테넌트 미배정분) — 체크 후 배정
+ *  - 스케줄 마스터 자체 CRUD 는 ScheduleInfoDrawer 로 (등록/수정/삭제)
  */
 import { useMemo, useState } from 'react';
 import { Button, Drawer, Empty, Tag } from 'antd';
@@ -67,7 +67,7 @@ export default function SkillsetScheduleDrawer({ open, skillset, onClose }: Prop
   const { mutate: assign, isPending: assigning } = useAssignSchedules({
     mutationOptions: {
       onSuccess: (n) => {
-        toast.success(`${n}건의 스케쥴이 배정되었습니다`);
+        toast.success(`${n}건의 스케줄이 배정되었습니다`);
         setAssignSelection(new Set());
       },
       onError: (e: unknown) => toast.error(extractMsg(e, '배정 실패')),
@@ -75,14 +75,14 @@ export default function SkillsetScheduleDrawer({ open, skillset, onClose }: Prop
   });
   const { mutate: unassign } = useUnassignSchedule({
     mutationOptions: {
-      onSuccess: () => toast.success('스케쥴 배정이 해제되었습니다'),
+      onSuccess: () => toast.success('스케줄 배정이 해제되었습니다'),
       onError: (e: unknown) => toast.error(extractMsg(e, '해제 실패')),
     },
   });
   const { mutate: createSchedule, isPending: creating } = useCreateSchedule({
     mutationOptions: {
       onSuccess: () => {
-        toast.success('스케쥴이 등록되었습니다');
+        toast.success('스케줄이 등록되었습니다');
         setInfoDrawerOpen(false);
       },
       onError: (e: unknown) => toast.error(extractMsg(e, '등록 실패')),
@@ -91,7 +91,7 @@ export default function SkillsetScheduleDrawer({ open, skillset, onClose }: Prop
   const { mutate: updateSchedule, isPending: updating } = useUpdateSchedule({
     mutationOptions: {
       onSuccess: () => {
-        toast.success('스케쥴이 수정되었습니다');
+        toast.success('스케줄이 수정되었습니다');
         setInfoDrawerOpen(false);
       },
       onError: (e: unknown) => toast.error(extractMsg(e, '수정 실패')),
@@ -99,7 +99,7 @@ export default function SkillsetScheduleDrawer({ open, skillset, onClose }: Prop
   });
   const { mutate: deleteSchedule } = useDeleteSchedule({
     mutationOptions: {
-      onSuccess: () => toast.success('스케쥴이 삭제되었습니다'),
+      onSuccess: () => toast.success('스케줄이 삭제되었습니다'),
       onError: (e: unknown) => toast.error(extractMsg(e, '삭제 실패')),
     },
   });
@@ -139,7 +139,7 @@ export default function SkillsetScheduleDrawer({ open, skillset, onClose }: Prop
   const handleDelete = (s: ScheduleInfoResponse) => {
     modal.confirm.execute({
       onOk: () => deleteSchedule(s.scheduleId),
-      options: { title: '스케쥴 삭제', content: `"${s.scheduleName}" 스케쥴을 삭제하시겠습니까? 배정된 스킬셋에서도 해제됩니다.` },
+      options: { title: '스케줄 삭제', content: `"${s.scheduleName}" 스케줄을 삭제하시겠습니까? 배정된 스킬셋에서도 해제됩니다.` },
     });
   };
 
@@ -162,17 +162,17 @@ export default function SkillsetScheduleDrawer({ open, skillset, onClose }: Prop
   );
 
   return (
-    <Drawer title={skillset ? `스케쥴 관리 — ${skillset.skillsetName}` : '스케쥴 관리'} closable={{ placement: 'end' }} open={open} onClose={onClose} width={520} destroyOnClose>
-      {/* ── 배정된 스케쥴 ── */}
+    <Drawer title={skillset ? `스케줄 관리 — ${skillset.skillsetName}` : '스케줄 관리'} closable={{ placement: 'end' }} open={open} onClose={onClose} width={520} destroyOnClose>
+      {/* ── 배정된 스케줄 ── */}
       <div className="flex items-center justify-between mb-2">
-        <span className="text-sm font-semibold text-gray-700">배정된 스케쥴 ({assigned.length})</span>
+        <span className="text-sm font-semibold text-gray-700">배정된 스케줄 ({assigned.length})</span>
       </div>
       <div className="border border-gray-100 rounded mb-5 divide-y divide-gray-100 min-h-[60px]">
         {loadingAssigned ? (
           <div className="py-6 text-center text-xs text-gray-400">불러오는 중...</div>
         ) : assigned.length === 0 ? (
           <div className="py-6">
-            <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description="배정된 스케쥴이 없습니다" />
+            <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description="배정된 스케줄이 없습니다" />
           </div>
         ) : (
           assigned.map((s) => (
@@ -189,12 +189,12 @@ export default function SkillsetScheduleDrawer({ open, skillset, onClose }: Prop
         )}
       </div>
 
-      {/* ── 배정 가능한 스케쥴 ── */}
+      {/* ── 배정 가능한 스케줄 ── */}
       <div className="flex items-center justify-between mb-2">
-        <span className="text-sm font-semibold text-gray-700">배정 가능한 스케쥴 ({assignable.length})</span>
+        <span className="text-sm font-semibold text-gray-700">배정 가능한 스케줄 ({assignable.length})</span>
         <div className="flex items-center gap-2">
           <Button size="small" icon={<Plus className="size-3.5" />} onClick={handleCreate}>
-            스케쥴 등록
+            스케줄 등록
           </Button>
           <Button type="primary" size="small" icon={<CalendarPlus className="size-3.5" />} loading={assigning} disabled={selectedCount === 0} onClick={handleAssign}>
             {selectedCount > 0 ? `배정 (${selectedCount})` : '배정'}
@@ -206,7 +206,7 @@ export default function SkillsetScheduleDrawer({ open, skillset, onClose }: Prop
           <div className="py-6 text-center text-xs text-gray-400">불러오는 중...</div>
         ) : assignable.length === 0 ? (
           <div className="py-6">
-            <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description="배정 가능한 스케쥴이 없습니다" />
+            <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description="배정 가능한 스케줄이 없습니다" />
           </div>
         ) : (
           assignable.map((s) => {
@@ -225,7 +225,7 @@ export default function SkillsetScheduleDrawer({ open, skillset, onClose }: Prop
                 <div className="flex items-center gap-1 flex-shrink-0">
                   <button
                     type="button"
-                    title="스케쥴 수정"
+                    title="스케줄 수정"
                     className="text-gray-400 hover:text-[#405189]"
                     onClick={(e) => {
                       e.stopPropagation();
@@ -236,7 +236,7 @@ export default function SkillsetScheduleDrawer({ open, skillset, onClose }: Prop
                   </button>
                   <button
                     type="button"
-                    title="스케쥴 삭제"
+                    title="스케줄 삭제"
                     className="text-gray-400 hover:text-red-500"
                     onClick={(e) => {
                       e.stopPropagation();
@@ -254,7 +254,7 @@ export default function SkillsetScheduleDrawer({ open, skillset, onClose }: Prop
 
       {assignable.length === 0 && assigned.length === 0 && skillset?.tenantId == null && (
         <Tag className="mt-3" color="warning">
-          테넌트가 없는 스킬셋은 스케쥴을 배정할 수 없습니다
+          테넌트가 없는 스킬셋은 스케줄을 배정할 수 없습니다
         </Tag>
       )}
 

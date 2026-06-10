@@ -4,14 +4,14 @@
  * - REASON_CODE: tenantId/codeType/reasonCode/reasonName/reasonDesc
  */
 import { useEffect } from 'react';
-import { Button, Drawer, Form, Input, InputNumber, message } from 'antd';
+import { Button, Drawer, Form, Input, InputNumber, Typography } from 'antd';
 import { toast } from '@/shared-util';
 import { useCreateReasonCode, useUpdateReasonCode } from '../hooks/useCtiCodeQueries';
 import { REASON_CODE_TYPE_ACW, REASON_CODE_TYPE_REST, type ReasonCodeResponse } from '../types';
 
 type Mode = 'create' | 'edit';
 
-export type CtiCodeDrawerState = { open: false } | { open: true; mode: Mode; codeType: number; tenantId?: number | null; reason?: ReasonCodeResponse };
+export type CtiCodeDrawerState = { open: false } | { open: true; mode: Mode; codeType: number; tenantId?: number | null; tenantName?: string | null; reason?: ReasonCodeResponse };
 
 interface Props {
   state: CtiCodeDrawerState;
@@ -20,14 +20,13 @@ interface Props {
 
 function codeTypeLabel(codeType: number): string {
   if (codeType === REASON_CODE_TYPE_REST) return '상담 휴식 사유';
-  if (codeType === REASON_CODE_TYPE_ACW) return 'ACW 업무';
+  if (codeType === REASON_CODE_TYPE_ACW) return '후처리(ACW) 업무';
   return '';
 }
 
-/** SWAT IPR20S4040.jsp:233 — 코드분류 콤보박스의 표시 텍스트 (코드값 포함) */
 function codeTypeLabelWithCode(codeType: number): string {
-  if (codeType === REASON_CODE_TYPE_REST) return `상담 휴식 사유 (${REASON_CODE_TYPE_REST})`;
-  if (codeType === REASON_CODE_TYPE_ACW) return `ACW 업무 (${REASON_CODE_TYPE_ACW})`;
+  if (codeType === REASON_CODE_TYPE_REST) return '상담 휴식 사유';
+  if (codeType === REASON_CODE_TYPE_ACW) return '후처리(ACW) 업무';
   return String(codeType);
 }
 
@@ -73,6 +72,16 @@ export default function CtiCodeFormDrawer({ state, onClose }: Props) {
 
   if (!state.open) return null;
 
+  // 현재 표시할 테넌트 이름 결정
+  const displayTenantName: string = (() => {
+    if (state.reason) {
+      return state.reason.tenantName ?? `#${state.reason.tenantId}`;
+    }
+    if (state.tenantName) return state.tenantName;
+    if (state.tenantId != null) return `#${state.tenantId}`;
+    return '';
+  })();
+
   const { mode, codeType } = state;
   const submitting = isCreating || isUpdating;
 
@@ -82,7 +91,7 @@ export default function CtiCodeFormDrawer({ state, onClose }: Props) {
 
       if (mode === 'create') {
         if (!values.tenantIdInput) {
-          message.error('테넌트 ID는 필수입니다');
+          toast.error('테넌트는 필수입니다');
           return;
         }
         createReason({
@@ -125,37 +134,39 @@ export default function CtiCodeFormDrawer({ state, onClose }: Props) {
       }
     >
       <Form form={form} layout="vertical">
-        {/* SWAT IPR20S4040.jsp:232-236 — 코드분류 콤보박스. 등록·수정 모두 disabled로 현재 분류 명시 표시 */}
         <Form.Item label="코드분류">
           <Input value={codeTypeLabelWithCode(codeType)} disabled style={{ color: 'rgba(0,0,0,0.65)', backgroundColor: '#f5f5f5', cursor: 'default' }} />
         </Form.Item>
-        <Form.Item
-          label="테넌트 ID"
-          name="tenantIdInput"
-          rules={[{ required: true, message: '테넌트 ID는 필수입니다' }]}
-          tooltip="현재 선택된 테넌트가 자동 채워지면 그대로 둡니다"
-        >
-          <InputNumber style={{ width: '100%' }} disabled={mode === 'edit'} placeholder="예: 2025001019" />
+        <Form.Item label="테넌트">
+          <div className="flex items-center px-3 py-1.5 rounded border border-gray-200 bg-gray-50 min-h-[32px]" style={{ color: 'rgba(0,0,0,0.65)', cursor: 'default' }}>
+            <Typography.Text ellipsis style={{ color: 'inherit' }}>
+              {displayTenantName || '—'}
+            </Typography.Text>
+          </div>
+        </Form.Item>
+        {/* tenantIdInput hidden — 제출 시 값 유지용 */}
+        <Form.Item name="tenantIdInput" hidden>
+          <InputNumber />
         </Form.Item>
         <Form.Item
           label="사유 번호"
           name="reasonCode"
-          tooltip="0~29 범위. 비워두면 서버에서 자동 채번 (max+1)"
+          tooltip="0~29 범위. 비워두면 자동으로 부여됩니다"
           rules={[{ type: 'number', min: 0, max: 29, message: '0~29 범위만 입력 가능합니다' }]}
         >
-          <InputNumber style={{ width: '100%' }} disabled={mode === 'edit'} placeholder="자동 채번 (0~29)" min={0} max={29} />
+          <InputNumber style={{ width: '100%' }} disabled={mode === 'edit'} placeholder="자동 부여 (0~29)" min={0} max={29} />
         </Form.Item>
         <Form.Item
           label="사유 이름"
           name="reasonName"
           rules={[
-            { required: true, message: '필수' },
-            { max: 16, message: '16자 이내' },
+            { required: true, message: '사유 이름은(는) 필수입니다' },
+            { max: 16, message: '16자 이내여야 합니다' },
           ]}
         >
           <Input maxLength={16} placeholder="예: 식사, 교육" />
         </Form.Item>
-        <Form.Item label="설명" name="reasonDesc" rules={[{ max: 256 }]}>
+        <Form.Item label="설명" name="reasonDesc" rules={[{ max: 256, message: '256자 이내여야 합니다' }]}>
           <Input.TextArea rows={3} maxLength={256} showCount placeholder="용도 설명 (선택)" />
         </Form.Item>
       </Form>

@@ -10,13 +10,13 @@ interface Props {
   loading?: boolean;
 }
 
-const TYPE_STYLE: Record<AgentEventType, { bg: string; emoji: string; label: string }> = {
-  STATE_CHANGE: { bg: 'bg-blue-100 text-blue-700', emoji: '🔄', label: '상태 변경' },
-  CALL_RING: { bg: 'bg-amber-100 text-amber-700', emoji: '🔔', label: '벨울림' },
-  CALL_ANSWER: { bg: 'bg-emerald-100 text-emerald-700', emoji: '🎧', label: '호 응답' },
-  CALL_RELEASE: { bg: 'bg-gray-100 text-gray-600', emoji: '📤', label: '호 종료' },
-  TRANSFER_OUT: { bg: 'bg-purple-100 text-purple-700', emoji: '↗️', label: '전환 (보냄)' },
-  TRANSFER_IN: { bg: 'bg-purple-100 text-purple-700', emoji: '↘️', label: '전환 (받음)' },
+const TYPE_STYLE: Record<AgentEventType, { bg: string; label: string }> = {
+  STATE_CHANGE: { bg: 'bg-blue-100 text-blue-700', label: '상태 변경' },
+  CALL_RING: { bg: 'bg-amber-100 text-amber-700', label: '벨울림' },
+  CALL_ANSWER: { bg: 'bg-emerald-100 text-emerald-700', label: '호 응답' },
+  CALL_RELEASE: { bg: 'bg-gray-100 text-gray-600', label: '호 종료' },
+  TRANSFER_OUT: { bg: 'bg-purple-100 text-purple-700', label: '전환 (보냄)' },
+  TRANSFER_IN: { bg: 'bg-purple-100 text-purple-700', label: '전환 (받음)' },
 };
 
 const fmtTime = (iso: string): string => {
@@ -33,7 +33,7 @@ export default function AgentEventTimeline({ events, loading }: Props) {
   if (!events || events.length === 0) {
     return (
       <div className="p-6 flex items-center justify-center">
-        <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description={<span className="text-[12px]">Agent 이벤트 기록이 없습니다</span>} />
+        <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description={<span className="text-[12px]">상담사 이벤트 기록이 없습니다</span>} />
       </div>
     );
   }
@@ -43,7 +43,7 @@ export default function AgentEventTimeline({ events, loading }: Props) {
         const style = TYPE_STYLE[evt.type] ?? TYPE_STYLE.STATE_CHANGE;
         return (
           <div key={evt.eventId} className="flex items-start gap-3 py-1.5 hover:bg-gray-50 rounded px-2 -mx-2">
-            <div className={`size-7 rounded-md flex items-center justify-center flex-shrink-0 text-[12px] ${style.bg}`}>{style.emoji}</div>
+            <div className={`size-7 rounded-md flex items-center justify-center flex-shrink-0 text-[10px] font-semibold ${style.bg}`}>{style.label.slice(0, 2)}</div>
             <div className="flex-1 min-w-0">
               <div className="flex items-baseline gap-2 flex-wrap">
                 <span className="text-[12px] font-medium text-gray-900">{style.label}</span>

@@ -1,8 +1,8 @@
 /**
  * CTI 큐 등록/수정 드로어 (SWAT IPR20S3020 5탭).
  *
- * 탭1 기본정보 / 탭2 초기구성 / 탭3 큐설정 / 탭4 라우팅정보(+BSR 스케쥴 서브그리드) /
- * 탭5 목표 서비스레벨 스케쥴(수정 시 활성).
+ * 탭1 기본정보 / 탭2 초기구성 / 탭3 큐설정 / 탭4 라우팅정보(+BSR 스케줄 서브그리드) /
+ * 탭5 목표 서비스레벨 스케줄(수정 시 활성).
  *
  * "그룹DN 생성 = 즉시 큐번호" 결합 — 등록 폼에서 테넌트(고정)/노드(고정)/그룹DN번호/이름 입력.
  *
@@ -12,7 +12,7 @@
  *  - 최대대기=해제 → 시간 disable+0 (:2153-2154)
  *  - 호회수=해제 → 타임아웃 disable (:2138-2139)
  *  - 라우팅기준=Skill-Based → 미디어 스킬행 필수 (:361-368)
- *  - 블럭여부=해제 → 블럭설정 disable (:340-346)
+ *  - 블록여부=해제 → 블록설정 disable (:340-346)
  *  - BSR 사용=설정 → 그룹/가중치 enable + 그룹 필수 (:1195)
  */
 import { useEffect, useMemo, useRef, useState } from 'react';
@@ -159,7 +159,7 @@ export default function CtiQueueFormDrawer({ state, onClose, tenantOptions = [],
   const tenantId = isEdit ? (state.open ? state.tenantId : null) : (wTenantId ?? (state.open ? state.tenantId : null));
   const nodeId = isEdit ? (state.open ? state.nodeId : null) : (wNodeId ?? (state.open ? state.nodeId : null));
 
-  // ─── 스케쥴 피커 모달 상태 ────────────────────────────────────────────────────
+  // ─── 스케줄 피커 모달 상태 ────────────────────────────────────────────────────
   const [bsrPickerOpen, setBsrPickerOpen] = useState(false);
   const [sltPickerOpen, setSltPickerOpen] = useState(false);
   const [bsrPickerSelected, setBsrPickerSelected] = useState<number[]>([]);
@@ -172,56 +172,56 @@ export default function CtiQueueFormDrawer({ state, onClose, tenantOptions = [],
   const { data: mediaOptions = [] } = useGetCtiQueueMediaOptions();
   const { data: bsrSchedules = [], refetch: refetchBsrSchedules } = useGetCtiQueueBsrSchedules(ctiqId);
   const { data: sltSchedules = [], refetch: refetchSltSchedules } = useGetCtiQueueSltSchedules(ctiqId);
-  // 스케쥴 풀 — 피커 팝업이 열릴 때 tenantId 가 확정되어 있으므로 상시 조회
+  // 스케줄 풀 — 피커 팝업이 열릴 때 tenantId 가 확정되어 있으므로 상시 조회
   const { data: bsrSchedulePool = [], isFetching: bsrPoolLoading } = useGetCtiQueueBsrSchedulePool(tenantId);
   const { data: sltSchedulePool = [], isFetching: sltPoolLoading } = useGetCtiQueueSltSchedulePool(tenantId);
 
-  // 이미 배정된 BSR/SLT 스케쥴 ID 집합 (피커에서 중복 배정 방지용 disabled 처리)
+  // 이미 배정된 BSR/SLT 스케줄 ID 집합 (피커에서 중복 배정 방지용 disabled 처리)
   const assignedBsrIds = useMemo(() => new Set(bsrSchedules.map((s) => s.quebsrScheduleId)), [bsrSchedules]);
   const assignedSltIds = useMemo(() => new Set(sltSchedules.map((s) => s.sltScheduleId)), [sltSchedules]);
 
-  // ─── 스케쥴 배정/해제 뮤테이션 ─────────────────────────────────────────────
+  // ─── 스케줄 배정/해제 뮤테이션 ─────────────────────────────────────────────
   const { mutate: assignBsr, isPending: bsrAssigning } = useAssignBsrSchedules({
     mutationOptions: {
       onSuccess: () => {
-        toast.success('BSR 스케쥴이 배정되었습니다');
+        toast.success('BSR 스케줄이 배정되었습니다');
         setBsrPickerOpen(false);
         setBsrPickerSelected([]);
         void refetchBsrSchedules();
       },
-      onError: (err: unknown) => toast.error(extractMessage(err) ?? 'BSR 스케쥴 배정 실패'),
+      onError: (err: unknown) => toast.error(extractMessage(err) ?? 'BSR 스케줄 배정 실패'),
     },
   });
 
   const { mutate: unassignBsr, isPending: bsrUnassigning } = useUnassignBsrSchedule({
     mutationOptions: {
       onSuccess: () => {
-        toast.success('BSR 스케쥴 배정이 해제되었습니다');
+        toast.success('BSR 스케줄 배정이 해제되었습니다');
         void refetchBsrSchedules();
       },
-      onError: (err: unknown) => toast.error(extractMessage(err) ?? 'BSR 스케쥴 해제 실패'),
+      onError: (err: unknown) => toast.error(extractMessage(err) ?? 'BSR 스케줄 해제 실패'),
     },
   });
 
   const { mutate: assignSlt, isPending: sltAssigning } = useAssignSltSchedules({
     mutationOptions: {
       onSuccess: () => {
-        toast.success('SLT 스케쥴이 배정되었습니다');
+        toast.success('SLT 스케줄이 배정되었습니다');
         setSltPickerOpen(false);
         setSltPickerSelected([]);
         void refetchSltSchedules();
       },
-      onError: (err: unknown) => toast.error(extractMessage(err) ?? 'SLT 스케쥴 배정 실패'),
+      onError: (err: unknown) => toast.error(extractMessage(err) ?? 'SLT 스케줄 배정 실패'),
     },
   });
 
   const { mutate: unassignSlt, isPending: sltUnassigning } = useUnassignSltSchedule({
     mutationOptions: {
       onSuccess: () => {
-        toast.success('SLT 스케쥴 배정이 해제되었습니다');
+        toast.success('SLT 스케줄 배정이 해제되었습니다');
         void refetchSltSchedules();
       },
-      onError: (err: unknown) => toast.error(extractMessage(err) ?? 'SLT 스케쥴 해제 실패'),
+      onError: (err: unknown) => toast.error(extractMessage(err) ?? 'SLT 스케줄 해제 실패'),
     },
   });
 
@@ -259,7 +259,7 @@ export default function CtiQueueFormDrawer({ state, onClose, tenantOptions = [],
     [drAccessProfileOptions],
   );
   // ─── 멘트 콤보 (노드/테넌트 단위) — 교환기 멘트 관리(ment-mgmt) 옵션 재사용 ───────
-  // 초기구성 탭의 초기/대기/종료/블럭/연결/보류 멘트 ID 를 멘트 선택 콤보로 제공.
+  // 초기구성 탭의 초기/대기/종료/블록/연결/보류 멘트 ID 를 멘트 선택 콤보로 제공.
   const { data: mentOptions = [], isFetching: mentLoading } = useGetMentOptions(nodeId, tenantId);
   const mentSelectOptions = useMemo(
     () => [{ value: 0, label: '없음' }, ...mentOptions.map((m) => ({ value: m.id, label: m.fileName ? `${m.name} (${m.fileName})` : m.name }))],
@@ -789,16 +789,16 @@ export default function CtiQueueFormDrawer({ state, onClose, tenantOptions = [],
           <Form.Item label="대기멘트" name="waitMent">
             <Select options={mentSelectOptions} loading={mentLoading} showSearch optionFilterProp="label" placeholder="없음" />
           </Form.Item>
-          <Form.Item label="블럭시라우팅 DN" name="blockRoutingDnis" rules={[{ max: 24 }]}>
+          <Form.Item label="블록시라우팅 DN" name="blockRoutingDnis" rules={[{ max: 24 }]}>
             <Input maxLength={24} className="font-mono" placeholder="DN 숫자" />
           </Form.Item>
           <Form.Item label="종료멘트" name="closeMent">
-            <Select options={mentSelectOptions} loading={mentLoading} disabled={blockOff} showSearch optionFilterProp="label" placeholder="블럭=설정 시 활성" />
+            <Select options={mentSelectOptions} loading={mentLoading} disabled={blockOff} showSearch optionFilterProp="label" placeholder="블록=설정 시 활성" />
           </Form.Item>
           <Form.Item label="Busy시라우팅 DN" name="busyRoutingDnis" rules={[{ max: 24 }]}>
             <Input maxLength={24} className="font-mono" disabled={blockOff} placeholder="DN 숫자" />
           </Form.Item>
-          <Form.Item label="블럭멘트" name="blockMent">
+          <Form.Item label="블록멘트" name="blockMent">
             <Select options={mentSelectOptions} loading={mentLoading} showSearch optionFilterProp="label" placeholder="없음" />
           </Form.Item>
           <Form.Item label="기본연결멘트" name="connMent">
@@ -814,10 +814,10 @@ export default function CtiQueueFormDrawer({ state, onClose, tenantOptions = [],
             <Select options={mentSelectOptions} loading={mentLoading} showSearch optionFilterProp="label" placeholder="없음" />
           </Form.Item>
           <div className="col-span-2 my-2 border-t border-dashed border-gray-200" />
-          <Form.Item label="블럭여부" name="blockYn">
+          <Form.Item label="블록여부" name="blockYn">
             {ynRadio('설정', '해제')}
           </Form.Item>
-          <Form.Item label="블럭설정(종료방법)" name="closeType">
+          <Form.Item label="블록설정(종료방법)" name="closeType">
             <Select options={CLOSE_TYPE_OPTIONS} disabled={blockOff} />
           </Form.Item>
         </div>
@@ -1008,7 +1008,7 @@ export default function CtiQueueFormDrawer({ state, onClose, tenantOptions = [],
                 <table className="w-full border-collapse text-[11.5px] whitespace-nowrap">
                   <thead className="bg-gray-50 text-gray-600">
                     <tr>
-                      <th className="px-2 h-8 border-b text-left">스케쥴명</th>
+                      <th className="px-2 h-8 border-b text-left">스케줄명</th>
                       <th className="px-2 h-8 border-b text-left">시작일자</th>
                       <th className="px-2 h-8 border-b text-left">종료일자</th>
                       <th className="px-2 h-8 border-b text-right">시작</th>
@@ -1023,7 +1023,7 @@ export default function CtiQueueFormDrawer({ state, onClose, tenantOptions = [],
                     {bsrSchedules.length === 0 ? (
                       <tr>
                         <td colSpan={9} className="px-2 h-10 text-center text-gray-400">
-                          배정된 BSR 스케쥴이 없습니다
+                          배정된 BSR 스케줄이 없습니다
                         </td>
                       </tr>
                     ) : (
@@ -1057,7 +1057,7 @@ export default function CtiQueueFormDrawer({ state, onClose, tenantOptions = [],
                 </table>
               </div>
             ) : (
-              <p className="text-[11.5px] text-gray-400">큐 저장 후 BSR 스케쥴을 배정할 수 있습니다.</p>
+              <p className="text-[11.5px] text-gray-400">큐 저장 후 BSR 스케줄을 배정할 수 있습니다.</p>
             )}
           </section>
         </div>
@@ -1065,13 +1065,13 @@ export default function CtiQueueFormDrawer({ state, onClose, tenantOptions = [],
     },
     {
       key: 'slt',
-      label: '목표SLT스케쥴',
+      label: '목표SLT스케줄',
       disabled: !isEdit,
       forceRender: true,
       children: (
         <div>
           <div className="flex items-center justify-between mb-3">
-            <h4 className="text-[13px] font-semibold text-gray-700">목표 서비스레벨 스케쥴</h4>
+            <h4 className="text-[13px] font-semibold text-gray-700">목표 서비스레벨 스케줄</h4>
             <Button
               size="small"
               icon={<Plus className="size-3" />}
@@ -1088,7 +1088,7 @@ export default function CtiQueueFormDrawer({ state, onClose, tenantOptions = [],
             <table className="w-full border-collapse text-[12px] whitespace-nowrap">
               <thead className="bg-gray-50 text-gray-600">
                 <tr>
-                  <th className="px-2.5 h-8 border-b text-left">스케쥴명</th>
+                  <th className="px-2.5 h-8 border-b text-left">스케줄명</th>
                   <th className="px-2.5 h-8 border-b text-left">시작일자</th>
                   <th className="px-2.5 h-8 border-b text-right">시작시간</th>
                   <th className="px-2.5 h-8 border-b text-right">종료시간</th>
@@ -1100,7 +1100,7 @@ export default function CtiQueueFormDrawer({ state, onClose, tenantOptions = [],
                 {sltSchedules.length === 0 ? (
                   <tr>
                     <td colSpan={6} className="px-2.5 h-10 text-center text-gray-400">
-                      배정된 목표 SLT 스케쥴이 없습니다
+                      배정된 목표 SLT 스케줄이 없습니다
                     </td>
                   </tr>
                 ) : (
@@ -1161,9 +1161,9 @@ export default function CtiQueueFormDrawer({ state, onClose, tenantOptions = [],
         </Form>
       </Drawer>
 
-      {/* BSR 스케쥴 배정 피커 (SWAT IPR20S3020SIL.do 정합) */}
+      {/* BSR 스케줄 배정 피커 (SWAT IPR20S3020SIL.do 정합) */}
       <Modal
-        title="BSR 스케쥴 배정"
+        title="BSR 스케줄 배정"
         open={bsrPickerOpen}
         onCancel={() => {
           setBsrPickerOpen(false);
@@ -1171,7 +1171,7 @@ export default function CtiQueueFormDrawer({ state, onClose, tenantOptions = [],
         }}
         onOk={() => {
           if (bsrPickerSelected.length === 0) {
-            toast.warning('배정할 스케쥴을 1개 이상 선택하세요');
+            toast.warning('배정할 스케줄을 1개 이상 선택하세요');
             return;
           }
           if (ctiqId == null) return;
@@ -1182,13 +1182,13 @@ export default function CtiQueueFormDrawer({ state, onClose, tenantOptions = [],
         confirmLoading={bsrAssigning}
         width={780}
       >
-        <p className="text-[11.5px] text-gray-500 mb-2">이미 배정된 스케쥴은 비활성(선택 불가)입니다.</p>
+        <p className="text-[11.5px] text-gray-500 mb-2">이미 배정된 스케줄은 비활성(선택 불가)입니다.</p>
         <div className="border border-gray-200 rounded overflow-x-auto max-h-[360px] overflow-y-auto">
           <table className="w-full border-collapse text-[11.5px] whitespace-nowrap">
             <thead className="bg-gray-50 text-gray-600 sticky top-0">
               <tr>
                 <th className="px-2 h-8 border-b text-center w-8"></th>
-                <th className="px-2 h-8 border-b text-left">스케쥴명</th>
+                <th className="px-2 h-8 border-b text-left">스케줄명</th>
                 <th className="px-2 h-8 border-b text-left">시작일자</th>
                 <th className="px-2 h-8 border-b text-left">종료일자</th>
                 <th className="px-2 h-8 border-b text-right">시작</th>
@@ -1208,7 +1208,7 @@ export default function CtiQueueFormDrawer({ state, onClose, tenantOptions = [],
               ) : bsrSchedulePool.length === 0 ? (
                 <tr>
                   <td colSpan={9} className="px-2 h-10 text-center text-gray-400">
-                    조회된 BSR 스케쥴이 없습니다
+                    조회된 BSR 스케줄이 없습니다
                   </td>
                 </tr>
               ) : (
@@ -1254,9 +1254,9 @@ export default function CtiQueueFormDrawer({ state, onClose, tenantOptions = [],
         </div>
       </Modal>
 
-      {/* SLT 스케쥴 배정 피커 */}
+      {/* SLT 스케줄 배정 피커 */}
       <Modal
-        title="SLT 스케쥴 배정"
+        title="SLT 스케줄 배정"
         open={sltPickerOpen}
         onCancel={() => {
           setSltPickerOpen(false);
@@ -1264,7 +1264,7 @@ export default function CtiQueueFormDrawer({ state, onClose, tenantOptions = [],
         }}
         onOk={() => {
           if (sltPickerSelected.length === 0) {
-            toast.warning('배정할 스케쥴을 1개 이상 선택하세요');
+            toast.warning('배정할 스케줄을 1개 이상 선택하세요');
             return;
           }
           if (ctiqId == null) return;
@@ -1275,13 +1275,13 @@ export default function CtiQueueFormDrawer({ state, onClose, tenantOptions = [],
         confirmLoading={sltAssigning}
         width={680}
       >
-        <p className="text-[11.5px] text-gray-500 mb-2">이미 배정된 스케쥴은 비활성(선택 불가)입니다.</p>
+        <p className="text-[11.5px] text-gray-500 mb-2">이미 배정된 스케줄은 비활성(선택 불가)입니다.</p>
         <div className="border border-gray-200 rounded overflow-x-auto max-h-[360px] overflow-y-auto">
           <table className="w-full border-collapse text-[12px] whitespace-nowrap">
             <thead className="bg-gray-50 text-gray-600 sticky top-0">
               <tr>
                 <th className="px-2 h-8 border-b text-center w-8"></th>
-                <th className="px-2.5 h-8 border-b text-left">스케쥴명</th>
+                <th className="px-2.5 h-8 border-b text-left">스케줄명</th>
                 <th className="px-2.5 h-8 border-b text-left">시작일자</th>
                 <th className="px-2.5 h-8 border-b text-right">시작시간</th>
                 <th className="px-2.5 h-8 border-b text-right">종료시간</th>
@@ -1298,7 +1298,7 @@ export default function CtiQueueFormDrawer({ state, onClose, tenantOptions = [],
               ) : sltSchedulePool.length === 0 ? (
                 <tr>
                   <td colSpan={6} className="px-2.5 h-10 text-center text-gray-400">
-                    조회된 SLT 스케쥴이 없습니다
+                    조회된 SLT 스케줄이 없습니다
                   </td>
                 </tr>
               ) : (

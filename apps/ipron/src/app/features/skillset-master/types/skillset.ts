@@ -80,7 +80,7 @@ export interface SkillsetMemberReassignRequest {
   targetTreeId?: number | null;
 }
 
-// ─── 스케쥴 관리 (TB_IC_SCHEDULEINFO + TB_IC_SKILLSCHEDULE) ───────────────────
+// ─── 스케줄 관리 (TB_IC_SCHEDULEINFO + TB_IC_SKILLSCHEDULE) ───────────────────
 
 export interface ScheduleInfoResponse {
   scheduleId: number;
