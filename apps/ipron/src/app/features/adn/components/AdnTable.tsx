@@ -109,10 +109,16 @@ export default function AdnTable({ rowData, isLoading, onRowDoubleClicked, onSel
       {
         headerName: '그룹DN',
         field: 'origGrpdnId',
-        minWidth: 100,
-        maxWidth: 120,
-        cellStyle: { textAlign: 'center' } as CellStyle,
-        valueFormatter: (params) => (params.value == null ? '-' : String(params.value)),
+        minWidth: 140,
+        maxWidth: 220,
+        valueGetter: (params) => {
+          const { origGrpdnNo, origGrpdnName, origGrpdnId } = params.data ?? {};
+          if (origGrpdnId == null) return '-';
+          if (origGrpdnNo != null) {
+            return origGrpdnName != null ? `${origGrpdnNo} (${origGrpdnName})` : origGrpdnNo;
+          }
+          return String(origGrpdnId);
+        },
       },
       { headerName: '수정일시', field: 'workTime', minWidth: 160, flex: 1, valueFormatter: (p) => p.value ?? '-' },
     ],
