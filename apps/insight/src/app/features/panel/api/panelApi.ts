@@ -13,6 +13,8 @@ export interface QueryRequest {
   comparison: ComparisonType | null;
   /** 글로벌 공통 검색조건 (제외요일·구간검색·시간창). 기간/단위처럼 전체 패널 적용. */
   conditions?: GlobalConditions;
+  /** KPI 모드 — 이 패널의 KPI 슬롯 필드만 전체 집계(1행). 상단 KPI 요약 카드 전용. */
+  kpiMode?: boolean;
 }
 
 export interface QueryResult {

@@ -107,6 +107,9 @@ const TOP_N_PRESETS = [5, 10, 20, 50];
 
 const FILTER_SLOT_DEF: SlotDef = { slotType: 'FILTER', badge: 'F', title: '검색조건 바인딩', subtitle: '— 글로벌 필터 연결', acceptsRole: 'BOTH' };
 
+/** 보고서 상단 KPI 요약 카드 — 보고서 전체 최대 5개 (maxItems 는 다른 패널 사용분을 빼고 동적 계산) */
+const KPI_MAX_PER_REPORT = 5;
+
 const FIELD_COLLAPSE_THRESHOLD = 8;
 
 // 검색조건 입력 타입 → 짧은 라벨 (단일/복수 표시)
@@ -135,7 +138,7 @@ function SortableFieldRow({
 // 값 슬롯(집계가 의미 있는 슬롯)에서만 기본 집계를 채운다.
 // 차원 슬롯(ROW·X_AXIS 등)에 aggFunc를 넣으면 백엔드가 측정값으로 오판해 GROUP BY가 깨진다.
 function defaultAggFunc(field: FieldMetaItem, slotType: SlotType): AggFunc | undefined {
-  if (slotType !== 'VALUE' && slotType !== 'Y_AXIS') return undefined;
+  if (slotType !== 'VALUE' && slotType !== 'Y_AXIS' && slotType !== 'KPI') return undefined;
   // 컬럼 타입 기준 기본 집계: 숫자(NUMBER)→SUM, 그 외(STRING 등)→MAX
   return field.fieldType === 'NUMBER' ? 'SUM' : 'MAX';
 }
@@ -203,6 +206,20 @@ export default function PanelEditorSheet({ reportId, panelType, panelId, dataset
   const [valueFields, setValueFields] = useState<PanelFieldMap[]>(existingFieldMap.filter((f) => f.slotType === 'VALUE'));
   const [sortFields, setSortFields] = useState<PanelFieldMap[]>(existingFieldMap.filter((f) => f.slotType === 'SORT'));
   const [filterFields, setFilterFields] = useState<PanelFieldMap[]>(existingFieldMap.filter((f) => f.slotType === 'FILTER'));
+  // KPI 슬롯 — 보고서 상단 요약 카드 지표 (보고서 전체 최대 5개, 패널 타입 무관 공통)
+  const [kpiFields, setKpiFields] = useState<PanelFieldMap[]>(existingFieldMap.filter((f) => f.slotType === 'KPI'));
+  // 같은 보고서의 다른 패널이 이미 사용 중인 KPI 수 → 이 패널이 추가할 수 있는 잔여 한도
+  const otherKpiCount = panels.filter((p) => p.panelId !== (panelId ?? Number.MIN_SAFE_INTEGER)).reduce((n, p) => n + p.fieldMap.filter((f) => f.slotType === 'KPI').length, 0);
+  const kpiMaxItems = Math.max(0, KPI_MAX_PER_REPORT - otherKpiCount);
+  const kpiSlotDef: SlotDef = {
+    slotType: 'KPI',
+    badge: 'K',
+    title: 'KPI 지표',
+    subtitle: '— 상단 요약 카드',
+    maxItems: kpiMaxItems,
+    acceptsRole: 'MSR',
+    note: `측정값을 지정하면 보고서 상단에 요약 카드로 고정 표시됩니다 (보고서 전체 최대 ${KPI_MAX_PER_REPORT}개).`,
+  };
   const [showSumRow, setShowSumRow] = useState(() => (existingPanel?.chartOptions as { showSumRow?: boolean } | undefined)?.showSumRow ?? true);
 
   // ─── CHART slot state ──────────────────────────────────────────────────────
@@ -251,6 +268,7 @@ export default function PanelEditorSheet({ reportId, panelType, panelId, dataset
     // Y축이 2개 이상이면 시리즈 사용 불가(상호 배타)
     SERIES: { fields: seriesFields, setter: setSeriesFields, maxItems: yAxisFields.length > 1 ? 0 : 1 },
     SLICE: { fields: sliceFields, setter: setSliceFields, maxItems: 1 },
+    KPI: { fields: kpiFields, setter: setKpiFields, maxItems: kpiMaxItems },
   };
 
   // ─── Mutations ─────────────────────────────────────────────────────────────
@@ -282,12 +300,15 @@ export default function PanelEditorSheet({ reportId, panelType, panelId, dataset
 
   // ─── Build fieldMap ────────────────────────────────────────────────────────
   const buildFieldMap = (): PanelFieldMap[] => {
+    // KPI 슬롯은 패널 타입 무관 공통 (보고서 상단 요약 카드)
+    const kpiEntries = kpiFields.map((f, i) => normalizeField({ ...f, slotType: 'KPI' as SlotType, slotOrder: i }));
     if (isGrid) {
       return [
         ...groupByFields.map((f, i) => normalizeField({ ...f, slotType: 'ROW' as SlotType, slotOrder: i })),
         ...valueFields.map((f, i) => normalizeField({ ...f, slotType: 'VALUE' as SlotType, slotOrder: i })),
         ...sortFields.map((f, i) => normalizeField({ ...f, slotType: 'SORT' as SlotType, slotOrder: i })),
         ...filterFields.map((f, i) => normalizeField({ ...f, slotType: 'FILTER' as SlotType, slotOrder: i })),
+        ...kpiEntries,
       ];
     }
     let slotFields: PanelFieldMap[];
@@ -315,7 +336,7 @@ export default function PanelEditorSheet({ reportId, panelType, panelId, dataset
         otherGrouping: chartType === 'PIE' ? otherGroupingEnabled : false,
       });
     }
-    return slotFields;
+    return [...slotFields, ...kpiEntries];
   };
 
   const buildChartOptions = () => {
@@ -415,6 +436,7 @@ export default function PanelEditorSheet({ reportId, panelType, panelId, dataset
     setSliceFields([]);
     setPieValueFields([]);
     setFilterFields([]);
+    setKpiFields([]);
     setFieldOrder({});
   };
 
@@ -472,7 +494,7 @@ export default function PanelEditorSheet({ reportId, panelType, panelId, dataset
   const fieldDisplayMap = useMemo(() => new Map(fields.map((f) => [f.fieldName, f.displayName])), [fields]);
 
   // ─── Active slot label (for palette hint) ─────────────────────────────────
-  const activeSlotDef = activeSlot ? [...GRID_SLOTS, ...getChartSlots(chartType), FILTER_SLOT_DEF].find((s) => s.slotType === activeSlot) : null;
+  const activeSlotDef = activeSlot ? [...GRID_SLOTS, ...getChartSlots(chartType), FILTER_SLOT_DEF, kpiSlotDef].find((s) => s.slotType === activeSlot) : null;
 
   // check if active slot is full (FILTER has no limit)
   const activeSlotFull =
@@ -747,7 +769,7 @@ export default function PanelEditorSheet({ reportId, panelType, panelId, dataset
                   />
                 </>
               )}
-              {slotType === 'Y_AXIS' && (
+              {(slotType === 'Y_AXIS' || slotType === 'KPI') && (
                 <Select
                   size="small"
                   value={f.aggFunc ?? ''}
@@ -765,7 +787,7 @@ export default function PanelEditorSheet({ reportId, panelType, panelId, dataset
               <button
                 type="button"
                 onClick={() => removeFromSlot(f.fieldName, entry.setter)}
-                className={`text-[var(--color-bt-fg-muted)] hover:text-[var(--color-bt-danger)] ${slotType === 'VALUE' || slotType === 'Y_AXIS' || slotType === 'SORT' ? '' : 'ml-auto'}`}
+                className={`text-[var(--color-bt-fg-muted)] hover:text-[var(--color-bt-danger)] ${slotType === 'VALUE' || slotType === 'Y_AXIS' || slotType === 'KPI' || slotType === 'SORT' ? '' : 'ml-auto'}`}
               >
                 <X className="h-3 w-3" />
               </button>
@@ -1004,6 +1026,7 @@ export default function PanelEditorSheet({ reportId, panelType, panelId, dataset
               {isGrid ? (
                 <>
                   {GRID_SLOTS.map(renderSlot)}
+                  {renderSlot(kpiSlotDef)}
                   {renderFilterSlot()}
                   <div className="flex items-center gap-2 rounded border border-[var(--color-bt-border)] bg-white px-2.5 py-2">
                     <span className="text-sm font-semibold">합계 행</span>
@@ -1016,6 +1039,7 @@ export default function PanelEditorSheet({ reportId, panelType, panelId, dataset
               ) : (
                 <>
                   {getChartSlots(chartType).map(renderSlot)}
+                  {chartType !== 'KPI' && renderSlot(kpiSlotDef)}
 
                   {/* Top N — KPI 제외 */}
                   {chartType !== 'KPI' && (
