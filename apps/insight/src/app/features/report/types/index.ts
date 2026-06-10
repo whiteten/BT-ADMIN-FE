@@ -7,7 +7,7 @@ export type FieldType = 'DIM' | 'MSR';
 export type PanelType = 'GRID' | 'BAR' | 'LINE' | 'PIE' | 'RADAR' | 'KPI';
 export type AggFunc = 'SUM' | 'AVG' | 'MIN' | 'MAX' | 'COUNT';
 export type KpiDirection = 'HIGHER_BETTER' | 'LOWER_BETTER' | 'NEUTRAL';
-export type SlotType = 'ROW' | 'COLUMN' | 'X_AXIS' | 'Y_AXIS' | 'SERIES' | 'SLICE' | 'VALUE' | 'AXIS' | 'SORT' | 'LIMIT' | 'FILTER';
+export type SlotType = 'ROW' | 'COLUMN' | 'X_AXIS' | 'Y_AXIS' | 'SERIES' | 'SLICE' | 'VALUE' | 'AXIS' | 'SORT' | 'LIMIT' | 'FILTER' | 'KPI';
 
 export interface ReportListItem {
   reportId: number;
