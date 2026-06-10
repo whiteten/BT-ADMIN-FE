@@ -617,6 +617,7 @@ const DeviceFormDrawer = forwardRef<DeviceFormDrawerRef, Props>(({ deviceTypes, 
           {nodeName && <span className="text-sm text-gray-400 font-normal ml-1">({nodeName})</span>}
         </div>
       }
+      closable={{ placement: 'end' }}
       open={open}
       onClose={() => setOpen(false)}
       width={640}
