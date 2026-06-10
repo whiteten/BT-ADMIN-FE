@@ -27,8 +27,18 @@ const eagerLibraries = ['dayjs'];
  *   워드클라우드만 빈 화면이 됨. 3종을 self-bundle하면 등록처·렌더처가 같은 인스턴스가 되어 해결됨.
  * - 트레이드오프: echarts를 쓰는 remote마다 echarts가 중복 번들됨(용량 증가). 그럼에도 remote마다
  *   개별 설정을 챙길 필요 없이 이 한 곳에서 관리되는 편의를 우선함.
+ *
+ * [codemirror 추가] @codemirror/*·@uiw/react-codemirror·codemirror 계열을 self-bundle 처리함.
+ * - 사유: 루트 package.json에 있는 패키지(@uiw/react-codemirror, @codemirror/lang-* 등)만 shared가
+ *   되고 transitive 코어(@codemirror/state·view 등)는 각 remote가 self-bundle하는데, codemirror를
+ *   쓰는 remote가 둘(aoe·insight)이라 shared 스코프에서 react-codemirror와 lang-* extension이 서로
+ *   다른 컨테이너에서 채택되면 @codemirror/state 인스턴스가 2개가 되어 instanceof 체크가 깨짐
+ *   ("Unrecognized extension value in extension set" 에러). 컨테이너 채택은 remoteEntry 로드 순서에
+ *   좌우되어 로컬에선 정상이다가 배포 환경에서만 터질 수 있음. 계열 전체를 self-bundle하면 각
+ *   remote 안에서 코어~extension이 항상 같은 인스턴스로 묶여 해결됨.
+ * - 트레이드오프: codemirror를 쓰는 remote마다 중복 번들됨(용량 증가).
  */
-const excludedLibraries = ['clsx', 'tailwind-merge', 'echarts'];
+const excludedLibraries = ['clsx', 'tailwind-merge', 'echarts', 'codemirror'];
 
 /**
  * 패키지의 실제 설치 버전을 읽는다.
