@@ -314,7 +314,7 @@ export default function CommonGdnFormDrawer({ open, mode, detail, nodeId, nodeNa
       <Form.Item label="DR노드 (백업 노드)" name="backUpNodeId" extra="DR노드 지정 시 → Global DN 자동 강제">
         <Select options={drNodeOptions} />
       </Form.Item>
-      <Form.Item label="Global DN 사용" name="globalDnYn" extra={drForced ? 'DR노드 지정으로 자동 강제됩니다' : undefined}>
+      <Form.Item label="Global DN 사용" name="globalDnYn">
         <Radio.Group disabled={drForced}>
           <Radio value={1}>사용</Radio>
           <Radio value={0}>미사용</Radio>
@@ -386,7 +386,7 @@ export default function CommonGdnFormDrawer({ open, mode, detail, nodeId, nodeNa
             </Radio.Group>
           </Form.Item>
           {/* 갭1: blockYn=1일 때만 활성 (SWAT 정합) */}
-          <Form.Item label="종료방법" name="closeType" extra={closeTypeDisabled ? '블럭여부 설정 시 활성' : undefined}>
+          <Form.Item label="종료방법" name="closeType">
             <Select options={CALL_CLOSE_TYPE_OPTIONS} disabled={closeTypeDisabled} placeholder="블럭여부 설정 시 선택" allowClear />
           </Form.Item>
         </div>

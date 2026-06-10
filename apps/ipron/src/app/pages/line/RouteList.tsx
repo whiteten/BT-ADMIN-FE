@@ -153,11 +153,15 @@ export default function RouteList() {
 
   const handleDelete = useCallback(
     (route: Route) => {
+      if ((route.routePointCount ?? 0) > 0) {
+        toast.error(`배정된 국선 ${route.routePointCount}건이 있어 삭제할 수 없습니다`);
+        return;
+      }
       modal.confirm.execute({
         onOk: () => deleteRoute({ id: route.routeId }),
         options: {
           title: '라우트 삭제',
-          content: `"${route.routeName}" 라우트를 삭제하시겠습니까?\n배정된 국선이 있으면 먼저 해제해야 합니다.`,
+          content: `"${route.routeName}" 라우트를 삭제하시겠습니까?`,
         },
       });
     },

@@ -198,7 +198,7 @@ export default function AgentAdnList() {
       onOk: () => autoAssign({ agentIds: selectedRows.map((r) => r.agentId) }),
       options: {
         title: 'ADN 자동배정',
-        content: `선택 ${selectedRows.length}명 중 미배정 ${selectedUnassigned}명에게 "${policy.adnPrefix}" + ${policy.digitLength}자리 정책으로 ADN을 자동 채번합니다. 진행할까요?`,
+        content: `미배정 ${selectedUnassigned}명에게 ADN을 자동 배정하시겠습니까?`,
       },
     });
   }, [selectedRows, selectedUnassigned, policy, modal, autoAssign]);
@@ -362,11 +362,9 @@ export default function AgentAdnList() {
         <div className="bg-white bt-shadow flex-1 min-w-0 min-h-0 flex flex-col overflow-hidden">
           <div className="px-5 py-3 border-b border-gray-100 flex items-center gap-2 h-[44px] flex-shrink-0">
             <span className="text-sm font-semibold text-gray-800">상담사 목록 ({filteredRows.length.toLocaleString()}명)</span>
-            {selectedRows.length > 0 && (
-              <span className="text-xs text-gray-500">
-                선택 {selectedRows.length}건 (미배정 <b className="text-orange-600">{selectedUnassigned}</b> · 배정 <b className="text-green-700">{selectedAssigned}</b>)
-              </span>
-            )}
+            <span className={selectedRows.length > 0 ? 'text-xs text-gray-500' : 'invisible text-xs text-gray-500'}>
+              선택 {selectedRows.length}건 (미배정 <b className="text-orange-600">{selectedUnassigned}</b> · 배정 <b className="text-green-700">{selectedAssigned}</b>)
+            </span>
             <div className="ml-auto flex items-center gap-2">
               <Button
                 icon={<Settings className="size-3.5" />}
@@ -384,7 +382,7 @@ export default function AgentAdnList() {
                 disabled={!policy?.active || selectedUnassigned === 0}
                 title={!policy?.active ? '먼저 자동채번 정책을 활성화하세요' : selectedUnassigned === 0 ? '미배정 상담사를 선택하세요' : `미배정 ${selectedUnassigned}명 자동배정`}
               >
-                자동배정{selectedUnassigned > 0 ? ` (${selectedUnassigned})` : ''}
+                자동배정
               </Button>
               <Button
                 danger
@@ -393,7 +391,7 @@ export default function AgentAdnList() {
                 disabled={selectedAssigned === 0}
                 title={selectedAssigned === 0 ? '해제할 배정된 상담사를 선택하세요' : `${selectedAssigned}건 배정 해제`}
               >
-                배정 해제{selectedAssigned > 0 ? ` (${selectedAssigned})` : ''}
+                배정 해제
               </Button>
             </div>
           </div>

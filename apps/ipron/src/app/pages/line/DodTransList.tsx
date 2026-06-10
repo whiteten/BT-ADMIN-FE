@@ -291,11 +291,15 @@ export default function DodTransList() {
 
   const handleDeleteMaster = useCallback(
     (master: DodTransMaster) => {
+      if ((master.itemCount ?? 0) > 0) {
+        toast.error(`등록된 패턴 ${master.itemCount}건이 있어 삭제할 수 없습니다`);
+        return;
+      }
       modal.confirm.execute({
         onOk: () => deleteMaster({ id: master.dodTransId }),
         options: {
           title: 'DOD DNIS 변환 삭제',
-          content: `"${master.dodTransName}" 변환을 삭제하시겠습니까?\n등록된 패턴이 있으면 삭제할 수 없습니다.`,
+          content: `"${master.dodTransName}" 변환을 삭제하시겠습니까?`,
         },
       });
     },
@@ -666,7 +670,7 @@ export default function DodTransList() {
                 title={selectedItems.length === 0 ? '삭제할 항목을 선택하세요' : `선택한 ${selectedItems.length}건 삭제`}
                 onClick={handleDeleteSelectedItems}
               >
-                {selectedItems.length > 0 ? `삭제 (${selectedItems.length})` : '삭제'}
+                삭제
               </Button>
               {selectedMaster && (
                 <Input

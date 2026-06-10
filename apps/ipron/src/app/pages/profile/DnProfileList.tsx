@@ -261,7 +261,7 @@ export default function DnProfileList() {
         onOk: () => deleteProfile(selectedProfiles[0].dnProfileId),
         options: {
           title: '프로파일 삭제',
-          content: `"${selectedProfiles[0].dnProfileName}" 프로파일을 삭제하시겠습니까?\n(DN / SIP Trunk / DR 에서 참조 중인 경우 삭제가 거부됩니다)`,
+          content: `"${selectedProfiles[0].dnProfileName}" 프로파일을 삭제하시겠습니까?`,
         },
       });
     } else {
@@ -271,7 +271,7 @@ export default function DnProfileList() {
         },
         options: {
           title: '프로파일 삭제',
-          content: `선택한 ${selectedProfiles.length}개 프로파일을 삭제하시겠습니까?\n(DN / SIP Trunk / DR 에서 참조 중인 경우 삭제가 거부됩니다)`,
+          content: `선택한 ${selectedProfiles.length}개 프로파일을 삭제하시겠습니까?`,
         },
       });
     }
@@ -380,7 +380,7 @@ export default function DnProfileList() {
                 disabled={selectedProfiles.length === 0}
                 title={selectedProfiles.length === 0 ? '삭제할 프로파일을 선택하세요' : `선택한 ${selectedProfiles.length}개 프로파일 삭제`}
               >
-                {selectedProfiles.length > 0 ? `삭제 (${selectedProfiles.length})` : '삭제'}
+                삭제
               </Button>
               <Button type="primary" icon={<Plus className="size-3.5" />} onClick={handleProfileCreate}>
                 등록

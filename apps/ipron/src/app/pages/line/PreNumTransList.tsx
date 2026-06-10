@@ -322,7 +322,7 @@ export default function PreNumTransList() {
               title={selectedRows.length === 0 ? '삭제할 항목을 선택하세요' : `선택한 ${selectedRows.length}건 삭제`}
               onClick={handleDeleteSelected}
             >
-              {selectedRows.length > 0 ? `삭제 (${selectedRows.length})` : '삭제'}
+              삭제
             </Button>
           </div>
 

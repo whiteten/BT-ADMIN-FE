@@ -291,7 +291,7 @@ export default function AcdGdnList() {
       onOk: () => deleteGdns([selectedGdn.gdnId]),
       options: {
         title: 'ACD 그룹DN 삭제',
-        content: `"${selectedGdn.gdnNo} / ${selectedGdn.gdnName}" 그룹DN 을 삭제하시겠습니까?\n배정된 멤버가 함께 해제됩니다.`,
+        content: `"${selectedGdn.gdnNo} / ${selectedGdn.gdnName}" 그룹DN을 삭제하시겠습니까?`,
       },
     });
   };
@@ -735,32 +735,32 @@ export default function AcdGdnList() {
       </PanelGroup>
 
       {/* ===== floating Bulk Action Bar ===== */}
-      {selectedGdn && selectedMembers.length > 0 && (
-        <div className="fixed bottom-5 left-1/2 -translate-x-1/2 z-50 bg-gray-800 text-white rounded-xl shadow-xl flex items-center gap-3 px-4 py-2.5 text-sm">
-          <span className="flex items-center gap-1.5">
-            <span className="text-white/60 text-xs">DN</span>
-            <span className="bg-[#405189] px-2 py-0.5 rounded-full font-bold min-w-[24px] text-center">{selectedMembers.length}</span>
-            <span className="text-white/60 text-xs">건 선택됨</span>
-          </span>
-          <span className="text-white/30">·</span>
-          <Button
-            type="primary"
-            icon={<Plus className="size-3.5" />}
-            onClick={handleAssign}
-            loading={isSavingMembers}
-            disabled={unassignedSelCount === 0}
-            style={{ backgroundColor: 'var(--color-bt-primary)', borderColor: 'var(--color-bt-primary)' }}
-          >
-            배정 ({unassignedSelCount})
-          </Button>
-          <Button danger icon={<X className="size-3.5" />} onClick={handleRevoke} loading={isSavingMembers} disabled={assignedSelCount === 0}>
-            해제 ({assignedSelCount})
-          </Button>
-          <Button type="text" onClick={() => setSelectedMembers([])} className="!text-white/60 hover:!text-white">
-            선택 해제
-          </Button>
-        </div>
-      )}
+      <div
+        className={`fixed bottom-5 left-1/2 -translate-x-1/2 z-50 bg-gray-800 text-white rounded-xl shadow-xl flex items-center gap-3 px-4 py-2.5 text-sm transition-opacity ${selectedGdn && selectedMembers.length > 0 ? 'opacity-100' : 'opacity-0 pointer-events-none'}`}
+      >
+        <span className="flex items-center gap-1.5">
+          <span className="text-white/60 text-xs">DN</span>
+          <span className="bg-[#405189] px-2 py-0.5 rounded-full font-bold min-w-[24px] text-center">{selectedMembers.length}</span>
+          <span className="text-white/60 text-xs">건 선택됨</span>
+        </span>
+        <span className="text-white/30">·</span>
+        <Button
+          type="primary"
+          icon={<Plus className="size-3.5" />}
+          onClick={handleAssign}
+          loading={isSavingMembers}
+          disabled={unassignedSelCount === 0}
+          style={{ backgroundColor: 'var(--color-bt-primary)', borderColor: 'var(--color-bt-primary)' }}
+        >
+          배정
+        </Button>
+        <Button danger icon={<X className="size-3.5" />} onClick={handleRevoke} loading={isSavingMembers} disabled={assignedSelCount === 0}>
+          해제
+        </Button>
+        <Button type="text" onClick={() => setSelectedMembers([])} className="!text-white/60 hover:!text-white">
+          선택 해제
+        </Button>
+      </div>
 
       {/* ===== 등록/수정 Drawer ===== */}
       <AcdGdnFormDrawer

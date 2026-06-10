@@ -440,10 +440,7 @@ export default function AcdGdnFormDrawer({ open, mode, detail, defaultTenantId, 
           </section>
 
           <section>
-            <h4 className="text-xs text-gray-500 font-semibold mb-3 pb-1 border-b border-dashed border-gray-200">
-              헌팅
-              {isDirectRouting && <span className="text-amber-600 font-normal ml-2">(라우팅기준=직접 — 자동 비활성)</span>}
-            </h4>
+            <h4 className="text-xs text-gray-500 font-semibold mb-3 pb-1 border-b border-dashed border-gray-200">헌팅</h4>
             <div className="grid grid-cols-3 gap-4">
               <Form.Item label="헌팅 여부" name="huntingYn">
                 <Select options={YN_OPTIONS} disabled={isDirectRouting} />
@@ -539,15 +536,7 @@ export default function AcdGdnFormDrawer({ open, mode, detail, defaultTenantId, 
     {
       key: 'members',
       label: 'DN 멤버 / CTI큐',
-      children: (
-        <div className="space-y-4">
-          <div className="bg-blue-50 border-l-[3px] border-blue-500 px-3 py-2 text-xs text-gray-700">
-            멤버 우선순위 인라인 편집은 메인 화면 우측 멤버 패널에서 수행합니다. 등록 후 좌측 목록에서 행을 선택하면 우측 패널에 멤버 목록이 나타납니다.
-            <br />
-            ACD 타입 = Skill 인 경우 멤버는 로그인 상담사로 자동 결정되므로 수동 관리 불가.
-          </div>
-        </div>
-      ),
+      children: <div className="space-y-4" />,
     },
   ];
 

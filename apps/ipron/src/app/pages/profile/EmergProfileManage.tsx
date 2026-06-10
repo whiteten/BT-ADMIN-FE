@@ -264,7 +264,7 @@ export default function EmergProfileManage() {
       onOk: () => deleteProfile({ profileId: profile.emergencyCodeProfileId }),
       options: {
         title: '프로파일 삭제',
-        content: `"${profile.emergencyCodeProfileName}" 프로파일을 삭제하시겠습니까?\n하위 긴급코드도 함께 삭제됩니다.`,
+        content: `"${profile.emergencyCodeProfileName}" 프로파일을 삭제하시겠습니까?`,
       },
     });
   };

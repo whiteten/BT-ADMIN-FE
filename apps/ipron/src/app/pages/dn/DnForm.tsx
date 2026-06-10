@@ -781,7 +781,7 @@ export default function DnForm() {
       onOk: () => deleteDns([dnId]),
       options: {
         title: 'DN 삭제',
-        content: `"${dnDetail?.dnNo}" DN을 삭제하시겠습니까?\n(IPT서비스 / 콜전환 / 단축다이얼 / 그룹DN 연관 데이터가 함께 삭제됩니다)`,
+        content: `"${dnDetail?.dnNo}" DN을 삭제하시겠습니까?`,
       },
     });
   };
@@ -904,7 +904,7 @@ export default function DnForm() {
             </Col>
           )}
           <Col>
-            <Button variant="solid" color="primary" onClick={handleSubmit} loading={isPending} disabled={!canSubmit} style={isSubEntityTab ? { visibility: 'hidden' } : undefined}>
+            <Button variant="solid" color="primary" onClick={handleSubmit} loading={isPending} style={isSubEntityTab ? { visibility: 'hidden' } : undefined}>
               {isEditMode ? '수정' : '등록'}
             </Button>
           </Col>

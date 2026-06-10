@@ -117,11 +117,9 @@ export default function MediaTypeList() {
       <div className="bg-white bt-shadow overflow-hidden flex-1 flex flex-col min-h-0">
         <div className="flex items-center px-4 h-[56px] border-b border-gray-100">
           <span className="text-sm font-semibold text-gray-800">미디어 코드 목록 ({rows.length.toLocaleString()}건)</span>
-          {selectedRows.length > 0 && (
-            <span className="ml-3 text-xs text-gray-500">
-              {rows.length.toLocaleString()}건 중 {selectedRows.length}건 선택
-            </span>
-          )}
+          <span className={`ml-3 text-xs text-gray-500 ${selectedRows.length > 0 ? 'visible' : 'invisible'}`}>
+            {rows.length.toLocaleString()}건 중 {selectedRows.length}건 선택
+          </span>
           <div className="ml-auto flex items-center gap-2">
             <Button
               danger
@@ -131,7 +129,7 @@ export default function MediaTypeList() {
               disabled={selectedRows.length === 0}
               title={selectedRows.length === 0 ? '삭제할 미디어 코드를 선택하세요' : '선택한 미디어 코드 삭제'}
             >
-              {selectedRows.length > 0 ? `삭제 (${selectedRows.length})` : '삭제'}
+              삭제
             </Button>
             <Button type="primary" icon={<Plus className="size-3.5" />} onClick={() => setDrawer({ open: true, mode: 'create' })}>
               등록

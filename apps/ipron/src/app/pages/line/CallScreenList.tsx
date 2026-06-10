@@ -506,11 +506,9 @@ export default function CallScreenList() {
                     ? `차단번호패턴 "${numPatternSearch.trim()}" 검색 결과 (${callScreens.length}건)`
                     : `${selectedNodeName} / ${selectedTenantId === -1 ? '전체 테넌트' : selectedTenantName} 수신번호차단 (${callScreens.length}건)`}
                 </span>
-                {selectedRows.length > 0 && (
-                  <span className="text-xs text-gray-500">
-                    {callScreens.length}건 중 {selectedRows.length}건 선택
-                  </span>
-                )}
+                <span className={`text-xs text-gray-500 ${selectedRows.length === 0 ? 'invisible' : ''}`}>
+                  {callScreens.length}건 중 {selectedRows.length}건 선택
+                </span>
                 <div className="ml-auto">
                   <Button
                     danger
@@ -519,7 +517,7 @@ export default function CallScreenList() {
                     disabled={selectedRows.length === 0}
                     title={selectedRows.length === 0 ? '삭제할 항목을 선택하세요' : `선택한 ${selectedRows.length}건 삭제`}
                   >
-                    {selectedRows.length > 0 ? `삭제 (${selectedRows.length})` : '삭제'}
+                    삭제
                   </Button>
                 </div>
               </div>

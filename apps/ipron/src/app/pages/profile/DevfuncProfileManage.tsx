@@ -247,7 +247,7 @@ export default function DevfuncProfileManage() {
       onOk: () => deleteProfile({ id: profile.devfuncCodeProfileId }),
       options: {
         title: '프로파일 삭제',
-        content: `"${profile.devfuncCodeProfileName}" 프로파일을 삭제하시겠습니까?\n하위 기능코드도 함께 삭제됩니다.`,
+        content: `"${profile.devfuncCodeProfileName}" 프로파일을 삭제하시겠습니까?`,
       },
     });
   };

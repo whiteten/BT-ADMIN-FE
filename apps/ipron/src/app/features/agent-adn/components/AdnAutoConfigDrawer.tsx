@@ -87,14 +87,6 @@ export default function AdnAutoConfigDrawer({ open, initial, onCancel, onSubmit,
         </div>
       }
     >
-      <Alert
-        type="info"
-        showIcon
-        message="Prefix + 자릿수로 ADN을 자동 채번해 미배정 상담사에게 일괄 매핑합니다."
-        description="전체 테넌트 공통 정책입니다. 비활성 시 [자동배정] 버튼이 비활성화됩니다."
-        className="!mb-4"
-      />
-
       <Form form={form} layout="vertical" requiredMark>
         <Form.Item label="자동채번 사용" name="useYn" valuePropName="checked" getValueFromEvent={(checked) => (checked ? 1 : 0)} getValueProps={(v) => ({ checked: v === 1 })}>
           <Switch onChange={(checked) => setUseYn(checked ? 1 : 0)} />

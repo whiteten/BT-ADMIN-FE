@@ -118,7 +118,7 @@ export default function DnBulkDeleteModal({ open, dnIds, onCancel, onSuccess }: 
     >
       {phase === 'confirm' && (
         <div className="space-y-3">
-          <div className="text-sm text-gray-700">내선에 등록된 SCA/SNR 도 함께 삭제됩니다. 진행하시겠습니까?</div>
+          <div className="text-sm text-gray-700">선택한 {total}건의 내선을 삭제하시겠습니까?</div>
           {total > CHUNK_SIZE && (
             <Alert
               type="info"

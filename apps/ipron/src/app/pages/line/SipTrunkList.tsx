@@ -243,10 +243,7 @@ export default function SipTrunkList() {
         },
         options: {
           title: '그룹DN 삭제',
-          content:
-            gdns.length === 1
-              ? `"${gdns[0].gdnNo}" 그룹DN을 삭제하시겠습니까?\n배정된 트렁크 멤버 매핑도 함께 삭제됩니다.`
-              : `선택한 그룹DN ${gdns.length}건을 삭제하시겠습니까?\n배정된 트렁크 멤버 매핑도 함께 삭제됩니다.`,
+          content: gdns.length === 1 ? `"${gdns[0].gdnNo}" 그룹DN을 삭제하시겠습니까?` : `선택한 그룹DN ${gdns.length}건을 삭제하시겠습니까?`,
         },
       });
     },
@@ -301,22 +298,6 @@ export default function SipTrunkList() {
       },
       { headerName: '그룹DN 이름', field: 'gdnName', flex: 1, minWidth: 140 },
       {
-        headerName: '글로벌',
-        field: 'globalDnYn',
-        width: 70,
-        maxWidth: 80,
-        cellStyle: { textAlign: 'center' } as CellStyle,
-        valueFormatter: (p) => (p.value === 1 ? 'O' : 'X'),
-      },
-      {
-        headerName: 'DR노드',
-        field: 'backUpNodeName',
-        minWidth: 80,
-        maxWidth: 110,
-        cellStyle: { textAlign: 'center', color: '#9ca3af', fontSize: '11px' } as CellStyle,
-        valueFormatter: (p) => p.value ?? '—',
-      },
-      {
         headerName: '배정 트렁크',
         field: 'assignedTrunkCount',
         minWidth: 90,
@@ -343,6 +324,27 @@ export default function SipTrunkList() {
           ) : (
             <span className="inline-flex items-center rounded border border-slate-200 bg-slate-100 px-1.5 py-px text-[10px] font-semibold text-slate-600">미사용</span>
           ),
+      },
+      {
+        headerName: '글로벌',
+        field: 'globalDnYn',
+        minWidth: 80,
+        maxWidth: 90,
+        cellStyle: { textAlign: 'center' } as CellStyle,
+        cellRenderer: (p: ICellRendererParams<SipGdnResponse>) =>
+          p.value === 1 ? (
+            <span className="inline-flex items-center rounded border border-blue-200 bg-blue-50 px-1.5 py-px text-[10px] font-semibold text-blue-700">글로벌</span>
+          ) : (
+            <span className="text-[11px] italic text-gray-400">-</span>
+          ),
+      },
+      {
+        headerName: 'DR노드',
+        field: 'backUpNodeName',
+        minWidth: 80,
+        maxWidth: 110,
+        cellStyle: { textAlign: 'center', color: '#9ca3af', fontSize: '11px' } as CellStyle,
+        valueFormatter: (p) => p.value ?? '—',
       },
       // F-2: 차단/오류/만석 우회 DNIS 컬럼 (SWAT IPR20S3030 GDN_TYPE=18 정합)
       {
@@ -401,19 +403,6 @@ export default function SipTrunkList() {
   const trunkColumns = useMemo<ColDef<SipTrunkMemberResponse>[]>(
     () => [
       {
-        headerName: '',
-        width: 44,
-        maxWidth: 44,
-        pinned: 'left',
-        checkboxSelection: true,
-        headerCheckboxSelection: true,
-        headerCheckboxSelectionFilteredOnly: true,
-        sortable: false,
-        filter: false,
-        suppressHeaderMenuButton: true,
-        resizable: false,
-      },
-      {
         headerName: '배정상태',
         field: 'assignYn',
         width: 84,
@@ -437,7 +426,7 @@ export default function SipTrunkList() {
           </span>
         ),
       },
-      { headerName: '번호', field: 'targetNo', width: 80, maxWidth: 100, cellStyle: { fontFamily: 'monospace', fontSize: '12px' } as CellStyle },
+      { headerName: '번호', field: 'targetNo', minWidth: 110, maxWidth: 140, cellStyle: { fontFamily: 'monospace', fontSize: '12px' } as CellStyle },
       {
         headerName: 'DR노드',
         field: 'backUpNodeName',
@@ -449,7 +438,7 @@ export default function SipTrunkList() {
       {
         headerName: '채널 사용률',
         field: 'totChannelCount',
-        minWidth: 150,
+        minWidth: 180,
         cellRenderer: (p: ICellRendererParams<SipTrunkMemberResponse>) => {
           const used = p.data?.totChannelCount ?? 0;
           const max = p.data?.chnlCnt ?? 0;
@@ -765,7 +754,7 @@ export default function SipTrunkList() {
                   title={selectedGdns.length === 0 ? '삭제할 그룹DN을 선택하세요' : `선택한 ${selectedGdns.length}건 삭제`}
                   onClick={() => handleGdnDelete(selectedGdns)}
                 >
-                  {selectedGdns.length > 0 ? `삭제 (${selectedGdns.length})` : '삭제'}
+                  삭제
                 </Button>
               </div>
             </div>
@@ -781,7 +770,6 @@ export default function SipTrunkList() {
               <LayoutGrid className="size-3 text-[#405189]" />
               <span className="text-gray-500">선택 그룹DN:</span>
               <b className="text-[#405189]">{selectedGdn ? `${selectedGdn.gdnNo} ${selectedGdn.gdnName}` : '미선택'}</b>
-              <span className="text-gray-400">우측 트렁크를 선택 후 배정/해제</span>
             </div>
           </div>
         </Panel>
@@ -833,7 +821,7 @@ export default function SipTrunkList() {
                   title={selectedTrunks.length === 0 ? '삭제할 트렁크를 선택하세요' : `선택한 ${selectedTrunks.length}건 삭제`}
                   onClick={() => handleTrunkDeleteSelected(selectedTrunks)}
                 >
-                  {selectedTrunks.length > 0 ? `삭제 (${selectedTrunks.length})` : '삭제'}
+                  삭제
                 </Button>
               </div>
             </div>

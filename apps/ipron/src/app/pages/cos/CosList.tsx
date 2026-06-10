@@ -234,7 +234,7 @@ export default function CosList() {
               disabled={selectedRows.length === 0}
               title={selectedRows.length === 0 ? '삭제할 COS를 선택하세요' : '선택한 COS 삭제'}
             >
-              {selectedRows.length > 0 ? `삭제 (${selectedRows.length})` : '삭제'}
+              삭제
             </Button>
             <Button type="primary" icon={<Plus className="size-3.5" />} disabled={!selectedTenantId || selectedTenantId < 0} onClick={handleCreate}>
               등록

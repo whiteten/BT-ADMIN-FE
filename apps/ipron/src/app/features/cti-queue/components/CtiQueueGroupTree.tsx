@@ -130,21 +130,18 @@ export default function CtiQueueGroupTree({
 
         {isDropTarget && <span className="text-[10px] text-emerald-600 font-medium">↓ 여기로 배정</span>}
 
-        {/* 테넌트명 — 전체(admin) 보기에서 동일이름 그룹 구분용. 카운트 왼쪽에 칩(pill) 스타일로 표기해
-            숫자와 시각적으로 구분하고, hover 시 카운트와 함께 숨겨 액션 버튼에 자리를 내준다.
-            단일테넌트 선택 시엔 중복이라 생략. */}
+        {/* 테넌트명 — 전체(admin) 보기에서 동일이름 그룹 구분용. 단일테넌트 선택 시엔 중복이라 생략. */}
         {selectedTenantId === null && node.tenantName && (
-          <span className="h-5 inline-flex items-center flex-shrink-0 group-hover:hidden">
+          <span className="h-5 inline-flex items-center flex-shrink-0">
             <span className="px-1.5 py-px rounded-full bg-gray-100 text-[10px] leading-4 text-gray-500 max-w-[120px] truncate">{node.tenantName}</span>
           </span>
         )}
 
-        {/* 카운트 — 기본은 맨 우측에 표시, hover 시 숨겨 액션 버튼에 자리를 내준다.
-            h-5 로 액션 버튼과 높이를 맞춰 hover 시 행 높이가 흔들리지 않게 한다. */}
-        <span className="h-5 inline-flex items-center text-[11px] text-gray-400 flex-shrink-0 group-hover:hidden">{(scopedCount.get(node.treeId) ?? 0).toLocaleString()}</span>
+        {/* 카운트 — 항상 표시 */}
+        <span className="h-5 inline-flex items-center text-[11px] text-gray-400 flex-shrink-0">{(scopedCount.get(node.treeId) ?? 0).toLocaleString()}</span>
 
-        {/* 액션 — 기본은 숨김(자리 차지 안 함), hover 시에만 숫자 자리에 나타남 */}
-        <div className="hidden group-hover:flex items-center gap-0.5 flex-shrink-0">
+        {/* 액션 — 상시 노출 */}
+        <div className="flex items-center gap-0.5 flex-shrink-0">
           <Tooltip title="하위 그룹 추가" {...TOOLTIP_PROPS}>
             <button
               type="button"

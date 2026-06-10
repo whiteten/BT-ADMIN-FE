@@ -190,7 +190,7 @@ export default function DeviceModelList() {
               style={{ width: 200 }}
             />
             <Button danger icon={<Trash2 className="size-3.5" />} onClick={handleDeleteSelected} loading={isDeleting} disabled={selectedRows.length === 0}>
-              {selectedRows.length > 0 ? `삭제 (${selectedRows.length})` : '삭제'}
+              삭제
             </Button>
             <Button type="primary" icon={<Plus className="size-3.5" />} onClick={handleCreate}>
               등록

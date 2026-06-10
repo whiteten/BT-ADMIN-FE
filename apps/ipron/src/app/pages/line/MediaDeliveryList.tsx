@@ -211,11 +211,15 @@ export default function MediaDeliveryList() {
 
   const handleDeleteMdGrp = useCallback(
     (grp: MdGrp) => {
+      if ((grp.itemCount ?? 0) > 0) {
+        toast.error(`배정된 미디어전달 ${grp.itemCount}건이 있어 삭제할 수 없습니다`);
+        return;
+      }
       modal.confirm.execute({
         onOk: () => deleteMdGrp({ id: grp.grpId }),
         options: {
           title: '미디어전달그룹 삭제',
-          content: `"${grp.grpName}" 그룹을 삭제하시겠습니까?\n배정된 미디어전달이 있으면 삭제할 수 없습니다.`,
+          content: `"${grp.grpName}" 그룹을 삭제하시겠습니까?`,
         },
       });
     },

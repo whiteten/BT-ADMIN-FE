@@ -157,7 +157,7 @@ export default function MentMgmtList() {
       onOk: () => deleteMents([row.ieMentId]),
       options: {
         title: '멘트 삭제',
-        content: `"${row.mentName ?? row.ieMentId}" 멘트를 삭제하시겠습니까?\n(해당 멘트를 사용하는 DN/큐의 연결/보류 멘트는 자동 해제됩니다)`,
+        content: `"${row.mentName ?? row.ieMentId}" 멘트를 삭제하시겠습니까?`,
       },
     });
   };
@@ -429,7 +429,7 @@ export default function MentMgmtList() {
                 disabled={selectedRows.length === 0}
                 title={selectedRows.length === 0 ? '삭제할 멘트를 선택하세요' : '선택한 멘트 삭제'}
               >
-                {selectedRows.length > 0 ? `삭제 (${selectedRows.length})` : '삭제'}
+                삭제
               </Button>
               <Button
                 type="primary"

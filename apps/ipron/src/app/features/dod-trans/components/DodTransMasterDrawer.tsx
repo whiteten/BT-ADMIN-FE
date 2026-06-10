@@ -155,11 +155,15 @@ const DodTransMasterDrawer = forwardRef<DodTransMasterDrawerRef, Props>(({ onSuc
 
   const handleDelete = useCallback(() => {
     if (!editData) return;
+    if ((editData.itemCount ?? 0) > 0) {
+      toast.error(`등록된 패턴 ${editData.itemCount}건이 있어 삭제할 수 없습니다`);
+      return;
+    }
     modal.confirm.execute({
       onOk: () => deleteMaster({ id: editData.dodTransId }),
       options: {
         title: 'DOD DNIS 변환 삭제',
-        content: `"${editData.dodTransName}" 변환을 삭제하시겠습니까?\n등록된 패턴이 있으면 삭제할 수 없습니다.`,
+        content: `"${editData.dodTransName}" 변환을 삭제하시겠습니까?`,
       },
     });
   }, [editData, modal, deleteMaster]);

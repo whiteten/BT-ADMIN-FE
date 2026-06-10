@@ -364,11 +364,9 @@ export default function McsDnis() {
           <div className="px-5 py-3 border-b border-gray-100 flex items-center justify-between flex-shrink-0">
             <span className="text-sm font-semibold text-gray-800">{gridHeaderText}</span>
             <div className="flex items-center gap-2">
-              {selectedDnis.length > 0 && (
-                <Button danger icon={<Trash2 className="size-3.5" />} onClick={handleDeleteSelectedDnis}>
-                  삭제 ({selectedDnis.length})
-                </Button>
-              )}
+              <Button danger icon={<Trash2 className="size-3.5" />} disabled={selectedDnis.length === 0} onClick={handleDeleteSelectedDnis}>
+                삭제
+              </Button>
               <Button type="primary" icon={<Plus className="size-3.5" />} onClick={handleCreateDnis} disabled={!selectedGdn}>
                 DNIS 추가
               </Button>

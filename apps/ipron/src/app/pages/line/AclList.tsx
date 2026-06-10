@@ -357,11 +357,9 @@ export default function AclList() {
         <div className="bg-white bt-shadow flex flex-col flex-1 min-h-0 overflow-hidden">
           <div className="px-5 py-3 border-b border-gray-100 flex items-center gap-2 flex-shrink-0">
             <span className="text-sm font-semibold text-gray-800">{gridHeaderText}</span>
-            {selectedRows.length > 0 && (
-              <span className="text-xs text-gray-500">
-                {acls.length}건 중 {selectedRows.length}건 선택
-              </span>
-            )}
+            <span className={`text-xs text-gray-500 ${selectedRows.length === 0 ? 'invisible' : ''}`}>
+              {acls.length}건 중 {selectedRows.length}건 선택
+            </span>
             <div className="ml-auto">
               <Button
                 danger
@@ -370,7 +368,7 @@ export default function AclList() {
                 disabled={selectedRows.length === 0}
                 title={selectedRows.length === 0 ? '삭제할 항목을 선택하세요' : `선택한 ${selectedRows.length}건 삭제`}
               >
-                {selectedRows.length > 0 ? `삭제 (${selectedRows.length})` : '삭제'}
+                삭제
               </Button>
             </div>
           </div>

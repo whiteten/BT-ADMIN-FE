@@ -830,22 +830,18 @@ export default function EndpointList() {
                 <div className="ml-auto flex items-center gap-2">
                   {activeTab === 'member' ? (
                     <>
-                      {selectedMembers.length > 0 && (
-                        <Button danger icon={<IconTrash className="size-3.5" />} onClick={handleDeleteSelectedMembers}>
-                          삭제 ({selectedMembers.length})
-                        </Button>
-                      )}
+                      <Button danger icon={<IconTrash className="size-3.5" />} disabled={selectedMembers.length === 0} onClick={handleDeleteSelectedMembers}>
+                        삭제
+                      </Button>
                       <Button type="primary" icon={<Plus className="size-3.5" />} onClick={() => memberDrawerRef.current?.open()}>
                         멤버 추가
                       </Button>
                     </>
                   ) : (
                     <>
-                      {selectedRegnums.length > 0 && (
-                        <Button danger icon={<IconTrash className="size-3.5" />} onClick={handleDeleteSelectedRegnums}>
-                          삭제 ({selectedRegnums.length})
-                        </Button>
-                      )}
+                      <Button danger icon={<IconTrash className="size-3.5" />} disabled={selectedRegnums.length === 0} onClick={handleDeleteSelectedRegnums}>
+                        삭제
+                      </Button>
                       <Button type="primary" icon={<Plus className="size-3.5" />} onClick={() => regnumDrawerRef.current?.open()}>
                         인증번호 추가
                       </Button>

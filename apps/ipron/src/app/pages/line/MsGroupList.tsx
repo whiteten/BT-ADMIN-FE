@@ -209,7 +209,7 @@ export default function MsGroupList() {
         onOk: () => deleteMsGroup({ id: grp.msGroupId }),
         options: {
           title: 'MS그룹 삭제',
-          content: `"${grp.msGroupName}" MS그룹을 삭제하시겠습니까?\n배정된 멤버가 있으면 삭제할 수 없습니다.`,
+          content: `"${grp.msGroupName}" MS그룹을 삭제하시겠습니까?`,
         },
       });
     },

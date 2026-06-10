@@ -174,13 +174,12 @@ export default function AgentGroupTree({ tree, selectedGroupId, onSelectGroup, o
 
         {isDropTarget && <span className="text-[10px] text-emerald-600 font-medium">↓ 여기로 이동</span>}
 
-        {/* 카운트 — 기본은 맨 우측에 표시, hover 시 숨겨 액션 버튼에 자리를 내준다.
-            h-5 로 액션 버튼과 높이를 맞춰 hover 시 행 높이가 흔들리지 않게 한다. */}
-        <span className="h-5 inline-flex items-center text-[11px] text-gray-400 flex-shrink-0 group-hover:hidden">{node.agentCount.toLocaleString()}</span>
+        {/* 카운트 — 맨 우측에 상시 표시 */}
+        <span className="h-5 inline-flex items-center text-[11px] text-gray-400 flex-shrink-0">{node.agentCount.toLocaleString()}</span>
 
-        {/* 액션 — 기본은 숨김(자리 차지 안 함), hover 시에만 숫자 자리에 나타남. read-only 모드에서는 통째 생략 */}
+        {/* 액션 — read-only 모드에서는 통째 생략, 상시 표시 */}
         {!readOnly && (
-          <div className="hidden group-hover:flex items-center gap-0.5 flex-shrink-0">
+          <div className="flex items-center gap-0.5 flex-shrink-0">
             <Tooltip title="하위 그룹 추가" {...TOOLTIP_PROPS}>
               <button
                 type="button"
@@ -248,11 +247,10 @@ export default function AgentGroupTree({ tree, selectedGroupId, onSelectGroup, o
           {onGroupReorder && <span className="size-3 flex-shrink-0" aria-hidden />}
           <FolderClosed className={`size-3.5 flex-shrink-0 ${selectedGroupId === null ? 'text-[var(--color-bt-primary)]' : 'text-gray-500'}`} />
           <span className={`flex-1 text-[12.5px] truncate ${selectedGroupId === null ? 'text-[var(--color-bt-primary)] font-semibold' : 'text-gray-700'}`}>전체</span>
-          {/* 카운트 — 기본은 맨 우측에 표시, hover 시 숨겨 토글 버튼에 자리를 내준다.
-              h-5 로 토글 버튼과 높이를 맞춰 hover 시 행 높이가 흔들리지 않게 한다. */}
-          <span className="h-5 inline-flex items-center text-[11px] text-gray-400 flex-shrink-0 group-hover:hidden">{totalAgentCount.toLocaleString()}</span>
-          {/* 모두 펼치기/접기 토글 — 기본은 숨김, hover 시에만 숫자 자리에 나타남 */}
-          <div className="hidden group-hover:flex items-center gap-0.5 flex-shrink-0">
+          {/* 카운트 — 맨 우측에 상시 표시 */}
+          <span className="h-5 inline-flex items-center text-[11px] text-gray-400 flex-shrink-0">{totalAgentCount.toLocaleString()}</span>
+          {/* 모두 펼치기/접기 토글 — 상시 표시 */}
+          <div className="flex items-center gap-0.5 flex-shrink-0">
             <Tooltip title={allExpanded ? '모두 접기' : '모두 펼치기'} {...TOOLTIP_PROPS}>
               <button
                 type="button"

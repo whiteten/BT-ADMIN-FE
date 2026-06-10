@@ -278,7 +278,7 @@ const SipGdnDrawer = forwardRef<SipGdnDrawerRef, Props>(({ nodeId, tenantId, drN
           <h4 className="text-xs text-gray-500 font-semibold mb-3">초기구성</h4>
 
           {/* blockYn=0이면 closeType disabled (SWAT :217-224) */}
-          <Form.Item name="closeType" label="종료 방법" extra={closeTypeDisabled ? '블록 여부를 "설정"으로 변경하면 활성화됩니다' : undefined}>
+          <Form.Item name="closeType" label="종료 방법">
             <Select disabled={closeTypeDisabled} allowClear placeholder="종료 방법 선택" options={[{ value: null, label: '(미지정)' }, ...CLOSE_TYPE_OPTIONS]} />
           </Form.Item>
 

@@ -230,11 +230,9 @@ export default function CtiCodeList() {
               { label: '후처리(ACW) 사유', value: REASON_CODE_TYPE_ACW },
             ]}
           />
-          {selectedRows.length > 0 && (
-            <span className="ml-3 text-xs text-gray-500">
-              {reasonRows.length.toLocaleString()}건 중 {selectedRows.length}건 선택
-            </span>
-          )}
+          <span className={`ml-3 text-xs text-gray-500 ${selectedRows.length > 0 ? 'visible' : 'invisible'}`}>
+            {reasonRows.length.toLocaleString()}건 중 {selectedRows.length}건 선택
+          </span>
           <div className="ml-auto flex items-center gap-2">
             <Button
               danger
@@ -244,7 +242,7 @@ export default function CtiCodeList() {
               disabled={selectedRows.length === 0}
               title={selectedRows.length === 0 ? '삭제할 사유 코드를 선택하세요' : '선택한 사유 코드 삭제'}
             >
-              {selectedRows.length > 0 ? `삭제 (${selectedRows.length})` : '삭제'}
+              삭제
             </Button>
             <Button type="primary" icon={<Plus className="size-3.5" />} onClick={handleCreate}>
               등록

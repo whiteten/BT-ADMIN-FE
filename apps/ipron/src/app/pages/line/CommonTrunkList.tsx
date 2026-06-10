@@ -238,9 +238,10 @@ export default function CommonTrunkList() {
       {
         field: 'globalDnYn',
         headerName: '글로벌',
-        width: 75,
+        minWidth: 80,
+        maxWidth: 90,
         cellStyle: { textAlign: 'center' } as CellStyle,
-        cellRenderer: (p: { value: number }) => (p.value === 1 ? <Tag color="blue">글로벌</Tag> : <span className="text-gray-400 text-[11px]">—</span>),
+        cellRenderer: (p: { value: number }) => (p.value === 1 ? <Tag color="blue">글로벌</Tag> : <span className="text-gray-400 text-[11px]">-</span>),
       },
       {
         field: 'backUpNodeName',
@@ -370,7 +371,7 @@ export default function CommonTrunkList() {
     }
     Modal.confirm({
       title: '그룹DN 삭제',
-      content: `${selectedGdn.gdnNo} (${selectedGdn.gdnName}) 을(를) 삭제합니다. 배정된 트렁크 매핑도 함께 해제됩니다.`,
+      content: `"${selectedGdn.gdnNo}" 그룹DN을 삭제하시겠습니까?`,
       okType: 'danger',
       onOk: () => deleteGdns([selectedGdn.gdnId]),
     });
@@ -533,7 +534,6 @@ export default function CommonTrunkList() {
               <Network className="size-3 text-[#405189]" />
               <span className="text-gray-500">선택:</span>
               <strong className="text-[#405189]">{selectedGdn ? `${selectedGdn.gdnNo}  ${selectedGdn.gdnName}` : '— 행 클릭으로 선택'}</strong>
-              <span className="text-gray-400">우측에서 트렁크 배정/해제</span>
             </div>
           </div>
         </Panel>

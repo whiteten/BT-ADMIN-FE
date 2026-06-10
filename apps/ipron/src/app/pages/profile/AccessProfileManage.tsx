@@ -328,7 +328,7 @@ export default function AccessProfileManage() {
       onOk: () => deleteProfile({ id: profile.accessCodeProfileId }),
       options: {
         title: '프로파일 삭제',
-        content: `"${profile.accessCodeProfileName}" 프로파일을 삭제하시겠습니까?\n하위 접근코드도 함께 삭제됩니다.`,
+        content: `"${profile.accessCodeProfileName}" 프로파일을 삭제하시겠습니까?`,
       },
     });
   };
