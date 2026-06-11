@@ -34,7 +34,7 @@ export const useUpdateBsrCtiqMappings = ({ mutationOptions }: MutationHookOption
     mutationFn: ({ bsrGroupId, body }) => bsrCtiqMappingApi.updateMappings(bsrGroupId, body),
     ...mutationOptions,
     onSuccess: (...args) => {
-      qc.invalidateQueries({ queryKey: bsrCtiqQueryKeys.getList().queryKey });
+      qc.invalidateQueries({ queryKey: bsrCtiqQueryKeys.getList._def });
       mutationOptions?.onSuccess?.(...args);
     },
   });
@@ -46,7 +46,7 @@ export const useAssignBsrCtiq = ({ mutationOptions }: MutationHookOptions<void, 
     mutationFn: (body: BsrCtiqAssignRequest) => bsrCtiqMappingApi.assignCtiq(body),
     ...mutationOptions,
     onSuccess: (...args) => {
-      qc.invalidateQueries({ queryKey: bsrCtiqQueryKeys.getList().queryKey });
+      qc.invalidateQueries({ queryKey: bsrCtiqQueryKeys.getList._def });
       mutationOptions?.onSuccess?.(...args);
     },
   });
@@ -71,7 +71,7 @@ export const useUnassignBsrCtiq = ({ mutationOptions }: MutationHookOptions<void
     mutationFn: ({ bsrGroupId, body }) => bsrCtiqMappingApi.unassignCtiq(bsrGroupId, body),
     ...mutationOptions,
     onSuccess: (...args) => {
-      qc.invalidateQueries({ queryKey: bsrCtiqQueryKeys.getList().queryKey });
+      qc.invalidateQueries({ queryKey: bsrCtiqQueryKeys.getList._def });
       mutationOptions?.onSuccess?.(...args);
     },
   });

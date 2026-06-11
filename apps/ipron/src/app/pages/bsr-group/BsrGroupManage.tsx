@@ -454,6 +454,12 @@ export default function BsrGroupManage() {
     return groups.filter((g) => [g.bsrGroupName, g.bsrMethod, g.bsrGroupDesc].some((f) => f && String(f).toLowerCase().includes(kw)));
   }, [groups, grpSearch]);
 
+  /**
+   * 메인 화면 업무그룹 트리: CTI큐가 1개라도 속한 노드만 노출.
+   * 배정 모달은 treeGroups(전체)를 그대로 사용 — 변경 금지.
+   */
+  const filteredTreeGroups = useMemo(() => filterTreeWithQueues(treeGroups), [treeGroups]);
+
   /** 업무그룹 트리 필터: 선택된 treeId 하위 포함 */
   const filteredCtiq = useMemo(() => {
     let base = ctiqMappings;
@@ -603,37 +609,21 @@ export default function BsrGroupManage() {
   // ─── Column Defs ────────────────────────────────────────────────────────────
   const groupColDefs: ColDef<BsrGroupResponse>[] = useMemo(
     () => [
-      {
-        headerCheckboxSelection: true,
-        checkboxSelection: true,
-        width: 44,
-        pinned: 'left' as const,
-        suppressHeaderMenuButton: true,
-        headerCheckboxSelectionFilteredOnly: true,
-      },
-      { field: 'bsrGroupName', headerName: 'BSR 그룹명', flex: 1 },
+      { field: 'bsrGroupName', headerName: 'BSR 그룹명', flex: 1, tooltipField: 'bsrGroupName' },
       { field: 'bsrMethod', headerName: 'BSR 메소드', width: 180, valueFormatter: ({ value }) => getBsrMethodLabel(value as string | null) },
       { field: 'activateYn', headerName: '활성화', width: 80, valueFormatter: ({ value }) => (value === 1 ? '활성' : '비활성') },
       { field: 'sortSeq', headerName: '정렬', width: 60 },
-      { field: 'bsrGroupDesc', headerName: '설명', flex: 1 },
+      { field: 'bsrGroupDesc', headerName: '설명', flex: 1, tooltipField: 'bsrGroupDesc' },
     ],
     [],
   );
 
   const ctiqColDefs: ColDef<BsrCtiqMappingResponse>[] = useMemo(
     () => [
-      {
-        headerCheckboxSelection: true,
-        checkboxSelection: true,
-        width: 44,
-        pinned: 'left' as const,
-        suppressHeaderMenuButton: true,
-        headerCheckboxSelectionFilteredOnly: true,
-      },
-      { field: 'ctiqName', headerName: 'CTI큐명', flex: 1 },
+      { field: 'ctiqName', headerName: 'CTI큐명', flex: 1, tooltipField: 'ctiqName' },
       { field: 'gdnNo', headerName: '그룹DN 번호', width: 110 },
-      { field: 'gdnName', headerName: '그룹DN 명', width: 130 },
-      { field: 'treeName', headerName: '업무그룹명', width: 120, valueFormatter: ({ value }) => value ?? '미배정' },
+      { field: 'gdnName', headerName: '그룹DN 명', minWidth: 130, flex: 1, tooltipField: 'gdnName' },
+      { field: 'treeName', headerName: '업무그룹명', minWidth: 120, flex: 1, valueFormatter: ({ value }) => value ?? '-', tooltipField: 'treeName' },
       {
         field: 'bsrWeight',
         headerName: 'BSR 가중치',
@@ -666,15 +656,7 @@ export default function BsrGroupManage() {
 
   const schedColDefs: ColDef<BsrScheduleInfoResponse>[] = useMemo(
     () => [
-      {
-        headerCheckboxSelection: true,
-        checkboxSelection: true,
-        width: 44,
-        pinned: 'left' as const,
-        suppressHeaderMenuButton: true,
-        headerCheckboxSelectionFilteredOnly: true,
-      },
-      { field: 'bsrScheduleName', headerName: '스케줄명', flex: 1 },
+      { field: 'bsrScheduleName', headerName: '스케줄명', flex: 1, tooltipField: 'bsrScheduleName' },
       { field: 'startDate', headerName: '시작일', width: 110 },
       { field: 'startTime', headerName: '시작시간', width: 90 },
       { field: 'finshTime', headerName: '종료시간', width: 90 },
@@ -816,7 +798,6 @@ export default function BsrGroupManage() {
             <span className="text-sm font-semibold text-gray-700">
               BSR 그룹 목록 (<span>{filteredGroups.length.toLocaleString()}</span>건)
             </span>
-            {selectedGroupIds.length > 0 && <span className="text-xs text-gray-500">{selectedGroupIds.length}건 선택</span>}
             <div className="ml-auto flex items-center gap-2">
               <Input
                 allowClear
@@ -879,18 +860,15 @@ export default function BsrGroupManage() {
                 스케줄
                 <span className="ml-1.5 text-[11px] text-gray-400 font-normal">({schedules.length})</span>
               </button>
-              <span className="ml-auto text-[11px] text-gray-400 overflow-hidden text-ellipsis whitespace-nowrap max-w-[200px]">
-                선택 그룹: <span className="text-[#405189] font-medium">{selectedGroup.bsrGroupName}</span>
-              </span>
-              <Button type="text" size="small" icon={<X className="size-4" />} onClick={() => setSelectedGroup(null)} className="!ml-1 !text-gray-400 hover:!text-[#405189]" />
+              <Button type="text" size="small" icon={<X className="size-4" />} onClick={() => setSelectedGroup(null)} className="!ml-auto !text-gray-400 hover:!text-[#405189]" />
             </div>
 
             {/* ── CTI큐 탭 ── */}
             {activeTab === 'ctiq' && (
               <div className="flex flex-1 min-h-0">
-                {/* 업무그룹 트리 패널 (읽기 전용) */}
+                {/* 업무그룹 트리 패널 (읽기 전용) — 큐 있는 노드만 표시 */}
                 <ReadonlyTreePanel
-                  groups={treeGroups}
+                  groups={filteredTreeGroups}
                   selectedTreeId={selectedTreeId}
                   onSelect={setSelectedTreeId}
                   collapsed={treeCollapsed}
@@ -903,7 +881,6 @@ export default function BsrGroupManage() {
                     <span className="text-sm font-semibold text-gray-700 truncate">
                       [{selectedGroup.bsrGroupName}] CTI큐 목록 ({filteredCtiq.length.toLocaleString()}건)
                     </span>
-                    {selectedCtiqIds.length > 0 && <span className="text-xs text-gray-500 flex-shrink-0">{selectedCtiqIds.length}건 선택</span>}
                     {hasPending && <span className="text-[11px] text-amber-700 bg-amber-50 border border-amber-200 px-2 py-0.5 rounded flex-shrink-0">미저장 변경 있음</span>}
                     <div className="ml-auto flex items-center gap-2 flex-shrink-0">
                       <Input
@@ -1033,6 +1010,39 @@ export default function BsrGroupManage() {
       )}
     </div>
   );
+}
+
+// ──────────────────────────────────────────────────────────
+//  내부 유틸 — 빈 노드 숨김 (메인 트리 패널 전용)
+// ──────────────────────────────────────────────────────────
+
+/**
+ * ctiqCount(직속 큐 수)가 자신 + 모든 하위 합산 0인 노드를 재귀적으로 제거.
+ * 배정 모달에는 적용하지 않음 (전체 노드 유지).
+ *
+ * @returns 큐가 1개 이상 속한 노드만 남긴 새 트리 (원본 불변)
+ */
+function filterTreeWithQueues(nodes: CtiQueueGroupResponse[]): CtiQueueGroupResponse[] {
+  const result: CtiQueueGroupResponse[] = [];
+  for (const n of nodes) {
+    const filteredChildren = filterTreeWithQueues(n.children ?? []);
+    const selfCount = n.ctiqCount ?? 0;
+    const descendantCount = sumCtiqCount(filteredChildren);
+    if (selfCount + descendantCount > 0) {
+      result.push({ ...n, children: filteredChildren });
+    }
+  }
+  return result;
+}
+
+/** 노드 배열의 모든 직속 ctiqCount 합산 (재귀). */
+function sumCtiqCount(nodes: CtiQueueGroupResponse[]): number {
+  let total = 0;
+  for (const n of nodes) {
+    total += n.ctiqCount ?? 0;
+    total += sumCtiqCount(n.children ?? []);
+  }
+  return total;
 }
 
 // ──────────────────────────────────────────────────────────
