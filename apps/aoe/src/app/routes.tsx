@@ -23,6 +23,7 @@ const McpList = React.lazy(() => import('./pages/agent-config/McpList'));
 const McpCreate = React.lazy(() => import('./pages/agent-config/McpCreate'));
 const McpDetail = React.lazy(() => import('./pages/agent-config/McpDetail'));
 const MonitoringDashboard = React.lazy(() => import('./pages/monitoring/MonitoringDashboard'));
+const Chat = React.lazy(() => import('./pages/analysis/Chat'));
 
 export const routes = [
   {
@@ -108,6 +109,14 @@ export const routes = [
         children: [
           { index: true, element: <Navigate to="agent" replace /> },
           { path: 'agent', element: <MonitoringDashboard /> },
+        ],
+      },
+      {
+        path: 'analysis',
+        element: <Outlet />,
+        children: [
+          { index: true, element: <Navigate to="chat" replace /> },
+          { path: 'chat', element: <Chat /> },
         ],
       },
     ],
