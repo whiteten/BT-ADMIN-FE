@@ -60,8 +60,11 @@ CLAUDE.local.md
 .claude/settings.local.json
 tmpclaude-*
 
-# Cursor
-.cursor/
+# Cursor — agents.mdc(공유 포인터 룰)만 추적하고 나머지는 무시
+.cursor/*
+!.cursor/rules/
+.cursor/rules/*
+!.cursor/rules/agents.mdc
 .cursorrules
 
 # Playwright
