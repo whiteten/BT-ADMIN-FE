@@ -228,15 +228,16 @@ export default function BsrCtiqMappingList() {
   // ─── 인라인 편집 컬럼 ──────────────────────────────────────────────────────
   const colDefs: ColDef<BsrCtiqMappingResponse>[] = useMemo(
     () => [
-      { field: 'tenantName', headerName: '테넌트명', width: 120 },
-      { field: 'bsrGroupName', headerName: 'BSR 그룹명', width: 140 },
-      { field: 'ctiqName', headerName: 'CTI큐명', flex: 1 },
+      { field: 'tenantName', headerName: '테넌트명', width: 120, tooltipField: 'tenantName' },
+      { field: 'bsrGroupName', headerName: 'BSR 그룹명', width: 140, tooltipField: 'bsrGroupName' },
+      { field: 'ctiqName', headerName: 'CTI큐명', flex: 1, tooltipField: 'ctiqName' },
       { field: 'gdnNo', headerName: '그룹DN 번호', width: 120 },
-      { field: 'gdnName', headerName: '그룹DN 명', width: 130 },
+      { field: 'gdnName', headerName: '그룹DN 명', width: 130, tooltipField: 'gdnName' },
       {
         field: 'treeName',
         headerName: '업무그룹명',
         width: 130,
+        tooltipField: 'treeName',
         valueFormatter: ({ value }) => (value ? String(value) : '미배정'),
       },
       {
@@ -509,16 +510,6 @@ export default function BsrCtiqMappingList() {
             </Button>
           </div>
         </div>
-
-        {/* 인라인 편집 안내 */}
-        {selectedGroup && (
-          <div className="px-4 py-1.5 border-b border-gray-100 flex items-center gap-3 text-xs text-gray-500 flex-shrink-0">
-            <span>셀 클릭 시 인라인 편집</span>
-            <span className="inline-flex items-center gap-1">
-              <span style={{ background: '#D1FDFD', padding: '1px 8px', borderRadius: 3 }}>하늘색 셀</span>= 편집 가능 (BSR 가중치 / 사용여부 / 분배여부)
-            </span>
-          </div>
-        )}
 
         {/* 그리드 영역 */}
         <div className="flex-1 min-h-0">

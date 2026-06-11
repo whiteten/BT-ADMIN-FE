@@ -339,7 +339,7 @@ export default function SipTrunkList() {
         field: 'backUpNodeName',
         minWidth: 80,
         maxWidth: 110,
-        cellStyle: { textAlign: 'center', color: '#9ca3af', fontSize: '11px' } as CellStyle,
+        cellStyle: { textAlign: 'center', color: '#9ca3af' } as CellStyle,
         valueFormatter: (p) => p.value ?? '—',
       },
       // F-2: 차단/오류/만석 우회 DNIS 컬럼 (SWAT IPR20S3030 GDN_TYPE=18 정합)
@@ -348,7 +348,7 @@ export default function SipTrunkList() {
         field: 'blockRoutingDnis',
         minWidth: 100,
         maxWidth: 130,
-        cellStyle: { fontFamily: 'monospace', fontSize: '11px' } as CellStyle,
+        cellStyle: { fontFamily: 'monospace' } as CellStyle,
         valueFormatter: (p) => p.value ?? '—',
       },
       {
@@ -356,7 +356,7 @@ export default function SipTrunkList() {
         field: 'errorRoutingDnis',
         minWidth: 100,
         maxWidth: 130,
-        cellStyle: { fontFamily: 'monospace', fontSize: '11px' } as CellStyle,
+        cellStyle: { fontFamily: 'monospace' } as CellStyle,
         valueFormatter: (p) => p.value ?? '—',
       },
       {
@@ -364,7 +364,7 @@ export default function SipTrunkList() {
         field: 'busyRoutingDnis',
         minWidth: 100,
         maxWidth: 130,
-        cellStyle: { fontFamily: 'monospace', fontSize: '11px' } as CellStyle,
+        cellStyle: { fontFamily: 'monospace' } as CellStyle,
         valueFormatter: (p) => p.value ?? '—',
       },
     ],
@@ -378,7 +378,7 @@ export default function SipTrunkList() {
       sideBar: false,
       pagination: false,
       rowNumbers: false,
-      defaultColDef: { sortable: true, filter: true, resizable: true, suppressHeaderMenuButton: true },
+      defaultColDef: { sortable: true, filter: false, resizable: true, suppressHeaderMenuButton: true },
       rowSelection: { mode: 'multiRow', checkboxes: true, headerCheckbox: true, enableClickSelection: false },
       getRowId: ({ data }) => String(data.gdnId),
       onRowClicked: (e) => {
@@ -422,13 +422,13 @@ export default function SipTrunkList() {
           </span>
         ),
       },
-      { headerName: '번호', field: 'targetNo', minWidth: 110, maxWidth: 140, cellStyle: { fontFamily: 'monospace', fontSize: '12px' } as CellStyle },
+      { headerName: '번호', field: 'targetNo', minWidth: 110, maxWidth: 140, cellStyle: { fontFamily: 'monospace' } as CellStyle },
       {
         headerName: 'DR노드',
         field: 'backUpNodeName',
         minWidth: 80,
         maxWidth: 110,
-        cellStyle: { textAlign: 'center', color: '#9ca3af', fontSize: '11px' } as CellStyle,
+        cellStyle: { textAlign: 'center', color: '#9ca3af' } as CellStyle,
         valueFormatter: (p) => p.value ?? '—',
       },
       {
@@ -479,7 +479,7 @@ export default function SipTrunkList() {
       sideBar: false,
       pagination: false,
       rowNumbers: false,
-      defaultColDef: { sortable: true, filter: true, resizable: true, suppressHeaderMenuButton: true },
+      defaultColDef: { sortable: true, filter: false, resizable: true, suppressHeaderMenuButton: true },
       rowSelection: { mode: 'multiRow', checkboxes: true, headerCheckbox: true, selectAll: 'filtered', enableClickSelection: false },
       getRowId: ({ data }) => String(data.sipTrunkId),
       isExternalFilterPresent: () => assignFilter !== 'all' || kindFilter !== '',
@@ -762,11 +762,6 @@ export default function SipTrunkList() {
             <div className="ag-theme-quartz min-h-0 flex-1">
               <AgGridReact<SipGdnResponse> rowData={gdns} columnDefs={gdnColumns} gridOptions={gdnGridOptions} loading={gdnsLoading} />
             </div>
-            <div className="flex flex-shrink-0 items-center gap-3 border-t border-blue-100 bg-blue-50 px-4 py-2 text-[11.5px]">
-              <LayoutGrid className="size-3 text-[#405189]" />
-              <span className="text-gray-500">선택 그룹DN:</span>
-              <b className="text-[#405189]">{selectedGdn ? `${selectedGdn.gdnNo} ${selectedGdn.gdnName}` : '미선택'}</b>
-            </div>
           </div>
         </Panel>
 
@@ -779,7 +774,7 @@ export default function SipTrunkList() {
               <Cable className="size-3.5 text-[#405189]" />
               <span className="text-sm font-semibold text-gray-700">SIP 트렁크</span>
               <span className="text-xs text-gray-500">
-                {contextLabel} · 총 <b>{memberRows.length}건</b> · <strong className="text-[#405189]">선택 {selectedTrunks.length}건</strong>
+                {contextLabel} · 총 <b>{memberRows.length}건</b>
                 {selectedGdn && <span className="ml-2 text-[11px] text-amber-600">· 그룹DN {selectedGdn.gdnNo} 기준 기배정/미배정</span>}
               </span>
               <div className="ml-auto flex items-center gap-1.5">
@@ -845,16 +840,16 @@ export default function SipTrunkList() {
 
       {/* floating bulk-bar */}
       {selectedGdn && selectedTrunks.length > 0 && (
-        <div className="fixed bottom-5 left-1/2 z-50 flex -translate-x-1/2 items-center gap-3 rounded-xl bg-gray-800 px-4 py-2.5 text-sm text-white shadow-xl">
+        <div className="fixed bottom-5 left-1/2 z-50 flex -translate-x-1/2 items-center gap-3 rounded-xl bg-slate-700/90 px-4 py-2.5 text-sm text-[#e2e8f0] shadow-xl">
           <span className="flex items-center gap-1.5">
             <LayoutGrid className="size-3.5" />
-            <span className="text-xs text-white/60">그룹DN</span>
+            <span className="text-xs text-[#94a3b8]">그룹DN</span>
             <span className="min-w-[28px] rounded-full bg-[#405189] px-2 py-0.5 text-center font-bold">1</span>
           </span>
-          <span className="text-white/30">×</span>
+          <span className="text-[#94a3b8]">×</span>
           <span className="flex items-center gap-1.5">
             <Cable className="size-3.5" />
-            <span className="text-xs text-white/60">트렁크</span>
+            <span className="text-xs text-[#94a3b8]">트렁크</span>
             <span className="min-w-[28px] rounded-full bg-[#405189] px-2 py-0.5 text-center font-bold">{selectedTrunks.length}</span>
           </span>
           <Button type="primary" icon={<Plus className="size-3.5" />} onClick={() => setAssignDrawerOpen(true)}>
@@ -863,7 +858,7 @@ export default function SipTrunkList() {
           <Button danger icon={<Trash2 className="size-3.5" />} onClick={handleRevoke}>
             해제
           </Button>
-          <Button type="text" onClick={clearSelection} className="!text-white/60 hover:!text-white">
+          <Button type="text" onClick={clearSelection} className="!text-[#94a3b8] hover:!text-[#e2e8f0]">
             선택 해제
           </Button>
         </div>

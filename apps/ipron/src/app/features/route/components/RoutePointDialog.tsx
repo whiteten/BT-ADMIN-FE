@@ -144,6 +144,7 @@ const RoutePointDialog = forwardRef<RoutePointDialogRef, RoutePointDialogProps>(
         field: 'nodeName',
         flex: 1,
         minWidth: 70,
+        tooltipField: 'nodeName',
         cellRenderer: (params: ICellRendererParams<EndpointForAssign>) => {
           if (!params.data) return null;
           return params.data.nodeName ?? '-';
@@ -164,6 +165,7 @@ const RoutePointDialog = forwardRef<RoutePointDialogRef, RoutePointDialogProps>(
         field: 'endptName',
         flex: 2,
         minWidth: 100,
+        tooltipField: 'endptName',
       },
       {
         headerName: '백업 구분',

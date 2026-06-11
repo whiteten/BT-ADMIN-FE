@@ -284,7 +284,7 @@ export default function DevfuncProfileManage() {
   ];
 
   // ─── ag-Grid columns ──────────────────────────────────────────────────────
-  const defaultColDef: ColDef = useMemo(() => ({ sortable: true, filter: true, resizable: true, suppressHeaderMenuButton: true }), []);
+  const defaultColDef: ColDef = useMemo(() => ({ sortable: true, filter: false, resizable: true, suppressHeaderMenuButton: true }), []);
 
   const columnDefs: ColDef<DevfuncCode>[] = [
     {
@@ -292,6 +292,7 @@ export default function DevfuncProfileManage() {
       field: 'devfuncCode',
       minWidth: 100,
       maxWidth: 130,
+      tooltipField: 'devfuncCode',
       cellRenderer: (params: ICellRendererParams<DevfuncCode>) => {
         if (!params.data) return null;
         return <span className="font-semibold text-gray-800 font-mono text-sm">{params.data.devfuncCode}</span>;
@@ -301,6 +302,7 @@ export default function DevfuncProfileManage() {
       headerName: '코드명',
       field: 'devfuncCodeName',
       flex: 1,
+      tooltipField: 'devfuncCodeName',
     },
     {
       headerName: '최소자릿수',
@@ -318,6 +320,7 @@ export default function DevfuncProfileManage() {
       headerName: '설명',
       field: 'devfuncCodeDesc',
       flex: 1,
+      tooltipField: 'devfuncCodeDesc',
       valueFormatter: (params) => params.value ?? '-',
     },
   ];

@@ -62,22 +62,10 @@ export default function MentTable({
 }: MentTableProps) {
   const { gridOptions } = useAggridOptions();
 
-  const defaultColDef: ColDef = useMemo(() => ({ sortable: true, filter: true, resizable: true, suppressHeaderMenuButton: true }), []);
+  const defaultColDef: ColDef = useMemo(() => ({ sortable: true, filter: false, resizable: true, suppressHeaderMenuButton: true }), []);
 
   const columnDefs: ColDef<MentResponse>[] = useMemo(
     () => [
-      {
-        headerName: '',
-        width: 44,
-        maxWidth: 44,
-        pinned: 'left',
-        checkboxSelection: true,
-        headerCheckboxSelection: true,
-        headerCheckboxSelectionFilteredOnly: true,
-        sortable: false,
-        filter: false,
-        suppressHeaderMenuButton: true,
-      },
       {
         headerName: '멘트ID',
         field: 'ieMentId',
@@ -102,6 +90,7 @@ export default function MentTable({
         field: 'mentName',
         flex: 1,
         minWidth: 140,
+        tooltipField: 'mentName',
         cellRenderer: (p: ICellRendererParams<MentResponse>) => <span className="font-semibold text-gray-700">{p.value ?? ''}</span>,
       },
       {
@@ -109,16 +98,25 @@ export default function MentTable({
         field: 'fileName',
         flex: 1,
         minWidth: 140,
-        cellStyle: { fontFamily: 'monospace', fontSize: '12px', color: '#475569' } as CellStyle,
+        tooltipField: 'fileName',
+        cellStyle: { fontFamily: 'monospace', color: '#475569' } as CellStyle,
         valueFormatter: (p) => p.value ?? '-',
       },
-      { headerName: '설명', field: 'mentDesc', flex: 1.2, minWidth: 150, cellStyle: { color: '#6b7280' } as CellStyle, valueFormatter: (p) => p.value ?? '-' },
+      {
+        headerName: '설명',
+        field: 'mentDesc',
+        flex: 1.2,
+        minWidth: 150,
+        tooltipField: 'mentDesc',
+        cellStyle: { color: '#6b7280' } as CellStyle,
+        valueFormatter: (p) => p.value ?? '-',
+      },
       {
         headerName: '업로드일자',
         field: 'createDate',
         minWidth: 110,
         maxWidth: 130,
-        cellStyle: { textAlign: 'center', color: '#6b7280', fontSize: '12px' } as CellStyle,
+        cellStyle: { textAlign: 'center', color: '#6b7280' } as CellStyle,
         valueFormatter: (p) => fmtDate(p.value),
       },
       {
@@ -165,8 +163,7 @@ export default function MentTable({
         statusBar: undefined,
         pagination: false,
         sideBar: false,
-        rowSelection: 'multiple',
-        suppressRowClickSelection: true,
+        rowSelection: { mode: 'multiRow', checkboxes: true, headerCheckbox: true, enableClickSelection: false },
       }}
       loading={isLoading}
       onRowDoubleClicked={(e) => e.data && onRowDoubleClicked(e.data)}

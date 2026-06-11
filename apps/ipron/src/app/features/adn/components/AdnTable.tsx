@@ -22,23 +22,11 @@ interface AdnTableProps {
 export default function AdnTable({ rowData, isLoading, onRowDoubleClicked, onSelectionChanged, onBulkDelete, selectedCount = 0 }: AdnTableProps) {
   const { gridOptions } = useAggridOptions();
 
-  const defaultColDef: ColDef = useMemo(() => ({ sortable: true, filter: true, resizable: true, suppressHeaderMenuButton: true }), []);
+  const defaultColDef: ColDef = useMemo(() => ({ sortable: true, filter: false, resizable: true, suppressHeaderMenuButton: true, editable: false }), []);
 
   const columnDefs: ColDef<AdnResponse>[] = useMemo(
     () => [
-      {
-        headerName: '',
-        width: 44,
-        maxWidth: 44,
-        pinned: 'left',
-        checkboxSelection: true,
-        headerCheckboxSelection: true,
-        headerCheckboxSelectionFilteredOnly: true,
-        sortable: false,
-        filter: false,
-        suppressHeaderMenuButton: true,
-      },
-      { headerName: '테넌트', field: 'tenantName', minWidth: 140 },
+      { headerName: '테넌트', field: 'tenantName', minWidth: 140, tooltipField: 'tenantName' },
       {
         headerName: 'ADN 번호',
         field: 'dnNo',
@@ -76,6 +64,7 @@ export default function AdnTable({ rowData, isLoading, onRowDoubleClicked, onSel
         headerName: '로그인 ADN',
         field: 'loginAdn',
         minWidth: 130,
+        tooltipField: 'loginAdn',
         valueFormatter: (params) => params.value ?? '-',
       },
       {
@@ -98,7 +87,7 @@ export default function AdnTable({ rowData, isLoading, onRowDoubleClicked, onSel
           );
         },
       },
-      { headerName: 'MD5 ID', field: 'md5Authid', minWidth: 110, valueFormatter: (p) => p.value ?? '-' },
+      { headerName: 'MD5 ID', field: 'md5Authid', minWidth: 110, tooltipField: 'md5Authid', valueFormatter: (p) => p.value ?? '-' },
       {
         headerName: '상담원 기본상태',
         field: 'adnDftState',
@@ -113,16 +102,18 @@ export default function AdnTable({ rowData, isLoading, onRowDoubleClicked, onSel
         maxWidth: 220,
         valueGetter: (params) => {
           const { origGrpdnNo, origGrpdnName, origGrpdnId } = params.data ?? {};
-          if (origGrpdnId == null) return '-';
+          if (origGrpdnId == null || origGrpdnId === 0) return '-';
           if (origGrpdnNo != null) {
-            return origGrpdnName != null ? `${origGrpdnNo} (${origGrpdnName})` : origGrpdnNo;
+            return origGrpdnName != null ? `${origGrpdnNo} (${origGrpdnName})` : String(origGrpdnNo);
           }
-          return String(origGrpdnId);
+          // origGrpdnId 존재하나 번호 미조인 시 raw ID 노출 금지 — '-' 처리
+          return '-';
         },
+        tooltipValueGetter: (params) => params.value ?? '',
       },
       { headerName: '수정일시', field: 'workTime', minWidth: 160, flex: 1, valueFormatter: (p) => p.value ?? '-' },
     ],
-    [onBulkDelete, selectedCount],
+    [],
   );
 
   return (
@@ -135,8 +126,7 @@ export default function AdnTable({ rowData, isLoading, onRowDoubleClicked, onSel
         statusBar: undefined,
         pagination: false,
         sideBar: false,
-        rowSelection: 'multiple',
-        suppressRowClickSelection: true,
+        rowSelection: { mode: 'multiRow', checkboxes: true, headerCheckbox: true },
       }}
       loading={isLoading}
       onRowDoubleClicked={(e) => e.data && onRowDoubleClicked(e.data)}

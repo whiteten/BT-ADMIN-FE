@@ -222,9 +222,9 @@ export default function DidTransList() {
   // ─── ag-Grid Column Defs ──────────────────────────────────────────────────
   const columnDefs: ColDef<DidTrans>[] = useMemo(
     () => [
-      { headerName: '노드명', field: 'nodeName', flex: 1, minWidth: 100 },
-      { headerName: '변환명', field: 'transName', flex: 2, minWidth: 140 },
-      { headerName: '원본패턴', field: 'orgPattern', flex: 2, minWidth: 140 },
+      { headerName: '노드명', field: 'nodeName', flex: 1, minWidth: 100, tooltipField: 'nodeName' },
+      { headerName: '변환명', field: 'transName', flex: 2, minWidth: 140, tooltipField: 'transName' },
+      { headerName: '원본패턴', field: 'orgPattern', flex: 2, minWidth: 140, tooltipField: 'orgPattern' },
       {
         headerName: '편집옵션',
         field: 'editOpt',
@@ -251,6 +251,7 @@ export default function DidTransList() {
         field: 'transDesc',
         flex: 2,
         minWidth: 140,
+        tooltipField: 'transDesc',
         valueFormatter: (params) => params.data?.transDesc ?? '-',
       },
     ],
@@ -428,7 +429,7 @@ export default function DidTransList() {
               rowSelection={rowSelection}
               loading={isLoading}
               getRowId={(params) => String(params.data.transId)}
-              defaultColDef={{ filter: true, sortable: true, suppressHeaderMenuButton: true }}
+              defaultColDef={{ filter: false, sortable: true, suppressHeaderMenuButton: true }}
               onRowDoubleClicked={(e) => {
                 if (e.data) handleEdit(e.data);
               }}

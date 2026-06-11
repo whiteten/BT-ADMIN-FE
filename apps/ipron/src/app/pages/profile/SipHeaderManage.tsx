@@ -270,7 +270,9 @@ export default function SipHeaderManage() {
       headerName: '헤더명',
       field: 'sipHeader',
       flex: 1,
+      minWidth: 120,
       sortable: true,
+      tooltipField: 'sipHeader',
     },
     {
       headerName: '유형',
@@ -433,7 +435,7 @@ export default function SipHeaderManage() {
                 }}
                 loading={isRelaysLoading}
                 getRowId={(params) => String(params.data.sipHeaderId)}
-                defaultColDef={{ filter: true, sortable: true, suppressHeaderMenuButton: true }}
+                defaultColDef={{ filter: false, sortable: true, suppressHeaderMenuButton: true }}
                 onRowDoubleClicked={(e) => {
                   if (!e.data) return;
                   if (e.data.headerType === 1) {

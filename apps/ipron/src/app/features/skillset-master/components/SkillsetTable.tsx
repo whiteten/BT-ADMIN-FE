@@ -74,22 +74,10 @@ export default function SkillsetTable({
   showTenantColumn = true,
 }: Props) {
   const { gridOptions } = useAggridOptions();
-  const defaultColDef: ColDef = useMemo(() => ({ sortable: true, filter: true, resizable: true, suppressHeaderMenuButton: true }), []);
+  const defaultColDef: ColDef = useMemo(() => ({ sortable: true, filter: false, resizable: true, suppressHeaderMenuButton: true }), []);
 
   const columnDefs: ColDef<SkillsetResponse>[] = useMemo(
     () => [
-      {
-        headerName: '',
-        width: 44,
-        maxWidth: 44,
-        pinned: 'left',
-        checkboxSelection: true,
-        headerCheckboxSelection: true,
-        headerCheckboxSelectionFilteredOnly: true,
-        sortable: false,
-        filter: false,
-        suppressHeaderMenuButton: true,
-      },
       {
         headerName: '',
         width: 28,
@@ -118,12 +106,13 @@ export default function SkillsetTable({
           );
         },
       },
-      { headerName: '테넌트', field: 'tenantName', flex: 1, minWidth: 140, valueFormatter: (p) => p.value ?? '-', hide: !showTenantColumn },
+      { headerName: '테넌트', field: 'tenantName', flex: 1, minWidth: 140, tooltipField: 'tenantName', valueFormatter: (p) => p.value ?? '-', hide: !showTenantColumn },
       {
         headerName: '업무그룹',
         field: 'treeName',
         flex: 1,
         minWidth: 150,
+        tooltipField: 'treeName',
         cellRenderer: (p: ICellRendererParams<SkillsetResponse>) => {
           const v = p.data?.treeName;
           if (!v) return <span className="text-red-500 text-xs">미배정</span>;
@@ -131,7 +120,7 @@ export default function SkillsetTable({
         },
       },
       { headerName: '스킬셋 ID', field: 'skillsetId', width: 130, cellStyle: { textAlign: 'right' } as CellStyle },
-      { headerName: '스킬셋명', field: 'skillsetName', minWidth: 200, flex: 1.5 },
+      { headerName: '스킬셋명', field: 'skillsetName', minWidth: 200, flex: 1.5, tooltipField: 'skillsetName' },
       {
         headerName: '미디어 타입',
         field: 'mediaType',
@@ -159,7 +148,7 @@ export default function SkillsetTable({
         cellStyle: { textAlign: 'center' } as CellStyle,
         cellRenderer: (p: ICellRendererParams<SkillsetResponse>) => <YnPill value={p.data?.activateYn ?? null} />,
       },
-      { headerName: '설명', field: 'skillsetDesc', minWidth: 200, flex: 1, valueFormatter: (p) => p.value ?? '-' },
+      { headerName: '설명', field: 'skillsetDesc', minWidth: 200, flex: 1, tooltipField: 'skillsetDesc', valueFormatter: (p) => p.value ?? '-' },
       {
         headerName: '스케줄',
         width: 70,
@@ -227,8 +216,7 @@ export default function SkillsetTable({
         statusBar: undefined,
         pagination: false,
         sideBar: false,
-        rowSelection: 'multiple',
-        suppressRowClickSelection: true,
+        rowSelection: { mode: 'multiRow', checkboxes: true, headerCheckbox: true, enableClickSelection: false },
       }}
       loading={isLoading}
       onRowDoubleClicked={(e) => e.data && onRowDoubleClicked(e.data)}

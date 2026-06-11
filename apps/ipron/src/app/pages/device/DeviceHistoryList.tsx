@@ -167,12 +167,12 @@ export default function DeviceHistoryList() {
                 .replace(/\.\d+$/, '')
             : '-',
       },
-      { field: 'macAddr', headerName: 'MAC 주소', flex: 1.2, minWidth: 140 },
+      { field: 'macAddr', headerName: 'MAC 주소', flex: 1.2, minWidth: 140, tooltipField: 'macAddr' },
       { field: 'dnNo', headerName: '대표DN', flex: 0.8, minWidth: 100 },
-      { field: 'ieUsername', headerName: '사용자명', flex: 1, minWidth: 110 },
+      { field: 'ieUsername', headerName: '사용자명', flex: 1, minWidth: 110, tooltipField: 'ieUsername' },
       { field: 'devStatusName', headerName: '사용상태', flex: 0.8, minWidth: 90 },
       { field: 'changeCodeName', headerName: '변경사유', flex: 0.9, minWidth: 100 },
-      { field: 'changeDesc', headerName: '변경설명', flex: 2, minWidth: 180 },
+      { field: 'changeDesc', headerName: '변경설명', flex: 2, minWidth: 180, tooltipField: 'changeDesc' },
     ],
     [],
   );
@@ -231,7 +231,7 @@ export default function DeviceHistoryList() {
           </div>
         </div>
 
-        <div className="flex-1 min-h-0 ag-theme-quartz" style={{ width: '100%', height: '100%' }}>
+        <div className="flex-1 min-h-0" style={{ width: '100%', height: '100%' }}>
           <AgGridReact<DevHistoryResponse>
             ref={gridRef}
             columnDefs={columnDefs}

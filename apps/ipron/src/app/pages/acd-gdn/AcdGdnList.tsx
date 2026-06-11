@@ -345,12 +345,13 @@ export default function AcdGdnList() {
         width: 120,
         cellRenderer: (p: ICellRendererParams<GdnResponse>) => <span className="font-mono font-semibold text-gray-800">{p.data?.gdnNo}</span>,
       },
-      { headerName: '그룹DN이름', field: 'gdnName', flex: 1, minWidth: 140 },
+      { headerName: '그룹DN이름', field: 'gdnName', flex: 1, minWidth: 140, tooltipField: 'gdnName' },
       {
         headerName: 'DR노드',
-        field: 'backUpNodeId',
-        width: 90,
-        valueFormatter: (p) => (p.value == null || p.value === 0 ? '-' : String(p.value)),
+        field: 'backUpNodeName',
+        width: 100,
+        valueFormatter: (p) => (p.value == null || p.value === '' ? '-' : p.value),
+        tooltipField: 'backUpNodeName',
       },
       {
         headerName: '글로벌',
@@ -404,20 +405,26 @@ export default function AcdGdnList() {
       {
         headerName: '블록 시 라우팅',
         field: 'blockRoutingDnis',
-        width: 110,
+        minWidth: 110,
+        flex: 1,
         valueFormatter: (p) => (p.value == null || p.value === '' ? '-' : p.value),
+        tooltipField: 'blockRoutingDnis',
       },
       {
         headerName: '장애 시 라우팅',
         field: 'errorRoutingDnis',
-        width: 110,
+        minWidth: 110,
+        flex: 1,
         valueFormatter: (p) => (p.value == null || p.value === '' ? '-' : p.value),
+        tooltipField: 'errorRoutingDnis',
       },
       {
         headerName: '통화량 초과 시 라우팅',
         field: 'busyRoutingDnis',
-        width: 110,
+        minWidth: 130,
+        flex: 1,
         valueFormatter: (p) => (p.value == null || p.value === '' ? '-' : p.value),
+        tooltipField: 'busyRoutingDnis',
       },
       {
         headerName: '블록',
@@ -441,7 +448,7 @@ export default function AcdGdnList() {
       sideBar: false,
       rowNumbers: false,
       rowSelection: { mode: 'singleRow', checkboxes: false, enableClickSelection: true },
-      defaultColDef: { sortable: true, filter: true, resizable: true, suppressHeaderMenuButton: true },
+      defaultColDef: { sortable: true, filter: false, resizable: true, suppressHeaderMenuButton: true },
     }),
     [gridOptions],
   );
@@ -635,8 +642,7 @@ export default function AcdGdnList() {
               <Settings className="size-4 text-[#405189]" />
               <span className="text-[13px] font-semibold text-gray-700">ACD 그룹DN</span>
               <span className="text-xs text-gray-500">
-                총 <strong className="text-[#405189]">{gdnsForGrid.length.toLocaleString()}</strong>건 · 선택:{' '}
-                <strong className="text-[#405189]">{selectedGdn ? `${selectedGdn.gdnNo} · ${getAcdTypeName(selectedGdn.acdType)}` : '없음'}</strong>
+                총 <strong className="text-[#405189]">{gdnsForGrid.length.toLocaleString()}</strong>건
               </span>
               <div className="ml-auto flex items-center gap-1.5">
                 <Button type="primary" size="small" icon={<Plus className="size-3.5" />} onClick={openCreate}>
@@ -695,8 +701,7 @@ export default function AcdGdnList() {
                   </SegBtn>
                 </div>
                 <span className="text-xs text-gray-400">
-                  총<strong className="ml-1 text-[#405189]">{selectedGdn ? memberPool.length.toLocaleString() : '-'}</strong>건 · 선택
-                  <strong className="ml-1 text-[#405189]">{selectedMembers.length}</strong>건
+                  총<strong className="ml-1 text-[#405189]">{selectedGdn ? memberPool.length.toLocaleString() : '-'}</strong>건
                 </span>
                 <Input
                   size="small"
@@ -736,14 +741,14 @@ export default function AcdGdnList() {
 
       {/* ===== floating Bulk Action Bar ===== */}
       <div
-        className={`fixed bottom-5 left-1/2 -translate-x-1/2 z-50 bg-gray-800 text-white rounded-xl shadow-xl flex items-center gap-3 px-4 py-2.5 text-sm transition-opacity ${selectedGdn && selectedMembers.length > 0 ? 'opacity-100' : 'opacity-0 pointer-events-none'}`}
+        className={`fixed bottom-5 left-1/2 -translate-x-1/2 z-50 bg-slate-700/90 text-[#e2e8f0] rounded-xl shadow-xl flex items-center gap-3 px-4 py-2.5 text-sm transition-opacity ${selectedGdn && selectedMembers.length > 0 ? 'opacity-100' : 'opacity-0 pointer-events-none'}`}
       >
         <span className="flex items-center gap-1.5">
-          <span className="text-white/60 text-xs">DN</span>
+          <span className="text-[#e2e8f0] text-xs">DN</span>
           <span className="bg-[#405189] px-2 py-0.5 rounded-full font-bold min-w-[24px] text-center">{selectedMembers.length}</span>
-          <span className="text-white/60 text-xs">건 선택됨</span>
+          <span className="text-[#e2e8f0] text-xs">건 선택됨</span>
         </span>
-        <span className="text-white/30">·</span>
+        <span className="text-[#94a3b8]">·</span>
         <Button
           type="primary"
           icon={<Plus className="size-3.5" />}
@@ -757,7 +762,7 @@ export default function AcdGdnList() {
         <Button danger icon={<X className="size-3.5" />} onClick={handleRevoke} loading={isSavingMembers} disabled={assignedSelCount === 0}>
           해제
         </Button>
-        <Button type="text" onClick={() => setSelectedMembers([])} className="!text-white/60 hover:!text-white">
+        <Button type="text" onClick={() => setSelectedMembers([])} className="!text-[#94a3b8] hover:!text-[#e2e8f0]">
           선택 해제
         </Button>
       </div>

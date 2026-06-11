@@ -120,18 +120,9 @@ export default function DeviceModelList() {
   // ─── Grid Columns (승인 목업 컬럼 정합) ─────────────────────────────────────
   const columnDefs: ColDef<DeviceModelResponse>[] = useMemo(
     () => [
-      {
-        headerCheckboxSelection: true,
-        checkboxSelection: true,
-        width: 40,
-        flex: 0,
-        resizable: false,
-        sortable: false,
-        pinned: 'left',
-      },
-      { field: 'vendorName', headerName: '제조사', flex: 0.9, minWidth: 110 },
-      { field: 'modelName', headerName: '모델명', flex: 1.1, minWidth: 130 },
-      { field: 'feature', headerName: '기능', flex: 0.9, minWidth: 100 },
+      { field: 'vendorName', headerName: '제조사', flex: 0.9, minWidth: 110, tooltipField: 'vendorName' },
+      { field: 'modelName', headerName: '모델명', flex: 1.1, minWidth: 130, tooltipField: 'modelName' },
+      { field: 'feature', headerName: '기능', flex: 0.9, minWidth: 100, tooltipField: 'feature' },
       { field: 'lineNum', headerName: '단말라인', width: 100, flex: 0, type: 'numericColumn' },
       { field: 'buttonNum', headerName: '단말버튼', width: 100, flex: 0, type: 'numericColumn' },
       {
@@ -141,6 +132,7 @@ export default function DeviceModelList() {
         minWidth: 160,
         sortable: false,
         valueGetter: (p) => [p.data?.firmName, p.data?.firmVersion].filter(Boolean).join(' · '),
+        tooltipValueGetter: (p) => [p.data?.firmName, p.data?.firmVersion].filter(Boolean).join(' · ') || '-',
         cellRenderer: (params: ICellRendererParams<DeviceModelResponse>) => {
           const d = params.data;
           if (!d?.firmName && !d?.firmVersion) return <span className="text-gray-300">-</span>;
@@ -215,9 +207,8 @@ export default function DeviceModelList() {
                 pagination: false,
                 statusBar: undefined,
                 sideBar: false,
+                rowSelection: { mode: 'multiRow', checkboxes: true, headerCheckbox: true, enableClickSelection: false },
               }}
-              rowSelection="multiple"
-              suppressRowClickSelection
               onSelectionChanged={(e) => setSelectedRows(e.api.getSelectedRows())}
               onGridReady={onGridReady}
               onRowDoubleClicked={(e) => e.data && handleEdit(e.data)}

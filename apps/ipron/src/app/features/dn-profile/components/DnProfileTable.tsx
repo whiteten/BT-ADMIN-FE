@@ -25,7 +25,7 @@ interface DnProfileTableProps {
 export default function DnProfileTable({ rowData, isLoading, onRowDoubleClicked, onSelectionChanged, onAssignDns }: DnProfileTableProps) {
   const { gridOptions } = useAggridOptions();
 
-  const defaultColDef: ColDef = useMemo(() => ({ sortable: true, filter: true, resizable: true, suppressHeaderMenuButton: true }), []);
+  const defaultColDef: ColDef = useMemo(() => ({ sortable: true, filter: false, resizable: true, suppressHeaderMenuButton: true }), []);
 
   const rowSelection = useMemo<RowSelectionOptions>(
     () => ({
@@ -51,6 +51,7 @@ export default function DnProfileTable({ rowData, isLoading, onRowDoubleClicked,
         field: 'dnProfileName',
         minWidth: 160,
         flex: 1.2,
+        tooltipField: 'dnProfileName',
         cellRenderer: (params: ICellRendererParams<DnProfile>) => {
           if (!params.data) return null;
           return <span className="font-semibold text-gray-800">{params.data.dnProfileName}</span>;
@@ -61,12 +62,11 @@ export default function DnProfileTable({ rowData, isLoading, onRowDoubleClicked,
         field: 'dnProfileType',
         minWidth: 130,
         maxWidth: 150,
-        // 라벨 기준으로 필터/정렬 되도록 valueGetter 사용
+        // 라벨 기준으로 정렬 되도록 valueGetter 사용
         valueGetter: (params) => {
           const v = params.data?.dnProfileType;
           return v ? DN_PROFILE_TYPE_LABELS[v as '0' | '1'] : '-';
         },
-        filter: 'agSetColumnFilter',
       },
       {
         headerName: 'DR노드',
@@ -88,6 +88,7 @@ export default function DnProfileTable({ rowData, isLoading, onRowDoubleClicked,
         field: 'emergencyCodeProfileName',
         minWidth: 120,
         flex: 1,
+        tooltipField: 'emergencyCodeProfileName',
         valueFormatter: (params) => params.value ?? '-',
       },
       {
@@ -95,6 +96,7 @@ export default function DnProfileTable({ rowData, isLoading, onRowDoubleClicked,
         field: 'devfuncCodeProfileName',
         minWidth: 120,
         flex: 1,
+        tooltipField: 'devfuncCodeProfileName',
         valueFormatter: (params) => params.value ?? '-',
       },
       {
@@ -102,6 +104,7 @@ export default function DnProfileTable({ rowData, isLoading, onRowDoubleClicked,
         field: 'accessCodeProfileName',
         minWidth: 120,
         flex: 1,
+        tooltipField: 'accessCodeProfileName',
         valueFormatter: (params) => params.value ?? '-',
       },
       {
@@ -109,6 +112,7 @@ export default function DnProfileTable({ rowData, isLoading, onRowDoubleClicked,
         field: 'sipProfileName',
         minWidth: 120,
         flex: 1,
+        tooltipField: 'sipProfileName',
         valueFormatter: (params) => params.value ?? '-',
       },
       {
@@ -116,6 +120,7 @@ export default function DnProfileTable({ rowData, isLoading, onRowDoubleClicked,
         field: 'localRouteName',
         minWidth: 110,
         flex: 1,
+        tooltipField: 'localRouteName',
         valueFormatter: (params) => params.value ?? '-',
       },
       {
@@ -123,6 +128,7 @@ export default function DnProfileTable({ rowData, isLoading, onRowDoubleClicked,
         field: 'mediaDeliveryName',
         minWidth: 130,
         flex: 1,
+        tooltipField: 'mediaDeliveryName',
         valueFormatter: (params) => params.value ?? '-',
       },
       {
@@ -139,6 +145,7 @@ export default function DnProfileTable({ rowData, isLoading, onRowDoubleClicked,
         headerName: 'MS 그룹',
         field: 'msGroupName',
         minWidth: 110,
+        tooltipField: 'msGroupName',
         valueFormatter: (params) => params.value ?? '-',
       },
       {

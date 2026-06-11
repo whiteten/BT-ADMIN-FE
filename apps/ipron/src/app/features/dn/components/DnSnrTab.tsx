@@ -206,7 +206,6 @@ export default function DnSnrTab({ dnId }: DnSnrTabProps) {
         width: 44,
         pinned: 'right',
         sortable: false,
-        filter: false,
         cellRenderer: (p: any) => (
           <button
             className="text-gray-400 hover:text-red-500"
@@ -449,7 +448,7 @@ export default function DnSnrTab({ dnId }: DnSnrTabProps) {
             규칙 추가
           </Button>
         </div>
-        <div className="ag-theme-alpine" style={{ height: 240, width: '100%' }}>
+        <div style={{ height: 240, width: '100%' }}>
           <AgGridReact<DnSnrTodResponse>
             {...gridOptions}
             pagination={false}
@@ -457,7 +456,7 @@ export default function DnSnrTab({ dnId }: DnSnrTabProps) {
             statusBar={undefined}
             rowData={todList}
             columnDefs={todColumns}
-            defaultColDef={{ sortable: true, filter: true, resizable: true, suppressHeaderMenuButton: true }}
+            defaultColDef={{ sortable: true, filter: false, resizable: true, suppressHeaderMenuButton: true }}
             onRowDoubleClicked={(e) => e.data && handleOpenTod(e.data)}
           />
         </div>

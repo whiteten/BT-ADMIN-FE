@@ -297,29 +297,20 @@ export default function DeviceList() {
   // ─── Grid Columns ────────────────────────────────────────────────────────────
   const columnDefs: ColDef<DevMasterResponse>[] = useMemo(
     () => [
-      {
-        headerCheckboxSelection: true,
-        checkboxSelection: true,
-        width: 40,
-        flex: 0,
-        resizable: false,
-        sortable: false,
-        pinned: 'left',
-      },
-      { field: 'devMstName', headerName: '단말기명', flex: 1.5, minWidth: 140 },
+      { field: 'devMstName', headerName: '단말기명', flex: 1.5, minWidth: 140, tooltipField: 'devMstName' },
       {
         headerName: '단말기유형',
         valueGetter: (p) => {
           const dt = deviceTypeMap.get(p.data?.deviceType ?? -1);
-          return dt?.deviceName ?? p.data?.deviceType;
+          return dt?.deviceName ?? '-';
         },
         flex: 1.2,
         minWidth: 120,
       },
-      { field: 'macAddr', headerName: 'MAC 주소', flex: 1.2, minWidth: 140 },
+      { field: 'macAddr', headerName: 'MAC 주소', flex: 1.2, minWidth: 140, tooltipField: 'macAddr' },
       { field: 'dnNo', headerName: '대표DN', flex: 0.8, minWidth: 100 },
-      { field: 'ipAddr', headerName: 'IP주소', flex: 1, minWidth: 120 },
-      { field: 'firmVersion', headerName: '펌웨어버전', flex: 1, minWidth: 110 },
+      { field: 'ipAddr', headerName: 'IP주소', flex: 1, minWidth: 120, tooltipField: 'ipAddr' },
+      { field: 'firmVersion', headerName: '펌웨어버전', flex: 1, minWidth: 110, tooltipField: 'firmVersion' },
       {
         field: 'firmUpdUseYn',
         headerName: '펌웨어사용',
@@ -594,8 +585,7 @@ export default function DeviceList() {
                   statusBar: undefined,
                   sideBar: false,
                 }}
-                rowSelection="multiple"
-                suppressRowClickSelection
+                rowSelection={{ mode: 'multiRow', checkboxes: true, headerCheckbox: true, enableClickSelection: false }}
                 onSelectionChanged={(e) => setSelectedRows(e.api.getSelectedRows())}
                 onGridReady={onGridReady}
                 onRowDoubleClicked={(e) => e.data && handleEdit(e.data)}

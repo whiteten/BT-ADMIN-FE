@@ -153,8 +153,8 @@ export default function PreNumTransList() {
   // ─── ag-Grid Column Defs ──────────────────────────────────────────────────
   const columnDefs: ColDef<PreNumTrans>[] = useMemo(
     () => [
-      { headerName: '노드명', field: 'nodeName', flex: 1, minWidth: 100 },
-      { headerName: 'DNIS패턴', field: 'dnisPattern', flex: 2, minWidth: 140 },
+      { headerName: '노드명', field: 'nodeName', flex: 1, minWidth: 100, tooltipField: 'nodeName' },
+      { headerName: 'DNIS패턴', field: 'dnisPattern', flex: 2, minWidth: 140, tooltipField: 'dnisPattern' },
       {
         headerName: '편집옵션',
         field: 'editOpt',
@@ -191,6 +191,7 @@ export default function PreNumTransList() {
         field: 'routeName',
         flex: 1.2,
         minWidth: 120,
+        tooltipField: 'routeName',
         valueFormatter: (params) => params.data?.routeName ?? '-',
       },
       {
@@ -198,6 +199,7 @@ export default function PreNumTransList() {
         field: 'transDesc',
         flex: 2,
         minWidth: 140,
+        tooltipField: 'transDesc',
         valueFormatter: (params) => params.data?.transDesc ?? '-',
       },
     ],
@@ -339,7 +341,7 @@ export default function PreNumTransList() {
               }}
               loading={isLoading}
               getRowId={(params) => String(params.data.preTransId)}
-              defaultColDef={{ filter: true, sortable: true, suppressHeaderMenuButton: true }}
+              defaultColDef={{ filter: false, sortable: true, suppressHeaderMenuButton: true }}
               onRowDoubleClicked={(e) => {
                 if (e.data) handleEdit(e.data);
               }}

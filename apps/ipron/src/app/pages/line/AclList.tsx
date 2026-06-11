@@ -188,8 +188,8 @@ export default function AclList() {
   // ─── ag-Grid Column Defs ──────────────────────────────────────────────────
   const columnDefs: ColDef<Acl>[] = useMemo(
     () => [
-      { headerName: '노드명', field: 'nodeName', flex: 1, minWidth: 100 },
-      { headerName: '접근제어명', field: 'aclName', flex: 2, minWidth: 140 },
+      { headerName: '노드명', field: 'nodeName', flex: 1, minWidth: 100, tooltipField: 'nodeName' },
+      { headerName: '접근제어명', field: 'aclName', flex: 2, minWidth: 140, tooltipField: 'aclName' },
       {
         headerName: '허용/금지',
         field: 'aclType',
@@ -203,8 +203,8 @@ export default function AclList() {
           return <span style={{ color, fontWeight: 500 }}>{label}</span>;
         },
       },
-      { headerName: 'IP NET', field: 'ipNet', flex: 2, minWidth: 130 },
-      { headerName: 'IP MASK', field: 'ipMask', flex: 2, minWidth: 130 },
+      { headerName: 'IP NET', field: 'ipNet', flex: 2, minWidth: 130, tooltipField: 'ipNet' },
+      { headerName: 'IP MASK', field: 'ipMask', flex: 2, minWidth: 130, tooltipField: 'ipMask' },
       {
         headerName: '활성화 여부',
         field: 'useYn',
@@ -223,6 +223,7 @@ export default function AclList() {
         field: 'aclDesc',
         flex: 2,
         minWidth: 140,
+        tooltipField: 'aclDesc',
         valueFormatter: (params) => params.data?.aclDesc ?? '-',
       },
     ],
@@ -357,9 +358,6 @@ export default function AclList() {
         <div className="bg-white bt-shadow flex flex-col flex-1 min-h-0 overflow-hidden">
           <div className="px-5 py-3 border-b border-gray-100 flex items-center gap-2 flex-shrink-0">
             <span className="text-sm font-semibold text-gray-800">{gridHeaderText}</span>
-            <span className={`text-xs text-gray-500 ${selectedRows.length === 0 ? 'invisible' : ''}`}>
-              {acls.length}건 중 {selectedRows.length}건 선택
-            </span>
             <div className="ml-auto">
               <Button
                 danger
@@ -386,7 +384,7 @@ export default function AclList() {
               }}
               loading={isLoading}
               getRowId={(params) => String(params.data.aclId)}
-              defaultColDef={{ filter: true, sortable: true, suppressHeaderMenuButton: true }}
+              defaultColDef={{ filter: false, sortable: true, suppressHeaderMenuButton: true }}
               onRowDoubleClicked={(e) => {
                 if (e.data) handleEdit(e.data);
               }}

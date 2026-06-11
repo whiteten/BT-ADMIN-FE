@@ -431,6 +431,7 @@ const STATIC_COL_DEFS: ColDef<AgentResponse>[] = [
     width: 100,
     minWidth: 90,
     pinned: 'left',
+    tooltipField: 'agentName',
     cellStyle: { display: 'flex', alignItems: 'center' } as CellStyle,
     cellRenderer: (params: ICellRendererParams<AgentResponse>) => <AgentNameCell params={params} />,
   },
@@ -440,11 +441,12 @@ const STATIC_COL_DEFS: ColDef<AgentResponse>[] = [
     width: 110,
     minWidth: 90,
     pinned: 'left',
+    tooltipField: 'agentLoginId',
     cellStyle: { display: 'flex', alignItems: 'center' } as CellStyle,
     cellRenderer: (params: ICellRendererParams<AgentResponse>) => <AgentLoginIdCell params={params} />,
   },
-  { headerName: '테넌트', field: 'tenantName', flex: 1, minWidth: 90, valueFormatter: (p) => p.value ?? '-' },
-  { headerName: '그룹', field: 'groupName', flex: 1, minWidth: 90, valueFormatter: (p) => p.value ?? '-' },
+  { headerName: '테넌트', field: 'tenantName', flex: 1, minWidth: 90, tooltipField: 'tenantName', valueFormatter: (p) => p.value ?? '-' },
+  { headerName: '그룹', field: 'groupName', flex: 1, minWidth: 90, tooltipField: 'groupName', valueFormatter: (p) => p.value ?? '-' },
   {
     headerName: '미디어옵션',
     colId: 'useGrpMdaOpt',
@@ -635,7 +637,7 @@ const AgentMediaStatusTable = forwardRef<AgentMediaStatusTableHandle, AgentMedia
     [mediaKey, dirtyMap, setDirtyEntry, getAgentCurrentEntry],
   );
 
-  const defaultColDef: ColDef = useMemo(() => ({ sortable: true, filter: true, resizable: true, suppressHeaderMenuButton: true }), []);
+  // defaultColDef 은 useAggridOptions() 훅 반환값 사용 (filter:false, suppressHeaderMenuButton:true 포함)
 
   return (
     <MediaEditContext.Provider value={ctxValue}>
@@ -653,7 +655,6 @@ const AgentMediaStatusTable = forwardRef<AgentMediaStatusTableHandle, AgentMedia
             ref={gridRef}
             rowData={rowData}
             columnDefs={STATIC_COL_DEFS}
-            defaultColDef={defaultColDef}
             getRowId={(p) => String(p.data.agentId)}
             gridOptions={stableGridOptions}
             rowClassRules={ROW_CLASS_RULES}

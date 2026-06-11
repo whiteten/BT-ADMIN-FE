@@ -21,34 +21,24 @@ interface AgentAdnTableProps {
 export default function AgentAdnTable({ rowData, isLoading, onSelectionChanged }: AgentAdnTableProps) {
   const { gridOptions } = useAggridOptions();
 
-  const defaultColDef: ColDef = useMemo(() => ({ sortable: true, filter: true, resizable: true, suppressHeaderMenuButton: true }), []);
+  const defaultColDef: ColDef = useMemo(() => ({ sortable: true, filter: false, resizable: true, suppressHeaderMenuButton: true }), []);
 
   const columnDefs: ColDef<AgentAdnRowResponse>[] = useMemo(
     () => [
-      {
-        headerName: '',
-        width: 44,
-        maxWidth: 44,
-        pinned: 'left',
-        checkboxSelection: true,
-        headerCheckboxSelection: true,
-        headerCheckboxSelectionFilteredOnly: true,
-        sortable: false,
-        filter: false,
-        suppressHeaderMenuButton: true,
-      },
-      { headerName: '테넌트', field: 'tenantName', minWidth: 140 },
-      { headerName: '상담사명', field: 'agentName', minWidth: 120 },
+      { headerName: '테넌트', field: 'tenantName', minWidth: 140, tooltipField: 'tenantName', valueFormatter: (p) => p.value ?? '-' },
+      { headerName: '상담사명', field: 'agentName', minWidth: 120, tooltipField: 'agentName', valueFormatter: (p) => p.value ?? '-' },
       {
         headerName: '로그인 ID',
         field: 'agentLoginId',
         minWidth: 130,
+        tooltipField: 'agentLoginId',
         cellRenderer: (params: ICellRendererParams<AgentAdnRowResponse>) => <span className="font-mono text-gray-700">{params.value ?? '-'}</span>,
       },
       {
         headerName: '노드명',
         field: 'nodeName',
         minWidth: 140,
+        tooltipField: 'nodeName',
         valueFormatter: (p) => p.value ?? '-',
       },
       {
@@ -81,7 +71,7 @@ export default function AgentAdnTable({ rowData, isLoading, onSelectionChanged }
           return <span className="font-mono font-semibold text-[#1e3a8a]">{v}</span>;
         },
       },
-      { headerName: '소속 그룹', field: 'groupName', minWidth: 140, valueFormatter: (p) => p.value ?? '-' },
+      { headerName: '소속 그룹', field: 'groupName', minWidth: 140, tooltipField: 'groupName', valueFormatter: (p) => p.value ?? '-' },
       {
         headerName: '활성',
         field: 'activateYn',
@@ -112,9 +102,7 @@ export default function AgentAdnTable({ rowData, isLoading, onSelectionChanged }
         statusBar: undefined,
         pagination: false,
         sideBar: false,
-        rowSelection: 'multiple',
-        suppressRowClickSelection: false,
-        rowMultiSelectWithClick: true,
+        rowSelection: { mode: 'multiRow', checkboxes: true, headerCheckbox: true, enableClickSelection: true },
         getRowClass: (params) => (params.data?.mappingStatus === 'UNASSIGNED' ? 'bg-orange-50/40' : ''),
       }}
       loading={isLoading}

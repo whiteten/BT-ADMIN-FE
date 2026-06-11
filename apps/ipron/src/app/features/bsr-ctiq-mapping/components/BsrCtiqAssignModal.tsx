@@ -121,32 +121,32 @@ export default function BsrCtiqAssignModal({
   }, [tenantId, keyword, selectedTreeIds, scope, onSearch]);
 
   /** 전체 모드에서만 "소속 BSR그룹" 컬럼 노출 */
-  const colDefs: ColDef<BsrCtiqSearchItem>[] = useMemo(
-    () => [
-      {
-        headerCheckboxSelection: true,
-        checkboxSelection: true,
-        width: 44,
-        pinned: 'left' as const,
-        suppressHeaderMenuButton: true,
-      },
-      { field: 'ctiqName', headerName: 'CTI큐명', flex: 1 },
+  const colDefs: ColDef<BsrCtiqSearchItem>[] = useMemo(() => {
+    const base: ColDef<BsrCtiqSearchItem>[] = [
+      { field: 'ctiqName', headerName: 'CTI큐명', flex: 1, minWidth: 120, tooltipField: 'ctiqName' },
       { field: 'gdnNo', headerName: 'GDN번호', width: 110 },
-      { field: 'gdnName', headerName: 'GDN명', width: 130 },
-      { field: 'treeName', headerName: '업무그룹명', width: 130, valueFormatter: ({ value }: { value: string | null | undefined }) => value ?? '미배정' },
-      ...(scope === 'all'
-        ? [
-            {
-              field: 'bsrGroupName' as keyof BsrCtiqSearchItem,
-              headerName: '소속 BSR그룹',
-              width: 160,
-              valueFormatter: ({ value }: { value: unknown }) => (value ? String(value) : '—'),
-            },
-          ]
-        : []),
-    ],
-    [scope],
-  );
+      { field: 'gdnName', headerName: 'GDN명', flex: 1, minWidth: 120, tooltipField: 'gdnName' },
+      {
+        field: 'treeName',
+        headerName: '업무그룹명',
+        flex: 1,
+        minWidth: 120,
+        tooltipField: 'treeName',
+        valueFormatter: ({ value }: { value: string | null | undefined }) => value ?? '미배정',
+      },
+    ];
+    if (scope === 'all') {
+      base.push({
+        field: 'bsrGroupName',
+        headerName: '소속 BSR그룹',
+        flex: 1,
+        minWidth: 140,
+        tooltipField: 'bsrGroupName',
+        valueFormatter: ({ value }: { value: string | null | undefined }) => (value ? String(value) : '—'),
+      });
+    }
+    return base;
+  }, [scope]);
 
   const handleAssignClick = useCallback(() => {
     if (selectedCtiqIds.length === 0) {
@@ -185,10 +185,7 @@ export default function BsrCtiqAssignModal({
         destroyOnClose
         afterOpenChange={handleAfterOpen}
         footer={
-          <div className="flex items-center gap-3">
-            <span className="text-xs text-gray-500 mr-auto">
-              선택 <strong className="text-[#405189]">{selectedCtiqIds.length}</strong>건
-            </span>
+          <div className="flex items-center justify-end gap-3">
             <Button onClick={onClose}>취소</Button>
             <Button type="primary" loading={isAssigning} disabled={selectedCtiqIds.length === 0} onClick={handleAssignClick}>
               배정 ({selectedCtiqIds.length})

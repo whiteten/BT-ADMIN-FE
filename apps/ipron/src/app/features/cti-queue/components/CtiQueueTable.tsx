@@ -40,7 +40,7 @@ function StatePill({ value, onText, offText, tone }: { value: number | null; onT
         : 'text-blue-700 bg-blue-50 border-blue-200';
   return (
     <span
-      className={`inline-flex items-center justify-center min-w-[42px] h-[20px] px-1.5 leading-none rounded text-[11px] font-medium border ${on ? onCls : 'text-gray-500 bg-gray-50 border-gray-200'}`}
+      className={`inline-flex items-center justify-center min-w-[42px] h-[20px] px-1.5 leading-none rounded font-medium border ${on ? onCls : 'text-gray-500 bg-gray-50 border-gray-200'}`}
     >
       {on ? onText : offText}
     </span>
@@ -50,7 +50,7 @@ function StatePill({ value, onText, offText, tone }: { value: number | null; onT
 export default function CtiQueueTable({ rowData, isLoading, groupOptions = [], groupView = false, onRowDoubleClicked, onSelectionChanged, getDragCtiqIds }: CtiQueueTableProps) {
   const { gridOptions } = useAggridOptions();
 
-  const defaultColDef: ColDef = useMemo(() => ({ sortable: true, filter: true, resizable: true, suppressHeaderMenuButton: true }), []);
+  const defaultColDef: ColDef = useMemo(() => ({ sortable: true, filter: false, resizable: true, suppressHeaderMenuButton: true }), []);
 
   const groupNameById = useMemo(() => {
     const m = new Map<number, string>();
@@ -62,15 +62,6 @@ export default function CtiQueueTable({ rowData, isLoading, groupOptions = [], g
 
   const columnDefs: ColDef<CtiQueueResponse>[] = useMemo(
     () => [
-      {
-        headerName: '',
-        width: 44,
-        maxWidth: 44,
-        pinned: 'left',
-        sortable: false,
-        filter: false,
-        suppressHeaderMenuButton: true,
-      },
       {
         headerName: '',
         colId: 'dragHandle',
@@ -105,13 +96,14 @@ export default function CtiQueueTable({ rowData, isLoading, groupOptions = [], g
         headerName: 'CTIQ ID',
         field: 'ctiqId',
         minWidth: 90,
-        cellRenderer: (p: ICellRendererParams<CtiQueueResponse>) => <span className="font-mono text-[12px] text-gray-700">{p.value ?? ''}</span>,
+        cellRenderer: (p: ICellRendererParams<CtiQueueResponse>) => <span className="font-mono text-gray-700">{p.value ?? ''}</span>,
       },
       {
         headerName: '업무그룹명',
         field: 'treeName',
         colId: 'workGroupName',
         minWidth: 120,
+        tooltipField: 'treeName',
         hide: !groupView,
         cellRenderer: (p: ICellRendererParams<CtiQueueResponse>) => {
           const v = p.data?.treeName;
@@ -126,13 +118,13 @@ export default function CtiQueueTable({ rowData, isLoading, groupOptions = [], g
         minWidth: 110,
         cellRenderer: (p: ICellRendererParams<CtiQueueResponse>) => <span className="font-mono font-semibold text-gray-800">{p.value ?? '-'}</span>,
       },
-      { headerName: '그룹DN이름', field: 'gdnName', flex: 2, minWidth: 140, valueFormatter: (p) => p.value ?? '-' },
+      { headerName: '그룹DN이름', field: 'gdnName', flex: 2, minWidth: 140, tooltipField: 'gdnName', valueFormatter: (p) => p.value ?? '-' },
       {
         headerName: 'DR노드',
         field: 'backUpNodeId',
         minWidth: 80,
         maxWidth: 100,
-        cellStyle: { textAlign: 'center', color: '#9ca3af', fontSize: '12px' } as CellStyle,
+        cellStyle: { textAlign: 'center', color: '#9ca3af' } as CellStyle,
         valueFormatter: (p) => (p.value == null || p.value === 0 ? '—' : String(p.value)),
       },
       {
@@ -143,13 +135,11 @@ export default function CtiQueueTable({ rowData, isLoading, groupOptions = [], g
         cellStyle: { textAlign: 'center' } as CellStyle,
         cellRenderer: (p: ICellRendererParams<CtiQueueResponse>) =>
           p.value === 1 ? (
-            <span className="inline-flex items-center justify-center h-[20px] px-1.5 leading-none rounded text-[11px] font-medium border text-green-700 bg-green-50 border-green-200">
+            <span className="inline-flex items-center justify-center h-[20px] px-1.5 leading-none rounded font-medium border text-green-700 bg-green-50 border-green-200">
               O (Global)
             </span>
           ) : (
-            <span className="inline-flex items-center justify-center h-[20px] px-1.5 leading-none rounded text-[11px] font-medium border text-gray-400 bg-gray-50 border-gray-200">
-              X
-            </span>
+            <span className="inline-flex items-center justify-center h-[20px] px-1.5 leading-none rounded font-medium border text-gray-400 bg-gray-50 border-gray-200">X</span>
           ),
       },
       {
@@ -158,6 +148,7 @@ export default function CtiQueueTable({ rowData, isLoading, groupOptions = [], g
         flex: 1,
         minWidth: 130,
         valueFormatter: (p) => (p.value == null || p.value === 0 ? '없음' : (groupNameById.get(Number(p.value)) ?? String(p.value))),
+        tooltipValueGetter: (p) => (p.value == null || p.value === 0 ? '없음' : (groupNameById.get(Number(p.value)) ?? String(p.value))),
       },
       {
         headerName: '활성화',

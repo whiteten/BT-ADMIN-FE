@@ -16,7 +16,6 @@ interface Props {
 
 export default function MediaTypeTable({ rowData, isLoading, onRowDoubleClicked, onSelectionChanged }: Props) {
   const { gridOptions } = useAggridOptions();
-  const defaultColDef: ColDef = useMemo(() => ({ sortable: true, filter: true, resizable: true, suppressHeaderMenuButton: true }), []);
 
   const columnDefs: ColDef<MediaTypeResponse>[] = useMemo(
     () => [
@@ -32,6 +31,7 @@ export default function MediaTypeTable({ rowData, isLoading, onRowDoubleClicked,
         field: 'mediaTypeName',
         flex: 1,
         minWidth: 180,
+        tooltipField: 'mediaTypeName',
         valueFormatter: (p) => p.value ?? '-',
       },
       {
@@ -39,6 +39,7 @@ export default function MediaTypeTable({ rowData, isLoading, onRowDoubleClicked,
         field: 'mediaAlias',
         flex: 1.2,
         minWidth: 200,
+        tooltipField: 'mediaAlias',
       },
       {
         headerName: '최종 수정',
@@ -54,7 +55,6 @@ export default function MediaTypeTable({ rowData, isLoading, onRowDoubleClicked,
     <AgGridReact<MediaTypeResponse>
       rowData={rowData}
       columnDefs={columnDefs}
-      defaultColDef={defaultColDef}
       gridOptions={{
         ...gridOptions,
         statusBar: undefined,

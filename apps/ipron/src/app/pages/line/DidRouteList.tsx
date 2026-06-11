@@ -154,14 +154,16 @@ export default function DidRouteList() {
         field: 'nodeName',
         flex: 1,
         minWidth: 110,
+        tooltipField: 'nodeName',
         valueFormatter: (params) => params.data?.nodeName ?? `노드 ${params.data?.nodeId ?? '-'}`,
       },
-      { headerName: '라우트명', field: 'didrouteName', flex: 2, minWidth: 140 },
+      { headerName: '라우트명', field: 'didrouteName', flex: 2, minWidth: 140, tooltipField: 'didrouteName' },
       {
         headerName: 'ANI패턴',
         field: 'aniPattern',
         flex: 1.5,
         minWidth: 120,
+        tooltipField: 'aniPattern',
         cellRenderer: (params: ICellRendererParams<DidRoute>) => {
           if (!params.data) return null;
           return params.data.aniPattern || '-';
@@ -172,6 +174,7 @@ export default function DidRouteList() {
         field: 'dnisPattern',
         flex: 1.5,
         minWidth: 120,
+        tooltipField: 'dnisPattern',
         cellRenderer: (params: ICellRendererParams<DidRoute>) => {
           if (!params.data) return null;
           return params.data.dnisPattern || '-';
@@ -195,6 +198,7 @@ export default function DidRouteList() {
         colId: 'routingIn',
         flex: 2,
         minWidth: 160,
+        tooltipValueGetter: (params) => (params.data ? getRoutingDisplayText(params.data.routeName, params.data.dnNo) : null),
         cellRenderer: (params: ICellRendererParams<DidRoute>) => {
           if (!params.data) return null;
           return getRoutingDisplayText(params.data.routeName, params.data.dnNo);
@@ -218,6 +222,7 @@ export default function DidRouteList() {
         colId: 'routingOut',
         flex: 2,
         minWidth: 160,
+        tooltipValueGetter: (params) => (params.data ? getRoutingDisplayText(params.data.afterRouteName, params.data.afterDnNo) : null),
         cellRenderer: (params: ICellRendererParams<DidRoute>) => {
           if (!params.data) return null;
           return getRoutingDisplayText(params.data.afterRouteName, params.data.afterDnNo);
@@ -229,6 +234,7 @@ export default function DidRouteList() {
         field: 'didrouteDesc',
         flex: 2,
         minWidth: 140,
+        tooltipField: 'didrouteDesc',
         cellRenderer: (params: ICellRendererParams<DidRoute>) => {
           if (!params.data) return null;
           return params.data.didrouteDesc || '-';
@@ -385,7 +391,7 @@ export default function DidRouteList() {
               }}
               loading={isLoading}
               getRowId={(params) => String(params.data.didrouteId)}
-              defaultColDef={{ filter: true, sortable: true, suppressHeaderMenuButton: true }}
+              defaultColDef={{ filter: false, sortable: true, suppressHeaderMenuButton: true }}
               onRowDoubleClicked={(e) => {
                 if (e.data) handleEdit(e.data);
               }}

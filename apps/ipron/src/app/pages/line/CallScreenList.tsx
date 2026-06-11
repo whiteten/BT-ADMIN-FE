@@ -278,7 +278,7 @@ export default function CallScreenList() {
         field: 'nodeName',
         flex: 1,
         minWidth: 110,
-        valueFormatter: (params) => params.data?.nodeName ?? `노드 ${params.data?.nodeId ?? '-'}`,
+        valueFormatter: (params) => params.data?.nodeName ?? '-',
       },
       {
         headerName: '테넌트명',
@@ -291,6 +291,7 @@ export default function CallScreenList() {
         field: 'numPattern',
         flex: 2,
         minWidth: 200,
+        tooltipField: 'numPattern',
         cellStyle: { fontFamily: 'monospace' },
       },
       {
@@ -298,6 +299,7 @@ export default function CallScreenList() {
         field: 'screenDesc',
         flex: 1.5,
         minWidth: 160,
+        tooltipField: 'screenDesc',
         valueFormatter: (params) => params.data?.screenDesc ?? '-',
       },
     ],
@@ -506,9 +508,6 @@ export default function CallScreenList() {
                     ? `차단번호패턴 "${numPatternSearch.trim()}" 검색 결과 (${callScreens.length}건)`
                     : `${selectedNodeName} / ${selectedTenantId === -1 ? '전체 테넌트' : selectedTenantName} 수신번호차단 (${callScreens.length}건)`}
                 </span>
-                <span className={`text-xs text-gray-500 ${selectedRows.length === 0 ? 'invisible' : ''}`}>
-                  {callScreens.length}건 중 {selectedRows.length}건 선택
-                </span>
                 <div className="ml-auto">
                   <Button
                     danger
@@ -542,7 +541,7 @@ export default function CallScreenList() {
                     }}
                     loading={isLoading}
                     getRowId={(params) => String(params.data.callscreenId)}
-                    defaultColDef={{ filter: true, sortable: true, suppressHeaderMenuButton: true }}
+                    defaultColDef={{ filter: false, sortable: true, suppressHeaderMenuButton: true }}
                     onRowDoubleClicked={(e) => {
                       if (e.data) handleEdit(e.data);
                     }}

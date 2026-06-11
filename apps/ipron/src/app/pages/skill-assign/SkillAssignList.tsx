@@ -67,6 +67,7 @@ import type { SkillAgentResponse } from '../../features/skill-assign/types';
 import SkillsetGroupTree from '../../features/skillset-master/components/SkillsetGroupTree';
 import { useGetSkillsetGroups, useGetSkillsets } from '../../features/skillset-master/hooks/useSkillsetQueries';
 import { type SkillsetResponse, getMediaTypeName } from '../../features/skillset-master/types';
+import useAggridOptions from '@/libs/shared-ui/src/hooks/useAggridOptions';
 
 const breadcrumb = [{ title: 'IPRON' }, { title: '상담사 관리', path: '/ipron/agent-master' }, { title: '스킬 관리' }, { title: '상담사 스킬 배정', path: '/ipron/skill-assign' }];
 
@@ -74,6 +75,7 @@ type Mode = 'agent' | 'skillset' | 'view';
 type ViewSubMode = 'agent' | 'skillset'; // 조회 탭 내 기준 토글
 
 export default function SkillAssignList() {
+  const { gridOptions: baseGridOptions } = useAggridOptions();
   const setBreadcrumb = useBreadcrumbStore((s) => s.setBreadcrumb);
   const clearBreadcrumb = useBreadcrumbStore((s) => s.clearBreadcrumb);
   useEffect(() => {
@@ -437,7 +439,7 @@ export default function SkillAssignList() {
   // rowSelection 을 gridOptions 밖 직접 prop 으로 분리 — ag-Grid 34 에서 gridOptions.rowSelection 은
   // 초기 마운트 1회만 읽히므로, AgGridReact prop 으로 전달해야 HMR/재마운트 없이도 명시적 적용 보장
   const agentRowSelection = useMemo(
-    () => ({ mode: 'multiRow' as const, checkboxes: true, headerCheckbox: false, enableClickSelection: true, enableSelectionWithoutKeys: true }),
+    () => ({ mode: 'multiRow' as const, checkboxes: true, headerCheckbox: true, enableClickSelection: true, enableSelectionWithoutKeys: true }),
     [],
   );
 
@@ -453,7 +455,11 @@ export default function SkillAssignList() {
 
   const agentGridOptionsAg = useMemo<GridOptions<AgentResponse>>(
     () => ({
-      defaultColDef: { resizable: true, sortable: true, filter: true, suppressHeaderMenuButton: true },
+      ...baseGridOptions,
+      statusBar: undefined,
+      pagination: false,
+      sideBar: false,
+      defaultColDef: { resizable: true, sortable: true, filter: false, suppressHeaderMenuButton: true },
       getRowId: ({ data }) => String(data.agentId),
       onSelectionChanged: (e) => {
         setSelectedAgentIds(e.api.getSelectedRows().map((r) => r.agentId));
@@ -485,7 +491,7 @@ export default function SkillAssignList() {
       },
     }),
 
-    [],
+    [baseGridOptions],
   );
 
   // 스킬셋 multi-select ag-Grid (모드 ① 우측)
@@ -529,7 +535,7 @@ export default function SkillAssignList() {
 
   // rowSelection 을 gridOptions 밖 직접 prop 으로 분리 — 동일 이유
   const skillsetRowSelection = useMemo(
-    () => ({ mode: 'multiRow' as const, checkboxes: true, headerCheckbox: false, enableClickSelection: true, enableSelectionWithoutKeys: true }),
+    () => ({ mode: 'multiRow' as const, checkboxes: true, headerCheckbox: true, enableClickSelection: true, enableSelectionWithoutKeys: true }),
     [],
   );
 
@@ -545,7 +551,11 @@ export default function SkillAssignList() {
 
   const skillsetGridOptionsAg = useMemo<GridOptions<SkillsetResponse>>(
     () => ({
-      defaultColDef: { resizable: true, sortable: true, filter: true, suppressHeaderMenuButton: true },
+      ...baseGridOptions,
+      statusBar: undefined,
+      pagination: false,
+      sideBar: false,
+      defaultColDef: { resizable: true, sortable: true, filter: false, suppressHeaderMenuButton: true },
       getRowId: ({ data }) => String(data.skillsetId),
       onSelectionChanged: (e) => {
         setSelectedSkillsetIds(e.api.getSelectedRows().map((r) => r.skillsetId));
@@ -577,7 +587,7 @@ export default function SkillAssignList() {
       },
     }),
 
-    [],
+    [baseGridOptions],
   );
 
   // ─── View 모드 — 좌측 단일선택 그리드 (상담사 기준) ────────────────────
@@ -590,17 +600,22 @@ export default function SkillAssignList() {
     [],
   );
 
+  const viewAgentRowSelection = useMemo(() => ({ mode: 'singleRow' as const, checkboxes: false, enableClickSelection: true }), []);
+
   const viewAgentGridOptions = useMemo<GridOptions<AgentResponse>>(
     () => ({
-      rowSelection: { mode: 'singleRow', checkboxes: false, enableClickSelection: true },
-      defaultColDef: { resizable: true, sortable: true, filter: true, suppressHeaderMenuButton: true },
+      ...baseGridOptions,
+      statusBar: undefined,
+      pagination: false,
+      sideBar: false,
+      defaultColDef: { resizable: true, sortable: true, filter: false, suppressHeaderMenuButton: true },
       getRowId: ({ data }) => String(data.agentId),
       onSelectionChanged: (e) => {
         const rows = e.api.getSelectedRows();
         setViewSelectedAgentId(rows.length > 0 ? rows[0].agentId : null);
       },
     }),
-    [],
+    [baseGridOptions],
   );
 
   // ─── View 모드 — 좌측 단일선택 그리드 (스킬셋 기준) ────────────────────
@@ -631,14 +646,18 @@ export default function SkillAssignList() {
 
   const viewSkillsetGridOptions = useMemo<GridOptions<SkillsetResponse>>(
     () => ({
-      defaultColDef: { resizable: true, sortable: true, filter: true, suppressHeaderMenuButton: true },
+      ...baseGridOptions,
+      statusBar: undefined,
+      pagination: false,
+      sideBar: false,
+      defaultColDef: { resizable: true, sortable: true, filter: false, suppressHeaderMenuButton: true },
       getRowId: ({ data }) => String(data.skillsetId),
       onSelectionChanged: (e) => {
         const rows = e.api.getSelectedRows();
         setViewSelectedSkillsetId(rows.length > 0 ? rows[0].skillsetId : null);
       },
     }),
-    [],
+    [baseGridOptions],
   );
 
   // ─── View 모드 — 카드 클릭 시 좌측 그리드 row 점프 ─────────────────────
@@ -1407,6 +1426,7 @@ export default function SkillAssignList() {
                       rowData={viewFilteredAgents}
                       columnDefs={viewAgentColumnsAg}
                       gridOptions={viewAgentGridOptions}
+                      rowSelection={viewAgentRowSelection}
                       loading={agentsLoading}
                     />
                   ) : (
@@ -1536,19 +1556,34 @@ export default function SkillAssignList() {
           const applyEnabled = agentCount > 0 && skillsetCount === 0;
           const applyTitle = agentCount > 0 && skillsetCount > 0 ? '스킬셋 선택을 해제하면 적용할 수 있습니다' : undefined;
           return (
-            <div className="fixed bottom-5 left-1/2 -translate-x-1/2 z-50 bg-gray-800 text-white rounded-xl shadow-xl flex items-center gap-3 px-4 py-2.5 text-sm">
+            <div
+              className="fixed bottom-5 left-1/2 -translate-x-1/2 z-50 rounded-xl shadow-xl flex items-center gap-3 px-4 py-2.5 text-sm"
+              style={{ backgroundColor: 'rgba(51,65,85,0.9)' }}
+            >
               <span className="flex items-center gap-1.5 whitespace-nowrap flex-shrink-0">
-                <Users className="size-3.5 text-white/60" />
-                <span className="text-white/60 text-xs">상담사</span>
-                <span className={`px-2 py-0.5 rounded-full font-bold min-w-[28px] text-center ${agentCount > 0 ? 'bg-[#405189]' : 'bg-gray-600'}`}>{agentCount}</span>
-                <span className="text-white/60 text-xs">명</span>
+                <Users className="size-3.5" style={{ color: '#94a3b8' }} />
+                <span className="text-xs" style={{ color: '#e2e8f0' }}>
+                  상담사
+                </span>
+                <span className={`px-2 py-0.5 rounded-full font-bold min-w-[28px] text-center text-white ${agentCount > 0 ? 'bg-[#405189]' : 'bg-slate-600'}`}>{agentCount}</span>
+                <span className="text-xs" style={{ color: '#e2e8f0' }}>
+                  명
+                </span>
               </span>
-              <span className="text-white/30 flex-shrink-0">×</span>
+              <span className="flex-shrink-0" style={{ color: '#94a3b8' }}>
+                ×
+              </span>
               <span className="flex items-center gap-1.5 whitespace-nowrap flex-shrink-0">
-                <Wrench className="size-3.5 text-white/60" />
-                <span className="text-white/60 text-xs">스킬셋</span>
-                <span className={`px-2 py-0.5 rounded-full font-bold min-w-[28px] text-center ${skillsetCount > 0 ? 'bg-[#405189]' : 'bg-gray-600'}`}>{skillsetCount}</span>
-                <span className="text-white/60 text-xs">건</span>
+                <Wrench className="size-3.5" style={{ color: '#94a3b8' }} />
+                <span className="text-xs" style={{ color: '#e2e8f0' }}>
+                  스킬셋
+                </span>
+                <span className={`px-2 py-0.5 rounded-full font-bold min-w-[28px] text-center text-white ${skillsetCount > 0 ? 'bg-[#405189]' : 'bg-slate-600'}`}>
+                  {skillsetCount}
+                </span>
+                <span className="text-xs" style={{ color: '#e2e8f0' }}>
+                  건
+                </span>
               </span>
               <Button
                 icon={<Eye className="size-3.5" />}
@@ -1597,7 +1632,8 @@ export default function SkillAssignList() {
                   skillsetGridRef1.current?.api?.deselectAll();
                   skillsetGridRef2.current?.api?.deselectAll();
                 }}
-                className="!text-white/60 hover:!text-white"
+                style={{ color: '#e2e8f0' }}
+                className="hover:!text-white"
               >
                 선택 해제
               </Button>

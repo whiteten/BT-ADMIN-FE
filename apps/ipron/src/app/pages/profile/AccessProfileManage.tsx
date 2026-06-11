@@ -364,8 +364,6 @@ export default function AccessProfileManage() {
   ];
 
   // ─── ag-Grid columns ──────────────────────────────────────────────────────
-  const defaultColDef: ColDef = useMemo(() => ({ sortable: true, filter: true, resizable: true, suppressHeaderMenuButton: true }), []);
-
   const columnDefs: ColDef<AccessCode>[] = [
     {
       headerName: '접근코드',
@@ -382,6 +380,7 @@ export default function AccessProfileManage() {
       field: 'accessCodeName',
       flex: 1,
       minWidth: 150,
+      tooltipField: 'accessCodeName',
     },
     {
       headerName: '최소자릿수',
@@ -401,12 +400,14 @@ export default function AccessProfileManage() {
       minWidth: 140,
       flex: 1,
       valueFormatter: (params) => params.value ?? '-',
+      tooltipField: 'routeName',
     },
     {
       headerName: '설명',
       field: 'accessCodeDesc',
       flex: 1,
       valueFormatter: (params) => params.value ?? '-',
+      tooltipField: 'accessCodeDesc',
     },
   ];
 
@@ -665,7 +666,6 @@ export default function AccessProfileManage() {
                 <AgGridReact<AccessCode>
                   rowData={codes}
                   columnDefs={columnDefs}
-                  defaultColDef={defaultColDef}
                   gridOptions={{ ...gridOptions, statusBar: undefined, pagination: false, sideBar: false }}
                   loading={isCodesLoading}
                   onRowDoubleClicked={(e) => {

@@ -11,7 +11,7 @@
  *      · 기본정보/지역번호 라우팅 편집은 "그룹 수정" 버튼 → BsrGroupFormDrawer(오버레이) 재사용
  */
 import { type ChangeEvent, useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import type { ColDef, ICellRendererParams } from 'ag-grid-community';
+import type { ColDef } from 'ag-grid-community';
 import { AgGridReact } from 'ag-grid-react';
 import { Button, Empty, Input } from 'antd';
 import { Building2, ChevronLeft, ChevronRight, ChevronsDown, ChevronsUp, Pencil, Plus, Search, Trash2, X } from 'lucide-react';
@@ -116,31 +116,6 @@ function CompactTenantPill({ name, count, selected, onClick }: CompactPillProps)
     >
       <span className="font-medium truncate max-w-[120px]">{name}</span>
       <span className={`text-[11px] ${selected ? 'text-white/80' : 'text-gray-400'}`}>{count.toLocaleString()}</span>
-    </button>
-  );
-}
-
-// ──────────────────────────────────────────────────────────
-//  ag-Grid cellRenderer — React 컴포넌트 (raw DOM 금지)
-// ──────────────────────────────────────────────────────────
-
-interface EditCellProps {
-  data?: BsrGroupResponse;
-  onEdit: (row: BsrGroupResponse) => void;
-}
-
-function EditCellRenderer({ data, onEdit }: EditCellProps) {
-  if (!data) return null;
-  return (
-    <button
-      type="button"
-      style={{ padding: '2px 10px', fontSize: 11, border: '1px solid #ced4da', borderRadius: 4, background: '#fff', cursor: 'pointer' }}
-      onClick={(e) => {
-        e.stopPropagation();
-        onEdit(data);
-      }}
-    >
-      수정
     </button>
   );
 }
@@ -347,9 +322,9 @@ export default function BsrGroupList() {
   // ─── Column Defs ──────────────────────────────────────────────────────────
   const groupColDefs: ColDef<BsrGroupResponse>[] = useMemo(
     () => [
-      { headerCheckboxSelection: true, checkboxSelection: true, width: 44, pinned: 'left', headerCheckboxSelectionFilteredOnly: true, suppressHeaderMenuButton: true },
+      { width: 44, pinned: 'left', suppressHeaderMenuButton: true },
       { field: 'tenantName', headerName: '테넌트명', width: 120 },
-      { field: 'bsrGroupName', headerName: 'BSR 그룹명', flex: 1 },
+      { field: 'bsrGroupName', headerName: 'BSR 그룹명', flex: 1, tooltipField: 'bsrGroupName' },
       {
         field: 'bsrMethod',
         headerName: 'BSR 메소드',
@@ -363,26 +338,16 @@ export default function BsrGroupList() {
         valueFormatter: ({ value }) => (value === 1 ? '활성' : '비활성'),
       },
       { field: 'sortSeq', headerName: '정렬순서', width: 90 },
-      { field: 'bsrGroupDesc', headerName: '설명', flex: 1 },
+      { field: 'bsrGroupDesc', headerName: '설명', flex: 1, tooltipField: 'bsrGroupDesc' },
       { field: 'workTime', headerName: '작업일시', width: 160 },
-      {
-        headerName: '수정',
-        width: 80,
-        pinned: 'right',
-        sortable: false,
-        filter: false,
-        suppressHeaderMenuButton: true,
-        // React 컴포넌트 반환 — raw document.createElement 금지(React 19 크래시)
-        cellRenderer: (params: ICellRendererParams<BsrGroupResponse>) => <EditCellRenderer data={params.data} onEdit={handleGroupDblClicked} />,
-      },
     ],
-    [handleGroupDblClicked],
+    [],
   );
 
   const scheduleColDefs: ColDef<BsrScheduleInfoResponse>[] = useMemo(
     () => [
-      { headerCheckboxSelection: true, checkboxSelection: true, width: 44, pinned: 'left', headerCheckboxSelectionFilteredOnly: true, suppressHeaderMenuButton: true },
-      { field: 'bsrScheduleName', headerName: '스케줄명', flex: 1 },
+      { width: 44, pinned: 'left', suppressHeaderMenuButton: true },
+      { field: 'bsrScheduleName', headerName: '스케줄명', flex: 1, tooltipField: 'bsrScheduleName' },
       { field: 'startDate', headerName: '시작일', width: 120 },
       { field: 'startTime', headerName: '시작시간', width: 90 },
       { field: 'finshTime', headerName: '종료시간', width: 90 },
@@ -535,15 +500,11 @@ export default function BsrGroupList() {
               rowData={filteredGroups}
               columnDefs={groupColDefs}
               loading={isGroupsLoading}
-              rowSelection="multiple"
-              suppressRowClickSelection
+              rowSelection={{ mode: 'multiRow', checkboxes: true, headerCheckbox: true }}
               onRowClicked={(e) => e.data && handleGroupRowClicked(e.data)}
               onRowDoubleClicked={(e) => e.data && handleGroupDblClicked(e.data)}
               onSelectionChanged={(e) => setSelectedGroupIds(e.api.getSelectedRows().map((r) => r.bsrGroupId))}
             />
-          </div>
-          <div className="px-4 py-1.5 text-[11px] text-gray-400 border-t border-gray-100 flex-shrink-0">
-            행을 클릭하면 우측에서 배정 스케줄을 관리하고, "그룹 수정"으로 기본정보·지역번호 라우팅을 편집합니다.
           </div>
         </div>
 
@@ -581,8 +542,7 @@ export default function BsrGroupList() {
                 rowData={schedules}
                 columnDefs={scheduleColDefs}
                 loading={isSchedulesLoading}
-                rowSelection="multiple"
-                suppressRowClickSelection
+                rowSelection={{ mode: 'multiRow', checkboxes: true, headerCheckbox: true }}
                 onRowDoubleClicked={(e) => e.data && handleScheduleDblClicked(e.data)}
                 onSelectionChanged={(e) => setSelectedScheduleIds(e.api.getSelectedRows().map((r) => r.bsrScheduleId))}
               />

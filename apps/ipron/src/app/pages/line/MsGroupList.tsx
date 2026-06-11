@@ -304,6 +304,7 @@ export default function MsGroupList() {
         field: 'mediaServerName',
         flex: 2,
         minWidth: 120,
+        tooltipField: 'mediaServerName',
       },
       {
         headerName: '최대 채널',
@@ -316,12 +317,14 @@ export default function MsGroupList() {
         field: 'ipAddr',
         flex: 2,
         minWidth: 120,
+        tooltipField: 'ipAddr',
       },
       {
         headerName: 'NAT IP 주소',
         field: 'natIpAddr',
         flex: 2,
         minWidth: 120,
+        tooltipField: 'natIpAddr',
         cellRenderer: (params: ICellRendererParams<MediaServer>) => {
           if (!params.data) return null;
           return params.data.natIpAddr ?? '-';
@@ -611,7 +614,6 @@ export default function MsGroupList() {
                 }}
                 loading={isMediaServersLoading}
                 getRowId={(params) => String(params.data.mediaServerId)}
-                defaultColDef={{ filter: true, sortable: true, suppressHeaderMenuButton: true }}
                 onRowDoubleClicked={(e) => {
                   if (e.data) handleEditMediaServer(e.data);
                 }}

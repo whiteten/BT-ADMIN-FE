@@ -28,31 +28,25 @@ interface Props {
 }
 
 const SCHEDULE_COLS: ColDef<BsrScheduleInfoResponse>[] = [
-  {
-    headerCheckboxSelection: true,
-    checkboxSelection: true,
-    width: 44,
-    pinned: 'left' as const,
-    suppressHeaderMenuButton: true,
-  },
-  { field: 'bsrScheduleName', headerName: '스케줄명', flex: 1 },
-  { field: 'startDate', headerName: '시작일', width: 110 },
-  { field: 'startTime', headerName: '시작시간', width: 85 },
-  { field: 'finshTime', headerName: '종료시간', width: 85 },
+  { field: 'bsrScheduleName', headerName: '스케줄명', flex: 1, tooltipField: 'bsrScheduleName' },
+  { field: 'startDate', headerName: '시작일', minWidth: 110 },
+  { field: 'startTime', headerName: '시작시간', minWidth: 85 },
+  { field: 'finshTime', headerName: '종료시간', minWidth: 85 },
   {
     headerName: '요일',
-    width: 160,
+    minWidth: 120,
+    flex: 1,
     valueGetter: ({ data }) => {
       if (!data) return '';
       const days: string[] = [];
       if (data.mon === 1) days.push('월');
       if (data.tue === 1) days.push('화');
-      if (data.wed === 1) days.push('wed');
+      if (data.wed === 1) days.push('수');
       if (data.thu === 1) days.push('목');
       if (data.fri === 1) days.push('금');
       if (data.sat === 1) days.push('토');
       if (data.sun === 1) days.push('일');
-      return days.join(' ');
+      return days.join(' ') || '-';
     },
   },
 ];

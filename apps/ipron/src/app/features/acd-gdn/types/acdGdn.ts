@@ -17,7 +17,9 @@ export interface GdnResponse {
   gdnName: string;
   gdnType: number; // 16=ACD
   nodeId: number | null;
+  nodeName?: string | null;
   backUpNodeId: number | null;
+  backUpNodeName?: string | null;
   globalDnYn: number | null;
 
   companyId: number | null;
@@ -145,7 +147,8 @@ export interface GdnMemberResponse {
   dnType?: string | null; // 11=EDN, 12=ADN
   loginAdn?: string | null; // ADN 로그인 ID
   extBlockYn?: number | null; // 블록여부 (1=ON)
-  backUpNodeId?: number | null; // DR 노드
+  backUpNodeId?: number | null; // DR 노드 ID
+  backUpNodeName?: string | null; // DR 노드 이름
   tenantId?: number | null;
   tenantName?: string | null;
   assigned?: boolean | null; // 해당 그룹DN 기배정 여부 (members-pool)

@@ -366,6 +366,7 @@ export default function DodTransList() {
         flex: 1,
         minWidth: 110,
         valueGetter: () => selectedMaster?.nodeName ?? '-',
+        tooltipValueGetter: () => selectedMaster?.nodeName ?? '-',
       },
       {
         headerName: '테넌트',
@@ -373,6 +374,7 @@ export default function DodTransList() {
         flex: 1,
         minWidth: 110,
         valueGetter: () => selectedMaster?.tenantName ?? '-',
+        tooltipValueGetter: () => selectedMaster?.tenantName ?? '-',
       },
       {
         headerName: '번호패턴',
@@ -380,6 +382,7 @@ export default function DodTransList() {
         flex: 2,
         minWidth: 160,
         cellStyle: { fontFamily: 'monospace' },
+        tooltipField: 'numPattern',
       },
       {
         headerName: 'Digit 수',
@@ -393,6 +396,7 @@ export default function DodTransList() {
         flex: 1,
         minWidth: 100,
         valueFormatter: (params) => params.data?.addDigit ?? '-',
+        tooltipField: 'addDigit',
       },
       {
         headerName: '사용여부',
@@ -706,7 +710,7 @@ export default function DodTransList() {
                 rowSelection={itemRowSelection}
                 loading={isItemsLoading}
                 getRowId={(params) => `${params.data.dodTransId}-${params.data.listSeq}`}
-                defaultColDef={{ filter: true, sortable: true, suppressHeaderMenuButton: true }}
+                defaultColDef={{ filter: false, sortable: true, suppressHeaderMenuButton: true }}
                 onRowDoubleClicked={(e) => {
                   if (e.data) handleEditItem(e.data);
                 }}

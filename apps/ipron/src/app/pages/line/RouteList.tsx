@@ -209,21 +209,11 @@ export default function RouteList() {
   const pointColumnDefs: ColDef<RoutePoint>[] = useMemo(
     () => [
       {
-        headerName: '',
-        width: 44,
-        maxWidth: 44,
-        checkboxSelection: true,
-        headerCheckboxSelection: true,
-        sortable: false,
-        filter: false,
-        suppressHeaderMenuButton: true,
-        resizable: false,
-      },
-      {
         headerName: '노드',
         field: 'nodeName',
         flex: 1,
         minWidth: 80,
+        tooltipField: 'nodeName',
         cellRenderer: (params: ICellRendererParams<RoutePoint>) => {
           if (!params.data) return null;
           return params.data.nodeName ?? '-';
@@ -244,6 +234,7 @@ export default function RouteList() {
         field: 'endptName',
         flex: 2,
         minWidth: 120,
+        tooltipField: 'endptName',
       },
       {
         headerName: '백업구분',
@@ -543,7 +534,7 @@ export default function RouteList() {
                   }}
                   loading={isPointsLoading}
                   getRowId={(params) => String(params.data.endptId)}
-                  defaultColDef={{ filter: true, sortable: true, suppressHeaderMenuButton: true }}
+                  defaultColDef={{ filter: false, sortable: true, suppressHeaderMenuButton: true }}
                   onSelectionChanged={(e) => setSelectedRoutePoints(e.api.getSelectedRows())}
                   onRowDoubleClicked={() => {
                     if (selectedRouteId) navigate(`/ipron/line/route/${selectedRouteId}`);

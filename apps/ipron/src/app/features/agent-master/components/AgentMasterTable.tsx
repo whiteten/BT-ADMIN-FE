@@ -65,22 +65,10 @@ export default function AgentMasterTable({
 }: AgentMasterTableProps) {
   const { gridOptions } = useAggridOptions();
 
-  const defaultColDef: ColDef = useMemo(() => ({ sortable: true, filter: true, resizable: true, suppressHeaderMenuButton: true }), []);
+  const defaultColDef: ColDef = useMemo(() => ({ sortable: true, filter: false, resizable: true, suppressHeaderMenuButton: true }), []);
 
   const columnDefs: ColDef<AgentResponse>[] = useMemo(
     () => [
-      {
-        headerName: '',
-        width: 36,
-        maxWidth: 36,
-        pinned: 'left',
-        checkboxSelection: true,
-        headerCheckboxSelection: true,
-        headerCheckboxSelectionFilteredOnly: true,
-        sortable: false,
-        filter: false,
-        suppressHeaderMenuButton: true,
-      },
       {
         headerName: '',
         width: 28,
@@ -109,8 +97,8 @@ export default function AgentMasterTable({
           );
         },
       },
-      { headerName: '테넌트', field: 'tenantName', flex: 1, minWidth: 100, valueFormatter: (p) => p.value ?? '-' },
-      { headerName: '그룹', field: 'groupName', flex: 1.2, minWidth: 110, valueFormatter: (p) => p.value ?? '-' },
+      { headerName: '테넌트', field: 'tenantName', flex: 1, minWidth: 100, tooltipField: 'tenantName', valueFormatter: (p) => p.value ?? '-' },
+      { headerName: '그룹', field: 'groupName', flex: 1.2, minWidth: 110, tooltipField: 'groupName', valueFormatter: (p) => p.value ?? '-' },
       {
         headerName: '로그인 ID',
         field: 'agentLoginId',
@@ -125,12 +113,13 @@ export default function AgentMasterTable({
         minWidth: 80,
         valueFormatter: (p) => p.value ?? '-',
       },
-      { headerName: '상담사명', field: 'agentName', flex: 1, minWidth: 100 },
+      { headerName: '상담사명', field: 'agentName', flex: 1, minWidth: 100, tooltipField: 'agentName' },
       {
         headerName: '아웃소싱업체',
         field: 'oscomName',
         flex: 1,
         minWidth: 120,
+        tooltipField: 'oscomName',
         valueFormatter: (p) => p.value ?? '-',
       },
       {
@@ -216,8 +205,7 @@ export default function AgentMasterTable({
         statusBar: undefined,
         pagination: false,
         sideBar: false,
-        rowSelection: 'multiple',
-        suppressRowClickSelection: true,
+        rowSelection: { mode: 'multiRow', checkboxes: true, headerCheckbox: true, enableClickSelection: false },
         rowDragManaged: false,
         rowDragMultiRow: true,
       }}

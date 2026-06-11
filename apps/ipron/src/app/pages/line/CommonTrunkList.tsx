@@ -40,6 +40,7 @@ import {
   getTrunkKindName,
 } from '../../features/common-trunk/types';
 import { useGetDnProfileNodes } from '../../features/dn-profile/hooks/useDnProfileQueries';
+import useAggridOptions from '@/libs/shared-ui/src/hooks/useAggridOptions';
 
 const breadcrumb = [{ title: '번호자원관리' }, { title: '교환기 번호관리' }, { title: '공용 SIP TRUNK', path: '/ipron/line/common-trunk' }];
 
@@ -55,6 +56,8 @@ export default function CommonTrunkList() {
     setBreadcrumb(breadcrumb);
     return () => clearBreadcrumb();
   }, [setBreadcrumb, clearBreadcrumb]);
+
+  const { gridOptions: baseGridOptions } = useAggridOptions();
 
   const nodeTabScrollRef = useRef<HTMLDivElement>(null);
   const gdnGridRef = useRef<AgGridReactType<CommonGdnResponse>>(null);
@@ -176,8 +179,13 @@ export default function CommonTrunkList() {
   // ─── 외부 필터 (배정상태 세그먼트 + 종류) — 멤버 기준 ─────────────────
   const trunkGridOptions = useMemo<GridOptions<CommonTrunkMemberResponse>>(
     () => ({
+      ...baseGridOptions,
+      statusBar: undefined,
+      sideBar: false,
+      pagination: false,
+      rowNumbers: false,
       rowSelection: { mode: 'multiRow', checkboxes: true, headerCheckbox: true, enableClickSelection: false },
-      defaultColDef: { resizable: true, sortable: true, filter: true, suppressHeaderMenuButton: true },
+      defaultColDef: { resizable: true, sortable: true, filter: false, suppressHeaderMenuButton: true },
       getRowId: ({ data }) => String(data.sipTrunkId),
       isExternalFilterPresent: () => assignFilter !== 'all' || kindFilter !== '',
       doesExternalFilterPass: (node) => {
@@ -197,7 +205,7 @@ export default function CommonTrunkList() {
       },
       onSelectionChanged: (e) => setSelectedTrunks(e.api.getSelectedRows()),
     }),
-    [assignFilter, kindFilter, trunkKindMap],
+    [baseGridOptions, assignFilter, kindFilter, trunkKindMap],
   );
 
   useEffect(() => {
@@ -206,8 +214,13 @@ export default function CommonTrunkList() {
 
   const gdnGridOptions = useMemo<GridOptions<CommonGdnResponse>>(
     () => ({
+      ...baseGridOptions,
+      statusBar: undefined,
+      sideBar: false,
+      pagination: false,
+      rowNumbers: false,
       rowSelection: { mode: 'singleRow', checkboxes: false, enableClickSelection: true },
-      defaultColDef: { resizable: true, sortable: true, filter: true, suppressHeaderMenuButton: true },
+      defaultColDef: { resizable: true, sortable: true, filter: false, suppressHeaderMenuButton: true },
       getRowId: ({ data }) => String(data.gdnId),
       onRowDoubleClicked: (e) => {
         if (e.data) setGdnDrawer({ open: true, mode: 'edit', detail: e.data });
@@ -217,7 +230,7 @@ export default function CommonTrunkList() {
         setSelectedGdn(rows.length > 0 ? rows[0] : null);
       },
     }),
-    [],
+    [baseGridOptions],
   );
 
   // ─── 컬럼 — 좌 공용 그룹DN (노드 컬럼 없음) ──────────────────────────
@@ -230,28 +243,30 @@ export default function CommonTrunkList() {
         maxWidth: 140,
         cellStyle: { fontFamily: 'monospace', fontWeight: 600, color: '#374151' } as CellStyle,
       },
-      { field: 'gdnName', headerName: '그룹DN 이름', flex: 1, minWidth: 130 },
+      { field: 'gdnName', headerName: '그룹DN 이름', flex: 1, minWidth: 130, tooltipField: 'gdnName' },
       {
         field: 'globalDnYn',
         headerName: '글로벌',
         minWidth: 90,
         maxWidth: 100,
         cellStyle: { textAlign: 'center' } as CellStyle,
-        cellRenderer: (p: { value: number }) => (p.value === 1 ? <Tag color="blue">글로벌</Tag> : <span className="text-gray-400 text-[11px]">-</span>),
+        cellRenderer: (p: { value: number }) => (p.value === 1 ? <Tag color="blue">글로벌</Tag> : <span className="text-gray-400">-</span>),
       },
       {
         field: 'backUpNodeName',
         headerName: 'DR노드',
-        width: 90,
-        cellStyle: { textAlign: 'center', color: '#9ca3af', fontSize: '11px' } as CellStyle,
-        valueFormatter: (p) => p.value ?? '—',
+        minWidth: 80,
+        maxWidth: 110,
+        cellStyle: { textAlign: 'center', color: '#9ca3af' } as CellStyle,
+        valueFormatter: (p) => p.value ?? '-',
+        tooltipField: 'backUpNodeName',
       },
       {
         field: 'assignedTrunkCount',
         headerName: '배정 트렁크',
         width: 100,
         cellStyle: { textAlign: 'center' } as CellStyle,
-        cellRenderer: (p: { value: number }) => (p.value > 0 ? <Tag color="green">{p.value}건</Tag> : <span className="text-gray-300 italic">—</span>),
+        cellRenderer: (p: { value: number }) => (p.value > 0 ? <Tag color="green">{p.value}건</Tag> : <span className="text-gray-300 italic">-</span>),
       },
       {
         field: 'blockYn',
@@ -264,23 +279,29 @@ export default function CommonTrunkList() {
       {
         field: 'blockRoutingName',
         headerName: '블록라우팅',
-        width: 110,
-        cellStyle: { color: '#9ca3af', fontSize: '11px' } as CellStyle,
-        valueFormatter: (p) => p.value ?? '—',
+        minWidth: 100,
+        flex: 1,
+        cellStyle: { color: '#9ca3af' } as CellStyle,
+        valueFormatter: (p) => p.value ?? '-',
+        tooltipField: 'blockRoutingName',
       },
       {
         field: 'errorRoutingName',
         headerName: '장애라우팅',
-        width: 110,
-        cellStyle: { color: '#9ca3af', fontSize: '11px' } as CellStyle,
-        valueFormatter: (p) => p.value ?? '—',
+        minWidth: 100,
+        flex: 1,
+        cellStyle: { color: '#9ca3af' } as CellStyle,
+        valueFormatter: (p) => p.value ?? '-',
+        tooltipField: 'errorRoutingName',
       },
       {
         field: 'busyRoutingName',
         headerName: 'Busy라우팅',
-        width: 110,
-        cellStyle: { color: '#9ca3af', fontSize: '11px' } as CellStyle,
-        valueFormatter: (p) => p.value ?? '—',
+        minWidth: 100,
+        flex: 1,
+        cellStyle: { color: '#9ca3af' } as CellStyle,
+        valueFormatter: (p) => p.value ?? '-',
+        tooltipField: 'busyRoutingName',
       },
     ],
     [],
@@ -294,7 +315,7 @@ export default function CommonTrunkList() {
         headerName: '배정상태',
         width: 84,
         cellStyle: { textAlign: 'center' } as CellStyle,
-        cellRenderer: (p: { value: boolean }) => (p.value ? <Tag color="green">배정중</Tag> : <span className="text-gray-400 italic text-[11px]">미배정</span>),
+        cellRenderer: (p: { value: boolean }) => (p.value ? <Tag color="green">배정중</Tag> : <span className="text-gray-400 italic">미배정</span>),
       },
       {
         field: 'targetName',
@@ -302,8 +323,9 @@ export default function CommonTrunkList() {
         flex: 1,
         minWidth: 150,
         cellStyle: { fontWeight: 600, color: '#374151' } as CellStyle,
+        tooltipField: 'targetName',
       },
-      { field: 'targetNo', headerName: '번호', width: 80, cellStyle: { fontFamily: 'monospace', fontSize: '12px' } as CellStyle },
+      { field: 'targetNo', headerName: '번호', minWidth: 80, maxWidth: 120, cellStyle: { fontFamily: 'monospace' } as CellStyle },
       {
         headerName: '종류',
         minWidth: 110,
@@ -312,12 +334,11 @@ export default function CommonTrunkList() {
         cellRenderer: (p: { value: number | null }) =>
           p.value === 1 ? <Tag color="blue">IPRON-IE</Tag> : p.value === 9 ? <Tag color="purple">외부 교환기(PBX)</Tag> : <span>{getTrunkKindName(p.value)}</span>,
       },
-      { field: 'chnlCnt', headerName: '채널', width: 64, cellStyle: { textAlign: 'center', fontFamily: 'monospace', fontSize: '12px' } as CellStyle },
+      { field: 'chnlCnt', headerName: '채널', width: 64, cellStyle: { textAlign: 'center', fontFamily: 'monospace' } as CellStyle },
       {
         headerName: '채널 사용률',
         minWidth: 150,
         sortable: false,
-        filter: false,
         cellRenderer: (p: { data?: CommonTrunkMemberResponse }) => {
           const max = p.data?.chnlCnt ?? 0;
           const used = p.data?.totChannelCount ?? 0;
@@ -328,7 +349,7 @@ export default function CommonTrunkList() {
               <div className="flex-1 h-[5px] bg-gray-200 rounded overflow-hidden min-w-[30px]">
                 <div className="h-full rounded" style={{ width: `${pct}%`, backgroundColor: col }} />
               </div>
-              <span style={{ color: col, fontWeight: 600 }} className="text-[10.5px] whitespace-nowrap tabular-nums">
+              <span style={{ color: col, fontWeight: 600 }} className="whitespace-nowrap tabular-nums">
                 {used}/{max} ({pct}%)
               </span>
             </div>
@@ -340,14 +361,14 @@ export default function CommonTrunkList() {
         headerName: '우선순위',
         width: 80,
         cellStyle: { textAlign: 'center' } as CellStyle,
-        valueFormatter: (p) => (p.value == null ? '—' : String(p.value)),
+        valueFormatter: (p) => (p.value == null ? '-' : String(p.value)),
       },
       {
         field: 'channelLimitCount',
         headerName: '배정채널',
         width: 84,
         cellStyle: { textAlign: 'center' } as CellStyle,
-        valueFormatter: (p) => (p.value == null ? '—' : String(p.value)),
+        valueFormatter: (p) => (p.value == null ? '-' : String(p.value)),
       },
     ],
     [trunkKindMap],
@@ -525,13 +546,6 @@ export default function CommonTrunkList() {
             <div className="flex-1 min-h-0 ag-theme-quartz">
               <AgGridReact<CommonGdnResponse> ref={gdnGridRef} rowData={gdns} columnDefs={gdnColumns} gridOptions={gdnGridOptions} loading={gdnsLoading} />
             </div>
-
-            {/* 선택 GDN 요약 */}
-            <div className="flex-shrink-0 px-4 py-2 bg-blue-50 border-t border-blue-100 flex items-center gap-3 text-[11.5px]">
-              <Network className="size-3 text-[#405189]" />
-              <span className="text-gray-500">선택:</span>
-              <strong className="text-[#405189]">{selectedGdn ? `${selectedGdn.gdnNo}  ${selectedGdn.gdnName}` : '— 행 클릭으로 선택'}</strong>
-            </div>
           </div>
         </Panel>
 
@@ -620,25 +634,40 @@ export default function CommonTrunkList() {
 
       {/* ===== Bulk Action Bar ===== */}
       {showBulkBar && (
-        <div className="fixed bottom-5 left-1/2 -translate-x-1/2 z-50 bg-gray-800 text-white rounded-xl shadow-xl flex items-center gap-3 px-4 py-2.5 text-[12.5px]">
+        <div
+          className="fixed bottom-5 left-1/2 -translate-x-1/2 z-50 bg-slate-700/90 rounded-xl shadow-xl flex items-center gap-3 px-4 py-2.5 text-[12.5px]"
+          style={{ color: '#e2e8f0' }}
+        >
           <span className="flex items-center gap-1.5">
-            <Network className="size-3 text-white/60" />
-            <span className="text-white/60 text-xs">그룹DN</span>
-            <span className="bg-[#405189] px-2 py-0.5 rounded-full font-bold min-w-[22px] text-center">{selectedGdn?.gdnNo}</span>
+            <Network className="size-3" style={{ color: '#94a3b8' }} />
+            <span className="text-xs" style={{ color: '#94a3b8' }}>
+              그룹DN
+            </span>
+            <span className="bg-[#405189] px-2 py-0.5 rounded-full font-bold min-w-[22px] text-center" style={{ color: '#e2e8f0' }}>
+              {selectedGdn?.gdnNo}
+            </span>
           </span>
-          <span className="text-white/35 text-sm">↔</span>
+          <span className="text-sm" style={{ color: '#94a3b8' }}>
+            ↔
+          </span>
           <span className="flex items-center gap-1.5">
-            <span className="text-white/60 text-xs">트렁크</span>
-            <span className="bg-[#405189] px-2 py-0.5 rounded-full font-bold min-w-[22px] text-center">{selectedTrunks.length}건</span>
+            <span className="text-xs" style={{ color: '#94a3b8' }}>
+              트렁크
+            </span>
+            <span className="bg-[#405189] px-2 py-0.5 rounded-full font-bold min-w-[22px] text-center" style={{ color: '#e2e8f0' }}>
+              {selectedTrunks.length}건
+            </span>
           </span>
-          <span className="text-white/40 mx-1">·</span>
+          <span className="mx-1" style={{ color: '#64748b' }}>
+            ·
+          </span>
           <Button size="small" type="primary" icon={<Plus className="size-3" />} onClick={() => setAssignDrawerOpen(true)}>
             배정
           </Button>
           <Button size="small" danger icon={<Trash2 className="size-3" />} onClick={handleRevoke}>
             해제
           </Button>
-          <Button size="small" type="text" className="!text-white/60 hover:!text-white" onClick={clearBulkSel}>
+          <Button size="small" type="text" style={{ color: '#94a3b8' }} onClick={clearBulkSel}>
             선택 해제
           </Button>
         </div>

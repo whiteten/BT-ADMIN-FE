@@ -365,12 +365,14 @@ export default function EndpointList() {
         field: 'endptMemName',
         flex: 2,
         minWidth: 100,
+        tooltipField: 'endptMemName',
       },
       {
         headerName: 'IP 주소',
         field: 'ipAddress',
         flex: 2,
         minWidth: 100,
+        tooltipField: 'ipAddress',
       },
       {
         headerName: '포트',
@@ -472,12 +474,14 @@ export default function EndpointList() {
         field: 'regNum',
         flex: 2,
         minWidth: 100,
+        tooltipField: 'regNum',
       },
       {
         headerName: '테넌트',
         field: 'tenantName',
         flex: 2,
         minWidth: 80,
+        tooltipField: 'tenantName',
         cellRenderer: (params: ICellRendererParams<EndpointRegnum>) => {
           if (!params.data) return null;
           return params.data.tenantName ?? '-';
@@ -862,7 +866,7 @@ export default function EndpointList() {
                       rowSelection={memberRowSelection}
                       loading={isMembersLoading}
                       getRowId={(params) => String(params.data.endptMemId)}
-                      defaultColDef={{ filter: true, sortable: true, suppressHeaderMenuButton: true }}
+                      defaultColDef={{ filter: false, sortable: true, suppressHeaderMenuButton: true }}
                       onRowDoubleClicked={(e) => {
                         if (e.data) memberDrawerRef.current?.open(e.data);
                       }}
@@ -883,7 +887,7 @@ export default function EndpointList() {
                       rowSelection={regnumRowSelection}
                       loading={isRegnumsLoading}
                       getRowId={(params) => String(params.data.endptRegnumId)}
-                      defaultColDef={{ filter: true, sortable: true, suppressHeaderMenuButton: true }}
+                      defaultColDef={{ filter: false, sortable: true, suppressHeaderMenuButton: true }}
                       onRowDoubleClicked={(e) => {
                         if (e.data) regnumDrawerRef.current?.open(e.data);
                       }}
