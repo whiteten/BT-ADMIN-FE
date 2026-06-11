@@ -232,11 +232,11 @@ export function repairEpoch(row: AlarmRow): number {
   return new Date(+s.slice(0, 4), +s.slice(4, 6) - 1, +s.slice(6, 8), +s.slice(8, 10), +s.slice(10, 12), +s.slice(12, 14)).getTime();
 }
 
-/** ERR_REPAIR_TIME(yyyyMMddHHmmss) → "MM-DD HH:mm:ss" 표시. 비거나 placeholder 면 빈 문자열. */
+/** ERR_REPAIR_TIME(yyyyMMddHHmmss) → "yyyy-MM-dd HH:mm:ss" 표시. 비거나 placeholder 면 빈 문자열. */
 export function fmtRepairTime(repairTime?: string): string {
   const s = (repairTime ?? '').trim();
   if (!/^\d{14}$/.test(s) || /^0+$/.test(s)) return '';
-  return `${s.slice(4, 6)}-${s.slice(6, 8)} ${s.slice(8, 10)}:${s.slice(10, 12)}:${s.slice(12, 14)}`;
+  return `${s.slice(0, 4)}-${s.slice(4, 6)}-${s.slice(6, 8)} ${s.slice(8, 10)}:${s.slice(10, 12)}:${s.slice(12, 14)}`;
 }
 
 /** nowMs 기준 "n분 전" 류 상대 표기. */
