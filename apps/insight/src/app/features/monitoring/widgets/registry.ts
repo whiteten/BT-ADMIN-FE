@@ -14,6 +14,7 @@ import AlarmCenterWidget from './alarm-center/AlarmCenterWidget';
 import CtiqStatusWidget from './ctiq-status/CtiqStatusWidget';
 import HealthBoardWidget from './health-board/HealthBoardWidget';
 import NodeDetailWidget from './node-detail/NodeDetailWidget';
+import TrunkFlowWidget from './trunk-flow/TrunkFlowWidget';
 
 /** 모든 커스텀 위젯 컴포넌트의 공통 props. */
 export interface CustomWidgetComponentProps {
@@ -132,6 +133,9 @@ const REGISTRY: Record<string, CustomWidgetEntry> = {
   'node-detail': { component: NodeDetailWidget },
   // 알람센터 — 헬스보드 알람 카드 드릴다운. Oracle `TB_CC_ERRHISTORY`(장애 발생 이력) row 배열 수신.
   'alarm-center': { component: AlarmCenterWidget },
+  // 트렁크 회선현황(흐름) — IE:TRUNK 라인을 회선 그룹(IPV4)→노드(PBX)로 BE 가 집계해 단일 객체로 내려준다.
+  // (summary/nodes/groups 구조, 라인 state-line 포함) row 필드 화이트리스트 없음 → fields 미지정(전체 수신).
+  'trunk-flow-saturation': { component: TrunkFlowWidget },
 };
 
 export function getCustomWidgetComponent(widgetTypeId: string): ComponentType<CustomWidgetComponentProps> | null {
