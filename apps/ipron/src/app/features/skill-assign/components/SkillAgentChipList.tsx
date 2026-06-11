@@ -38,7 +38,6 @@ export default function SkillAgentChipList({ rows, isLoading, onUnassign, onEdit
           <span className="font-semibold text-[#405189]">{agentLabel}</span>
           <span className="text-gray-400">·</span>
           <span>{rows.length}건</span>
-          <span className="ml-auto text-[11px] text-gray-400">우선순위 (0~9, 작을수록 1순위) · 스킬레벨 (0~99)</span>
         </div>
       )}
       <div className="flex flex-wrap gap-1.5">

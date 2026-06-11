@@ -73,15 +73,10 @@ export default function SkillAgentEditDrawer({ open, row, onClose }: Props) {
         상담사: <span className="font-semibold text-gray-800">{row.agentName ?? row.agentLoginId}</span>
       </div>
       <Form form={form} layout="vertical">
-        <Form.Item
-          label="우선순위 (PRIORITY, 0~9)"
-          name="priority"
-          rules={[{ required: true, message: '필수' }]}
-          tooltip="같은 스킬 보유자 중 작은 값이 먼저 호출 받음 (0 = 1순위)"
-        >
+        <Form.Item label="우선순위" name="priority" rules={[{ required: true, message: '필수' }]} tooltip="같은 스킬 보유자 중 작은 값이 먼저 호출 받음 (0 = 1순위)">
           <InputNumber min={0} max={9} style={{ width: '100%' }} />
         </Form.Item>
-        <Form.Item label="스킬 레벨 (SKILL_LEVEL, 0~99)" name="skillLevel" rules={[{ required: true, message: '필수' }]} tooltip="같은 PRIORITY 라면 큰 값이 가중치 우위">
+        <Form.Item label="스킬레벨" name="skillLevel" rules={[{ required: true, message: '필수' }]}>
           <InputNumber min={0} max={99} style={{ width: '100%' }} />
         </Form.Item>
       </Form>

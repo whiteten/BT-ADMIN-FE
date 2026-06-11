@@ -244,11 +244,6 @@ export default function SkillGroupFormDrawer({ state, tenantId, onClose }: Props
       <div className="mt-4">
         <div className="flex items-center gap-2 mb-2">
           <span className="text-sm font-semibold text-gray-700">멤버 스킬셋 ({memberRows.length}건)</span>
-          <span className="text-xs text-gray-500">
-            — P/L 은 기본값. 부여 후 상담사별 조정 가능
-            {isEdit && !memberDirty && ' · 손대지 않으면 기존 멤버 유지'}
-            {isEdit && memberDirty && ' · 전체 교체 모드'}
-          </span>
         </div>
         <Space.Compact className="w-full mb-2">
           <Select

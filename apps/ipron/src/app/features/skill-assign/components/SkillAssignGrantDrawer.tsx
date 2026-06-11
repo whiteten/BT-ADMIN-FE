@@ -82,22 +82,16 @@ export default function SkillAssignGrantDrawer({ open, agents, skillsets, onClos
           <p>
             선택된 상담사 <strong>{agents.length}명</strong>에게 스킬셋 <strong>{skillsets.length}건</strong>을 일괄 부여합니다.
           </p>
-          <p className="text-xs text-gray-400">※ 이미 보유한 스킬셋은 건너뜁니다.</p>
-
           {/* P/L 입력 */}
           <div className="border border-gray-200 rounded-lg p-4 bg-gray-50 flex flex-col gap-3">
             <div className="text-xs font-semibold text-gray-600">부여 기본값 설정</div>
             <div className="flex items-center gap-4">
               <div className="flex flex-col gap-1">
-                <label className="text-xs text-[#405189] font-semibold">
-                  우선순위 <span className="text-gray-400 font-normal">(0~9, 작을수록 1순위)</span>
-                </label>
+                <label className="text-xs text-[#405189] font-semibold">우선순위</label>
                 <InputNumber min={0} max={9} value={priority} onChange={(v) => setPriority(v ?? 0)} style={{ width: 80 }} />
               </div>
               <div className="flex flex-col gap-1">
-                <label className="text-xs text-[#405189] font-semibold">
-                  스킬레벨 <span className="text-gray-400 font-normal">(0~99, 클수록 가중치 높음)</span>
-                </label>
+                <label className="text-xs text-[#405189] font-semibold">스킬레벨</label>
                 <InputNumber min={0} max={99} value={skillLevel} onChange={(v) => setSkillLevel(v ?? 0)} style={{ width: 80 }} />
               </div>
             </div>
