@@ -27,7 +27,7 @@ import type { Cos } from '../../features/cos/types';
 import useAggridOptions from '@/libs/shared-ui/src/hooks/useAggridOptions';
 import { useModal } from '@/libs/shared-ui/src/hooks/useModal';
 
-const breadcrumb = [{ title: '번호자원관리' }, { title: 'COS 설정', path: '/ipron/cos' }];
+const breadcrumb = [{ title: '교환기 번호관리' }, { title: 'COS 설정', path: '/ipron/cos' }];
 
 /** 0/1 서비스 플래그를 설정/해제 배지로 표시 */
 const StatusBadgeRenderer = (params: ICellRendererParams) => {
@@ -189,7 +189,7 @@ export default function CosList() {
   // ─── ag-Grid Column Defs ──────────────────────────────────────────────────
   const columnDefs: ColDef<Cos>[] = useMemo(
     () => [
-      { headerName: 'COS 이름', field: 'cosName', flex: 1, minWidth: 160 },
+      { headerName: 'COS 이름', field: 'cosName', flex: 1, minWidth: 160, tooltipField: 'cosName' },
       { headerName: '착신금지', field: 'dnTblSvc', width: 100, cellRenderer: StatusBadgeRenderer },
       { headerName: '발신금지', field: 'dnOblSvc', width: 100, cellRenderer: StatusBadgeRenderer },
       { headerName: '픽업사용', field: 'pickupSvc', width: 100, cellRenderer: StatusBadgeRenderer },
@@ -338,7 +338,7 @@ export default function CosList() {
                   }}
                   loading={isLoading}
                   getRowId={(params) => String(params.data.cosId)}
-                  defaultColDef={{ filter: true, sortable: true, suppressHeaderMenuButton: true }}
+                  defaultColDef={{ filter: false, sortable: true, suppressHeaderMenuButton: true }}
                   onRowDoubleClicked={(e) => {
                     if (e.data) handleEdit(e.data);
                   }}
