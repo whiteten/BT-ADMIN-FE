@@ -4,7 +4,7 @@ import { restrictToVerticalAxis } from '@dnd-kit/modifiers';
 import { SortableContext, arrayMove, useSortable, verticalListSortingStrategy } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import { Button, Checkbox, Input, Modal, Select, Splitter, Tag, Tooltip } from 'antd';
-import { ArrowLeft, Code2, Copy, GripVertical, Info, X } from 'lucide-react';
+import { ArrowLeft, Code2, Copy, Eye, EyeOff, GripVertical, Info, X } from 'lucide-react';
 import { format as formatSql } from 'sql-formatter';
 import { toast } from '@/shared-util';
 import PanelBarChart from './chart/PanelBarChart';
@@ -161,7 +161,8 @@ function makeFieldMapEntry(field: FieldMetaItem, slotType: SlotType, slotOrder: 
     slotType,
     slotOrder,
     fieldName: field.fieldName,
-    isCalcField: false,
+    // 데이터셋 CALC 필드는 플래그 유지 — 합계 행 제외·SQL 제외 판정에 쓰임
+    isCalcField: field.fieldRole === 'CALC',
     aggFunc: defaultAggFunc(field, slotType),
     columnFormat: isMsr ? 'Number' : undefined,
   };
@@ -796,10 +797,20 @@ export default function PanelEditorSheet({ reportId, panelType, panelId, dataset
                   {f.sortDirection === 'ASC' ? '↑ ASC' : '↓ DESC'}
                 </Button>
               )}
+              {slotType === 'ROW' && (
+                <button
+                  type="button"
+                  title={f.isHidden ? '그룹화만 적용 — 그리드에 표시 안 함 (클릭 시 표시)' : '그리드에 표시 중 (클릭 시 그룹화만 적용)'}
+                  onClick={() => updateInSlot(f.fieldName, 'isHidden', !f.isHidden, entry.setter)}
+                  className={`ml-auto ${f.isHidden ? 'text-[var(--color-bt-fg-muted)]' : 'text-[var(--color-bt-primary)]'} hover:text-[var(--color-bt-primary)]`}
+                >
+                  {f.isHidden ? <EyeOff className="h-3 w-3" /> : <Eye className="h-3 w-3" />}
+                </button>
+              )}
               <button
                 type="button"
                 onClick={() => removeFromSlot(f.fieldName, entry.setter)}
-                className={`text-[var(--color-bt-fg-muted)] hover:text-[var(--color-bt-danger)] ${slotType === 'VALUE' || slotType === 'Y_AXIS' || slotType === 'KPI' || slotType === 'SORT' ? '' : 'ml-auto'}`}
+                className={`text-[var(--color-bt-fg-muted)] hover:text-[var(--color-bt-danger)] ${slotType === 'VALUE' || slotType === 'Y_AXIS' || slotType === 'KPI' || slotType === 'SORT' || slotType === 'ROW' ? '' : 'ml-auto'}`}
               >
                 <X className="h-3 w-3" />
               </button>

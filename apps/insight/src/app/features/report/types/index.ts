@@ -83,6 +83,8 @@ export interface PanelFieldMap {
   sortDirection?: 'ASC' | 'DESC';
   topN?: number;
   otherGrouping?: boolean;
+  /** ROW 슬롯 숨김 차원: GROUP BY에는 포함하되 그리드 컬럼으로 표시하지 않음 (AS-IS SELECT_YN=0·GROUP_YN=1 대응). */
+  isHidden?: boolean;
   searchCondId?: number;
   /** FILTER 슬롯 cascade: 이 컬럼이 검색조건의 어느 단계(node)에 매핑되는지 (G4-b). 단일 조건은 미지정. */
   nodeCode?: string;
