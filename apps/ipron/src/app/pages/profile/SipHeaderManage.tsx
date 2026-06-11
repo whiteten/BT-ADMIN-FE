@@ -10,7 +10,7 @@ import { useQueryClient } from '@tanstack/react-query';
 import type { ColDef, ICellRendererParams } from 'ag-grid-community';
 import { AgGridReact } from 'ag-grid-react';
 import { Button, Dropdown, Empty } from 'antd';
-import { ChevronLeft, ChevronRight, Edit2, Edit3, MoreVertical, Plus, Trash2 } from 'lucide-react';
+import { ChevronLeft, ChevronRight, ChevronsDown, ChevronsUp, Edit3, MoreVertical, Plus, Trash2 } from 'lucide-react';
 import { useBreadcrumbStore } from '@/shared-store';
 import { toast } from '@/shared-util';
 import SipHeaderGroupDrawer, { type SipHeaderGroupDrawerRef } from '../../features/sip-profile/components/SipHeaderGroupDrawer';
@@ -32,7 +32,12 @@ import { IconTrash } from '@/components/custom/Icons';
 import useAggridOptions from '@/libs/shared-ui/src/hooks/useAggridOptions';
 import { useModal } from '@/libs/shared-ui/src/hooks/useModal';
 
-const breadcrumb = [{ title: '프로파일 관리', path: '/ipron/profile/sip-profile' }, { title: 'SIP 프로파일', path: '/ipron/profile/sip-profile' }, { title: '헤더 관리' }];
+const breadcrumb = [
+  { title: '번호자원관리' },
+  { title: '프로파일', path: '/ipron/profile' },
+  { title: 'SIP 프로파일', path: '/ipron/profile/sip-profile' },
+  { title: '헤더 관리' },
+];
 
 export default function SipHeaderManage() {
   const setBreadcrumb = useBreadcrumbStore((s) => s.setBreadcrumb);
@@ -49,6 +54,7 @@ export default function SipHeaderManage() {
 
   // ─── State ──────────────────────────────────────────────────────────────────
   const [selectedGroupId, setSelectedGroupId] = useState<number | null>(null);
+  const [cardCollapsed, setCardCollapsed] = useState(true);
 
   // ─── Refs ─────────────────────────────────────────────────────────────────
   const groupDrawerRef = useRef<SipHeaderGroupDrawerRef>(null);
@@ -93,7 +99,7 @@ export default function SipHeaderManage() {
   const { mutate: createGroup, isPending: isCreatingGroup } = useCreateSipHeaderGroup({
     mutationOptions: {
       onSuccess: () => {
-        toast.success('헤더 그룹이 등록되었습니다.');
+        toast.success('헤더 그룹이 등록되었습니다');
         groupDrawerRef.current?.close();
         invalidateGroups();
       },
@@ -103,7 +109,7 @@ export default function SipHeaderManage() {
   const { mutate: updateGroup, isPending: isUpdatingGroup } = useUpdateSipHeaderGroup({
     mutationOptions: {
       onSuccess: () => {
-        toast.success('헤더 그룹이 수정되었습니다.');
+        toast.success('헤더 그룹이 수정되었습니다');
         groupDrawerRef.current?.close();
         invalidateGroups();
       },
@@ -113,7 +119,7 @@ export default function SipHeaderManage() {
   const { mutate: deleteGroup } = useDeleteSipHeaderGroup({
     mutationOptions: {
       onSuccess: () => {
-        toast.success('헤더 그룹이 삭제되었습니다.');
+        toast.success('헤더 그룹이 삭제되었습니다');
         setSelectedGroupId(null);
         invalidateGroups();
       },
@@ -124,7 +130,7 @@ export default function SipHeaderManage() {
   const { mutate: createRelay, isPending: isCreatingRelay } = useCreateSipHeaderRelay({
     mutationOptions: {
       onSuccess: () => {
-        toast.success('헤더 릴레이가 등록되었습니다.');
+        toast.success('헤더 릴레이가 등록되었습니다');
         relayDrawerRef.current?.close();
         invalidateRelays();
       },
@@ -134,7 +140,7 @@ export default function SipHeaderManage() {
   const { mutate: updateRelay, isPending: isUpdatingRelay } = useUpdateSipHeaderRelay({
     mutationOptions: {
       onSuccess: () => {
-        toast.success('헤더 릴레이가 수정되었습니다.');
+        toast.success('헤더 릴레이가 수정되었습니다');
         relayDrawerRef.current?.close();
         invalidateRelays();
       },
@@ -144,7 +150,7 @@ export default function SipHeaderManage() {
   const { mutate: deleteRelay } = useDeleteSipHeaderRelay({
     mutationOptions: {
       onSuccess: () => {
-        toast.success('헤더 릴레이가 삭제되었습니다.');
+        toast.success('헤더 릴레이가 삭제되었습니다');
         invalidateAll();
       },
     },
@@ -154,7 +160,7 @@ export default function SipHeaderManage() {
   const { mutate: updateGroupMembers } = useUpdateSipGroupMembers({
     mutationOptions: {
       onSuccess: () => {
-        toast.success('그룹 멤버가 업데이트되었습니다.');
+        toast.success('그룹 멤버가 업데이트되었습니다');
         invalidateAll();
       },
     },
@@ -286,31 +292,29 @@ export default function SipHeaderManage() {
       sortable: false,
       filter: false,
       suppressHeaderMenuButton: true,
-      cellStyle: { display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '4px' },
+      cellStyle: { display: 'flex', alignItems: 'center', justifyContent: 'center' },
       cellRenderer: (params: ICellRendererParams<SipHeaderRelay>) => {
         const { data } = params;
-        if (!data || data.headerType === 0) return null; // 기초데이터 수정/삭제 불가
+        if (!data) return null;
+        if (data.headerType === 0) {
+          // 기초 릴레이: 삭제 불가 안내 (비활성 버튼 + 툴팁)
+          return (
+            <button type="button" disabled title="기초 릴레이는 삭제할 수 없습니다" className="cursor-not-allowed opacity-30" onClick={(e) => e.stopPropagation()}>
+              <IconTrash className="size-5 text-gray-400" />
+            </button>
+          );
+        }
         return (
-          <>
-            <button
-              type="button"
-              onClick={(e) => {
-                e.stopPropagation();
-                handleRelayEdit(data);
-              }}
-            >
-              <Edit2 className="size-4 text-blue-500 hover:cursor-pointer" />
-            </button>
-            <button
-              type="button"
-              onClick={(e) => {
-                e.stopPropagation();
-                handleRelayDelete(data);
-              }}
-            >
-              <IconTrash className="size-5 text-red-500 hover:cursor-pointer" />
-            </button>
-          </>
+          <button
+            type="button"
+            title="릴레이 삭제"
+            onClick={(e) => {
+              e.stopPropagation();
+              handleRelayDelete(data);
+            }}
+          >
+            <IconTrash className="size-5 text-red-500 hover:cursor-pointer" />
+          </button>
         );
       },
     },
@@ -324,70 +328,84 @@ export default function SipHeaderManage() {
         <div className="px-5 h-[56px] flex items-center justify-between flex-shrink-0">
           <span className="text-sm font-semibold text-gray-800">헤더 그룹 ({headerGroups.length}건)</span>
           <Button icon={<Plus className="size-3.5" />} onClick={handleGroupCreate}>
-            그룹 추가
+            등록
           </Button>
         </div>
       </div>
 
       {/* ===== 카드 슬라이더 박스 (Header Groups) ===== */}
       <div className="bg-white bt-shadow overflow-hidden flex-shrink-0">
-        <div className="flex items-center px-4 py-3">
-          {headerGroups.length === 0 ? (
-            <div className="flex flex-col items-center justify-center w-full py-4 text-gray-400 gap-3">
-              <Empty description={false} />
-              <span className="text-sm">등록된 그룹이 없습니다</span>
-            </div>
-          ) : (
-            <div className="relative flex items-center gap-2 w-full">
-              <Button
-                type="text"
-                icon={<ChevronLeft className="size-5" />}
-                onClick={() => cardScrollRef.current?.scrollBy({ left: -260, behavior: 'smooth' })}
-                className="!flex-shrink-0 !w-8 !h-8 !p-0"
-              />
-              <div ref={cardScrollRef} className="flex gap-3 overflow-x-auto py-2 px-1 flex-1" style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}>
-                {headerGroups.map((group) => {
-                  const isCardSelected = selectedGroupId === group.sipHeaderGrpId;
-                  return (
-                    <div
-                      key={group.sipHeaderGrpId}
-                      className={`bg-white border rounded-lg p-3.5 cursor-pointer transition-all min-w-[220px] max-w-[260px] flex-shrink-0 ${
-                        isCardSelected
-                          ? 'border-[#405189] shadow-[0_0_0_2px_rgba(64,81,137,0.15)]'
-                          : 'border-gray-200 hover:border-[#c5cbe0] hover:shadow-[0_2px_8px_rgba(0,0,0,0.06)]'
-                      }`}
-                      onClick={() => handleCardSelect(group)}
-                      onDoubleClick={() => handleGroupEdit(group)}
-                    >
-                      {/* Card header: 그룹명 + 더보기 */}
-                      <div className="flex items-center justify-between mb-1.5">
-                        <span className="text-sm font-semibold text-gray-800 truncate">{group.sipHeaderGrpName}</span>
-                        <div onClick={(e) => e.stopPropagation()}>
-                          <Dropdown menu={{ items: getGroupMenuItems(group) }} trigger={['click']} placement="bottomRight">
-                            <button type="button" className="p-1 rounded hover:bg-gray-100 transition-colors">
-                              <MoreVertical className="size-4 text-gray-400" />
-                            </button>
-                          </Dropdown>
+        {/* 접기/펼치기 헤더 */}
+        <div className="flex items-center justify-between px-4 py-2 border-b border-gray-100">
+          <span className="text-xs text-gray-500">헤더 그룹 카드</span>
+          <Button
+            type="text"
+            size="small"
+            icon={cardCollapsed ? <ChevronsDown className="size-4" /> : <ChevronsUp className="size-4" />}
+            onClick={() => setCardCollapsed((c) => !c)}
+            title={cardCollapsed ? '카드 펼치기' : '카드 접기'}
+            className="!w-8 !h-8 !p-0 !text-gray-400 hover:!text-[#405189]"
+          />
+        </div>
+        {!cardCollapsed && (
+          <div className="flex items-center px-4 py-3">
+            {headerGroups.length === 0 ? (
+              <div className="flex flex-col items-center justify-center w-full py-4 text-gray-400 gap-3">
+                <Empty description={false} />
+                <span className="text-sm">등록된 그룹이 없습니다</span>
+              </div>
+            ) : (
+              <div className="relative flex items-center gap-2 w-full">
+                <Button
+                  type="text"
+                  icon={<ChevronLeft className="size-5" />}
+                  onClick={() => cardScrollRef.current?.scrollBy({ left: -260, behavior: 'smooth' })}
+                  className="!flex-shrink-0 !w-8 !h-8 !p-0"
+                />
+                <div ref={cardScrollRef} className="flex gap-3 overflow-x-auto py-2 px-1 flex-1" style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}>
+                  {headerGroups.map((group) => {
+                    const isCardSelected = selectedGroupId === group.sipHeaderGrpId;
+                    return (
+                      <div
+                        key={group.sipHeaderGrpId}
+                        className={`bg-white border rounded-lg p-3.5 cursor-pointer transition-all min-w-[220px] max-w-[260px] flex-shrink-0 ${
+                          isCardSelected
+                            ? 'border-[#405189] shadow-[0_0_0_2px_rgba(64,81,137,0.15)]'
+                            : 'border-gray-200 hover:border-[#c5cbe0] hover:shadow-[0_2px_8px_rgba(0,0,0,0.06)]'
+                        }`}
+                        onClick={() => handleCardSelect(group)}
+                        onDoubleClick={() => handleGroupEdit(group)}
+                      >
+                        {/* Card header: 그룹명 + 더보기 */}
+                        <div className="flex items-center justify-between mb-1.5">
+                          <span className="text-sm font-semibold text-gray-800 truncate">{group.sipHeaderGrpName}</span>
+                          <div onClick={(e) => e.stopPropagation()}>
+                            <Dropdown menu={{ items: getGroupMenuItems(group) }} trigger={['click']} placement="bottomRight">
+                              <button type="button" className="p-1 rounded hover:bg-gray-100 transition-colors">
+                                <MoreVertical className="size-4 text-gray-400" />
+                              </button>
+                            </Dropdown>
+                          </div>
+                        </div>
+
+                        {/* Card info */}
+                        <div className="text-xs text-gray-500">
+                          <div>할당 릴레이: {group.memberCount ?? 0}건</div>
                         </div>
                       </div>
-
-                      {/* Card info */}
-                      <div className="text-xs text-gray-500">
-                        <div>할당 릴레이: {group.memberCount ?? 0}건</div>
-                      </div>
-                    </div>
-                  );
-                })}
+                    );
+                  })}
+                </div>
+                <Button
+                  type="text"
+                  icon={<ChevronRight className="size-5" />}
+                  onClick={() => cardScrollRef.current?.scrollBy({ left: 260, behavior: 'smooth' })}
+                  className="!flex-shrink-0 !w-8 !h-8 !p-0"
+                />
               </div>
-              <Button
-                type="text"
-                icon={<ChevronRight className="size-5" />}
-                onClick={() => cardScrollRef.current?.scrollBy({ left: 260, behavior: 'smooth' })}
-                className="!flex-shrink-0 !w-8 !h-8 !p-0"
-              />
-            </div>
-          )}
-        </div>
+            )}
+          </div>
+        )}
       </div>
 
       {/* ===== Bottom: Relay Grid ===== */}
@@ -399,7 +417,7 @@ export default function SipHeaderManage() {
                 {selectedGroup.sipHeaderGrpName} 헤더 릴레이 ({headerRelays.length}건)
               </span>
               <Button size="small" icon={<Plus className="size-3.5" />} onClick={handleRelayCreate}>
-                릴레이 추가
+                등록
               </Button>
             </div>
 
@@ -416,6 +434,14 @@ export default function SipHeaderManage() {
                 loading={isRelaysLoading}
                 getRowId={(params) => String(params.data.sipHeaderId)}
                 defaultColDef={{ filter: true, sortable: true, suppressHeaderMenuButton: true }}
+                onRowDoubleClicked={(e) => {
+                  if (!e.data) return;
+                  if (e.data.headerType === 1) {
+                    handleRelayEdit(e.data);
+                  } else {
+                    toast.info('기초 릴레이는 수정할 수 없습니다');
+                  }
+                }}
               />
             </div>
           </>

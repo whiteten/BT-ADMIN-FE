@@ -22,8 +22,11 @@ import type {
   SkillAgentResponse,
   SkillAgentUpdateRequest,
   SkillAssignTenantStat,
+  SkillGroupApplyRequest,
+  SkillGroupApplyResult,
   SkillGroupCreateRequest,
   SkillGroupListParams,
+  SkillGroupMemberResponse,
   SkillGroupResponse,
   SkillGroupUpdateRequest,
   SkillsetCoverageItem,
@@ -35,6 +38,7 @@ export const skillAssignQueryKeys = createQueryKeys('skill-assign', {
   skillsetsByAgent: (agentId?: number) => [agentId],
   agentsBySkillset: (skillsetId?: number) => [skillsetId],
   skillGroups: (params?: Record<string, unknown>) => [params],
+  skillGroupMembers: (skillGroupId?: number) => [skillGroupId],
   coverage: (agentIds?: number[]) => [agentIds],
   agentCoverage: (skillsetIds?: number[]) => [skillsetIds],
 });
@@ -86,6 +90,15 @@ export const useGetSkillGroups = ({ params, queryOptions }: QueryHookWithParamsO
   useQuery({
     queryKey: skillAssignQueryKeys.skillGroups(params).queryKey,
     queryFn: () => skillAssignApi.getSkillGroups(params as SkillGroupListParams),
+    ...queryOptions,
+  });
+
+/** 모음 멤버 목록 (적용 드로어 P/L 미리보기 + 수정 드로어 prefill) */
+export const useGetSkillGroupMembers = (skillGroupId: number | null | undefined, { queryOptions }: QueryHookOptions<SkillGroupMemberResponse[]> = {}) =>
+  useQuery({
+    queryKey: skillAssignQueryKeys.skillGroupMembers(skillGroupId ?? undefined).queryKey,
+    queryFn: () => skillAssignApi.getSkillGroupMembers(skillGroupId as number),
+    enabled: skillGroupId != null,
     ...queryOptions,
   });
 
@@ -184,6 +197,7 @@ export const useBulkRevoke = ({ mutationOptions }: MutationHookOptions<BulkRevok
 
 const invalidateSkillGroups = (qc: ReturnType<typeof useQueryClient>) => {
   qc.invalidateQueries({ queryKey: skillAssignQueryKeys.skillGroups._def });
+  qc.invalidateQueries({ queryKey: skillAssignQueryKeys.skillGroupMembers._def });
   qc.invalidateQueries({ queryKey: skillAssignQueryKeys.tenantStats.queryKey });
 };
 
@@ -218,6 +232,22 @@ export const useDeleteSkillGroup = ({ mutationOptions }: MutationHookOptions<voi
     ...mutationOptions,
     onSuccess: (...args) => {
       invalidateSkillGroups(qc);
+      mutationOptions?.onSuccess?.(...args);
+    },
+  });
+};
+
+/**
+ * 모음 → 상담사 일괄 적용 (병합/upsert).
+ * 적용 시 상담사 보유 스킬이 변하므로 agent↔skill 계열 캐시 전체 invalidate.
+ */
+export const useApplySkillGroup = ({ mutationOptions }: MutationHookOptions<SkillGroupApplyResult, { skillGroupId: number; body: SkillGroupApplyRequest }> = {}) => {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ skillGroupId, body }) => skillAssignApi.applySkillGroup(skillGroupId, body),
+    ...mutationOptions,
+    onSuccess: (...args) => {
+      invalidateAgentSkill(qc);
       mutationOptions?.onSuccess?.(...args);
     },
   });

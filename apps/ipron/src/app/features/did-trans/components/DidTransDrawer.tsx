@@ -108,7 +108,7 @@ const DidTransDrawer = forwardRef<DidTransDrawerRef, Props>(({ onSuccess }, ref)
   const { mutate: createDnis, isPending: isCreatingDnis } = useCreateDnisTrans({
     mutationOptions: {
       onSuccess: () => {
-        toast.success('DNIS 번호변환이 등록되었습니다.');
+        toast.success('DNIS 번호변환이 등록되었습니다');
         handleClose();
         onSuccess();
       },
@@ -117,7 +117,7 @@ const DidTransDrawer = forwardRef<DidTransDrawerRef, Props>(({ onSuccess }, ref)
   const { mutate: updateDnis, isPending: isUpdatingDnis } = useUpdateDnisTrans({
     mutationOptions: {
       onSuccess: () => {
-        toast.success('DNIS 번호변환이 수정되었습니다.');
+        toast.success('DNIS 번호변환이 수정되었습니다');
         handleClose();
         onSuccess();
       },
@@ -126,7 +126,7 @@ const DidTransDrawer = forwardRef<DidTransDrawerRef, Props>(({ onSuccess }, ref)
   const { mutate: deleteDnis, isPending: isDeletingDnis } = useDeleteDnisTrans({
     mutationOptions: {
       onSuccess: () => {
-        toast.success('DNIS 번호변환이 삭제되었습니다.');
+        toast.success('DNIS 번호변환이 삭제되었습니다');
         handleClose();
         onSuccess();
       },
@@ -137,7 +137,7 @@ const DidTransDrawer = forwardRef<DidTransDrawerRef, Props>(({ onSuccess }, ref)
   const { mutate: createAni, isPending: isCreatingAni } = useCreateAniTrans({
     mutationOptions: {
       onSuccess: () => {
-        toast.success('ANI 번호변환이 등록되었습니다.');
+        toast.success('ANI 번호변환이 등록되었습니다');
         handleClose();
         onSuccess();
       },
@@ -146,7 +146,7 @@ const DidTransDrawer = forwardRef<DidTransDrawerRef, Props>(({ onSuccess }, ref)
   const { mutate: updateAni, isPending: isUpdatingAni } = useUpdateAniTrans({
     mutationOptions: {
       onSuccess: () => {
-        toast.success('ANI 번호변환이 수정되었습니다.');
+        toast.success('ANI 번호변환이 수정되었습니다');
         handleClose();
         onSuccess();
       },
@@ -155,7 +155,7 @@ const DidTransDrawer = forwardRef<DidTransDrawerRef, Props>(({ onSuccess }, ref)
   const { mutate: deleteAni, isPending: isDeletingAni } = useDeleteAniTrans({
     mutationOptions: {
       onSuccess: () => {
-        toast.success('ANI 번호변환이 삭제되었습니다.');
+        toast.success('ANI 번호변환이 삭제되었습니다');
         handleClose();
         onSuccess();
       },
@@ -180,7 +180,7 @@ const DidTransDrawer = forwardRef<DidTransDrawerRef, Props>(({ onSuccess }, ref)
       // 노드 선택 모드일 때 form에서 nodeId 가져오기
       const targetNodeId = nodeId ?? values.nodeId;
       if (!targetNodeId) {
-        toast.error('노드를 선택하세요.');
+        toast.error('노드를 선택하세요');
         return;
       }
 
@@ -230,6 +230,7 @@ const DidTransDrawer = forwardRef<DidTransDrawerRef, Props>(({ onSuccess }, ref)
       title={isEditMode ? `${categoryLabel} 번호변환 수정` : `${categoryLabel} 번호변환 등록`}
       open={visible}
       onClose={handleClose}
+      closable={{ placement: 'end' }}
       styles={{ wrapper: { width: 420, display: patternMode ? 'none' : undefined } }}
       mask={!patternMode}
       footer={

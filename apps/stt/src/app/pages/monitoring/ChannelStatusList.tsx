@@ -28,7 +28,7 @@ function getTyColor(ty?: string | null): string {
 }
 
 function ChannelCard({ item, onClick }: { item: ChannelStatusItem; onClick: (item: ChannelStatusItem) => void }) {
-  if (item.prtYn !== 'Y') {
+  if (item.channelStatus === 0) {
     return (
       <div className="rounded-lg border border-gray-100 bg-gray-50 p-3 min-h-[130px] flex flex-col">
         <p className="text-2xl font-bold text-gray-300">{item.channelId}</p>

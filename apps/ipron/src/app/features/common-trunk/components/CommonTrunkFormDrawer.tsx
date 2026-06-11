@@ -260,7 +260,7 @@ export default function CommonTrunkFormDrawer({ open, mode, detail, nodeId, onCl
       >
         <Input maxLength={10} placeholder="최대 10자리 (0 불가)" disabled={isEdit} />
       </Form.Item>
-      <Form.Item label="시작DN" name="startDn" rules={[{ required: true, message: '필수' }]} extra="노드 내 중복 불가 · TDN 자동채번 (DN_TYPE=13)">
+      <Form.Item label="시작DN" name="startDn" rules={[{ required: true, message: '필수' }]} extra="노드 내 중복 불가 · TDN 자동채번">
         <Input placeholder="예: 6500" disabled={isEdit} />
       </Form.Item>
 
@@ -330,6 +330,7 @@ export default function CommonTrunkFormDrawer({ open, mode, detail, nodeId, onCl
       width={560}
       open={open}
       onClose={onClose}
+      closable={{ placement: 'end' }}
       destroyOnClose
       footer={
         <div className="flex justify-end gap-2">

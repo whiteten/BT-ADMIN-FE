@@ -38,11 +38,7 @@ import type { CtiQueueGroupCreateRequest, CtiQueueGroupResponse, CtiQueueGroupUp
 import { useGetDnProfileNodes, useGetDnProfileTenants } from '../../features/dn-profile/hooks/useDnProfileQueries';
 import { useModal } from '@/libs/shared-ui/src/hooks/useModal';
 
-const breadcrumb = [
-  { title: '번호자원관리', path: '/ipron/cti-queue' },
-  { title: '그룹DN', path: '/ipron/cti-queue' },
-  { title: 'CTI 큐', path: '/ipron/cti-queue' },
-];
+const breadcrumb = [{ title: '번호자원관리' }, { title: '교환기 번호관리' }, { title: 'CTI 큐', path: '/ipron/cti-queue' }];
 
 export default function CtiQueueList() {
   const setBreadcrumb = useBreadcrumbStore((s) => s.setBreadcrumb);
@@ -70,7 +66,7 @@ export default function CtiQueueList() {
   const groupView = true;
   const [selectedTreeId, setSelectedTreeId] = useState<number | null>(null); // null=전체, 0=미배정, n=실제 트리
   const [selectedRows, setSelectedRows] = useState<CtiQueueResponse[]>([]);
-  const [cardExpanded, setCardExpanded] = useState(true);
+  const [cardExpanded, setCardExpanded] = useState(false);
   const [drawer, setDrawer] = useState<CtiQueueDrawerState>({ open: false });
 
   // 업무그룹 트리 Drawer (추가/수정)
@@ -391,23 +387,13 @@ export default function CtiQueueList() {
     });
   };
 
-  const handleDelete = (row: CtiQueueResponse) => {
-    modal.confirm.execute({
-      onOk: () => deleteQueue(row.ctiqId),
-      options: {
-        title: 'CTI 큐 삭제',
-        content: `"${row.gdnName ?? row.ctiqName ?? row.ctiqId}" CTI 큐를 삭제하시겠습니까?\n그룹DN(번호 ${row.gdnNo ?? '-'})도 함께 삭제됩니다.`,
-      },
-    });
-  };
-
   const handleDeleteSelected = () => {
     if (selectedRows.length === 0) return;
     modal.confirm.execute({
       onOk: () => selectedRows.forEach((r) => deleteQueue(r.ctiqId)),
       options: {
         title: 'CTI 큐 일괄 삭제',
-        content: `선택한 ${selectedRows.length}건의 CTI 큐를 삭제하시겠습니까?\n각 그룹DN도 함께 삭제됩니다.`,
+        content: `선택한 ${selectedRows.length}건의 CTI 큐를 삭제하시겠습니까?`,
       },
     });
   };
@@ -522,7 +508,7 @@ export default function CtiQueueList() {
     (group: CtiQueueGroupResponse) => {
       modal.confirm.execute({
         onOk: () => deleteGroup(group.treeId),
-        options: { title: '업무그룹 삭제', content: `"${group.treeName}" 그룹과 하위 그룹/매핑이 모두 삭제됩니다. 진행하시겠습니까?` },
+        options: { title: '업무그룹 삭제', content: `"${group.treeName}" 그룹을 삭제하시겠습니까?` },
       });
     },
     [modal, deleteGroup],
@@ -614,7 +600,7 @@ export default function CtiQueueList() {
                     key={item.id}
                     type="button"
                     className={`flex items-center justify-center gap-2 px-3 py-2.5 text-[13px] font-medium cursor-pointer border-b-2 -mb-[1px] w-[140px] flex-shrink-0 transition-colors ${
-                      isActive ? 'bg-blue-50 text-blue-700 border-b-current' : 'text-gray-500 border-b-transparent hover:text-gray-700'
+                      isActive ? 'bg-blue-50 text-[var(--color-bt-primary)] border-b-[var(--color-bt-primary)]' : 'text-gray-500 border-b-transparent hover:text-gray-700'
                     }`}
                     onClick={(e) => {
                       handleTabSelect(item.id);
@@ -776,11 +762,9 @@ export default function CtiQueueList() {
           <div className="bg-white bt-shadow flex flex-col flex-1 min-h-0 overflow-hidden">
             <div className="px-5 py-3 border-b border-gray-100 flex items-center gap-2 h-[44px] flex-shrink-0">
               <span className="text-sm font-semibold text-gray-800">{gridHeaderText}</span>
-              {selectedRows.length > 0 && (
-                <span className="text-xs text-gray-500">
-                  {rowsForGrid.length.toLocaleString()}건 중 {selectedRows.length}건 선택
-                </span>
-              )}
+              <span className={`text-xs text-gray-500 ${selectedRows.length === 0 ? 'invisible' : ''}`}>
+                {rowsForGrid.length.toLocaleString()}건 중 {selectedRows.length}건 선택
+              </span>
               <div className="ml-auto flex items-center gap-2">
                 {/* GAP2: 내보내기 */}
                 <Button icon={<Download className="size-3.5" />} loading={isExporting} onClick={handleExport} title="CTI 큐 목록 Excel 내보내기">
@@ -799,7 +783,7 @@ export default function CtiQueueList() {
                   disabled={selectedRows.length === 0}
                   title={selectedRows.length === 0 ? '삭제할 큐를 선택하세요' : '선택한 큐 삭제'}
                 >
-                  {selectedRows.length > 0 ? `삭제 (${selectedRows.length})` : '삭제'}
+                  삭제
                 </Button>
                 <Button type="primary" icon={<Plus className="size-3.5" />} onClick={handleCreate}>
                   큐 등록
@@ -814,10 +798,7 @@ export default function CtiQueueList() {
                 groupOptions={groupOptions}
                 groupView={true}
                 onRowDoubleClicked={handleEdit}
-                onDelete={handleDelete}
                 onSelectionChanged={setSelectedRows}
-                onBulkDelete={handleDeleteSelected}
-                selectedCount={selectedRows.length}
                 getDragCtiqIds={getDragCtiqIds}
               />
             </div>

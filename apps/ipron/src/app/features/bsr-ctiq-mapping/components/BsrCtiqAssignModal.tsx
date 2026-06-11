@@ -1,174 +1,283 @@
 /**
- * BSR 그룹별 CTI큐 배정 팝업 (AS-IS SWAT IPR20S3060 배정팝업).
+ * CTI큐 배정 모달 (v2 재작성 — PLAN §2-1, §2-2, bsr-group-v3 목업 1:1).
  *
- * 구성:
- *  - 검색 조건: BSR 그룹 필터(전체/미지정/그룹) + 업무그룹 필터 + GDN 번호 범위(시작~끝)
- *  - 검색 결과 ag-Grid (rowSelection 체크박스 단일)
- *  - 하단: 대상 BSR 그룹 선택 콤보 + 배정 버튼
+ * 변경 요약 (기존 대비):
+ *  - 자동 전체조회 제거 → 초기 빈 상태 "검색 조건을 입력 후 검색하세요"
+ *  - 업무그룹 필터: 클라이언트 후필터 → antd TreeSelect(다중선택, 서버 파라미터)
+ *  - 대상 그룹 콤보 제거 → 좌측 선택 그룹 고정(targetBsrGroupId prop)
+ *  - scope Segmented: 미배정만(기본) / 전체
+ *  - 전체 모드에서만 "소속 BSR그룹" 컬럼 노출
+ *  - 서버 limit 50 + total 안내 배너
+ *  - 타 그룹 소속 큐 선택 시 이관 confirm 1문장
+ *  - 탭 트리 패널 선택 노드 → TreeSelect 프리필
+ *  - 푸터: [취소] [배정 (N)] (N=0이면 disabled)
  */
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useMemo, useRef, useState } from 'react';
 import type { ColDef } from 'ag-grid-community';
 import { AgGridReact, type AgGridReact as AgGridReactType } from 'ag-grid-react';
-import { Button, Form, Input, Modal, Select } from 'antd';
+import { Button, Input, Modal, Segmented, TreeSelect } from 'antd';
 import { Search } from 'lucide-react';
 import { toast } from '@/shared-util';
-import type { BsrCtiqMappingResponse, BsrGroupComboItem } from '../types';
+import type { CtiQueueGroupResponse } from '../../cti-queue/types';
+import type { BsrCtiqSearchItem } from '../types';
 import useAggridOptions from '@/libs/shared-ui/src/hooks/useAggridOptions';
 
 interface Props {
   open: boolean;
-  bsrGroupCombos: BsrGroupComboItem[];
-  currentBsrGroupId: number | null | undefined;
+  /** 현재 선택된 BSR 그룹 ID — 이관 대상이자 배정 대상 */
+  targetBsrGroupId: number;
+  /** 현재 선택된 BSR 그룹명 — confirm 문구에 사용 */
+  targetBsrGroupName: string;
+  /** 현재 테넌트 ID — 검색 필수 파라미터 */
+  tenantId: number;
+  /** 탭 트리 패널에서 현재 선택된 업무그룹 treeId (null=전체, 0=미배정) — 프리필용 */
+  prefillTreeId?: number | null;
+  /** 업무그룹 트리 데이터 — TreeSelect 옵션 구성용 */
+  treeGroups: CtiQueueGroupResponse[];
   onClose: () => void;
-  onSearch: (params: { bsrGroupId?: string; gdnNoStart?: string; gdnNoEnd?: string }) => void;
-  searchResult: BsrCtiqMappingResponse[];
+  onSearch: (params: { tenantId: number; keyword?: string; treeIds?: number[]; scope: 'unassigned' | 'all'; limit: number }) => void;
+  searchResult: { total: number; items: BsrCtiqSearchItem[] };
   isSearching: boolean;
   onAssign: (targetBsrGroupId: number, ctiqIds: number[]) => void;
   isAssigning: boolean;
 }
 
-interface SearchForm {
-  bsrGroupFilter: string;
-  treeNameFilter?: string;
-  gdnNoStart?: string;
-  gdnNoEnd?: string;
+const LIMIT = 50;
+
+/** CtiQueueGroupResponse[] → antd TreeSelect dataSource 변환 */
+function buildTreeSelectData(nodes: CtiQueueGroupResponse[]): object[] {
+  return nodes.map((n) => ({
+    title: n.treeName,
+    value: n.treeId,
+    key: n.treeId,
+    children: n.children && n.children.length > 0 ? buildTreeSelectData(n.children) : undefined,
+  }));
 }
 
-// colDefs: 체크박스는 rowSelection prop 으로만 표시 (headerCheckboxSelection/checkboxSelection 컬럼 제거로 중복 방지)
-const colDefs: ColDef<BsrCtiqMappingResponse>[] = [
-  {
-    field: 'bsrGroupName',
-    headerName: '배정된 BSR 그룹 이름',
-    width: 170,
-    valueFormatter: ({ value }) => value ?? '미배정',
-  },
-  {
-    field: 'treeName',
-    headerName: '업무그룹명',
-    width: 130,
-    valueFormatter: ({ value }) => (value ? String(value) : '미배정'),
-  },
-  { field: 'ctiqName', headerName: 'CTI큐명', flex: 1 },
-  { field: 'gdnNo', headerName: '그룹DN 번호', width: 120 },
-  { field: 'gdnName', headerName: '그룹DN 명', width: 130 },
-];
+/** 트리에서 주어진 treeId 노드를 찾아 반환 */
+function findTreeNode(nodes: CtiQueueGroupResponse[], treeId: number): CtiQueueGroupResponse | null {
+  for (const n of nodes) {
+    if (n.treeId === treeId) return n;
+    const found = findTreeNode(n.children ?? [], treeId);
+    if (found) return found;
+  }
+  return null;
+}
 
-export default function BsrCtiqAssignModal({ open, bsrGroupCombos, currentBsrGroupId, onClose, onSearch, searchResult, isSearching, onAssign, isAssigning }: Props) {
-  const [form] = Form.useForm<SearchForm>();
+export default function BsrCtiqAssignModal({
+  open,
+  targetBsrGroupId,
+  targetBsrGroupName,
+  tenantId,
+  prefillTreeId,
+  treeGroups,
+  onClose,
+  onSearch,
+  searchResult,
+  isSearching,
+  onAssign,
+  isAssigning,
+}: Props) {
+  const [keyword, setKeyword] = useState('');
+  const [scope, setScope] = useState<'unassigned' | 'all'>('unassigned');
+  const [selectedTreeIds, setSelectedTreeIds] = useState<number[]>([]);
   const [selectedCtiqIds, setSelectedCtiqIds] = useState<number[]>([]);
-  const [targetBsrGroupId, setTargetBsrGroupId] = useState<string>('');
-  const [treeNameFilter, setTreeNameFilter] = useState<string>('');
-  const gridRef = useRef<AgGridReactType<BsrCtiqMappingResponse>>(null);
+  const [searched, setSearched] = useState(false);
+  const [confirmVisible, setConfirmVisible] = useState(false);
+  const [pendingCtiqIds, setPendingCtiqIds] = useState<number[]>([]);
+  const gridRef = useRef<AgGridReactType<BsrCtiqSearchItem>>(null);
   const { gridOptions } = useAggridOptions();
 
-  // 팝업 열릴 때 초기화
-  useEffect(() => {
-    if (!open) return;
-    form.setFieldsValue({ bsrGroupFilter: '0', treeNameFilter: '', gdnNoStart: '', gdnNoEnd: '' });
-    setSelectedCtiqIds([]);
-    setTreeNameFilter('');
-    setTargetBsrGroupId(currentBsrGroupId ? String(currentBsrGroupId) : '');
-    // 자동 전체조회
-    onSearch({ bsrGroupId: '0' });
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [open]);
+  // 모달 open 시 초기화 + 프리필
+  const handleAfterOpen = useCallback(
+    (isOpen: boolean) => {
+      if (!isOpen) return;
+      setKeyword('');
+      setScope('unassigned');
+      setSelectedCtiqIds([]);
+      setSearched(false);
+      // 탭 트리 패널 선택 노드 프리필 (null=전체, 0=미배정 제외)
+      if (prefillTreeId != null && prefillTreeId > 0) {
+        setSelectedTreeIds([prefillTreeId]);
+      } else {
+        setSelectedTreeIds([]);
+      }
+    },
+    [prefillTreeId],
+  );
 
-  // searchResult에서 업무그룹명 목록 추출 (중복 제거)
-  const treeNameOptions = useMemo(() => {
-    const names = Array.from(new Set(searchResult.map((r) => r.treeName).filter(Boolean))) as string[];
-    return names.map((n) => ({ value: n, label: n }));
-  }, [searchResult]);
-
-  // 업무그룹 필터 적용
-  const filteredResult = useMemo(() => {
-    if (!treeNameFilter) return searchResult;
-    return searchResult.filter((r) => r.treeName === treeNameFilter);
-  }, [searchResult, treeNameFilter]);
+  const treeSelectData = useMemo(() => buildTreeSelectData(treeGroups), [treeGroups]);
 
   const handleSearch = useCallback(() => {
-    const vals = form.getFieldsValue();
-    setTreeNameFilter(vals.treeNameFilter || '');
     onSearch({
-      bsrGroupId: vals.bsrGroupFilter,
-      gdnNoStart: vals.gdnNoStart || undefined,
-      gdnNoEnd: vals.gdnNoEnd || undefined,
+      tenantId,
+      keyword: keyword.trim() || undefined,
+      treeIds: selectedTreeIds.length > 0 ? selectedTreeIds : undefined,
+      scope,
+      limit: LIMIT,
     });
+    setSearched(true);
     setSelectedCtiqIds([]);
-  }, [form, onSearch]);
+  }, [tenantId, keyword, selectedTreeIds, scope, onSearch]);
 
-  const handleAssign = useCallback(() => {
+  /** 전체 모드에서만 "소속 BSR그룹" 컬럼 노출 */
+  const colDefs: ColDef<BsrCtiqSearchItem>[] = useMemo(
+    () => [
+      {
+        headerCheckboxSelection: true,
+        checkboxSelection: true,
+        width: 44,
+        pinned: 'left' as const,
+        suppressHeaderMenuButton: true,
+      },
+      { field: 'ctiqName', headerName: 'CTI큐명', flex: 1 },
+      { field: 'gdnNo', headerName: 'GDN번호', width: 110 },
+      { field: 'gdnName', headerName: 'GDN명', width: 130 },
+      { field: 'treeName', headerName: '업무그룹명', width: 130, valueFormatter: ({ value }: { value: string | null | undefined }) => value ?? '미배정' },
+      ...(scope === 'all'
+        ? [
+            {
+              field: 'bsrGroupName' as keyof BsrCtiqSearchItem,
+              headerName: '소속 BSR그룹',
+              width: 160,
+              valueFormatter: ({ value }: { value: unknown }) => (value ? String(value) : '—'),
+            },
+          ]
+        : []),
+    ],
+    [scope],
+  );
+
+  const handleAssignClick = useCallback(() => {
     if (selectedCtiqIds.length === 0) {
-      toast.warning('CTI큐를 선택하세요');
+      toast.warning('배정할 CTI큐를 선택하세요');
       return;
     }
-    const targetId = Number(targetBsrGroupId);
-    if (!targetBsrGroupId || isNaN(targetId) || targetId < 2) {
-      toast.warning('대상 BSR 그룹을 선택하세요');
-      return;
+    // 타 그룹 소속 큐 건수 확인
+    const otherCount = searchResult.items.filter((item) => selectedCtiqIds.includes(item.ctiqId) && item.bsrGroupId != null && item.bsrGroupId !== targetBsrGroupId).length;
+    if (otherCount > 0) {
+      setPendingCtiqIds([...selectedCtiqIds]);
+      setConfirmVisible(true);
+    } else {
+      onAssign(targetBsrGroupId, selectedCtiqIds);
     }
-    onAssign(targetId, selectedCtiqIds);
-  }, [selectedCtiqIds, targetBsrGroupId, onAssign]);
+  }, [selectedCtiqIds, searchResult.items, targetBsrGroupId, onAssign]);
 
-  // 전체/미지정/그룹 구분 콤보 (SWAT selcomboBsrGroup 3-union)
-  const filterOptions = [
-    { value: '0', label: '전체' },
-    { value: '1', label: '미지정' },
-    ...bsrGroupCombos.filter((c) => Number(c.value) >= 2).map((c) => ({ value: c.value, label: c.name })),
-  ];
+  const handleTransferConfirm = useCallback(() => {
+    setConfirmVisible(false);
+    onAssign(targetBsrGroupId, pendingCtiqIds);
+  }, [targetBsrGroupId, pendingCtiqIds, onAssign]);
 
-  // 대상 그룹 콤보 (미지정·전체 제외)
-  const targetOptions = bsrGroupCombos.filter((c) => Number(c.value) >= 2).map((c) => ({ value: c.value, label: c.name }));
+  const otherCount = useMemo(
+    () => searchResult.items.filter((item) => selectedCtiqIds.includes(item.ctiqId) && item.bsrGroupId != null && item.bsrGroupId !== targetBsrGroupId).length,
+    [searchResult.items, selectedCtiqIds, targetBsrGroupId],
+  );
+
+  const showLimitNote = searched && searchResult.total > searchResult.items.length;
 
   return (
-    <Modal title="CTI큐 BSR 그룹 배정" open={open} onCancel={onClose} width={900} footer={null} destroyOnClose>
-      {/* 검색 폼 */}
-      <Form form={form} layout="inline" className="mb-3 gap-2 flex-wrap">
-        <Form.Item name="bsrGroupFilter" label="BSR 그룹" className="mb-2">
-          <Select style={{ width: 160 }} options={filterOptions} />
-        </Form.Item>
-        <Form.Item name="treeNameFilter" label="업무그룹" className="mb-2">
-          <Select style={{ width: 150 }} allowClear placeholder="전체" options={treeNameOptions} onChange={(v) => setTreeNameFilter(v ?? '')} />
-        </Form.Item>
-        <Form.Item name="gdnNoStart" label="그룹DN 번호" className="mb-2">
-          <Input style={{ width: 100 }} placeholder="시작" maxLength={40} />
-        </Form.Item>
-        <Form.Item name="gdnNoEnd" label="~" className="mb-2">
-          <Input style={{ width: 100 }} placeholder="끝" maxLength={40} />
-        </Form.Item>
-        <Form.Item className="mb-2">
-          <Button icon={<Search className="size-3.5" />} onClick={handleSearch} loading={isSearching}>
+    <>
+      <Modal
+        title={`CTI큐 배정 — [${targetBsrGroupName}]`}
+        open={open}
+        onCancel={onClose}
+        width={880}
+        destroyOnClose
+        afterOpenChange={handleAfterOpen}
+        footer={
+          <div className="flex items-center gap-3">
+            <span className="text-xs text-gray-500 mr-auto">
+              선택 <strong className="text-[#405189]">{selectedCtiqIds.length}</strong>건
+            </span>
+            <Button onClick={onClose}>취소</Button>
+            <Button type="primary" loading={isAssigning} disabled={selectedCtiqIds.length === 0} onClick={handleAssignClick}>
+              배정 ({selectedCtiqIds.length})
+            </Button>
+          </div>
+        }
+      >
+        {/* 검색 조건 */}
+        <div className="flex items-center gap-2 mb-3 flex-wrap">
+          {/* 업무그룹 TreeSelect (다중, 220px) */}
+          <TreeSelect
+            style={{ width: 220 }}
+            placeholder="업무그룹 선택 (다중)"
+            treeData={treeSelectData}
+            multiple
+            treeCheckable
+            showCheckedStrategy={TreeSelect.SHOW_PARENT}
+            value={selectedTreeIds}
+            onChange={(vals: number[]) => setSelectedTreeIds(vals ?? [])}
+            allowClear
+            treeDefaultExpandAll
+            showSearch
+            filterTreeNode={(input, node) =>
+              String(node?.title ?? '')
+                .toLowerCase()
+                .includes(input.toLowerCase())
+            }
+            maxTagCount="responsive"
+          />
+          {/* 큐명 / GDN번호 키워드 */}
+          <Input style={{ width: 200 }} placeholder="큐명 / GDN번호" value={keyword} onChange={(e) => setKeyword(e.target.value)} onPressEnter={handleSearch} allowClear />
+          {/* Segmented: 미배정만(기본) / 전체 */}
+          <Segmented<'unassigned' | 'all'>
+            options={[
+              { label: '미배정만', value: 'unassigned' },
+              { label: '전체', value: 'all' },
+            ]}
+            value={scope}
+            onChange={(v) => {
+              setScope(v);
+              setSearched(false);
+              setSelectedCtiqIds([]);
+            }}
+          />
+          <Button icon={<Search className="size-3.5" />} type="primary" onClick={handleSearch} loading={isSearching}>
             검색
           </Button>
-        </Form.Item>
-      </Form>
+        </div>
 
-      {/* 검색 결과 그리드 */}
-      <div style={{ height: 340 }}>
-        <AgGridReact<BsrCtiqMappingResponse>
-          ref={gridRef}
-          {...gridOptions}
-          rowData={filteredResult}
-          columnDefs={colDefs}
-          loading={isSearching}
-          rowSelection={{ mode: 'multiRow', enableClickSelection: true, checkboxes: true, headerCheckbox: true }}
-          onSelectionChanged={(e) => setSelectedCtiqIds(e.api.getSelectedRows().map((r) => r.ctiqId))}
-        />
-      </div>
+        {/* 총 건수 안내 */}
+        {showLimitNote && (
+          <div className="text-[11px] text-amber-700 bg-amber-50 border border-amber-200 px-3 py-1.5 rounded mb-2">
+            총 <strong>{searchResult.total.toLocaleString()}</strong>건 중 {LIMIT}건 표시 — 업무그룹·검색어로 좁혀 주세요.
+          </div>
+        )}
 
-      {/* 하단 배정 바 */}
-      <div className="flex items-center gap-3 mt-4 border-t border-gray-100 pt-4">
-        <span className="text-sm text-gray-600 flex-shrink-0">
-          선택된 CTI큐: <strong>{selectedCtiqIds.length}</strong>건
-        </span>
-        <span className="text-sm text-gray-500 flex-shrink-0">대상 BSR 그룹</span>
-        <Select style={{ width: 220 }} placeholder="BSR 그룹 선택" value={targetBsrGroupId || undefined} onChange={(v) => setTargetBsrGroupId(v)} options={targetOptions} />
-        <Button type="primary" loading={isAssigning} onClick={handleAssign} disabled={selectedCtiqIds.length === 0 || !targetBsrGroupId}>
-          배정
-        </Button>
-        <Button onClick={onClose} className="ml-auto">
-          닫기
-        </Button>
-      </div>
-    </Modal>
+        {/* 결과 그리드 */}
+        <div style={{ height: 340, position: 'relative' }}>
+          {!searched ? (
+            <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 text-gray-400 text-sm">
+              <Search className="size-8 opacity-30" />
+              검색 조건을 입력 후 검색하세요.
+            </div>
+          ) : searchResult.items.length === 0 && !isSearching ? (
+            <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 text-gray-400 text-sm">
+              <span className="text-3xl opacity-30">∅</span>
+              검색된 데이터가 없습니다.
+            </div>
+          ) : (
+            <AgGridReact<BsrCtiqSearchItem>
+              ref={gridRef}
+              {...gridOptions}
+              rowData={searched ? searchResult.items : []}
+              columnDefs={colDefs}
+              loading={isSearching}
+              rowSelection={{ mode: 'multiRow', checkboxes: true, headerCheckbox: true, enableClickSelection: true }}
+              suppressRowClickSelection={false}
+              onSelectionChanged={(e) => setSelectedCtiqIds(e.api.getSelectedRows().map((r) => r.ctiqId))}
+            />
+          )}
+        </div>
+      </Modal>
+
+      {/* 이관 confirm */}
+      <Modal open={confirmVisible} title="CTI큐 이관 확인" okText="확인" cancelText="취소" onOk={handleTransferConfirm} onCancel={() => setConfirmVisible(false)} width={400}>
+        <p className="text-sm text-gray-700">
+          선택 {pendingCtiqIds.length}건 중 {otherCount}건은 다른 BSR 그룹 소속입니다. [{targetBsrGroupName}](으)로 이관됩니다.
+        </p>
+      </Modal>
+    </>
   );
 }

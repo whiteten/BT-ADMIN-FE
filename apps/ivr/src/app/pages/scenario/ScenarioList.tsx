@@ -17,7 +17,7 @@ import { scenarioQueryKeys, useDeleteScenario, useGetScenarios } from '../../fea
 import { SCENARIO_TYPE_COLORS, SCENARIO_TYPE_LABELS, type Scenario, type ScenarioType } from '../../features/scenario/types';
 import { useModal } from '@/libs/shared-ui/src/hooks/useModal';
 
-const breadcrumb: BreadcrumbProps['items'] = [{ title: '시나리오 관리' }, { title: '시나리오/버전 관리', path: '/ivr/ivr/scenario' }];
+const breadcrumb: BreadcrumbProps['items'] = [{ title: '시나리오 관리' }, { title: '시나리오/버전 관리', path: '/ivr/scenario/list' }];
 
 export default function ScenarioList() {
   const navigate = useNavigate();
@@ -57,7 +57,7 @@ export default function ScenarioList() {
 
   const handleDetail = useCallback(
     (s: Scenario) => {
-      navigate(`${s.serviceId}`);
+      navigate(`../${s.serviceId}`);
     },
     [navigate],
   );

@@ -45,13 +45,13 @@ const SYNTAX_GUIDE: Array<{ prefix: string; description: string; example: string
   { prefix: 'tracking:', description: '트래킹 모드', example: 'tracking:pbx' },
 ];
 
-const QUICK_PRESETS: Array<{ label: string; preset: DateRangePreset; icon: string }> = [
-  { label: '최근 1시간', preset: 'LAST_1H', icon: '🕐' },
-  { label: '오늘', preset: 'TODAY', icon: '📅' },
-  { label: '어제', preset: 'YESTERDAY', icon: '📅' },
-  { label: '최근 24시간', preset: 'LAST_24H', icon: '🕘' },
-  { label: '이번주', preset: 'THIS_WEEK', icon: '📅' },
-  { label: '지난주', preset: 'LAST_WEEK', icon: '📅' },
+const QUICK_PRESETS: Array<{ label: string; preset: DateRangePreset }> = [
+  { label: '최근 1시간', preset: 'LAST_1H' },
+  { label: '오늘', preset: 'TODAY' },
+  { label: '어제', preset: 'YESTERDAY' },
+  { label: '최근 24시간', preset: 'LAST_24H' },
+  { label: '이번주', preset: 'THIS_WEEK' },
+  { label: '지난주', preset: 'LAST_WEEK' },
 ];
 
 export default function CommandPalette({ open, onClose, initialValue = '', onSubmit, recentSearches = [], onRecentSelect, onRecentClear }: CommandPaletteProps) {
@@ -122,7 +122,7 @@ export default function CommandPalette({ open, onClose, initialValue = '', onSub
           </button>
         </div>
 
-        {inferenceHint && <div className="px-4 py-1.5 bg-blue-50 text-blue-700 text-[11px] border-b border-blue-100">💡 {inferenceHint}</div>}
+        {inferenceHint && <div className="px-4 py-1.5 bg-blue-50 text-blue-700 text-[11px] border-b border-blue-100">{inferenceHint}</div>}
 
         <div className="grid grid-cols-2 gap-0 h-[460px] overflow-hidden">
           {/* ── 좌: 빠른 프리셋 + 최근 검색 ── */}
@@ -141,7 +141,6 @@ export default function CommandPalette({ open, onClose, initialValue = '', onSub
                     onClick={() => handleInsertChip(`기간:${p.label.replace(' ', '')}`)}
                     className="px-2.5 py-1 text-[11px] border border-gray-200 rounded-full hover:border-blue-400 hover:bg-blue-50 hover:text-blue-700 text-gray-600 transition-colors"
                   >
-                    <span className="mr-1">{p.icon}</span>
                     {p.label}
                   </button>
                 ))}

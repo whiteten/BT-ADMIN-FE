@@ -56,7 +56,7 @@ export default function AcdGdnList() {
   const [viewMode, setViewMode] = useState<'byNode' | 'byTenant'>('byNode');
   const [selectedNodeId, setSelectedNodeId] = useState<number | null>(null);
   const [selectedTenantId, setSelectedTenantId] = useState<number | null>(null);
-  const [cardExpanded, setCardExpanded] = useState(true);
+  const [cardExpanded, setCardExpanded] = useState(false);
 
   // 좌 그리드 검색/필터
   const [gdnSearch, setGdnSearch] = useState('');
@@ -94,7 +94,7 @@ export default function AcdGdnList() {
   const { mutate: deleteGdns, isPending: isDeleting } = useDeleteAcdGdns({
     mutationOptions: {
       onSuccess: () => {
-        toast.success('선택한 그룹DN 이 삭제되었습니다.');
+        toast.success('선택한 그룹DN 이 삭제되었습니다');
         setSelectedGdn(null);
       },
       onError: (err: unknown) => {
@@ -284,14 +284,14 @@ export default function AcdGdnList() {
 
   const handleDelete = () => {
     if (!selectedGdn) {
-      toast.warning('삭제할 ACD 그룹DN 을 선택하세요.');
+      toast.warning('삭제할 ACD 그룹DN 을 선택하세요');
       return;
     }
     modal.confirm.execute({
       onOk: () => deleteGdns([selectedGdn.gdnId]),
       options: {
         title: 'ACD 그룹DN 삭제',
-        content: `"${selectedGdn.gdnNo} / ${selectedGdn.gdnName}" 그룹DN 을 삭제하시겠습니까?\n배정된 멤버가 함께 해제됩니다.`,
+        content: `"${selectedGdn.gdnNo} / ${selectedGdn.gdnName}" 그룹DN을 삭제하시겠습니까?`,
       },
     });
   };
@@ -300,12 +300,12 @@ export default function AcdGdnList() {
   const handleAssign = () => {
     if (!selectedGdn) return;
     if (selectedGdn.acdType === 3) {
-      toast.warning('ACD 타입 = Skill 인 그룹DN 은 멤버를 수동 관리할 수 없습니다.');
+      toast.warning('ACD 타입 = Skill 인 그룹DN 은 멤버를 수동 관리할 수 없습니다');
       return;
     }
     const inserts = selectedMembers.filter((m) => !m.assigned && m.dnId != null).map((m) => ({ dnId: m.dnId as number }));
     if (inserts.length === 0) {
-      toast.info('배정할 미배정 DN 을 선택하세요.');
+      toast.info('배정할 미배정 DN 을 선택하세요');
       return;
     }
     saveMembers({ id: selectedGdn.gdnId, body: { inserts } }, { onSuccess: () => toast.success(`${inserts.length}건 배정되었습니다.`) });
@@ -316,7 +316,7 @@ export default function AcdGdnList() {
     if (!selectedGdn) return;
     const deletes = selectedMembers.filter((m) => m.assigned && m.dnId != null).map((m) => ({ dnId: m.dnId as number }));
     if (deletes.length === 0) {
-      toast.info('해제할 기배정 DN 을 선택하세요.');
+      toast.info('해제할 기배정 DN 을 선택하세요');
       return;
     }
     saveMembers({ id: selectedGdn.gdnId, body: { deletes } }, { onSuccess: () => toast.success(`${deletes.length}건 해제되었습니다.`) });
@@ -326,7 +326,7 @@ export default function AcdGdnList() {
   const handlePriorityChanged = useCallback(
     (updates: GdnMemberItem[]) => {
       if (!selectedGdn) return;
-      saveMembers({ id: selectedGdn.gdnId, body: { updates } }, { onSuccess: () => toast.success('우선순위가 저장되었습니다.'), onError: () => toast.error('우선순위 저장 실패') });
+      saveMembers({ id: selectedGdn.gdnId, body: { updates } }, { onSuccess: () => toast.success('우선순위가 저장되었습니다'), onError: () => toast.error('우선순위 저장 실패') });
     },
     [selectedGdn, saveMembers],
   );
@@ -399,22 +399,22 @@ export default function AcdGdnList() {
         width: 75,
         filter: false,
         suppressHeaderMenuButton: true,
-        valueFormatter: (p) => (p.value === 1 ? 'Y' : 'N'),
+        valueFormatter: (p) => (p.value === 1 ? '사용' : '미사용'),
       },
       {
-        headerName: '블럭시라우팅',
+        headerName: '블록 시 라우팅',
         field: 'blockRoutingDnis',
         width: 110,
         valueFormatter: (p) => (p.value == null || p.value === '' ? '-' : p.value),
       },
       {
-        headerName: '장애시라우팅',
+        headerName: '장애 시 라우팅',
         field: 'errorRoutingDnis',
         width: 110,
         valueFormatter: (p) => (p.value == null || p.value === '' ? '-' : p.value),
       },
       {
-        headerName: 'Busy시라우팅',
+        headerName: '통화량 초과 시 라우팅',
         field: 'busyRoutingDnis',
         width: 110,
         valueFormatter: (p) => (p.value == null || p.value === '' ? '-' : p.value),
@@ -427,7 +427,7 @@ export default function AcdGdnList() {
         suppressHeaderMenuButton: true,
         cellStyle: { textAlign: 'center' },
         cellRenderer: (p: ICellRendererParams<GdnResponse>) =>
-          p.data?.blockYn === 1 ? <span className="text-red-500 text-[11px] font-semibold">ON</span> : <span className="text-gray-400 text-[11px]">OFF</span>,
+          p.data?.blockYn === 1 ? <span className="text-red-500 text-[11px] font-semibold">설정</span> : <span className="text-gray-400 text-[11px]">해제</span>,
       },
     ],
     [],
@@ -464,6 +464,8 @@ export default function AcdGdnList() {
   const unassignedSelCount = selectedMembers.filter((m) => !m.assigned).length;
 
   const tenantOptions = useMemo(() => tenants.map((t) => ({ value: t.tenantId, label: t.tenantName })), [tenants]);
+  // NUM-001: 노드 옵션 — 할당된 노드만 (DnForm:nodeOptions 패턴 정합)
+  const nodeOptionsForDrawer = useMemo(() => assignedNodes.map((n) => ({ value: n.nodeId, label: n.nodeName })), [assignedNodes]);
 
   // ─── Render ───────────────────────────────────────────────────────────────
   return (
@@ -601,6 +603,7 @@ export default function AcdGdnList() {
           <div className="flex items-center h-[44px] px-4">
             <div className="relative flex items-center gap-2 w-full">
               <div className="flex gap-2 overflow-x-auto flex-1 items-center" style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}>
+                <CompactTenantPill name="전체" count={gdnsForGrid.length} selected={selectedCardId === null} onClick={() => setSelectedCardId(null)} />
                 {cardStats.map((g) => (
                   <CompactTenantPill
                     key={g.id}
@@ -732,32 +735,32 @@ export default function AcdGdnList() {
       </PanelGroup>
 
       {/* ===== floating Bulk Action Bar ===== */}
-      {selectedGdn && selectedMembers.length > 0 && (
-        <div className="fixed bottom-5 left-1/2 -translate-x-1/2 z-50 bg-gray-800 text-white rounded-xl shadow-xl flex items-center gap-3 px-4 py-2.5 text-sm">
-          <span className="flex items-center gap-1.5">
-            <span className="text-white/60 text-xs">DN</span>
-            <span className="bg-[#405189] px-2 py-0.5 rounded-full font-bold min-w-[24px] text-center">{selectedMembers.length}</span>
-            <span className="text-white/60 text-xs">건 선택됨</span>
-          </span>
-          <span className="text-white/30">·</span>
-          <Button
-            type="primary"
-            icon={<Plus className="size-3.5" />}
-            onClick={handleAssign}
-            loading={isSavingMembers}
-            disabled={unassignedSelCount === 0}
-            style={{ backgroundColor: '#16a34a', borderColor: '#16a34a' }}
-          >
-            배정 ({unassignedSelCount})
-          </Button>
-          <Button danger icon={<X className="size-3.5" />} onClick={handleRevoke} loading={isSavingMembers} disabled={assignedSelCount === 0}>
-            해제 ({assignedSelCount})
-          </Button>
-          <Button type="text" onClick={() => setSelectedMembers([])} className="!text-white/60 hover:!text-white">
-            선택 해제
-          </Button>
-        </div>
-      )}
+      <div
+        className={`fixed bottom-5 left-1/2 -translate-x-1/2 z-50 bg-gray-800 text-white rounded-xl shadow-xl flex items-center gap-3 px-4 py-2.5 text-sm transition-opacity ${selectedGdn && selectedMembers.length > 0 ? 'opacity-100' : 'opacity-0 pointer-events-none'}`}
+      >
+        <span className="flex items-center gap-1.5">
+          <span className="text-white/60 text-xs">DN</span>
+          <span className="bg-[#405189] px-2 py-0.5 rounded-full font-bold min-w-[24px] text-center">{selectedMembers.length}</span>
+          <span className="text-white/60 text-xs">건 선택됨</span>
+        </span>
+        <span className="text-white/30">·</span>
+        <Button
+          type="primary"
+          icon={<Plus className="size-3.5" />}
+          onClick={handleAssign}
+          loading={isSavingMembers}
+          disabled={unassignedSelCount === 0}
+          style={{ backgroundColor: 'var(--color-bt-primary)', borderColor: 'var(--color-bt-primary)' }}
+        >
+          배정
+        </Button>
+        <Button danger icon={<X className="size-3.5" />} onClick={handleRevoke} loading={isSavingMembers} disabled={assignedSelCount === 0}>
+          해제
+        </Button>
+        <Button type="text" onClick={() => setSelectedMembers([])} className="!text-white/60 hover:!text-white">
+          선택 해제
+        </Button>
+      </div>
 
       {/* ===== 등록/수정 Drawer ===== */}
       <AcdGdnFormDrawer
@@ -767,6 +770,7 @@ export default function AcdGdnList() {
         defaultTenantId={selectedTenantId}
         defaultNodeId={selectedNodeId}
         tenantOptions={tenantOptions}
+        nodeOptions={nodeOptionsForDrawer}
         onClose={() => setDrawerOpen(false)}
         onSaved={() => setDrawerOpen(false)}
       />

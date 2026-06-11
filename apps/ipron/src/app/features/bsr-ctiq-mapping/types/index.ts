@@ -40,3 +40,39 @@ export interface BsrGroupComboItem {
   value: string;
   name: string;
 }
+
+// ──────────────────────────────────────────────────────────
+//  v2 신설: CTI큐 배정 검색 (PLAN §2-2)
+// ──────────────────────────────────────────────────────────
+
+export interface BsrCtiqSearchParams {
+  tenantId: number;
+  keyword?: string;
+  treeIds?: number[];
+  scope?: 'unassigned' | 'all'; // 기본 unassigned
+  limit?: number; // 기본·상한 50
+}
+
+/** BE BsrCtiqSearchResponse { total, items } 래핑 */
+export interface BsrCtiqSearchResult {
+  total: number;
+  items: BsrCtiqSearchItem[];
+}
+
+export interface BsrCtiqSearchItem {
+  ctiqId: number;
+  ctiqName: string | null;
+  gdnNo: string | null;
+  gdnName: string | null;
+  treeName: string | null;
+  bsrGroupId: number | null;
+  bsrGroupName: string | null;
+}
+
+// ──────────────────────────────────────────────────────────
+//  v2 신설: CTI큐 배정 해제 (PLAN §2-2)
+// ──────────────────────────────────────────────────────────
+
+export interface BsrCtiqUnassignRequest {
+  ctiqIds: number[];
+}

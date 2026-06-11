@@ -3,14 +3,14 @@ import { Navigate, Outlet } from 'react-router-dom';
 import IvrWsSessionEventHandler from './features/router/IvrWsSessionEventHandler';
 import { NotFound } from '@/components/custom/NotFound';
 
-const IvrEndpointList = React.lazy(() => import('./pages/ivr/IvrEndpointList'));
-const IvrDnGroupList = React.lazy(() => import('./pages/ivr/IvrDnGroupList'));
-const IvrMedia = React.lazy(() => import('./pages/ivr/IvrMedia'));
-const IvrAinDnis = React.lazy(() => import('./pages/ivr/IvrAinDnis'));
-const ScenarioList = React.lazy(() => import('./pages/ivr/ScenarioList'));
-const ScenarioDetail = React.lazy(() => import('./pages/ivr/ScenarioDetail'));
-const SleeConfigList = React.lazy(() => import('./pages/ivr/SleeConfigList'));
-const MentFileList = React.lazy(() => import('./pages/ivr/MentFileList'));
+const IvrEndpointList = React.lazy(() => import('./pages/line/IvrEndpointList'));
+const IvrDnGroupList = React.lazy(() => import('./pages/line/IvrDnGroupList'));
+const IvrMedia = React.lazy(() => import('./pages/line/IvrMedia'));
+const IvrAinDnis = React.lazy(() => import('./pages/line/IvrAinDnis'));
+const ScenarioList = React.lazy(() => import('./pages/scenario/ScenarioList'));
+const ScenarioDetail = React.lazy(() => import('./pages/scenario/ScenarioDetail'));
+const SleeConfigList = React.lazy(() => import('./pages/scenario/SleeConfigList'));
+const MentFileList = React.lazy(() => import('./pages/scenario/MentFileList'));
 
 export const routes = [
   {
@@ -22,7 +22,7 @@ export const routes = [
         element: <Navigate to="/" replace />,
       },
       {
-        path: 'ivr',
+        path: 'line',
         element: <Outlet />,
         children: [
           { index: true, element: <Navigate to="endpoint" replace /> },
@@ -30,8 +30,15 @@ export const routes = [
           { path: 'dn-group', element: <IvrDnGroupList /> },
           { path: 'media', element: <IvrMedia /> },
           { path: 'ain-dnis', element: <IvrAinDnis /> },
-          { path: 'scenario', element: <ScenarioList /> },
-          { path: 'scenario/:serviceId', element: <ScenarioDetail /> },
+        ],
+      },
+      {
+        path: 'scenario',
+        element: <Outlet />,
+        children: [
+          { index: true, element: <Navigate to="list" replace /> },
+          { path: 'list', element: <ScenarioList /> },
+          { path: ':serviceId', element: <ScenarioDetail /> },
           { path: 'slee-config', element: <SleeConfigList /> },
           { path: 'mentfile', element: <MentFileList /> },
         ],

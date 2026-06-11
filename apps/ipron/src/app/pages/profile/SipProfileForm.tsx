@@ -73,7 +73,7 @@ export default function SipProfileForm() {
   const { mutate: createProfile, isPending: isCreating } = useCreateSipProfile({
     mutationOptions: {
       onSuccess: () => {
-        toast.success('프로파일이 등록되었습니다.');
+        toast.success('프로파일이 등록되었습니다');
         queryClient.invalidateQueries({ queryKey: sipProfileQueryKeys.getProfiles().queryKey });
         navigate('/ipron/profile/sip-profile');
       },
@@ -83,7 +83,7 @@ export default function SipProfileForm() {
   const { mutate: updateProfile, isPending: isUpdating } = useUpdateSipProfile({
     mutationOptions: {
       onSuccess: () => {
-        toast.success('프로파일이 수정되었습니다.');
+        toast.success('프로파일이 수정되었습니다');
         queryClient.invalidateQueries({ queryKey: sipProfileQueryKeys.getProfiles().queryKey });
         navigate('/ipron/profile/sip-profile');
       },

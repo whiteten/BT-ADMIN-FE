@@ -131,6 +131,7 @@ export default function DnShortDialDrawer({ open, dnId, dnNo, onClose }: DnShort
       onClose={onClose}
       width={760}
       placement="right"
+      closable={{ placement: 'end' }}
       styles={{ body: { display: 'flex', flexDirection: 'column', padding: 16 } }}
       footer={
         <div className="flex justify-end gap-2">

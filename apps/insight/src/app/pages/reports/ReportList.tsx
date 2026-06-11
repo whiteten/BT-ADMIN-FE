@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { type BreadcrumbProps, Button, Input, Segmented, Select, Tag } from 'antd';
-import { type MenuConfig, type MenuItem, useBreadcrumbStore, useMenuStore } from '@/shared-store';
+import { type MenuConfig, type MenuItem, useAuthStore, useBreadcrumbStore, useMenuStore } from '@/shared-store';
 import ReportCard from '../../features/report/components/ReportCard';
 import { DOMAIN_LABELS, DOMAIN_TAG_COLOR } from '../../features/report/constants/reportIconConstants';
 import { useGetReports } from '../../features/report/hooks/useReportQueries';
@@ -55,14 +55,21 @@ export default function ReportList() {
   const menuConfigs = useMenuStore((s) => s.menuConfigs);
   const registeredReportIds = useMemo(() => collectRegisteredReportIds(menuConfigs), [menuConfigs]);
 
+  // 내 userId — 소유 판정 기준
+  const myUserId = useAuthStore((s) => s.userInfo?.userId);
+
   const byDomain = useMemo<Record<DomainCode, ReportListItem[]>>(() => {
     const kw = searchValue.trim().toLowerCase();
     const grouped: Record<DomainCode, ReportListItem[]> = { IE: [], IC: [], IR: [] };
     reports
       .filter((r) => {
-        // 조회 조건: 메뉴 등록(PUBLISHED) / 미등록=내 보고서(MINE) / 전체(ALL)
-        if (ownership === 'PUBLISHED' && !registeredReportIds.has(r.reportId)) return false;
-        if (ownership === 'MINE' && registeredReportIds.has(r.reportId)) return false;
+        const isMine = myUserId != null && String(r.ownerUserId) === String(myUserId);
+        const isRegistered = registeredReportIds.has(r.reportId);
+        // 기본 가시성: 내 보고서이거나 메뉴 등록된 보고서만 노출 (남이 등록한 미등록 보고서는 숨김)
+        if (!isMine && !isRegistered) return false;
+        // 조회 조건: 내 보고서(MINE) / 메뉴 등록(PUBLISHED) / 전체(ALL)
+        if (ownership === 'PUBLISHED' && !isRegistered) return false;
+        if (ownership === 'MINE' && !isMine) return false;
         if (!kw) return true;
         return r.title.toLowerCase().includes(kw) || (r.datasetNames ?? []).some((n) => n.toLowerCase().includes(kw));
       })
@@ -70,7 +77,7 @@ export default function ReportList() {
         if (grouped[r.domain]) grouped[r.domain].push(r);
       });
     return grouped;
-  }, [reports, searchValue, ownership, registeredReportIds]);
+  }, [reports, searchValue, ownership, registeredReportIds, myUserId]);
 
   const activeSections = domain ? [domain as DomainCode] : DOMAIN_SECTIONS;
   const hasAnyMatch = activeSections.some((d) => byDomain[d].length > 0);

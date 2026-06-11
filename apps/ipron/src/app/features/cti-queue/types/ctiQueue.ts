@@ -4,7 +4,7 @@
  * BE: BT-ADMIN-SERVICE-IPRON `/api/ipron/cti-queues`
  *   - TB_IC_CTIQ_MASTER (PK: ctiqId) + TB_IE_GDN_MASTER (GDN_TYPE=17) 결합
  *   - "그룹DN 생성 = 즉시 큐번호" 모델: 등록 시 tenantId/nodeId/gdnNo/gdnName 필수.
- *   - 서브그리드: BSR 스케쥴 / 목표 SLT 스케쥴 (배정 junction).
+ *   - 서브그리드: BSR 스케줄 / 목표 SLT 스케줄 (배정 junction).
  */
 
 // ──────────────────────────────────────────────────────────
@@ -22,7 +22,7 @@ export interface CtiQueueResponse {
   tenantName: string | null;
   accessCodeProfileId: number | null;
   drAccessCodeProfileId: number | null;
-  // 초기구성(GDN_MASTER 멘트/블럭/라우팅)
+  // 초기구성(GDN_MASTER 멘트/블록/라우팅)
   initMent: number | null;
   waitMent: number | null;
   closeMent: number | null;
@@ -248,7 +248,7 @@ export interface CtiQueueMediaOption {
 }
 
 // ──────────────────────────────────────────────────────────
-//  서브그리드: BSR 스케쥴 / SLT 스케쥴
+//  서브그리드: BSR 스케줄 / SLT 스케줄
 // ──────────────────────────────────────────────────────────
 
 export interface QuebsrScheduleResponse {
@@ -287,7 +287,7 @@ export interface SltScheduleResponse {
   sun: number | null;
 }
 
-/** 스케쥴 배정 요청 (BSR / SLT 공용). */
+/** 스케줄 배정 요청 (BSR / SLT 공용). */
 export interface ScheduleAssignRequest {
   scheduleIds: number[];
 }

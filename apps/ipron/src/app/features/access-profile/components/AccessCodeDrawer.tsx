@@ -111,9 +111,9 @@ const AccessCodeDrawer = forwardRef<AccessCodeDrawerRef, AccessCodeDrawerProps>(
           rules={[
             { required: true, message: '접근코드는 필수입니다' },
             { max: 10, message: '접근코드는 10자 이내여야 합니다' },
-            { pattern: /^[0-9*#]+$/, message: '접근코드는 숫자, *, # 만 가능합니다' },
+            { pattern: /^[0-9*#\-/]+$/, message: '접근코드는 숫자, *, #, -, / 만 가능합니다' },
           ]}
-          extra="숫자, *, # 만 입력 가능"
+          extra="숫자, *, #, -, / 만 입력 가능"
         >
           <Input placeholder="예: 9, *14" maxLength={10} disabled={isEditMode} />
         </Form.Item>

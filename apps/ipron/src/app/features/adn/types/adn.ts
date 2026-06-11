@@ -37,6 +37,10 @@ export interface AdnResponse {
 
   adnDftState: AdnDefaultStateCode | null;
   origGrpdnId: number | null;
+  /** 그룹DN 번호 (TB_IE_GDN_MASTER.GDN_NO). origGrpdnId 가 없으면 null. */
+  origGrpdnNo: string | null;
+  /** 그룹DN 이름 (TB_IE_GDN_MASTER.GDN_NAME). origGrpdnId 가 없으면 null. */
+  origGrpdnName: string | null;
 
   /** 내선 IP 인증 유형. '1'=고정IP, '2'=동적IP, null=해당없음. */
   extAuthtype: ExtAuthtypeCode | null;

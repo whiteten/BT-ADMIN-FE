@@ -27,7 +27,7 @@ export default function ScenarioDetail() {
     const breadcrumb: BreadcrumbProps['items'] = [
       { title: 'ForCus', path: '/ivr' },
       { title: '시나리오 관리' },
-      { title: '시나리오 목록', path: '/ivr/scenario' },
+      { title: '시나리오 목록', path: '/ivr/scenario/list' },
       { title: ':scenarioName', path: `/ivr/scenario/${serviceId}` },
     ];
     setBreadcrumb(breadcrumb, { scenarioName: scenario?.serviceName ?? '-' });

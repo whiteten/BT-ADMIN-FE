@@ -57,9 +57,9 @@ function toMap(opts: CodeOption[]): Record<string, string> {
  * SWAT IPR20S4010 SQL: `LEFT OUTER JOIN ... CLASS_CD = 'LOGIN_STATUS' AND CODE_CD = A.AGENT_STATUS`.
  */
 export const LOGIN_STATUS_OPTIONS: CodeOption[] = [
-  { value: '1', label: 'Login' },
-  { value: '9', label: 'Logout' },
-  { value: '2', label: 'Fail' },
+  { value: '1', label: '로그인' },
+  { value: '9', label: '로그아웃' },
+  { value: '2', label: '실패' },
 ];
 
 export const AGENT_GRADE_MAP = toMap(AGENT_GRADE_OPTIONS);

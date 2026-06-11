@@ -11,6 +11,8 @@
  *    ipron-agent-master-move             POST   그룹 이동 (드래그앤드롭)
  *    ipron-agent-master-duplicate-check  GET    로그인 ID 중복 체크
  *    ipron-agent-master-tenants          GET    테넌트 통계
+ *  아웃소싱업체 (/api/ipron/oscoms)
+ *    ipron-oscom-list                    GET    업체 마스터 콤보
  *  상담그룹 (/api/ipron/agent-groups)
  *    ipron-agent-group-tree              GET    트리
  *    ipron-agent-group-detail            GET    상세
@@ -22,7 +24,6 @@
  */
 import ApiClient, { type ApiResponse } from '@/shared-util';
 import type {
-  AgentConditionStat,
   AgentConfig,
   AgentCreateRequest,
   AgentDuplicateCheckParams,
@@ -35,6 +36,7 @@ import type {
   AgentResponse,
   AgentTenantStat,
   AgentUpdateRequest,
+  Oscom,
 } from '../types';
 
 const apiClient = new ApiClient({ serviceURL: '/bff' });
@@ -66,9 +68,13 @@ export const agentMasterApi = {
     return res.data?.data?.value ?? [];
   },
 
-  /** 상담사 현황 집계 — 테넌트×그룹별 등급별 인원 (SWAT doAgentCondition 팝업 대응). */
-  getConditionStats: async (): Promise<AgentConditionStat[]> => {
-    const res = await apiClient.get<ApiResponse<{ value: AgentConditionStat[] }>>('/ipron-agent-master-condition-stats');
+  /**
+   * 아웃소싱업체(oscom) 마스터 콤보 — 상담그룹/상담사 Drawer 의 "아웃소싱업체" 콤보 소스.
+   * BE: GET /api/ipron/oscoms (현재 테넌트 필터 BE 처리, FE 는 호출만).
+   * BFF flow: ipron-oscom-list. BE 가 ApiResponse<List<Oscom>> 반환 → BFF 가 data.value 로 wrap (tenants 동일 패턴).
+   */
+  getOscoms: async (): Promise<Oscom[]> => {
+    const res = await apiClient.get<ApiResponse<{ value: Oscom[] }>>('/ipron-oscom-list');
     return res.data?.data?.value ?? [];
   },
 
@@ -115,8 +121,9 @@ export const agentMasterApi = {
   },
 
   getGroupChildrenCount: async (id: number): Promise<number> => {
-    const res = await apiClient.get<ApiResponse<number>>('/ipron-agent-group-children-count', { params: { id } });
-    return res.data?.data;
+    // BFF 단일 step 래핑: BE ApiResponse<Long> → BFF가 {value: N} 으로 감싸 반환
+    const res = await apiClient.get<ApiResponse<{ value: number }>>('/ipron-agent-group-children-count', { params: { id } });
+    return res.data?.data?.value ?? 0;
   },
 
   // ─── 상담그룹 변경 ───────────────────────────────────────────────────────

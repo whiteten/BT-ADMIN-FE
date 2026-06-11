@@ -1,11 +1,11 @@
 /**
- * 스케쥴 정보 등록/수정 Drawer (TB_IC_SCHEDULEINFO).
+ * 스케줄 정보 등록/수정 Drawer (TB_IC_SCHEDULEINFO).
  *
- * 필드: 스케쥴명(1~256, 필수) · 시작일자 · 시작/종료시간(HHMM) · 요일 7종(월~일)
- * AS-IS SWAT IPR20S5010 스케쥴 popup03.
+ * 필드: 스케줄명(1~256, 필수) · 시작일자 · 시작/종료시간(HHMM) · 요일 7종(월~일)
+ * AS-IS SWAT IPR20S5010 스케줄 popup03.
  */
 import { useEffect } from 'react';
-import { Button, Checkbox, DatePicker, Drawer, Form, Input, Space, TimePicker, message } from 'antd';
+import { Button, Checkbox, DatePicker, Drawer, Form, Input, TimePicker, message } from 'antd';
 import dayjs, { type Dayjs } from 'dayjs';
 import { SCHEDULE_DAY_FIELDS, type ScheduleInfoRequest, type ScheduleInfoResponse } from '../types';
 
@@ -88,26 +88,27 @@ export default function ScheduleInfoDrawer({ open, mode, schedule, tenantId, onC
 
   return (
     <Drawer
-      title={mode === 'create' ? '스케쥴 등록' : '스케쥴 수정'}
+      title={mode === 'create' ? '스케줄 등록' : '스케줄 수정'}
+      closable={{ placement: 'end' }}
       open={open}
       onClose={onCancel}
       width={440}
       destroyOnClose
-      extra={
-        <Space>
+      footer={
+        <div className="flex items-center justify-end gap-2">
           <Button onClick={onCancel}>취소</Button>
           <Button type="primary" loading={loading} onClick={() => form.submit()}>
             {mode === 'create' ? '등록' : '저장'}
           </Button>
-        </Space>
+        </div>
       }
     >
       <Form form={form} layout="vertical" onFinish={handleFinish} requiredMark>
         <Form.Item
           name="scheduleName"
-          label="스케쥴명"
+          label="스케줄명"
           rules={[
-            { required: true, message: '스케쥴명을 입력하세요' },
+            { required: true, message: '스케줄명을 입력하세요' },
             { max: 128, message: '128자까지 입력 가능합니다' },
           ]}
         >

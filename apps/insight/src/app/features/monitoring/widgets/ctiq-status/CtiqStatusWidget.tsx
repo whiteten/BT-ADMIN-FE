@@ -384,6 +384,7 @@ export default function CtiqStatusWidget({ data, options, widgetId, onRequestPau
       {/* 설정 드로어 */}
       <Drawer
         title="큐 상태 모니터 설정"
+        closable={{ placement: 'end' }}
         placement="right"
         width={420}
         open={settingsOpen}

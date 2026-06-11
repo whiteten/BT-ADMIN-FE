@@ -13,7 +13,7 @@
  */
 import { type ChangeEvent, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Button, Empty, Input } from 'antd';
-import { ChevronLeft, ChevronRight, Network, Plus, RefreshCw, Search, Trash2 } from 'lucide-react';
+import { ChevronLeft, ChevronRight, ChevronsDown, ChevronsUp, Network, Plus, RefreshCw, Search, Trash2 } from 'lucide-react';
 import { useBreadcrumbStore } from '@/shared-store';
 import { toast } from '@/shared-util';
 import { useGetDnProfileNodes } from '../../features/dn-profile/hooks/useDnProfileQueries';
@@ -44,6 +44,7 @@ export default function MentMgmtList() {
   // ─── State ──────────────────────────────────────────────────────────────────
   const [selectedNodeId, setSelectedNodeId] = useState<number | null>(null);
   const [selectedTenantId, setSelectedTenantId] = useState<number | null>(null); // null=전체, 0=공통
+  const [cardExpanded, setCardExpanded] = useState(false);
   const [searchText, setSearchText] = useState('');
   const [selectedRows, setSelectedRows] = useState<MentResponse[]>([]);
   const [drawer, setDrawer] = useState<MentDrawerState>({ open: false });
@@ -156,7 +157,7 @@ export default function MentMgmtList() {
       onOk: () => deleteMents([row.ieMentId]),
       options: {
         title: '멘트 삭제',
-        content: `"${row.mentName ?? row.ieMentId}" 멘트를 삭제하시겠습니까?\n(해당 멘트를 사용하는 DN/큐의 연결/보류 멘트는 자동 해제됩니다)`,
+        content: `"${row.mentName ?? row.ieMentId}" 멘트를 삭제하시겠습니까?`,
       },
     });
   };
@@ -317,45 +318,99 @@ export default function MentMgmtList() {
 
         {/* ===== 박스B: 테넌트 카드 슬라이더 ===== */}
         <div className="bg-white bt-shadow overflow-hidden flex-shrink-0">
-          <div className="flex items-center h-[124px] px-4 py-3">
-            <div className="relative flex items-center gap-2 w-full">
-              <Button
-                type="text"
-                icon={<ChevronLeft className="size-5" />}
-                onClick={() => cardScrollRef.current?.scrollBy({ left: -260, behavior: 'smooth' })}
-                className="!flex-shrink-0 !w-8 !h-8 !p-0"
-              />
-              <div ref={cardScrollRef} className="flex gap-3 overflow-x-auto py-1 px-1 flex-1" style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}>
-                <MentTenantCard cardId={null} cardName="전체" count={totalCount} selected={selectedTenantId === null} onClick={() => setSelectedTenantId(null)} />
-                {tenantCards.length === 0 ? (
-                  <div className="flex flex-col items-center justify-center flex-1 text-gray-400 gap-2 min-h-[90px]">
-                    <Empty description={false} imageStyle={{ height: 36 }} />
-                    <span className="text-sm">등록된 멘트가 없습니다</span>
-                  </div>
-                ) : (
-                  tenantCards.map((c) => (
-                    <MentTenantCard
-                      key={c.id}
-                      cardId={c.id}
-                      cardName={c.name}
-                      count={c.count}
-                      selected={selectedTenantId === c.id}
-                      onClick={(e) => {
-                        setSelectedTenantId(c.id);
-                        (e.currentTarget as HTMLElement).scrollIntoView({ behavior: 'smooth', inline: 'center', block: 'nearest' });
-                      }}
-                    />
-                  ))
-                )}
+          {cardExpanded ? (
+            <div className="flex items-center h-[124px] px-4 py-3">
+              <div className="relative flex items-center gap-2 w-full">
+                <Button
+                  type="text"
+                  icon={<ChevronLeft className="size-5" />}
+                  onClick={() => cardScrollRef.current?.scrollBy({ left: -260, behavior: 'smooth' })}
+                  className="!flex-shrink-0 !w-8 !h-8 !p-0"
+                />
+                <div ref={cardScrollRef} className="flex gap-3 overflow-x-auto py-1 px-1 flex-1" style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}>
+                  <MentTenantCard cardId={null} cardName="전체" count={totalCount} selected={selectedTenantId === null} onClick={() => setSelectedTenantId(null)} />
+                  {tenantCards.length === 0 ? (
+                    <div className="flex flex-col items-center justify-center flex-1 text-gray-400 gap-2 min-h-[90px]">
+                      <Empty description={false} imageStyle={{ height: 36 }} />
+                      <span className="text-sm">등록된 멘트가 없습니다</span>
+                    </div>
+                  ) : (
+                    tenantCards.map((c) => (
+                      <MentTenantCard
+                        key={c.id}
+                        cardId={c.id}
+                        cardName={c.name}
+                        count={c.count}
+                        selected={selectedTenantId === c.id}
+                        onClick={(e) => {
+                          setSelectedTenantId(c.id);
+                          (e.currentTarget as HTMLElement).scrollIntoView({ behavior: 'smooth', inline: 'center', block: 'nearest' });
+                        }}
+                      />
+                    ))
+                  )}
+                </div>
+                <Button
+                  type="text"
+                  icon={<ChevronRight className="size-5" />}
+                  onClick={() => cardScrollRef.current?.scrollBy({ left: 260, behavior: 'smooth' })}
+                  className="!flex-shrink-0 !w-8 !h-8 !p-0"
+                />
+                <Button
+                  type="text"
+                  icon={<ChevronsUp className="size-4" />}
+                  onClick={() => setCardExpanded(false)}
+                  title="카드 접기"
+                  className="!h-8 !w-8 !flex-shrink-0 !p-0 !text-gray-400 hover:!text-[#405189]"
+                />
               </div>
-              <Button
-                type="text"
-                icon={<ChevronRight className="size-5" />}
-                onClick={() => cardScrollRef.current?.scrollBy({ left: 260, behavior: 'smooth' })}
-                className="!flex-shrink-0 !w-8 !h-8 !p-0"
-              />
             </div>
-          </div>
+          ) : (
+            <div className="flex h-[44px] items-center px-4">
+              <div className="flex w-full items-center gap-2">
+                <div className="flex flex-1 items-center gap-2 overflow-x-auto" style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}>
+                  {/* 전체 칩 */}
+                  <button
+                    type="button"
+                    onClick={() => setSelectedTenantId(null)}
+                    className={`inline-flex flex-shrink-0 items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs transition ${
+                      selectedTenantId === null
+                        ? 'border-[#405189] bg-[#405189] text-white shadow-[0_0_0_2px_rgba(64,81,137,0.15)]'
+                        : 'border-gray-200 bg-white text-gray-700 hover:border-[#c5cbe0] hover:text-[#405189]'
+                    }`}
+                  >
+                    <span className="font-medium">전체</span>
+                    <span className={`text-[11px] ${selectedTenantId === null ? 'text-white/80' : 'text-gray-400'}`}>{totalCount}</span>
+                  </button>
+                  {tenantCards.map((c) => {
+                    const selected = selectedTenantId === c.id;
+                    return (
+                      <button
+                        key={c.id}
+                        type="button"
+                        onClick={() => setSelectedTenantId(c.id)}
+                        className={`inline-flex flex-shrink-0 items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs transition ${
+                          selected
+                            ? 'border-[#405189] bg-[#405189] text-white shadow-[0_0_0_2px_rgba(64,81,137,0.15)]'
+                            : 'border-gray-200 bg-white text-gray-700 hover:border-[#c5cbe0] hover:text-[#405189]'
+                        }`}
+                      >
+                        <span className="max-w-[120px] truncate font-medium">{c.name}</span>
+                        <span className={`text-[11px] ${selected ? 'text-white/80' : 'text-gray-400'}`}>{c.count}</span>
+                      </button>
+                    );
+                  })}
+                </div>
+                <Button
+                  type="text"
+                  icon={<ChevronsDown className="size-4" />}
+                  onClick={() => setCardExpanded(true)}
+                  title="카드 펼치기"
+                  className="!h-8 !w-8 !flex-shrink-0 !p-0 !text-gray-400 hover:!text-[#405189]"
+                />
+              </div>
+            </div>
+          )}
         </div>
 
         {/* ===== 박스C: 멘트 목록 ag-Grid ===== */}
@@ -374,9 +429,15 @@ export default function MentMgmtList() {
                 disabled={selectedRows.length === 0}
                 title={selectedRows.length === 0 ? '삭제할 멘트를 선택하세요' : '선택한 멘트 삭제'}
               >
-                {selectedRows.length > 0 ? `삭제 (${selectedRows.length})` : '삭제'}
+                삭제
               </Button>
-              <Button type="primary" icon={<Plus className="size-3.5" />} onClick={handleCreate}>
+              <Button
+                type="primary"
+                icon={<Plus className="size-3.5" />}
+                onClick={handleCreate}
+                disabled={selectedNodeId == null}
+                title={selectedNodeId == null ? '노드를 선택하세요' : undefined}
+              >
                 멘트 등록
               </Button>
             </div>
@@ -388,7 +449,6 @@ export default function MentMgmtList() {
               isLoading={isLoading}
               playingMentId={playingMentId}
               onRowDoubleClicked={handleEdit}
-              onDelete={handleDelete}
               onTogglePlay={handleTogglePlay}
               onSelectionChanged={setSelectedRows}
               onBulkDelete={handleDeleteSelected}

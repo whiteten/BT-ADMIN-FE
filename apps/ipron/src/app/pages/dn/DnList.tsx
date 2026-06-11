@@ -76,7 +76,7 @@ export default function DnList() {
   const [importOpen, setImportOpen] = useState(false);
   const [copyOpen, setCopyOpen] = useState(false);
   const [bulkDeleteOpen, setBulkDeleteOpen] = useState(false);
-  const [cardExpanded, setCardExpanded] = useState(true);
+  const [cardExpanded, setCardExpanded] = useState(false);
   // 갭7: 여유번호 검색 다이얼로그
   const [freeDnOpen, setFreeDnOpen] = useState(false);
   const [freeDnStartNo, setFreeDnStartNo] = useState('');
@@ -365,7 +365,7 @@ export default function DnList() {
   const { mutate: deleteDns, isPending: isDeleting } = useDeleteDns({
     mutationOptions: {
       onSuccess: () => {
-        toast.success('선택한 DN이 삭제되었습니다.');
+        toast.success('선택한 DN이 삭제되었습니다');
         setSelectedRows([]);
         invalidateDns();
       },
@@ -402,13 +402,13 @@ export default function DnList() {
       }
     } catch {
       // 관계 조회 실패 시 경고 후 진행 허용
-      toast.warning('연관 데이터 조회에 실패했습니다. 삭제 진행 시 주의하세요.');
+      toast.warning('연관 데이터 조회에 실패했습니다. 삭제 진행 시 주의하세요');
     }
     modal.confirm.execute({
       onOk: () => deleteDns([dn.dnId]),
       options: {
         title: '내선 삭제',
-        content: `"${dn.dnNo}" 내선을 삭제하시겠습니까?\n내선에 등록된 IPT서비스 / 콜전환 / 단축다이얼 / 그룹DN 연관 데이터가 함께 삭제됩니다.`,
+        content: `"${dn.dnNo}" 내선을 삭제하시겠습니까?`,
       },
     });
   };
@@ -422,15 +422,15 @@ export default function DnList() {
   // 갭7: 여유번호 검색 핸들러 (SWAT IPR20S2020_FreeDn.jsp doRemainNumSearch() 정합)
   const handleFreeDnSearch = async () => {
     if (!selectedNodeId) {
-      toast.warning('노드를 선택해주세요.');
+      toast.warning('노드를 선택해주세요');
       return;
     }
     if (!freeDnStartNo) {
-      toast.warning('시작DN을 입력해주세요.');
+      toast.warning('시작DN을 입력해주세요');
       return;
     }
     if (!freeDnEndNo) {
-      toast.warning('끝DN을 입력해주세요.');
+      toast.warning('끝DN을 입력해주세요');
       return;
     }
     const start = Number(freeDnStartNo);
@@ -444,7 +444,7 @@ export default function DnList() {
       const result = await dnApi.getFreeDnRange({ nodeId: selectedNodeId, startNo: freeDnStartNo, endNo: freeDnEndNo });
       setFreeDnResult(result?.freeDnNumbers ?? []);
     } catch {
-      toast.error('여유번호 조회에 실패했습니다.');
+      toast.error('여유번호 조회에 실패했습니다');
       setFreeDnResult([]);
     } finally {
       setFreeDnLoading(false);
@@ -453,7 +453,7 @@ export default function DnList() {
 
   const handleBatchOpen = () => {
     if (!selectedNodeId || !selectedTenantId) {
-      toast.warning('일괄 등록은 노드와 테넌트를 선택한 후 가능합니다.');
+      toast.warning('일괄 등록은 노드와 테넌트를 선택한 후 가능합니다');
       return;
     }
     setBatchOpen(true);
@@ -461,7 +461,7 @@ export default function DnList() {
 
   const handleImport = () => {
     if (!selectedNodeId || !selectedTenantId) {
-      toast.warning('가져오기는 노드와 테넌트를 선택한 후 가능합니다.');
+      toast.warning('가져오기는 노드와 테넌트를 선택한 후 가능합니다');
       return;
     }
     setImportOpen(true);
@@ -718,11 +718,9 @@ export default function DnList() {
         <div className="bg-white bt-shadow flex flex-col flex-1 min-h-0 overflow-hidden">
           <div className="px-5 py-3 border-b border-gray-100 flex items-center gap-2 h-[44px] flex-shrink-0">
             <span className="text-sm font-semibold text-gray-800">{gridHeaderText}</span>
-            {selectedRows.length > 0 && (
-              <span className="text-xs text-gray-500">
-                {dnsForGrid.length.toLocaleString()}건 중 {selectedRows.length}건 선택
-              </span>
-            )}
+            <span className={selectedRows.length > 0 ? 'text-xs text-gray-500' : 'invisible text-xs text-gray-500'}>
+              {dnsForGrid.length.toLocaleString()}건 중 {selectedRows.length}건 선택
+            </span>
             {/* 우측 액션 버튼 영역 — 항상 표시, 선택/상태에 따라 disabled */}
             <div className="ml-auto flex items-center gap-2">
               <Button
@@ -733,7 +731,7 @@ export default function DnList() {
                 disabled={selectedRows.length === 0}
                 title={selectedRows.length === 0 ? '삭제할 DN 을 선택하세요' : '선택한 DN 삭제'}
               >
-                {selectedRows.length > 0 ? `삭제 (${selectedRows.length})` : '삭제'}
+                삭제
               </Button>
               {/* 갭7: 여유번호 검색 버튼 */}
               <Button

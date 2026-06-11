@@ -3,6 +3,7 @@ import { SquareDashed } from 'lucide-react';
 import { FavoriteButton } from '../components/FavoriteButton';
 import { MenuActionButtons } from '../components/MenuActionButtons';
 import { useMenuPanelStore } from '../hooks/useMenuPanelStore';
+import { Highlight } from '@/components/custom/Highlight';
 import type { MenuItem } from '@/libs/shared-store/src/types/menu.types';
 import { cn } from '@/libs/shared-ui/src/lib/utils';
 
@@ -53,19 +54,8 @@ export const countSubgroups = (menu: MenuItem): number => {
   return subs.length > 1 ? subs.length : 1;
 };
 
-/** 검색 매칭 부분 하이라이트 */
-export function Highlight({ text, query }: { text: string; query: string }) {
-  if (!query) return text;
-  const i = text.toLowerCase().indexOf(query.toLowerCase());
-  if (i === -1) return text;
-  return (
-    <>
-      {text.slice(0, i)}
-      <mark className="bg-amber-200/70 text-inherit rounded-sm px-px">{text.slice(i, i + query.length)}</mark>
-      {text.slice(i + query.length)}
-    </>
-  );
-}
+// Highlight 는 공통 컴포넌트(libs/shared-ui)로 이관 — 기존 import 경로 호환을 위해 재노출.
+export { Highlight };
 
 interface MenuLinkProps {
   item: MenuItem;

@@ -10,7 +10,7 @@
  *
  * <p>HA 그룹 정보 제거 — IR 시스템명만 노출 (사용자 정책).</p>
  */
-import { forwardRef, useImperativeHandle, useMemo, useRef, useState } from 'react';
+import { forwardRef, useEffect, useImperativeHandle, useMemo, useRef, useState } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import type { ColDef, ICellRendererParams } from 'ag-grid-community';
 import { AgGridReact } from 'ag-grid-react';
@@ -19,14 +19,7 @@ import dayjs, { type Dayjs } from 'dayjs';
 import { Search } from 'lucide-react';
 import BackupCompareDrawer, { type BackupCompareDrawerRef } from './BackupCompareDrawer';
 import { sleeConfigQueryKeys, useGetBackups, useGetHistory } from '../hooks/useSleeConfigQueries';
-import {
-  APPLY_RESULT_LABELS,
-  APPLY_STATUS_LABELS,
-  RT_RESV_KIND_LABELS,
-  SET_STATUS_LABELS,
-  type SleeConfigBackupHeader,
-  type SleeConfigHistoryRow,
-} from '../types/sleeConfig.types';
+import { APPLY_RESULT_LABELS, APPLY_STATUS_LABELS, RT_RESV_KIND_LABELS, SET_STATUS_LABELS, type SleeConfigBackupHeader, type SleeConfigHistoryRow } from '../types';
 import useAggridOptions from '@/libs/shared-ui/src/hooks/useAggridOptions';
 
 const { RangePicker } = DatePicker;
@@ -80,13 +73,29 @@ const SleeConfigHistoryModal = forwardRef<SleeConfigHistoryModalRef>((_, ref) =>
       setHistoryParams({
         tenantId: p.tenantId,
         configFile: p.configFile,
-        startDate: today[0].format('YYYY-MM-DDTHH:mm:ss'),
-        endDate: today[1].format('YYYY-MM-DDTHH:mm:ss'),
+        startDate: today[0].startOf('day').format('YYYY-MM-DDTHH:mm:ss'),
+        endDate: today[1].endOf('day').format('YYYY-MM-DDTHH:mm:ss'),
       });
       setVisible(true);
     },
     close: () => setVisible(false),
   }));
+
+  // 검색조건 변경 시 자동 재조회 — debounce 300ms (사유 타이핑 시 호출 폭주 방지)
+  useEffect(() => {
+    if (!visible || !payload || activeTab !== 'history') return;
+    const timer = setTimeout(() => {
+      setHistoryParams({
+        tenantId: payload.tenantId,
+        configFile: payload.configFile,
+        rtResvKind,
+        startDate: dateRange?.[0]?.startOf('day').format('YYYY-MM-DDTHH:mm:ss'),
+        endDate: dateRange?.[1]?.endOf('day').format('YYYY-MM-DDTHH:mm:ss'),
+        applyReason: applyReason.trim() || undefined,
+      });
+    }, 300);
+    return () => clearTimeout(timer);
+  }, [visible, payload, activeTab, dateRange, rtResvKind, applyReason]);
 
   const handleSearch = () => {
     if (!payload) return;
@@ -94,8 +103,8 @@ const SleeConfigHistoryModal = forwardRef<SleeConfigHistoryModalRef>((_, ref) =>
       tenantId: payload.tenantId,
       configFile: payload.configFile,
       rtResvKind,
-      startDate: dateRange?.[0]?.format('YYYY-MM-DDTHH:mm:ss'),
-      endDate: dateRange?.[1]?.format('YYYY-MM-DDTHH:mm:ss'),
+      startDate: dateRange?.[0]?.startOf('day').format('YYYY-MM-DDTHH:mm:ss'),
+      endDate: dateRange?.[1]?.endOf('day').format('YYYY-MM-DDTHH:mm:ss'),
       applyReason: applyReason.trim() || undefined,
     });
   };

@@ -229,6 +229,7 @@ export default function DnCallTransferDrawer({ open, dnId, dnNo, onClose }: DnCa
         onClose={onClose}
         width={920}
         placement="right"
+        closable={{ placement: 'end' }}
         styles={{
           body: { display: 'flex', flexDirection: 'column', padding: 16 },
           wrapper: { width: 920, display: patternDrawerOpen ? 'none' : undefined },

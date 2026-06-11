@@ -81,17 +81,18 @@ export default function SkillsetPickerDrawer({ open, agentId, agentLabel, tenant
   return (
     <Drawer
       title={`스킬셋 추가 — ${agentLabel ?? '-'}`}
+      closable={{ placement: 'end' }}
       width={640}
       open={open}
       onClose={onClose}
       destroyOnClose
-      extra={
-        <Space>
+      footer={
+        <div className="flex items-center justify-end gap-2">
           <Button onClick={onClose}>취소</Button>
           <Button type="primary" loading={isPending} disabled={selectedIds.length === 0 || !agentId} onClick={onSubmit}>
             배정 ({selectedIds.length})
           </Button>
-        </Space>
+        </div>
       }
     >
       <Space direction="vertical" className="w-full" size="middle">

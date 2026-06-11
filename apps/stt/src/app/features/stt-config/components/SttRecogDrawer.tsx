@@ -95,7 +95,7 @@ const targetColumnDefs: ColDef<RecogTargetListItem>[] = [
 
 const columnDefs: ColDef<RecogResultItem>[] = [
   { headerName: '고유번호(UCID)', field: 'ucidGkey', flex: 3, minWidth: 160 },
-  { headerName: '정답지 내용', field: 'orgResult', flex: 3, minWidth: 160 },
+  { headerName: '정답지 내용', field: 'orgResult', flex: 3, minWidth: 160, tooltipField: 'orgResult' },
   { headerName: '화자', field: 'rxtxKind', flex: 1, minWidth: 70, valueFormatter: ({ value }) => ({ 1: '고객', 2: '상담원', 9: '통합' })[value as 1 | 2 | 9] ?? String(value) },
   { headerName: '진행상태', field: 'recogStatusName', flex: 1, minWidth: 80, cellRenderer: StatusBadge, cellStyle: { display: 'flex', alignItems: 'center' } },
   { headerName: '인식률', field: 'recogRate', flex: 1, minWidth: 80, cellRenderer: 'percentBarRenderer', cellStyle: { display: 'flex', alignItems: 'center', padding: '0 8px' } },

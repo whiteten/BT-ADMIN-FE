@@ -34,17 +34,13 @@ import { type SipGdnResponse, type SipTrunkMemberResponse, type SipTrunkResponse
 import useAggridOptions from '@/libs/shared-ui/src/hooks/useAggridOptions';
 import { useModal } from '@/libs/shared-ui/src/hooks/useModal';
 
-const breadcrumb = [
-  { title: '번호자원관리', path: '/ipron/sip-trunk' },
-  { title: '그룹DN', path: '/ipron/sip-trunk' },
-  { title: 'SIP TRUNK', path: '/ipron/sip-trunk' },
-];
+const breadcrumb = [{ title: '번호자원관리' }, { title: '교환기 번호관리' }, { title: 'SIP TRUNK', path: '/ipron/sip-trunk' }];
 
 type AssignFilter = 'all' | 'assigned' | 'unassigned';
 
 function gaugeColor(used: number, max: number): string {
   const pct = max > 0 ? (used / max) * 100 : 0;
-  return pct < 60 ? '#16a34a' : pct <= 85 ? '#f59e0b' : '#dc2626';
+  return pct < 60 ? '#52c41a' : pct <= 85 ? '#faad14' : '#ff4d4f';
 }
 
 export default function SipTrunkList() {
@@ -66,10 +62,11 @@ export default function SipTrunkList() {
   const [viewMode, setViewMode] = useState<'byNode' | 'byTenant'>('byNode');
   const [selectedNodeId, setSelectedNodeId] = useState<number | null>(null);
   const [selectedTenantId, setSelectedTenantId] = useState<number | null>(null);
-  const [cardExpanded, setCardExpanded] = useState(true);
+  const [cardExpanded, setCardExpanded] = useState(false);
   const [topSearch, setTopSearch] = useState('');
   const [gdnSearch, setGdnSearch] = useState('');
   const [selectedGdn, setSelectedGdn] = useState<SipGdnResponse | null>(null);
+  const [selectedGdns, setSelectedGdns] = useState<SipGdnResponse[]>([]);
   const [assignFilter, setAssignFilter] = useState<AssignFilter>('all');
   const [kindFilter, setKindFilter] = useState<string>('');
   const [selectedTrunks, setSelectedTrunks] = useState<SipTrunkMemberResponse[]>([]);
@@ -216,10 +213,10 @@ export default function SipTrunkList() {
 
   // ─── Mutations ──────────────────────────────────────────────────────────
   const { mutate: deleteGdns } = useDeleteSipGdns({
-    mutationOptions: { onSuccess: () => toast.success('그룹DN이 삭제되었습니다.') },
+    mutationOptions: { onSuccess: () => toast.success('그룹DN이 삭제되었습니다') },
   });
   const { mutate: deleteTrunks } = useDeleteSipTrunks({
-    mutationOptions: { onSuccess: () => toast.success('SIP 트렁크가 삭제되었습니다.') },
+    mutationOptions: { onSuccess: () => toast.success('SIP 트렁크가 삭제되었습니다') },
   });
   const { mutate: saveMembers } = useSaveSipTrunkMembers({
     mutationOptions: {
@@ -233,20 +230,35 @@ export default function SipTrunkList() {
   });
 
   const handleGdnDelete = useCallback(
-    (gdn: SipGdnResponse) => {
+    (gdns: SipGdnResponse[]) => {
+      if (gdns.length === 0) return;
       modal.confirm.execute({
-        onOk: () => deleteGdns([gdn.gdnId]),
-        options: { title: '그룹DN 삭제', content: `"${gdn.gdnNo}" 그룹DN을 삭제하시겠습니까?\n배정된 트렁크 멤버 매핑도 함께 삭제됩니다.` },
+        onOk: () => {
+          deleteGdns(gdns.map((g) => g.gdnId));
+          setSelectedGdns([]);
+        },
+        options: {
+          title: '그룹DN 삭제',
+          content: gdns.length === 1 ? `"${gdns[0].gdnNo}" 그룹DN을 삭제하시겠습니까?` : `선택한 그룹DN ${gdns.length}건을 삭제하시겠습니까?`,
+        },
       });
     },
     [modal, deleteGdns],
   );
 
-  const handleTrunkDelete = useCallback(
-    (trunk: SipTrunkMemberResponse) => {
+  const handleTrunkDeleteSelected = useCallback(
+    (trunks: SipTrunkMemberResponse[]) => {
+      if (trunks.length === 0) return;
       modal.confirm.execute({
-        onOk: () => deleteTrunks([trunk.sipTrunkId]),
-        options: { title: 'SIP 트렁크 삭제', content: `"${trunk.targetName}" 트렁크를 삭제하시겠습니까?` },
+        onOk: () => {
+          deleteTrunks(trunks.map((t) => t.sipTrunkId));
+          setSelectedTrunks([]);
+          trunkGridRef.current?.api?.deselectAll();
+        },
+        options: {
+          title: 'SIP 트렁크 삭제',
+          content: trunks.length === 1 ? `"${trunks[0].targetName}" 트렁크를 삭제하시겠습니까?` : `선택한 트렁크 ${trunks.length}건을 삭제하시겠습니까?`,
+        },
       });
     },
     [modal, deleteTrunks],
@@ -282,22 +294,6 @@ export default function SipTrunkList() {
       },
       { headerName: '그룹DN 이름', field: 'gdnName', flex: 1, minWidth: 140 },
       {
-        headerName: '글로벌',
-        field: 'globalDnYn',
-        width: 70,
-        maxWidth: 80,
-        cellStyle: { textAlign: 'center' } as CellStyle,
-        valueFormatter: (p) => (p.value === 1 ? 'O' : 'X'),
-      },
-      {
-        headerName: 'DR노드',
-        field: 'backUpNodeName',
-        minWidth: 80,
-        maxWidth: 110,
-        cellStyle: { textAlign: 'center', color: '#9ca3af', fontSize: '11px' } as CellStyle,
-        valueFormatter: (p) => p.value ?? '—',
-      },
-      {
         headerName: '배정 트렁크',
         field: 'assignedTrunkCount',
         minWidth: 90,
@@ -313,17 +309,38 @@ export default function SipTrunkList() {
         },
       },
       {
-        headerName: '블럭',
+        headerName: '블록',
         field: 'blockYn',
         width: 70,
         maxWidth: 80,
         cellStyle: { textAlign: 'center' } as CellStyle,
         cellRenderer: (p: ICellRendererParams<SipGdnResponse>) =>
           p.value === 1 ? (
-            <span className="inline-flex items-center rounded border border-red-200 bg-red-50 px-1.5 py-px text-[10px] font-semibold text-red-700">ON</span>
+            <span className="inline-flex items-center rounded border border-red-200 bg-red-50 px-1.5 py-px text-[10px] font-semibold text-red-700">사용</span>
           ) : (
-            <span className="inline-flex items-center rounded border border-slate-200 bg-slate-100 px-1.5 py-px text-[10px] font-semibold text-slate-600">OFF</span>
+            <span className="inline-flex items-center rounded border border-slate-200 bg-slate-100 px-1.5 py-px text-[10px] font-semibold text-slate-600">미사용</span>
           ),
+      },
+      {
+        headerName: '글로벌',
+        field: 'globalDnYn',
+        minWidth: 90,
+        maxWidth: 100,
+        cellStyle: { textAlign: 'center' } as CellStyle,
+        cellRenderer: (p: ICellRendererParams<SipGdnResponse>) =>
+          p.value === 1 ? (
+            <span className="inline-flex items-center rounded border border-blue-200 bg-blue-50 px-1.5 py-px text-[10px] font-semibold text-blue-700">글로벌</span>
+          ) : (
+            <span className="text-[11px] italic text-gray-400">-</span>
+          ),
+      },
+      {
+        headerName: 'DR노드',
+        field: 'backUpNodeName',
+        minWidth: 80,
+        maxWidth: 110,
+        cellStyle: { textAlign: 'center', color: '#9ca3af', fontSize: '11px' } as CellStyle,
+        valueFormatter: (p) => p.value ?? '—',
       },
       // F-2: 차단/오류/만석 우회 DNIS 컬럼 (SWAT IPR20S3030 GDN_TYPE=18 정합)
       {
@@ -350,30 +367,8 @@ export default function SipTrunkList() {
         cellStyle: { fontFamily: 'monospace', fontSize: '11px' } as CellStyle,
         valueFormatter: (p) => p.value ?? '—',
       },
-      {
-        headerName: '',
-        maxWidth: 56,
-        sortable: false,
-        filter: false,
-        suppressHeaderMenuButton: true,
-        pinned: 'right',
-        cellStyle: { display: 'flex', alignItems: 'center', justifyContent: 'center' } as CellStyle,
-        cellRenderer: (p: ICellRendererParams<SipGdnResponse>) =>
-          p.data ? (
-            <button
-              type="button"
-              title="삭제"
-              onClick={(e) => {
-                e.stopPropagation();
-                handleGdnDelete(p.data!);
-              }}
-            >
-              <Trash2 className="size-4 text-red-500 hover:cursor-pointer" />
-            </button>
-          ) : null,
-      },
     ],
-    [handleGdnDelete],
+    [],
   );
 
   const gdnGridOptions = useMemo<GridOptions<SipGdnResponse>>(
@@ -384,7 +379,7 @@ export default function SipTrunkList() {
       pagination: false,
       rowNumbers: false,
       defaultColDef: { sortable: true, filter: true, resizable: true, suppressHeaderMenuButton: true },
-      rowSelection: { mode: 'singleRow', checkboxes: false, enableClickSelection: true },
+      rowSelection: { mode: 'multiRow', checkboxes: true, headerCheckbox: true, enableClickSelection: false },
       getRowId: ({ data }) => String(data.gdnId),
       onRowClicked: (e) => {
         if (e.data) {
@@ -392,6 +387,7 @@ export default function SipTrunkList() {
           setSelectedTrunks([]);
         }
       },
+      onSelectionChanged: (e) => setSelectedGdns(e.api.getSelectedRows()),
       onRowDoubleClicked: (e) => {
         if (e.data) gdnDrawerRef.current?.openEdit(e.data);
       },
@@ -402,19 +398,6 @@ export default function SipTrunkList() {
   // ─── Grid: 우 트렁크 (다중선택, 배정상태 맨 앞) ────────────────────────────
   const trunkColumns = useMemo<ColDef<SipTrunkMemberResponse>[]>(
     () => [
-      {
-        headerName: '',
-        width: 44,
-        maxWidth: 44,
-        pinned: 'left',
-        checkboxSelection: true,
-        headerCheckboxSelection: true,
-        headerCheckboxSelectionFilteredOnly: true,
-        sortable: false,
-        filter: false,
-        suppressHeaderMenuButton: true,
-        resizable: false,
-      },
       {
         headerName: '배정상태',
         field: 'assignYn',
@@ -439,7 +422,7 @@ export default function SipTrunkList() {
           </span>
         ),
       },
-      { headerName: '번호', field: 'targetNo', width: 80, maxWidth: 100, cellStyle: { fontFamily: 'monospace', fontSize: '12px' } as CellStyle },
+      { headerName: '번호', field: 'targetNo', minWidth: 110, maxWidth: 140, cellStyle: { fontFamily: 'monospace', fontSize: '12px' } as CellStyle },
       {
         headerName: 'DR노드',
         field: 'backUpNodeName',
@@ -451,7 +434,7 @@ export default function SipTrunkList() {
       {
         headerName: '채널 사용률',
         field: 'totChannelCount',
-        minWidth: 150,
+        minWidth: 180,
         cellRenderer: (p: ICellRendererParams<SipTrunkMemberResponse>) => {
           const used = p.data?.totChannelCount ?? 0;
           const max = p.data?.chnlCnt ?? 0;
@@ -485,30 +468,8 @@ export default function SipTrunkList() {
         cellStyle: { textAlign: 'center' } as CellStyle,
         valueFormatter: (p) => (p.value == null ? '—' : String(p.value)),
       },
-      {
-        headerName: '',
-        maxWidth: 52,
-        sortable: false,
-        filter: false,
-        suppressHeaderMenuButton: true,
-        pinned: 'right',
-        cellStyle: { display: 'flex', alignItems: 'center', justifyContent: 'center' } as CellStyle,
-        cellRenderer: (p: ICellRendererParams<SipTrunkMemberResponse>) =>
-          p.data ? (
-            <button
-              type="button"
-              title="삭제"
-              onClick={(e) => {
-                e.stopPropagation();
-                handleTrunkDelete(p.data!);
-              }}
-            >
-              <Trash2 className="size-4 text-red-500 hover:cursor-pointer" />
-            </button>
-          ) : null,
-      },
     ],
-    [handleTrunkDelete],
+    [],
   );
 
   const trunkGridOptions = useMemo<GridOptions<SipTrunkMemberResponse>>(
@@ -535,7 +496,7 @@ export default function SipTrunkList() {
         if (e.data) {
           const master = allTrunksRef.current.find((t) => t.sipTrunkId === e.data!.sipTrunkId);
           if (master) trunkDrawerRef.current?.openEdit(master);
-          else toast.info('트렁크 상세를 불러올 수 없습니다.');
+          else toast.info('트렁크 상세를 불러올 수 없습니다');
         }
       },
     }),
@@ -781,12 +742,22 @@ export default function SipTrunkList() {
                 <Button size="small" type="primary" icon={<Plus className="size-3" />} onClick={() => gdnDrawerRef.current?.openCreate()}>
                   그룹DN 등록
                 </Button>
+                <Button
+                  size="small"
+                  danger
+                  icon={<Trash2 className="size-3" />}
+                  disabled={selectedGdns.length === 0}
+                  title={selectedGdns.length === 0 ? '삭제할 그룹DN을 선택하세요' : `선택한 ${selectedGdns.length}건 삭제`}
+                  onClick={() => handleGdnDelete(selectedGdns)}
+                >
+                  삭제
+                </Button>
               </div>
             </div>
             <div className="flex h-[34px] flex-shrink-0 items-center gap-2 border-b border-gray-100 bg-gray-50 px-3 text-[11.5px] font-semibold text-gray-500">
               <Network className="size-3" />
               {contextLabel}
-              <span className="ml-auto font-normal text-gray-400">GDN_TYPE=18 · {gdns.length}건</span>
+              <span className="ml-auto font-normal text-gray-400">총 {gdns.length}건</span>
             </div>
             <div className="ag-theme-quartz min-h-0 flex-1">
               <AgGridReact<SipGdnResponse> rowData={gdns} columnDefs={gdnColumns} gridOptions={gdnGridOptions} loading={gdnsLoading} />
@@ -795,7 +766,6 @@ export default function SipTrunkList() {
               <LayoutGrid className="size-3 text-[#405189]" />
               <span className="text-gray-500">선택 그룹DN:</span>
               <b className="text-[#405189]">{selectedGdn ? `${selectedGdn.gdnNo} ${selectedGdn.gdnName}` : '미선택'}</b>
-              <span className="text-gray-400">→ 우측 트렁크를 선택 후 배정/해제</span>
             </div>
           </div>
         </Panel>
@@ -833,11 +803,21 @@ export default function SipTrunkList() {
                   options={[
                     { value: '', label: '전체 종류' },
                     { value: 'IPRON-IE', label: 'IPRON-IE' },
-                    { value: '3rd party PBX', label: '3rd party PBX' },
+                    { value: '3rd party PBX', label: '외부 교환기(PBX)' },
                   ]}
                 />
                 <Button size="small" type="primary" icon={<Plus className="size-3" />} onClick={() => trunkDrawerRef.current?.openCreate()}>
                   트렁크 등록
+                </Button>
+                <Button
+                  size="small"
+                  danger
+                  icon={<Trash2 className="size-3" />}
+                  disabled={selectedTrunks.length === 0}
+                  title={selectedTrunks.length === 0 ? '삭제할 트렁크를 선택하세요' : `선택한 ${selectedTrunks.length}건 삭제`}
+                  onClick={() => handleTrunkDeleteSelected(selectedTrunks)}
+                >
+                  삭제
                 </Button>
               </div>
             </div>
@@ -877,8 +857,7 @@ export default function SipTrunkList() {
             <span className="text-xs text-white/60">트렁크</span>
             <span className="min-w-[28px] rounded-full bg-[#405189] px-2 py-0.5 text-center font-bold">{selectedTrunks.length}</span>
           </span>
-          <span className="mx-1 text-white/40">▶</span>
-          <Button type="primary" icon={<Plus className="size-3.5" />} onClick={() => setAssignDrawerOpen(true)} style={{ backgroundColor: '#16a34a', borderColor: '#16a34a' }}>
+          <Button type="primary" icon={<Plus className="size-3.5" />} onClick={() => setAssignDrawerOpen(true)}>
             배정 (우선순위·채널수 입력)
           </Button>
           <Button danger icon={<Trash2 className="size-3.5" />} onClick={handleRevoke}>

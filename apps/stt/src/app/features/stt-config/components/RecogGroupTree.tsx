@@ -1,14 +1,20 @@
+/**
+ * 정답지(인식) 그룹 선택 트리.
+ * 공통 트리(useTreeView + TreeView 프리미티브) 기반 — antd Tree 에서 이관.
+ * 구조: 엔진(폴더) → 인식 그룹(leaf, hover 시 수정/삭제 액션) 2-depth 고정.
+ */
 import { useEffect, useRef, useState } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
-import { Tree, type TreeDataNode } from 'antd';
-import { Pencil, X } from 'lucide-react';
+import { Pencil, Trash2 } from 'lucide-react';
 import { toast } from '@/shared-util';
 import { useGetCodes } from '../hooks/useCommonQueries';
 import { recogQueryKeys, useDeleteRecogGroup, useGetRecogGroupList } from '../hooks/useRecogQueries';
 import type { RecogGroupItem } from '../types';
 import RecogGroupEditModal from './RecogGroupEditModal';
 import { FallbackSpinner } from '@/components/custom/FallbackSpinner';
+import { TreeCaret, TreeFolderIcon, TreeLabel, TreeRow } from '@/components/custom/TreeView';
 import { useModal } from '@/libs/shared-ui/src/hooks/useModal';
+import useTreeView, { type TreeViewItem } from '@/libs/shared-ui/src/hooks/useTreeView';
 
 export type RecogTreeSelection = { type: 'engine'; engineCode: string } | { type: 'group'; group: RecogGroupItem };
 
@@ -20,26 +26,13 @@ interface RecogGroupTreeProps {
   onGroupUpdated: (group: RecogGroupItem) => void;
 }
 
-interface GroupNodeTitleProps {
-  group: RecogGroupItem;
-  onEdit: (e: React.MouseEvent) => void;
-  onDelete: (e: React.MouseEvent) => void;
-}
-
-function GroupNodeTitle({ group, onEdit, onDelete }: GroupNodeTitleProps) {
-  return (
-    <div className="flex items-center justify-between w-full group/node">
-      <span>{group.groupName}</span>
-      <span className="flex items-center gap-0.5 invisible group-hover/node:visible">
-        <button className="p-0.5 rounded text-[#495057] hover:text-blue-500" onClick={onEdit}>
-          <Pencil size={12} />
-        </button>
-        <button className="p-0.5 rounded text-[#495057] hover:text-red-500" onClick={onDelete}>
-          <X size={12} />
-        </button>
-      </span>
-    </div>
-  );
+/** 트리 렌더용 노드 — 엔진(폴더)과 그룹(leaf)을 한 타입으로. */
+interface RecogTreeNode {
+  key: string;
+  label: string;
+  engineCode?: string;
+  group?: RecogGroupItem;
+  children?: RecogTreeNode[];
 }
 
 export default function RecogGroupTree({ selection, onSelectEngine, onSelectGroup, onGroupDeleted, onGroupUpdated }: RecogGroupTreeProps) {
@@ -84,41 +77,81 @@ export default function RecogGroupTree({ selection, onSelectEngine, onSelectGrou
     modal.confirm.delete({ onOk: () => deleteGroup(group.groupCode) });
   };
 
-  const treeData: TreeDataNode[] = engines.map((engine) => ({
-    title: engine.value,
+  const treeData: RecogTreeNode[] = engines.map((engine) => ({
     key: `engine-${engine.code}`,
-    children: groupList
-      .filter((g) => g.engineCode === engine.code)
-      .map((g) => ({
-        title: <GroupNodeTitle group={g} onEdit={(e) => handleEditClick(e, g)} onDelete={(e) => handleDeleteClick(e, g)} />,
-        key: `group-${g.groupCode}`,
-        isLeaf: true,
-      })),
+    label: engine.value,
+    engineCode: engine.code,
+    children: groupList.filter((g) => g.engineCode === engine.code).map((g) => ({ key: `group-${g.groupCode}`, label: g.groupName, group: g })),
   }));
 
-  const selectedKey = selection?.type === 'engine' ? `engine-${selection.engineCode}` : selection?.type === 'group' ? `group-${selection.group.groupCode}` : undefined;
+  const selectedKey = selection?.type === 'engine' ? `engine-${selection.engineCode}` : selection?.type === 'group' ? `group-${selection.group.groupCode}` : null;
 
-  const handleSelect = (keys: React.Key[]) => {
-    const key = keys[0] as string;
-    if (!key) return;
-    if (key.startsWith('engine-')) {
-      onSelectEngine(key.replace('engine-', ''));
-    } else if (key.startsWith('group-')) {
-      const groupCode = key.replace('group-', '');
-      const group = groupList.find((g) => g.groupCode === groupCode);
-      if (group) onSelectGroup(group);
+  const { items, rootProps } = useTreeView<RecogTreeNode>({
+    data: treeData,
+    getId: (n) => n.key,
+    getChildren: (n) => n.children,
+    getName: (n) => n.label,
+    defaultExpandAll: true,
+    ariaLabel: '인식 그룹 트리',
+  });
+
+  const handleSelectNode = (node: RecogTreeNode) => {
+    if (node.group) {
+      onSelectGroup(node.group);
+    } else if (node.engineCode) {
+      onSelectEngine(node.engineCode);
     }
   };
 
+  const renderRow = (item: TreeViewItem<RecogTreeNode>) => {
+    const node = item.node;
+    const group = node.group;
+    const isSelected = node.key === selectedKey;
+    return (
+      <TreeRow key={item.id} item={item} selected={isSelected} onClick={() => handleSelectNode(node)}>
+        <TreeCaret item={item} />
+        {item.isFolder && <TreeFolderIcon item={item} selected={isSelected} />}
+        <TreeLabel selected={isSelected} title={node.label}>
+          {node.label}
+        </TreeLabel>
+        {/* 우측 액션 슬롯 — 모든 행에 h-5 고정으로 상시 존재시켜 hover 시 행 높이가 흔들리지 않게 한다(MenuTree 와 동일 패턴).
+            그룹 leaf 만 hover 시 수정/삭제 버튼 노출. 버튼 스타일은 AgentGroupTree 규격
+            (툴팁은 원본에 없던 요소라 미적용 — 사용자 결정) */}
+        <div className="flex items-center gap-0.5 h-5 flex-shrink-0">
+          {group && (
+            <>
+              <button
+                type="button"
+                className="hidden group-hover:inline-flex w-5 h-5 items-center justify-center rounded text-gray-400 hover:bg-[var(--color-bt-primary-soft)] hover:text-[var(--color-bt-primary)]"
+                onClick={(e) => handleEditClick(e, group)}
+              >
+                <Pencil className="size-3.5" />
+              </button>
+              <button
+                type="button"
+                className="hidden group-hover:inline-flex w-5 h-5 items-center justify-center rounded text-gray-400 hover:bg-red-50 hover:text-red-500"
+                onClick={(e) => handleDeleteClick(e, group)}
+              >
+                <Trash2 className="size-3.5" />
+              </button>
+            </>
+          )}
+        </div>
+      </TreeRow>
+    );
+  };
+
   return (
-    <div className="flex flex-col gap-3 h-full">
+    <div className="flex flex-col gap-3 h-full min-h-0">
       <span className="text-sm font-semibold text-[#495057]">정답지 그룹 관리</span>
       {isLoading ? (
         <div className="flex-1 flex items-center justify-center">
           <FallbackSpinner />
         </div>
       ) : (
-        <Tree treeData={treeData} selectedKeys={selectedKey ? [selectedKey] : []} onSelect={handleSelect} defaultExpandAll showLine={{ showLeafIcon: false }} blockNode />
+        <div className="flex-1 overflow-auto">
+          <div {...rootProps}>{items.map(renderRow)}</div>
+        </div>
       )}
       {editTarget && (
         <RecogGroupEditModal

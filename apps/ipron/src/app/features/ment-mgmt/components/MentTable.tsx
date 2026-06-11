@@ -10,9 +10,8 @@
 import { useMemo } from 'react';
 import type { CellStyle, ColDef, ICellRendererParams } from 'ag-grid-community';
 import { AgGridReact } from 'ag-grid-react';
-import { Pause, Play } from 'lucide-react';
+import { Pause, Play, Trash2 } from 'lucide-react';
 import type { MentResponse } from '../types';
-import { IconTrash } from '@/components/custom/Icons';
 import useAggridOptions from '@/libs/shared-ui/src/hooks/useAggridOptions';
 
 /** YYYYMMDD → YYYY-MM-DD */
@@ -27,7 +26,6 @@ interface MentTableProps {
   /** 현재 재생 중인 멘트 ID (null=정지). */
   playingMentId?: number | null;
   onRowDoubleClicked: (row: MentResponse) => void;
-  onDelete: (row: MentResponse) => void;
   onTogglePlay: (row: MentResponse) => void;
   onSelectionChanged?: (selected: MentResponse[]) => void;
   onBulkDelete?: () => void;
@@ -47,7 +45,7 @@ function BulkDeleteHeader({ onBulkDelete, selectedCount }: { onBulkDelete?: () =
       title={disabled ? '삭제할 행을 선택하세요' : `선택한 ${selectedCount}건 삭제`}
       className={`flex items-center justify-center w-full h-full ${disabled ? 'cursor-not-allowed opacity-40' : 'cursor-pointer hover:text-red-600'}`}
     >
-      <IconTrash className="size-5 text-red-500" />
+      <Trash2 className="size-5 text-red-500" />
     </button>
   );
 }
@@ -57,7 +55,6 @@ export default function MentTable({
   isLoading,
   playingMentId = null,
   onRowDoubleClicked,
-  onDelete,
   onTogglePlay,
   onSelectionChanged,
   onBulkDelete,
@@ -154,33 +151,8 @@ export default function MentTable({
           );
         },
       },
-      {
-        headerName: '',
-        maxWidth: 60,
-        sortable: false,
-        filter: false,
-        suppressHeaderMenuButton: true,
-        pinned: 'right',
-        headerComponent: () => <BulkDeleteHeader onBulkDelete={onBulkDelete} selectedCount={selectedCount} />,
-        cellStyle: { display: 'flex', alignItems: 'center', justifyContent: 'center' } as CellStyle,
-        cellRenderer: (params: ICellRendererParams<MentResponse>) => {
-          const { data } = params;
-          if (!data) return null;
-          return (
-            <button
-              type="button"
-              onClick={(e) => {
-                e.stopPropagation();
-                onDelete(data);
-              }}
-            >
-              <IconTrash className="size-5 text-red-500 hover:cursor-pointer" />
-            </button>
-          );
-        },
-      },
     ],
-    [playingMentId, onTogglePlay, onDelete, onBulkDelete, selectedCount],
+    [playingMentId, onTogglePlay, onBulkDelete, selectedCount],
   );
 
   return (

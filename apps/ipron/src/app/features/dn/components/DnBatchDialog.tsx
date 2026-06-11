@@ -127,7 +127,7 @@ export default function DnBatchDialog({ open, nodeId, tenantId, nodeName, tenant
       return;
     }
     if (values.dnNoStart.length !== values.dnNoEnd.length) {
-      toast.error('시작 번호와 끝 번호의 자릿수가 같아야 합니다.');
+      toast.error('시작 번호와 끝 번호의 자릿수가 같아야 합니다');
       return;
     }
 
@@ -196,7 +196,7 @@ export default function DnBatchDialog({ open, nodeId, tenantId, nodeName, tenant
       width={620}
       placement="right"
       maskClosable={!pending}
-      closable={!pending}
+      closable={{ placement: 'end', disabled: pending }}
       footer={
         <div className="flex justify-end gap-2">
           <Button onClick={handleClose} disabled={pending && cancelRef.current}>

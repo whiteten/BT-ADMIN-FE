@@ -44,6 +44,12 @@ export interface Cos {
   didReleaseTone: number; // 통화 종료음 (0/1)
   trnsOkTone: number; // 호전환완료음 (0/1)
   silentTermSvc: number; // 무음착신서비스 (0/1)
+  // 예약 필드 (DB 라운드트립 손실 방지용, UI 미노출)
+  reserve1?: number | null;
+  reserve2?: number | null;
+  reserve3?: number | null;
+  reserve4?: number | null;
+  reserve5?: number | null;
 }
 
 // ─── COS 등록 요청 ─────────────────────────────────────────────────────────
@@ -83,6 +89,12 @@ export interface CosCreateRequest {
   didReleaseTone: number;
   trnsOkTone: number;
   silentTermSvc: number;
+  // 예약 필드 (DB 라운드트립 손실 방지용, UI 미노출)
+  reserve1?: number | null;
+  reserve2?: number | null;
+  reserve3?: number | null;
+  reserve4?: number | null;
+  reserve5?: number | null;
 }
 
 // ─── COS 수정 요청 ─────────────────────────────────────────────────────────
@@ -121,6 +133,12 @@ export interface CosUpdateRequest {
   didReleaseTone: number;
   trnsOkTone: number;
   silentTermSvc: number;
+  // 예약 필드 (DB 라운드트립 손실 방지용, UI 미노출)
+  reserve1?: number | null;
+  reserve2?: number | null;
+  reserve3?: number | null;
+  reserve4?: number | null;
+  reserve5?: number | null;
 }
 
 // ─── 초기값 ─────────────────────────────────────────────────────────────────

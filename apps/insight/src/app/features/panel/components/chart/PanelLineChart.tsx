@@ -1,7 +1,7 @@
 import { useMemo } from 'react';
 import PanelEChart from './PanelEChart';
 import { PANEL_PALETTE, areaGradient, axisLabelStyle, baseGrid, baseLegend, baseTooltip, goalMarkLine, koNum, paletteAt, splitLineStyle } from './echartsPanelTheme';
-import { formatTimeKey } from '../../../../utils/timeKeyFormat';
+import { enumerateTimeKeys, formatTimeKey, isTimeKey } from '../../../../utils/timeKeyFormat';
 import { useGetDataSourceFields } from '../../../dataset/hooks/useDatasetQueries';
 import { useReportViewStore } from '../../../report/hooks/useReportViewStore';
 import type { LineChartOptions, PanelDetail } from '../../../report/types';
@@ -41,43 +41,114 @@ export default function PanelLineChart({ panel, reportId }: PanelLineChartProps)
   });
 
   const options = (panel.chartOptions ?? {}) as LineChartOptions;
-  const showLegend = options.legend ?? yFields.length > 1;
   const showDataLabel = options.dataLabel ?? false;
   const goalLine = options.goalLine;
+  // 시리즈 슬롯(그룹 분리 디멘션) — 있으면 그 값별로 라인 분리
+  const seriesField = panel.fieldMap.find((f) => f.slotType === 'SERIES');
 
   const option = useMemo(() => {
     if (!xField) return {};
     const dn = (name: string) => displayNameMap.get(name) ?? name;
     const data = (isDraft ? [] : (queryResult?.current ?? [])) as Record<string, unknown>[];
-    const categories = data.map((row) => formatTimeKey(row[xField.fieldName]));
-    const single = yFields.length === 1;
+    const xName = xField.fieldName;
+    const rawOf = (row: Record<string, unknown>) => String(row[xName] ?? '');
 
-    const series = yFields.map((f, i) => {
+    // ── X축 카테고리(원본 키): 기간 전체를 빈 구간 없이 채운다 ──
+    // BE 는 데이터 있는 구간만 row 로 내려주므로, 시간축이면 기간 기준으로 축을 열거하고
+    // 데이터 distinct 키를 병합(안전망)한다. 비시간축은 등장 순서로 중복만 제거.
+    const timeAxis = data.length > 0 && data.every((r) => isTimeKey(rawOf(r)));
+    let catKeys: string[];
+    const enumerated = timeAxis ? enumerateTimeKeys(committedFilter.period.from, committedFilter.period.to, committedFilter.timeUnit, committedFilter.conditions) : null;
+    if (enumerated) {
+      const set = new Set(enumerated);
+      for (const r of data) {
+        const k = rawOf(r);
+        if (k) set.add(k);
+      }
+      catKeys = [...set].sort();
+    } else if (timeAxis) {
+      catKeys = [...new Set(data.map(rawOf))].sort();
+    } else {
+      catKeys = [...new Set(data.map(rawOf))];
+    }
+    const categories = catKeys.map((k) => formatTimeKey(k));
+
+    // 공통 라인 시리즈 스타일 빌더
+    const makeLine = (name: string, i: number, values: number[], single: boolean) => {
       const color = paletteAt(i);
       return {
         type: 'line',
-        name: dn(f.fieldName),
+        name,
         smooth: true,
         showSymbol: false,
         symbolSize: 7,
         lineStyle: { width: 2.5, color },
         itemStyle: { color },
-        // 단일 시리즈일 때만 하단 면적 채움(다중이면 겹쳐서 지저분)
+        // 단일 라인일 때만 하단 면적 채움(다중이면 겹쳐서 지저분)
         areaStyle: single ? { color: areaGradient(color) } : undefined,
-        emphasis: { focus: 'series' },
+        emphasis: { focus: 'series' as const },
         label: showDataLabel ? { show: true, position: 'top', fontSize: 10, color: '#475467', formatter: (p: { value: number }) => koNum(Number(p.value ?? 0)) } : { show: false },
         markLine: goalLine?.enabled && goalLine.value != null ? goalMarkLine(goalLine.value) : undefined,
-        data: data.map((row) => Number(row[f.fieldName] ?? 0)),
+        data: values,
       };
-    });
+    };
 
+    let series;
+    let lineCount: number;
+    if (seriesField) {
+      // SERIES 디멘션 값별 라인 분리(측정값은 첫 Y 필드). 빈 슬롯은 0.
+      const sName = seriesField.fieldName;
+      const measure = yFields[0];
+      const order: string[] = [];
+      const bySeries = new Map<string, Map<string, number>>();
+      for (const row of data) {
+        const sv = String(row[sName] ?? '');
+        let m = bySeries.get(sv);
+        if (!m) {
+          m = new Map();
+          bySeries.set(sv, m);
+          order.push(sv);
+        }
+        m.set(rawOf(row), (m.get(rawOf(row)) ?? 0) + Number(row[measure.fieldName] ?? 0));
+      }
+      lineCount = order.length;
+      series = order.map((sv, i) => {
+        const m = bySeries.get(sv)!;
+        return makeLine(
+          sv || '(미지정)',
+          i,
+          catKeys.map((k) => m.get(k) ?? 0),
+          lineCount === 1,
+        );
+      });
+    } else {
+      // 시리즈 없음: Y 필드별 라인. 동일 키 중복은 합산, 빈 슬롯은 0.
+      const byKey = new Map<string, Record<string, number>>();
+      for (const row of data) {
+        const k = rawOf(row);
+        const cur = byKey.get(k) ?? {};
+        for (const f of yFields) cur[f.fieldName] = (cur[f.fieldName] ?? 0) + Number(row[f.fieldName] ?? 0);
+        byKey.set(k, cur);
+      }
+      lineCount = yFields.length;
+      series = yFields.map((f, i) =>
+        makeLine(
+          dn(f.fieldName),
+          i,
+          catKeys.map((k) => byKey.get(k)?.[f.fieldName] ?? 0),
+          lineCount === 1,
+        ),
+      );
+    }
+
+    const legendOn = options.legend ?? lineCount > 1;
     return {
       animationDuration: 600,
       animationEasing: 'cubicOut',
       color: [...PANEL_PALETTE],
-      grid: baseGrid(showLegend),
+      grid: baseGrid(legendOn),
       tooltip: { trigger: 'axis', ...baseTooltip },
-      legend: baseLegend(showLegend),
+      legend: baseLegend(legendOn),
       xAxis: {
         type: 'category',
         boundaryGap: false,
@@ -89,7 +160,7 @@ export default function PanelLineChart({ panel, reportId }: PanelLineChartProps)
       yAxis: { type: 'value', axisLabel: axisLabelStyle, splitLine: splitLineStyle },
       series,
     };
-  }, [xField, yFields, isDraft, queryResult, showLegend, showDataLabel, goalLine, displayNameMap]);
+  }, [xField, yFields, seriesField, isDraft, queryResult, committedFilter, options.legend, showDataLabel, goalLine, displayNameMap]);
 
   if (!hasMapping) {
     return (

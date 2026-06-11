@@ -30,7 +30,7 @@ import type {
   SleeUserconfigCreateRequest,
   SleeUserconfigImportResponse,
   SleeUserconfigUpdateRequest,
-} from '../types/sleeConfig.types';
+} from '../types';
 
 interface PropertyKey {
   tenantId: number;

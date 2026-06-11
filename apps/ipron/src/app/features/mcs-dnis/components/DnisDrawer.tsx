@@ -61,7 +61,7 @@ const DnisDrawer = forwardRef<DnisDrawerRef, Props>(({ onSuccess }, ref) => {
   const { mutate: createDnis, isPending: isCreating } = useCreateMcsDnis({
     mutationOptions: {
       onSuccess: () => {
-        toast.success('DNIS가 등록되었습니다.');
+        toast.success('DNIS가 등록되었습니다');
         handleClose();
         onSuccess();
       },
@@ -73,11 +73,11 @@ const DnisDrawer = forwardRef<DnisDrawerRef, Props>(({ onSuccess }, ref) => {
       const values = await form.validateFields();
 
       if (!gdnNo) {
-        toast.error('대표번호가 지정되지 않았습니다.');
+        toast.error('대표번호가 지정되지 않았습니다');
         return;
       }
       if (!values.nodeId) {
-        toast.error('노드를 선택하세요.');
+        toast.error('노드를 선택하세요');
         return;
       }
       createDnis({
@@ -94,6 +94,7 @@ const DnisDrawer = forwardRef<DnisDrawerRef, Props>(({ onSuccess }, ref) => {
   return (
     <Drawer
       title="DNIS 등록"
+      closable={{ placement: 'end' }}
       open={visible}
       onClose={handleClose}
       width={420}

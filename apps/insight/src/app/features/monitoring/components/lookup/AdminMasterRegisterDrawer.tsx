@@ -103,6 +103,7 @@ export default function AdminMasterRegisterDrawer({ open, onClose, onRegistered 
           <span className="rounded bg-[var(--color-bt-warn-soft)] px-1.5 py-0.5 mono text-[9px] font-bold text-[var(--color-bt-warn)]">ADMIN 전용</span>
         </div>
       }
+      closable={{ placement: 'end' }}
       placement="right"
       width={520}
       open={open}

@@ -9,7 +9,7 @@ import { forwardRef, useCallback, useEffect, useImperativeHandle, useState } fro
 import { Button, Drawer, Form, Input, Select } from 'antd';
 import { toast } from '@/shared-util';
 import { useCreateAcl, useCreateCtiAcl, useDeleteAcl, useDeleteCtiAcl, useUpdateAcl, useUpdateCtiAcl } from '../hooks/useAclQueries';
-import { type Acl, type AclCreateRequest, USE_YN_OPTIONS } from '../types';
+import { ACL_TYPE_LABELS, type Acl, type AclCreateRequest, USE_YN_OPTIONS } from '../types';
 import { useModal } from '@/libs/shared-ui/src/hooks/useModal';
 
 type AclCategory = 'pbx' | 'cti';
@@ -68,6 +68,7 @@ const AclDrawer = forwardRef<AclDrawerRef, Props>(({ onSuccess }, ref) => {
         ipNet: editData.ipNet,
         ipMask: editData.ipMask,
         useYn: editData.useYn,
+        aclType: editData.aclType ?? 1,
         aclDesc: editData.aclDesc ?? '',
       });
     } else if (visible) {
@@ -79,7 +80,7 @@ const AclDrawer = forwardRef<AclDrawerRef, Props>(({ onSuccess }, ref) => {
   const { mutate: createPbxAcl, isPending: isCreatingPbx } = useCreateAcl({
     mutationOptions: {
       onSuccess: () => {
-        toast.success('PBX IP 접근제어가 등록되었습니다.');
+        toast.success('PBX IP 접근제어가 등록되었습니다');
         handleClose();
         onSuccess();
       },
@@ -88,7 +89,7 @@ const AclDrawer = forwardRef<AclDrawerRef, Props>(({ onSuccess }, ref) => {
   const { mutate: updatePbxAcl, isPending: isUpdatingPbx } = useUpdateAcl({
     mutationOptions: {
       onSuccess: () => {
-        toast.success('PBX IP 접근제어가 수정되었습니다.');
+        toast.success('PBX IP 접근제어가 수정되었습니다');
         handleClose();
         onSuccess();
       },
@@ -97,7 +98,7 @@ const AclDrawer = forwardRef<AclDrawerRef, Props>(({ onSuccess }, ref) => {
   const { mutate: deletePbxAcl, isPending: isDeletingPbx } = useDeleteAcl({
     mutationOptions: {
       onSuccess: () => {
-        toast.success('PBX IP 접근제어가 삭제되었습니다.');
+        toast.success('PBX IP 접근제어가 삭제되었습니다');
         handleClose();
         onSuccess();
       },
@@ -108,7 +109,7 @@ const AclDrawer = forwardRef<AclDrawerRef, Props>(({ onSuccess }, ref) => {
   const { mutate: createCtiAcl, isPending: isCreatingCti } = useCreateCtiAcl({
     mutationOptions: {
       onSuccess: () => {
-        toast.success('CTI IP 접근제어가 등록되었습니다.');
+        toast.success('CTI IP 접근제어가 등록되었습니다');
         handleClose();
         onSuccess();
       },
@@ -117,7 +118,7 @@ const AclDrawer = forwardRef<AclDrawerRef, Props>(({ onSuccess }, ref) => {
   const { mutate: updateCtiAcl, isPending: isUpdatingCti } = useUpdateCtiAcl({
     mutationOptions: {
       onSuccess: () => {
-        toast.success('CTI IP 접근제어가 수정되었습니다.');
+        toast.success('CTI IP 접근제어가 수정되었습니다');
         handleClose();
         onSuccess();
       },
@@ -126,7 +127,7 @@ const AclDrawer = forwardRef<AclDrawerRef, Props>(({ onSuccess }, ref) => {
   const { mutate: deleteCtiAcl, isPending: isDeletingCti } = useDeleteCtiAcl({
     mutationOptions: {
       onSuccess: () => {
-        toast.success('CTI IP 접근제어가 삭제되었습니다.');
+        toast.success('CTI IP 접근제어가 삭제되었습니다');
         handleClose();
         onSuccess();
       },
@@ -151,7 +152,7 @@ const AclDrawer = forwardRef<AclDrawerRef, Props>(({ onSuccess }, ref) => {
       // 노드 선택 모드일 때 form에서 nodeId 가져오기
       const targetNodeId = nodeId ?? values.nodeId;
       if (!targetNodeId) {
-        toast.error('노드를 선택하세요.');
+        toast.error('노드를 선택하세요');
         return;
       }
 
@@ -161,7 +162,7 @@ const AclDrawer = forwardRef<AclDrawerRef, Props>(({ onSuccess }, ref) => {
         ipNet: values.ipNet,
         ipMask: values.ipMask,
         useYn: values.useYn,
-        aclType: 1,
+        aclType: values.aclType,
         aclDesc: values.aclDesc || null,
       };
 
@@ -200,6 +201,7 @@ const AclDrawer = forwardRef<AclDrawerRef, Props>(({ onSuccess }, ref) => {
       title={isEditMode ? `${categoryLabel} IP 접근제어 수정` : `${categoryLabel} IP 접근제어 등록`}
       open={visible}
       onClose={handleClose}
+      closable={{ placement: 'end' }}
       styles={{ wrapper: { width: 420 } }}
       footer={
         <div className="flex justify-between">
@@ -219,7 +221,7 @@ const AclDrawer = forwardRef<AclDrawerRef, Props>(({ onSuccess }, ref) => {
         </div>
       }
     >
-      <Form form={form} layout="vertical" initialValues={{ useYn: 1 }}>
+      <Form form={form} layout="vertical" initialValues={{ useYn: 1, aclType: 1 }}>
         {isNodeSelectable ? (
           <Form.Item name="nodeId" label="노드" required rules={[{ required: true, message: '노드를 선택하세요' }]}>
             <Select placeholder="노드를 선택하세요">
@@ -235,6 +237,16 @@ const AclDrawer = forwardRef<AclDrawerRef, Props>(({ onSuccess }, ref) => {
             <Input value={nodeName || (nodeId ? `Node ${nodeId}` : '')} disabled />
           </Form.Item>
         )}
+
+        <Form.Item name="aclType" label="규칙 타입" rules={[{ required: true, message: '규칙 타입은 필수입니다' }]}>
+          <Select placeholder="규칙 타입을 선택하세요">
+            {(Object.entries(ACL_TYPE_LABELS) as [string, string][]).map(([value, label]) => (
+              <Select.Option key={value} value={Number(value)}>
+                {label}
+              </Select.Option>
+            ))}
+          </Select>
+        </Form.Item>
 
         <Form.Item
           name="aclName"

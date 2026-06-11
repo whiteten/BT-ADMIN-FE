@@ -10,7 +10,6 @@ import { createQueryKeys } from '@lukemorales/query-key-factory';
 import type { MutationHookOptions, QueryHookOptions, QueryHookWithParamsOptions } from '@/shared-util';
 import { agentMasterApi } from '../api/agentMasterApi';
 import type {
-  AgentConditionStat,
   AgentConfig,
   AgentCreateRequest,
   AgentGroupCreateRequest,
@@ -22,6 +21,7 @@ import type {
   AgentResponse,
   AgentTenantStat,
   AgentUpdateRequest,
+  Oscom,
 } from '../types';
 
 export const agentMasterQueryKeys = createQueryKeys('agent-master', {
@@ -29,7 +29,7 @@ export const agentMasterQueryKeys = createQueryKeys('agent-master', {
   getList: (params?: Record<string, unknown>) => [params],
   getDetail: (id?: number) => [id],
   getTenants: null,
-  getConditionStats: null,
+  getOscoms: null,
   getGroupTree: (params?: Record<string, unknown>) => [params],
   getGroupDetail: (id?: number) => [id],
   getGroupChildrenCount: (id?: number) => [id],
@@ -74,12 +74,12 @@ export const useGetAgentTenants = ({ queryOptions }: QueryHookOptions<AgentTenan
   });
 };
 
-/** 상담사 현황 집계 — 클릭 시 활성화(enabled=false 기본). */
-export const useGetAgentConditionStats = ({ queryOptions }: QueryHookOptions<AgentConditionStat[]> = {}) => {
+/** 아웃소싱업체(oscom) 마스터 콤보. 마스터성 데이터 — staleTime 5분으로 잦은 재조회 방지. */
+export const useGetOscoms = ({ queryOptions }: QueryHookOptions<Oscom[]> = {}) => {
   return useQuery({
-    queryKey: agentMasterQueryKeys.getConditionStats.queryKey,
-    queryFn: () => agentMasterApi.getConditionStats(),
-    enabled: false,
+    queryKey: agentMasterQueryKeys.getOscoms.queryKey,
+    queryFn: () => agentMasterApi.getOscoms(),
+    staleTime: 5 * 60 * 1000,
     ...queryOptions,
   });
 };

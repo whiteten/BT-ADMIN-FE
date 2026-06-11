@@ -178,7 +178,7 @@ const SipTrunkDrawer = forwardRef<SipTrunkDrawerRef, Props>(({ nodeId, tenantId,
   const { mutate: createTrunk, isPending: creating } = useCreateSipTrunk({
     mutationOptions: {
       onSuccess: () => {
-        toast.success('SIP 트렁크가 등록되었습니다.');
+        toast.success('SIP 트렁크가 등록되었습니다');
         handleClose();
         onSuccess?.();
       },
@@ -189,7 +189,7 @@ const SipTrunkDrawer = forwardRef<SipTrunkDrawerRef, Props>(({ nodeId, tenantId,
   const { mutate: updateTrunk, isPending: updating } = useUpdateSipTrunk({
     mutationOptions: {
       onSuccess: () => {
-        toast.success('SIP 트렁크가 수정되었습니다.');
+        toast.success('SIP 트렁크가 수정되었습니다');
         handleClose();
         onSuccess?.();
       },
@@ -247,7 +247,7 @@ const SipTrunkDrawer = forwardRef<SipTrunkDrawerRef, Props>(({ nodeId, tenantId,
         });
       } else {
         if (nodeId == null || tenantId == null) {
-          toast.warning('노드와 테넌트를 먼저 선택하세요.');
+          toast.warning('노드와 테넌트를 먼저 선택하세요');
           return;
         }
         createTrunk({ nodeId, tenantId, ...common });
@@ -458,6 +458,7 @@ const SipTrunkDrawer = forwardRef<SipTrunkDrawerRef, Props>(({ nodeId, tenantId,
           {isEdit ? 'SIP 트렁크 수정' : 'SIP 트렁크 독립 등록'}
         </span>
       }
+      closable={{ placement: 'end' }}
       open={visible}
       onClose={handleClose}
       width={580}

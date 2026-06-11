@@ -91,7 +91,7 @@ const MediaServerDrawer = forwardRef<MediaServerDrawerRef, Props>(({ onSuccess, 
   const { mutate: createMediaServer, isPending: isCreating } = useCreateMediaServer({
     mutationOptions: {
       onSuccess: () => {
-        toast.success('미디어서버가 등록되었습니다.');
+        toast.success('미디어서버가 등록되었습니다');
         closeDrawer();
         onSuccess();
       },
@@ -101,7 +101,7 @@ const MediaServerDrawer = forwardRef<MediaServerDrawerRef, Props>(({ onSuccess, 
   const { mutate: updateMediaServer, isPending: isUpdating } = useUpdateMediaServer({
     mutationOptions: {
       onSuccess: () => {
-        toast.success('미디어서버가 수정되었습니다.');
+        toast.success('미디어서버가 수정되었습니다');
         closeDrawer();
         onSuccess();
       },
@@ -111,7 +111,7 @@ const MediaServerDrawer = forwardRef<MediaServerDrawerRef, Props>(({ onSuccess, 
   const { mutate: deleteMediaServer, isPending: isDeleting } = useDeleteMediaServer({
     mutationOptions: {
       onSuccess: () => {
-        toast.success('미디어서버가 삭제되었습니다.');
+        toast.success('미디어서버가 삭제되었습니다');
         closeDrawer();
         onSuccess();
       },
@@ -172,6 +172,7 @@ const MediaServerDrawer = forwardRef<MediaServerDrawerRef, Props>(({ onSuccess, 
   return (
     <Drawer
       title={isEditMode ? '미디어서버 수정' : '미디어서버 등록'}
+      closable={{ placement: 'end' }}
       open={visible}
       onClose={closeDrawer}
       styles={{ wrapper: { width: 420 } }}
@@ -187,7 +188,7 @@ const MediaServerDrawer = forwardRef<MediaServerDrawerRef, Props>(({ onSuccess, 
           <div className="flex gap-2">
             <Button onClick={closeDrawer}>취소</Button>
             <Button type="primary" onClick={handleSubmit} loading={isPending}>
-              {isEditMode ? '수정' : '등록'}
+              저장
             </Button>
           </div>
         </div>
@@ -273,9 +274,9 @@ const MediaServerDrawer = forwardRef<MediaServerDrawerRef, Props>(({ onSuccess, 
 
         <Form.Item
           name="natIpAddr"
-          label="외부 IP"
+          label="NAT IP"
           rules={[
-            { max: 128, message: '외부 IP는 128자 이내여야 합니다' },
+            { max: 128, message: 'NAT IP는 128자 이내여야 합니다' },
             { pattern: /^$|^((25[0-5]|2[0-4]\d|[01]?\d\d?)\.){3}(25[0-5]|2[0-4]\d|[01]?\d\d?)$/, message: 'NAT IP 주소 형식이 올바르지 않습니다' },
           ]}
         >

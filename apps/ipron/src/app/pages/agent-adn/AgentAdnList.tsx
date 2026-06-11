@@ -8,7 +8,7 @@
  * 화면 구조 (IPRON 표준 — 트리 없음):
  *   [헤더 h-56]
  *   [테넌트 카드 슬라이더 expanded h-140 / compact h-44]
- *   [ag-Grid 단일 그리드 + 상태 필터 + 자동채번/자동할당/매핑해제 액션]
+ *   [ag-Grid 단일 그리드 + 상태 필터 + 자동채번/자동배정/배정해제 액션]
  */
 import { type ChangeEvent, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Button, Empty, Input, Select } from 'antd';
@@ -24,12 +24,7 @@ import AgentGroupTree from '../../features/agent-master/components/AgentGroupTre
 import { useGetAgentGroupTree } from '../../features/agent-master/hooks/useAgentMasterQueries';
 import { useModal } from '@/libs/shared-ui/src/hooks/useModal';
 
-const breadcrumb = [
-  { title: 'IPRON', path: '/ipron' },
-  { title: '상담사 관리', path: '/ipron/agent-adn' },
-  { title: '상담사', path: '/ipron/agent-adn' },
-  { title: '상담사 ADN 배정', path: '/ipron/agent-adn' },
-];
+const breadcrumb = [{ title: 'IPRON' }, { title: '상담사 관리' }, { title: '상담사' }, { title: '상담사 ADN 배정', path: '/ipron/agent-adn' }];
 
 export default function AgentAdnList() {
   const setBreadcrumb = useBreadcrumbStore((s) => s.setBreadcrumb);
@@ -124,14 +119,14 @@ export default function AgentAdnList() {
     mutationOptions: {
       onSuccess: (resp) => {
         const parts: string[] = [];
-        parts.push(`${resp.assigned}건 자동할당 완료`);
+        parts.push(`${resp.assigned}건 자동배정 완료`);
         if (resp.skipped > 0) parts.push(`스킵 ${resp.skipped}건`);
         if (resp.newAdnCount > 0) parts.push(`신규 ADN ${resp.newAdnCount}건 생성`);
         toast.success(parts.join(' · '));
         setSelectedRows([]);
       },
       onError: (err: unknown) => {
-        const msg = (err as { response?: { data?: { message?: string } } })?.response?.data?.message ?? '자동할당 실패';
+        const msg = (err as { response?: { data?: { message?: string } } })?.response?.data?.message ?? '자동배정 실패';
         toast.error(msg);
       },
     },
@@ -140,11 +135,11 @@ export default function AgentAdnList() {
   const { mutate: unassign, isPending: isUnassigning } = useUnassign({
     mutationOptions: {
       onSuccess: (count) => {
-        toast.success(`${count}건 할당 해제 완료`);
+        toast.success(`${count}건 배정 해제 완료`);
         setSelectedRows([]);
       },
       onError: (err: unknown) => {
-        const msg = (err as { response?: { data?: { message?: string } } })?.response?.data?.message ?? '할당 해제 실패';
+        const msg = (err as { response?: { data?: { message?: string } } })?.response?.data?.message ?? '배정 해제 실패';
         toast.error(msg);
       },
     },
@@ -183,7 +178,7 @@ export default function AgentAdnList() {
   // ─── Handlers ───────────────────────────────────────────────────────────
   const handleAutoAssign = useCallback(() => {
     if (selectedRows.length === 0) {
-      toast.warning('자동할당할 상담사를 선택하세요');
+      toast.warning('자동배정할 상담사를 선택하세요');
       return;
     }
     if (!policy?.active) {
@@ -191,14 +186,14 @@ export default function AgentAdnList() {
       return;
     }
     if (selectedUnassigned === 0) {
-      toast.warning('선택한 상담사는 모두 이미 할당되어 있어 자동할당 대상이 없습니다');
+      toast.warning('선택한 상담사는 모두 이미 배정되어 있어 자동배정 대상이 없습니다');
       return;
     }
     modal.confirm.execute({
       onOk: () => autoAssign({ agentIds: selectedRows.map((r) => r.agentId) }),
       options: {
-        title: 'ADN 자동할당',
-        content: `선택 ${selectedRows.length}명 중 미할당 ${selectedUnassigned}명에게 "${policy.adnPrefix}" + ${policy.digitLength}자리 정책으로 ADN을 자동 채번합니다. 진행할까요?`,
+        title: 'ADN 자동배정',
+        content: `미배정 ${selectedUnassigned}명에게 ADN을 자동 배정하시겠습니까?`,
       },
     });
   }, [selectedRows, selectedUnassigned, policy, modal, autoAssign]);
@@ -206,14 +201,14 @@ export default function AgentAdnList() {
   const handleBulkUnassign = useCallback(() => {
     const targets = selectedRows.filter((r) => r.mappingStatus === 'ASSIGNED');
     if (targets.length === 0) {
-      toast.warning('해제할 할당된 상담사를 선택하세요');
+      toast.warning('해제할 배정된 상담사를 선택하세요');
       return;
     }
     modal.confirm.execute({
       onOk: () => unassign({ agentIds: targets.map((r) => r.agentId) }),
       options: {
-        title: '할당 일괄 해제',
-        content: `할당된 상담사 ${targets.length}건의 ADN 할당을 해제하시겠습니까?`,
+        title: '배정 일괄 해제',
+        content: `배정된 상담사 ${targets.length}건의 ADN 배정을 해제하시겠습니까?`,
       },
     });
   }, [selectedRows, modal, unassign]);
@@ -245,8 +240,8 @@ export default function AgentAdnList() {
               style={{ width: 110 }}
               options={[
                 { value: 'ALL', label: '전체 상태' },
-                { value: 'ASSIGNED', label: '할당' },
-                { value: 'UNASSIGNED', label: '미할당' },
+                { value: 'ASSIGNED', label: '배정' },
+                { value: 'UNASSIGNED', label: '미배정' },
               ]}
             />
           </div>
@@ -362,11 +357,9 @@ export default function AgentAdnList() {
         <div className="bg-white bt-shadow flex-1 min-w-0 min-h-0 flex flex-col overflow-hidden">
           <div className="px-5 py-3 border-b border-gray-100 flex items-center gap-2 h-[44px] flex-shrink-0">
             <span className="text-sm font-semibold text-gray-800">상담사 목록 ({filteredRows.length.toLocaleString()}명)</span>
-            {selectedRows.length > 0 && (
-              <span className="text-xs text-gray-500">
-                선택 {selectedRows.length}건 (미할당 <b className="text-orange-600">{selectedUnassigned}</b> · 할당 <b className="text-green-700">{selectedAssigned}</b>)
-              </span>
-            )}
+            <span className={selectedRows.length > 0 ? 'text-xs text-gray-500' : 'invisible text-xs text-gray-500'}>
+              선택 {selectedRows.length}건 (미배정 <b className="text-orange-600">{selectedUnassigned}</b> · 배정 <b className="text-green-700">{selectedAssigned}</b>)
+            </span>
             <div className="ml-auto flex items-center gap-2">
               <Button
                 icon={<Settings className="size-3.5" />}
@@ -382,18 +375,18 @@ export default function AgentAdnList() {
                 onClick={handleAutoAssign}
                 loading={isAssigning}
                 disabled={!policy?.active || selectedUnassigned === 0}
-                title={!policy?.active ? '먼저 자동채번 정책을 활성화하세요' : selectedUnassigned === 0 ? '미할당 상담사를 선택하세요' : `미할당 ${selectedUnassigned}명 자동할당`}
+                title={!policy?.active ? '먼저 자동채번 정책을 활성화하세요' : selectedUnassigned === 0 ? '미배정 상담사를 선택하세요' : `미배정 ${selectedUnassigned}명 자동배정`}
               >
-                자동할당{selectedUnassigned > 0 ? ` (${selectedUnassigned})` : ''}
+                자동배정
               </Button>
               <Button
                 danger
                 onClick={handleBulkUnassign}
                 loading={isUnassigning}
                 disabled={selectedAssigned === 0}
-                title={selectedAssigned === 0 ? '해제할 할당된 상담사를 선택하세요' : `${selectedAssigned}건 할당 해제`}
+                title={selectedAssigned === 0 ? '해제할 배정된 상담사를 선택하세요' : `${selectedAssigned}건 배정 해제`}
               >
-                할당 해제{selectedAssigned > 0 ? ` (${selectedAssigned})` : ''}
+                배정 해제
               </Button>
             </div>
           </div>
@@ -421,7 +414,7 @@ function CompactTenantPill({ name, count, unassigned, selected, onClick }: Compa
     <button
       type="button"
       onClick={onClick}
-      title={`${name} · 전체 ${count.toLocaleString()} / 미할당 ${unassigned.toLocaleString()}`}
+      title={`${name} · 전체 ${count.toLocaleString()} / 미배정 ${unassigned.toLocaleString()}`}
       className={`flex-shrink-0 inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full border text-xs transition ${
         selected
           ? 'border-[#405189] bg-[#405189] text-white shadow-[0_0_0_2px_rgba(64,81,137,0.15)]'

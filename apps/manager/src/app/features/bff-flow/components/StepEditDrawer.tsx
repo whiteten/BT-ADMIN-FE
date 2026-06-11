@@ -109,6 +109,7 @@ export default function StepEditDrawer({ open, step, onOk, onCancel, onDelete }:
   return (
     <Drawer
       title={isEdit ? 'Step 편집' : 'Step 추가'}
+      closable={{ placement: 'end' }}
       open={open}
       onClose={onCancel}
       width={520}

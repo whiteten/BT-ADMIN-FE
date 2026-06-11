@@ -336,7 +336,7 @@ export default function AdnList() {
               disabled={selectedRows.length === 0}
               title={selectedRows.length === 0 ? '삭제할 ADN 을 선택하세요' : '선택한 ADN 삭제'}
             >
-              {selectedRows.length > 0 ? `삭제 (${selectedRows.length})` : '삭제'}
+              삭제
             </Button>
             <Button onClick={handleCopyOpen} disabled={selectedRows.length !== 1} title={selectedRows.length !== 1 ? 'ADN 1건을 선택하세요' : '선택한 ADN 복사 생성'}>
               복사 생성
@@ -351,7 +351,6 @@ export default function AdnList() {
             rowData={filteredAdns}
             isLoading={isLoading}
             onRowDoubleClicked={handleEdit}
-            onDelete={handleDelete}
             onSelectionChanged={setSelectedRows}
             onBulkDelete={handleBulkDelete}
             selectedCount={selectedRows.length}

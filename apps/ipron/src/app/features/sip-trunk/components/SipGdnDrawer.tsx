@@ -154,7 +154,7 @@ const SipGdnDrawer = forwardRef<SipGdnDrawerRef, Props>(({ nodeId, tenantId, drN
   const { mutate: createGdn, isPending: creating } = useCreateSipGdn({
     mutationOptions: {
       onSuccess: () => {
-        toast.success('그룹DN이 등록되었습니다.');
+        toast.success('그룹DN이 등록되었습니다');
         handleClose();
         onSuccess?.();
       },
@@ -165,7 +165,7 @@ const SipGdnDrawer = forwardRef<SipGdnDrawerRef, Props>(({ nodeId, tenantId, drN
   const { mutate: updateGdn, isPending: updating } = useUpdateSipGdn({
     mutationOptions: {
       onSuccess: () => {
-        toast.success('그룹DN이 수정되었습니다.');
+        toast.success('그룹DN이 수정되었습니다');
         if (!isApplyRef.current) handleClose();
         onSuccess?.();
       },
@@ -182,7 +182,7 @@ const SipGdnDrawer = forwardRef<SipGdnDrawerRef, Props>(({ nodeId, tenantId, drN
           updateGdn({ gdnId: editData.gdnId, body: buildBody(v) });
         } else {
           if (nodeId == null || tenantId == null) {
-            toast.warning('노드와 테넌트를 먼저 선택하세요.');
+            toast.warning('노드와 테넌트를 먼저 선택하세요');
             return;
           }
           createGdn({
@@ -202,6 +202,7 @@ const SipGdnDrawer = forwardRef<SipGdnDrawerRef, Props>(({ nodeId, tenantId, drN
   return (
     <Drawer
       title={isEdit ? '그룹DN 수정' : '그룹DN 등록'}
+      closable={{ placement: 'end' }}
       open={visible}
       onClose={handleClose}
       width={560}
@@ -265,7 +266,7 @@ const SipGdnDrawer = forwardRef<SipGdnDrawerRef, Props>(({ nodeId, tenantId, drN
           </Form.Item>
         </div>
 
-        <Form.Item name="blockYn" label="블럭 여부">
+        <Form.Item name="blockYn" label="블록 여부">
           <Radio.Group>
             <Radio value={1}>설정</Radio>
             <Radio value={0}>해제</Radio>
@@ -277,7 +278,7 @@ const SipGdnDrawer = forwardRef<SipGdnDrawerRef, Props>(({ nodeId, tenantId, drN
           <h4 className="text-xs text-gray-500 font-semibold mb-3">초기구성</h4>
 
           {/* blockYn=0이면 closeType disabled (SWAT :217-224) */}
-          <Form.Item name="closeType" label="종료 방법" extra={closeTypeDisabled ? '블럭 여부를 "설정"으로 변경하면 활성화됩니다' : undefined}>
+          <Form.Item name="closeType" label="종료 방법">
             <Select disabled={closeTypeDisabled} allowClear placeholder="종료 방법 선택" options={[{ value: null, label: '(미지정)' }, ...CLOSE_TYPE_OPTIONS]} />
           </Form.Item>
 

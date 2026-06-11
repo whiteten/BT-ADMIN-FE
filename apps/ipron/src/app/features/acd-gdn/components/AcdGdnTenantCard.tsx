@@ -1,7 +1,7 @@
 /**
  * ACD 그룹DN 테넌트 카드 (240×100) — AdnTenantCard 패턴.
  *
- * 표시: 테넌트명 / 그룹DN 총수 / ACD 활성 / 블럭 / 헌팅 사용 수.
+ * 표시: 테넌트명 / 그룹DN 총수 / ACD 활성 / 블록 / 헌팅 사용 수.
  */
 import { Building2 } from 'lucide-react';
 
@@ -54,7 +54,7 @@ export default function AcdGdnTenantCard({ tenantId, tenantName, stats, selected
           <span className="font-medium text-green-600">{acdActiveCnt.toLocaleString()}</span>
         </div>
         <div className="flex items-center justify-between">
-          <span className="text-gray-500">블럭 / 헌팅</span>
+          <span className="text-gray-500">블록 / 헌팅</span>
           <span className="font-medium">
             <span className="text-red-500">{blockedCnt.toLocaleString()}</span>
             <span className="text-gray-400 mx-1">/</span>

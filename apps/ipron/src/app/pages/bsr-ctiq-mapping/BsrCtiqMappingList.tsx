@@ -19,8 +19,6 @@ import { Button, Empty, Input } from 'antd';
 import { Building2, ChevronLeft, ChevronRight, ChevronsDown, ChevronsUp, Plus, Save, Search, Trash2 } from 'lucide-react';
 import { useAuthStore, useBreadcrumbStore } from '@/shared-store';
 import { toast } from '@/shared-util';
-import { bsrCtiqMappingApi } from '../../features/bsr-ctiq-mapping/api/bsrCtiqMappingApi';
-import BsrCtiqAssignModal from '../../features/bsr-ctiq-mapping/components/BsrCtiqAssignModal';
 import { useAssignBsrCtiq, useGetBsrCtiqMappings, useUpdateBsrCtiqMappings } from '../../features/bsr-ctiq-mapping/hooks/useBsrCtiqMappingQueries';
 import type { BsrCtiqMappingResponse, BsrCtiqMappingUpdateItem, BsrGroupComboItem } from '../../features/bsr-ctiq-mapping/types';
 import { bsrGroupApi } from '../../features/bsr-group/api/bsrGroupApi';
@@ -32,7 +30,7 @@ import { useModal } from '@/libs/shared-ui/src/hooks/useModal';
 
 const breadcrumb = [
   { title: '번호자원관리', path: '/ipron/bsr-ctiq-mapping' },
-  { title: '그룹DN', path: '/ipron/bsr-ctiq-mapping' },
+  { title: '라우팅 설정', path: '/ipron/bsr-ctiq-mapping' },
   { title: 'BSR 그룹별 CTI큐 배정', path: '/ipron/bsr-ctiq-mapping' },
 ];
 
@@ -300,21 +298,10 @@ export default function BsrCtiqMappingList() {
     setAssignModalOpen(true);
   }, [loadBsrCombos]);
 
-  const handleSearch = useCallback(async (params: { bsrGroupId?: string; gdnNoStart?: string; gdnNoEnd?: string }) => {
-    setIsSearching(true);
-    try {
-      const result = await bsrCtiqMappingApi.searchCtiq({
-        bsrGroupId: params.bsrGroupId !== undefined ? Number(params.bsrGroupId) : undefined,
-        gdnNoStart: params.gdnNoStart,
-        gdnNoEnd: params.gdnNoEnd,
-      });
-      setSearchResult(result);
-    } catch {
-      toast.error('CTI큐 검색에 실패했습니다');
-      setSearchResult([]);
-    } finally {
-      setIsSearching(false);
-    }
+  // NOTE: 이 화면은 통합 BSR 그룹 관리(/ipron/bsr-group-manage)로 대체 예정.
+  // searchCtiq 는 더 이상 사용하지 않음 — 배정 기능은 통합 화면에서 제공.
+  const handleSearch = useCallback(async (_params: Record<string, unknown>) => {
+    void _params;
   }, []);
 
   const handleAssign = useCallback(
@@ -567,21 +554,7 @@ export default function BsrCtiqMappingList() {
         loading={isUpdatingGroup}
       />
 
-      {/* CTI큐 배정 Modal */}
-      <BsrCtiqAssignModal
-        open={assignModalOpen}
-        bsrGroupCombos={bsrGroupCombos}
-        currentBsrGroupId={selectedGroup?.bsrGroupId}
-        onClose={() => {
-          setAssignModalOpen(false);
-          setSearchResult([]);
-        }}
-        onSearch={handleSearch}
-        searchResult={searchResult}
-        isSearching={isSearching}
-        onAssign={handleAssign}
-        isAssigning={isAssigning}
-      />
+      {/* CTI큐 배정 기능은 통합 화면(/ipron/bsr-group-manage)으로 이동됨 */}
     </div>
   );
 }

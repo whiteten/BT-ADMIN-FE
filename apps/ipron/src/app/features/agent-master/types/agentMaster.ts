@@ -130,22 +130,6 @@ export interface AgentConfig {
   passwordPolicyUse: boolean;
 }
 
-/** 상담사 현황 집계 — 테넌트×그룹별 등급별 인원 (SWAT doAgentCondition 팝업 대응). */
-export interface AgentConditionStat {
-  tenantId: number;
-  tenantName: string;
-  groupId: number;
-  groupName: string;
-  adminCnt: number;
-  ptCnt: number;
-  traineeCnt: number;
-  juniorCnt: number;
-  seniorCnt: number;
-  viceCnt: number;
-  supervisorCnt: number;
-  agentCount: number;
-}
-
 // ─── 상담그룹 ─────────────────────────────────────────────────────────────
 
 export interface AgentGroupNode {
@@ -197,6 +181,18 @@ export interface AgentGroupUpdateRequest {
   oscomId?: number;
   activateYn?: number;
   mediaMatrix?: AgentMediaMatrix | null;
+}
+
+// ─── 아웃소싱업체(oscom) 마스터 ─────────────────────────────────────────────
+
+/**
+ * 아웃소싱업체 콤보 옵션. SWAT 정합: cbCreate("#poOscomId","oscom",...) — 업체 마스터 콤보.
+ * BE: GET /api/ipron/oscoms (현재 테넌트 필터는 BE 처리, FE 는 호출만) → ApiResponse<List<Oscom>>.
+ */
+export interface Oscom {
+  oscomId: number;
+  oscomName: string;
+  oscomAlias: string;
 }
 
 /** 그룹 트리 D&D 재배치 (BEFORE/AFTER/INSIDE). */

@@ -65,7 +65,7 @@ const DodTransItemDrawer = forwardRef<DodTransItemDrawerRef, Props>(({ onSuccess
   const { mutate: createItem, isPending: isCreating } = useCreateItem({
     mutationOptions: {
       onSuccess: () => {
-        toast.success('변환 패턴이 등록되었습니다.');
+        toast.success('변환 패턴이 등록되었습니다');
         handleClose();
         onSuccess();
       },
@@ -75,7 +75,7 @@ const DodTransItemDrawer = forwardRef<DodTransItemDrawerRef, Props>(({ onSuccess
   const { mutate: updateItem, isPending: isUpdating } = useUpdateItem({
     mutationOptions: {
       onSuccess: () => {
-        toast.success('변환 패턴이 수정되었습니다.');
+        toast.success('변환 패턴이 수정되었습니다');
         handleClose();
         onSuccess();
       },
@@ -85,7 +85,7 @@ const DodTransItemDrawer = forwardRef<DodTransItemDrawerRef, Props>(({ onSuccess
   const { mutate: deleteItem, isPending: isDeleting } = useDeleteItem({
     mutationOptions: {
       onSuccess: () => {
-        toast.success('변환 패턴이 삭제되었습니다.');
+        toast.success('변환 패턴이 삭제되었습니다');
         handleClose();
         onSuccess();
       },
@@ -119,7 +119,7 @@ const DodTransItemDrawer = forwardRef<DodTransItemDrawerRef, Props>(({ onSuccess
         });
       } else {
         if (!dodTransId) {
-          toast.error('DOD DNIS 변환을 선택하세요.');
+          toast.error('DOD DNIS 변환을 선택하세요');
           return;
         }
         createItem({
@@ -152,6 +152,7 @@ const DodTransItemDrawer = forwardRef<DodTransItemDrawerRef, Props>(({ onSuccess
       title={isEditMode ? '변환 패턴 수정' : '변환 패턴 등록'}
       open={visible}
       onClose={handleClose}
+      closable={{ placement: 'end' }}
       styles={{ wrapper: { width: 420, display: patternMode ? 'none' : undefined } }}
       mask={!patternMode}
       footer={
@@ -204,7 +205,7 @@ const DodTransItemDrawer = forwardRef<DodTransItemDrawerRef, Props>(({ onSuccess
           <Select options={[...EDIT_OPT_OPTIONS]} placeholder="편집옵션을 선택하세요" />
         </Form.Item>
 
-        <Form.Item name="delCount" label="편집 Digit 수" rules={[{ required: true, message: '편집 Digit 수는 필수입니다' }]}>
+        <Form.Item name="delCount" label="Digit 수" rules={[{ required: true, message: 'Digit 수는 필수입니다' }]}>
           <InputNumber min={-1} max={99} placeholder="0" className="w-full" />
         </Form.Item>
 

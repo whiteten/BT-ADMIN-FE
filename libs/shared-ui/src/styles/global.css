@@ -88,6 +88,8 @@
   */
   --color-bt-primary: #085fb5;
   --color-bt-primary-soft: #eaf2fb;
+  /* host 헤더(TopHeader·SubHeader) 배경 — 런타임 config(window.__CONFIG__.headerBgColor)로 덮어쓸 수 있음 */
+  --color-bt-header: var(--color-bt-primary);
 }
 
 .dark {

@@ -22,15 +22,15 @@ import { Button, Empty, Input } from 'antd';
 import { ArrowUpDown, Building2, ChevronLeft, ChevronRight, ChevronsDown, ChevronsUp, Network, Plus, Search, Trash2, Upload } from 'lucide-react';
 import { useBreadcrumbStore } from '@/shared-store';
 import { toast } from '@/shared-util';
-import { deviceApi } from '../../features/device/api/deviceApi';
+import DeviceBulkDeleteModal from '../../features/device/components/DeviceBulkDeleteModal';
 import DeviceFormDrawer, { type DeviceFormDrawerRef } from '../../features/device/components/DeviceFormDrawer';
+import DeviceImportDrawer from '../../features/device/components/DeviceImportDrawer';
 import DeviceTenantCard from '../../features/device/components/DeviceTenantCard';
-import { deviceQueryKeys, useDeleteDevice, useGetDeviceTypes, useGetDevices, useUpdateFirmwareUse } from '../../features/device/hooks/useDeviceQueries';
+import { deviceQueryKeys, useGetDeviceTypes, useGetDevices, useUpdateFirmwareUse } from '../../features/device/hooks/useDeviceQueries';
 import type { DevMasterResponse } from '../../features/device/types';
 import { useGetDnNodeTenants } from '../../features/dn/hooks/useDnQueries';
 import { useGetDnProfileNodes, useGetDnProfileTenants } from '../../features/dn-profile/hooks/useDnProfileQueries';
 import useAggridOptions from '@/libs/shared-ui/src/hooks/useAggridOptions';
-import { useModal } from '@/libs/shared-ui/src/hooks/useModal';
 
 const breadcrumb = [
   { title: '번호자원관리', path: '/ipron/dn' },
@@ -48,7 +48,6 @@ export default function DeviceList() {
   }, [setBreadcrumb, clearBreadcrumb]);
 
   const queryClient = useQueryClient();
-  const modal = useModal();
 
   // ─── State ──────────────────────────────────────────────────────────────────
   const [viewMode, setViewMode] = useState<'byNode' | 'byTenant'>('byNode');
@@ -57,7 +56,8 @@ export default function DeviceList() {
   const [searchText, setSearchText] = useState('');
   const [selectedRows, setSelectedRows] = useState<DevMasterResponse[]>([]);
   const [importOpen, setImportOpen] = useState(false);
-  const [cardExpanded, setCardExpanded] = useState(true);
+  const [bulkDeleteOpen, setBulkDeleteOpen] = useState(false);
+  const [cardExpanded, setCardExpanded] = useState(false);
 
   const { gridOptions } = useAggridOptions();
 
@@ -248,36 +248,21 @@ export default function DeviceList() {
   }, [queryClient]);
 
   // ─── Mutations ──────────────────────────────────────────────────────────────
-  const { mutate: deleteDevice, isPending: isDeleting } = useDeleteDevice({
-    mutationOptions: {
-      onSuccess: () => {
-        toast.success('단말기가 삭제되었습니다.');
-        setSelectedRows([]);
-        invalidateDevices();
-      },
-      onError: () => toast.error('단말기 삭제에 실패했습니다.'),
-    },
-  });
 
   const { mutate: updateFirmwareUse, isPending: isFirmwareUpdating } = useUpdateFirmwareUse({
     mutationOptions: {
       onSuccess: () => {
-        toast.success('펌웨어 사용여부가 변경되었습니다.');
+        toast.success('펌웨어 사용여부가 변경되었습니다');
         invalidateDevices();
       },
-      onError: () => toast.error('펌웨어 사용여부 변경에 실패했습니다.'),
+      onError: () => toast.error('펌웨어 사용여부 변경에 실패했습니다'),
     },
   });
 
+  // NUM-005: 다건 삭제 — forEach 개별 호출 대신 DeviceBulkDeleteModal (청크+진행률)
   const handleDeleteSelected = () => {
     if (selectedRows.length === 0) return;
-    modal.confirm.execute({
-      onOk: () => selectedRows.forEach((r) => deleteDevice(r.devMasterId)),
-      options: {
-        title: '단말기 삭제',
-        content: `선택한 단말기 ${selectedRows.length}건을 삭제하시겠습니까?\n프로비저닝 정보도 함께 삭제됩니다.`,
-      },
-    });
+    setBulkDeleteOpen(true);
   };
 
   const handleFirmwareUseOn = () => {
@@ -293,7 +278,7 @@ export default function DeviceList() {
   // 등록 버튼
   const handleCreate = useCallback(() => {
     if (!selectedNodeId) {
-      toast.warning('노드를 선택한 후 등록하세요.');
+      toast.warning('노드를 선택한 후 등록하세요');
       return;
     }
     const nodeName = nodes.find((n) => n.nodeId === selectedNodeId)?.nodeName ?? '';
@@ -308,23 +293,6 @@ export default function DeviceList() {
     },
     [nodes],
   );
-
-  const handleImportFile = (file: File) => {
-    if (!selectedNodeId) {
-      toast.warning('가져오기는 노드를 선택한 후 가능합니다.');
-      return;
-    }
-    deviceApi
-      .importDevices(selectedNodeId, file)
-      .then((cnt) => {
-        toast.success(`${cnt}건 단말기를 가져왔습니다.`);
-        invalidateDevices();
-        setImportOpen(false);
-      })
-      .catch(() => {
-        toast.error('단말기 가져오기에 실패했습니다.');
-      });
-  };
 
   // ─── Grid Columns ────────────────────────────────────────────────────────────
   const columnDefs: ColDef<DevMasterResponse>[] = useMemo(
@@ -599,8 +567,8 @@ export default function DeviceList() {
               <Button onClick={handleFirmwareUseOff} loading={isFirmwareUpdating} disabled={selectedRows.length === 0}>
                 펌웨어미사용
               </Button>
-              <Button danger icon={<Trash2 className="size-3.5" />} onClick={handleDeleteSelected} loading={isDeleting} disabled={selectedRows.length === 0}>
-                {selectedRows.length > 0 ? `삭제 (${selectedRows.length})` : '삭제'}
+              <Button danger icon={<Trash2 className="size-3.5" />} onClick={handleDeleteSelected} disabled={selectedRows.length === 0}>
+                삭제
               </Button>
               <Button type="primary" icon={<Plus className="size-3.5" />} onClick={handleCreate}>
                 등록
@@ -640,24 +608,20 @@ export default function DeviceList() {
       {/* 등록/수정 Drawer */}
       <DeviceFormDrawer ref={drawerRef} deviceTypes={deviceTypes} onSuccess={invalidateDevices} />
 
-      {/* 가져오기 — 간이 파일 input (TODO: 전용 Drawer 로 교체) */}
-      {importOpen && (
-        <input
-          type="file"
-          accept=".xlsx,.xls"
-          style={{ display: 'none' }}
-          ref={(el) => {
-            if (el) {
-              el.click();
-              el.onchange = (e) => {
-                const f = (e.target as HTMLInputElement).files?.[0];
-                if (f) handleImportFile(f);
-                setImportOpen(false);
-              };
-            }
-          }}
-        />
-      )}
+      {/* NUM-004: 가져오기 전용 Drawer (AdnImportDrawer 패턴) */}
+      <DeviceImportDrawer open={importOpen} nodeId={selectedNodeId} onClose={() => setImportOpen(false)} onSuccess={invalidateDevices} />
+
+      {/* NUM-005: 다건 삭제 Modal (DnBulkDeleteModal 패턴 — 청크+진행률) */}
+      <DeviceBulkDeleteModal
+        open={bulkDeleteOpen}
+        devMasterIds={selectedRows.map((r) => r.devMasterId)}
+        onCancel={() => setBulkDeleteOpen(false)}
+        onSuccess={() => {
+          setBulkDeleteOpen(false);
+          setSelectedRows([]);
+          invalidateDevices();
+        }}
+      />
     </div>
   );
 }

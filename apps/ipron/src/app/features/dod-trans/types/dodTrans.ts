@@ -25,16 +25,16 @@ export const EDIT_OPT_LABELS: Record<number, string> = {
 
 /**
  * 변환 사용여부 (TRANS_YN)
- * 1: ON, 0: OFF
+ * 1: 사용, 0: 미사용
  */
 export const TRANS_YN_OPTIONS = [
-  { label: 'ON', value: 1 },
-  { label: 'OFF', value: 0 },
+  { label: '사용', value: 1 },
+  { label: '미사용', value: 0 },
 ] as const;
 
 export const TRANS_YN_LABELS: Record<number, string> = {
-  1: 'ON',
-  0: 'OFF',
+  1: '사용',
+  0: '미사용',
 };
 
 // ─── Backend Response 타입 ──────────────────────────────────────────────────

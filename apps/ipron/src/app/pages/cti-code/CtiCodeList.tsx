@@ -14,13 +14,14 @@ import { toast } from '@/shared-util';
 import CtiCodeFormDrawer, { type CtiCodeDrawerState } from '../../features/cti-code/components/CtiCodeFormDrawer';
 import CtiCodeTable from '../../features/cti-code/components/CtiCodeTable';
 import CtiCodeTenantCard from '../../features/cti-code/components/CtiCodeTenantCard';
-import { useDeleteReasonCode, useDeleteReasonCodesBatch, useGetCtiCodeTenantStats, useGetReasonCodes } from '../../features/cti-code/hooks/useCtiCodeQueries';
+import { useDeleteReasonCodesBatch, useGetCtiCodeTenantStats, useGetReasonCodes } from '../../features/cti-code/hooks/useCtiCodeQueries';
 import { REASON_CODE_TYPE_ACW, REASON_CODE_TYPE_REST, type ReasonCodeResponse } from '../../features/cti-code/types';
+import { useModal } from '@/libs/shared-ui/src/hooks/useModal';
 
 const breadcrumb = [
-  { title: 'IPRON', path: '/ipron' },
+  { title: 'IPRON' },
   { title: '상담사 관리', path: '/ipron/agent-master' },
-  { title: '코드 관리', path: '/ipron/cti-code-mgmt' },
+  { title: '코드 관리' },
   { title: '휴식/후처리 사유코드 관리', path: '/ipron/cti-code-mgmt' },
 ];
 
@@ -44,6 +45,7 @@ export default function CtiCodeList() {
   const [cardExpanded, setCardExpanded] = useState(false);
   const [selectedRows, setSelectedRows] = useState<ReasonCodeResponse[]>([]);
   const cardScrollRef = useRef<HTMLDivElement>(null);
+  const modal = useModal();
 
   // ctx 비동기 로드 시 동기화
   useEffect(() => {
@@ -68,17 +70,6 @@ export default function CtiCodeList() {
     },
   });
 
-  const { mutate: deleteReason } = useDeleteReasonCode({
-    mutationOptions: {
-      onSuccess: () => {
-        toast.success('사유 코드가 삭제되었습니다');
-        refetchReasons();
-        refetchTenants();
-      },
-      onError: (err: unknown) => toast.error(extractMessage(err) ?? '삭제 실패'),
-    },
-  });
-
   const { mutate: deleteReasonsBatch, isPending: isDeleting } = useDeleteReasonCodesBatch({
     mutationOptions: {
       onSuccess: () => {
@@ -100,32 +91,29 @@ export default function CtiCodeList() {
       toast.warning('사유 코드를 30개 이상 등록할 수 없습니다');
       return;
     }
-    setDrawer({ open: true, mode: 'create', codeType, tenantId: selectedTenantId });
+    setDrawer({ open: true, mode: 'create', codeType, tenantId: selectedTenantId, tenantName: selectedTenantName ?? undefined });
   };
 
   const handleEdit = (row: ReasonCodeResponse) => {
     setDrawer({ open: true, mode: 'edit', codeType: row.codeType, reason: row });
   };
 
-  const handleDelete = (row: ReasonCodeResponse) => {
-    if (!window.confirm(`사유 코드 "${row.reasonName}" 를 삭제하시겠습니까?`)) return;
-    deleteReason({
-      tenantId: row.tenantId,
-      codeType: row.codeType,
-      reasonCode: row.reasonCode,
-    });
-  };
-
   const handleBulkDelete = () => {
     if (selectedRows.length === 0) return;
-    if (!window.confirm(`선택한 ${selectedRows.length}건의 사유 코드를 삭제하시겠습니까?`)) return;
-    deleteReasonsBatch(
-      selectedRows.map((r) => ({
-        tenantId: r.tenantId,
-        codeType: r.codeType,
-        reasonCode: r.reasonCode,
-      })),
-    );
+    modal.confirm.execute({
+      onOk: () =>
+        deleteReasonsBatch(
+          selectedRows.map((r) => ({
+            tenantId: r.tenantId,
+            codeType: r.codeType,
+            reasonCode: r.reasonCode,
+          })),
+        ),
+      options: {
+        title: '사유 코드 삭제',
+        content: `선택한 ${selectedRows.length}건의 사유 코드를 삭제하시겠습니까?`,
+      },
+    });
   };
 
   const selectedTenantName = selectedTenantId == null ? null : (tenantStats.find((t) => t.tenantId === selectedTenantId)?.tenantName ?? `#${selectedTenantId}`);
@@ -135,7 +123,7 @@ export default function CtiCodeList() {
       {/* ===== 박스 1: 헤더 (별도 박스) ===== */}
       <div className="bg-white bt-shadow overflow-hidden flex-shrink-0">
         <div className="flex items-center px-4 h-[56px]">
-          <span className="text-sm font-semibold text-gray-700">휴식/ACW 사유 현황</span>
+          <span className="text-sm font-semibold text-gray-700">휴식/후처리(ACW) 사유 현황</span>
           {selectedTenantName && (
             <span className="ml-3 text-xs text-gray-500">
               테넌트: <span className="font-medium text-gray-700">{selectedTenantName}</span>
@@ -239,14 +227,12 @@ export default function CtiCodeList() {
             onChange={(v) => setCodeType(Number(v))}
             options={[
               { label: '휴식 사유', value: REASON_CODE_TYPE_REST },
-              { label: 'ACW 사유', value: REASON_CODE_TYPE_ACW },
+              { label: '후처리(ACW) 사유', value: REASON_CODE_TYPE_ACW },
             ]}
           />
-          {selectedRows.length > 0 && (
-            <span className="ml-3 text-xs text-gray-500">
-              {reasonRows.length.toLocaleString()}건 중 {selectedRows.length}건 선택
-            </span>
-          )}
+          <span className={`ml-3 text-xs text-gray-500 ${selectedRows.length > 0 ? 'visible' : 'invisible'}`}>
+            {reasonRows.length.toLocaleString()}건 중 {selectedRows.length}건 선택
+          </span>
           <div className="ml-auto flex items-center gap-2">
             <Button
               danger
@@ -256,7 +242,7 @@ export default function CtiCodeList() {
               disabled={selectedRows.length === 0}
               title={selectedRows.length === 0 ? '삭제할 사유 코드를 선택하세요' : '선택한 사유 코드 삭제'}
             >
-              {selectedRows.length > 0 ? `삭제 (${selectedRows.length})` : '삭제'}
+              삭제
             </Button>
             <Button type="primary" icon={<Plus className="size-3.5" />} onClick={handleCreate}>
               등록
@@ -273,10 +259,7 @@ export default function CtiCodeList() {
               rowData={reasonRows}
               isLoading={reasonLoading}
               onRowDoubleClicked={handleEdit}
-              onDelete={handleDelete}
               onSelectionChanged={setSelectedRows}
-              onBulkDelete={handleBulkDelete}
-              selectedCount={selectedRows.length}
               showTenantColumn={selectedTenantId === null}
             />
           )}

@@ -14,6 +14,8 @@ interface FlatLeaf {
   path: string;
   /** 부모 폴더 라벨 체인(' › ' 연결). 2뎁스 leaf는 ''. */
   crumb: string;
+  /** 그룹 헤더 기준 중첩 깊이. 2뎁스 leaf는 0, 3뎁스 leaf는 1, … */
+  depth: number;
 }
 
 /** 좌측 리스트 렌더 엔트리 — 그룹 헤더 또는 leaf 행 */
@@ -27,7 +29,7 @@ function collectLeaves(node: MenuItem, chain: string[]): FlatLeaf[] {
     if (c.children?.length) {
       out.push(...collectLeaves(c, [...chain, c.label]));
     } else if (c.path) {
-      out.push({ menuKey: c.menuKey, label: c.label, desc: c.desc, path: c.path, crumb: chain.join(' › ') });
+      out.push({ menuKey: c.menuKey, label: c.label, desc: c.desc, path: c.path, crumb: chain.join(' › '), depth: chain.length });
     }
     // path도 children도 없는 항목은 비활성 → 좌측 리스트에서 제외
   }
@@ -51,7 +53,7 @@ function buildEntries(menu: MenuItem): { entries: ListEntry[]; leaves: FlatLeaf[
       }
     } else if (c.path) {
       // 2뎁스 leaf → 단독 행
-      const leaf: FlatLeaf = { menuKey: c.menuKey, label: c.label, desc: c.desc, path: c.path, crumb: '' };
+      const leaf: FlatLeaf = { menuKey: c.menuKey, label: c.label, desc: c.desc, path: c.path, crumb: '', depth: 0 };
       entries.push({ type: 'leaf', leaf });
       leaves.push(leaf);
     }
@@ -104,8 +106,10 @@ const PanelDetailSplit = ({ menu, appId, appName, onNavigate }: PanelDetailSplit
                   type="button"
                   onMouseEnter={() => setPreviewKey(leaf.menuKey)}
                   onClick={() => onNavigate(`/${appId}/${leaf.path}`)}
+                  // 깊이별 들여쓰기 — 2뎁스 leaf(depth 0)와 그룹 하위 3뎁스+ leaf를 시각적으로 구분
+                  style={{ paddingLeft: 10 + leaf.depth * 14 }}
                   className={cn(
-                    'group/row relative flex w-full items-center gap-2 rounded-lg px-2.5 py-[7px] text-left transition-colors cursor-pointer',
+                    'group/row relative flex w-full items-center gap-2 rounded-lg pr-2.5 py-[7px] text-left transition-colors cursor-pointer',
                     isOn ? 'bg-[var(--color-bt-primary)]/[0.08]' : 'hover:bg-[#f1f3f5]',
                     isUrlActive && 'before:absolute before:left-0 before:top-1.5 before:bottom-1.5 before:w-[3px] before:rounded-full before:bg-[var(--color-bt-primary)]',
                   )}
