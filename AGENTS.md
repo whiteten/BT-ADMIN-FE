@@ -2,6 +2,25 @@
 
 이 파일은 AI 코딩 도구(Claude Code, Codex, Cursor 등)가 이 저장소의 코드를 작업할 때 참고하는 가이드입니다.
 
+## AI 도구 공통 안내
+
+- **이 파일(AGENTS.md)이 모든 AI 코딩 도구 지침의 단일 소스(SoT)입니다.** Codex·Cursor·Copilot coding agent·Amp·Jules 등 `AGENTS.md` 표준을 지원하는 도구는 이 파일을 자동으로 읽습니다. `CLAUDE.md`, `GEMINI.md`, `.github/copilot-instructions.md`, `.windsurf/rules/agents.md`, `.clinerules`, `.roo/rules/agents.md`, `.junie/guidelines.md`는 모두 이 파일을 가리키는 포인터이므로, 지침 추가·수정은 반드시 이 파일에서만 할 것.
+- **`.claude/skills/`의 스킬 문서는 Claude Code 전용이 아닙니다.** 모든 AI 도구가 읽을 수 있는 일반 마크다운 절차서이므로, 아래 인덱스에 해당하는 작업을 수행할 때는 사용 중인 도구와 무관하게 해당 `SKILL.md`를 먼저 읽고 그 절차를 따를 것.
+
+### AI 작업 스킬 인덱스
+
+| 작업 | 문서 |
+| --- | --- |
+| 커밋 메시지 작성 (카테고리·scope 판정 규칙) | [.claude/skills/commit/SKILL.md](.claude/skills/commit/SKILL.md) |
+| API 계층·TanStack Query 훅 작성 | [.claude/skills/add-api/SKILL.md](.claude/skills/add-api/SKILL.md) |
+| 데이터 추가/수정 폼 (Ant Design Form) 작성 | [.claude/skills/add-form/SKILL.md](.claude/skills/add-form/SKILL.md) |
+| Drawer/Modal (forwardRef 명령형 제어) 작성 | [.claude/skills/add-drawer/SKILL.md](.claude/skills/add-drawer/SKILL.md) |
+| Zustand 스토어 작성 | [.claude/skills/add-store/SKILL.md](.claude/skills/add-store/SKILL.md) |
+| 트리 UI (useTreeView + TreeView) 작성 | [.claude/skills/add-tree/SKILL.md](.claude/skills/add-tree/SKILL.md) |
+| AG-Grid 테이블 작성 | [.claude/skills/add-grid/SKILL.md](.claude/skills/add-grid/SKILL.md) |
+| 사용자 매뉴얼 자동 생성 (스크린샷 + Markdown) | [.claude/skills/generate-manual/SKILL.md](.claude/skills/generate-manual/SKILL.md) |
+| 기존 remote 앱 점검·정규화 | [.claude/commands/update-remote.md](.claude/commands/update-remote.md) |
+
 # 중요 지침
 
 이 프로젝트는 **React Compiler**를 사용합니다. 컴파일러가 자동으로 리렌더링을 최적화하므로, 명시적으로 필요한 경우가 아니면 `useMemo`나 `useCallback`을 사용하지 말 것.

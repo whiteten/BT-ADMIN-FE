@@ -3,8 +3,9 @@ import { DndContext, type DragEndEvent, PointerSensor, closestCenter, useSensor,
 import { restrictToVerticalAxis } from '@dnd-kit/modifiers';
 import { SortableContext, arrayMove, useSortable, verticalListSortingStrategy } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
-import { Button, Checkbox, Input, Select, Splitter, Tag } from 'antd';
-import { ArrowLeft, GripVertical, X } from 'lucide-react';
+import { Button, Checkbox, Input, Modal, Select, Splitter, Tag, Tooltip } from 'antd';
+import { ArrowLeft, Code2, Copy, GripVertical, Info, X } from 'lucide-react';
+import { format as formatSql } from 'sql-formatter';
 import { toast } from '@/shared-util';
 import PanelBarChart from './chart/PanelBarChart';
 import PanelLineChart from './chart/PanelLineChart';
@@ -16,8 +17,10 @@ import { useGetDataSourceFields, useGetDatasets } from '../../dataset/hooks/useD
 import type { FieldMetaItem } from '../../dataset/types';
 import { useReportEditorStore } from '../../report/hooks/useReportEditorStore';
 import { useCreatePanel, useUpdatePanel } from '../../report/hooks/useReportQueries';
+import { useReportViewStore } from '../../report/hooks/useReportViewStore';
 import type { AggFunc, ColumnFormat, PanelDetail, PanelFieldMap, PanelLayout, PanelType, SlotType } from '../../report/types';
 import { useGetSearchConditions } from '../../search-condition/hooks/useSearchConditionQueries';
+import { type SqlPreviewResult, panelApi } from '../api/panelApi';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -111,6 +114,15 @@ const FILTER_SLOT_DEF: SlotDef = { slotType: 'FILTER', badge: 'F', title: '검�
 const KPI_MAX_PER_REPORT = 5;
 
 const FIELD_COLLAPSE_THRESHOLD = 8;
+
+// 검색조건/모니터링 데이터셋 화면과 동일한 SQL 정렬 규격 (sql-formatter)
+function prettySql(sql: string): string {
+  try {
+    return formatSql(sql, { language: 'plsql', keywordCase: 'upper', tabWidth: 2 });
+  } catch {
+    return sql;
+  }
+}
 
 // 검색조건 입력 타입 → 짧은 라벨 (단일/복수 표시)
 const SC_TYPE_LABEL: Record<string, string> = {
@@ -909,6 +921,58 @@ export default function PanelEditorSheet({ reportId, panelType, panelId, dataset
   // ─── Top N sort candidates ────────────────────────────────────────────────
   const chartSortCandidates = [...(chartType === 'PIE' ? pieValueFields : yAxisFields), ...(chartType === 'PIE' ? sliceFields : xAxisFields)];
 
+  // ─── SQL 미리보기 (저장된 패널 기준 — 레거시 쿼리 미리보기) ─────────────────
+  const { committedFilter } = useReportViewStore();
+  const [sqlPreviewOpen, setSqlPreviewOpen] = useState(false);
+  const [sqlPreviewLoading, setSqlPreviewLoading] = useState(false);
+  const [sqlPreview, setSqlPreview] = useState<SqlPreviewResult | null>(null);
+
+  const handleSqlPreview = async () => {
+    if (!isEdit || !panelId) return;
+    setSqlPreviewOpen(true);
+    setSqlPreviewLoading(true);
+    setSqlPreview(null);
+    try {
+      const result = await panelApi.previewSql({
+        reportId,
+        panelId,
+        period: { from: committedFilter.period.from, to: committedFilter.period.to, unit: committedFilter.timeUnit },
+        searchValues: committedFilter.searchValues,
+        comparison: committedFilter.comparison,
+        conditions: committedFilter.conditions,
+      });
+      setSqlPreview(result);
+    } catch {
+      toast.error('SQL 미리보기를 불러오지 못했습니다.');
+      setSqlPreviewOpen(false);
+    } finally {
+      setSqlPreviewLoading(false);
+    }
+  };
+
+  const copySql = (text: string) => {
+    navigator.clipboard.writeText(text).then(
+      () => toast.success('SQL이 복사되었습니다.'),
+      () => toast.error('복사에 실패했습니다.'),
+    );
+  };
+
+  // 바인딩 파라미터 — 이름·값 2열 테이블
+  const renderParams = (params: Record<string, unknown>) => (
+    <div className="overflow-hidden rounded-lg border border-border">
+      <table className="w-full text-xs">
+        <tbody>
+          {Object.entries(params).map(([k, v]) => (
+            <tr key={k} className="border-b border-border last:border-b-0">
+              <td className="w-40 whitespace-nowrap bg-muted/30 px-2.5 py-1 font-mono font-semibold text-muted-foreground">:{k}</td>
+              <td className="break-all px-2.5 py-1 font-mono">{Array.isArray(v) ? v.join(', ') : String(v)}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  );
+
   // ─── Live preview panel (편집 상태로 합성) ─────────────────────────────────
   const previewPanel = {
     panelId: existingPanel?.panelId ?? -1,
@@ -1008,6 +1072,11 @@ export default function PanelEditorSheet({ reportId, panelType, panelId, dataset
             <div className="flex shrink-0 items-center gap-2 border-b border-border bg-white px-4 py-2.5">
               <Input value={title} onChange={(e) => setTitle(e.target.value)} placeholder="패널 제목 입력" className="max-w-xs" />
               <span className="ml-auto text-xs text-muted-foreground">실시간 미리보기 · 저장 전</span>
+              <Tooltip title={isEdit ? '이 패널이 실제 실행하는 SQL을 확인합니다 (저장된 설정 기준)' : '패널 저장 후 확인할 수 있습니다'}>
+                <Button size="small" icon={<Code2 className="h-3.5 w-3.5" />} disabled={!isEdit} onClick={handleSqlPreview}>
+                  SQL 보기
+                </Button>
+              </Tooltip>
             </div>
             <div className="flex-1 overflow-auto p-4">
               <div key={previewKey} className="rounded-lg border border-border bg-white p-3" style={{ minHeight: isGrid ? 260 : 480 }}>
@@ -1148,6 +1217,109 @@ export default function PanelEditorSheet({ reportId, panelType, panelId, dataset
           </aside>
         </Splitter.Panel>
       </Splitter>
+
+      {/* SQL 미리보기 모달 — 레거시 '쿼리 미리보기' 대응 (패널 단위) */}
+      <Modal
+        title={
+          <div className="flex items-center gap-2">
+            <Code2 className="h-4 w-4" />
+            <span>쿼리 미리보기</span>
+            {sqlPreview && (
+              <>
+                <Tag color="processing" className="!mb-0 font-mono text-[11px]">
+                  {sqlPreview.resolvedView}
+                </Tag>
+                <Tag className="!mb-0 font-mono text-[11px]">{sqlPreview.timeUnit}</Tag>
+              </>
+            )}
+          </div>
+        }
+        open={sqlPreviewOpen}
+        onCancel={() => setSqlPreviewOpen(false)}
+        footer={null}
+        width={760}
+      >
+        <div className="mb-3 flex gap-2.5 rounded-lg border border-blue-100 bg-blue-50/60 px-3 py-2.5">
+          <Info className="mt-0.5 h-4 w-4 shrink-0 text-blue-500" />
+          <div className="space-y-1.5 text-xs leading-relaxed text-foreground/80">
+            <p className="m-0">
+              저장된 패널 설정과 현재 글로벌 필터로 실행되는 SQL입니다. <code className="rounded bg-white px-1 font-mono">:파라미터</code> 값은 아래 표 참고.
+            </p>
+            <p className="m-0">조회 대상 뷰는 시간 단위로 결정됩니다. 다른 단위는 뷰명 접미사를 바꿔 실행하세요.</p>
+            <div className="flex flex-wrap gap-1">
+              {(
+                [
+                  ['_MI', '10분'],
+                  ['_HH', '시간대'],
+                  ['_DD', '일별'],
+                  ['_MM', '월별'],
+                  ['_YY', '연도별'],
+                ] as const
+              ).map(([suffix, label]) => (
+                <span key={suffix} className="rounded border border-blue-200 bg-white px-1.5 py-0.5 font-mono text-[11px]">
+                  {suffix} <span className="font-sans text-muted-foreground">{label}</span>
+                </span>
+              ))}
+            </div>
+          </div>
+        </div>
+        {sqlPreviewLoading && <div className="py-8 text-center text-sm text-muted-foreground">SQL 생성 중…</div>}
+        {!sqlPreviewLoading && sqlPreview && (
+          <div className="flex max-h-[65vh] flex-col gap-3 overflow-y-auto">
+            <div>
+              <div className="mb-1 flex items-center gap-2">
+                <span className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">SQL</span>
+                <Button size="small" type="text" icon={<Copy className="h-3 w-3" />} onClick={() => copySql(prettySql(sqlPreview.sql))}>
+                  복사
+                </Button>
+              </div>
+              <pre className="overflow-x-auto whitespace-pre rounded-lg border border-neutral-800 bg-black p-3 font-mono text-xs leading-relaxed text-white">
+                {prettySql(sqlPreview.sql)}
+              </pre>
+            </div>
+
+            <div>
+              <span className="mb-1 block text-xs font-semibold uppercase tracking-wide text-muted-foreground">바인딩 파라미터</span>
+              {renderParams(sqlPreview.params)}
+            </div>
+
+            {sqlPreview.compareSql && (
+              <div>
+                <div className="mb-1 flex items-center gap-2">
+                  <span className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">비교 기간 SQL</span>
+                  <Button size="small" type="text" icon={<Copy className="h-3 w-3" />} onClick={() => copySql(prettySql(sqlPreview.compareSql ?? ''))}>
+                    복사
+                  </Button>
+                </div>
+                <pre className="overflow-x-auto whitespace-pre rounded-lg border border-neutral-800 bg-black p-3 font-mono text-xs leading-relaxed text-white">
+                  {prettySql(sqlPreview.compareSql)}
+                </pre>
+                {sqlPreview.compareParams && <div className="mt-1">{renderParams(sqlPreview.compareParams)}</div>}
+              </div>
+            )}
+
+            {sqlPreview.calcFields.length > 0 && (
+              <div>
+                <span className="mb-1 block text-xs font-semibold uppercase tracking-wide text-muted-foreground">조회 후 계산 필드 (SQL 미포함)</span>
+                <div className="space-y-1">
+                  {sqlPreview.calcFields.map((c) => (
+                    <div key={c.fieldName} className="flex items-center gap-2 rounded border border-green-200 bg-green-50 px-2 py-1 text-xs">
+                      <span className="inline-flex h-4 w-4 shrink-0 items-center justify-center rounded bg-green-600 font-mono font-bold text-white">ƒ</span>
+                      <span className="font-mono font-semibold text-green-700">{c.displayName || c.fieldName}</span>
+                      {c.expression && (
+                        <code className="ml-auto truncate text-muted-foreground" title={c.expression}>
+                          {c.expression}
+                        </code>
+                      )}
+                    </div>
+                  ))}
+                </div>
+                <p className="mt-1 text-[11px] text-muted-foreground">위 필드는 SQL 결과를 받은 뒤 서버에서 수식으로 계산됩니다.</p>
+              </div>
+            )}
+          </div>
+        )}
+      </Modal>
     </div>
   );
 }
