@@ -127,7 +127,7 @@ export default function DnBatchDialog({ open, nodeId, tenantId, nodeName, tenant
       return;
     }
     if (values.dnNoStart.length !== values.dnNoEnd.length) {
-      toast.error('시작 번호와 끝 번호의 자릿수가 같아야 합니다.');
+      toast.error('시작 번호와 끝 번호의 자릿수가 같아야 합니다');
       return;
     }
 

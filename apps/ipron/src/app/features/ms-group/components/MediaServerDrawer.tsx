@@ -91,7 +91,7 @@ const MediaServerDrawer = forwardRef<MediaServerDrawerRef, Props>(({ onSuccess, 
   const { mutate: createMediaServer, isPending: isCreating } = useCreateMediaServer({
     mutationOptions: {
       onSuccess: () => {
-        toast.success('미디어서버가 등록되었습니다.');
+        toast.success('미디어서버가 등록되었습니다');
         closeDrawer();
         onSuccess();
       },
@@ -101,7 +101,7 @@ const MediaServerDrawer = forwardRef<MediaServerDrawerRef, Props>(({ onSuccess, 
   const { mutate: updateMediaServer, isPending: isUpdating } = useUpdateMediaServer({
     mutationOptions: {
       onSuccess: () => {
-        toast.success('미디어서버가 수정되었습니다.');
+        toast.success('미디어서버가 수정되었습니다');
         closeDrawer();
         onSuccess();
       },
@@ -111,7 +111,7 @@ const MediaServerDrawer = forwardRef<MediaServerDrawerRef, Props>(({ onSuccess, 
   const { mutate: deleteMediaServer, isPending: isDeleting } = useDeleteMediaServer({
     mutationOptions: {
       onSuccess: () => {
-        toast.success('미디어서버가 삭제되었습니다.');
+        toast.success('미디어서버가 삭제되었습니다');
         closeDrawer();
         onSuccess();
       },

@@ -129,7 +129,7 @@ export default function SipTrunkAssignDrawer({ open, gdnId, gdnLabel, trunks, on
 
   const handleSave = useCallback(() => {
     if (hardError) {
-      toast.error('SIP 트렁크 최대 채널수를 초과할 수 없습니다.');
+      toast.error('SIP 트렁크 최대 채널수를 초과할 수 없습니다');
       return;
     }
     if (overflowTrunks.length > 0) {

@@ -168,7 +168,7 @@ const PreNumTransDrawer = forwardRef<PreNumTransDrawerRef, Props>(({ onSuccess }
   const { mutate: createPreNumTrans, isPending: isCreating } = useCreatePreNumTrans({
     mutationOptions: {
       onSuccess: () => {
-        toast.success('발신 DNIS 사전변환이 등록되었습니다.');
+        toast.success('발신 DNIS 사전변환이 등록되었습니다');
         handleClose();
         onSuccess();
       },
@@ -177,7 +177,7 @@ const PreNumTransDrawer = forwardRef<PreNumTransDrawerRef, Props>(({ onSuccess }
   const { mutate: updatePreNumTrans, isPending: isUpdating } = useUpdatePreNumTrans({
     mutationOptions: {
       onSuccess: () => {
-        toast.success('발신 DNIS 사전변환이 수정되었습니다.');
+        toast.success('발신 DNIS 사전변환이 수정되었습니다');
         handleClose();
         onSuccess();
       },
@@ -186,7 +186,7 @@ const PreNumTransDrawer = forwardRef<PreNumTransDrawerRef, Props>(({ onSuccess }
   const { mutate: deletePreNumTrans, isPending: isDeleting } = useDeletePreNumTrans({
     mutationOptions: {
       onSuccess: () => {
-        toast.success('발신 DNIS 사전변환이 삭제되었습니다.');
+        toast.success('발신 DNIS 사전변환이 삭제되었습니다');
         handleClose();
         onSuccess();
       },
@@ -210,7 +210,7 @@ const PreNumTransDrawer = forwardRef<PreNumTransDrawerRef, Props>(({ onSuccess }
 
       const targetNodeId = nodeId ?? values.nodeId;
       if (!targetNodeId) {
-        toast.error('노드를 선택하세요.');
+        toast.error('노드를 선택하세요');
         return;
       }
 

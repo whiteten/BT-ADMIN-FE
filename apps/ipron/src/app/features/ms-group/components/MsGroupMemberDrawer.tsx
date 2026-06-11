@@ -72,7 +72,7 @@ const MsGroupMemberDrawer = forwardRef<MsGroupMemberDrawerRef, Props>(({ onSucce
         );
       })
       .catch(() => {
-        toast.error('멤버 목록을 불러오지 못했습니다.');
+        toast.error('멤버 목록을 불러오지 못했습니다');
         setMemberRows([]);
       })
       .finally(() => setLoading(false));
@@ -88,7 +88,7 @@ const MsGroupMemberDrawer = forwardRef<MsGroupMemberDrawerRef, Props>(({ onSucce
   const { mutate: updateMembers, isPending } = useUpdateMsGroupMembers({
     mutationOptions: {
       onSuccess: () => {
-        toast.success('MS그룹 멤버가 저장되었습니다.');
+        toast.success('MS그룹 멤버가 저장되었습니다');
         setVisible(false);
         setMsGroup(null);
         setMemberRows([]);
@@ -100,7 +100,7 @@ const MsGroupMemberDrawer = forwardRef<MsGroupMemberDrawerRef, Props>(({ onSucce
   const { mutate: deleteMediaServer } = useDeleteMediaServer({
     mutationOptions: {
       onSuccess: () => {
-        toast.success('미디어서버가 삭제되었습니다.');
+        toast.success('미디어서버가 삭제되었습니다');
         fetchMembers(); // 목록 새로고침
         onSuccess();
       },
@@ -138,7 +138,7 @@ const MsGroupMemberDrawer = forwardRef<MsGroupMemberDrawerRef, Props>(({ onSucce
       setEditMode(true);
       mediaServerDrawerRef.current?.open(detail);
     } catch {
-      toast.error('미디어서버 정보를 불러오지 못했습니다.');
+      toast.error('미디어서버 정보를 불러오지 못했습니다');
     }
   }, []);
 

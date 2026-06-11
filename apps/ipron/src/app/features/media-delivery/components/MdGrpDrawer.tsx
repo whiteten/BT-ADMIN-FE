@@ -67,7 +67,7 @@ const MdGrpDrawer = forwardRef<MdGrpDrawerRef, Props>(({ onSuccess }, ref) => {
   const { mutate: createMdGrp, isPending: isCreating } = useCreateMdGrp({
     mutationOptions: {
       onSuccess: () => {
-        toast.success('미디어전달그룹이 등록되었습니다.');
+        toast.success('미디어전달그룹이 등록되었습니다');
         handleClose();
         onSuccess();
       },
@@ -77,7 +77,7 @@ const MdGrpDrawer = forwardRef<MdGrpDrawerRef, Props>(({ onSuccess }, ref) => {
   const { mutate: updateMdGrp, isPending: isUpdating } = useUpdateMdGrp({
     mutationOptions: {
       onSuccess: () => {
-        toast.success('미디어전달그룹이 수정되었습니다.');
+        toast.success('미디어전달그룹이 수정되었습니다');
         handleClose();
         onSuccess();
       },
@@ -87,7 +87,7 @@ const MdGrpDrawer = forwardRef<MdGrpDrawerRef, Props>(({ onSuccess }, ref) => {
   const { mutate: deleteMdGrp, isPending: isDeleting } = useDeleteMdGrp({
     mutationOptions: {
       onSuccess: () => {
-        toast.success('미디어전달그룹이 삭제되었습니다.');
+        toast.success('미디어전달그룹이 삭제되었습니다');
         handleClose();
         onSuccess();
       },
@@ -110,7 +110,7 @@ const MdGrpDrawer = forwardRef<MdGrpDrawerRef, Props>(({ onSuccess }, ref) => {
       const values = await form.validateFields();
       const targetNodeId = nodeId ?? values.nodeId;
       if (!targetNodeId) {
-        toast.error('노드를 선택하세요.');
+        toast.error('노드를 선택하세요');
         return;
       }
 

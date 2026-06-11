@@ -58,7 +58,7 @@ const MsGroupDrawer = forwardRef<MsGroupDrawerRef, Props>(({ onSuccess }, ref) =
   const { mutate: createMsGroup, isPending: isCreating } = useCreateMsGroup({
     mutationOptions: {
       onSuccess: () => {
-        toast.success('MS그룹이 등록되었습니다.');
+        toast.success('MS그룹이 등록되었습니다');
         setVisible(false);
         setEditData(null);
         setNodeId(null);
@@ -72,7 +72,7 @@ const MsGroupDrawer = forwardRef<MsGroupDrawerRef, Props>(({ onSuccess }, ref) =
   const { mutate: updateMsGroup, isPending: isUpdating } = useUpdateMsGroup({
     mutationOptions: {
       onSuccess: () => {
-        toast.success('MS그룹이 수정되었습니다.');
+        toast.success('MS그룹이 수정되었습니다');
         setVisible(false);
         setEditData(null);
         setNodeId(null);

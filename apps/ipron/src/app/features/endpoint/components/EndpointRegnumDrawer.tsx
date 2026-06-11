@@ -58,7 +58,7 @@ const EndpointRegnumDrawer = forwardRef<EndpointRegnumDrawerRef, Props>(({ endpt
   const { mutate: createRegnum, isPending: isCreating } = useCreateRegnum({
     mutationOptions: {
       onSuccess: () => {
-        toast.success('인증번호가 등록되었습니다.');
+        toast.success('인증번호가 등록되었습니다');
         setVisible(false);
         setEditData(null);
         form.resetFields();
@@ -70,7 +70,7 @@ const EndpointRegnumDrawer = forwardRef<EndpointRegnumDrawerRef, Props>(({ endpt
   const { mutate: updateRegnum, isPending: isUpdating } = useUpdateRegnum({
     mutationOptions: {
       onSuccess: () => {
-        toast.success('인증번호가 수정되었습니다.');
+        toast.success('인증번호가 수정되었습니다');
         setVisible(false);
         setEditData(null);
         form.resetFields();

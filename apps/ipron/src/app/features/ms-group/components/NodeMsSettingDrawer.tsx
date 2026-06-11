@@ -49,7 +49,7 @@ const NodeMsSettingDrawer = forwardRef<NodeMsSettingDrawerRef, Props>(({ onSucce
             natOption: setting.natOption ?? 0,
           });
         })
-        .catch(() => toast.error('노드 설정을 불러오지 못했습니다.'))
+        .catch(() => toast.error('노드 설정을 불러오지 못했습니다'))
         .finally(() => setLoading(false));
     }
   }, [visible, nodeId, form]);
@@ -57,7 +57,7 @@ const NodeMsSettingDrawer = forwardRef<NodeMsSettingDrawerRef, Props>(({ onSucce
   const { mutate: updateSetting, isPending } = useUpdateNodeMsSetting({
     mutationOptions: {
       onSuccess: () => {
-        toast.success('노드 기본 MS 설정이 저장되었습니다.');
+        toast.success('노드 기본 MS 설정이 저장되었습니다');
         setVisible(false);
         onSuccess();
       },

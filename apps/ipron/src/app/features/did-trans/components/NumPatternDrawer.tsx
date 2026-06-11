@@ -62,7 +62,7 @@ const NumPatternDrawer = forwardRef<NumPatternDrawerRef, Props>(({ onSelect, onC
   const { mutate: createPattern, isPending: isCreating } = useCreateNumPattern({
     mutationOptions: {
       onSuccess: () => {
-        toast.success('번호 패턴이 등록되었습니다.');
+        toast.success('번호 패턴이 등록되었습니다');
         setEditing(null);
         form.resetFields();
         refetch();
@@ -76,7 +76,7 @@ const NumPatternDrawer = forwardRef<NumPatternDrawerRef, Props>(({ onSelect, onC
   const { mutate: updatePattern, isPending: isUpdating } = useUpdateNumPattern({
     mutationOptions: {
       onSuccess: () => {
-        toast.success('번호 패턴이 수정되었습니다.');
+        toast.success('번호 패턴이 수정되었습니다');
         setEditing(null);
         form.resetFields();
         refetch();
@@ -90,7 +90,7 @@ const NumPatternDrawer = forwardRef<NumPatternDrawerRef, Props>(({ onSelect, onC
   const { mutate: deletePattern } = useDeleteNumPattern({
     mutationOptions: {
       onSuccess: () => {
-        toast.success('번호 패턴이 삭제되었습니다.');
+        toast.success('번호 패턴이 삭제되었습니다');
         refetch();
       },
       onError: (error: Error) => {
