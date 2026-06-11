@@ -169,7 +169,7 @@ export default function McsDnis() {
   const { mutate: deleteGdn } = useDeleteMcsGdn({
     mutationOptions: {
       onSuccess: () => {
-        toast.success('대표번호가 삭제되었습니다.');
+        toast.success('대표번호가 삭제되었습니다');
         setSelectedGdnNo(null);
         invalidateGdnList();
       },
@@ -190,7 +190,7 @@ export default function McsDnis() {
         onOk: () => deleteGdn({ gdnNo: gdn.mcsdGdnNo }),
         options: {
           title: '대표번호 삭제',
-          content: `"${gdn.mcsdGdnNo}" 대표번호와 하위 DNIS를 모두 삭제하시겠습니까?`,
+          content: `"${gdn.mcsdGdnNo}" 대표번호를 삭제하시겠습니까?`,
         },
       });
     },
@@ -201,7 +201,7 @@ export default function McsDnis() {
   const { mutate: deleteDnis } = useDeleteMcsDnis({
     mutationOptions: {
       onSuccess: () => {
-        toast.success('DNIS가 삭제되었습니다.');
+        toast.success('DNIS가 삭제되었습니다');
         invalidateDnisList();
       },
     },
@@ -209,7 +209,7 @@ export default function McsDnis() {
 
   const handleCreateDnis = useCallback(() => {
     if (!selectedGdn) {
-      toast.error('대표번호를 먼저 선택하세요.');
+      toast.error('대표번호를 먼저 선택하세요');
       return;
     }
     dnisDrawerRef.current?.open(undefined, selectedGdn.mcsdGdnNo, nodes);
@@ -388,8 +388,8 @@ export default function McsDnis() {
                 loading={isDnisLoading}
                 getRowId={(params) => `${params.data.mcsdGdnNo}-${params.data.seq}-${params.data.nodeId}`}
                 defaultColDef={{ filter: true, sortable: true, suppressHeaderMenuButton: true }}
-                onRowDoubleClicked={(e) => {
-                  if (e.data) toast.warning('수정은 불가능합니다. 삭제 후 다시 추가하세요.');
+                onRowDoubleClicked={() => {
+                  // 더블클릭 무반응 (수정 불가 항목)
                 }}
                 onSelectionChanged={(e: SelectionChangedEvent<McsdDnis>) => {
                   setSelectedDnis(e.api.getSelectedRows());

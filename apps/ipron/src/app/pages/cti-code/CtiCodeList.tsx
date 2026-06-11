@@ -19,9 +19,9 @@ import { REASON_CODE_TYPE_ACW, REASON_CODE_TYPE_REST, type ReasonCodeResponse } 
 import { useModal } from '@/libs/shared-ui/src/hooks/useModal';
 
 const breadcrumb = [
-  { title: 'IPRON', path: '/ipron' },
+  { title: 'IPRON' },
   { title: '상담사 관리', path: '/ipron/agent-master' },
-  { title: '코드 관리', path: '/ipron/media-type' },
+  { title: '코드 관리' },
   { title: '휴식/후처리 사유코드 관리', path: '/ipron/cti-code-mgmt' },
 ];
 

@@ -252,10 +252,10 @@ export default function DeviceList() {
   const { mutate: updateFirmwareUse, isPending: isFirmwareUpdating } = useUpdateFirmwareUse({
     mutationOptions: {
       onSuccess: () => {
-        toast.success('펌웨어 사용여부가 변경되었습니다.');
+        toast.success('펌웨어 사용여부가 변경되었습니다');
         invalidateDevices();
       },
-      onError: () => toast.error('펌웨어 사용여부 변경에 실패했습니다.'),
+      onError: () => toast.error('펌웨어 사용여부 변경에 실패했습니다'),
     },
   });
 
@@ -278,7 +278,7 @@ export default function DeviceList() {
   // 등록 버튼
   const handleCreate = useCallback(() => {
     if (!selectedNodeId) {
-      toast.warning('노드를 선택한 후 등록하세요.');
+      toast.warning('노드를 선택한 후 등록하세요');
       return;
     }
     const nodeName = nodes.find((n) => n.nodeId === selectedNodeId)?.nodeName ?? '';

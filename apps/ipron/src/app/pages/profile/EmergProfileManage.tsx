@@ -40,11 +40,7 @@ import type { EmergCode, EmergProfile } from '../../features/emerg-profile/types
 import useAggridOptions from '@/libs/shared-ui/src/hooks/useAggridOptions';
 import { useModal } from '@/libs/shared-ui/src/hooks/useModal';
 
-const breadcrumb = [
-  { title: '번호자원관리', path: '/ipron/numbering' },
-  { title: '프로파일', path: '/ipron/profile' },
-  { title: '긴급코드 프로파일', path: '/ipron/profile/emerg-profile' },
-];
+const breadcrumb = [{ title: '번호자원관리' }, { title: '프로파일', path: '/ipron/profile' }, { title: '긴급코드 프로파일', path: '/ipron/profile/emerg-profile' }];
 
 export default function EmergProfileManage() {
   const setBreadcrumb = useBreadcrumbStore((s) => s.setBreadcrumb);
@@ -188,7 +184,7 @@ export default function EmergProfileManage() {
   const { mutate: createProfile, isPending: isCreatingProfile } = useCreateProfile({
     mutationOptions: {
       onSuccess: () => {
-        toast.success('프로파일이 등록되었습니다.');
+        toast.success('프로파일이 등록되었습니다');
         profileDrawerRef.current?.close();
         invalidateProfiles();
       },
@@ -198,7 +194,7 @@ export default function EmergProfileManage() {
   const { mutate: updateProfile, isPending: isUpdatingProfile } = useUpdateProfile({
     mutationOptions: {
       onSuccess: () => {
-        toast.success('프로파일이 수정되었습니다.');
+        toast.success('프로파일이 수정되었습니다');
         profileDrawerRef.current?.close();
         invalidateProfiles();
       },
@@ -208,7 +204,7 @@ export default function EmergProfileManage() {
   const { mutate: deleteProfile } = useDeleteProfile({
     mutationOptions: {
       onSuccess: () => {
-        toast.success('프로파일이 삭제되었습니다.');
+        toast.success('프로파일이 삭제되었습니다');
         setSelectedProfileId(null);
         invalidateProfiles();
       },
@@ -218,7 +214,7 @@ export default function EmergProfileManage() {
   const { mutate: copyProfile, isPending: isCopyingProfile } = useCopyProfile({
     mutationOptions: {
       onSuccess: () => {
-        toast.success('프로파일이 복사되었습니다.');
+        toast.success('프로파일이 복사되었습니다');
         copyDialogRef.current?.close();
         invalidateProfiles();
       },
@@ -228,7 +224,7 @@ export default function EmergProfileManage() {
   const { mutate: createCode, isPending: isCreatingCode } = useCreateCode({
     mutationOptions: {
       onSuccess: () => {
-        toast.success('긴급코드가 등록되었습니다.');
+        toast.success('긴급코드가 등록되었습니다');
         codeDrawerRef.current?.close();
         invalidateAll();
       },
@@ -238,7 +234,7 @@ export default function EmergProfileManage() {
   const { mutate: updateCode, isPending: isUpdatingCode } = useUpdateCode({
     mutationOptions: {
       onSuccess: () => {
-        toast.success('긴급코드가 수정되었습니다.');
+        toast.success('긴급코드가 수정되었습니다');
         codeDrawerRef.current?.close();
         invalidateCodes();
       },
@@ -248,7 +244,7 @@ export default function EmergProfileManage() {
   const { mutate: deleteCode } = useDeleteCode({
     mutationOptions: {
       onSuccess: () => {
-        toast.success('긴급코드가 삭제되었습니다.');
+        toast.success('긴급코드가 삭제되었습니다');
         invalidateAll();
       },
     },

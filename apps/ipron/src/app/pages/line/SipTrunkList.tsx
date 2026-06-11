@@ -34,11 +34,7 @@ import { type SipGdnResponse, type SipTrunkMemberResponse, type SipTrunkResponse
 import useAggridOptions from '@/libs/shared-ui/src/hooks/useAggridOptions';
 import { useModal } from '@/libs/shared-ui/src/hooks/useModal';
 
-const breadcrumb = [
-  { title: '번호자원관리', path: '/ipron/numbering' },
-  { title: '교환기 번호관리', path: '/ipron/numbering' },
-  { title: 'SIP TRUNK', path: '/ipron/sip-trunk' },
-];
+const breadcrumb = [{ title: '번호자원관리' }, { title: '교환기 번호관리' }, { title: 'SIP TRUNK', path: '/ipron/sip-trunk' }];
 
 type AssignFilter = 'all' | 'assigned' | 'unassigned';
 
@@ -328,8 +324,8 @@ export default function SipTrunkList() {
       {
         headerName: '글로벌',
         field: 'globalDnYn',
-        minWidth: 80,
-        maxWidth: 90,
+        minWidth: 90,
+        maxWidth: 100,
         cellStyle: { textAlign: 'center' } as CellStyle,
         cellRenderer: (p: ICellRendererParams<SipGdnResponse>) =>
           p.value === 1 ? (
@@ -500,7 +496,7 @@ export default function SipTrunkList() {
         if (e.data) {
           const master = allTrunksRef.current.find((t) => t.sipTrunkId === e.data!.sipTrunkId);
           if (master) trunkDrawerRef.current?.openEdit(master);
-          else toast.info('트렁크 상세를 불러올 수 없습니다.');
+          else toast.info('트렁크 상세를 불러올 수 없습니다');
         }
       },
     }),

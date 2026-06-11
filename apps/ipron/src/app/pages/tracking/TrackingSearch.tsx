@@ -75,7 +75,7 @@ export default function TrackingSearch() {
       const useTime = time ?? base;
       const combined = useDate.hour(useTime.hour()).minute(useTime.minute()).second(0);
       if (combined.isAfter(end)) {
-        toast.warning('시작 일시는 종료 일시보다 이전이어야 합니다.');
+        toast.warning('시작 일시는 종료 일시보다 이전이어야 합니다');
         return;
       }
       setCustomRange([combined, end]);
@@ -91,7 +91,7 @@ export default function TrackingSearch() {
       const useTime = time ?? base;
       const combined = useDate.hour(useTime.hour()).minute(useTime.minute()).second(0);
       if (combined.isBefore(start)) {
-        toast.warning('종료 일시는 시작 일시보다 이후여야 합니다.');
+        toast.warning('종료 일시는 시작 일시보다 이후여야 합니다');
         return;
       }
       setCustomRange([start, combined]);

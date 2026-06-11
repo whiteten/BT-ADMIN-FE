@@ -172,7 +172,7 @@ export default function EndpointForm() {
   const { mutate: createEndpoint, isPending: isCreating } = useCreateEndpoint({
     mutationOptions: {
       onSuccess: (data: any) => {
-        toast.success('국선이 등록되었습니다.');
+        toast.success('국선이 등록되었습니다');
         queryClient.invalidateQueries({ queryKey: endpointQueryKeys.getEndpoints().queryKey });
         const nodeId = data?.nodeId || form.getFieldValue('nodeId');
         const epId = data?.endptId;
@@ -184,7 +184,7 @@ export default function EndpointForm() {
   const { mutate: updateEndpoint, isPending: isUpdating } = useUpdateEndpoint({
     mutationOptions: {
       onSuccess: () => {
-        toast.success('국선이 수정되었습니다.');
+        toast.success('국선이 수정되었습니다');
         queryClient.invalidateQueries({ queryKey: endpointQueryKeys.getEndpoints().queryKey });
         const nodeId = form.getFieldValue('nodeId');
         navigate(`/ipron/line/endpoint?nodeId=${nodeId}${endptId ? `&endptId=${endptId}` : ''}`);
@@ -306,12 +306,12 @@ export default function EndpointForm() {
         if (String(currentEndptType) !== '4') {
           // 인/아웃 최대채널 min=1 검증 (SWAT line 1142-1145)
           if (currentMaxchnl < 1) {
-            toast.error('인/아웃 최대채널은 1 이상 입력해야 합니다.');
+            toast.error('인/아웃 최대채널은 1 이상 입력해야 합니다');
             return;
           }
           // OB할당채널 > 최대채널 교차 검증 (SWAT line 1137-1140)
           if (currentDodchnl > currentMaxchnl) {
-            toast.error('아웃할당채널수는 인/아웃최대채널을 초과할 수 없습니다.');
+            toast.error('아웃할당채널수는 인/아웃최대채널을 초과할 수 없습니다');
             return;
           }
         }

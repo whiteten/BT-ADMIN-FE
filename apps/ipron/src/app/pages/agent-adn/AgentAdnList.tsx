@@ -24,12 +24,7 @@ import AgentGroupTree from '../../features/agent-master/components/AgentGroupTre
 import { useGetAgentGroupTree } from '../../features/agent-master/hooks/useAgentMasterQueries';
 import { useModal } from '@/libs/shared-ui/src/hooks/useModal';
 
-const breadcrumb = [
-  { title: 'IPRON', path: '/ipron' },
-  { title: '상담사 관리', path: '/ipron/agent-adn' },
-  { title: '상담사', path: '/ipron/agent-adn' },
-  { title: '상담사 ADN 배정', path: '/ipron/agent-adn' },
-];
+const breadcrumb = [{ title: 'IPRON' }, { title: '상담사 관리' }, { title: '상담사' }, { title: '상담사 ADN 배정', path: '/ipron/agent-adn' }];
 
 export default function AgentAdnList() {
   const setBreadcrumb = useBreadcrumbStore((s) => s.setBreadcrumb);

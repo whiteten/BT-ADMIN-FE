@@ -10,7 +10,7 @@ import { useQueryClient } from '@tanstack/react-query';
 import type { ColDef, ICellRendererParams } from 'ag-grid-community';
 import { AgGridReact } from 'ag-grid-react';
 import { Button, Dropdown, Empty } from 'antd';
-import { ChevronLeft, ChevronRight, Edit3, MoreVertical, Plus, Trash2 } from 'lucide-react';
+import { ChevronLeft, ChevronRight, ChevronsDown, ChevronsUp, Edit3, MoreVertical, Plus, Trash2 } from 'lucide-react';
 import { useBreadcrumbStore } from '@/shared-store';
 import { toast } from '@/shared-util';
 import SipHeaderGroupDrawer, { type SipHeaderGroupDrawerRef } from '../../features/sip-profile/components/SipHeaderGroupDrawer';
@@ -33,7 +33,7 @@ import useAggridOptions from '@/libs/shared-ui/src/hooks/useAggridOptions';
 import { useModal } from '@/libs/shared-ui/src/hooks/useModal';
 
 const breadcrumb = [
-  { title: '번호자원관리', path: '/ipron/numbering' },
+  { title: '번호자원관리' },
   { title: '프로파일', path: '/ipron/profile' },
   { title: 'SIP 프로파일', path: '/ipron/profile/sip-profile' },
   { title: '헤더 관리' },
@@ -99,7 +99,7 @@ export default function SipHeaderManage() {
   const { mutate: createGroup, isPending: isCreatingGroup } = useCreateSipHeaderGroup({
     mutationOptions: {
       onSuccess: () => {
-        toast.success('헤더 그룹이 등록되었습니다.');
+        toast.success('헤더 그룹이 등록되었습니다');
         groupDrawerRef.current?.close();
         invalidateGroups();
       },
@@ -109,7 +109,7 @@ export default function SipHeaderManage() {
   const { mutate: updateGroup, isPending: isUpdatingGroup } = useUpdateSipHeaderGroup({
     mutationOptions: {
       onSuccess: () => {
-        toast.success('헤더 그룹이 수정되었습니다.');
+        toast.success('헤더 그룹이 수정되었습니다');
         groupDrawerRef.current?.close();
         invalidateGroups();
       },
@@ -119,7 +119,7 @@ export default function SipHeaderManage() {
   const { mutate: deleteGroup } = useDeleteSipHeaderGroup({
     mutationOptions: {
       onSuccess: () => {
-        toast.success('헤더 그룹이 삭제되었습니다.');
+        toast.success('헤더 그룹이 삭제되었습니다');
         setSelectedGroupId(null);
         invalidateGroups();
       },
@@ -130,7 +130,7 @@ export default function SipHeaderManage() {
   const { mutate: createRelay, isPending: isCreatingRelay } = useCreateSipHeaderRelay({
     mutationOptions: {
       onSuccess: () => {
-        toast.success('헤더 릴레이가 등록되었습니다.');
+        toast.success('헤더 릴레이가 등록되었습니다');
         relayDrawerRef.current?.close();
         invalidateRelays();
       },
@@ -140,7 +140,7 @@ export default function SipHeaderManage() {
   const { mutate: updateRelay, isPending: isUpdatingRelay } = useUpdateSipHeaderRelay({
     mutationOptions: {
       onSuccess: () => {
-        toast.success('헤더 릴레이가 수정되었습니다.');
+        toast.success('헤더 릴레이가 수정되었습니다');
         relayDrawerRef.current?.close();
         invalidateRelays();
       },
@@ -150,7 +150,7 @@ export default function SipHeaderManage() {
   const { mutate: deleteRelay } = useDeleteSipHeaderRelay({
     mutationOptions: {
       onSuccess: () => {
-        toast.success('헤더 릴레이가 삭제되었습니다.');
+        toast.success('헤더 릴레이가 삭제되었습니다');
         invalidateAll();
       },
     },
@@ -160,7 +160,7 @@ export default function SipHeaderManage() {
   const { mutate: updateGroupMembers } = useUpdateSipGroupMembers({
     mutationOptions: {
       onSuccess: () => {
-        toast.success('그룹 멤버가 업데이트되었습니다.');
+        toast.success('그룹 멤버가 업데이트되었습니다');
         invalidateAll();
       },
     },
@@ -336,14 +336,17 @@ export default function SipHeaderManage() {
       {/* ===== 카드 슬라이더 박스 (Header Groups) ===== */}
       <div className="bg-white bt-shadow overflow-hidden flex-shrink-0">
         {/* 접기/펼치기 헤더 */}
-        <button
-          type="button"
-          className="w-full flex items-center justify-between px-4 py-2 text-xs text-gray-500 hover:bg-gray-50 border-b border-gray-100 transition-colors"
-          onClick={() => setCardCollapsed((c) => !c)}
-        >
-          <span>헤더 그룹 카드</span>
-          <span>{cardCollapsed ? '펼치기' : '접기'}</span>
-        </button>
+        <div className="flex items-center justify-between px-4 py-2 border-b border-gray-100">
+          <span className="text-xs text-gray-500">헤더 그룹 카드</span>
+          <Button
+            type="text"
+            size="small"
+            icon={cardCollapsed ? <ChevronsDown className="size-4" /> : <ChevronsUp className="size-4" />}
+            onClick={() => setCardCollapsed((c) => !c)}
+            title={cardCollapsed ? '카드 펼치기' : '카드 접기'}
+            className="!w-8 !h-8 !p-0 !text-gray-400 hover:!text-[#405189]"
+          />
+        </div>
         {!cardCollapsed && (
           <div className="flex items-center px-4 py-3">
             {headerGroups.length === 0 ? (

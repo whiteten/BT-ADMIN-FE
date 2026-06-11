@@ -135,7 +135,7 @@ export default function DidRouteForm() {
   const { mutate: createDidRoute, isPending: isCreating } = useCreateDidRoute({
     mutationOptions: {
       onSuccess: () => {
-        toast.success('DID라우트가 등록되었습니다.');
+        toast.success('DID라우트가 등록되었습니다');
         queryClient.invalidateQueries({ queryKey: didRouteQueryKeys.getList().queryKey });
         navigate('/ipron/line/did-route');
       },
@@ -145,7 +145,7 @@ export default function DidRouteForm() {
   const { mutate: updateDidRoute, isPending: isUpdating } = useUpdateDidRoute({
     mutationOptions: {
       onSuccess: () => {
-        toast.success('DID라우트가 수정되었습니다.');
+        toast.success('DID라우트가 수정되었습니다');
         queryClient.invalidateQueries({ queryKey: didRouteQueryKeys.getList().queryKey });
         navigate('/ipron/line/did-route');
       },
@@ -156,8 +156,8 @@ export default function DidRouteForm() {
     mutationOptions: {
       onSuccess: () => {
         // SWAT IPR20S1036Controller.java:138: 삭제 성공 후 특수코드 연계 안내
-        toast.success('DID라우트가 삭제되었습니다.');
-        toast.info('삭제된 라우트정보를 가지고 있던 특수코드 정보가 수정되었습니다.');
+        toast.success('DID라우트가 삭제되었습니다');
+        toast.info('삭제된 라우트정보를 가지고 있던 특수코드 정보가 수정되었습니다');
         queryClient.invalidateQueries({ queryKey: didRouteQueryKeys.getList().queryKey });
         navigate('/ipron/line/did-route');
       },
@@ -179,7 +179,7 @@ export default function DidRouteForm() {
         const aniVal = form.getFieldValue('aniPattern');
         const dnisVal = form.getFieldValue('dnisPattern');
         if (!aniVal && !dnisVal) {
-          toast.error('ANI 패턴 또는 DNIS 패턴 중 하나 이상 입력해야 합니다.');
+          toast.error('ANI 패턴 또는 DNIS 패턴 중 하나 이상 입력해야 합니다');
           return;
         }
       }

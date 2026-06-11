@@ -96,7 +96,7 @@ export default function DodTransList() {
   const { mutate: deleteMaster } = useDeleteMaster({
     mutationOptions: {
       onSuccess: () => {
-        toast.success('DOD DNIS 변환이 삭제되었습니다.');
+        toast.success('DOD DNIS 변환이 삭제되었습니다');
         if (selectedMasterId) setSelectedMasterId(null);
         invalidateMasters();
       },
@@ -106,7 +106,7 @@ export default function DodTransList() {
   const { mutate: deleteItem } = useDeleteItem({
     mutationOptions: {
       onSuccess: () => {
-        toast.success('변환 패턴이 삭제되었습니다.');
+        toast.success('변환 패턴이 삭제되었습니다');
         invalidateItems();
         invalidateMasters();
       },

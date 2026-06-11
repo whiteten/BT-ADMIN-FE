@@ -94,7 +94,7 @@ export default function AcdGdnList() {
   const { mutate: deleteGdns, isPending: isDeleting } = useDeleteAcdGdns({
     mutationOptions: {
       onSuccess: () => {
-        toast.success('선택한 그룹DN 이 삭제되었습니다.');
+        toast.success('선택한 그룹DN 이 삭제되었습니다');
         setSelectedGdn(null);
       },
       onError: (err: unknown) => {
@@ -284,7 +284,7 @@ export default function AcdGdnList() {
 
   const handleDelete = () => {
     if (!selectedGdn) {
-      toast.warning('삭제할 ACD 그룹DN 을 선택하세요.');
+      toast.warning('삭제할 ACD 그룹DN 을 선택하세요');
       return;
     }
     modal.confirm.execute({
@@ -300,12 +300,12 @@ export default function AcdGdnList() {
   const handleAssign = () => {
     if (!selectedGdn) return;
     if (selectedGdn.acdType === 3) {
-      toast.warning('ACD 타입 = Skill 인 그룹DN 은 멤버를 수동 관리할 수 없습니다.');
+      toast.warning('ACD 타입 = Skill 인 그룹DN 은 멤버를 수동 관리할 수 없습니다');
       return;
     }
     const inserts = selectedMembers.filter((m) => !m.assigned && m.dnId != null).map((m) => ({ dnId: m.dnId as number }));
     if (inserts.length === 0) {
-      toast.info('배정할 미배정 DN 을 선택하세요.');
+      toast.info('배정할 미배정 DN 을 선택하세요');
       return;
     }
     saveMembers({ id: selectedGdn.gdnId, body: { inserts } }, { onSuccess: () => toast.success(`${inserts.length}건 배정되었습니다.`) });
@@ -316,7 +316,7 @@ export default function AcdGdnList() {
     if (!selectedGdn) return;
     const deletes = selectedMembers.filter((m) => m.assigned && m.dnId != null).map((m) => ({ dnId: m.dnId as number }));
     if (deletes.length === 0) {
-      toast.info('해제할 기배정 DN 을 선택하세요.');
+      toast.info('해제할 기배정 DN 을 선택하세요');
       return;
     }
     saveMembers({ id: selectedGdn.gdnId, body: { deletes } }, { onSuccess: () => toast.success(`${deletes.length}건 해제되었습니다.`) });
@@ -326,7 +326,7 @@ export default function AcdGdnList() {
   const handlePriorityChanged = useCallback(
     (updates: GdnMemberItem[]) => {
       if (!selectedGdn) return;
-      saveMembers({ id: selectedGdn.gdnId, body: { updates } }, { onSuccess: () => toast.success('우선순위가 저장되었습니다.'), onError: () => toast.error('우선순위 저장 실패') });
+      saveMembers({ id: selectedGdn.gdnId, body: { updates } }, { onSuccess: () => toast.success('우선순위가 저장되었습니다'), onError: () => toast.error('우선순위 저장 실패') });
     },
     [selectedGdn, saveMembers],
   );

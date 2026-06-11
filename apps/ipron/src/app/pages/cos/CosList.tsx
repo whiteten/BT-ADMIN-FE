@@ -27,10 +27,7 @@ import type { Cos } from '../../features/cos/types';
 import useAggridOptions from '@/libs/shared-ui/src/hooks/useAggridOptions';
 import { useModal } from '@/libs/shared-ui/src/hooks/useModal';
 
-const breadcrumb = [
-  { title: '번호자원관리', path: '/ipron/cos' },
-  { title: 'COS 설정', path: '/ipron/cos' },
-];
+const breadcrumb = [{ title: '번호자원관리' }, { title: 'COS 설정', path: '/ipron/cos' }];
 
 /** 0/1 서비스 플래그를 설정/해제 배지로 표시 */
 const StatusBadgeRenderer = (params: ICellRendererParams) => {

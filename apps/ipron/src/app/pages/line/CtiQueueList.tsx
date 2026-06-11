@@ -38,11 +38,7 @@ import type { CtiQueueGroupCreateRequest, CtiQueueGroupResponse, CtiQueueGroupUp
 import { useGetDnProfileNodes, useGetDnProfileTenants } from '../../features/dn-profile/hooks/useDnProfileQueries';
 import { useModal } from '@/libs/shared-ui/src/hooks/useModal';
 
-const breadcrumb = [
-  { title: '번호자원관리', path: '/ipron/numbering' },
-  { title: '교환기 번호관리', path: '/ipron/numbering' },
-  { title: 'CTI 큐', path: '/ipron/cti-queue' },
-];
+const breadcrumb = [{ title: '번호자원관리' }, { title: '교환기 번호관리' }, { title: 'CTI 큐', path: '/ipron/cti-queue' }];
 
 export default function CtiQueueList() {
   const setBreadcrumb = useBreadcrumbStore((s) => s.setBreadcrumb);

@@ -210,7 +210,7 @@ const DeviceFormDrawer = forwardRef<DeviceFormDrawerRef, Props>(({ deviceTypes, 
   const { mutate: createDevice, isPending: isCreating } = useCreateDevice({
     mutationOptions: {
       onSuccess: () => {
-        toast.success('단말기가 등록되었습니다.');
+        toast.success('단말기가 등록되었습니다');
         setOpen(false);
         onSuccess?.();
       },
@@ -224,7 +224,7 @@ const DeviceFormDrawer = forwardRef<DeviceFormDrawerRef, Props>(({ deviceTypes, 
   const { mutate: updateDevice, isPending: isUpdating } = useUpdateDevice({
     mutationOptions: {
       onSuccess: () => {
-        toast.success('단말기가 수정되었습니다.');
+        toast.success('단말기가 수정되었습니다');
         setOpen(false);
         onSuccess?.();
       },
@@ -252,9 +252,9 @@ const DeviceFormDrawer = forwardRef<DeviceFormDrawerRef, Props>(({ deviceTypes, 
               : l,
           ),
         );
-        toast.success('DN이 배정되었습니다.');
+        toast.success('DN이 배정되었습니다');
       },
-      onError: () => toast.error('DN 배정에 실패했습니다.'),
+      onError: () => toast.error('DN 배정에 실패했습니다'),
     },
   });
 
@@ -263,9 +263,9 @@ const DeviceFormDrawer = forwardRef<DeviceFormDrawerRef, Props>(({ deviceTypes, 
       onSuccess: (_, vars) => {
         const v = vars as { id: number; seq: number };
         setLines((prev) => prev.map((l) => (l.provisionSeq === v.seq ? { ...l, dnId: null, dnNo: null } : l)));
-        toast.success('DN 배정이 해제되었습니다.');
+        toast.success('DN 배정이 해제되었습니다');
       },
-      onError: () => toast.error('DN 해제에 실패했습니다.'),
+      onError: () => toast.error('DN 해제에 실패했습니다'),
     },
   });
 
@@ -321,11 +321,11 @@ const DeviceFormDrawer = forwardRef<DeviceFormDrawerRef, Props>(({ deviceTypes, 
     try {
       const dup = await deviceApi.checkMac(macUpper, editId ?? undefined);
       if (dup) {
-        toast.error('이미 사용 중인 MAC 주소입니다.');
+        toast.error('이미 사용 중인 MAC 주소입니다');
         return;
       }
     } catch {
-      toast.error('MAC 주소 중복 확인에 실패했습니다.');
+      toast.error('MAC 주소 중복 확인에 실패했습니다');
       return;
     }
 
@@ -365,7 +365,7 @@ const DeviceFormDrawer = forwardRef<DeviceFormDrawerRef, Props>(({ deviceTypes, 
       updateDevice({ id: editId, data: req });
     } else {
       if (!nodeId) {
-        toast.error('노드를 선택해야 합니다.');
+        toast.error('노드를 선택해야 합니다');
         return;
       }
       const req: DevMasterCreateRequest = {
@@ -396,11 +396,11 @@ const DeviceFormDrawer = forwardRef<DeviceFormDrawerRef, Props>(({ deviceTypes, 
   const handleAssignDn = useCallback(
     (_seq: number) => {
       if (!editId) {
-        toast.warning('단말기 저장 후 DN을 배정할 수 있습니다.');
+        toast.warning('단말기 저장 후 DN을 배정할 수 있습니다');
         return;
       }
       // TODO: DN 검색 팝업 연동
-      toast.info('DN 배정은 목록 화면에서 행을 선택 후 처리합니다.');
+      toast.info('DN 배정은 목록 화면에서 행을 선택 후 처리합니다');
     },
     [editId],
   );

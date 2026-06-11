@@ -121,8 +121,9 @@ export const agentMasterApi = {
   },
 
   getGroupChildrenCount: async (id: number): Promise<number> => {
-    const res = await apiClient.get<ApiResponse<number>>('/ipron-agent-group-children-count', { params: { id } });
-    return res.data?.data;
+    // BFF 단일 step 래핑: BE ApiResponse<Long> → BFF가 {value: N} 으로 감싸 반환
+    const res = await apiClient.get<ApiResponse<{ value: number }>>('/ipron-agent-group-children-count', { params: { id } });
+    return res.data?.data?.value ?? 0;
   },
 
   // ─── 상담그룹 변경 ───────────────────────────────────────────────────────

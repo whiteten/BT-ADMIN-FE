@@ -22,12 +22,12 @@ export default function DeviceImportDrawer({ open, nodeId, onClose, onSuccess }:
 
   const handleImport = async () => {
     if (!nodeId) {
-      toast.warning('노드를 선택한 후 가져오기를 실행하세요.');
+      toast.warning('노드를 선택한 후 가져오기를 실행하세요');
       return;
     }
     const f = fileList[0]?.originFileObj as File | undefined;
     if (!f) {
-      toast.warning('파일을 선택하세요.');
+      toast.warning('파일을 선택하세요');
       return;
     }
     setIsPending(true);

@@ -118,7 +118,7 @@ export default function EndpointList() {
   const { mutate: deleteEndpoint } = useDeleteEndpoint({
     mutationOptions: {
       onSuccess: (_data, variables) => {
-        toast.success('국선이 삭제되었습니다.');
+        toast.success('국선이 삭제되었습니다');
         const deletedId = (variables as { id: number }).id;
         // 1) 선택 해제 (member/regnum 쿼리 비활성화)
         if (selectedEndpointId === deletedId) setSelectedEndpointId(null);
@@ -136,7 +136,7 @@ export default function EndpointList() {
   const { mutate: deleteMember } = useDeleteMember({
     mutationOptions: {
       onSuccess: () => {
-        toast.success('멤버가 삭제되었습니다.');
+        toast.success('멤버가 삭제되었습니다');
         invalidateMembers();
         invalidateEndpoints();
       },
@@ -146,7 +146,7 @@ export default function EndpointList() {
   const { mutate: deleteRegnum } = useDeleteRegnum({
     mutationOptions: {
       onSuccess: () => {
-        toast.success('인증번호가 삭제되었습니다.');
+        toast.success('인증번호가 삭제되었습니다');
         invalidateRegnums();
         invalidateEndpoints();
       },
@@ -286,11 +286,11 @@ export default function EndpointList() {
       try {
         const [epMembers, epRegnums] = await Promise.all([endpointApi.getMembers({ id: ep.endptId }), endpointApi.getRegnums({ id: ep.endptId })]);
         if (epMembers.length > 0 || epRegnums.length > 0) {
-          toast.error('해당 국선에 멤버 혹은 등록번호가 존재하여 삭제할 수 없습니다.');
+          toast.error('해당 국선에 멤버 혹은 등록번호가 존재하여 삭제할 수 없습니다');
           return;
         }
       } catch {
-        toast.error('삭제 가능 여부 확인에 실패했습니다.');
+        toast.error('삭제 가능 여부 확인에 실패했습니다');
         return;
       }
       modal.confirm.execute({
@@ -553,9 +553,9 @@ export default function EndpointList() {
                 if (!disabled && selectedEndpointId) {
                   try {
                     await endpointApi.registerRegnum({ id: selectedEndpointId, regId: params.data!.endptRegnumId });
-                    toast.success('인증요청을 성공하였습니다.');
+                    toast.success('인증요청을 성공하였습니다');
                   } catch {
-                    toast.error('인증요청에 실패하였습니다.');
+                    toast.error('인증요청에 실패하였습니다');
                   }
                 }
               }}

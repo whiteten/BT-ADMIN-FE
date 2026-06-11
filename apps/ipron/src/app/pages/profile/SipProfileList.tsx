@@ -15,11 +15,7 @@ import { sipProfileQueryKeys, useDeleteSipProfile, useGetSipProfiles } from '../
 import { SS_REFRESH_TYPE_LABELS, type SipProfile, getActiveSipOptionTags } from '../../features/sip-profile/types';
 import { useModal } from '@/libs/shared-ui/src/hooks/useModal';
 
-const breadcrumb = [
-  { title: '번호자원관리', path: '/ipron/numbering' },
-  { title: '프로파일', path: '/ipron/profile' },
-  { title: 'SIP 프로파일', path: '/ipron/profile/sip-profile' },
-];
+const breadcrumb = [{ title: '번호자원관리' }, { title: '프로파일', path: '/ipron/profile' }, { title: 'SIP 프로파일', path: '/ipron/profile/sip-profile' }];
 
 export default function SipProfileList() {
   const setBreadcrumb = useBreadcrumbStore((s) => s.setBreadcrumb);
@@ -44,7 +40,7 @@ export default function SipProfileList() {
   const { mutate: deleteProfile } = useDeleteSipProfile({
     mutationOptions: {
       onSuccess: () => {
-        toast.success('프로파일이 삭제되었습니다.');
+        toast.success('프로파일이 삭제되었습니다');
         queryClient.invalidateQueries({ queryKey: sipProfileQueryKeys.getProfiles().queryKey });
       },
     },

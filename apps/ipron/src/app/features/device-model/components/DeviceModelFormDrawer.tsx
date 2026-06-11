@@ -97,7 +97,7 @@ const DeviceModelFormDrawer = forwardRef<DeviceModelFormDrawerRef, Props>(({ mod
   const { mutate: createModel, isPending: isCreating } = useCreateDeviceModel({
     mutationOptions: {
       onSuccess: () => {
-        toast.success('단말모델이 등록되었습니다.');
+        toast.success('단말모델이 등록되었습니다');
         setOpen(false);
         onSuccess?.();
       },
@@ -108,7 +108,7 @@ const DeviceModelFormDrawer = forwardRef<DeviceModelFormDrawerRef, Props>(({ mod
   const { mutate: updateModel, isPending: isUpdating } = useUpdateDeviceModel({
     mutationOptions: {
       onSuccess: () => {
-        toast.success('단말모델이 수정되었습니다.');
+        toast.success('단말모델이 수정되었습니다');
         setOpen(false);
         onSuccess?.();
       },
@@ -178,12 +178,12 @@ const DeviceModelFormDrawer = forwardRef<DeviceModelFormDrawerRef, Props>(({ mod
     try {
       const dup = await deviceModelApi.checkModel(modelName, editId ?? undefined);
       if (dup) {
-        toast.error('이미 등록된 모델명입니다.');
+        toast.error('이미 등록된 모델명입니다');
         setActiveTab('basic');
         return;
       }
     } catch {
-      toast.error('모델명 중복 확인에 실패했습니다.');
+      toast.error('모델명 중복 확인에 실패했습니다');
       return;
     }
 
@@ -209,7 +209,7 @@ const DeviceModelFormDrawer = forwardRef<DeviceModelFormDrawerRef, Props>(({ mod
   const handleUpload = useCallback(
     async (file: File) => {
       if (editId == null) {
-        toast.warning('모델 저장 후 펌웨어 파일을 업로드할 수 있습니다.');
+        toast.warning('모델 저장 후 펌웨어 파일을 업로드할 수 있습니다');
         return;
       }
       setUploading(true);
@@ -217,7 +217,7 @@ const DeviceModelFormDrawer = forwardRef<DeviceModelFormDrawerRef, Props>(({ mod
         const result = await deviceModelApi.uploadFirmware(editId, file);
         setFirmFileName(result.fileName);
         if (result.filePath) form.setFieldsValue({ firmFilePath: result.filePath });
-        toast.success('펌웨어 파일이 업로드되었습니다.');
+        toast.success('펌웨어 파일이 업로드되었습니다');
       } catch (e) {
         toast.error(extractErrorMessage(e, '펌웨어 파일 업로드에 실패했습니다.'));
       } finally {
@@ -240,7 +240,7 @@ const DeviceModelFormDrawer = forwardRef<DeviceModelFormDrawerRef, Props>(({ mod
   /** 펌웨어 파일 전체 IE노드 동기화 (IOSVR) */
   const handleSync = useCallback(async () => {
     if (editId == null) {
-      toast.warning('모델 저장 후 동기화할 수 있습니다.');
+      toast.warning('모델 저장 후 동기화할 수 있습니다');
       return;
     }
     setSyncing(true);
@@ -250,7 +250,7 @@ const DeviceModelFormDrawer = forwardRef<DeviceModelFormDrawerRef, Props>(({ mod
       setSyncResults(results);
       const failCnt = results.filter((r) => !r.success).length;
       if (failCnt > 0) toast.warning(`IE노드 동기화 완료 — 실패 ${failCnt}건이 있습니다.`);
-      else toast.success('전체 IE노드 동기화가 완료되었습니다.');
+      else toast.success('전체 IE노드 동기화가 완료되었습니다');
     } catch (e) {
       toast.error(extractErrorMessage(e, '펌웨어 IE노드 동기화에 실패했습니다.'));
     } finally {

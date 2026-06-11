@@ -80,7 +80,7 @@ const AclDrawer = forwardRef<AclDrawerRef, Props>(({ onSuccess }, ref) => {
   const { mutate: createPbxAcl, isPending: isCreatingPbx } = useCreateAcl({
     mutationOptions: {
       onSuccess: () => {
-        toast.success('PBX IP 접근제어가 등록되었습니다.');
+        toast.success('PBX IP 접근제어가 등록되었습니다');
         handleClose();
         onSuccess();
       },
@@ -89,7 +89,7 @@ const AclDrawer = forwardRef<AclDrawerRef, Props>(({ onSuccess }, ref) => {
   const { mutate: updatePbxAcl, isPending: isUpdatingPbx } = useUpdateAcl({
     mutationOptions: {
       onSuccess: () => {
-        toast.success('PBX IP 접근제어가 수정되었습니다.');
+        toast.success('PBX IP 접근제어가 수정되었습니다');
         handleClose();
         onSuccess();
       },
@@ -98,7 +98,7 @@ const AclDrawer = forwardRef<AclDrawerRef, Props>(({ onSuccess }, ref) => {
   const { mutate: deletePbxAcl, isPending: isDeletingPbx } = useDeleteAcl({
     mutationOptions: {
       onSuccess: () => {
-        toast.success('PBX IP 접근제어가 삭제되었습니다.');
+        toast.success('PBX IP 접근제어가 삭제되었습니다');
         handleClose();
         onSuccess();
       },
@@ -109,7 +109,7 @@ const AclDrawer = forwardRef<AclDrawerRef, Props>(({ onSuccess }, ref) => {
   const { mutate: createCtiAcl, isPending: isCreatingCti } = useCreateCtiAcl({
     mutationOptions: {
       onSuccess: () => {
-        toast.success('CTI IP 접근제어가 등록되었습니다.');
+        toast.success('CTI IP 접근제어가 등록되었습니다');
         handleClose();
         onSuccess();
       },
@@ -118,7 +118,7 @@ const AclDrawer = forwardRef<AclDrawerRef, Props>(({ onSuccess }, ref) => {
   const { mutate: updateCtiAcl, isPending: isUpdatingCti } = useUpdateCtiAcl({
     mutationOptions: {
       onSuccess: () => {
-        toast.success('CTI IP 접근제어가 수정되었습니다.');
+        toast.success('CTI IP 접근제어가 수정되었습니다');
         handleClose();
         onSuccess();
       },
@@ -127,7 +127,7 @@ const AclDrawer = forwardRef<AclDrawerRef, Props>(({ onSuccess }, ref) => {
   const { mutate: deleteCtiAcl, isPending: isDeletingCti } = useDeleteCtiAcl({
     mutationOptions: {
       onSuccess: () => {
-        toast.success('CTI IP 접근제어가 삭제되었습니다.');
+        toast.success('CTI IP 접근제어가 삭제되었습니다');
         handleClose();
         onSuccess();
       },
@@ -152,7 +152,7 @@ const AclDrawer = forwardRef<AclDrawerRef, Props>(({ onSuccess }, ref) => {
       // 노드 선택 모드일 때 form에서 nodeId 가져오기
       const targetNodeId = nodeId ?? values.nodeId;
       if (!targetNodeId) {
-        toast.error('노드를 선택하세요.');
+        toast.error('노드를 선택하세요');
         return;
       }
 

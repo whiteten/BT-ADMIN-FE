@@ -41,11 +41,7 @@ import {
 } from '../../features/common-trunk/types';
 import { useGetDnProfileNodes } from '../../features/dn-profile/hooks/useDnProfileQueries';
 
-const breadcrumb = [
-  { title: '번호자원관리', path: '/ipron/numbering' },
-  { title: '교환기 번호관리', path: '/ipron/numbering' },
-  { title: '공용 SIP TRUNK', path: '/ipron/line/common-trunk' },
-];
+const breadcrumb = [{ title: '번호자원관리' }, { title: '교환기 번호관리' }, { title: '공용 SIP TRUNK', path: '/ipron/line/common-trunk' }];
 
 // ─── 채널 게이지 렌더러 ──────────────────────────────────────────────
 function gaugeColor(pct: number): string {
@@ -238,8 +234,8 @@ export default function CommonTrunkList() {
       {
         field: 'globalDnYn',
         headerName: '글로벌',
-        minWidth: 80,
-        maxWidth: 90,
+        minWidth: 90,
+        maxWidth: 100,
         cellStyle: { textAlign: 'center' } as CellStyle,
         cellRenderer: (p: { value: number }) => (p.value === 1 ? <Tag color="blue">글로벌</Tag> : <span className="text-gray-400 text-[11px]">-</span>),
       },
@@ -365,10 +361,7 @@ export default function CommonTrunkList() {
   }, []);
 
   const handleDeleteGdn = useCallback(() => {
-    if (!selectedGdn) {
-      toast.info('삭제할 그룹DN 을 선택하세요');
-      return;
-    }
+    if (!selectedGdn) return;
     Modal.confirm({
       title: '그룹DN 삭제',
       content: `"${selectedGdn.gdnNo}" 그룹DN을 삭제하시겠습니까?`,
@@ -378,13 +371,10 @@ export default function CommonTrunkList() {
   }, [selectedGdn, deleteGdns]);
 
   const handleDeleteTrunks = useCallback(() => {
-    if (selectedTrunks.length === 0) {
-      toast.info('삭제할 트렁크를 선택하세요');
-      return;
-    }
+    if (selectedTrunks.length === 0) return;
     Modal.confirm({
       title: '트렁크 삭제',
-      content: `선택한 트렁크 ${selectedTrunks.length}건을 삭제합니다.`,
+      content: `선택한 트렁크 ${selectedTrunks.length}건을 삭제하시겠습니까?`,
       okType: 'danger',
       onOk: () => deleteTrunks(selectedTrunks.map((t) => t.sipTrunkId)),
     });
@@ -394,7 +384,7 @@ export default function CommonTrunkList() {
     if (!selectedGdn || selectedTrunks.length === 0) return;
     Modal.confirm({
       title: '배정 해제',
-      content: `선택한 트렁크 ${selectedTrunks.length}건과 그룹DN ${selectedGdn.gdnNo} 의 배정을 해제합니다.`,
+      content: `선택한 트렁크 ${selectedTrunks.length}건의 그룹DN ${selectedGdn.gdnNo} 배정을 해제하시겠습니까?`,
       okType: 'danger',
       onOk: () =>
         saveMembers({
@@ -516,7 +506,14 @@ export default function CommonTrunkList() {
                 >
                   등록
                 </Button>
-                <Button size="small" danger icon={<Trash2 className="size-3" />} onClick={handleDeleteGdn} />
+                <Button
+                  size="small"
+                  danger
+                  icon={<Trash2 className="size-3" />}
+                  onClick={handleDeleteGdn}
+                  disabled={selectedGdn == null}
+                  title={selectedGdn == null ? '삭제할 그룹DN을 선택하세요' : `"${selectedGdn.gdnNo}" 삭제`}
+                />
               </div>
             </div>
 
@@ -584,7 +581,14 @@ export default function CommonTrunkList() {
                 >
                   등록
                 </Button>
-                <Button size="small" danger icon={<Trash2 className="size-3" />} onClick={handleDeleteTrunks} />
+                <Button
+                  size="small"
+                  danger
+                  icon={<Trash2 className="size-3" />}
+                  onClick={handleDeleteTrunks}
+                  disabled={selectedTrunks.length === 0}
+                  title={selectedTrunks.length === 0 ? '삭제할 트렁크를 선택하세요' : `선택한 트렁크 ${selectedTrunks.length}건 삭제`}
+                />
               </div>
             </div>
 

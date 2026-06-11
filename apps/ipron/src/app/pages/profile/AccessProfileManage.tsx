@@ -42,11 +42,7 @@ import type { AccessCode, AccessProfile } from '../../features/access-profile/ty
 import useAggridOptions from '@/libs/shared-ui/src/hooks/useAggridOptions';
 import { useModal } from '@/libs/shared-ui/src/hooks/useModal';
 
-const breadcrumb = [
-  { title: '번호자원관리', path: '/ipron/numbering' },
-  { title: '프로파일', path: '/ipron/profile' },
-  { title: '접근코드 프로파일', path: '/ipron/profile/access-profile' },
-];
+const breadcrumb = [{ title: '번호자원관리' }, { title: '프로파일', path: '/ipron/profile' }, { title: '접근코드 프로파일', path: '/ipron/profile/access-profile' }];
 
 export default function AccessProfileManage() {
   const setBreadcrumb = useBreadcrumbStore((s) => s.setBreadcrumb);
@@ -247,7 +243,7 @@ export default function AccessProfileManage() {
   const { mutate: createProfile, isPending: isCreatingProfile } = useCreateProfile({
     mutationOptions: {
       onSuccess: () => {
-        toast.success('프로파일이 등록되었습니다.');
+        toast.success('프로파일이 등록되었습니다');
         profileDrawerRef.current?.close();
         invalidateProfiles();
       },
@@ -257,7 +253,7 @@ export default function AccessProfileManage() {
   const { mutate: updateProfile, isPending: isUpdatingProfile } = useUpdateProfile({
     mutationOptions: {
       onSuccess: () => {
-        toast.success('프로파일이 수정되었습니다.');
+        toast.success('프로파일이 수정되었습니다');
         profileDrawerRef.current?.close();
         invalidateProfiles();
       },
@@ -267,7 +263,7 @@ export default function AccessProfileManage() {
   const { mutate: deleteProfile } = useDeleteProfile({
     mutationOptions: {
       onSuccess: () => {
-        toast.success('프로파일이 삭제되었습니다.');
+        toast.success('프로파일이 삭제되었습니다');
         setSelectedProfileId(null);
         invalidateProfiles();
       },
@@ -277,7 +273,7 @@ export default function AccessProfileManage() {
   const { mutate: copyProfile, isPending: isCopyingProfile } = useCopyProfile({
     mutationOptions: {
       onSuccess: () => {
-        toast.success('프로파일이 복사되었습니다.');
+        toast.success('프로파일이 복사되었습니다');
         copyDialogRef.current?.close();
         invalidateProfiles();
       },
@@ -287,7 +283,7 @@ export default function AccessProfileManage() {
   const { mutate: createCode, isPending: isCreatingCode } = useCreateCode({
     mutationOptions: {
       onSuccess: () => {
-        toast.success('접근코드가 등록되었습니다.');
+        toast.success('접근코드가 등록되었습니다');
         codeDrawerRef.current?.close();
         invalidateAll();
       },
@@ -297,7 +293,7 @@ export default function AccessProfileManage() {
   const { mutate: updateCode, isPending: isUpdatingCode } = useUpdateCode({
     mutationOptions: {
       onSuccess: () => {
-        toast.success('접근코드가 수정되었습니다.');
+        toast.success('접근코드가 수정되었습니다');
         codeDrawerRef.current?.close();
         invalidateCodes();
       },
@@ -307,7 +303,7 @@ export default function AccessProfileManage() {
   const { mutate: deleteCode } = useDeleteCode({
     mutationOptions: {
       onSuccess: () => {
-        toast.success('접근코드가 삭제되었습니다.');
+        toast.success('접근코드가 삭제되었습니다');
         invalidateAll();
       },
     },

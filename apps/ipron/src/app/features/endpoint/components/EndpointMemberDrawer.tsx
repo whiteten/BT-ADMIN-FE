@@ -55,7 +55,7 @@ const EndpointMemberDrawer = forwardRef<EndpointMemberDrawerRef, Props>(({ endpt
   const { mutate: createMember, isPending: isCreating } = useCreateMember({
     mutationOptions: {
       onSuccess: () => {
-        toast.success('멤버가 등록되었습니다.');
+        toast.success('멤버가 등록되었습니다');
         setVisible(false);
         setEditData(null);
         form.resetFields();
@@ -67,7 +67,7 @@ const EndpointMemberDrawer = forwardRef<EndpointMemberDrawerRef, Props>(({ endpt
   const { mutate: updateMember, isPending: isUpdating } = useUpdateMember({
     mutationOptions: {
       onSuccess: () => {
-        toast.success('멤버가 수정되었습니다.');
+        toast.success('멤버가 수정되었습니다');
         setVisible(false);
         setEditData(null);
         form.resetFields();

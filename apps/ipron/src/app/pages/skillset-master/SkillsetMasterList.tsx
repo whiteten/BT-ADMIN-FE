@@ -44,12 +44,7 @@ import type {
 } from '../../features/skillset-master/types';
 import { useModal } from '@/libs/shared-ui/src/hooks/useModal';
 
-const breadcrumb = [
-  { title: 'IPRON', path: '/ipron' },
-  { title: '상담사 관리', path: '/ipron/agent-master' },
-  { title: '스킬 관리', path: '/ipron/skillset-master' },
-  { title: '스킬셋 관리', path: '/ipron/skillset-master' },
-];
+const breadcrumb = [{ title: 'IPRON' }, { title: '상담사 관리', path: '/ipron/agent-master' }, { title: '스킬 관리' }, { title: '스킬셋 관리', path: '/ipron/skillset-master' }];
 
 interface CompactPillProps {
   name: string;
@@ -134,8 +129,16 @@ export default function SkillsetMasterList() {
   const [groupManageOpen, setGroupManageOpen] = useState(false);
 
   // ─── Queries ────────────────────────────────────────────────────────────
+  const skillsetListParams = useMemo(() => {
+    const base: { tenantId?: number; treeId?: number } = {};
+    if (selectedTenantId !== null) base.tenantId = selectedTenantId;
+    if (selectedTreeId === 0) base.treeId = 0;
+    else if (selectedTreeId !== null) base.treeId = selectedTreeId;
+    return base;
+  }, [selectedTenantId, selectedTreeId]);
+
   const { data: skillsets = [], isLoading } = useGetSkillsets({
-    params: selectedTenantId !== null ? { tenantId: selectedTenantId } : undefined,
+    params: skillsetListParams,
   });
   const { data: tenantStats = [] } = useGetSkillsetTenants();
   const { data: groupTree = [] } = useGetSkillsetGroups({
@@ -215,8 +218,7 @@ export default function SkillsetMasterList() {
   // ─── Derived ────────────────────────────────────────────────────────────
   const filteredSkillsets = useMemo(() => {
     let rows = skillsets;
-    if (selectedTreeId === 0) rows = rows.filter((r) => r.treeId == null);
-    // selectedTreeId !== null 이고 !== 0 일 때: BE가 해당 트리의 하위 포함 결과를 반환 — 클라이언트 재필터 불필요
+    // treeId=0(미배정) / treeId=n(실제 트리): BE가 하위 포함 재귀 결과를 반환 — 클라이언트 재필터 불필요
     const kw = searchText.trim().toLowerCase();
     if (kw) {
       rows = rows.filter((r) => {

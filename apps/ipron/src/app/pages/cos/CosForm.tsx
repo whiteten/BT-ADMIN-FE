@@ -171,7 +171,7 @@ export default function CosForm() {
   const { mutate: createCos, isPending: isCreating } = useCreateCos({
     mutationOptions: {
       onSuccess: () => {
-        toast.success('COS가 등록되었습니다.');
+        toast.success('COS가 등록되었습니다');
         queryClient.invalidateQueries({ queryKey: cosQueryKeys.getList._def });
         navigate('/ipron/cos');
       },
@@ -181,7 +181,7 @@ export default function CosForm() {
   const { mutate: updateCos, isPending: isUpdating } = useUpdateCos({
     mutationOptions: {
       onSuccess: () => {
-        toast.success('COS가 수정되었습니다.');
+        toast.success('COS가 수정되었습니다');
         queryClient.invalidateQueries({ queryKey: cosQueryKeys.getList._def });
         navigate('/ipron/cos');
       },
@@ -191,7 +191,7 @@ export default function CosForm() {
   const { mutate: deleteCos } = useDeleteCos({
     mutationOptions: {
       onSuccess: () => {
-        toast.success('COS가 삭제되었습니다.');
+        toast.success('COS가 삭제되었습니다');
         queryClient.invalidateQueries({ queryKey: cosQueryKeys.getList._def });
         navigate('/ipron/cos');
       },
@@ -218,11 +218,11 @@ export default function CosForm() {
 
       // Step2 비즈니스 검증
       if (values.dodNumAllow === 1 && !values.dodNumPattern?.trim()) {
-        toast.error('특정번호 발신허용 설정 시 패턴은 필수입니다.');
+        toast.error('특정번호 발신허용 설정 시 패턴은 필수입니다');
         return;
       }
       if (values.callScreenSvc === 1 && !values.callScreenNum?.trim()) {
-        toast.error('특정번호 착신금지 설정 시 패턴은 필수입니다.');
+        toast.error('특정번호 착신금지 설정 시 패턴은 필수입니다');
         return;
       }
 
@@ -295,7 +295,7 @@ export default function CosForm() {
         return;
       }
     } catch {
-      toast.error('참조 DN 수 조회에 실패하였습니다.');
+      toast.error('참조 DN 수 조회에 실패하였습니다');
       return;
     }
 

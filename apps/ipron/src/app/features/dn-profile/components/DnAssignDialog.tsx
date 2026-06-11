@@ -86,7 +86,7 @@ export default function DnAssignDialog({ open, profile, onCancel, onSuccess }: D
   const handleAssign = () => {
     if (!profile) return;
     if (selectedIds.size === 0) {
-      toast.warning('배정할 DN을 선택하세요.');
+      toast.warning('배정할 DN을 선택하세요');
       return;
     }
     assignDns({ id: profile.dnProfileId, data: { dnIds: Array.from(selectedIds) } });

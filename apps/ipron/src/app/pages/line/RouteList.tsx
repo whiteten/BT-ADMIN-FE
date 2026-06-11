@@ -521,7 +521,7 @@ export default function RouteList() {
                     title={selectedRoutePoints.length === 0 ? '해제할 국선을 선택하세요' : `선택한 ${selectedRoutePoints.length}건 배정 해제`}
                     onClick={() => handlePointDelete(selectedRoutePoints)}
                   >
-                    {selectedRoutePoints.length > 0 ? `배정 해제 (${selectedRoutePoints.length})` : '배정 해제'}
+                    배정 해제 <span className={selectedRoutePoints.length > 0 ? 'visible' : 'invisible'}>({selectedRoutePoints.length})</span>
                   </Button>
                   <Button type="primary" icon={<Plus className="size-3.5" />} onClick={() => routePointDialogRef.current?.open()}>
                     국선 배정

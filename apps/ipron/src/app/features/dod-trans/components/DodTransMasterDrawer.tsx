@@ -88,7 +88,7 @@ const DodTransMasterDrawer = forwardRef<DodTransMasterDrawerRef, Props>(({ onSuc
   const { mutate: createMaster, isPending: isCreating } = useCreateMaster({
     mutationOptions: {
       onSuccess: () => {
-        toast.success('DOD DNIS 변환이 등록되었습니다.');
+        toast.success('DOD DNIS 변환이 등록되었습니다');
         handleClose();
         onSuccess();
       },
@@ -98,7 +98,7 @@ const DodTransMasterDrawer = forwardRef<DodTransMasterDrawerRef, Props>(({ onSuc
   const { mutate: updateMaster, isPending: isUpdating } = useUpdateMaster({
     mutationOptions: {
       onSuccess: () => {
-        toast.success('DOD DNIS 변환이 수정되었습니다.');
+        toast.success('DOD DNIS 변환이 수정되었습니다');
         handleClose();
         onSuccess();
       },
@@ -108,7 +108,7 @@ const DodTransMasterDrawer = forwardRef<DodTransMasterDrawerRef, Props>(({ onSuc
   const { mutate: deleteMaster, isPending: isDeleting } = useDeleteMaster({
     mutationOptions: {
       onSuccess: () => {
-        toast.success('DOD DNIS 변환이 삭제되었습니다.');
+        toast.success('DOD DNIS 변환이 삭제되었습니다');
         handleClose();
         onSuccess();
       },
@@ -129,11 +129,11 @@ const DodTransMasterDrawer = forwardRef<DodTransMasterDrawerRef, Props>(({ onSuc
     try {
       const values = await form.validateFields();
       if (!nodeId) {
-        toast.error('노드를 선택하세요.');
+        toast.error('노드를 선택하세요');
         return;
       }
       if (!tenantId) {
-        toast.error('테넌트를 선택하세요.');
+        toast.error('테넌트를 선택하세요');
         return;
       }
 

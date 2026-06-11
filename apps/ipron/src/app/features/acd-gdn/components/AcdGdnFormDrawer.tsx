@@ -201,7 +201,7 @@ export default function AcdGdnFormDrawer({ open, mode, detail, defaultTenantId, 
       const effectiveNodeId = isEdit ? (detail?.nodeId ?? null) : (values.nodeId ?? null);
       const buNode = values.backUpNodeId;
       if (effectiveNodeId != null && buNode != null && buNode !== 0 && Number(buNode) === Number(effectiveNodeId)) {
-        toast.error('그룹DN 노드와 DR(백업) 노드를 동일한 노드로 설정할 수 없습니다.');
+        toast.error('그룹DN 노드와 DR(백업) 노드를 동일한 노드로 설정할 수 없습니다');
         return;
       }
 

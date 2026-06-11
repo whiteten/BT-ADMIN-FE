@@ -69,7 +69,7 @@ const GdnDrawer = forwardRef<GdnDrawerRef, Props>(({ onSuccess }, ref) => {
   const { mutate: createGdn, isPending: isCreating } = useCreateMcsGdn({
     mutationOptions: {
       onSuccess: () => {
-        toast.success('대표번호가 등록되었습니다.');
+        toast.success('대표번호가 등록되었습니다');
         const created = pendingCreate;
         setPendingCreate(null);
         handleClose();
@@ -82,7 +82,7 @@ const GdnDrawer = forwardRef<GdnDrawerRef, Props>(({ onSuccess }, ref) => {
   const { mutate: updateGdn, isPending: isUpdating } = useUpdateMcsGdn({
     mutationOptions: {
       onSuccess: () => {
-        toast.success('대표번호가 수정되었습니다.');
+        toast.success('대표번호가 수정되었습니다');
         handleClose();
         onSuccess();
       },

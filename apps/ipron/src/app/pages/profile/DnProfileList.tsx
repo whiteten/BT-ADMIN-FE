@@ -25,11 +25,7 @@ import { dnProfileQueryKeys, useDeleteDnProfile, useGetDnProfileNodeTenants, use
 import type { DnProfile } from '../../features/dn-profile/types';
 import { useModal } from '@/libs/shared-ui/src/hooks/useModal';
 
-const breadcrumb = [
-  { title: '번호자원관리', path: '/ipron/numbering' },
-  { title: '프로파일', path: '/ipron/profile' },
-  { title: '내선 프로파일', path: '/ipron/profile/dn-profile' },
-];
+const breadcrumb = [{ title: '번호자원관리' }, { title: '프로파일', path: '/ipron/profile' }, { title: '내선 프로파일', path: '/ipron/profile/dn-profile' }];
 
 export default function DnProfileList() {
   const setBreadcrumb = useBreadcrumbStore((s) => s.setBreadcrumb);
@@ -238,7 +234,7 @@ export default function DnProfileList() {
   const { mutate: deleteProfile } = useDeleteDnProfile({
     mutationOptions: {
       onSuccess: () => {
-        toast.success('프로파일이 삭제되었습니다.');
+        toast.success('프로파일이 삭제되었습니다');
         setSelectedProfiles([]);
         invalidateProfiles();
       },

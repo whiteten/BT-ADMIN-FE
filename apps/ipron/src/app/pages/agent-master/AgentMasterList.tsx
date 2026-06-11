@@ -36,12 +36,7 @@ import type { AgentGroupNode, AgentResponse, AgentUpdateRequest } from '../../fe
 import { useGetMediaTypes } from '../../features/media-type/hooks/useMediaTypeQueries';
 import { useModal } from '@/libs/shared-ui/src/hooks/useModal';
 
-const breadcrumb = [
-  { title: 'IPRON', path: '/ipron' },
-  { title: '상담사 관리', path: '/ipron/agent-master' },
-  { title: '상담사', path: '/ipron/agent-master' },
-  { title: '상담사 설정', path: '/ipron/agent-master' },
-];
+const breadcrumb = [{ title: 'IPRON' }, { title: '상담사 관리' }, { title: '상담사', path: '/ipron/agent-master' }, { title: '상담사 설정', path: '/ipron/agent-master' }];
 
 export default function AgentMasterList() {
   const setBreadcrumb = useBreadcrumbStore((s) => s.setBreadcrumb);

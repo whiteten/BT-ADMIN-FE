@@ -70,7 +70,7 @@ export default function DeviceModelList() {
   const { mutate: deleteModel, isPending: isDeleting } = useDeleteDeviceModel({
     mutationOptions: {
       onSuccess: () => {
-        toast.success('단말모델이 삭제되었습니다.');
+        toast.success('단말모델이 삭제되었습니다');
         setSelectedRows([]);
         invalidateModels();
       },

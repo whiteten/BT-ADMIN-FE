@@ -65,7 +65,7 @@ const DodTransItemDrawer = forwardRef<DodTransItemDrawerRef, Props>(({ onSuccess
   const { mutate: createItem, isPending: isCreating } = useCreateItem({
     mutationOptions: {
       onSuccess: () => {
-        toast.success('변환 패턴이 등록되었습니다.');
+        toast.success('변환 패턴이 등록되었습니다');
         handleClose();
         onSuccess();
       },
@@ -75,7 +75,7 @@ const DodTransItemDrawer = forwardRef<DodTransItemDrawerRef, Props>(({ onSuccess
   const { mutate: updateItem, isPending: isUpdating } = useUpdateItem({
     mutationOptions: {
       onSuccess: () => {
-        toast.success('변환 패턴이 수정되었습니다.');
+        toast.success('변환 패턴이 수정되었습니다');
         handleClose();
         onSuccess();
       },
@@ -85,7 +85,7 @@ const DodTransItemDrawer = forwardRef<DodTransItemDrawerRef, Props>(({ onSuccess
   const { mutate: deleteItem, isPending: isDeleting } = useDeleteItem({
     mutationOptions: {
       onSuccess: () => {
-        toast.success('변환 패턴이 삭제되었습니다.');
+        toast.success('변환 패턴이 삭제되었습니다');
         handleClose();
         onSuccess();
       },
@@ -119,7 +119,7 @@ const DodTransItemDrawer = forwardRef<DodTransItemDrawerRef, Props>(({ onSuccess
         });
       } else {
         if (!dodTransId) {
-          toast.error('DOD DNIS 변환을 선택하세요.');
+          toast.error('DOD DNIS 변환을 선택하세요');
           return;
         }
         createItem({

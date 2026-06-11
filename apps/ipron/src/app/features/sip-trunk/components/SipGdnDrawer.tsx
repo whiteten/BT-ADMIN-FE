@@ -154,7 +154,7 @@ const SipGdnDrawer = forwardRef<SipGdnDrawerRef, Props>(({ nodeId, tenantId, drN
   const { mutate: createGdn, isPending: creating } = useCreateSipGdn({
     mutationOptions: {
       onSuccess: () => {
-        toast.success('그룹DN이 등록되었습니다.');
+        toast.success('그룹DN이 등록되었습니다');
         handleClose();
         onSuccess?.();
       },
@@ -165,7 +165,7 @@ const SipGdnDrawer = forwardRef<SipGdnDrawerRef, Props>(({ nodeId, tenantId, drN
   const { mutate: updateGdn, isPending: updating } = useUpdateSipGdn({
     mutationOptions: {
       onSuccess: () => {
-        toast.success('그룹DN이 수정되었습니다.');
+        toast.success('그룹DN이 수정되었습니다');
         if (!isApplyRef.current) handleClose();
         onSuccess?.();
       },
@@ -182,7 +182,7 @@ const SipGdnDrawer = forwardRef<SipGdnDrawerRef, Props>(({ nodeId, tenantId, drN
           updateGdn({ gdnId: editData.gdnId, body: buildBody(v) });
         } else {
           if (nodeId == null || tenantId == null) {
-            toast.warning('노드와 테넌트를 먼저 선택하세요.');
+            toast.warning('노드와 테넌트를 먼저 선택하세요');
             return;
           }
           createGdn({

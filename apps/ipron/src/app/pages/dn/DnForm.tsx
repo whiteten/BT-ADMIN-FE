@@ -559,7 +559,7 @@ export default function DnForm() {
   const { mutate: createDn, isPending: isCreating } = useCreateDn({
     mutationOptions: {
       onSuccess: () => {
-        toast.success('DN이 등록되었습니다.');
+        toast.success('DN이 등록되었습니다');
         queryClient.invalidateQueries({ queryKey: dnQueryKeys.getList._def });
         navigate(backToListUrl());
       },
@@ -569,7 +569,7 @@ export default function DnForm() {
   const { mutate: updateDn, isPending: isUpdating } = useUpdateDn({
     mutationOptions: {
       onSuccess: () => {
-        toast.success('DN이 수정되었습니다.');
+        toast.success('DN이 수정되었습니다');
         queryClient.invalidateQueries({ queryKey: dnQueryKeys.getList._def });
         navigate(backToListUrl());
       },
@@ -579,7 +579,7 @@ export default function DnForm() {
   const { mutate: deleteDns } = useDeleteDns({
     mutationOptions: {
       onSuccess: () => {
-        toast.success('DN이 삭제되었습니다.');
+        toast.success('DN이 삭제되었습니다');
         queryClient.invalidateQueries({ queryKey: dnQueryKeys.getList._def });
         navigate(backToListUrl());
       },
@@ -595,17 +595,17 @@ export default function DnForm() {
 
       // 교차검증 (실패 시 기본정보 탭으로 이동)
       if (values.nodeId && values.backUpNodeId && values.nodeId === values.backUpNodeId) {
-        toast.error('DR 노드는 본 노드와 동일할 수 없습니다.');
+        toast.error('DR 노드는 본 노드와 동일할 수 없습니다');
         setCurrentTab('basic');
         return;
       }
       if (values.extAuthtype === '1' && !values.ipv4Address && !values.ipv6Address) {
-        toast.error('고정 IP 유형에서는 IPv4 또는 IPv6 주소 중 하나는 필수입니다.');
+        toast.error('고정 IP 유형에서는 IPv4 또는 IPv6 주소 중 하나는 필수입니다');
         setCurrentTab('basic');
         return;
       }
       if (values.md5Auth === 1 && (!values.md5Authid || !values.md5Authpwd)) {
-        toast.error('MD5 인증 사용 시 인증 ID와 비밀번호는 필수입니다.');
+        toast.error('MD5 인증 사용 시 인증 ID와 비밀번호는 필수입니다');
         setCurrentTab('basic');
         return;
       }
@@ -614,12 +614,12 @@ export default function DnForm() {
       if (values.transportType === '8' || values.transportType === '16') {
         const profile = (options?.dnProfiles ?? []).find((p) => p.id === values.dnProfileId);
         if (!profile) {
-          toast.error('전송유형 WS/WSS 사용 시 내선 프로파일을 선택해야 합니다.');
+          toast.error('전송유형 WS/WSS 사용 시 내선 프로파일을 선택해야 합니다');
           setCurrentTab('basic');
           return;
         }
         if (!profile.msGroupId || profile.msGroupId === 0 || !profile.rtpOption || profile.rtpOption === 0) {
-          toast.error('전송유형 WS/WSS 사용 시 내선 프로파일에 중개 옵션, MS 그룹 설정이 필요합니다.');
+          toast.error('전송유형 WS/WSS 사용 시 내선 프로파일에 중개 옵션, MS 그룹 설정이 필요합니다');
           setCurrentTab('basic');
           return;
         }
@@ -628,27 +628,27 @@ export default function DnForm() {
       // 갭10: 착신전환 스위치 ON 시 번호 필수
       // SWAT IPR20S2020_Info.jsp insertValidate/updateValidate 정합
       if (values.allTransSvc === 1 && !values.allTransNum) {
-        toast.error('무조건 착신전환 설정 시 무조건 착신전환 번호는 필수입니다.');
+        toast.error('무조건 착신전환 설정 시 무조건 착신전환 번호는 필수입니다');
         setCurrentTab('term');
         return;
       }
       if (values.noansTransSvc === 1 && !values.noansTransNum) {
-        toast.error('무응답 착신전환 설정 시 무응답 착신전환 번호는 필수입니다.');
+        toast.error('무응답 착신전환 설정 시 무응답 착신전환 번호는 필수입니다');
         setCurrentTab('term');
         return;
       }
       if (values.busyTransSvc === 1 && !values.busyTransNum) {
-        toast.error('통화중 착신전환 설정 시 통화중 착신전환 번호는 필수입니다.');
+        toast.error('통화중 착신전환 설정 시 통화중 착신전환 번호는 필수입니다');
         setCurrentTab('term');
         return;
       }
       if (values.moveAnsSvc === 1 && !values.moveAnsNum) {
-        toast.error('이동응답 서비스 설정 시 이동응답 서비스 번호는 필수입니다.');
+        toast.error('이동응답 서비스 설정 시 이동응답 서비스 번호는 필수입니다');
         setCurrentTab('term');
         return;
       }
       if (values.urTransSvc === 1 && !values.urTransNum) {
-        toast.error('미등록 착신전환 설정 시 착신전화 번호는 필수입니다.');
+        toast.error('미등록 착신전환 설정 시 착신전화 번호는 필수입니다');
         setCurrentTab('term');
         return;
       }
@@ -775,7 +775,7 @@ export default function DnForm() {
         return;
       }
     } catch {
-      toast.warning('연관 데이터 조회에 실패했습니다. 삭제 진행 시 주의하세요.');
+      toast.warning('연관 데이터 조회에 실패했습니다. 삭제 진행 시 주의하세요');
     }
     modal.confirm.execute({
       onOk: () => deleteDns([dnId]),
@@ -840,11 +840,11 @@ export default function DnForm() {
     }
     if (steps[currentStepIndex].key === 'basic') {
       if (v.extAuthtype === '1' && !v.ipv4Address && !v.ipv6Address) {
-        toast.error('고정 IP 유형에서는 IPv4 또는 IPv6 주소 중 하나는 필수입니다.');
+        toast.error('고정 IP 유형에서는 IPv4 또는 IPv6 주소 중 하나는 필수입니다');
         return false;
       }
       if (v.backUpNodeId && v.backUpNodeId === v.nodeId) {
-        toast.error('DR 노드는 본 노드와 동일할 수 없습니다.');
+        toast.error('DR 노드는 본 노드와 동일할 수 없습니다');
         return false;
       }
     }
