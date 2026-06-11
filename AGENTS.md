@@ -336,6 +336,28 @@ modal.confirm.execute({
 });
 ```
 
+#### 로딩 스피너 (FallbackSpinner)
+
+페이지·영역 로딩 중 표시가 필요할 때는 antd `Spin`이나 shadcn `Spinner`를 직접 쓰지 말고 **공통 컴포넌트 `FallbackSpinner`(`@/components/custom/FallbackSpinner`)를 기본**으로 사용합니다.
+
+```typescript
+import { FallbackSpinner } from '@/components/custom/FallbackSpinner';
+
+// 페이지/컨테이너 로딩 (부모 영역 기준 중앙 정렬, 기본 size 100)
+if (isLoading) return <FallbackSpinner />;
+
+// 전체 화면 로딩
+<FallbackSpinner useFullScreen />
+
+// 드로어·모달 내부 섹션 로딩 — size 축소 + 안내 문구
+<FallbackSpinner size={36} tip="대화 내용을 불러오는 중..." />
+```
+
+예외 (FallbackSpinner를 강제하지 않는 경우):
+
+- **용도가 다른 경우**: 버튼 내부 로딩(antd `Button loading`), 리스트 항목 옆 소형 인라인 진행 표시(lucide `Loader2` + `animate-spin`) 등 "영역 로딩"이 아닌 항목 단위 인디케이터
+- **사용자가 직접 다른 컴포넌트를 지시한 경우**: 지시를 따름
+
 ### 라우팅(routes.tsx) 컨벤션
 
 각 remote의 라우팅은 `apps/<remote>/src/app/routes.tsx` 한 파일에 정의하며, **`apps/fca/src/app/routes.tsx`를 레퍼런스**로 삼습니다.
