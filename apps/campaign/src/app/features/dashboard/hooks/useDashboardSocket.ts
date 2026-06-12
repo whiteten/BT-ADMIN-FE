@@ -19,7 +19,7 @@ export function useDashboardSocket() {
     const { setWsId, setIsConnected, setSend, setWidgetData, setWidgetError, reset } = useDashboardSocketStore.getState();
 
     const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-    const wsUrl = `${protocol}//${window.location.host}/ws/proxy/fca/monitoring`;
+    const wsUrl = `${protocol}//${window.location.host}/ws/proxy/campaign/monitoring`;
 
     const client = new WebSocketClient(wsUrl, { messageLog: false });
     wsRef.current = client;
