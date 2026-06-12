@@ -50,6 +50,7 @@
 
 - **빌드·개발 서버**: `pnpm run build` / `pnpm run serve` (대화형 앱 선택 + 의존성 확인 포함). 특정 옵션이 필요한 경우에만 `npx nx <target> <project>` 사용.
 - **새 Remote 생성**: 반드시 `pnpm run create-remote` 사용. Module Federation 설정·라우팅 등록 등 자동화 로직이 포함되어 수동 생성 시 정상 동작 안 함.
+- **현장 커스텀 오버라이드 생성**: `pnpm run create-custom` 사용 (대화형, 인자 전달 시 비대화형). 원본 미러링 복사 + exposes·site-manifest 등록을 자동화하며, `--check`로 키 정합성 검증. 상세 절차는 [doc/CUSTOM_DEVELOPMENT_GUIDE.md](doc/CUSTOM_DEVELOPMENT_GUIDE.md) "4. 개발 절차" 참조.
 - **lint·typecheck**: husky + lint-staged가 pre-commit hook에서 스테이징된 `.{js,jsx,ts,tsx}`에 자동으로 `eslint --fix` + `prettier --write` 실행. 별도로 돌릴 때는 `npx nx lint <project>` / `npx nx typecheck <project>`.
 - **shadcn 컴포넌트 추가**: `pnpm run shadcn:add <name>`.
 
