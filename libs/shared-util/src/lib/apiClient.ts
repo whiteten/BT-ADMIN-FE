@@ -67,7 +67,10 @@ export default class ApiClient {
 
   #onResponseRejected = async (error: AxiosError): Promise<never> => {
     const originalRequest = error.config as ExtendedAxiosRequestConfig | undefined;
-    Log.error(`[RES](${originalRequest?.key})`, error?.response ?? error);
+    // 요청 취소(AbortController/axios cancel)는 정상 흐름 — ERROR 로깅 제외
+    if (!axios.isCancel(error) && error.code !== 'ERR_CANCELED') {
+      Log.error(`[RES](${originalRequest?.key})`, error?.response ?? error);
+    }
     // 403 에러 && CSRF 요청이 아님 && 재시도가 아닌 경우 -> CSRF 토큰 재발급 후 재시도
     if (error.response?.status === 403 && originalRequest && !originalRequest.url?.includes('/csrf') && !originalRequest._retry) {
       originalRequest._retry = true;
