@@ -451,6 +451,7 @@ export default function MentMgmtList() {
               onRowDoubleClicked={handleEdit}
               onTogglePlay={handleTogglePlay}
               onSelectionChanged={setSelectedRows}
+              onDelete={handleDelete}
               onBulkDelete={handleDeleteSelected}
               selectedCount={selectedRows.length}
             />

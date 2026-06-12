@@ -459,7 +459,7 @@ export default function SkillAssignList() {
       statusBar: undefined,
       pagination: false,
       sideBar: false,
-      defaultColDef: { resizable: true, sortable: true, filter: false, suppressHeaderMenuButton: true },
+      defaultColDef: { resizable: true, sortable: true, filter: true, suppressHeaderMenuButton: true },
       getRowId: ({ data }) => String(data.agentId),
       onSelectionChanged: (e) => {
         setSelectedAgentIds(e.api.getSelectedRows().map((r) => r.agentId));
@@ -555,7 +555,7 @@ export default function SkillAssignList() {
       statusBar: undefined,
       pagination: false,
       sideBar: false,
-      defaultColDef: { resizable: true, sortable: true, filter: false, suppressHeaderMenuButton: true },
+      defaultColDef: { resizable: true, sortable: true, filter: true, suppressHeaderMenuButton: true },
       getRowId: ({ data }) => String(data.skillsetId),
       onSelectionChanged: (e) => {
         setSelectedSkillsetIds(e.api.getSelectedRows().map((r) => r.skillsetId));
@@ -608,7 +608,7 @@ export default function SkillAssignList() {
       statusBar: undefined,
       pagination: false,
       sideBar: false,
-      defaultColDef: { resizable: true, sortable: true, filter: false, suppressHeaderMenuButton: true },
+      defaultColDef: { resizable: true, sortable: true, filter: true, suppressHeaderMenuButton: true },
       getRowId: ({ data }) => String(data.agentId),
       onSelectionChanged: (e) => {
         const rows = e.api.getSelectedRows();
@@ -634,8 +634,8 @@ export default function SkillAssignList() {
         field: 'activateYn',
         headerName: '활성',
         width: 70,
-        filter: false,
         suppressHeaderMenuButton: true,
+        filterValueGetter: ({ data }: { data?: SkillsetResponse }) => (data?.activateYn === 1 ? '활성' : '비활성'),
         cellRenderer: ({ value }: { value: number | null }) => (value === 1 ? <Tag color="green">활성</Tag> : <Tag color="default">비활성</Tag>),
       },
     ],
@@ -651,7 +651,7 @@ export default function SkillAssignList() {
       statusBar: undefined,
       pagination: false,
       sideBar: false,
-      defaultColDef: { resizable: true, sortable: true, filter: false, suppressHeaderMenuButton: true },
+      defaultColDef: { resizable: true, sortable: true, filter: true, suppressHeaderMenuButton: true },
       getRowId: ({ data }) => String(data.skillsetId),
       onSelectionChanged: (e) => {
         const rows = e.api.getSelectedRows();
@@ -1757,13 +1757,10 @@ function ViewDetailCard({ title, subtitle, priority, skillLevel, onClick, onEdit
         <div className="text-[10px] text-gray-400">우선순위</div>
         <div className="font-bold text-sm text-[#405189]">{priority ?? '-'}</div>
       </div>
-      {/* SKILL_LEVEL + 진행바 */}
+      {/* SKILL_LEVEL */}
       <div className="flex-shrink-0 text-center min-w-[52px]">
         <div className="text-[10px] text-gray-400">스킬레벨</div>
         <div className="font-bold text-sm text-[#405189]">{level}</div>
-        <div className="w-full h-1 bg-gray-100 rounded overflow-hidden mt-0.5">
-          <div className="h-full rounded transition-all" style={{ width: `${level}%`, backgroundColor: dotColor }} />
-        </div>
       </div>
       {/* 우선순위/레벨 수정 진입점 */}
       {onEdit && (
@@ -1945,9 +1942,6 @@ function ViewDetailCardEditable({ title, subtitle, priority, skillLevel, row, on
             {level}
           </button>
         )}
-        <div className="w-full h-1 bg-gray-100 rounded overflow-hidden mt-0.5">
-          <div className="h-full rounded transition-all" style={{ width: `${level}%`, backgroundColor: dotColor }} />
-        </div>
       </div>
 
       {/* fallback: Drawer 열기 */}
@@ -2293,9 +2287,6 @@ function SidePanelRow({ title, subtitle, priority, skillLevel, row, onEdit }: Si
             {level}
           </button>
         )}
-        <div className="w-full h-0.5 bg-gray-100 rounded overflow-hidden mt-1">
-          <div className="h-full rounded" style={{ width: `${level}%`, backgroundColor: dotColor }} />
-        </div>
       </div>
       {/* fallback: Drawer 열기 */}
       <button

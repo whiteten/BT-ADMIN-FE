@@ -28,6 +28,7 @@ interface MentTableProps {
   onRowDoubleClicked: (row: MentResponse) => void;
   onTogglePlay: (row: MentResponse) => void;
   onSelectionChanged?: (selected: MentResponse[]) => void;
+  onDelete?: (row: MentResponse) => void;
   onBulkDelete?: () => void;
   selectedCount?: number;
 }
@@ -57,12 +58,13 @@ export default function MentTable({
   onRowDoubleClicked,
   onTogglePlay,
   onSelectionChanged,
+  onDelete,
   onBulkDelete,
   selectedCount = 0,
 }: MentTableProps) {
   const { gridOptions } = useAggridOptions();
 
-  const defaultColDef: ColDef = useMemo(() => ({ sortable: true, filter: false, resizable: true, suppressHeaderMenuButton: true }), []);
+  const defaultColDef: ColDef = useMemo(() => ({ sortable: true, filter: true, resizable: true, suppressHeaderMenuButton: true }), []);
 
   const columnDefs: ColDef<MentResponse>[] = useMemo(
     () => [
@@ -71,6 +73,7 @@ export default function MentTable({
         field: 'ieMentId',
         minWidth: 90,
         maxWidth: 110,
+        filter: 'agNumberColumnFilter',
         cellRenderer: (p: ICellRendererParams<MentResponse>) => <span className="font-mono text-[12px] text-gray-500">{p.value ?? ''}</span>,
       },
       {
@@ -149,8 +152,34 @@ export default function MentTable({
           );
         },
       },
+      {
+        headerName: '',
+        maxWidth: 60,
+        sortable: false,
+        filter: false,
+        suppressHeaderMenuButton: true,
+        pinned: 'right' as const,
+        headerComponent: () => <BulkDeleteHeader onBulkDelete={onBulkDelete} selectedCount={selectedCount} />,
+        cellStyle: { display: 'flex', alignItems: 'center', justifyContent: 'center' } as CellStyle,
+        cellRenderer: (params: ICellRendererParams<MentResponse>) => {
+          const { data } = params;
+          if (!data) return null;
+          return (
+            <button
+              type="button"
+              title={`"${data.mentName ?? data.ieMentId}" 삭제`}
+              onClick={(e) => {
+                e.stopPropagation();
+                onDelete?.(data);
+              }}
+            >
+              <Trash2 className="size-5 text-red-500 hover:cursor-pointer" />
+            </button>
+          );
+        },
+      },
     ],
-    [playingMentId, onTogglePlay, onBulkDelete, selectedCount],
+    [playingMentId, onTogglePlay, onDelete, onBulkDelete, selectedCount],
   );
 
   const rowSelection = useMemo(() => ({ mode: 'multiRow' as const, checkboxes: true, headerCheckbox: true, enableClickSelection: true, enableSelectionWithoutKeys: true }), []);
