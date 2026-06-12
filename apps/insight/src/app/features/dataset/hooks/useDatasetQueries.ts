@@ -146,3 +146,18 @@ export const useDeleteDataset = ({ mutationOptions }: { mutationOptions?: UseMut
     },
   });
 };
+
+/** 시스템 데이터셋 승격/해제 — 시스템 관리자 전용. */
+export const useSetDatasetSystemFlag = ({ mutationOptions }: { mutationOptions?: UseMutationOptions<DatasetDetail, Error, { datasetId: number; toSystem: boolean }> } = {}) => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    ...mutationOptions,
+    mutationFn: ({ datasetId, toSystem }) => datasetApi.setDatasetSystemFlag(datasetId, toSystem),
+    onSuccess: (...args) => {
+      const [, { datasetId }] = args;
+      queryClient.invalidateQueries({ queryKey: datasetKeys.list._def });
+      queryClient.invalidateQueries({ queryKey: datasetKeys.detail(datasetId).queryKey });
+      mutationOptions?.onSuccess?.(...args);
+    },
+  });
+};
