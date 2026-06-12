@@ -126,7 +126,7 @@ function parseExpression(expr: string, msrNames: Set<string>, dimNames: Set<stri
 const FUNC_KEYWORDS = new Set([...MATH_FUNCS, ...COND_FUNCS, 'CASE', 'WHEN', 'THEN', 'ELSE', 'END', 'AND', 'OR', 'NOT']);
 
 /** 직접 입력 수식 검증 — 정상이면 null, 문제 있으면 한글 사유 반환 */
-function validateRawExpression(expr: string, knownFields: Set<string>): string | null {
+function validateRawExpression(expr: string): string | null {
   const t = expr.trim();
   if (!t) return '수식을 입력하세요';
 
@@ -138,10 +138,9 @@ function validateRawExpression(expr: string, knownFields: Set<string>): string |
   }
   if (depth !== 0) return '괄호가 맞지 않습니다';
 
-  // 알 수 없는 필드 참조 검사
+  // 필드 참조 추출 — 데이터셋 미선택 원천 필드도 허용되므로 존재 검사는 하지 않는다
+  // (BE가 참조 컬럼을 숨은 측정값으로 추가하고, 뷰에 없는 이름은 DbQueryExecutor가 걸러냄)
   const refs = [...t.matchAll(/\{([^}]+)\}/g)].map((m) => m[1]);
-  const unknown = refs.find((r) => !knownFields.has(r));
-  if (unknown) return `알 수 없는 필드: {${unknown}}`;
 
   // {} 밖의 식별자는 함수/키워드만 허용 — 필드는 {필드명} 형식이어야 함
   const bareWords = (t.replace(/\{[^}]+\}/g, ' ').match(/[A-Za-z_][A-Za-z0-9_]*/g) ?? []).filter((w) => !FUNC_KEYWORDS.has(w.toUpperCase()));
@@ -319,11 +318,10 @@ export default function CalcFieldEditor({ sourceFields, existingCalcFields = [],
   const dimFields = sourceFields.filter((f) => f.fieldType === 'DIM' && (!fieldSearch || f.fieldName.toLowerCase().includes(fieldSearch.toLowerCase())));
   const calcFiltered = existingCalcFields.filter((c) => !fieldSearch || c.fieldCode.toLowerCase().includes(fieldSearch.toLowerCase()));
 
-  const knownFields = new Set<string>([...msrNames, ...dimNames, ...existingCalcFields.map((c) => c.fieldCode)]);
   const previewTokens = inputMode === 'raw' ? parseExpression(rawText, msrNames, dimNames) : tokens;
   const hasSlots = tokens.some((t) => t.kind === 'slot');
   const rowExpression = inputMode === 'raw' ? rawText.trim() : tokensToFormula(tokens);
-  const rawError = inputMode === 'raw' ? validateRawExpression(rawText, knownFields) : null;
+  const rawError = inputMode === 'raw' ? validateRawExpression(rawText) : null;
   const fieldCodeValid = /^[A-Z_][A-Z0-9_]*$/.test(meta.fieldCode);
   const isValid =
     inputMode === 'raw' ? rawError === null && fieldCodeValid && meta.displayName.length > 0 : !hasSlots && tokens.length > 0 && fieldCodeValid && meta.displayName.length > 0;
