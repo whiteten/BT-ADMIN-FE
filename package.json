@@ -9,6 +9,7 @@
     "commit": "git-cz",
     "shadcn:add": "cross-env TS_NODE_PROJECT=tsconfig.base.json npx shadcn@latest add",
     "create-remote": "node scripts/create-remote.js",
+    "create-custom": "node scripts/create-custom.js",
     "prepare": "husky",
     "serve:prod": "pnpm exec serve dist/apps/host -l 4200 -s"
   },
