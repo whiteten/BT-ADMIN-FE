@@ -7,18 +7,23 @@
  *  박스3: 좌 패널(리사이즈) ‖ 핸들 ‖ 우 패널
  *    좌: BSR 그룹 ag-Grid (체크박스+[삭제][등록], 행 더블클릭=수정 드로어)
  *    우: 탭 [CTI큐 배정 | 스케줄]
- *      CTI큐 탭: 업무그룹 트리 패널(240px, 읽기 전용) + CTI큐 그리드(인라인 편집, 체크박스)
- *                액션바 [배정 해제(danger)][저장][배정(primary)]
- *      스케줄 탭: 스케줄 그리드 + [배정 해제][배정]
+ *      CTI큐 탭: 업무그룹 트리 패널(240px, 읽기 전용) + CTI큐 그리드(셀렌더러 상시편집, 체크박스)
+ *                액션바 [배정][배정 해제(danger)][저장] — BSR 패턴 dirty 행 일괄저장
+ *      스케줄 탭: 스케줄 그리드 + 검색 + [배정 해제][배정]
+ *
+ * 인라인 편집 패턴 (AgentMediaStatusTable BSR 패턴):
+ *  - 편집 가능 셀: InputNumber(가중치) + Select(BSR여부/분배여부) 상시 렌더
+ *  - 변경 → dirtyMap 기록 + 행 배경 #eff3ff
+ *  - [저장] 버튼 → dirty 행 일괄 PUT (무변경이면 토스트)
  */
-import { type ChangeEvent, useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import type { CellValueChangedEvent, ColDef, GridReadyEvent } from 'ag-grid-community';
+import { type ChangeEvent, createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
+import type { CellStyle, ColDef, GridOptions, ICellRendererParams } from 'ag-grid-community';
 import { AgGridReact } from 'ag-grid-react';
-import { Button, Input } from 'antd';
+import { Button, Input, InputNumber, Select } from 'antd';
 import { Building2, ChevronLeft, ChevronRight, ChevronsDown, ChevronsUp, Plus, Save, Search, Trash2, X } from 'lucide-react';
 import { useAuthStore, useBreadcrumbStore } from '@/shared-store';
 import { toast } from '@/shared-util';
-import BsrCtiqAssignModal from '../../features/bsr-ctiq-mapping/components/BsrCtiqAssignModal';
+import BsrCtiqAssignPanel from '../../features/bsr-ctiq-mapping/components/BsrCtiqAssignPanel';
 import {
   useAssignBsrCtiq,
   useGetBsrCtiqMappings,
@@ -26,9 +31,9 @@ import {
   useUnassignBsrCtiq,
   useUpdateBsrCtiqMappings,
 } from '../../features/bsr-ctiq-mapping/hooks/useBsrCtiqMappingQueries';
-import type { BsrCtiqMappingResponse, BsrCtiqMappingUpdateItem } from '../../features/bsr-ctiq-mapping/types';
+import type { BsrCtiqMappingResponse } from '../../features/bsr-ctiq-mapping/types';
 import BsrGroupFormDrawer from '../../features/bsr-group/components/BsrGroupFormDrawer';
-import BsrScheduleAssignModal from '../../features/bsr-group/components/BsrScheduleAssignModal';
+import BsrScheduleAssignPanel from '../../features/bsr-group/components/BsrScheduleAssignPanel';
 import {
   useAssignBsrSchedules,
   useCreateBsrGroup,
@@ -61,7 +66,7 @@ import useTreeView, { type TreeViewItem } from '@/libs/shared-ui/src/hooks/useTr
 //  Breadcrumb
 // ──────────────────────────────────────────────────────────
 
-const breadcrumb = [{ title: '번호자원관리' }, { title: '그룹DN' }, { title: 'BSR 그룹 관리', path: '/ipron/bsr-group-manage' }];
+const breadcrumb = [{ title: '번호자원관리' }, { title: '라우팅 설정' }, { title: 'BSR 그룹 관리', path: '/ipron/bsr-group-manage' }];
 
 // ──────────────────────────────────────────────────────────
 //  테넌트 카드 컴포넌트 (AdnList 표준 패턴)
@@ -116,9 +121,14 @@ interface ReadonlyTreePanelProps {
   onSelect: (treeId: number | null) => void;
   collapsed: boolean;
   onToggleCollapse: () => void;
+  /** 드래그 리사이즈 — 패널 너비 (px). null 이면 기본 240px */
+  width?: number | null;
+  onResizeMouseDown?: (e: React.MouseEvent) => void;
+  /** 배정 모드에서 '미배정' 칩 숨김 (scope '미배정만'과 용어 충돌 방지 — PLAN §3-2) */
+  hideUnassignedChip?: boolean;
 }
 
-function ReadonlyTreePanel({ groups, selectedTreeId, onSelect, collapsed, onToggleCollapse }: ReadonlyTreePanelProps) {
+function ReadonlyTreePanel({ groups, selectedTreeId, onSelect, collapsed, onToggleCollapse, width, onResizeMouseDown, hideUnassignedChip }: ReadonlyTreePanelProps) {
   const [treeSearch, setTreeSearch] = useState('');
 
   const { items, rootProps, allExpanded, toggleAll } = useTreeView<CtiQueueGroupResponse>({
@@ -151,85 +161,257 @@ function ReadonlyTreePanel({ groups, selectedTreeId, onSelect, collapsed, onTogg
 
   if (collapsed) {
     return (
-      <div className="relative w-9 flex-shrink-0 border-r border-gray-100 bg-white flex flex-col items-center pt-3">
-        <button
-          type="button"
-          onClick={onToggleCollapse}
-          title="패널 펼치기"
-          className="absolute -right-2.5 top-1/2 -translate-y-1/2 w-5 h-5 bg-white border border-gray-200 rounded-full flex items-center justify-center text-[9px] text-gray-400 hover:border-[#405189] hover:text-[#405189] shadow-sm z-10"
-        >
-          ▶
-        </button>
-        <span className="text-[11px] text-gray-400 mt-2" style={{ writingMode: 'vertical-lr', transform: 'rotate(180deg)', whiteSpace: 'nowrap' }}>
-          업무그룹
-        </span>
+      <div className="flex-shrink-0 border-r border-gray-100 bg-white flex flex-col min-h-0" style={{ width: 36, minWidth: 36 }}>
+        {/* 헤더: 펼치기 버튼 */}
+        <div className="h-[44px] border-b border-gray-100 flex items-center justify-center flex-shrink-0">
+          <button
+            type="button"
+            onClick={onToggleCollapse}
+            title="업무그룹 패널 펼치기"
+            className="w-6 h-6 flex items-center justify-center rounded text-gray-400 hover:bg-gray-100 hover:text-[#405189]"
+          >
+            <ChevronRight className="size-4" />
+          </button>
+        </div>
+        {/* 세로 라벨 — writing-mode:vertical-rl 로 한글 정립(위→아래). rotate 불필요·역효과 */}
+        <div className="flex-1 flex items-center justify-center overflow-hidden">
+          <span className="text-[11px] text-gray-400 select-none" style={{ writingMode: 'vertical-rl', whiteSpace: 'nowrap' }}>
+            업무그룹
+          </span>
+        </div>
       </div>
     );
   }
 
+  const panelWidth = width != null ? Math.max(160, width) : 240;
+
   return (
-    <div className="relative w-[240px] flex-shrink-0 border-r border-gray-100 bg-white flex flex-col min-h-0">
-      {/* 접기 버튼 */}
-      <button
-        type="button"
-        onClick={onToggleCollapse}
-        title="패널 접기"
-        className="absolute -right-2.5 top-1/2 -translate-y-1/2 w-5 h-5 bg-white border border-gray-200 rounded-full flex items-center justify-center text-[9px] text-gray-400 hover:border-[#405189] hover:text-[#405189] shadow-sm z-10"
-      >
-        ◀
-      </button>
-
-      {/* 검색 */}
-      <div className="px-2.5 py-2 border-b border-gray-100">
-        <Input
-          allowClear
-          prefix={<Search className="size-3.5 text-gray-400" />}
-          placeholder="업무그룹 검색"
-          value={treeSearch}
-          onChange={(e) => setTreeSearch(e.target.value)}
-          size="small"
-        />
-      </div>
-
-      {/* 전체/미배정 칩 + 전체펼침 */}
-      <div className="px-2.5 py-1.5 border-b border-gray-100 bg-gray-50/50 flex items-center gap-1.5 flex-shrink-0">
-        <button
-          type="button"
-          onClick={() => onSelect(null)}
-          className={`flex-shrink-0 inline-flex items-center gap-1 px-2 py-0.5 rounded-full border text-[11px] transition ${
-            selectedTreeId === null ? 'border-[#405189] bg-[#405189] text-white' : 'border-gray-200 bg-white text-gray-700 hover:border-[#405189]/40 hover:text-[#405189]'
-          }`}
-        >
-          전체
-        </button>
-        <button
-          type="button"
-          onClick={() => onSelect(0)}
-          className={`flex-shrink-0 inline-flex items-center gap-1 px-2 py-0.5 rounded-full border text-[11px] transition ${
-            selectedTreeId === 0 ? 'border-amber-500 bg-amber-500 text-white' : 'border-amber-200 bg-white text-amber-600 hover:border-amber-400'
-          }`}
-        >
-          미배정
-        </button>
-        {hasExpandable && (
+    <>
+      <div className="flex-shrink-0 border-r border-gray-100 bg-white flex flex-col min-h-0" style={{ width: panelWidth, minWidth: 160 }}>
+        {/* 헤더: 제목 + 접기 버튼 */}
+        <div className="h-[44px] border-b border-gray-100 flex items-center px-2.5 gap-1.5 flex-shrink-0">
+          <span className="text-sm font-semibold text-gray-700 flex-1">업무그룹</span>
           <button
             type="button"
-            onClick={toggleAll}
-            title={allExpanded ? '모두 접기' : '모두 펼치기'}
-            className="ml-auto w-5 h-5 inline-flex items-center justify-center rounded text-gray-400 hover:bg-white hover:text-[#405189] text-xs border border-transparent hover:border-gray-200"
+            onClick={onToggleCollapse}
+            title="업무그룹 패널 접기"
+            className="w-6 h-6 flex items-center justify-center rounded text-gray-400 hover:bg-gray-100 hover:text-[#405189]"
           >
-            {allExpanded ? '⇅' : '⇅'}
+            <ChevronLeft className="size-4" />
           </button>
-        )}
+        </div>
+
+        {/* 검색 */}
+        <div className="px-2.5 py-2 border-b border-gray-100 flex-shrink-0">
+          <Input
+            allowClear
+            prefix={<Search className="size-3.5 text-gray-400" />}
+            placeholder="업무그룹 검색"
+            value={treeSearch}
+            onChange={(e) => setTreeSearch(e.target.value)}
+            size="small"
+          />
+        </div>
+
+        {/* 전체/미배정 칩 + 전체펼침 */}
+        <div className="px-2.5 py-1.5 border-b border-gray-100 bg-gray-50/50 flex items-center gap-1.5 flex-shrink-0">
+          <button
+            type="button"
+            onClick={() => onSelect(null)}
+            className={`flex-shrink-0 inline-flex items-center gap-1 px-2 py-0.5 rounded-full border text-[11px] transition ${
+              selectedTreeId === null ? 'border-[#405189] bg-[#405189] text-white' : 'border-gray-200 bg-white text-gray-700 hover:border-[#405189]/40 hover:text-[#405189]'
+            }`}
+          >
+            전체
+          </button>
+          {!hideUnassignedChip && (
+            <button
+              type="button"
+              onClick={() => onSelect(0)}
+              className={`flex-shrink-0 inline-flex items-center gap-1 px-2 py-0.5 rounded-full border text-[11px] transition ${
+                selectedTreeId === 0 ? 'border-amber-500 bg-amber-500 text-white' : 'border-amber-200 bg-white text-amber-600 hover:border-amber-400'
+              }`}
+            >
+              미배정
+            </button>
+          )}
+          {hasExpandable && (
+            <button
+              type="button"
+              onClick={toggleAll}
+              title={allExpanded ? '모두 접기' : '모두 펼치기'}
+              className="ml-auto w-5 h-5 inline-flex items-center justify-center rounded text-gray-400 hover:bg-white hover:text-[#405189] text-xs border border-transparent hover:border-gray-200"
+            >
+              {allExpanded ? '⇅' : '⇅'}
+            </button>
+          )}
+        </div>
+
+        {/* 트리 */}
+        <div className="flex-1 overflow-auto py-1">
+          {items.length === 0 ? (
+            <div className="px-3 py-6 text-center text-[11px] text-gray-400">등록된 업무그룹이 없습니다</div>
+          ) : (
+            <div {...rootProps}>{items.map(renderRow)}</div>
+          )}
+        </div>
       </div>
 
-      {/* 트리 */}
-      <div className="flex-1 overflow-auto py-1">
-        {items.length === 0 ? <div className="px-3 py-6 text-center text-[11px] text-gray-400">등록된 업무그룹이 없습니다</div> : <div {...rootProps}>{items.map(renderRow)}</div>}
+      {/* 트리↔그리드 드래그 리사이즈 스플리터 */}
+      <div className="flex-[0_0_8px] flex items-center justify-center cursor-col-resize group flex-shrink-0" onMouseDown={onResizeMouseDown}>
+        <div className="w-0.5 h-8 rounded-sm bg-gray-200 group-hover:bg-[#405189] transition-colors" />
       </div>
+    </>
+  );
+}
+
+// ──────────────────────────────────────────────────────────
+//  CTI큐 인라인 편집 — BSR dirty 패턴 (AgentMediaStatusTable 표준)
+// ──────────────────────────────────────────────────────────
+
+/** dirty 엔트리: ctiqId → 변경된 필드값 */
+interface CtiqDirtyEntry {
+  bsrWeight?: number;
+  bsrYn?: number;
+  bsrDistributeYn?: number;
+}
+
+interface CtiqEditCtx {
+  dirtyMap: Map<number, CtiqDirtyEntry>;
+  setDirtyEntry: (ctiqId: number, entry: CtiqDirtyEntry | null) => void;
+}
+
+const CtiqEditContext = createContext<CtiqEditCtx | null>(null);
+
+function useCtiqEdit() {
+  const ctx = useContext(CtiqEditContext);
+  if (!ctx) throw new Error('CtiqEditContext missing');
+  return ctx;
+}
+
+/** BSR 가중치 — 상시 InputNumber 렌더 */
+function BsrWeightCell({ params }: { params: ICellRendererParams<BsrCtiqMappingResponse> }) {
+  const { dirtyMap, setDirtyEntry } = useCtiqEdit();
+  const data = params.data;
+  const dirty = data ? dirtyMap.get(data.ctiqId) : undefined;
+  const currentVal = dirty?.bsrWeight ?? data?.bsrWeight ?? 0;
+  const [localVal, setLocalVal] = useState<number>(currentVal);
+
+  useEffect(() => {
+    setLocalVal(dirty?.bsrWeight ?? data?.bsrWeight ?? 0);
+  }, [dirty?.bsrWeight, data?.bsrWeight, data?.ctiqId]);
+
+  if (!data) return null;
+
+  return (
+    <div className="w-full h-full flex items-center justify-center" style={{ padding: '2px 4px' }}>
+      <InputNumber
+        size="small"
+        style={{ width: '100%' }}
+        min={0}
+        max={1000}
+        value={localVal}
+        onChange={(v) => setLocalVal(typeof v === 'number' ? v : localVal)}
+        onBlur={() => {
+          const clamped = Math.min(1000, Math.max(0, localVal));
+          if (clamped !== localVal) setLocalVal(clamped);
+          const orig = data.bsrWeight ?? 0;
+          const prev = dirtyMap.get(data.ctiqId) ?? {};
+          if (clamped === orig && prev.bsrYn == null && prev.bsrDistributeYn == null) {
+            setDirtyEntry(data.ctiqId, null);
+          } else {
+            setDirtyEntry(data.ctiqId, { ...prev, bsrWeight: clamped });
+          }
+        }}
+        onKeyDown={(e) => {
+          if (e.key === 'Enter') (e.target as HTMLElement).blur();
+        }}
+      />
     </div>
   );
 }
+
+const YN_OPTIONS = [
+  { value: 1, label: '설정' },
+  { value: 0, label: '해제' },
+];
+
+/** BSR 사용여부 — 상시 Select 렌더 */
+function BsrYnCell({ params }: { params: ICellRendererParams<BsrCtiqMappingResponse> }) {
+  const { dirtyMap, setDirtyEntry } = useCtiqEdit();
+  const data = params.data;
+  if (!data) return null;
+  const dirty = dirtyMap.get(data.ctiqId);
+  const currentVal = dirty?.bsrYn ?? data.bsrYn ?? 0;
+
+  return (
+    <div className="w-full h-full flex items-center justify-center" style={{ padding: '2px 4px' }}>
+      <Select
+        size="small"
+        style={{ width: '100%' }}
+        value={currentVal}
+        options={YN_OPTIONS}
+        onChange={(v) => {
+          const prev = dirtyMap.get(data.ctiqId) ?? {};
+          const orig = data.bsrYn ?? 0;
+          const prevWeight = prev.bsrWeight;
+          const prevDist = prev.bsrDistributeYn;
+          if (v === orig && prevWeight == null && prevDist == null) {
+            setDirtyEntry(data.ctiqId, null);
+          } else {
+            setDirtyEntry(data.ctiqId, { ...prev, bsrYn: v });
+          }
+        }}
+      />
+    </div>
+  );
+}
+
+/** BSR 분배여부 — 상시 Select 렌더 */
+function BsrDistributeYnCell({ params }: { params: ICellRendererParams<BsrCtiqMappingResponse> }) {
+  const { dirtyMap, setDirtyEntry } = useCtiqEdit();
+  const data = params.data;
+  if (!data) return null;
+  const dirty = dirtyMap.get(data.ctiqId);
+  const currentVal = dirty?.bsrDistributeYn ?? data.bsrDistributeYn ?? 0;
+
+  return (
+    <div className="w-full h-full flex items-center justify-center" style={{ padding: '2px 4px' }}>
+      <Select
+        size="small"
+        style={{ width: '100%' }}
+        value={currentVal}
+        options={YN_OPTIONS}
+        onChange={(v) => {
+          const prev = dirtyMap.get(data.ctiqId) ?? {};
+          const orig = data.bsrDistributeYn ?? 0;
+          const prevWeight = prev.bsrWeight;
+          const prevYn = prev.bsrYn;
+          if (v === orig && prevWeight == null && prevYn == null) {
+            setDirtyEntry(data.ctiqId, null);
+          } else {
+            setDirtyEntry(data.ctiqId, { ...prev, bsrDistributeYn: v });
+          }
+        }}
+      />
+    </div>
+  );
+}
+
+const CTIQ_EDITABLE_CELL_STYLE: CellStyle = {
+  display: 'flex',
+  alignItems: 'center',
+  justifyContent: 'center',
+  padding: '2px 6px',
+  background: '#eff6ff',
+};
+
+const CTIQ_ROW_CLASS_RULES = {
+  'bsr-ctiq-dirty-row': (params: { data?: BsrCtiqMappingResponse; context?: { dirtySet?: Set<number> } }) => {
+    if (!params.data || !params.context?.dirtySet) return false;
+    return params.context.dirtySet.has(params.data.ctiqId);
+  },
+};
 
 // ──────────────────────────────────────────────────────────
 //  유틸
@@ -300,6 +482,8 @@ export default function BsrGroupManage() {
   const [selectedGroup, setSelectedGroup] = useState<BsrGroupResponse | null>(null);
   const [selectedGroupIds, setSelectedGroupIds] = useState<number[]>([]);
   const [activeTab, setActiveTab] = useState<'ctiq' | 'sched'>('ctiq');
+  /** 배정 모드 상태머신: manage=관리(기본) / assign=CTI큐 배정 / scheduleAssign=스케줄 배정 */
+  const [tabMode, setTabMode] = useState<'manage' | 'assign' | 'scheduleAssign'>('manage');
 
   // 좌 패널 폭 (px, 기본 42%)
   const splitBoxRef = useRef<HTMLDivElement>(null);
@@ -308,15 +492,16 @@ export default function BsrGroupManage() {
 
   // CTI큐 탭
   const [treeCollapsed, setTreeCollapsed] = useState(false);
+  const [treePanelWidth, setTreePanelWidth] = useState<number | null>(null); // null=240px 기본
   const [selectedTreeId, setSelectedTreeId] = useState<number | null>(null); // null=전체, 0=미배정
   const [ctiqSearch, setCtiqSearch] = useState('');
-  const [pendingItems, setPendingItems] = useState<BsrCtiqMappingUpdateItem[]>([]);
+  /** BSR 패턴 dirty 맵 (ctiqId → 변경 필드값) */
+  const [ctiqDirtyMap, setCtiqDirtyMap] = useState<Map<number, CtiqDirtyEntry>>(new Map());
   const [selectedCtiqIds, setSelectedCtiqIds] = useState<number[]>([]);
-  const [ctiqAssignOpen, setCtiqAssignOpen] = useState(false);
 
   // 스케줄 탭
+  const [schedSearch, setSchedSearch] = useState('');
   const [selectedScheduleIds, setSelectedScheduleIds] = useState<number[]>([]);
-  const [schedAssignOpen, setSchedAssignOpen] = useState(false);
 
   // 드로어
   const [groupDrawerOpen, setGroupDrawerOpen] = useState(false);
@@ -342,13 +527,14 @@ export default function BsrGroupManage() {
 
   const { data: schedulePool = [], isLoading: isPoolLoading } = useGetBsrSchedulePool({
     params: tenantIdForCtiq != null && selectedGroup != null ? { tenantId: tenantIdForCtiq, bsrGroupId: selectedGroup.bsrGroupId } : undefined,
-    queryOptions: { enabled: !!selectedGroup && !!tenantIdForCtiq && schedAssignOpen },
+    queryOptions: { enabled: !!selectedGroup && !!tenantIdForCtiq && tabMode === 'scheduleAssign' },
   });
 
-  // 업무그룹 트리 데이터
+  // 업무그룹 트리 데이터 — 그룹 선택 시 즉시 로드 (tenantId 우선, fallback: selectedTenantId)
+  const tenantIdForTree = selectedGroup?.tenantId ?? selectedTenantId;
   const { data: treeGroups = [] } = useGetCtiQueueGroups({
-    params: selectedGroup?.tenantId != null ? { tenantId: selectedGroup.tenantId } : undefined,
-    queryOptions: { enabled: !!selectedGroup?.tenantId },
+    params: tenantIdForTree != null ? { tenantId: tenantIdForTree } : undefined,
+    queryOptions: { enabled: !!selectedGroup },
   });
 
   // CTI큐 배정 검색
@@ -388,7 +574,7 @@ export default function BsrGroupManage() {
     mutationOptions: {
       onSuccess: () => {
         toast.success('저장되었습니다');
-        setPendingItems([]);
+        setCtiqDirtyMap(new Map());
       },
       onError: (e: unknown) => toast.error(extractMsg(e, '저장 실패')),
     },
@@ -398,7 +584,8 @@ export default function BsrGroupManage() {
     mutationOptions: {
       onSuccess: () => {
         toast.success('배정되었습니다');
-        setCtiqAssignOpen(false);
+        setTabMode('manage'); // 배정 성공 → 관리 모드 자동 복귀 (PLAN §3-1)
+        setCtiqDirtyMap(new Map());
       },
       onError: (e: unknown) => toast.error(extractMsg(e, '배정 실패')),
     },
@@ -418,7 +605,8 @@ export default function BsrGroupManage() {
     mutationOptions: {
       onSuccess: () => {
         toast.success('스케줄이 배정되었습니다');
-        setSchedAssignOpen(false);
+        setTabMode('manage'); // 배정 성공 → 관리 모드 자동 복귀
+        setSelectedScheduleIds([]);
       },
       onError: (e: unknown) => toast.error(extractMsg(e, '스케줄 배정 실패')),
     },
@@ -438,12 +626,15 @@ export default function BsrGroupManage() {
     mutationOptions: {
       onSuccess: (newSched) => {
         if (selectedGroup) {
+          // 생성 즉시 배정 (onSuccess에서 assignSchedules 호출 → assignSchedules.onSuccess 에서 manage 복귀)
           assignSchedules({ bsrGroupId: selectedGroup.bsrGroupId, scheduleIds: [newSched.bsrScheduleId] });
         }
       },
       onError: (e: unknown) => toast.error(extractMsg(e, '스케줄 생성 실패')),
     },
   });
+
+  const ctiqGridRef = useRef<import('ag-grid-react').AgGridReact<BsrCtiqMappingResponse>>(null);
 
   // ─── Derived ────────────────────────────────────────────────────────────────
   const totalGroupCount = useMemo(() => tenantStats.reduce((s: number, t: BsrGroupTenantStat) => s + (t.bsrGroupCount ?? 0), 0), [tenantStats]);
@@ -459,6 +650,13 @@ export default function BsrGroupManage() {
    * 배정 모달은 treeGroups(전체)를 그대로 사용 — 변경 금지.
    */
   const filteredTreeGroups = useMemo(() => filterTreeWithQueues(treeGroups), [treeGroups]);
+
+  /** 스케줄 그리드 클라이언트 필터 */
+  const filteredSchedules = useMemo(() => {
+    const kw = schedSearch.trim().toLowerCase();
+    if (!kw) return schedules;
+    return schedules.filter((s) => s.bsrScheduleName?.toLowerCase().includes(kw));
+  }, [schedules, schedSearch]);
 
   /** 업무그룹 트리 필터: 선택된 treeId 하위 포함 */
   const filteredCtiq = useMemo(() => {
@@ -480,7 +678,7 @@ export default function BsrGroupManage() {
     return base;
   }, [ctiqMappings, selectedTreeId, ctiqSearch, treeGroups]);
 
-  // ─── 리사이즈 핸들 ─────────────────────────────────────────────────────────
+  // ─── 좌우 패널 리사이즈 핸들 ─────────────────────────────────────────────────
   const isDragging = useRef(false);
   const dragStartX = useRef(0);
   const dragStartW = useRef(0);
@@ -493,20 +691,51 @@ export default function BsrGroupManage() {
     document.body.style.userSelect = 'none';
   }, []);
 
+  // ─── 트리↔그리드 리사이즈 핸들 ───────────────────────────────────────────────
+  const isTreeDragging = useRef(false);
+  const treeDragStartX = useRef(0);
+  const treeDragStartW = useRef(0);
+
+  const handleTreeResizeMouseDown = useCallback(
+    (e: React.MouseEvent) => {
+      isTreeDragging.current = true;
+      treeDragStartX.current = e.clientX;
+      treeDragStartW.current = treePanelWidth ?? 240;
+      document.body.style.cursor = 'col-resize';
+      document.body.style.userSelect = 'none';
+      e.preventDefault();
+    },
+    [treePanelWidth],
+  );
+
   useEffect(() => {
     const onMouseMove = (e: MouseEvent) => {
-      if (!isDragging.current || !splitBoxRef.current) return;
-      const total = splitBoxRef.current.getBoundingClientRect().width;
-      let w = dragStartW.current + (e.clientX - dragStartX.current);
-      if (w < 320) w = 320;
-      if (w > total - 480 - 16) w = total - 480 - 16;
-      setLeftWidth(w);
+      if (isDragging.current) {
+        if (!splitBoxRef.current) return;
+        const total = splitBoxRef.current.getBoundingClientRect().width;
+        let w = dragStartW.current + (e.clientX - dragStartX.current);
+        if (w < 320) w = 320;
+        if (w > total - 480 - 16) w = total - 480 - 16;
+        setLeftWidth(w);
+      }
+      if (isTreeDragging.current) {
+        let w = treeDragStartW.current + (e.clientX - treeDragStartX.current);
+        if (w < 160) w = 160;
+        if (w > 480) w = 480;
+        setTreePanelWidth(w);
+      }
     };
     const onMouseUp = () => {
-      if (!isDragging.current) return;
-      isDragging.current = false;
-      document.body.style.cursor = '';
-      document.body.style.userSelect = '';
+      if (isDragging.current) {
+        isDragging.current = false;
+        document.body.style.cursor = '';
+        document.body.style.userSelect = '';
+      }
+      if (isTreeDragging.current) {
+        isTreeDragging.current = false;
+        document.body.style.cursor = '';
+        document.body.style.userSelect = '';
+      }
     };
     document.addEventListener('mousemove', onMouseMove);
     document.addEventListener('mouseup', onMouseUp);
@@ -521,9 +750,10 @@ export default function BsrGroupManage() {
     setSelectedGroup(row);
     setSelectedCtiqIds([]);
     setSelectedScheduleIds([]);
-    setPendingItems([]);
+    setCtiqDirtyMap(new Map());
     setSelectedTreeId(null);
     setActiveTab('ctiq');
+    setTabMode('manage'); // 그룹 변경 시 manage 로 리셋 (PLAN §3-2)
   }, []);
 
   const handleGroupDblClick = useCallback((row: BsrGroupResponse) => {
@@ -558,27 +788,39 @@ export default function BsrGroupManage() {
     [groupDrawerMode, groupDrawerData, createGroup, updateGroup, selectedTenantId],
   );
 
-  // CTI큐 인라인 편집
-  const handleCtiqCellChanged = useCallback((e: CellValueChangedEvent<BsrCtiqMappingResponse>) => {
-    if (!e.data) return;
-    const ctiqId = e.data.ctiqId;
-    const field = e.colDef.field as keyof BsrCtiqMappingResponse;
-    const value = e.newValue;
-    setPendingItems((prev) => {
-      const existing = prev.find((p) => p.ctiqId === ctiqId);
-      if (existing) return prev.map((p) => (p.ctiqId === ctiqId ? { ...p, [field]: value } : p));
-      return [...prev, { ctiqId, [field]: value }];
+  // CTI큐 dirty 맵 헬퍼 (BSR 패턴)
+  const setCtiqDirtyEntry = useCallback((ctiqId: number, entry: CtiqDirtyEntry | null) => {
+    setCtiqDirtyMap((prev) => {
+      const next = new Map(prev);
+      if (entry === null) next.delete(ctiqId);
+      else next.set(ctiqId, entry);
+      return next;
     });
   }, []);
 
+  const ctiqDirtySet = useMemo(() => new Set(ctiqDirtyMap.keys()), [ctiqDirtyMap]);
+
+  // ctiqDirtyMap 변경 시 ag-Grid dirty 행 강제 리드로 (rowClassRules 갱신)
+
+  useEffect(() => {
+    ctiqGridRef.current?.api?.redrawRows();
+  }, [ctiqDirtySet]);
+
   const handleCtiqSave = useCallback(() => {
     if (!selectedGroup) return;
-    if (pendingItems.length === 0) {
+    if (ctiqDirtyMap.size === 0) {
       toast.info('변경할 데이터가 존재하지 않습니다');
       return;
     }
-    updateCtiq({ bsrGroupId: selectedGroup.bsrGroupId, body: { items: pendingItems } });
-  }, [selectedGroup, pendingItems, updateCtiq]);
+    const items = Array.from(ctiqDirtyMap.entries()).map(([ctiqId, entry]) => ({
+      ctiqId,
+      ...entry,
+    }));
+    updateCtiq({
+      bsrGroupId: selectedGroup.bsrGroupId,
+      body: { items },
+    });
+  }, [selectedGroup, ctiqDirtyMap, updateCtiq]);
 
   const handleCtiqUnassign = useCallback(() => {
     if (selectedCtiqIds.length === 0 || !selectedGroup) return;
@@ -597,6 +839,32 @@ export default function BsrGroupManage() {
     },
     [assignCtiq],
   );
+
+  /**
+   * CTI큐 배정 모드 → 관리 모드 복귀 (닫기 버튼 / ESC / 배정 성공).
+   * PLAN §3-2: 복귀 시 selectedTreeId가 관리 모드 트리(빈 노드 숨김)에 없으면 null 리셋.
+   */
+  const handleAssignDone = useCallback(() => {
+    setTabMode('manage');
+    // 배정 모드에서 선택했던 treeId가 filteredTreeGroups(빈 노드 제외)에 없으면 null
+    if (selectedTreeId !== null && selectedTreeId !== 0) {
+      const existsInFiltered = (nodes: CtiQueueGroupResponse[], id: number): boolean => {
+        for (const n of nodes) {
+          if (n.treeId === id) return true;
+          if (existsInFiltered(n.children ?? [], id)) return true;
+        }
+        return false;
+      };
+      if (!existsInFiltered(filteredTreeGroups, selectedTreeId)) {
+        setSelectedTreeId(null);
+      }
+    }
+  }, [selectedTreeId, filteredTreeGroups]);
+
+  /** 스케줄 배정 모드 → 스케줄 관리 모드 복귀 (닫기 버튼 / 배정 성공 자동 복귀) */
+  const handleScheduleAssignDone = useCallback(() => {
+    setTabMode('manage');
+  }, []);
 
   const handleSchedUnassign = useCallback(() => {
     if (selectedScheduleIds.length === 0 || !selectedGroup) return;
@@ -621,34 +889,28 @@ export default function BsrGroupManage() {
   const ctiqColDefs: ColDef<BsrCtiqMappingResponse>[] = useMemo(
     () => [
       { field: 'ctiqName', headerName: 'CTI큐명', flex: 1, tooltipField: 'ctiqName' },
-      { field: 'gdnNo', headerName: '그룹DN 번호', width: 110 },
-      { field: 'gdnName', headerName: '그룹DN 명', minWidth: 130, flex: 1, tooltipField: 'gdnName' },
-      { field: 'treeName', headerName: '업무그룹명', minWidth: 120, flex: 1, valueFormatter: ({ value }) => value ?? '-', tooltipField: 'treeName' },
+      { field: 'gdnNo', headerName: '그룹DN 번호', width: 110, tooltipField: 'gdnName' },
+      { field: 'treeName', headerName: '업무그룹명', width: 130, valueFormatter: ({ value }) => value ?? '-', tooltipField: 'treeName' },
       {
-        field: 'bsrWeight',
         headerName: 'BSR 가중치',
-        width: 100,
-        editable: true,
-        cellStyle: { background: '#d1fdfd', cursor: 'text' },
-        valueParser: ({ newValue }) => Number(newValue),
+        colId: 'bsrWeight',
+        width: 110,
+        cellStyle: CTIQ_EDITABLE_CELL_STYLE,
+        cellRenderer: (params: ICellRendererParams<BsrCtiqMappingResponse>) => <BsrWeightCell params={params} />,
       },
       {
-        field: 'bsrYn',
         headerName: 'BSR 사용여부',
-        width: 110,
-        editable: true,
-        cellStyle: { background: '#d1fdfd', cursor: 'pointer' },
-        valueFormatter: ({ value }) => (value === 1 ? '설정' : '해제'),
-        valueParser: ({ newValue }) => (newValue === '설정' || Number(newValue) === 1 ? 1 : 0),
+        colId: 'bsrYn',
+        width: 120,
+        cellStyle: CTIQ_EDITABLE_CELL_STYLE,
+        cellRenderer: (params: ICellRendererParams<BsrCtiqMappingResponse>) => <BsrYnCell params={params} />,
       },
       {
-        field: 'bsrDistributeYn',
         headerName: 'BSR 분배여부',
-        width: 110,
-        editable: true,
-        cellStyle: { background: '#d1fdfd', cursor: 'pointer' },
-        valueFormatter: ({ value }) => (value === 1 ? '설정' : '해제'),
-        valueParser: ({ newValue }) => (newValue === '설정' || Number(newValue) === 1 ? 1 : 0),
+        colId: 'bsrDistributeYn',
+        width: 120,
+        cellStyle: CTIQ_EDITABLE_CELL_STYLE,
+        cellRenderer: (params: ICellRendererParams<BsrCtiqMappingResponse>) => <BsrDistributeYnCell params={params} />,
       },
     ],
     [],
@@ -681,14 +943,31 @@ export default function BsrGroupManage() {
   );
 
   // ─── Render ────────────────────────────────────────────────────────────────
-  const hasPending = pendingItems.length > 0;
+  const hasDirty = ctiqDirtyMap.size > 0;
+  const ctiqEditCtxValue = useMemo<CtiqEditCtx>(() => ({ dirtyMap: ctiqDirtyMap, setDirtyEntry: setCtiqDirtyEntry }), [ctiqDirtyMap, setCtiqDirtyEntry]);
+  const ctiqGridContext = useMemo(() => ({ dirtySet: ctiqDirtySet }), [ctiqDirtySet]);
+
+  // pagination: false, sideBar: false — 전 그리드 페이징 금지, "상세정보" 툴패널 제거
+  const groupGridOptions = useMemo(() => ({ ...gridOptions, pagination: false, statusBar: undefined, sideBar: false }), [gridOptions]);
+  const ctiqGridOptions = useMemo(() => ({ ...gridOptions, pagination: false, statusBar: undefined, sideBar: false }), [gridOptions]);
+  const schedGridOptions = useMemo(() => ({ ...gridOptions, pagination: false, statusBar: undefined, sideBar: false }), [gridOptions]);
+
+  // 그룹 목록 행 선택 하이라이트 — 선택된 행에 ag-row-selected 클래스 적용
+  const groupRowClassRules = useMemo(
+    () => ({
+      'bsr-group-selected-row': (params: { data?: BsrGroupResponse }) => {
+        if (!params.data || !selectedGroup) return false;
+        return params.data.bsrGroupId === selectedGroup.bsrGroupId;
+      },
+    }),
+    [selectedGroup],
+  );
 
   return (
     <div className="flex flex-col gap-4 w-full h-full">
       {/* ─ 박스1: 헤더 ─ */}
       <div className="bg-white bt-shadow overflow-hidden flex-shrink-0">
         <div className="flex items-center px-4 h-[56px] gap-2">
-          <span className="text-xs text-gray-400 mr-2">번호자원관리 › 그룹DN ›</span>
           <span className="text-sm font-semibold text-gray-700">BSR 그룹 관리</span>
           {selectedGroup && (
             <span className="ml-3 text-xs text-gray-500">
@@ -815,14 +1094,18 @@ export default function BsrGroupManage() {
               </Button>
             </div>
           </div>
+          <style>{`
+            .bsr-group-selected-row { background-color: #eef2ff !important; }
+            .bsr-group-selected-row:hover { background-color: #e5ebff !important; }
+          `}</style>
           <div className="flex-1 min-h-0">
             <AgGridReact<BsrGroupResponse>
-              {...gridOptions}
+              {...groupGridOptions}
               rowData={filteredGroups}
               columnDefs={groupColDefs}
               loading={isGroupsLoading}
-              rowSelection={{ mode: 'multiRow', checkboxes: true, headerCheckbox: true, enableClickSelection: false }}
-              suppressRowClickSelection
+              rowClassRules={groupRowClassRules}
+              rowSelection={{ mode: 'multiRow', checkboxes: true, headerCheckbox: true, enableClickSelection: true, enableSelectionWithoutKeys: true }}
               onRowClicked={(e) => e.data && handleGroupSelect(e.data)}
               onRowDoubleClicked={(e) => e.data && handleGroupDblClick(e.data)}
               onSelectionChanged={(e) => setSelectedGroupIds(e.api.getSelectedRows().map((r) => r.bsrGroupId))}
@@ -842,7 +1125,10 @@ export default function BsrGroupManage() {
             <div className="flex items-center h-[40px] border-b border-gray-100 px-4 gap-1 flex-shrink-0">
               <button
                 type="button"
-                onClick={() => setActiveTab('ctiq')}
+                onClick={() => {
+                  setActiveTab('ctiq');
+                  setTabMode('manage');
+                }}
                 className={`h-full inline-flex items-center px-3 text-sm font-semibold border-b-2 transition-colors ${
                   activeTab === 'ctiq' ? 'text-[#405189] border-[#405189]' : 'text-gray-500 border-transparent hover:text-gray-700'
                 }`}
@@ -852,13 +1138,16 @@ export default function BsrGroupManage() {
               </button>
               <button
                 type="button"
-                onClick={() => setActiveTab('sched')}
+                onClick={() => {
+                  setActiveTab('sched');
+                  setTabMode('manage');
+                }}
                 className={`h-full inline-flex items-center px-3 text-sm font-semibold border-b-2 transition-colors ${
                   activeTab === 'sched' ? 'text-[#405189] border-[#405189]' : 'text-gray-500 border-transparent hover:text-gray-700'
                 }`}
               >
                 스케줄
-                <span className="ml-1.5 text-[11px] text-gray-400 font-normal">({schedules.length})</span>
+                <span className="ml-1.5 text-[11px] text-gray-400 font-normal">({filteredSchedules.length})</span>
               </button>
               <Button type="text" size="small" icon={<X className="size-4" />} onClick={() => setSelectedGroup(null)} className="!ml-auto !text-gray-400 hover:!text-[#405189]" />
             </div>
@@ -866,55 +1155,109 @@ export default function BsrGroupManage() {
             {/* ── CTI큐 탭 ── */}
             {activeTab === 'ctiq' && (
               <div className="flex flex-1 min-h-0">
-                {/* 업무그룹 트리 패널 (읽기 전용) — 큐 있는 노드만 표시 */}
+                {/* 업무그룹 트리 패널 — 모드에 따라 데이터 스왑 (PLAN §3-2)
+                    관리 모드: filteredTreeGroups (큐 있는 노드만)
+                    배정 모드: treeGroups (전체 노드 — 후보 검색 대상 전체 확인)
+                    '미배정' 칩은 배정 모드에서 숨김 (scope '미배정만'과 충돌, PLAN §3-2) */}
                 <ReadonlyTreePanel
-                  groups={filteredTreeGroups}
+                  groups={tabMode === 'assign' ? treeGroups : filteredTreeGroups}
                   selectedTreeId={selectedTreeId}
                   onSelect={setSelectedTreeId}
                   collapsed={treeCollapsed}
                   onToggleCollapse={() => setTreeCollapsed((v) => !v)}
+                  width={treePanelWidth}
+                  onResizeMouseDown={handleTreeResizeMouseDown}
+                  hideUnassignedChip={tabMode === 'assign'}
                 />
 
-                {/* CTI큐 그리드 영역 */}
+                {/* 관리 모드 or CTI큐 배정 모드 — 같은 우측 패널 영역에서 스왑 */}
                 <div className="flex flex-col flex-1 min-w-0 min-h-0">
-                  <div className="px-4 h-[44px] border-b border-gray-100 flex items-center flex-shrink-0 gap-2">
-                    <span className="text-sm font-semibold text-gray-700 truncate">
-                      [{selectedGroup.bsrGroupName}] CTI큐 목록 ({filteredCtiq.length.toLocaleString()}건)
-                    </span>
-                    {hasPending && <span className="text-[11px] text-amber-700 bg-amber-50 border border-amber-200 px-2 py-0.5 rounded flex-shrink-0">미저장 변경 있음</span>}
-                    <div className="ml-auto flex items-center gap-2 flex-shrink-0">
-                      <Input
-                        allowClear
-                        prefix={<Search className="size-3.5 text-gray-400" />}
-                        placeholder="CTI큐명/GDN번호 검색"
-                        value={ctiqSearch}
-                        onChange={(e: ChangeEvent<HTMLInputElement>) => setCtiqSearch(e.target.value)}
-                        style={{ width: 180 }}
-                      />
-                      {/* 버튼 순서: danger → 보조 → primary */}
-                      <Button danger icon={<X className="size-3.5" />} onClick={handleCtiqUnassign} disabled={selectedCtiqIds.length === 0} loading={isUnassigning}>
-                        배정 해제
-                      </Button>
-                      <Button icon={<Save className="size-3.5" />} onClick={handleCtiqSave} loading={isSavingCtiq}>
-                        저장
-                      </Button>
-                      <Button type="primary" icon={<Plus className="size-3.5" />} onClick={() => setCtiqAssignOpen(true)}>
-                        배정
-                      </Button>
-                    </div>
-                  </div>
-                  <div className="flex-1 min-h-0">
-                    <AgGridReact<BsrCtiqMappingResponse>
-                      {...gridOptions}
-                      rowData={filteredCtiq}
-                      columnDefs={ctiqColDefs}
-                      loading={isCtiqLoading}
-                      rowSelection={{ mode: 'multiRow', checkboxes: true, headerCheckbox: true, enableClickSelection: false }}
-                      suppressRowClickSelection
-                      onSelectionChanged={(e) => setSelectedCtiqIds(e.api.getSelectedRows().map((r) => r.ctiqId))}
-                      onCellValueChanged={handleCtiqCellChanged}
+                  {tabMode !== 'assign' ? (
+                    /* ── 관리 모드: 배정된 CTI큐 + 인라인 편집 ── */
+                    <>
+                      <div className="px-4 h-[44px] border-b border-gray-100 flex items-center flex-shrink-0 gap-2">
+                        <span className="text-sm font-semibold text-gray-700 truncate">
+                          [{selectedGroup.bsrGroupName}] CTI큐 목록 ({filteredCtiq.length.toLocaleString()}건)
+                        </span>
+                        {hasDirty && (
+                          <span className="text-[11px] text-amber-700 bg-amber-50 border border-amber-200 px-2 py-0.5 rounded flex-shrink-0">
+                            미저장 변경 {ctiqDirtyMap.size}건
+                          </span>
+                        )}
+                        <div className="ml-auto flex items-center gap-2 flex-shrink-0">
+                          <Input
+                            allowClear
+                            prefix={<Search className="size-3.5 text-gray-400" />}
+                            placeholder="CTI큐명/GDN번호 검색"
+                            value={ctiqSearch}
+                            onChange={(e: ChangeEvent<HTMLInputElement>) => setCtiqSearch(e.target.value)}
+                            style={{ width: 180 }}
+                          />
+                          {/* 버튼 순서: primary 배정+ → danger 배정해제 → 저장 */}
+                          <Button
+                            type="primary"
+                            icon={<Plus className="size-3.5" />}
+                            disabled={(selectedGroup.tenantId ?? selectedTenantId) == null}
+                            onClick={() => {
+                              setSelectedCtiqIds([]); // 관리 모드 체크 초기화 (수용기준 1)
+                              setSelectedTreeId(null); // 배정 진입 시 treeId 리셋 (결함3)
+                              setTabMode('assign');
+                            }}
+                          >
+                            배정
+                          </Button>
+                          <Button danger icon={<X className="size-3.5" />} onClick={handleCtiqUnassign} disabled={selectedCtiqIds.length === 0} loading={isUnassigning}>
+                            배정 해제
+                          </Button>
+                          <Button icon={<Save className="size-3.5" />} onClick={handleCtiqSave} loading={isSavingCtiq}>
+                            저장
+                          </Button>
+                        </div>
+                      </div>
+                      <style>{`
+                        .bsr-ctiq-dirty-row { background-color: #eff3ff !important; }
+                        .bsr-ctiq-dirty-row:hover { background-color: #e5ebff !important; }
+                      `}</style>
+                      <div className="flex-1 min-h-0">
+                        <CtiqEditContext.Provider value={ctiqEditCtxValue}>
+                          <AgGridReact<BsrCtiqMappingResponse>
+                            ref={ctiqGridRef}
+                            {...ctiqGridOptions}
+                            rowData={filteredCtiq}
+                            columnDefs={ctiqColDefs}
+                            loading={isCtiqLoading}
+                            getRowId={(p) => String(p.data.ctiqId)}
+                            rowClassRules={CTIQ_ROW_CLASS_RULES}
+                            context={ctiqGridContext}
+                            rowSelection={{ mode: 'multiRow', checkboxes: true, headerCheckbox: true, enableClickSelection: true, enableSelectionWithoutKeys: true }}
+                            onSelectionChanged={(e) => setSelectedCtiqIds(e.api.getSelectedRows().map((r) => r.ctiqId))}
+                          />
+                        </CtiqEditContext.Provider>
+                      </div>
+                    </>
+                  ) : (
+                    /* ── 배정 모드: BsrCtiqAssignPanel ── */
+                    <BsrCtiqAssignPanel
+                      targetBsrGroupId={selectedGroup.bsrGroupId}
+                      targetBsrGroupName={selectedGroup.bsrGroupName ?? ''}
+                      tenantId={(selectedGroup.tenantId ?? selectedTenantId) as number}
+                      selectedTreeId={selectedTreeId}
+                      onSearch={(params) =>
+                        searchCtiq({
+                          tenantId: params.tenantId,
+                          keyword: params.keyword,
+                          treeIds: params.treeIds,
+                          scope: params.scope,
+                          limit: params.limit,
+                        })
+                      }
+                      searchResult={searchResult}
+                      isSearching={isSearching}
+                      onAssign={handleCtiqAssign}
+                      isAssigning={isAssigningCtiq}
+                      onDone={handleAssignDone}
                     />
-                  </div>
+                  )}
                 </div>
               </div>
             )}
@@ -922,37 +1265,89 @@ export default function BsrGroupManage() {
             {/* ── 스케줄 탭 ── */}
             {activeTab === 'sched' && (
               <div className="flex flex-col flex-1 min-h-0">
-                <div className="px-4 h-[44px] border-b border-gray-100 flex items-center flex-shrink-0 gap-2">
-                  <span className="text-sm font-semibold text-gray-700">
-                    [{selectedGroup.bsrGroupName}] 배정 스케줄 ({schedules.length.toLocaleString()}건)
-                  </span>
-                  <div className="ml-auto flex items-center gap-2">
-                    <Button danger icon={<X className="size-3.5" />} onClick={handleSchedUnassign} disabled={selectedScheduleIds.length === 0}>
-                      배정 해제
-                    </Button>
-                    <Button type="primary" icon={<Plus className="size-3.5" />} onClick={() => setSchedAssignOpen(true)}>
-                      배정
-                    </Button>
-                  </div>
-                </div>
-                <div className="flex-1 min-h-0">
-                  <AgGridReact<BsrScheduleInfoResponse>
-                    {...gridOptions}
-                    rowData={schedules}
-                    columnDefs={schedColDefs}
-                    loading={isSchedulesLoading}
-                    rowSelection={{ mode: 'multiRow', checkboxes: true, headerCheckbox: true, enableClickSelection: false }}
-                    suppressRowClickSelection
-                    onSelectionChanged={(e) => setSelectedScheduleIds(e.api.getSelectedRows().map((r) => r.bsrScheduleId))}
+                {tabMode === 'scheduleAssign' ? (
+                  /* ── 스케줄 배정 모드 ── */
+                  <BsrScheduleAssignPanel
+                    targetBsrGroupId={selectedGroup.bsrGroupId}
+                    targetBsrGroupName={selectedGroup.bsrGroupName ?? ''}
+                    schedulePool={schedulePool}
+                    isPoolLoading={isPoolLoading}
+                    onAssignExisting={(ids) => assignSchedules({ bsrGroupId: selectedGroup.bsrGroupId, scheduleIds: ids })}
+                    isAssigning={isAssigningSchedule}
+                    onCreateAndAssign={(req) => createSchedule(req)}
+                    isCreating={isCreatingSchedule}
+                    onDone={handleScheduleAssignDone}
+                    tenantId={(selectedGroup.tenantId ?? selectedTenantId) as number}
                   />
-                </div>
+                ) : (
+                  /* ── 스케줄 관리 모드 ── */
+                  <>
+                    <div className="px-4 h-[44px] border-b border-gray-100 flex items-center flex-shrink-0 gap-2">
+                      <span className="text-sm font-semibold text-gray-700">
+                        [{selectedGroup.bsrGroupName}] 배정 스케줄 ({filteredSchedules.length.toLocaleString()}건)
+                      </span>
+                      <div className="ml-auto flex items-center gap-2">
+                        <Input
+                          allowClear
+                          prefix={<Search className="size-3.5 text-gray-400" />}
+                          placeholder="스케줄명 검색"
+                          value={schedSearch}
+                          onChange={(e: ChangeEvent<HTMLInputElement>) => setSchedSearch(e.target.value)}
+                          style={{ width: 160 }}
+                        />
+                        <Button
+                          type="primary"
+                          icon={<Plus className="size-3.5" />}
+                          disabled={(selectedGroup.tenantId ?? selectedTenantId) == null}
+                          onClick={() => {
+                            setSelectedScheduleIds([]); // 관리 모드 체크 초기화
+                            setTabMode('scheduleAssign'); // 스케줄 배정 모드 진입
+                          }}
+                        >
+                          배정
+                        </Button>
+                        <Button danger icon={<X className="size-3.5" />} onClick={handleSchedUnassign} disabled={selectedScheduleIds.length === 0}>
+                          배정 해제
+                        </Button>
+                      </div>
+                    </div>
+                    <div className="flex-1 min-h-0">
+                      <AgGridReact<BsrScheduleInfoResponse>
+                        {...schedGridOptions}
+                        rowData={filteredSchedules}
+                        columnDefs={schedColDefs}
+                        loading={isSchedulesLoading}
+                        rowSelection={{ mode: 'multiRow', checkboxes: true, headerCheckbox: true, enableClickSelection: true, enableSelectionWithoutKeys: true }}
+                        onSelectionChanged={(e) => setSelectedScheduleIds(e.api.getSelectedRows().map((r) => r.bsrScheduleId))}
+                        overlayNoRowsTemplate="<span class='text-gray-400 text-sm'>검색된 데이터가 없습니다.</span>"
+                      />
+                    </div>
+                  </>
+                )}
               </div>
             )}
           </div>
         ) : (
-          <div className="bg-white bt-shadow flex flex-col flex-1 min-w-[480px] min-h-0 items-center justify-center text-gray-400 text-sm">
-            <span className="text-3xl mb-2 opacity-25">←</span>
-            좌측 그룹을 선택하면 상세가 표시됩니다.
+          <div className="bg-white bt-shadow flex flex-col flex-1 min-w-[480px] min-h-0">
+            {/* 탭바 (빈 상태) */}
+            <div className="flex items-center h-[40px] border-b border-gray-100 px-4 gap-1 flex-shrink-0">
+              <button type="button" className="h-full inline-flex items-center px-3 text-sm font-semibold border-b-2 text-[#405189] border-[#405189]">
+                CTI큐 배정
+              </button>
+              <button type="button" className="h-full inline-flex items-center px-3 text-sm font-semibold border-b-2 text-gray-500 border-transparent">
+                스케줄
+              </button>
+            </div>
+            {/* 빈 그리드 */}
+            <div className="flex-1 min-h-0">
+              <AgGridReact<BsrCtiqMappingResponse>
+                {...ctiqGridOptions}
+                rowData={[]}
+                columnDefs={ctiqColDefs}
+                loading={false}
+                overlayNoRowsTemplate="<span class='text-gray-400 text-sm'>좌측 그룹을 선택하면 CTI큐 목록이 표시됩니다.</span>"
+              />
+            </div>
           </div>
         )}
       </div>
@@ -967,47 +1362,6 @@ export default function BsrGroupManage() {
         onSubmit={handleGroupDrawerSubmit}
         loading={isCreating || isUpdating}
       />
-
-      {/* ─ CTI큐 배정 모달 ─ */}
-      {selectedGroup && ctiqAssignOpen && (
-        <BsrCtiqAssignModal
-          open={ctiqAssignOpen}
-          targetBsrGroupId={selectedGroup.bsrGroupId}
-          targetBsrGroupName={selectedGroup.bsrGroupName ?? ''}
-          tenantId={selectedGroup.tenantId ?? (selectedTenantId as number)}
-          prefillTreeId={selectedTreeId}
-          treeGroups={treeGroups}
-          onClose={() => setCtiqAssignOpen(false)}
-          onSearch={(params) =>
-            searchCtiq({
-              tenantId: params.tenantId,
-              keyword: params.keyword,
-              treeIds: params.treeIds,
-              scope: params.scope,
-              limit: params.limit,
-            })
-          }
-          searchResult={searchResult}
-          isSearching={isSearching}
-          onAssign={handleCtiqAssign}
-          isAssigning={isAssigningCtiq}
-        />
-      )}
-
-      {/* ─ 스케줄 배정 모달 ─ */}
-      {selectedGroup && (
-        <BsrScheduleAssignModal
-          open={schedAssignOpen}
-          schedulePool={schedulePool}
-          isPoolLoading={isPoolLoading}
-          tenantId={selectedGroup.tenantId ?? selectedTenantId}
-          onClose={() => setSchedAssignOpen(false)}
-          onAssignExisting={(ids) => assignSchedules({ bsrGroupId: selectedGroup.bsrGroupId, scheduleIds: ids })}
-          isAssigning={isAssigningSchedule}
-          onCreateAndAssign={(req) => createSchedule(req)}
-          isCreating={isCreatingSchedule}
-        />
-      )}
     </div>
   );
 }

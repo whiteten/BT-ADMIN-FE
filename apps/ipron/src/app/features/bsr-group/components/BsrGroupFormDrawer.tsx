@@ -139,7 +139,7 @@ export default function BsrGroupFormDrawer({ open, mode, group, defaultTenantId,
       }
       destroyOnClose
     >
-      <Form form={form} layout="vertical" onFinish={handleFinish}>
+      <Form form={form} layout="vertical" onFinish={handleFinish} style={{ '--ant-form-item-margin-bottom': '12px' } as React.CSSProperties}>
         <Tabs
           activeKey={activeTab}
           onChange={setActiveTab}
@@ -153,58 +153,69 @@ export default function BsrGroupFormDrawer({ open, mode, group, defaultTenantId,
                     <InputNumber />
                   </Form.Item>
 
-                  <Form.Item
-                    name="bsrGroupName"
-                    label="BSR 그룹명"
-                    rules={[
-                      { required: true, message: 'BSR 그룹명은 필수입니다' },
-                      { max: 100, message: '최대 100자입니다' },
-                    ]}
-                  >
-                    <Input placeholder="BSR 그룹명 입력" maxLength={100} />
-                  </Form.Item>
+                  {/* 2열 그리드: 좌=그룹명, 우=메소드 */}
+                  <div className="grid grid-cols-2 gap-x-4">
+                    <Form.Item
+                      name="bsrGroupName"
+                      label="BSR 그룹명"
+                      style={{ marginBottom: 12 }}
+                      rules={[
+                        { required: true, message: 'BSR 그룹명은 필수입니다' },
+                        { max: 100, message: '최대 100자입니다' },
+                      ]}
+                    >
+                      <Input placeholder="BSR 그룹명 입력" maxLength={100} />
+                    </Form.Item>
+
+                    <Form.Item name="bsrMethod" label="BSR 그룹 메소드" style={{ marginBottom: 12 }} rules={[{ required: true, message: 'BSR 메소드는 필수입니다' }]}>
+                      <Select placeholder="BSR 메소드 선택" options={BSR_METHOD_OPTIONS.map((o) => ({ value: o.value, label: o.label }))} />
+                    </Form.Item>
+                  </div>
 
                   <Form.Item
                     name="bsrGroupDesc"
                     label="BSR 그룹 설명"
+                    style={{ marginBottom: 12 }}
                     rules={[
                       { required: true, message: '설명은 필수입니다' },
                       { max: 256, message: '최대 256자입니다' },
                     ]}
                   >
-                    <Input.TextArea placeholder="설명 입력" maxLength={256} rows={3} />
+                    <Input.TextArea placeholder="설명 입력" maxLength={256} rows={2} />
                   </Form.Item>
 
-                  <Form.Item name="bsrMethod" label="BSR 그룹 메소드" rules={[{ required: true, message: 'BSR 메소드는 필수입니다' }]}>
-                    <Select placeholder="BSR 메소드 선택" options={BSR_METHOD_OPTIONS.map((o) => ({ value: o.value, label: o.label }))} />
-                  </Form.Item>
+                  {/* 2열: 활성화여부 + 정렬순서 */}
+                  <div className="grid grid-cols-2 gap-x-4">
+                    <Form.Item name="activateYn" label="활성화여부" style={{ marginBottom: 12 }}>
+                      <Radio.Group>
+                        <Radio value={1}>활성</Radio>
+                        <Radio value={0}>비활성</Radio>
+                      </Radio.Group>
+                    </Form.Item>
 
-                  <Form.Item name="activateYn" label="활성화여부">
-                    <Radio.Group>
-                      <Radio value={1}>활성</Radio>
-                      <Radio value={0}>비활성</Radio>
-                    </Radio.Group>
-                  </Form.Item>
+                    <Form.Item name="sortSeq" label="정렬순서" style={{ marginBottom: 12 }}>
+                      <InputNumber min={1} max={999999} style={{ width: 120 }} />
+                    </Form.Item>
+                  </div>
 
-                  <Form.Item name="sortSeq" label="정렬순서">
-                    <InputNumber min={1} max={999999} style={{ width: 120 }} />
-                  </Form.Item>
+                  {/* 2열: 대기상담원 큐 분배여부 + 라우팅 우선여부 */}
+                  <div className="grid grid-cols-2 gap-x-4">
+                    <Form.Item name="readyAgentQueueRoutingYn" label="대기상담원 큐 분배여부" style={{ marginBottom: 12 }}>
+                      <Radio.Group>
+                        <Radio value={1}>설정</Radio>
+                        <Radio value={0}>해제</Radio>
+                      </Radio.Group>
+                    </Form.Item>
 
-                  <Form.Item name="readyAgentQueueRoutingYn" label="대기상담원 큐 분배여부">
-                    <Radio.Group>
-                      <Radio value={1}>설정</Radio>
-                      <Radio value={0}>해제</Radio>
-                    </Radio.Group>
-                  </Form.Item>
+                    <Form.Item name="readyAgentRoutingYn" label="대기상담원 라우팅 우선여부" style={{ marginBottom: 12 }}>
+                      <Radio.Group>
+                        <Radio value={1}>설정</Radio>
+                        <Radio value={0}>해제</Radio>
+                      </Radio.Group>
+                    </Form.Item>
+                  </div>
 
-                  <Form.Item name="readyAgentRoutingYn" label="대기상담원 라우팅 우선여부">
-                    <Radio.Group>
-                      <Radio value={1}>설정</Radio>
-                      <Radio value={0}>해제</Radio>
-                    </Radio.Group>
-                  </Form.Item>
-
-                  <Form.Item name="serviceLevelTime" label="서비스레벨 기준시간 (초)">
+                  <Form.Item name="serviceLevelTime" label="서비스레벨 기준시간 (초)" style={{ marginBottom: 0 }}>
                     <InputNumber min={20} max={999999} style={{ width: 120 }} addonAfter="초" />
                   </Form.Item>
                 </>

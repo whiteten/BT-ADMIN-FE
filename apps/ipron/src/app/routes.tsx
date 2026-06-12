@@ -74,13 +74,8 @@ const DeviceList = React.lazy(() => import('./pages/device/DeviceList'));
 const DeviceHistoryList = React.lazy(() => import('./pages/device/DeviceHistoryList'));
 const DeviceModelList = React.lazy(() => import('./pages/device/DeviceModelList'));
 
-// bsr-group (BSR 그룹 관리 — SWAT IPR20S3040)
-const BsrGroupList = React.lazy(() => import('./pages/bsr-group/BsrGroupList'));
-// bsr-group-manage (BSR 그룹 관리 통합 — v3 신규)
+// bsr-group-manage (BSR 그룹 관리 통합 — v3 신규, 구 bsr-group + bsr-ctiq-mapping 폐기)
 const BsrGroupManage = React.lazy(() => import('./pages/bsr-group/BsrGroupManage'));
-
-// bsr-ctiq-mapping (BSR 그룹별 CTI큐 배정 — SWAT IPR20S3060)
-const BsrCtiqMappingList = React.lazy(() => import('./pages/bsr-ctiq-mapping/BsrCtiqMappingList'));
 
 // tracking
 const TrackingSearch = React.lazy(() => import('./pages/tracking/TrackingSearch'));
@@ -263,16 +258,8 @@ export const routes = [
         ],
       },
       {
-        path: 'bsr-group',
-        element: <BsrGroupList />,
-      },
-      {
-        path: 'bsr-group-manage',
+        path: 'bsr-group-mgmt',
         element: <BsrGroupManage />,
-      },
-      {
-        path: 'bsr-ctiq-mapping',
-        element: <BsrCtiqMappingList />,
       },
       {
         path: 'tracking',
