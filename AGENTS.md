@@ -18,6 +18,7 @@
 | Zustand 스토어 작성 | [.claude/skills/add-store/SKILL.md](.claude/skills/add-store/SKILL.md) |
 | 트리 UI (useTreeView + TreeView) 작성 | [.claude/skills/add-tree/SKILL.md](.claude/skills/add-tree/SKILL.md) |
 | AG-Grid 테이블 작성 | [.claude/skills/add-grid/SKILL.md](.claude/skills/add-grid/SKILL.md) |
+| 정식 화면 변형(page variant) 작성 | [.claude/skills/add-variant/SKILL.md](.claude/skills/add-variant/SKILL.md) |
 | 사용자 매뉴얼 자동 생성 (스크린샷 + Markdown) | [.claude/skills/generate-manual/SKILL.md](.claude/skills/generate-manual/SKILL.md) |
 | 기존 remote 앱 점검·정규화 | [.claude/commands/update-remote.md](.claude/commands/update-remote.md) |
 
@@ -490,7 +491,7 @@ export default function BotDetail() {
 #### 핵심 규칙 (요약)
 
 1. **변형 정의 파일 위치**: 페이지 옆에 `<Page>.variants.ts`로 co-location (예: `pages/bot-config/BotList.variants.ts`)
-2. **aggregator**: 각 remote의 `apps/<remote>/src/app/features/router/pageVariants.ts`에 모든 variants 파일을 import해서 등록 (MF `./PageVariants`로 expose)
+2. **aggregator**: 각 remote의 `apps/<remote>/src/app/features/router/pageVariantManifest.ts`에 모든 variants 파일을 import해서 등록 (MF `./PageVariantManifest`로 expose)
 3. **DynamicElement 래퍼**: 변형 지원 path는 `routes.tsx`에서 `<DynamicElement variants={...} />`로 감싸 element를 런타임 lookup으로 전환
 4. **컴포넌트 prop 호환성 필수**: 같은 variants 그룹의 모든 컴포넌트는 동일 prop·context·query key를 사용. 본질이 다르면 variant가 아니라 별도 path로 분리
 5. **점진적 도입**: 변형 필요 없는 path는 정적 element 그대로 두고 건드리지 않음. variant 요구사항 생긴 page만 합류
@@ -498,12 +499,12 @@ export default function BotDetail() {
 
 #### 데이터 흐름
 
-- **API/DB**: 메뉴 row의 `componentKey` 컬럼이 SoT
-- **store**: `useMenuStore.menuConfigs[].menus[].componentKey`로 propagate
-- **렌더**: DynamicElement가 menuStore lookup → 매칭되는 variant component 렌더, 누락·미등록 시 defaultKey fallback
-- **picker**: 호스트의 `usePageVariantsStore`(메타만 보관)를 메뉴 관리 화면 picker에서 읽어 카드 그리드 노출
+- **API/DB**: page-variant row(appId/path/componentKey)가 SoT — 운영자가 manager의 화면 지정 메뉴에서 저장
+- **store**: host 부팅 시 화면 지정 API를 `usePageVariantsStore`(지정값)에 mirror, 각 remote 매니페스트 메타는 `usePageVariantManifestStore`에 적재
+- **렌더**: DynamicElement가 `usePageVariantsStore` lookup → 매칭되는 variant component 렌더, 누락·미등록 시 defaultKey fallback (`site:` prefix는 현장 커스텀)
+- **picker**: manager의 화면 지정 화면이 `usePageVariantManifestStore`(메타만 보관)를 읽어 카드 그리드 노출
 
-새 변형 컴포넌트 작성·등록 절차 및 picker 통합 상세는 [DEVELOPER_GUIDE.md](doc/DEVELOPER_GUIDE.md)의 "화면 커스터마이징(Variants) 가이드" 섹션 참조.
+**새 변형을 작성할 때**: [.claude/skills/add-variant/SKILL.md](.claude/skills/add-variant/SKILL.md) 스킬을 사용합니다. variant 적합성 판정, `<Page>.variants.ts` 선언, aggregator 등록, routes.tsx 소켓 교체 등 상세 절차는 해당 스킬에 정리되어 있습니다. picker 통합 등 배경 설명은 [DEVELOPER_GUIDE.md](doc/DEVELOPER_GUIDE.md)의 "화면 커스터마이징(Variants) 가이드" 섹션 참조.
 
 ### queryString 기반 메뉴 분기 패턴
 
