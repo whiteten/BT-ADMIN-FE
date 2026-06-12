@@ -128,6 +128,15 @@ export interface CtiQueueMemberReassignRequest {
   targetTreeId?: number | null;
 }
 
+/** 업무그룹 트리 D&D 재배치 — AgentGroupReorderRequest 패턴 동일 */
+export type CtiQueueGroupReorderPosition = 'BEFORE' | 'AFTER' | 'INSIDE';
+
+export interface CtiQueueGroupReorderRequest {
+  position: CtiQueueGroupReorderPosition;
+  referenceTreeId: number;
+  targetPriorTreeId?: number | null;
+}
+
 // ──────────────────────────────────────────────────────────
 //  CTI 큐 등록/수정 요청
 // ──────────────────────────────────────────────────────────

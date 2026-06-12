@@ -174,31 +174,39 @@ export default function useTreeView<T>(options: UseTreeViewOptions<T>): UseTreeV
     tree.scheduleRebuildTree();
   }
 
+  // tree 참조를 ref 에 보관 — useTree() 가 매 렌더 새 참조를 반환하는 경우에도
+  // useEffect deps 에 포함되지 않아 signature/searchText 와 무관한 무한 실행을 방지한다.
+  const treeRef = useRef(tree);
+  treeRef.current = tree;
+
   // 전체 펼침 모드 — 구조 변경 시 전체 펼침. signature 에만 의존해 무한 루프 방지.
   useEffect(() => {
     if (defaultExpandAll && signature) {
-      void tree.expandAll();
+      void treeRef.current.expandAll();
     }
-  }, [defaultExpandAll, signature, tree]);
+    // tree 참조 대신 treeRef 사용 — tree 가 deps 에 있으면 매 렌더 실행됨.
+  }, [defaultExpandAll, signature]);
 
   // 검색 — 데이터 rebuild 없이 매칭+조상만 펼치고, 진입 직전 펼침 상태를 snapshot 해 해제 시 복원.
   const searchSnapshotRef = useRef<string[] | null>(null);
   useEffect(() => {
+    const t = treeRef.current;
     if (!searchText) {
       if (searchSnapshotRef.current) {
         const snap = searchSnapshotRef.current;
         searchSnapshotRef.current = null;
-        tree.applySubStateUpdate('expandedItems', () => snap);
-        tree.rebuildTree();
+        t.applySubStateUpdate('expandedItems', () => snap);
+        t.rebuildTree();
       }
       return;
     }
-    searchSnapshotRef.current ??= tree.getState().expandedItems;
+    searchSnapshotRef.current ??= t.getState().expandedItems;
     const matches = cbRef.current.matchesSearch ?? ((n: T, kw: string) => cbRef.current.getName(n).toLowerCase().includes(kw.toLowerCase()));
     const { toExpand } = computeSearchVisibility(mapsRef.current, searchText, matches);
-    tree.applySubStateUpdate('expandedItems', (prev) => [...new Set([...prev, ...toExpand])]);
-    tree.rebuildTree();
-  }, [searchText, signature, tree]);
+    t.applySubStateUpdate('expandedItems', (prev) => [...new Set([...prev, ...toExpand])]);
+    t.rebuildTree();
+    // tree 참조 대신 treeRef 사용.
+  }, [searchText, signature]);
 
   // 검색 시 가시 id 집합 — 펼친 조상이 끌어온 비매칭 형제를 렌더 단계에서 제거.
   let visibleIds: Set<string> | null = null;

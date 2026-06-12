@@ -15,6 +15,7 @@ import type {
   CtiQueueBulkUpdateRequest,
   CtiQueueCreateRequest,
   CtiQueueGroupCreateRequest,
+  CtiQueueGroupReorderRequest,
   CtiQueueGroupResponse,
   CtiQueueGroupUpdateRequest,
   CtiQueueMediaOption,
@@ -302,6 +303,19 @@ export const useDeleteCtiQueueGroup = ({ mutationOptions }: MutationHookOptions<
     onSuccess: (...args) => {
       qc.invalidateQueries({ queryKey: ctiQueueQueryKeys.getGroups._def });
       qc.invalidateQueries({ queryKey: ctiQueueQueryKeys.getList._def });
+      mutationOptions?.onSuccess?.(...args);
+    },
+  });
+};
+
+/** 업무그룹 트리 D&D 재배치 — BFF flow: cti-queue-group-reorder */
+export const useReorderCtiQueueGroup = ({ mutationOptions }: MutationHookOptions<CtiQueueGroupResponse, { treeId: number; body: CtiQueueGroupReorderRequest }> = {}) => {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ treeId, body }) => ctiQueueApi.reorderGroup(treeId, body),
+    ...mutationOptions,
+    onSuccess: (...args) => {
+      qc.invalidateQueries({ queryKey: ctiQueueQueryKeys.getGroups._def });
       mutationOptions?.onSuccess?.(...args);
     },
   });

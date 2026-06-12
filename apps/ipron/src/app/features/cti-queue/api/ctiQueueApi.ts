@@ -32,6 +32,7 @@ import type {
   CtiQueueBulkUpdateRequest,
   CtiQueueCreateRequest,
   CtiQueueGroupCreateRequest,
+  CtiQueueGroupReorderRequest,
   CtiQueueGroupResponse,
   CtiQueueGroupUpdateRequest,
   CtiQueueMediaOption,
@@ -233,6 +234,16 @@ export const ctiQueueApi = {
 
   removeGroup: async (treeId: number): Promise<void> => {
     await apiClient.delete('/ipron-cti-queue-groups-delete', { params: { treeId } });
+  },
+
+  /**
+   * 업무그룹 트리 D&D 재배치 (BEFORE/AFTER/INSIDE).
+   * BE: POST /api/ipron/cti-queue-groups/{treeId}/reorder
+   * BFF: cti-queue-group-reorder flow 경유 (seed: seed-additions-2026-06-12.sql).
+   */
+  reorderGroup: async (treeId: number, body: CtiQueueGroupReorderRequest): Promise<CtiQueueGroupResponse> => {
+    const res = await apiClient.post<ApiResponse<CtiQueueGroupResponse>>('/cti-queue-group-reorder', body, { params: { treeId } });
+    return res.data?.data;
   },
 
   // ─── 업무그룹 매핑 (TB_TR_CTIQ_MEMBER, 드래그앤드롭) ──────────────────────────

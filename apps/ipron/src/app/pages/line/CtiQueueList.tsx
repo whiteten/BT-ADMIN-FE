@@ -34,10 +34,11 @@ import {
   useGetCtiQueueSkillsetOptions,
   useGetCtiQueues,
   useReassignCtiQueueMembers,
+  useReorderCtiQueueGroup,
   useUnassignCtiQueueMembers,
   useUpdateCtiQueueGroup,
 } from '../../features/cti-queue/hooks/useCtiQueueQueries';
-import type { CtiQueueGroupCreateRequest, CtiQueueGroupResponse, CtiQueueGroupUpdateRequest, CtiQueueResponse } from '../../features/cti-queue/types';
+import type { CtiQueueGroupCreateRequest, CtiQueueGroupReorderPosition, CtiQueueGroupResponse, CtiQueueGroupUpdateRequest, CtiQueueResponse } from '../../features/cti-queue/types';
 import { useGetDnProfileNodes, useGetDnProfileTenants } from '../../features/dn-profile/hooks/useDnProfileQueries';
 import { useModal } from '@/libs/shared-ui/src/hooks/useModal';
 
@@ -484,6 +485,11 @@ export default function CtiQueueList() {
       onError: (err: unknown) => toast.error(extractMsg(err, '해제 실패')),
     },
   });
+  const { mutate: reorderGroup } = useReorderCtiQueueGroup({
+    mutationOptions: {
+      onError: (err: unknown) => toast.error(extractMsg(err, '순서 변경 실패')),
+    },
+  });
 
   // ─── 업무그룹 트리 핸들러 ───────────────────────────────────────────────────
   const handleCreateGroup = useCallback(
@@ -526,6 +532,14 @@ export default function CtiQueueList() {
       else if (groupDrawerTarget) updateGroup({ id: groupDrawerTarget.treeId, body: req as CtiQueueGroupUpdateRequest });
     },
     [groupDrawerMode, groupDrawerTarget, createGroup, updateGroup],
+  );
+
+  // ─── 업무그룹 트리 D&D 재배치 ──────────────────────────────────────────────
+  const handleGroupReorder = useCallback(
+    (movedTreeId: number, position: CtiQueueGroupReorderPosition, referenceTreeId: number) => {
+      reorderGroup({ treeId: movedTreeId, body: { position, referenceTreeId } });
+    },
+    [reorderGroup],
   );
 
   // ─── D&D: 큐 → 업무그룹 노드 ────────────────────────────────────────────────
@@ -769,6 +783,7 @@ export default function CtiQueueList() {
                 onEdit={handleEditGroup}
                 onDelete={handleDeleteGroup}
                 onCtiQueueDrop={handleCtiQueueDrop}
+                onGroupReorder={handleGroupReorder}
               />
             </div>
           </div>

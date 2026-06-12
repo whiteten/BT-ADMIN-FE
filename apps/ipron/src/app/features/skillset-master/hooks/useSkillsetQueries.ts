@@ -10,6 +10,7 @@ import type {
   ScheduleInfoResponse,
   SkillsetCreateRequest,
   SkillsetGroupCreateRequest,
+  SkillsetGroupReorderRequest,
   SkillsetGroupResponse,
   SkillsetGroupUpdateRequest,
   SkillsetMemberReassignRequest,
@@ -175,12 +176,25 @@ export const useUnassignSkillsetMembers = ({ mutationOptions }: MutationHookOpti
   });
 };
 
-// ─── 업무그룹 노드 이동 (up/down) ─────────────────────────────────────────────
+// ─── 업무그룹 노드 이동 (up/down — deprecate 예정, DnD reorder 로 대체) ────────
 
 export const useMoveSkillsetGroup = ({ mutationOptions }: MutationHookOptions<void, { treeId: number; up: boolean }> = {}) => {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: ({ treeId, up }: { treeId: number; up: boolean }) => (up ? skillsetApi.moveGroupUp(treeId) : skillsetApi.moveGroupDown(treeId)),
+    ...mutationOptions,
+    onSuccess: (...args) => {
+      qc.invalidateQueries({ queryKey: skillsetQueryKeys.getGroups._def });
+      mutationOptions?.onSuccess?.(...args);
+    },
+  });
+};
+
+/** 업무그룹 트리 D&D 재배치 — BFF flow: skillset-group-reorder */
+export const useReorderSkillsetGroup = ({ mutationOptions }: MutationHookOptions<SkillsetGroupResponse, { treeId: number; body: SkillsetGroupReorderRequest }> = {}) => {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ treeId, body }: { treeId: number; body: SkillsetGroupReorderRequest }) => skillsetApi.reorderGroup(treeId, body),
     ...mutationOptions,
     onSuccess: (...args) => {
       qc.invalidateQueries({ queryKey: skillsetQueryKeys.getGroups._def });
