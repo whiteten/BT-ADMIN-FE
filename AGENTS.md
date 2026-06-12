@@ -44,6 +44,8 @@
 
 **Nx 모노레포** + **Module Federation** 기반 마이크로 프론트엔드. `apps/host`(셸, 로그인·레이아웃) + remote 앱들(`apps/manager`, `apps/fca`, `apps/ipron`, `apps/aoe`, `apps/insight`, `apps/ivr`, `apps/stt`, `apps/taskboard`) + 공유 라이브러리 `libs/shared-{ui,api,store,util}`. 각 remote는 `module-federation.config.ts`로 모듈을 노출하고 host가 런타임에 통합·라우팅. 상세 구조는 [DEVELOPER_GUIDE.md](doc/DEVELOPER_GUIDE.md) "2. 프로젝트 구조 이해하기" 참조.
 
+> ⚠️ **`apps/custom`은 일반 업무 remote가 아닙니다** — 현장 커스터마이징 오버라이드 운반체(host remotes 배열 미등록, 런타임 동적 등록, 라우트·메뉴 없음)입니다. "모든 remote"를 대상으로 하는 작업(remote 점검·정규화, 빌드/serve 목록, 매뉴얼 생성, routes.tsx 일괄 수정 등)에서 **custom은 항상 제외**할 것. 상세는 [doc/CUSTOM_DEVELOPMENT_GUIDE.md](doc/CUSTOM_DEVELOPMENT_GUIDE.md) 참조.
+
 ## 개발 명령어
 
 - **빌드·개발 서버**: `pnpm run build` / `pnpm run serve` (대화형 앱 선택 + 의존성 확인 포함). 특정 옵션이 필요한 경우에만 `npx nx <target> <project>` 사용.
@@ -367,25 +369,30 @@ if (isLoading) return <FallbackSpinner />;
 1. **페이지는 `React.lazy`로 지연 로드**: 모든 페이지 컴포넌트는 파일 상단에서 `const Xxx = React.lazy(() => import('./pages/...'))`로 선언. 라우트 그룹 순서대로 묶어 선언하고, 페이지는 `./pages/...` 상대 경로로 import. (직접 import하면 모든 페이지가 한꺼번에 로드되어 초기 로딩이 느려짐)
 2. **`routes` named export**: 라우트 트리는 `export const routes = [...]` 배열로 내보냄
 3. **단일 루트 + Outlet 그룹**: 최상위는 `{ path: '/', element: <세션핸들러 또는 Outlet>, children: [...] }` 하나. 2-depth 이상 라우트 그룹은 `{ path: '<group>', element: <Outlet />, children: [...] }`로 표현
-4. **index redirect**: 루트·각 그룹의 children 첫 항목은 기본 하위로 보내는 `{ index: true, element: <Navigate to="<default>" replace /> }`. 동적 세그먼트 하위 그룹의 index는 `<Navigate to=".." replace />`로 부모 복귀
-5. **동적 세그먼트**: `:paramId` 형태(camelCase). 탭 레이아웃이 필요한 상세 페이지는 `element`에 `<Feature>DetailLayout`, `children`에 탭·하위 라우트를 둠
-6. **공통 라우트는 복사 작성**: 여러 path에서 동일 라우트 묶음을 재사용하더라도 각 path에 그대로 복사. spread 패턴(`children: [...sharedXxxRoutes]`)은 정적 분석·도구 정합성에 한계가 있어 표준에서 제외 (상세 이유는 DEVELOPER_GUIDE 참조)
-7. **catch-all은 항상 마지막**: `routes` 배열 마지막 항목은 `{ path: '*', element: <NotFound homePath="/" /> }`
-8. **path는 kebab-case**: `bot-config`, `bot-dialog-history`, `call-bot` 등
-9. **라우팅 보조 모듈은 `features/router/`**: 세션 이벤트 핸들러·`DynamicElement`·variant manifest·query selector 등은 `features/router/`에 두고 routes.tsx는 import만 함
-10. **변형·분기**: variant 지원 path는 `<DynamicElement>`로 감싸고("화면 커스터마이징(Variants) 패턴" 참조), queryString 분기 path는 `handle.queryParams`를 선언("queryString 기반 메뉴 분기 패턴" 참조)
-11. **페이지 컴포넌트 네이밍은 기능명만**: 페이지 `.tsx` 파일명과 lazy 변수명은 `<기능명>` 또는 `<기능명><역할>`(역할 = `List`·`Create`·`Detail` 등) 형태로 **기능명만** 사용하고, `Page`처럼 "페이지임"을 나타내는 군더더기 접미사를 붙이지 않음. fca를 기준으로 통일 — ❌ `RoleCreatePage`, `NodeListPage`, `AccountPolicyPage` → ✅ `RoleCreate`, `NodeList`, `AccountPolicy`
+4. **leaf 페이지는 변형 소켓(pv)으로 래핑**: 파일 상단에 `const pv = createPageVariantSocket('<appId>')`를 1회 선언하고, 실제 화면을 그리는 leaf element는 `pv('<화면 키>', Component)`로 작성. 화면 키는 **라우트 경로 그대로**(동적 세그먼트 `:paramId` 포함 — 예: `bot-config/bot/:serviceId`, `cos/:cosId/edit`). 그룹 index가 페이지를 직접 그리면 그룹 경로가 키(예: `cos`). 키는 DB page-variant row·custom remote exposes와 매칭되는 SoT이므로 **한번 정하면 변경 금지** — 이후 라우트 경로·파라미터명이 리팩토링으로 바뀌어도 키는 유지(키가 경로와 어긋나는 건 허용, 끊어지는 게 문제). 레이아웃(`<Feature>DetailLayout`)·`Navigate`·`NotFound`는 소켓 제외
+5. **index redirect**: 루트·각 그룹의 children 첫 항목은 기본 하위로 보내는 `{ index: true, element: <Navigate to="<default>" replace /> }`. 동적 세그먼트 하위 그룹의 index는 `<Navigate to=".." replace />`로 부모 복귀
+6. **동적 세그먼트**: `:paramId` 형태(camelCase). 탭 레이아웃이 필요한 상세 페이지는 `element`에 `<Feature>DetailLayout`, `children`에 탭·하위 라우트를 둠
+7. **공통 라우트는 복사 작성**: 여러 path에서 동일 라우트 묶음을 재사용하더라도 각 path에 그대로 복사. spread 패턴(`children: [...sharedXxxRoutes]`)은 정적 분석·도구 정합성에 한계가 있어 표준에서 제외 (상세 이유는 DEVELOPER_GUIDE 참조). 메뉴 컨텍스트가 다른 복사 라우트는 화면 키도 분리(`bot-config/model/list` vs `global/model/list`)
+8. **catch-all은 항상 마지막**: `routes` 배열 마지막 항목은 `{ path: '*', element: <NotFound homePath="/" /> }`
+9. **path는 kebab-case**: `bot-config`, `bot-dialog-history`, `call-bot` 등
+10. **라우팅 보조 모듈은 `features/router/`**: 세션 이벤트 핸들러·variant manifest·query selector 등은 `features/router/`에 두고 routes.tsx는 import만 함
+11. **변형·분기**: 정식 variant(2개 이상)를 가진 path만 `pv` 대신 `<DynamicElement variants={...} />`를 직접 사용("화면 커스터마이징(Variants) 패턴" 참조), queryString 분기 path는 `handle.queryParams`를 선언("queryString 기반 메뉴 분기 패턴" 참조 — `pv` 소켓과 공존 가능)
+12. **페이지 컴포넌트 네이밍은 기능명만**: 페이지 `.tsx` 파일명과 lazy 변수명은 `<기능명>` 또는 `<기능명><역할>`(역할 = `List`·`Create`·`Detail` 등) 형태로 **기능명만** 사용하고, `Page`처럼 "페이지임"을 나타내는 군더더기 접미사를 붙이지 않음. fca를 기준으로 통일 — ❌ `RoleCreatePage`, `NodeListPage`, `AccountPolicyPage` → ✅ `RoleCreate`, `NodeList`, `AccountPolicy`
 
 ```typescript
 // apps/<remote>/src/app/routes.tsx
 import React from 'react';
 import { Navigate, Outlet } from 'react-router-dom';
+import { createPageVariantSocket } from '@/components/custom/DynamicElement';
 import { NotFound } from '@/components/custom/NotFound';
 
 // 페이지 — 라우트 그룹 순서대로 묶어 lazy 선언
 const BotList = React.lazy(() => import('./pages/bot-config/BotList'));
 const BotCreate = React.lazy(() => import('./pages/bot-config/BotCreate'));
 const BotDetail = React.lazy(() => import('./pages/bot-config/BotDetail'));
+
+// 변형 소켓 — path 인자는 화면 식별 키(라우트 경로 그대로, 동적 세그먼트 포함)
+const pv = createPageVariantSocket('fca');
 
 export const routes = [
   {
@@ -402,9 +409,9 @@ export const routes = [
             path: 'bot',
             children: [
               { index: true, element: <Navigate to="list" replace /> },
-              { path: 'list', element: <BotList /> },
-              { path: 'create', element: <BotCreate /> },
-              { path: ':serviceId', element: <BotDetail /> }, // 동적 세그먼트
+              { path: 'list', element: pv('bot-config/bot/list', BotList) },
+              { path: 'create', element: pv('bot-config/bot/create', BotCreate) },
+              { path: ':serviceId', element: pv('bot-config/bot/:serviceId', BotDetail) }, // 동적 세그먼트 — 키에도 그대로 포함
             ],
           },
         ],
@@ -527,7 +534,7 @@ import { DefaultSelectorKeys } from '@/shared-store';
 
 {
   path: 'dashboard',
-  element: <Dashboard />,
+  element: pv('dashboard', Dashboard),
   handle: {
     queryParams: [
       {
@@ -548,7 +555,7 @@ import { SelectorKeys } from './features/router/querySelectors';
 
 {
   path: 'preset-demo',
-  element: <PresetDemo />,
+  element: pv('sample/preset-demo', PresetDemo),
   handle: {
     queryParams: [
       { key: 'preset', label: '프리셋', selectorKey: SelectorKeys.PresetSelector },

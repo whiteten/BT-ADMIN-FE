@@ -14,7 +14,15 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { type BreadcrumbProps, Button, Card, Empty, Select, Tag } from 'antd';
-import { type PageVariantManifestPath, useBreadcrumbStore, usePageVariantManifestStore, usePageVariantsStore } from '@/shared-store';
+import {
+  type PageVariantManifestPath,
+  SITE_COMPONENT_KEY_PREFIX,
+  type SiteOverrideMeta,
+  useBreadcrumbStore,
+  usePageVariantManifestStore,
+  usePageVariantsStore,
+  useSiteCustomStore,
+} from '@/shared-store';
 import { toast } from '@/shared-util';
 import { useGetApps } from '../../features/iam/hooks/useAppQueries';
 import { pageVariantQueryKeys, useDeletePageVariant, useUpsertPageVariant } from '../../features/page-variant/hooks/usePageVariantQueries';
@@ -30,6 +38,8 @@ const breadcrumb: BreadcrumbProps['items'] = [
 
 interface CatalogItem extends PageVariantManifestPath {
   appName: string;
+  /** custom remote(현장 커스텀)에 배포된 오버라이드 메타 — 있으면 현장 커스텀 카드 노출 */
+  siteOverride?: SiteOverrideMeta;
 }
 
 export default function PageVariantManagement() {
@@ -46,6 +56,7 @@ export default function PageVariantManagement() {
   const isManifestLoaded = usePageVariantManifestStore((s) => s.isLoaded);
   const variantMap = usePageVariantsStore((s) => s.variants);
   const isVariantsLoaded = usePageVariantsStore((s) => s.isLoaded);
+  const siteOverrides = useSiteCustomStore((s) => s.overrides);
 
   const { data: apps = [] } = useGetApps();
 
@@ -57,12 +68,43 @@ export default function PageVariantManagement() {
 
   const catalog: CatalogItem[] = useMemo(() => {
     const items: CatalogItem[] = [];
+    const byKey = new Map<string, CatalogItem>();
+    const resolveAppName = (appId: string) => apps.find((a) => a.appId === appId)?.appName ?? appId;
+
+    // 1) 정식 variants 카탈로그 (각 remote의 pageVariantManifest)
     Object.entries(variantManifest).forEach(([appId, paths]) => {
-      const appName = apps.find((a) => a.appId === appId)?.appName ?? appId;
-      paths.forEach((p) => items.push({ ...p, appName }));
+      const appName = resolveAppName(appId);
+      paths.forEach((p) => {
+        const item: CatalogItem = { ...p, appName };
+        byKey.set(`${appId}::${p.path}`, item);
+        items.push(item);
+      });
     });
+
+    // 2) 현장 커스텀 오버라이드 목록 합류 (custom remote SiteManifest — '<appId>/<path>' 키)
+    Object.entries(siteOverrides ?? {}).forEach(([overrideKey, meta]) => {
+      const slashIdx = overrideKey.indexOf('/');
+      if (slashIdx < 0) return;
+      const appId = overrideKey.slice(0, slashIdx);
+      const path = overrideKey.slice(slashIdx + 1);
+      const existing = byKey.get(`${appId}::${path}`);
+      if (existing) {
+        existing.siteOverride = meta;
+        return;
+      }
+      // manifest에 없는 화면 — 표준 카드만 가진 항목으로 합성
+      items.push({
+        appId,
+        path,
+        appName: resolveAppName(appId),
+        defaultKey: 'default',
+        variants: [{ key: 'default', label: '표준', description: '본사 표준 화면' }],
+        siteOverride: meta,
+      });
+    });
+
     return items.filter((i) => !selectedAppId || i.appId === selectedAppId);
-  }, [variantManifest, apps, selectedAppId]);
+  }, [variantManifest, siteOverrides, apps, selectedAppId]);
 
   const selected = useMemo(() => catalog.find((c) => `${c.appId}::${c.path}` === selectedKey) ?? null, [catalog, selectedKey]);
   const currentKey = selected ? (variantMap[selected.appId]?.[selected.path] ?? selected.defaultKey) : null;
@@ -73,6 +115,8 @@ export default function PageVariantManagement() {
   }, [currentKey]);
 
   const isDirty = pendingKey !== currentKey;
+  // 현장 커스텀 강제 지정 시 저장될 componentKey ('site:<appId>/<path>')
+  const siteVariantKey = selected ? `${SITE_COMPONENT_KEY_PREFIX}${selected.appId}/${selected.path}` : null;
 
   const invalidate = () => {
     queryClient.invalidateQueries({ queryKey: pageVariantQueryKeys.getPageVariants.queryKey });
@@ -151,6 +195,7 @@ export default function PageVariantManagement() {
                   >
                     <div className="flex items-center gap-2">
                       <Tag color="blue">{item.appName}</Tag>
+                      {item.siteOverride && <Tag color="purple">커스텀</Tag>}
                       {mapped && mapped !== item.defaultKey && <Tag color="orange">변경됨</Tag>}
                     </div>
                     <div className="text-sm font-medium break-all">{item.path}</div>
@@ -187,6 +232,18 @@ export default function PageVariantManagement() {
                       disabled={isProcessing}
                     />
                   ))}
+                  {selected.siteOverride && siteVariantKey && (
+                    <VariantCard
+                      variantKey={siteVariantKey}
+                      label={selected.siteOverride.label}
+                      description={selected.siteOverride.description}
+                      isSite
+                      isCurrent={currentKey === siteVariantKey}
+                      isPending={pendingKey === siteVariantKey}
+                      onClick={() => handleSelectVariant(siteVariantKey)}
+                      disabled={isProcessing}
+                    />
+                  )}
                 </div>
               </div>
 
@@ -214,11 +271,12 @@ interface VariantCardProps {
   isDefault?: boolean;
   isCurrent?: boolean;
   isPending?: boolean;
+  isSite?: boolean;
   disabled?: boolean;
   onClick: () => void;
 }
 
-function VariantCard({ variantKey, label, description, isDefault, isCurrent, isPending, disabled, onClick }: VariantCardProps) {
+function VariantCard({ variantKey, label, description, isDefault, isCurrent, isPending, isSite, disabled, onClick }: VariantCardProps) {
   return (
     <Card
       onClick={disabled ? undefined : onClick}
@@ -232,6 +290,7 @@ function VariantCard({ variantKey, label, description, isDefault, isCurrent, isP
         <div className="font-medium">{label}</div>
         <div className="flex gap-1">
           {isDefault && <Tag color="default">기본</Tag>}
+          {isSite && <Tag color="purple">커스텀</Tag>}
           {isCurrent && <Tag color="green">적용 중</Tag>}
         </div>
       </div>
