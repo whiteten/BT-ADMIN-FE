@@ -10,20 +10,23 @@
  */
 import { type ChangeEvent, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useQueryClient } from '@tanstack/react-query';
 import { Button, Empty, Input, Modal, Select } from 'antd';
-import { ChevronLeft, ChevronRight, ChevronsDown, ChevronsUp, Plus, Save, Search, Trash2, Users } from 'lucide-react';
+import { ChevronLeft, ChevronRight, ChevronsDown, ChevronsUp, Download, Plus, Save, Search, Trash2, Upload, Users } from 'lucide-react';
 import { useAuthStore, useBreadcrumbStore } from '@/shared-store';
 import { toast } from '@/shared-util';
 import { GridRowColorLegend } from '../../components/GridRowColorLegend';
 import { agentMasterApi } from '../../features/agent-master/api/agentMasterApi';
 import AgentGroupFormDrawer from '../../features/agent-master/components/AgentGroupFormDrawer';
 import AgentGroupTree from '../../features/agent-master/components/AgentGroupTree';
+import AgentImportDrawer from '../../features/agent-master/components/AgentImportDrawer';
 import AgentMasterFormDrawer from '../../features/agent-master/components/AgentMasterFormDrawer';
 import AgentMasterTable from '../../features/agent-master/components/AgentMasterTable';
 import AgentMasterTenantCard from '../../features/agent-master/components/AgentMasterTenantCard';
 import AgentMediaStatusTable, { type AgentMediaStatusTableHandle, type MediaKey, type MediaOption } from '../../features/agent-master/components/AgentMediaStatusTable';
 import { MEDIA_KEY_LABELS, MEDIA_TYPE_CODE_TO_KEY } from '../../features/agent-master/constants/codes';
 import {
+  agentMasterQueryKeys,
   useDeleteAgentGroup,
   useDeleteAgents,
   useGetAgentGroupTree,
@@ -49,7 +52,13 @@ export default function AgentMasterList() {
 
   const navigate = useNavigate();
   const modal = useModal();
+  const queryClient = useQueryClient();
   const cardScrollRef = useRef<HTMLDivElement>(null);
+
+  const invalidateAgents = useCallback(() => {
+    queryClient.invalidateQueries({ queryKey: agentMasterQueryKeys.getList._def });
+    queryClient.invalidateQueries({ queryKey: agentMasterQueryKeys.getTenants.queryKey });
+  }, [queryClient]);
 
   // ctx 테넌트 (JWT — 사용자 본인 테넌트) — 페이지 진입 시 자동 선택
   const ctxTenantId = useAuthStore((s) => {
@@ -96,6 +105,9 @@ export default function AgentMasterList() {
   const [agentDrawer, setAgentDrawer] = useState<
     { open: false } | { open: true; mode: 'create'; tenantId?: number; groupId?: number } | { open: true; mode: 'edit'; agentId: number }
   >({ open: false });
+
+  // 엑셀 가져오기 Drawer
+  const [importDrawerOpen, setImportDrawerOpen] = useState(false);
 
   // ─── Queries ────────────────────────────────────────────────────────────
   const { data: agents = [], isLoading } = useGetAgents({
@@ -263,6 +275,34 @@ export default function AgentMasterList() {
   }, [tenantStats]);
 
   // ─── Handlers ───────────────────────────────────────────────────────────
+
+  const handleExcelExport = useCallback(async () => {
+    try {
+      const blob = await agentMasterApi.exportExcel({
+        tenantId: selectedTenantId ?? undefined,
+        groupId: selectedGroupId ?? undefined,
+        keyword: searchText.trim() || undefined,
+      });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = 'agents.xlsx';
+      a.click();
+      URL.revokeObjectURL(url);
+    } catch (e) {
+      const err = e as { response?: { data?: { message?: string } } };
+      toast.error(err?.response?.data?.message ?? '엑셀 내보내기 실패');
+    }
+  }, [selectedTenantId, selectedGroupId, searchText]);
+
+  const handleImportOpen = useCallback(() => {
+    if (!selectedGroupId) {
+      toast.error('좌측 상담그룹을 먼저 선택하세요');
+      return;
+    }
+    setImportDrawerOpen(true);
+  }, [selectedGroupId]);
+
   const handleCreate = useCallback(() => {
     setAgentDrawer({
       open: true,
@@ -409,6 +449,12 @@ export default function AgentMasterList() {
               onChange={(e: ChangeEvent<HTMLInputElement>) => setSearchText(e.target.value)}
               style={{ width: 220 }}
             />
+            <Button icon={<Download className="size-3.5" />} onClick={handleExcelExport}>
+              엑셀
+            </Button>
+            <Button icon={<Upload className="size-3.5" />} onClick={handleImportOpen}>
+              가져오기
+            </Button>
           </div>
         </div>
       </div>
@@ -691,6 +737,32 @@ export default function AgentMasterList() {
         initialTenantId={agentDrawer.open && agentDrawer.mode === 'create' ? agentDrawer.tenantId : undefined}
         initialGroupId={agentDrawer.open && agentDrawer.mode === 'create' ? agentDrawer.groupId : undefined}
         onClose={() => setAgentDrawer({ open: false })}
+      />
+
+      <AgentImportDrawer
+        open={importDrawerOpen}
+        tenantId={selectedTenantId}
+        groupId={selectedGroupId}
+        tenantName={tenantStats.find((t) => t.tenantId === selectedTenantId)?.tenantName ?? null}
+        groupName={(() => {
+          if (!selectedGroupId) return null;
+          const findName = (nodes: AgentGroupNode[]): string | null => {
+            for (const n of nodes) {
+              if (n.groupId === selectedGroupId) return n.groupName;
+              if (n.children?.length) {
+                const found = findName(n.children);
+                if (found) return found;
+              }
+            }
+            return null;
+          };
+          return findName(groupTree);
+        })()}
+        onClose={() => setImportDrawerOpen(false)}
+        onSuccess={() => {
+          invalidateAgents();
+          // DN 정본 패턴: 드로어는 닫지 않음 — 사용자가 성공/실패 집계·실패행 확인 후 직접 닫기
+        }}
       />
 
       {/* ===== 그룹배정 모달 (SWAT IPR20S4010 poAgentDeploy 대응) ===== */}

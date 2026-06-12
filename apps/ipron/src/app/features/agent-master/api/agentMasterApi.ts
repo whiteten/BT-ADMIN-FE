@@ -11,6 +11,9 @@
  *    ipron-agent-master-move             POST   그룹 이동 (드래그앤드롭)
  *    ipron-agent-master-duplicate-check  GET    로그인 ID 중복 체크
  *    ipron-agent-master-tenants          GET    테넌트 통계
+ *    ipron-agent-master-excel-import     POST   엑셀 가져오기 시작 (multipart, taskId 반환)
+ *    ipron-agent-master-excel-import-status GET 엑셀 가져오기 진행 상태 (polling)
+ *    ipron-agent-master-excel-export     GET    엑셀 내보내기 (XLSX 다운로드)
  *  아웃소싱업체 (/api/ipron/oscoms)
  *    ipron-oscom-list                    GET    업체 마스터 콤보
  *  상담그룹 (/api/ipron/agent-groups)
@@ -149,5 +152,69 @@ export const agentMasterApi = {
       params: { id },
     });
     return res.data?.data;
+  },
+
+  // ─── 엑셀 가져오기/내보내기 ─────────────────────────────────────────────
+
+  /**
+   * 상담사 엑셀 내보내기.
+   * Backend: byte[] (XLSX binary) — BFF 가 그대로 forward.
+   * @flow ipron-agent-master-excel-export
+   */
+  exportExcel: async (params?: { tenantId?: number; groupId?: number; keyword?: string }): Promise<Blob> => {
+    const response = await apiClient.get<Blob>('/ipron-agent-master-excel-export', {
+      params,
+      responseType: 'blob',
+    });
+    return (response as unknown as { data: Blob }).data;
+  },
+
+  /**
+   * 상담사 엑셀 가져오기 시작 — 비동기. 즉시 taskId 반환 후 status polling 으로 진행률 확인.
+   * Backend: ApiResponse<{ taskId }> — BFF: data:{...} -> response.data?.data
+   * @flow ipron-agent-master-excel-import
+   *
+   * ⚠ groupId 는 BE 필수 파라미터.
+   */
+  startImport: async (params: { tenantId: number; groupId: number; file: File }): Promise<{ taskId: string }> => {
+    const formData = new FormData();
+    formData.append('file', params.file);
+    // ⚠ Content-Type 헤더는 명시하지 않는다. axios가 FormData를 감지하면
+    //    'multipart/form-data; boundary=...' 를 자동 설정한다.
+    const response = await apiClient.post<ApiResponse<{ taskId: string }>>('/ipron-agent-master-excel-import', formData, {
+      params: { tenantId: params.tenantId, groupId: params.groupId },
+    });
+    return response.data?.data;
+  },
+
+  /**
+   * 상담사 엑셀 가져오기 진행 상태 조회 (1초 polling 용).
+   * @flow ipron-agent-master-excel-import-status
+   */
+  getImportStatus: async (
+    taskId: string,
+  ): Promise<{
+    taskId: string;
+    total: number;
+    processed: number;
+    success: number;
+    failedCount: number;
+    failed: Array<{ rowNum: number; agentLoginId: string | null; reason: string }>;
+    done: boolean;
+    errorMessage: string | null;
+  }> => {
+    const response = await apiClient.get<
+      ApiResponse<{
+        taskId: string;
+        total: number;
+        processed: number;
+        success: number;
+        failedCount: number;
+        failed: Array<{ rowNum: number; agentLoginId: string | null; reason: string }>;
+        done: boolean;
+        errorMessage: string | null;
+      }>
+    >('/ipron-agent-master-excel-import-status', { params: { taskId } });
+    return response.data?.data;
   },
 };
