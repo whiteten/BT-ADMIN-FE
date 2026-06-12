@@ -76,11 +76,12 @@ const getSiteComponent = (exposedPath: string, loader: SiteCustomComponentLoader
       const component = await loader(exposedPath);
       if (component) return { default: component };
       Log.warn(`[DynamicElement] custom remote에 '${exposedPath}'가 노출되어 있지 않아 기본 화면으로 fallback합니다.`);
-      return { default: Fallback };
     } catch (err) {
       Log.warn(`[DynamicElement] custom remote '${exposedPath}' 로드 실패 — 기본 화면으로 fallback합니다.`, err);
-      return { default: Fallback };
     }
+    // Fallback은 보통 routes.tsx의 React.lazy 컴포넌트 — lazy payload의 default로 lazy를
+    // 그대로 반환하면 중첩 lazy가 되어 React가 거부하므로, 함수 컴포넌트로 한 겹 감싸 반환한다.
+    return { default: () => <Fallback /> };
   });
   siteComponentCache.set(exposedPath, LazyComponent);
   return LazyComponent;
