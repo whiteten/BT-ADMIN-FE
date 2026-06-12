@@ -14,10 +14,11 @@
  */
 import { type ChangeEvent, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Button, Empty, Input, Modal, Table } from 'antd';
-import { ArrowUpDown, Building2, ChevronLeft, ChevronRight, ChevronsDown, ChevronsUp, Download, Network, Plus, Search, Trash2, Upload } from 'lucide-react';
+import { ArrowUpDown, Building2, ChevronLeft, ChevronRight, ChevronsDown, ChevronsUp, Download, Network, Pencil, Plus, Search, Trash2, Upload } from 'lucide-react';
 import { useAuthStore, useBreadcrumbStore } from '@/shared-store';
 import { toast } from '@/shared-util';
 import { ctiQueueApi } from '../../features/cti-queue/api/ctiQueueApi';
+import CtiQueueBulkUpdateModal from '../../features/cti-queue/components/CtiQueueBulkUpdateModal';
 import CtiQueueFormDrawer, { type CtiQueueDrawerState } from '../../features/cti-queue/components/CtiQueueFormDrawer';
 import CtiQueueGroupDrawer from '../../features/cti-queue/components/CtiQueueGroupDrawer';
 import CtiQueueGroupTree from '../../features/cti-queue/components/CtiQueueGroupTree';
@@ -29,6 +30,8 @@ import {
   useDeleteCtiQueueGroup,
   useGetCtiQueueGroupOptions,
   useGetCtiQueueGroups,
+  useGetCtiQueueMediaOptions,
+  useGetCtiQueueSkillsetOptions,
   useGetCtiQueues,
   useReassignCtiQueueMembers,
   useUnassignCtiQueueMembers,
@@ -68,6 +71,7 @@ export default function CtiQueueList() {
   const [selectedRows, setSelectedRows] = useState<CtiQueueResponse[]>([]);
   const [cardExpanded, setCardExpanded] = useState(false);
   const [drawer, setDrawer] = useState<CtiQueueDrawerState>({ open: false });
+  const [bulkModalOpen, setBulkModalOpen] = useState(false);
 
   // 업무그룹 트리 Drawer (추가/수정)
   const [groupDrawerOpen, setGroupDrawerOpen] = useState(false);
@@ -104,6 +108,8 @@ export default function CtiQueueList() {
   const { data: tenants = [] } = useGetDnProfileTenants();
   const { data: rows = [], isLoading } = useGetCtiQueues();
   const { data: groupOptions = [] } = useGetCtiQueueGroupOptions(selectedTenantId);
+  const { data: skillsetOptions = [] } = useGetCtiQueueSkillsetOptions(selectedTenantId);
+  const { data: mediaOptions = [] } = useGetCtiQueueMediaOptions();
 
   // ─── Derived: 탭 항목 (행에서 노드/테넌트 추출) ──────────────────────────────
   const assignedNodes = useMemo(() => {
@@ -624,6 +630,14 @@ export default function CtiQueueList() {
             </button>
 
             <div className="ml-auto flex items-center gap-2 flex-shrink-0 pl-3">
+              {/* BP-1: 화면 전역 액션(엑셀류) → 헤더 박스 */}
+              <Button icon={<Download className="size-3.5" />} loading={isExporting} onClick={handleExport} title="CTI 큐 목록 Excel 내보내기">
+                엑셀
+              </Button>
+              <Button icon={<Upload className="size-3.5" />} loading={isImporting} onClick={handleImportClick} title="Excel 파일로 CTI 큐 일괄 등록">
+                가져오기
+              </Button>
+              <input ref={importFileInputRef} type="file" accept=".xlsx,.xls" style={{ display: 'none' }} onChange={handleImportFileChange} />
               <Input
                 allowClear
                 prefix={<Search className="size-3.5 text-gray-400" />}
@@ -766,15 +780,7 @@ export default function CtiQueueList() {
                 {rowsForGrid.length.toLocaleString()}건 중 {selectedRows.length}건 선택
               </span>
               <div className="ml-auto flex items-center gap-2">
-                {/* GAP2: 내보내기 */}
-                <Button icon={<Download className="size-3.5" />} loading={isExporting} onClick={handleExport} title="CTI 큐 목록 Excel 내보내기">
-                  내보내기
-                </Button>
-                {/* GAP3: 가져오기 */}
-                <Button icon={<Upload className="size-3.5" />} loading={isImporting} onClick={handleImportClick} title="Excel 파일로 CTI 큐 일괄 등록">
-                  가져오기
-                </Button>
-                <input ref={importFileInputRef} type="file" accept=".xlsx,.xls" style={{ display: 'none' }} onChange={handleImportFileChange} />
+                {/* BP-2 CRUD 문법: [삭제 danger] → [보조: 일괄 설정 default] → [등록 primary] */}
                 <Button
                   danger
                   icon={<Trash2 className="size-3.5" />}
@@ -784,6 +790,15 @@ export default function CtiQueueList() {
                   title={selectedRows.length === 0 ? '삭제할 큐를 선택하세요' : '선택한 큐 삭제'}
                 >
                   삭제
+                </Button>
+                {/* P1: 일괄 설정 (BP-3: default variant, 인라인 색 제거) */}
+                <Button
+                  icon={<Pencil className="size-3.5" />}
+                  onClick={() => setBulkModalOpen(true)}
+                  disabled={selectedRows.length === 0}
+                  title={selectedRows.length === 0 ? '설정할 큐를 선택하세요' : `선택한 ${selectedRows.length}건 일괄 설정`}
+                >
+                  일괄 설정{selectedRows.length > 0 ? ` (${selectedRows.length})` : ''}
                 </Button>
                 <Button type="primary" icon={<Plus className="size-3.5" />} onClick={handleCreate}>
                   큐 등록
@@ -807,6 +822,16 @@ export default function CtiQueueList() {
       </div>
 
       <CtiQueueFormDrawer state={drawer} onClose={() => setDrawer({ open: false })} tenantOptions={tenantSelectOptions} nodeOptions={nodeSelectOptions} />
+
+      {/* P1: 일괄 설정 모달 */}
+      <CtiQueueBulkUpdateModal
+        open={bulkModalOpen}
+        selectedRows={selectedRows}
+        skillsetOptions={skillsetOptions}
+        groupOptions={groupOptions}
+        mediaOptions={mediaOptions}
+        onClose={() => setBulkModalOpen(false)}
+      />
 
       {/* GAP3: 가져오기 결과 모달 */}
       <Modal

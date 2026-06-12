@@ -1,8 +1,9 @@
 /**
- * CTI 큐 등록/수정 드로어 (SWAT IPR20S3020 5탭).
+ * CTI 큐 등록/수정 드로어 (SWAT IPR20S3020 6탭 재편).
  *
- * 탭1 기본정보 / 탭2 초기구성 / 탭3 큐설정 / 탭4 라우팅정보(+BSR 스케줄 서브그리드) /
- * 탭5 목표 서비스레벨 스케줄(수정 시 활성).
+ * 탭1 기본정보 / 탭2 초기구성 / 탭3 큐설정 / 탭4 라우팅(코어 7필드+미디어스킬) /
+ * 탭5 BSR(4필드+BSR Schedule 서브그리드, bsrYn=0이면 disabled) /
+ * 탭6 목표SLT스케줄(수정 시 활성).
  *
  * "그룹DN 생성 = 즉시 큐번호" 결합 — 등록 폼에서 테넌트(고정)/노드(고정)/그룹DN번호/이름 입력.
  *
@@ -16,8 +17,9 @@
  *  - BSR 사용=설정 → 그룹/가중치 enable + 그룹 필수 (:1195)
  */
 import { useEffect, useMemo, useRef, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Button, Checkbox, Drawer, Form, Input, InputNumber, Modal, Radio, Select, Tabs } from 'antd';
-import { Plus, Trash2 } from 'lucide-react';
+import { ArrowRight, Plus, Trash2 } from 'lucide-react';
 import { toast } from '@/shared-util';
 import { useGetMentOptions } from '../../ment-mgmt/hooks/useMentQueries';
 import { ctiQueueApi } from '../api/ctiQueueApi';
@@ -127,6 +129,7 @@ const skillIdKey = (mt: number) => `skill_${mt}`;
 const skillLevelKey = (mt: number) => `level_${mt}`;
 
 export default function CtiQueueFormDrawer({ state, onClose, tenantOptions = [], nodeOptions = [] }: Props) {
+  const navigate = useNavigate();
   const [form] = Form.useForm<FormValues>();
   const [activeTab, setActiveTab] = useState('basic');
 
@@ -295,6 +298,14 @@ export default function CtiQueueFormDrawer({ state, onClose, tenantOptions = [],
     if (!state.open) return;
     if (collectOff) form.setFieldsValue({ collectTimeout: 0 });
   }, [collectOff, form, state.open]);
+
+  // BSR 탭 활성 중 bsrYn=0 변경 시 라우팅 탭 강제 이동 (NOTES.md 규칙)
+  useEffect(() => {
+    if (!state.open) return;
+    if (!bsrOn && activeTab === 'bsr') {
+      setActiveTab('routing');
+    }
+  }, [bsrOn, activeTab, state.open]);
 
   // 그룹DN이름 → CTI큐이름 자동복사 (입력 시점)
   const copyGdnNameToQueue = (v: string) => {
@@ -564,10 +575,10 @@ export default function CtiQueueFormDrawer({ state, onClose, tenantOptions = [],
     try {
       const values = await form.validateFields();
 
-      // BSR 사용=설정 + 그룹 미지정 → 저장 차단 (SWAT :1195)
+      // BSR 사용=설정 + 그룹 미지정 → 저장 차단 (SWAT :1195) → BSR 탭으로 포커스
       if (values.bsrYn === 1 && (!values.bsrGroupId || values.bsrGroupId === 0)) {
         toast.error('BSR 사용 시 BSR 그룹을 선택해야 합니다');
-        setActiveTab('routing');
+        setActiveTab('bsr');
         return null;
       }
       // Skill-Based 라우팅 → 미디어 스킬 1개 이상 필수 (SWAT :361-368)
@@ -940,13 +951,17 @@ export default function CtiQueueFormDrawer({ state, onClose, tenantOptions = [],
                 <Radio value={0}>해제</Radio>
               </Radio.Group>
             </Form.Item>
+            {/* BSR 사용여부 — 항상 접근 가능(라우팅 탭), 설정 시 BSR 탭 활성화 */}
+            <Form.Item label="BSR 사용여부" name="bsrYn">
+              {ynRadio()}
+            </Form.Item>
           </div>
 
           {/* 미디어별 SKILL */}
           <section className="border-t border-dashed border-gray-200 pt-4">
             <div className="flex items-center gap-2 mb-3">
               <h4 className="text-xs font-semibold text-gray-600">미디어별 기본 SKILL</h4>
-              <span className="text-[11px] text-gray-400">(테넌트 라이선스 활성 미디어만 노출)</span>
+              <span className="text-[11px] text-gray-400">(시스템 라이선스 활성 미디어만 노출)</span>
               {skillRequired && <span className="text-[11px] bg-red-50 text-red-500 border border-red-200 rounded px-1.5 py-0.5">Skill-Based — 스킬셋 필수</span>}
             </div>
             <div className="space-y-1.5">
@@ -963,25 +978,45 @@ export default function CtiQueueFormDrawer({ state, onClose, tenantOptions = [],
               ))}
             </div>
           </section>
+        </div>
+      ),
+    },
+    {
+      key: 'bsr',
+      label: 'BSR',
+      disabled: !bsrOn,
+      forceRender: true,
+      children: (
+        <div className="space-y-5">
+          {/* BSR 그룹 관리 일괄 배정 링크 (상주 배너 금지 — 버튼 1개만) */}
+          <div className="flex justify-end">
+            <Button
+              type="link"
+              size="small"
+              icon={<ArrowRight className="size-3" />}
+              iconPosition="end"
+              onClick={() => {
+                onClose();
+                navigate('/ipron/bsr-group-mgmt');
+              }}
+            >
+              BSR 그룹 관리에서 일괄 배정
+            </Button>
+          </div>
 
-          {/* BSR */}
-          <section className="border-t border-dashed border-gray-200 pt-4">
-            <h4 className="text-xs font-semibold text-gray-600 mb-3">BSR (Best Skill Routing)</h4>
-            <div className="grid grid-cols-2 gap-x-6 gap-y-1">
-              <Form.Item label="BSR 사용여부" name="bsrYn">
-                {ynRadio()}
-              </Form.Item>
-              <Form.Item label="BSR 분배여부" name="bsrDistributeYn">
-                {ynRadio()}
-              </Form.Item>
-              <Form.Item label="BSR 그룹" name="bsrGroupId" required={bsrOn}>
-                <Select options={bsrGroupSelectOptions} loading={bsrGroupLoading} disabled={!bsrOn} showSearch optionFilterProp="label" />
-              </Form.Item>
-              <Form.Item label="BSR 가중치 (0~1000)" name="bsrWeight">
-                <InputNumber style={{ width: '100%' }} min={0} max={1000} disabled={!bsrOn} />
-              </Form.Item>
-            </div>
-          </section>
+          {/* BSR 속성 (bsrYn 은 라우팅 탭에 위치 — 여기서 중복 배치 금지) */}
+          <div className="grid grid-cols-2 gap-x-6 gap-y-1">
+            <Form.Item label="BSR 분배여부" name="bsrDistributeYn">
+              {ynRadio()}
+            </Form.Item>
+            <div />
+            <Form.Item label="BSR 그룹" name="bsrGroupId" required={bsrOn}>
+              <Select options={bsrGroupSelectOptions} loading={bsrGroupLoading} disabled={!bsrOn} showSearch optionFilterProp="label" />
+            </Form.Item>
+            <Form.Item label="BSR 가중치 (0~1000)" name="bsrWeight">
+              <InputNumber style={{ width: '100%' }} min={0} max={1000} disabled={!bsrOn} />
+            </Form.Item>
+          </div>
 
           {/* BSR Schedule 서브그리드 */}
           <section className="border-t border-dashed border-gray-200 pt-4">

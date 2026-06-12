@@ -11,6 +11,8 @@ import type { MutationHookOptions, QueryHookOptions, QueryHookWithParamsOptions 
 import { ctiQueueApi } from '../api/ctiQueueApi';
 import type {
   AccessCodeProfileOption,
+  CtiQueueBulkResult,
+  CtiQueueBulkUpdateRequest,
   CtiQueueCreateRequest,
   CtiQueueGroupCreateRequest,
   CtiQueueGroupResponse,
@@ -175,6 +177,23 @@ export const useUpdateCtiQueue = ({ mutationOptions }: MutationHookOptions<CtiQu
     onSuccess: (...args) => {
       qc.invalidateQueries({ queryKey: ctiQueueQueryKeys.getList._def });
       qc.invalidateQueries({ queryKey: ctiQueueQueryKeys.getDetail._def });
+      qc.invalidateQueries({ queryKey: ctiQueueQueryKeys.getTenants.queryKey });
+      mutationOptions?.onSuccess?.(...args);
+    },
+  });
+};
+
+/**
+ * 일괄 설정 (Bulk Update) — P1.
+ * 성공/부분성공 후 목록 쿼리 invalidate.
+ */
+export const useBulkUpdateCtiQueues = ({ mutationOptions }: MutationHookOptions<CtiQueueBulkResult, CtiQueueBulkUpdateRequest> = {}) => {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (body) => ctiQueueApi.bulkUpdate(body),
+    ...mutationOptions,
+    onSuccess: (...args) => {
+      qc.invalidateQueries({ queryKey: ctiQueueQueryKeys.getList._def });
       qc.invalidateQueries({ queryKey: ctiQueueQueryKeys.getTenants.queryKey });
       mutationOptions?.onSuccess?.(...args);
     },

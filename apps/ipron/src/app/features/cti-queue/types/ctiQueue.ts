@@ -339,3 +339,125 @@ export const CLOSE_TYPE_OPTIONS: { value: number; label: string }[] = [
   { value: 2, label: '우회 DN/GDN 라우팅' },
   { value: 3, label: '멘트 후 우회 DN/GDN 라우팅' },
 ];
+
+// ──────────────────────────────────────────────────────────
+//  일괄 설정 (Bulk Update) — P1
+// ──────────────────────────────────────────────────────────
+
+/**
+ * 일괄 설정 요청 DTO (BE CtiQueueBulkUpdateRequest 정합).
+ * fields: 변경할 필드명 배열 (field mask — 미포함 필드는 서버측 보존).
+ * applyType: 0=즉시, 1=예약.
+ * applyDatetime: 예약 시 'YYYYMMDDHHmm' 형식.
+ */
+export interface CtiQueueBulkUpdateRequest {
+  ctiqIds: number[];
+  fields: string[];
+  // 멘트
+  initMent?: number | null;
+  waitMent?: number | null;
+  closeMent?: number | null;
+  blockMent?: number | null;
+  connMent?: number | null;
+  holdMent?: number | null;
+  coConnMent?: number | null;
+  coHoldMent?: number | null;
+  // 스킬 (8종 전체)
+  voipSkillId?: number | null;
+  voipSkillLevel?: number;
+  chatSkillId?: number | null;
+  chatSkillLevel?: number;
+  videoVoiceSkillId?: number | null;
+  videoVoiceSkillLevel?: number;
+  videoChatSkillId?: number | null;
+  videoChatSkillLevel?: number;
+  emailSkillId?: number | null;
+  emailSkillLevel?: number;
+  faxSkillId?: number | null;
+  faxSkillLevel?: number;
+  mvoipSkillId?: number | null;
+  mvoipSkillLevel?: number;
+  smsSkillId?: number | null;
+  smsSkillLevel?: number;
+  // 라우팅
+  firstGroupId?: number | null;
+  accessCodeProfileId?: number | null;
+  drAccessCodeProfileId?: number | null;
+  routingType?: number;
+  routingPriority?: number;
+  // 큐 정책
+  maxWaittimeYn?: number;
+  maxWaittime?: number;
+  collectYn?: number;
+  collectTimeout?: number;
+  serviceLevelTime?: number;
+  abandonAcktime?: number;
+  serviceLevelTargetYn?: number;
+  serviceLevelTargetValue?: number;
+  overflowQid?: string;
+  overflowCnt?: number;
+  activateYn?: number;
+  blockYn?: number;
+  reconnPriorityYn?: number;
+  forceTransYn?: number;
+  // 예약 적용
+  applyType?: number | null;
+  applyDatetime?: string | null;
+}
+
+/** 일괄 설정 결과 — 건별 성공/실패 (BE CtiQueueBulkResult 정합, 207 응답). */
+export interface CtiQueueBulkItemResult {
+  ctiqId: number;
+  gdnName: string | null;
+  success: boolean;
+  message: string | null;
+}
+
+export interface CtiQueueBulkResult {
+  successCount: number;
+  failCount: number;
+  items: CtiQueueBulkItemResult[];
+}
+
+/**
+ * 일괄 설정 모달에서 관리하는 필드별 값 상태.
+ * checked: 이 필드를 변경 대상에 포함할지 여부 (field mask).
+ */
+export type BulkFieldKey =
+  | 'initMent'
+  | 'waitMent'
+  | 'closeMent'
+  | 'blockMent'
+  | 'connMent'
+  | 'holdMent'
+  | 'coConnMent'
+  | 'coHoldMent'
+  | 'voipSkill'
+  | 'chatSkill'
+  | 'videoVoiceSkill'
+  | 'videoChatSkill'
+  | 'emailSkill'
+  | 'faxSkill'
+  | 'mvoipSkill'
+  | 'smsSkill'
+  | 'firstGroupId'
+  | 'accessCodeProfileId'
+  | 'routingType'
+  | 'routingPriority'
+  | 'maxWaittimeYn'
+  | 'serviceLevelTime'
+  | 'abandonAcktime'
+  | 'overflowQid'
+  | 'serviceLevelTargetYn'
+  | 'activateYn'
+  | 'blockYn'
+  | 'reconnPriorityYn'
+  | 'forceTransYn'
+  | 'collectYn';
+
+/** 필드 그룹 정의 (모달 좌측 패널 구성) */
+export interface BulkFieldGroup {
+  groupKey: string;
+  label: string;
+  fields: { key: BulkFieldKey; label: string }[];
+}

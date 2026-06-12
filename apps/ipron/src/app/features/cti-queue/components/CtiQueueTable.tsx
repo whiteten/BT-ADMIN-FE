@@ -2,7 +2,7 @@
  * CTI 큐 목록 ag-Grid 테이블 (단일 그리드, 멤버 없음) — AcdGdnTable 패턴.
  *
  * 컬럼: ☐ | CTIQ ID | [업무그룹] | 그룹DN번호 | 그룹DN이름 | DR노드 | 글로벌여부 |
- *       기본 라우팅그룹 | 활성화 | 블록 | 최대대기 사용 | 최대대기(초) |
+ *       기본 라우팅그룹 | 활성화 | 블록 | 최대대기(초) |
  *       호회수T/O(초) | SL(초) | 큐포기(초) | 정렬순서
  *
  * 행 더블클릭 → 5탭 Drawer (수정). 삭제는 상위 툴바 삭제 버튼 사용. 페이지네이션 없음.
@@ -11,6 +11,7 @@ import { useMemo } from 'react';
 import type { CellStyle, ColDef, ICellRendererParams } from 'ag-grid-community';
 import { AgGridReact } from 'ag-grid-react';
 import { GripVertical } from 'lucide-react';
+import { BOOL_OX_LABEL } from '../../dn/utils/dnEnums';
 import type { CtiQueueOptionItem, CtiQueueResponse } from '../types';
 import useAggridOptions from '@/libs/shared-ui/src/hooks/useAggridOptions';
 
@@ -107,7 +108,7 @@ export default function CtiQueueTable({ rowData, isLoading, groupOptions = [], g
         hide: !groupView,
         cellRenderer: (p: ICellRendererParams<CtiQueueResponse>) => {
           const v = p.data?.treeName;
-          if (!v) return <span className="text-red-500 text-xs">미배정</span>;
+          if (!v) return <span className="text-gray-400 text-xs">미배정</span>;
           return <span className="text-gray-800">{v}</span>;
         },
       },
@@ -133,14 +134,16 @@ export default function CtiQueueTable({ rowData, isLoading, groupOptions = [], g
         minWidth: 110,
         maxWidth: 120,
         cellStyle: { textAlign: 'center' } as CellStyle,
-        cellRenderer: (p: ICellRendererParams<CtiQueueResponse>) =>
-          p.value === 1 ? (
-            <span className="inline-flex items-center justify-center h-[20px] px-1.5 leading-none rounded font-medium border text-green-700 bg-green-50 border-green-200">
-              O (Global)
-            </span>
+        cellRenderer: (p: ICellRendererParams<CtiQueueResponse>) => {
+          const label = BOOL_OX_LABEL(p.value);
+          return label === 'O' ? (
+            <span className="inline-flex items-center justify-center h-[20px] px-1.5 leading-none rounded font-medium border text-green-700 bg-green-50 border-green-200">O</span>
           ) : (
-            <span className="inline-flex items-center justify-center h-[20px] px-1.5 leading-none rounded font-medium border text-gray-400 bg-gray-50 border-gray-200">X</span>
-          ),
+            <span className="inline-flex items-center justify-center h-[20px] px-1.5 leading-none rounded font-medium border text-gray-400 bg-gray-50 border-gray-200">
+              {label}
+            </span>
+          );
+        },
       },
       {
         headerName: '기본 라우팅그룹',
@@ -166,13 +169,6 @@ export default function CtiQueueTable({ rowData, isLoading, groupOptions = [], g
         cellStyle: { textAlign: 'center' } as CellStyle,
         cellRenderer: (p: ICellRendererParams<CtiQueueResponse>) => <StatePill value={p.data?.blockYn ?? null} onText="설정" offText="해제" tone="amber" />,
       },
-      {
-        headerName: '최대대기 사용',
-        field: 'maxWaittimeYn',
-        minWidth: 116,
-        cellStyle: { textAlign: 'center' } as CellStyle,
-        cellRenderer: (p: ICellRendererParams<CtiQueueResponse>) => <StatePill value={p.data?.maxWaittimeYn ?? null} onText="Y" offText="N" tone="blue" />,
-      },
       { headerName: '최대대기(초)', field: 'maxWaittime', minWidth: 110, cellStyle: { textAlign: 'right' } as CellStyle, valueFormatter: (p) => num(p.value) },
       { headerName: '호회수T/O(초)', field: 'collectTimeout', minWidth: 124, cellStyle: { textAlign: 'right' } as CellStyle, valueFormatter: (p) => num(p.value) },
       { headerName: 'SL(초)', field: 'serviceLevelTime', minWidth: 84, cellStyle: { textAlign: 'right' } as CellStyle, valueFormatter: (p) => num(p.value) },
@@ -182,17 +178,19 @@ export default function CtiQueueTable({ rowData, isLoading, groupOptions = [], g
     [groupView, groupNameById, getDragCtiqIds],
   );
 
+  const rowSelection = useMemo(() => ({ mode: 'multiRow' as const, checkboxes: true, headerCheckbox: true, enableClickSelection: true, enableSelectionWithoutKeys: true }), []);
+
   return (
     <AgGridReact<CtiQueueResponse>
       rowData={rowData}
       columnDefs={columnDefs}
       defaultColDef={defaultColDef}
+      rowSelection={rowSelection}
       gridOptions={{
         ...gridOptions,
         statusBar: undefined,
         pagination: false,
         sideBar: false,
-        rowSelection: { mode: 'multiRow', checkboxes: true, headerCheckbox: true, enableClickSelection: false },
       }}
       loading={isLoading}
       onRowDoubleClicked={(e) => e.data && onRowDoubleClicked(e.data)}

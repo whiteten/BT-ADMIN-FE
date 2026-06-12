@@ -28,6 +28,8 @@
 import ApiClient, { type ApiResponse } from '@/shared-util';
 import type {
   AccessCodeProfileOption,
+  CtiQueueBulkResult,
+  CtiQueueBulkUpdateRequest,
   CtiQueueCreateRequest,
   CtiQueueGroupCreateRequest,
   CtiQueueGroupResponse,
@@ -91,6 +93,16 @@ export const ctiQueueApi = {
 
   delete: async (ctiqId: number): Promise<void> => {
     await apiClient.delete('/ipron-cti-queue-delete', { params: { ctiqId } });
+  },
+
+  /**
+   * 일괄 설정 (Bulk Update) — P1.
+   * BE: PUT /api/ipron/cti-queues/bulk-update (field mask 기반, 207 부분 성공).
+   * BFF: ipron-cti-queue-bulk-update flow 경유.
+   */
+  bulkUpdate: async (body: CtiQueueBulkUpdateRequest): Promise<CtiQueueBulkResult> => {
+    const res = await apiClient.put<ApiResponse<CtiQueueBulkResult>>('/ipron-cti-queue-bulk-update', body);
+    return res.data?.data;
   },
 
   // ─── 콤보 옵션 ──────────────────────────────────────────────────────────────
