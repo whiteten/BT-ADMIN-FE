@@ -9,20 +9,20 @@ import { Tag } from 'antd';
 import dayjs from 'dayjs';
 import { OctagonAlert } from 'lucide-react';
 import { useGetDeployedSystems } from '../hooks/useScenarioQueries';
-import type { DeployedSystem, ScenarioVersion } from '../types';
+import { APPLY_STATUS, type ApplyStatus, type DeployedSystem, type ScenarioVersion } from '../types';
 
 interface VersionDetailToolPanelParams {
   serviceId: number;
 }
 
-const APPLY_STATUS_LABELS: Record<string, string> = {
-  PENDING: '대기',
-  SEND_OK: '전송완료',
-  SEND_FAIL: '전송실패',
-  CMD_OK: '명령완료',
-  CMD_FAIL: '명령실패',
-  APPLIED: '적용완료',
-  APPLY_FAIL: '적용실패',
+const APPLY_STATUS_LABELS: Record<number, string> = {
+  [APPLY_STATUS.PENDING]: '대기',
+  [APPLY_STATUS.SEND_OK]: '전송완료',
+  [APPLY_STATUS.SEND_FAIL]: '전송실패',
+  [APPLY_STATUS.CMD_OK]: '명령완료',
+  [APPLY_STATUS.CMD_FAIL]: '명령실패',
+  [APPLY_STATUS.APPLIED]: '적용완료',
+  [APPLY_STATUS.APPLY_FAIL]: '적용실패',
 };
 
 function AggridVersionDetailSidebar(props: CustomToolPanelProps<ScenarioVersion> & VersionDetailToolPanelParams) {
@@ -65,8 +65,14 @@ function AggridVersionDetailSidebar(props: CustomToolPanelProps<ScenarioVersion>
     if (!selectedRowData) return null;
     const v = selectedRowData;
 
-    const statusColor = (s?: string | null) =>
-      s === 'APPLIED' ? 'green' : s === 'SEND_FAIL' || s === 'CMD_FAIL' || s === 'APPLY_FAIL' ? 'red' : s === 'PENDING' || s === 'SEND_OK' || s === 'CMD_OK' ? 'blue' : 'default';
+    const statusColor = (s?: ApplyStatus | null) =>
+      s === APPLY_STATUS.APPLIED
+        ? 'green'
+        : s === APPLY_STATUS.SEND_FAIL || s === APPLY_STATUS.CMD_FAIL || s === APPLY_STATUS.APPLY_FAIL
+          ? 'red'
+          : s === APPLY_STATUS.PENDING || s === APPLY_STATUS.SEND_OK || s === APPLY_STATUS.CMD_OK
+            ? 'blue'
+            : 'default';
 
     return (
       <div className="flex flex-col gap-3">

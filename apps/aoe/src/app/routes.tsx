@@ -24,6 +24,7 @@ const McpList = React.lazy(() => import('./pages/agent-config/McpList'));
 const McpCreate = React.lazy(() => import('./pages/agent-config/McpCreate'));
 const McpDetail = React.lazy(() => import('./pages/agent-config/McpDetail'));
 const MonitoringDashboard = React.lazy(() => import('./pages/monitoring/MonitoringDashboard'));
+const Chat = React.lazy(() => import('./pages/analysis/Chat'));
 
 // 변형 소켓 — path 인자는 화면 식별 키(라우트 경로 그대로, 동적 세그먼트 포함)
 const pv = createPageVariantSocket('aoe');
@@ -112,6 +113,14 @@ export const routes = [
         children: [
           { index: true, element: <Navigate to="agent" replace /> },
           { path: 'agent', element: pv('monitoring/agent', MonitoringDashboard) },
+        ],
+      },
+      {
+        path: 'analysis',
+        element: <Outlet />,
+        children: [
+          { index: true, element: <Navigate to="chat" replace /> },
+          { path: 'chat', element: <Chat /> },
         ],
       },
     ],

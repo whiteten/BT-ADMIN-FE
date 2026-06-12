@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { useQueryClient } from '@tanstack/react-query';
 import { Button, Input, Tag } from 'antd';
 import { Edit2, Plus, Trash2 } from 'lucide-react';
-import { useBreadcrumbStore } from '@/shared-store';
+import { useAuthStore, useBreadcrumbStore } from '@/shared-store';
 import { toast } from '@/shared-util';
 import { datasetKeys, useDeleteDataset, useGetDatasets } from '../../features/dataset/hooks/useDatasetQueries';
 import type { DatasetListItem } from '../../features/dataset/types';
@@ -180,6 +180,9 @@ export default function StatDatasetList() {
 
 function DatasetCard({ ds, onOpen, onDelete }: { ds: DatasetListItem; onOpen: () => void; onDelete: () => void }) {
   const units: string[] = Array.isArray(ds.availableUnits) ? ds.availableUnits : [];
+  // 시스템 데이터셋은 시스템 관리자만 삭제 가능 (일반 사용자 readonly)
+  const isSystemAdmin = useAuthStore((s) => s.userInfo?.isSystemAdmin ?? false);
+  const canDelete = !ds.isSystem || isSystemAdmin;
 
   // 액션 버튼은 카드 클릭(상세 이동)으로 전파되지 않도록 막는다.
   const stop = (handler: () => void) => (e: React.MouseEvent) => {
@@ -226,7 +229,7 @@ function DatasetCard({ ds, onOpen, onDelete }: { ds: DatasetListItem; onOpen: ()
           >
             <Edit2 className="size-3.5" />
           </button>
-          {!ds.isSystem && (
+          {canDelete && (
             <button type="button" onClick={stop(onDelete)} className="rounded p-1 text-red-400 hover:bg-red-50 hover:text-red-600 transition-colors" title="삭제">
               <Trash2 className="size-3.5" />
             </button>

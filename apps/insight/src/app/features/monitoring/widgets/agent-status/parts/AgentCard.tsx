@@ -80,13 +80,12 @@ function AgentCardImpl({ row, nowMs, thresholds, onActivate, compact = false }: 
             <span className="truncate text-[14px] font-bold text-slate-900">{name}</span>
             {!compact && dn && <span className="font-mono text-[11px] text-slate-400 tabular-nums">{dn}</span>}
             {!compact && mosMeta && mosDisplay && (
-              <span
-                className="inline-flex shrink-0 items-center gap-1 rounded-full bg-slate-50 px-1.5 py-0.5 border border-slate-100"
-                title={`MoS ${mosDisplay} · ${mosMeta.label}`}
-              >
-                <span className={`h-1.5 w-1.5 rounded-full ${mosMeta.dotBg}`} />
-                <span className={`font-mono text-[9px] font-bold tabular-nums ${mosMeta.text}`}>{mosDisplay}</span>
-              </span>
+              <Tooltip title={`MoS ${mosDisplay} · ${mosMeta.label} (${mosMeta.range})`} placement="top">
+                <span className="inline-flex shrink-0 cursor-help items-center gap-1 rounded-full bg-slate-50 px-1.5 py-0.5 border border-slate-100">
+                  <span className={`h-1.5 w-1.5 rounded-full ${mosMeta.dotBg}`} />
+                  <span className={`font-mono text-[9px] font-bold tabular-nums ${mosMeta.text}`}>{mosDisplay}</span>
+                </span>
+              </Tooltip>
             )}
           </div>
         </div>

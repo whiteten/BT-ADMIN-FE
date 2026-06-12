@@ -26,6 +26,8 @@ export interface ResourceStat {
 export interface NodeModule {
   /** CLASS_CD (모듈 코드) */
   code: string;
+  /** SYS_CLASS_NAME — BE 가 TB_CC_SYSTEMCLASS 로 enrich(NAME). 없으면 code 로 폴백. */
+  name?: string;
   status: NodeStatus;
   /** CLASS_ITEMS.IS_ACTIVE — 이중화 역할. true: Active / false: Standby. (이중화는 모듈 단위) */
   isActive: boolean;
@@ -44,14 +46,8 @@ export interface SystemNode {
   systemId: string;
   /** SYSTEM_NAME */
   systemName: string;
-  /** 시스템 종합 상태 — CPU/MEM/DISK/PCS 중 가장 나쁜 값 (spec STATUS 정의) */
+  /** 시스템 종합 상태 — CPU/MEM/DISK/PCS 중 가장 나쁜 값 (spec STATUS 정의). 표시는 이 STATUS 만 사용. */
   status: NodeStatus;
-  /**
-   * IS_ACTIVE(04) — 시스템 가동 여부. true: 가동(살아있음) / false: 다운(죽음).
-   * ⚠ 이중화(Active/Standby) 아님 — 이중화는 모듈(CLASS_ITEMS.IS_ACTIVE) 단위.
-   * 다운(false)이면 자원·모듈 값은 무의미(stale)하며 최상위 위험으로 취급.
-   */
-  isAlive: boolean;
   cpu: ResourceStat;
   mem: ResourceStat;
   disk: ResourceStat;
