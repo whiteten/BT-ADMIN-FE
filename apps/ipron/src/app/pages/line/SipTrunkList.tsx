@@ -17,6 +17,7 @@ import { Button, Empty, Input, Select } from 'antd';
 import { ArrowUpDown, Building2, Cable, ChevronLeft, ChevronRight, ChevronsDown, ChevronsUp, LayoutGrid, Network, Plus, Search, Trash2 } from 'lucide-react';
 import { useBreadcrumbStore } from '@/shared-store';
 import { toast } from '@/shared-util';
+import { BOOL_OX_LABEL } from '../../features/dn/utils/dnEnums';
 import { useGetDnProfileNodeTenants, useGetDnProfileNodes } from '../../features/dn-profile/hooks/useDnProfileQueries';
 import SipGdnDrawer, { type SipGdnDrawerRef } from '../../features/sip-trunk/components/SipGdnDrawer';
 import SipTrunkAssignDrawer from '../../features/sip-trunk/components/SipTrunkAssignDrawer';
@@ -322,17 +323,12 @@ export default function SipTrunkList() {
           ),
       },
       {
-        headerName: '글로벌',
+        headerName: '글로벌여부',
         field: 'globalDnYn',
         minWidth: 90,
         maxWidth: 100,
         cellStyle: { textAlign: 'center' } as CellStyle,
-        cellRenderer: (p: ICellRendererParams<SipGdnResponse>) =>
-          p.value === 1 ? (
-            <span className="inline-flex items-center rounded border border-blue-200 bg-blue-50 px-1.5 py-px text-[10px] font-semibold text-blue-700">글로벌</span>
-          ) : (
-            <span className="text-[11px] italic text-gray-400">-</span>
-          ),
+        valueFormatter: (p) => BOOL_OX_LABEL(p.value),
       },
       {
         headerName: 'DR노드',
@@ -371,6 +367,8 @@ export default function SipTrunkList() {
     [],
   );
 
+  const gdnRowSelection = useMemo(() => ({ mode: 'multiRow' as const, checkboxes: true, headerCheckbox: true, enableClickSelection: true, enableSelectionWithoutKeys: true }), []);
+
   const gdnGridOptions = useMemo<GridOptions<SipGdnResponse>>(
     () => ({
       ...baseGridOptions,
@@ -379,7 +377,6 @@ export default function SipTrunkList() {
       pagination: false,
       rowNumbers: false,
       defaultColDef: { sortable: true, filter: false, resizable: true, suppressHeaderMenuButton: true },
-      rowSelection: { mode: 'multiRow', checkboxes: true, headerCheckbox: true, enableClickSelection: false },
       getRowId: ({ data }) => String(data.gdnId),
       onRowClicked: (e) => {
         if (e.data) {
@@ -472,6 +469,11 @@ export default function SipTrunkList() {
     [],
   );
 
+  const trunkRowSelection = useMemo(
+    () => ({ mode: 'multiRow' as const, checkboxes: true, headerCheckbox: true, selectAll: 'filtered' as const, enableClickSelection: true, enableSelectionWithoutKeys: true }),
+    [],
+  );
+
   const trunkGridOptions = useMemo<GridOptions<SipTrunkMemberResponse>>(
     () => ({
       ...baseGridOptions,
@@ -480,7 +482,6 @@ export default function SipTrunkList() {
       pagination: false,
       rowNumbers: false,
       defaultColDef: { sortable: true, filter: false, resizable: true, suppressHeaderMenuButton: true },
-      rowSelection: { mode: 'multiRow', checkboxes: true, headerCheckbox: true, selectAll: 'filtered', enableClickSelection: false },
       getRowId: ({ data }) => String(data.sipTrunkId),
       isExternalFilterPresent: () => assignFilter !== 'all' || kindFilter !== '',
       doesExternalFilterPass: (node) => {
@@ -760,7 +761,7 @@ export default function SipTrunkList() {
               <span className="ml-auto font-normal text-gray-400">총 {gdns.length}건</span>
             </div>
             <div className="ag-theme-quartz min-h-0 flex-1">
-              <AgGridReact<SipGdnResponse> rowData={gdns} columnDefs={gdnColumns} gridOptions={gdnGridOptions} loading={gdnsLoading} />
+              <AgGridReact<SipGdnResponse> rowData={gdns} columnDefs={gdnColumns} gridOptions={gdnGridOptions} rowSelection={gdnRowSelection} loading={gdnsLoading} />
             </div>
           </div>
         </Panel>
@@ -825,7 +826,14 @@ export default function SipTrunkList() {
             </div>
             <div className="ag-theme-quartz min-h-0 flex-1">
               {selectedGdn ? (
-                <AgGridReact<SipTrunkMemberResponse> ref={trunkGridRef} rowData={memberRows} columnDefs={trunkColumns} gridOptions={trunkGridOptions} loading={membersLoading} />
+                <AgGridReact<SipTrunkMemberResponse>
+                  ref={trunkGridRef}
+                  rowData={memberRows}
+                  columnDefs={trunkColumns}
+                  gridOptions={trunkGridOptions}
+                  rowSelection={trunkRowSelection}
+                  loading={membersLoading}
+                />
               ) : (
                 <div className="flex h-full flex-col items-center justify-center gap-2 text-gray-400">
                   <Cable className="size-10 text-gray-200" />
@@ -838,31 +846,32 @@ export default function SipTrunkList() {
         </Panel>
       </PanelGroup>
 
-      {/* floating bulk-bar */}
-      {selectedGdn && selectedTrunks.length > 0 && (
-        <div className="fixed bottom-5 left-1/2 z-50 flex -translate-x-1/2 items-center gap-3 rounded-xl bg-slate-700/90 px-4 py-2.5 text-sm text-[#e2e8f0] shadow-xl">
-          <span className="flex items-center gap-1.5">
-            <LayoutGrid className="size-3.5" />
-            <span className="text-xs text-[#94a3b8]">그룹DN</span>
-            <span className="min-w-[28px] rounded-full bg-[#405189] px-2 py-0.5 text-center font-bold">1</span>
-          </span>
-          <span className="text-[#94a3b8]">×</span>
-          <span className="flex items-center gap-1.5">
-            <Cable className="size-3.5" />
-            <span className="text-xs text-[#94a3b8]">트렁크</span>
-            <span className="min-w-[28px] rounded-full bg-[#405189] px-2 py-0.5 text-center font-bold">{selectedTrunks.length}</span>
-          </span>
-          <Button type="primary" icon={<Plus className="size-3.5" />} onClick={() => setAssignDrawerOpen(true)}>
-            배정 (우선순위·채널수 입력)
-          </Button>
-          <Button danger icon={<Trash2 className="size-3.5" />} onClick={handleRevoke}>
-            해제
-          </Button>
-          <Button type="text" onClick={clearSelection} className="!text-[#94a3b8] hover:!text-[#e2e8f0]">
-            선택 해제
-          </Button>
-        </div>
-      )}
+      {/* floating bulk-bar — 항상 렌더, 선택 없을 때 버튼 disabled */}
+      <div
+        className="fixed bottom-5 left-1/2 z-50 flex -translate-x-1/2 items-center gap-3 rounded-xl bg-slate-700/90 px-4 py-2.5 text-sm text-[#e2e8f0] shadow-xl"
+        style={{ opacity: selectedGdn && selectedTrunks.length > 0 ? 1 : 0.38, pointerEvents: selectedGdn && selectedTrunks.length > 0 ? 'auto' : 'none' }}
+      >
+        <span className="flex items-center gap-1.5">
+          <LayoutGrid className="size-3.5" />
+          <span className="text-xs text-[#94a3b8]">그룹DN</span>
+          <span className="min-w-[28px] rounded-full bg-[#405189] px-2 py-0.5 text-center font-bold">1</span>
+        </span>
+        <span className="text-[#94a3b8]">×</span>
+        <span className="flex items-center gap-1.5">
+          <Cable className="size-3.5" />
+          <span className="text-xs text-[#94a3b8]">트렁크</span>
+          <span className="min-w-[28px] rounded-full bg-[#405189] px-2 py-0.5 text-center font-bold">{selectedTrunks.length}</span>
+        </span>
+        <Button type="primary" icon={<Plus className="size-3.5" />} disabled={!selectedGdn || selectedTrunks.length === 0} onClick={() => setAssignDrawerOpen(true)}>
+          배정 (우선순위·채널수 입력)
+        </Button>
+        <Button danger icon={<Trash2 className="size-3.5" />} disabled={!selectedGdn || selectedTrunks.length === 0} onClick={handleRevoke}>
+          해제
+        </Button>
+        <Button type="text" disabled={selectedTrunks.length === 0} onClick={clearSelection} className="!text-[#94a3b8] hover:!text-[#e2e8f0]">
+          선택 해제
+        </Button>
+      </div>
 
       {/* Drawers */}
       <SipGdnDrawer ref={gdnDrawerRef} nodeId={selectedNodeId} tenantId={selectedTenantId} drNodeOptions={drNodeOptions} />

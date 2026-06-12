@@ -115,7 +115,7 @@ export default function SkillsetTable({
         tooltipField: 'treeName',
         cellRenderer: (p: ICellRendererParams<SkillsetResponse>) => {
           const v = p.data?.treeName;
-          if (!v) return <span className="text-red-500 text-xs">미배정</span>;
+          if (!v) return <span className="text-gray-400 text-xs">미배정</span>;
           return <span className="text-gray-800">{v}</span>;
         },
       },
@@ -206,17 +206,19 @@ export default function SkillsetTable({
     [onDelete, onManageSchedule, onBulkDelete, selectedCount, getDragSkillsetIds, showTenantColumn],
   );
 
+  const rowSelection = useMemo(() => ({ mode: 'multiRow' as const, checkboxes: true, headerCheckbox: true, enableClickSelection: true, enableSelectionWithoutKeys: true }), []);
+
   return (
     <AgGridReact<SkillsetResponse>
       rowData={rowData}
       columnDefs={columnDefs}
       defaultColDef={defaultColDef}
+      rowSelection={rowSelection}
       gridOptions={{
         ...gridOptions,
         statusBar: undefined,
         pagination: false,
         sideBar: false,
-        rowSelection: { mode: 'multiRow', checkboxes: true, headerCheckbox: true, enableClickSelection: false },
       }}
       loading={isLoading}
       onRowDoubleClicked={(e) => e.data && onRowDoubleClicked(e.data)}

@@ -7,7 +7,7 @@
  * 배정 해제는 상단 일괄 버튼만 사용. 미배정 행은 주황 배경으로 식별.
  */
 import { useMemo } from 'react';
-import type { CellStyle, ColDef, ICellRendererParams } from 'ag-grid-community';
+import type { CellStyle, ColDef, ICellRendererParams, RowSelectionOptions } from 'ag-grid-community';
 import { AgGridReact } from 'ag-grid-react';
 import type { AgentAdnRowResponse } from '../types';
 import useAggridOptions from '@/libs/shared-ui/src/hooks/useAggridOptions';
@@ -22,6 +22,11 @@ export default function AgentAdnTable({ rowData, isLoading, onSelectionChanged }
   const { gridOptions } = useAggridOptions();
 
   const defaultColDef: ColDef = useMemo(() => ({ sortable: true, filter: false, resizable: true, suppressHeaderMenuButton: true }), []);
+
+  const rowSelection = useMemo<RowSelectionOptions>(
+    () => ({ mode: 'multiRow', checkboxes: true, headerCheckbox: true, enableClickSelection: true, enableSelectionWithoutKeys: true }),
+    [],
+  );
 
   const columnDefs: ColDef<AgentAdnRowResponse>[] = useMemo(
     () => [
@@ -102,9 +107,9 @@ export default function AgentAdnTable({ rowData, isLoading, onSelectionChanged }
         statusBar: undefined,
         pagination: false,
         sideBar: false,
-        rowSelection: { mode: 'multiRow', checkboxes: true, headerCheckbox: true, enableClickSelection: true },
         getRowClass: (params) => (params.data?.mappingStatus === 'UNASSIGNED' ? 'bg-orange-50/40' : ''),
       }}
+      rowSelection={rowSelection}
       loading={isLoading}
       onSelectionChanged={(e) => onSelectionChanged?.(e.api.getSelectedRows())}
     />

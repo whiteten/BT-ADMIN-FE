@@ -354,8 +354,11 @@ export default function DodTransList() {
     },
   ];
 
-  // ─── Row selection (v33 방식) ─────────────────────────────────────────────
-  const itemRowSelection = useMemo<RowSelectionOptions>(() => ({ mode: 'multiRow', checkboxes: true, headerCheckbox: true, enableClickSelection: false }), []);
+  // ─── Row selection ────────────────────────────────────────────────────────
+  const itemRowSelection = useMemo<RowSelectionOptions>(
+    () => ({ mode: 'multiRow', checkboxes: true, headerCheckbox: true, enableClickSelection: true, enableSelectionWithoutKeys: true }),
+    [],
+  );
 
   // ─── ag-Grid Column Defs ──────────────────────────────────────────────────
   const columnDefs: ColDef<DodTransItem>[] = useMemo(

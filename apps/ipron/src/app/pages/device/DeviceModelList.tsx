@@ -156,6 +156,9 @@ export default function DeviceModelList() {
     [],
   );
 
+  // ag-Grid 34: rowSelection 은 gridOptions 밖 직접 prop 으로 (초기 마운트 1회 제한 우회)
+  const rowSelection = useMemo(() => ({ mode: 'multiRow' as const, checkboxes: true, headerCheckbox: true, enableClickSelection: true, enableSelectionWithoutKeys: true }), []);
+
   const onGridReady = useCallback((params: GridReadyEvent) => {
     params.api.sizeColumnsToFit();
   }, []);
@@ -207,8 +210,8 @@ export default function DeviceModelList() {
                 pagination: false,
                 statusBar: undefined,
                 sideBar: false,
-                rowSelection: { mode: 'multiRow', checkboxes: true, headerCheckbox: true, enableClickSelection: false },
               }}
+              rowSelection={rowSelection}
               onSelectionChanged={(e) => setSelectedRows(e.api.getSelectedRows())}
               onGridReady={onGridReady}
               onRowDoubleClicked={(e) => e.data && handleEdit(e.data)}

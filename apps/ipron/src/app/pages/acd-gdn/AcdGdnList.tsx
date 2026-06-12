@@ -29,6 +29,7 @@ import AcdGdnMemberGrid from '../../features/acd-gdn/components/AcdGdnMemberGrid
 import AcdGdnTenantCard from '../../features/acd-gdn/components/AcdGdnTenantCard';
 import { useDeleteAcdGdns, useGetAcdGdnMembersPool, useGetAcdGdns, useSaveAcdGdnMembers } from '../../features/acd-gdn/hooks/useAcdGdnQueries';
 import { ACD_TYPE_OPTIONS, type GdnMemberItem, type GdnMemberPoolParams, type GdnMemberResponse, type GdnResponse, getAcdTypeName, getYnName } from '../../features/acd-gdn/types';
+import { BOOL_OX_LABEL } from '../../features/dn/utils/dnEnums';
 import { useGetDnProfileNodeTenants, useGetDnProfileNodes, useGetDnProfileTenants } from '../../features/dn-profile/hooks/useDnProfileQueries';
 import useAggridOptions from '@/libs/shared-ui/src/hooks/useAggridOptions';
 import { useModal } from '@/libs/shared-ui/src/hooks/useModal';
@@ -354,17 +355,14 @@ export default function AcdGdnList() {
         tooltipField: 'backUpNodeName',
       },
       {
-        headerName: '글로벌',
+        headerName: '글로벌여부',
         field: 'globalDnYn',
-        width: 80,
+        minWidth: 90,
+        maxWidth: 100,
         filter: false,
         suppressHeaderMenuButton: true,
-        cellRenderer: (p: ICellRendererParams<GdnResponse>) =>
-          p.data?.globalDnYn === 1 ? (
-            <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-semibold text-amber-700 bg-amber-100">전노드</span>
-          ) : (
-            <span className="text-gray-400 text-[11px]">-</span>
-          ),
+        cellStyle: { textAlign: 'center' },
+        valueFormatter: (p) => BOOL_OX_LABEL(p.value),
       },
       { headerName: 'ACD타입', field: 'acdType', width: 140, valueFormatter: (p) => getAcdTypeName(p.value) },
       {
@@ -447,11 +445,13 @@ export default function AcdGdnList() {
       pagination: false,
       sideBar: false,
       rowNumbers: false,
-      rowSelection: { mode: 'singleRow', checkboxes: false, enableClickSelection: true },
       defaultColDef: { sortable: true, filter: false, resizable: true, suppressHeaderMenuButton: true },
     }),
     [gridOptions],
   );
+
+  // ag-Grid 34: rowSelection 은 gridOptions 밖 직접 prop — 의도적 단일선택(행=우측 패널 갱신, 벌크 없음)
+  const gdnRowSelection = useMemo(() => ({ mode: 'singleRow' as const, checkboxes: false, enableClickSelection: true }), []);
 
   const handleGdnSelectionChanged = useCallback((rows: GdnResponse[]) => {
     const row = rows.length > 0 ? rows[0] : null;
@@ -658,6 +658,7 @@ export default function AcdGdnList() {
                 rowData={gdnsForGrid}
                 columnDefs={gdnColumnDefs}
                 gridOptions={gdnGridOptions}
+                rowSelection={gdnRowSelection}
                 loading={isGdnsLoading}
                 getRowId={(p) => String(p.data.gdnId)}
                 onSelectionChanged={(e) => handleGdnSelectionChanged(e.api.getSelectedRows())}
@@ -739,13 +740,16 @@ export default function AcdGdnList() {
         </Panel>
       </PanelGroup>
 
-      {/* ===== floating Bulk Action Bar ===== */}
+      {/* ===== floating Bulk Action Bar (항상 렌더 — 선택 없으면 버튼 disabled + opacity 0.38) ===== */}
       <div
-        className={`fixed bottom-5 left-1/2 -translate-x-1/2 z-50 bg-slate-700/90 text-[#e2e8f0] rounded-xl shadow-xl flex items-center gap-3 px-4 py-2.5 text-sm transition-opacity ${selectedGdn && selectedMembers.length > 0 ? 'opacity-100' : 'opacity-0 pointer-events-none'}`}
+        className="fixed bottom-5 left-1/2 -translate-x-1/2 z-50 rounded-xl shadow-xl flex items-center gap-3 px-4 py-2.5 text-sm"
+        style={{ backgroundColor: 'rgba(51,65,85,0.9)' }}
       >
         <span className="flex items-center gap-1.5">
           <span className="text-[#e2e8f0] text-xs">DN</span>
-          <span className="bg-[#405189] px-2 py-0.5 rounded-full font-bold min-w-[24px] text-center">{selectedMembers.length}</span>
+          <span className={`px-2 py-0.5 rounded-full font-bold min-w-[24px] text-center text-white ${selectedMembers.length > 0 ? 'bg-[#405189]' : 'bg-slate-600'}`}>
+            {selectedMembers.length}
+          </span>
           <span className="text-[#e2e8f0] text-xs">건 선택됨</span>
         </span>
         <span className="text-[#94a3b8]">·</span>
@@ -754,15 +758,28 @@ export default function AcdGdnList() {
           icon={<Plus className="size-3.5" />}
           onClick={handleAssign}
           loading={isSavingMembers}
-          disabled={unassignedSelCount === 0}
-          style={{ backgroundColor: 'var(--color-bt-primary)', borderColor: 'var(--color-bt-primary)' }}
+          disabled={!selectedGdn || unassignedSelCount === 0}
+          style={{ opacity: selectedGdn && unassignedSelCount > 0 ? 1 : 0.38 }}
         >
           배정
         </Button>
-        <Button danger icon={<X className="size-3.5" />} onClick={handleRevoke} loading={isSavingMembers} disabled={assignedSelCount === 0}>
+        <Button
+          danger
+          icon={<X className="size-3.5" />}
+          onClick={handleRevoke}
+          loading={isSavingMembers}
+          disabled={!selectedGdn || assignedSelCount === 0}
+          style={{ opacity: selectedGdn && assignedSelCount > 0 ? 1 : 0.38 }}
+        >
           해제
         </Button>
-        <Button type="text" onClick={() => setSelectedMembers([])} className="!text-[#94a3b8] hover:!text-[#e2e8f0]">
+        <Button
+          type="text"
+          onClick={() => setSelectedMembers([])}
+          disabled={selectedMembers.length === 0}
+          style={{ color: '#e2e8f0', opacity: selectedMembers.length > 0 ? 1 : 0.38 }}
+          className="hover:!text-white"
+        >
           선택 해제
         </Button>
       </div>

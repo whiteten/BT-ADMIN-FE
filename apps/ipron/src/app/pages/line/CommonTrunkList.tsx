@@ -39,6 +39,7 @@ import {
   type CommonTrunkResponse,
   getTrunkKindName,
 } from '../../features/common-trunk/types';
+import { BOOL_OX_LABEL } from '../../features/dn/utils/dnEnums';
 import { useGetDnProfileNodes } from '../../features/dn-profile/hooks/useDnProfileQueries';
 import useAggridOptions from '@/libs/shared-ui/src/hooks/useAggridOptions';
 
@@ -176,6 +177,11 @@ export default function CommonTrunkList() {
   // 종류 필터용 — sipTrunkId → 종류(kind) 매핑 (멤버에는 kind 없음 → 마스터 join)
   const trunkKindMap = useMemo(() => new Map(trunks.map((t) => [t.sipTrunkId, t.sipTrunkKind])), [trunks]);
 
+  const trunkRowSelection = useMemo(
+    () => ({ mode: 'multiRow' as const, checkboxes: true, headerCheckbox: true, enableClickSelection: true, enableSelectionWithoutKeys: true }),
+    [],
+  );
+
   // ─── 외부 필터 (배정상태 세그먼트 + 종류) — 멤버 기준 ─────────────────
   const trunkGridOptions = useMemo<GridOptions<CommonTrunkMemberResponse>>(
     () => ({
@@ -184,7 +190,6 @@ export default function CommonTrunkList() {
       sideBar: false,
       pagination: false,
       rowNumbers: false,
-      rowSelection: { mode: 'multiRow', checkboxes: true, headerCheckbox: true, enableClickSelection: false },
       defaultColDef: { resizable: true, sortable: true, filter: false, suppressHeaderMenuButton: true },
       getRowId: ({ data }) => String(data.sipTrunkId),
       isExternalFilterPresent: () => assignFilter !== 'all' || kindFilter !== '',
@@ -246,11 +251,11 @@ export default function CommonTrunkList() {
       { field: 'gdnName', headerName: '그룹DN 이름', flex: 1, minWidth: 130, tooltipField: 'gdnName' },
       {
         field: 'globalDnYn',
-        headerName: '글로벌',
+        headerName: '글로벌여부',
         minWidth: 90,
         maxWidth: 100,
         cellStyle: { textAlign: 'center' } as CellStyle,
-        cellRenderer: (p: { value: number }) => (p.value === 1 ? <Tag color="blue">글로벌</Tag> : <span className="text-gray-400">-</span>),
+        valueFormatter: (p) => BOOL_OX_LABEL(p.value),
       },
       {
         field: 'backUpNodeName',
@@ -617,6 +622,7 @@ export default function CommonTrunkList() {
                   rowData={members}
                   columnDefs={trunkColumns}
                   gridOptions={trunkGridOptions}
+                  rowSelection={trunkRowSelection}
                   quickFilterText={trunkQuickFilter}
                   loading={membersLoading}
                 />
@@ -632,46 +638,44 @@ export default function CommonTrunkList() {
         </Panel>
       </PanelGroup>
 
-      {/* ===== Bulk Action Bar ===== */}
-      {showBulkBar && (
-        <div
-          className="fixed bottom-5 left-1/2 -translate-x-1/2 z-50 bg-slate-700/90 rounded-xl shadow-xl flex items-center gap-3 px-4 py-2.5 text-[12.5px]"
-          style={{ color: '#e2e8f0' }}
-        >
-          <span className="flex items-center gap-1.5">
-            <Network className="size-3" style={{ color: '#94a3b8' }} />
-            <span className="text-xs" style={{ color: '#94a3b8' }}>
-              그룹DN
-            </span>
-            <span className="bg-[#405189] px-2 py-0.5 rounded-full font-bold min-w-[22px] text-center" style={{ color: '#e2e8f0' }}>
-              {selectedGdn?.gdnNo}
-            </span>
+      {/* ===== Bulk Action Bar — 항상 렌더, 선택 없을 때 버튼 disabled ===== */}
+      <div
+        className="fixed bottom-5 left-1/2 -translate-x-1/2 z-50 bg-slate-700/90 rounded-xl shadow-xl flex items-center gap-3 px-4 py-2.5 text-sm text-[#e2e8f0]"
+        style={{ opacity: showBulkBar ? 1 : 0.38, pointerEvents: showBulkBar ? 'auto' : 'none' }}
+      >
+        <span className="flex items-center gap-1.5">
+          <Network className="size-3" style={{ color: '#94a3b8' }} />
+          <span className="text-xs" style={{ color: '#94a3b8' }}>
+            그룹DN
           </span>
-          <span className="text-sm" style={{ color: '#94a3b8' }}>
-            ↔
+          <span className="bg-[#405189] px-2 py-0.5 rounded-full font-bold min-w-[22px] text-center" style={{ color: '#e2e8f0' }}>
+            {selectedGdn?.gdnNo ?? '-'}
           </span>
-          <span className="flex items-center gap-1.5">
-            <span className="text-xs" style={{ color: '#94a3b8' }}>
-              트렁크
-            </span>
-            <span className="bg-[#405189] px-2 py-0.5 rounded-full font-bold min-w-[22px] text-center" style={{ color: '#e2e8f0' }}>
-              {selectedTrunks.length}건
-            </span>
+        </span>
+        <span className="text-sm" style={{ color: '#94a3b8' }}>
+          ↔
+        </span>
+        <span className="flex items-center gap-1.5">
+          <span className="text-xs" style={{ color: '#94a3b8' }}>
+            트렁크
           </span>
-          <span className="mx-1" style={{ color: '#64748b' }}>
-            ·
+          <span className="bg-[#405189] px-2 py-0.5 rounded-full font-bold min-w-[22px] text-center" style={{ color: '#e2e8f0' }}>
+            {selectedTrunks.length}건
           </span>
-          <Button size="small" type="primary" icon={<Plus className="size-3" />} onClick={() => setAssignDrawerOpen(true)}>
-            배정
-          </Button>
-          <Button size="small" danger icon={<Trash2 className="size-3" />} onClick={handleRevoke}>
-            해제
-          </Button>
-          <Button size="small" type="text" style={{ color: '#94a3b8' }} onClick={clearBulkSel}>
-            선택 해제
-          </Button>
-        </div>
-      )}
+        </span>
+        <span className="mx-1" style={{ color: '#64748b' }}>
+          ·
+        </span>
+        <Button size="small" type="primary" icon={<Plus className="size-3" />} disabled={!showBulkBar} onClick={() => setAssignDrawerOpen(true)}>
+          배정
+        </Button>
+        <Button size="small" danger icon={<Trash2 className="size-3" />} disabled={!showBulkBar} onClick={handleRevoke}>
+          해제
+        </Button>
+        <Button size="small" type="text" style={{ color: '#94a3b8' }} disabled={!showBulkBar} onClick={clearBulkSel}>
+          선택 해제
+        </Button>
+      </div>
 
       {/* ===== Drawers ===== */}
       <CommonGdnFormDrawer

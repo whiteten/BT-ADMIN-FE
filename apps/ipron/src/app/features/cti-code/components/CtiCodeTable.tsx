@@ -30,17 +30,19 @@ export default function CtiCodeTable({ rowData, isLoading, onRowDoubleClicked, o
     [showTenantColumn],
   );
 
+  const rowSelection = useMemo(() => ({ mode: 'multiRow' as const, checkboxes: true, headerCheckbox: true, enableClickSelection: true, enableSelectionWithoutKeys: true }), []);
+
   return (
     <AgGridReact<ReasonCodeResponse>
       rowData={rowData}
       columnDefs={colDefs}
       defaultColDef={defaultColDef}
+      rowSelection={rowSelection}
       gridOptions={{
         ...gridOptions,
         statusBar: undefined,
         pagination: false,
         sideBar: false,
-        rowSelection: { mode: 'multiRow', checkboxes: true, headerCheckbox: true },
       }}
       loading={isLoading}
       onRowDoubleClicked={(e) => e.data && onRowDoubleClicked(e.data)}

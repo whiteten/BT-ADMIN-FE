@@ -337,8 +337,8 @@ export default function PreNumTransList() {
                 statusBar: undefined,
                 pagination: false,
                 sideBar: false,
-                rowSelection: { mode: 'multiRow', checkboxes: true, headerCheckbox: true, enableClickSelection: false },
               }}
+              rowSelection={{ mode: 'multiRow', checkboxes: true, headerCheckbox: true, enableClickSelection: true, enableSelectionWithoutKeys: true }}
               loading={isLoading}
               getRowId={(params) => String(params.data.preTransId)}
               defaultColDef={{ filter: false, sortable: true, suppressHeaderMenuButton: true }}

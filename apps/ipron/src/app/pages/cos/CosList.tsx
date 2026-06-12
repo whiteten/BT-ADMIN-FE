@@ -186,6 +186,9 @@ export default function CosList() {
     });
   }, [modal, deleteCosAsync, selectedRows]);
 
+  // ag-Grid 34: rowSelection 은 gridOptions 밖 직접 prop 으로 (초기 마운트 1회 제한 우회)
+  const rowSelection = useMemo(() => ({ mode: 'multiRow' as const, checkboxes: true, headerCheckbox: true, enableClickSelection: true, enableSelectionWithoutKeys: true }), []);
+
   // ─── ag-Grid Column Defs ──────────────────────────────────────────────────
   const columnDefs: ColDef<Cos>[] = useMemo(
     () => [
@@ -334,8 +337,8 @@ export default function CosList() {
                     statusBar: undefined,
                     pagination: false,
                     sideBar: false,
-                    rowSelection: { mode: 'multiRow', checkboxes: true, headerCheckbox: true },
                   }}
+                  rowSelection={rowSelection}
                   loading={isLoading}
                   getRowId={(params) => String(params.data.cosId)}
                   defaultColDef={{ filter: false, sortable: true, suppressHeaderMenuButton: true }}

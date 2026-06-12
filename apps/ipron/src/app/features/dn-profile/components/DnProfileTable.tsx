@@ -10,6 +10,7 @@ import { useMemo } from 'react';
 import type { CellStyle, ColDef, ICellRendererParams, RowSelectionOptions } from 'ag-grid-community';
 import { AgGridReact } from 'ag-grid-react';
 import { ListPlus } from 'lucide-react';
+import { BOOL_OX_LABEL } from '../../dn/utils/dnEnums';
 import type { DnProfile } from '../types';
 import { DN_PROFILE_TYPE_LABELS, NAT_OPTION_LABELS, getRtpLabel } from '../utils/dnProfileEnums';
 import useAggridOptions from '@/libs/shared-ui/src/hooks/useAggridOptions';
@@ -32,6 +33,8 @@ export default function DnProfileTable({ rowData, isLoading, onRowDoubleClicked,
       mode: 'multiRow',
       checkboxes: true,
       headerCheckbox: true,
+      enableClickSelection: true,
+      enableSelectionWithoutKeys: true,
     }),
     [],
   );
@@ -81,7 +84,7 @@ export default function DnProfileTable({ rowData, isLoading, onRowDoubleClicked,
         minWidth: 90,
         maxWidth: 100,
         cellStyle: { textAlign: 'center' } as CellStyle,
-        valueFormatter: (params) => (params.value ? 'O' : 'X'),
+        valueFormatter: (params) => BOOL_OX_LABEL(params.value),
       },
       {
         headerName: '긴급코드',

@@ -530,8 +530,8 @@ export default function RouteList() {
                     statusBar: undefined,
                     pagination: false,
                     sideBar: false,
-                    rowSelection: { mode: 'multiRow', checkboxes: true, headerCheckbox: true, enableClickSelection: false },
                   }}
+                  rowSelection={{ mode: 'multiRow', checkboxes: true, headerCheckbox: true, enableClickSelection: true, enableSelectionWithoutKeys: true }}
                   loading={isPointsLoading}
                   getRowId={(params) => String(params.data.endptId)}
                   defaultColDef={{ filter: false, sortable: true, suppressHeaderMenuButton: true }}

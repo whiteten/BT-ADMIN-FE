@@ -17,6 +17,8 @@ interface Props {
 export default function MediaTypeTable({ rowData, isLoading, onRowDoubleClicked, onSelectionChanged }: Props) {
   const { gridOptions } = useAggridOptions();
 
+  const defaultColDef: ColDef = useMemo(() => ({ sortable: true, filter: false, resizable: true, suppressHeaderMenuButton: true }), []);
+
   const columnDefs: ColDef<MediaTypeResponse>[] = useMemo(
     () => [
       {
@@ -51,16 +53,19 @@ export default function MediaTypeTable({ rowData, isLoading, onRowDoubleClicked,
     [],
   );
 
+  const rowSelection = useMemo(() => ({ mode: 'multiRow' as const, checkboxes: true, headerCheckbox: true, enableClickSelection: true, enableSelectionWithoutKeys: true }), []);
+
   return (
     <AgGridReact<MediaTypeResponse>
       rowData={rowData}
       columnDefs={columnDefs}
+      defaultColDef={defaultColDef}
+      rowSelection={rowSelection}
       gridOptions={{
         ...gridOptions,
         statusBar: undefined,
         pagination: false,
         sideBar: false,
-        rowSelection: { mode: 'multiRow', checkboxes: true, headerCheckbox: true },
       }}
       loading={isLoading}
       onRowDoubleClicked={(e) => e.data && onRowDoubleClicked(e.data)}

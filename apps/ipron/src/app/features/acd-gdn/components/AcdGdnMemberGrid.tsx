@@ -24,6 +24,12 @@ interface AcdGdnMemberGridProps {
 export default function AcdGdnMemberGrid({ rowData, isLoading, onSelectionChanged, onPriorityChanged }: AcdGdnMemberGridProps) {
   const { gridOptions } = useAggridOptions();
 
+  // ag-Grid 34: rowSelection 은 gridOptions 밖 직접 prop 으로 (초기 마운트 1회 제한 우회)
+  const rowSelection = useMemo(
+    () => ({ mode: 'multiRow' as const, checkboxes: true, headerCheckbox: true, selectAll: 'filtered' as const, enableClickSelection: true, enableSelectionWithoutKeys: true }),
+    [],
+  );
+
   const defaultColDef: ColDef = useMemo(() => ({ sortable: true, filter: false, resizable: true, suppressHeaderMenuButton: true }), []);
 
   const columnDefs: ColDef<GdnMemberResponse>[] = useMemo(
@@ -109,8 +115,8 @@ export default function AcdGdnMemberGrid({ rowData, isLoading, onSelectionChange
         pagination: false,
         sideBar: false,
         rowNumbers: false,
-        rowSelection: { mode: 'multiRow', checkboxes: true, headerCheckbox: true, selectAll: 'filtered', enableClickSelection: false },
       }}
+      rowSelection={rowSelection}
       loading={isLoading}
       getRowId={(p) => String(p.data.dnId ?? `${p.data.gdnId}-${p.data.dnNo}`)}
       onSelectionChanged={(e) => onSelectionChanged?.(e.api.getSelectedRows())}

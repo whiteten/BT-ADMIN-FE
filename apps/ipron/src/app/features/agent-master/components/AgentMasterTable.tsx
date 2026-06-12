@@ -6,7 +6,7 @@
  * 행 드래그앤드롭 → 좌측 그룹 트리 노드에 드롭하면 onAgentDrop(agentIds, targetGroupId) 호출.
  */
 import { useMemo } from 'react';
-import type { CellStyle, ColDef, ICellRendererParams } from 'ag-grid-community';
+import type { CellStyle, ColDef, ICellRendererParams, RowSelectionOptions } from 'ag-grid-community';
 import { AgGridReact } from 'ag-grid-react';
 import { GripVertical } from 'lucide-react';
 import { labelOfActivate, labelOfAgentGrade, labelOfJikgup, labelOfLoginStatus } from '../constants/codes';
@@ -66,6 +66,11 @@ export default function AgentMasterTable({
   const { gridOptions } = useAggridOptions();
 
   const defaultColDef: ColDef = useMemo(() => ({ sortable: true, filter: false, resizable: true, suppressHeaderMenuButton: true }), []);
+
+  const rowSelection = useMemo<RowSelectionOptions>(
+    () => ({ mode: 'multiRow', checkboxes: true, headerCheckbox: true, enableClickSelection: true, enableSelectionWithoutKeys: true }),
+    [],
+  );
 
   const columnDefs: ColDef<AgentResponse>[] = useMemo(
     () => [
@@ -205,10 +210,10 @@ export default function AgentMasterTable({
         statusBar: undefined,
         pagination: false,
         sideBar: false,
-        rowSelection: { mode: 'multiRow', checkboxes: true, headerCheckbox: true, enableClickSelection: false },
         rowDragManaged: false,
         rowDragMultiRow: true,
       }}
+      rowSelection={rowSelection}
       loading={isLoading}
       onRowDoubleClicked={(e) => e.data && onRowDoubleClicked(e.data)}
       onSelectionChanged={(e) => onSelectionChanged?.(e.api.getSelectedRows())}

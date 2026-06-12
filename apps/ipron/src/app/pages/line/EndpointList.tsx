@@ -462,9 +462,15 @@ export default function EndpointList() {
     [],
   );
 
-  // ─── Row selection (v33 방식) ─────────────────────────────────────────────
-  const memberRowSelection = useMemo<RowSelectionOptions>(() => ({ mode: 'multiRow', checkboxes: true, headerCheckbox: true, enableClickSelection: false }), []);
-  const regnumRowSelection = useMemo<RowSelectionOptions>(() => ({ mode: 'multiRow', checkboxes: true, headerCheckbox: true, enableClickSelection: false }), []);
+  // ─── Row selection ────────────────────────────────────────────────────────
+  const memberRowSelection = useMemo<RowSelectionOptions>(
+    () => ({ mode: 'multiRow', checkboxes: true, headerCheckbox: true, enableClickSelection: true, enableSelectionWithoutKeys: true }),
+    [],
+  );
+  const regnumRowSelection = useMemo<RowSelectionOptions>(
+    () => ({ mode: 'multiRow', checkboxes: true, headerCheckbox: true, enableClickSelection: true, enableSelectionWithoutKeys: true }),
+    [],
+  );
 
   // ─── ag-Grid: Regnum columns ──────────────────────────────────────────────
   const regnumColumnDefs: ColDef<EndpointRegnum>[] = useMemo(

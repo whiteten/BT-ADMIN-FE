@@ -7,7 +7,7 @@
  *      블럭 | 착금 | 발금 | 개별발신번호 | [휴지통]
  */
 import { useMemo } from 'react';
-import type { CellStyle, ColDef, ICellRendererParams } from 'ag-grid-community';
+import type { CellStyle, ColDef, ICellRendererParams, RowSelectionOptions } from 'ag-grid-community';
 import { AgGridReact } from 'ag-grid-react';
 import type { DnResponse } from '../types';
 import { BOOL_OX_LABEL, DN_STATUS_LABELS, TRANSPORT_TYPE_LABELS } from '../utils/dnEnums';
@@ -47,6 +47,11 @@ export default function DnTable({ rowData, isLoading, onRowDoubleClicked, onDele
   const { gridOptions } = useAggridOptions();
 
   const defaultColDef: ColDef = useMemo(() => ({ sortable: true, filter: false, resizable: true, suppressHeaderMenuButton: true }), []);
+
+  const rowSelection = useMemo<RowSelectionOptions>(
+    () => ({ mode: 'multiRow', checkboxes: true, headerCheckbox: true, enableClickSelection: true, enableSelectionWithoutKeys: true }),
+    [],
+  );
 
   const columnDefs: ColDef<DnResponse>[] = useMemo(
     () => [
@@ -120,7 +125,7 @@ export default function DnTable({ rowData, isLoading, onRowDoubleClicked, onDele
         valueFormatter: (params) => params.value ?? '-',
       },
       {
-        headerName: '전노드',
+        headerName: '글로벌여부',
         field: 'globalDnYn',
         minWidth: 80,
         maxWidth: 90,
@@ -242,8 +247,8 @@ export default function DnTable({ rowData, isLoading, onRowDoubleClicked, onDele
         statusBar: undefined,
         pagination: false,
         sideBar: false,
-        rowSelection: { mode: 'multiRow', checkboxes: true, headerCheckbox: true, enableClickSelection: false },
       }}
+      rowSelection={rowSelection}
       loading={isLoading}
       onRowDoubleClicked={(e) => {
         if (e.data) onRowDoubleClicked(e.data);

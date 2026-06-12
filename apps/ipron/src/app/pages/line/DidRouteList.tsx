@@ -387,8 +387,8 @@ export default function DidRouteList() {
                 statusBar: undefined,
                 pagination: false,
                 sideBar: false,
-                rowSelection: { mode: 'multiRow', checkboxes: true, headerCheckbox: true, enableClickSelection: false },
               }}
+              rowSelection={{ mode: 'multiRow', checkboxes: true, headerCheckbox: true, enableClickSelection: true, enableSelectionWithoutKeys: true }}
               loading={isLoading}
               getRowId={(params) => String(params.data.didrouteId)}
               defaultColDef={{ filter: false, sortable: true, suppressHeaderMenuButton: true }}

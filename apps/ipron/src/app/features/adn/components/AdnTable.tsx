@@ -4,7 +4,7 @@
  * 삭제: 체크박스 다중선택 + 툴바 삭제 버튼만 (행별 휴지통 제거)
  */
 import { useMemo } from 'react';
-import type { CellStyle, ColDef, ICellRendererParams } from 'ag-grid-community';
+import type { CellStyle, ColDef, ICellRendererParams, RowSelectionOptions } from 'ag-grid-community';
 import { AgGridReact } from 'ag-grid-react';
 import type { AdnResponse } from '../types';
 import { getAdnDftStateName } from '../utils/adnEnums';
@@ -23,6 +23,11 @@ export default function AdnTable({ rowData, isLoading, onRowDoubleClicked, onSel
   const { gridOptions } = useAggridOptions();
 
   const defaultColDef: ColDef = useMemo(() => ({ sortable: true, filter: false, resizable: true, suppressHeaderMenuButton: true, editable: false }), []);
+
+  const rowSelection = useMemo<RowSelectionOptions>(
+    () => ({ mode: 'multiRow', checkboxes: true, headerCheckbox: true, enableClickSelection: true, enableSelectionWithoutKeys: true }),
+    [],
+  );
 
   const columnDefs: ColDef<AdnResponse>[] = useMemo(
     () => [
@@ -126,8 +131,8 @@ export default function AdnTable({ rowData, isLoading, onRowDoubleClicked, onSel
         statusBar: undefined,
         pagination: false,
         sideBar: false,
-        rowSelection: { mode: 'multiRow', checkboxes: true, headerCheckbox: true },
       }}
+      rowSelection={rowSelection}
       loading={isLoading}
       onRowDoubleClicked={(e) => e.data && onRowDoubleClicked(e.data)}
       onSelectionChanged={(e) => onSelectionChanged?.(e.api.getSelectedRows())}

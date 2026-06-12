@@ -153,17 +153,19 @@ export default function MentTable({
     [playingMentId, onTogglePlay, onBulkDelete, selectedCount],
   );
 
+  const rowSelection = useMemo(() => ({ mode: 'multiRow' as const, checkboxes: true, headerCheckbox: true, enableClickSelection: true, enableSelectionWithoutKeys: true }), []);
+
   return (
     <AgGridReact<MentResponse>
       rowData={rowData}
       columnDefs={columnDefs}
       defaultColDef={defaultColDef}
+      rowSelection={rowSelection}
       gridOptions={{
         ...gridOptions,
         statusBar: undefined,
         pagination: false,
         sideBar: false,
-        rowSelection: { mode: 'multiRow', checkboxes: true, headerCheckbox: true, enableClickSelection: false },
       }}
       loading={isLoading}
       onRowDoubleClicked={(e) => e.data && onRowDoubleClicked(e.data)}
