@@ -404,7 +404,7 @@ export default function SkillAssignList() {
       },
       {
         headerName: '보유 건수',
-        width: 168,
+        width: 100,
         sortable: true,
         filter: 'agNumberColumnFilter',
         suppressHeaderMenuButton: true,
@@ -625,7 +625,8 @@ export default function SkillAssignList() {
       {
         field: 'treeName',
         headerName: '업무그룹',
-        width: 120,
+        flex: 1,
+        minWidth: 150,
         // null = 업무그룹 미매핑 → '미지정' 표기 (공백 방지)
         valueGetter: (p) => p.data?.treeName ?? '미지정',
       },

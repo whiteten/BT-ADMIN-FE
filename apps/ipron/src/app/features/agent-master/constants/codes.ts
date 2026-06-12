@@ -55,6 +55,10 @@ function toMap(opts: CodeOption[]): Record<string, string> {
 /**
  * 상담사 로그인 상태 — CLASS_CD = 'LOGIN_STATUS'.
  * SWAT IPR20S4010 SQL: `LEFT OUTER JOIN ... CLASS_CD = 'LOGIN_STATUS' AND CODE_CD = A.AGENT_STATUS`.
+ *
+ * BE enum 동기화: BT-ADMIN-SERVICE-IPRON
+ *   com.bridgetec.btadmin.ipron.agentmaster.domain.enums.LoginStatus
+ *   코드값 변경 시 BE enum 과 함께 수정할 것.
  */
 export const LOGIN_STATUS_OPTIONS: CodeOption[] = [
   { value: '1', label: '로그인' },

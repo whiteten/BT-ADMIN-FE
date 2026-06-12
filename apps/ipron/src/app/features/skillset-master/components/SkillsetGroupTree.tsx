@@ -146,7 +146,7 @@ export default function SkillsetGroupTree({
             단일테넌트 선택 시엔 중복이라 생략. */}
         {selectedTenantId === null && node.tenantName && (
           <span className="h-5 inline-flex items-center flex-shrink-0">
-            <span className="px-1.5 py-px rounded-full bg-gray-100 text-[10px] leading-4 text-gray-500 max-w-[120px] truncate">{node.tenantName}</span>
+            <span className="px-1.5 py-px rounded-full bg-gray-100 text-[12px] leading-4 text-gray-600 max-w-[160px] truncate">{node.tenantName}</span>
           </span>
         )}
 
