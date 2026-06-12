@@ -5,11 +5,12 @@
  * 컬럼: 상태(pinned:left) / DN번호 / DN타입(EDN·ADN) / ADN(로그인ID) / 노드 / DR노드 / 테넌트 / 블록.
  * 갭1: memberPriority 인라인 편집 — 기배정 행만 editable, cellValueChanged → onPriorityChanged(updates).
  *
- * AcdGdnTable.tsx 동일 패턴: defaultColDef filter:false + suppressHeaderMenuButton:true, floatingFilter 없음.
+ * AcdGdnTable.tsx 동일 패턴: suppressHeaderMenuButton:true, floatingFilter 없음.
  */
 import { useMemo } from 'react';
 import type { CellStyle, ColDef, ICellRendererParams } from 'ag-grid-community';
 import { AgGridReact } from 'ag-grid-react';
+import { ROW_COLOR_PALETTE } from '../../../components/GridRowColorLegend';
 import { type GdnMemberItem, type GdnMemberResponse, getDnTypeName } from '../types';
 import useAggridOptions from '@/libs/shared-ui/src/hooks/useAggridOptions';
 
@@ -30,7 +31,7 @@ export default function AcdGdnMemberGrid({ rowData, isLoading, onSelectionChange
     [],
   );
 
-  const defaultColDef: ColDef = useMemo(() => ({ sortable: true, filter: false, resizable: true, suppressHeaderMenuButton: true }), []);
+  const defaultColDef: ColDef = useMemo(() => ({ sortable: true, filter: true, resizable: true, suppressHeaderMenuButton: true }), []);
 
   const columnDefs: ColDef<GdnMemberResponse>[] = useMemo(
     () => [
@@ -41,6 +42,7 @@ export default function AcdGdnMemberGrid({ rowData, isLoading, onSelectionChange
         maxWidth: 90,
         pinned: 'left',
         sortable: false,
+        filter: false,
         valueGetter: (p) => (p.data?.assigned ? '배정' : '미배정'),
         cellStyle: { display: 'flex', alignItems: 'center' } as CellStyle,
         cellRenderer: (p: ICellRendererParams<GdnMemberResponse>) =>
@@ -62,8 +64,12 @@ export default function AcdGdnMemberGrid({ rowData, isLoading, onSelectionChange
         field: 'memberPriority',
         width: 85,
         type: 'numericColumn',
+        filter: 'agNumberColumnFilter',
         editable: (p) => p.data?.assigned === true,
-        cellStyle: (p) => (p.data?.assigned ? ({ background: '#f0f4ff', cursor: 'text', textAlign: 'right' } as CellStyle) : ({ color: '#ccc', textAlign: 'right' } as CellStyle)),
+        cellStyle: (p) =>
+          p.data?.assigned
+            ? ({ background: ROW_COLOR_PALETTE.editableCell, cursor: 'text', textAlign: 'right' } as CellStyle)
+            : ({ color: '#ccc', textAlign: 'right' } as CellStyle),
         valueFormatter: (p) => (p.value == null ? '-' : String(p.value)),
         headerTooltip: '기배정 행만 편집 가능 (더블클릭)',
       },
@@ -71,6 +77,7 @@ export default function AcdGdnMemberGrid({ rowData, isLoading, onSelectionChange
         headerName: 'DN타입',
         field: 'dnType',
         width: 100,
+        filterValueGetter: (p) => getDnTypeName(p.data?.dnType),
         valueGetter: (p) => getDnTypeName(p.data?.dnType),
       },
       {
@@ -96,6 +103,7 @@ export default function AcdGdnMemberGrid({ rowData, isLoading, onSelectionChange
         field: 'extBlockYn',
         width: 75,
         suppressHeaderMenuButton: true,
+        filterValueGetter: (p) => (p.data?.extBlockYn === 1 ? 'ON' : 'OFF'),
         cellStyle: { textAlign: 'center' } as CellStyle,
         cellRenderer: (p: ICellRendererParams<GdnMemberResponse>) =>
           p.data?.extBlockYn === 1 ? <span className="text-red-500 text-[11px] font-semibold">ON</span> : <span className="text-gray-400 text-[11px]">OFF</span>,

@@ -23,6 +23,7 @@ import { Button, Input, InputNumber, Select } from 'antd';
 import { Building2, ChevronLeft, ChevronRight, ChevronsDown, ChevronsUp, Plus, Save, Search, Trash2, X } from 'lucide-react';
 import { useAuthStore, useBreadcrumbStore } from '@/shared-store';
 import { toast } from '@/shared-util';
+import { GridRowColorLegend, ROW_COLOR_PALETTE } from '../../components/GridRowColorLegend';
 import BsrCtiqAssignPanel from '../../features/bsr-ctiq-mapping/components/BsrCtiqAssignPanel';
 import {
   useAssignBsrCtiq,
@@ -403,7 +404,7 @@ const CTIQ_EDITABLE_CELL_STYLE: CellStyle = {
   alignItems: 'center',
   justifyContent: 'center',
   padding: '2px 6px',
-  background: '#eff6ff',
+  background: ROW_COLOR_PALETTE.editableCell,
 };
 
 const CTIQ_ROW_CLASS_RULES = {
@@ -878,9 +879,21 @@ export default function BsrGroupManage() {
   const groupColDefs: ColDef<BsrGroupResponse>[] = useMemo(
     () => [
       { field: 'bsrGroupName', headerName: 'BSR 그룹명', flex: 1, tooltipField: 'bsrGroupName' },
-      { field: 'bsrMethod', headerName: 'BSR 메소드', width: 180, valueFormatter: ({ value }) => getBsrMethodLabel(value as string | null) },
-      { field: 'activateYn', headerName: '활성화', width: 80, valueFormatter: ({ value }) => (value === 1 ? '활성' : '비활성') },
-      { field: 'sortSeq', headerName: '정렬', width: 60 },
+      {
+        field: 'bsrMethod',
+        headerName: 'BSR 메소드',
+        width: 180,
+        filterValueGetter: ({ data }) => getBsrMethodLabel((data?.bsrMethod ?? null) as string | null),
+        valueFormatter: ({ value }) => getBsrMethodLabel(value as string | null),
+      },
+      {
+        field: 'activateYn',
+        headerName: '활성화',
+        width: 80,
+        filterValueGetter: ({ data }) => (data?.activateYn === 1 ? '활성' : '비활성'),
+        valueFormatter: ({ value }) => (value === 1 ? '활성' : '비활성'),
+      },
+      { field: 'sortSeq', headerName: '정렬', width: 60, filter: 'agNumberColumnFilter' },
       { field: 'bsrGroupDesc', headerName: '설명', flex: 1, tooltipField: 'bsrGroupDesc' },
     ],
     [],
@@ -890,11 +903,20 @@ export default function BsrGroupManage() {
     () => [
       { field: 'ctiqName', headerName: 'CTI큐명', flex: 1, tooltipField: 'ctiqName' },
       { field: 'gdnNo', headerName: '그룹DN 번호', width: 110, tooltipField: 'gdnName' },
-      { field: 'treeName', headerName: '업무그룹명', width: 130, valueFormatter: ({ value }) => value ?? '-', tooltipField: 'treeName' },
+      {
+        field: 'treeName',
+        headerName: '업무그룹명',
+        width: 130,
+        filterValueGetter: ({ data }) => data?.treeName ?? '-',
+        valueFormatter: ({ value }) => value ?? '-',
+        tooltipField: 'treeName',
+      },
       {
         headerName: 'BSR 가중치',
         colId: 'bsrWeight',
         width: 110,
+        filter: 'agNumberColumnFilter',
+        filterValueGetter: ({ data }) => data?.bsrWeight ?? 0,
         cellStyle: CTIQ_EDITABLE_CELL_STYLE,
         cellRenderer: (params: ICellRendererParams<BsrCtiqMappingResponse>) => <BsrWeightCell params={params} />,
       },
@@ -902,6 +924,7 @@ export default function BsrGroupManage() {
         headerName: 'BSR 사용여부',
         colId: 'bsrYn',
         width: 120,
+        filterValueGetter: ({ data }) => (data?.bsrYn === 1 ? '설정' : '해제'),
         cellStyle: CTIQ_EDITABLE_CELL_STYLE,
         cellRenderer: (params: ICellRendererParams<BsrCtiqMappingResponse>) => <BsrYnCell params={params} />,
       },
@@ -909,6 +932,7 @@ export default function BsrGroupManage() {
         headerName: 'BSR 분배여부',
         colId: 'bsrDistributeYn',
         width: 120,
+        filterValueGetter: ({ data }) => (data?.bsrDistributeYn === 1 ? '설정' : '해제'),
         cellStyle: CTIQ_EDITABLE_CELL_STYLE,
         cellRenderer: (params: ICellRendererParams<BsrCtiqMappingResponse>) => <BsrDistributeYnCell params={params} />,
       },
@@ -935,7 +959,7 @@ export default function BsrGroupManage() {
           if (data.fri === 1) days.push('금');
           if (data.sat === 1) days.push('토');
           if (data.sun === 1) days.push('일');
-          return days.join(' ');
+          return days.join(' ') || '-';
         },
       },
     ],
@@ -951,17 +975,6 @@ export default function BsrGroupManage() {
   const groupGridOptions = useMemo(() => ({ ...gridOptions, pagination: false, statusBar: undefined, sideBar: false }), [gridOptions]);
   const ctiqGridOptions = useMemo(() => ({ ...gridOptions, pagination: false, statusBar: undefined, sideBar: false }), [gridOptions]);
   const schedGridOptions = useMemo(() => ({ ...gridOptions, pagination: false, statusBar: undefined, sideBar: false }), [gridOptions]);
-
-  // 그룹 목록 행 선택 하이라이트 — 선택된 행에 ag-row-selected 클래스 적용
-  const groupRowClassRules = useMemo(
-    () => ({
-      'bsr-group-selected-row': (params: { data?: BsrGroupResponse }) => {
-        if (!params.data || !selectedGroup) return false;
-        return params.data.bsrGroupId === selectedGroup.bsrGroupId;
-      },
-    }),
-    [selectedGroup],
-  );
 
   return (
     <div className="flex flex-col gap-4 w-full h-full">
@@ -1094,17 +1107,12 @@ export default function BsrGroupManage() {
               </Button>
             </div>
           </div>
-          <style>{`
-            .bsr-group-selected-row { background-color: #eef2ff !important; }
-            .bsr-group-selected-row:hover { background-color: #e5ebff !important; }
-          `}</style>
           <div className="flex-1 min-h-0">
             <AgGridReact<BsrGroupResponse>
               {...groupGridOptions}
               rowData={filteredGroups}
               columnDefs={groupColDefs}
               loading={isGroupsLoading}
-              rowClassRules={groupRowClassRules}
               rowSelection={{ mode: 'multiRow', checkboxes: true, headerCheckbox: true, enableClickSelection: true, enableSelectionWithoutKeys: true }}
               onRowClicked={(e) => e.data && handleGroupSelect(e.data)}
               onRowDoubleClicked={(e) => e.data && handleGroupDblClick(e.data)}
@@ -1185,6 +1193,8 @@ export default function BsrGroupManage() {
                           </span>
                         )}
                         <div className="ml-auto flex items-center gap-2 flex-shrink-0">
+                          <GridRowColorLegend items={['dirty']} />
+                          <div className="w-px h-4 bg-gray-200 flex-shrink-0" />
                           <Input
                             allowClear
                             prefix={<Search className="size-3.5 text-gray-400" />}
@@ -1215,8 +1225,8 @@ export default function BsrGroupManage() {
                         </div>
                       </div>
                       <style>{`
-                        .bsr-ctiq-dirty-row { background-color: #eff3ff !important; }
-                        .bsr-ctiq-dirty-row:hover { background-color: #e5ebff !important; }
+                        .bsr-ctiq-dirty-row { background-color: ${ROW_COLOR_PALETTE.dirty} !important; }
+                        .bsr-ctiq-dirty-row:hover { background-color: ${ROW_COLOR_PALETTE.dirtyHover} !important; }
                       `}</style>
                       <div className="flex-1 min-h-0">
                         <CtiqEditContext.Provider value={ctiqEditCtxValue}>

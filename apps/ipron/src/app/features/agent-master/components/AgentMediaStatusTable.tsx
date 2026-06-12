@@ -26,6 +26,7 @@ import type { CellStyle, ColDef, ICellRendererParams } from 'ag-grid-community';
 import { AgGridReact, type AgGridReact as AgGridReactType } from 'ag-grid-react';
 import { InputNumber, Select } from 'antd';
 import { Lock } from 'lucide-react';
+import { ROW_COLOR_PALETTE } from '../../../components/GridRowColorLegend';
 import { MEDIA_OPTION_BOUNDS } from '../constants/codes';
 import type { AgentMediaMatrix, AgentMediaOption, AgentResponse, AgentUpdateRequest } from '../types';
 import useAggridOptions from '@/libs/shared-ui/src/hooks/useAggridOptions';
@@ -643,10 +644,10 @@ const AgentMediaStatusTable = forwardRef<AgentMediaStatusTableHandle, AgentMedia
     <MediaEditContext.Provider value={ctxValue}>
       <style>{`
         .ag-row-dirty-blue {
-          background-color: #eff3ff !important;
+          background-color: ${ROW_COLOR_PALETTE.dirty} !important;
         }
         .ag-row-dirty-blue:hover {
-          background-color: #e5ebff !important;
+          background-color: ${ROW_COLOR_PALETTE.dirtyHover} !important;
         }
       `}</style>
       <div className="flex flex-col h-full">

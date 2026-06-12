@@ -14,6 +14,7 @@ import { Button, Empty, Input, Modal, Select } from 'antd';
 import { ChevronLeft, ChevronRight, ChevronsDown, ChevronsUp, Plus, Save, Search, Trash2, Users } from 'lucide-react';
 import { useAuthStore, useBreadcrumbStore } from '@/shared-store';
 import { toast } from '@/shared-util';
+import { GridRowColorLegend } from '../../components/GridRowColorLegend';
 import { agentMasterApi } from '../../features/agent-master/api/agentMasterApi';
 import AgentGroupFormDrawer from '../../features/agent-master/components/AgentGroupFormDrawer';
 import AgentGroupTree from '../../features/agent-master/components/AgentGroupTree';
@@ -620,6 +621,8 @@ export default function AgentMasterList() {
             )}
             {gridTab === 'media' && (
               <div className="ml-auto flex items-center gap-2">
+                <GridRowColorLegend items={['dirty']} />
+                <div className="w-px h-4 bg-gray-200 flex-shrink-0" />
                 <Button
                   type="primary"
                   size="small"
