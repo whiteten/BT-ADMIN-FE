@@ -271,7 +271,7 @@ export default function McsDnis() {
         valueFormatter: (params) => params.data?.nodeName ?? (params.data?.nodeId ? `노드 ${params.data.nodeId}` : '-'),
       },
       { headerName: '시작DNIS', field: 'startDnis', flex: 1.2, minWidth: 140, tooltipField: 'startDnis' },
-      { headerName: '개수', field: 'count', flex: 0.6, minWidth: 80 },
+      { headerName: '개수', field: 'count', flex: 0.6, minWidth: 80, filter: 'agNumberColumnFilter' },
     ],
     [gdnNoToOpMap],
   );
@@ -391,7 +391,7 @@ export default function McsDnis() {
                 rowSelection={dnisRowSelection}
                 loading={isDnisLoading}
                 getRowId={(params) => `${params.data.mcsdGdnNo}-${params.data.seq}-${params.data.nodeId}`}
-                defaultColDef={{ filter: false, sortable: true, suppressHeaderMenuButton: true }}
+                defaultColDef={{ sortable: true, filter: true, suppressHeaderMenuButton: true }}
                 onRowDoubleClicked={() => {
                   // 더블클릭 무반응 (수정 불가 항목)
                 }}

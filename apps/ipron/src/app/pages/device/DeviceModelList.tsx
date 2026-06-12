@@ -123,8 +123,8 @@ export default function DeviceModelList() {
       { field: 'vendorName', headerName: '제조사', flex: 0.9, minWidth: 110, tooltipField: 'vendorName' },
       { field: 'modelName', headerName: '모델명', flex: 1.1, minWidth: 130, tooltipField: 'modelName' },
       { field: 'feature', headerName: '기능', flex: 0.9, minWidth: 100, tooltipField: 'feature' },
-      { field: 'lineNum', headerName: '단말라인', width: 100, flex: 0, type: 'numericColumn' },
-      { field: 'buttonNum', headerName: '단말버튼', width: 100, flex: 0, type: 'numericColumn' },
+      { field: 'lineNum', headerName: '단말라인', width: 100, flex: 0, type: 'numericColumn', filter: 'agNumberColumnFilter' },
+      { field: 'buttonNum', headerName: '단말버튼', width: 100, flex: 0, type: 'numericColumn', filter: 'agNumberColumnFilter' },
       {
         colId: 'firmware',
         headerName: '펌웨어',
@@ -149,6 +149,8 @@ export default function DeviceModelList() {
         headerName: '사용 단말기',
         width: 120,
         flex: 0,
+        filter: 'agNumberColumnFilter',
+        filterValueGetter: (p) => p.data?.usedDeviceCount ?? 0,
         cellRenderer: ({ value }: { value: number | null | undefined }) =>
           (value ?? 0) > 0 ? <Tag color="blue">{(value ?? 0).toLocaleString()}대 사용중</Tag> : <Tag>미사용</Tag>,
       },

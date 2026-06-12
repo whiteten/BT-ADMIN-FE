@@ -22,7 +22,7 @@ interface AdnTableProps {
 export default function AdnTable({ rowData, isLoading, onRowDoubleClicked, onSelectionChanged, onBulkDelete, selectedCount = 0 }: AdnTableProps) {
   const { gridOptions } = useAggridOptions();
 
-  const defaultColDef: ColDef = useMemo(() => ({ sortable: true, filter: false, resizable: true, suppressHeaderMenuButton: true, editable: false }), []);
+  const defaultColDef: ColDef = useMemo(() => ({ sortable: true, filter: true, resizable: true, suppressHeaderMenuButton: true, editable: false }), []);
 
   const rowSelection = useMemo<RowSelectionOptions>(
     () => ({ mode: 'multiRow', checkboxes: true, headerCheckbox: true, enableClickSelection: true, enableSelectionWithoutKeys: true }),

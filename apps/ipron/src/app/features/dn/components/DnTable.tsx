@@ -46,7 +46,7 @@ function BulkDeleteHeader({ onBulkDelete, selectedCount }: { onBulkDelete?: () =
 export default function DnTable({ rowData, isLoading, onRowDoubleClicked, onDelete, onSelectionChanged, onBulkDelete, selectedCount = 0 }: DnTableProps) {
   const { gridOptions } = useAggridOptions();
 
-  const defaultColDef: ColDef = useMemo(() => ({ sortable: true, filter: false, resizable: true, suppressHeaderMenuButton: true }), []);
+  const defaultColDef: ColDef = useMemo(() => ({ sortable: true, filter: true, resizable: true, suppressHeaderMenuButton: true }), []);
 
   const rowSelection = useMemo<RowSelectionOptions>(
     () => ({ mode: 'multiRow', checkboxes: true, headerCheckbox: true, enableClickSelection: true, enableSelectionWithoutKeys: true }),
@@ -130,6 +130,7 @@ export default function DnTable({ rowData, isLoading, onRowDoubleClicked, onDele
         minWidth: 80,
         maxWidth: 90,
         cellStyle: { textAlign: 'center' } as CellStyle,
+        filterValueGetter: (params) => BOOL_OX_LABEL(params.data?.globalDnYn),
         valueFormatter: (params) => BOOL_OX_LABEL(params.value),
       },
       {
@@ -184,6 +185,7 @@ export default function DnTable({ rowData, isLoading, onRowDoubleClicked, onDele
         minWidth: 70,
         maxWidth: 80,
         cellStyle: { textAlign: 'center' } as CellStyle,
+        filterValueGetter: (params) => BOOL_OX_LABEL(params.data?.extBlockYn),
         valueFormatter: (params) => BOOL_OX_LABEL(params.value),
       },
       {
@@ -192,6 +194,7 @@ export default function DnTable({ rowData, isLoading, onRowDoubleClicked, onDele
         minWidth: 90,
         maxWidth: 100,
         cellStyle: { textAlign: 'center' } as CellStyle,
+        filterValueGetter: (params) => BOOL_OX_LABEL(params.data?.dnTblYn),
         valueFormatter: (params) => BOOL_OX_LABEL(params.value),
       },
       {
@@ -200,6 +203,7 @@ export default function DnTable({ rowData, isLoading, onRowDoubleClicked, onDele
         minWidth: 90,
         maxWidth: 100,
         cellStyle: { textAlign: 'center' } as CellStyle,
+        filterValueGetter: (params) => BOOL_OX_LABEL(params.data?.dnOblYn),
         valueFormatter: (params) => BOOL_OX_LABEL(params.value),
       },
       {

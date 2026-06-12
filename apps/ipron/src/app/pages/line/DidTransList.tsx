@@ -233,6 +233,7 @@ export default function DidTransList() {
         field: 'editOpt',
         flex: 1,
         minWidth: 100,
+        filterValueGetter: (params) => (params.data ? (EDIT_OPT_LABELS[params.data.editOpt] ?? String(params.data.editOpt)) : null),
         cellRenderer: (params: ICellRendererParams<DidTrans>) => {
           if (!params.data) return null;
           const editOpt = params.data.editOpt;
@@ -240,7 +241,7 @@ export default function DidTransList() {
           return <span>{label}</span>;
         },
       },
-      { headerName: 'Digit 수', field: 'delCount', flex: 0.7, minWidth: 80 },
+      { headerName: 'Digit 수', field: 'delCount', flex: 0.7, minWidth: 80, filter: 'agNumberColumnFilter' },
       {
         headerName: '추가 Digit',
         field: 'addDigit',
@@ -248,7 +249,7 @@ export default function DidTransList() {
         minWidth: 100,
         valueFormatter: (params) => params.data?.addDigit ?? '-',
       },
-      { headerName: '우선순위', field: 'transPriority', flex: 0.7, minWidth: 80 },
+      { headerName: '우선순위', field: 'transPriority', flex: 0.7, minWidth: 80, filter: 'agNumberColumnFilter' },
       {
         headerName: '비고',
         field: 'transDesc',
@@ -432,7 +433,7 @@ export default function DidTransList() {
               rowSelection={rowSelection}
               loading={isLoading}
               getRowId={(params) => String(params.data.transId)}
-              defaultColDef={{ filter: false, sortable: true, suppressHeaderMenuButton: true }}
+              defaultColDef={{ sortable: true, filter: true, suppressHeaderMenuButton: true }}
               onRowDoubleClicked={(e) => {
                 if (e.data) handleEdit(e.data);
               }}

@@ -207,6 +207,7 @@ export default function BsrCtiqAssignPanel({
         flex: 2,
         minWidth: 100,
         tooltipField: 'ctiqName',
+        filterValueGetter: ({ data }) => data?.ctiqName ?? '-',
         valueFormatter: ({ value }) => (value as string | null) ?? '-',
       },
       {
@@ -214,6 +215,7 @@ export default function BsrCtiqAssignPanel({
         headerName: 'GDN번호',
         width: 100,
         tooltipField: 'gdnName',
+        filterValueGetter: ({ data }) => data?.gdnNo ?? '-',
         valueFormatter: ({ value }) => (value as string | null) ?? '-',
       },
       {
@@ -221,6 +223,7 @@ export default function BsrCtiqAssignPanel({
         headerName: '업무그룹명',
         width: 110,
         tooltipField: 'treeName',
+        filterValueGetter: ({ data }) => data?.treeName ?? '-',
         valueFormatter: ({ value }) => (value as string | null) ?? '-',
       },
     ];
@@ -233,6 +236,7 @@ export default function BsrCtiqAssignPanel({
         minWidth: 120,
         tooltipField: 'bsrGroupName',
         // 결함6: null/undefined/"미지정" 모두 '-' 통일 (PLAN §3-3 null='-')
+        filterValueGetter: ({ data }) => data?.bsrGroupName ?? null ?? '-',
         valueFormatter: ({ value }) => (value as string | null | undefined) ?? '-',
       });
     }

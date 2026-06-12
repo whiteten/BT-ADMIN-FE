@@ -17,7 +17,7 @@ interface Props {
 export default function MediaTypeTable({ rowData, isLoading, onRowDoubleClicked, onSelectionChanged }: Props) {
   const { gridOptions } = useAggridOptions();
 
-  const defaultColDef: ColDef = useMemo(() => ({ sortable: true, filter: false, resizable: true, suppressHeaderMenuButton: true }), []);
+  const defaultColDef: ColDef = useMemo(() => ({ sortable: true, filter: true, resizable: true, suppressHeaderMenuButton: true }), []);
 
   const columnDefs: ColDef<MediaTypeResponse>[] = useMemo(
     () => [
@@ -26,6 +26,7 @@ export default function MediaTypeTable({ rowData, isLoading, onRowDoubleClicked,
         field: 'mediaType',
         width: 100,
         maxWidth: 120,
+        filter: 'agNumberColumnFilter',
         cellStyle: { textAlign: 'right' } as CellStyle,
       },
       {

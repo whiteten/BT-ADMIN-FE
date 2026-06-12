@@ -392,6 +392,7 @@ export default function DodTransList() {
         field: 'delCount',
         flex: 0.7,
         minWidth: 80,
+        filter: 'agNumberColumnFilter',
       },
       {
         headerName: '추가 Digit',
@@ -406,6 +407,7 @@ export default function DodTransList() {
         field: 'transYn',
         flex: 0.8,
         minWidth: 90,
+        filterValueGetter: (params) => (params.data ? (TRANS_YN_LABELS[params.data.transYn] ?? '-') : null),
         cellRenderer: (params: ICellRendererParams<DodTransItem>) => {
           if (!params.data) return null;
           const isOn = params.data.transYn === 1;
@@ -713,7 +715,7 @@ export default function DodTransList() {
                 rowSelection={itemRowSelection}
                 loading={isItemsLoading}
                 getRowId={(params) => `${params.data.dodTransId}-${params.data.listSeq}`}
-                defaultColDef={{ filter: false, sortable: true, suppressHeaderMenuButton: true }}
+                defaultColDef={{ sortable: true, filter: true, suppressHeaderMenuButton: true }}
                 onRowDoubleClicked={(e) => {
                   if (e.data) handleEditItem(e.data);
                 }}

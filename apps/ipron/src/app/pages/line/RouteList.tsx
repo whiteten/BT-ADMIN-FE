@@ -224,6 +224,7 @@ export default function RouteList() {
         field: 'endptType',
         flex: 1,
         minWidth: 80,
+        filterValueGetter: (params) => (params.data ? (ENDPOINT_TYPE_LABELS[params.data.endptType] ?? `유형${params.data.endptType}`) : null),
         cellRenderer: (params: ICellRendererParams<RoutePoint>) => {
           if (!params.data) return null;
           return ENDPOINT_TYPE_LABELS[params.data.endptType] ?? `유형${params.data.endptType}`;
@@ -241,6 +242,7 @@ export default function RouteList() {
         field: 'backupGb',
         flex: 1,
         minWidth: 90,
+        filterValueGetter: (params) => params.data?.backupGb ?? '-',
         cellRenderer: (params: ICellRendererParams<RoutePoint>) => {
           if (!params.data) return null;
           const gb = params.data.backupGb ?? '';
@@ -273,6 +275,7 @@ export default function RouteList() {
         field: 'epPriority',
         flex: 1,
         minWidth: 70,
+        filter: 'agNumberColumnFilter',
       },
     ],
     [],
@@ -534,7 +537,7 @@ export default function RouteList() {
                   rowSelection={{ mode: 'multiRow', checkboxes: true, headerCheckbox: true, enableClickSelection: true, enableSelectionWithoutKeys: true }}
                   loading={isPointsLoading}
                   getRowId={(params) => String(params.data.endptId)}
-                  defaultColDef={{ filter: false, sortable: true, suppressHeaderMenuButton: true }}
+                  defaultColDef={{ sortable: true, filter: true, suppressHeaderMenuButton: true }}
                   onSelectionChanged={(e) => setSelectedRoutePoints(e.api.getSelectedRows())}
                   onRowDoubleClicked={() => {
                     if (selectedRouteId) navigate(`/ipron/line/route/${selectedRouteId}`);

@@ -187,6 +187,11 @@ export default function DidRouteList() {
         colId: 'routingPosition',
         flex: 1,
         minWidth: 110,
+        filterValueGetter: (params) => {
+          if (!params.data) return null;
+          const routeId = params.data.routeId;
+          return !routeId || routeId === 0 ? '내부착신' : '국선중계';
+        },
         cellRenderer: (params: ICellRendererParams<DidRoute>) => {
           if (!params.data) return null;
           const routeId = params.data.routeId;
@@ -211,6 +216,11 @@ export default function DidRouteList() {
         colId: 'afterRoutingPosition',
         flex: 1,
         minWidth: 110,
+        filterValueGetter: (params) => {
+          if (!params.data) return null;
+          const afterRouteId = params.data.afterRouteId;
+          return !afterRouteId || afterRouteId === 0 ? '내부착신' : '국선중계';
+        },
         cellRenderer: (params: ICellRendererParams<DidRoute>) => {
           if (!params.data) return null;
           const afterRouteId = params.data.afterRouteId;
@@ -228,7 +238,7 @@ export default function DidRouteList() {
           return getRoutingDisplayText(params.data.afterRouteName, params.data.afterDnNo);
         },
       },
-      { headerName: '우선순위', field: 'priority', flex: 0.7, minWidth: 80 },
+      { headerName: '우선순위', field: 'priority', flex: 0.7, minWidth: 80, filter: 'agNumberColumnFilter' },
       {
         headerName: '비고',
         field: 'didrouteDesc',
@@ -391,7 +401,7 @@ export default function DidRouteList() {
               rowSelection={{ mode: 'multiRow', checkboxes: true, headerCheckbox: true, enableClickSelection: true, enableSelectionWithoutKeys: true }}
               loading={isLoading}
               getRowId={(params) => String(params.data.didrouteId)}
-              defaultColDef={{ filter: false, sortable: true, suppressHeaderMenuButton: true }}
+              defaultColDef={{ sortable: true, filter: true, suppressHeaderMenuButton: true }}
               onRowDoubleClicked={(e) => {
                 if (e.data) handleEdit(e.data);
               }}

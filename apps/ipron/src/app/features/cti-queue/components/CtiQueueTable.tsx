@@ -51,7 +51,7 @@ function StatePill({ value, onText, offText, tone }: { value: number | null; onT
 export default function CtiQueueTable({ rowData, isLoading, groupOptions = [], groupView = false, onRowDoubleClicked, onSelectionChanged, getDragCtiqIds }: CtiQueueTableProps) {
   const { gridOptions } = useAggridOptions();
 
-  const defaultColDef: ColDef = useMemo(() => ({ sortable: true, filter: false, resizable: true, suppressHeaderMenuButton: true }), []);
+  const defaultColDef: ColDef = useMemo(() => ({ sortable: true, filter: true, resizable: true, suppressHeaderMenuButton: true }), []);
 
   const groupNameById = useMemo(() => {
     const m = new Map<number, string>();
@@ -97,6 +97,7 @@ export default function CtiQueueTable({ rowData, isLoading, groupOptions = [], g
         headerName: 'CTIQ ID',
         field: 'ctiqId',
         minWidth: 90,
+        filter: 'agNumberColumnFilter',
         cellRenderer: (p: ICellRendererParams<CtiQueueResponse>) => <span className="font-mono text-gray-700">{p.value ?? ''}</span>,
       },
       {
@@ -133,6 +134,7 @@ export default function CtiQueueTable({ rowData, isLoading, groupOptions = [], g
         field: 'globalDnYn',
         minWidth: 110,
         maxWidth: 120,
+        filterValueGetter: (params) => BOOL_OX_LABEL(params.data?.globalDnYn),
         cellStyle: { textAlign: 'center' } as CellStyle,
         cellRenderer: (p: ICellRendererParams<CtiQueueResponse>) => {
           const label = BOOL_OX_LABEL(p.value);
@@ -158,6 +160,7 @@ export default function CtiQueueTable({ rowData, isLoading, groupOptions = [], g
         field: 'activateYn',
         minWidth: 80,
         maxWidth: 90,
+        filterValueGetter: (params) => (params.data?.activateYn === 1 ? 'ON' : 'OFF'),
         cellStyle: { textAlign: 'center' } as CellStyle,
         cellRenderer: (p: ICellRendererParams<CtiQueueResponse>) => <StatePill value={p.data?.activateYn ?? null} onText="ON" offText="OFF" tone="green" />,
       },
@@ -166,14 +169,50 @@ export default function CtiQueueTable({ rowData, isLoading, groupOptions = [], g
         field: 'blockYn',
         minWidth: 80,
         maxWidth: 90,
+        filterValueGetter: (params) => (params.data?.blockYn === 1 ? '설정' : '해제'),
         cellStyle: { textAlign: 'center' } as CellStyle,
         cellRenderer: (p: ICellRendererParams<CtiQueueResponse>) => <StatePill value={p.data?.blockYn ?? null} onText="설정" offText="해제" tone="amber" />,
       },
-      { headerName: '최대대기(초)', field: 'maxWaittime', minWidth: 110, cellStyle: { textAlign: 'right' } as CellStyle, valueFormatter: (p) => num(p.value) },
-      { headerName: '호회수T/O(초)', field: 'collectTimeout', minWidth: 124, cellStyle: { textAlign: 'right' } as CellStyle, valueFormatter: (p) => num(p.value) },
-      { headerName: 'SL(초)', field: 'serviceLevelTime', minWidth: 84, cellStyle: { textAlign: 'right' } as CellStyle, valueFormatter: (p) => num(p.value) },
-      { headerName: '큐포기(초)', field: 'abandonAcktime', minWidth: 100, cellStyle: { textAlign: 'right' } as CellStyle, valueFormatter: (p) => num(p.value) },
-      { headerName: '정렬순서', field: 'sortSeq', minWidth: 90, cellStyle: { textAlign: 'right' } as CellStyle, valueFormatter: (p) => num(p.value) },
+      {
+        headerName: '최대대기(초)',
+        field: 'maxWaittime',
+        minWidth: 110,
+        filter: 'agNumberColumnFilter',
+        cellStyle: { textAlign: 'right' } as CellStyle,
+        valueFormatter: (p) => num(p.value),
+      },
+      {
+        headerName: '호회수T/O(초)',
+        field: 'collectTimeout',
+        minWidth: 124,
+        filter: 'agNumberColumnFilter',
+        cellStyle: { textAlign: 'right' } as CellStyle,
+        valueFormatter: (p) => num(p.value),
+      },
+      {
+        headerName: 'SL(초)',
+        field: 'serviceLevelTime',
+        minWidth: 84,
+        filter: 'agNumberColumnFilter',
+        cellStyle: { textAlign: 'right' } as CellStyle,
+        valueFormatter: (p) => num(p.value),
+      },
+      {
+        headerName: '큐포기(초)',
+        field: 'abandonAcktime',
+        minWidth: 100,
+        filter: 'agNumberColumnFilter',
+        cellStyle: { textAlign: 'right' } as CellStyle,
+        valueFormatter: (p) => num(p.value),
+      },
+      {
+        headerName: '정렬순서',
+        field: 'sortSeq',
+        minWidth: 90,
+        filter: 'agNumberColumnFilter',
+        cellStyle: { textAlign: 'right' } as CellStyle,
+        valueFormatter: (p) => num(p.value),
+      },
     ],
     [groupView, groupNameById, getDragCtiqIds],
   );

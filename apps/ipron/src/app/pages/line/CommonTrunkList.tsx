@@ -190,7 +190,7 @@ export default function CommonTrunkList() {
       sideBar: false,
       pagination: false,
       rowNumbers: false,
-      defaultColDef: { resizable: true, sortable: true, filter: false, suppressHeaderMenuButton: true },
+      defaultColDef: { resizable: true, sortable: true, filter: true, suppressHeaderMenuButton: true },
       getRowId: ({ data }) => String(data.sipTrunkId),
       isExternalFilterPresent: () => assignFilter !== 'all' || kindFilter !== '',
       doesExternalFilterPass: (node) => {
@@ -225,7 +225,7 @@ export default function CommonTrunkList() {
       pagination: false,
       rowNumbers: false,
       rowSelection: { mode: 'singleRow', checkboxes: false, enableClickSelection: true },
-      defaultColDef: { resizable: true, sortable: true, filter: false, suppressHeaderMenuButton: true },
+      defaultColDef: { resizable: true, sortable: true, filter: true, suppressHeaderMenuButton: true },
       getRowId: ({ data }) => String(data.gdnId),
       onRowDoubleClicked: (e) => {
         if (e.data) setGdnDrawer({ open: true, mode: 'edit', detail: e.data });
@@ -255,6 +255,7 @@ export default function CommonTrunkList() {
         minWidth: 90,
         maxWidth: 100,
         cellStyle: { textAlign: 'center' } as CellStyle,
+        filterValueGetter: (p) => BOOL_OX_LABEL(p.data?.globalDnYn),
         valueFormatter: (p) => BOOL_OX_LABEL(p.value),
       },
       {
@@ -270,6 +271,7 @@ export default function CommonTrunkList() {
         field: 'assignedTrunkCount',
         headerName: '배정 트렁크',
         width: 100,
+        filter: 'agNumberColumnFilter',
         cellStyle: { textAlign: 'center' } as CellStyle,
         cellRenderer: (p: { value: number }) => (p.value > 0 ? <Tag color="green">{p.value}건</Tag> : <span className="text-gray-300 italic">-</span>),
       },
@@ -278,6 +280,7 @@ export default function CommonTrunkList() {
         headerName: '블록',
         width: 70,
         cellStyle: { textAlign: 'center' } as CellStyle,
+        filterValueGetter: (p) => ((p.data as CommonGdnResponse | undefined)?.blockYn === 1 ? '사용' : '미사용'),
         cellRenderer: (p: { value: number }) => (p.value === 1 ? <Tag color="red">사용</Tag> : <Tag>미사용</Tag>),
       },
       // 갭4: 라우팅 이름 3종 (SWAT 그리드 정합)
@@ -320,6 +323,7 @@ export default function CommonTrunkList() {
         headerName: '배정상태',
         width: 84,
         cellStyle: { textAlign: 'center' } as CellStyle,
+        filterValueGetter: (p) => ((p.data as CommonTrunkMemberResponse | undefined)?.assignYn ? '배정중' : '미배정'),
         cellRenderer: (p: { value: boolean }) => (p.value ? <Tag color="green">배정중</Tag> : <span className="text-gray-400 italic">미배정</span>),
       },
       {
@@ -336,10 +340,16 @@ export default function CommonTrunkList() {
         minWidth: 110,
         maxWidth: 140,
         valueGetter: (p) => (p.data ? (trunkKindMap.get(p.data.sipTrunkId) ?? null) : null),
+        filterValueGetter: (p) => {
+          const kind = p.data ? (trunkKindMap.get(p.data.sipTrunkId) ?? null) : null;
+          if (kind === 1) return 'IPRON-IE';
+          if (kind === 9) return '외부 교환기(PBX)';
+          return getTrunkKindName(kind);
+        },
         cellRenderer: (p: { value: number | null }) =>
           p.value === 1 ? <Tag color="blue">IPRON-IE</Tag> : p.value === 9 ? <Tag color="purple">외부 교환기(PBX)</Tag> : <span>{getTrunkKindName(p.value)}</span>,
       },
-      { field: 'chnlCnt', headerName: '채널', width: 64, cellStyle: { textAlign: 'center', fontFamily: 'monospace' } as CellStyle },
+      { field: 'chnlCnt', headerName: '채널', width: 64, filter: 'agNumberColumnFilter', cellStyle: { textAlign: 'center', fontFamily: 'monospace' } as CellStyle },
       {
         headerName: '채널 사용률',
         minWidth: 150,
@@ -365,6 +375,7 @@ export default function CommonTrunkList() {
         field: 'memberPriority',
         headerName: '우선순위',
         width: 80,
+        filter: 'agNumberColumnFilter',
         cellStyle: { textAlign: 'center' } as CellStyle,
         valueFormatter: (p) => (p.value == null ? '-' : String(p.value)),
       },
@@ -372,6 +383,7 @@ export default function CommonTrunkList() {
         field: 'channelLimitCount',
         headerName: '배정채널',
         width: 84,
+        filter: 'agNumberColumnFilter',
         cellStyle: { textAlign: 'center' } as CellStyle,
         valueFormatter: (p) => (p.value == null ? '-' : String(p.value)),
       },
@@ -666,13 +678,13 @@ export default function CommonTrunkList() {
         <span className="mx-1" style={{ color: '#64748b' }}>
           ·
         </span>
-        <Button size="small" type="primary" icon={<Plus className="size-3" />} disabled={!showBulkBar} onClick={() => setAssignDrawerOpen(true)}>
-          배정
+        <Button type="primary" icon={<Plus className="size-3.5" />} disabled={!showBulkBar} onClick={() => setAssignDrawerOpen(true)}>
+          배정 (우선순위·채널수 입력)
         </Button>
-        <Button size="small" danger icon={<Trash2 className="size-3" />} disabled={!showBulkBar} onClick={handleRevoke}>
+        <Button danger icon={<Trash2 className="size-3.5" />} disabled={!showBulkBar} onClick={handleRevoke}>
           해제
         </Button>
-        <Button size="small" type="text" style={{ color: '#94a3b8' }} disabled={!showBulkBar} onClick={clearBulkSel}>
+        <Button type="text" disabled={!showBulkBar} onClick={clearBulkSel} className="!text-[#94a3b8] hover:!text-[#e2e8f0]">
           선택 해제
         </Button>
       </div>

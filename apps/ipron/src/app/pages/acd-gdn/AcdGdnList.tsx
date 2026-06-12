@@ -359,16 +359,17 @@ export default function AcdGdnList() {
         field: 'globalDnYn',
         minWidth: 90,
         maxWidth: 100,
-        filter: false,
         suppressHeaderMenuButton: true,
         cellStyle: { textAlign: 'center' },
+        filterValueGetter: (p) => BOOL_OX_LABEL(p.data?.globalDnYn),
         valueFormatter: (p) => BOOL_OX_LABEL(p.value),
       },
-      { headerName: 'ACD타입', field: 'acdType', width: 140, valueFormatter: (p) => getAcdTypeName(p.value) },
+      { headerName: 'ACD타입', field: 'acdType', width: 140, filterValueGetter: (p) => getAcdTypeName(p.data?.acdType), valueFormatter: (p) => getAcdTypeName(p.value) },
       {
         headerName: '호분배여부',
         field: 'acdYn',
         width: 90,
+        filterValueGetter: (p) => getYnName(p.data?.acdYn),
         valueFormatter: (p) => getYnName(p.value),
       },
       {
@@ -383,6 +384,7 @@ export default function AcdGdnList() {
         field: 'maxWaitcnt',
         width: 75,
         type: 'numericColumn',
+        filter: 'agNumberColumnFilter',
         valueFormatter: (p) => (p.value == null ? '-' : String(p.value)),
       },
       {
@@ -390,14 +392,15 @@ export default function AcdGdnList() {
         field: 'maxWaittime',
         width: 90,
         type: 'numericColumn',
+        filter: 'agNumberColumnFilter',
         valueFormatter: (p) => (p.value == null ? '-' : String(p.value)),
       },
       {
         headerName: '헌팅',
         field: 'huntingYn',
         width: 75,
-        filter: false,
         suppressHeaderMenuButton: true,
+        filterValueGetter: (p) => (p.data?.huntingYn === 1 ? '사용' : '미사용'),
         valueFormatter: (p) => (p.value === 1 ? '사용' : '미사용'),
       },
       {
@@ -428,9 +431,9 @@ export default function AcdGdnList() {
         headerName: '블록',
         field: 'blockYn',
         width: 75,
-        filter: false,
         suppressHeaderMenuButton: true,
         cellStyle: { textAlign: 'center' },
+        filterValueGetter: (p) => (p.data?.blockYn === 1 ? '설정' : '해제'),
         cellRenderer: (p: ICellRendererParams<GdnResponse>) =>
           p.data?.blockYn === 1 ? <span className="text-red-500 text-[11px] font-semibold">설정</span> : <span className="text-gray-400 text-[11px]">해제</span>,
       },
@@ -445,7 +448,6 @@ export default function AcdGdnList() {
       pagination: false,
       sideBar: false,
       rowNumbers: false,
-      defaultColDef: { sortable: true, filter: false, resizable: true, suppressHeaderMenuButton: true },
     }),
     [gridOptions],
   );

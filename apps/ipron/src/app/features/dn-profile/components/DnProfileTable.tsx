@@ -26,7 +26,7 @@ interface DnProfileTableProps {
 export default function DnProfileTable({ rowData, isLoading, onRowDoubleClicked, onSelectionChanged, onAssignDns }: DnProfileTableProps) {
   const { gridOptions } = useAggridOptions();
 
-  const defaultColDef: ColDef = useMemo(() => ({ sortable: true, filter: false, resizable: true, suppressHeaderMenuButton: true }), []);
+  const defaultColDef: ColDef = useMemo(() => ({ sortable: true, filter: true, resizable: true, suppressHeaderMenuButton: true }), []);
 
   const rowSelection = useMemo<RowSelectionOptions>(
     () => ({
@@ -84,6 +84,7 @@ export default function DnProfileTable({ rowData, isLoading, onRowDoubleClicked,
         minWidth: 90,
         maxWidth: 100,
         cellStyle: { textAlign: 'center' } as CellStyle,
+        filterValueGetter: (params) => BOOL_OX_LABEL(params.data?.globalDnYn == null ? params.data?.globalDnYn : params.data.globalDnYn ? 1 : 0),
         valueFormatter: (params) => BOOL_OX_LABEL(params.value),
       },
       {
@@ -156,6 +157,7 @@ export default function DnProfileTable({ rowData, isLoading, onRowDoubleClicked,
         field: 'natOption',
         minWidth: 100,
         maxWidth: 140,
+        filterValueGetter: (params) => (params.data?.natOption ? NAT_OPTION_LABELS[params.data.natOption as '0' | '1' | '2' | '3' | '4'] : '-'),
         valueFormatter: (params) => (params.value ? NAT_OPTION_LABELS[params.value as '0' | '1' | '2' | '3' | '4'] : '-'),
       },
       {

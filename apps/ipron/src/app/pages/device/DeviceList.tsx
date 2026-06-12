@@ -316,6 +316,7 @@ export default function DeviceList() {
         headerName: '펌웨어사용',
         flex: 0.7,
         minWidth: 90,
+        filterValueGetter: (p) => (p.data?.firmUpdUseYn === 1 ? '사용' : '미사용'),
         valueFormatter: (p) => (p.value === 1 ? '사용' : '미사용'),
       },
       {
@@ -329,6 +330,7 @@ export default function DeviceList() {
         headerName: '펌웨어업데이트결과',
         flex: 1,
         minWidth: 140,
+        filterValueGetter: (p) => (p.data?.firmUpdResult === 1 ? '성공' : p.data?.firmUpdResult === 0 ? '실패' : '-'),
         valueFormatter: (p) => (p.value === 1 ? '성공' : p.value === 0 ? '실패' : '-'),
       },
       {
@@ -342,6 +344,7 @@ export default function DeviceList() {
         headerName: '프로비저닝결과',
         flex: 0.9,
         minWidth: 120,
+        filterValueGetter: (p) => (p.data?.provResult === 1 ? '성공' : p.data?.provResult === 0 ? '실패' : '-'),
         valueFormatter: (p) => (p.value === 1 ? '성공' : p.value === 0 ? '실패' : '-'),
       },
     ],

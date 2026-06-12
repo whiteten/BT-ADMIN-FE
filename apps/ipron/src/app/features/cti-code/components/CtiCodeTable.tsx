@@ -18,12 +18,12 @@ interface Props {
 export default function CtiCodeTable({ rowData, isLoading, onRowDoubleClicked, onSelectionChanged, showTenantColumn }: Props) {
   const { gridOptions } = useAggridOptions();
 
-  const defaultColDef: ColDef = useMemo(() => ({ sortable: true, filter: false, resizable: true, suppressHeaderMenuButton: true }), []);
+  const defaultColDef: ColDef = useMemo(() => ({ sortable: true, filter: true, resizable: true, suppressHeaderMenuButton: true }), []);
 
   const colDefs: ColDef<ReasonCodeResponse>[] = useMemo(
     () => [
       ...(showTenantColumn ? [{ field: 'tenantName' as const, headerName: '테넌트', minWidth: 140, flex: 1 }] : []),
-      { field: 'reasonCode' as const, headerName: '사유코드', width: 110, maxWidth: 130 },
+      { field: 'reasonCode' as const, headerName: '사유코드', width: 110, maxWidth: 130, filter: 'agNumberColumnFilter' },
       { field: 'reasonName' as const, headerName: '사유코드명', flex: 2, minWidth: 160, tooltipField: 'reasonName' },
       { field: 'reasonDesc' as const, headerName: '사유코드설명', flex: 3, minWidth: 200, tooltipField: 'reasonDesc' },
     ],

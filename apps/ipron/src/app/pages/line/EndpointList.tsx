@@ -379,18 +379,21 @@ export default function EndpointList() {
         field: 'portNo',
         flex: 1,
         minWidth: 60,
+        filter: 'agNumberColumnFilter',
       },
       {
         headerName: '우선순위',
         field: 'priority',
         flex: 1,
         minWidth: 70,
+        filter: 'agNumberColumnFilter',
       },
       {
         headerName: '블록여부',
         field: 'blockYn',
         flex: 1,
         minWidth: 70,
+        filterValueGetter: (params) => (params.data?.blockYn === 1 ? '설정' : '해제'),
         cellRenderer: (params: ICellRendererParams<EndpointMember>) => {
           if (!params.data) return null;
           return params.data.blockYn === 1 ? (
@@ -409,6 +412,12 @@ export default function EndpointList() {
         field: 'monState',
         flex: 1,
         minWidth: 90,
+        filterValueGetter: (params) => {
+          const v = params.data?.monState;
+          if (v === 0) return '정상';
+          if (v === 2) return '미사용';
+          return '장애';
+        },
         cellRenderer: (params: ICellRendererParams<EndpointMember>) => {
           if (!params.data) return null;
           const v = params.data.monState;
@@ -436,6 +445,12 @@ export default function EndpointList() {
         field: 'regState',
         flex: 1,
         minWidth: 90,
+        filterValueGetter: (params) => {
+          const v = params.data?.regState;
+          if (v === 1) return '등록';
+          if (v === 2) return '미사용';
+          return '미등록';
+        },
         cellRenderer: (params: ICellRendererParams<EndpointMember>) => {
           if (!params.data) return null;
           const v = params.data.regState;
@@ -508,6 +523,7 @@ export default function EndpointList() {
         field: 'regActivateYn',
         flex: 1,
         minWidth: 70,
+        filterValueGetter: (params) => (params.data?.regActivateYn === 1 ? '사용' : '미사용'),
         cellRenderer: (params: ICellRendererParams<EndpointRegnum>) => {
           if (!params.data) return null;
           return params.data.regActivateYn === 1 ? (
@@ -526,6 +542,7 @@ export default function EndpointList() {
         field: 'regState',
         flex: 1,
         minWidth: 70,
+        filterValueGetter: (params) => (params.data?.regState === 1 ? '등록' : '미등록'),
         cellRenderer: (params: ICellRendererParams<EndpointRegnum>) => {
           if (!params.data) return null;
           const v = params.data.regState;
@@ -872,7 +889,7 @@ export default function EndpointList() {
                       rowSelection={memberRowSelection}
                       loading={isMembersLoading}
                       getRowId={(params) => String(params.data.endptMemId)}
-                      defaultColDef={{ filter: false, sortable: true, suppressHeaderMenuButton: true }}
+                      defaultColDef={{ sortable: true, filter: true, suppressHeaderMenuButton: true }}
                       onRowDoubleClicked={(e) => {
                         if (e.data) memberDrawerRef.current?.open(e.data);
                       }}
@@ -893,7 +910,7 @@ export default function EndpointList() {
                       rowSelection={regnumRowSelection}
                       loading={isRegnumsLoading}
                       getRowId={(params) => String(params.data.endptRegnumId)}
-                      defaultColDef={{ filter: false, sortable: true, suppressHeaderMenuButton: true }}
+                      defaultColDef={{ sortable: true, filter: true, suppressHeaderMenuButton: true }}
                       onRowDoubleClicked={(e) => {
                         if (e.data) regnumDrawerRef.current?.open(e.data);
                       }}

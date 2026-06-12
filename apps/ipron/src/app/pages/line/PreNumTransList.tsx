@@ -160,13 +160,17 @@ export default function PreNumTransList() {
         field: 'editOpt',
         flex: 1,
         minWidth: 100,
+        filterValueGetter: (params) => {
+          const v = params.data?.editOpt;
+          return v != null ? (EDIT_OPT_LABELS[v] ?? String(v)) : '';
+        },
         cellRenderer: (params: ICellRendererParams<PreNumTrans>) => {
           if (!params.data) return null;
           const label = EDIT_OPT_LABELS[params.data.editOpt] ?? String(params.data.editOpt);
           return <span>{label}</span>;
         },
       },
-      { headerName: 'Digit 수', field: 'delCount', flex: 0.7, minWidth: 80 },
+      { headerName: 'Digit 수', field: 'delCount', flex: 0.7, minWidth: 80, filter: 'agNumberColumnFilter' },
       {
         headerName: '추가 Digit',
         field: 'addDigit',
@@ -174,12 +178,16 @@ export default function PreNumTransList() {
         minWidth: 100,
         valueFormatter: (params) => params.data?.addDigit ?? '-',
       },
-      { headerName: '우선순위', field: 'priority', flex: 0.7, minWidth: 80 },
+      { headerName: '우선순위', field: 'priority', flex: 0.7, minWidth: 80, filter: 'agNumberColumnFilter' },
       {
         headerName: '변환동작',
         field: 'transAction',
         flex: 1,
         minWidth: 110,
+        filterValueGetter: (params) => {
+          if (params.data?.transAction == null) return '-';
+          return TRANS_ACTION_LABELS[params.data.transAction] ?? String(params.data.transAction);
+        },
         cellRenderer: (params: ICellRendererParams<PreNumTrans>) => {
           if (params.data?.transAction == null) return <span>-</span>;
           const label = TRANS_ACTION_LABELS[params.data.transAction] ?? String(params.data.transAction);
@@ -341,7 +349,7 @@ export default function PreNumTransList() {
               rowSelection={{ mode: 'multiRow', checkboxes: true, headerCheckbox: true, enableClickSelection: true, enableSelectionWithoutKeys: true }}
               loading={isLoading}
               getRowId={(params) => String(params.data.preTransId)}
-              defaultColDef={{ filter: false, sortable: true, suppressHeaderMenuButton: true }}
+              defaultColDef={{ sortable: true, filter: true, suppressHeaderMenuButton: true }}
               onRowDoubleClicked={(e) => {
                 if (e.data) handleEdit(e.data);
               }}

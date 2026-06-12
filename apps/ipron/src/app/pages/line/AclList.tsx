@@ -195,6 +195,7 @@ export default function AclList() {
         field: 'aclType',
         flex: 1,
         minWidth: 90,
+        filterValueGetter: (params) => (params.data ? (ACL_TYPE_LABELS[params.data.aclType] ?? String(params.data.aclType)) : null),
         cellRenderer: (params: ICellRendererParams<Acl>) => {
           if (!params.data) return null;
           const aclType = params.data.aclType;
@@ -210,6 +211,7 @@ export default function AclList() {
         field: 'useYn',
         flex: 1,
         minWidth: 100,
+        filterValueGetter: (params) => (params.data ? (USE_YN_LABELS[params.data.useYn] ?? String(params.data.useYn)) : null),
         cellRenderer: (params: ICellRendererParams<Acl>) => {
           if (!params.data) return null;
           const useYn = params.data.useYn;
@@ -384,7 +386,7 @@ export default function AclList() {
               rowSelection={{ mode: 'multiRow', checkboxes: true, headerCheckbox: true, enableClickSelection: true, enableSelectionWithoutKeys: true }}
               loading={isLoading}
               getRowId={(params) => String(params.data.aclId)}
-              defaultColDef={{ filter: false, sortable: true, suppressHeaderMenuButton: true }}
+              defaultColDef={{ sortable: true, filter: true, suppressHeaderMenuButton: true }}
               onRowDoubleClicked={(e) => {
                 if (e.data) handleEdit(e.data);
               }}

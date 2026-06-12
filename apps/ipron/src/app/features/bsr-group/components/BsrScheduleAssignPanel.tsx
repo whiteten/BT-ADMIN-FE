@@ -37,6 +37,19 @@ interface Props {
   tenantId: number;
 }
 
+function getScheduleDays(data: BsrScheduleInfoResponse | undefined | null): string {
+  if (!data) return '-';
+  const days: string[] = [];
+  if (data.mon === 1) days.push('월');
+  if (data.tue === 1) days.push('화');
+  if (data.wed === 1) days.push('수');
+  if (data.thu === 1) days.push('목');
+  if (data.fri === 1) days.push('금');
+  if (data.sat === 1) days.push('토');
+  if (data.sun === 1) days.push('일');
+  return days.join(' ') || '-';
+}
+
 const SCHEDULE_COLS: ColDef<BsrScheduleInfoResponse>[] = [
   { field: 'bsrScheduleName', headerName: '스케줄명', flex: 1, tooltipField: 'bsrScheduleName', valueFormatter: ({ value }) => (value as string | null) ?? '-' },
   { field: 'startDate', headerName: '시작일', minWidth: 110, valueFormatter: ({ value }) => (value as string | null) ?? '-' },
@@ -46,18 +59,8 @@ const SCHEDULE_COLS: ColDef<BsrScheduleInfoResponse>[] = [
     headerName: '요일',
     minWidth: 120,
     flex: 1,
-    valueGetter: ({ data }) => {
-      if (!data) return '-';
-      const days: string[] = [];
-      if (data.mon === 1) days.push('월');
-      if (data.tue === 1) days.push('화');
-      if (data.wed === 1) days.push('수');
-      if (data.thu === 1) days.push('목');
-      if (data.fri === 1) days.push('금');
-      if (data.sat === 1) days.push('토');
-      if (data.sun === 1) days.push('일');
-      return days.join(' ') || '-';
-    },
+    filterValueGetter: ({ data }) => getScheduleDays(data),
+    valueGetter: ({ data }) => getScheduleDays(data),
   },
 ];
 

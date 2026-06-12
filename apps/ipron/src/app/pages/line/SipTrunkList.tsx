@@ -315,6 +315,7 @@ export default function SipTrunkList() {
         width: 70,
         maxWidth: 80,
         cellStyle: { textAlign: 'center' } as CellStyle,
+        filterValueGetter: (p) => (p.data?.blockYn === 1 ? '사용' : '미사용'),
         cellRenderer: (p: ICellRendererParams<SipGdnResponse>) =>
           p.value === 1 ? (
             <span className="inline-flex items-center rounded border border-red-200 bg-red-50 px-1.5 py-px text-[10px] font-semibold text-red-700">사용</span>
@@ -328,6 +329,7 @@ export default function SipTrunkList() {
         minWidth: 90,
         maxWidth: 100,
         cellStyle: { textAlign: 'center' } as CellStyle,
+        filterValueGetter: (p) => BOOL_OX_LABEL(p.data?.globalDnYn),
         valueFormatter: (p) => BOOL_OX_LABEL(p.value),
       },
       {
@@ -376,7 +378,7 @@ export default function SipTrunkList() {
       sideBar: false,
       pagination: false,
       rowNumbers: false,
-      defaultColDef: { sortable: true, filter: false, resizable: true, suppressHeaderMenuButton: true },
+      defaultColDef: { sortable: true, filter: true, resizable: true, suppressHeaderMenuButton: true },
       getRowId: ({ data }) => String(data.gdnId),
       onRowClicked: (e) => {
         if (e.data) {
@@ -401,6 +403,7 @@ export default function SipTrunkList() {
         width: 84,
         maxWidth: 92,
         cellStyle: { textAlign: 'center' } as CellStyle,
+        filterValueGetter: (p) => (p.data?.assignYn ? '배정중' : '미배정'),
         cellRenderer: (p: ICellRendererParams<SipTrunkMemberResponse>) =>
           p.value ? (
             <span className="inline-flex items-center rounded border border-green-200 bg-green-50 px-1.5 py-px text-[10px] font-semibold text-green-700">배정중</span>
@@ -454,6 +457,7 @@ export default function SipTrunkList() {
         field: 'memberPriority',
         width: 80,
         maxWidth: 90,
+        filter: 'agNumberColumnFilter',
         cellStyle: { textAlign: 'center' } as CellStyle,
         valueFormatter: (p) => (p.value == null ? '—' : String(p.value)),
       },
@@ -462,6 +466,7 @@ export default function SipTrunkList() {
         field: 'channelLimitCount',
         width: 84,
         maxWidth: 94,
+        filter: 'agNumberColumnFilter',
         cellStyle: { textAlign: 'center' } as CellStyle,
         valueFormatter: (p) => (p.value == null ? '—' : String(p.value)),
       },
@@ -481,7 +486,7 @@ export default function SipTrunkList() {
       sideBar: false,
       pagination: false,
       rowNumbers: false,
-      defaultColDef: { sortable: true, filter: false, resizable: true, suppressHeaderMenuButton: true },
+      defaultColDef: { sortable: true, filter: true, resizable: true, suppressHeaderMenuButton: true },
       getRowId: ({ data }) => String(data.sipTrunkId),
       isExternalFilterPresent: () => assignFilter !== 'all' || kindFilter !== '',
       doesExternalFilterPass: (node) => {

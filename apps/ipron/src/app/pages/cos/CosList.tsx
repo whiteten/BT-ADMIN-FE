@@ -190,19 +190,21 @@ export default function CosList() {
   const rowSelection = useMemo(() => ({ mode: 'multiRow' as const, checkboxes: true, headerCheckbox: true, enableClickSelection: true, enableSelectionWithoutKeys: true }), []);
 
   // ─── ag-Grid Column Defs ──────────────────────────────────────────────────
+  const cosStatusFilterGetter = useCallback((field: keyof Cos) => (p: import('ag-grid-community').ValueGetterParams<Cos>) => (p.data?.[field] === 1 ? '설정' : '해제'), []);
+
   const columnDefs: ColDef<Cos>[] = useMemo(
     () => [
       { headerName: 'COS 이름', field: 'cosName', flex: 1, minWidth: 160, tooltipField: 'cosName' },
-      { headerName: '착신금지', field: 'dnTblSvc', width: 100, cellRenderer: StatusBadgeRenderer },
-      { headerName: '발신금지', field: 'dnOblSvc', width: 100, cellRenderer: StatusBadgeRenderer },
-      { headerName: '픽업사용', field: 'pickupSvc', width: 100, cellRenderer: StatusBadgeRenderer },
-      { headerName: '코칭사용', field: 'coachingSvc', width: 100, cellRenderer: StatusBadgeRenderer },
-      { headerName: '감청사용', field: 'monitorSvc', width: 100, cellRenderer: StatusBadgeRenderer },
-      { headerName: '피감청/피코칭', field: 'ignoreBugsCoaching', width: 120, cellRenderer: StatusBadgeRenderer },
-      { headerName: '특정번호발신허용', field: 'dodNumAllow', width: 140, cellRenderer: StatusBadgeRenderer },
-      { headerName: '특정번호착신금지', field: 'callScreenSvc', width: 140, cellRenderer: StatusBadgeRenderer },
+      { headerName: '착신금지', field: 'dnTblSvc', width: 100, filterValueGetter: cosStatusFilterGetter('dnTblSvc'), cellRenderer: StatusBadgeRenderer },
+      { headerName: '발신금지', field: 'dnOblSvc', width: 100, filterValueGetter: cosStatusFilterGetter('dnOblSvc'), cellRenderer: StatusBadgeRenderer },
+      { headerName: '픽업사용', field: 'pickupSvc', width: 100, filterValueGetter: cosStatusFilterGetter('pickupSvc'), cellRenderer: StatusBadgeRenderer },
+      { headerName: '코칭사용', field: 'coachingSvc', width: 100, filterValueGetter: cosStatusFilterGetter('coachingSvc'), cellRenderer: StatusBadgeRenderer },
+      { headerName: '감청사용', field: 'monitorSvc', width: 100, filterValueGetter: cosStatusFilterGetter('monitorSvc'), cellRenderer: StatusBadgeRenderer },
+      { headerName: '피감청/피코칭', field: 'ignoreBugsCoaching', width: 120, filterValueGetter: cosStatusFilterGetter('ignoreBugsCoaching'), cellRenderer: StatusBadgeRenderer },
+      { headerName: '특정번호발신허용', field: 'dodNumAllow', width: 140, filterValueGetter: cosStatusFilterGetter('dodNumAllow'), cellRenderer: StatusBadgeRenderer },
+      { headerName: '특정번호착신금지', field: 'callScreenSvc', width: 140, filterValueGetter: cosStatusFilterGetter('callScreenSvc'), cellRenderer: StatusBadgeRenderer },
     ],
-    [],
+    [cosStatusFilterGetter],
   );
 
   // ─── Render ───────────────────────────────────────────────────────────────
@@ -341,7 +343,6 @@ export default function CosList() {
                   rowSelection={rowSelection}
                   loading={isLoading}
                   getRowId={(params) => String(params.data.cosId)}
-                  defaultColDef={{ filter: false, sortable: true, suppressHeaderMenuButton: true }}
                   onRowDoubleClicked={(e) => {
                     if (e.data) handleEdit(e.data);
                   }}
