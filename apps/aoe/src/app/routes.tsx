@@ -120,7 +120,7 @@ export const routes = [
         element: <Outlet />,
         children: [
           { index: true, element: <Navigate to="chat" replace /> },
-          { path: 'chat', element: <Chat /> },
+          { path: 'chat', element: pv('analysis/chat', Chat) },
         ],
       },
     ],
