@@ -99,8 +99,8 @@ export default function AlarmCenterGrid({ rows }: AlarmCenterGridProps) {
       // 복구시각 — 복구된 행만 값 표시(미복구는 —). 정렬용 tabular-nums.
       {
         headerName: '복구시각',
-        width: 132,
-        minWidth: 116,
+        width: 168,
+        minWidth: 150,
         flex: 0,
         cellClass: 'tabular-nums',
         cellStyle: CODE_CELL,
@@ -121,6 +121,7 @@ export default function AlarmCenterGrid({ rows }: AlarmCenterGridProps) {
         pagination={false}
         rowNumbers={false}
         noRowsOverlayComponentParams={{ message: '표시할 장애가 없습니다.' }}
+        onFirstDataRendered={(p) => p.api.autoSizeAllColumns()}
       />
     </div>
   );

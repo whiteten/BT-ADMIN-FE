@@ -22,12 +22,14 @@ allowed-tools: Read, Write, Edit, Glob, Grep, Bash, AskUserQuestion, TodoWrite
 
 ## 1. 대상 remote 선택
 
-1. 인자 `$1`이 주어졌으면 그것을 `<APP_NAME>`으로 사용한다.
-2. 인자가 없으면 `apps/` 디렉토리를 읽어 `host`를 **제외한** 폴더 목록을 만든 뒤, `AskUserQuestion`으로 선택지로 제시한다.
+1. 인자 `$1`이 주어졌으면 그것을 `<APP_NAME>`으로 사용한다. 단, `custom`이 주어지면 **점검 대상이 아님을 안내하고 종료**한다(아래 제외 사유 참조).
+2. 인자가 없으면 `apps/` 디렉토리를 읽어 `host`와 `custom`을 **제외한** 폴더 목록을 만든 뒤, `AskUserQuestion`으로 선택지로 제시한다.
 
    현재 remote 후보: !`ls apps/`
 
 3. 선택된 이름을 `<APP_NAME>`, 첫 글자만 대문자로 변환한 값을 `<COMPONENT_NAME>`이라 한다.
+
+> **`custom` 제외 사유**: `apps/custom`은 현장 커스텀 오버라이드 운반체로 **일반 업무 remote가 아니다**. create-remote 표준 산출물과 의도적으로 다르게 구성되어 있어(host remotes 배열 미등록, consume-only shared, `features/router/` 없음, exposes가 라우트가 아닌 오버라이드 키) 이 커맨드의 정규화 기준을 적용하면 오히려 구조가 깨진다. 상세는 [CUSTOM_DEVELOPMENT_GUIDE.md](../../doc/CUSTOM_DEVELOPMENT_GUIDE.md) 참조.
 
 ## 2. create-remote.js 분석 — 점검 항목 도출
 
@@ -178,12 +180,15 @@ SoT는 다음 두 문서이며 **fca가 레퍼런스 구현**이다:
 - 모든 페이지가 `React.lazy(() => import('./pages/...'))`로 선언 (직접 import 없음)
 - 페이지 파일명·lazy 변수명에 `Page` 접미사 없음
 - `routes`가 named export, 최상위가 단일 `path: '/'` 루트
+- `const pv = createPageVariantSocket('<appId>')`가 파일 상단에 1회 선언 (appId가 자기 remote와 일치)
+- 모든 leaf 페이지 element가 `pv('<화면 키>', Component)` 소켓으로 래핑 (레이아웃·`Navigate`·`NotFound` 제외)
+- 화면 키가 라우트 경로 그대로 (동적 세그먼트 `:paramId` 포함). 단, 키는 한번 정하면 불변이므로 경로 변경으로 어긋난 기존 키는 위반이 아님 — 신규 작성분만 점검
 - 2-depth 이상 그룹이 `element: <Outlet />` + `children` 구조
 - 각 그룹 `children` 첫 항목이 `index` redirect(`Navigate ... replace`)
 - 배열 마지막 항목이 catch-all `{ path: '*', element: <NotFound homePath="/" /> }`
 - path 세그먼트 kebab-case, 동적 세그먼트 `:camelCase`
 - 라우팅 보조 코드가 `features/router/`에 있고 routes.tsx는 import만 함
-- 중복 라우트 묶음이 모듈 스코프 상수로 추출됨
+- 중복 라우트 묶음이 모듈 스코프 상수(spread)로 추출되지 않고 각 path에 복사 작성됨
 
 #### 처리 방식 — 모두 "확인 후 진행"
 

@@ -27,6 +27,7 @@ import type {
   Scenario,
   ScenarioCreateRequest,
   ScenarioPublishRequest,
+  ScenarioPublishResult,
   ScenarioUpdateRequest,
   ScenarioVersion,
   ScenarioVersionCreateRequest,
@@ -87,8 +88,9 @@ export const scenarioApi = {
 
   // ─── 배포 + IFE 진입 ────────────────────────────────────────────────────
 
-  publishScenario: async ({ params, data }: { params: Record<string, unknown>; data: ScenarioPublishRequest }) => {
-    return apiClient.post('/ivr-scenario-publish', data, { params });
+  publishScenario: async ({ params, data }: { params: Record<string, unknown>; data: ScenarioPublishRequest }): Promise<ScenarioPublishResult> => {
+    const response = await apiClient.post<ApiResponse<ScenarioPublishResult>>('/ivr-scenario-publish', data, { params });
+    return response.data?.data;
   },
 
   getDeployedSystems: async (params: Record<string, unknown>): Promise<DeployedSystem[]> => {

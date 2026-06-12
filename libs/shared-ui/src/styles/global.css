@@ -243,6 +243,11 @@
   flex-shrink: 0;
 }
 
+/* ag-Grid: 헤더 텍스트 가운데 정렬 — 값이 가운데인 바·배지 컬럼용 (colDef headerClass: 'header-center') */
+.ag-header-cell.header-center .ag-header-cell-label {
+  justify-content: center;
+}
+
 /*
  * ag-Grid: 필터/메뉴 버튼을 hover 시에만 표시.
  * 평소엔 헤더 텍스트가 컬럼 폭을 풀로 사용해서 ellipsis 발생을 줄임.

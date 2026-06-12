@@ -9,21 +9,21 @@ import { Drawer, Empty, Tag } from 'antd';
 import dayjs from 'dayjs';
 import { Activity, Server, ServerOff } from 'lucide-react';
 import { useGetDeployStatus } from '../hooks/useScenarioQueries';
-import type { DeployedSystem } from '../types';
+import { APPLY_RESULT, APPLY_STATUS, APPLY_TIMING, type DeployedSystem } from '../types';
 
-const APPLY_STATUS_LABELS: Record<string, string> = {
-  PENDING: '대기',
-  SEND_OK: '전송완료',
-  SEND_FAIL: '전송실패',
-  CMD_OK: '명령완료',
-  CMD_FAIL: '명령실패',
-  APPLIED: '적용완료',
-  APPLY_FAIL: '적용실패',
+const APPLY_STATUS_LABELS: Record<number, string> = {
+  [APPLY_STATUS.PENDING]: '대기',
+  [APPLY_STATUS.SEND_OK]: '전송완료',
+  [APPLY_STATUS.SEND_FAIL]: '전송실패',
+  [APPLY_STATUS.CMD_OK]: '명령완료',
+  [APPLY_STATUS.CMD_FAIL]: '명령실패',
+  [APPLY_STATUS.APPLIED]: '적용완료',
+  [APPLY_STATUS.APPLY_FAIL]: '적용실패',
 };
 
-const APPLY_RESULT_LABELS: Record<string, string> = {
-  SUCCESS: '성공',
-  FAIL: '실패',
+const APPLY_RESULT_LABELS: Record<number, string> = {
+  [APPLY_RESULT.SUCCESS]: '성공',
+  [APPLY_RESULT.FAIL]: '실패',
 };
 
 export interface ScenarioDeployStatusDrawerRef {
@@ -73,14 +73,14 @@ const ScenarioDeployStatusDrawer = forwardRef<ScenarioDeployStatusDrawerRef>((_,
           <div className="space-y-3 overflow-y-auto">
             {rows.map((s: DeployedSystem) => {
               const statusColor =
-                s.applyStatus === 'APPLIED'
+                s.applyStatus === APPLY_STATUS.APPLIED
                   ? 'green'
-                  : s.applyStatus === 'SEND_FAIL' || s.applyStatus === 'CMD_FAIL' || s.applyStatus === 'APPLY_FAIL'
+                  : s.applyStatus === APPLY_STATUS.SEND_FAIL || s.applyStatus === APPLY_STATUS.CMD_FAIL || s.applyStatus === APPLY_STATUS.APPLY_FAIL
                     ? 'red'
-                    : s.applyStatus === 'PENDING' || s.applyStatus === 'SEND_OK' || s.applyStatus === 'CMD_OK'
+                    : s.applyStatus === APPLY_STATUS.PENDING || s.applyStatus === APPLY_STATUS.SEND_OK || s.applyStatus === APPLY_STATUS.CMD_OK
                       ? 'blue'
                       : 'default';
-              const isReserved = s.rtResvKind === 'RESERVED' || !!s.applyVer;
+              const isReserved = s.rtResvKind === APPLY_TIMING.RESERVED || !!s.applyVer;
               return (
                 <div key={s.systemId} className="p-3 rounded-md border border-slate-200 bg-white">
                   {/* 헤더: 시스템명 + 상태 */}

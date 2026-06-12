@@ -18,6 +18,8 @@ export interface ReportListItem {
   /** 보고서 패널들이 사용하는 데이터셋명 목록 (distinct, 이름순). v5.0 패널 단위 데이터셋. */
   datasetNames?: string[];
   isPublished: boolean;
+  /** 시스템 기본 장표 여부 — true면 모든 사용자 readonly (관리자만 수정/삭제). */
+  isSystem?: boolean;
   ownerUserId: number;
   updatedAt: string;
   iconType?: ReportIconType;
@@ -31,6 +33,8 @@ export interface ReportDetail {
   datasetId: number;
   iconType?: ReportIconType;
   isPublished: boolean;
+  /** 시스템 기본 장표 여부 — true면 모든 사용자 readonly (관리자만 수정/삭제). */
+  isSystem?: boolean;
   ownerUserId: number;
   createdAt: string;
   updatedAt: string;
@@ -83,6 +87,8 @@ export interface PanelFieldMap {
   sortDirection?: 'ASC' | 'DESC';
   topN?: number;
   otherGrouping?: boolean;
+  /** ROW 슬롯 숨김 차원: GROUP BY에는 포함하되 그리드 컬럼으로 표시하지 않음 (AS-IS SELECT_YN=0·GROUP_YN=1 대응). */
+  isHidden?: boolean;
   searchCondId?: number;
   /** FILTER 슬롯 cascade: 이 컬럼이 검색조건의 어느 단계(node)에 매핑되는지 (G4-b). 단일 조건은 미지정. */
   nodeCode?: string;

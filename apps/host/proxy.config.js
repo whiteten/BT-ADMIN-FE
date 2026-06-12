@@ -33,4 +33,17 @@ if (fs.existsSync(localPath)) {
   }
 }
 
+// 현장 커스텀(custom remote) dev 프록시.
+// 운영에서는 /remotes/custom/ 이 host dist 하위 정적 파일로 서빙되지만,
+// dev에서는 custom remote dev 서버(4209)로 우회한다. custom 서버가 안 떠 있으면
+// HEAD 체크가 실패해 표준 동작으로 fallback되므로 평소 개발에는 영향 없음.
+// (백엔드 target 교체 대상이 아니므로 위 local override 적용 이후에 추가)
+config.push({
+  context: ['/remotes/custom'],
+  target: 'http://localhost:4209',
+  secure: false,
+  changeOrigin: true,
+  pathRewrite: { '^/remotes/custom': '' },
+});
+
 module.exports = config;

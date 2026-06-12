@@ -57,6 +57,14 @@ export const reportApi = {
     await apiClient.delete('/insight-statistics-report-delete', { params: { reportId } });
   },
 
+  /** 시스템 장표 승격/해제 — 시스템 관리자 전용. */
+  setReportSystemFlag: async (reportId: number, toSystem: boolean): Promise<ReportDetail> => {
+    const response = toSystem
+      ? await apiClient.post<ApiResponse<ReportDetail>>('/insight-statistics-report-promote', {}, { params: { reportId } })
+      : await apiClient.delete<ApiResponse<ReportDetail>>('/insight-statistics-report-demote', { params: { reportId } });
+    return response.data?.data;
+  },
+
   getFieldDisplays: async (reportId: number): Promise<FieldDisplay[]> => {
     const response = await apiClient.get<ApiResponse<{ items: FieldDisplay[] }>>('/insight-statistics-field-display-list', {
       params: { reportId },

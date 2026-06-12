@@ -65,8 +65,8 @@ export default function ReportList() {
       .filter((r) => {
         const isMine = myUserId != null && String(r.ownerUserId) === String(myUserId);
         const isRegistered = registeredReportIds.has(r.reportId);
-        // 기본 가시성: 내 보고서이거나 메뉴 등록된 보고서만 노출 (남이 등록한 미등록 보고서는 숨김)
-        if (!isMine && !isRegistered) return false;
+        // 기본 가시성: 내 보고서 / 메뉴 등록 / 시스템 기본 장표(전체 공개 readonly)만 노출
+        if (!isMine && !isRegistered && !r.isSystem) return false;
         // 조회 조건: 내 보고서(MINE) / 메뉴 등록(PUBLISHED) / 전체(ALL)
         if (ownership === 'PUBLISHED' && !isRegistered) return false;
         if (ownership === 'MINE' && !isMine) return false;
