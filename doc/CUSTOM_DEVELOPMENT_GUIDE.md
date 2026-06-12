@@ -222,26 +222,44 @@ npx nx build custom
 
 custom은 본사 빌드 스크립트(`pnpm run build` / build-selective.js)의 앱 목록에 포함되지 않습니다. **현장이 직접 위 명령으로 빌드합니다.**
 
-### 배포
+### 배포 (도커 운영 환경 기준)
 
-산출물을 운영 웹서버에서 host 정적 루트 기준 `remotes/custom/` 경로로 업로드합니다.
-(기존 remote들과 동일한 배포 컨벤션 — host는 `/remotes/<app>/remoteEntry.js`에서 remote를 찾습니다.)
+운영 환경에서 FE 정적 리소스는 **BFF 컨테이너가 서빙**합니다. host·기존 remote는 BFF jar 안에 내장되지만, **custom 번들은 jar에 넣지 않고 외부 마운트 디렉터리에 배치**합니다. BFF가 `/remotes/custom/**` 요청만 외부 디렉터리(`app.custom-remote-path`, 기본 `/app/svc-conf/remotes/custom`)에서 읽어 응답합니다.
+
+설치 호스트(운영 서버)의 디렉터리 구조:
 
 ```
-<host 정적 루트>/
-├── index.html, ...            ← 본사 host 배포물
-└── remotes/
-    ├── fca/                   ← 본사 remote 배포물
-    ├── manager/
-    └── custom/                ← 현장이 업로드 (dist/apps/custom/* 전체)
-        └── remoteEntry.js
+install_btadmin/
+├── docker-compose.yml
+└── services/bff/
+    └── conf/                        ← 컨테이너 /app/svc-conf 로 read-only 마운트
+        ├── config.js                ← 런타임 FE 설정 (기존)
+        └── remotes/custom/          ← custom 번들 배치 위치 (dist/apps/custom/* 전체)
+            ├── remoteEntry.js
+            └── *.js ...
 ```
 
-- **활성화**: `remotes/custom/` 업로드 → 사용자 브라우저 새로고침 시 적용
-- **비활성화(긴급 회수)**: `remotes/custom/` 폴더 삭제 → HEAD 404 → 전 화면 표준 복귀. DB의 `site:` 지정값은 남아 있어도 무해(로더 미주입 시 표준 fallback)
-- 본사가 host·remote를 재배포해도 `remotes/custom/`만 보존하면 커스텀은 유지됩니다(배포 스크립트가 해당 폴더를 지우지 않는지 확인 필요)
+배포 절차:
 
-> ⚠️ 운영 웹서버의 SPA fallback 설정이 `/remotes/` 하위 미존재 파일에 대해 `index.html`(200)이 아닌 **404를 반환하는지** 반드시 확인하세요. 200이 반환되면 custom 미배포 상태를 감지하지 못합니다.
+1. 현장 개발 PC에서 빌드: `npx nx build custom` → `dist/apps/custom/`
+2. 산출물 전체를 운영 서버의 `install_btadmin/services/bff/conf/remotes/custom/`에 복사
+3. 끝 — **BFF 컨테이너 재기동 불필요**. 사용자 브라우저 새로고침 시 적용
+
+운영 시나리오:
+
+- **활성화**: 위 경로에 번들 배치 → HEAD 200 → host가 custom remote 동적 등록
+- **갱신**: 같은 경로에 새 빌드 산출물 덮어쓰기 → 즉시 반영 (remoteEntry.js가 no-cache라 새로고침만으로 새 번들 로드)
+- **비활성화(긴급 회수)**: `remotes/custom/` 폴더 삭제(또는 이름 변경) → HEAD 404 → 전 화면 표준 복귀. DB의 `site:` 지정값은 남아 있어도 무해(로더 미주입 시 표준 fallback)
+- 본사가 BFF 이미지를 재배포해도 마운트 디렉터리는 호스트에 있으므로 커스텀은 유지됩니다
+
+동작 메커니즘 (BFF):
+
+- 마운트가 read-only(`:ro`)지만 호스트→컨테이너 방향 파일 변경은 실시간 반영됨 (BFF는 읽기만 하므로 충분)
+- BFF는 매 요청마다 파일 존재를 확인 — 캐시·재기동 이슈 없음
+- 미배포·파일 없음은 BFF가 404로 응답하므로 별도 웹서버 설정(SPA fallback 예외 등) 불필요
+- 배치 경로를 바꿔야 하면 BFF 환경변수 `APP_CUSTOM_REMOTE_PATH`로 오버라이드
+
+> 참고: BFF 없이 별도 웹서버(nginx 등)가 정적 리소스를 서빙하는 변형 구성이라면, host 정적 루트 기준 `remotes/custom/`에 업로드하되 `/remotes/` 하위 미존재 파일에 대해 SPA fallback(`index.html` 200)이 아닌 **404가 반환되는지** 반드시 확인하세요. 200이 반환되면 custom 미배포 상태를 감지하지 못합니다.
 
 ---
 
