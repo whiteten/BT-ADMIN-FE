@@ -2611,17 +2611,17 @@ Drawer가 닫혔다가 다시 열릴 때 이전에 입력한 값이 잔존하는
 │         │ 모든 variants 파일을 한 곳에 모음  │
 │         ▼                                    │
 │  apps/<remote>/src/app/features/router/      │
-│   pageVariants.ts                            │
-│         │ MF './PageVariants'로 expose       │
+│   pageVariantManifest.ts                     │
+│         │ MF './PageVariantManifest' expose  │
 │         ▼                                    │
 └─────────┼────────────────────────────────────┘
           │
-          ├── (어드민) host가 메타만 추출 → usePageVariantsStore
-          │    → 메뉴 관리 picker에서 카드 그리드로 표시
-          │    → 운영자 선택 → DB의 menu row에 componentKey 저장
+          ├── (어드민) host가 메타만 추출 → usePageVariantManifestStore
+          │    → manager의 화면 지정 picker에서 카드 그리드로 표시
+          │    → 운영자 선택 → DB의 page-variant row에 componentKey 저장
           │
-          └── (사용자) routes.tsx의 <DynamicElement>가
-              menuStore의 componentKey 보고 변형 렌더
+          └── (사용자) host 부팅 시 화면 지정 API를 usePageVariantsStore에
+              mirror → routes.tsx의 <DynamicElement>가 componentKey 보고 변형 렌더
 ```
 
 ### 새 변형 추가 절차
@@ -2644,16 +2644,16 @@ apps/fca/src/app/pages/bot-config/
 
 ```ts
 import { lazy } from 'react';
-import type { PageVariantConfig } from '@/components/custom/DynamicElement';
+import type { PageVariantManifestConfig } from '@/components/custom/DynamicElement';
 
-export const botListVariants: PageVariantConfig = {
+export const botListVariants: PageVariantManifestConfig = {
   appId: 'fca',
   path: 'bot-config/bot/list',
-  defaultKey: 'BotList',
+  defaultKey: 'default',
   components: {
-    BotList: {
-      label: '기본 봇 목록',
-      description: '표준 카드 그리드',
+    default: {
+      // pv 소켓(createDefaultPageVariants)과 동일한 키·라벨 — 표준 컴포넌트
+      label: '표준',
       component: lazy(() => import('./BotList')),
     },
     BotListBankA: {
@@ -2668,13 +2668,13 @@ export const botListVariants: PageVariantConfig = {
 
 #### Step 3: aggregator에 추가
 
-`apps/<remote>/src/app/features/router/pageVariants.ts`:
+`apps/<remote>/src/app/features/router/pageVariantManifest.ts`:
 
 ```ts
+import type { PageVariantManifestConfig } from '@/components/custom/DynamicElement';
 import { botListVariants } from '../../pages/bot-config/BotList.variants';
-import type { PageVariantConfig } from '@/components/custom/DynamicElement';
 
-export const pageVariants: Record<string, PageVariantConfig> = {
+export const pageVariantManifest: Record<string, PageVariantManifestConfig> = {
   [botListVariants.path]: botListVariants,
   // ...
 };
@@ -2703,12 +2703,12 @@ import DynamicElement from '@/components/custom/DynamicElement';
 
 #### Step 5: 운영자가 어드민에서 적용
 
-배포 후 운영자가 메뉴 관리 화면에서:
+배포 후 운영자가 **manager > 시스템 > 플랫폼 > 화면 지정** 메뉴에서:
 
-1. 해당 메뉴(예: "봇 목록")를 트리에서 선택
-2. "화면파일 변경" Select에서 새 변형(`BotListBankA`) 선택
-3. 저장 → DB의 menu row에 `componentKey: 'BotListBankA'` 기록
-4. 다음 로그인부터 그 테넌트 사용자는 변형 컴포넌트를 보게 됨
+1. 좌측 목록에서 대상 path(예: `fca / bot-config/bot/list`) 선택
+2. 우측 카드 그리드에서 새 변형(`A 은행 전용`) 카드 선택 → 적용
+3. 저장 → DB의 page-variant row에 `componentKey: 'BotListBankA'` 기록
+4. 해당 path 진입 시 변형 컴포넌트가 렌더됨 (표준으로 되돌리려면 '표준' 카드 선택 → 적용)
 
 ### 변형이 sub 컴포넌트를 가질 때 — 폴더로 승격
 
@@ -2760,17 +2760,16 @@ import BotVersionList from '../../../../features/bot-config/tabs/BotVersionList'
 
 ```tsx
 const DynamicElement = ({ variants }) => {
-  // 1. menuStore에서 이 path의 componentKey 찾기
-  const selectedKey = useMenuStore((s) => {
-    const config = s.menuConfigs.find((c) => c.appId === variants.appId);
-    return config ? findComponentKey(config.menus, variants.path) : undefined;
-  });
+  // 1. usePageVariantsStore(화면 지정 API mirror)에서 이 (appId, path)의 componentKey 찾기
+  const selectedKey = usePageVariantsStore((state) => state.variants[variants.appId]?.[variants.path]);
 
-  // 2. 키 유효성: 등록되지 않은 키면 defaultKey로 fallback
-  const resolvedKey = selectedKey && variants.components[selectedKey] ? selectedKey : variants.defaultKey;
+  // 2. 키 판정
+  //    - 'site:' prefix → custom remote에서 런타임 로드 (현장 커스텀, CUSTOM_DEVELOPMENT_GUIDE 참조)
+  //    - 정식 variant 키 → variants.components 매칭, 등록되지 않은 키면 defaultKey로 fallback
+  //    - 미지정 → defaultKey (표준)
+  const Component = resolve(selectedKey, variants);
 
   // 3. lazy 컴포넌트 참조 + Suspense
-  const Component = variants.components[resolvedKey].component;
   return (
     <Suspense fallback={<FallbackSpinner />}>
       <Component />
@@ -2781,24 +2780,28 @@ const DynamicElement = ({ variants }) => {
 
 - DB의 `componentKey`가 코드에서 사라진 경우 → 자동으로 default 컴포넌트로 fallback (운영 안전)
 - variants 컴포넌트는 lazy chunk로 분리되어 진입 시점에만 다운로드
+- 실제 구현: [libs/shared-ui/src/components/custom/DynamicElement.tsx](../libs/shared-ui/src/components/custom/DynamicElement.tsx)
 
 ### Picker UI는 어떻게 알게 되는가
 
-호스트의 `SharedInfoProvider` 부팅 시:
+호스트 부팅 시:
 
-1. 각 remote의 `./PageVariants` aggregator를 dynamic import
-2. `usePageVariantsLoader`가 component 함수 참조는 버리고 메타(label/description/key)만 추출
-3. `usePageVariantsStore.variants`에 저장
+1. `usePageVariantManifestLoader`가 각 remote의 `./PageVariantManifest` aggregator를 dynamic import
+2. component 함수 참조는 버리고 메타(label/description/key)만 추출
+3. `usePageVariantManifestStore.variants`에 저장
 
-메뉴 관리 폼은 store에서 변형 매니페스트를 읽어 picker 옵션을 그립니다. 호스트는 변형 컴포넌트 chunk를 직접 받지 않으므로 가벼움.
+manager의 화면 지정 picker는 이 store에서 변형 매니페스트를 읽어 카드 그리드를 그립니다. 호스트는 변형 컴포넌트 chunk를 직접 받지 않으므로 가벼움.
+
+> 별개로 `usePageVariantsLoader`(host)는 화면 지정 API의 지정값(appId/path → componentKey)을
+> `usePageVariantsStore`에 mirror합니다 — DynamicElement가 lookup하는 쪽은 이 store입니다.
 
 ### 새 remote의 자동 등록
 
 `pnpm run create-remote`로 신규 remote를 생성하면 다음이 자동 처리됩니다:
 
-- `apps/<new-remote>/src/app/features/router/pageVariants.ts` 빈 aggregator 생성
-- `module-federation.config.ts`에 `'./PageVariants'` expose 항목 포함
-- 호스트의 `usePageVariantsLoader` `VARIANT_LOADERS` 맵에 신규 remote 자동 등록
+- `apps/<new-remote>/src/app/features/router/pageVariantManifest.ts` 빈 aggregator 생성
+- `module-federation.config.ts`에 `'./PageVariantManifest'` expose 항목 포함
+- 호스트의 `usePageVariantManifestLoader` `VARIANT_LOADERS` 맵에 신규 remote 자동 등록
 
 따라서 신규 remote는 별도 작업 없이 variants 인프라가 즉시 동작합니다.
 

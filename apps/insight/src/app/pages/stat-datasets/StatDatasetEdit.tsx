@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { Alert, App, Button, Divider, Tag, Typography } from 'antd';
 import dayjs from 'dayjs';
@@ -77,6 +77,15 @@ function toCalcFieldDrafts(fields: FieldMetaItem[]): LocalCalcFieldDraft[] {
     });
 }
 
+/** 계산필드 변경 감지용 직렬화 — 수식/표시명/서식/KPI방향이 하나라도 바뀌면 다른 문자열. */
+function serializeCalcFields(calcs: LocalCalcFieldDraft[]): string {
+  return JSON.stringify(
+    calcs
+      .map((c) => [c.fieldCode, c.displayName, c.rowExpression, c.aggExpression ?? null, c.columnFormat, c.kpiDirection])
+      .sort((a, b) => String(a[0]).localeCompare(String(b[0]))),
+  );
+}
+
 function buildFieldRequests(displays: LocalFieldDisplay[], calcs: LocalCalcFieldDraft[]): DataSourceFieldRequest[] {
   const regular = displays
     .filter((f) => !f.isCalcField)
@@ -120,6 +129,8 @@ export default function StatDatasetEdit() {
   const [isCalcEditing, setIsCalcEditing] = useState(false);
   const [initialized, setInitialized] = useState(false);
   const [validationStatus, setValidationStatus] = useState<ValidationStatus>('unchecked');
+  // 저장 시 계산필드 변경 감지용 — 초기 로드 시점 스냅샷
+  const initialCalcRef = useRef<string>('');
 
   const { data: dataset, isLoading } = useGetDataset({
     params: { datasetId: datasetId! },
@@ -198,6 +209,7 @@ export default function StatDatasetEdit() {
       setDescription(dataset.description ?? '');
       setFieldDisplays([...regularDisplays, ...calcDisplays]);
       setCalcFields(calcDrafts);
+      initialCalcRef.current = serializeCalcFields(calcDrafts);
       setInitialized(true);
     }
   }, [dataset, initialized]);
@@ -210,7 +222,7 @@ export default function StatDatasetEdit() {
     return { dim, msr, calc, total: dim + msr + calc };
   }, [fieldDisplays, calcFields]);
 
-  const doSave = () => {
+  const doSave = (applyToReports: boolean) => {
     if (!dataset || !datasetId) return;
     updateDataset({
       datasetId,
@@ -219,7 +231,28 @@ export default function StatDatasetEdit() {
         description: description.trim(),
         dbViewPrefix: dataset.dbViewPrefix,
         fields: buildFieldRequests(fieldDisplays, calcFields),
+        ...(applyToReports ? { applyToReports: true } : {}),
       },
+    });
+  };
+
+  // 계산필드가 변경됐으면 기존 보고서 동기화 여부를 묻고 저장 (opt-in — 보고서 계산필드는 생성 시점 스냅샷이 원칙)
+  const confirmSyncAndSave = () => {
+    const calcChanged = serializeCalcFields(calcFields) !== initialCalcRef.current;
+    if (!calcChanged) {
+      doSave(false);
+      return;
+    }
+    modal.confirm({
+      title: '기존 보고서에도 적용',
+      content:
+        '계산필드가 변경되었습니다. 이 데이터셋을 사용하는 기존 보고서들의 계산필드에도 변경을 적용하시겠습니까? (적용하지 않으면 기존 보고서는 생성 시점 정의를 유지합니다)',
+      okText: '보고서까지 적용',
+      cancelText: '데이터셋만 저장',
+      keyboard: false,
+      maskClosable: false,
+      onOk: () => doSave(true),
+      onCancel: () => doSave(false),
     });
   };
 
@@ -233,11 +266,11 @@ export default function StatDatasetEdit() {
         content: '필드 검증에 실패했습니다. 그래도 저장하시겠습니까?',
         okText: '저장',
         cancelText: '취소',
-        onOk: doSave,
+        onOk: confirmSyncAndSave,
       });
       return;
     }
-    doSave();
+    confirmSyncAndSave();
   };
 
   if (isLoading || !initialized) {
