@@ -851,29 +851,46 @@ export default function SipTrunkList() {
         </Panel>
       </PanelGroup>
 
-      {/* floating bulk-bar — 항상 렌더, 선택 없을 때 버튼 disabled */}
-      <div
-        className="fixed bottom-5 left-1/2 z-50 flex -translate-x-1/2 items-center gap-3 rounded-xl bg-slate-700/90 px-4 py-2.5 text-sm text-[#e2e8f0] shadow-xl"
-        style={{ opacity: selectedGdn && selectedTrunks.length > 0 ? 1 : 0.38, pointerEvents: selectedGdn && selectedTrunks.length > 0 ? 'auto' : 'none' }}
-      >
+      {/* floating bulk-bar — 항상 렌더, 선택 없을 때 버튼별 disabled + opacity */}
+      <div className="fixed bottom-5 left-1/2 z-50 flex -translate-x-1/2 items-center gap-3 rounded-xl bg-slate-700/90 px-4 py-2.5 text-sm text-[#e2e8f0] shadow-xl">
         <span className="flex items-center gap-1.5">
           <LayoutGrid className="size-3.5" />
           <span className="text-xs text-[#94a3b8]">그룹DN</span>
-          <span className="min-w-[28px] rounded-full bg-[#405189] px-2 py-0.5 text-center font-bold">1</span>
+          <span className={`min-w-[28px] rounded-full px-2 py-0.5 text-center font-bold ${selectedGdn ? 'bg-[#405189]' : 'bg-slate-600'}`}>{selectedGdn ? 1 : 0}</span>
         </span>
         <span className="text-[#94a3b8]">×</span>
         <span className="flex items-center gap-1.5">
           <Cable className="size-3.5" />
           <span className="text-xs text-[#94a3b8]">트렁크</span>
-          <span className="min-w-[28px] rounded-full bg-[#405189] px-2 py-0.5 text-center font-bold">{selectedTrunks.length}</span>
+          <span className={`min-w-[28px] rounded-full px-2 py-0.5 text-center font-bold ${selectedTrunks.length > 0 ? 'bg-[#405189]' : 'bg-slate-600'}`}>
+            {selectedTrunks.length}
+          </span>
         </span>
-        <Button type="primary" icon={<Plus className="size-3.5" />} disabled={!selectedGdn || selectedTrunks.length === 0} onClick={() => setAssignDrawerOpen(true)}>
+        <Button
+          type="primary"
+          icon={<Plus className="size-3.5" />}
+          disabled={!selectedGdn || selectedTrunks.length === 0}
+          style={{ opacity: selectedGdn && selectedTrunks.length > 0 ? 1 : 0.38 }}
+          onClick={() => setAssignDrawerOpen(true)}
+        >
           배정 (우선순위·채널수 입력)
         </Button>
-        <Button danger icon={<Trash2 className="size-3.5" />} disabled={!selectedGdn || selectedTrunks.length === 0} onClick={handleRevoke}>
+        <Button
+          danger
+          icon={<Trash2 className="size-3.5" />}
+          disabled={!selectedGdn || selectedTrunks.length === 0}
+          style={{ opacity: selectedGdn && selectedTrunks.length > 0 ? 1 : 0.38 }}
+          onClick={handleRevoke}
+        >
           해제
         </Button>
-        <Button type="text" disabled={selectedTrunks.length === 0} onClick={clearSelection} className="!text-[#94a3b8] hover:!text-[#e2e8f0]">
+        <Button
+          type="text"
+          disabled={selectedTrunks.length === 0}
+          style={{ color: '#e2e8f0', opacity: selectedTrunks.length > 0 ? 1 : 0.38 }}
+          onClick={clearSelection}
+          className="hover:!text-white"
+        >
           선택 해제
         </Button>
       </div>

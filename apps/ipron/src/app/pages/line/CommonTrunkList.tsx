@@ -650,17 +650,14 @@ export default function CommonTrunkList() {
         </Panel>
       </PanelGroup>
 
-      {/* ===== Bulk Action Bar — 항상 렌더, 선택 없을 때 버튼 disabled ===== */}
-      <div
-        className="fixed bottom-5 left-1/2 -translate-x-1/2 z-50 bg-slate-700/90 rounded-xl shadow-xl flex items-center gap-3 px-4 py-2.5 text-sm text-[#e2e8f0]"
-        style={{ opacity: showBulkBar ? 1 : 0.38, pointerEvents: showBulkBar ? 'auto' : 'none' }}
-      >
+      {/* ===== Bulk Action Bar — 항상 렌더, 선택 없을 때 버튼별 disabled + opacity ===== */}
+      <div className="fixed bottom-5 left-1/2 -translate-x-1/2 z-50 bg-slate-700/90 rounded-xl shadow-xl flex items-center gap-3 px-4 py-2.5 text-sm text-[#e2e8f0]">
         <span className="flex items-center gap-1.5">
           <Network className="size-3" style={{ color: '#94a3b8' }} />
           <span className="text-xs" style={{ color: '#94a3b8' }}>
             그룹DN
           </span>
-          <span className="bg-[#405189] px-2 py-0.5 rounded-full font-bold min-w-[22px] text-center" style={{ color: '#e2e8f0' }}>
+          <span className={`px-2 py-0.5 rounded-full font-bold min-w-[22px] text-center ${selectedGdn ? 'bg-[#405189]' : 'bg-slate-600'}`} style={{ color: '#e2e8f0' }}>
             {selectedGdn?.gdnNo ?? '-'}
           </span>
         </span>
@@ -671,20 +668,23 @@ export default function CommonTrunkList() {
           <span className="text-xs" style={{ color: '#94a3b8' }}>
             트렁크
           </span>
-          <span className="bg-[#405189] px-2 py-0.5 rounded-full font-bold min-w-[22px] text-center" style={{ color: '#e2e8f0' }}>
+          <span
+            className={`px-2 py-0.5 rounded-full font-bold min-w-[22px] text-center ${selectedTrunks.length > 0 ? 'bg-[#405189]' : 'bg-slate-600'}`}
+            style={{ color: '#e2e8f0' }}
+          >
             {selectedTrunks.length}건
           </span>
         </span>
         <span className="mx-1" style={{ color: '#64748b' }}>
           ·
         </span>
-        <Button type="primary" icon={<Plus className="size-3.5" />} disabled={!showBulkBar} onClick={() => setAssignDrawerOpen(true)}>
+        <Button type="primary" icon={<Plus className="size-3.5" />} disabled={!showBulkBar} style={{ opacity: showBulkBar ? 1 : 0.38 }} onClick={() => setAssignDrawerOpen(true)}>
           배정 (우선순위·채널수 입력)
         </Button>
-        <Button danger icon={<Trash2 className="size-3.5" />} disabled={!showBulkBar} onClick={handleRevoke}>
+        <Button danger icon={<Trash2 className="size-3.5" />} disabled={!showBulkBar} style={{ opacity: showBulkBar ? 1 : 0.38 }} onClick={handleRevoke}>
           해제
         </Button>
-        <Button type="text" disabled={!showBulkBar} onClick={clearBulkSel} className="!text-[#94a3b8] hover:!text-[#e2e8f0]">
+        <Button type="text" disabled={!showBulkBar} style={{ color: '#e2e8f0', opacity: showBulkBar ? 1 : 0.38 }} onClick={clearBulkSel} className="hover:!text-white">
           선택 해제
         </Button>
       </div>

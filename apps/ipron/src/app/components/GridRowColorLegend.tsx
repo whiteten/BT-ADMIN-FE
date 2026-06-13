@@ -3,7 +3,7 @@
  *
  * 팔레트 정의 (의미 고정 — GRID-ROWCOLOR-COLUMN-AUDIT.md b안):
  *   dirty  (#eff3ff): 미저장 변경 행
- *   unassigned (#fff7ed): 미배정/미할당 행
+ *   unassigned (#f1f5f9): 미배정/미할당 행 (slate-100 회색)
  *
  * 사용법:
  *   <GridRowColorLegend items={['dirty']} />
@@ -17,8 +17,8 @@ export const ROW_COLOR_PALETTE = {
   dirty: '#eff3ff',
   /** 미저장 변경 행 hover 배경색 */
   dirtyHover: '#e5ebff',
-  /** 미배정/미할당 행 배경색 (= bg-orange-50 근사, Tailwind amber-50) */
-  unassigned: '#fff7ed',
+  /** 미배정/미할당 행 배경색 (slate-100 회색) */
+  unassigned: '#f1f5f9',
   /** 편집 가능 셀 배경색 (기배정·인라인 편집 가능 셀) */
   editableCell: '#f0f4ff',
 } as const;

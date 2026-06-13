@@ -103,7 +103,7 @@ export default function AgentAdnTable({ rowData, isLoading, onSelectionChanged }
     <div className="h-full">
       <style>{`
         .ag-row-unassigned { background-color: ${ROW_COLOR_PALETTE.unassigned} !important; }
-        .ag-row-unassigned:hover { background-color: #fef3c7 !important; }
+        .ag-row-unassigned:hover { background-color: #e2e8f0 !important; }
       `}</style>
       <AgGridReact<AgentAdnRowResponse>
         rowData={rowData}
