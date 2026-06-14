@@ -299,7 +299,7 @@ export default function CtiQueueFormDrawer({ state, onClose, tenantOptions = [],
     if (collectOff) form.setFieldsValue({ collectTimeout: 0 });
   }, [collectOff, form, state.open]);
 
-  // BSR 탭 활성 중 bsrYn=0 변경 시 라우팅 탭 강제 이동 (NOTES.md 규칙)
+  // bsrYn=0 변경 시 BSR 탭이 숨겨지므로, 활성 탭이 'bsr'이면 라우팅 탭으로 강제 이동 (빈 화면 방지)
   useEffect(() => {
     if (!state.open) return;
     if (!bsrOn && activeTab === 'bsr') {
@@ -981,123 +981,127 @@ export default function CtiQueueFormDrawer({ state, onClose, tenantOptions = [],
         </div>
       ),
     },
-    {
-      key: 'bsr',
-      label: 'BSR',
-      disabled: !bsrOn,
-      forceRender: true,
-      children: (
-        <div className="space-y-5">
-          {/* BSR 그룹 관리 일괄 배정 링크 (상주 배너 금지 — 버튼 1개만) */}
-          <div className="flex justify-end">
-            <Button
-              type="link"
-              size="small"
-              icon={<ArrowRight className="size-3" />}
-              iconPosition="end"
-              onClick={() => {
-                onClose();
-                navigate('/ipron/bsr-group-mgmt');
-              }}
-            >
-              BSR 그룹 관리에서 일괄 배정
-            </Button>
-          </div>
+    // BSR 미사용(bsrYn=0)이면 탭 자체를 숨김 — 비활성 대신 배열에서 제외
+    ...(bsrOn
+      ? [
+          {
+            key: 'bsr',
+            label: 'BSR',
+            forceRender: true,
+            children: (
+              <div className="space-y-5">
+                {/* BSR 그룹 관리 일괄 배정 링크 (상주 배너 금지 — 버튼 1개만) */}
+                <div className="flex justify-end">
+                  <Button
+                    type="link"
+                    size="small"
+                    icon={<ArrowRight className="size-3" />}
+                    iconPosition="end"
+                    onClick={() => {
+                      onClose();
+                      navigate('/ipron/bsr-group-mgmt');
+                    }}
+                  >
+                    BSR 그룹 관리에서 일괄 배정
+                  </Button>
+                </div>
 
-          {/* BSR 속성 (bsrYn 은 라우팅 탭에 위치 — 여기서 중복 배치 금지) */}
-          <div className="grid grid-cols-2 gap-x-6 gap-y-1">
-            <Form.Item label="BSR 분배여부" name="bsrDistributeYn">
-              {ynRadio()}
-            </Form.Item>
-            <div />
-            <Form.Item label="BSR 그룹" name="bsrGroupId" required={bsrOn}>
-              <Select options={bsrGroupSelectOptions} loading={bsrGroupLoading} disabled={!bsrOn} showSearch optionFilterProp="label" />
-            </Form.Item>
-            <Form.Item label="BSR 가중치 (0~1000)" name="bsrWeight">
-              <InputNumber style={{ width: '100%' }} min={0} max={1000} disabled={!bsrOn} />
-            </Form.Item>
-          </div>
+                {/* BSR 속성 (bsrYn 은 라우팅 탭에 위치 — 여기서 중복 배치 금지) */}
+                <div className="grid grid-cols-2 gap-x-6 gap-y-1">
+                  <Form.Item label="BSR 분배여부" name="bsrDistributeYn">
+                    {ynRadio()}
+                  </Form.Item>
+                  <div />
+                  <Form.Item label="BSR 그룹" name="bsrGroupId" required={bsrOn}>
+                    <Select options={bsrGroupSelectOptions} loading={bsrGroupLoading} disabled={!bsrOn} showSearch optionFilterProp="label" />
+                  </Form.Item>
+                  <Form.Item label="BSR 가중치 (0~1000)" name="bsrWeight">
+                    <InputNumber style={{ width: '100%' }} min={0} max={1000} disabled={!bsrOn} />
+                  </Form.Item>
+                </div>
 
-          {/* BSR Schedule 서브그리드 */}
-          <section className="border-t border-dashed border-gray-200 pt-4">
-            <div className="flex items-center justify-between mb-2">
-              <h4 className="text-xs font-semibold text-gray-500">
-                BSR Schedule 설정 <span className="text-gray-400 font-normal">{isEdit ? '' : '(저장 후 활성)'}</span>
-              </h4>
-              {isEdit && (
-                <Button
-                  size="small"
-                  icon={<Plus className="size-3" />}
-                  onClick={() => {
-                    setBsrPickerSelected([]);
-                    setBsrPickerOpen(true);
-                  }}
-                  disabled={bsrAssigning || bsrUnassigning}
-                >
-                  추가
-                </Button>
-              )}
-            </div>
-            {isEdit ? (
-              <div className="border border-gray-200 rounded overflow-x-auto">
-                <table className="w-full border-collapse text-[11.5px] whitespace-nowrap">
-                  <thead className="bg-gray-50 text-gray-600">
-                    <tr>
-                      <th className="px-2 h-8 border-b text-left">스케줄명</th>
-                      <th className="px-2 h-8 border-b text-left">시작일자</th>
-                      <th className="px-2 h-8 border-b text-left">종료일자</th>
-                      <th className="px-2 h-8 border-b text-right">시작</th>
-                      <th className="px-2 h-8 border-b text-right">종료</th>
-                      <th className="px-2 h-8 border-b text-center">요일</th>
-                      <th className="px-2 h-8 border-b text-right">가중치</th>
-                      <th className="px-2 h-8 border-b text-center">인입/전환</th>
-                      <th className="px-2 h-8 border-b text-center w-10"></th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {bsrSchedules.length === 0 ? (
-                      <tr>
-                        <td colSpan={9} className="px-2 h-10 text-center text-gray-400">
-                          배정된 BSR 스케줄이 없습니다
-                        </td>
-                      </tr>
-                    ) : (
-                      bsrSchedules.map((s) => (
-                        <tr key={s.quebsrScheduleId} className="hover:bg-gray-50">
-                          <td className="px-2 h-8 border-b">{s.quebsrScheduleName ?? '-'}</td>
-                          <td className="px-2 h-8 border-b">{s.startDate ?? '-'}</td>
-                          <td className="px-2 h-8 border-b">{s.endDate ?? '-'}</td>
-                          <td className="px-2 h-8 border-b text-right">{s.startTime ?? '-'}</td>
-                          <td className="px-2 h-8 border-b text-right">{s.finishTime ?? '-'}</td>
-                          <td className="px-2 h-8 border-b text-center">{dayString(s)}</td>
-                          <td className="px-2 h-8 border-b text-right">{s.bsrWeight ?? '-'}</td>
-                          <td className="px-2 h-8 border-b text-center">
-                            {ynChar(s.useBsrIncomYn)} / {ynChar(s.useBsrRdyrouteYn)}
-                          </td>
-                          <td className="px-2 h-8 border-b text-center">
-                            <button
-                              type="button"
-                              disabled={bsrUnassigning}
-                              onClick={() => ctiqId != null && unassignBsr({ ctiqId, scheduleId: s.quebsrScheduleId })}
-                              className="text-red-400 hover:text-red-600 disabled:opacity-40"
-                              title="배정 해제"
-                            >
-                              <Trash2 className="size-3.5" />
-                            </button>
-                          </td>
-                        </tr>
-                      ))
+                {/* BSR Schedule 서브그리드 */}
+                <section className="border-t border-dashed border-gray-200 pt-4">
+                  <div className="flex items-center justify-between mb-2">
+                    <h4 className="text-xs font-semibold text-gray-500">
+                      BSR Schedule 설정 <span className="text-gray-400 font-normal">{isEdit ? '' : '(저장 후 활성)'}</span>
+                    </h4>
+                    {isEdit && (
+                      <Button
+                        size="small"
+                        icon={<Plus className="size-3" />}
+                        onClick={() => {
+                          setBsrPickerSelected([]);
+                          setBsrPickerOpen(true);
+                        }}
+                        disabled={bsrAssigning || bsrUnassigning}
+                      >
+                        추가
+                      </Button>
                     )}
-                  </tbody>
-                </table>
+                  </div>
+                  {isEdit ? (
+                    <div className="border border-gray-200 rounded overflow-x-auto">
+                      <table className="w-full border-collapse text-[11.5px] whitespace-nowrap">
+                        <thead className="bg-gray-50 text-gray-600">
+                          <tr>
+                            <th className="px-2 h-8 border-b text-left">스케줄명</th>
+                            <th className="px-2 h-8 border-b text-left">시작일자</th>
+                            <th className="px-2 h-8 border-b text-left">종료일자</th>
+                            <th className="px-2 h-8 border-b text-right">시작</th>
+                            <th className="px-2 h-8 border-b text-right">종료</th>
+                            <th className="px-2 h-8 border-b text-center">요일</th>
+                            <th className="px-2 h-8 border-b text-right">가중치</th>
+                            <th className="px-2 h-8 border-b text-center">인입/전환</th>
+                            <th className="px-2 h-8 border-b text-center w-10"></th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {bsrSchedules.length === 0 ? (
+                            <tr>
+                              <td colSpan={9} className="px-2 h-10 text-center text-gray-400">
+                                배정된 BSR 스케줄이 없습니다
+                              </td>
+                            </tr>
+                          ) : (
+                            bsrSchedules.map((s) => (
+                              <tr key={s.quebsrScheduleId} className="hover:bg-gray-50">
+                                <td className="px-2 h-8 border-b">{s.quebsrScheduleName ?? '-'}</td>
+                                <td className="px-2 h-8 border-b">{s.startDate ?? '-'}</td>
+                                <td className="px-2 h-8 border-b">{s.endDate ?? '-'}</td>
+                                <td className="px-2 h-8 border-b text-right">{s.startTime ?? '-'}</td>
+                                <td className="px-2 h-8 border-b text-right">{s.finishTime ?? '-'}</td>
+                                <td className="px-2 h-8 border-b text-center">{dayString(s)}</td>
+                                <td className="px-2 h-8 border-b text-right">{s.bsrWeight ?? '-'}</td>
+                                <td className="px-2 h-8 border-b text-center">
+                                  {ynChar(s.useBsrIncomYn)} / {ynChar(s.useBsrRdyrouteYn)}
+                                </td>
+                                <td className="px-2 h-8 border-b text-center">
+                                  <button
+                                    type="button"
+                                    disabled={bsrUnassigning}
+                                    onClick={() => ctiqId != null && unassignBsr({ ctiqId, scheduleId: s.quebsrScheduleId })}
+                                    className="text-red-400 hover:text-red-600 disabled:opacity-40"
+                                    title="배정 해제"
+                                  >
+                                    <Trash2 className="size-3.5" />
+                                  </button>
+                                </td>
+                              </tr>
+                            ))
+                          )}
+                        </tbody>
+                      </table>
+                    </div>
+                  ) : (
+                    <p className="text-[11.5px] text-gray-400">큐 저장 후 BSR 스케줄을 배정할 수 있습니다.</p>
+                  )}
+                </section>
               </div>
-            ) : (
-              <p className="text-[11.5px] text-gray-400">큐 저장 후 BSR 스케줄을 배정할 수 있습니다.</p>
-            )}
-          </section>
-        </div>
-      ),
-    },
+            ),
+          },
+        ]
+      : []),
     {
       key: 'slt',
       label: '목표SLT스케줄',

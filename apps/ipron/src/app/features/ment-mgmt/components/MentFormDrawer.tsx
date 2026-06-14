@@ -201,6 +201,12 @@ export default function MentFormDrawer({ state, onClose }: Props) {
 
   const onDownloadCurrent = async (mentId: number, fileName: string) => {
     try {
+      // 파일 없음은 BE 404 → BFF 500 둔갑 → 사전체크(항상 200)로 회피. 실체 없으면 graceful 안내 후 중단.
+      const check = await mentApi.previewCheck(mentId);
+      if (!check.fileExists) {
+        toast.warning(check.message ?? '멘트 파일 실체가 없습니다(메타만 등록됨)');
+        return;
+      }
       const blob = await mentApi.download(mentId);
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');

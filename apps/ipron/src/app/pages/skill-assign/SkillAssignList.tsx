@@ -400,6 +400,7 @@ export default function SkillAssignList() {
         field: 'activateYn',
         headerName: '활성',
         width: 70,
+        filterValueGetter: ({ data }: { data?: AgentResponse }) => (data?.activateYn === 1 ? '활성' : '비활성'),
         cellRenderer: ({ value }: { value: number | null }) => (value === 1 ? <Tag color="green">활성</Tag> : <Tag color="red">비활성</Tag>),
       },
       {
