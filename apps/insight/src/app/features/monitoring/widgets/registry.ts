@@ -11,6 +11,7 @@
 import type { ComponentType } from 'react';
 import AgentStatusWidget from './agent-status/AgentStatusWidget';
 import AlarmCenterWidget from './alarm-center/AlarmCenterWidget';
+import ChannelDetailWidget from './channel-detail/ChannelDetailWidget';
 import CtiqStatusWidget from './ctiq-status/CtiqStatusWidget';
 import HealthBoardWidget from './health-board/HealthBoardWidget';
 import NodeDetailWidget from './node-detail/NodeDetailWidget';
@@ -122,6 +123,29 @@ const CTIQ_STATUS_FIELDS = [
   'DB_UPDATE_SEC',
 ];
 
+/** 채널 상세 위젯에서 사용하는 필드 — 채널상태 격자·목록·점유 집계에 필요. */
+const CHANNEL_DETAIL_FIELDS = [
+  // 식별 / 시스템
+  'CENTER_ID',
+  'SYSTEM_ID',
+  'SYSTEM_NAME',
+  'IR_TYPE',
+  'CHNL_NO',
+  // 상태
+  'CHNL_STATUS',
+  'MEDIA_TYPE',
+  'ENTRY_PATH',
+  'INOUT_KIND',
+  'PROTOCOL',
+  // 서비스 / 호 컨텍스트
+  'SERVICE_ID',
+  'SERVICE_DNIS',
+  'SERVICE_ANI',
+  'UCID',
+  // 신선도
+  'DB_UPDATE_TIME',
+];
+
 const REGISTRY: Record<string, CustomWidgetEntry> = {
   'agent-status-matrix': { component: AgentStatusWidget, fields: AGENT_STATUS_CARD_FIELDS },
   'ctiq-status-matrix': { component: CtiqStatusWidget, fields: CTIQ_STATUS_FIELDS },
@@ -136,6 +160,9 @@ const REGISTRY: Record<string, CustomWidgetEntry> = {
   // 트렁크 회선현황(흐름) — IE:TRUNK 라인을 회선 그룹(IPV4)→노드(PBX)로 BE 가 집계해 단일 객체로 내려준다.
   // (summary/nodes/groups 구조, 라인 state-line 포함) row 필드 화이트리스트 없음 → fields 미지정(전체 수신).
   'trunk-flow-saturation': { component: TrunkFlowWidget },
+  // 채널 상세 — 헬스보드 채널 현황 카드 드릴다운. IR CH:IVR:{SYSTEM_ID}(DS_SLEE_CH_STATE) 채널별 row 배열 수신.
+  // 시스템(SLEE)별 채널상태 격자/목록/막대/선 4종 뷰. fields 화이트리스트로 전송량 축소.
+  'channel-detail': { component: ChannelDetailWidget, fields: CHANNEL_DETAIL_FIELDS },
 };
 
 export function getCustomWidgetComponent(widgetTypeId: string): ComponentType<CustomWidgetComponentProps> | null {
