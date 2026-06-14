@@ -20,6 +20,9 @@ import { AgGridReact } from 'ag-grid-react';
 import { Button, Form, Input, InputNumber, Modal, Spin } from 'antd';
 import { ChevronLeft, Plus, Search, Trash2 } from 'lucide-react';
 import { toast } from '@/shared-util';
+import SkillsetGroupTree from '../../skillset-master/components/SkillsetGroupTree';
+import { useGetSkillsetGroups } from '../../skillset-master/hooks/useSkillsetQueries';
+import type { SkillsetGroupResponse } from '../../skillset-master/types/skillset';
 import {
   useCreateSkillGroup,
   useDeleteSkillGroup,
@@ -64,6 +67,10 @@ export default function SkillGroupManageModal({ open, tenantId, onClose }: Props
   // ── 모음 선택 (셀렉트) ────────────────────────────────────────────────────
   const [selectedGroupId, setSelectedGroupId] = useState<number | null>(null);
 
+  // ── 좌측 업무그룹 트리 (스킬셋 필터) ──────────────────────────────────────
+  // null=전체 / 0=미배정(treeId==null) / n=해당 업무그룹. 트리는 조회·필터 전용(편집 차단).
+  const [selectedTreeId, setSelectedTreeId] = useState<number | null>(null);
+
   // ── 좌측 그리드 ───────────────────────────────────────────────────────────
   const [leftSearch, setLeftSearch] = useState('');
   const [leftChecked, setLeftChecked] = useState<Set<number>>(new Set());
@@ -87,6 +94,7 @@ export default function SkillGroupManageModal({ open, tenantId, onClose }: Props
       setViewMode('list');
       setEditTarget(null);
       setSelectedGroupId(null);
+      setSelectedTreeId(null);
       setLeftSearch('');
       setLeftChecked((prev) => (prev.size === 0 ? prev : new Set()));
       setMemberRows((prev) => (prev.length === 0 ? prev : []));
@@ -105,6 +113,13 @@ export default function SkillGroupManageModal({ open, tenantId, onClose }: Props
 
   // 좌측 그리드: 활성/비활성 모두 포함 (전체 스킬셋)
   const { data: availableSkillsets = [], isLoading: skillsetsLoading } = useGetAvailableSkillsets({
+    params: tenantIdParam != null ? { tenantId: tenantIdParam } : undefined,
+    queryOptions: { enabled: open },
+  });
+
+  // 좌측 트리: 업무그룹(스킬셋 트리) — 스킬셋 관리 화면과 동일 훅/데이터.
+  // 모달의 현재 테넌트로 필터. 편집은 차단(readOnly)하고 조회·필터만 한다.
+  const { data: groupTree = [] } = useGetSkillsetGroups({
     params: tenantIdParam != null ? { tenantId: tenantIdParam } : undefined,
     queryOptions: { enabled: open },
   });
@@ -220,13 +235,25 @@ export default function SkillGroupManageModal({ open, tenantId, onClose }: Props
 
   const memberSet = useMemo(() => new Set(memberRows.map((m) => m.skillsetId)), [memberRows]);
 
+  // 트리 카운트 — 스킬셋 관리 화면의 treeDisplayCount 와 동일 의미.
+  // "전체"=현재 테넌트의 전체 스킬셋, "미배정"=treeId==null 스킬셋.
+  const totalSkillsetCount = availableSkillsets.length;
+  const totalUnassignedCount = useMemo(() => availableSkillsets.filter((s) => s.treeId == null).length, [availableSkillsets]);
+
+  // 좌측 스킬셋 필터 = (업무그룹 트리 선택) + (검색어).
+  // 트리: null=전체 / 0=미배정(treeId==null) / n=해당 그룹 — SkillAssignList.filteredSkillsetsByGroup 패턴 동일.
   const filteredLeft = useMemo<AvailableSkillsetResponse[]>(() => {
     const kw = leftSearch.trim().toLowerCase();
     return availableSkillsets.filter((s) => {
+      if (selectedTreeId === 0) {
+        if (s.treeId != null) return false;
+      } else if (selectedTreeId != null) {
+        if (s.treeId !== selectedTreeId) return false;
+      }
       if (kw && !s.skillsetName.toLowerCase().includes(kw) && !String(s.skillsetId).includes(kw)) return false;
       return true;
     });
-  }, [availableSkillsets, leftSearch]);
+  }, [availableSkillsets, leftSearch, selectedTreeId]);
 
   // ── 핸들러: 좌→우 이동 ────────────────────────────────────────────────────
 
@@ -429,6 +456,13 @@ export default function SkillGroupManageModal({ open, tenantId, onClose }: Props
     setRightChecked(new Set(rows.map((m) => m.skillsetId)));
   }, []);
 
+  // 트리는 readOnly — 편집/DnD 핸들러는 호출되지 않지만 필수 prop 이라 no-op 으로 채운다.
+  // (onGroupReorder 는 미전달 → 그룹 드래그 비활성. readOnly 로 호버 액션 버튼도 미렌더.)
+  // eslint-disable-next-line @typescript-eslint/no-empty-function
+  const treeNoop = useCallback((_group: SkillsetGroupResponse | null) => {}, []);
+  // eslint-disable-next-line @typescript-eslint/no-empty-function
+  const treeDropNoop = useCallback(() => {}, []);
+
   const submitting = isCreating || isUpdating;
 
   // ── 렌더 ─────────────────────────────────────────────────────────────────
@@ -439,7 +473,7 @@ export default function SkillGroupManageModal({ open, tenantId, onClose }: Props
     <Modal
       open={open}
       onCancel={onClose}
-      width={1060}
+      width={1320}
       title={
         <div className="flex items-center gap-2">
           {(viewMode === 'form-create' || viewMode === 'form-edit') && (
@@ -503,9 +537,31 @@ export default function SkillGroupManageModal({ open, tenantId, onClose }: Props
         </div>
       )}
 
-      {/* ===== 목록 뷰 (2그리드) ===== */}
+      {/* ===== 목록 뷰 (트리 + 2그리드) ===== */}
       {viewMode === 'list' && (
         <div className="flex flex-1 min-h-0 overflow-hidden" style={{ minHeight: 480 }}>
+          {/* ── 좌0: 업무그룹 트리 (스킬셋 필터, 읽기전용) ── */}
+          <div className="flex flex-col flex-shrink-0 border-r border-gray-100 overflow-hidden" style={{ width: 240 }}>
+            <div className="flex items-center px-4 border-b border-gray-100 bg-gray-50 h-[46px] flex-shrink-0">
+              <span className="text-[12.5px] font-bold text-gray-700">업무그룹</span>
+            </div>
+            <div className="flex-1 min-h-0">
+              <SkillsetGroupTree
+                groups={groupTree}
+                totalSkillsetCount={totalSkillsetCount}
+                totalUnassignedCount={totalUnassignedCount}
+                selectedTreeId={selectedTreeId}
+                selectedTenantId={tenantIdParam ?? null}
+                onSelect={setSelectedTreeId}
+                onCreateChild={treeNoop}
+                onEdit={treeNoop}
+                onDelete={treeNoop}
+                onSkillsetDrop={treeDropNoop}
+                readOnly
+              />
+            </div>
+          </div>
+
           {/* ── 좌: 전체 스킬셋 ── */}
           <div className="flex flex-col flex-1 min-w-0 border-r border-gray-100">
             {/* 좌측 헤더 */}

@@ -62,6 +62,12 @@ interface Props {
   onSkillsetDrop: (target: { treeId: number; tenantId: number | null }, skillsetIds: number[]) => void;
   /** 그룹 노드 D&D 재배치. position 은 referenceTreeId(드롭 받은 노드) 기준. */
   onGroupReorder?: (movedTreeId: number, position: SkillsetGroupReorderPosition, referenceTreeId: number) => void;
+  /**
+   * 읽기전용 모드. true 면 노드 호버 액션(추가/수정/삭제)을 렌더하지 않는다.
+   * 그룹 편집은 "스킬셋 관리" 화면에서만 가능하고, 여기(스킬모음 관리 모달)서는 조회·필터만 한다.
+   * 기본값 false → 기존 동작(스킬셋 관리 화면) 영향 없음.
+   */
+  readOnly?: boolean;
 }
 
 /** 그룹 목록을 테넌트별로 분리 (루트 노드 기준). */
@@ -88,6 +94,7 @@ function TenantSection({
   onSkillsetDrop,
   onGroupReorder,
   searchText,
+  readOnly,
 }: {
   tenantId: number;
   tenantName: string;
@@ -100,6 +107,7 @@ function TenantSection({
   onSkillsetDrop: (target: { treeId: number; tenantId: number | null }, skillsetIds: number[]) => void;
   onGroupReorder?: (movedTreeId: number, position: SkillsetGroupReorderPosition, referenceTreeId: number) => void;
   searchText: string;
+  readOnly?: boolean;
 }) {
   const [dropTargetId, setDropTargetId] = useState<number | null>(null);
   const [groupDropHint, setGroupDropHint] = useState<{ id: number; pos: SkillsetGroupReorderPosition } | null>(null);
@@ -214,44 +222,46 @@ function TenantSection({
 
         <span className="h-5 inline-flex items-center text-[11px] text-gray-400 flex-shrink-0">{node.skillsetCount.toLocaleString()}</span>
 
-        <div className="flex items-center gap-0.5 flex-shrink-0">
-          <Tooltip title="하위 그룹 추가" {...TOOLTIP_PROPS}>
-            <button
-              type="button"
-              className="w-5 h-5 inline-flex items-center justify-center rounded text-gray-400 hover:bg-[var(--color-bt-primary-soft)] hover:text-[var(--color-bt-primary)]"
-              onClick={(e) => {
-                e.stopPropagation();
-                onCreateChild(node);
-              }}
-            >
-              <Plus className="size-3.5" />
-            </button>
-          </Tooltip>
-          <Tooltip title="그룹 수정" {...TOOLTIP_PROPS}>
-            <button
-              type="button"
-              className="w-5 h-5 inline-flex items-center justify-center rounded text-gray-400 hover:bg-[var(--color-bt-primary-soft)] hover:text-[var(--color-bt-primary)]"
-              onClick={(e) => {
-                e.stopPropagation();
-                onEdit(node);
-              }}
-            >
-              <Pencil className="size-3.5" />
-            </button>
-          </Tooltip>
-          <Tooltip title="그룹 삭제" {...TOOLTIP_PROPS}>
-            <button
-              type="button"
-              className="w-5 h-5 inline-flex items-center justify-center rounded text-gray-400 hover:bg-red-50 hover:text-red-500"
-              onClick={(e) => {
-                e.stopPropagation();
-                onDelete(node);
-              }}
-            >
-              <Trash2 className="size-3.5" />
-            </button>
-          </Tooltip>
-        </div>
+        {!readOnly && (
+          <div className="flex items-center gap-0.5 flex-shrink-0">
+            <Tooltip title="하위 그룹 추가" {...TOOLTIP_PROPS}>
+              <button
+                type="button"
+                className="w-5 h-5 inline-flex items-center justify-center rounded text-gray-400 hover:bg-[var(--color-bt-primary-soft)] hover:text-[var(--color-bt-primary)]"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onCreateChild(node);
+                }}
+              >
+                <Plus className="size-3.5" />
+              </button>
+            </Tooltip>
+            <Tooltip title="그룹 수정" {...TOOLTIP_PROPS}>
+              <button
+                type="button"
+                className="w-5 h-5 inline-flex items-center justify-center rounded text-gray-400 hover:bg-[var(--color-bt-primary-soft)] hover:text-[var(--color-bt-primary)]"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onEdit(node);
+                }}
+              >
+                <Pencil className="size-3.5" />
+              </button>
+            </Tooltip>
+            <Tooltip title="그룹 삭제" {...TOOLTIP_PROPS}>
+              <button
+                type="button"
+                className="w-5 h-5 inline-flex items-center justify-center rounded text-gray-400 hover:bg-red-50 hover:text-red-500"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onDelete(node);
+                }}
+              >
+                <Trash2 className="size-3.5" />
+              </button>
+            </Tooltip>
+          </div>
+        )}
       </TreeRow>
     );
   };
@@ -283,6 +293,7 @@ export default function SkillsetGroupTree({
   onDelete,
   onSkillsetDrop,
   onGroupReorder,
+  readOnly = false,
 }: Props) {
   const [searchText, setSearchText] = useState('');
   const [unassignedDropOver, setUnassignedDropOver] = useState(false);
@@ -407,44 +418,46 @@ export default function SkillsetGroupTree({
 
         <span className="h-5 inline-flex items-center text-[11px] text-gray-400 flex-shrink-0">{node.skillsetCount.toLocaleString()}</span>
 
-        <div className="flex items-center gap-0.5 flex-shrink-0">
-          <Tooltip title="하위 그룹 추가" {...TOOLTIP_PROPS}>
-            <button
-              type="button"
-              className="w-5 h-5 inline-flex items-center justify-center rounded text-gray-400 hover:bg-[var(--color-bt-primary-soft)] hover:text-[var(--color-bt-primary)]"
-              onClick={(e) => {
-                e.stopPropagation();
-                onCreateChild(node);
-              }}
-            >
-              <Plus className="size-3.5" />
-            </button>
-          </Tooltip>
-          <Tooltip title="그룹 수정" {...TOOLTIP_PROPS}>
-            <button
-              type="button"
-              className="w-5 h-5 inline-flex items-center justify-center rounded text-gray-400 hover:bg-[var(--color-bt-primary-soft)] hover:text-[var(--color-bt-primary)]"
-              onClick={(e) => {
-                e.stopPropagation();
-                onEdit(node);
-              }}
-            >
-              <Pencil className="size-3.5" />
-            </button>
-          </Tooltip>
-          <Tooltip title="그룹 삭제" {...TOOLTIP_PROPS}>
-            <button
-              type="button"
-              className="w-5 h-5 inline-flex items-center justify-center rounded text-gray-400 hover:bg-red-50 hover:text-red-500"
-              onClick={(e) => {
-                e.stopPropagation();
-                onDelete(node);
-              }}
-            >
-              <Trash2 className="size-3.5" />
-            </button>
-          </Tooltip>
-        </div>
+        {!readOnly && (
+          <div className="flex items-center gap-0.5 flex-shrink-0">
+            <Tooltip title="하위 그룹 추가" {...TOOLTIP_PROPS}>
+              <button
+                type="button"
+                className="w-5 h-5 inline-flex items-center justify-center rounded text-gray-400 hover:bg-[var(--color-bt-primary-soft)] hover:text-[var(--color-bt-primary)]"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onCreateChild(node);
+                }}
+              >
+                <Plus className="size-3.5" />
+              </button>
+            </Tooltip>
+            <Tooltip title="그룹 수정" {...TOOLTIP_PROPS}>
+              <button
+                type="button"
+                className="w-5 h-5 inline-flex items-center justify-center rounded text-gray-400 hover:bg-[var(--color-bt-primary-soft)] hover:text-[var(--color-bt-primary)]"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onEdit(node);
+                }}
+              >
+                <Pencil className="size-3.5" />
+              </button>
+            </Tooltip>
+            <Tooltip title="그룹 삭제" {...TOOLTIP_PROPS}>
+              <button
+                type="button"
+                className="w-5 h-5 inline-flex items-center justify-center rounded text-gray-400 hover:bg-red-50 hover:text-red-500"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onDelete(node);
+                }}
+              >
+                <Trash2 className="size-3.5" />
+              </button>
+            </Tooltip>
+          </div>
+        )}
       </TreeRow>
     );
   };
@@ -556,6 +569,7 @@ export default function SkillsetGroupTree({
               onSkillsetDrop={onSkillsetDrop}
               onGroupReorder={onGroupReorder}
               searchText={searchText}
+              readOnly={readOnly}
             />
           ))
         )}
