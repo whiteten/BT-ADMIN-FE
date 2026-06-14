@@ -26,6 +26,8 @@ export interface AvailableSkillsetResponse {
   skillsetDesc: string | null;
   tenantId: number;
   tenantName: string | null;
+  treeId: number | null;
+  treeName: string | null;
   mediaType: number | null;
   activateYn: number | null;
   sortSeq: number | null;
