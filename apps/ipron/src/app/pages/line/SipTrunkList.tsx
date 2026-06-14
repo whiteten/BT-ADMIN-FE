@@ -177,13 +177,16 @@ export default function SipTrunkList() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [cardStats]);
 
-  // 그룹DN 첫 행 자동 선택
+  // 그룹DN 목록 변경 시 선택 무효화만 (자동 선택 제거 — 사용자가 클릭 선택)
   useEffect(() => {
     if (gdns.length === 0) {
       setSelectedGdn(null);
       return;
     }
-    if (!selectedGdn || !gdns.some((g) => g.gdnId === selectedGdn.gdnId)) setSelectedGdn(gdns[0]);
+    // 현재 선택된 GDN이 새 목록에 없으면(노드·테넌트 전환 등) 선택 해제
+    if (selectedGdn && !gdns.some((g) => g.gdnId === selectedGdn.gdnId)) {
+      setSelectedGdn(null);
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [gdns]);
 
