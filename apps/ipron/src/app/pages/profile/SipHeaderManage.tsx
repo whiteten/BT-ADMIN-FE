@@ -278,6 +278,7 @@ export default function SipHeaderManage() {
       headerName: '유형',
       field: 'headerType',
       maxWidth: 120,
+      filterValueGetter: (params) => (params.data?.headerType === 0 ? '기초' : '사용자'),
       cellRenderer: (params: ICellRendererParams<SipHeaderRelay>) => {
         const { data } = params;
         if (!data) return null;
@@ -435,7 +436,7 @@ export default function SipHeaderManage() {
                 }}
                 loading={isRelaysLoading}
                 getRowId={(params) => String(params.data.sipHeaderId)}
-                defaultColDef={{ filter: false, sortable: true, suppressHeaderMenuButton: true }}
+                defaultColDef={{ filter: true, sortable: true, suppressHeaderMenuButton: true }}
                 onRowDoubleClicked={(e) => {
                   if (!e.data) return;
                   if (e.data.headerType === 1) {

@@ -180,8 +180,9 @@ export default function SkillAssignStatusModal({ open, onClose, selectedAgents, 
         headerName: '상태',
         width: 90,
         sortable: false,
-        filter: false,
+        filter: true,
         suppressHeaderMenuButton: true,
+        filterValueGetter: (params) => (params.data?.assigned ? '배정됨' : '미배정'),
         cellRenderer: (params: { data?: StatusRow }) => {
           const d = params.data;
           if (!d) return null;

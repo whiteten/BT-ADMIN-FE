@@ -170,6 +170,7 @@ export default function DnSnrTab({ dnId }: DnSnrTabProps) {
         headerName: '콜종류',
         field: 'callType',
         width: 100,
+        filterValueGetter: (params) => CALL_TYPE_OPTIONS.find((o) => o.value === params.data?.callType)?.label ?? '-',
         valueFormatter: (p) => CALL_TYPE_OPTIONS.find((o) => o.value === p.value)?.label ?? '-',
       },
       {
@@ -199,6 +200,7 @@ export default function DnSnrTab({ dnId }: DnSnrTabProps) {
         headerName: '활성',
         field: 'activeYn',
         width: 70,
+        filterValueGetter: (params) => (params.data?.activeYn === 1 ? 'ON' : 'OFF'),
         valueFormatter: (p) => (p.value === 1 ? 'ON' : 'OFF'),
       },
       {
@@ -206,6 +208,7 @@ export default function DnSnrTab({ dnId }: DnSnrTabProps) {
         width: 44,
         pinned: 'right',
         sortable: false,
+        filter: false,
         cellRenderer: (p: any) => (
           <button
             className="text-gray-400 hover:text-red-500"
@@ -456,7 +459,7 @@ export default function DnSnrTab({ dnId }: DnSnrTabProps) {
             statusBar={undefined}
             rowData={todList}
             columnDefs={todColumns}
-            defaultColDef={{ sortable: true, filter: false, resizable: true, suppressHeaderMenuButton: true }}
+            defaultColDef={{ sortable: true, filter: true, resizable: true, suppressHeaderMenuButton: true }}
             onRowDoubleClicked={(e) => e.data && handleOpenTod(e.data)}
           />
         </div>

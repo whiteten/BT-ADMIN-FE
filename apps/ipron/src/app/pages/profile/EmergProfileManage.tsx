@@ -300,7 +300,7 @@ export default function EmergProfileManage() {
   ];
 
   // ─── ag-Grid columns ──────────────────────────────────────────────────────
-  const defaultColDef: ColDef = useMemo(() => ({ sortable: true, filter: false, resizable: true, suppressHeaderMenuButton: true }), []);
+  const defaultColDef: ColDef = useMemo(() => ({ sortable: true, filter: true, resizable: true, suppressHeaderMenuButton: true }), []);
 
   const columnDefs: ColDef<EmergCode>[] = [
     { headerName: '긴급코드', field: 'emergencyCode', minWidth: 120, maxWidth: 150 },

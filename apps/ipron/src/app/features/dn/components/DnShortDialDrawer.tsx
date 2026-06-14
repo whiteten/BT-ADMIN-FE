@@ -153,7 +153,7 @@ export default function DnShortDialDrawer({ open, dnId, dnNo, onClose }: DnShort
           {...gridOptions}
           rowData={list}
           columnDefs={columnDefs}
-          defaultColDef={{ filter: false, sortable: true, resizable: true, suppressHeaderMenuButton: true }}
+          defaultColDef={{ filter: true, sortable: true, resizable: true, suppressHeaderMenuButton: true }}
           onRowDoubleClicked={(e) => e.data && loadRow(e.data)}
           pagination={false}
           sideBar={false}
