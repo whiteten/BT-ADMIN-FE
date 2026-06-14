@@ -19,6 +19,8 @@ import type {
   CtiQueueGroupResponse,
   CtiQueueGroupUpdateRequest,
   CtiQueueMediaOption,
+  CtiQueueMediaSkillBatchRequest,
+  CtiQueueMediaSkillBatchResult,
   CtiQueueMemberReassignRequest,
   CtiQueueOptionItem,
   CtiQueueResponse,
@@ -192,6 +194,23 @@ export const useBulkUpdateCtiQueues = ({ mutationOptions }: MutationHookOptions<
   const qc = useQueryClient();
   return useMutation({
     mutationFn: (body) => ctiQueueApi.bulkUpdate(body),
+    ...mutationOptions,
+    onSuccess: (...args) => {
+      qc.invalidateQueries({ queryKey: ctiQueueQueryKeys.getList._def });
+      qc.invalidateQueries({ queryKey: ctiQueueQueryKeys.getTenants.queryKey });
+      mutationOptions?.onSuccess?.(...args);
+    },
+  });
+};
+
+/**
+ * 미디어 스킬 매트릭스 일괄 저장 — "스킬 배정 보기" 토글.
+ * 성공/부분성공(207) 후 목록 쿼리 invalidate.
+ */
+export const useMediaSkillsBatchCtiQueues = ({ mutationOptions }: MutationHookOptions<CtiQueueMediaSkillBatchResult, CtiQueueMediaSkillBatchRequest> = {}) => {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (body) => ctiQueueApi.mediaSkillsBatch(body),
     ...mutationOptions,
     onSuccess: (...args) => {
       qc.invalidateQueries({ queryKey: ctiQueueQueryKeys.getList._def });

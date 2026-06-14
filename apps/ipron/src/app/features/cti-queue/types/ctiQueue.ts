@@ -428,6 +428,57 @@ export interface CtiQueueBulkResult {
   items: CtiQueueBulkItemResult[];
 }
 
+// ──────────────────────────────────────────────────────────
+//  미디어 스킬 매트릭스 일괄 저장 (스킬 배정 보기 토글)
+// ──────────────────────────────────────────────────────────
+
+/**
+ * 미디어 스킬 매트릭스 단일 행 요청 (BE CtiQueueMediaSkillRowRequest 정합).
+ * fields: 이 행에서 변경한 필드만 포함 (field mask) — 미포함 필드는 서버측 보존.
+ * 큐별로 다른 스킬/레벨을 한 요청에 담는 "차등값×N" 구조 (bulk-update 의 "동일값×N" 과 대비).
+ */
+export interface CtiQueueMediaSkillRowRequest {
+  ctiqId: number;
+  fields: string[];
+  voipSkillId?: number | null;
+  voipSkillLevel?: number;
+  chatSkillId?: number | null;
+  chatSkillLevel?: number;
+  emailSkillId?: number | null;
+  emailSkillLevel?: number;
+  faxSkillId?: number | null;
+  faxSkillLevel?: number;
+  videoVoiceSkillId?: number | null;
+  videoVoiceSkillLevel?: number;
+  videoChatSkillId?: number | null;
+  videoChatSkillLevel?: number;
+  mvoipSkillId?: number | null;
+  mvoipSkillLevel?: number;
+  smsSkillId?: number | null;
+  smsSkillLevel?: number;
+}
+
+/** 미디어 스킬 매트릭스 일괄 저장 요청 (BE CtiQueueMediaSkillBatchRequest 정합, 207 응답). */
+export interface CtiQueueMediaSkillBatchRequest {
+  rows: CtiQueueMediaSkillRowRequest[];
+}
+
+/**
+ * 미디어 스킬 매트릭스 저장 결과 (BE CtiQueueBulkResult record 실제 직렬화 정합).
+ * BE: { successCount, totalCount, failures: [{ ctiqId, message }] } — 단일 step flow 이므로 BFF 무변환 통과.
+ * (참고: 위 CtiQueueBulkResult FE 타입은 일괄설정 모달 전용 별도 매핑 — 본 결과는 BE record 원형을 그대로 사용.)
+ */
+export interface CtiQueueMediaSkillFailure {
+  ctiqId: number;
+  message: string | null;
+}
+
+export interface CtiQueueMediaSkillBatchResult {
+  successCount: number;
+  totalCount: number;
+  failures: CtiQueueMediaSkillFailure[];
+}
+
 /**
  * 일괄 설정 모달에서 관리하는 필드별 값 상태.
  * checked: 이 필드를 변경 대상에 포함할지 여부 (field mask).

@@ -14,7 +14,24 @@
  */
 import { type ChangeEvent, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Button, Empty, Input, Modal, Table } from 'antd';
-import { ArrowUpDown, Building2, ChevronLeft, ChevronRight, ChevronsDown, ChevronsUp, Download, Network, Pencil, Plus, Search, Trash2, Upload } from 'lucide-react';
+import {
+  ArrowUpDown,
+  Building2,
+  ChevronLeft,
+  ChevronRight,
+  ChevronsDown,
+  ChevronsUp,
+  Download,
+  LayoutGrid,
+  Network,
+  Pencil,
+  Plus,
+  RotateCcw,
+  Save,
+  Search,
+  Trash2,
+  Upload,
+} from 'lucide-react';
 import { useAuthStore, useBreadcrumbStore } from '@/shared-store';
 import { toast } from '@/shared-util';
 import { ctiQueueApi } from '../../features/cti-queue/api/ctiQueueApi';
@@ -22,7 +39,7 @@ import CtiQueueBulkUpdateModal from '../../features/cti-queue/components/CtiQueu
 import CtiQueueFormDrawer, { type CtiQueueDrawerState } from '../../features/cti-queue/components/CtiQueueFormDrawer';
 import CtiQueueGroupDrawer from '../../features/cti-queue/components/CtiQueueGroupDrawer';
 import CtiQueueGroupTree from '../../features/cti-queue/components/CtiQueueGroupTree';
-import CtiQueueTable from '../../features/cti-queue/components/CtiQueueTable';
+import CtiQueueTable, { type MediaSkillCol } from '../../features/cti-queue/components/CtiQueueTable';
 import CtiQueueTenantCard from '../../features/cti-queue/components/CtiQueueTenantCard';
 import {
   useCreateCtiQueueGroup,
@@ -33,16 +50,42 @@ import {
   useGetCtiQueueMediaOptions,
   useGetCtiQueueSkillsetOptions,
   useGetCtiQueues,
+  useMediaSkillsBatchCtiQueues,
   useReassignCtiQueueMembers,
   useReorderCtiQueueGroup,
   useUnassignCtiQueueMembers,
   useUpdateCtiQueueGroup,
 } from '../../features/cti-queue/hooks/useCtiQueueQueries';
-import type { CtiQueueGroupCreateRequest, CtiQueueGroupReorderPosition, CtiQueueGroupResponse, CtiQueueGroupUpdateRequest, CtiQueueResponse } from '../../features/cti-queue/types';
+import {
+  type CtiQueueGroupCreateRequest,
+  type CtiQueueGroupReorderPosition,
+  type CtiQueueGroupResponse,
+  type CtiQueueGroupUpdateRequest,
+  type CtiQueueMediaSkillFailure,
+  type CtiQueueMediaSkillRowRequest,
+  type CtiQueueResponse,
+  MEDIA_SKILL_FIELD_MAP,
+} from '../../features/cti-queue/types';
 import { useGetDnProfileNodes, useGetDnProfileTenants } from '../../features/dn-profile/hooks/useDnProfileQueries';
 import { useModal } from '@/libs/shared-ui/src/hooks/useModal';
 
 const breadcrumb = [{ title: '번호자원관리' }, { title: '교환기 번호관리' }, { title: 'CTI 큐', path: '/ipron/cti-queue' }];
+
+/** 활성 미디어 → 매트릭스 열 정의(스킬셋ID/레벨 필드 + 풀네임 라벨). */
+function buildMediaSkillCols(mediaTypes: number[]): MediaSkillCol[] {
+  return mediaTypes
+    .filter((mt) => MEDIA_SKILL_FIELD_MAP[mt])
+    .map((mt) => {
+      const m = MEDIA_SKILL_FIELD_MAP[mt];
+      return {
+        mediaType: mt,
+        // "VOIP 기본 SKILL" → "VOIP 기본 스킬" (라벨 약어/영문 노출 정돈)
+        label: m.label.replace(' SKILL', ' 스킬'),
+        idField: m.idKey as MediaSkillCol['idField'],
+        levelField: m.levelKey as MediaSkillCol['levelField'],
+      };
+    });
+}
 
 export default function CtiQueueList() {
   const setBreadcrumb = useBreadcrumbStore((s) => s.setBreadcrumb);
@@ -73,6 +116,18 @@ export default function CtiQueueList() {
   const [cardExpanded, setCardExpanded] = useState(false);
   const [drawer, setDrawer] = useState<CtiQueueDrawerState>({ open: false });
   const [bulkModalOpen, setBulkModalOpen] = useState(false);
+
+  // ─── 스킬 배정 보기(매트릭스 모드) ─────────────────────────────────────────────
+  const [skillMatrixMode, setSkillMatrixMode] = useState(false);
+  // 더티 오버라이드 맵: ctiqId → 변경된 스킬/레벨 필드만(field mask 원천).
+  const [matrixDirty, setMatrixDirty] = useState<Record<number, Partial<CtiQueueMediaSkillRowRequest>>>({});
+  // 매트릭스 저장 결과 모달(207 부분 성공). BE record 원형(successCount/totalCount/failures) 기준.
+  const [matrixResult, setMatrixResult] = useState<{ open: boolean; successCount: number; totalCount: number; failures: CtiQueueMediaSkillFailure[] }>({
+    open: false,
+    successCount: 0,
+    totalCount: 0,
+    failures: [],
+  });
 
   // 업무그룹 트리 Drawer (추가/수정)
   const [groupDrawerOpen, setGroupDrawerOpen] = useState(false);
@@ -228,6 +283,24 @@ export default function CtiQueueList() {
   const ctxTenantName = assignedTenants.find((t) => t.id === ctxTenantId)?.name ?? tenants.find((t) => t.tenantId === ctxTenantId)?.tenantName ?? null;
   const ctxNodeName = nodes.find((n) => n.nodeId === ctxNodeId)?.nodeName ?? null;
 
+  // ─── 매트릭스 모드 파생값 ─────────────────────────────────────────────────────
+  // 매트릭스 콤보 스킬셋은 "현재 편집 대상 테넌트(ctxTenantId)" 스코프로 조회 — 카드가 byNode 의
+  // 테넌트 카드일 때 selectedTenantId(로그인 테넌트 고정)와 달라질 수 있어 ctxTenantId 로 키잉.
+  const { data: matrixSkillsetOptions = [] } = useGetCtiQueueSkillsetOptions(ctxTenantId);
+  // 활성 미디어 → 매트릭스 열(라이선스 활성 미디어만 — 빈 컬럼 금지). 비어 있으면 VOIP/Chat/VideoVoice 폴백.
+  const mediaSkillCols = useMemo<MediaSkillCol[]>(() => {
+    const types = mediaOptions.length > 0 ? mediaOptions.map((m) => m.mediaType) : [0, 10, 20];
+    return buildMediaSkillCols(types);
+  }, [mediaOptions]);
+  // 편집 가능 = 테넌트 카드 선택 시만(전체 카드 = 비활성 — NOTES §스킬셋 셀 규칙). ctxTenantId 가 곧 편집 테넌트.
+  const matrixEditable = ctxTenantId != null;
+  const matrixDirtyCount = useMemo(() => Object.keys(matrixDirty).length, [matrixDirty]);
+
+  // 편집 대상 테넌트(ctxTenantId) 변경 시 미저장 더티 초기화 — 테넌트 혼합 스킬셋 풀 오염 방지.
+  useEffect(() => {
+    setMatrixDirty({});
+  }, [ctxTenantId]);
+
   // 등록 Drawer 테넌트/노드 Select 옵션 (전체 마스터)
   const tenantSelectOptions = useMemo(() => tenants.map((t) => ({ value: t.tenantId, label: t.tenantName ?? `테넌트 ${t.tenantId}` })), [tenants]);
   const nodeSelectOptions = useMemo(() => nodes.map((n) => ({ value: n.nodeId, label: n.nodeName ?? `노드 ${n.nodeId}` })), [nodes]);
@@ -377,6 +450,83 @@ export default function CtiQueueList() {
       },
     },
   });
+
+  // ─── 매트릭스 저장 mutation ──────────────────────────────────────────────────
+  const { mutate: saveMediaSkills, isPending: isSavingMatrix } = useMediaSkillsBatchCtiQueues({
+    mutationOptions: {
+      onSuccess: (result) => {
+        const failures = result.failures ?? [];
+        setMatrixResult({ open: true, successCount: result.successCount, totalCount: result.totalCount, failures });
+        // 실패 행은 재시도 위해 더티 보존, 성공 행만 제거.
+        const failedIds = new Set(failures.map((f) => f.ctiqId));
+        setMatrixDirty((prev) => {
+          const next: Record<number, Partial<CtiQueueMediaSkillRowRequest>> = {};
+          for (const [id, ov] of Object.entries(prev)) {
+            if (failedIds.has(Number(id))) next[Number(id)] = ov;
+          }
+          return next;
+        });
+        if (failures.length === 0) toast.success('스킬 배정이 저장되었습니다');
+      },
+      onError: (err: unknown) => toast.error(extractMsg(err, '스킬 배정 저장 실패')),
+    },
+  });
+
+  // ─── 매트릭스 셀 변경 ────────────────────────────────────────────────────────
+  // 원본값과 같아지면 해당 필드를 더티에서 제거, 행에 더티 필드가 없으면 행 자체 제거.
+  const handleMatrixCellChange = useCallback(
+    (ctiqId: number, field: keyof CtiQueueMediaSkillRowRequest & string, value: number | null) => {
+      const orig = rows.find((r) => r.ctiqId === ctiqId);
+      setMatrixDirty((prev) => {
+        const rowOv: Partial<CtiQueueMediaSkillRowRequest> = { ...(prev[ctiqId] ?? {}) };
+        const origVal = (orig?.[field as keyof CtiQueueResponse] ?? null) as number | null;
+        // 레벨 정규화는 셀에서 이미 0~99 로 처리됨.
+        if (origVal === value) {
+          delete rowOv[field];
+        } else {
+          (rowOv as Record<string, number | null>)[field] = value;
+        }
+        const next = { ...prev };
+        if (Object.keys(rowOv).length === 0) delete next[ctiqId];
+        else next[ctiqId] = rowOv;
+        return next;
+      });
+    },
+    [rows],
+  );
+
+  const handleMatrixRevert = useCallback(() => {
+    if (matrixDirtyCount === 0) return;
+    modal.confirm.execute({
+      onOk: () => setMatrixDirty({}),
+      options: { title: '변경 되돌리기', content: `변경한 ${matrixDirtyCount}건의 스킬 배정을 모두 되돌리시겠습니까?` },
+    });
+  }, [matrixDirtyCount, modal]);
+
+  const handleMatrixSave = useCallback(() => {
+    if (matrixDirtyCount === 0) return;
+    const rowsReq: CtiQueueMediaSkillRowRequest[] = Object.entries(matrixDirty).map(([id, ov]) => ({
+      ctiqId: Number(id),
+      fields: Object.keys(ov),
+      ...ov,
+    }));
+    saveMediaSkills({ rows: rowsReq });
+  }, [matrixDirty, matrixDirtyCount, saveMediaSkills]);
+
+  // 토글: 매트릭스 진입/이탈. 미저장 더티가 있으면 이탈 시 확인.
+  const toggleSkillMatrix = useCallback(() => {
+    if (skillMatrixMode && matrixDirtyCount > 0) {
+      modal.confirm.execute({
+        onOk: () => {
+          setMatrixDirty({});
+          setSkillMatrixMode(false);
+        },
+        options: { title: '스킬 배정 보기 종료', content: `저장하지 않은 ${matrixDirtyCount}건의 변경이 있습니다. 종료하면 변경이 사라집니다.` },
+      });
+      return;
+    }
+    setSkillMatrixMode((v) => !v);
+  }, [skillMatrixMode, matrixDirtyCount, modal]);
 
   const handleCreate = () => {
     setDrawer({ open: true, mode: 'create', tenantId: ctxTenantId, tenantName: ctxTenantName, nodeId: ctxNodeId, nodeName: ctxNodeName });
@@ -577,7 +727,8 @@ export default function CtiQueueList() {
   );
 
   // 제목은 "CTI 큐 목록 (N건)" 만 — 노드/테넌트 스코프 접두 제거 (사용자 요청).
-  const gridHeaderText = useMemo(() => `CTI 큐 목록 (${rowsForGrid.length.toLocaleString()}건)`, [rowsForGrid.length]);
+  // 매트릭스 모드에선 "CTI 큐 스킬 배정 (N건)".
+  const gridHeaderText = useMemo(() => `CTI 큐 ${skillMatrixMode ? '스킬 배정' : '목록'} (${rowsForGrid.length.toLocaleString()}건)`, [rowsForGrid.length, skillMatrixMode]);
 
   // ─── Render ───────────────────────────────────────────────────────────────
   return (
@@ -795,6 +946,15 @@ export default function CtiQueueList() {
                 {rowsForGrid.length.toLocaleString()}건 중 {selectedRows.length}건 선택
               </span>
               <div className="ml-auto flex items-center gap-2">
+                {/* 스킬 배정 보기 토글 — 컬럼셋 전환(일반 ↔ 미디어 스킬 매트릭스). */}
+                <Button
+                  type={skillMatrixMode ? 'primary' : 'default'}
+                  icon={<LayoutGrid className="size-3.5" />}
+                  onClick={toggleSkillMatrix}
+                  title="미디어별 스킬셋·레벨을 큐별로 직접 편집"
+                >
+                  스킬 배정 보기
+                </Button>
                 {/* BP-2 CRUD 문법: [삭제 danger] → [보조: 일괄 설정 default] → [등록 primary] */}
                 <Button
                   danger
@@ -830,8 +990,31 @@ export default function CtiQueueList() {
                 onRowDoubleClicked={handleEdit}
                 onSelectionChanged={setSelectedRows}
                 getDragCtiqIds={getDragCtiqIds}
+                skillMatrixMode={skillMatrixMode}
+                mediaCols={mediaSkillCols}
+                skillsetOptions={matrixSkillsetOptions}
+                matrixEditable={matrixEditable}
+                dirtyMap={matrixDirty}
+                onMatrixCellChange={handleMatrixCellChange}
               />
             </div>
+
+            {/* 매트릭스 모드 저장 바 — 더티 1건 이상 시 하단 고정 (반투명 슬레이트, GRID-STANDARD 규칙 9). */}
+            {skillMatrixMode && matrixDirtyCount > 0 && (
+              <div className="flex items-center gap-2.5 px-5 flex-shrink-0 text-[#e2e8f0]" style={{ height: 44, backgroundColor: 'rgba(30,41,59,0.88)' }}>
+                <span className="text-sm">변경된 행 {matrixDirtyCount}건</span>
+                <span className="flex-1" />
+                <Button size="small" icon={<RotateCcw className="size-3.5" />} onClick={handleMatrixRevert} ghost>
+                  되돌리기
+                </Button>
+                <Button type="primary" size="small" icon={<Save className="size-3.5" />} loading={isSavingMatrix} onClick={handleMatrixSave}>
+                  변경 저장 ({matrixDirtyCount})
+                </Button>
+              </div>
+            )}
+
+            {/* 매트릭스 모드 + 전체 카드 선택 시 편집 비활성 안내 — 토스트 대신 액션 영역에 표기하지 않음(상주 캡션 금지).
+                편집 비활성은 콤보·입력 disabled 로 표현됨. */}
           </div>
         </div>
       </div>
@@ -847,6 +1030,57 @@ export default function CtiQueueList() {
         mediaOptions={mediaOptions}
         onClose={() => setBulkModalOpen(false)}
       />
+
+      {/* 매트릭스 저장 결과 모달 (207 부분 성공) */}
+      <Modal
+        open={matrixResult.open}
+        title={`스킬 배정 저장 결과 — 성공 ${matrixResult.successCount}건${matrixResult.failures.length > 0 ? ` / 실패 ${matrixResult.failures.length}건` : ''}`}
+        onCancel={() => setMatrixResult((s) => ({ ...s, open: false }))}
+        footer={
+          <Button type="primary" onClick={() => setMatrixResult((s) => ({ ...s, open: false }))}>
+            확인
+          </Button>
+        }
+        width={620}
+      >
+        {matrixResult.failures.length === 0 ? (
+          <p className="text-green-600 font-medium">선택한 행의 스킬 배정이 모두 저장되었습니다.</p>
+        ) : (
+          <>
+            <div className="flex gap-6 px-4 py-3 bg-gray-50 border border-gray-200 rounded mb-3">
+              <div className="flex flex-col items-center">
+                <span className="text-2xl font-bold text-green-600">{matrixResult.successCount}</span>
+                <span className="text-xs text-gray-500">성공</span>
+              </div>
+              <div className="flex flex-col items-center">
+                <span className="text-2xl font-bold text-red-500">{matrixResult.failures.length}</span>
+                <span className="text-xs text-gray-500">실패</span>
+              </div>
+            </div>
+            <Table<CtiQueueMediaSkillFailure>
+              size="small"
+              dataSource={matrixResult.failures.map((f) => ({ ...f, key: f.ctiqId }))}
+              columns={[
+                { title: 'CTIQ ID', dataIndex: 'ctiqId', width: 90 },
+                {
+                  title: '그룹DN이름',
+                  key: 'gdnName',
+                  ellipsis: true,
+                  render: (_v, row: CtiQueueMediaSkillFailure) => rows.find((r) => r.ctiqId === row.ctiqId)?.gdnName ?? '-',
+                },
+                {
+                  title: '사유',
+                  dataIndex: 'message',
+                  ellipsis: true,
+                  render: (v: string | null) => <span className="text-red-500 text-xs">{v ?? '알 수 없는 오류'}</span>,
+                },
+              ]}
+              pagination={false}
+              scroll={{ y: 260 }}
+            />
+          </>
+        )}
+      </Modal>
 
       {/* GAP3: 가져오기 결과 모달 */}
       <Modal

@@ -10,6 +10,7 @@
  *  ipron-cti-queue-create           POST 등록 (그룹DN 결합)
  *  ipron-cti-queue-update           PUT  수정 ({ctiqId})
  *  ipron-cti-queue-delete           DELETE 삭제 ({ctiqId})
+ *  cti-queue-media-skills-save      PUT  미디어 스킬 매트릭스 일괄 저장 (큐별 차등, 207)
  *  ipron-cti-queue-tenants          GET  테넌트 통계
  *  ipron-cti-queue-duplicate-check  GET  그룹DN(=큐) 번호 중복검증
  *  ipron-cti-queue-options-groups           GET  기본 라우팅그룹 콤보
@@ -36,6 +37,8 @@ import type {
   CtiQueueGroupResponse,
   CtiQueueGroupUpdateRequest,
   CtiQueueMediaOption,
+  CtiQueueMediaSkillBatchRequest,
+  CtiQueueMediaSkillBatchResult,
   CtiQueueMemberReassignRequest,
   CtiQueueOptionItem,
   CtiQueueResponse,
@@ -103,6 +106,19 @@ export const ctiQueueApi = {
    */
   bulkUpdate: async (body: CtiQueueBulkUpdateRequest): Promise<CtiQueueBulkResult> => {
     const res = await apiClient.put<ApiResponse<CtiQueueBulkResult>>('/ipron-cti-queue-bulk-update', body);
+    return res.data?.data;
+  },
+
+  /**
+   * 미디어 스킬 매트릭스 일괄 저장 — "스킬 배정 보기" 토글 (큐별 차등 스킬·레벨).
+   * BE: PUT /api/ipron/cti-queues/media-skills (field mask 기반, 207 부분 성공).
+   * BFF: cti-queue-media-skills-save flow 경유 (seed: seed-additions-2026-06-12.sql).
+   * 207(부분 성공) 응답도 본문(CtiQueueBulkResult)을 받아 결과 모달에 표시해야 하므로 validateStatus 로 허용.
+   */
+  mediaSkillsBatch: async (body: CtiQueueMediaSkillBatchRequest): Promise<CtiQueueMediaSkillBatchResult> => {
+    const res = await apiClient.put<ApiResponse<CtiQueueMediaSkillBatchResult>>('/cti-queue-media-skills-save', body, {
+      validateStatus: (status) => (status >= 200 && status < 300) || status === 207,
+    });
     return res.data?.data;
   },
 
