@@ -191,14 +191,33 @@ export default function DnCallTransferDrawer({ open, dnId, dnNo, onClose }: DnCa
 
   const columnDefs = useMemo<ColDef<DnCallTransferResponse>[]>(
     () => [
-      { headerName: '구분', field: 'transType', width: 70, valueFormatter: (p) => TRANSFER_DENY_TYPE_LABELS[p.value as TransferDenyType] ?? '' },
-      { headerName: '인입', field: 'callType', width: 90, valueFormatter: (p) => DN_CALL_TYPE_LABELS[p.value as CallTypeCode] ?? '' },
-      { headerName: '착신변환', field: 'transKind', width: 90, valueFormatter: (p) => CALL_TRANS_KIND_LABELS[p.value as CallTransKindCode] ?? '' },
+      {
+        headerName: '구분',
+        field: 'transType',
+        width: 70,
+        filterValueGetter: (params) => TRANSFER_DENY_TYPE_LABELS[params.data?.transType as TransferDenyType] ?? '',
+        valueFormatter: (p) => TRANSFER_DENY_TYPE_LABELS[p.value as TransferDenyType] ?? '',
+      },
+      {
+        headerName: '인입',
+        field: 'callType',
+        width: 90,
+        filterValueGetter: (params) => DN_CALL_TYPE_LABELS[params.data?.callType as CallTypeCode] ?? '',
+        valueFormatter: (p) => DN_CALL_TYPE_LABELS[p.value as CallTypeCode] ?? '',
+      },
+      {
+        headerName: '착신변환',
+        field: 'transKind',
+        width: 90,
+        filterValueGetter: (params) => CALL_TRANS_KIND_LABELS[params.data?.transKind as CallTransKindCode] ?? '',
+        valueFormatter: (p) => CALL_TRANS_KIND_LABELS[p.value as CallTransKindCode] ?? '',
+      },
       {
         headerName: '사유',
         field: 'transReasonCode',
         minWidth: 110,
         flex: 1,
+        filterValueGetter: (params) => TRANS_REASON_CODE_LABELS[params.data?.transReasonCode as TransReasonCodeCode] ?? '-',
         valueFormatter: (p) => TRANS_REASON_CODE_LABELS[p.value as TransReasonCodeCode] ?? '-',
         tooltipField: 'transReasonCode',
       },
@@ -212,7 +231,13 @@ export default function DnCallTransferDrawer({ open, dnId, dnNo, onClose }: DnCa
       },
       { headerName: '시작', field: 'startTime', width: 70, valueFormatter: (p) => (p.value?.length === 4 ? `${p.value.slice(0, 2)}:${p.value.slice(2)}` : '-') },
       { headerName: '종료', field: 'finshTime', width: 70, valueFormatter: (p) => (p.value?.length === 4 ? `${p.value.slice(0, 2)}:${p.value.slice(2)}` : '-') },
-      { headerName: '활성', field: 'activateYn', width: 60, cellRenderer: (p: { value: number }) => (p.value === 1 ? <Tag color="green">ON</Tag> : <Tag>OFF</Tag>) },
+      {
+        headerName: '활성',
+        field: 'activateYn',
+        width: 60,
+        filterValueGetter: (params) => (params.data?.activateYn === 1 ? 'ON' : 'OFF'),
+        cellRenderer: (p: { value: number }) => (p.value === 1 ? <Tag color="green">ON</Tag> : <Tag>OFF</Tag>),
+      },
       { headerName: '착신전환 DNIS', field: 'transDnis', minWidth: 110, flex: 1, valueFormatter: (p) => p.value ?? '-', tooltipField: 'transDnis' },
       { headerName: '번호 패턴', field: 'transPattern', minWidth: 140, flex: 1, tooltipField: 'transPattern', valueFormatter: (p) => p.value ?? '-' },
       {
@@ -269,7 +294,7 @@ export default function DnCallTransferDrawer({ open, dnId, dnNo, onClose }: DnCa
             {...gridOptions}
             rowData={list}
             columnDefs={columnDefs}
-            defaultColDef={{ filter: false, sortable: true, suppressHeaderMenuButton: true }}
+            defaultColDef={{ filter: true, sortable: true, suppressHeaderMenuButton: true }}
             onRowDoubleClicked={(e) => e.data && loadRow(e.data)}
             pagination={false}
             sideBar={false}

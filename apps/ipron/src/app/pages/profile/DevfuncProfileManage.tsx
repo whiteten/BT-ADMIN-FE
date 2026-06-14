@@ -284,7 +284,7 @@ export default function DevfuncProfileManage() {
   ];
 
   // ─── ag-Grid columns ──────────────────────────────────────────────────────
-  const defaultColDef: ColDef = useMemo(() => ({ sortable: true, filter: false, resizable: true, suppressHeaderMenuButton: true }), []);
+  const defaultColDef: ColDef = useMemo(() => ({ sortable: true, filter: true, resizable: true, suppressHeaderMenuButton: true }), []);
 
   const columnDefs: ColDef<DevfuncCode>[] = [
     {

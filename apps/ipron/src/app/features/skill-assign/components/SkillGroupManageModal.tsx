@@ -14,7 +14,9 @@
  *
  * [스킬모음 관리] 버튼 진입: SkillsetMasterList.tsx
  */
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import type { CellStyle, ColDef, ICellRendererParams } from 'ag-grid-community';
+import { AgGridReact } from 'ag-grid-react';
 import { Button, Form, Input, InputNumber, Modal, Spin } from 'antd';
 import { ChevronLeft, Plus, Search, Trash2 } from 'lucide-react';
 import { toast } from '@/shared-util';
@@ -27,6 +29,7 @@ import {
   useUpdateSkillGroup,
 } from '../hooks/useSkillAssignQueries';
 import type { AvailableSkillsetResponse, SkillGroupMemberRequest, SkillGroupMemberResponse, SkillGroupResponse } from '../types';
+import useAggridOptions from '@/libs/shared-ui/src/hooks/useAggridOptions';
 
 // ─── 타입 ───────────────────────────────────────────────────────────────────
 
@@ -327,45 +330,110 @@ export default function SkillGroupManageModal({ open, tenantId, onClose }: Props
     }
   };
 
-  // ── 좌측 체크박스 ─────────────────────────────────────────────────────────
+  // ── ag-Grid 공통 (표준 훅) ────────────────────────────────────────────────
+  // useAggridOptions 훅의 theme(quartz·fontSize13)·defaultColDef(filter:true) 를 기반으로 한다.
+  // 모달 그리드라 페이징·사이드바·상태바는 끄고, 멀티셀렉트는 AgGridReact 직접 prop 으로 전달.
+  const { gridOptions, defaultColDef: hookDefaultColDef } = useAggridOptions();
+  const defaultColDef: ColDef = useMemo(() => ({ ...hookDefaultColDef, suppressHeaderMenuButton: true }), [hookDefaultColDef]);
+  const stableGridOptions = useMemo(() => ({ ...gridOptions, statusBar: undefined, sideBar: false, pagination: false, rowNumbers: false }), [gridOptions]);
+  // 멀티셀렉트 표준(규칙11): 체크박스 + 행클릭 토글 + Ctrl/Shift 없이 누적.
+  const multiRowSelection = useMemo(
+    () => ({ mode: 'multiRow' as const, checkboxes: true, headerCheckbox: true, enableClickSelection: true, enableSelectionWithoutKeys: true }),
+    [],
+  );
 
-  const handleLeftCheckAll = (checked: boolean) => {
-    setLeftChecked(checked ? new Set(filteredLeft.map((s) => s.skillsetId)) : new Set());
-  };
+  // 좌측 그리드 컬럼: 스킬셋명 | 업무그룹(treeName, null→미배정) | 테넌트
+  const leftColumnDefs: ColDef<AvailableSkillsetResponse>[] = useMemo(
+    () => [
+      { headerName: '스킬셋명', field: 'skillsetName', flex: 1.4, minWidth: 150, tooltipField: 'skillsetName' },
+      {
+        headerName: '업무그룹',
+        field: 'treeName',
+        flex: 1,
+        minWidth: 120,
+        tooltipField: 'treeName',
+        filterValueGetter: (p) => p.data?.treeName ?? '미배정',
+        cellRenderer: (p: ICellRendererParams<AvailableSkillsetResponse>) => {
+          const v = p.data?.treeName;
+          if (!v) return <span className="text-gray-400">미배정</span>;
+          return <span className="text-gray-800">{v}</span>;
+        },
+      },
+      { headerName: '테넌트', field: 'tenantName', flex: 1, minWidth: 110, tooltipField: 'tenantName', valueFormatter: (p) => p.value ?? '-' },
+    ],
+    [],
+  );
 
-  const handleLeftCheck = (skillsetId: number, checked: boolean) => {
-    setLeftChecked((prev) => {
-      const next = new Set(prev);
-      if (checked) next.add(skillsetId);
-      else next.delete(skillsetId);
-      return next;
-    });
-  };
+  // 우측 그리드 컬럼: 스킬셋명 | 우선순위(InputNumber) | 스킬레벨(InputNumber)
+  // P/L 인라인 편집은 기존 antd InputNumber 동작을 cellRenderer 로 보존(min/max·controlled).
+  const rightColumnDefs: ColDef<MemberRow>[] = useMemo(
+    () => [
+      { headerName: '스킬셋명', field: 'skillsetName', flex: 1, minWidth: 150, tooltipField: 'skillsetName' },
+      {
+        headerName: '우선순위',
+        field: 'priority',
+        width: 110,
+        filter: 'agNumberColumnFilter',
+        cellStyle: { display: 'flex', alignItems: 'center', justifyContent: 'center' } as CellStyle,
+        cellRenderer: (p: ICellRendererParams<MemberRow>) => {
+          const data = p.data;
+          if (!data) return null;
+          return (
+            <InputNumber
+              min={0}
+              max={9}
+              value={data.priority}
+              onChange={(v) => handleUpdateMember(data.skillsetId, 'priority', v)}
+              size="small"
+              style={{ width: 60, textAlign: 'center' }}
+            />
+          );
+        },
+      },
+      {
+        headerName: '스킬레벨',
+        field: 'skillLevel',
+        width: 110,
+        filter: 'agNumberColumnFilter',
+        cellStyle: { display: 'flex', alignItems: 'center', justifyContent: 'center' } as CellStyle,
+        cellRenderer: (p: ICellRendererParams<MemberRow>) => {
+          const data = p.data;
+          if (!data) return null;
+          return (
+            <InputNumber
+              min={0}
+              max={99}
+              value={data.skillLevel}
+              onChange={(v) => handleUpdateMember(data.skillsetId, 'skillLevel', v)}
+              size="small"
+              style={{ width: 60, textAlign: 'center' }}
+            />
+          );
+        },
+      },
+    ],
+    [],
+  );
 
-  // ── 우측 체크박스 ─────────────────────────────────────────────────────────
-
-  const handleRightCheckAll = (checked: boolean) => {
-    setRightChecked(checked ? new Set(memberRows.map((m) => m.skillsetId)) : new Set());
-  };
-
-  const handleRightCheck = (skillsetId: number, checked: boolean) => {
-    setRightChecked((prev) => {
-      const next = new Set(prev);
-      if (checked) next.add(skillsetId);
-      else next.delete(skillsetId);
-      return next;
-    });
-  };
+  // 그리드 선택 → 기존 Set 상태로 동기화(transfer 핸들러가 Set 을 읽으므로 동작 보존).
+  // 좌측: 이미 멤버인 스킬셋은 추가 불가 → 선택돼도 Set 에서 제외(중복 no-op 유지).
+  const leftRowId = useCallback((p: { data: AvailableSkillsetResponse }) => String(p.data.skillsetId), []);
+  const rightRowId = useCallback((p: { data: MemberRow }) => String(p.data.skillsetId), []);
+  const handleLeftSelectionChanged = useCallback(
+    (rows: AvailableSkillsetResponse[]) => {
+      setLeftChecked(new Set(rows.map((s) => s.skillsetId).filter((id) => !memberSet.has(id))));
+    },
+    [memberSet],
+  );
+  const handleRightSelectionChanged = useCallback((rows: MemberRow[]) => {
+    setRightChecked(new Set(rows.map((m) => m.skillsetId)));
+  }, []);
 
   const submitting = isCreating || isUpdating;
 
   // ── 렌더 ─────────────────────────────────────────────────────────────────
 
   const selectedGroup = groups.find((g) => g.skillGroupId === selectedGroupId) ?? null;
-  const leftAllChecked = filteredLeft.length > 0 && filteredLeft.every((s) => leftChecked.has(s.skillsetId));
-  const leftSomeChecked = filteredLeft.some((s) => leftChecked.has(s.skillsetId)) && !leftAllChecked;
-  const rightAllChecked = memberRows.length > 0 && memberRows.every((m) => rightChecked.has(m.skillsetId));
-  const rightSomeChecked = memberRows.some((m) => rightChecked.has(m.skillsetId)) && !rightAllChecked;
 
   return (
     <Modal
@@ -458,71 +526,21 @@ export default function SkillGroupManageModal({ open, tenantId, onClose }: Props
                 />
               </div>
             </div>
-            {/* 좌측 그리드 */}
-            <div className="flex-1 overflow-auto">
-              {skillsetsLoading ? (
-                <div className="flex items-center justify-center py-10">
-                  <Spin size="small" />
-                </div>
-              ) : (
-                <table className="w-full border-collapse text-xs" style={{ fontSize: '12.5px' }}>
-                  <thead>
-                    <tr>
-                      <th className="w-9 text-center bg-gray-50 px-2 py-1.5 border-b border-gray-200 sticky top-0">
-                        <input
-                          type="checkbox"
-                          checked={leftAllChecked}
-                          ref={(el) => {
-                            if (el) el.indeterminate = leftSomeChecked;
-                          }}
-                          onChange={(e) => handleLeftCheckAll(e.target.checked)}
-                        />
-                      </th>
-                      <th className="text-left bg-gray-50 px-2.5 py-1.5 border-b border-gray-200 sticky top-0 font-semibold text-gray-500 whitespace-nowrap min-w-[130px]">
-                        스킬셋명
-                      </th>
-                      <th className="text-left bg-gray-50 px-2.5 py-1.5 border-b border-gray-200 sticky top-0 font-semibold text-gray-500 whitespace-nowrap min-w-[80px]">
-                        업무그룹
-                      </th>
-                      <th className="text-left bg-gray-50 px-2.5 py-1.5 border-b border-gray-200 sticky top-0 font-semibold text-gray-500 whitespace-nowrap w-[90px]">테넌트</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {filteredLeft.length === 0 ? (
-                      <tr>
-                        <td colSpan={4} className="text-center py-8 text-gray-400 text-xs">
-                          검색된 데이터가 없습니다
-                        </td>
-                      </tr>
-                    ) : (
-                      filteredLeft.map((s) => {
-                        const alreadyMember = memberSet.has(s.skillsetId);
-                        return (
-                          <tr
-                            key={s.skillsetId}
-                            onDoubleClick={() => handleAddDblClick(s)}
-                            className={`cursor-pointer border-b border-gray-100 transition ${alreadyMember ? 'opacity-40' : 'hover:bg-[#fafbfd]'}`}
-                          >
-                            <td className="text-center px-2 py-1.5">
-                              <input
-                                type="checkbox"
-                                checked={leftChecked.has(s.skillsetId)}
-                                disabled={alreadyMember}
-                                onChange={(e) => handleLeftCheck(s.skillsetId, e.target.checked)}
-                              />
-                            </td>
-                            <td className="px-2.5 py-1.5 max-w-[160px] truncate" title={s.skillsetName}>
-                              {s.skillsetName}
-                            </td>
-                            <td className="px-2.5 py-1.5 text-gray-500">—</td>
-                            <td className="px-2.5 py-1.5 text-gray-500 truncate">{s.tenantName ?? '-'}</td>
-                          </tr>
-                        );
-                      })
-                    )}
-                  </tbody>
-                </table>
-              )}
+            {/* 좌측 그리드 (ag-Grid 표준) — 더블클릭=모음 추가, 멀티셀렉트=→ 버튼으로 일괄 추가 */}
+            <div className="flex-1 min-h-0">
+              <AgGridReact<AvailableSkillsetResponse>
+                rowData={filteredLeft}
+                columnDefs={leftColumnDefs}
+                defaultColDef={defaultColDef}
+                rowSelection={multiRowSelection}
+                gridOptions={stableGridOptions}
+                getRowId={leftRowId}
+                loading={skillsetsLoading}
+                isRowSelectable={(node) => !!node.data && !memberSet.has(node.data.skillsetId)}
+                rowClassRules={{ 'opacity-40': (p) => !!p.data && memberSet.has(p.data.skillsetId) }}
+                onRowDoubleClicked={(e) => e.data && handleAddDblClick(e.data)}
+                onSelectionChanged={(e) => handleLeftSelectionChanged(e.api.getSelectedRows())}
+              />
             </div>
           </div>
 
@@ -611,84 +629,21 @@ export default function SkillGroupManageModal({ open, tenantId, onClose }: Props
               {/* 새 모음 버튼 */}
               <Button size="small" icon={<Plus className="size-3" />} onClick={openCreateForm} title="새 모음 추가" />
             </div>
-            {/* 우측 그리드 */}
-            <div className="flex-1 overflow-auto relative">
-              {membersFetching ? (
-                <div className="flex items-center justify-center py-10">
-                  <Spin size="small" />
-                </div>
+            {/* 우측 그리드 (ag-Grid 표준) — 멤버 P/L 인라인 편집 + 멀티셀렉트=← 버튼으로 일괄 제거 */}
+            <div className="flex-1 min-h-0 relative">
+              {selectedGroupId == null ? (
+                <div className="flex items-center justify-center h-full text-xs text-gray-400">위에서 스킬모음을 선택하세요</div>
               ) : (
-                <table className="w-full border-collapse" style={{ fontSize: '12.5px' }}>
-                  <colgroup>
-                    <col style={{ width: 36 }} />
-                    <col />
-                    <col style={{ width: 72 }} />
-                    <col style={{ width: 72 }} />
-                  </colgroup>
-                  <thead>
-                    <tr>
-                      <th className="text-center bg-gray-50 px-2 py-1.5 border-b border-gray-200 sticky top-0">
-                        <input
-                          type="checkbox"
-                          checked={rightAllChecked}
-                          ref={(el) => {
-                            if (el) el.indeterminate = rightSomeChecked;
-                          }}
-                          onChange={(e) => handleRightCheckAll(e.target.checked)}
-                        />
-                      </th>
-                      <th className="text-left bg-gray-50 px-2.5 py-1.5 border-b border-gray-200 sticky top-0 font-semibold text-gray-500 whitespace-nowrap">스킬셋명</th>
-                      <th className="text-center bg-gray-50 px-1 py-1.5 border-b border-gray-200 sticky top-0 font-semibold text-gray-500 whitespace-nowrap">우선순위</th>
-                      <th className="text-center bg-gray-50 px-1 py-1.5 border-b border-gray-200 sticky top-0 font-semibold text-gray-500 whitespace-nowrap">스킬레벨</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {selectedGroupId == null ? (
-                      <tr>
-                        <td colSpan={4} className="text-center py-8 text-xs text-gray-400">
-                          위에서 스킬모음을 선택하세요
-                        </td>
-                      </tr>
-                    ) : memberRows.length === 0 ? (
-                      <tr>
-                        <td colSpan={4} className="text-center py-8 text-xs text-gray-400">
-                          검색된 데이터가 없습니다
-                        </td>
-                      </tr>
-                    ) : (
-                      memberRows.map((m) => (
-                        <tr key={m.skillsetId} className="border-b border-gray-100 hover:bg-[#fafbfd]">
-                          <td className="text-center px-2 py-1">
-                            <input type="checkbox" checked={rightChecked.has(m.skillsetId)} onChange={(e) => handleRightCheck(m.skillsetId, e.target.checked)} />
-                          </td>
-                          <td className="px-2.5 py-1 truncate max-w-[160px]" title={m.skillsetName}>
-                            {m.skillsetName}
-                          </td>
-                          <td className="px-1 py-1 text-center">
-                            <InputNumber
-                              min={0}
-                              max={9}
-                              value={m.priority}
-                              onChange={(v) => handleUpdateMember(m.skillsetId, 'priority', v)}
-                              size="small"
-                              style={{ width: 56, textAlign: 'center' }}
-                            />
-                          </td>
-                          <td className="px-1 py-1 text-center">
-                            <InputNumber
-                              min={0}
-                              max={99}
-                              value={m.skillLevel}
-                              onChange={(v) => handleUpdateMember(m.skillsetId, 'skillLevel', v)}
-                              size="small"
-                              style={{ width: 56, textAlign: 'center' }}
-                            />
-                          </td>
-                        </tr>
-                      ))
-                    )}
-                  </tbody>
-                </table>
+                <AgGridReact<MemberRow>
+                  rowData={memberRows}
+                  columnDefs={rightColumnDefs}
+                  defaultColDef={defaultColDef}
+                  rowSelection={multiRowSelection}
+                  gridOptions={stableGridOptions}
+                  getRowId={rightRowId}
+                  loading={membersFetching}
+                  onSelectionChanged={(e) => handleRightSelectionChanged(e.api.getSelectedRows())}
+                />
               )}
             </div>
             {/* 우측 푸터 */}
