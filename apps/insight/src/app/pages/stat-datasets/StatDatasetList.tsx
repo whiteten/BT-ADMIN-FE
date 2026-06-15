@@ -329,9 +329,7 @@ export default function StatDatasetList() {
 
           <div className="flex-1 overflow-auto -mx-1">
             {isLoading ? (
-              <div className="flex items-center justify-center py-10">
-                <FallbackSpinner size={36} />
-              </div>
+              <FallbackSpinner />
             ) : treeData.length > 0 ? (
               <div {...rootProps}>{items.map(renderRow)}</div>
             ) : (
@@ -539,6 +537,7 @@ function DatasetDetailPanel({ listItem, onEdit, onDelete }: { listItem: DatasetL
               loading={isLoading}
               pagination={false}
               statusBar={undefined}
+              sideBar={false}
             />
           </div>
         </div>
