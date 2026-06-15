@@ -45,6 +45,9 @@ const CosForm = React.lazy(() => import('./pages/cos/CosForm'));
 const DnList = React.lazy(() => import('./pages/dn/DnList'));
 const DnForm = React.lazy(() => import('./pages/dn/DnForm'));
 
+// dn-status (교환기 번호자원 현황 — 서버 카드 위상도)
+const DnResourceStatus = React.lazy(() => import('./pages/dn-status/DnResourceStatus'));
+
 // adn
 const AdnList = React.lazy(() => import('./pages/adn/AdnList'));
 const AdnForm = React.lazy(() => import('./pages/adn/AdnForm'));
@@ -192,6 +195,10 @@ export const routes = [
           { path: 'create', element: pv('dn/create', DnForm) },
           { path: ':id/edit', element: pv('dn/:id/edit', DnForm) },
         ],
+      },
+      {
+        path: 'dn-status',
+        element: pv('dn-status', DnResourceStatus),
       },
       {
         path: 'adn',
