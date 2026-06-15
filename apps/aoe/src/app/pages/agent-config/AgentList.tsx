@@ -6,7 +6,7 @@ import { useBreadcrumbStore } from '@/shared-store';
 import { toast } from '@/shared-util';
 import AgentCard from '../../features/agent-config/components/AgentCard';
 import AgentPlaygroundDrawer, { type AgentPlaygroundDrawerRef } from '../../features/agent-config/components/AgentPlaygroundDrawer';
-import { agentQueryKeys, useDeleteAgent, useDuplicateAgent, useGetAgents } from '../../features/agent-config/hooks/useAgentQueries';
+import { agentQueryKeys, useDeleteAgent, useDuplicateAgent, useGetAgentTypes, useGetAgents } from '../../features/agent-config/hooks/useAgentQueries';
 import type { AgentDeleteDatas } from '../../features/agent-config/types';
 import { FallbackSpinner } from '@/components/custom/FallbackSpinner';
 import NoData from '@/components/custom/NoData';
@@ -18,11 +18,6 @@ const breadcrumb: BreadcrumbProps['items'] = [
   { title: 'Agent 목록', path: '/aoe/agent-config/agent/list' },
 ];
 
-const FILTER_OPTIONS = [
-  { label: '에이전트명', value: 'agentName' },
-  { label: '에이전트 타입', value: 'agentTypeName' },
-];
-
 export default function AgentList() {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
@@ -30,8 +25,8 @@ export default function AgentList() {
   const setBreadcrumb = useBreadcrumbStore((s) => s.setBreadcrumb);
   const clearBreadcrumb = useBreadcrumbStore((s) => s.clearBreadcrumb);
   const playgroundRef = useRef<AgentPlaygroundDrawerRef>(null);
-  const [filterColumn, setFilterColumn] = useState('agentName');
-  const [searchValue, setSearchValue] = useState('');
+  const [nameKeyword, setNameKeyword] = useState('');
+  const [typeFilter, setTypeFilter] = useState('');
 
   useEffect(() => {
     setBreadcrumb(breadcrumb);
@@ -39,6 +34,8 @@ export default function AgentList() {
   }, [setBreadcrumb, clearBreadcrumb]);
 
   const { data: agents, isLoading } = useGetAgents({});
+  const { data: agentTypes } = useGetAgentTypes({});
+  const typeOptions = [{ label: '전체', value: '' }, ...(agentTypes ?? []).map((type) => ({ label: type.agentTypeName, value: type.agentTypeName }))];
 
   const handleOpenStudio = (agentId: string) => {
     window.open(`/aoe-workflow/${agentId}`, '_blank', 'noopener,noreferrer');
@@ -63,18 +60,13 @@ export default function AgentList() {
   });
 
   const agentList = agents ?? [];
-  const filteredList = searchValue.trim()
-    ? agentList.filter((agent) => {
-        const value = agent[filterColumn as keyof typeof agent];
-        if (value == null) return false;
-        return String(value).toLowerCase().includes(searchValue.toLowerCase());
-      })
-    : agentList;
-
-  const handleColumnChange = (value: string) => {
-    setFilterColumn(value);
-    setSearchValue('');
-  };
+  // 이름(부분일치) + 타입(정확일치) AND 결합 필터
+  const trimmedName = nameKeyword.trim().toLowerCase();
+  const filteredList = agentList.filter((agent) => {
+    const matchesName = !trimmedName || agent.agentName.toLowerCase().includes(trimmedName);
+    const matchesType = !typeFilter || agent.agentTypeName === typeFilter;
+    return matchesName && matchesType;
+  });
 
   const handleClickCreateBtn = () => {
     navigate('../create');
@@ -108,9 +100,22 @@ export default function AgentList() {
     <div className="flex flex-col gap-4 w-full h-full">
       <AgentPlaygroundDrawer ref={playgroundRef} />
       <div className="flex items-center justify-between gap-2 w-full h-[76px] bg-white bt-shadow px-7 py-5">
-        <div className="flex gap-2 w-full items-center">
-          <Select value={filterColumn} onChange={handleColumnChange} options={FILTER_OPTIONS} className="!max-w-[150px] !min-w-[120px]" popupMatchSelectWidth={false} />
-          <Input value={searchValue} onChange={(e) => setSearchValue(e.target.value)} className="w-full max-w-[400px]" placeholder="검색어를 입력하세요." />
+        <div className="flex gap-4 w-full items-center">
+          <div className="flex items-center gap-2 shrink-0">
+            <span className="text-sm font-medium text-[#495057] shrink-0">에이전트명</span>
+            <Input value={nameKeyword} onChange={(e) => setNameKeyword(e.target.value)} className="w-[280px]" placeholder="에이전트명을 입력하세요." />
+          </div>
+          <div className="flex items-center gap-2 shrink-0">
+            <span className="text-sm font-medium text-[#495057] shrink-0">에이전트 타입</span>
+            <Select
+              value={typeFilter}
+              onChange={(value) => setTypeFilter(value ?? '')}
+              options={typeOptions}
+              showSearch={{ optionFilterProp: 'label' }}
+              className="!min-w-[180px]"
+              popupMatchSelectWidth={false}
+            />
+          </div>
         </div>
         <Button type="primary" onClick={handleClickCreateBtn}>
           추가
