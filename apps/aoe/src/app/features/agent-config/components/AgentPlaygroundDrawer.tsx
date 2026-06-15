@@ -4,6 +4,7 @@ import dayjs from 'dayjs';
 import { Bot, RotateCcw, User } from 'lucide-react';
 import { Log } from '@/log';
 import { createUUID } from '@/shared-util';
+import MessageCopyButton from '../../shared/components/MessageCopyButton';
 import { useRefreshAgent, useTestAgent } from '../hooks/useAgentQueries';
 import type { ChatMessage } from '../types';
 import { IconSend } from '@/components/custom/Icons';
@@ -13,6 +14,11 @@ import { cn } from '@/lib/utils';
 export interface AgentPlaygroundDrawerRef {
   open: (params: { agentId: string; agentName: string }) => void;
   close: () => void;
+}
+
+interface AgentPlaygroundDrawerProps {
+  /** 드로어 열림/닫힘 변화 통지 — 부모가 캔버스 단축키 비활성 등에 활용 */
+  onOpenChange?: (open: boolean) => void;
 }
 
 interface DrawerState {
@@ -54,7 +60,7 @@ const pickAnswerText = (data: unknown): string | null => {
   return null;
 };
 
-const AgentPlaygroundDrawer = forwardRef<AgentPlaygroundDrawerRef>((_, ref) => {
+const AgentPlaygroundDrawer = forwardRef<AgentPlaygroundDrawerRef, AgentPlaygroundDrawerProps>(({ onOpenChange }, ref) => {
   const [state, setState] = useState<DrawerState>({ open: false, agentId: '', agentName: '' });
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [inputValue, setInputValue] = useState('');
@@ -123,6 +129,11 @@ const AgentPlaygroundDrawer = forwardRef<AgentPlaygroundDrawerRef>((_, ref) => {
       }
     });
   }, [messages]);
+
+  // 열림/닫힘 변화를 부모에 통지 (open/close/handleClose 등 모든 경로 일괄 처리)
+  useEffect(() => {
+    onOpenChange?.(state.open);
+  }, [state.open, onOpenChange]);
 
   const handleResizeStart = (e: React.MouseEvent) => {
     e.preventDefault();
@@ -229,7 +240,7 @@ const AgentPlaygroundDrawer = forwardRef<AgentPlaygroundDrawerRef>((_, ref) => {
               <div className={cn('shrink-0 w-7 h-7 rounded-full flex items-center justify-center', isUser ? 'bg-emerald-500/10' : 'bg-blue-500/10')}>
                 {isUser ? <User size={14} className="text-emerald-600" /> : <Bot size={14} className="text-blue-600" />}
               </div>
-              <div className={cn('flex flex-col gap-0.5', isUser && 'items-end')}>
+              <div className={cn('group flex flex-col gap-0.5', isUser && 'items-end')}>
                 <div className="flex items-center gap-1.5 mb-0.5">
                   {isUser ? (
                     <>
@@ -247,6 +258,9 @@ const AgentPlaygroundDrawer = forwardRef<AgentPlaygroundDrawerRef>((_, ref) => {
                   className={cn('border rounded-2xl px-3.5 py-2 shadow-sm', isUser ? 'rounded-br-md bg-emerald-50 border-emerald-100' : 'rounded-bl-md bg-blue-50 border-blue-100')}
                 >
                   <p className="text-[13px] text-slate-700 leading-relaxed break-all whitespace-pre-wrap">{text}</p>
+                </div>
+                <div className={cn('mt-0.5 opacity-0 transition-opacity group-hover:opacity-100', isUser && 'self-end')}>
+                  <MessageCopyButton text={text} />
                 </div>
               </div>
             </div>

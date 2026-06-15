@@ -32,6 +32,7 @@ const cardClass = 'h-full rounded-xl bg-white shadow-sm border border-gray-200 o
 export default function WorkflowEditor({ agentId, agentName, aoeDeployFlag, graph }: WorkflowEditorProps) {
   const [sidebarOpen, setSidebarOpen] = useState(isWideViewport);
   const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null);
+  const [playgroundOpen, setPlaygroundOpen] = useState(false);
   const [isInitializing, setIsInitializing] = useState(() => (graph.nodes ?? []).length === 0);
   const prevWideRef = useRef(isWideViewport());
   const initializedRef = useRef(false);
@@ -142,7 +143,7 @@ export default function WorkflowEditor({ agentId, agentName, aoeDeployFlag, grap
 
   return (
     <div className="flex flex-col h-screen w-screen bg-gray-100 overflow-hidden">
-      <AgentPlaygroundDrawer ref={playgroundRef} />
+      <AgentPlaygroundDrawer ref={playgroundRef} onOpenChange={setPlaygroundOpen} />
       <WorkflowToolbar agentId={agentId} agentName={agentName} aoeDeployFlag={aoeDeployFlag} onOpenPlayground={handleOpenPlayground} />
       <div className="flex flex-1 min-h-0 p-2 relative">
         {sidebarOpen && (
@@ -164,7 +165,7 @@ export default function WorkflowEditor({ agentId, agentName, aoeDeployFlag, grap
         )}
         <ResizablePanelGroup direction="horizontal" autoSaveId="aoe-workflow-editor-panels" className={`flex-1 ${sidebarOpen ? 'ml-2' : ''}`}>
           <ResizablePanel id="canvas" order={1} minSize={35} className={cardClass}>
-            <WorkflowCanvas agentId={agentId} graph={graph} onSelectNode={setSelectedNodeId} />
+            <WorkflowCanvas agentId={agentId} graph={graph} onSelectNode={setSelectedNodeId} shortcutsDisabled={playgroundOpen} />
           </ResizablePanel>
           {selectedNode && (
             <>
