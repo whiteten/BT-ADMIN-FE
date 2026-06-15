@@ -19,8 +19,8 @@ export default function CampaignDetail() {
   useEffect(() => {
     const breadcrumb: BreadcrumbProps['items'] = [
       { title: '관리', path: '/campaign/management' },
-      { title: '캠페인', path: '/campaign/management/campaign' },
-      { title: ':campaignName', path: `/campaign/management/campaign/${campaignId}` },
+      { title: '캠페인 기본정보', path: '/campaign/management/basic-info' },
+      { title: ':campaignName', path: `/campaign/management/${campaignId}` },
     ];
     setBreadcrumb(breadcrumb, { campaignName: campaign?.campaignName ?? '-' });
     return () => clearBreadcrumb();

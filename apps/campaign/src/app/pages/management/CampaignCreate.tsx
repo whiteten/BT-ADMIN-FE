@@ -10,8 +10,8 @@ const tabs: PageTab[] = [{ id: 'tab1', label: '기본정보', icon: IconDocument
 
 const breadcrumb: BreadcrumbProps['items'] = [
   { title: '관리', path: '/campaign/management' },
-  { title: '캠페인', path: '/campaign/management/campaign' },
-  { title: '캠페인 생성', path: '/campaign/management/campaign/create' },
+  { title: '캠페인 기본정보', path: '/campaign/management/basic-info' },
+  { title: '캠페인 생성', path: '/campaign/management/create' },
 ];
 
 export default function CampaignCreate() {

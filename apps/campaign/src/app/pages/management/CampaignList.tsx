@@ -20,8 +20,7 @@ import { useModal } from '@/libs/shared-ui/src/hooks/useModal';
 
 const breadcrumb: BreadcrumbProps['items'] = [
   { title: '관리', path: '/campaign/management' },
-  { title: '캠페인', path: '/campaign/management/campaign' },
-  { title: '캠페인 기본정보', path: '/campaign/management/campaign/basic-info' },
+  { title: '캠페인 기본정보', path: '/campaign/management/basic-info' },
 ];
 
 type AppliedFilters = {

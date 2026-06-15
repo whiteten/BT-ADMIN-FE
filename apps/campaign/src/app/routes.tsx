@@ -38,16 +38,10 @@ export const routes = [
         path: 'management',
         element: <Outlet />,
         children: [
-          { index: true, element: <Navigate to="campaign" replace /> },
-          {
-            path: 'campaign',
-            children: [
-              { index: true, element: <Navigate to="basic-info" replace /> },
-              { path: 'basic-info', element: <CampaignList /> },
-              { path: 'create', element: <CampaignCreate /> },
-              { path: ':campaignId', element: <CampaignDetail /> },
-            ],
-          },
+          { index: true, element: <Navigate to="basic-info" replace /> },
+          { path: 'basic-info', element: <CampaignList /> },
+          { path: 'create', element: <CampaignCreate /> },
+          { path: ':campaignId', element: <CampaignDetail /> },
         ],
       },
     ],
