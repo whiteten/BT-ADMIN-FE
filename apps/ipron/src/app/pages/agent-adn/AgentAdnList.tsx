@@ -15,7 +15,6 @@ import { Button, Empty, Input, Select } from 'antd';
 import { ChevronLeft, ChevronRight, ChevronsDown, ChevronsUp, Search, Settings, Zap } from 'lucide-react';
 import { useAuthStore, useBreadcrumbStore } from '@/shared-store';
 import { toast } from '@/shared-util';
-import { GridRowColorLegend } from '../../components/GridRowColorLegend';
 import AdnAutoConfigDrawer from '../../features/agent-adn/components/AdnAutoConfigDrawer';
 import AgentAdnTable from '../../features/agent-adn/components/AgentAdnTable';
 import AgentAdnTenantCard from '../../features/agent-adn/components/AgentAdnTenantCard';
@@ -362,8 +361,6 @@ export default function AgentAdnList() {
               선택 {selectedRows.length}건 (미배정 <b className="text-orange-600">{selectedUnassigned}</b> · 배정 <b className="text-green-700">{selectedAssigned}</b>)
             </span>
             <div className="ml-auto flex items-center gap-2">
-              <GridRowColorLegend items={['unassigned']} />
-              <div className="w-px h-4 bg-gray-200 flex-shrink-0" />
               <Button
                 icon={<Settings className="size-3.5" />}
                 onClick={() => setPolicyOpen(true)}

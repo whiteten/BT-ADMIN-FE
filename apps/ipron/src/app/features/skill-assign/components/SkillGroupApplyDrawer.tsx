@@ -125,7 +125,7 @@ export default function SkillGroupApplyDrawer({ open, agents, tenantId, onClose 
             />
           </span>
         </h5>
-        <div className="border border-gray-200 rounded-md overflow-hidden">
+        <div className="border border-gray-200 rounded-md overflow-y-auto max-h-[240px]">
           {groupsLoading ? (
             <div className="flex items-center justify-center py-6">
               <Spin size="small" />
@@ -184,24 +184,26 @@ export default function SkillGroupApplyDrawer({ open, agents, tenantId, onClose 
         ) : members.length === 0 ? (
           <div className="text-center text-xs text-gray-400 py-5 border border-dashed border-gray-200 rounded-md">이 모음에 등록된 멤버 스킬셋이 없습니다</div>
         ) : (
-          <table className="w-full border border-gray-200 border-collapse text-xs">
-            <thead>
-              <tr>
-                <th className="bg-gray-50 text-gray-500 font-semibold text-left px-2.5 py-1.5 border-b border-gray-200">스킬셋</th>
-                <th className="bg-gray-50 text-gray-500 font-semibold text-center px-2.5 py-1.5 border-b border-gray-200 w-[90px]">우선순위</th>
-                <th className="bg-gray-50 text-gray-500 font-semibold text-center px-2.5 py-1.5 border-b border-gray-200 w-[90px]">스킬레벨</th>
-              </tr>
-            </thead>
-            <tbody>
-              {members.map((m) => (
-                <tr key={m.skillsetId}>
-                  <td className="px-2.5 py-1.5 border-b border-gray-100 text-gray-800">{m.skillsetName}</td>
-                  <td className="px-2.5 py-1.5 border-b border-gray-100 text-center font-semibold text-[#405189] tabular-nums">{m.priority ?? 0}</td>
-                  <td className="px-2.5 py-1.5 border-b border-gray-100 text-center font-semibold text-[#405189] tabular-nums">{m.skillLevel ?? 0}</td>
+          <div className="max-h-[220px] overflow-y-auto">
+            <table className="w-full border border-gray-200 border-collapse text-xs">
+              <thead>
+                <tr>
+                  <th className="bg-gray-50 text-gray-500 font-semibold text-left px-2.5 py-1.5 border-b border-gray-200">스킬셋</th>
+                  <th className="bg-gray-50 text-gray-500 font-semibold text-center px-2.5 py-1.5 border-b border-gray-200 w-[90px]">우선순위</th>
+                  <th className="bg-gray-50 text-gray-500 font-semibold text-center px-2.5 py-1.5 border-b border-gray-200 w-[90px]">스킬레벨</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
+              </thead>
+              <tbody>
+                {members.map((m) => (
+                  <tr key={m.skillsetId}>
+                    <td className="px-2.5 py-1.5 border-b border-gray-100 text-gray-800">{m.skillsetName}</td>
+                    <td className="px-2.5 py-1.5 border-b border-gray-100 text-center font-semibold text-[#405189] tabular-nums">{m.priority ?? 0}</td>
+                    <td className="px-2.5 py-1.5 border-b border-gray-100 text-center font-semibold text-[#405189] tabular-nums">{m.skillLevel ?? 0}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         )}
       </div>
     </Drawer>
