@@ -44,10 +44,13 @@ function showMenu() {
 }
 
 function parseSelection(input) {
+  // 구분자는 콤마·공백 모두 허용. PowerShell→pnpm 경로에서 `3,4,8`이 단일 인자
+  // `"3 4 8"`(공백 구분)로 전달되는 케이스까지 흡수한다.
   const selections = input
     .trim()
-    .split(',')
-    .map((s) => parseInt(s.trim()));
+    .split(/[\s,]+/)
+    .filter(Boolean)
+    .map((s) => parseInt(s, 10));
   const selected = [];
 
   // 1(모든 Remote)·2(Host만)는 단독 선택 전용. 다른 번호와 함께 입력하면 의미가 모순됨.
