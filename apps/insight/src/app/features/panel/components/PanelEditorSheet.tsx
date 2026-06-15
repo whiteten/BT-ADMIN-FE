@@ -217,7 +217,14 @@ export default function PanelEditorSheet({ reportId, panelType, panelId, dataset
   const existingFieldMap = existingPanel?.fieldMap ?? [];
   const [groupByFields, setGroupByFields] = useState<PanelFieldMap[]>(existingFieldMap.filter((f) => f.slotType === 'ROW'));
   const [valueFields, setValueFields] = useState<PanelFieldMap[]>(existingFieldMap.filter((f) => f.slotType === 'VALUE'));
-  const [sortFields, setSortFields] = useState<PanelFieldMap[]>(existingFieldMap.filter((f) => f.slotType === 'SORT'));
+  // 정렬: 저장된 SORT가 있으면 그대로, 비어 있으면 기본 PSR_TIME_KEY ASC 슬롯을 주입한다.
+  // (백엔드는 SORT가 비면 ORDER BY PSR_TIME_KEY ASC로 폴백하므로 UI·SQL을 일치시키기 위함.
+  //  사용자가 수정/삭제/추가하면 그대로 저장되며, 완전히 비우면 다시 기본값으로 노출된다.)
+  const [sortFields, setSortFields] = useState<PanelFieldMap[]>(() => {
+    const existing = existingFieldMap.filter((f) => f.slotType === 'SORT');
+    if (existing.length > 0 || !isGrid) return existing;
+    return [{ slotType: 'SORT', slotOrder: 0, fieldName: 'PSR_TIME_KEY', isCalcField: false, sortDirection: 'ASC' }];
+  });
   const [filterFields, setFilterFields] = useState<PanelFieldMap[]>(existingFieldMap.filter((f) => f.slotType === 'FILTER'));
   // KPI 슬롯 — 보고서 상단 요약 카드 지표 (보고서 전체 최대 5개, 패널 타입 무관 공통)
   const [kpiFields, setKpiFields] = useState<PanelFieldMap[]>(existingFieldMap.filter((f) => f.slotType === 'KPI'));

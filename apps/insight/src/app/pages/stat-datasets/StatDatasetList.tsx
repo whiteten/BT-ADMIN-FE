@@ -203,11 +203,18 @@ export default function StatDatasetList() {
             {node.code}
           </Tag>
         ) : (
-          <span className="size-1.5 rounded-full flex-shrink-0" style={{ background: ACCENT_HEX[node.data!.productCode] ?? DEFAULT_ACCENT }} />
+          <span className="size-2 rounded-full flex-shrink-0" style={{ background: ACCENT_HEX[node.data!.productCode] ?? DEFAULT_ACCENT }} />
         )}
-        <TreeLabel selected={isSelected}>
-          <Highlight text={node.label} query={search} />
-        </TreeLabel>
+        {isGroup ? (
+          <TreeLabel selected={isSelected}>
+            <Highlight text={node.label} query={search} />
+          </TreeLabel>
+        ) : (
+          // leaf 데이터셋명 — 그룹 라벨보다 키워(13.5px·medium) 대표 데이터 느낌으로 위계 부여
+          <span className={`flex-1 truncate text-[13.5px] font-medium ${isSelected ? 'text-[var(--color-bt-primary)]' : 'text-gray-800'}`}>
+            <Highlight text={node.label} query={search} />
+          </span>
+        )}
         {isGroup ? (
           <span className="ml-auto h-5 inline-flex items-center text-[11px] text-gray-400 flex-shrink-0">{count}</span>
         ) : (
