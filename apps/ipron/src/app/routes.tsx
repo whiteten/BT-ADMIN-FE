@@ -48,9 +48,8 @@ const DnForm = React.lazy(() => import('./pages/dn/DnForm'));
 // dn-status (교환기 번호자원 현황 — 서버 카드 위상도)
 const DnResourceStatus = React.lazy(() => import('./pages/dn-status/DnResourceStatus'));
 
-// adn
+// adn (등록/수정은 우측 Drawer 로 전환 — 전체페이지 라우트 폐지, 목록 라우트만 유지)
 const AdnList = React.lazy(() => import('./pages/adn/AdnList'));
-const AdnForm = React.lazy(() => import('./pages/adn/AdnForm'));
 
 // agent-adn (상담사 로그인번호 관리 — SWAT IPR20S3011)
 const AgentAdnList = React.lazy(() => import('./pages/agent-adn/AgentAdnList'));
@@ -202,12 +201,7 @@ export const routes = [
       },
       {
         path: 'adn',
-        element: <Outlet />,
-        children: [
-          { index: true, element: pv('adn', AdnList) },
-          { path: 'create', element: pv('adn/create', AdnForm) },
-          { path: ':id/edit', element: pv('adn/:id/edit', AdnForm) },
-        ],
+        element: pv('adn', AdnList),
       },
       {
         path: 'gdn',
