@@ -29,8 +29,8 @@ import GwBypassDialog, { type GwBypassDialogRef } from '../../features/endpoint/
 import {
   endpointQueryKeys,
   useDeleteEndpoint,
-  useDeleteMember,
-  useDeleteRegnum,
+  useDeleteMembersBatch,
+  useDeleteRegnumsBatch,
   useGetEndpoints,
   useGetMembers,
   useGetNodes,
@@ -130,7 +130,7 @@ export default function EndpointList() {
     },
   });
 
-  const { mutate: deleteMember } = useDeleteMember({
+  const { mutate: deleteMembersBatch } = useDeleteMembersBatch({
     mutationOptions: {
       onSuccess: () => {
         toast.success('멤버가 삭제되었습니다');
@@ -140,7 +140,7 @@ export default function EndpointList() {
     },
   });
 
-  const { mutate: deleteRegnum } = useDeleteRegnum({
+  const { mutate: deleteRegnumsBatch } = useDeleteRegnumsBatch({
     mutationOptions: {
       onSuccess: () => {
         toast.success('인증번호가 삭제되었습니다');
@@ -305,29 +305,27 @@ export default function EndpointList() {
     if (!selectedEndpointId || selectedMembers.length === 0) return;
     modal.confirm.execute({
       onOk: () => {
-        selectedMembers.forEach((member) => deleteMember({ id: selectedEndpointId, memId: member.endptMemId }));
-        setSelectedMembers([]);
+        deleteMembersBatch({ endptId: selectedEndpointId, memIds: selectedMembers.map((m) => m.endptMemId) }, { onSuccess: () => setSelectedMembers([]) });
       },
       options: {
         title: '멤버 삭제',
         content: `선택한 ${selectedMembers.length}건을 삭제하시겠습니까?`,
       },
     });
-  }, [modal, deleteMember, selectedEndpointId, selectedMembers]);
+  }, [modal, deleteMembersBatch, selectedEndpointId, selectedMembers]);
 
   const handleDeleteSelectedRegnums = useCallback(() => {
     if (!selectedEndpointId || selectedRegnums.length === 0) return;
     modal.confirm.execute({
       onOk: () => {
-        selectedRegnums.forEach((regnum) => deleteRegnum({ id: selectedEndpointId, regId: regnum.endptRegnumId }));
-        setSelectedRegnums([]);
+        deleteRegnumsBatch({ endptId: selectedEndpointId, regIds: selectedRegnums.map((r) => r.endptRegnumId) }, { onSuccess: () => setSelectedRegnums([]) });
       },
       options: {
         title: '인증번호 삭제',
         content: `선택한 ${selectedRegnums.length}건을 삭제하시겠습니까?`,
       },
     });
-  }, [modal, deleteRegnum, selectedEndpointId, selectedRegnums]);
+  }, [modal, deleteRegnumsBatch, selectedEndpointId, selectedRegnums]);
 
   const handleMemberDrawerSuccess = useCallback(() => {
     invalidateMembers();

@@ -3,20 +3,22 @@
  * BFF Aggregation Flow 기반
  *
  * 등록된 flow (DB: TB_BT_CM_AGG_FLOW_MST):
- * - ipron-endpoint-list:           GET    국선 목록 조회
- * - ipron-endpoint-detail:         GET    국선 상세 조회
- * - ipron-endpoint-create:         POST   국선 등록
- * - ipron-endpoint-update:         PUT    국선 수정
- * - ipron-endpoint-delete:         DELETE 국선 삭제
- * - ipron-endpt-member-list:       GET    멤버 목록 조회
- * - ipron-endpt-member-create:     POST   멤버 등록
- * - ipron-endpt-member-update:     PUT    멤버 수정
- * - ipron-endpt-member-delete:     DELETE 멤버 삭제
- * - ipron-endpt-regnum-list:       GET    인증번호 목록 조회
- * - ipron-endpt-regnum-create:     POST   인증번호 등록
- * - ipron-endpt-regnum-update:     PUT    인증번호 수정
- * - ipron-endpt-regnum-delete:     DELETE 인증번호 삭제
- * - manager-node-list:             GET    노드 목록 조회 (cross-service)
+ * - ipron-endpoint-list:                GET    국선 목록 조회
+ * - ipron-endpoint-detail:              GET    국선 상세 조회
+ * - ipron-endpoint-create:              POST   국선 등록
+ * - ipron-endpoint-update:              PUT    국선 수정
+ * - ipron-endpoint-delete:              DELETE 국선 삭제
+ * - ipron-endpt-member-list:            GET    멤버 목록 조회
+ * - ipron-endpt-member-create:          POST   멤버 등록
+ * - ipron-endpt-member-update:          PUT    멤버 수정
+ * - ipron-endpt-member-delete:          DELETE 멤버 삭제
+ * - ipron-endpoint-member-delete-batch: DELETE 멤버 일괄 삭제 (path: endptId, body: { memIds })
+ * - ipron-endpt-regnum-list:            GET    인증번호 목록 조회
+ * - ipron-endpt-regnum-create:          POST   인증번호 등록
+ * - ipron-endpt-regnum-update:          PUT    인증번호 수정
+ * - ipron-endpt-regnum-delete:          DELETE 인증번호 삭제
+ * - ipron-endpoint-regnum-delete-batch: DELETE 인증번호 일괄 삭제 (path: endptId, body: { regIds })
+ * - manager-node-list:                  GET    노드 목록 조회 (cross-service)
  */
 import ApiClient, { type ApiResponse } from '@/shared-util';
 import type {
@@ -182,6 +184,14 @@ export const endpointApi = {
     return await apiClient.delete('/ipron-endpt-member-delete', { params });
   },
 
+  /**
+   * 멤버 일괄 삭제
+   * @flow ipron-endpoint-member-delete-batch (DELETE path: {endptId}, body: { memIds })
+   */
+  deleteMembersBatch: async (endptId: number, memIds: number[]): Promise<void> => {
+    await apiClient.delete('/ipron-endpoint-member-delete-batch', { params: { id: endptId }, data: { memIds } });
+  },
+
   // ─── Regnum ──────────────────────────────────────────────────────────────────
 
   /**
@@ -222,6 +232,14 @@ export const endpointApi = {
    */
   deleteRegnum: async (params: Record<string, unknown>) => {
     return await apiClient.delete('/ipron-endpt-regnum-delete', { params });
+  },
+
+  /**
+   * 인증번호 일괄 삭제
+   * @flow ipron-endpoint-regnum-delete-batch (DELETE path: {endptId}, body: { regIds })
+   */
+  deleteRegnumsBatch: async (endptId: number, regIds: number[]): Promise<void> => {
+    await apiClient.delete('/ipron-endpoint-regnum-delete-batch', { params: { id: endptId }, data: { regIds } });
   },
 
   // ─── Node (cross-service) ────────────────────────────────────────────────────

@@ -114,6 +114,16 @@ export const useDeleteMember = ({ mutationOptions }: MutationHookOptions = {}) =
   });
 };
 
+/**
+ * 멤버 일괄 삭제
+ */
+export const useDeleteMembersBatch = ({ mutationOptions }: MutationHookOptions<void, { endptId: number; memIds: number[] }> = {}) => {
+  return useMutation({
+    mutationFn: ({ endptId, memIds }: { endptId: number; memIds: number[] }) => endpointApi.deleteMembersBatch(endptId, memIds),
+    ...mutationOptions,
+  });
+};
+
 // ─── Regnum Queries ─────────────────────────────────────────────────────────
 
 /**
@@ -153,6 +163,16 @@ export const useUpdateRegnum = ({ mutationOptions }: MutationHookOptions = {}) =
 export const useDeleteRegnum = ({ mutationOptions }: MutationHookOptions = {}) => {
   return useMutation({
     mutationFn: endpointApi.deleteRegnum,
+    ...mutationOptions,
+  });
+};
+
+/**
+ * 인증번호 일괄 삭제
+ */
+export const useDeleteRegnumsBatch = ({ mutationOptions }: MutationHookOptions<void, { endptId: number; regIds: number[] }> = {}) => {
+  return useMutation({
+    mutationFn: ({ endptId, regIds }: { endptId: number; regIds: number[] }) => endpointApi.deleteRegnumsBatch(endptId, regIds),
     ...mutationOptions,
   });
 };
