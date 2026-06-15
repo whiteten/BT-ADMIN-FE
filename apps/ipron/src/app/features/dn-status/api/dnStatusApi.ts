@@ -32,8 +32,8 @@ export const dnStatusApi = {
    * @flow ipron-dn-status-dr
    */
   getDrLinks: async (): Promise<DrLink[]> => {
-    const response = await apiClient.get<ApiResponse<DrLink[]>>('/ipron-dn-status-dr');
-    return response.data?.data ?? [];
+    const response = await apiClient.get<ApiResponse<{ value: DrLink[] }>>('/ipron-dn-status-dr');
+    return response.data?.data?.value ?? [];
   },
 
   /**
@@ -41,8 +41,8 @@ export const dnStatusApi = {
    * @flow ipron-dn-status-dr-dns
    */
   getDrDns: async (params: { fromNodeId: number; toNodeId: number }): Promise<DrDn[]> => {
-    const response = await apiClient.get<ApiResponse<DrDn[]>>('/ipron-dn-status-dr-dns', { params });
-    return response.data?.data ?? [];
+    const response = await apiClient.get<ApiResponse<{ value: DrDn[] }>>('/ipron-dn-status-dr-dns', { params });
+    return response.data?.data?.value ?? [];
   },
 
   /**
@@ -50,8 +50,8 @@ export const dnStatusApi = {
    * @flow ipron-dn-status-gdns
    */
   getGdnStats: async (): Promise<GdnTypeStat[]> => {
-    const response = await apiClient.get<ApiResponse<GdnTypeStat[]>>('/ipron-dn-status-gdns');
-    return response.data?.data ?? [];
+    const response = await apiClient.get<ApiResponse<{ value: GdnTypeStat[] }>>('/ipron-dn-status-gdns');
+    return response.data?.data?.value ?? [];
   },
 
   /**
