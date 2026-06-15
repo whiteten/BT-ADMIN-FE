@@ -1,8 +1,8 @@
-import type { ComponentType, SVGProps } from 'react';
-import { Tooltip } from 'antd';
+import { type ComponentType, type SVGProps, useEffect, useRef } from 'react';
 import { Pin, PinOff, SquareDashed } from 'lucide-react';
 import { useMenuStore } from '@/shared-store';
 import useCurrentRemote from '../../../hooks/useCurrentRemote';
+import { APP_BADGE_STRIP_WIDTH } from '../constants/layoutConstants';
 import { useMenuPanelStore } from '../hooks/useMenuPanelStore';
 import {
   IconRemoteAoe,
@@ -51,10 +51,10 @@ const APP_BADGE_ICONS: Record<string, ComponentType<SVGProps<SVGSVGElement>>> = 
 export const getAppBadgeIcon = (appId: string): ComponentType<SVGProps<SVGSVGElement>> => APP_BADGE_ICONS[appId] ?? SquareDashed;
 
 /**
- * 패널 가장 왼쪽 60px 컬럼. 최상단 즐겨찾기 버튼 + 구분선 + remote 앱 뱃지 + 최하단 핀 토글로 구성.
+ * 패널 가장 왼쪽 컬럼(폭은 APP_BADGE_STRIP_WIDTH). 최상단 즐겨찾기 버튼 + 구분선 + remote 앱 뱃지 + 최하단 핀 토글로 구성.
  * - manager 앱은 항상 맨 하단(핀 위)에 배치하고, 그 위에 구분선을 둔다.
  *   단 즐겨찾기와 manager 사이에 다른 remote가 없으면 구분선은 하나만 노출한다.
- * - 뱃지 hover → antd Tooltip(placement=right)으로 앱 이름 노출. Tooltip은 portal 렌더라 strip 스크롤 박스 바깥에 그려진다.
+ * - 앱 이름은 뱃지 하단에 상시 라벨로 노출(2줄 클램프, 잘림 없음). 툴팁 미사용 — 떠다니는 요소가 없어 메뉴 패널을 가리지 않는다.
  * - 뱃지 click → view='menu' 전환 + displayedAppId 갱신 + activeMenuKey 초기화 + 패널 open.
  * - 즐겨찾기 버튼 click → view='favorite' 전환 (사이드바를 즐겨찾기 목록으로 교체).
  * - 핀 토글 click → 패널이 닫혀도 strip이 메인 레이아웃 좌측에 상주(Layout이 pinned 구독).
@@ -72,6 +72,15 @@ const PanelAppBadgeStrip = () => {
   const setDisplayedAppId = useMenuPanelStore((s) => s.setDisplayedAppId);
   const setActiveMenuKey = useMenuPanelStore((s) => s.setActiveMenuKey);
   const togglePinned = useMenuPanelStore((s) => s.togglePinned);
+
+  // 활성(펼쳐진/현재) 앱 뱃지를 strip 스크롤 영역 안에서 보이도록 끌어온다.
+  // view='menu'면 펼쳐진 앱(displayedAppId), 그 외(favorite 등)엔 현재 보고 있는 앱(URL) 기준.
+  const scrollTargetAppId = view === 'menu' ? displayedAppId : (selectedRemote?.appId ?? null);
+  const scrollTargetRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    scrollTargetRef.current?.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+  }, [scrollTargetAppId]);
 
   const handleAppClick = (appId: string) => {
     // 크게보기(mega) 상태였어도 compact로 접으면서 해당 앱 사이드바를 노출 (PanelMenuRow의 폴더 클릭과 동일 패턴)
@@ -106,49 +115,60 @@ const PanelAppBadgeStrip = () => {
     const Icon = getAppBadgeIcon(remote.appId);
 
     return (
-      <Tooltip key={remote.appId} title={remote.appName} placement="right">
+      <div key={remote.appId} ref={remote.appId === scrollTargetAppId ? scrollTargetRef : undefined} className="flex flex-col items-center gap-1 w-full px-0.5 shrink-0">
         <button
           type="button"
           onClick={() => handleAppClick(remote.appId)}
           aria-label={remote.appName}
           aria-current={isDisplayedApp ? 'true' : undefined}
           className={cn(
-            'relative flex items-center justify-center size-10 shrink-0 rounded-lg text-white cursor-pointer shadow-sm hover:shadow-md transition-shadow',
+            'relative flex items-center justify-center size-9 shrink-0 rounded-lg text-white cursor-pointer shadow-sm hover:shadow-md transition-shadow',
             isDisplayedApp && 'ring-2 ring-[var(--color-bt-primary)] ring-offset-2 ring-offset-[#f8f9fb]',
           )}
           style={{ backgroundColor: badgeColor }}
         >
-          <Icon className="size-7" />
+          <Icon className="size-6" />
           {isCurrentApp && <span className="absolute -top-0.5 -right-0.5 size-2.5 rounded-full bg-red-500 ring-2 ring-[#f8f9fb]" />}
         </button>
-      </Tooltip>
+        {/* 앱 이름 라벨 — 상시 노출, 2줄 클램프(잘림 없이 줄바꿈) */}
+        <span
+          className={cn(
+            'w-full text-center text-[10px] leading-[1.3] break-words [overflow-wrap:anywhere] [display:-webkit-box] [-webkit-line-clamp:2] [-webkit-box-orient:vertical] overflow-hidden',
+            isDisplayedApp ? 'text-[var(--color-bt-primary)] font-semibold' : 'text-[#495057]',
+          )}
+        >
+          {remote.appName}
+        </span>
+      </div>
     );
   };
 
   const divider = <div className="w-7 border-t border-[#dee2e6] my-1 shrink-0" />;
 
   return (
-    <aside className="w-[60px] shrink-0 h-full bg-[#f8f9fb] border-r border-[#ced4da] shadow-[1px_0_4px_-2px_rgba(0,0,0,0.06)] flex flex-col items-center py-4 relative z-10">
+    <aside
+      style={{ width: APP_BADGE_STRIP_WIDTH }}
+      className="shrink-0 h-full bg-[#f8f9fb] border-r border-[#ced4da] shadow-[1px_0_4px_-2px_rgba(0,0,0,0.06)] flex flex-col items-center py-4 relative z-10"
+    >
       {/* 즐겨찾기 — 스크롤 영역과 분리해 상단 고정 */}
-      <div className="shrink-0 pb-2.5">
-        <Tooltip title="즐겨찾기" placement="right">
-          <button
-            type="button"
-            onClick={handleFavoriteClick}
-            aria-label="즐겨찾기"
-            className="relative flex items-center justify-center size-10 shrink-0 rounded-lg text-white cursor-pointer shadow-sm hover:shadow-md transition-shadow"
-            style={{ backgroundColor: '#F59E0B' }}
-          >
-            <IconStar className="size-7" />
-          </button>
-        </Tooltip>
+      <div className="shrink-0 pb-2 flex flex-col items-center gap-1 w-full px-0.5">
+        <button
+          type="button"
+          onClick={handleFavoriteClick}
+          aria-label="즐겨찾기"
+          className="relative flex items-center justify-center size-9 shrink-0 rounded-lg text-white cursor-pointer shadow-sm hover:shadow-md transition-shadow"
+          style={{ backgroundColor: '#F59E0B' }}
+        >
+          <IconStar className="size-6" />
+        </button>
+        <span className="w-full text-center text-[10px] leading-[1.3] text-[#868e96]">즐겨찾기</span>
       </div>
 
       {/* 즐겨찾기와 스크롤 영역 사이 구분선 — 스크롤 영역 안에 두면 함께 스크롤되므로 형제로 분리 */}
       {(otherRemotes.length > 0 || managerRemote) && divider}
 
-      {/* 스크롤 영역 — remote 뱃지들만. 즐겨찾기·핀 토글은 스크롤에서 제외. py-1.5는 뱃지 우상단 빨간 점(노치)이 스크롤 박스 모서리에 잘리지 않도록 한 여유. */}
-      <div className="flex-1 min-h-0 w-full overflow-y-auto flex flex-col items-center gap-2.5 py-2.5 [scrollbar-width:thin]">
+      {/* 스크롤 영역 — remote 뱃지들만. 즐겨찾기·핀 토글은 스크롤에서 제외. scrollbar-gutter:stable both-edges로 스크롤바 등장 시 아이콘 좌우 쏠림(레이아웃 shift) 방지. */}
+      <div className="flex-1 min-h-0 w-full overflow-y-auto flex flex-col items-center gap-2 py-2 [scrollbar-width:thin] [scrollbar-gutter:stable_both-edges]">
         {otherRemotes.map((remote, index) => renderBadge(remote, index))}
 
         {/* manager — 맨 하단(핀 위). 위에 다른 remote가 있을 때만 구분선 추가 (없으면 즐겨찾기 구분선 하나로 충분) */}
@@ -162,22 +182,20 @@ const PanelAppBadgeStrip = () => {
 
       {/* 핀 토글 — strip footer. 앱 뱃지(컬러 사각형)와 혼동되지 않도록 ghost 아이콘 버튼 + 전체 폭 상단 구분선으로 "도구" 영역임을 표현. */}
       <div className="shrink-0 w-full pt-2.5 mt-2 border-t border-[#dee2e6] flex justify-center">
-        <Tooltip title={pinned ? '메뉴 고정 해제' : '메뉴 고정'} placement="right">
-          <button
-            type="button"
-            onClick={togglePinned}
-            aria-pressed={pinned}
-            aria-label={pinned ? '메뉴 고정 해제' : '메뉴 고정'}
-            className={cn(
-              'flex items-center justify-center size-9 shrink-0 rounded-md cursor-pointer transition-colors',
-              pinned
-                ? 'text-[var(--color-bt-primary)] bg-[var(--color-bt-primary)]/10 hover:bg-[var(--color-bt-primary)]/15'
-                : 'text-[#868e96] hover:text-[#495057] hover:bg-[#e9ecef]',
-            )}
-          >
-            {pinned ? <PinOff className="size-4" /> : <Pin className="size-4" />}
-          </button>
-        </Tooltip>
+        <button
+          type="button"
+          onClick={togglePinned}
+          aria-pressed={pinned}
+          aria-label={pinned ? '메뉴 고정 해제' : '메뉴 고정'}
+          className={cn(
+            'flex items-center justify-center size-9 shrink-0 rounded-md cursor-pointer transition-colors',
+            pinned
+              ? 'text-[var(--color-bt-primary)] bg-[var(--color-bt-primary)]/10 hover:bg-[var(--color-bt-primary)]/15'
+              : 'text-[#868e96] hover:text-[#495057] hover:bg-[#e9ecef]',
+          )}
+        >
+          {pinned ? <PinOff className="size-4" /> : <Pin className="size-4" />}
+        </button>
       </div>
     </aside>
   );

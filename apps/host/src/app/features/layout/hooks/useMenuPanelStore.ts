@@ -12,7 +12,7 @@ interface MenuPanelStore {
   /** 패널이 현재 보여주는 앱 id. URL상 selectedRemote와 독립적으로 뱃지 hover에 따라 갱신된다. */
   displayedAppId: string | null;
   activeMenuKey: string | null;
-  /** 패널 좌측 60px 앱 뱃지 strip을 메인 레이아웃에 항상 노출(핀 고정). 패널 close/reset에 영향받지 않는다. */
+  /** 패널 좌측 앱 뱃지 strip(폭은 APP_BADGE_STRIP_WIDTH)을 메인 레이아웃에 항상 노출(핀 고정). 패널 close/reset에 영향받지 않는다. */
   pinned: boolean;
   setOpen: (open: boolean) => void;
   togglePanel: () => void;
