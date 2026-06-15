@@ -36,6 +36,13 @@ interface NodeSimpleResponse {
   nodeName: string;
 }
 
+export interface CountryOption {
+  value: number;
+  label: string;
+  idd: string;
+  countryKr: string;
+}
+
 const apiClient = new ApiClient({ serviceURL: '/bff' });
 
 export const endpointApi = {
@@ -121,6 +128,16 @@ export const endpointApi = {
    */
   gwBypass: async (data: { endptIds: number[]; routingNodeId: number }) => {
     return await apiClient.put('/ipron-endpoint-gw-bypass', data);
+  },
+
+  /**
+   * 국가코드 콤보 목록 조회 (TB_CC_COUNTRY)
+   * SWAT: IE_EndPoint.comboCountryId — "+IDD 국가명" 형식
+   * @direct /api/ipron/endpoints/countries
+   */
+  getCountries: async (): Promise<CountryOption[]> => {
+    const response = await apiClient.get<ApiResponse<{ value: CountryOption[] }>>('/ipron-endpoint-countries');
+    return response.data?.data?.value ?? [];
   },
 
   // ─── Member ──────────────────────────────────────────────────────────────────

@@ -334,10 +334,16 @@ export default function CtiQueueTable({
         minWidth: 100,
         maxWidth: 160,
         cellStyle: { textAlign: 'center', color: '#9ca3af' } as CellStyle,
-        // 노드명 매핑 (raw ID 노출 차단 — rule 4, null/0='-')
+        // 노드명 매핑 (raw ID 노출 차단 — rule 4, null/0='-', 고아노드='-')
         valueFormatter: (p) => {
           if (p.value == null || p.value === 0) return '-';
-          return nodeNameById.get(p.value) ?? String(p.value);
+          return nodeNameById.get(p.value) ?? '-';
+        },
+        // 필터도 이름으로 동작 — 셀 formatter 1:1 미러 (rule 3+4, Set Filter raw 누출 차단)
+        filterValueGetter: (params) => {
+          const v = params.data?.backUpNodeId;
+          if (v == null || v === 0) return '-';
+          return nodeNameById.get(v) ?? '-';
         },
       },
       {
@@ -363,8 +369,14 @@ export default function CtiQueueTable({
         field: 'firstGroupId',
         flex: 1,
         minWidth: 130,
-        valueFormatter: (p) => (p.value == null || p.value === 0 ? '없음' : (groupNameById.get(Number(p.value)) ?? String(p.value))),
-        tooltipValueGetter: (p) => (p.value == null || p.value === 0 ? '없음' : (groupNameById.get(Number(p.value)) ?? String(p.value))),
+        valueFormatter: (p) => (p.value == null || p.value === 0 ? '없음' : (groupNameById.get(Number(p.value)) ?? '없음')),
+        tooltipValueGetter: (p) => (p.value == null || p.value === 0 ? '없음' : (groupNameById.get(Number(p.value)) ?? '없음')),
+        // 필터도 그룹명으로 동작 — 셀 formatter 1:1 미러 (rule 3+4, Set Filter raw 누출 차단)
+        filterValueGetter: (params) => {
+          const v = params.data?.firstGroupId;
+          if (v == null || v === 0) return '없음';
+          return groupNameById.get(Number(v)) ?? '없음';
+        },
       },
       {
         headerName: '활성화',

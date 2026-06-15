@@ -12,7 +12,15 @@ import { Button, Col, Form, Input, InputNumber, Row, Select, Steps, Switch } fro
 import { useBreadcrumbStore } from '@/shared-store';
 import { toast } from '@/shared-util';
 import { endpointApi } from '../../features/endpoint/api/endpointApi';
-import { endpointQueryKeys, useCreateEndpoint, useGetEndpointDetail, useGetNodes, useGetRegnums, useUpdateEndpoint } from '../../features/endpoint/hooks/useEndpointQueries';
+import {
+  endpointQueryKeys,
+  useCreateEndpoint,
+  useGetCountries,
+  useGetEndpointDetail,
+  useGetNodes,
+  useGetRegnums,
+  useUpdateEndpoint,
+} from '../../features/endpoint/hooks/useEndpointQueries';
 import {
   ENDPOINT_FORM_STEPS,
   ENDPOINT_INITIAL_VALUES,
@@ -100,6 +108,7 @@ export default function EndpointForm() {
   // ─── Queries ────────────────────────────────────────────────────────────────
   const { data: nodes = [] } = useGetNodes();
   const { data: sipProfiles = [] } = useGetSipProfiles();
+  const { data: countries = [] } = useGetCountries();
   const { data: endpointDetail, isFetching } = useGetEndpointDetail({
     params: endptId ? { id: endptId } : undefined,
     queryOptions: { enabled: !!endptId },
@@ -197,6 +206,8 @@ export default function EndpointForm() {
   // ─── Options ────────────────────────────────────────────────────────────────
   const nodeOptions = nodes.map((n) => ({ label: n.nodeName, value: n.nodeId }));
   const sipProfileOptions = sipProfiles.map((p) => ({ label: p.sipProfileName, value: p.sipProfileId }));
+  // 국가코드: TB_CC_COUNTRY — "+IDD 국가명" 형식 (SWAT IE_EndPoint.comboCountryId 정합)
+  const countryOptions = countries.map((c) => ({ label: c.label, value: c.value }));
   // DR 노드: 선택된 nodeId 기준 같은 클러스터의 다른 노드만 표시
   const [drNodeOptions, setDrNodeOptions] = useState<Array<{ label: string; value: number }>>([{ label: '없음', value: 0 }]);
   const selectedNodeIdForDr = Form.useWatch('nodeId', form);
@@ -890,7 +901,7 @@ export default function EndpointForm() {
                       <Col span={6}>
                         {countryCodeUseYn === 1 && (
                           <Form.Item name="countryId" label="국가번호">
-                            <InputNumber min={0} className="!w-full" placeholder="국가번호 ID" />
+                            <Select options={countryOptions} showSearch optionFilterProp="label" placeholder="미지정" allowClear className="!w-full" />
                           </Form.Item>
                         )}
                       </Col>

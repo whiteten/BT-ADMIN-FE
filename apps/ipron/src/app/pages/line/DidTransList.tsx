@@ -369,7 +369,7 @@ export default function DidTransList() {
                             <Network className={`size-4 flex-shrink-0 ${isSelected ? 'text-[#405189]' : 'text-gray-400'}`} />
                             <span className="text-sm font-semibold text-gray-800 truncate">{node.nodeName}</span>
                           </div>
-                          <div className="text-xs text-gray-500">노드 ID: {node.nodeId}</div>
+                          <div className="text-xs text-gray-500">{node.nodeName}</div>
                           <div className="flex flex-wrap gap-1 mt-auto pt-2">
                             <span
                               className={`inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium border ${

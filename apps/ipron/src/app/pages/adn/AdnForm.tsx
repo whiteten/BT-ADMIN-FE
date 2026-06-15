@@ -14,6 +14,7 @@ import { Button, Card, Col, Form, Input, InputNumber, Row, Select, Switch } from
 import { Lock, Network } from 'lucide-react';
 import { useBreadcrumbStore } from '@/shared-store';
 import { toast } from '@/shared-util';
+import { useAdnGrpdnOptions } from '../../features/adn/hooks/useAdnGrpdnOptions';
 import { useCreateAdn, useGetAdnDetail, useUpdateAdn } from '../../features/adn/hooks/useAdnQueries';
 import type { AdnCreateRequest, AdnDefaultStateCode, AdnUpdateRequest, ExtAuthtypeCode } from '../../features/adn/types';
 import { ADN_DFT_STATE_OPTIONS, EXT_AUTHTYPE_OPTIONS, getAdnDftStateName, getDnStatusName } from '../../features/adn/utils/adnEnums';
@@ -91,6 +92,9 @@ export default function AdnForm() {
   const watchedAdnDftState = Form.useWatch('adnDftState', form);
   const watchedExtAuthtype = Form.useWatch('extAuthtype', form) as ExtAuthtypeCode | null | undefined;
 
+  // 그룹발신번호(GDN_TYPE=16) 콤보 옵션 — 테넌트 선택 후 활성
+  const { options: grpdnOptions } = useAdnGrpdnOptions(watchedTenantId ?? null);
+
   const { mutate: createAdn, isPending: isCreating } = useCreateAdn({
     mutationOptions: {
       onSuccess: () => {
@@ -165,10 +169,11 @@ export default function AdnForm() {
               <Row gutter={16}>
                 <Col span={12}>
                   <Form.Item label="테넌트" name="tenantId" rules={[{ required: true, message: '테넌트를 선택하세요' }]}>
-                    {isEditMode || tenantOptions.length === 0 ? (
+                    {!isEditMode && tenantOptions.length === 0 ? (
+                      /* 옵션 미로드 시 폴백 — 수정모드에서는 항상 Select */
                       <InputNumber style={{ width: '100%' }} disabled={isEditMode} placeholder="테넌트 ID" min={1} />
                     ) : (
-                      <Select options={tenantOptions} placeholder="테넌트 선택" />
+                      <Select options={tenantOptions} placeholder="테넌트 선택" disabled={isEditMode} />
                     )}
                   </Form.Item>
                 </Col>
@@ -193,8 +198,15 @@ export default function AdnForm() {
                   </Form.Item>
                 </Col>
                 <Col span={12}>
-                  <Form.Item label="그룹발신번호용 그룹DN ID (선택)" name="origGrpdnId">
-                    <InputNumber style={{ width: '100%' }} min={0} placeholder="없으면 비워두세요" />
+                  <Form.Item label="그룹발신번호용 그룹DN (선택)" name="origGrpdnId">
+                    <Select
+                      options={grpdnOptions}
+                      placeholder={watchedTenantId ? '번호 선택' : '테넌트를 먼저 선택하세요'}
+                      showSearch
+                      optionFilterProp="label"
+                      allowClear
+                      disabled={!watchedTenantId}
+                    />
                   </Form.Item>
                 </Col>
               </Row>
