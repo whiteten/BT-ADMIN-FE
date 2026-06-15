@@ -458,8 +458,8 @@ export default function SipTrunkList() {
       {
         headerName: '우선순위',
         field: 'memberPriority',
-        width: 80,
-        maxWidth: 90,
+        width: 100,
+        maxWidth: 110,
         filter: 'agNumberColumnFilter',
         cellStyle: { textAlign: 'center' } as CellStyle,
         valueFormatter: (p) => (p.value == null ? '—' : String(p.value)),
@@ -467,8 +467,8 @@ export default function SipTrunkList() {
       {
         headerName: '배정채널',
         field: 'channelLimitCount',
-        width: 84,
-        maxWidth: 94,
+        width: 100,
+        maxWidth: 110,
         filter: 'agNumberColumnFilter',
         cellStyle: { textAlign: 'center' } as CellStyle,
         valueFormatter: (p) => (p.value == null ? '—' : String(p.value)),

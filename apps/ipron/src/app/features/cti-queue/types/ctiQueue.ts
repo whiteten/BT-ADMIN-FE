@@ -414,18 +414,17 @@ export interface CtiQueueBulkUpdateRequest {
   applyDatetime?: string | null;
 }
 
-/** 일괄 설정 결과 — 건별 성공/실패 (BE CtiQueueBulkResult 정합, 207 응답). */
+/** 일괄 설정 결과 — 실패 건 (BE CtiQueueBulkResult.FailedItem 정합). */
 export interface CtiQueueBulkItemResult {
   ctiqId: number;
-  gdnName: string | null;
-  success: boolean;
   message: string | null;
 }
 
+/** 일괄 설정 결과 (BE CtiQueueBulkResult record 정합: successCount/totalCount/failures). */
 export interface CtiQueueBulkResult {
   successCount: number;
-  failCount: number;
-  items: CtiQueueBulkItemResult[];
+  totalCount: number;
+  failures: CtiQueueBulkItemResult[];
 }
 
 // ──────────────────────────────────────────────────────────

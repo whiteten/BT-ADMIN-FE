@@ -23,13 +23,13 @@ import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { Button, Checkbox, DatePicker, Form, InputNumber, Modal, Radio, Select, Table } from 'antd';
 import type { ColumnsType } from 'antd/es/table';
 import dayjs from 'dayjs';
-import { CheckCircle2, XCircle } from 'lucide-react';
 import { toast } from '@/shared-util';
 import { useBulkUpdateCtiQueues } from '../hooks/useCtiQueueQueries';
 import {
   type BulkFieldGroup,
   type BulkFieldKey,
   type CtiQueueBulkItemResult,
+  type CtiQueueBulkResult,
   type CtiQueueBulkUpdateRequest,
   type CtiQueueMediaOption,
   type CtiQueueOptionItem,
@@ -170,7 +170,7 @@ export default function CtiQueueBulkUpdateModal({ open, selectedRows, skillsetOp
 
   // ─── 결과 모달 ───────────────────────────────────────────────────────────
   const [resultVisible, setResultVisible] = useState(false);
-  const [bulkResult, setBulkResult] = useState<{ successCount: number; failCount: number; items: CtiQueueBulkItemResult[] } | null>(null);
+  const [bulkResult, setBulkResult] = useState<CtiQueueBulkResult | null>(null);
 
   // ─── 초기화 ──────────────────────────────────────────────────────────────
   useEffect(() => {
@@ -404,28 +404,11 @@ export default function CtiQueueBulkUpdateModal({ open, selectedRows, skillsetOp
   // ─── 결과 테이블 컬럼 ────────────────────────────────────────────────────
   const resultColumns: ColumnsType<CtiQueueBulkItemResult> = [
     { title: 'CTIQ ID', dataIndex: 'ctiqId', width: 90 },
-    { title: '그룹DN이름', dataIndex: 'gdnName', ellipsis: true, render: (v: string | null) => v ?? '-' },
-    {
-      title: '결과',
-      dataIndex: 'success',
-      width: 80,
-      render: (v: boolean) =>
-        v ? (
-          <span className="inline-flex items-center gap-1 text-green-600 text-xs font-medium">
-            <CheckCircle2 className="size-3.5" /> 성공
-          </span>
-        ) : (
-          <span className="inline-flex items-center gap-1 text-red-500 text-xs font-medium">
-            <XCircle className="size-3.5" /> 실패
-          </span>
-        ),
-    },
     {
       title: '사유',
       dataIndex: 'message',
       ellipsis: true,
-      render: (v: string | null, row: CtiQueueBulkItemResult) =>
-        row.success ? <span className="text-gray-400">—</span> : <span className="text-red-500 text-xs">{v ?? '알 수 없는 오류'}</span>,
+      render: (v: string | null) => <span className="text-red-500 text-xs">{v ?? '알 수 없는 오류'}</span>,
     },
   ];
 
@@ -784,17 +767,23 @@ export default function CtiQueueBulkUpdateModal({ open, selectedRows, skillsetOp
                 <span className="text-xs text-gray-500">성공</span>
               </div>
               <div className="flex flex-col items-center">
-                <span className="text-2xl font-bold text-red-500">{bulkResult.failCount}</span>
+                <span className="text-2xl font-bold text-gray-700">{bulkResult.totalCount}</span>
+                <span className="text-xs text-gray-500">전체</span>
+              </div>
+              <div className="flex flex-col items-center">
+                <span className="text-2xl font-bold text-red-500">{bulkResult.failures.length}</span>
                 <span className="text-xs text-gray-500">실패</span>
               </div>
             </div>
-            <Table<CtiQueueBulkItemResult>
-              size="small"
-              dataSource={bulkResult.items.map((item) => ({ ...item, key: item.ctiqId }))}
-              columns={resultColumns}
-              pagination={false}
-              scroll={{ y: 260 }}
-            />
+            {bulkResult.failures.length > 0 && (
+              <Table<CtiQueueBulkItemResult>
+                size="small"
+                dataSource={bulkResult.failures.map((item) => ({ ...item, key: item.ctiqId }))}
+                columns={resultColumns}
+                pagination={false}
+                scroll={{ y: 260 }}
+              />
+            )}
           </>
         )}
       </Modal>

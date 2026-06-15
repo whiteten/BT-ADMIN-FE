@@ -374,7 +374,7 @@ export default function CommonTrunkList() {
       {
         field: 'memberPriority',
         headerName: '우선순위',
-        width: 80,
+        width: 100,
         filter: 'agNumberColumnFilter',
         cellStyle: { textAlign: 'center' } as CellStyle,
         valueFormatter: (p) => (p.value == null ? '-' : String(p.value)),
@@ -382,7 +382,7 @@ export default function CommonTrunkList() {
       {
         field: 'channelLimitCount',
         headerName: '배정채널',
-        width: 84,
+        width: 100,
         filter: 'agNumberColumnFilter',
         cellStyle: { textAlign: 'center' } as CellStyle,
         valueFormatter: (p) => (p.value == null ? '-' : String(p.value)),
