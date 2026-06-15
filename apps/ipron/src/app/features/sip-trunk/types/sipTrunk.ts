@@ -37,6 +37,10 @@ export interface SipGdnResponse {
   errorRoutingDnis: string | null; // 오류 우회 DNIS (max 24)
   busyRoutingDnis: string | null; // 만석 우회 DNIS (max 24)
 
+  // 접근코드 프로파일 (BE SipGdnResponse:43-44 정합)
+  accessCodeProfileId: number | null;
+  drAccessCodeProfileId: number | null;
+
   /** 이 그룹DN 에 배정된 SIP 트렁크 멤버 수 (mockup "배정 트렁크" 컬럼) */
   assignedTrunkCount: number;
 
@@ -61,6 +65,9 @@ export interface SipGdnCreateRequest {
   blockRoutingDnis?: string | null;
   errorRoutingDnis?: string | null;
   busyRoutingDnis?: string | null;
+  // 접근코드 프로파일 (BE SipGdnCreateRequest:42-43 정합)
+  accessCodeProfileId?: number | null;
+  drAccessCodeProfileId?: number | null;
 }
 
 /** nodeId / tenantId / gdnNo 불변 */

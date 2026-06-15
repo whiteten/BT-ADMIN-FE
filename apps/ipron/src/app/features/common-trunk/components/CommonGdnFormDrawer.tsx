@@ -13,6 +13,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Button, Drawer, Form, Input, InputNumber, Modal, Radio, Select, Tabs } from 'antd';
 import { toast } from '@/shared-util';
+import { useGetAcdGdnAccessCodeProfileOptions } from '../../acd-gdn/hooks/useAcdGdnQueries';
 import { commonTrunkApi } from '../api/commonTrunkApi';
 import { useCreateCommonGdn, useUpdateCommonGdn } from '../hooks/useCommonTrunkQueries';
 import type { CommonGdnCreateRequest, CommonGdnResponse, CommonGdnUpdateRequest } from '../types';
@@ -143,6 +144,13 @@ export default function CommonGdnFormDrawer({ open, mode, detail, nodeId, nodeNa
   const closeTypeDisabled = blockYn !== 1;
 
   const effectiveNodeId = isEdit ? (detail?.nodeId ?? null) : nodeId;
+
+  // 접근코드 프로파일 콤보 옵션 (레퍼런스: AcdGdnFormDrawer, SWAT IPR20S3010:863-876)
+  const { data: accessCodeProfileOptions = [] } = useGetAcdGdnAccessCodeProfileOptions(effectiveNodeId != null ? Number(effectiveNodeId) : null);
+  const accessCodeProfileSelectOptions = useMemo(
+    () => [{ value: 0, label: '(미사용)' }, ...accessCodeProfileOptions.map((o) => ({ value: o.id, label: o.name }))],
+    [accessCodeProfileOptions],
+  );
 
   // DR 후보는 현재 노드 제외
   const drNodeOptions = useMemo(() => [{ value: 0, label: '없음' }, ...nodeOptions.filter((o) => o.value !== effectiveNodeId)], [nodeOptions, effectiveNodeId]);
@@ -340,12 +348,12 @@ export default function CommonGdnFormDrawer({ open, mode, detail, nodeId, nodeNa
         <Select options={ACD_ROUTING_KIND_OPTIONS} disabled placeholder="(시스템 설정)" />
       </Form.Item>
 
-      {/* 갭2: 접근코드 프로파일 */}
+      {/* 갭2: 접근코드 프로파일 콤보 (레퍼런스: AcdGdnFormDrawer:349-355, SWAT IPR20S3010:863-876) */}
       <Form.Item label="접근코드 프로파일" name="accessCodeProfileId">
-        <InputNumber style={{ width: '100%' }} min={0} placeholder="프로파일 ID (0=미지정)" />
+        <Select options={accessCodeProfileSelectOptions} placeholder="(미사용)" showSearch optionFilterProp="label" allowClear />
       </Form.Item>
       <Form.Item label="DR 접근코드 프로파일" name="drAccessCodeProfileId" extra="DR노드 기준">
-        <InputNumber style={{ width: '100%' }} min={0} placeholder="프로파일 ID (0=미지정)" disabled={!drForced} />
+        <Select options={accessCodeProfileSelectOptions} placeholder="(미사용)" showSearch optionFilterProp="label" allowClear disabled={!drForced} />
       </Form.Item>
     </div>
   );

@@ -9,9 +9,10 @@
  *
  * 등록은 헤더 + 버튼 / 수정은 그리드 행 더블클릭(onRowDoubleClicked) 으로 오픈.
  */
-import { forwardRef, useCallback, useEffect, useImperativeHandle, useRef, useState } from 'react';
+import { forwardRef, useCallback, useEffect, useImperativeHandle, useMemo, useRef, useState } from 'react';
 import { Button, Drawer, Form, Input, InputNumber, Radio, Select } from 'antd';
 import { toast } from '@/shared-util';
+import { useGetAcdGdnAccessCodeProfileOptions } from '../../acd-gdn/hooks/useAcdGdnQueries';
 import { useCreateSipGdn, useUpdateSipGdn } from '../hooks/useSipTrunkQueries';
 import { CLOSE_TYPE_OPTIONS, ROUTING_KIND_OPTIONS, type SipGdnResponse } from '../types';
 
@@ -49,6 +50,9 @@ interface FormValues {
   blockRoutingDnis: string | null;
   errorRoutingDnis: string | null;
   busyRoutingDnis: string | null;
+  // 접근코드 프로파일 (BE SipGdnCreateRequest:42-43 / SipGdnUpdateRequest 정합)
+  accessCodeProfileId: number | null;
+  drAccessCodeProfileId: number | null;
 }
 
 const DEFAULTS: Partial<FormValues> = {
@@ -62,6 +66,8 @@ const DEFAULTS: Partial<FormValues> = {
   blockRoutingDnis: null,
   errorRoutingDnis: null,
   busyRoutingDnis: null,
+  accessCodeProfileId: null,
+  drAccessCodeProfileId: null,
 };
 
 const SipGdnDrawer = forwardRef<SipGdnDrawerRef, Props>(({ nodeId, tenantId, drNodeOptions, onSuccess }, ref) => {
@@ -73,6 +79,13 @@ const SipGdnDrawer = forwardRef<SipGdnDrawerRef, Props>(({ nodeId, tenantId, drN
 
   const backUpNodeId = Form.useWatch('backUpNodeId', form);
   const globalForced = backUpNodeId != null && backUpNodeId !== 0;
+
+  // 접근코드 프로파일 콤보 옵션 (레퍼런스: AcdGdnFormDrawer:349-355)
+  const { data: accessCodeProfileOptions = [] } = useGetAcdGdnAccessCodeProfileOptions(nodeId != null ? Number(nodeId) : null);
+  const accessCodeProfileSelectOptions = useMemo(
+    () => [{ value: 0, label: '(미사용)' }, ...accessCodeProfileOptions.map((o) => ({ value: o.id, label: o.name }))],
+    [accessCodeProfileOptions],
+  );
 
   // SWAT :217-224: blockYn=0이면 closeType disabled
   const blockYn = Form.useWatch('blockYn', form);
@@ -112,6 +125,8 @@ const SipGdnDrawer = forwardRef<SipGdnDrawerRef, Props>(({ nodeId, tenantId, drN
         blockRoutingDnis: editData.blockRoutingDnis ?? null,
         errorRoutingDnis: editData.errorRoutingDnis ?? null,
         busyRoutingDnis: editData.busyRoutingDnis ?? null,
+        accessCodeProfileId: editData.accessCodeProfileId ?? null,
+        drAccessCodeProfileId: editData.drAccessCodeProfileId ?? null,
       });
     } else {
       form.resetFields();
@@ -146,6 +161,8 @@ const SipGdnDrawer = forwardRef<SipGdnDrawerRef, Props>(({ nodeId, tenantId, drN
         blockRoutingDnis: v.blockRoutingDnis || null,
         errorRoutingDnis: v.errorRoutingDnis || null,
         busyRoutingDnis: v.busyRoutingDnis || null,
+        accessCodeProfileId: v.accessCodeProfileId ?? null,
+        drAccessCodeProfileId: backUp != null ? (v.drAccessCodeProfileId ?? null) : null,
       };
     },
     [closeTypeDisabled],
@@ -254,6 +271,14 @@ const SipGdnDrawer = forwardRef<SipGdnDrawerRef, Props>(({ nodeId, tenantId, drN
             <Radio value={1}>사용</Radio>
             <Radio value={0}>미사용</Radio>
           </Radio.Group>
+        </Form.Item>
+
+        {/* 접근코드 프로파일 콤보 (레퍼런스: AcdGdnFormDrawer:349-355, BE SipGdnCreateRequest:42-43 정합) */}
+        <Form.Item name="accessCodeProfileId" label="접근코드 프로파일" tooltip="메인 노드 기준 접근코드 프로파일">
+          <Select options={accessCodeProfileSelectOptions} placeholder="(미사용)" showSearch optionFilterProp="label" allowClear />
+        </Form.Item>
+        <Form.Item name="drAccessCodeProfileId" label="DR 접근코드 프로파일" tooltip="DR노드 기준 접근코드 프로파일">
+          <Select options={accessCodeProfileSelectOptions} placeholder="(미사용)" showSearch optionFilterProp="label" allowClear disabled={!globalForced} />
         </Form.Item>
 
         {/* F-5: maxWaitcnt / maxWaittime required */}
