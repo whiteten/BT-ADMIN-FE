@@ -97,10 +97,10 @@ export const didRouteApi = {
 
   /**
    * DID라우트 일괄 삭제
-   * @flow ipron-did-route-delete-batch (DELETE /api/ipron/did-routes/delete-batch, body: { didrouteIds })
+   * @flow ipron-did-route-delete-batch (POST /api/ipron/did-routes/delete-batch, body: { didrouteIds })
    */
   deleteBatch: async (didrouteIds: number[]): Promise<void> => {
-    await apiClient.delete('/ipron-did-route-delete-batch', { data: { didrouteIds } });
+    await apiClient.post('/ipron-did-route-delete-batch', { didrouteIds });
   },
 
   // ─── Node (cross-service) ────────────────────────────────────────────────────

@@ -68,10 +68,10 @@ export const bsrGroupApi = {
 
   /**
    * BSR 그룹 일괄 삭제
-   * @flow ipron-bsr-group-delete-batch (DELETE /api/ipron/bsr-groups/delete-batch, body: { bsrGroupIds })
+   * @flow ipron-bsr-group-delete-batch (POST /api/ipron/bsr-groups/delete-batch, body: { bsrGroupIds })
    */
   removeBatch: async (bsrGroupIds: number[]): Promise<void> => {
-    await apiClient.delete('/ipron-bsr-group-delete-batch', { data: { bsrGroupIds } });
+    await apiClient.post('/ipron-bsr-group-delete-batch', { bsrGroupIds });
   },
 
   // ─── 스케줄 배정 ───────────────────────────────────────────
@@ -90,10 +90,10 @@ export const bsrGroupApi = {
 
   /**
    * 그룹에서 스케줄 일괄 배정 해제
-   * @flow ipron-bsr-schedule-unassign-batch (DELETE /api/ipron/bsr-groups/{bsrGroupId}/schedules/delete-batch, body: { scheduleIds })
+   * @flow ipron-bsr-schedule-unassign-batch (POST /api/ipron/bsr-groups/{bsrGroupId}/schedules/delete-batch, body: { scheduleIds })
    */
   unassignScheduleBatch: async (bsrGroupId: number, scheduleIds: number[]): Promise<void> => {
-    await apiClient.delete('/ipron-bsr-schedule-unassign-batch', { params: { bsrGroupId }, data: { scheduleIds } });
+    await apiClient.post('/ipron-bsr-schedule-unassign-batch', { scheduleIds }, { params: { bsrGroupId } });
   },
 
   getSchedulePool: async (tenantId: number, bsrGroupId?: number): Promise<BsrScheduleInfoResponse[]> => {

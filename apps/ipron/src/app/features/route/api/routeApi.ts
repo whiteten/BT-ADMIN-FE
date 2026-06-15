@@ -108,10 +108,10 @@ export const routeApi = {
 
   /**
    * 라우트 국선 일괄 배정 해제 (path: routeId, body: endptIds[])
-   * @flow ipron-route-point-delete-batch (DELETE /api/ipron/routes/{routeId}/points/delete-batch)
+   * @flow ipron-route-point-delete-batch (POST /api/ipron/routes/{routeId}/points/delete-batch)
    */
   deleteRoutePointsBatch: async ({ routeId, endptIds }: { routeId: number; endptIds: number[] }): Promise<void> => {
-    await apiClient.delete('/ipron-route-point-delete-batch', { params: { routeId }, data: { endptIds } });
+    await apiClient.post('/ipron-route-point-delete-batch', { endptIds }, { params: { routeId } });
   },
 
   // ─── Node (cross-service) ────────────────────────────────────────────────────

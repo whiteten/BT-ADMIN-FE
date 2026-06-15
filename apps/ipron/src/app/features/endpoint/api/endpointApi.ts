@@ -186,10 +186,10 @@ export const endpointApi = {
 
   /**
    * 멤버 일괄 삭제
-   * @flow ipron-endpoint-member-delete-batch (DELETE path: {endptId}, body: { memIds })
+   * @flow ipron-endpoint-member-delete-batch (POST path: {endptId}, body: { memIds })
    */
   deleteMembersBatch: async (endptId: number, memIds: number[]): Promise<void> => {
-    await apiClient.delete('/ipron-endpoint-member-delete-batch', { params: { id: endptId }, data: { memIds } });
+    await apiClient.post('/ipron-endpoint-member-delete-batch', { memIds }, { params: { id: endptId } });
   },
 
   // ─── Regnum ──────────────────────────────────────────────────────────────────
@@ -236,10 +236,10 @@ export const endpointApi = {
 
   /**
    * 인증번호 일괄 삭제
-   * @flow ipron-endpoint-regnum-delete-batch (DELETE path: {endptId}, body: { regIds })
+   * @flow ipron-endpoint-regnum-delete-batch (POST path: {endptId}, body: { regIds })
    */
   deleteRegnumsBatch: async (endptId: number, regIds: number[]): Promise<void> => {
-    await apiClient.delete('/ipron-endpoint-regnum-delete-batch', { params: { id: endptId }, data: { regIds } });
+    await apiClient.post('/ipron-endpoint-regnum-delete-batch', { regIds }, { params: { id: endptId } });
   },
 
   // ─── Node (cross-service) ────────────────────────────────────────────────────

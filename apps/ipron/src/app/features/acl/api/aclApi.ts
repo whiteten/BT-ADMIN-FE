@@ -73,10 +73,10 @@ export const aclApi = {
 
   /**
    * PBX ACL 일괄 삭제
-   * @flow ipron-pbx-acl-delete-batch (DELETE /api/ipron/pbx-acls/delete-batch, body: { aclIds })
+   * @flow ipron-pbx-acl-delete-batch (POST /api/ipron/pbx-acls/delete-batch, body: { aclIds })
    */
   deleteBatch: async (aclIds: number[]): Promise<void> => {
-    await apiClient.delete('/ipron-pbx-acl-delete-batch', { data: { aclIds } });
+    await apiClient.post('/ipron-pbx-acl-delete-batch', { aclIds });
   },
 
   /**
@@ -113,9 +113,9 @@ export const aclApi = {
 
   /**
    * CTI ACL 일괄 삭제
-   * @flow ipron-cti-acl-delete-batch (DELETE /api/ipron/cti-acls/delete-batch, body: { aclIds })
+   * @flow ipron-cti-acl-delete-batch (POST /api/ipron/cti-acls/delete-batch, body: { aclIds })
    */
   deleteCtiBatch: async (aclIds: number[]): Promise<void> => {
-    await apiClient.delete('/ipron-cti-acl-delete-batch', { data: { aclIds } });
+    await apiClient.post('/ipron-cti-acl-delete-batch', { aclIds });
   },
 };

@@ -73,10 +73,10 @@ export const callScreenApi = {
 
   /**
    * 수신번호 차단 일괄 삭제
-   * @flow ipron-call-screen-delete-batch (DELETE /api/ipron/call-screens/delete-batch, body: { callscreenIds })
+   * @flow ipron-call-screen-delete-batch (POST /api/ipron/call-screens/delete-batch, body: { callscreenIds })
    */
   deleteBatch: async (callscreenIds: number[]): Promise<void> => {
-    await apiClient.delete('/ipron-call-screen-delete-batch', { data: { callscreenIds } });
+    await apiClient.post('/ipron-call-screen-delete-batch', { callscreenIds });
   },
 
   /**

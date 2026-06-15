@@ -48,9 +48,9 @@ export const mediaTypeApi = {
 
   /**
    * 미디어타입 일괄 삭제
-   * @flow ipron-media-type-delete-batch (DELETE /api/ipron/media-types/delete-batch, body: { mediaTypes })
+   * @flow ipron-media-type-delete-batch (POST /api/ipron/media-types/delete-batch, body: { mediaTypes })
    */
   deleteMediaTypeBatch: async (mediaTypes: number[]): Promise<void> => {
-    await apiClient.delete('/ipron-media-type-delete-batch', { data: { mediaTypes } });
+    await apiClient.post('/ipron-media-type-delete-batch', { mediaTypes });
   },
 };

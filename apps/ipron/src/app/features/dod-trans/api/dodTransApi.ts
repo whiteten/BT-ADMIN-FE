@@ -114,10 +114,10 @@ export const dodTransApi = {
 
   /**
    * DOD DNIS 변환 아이템 일괄 삭제 (복합키 {dodTransId, listSeq} 묶음)
-   * @flow ipron-dod-trans-delete-batch (DELETE /api/ipron/dod-trans-items/delete-batch, body: { items })
+   * @flow ipron-dod-trans-delete-batch (POST /api/ipron/dod-trans-items/delete-batch, body: { items })
    */
   deleteItemBatch: async (items: { dodTransId: number; listSeq: number }[]): Promise<void> => {
-    await apiClient.delete('/ipron-dod-trans-delete-batch', { data: { items } });
+    await apiClient.post('/ipron-dod-trans-delete-batch', { items });
   },
 
   // ─── 공통 ─────────────────────────────────────────────────────────────────

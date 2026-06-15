@@ -85,10 +85,10 @@ export const dnProfileApi = {
 
   /**
    * 프로파일 일괄 삭제
-   * @flow ipron-dn-profile-delete-batch (DELETE /api/ipron/dn-profiles/delete-batch, body: { profileIds })
+   * @flow ipron-dn-profile-delete-batch (POST /api/ipron/dn-profiles/delete-batch, body: { profileIds })
    */
   deleteBatch: async (profileIds: number[]): Promise<void> => {
-    await apiClient.delete('/ipron-dn-profile-delete-batch', { data: { profileIds } });
+    await apiClient.post('/ipron-dn-profile-delete-batch', { profileIds });
   },
 
   /**

@@ -102,11 +102,11 @@ export const ctiQueueApi = {
 
   /**
    * CTI 큐 일괄 삭제 — cascade 4종, BSR 스케줄 배정된 큐 포함 시 409 전체 거부.
-   * BE: DELETE /api/ipron/cti-queues/delete-batch → ApiResponse<Integer>(삭제 건수).
+   * BE: POST /api/ipron/cti-queues/delete-batch → ApiResponse<Integer>(삭제 건수).
    * @flow ipron-cti-queue-delete-batch (body: { ctiqIds })
    */
   deleteBatch: async (ctiqIds: number[]): Promise<number> => {
-    const res = await apiClient.delete<ApiResponse<number>>('/ipron-cti-queue-delete-batch', { data: { ctiqIds } });
+    const res = await apiClient.post<ApiResponse<number>>('/ipron-cti-queue-delete-batch', { ctiqIds });
     return res.data?.data ?? 0;
   },
 

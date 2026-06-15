@@ -81,10 +81,10 @@ export const cosApi = {
 
   /**
    * COS 일괄 삭제
-   * @flow ipron-cos-delete-batch (DELETE /api/ipron/cos/delete-batch, body: { cosIds })
+   * @flow ipron-cos-delete-batch (POST /api/ipron/cos/delete-batch, body: { cosIds })
    */
   deleteBatch: async (cosIds: number[]): Promise<void> => {
-    await apiClient.delete('/ipron-cos-delete-batch', { data: { cosIds } });
+    await apiClient.post('/ipron-cos-delete-batch', { cosIds });
   },
 
   /**

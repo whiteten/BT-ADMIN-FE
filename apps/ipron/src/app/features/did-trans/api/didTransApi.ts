@@ -77,10 +77,10 @@ export const didTransApi = {
 
   /**
    * DNIS 번호변환 일괄 삭제
-   * @flow ipron-dnis-trans-delete-batch (DELETE /api/ipron/dnis-trans/delete-batch, body: { dnisTransIds })
+   * @flow ipron-dnis-trans-delete-batch (POST /api/ipron/dnis-trans/delete-batch, body: { dnisTransIds })
    */
   deleteDnisTransBatch: async (dnisTransIds: number[]): Promise<void> => {
-    await apiClient.delete('/ipron-dnis-trans-delete-batch', { data: { dnisTransIds } });
+    await apiClient.post('/ipron-dnis-trans-delete-batch', { dnisTransIds });
   },
 
   // ─── ANI ───────────────────────────────────────────────────────────────────
@@ -133,10 +133,10 @@ export const didTransApi = {
 
   /**
    * ANI 번호변환 일괄 삭제
-   * @flow ipron-ani-trans-delete-batch (DELETE /api/ipron/ani-trans/delete-batch, body: { aniTransIds })
+   * @flow ipron-ani-trans-delete-batch (POST /api/ipron/ani-trans/delete-batch, body: { aniTransIds })
    */
   deleteAniTransBatch: async (aniTransIds: number[]): Promise<void> => {
-    await apiClient.delete('/ipron-ani-trans-delete-batch', { data: { aniTransIds } });
+    await apiClient.post('/ipron-ani-trans-delete-batch', { aniTransIds });
   },
 
   // ─── 노드간 복사 ──────────────────────────────────────────────────────────
