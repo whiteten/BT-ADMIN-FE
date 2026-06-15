@@ -1,11 +1,13 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Command as CommandPrimitive } from 'cmdk';
 import { debounce } from 'lodash';
 import { BookOpen, ChevronRight, Loader2, Search } from 'lucide-react';
 import { useMenuStore } from '@/shared-store';
+import { fuzzyFilter, fuzzyScore } from '@/shared-util';
 import { useSearchMenus } from '../hooks/useSearchQueries';
 import type { DocSearchResult, MenuSearchResult } from '../types/search';
+import { Highlight } from '@/components/custom/Highlight';
 import { Badge } from '@/components/ui/badge';
 import { Command, CommandGroup, CommandItem, CommandList, CommandSeparator } from '@/components/ui/command';
 import { Popover, PopoverAnchor, PopoverContent } from '@/components/ui/popover';
@@ -25,6 +27,36 @@ const findPathByMenuKey = (menuConfigs: MenuConfig[], appId: string, menuKey: st
     return undefined;
   };
   return search(config.menus);
+};
+
+/** fuzzy 매칭 대상 — menuConfigs(=권한 스코프된 navi)에서 추출한 leaf(페이지) 메뉴 */
+interface MenuLeaf {
+  label: string;
+  appId: string;
+  menuKey: string;
+  breadcrumb: string[];
+}
+
+/**
+ * menuConfigs 트리를 leaf(페이지) 목록으로 평탄화한다.
+ * - hide 메뉴 제외, path 있는 항목(페이지)만 결과에 포함 (폴더 제외)
+ * - breadcrumb = [앱명, ...상위 폴더 label] (자기 자신 제외) — 백엔드 결과와 동일 형식
+ */
+const collectMenuLeaves = (configs: MenuConfig[]): MenuLeaf[] => {
+  const out: MenuLeaf[] = [];
+  for (const config of configs) {
+    const walk = (items: MenuItem[], trail: string[]) => {
+      for (const item of items) {
+        if (item.hide) continue;
+        if (item.path) {
+          out.push({ label: item.label, appId: config.appId, menuKey: item.menuKey, breadcrumb: [config.appName, ...trail] });
+        }
+        if (item.children) walk(item.children, [...trail, item.label]);
+      }
+    };
+    walk(config.menus, []);
+  }
+  return out;
 };
 
 const RESULT_TYPE_LABEL: Record<string, string> = {
@@ -64,7 +96,24 @@ export default function GlobalSearch() {
     },
   });
 
-  const menus = data?.menus ?? [];
+  // 메뉴: 백엔드 결과 대신 menuConfigs(권한 스코프됨)를 FE fuzzy로 검색 — 메뉴 크게보기 검색과 동일 동작
+  const menuLeaves = useMemo(() => collectMenuLeaves(menuConfigs), [menuConfigs]);
+  const menus: MenuSearchResult[] = useMemo(() => {
+    if (debouncedQuery.length === 0) return [];
+    return fuzzyFilter(debouncedQuery, menuLeaves, (m) => m.label)
+      .slice(0, 20)
+      .map((m) => ({
+        id: `menu:${m.menuKey}`,
+        type: 'MENU' as const,
+        label: m.label,
+        breadcrumb: m.breadcrumb,
+        appId: m.appId,
+        menuKey: m.menuKey,
+        score: fuzzyScore(debouncedQuery, m.label),
+      }));
+  }, [debouncedQuery, menuLeaves]);
+
+  // 문서: 현행 유지 — 백엔드 검색 결과 그대로 사용
   const docs = data?.docs ?? [];
   const hasResults = menus.length > 0 || docs.length > 0;
   const isLoading = isFetching || query.trim() !== debouncedQuery;
@@ -176,7 +225,9 @@ export default function GlobalSearch() {
                     </div>
                     <div className="flex flex-col gap-1 flex-1 min-w-0">
                       <div className="flex items-center gap-2">
-                        <span className="font-semibold text-sm text-foreground/90 truncate">{result.label}</span>
+                        <span className="font-semibold text-sm text-foreground/90 truncate">
+                          <Highlight text={result.label} query={debouncedQuery} />
+                        </span>
                         <Badge variant="secondary" className="text-[10px] h-4 px-1.5 shrink-0 rounded-full bg-primary/8 text-primary/70 border-0 font-medium">
                           {RESULT_TYPE_LABEL[result.type]}
                         </Badge>
@@ -223,7 +274,9 @@ export default function GlobalSearch() {
                     </div>
                     <div className="flex flex-col gap-1 flex-1 min-w-0">
                       <div className="flex items-center gap-2">
-                        <span className="font-semibold text-sm text-foreground/90 truncate">{result.label}</span>
+                        <span className="font-semibold text-sm text-foreground/90 truncate">
+                          <Highlight text={result.label} query={debouncedQuery} />
+                        </span>
                         <Badge variant="secondary" className="text-[10px] h-4 px-1.5 shrink-0 rounded-full bg-blue-500/8 text-blue-600/70 border-0 font-medium">
                           {RESULT_TYPE_LABEL[result.type]}
                         </Badge>

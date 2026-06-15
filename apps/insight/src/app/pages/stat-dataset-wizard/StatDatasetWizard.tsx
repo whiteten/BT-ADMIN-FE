@@ -34,6 +34,7 @@ export default function StatDatasetWizard() {
 
   useEffect(() => {
     setBreadcrumb([
+      { title: '통계', path: '/insight/statistics' },
       { title: '데이터셋', path: '/insight/statistics/datasets' },
       { title: '새 데이터셋 생성', path: '/insight/statistics/datasets/new' },
     ]);

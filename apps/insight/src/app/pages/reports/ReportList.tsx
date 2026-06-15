@@ -11,7 +11,10 @@ import NoData from '@/components/custom/NoData';
 
 type OwnershipFilter = 'ALL' | 'MINE' | 'PUBLISHED';
 
-const breadcrumb: BreadcrumbProps['items'] = [{ title: '보고서', path: '/insight/statistics/reports' }];
+const breadcrumb: BreadcrumbProps['items'] = [
+  { title: '통계', path: '/insight/statistics' },
+  { title: '보고서 관리', path: '/insight/statistics/reports' },
+];
 
 const DOMAIN_SECTIONS: DomainCode[] = ['IE', 'IC', 'IR'];
 

@@ -8,7 +8,10 @@ import { useGetSearchConditions } from '../../features/search-condition/hooks/us
 import { useSearchConditionStore } from '../../features/search-condition/hooks/useSearchConditionStore';
 import { CATEGORY_OPTIONS } from '../../features/search-condition/types';
 
-const breadcrumb: BreadcrumbProps['items'] = [{ title: '검색조건 정의', path: '/insight/statistics/search-conditions' }];
+const breadcrumb: BreadcrumbProps['items'] = [
+  { title: '통계', path: '/insight/statistics' },
+  { title: '검색 아이템', path: '/insight/statistics/search-conditions' },
+];
 
 export default function SearchConditionCatalog() {
   const setBreadcrumb = useBreadcrumbStore((s) => s.setBreadcrumb);

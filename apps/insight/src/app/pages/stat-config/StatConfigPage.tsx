@@ -34,7 +34,7 @@ import { FallbackSpinner } from '@/components/custom/FallbackSpinner';
 import { cn } from '@/lib/utils';
 
 const breadcrumb: BreadcrumbProps['items'] = [
-  { title: '통계', path: '/insight/statistics/stat-config' },
+  { title: '통계', path: '/insight/statistics' },
   { title: '통계 설정', path: '/insight/statistics/stat-config' },
 ];
 

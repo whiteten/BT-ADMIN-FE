@@ -53,10 +53,7 @@ import { IconTrash } from '@/components/custom/Icons';
 import useAggridOptions from '@/libs/shared-ui/src/hooks/useAggridOptions';
 import { useModal } from '@/libs/shared-ui/src/hooks/useModal';
 
-const breadcrumb = [
-  { title: '회선관리', path: '/ipron/line/endpoint' },
-  { title: '국선관리', path: '/ipron/line/endpoint' },
-];
+const breadcrumb = [{ title: '회선관리' }, { title: '호 라우팅' }, { title: '국선관리', path: '/ipron/line/endpoint' }];
 
 type BottomTab = 'member' | 'regnum';
 

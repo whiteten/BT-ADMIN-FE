@@ -10,7 +10,7 @@ import { useGetDashboard } from '../../features/monitoring/hooks/useMonitoringQu
 import type { DashboardChannelItem, DashboardItem } from '../../features/monitoring/types';
 
 const breadcrumb: BreadcrumbProps['items'] = [
-  { title: 'STT 모니터링', path: '/stt/monitoring' },
+  { title: '모니터링', path: '/stt/monitoring' },
   { title: 'STT 대시보드', path: '/stt/monitoring/dashboard/list' },
 ];
 

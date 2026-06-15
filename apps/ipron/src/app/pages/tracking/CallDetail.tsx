@@ -158,11 +158,7 @@ export default function CallDetail() {
   const dialogQ = useGetDialogs(ucid);
 
   const breadcrumb = useMemo(
-    () => [
-      { title: '콜 분석', path: '/ipron/tracking' },
-      { title: '통합 콜트래킹', path: '/ipron/tracking' },
-      { title: ucid ? `UCID ${ucid.slice(0, 8)}...` : '콜 상세', path: '#' },
-    ],
+    () => [{ title: '트래킹' }, { title: '통합콜트래킹', path: '/ipron/tracking' }, { title: ucid ? `UCID ${ucid.slice(0, 8)}...` : '콜 상세', path: '#' }],
     [ucid],
   );
 

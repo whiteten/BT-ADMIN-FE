@@ -37,10 +37,7 @@ import { IconTrash } from '@/components/custom/Icons';
 import useAggridOptions from '@/libs/shared-ui/src/hooks/useAggridOptions';
 import { useModal } from '@/libs/shared-ui/src/hooks/useModal';
 
-const breadcrumb = [
-  { title: '회선관리', path: '/ipron/line/did-trans' },
-  { title: 'DID번호변환', path: '/ipron/line/did-trans' },
-];
+const breadcrumb = [{ title: '회선관리' }, { title: '번호 변환' }, { title: 'DID번호변환', path: '/ipron/line/did-trans' }];
 
 const CATEGORY_STYLES: Record<DidTransCategory, { label: string; icon: typeof Phone }> = {
   dnis: { label: 'DNIS', icon: Phone },

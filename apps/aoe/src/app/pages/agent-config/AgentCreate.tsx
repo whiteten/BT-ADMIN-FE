@@ -11,7 +11,7 @@ import FormSummaryValue from '../../features/shared/components/FormSummaryValue'
 import { FallbackSpinner } from '@/components/custom/FallbackSpinner';
 
 const breadcrumb: BreadcrumbProps['items'] = [
-  { title: '관리', path: '/aoe/agent-config' },
+  { title: 'AOE 관리', path: '/aoe/agent-config' },
   { title: 'Agent', path: '/aoe/agent-config/agent' },
   { title: 'Agent 생성', path: '/aoe/agent-config/agent/create' },
 ];

@@ -9,7 +9,7 @@ import type { ChannelStatusItem } from '../../features/monitoring/types';
 import { useGetSttSystemList } from '../../features/stt-config/hooks/useCommonQueries';
 
 const breadcrumb: BreadcrumbProps['items'] = [
-  { title: 'STT 모니터링', path: '/stt/monitoring' },
+  { title: '모니터링', path: '/stt/monitoring' },
   { title: 'STT 채널현황', path: '/stt/monitoring/channel/list' },
 ];
 

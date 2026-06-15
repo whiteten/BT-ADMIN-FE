@@ -10,6 +10,7 @@
 import { type ReactNode, useState } from 'react';
 import { Input, Popover, Tooltip } from 'antd';
 import { AppWindow, ChevronDown, ChevronsDownUp, ChevronsUpDown, File, Folder, Plus, Search } from 'lucide-react';
+import { fuzzyScore } from '@/shared-util';
 import type { Menu } from '../types';
 import { Highlight } from '@/components/custom/Highlight';
 import { TreeCaret, TreeLabel, TreeRow } from '@/components/custom/TreeView';
@@ -141,7 +142,7 @@ export default function MenuTree({ menus, selectedMenuKey, onSelect, onAddMenu }
     getChildren: (n) => n.children,
     getName: (n) => n.label,
     searchText,
-    matchesSearch: (n, kw) => n.label.toLowerCase().includes(kw.toLowerCase()),
+    matchesSearch: (n, kw) => fuzzyScore(kw, n.label) >= 0,
     defaultExpandAll: true,
     ariaLabel: '메뉴 트리',
   });

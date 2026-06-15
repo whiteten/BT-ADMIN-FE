@@ -358,9 +358,14 @@ export default function PanelEditorSheet({ reportId, panelType, panelId, dataset
   };
 
   const handleSave = () => {
+    const trimmedTitle = title.trim();
+    if (!trimmedTitle) {
+      toast.error('패널 제목을 입력하세요.');
+      return;
+    }
     const fieldMap = buildFieldMap();
     const chartOptions = buildChartOptions();
-    const data = { panelType: (isGrid ? 'GRID' : chartType) as PanelType, title, datasetId: selectedDatasetId, layout, fieldMap, chartOptions };
+    const data = { panelType: (isGrid ? 'GRID' : chartType) as PanelType, title: trimmedTitle, datasetId: selectedDatasetId, layout, fieldMap, chartOptions };
     if (isDraft) {
       addPanel({ panelId: -Date.now(), reportId: 0, ...data });
       toast.success('패널이 추가되었습니다.');
@@ -759,7 +764,7 @@ export default function PanelEditorSheet({ reportId, panelType, panelId, dataset
         <div className="space-y-1" onClick={(e) => e.stopPropagation()}>
           {slotFields.map((f) => (
             <div key={f.fieldName} className="flex items-center gap-1.5 rounded border border-[var(--color-bt-border)] bg-white px-2 py-1 text-xs">
-              <span className="font-mono font-semibold" title={f.fieldName}>
+              <span className="min-w-0 flex-1 truncate font-mono font-semibold" title={f.fieldName}>
                 {fieldDisplayMap.get(f.fieldName) ?? f.fieldName}
               </span>
               {slotType === 'VALUE' && (
@@ -1036,7 +1041,7 @@ export default function PanelEditorSheet({ reportId, panelType, panelId, dataset
         </div>
         <div className="flex items-center gap-2">
           <Button onClick={onClose}>취소</Button>
-          <Button type="primary" onClick={handleSave} disabled={!title || creating || updating} loading={creating || updating}>
+          <Button type="primary" onClick={handleSave} disabled={!title.trim() || creating || updating} loading={creating || updating}>
             이 패널 저장
           </Button>
         </div>
@@ -1081,7 +1086,17 @@ export default function PanelEditorSheet({ reportId, panelType, panelId, dataset
         <Splitter.Panel min="30%">
           <div className="flex h-full min-w-0 flex-col bg-muted/10">
             <div className="flex shrink-0 items-center gap-2 border-b border-border bg-white px-4 py-2.5">
-              <Input value={title} onChange={(e) => setTitle(e.target.value)} placeholder="패널 제목 입력" className="max-w-xs" />
+              <label className="shrink-0 text-xs font-medium text-[var(--color-bt-fg)]">
+                패널 제목 <span className="text-red-500">*</span>
+              </label>
+              <Input
+                value={title}
+                onChange={(e) => setTitle(e.target.value)}
+                placeholder="패널 제목 입력 (필수)"
+                className="max-w-xs"
+                status={!title.trim() ? 'error' : undefined}
+              />
+              {!title.trim() && <span className="shrink-0 text-xs text-red-500">제목을 입력하세요</span>}
               <span className="ml-auto text-xs text-muted-foreground">실시간 미리보기 · 저장 전</span>
               <Tooltip title={isEdit ? '이 패널이 실제 실행하는 SQL을 확인합니다 (저장된 설정 기준)' : '패널 저장 후 확인할 수 있습니다'}>
                 <Button size="small" icon={<Code2 className="h-3.5 w-3.5" />} disabled={!isEdit} onClick={handleSqlPreview}>

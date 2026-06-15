@@ -18,12 +18,7 @@ import { useDeleteReasonCodesBatch, useGetCtiCodeTenantStats, useGetReasonCodes 
 import { REASON_CODE_TYPE_ACW, REASON_CODE_TYPE_REST, type ReasonCodeResponse } from '../../features/cti-code/types';
 import { useModal } from '@/libs/shared-ui/src/hooks/useModal';
 
-const breadcrumb = [
-  { title: 'IPRON' },
-  { title: '상담사 관리', path: '/ipron/agent-master' },
-  { title: '코드 관리' },
-  { title: '휴식/후처리 사유코드 관리', path: '/ipron/cti-code-mgmt' },
-];
+const breadcrumb = [{ title: '상담사 관리' }, { title: '코드 관리' }, { title: '휴식/후처리 사유코드 관리', path: '/ipron/cti-code-mgmt' }];
 
 export default function CtiCodeList() {
   const setBreadcrumb = useBreadcrumbStore((s) => s.setBreadcrumb);

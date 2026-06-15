@@ -1,5 +1,6 @@
 import { useLocation } from 'react-router-dom';
 import { SquareDashed } from 'lucide-react';
+import { fuzzyScore } from '@/shared-util';
 import { FavoriteButton } from '../components/FavoriteButton';
 import { MenuActionButtons } from '../components/MenuActionButtons';
 import { useMenuPanelStore } from '../hooks/useMenuPanelStore';
@@ -39,12 +40,15 @@ export const hasActiveDescendant = (item: MenuItem, location: LocationLike, appI
   return item.children?.some((child) => hasActiveDescendant(child, location, appId)) ?? false;
 };
 
-/** 재귀적으로 검색어 매칭 여부 */
+/**
+ * 재귀적으로 검색어 매칭 여부.
+ * 퍼지 매칭(서브시퀀스 + 한글 초성·자모) — 예: "ㄷㅅㅂㄷ"→대시보드, "대보드"→대시보드.
+ * 자식 중 하나라도 매치되면 부모도 노출.
+ */
 export const hasMatch = (menu: MenuItem, q: string): boolean => {
   if (menu.hide) return false;
-  const lower = q.toLowerCase();
-  if (menu.label.toLowerCase().includes(lower)) return true;
-  return menu.children?.some((c) => hasMatch(c, lower)) ?? false;
+  if (fuzzyScore(q, menu.label) >= 0) return true;
+  return menu.children?.some((c) => hasMatch(c, q)) ?? false;
 };
 
 /** 메뉴의 서브그룹(children이 있는 직계 자식) 수 — 카드 col-span 계산용 */

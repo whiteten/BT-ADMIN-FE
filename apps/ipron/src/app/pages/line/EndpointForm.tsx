@@ -409,7 +409,8 @@ export default function EndpointForm() {
 
   useEffect(() => {
     setBreadcrumb([
-      { title: '회선관리', path: '/ipron/line' },
+      { title: '회선관리' },
+      { title: '호 라우팅' },
       { title: '국선관리', path: '/ipron/line/endpoint' },
       {
         title: isEditMode ? '수정' : '등록',

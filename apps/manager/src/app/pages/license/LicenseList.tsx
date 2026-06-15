@@ -25,8 +25,7 @@ import { useModal } from '@/libs/shared-ui/src/hooks/useModal';
 
 const breadcrumb = [
   { title: '시스템', path: '/manager/resource/menu' },
-  { title: '플랫폼', path: '/manager/resource/license/list' },
-  { title: '라이선스', path: '/manager/resource/license/list' },
+  { title: '라이센스', path: '/manager/resource/license/list' },
 ];
 
 export default function LicenseList() {

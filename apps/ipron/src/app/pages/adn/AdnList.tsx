@@ -17,11 +17,7 @@ import { useCopyAdn, useDeleteAdns, useGetAdnTenants, useGetAdns } from '../../f
 import type { AdnResponse } from '../../features/adn/types';
 import { useModal } from '@/libs/shared-ui/src/hooks/useModal';
 
-const breadcrumb = [
-  { title: '번호자원관리', path: '/ipron/adn' },
-  { title: 'DN관리', path: '/ipron/adn' },
-  { title: 'ADN 설정', path: '/ipron/adn' },
-];
+const breadcrumb = [{ title: '번호자원관리' }, { title: '교환기 번호관리' }, { title: 'ADN', path: '/ipron/adn' }];
 
 export default function AdnList() {
   const setBreadcrumb = useBreadcrumbStore((s) => s.setBreadcrumb);

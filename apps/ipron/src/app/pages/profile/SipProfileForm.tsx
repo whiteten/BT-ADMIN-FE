@@ -135,7 +135,8 @@ export default function SipProfileForm() {
 
   useEffect(() => {
     setBreadcrumb([
-      { title: '프로파일 관리', path: '/ipron/profile' },
+      { title: '번호자원관리' },
+      { title: '프로파일', path: '/ipron/profile' },
       { title: 'SIP 프로파일', path: '/ipron/profile/sip-profile' },
       {
         title: isEditMode ? '수정' : '등록',

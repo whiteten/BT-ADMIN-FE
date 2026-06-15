@@ -26,10 +26,7 @@ import { type DidRoute, getRoutingDisplayText } from '../../features/did-route/t
 import useAggridOptions from '@/libs/shared-ui/src/hooks/useAggridOptions';
 import { useModal } from '@/libs/shared-ui/src/hooks/useModal';
 
-const breadcrumb = [
-  { title: '회선관리', path: '/ipron/line/did-route' },
-  { title: 'DID라우트관리', path: '/ipron/line/did-route' },
-];
+const breadcrumb = [{ title: '회선관리' }, { title: '호 라우팅' }, { title: 'DID라우트관리', path: '/ipron/line/did-route' }];
 
 export default function DidRouteList() {
   const setBreadcrumb = useBreadcrumbStore((s) => s.setBreadcrumb);

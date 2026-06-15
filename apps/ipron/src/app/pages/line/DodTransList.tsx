@@ -35,10 +35,7 @@ import { type DodTransItem, type DodTransMaster, TRANS_YN_LABELS } from '../../f
 import useAggridOptions from '@/libs/shared-ui/src/hooks/useAggridOptions';
 import { useModal } from '@/libs/shared-ui/src/hooks/useModal';
 
-const breadcrumb = [
-  { title: '회선관리', path: '/ipron/line/dod-trans' },
-  { title: 'DOD DNIS관리', path: '/ipron/line/dod-trans' },
-];
+const breadcrumb = [{ title: '회선관리' }, { title: '번호 변환' }, { title: 'DOD DNIS관리', path: '/ipron/line/dod-trans' }];
 
 export default function DodTransList() {
   const setBreadcrumb = useBreadcrumbStore((s) => s.setBreadcrumb);

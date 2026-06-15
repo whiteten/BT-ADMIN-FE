@@ -41,11 +41,7 @@ import type { DnResponse } from '../../features/dn/types';
 import { useGetDnProfileNodes, useGetDnProfileTenants } from '../../features/dn-profile/hooks/useDnProfileQueries';
 import { useModal } from '@/libs/shared-ui/src/hooks/useModal';
 
-const breadcrumb = [
-  { title: '번호자원관리', path: '/ipron/dn' },
-  { title: 'DN관리', path: '/ipron/dn' },
-  { title: '내선관리', path: '/ipron/dn' },
-];
+const breadcrumb = [{ title: '번호자원관리' }, { title: '교환기 번호관리' }, { title: '내선', path: '/ipron/dn' }];
 
 export default function DnList() {
   const setBreadcrumb = useBreadcrumbStore((s) => s.setBreadcrumb);

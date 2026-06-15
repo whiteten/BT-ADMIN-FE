@@ -7,7 +7,7 @@ import { useGetDnStatusList } from '../../features/monitoring/hooks/useMonitorin
 import type { DnStatusItem } from '../../features/monitoring/types';
 
 const breadcrumb: BreadcrumbProps['items'] = [
-  { title: 'STT 모니터링', path: '/stt/monitoring' },
+  { title: '모니터링', path: '/stt/monitoring' },
   { title: 'STT 내선별 진행현황', path: '/stt/monitoring/dn/list' },
 ];
 

@@ -319,7 +319,8 @@ export default function DnProfileForm() {
 
   useEffect(() => {
     setBreadcrumb([
-      { title: '프로파일 관리', path: '/ipron/profile' },
+      { title: '번호자원관리' },
+      { title: '프로파일', path: '/ipron/profile' },
       { title: '내선 프로파일', path: '/ipron/profile/dn-profile' },
       {
         title: isEditMode ? '수정' : '등록',

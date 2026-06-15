@@ -27,7 +27,7 @@ import { cn } from '@/libs/shared-ui/src/lib/utils';
 
 const breadcrumb: BreadcrumbProps['items'] = [
   { title: '통계', path: '/fca/statistics' },
-  { title: '콜봇 통계', path: '/fca/statistics/call-bot' },
+  { title: '봇 통계', path: '/fca/statistics/call-bot' },
   { title: '슬롯 통계', path: '/fca/statistics/call-bot/slot' },
 ];
 

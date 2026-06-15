@@ -4,6 +4,7 @@ import { Bot, ChartColumnBig, MessageSquareText, User } from 'lucide-react';
 import { EXAMPLE_QUERIES } from '../constants/chatConstants';
 import type { ChatMessageItem } from '../types';
 import ChatResponseContent from './ChatResponseContent';
+import MessageCopyButton from '../../shared/components/MessageCopyButton';
 import { parseChatResponse } from '../utils/parseChatResponse';
 import { cn } from '@/lib/utils';
 
@@ -19,7 +20,7 @@ const formatTime = (workTime?: string) => (workTime ? dayjs(workTime).format('YY
 
 function UserBubble({ text, workTime }: { text: string; workTime?: string }) {
   return (
-    <div className="ml-auto flex max-w-[75%] flex-row-reverse items-start gap-2.5">
+    <div className="group ml-auto flex max-w-[75%] flex-row-reverse items-start gap-2.5">
       <div className="flex size-8 shrink-0 items-center justify-center rounded-xl bg-[var(--color-bt-primary)]/10">
         <User size={16} className="text-[var(--color-bt-primary)]" />
       </div>
@@ -27,7 +28,12 @@ function UserBubble({ text, workTime }: { text: string; workTime?: string }) {
         <div className="rounded-2xl rounded-tr-sm bg-[var(--color-bt-primary)] px-4 py-2.5 shadow-sm">
           <p className="text-[13px] leading-relaxed text-white whitespace-pre-wrap break-all">{text}</p>
         </div>
-        <span className="pr-1 text-[10px] tabular-nums text-[#A5AAB5]">{formatTime(workTime)}</span>
+        <div className="flex items-center gap-1">
+          <span className="opacity-0 transition-opacity group-hover:opacity-100">
+            <MessageCopyButton text={text} />
+          </span>
+          <span className="pr-1 text-[10px] tabular-nums text-[#A5AAB5]">{formatTime(workTime)}</span>
+        </div>
       </div>
     </div>
   );
@@ -43,15 +49,22 @@ function LoadingDots() {
   );
 }
 
-function BotBubble({ children, workTime }: { children: React.ReactNode; workTime?: string }) {
+function BotBubble({ children, workTime, copyText }: { children: React.ReactNode; workTime?: string; copyText?: string }) {
   return (
-    <div className="flex max-w-[85%] items-start gap-2.5">
+    <div className="group flex max-w-[85%] items-start gap-2.5">
       <div className="flex size-8 shrink-0 items-center justify-center rounded-xl border border-[#E9EDF2] bg-white shadow-sm">
         <Bot size={16} className="text-[var(--color-bt-primary)]" />
       </div>
       <div className="flex min-w-0 flex-col gap-1">
         <div className="max-w-full rounded-2xl rounded-tl-sm border border-[#E9EDF2] bg-white px-4 py-3 shadow-sm">{children}</div>
-        {workTime && <span className="pl-1 text-[10px] tabular-nums text-[#A5AAB5]">{formatTime(workTime)}</span>}
+        <div className="flex items-center gap-1">
+          {copyText && (
+            <span className="opacity-0 transition-opacity group-hover:opacity-100">
+              <MessageCopyButton text={copyText} />
+            </span>
+          )}
+          {workTime && <span className="pl-1 text-[10px] tabular-nums text-[#A5AAB5]">{formatTime(workTime)}</span>}
+        </div>
       </div>
     </div>
   );
@@ -108,7 +121,7 @@ export default function ChatMessageList({ messages, pendingQuery, isFetching, on
                 {blocks ? (
                   <div className="flex flex-col gap-2.5">
                     {blocks.map((block, index) => (
-                      <BotBubble key={index} workTime={index === blocks.length - 1 ? message.workTime : undefined}>
+                      <BotBubble key={index} workTime={index === blocks.length - 1 ? message.workTime : undefined} copyText={block.answer}>
                         <ChatResponseContent block={block} />
                       </BotBubble>
                     ))}
