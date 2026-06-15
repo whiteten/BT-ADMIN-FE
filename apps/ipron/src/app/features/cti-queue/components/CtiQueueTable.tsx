@@ -38,6 +38,8 @@ interface CtiQueueTableProps {
   isLoading?: boolean;
   /** 기본 라우팅그룹 ID → 이름 매핑 (firstGroupId 표시용). */
   groupOptions?: CtiQueueOptionItem[];
+  /** 노드 ID → 이름 매핑 (DR노드 컬럼 raw ID 노출 차단용). */
+  nodeOptions?: { value: number; label: string }[];
   /** "업무그룹 보기" 토글 — ON 시 업무그룹명(treeName) 컬럼을 좌측에 추가 노출 + 드래그 핸들 표시. */
   groupView?: boolean;
   onRowDoubleClicked: (row: CtiQueueResponse) => void;
@@ -144,6 +146,7 @@ export default function CtiQueueTable({
   rowData,
   isLoading,
   groupOptions = [],
+  nodeOptions = [],
   groupView = false,
   onRowDoubleClicked,
   onSelectionChanged,
@@ -164,6 +167,13 @@ export default function CtiQueueTable({
     for (const g of groupOptions) m.set(g.id, g.name);
     return m;
   }, [groupOptions]);
+
+  // 노드 ID → 이름 매핑 맵 (DR노드 컬럼 raw ID 노출 차단, rule 4)
+  const nodeNameById = useMemo(() => {
+    const m = new Map<number, string>();
+    for (const n of nodeOptions) m.set(n.value, n.label);
+    return m;
+  }, [nodeOptions]);
 
   const skillSelectOptions = useMemo<{ value: number | null; label: string }[]>(
     () => [{ value: null, label: '-' }, ...skillsetOptions.map((s) => ({ value: s.id, label: s.name }))],
@@ -321,10 +331,14 @@ export default function CtiQueueTable({
       {
         headerName: 'DR노드',
         field: 'backUpNodeId',
-        minWidth: 80,
-        maxWidth: 100,
+        minWidth: 100,
+        maxWidth: 160,
         cellStyle: { textAlign: 'center', color: '#9ca3af' } as CellStyle,
-        valueFormatter: (p) => (p.value == null || p.value === 0 ? '—' : String(p.value)),
+        // 노드명 매핑 (raw ID 노출 차단 — rule 4, null/0='-')
+        valueFormatter: (p) => {
+          if (p.value == null || p.value === 0) return '-';
+          return nodeNameById.get(p.value) ?? String(p.value);
+        },
       },
       {
         headerName: '글로벌여부',
@@ -411,7 +425,7 @@ export default function CtiQueueTable({
         valueFormatter: (p) => num(p.value),
       },
     ],
-    [groupView, groupNameById, getDragCtiqIds],
+    [groupView, groupNameById, nodeNameById, getDragCtiqIds],
   );
 
   const columnDefs = skillMatrixMode ? matrixColumnDefs : normalColumnDefs;

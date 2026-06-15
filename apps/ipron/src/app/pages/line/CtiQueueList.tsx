@@ -13,6 +13,7 @@
  * NOTE: routes.tsx / 메뉴 등록은 통합 워커 담당.
  */
 import { type ChangeEvent, useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useQueryClient } from '@tanstack/react-query';
 import { Button, Empty, Input, Modal, Table } from 'antd';
 import {
   ArrowUpDown,
@@ -42,6 +43,7 @@ import CtiQueueGroupTree from '../../features/cti-queue/components/CtiQueueGroup
 import CtiQueueTable, { type MediaSkillCol } from '../../features/cti-queue/components/CtiQueueTable';
 import CtiQueueTenantCard from '../../features/cti-queue/components/CtiQueueTenantCard';
 import {
+  ctiQueueQueryKeys,
   useCreateCtiQueueGroup,
   useDeleteCtiQueue,
   useDeleteCtiQueueGroup,
@@ -97,6 +99,7 @@ export default function CtiQueueList() {
   }, [setBreadcrumb, clearBreadcrumb]);
 
   const modal = useModal();
+  const queryClient = useQueryClient();
 
   // 로그인 테넌트 ID (JWT — 사용자 본인 테넌트) — 페이지 진입 시 자동 선택
   const loginTenantId = useAuthStore((s) => {
@@ -588,11 +591,18 @@ export default function CtiQueueList() {
     e.target.value = '';
     setIsImporting(true);
     try {
-      const res = await ctiQueueApi.importExcel(file);
-      const data = res.data ?? { successCount: 0, errors: [] };
-      setImportResultModal({ open: true, successCount: data.successCount ?? 0, errors: data.errors ?? [] });
-    } catch {
-      toast.error('Excel 가져오기에 실패했습니다');
+      // BE 가 행별 성패를 항상 HTTP 200 · 평탄 data{successCount, errors[]} 로 반환(207/400 미사용).
+      // importExcel 이 평탄 결과로 언래핑해 주므로 그대로 결과 모달에 사용한다.
+      const result = await ctiQueueApi.importExcel(file);
+      // 등록 성공 건이 있으면 그리드/테넌트카드 즉시 갱신
+      if ((result.successCount ?? 0) > 0) {
+        void queryClient.invalidateQueries({ queryKey: ctiQueueQueryKeys.getList._def });
+        void queryClient.invalidateQueries({ queryKey: ctiQueueQueryKeys.getTenants.queryKey });
+      }
+      setImportResultModal({ open: true, successCount: result.successCount ?? 0, errors: result.errors ?? [] });
+    } catch (err: unknown) {
+      // 여기 도달 = 진짜 5xx · 네트워크 단절 등(정상 결과는 200 으로 위에서 처리). 한글 토스트만.
+      toast.error(extractMsg(err, 'Excel 가져오기에 실패했습니다'));
     } finally {
       setIsImporting(false);
     }
@@ -986,6 +996,7 @@ export default function CtiQueueList() {
                 rowData={rowsForGrid}
                 isLoading={isLoading}
                 groupOptions={groupOptions}
+                nodeOptions={nodeSelectOptions}
                 groupView={true}
                 onRowDoubleClicked={handleEdit}
                 onSelectionChanged={setSelectedRows}
@@ -1095,7 +1106,11 @@ export default function CtiQueueList() {
         width={600}
       >
         {importResultModal.errors.length === 0 ? (
-          <p className="text-green-600 font-medium">모든 행이 성공적으로 등록되었습니다.</p>
+          importResultModal.successCount > 0 ? (
+            <p className="text-green-600 font-medium">{importResultModal.successCount}건이 모두 성공적으로 등록되었습니다.</p>
+          ) : (
+            <p className="text-gray-600">처리된 행이 없습니다. 엑셀 파일의 데이터 행을 확인해 주세요.</p>
+          )
         ) : (
           <>
             {importResultModal.successCount > 0 && (

@@ -220,15 +220,20 @@ export const ctiQueueApi = {
    * CTI 큐 Excel 가져오기 (SWAT doExcelImport_init 정합).
    * BE: POST /api/ipron/cti-queues/import (multipart/form-data).
    * BFF: ipron-cti-queue-import flow 경유.
-   * 오류 행 존재 시 207 응답 → errors 배열 포함.
+   *
+   * BE 가 행별 성패를 항상 HTTP 200 · ok:true · 평탄 data{successCount, errors[]} 로 반환한다
+   * (207/400 미사용 — BFF single-step 언래핑 비대칭 회피, BE CtiQueueController.importExcel JavaDoc 참조).
+   * 따라서 BFF error 경로에 진입하지 않고 평탄 data 단일경로로 도착한다.
+   * validateStatus 는 200·207 만 허용(과거 안전망 — BE 200 고정이라 207 은 사실상 미발생).
+   * 반환을 평탄 결과로 언래핑해 화면이 successCount/errors 를 바로 사용한다.
    */
-  importExcel: async (file: File): Promise<ApiResponse<{ successCount: number; errors: { rowNum: number; message: string }[] }>> => {
+  importExcel: async (file: File): Promise<{ successCount: number; errors: { rowNum: number; message: string }[] }> => {
     const formData = new FormData();
     formData.append('file', file);
     const res = await apiClient.post<ApiResponse<{ successCount: number; errors: { rowNum: number; message: string }[] }>>('/ipron-cti-queue-import', formData, {
-      headers: { 'Content-Type': 'multipart/form-data' },
+      validateStatus: (status) => (status >= 200 && status < 300) || status === 207,
     });
-    return res.data;
+    return res.data?.data ?? { successCount: 0, errors: [] };
   },
 
   // ─── 업무그룹 트리 (TB_TR_CTIQ_MASTER) ───────────────────────────────────────

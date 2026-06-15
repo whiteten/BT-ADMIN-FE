@@ -269,6 +269,9 @@ export default function CtiQueueFormDrawer({ state, onClose, tenantOptions = [],
     [mentOptions],
   );
 
+  // DR노드 콤보 옵션 — 현재 노드 제외(SipGdn/CommonGdn 동일 패턴)
+  const drNodeSelectOptions = useMemo(() => [{ value: 0, label: '없음' }, ...nodeOptions.filter((o) => o.value !== nodeId)], [nodeOptions, nodeId]);
+
   const maxWaitOff = wMaxWaitYn !== 1;
   const collectOff = wCollectYn !== 1;
   const skillRequired = wRoutingKind === 1 || wRoutingKind === 3;
@@ -741,8 +744,8 @@ export default function CtiQueueFormDrawer({ state, onClose, tenantOptions = [],
               <Select options={nodeOptions} showSearch optionFilterProp="label" placeholder="노드 선택" />
             </Form.Item>
           )}
-          <Form.Item label="DR노드 ID (백업 노드)" name="backUpNodeId" tooltip="DR노드 지정 시 Global DN 사용이 강제됩니다">
-            <InputNumber style={{ width: '100%' }} min={0} placeholder="없으면 0" />
+          <Form.Item label="DR노드 (백업 노드)" name="backUpNodeId" tooltip="DR노드 지정 시 Global DN 사용이 강제됩니다">
+            <Select options={drNodeSelectOptions} showSearch optionFilterProp="label" placeholder="없음" />
           </Form.Item>
           <Form.Item label="Global DN" name="globalDnYn">
             <Radio.Group disabled={hasDrNode}>
