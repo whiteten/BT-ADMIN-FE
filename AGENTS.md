@@ -17,6 +17,7 @@
 | Drawer/Modal (forwardRef 명령형 제어) 작성 | [.claude/skills/add-drawer/SKILL.md](.claude/skills/add-drawer/SKILL.md) |
 | Zustand 스토어 작성 | [.claude/skills/add-store/SKILL.md](.claude/skills/add-store/SKILL.md) |
 | 트리 UI (useTreeView + TreeView) 작성 | [.claude/skills/add-tree/SKILL.md](.claude/skills/add-tree/SKILL.md) |
+| 검색 기능(client-side fuzzy) 작성 | [.claude/skills/add-search/SKILL.md](.claude/skills/add-search/SKILL.md) |
 | AG-Grid 테이블 작성 | [.claude/skills/add-grid/SKILL.md](.claude/skills/add-grid/SKILL.md) |
 | 정식 화면 변형(page variant) 작성 | [.claude/skills/add-variant/SKILL.md](.claude/skills/add-variant/SKILL.md) |
 | 사용자 매뉴얼 자동 생성 (스크린샷 + Markdown) | [.claude/skills/generate-manual/SKILL.md](.claude/skills/generate-manual/SKILL.md) |
@@ -248,6 +249,16 @@ export const TRAIN_DIFF_STATUS_LABELS: Record<TrainDiffStatus, string> = {
 ### 트리 UI 패턴
 
 트리 UI는 antd `Tree` 신규 도입이나 재귀 렌더 직접 구현 대신 **공통 트리**(`useTreeView` 훅 + `TreeView` 프리미티브, headless-tree 기반)를 사용합니다. 작성 전 트리 적합성 판정(평탄 목록·이종 시각화·TreeSelect 케이스는 트리 아님), 기본 골격, 검색·hover 액션·카운트·툴팁 표준 규격, 외부 DnD 수신·reorder 등 상세 절차는 [.claude/skills/add-tree/SKILL.md](.claude/skills/add-tree/SKILL.md) 스킬 참조.
+
+### 검색 패턴
+
+**client-side 검색(전체 데이터가 메모리에 있는 클라이언트 필터링)은 가능하면 fuzzy를 사용**합니다. `String.includes`(substring LIKE) 대신 공통 fuzzy 유틸(`@/shared-util`의 `fuzzyFilter`·`fuzzyScore`)을 써서 한글 초성·부분 음절·gap 매칭을 지원합니다. 하이라이트는 공통 `Highlight`(`@/components/custom/Highlight`, fuzzy 인덱스 기반)를 사용합니다.
+
+- **배열 목록**: `fuzzyFilter(query, items, selector)` (필터 + 점수 정렬)
+- **트리(useTreeView)**: `matchesSearch: (n, kw) => fuzzyScore(kw, n.label) >= 0` (필터만, 트리 순서 유지)
+- **예외**: 백엔드 `page`/`size` 페이징·AG-Grid **SSRM**은 fuzzy가 아니라 **백엔드 검색**(부분 데이터만 클라이언트에 있으면 오탐). AG-Grid ClientSide는 통째 교체 대신 `doesExternalFilterPass`에 `fuzzyScore`를 연결.
+
+fuzzy 유틸은 `es-hangul` 의존이며 추가 검색 라이브러리(fuse.js·korean-regexp 등)를 들이지 않습니다. client/server 판정, API 선택, 트리 연동, 하이라이트 등 상세 절차는 [.claude/skills/add-search/SKILL.md](.claude/skills/add-search/SKILL.md) 스킬 참조.
 
 ### AG-Grid 사용 패턴
 

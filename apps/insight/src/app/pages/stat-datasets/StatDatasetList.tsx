@@ -7,7 +7,7 @@ import { Button, Input, Popover, Tag, Tooltip } from 'antd';
 import dayjs from 'dayjs';
 import { ChevronDown, Pencil, Plus, Search, Trash2 } from 'lucide-react';
 import { useAuthStore, useBreadcrumbStore } from '@/shared-store';
-import { toast } from '@/shared-util';
+import { fuzzyScore, toast } from '@/shared-util';
 import { datasetKeys, useDeleteDataset, useGetDataset, useGetDatasets } from '../../features/dataset/hooks/useDatasetQueries';
 import type { DatasetListItem, FieldMetaItem } from '../../features/dataset/types';
 import { DOMAIN_DESCRIPTIONS, DOMAIN_LABELS, DOMAIN_TAG_COLOR } from '../../features/report/constants/reportIconConstants';
@@ -155,9 +155,8 @@ export default function StatDatasetList() {
     getName: (n) => n.label,
     searchText: search,
     matchesSearch: (n, kw) => {
-      const k = kw.toLowerCase();
-      if (n.data) return n.data.datasourceName.toLowerCase().includes(k) || (n.data.dbViewPrefix ?? '').toLowerCase().includes(k);
-      return n.label.toLowerCase().includes(k);
+      if (n.data) return fuzzyScore(kw, n.data.datasourceName) >= 0 || fuzzyScore(kw, n.data.dbViewPrefix ?? '') >= 0;
+      return fuzzyScore(kw, n.label) >= 0;
     },
     defaultExpandAll: true,
     ariaLabel: '데이터셋 트리',
