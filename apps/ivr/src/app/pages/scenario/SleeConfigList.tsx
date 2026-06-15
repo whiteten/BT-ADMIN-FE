@@ -13,6 +13,7 @@ import { Building2, ChevronLeft, ChevronRight, FileCog, FileText, History, Info,
 import { useBreadcrumbStore } from '@/shared-store';
 import { toast } from '@/shared-util';
 import PropertyEditDrawer, { type PropertyEditDrawerRef } from '../../features/slee-config/components/PropertyEditDrawer';
+import SleeConfigApplyResultModal, { type SleeConfigApplyResultModalRef } from '../../features/slee-config/components/SleeConfigApplyResultModal';
 import SleeConfigHistoryModal, { type SleeConfigHistoryModalRef } from '../../features/slee-config/components/SleeConfigHistoryModal';
 import SleeUserconfigImportModal, { type SleeUserconfigImportModalRef } from '../../features/slee-config/components/SleeUserconfigImportModal';
 import {
@@ -66,6 +67,7 @@ export default function SleeConfigList() {
   const propertyEditDrawerRef = useRef<PropertyEditDrawerRef>(null);
   const importModalRef = useRef<SleeUserconfigImportModalRef>(null);
   const historyModalRef = useRef<SleeConfigHistoryModalRef>(null);
+  const applyResultModalRef = useRef<SleeConfigApplyResultModalRef>(null);
   // Drawer 열고 시스템 첫 로드 시점에만 자동 전체 체크. 이후 사용자 수동 해제 가능.
   const autoCheckDoneRef = useRef(false);
 
@@ -311,12 +313,19 @@ export default function SleeConfigList() {
   const { mutate: applyImmediate, isPending: isApplyingImmediate } = useApplyItemImmediate({
     mutationOptions: {
       onSuccess: (results) => {
-        const successCount = results.filter((r) => r.success).length;
-        const failCount = results.length - successCount;
+        // 시스템별 결과를 모달로 표시 (적용됨 / 변경사항 없음 / 실패 3-state)
+        applyResultModalRef.current?.open(results);
+
+        const failCount = results.filter((r) => !r.success).length;
+        const appliedCount = results.filter((r) => r.success && r.changed).length;
+        const nochangeCount = results.filter((r) => r.success && !r.changed).length;
         if (failCount > 0) {
-          toast.warning(`적용 결과: 성공 ${successCount}, 실패 ${failCount}`);
+          toast.warning(`적용 ${appliedCount} · 변경없음 ${nochangeCount} · 실패 ${failCount}`);
+        } else if (appliedCount === 0) {
+          // 전부 동일 — 실제 반영된 변경이 없음
+          toast.info('변경사항 없음 — 모든 시스템이 이미 동일합니다.');
         } else {
-          toast.success(`${successCount}개 시스템에 적용 완료`);
+          toast.success(`${appliedCount}개 시스템에 적용 완료${nochangeCount > 0 ? ` · 변경없음 ${nochangeCount}` : ''}`);
         }
         setApplyDrawerOpen(false);
       },
@@ -842,6 +851,7 @@ export default function SleeConfigList() {
       <PropertyEditDrawer ref={propertyEditDrawerRef} onSuccess={invalidateAllSleeConfig} />
       <SleeUserconfigImportModal ref={importModalRef} />
       <SleeConfigHistoryModal ref={historyModalRef} />
+      <SleeConfigApplyResultModal ref={applyResultModalRef} />
     </div>
   );
 }

@@ -68,6 +68,13 @@ export interface SleeConfigApplyResult {
   success: boolean;
   errorCode: string;
   message: string;
+  /** CONFIGSYSTEM 반영 카운트 (실패/업로드단계 결과는 0). */
+  inserted: number;
+  updated: number;
+  deleted: number;
+  skipped: number;
+  /** 실제 변경(I/U/D) 발생 여부. false면 "변경사항 없음"(전부 동일). */
+  changed: boolean;
 }
 
 /** 예약 적용 시 property 별 변경 예정값. */

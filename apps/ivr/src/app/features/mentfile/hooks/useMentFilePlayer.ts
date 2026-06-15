@@ -8,7 +8,7 @@
  * Blob URL 로 변환해 {@code new Audio()} 에 주입. Audio.src 가 fetch 헤더를 직접 못 받으므로 필수 패턴.</p>
  */
 import { useCallback, useEffect, useRef, useState } from 'react';
-import ApiClient, { toast } from '@/shared-util';
+import ApiClient, { extractApiErrorMessage, toast } from '@/shared-util';
 
 const apiClient = new ApiClient({ serviceURL: '/bff' });
 
@@ -70,6 +70,8 @@ export function useMentFilePlayer(): UseMentFilePlayerResult {
         const response = await apiClient.get<Blob>('/ivr-mentfile-audio', {
           params: { mentfileId },
           responseType: 'blob',
+          // 에러는 아래 catch 에서 blob 본문을 파싱해 직접 토스트 → 전역 핸들러 중복/오파싱 방지
+          silent: true,
         });
         // race: 이 응답이 도착하는 동안 다른 클릭/정지가 있었으면 폐기
         if (seq !== requestSeqRef.current) return;
@@ -101,7 +103,8 @@ export function useMentFilePlayer(): UseMentFilePlayerResult {
         }
       } catch (err) {
         if (seq !== requestSeqRef.current) return;
-        const msg = (err as { response?: { data?: { message?: string } }; message?: string })?.response?.data?.message ?? (err as Error).message ?? '재생에 실패했습니다.';
+        // blob 응답이라 에러 본문도 Blob → 헬퍼가 텍스트로 풀어 백엔드 message 추출
+        const msg = await extractApiErrorMessage(err, '재생에 실패했습니다.');
         toast.error(msg);
         cleanup();
         setPlaying(null);
