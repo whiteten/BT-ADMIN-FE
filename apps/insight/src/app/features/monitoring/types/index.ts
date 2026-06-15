@@ -143,6 +143,8 @@ export interface CustomWidgetCatalogItem {
   domainCode: DomainCode;
   description?: string;
   defaultOptions?: Record<string, unknown>;
+  /** 기본 settings(JSON) — 사용자 미저장 시 위젯 설정 기본값으로 바인딩됨. */
+  defaultSettings?: Record<string, unknown>;
   minW: number;
   minH: number;
   /** 카테고리 분류. */

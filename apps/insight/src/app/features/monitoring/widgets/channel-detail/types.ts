@@ -31,6 +31,10 @@ export interface ChannelRow {
 
   // ─── 서비스 / 호 컨텍스트 ──────────────────────────────────────
   SERVICE_ID?: number | string;
+  /** BE 가 TB_IR_SERVICEMASTER 에서 조인한 시나리오명 (SERVICE_ID 매핑). */
+  SERVICE_NAME?: string;
+  /** BE 가 TB_IR_SERVICEMENU 에서 조인한 현재 메뉴명 ((SYSTEM_ID, SERVICE_ID, CHNL_MENUSEQ) 매핑). */
+  MENU_NAME?: string;
   SERVICE_DNIS?: string;
   SERVICE_ANI?: string;
   ORG_DNIS?: string;
@@ -42,9 +46,6 @@ export interface ChannelRow {
 
   [extra: string]: unknown;
 }
-
-/** 본문 뷰 — 채널상태 격자 / 목록(표) / 막대(상태분포) / 선(점유율 추세). */
-export type ChannelView = 'grid' | 'list' | 'bar' | 'line';
 
 /** 시스템(SLEE)별 채널 그룹 + 점유 집계. */
 export interface SystemGroup {
@@ -70,7 +71,6 @@ export interface SystemGroup {
  * CtiqStatusWidget 와 같은 키 패턴.
  */
 export interface ChannelUiState {
-  view: ChannelView;
   /** 숨긴 상태코드 (레전드 칩 토글). */
   hiddenStatuses: number[];
   /** 선택 시스템(SLEE) ID — null 이면 점유율 1위 시스템 자동 선택. */

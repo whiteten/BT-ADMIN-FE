@@ -1,15 +1,12 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { type ReactNode, useCallback, useEffect, useMemo, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { Input, Tooltip } from 'antd';
-import { BarChart3, Grid2X2, List as ListIcon, PanelTopClose, PanelTopOpen, Search, TrendingUp } from 'lucide-react';
+import { AlertTriangle, PanelTopClose, PanelTopOpen, PhoneCall, PhoneIncoming, PhoneOutgoing, Radio, Search } from 'lucide-react';
 import { DEMO_CHANNELS, isChannelDemoMode } from './demoData';
 import { countByStatus, groupBySystem, irTypeLabel, matchSearch, toChannelRows, toNum } from './helpers';
-import ChannelBarChart from './parts/ChannelBarChart';
 import ChannelCellGrid from './parts/ChannelCellGrid';
-import ChannelLineChart from './parts/ChannelLineChart';
-import ChannelStatusGrid from './parts/ChannelStatusGrid';
 import { CHANNEL_STATUS, CHANNEL_STATUS_ORDER } from './statusMap';
-import type { ChannelRow, ChannelUiState, ChannelView } from './types';
+import type { ChannelRow, ChannelUiState } from './types';
 import { widgetToolbarSlotId } from '../../components/canvas/WidgetCardHeader';
 import type { CustomWidgetComponentProps } from '../registry';
 import NoData from '@/components/custom/NoData';
@@ -20,25 +17,18 @@ import { usePersistentState } from '@/libs/shared-ui/src/hooks/usePersistentStat
  *
  * 레이아웃:
  *  ┌────────────────────────────────────────────────────────────────┐
- *  │ ① 툴바(Portal) — 검색 · 채널상태/목록/막대/선 · 요약접기        │
+ *  │ ① 툴바(Portal) — 검색 · 요약접기                                │
  *  ├────────────────────────────────────────────────────────────────┤
  *  │ ② 시스템(SLEE) 탭 + KPI 스트립 — [전체][점유][IN][OUT][장애]   │  (접기 가능)
  *  ├────────────────────────────────────────────────────────────────┤
  *  │ ③ 상태 레전드 = 필터 칩 (CHNL_STATUS 10종)                      │
  *  ├────────────────────────────────────────────────────────────────┤
- *  │ ④ 본문 — 채널상태 격자 / 목록(ag-Grid) / 막대 / 선 (ECharts)   │
+ *  │ ④ 본문 — 채널상태 격자                                          │
  *  └────────────────────────────────────────────────────────────────┘
  *
  * 데이터: CH:IVR:{SYSTEM_ID} (DS_SLEE_CH_STATE). BE 가 전 시스템 채널을 내려주면
  * FE 가 SYSTEM_ID 로 그룹핑해 시스템 탭으로 전환. 점유 판정은 IR_TYPE 별(statusMap.isChannelBusy).
  */
-const VIEW_META: { key: ChannelView; label: string; icon: typeof Grid2X2 }[] = [
-  { key: 'grid', label: '채널상태', icon: Grid2X2 },
-  { key: 'list', label: '목록', icon: ListIcon },
-  { key: 'bar', label: '막대', icon: BarChart3 },
-  { key: 'line', label: '선', icon: TrendingUp },
-];
-
 export default function ChannelDetailWidget({ data, widgetId }: CustomWidgetComponentProps) {
   const rows = useMemo<ChannelRow[]>(() => (isChannelDemoMode() ? DEMO_CHANNELS : toChannelRows(data)), [data]);
   const groups = useMemo(() => groupBySystem(rows), [rows]);
@@ -46,15 +36,13 @@ export default function ChannelDetailWidget({ data, widgetId }: CustomWidgetComp
   // ─── 영속 UI 상태 ──────────────────────────────────────────────
   const storageKey = widgetId != null ? `bt-admin.insight.monitoring.widget.${widgetId}.ui` : 'bt-admin.insight.monitoring.widget.channel-detail.ui';
   const [ui, setUi] = usePersistentState<ChannelUiState>(storageKey, {
-    view: 'grid',
     hiddenStatuses: [],
     systemId: null,
     summaryCollapsed: false,
   });
-  const { view, summaryCollapsed } = ui;
+  const { summaryCollapsed } = ui;
   const hidden = useMemo(() => new Set(ui.hiddenStatuses), [ui.hiddenStatuses]);
 
-  const setView = useCallback((v: ChannelView) => setUi((p) => ({ ...p, view: v })), [setUi]);
   const setSystemId = useCallback((id: number) => setUi((p) => ({ ...p, systemId: id })), [setUi]);
   const toggleSummary = useCallback(() => setUi((p) => ({ ...p, summaryCollapsed: !p.summaryCollapsed })), [setUi]);
   const toggleStatus = useCallback(
@@ -73,22 +61,7 @@ export default function ChannelDetailWidget({ data, widgetId }: CustomWidgetComp
   // ─── 선택 시스템 ──────────────────────────────────────────────
   const curGroup = useMemo(() => groups.find((g) => g.systemId === ui.systemId) ?? groups[0], [groups, ui.systemId]);
 
-  // ─── 점유율 추세 누적 (라이브: 매 틱마다 시스템별 점유율 push) ──────
-  const [histories, setHistories] = useState<Record<number, { occ: number; inb: number }[]>>({});
-  useEffect(() => {
-    if (groups.length === 0) return;
-    setHistories((prev) => {
-      const next = { ...prev };
-      for (const g of groups) {
-        const arr = next[g.systemId] ? [...next[g.systemId]] : [];
-        arr.push({ occ: g.occPct, inb: g.inPct });
-        next[g.systemId] = arr.length > 60 ? arr.slice(arr.length - 60) : arr;
-      }
-      return next;
-    });
-  }, [groups]);
-
-  // ─── 본문 필터 (격자/목록) ────────────────────────────────────
+  // ─── 본문 필터 (격자) ─────────────────────────────────────────
   const visibleRows = useMemo(() => {
     if (!curGroup) return [];
     return curGroup.rows.filter((r) => {
@@ -116,23 +89,7 @@ export default function ChannelDetailWidget({ data, widgetId }: CustomWidgetComp
         value={search}
         onChange={(e) => setSearch(e.target.value)}
         style={{ width: 220, height: 32 }}
-        disabled={view === 'bar' || view === 'line'}
       />
-      <div className="flex items-center rounded border border-gray-200 bg-gray-100 p-0.5">
-        {VIEW_META.map(({ key, label, icon: Icon }) => (
-          <Tooltip key={key} title={label} placement="top">
-            <span
-              onClick={() => setView(key)}
-              role="button"
-              className={`inline-flex h-7 w-7 cursor-pointer items-center justify-center rounded transition-all ${
-                view === key ? 'bg-white text-[#405189] shadow-sm' : 'text-gray-400 hover:text-gray-600'
-              }`}
-            >
-              <Icon size={15} strokeWidth={2} />
-            </span>
-          </Tooltip>
-        ))}
-      </div>
       <div className="ml-1 flex items-center gap-1 border-l border-gray-200 pl-2">
         <Tooltip title={summaryCollapsed ? '요약정보 펴기' : '요약정보 접기'} placement="top">
           <span
@@ -194,11 +151,22 @@ export default function ChannelDetailWidget({ data, widgetId }: CustomWidgetComp
 
           {/* KPI 스트립 */}
           <div className="grid grid-cols-2 gap-2 border-b border-gray-200 bg-gray-50 px-4 py-3 sm:grid-cols-3 lg:grid-cols-5">
-            <KpiTile label="전체 채널" value={curGroup.total} />
-            <KpiTile label="점유" value={`${curGroup.busy}`} suffix={`${curGroup.occPct}%`} valueColor={curGroup.occPct >= 80 ? 'text-amber-600' : 'text-gray-900'} />
-            <KpiTile label="인바운드 점유" value={curGroup.inBusy} />
-            <KpiTile label="아웃바운드 점유" value={curGroup.outBusy} />
-            <KpiTile label="장애·경고" value={curGroup.errCnt} valueColor={curGroup.errCnt > 0 ? 'text-red-600' : 'text-gray-400'} />
+            <KpiTile label="전체 채널" value={curGroup.total} icon={<Radio className="h-3.5 w-3.5" />} />
+            <KpiTile
+              label="점유"
+              value={`${curGroup.busy}`}
+              suffix={`${curGroup.occPct}%`}
+              valueColor={curGroup.occPct >= 80 ? 'text-amber-600' : 'text-gray-900'}
+              icon={<PhoneCall className="h-3.5 w-3.5" />}
+            />
+            <KpiTile label="인바운드 점유" value={curGroup.inBusy} icon={<PhoneIncoming className="h-3.5 w-3.5" />} />
+            <KpiTile label="아웃바운드 점유" value={curGroup.outBusy} icon={<PhoneOutgoing className="h-3.5 w-3.5" />} />
+            <KpiTile
+              label="장애·경고"
+              value={curGroup.errCnt}
+              valueColor={curGroup.errCnt > 0 ? 'text-red-600' : 'text-gray-400'}
+              icon={<AlertTriangle className="h-3.5 w-3.5" />}
+            />
           </div>
         </div>
       </div>
@@ -220,27 +188,14 @@ export default function ChannelDetailWidget({ data, widgetId }: CustomWidgetComp
             </button>
           );
         })}
-        {(view === 'grid' || view === 'list') && (
-          <span className="ml-2 text-[11px] text-gray-500">
-            표시 {visibleRows.length} / 전체 {curGroup.total}
-          </span>
-        )}
+        <span className="ml-2 text-[11px] text-gray-500">
+          표시 {visibleRows.length} / 전체 {curGroup.total}
+        </span>
       </div>
 
       {/* ④ 본문 */}
       <div className="min-h-0 flex-1 overflow-auto">
-        {view === 'grid' && <ChannelCellGrid rows={visibleRows} irType={curGroup.irType} />}
-        {view === 'list' && <ChannelStatusGrid rows={visibleRows} />}
-        {view === 'bar' && (
-          <div className="h-full w-full p-3">
-            <ChannelBarChart counts={counts} total={curGroup.total} hidden={hidden} />
-          </div>
-        )}
-        {view === 'line' && (
-          <div className="h-full w-full p-3">
-            <ChannelLineChart history={histories[curGroup.systemId] ?? []} current={{ occ: curGroup.occPct, inb: curGroup.inPct }} />
-          </div>
-        )}
+        <ChannelCellGrid rows={visibleRows} irType={curGroup.irType} />
       </div>
     </div>
   );
@@ -254,12 +209,16 @@ interface KpiTileProps {
   value: string | number;
   suffix?: string;
   valueColor?: string;
+  icon?: ReactNode;
 }
 
-function KpiTile({ label, value, suffix, valueColor }: KpiTileProps) {
+function KpiTile({ label, value, suffix, valueColor, icon }: KpiTileProps) {
   return (
     <div className="flex flex-col items-start gap-1 rounded-md border border-gray-200 bg-white px-3 py-2">
-      <div className="text-[12px] font-semibold uppercase tracking-wide text-gray-600">{label}</div>
+      <div className="flex items-center gap-1 text-[12px] font-semibold uppercase tracking-wide text-gray-600">
+        {icon}
+        <span>{label}</span>
+      </div>
       <div className="flex items-baseline gap-1.5">
         <span className={`font-mono text-[16px] font-semibold tabular-nums ${valueColor ?? 'text-gray-900'}`}>{value}</span>
         {suffix && <span className={`text-[12px] font-bold ${valueColor ?? 'text-gray-500'}`}>{suffix}</span>}

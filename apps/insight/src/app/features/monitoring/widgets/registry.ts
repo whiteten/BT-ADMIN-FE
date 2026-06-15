@@ -15,6 +15,7 @@ import ChannelDetailWidget from './channel-detail/ChannelDetailWidget';
 import CtiqStatusWidget from './ctiq-status/CtiqStatusWidget';
 import HealthBoardWidget from './health-board/HealthBoardWidget';
 import NodeDetailWidget from './node-detail/NodeDetailWidget';
+import QualityRiskWidget from './quality-risk/QualityRiskWidget';
 import TrunkFlowWidget from './trunk-flow/TrunkFlowWidget';
 
 /** 모든 커스텀 위젯 컴포넌트의 공통 props. */
@@ -109,7 +110,12 @@ const CTIQ_STATUS_FIELDS = [
   'SUM_CONN_CNT',
   'SUM_ANSWER_CNT',
   'SUM_ANSWER_CNT_TOT',
+  'SUM_EXTQ_ANSWER_CNT',
+  'SUM_NODE_ANSWER_CNT',
   'SUM_ABDN_CNT',
+  // 서비스레벨(SLA) 원본 — FE 가 직접 SLA/응대율 계산 (precomputed KPI_* 미신뢰)
+  'SUM_SLANSW_CNT',
+  'SUM_SLABDN_CNT',
   // 시간
   'AVG_ANSTALK_TIME',
   'AVG_ANSWAIT_TIME',
@@ -139,6 +145,9 @@ const CHANNEL_DETAIL_FIELDS = [
   'PROTOCOL',
   // 서비스 / 호 컨텍스트
   'SERVICE_ID',
+  // BE enrich — 시나리오명(TB_IR_SERVICEMASTER) · 메뉴명(TB_IR_SERVICEMENU)
+  'SERVICE_NAME',
+  'MENU_NAME',
   'SERVICE_DNIS',
   'SERVICE_ANI',
   'UCID',
@@ -163,6 +172,9 @@ const REGISTRY: Record<string, CustomWidgetEntry> = {
   // 채널 상세 — 헬스보드 채널 현황 카드 드릴다운. IR CH:IVR:{SYSTEM_ID}(DS_SLEE_CH_STATE) 채널별 row 배열 수신.
   // 시스템(SLEE)별 채널상태 격자/목록/막대/선 4종 뷰. fields 화이트리스트로 전송량 축소.
   'channel-detail': { component: ChannelDetailWidget, fields: CHANNEL_DETAIL_FIELDS },
+  // 통화 품질 위험판 — IE:EXTDN(통화중 MoS) ⨝ IC:AGENT(상담사명)을 BE 가 집계해
+  // {summary/dist/items} 단일 객체로 내려준다. 화이트리스트 없이 전체 수신.
+  'quality-risk-board': { component: QualityRiskWidget },
 };
 
 export function getCustomWidgetComponent(widgetTypeId: string): ComponentType<CustomWidgetComponentProps> | null {

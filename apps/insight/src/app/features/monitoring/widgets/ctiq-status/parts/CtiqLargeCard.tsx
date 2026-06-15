@@ -1,5 +1,5 @@
 import { memo } from 'react';
-import { fmtCount, fmtDuration, fmtPct, toNum } from '../helpers';
+import { abandonRateOf, answerRateOf, fmtCount, fmtDuration, fmtPct, serviceLevelOf, toNum } from '../helpers';
 import { SEVERITY_META } from '../statusMap';
 import type { CtiqRow, CtiqSeverity } from '../types';
 
@@ -66,9 +66,9 @@ function CtiqLargeCardImpl({ row, sev }: CtiqLargeCardProps) {
       {/* ③ KPI 2×2 — 응대율 / SLA / 포기율 / 로그인 */}
       <div className="mt-auto rounded-b-xl border-t border-slate-100 bg-slate-50/50 px-4 pb-3.5 pt-3">
         <div className="grid grid-cols-2 gap-x-4 gap-y-2 text-[11px]">
-          <Stat label="응대율" value={fmtPct(row.KPI_ANSWER_RATE)} />
-          <Stat label="SLA" value={fmtPct(row.KPI_SVCLEVEL)} align="right" />
-          <Stat label="포기율" value={fmtPct(row.KPI_ABANDON_RATIO)} danger={sev === 'danger'} />
+          <Stat label="응대율" value={fmtPct(answerRateOf(row))} />
+          <Stat label="SLA" value={fmtPct(serviceLevelOf(row))} align="right" />
+          <Stat label="포기율" value={fmtPct(abandonRateOf(row))} danger={sev === 'danger'} />
           <Stat label="로그인" value={String(login)} align="right" />
         </div>
       </div>

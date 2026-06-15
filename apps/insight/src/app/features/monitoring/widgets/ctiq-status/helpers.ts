@@ -53,6 +53,33 @@ export function fmtCount(v: unknown): string {
   return n.toLocaleString();
 }
 
+// ─── KPI 계산 (raw 호수 컬럼 기반, 0~1 비율 반환) ──────────────────────────
+// BE 가 내려주는 precomputed KPI_*(KPI_ANSWER_RATE/KPI_SVCLEVEL/KPI_ABANDON_RATIO)는
+// 값이 0/미신뢰. raw 호수 컬럼이 실값이라 이걸로 직접 계산한다.
+// (원본 SQL: ROUND(SUM(분자)*100/SUM(SUM_CONN_CNT),2), conn 0 → 0)
+
+/** 응대율 = (인입큐응답 + 타큐전환응답 + 타센터전환응답) / 신규인입호 */
+export function answerRateOf(row: CtiqRow): number {
+  const conn = toNum(row.SUM_CONN_CNT) ?? 0;
+  if (conn === 0) return 0;
+  const answered = (toNum(row.SUM_ANSWER_CNT) ?? 0) + (toNum(row.SUM_EXTQ_ANSWER_CNT) ?? 0) + (toNum(row.SUM_NODE_ANSWER_CNT) ?? 0);
+  return answered / conn;
+}
+
+/** 포기율 = 포기호 / 신규인입호 */
+export function abandonRateOf(row: CtiqRow): number {
+  const conn = toNum(row.SUM_CONN_CNT) ?? 0;
+  if (conn === 0) return 0;
+  return (toNum(row.SUM_ABDN_CNT) ?? 0) / conn;
+}
+
+/** 서비스레벨(SLA) = (서비스레벨내 응답 + 서비스레벨내 포기) / 신규인입호 */
+export function serviceLevelOf(row: CtiqRow): number {
+  const conn = toNum(row.SUM_CONN_CNT) ?? 0;
+  if (conn === 0) return 0;
+  return ((toNum(row.SUM_SLANSW_CNT) ?? 0) + (toNum(row.SUM_SLABDN_CNT) ?? 0)) / conn;
+}
+
 /**
  * 큐 상태 분류 — 임계값과 raw 값 비교해 ok/warn/alert/danger/idle 산정.
  * 판정 우선순위(높음 → 낮음): danger > alert > warn > ok > idle.
@@ -68,11 +95,11 @@ export function severityOf(row: CtiqRow, t: CtiqThresholds): CtiqSeverity {
   const login = toNum(row.RTS_EXP_LOGIN_AGT) ?? 0;
   if (conn === 0 && wait === 0 && login === 0) return 'idle';
 
-  const abdRatioPct = (toNum(row.KPI_ABANDON_RATIO) ?? 0) * 100;
+  const abdRatioPct = abandonRateOf(row) * 100;
   if (abdRatioPct > t.abandonRatioPct) return 'danger';
 
   const maxWait = toNum(row.RTS_MAXWAIT_TIME) ?? 0;
-  const slaPct = (toNum(row.KPI_SVCLEVEL) ?? 0) * 100;
+  const slaPct = serviceLevelOf(row) * 100;
   if (maxWait > t.maxWaitSec) return 'alert';
   // SLA는 인입이 있어야 의미 있음.
   if (conn > 0 && slaPct < t.slaPct) return 'alert';

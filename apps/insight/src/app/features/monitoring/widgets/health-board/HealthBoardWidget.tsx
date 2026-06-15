@@ -1,10 +1,38 @@
-import { type ComponentProps, type HTMLAttributes, type ReactNode, forwardRef, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
+import { type ComponentProps, type HTMLAttributes, type ReactNode, forwardRef, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
+import { useQueryClient } from '@tanstack/react-query';
+import { Button, Drawer, InputNumber } from 'antd';
 import ReactECharts from 'echarts-for-react';
-import { Activity, AlertTriangle, Cable, ChevronRight, Headset, Hourglass, ListOrdered, PhoneIncoming, PhoneMissed, Radio, Server, Timer } from 'lucide-react';
-import { SEV_BG, SEV_BG_SOFT, SEV_HEX, SEV_TEXT, abandonSev, agentDonutSegments, answerRateSev, overallStatus, serviceLevelSev, toHealthData, waitingSev } from './helpers';
+import { Activity, AlertTriangle, Cable, ChevronRight, Clock, Headset, Hourglass, PhoneIncoming, PhoneMissed, Radio, Server, Settings, Timer } from 'lucide-react';
+import { toast } from '@/shared-util';
+import { genHealthBoardDemo, isHealthBoardDemoMode } from './demoData';
+import {
+  DEFAULT_HB_THRESHOLDS,
+  SEV_BG,
+  SEV_BG_SOFT,
+  SEV_HEX,
+  SEV_TEXT,
+  abandonSev,
+  agentDonutSegments,
+  answerRateSev,
+  overallStatus,
+  serviceLevelSev,
+  toHealthData,
+  waitingSev,
+} from './helpers';
 import type { ChannelBoard, HealthBoardData, HealthBoardThresholds, QualityInfo, QueueRow, Severity, SystemHealth, SystemProcess, TrunkBoard } from './types';
+import { widgetToolbarSlotId } from '../../components/canvas/WidgetCardHeader';
 import { useDrilldown } from '../../components/drilldown/DrilldownProvider';
+import { useGetWidgetUserSetting, useUpdateWidgetUserSetting, widgetSettingKeys } from '../../hooks/useWidgetSettingQueries';
 import { HoverCard, HoverCardContent, HoverCardTrigger } from '@/libs/shared-ui/src/components/shadcn/hover-card';
+
+/** 설정 드로어 — 4개 응대 지표의 임계 메타. dir=higher 는 기준 미만 시 강조, lower 는 초과 시 강조. */
+const THRESHOLD_METRICS: { key: keyof HealthBoardThresholds; label: string; unit: string; dir: 'higher' | 'lower'; max?: number }[] = [
+  { key: 'answerRate', label: '응대율', unit: '%', dir: 'higher', max: 100 },
+  { key: 'serviceLevel', label: 'SL', unit: '%', dir: 'higher', max: 100 },
+  { key: 'abandonRate', label: '포기율', unit: '%', dir: 'lower', max: 100 },
+  { key: 'waiting', label: '현재 대기', unit: '건', dir: 'lower' },
+];
 
 /**
  * 종합 헬스보드 위젯 — "지금 우리 센터, 정상인가?"
@@ -29,14 +57,40 @@ export interface HealthBoardWidgetProps {
   onRequestPause?: () => void;
 }
 
-export default function HealthBoardWidget({ data, options }: HealthBoardWidgetProps) {
-  const t = options?.thresholds;
+export default function HealthBoardWidget({ data, options, widgetId, onRequestPause }: HealthBoardWidgetProps) {
   const { open } = useDrilldown();
   // 드릴다운 구독에 헬스보드 컨텍스트(mediaType 등)를 상속시킨다.
   const drillOptions = options as Record<string, unknown> | undefined;
 
+  // 데모 모드(?healthBoardDemo=1) — 라이브 WS 대신 3초마다 4개 응대 지표를 지터시켜 게이지 애니메이션을 확인한다.
+  const demoMode = useMemo(() => isHealthBoardDemoMode(), []);
+  const [demoTick, setDemoTick] = useState<unknown>(() => (demoMode ? genHealthBoardDemo() : null));
+  useEffect(() => {
+    if (!demoMode) return;
+    const id = setInterval(() => setDemoTick(genHealthBoardDemo()), 3000);
+    return () => clearInterval(id);
+  }, [demoMode]);
+
   // 라이브 데이터(WS DATA 프레임)를 그대로 정규화해 렌더한다. 데이터가 아직 없으면 빈/0 값으로 표시된다.
-  const d = useMemo<HealthBoardData>(() => toHealthData(data), [data]);
+  const d = useMemo<HealthBoardData>(() => toHealthData(demoMode ? demoTick : data), [demoMode, demoTick, data]);
+
+  // ─── 임계값 — 저장된 사용자 설정(드로어) > 위젯 옵션 > 기본값 순 병합 ──────
+  const numericWidgetId = typeof widgetId === 'number' ? widgetId : Number(widgetId);
+  const hasWidgetId = Number.isFinite(numericWidgetId) && numericWidgetId > 0;
+  const { data: userSetting } = useGetWidgetUserSetting({
+    params: { widgetId: hasWidgetId ? numericWidgetId : 0 },
+    queryOptions: { enabled: hasWidgetId },
+  });
+  const t = useMemo<Required<HealthBoardThresholds>>(() => {
+    const saved = (userSetting?.settings?.thresholds ?? {}) as Partial<HealthBoardThresholds>;
+    const opt = options?.thresholds ?? {};
+    return {
+      answerRate: saved.answerRate ?? opt.answerRate ?? DEFAULT_HB_THRESHOLDS.answerRate,
+      serviceLevel: saved.serviceLevel ?? opt.serviceLevel ?? DEFAULT_HB_THRESHOLDS.serviceLevel,
+      abandonRate: saved.abandonRate ?? opt.abandonRate ?? DEFAULT_HB_THRESHOLDS.abandonRate,
+      waiting: saved.waiting ?? opt.waiting ?? DEFAULT_HB_THRESHOLDS.waiting,
+    };
+  }, [userSetting, options?.thresholds]);
 
   const overall = overallStatus(d);
 
@@ -47,8 +101,63 @@ export default function HealthBoardWidget({ data, options }: HealthBoardWidgetPr
     return [...d.systems].sort((a, b) => SEV_RANK[b.severity] - SEV_RANK[a.severity] || downRatio(b) - downRatio(a));
   }, [d.systems]);
 
+  // ─── 설정 드로어 (CTIQ 위젯 패턴) ────────────────────────────
+  const queryClient = useQueryClient();
+  const [settingsOpen, setSettingsOpen] = useState(false);
+  const handleOpenSettings = useCallback(() => {
+    onRequestPause?.();
+    setSettingsOpen(true);
+  }, [onRequestPause]);
+  const handleCloseSettings = useCallback(() => setSettingsOpen(false), []);
+
+  const { mutate: saveUserSetting, isPending: isSaving } = useUpdateWidgetUserSetting({
+    mutationOptions: {
+      onSuccess: () => {
+        if (hasWidgetId) queryClient.invalidateQueries({ queryKey: widgetSettingKeys.userSetting(numericWidgetId).queryKey });
+        toast.success('임계값이 저장되었습니다.');
+        setSettingsOpen(false);
+      },
+    },
+  });
+
+  // 폼 로컬 상태 — 드로어가 열릴 때 현재 적용값(t)에서 초기화.
+  const [form, setForm] = useState<Required<HealthBoardThresholds>>(t);
+  useEffect(() => {
+    if (settingsOpen) setForm(t);
+  }, [settingsOpen, t]);
+  const setBand = useCallback((key: keyof HealthBoardThresholds, band: 'good' | 'warn', value: number | null) => {
+    setForm((p) => ({ ...p, [key]: { ...p[key], [band]: value ?? 0 } }));
+  }, []);
+
+  const handleSaveSettings = useCallback(() => {
+    if (!hasWidgetId) {
+      toast.error('위젯 식별자가 없어 저장할 수 없습니다.');
+      return;
+    }
+    saveUserSetting({ widgetId: numericWidgetId, settings: { thresholds: form } });
+  }, [hasWidgetId, numericWidgetId, form, saveUserSetting]);
+
+  // 헤더 슬롯(포털)에 설정 기어 주입 — 대시보드 카드 헤더(WidgetCardHeader)의 가운데 슬롯.
+  const [toolbarSlot, setToolbarSlot] = useState<HTMLElement | null>(null);
+  useEffect(() => {
+    if (widgetId == null) return;
+    setToolbarSlot(document.getElementById(widgetToolbarSlotId(widgetId)));
+  }, [widgetId]);
+
+  const settingsButton = (
+    <button
+      type="button"
+      onClick={handleOpenSettings}
+      title="응대 지표 임계값 설정"
+      className="inline-flex h-8 w-8 items-center justify-center rounded border border-bt-border text-bt-fg-muted transition-colors hover:bg-bt-bg-muted hover:text-bt-fg"
+    >
+      <Settings size={16} />
+    </button>
+  );
+
   return (
     <div className="flex h-full flex-col gap-5 overflow-y-auto bg-bt-bg-canvas p-5">
+      {toolbarSlot ? createPortal(settingsButton, toolbarSlot) : null}
       {/* ═══ KPI 스트립 — 대형 게이지 ═══ */}
       <section>
         <SectionEyebrow sev={overall.sev}>실시간 응대 지표</SectionEyebrow>
@@ -59,7 +168,7 @@ export default function HealthBoardWidget({ data, options }: HealthBoardWidgetPr
             value={d.answerRate}
             max={100}
             target={t?.answerRate?.good ?? 90}
-            display={fmtPct(d.answerRate)}
+            display={fmtPctUnit(d.answerRate)}
             sev={answerRateSev(d, t)}
             caption={
               <div className="flex items-center justify-center gap-2.5 text-[11.5px]">
@@ -80,7 +189,7 @@ export default function HealthBoardWidget({ data, options }: HealthBoardWidgetPr
             value={d.serviceLevel}
             max={100}
             target={t?.serviceLevel?.good ?? 90}
-            display={fmtPct(d.serviceLevel)}
+            display={fmtPctUnit(d.serviceLevel)}
             sev={serviceLevelSev(d, t)}
             footer={<SevPill sev={serviceLevelSev(d, t)} okText="목표 충족" warnText="목표 미달" />}
           />
@@ -90,7 +199,7 @@ export default function HealthBoardWidget({ data, options }: HealthBoardWidgetPr
             value={d.abandonRate}
             max={100}
             target={t?.abandonRate?.good ?? 3}
-            display={fmtPct(d.abandonRate)}
+            display={fmtPctUnit(d.abandonRate)}
             sev={abandonSev(d, t)}
             footer={<SevPill sev={abandonSev(d, t)} okText="목표 이내" warnText="목표 초과" />}
           />
@@ -118,26 +227,33 @@ export default function HealthBoardWidget({ data, options }: HealthBoardWidgetPr
         <SectionEyebrow sev={overall.sev}>상세 현황</SectionEyebrow>
         <div className="grid min-h-0 flex-1 grid-cols-1 gap-4 lg:grid-cols-[1.2fr_1.2fr_1.2fr_1fr_1fr]">
           <SummaryCard
-            title="회선 포화"
+            title="회선 점유"
             icon={<Cable className="h-4 w-4 text-bt-fg-muted" />}
             link="회선 현황"
-            sev={d.trunks.summary.blockCnt > 0 || d.trunks.summary.errorCnt > 0 || d.trunks.summary.saturatedCnt > 0 ? 'danger' : 'success'}
+            sev={d.trunks.summary.blockCnt > 0 || d.trunks.summary.errorCnt > 0 ? 'danger' : 'success'}
+            onLink={() => open({ title: '트렁크 회선현황 (흐름)', sub: '회선 카드 드릴다운 · IE:TRUNK', widgetType: 'trunk-flow-saturation', options: drillOptions })}
           >
             <TrunkPanel trunks={d.trunks} />
           </SummaryCard>
 
           <SummaryCard
-            title="큐 현황"
-            icon={<ListOrdered className="h-4 w-4 text-bt-fg-muted" />}
-            link="큐 모니터"
+            title="채널 현황"
+            icon={<Radio className="h-4 w-4 text-bt-fg-muted" />}
+            link="채널 상세"
+            sev={worstSeverity(d.channels.items.map((c) => c.severity))}
+            onLink={() => open({ title: '채널 상세 (IVR 채널현황)', sub: '채널 카드 드릴다운 · CH:IVR', widgetType: 'channel-detail', options: drillOptions })}
+          >
+            <ChannelPanel channels={d.channels} />
+          </SummaryCard>
+
+          <SummaryCard
+            title="큐 대기"
+            icon={<Clock className="h-4 w-4 text-bt-fg-muted" />}
+            link="큐 현황"
             sev={worstSeverity(d.queues.map((q) => q.sev))}
             onLink={() => open({ title: '큐(CTIQ) 상태 매트릭스', sub: '큐 현황 드릴다운 · IC:CTIQ', widgetType: 'ctiq-status-matrix', options: drillOptions })}
           >
             <QueueChart queues={d.queues} />
-          </SummaryCard>
-
-          <SummaryCard title="채널 현황" icon={<Radio className="h-4 w-4 text-bt-fg-muted" />} link="채널 상세" sev={worstSeverity(d.channels.items.map((c) => c.severity))}>
-            <ChannelPanel channels={d.channels} />
           </SummaryCard>
 
           <SummaryCard
@@ -155,11 +271,84 @@ export default function HealthBoardWidget({ data, options }: HealthBoardWidgetPr
             icon={<Activity className="h-4 w-4 text-bt-fg-muted" />}
             link="품질 위험판"
             sev={d.quality.bad > 0 ? 'danger' : d.quality.warn > 0 ? 'notice' : 'success'}
+            onLink={() => open({ title: '통화 품질 위험판', sub: '품질 카드 드릴다운 · IE:EXTDN', widgetType: 'quality-risk-board', options: drillOptions })}
           >
             <QualityPanel quality={d.quality} />
           </SummaryCard>
         </div>
       </section>
+
+      {/* ═══ 설정 드로어 — 응대 지표 임계값(주황·빨강) ═══ */}
+      <Drawer
+        title="응대 지표 임계값 설정"
+        closable={{ placement: 'end' }}
+        placement="right"
+        width={420}
+        open={settingsOpen}
+        onClose={handleCloseSettings}
+        destroyOnClose
+        footer={
+          <div className="flex justify-end gap-2">
+            <Button onClick={handleCloseSettings} disabled={isSaving}>
+              취소
+            </Button>
+            <Button type="primary" onClick={handleSaveSettings} loading={isSaving} disabled={!hasWidgetId}>
+              저장
+            </Button>
+          </div>
+        }
+      >
+        <div className="flex flex-col gap-4">
+          <p className="text-[12px] leading-relaxed text-gray-500">
+            각 지표가 <b className="text-amber-600">주의(주황)</b>·<b className="text-red-600">위험(빨강)</b>으로 표시되는 기준값입니다. 응대율·SL은 기준 <b>미만</b>일 때,
+            포기율·현재 대기는 기준 <b>초과</b>일 때 강조됩니다.
+          </p>
+          {THRESHOLD_METRICS.map((m) => {
+            const band = form[m.key];
+            const cmp = m.dir === 'higher' ? '미만' : '초과';
+            return (
+              <section key={m.key} className="flex flex-col gap-2 rounded-lg border border-gray-200 p-3">
+                <span className="text-sm font-semibold text-gray-800">{m.label}</span>
+                <div className="grid grid-cols-2 gap-3">
+                  <label className="flex flex-col gap-1">
+                    <span className="inline-flex items-center gap-1.5 text-[12px] font-medium text-amber-600">
+                      <span className="h-2 w-2 rounded-full bg-amber-500" />
+                      주의 기준
+                    </span>
+                    <InputNumber
+                      value={band.good}
+                      min={0}
+                      max={m.max}
+                      onChange={(v) => setBand(m.key, 'good', v)}
+                      addonAfter={m.unit}
+                      style={{ width: '100%' }}
+                      disabled={isSaving}
+                    />
+                    <span className="text-[11px] text-gray-400">{`${cmp} 시 주황`}</span>
+                  </label>
+                  <label className="flex flex-col gap-1">
+                    <span className="inline-flex items-center gap-1.5 text-[12px] font-medium text-red-600">
+                      <span className="h-2 w-2 rounded-full bg-red-500" />
+                      위험 기준
+                    </span>
+                    <InputNumber
+                      value={band.warn}
+                      min={0}
+                      max={m.max}
+                      onChange={(v) => setBand(m.key, 'warn', v)}
+                      addonAfter={m.unit}
+                      style={{ width: '100%' }}
+                      disabled={isSaving}
+                    />
+                    <span className="text-[11px] text-gray-400">{`${cmp} 시 빨강`}</span>
+                  </label>
+                </div>
+              </section>
+            );
+          })}
+          {!hasWidgetId && <p className="text-[12px] text-red-500">대시보드에 추가된 위젯에서만 저장할 수 있습니다.</p>}
+        </div>
+      </Drawer>
     </div>
   );
 }
@@ -169,6 +358,11 @@ export default function HealthBoardWidget({ data, options }: HealthBoardWidgetPr
 function fmtPct(v: number | null): string {
   if (v == null) return '—';
   return Number.isInteger(v) ? String(v) : v.toFixed(1);
+}
+
+/** 게이지 readout 용 — 값 뒤에 % 단위를 붙인다. null 이면 단위 없이 '—'. */
+function fmtPctUnit(v: number | null): string {
+  return v == null ? '—' : `${fmtPct(v)}%`;
 }
 
 /** 심각도 목록 중 가장 위험한 값 (없으면 정상). */
@@ -275,7 +469,9 @@ interface GaugeCardProps {
 }
 
 // 게이지 공통 형상 (메인 호 / 목표 틱 두 시리즈가 동일 좌표를 공유)
-const GAUGE_GEOM = { startAngle: 200, endAngle: -20, min: 0, radius: '116%', center: ['50%', '82%'] as [string, string] };
+// radius 를 키워 카드(컨테이너 104px)는 유지한 채 호만 크게 — 호가 바깥으로 밀려 중앙 숫자 공간도 넓어진다.
+// center 를 약간 위로(78%) 올려 커진 호의 양끝이 컨테이너 하단을 넘지 않게 한다.
+const GAUGE_GEOM = { startAngle: 200, endAngle: -20, min: 0, radius: '132%', center: ['50%', '78%'] as [string, string] };
 
 function GaugeCard({ label, icon, value, max, display, sev, target, caption, footer }: GaugeCardProps) {
   const color = SEV_HEX[sev];
@@ -752,11 +948,12 @@ function ChannelPanel({ channels }: { channels: ChannelBoard }) {
   );
 }
 
-// ─── 회선 포화 (SIP 트렁크 점유율 막대 · 사용율순 Top-N) ─────────
+// ─── 회선 (국선 GW + SIP 트렁크 · 점유율순 Top-N) ─────────
 
 function TrunkPanel({ trunks }: { trunks: TrunkBoard }) {
   const s = trunks.summary;
-  const alert = s.saturatedCnt > 0 || s.blockCnt > 0 || s.errorCnt > 0;
+  // 상태 필드(블록/미등록/에러) 기반만 — 점유율 포화는 알림으로 격상하지 않는다.
+  const alert = s.blockCnt > 0 || s.errorCnt > 0;
   return (
     <div className="flex h-full min-h-0 flex-col gap-2">
       {/* 요약 — 전체 점유율 + 포화/블록/이상 배지 */}
@@ -773,34 +970,32 @@ function TrunkPanel({ trunks }: { trunks: TrunkBoard }) {
           }`}
         >
           {alert && <span className="h-1.5 w-1.5 rounded-full bg-bt-danger bt-pulse" />}
-          {s.saturatedCnt > 0 ? `포화 ${s.saturatedCnt}` : s.blockCnt > 0 ? `블록 ${s.blockCnt}` : s.errorCnt > 0 ? `이상 ${s.errorCnt}` : '여유'}
+          {s.blockCnt > 0 ? `블록 ${s.blockCnt}` : s.errorCnt > 0 ? `이상 ${s.errorCnt}` : '여유'}
         </span>
       </div>
 
-      {/* Top-N 점유율 막대 · 임계 83 마커 — 카드 높이 초과 시 목록만 스크롤 */}
+      {/* Top-N 점유율 막대 — 카드 높이 초과 시 목록만 스크롤 */}
       <div className="min-h-0 flex-1 overflow-y-auto">
         {trunks.items.length > 0 ? (
           <div className="flex flex-col gap-1.5">
             {trunks.items.map((t, i) => {
-              // 인라인 한 줄: 이름 + 미니 점유율 막대(수신 진·총점유 연·83 마커) + %
+              // 인라인 한 줄: 종류(국선/SIP) + 이름 + 미니 점유율 막대(수신 진·총점유 연) + %
               const inPct = t.totalLine > 0 ? (t.inBusy / t.totalLine) * 100 : 0;
               return (
-                <div key={`${t.name}-${i}`} className="flex items-center gap-2 text-[12px]">
-                  <span className="flex w-[112px] min-w-0 shrink-0 items-center gap-1.5 font-semibold">
+                <div key={`${t.kind}-${t.name}-${i}`} className="flex items-center gap-2 text-[12px]">
+                  <span className="flex w-[136px] min-w-0 shrink-0 items-center gap-1.5 font-semibold">
                     <span className={`h-2 w-2 shrink-0 rounded-full ${SEV_BG[t.severity]} ${t.severity === 'danger' ? 'bt-pulse' : ''}`} />
-                    <span className="truncate" title={t.name}>
+                    <span className="shrink-0 rounded bg-bt-bg-muted px-1 text-[9px] font-bold text-bt-fg-muted">{t.kind === 'CO' ? '국선' : 'SIP'}</span>
+                    <span className="truncate tabular-nums" title={t.name}>
                       {t.name}
                     </span>
-                    {t.block === 1 && <span className="shrink-0 text-[9px] font-bold text-bt-danger">BLOCK</span>}
-                    {t.registered === 0 && <span className="shrink-0 text-[9px] font-bold text-bt-danger">미등록</span>}
+                    {t.issueCnt > 0 && <span className="shrink-0 text-[9px] font-bold text-bt-danger">이상 {t.issueCnt}</span>}
                   </span>
                   <div className="relative h-1.5 flex-1 overflow-hidden rounded-full bg-bt-bg-muted">
                     {/* 총점유(수신+발신) — 연한색 */}
                     <div className={`absolute inset-y-0 left-0 opacity-40 ${SEV_BG[t.severity]}`} style={{ width: `${Math.min(100, t.rate)}%` }} />
                     {/* 수신 점유 — 진한색 */}
                     <div className={`absolute inset-y-0 left-0 ${SEV_BG[t.severity]}`} style={{ width: `${Math.min(100, inPct)}%` }} />
-                    {/* 포화 임계 83 마커 */}
-                    <span className="absolute inset-y-0 w-px bg-[#3a3f47]" style={{ left: '83%' }} />
                   </div>
                   <span className={`w-9 shrink-0 text-right tabular-nums font-bold ${SEV_TEXT[t.severity]}`}>{fmtPct(t.rate)}%</span>
                 </div>
@@ -808,7 +1003,7 @@ function TrunkPanel({ trunks }: { trunks: TrunkBoard }) {
             })}
           </div>
         ) : (
-          <div className="py-6 text-center text-[12px] text-bt-fg-muted">트렁크 데이터 없음</div>
+          <div className="py-6 text-center text-[12px] text-bt-fg-muted">회선 데이터 없음</div>
         )}
       </div>
 
@@ -899,22 +1094,22 @@ function AgentDonut({ data }: { data: HealthBoardData }) {
   );
 
   return (
-    <div className="flex items-center gap-5">
-      <div className="relative shrink-0" style={{ width: 116, height: 116 }}>
-        <AutoResizeECharts option={option} style={{ height: 116, width: 116 }} notMerge lazyUpdate />
+    <div className="flex items-center gap-4">
+      <div className="relative shrink-0" style={{ width: 128, height: 128 }}>
+        <AutoResizeECharts option={option} style={{ height: 128, width: 128 }} notMerge lazyUpdate />
         <div className="pointer-events-none absolute inset-0 flex flex-col items-center justify-center">
-          <span className="text-xl font-extrabold leading-none tabular-nums text-bt-success">{data.agents.available}</span>
-          <span className="text-[11px] text-bt-fg-muted">가용</span>
+          <span className="text-xl font-extrabold leading-none tabular-nums text-bt-success">{data.agents.ready}</span>
+          <span className="text-[11px] text-bt-fg-muted">대기</span>
         </div>
       </div>
-      <div className="grid flex-1 grid-cols-1 gap-1.5 text-[12px]">
+      <div className="grid shrink-0 grid-cols-1 gap-1 text-[11px]">
         {segments.map((s) => (
-          <span key={s.key} className="flex items-center justify-between">
-            <span className="inline-flex items-center gap-1.5">
-              <span className="h-2.5 w-2.5 rounded-sm" style={{ background: s.color }} />
+          <span key={s.key} className="flex items-center">
+            <span className="inline-flex w-[4.25rem] items-center gap-1.5">
+              <span className="h-2 w-2 rounded-sm" style={{ background: s.color }} />
               {s.label}
             </span>
-            <b className="tabular-nums">{s.value}</b>
+            <b className="w-8 text-right tabular-nums">{s.value}</b>
           </span>
         ))}
       </div>
@@ -965,9 +1160,9 @@ function QualityPanel({ quality }: { quality: QualityInfo }) {
           <span className="text-xl font-extrabold leading-none tabular-nums text-bt-warn">{quality.warn}</span>
           <span className="mt-1 text-[11px] font-semibold text-bt-warn">주의 ~3.5</span>
         </div>
-        <div className="flex-1 text-right">
-          <div className="text-[11px] text-bt-fg-muted">정상 자리</div>
-          <div className="text-xl font-bold tabular-nums text-bt-fg-muted">{quality.normal}</div>
+        <div className="flex flex-col items-center rounded-lg bg-bt-success-soft px-3.5 py-2">
+          <span className="text-xl font-extrabold leading-none tabular-nums text-bt-success">{quality.normal}</span>
+          <span className="mt-1 text-[11px] font-semibold text-bt-success">정상 ≥3.5</span>
         </div>
       </div>
 

@@ -1,7 +1,7 @@
-import { type ReactNode, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { Tooltip } from 'antd';
-import { AlertTriangle, Info, Server, Users, Zap } from 'lucide-react';
-import { TRUNK_SEV_BG, TRUNK_SEV_TEXT, fmtRate, toTrunkData, trunkSevRank } from './helpers';
+import { AlertTriangle, Cable, Network, Server, Users, Zap } from 'lucide-react';
+import { TRUNK_SEV_BG, TRUNK_SEV_TEXT, fmtRate, toTrunkData } from './helpers';
 import type { TrunkEndpointState, TrunkFlowData, TrunkGroup, TrunkLine, TrunkLineStatus, TrunkNode, TrunkSeverity } from './types';
 import { mosLevel } from '../agent-status/helpers';
 import { MOS_META } from '../agent-status/parts/MosLegend';
@@ -131,15 +131,15 @@ export default function TrunkFlowWidget({ data }: TrunkFlowWidgetProps) {
             {/* 영역(zone) 배경 — 카드를 살짝 감싸는 폭만. 가운데 빈 칸은 연결선 공간 */}
             <div className={`pointer-events-none absolute inset-x-12 inset-y-3 z-0 ${COLS}`}>
               <div className="overflow-hidden rounded-xl border border-bt-warn/15 bg-bt-warn-soft/[0.10]">
-                <div className="px-3 py-2 text-[11px] font-bold uppercase tracking-wide text-bt-warn/70">엔드포인트 (국선)</div>
+                <div className="px-3 py-2 text-[11px] font-bold uppercase tracking-wide text-bt-warn/70">Endpoint(국선)</div>
               </div>
               <div aria-hidden />
-              <div className="overflow-hidden rounded-xl border border-bt-border bg-bt-bg-muted/40">
-                <div className="px-2 py-2 text-center text-[11px] font-bold uppercase tracking-wide text-bt-fg-muted">노드</div>
+              <div className="overflow-hidden rounded-xl border border-bt-success/15 bg-bt-success-soft/[0.10]">
+                <div className="px-2 py-2 text-center text-[11px] font-bold uppercase tracking-wide text-bt-success/70">PBX Trunk</div>
               </div>
               <div aria-hidden />
               <div className="overflow-hidden rounded-xl border border-bt-primary/15 bg-bt-primary-soft/[0.10]">
-                <div className="px-3 py-2 text-right text-[11px] font-bold uppercase tracking-wide text-bt-primary/70">SIP 트렁크</div>
+                <div className="px-3 py-2 text-right text-[11px] font-bold uppercase tracking-wide text-bt-primary/70">SIP Trunk</div>
               </div>
             </div>
             {/* 연결선 (카드 뒤, 영역 위) */}
@@ -186,15 +186,18 @@ function buildSections(d: TrunkFlowData): Section[] {
     if (arr) arr.push(g);
     else byNode.set(g.nodeId, [g]);
   }
-  const sortG = (l: TrunkGroup[]) => [...l].sort((a, b) => trunkSevRank(b.severity) - trunkSevRank(a.severity) || b.rate - a.rate);
+  // 첫 배치 정렬 — 노드 밴드: nodeId asc, 카드(국선/SIP): 합계 채널(totalLine) 많은 순.
+  // totalLine 은 등록 구성 기반이라 점유율/severity 변동에도 카드 위치가 흔들리지 않는다(동률은 groupKey 로 고정).
+  const sortG = (l: TrunkGroup[]) => [...l].sort((a, b) => b.totalLine - a.totalLine || a.groupKey.localeCompare(b.groupKey, undefined, { numeric: true }));
   const ordered: (number | null)[] = [];
   const seen = new Set<number | null>();
-  for (const n of d.nodes)
+  for (const n of [...d.nodes].sort((a, b) => (a.nodeId ?? Number.MAX_SAFE_INTEGER) - (b.nodeId ?? Number.MAX_SAFE_INTEGER)))
     if (byNode.has(n.nodeId)) {
       ordered.push(n.nodeId);
       seen.add(n.nodeId);
     }
-  for (const k of byNode.keys()) if (!seen.has(k)) ordered.push(k);
+  const rest = [...byNode.keys()].filter((k) => !seen.has(k)).sort((a, b) => (a ?? Number.MAX_SAFE_INTEGER) - (b ?? Number.MAX_SAFE_INTEGER));
+  ordered.push(...rest);
   const nodeById = new Map(d.nodes.map((n) => [n.nodeId, n]));
 
   return ordered.map((nid) => {
@@ -267,17 +270,13 @@ function Band({ section: s, setRef }: { section: Section; setRef: (id: string) =
         </div>
       </div>
       <div aria-hidden /> {/* 연결선 공간 */}
-      {/* 트렁크 영역 */}
+      {/* 트렁크 영역 — 연결된 SIP 트렁크 없으면 빈 영역(placeholder 미표시) */}
       <div className="flex flex-col items-center gap-2.5">
-        {s.trks.length > 0 ? (
-          s.trks.map((g) => (
-            <div key={g.groupKey} ref={setRef(`trk:${g.groupKey}`)} className="w-[284px] max-w-full">
-              <TrunkCard group={g} />
-            </div>
-          ))
-        ) : (
-          <Empty />
-        )}
+        {s.trks.map((g) => (
+          <div key={g.groupKey} ref={setRef(`trk:${g.groupKey}`)} className="w-[284px] max-w-full">
+            <TrunkCard group={g} />
+          </div>
+        ))}
       </div>
     </div>
   );
@@ -355,7 +354,7 @@ function EndpointCard({ group: g }: { group: TrunkGroup }) {
             당일 피크 <b className="text-bt-fg">{g.peakBusy}</b>ch
           </span>
           <span className={g.licOver > 0 ? 'inline-flex items-center gap-1 font-bold text-bt-danger' : ''}>
-            {g.licOver > 0 && <AlertTriangle className="h-3 w-3" />}LIC초과 <b className={g.licOver > 0 ? 'text-bt-danger' : 'text-bt-fg'}>{g.licOver}</b>
+            {g.licOver > 0 && <AlertTriangle className="h-3 w-3" />}라이센스 초과 <b className={g.licOver > 0 ? 'text-bt-danger' : 'text-bt-fg'}>{g.licOver}</b>
           </span>
         </div>
       </div>
@@ -364,11 +363,11 @@ function EndpointCard({ group: g }: { group: TrunkGroup }) {
 }
 
 /** 멤버 행 점유 칩 — 수신/발신: 점유(강조)·피크. */
-function MemberMetric({ label, busy, pick }: { label: string; busy: number; pick: number }) {
+function MemberMetric({ label, busy, pick, accent = true }: { label: string; busy: number; pick: number; accent?: boolean }) {
   return (
     <span className="inline-flex items-baseline gap-1 rounded bg-bt-bg-muted px-1.5 py-0.5 tabular-nums">
       <span className="text-[11px] text-bt-fg-muted">{label}</span>
-      <b className={`text-[11.5px] ${busy > 0 ? 'text-bt-primary' : 'text-bt-fg'}`}>{busy}</b>
+      <b className={`text-[11.5px] ${accent && busy > 0 ? 'text-bt-primary' : 'text-bt-fg'}`}>{busy}</b>
       <span className="text-[11px] text-bt-fg-muted">피크 {pick}</span>
     </span>
   );
@@ -416,7 +415,7 @@ function MemberPanel({ group: g }: { group: TrunkGroup }) {
                   {m.ip && <span className="min-w-0 truncate text-[11px] tabular-nums text-bt-fg-muted">{m.ip}</span>}
                   <span className="ml-auto flex shrink-0 items-center gap-1">
                     <MemberMetric label="수신" busy={m.inBusy} pick={m.inPick} />
-                    <MemberMetric label="발신" busy={m.outBusy} pick={m.outPick} />
+                    <MemberMetric label="발신" busy={m.outBusy} pick={m.outPick} accent={false} />
                   </span>
                 </div>
               </li>
@@ -428,7 +427,7 @@ function MemberPanel({ group: g }: { group: TrunkGroup }) {
   );
 }
 
-// ─── 노드 카드 (IE:SYSTEM — CPS · 국선/내선/트렁크 게이지 · 피크/누적/LIC초과 · 구성) ──
+// ─── 노드 카드 (IE:SYSTEM — CPS · 국선/내선/트렁크 게이지 · 피크/누적/라이센스 초과 · 구성) ──
 function NodeCard({ node: n }: { node: TrunkNode }) {
   return (
     <div className="flex w-[268px] flex-col rounded-xl border-2 border-bt-border bg-bt-bg px-4 py-3.5 bt-shadow">
@@ -458,30 +457,22 @@ function NodeCard({ node: n }: { node: TrunkNode }) {
         <Zap className="h-5 w-5 text-bt-warn" strokeWidth={2} fill="currentColor" />
         <span className="text-[30px] font-extrabold leading-none tabular-nums text-bt-fg">{fmtRate(n.cps)}</span>
         <span className="text-[12px] font-bold text-bt-fg-muted">CPS</span>
-        <Tooltip title="초당 콜 유입 · 최근 5초 평균" placement="top">
-          <Info className="size-3.5 cursor-help text-bt-fg-muted/70" />
-        </Tooltip>
       </div>
       {n.hasSystem ? (
         <>
           {/* 3대 자원 게이지 — 점유 / 등록 */}
           <div className="mt-2.5 flex flex-col gap-1.5 border-t border-bt-border pt-2.5">
-            <NodeResource label="국선" busy={n.co.busy} reg={n.co.reg} extra={n.co.block > 0 ? <span className="font-bold text-bt-danger">블록 {n.co.block}</span> : null} />
-            <NodeResource
-              label="내선"
-              busy={n.ext.busy}
-              reg={n.ext.reg}
-              extra={n.ext.block > 0 ? <span className="font-bold text-bt-danger">블록 {n.ext.block}</span> : <span className="text-bt-fg-muted">좌석 {n.ext.att}</span>}
-            />
-            <NodeResource label="트렁크" busy={n.trk.busy} reg={n.trk.reg} extra={n.trk.block > 0 ? <span className="font-bold text-bt-danger">블록 {n.trk.block}</span> : null} />
+            <NodeResource label="국선" busy={n.co.busy} reg={n.co.reg} block={n.co.block} />
+            <NodeResource label="내선" busy={n.ext.busy} reg={n.ext.reg} block={n.ext.block} />
+            <NodeResource label="트렁크" busy={n.trk.busy} reg={n.trk.reg} block={n.trk.block} />
           </div>
-          {/* 보조 — 국선 피크/누적 · 시스템 LIC초과 손실 */}
+          {/* 보조 — 국선 피크/누적 · 시스템 라이센스 초과 손실 */}
           <div className="mt-2.5 flex items-center justify-between gap-2 border-t border-bt-border pt-2 text-[11px] tabular-nums text-bt-fg-muted">
             <span>
               국선피크 <b className="text-bt-fg">{n.coPeak}</b> · 누적 <b className="text-bt-fg">{n.cumCnt}</b>콜
             </span>
             <span className={n.licOver > 0 ? 'inline-flex items-center gap-1 font-bold text-bt-danger' : ''}>
-              {n.licOver > 0 && <AlertTriangle className="h-3 w-3" />}LIC초과 <b className={n.licOver > 0 ? 'text-bt-danger' : 'text-bt-fg'}>{n.licOver}</b>
+              {n.licOver > 0 && <AlertTriangle className="h-3 w-3" />}라이센스 초과 <b className={n.licOver > 0 ? 'text-bt-danger' : 'text-bt-fg'}>{n.licOver}</b>
             </span>
           </div>
         </>
@@ -492,28 +483,29 @@ function NodeCard({ node: n }: { node: TrunkNode }) {
   );
 }
 
-/** 노드 자원 게이지 1줄 — 라벨 · 점유율 바 · 점유/등록 · 보조(블록/좌석). */
-function NodeResource({ label, busy, reg, extra }: { label: string; busy: number; reg: number; extra: ReactNode }) {
+/** 노드 자원 게이지 1줄 — 라벨 · 점유율 바(가용폭 꽉) · 점유/등록 · 블록(>0일 때만). */
+function NodeResource({ label, busy, reg, block }: { label: string; busy: number; reg: number; block: number }) {
   const pct = reg > 0 ? Math.min(100, (busy / reg) * 100) : 0;
   return (
     <div className="flex items-center gap-2 text-[11px] tabular-nums">
       <span className="w-12 shrink-0 text-bt-fg-muted">{label}</span>
       <div className="relative h-1.5 flex-1 overflow-hidden rounded-full bg-bt-bg-muted">
-        <div className="absolute inset-y-0 left-0 rounded-full bg-bt-primary" style={{ width: `${pct}%` }} />
+        <div className="absolute inset-y-0 left-0 rounded-full bg-bt-success" style={{ width: `${pct}%` }} />
       </div>
-      <span className="w-[50px] shrink-0 text-right">
-        <b className={busy > 0 ? 'text-bt-primary' : 'text-bt-fg'}>{busy}</b>
+      {block > 0 && <span className="shrink-0 font-bold text-bt-danger">블록 {block}</span>}
+      <span className="w-[52px] shrink-0 text-right">
+        <b className="text-bt-fg">{busy}</b>
         <span className="text-bt-fg-muted"> / {reg}</span>
       </span>
-      <span className="w-[48px] shrink-0 text-right text-[11px]">{extra}</span>
     </div>
   );
 }
 
-// ─── 트렁크 카드 (SIP, state-line) ─────────────────────────────────
+// ─── 트렁크 카드 (SIP) — 카드 = 회선 그룹(SIP_TRUNK_IPV4), 타이틀은 IP ──
 function TrunkCard({ group: g }: { group: TrunkGroup }) {
   const sev = g.severity;
   const inPct = g.totalLine > 0 ? (g.inBusy / g.totalLine) * 100 : 0;
+  const issueCnt = g.lineStat.unregistered + g.lineStat.block + g.lineStat.error; // 회선 알람 수
   const frame =
     sev === 'critical'
       ? 'border-bt-danger/45 bg-bt-danger-soft/15'
@@ -521,79 +513,141 @@ function TrunkCard({ group: g }: { group: TrunkGroup }) {
         ? 'border-bt-warn/45 bg-bt-warn-soft/15'
         : 'border-bt-border bg-bt-bg';
   return (
-    <div className={`w-full rounded-lg border bg-bt-bg p-3 bt-shadow ${frame} ${sev === 'critical' ? 'bt-pulse-ring' : ''}`}>
-      <div className="flex items-center gap-2">
-        <span className={`h-2 w-2 shrink-0 rounded-full ${TRUNK_SEV_BG[sev]} ${sev === 'critical' ? 'bt-pulse' : ''}`} />
-        <span className="truncate text-[13px] font-bold" title={g.name}>
-          {g.name}
-        </span>
-        {g.lineIssue && (
-          <span className="inline-flex shrink-0 items-center gap-0.5 text-[11px] font-bold text-bt-danger">
-            <AlertTriangle className="h-3 w-3" />
-            라인이상
+    <div className={`w-full overflow-hidden rounded-lg border bt-shadow ${frame} ${sev === 'critical' ? 'bt-pulse-ring' : ''}`}>
+      {/* 상단 severity 막대 — EndpointCard 와 동일한 시각 언어 */}
+      <div className={`h-1.5 w-full ${TRUNK_SEV_BG[sev]} ${sev === 'critical' ? 'bt-pulse' : ''}`} />
+      <div className="p-3.5">
+        {/* 헤더 — 회선 그룹 키(IP) · 회선 칩(호버 시 개별 회선 패널) */}
+        <div className="flex items-center gap-1.5">
+          <Network className={`h-3.5 w-3.5 shrink-0 ${TRUNK_SEV_TEXT[sev]}`} />
+          <span className="min-w-0 flex-1 truncate text-[13.5px] font-bold tabular-nums" title={`회선 그룹 ${g.groupKey}`}>
+            {g.groupKey}
           </span>
-        )}
-        <span className={`ml-auto shrink-0 text-[16px] font-extrabold leading-none tabular-nums ${TRUNK_SEV_TEXT[sev]}`}>
-          {fmtRate(g.rate)}
-          <span className="text-[11px]">%</span>
-        </span>
-      </div>
-      <div className="relative mt-2 h-2 overflow-hidden rounded-full bg-bt-bg-muted">
-        <div className={`absolute inset-y-0 left-0 opacity-40 ${TRUNK_SEV_BG[sev]}`} style={{ width: `${Math.min(100, g.rate)}%` }} />
-        <div className={`absolute inset-y-0 left-0 ${TRUNK_SEV_BG[sev]}`} style={{ width: `${Math.min(100, inPct)}%` }} />
-        <span className="absolute inset-y-0 w-px bg-[#3a3f47]" style={{ left: '83%' }} />
-      </div>
-      <div className="mt-1 flex items-center justify-between text-[11px] text-bt-fg-muted tabular-nums">
-        <span>
-          수신 <b className={TRUNK_SEV_TEXT[sev]}>{g.inBusy}</b> · 발신 {g.outBusy}
-        </span>
-        <span>
-          {g.busyLine}/{g.totalLine}ch
-        </span>
-      </div>
-      {g.lineIssue && g.aliveRate > g.rate && (
-        <div className="mt-1.5 rounded bg-bt-danger-soft/50 px-2 py-1 text-[11px] text-bt-danger">
-          살아있는 회선 기준 <b className="tabular-nums">{fmtRate(g.aliveRate)}%</b>
+          <HoverCard openDelay={80} closeDelay={80}>
+            <HoverCardTrigger asChild>
+              <span
+                className={`inline-flex shrink-0 cursor-pointer items-center gap-1 rounded-md px-1.5 py-0.5 text-[11px] font-semibold tabular-nums transition-colors hover:brightness-95 ${issueCnt > 0 ? 'bg-bt-danger-soft text-bt-danger' : 'bg-bt-bg-muted text-bt-fg-muted'}`}
+              >
+                <Cable className="h-3 w-3" />
+                {g.lines.length}
+                {issueCnt > 0 && <span className="font-bold">· 이상 {issueCnt}</span>}
+              </span>
+            </HoverCardTrigger>
+            <HoverCardContent side="left" align="start" sideOffset={10} className="w-80 overflow-hidden border-bt-border bg-bt-bg p-0 text-bt-fg shadow-lg">
+              <SipLinePanel group={g} />
+            </HoverCardContent>
+          </HoverCard>
         </div>
-      )}
-      {g.lines.length > 0 ? (
-        <>
-          <div className="mt-2 flex items-end gap-[3px]" style={{ height: 28 }}>
-            {g.lines.map((l, i) => (
-              <LineBar key={l.trkId ?? i} line={l} />
-            ))}
+        {/* 채널 정보 — 사용/전체(좌, severity색) · 수신/발신(우). EndpointCard 와 동일 */}
+        <div className="mt-2.5 flex items-baseline justify-between gap-2 tabular-nums">
+          <span className="flex items-baseline gap-1">
+            <span className="text-[11px] font-medium text-bt-fg-muted">사용</span>
+            <span className={`text-[24px] font-extrabold leading-none ${TRUNK_SEV_TEXT[sev]}`}>{g.busyLine}</span>
+            <span className="text-[14px] font-bold leading-none text-bt-fg-muted">/ {g.totalLine}</span>
+            <span className="text-[11px] text-bt-fg-muted">ch</span>
+          </span>
+          <span className="flex items-baseline gap-1.5">
+            <span className="text-[11px] font-medium text-bt-fg-muted">수신</span>
+            <span className="text-[24px] font-extrabold leading-none text-bt-fg">{g.inBusy}</span>
+            <span className="text-[11px] font-medium text-bt-fg-muted">발신</span>
+            <span className="text-[24px] font-extrabold leading-none text-bt-fg">{g.outBusy}</span>
+          </span>
+        </div>
+        {/* 점유 바 + 우측 고정 % — 연한 채움=전체 점유, 진한 채움=수신 비중 */}
+        <div className="mt-3 flex items-center gap-2">
+          <div className="relative h-2.5 flex-1 overflow-hidden rounded-full bg-bt-bg-muted">
+            <div className={`absolute inset-y-0 left-0 opacity-40 ${TRUNK_SEV_BG[sev]}`} style={{ width: `${Math.min(100, g.rate)}%` }} />
+            <div className={`absolute inset-y-0 left-0 ${TRUNK_SEV_BG[sev]}`} style={{ width: `${Math.min(100, inPct)}%` }} />
           </div>
-          <div className="mt-1 flex items-center gap-2 text-[11px] tabular-nums">
-            <span className="font-bold text-bt-success">정상 {g.lineStat.normal}</span>
-            {g.lineStat.unregistered > 0 && <span className="font-bold text-bt-warn">미등록 {g.lineStat.unregistered}</span>}
-            {g.lineStat.block > 0 && <span className="font-bold text-bt-danger">블록 {g.lineStat.block}</span>}
-            <span className="text-bt-fg-muted">/ {g.lines.length}</span>
-          </div>
-        </>
+          <span className={`w-12 shrink-0 text-right text-[15px] font-extrabold leading-none tabular-nums ${TRUNK_SEV_TEXT[sev]}`}>{fmtRate(g.rate)}%</span>
+        </div>
+        {g.lines.length > 0 ? (
+          <>
+            <div className="mt-2.5 flex items-end gap-[3px]" style={{ height: 28 }}>
+              {g.lines.map((l, i) => (
+                <LineBar key={l.trkId ?? i} line={l} />
+              ))}
+            </div>
+            <div className="mt-1 flex items-center gap-2 text-[11px] tabular-nums">
+              <span className="font-bold text-bt-success">정상 {g.lineStat.normal}</span>
+              {g.lineStat.unregistered > 0 && <span className="font-bold text-bt-warn">미등록 {g.lineStat.unregistered}</span>}
+              {g.lineStat.block > 0 && <span className="font-bold text-bt-danger">블록 {g.lineStat.block}</span>}
+              {g.lineStat.error > 0 && <span className="font-bold text-bt-danger">에러 {g.lineStat.error}</span>}
+              {g.lineStat.unused > 0 && <span className="text-bt-fg-muted">미사용 {g.lineStat.unused}</span>}
+              <span className="text-bt-fg-muted">/ {g.lines.length}</span>
+            </div>
+          </>
+        ) : (
+          <div className="mt-2 text-[11px] text-bt-fg-muted">개별 라인 없음</div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+/** SIP 회선 그룹의 개별 회선(TRK_ID) 목록 패널 — 회선 칩 호버 시 표시. */
+function SipLinePanel({ group: g }: { group: TrunkGroup }) {
+  return (
+    <div className="flex flex-col">
+      {/* 헤더 — 회선 그룹 키(IP) · 회선수 */}
+      <div className="flex items-center justify-between gap-2 border-b border-bt-border bg-bt-bg-muted/40 px-3.5 py-2.5">
+        <div className="min-w-0 truncate text-[13px] font-bold tabular-nums" title={g.groupKey}>
+          {g.groupKey}
+        </div>
+        <span className="shrink-0 rounded-md bg-bt-bg px-2 py-1 text-[11px] font-bold tabular-nums text-bt-fg">회선 {g.lines.length}</span>
+      </div>
+      {g.lines.length === 0 ? (
+        <div className="px-3.5 py-5 text-center text-[11px] text-bt-fg-muted">회선 정보 없음</div>
       ) : (
-        <div className="mt-2 text-[11px] text-bt-fg-muted">개별 라인 없음</div>
+        <ul className="max-h-80 divide-y divide-bt-border/50 overflow-y-auto">
+          {g.lines.map((l, i) => (
+            <li key={l.trkId ?? i} className="flex items-center gap-1.5 px-3.5 py-2 transition-colors hover:bg-bt-bg-muted/60">
+              <span className={`h-2 w-2 shrink-0 rounded-full ${STATUS_DOT[l.status]}`} />
+              <span className="min-w-0 flex-1 truncate text-[12px] font-semibold text-bt-fg" title={l.name}>
+                {l.name}
+              </span>
+              {l.status !== 'normal' && <span className={`shrink-0 rounded px-1.5 py-0.5 text-[10.5px] font-bold ${STATUS_SOFT[l.status]}`}>{STATUS_LABEL[l.status]}</span>}
+              <span className="shrink-0 text-[11px] tabular-nums text-bt-fg-muted">
+                {l.inBusy + l.outBusy}/{l.line}ch
+              </span>
+              {/* 점유율은 정보 표기일 뿐 — 상태(ERROR/BLOCK/STATUS)와 무관하므로 색을 입히지 않는다 */}
+              <span className={`w-10 shrink-0 text-right text-[12px] font-bold tabular-nums ${l.status === 'normal' ? 'text-bt-fg' : 'text-bt-fg-muted'}`}>
+                {l.status === 'normal' ? `${fmtRate(l.rate)}%` : '—'}
+              </span>
+            </li>
+          ))}
+        </ul>
       )}
     </div>
   );
 }
 
+/**
+ * 라인 1칸 게이지 — 모든 상태가 동일한 "빈 트랙 + 상태색 링" 위에서 시작해 점유 0 이 0 으로 읽히게 한다.
+ * 정상: 점유율만큼 아래에서 success 단색 채움. 이상(미등록/블록/에러): 채움 없이 하단 노치만.
+ * 미사용: 중앙 대시(해당 없음). 상태는 ERROR/BLOCK/STATUS 만 — 점유율 임계로 상태색을 만들지 않는다.
+ */
 function LineBar({ line: l }: { line: TrunkLine }) {
-  const dead = l.status !== 'normal';
   const title = `${l.name} · ${STATUS_LABEL[l.status]}${l.status === 'normal' ? ` · ${fmtRate(l.rate)}%` : ''}`;
-  if (dead) {
-    const unreg = l.status === 'unregistered';
-    const unused = l.status === 'unused';
+  const track = 'relative w-2.5 overflow-hidden rounded-full bg-bt-bg-muted';
+  if (l.status === 'unused') {
     return (
-      <span
-        className={`w-2.5 rounded-[3px] border ${unused ? 'border-bt-border-strong bg-bt-bg-muted' : unreg ? 'border-bt-warn/60 bg-bt-warn/25' : 'border-bt-danger/60 bg-bt-danger/25'}`}
-        style={{ height: 28 }}
-        title={title}
-      />
+      <span className={track} style={{ height: 28 }} title={title}>
+        <span className="absolute inset-x-[3px] top-1/2 h-[3px] -translate-y-1/2 rounded-full bg-bt-border-strong" />
+      </span>
+    );
+  }
+  if (l.status !== 'normal') {
+    const tone = l.status === 'unregistered' ? 'warn' : 'danger';
+    return (
+      <span className={`${track} ring-1 ring-inset ${tone === 'warn' ? 'ring-bt-warn/50' : 'ring-bt-danger/50'}`} style={{ height: 28 }} title={title}>
+        <span className={`absolute inset-x-0 bottom-0 h-1.5 ${tone === 'warn' ? 'bg-bt-warn' : 'bg-bt-danger'}`} />
+      </span>
     );
   }
   return (
-    <span className="relative w-2.5 overflow-hidden rounded-[3px] bg-bt-bg-muted" style={{ height: 28 }} title={title}>
-      <span className={`absolute inset-x-0 bottom-0 ${TRUNK_SEV_BG[l.severity]}`} style={{ height: `${Math.max(6, Math.min(100, l.rate))}%` }} />
+    <span className={`${track} ring-1 ring-inset ring-bt-success/50`} style={{ height: 28 }} title={title}>
+      <span className="absolute inset-x-0 bottom-0 rounded-t-full bg-bt-success" style={{ height: `${Math.max(8, Math.min(100, l.rate))}%` }} />
     </span>
   );
 }
