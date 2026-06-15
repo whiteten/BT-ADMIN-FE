@@ -8,6 +8,7 @@
  * - ipron-cos-create:    POST   COS 등록
  * - ipron-cos-update:    PUT    COS 수정
  * - ipron-cos-delete:    DELETE COS 삭제
+ * - ipron-cos-delete-batch: DELETE COS 일괄 삭제 (body: cosIds[])
  * - ipron-cos-ref-count: GET    참조 DN 수 조회
  * - ipron-dod-trans-node-tenants: GET 노드-테넌트 매핑 (재사용)
  * - ipron-dn-dod-limits: GET    발신제한/허용그룹 목록 (tenantId 필터, TB_IE_DOD_LIMIT)
@@ -76,6 +77,14 @@ export const cosApi = {
    */
   delete: async ({ cosId }: { cosId: number }) => {
     return await apiClient.delete('/ipron-cos-delete', { params: { id: cosId } });
+  },
+
+  /**
+   * COS 일괄 삭제
+   * @flow ipron-cos-delete-batch (DELETE /api/ipron/cos/delete-batch, body: { cosIds })
+   */
+  deleteBatch: async (cosIds: number[]): Promise<void> => {
+    await apiClient.delete('/ipron-cos-delete-batch', { data: { cosIds } });
   },
 
   /**

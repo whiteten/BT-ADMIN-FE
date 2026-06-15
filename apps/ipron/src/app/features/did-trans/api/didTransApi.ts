@@ -75,6 +75,14 @@ export const didTransApi = {
     return await apiClient.delete('/ipron-dnis-trans-delete', { params });
   },
 
+  /**
+   * DNIS 번호변환 일괄 삭제
+   * @flow ipron-dnis-trans-delete-batch (DELETE /api/ipron/dnis-trans/delete-batch, body: { dnisTransIds })
+   */
+  deleteDnisTransBatch: async (dnisTransIds: number[]): Promise<void> => {
+    await apiClient.delete('/ipron-dnis-trans-delete-batch', { data: { dnisTransIds } });
+  },
+
   // ─── ANI ───────────────────────────────────────────────────────────────────
 
   /**
@@ -121,6 +129,14 @@ export const didTransApi = {
    */
   deleteAniTrans: async (params: Record<string, unknown>) => {
     return await apiClient.delete('/ipron-ani-trans-delete', { params });
+  },
+
+  /**
+   * ANI 번호변환 일괄 삭제
+   * @flow ipron-ani-trans-delete-batch (DELETE /api/ipron/ani-trans/delete-batch, body: { aniTransIds })
+   */
+  deleteAniTransBatch: async (aniTransIds: number[]): Promise<void> => {
+    await apiClient.delete('/ipron-ani-trans-delete-batch', { data: { aniTransIds } });
   },
 
   // ─── 노드간 복사 ──────────────────────────────────────────────────────────

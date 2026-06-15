@@ -8,6 +8,7 @@
  * - ipron-did-route-create:   POST   DID라우트 등록
  * - ipron-did-route-update:   PUT    DID라우트 수정
  * - ipron-did-route-delete:   DELETE DID라우트 삭제
+ * - ipron-did-route-delete-batch: DELETE DID라우트 일괄 삭제 (body: didrouteIds[])
  * - manager-node-list:       GET    노드 목록 조회 (cross-service)
  * - ipron-route-list:        GET    발신라우트 목록 조회 (라우트 select용)
  * - ipron-dn-group-options:  GET    DN그룹 콤보 옵션 (tenantId 기준)
@@ -92,6 +93,14 @@ export const didRouteApi = {
    */
   delete: async (params: Record<string, unknown>) => {
     return await apiClient.delete('/ipron-did-route-delete', { params });
+  },
+
+  /**
+   * DID라우트 일괄 삭제
+   * @flow ipron-did-route-delete-batch (DELETE /api/ipron/did-routes/delete-batch, body: { didrouteIds })
+   */
+  deleteBatch: async (didrouteIds: number[]): Promise<void> => {
+    await apiClient.delete('/ipron-did-route-delete-batch', { data: { didrouteIds } });
   },
 
   // ─── Node (cross-service) ────────────────────────────────────────────────────

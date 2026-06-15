@@ -9,6 +9,7 @@
  *  ipron-media-type-create   POST   등록
  *  ipron-media-type-update   PUT    수정
  *  ipron-media-type-delete   DELETE 삭제
+ *  ipron-media-type-delete-batch DELETE 일괄 삭제 (body: mediaTypes[] number[])
  */
 import ApiClient, { type ApiResponse } from '@/shared-util';
 import type { MediaTypeMetaOption, MediaTypeResponse, MediaTypeUpsertRequest } from '../types';
@@ -43,5 +44,13 @@ export const mediaTypeApi = {
 
   deleteMediaType: async (mediaType: number): Promise<void> => {
     await apiClient.delete('/ipron-media-type-delete', { params: { mediaType } });
+  },
+
+  /**
+   * 미디어타입 일괄 삭제
+   * @flow ipron-media-type-delete-batch (DELETE /api/ipron/media-types/delete-batch, body: { mediaTypes })
+   */
+  deleteMediaTypeBatch: async (mediaTypes: number[]): Promise<void> => {
+    await apiClient.delete('/ipron-media-type-delete-batch', { data: { mediaTypes } });
   },
 };

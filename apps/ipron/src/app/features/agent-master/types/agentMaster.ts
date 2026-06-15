@@ -108,6 +108,38 @@ export interface AgentMoveRequest {
   allowTenantChange?: boolean;
 }
 
+/**
+ * 상담사 다건 그룹 일괄 변경 요청 (BE BulkGroupChangeRequest 정합).
+ * BE: PUT /api/ipron/agents/bulk-group — body: { agentIds, groupId }.
+ * 단건 move 의 allowTenantChange 게이트는 없음(벌크는 그룹 이동을 무조건 적용).
+ */
+export interface BulkGroupChangeRequest {
+  agentIds: number[];
+  groupId: number;
+}
+
+/** 벌크 변경 결과 (BE BulkChangeResult 정합, 207 best-effort). */
+export interface BulkChangeResult {
+  successCount: number;
+  failCount: number;
+  failures: { agentId: number; reason: string }[];
+}
+
+/**
+ * 상담사 미디어 벌크 변경 요청 (BE AgentBulkMediaRequest 정합).
+ * BE: PUT /api/ipron/agents/bulk-media — body: { items: [{agentId, useGrpMdaOpt, mediaMatrix}] }.
+ * 미디어 필드(useGrpMdaOpt + mediaMatrix)만 행별 부분갱신. 단일 트랜잭션 전체 롤백.
+ */
+export interface AgentBulkMediaItem {
+  agentId: number;
+  useGrpMdaOpt?: number;
+  mediaMatrix?: AgentMediaMatrix | null;
+}
+
+export interface AgentBulkMediaRequest {
+  items: AgentBulkMediaItem[];
+}
+
 export interface AgentTenantStat {
   tenantId: number;
   tenantName: string | null;

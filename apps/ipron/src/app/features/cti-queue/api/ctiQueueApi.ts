@@ -10,6 +10,7 @@
  *  ipron-cti-queue-create           POST 등록 (그룹DN 결합)
  *  ipron-cti-queue-update           PUT  수정 ({ctiqId})
  *  ipron-cti-queue-delete           DELETE 삭제 ({ctiqId})
+ *  ipron-cti-queue-delete-batch     DELETE 일괄 삭제 (body: ctiqIds[], BSR 배정 시 409 전체 거부)
  *  cti-queue-media-skills-save      PUT  미디어 스킬 매트릭스 일괄 저장 (큐별 차등, 207)
  *  ipron-cti-queue-tenants          GET  테넌트 통계
  *  ipron-cti-queue-duplicate-check  GET  그룹DN(=큐) 번호 중복검증
@@ -97,6 +98,16 @@ export const ctiQueueApi = {
 
   delete: async (ctiqId: number): Promise<void> => {
     await apiClient.delete('/ipron-cti-queue-delete', { params: { ctiqId } });
+  },
+
+  /**
+   * CTI 큐 일괄 삭제 — cascade 4종, BSR 스케줄 배정된 큐 포함 시 409 전체 거부.
+   * BE: DELETE /api/ipron/cti-queues/delete-batch → ApiResponse<Integer>(삭제 건수).
+   * @flow ipron-cti-queue-delete-batch (body: { ctiqIds })
+   */
+  deleteBatch: async (ctiqIds: number[]): Promise<number> => {
+    const res = await apiClient.delete<ApiResponse<number>>('/ipron-cti-queue-delete-batch', { data: { ctiqIds } });
+    return res.data?.data ?? 0;
   },
 
   /**

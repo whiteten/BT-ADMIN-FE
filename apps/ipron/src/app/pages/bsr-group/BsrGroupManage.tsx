@@ -39,12 +39,12 @@ import {
   useAssignBsrSchedules,
   useCreateBsrGroup,
   useCreateBsrSchedule,
-  useDeleteBsrGroup,
+  useDeleteBsrGroupBatch,
   useGetBsrGroupSchedules,
   useGetBsrGroupTenants,
   useGetBsrGroups,
   useGetBsrSchedulePool,
-  useUnassignBsrSchedule,
+  useUnassignBsrScheduleBatch,
   useUpdateBsrGroup,
 } from '../../features/bsr-group/hooks/useBsrGroupQueries';
 import {
@@ -560,7 +560,7 @@ export default function BsrGroupManage() {
       onError: (e: unknown) => toast.error(extractMsg(e, '수정 실패')),
     },
   });
-  const { mutate: deleteGroup } = useDeleteBsrGroup({
+  const { mutate: deleteGroupBatch } = useDeleteBsrGroupBatch({
     mutationOptions: {
       onSuccess: () => {
         toast.success('BSR 그룹이 삭제되었습니다');
@@ -613,7 +613,7 @@ export default function BsrGroupManage() {
     },
   });
 
-  const { mutate: unassignSchedule } = useUnassignBsrSchedule({
+  const { mutate: unassignScheduleBatch } = useUnassignBsrScheduleBatch({
     mutationOptions: {
       onSuccess: () => {
         toast.success('스케줄 배정이 해제되었습니다');
@@ -776,10 +776,10 @@ export default function BsrGroupManage() {
   const handleGroupDelete = useCallback(() => {
     if (selectedGroupIds.length === 0) return;
     modal.confirm.execute({
-      onOk: () => selectedGroupIds.forEach((id) => deleteGroup(id)),
+      onOk: () => deleteGroupBatch(selectedGroupIds),
       options: { title: 'BSR 그룹 삭제', content: `선택한 ${selectedGroupIds.length}건을 삭제하시겠습니까?` },
     });
-  }, [selectedGroupIds, modal, deleteGroup]);
+  }, [selectedGroupIds, modal, deleteGroupBatch]);
 
   const handleGroupDrawerSubmit = useCallback(
     (req: BsrGroupCreateRequest | BsrGroupUpdateRequest) => {
@@ -870,10 +870,10 @@ export default function BsrGroupManage() {
   const handleSchedUnassign = useCallback(() => {
     if (selectedScheduleIds.length === 0 || !selectedGroup) return;
     modal.confirm.execute({
-      onOk: () => selectedScheduleIds.forEach((sid) => unassignSchedule({ bsrGroupId: selectedGroup.bsrGroupId, scheduleId: sid })),
+      onOk: () => unassignScheduleBatch({ bsrGroupId: selectedGroup.bsrGroupId, scheduleIds: selectedScheduleIds }),
       options: { title: '스케줄 배정 해제', content: `선택한 ${selectedScheduleIds.length}건의 스케줄 배정을 해제하시겠습니까?` },
     });
-  }, [selectedScheduleIds, selectedGroup, modal, unassignSchedule]);
+  }, [selectedScheduleIds, selectedGroup, modal, unassignScheduleBatch]);
 
   // ─── Column Defs ────────────────────────────────────────────────────────────
   const groupColDefs: ColDef<BsrGroupResponse>[] = useMemo(

@@ -8,6 +8,8 @@
  * - ipron-acl-create:   POST   ACL 등록
  * - ipron-acl-update:   PUT    ACL 수정
  * - ipron-acl-delete:   DELETE ACL 삭제
+ * - ipron-pbx-acl-delete-batch: DELETE PBX ACL 일괄 삭제 (body: aclIds[])
+ * - ipron-cti-acl-delete-batch: DELETE CTI ACL 일괄 삭제 (body: aclIds[])
  * - manager-node-list:  GET    노드 목록 조회 (cross-service)
  */
 import ApiClient, { type ApiResponse } from '@/shared-util';
@@ -70,6 +72,14 @@ export const aclApi = {
   },
 
   /**
+   * PBX ACL 일괄 삭제
+   * @flow ipron-pbx-acl-delete-batch (DELETE /api/ipron/pbx-acls/delete-batch, body: { aclIds })
+   */
+  deleteBatch: async (aclIds: number[]): Promise<void> => {
+    await apiClient.delete('/ipron-pbx-acl-delete-batch', { data: { aclIds } });
+  },
+
+  /**
    * 노드 목록 조회 (manager-node-list 재사용)
    * @flow manager-node-list
    */
@@ -99,5 +109,13 @@ export const aclApi = {
 
   deleteCtiAcl: async (params: Record<string, unknown>) => {
     return await apiClient.delete('/ipron-cti-acl-delete', { params });
+  },
+
+  /**
+   * CTI ACL 일괄 삭제
+   * @flow ipron-cti-acl-delete-batch (DELETE /api/ipron/cti-acls/delete-batch, body: { aclIds })
+   */
+  deleteCtiBatch: async (aclIds: number[]): Promise<void> => {
+    await apiClient.delete('/ipron-cti-acl-delete-batch', { data: { aclIds } });
   },
 };

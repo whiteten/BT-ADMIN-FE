@@ -8,6 +8,7 @@
  * - ipron-call-screen-create:  POST   수신번호 차단 등록
  * - ipron-call-screen-update:  PUT    수신번호 차단 수정
  * - ipron-call-screen-delete:  DELETE 수신번호 차단 삭제
+ * - ipron-call-screen-delete-batch: DELETE 수신번호 차단 일괄 삭제 (body: callscreenIds[])
  * - ipron-dod-trans-node-tenants: GET 노드-테넌트 매핑 (재사용)
  */
 import ApiClient, { type ApiResponse } from '@/shared-util';
@@ -68,6 +69,14 @@ export const callScreenApi = {
    */
   delete: async (params: Record<string, unknown>) => {
     return await apiClient.delete('/ipron-call-screen-delete', { params });
+  },
+
+  /**
+   * 수신번호 차단 일괄 삭제
+   * @flow ipron-call-screen-delete-batch (DELETE /api/ipron/call-screens/delete-batch, body: { callscreenIds })
+   */
+  deleteBatch: async (callscreenIds: number[]): Promise<void> => {
+    await apiClient.delete('/ipron-call-screen-delete-batch', { data: { callscreenIds } });
   },
 
   /**

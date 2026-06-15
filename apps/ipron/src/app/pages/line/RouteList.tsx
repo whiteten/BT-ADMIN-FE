@@ -14,7 +14,7 @@ import { useBreadcrumbStore } from '@/shared-store';
 import { toast } from '@/shared-util';
 import { ENDPOINT_TYPE_LABELS } from '../../features/endpoint/types';
 import RoutePointDialog, { type RoutePointDialogRef } from '../../features/route/components/RoutePointDialog';
-import { routeQueryKeys, useDeleteRoute, useDeleteRoutePoint, useGetNodes, useGetRoutePoints, useGetRoutes } from '../../features/route/hooks/useRouteQueries';
+import { routeQueryKeys, useDeleteRoute, useDeleteRoutePointsBatch, useGetNodes, useGetRoutePoints, useGetRoutes } from '../../features/route/hooks/useRouteQueries';
 import { ANI_TYPE_LABELS, ROUTE_TYPE_LABELS, type Route, type RoutePoint, getRouteStatusInfo, getRouteTagList } from '../../features/route/types';
 import useAggridOptions from '@/libs/shared-ui/src/hooks/useAggridOptions';
 import { useModal } from '@/libs/shared-ui/src/hooks/useModal';
@@ -69,7 +69,7 @@ export default function RouteList() {
     },
   });
 
-  const { mutate: deleteRoutePoint } = useDeleteRoutePoint({
+  const { mutate: deleteRoutePointsBatch } = useDeleteRoutePointsBatch({
     mutationOptions: {
       onSuccess: () => {
         toast.success('국선 배정이 해제되었습니다');
@@ -170,7 +170,7 @@ export default function RouteList() {
       if (!selectedRouteId || points.length === 0) return;
       modal.confirm.execute({
         onOk: () => {
-          points.forEach((point) => deleteRoutePoint({ id: selectedRouteId, endptId: point.endptId }));
+          deleteRoutePointsBatch({ routeId: selectedRouteId, endptIds: points.map((point) => point.endptId) });
           setSelectedRoutePoints([]);
         },
         options: {
@@ -179,7 +179,7 @@ export default function RouteList() {
         },
       });
     },
-    [modal, deleteRoutePoint, selectedRouteId],
+    [modal, deleteRoutePointsBatch, selectedRouteId],
   );
 
   const handlePointDialogSuccess = useCallback(() => {

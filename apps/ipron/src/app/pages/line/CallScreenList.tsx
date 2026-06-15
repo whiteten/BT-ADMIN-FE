@@ -20,7 +20,7 @@ import { ChevronLeft, ChevronRight, Layers, Network, Plus, Search, Trash2 } from
 import { useBreadcrumbStore } from '@/shared-store';
 import { toast } from '@/shared-util';
 import CallScreenDrawer, { type CallScreenDrawerRef } from '../../features/call-screen/components/CallScreenDrawer';
-import { callScreenQueryKeys, useDeleteCallScreen, useGetCallScreenList, useGetNodeTenants } from '../../features/call-screen/hooks/useCallScreenQueries';
+import { callScreenQueryKeys, useDeleteCallScreenBatch, useGetCallScreenList, useGetNodeTenants } from '../../features/call-screen/hooks/useCallScreenQueries';
 import type { CallScreen } from '../../features/call-screen/types';
 import useAggridOptions from '@/libs/shared-ui/src/hooks/useAggridOptions';
 import { useModal } from '@/libs/shared-ui/src/hooks/useModal';
@@ -101,7 +101,7 @@ export default function CallScreenList() {
   }, [nodeCallScreens]);
 
   // ─── Mutations ──────────────────────────────────────────────────────────────
-  const { mutate: deleteCallScreen } = useDeleteCallScreen({
+  const { mutate: deleteCallScreenBatch } = useDeleteCallScreenBatch({
     mutationOptions: {
       onSuccess: () => {
         toast.success('수신번호 차단이 삭제되었습니다');
@@ -255,13 +255,13 @@ export default function CallScreenList() {
   const handleDeleteSelected = useCallback(() => {
     if (selectedRows.length === 0) return;
     modal.confirm.execute({
-      onOk: () => selectedRows.forEach((item) => deleteCallScreen({ id: item.callscreenId })),
+      onOk: () => deleteCallScreenBatch(selectedRows.map((item) => item.callscreenId)),
       options: {
         title: '수신번호 차단 삭제',
         content: `선택한 ${selectedRows.length}건의 차단번호를 삭제하시겠습니까?`,
       },
     });
-  }, [modal, selectedRows, deleteCallScreen]);
+  }, [modal, selectedRows, deleteCallScreenBatch]);
 
   const handleDrawerSuccess = useCallback(() => {
     invalidateList();

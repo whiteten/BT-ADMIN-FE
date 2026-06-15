@@ -9,6 +9,7 @@
  * - ipron-dn-profile-create:       POST   프로파일 등록
  * - ipron-dn-profile-update:       PUT    프로파일 수정
  * - ipron-dn-profile-delete:       DELETE 프로파일 삭제
+ * - ipron-dn-profile-delete-batch: DELETE 프로파일 일괄 삭제 (body: profileIds[])
  * - ipron-dn-profile-options:      GET    폼 드롭다운 옵션 일괄
  * - manager-tenant-list:           GET    테넌트 목록 조회 (cross-service)
  * - manager-node-list:             GET    노드 목록 조회 (cross-service)
@@ -80,6 +81,14 @@ export const dnProfileApi = {
    */
   delete: async (id: number) => {
     return await apiClient.delete('/ipron-dn-profile-delete', { params: { id } });
+  },
+
+  /**
+   * 프로파일 일괄 삭제
+   * @flow ipron-dn-profile-delete-batch (DELETE /api/ipron/dn-profiles/delete-batch, body: { profileIds })
+   */
+  deleteBatch: async (profileIds: number[]): Promise<void> => {
+    await apiClient.delete('/ipron-dn-profile-delete-batch', { data: { profileIds } });
   },
 
   /**

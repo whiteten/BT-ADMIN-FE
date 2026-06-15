@@ -21,7 +21,7 @@ import { ChevronLeft, ChevronRight, Layers, Network, Plus, Search, Trash2 } from
 import { useBreadcrumbStore } from '@/shared-store';
 import { toast } from '@/shared-util';
 import PreNumTransDrawer, { type PreNumTransDrawerRef } from '../../features/pre-num-trans/components/PreNumTransDrawer';
-import { preNumTransQueryKeys, useDeletePreNumTrans, useGetNodes, useGetPreNumTransList } from '../../features/pre-num-trans/hooks/usePreNumTransQueries';
+import { preNumTransQueryKeys, useDeletePreNumTransBatch, useGetNodes, useGetPreNumTransList } from '../../features/pre-num-trans/hooks/usePreNumTransQueries';
 import { EDIT_OPT_LABELS, type PreNumTrans, TRANS_ACTION_LABELS } from '../../features/pre-num-trans/types';
 import useAggridOptions from '@/libs/shared-ui/src/hooks/useAggridOptions';
 import { useModal } from '@/libs/shared-ui/src/hooks/useModal';
@@ -119,7 +119,7 @@ export default function PreNumTransList() {
     drawerRef.current?.open(trans);
   }, []);
 
-  const { mutate: deletePreNumTrans } = useDeletePreNumTrans({
+  const { mutate: deletePreNumTransBatch } = useDeletePreNumTransBatch({
     mutationOptions: {
       onSuccess: () => {
         toast.success('사전변환이 삭제되었습니다');
@@ -132,7 +132,7 @@ export default function PreNumTransList() {
     if (selectedRows.length === 0) return;
     modal.confirm.execute({
       onOk: () => {
-        selectedRows.forEach((trans) => deletePreNumTrans({ id: trans.preTransId }));
+        deletePreNumTransBatch(selectedRows.map((trans) => trans.preTransId));
         setSelectedRows([]);
       },
       options: {
@@ -141,7 +141,7 @@ export default function PreNumTransList() {
           selectedRows.length === 1 ? `DNIS 패턴 "${selectedRows[0].dnisPattern}" 사전변환을 삭제하시겠습니까?` : `선택한 사전변환 ${selectedRows.length}건을 삭제하시겠습니까?`,
       },
     });
-  }, [modal, deletePreNumTrans, selectedRows]);
+  }, [modal, deletePreNumTransBatch, selectedRows]);
 
   const handleDrawerSuccess = useCallback(() => {
     invalidateList();

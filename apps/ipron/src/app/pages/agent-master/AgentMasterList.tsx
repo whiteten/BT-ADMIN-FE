@@ -27,14 +27,14 @@ import AgentMediaStatusTable, { type AgentMediaStatusTableHandle, type MediaKey,
 import { MEDIA_KEY_LABELS, MEDIA_TYPE_CODE_TO_KEY } from '../../features/agent-master/constants/codes';
 import {
   agentMasterQueryKeys,
+  useBulkGroupAgents,
+  useBulkMediaAgents,
   useDeleteAgentGroup,
   useDeleteAgents,
   useGetAgentGroupTree,
   useGetAgentTenants,
   useGetAgents,
-  useMoveAgent,
   useReorderAgentGroup,
-  useUpdateAgent,
 } from '../../features/agent-master/hooks/useAgentMasterQueries';
 import type { AgentGroupNode, AgentResponse, AgentUpdateRequest } from '../../features/agent-master/types';
 import { useGetMediaTypes } from '../../features/media-type/hooks/useMediaTypeQueries';
@@ -169,10 +169,16 @@ export default function AgentMasterList() {
     },
   });
 
-  const { mutate: moveAgent } = useMoveAgent({
+  // 그룹 일괄 변경 — 선택/드롭 상담사를 대상 그룹으로 1콜 이동 (207 best-effort)
+  const { mutate: bulkGroupAgents } = useBulkGroupAgents({
     mutationOptions: {
-      onSuccess: () => {
-        toast.success('상담사 그룹이 변경되었습니다');
+      onSuccess: (result) => {
+        if (result && result.failCount > 0) {
+          toast.warning(`${result.successCount + result.failCount}명 중 ${result.failCount}명 그룹 변경 실패`);
+        } else {
+          toast.success('상담사 그룹이 변경되었습니다');
+        }
+        setSelectedRows([]);
       },
       onError: (err: unknown) => {
         const msg = (err as { response?: { data?: { message?: string } } })?.response?.data?.message ?? '그룹 이동 실패';
@@ -206,12 +212,9 @@ export default function AgentMasterList() {
     },
   });
 
-  // 미디어 관리 탭 BSR 저장 — dirty 행 일괄 PUT (상세 Drawer 와 동일 update 엔드포인트)
-  const { mutate: updateAgent, isPending: isSavingMedia } = useUpdateAgent({
+  // 미디어 관리 탭 저장 — dirty 행을 1콜 벌크 PUT (미디어 필드만, 단일 트랜잭션 전체 롤백)
+  const { mutate: bulkMediaAgents, isPending: isSavingMedia } = useBulkMediaAgents({
     mutationOptions: {
-      onSuccess: () => {
-        /* 개별 성공은 조용히 — 전체 완료 후 handleSaveDirty 에서 토스트 */
-      },
       onError: (err: unknown) => {
         const msg = (err as { response?: { data?: { message?: string } } })?.response?.data?.message ?? '미디어 옵션 저장 실패';
         toast.error(msg);
@@ -221,35 +224,26 @@ export default function AgentMasterList() {
 
   const handleSaveDirty = useCallback(
     (entries: { agentId: number; body: AgentUpdateRequest }[], clearDirty: () => void) => {
-      let completed = 0;
-      let errored = 0;
+      if (entries.length === 0) return;
       const total = entries.length;
-      const finish = () => {
-        completed++;
-        if (completed + errored === total) {
-          if (errored === 0) {
+      // 미디어 필드(useGrpMdaOpt + mediaMatrix)만 1콜 벌크로 — 비미디어 필드 미전송.
+      const items = entries.map(({ agentId, body }) => ({
+        agentId,
+        useGrpMdaOpt: body.useGrpMdaOpt,
+        mediaMatrix: body.mediaMatrix,
+      }));
+      bulkMediaAgents(
+        { items },
+        {
+          onSuccess: () => {
             toast.success(`미디어 옵션 ${total}행이 저장되었습니다`);
             clearDirty();
-          } else {
-            toast.warning(`${total}행 중 ${errored}행 저장 실패 — 다시 시도하세요`);
-            // 실패행은 dirty 유지 (clearDirty 호출 안 함)
-          }
-        }
-      };
-      for (const { agentId, body } of entries) {
-        updateAgent(
-          { id: agentId, body },
-          {
-            onSuccess: finish,
-            onError: () => {
-              errored++;
-              finish();
-            },
           },
-        );
-      }
+          // 전체 롤백 — 실패 시 dirty 유지(clearDirty 미호출), 토스트는 훅 onError 처리.
+        },
+      );
     },
-    [updateAgent],
+    [bulkMediaAgents],
   );
 
   // ─── Derived ────────────────────────────────────────────────────────────
@@ -350,13 +344,11 @@ export default function AgentMasterList() {
       toast.error('배정할 상담그룹을 선택하세요');
       return;
     }
-    for (const a of selectedRows) {
-      moveAgent({ id: a.agentId, body: { targetGroupId: deployTargetGroupId, allowTenantChange: true } });
-    }
+    if (selectedRows.length === 0) return;
+    bulkGroupAgents({ agentIds: selectedRows.map((a) => a.agentId), groupId: deployTargetGroupId });
     setGroupDeployOpen(false);
     setDeployTargetGroupId(undefined);
-    setSelectedRows([]);
-  }, [selectedRows, deployTargetGroupId, moveAgent]);
+  }, [selectedRows, deployTargetGroupId, bulkGroupAgents]);
 
   const handleSelectTenant = useCallback((tenantId: number | null) => {
     setSelectedTenantId(tenantId);
@@ -385,26 +377,25 @@ export default function AgentMasterList() {
       }
       const crossTenant = target && (sourceTenantIds.size > 1 || !sourceTenantIds.has(target.tenantId));
 
-      const move = (allowTenantChange: boolean) => {
-        for (const r of dragged) {
-          moveAgent({ id: r.agentId, body: { targetGroupId, allowTenantChange } });
-        }
-        setSelectedRows([]);
+      // 드롭 그룹(target)으로 dragged 상담사 전원을 1콜 벌크 이동.
+      // crossTenant 면 확인 다이얼로그를 거친 뒤 실행(테넌트 이동 안전장치 보존).
+      const move = () => {
+        bulkGroupAgents({ agentIds: dragged.map((r) => r.agentId), groupId: targetGroupId });
       };
 
       if (crossTenant) {
         modal.confirm.execute({
-          onOk: () => move(true),
+          onOk: () => move(),
           options: {
             title: '다른 테넌트로 이동',
             content: `대상 그룹의 테넌트가 다릅니다. ${dragged.length}명의 상담사를 ${target?.tenantName ?? '대상 테넌트'} 로 이동하시겠습니까?`,
           },
         });
       } else {
-        move(false);
+        move();
       }
     },
-    [agents, groupTree, modal, moveAgent],
+    [agents, groupTree, modal, bulkGroupAgents],
   );
 
   // ─── Splitter (트리 ↔ 그리드 리사이즈) ──────────────────────────────────

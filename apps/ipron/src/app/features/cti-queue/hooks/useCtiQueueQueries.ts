@@ -233,6 +233,22 @@ export const useDeleteCtiQueue = ({ mutationOptions }: MutationHookOptions<void,
   });
 };
 
+/**
+ * CTI 큐 일괄 삭제 (벌크 1콜) — BSR 배정 시 409 전체 거부.
+ */
+export const useDeleteCtiQueueBatch = ({ mutationOptions }: MutationHookOptions<number, number[]> = {}) => {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (ctiqIds) => ctiQueueApi.deleteBatch(ctiqIds),
+    ...mutationOptions,
+    onSuccess: (...args) => {
+      qc.invalidateQueries({ queryKey: ctiQueueQueryKeys.getList._def });
+      qc.invalidateQueries({ queryKey: ctiQueueQueryKeys.getTenants.queryKey });
+      mutationOptions?.onSuccess?.(...args);
+    },
+  });
+};
+
 export const useAssignBsrSchedules = ({ mutationOptions }: MutationHookOptions<void, { ctiqId: number; body: ScheduleAssignRequest }> = {}) => {
   const qc = useQueryClient();
   return useMutation({

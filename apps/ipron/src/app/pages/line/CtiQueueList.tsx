@@ -45,7 +45,7 @@ import CtiQueueTenantCard from '../../features/cti-queue/components/CtiQueueTena
 import {
   ctiQueueQueryKeys,
   useCreateCtiQueueGroup,
-  useDeleteCtiQueue,
+  useDeleteCtiQueueBatch,
   useDeleteCtiQueueGroup,
   useGetCtiQueueGroupOptions,
   useGetCtiQueueGroups,
@@ -441,7 +441,7 @@ export default function CtiQueueList() {
     setSelectedTreeId(null);
   }, [loginTenantId]);
 
-  const { mutate: deleteQueue, isPending: isDeleting } = useDeleteCtiQueue({
+  const { mutate: deleteQueueBatch, isPending: isDeleting } = useDeleteCtiQueueBatch({
     mutationOptions: {
       onSuccess: () => {
         toast.success('CTI 큐가 삭제되었습니다');
@@ -550,7 +550,7 @@ export default function CtiQueueList() {
   const handleDeleteSelected = () => {
     if (selectedRows.length === 0) return;
     modal.confirm.execute({
-      onOk: () => selectedRows.forEach((r) => deleteQueue(r.ctiqId)),
+      onOk: () => deleteQueueBatch(selectedRows.map((r) => r.ctiqId)),
       options: {
         title: 'CTI 큐 일괄 삭제',
         content: `선택한 ${selectedRows.length}건의 CTI 큐를 삭제하시겠습니까?`,
