@@ -18,7 +18,11 @@ export const routes = [
       { index: true, element: <Navigate to="dashboard" replace /> },
       {
         path: 'dashboard',
-        children: [{ index: true, element: <CampaignDashboard /> }],
+        element: <Outlet />,
+        children: [
+          { index: true, element: <Navigate to="campaign-current" replace /> },
+          { path: 'campaign-current', element: <CampaignDashboard /> },
+        ],
       },
       {
         path: 'statistics',
@@ -38,8 +42,8 @@ export const routes = [
           {
             path: 'campaign',
             children: [
-              { index: true, element: <Navigate to="list" replace /> },
-              { path: 'list', element: <CampaignList /> },
+              { index: true, element: <Navigate to="basic-info" replace /> },
+              { path: 'basic-info', element: <CampaignList /> },
               { path: 'create', element: <CampaignCreate /> },
               { path: ':campaignId', element: <CampaignDetail /> },
             ],

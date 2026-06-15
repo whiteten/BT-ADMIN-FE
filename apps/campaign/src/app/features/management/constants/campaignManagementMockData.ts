@@ -9,6 +9,7 @@ export const MOCK_CAMPAIGN_LIST: CampaignListItem[] = [
     inUse: true,
     priority: 1,
     workDateTime: '2026-03-01T09:30:00',
+    serviceType: '로보텔러',
   },
   {
     campaignId: 'campaign-002',
@@ -18,6 +19,7 @@ export const MOCK_CAMPAIGN_LIST: CampaignListItem[] = [
     inUse: true,
     priority: 2,
     workDateTime: '2026-02-20T14:15:00',
+    serviceType: '상담사',
   },
   {
     campaignId: 'campaign-003',
@@ -27,6 +29,7 @@ export const MOCK_CAMPAIGN_LIST: CampaignListItem[] = [
     inUse: false,
     priority: 3,
     workDateTime: '2026-01-10T11:00:00',
+    serviceType: '로보텔러',
   },
 ];
 

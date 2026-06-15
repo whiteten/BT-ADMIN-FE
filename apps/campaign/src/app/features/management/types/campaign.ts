@@ -6,10 +6,10 @@ export interface CampaignListItem {
   inUse: boolean;
   priority: number;
   workDateTime: string;
+  serviceType: string;
 }
 
 export interface CampaignItem extends CampaignListItem {
   sortOrder: number;
-  serviceType: string;
   worker: string;
 }

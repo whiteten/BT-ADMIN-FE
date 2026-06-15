@@ -20,7 +20,7 @@ import { useModal } from '@/libs/shared-ui/src/hooks/useModal';
 
 const breadcrumb: BreadcrumbProps['items'] = [
   { title: '대시보드', path: '/campaign/dashboard' },
-  { title: '캠페인 현황', path: '/campaign/dashboard' },
+  { title: '캠페인 현황', path: '/campaign/dashboard/campaign-current' },
 ];
 
 export default function CampaignDashboard() {

@@ -1,9 +1,18 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { type BreadcrumbProps, Button, Input, Select } from 'antd';
+import { Search } from 'lucide-react';
 import { useBreadcrumbStore } from '@/shared-store';
 import { toast } from '@/shared-util';
 import CampaignCard from '../../features/management/components/CampaignCard';
+import {
+  CAMPAIGN_IN_USE_FILTER,
+  CAMPAIGN_IN_USE_FILTER_OPTIONS,
+  CAMPAIGN_SERVICE_TYPE_FILTER,
+  CAMPAIGN_SERVICE_TYPE_FILTER_OPTIONS,
+  type CampaignInUseFilter,
+  type CampaignServiceTypeFilter,
+} from '../../features/management/constants/campaignManagementConstants';
 import { MOCK_CAMPAIGN_LIST } from '../../features/management/constants/campaignManagementMockData';
 import type { CampaignListItem } from '../../features/management/types/campaign';
 import NoData from '@/components/custom/NoData';
@@ -12,16 +21,31 @@ import { useModal } from '@/libs/shared-ui/src/hooks/useModal';
 const breadcrumb: BreadcrumbProps['items'] = [
   { title: '관리', path: '/campaign/management' },
   { title: '캠페인', path: '/campaign/management/campaign' },
-  { title: '캠페인 목록', path: '/campaign/management/campaign/list' },
+  { title: '캠페인 기본정보', path: '/campaign/management/campaign/basic-info' },
 ];
+
+type AppliedFilters = {
+  serviceTypeFilter: CampaignServiceTypeFilter;
+  inUseFilter: CampaignInUseFilter;
+  searchValue: string;
+};
+
+const INITIAL_APPLIED_FILTERS: AppliedFilters = {
+  serviceTypeFilter: CAMPAIGN_SERVICE_TYPE_FILTER.ALL,
+  inUseFilter: CAMPAIGN_IN_USE_FILTER.ALL,
+  searchValue: '',
+};
 
 export default function CampaignList() {
   const navigate = useNavigate();
   const modal = useModal();
   const setBreadcrumb = useBreadcrumbStore((s) => s.setBreadcrumb);
   const clearBreadcrumb = useBreadcrumbStore((s) => s.clearBreadcrumb);
-  const [filterColumn, setFilterColumn] = useState('campaignName');
+  const [serviceTypeFilter, setServiceTypeFilter] = useState<CampaignServiceTypeFilter>(CAMPAIGN_SERVICE_TYPE_FILTER.ALL);
+  const [inUseFilter, setInUseFilter] = useState<CampaignInUseFilter>(CAMPAIGN_IN_USE_FILTER.ALL);
   const [searchValue, setSearchValue] = useState('');
+  const [appliedFilters, setAppliedFilters] = useState<AppliedFilters>(INITIAL_APPLIED_FILTERS);
+  const [selectedCampaignId, setSelectedCampaignId] = useState<string | null>(null);
   const [campaignList, setCampaignList] = useState<CampaignListItem[]>(MOCK_CAMPAIGN_LIST);
 
   useEffect(() => {
@@ -30,22 +54,40 @@ export default function CampaignList() {
   }, [setBreadcrumb, clearBreadcrumb]);
 
   const filteredList = useMemo(() => {
-    if (!searchValue.trim()) return campaignList;
-    const keyword = searchValue.toLowerCase();
-    return campaignList.filter((campaign) => {
-      const value = campaign[filterColumn as keyof CampaignListItem];
-      if (value == null) return false;
-      if (typeof value === 'boolean') {
-        const label = value ? '사용' : '미사용';
-        return label.includes(keyword);
-      }
-      return String(value).toLowerCase().includes(keyword);
-    });
-  }, [campaignList, filterColumn, searchValue]);
+    const keyword = appliedFilters.searchValue.trim().toLowerCase();
 
-  const handleColumnChange = (value: string) => {
-    setFilterColumn(value);
-    setSearchValue('');
+    return campaignList.filter((campaign) => {
+      if (appliedFilters.serviceTypeFilter !== CAMPAIGN_SERVICE_TYPE_FILTER.ALL && campaign.serviceType !== appliedFilters.serviceTypeFilter) {
+        return false;
+      }
+
+      if (appliedFilters.inUseFilter === CAMPAIGN_IN_USE_FILTER.IN_USE && !campaign.inUse) {
+        return false;
+      }
+
+      if (appliedFilters.inUseFilter === CAMPAIGN_IN_USE_FILTER.NOT_IN_USE && campaign.inUse) {
+        return false;
+      }
+
+      if (keyword && !campaign.campaignName.toLowerCase().includes(keyword)) {
+        return false;
+      }
+
+      return true;
+    });
+  }, [appliedFilters, campaignList]);
+
+  const handleSearch = () => {
+    setAppliedFilters({
+      serviceTypeFilter,
+      inUseFilter,
+      searchValue,
+    });
+    setSelectedCampaignId(null);
+  };
+
+  const handleSelect = (campaignId: string) => {
+    setSelectedCampaignId((prev) => (prev === campaignId ? null : campaignId));
   };
 
   const handleClickCreateBtn = () => {
@@ -60,38 +102,79 @@ export default function CampaignList() {
     modal.confirm.delete({
       onOk: () => {
         setCampaignList((prev) => prev.filter((item) => item.campaignId !== campaignId));
+        setSelectedCampaignId((prev) => (prev === campaignId ? null : prev));
         toast.success('캠페인이 삭제되었습니다.');
       },
     });
   };
 
+  const handleToolbarDelete = () => {
+    if (!selectedCampaignId) {
+      toast.warning('삭제할 캠페인을 선택하세요.');
+      return;
+    }
+
+    handleDelete(selectedCampaignId);
+  };
+
   return (
     <div className="flex flex-col gap-4 w-full h-full">
       <div className="flex items-center justify-between gap-2 w-full h-[76px] bg-white bt-shadow px-7 py-5">
-        <div className="flex gap-2 w-full items-center">
-          <Select
-            value={filterColumn}
-            onChange={handleColumnChange}
-            options={[
-              { label: '캠페인id', value: 'campaignId' },
-              { label: '캠페인', value: 'campaignName' },
-              { label: '우선순위', value: 'priority' },
-            ]}
-            className="!max-w-[150px] !min-w-[120px]"
-            popupMatchSelectWidth={false}
-          />
-          <Input value={searchValue} onChange={(e) => setSearchValue(e.target.value)} className="w-full max-w-[400px]" placeholder="검색어를 입력하세요." />
+        <div className="flex gap-3 w-full items-center flex-wrap">
+          <div className="flex items-center gap-3">
+            <span className="text-sm font-medium text-[#495057] shrink-0">구분</span>
+            <Select
+              value={serviceTypeFilter}
+              onChange={setServiceTypeFilter}
+              options={[...CAMPAIGN_SERVICE_TYPE_FILTER_OPTIONS]}
+              className="!max-w-[150px] !min-w-[120px]"
+              popupMatchSelectWidth={false}
+            />
+          </div>
+          <div className="flex items-center gap-3">
+            <span className="text-sm font-medium text-[#495057] shrink-0">캠페인</span>
+            <Input
+              value={searchValue}
+              onChange={(e) => setSearchValue(e.target.value)}
+              onPressEnter={handleSearch}
+              className="w-full max-w-[400px]"
+              placeholder="캠페인명을 입력하세요."
+            />
+          </div>
+          <div className="flex items-center gap-3">
+            <span className="text-sm font-medium text-[#495057] shrink-0">사용여부</span>
+            <Select
+              value={inUseFilter}
+              onChange={setInUseFilter}
+              options={[...CAMPAIGN_IN_USE_FILTER_OPTIONS]}
+              className="!max-w-[150px] !min-w-[120px]"
+              popupMatchSelectWidth={false}
+            />
+          </div>
         </div>
-        <div>
+        <div className="flex items-center gap-2 shrink-0">
+          <Button type="primary" icon={<Search className="size-4" />} onClick={handleSearch}>
+            검색
+          </Button>
           <Button type="primary" onClick={handleClickCreateBtn}>
             추가
+          </Button>
+          <Button danger onClick={handleToolbarDelete}>
+            삭제
           </Button>
         </div>
       </div>
       {filteredList.length ? (
         <div className="grid grid-cols-[repeat(auto-fill,minmax(350px,1fr))] gap-4 w-full overflow-y-auto">
           {filteredList.map((campaign) => (
-            <CampaignCard key={campaign.campaignId} {...campaign} onDetail={handleDetail} onDelete={handleDelete} />
+            <CampaignCard
+              key={campaign.campaignId}
+              {...campaign}
+              selected={selectedCampaignId === campaign.campaignId}
+              onSelect={handleSelect}
+              onDetail={handleDetail}
+              onDelete={handleDelete}
+            />
           ))}
         </div>
       ) : (

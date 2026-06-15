@@ -1,74 +1,46 @@
-import { useEffect } from 'react';
-import { useNavigate, useParams } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import { Button, Col, DatePicker, Form, type FormProps, Input, InputNumber, Row, Select } from 'antd';
-import dayjs, { type Dayjs } from 'dayjs';
+import { type Dayjs } from 'dayjs';
 import { Log } from '@/log';
 import { toast } from '@/shared-util';
 import { CAMPAIGN_IN_USE_OPTIONS, CAMPAIGN_SERVICE_TYPE_OPTIONS } from '../constants/campaignManagementConstants';
-import { getMockCampaignDetail } from '../constants/campaignManagementMockData';
-import { useModal } from '@/libs/shared-ui/src/hooks/useModal';
 
-type CampaignBasicInfoFormValues = {
+type CampaignBasicInfoCreateFormValues = {
   campaignName: string;
-  executionPeriod: [Dayjs, Dayjs];
-  sortOrder: number;
-  priority: number;
-  serviceType: string;
-  inUse: boolean;
+  executionPeriod?: [Dayjs, Dayjs];
+  sortOrder?: number;
+  priority?: number;
+  serviceType?: string;
+  inUse?: boolean;
 };
 
-const formatDateTime = (value?: string) => (value ? dayjs(value).format('YYYY-MM-DD HH:mm:ss') : '-');
+const initialValues: Partial<CampaignBasicInfoCreateFormValues> = {
+  inUse: true,
+};
 
-export default function CampaignBasicInfo() {
-  const { campaignId } = useParams();
+export default function CampaignBasicInfoCreate() {
   const navigate = useNavigate();
-  const modal = useModal();
-  const [form] = Form.useForm<CampaignBasicInfoFormValues>();
-  const campaign = campaignId ? getMockCampaignDetail(campaignId) : undefined;
+  const [form] = Form.useForm<CampaignBasicInfoCreateFormValues>();
 
-  const onFinish: FormProps<CampaignBasicInfoFormValues>['onFinish'] = (values) => {
+  const onFinish: FormProps<CampaignBasicInfoCreateFormValues>['onFinish'] = (values) => {
     Log.debug('onFinish', values);
-    toast.success('캠페인 기본 정보가 저장되었습니다. (백엔드 연동 전)');
+    toast.success('캠페인이 저장되었습니다. (백엔드 연동 전)');
+    navigate('../basic-info');
   };
 
-  const onFinishFailed: FormProps<CampaignBasicInfoFormValues>['onFinishFailed'] = (errorInfo) => {
+  const onFinishFailed: FormProps<CampaignBasicInfoCreateFormValues>['onFinishFailed'] = (errorInfo) => {
     Log.warn('onFinishFailed', errorInfo);
     const firstError = errorInfo.errorFields?.[0]?.errors?.[0];
     if (firstError) toast.error(firstError);
   };
 
-  const handleClickDeleteBtn = () => {
-    modal.confirm.delete({
-      onOk: () => {
-        toast.success('캠페인이 삭제되었습니다. (백엔드 연동 전)');
-        navigate('../basic-info');
-      },
-    });
-  };
-
   const handleClickCancelBtn = () => {
-    navigate('../basic-info');
+    form.resetFields();
+    navigate(-1);
   };
-
-  useEffect(() => {
-    if (!campaign) return;
-
-    form.setFieldsValue({
-      campaignName: campaign.campaignName,
-      executionPeriod: [dayjs(campaign.startDateTime), dayjs(campaign.endDateTime)],
-      sortOrder: campaign.sortOrder,
-      priority: campaign.priority,
-      serviceType: campaign.serviceType,
-      inUse: campaign.inUse,
-    });
-  }, [campaign, form]);
-
-  if (!campaign) {
-    return <div className="p-7 text-gray-500">캠페인 정보를 찾을 수 없습니다.</div>;
-  }
 
   return (
-    <Form form={form} onFinish={onFinish} onFinishFailed={onFinishFailed} layout="vertical">
+    <Form form={form} initialValues={initialValues} onFinish={onFinish} onFinishFailed={onFinishFailed} layout="vertical">
       <Row gutter={20}>
         <Col span={9}>
           <Form.Item
@@ -86,7 +58,7 @@ export default function CampaignBasicInfo() {
         </Col>
         <Col span={3}>
           <Form.Item label="캠페인ID" required>
-            <Input disabled value={campaign.campaignId} />
+            <Input disabled placeholder="자동생성" />
           </Form.Item>
         </Col>
       </Row>
@@ -122,29 +94,24 @@ export default function CampaignBasicInfo() {
       <Row gutter={20}>
         <Col span={6}>
           <Form.Item label="작업자">
-            <Input disabled value={campaign.worker} />
+            <Input disabled placeholder="저장시 입력" />
           </Form.Item>
         </Col>
         <Col span={6}>
           <Form.Item label="작업일시">
-            <Input disabled value={formatDateTime(campaign.workDateTime)} />
+            <Input disabled placeholder="저장시 입력" />
           </Form.Item>
         </Col>
       </Row>
       <Row gutter={20} justify="center" className="sticky bottom-0 bg-white/90 z-10 pb-7">
         <Col>
-          <Button variant="solid" onClick={handleClickCancelBtn}>
-            취소
-          </Button>
-        </Col>
-        <Col>
-          <Button color="red" variant="solid" onClick={handleClickDeleteBtn}>
-            삭제
-          </Button>
-        </Col>
-        <Col>
           <Button color="primary" variant="solid" htmlType="submit">
             저장
+          </Button>
+        </Col>
+        <Col>
+          <Button variant="solid" onClick={handleClickCancelBtn}>
+            취소
           </Button>
         </Col>
       </Row>

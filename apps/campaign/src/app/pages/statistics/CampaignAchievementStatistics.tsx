@@ -35,7 +35,6 @@ const CAMPAIGN_ACHIEVEMENT_STAT_CATEGORY_OPTIONS = (Object.keys(CAMPAIGN_ACHIEVE
 
 const breadcrumb: BreadcrumbProps['items'] = [
   { title: '통계', path: '/campaign/statistics' },
-  { title: '캠페인 통계', path: '/campaign/statistics/campaign-result' },
   { title: '캠페인 목적 달성률 통계', path: '/campaign/statistics/achievement-result' },
 ];
 

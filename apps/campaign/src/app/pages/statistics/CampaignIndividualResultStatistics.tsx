@@ -15,7 +15,6 @@ import useAggridOptions from '@/libs/shared-ui/src/hooks/useAggridOptions';
 
 const breadcrumb: BreadcrumbProps['items'] = [
   { title: '통계', path: '/campaign/statistics' },
-  { title: '캠페인 통계', path: '/campaign/statistics/campaign-result' },
   { title: '캠페인별 통계', path: '/campaign/statistics/campaign-individual-result' },
 ];
 

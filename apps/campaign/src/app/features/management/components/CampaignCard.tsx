@@ -4,38 +4,64 @@ import type { CampaignListItem } from '../types/campaign';
 import { IconMoreVertical } from '@/components/custom/Icons';
 import { Button } from '@/components/ui/button';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
+import { cn } from '@/lib/utils';
 
 type CampaignCardProps = CampaignListItem & {
+  selected?: boolean;
+  onSelect?: (campaignId: string) => void;
   onDetail?: (campaignId: string) => void;
   onDelete?: (campaignId: string) => void;
 };
 
 const formatDateTime = (value?: string) => (value ? dayjs(value).format('YYYY-MM-DD HH:mm:ss') : '-');
 
-export default function CampaignCard({ campaignId, campaignName, startDateTime, endDateTime, inUse, priority, workDateTime, onDetail, onDelete }: CampaignCardProps) {
+export default function CampaignCard({
+  campaignId,
+  campaignName,
+  startDateTime,
+  endDateTime,
+  inUse,
+  priority,
+  workDateTime,
+  selected = false,
+  onSelect,
+  onDetail,
+  onDelete,
+}: CampaignCardProps) {
+  const handleTitleClick = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    onDetail?.(campaignId);
+  };
+
+  const handleMenuClick = (e: React.MouseEvent) => {
+    e.stopPropagation();
+  };
+
   const title = (
-    <span className="hover:cursor-pointer hover:!text-[var(--color-bt-primary)]" onClick={() => onDetail?.(campaignId)}>
+    <span className="hover:cursor-pointer hover:!text-[var(--color-bt-primary)] truncate" onClick={handleTitleClick}>
       {campaignName}
     </span>
   );
 
   const extra = (
-    <DropdownMenu>
-      <DropdownMenuTrigger asChild>
-        <Button variant="ghost" className="w-6 h-6 flex items-center justify-center hover:cursor-pointer">
-          <IconMoreVertical />
-          <span className="sr-only">더보기</span>
-        </Button>
-      </DropdownMenuTrigger>
-      <DropdownMenuContent className="dark" align="end">
-        <DropdownMenuItem onClick={() => onDetail?.(campaignId)} className="hover:cursor-pointer">
-          상세보기
-        </DropdownMenuItem>
-        <DropdownMenuItem onClick={() => onDelete?.(campaignId)} className="hover:cursor-pointer">
-          삭제
-        </DropdownMenuItem>
-      </DropdownMenuContent>
-    </DropdownMenu>
+    <div onClick={handleMenuClick}>
+      <DropdownMenu>
+        <DropdownMenuTrigger asChild>
+          <Button variant="ghost" className="w-6 h-6 flex items-center justify-center hover:cursor-pointer">
+            <IconMoreVertical />
+            <span className="sr-only">더보기</span>
+          </Button>
+        </DropdownMenuTrigger>
+        <DropdownMenuContent className="dark" align="end">
+          <DropdownMenuItem onClick={() => onDetail?.(campaignId)} className="hover:cursor-pointer">
+            상세보기
+          </DropdownMenuItem>
+          <DropdownMenuItem onClick={() => onDelete?.(campaignId)} className="hover:cursor-pointer">
+            삭제
+          </DropdownMenuItem>
+        </DropdownMenuContent>
+      </DropdownMenu>
+    </div>
   );
 
   return (
@@ -43,7 +69,8 @@ export default function CampaignCard({ campaignId, campaignName, startDateTime, 
       title={title}
       styles={{ header: { paddingRight: '0 20px 0 20px' }, body: { padding: '20px', paddingTop: '16px' } }}
       extra={extra}
-      className="hover:!border-[var(--color-bt-primary)]"
+      onClick={() => onSelect?.(campaignId)}
+      className={cn('hover:!border-[var(--color-bt-primary)] cursor-pointer', selected && '!border-[var(--color-bt-primary)] shadow-[0_0_0_2px_rgba(64,81,137,0.15)]')}
     >
       <div className="flex flex-col text-[#495057] gap-2">
         <div className="flex">
