@@ -17,11 +17,8 @@ export interface DocSearchResult {
   url: string;
 }
 
-export type SearchResult = MenuSearchResult | DocSearchResult;
-
 export interface SearchData {
   query: string;
   total: number;
-  menus: MenuSearchResult[];
   docs: DocSearchResult[];
 }

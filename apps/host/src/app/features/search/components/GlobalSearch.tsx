@@ -5,7 +5,7 @@ import { debounce } from 'lodash';
 import { BookOpen, ChevronRight, Loader2, Search } from 'lucide-react';
 import { useMenuStore } from '@/shared-store';
 import { fuzzyFilter, fuzzyScore } from '@/shared-util';
-import { useSearchMenus } from '../hooks/useSearchQueries';
+import { useSearchDocs } from '../hooks/useSearchQueries';
 import type { DocSearchResult, MenuSearchResult } from '../types/search';
 import { Highlight } from '@/components/custom/Highlight';
 import { Badge } from '@/components/ui/badge';
@@ -88,7 +88,7 @@ export default function GlobalSearch() {
     return () => debouncedSetQuery.cancel();
   }, [debouncedSetQuery]);
 
-  const { data, isFetching } = useSearchMenus({
+  const { data, isFetching } = useSearchDocs({
     params: { q: debouncedQuery, limit: 20 },
     queryOptions: {
       enabled: debouncedQuery.length > 0,
@@ -119,27 +119,31 @@ export default function GlobalSearch() {
   const isLoading = isFetching || query.trim() !== debouncedQuery;
   const showEmpty = debouncedQuery.length > 0 && !isLoading && !hasResults;
 
+  // 검색 상태 초기화 — pending debounce까지 취소해야 뒤늦은 setDebouncedQuery로 로딩이 멈추지 않는 문제를 방지
+  const resetSearch = () => {
+    debouncedSetQuery.cancel();
+    setQuery('');
+    setDebouncedQuery('');
+  };
+
   const handleSelectMenu = (result: MenuSearchResult) => {
     const menuKey = result.id.split(':')[1];
     const path = findPathByMenuKey(menuConfigs, result.appId, menuKey);
     if (path) navigate(`/${result.appId}/${path}`);
     setOpen(false);
-    setQuery('');
-    setDebouncedQuery('');
+    resetSearch();
   };
 
   const handleSelectDoc = (result: DocSearchResult) => {
     window.open(result.url, '_blank', 'noopener,noreferrer');
     setOpen(false);
-    setQuery('');
-    setDebouncedQuery('');
+    resetSearch();
   };
 
   const handleOpenChange = (isOpen: boolean) => {
     setOpen(isOpen);
     if (!isOpen) {
-      setQuery('');
-      setDebouncedQuery('');
+      resetSearch();
     }
   };
 
