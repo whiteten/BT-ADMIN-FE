@@ -7,6 +7,7 @@ import { useMenuStore } from '@/shared-store';
 import { fuzzyFilter, fuzzyScore } from '@/shared-util';
 import { useSearchMenus } from '../hooks/useSearchQueries';
 import type { DocSearchResult, MenuSearchResult } from '../types/search';
+import { Highlight } from '@/components/custom/Highlight';
 import { Badge } from '@/components/ui/badge';
 import { Command, CommandGroup, CommandItem, CommandList, CommandSeparator } from '@/components/ui/command';
 import { Popover, PopoverAnchor, PopoverContent } from '@/components/ui/popover';
@@ -224,7 +225,9 @@ export default function GlobalSearch() {
                     </div>
                     <div className="flex flex-col gap-1 flex-1 min-w-0">
                       <div className="flex items-center gap-2">
-                        <span className="font-semibold text-sm text-foreground/90 truncate">{result.label}</span>
+                        <span className="font-semibold text-sm text-foreground/90 truncate">
+                          <Highlight text={result.label} query={debouncedQuery} />
+                        </span>
                         <Badge variant="secondary" className="text-[10px] h-4 px-1.5 shrink-0 rounded-full bg-primary/8 text-primary/70 border-0 font-medium">
                           {RESULT_TYPE_LABEL[result.type]}
                         </Badge>
@@ -271,7 +274,9 @@ export default function GlobalSearch() {
                     </div>
                     <div className="flex flex-col gap-1 flex-1 min-w-0">
                       <div className="flex items-center gap-2">
-                        <span className="font-semibold text-sm text-foreground/90 truncate">{result.label}</span>
+                        <span className="font-semibold text-sm text-foreground/90 truncate">
+                          <Highlight text={result.label} query={debouncedQuery} />
+                        </span>
                         <Badge variant="secondary" className="text-[10px] h-4 px-1.5 shrink-0 rounded-full bg-blue-500/8 text-blue-600/70 border-0 font-medium">
                           {RESULT_TYPE_LABEL[result.type]}
                         </Badge>
