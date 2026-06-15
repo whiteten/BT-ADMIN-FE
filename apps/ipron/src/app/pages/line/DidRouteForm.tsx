@@ -239,7 +239,8 @@ export default function DidRouteForm() {
 
   useEffect(() => {
     setBreadcrumb([
-      { title: '회선관리', path: '/ipron/line' },
+      { title: '회선관리' },
+      { title: '호 라우팅' },
       { title: 'DID라우트관리', path: '/ipron/line/did-route' },
       {
         title: isEditMode ? '수정' : '등록',

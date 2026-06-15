@@ -116,7 +116,10 @@ export default function StatDatasetList() {
   const [selectedId, setSelectedId] = useState<number | null>(null);
 
   useEffect(() => {
-    setBreadcrumb([{ title: '데이터셋', path: '/insight/statistics/datasets' }]);
+    setBreadcrumb([
+      { title: '통계', path: '/insight/statistics' },
+      { title: '데이터셋', path: '/insight/statistics/datasets' },
+    ]);
     return () => clearBreadcrumb();
   }, [setBreadcrumb, clearBreadcrumb]);
 

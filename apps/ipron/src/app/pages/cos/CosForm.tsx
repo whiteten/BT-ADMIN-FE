@@ -313,6 +313,7 @@ export default function CosForm() {
 
   useEffect(() => {
     setBreadcrumb([
+      { title: '번호자원관리' },
       { title: '교환기 번호관리' },
       { title: 'COS 설정', path: '/ipron/cos' },
       {

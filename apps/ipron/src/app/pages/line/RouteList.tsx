@@ -19,10 +19,7 @@ import { ANI_TYPE_LABELS, ROUTE_TYPE_LABELS, type Route, type RoutePoint, getRou
 import useAggridOptions from '@/libs/shared-ui/src/hooks/useAggridOptions';
 import { useModal } from '@/libs/shared-ui/src/hooks/useModal';
 
-const breadcrumb = [
-  { title: '회선관리', path: '/ipron/line/route' },
-  { title: '발신라우트', path: '/ipron/line/route' },
-];
+const breadcrumb = [{ title: '회선관리' }, { title: '호 라우팅' }, { title: '발신라우트', path: '/ipron/line/route' }];
 
 export default function RouteList() {
   const setBreadcrumb = useBreadcrumbStore((s) => s.setBreadcrumb);

@@ -32,11 +32,7 @@ import { useGetDnNodeTenants } from '../../features/dn/hooks/useDnQueries';
 import { useGetDnProfileNodes, useGetDnProfileTenants } from '../../features/dn-profile/hooks/useDnProfileQueries';
 import useAggridOptions from '@/libs/shared-ui/src/hooks/useAggridOptions';
 
-const breadcrumb = [
-  { title: '번호자원관리', path: '/ipron/dn' },
-  { title: 'DN관리', path: '/ipron/dn' },
-  { title: '단말기관리', path: '/ipron/device' },
-];
+const breadcrumb = [{ title: '단말관리' }, { title: '단말기관리', path: '/ipron/device' }];
 
 export default function DeviceList() {
   const setBreadcrumb = useBreadcrumbStore((s) => s.setBreadcrumb);

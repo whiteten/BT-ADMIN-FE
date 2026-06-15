@@ -27,10 +27,7 @@ import { criteriaToString, parseSearchSyntax, presetToRange, validateCriteria } 
 
 const MINUTE_STEP = 1;
 
-const breadcrumb = [
-  { title: '콜 분석', path: '/ipron/tracking' },
-  { title: '통합 콜트래킹', path: '/ipron/tracking' },
-];
+const breadcrumb = [{ title: '트래킹' }, { title: '통합콜트래킹', path: '/ipron/tracking' }];
 
 const RECENT_SEARCHES_KEY = 'ipron.tracking.recentSearches.v1';
 const MODE_KEY = 'ipron.tracking.mode.v1';

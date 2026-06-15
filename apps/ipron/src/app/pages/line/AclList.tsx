@@ -29,10 +29,7 @@ import { useModal } from '@/libs/shared-ui/src/hooks/useModal';
 
 type AclCategory = 'pbx' | 'cti';
 
-const breadcrumb = [
-  { title: '회선관리', path: '/ipron/line/acl' },
-  { title: 'IP접근관리', path: '/ipron/line/acl' },
-];
+const breadcrumb = [{ title: '회선관리' }, { title: '제어' }, { title: 'IP접근관리', path: '/ipron/line/acl' }];
 
 const CATEGORY_STYLES: Record<AclCategory, { label: string; icon: typeof Phone }> = {
   pbx: { label: 'PBX', icon: Phone },

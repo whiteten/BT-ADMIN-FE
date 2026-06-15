@@ -45,7 +45,7 @@ import type {
 } from '../../features/skillset-master/types';
 import { useModal } from '@/libs/shared-ui/src/hooks/useModal';
 
-const breadcrumb = [{ title: 'IPRON' }, { title: '상담사 관리', path: '/ipron/agent-master' }, { title: '스킬 관리' }, { title: '스킬셋 관리', path: '/ipron/skillset-master' }];
+const breadcrumb = [{ title: '번호자원관리' }, { title: '라우팅 설정' }, { title: '스킬셋 관리', path: '/ipron/skillset-master' }];
 
 interface CompactPillProps {
   name: string;

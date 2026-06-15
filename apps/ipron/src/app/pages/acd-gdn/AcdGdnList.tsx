@@ -34,11 +34,7 @@ import { useGetDnProfileNodeTenants, useGetDnProfileNodes, useGetDnProfileTenant
 import useAggridOptions from '@/libs/shared-ui/src/hooks/useAggridOptions';
 import { useModal } from '@/libs/shared-ui/src/hooks/useModal';
 
-const breadcrumb = [
-  { title: '번호자원관리', path: '/ipron/acd-gdn' },
-  { title: '그룹DN', path: '/ipron/acd-gdn' },
-  { title: 'ACD', path: '/ipron/acd-gdn' },
-];
+const breadcrumb = [{ title: '번호자원관리' }, { title: '교환기 번호관리' }, { title: 'ACD', path: '/ipron/acd-gdn' }];
 
 type AssignFilter = 'all' | 'assigned' | 'unassigned';
 

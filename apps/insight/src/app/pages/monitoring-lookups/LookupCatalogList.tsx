@@ -14,7 +14,7 @@ import { useModal } from '@/libs/shared-ui/src/hooks/useModal';
 
 const breadcrumb: BreadcrumbProps['items'] = [
   { title: '모니터링', path: '/insight/monitoring' },
-  { title: '코드 룩업', path: '/insight/monitoring/lookups' },
+  { title: '룩업코드', path: '/insight/monitoring/lookups' },
 ];
 
 const CATEGORY_FILTER_OPTIONS = [

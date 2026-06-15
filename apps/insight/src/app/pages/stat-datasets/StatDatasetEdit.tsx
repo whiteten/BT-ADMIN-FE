@@ -184,7 +184,7 @@ export default function StatDatasetEdit() {
 
   useEffect(() => {
     if (dataset) {
-      setBreadcrumb([{ title: '인사이트' }, { title: '데이터셋', path: '/insight/statistics/datasets' }, { title: dataset.datasourceName }]);
+      setBreadcrumb([{ title: '통계', path: '/insight/statistics' }, { title: '데이터셋', path: '/insight/statistics/datasets' }, { title: dataset.datasourceName }]);
     }
     return () => clearBreadcrumb();
   }, [dataset, setBreadcrumb, clearBreadcrumb]);

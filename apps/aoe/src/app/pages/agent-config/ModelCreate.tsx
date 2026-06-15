@@ -12,7 +12,7 @@ import FormSummaryPanel from '../../features/shared/components/FormSummaryPanel'
 import FormSummaryValue from '../../features/shared/components/FormSummaryValue';
 
 const breadcrumb: BreadcrumbProps['items'] = [
-  { title: '관리', path: '/aoe/agent-config' },
+  { title: 'AOE 관리', path: '/aoe/agent-config' },
   { title: 'AI 모델', path: '/aoe/agent-config/model' },
   { title: 'AI 모델 추가', path: '/aoe/agent-config/model/create' },
 ];

@@ -69,7 +69,7 @@ import { useGetSkillsetGroups, useGetSkillsets } from '../../features/skillset-m
 import { type SkillsetResponse, getMediaTypeName } from '../../features/skillset-master/types';
 import useAggridOptions from '@/libs/shared-ui/src/hooks/useAggridOptions';
 
-const breadcrumb = [{ title: 'IPRON' }, { title: '상담사 관리', path: '/ipron/agent-master' }, { title: '스킬 관리' }, { title: '상담사 스킬 배정', path: '/ipron/skill-assign' }];
+const breadcrumb = [{ title: '상담사 관리' }, { title: '스킬 관리' }, { title: '상담사 스킬 배정', path: '/ipron/skill-assign' }];
 
 type Mode = 'agent' | 'skillset' | 'view';
 type ViewSubMode = 'agent' | 'skillset'; // 조회 탭 내 기준 토글

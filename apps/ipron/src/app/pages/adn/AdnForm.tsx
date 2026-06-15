@@ -19,7 +19,7 @@ import type { AdnCreateRequest, AdnDefaultStateCode, AdnUpdateRequest, ExtAuthty
 import { ADN_DFT_STATE_OPTIONS, EXT_AUTHTYPE_OPTIONS, getAdnDftStateName, getDnStatusName } from '../../features/adn/utils/adnEnums';
 import { useGetDnProfileTenants } from '../../features/dn-profile/hooks/useDnProfileQueries';
 
-const breadcrumb = [{ title: '번호자원관리' }, { title: 'DN관리' }, { title: 'ADN 설정', path: '/ipron/adn' }];
+const breadcrumb = [{ title: '번호자원관리' }, { title: '교환기 번호관리' }, { title: 'ADN', path: '/ipron/adn' }];
 
 interface AdnFormValues {
   tenantId: number;

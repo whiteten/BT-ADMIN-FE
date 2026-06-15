@@ -225,7 +225,8 @@ export default function RouteForm() {
 
   useEffect(() => {
     setBreadcrumb([
-      { title: '회선관리', path: '/ipron/line' },
+      { title: '회선관리' },
+      { title: '호 라우팅' },
       { title: '발신라우트', path: '/ipron/line/route' },
       {
         title: isEditMode ? '수정' : '등록',

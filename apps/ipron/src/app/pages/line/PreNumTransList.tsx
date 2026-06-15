@@ -26,10 +26,7 @@ import { EDIT_OPT_LABELS, type PreNumTrans, TRANS_ACTION_LABELS } from '../../fe
 import useAggridOptions from '@/libs/shared-ui/src/hooks/useAggridOptions';
 import { useModal } from '@/libs/shared-ui/src/hooks/useModal';
 
-const breadcrumb = [
-  { title: '회선관리', path: '/ipron/line/pre-num-trans' },
-  { title: '발신DNIS사전변환', path: '/ipron/line/pre-num-trans' },
-];
+const breadcrumb = [{ title: '회선관리' }, { title: '번호 변환' }, { title: '발신DNIS사전변환', path: '/ipron/line/pre-num-trans' }];
 
 export default function PreNumTransList() {
   const setBreadcrumb = useBreadcrumbStore((s) => s.setBreadcrumb);

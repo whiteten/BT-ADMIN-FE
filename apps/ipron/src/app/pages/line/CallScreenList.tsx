@@ -25,10 +25,7 @@ import type { CallScreen } from '../../features/call-screen/types';
 import useAggridOptions from '@/libs/shared-ui/src/hooks/useAggridOptions';
 import { useModal } from '@/libs/shared-ui/src/hooks/useModal';
 
-const breadcrumb = [
-  { title: '회선관리', path: '/ipron/line/call-screen' },
-  { title: '수신번호차단관리', path: '/ipron/line/call-screen' },
-];
+const breadcrumb = [{ title: '회선관리' }, { title: '번호 변환' }, { title: '수신번호차단관리', path: '/ipron/line/call-screen' }];
 
 export default function CallScreenList() {
   const setBreadcrumb = useBreadcrumbStore((s) => s.setBreadcrumb);

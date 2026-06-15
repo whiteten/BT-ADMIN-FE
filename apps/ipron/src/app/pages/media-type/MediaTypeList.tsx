@@ -17,7 +17,7 @@ import { useDeleteMediaType, useGetMediaTypeMeta, useGetMediaTypes } from '../..
 import type { MediaTypeResponse } from '../../features/media-type/types';
 import { useModal } from '@/libs/shared-ui/src/hooks/useModal';
 
-const breadcrumb = [{ title: 'IPRON' }, { title: '상담사 관리', path: '/ipron/agent-master' }, { title: '코드 관리' }, { title: '미디어 코드 관리', path: '/ipron/media-type' }];
+const breadcrumb = [{ title: '상담사 관리' }, { title: '코드 관리' }, { title: '미디어 코드 관리', path: '/ipron/media-type' }];
 
 export default function MediaTypeList() {
   const setBreadcrumb = useBreadcrumbStore((s) => s.setBreadcrumb);

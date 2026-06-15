@@ -15,11 +15,7 @@ import { deviceHistoryApi } from '../../features/device/api/deviceHistoryApi';
 import type { DevHistoryResponse, DevHistorySearchParams } from '../../features/device/types';
 import useAggridOptions from '@/libs/shared-ui/src/hooks/useAggridOptions';
 
-const breadcrumb = [
-  { title: '번호자원관리', path: '/ipron/dn' },
-  { title: '단말관리', path: '/ipron/device' },
-  { title: '단말기 이력 조회', path: '/ipron/device/history' },
-];
+const breadcrumb = [{ title: '단말관리' }, { title: '단말기 이력 조회', path: '/ipron/device/history' }];
 
 interface SearchForm {
   dateRange?: [import('dayjs').Dayjs | null, import('dayjs').Dayjs | null];

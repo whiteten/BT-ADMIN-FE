@@ -15,7 +15,7 @@ export default function AgentDetail() {
 
   useEffect(() => {
     const breadcrumb: BreadcrumbProps['items'] = [
-      { title: '관리', path: '/aoe/agent-config' },
+      { title: 'AOE 관리', path: '/aoe/agent-config' },
       { title: 'Agent', path: '/aoe/agent-config/agent/list' },
       { title: ':agentName', path: `/aoe/agent-config/agent/${agentId}` },
     ];

@@ -792,8 +792,8 @@ export default function DnForm() {
   useEffect(() => {
     setBreadcrumb([
       { title: '번호자원관리' },
-      { title: 'DN관리' },
-      { title: '내선관리', path: '/ipron/dn' },
+      { title: '교환기 번호관리' },
+      { title: '내선', path: '/ipron/dn' },
       {
         title: isEditMode ? '수정' : '등록',
         path: isEditMode && id ? `/ipron/dn/${id}/edit` : '/ipron/dn/create',
