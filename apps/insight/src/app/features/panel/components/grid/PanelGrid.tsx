@@ -1,11 +1,12 @@
 import { useCallback, useMemo } from 'react';
 import type { ColDef, ColGroupDef, RowClassParams, RowDataUpdatedEvent, ValueFormatterParams } from 'ag-grid-community';
 import { AgGridReact } from 'ag-grid-react';
+import { formatColumnValue as formatValue } from '../../../../utils/columnFormat';
 import { evaluateRowExpression, extractFieldRefs } from '../../../../utils/rowExpression';
 import { formatTimeKey } from '../../../../utils/timeKeyFormat';
 import { useGetDataSourceFields } from '../../../dataset/hooks/useDatasetQueries';
 import { useReportViewStore } from '../../../report/hooks/useReportViewStore';
-import type { ColumnFormat, PanelDetail } from '../../../report/types';
+import type { PanelDetail } from '../../../report/types';
 import { usePanelData } from '../../hooks/usePanelQueries';
 import useAggridOptions from '@/libs/shared-ui/src/hooks/useAggridOptions';
 
@@ -15,30 +16,6 @@ const AUTO_SIZE_MAX_WIDTH = 360;
 interface PanelGridProps {
   panel: PanelDetail;
   reportId: number;
-}
-
-function formatValue(value: unknown, format: ColumnFormat | undefined): string {
-  if (value === null || value === undefined) return '—';
-  const num = Number(value);
-  if (isNaN(num)) return String(value);
-  switch (format) {
-    case 'Decimal':
-      return num.toLocaleString('ko-KR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-    case 'Rate':
-      return `${num.toLocaleString('ko-KR', { maximumFractionDigits: 2 })}%`;
-    case 'Time': {
-      const h = Math.floor(num / 3600)
-        .toString()
-        .padStart(2, '0');
-      const m = Math.floor((num % 3600) / 60)
-        .toString()
-        .padStart(2, '0');
-      const s = (num % 60).toString().padStart(2, '0');
-      return `${h}:${m}:${s}`;
-    }
-    default:
-      return num.toLocaleString('ko-KR');
-  }
 }
 
 export default function PanelGrid({ panel, reportId }: PanelGridProps) {

@@ -16,7 +16,7 @@ const UNIT_LABEL: Record<string, string> = { MI: '10분', HH: '시간', DD: '일
 
 const COLUMN_FORMAT_TO_FORMATTER: Record<ColumnFormatValue, string> = {
   Number: 'NUMBER',
-  Decimal: 'NUMBER',
+  Decimal: 'DECIMAL',
   Rate: 'PERCENT',
   String: 'NONE',
   Date: 'DATETIME',
@@ -27,6 +27,8 @@ function formatterTypeToColumnFormat(type: string | null): ColumnFormatValue {
   switch (type) {
     case 'NUMBER':
       return 'Number';
+    case 'DECIMAL':
+      return 'Decimal';
     case 'PERCENT':
       return 'Rate';
     case 'DATETIME':
@@ -71,7 +73,7 @@ function toCalcFieldDrafts(fields: FieldMetaItem[]): LocalCalcFieldDraft[] {
         displayName: f.displayName,
         rowExpression: parsed.rowExpression ?? '',
         aggExpression: parsed.aggExpression ?? undefined,
-        columnFormat: (f.formatterType as ColumnFormatValue) ?? 'Number',
+        columnFormat: f.formatterType ? formatterTypeToColumnFormat(f.formatterType) : 'Number',
         kpiDirection: (parsed.kpiDirection as LocalCalcFieldDraft['kpiDirection']) ?? 'NEUTRAL',
       };
     });
@@ -105,7 +107,7 @@ function buildFieldRequests(displays: LocalFieldDisplay[], calcs: LocalCalcField
       displayName: c.displayName,
       fieldType: 'NUMBER',
       fieldRole: 'CALC',
-      formatterType: COLUMN_FORMAT_TO_FORMATTER[c.columnFormat] ?? 'NUMBER',
+      formatterType: COLUMN_FORMAT_TO_FORMATTER[display?.columnFormat ?? c.columnFormat] ?? 'NUMBER',
       formatterOptions: JSON.stringify({ rowExpression: c.rowExpression, aggExpression: c.aggExpression ?? null, kpiDirection: c.kpiDirection }),
       isVisible: true,
       sortOrder: display?.sortOrder ?? regular.length + i,
