@@ -154,17 +154,24 @@ const PanelAppBadgeStrip = () => {
       className="shrink-0 h-full bg-[#f8f9fb] border-r border-[#ced4da] shadow-[1px_0_4px_-2px_rgba(0,0,0,0.06)] flex flex-col items-center py-4 relative z-10"
     >
       {/* 즐겨찾기 — 스크롤 영역과 분리해 상단 고정 */}
-      <div className="shrink-0 pb-2 flex flex-col items-center gap-1 w-full px-0.5">
+      <div className="group shrink-0 pb-2 flex flex-col items-center gap-1 w-full px-0.5">
         <button
           type="button"
           onClick={handleFavoriteClick}
           aria-label="즐겨찾기"
-          className="relative flex items-center justify-center size-9 shrink-0 rounded-lg text-white cursor-pointer shadow-sm hover:shadow-md transition-shadow"
+          className="relative flex items-center justify-center size-9 shrink-0 rounded-lg text-white cursor-pointer shadow-sm group-hover:shadow-md group-hover:-translate-y-0.5 transition-all"
           style={{ backgroundColor: '#F59E0B' }}
         >
           <IconStar className="size-6" />
         </button>
-        <span className="w-full text-center text-[10px] leading-[1.3] text-[#868e96]">즐겨찾기</span>
+        <button
+          type="button"
+          onClick={handleFavoriteClick}
+          aria-label="즐겨찾기"
+          className="w-full text-center text-[10px] leading-[1.3] text-[#868e96] cursor-pointer transition-colors group-hover:text-[var(--color-bt-primary)]"
+        >
+          즐겨찾기
+        </button>
       </div>
 
       {/* 즐겨찾기와 스크롤 영역 사이 구분선 — 스크롤 영역 안에 두면 함께 스크롤되므로 형제로 분리 */}
