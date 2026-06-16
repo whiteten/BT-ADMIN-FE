@@ -430,7 +430,7 @@ export default function DidTransList() {
               rowSelection={rowSelection}
               loading={isLoading}
               getRowId={(params) => String(params.data.transId)}
-              defaultColDef={{ sortable: true, filter: true, suppressHeaderMenuButton: true }}
+              defaultColDef={{ sortable: true, filter: true, suppressHeaderMenuButton: true, wrapHeaderText: true, autoHeaderHeight: true }}
               onRowDoubleClicked={(e) => {
                 if (e.data) handleEdit(e.data);
               }}

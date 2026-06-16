@@ -26,7 +26,10 @@ interface DnProfileTableProps {
 export default function DnProfileTable({ rowData, isLoading, onRowDoubleClicked, onSelectionChanged, onAssignDns }: DnProfileTableProps) {
   const { gridOptions } = useAggridOptions();
 
-  const defaultColDef: ColDef = useMemo(() => ({ sortable: true, filter: true, resizable: true, suppressHeaderMenuButton: true }), []);
+  const defaultColDef: ColDef = useMemo(
+    () => ({ sortable: true, filter: true, resizable: true, suppressHeaderMenuButton: true, wrapHeaderText: true, autoHeaderHeight: true }),
+    [],
+  );
 
   const rowSelection = useMemo<RowSelectionOptions>(
     () => ({

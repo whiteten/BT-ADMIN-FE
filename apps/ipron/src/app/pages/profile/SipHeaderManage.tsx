@@ -436,7 +436,7 @@ export default function SipHeaderManage() {
                 }}
                 loading={isRelaysLoading}
                 getRowId={(params) => String(params.data.sipHeaderId)}
-                defaultColDef={{ filter: true, sortable: true, suppressHeaderMenuButton: true }}
+                defaultColDef={{ filter: true, sortable: true, suppressHeaderMenuButton: true, wrapHeaderText: true, autoHeaderHeight: true }}
                 onRowDoubleClicked={(e) => {
                   if (!e.data) return;
                   if (e.data.headerType === 1) {

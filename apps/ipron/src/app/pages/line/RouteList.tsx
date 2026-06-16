@@ -534,7 +534,7 @@ export default function RouteList() {
                   rowSelection={{ mode: 'multiRow', checkboxes: true, headerCheckbox: true, enableClickSelection: true, enableSelectionWithoutKeys: true }}
                   loading={isPointsLoading}
                   getRowId={(params) => String(params.data.endptId)}
-                  defaultColDef={{ sortable: true, filter: true, suppressHeaderMenuButton: true }}
+                  defaultColDef={{ sortable: true, filter: true, suppressHeaderMenuButton: true, wrapHeaderText: true, autoHeaderHeight: true }}
                   onSelectionChanged={(e) => setSelectedRoutePoints(e.api.getSelectedRows())}
                   onRowDoubleClicked={() => {
                     if (selectedRouteId) navigate(`/ipron/line/route/${selectedRouteId}`);

@@ -31,7 +31,10 @@ export default function AcdGdnMemberGrid({ rowData, isLoading, onSelectionChange
     [],
   );
 
-  const defaultColDef: ColDef = useMemo(() => ({ sortable: true, filter: true, resizable: true, suppressHeaderMenuButton: true }), []);
+  const defaultColDef: ColDef = useMemo(
+    () => ({ sortable: true, filter: true, resizable: true, suppressHeaderMenuButton: true, wrapHeaderText: true, autoHeaderHeight: true }),
+    [],
+  );
 
   const columnDefs: ColDef<GdnMemberResponse>[] = useMemo(
     () => [

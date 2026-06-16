@@ -459,7 +459,7 @@ export default function DnSnrTab({ dnId }: DnSnrTabProps) {
             statusBar={undefined}
             rowData={todList}
             columnDefs={todColumns}
-            defaultColDef={{ sortable: true, filter: true, resizable: true, suppressHeaderMenuButton: true }}
+            defaultColDef={{ sortable: true, filter: true, resizable: true, suppressHeaderMenuButton: true, wrapHeaderText: true, autoHeaderHeight: true }}
             onRowDoubleClicked={(e) => e.data && handleOpenTod(e.data)}
           />
         </div>

@@ -884,7 +884,7 @@ export default function EndpointList() {
                       rowSelection={memberRowSelection}
                       loading={isMembersLoading}
                       getRowId={(params) => String(params.data.endptMemId)}
-                      defaultColDef={{ sortable: true, filter: true, suppressHeaderMenuButton: true }}
+                      defaultColDef={{ sortable: true, filter: true, suppressHeaderMenuButton: true, wrapHeaderText: true, autoHeaderHeight: true }}
                       onRowDoubleClicked={(e) => {
                         if (e.data) memberDrawerRef.current?.open(e.data);
                       }}
@@ -905,7 +905,7 @@ export default function EndpointList() {
                       rowSelection={regnumRowSelection}
                       loading={isRegnumsLoading}
                       getRowId={(params) => String(params.data.endptRegnumId)}
-                      defaultColDef={{ sortable: true, filter: true, suppressHeaderMenuButton: true }}
+                      defaultColDef={{ sortable: true, filter: true, suppressHeaderMenuButton: true, wrapHeaderText: true, autoHeaderHeight: true }}
                       onRowDoubleClicked={(e) => {
                         if (e.data) regnumDrawerRef.current?.open(e.data);
                       }}

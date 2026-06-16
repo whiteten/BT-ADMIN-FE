@@ -712,7 +712,7 @@ export default function DodTransList() {
                 rowSelection={itemRowSelection}
                 loading={isItemsLoading}
                 getRowId={(params) => `${params.data.dodTransId}-${params.data.listSeq}`}
-                defaultColDef={{ sortable: true, filter: true, suppressHeaderMenuButton: true }}
+                defaultColDef={{ sortable: true, filter: true, suppressHeaderMenuButton: true, wrapHeaderText: true, autoHeaderHeight: true }}
                 onRowDoubleClicked={(e) => {
                   if (e.data) handleEditItem(e.data);
                 }}

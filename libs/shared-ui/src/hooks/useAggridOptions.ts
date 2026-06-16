@@ -26,6 +26,8 @@ export default function useAggridOptions() {
     [],
   );
   // 2026-06-12 사용자 확정: 컬럼 필터 전면 활성
+  // 2026-06-16: 헤더 폭 잘림 차단 — wrapHeaderText+autoHeaderHeight 전역 적용.
+  //   좁은 컬럼에서 헤더 텍스트가 '우선순...' 처럼 말줄임되던 문제를 줄바꿈+행높이 자동확장으로 해소.
   const defaultColDef = useMemo(
     () => ({
       flex: 1,
@@ -38,6 +40,8 @@ export default function useAggridOptions() {
       filter: true,
       editable: false,
       suppressHeaderMenuButton: true,
+      wrapHeaderText: true,
+      autoHeaderHeight: true,
     }),
     [],
   );
