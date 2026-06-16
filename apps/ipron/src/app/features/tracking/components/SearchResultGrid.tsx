@@ -275,7 +275,6 @@ export default function SearchResultGrid({ rows, loading = false, mode = 'PBX', 
         field: 'oName',
         width: 160,
         hide: !isIvr,
-        tooltipField: 'oName',
       },
       // IVR 전용 — 종료 타입 (CDR_STATUS — IR_CDR_STATUS 공통코드)
       {
@@ -533,8 +532,8 @@ export default function SearchResultGrid({ rows, loading = false, mode = 'PBX', 
       },
       // ── 발신 회선 (기본 숨김) ──
       { headerName: '발신 논리DN', field: 'oLrdn', width: 120, hide: true, cellClass: 'font-mono text-[11px]' },
-      { headerName: '발신 중계번호', field: 'oRn', width: 120, hide: true, cellClass: 'font-mono text-[11px]' },
-      { headerName: '발신 국번', field: 'oAc', width: 80, hide: true },
+      { headerName: '발신 RN', field: 'oRn', width: 120, hide: true, cellClass: 'font-mono text-[11px]' },
+      { headerName: '발신 AC', field: 'oAc', width: 80, hide: true },
       {
         headerName: '발신 회선유형',
         field: 'oType',
@@ -545,8 +544,8 @@ export default function SearchResultGrid({ rows, loading = false, mode = 'PBX', 
       { headerName: '발신측 이름', field: 'oName', width: 120, hide: true },
       // ── 착신 회선 (기본 숨김) ──
       { headerName: '착신 논리DN', field: 'tLrdn', width: 120, hide: true, cellClass: 'font-mono text-[11px]' },
-      { headerName: '착신 중계번호', field: 'tRn', width: 120, hide: true, cellClass: 'font-mono text-[11px]' },
-      { headerName: '착신 국번', field: 'tAc', width: 80, hide: true },
+      { headerName: '착신 RN', field: 'tRn', width: 120, hide: true, cellClass: 'font-mono text-[11px]' },
+      { headerName: '착신 AC', field: 'tAc', width: 80, hide: true },
       {
         headerName: '착신 회선유형',
         field: 'tType',
@@ -614,7 +613,7 @@ export default function SearchResultGrid({ rows, loading = false, mode = 'PBX', 
         pagination
         paginationPageSize={DEFAULT_PAGE_SIZE}
         paginationPageSizeSelector={[20, 50, 100, 200, 500]}
-        defaultColDef={{ filter: true, sortable: true, resizable: true, floatingFilter: false, suppressHeaderMenuButton: true, wrapHeaderText: true, autoHeaderHeight: true }}
+        defaultColDef={{ filter: true, sortable: true, resizable: true, floatingFilter: false, suppressHeaderMenuButton: true }}
         getRowId={(p) => p.data.ucid}
         onRowDoubleClicked={(e: RowDoubleClickedEvent<CallSearchResult>) => {
           if (e.data && onRowDoubleClick) onRowDoubleClick(e.data);
