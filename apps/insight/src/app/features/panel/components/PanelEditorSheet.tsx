@@ -773,7 +773,7 @@ export default function PanelEditorSheet({ reportId, panelType, panelId, dataset
         <div className="space-y-1" onClick={(e) => e.stopPropagation()}>
           {slotFields.map((f) => (
             <div key={f.fieldName} className="flex items-center gap-1.5 rounded border border-[var(--color-bt-border)] bg-white px-2 py-1 text-xs">
-              <span className="min-w-0 flex-1 truncate font-mono font-semibold" title={f.fieldName}>
+              <span className="min-w-[2.5rem] flex-1 truncate font-mono font-semibold" title={f.fieldName}>
                 {fieldDisplayMap.get(f.fieldName) ?? f.fieldName}
               </span>
               {slotType === 'VALUE' && (
@@ -783,7 +783,7 @@ export default function PanelEditorSheet({ reportId, panelType, panelId, dataset
                     value={f.aggFunc ?? ''}
                     onChange={(v) => updateInSlot(f.fieldName, 'aggFunc', (v || null) as AggFunc, entry.setter)}
                     options={AGG_OPTIONS}
-                    className="ml-auto w-20"
+                    className="ml-auto w-16"
                     popupMatchSelectWidth={false}
                   />
                   <Select
@@ -791,8 +791,16 @@ export default function PanelEditorSheet({ reportId, panelType, panelId, dataset
                     value={f.columnFormat ?? 'Number'}
                     onChange={(v) => updateInSlot(f.fieldName, 'columnFormat', v as ColumnFormat, entry.setter)}
                     options={FORMAT_OPTIONS}
-                    className="w-24"
+                    className="w-20"
                     popupMatchSelectWidth={false}
+                  />
+                  <Input
+                    size="small"
+                    value={f.headerGroup ?? ''}
+                    onChange={(e) => updateInSlot(f.fieldName, 'headerGroup', e.target.value || undefined, entry.setter)}
+                    placeholder="헤더병합"
+                    title="같은 이름끼리 그리드 상단 헤더로 병합 (빈칸=병합 안함)"
+                    className="w-24"
                   />
                 </>
               )}

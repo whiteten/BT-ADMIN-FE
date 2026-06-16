@@ -1,5 +1,5 @@
 import { useCallback, useMemo } from 'react';
-import type { ColDef, RowClassParams, RowDataUpdatedEvent, ValueFormatterParams } from 'ag-grid-community';
+import type { ColDef, ColGroupDef, RowClassParams, RowDataUpdatedEvent, ValueFormatterParams } from 'ag-grid-community';
 import { AgGridReact } from 'ag-grid-react';
 import { evaluateRowExpression, extractFieldRefs } from '../../../../utils/rowExpression';
 import { formatTimeKey } from '../../../../utils/timeKeyFormat';
@@ -85,7 +85,7 @@ export default function PanelGrid({ panel, reportId }: PanelGridProps) {
     queryOptions: { enabled: !isDraft && hasMapping && queryTrigger > 0 },
   });
 
-  const columnDefs: ColDef[] = useMemo(() => {
+  const columnDefs: (ColDef | ColGroupDef)[] = useMemo(() => {
     const dimCols: ColDef[] = rowFields.map((f) => {
       const isTimeKey = f.fieldName === 'PSR_TIME_KEY';
       // 시간축 키(yyyyMMdd...)는 단위별 구분자 포맷으로 표시 (합계 행 등 비숫자는 원본 유지)
@@ -100,16 +100,34 @@ export default function PanelGrid({ panel, reportId }: PanelGridProps) {
         tooltipValueGetter: (params) => fmt(params.value),
       };
     });
-    const msrCols: ColDef[] = valueFields.map((f) => ({
-      field: f.fieldName,
-      headerName: displayNameMap.get(f.fieldName) ?? f.fieldName,
-      sortable: true,
-      type: 'numericColumn',
-      minWidth: 100,
-      maxWidth: AUTO_SIZE_MAX_WIDTH,
-      valueFormatter: (params: ValueFormatterParams) => formatValue(params.value, f.columnFormat),
-      tooltipValueGetter: (params) => formatValue(params.value, f.columnFormat),
-    }));
+    // 값컬럼은 headerGroup 으로 부모헤더 병합(AS-IS makeParentChildColumn).
+    // ag-Grid 그룹은 인접 컬럼만 묶으므로 첫 등장 순서로 모은다. 빈값=평면 컬럼.
+    const msrCols: (ColDef | ColGroupDef)[] = [];
+    const groupChildren = new Map<string, ColDef[]>();
+    valueFields.forEach((f) => {
+      const col: ColDef = {
+        field: f.fieldName,
+        headerName: displayNameMap.get(f.fieldName) ?? f.fieldName,
+        sortable: true,
+        type: 'numericColumn',
+        minWidth: 100,
+        maxWidth: AUTO_SIZE_MAX_WIDTH,
+        valueFormatter: (params: ValueFormatterParams) => formatValue(params.value, f.columnFormat),
+        tooltipValueGetter: (params) => formatValue(params.value, f.columnFormat),
+      };
+      const group = f.headerGroup?.trim();
+      if (!group) {
+        msrCols.push(col);
+        return;
+      }
+      let children = groupChildren.get(group);
+      if (!children) {
+        children = [];
+        groupChildren.set(group, children);
+        msrCols.push({ headerName: group, children } as ColGroupDef);
+      }
+      children.push(col);
+    });
     return [...dimCols, ...msrCols];
   }, [rowFields, valueFields, displayNameMap]);
 
