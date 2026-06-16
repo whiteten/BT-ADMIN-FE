@@ -9,6 +9,7 @@ const CampaignAchievementStatistics = React.lazy(() => import('./pages/statistic
 const CampaignList = React.lazy(() => import('./pages/management/CampaignList'));
 const CampaignCreate = React.lazy(() => import('./pages/management/CampaignCreate'));
 const CampaignDetail = React.lazy(() => import('./pages/management/CampaignDetail'));
+const ScheduleList = React.lazy(() => import('./pages/schedule/ScheduleList'));
 
 export const routes = [
   {
@@ -42,6 +43,14 @@ export const routes = [
           { path: 'basic-info', element: <CampaignList /> },
           { path: 'create', element: <CampaignCreate /> },
           { path: ':campaignId', element: <CampaignDetail /> },
+        ],
+      },
+      {
+        path: 'schedule',
+        element: <Outlet />,
+        children: [
+          { index: true, element: <Navigate to="schedule-list" replace /> },
+          { path: 'schedule-list', element: <ScheduleList /> },
         ],
       },
     ],
