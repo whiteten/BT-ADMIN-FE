@@ -17,7 +17,7 @@
  *  - [저장] 버튼 → dirty 행 일괄 PUT (무변경이면 토스트)
  */
 import { type ChangeEvent, createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
-import type { CellStyle, ColDef, GridOptions, ICellRendererParams } from 'ag-grid-community';
+import type { CellStyle, ColDef, GridOptions, ICellRendererParams, SelectionChangedEvent } from 'ag-grid-community';
 import { AgGridReact } from 'ag-grid-react';
 import { Button, Input, InputNumber, Select } from 'antd';
 import { Building2, ChevronLeft, ChevronRight, ChevronsDown, ChevronsUp, Plus, Save, Search, Trash2, X } from 'lucide-react';
@@ -747,15 +747,34 @@ export default function BsrGroupManage() {
   }, []);
 
   // ─── Handlers ──────────────────────────────────────────────────────────────
-  const handleGroupSelect = useCallback((row: BsrGroupResponse) => {
+  // 우측 상세 패널이 따라갈 "활성 행" 전환 (그룹 변경 시 탭/편집 상태 리셋, PLAN §3-2)
+  const activateGroup = useCallback((row: BsrGroupResponse) => {
     setSelectedGroup(row);
     setSelectedCtiqIds([]);
     setSelectedScheduleIds([]);
     setCtiqDirtyMap(new Map());
     setSelectedTreeId(null);
     setActiveTab('ctiq');
-    setTabMode('manage'); // 그룹 변경 시 manage 로 리셋 (PLAN §3-2)
+    setTabMode('manage');
   }, []);
+
+  // 체크박스 멀티셀렉트(일괄삭제용 selectedGroupIds)와 단일 활성행(우패널) 을 onSelectionChanged 하나로 통합.
+  // - selectedGroupIds: 체크된 전체 행 (삭제 대상)
+  // - selectedGroup: 사용자가 방금 포커스한 행 → 우패널을 그 그룹으로 전환 (열림 상태 유지, hybrid onRowClicked 제거)
+  const handleGroupSelectionChanged = useCallback(
+    (e: SelectionChangedEvent<BsrGroupResponse>) => {
+      setSelectedGroupIds(e.api.getSelectedRows().map((r) => r.bsrGroupId));
+
+      const focused = e.api.getFocusedCell();
+      if (focused) {
+        const focusedRow = e.api.getDisplayedRowAtIndex(focused.rowIndex)?.data;
+        if (focusedRow && focusedRow.bsrGroupId !== selectedGroup?.bsrGroupId) {
+          activateGroup(focusedRow);
+        }
+      }
+    },
+    [activateGroup, selectedGroup],
+  );
 
   const handleGroupDblClick = useCallback((row: BsrGroupResponse) => {
     setGroupDrawerMode('edit');
@@ -1114,10 +1133,10 @@ export default function BsrGroupManage() {
               rowData={filteredGroups}
               columnDefs={groupColDefs}
               loading={isGroupsLoading}
+              getRowId={(p) => String(p.data.bsrGroupId)}
               rowSelection={{ mode: 'multiRow', checkboxes: true, headerCheckbox: true, enableClickSelection: true, enableSelectionWithoutKeys: true }}
-              onRowClicked={(e) => e.data && handleGroupSelect(e.data)}
               onRowDoubleClicked={(e) => e.data && handleGroupDblClick(e.data)}
-              onSelectionChanged={(e) => setSelectedGroupIds(e.api.getSelectedRows().map((r) => r.bsrGroupId))}
+              onSelectionChanged={handleGroupSelectionChanged}
             />
           </div>
         </div>
