@@ -1,34 +1,24 @@
 /**
  * 교환기 번호자원 현황 — 페이지 셸 (menuKey ipron-dn-status, route /ipron/dn-status).
  *
- * 목업 A(dn-resource-status.html) "서버 카드 구성도 + 우측 사이드바" 1:1 본개발.
- * 시각화 = @xyflow/react(손-SVG 교체), 데이터 = BE 집계 7엔드포인트 + TanStack Query.
- * 레이아웃: 상단 HUD + 본문(react-flow 캔버스 + 우측 슬라이드 사이드바). IPRON 셸 하위 h-full fill.
+ * IPRON 표준 2단 + 드릴다운 재설계(2026-06-16 검수 반영):
+ *  [1층] 전역 KPI 배너 (노드 무관 집계) — 로딩 중에도 항상 노출.
+ *  [2층] 노드별 카드 가로 슬라이더 (클러스터 그룹 박스). 카드 단일 클릭 → 하단 상세 패널.
+ *  [3층] 하단 전폭 인라인 상세 패널 (탭 4종) — 우측 540px 사이드바 폐기. DN 목록 그리드가 화면 전폭 사용.
+ *
+ * 진입 즉시 첫 노드 자동 선택(빈 보이드 최소화). 데이터 = BE 집계 7엔드포인트 + TanStack Query(계약 그대로).
  */
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { ReactFlowProvider } from '@xyflow/react';
-import { Empty } from 'antd';
 import { useBreadcrumbStore } from '@/shared-store';
-import DnStatusHud from '../../features/dn-status/components/DnStatusHud';
-import DnStatusSidebar from '../../features/dn-status/components/DnStatusSidebar';
-import DnTopologyCanvas from '../../features/dn-status/components/DnTopologyCanvas';
+import DnNodeCardSlider from '../../features/dn-status/components/DnNodeCardSlider';
+import DnStatusDetailPanel from '../../features/dn-status/components/DnStatusDetailPanel';
+import DnStatusKpiBanner from '../../features/dn-status/components/DnStatusKpiBanner';
 import { useDnStatusDrLinks, useDnStatusGdnStats, useDnStatusNodes } from '../../features/dn-status/hooks/useDnStatusQueries';
-import type { DnTypeKey, SidebarTab } from '../../features/dn-status/types';
-import { buildEdges, buildNodes } from '../../features/dn-status/utils/buildGraph';
+import type { SidebarTab } from '../../features/dn-status/types';
+import { bucketByCluster, buildKpi, buildNodeCard } from '../../features/dn-status/utils/buildModels';
 import { FallbackSpinner } from '@/components/custom/FallbackSpinner';
 
-const breadcrumb = [
-  { title: '교환기 번호관리', path: '/ipron/dn-status' },
-  { title: '번호자원현황', path: '/ipron/dn-status' },
-];
-
-/** 사이드바 콜백이 받는 tab/타입 인자 → (탭, dnListType) 분해 */
-function resolveTarget(target: string): { tab: SidebarTab; dnListType?: DnTypeKey } {
-  if (target === 'overview') return { tab: 'overview' };
-  if (target === 'gflag') return { tab: 'dnlist', dnListType: 'gflag' };
-  // 자원행 타입키(edn/tdn/gdn-acd/gdn-ctiq/gdn-sip) → DN 목록 탭
-  return { tab: 'dnlist', dnListType: target as DnTypeKey };
-}
+const breadcrumb = [{ title: '번호자원관리' }, { title: '교환기 번호관리' }, { title: '번호자원현황', path: '/ipron/dn-status' }];
 
 export default function DnResourceStatus() {
   const setBreadcrumb = useBreadcrumbStore((s) => s.setBreadcrumb);
@@ -40,11 +30,8 @@ export default function DnResourceStatus() {
 
   // ── 상태 ──────────────────────────────────────────────────────────────
   const [autoRefresh, setAutoRefresh] = useState(false);
-  const [globalEmphasis, setGlobalEmphasis] = useState(false);
-  const [sidebarOpen, setSidebarOpen] = useState(false);
   const [selectedNodeId, setSelectedNodeId] = useState<number | null>(null);
-  const [sidebarTab, setSidebarTab] = useState<SidebarTab>('overview');
-  const [dnListType, setDnListType] = useState<DnTypeKey>('edn');
+  const [detailTab, setDetailTab] = useState<SidebarTab>('overview');
   const [drLink, setDrLink] = useState<{ fromNodeId: number; toNodeId: number } | null>(null);
 
   // ── 쿼리 ──────────────────────────────────────────────────────────────
@@ -59,44 +46,29 @@ export default function DnResourceStatus() {
 
   const selectedNode = useMemo(() => nodes.find((n) => n.nodeId === selectedNodeId) ?? null, [nodes, selectedNodeId]);
 
+  // ── 모델 합성 (1층 KPI / 2층 카드 / 클러스터 버킷) ──────────────────────
+  const kpi = useMemo(() => buildKpi({ nodes, gdnStats, common: overview?.common }), [nodes, gdnStats, overview]);
+  const cards = useMemo(() => nodes.map((n) => buildNodeCard(n, gdnStats, drLinks)), [nodes, gdnStats, drLinks]);
+  const buckets = useMemo(() => bucketByCluster(cards), [cards]);
+
+  // ── 첫 노드 자동 선택 (진입 직후 빈 보이드 최소화) ─────────────────────
+  useEffect(() => {
+    if (selectedNodeId == null && nodes.length > 0) setSelectedNodeId(nodes[0].nodeId);
+  }, [nodes, selectedNodeId]);
+
   // ── 인터랙션 ───────────────────────────────────────────────────────────
-  const openSidebar = useCallback((nodeId: number, target: string) => {
-    const { tab, dnListType: dlt } = resolveTarget(target);
+  // 카드 단일 클릭 → 개요 탭으로 상세 패널 전환(재선택은 노드 컨텍스트만 교체, 탭/링크 초기화).
+  const handleSelectNode = useCallback((nodeId: number, el: HTMLElement) => {
     setSelectedNodeId(nodeId);
-    setSidebarTab(tab);
-    if (dlt) setDnListType(dlt);
+    setDetailTab('overview');
     setDrLink(null);
-    setSidebarOpen(true);
+    el.scrollIntoView({ behavior: 'smooth', inline: 'center', block: 'nearest' });
   }, []);
 
-  const openDrFromEdge = useCallback((fromNodeId: number, toNodeId: number) => {
-    // 엣지 클릭 → DR 탭 + 링크 상세. 기준 노드 = from (송출측)
-    setSelectedNodeId(fromNodeId);
-    setSidebarTab('dr');
-    setDrLink({ fromNodeId, toNodeId });
-    setSidebarOpen(true);
-  }, []);
-
-  const closeSidebar = useCallback(() => {
-    setSidebarOpen(false);
+  const closeDetail = useCallback(() => {
     setSelectedNodeId(null);
     setDrLink(null);
   }, []);
-
-  // ── react-flow 노드/엣지 ────────────────────────────────────────────────
-  const rfNodes = useMemo(
-    () =>
-      buildNodes({
-        nodes,
-        drLinks,
-        gdnStats,
-        globalEmphasis,
-        selectedNodeId,
-        onOpenSidebar: openSidebar,
-      }),
-    [nodes, drLinks, gdnStats, globalEmphasis, selectedNodeId, openSidebar],
-  );
-  const rfEdges = useMemo(() => buildEdges(drLinks), [drLinks]);
 
   const handleRefresh = useCallback(() => {
     nodesQuery.refetch();
@@ -109,49 +81,41 @@ export default function DnResourceStatus() {
   const isEmpty = !isLoading && nodes.length === 0;
 
   return (
-    <div className="flex h-full w-full flex-col">
-      <DnStatusHud
-        common={overview?.common}
-        globalEmphasis={globalEmphasis}
-        onToggleGlobalEmphasis={() => setGlobalEmphasis((v) => !v)}
+    <div className="flex h-full w-full flex-col gap-4">
+      {/* 1층 — 전역 KPI 배너 (로딩 중에도 항상 노출) */}
+      <DnStatusKpiBanner
+        kpi={kpi}
         autoRefresh={autoRefresh}
         onToggleAutoRefresh={() => setAutoRefresh((v) => !v)}
         onRefresh={handleRefresh}
         lastUpdated={nodesQuery.dataUpdatedAt}
       />
 
-      {/* 본문 = 캔버스 + 사이드바 (relative — 사이드바 absolute 기준) */}
-      <div className="relative min-h-0 flex-1 overflow-hidden">
-        {isLoading ? (
+      {/* 2층 — 노드 카드 슬라이더 (스피너는 이 영역에만) */}
+      {isLoading ? (
+        <div className="bg-white bt-shadow flex min-h-[180px] flex-shrink-0 items-center justify-center">
           <FallbackSpinner />
-        ) : isError ? (
-          <div className="flex h-full items-center justify-center">
-            <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description="번호자원 현황을 불러오지 못했습니다." />
-          </div>
-        ) : isEmpty ? (
-          <div className="flex h-full items-center justify-center">
-            <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description="표시할 PBX 노드가 없습니다." />
-          </div>
-        ) : (
-          <ReactFlowProvider>
-            <DnTopologyCanvas nodes={rfNodes} edges={rfEdges} onEdgeOpen={openDrFromEdge} onPaneClick={closeSidebar} />
-          </ReactFlowProvider>
-        )}
+        </div>
+      ) : isError ? (
+        <div className="bg-white bt-shadow flex min-h-[180px] flex-shrink-0 items-center justify-center text-sm text-gray-400">번호자원 현황을 불러오지 못했습니다.</div>
+      ) : (
+        <DnNodeCardSlider buckets={buckets} selectedNodeId={selectedNodeId} onSelectNode={handleSelectNode} isEmpty={isEmpty} />
+      )}
 
-        <DnStatusSidebar
-          open={sidebarOpen}
+      {/* 3층 — 하단 전폭 인라인 상세 패널 */}
+      {!isLoading && !isError && (
+        <DnStatusDetailPanel
           node={selectedNode}
-          tab={sidebarTab}
-          dnListType={dnListType}
+          tab={detailTab}
           drLink={drLink}
           drLinks={drLinks}
           gdnStats={gdnStats}
-          onClose={closeSidebar}
-          onTabChange={setSidebarTab}
+          onClose={closeDetail}
+          onTabChange={setDetailTab}
           onSelectDrLink={(from, to) => setDrLink({ fromNodeId: from, toNodeId: to })}
           onClearDrLink={() => setDrLink(null)}
         />
-      </div>
+      )}
     </div>
   );
 }

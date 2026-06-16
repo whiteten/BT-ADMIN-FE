@@ -27,8 +27,8 @@ function LinkChips({ link }: { link: DrLink }) {
   const chips: { label: string; cls: string }[] = [];
   if (link.ednCount > 0) chips.push({ label: `내선 ${link.ednCount}건`, cls: 'bg-blue-100 text-blue-800' });
   if (link.tdnCount > 0) chips.push({ label: `SIP트렁크 채널 ${link.tdnCount}건`, cls: 'bg-amber-100 text-amber-800' });
-  if (link.scaCount > 0) chips.push({ label: `SCA ${link.scaCount}건`, cls: 'bg-indigo-100 text-indigo-800' });
-  if (gdn > 0) chips.push({ label: `GDN ${gdn}건`, cls: 'bg-violet-100 text-violet-700' });
+  if (link.scaCount > 0) chips.push({ label: `SCA 파생번호 ${link.scaCount}건`, cls: 'bg-indigo-100 text-indigo-800' });
+  if (gdn > 0) chips.push({ label: `그룹DN ${gdn}건`, cls: 'bg-violet-100 text-violet-700' });
   if (chips.length === 0) return <span className="text-[11px] text-gray-400">없음</span>;
   return (
     <div className="flex flex-wrap gap-2">

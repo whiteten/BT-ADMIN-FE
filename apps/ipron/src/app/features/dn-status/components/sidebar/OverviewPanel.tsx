@@ -1,8 +1,9 @@
 /**
- * 사이드바 개요 탭 (목업 renderSidebarOverview).
+ * 상세 패널 개요 탭.
  *
- * DN 타입 구성 도넛(내선/SIP트렁크 채널 — ADN 제외) + 타입별 할당 스택바 + GDN 분류 건수(할당바 없음)
- * + GlobalDN 플래그 카드. 데이터 = 선택 노드의 nodes 집계 + 해당 노드 gdnRows.
+ * 등록 DN 구성 도넛(내선+SIP트렁크 채널+그룹DN 예약+기타 — 배너 '등록 DN'과 동일 정의, 합 일치)
+ * + 타입별 할당 스택바(내선/SIP트렁크 채널) + 그룹DN(GDN_MASTER) 분류 건수(할당바 없음, 등록 DN 과 별개)
+ * + GlobalDN(전역 점유) 카드. 데이터 = 선택 노드의 nodes 집계 + 해당 노드 gdnRows. ADN(12)은 노드 무관이라 제외.
  */
 import { type DnStatusNode, GDN_TYPE_TO_KEY, type GdnTypeStat, TYPE_COLORS } from '../../types';
 
@@ -46,7 +47,7 @@ function Donut({ slices, total }: { slices: { label: string; value: number; colo
         {total.toLocaleString()}
       </text>
       <text x={cx} y={cy + 9} textAnchor="middle" fontSize="8" fill="#9ca3af">
-        전체 DN
+        등록 DN
       </text>
     </svg>
   );
@@ -75,22 +76,28 @@ function AllocBar({ label, total, assigned, scaCount }: { label: string; total: 
 export default function OverviewPanel({ node, gdnStats }: OverviewPanelProps) {
   const edn = node.dnTypes.find((t) => t.typeKey === 'edn');
   const tdn = node.dnTypes.find((t) => t.typeKey === 'tdn');
+  const gdnReserved = node.dnTypes.find((t) => t.typeKey === 'gdnReserved');
   const ednTotal = edn?.total ?? 0;
   const tdnTotal = tdn?.total ?? 0;
-  const donutTotal = ednTotal + tdnTotal;
+  const gdnReservedTotal = gdnReserved?.total ?? 0;
+  // 노드 등록 DN = 이 노드 dnTypes total 합(배너 '등록 DN' 정의와 동일 — 합 일치)
+  const registeredTotal = node.dnTypes.reduce((sum, t) => sum + t.total, 0);
+  const otherTotal = Math.max(0, registeredTotal - ednTotal - tdnTotal - gdnReservedTotal);
   const slices = [
     { label: '내선', value: ednTotal, color: TYPE_COLORS.edn },
     { label: 'SIP트렁크 채널', value: tdnTotal, color: TYPE_COLORS.tdn },
-  ];
+    { label: '그룹DN 예약', value: gdnReservedTotal, color: TYPE_COLORS['gdn-acd'] },
+    { label: '기타', value: otherTotal, color: '#6b7280' },
+  ].filter((s) => s.value > 0);
   const gdnRows = gdnStats.filter((g) => g.nodeId === node.nodeId && GDN_TYPE_TO_KEY[g.gdnType]);
   const gflagUnassigned = Math.max(0, node.globalDnTotal - node.globalDnAssigned);
 
   return (
     <div className="flex flex-col">
-      {/* DN 타입 구성 — 도넛 */}
-      <div className="mb-2.5 text-[12px] font-semibold text-gray-700">DN 타입 구성</div>
+      {/* 등록 DN 구성 — 도넛 (배너 '등록 DN'과 동일 정의: 내선+SIP트렁크 채널+그룹DN 예약+기타) */}
+      <div className="mb-2.5 text-[12px] font-semibold text-gray-700">등록 DN 구성</div>
       <div className="mb-4 flex items-center gap-4">
-        <Donut slices={slices} total={donutTotal} />
+        <Donut slices={slices} total={registeredTotal} />
         <div className="flex flex-1 flex-col gap-1.5">
           {slices.map((s) => (
             <div key={s.label} className="flex items-center gap-1.5 text-[11px]">
@@ -100,9 +107,12 @@ export default function OverviewPanel({ node, gdnStats }: OverviewPanelProps) {
             </div>
           ))}
           {node.scaCount > 0 && (
-            <div className="mt-0.5 flex items-center gap-1.5 text-[10px] text-indigo-500">
+            <div
+              className="mt-0.5 flex items-center gap-1.5 text-[10px] text-indigo-500"
+              title="내선에 종속된 파생 번호(SCA). 별도 번호 공간을 쓰지 않아 등록 DN 합계에는 포함하지 않습니다."
+            >
               <span className="text-[9px]">└</span>
-              <span>SCA 파생</span>
+              <span>SCA 파생번호 (내선 종속)</span>
               <span className="ml-auto font-semibold">{node.scaCount.toLocaleString()}</span>
             </div>
           )}
@@ -116,11 +126,11 @@ export default function OverviewPanel({ node, gdnStats }: OverviewPanelProps) {
         {tdn && <AllocBar label="SIP트렁크 채널" total={tdn.total} assigned={tdn.assigned} />}
       </div>
 
-      {/* GDN 분류 현황 — 건수만 (할당바 없음) */}
-      <div className="mb-2 text-[12px] font-semibold text-gray-700">GDN 분류 현황</div>
+      {/* 그룹DN 분류 현황 — GDN_MASTER 건수만 (할당바 없음, 등록 DN 과 별개 자원) */}
+      <div className="mb-2 text-[12px] font-semibold text-gray-700">그룹DN 분류 현황 (등록 DN 과 별개)</div>
       <div className="mb-4 flex flex-col gap-1.5">
         {gdnRows.length === 0 ? (
-          <div className="text-[11px] text-gray-400">GDN 없음</div>
+          <div className="text-[11px] text-gray-400">그룹DN 없음</div>
         ) : (
           gdnRows.map((g) => (
             <div key={g.gdnType} className="flex items-center gap-2 text-[11px]">
@@ -129,17 +139,17 @@ export default function OverviewPanel({ node, gdnStats }: OverviewPanelProps) {
               <span className="ml-auto flex items-center gap-2 text-[10px] text-gray-500">
                 <span>GlobalDN {g.globalDnCount.toLocaleString()}</span>
                 <span className="text-gray-300">·</span>
-                <span>백업 {g.backupCount.toLocaleString()}</span>
+                <span>DR 백업 {g.backupCount.toLocaleString()}</span>
               </span>
             </div>
           ))
         )}
       </div>
 
-      {/* GlobalDN 플래그 */}
-      <div className="mb-2 text-[12px] font-semibold text-gray-700">GlobalDN 플래그</div>
+      {/* GlobalDN (전역 점유) */}
+      <div className="mb-2 text-[12px] font-semibold text-gray-700">GlobalDN (전역 번호 공간 점유)</div>
       <div className="rounded-lg border border-violet-200 bg-fuchsia-50 p-3">
-        <div className="mb-0.5 text-[11px] font-semibold text-violet-600">플래그 설정 DN</div>
+        <div className="mb-0.5 text-[11px] font-semibold text-violet-600">이 노드의 GlobalDN</div>
         <div className="text-[22px] font-bold text-gray-800">{node.globalDnTotal.toLocaleString()}</div>
         <div className="mt-1 text-[10px] text-gray-500">
           할당 <b className="text-gray-800">{node.globalDnAssigned.toLocaleString()}</b> · 미할당 <b className="text-gray-400">{gflagUnassigned.toLocaleString()}</b>

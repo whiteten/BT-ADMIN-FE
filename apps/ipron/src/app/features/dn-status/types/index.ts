@@ -140,6 +140,35 @@ export interface DnBandResponse {
   memo: string | null;
 }
 
+// ─── 2단 재설계 화면 모델 (1층 KPI / 2층 노드 카드) ──────────────────────
+
+/** 노드 1개 카드 표시 모델 (DnNodeCard) — nodes + gdnStats + drLinks 합성 */
+export interface DnNodeCardModel {
+  nodeId: number;
+  nodeName: string;
+  clusterGrpId: number | null;
+  clusterGrpName: string | null;
+  /** 등록 DN = 이 노드 dnTypes total 합(내선+SIP트렁크 채널+그룹DN 예약+기타) — 배너·상세 도넛과 동일 정의 */
+  totalDn: number;
+  edn: { total: number; assigned: number };
+  tdn: { total: number; assigned: number };
+  /** GDN 3종 건수 (할당 데이터 없음) */
+  gdnAcd: number;
+  gdnCtiq: number;
+  gdnSip: number;
+  /** GlobalDN 노드 합계 (DN_MASTER + GDN_MASTER) */
+  globalDnTotal: number;
+  /** 이 노드가 백업(수용)하는 DR 파트너 — 송출 노드 + 건수 */
+  drPartners: { nodeId: number; nodeName: string; count: number }[];
+}
+
+/** 1층 KPI 합산 입력 (buildKpi) */
+export interface DnStatusKpiSource {
+  nodes: DnStatusNode[];
+  gdnStats: GdnTypeStat[];
+  common: CommonResourceStat | undefined;
+}
+
 // ─── 화면 상수 (목업 값 계승 — 약어 금지 풀네임) ─────────────────────────
 
 /**
