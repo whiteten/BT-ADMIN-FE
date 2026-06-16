@@ -773,7 +773,7 @@ export default function PanelEditorSheet({ reportId, panelType, panelId, dataset
         <div className="space-y-1" onClick={(e) => e.stopPropagation()}>
           {slotFields.map((f) => (
             <div key={f.fieldName} className="flex items-center gap-1.5 rounded border border-[var(--color-bt-border)] bg-white px-2 py-1 text-xs">
-              <span className="min-w-[2.5rem] flex-1 truncate font-mono font-semibold" title={f.fieldName}>
+              <span className="min-w-[6ch] flex-1 truncate font-mono font-semibold" title={f.fieldName}>
                 {fieldDisplayMap.get(f.fieldName) ?? f.fieldName}
               </span>
               {slotType === 'VALUE' && (
@@ -783,7 +783,7 @@ export default function PanelEditorSheet({ reportId, panelType, panelId, dataset
                     value={f.aggFunc ?? ''}
                     onChange={(v) => updateInSlot(f.fieldName, 'aggFunc', (v || null) as AggFunc, entry.setter)}
                     options={AGG_OPTIONS}
-                    className="ml-auto w-16"
+                    className="w-16 shrink-0"
                     popupMatchSelectWidth={false}
                   />
                   <Select
@@ -791,16 +791,16 @@ export default function PanelEditorSheet({ reportId, panelType, panelId, dataset
                     value={f.columnFormat ?? 'Number'}
                     onChange={(v) => updateInSlot(f.fieldName, 'columnFormat', v as ColumnFormat, entry.setter)}
                     options={FORMAT_OPTIONS}
-                    className="w-20"
+                    className="w-20 shrink-0"
                     popupMatchSelectWidth={false}
                   />
                   <Input
                     size="small"
                     value={f.headerGroup ?? ''}
                     onChange={(e) => updateInSlot(f.fieldName, 'headerGroup', e.target.value || undefined, entry.setter)}
-                    placeholder="헤더병합"
+                    placeholder="헤더"
                     title="같은 이름끼리 그리드 상단 헤더로 병합 (빈칸=병합 안함)"
-                    className="w-24"
+                    className="min-w-[4rem] flex-1"
                   />
                 </>
               )}
@@ -832,7 +832,7 @@ export default function PanelEditorSheet({ reportId, panelType, panelId, dataset
               <button
                 type="button"
                 onClick={() => removeFromSlot(f.fieldName, entry.setter)}
-                className={`text-[var(--color-bt-fg-muted)] hover:text-[var(--color-bt-danger)] ${slotType === 'VALUE' || slotType === 'Y_AXIS' || slotType === 'KPI' || slotType === 'SORT' || slotType === 'ROW' ? '' : 'ml-auto'}`}
+                className={`shrink-0 text-[var(--color-bt-fg-muted)] hover:text-[var(--color-bt-danger)] ${slotType === 'VALUE' || slotType === 'Y_AXIS' || slotType === 'KPI' || slotType === 'SORT' || slotType === 'ROW' ? '' : 'ml-auto'}`}
               >
                 <X className="h-3 w-3" />
               </button>
@@ -1137,7 +1137,7 @@ export default function PanelEditorSheet({ reportId, panelType, panelId, dataset
         </Splitter.Panel>
 
         {/* 우: 슬롯 + 검색조건 + 옵션 */}
-        <Splitter.Panel defaultSize={400} min={320} max={600}>
+        <Splitter.Panel defaultSize={460} min={360} max={640}>
           <aside className="flex h-full flex-col bg-muted/20">
             <div className="shrink-0 border-b border-border bg-white px-4 py-2.5 text-sm font-semibold">패널 구성</div>
             <div className="flex-1 space-y-3 overflow-y-auto p-4">
