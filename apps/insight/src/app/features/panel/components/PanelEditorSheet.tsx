@@ -1,4 +1,4 @@
-import { type ReactNode, useMemo, useState } from 'react';
+import { type ReactNode, useEffect, useMemo, useState } from 'react';
 import { DndContext, type DragEndEvent, PointerSensor, closestCenter, useSensor, useSensors } from '@dnd-kit/core';
 import { restrictToVerticalAxis } from '@dnd-kit/modifiers';
 import { SortableContext, arrayMove, useSortable, verticalListSortingStrategy } from '@dnd-kit/sortable';
@@ -345,11 +345,13 @@ export default function PanelEditorSheet({ reportId, panelType, panelId, dataset
       ];
     }
     // 검색조건(FILTER) 바인딩은 그리드 전용 — 차트류 패널은 fieldMap에 포함하지 않음
-    if (topNEnabled && topNSortField) {
+    // 정렬기준 필드 미선택 시 첫 후보(보통 첫 Y 측정값)로 폴백 — "사용"만 체크하고 저장해도 유실되지 않게.
+    const topNField = topNSortField || chartSortCandidates[0]?.fieldName;
+    if (topNEnabled && topNField) {
       slotFields.push({
         slotType: 'LIMIT',
         slotOrder: 0,
-        fieldName: topNSortField,
+        fieldName: topNField,
         isCalcField: false,
         topN: topNValue,
         sortDirection: topNSortDir,
@@ -943,6 +945,12 @@ export default function PanelEditorSheet({ reportId, panelType, panelId, dataset
 
   // ─── Top N sort candidates ────────────────────────────────────────────────
   const chartSortCandidates = [...(chartType === 'PIE' ? pieValueFields : yAxisFields), ...(chartType === 'PIE' ? sliceFields : xAxisFields)];
+  // "사용" 체크 시 정렬기준 필드가 비어 있으면 첫 후보로 자동 선택 → 드롭다운 공란/유실 방지.
+  useEffect(() => {
+    if (topNEnabled && !topNSortField && chartSortCandidates.length > 0) {
+      setTopNSortField(chartSortCandidates[0].fieldName);
+    }
+  }, [topNEnabled, topNSortField, chartSortCandidates]);
 
   // ─── SQL 미리보기 (저장된 패널 기준 — 레거시 쿼리 미리보기) ─────────────────
   const { committedFilter } = useReportViewStore();
