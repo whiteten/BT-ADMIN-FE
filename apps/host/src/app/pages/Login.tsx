@@ -28,6 +28,8 @@ export default function Login() {
 
   useEffect(() => {
     const handleCapsLock = (e: KeyboardEvent) => {
+      // 브라우저 확장·자동입력 등이 dispatch한 비표준 이벤트는 getModifierState가 없을 수 있음
+      if (typeof e.getModifierState !== 'function') return;
       setCapsLockOn(e.getModifierState('CapsLock'));
     };
     window.addEventListener('keydown', handleCapsLock);

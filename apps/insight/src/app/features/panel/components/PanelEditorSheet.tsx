@@ -1,4 +1,4 @@
-import { type ReactNode, useMemo, useState } from 'react';
+import { type ReactNode, useEffect, useMemo, useState } from 'react';
 import { DndContext, type DragEndEvent, PointerSensor, closestCenter, useSensor, useSensors } from '@dnd-kit/core';
 import { restrictToVerticalAxis } from '@dnd-kit/modifiers';
 import { SortableContext, arrayMove, useSortable, verticalListSortingStrategy } from '@dnd-kit/sortable';
@@ -345,11 +345,13 @@ export default function PanelEditorSheet({ reportId, panelType, panelId, dataset
       ];
     }
     // 검색조건(FILTER) 바인딩은 그리드 전용 — 차트류 패널은 fieldMap에 포함하지 않음
-    if (topNEnabled && topNSortField) {
+    // 정렬기준 필드 미선택 시 첫 후보(보통 첫 Y 측정값)로 폴백 — "사용"만 체크하고 저장해도 유실되지 않게.
+    const topNField = topNSortField || chartSortCandidates[0]?.fieldName;
+    if (topNEnabled && topNField) {
       slotFields.push({
         slotType: 'LIMIT',
         slotOrder: 0,
-        fieldName: topNSortField,
+        fieldName: topNField,
         isCalcField: false,
         topN: topNValue,
         sortDirection: topNSortDir,
@@ -771,7 +773,7 @@ export default function PanelEditorSheet({ reportId, panelType, panelId, dataset
         <div className="space-y-1" onClick={(e) => e.stopPropagation()}>
           {slotFields.map((f) => (
             <div key={f.fieldName} className="flex items-center gap-1.5 rounded border border-[var(--color-bt-border)] bg-white px-2 py-1 text-xs">
-              <span className="min-w-0 flex-1 truncate font-mono font-semibold" title={f.fieldName}>
+              <span className="min-w-[6ch] flex-1 truncate font-mono font-semibold" title={f.fieldName}>
                 {fieldDisplayMap.get(f.fieldName) ?? f.fieldName}
               </span>
               {slotType === 'VALUE' && (
@@ -781,7 +783,7 @@ export default function PanelEditorSheet({ reportId, panelType, panelId, dataset
                     value={f.aggFunc ?? ''}
                     onChange={(v) => updateInSlot(f.fieldName, 'aggFunc', (v || null) as AggFunc, entry.setter)}
                     options={AGG_OPTIONS}
-                    className="ml-auto w-20"
+                    className="w-16 shrink-0"
                     popupMatchSelectWidth={false}
                   />
                   <Select
@@ -789,8 +791,16 @@ export default function PanelEditorSheet({ reportId, panelType, panelId, dataset
                     value={f.columnFormat ?? 'Number'}
                     onChange={(v) => updateInSlot(f.fieldName, 'columnFormat', v as ColumnFormat, entry.setter)}
                     options={FORMAT_OPTIONS}
-                    className="w-24"
+                    className="w-20 shrink-0"
                     popupMatchSelectWidth={false}
+                  />
+                  <Input
+                    size="small"
+                    value={f.headerGroup ?? ''}
+                    onChange={(e) => updateInSlot(f.fieldName, 'headerGroup', e.target.value || undefined, entry.setter)}
+                    placeholder="헤더"
+                    title="같은 이름끼리 그리드 상단 헤더로 병합 (빈칸=병합 안함)"
+                    className="min-w-[4rem] flex-1"
                   />
                 </>
               )}
@@ -822,7 +832,7 @@ export default function PanelEditorSheet({ reportId, panelType, panelId, dataset
               <button
                 type="button"
                 onClick={() => removeFromSlot(f.fieldName, entry.setter)}
-                className={`text-[var(--color-bt-fg-muted)] hover:text-[var(--color-bt-danger)] ${slotType === 'VALUE' || slotType === 'Y_AXIS' || slotType === 'KPI' || slotType === 'SORT' || slotType === 'ROW' ? '' : 'ml-auto'}`}
+                className={`shrink-0 text-[var(--color-bt-fg-muted)] hover:text-[var(--color-bt-danger)] ${slotType === 'VALUE' || slotType === 'Y_AXIS' || slotType === 'KPI' || slotType === 'SORT' || slotType === 'ROW' ? '' : 'ml-auto'}`}
               >
                 <X className="h-3 w-3" />
               </button>
@@ -943,6 +953,12 @@ export default function PanelEditorSheet({ reportId, panelType, panelId, dataset
 
   // ─── Top N sort candidates ────────────────────────────────────────────────
   const chartSortCandidates = [...(chartType === 'PIE' ? pieValueFields : yAxisFields), ...(chartType === 'PIE' ? sliceFields : xAxisFields)];
+  // "사용" 체크 시 정렬기준 필드가 비어 있으면 첫 후보로 자동 선택 → 드롭다운 공란/유실 방지.
+  useEffect(() => {
+    if (topNEnabled && !topNSortField && chartSortCandidates.length > 0) {
+      setTopNSortField(chartSortCandidates[0].fieldName);
+    }
+  }, [topNEnabled, topNSortField, chartSortCandidates]);
 
   // ─── SQL 미리보기 (저장된 패널 기준 — 레거시 쿼리 미리보기) ─────────────────
   const { committedFilter } = useReportViewStore();
@@ -1121,7 +1137,7 @@ export default function PanelEditorSheet({ reportId, panelType, panelId, dataset
         </Splitter.Panel>
 
         {/* 우: 슬롯 + 검색조건 + 옵션 */}
-        <Splitter.Panel defaultSize={400} min={320} max={600}>
+        <Splitter.Panel defaultSize={460} min={360} max={640}>
           <aside className="flex h-full flex-col bg-muted/20">
             <div className="shrink-0 border-b border-border bg-white px-4 py-2.5 text-sm font-semibold">패널 구성</div>
             <div className="flex-1 space-y-3 overflow-y-auto p-4">

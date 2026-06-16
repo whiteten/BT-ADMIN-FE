@@ -45,6 +45,9 @@ export default function PanelLineChart({ panel, reportId }: PanelLineChartProps)
   const goalLine = options.goalLine;
   // 시리즈 슬롯(그룹 분리 디멘션) — 있으면 그 값별로 라인 분리
   const seriesField = panel.fieldMap.find((f) => f.slotType === 'SERIES');
+  // Top N(LIMIT 슬롯) — BE 후처리(시간축 제외 디멘션 그룹별 상위 N)가 누락된 경계 대비.
+  // BE 가 이미 상위 N 시리즈만 내려주면(시리즈 ≤ N) FE 는 무동작 → 중복/오작동 없음.
+  const limitField = panel.fieldMap.find((f) => f.slotType === 'LIMIT');
 
   const option = useMemo(() => {
     if (!xField) return {};
@@ -111,8 +114,17 @@ export default function PanelLineChart({ panel, reportId }: PanelLineChartProps)
         }
         m.set(rawOf(row), (m.get(rawOf(row)) ?? 0) + Number(row[measure.fieldName] ?? 0));
       }
-      lineCount = order.length;
-      series = order.map((sv, i) => {
+      // 상위 N 시리즈 제한 — 정렬기준 측정값(LIMIT.fieldName, 없으면 첫 Y) 합 기준.
+      let keptOrder = order;
+      if (limitField?.topN && order.length > limitField.topN) {
+        const sortFld = limitField.fieldName || measure?.fieldName;
+        const totals = new Map<string, number>();
+        for (const row of data) totals.set(String(row[sName] ?? ''), (totals.get(String(row[sName] ?? '')) ?? 0) + Number(row[sortFld as string] ?? 0));
+        const dir = limitField.sortDirection === 'ASC' ? 1 : -1;
+        keptOrder = [...order].sort((a, b) => dir * ((totals.get(a) ?? 0) - (totals.get(b) ?? 0))).slice(0, limitField.topN);
+      }
+      lineCount = keptOrder.length;
+      series = keptOrder.map((sv, i) => {
         const m = bySeries.get(sv)!;
         return makeLine(
           sv || '(미지정)',
@@ -160,7 +172,7 @@ export default function PanelLineChart({ panel, reportId }: PanelLineChartProps)
       yAxis: { type: 'value', axisLabel: axisLabelStyle, splitLine: splitLineStyle },
       series,
     };
-  }, [xField, yFields, seriesField, isDraft, queryResult, committedFilter, options.legend, showDataLabel, goalLine, displayNameMap]);
+  }, [xField, yFields, seriesField, limitField, isDraft, queryResult, committedFilter, options.legend, showDataLabel, goalLine, displayNameMap]);
 
   if (!hasMapping) {
     return (

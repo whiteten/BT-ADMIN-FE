@@ -92,6 +92,8 @@ export interface PanelFieldMap {
   searchCondId?: number;
   /** FILTER 슬롯 cascade: 이 컬럼이 검색조건의 어느 단계(node)에 매핑되는지 (G4-b). 단일 조건은 미지정. */
   nodeCode?: string;
+  /** VALUE 슬롯 헤더 병합: 같은 값끼리 그리드 부모헤더(column group)로 묶음 (AS-IS GROUP_HEADER_NAME). 빈값=병합 안함. */
+  headerGroup?: string;
 }
 
 export interface PanelLayout {

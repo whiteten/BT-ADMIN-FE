@@ -17,6 +17,8 @@ import MenuIconPicker from '@/components/custom/MenuIconPicker';
 
 interface MenuDetailFormProps {
   menu: Menu;
+  /** 전체 메뉴(flat) — 미리보기 breadcrumb의 부모 폴더 체인 계산용 */
+  menus: Menu[];
   apps: App[];
   onSave: (menuKey: string, data: MenuUpsertRequest) => void;
   onDelete: (menuKey: string) => void;
@@ -25,7 +27,7 @@ interface MenuDetailFormProps {
 
 type FormValues = Omit<MenuUpsertRequest, 'visible'> & { visible: boolean };
 
-export default function MenuDetailForm({ menu, apps, onSave, onDelete, saving }: MenuDetailFormProps) {
+export default function MenuDetailForm({ menu, menus, apps, onSave, onDelete, saving }: MenuDetailFormProps) {
   const [form] = Form.useForm<FormValues>();
   const [queryValues, setQueryValues] = useState<Record<string, string | undefined>>({});
   const [queryErrors, setQueryErrors] = useState<Record<string, string>>({});
@@ -36,6 +38,8 @@ export default function MenuDetailForm({ menu, apps, onSave, onDelete, saving }:
   const watchType = Form.useWatch('type', form);
   const watchParentKey = Form.useWatch('parentKey', form);
   const watchPath = Form.useWatch('path', form);
+  const watchLabel = Form.useWatch('label', form);
+  const watchDesc = Form.useWatch('desc', form);
 
   useEffect(() => {
     const { basePath, queryValues: parsedQuery } = splitPathQuery(menu.path);
@@ -58,6 +62,20 @@ export default function MenuDetailForm({ menu, apps, onSave, onDelete, saving }:
   }, [menu, form]);
 
   const appOptions = useMemo(() => apps.map((a) => ({ label: a.appName, value: a.appId })), [apps]);
+  const appName = apps.find((a) => a.appId === watchAppId)?.appName;
+  // 미리보기 breadcrumb의 부모 폴더 체인(top→immediate parent). panel의 [appName, 1뎁스폴더, crumb]과 동일.
+  const ancestorLabels = useMemo(() => {
+    const byKey = new Map(menus.map((m) => [m.menuKey, m]));
+    const labels: string[] = [];
+    let pk = menu.parentKey;
+    while (pk) {
+      const p = byKey.get(pk);
+      if (!p) break;
+      labels.unshift(p.label);
+      pk = p.parentKey;
+    }
+    return labels;
+  }, [menu, menus]);
   const pathOptions = useMemo(() => buildPathOptions(routes, watchAppId), [routes, watchAppId]);
   const querySpecs = useMemo(() => {
     if (!watchAppId || !watchPath) return [];
@@ -224,6 +242,29 @@ export default function MenuDetailForm({ menu, apps, onSave, onDelete, saving }:
               </Form.Item>
             </Col>
           </Row>
+
+          {/*
+           * 메뉴 패널 미리보기 — host 작게보기 폴더 detail 우측 대형 프리뷰(PanelDetailSplit) 모양 재현.
+           * PAGE만 노출 — 패널 우측 프리뷰는 leaf(PAGE)에서만 보이고 FOLDER는 그룹 헤더라 desc 미표시.
+           * 줄바꿈을 실제 패널과 일치시키려고 내부 텍스트 폭을 고정 w-[344px]로 둠.
+           * 근거(layoutConstants): split 700 = 좌측목록(PANEL_DETAIL_LIST_WIDTH 300) + 우측 pane 400.
+           * 우측 pane은 px-7(28*2=56) → 콘텐츠 폭 344px. desc의 max-w-[460px]는 344 < 460이라 안 걸려
+           * 실제 줄바꿈은 344px에서 발생. 따라서 미리보기도 344px 고정(패널 폭 상수 바뀌면 같이 수정).
+           */}
+          {isPage && (
+            <>
+              <p className="mb-2 text-[14px] text-[rgba(0,0,0,0.88)]">메뉴 패널 미리보기</p>
+              <div className="inline-block rounded-lg border border-[#e9ecef] bg-[#fcfdfe] px-7 py-6">
+                <p className="w-[344px] mb-2 text-xs text-[#868e96]">{[appName, ...ancestorLabels].filter(Boolean).join(' › ') || '메뉴'}</p>
+                <h2 className="w-[344px] mb-3 text-xl font-bold text-[#212529]">{watchLabel || '메뉴 라벨'}</h2>
+                {watchDesc?.trim() ? (
+                  <p className="w-[344px] whitespace-pre-wrap text-sm leading-7 text-[#495057]">{watchDesc}</p>
+                ) : (
+                  <p className="w-[344px] text-sm text-[#adb5bd]">설명을 입력하면 이곳에 표시됩니다.</p>
+                )}
+              </div>
+            </>
+          )}
         </Form>
       </div>
 

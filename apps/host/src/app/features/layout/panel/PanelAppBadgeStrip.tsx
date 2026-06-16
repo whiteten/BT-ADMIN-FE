@@ -115,14 +115,14 @@ const PanelAppBadgeStrip = () => {
     const Icon = getAppBadgeIcon(remote.appId);
 
     return (
-      <div key={remote.appId} ref={remote.appId === scrollTargetAppId ? scrollTargetRef : undefined} className="flex flex-col items-center gap-1 w-full px-0.5 shrink-0">
+      <div key={remote.appId} ref={remote.appId === scrollTargetAppId ? scrollTargetRef : undefined} className="group flex flex-col items-center gap-1 w-full px-0.5 shrink-0">
         <button
           type="button"
           onClick={() => handleAppClick(remote.appId)}
           aria-label={remote.appName}
           aria-current={isDisplayedApp ? 'true' : undefined}
           className={cn(
-            'relative flex items-center justify-center size-9 shrink-0 rounded-lg text-white cursor-pointer shadow-sm hover:shadow-md transition-shadow',
+            'relative flex items-center justify-center size-9 shrink-0 rounded-lg text-white cursor-pointer shadow-sm group-hover:shadow-md group-hover:-translate-y-0.5 transition-all',
             isDisplayedApp && 'ring-2 ring-[var(--color-bt-primary)] ring-offset-2 ring-offset-[#f8f9fb]',
           )}
           style={{ backgroundColor: badgeColor }}
@@ -130,15 +130,18 @@ const PanelAppBadgeStrip = () => {
           <Icon className="size-6" />
           {isCurrentApp && <span className="absolute -top-0.5 -right-0.5 size-2.5 rounded-full bg-red-500 ring-2 ring-[#f8f9fb]" />}
         </button>
-        {/* 앱 이름 라벨 — 상시 노출, 2줄 클램프(잘림 없이 줄바꿈) */}
-        <span
+        {/* 앱 이름 라벨 — 상시 노출, 2줄 클램프(잘림 없이 줄바꿈). 뱃지와 동일하게 클릭 시 메뉴 전환. */}
+        <button
+          type="button"
+          onClick={() => handleAppClick(remote.appId)}
+          aria-label={remote.appName}
           className={cn(
-            'w-full text-center text-[10px] leading-[1.3] break-words [overflow-wrap:anywhere] [display:-webkit-box] [-webkit-line-clamp:2] [-webkit-box-orient:vertical] overflow-hidden',
+            'w-full text-center text-[10px] leading-[1.3] break-words [overflow-wrap:anywhere] [display:-webkit-box] [-webkit-line-clamp:2] [-webkit-box-orient:vertical] overflow-hidden cursor-pointer transition-colors group-hover:text-[var(--color-bt-primary)]',
             isDisplayedApp ? 'text-[var(--color-bt-primary)] font-semibold' : 'text-[#495057]',
           )}
         >
           {remote.appName}
-        </span>
+        </button>
       </div>
     );
   };
@@ -151,17 +154,24 @@ const PanelAppBadgeStrip = () => {
       className="shrink-0 h-full bg-[#f8f9fb] border-r border-[#ced4da] shadow-[1px_0_4px_-2px_rgba(0,0,0,0.06)] flex flex-col items-center py-4 relative z-10"
     >
       {/* 즐겨찾기 — 스크롤 영역과 분리해 상단 고정 */}
-      <div className="shrink-0 pb-2 flex flex-col items-center gap-1 w-full px-0.5">
+      <div className="group shrink-0 pb-2 flex flex-col items-center gap-1 w-full px-0.5">
         <button
           type="button"
           onClick={handleFavoriteClick}
           aria-label="즐겨찾기"
-          className="relative flex items-center justify-center size-9 shrink-0 rounded-lg text-white cursor-pointer shadow-sm hover:shadow-md transition-shadow"
+          className="relative flex items-center justify-center size-9 shrink-0 rounded-lg text-white cursor-pointer shadow-sm group-hover:shadow-md group-hover:-translate-y-0.5 transition-all"
           style={{ backgroundColor: '#F59E0B' }}
         >
           <IconStar className="size-6" />
         </button>
-        <span className="w-full text-center text-[10px] leading-[1.3] text-[#868e96]">즐겨찾기</span>
+        <button
+          type="button"
+          onClick={handleFavoriteClick}
+          aria-label="즐겨찾기"
+          className="w-full text-center text-[10px] leading-[1.3] text-[#868e96] cursor-pointer transition-colors group-hover:text-[var(--color-bt-primary)]"
+        >
+          즐겨찾기
+        </button>
       </div>
 
       {/* 즐겨찾기와 스크롤 영역 사이 구분선 — 스크롤 영역 안에 두면 함께 스크롤되므로 형제로 분리 */}
