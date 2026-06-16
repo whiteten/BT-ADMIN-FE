@@ -4,32 +4,22 @@
  * 탭 기본정보 (소속 + 그룹DN + 분배·헌팅)
  * 탭 멘트 (8단계)
  * 탭 라우팅 정책 (블록/장애/Busy DNIS + 블록/종료 옵션)
- * 탭 DN 멤버 / CTI큐
  */
 import { useEffect, useMemo, useState } from 'react';
 import { Button, Drawer, Form, Input, InputNumber, Select, Tabs } from 'antd';
 import { toast } from '@/shared-util';
 import { acdGdnApi } from '../api/acdGdnApi';
-import {
-  useCreateAcdGdn,
-  useGetAcdGdnAccessCodeProfileOptions,
-  useGetAcdGdnMembersPool,
-  useGetAcdGdnMentOptions,
-  useGetAcdGdnSkillsetOptions,
-  useUpdateAcdGdn,
-} from '../hooks/useAcdGdnQueries';
+import { useCreateAcdGdn, useGetAcdGdnAccessCodeProfileOptions, useGetAcdGdnMentOptions, useGetAcdGdnSkillsetOptions, useUpdateAcdGdn } from '../hooks/useAcdGdnQueries';
 import {
   ACD_TYPE_OPTIONS,
   CALL_CLOSE_TYPE_OPTIONS,
   type GdnCreateRequest,
-  type GdnMemberResponse,
   type GdnResponse,
   type GdnUpdateRequest,
   HUNTING_TYPE_OPTIONS,
   ROUTING_KIND_OPTIONS,
   YN_OPTIONS,
 } from '../types';
-import AcdGdnMemberGrid from './AcdGdnMemberGrid';
 
 interface AcdGdnFormDrawerProps {
   open: boolean;
@@ -92,11 +82,6 @@ export default function AcdGdnFormDrawer({ open, mode, detail, defaultTenantId, 
   const isEdit = mode === 'edit';
   // 갭6: DR 노드 선택 시 globalDnYn 자동=1 + 비활성 (SWAT doDrNode_OnSelect 정합)
   const [globalDnDisabled, setGlobalDnDisabled] = useState(false);
-
-  // 멤버 탭: edit 모드에서만 gdnId 기준 풀 조회 (create 모드는 아직 gdnId 없음)
-  const drawerGdnId = isEdit ? (detail?.gdnId ?? null) : null;
-  const { data: memberPool = [], isLoading: isMembersLoading } = useGetAcdGdnMembersPool(drawerGdnId);
-  const [selectedMembers, setSelectedMembers] = useState<GdnMemberResponse[]>([]);
 
   const initial: FormValues = useMemo(() => {
     if (isEdit && detail) {
@@ -546,18 +531,6 @@ export default function AcdGdnFormDrawer({ open, mode, detail, defaultTenantId, 
           </section>
         </div>
       ),
-    },
-    {
-      key: 'members',
-      label: 'DN 멤버 / CTI큐',
-      children:
-        isEdit && drawerGdnId ? (
-          <div className="h-[480px] ag-theme-quartz">
-            <AcdGdnMemberGrid rowData={memberPool} isLoading={isMembersLoading} onSelectionChanged={setSelectedMembers} />
-          </div>
-        ) : (
-          <div className="flex items-center justify-center h-40 text-sm text-gray-400">그룹DN 등록 후 멤버를 배정할 수 있습니다.</div>
-        ),
     },
   ];
 
