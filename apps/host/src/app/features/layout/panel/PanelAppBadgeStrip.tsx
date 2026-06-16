@@ -115,14 +115,14 @@ const PanelAppBadgeStrip = () => {
     const Icon = getAppBadgeIcon(remote.appId);
 
     return (
-      <div key={remote.appId} ref={remote.appId === scrollTargetAppId ? scrollTargetRef : undefined} className="flex flex-col items-center gap-1 w-full px-0.5 shrink-0">
+      <div key={remote.appId} ref={remote.appId === scrollTargetAppId ? scrollTargetRef : undefined} className="group flex flex-col items-center gap-1 w-full px-0.5 shrink-0">
         <button
           type="button"
           onClick={() => handleAppClick(remote.appId)}
           aria-label={remote.appName}
           aria-current={isDisplayedApp ? 'true' : undefined}
           className={cn(
-            'relative flex items-center justify-center size-9 shrink-0 rounded-lg text-white cursor-pointer shadow-sm hover:shadow-md transition-shadow',
+            'relative flex items-center justify-center size-9 shrink-0 rounded-lg text-white cursor-pointer shadow-sm group-hover:shadow-md group-hover:-translate-y-0.5 transition-all',
             isDisplayedApp && 'ring-2 ring-[var(--color-bt-primary)] ring-offset-2 ring-offset-[#f8f9fb]',
           )}
           style={{ backgroundColor: badgeColor }}
@@ -130,15 +130,18 @@ const PanelAppBadgeStrip = () => {
           <Icon className="size-6" />
           {isCurrentApp && <span className="absolute -top-0.5 -right-0.5 size-2.5 rounded-full bg-red-500 ring-2 ring-[#f8f9fb]" />}
         </button>
-        {/* 앱 이름 라벨 — 상시 노출, 2줄 클램프(잘림 없이 줄바꿈) */}
-        <span
+        {/* 앱 이름 라벨 — 상시 노출, 2줄 클램프(잘림 없이 줄바꿈). 뱃지와 동일하게 클릭 시 메뉴 전환. */}
+        <button
+          type="button"
+          onClick={() => handleAppClick(remote.appId)}
+          aria-label={remote.appName}
           className={cn(
-            'w-full text-center text-[10px] leading-[1.3] break-words [overflow-wrap:anywhere] [display:-webkit-box] [-webkit-line-clamp:2] [-webkit-box-orient:vertical] overflow-hidden',
+            'w-full text-center text-[10px] leading-[1.3] break-words [overflow-wrap:anywhere] [display:-webkit-box] [-webkit-line-clamp:2] [-webkit-box-orient:vertical] overflow-hidden cursor-pointer transition-colors group-hover:text-[var(--color-bt-primary)]',
             isDisplayedApp ? 'text-[var(--color-bt-primary)] font-semibold' : 'text-[#495057]',
           )}
         >
           {remote.appName}
-        </span>
+        </button>
       </div>
     );
   };
