@@ -5,6 +5,8 @@ export interface MenuSearchResult {
   breadcrumb: string[];
   appId: string;
   menuKey: string;
+  /** 네비게이션 경로 — leaf 메뉴의 path. FavoriteButton·이동에 사용 */
+  path?: string;
   score: number;
 }
 
