@@ -393,8 +393,8 @@ export default function SkillAssignList() {
   // checkboxSelection colDef 제거 — rowSelection.checkboxes:true 가 SelectionColumn 자동 생성하므로 중복 방지
   const agentColumnsAg = useMemo<ColDef<AgentResponse>[]>(
     () => [
-      { field: 'agentLoginId', headerName: '로그인ID', width: 110 },
-      { field: 'agentName', headerName: '이름', width: 90 },
+      { field: 'agentLoginId', headerName: '로그인ID', width: 110, tooltipField: 'agentLoginId' },
+      { field: 'agentName', headerName: '이름', width: 90, tooltipField: 'agentName' },
       { field: 'groupName', headerName: '상담그룹', flex: 1, minWidth: 110, valueGetter: (p) => p.data?.groupName ?? '미배정' },
       {
         field: 'activateYn',
@@ -594,8 +594,8 @@ export default function SkillAssignList() {
   // ─── View 모드 — 좌측 단일선택 그리드 (상담사 기준) ────────────────────
   const viewAgentColumnsAg = useMemo<ColDef<AgentResponse>[]>(
     () => [
-      { field: 'agentLoginId', headerName: '로그인ID', width: 110 },
-      { field: 'agentName', headerName: '이름', width: 90 },
+      { field: 'agentLoginId', headerName: '로그인ID', width: 110, tooltipField: 'agentLoginId' },
+      { field: 'agentName', headerName: '이름', width: 90, tooltipField: 'agentName' },
       { field: 'groupName', headerName: '상담그룹', flex: 1, minWidth: 110, valueGetter: (p) => p.data?.groupName ?? '미배정' },
     ],
     [],

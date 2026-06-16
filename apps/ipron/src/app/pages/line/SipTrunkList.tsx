@@ -342,6 +342,7 @@ export default function SipTrunkList() {
         maxWidth: 110,
         cellStyle: { textAlign: 'center', color: '#9ca3af' } as CellStyle,
         valueFormatter: (p) => p.value ?? '—',
+        tooltipField: 'backUpNodeName',
       },
       // F-2: 차단/오류/만석 우회 DNIS 컬럼 (SWAT IPR20S3030 GDN_TYPE=18 정합)
       {
@@ -351,6 +352,7 @@ export default function SipTrunkList() {
         maxWidth: 130,
         cellStyle: { fontFamily: 'monospace' } as CellStyle,
         valueFormatter: (p) => p.value ?? '—',
+        tooltipField: 'blockRoutingDnis',
       },
       {
         headerName: '오류우회DNIS',
@@ -359,6 +361,7 @@ export default function SipTrunkList() {
         maxWidth: 130,
         cellStyle: { fontFamily: 'monospace' } as CellStyle,
         valueFormatter: (p) => p.value ?? '—',
+        tooltipField: 'errorRoutingDnis',
       },
       {
         headerName: '만석우회DNIS',
@@ -367,6 +370,7 @@ export default function SipTrunkList() {
         maxWidth: 130,
         cellStyle: { fontFamily: 'monospace' } as CellStyle,
         valueFormatter: (p) => p.value ?? '—',
+        tooltipField: 'busyRoutingDnis',
       },
     ],
     [],
@@ -425,7 +429,7 @@ export default function SipTrunkList() {
           </span>
         ),
       },
-      { headerName: '번호', field: 'targetNo', minWidth: 110, maxWidth: 140, cellStyle: { fontFamily: 'monospace' } as CellStyle },
+      { headerName: '번호', field: 'targetNo', minWidth: 110, maxWidth: 140, cellStyle: { fontFamily: 'monospace' } as CellStyle, tooltipField: 'targetNo' },
       {
         headerName: 'DR노드',
         field: 'backUpNodeName',
@@ -433,6 +437,7 @@ export default function SipTrunkList() {
         maxWidth: 110,
         cellStyle: { textAlign: 'center', color: '#9ca3af' } as CellStyle,
         valueFormatter: (p) => p.value ?? '—',
+        tooltipField: 'backUpNodeName',
       },
       {
         headerName: '채널 사용률',

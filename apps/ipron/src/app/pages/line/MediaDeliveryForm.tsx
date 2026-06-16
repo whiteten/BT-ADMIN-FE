@@ -219,7 +219,7 @@ export default function MediaDeliveryForm() {
           <SummaryRow label="벤더" value={displayValue(MD_VENDOR_LABELS[v.mediaDeliveryVendor] ?? v.mediaDeliveryVendor)} />
           <SummaryRow label="Transport" value={displayValue(TRANSPORT_TYPE_LABELS[v.transportType] ?? v.transportType)} />
           <SummaryRow label="RTP전송" value={displayValue(RTP_TRANS_TYPE_LABELS[v.rtpTransType] ?? v.rtpTransType)} />
-          <SummaryRow label="HA형상" value={displayValue(HA_TYPE_LABELS[v.haType] ?? v.haType)} />
+          <SummaryRow label="이중화 형상" value={displayValue(HA_TYPE_LABELS[v.haType] ?? v.haType)} />
           <SummaryRow label="음성보안" value={displayValue(SRTP_YN_LABELS[v.srtpYn] ?? v.srtpYn)} />
           <SummaryRow label="IP버전" value={displayValue(v.ipVersion === 4 ? 'IPv4' : v.ipVersion === 6 ? 'IPv6' : v.ipVersion)} />
           <SummaryRow label="A장비 IP" value={displayValue(v.ipAddr1)} />
@@ -347,7 +347,7 @@ export default function MediaDeliveryForm() {
                         </Form.Item>
                       </Col>
                       <Col span={8}>
-                        <Form.Item name="haType" label="HA형상">
+                        <Form.Item name="haType" label="이중화 형상">
                           <Select options={[...HA_TYPE_OPTIONS]} />
                         </Form.Item>
                       </Col>
@@ -387,10 +387,10 @@ export default function MediaDeliveryForm() {
                       <Col span={4}>
                         <Form.Item
                           name="portNo1"
-                          label="A포트"
+                          label="A장비 포트"
                           required
                           rules={[
-                            { required: true, message: 'A포트는 필수입니다' },
+                            { required: true, message: 'A장비 포트는 필수입니다' },
                             { type: 'number', min: 1, max: 65535, message: '1~65535' },
                           ]}
                         >
@@ -415,7 +415,7 @@ export default function MediaDeliveryForm() {
                         </Form.Item>
                       </Col>
                       <Col span={4}>
-                        <Form.Item name="portNo2" label="B포트" rules={[{ type: 'number', min: 1, max: 65535, message: '1~65535' }]}>
+                        <Form.Item name="portNo2" label="B장비 포트" rules={[{ type: 'number', min: 1, max: 65535, message: '1~65535' }]}>
                           <InputNumber className="!w-full" min={1} max={65535} placeholder="5060" />
                         </Form.Item>
                       </Col>

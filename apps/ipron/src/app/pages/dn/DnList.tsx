@@ -862,9 +862,10 @@ export default function DnList() {
               <div className="text-sm text-gray-500 mb-2">사용 가능한 여유번호 {freeDnResult.length.toLocaleString()}건</div>
               <Table
                 size="small"
-                pagination={{ pageSize: 20 }}
+                pagination={false}
                 dataSource={freeDnResult.map((dn, i) => ({ key: i, dn }))}
                 columns={[{ title: 'DN 번호', dataIndex: 'dn', key: 'dn', align: 'center' as const }]}
+                scroll={{ y: 320 }}
               />
             </div>
           ))}

@@ -468,7 +468,7 @@ function EndpointCard({
       <div className="grid grid-cols-2 gap-x-2 gap-y-1 text-[11px] text-gray-600">
         <Mini label="중계번호" v={lrdn} mono />
         <Mini label="실번호" v={rn} mono />
-        <Mini label="AC" v={ac} mono />
+        <Mini label="국번" v={ac} mono />
         <Mini label="라우트" v={route} />
         {holdCnt != null && holdCnt > 0 && <Mini label="홀드" v={`${holdCnt}회 / ${fmtDuration(holdSec)}`} />}
       </div>

@@ -134,7 +134,7 @@ export default function DnTable({ rowData, isLoading, onRowDoubleClicked, onDele
         valueFormatter: (params) => BOOL_OX_LABEL(params.value),
       },
       {
-        headerName: 'IP',
+        headerName: 'IP 주소',
         minWidth: 140,
         valueGetter: (params) => {
           const d = params.data;

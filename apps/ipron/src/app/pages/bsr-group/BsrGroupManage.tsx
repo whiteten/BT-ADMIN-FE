@@ -961,6 +961,7 @@ export default function BsrGroupManage() {
           if (data.sun === 1) days.push('일');
           return days.join(' ') || '-';
         },
+        tooltipValueGetter: ({ value }) => (value as string) || '-',
       },
     ],
     [],

@@ -405,7 +405,7 @@ export default function CtiQueueTable({
         valueFormatter: (p) => num(p.value),
       },
       {
-        headerName: '호회수T/O(초)',
+        headerName: '호회수 타임아웃(초)',
         field: 'collectTimeout',
         minWidth: 124,
         filter: 'agNumberColumnFilter',
@@ -413,7 +413,7 @@ export default function CtiQueueTable({
         valueFormatter: (p) => num(p.value),
       },
       {
-        headerName: 'SL(초)',
+        headerName: '서비스레벨(초)',
         field: 'serviceLevelTime',
         minWidth: 84,
         filter: 'agNumberColumnFilter',

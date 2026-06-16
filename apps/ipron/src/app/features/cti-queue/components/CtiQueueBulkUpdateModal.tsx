@@ -96,7 +96,7 @@ const STATIC_BULK_FIELD_GROUPS: BulkFieldGroup[] = [
       { key: 'maxWaittimeYn', label: '최대대기 사용' },
       { key: 'serviceLevelTime', label: '서비스 레벨(초)' },
       { key: 'abandonAcktime', label: '큐포기 기준(초)' },
-      { key: 'collectYn', label: '호회수 T/O 사용' },
+      { key: 'collectYn', label: '호회수 타임아웃 사용' },
       { key: 'overflowQid', label: '오버플로우 큐' },
       { key: 'serviceLevelTargetYn', label: '서비스 레벨 목표 사용' },
       { key: 'activateYn', label: '활성화' },
@@ -403,7 +403,7 @@ export default function CtiQueueBulkUpdateModal({ open, selectedRows, skillsetOp
 
   // ─── 결과 테이블 컬럼 ────────────────────────────────────────────────────
   const resultColumns: ColumnsType<CtiQueueBulkItemResult> = [
-    { title: 'CTIQ ID', dataIndex: 'ctiqId', width: 90 },
+    { title: 'CTI큐 ID', dataIndex: 'ctiqId', width: 90 },
     {
       title: '사유',
       dataIndex: 'message',
@@ -658,7 +658,7 @@ export default function CtiQueueBulkUpdateModal({ open, selectedRows, skillsetOp
                 {isChecked('collectYn') && (
                   <>
                     {renderFieldRow(
-                      '호회수 T/O 사용',
+                      '호회수 타임아웃 사용',
                       <Form.Item name="collectYn" style={{ marginBottom: 0 }} initialValue={1}>
                         <Radio.Group>
                           <Radio value={1}>사용</Radio>
@@ -667,7 +667,7 @@ export default function CtiQueueBulkUpdateModal({ open, selectedRows, skillsetOp
                       </Form.Item>,
                     )}
                     {renderFieldRow(
-                      '호회수 T/O(초)',
+                      '호회수 타임아웃(초)',
                       <Form.Item name="collectTimeout" style={{ marginBottom: 0 }} initialValue={10}>
                         <InputNumber min={0} max={9999} style={{ width: 90 }} addonAfter="초" />
                       </Form.Item>,

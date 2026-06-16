@@ -42,7 +42,7 @@ export default function AcdGdnMemberGrid({ rowData, isLoading, onSelectionChange
         maxWidth: 90,
         pinned: 'left',
         sortable: false,
-        filter: false,
+        filterValueGetter: (p) => (p.data?.assigned ? '배정' : '미배정'),
         valueGetter: (p) => (p.data?.assigned ? '배정' : '미배정'),
         cellStyle: { display: 'flex', alignItems: 'center' } as CellStyle,
         cellRenderer: (p: ICellRendererParams<GdnMemberResponse>) =>
@@ -97,7 +97,7 @@ export default function AcdGdnMemberGrid({ rowData, isLoading, onSelectionChange
         tooltipField: 'backUpNodeName',
         valueFormatter: (p) => (p.value == null || p.value === '' ? '-' : String(p.value)),
       },
-      { headerName: '테넌트', field: 'tenantName', width: 120, valueFormatter: (p) => p.value ?? '-' },
+      { headerName: '테넌트', field: 'tenantName', width: 120, valueFormatter: (p) => p.value ?? '-', tooltipField: 'tenantName' },
       {
         headerName: '블록',
         field: 'extBlockYn',
