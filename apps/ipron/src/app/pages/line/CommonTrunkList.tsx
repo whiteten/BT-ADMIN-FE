@@ -13,7 +13,7 @@
  */
 import { type ChangeEvent, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Panel, PanelGroup, PanelResizeHandle } from 'react-resizable-panels';
-import type { CellStyle, ColDef, GridOptions } from 'ag-grid-community';
+import type { CellStyle, ColDef, GridOptions, ICellRendererParams } from 'ag-grid-community';
 import { AgGridReact, type AgGridReact as AgGridReactType } from 'ag-grid-react';
 import { Button, Input, Modal, Select } from 'antd';
 import { ChevronLeft, ChevronRight, Network, Plus, Search, Trash2 } from 'lucide-react';
@@ -346,7 +346,11 @@ export default function CommonTrunkList() {
         headerName: 'SIP트렁크 이름',
         flex: 1,
         minWidth: 150,
-        cellRenderer: (p: { value: string | null }) => <span className="font-semibold text-gray-700">{p.value ?? ''}</span>,
+        cellRenderer: (p: ICellRendererParams<CommonTrunkMemberResponse>) => (
+          <span className="font-semibold" style={{ color: p.data?.assignYn ? '#405189' : '#374151' }}>
+            {p.value ?? ''}
+          </span>
+        ),
         tooltipField: 'targetName',
       },
       { field: 'targetNo', headerName: '번호', minWidth: 80, maxWidth: 120, cellStyle: { fontFamily: 'monospace' } as CellStyle },
@@ -700,9 +704,6 @@ export default function CommonTrunkList() {
           >
             {selectedTrunks.length}건
           </span>
-        </span>
-        <span className="mx-1" style={{ color: '#64748b' }}>
-          ·
         </span>
         <Button type="primary" icon={<Plus className="size-3.5" />} disabled={!showBulkBar} style={{ opacity: showBulkBar ? 1 : 0.38 }} onClick={() => setAssignDrawerOpen(true)}>
           배정 (우선순위·채널수 입력)
