@@ -21,11 +21,10 @@ export interface CtiqLargeCardProps {
 
 function CtiqLargeCardImpl({ row, sev }: CtiqLargeCardProps) {
   const meta = SEVERITY_META[sev];
-  const pulse = sev === 'danger' ? 'animate-pulse' : '';
   const wait = toNum(row.RTS_WAIT_CNT) ?? 0;
   const login = toNum(row.RTS_EXP_LOGIN_AGT) ?? 0;
 
-  const emphasizeWait = sev === 'danger' || sev === 'alert' || sev === 'warn';
+  const emphasizeWait = sev !== 'ok';
   const waitColor = emphasizeWait ? meta.textCls : 'text-slate-800';
 
   // 상담사 카드와 동일한 높이·외곽선·배경 톤(severity 강조).
@@ -33,13 +32,7 @@ function CtiqLargeCardImpl({ row, sev }: CtiqLargeCardProps) {
     'group relative flex h-full min-h-[156px] flex-col rounded-xl border bg-white text-left transition-all duration-200 w-full',
     '[content-visibility:auto] [contain-intrinsic-size:156px]',
     'hover:shadow-[0_8px_16px_rgba(0,0,0,0.06)] hover:-translate-y-0.5',
-    sev === 'danger'
-      ? 'border-red-500 bg-red-50/40 ring-1 ring-red-500'
-      : sev === 'alert'
-        ? 'border-orange-400 bg-orange-50/30'
-        : sev === 'warn'
-          ? 'border-amber-400 bg-amber-50/20'
-          : 'border-slate-200 hover:border-slate-300',
+    sev === 'danger' ? 'border-red-500 bg-red-50/40 ring-1 ring-red-500' : sev === 'warn' ? 'border-amber-400 bg-amber-50/20' : 'border-slate-200 hover:border-slate-300',
   ].join(' ');
 
   return (
@@ -47,7 +40,6 @@ function CtiqLargeCardImpl({ row, sev }: CtiqLargeCardProps) {
       {/* ① 헤더 — #ID + severity chip / 큐명 */}
       <div className="px-4 pt-3.5">
         <div className="flex items-center gap-1.5">
-          <span className={`h-2 w-2 rounded-full ${meta.dotCls} ${pulse}`} />
           <span className="font-mono text-[11px] text-slate-400">#{String(row.CTIQ_ID ?? row.GDN_NO ?? '—')}</span>
           <span className={`ml-auto inline-flex items-center rounded border px-1.5 py-0 text-[10.5px] font-semibold ${meta.chipCls}`}>{meta.label}</span>
         </div>

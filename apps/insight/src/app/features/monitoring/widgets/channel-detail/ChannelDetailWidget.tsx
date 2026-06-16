@@ -1,16 +1,37 @@
 import { type ReactNode, useCallback, useEffect, useMemo, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { Input, Tooltip } from 'antd';
-import { AlertTriangle, PanelTopClose, PanelTopOpen, PhoneCall, PhoneIncoming, PhoneOutgoing, Radio, Search } from 'lucide-react';
+import { useQueryClient } from '@tanstack/react-query';
+import { Button, Drawer, Input, InputNumber, Tooltip } from 'antd';
+import { AlertTriangle, PanelTopClose, PanelTopOpen, PhoneCall, PhoneIncoming, PhoneOutgoing, Radio, Search, Settings } from 'lucide-react';
+import { toast } from '@/shared-util';
 import { DEMO_CHANNELS, isChannelDemoMode } from './demoData';
-import { countByStatus, groupBySystem, irTypeLabel, matchSearch, toChannelRows, toNum } from './helpers';
+import { DEFAULT_OCC_THRESHOLDS, countByStatus, groupBySystem, irTypeLabel, matchSearch, occSeverity, toChannelRows, toNum } from './helpers';
 import ChannelCellGrid from './parts/ChannelCellGrid';
 import { CHANNEL_STATUS, CHANNEL_STATUS_ORDER } from './statusMap';
-import type { ChannelRow, ChannelUiState } from './types';
+import type { ChannelOccThresholds, ChannelRow, ChannelUiState, OccSeverity } from './types';
 import { widgetToolbarSlotId } from '../../components/canvas/WidgetCardHeader';
+import { useGetWidgetUserSetting, useUpdateWidgetUserSetting, widgetSettingKeys } from '../../hooks/useWidgetSettingQueries';
 import type { CustomWidgetComponentProps } from '../registry';
 import NoData from '@/components/custom/NoData';
 import { usePersistentState } from '@/libs/shared-ui/src/hooks/usePersistentState';
+
+/** 점유 심각도별 색 — 시스템 탭 점 / 점유율 텍스트. */
+const OCC_DOT: Record<OccSeverity, string> = {
+  danger: 'animate-pulse bg-red-500',
+  warn: 'animate-pulse bg-amber-500',
+  normal: 'bg-emerald-500',
+};
+const OCC_TEXT: Record<OccSeverity, string> = {
+  danger: 'text-red-600',
+  warn: 'text-amber-600',
+  normal: 'text-gray-400',
+};
+/** KPI 점유 타일 값 색 — 정상은 기본 본문색(gray-900), 주의/위험만 강조. */
+const OCC_KPI_TEXT: Record<OccSeverity, string> = {
+  danger: 'text-red-600',
+  warn: 'text-amber-600',
+  normal: 'text-gray-900',
+};
 
 /**
  * 채널 상세 위젯 — AS-IS `sleeSipSystemChannelStatus.jsp` 의 TO-BE.
@@ -29,7 +50,7 @@ import { usePersistentState } from '@/libs/shared-ui/src/hooks/usePersistentStat
  * 데이터: CH:IVR:{SYSTEM_ID} (DS_SLEE_CH_STATE). BE 가 전 시스템 채널을 내려주면
  * FE 가 SYSTEM_ID 로 그룹핑해 시스템 탭으로 전환. 점유 판정은 IR_TYPE 별(statusMap.isChannelBusy).
  */
-export default function ChannelDetailWidget({ data, widgetId }: CustomWidgetComponentProps) {
+export default function ChannelDetailWidget({ data, widgetId, onRequestPause }: CustomWidgetComponentProps) {
   const rows = useMemo<ChannelRow[]>(() => (isChannelDemoMode() ? DEMO_CHANNELS : toChannelRows(data)), [data]);
   const groups = useMemo(() => groupBySystem(rows), [rows]);
 
@@ -73,6 +94,57 @@ export default function ChannelDetailWidget({ data, widgetId }: CustomWidgetComp
 
   const counts = useMemo(() => (curGroup ? countByStatus(curGroup.rows) : {}), [curGroup]);
 
+  // ─── 점유 세츄레이션 임계값 ───────────────────────────────────
+  // BE(MonWidgetUserSettingService.get)가 카탈로그 DEFAULT_SETTINGS_JSON 위에 사용자 저장값을
+  // 덮어 병합해 내려준다 → userSetting.settings.thresholds 가 곧 "사용자값 우선, 없으면 카탈로그 기본값".
+  // DEFAULT_OCC_THRESHOLDS 는 카탈로그에도 값이 없을 때를 위한 최종 폴백.
+  const numericWidgetId = typeof widgetId === 'number' ? widgetId : Number(widgetId);
+  const hasWidgetId = Number.isFinite(numericWidgetId) && numericWidgetId > 0;
+  const queryClient = useQueryClient();
+  const { data: userSetting } = useGetWidgetUserSetting({
+    params: { widgetId: hasWidgetId ? numericWidgetId : 0 },
+    queryOptions: { enabled: hasWidgetId },
+  });
+  const occThresholds = useMemo<ChannelOccThresholds>(() => {
+    const saved = (userSetting?.settings?.thresholds ?? {}) as Partial<ChannelOccThresholds>;
+    return {
+      warn: saved.warn ?? DEFAULT_OCC_THRESHOLDS.warn,
+      danger: saved.danger ?? DEFAULT_OCC_THRESHOLDS.danger,
+    };
+  }, [userSetting]);
+
+  // ─── 설정 드로어 (CTIQ 위젯 패턴) ─────────────────────────────
+  const [settingsOpen, setSettingsOpen] = useState(false);
+  const handleOpenSettings = useCallback(() => {
+    onRequestPause?.();
+    setSettingsOpen(true);
+  }, [onRequestPause]);
+  const handleCloseSettings = useCallback(() => setSettingsOpen(false), []);
+
+  const { mutate: saveUserSetting, isPending: isSaving } = useUpdateWidgetUserSetting({
+    mutationOptions: {
+      onSuccess: () => {
+        if (hasWidgetId) queryClient.invalidateQueries({ queryKey: widgetSettingKeys.userSetting(numericWidgetId).queryKey });
+        toast.success('점유 임계값이 저장되었습니다.');
+        setSettingsOpen(false);
+      },
+    },
+  });
+
+  // 폼 로컬 상태 — 드로어가 열릴 때 현재 적용값에서 초기화.
+  const [form, setForm] = useState<ChannelOccThresholds>(occThresholds);
+  useEffect(() => {
+    if (settingsOpen) setForm(occThresholds);
+  }, [settingsOpen, occThresholds]);
+
+  const handleSaveSettings = useCallback(() => {
+    if (!hasWidgetId) {
+      toast.error('위젯 식별자가 없어 저장할 수 없습니다.');
+      return;
+    }
+    saveUserSetting({ widgetId: numericWidgetId, settings: { thresholds: form } });
+  }, [hasWidgetId, numericWidgetId, form, saveUserSetting]);
+
   // ─── 헤더 슬롯 (포털) ─────────────────────────────────────────
   const [toolbarSlot, setToolbarSlot] = useState<HTMLElement | null>(null);
   useEffect(() => {
@@ -102,6 +174,15 @@ export default function ChannelDetailWidget({ data, widgetId }: CustomWidgetComp
             {summaryCollapsed ? <PanelTopOpen size={16} strokeWidth={2} /> : <PanelTopClose size={16} strokeWidth={2} />}
           </span>
         </Tooltip>
+        <Tooltip title="점유 임계값 설정" placement="top">
+          <span
+            onClick={handleOpenSettings}
+            role="button"
+            className="inline-flex h-8 w-8 cursor-pointer items-center justify-center rounded border border-gray-300 text-gray-400 transition-colors hover:bg-gray-100"
+          >
+            <Settings size={16} />
+          </span>
+        </Tooltip>
       </div>
     </div>
   );
@@ -129,7 +210,7 @@ export default function ChannelDetailWidget({ data, widgetId }: CustomWidgetComp
             <span className="mr-1 text-[11px] font-bold uppercase tracking-wide text-gray-500">시스템(SLEE)</span>
             {groups.map((g) => {
               const active = g.systemId === curGroup.systemId;
-              const danger = g.occPct >= 80;
+              const occSev = occSeverity(g.occPct, occThresholds);
               return (
                 <button
                   key={g.systemId}
@@ -138,12 +219,12 @@ export default function ChannelDetailWidget({ data, widgetId }: CustomWidgetComp
                     active ? 'border-[#405189] bg-[#eef2fb] text-[#405189]' : 'border-gray-200 bg-white text-gray-700 hover:bg-gray-50'
                   }`}
                 >
-                  <span className={`h-2 w-2 rounded-full ${danger ? 'animate-pulse bg-amber-500' : 'bg-emerald-500'}`} />
+                  <span className={`h-2 w-2 rounded-full ${OCC_DOT[occSev]}`} />
                   {g.systemName}
                   <span className={`rounded px-1 py-0.5 text-[9px] font-bold ${g.irType === 2 ? 'bg-[#eef2fb] text-[#405189]' : 'bg-gray-100 text-gray-500'}`}>
                     {irTypeLabel(g.irType)}
                   </span>
-                  <span className={`font-mono text-[10.5px] ${danger ? 'text-amber-600' : 'text-gray-400'}`}>{g.occPct}%</span>
+                  <span className={`font-mono text-[10.5px] ${OCC_TEXT[occSev]}`}>{g.occPct}%</span>
                 </button>
               );
             })}
@@ -156,7 +237,7 @@ export default function ChannelDetailWidget({ data, widgetId }: CustomWidgetComp
               label="점유"
               value={`${curGroup.busy}`}
               suffix={`${curGroup.occPct}%`}
-              valueColor={curGroup.occPct >= 80 ? 'text-amber-600' : 'text-gray-900'}
+              valueColor={OCC_KPI_TEXT[occSeverity(curGroup.occPct, occThresholds)]}
               icon={<PhoneCall className="h-3.5 w-3.5" />}
             />
             <KpiTile label="인바운드 점유" value={curGroup.inBusy} icon={<PhoneIncoming className="h-3.5 w-3.5" />} />
@@ -197,6 +278,73 @@ export default function ChannelDetailWidget({ data, widgetId }: CustomWidgetComp
       <div className="min-h-0 flex-1 overflow-auto">
         <ChannelCellGrid rows={visibleRows} irType={curGroup.irType} />
       </div>
+
+      {/* ═══ 설정 드로어 — 점유 세츄레이션 임계값(주의·위험) ═══ */}
+      <Drawer
+        title="점유 세츄레이션 임계값 설정"
+        closable={{ placement: 'end' }}
+        placement="right"
+        width={420}
+        open={settingsOpen}
+        onClose={handleCloseSettings}
+        destroyOnClose
+        footer={
+          <div className="flex justify-end gap-2">
+            <Button onClick={handleCloseSettings} disabled={isSaving}>
+              취소
+            </Button>
+            <Button type="primary" onClick={handleSaveSettings} loading={isSaving} disabled={!hasWidgetId || form.warn > form.danger}>
+              저장
+            </Button>
+          </div>
+        }
+      >
+        <div className="flex flex-col gap-4">
+          <p className="text-[12px] leading-relaxed text-gray-500">
+            시스템(SLEE)의 점유율(%)이 기준 이상이면 <b className="text-amber-600">주의(주황)</b>·<b className="text-red-600">위험(빨강)</b>으로 강조됩니다. 시스템 탭의 점·점유율과
+            KPI 점유 타일에 적용됩니다.
+          </p>
+          <section className="flex flex-col gap-2 rounded-lg border border-gray-200 p-3">
+            <span className="text-sm font-semibold text-gray-800">점유 세츄레이션</span>
+            <div className="grid grid-cols-2 gap-3">
+              <label className="flex flex-col gap-1">
+                <span className="inline-flex items-center gap-1.5 text-[12px] font-medium text-amber-600">
+                  <span className="h-2 w-2 rounded-full bg-amber-500" />
+                  주의 기준
+                </span>
+                <InputNumber
+                  value={form.warn}
+                  min={0}
+                  max={100}
+                  onChange={(v) => setForm((p) => ({ ...p, warn: v ?? 0 }))}
+                  addonAfter="%"
+                  style={{ width: '100%' }}
+                  disabled={isSaving}
+                />
+                <span className="text-[11px] text-gray-400">이상 시 주황</span>
+              </label>
+              <label className="flex flex-col gap-1">
+                <span className="inline-flex items-center gap-1.5 text-[12px] font-medium text-red-600">
+                  <span className="h-2 w-2 rounded-full bg-red-500" />
+                  위험 기준
+                </span>
+                <InputNumber
+                  value={form.danger}
+                  min={0}
+                  max={100}
+                  onChange={(v) => setForm((p) => ({ ...p, danger: v ?? 0 }))}
+                  addonAfter="%"
+                  style={{ width: '100%' }}
+                  disabled={isSaving}
+                />
+                <span className="text-[11px] text-gray-400">이상 시 빨강</span>
+              </label>
+            </div>
+            {form.warn > form.danger && <span className="text-[11px] text-red-500">위험 기준은 주의 기준 이상이어야 합니다.</span>}
+          </section>
+          {!hasWidgetId && <p className="text-[12px] text-red-500">대시보드에 추가된 위젯에서만 저장할 수 있습니다.</p>}
+        </div>
+      </Drawer>
     </div>
   );
 }
@@ -214,12 +362,12 @@ interface KpiTileProps {
 
 function KpiTile({ label, value, suffix, valueColor, icon }: KpiTileProps) {
   return (
-    <div className="flex flex-col items-start gap-1 rounded-md border border-gray-200 bg-white px-3 py-2">
+    <div className="flex flex-col gap-1 rounded-md border border-gray-200 bg-white px-3 py-2">
       <div className="flex items-center gap-1 text-[12px] font-semibold uppercase tracking-wide text-gray-600">
         {icon}
         <span>{label}</span>
       </div>
-      <div className="flex items-baseline gap-1.5">
+      <div className="flex items-baseline justify-center gap-1.5">
         <span className={`font-mono text-[16px] font-semibold tabular-nums ${valueColor ?? 'text-gray-900'}`}>{value}</span>
         {suffix && <span className={`text-[12px] font-bold ${valueColor ?? 'text-gray-500'}`}>{suffix}</span>}
       </div>

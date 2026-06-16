@@ -128,29 +128,38 @@ export interface CtiqRow {
   [extra: string]: unknown;
 }
 
-/** 큐 상태 분류 (FE 임계값 평가 결과). */
-export type CtiqSeverity = 'ok' | 'warn' | 'alert' | 'danger' | 'idle';
+/** 큐 상태 분류 (FE 임계값 평가 결과) — 지표별 2단 임계의 최댓값. */
+export type CtiqSeverity = 'ok' | 'warn' | 'danger';
 
 /** 위젯 표시 밀도 — 큰카드(상세) / 작은카드(컴팩트) / 표(ag-Grid). */
 export type CtiqDensity = 'large' | 'small' | 'grid';
 
-/** 임계값 — 사용자가 설정 드로어에서 조정 가능. */
+/** 한 지표의 2단 임계 — 주의(warn)·위험(danger) 경계. */
+export interface CtiqMetricThreshold {
+  warn: number;
+  danger: number;
+}
+
+/**
+ * 임계값 — 사용자가 설정 드로어에서 조정 가능.
+ * 각 지표를 자체 2단 임계로 등급화한 뒤 그중 가장 나쁜 등급을 큐 상태로 채택한다(worst-wins).
+ */
 export interface CtiqThresholds {
-  /** 대기 콜수 — 초과 시 주의 */
-  waitCnt: number;
-  /** 최장 대기 (초) — 초과 시 경고 */
-  maxWaitSec: number;
-  /** SLA 목표 (%) — 미달 시 경고 */
-  slaPct: number;
-  /** 포기율 (%) — 초과 시 위험 */
-  abandonRatioPct: number;
+  /** 대기 콜수 — 초과할수록 나쁨 */
+  waitCnt: CtiqMetricThreshold;
+  /** 최장 대기 (초) — 초과할수록 나쁨 */
+  maxWaitSec: CtiqMetricThreshold;
+  /** SLA 목표 (%) — 미달할수록 나쁨 */
+  slaPct: CtiqMetricThreshold;
+  /** 포기율 (%) — 초과할수록 나쁨 */
+  abandonRatioPct: CtiqMetricThreshold;
 }
 
 export const DEFAULT_CTIQ_THRESHOLDS: CtiqThresholds = {
-  waitCnt: 10,
-  maxWaitSec: 120,
-  slaPct: 90,
-  abandonRatioPct: 10,
+  waitCnt: { warn: 10, danger: 25 },
+  maxWaitSec: { warn: 60, danger: 180 },
+  slaPct: { warn: 90, danger: 70 },
+  abandonRatioPct: { warn: 5, danger: 10 },
 };
 
 /** 정렬 기준. */

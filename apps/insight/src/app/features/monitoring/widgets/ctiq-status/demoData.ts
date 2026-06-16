@@ -6,7 +6,7 @@ import type { CtiqRow } from './types';
  * 용도:
  *  - WebSocket 미연결 환경에서 카드 시각화 확인
  *  - 시안/HTML 모형과 픽셀 비교
- *  - 디자인 변경 시 모든 심각도(idle/ok/warn/alert/danger) 한 번에 검증
+ *  - 디자인 변경 시 모든 심각도(정상/주의/위험) 한 번에 검증
  *
  * 운영에는 영향 없음 — 쿼리 파라미터가 없으면 무시된다.
  * KPI 필드(KPI_*)는 레거시와 동일하게 0~1 decimal (표시 시 ×100%).
@@ -38,7 +38,7 @@ const HANDCRAFTED_CTIQS: CtiqRow[] = [
     AVG_ANSTALK_TIME: 204,
     AVG_ANSWAIT_TIME: 65,
   },
-  // ② alert — 최장 대기 2:36 (임계 120s 초과)
+  // ② warn — 최장 대기 2:36 (주의 임계 60s 초과, 위험 180s 미만)
   {
     CTIQ_ID: 5002,
     CTIQ_NAME: '일반 상담',
@@ -59,7 +59,7 @@ const HANDCRAFTED_CTIQS: CtiqRow[] = [
     AVG_ANSTALK_TIME: 168,
     AVG_ANSWAIT_TIME: 42,
   },
-  // ③ alert — SLA 78% (목표 90% 미달)
+  // ③ warn — SLA 78% (주의 임계 90% 미달, 위험 70% 초과)
   {
     CTIQ_ID: 5003,
     CTIQ_NAME: '기술지원',
@@ -165,19 +165,6 @@ const HANDCRAFTED_CTIQS: CtiqRow[] = [
     AVG_ANSTALK_TIME: 288,
     AVG_ANSWAIT_TIME: 110,
   },
-  // ⑧ idle — 인입·대기·로그인 모두 0 (휴면)
-  {
-    CTIQ_ID: 5008,
-    CTIQ_NAME: '야간 큐',
-    GDN_NO: 7008,
-    RTS_WAIT_CNT: 0,
-    RTS_MAXWAIT_TIME: 0,
-    KPI_EWT_TIME: 0,
-    RTS_EXP_LOGIN_AGT: 0,
-    SUM_CONN_CNT: 0,
-    SUM_ANSWER_CNT_TOT: 0,
-    SUM_ABDN_CNT: 0,
-  },
 ];
 
 // ─── 합성 큐 — 다량 표시·성능 테스트용 ─────────────────────────────
@@ -211,24 +198,6 @@ function generateCtiqs(count: number, startId = 6000): CtiqRow[] {
   for (let i = 0; i < count; i++) {
     const id = startId + i;
     const name = `${QUEUE_NAMES[i % QUEUE_NAMES.length]} ${Math.floor(i / QUEUE_NAMES.length) + 1}`;
-
-    // 약 10% 는 휴면(0건) 큐
-    const isIdle = rnd(i + 3, 10) === 0;
-    if (isIdle) {
-      rows.push({
-        CTIQ_ID: id,
-        CTIQ_NAME: name,
-        GDN_NO: 8000 + i,
-        RTS_WAIT_CNT: 0,
-        RTS_MAXWAIT_TIME: 0,
-        KPI_EWT_TIME: 0,
-        RTS_EXP_LOGIN_AGT: 0,
-        SUM_CONN_CNT: 0,
-        SUM_ANSWER_CNT_TOT: 0,
-        SUM_ABDN_CNT: 0,
-      });
-      continue;
-    }
 
     const conn = 30 + rnd(i + 7, 600);
     const abdn = rnd(i + 11, Math.max(1, Math.floor(conn * 0.18)));

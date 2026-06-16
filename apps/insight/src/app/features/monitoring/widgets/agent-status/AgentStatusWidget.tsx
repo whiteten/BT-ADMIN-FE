@@ -2,7 +2,22 @@ import { type ReactNode, useCallback, useEffect, useMemo, useRef, useState } fro
 import { createPortal } from 'react-dom';
 import { useQueryClient } from '@tanstack/react-query';
 import { Button, Drawer, Input, Radio, Tooltip } from 'antd';
-import { AlertTriangle, ChevronDown, CircleHelp, Grid2X2, LayoutList, List as ListIcon, PanelTopClose, PanelTopOpen, Search, Settings } from 'lucide-react';
+import {
+  AlertTriangle,
+  ChevronDown,
+  CircleHelp,
+  Grid2X2,
+  Headset,
+  LayoutList,
+  List as ListIcon,
+  PanelTopClose,
+  PanelTopOpen,
+  PhoneCall,
+  PhoneIncoming,
+  Search,
+  Settings,
+  Users,
+} from 'lucide-react';
 import List, { type ListRef } from 'rc-virtual-list';
 import { toast } from '@/shared-util';
 import { DEMO_AGENTS, isDemoMode } from './demoData';
@@ -376,10 +391,22 @@ export default function AgentStatusWidget({ data, options, widgetId, onRequestPa
       <div className={`grid transition-all duration-300 ease-in-out ${summaryCollapsed ? 'grid-rows-[0fr] opacity-0' : 'grid-rows-[1fr] opacity-100'}`}>
         <div className="min-h-0 overflow-hidden">
           <div className="grid grid-cols-2 gap-2 border-b border-gray-200 bg-gray-50 px-4 py-3 sm:grid-cols-3 lg:grid-cols-5">
-            <KpiTile label="인입콜" value={stripKpi.conn.toLocaleString()} mono />
-            <KpiTile label="응대콜" value={stripKpi.ans.toLocaleString()} mono />
-            <KpiTile label="응대대기" value={stripKpi.responseReady != null ? `${stripKpi.responseReady}%` : '—'} mono hint={`대기 ${stripKpi.idle}`} />
-            <KpiTile label="근무율" value={stripKpi.working != null ? `${stripKpi.working}%` : '—'} mono hint={`근무 ${stripKpi.online - stripKpi.aux}`} />
+            <KpiTile label="인입콜" value={stripKpi.conn.toLocaleString()} mono icon={<PhoneIncoming className="w-3.5 h-3.5" />} />
+            <KpiTile label="응대콜" value={stripKpi.ans.toLocaleString()} mono icon={<PhoneCall className="w-3.5 h-3.5" />} />
+            <KpiTile
+              label="응대대기"
+              value={stripKpi.responseReady != null ? `${stripKpi.responseReady}%` : '—'}
+              mono
+              hint={`대기 ${stripKpi.idle}`}
+              icon={<Headset className="w-3.5 h-3.5" />}
+            />
+            <KpiTile
+              label="근무율"
+              value={stripKpi.working != null ? `${stripKpi.working}%` : '—'}
+              mono
+              hint={`근무 ${stripKpi.online - stripKpi.aux}`}
+              icon={<Users className="w-3.5 h-3.5" />}
+            />
             <KpiTile
               label="임계"
               value={alertCount.toString()}
@@ -585,18 +612,18 @@ function GroupHeader({ item, allRows }: { item: VirtualItem & { type: 'header' }
 function KpiTile({ label, value, hint, mono, valueColor, icon, accent, active, onClick }: KpiTileProps) {
   const isRed = accent === 'red';
   const cls = [
-    'flex flex-col items-start gap-1 rounded-md border px-3 py-2 transition-colors',
+    'flex flex-col gap-1 rounded-md border px-3 py-2 transition-colors',
     onClick ? 'cursor-pointer hover:shadow-sm' : '',
     isRed ? (active ? 'border-red-500 bg-red-50' : 'border-red-200 bg-white hover:bg-red-50') : 'border-gray-200 bg-white',
   ].join(' ');
 
   return (
-    <div onClick={onClick} className={`${cls} text-left`}>
+    <div onClick={onClick} className={cls}>
       <div className="flex items-center gap-1 text-[13px] font-semibold uppercase tracking-wide text-gray-600">
         {icon}
         <span>{label}</span>
       </div>
-      <div className="flex items-baseline gap-2 min-w-0">
+      <div className="flex items-baseline justify-center gap-2 min-w-0">
         <span className={`text-xl font-bold leading-none ${mono ? 'font-mono tabular-nums' : ''} ${valueColor ?? 'text-gray-900'}`}>{value}</span>
         {hint && <span className="truncate text-[11px] text-gray-400">{hint}</span>}
       </div>

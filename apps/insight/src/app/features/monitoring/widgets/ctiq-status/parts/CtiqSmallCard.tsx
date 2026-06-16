@@ -30,7 +30,7 @@ function CtiqSmallCardImpl({ row, sev }: CtiqSmallCardProps) {
       <div className="flex items-baseline justify-between">
         <div>
           <div className="text-[9px] uppercase tracking-wide text-gray-500 leading-none">대기</div>
-          <div className={`font-mono font-bold text-[18px] leading-tight ${sev === 'ok' || sev === 'idle' ? 'text-gray-900' : meta.textCls}`}>{fmtCount(wait)}</div>
+          <div className={`font-mono font-bold text-[18px] leading-tight ${sev === 'ok' ? 'text-gray-900' : meta.textCls}`}>{fmtCount(wait)}</div>
         </div>
         <div className="text-right">
           <div className="text-[9px] uppercase tracking-wide text-gray-500 leading-none">SLA</div>

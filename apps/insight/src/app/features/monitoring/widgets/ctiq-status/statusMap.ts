@@ -38,17 +38,6 @@ export const SEVERITY_META: Record<CtiqSeverity, SeverityMeta> = {
     tagColor: 'red',
     hex: '#dc2626',
   },
-  alert: {
-    label: '경고',
-    chipCls: 'bg-orange-50 text-orange-700 border-orange-200',
-    dotCls: 'bg-orange-600',
-    rowBg: 'bg-orange-50/50',
-    barCls: 'bg-orange-600',
-    cardBorder: 'border-orange-300',
-    textCls: 'text-orange-600',
-    tagColor: 'orange',
-    hex: '#ea580c',
-  },
   warn: {
     label: '주의',
     chipCls: 'bg-amber-50 text-amber-700 border-amber-200',
@@ -71,21 +60,10 @@ export const SEVERITY_META: Record<CtiqSeverity, SeverityMeta> = {
     tagColor: 'green',
     hex: '#059669',
   },
-  idle: {
-    label: '휴면',
-    chipCls: 'bg-gray-100 text-gray-500 border-gray-200',
-    dotCls: 'bg-gray-400',
-    rowBg: '',
-    barCls: 'bg-gray-300',
-    cardBorder: 'border-gray-200',
-    textCls: 'text-gray-500',
-    tagColor: 'default',
-    hex: '#9ca3af',
-  },
 };
 
 /**
- * 칩·정렬·필터에서 사용하는 표시 순서 (위험 → 휴면).
+ * 칩·정렬·필터에서 사용하는 표시 순서 (위험 → 정상).
  * 정렬 가중치는 helpers.ts의 severityWeight()와 동일 의미.
  */
-export const SEVERITY_ORDER: CtiqSeverity[] = ['danger', 'alert', 'warn', 'ok', 'idle'];
+export const SEVERITY_ORDER: CtiqSeverity[] = ['danger', 'warn', 'ok'];
