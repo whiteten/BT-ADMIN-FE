@@ -97,7 +97,6 @@ export default function GlobalSearch() {
     params: { q: debouncedQuery, limit: 20 },
     queryOptions: {
       enabled: debouncedQuery.length > 0,
-      placeholderData: (prev) => prev,
     },
   });
 
