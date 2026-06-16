@@ -20,6 +20,9 @@ export default function GlobalSearch() {
   const [open, setOpen] = useState(false);
   const [inputValue, setInputValue] = useState(''); // 보이는 값(타이핑)
   const [submittedQuery, setSubmittedQuery] = useState(''); // 실행된 검색어(결과 SoT)
+  // ↑↓로 항목을 탐색하기 시작했는지 여부. false면 cmdk 자동 첫 하이라이트를 시각적으로 숨기고 Enter는 입력값 검색,
+  // true면 키보드 하이라이트를 표시하고 Enter를 cmdk(하이라이트 항목 선택)에 위임
+  const [navigated, setNavigated] = useState(false);
   const [activeTab, setActiveTab] = useState<SearchTabKey>('all');
   const anchorRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -49,6 +52,7 @@ export default function GlobalSearch() {
     setInputValue('');
     setSubmittedQuery('');
     setActiveTab('all');
+    setNavigated(false);
   };
 
   // 검색 실행 — Enter / 자동완성 클릭 / 최근어 클릭 공통
@@ -60,17 +64,31 @@ export default function GlobalSearch() {
     setActiveTab('all');
     addRecent(t);
     setOpen(true);
+    setNavigated(false);
   };
 
   const handleQueryChange = (value: string) => {
     setInputValue(value);
     setOpen(true);
+    setNavigated(false); // 타이핑하면 탐색 초기화 — 첫 하이라이트 숨김 + Enter는 입력값 검색
     // 검색어가 바뀌면 결과를 없애고 자동완성으로 복귀
     if (submittedQuery && value !== submittedQuery) setSubmittedQuery('');
   };
 
   const handleInputKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
-    if (e.key === 'Enter') {
+    if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+      // cmdk CommandItem 목록(자동완성·최근검색어)에서만 키보드 하이라이트 노출.
+      // results 모드는 plain div라 cmdk 하이라이트 대상이 아님
+      if (mode !== 'autocomplete' && mode !== 'recent') return;
+      // cmdk는 검색 변경/마운트 시 첫 항목을 내부 선택해 둠. 첫 ↑↓는 이동시키지 않고(=preventDefault)
+      // 이미 선택된 첫 항목의 하이라이트만 드러낸다. 이후부터 cmdk 기본 이동에 맡긴다.
+      if (!navigated) {
+        e.preventDefault();
+        setNavigated(true);
+      }
+    } else if (e.key === 'Enter') {
+      // ↑↓로 항목을 탐색한 경우엔 cmdk가 하이라이트 항목 onSelect 실행(차단 안 함)
+      if (navigated) return;
       e.preventDefault();
       e.stopPropagation(); // cmdk 자동 select 차단 — 항상 타이핑값 실행
       executeSearch(inputValue);
@@ -149,8 +167,8 @@ export default function GlobalSearch() {
               if (anchorRef.current?.contains(e.target as Node)) e.preventDefault();
             }}
           >
-            {mode === 'recent' && <SearchRecentList recents={recents} onSelect={executeSearch} onRemove={removeRecent} />}
-            {mode === 'autocomplete' && <SearchAutocomplete query={inputValue.trim()} suggestions={suggestions} onSelect={executeSearch} />}
+            {mode === 'recent' && <SearchRecentList recents={recents} navigated={navigated} onSelect={executeSearch} onRemove={removeRecent} />}
+            {mode === 'autocomplete' && <SearchAutocomplete query={inputValue.trim()} suggestions={suggestions} navigated={navigated} onSelect={executeSearch} />}
             {mode === 'results' && (
               <SearchResults
                 query={submittedQuery}
