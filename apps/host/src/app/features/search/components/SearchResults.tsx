@@ -99,7 +99,7 @@ export default function SearchResults({ query, activeTab, onTabChange, menus, do
         </p>
       </div>
       <SearchResultTabs activeTab={activeTab} onTabChange={onTabChange} counts={counts} />
-      <div className="max-h-[460px] overflow-y-auto p-1.5">{renderBody()}</div>
+      <div className="max-h-[650px] overflow-y-auto p-1.5">{renderBody()}</div>
     </div>
   );
 }
