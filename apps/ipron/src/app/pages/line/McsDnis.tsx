@@ -391,7 +391,7 @@ export default function McsDnis() {
                 rowSelection={dnisRowSelection}
                 loading={isDnisLoading}
                 getRowId={(params) => `${params.data.mcsdGdnNo}-${params.data.seq}-${params.data.nodeId}`}
-                defaultColDef={{ sortable: true, filter: true, suppressHeaderMenuButton: true, wrapHeaderText: true, autoHeaderHeight: true }}
+                defaultColDef={{ sortable: true, filter: true, suppressHeaderMenuButton: true }}
                 onRowDoubleClicked={() => {
                   // 더블클릭 무반응 (수정 불가 항목)
                 }}
